@@ -2,21 +2,48 @@ package com.ssafy.eolssu.feature.profile
 
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.KoreanDateTime
+import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.data.user.LearnProgressRepository
 
-/** 완료 표시는 순서와 무관하므로 완료 수와 아직 완료하지 않은 첫 단계를 따로 보여 준다. */
+/** 완료 표시는 순서와 무관하므로 완료 수와 아직 완료하지 않은 첫 단계를 따로 둔다. 프로필 뱃지는 [nextStage]를 보여 준다. */
 data class MyLearningProgress(val completedStages: Set<Int>) {
     val totalStages: Int get() = LearnProgressRepository.STAGE_COUNT
     val completedCount: Int get() = (1..totalStages).count { it in completedStages }
     val nextStage: Int? get() = (1..totalStages).firstOrNull { it !in completedStages }
-    val mascot: LearningMascot get() = when (nextStage ?: totalStages) {
-        in 1..3 -> LearningMascot.Study
-        in 4..6 -> LearningMascot.Point
-        else -> LearningMascot.Rhythm
+}
+
+/**
+ * '최근 연주 돌아보기' 카드 내용. 연습 기록(REC-02) 목록에서 만든다.
+ *
+ * @property latest 가장 최근 연주. 기록이 없으면 null.
+ * @property weekCount 이번 주(월~일) 연주 수.
+ * @property weekBest 이번 주 최고 점수. 이번 주 기록이 없으면 null.
+ */
+data class MyRecentPractice(val latest: PracticeRecord?, val weekCount: Int, val weekBest: Int?) {
+    companion object {
+        /** [records]는 저장소의 최신순 목록이다. 순서가 어긋나도 녹음 시각이 가장 늦은 기록을 고른다. */
+        fun from(records: List<PracticeRecord>, today: KoreanDateTime): MyRecentPractice {
+            val week = records.filter { it.recordedAt.isSameWeek(today) }
+            return MyRecentPractice(
+                latest = records.maxByOrNull { it.recordedAtMillis },
+                weekCount = week.size,
+                weekBest = week.maxOfOrNull { it.score },
+            )
+        }
     }
 }
 
-enum class LearningMascot { Study, Point, Rhythm }
+/** 카드에 기록 대신 보일 상태. 받은 기록이 있으면 받는 중·실패여도 기록을 보인다. */
+enum class MyRecentPracticeStatus { Shown, Loading, Failed, Empty, Unavailable }
+
+internal fun myRecentPracticeStatus(available: Boolean, hasRecords: Boolean, loading: Boolean, failed: Boolean): MyRecentPracticeStatus = when {
+    !available -> MyRecentPracticeStatus.Unavailable
+    hasRecords -> MyRecentPracticeStatus.Shown
+    loading -> MyRecentPracticeStatus.Loading
+    failed -> MyRecentPracticeStatus.Failed
+    else -> MyRecentPracticeStatus.Empty
+}
 
 /** 연습 악기의 학습 진도(서버). 받지 못하면 null. */
 internal suspend fun myLearningProgress(instrument: Instrument, repository: LearnProgressRepository): MyLearningProgress? =
