@@ -74,7 +74,7 @@ fun BeatCountdownOverlay(count: Int, message: String, modifier: Modifier = Modif
 
 /**
  * 3·2·1 원: 150dp 단청 북(크림 가죽, 삼태극은 숫자를 가리지 않게 아주 옅게)에 Song Myung 86sp 숫자, 아래에 센 박만큼 먹색으로 칠하는 12dp 점.
- * [BeatCountdownOverlay]와 연습 화면의 평가 시작 카운트다운·한 음씩 다시 시작이 함께 쓴다.
+ * [BeatCountdownOverlay]와 연습 화면의 평가 시작 카운트다운이 함께 쓴다.
  */
 @Composable
 fun BeatCountRing(count: Int, modifier: Modifier = Modifier, beats: Int = 3) {
