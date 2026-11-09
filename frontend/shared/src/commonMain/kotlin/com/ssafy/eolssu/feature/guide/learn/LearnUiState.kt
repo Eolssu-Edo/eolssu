@@ -149,14 +149,3 @@ internal val LearnStage.primaryAction: LearnStageAction
         LearnJudge.Listen -> LearnStageAction.ListenModel
         LearnJudge.Pitch, LearnJudge.Beat -> LearnStageAction.Practice
     }
-
-/** 주 버튼 아래 안내(`.lbar .hint`). 8단계만 곡을 골라 AI 연주 평가로 통과를 확인한다. */
-internal enum class LearnStageHint { Read, Listen, Song, Practice }
-
-internal val LearnStage.hint: LearnStageHint
-    get() = when {
-        judge == LearnJudge.Read -> LearnStageHint.Read
-        judge == LearnJudge.Listen -> LearnStageHint.Listen
-        number == 8 -> LearnStageHint.Song
-        else -> LearnStageHint.Practice
-    }

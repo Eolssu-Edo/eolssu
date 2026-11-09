@@ -75,4 +75,11 @@ class LearnCurriculumTest {
     fun shortScaleMakesNoPattern() {
         LearnPattern.entries.forEach { assertEquals(emptyList(), it.notes(listOf("仲", "林"))) }
     }
+
+    @Test
+    fun plainDropsSourceAndExampleMarksButKeepsMeaningfulParentheses() {
+        assertEquals("음료수병을 불듯 가늘고 곧게 불어요.", "음료수병을 불듯 가늘고 곧게 불어요(대금 기초편 7차시).".plain())
+        assertEquals("목표 음과 ±25센트 이내면 통과.", "목표 음과 ±25센트 이내면 통과(예시).".plain())
+        assertEquals("요성(떠는 소리)·퇴성(흘러내리는 소리)", "요성(떠는 소리)·퇴성(흘러내리는 소리)".plain())
+    }
 }

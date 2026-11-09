@@ -5,15 +5,15 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -21,24 +21,33 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.collapse
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.feature.guide.learn.LearnJudge
 import com.ssafy.eolssu.feature.guide.learn.LearnTask
 import eolssu.shared.generated.resources.Res
@@ -133,13 +142,29 @@ internal fun MoreLink(text: String, onClick: () -> Unit, modifier: Modifier = Mo
     }
 }
 
-/** 할 일 목록(`.lp-tasks`): 흰 바탕에 옅은 테두리, 번호는 옅은 회색 원. 태블릿은 [columns] 2칸 격자로 놓고 같은 줄의 높이를 맞춘다. */
+/**
+ * 할 일 목록(`.lp-tasks`): 흰 바탕에 옅은 테두리, 번호는 옅은 회색 원. 태블릿은 [columns] 2칸 격자로 놓고 같은 줄의 높이를 맞춘다.
+ * [collapsible]이면 제목만 보이고, 설명이 있는 줄은 눌러서 펼친다(단계 상세에서 글을 줄이려고).
+ */
 @Composable
-internal fun LearnTaskList(tasks: List<LearnTask>, columns: Int = 1) {
+internal fun LearnTaskList(tasks: List<LearnTask>, columns: Int = 1, collapsible: Boolean = false) {
     val colors = EolssuTheme.colors
+    var openIndex by remember(tasks) { mutableStateOf<Int?>(null) }
     GuideGrid(tasks, columns) { i, task, cell ->
+        val canOpen = collapsible && task.detail != null
+        val open = !collapsible || openIndex == i
         Row(
             cell
+                .clip(RoundedCornerShape(12.dp))
+                .then(
+                    if (canOpen) {
+                        Modifier
+                            .clickable { openIndex = if (openIndex == i) null else i }
+                            .semantics { if (open) collapse { openIndex = null; true } else expand { openIndex = i; true } }
+                    } else {
+                        Modifier
+                    },
+                )
                 .background(colors.surface, RoundedCornerShape(12.dp))
                 .border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -153,7 +178,7 @@ internal fun LearnTaskList(tasks: List<LearnTask>, columns: Int = 1) {
             }
             Column(Modifier.weight(1f)) {
                 Text(task.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
-                if (task.detail != null) {
+                if (task.detail != null && open) {
                     GuideText(
                         task.detail,
                         Modifier.padding(top = 2.dp),
@@ -162,41 +187,66 @@ internal fun LearnTaskList(tasks: List<LearnTask>, columns: Int = 1) {
                     )
                 }
             }
+            if (canOpen) {
+                Icon(
+                    EolssuIcons.ChevronDown,
+                    contentDescription = null,
+                    modifier = Modifier.padding(top = 5.dp).size(12.dp).rotate(if (open) 180f else 0f),
+                    tint = GuideFaint,
+                )
+            }
         }
     }
 }
 
-/** 율명 칩을 ›로 잇는다(`.lp-chips`). 운지표에 없는 글자는 건너뛴다. */
+/**
+ * 율명 칩을 ›로 잇는다(`.lp-chips`). 운지표에 없는 글자는 건너뛴다.
+ * 순서를 한눈에 보도록 항상 한 줄에 놓고, 칸이 모자라면 칩 폭을 줄인다(율명 위 · 읽는 법 아래).
+ */
 @Composable
 internal fun NoteChips(notes: List<FingeringNote>, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
-    FlowRow(
-        modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        itemVerticalAlignment = Alignment.CenterVertically,
-    ) {
-        notes.forEachIndexed { i, note ->
-            if (i > 0) {
-                Text("›", Modifier.padding(horizontal = 1.dp).clearAndSetSemantics {}, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = GuideFaint)
-            }
-            Row(
-                Modifier
-                    .height(38.dp)
-                    .widthIn(min = 38.dp)
-                    .background(colors.surface, RoundedCornerShape(10.dp))
-                    .border(1.dp, colors.lineSoft, RoundedCornerShape(10.dp))
-                    .padding(horizontal = 10.dp)
-                    .semantics(mergeDescendants = true) { contentDescription = note.name },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                HanjaGlyph(note.hanja, 19.sp, Modifier.clearAndSetSemantics {})
-                Text(note.reading, Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = colors.textMuted)
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val gaps = (notes.size - 1).coerceAtLeast(0)
+        val chipWidth = ((maxWidth - NoteChipArrow * gaps) / notes.size.coerceAtLeast(1)).coerceAtMost(NoteChipMaxWidth)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            notes.forEachIndexed { i, note ->
+                if (i > 0) {
+                    Text(
+                        "›",
+                        Modifier.width(NoteChipArrow).clearAndSetSemantics {},
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                        color = GuideFaint,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                Column(
+                    Modifier
+                        .width(chipWidth)
+                        .height(52.dp)
+                        .background(colors.surface, RoundedCornerShape(10.dp))
+                        .border(1.dp, colors.lineSoft, RoundedCornerShape(10.dp))
+                        .semantics(mergeDescendants = true) { contentDescription = note.name },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    HanjaGlyph(note.hanja, 18.sp, Modifier.clearAndSetSemantics {})
+                    Text(
+                        note.reading,
+                        Modifier.clearAndSetSemantics {},
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
+                        color = colors.textMuted,
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }
 }
+
+/** 율명 칩 사이 › 칸과 칩의 최대 폭. */
+private val NoteChipArrow = 12.dp
+private val NoteChipMaxWidth = 56.dp
 
 /** 흰 바탕 묶음(`.lp-pattern`). */
 @Composable
@@ -236,16 +286,8 @@ internal fun LearnSmallNote(raw: String, modifier: Modifier = Modifier) {
     GuideText(raw, modifier, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp), color = EolssuTheme.colors.textMuted)
 }
 
-/** 정간보 쉽게 읽기에서 가져온 설명 카드(`.gcard.borrow`). 아래에 [caption]을 단다. */
+/** 정간보 쉽게 읽기에서 가져온 그림 카드(`.gcard.borrow`). 자세한 설명은 묶음 제목의 '더 보기'로 연다. */
 @Composable
-internal fun BorrowCard(caption: String, content: @Composable ColumnScope.() -> Unit) {
-    GuideCard {
-        content()
-        Text(
-            caption,
-            Modifier.padding(top = 10.dp),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 16.5.sp),
-            color = EolssuTheme.colors.textMuted,
-        )
-    }
+internal fun BorrowCard(content: @Composable ColumnScope.() -> Unit) {
+    GuideCard { content() }
 }

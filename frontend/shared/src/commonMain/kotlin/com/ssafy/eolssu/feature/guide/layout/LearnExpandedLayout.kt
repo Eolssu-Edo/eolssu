@@ -33,6 +33,7 @@ import com.ssafy.eolssu.feature.guide.component.GuideTabletBottomContent
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
 import com.ssafy.eolssu.feature.guide.learn.LearnListActions
 import com.ssafy.eolssu.feature.guide.learn.LearnListContent
+import com.ssafy.eolssu.feature.guide.learn.LearnTitleFontSize
 import com.ssafy.eolssu.feature.guide.learn.LearnStage
 import com.ssafy.eolssu.feature.guide.learn.LearnStageActions
 import com.ssafy.eolssu.feature.guide.learn.LearnStageBottomBar
@@ -42,7 +43,6 @@ import com.ssafy.eolssu.feature.guide.learn.LearnUiState
 import com.ssafy.eolssu.feature.guide.learn.learnStageSubtitle
 import com.ssafy.eolssu.feature.guide.learn.learnStageTitle
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.learn_subtitle
 import eolssu.shared.generated.resources.learn_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -85,8 +85,8 @@ internal fun LearnExpandedLayout(
                         stringResource(Res.string.learn_title),
                         onBack = onBack,
                         modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = outer - 20.dp, end = 4.dp),
-                        subtitle = stringResource(Res.string.learn_subtitle),
                         maxWidth = Dp.Infinity,
+                        titleFontSize = LearnTitleFontSize,
                     )
                     LearnListContent(
                         state,

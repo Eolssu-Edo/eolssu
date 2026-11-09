@@ -41,7 +41,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
@@ -93,7 +95,7 @@ private val TabletPortraitTopBarTop: Dp = 40.dp
 private val TabletLandscapeTopBarTop: Dp = 28.dp
 
 /**
- * 상단 바(`.topbar`): 왼쪽 뒤로 가기 원형 버튼 · 가운데 제목(보조 문구, 그 아래 [below]) · 오른쪽 자리.
+ * 상단 바(`.topbar`): 왼쪽 뒤로 가기 원형 버튼 · 가운데 제목(보조 문구, 그 아래 [below]) · 오른쪽 자리. [titleFontSize]를 주면 제목만 그 크기로 바꾼다.
  * 휴대폰은 상태 표시줄 아래 12dp, 태블릿은 와이어프레임처럼 화면 맨 위에서 세로 40dp · 가로 28dp에 두고 제목을 17sp로 키운다.
  * 상태 표시줄 영역은 감싸는 쪽(`EolssuScaffold` 등)이 비켜 간다.
  */
@@ -105,6 +107,7 @@ fun EolssuTopBar(
     subtitle: String? = null,
     below: (@Composable () -> Unit)? = null,
     maxWidth: Dp = CompactContentMaxWidth,
+    titleFontSize: TextUnit = TextUnit.Unspecified,
     right: @Composable RowScope.() -> Unit = {},
 ) {
     val widthClass = currentWindowLayout().widthClass
@@ -131,7 +134,7 @@ fun EolssuTopBar(
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = if (widthClass == WindowWidthClass.Compact) 16.sp else 17.sp),
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = if (titleFontSize.isSpecified) titleFontSize else if (widthClass == WindowWidthClass.Compact) 16.sp else 17.sp),
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

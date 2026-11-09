@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
@@ -51,9 +52,10 @@ internal fun GuideTopBar(
     onBack: (() -> Unit)?,
     widthClass: WindowWidthClass,
     subtitle: String? = null,
+    titleFontSize: TextUnit = TextUnit.Unspecified,
 ) {
     if (widthClass == WindowWidthClass.Compact) {
-        EolssuTopBar(title, onBack = onBack, subtitle = subtitle)
+        EolssuTopBar(title, onBack = onBack, subtitle = subtitle, titleFontSize = titleFontSize)
     } else {
         // EolssuTopBar 안쪽 여백 20dp에 바깥 20dp를 더해 40dp, 내용 최대 1120dp가 되게 한다.
         EolssuTopBar(
@@ -62,6 +64,7 @@ internal fun GuideTopBar(
             modifier = Modifier.padding(horizontal = GuideTabletSidePadding - 20.dp),
             subtitle = subtitle,
             maxWidth = WindowBreakpoints.ContentMaxWidth + 40.dp,
+            titleFontSize = titleFontSize,
         )
     }
 }
