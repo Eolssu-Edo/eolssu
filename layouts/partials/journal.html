@@ -27,10 +27,16 @@
       <noscript><a class="quiet noscript-note" href="{{ "categories/" | relURL }}">분류별 글 보기</a></noscript>
       {{- end }}
     </div>
+    {{- with $posts }}
+    <div class="journal-search" role="search" data-post-search hidden>
+      <label for="post-query">글 검색</label>
+      <input id="post-query" type="search" placeholder="제목 또는 태그">
+    </div>
+    {{- end }}
     <div class="post-list">
       {{- range $posts }}{{ partial "post-item.html" . }}{{ end }}
       {{- if not $posts }}<p class="empty">첫 번째 개발 기록을 준비하고 있어요.</p>{{ end }}
-      <div class="empty" data-empty hidden><p>이 분야의 글을 준비하고 있어요.</p><button class="button-primary" type="button" data-reset-filter>전체 글 보기 <span aria-hidden="true">→</span></button></div>
+      <div class="empty" data-empty hidden><p data-empty-message>이 분야의 글을 준비하고 있어요.</p><button class="button-primary" type="button" data-reset-filter>전체 글 보기 <span aria-hidden="true">→</span></button></div>
     </div>
   </section>
   <aside class="journal-sidebar" aria-label="블로그 둘러보기">
