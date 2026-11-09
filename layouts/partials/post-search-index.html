@@ -1,0 +1,6 @@
+{{- $bodies := newScratch -}}
+{{- range where .RegularPages "Section" "posts" -}}
+  {{- $bodies.SetInMap "posts" .RelPermalink (.Plain | htmlUnescape) -}}
+{{- end -}}
+{{- $index := resources.FromString "search/post-bodies.json" ($bodies.Get "posts" | jsonify) | fingerprint -}}
+{{- return $index.RelPermalink -}}

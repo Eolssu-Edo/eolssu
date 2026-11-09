@@ -7,7 +7,7 @@
     {{- if not (in $known .key) }}{{ $extra = merge $extra (dict .key true) }}{{ end -}}
   {{- end -}}
 {{- end -}}
-<div class="journal-layout" data-journal>
+<div class="journal-layout" data-journal{{ with $posts }} data-post-search-index="{{ partialCached "post-search-index.html" site }}"{{ end }}>
   <section class="journal-main" aria-labelledby="all-title">
     <div class="article-header">
       <div class="journal-heading" aria-live="polite" aria-atomic="true">
@@ -16,7 +16,7 @@
       </div>
       {{- with $posts }}
       <form class="journal-search" role="search" data-post-search hidden>
-        <input type="search" aria-label="글 검색" placeholder="제목 또는 태그">
+        <input type="search" aria-label="글 검색" placeholder="제목 / 본문 / 저자 / 태그">
         <button class="button-primary" type="submit">검색</button>
       </form>
       <div class="journal-controls" data-journal-controls hidden>
