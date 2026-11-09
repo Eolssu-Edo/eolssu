@@ -47,3 +47,9 @@ python -m infra.catalog.import_reference_audio --manifest data/processed/playbac
 ```
 
 두 번째 명령의 입력은 `fingering_derivatives.py`에 고정한 기존 음원 ID의 `/api/reference-audios/{assetId}` 결과를 `<labelId>.json`으로, `/api/reference-audios/{assetId}/play`의 음원을 `<labelId>.m4a`로 보관한 폴더다. 해시 불일치, 출처 누락, 디코딩·음고 검사 실패 시 게시용 manifest를 생성하지 않는다. 원본, 합성 결과, 게시 후보 파일은 ignored 경로에 둔다.
+
+## 단소 평취 협종 (620)
+
+협종 카드의 조회 키는 `danso / 평취 / 협`이다. 역취의 청협과 중청협은 별도 음이다. 국립국악원 단소 평취 중려 원음 `ngc-danso-2338.tone-001`을 가공해 협종 기본음·요성 2개를 만든다. 황종을 E♭4로 둔 참고 음높이는 F♯4다. 기존과 같은 재현 명령에 `--danso-hyeop`을 붙이면 이 두 파일만 생성된다.
+
+운지 카드에는 기본음과 요성 재생 버튼을 둔다. 음원 출처와 가공 설명은 마이페이지의 ‘자료 및 데이터 출처’에서 확인한다.

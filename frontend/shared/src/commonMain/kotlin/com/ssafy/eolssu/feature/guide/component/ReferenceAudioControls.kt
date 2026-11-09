@@ -18,7 +18,6 @@ import com.ssafy.eolssu.feature.guide.ReferenceAudioController
 import com.ssafy.eolssu.feature.guide.ReferenceAudioKind
 import com.ssafy.eolssu.feature.guide.ReferenceAudioSelection
 import com.ssafy.eolssu.feature.guide.ReferenceLoadState
-import com.ssafy.eolssu.feature.guide.isPitchEdited
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
@@ -56,20 +55,13 @@ fun ReferenceAudioControls(selection: ReferenceAudioSelection, controller: Refer
                     playback.status in setOf(AudioPlaybackStatus.Loading, AudioPlaybackStatus.Playing)
                 val label = stringResource(if (kind == ReferenceAudioKind.Basic) Res.string.reference_audio_basic else Res.string.reference_audio_yoseong)
                 SpeakerButton(
-                    label = if (clip?.isPitchEdited == true) stringResource(Res.string.reference_audio_pitch_edited, label) else label,
+                    label = label,
                     active = active,
                     enabled = clip != null && playback.status != AudioPlaybackStatus.Unavailable,
                     onClick = { controller.play(selection, kind) },
                     modifier = Modifier.weight(1f),
                 )
             }
-        }
-        if (basic?.isPitchEdited == true || yoseong?.isPitchEdited == true) {
-            val note = if (yoseong?.isPitchEdited == true) Res.string.reference_audio_pitch_edited_yoseong_note
-                else Res.string.reference_audio_pitch_edited_basic_note
-            Text(stringResource(note), Modifier.padding(top = 6.dp),
-                style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
-            CatalogLink("https://www.gugak.go.kr/digitaleum/front/monotone/list.do", stringResource(Res.string.source_link_original))
         }
         val message = when (playback.status) {
             AudioPlaybackStatus.Loading -> Res.string.reference_audio_loading_sound
