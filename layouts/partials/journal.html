@@ -15,6 +15,10 @@
         {{- with $posts }}<span class="filter-count" data-filter-result>{{ len . }}편</span>{{ end }}
       </div>
       {{- with $posts }}
+      <form class="journal-search" role="search" data-post-search hidden>
+        <input type="search" aria-label="글 검색" placeholder="제목 또는 태그">
+        <button class="button-primary" type="submit">검색</button>
+      </form>
       <div class="filters" role="group" aria-label="분야별 읽기" data-filter-group hidden>
         <button type="button" data-value="all" aria-pressed="true">전체</button>
         {{- range site.Data.blog.categories }}
@@ -27,12 +31,6 @@
       <noscript><a class="quiet noscript-note" href="{{ "categories/" | relURL }}">분류별 글 보기</a></noscript>
       {{- end }}
     </div>
-    {{- with $posts }}
-    <div class="journal-search" role="search" data-post-search hidden>
-      <label for="post-query">글 검색</label>
-      <input id="post-query" type="search" placeholder="제목 또는 태그">
-    </div>
-    {{- end }}
     <div class="post-list">
       {{- range $posts }}{{ partial "post-item.html" . }}{{ end }}
       {{- if not $posts }}<p class="empty">첫 번째 개발 기록을 준비하고 있어요.</p>{{ end }}
@@ -40,7 +38,7 @@
     </div>
   </section>
   <aside class="journal-sidebar" aria-label="블로그 둘러보기">
-    {{ partial "reading-list.html" (dict "posts" .latest "title" "최신 글" "id" "latest-posts-title") }}
+    {{ partial "reading-list.html" (dict "posts" .latest "title" "최신 글" "id" "latest-posts-title" "titleOnly" true) }}
     <div class="mini-project">
       <img src="{{ site.Data.brand.mascot | relURL }}" alt="" width="384" height="313" loading="lazy" decoding="async">
       <div class="kicker">OUR PROJECT</div>

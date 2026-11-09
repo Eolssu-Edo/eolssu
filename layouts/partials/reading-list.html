@@ -3,15 +3,17 @@
   <h2 id="{{ $.id }}">{{ $.title }}</h2>
   <ol>
     {{- range $i, $p := . }}
-    {{- $cats := partial "categories.html" $p }}
     <li>
       <a href="{{ $p.RelPermalink }}">
         <b>{{ printf "%02d" (add $i 1) }}</b>
         <strong>{{ $p.Title }}</strong>
-        <div class="reading-meta">
-          {{- with $cats }}<small>{{ range $j, $c := . }}{{ if $j }} · {{ end }}{{ $c.short }}{{ end }}</small>{{ end }}
-          {{ partial "post-meta.html" $p }}
-        </div>
+        {{- if not $.titleOnly }}
+          {{- $cats := partial "categories.html" $p }}
+          <div class="reading-meta">
+            {{- with $cats }}<small>{{ range $j, $c := . }}{{ if $j }} · {{ end }}{{ $c.short }}{{ end }}</small>{{ end }}
+            {{ partial "post-meta.html" $p }}
+          </div>
+        {{- end }}
       </a>
     </li>
     {{- end }}

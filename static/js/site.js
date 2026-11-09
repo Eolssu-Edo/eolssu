@@ -141,6 +141,10 @@
       title.textContent = button === all ? defaultTitle : button.textContent.trim();
       showResults();
     };
+    search.addEventListener("submit", (event) => {
+      event.preventDefault();
+      showResults();
+    });
     input.addEventListener("input", (event) => {
       if (!event.isComposing) showResults();
     });
