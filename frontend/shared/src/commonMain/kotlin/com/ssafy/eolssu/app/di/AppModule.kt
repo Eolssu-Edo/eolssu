@@ -162,7 +162,7 @@ val appModule = module {
         LearnSongStage(get()) { id -> catalog.load().firstOrNull { it.instrumentId == id }?.code }
     }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get(), judgeLearnSong = get<LearnSongStage>()::judge) }
-    viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get()) }
+    viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get(), songs = get()) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
     viewModel { GrowthViewModel(get(), get(), get(), get()) }
 
