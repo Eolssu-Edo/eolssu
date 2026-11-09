@@ -79,6 +79,8 @@ data class PracticeDraft(
  * @property followHeldGak 평가 연주 중 사용자가 악보를 끌어 따라가기를 멈춘 각. 현재 위치가 다른 각으로 넘어가면
  *   다시 따라간다([resumeFollowOnNextGak]). 연주 중에는 손이 악기에 있어 '현재 위치로'를 누르기 어렵기 때문이다.
  * @property mine 내 악보 연습(Practice-Mine). 혼자 연습과 같되 평가로 넘어가는 버튼이 없다.
+ * @property learn 기초부터 배우기 8단계의 곡 연습. 혼자 연습과 같되 평가로 넘어가는 버튼이 없다.
+ * @property fingeringOverride 저장한 설정 대신 이 화면에서만 쓰는 '운지법과 함께 보기'. 기초부터 배우기 곡 연습은 켠 채로 시작한다.
  * @property sheetTitle 내 악보 제목(예: ‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다.
  * @property step 2차 '한 음씩 따라 불기' 상태(`PracticeStep.kt`).
  */
@@ -86,6 +88,8 @@ data class PracticeUiState(
     val song: Song? = null,
     val solo: Boolean = false,
     val mine: Boolean = false,
+    val learn: Boolean = false,
+    val fingeringOverride: Boolean? = null,
     val sheetTitle: String? = null,
     val step: PracticeStep = PracticeStep(),
     val settings: PracticeSettings = PracticeSettings(),
@@ -133,14 +137,14 @@ data class PracticeUiState(
     val title: String get() = sheetTitle ?: song?.title.orEmpty()
 
     /** ‘운지법과 함께 보기’(PANEL-00)가 켜져 정간 옆에 가로 악기 그림을 함께 보는 중. */
-    val fingeringView: Boolean get() = settings.fingeringView
+    val fingeringView: Boolean get() = fingeringOverride ?: settings.fingeringView
 
     /**
      * 운지 그림과 제목 옆 표시에 쓰는 악기. 연습 설정에서 고른 값이 없으면 곡 악보의 악기 코드를 따른다.
      * 정악·산조대금을 구분하며 기존 DAEGEUM은 정악대금 안공표를 쓴다. 프로필의 악기는 바꾸지 않는다.
      */
     val instrument: GuideInstrument
-        get() = GuideInstrument.fromId(settings.instrumentId) ?: when (song?.score?.source?.instrument) {
+        get() = GuideInstrument.fromId(settings.instrumentId).takeUnless { learn } ?: when (song?.score?.source?.instrument) {
             "SOGEUM" -> GuideInstrument.Sogeum
             "DANSO" -> GuideInstrument.Danso
             "SANJO_DAEGEUM" -> GuideInstrument.DaegeumSanjo

@@ -33,6 +33,7 @@ import org.koin.core.parameter.parametersOf
  *
  * @param solo 연습곡 선택(SONG-03)에서 들어온 연습 모드. 평가 없이 혼자 연습한다.
  * @param mine 내 악보로 연습(Practice-Mine). 혼자 연습과 같되 평가로 넘어가는 버튼이 없다.
+ * @param learn 기초부터 배우기 8단계의 곡 연습. 혼자 연습과 같되 평가로 넘어가는 버튼이 없고 '운지법과 함께 보기'로 시작한다.
  * @param sheetTitle 내 악보 제목(‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다. 비우면 곡 제목.
  * @param showSwitchedNotice 일반 연습에서 평가로 전환한 진입. 곡 로딩 후 평가를 한 번만 바로 시작한다.
  * @param onSwitchToEval 연습 모드에서 같은 곡의 평가 연습으로 바꾼다.
@@ -56,7 +57,8 @@ fun PracticeRoute(
     onConfirmBackChange: ((() -> Unit)?) -> Unit = {},
     mine: Boolean = false,
     sheetTitle: String? = null,
-    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine") { parametersOf(songId, solo, mine) },
+    learn: Boolean = false,
+    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn") { parametersOf(songId, solo, mine, learn) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 평가 연주에서 음마다 모은 실시간 음높이 안내(S15P31E102-597). 관측이 없는 플랫폼은 집계가 비어 아무것도 칠하지 않는다.

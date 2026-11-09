@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.user.LearnProgressRepository
+import com.ssafy.eolssu.data.user.learnTrackOf
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -30,6 +31,7 @@ class LearnViewModel(
     private val songRepository: SongRepository,
     private val progressRepository: LearnProgressRepository,
     member: SignedInMember? = null,
+    private val instrumentCodes: suspend () -> Map<String, String> = { emptyMap() },
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LearnUiState())
     val uiState: StateFlow<LearnUiState> = _uiState.asStateFlow()
@@ -78,8 +80,19 @@ class LearnViewModel(
                 return@launch
             }
             currentCoroutineContext().ensureActive()
-            val ids = songs.filter { it.evaluable }.associate { it.title to it.id }
-            _uiState.update { it.copy(songIds = ids, songsLoading = false, songsFailed = false) }
+            // 같은 제목도 악기마다 다른 악보라, 곡의 악기 트랙(악기 목록의 code)으로 나눈다. 악기 목록을 못 받으면 곡에 온 악보 code만 쓴다.
+            val codes = try {
+                instrumentCodes()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                emptyMap()
+            }
+            currentCoroutineContext().ensureActive()
+            val byTrack = songs.filter { it.evaluable }
+                .groupBy { song -> (song.instrumentCode ?: song.instrumentId?.let(codes::get))?.let(::learnTrackOf) }
+                .mapValues { (_, list) -> list.associate { it.title to it.id } }
+            _uiState.update { it.copy(songsByTrack = byTrack, songsLoading = false, songsFailed = false) }
         }
     }
 

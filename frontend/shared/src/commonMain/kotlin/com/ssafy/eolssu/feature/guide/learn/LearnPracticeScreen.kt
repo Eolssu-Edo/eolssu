@@ -26,7 +26,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -49,11 +53,9 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.guide.component.GuideTabletBottomContent
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
-import com.ssafy.eolssu.feature.guide.component.JudgeTag
 import com.ssafy.eolssu.feature.guide.component.LearnNote
 import com.ssafy.eolssu.feature.guide.component.LearnPatternBox
 import com.ssafy.eolssu.feature.guide.component.LearnSection
-import com.ssafy.eolssu.feature.guide.component.LearnSmallNote
 import com.ssafy.eolssu.feature.guide.component.LearnTaskList
 import com.ssafy.eolssu.feature.guide.component.NoteChips
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
@@ -62,7 +64,6 @@ import com.ssafy.eolssu.feature.guide.component.label
 import com.ssafy.eolssu.core.model.fingering.label
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.learn_detail_failed
-import eolssu.shared.generated.resources.learn_first_sound_note
 import eolssu.shared.generated.resources.learn_practice_badge_listening
 import eolssu.shared.generated.resources.learn_practice_badge_passed
 import eolssu.shared.generated.resources.learn_practice_badge_ready
@@ -84,21 +85,17 @@ import eolssu.shared.generated.resources.learn_practice_pitch_hit
 import eolssu.shared.generated.resources.learn_practice_pitch_hold
 import eolssu.shared.generated.resources.learn_practice_pitch_miss
 import eolssu.shared.generated.resources.learn_practice_pitch_not_passed
-import eolssu.shared.generated.resources.learn_practice_pitch_note
 import eolssu.shared.generated.resources.learn_practice_pitch_note_current
 import eolssu.shared.generated.resources.learn_practice_pitch_note_hit
 import eolssu.shared.generated.resources.learn_practice_pitch_note_miss
 import eolssu.shared.generated.resources.learn_practice_pitch_note_waiting
 import eolssu.shared.generated.resources.learn_practice_pitch_passed_body
-import eolssu.shared.generated.resources.learn_practice_pitch_privacy
 import eolssu.shared.generated.resources.learn_practice_pitch_target
-import eolssu.shared.generated.resources.learn_practice_privacy
 import eolssu.shared.generated.resources.learn_practice_ready
 import eolssu.shared.generated.resources.learn_practice_restart
 import eolssu.shared.generated.resources.learn_practice_section_how
 import eolssu.shared.generated.resources.learn_practice_section_notes
 import eolssu.shared.generated.resources.learn_practice_self_done
-import eolssu.shared.generated.resources.learn_practice_self_note
 import eolssu.shared.generated.resources.learn_practice_sounding
 import eolssu.shared.generated.resources.learn_practice_start
 import eolssu.shared.generated.resources.learn_practice_stop
@@ -139,6 +136,28 @@ fun LearnPracticeScreen(
     actions: LearnPracticeActions,
 ) {
     val tablet = widthClass != WindowWidthClass.Compact
+    // 4~7단계는 통과(음높이 판정)하거나 스스로 확인하면 따라 배우기와 같은 '완료했어요!'를 띄우고, '다음 단계로'가 완료 표시 뒤 다음 단계로 간다.
+    // 한 번 통과에 한 번만 띄우고(닫은 뒤 화면을 돌려도 다시 뜨지 않음), 처음부터 다시 하면 다음 통과에 다시 띄운다.
+    val celebrates = stage.number >= 4
+    var celebrating by rememberSaveable(stage.number) { mutableStateOf(false) }
+    var announcedPass by rememberSaveable(stage.number) { mutableStateOf(false) }
+    val passed = state.phase == LearnPracticePhase.Passed
+    LaunchedEffect(passed) {
+        if (!passed) announcedPass = false
+        else if (celebrates && !announcedPass) {
+            announcedPass = true
+            celebrating = true
+        }
+    }
+    if (celebrating) LearnDoneDialog(learnDoneBody(stage.number), onDismiss = { celebrating = false }, onNext = actions.onComplete)
+    val onSelfDone: () -> Unit = if (celebrates) {
+        {
+            actions.onStop()
+            celebrating = true
+        }
+    } else {
+        actions.onComplete
+    }
     EolssuScaffold(
         topBar = {
             GuideTopBar(
@@ -149,8 +168,8 @@ fun LearnPracticeScreen(
             )
         },
         bottomBar = {
-            if (tablet) GuideTabletBottomContent { LearnPracticeBottomBar(state, actions) }
-            else LearnPracticeBottomBar(state, actions)
+            if (tablet) GuideTabletBottomContent { LearnPracticeBottomBar(state, actions, onSelfDone) }
+            else LearnPracticeBottomBar(state, actions, onSelfDone)
         },
         snackbarHostState = snackbarHostState,
         contentMaxWidth = widthClass.guidePageMaxWidth,
@@ -164,12 +183,8 @@ fun LearnPracticeScreen(
         ) {
             // 듣기 판은 단계 내용 없이도 쓸 수 있어, 내용을 받는 중·실패여도 그대로 둔다.
             val loaded = (detail as? LearnDetailLoad.Loaded)?.detail
-            loaded?.pass?.let { PassCard(stage, it) }
-            // 앱이 음높이로 판정하면 판정 안내를, 판정하지 않는 단계는 스스로 확인 안내를 듣기 판 위에 둔다.
-            when {
-                state.judgesByPitch -> LearnNote(stringResource(Res.string.learn_practice_pitch_note), Modifier.padding(bottom = 14.dp))
-                !state.judgesBySound -> LearnNote(stringResource(Res.string.learn_practice_self_note), Modifier.padding(bottom = 14.dp))
-            }
+            // 글을 줄여 통과 기준 한 줄만 듣기 판 위에 둔다(판정 방식·허용 오차·안내 문단은 보이지 않는다).
+            loaded?.pass?.let { PassLine(it) }
             ListenPanel(state, instrument)
             if (loaded != null) {
                 PracticeMaterial(stage, loaded, instrument, state)
@@ -180,34 +195,28 @@ fun LearnPracticeScreen(
     }
 }
 
-/** 통과 기준 카드. 단계 상세의 목표 카드(`.lp-goal`)와 같은 모양에 기준 문장을 굵게 둔다. */
+/** 통과 기준 한 줄: 연두 체크와 기준 문장. 화면 읽기에는 '통과 기준, …'으로 읽힌다. */
 @Composable
-private fun PassCard(stage: LearnStage, pass: LearnPass) {
+private fun PassLine(pass: LearnPass) {
     val colors = EolssuTheme.colors
-    Column(
+    val shape = RoundedCornerShape(14.dp)
+    val label = stringResource(Res.string.learn_section_pass)
+    val rule = pass.rule.plain()
+    Row(
         Modifier
             .fillMaxWidth()
             .padding(top = 4.dp, bottom = 14.dp)
-            .background(colors.surface, MaterialTheme.shapes.medium)
-            .border(1.dp, colors.lineSoft, MaterialTheme.shapes.medium)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .background(colors.accentSoft, shape)
+            .border(1.dp, colors.accentTintLine, shape)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .clearAndSetSemantics { contentDescription = "$label, $rule" },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                stringResource(Res.string.learn_section_pass),
-                Modifier.weight(1f),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = colors.textMuted,
-            )
-            JudgeTag(stringResource(stage.judge.label), stage.judge)
+        Box(Modifier.size(26.dp).background(colors.primary, CircleShape), contentAlignment = Alignment.Center) {
+            Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.onPrimary)
         }
-        Text(pass.rule, style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold))
-        Text(
-            pass.note,
-            Modifier.padding(top = 8.dp),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
-            color = colors.textMuted,
-        )
+        Text(rule, style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold))
     }
 }
 
@@ -502,17 +511,9 @@ private fun PassedMessage(byPitch: Boolean) {
 private fun PracticeMaterial(stage: LearnStage, detail: LearnStageDetail, instrument: GuideInstrument, state: LearnPracticeUiState) {
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
     when (stage.number) {
-        3 -> {
-            LearnSection(stringResource(Res.string.learn_practice_section_how)) { LearnTaskList(detail.tasks) }
-            detail.pitchNames.firstOrNull()?.let(noteOf)?.let { first ->
-                LearnNote(stringResource(Res.string.learn_first_sound_note, first.name, first.reading), Modifier.padding(bottom = 16.dp))
-            }
-        }
+        3 -> LearnSection(stringResource(Res.string.learn_practice_section_how)) { LearnTaskList(detail.tasks.titles()) }
         4 -> LearnSection(stringResource(Res.string.learn_practice_section_notes)) {
-            LearnPatternBox {
-                NoteChips(detail.pitchNames.mapNotNull(noteOf))
-                detail.pitchNote?.let { LearnSmallNote(it) }
-            }
+            LearnPatternBox { NoteChips(detail.pitchNames.mapNotNull(noteOf)) }
         }
         5 -> LearnSection(stringResource(Res.string.learn_practice_section_notes)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -533,28 +534,26 @@ private fun PracticeMaterial(stage: LearnStage, detail: LearnStageDetail, instru
                     LearnPatternBox {
                         Text(range.label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
                         NoteChips(listOfNotNull(noteOf(range.first)))
-                        LearnSmallNote(range.description)
                     }
                 }
             }
         }
-        else -> LearnSection(stringResource(Res.string.learn_section_tasks)) { LearnTaskList(detail.tasks) }
+        else -> LearnSection(stringResource(Res.string.learn_section_tasks)) { LearnTaskList(detail.tasks.titles()) }
     }
-    if (state.mic == LearnMicStatus.Unsupported) return
-    LearnSmallNote(stringResource(if (state.judgesByPitch) Res.string.learn_practice_pitch_privacy else Res.string.learn_practice_privacy))
 }
 
 /**
  * 하단 고정 버튼. 통과: 처음부터 · 완료하고 다음 단계. 듣는 중: 그만하기(앱이 판정하지 않는 단계는 스스로 확인 함께).
  * 준비: 앱이 판정하는 단계(3단계, 음높이를 판정하는 4~6단계)는 듣기 시작 하나, 그 밖에는 스스로 확인 · 듣기 시작. 마이크를 쓸 수 없으면 듣기 대신 스스로 확인(다시 묻지 못하면 설정 열기).
+ * 스스로 확인은 [onSelfDone]을 부른다(4단계부터는 '완료했어요!'를 먼저 띄운다).
  */
 @Composable
-internal fun LearnPracticeBottomBar(state: LearnPracticeUiState, actions: LearnPracticeActions) {
+internal fun LearnPracticeBottomBar(state: LearnPracticeUiState, actions: LearnPracticeActions, onSelfDone: () -> Unit = actions.onComplete) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         val half = Modifier.weight(1f)
         // 완료 버튼은 문구가 길어 반 너비에서 아이콘을 넣으면 휴대폰(360dp)에서 두 줄이 된다(Galaxy S10 확인). 아이콘 없이 둔다.
         val selfDone: @Composable (Modifier, EolssuButtonStyle) -> Unit = { modifier, style ->
-            EolssuButton(stringResource(Res.string.learn_practice_self_done), actions.onComplete, modifier, style = style)
+            EolssuButton(stringResource(Res.string.learn_practice_self_done), onSelfDone, modifier, style = style)
         }
         when {
             state.phase == LearnPracticePhase.Passed -> {

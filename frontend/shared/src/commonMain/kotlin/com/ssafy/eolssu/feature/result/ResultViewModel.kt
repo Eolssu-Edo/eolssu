@@ -27,7 +27,8 @@ import kotlinx.coroutines.launch
  * RESULT-02 상태.
  *
  * @property savedRecord '연습 기록 저장'으로 저장한 기록. 있으면 저장 확인 시트를 띄운다.
- * @property learnSongPassed 이 결과로 기초부터 배우기 8단계를 완료로 남겼는지. 화면이 한 번 알린 뒤 [ResultViewModel.dismissLearnSongPassed]로 지운다.
+ * @property learnSongPassed 이 결과로 기초부터 배우기 8단계를 완료로 남겼는지. 화면이 '완료했어요!'를 닫으면 [ResultViewModel.dismissLearnSongPassed]로 지운다.
+ * @property learnSongTrack 8단계를 통과한 기초부터 배우기 트랙(`GuideInstrument.id`). '다음 단계로'가 그 악기의 다음 단계를 연다. 모르면 null.
  */
 data class ResultUiState(
     val result: EvaluationResult? = null,
@@ -40,6 +41,7 @@ data class ResultUiState(
     val songLookup: SongLookup = SongLookup.Loading,
     val resultLookup: SongLookup = SongLookup.Loading,
     val learnSongPassed: Boolean = false,
+    val learnSongTrack: String? = null,
 )
 
 enum class RecordSaveError { Unavailable, Failed }
@@ -51,6 +53,7 @@ class ResultViewModel(
     private val recordRepository: PracticeRecordRepository,
     member: SignedInMember? = null,
     private val judgeLearnSong: (suspend (EvaluationResult, Song) -> LearnSongPass)? = null,
+    private val learnTrackOf: (suspend (Song) -> String?)? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ResultUiState())
     val uiState: StateFlow<ResultUiState> = _uiState.asStateFlow()
@@ -127,7 +130,10 @@ class ResultViewModel(
                 return@launch
             }
             currentCoroutineContext().ensureActive()
-            if (pass == LearnSongPass.Passed) _uiState.update { it.copy(learnSongPassed = true) }
+            if (pass != LearnSongPass.Passed) return@launch
+            val track = learnTrackOf?.invoke(song)
+            currentCoroutineContext().ensureActive()
+            _uiState.update { it.copy(learnSongPassed = true, learnSongTrack = track) }
         }
     }
 

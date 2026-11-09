@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.guide.learn
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,11 +15,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
@@ -85,6 +93,9 @@ internal val LearnTitleFontSize = 21.sp
  * 단계 목록 본문(악기 · 산길 지도 · 단계 카드 넘기기). 세로로 스크롤한다. 단계 구성 출처는 마이페이지 '자료 및 데이터 출처'에 둔다.
  *
  * @param currentStage 펼칠 단계 카드. 태블릿 가로 배치에서는 오른쪽 칸에 보이는 단계다.
+ *
+ * 높이가 낮은 휴대폰에서도 시작 버튼까지 한 화면에 들어오도록, 카드 밖 내용의 높이를 재어 남는 높이만큼만 단계 카드를 키운다
+ * (최소 [LearnCardMinSize]). 키 큰 화면에서는 전처럼 너비에 맞춘다.
  */
 @Composable
 internal fun LearnListContent(
@@ -94,47 +105,64 @@ internal fun LearnListContent(
     contentPadding: PaddingValues = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
     currentStage: Int = state.cardStage,
 ) {
-    Column(
-        modifier
-            .verticalScroll(rememberScrollState())
-            .padding(contentPadding),
-    ) {
-        // 진도는 악기마다 따로라, 작은 악기 칩(낙관)과 그 악기의 진도를 한 줄에 둔다.
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            LearnInstrumentChip(
-                selected = state.instrument,
-                open = state.isDropdownOpen,
-                onToggle = actions.onToggleDropdown,
-                onSelect = actions.onSelectInstrument,
-                onDismiss = actions.onDismissDropdown,
-            )
-            Spacer(Modifier.weight(1f))
-            if (state.track is LearnTrackLoad.Loaded) {
-                Text(
-                    stringResource(Res.string.learn_trail_count, state.requiredDoneCount, state.requiredCount),
-                    style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                    color = EolssuTheme.colors.textMuted,
+    var contentHeight by remember { mutableIntStateOf(0) }
+    var cardHeight by remember { mutableIntStateOf(0) }
+    BoxWithConstraints(modifier) {
+        val density = LocalDensity.current
+        val cardMaxSize = if (constraints.hasBoundedHeight && contentHeight > 0 && cardHeight > 0) {
+            with(density) { (constraints.maxHeight - (contentHeight - cardHeight)).toDp() }.coerceAtLeast(LearnCardMinSize)
+        } else {
+            Dp.Unspecified
+        }
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .onSizeChanged { contentHeight = it.height }
+                .padding(contentPadding),
+        ) {
+            // 진도는 악기마다 따로라, 작은 악기 칩(낙관)과 그 악기의 진도를 한 줄에 둔다.
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                LearnInstrumentChip(
+                    selected = state.instrument,
+                    open = state.isDropdownOpen,
+                    onToggle = actions.onToggleDropdown,
+                    onSelect = actions.onSelectInstrument,
+                    onDismiss = actions.onDismissDropdown,
                 )
+                Spacer(Modifier.weight(1f))
+                if (state.track is LearnTrackLoad.Loaded) {
+                    Text(
+                        stringResource(Res.string.learn_trail_count, state.requiredDoneCount, state.requiredCount),
+                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                        color = EolssuTheme.colors.textMuted,
+                    )
+                }
             }
+            val track = state.track
+            if (track !is LearnTrackLoad.Loaded) {
+                LearnLoadStatus(failed = track == LearnTrackLoad.Failed, failedMessage = Res.string.learn_track_failed, onRetry = actions.onRetryTrack)
+                return@Column
+            }
+            LearnTrailMap(state, viewedStage = currentStage, onShowStage = actions.onShowCard, modifier = Modifier.padding(bottom = 6.dp))
+            Text(
+                stringResource(Res.string.learn_reset),
+                Modifier.align(Alignment.End).padding(bottom = 10.dp).clickable(role = Role.Button, onClick = actions.onResetDone),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, textDecoration = TextDecoration.Underline),
+                color = EolssuTheme.colors.textMuted,
+            )
+            LearnStageCarousel(
+                state,
+                currentStage,
+                onShow = actions.onShowCard,
+                onOpen = actions.onOpenStage,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                cardMaxSize = cardMaxSize,
+                onCardHeight = { cardHeight = it },
+            )
         }
-        val track = state.track
-        if (track !is LearnTrackLoad.Loaded) {
-            LearnLoadStatus(failed = track == LearnTrackLoad.Failed, failedMessage = Res.string.learn_track_failed, onRetry = actions.onRetryTrack)
-            return@Column
-        }
-        LearnTrailMap(state, viewedStage = currentStage, onShowStage = actions.onShowCard, modifier = Modifier.padding(bottom = 6.dp))
-        Text(
-            stringResource(Res.string.learn_reset),
-            Modifier.align(Alignment.End).padding(bottom = 10.dp).clickable(role = Role.Button, onClick = actions.onResetDone),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, textDecoration = TextDecoration.Underline),
-            color = EolssuTheme.colors.textMuted,
-        )
-        LearnStageCarousel(
-            state,
-            currentStage,
-            onShow = actions.onShowCard,
-            onOpen = actions.onOpenStage,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
     }
 }
+
+/** 낮은 화면에서 줄인 단계 카드의 최소 한 변. 이보다 낮으면 줄이지 않고 스크롤한다. */
+private val LearnCardMinSize = 160.dp

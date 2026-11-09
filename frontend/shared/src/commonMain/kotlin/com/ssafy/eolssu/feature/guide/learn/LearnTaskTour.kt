@@ -81,8 +81,8 @@ internal enum class TaskVisual {
     FirstNote,
 }
 
-/** 할 일 따라 배우기가 있는 단계. */
-internal fun hasTaskTour(stage: Int): Boolean = stage == 2 || stage == 3
+/** 할 일 따라 배우기가 있는 단계. 4~8단계는 [LearnStageTour]가 칸을 만든다. */
+internal fun hasTaskTour(stage: Int): Boolean = stage in 2..8
 
 /**
  * [stage]의 [index]번째 할 일에 보일 그림. 서버 할 일 순서(2단계 앉은 자세·악기 잡기·복식호흡,
@@ -128,9 +128,19 @@ internal fun LearnTaskTour(
 ) {
     val step = tour.step?.coerceIn(0, tasks.lastIndex)
     if (step == null || tasks.isEmpty()) {
-        LearnTaskList(tasks, columns, collapsible = true)
+        LearnTaskList(tasks.titles(), columns)
         return
     }
+    TourPanel(tasks, step) { s ->
+        TaskFigure(taskVisual(stage, s), instrument, stage, firstNote, noteAudioContent, imageMaxWidth)
+    }
+}
+
+/**
+ * 따라 배우기 진행 중 판: 위에 할 일 이름 칩(지나온 칸 체크, 지금 칸 진한 테두리, 남은 칸 옅게), 가운데 [figure], 아래 'n / 전체 · 이름 · 한 줄 설명'.
+ */
+@Composable
+internal fun TourPanel(tasks: List<LearnTask>, step: Int, figure: @Composable (Int) -> Unit) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(14.dp)
     Column(
@@ -146,10 +156,8 @@ internal fun LearnTaskTour(
         }
         AnimatedContent(step, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(120)) }, label = "taskTour") { s ->
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    TaskFigure(taskVisual(stage, s), instrument, stage, firstNote, noteAudioContent, imageMaxWidth)
-                }
-                TourCaption(s, tasks.size, tasks[s].title, tasks[s].detail)
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { figure(s) }
+                TourCaption(tasks[s].title, tasks[s].detail)
             }
         }
     }
@@ -191,7 +199,7 @@ private fun TaskFigure(
 }
 
 @Composable
-private fun StageArtFigure(stage: Int) {
+internal fun StageArtFigure(stage: Int) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(16.dp)
     LearnStageArt(stage, Modifier.size(180.dp).clip(shape).background(colors.background).border(1.dp, colors.lineSoft, shape))

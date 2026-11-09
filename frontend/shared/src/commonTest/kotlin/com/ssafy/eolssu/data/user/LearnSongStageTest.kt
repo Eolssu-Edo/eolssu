@@ -34,6 +34,15 @@ class LearnSongStageTest {
         assertEquals(setOf(8), api.doneSeqs("danso"))
     }
 
+    /** 통과 창의 '다음 단계로'가 열 트랙. 기초부터 배우기 악기가 아니거나 악기를 모르면 null. */
+    @Test fun trackOfMapsTheSongsInstrumentToItsLearnTrack() = runTest {
+        assertEquals("danso", stage.trackOf(song))
+        assertEquals("sogeum", stage.trackOf(song.copy(instrumentId = "20")))
+        assertEquals(null, stage.trackOf(song.copy(instrumentId = "30")))
+        assertEquals(null, stage.trackOf(song.copy(instrumentId = null)))
+        assertEquals(null, LearnSongStage(progress) { error("network") }.trackOf(song))
+    }
+
     @Test fun eitherScoreBelowSeventyDoesNotPass() = runTest {
         assertEquals(LearnSongPass.BelowScore, stage.judge(result(69, 100), song))
         assertEquals(LearnSongPass.BelowScore, stage.judge(result(100, 69), song))
