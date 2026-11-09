@@ -126,7 +126,7 @@ class AuthFormViewModelTest {
         val state = profileSetup().uiState.value
 
         assertEquals(Instrument.Danso, state.instrument)
-        assertEquals(listOf(Instrument.DaegeumJeongak, Instrument.DaegeumSanjo, Instrument.Sogeum, Instrument.Danso), state.instruments)
+        assertEquals(listOf(Instrument.Danso, Instrument.Sogeum, Instrument.DaegeumSanjo, Instrument.DaegeumJeongak), state.instruments)
     }
 
     @Test

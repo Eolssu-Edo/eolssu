@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.model.instrumentDisplayRank
 import com.ssafy.eolssu.core.network.screenScope
 import com.ssafy.eolssu.core.storage.*
 import com.ssafy.eolssu.data.song.*
@@ -35,7 +36,7 @@ class SheetImportViewModel(
         state.value = state.value.copy(loading = true, catalogFailed = false, error = null)
         scope.launch {
             try {
-                val instruments = loadInstruments()
+                val instruments = loadInstruments().sortedBy { instrumentDisplayRank(it.code) }
                 val jangdans = if (kind == ImportKind.Jeongganbo) loadJangdans() else emptyList()
                 check(instruments.isNotEmpty() && (kind != ImportKind.Jeongganbo || jangdans.isNotEmpty()))
                 state.value = state.value.copy(instruments = instruments, jangdans = jangdans, loading = false)

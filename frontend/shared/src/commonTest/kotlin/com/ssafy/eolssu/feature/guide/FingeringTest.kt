@@ -116,7 +116,7 @@ class FingeringTest {
 
     @Test
     fun dropdownListsInstrumentsInBoardOrder() {
-        assertEquals(listOf("danso", "sogeum", "daegeum-jeongak", "daegeum-sanjo"), GuideInstrument.entries.map { it.id })
+        assertEquals(listOf("danso", "sogeum", "daegeum-sanjo", "daegeum-jeongak"), GuideInstrument.entries.map { it.id })
     }
 
     @Test
