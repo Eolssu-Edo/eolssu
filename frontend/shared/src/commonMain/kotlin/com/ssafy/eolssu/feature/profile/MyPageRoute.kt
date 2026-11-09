@@ -13,7 +13,8 @@ import eolssu.shared.generated.resources.legal_open_failed
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.SocialProvider
-import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.KoreanDateTime
+import com.ssafy.eolssu.data.practice.PracticeRecordRepository
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
@@ -39,7 +40,6 @@ fun MyPageRoute(
     onLink: (SocialProvider) -> Unit,
     onLoggedOut: () -> Unit,
     onSessionExpired: () -> Unit,
-    onOpenLearningStage: (Instrument, Int) -> Unit,
     startMessage: StartMessage? = null,
     onStartMessageShown: () -> Unit = {},
     providers: List<SocialProvider> = SocialProvider.entries - SocialProvider.Apple,
@@ -47,13 +47,27 @@ fun MyPageRoute(
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val instrument by viewModel.instrument.collectAsStateWithLifecycle()
-    val loadingProfile by viewModel.loadingProfile.collectAsStateWithLifecycle()
     val progressRepository = koinInject<LearnProgressRepository>()
     val progressRevision by progressRepository.saves.collectAsStateWithLifecycle()
     // 학습 진도는 서버에서 받는다. 악기·완료 표시가 바뀌면 다시 받고, 받는 동안·받지 못하면 진도 칸을 비워 둔다.
     val learningProgress by produceState<MyLearningProgress?>(null, instrument, progressRepository, progressRevision) {
         value = instrument?.let { myLearningProgress(it, progressRepository) }
     }
+    // 최근 연주는 연습 기록 화면과 같은 저장소(REC-02)에서 받는다. 이미 받은 기록이 있으면 받는 동안·실패해도 그대로 보인다.
+    val recordRepository = koinInject<PracticeRecordRepository>()
+    val now = koinInject<() -> Long>()
+    val records by recordRepository.records.collectAsStateWithLifecycle()
+    val today = remember(now) { KoreanDateTime.fromEpochMillis(now()) }
+    val recordsLoad by produceState(if (recordRepository.available) RecordsLoad.Loading else RecordsLoad.Done, recordRepository) {
+        if (recordRepository.available) value = if (recordRepository.refresh()) RecordsLoad.Done else RecordsLoad.Failed
+    }
+    val recentPractice = remember(records, today) { MyRecentPractice.from(records, today) }
+    val recentStatus = myRecentPracticeStatus(
+        available = recordRepository.available,
+        hasRecords = records.isNotEmpty(),
+        loading = recordsLoad == RecordsLoad.Loading,
+        failed = recordsLoad == RecordsLoad.Failed,
+    )
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -77,14 +91,14 @@ fun MyPageRoute(
     MyPageScreen(
         profile = profile,
         providers = providers,
-        instrument = instrument,
         learningProgress = learningProgress,
-        loadingProfile = loadingProfile,
+        recentPractice = recentPractice,
+        recentStatus = recentStatus,
+        today = today,
         dialog = dialog,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
-        onOpenLearningStage = { stage -> instrument?.let { onOpenLearningStage(it, stage) } },
         onOpen = { target ->
             if (target == MyPageTarget.Password && !viewModel.canChangePassword()) show { getString(Res.string.my_password_none) } else onOpen(target)
         },
@@ -121,3 +135,5 @@ fun MyPageRoute(
         },
     )
 }
+
+private enum class RecordsLoad { Loading, Done, Failed }
