@@ -12,7 +12,7 @@ import subprocess
 import sys
 import time
 
-REQUIRED_CONTAINERS = {'eolssu-runtime-frontend-1', 'eolssu-runtime-backend-1', 'eolssu-runtime-mysql-1', 'eolssu-runtime-ai-1',
+REQUIRED_CONTAINERS = {'eolssu-runtime-frontend-1', 'eolssu-runtime-mysql-1', 'eolssu-runtime-ai-1',
                        'eolssu-monitoring-grafana-1', 'eolssu-monitoring-prometheus-1',
                        'eolssu-monitoring-node-exporter-1'}
 REQUIRED_BY_TARGET = {'edo1': REQUIRED_CONTAINERS, 'edo2': set()}
@@ -73,19 +73,23 @@ def docker(path, timeout=15):
         connection.close()
 
 
-def required_containers(target, issues):
+def configured_backend_slot(target, issues):
+    if target != 'edo1':
+        return None
+    try:
+        route = Path('/opt/eolssu/config/backend-route/active.conf').read_text().strip()
+        return {'set $backend http://backend:8080;': 'backend',
+                'set $backend http://backend-green:8080;': 'backend-green'}[route]
+    except FileNotFoundError:
+        return 'backend'  # Legacy single-slot runtime.
+    except (OSError, KeyError, UnicodeError):
+        issues.append('활성 백엔드 슬롯 확인 불가')
+        return None
+
+
+def required_containers(target, slot):
     required = REQUIRED_BY_TARGET[target]
-    if target == 'edo1':
-        try:
-            route = Path('/opt/eolssu/config/backend-route/active.conf').read_text().strip()
-            slot = {'set $backend http://backend:8080;': 'backend',
-                    'set $backend http://backend-green:8080;': 'backend-green'}[route]
-            return (required - {'eolssu-runtime-backend-1'}) | {f'eolssu-runtime-{slot}-1'}
-        except FileNotFoundError:
-            pass  # Legacy single-slot runtime.
-        except (OSError, KeyError):
-            issues.append('활성 백엔드 슬롯을 확인할 수 없음')
-    return required
+    return required | {f'eolssu-runtime-{slot}-1'} if slot else required
 
 
 def snapshot(with_storage=False, collect_stats=True, target='edo1', *, required=None):
@@ -96,7 +100,7 @@ def snapshot(with_storage=False, collect_stats=True, target='edo1', *, required=
         issues.append(f'컨테이너 {len(containers)}개 중 100개만 수집')
     names = {name.lstrip('/') for item in containers for name in item.get('Names', [])}
     if required is None:
-        required = required_containers(target, issues)
+        required = required_containers(target, configured_backend_slot(target, issues))
     issues.extend(name + ' 필수 컨테이너 누락' for name in sorted(required - names))
     def one(item):
         try:
@@ -514,7 +518,8 @@ def edo1_host_health():
 def health_report(target='edo1'):
     rows = edo2_host_health() + backup_health() if target == 'edo2' else edo1_host_health() + prometheus_health()
     issues = []
-    required = required_containers(target, issues)
+    slot = configured_backend_slot(target, issues)
+    required = required_containers(target, slot)
     try:
         info, containers, _, docker_issues = snapshot(collect_stats=False, target=target, required=required)
         issues.extend(docker_issues)
@@ -562,7 +567,8 @@ def health_report(target='edo1'):
             rows.append([name, target + ' loopback HTTP', '실패', '응답 확인 불가', '—', path])
         finally:
             connection.close()
-    return ['대상', '위치/방식', '판정', '응답/측정값', '소요', '상세'], rows, issues
+    facts = {'backend_slot': slot} if target == 'edo1' else None
+    return ['대상', '위치/방식', '판정', '응답/측정값', '소요', '상세'], rows, issues, facts
 
 
 def main(mode, target='edo1'):
