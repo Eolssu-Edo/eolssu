@@ -8,6 +8,9 @@ tags: ["FastAPI", "HTTPX", "서명 URL", "오류 처리"]
 description: "필수 필드가 빠졌을 때 요청 전체가 오류 응답에 들어가는 문제와 HTTP 클라이언트의 URL 로그를 막고, 실제 HTTP 요청과 회귀 테스트로 확인했습니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-10-keep-signed-urls-out-of-analysis-errors.webp"
 draft: false
+aliases:
+  - /posts/2026/10/hide-input-from-process-error-chain/
+  - /posts/2026/10/test-analysis-api-and-download-boundaries/
 ---
 
 얼쑤의 분석 서버는 요청에 담긴 서명 URL로 녹음을 내려받습니다. URL에 읽기 권한이 담겨 있어 유효 시간 안에는 주소만으로 파일을 요청할 수 있습니다. 분석 API를 구현할 때 이 주소가 어디에 남는지 점검했습니다. 제가 작성한 코드에서 URL을 로그에 쓰지 않아도 두 곳에 남을 수 있었습니다. 요청을 검증하는 프레임워크의 응답과 녹음을 내려받는 HTTP 라이브러리의 로그입니다.
@@ -35,6 +38,18 @@ HTTPX는 INFO에서 요청 메서드와 URL 전체를 기록했습니다. 주소
 | `bpm`을 뺀 요청 | HTTP 422, 원본 입력 필드 없음 |
 
 이 실행에서 DEBUG 로그에 테스트용 서명 토큰이 나온 횟수는 **0회**였습니다. 자동 검사에서는 URL이 들어 있는 예외를 일부러 던져 상태 코드와 함께 500 본문이 정해진 값인지 확인했습니다. 422 처리기를 제거하거나 HTTPX의 INFO 로그를 다시 허용했을 때는 해당 회귀 테스트가 실패했습니다. 검사한 범위는 이 로컬 실행과 자동 테스트가 거친 응답·로그 경로입니다.
+
+## 검증기와 다운로드 함수는 다른 곳을 대역으로 바꿨습니다
+
+필수 필드가 없는 요청을 검사할 때는 FastAPI 앱을 그대로 두고 다운로드 의존성만 대역으로 바꿨습니다. `bpm`을 뺀 요청에서 422와 함께 다운로드 대역의 호출 **0회**를 확인했습니다. 검증에서 이미 거절한 요청이 저장소까지 가지 않았다는 근거입니다. 같은 대역이 `DownloadError`를 던지면 API가 502를 반환하는지도 확인했습니다. [FastAPI 테스트 의존성 재정의](https://fastapi.tiangolo.com/advanced/testing-dependencies/)
+
+다운로드 함수 자체의 오류를 보려면 그 함수는 실행해야 합니다. 이 검사에서는 HTTPX의 전송 계층만 `MockTransport`로 바꿨습니다. 정상 응답에서는 파일의 바이트를 대조했습니다. 403 응답, 제한보다 **1바이트** 큰 본문, 연결 예외는 모두 다운로드 오류가 됐습니다. 403과 연결 예외에 넣은 가짜 서명이, 연결된 예외까지 출력한 문자열에도 없다는 것을 확인했습니다. 두 대역 검사가 다루는 범위는 요청 검증과 다운로드 함수의 오류 처리입니다. 운영 버킷의 권한이나 실제 네트워크는 이 검사에 포함되지 않습니다. [HTTPX의 MockTransport](https://www.python-httpx.org/advanced/transports/#mock-transports)
+
+## 오류 문구에서 뺀 경로가 예외 객체에 남는 경우
+
+녹음을 디코딩하는 FFmpeg도 표준 오류에 입력 파일의 위치를 포함할 수 있습니다. 디코딩 실패를 설명할 때는 경로를 `<input>`으로 바꿨습니다. 도구 실행이 시간 초과된 경우에는 Python의 `TimeoutExpired` 예외 자체가 실행 인자를 갖고 있었습니다. `raise ... from None`으로 기본 출력에서 예외 연결을 숨겨도, 원래 예외가 새 객체의 `__context__`에 남을 수 있습니다. [Python의 예외 연결 문서](https://docs.python.org/3/library/exceptions.html#exception-context)
+
+그래서 시간 초과를 잡는 블록을 벗어난 다음, 제한 시간만 담은 새 오류를 올렸습니다. 손상된 합성 파일에는 찾기 쉬운 경로 표식을 넣어 오류 문구에 나오지 않는지 확인했습니다. 별도의 시간 초과 검사에서는 문구에 더해 `__context__`와 `__cause__`가 비어 있는지도 확인했습니다. 각각 디코더의 표준 오류와 Python 예외 객체가 노출될 수 있는 경로를 확인한 결과입니다.
 
 ## 백엔드 요청 객체의 문자열 검사 {#보내는-쪽의-요청-객체도-확인했다}
 

@@ -16,11 +16,11 @@ draft: false
 
 첫 사례에서는 변수에 든 Git ref 뒤에 콜론과 경로를 바로 붙였습니다. zsh에서 뒤 문자열이 `:a`로 시작하면 변수 확장의 경로 수정자로 읽힐 수 있습니다. `git show "${ref}:archive/report.txt"`처럼 중괄호로 변수 이름을 닫으면 콜론은 Git이 받는 문자열에 그대로 남습니다. [zsh 확장 문서](https://zsh.sourceforge.io/Doc/Release/Expansion.html)
 
-두 번째 사례에서는 SSH 옵션 여러 개를 문자열 하나에 보관했습니다. 기본 zsh에서는 일반 스칼라 변수를 확장한다고 공백마다 인수가 나뉘지 않습니다. 각각의 인수가 하나의 배열 원소가 되게 만들고 `"${options[@]}"`로 확장하면 경계가 보입니다.
+두 번째 사례에서는 SSH 옵션 여러 개를 문자열 하나에 보관했습니다. 기본 zsh에서는 일반 스칼라 변수를 확장한다고 공백마다 인수가 나뉘지 않습니다. 각각의 인수가 하나의 배열 원소가 되게 만들고 `"${ssh_args[@]}"`로 확장하면 경계가 보입니다.
 
 ```zsh
-options=(-o BatchMode=yes -o ConnectTimeout=5)
-ssh "${options[@]}" host 'uptime'
+ssh_args=(-o BatchMode=yes -o ConnectTimeout=5)
+ssh "${ssh_args[@]}" host 'uptime'
 ```
 
 ## SSH 포워딩 실패 추적 {#접속-준비에-실패하면-원격-출력이-나오지-않는다}
@@ -29,4 +29,14 @@ ssh "${options[@]}" host 'uptime'
 
 `LocalForward` 설정의 앞쪽 주소와 포트는 SSH 클라이언트가 실행되는 쪽의 입구입니다. 뒤쪽 주소와 포트는 원격 SSH 서버가 새로 접속할 목적지입니다. 양쪽에 같은 루프백 주소를 써도 각 연결이 시작되는 쪽의 로컬 서비스를 가리킵니다. 이번 충돌은 앞쪽 수신 포트를 열 때 일어났으므로 목적지 서비스가 열려 있어도 원격 명령까지 진행할 수 없었습니다.
 
-기록에는 수정한 명령과 각 실패의 원인이 남아 있습니다. 전체 호출을 반복해 성공률을 측정한 결과는 없습니다. 같은 종류의 문제가 생기면 로컬에서 인수 경계를 확인하고, 이어서 SSH 설정과 접속 단계 메시지를 본 뒤 원격 명령의 종료 상태를 확인합니다. 세 단계의 출력을 구별하면 원격에서 실행되지도 않은 명령을 디버깅하는 시간을 줄일 수 있습니다.
+## 접속 없이 재현한 출력
+
+로컬에서는 가상의 ref와 호스트 이름을 쓰고, SSH는 접속 없이 적용 설정을 출력하는 `ssh -G`로 확인했습니다. 실제 서버의 주소나 설정은 사용하지 않았습니다.
+
+| 확인한 단계 | 격리 재현에서 확인한 출력 |
+| --- | --- |
+| zsh의 ref 확장 | `"$ref:archive/report.txt"`는 현재 폴더로 시작하고 콜론이 없는 경로가 됐습니다. `"${ref}:archive/report.txt"`의 출력은 `main:archive/report.txt`였습니다. |
+| SSH의 옵션 해석 | 문자열은 인수 1개로 넘어가 `keyword batchmode extra arguments at end of line`과 종료 코드 255를 반환했습니다. 배열은 인수 4개로 넘어가 `batchmode yes`와 `connecttimeout 5`를 출력했습니다. |
+| 포워딩 설정 적용 | 같은 가상 설정에서 `ClearAllForwardings=yes`를 주자 `ssh -G` 출력에서 `localforward` 줄이 사라졌습니다. |
+
+앞의 두 행은 인수 문제를 재현한 값입니다. 마지막 행에서 확인한 것은 포워딩 설정 제거까지이며, 당시 포트 충돌과 원격 명령의 미실행은 원래 기록에 근거합니다. 실제 접속이 시작된 뒤 어느 네트워크 구간에서 막혔는지는 [컨테이너에서만 타임아웃 난 MySQL SSH 터널 추적기](https://team-edo.github.io/posts/2026/11/ssh-tunnel-container-mysql-timeout/)에서 다룹니다.
