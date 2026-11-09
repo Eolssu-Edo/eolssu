@@ -4,7 +4,7 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
 import com.ssafy.eolssu.data.song.SampleSongs
-import com.ssafy.eolssu.core.ui.score.recordScoreMetrics
+import com.ssafy.eolssu.core.ui.score.readingScoreMetrics
 import com.ssafy.eolssu.feature.history.component.stripSlots
 import com.ssafy.eolssu.feature.history.component.wrapColumns
 import kotlin.test.Test
@@ -57,14 +57,14 @@ class HistoryTabletStateTest {
     @Test
     fun portraitFitsEightColumnsIn720dp() {
         // 평가와 같은 각 78dp · 사이 6dp. 720dp에서는 8각을 읽고 나머지는 다음 줄로 잇는다.
-        assertEquals(8, stripSlots(720.dp, recordScoreMetrics(SampleSongs.first())))
-        assertEquals(1, stripSlots(40.dp, recordScoreMetrics(SampleSongs.first())))
+        assertEquals(8, stripSlots(720.dp, readingScoreMetrics(SampleSongs.first())))
+        assertEquals(1, stripSlots(40.dp, readingScoreMetrics(SampleSongs.first())))
     }
 
     @Test
     fun enlargedTextKeepsEveryColumnInReachableRows() {
         for (width in listOf(320, 720, 1000)) for (scale in listOf(1f, 1.3f, 2f)) {
-            val metrics = recordScoreMetrics(SampleSongs.first()).forFontScale(scale)
+            val metrics = readingScoreMetrics(SampleSongs.first()).forFontScale(scale)
             val rows = wrapColumns(List(28) { 1 }, stripSlots(width.dp, metrics))
             assertEquals((0 until 28).toList(), rows.flatMap { it.toList() })
             for (row in rows) {

@@ -20,9 +20,6 @@ import com.ssafy.eolssu.core.model.Score
 import com.ssafy.eolssu.core.model.ScoreError
 import com.ssafy.eolssu.core.model.ScorePosition
 import com.ssafy.eolssu.core.model.ScoreSection
-import com.ssafy.eolssu.core.model.Song
-import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
-import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.score.ScoreCellDecoration
 import com.ssafy.eolssu.core.ui.score.errorDecoration
@@ -30,13 +27,6 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.weak_edge_end
 import eolssu.shared.generated.resources.weak_edge_start
 import org.jetbrains.compose.resources.stringResource
-
-/** 구간 반복·재평가는 소박 율명만 조금 키우고, 나뉘지 않은 율명과 각 너비는 유지한다. */
-internal fun sectionLoopScoreMetrics(song: Song): JeongganboMetrics {
-    val longestStrip = scoreStrips(song.score, song.jangdan).maxOfOrNull { it.rows.count() } ?: 1
-    val metrics = JeongganboMetrics.practiceBoard(big = false, longestStrip = longestStrip)
-    return metrics.copy(splitScaleTwo = 16f / metrics.yulSize.value, splitScaleMany = 15f / metrics.yulSize.value)
-}
 
 /**
  * 취약 구간 정간 꾸밈(PRACTICE-02·03). 틀린 정간은 종류별 색·아이콘이고, [section] 밖 정간은 [outsideAlpha]로 흐리게 한다.

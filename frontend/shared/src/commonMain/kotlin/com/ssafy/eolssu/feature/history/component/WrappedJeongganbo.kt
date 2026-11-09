@@ -1,8 +1,7 @@
 package com.ssafy.eolssu.feature.history.component
 
-import com.ssafy.eolssu.core.ui.score.errorScoreCellHeights
+import com.ssafy.eolssu.core.ui.score.ReadingScoreFormat
 import com.ssafy.eolssu.core.model.ScoreUnitKey
-import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,7 +53,7 @@ internal fun stripSlots(width: Dp, metrics: JeongganboMetrics): Int =
 @Composable
 internal fun WrappedJeongganbo(
     song: Song,
-    metrics: JeongganboMetrics,
+    format: ReadingScoreFormat,
     currentIndex: Int?,
     follow: Boolean,
     errors: Map<Pair<Int, Int>, ScoreErrorKind>,
@@ -63,9 +62,8 @@ internal fun WrappedJeongganbo(
     errorKinds: Map<Pair<Int, Int>, List<ScoreErrorKind>> = emptyMap(),
     unitErrors: Map<ScoreUnitKey, List<ScoreErrorKind>> = emptyMap(),
 ) {
-    val cellHeights = remember(song, metrics) { errorScoreCellHeights(song, metrics) }
     BoxWithConstraints(modifier) {
-        val slots = stripSlots(maxWidth, metrics.forFontScale(LocalDensity.current.fontScale))
+        val slots = stripSlots(maxWidth, format.metrics.forFontScale(LocalDensity.current.fontScale))
         val rows = remember(song, slots) {
             val strips = scoreStrips(song.score, song.jangdan).groupingBy { it.column }.eachCount()
             wrapColumns(song.score.columns.indices.map { strips[it] ?: 1 }, slots)
@@ -84,9 +82,9 @@ internal fun WrappedJeongganbo(
             items(rows) { range ->
                 JeongganboView(
                     song = song,
-                    look = JeongganboLook.Record,
-                    metrics = metrics,
-                    cellHeights = cellHeights,
+                    look = format.look,
+                    metrics = format.metrics,
+                    cellHeights = format.cellHeights,
                     currentIndex = currentIndex,
                     errors = errors,
                     errorKinds = errorKinds,
