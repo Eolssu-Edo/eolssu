@@ -127,7 +127,7 @@ fun PracticeScoreArea(
         val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
         val selectedCell = state.scoreSelection?.let { it.column to it.row }
         val onUnitClick = onSelectUnit.takeIf { state.canSelectUnit }
-        val annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap()
+        val annotations = state.scoreAnnotations
         if (bandColumns == null) {
             val scrollState = rememberHorizontalScoreScroll(state)
             JeongganboView(
@@ -309,7 +309,7 @@ fun PracticeBoardScore(
                     selectedCell = state.scoreSelection?.let { it.column to it.row },
                     onUnitClick = onSelectUnit.takeIf { state.canSelectUnit },
                     look = JeongganboLook.practice(big),
-                    annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap(),
+                    annotations = state.scoreAnnotations,
                     columnsPerStack = packing.columnsPerStack,
                     stackGap = PracticeStackGap,
                     cellHeights = packing.cellHeights,

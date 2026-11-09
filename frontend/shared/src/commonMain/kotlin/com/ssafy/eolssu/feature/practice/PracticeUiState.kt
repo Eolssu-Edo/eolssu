@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.practice
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.ScorePosition
+import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.ScorePerformance
 import com.ssafy.eolssu.core.model.Yul
@@ -155,6 +156,12 @@ data class PracticeUiState(
         get() = selectedCell.takeIf { mode == PracticeMode.Ready && stepCurrentIndex == null }
 
     val eventCount: Int get() = song?.timeline?.size ?: 0
+
+    internal val scoreAnnotations: Map<ScoreUnitKey, List<String>>
+        get() {
+            if (mode == PracticeMode.Model) modelPerformance?.annotations?.let { return it }
+            return song?.writtenScoreAnnotations.orEmpty()
+        }
 
     val totalSeconds: Int get() = if (mode == PracticeMode.Model && modelPerformance != null && bpm > 0)
         (modelPerformance.durationMs * (song?.baseBpm ?: bpm) / bpm / 1000).roundToInt()
