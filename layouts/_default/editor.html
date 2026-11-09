@@ -13,8 +13,21 @@
         <input id="post-title" name="title" type="text" maxlength="160" required>
         <label for="post-markdown">본문 (Markdown)</label>
         <textarea id="post-markdown" name="markdown" rows="20" required></textarea>
-        <button class="button-primary" type="submit">저장</button>
+        <div class="post-editor-actions">
+          <button class="button-primary" type="submit">저장</button>
+          <button class="post-editor-delete" type="button" data-editor-delete hidden>글 삭제</button>
+        </div>
       </form>
+      <dialog class="post-delete-dialog" aria-labelledby="post-delete-title" aria-describedby="post-delete-message" data-editor-delete-dialog>
+        <form method="dialog">
+          <h2 id="post-delete-title">글을 삭제할까요?</h2>
+          <p id="post-delete-message" data-editor-delete-message></p>
+          <div class="post-editor-actions">
+            <button class="button-primary" type="submit" value="cancel" autofocus>취소</button>
+            <button class="post-editor-delete" type="submit" value="delete">삭제</button>
+          </div>
+        </form>
+      </dialog>
       {{- end }}
       <noscript><p>GitHub로 로그인하려면 JavaScript를 켜 주세요.</p></noscript>
     </div>

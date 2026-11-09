@@ -226,7 +226,13 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--focus); outline
 .post-editor input, .post-editor textarea { width: 100%; padding: 10px 12px; border: 1px solid #bcb9b0; border-radius: 6px; color: var(--ink); background: var(--paper); font: inherit; }
 .post-editor textarea { font-family: var(--mono); resize: vertical; }
 .post-editor input:focus-visible, .post-editor textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.post-editor button { justify-self: start; margin-top: 8px; }
+.post-editor-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.post-editor-delete { min-height: 44px; padding: 7px 14px; border: 1px solid #d9b9b2; border-radius: 9px; background: var(--paper); color: #8b312b; font-size: 14px; }
+.post-editor-delete:hover:not(:disabled) { background: #faf0ee; }
+.post-editor-actions button:disabled { opacity: .6; cursor: default; }
+.post-delete-dialog { width: min(420px, calc(100% - 32px)); padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); }
+.post-delete-dialog::backdrop { background: #27221e66; }
+.post-delete-dialog h2 { margin: 0; font-size: 21px; }
 .post-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 0 8px; font-size: 13px; color: #77756f; }
 .post-meta time { white-space: nowrap; }
 .article-body { font-size: 17px; line-height: 1.95; }
