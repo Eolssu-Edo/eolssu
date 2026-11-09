@@ -7,9 +7,7 @@
       <h1 id="project-title">우리 소리에 가까이,<br><span class="under">함께 만든 과정</span>을 담다.</h1>
       <p>{{ $project.lead }}</p>
       <div class="actions">
-        <a class="button-primary" href="{{ "/" | relURL }}">개발 기록 읽기 <span aria-hidden="true">↘</span></a>
-        <a class="quiet" href="{{ "about/" | relURL }}">Team Edo 알아보기 <span aria-hidden="true">↗</span></a>
-        {{- with $project.serviceURL }}<a class="quiet" href="{{ . }}">서비스 둘러보기 <span aria-hidden="true">↗</span></a>{{ end }}
+        <a class="button-primary" href="#project-details">프로젝트 살펴보기 <span aria-hidden="true">↓</span></a>
       </div>
     </div>
     <div class="scene">
@@ -24,7 +22,7 @@
       </div>
     </div>
   </section>
-  <section class="project-details" aria-labelledby="steps-title">
+  <section class="project-details" id="project-details" tabindex="-1" aria-labelledby="steps-title">
     <h2 id="steps-title">{{ $project.stepsTitle }}</h2>
     <ol class="project-steps">
       {{- range $i, $step := $project.steps }}
