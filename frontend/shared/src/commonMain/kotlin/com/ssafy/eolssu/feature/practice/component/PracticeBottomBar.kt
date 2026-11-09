@@ -152,7 +152,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
 
 /** 두 버튼을 나란히(첫 버튼 1 : 둘째 1.4) 두거나, [stacked]이면 위아래로 쌓는다. */
 @Composable
-private fun PairedButtons(stacked: Boolean, first: @Composable (Modifier) -> Unit, second: @Composable (Modifier) -> Unit) {
+internal fun PairedButtons(stacked: Boolean, first: @Composable (Modifier) -> Unit, second: @Composable (Modifier) -> Unit) {
     if (stacked) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             first(Modifier.fillMaxWidth())

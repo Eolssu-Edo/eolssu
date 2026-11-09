@@ -222,7 +222,7 @@ val appModule = module {
     }
     viewModel { (sourceId: String) -> SectionSelectViewModel(sourceId, get()) }
     viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int) ->
-        SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull())
+        SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull(), settingsStore = get())
     }
     viewModel { (sessionId: String) -> SectionResultViewModel(sessionId, get()) }
     viewModel { (recordId: String) -> CompareViewModel(recordId, get()) }
