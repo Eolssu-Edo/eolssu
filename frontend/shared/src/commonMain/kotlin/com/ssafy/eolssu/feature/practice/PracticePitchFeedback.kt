@@ -10,8 +10,11 @@ import kotlin.math.pow
 
 private val yulNames = listOf("황", "대", "태", "협", "고", "중", "유", "임", "이", "남", "무", "응")
 
-private fun targetHz(note: ScoreNote, hwangHz: Double): Double? =
-    (note as? ScoreNote.SourcePitch)?.let { hwangHz * 2.0.pow((yulNames.indexOf(it.yul) + 12 * it.octave) / 12.0) }
+/** 원본 악보 음의 목표 높이(Hz). 율명·옥타브가 없는 음이면 null. */
+internal fun targetHz(note: ScoreNote, hwangHz: Double): Double? =
+    (note as? ScoreNote.SourcePitch)?.let { pitch ->
+        yulNames.indexOf(pitch.yul).takeIf { it >= 0 }?.let { hwangHz * 2.0.pow((it + 12 * pitch.octave) / 12.0) }
+    }
 
 /** 곡에 나오는 서로 다른 목표 음(Hz)을 낮은 순으로. */
 internal fun songTargetHz(events: List<ScoreEvent>, hwangHz: Double): List<Double> =
