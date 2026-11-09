@@ -12,7 +12,6 @@ import com.ssafy.eolssu.feature.song.MySongsActions
 import com.ssafy.eolssu.feature.song.MySongsBody
 import com.ssafy.eolssu.feature.song.MySongsUiState
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.mysongs_subtitle
 import eolssu.shared.generated.resources.mysongs_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -32,7 +31,6 @@ internal fun MySongsTabletLayout(
         expanded = expanded,
         title = stringResource(Res.string.mysongs_title),
         onBack = actions.onBack,
-        subtitle = stringResource(Res.string.mysongs_subtitle),
         snackbarHostState = snackbarHostState,
         topBarRight = { instrumentPicker() },
     ) { gutter ->

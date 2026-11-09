@@ -78,7 +78,7 @@ const val PRACTICE_SEEK_MS = 5_000L
 
 /**
  * 연습 플레이어: 경과·전체 시간을 좌우에 배치하고 타임라인 아래 중앙에 재생 조작을 둔다.
- * ‘−5초 · 재생(48dp 연두 원) · +5초’ 아래 고정 칸에 로딩을 중앙 정렬한다.
+ * 시간 표시 사이 고정 칸에 로딩을 중앙 정렬하고 트랙 아래에 ‘−5초 · 재생 · +5초’를 둔다.
  * 음원을 불러오지 못하는 상태는 안내 자리에 그 사유를 보인다.
  *
  * @param compact 운지 악보에서 여백과 재생 버튼을 조금 줄이며 같은 배치를 유지한다.
@@ -141,20 +141,20 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     }
     Column(
         modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         Row(Modifier.fillMaxWidth().semantics { contentDescription = time },
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Text(formatClock(state.elapsedMs / 1000),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                 color = colors.text)
+            PlayerNoticeArea(state.playerNotice, Modifier.weight(1f).height(40.dp))
             Text(formatClock(state.totalSeconds.toDouble()),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         }
         SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
             enabled = state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading)
         controls(Modifier.fillMaxWidth())
-        PlayerNoticeArea(state.playerNotice, Modifier.fillMaxWidth().height(40.dp))
     }
 }
 

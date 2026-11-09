@@ -30,6 +30,8 @@ import eolssu.shared.generated.resources.practice_popup_go_home
 import eolssu.shared.generated.resources.practice_popup_interrupted_body
 import eolssu.shared.generated.resources.practice_popup_interrupted_title
 import eolssu.shared.generated.resources.practice_popup_keep_playing
+import eolssu.shared.generated.resources.practice_settings_paused_title
+import eolssu.shared.generated.resources.practice_resume_recording
 import eolssu.shared.generated.resources.practice_popup_later
 import eolssu.shared.generated.resources.practice_popup_no_input_body
 import eolssu.shared.generated.resources.practice_popup_no_input_title
@@ -82,6 +84,11 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
         ) {
             EolssuButton(stringResource(Res.string.practice_popup_continue), actions.onGrantMic)
             EolssuButton(stringResource(Res.string.practice_popup_later), actions.onDenyMic, style = EolssuButtonStyle.Ghost)
+        }
+        PracticePopup.SettingsPaused -> EolssuDialog(
+            title = stringResource(Res.string.practice_settings_paused_title),
+        ) {
+            EolssuButton(stringResource(Res.string.practice_resume_recording), actions.onResume)
         }
         PracticePopup.Abort -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_abort_title),

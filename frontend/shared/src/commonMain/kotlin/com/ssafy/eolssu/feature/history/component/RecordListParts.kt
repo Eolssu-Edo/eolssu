@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -76,7 +77,9 @@ import eolssu.shared.generated.resources.records_memo
 import eolssu.shared.generated.resources.records_meta_section
 import eolssu.shared.generated.resources.records_meta_whole
 import eolssu.shared.generated.resources.records_score_unit
-import eolssu.shared.generated.resources.records_song_count
+import eolssu.shared.generated.resources.records_by_song
+import eolssu.shared.generated.resources.records_instrument_all
+import eolssu.shared.generated.resources.records_instrument_empty
 import eolssu.shared.generated.resources.records_sort_new
 import eolssu.shared.generated.resources.records_sort_old
 import eolssu.shared.generated.resources.records_this_week
@@ -146,24 +149,48 @@ internal fun RecordsEmpty(available: Boolean, modifier: Modifier = Modifier) {
     )
 }
 
-/** 곡 수 안내 · 정렬 선택 줄. */
+/** 기록은 있지만 고른 악기의 기록이 없을 때. 위의 악기 선택은 그대로 둔다. */
 @Composable
-internal fun RecordListToolbar(songCount: Int, sort: RecordSort, spacing: RecordListSpacing, onSort: (RecordSort) -> Unit) {
-    Row(Modifier.padding(top = spacing.toolbarTop, bottom = spacing.toolbarBottom), verticalAlignment = Alignment.CenterVertically) {
+internal fun RecordsInstrumentEmpty(modifier: Modifier = Modifier) {
+    Text(
+        stringResource(Res.string.records_instrument_empty),
+        modifier = modifier.fillMaxWidth().padding(vertical = 40.dp),
+        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+        color = EolssuTheme.colors.textMuted,
+        textAlign = TextAlign.Center,
+    )
+}
+
+/** ‘곡별 기록’ 제목 · 악기 선택 · 정렬 선택 줄. */
+@Composable
+internal fun RecordListToolbar(
+    instrument: Instrument?,
+    sort: RecordSort,
+    spacing: RecordListSpacing,
+    onInstrument: (Instrument?) -> Unit,
+    onSort: (RecordSort) -> Unit,
+) {
+    Row(
+        Modifier.padding(top = spacing.toolbarTop, bottom = spacing.toolbarBottom),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Text(
-            stringResource(Res.string.records_song_count, songCount),
+            stringResource(Res.string.records_by_song),
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
             color = EolssuTheme.colors.textMuted,
         )
-        SortSelect(sort, onSort)
+        val all = stringResource(Res.string.records_instrument_all)
+        SelectBox(instrument, listOf(null) + Instrument.entries, { it?.let { i -> stringResource(i.label) } ?: all }, onInstrument)
+        SelectBox(sort, RecordSort.entries, { stringResource(if (it == RecordSort.Newest) Res.string.records_sort_new else Res.string.records_sort_old) }, onSort)
     }
 }
 
+/** 흰 바탕 · 연한 테두리의 드롭다운 선택 상자. */
 @Composable
-private fun SortSelect(sort: RecordSort, onSort: (RecordSort) -> Unit) {
+private fun <T> SelectBox(value: T, options: List<T>, label: @Composable (T) -> String, onPick: (T) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val label = @Composable { s: RecordSort -> stringResource(if (s == RecordSort.Newest) Res.string.records_sort_new else Res.string.records_sort_old) }
     Box {
         Row(
             Modifier
@@ -175,14 +202,14 @@ private fun SortSelect(sort: RecordSort, onSort: (RecordSort) -> Unit) {
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(label(sort), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
+            Text(label(value), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp), maxLines = 1)
             Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = EolssuTheme.colors.surface) {
-            RecordSort.entries.forEach { s ->
-                DropdownMenuItem(text = { Text(label(s)) }, onClick = {
+            options.forEach { option ->
+                DropdownMenuItem(text = { Text(label(option)) }, onClick = {
                     expanded = false
-                    onSort(s)
+                    onPick(option)
                 })
             }
         }

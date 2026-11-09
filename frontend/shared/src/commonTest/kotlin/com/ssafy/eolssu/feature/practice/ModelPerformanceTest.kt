@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
+import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.data.song.SourceHash
 import com.ssafy.eolssu.data.song.previewAudio
 import com.ssafy.eolssu.data.song.previewJson
@@ -18,6 +19,22 @@ import kotlin.test.assertTrue
 class ModelPerformanceTest {
     private val song = previewSong()
     private val audio = previewAudio().withPerformance(previewJson(), song, SourceHash)
+
+    @Test fun writtenOrnamentsAreVisibleWithoutModelAudioAndOnlyAtTheEventStart() {
+        val initial = PracticeUiState(song = song)
+        val written = mapOf(
+            ScoreUnitKey("c0-j0", 0, 0) to listOf("늘임표"),
+            ScoreUnitKey("c0-j0", 0, 1) to listOf("니레", "노라느니"),
+        )
+        for (mode in PracticeMode.entries) {
+            assertEquals(written, initial.copy(mode = mode).scoreAnnotations, mode.name)
+        }
+        val model = initial.copy(mode = PracticeMode.Model)
+            .withModelAudio(ModelAudioState(ModelAudioStatus.Playing, audio, 250))
+        assertEquals(listOf("노라느니"), model.scoreAnnotations[ScoreUnitKey("c0-j1", 0, 0)])
+        assertEquals(written, model.copy(mode = PracticeMode.Recording).scoreAnnotations)
+        assertTrue(PracticeUiState().scoreAnnotations.isEmpty())
+    }
 
     @Test fun stretchedAndRepeatedMediaUsesWrittenCursorButPerformedProgress() {
         val initial = PracticeUiState(song = song, mode = PracticeMode.Model)
