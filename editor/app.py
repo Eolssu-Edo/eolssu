@@ -53,7 +53,7 @@ class NoRedirect(HTTPRedirectHandler):
 upstream_http = build_opener(NoRedirect)
 
 
-def upstream_json(url, *, headers=None, form=None, update=None, expected_type=dict):
+def upstream_json(url, *, headers=None, form=None, update=None, delete=None, expected_type=dict):
     headers = dict(headers or {}, Accept="application/json", **{"User-Agent": "Team-Edo-Blog-Editor"})
     data = None
     method = "GET"
@@ -61,13 +61,15 @@ def upstream_json(url, *, headers=None, form=None, update=None, expected_type=di
         method = "POST"
         data = urlencode(form).encode()
         headers["Content-Type"] = "application/x-www-form-urlencoded"
-    if update is not None:
-        method = "PUT"
-        data = json.dumps(update, ensure_ascii=False).encode()
+    if update is not None or delete is not None:
+        method = "DELETE" if delete is not None else "PUT"
+        data = json.dumps(delete if delete is not None else update, ensure_ascii=False).encode()
         headers["Content-Type"] = "application/json"
     upstream = Request(url, data, headers, method=method)
     try:
         with upstream_http.open(upstream, timeout=5) as response:
+            if delete is not None:
+                return None
             result = json.loads(response.read(2 * MAX_SOURCE))
     except HTTPError as error:
         raise UpstreamError(error.code) from None
@@ -212,7 +214,9 @@ def create_app(config=None):
         if request.headers.get("Origin") == origin:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, OPTIONS" if writes_enabled else "GET, POST, OPTIONS"
+            response.headers["Access-Control-Allow-Methods"] = (
+                "GET, POST, PUT, DELETE, OPTIONS" if writes_enabled else "GET, POST, OPTIONS"
+            )
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
@@ -246,7 +250,7 @@ def create_app(config=None):
             raise
         post = parse_post(file)
         if post.author != author:
-            abort(403, description="이 글은 작성자만 수정할 수 있습니다.")
+            abort(403, description="이 글은 작성자만 수정하거나 삭제할 수 있습니다.")
         return post
 
     def editor_session():
@@ -352,7 +356,7 @@ def create_app(config=None):
             return jsonify(status="verified")
         post = read_owned_post(path, author)
         return jsonify(session=serializer.dumps({"author": author, "post": path}),
-                       title=post.title.value, markdown=post.markdown, version=post.version)
+                       title=post.title.value, markdown=post.markdown, version=post.version, canDelete=True)
 
     @app.put("/post")
     def save_post():
@@ -397,5 +401,32 @@ def create_app(config=None):
                 abort(409, description="다른 수정이 먼저 저장됐습니다. 내용을 복사한 뒤 글을 다시 열어 주세요.")
             raise
         return jsonify(status="saved")
+
+    @app.delete("/post")
+    def delete_post():
+        if not writes_enabled:
+            abort(403, description="현재는 작성자 확인만 할 수 있습니다.")
+        session = editor_session()
+        data = json_body()
+        version = data.get("version")
+        if set(data) != {"version"} or not isinstance(version, str) or not COMMIT.fullmatch(version):
+            abort(422, description="삭제할 글의 버전을 확인해 주세요.")
+        path = session["post"]
+        author = session["author"]
+        post = read_owned_post(path, author)
+        conflict = "글이 수정됐습니다. 다시 열어 최신 내용을 확인한 뒤 삭제해 주세요."
+        if post.version != version:
+            abort(409, description=conflict)
+        try:
+            upstream_json(file_endpoint(path), headers=write_headers, delete={
+                "branch": BRANCH,
+                "last_commit_id": version,
+                "commit_message": f"docs(blog): {post.author} 글 삭제",
+            })
+        except UpstreamError as error:
+            if error.status in (400, 409) and read_owned_post(path, author).version != version:
+                abort(409, description=conflict)
+            raise
+        return jsonify(status="deleted")
 
     return app

@@ -1,4 +1,5 @@
 import base64
+import json
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -6,7 +7,10 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from urllib.parse import unquote
 
-from editor.app import BRANCH, GITHUB, GITHUB_API, GITLAB, UpstreamError, create_app, parse_post
+import yaml
+from werkzeug.exceptions import Forbidden
+
+from editor.app import BRANCH, FRONT_MATTER, GITHUB, GITHUB_API, GITLAB, UpstreamError, create_app, parse_post, upstream_json
 
 PATH = "posts/2026-11-02-test-fails-first.md"
 SOURCE = '---\ntitle: "기존 제목"\nslug: test-fails-first\nauthor: 오은서\n# Keep this comment.\ncategories: [backend]\ndraft: false\n---\n\n기존 본문\n'
@@ -32,6 +36,7 @@ class EditorTests(unittest.TestCase):
         self.emails = [{"email": "OWNER@example.org", "verified": True, "primary": False}]
         self.version = VERSION
         self.updates = []
+        self.deletions = []
         self.simulate_race = False
         self.oauth_response = {"access_token": "test-read-token", "scope": "user:email"}
         upstream = patch("editor.app.upstream_json", side_effect=self.upstream)
@@ -74,7 +79,7 @@ class EditorTests(unittest.TestCase):
                 self.assertEqual(response.status_code, expected)
             self.assertEqual(client.get("/views", headers=origin).json, {})
 
-    def upstream(self, path, *, headers=None, form=None, update=None, expected_type=dict):
+    def upstream(self, path, *, headers=None, form=None, update=None, delete=None, expected_type=dict):
         if path == GITHUB + "/login/oauth/access_token":
             self.assertEqual(form["redirect_uri"], ORIGIN + "/edit/")
             self.assertEqual(form["code_verifier"], "x" * 43)
@@ -86,6 +91,16 @@ class EditorTests(unittest.TestCase):
         self.assertTrue(path.startswith(GITLAB + "/api/v4/projects/"))
         self.assertEqual(headers, {"PRIVATE-TOKEN": "test-project-token"})
         self.assertIn("/repository/files/content/" + PATH, unquote(path))
+        if delete is not None:
+            self.assertEqual(delete["branch"], BRANCH)
+            self.assertEqual(delete["last_commit_id"], self.version)
+            self.assertNotIn("content", delete)
+            if self.simulate_race:
+                self.version = NEW_VERSION
+                raise UpstreamError(400)
+            self.deletions.append(delete)
+            self.source = None
+            return None
         if update:
             self.updates.append(update)
             self.assertEqual(update["branch"], BRANCH)
@@ -97,6 +112,8 @@ class EditorTests(unittest.TestCase):
             self.version = NEW_VERSION
             return {"branch": BRANCH}
         self.assertTrue(path.endswith("?ref=blog"))
+        if self.source is None:
+            raise UpstreamError(404)
         return {"content": base64.b64encode(self.source.encode()).decode(), "last_commit_id": self.version}
 
     def start(self, path=PATH):
@@ -106,6 +123,52 @@ class EditorTests(unittest.TestCase):
     def save(self, session, *, title="새 제목", markdown="\n새 본문\n", version=VERSION):
         return self.client.put("/post", headers={"Origin": ORIGIN, "Authorization": "Bearer " + session},
                                json={"title": title, "markdown": markdown, "version": version})
+
+    def delete(self, session, *, version=VERSION, origin=ORIGIN, **extra):
+        return self.client.delete("/post", headers={"Origin": origin, "Authorization": "Bearer " + session},
+                                  json={"version": version, **extra})
+
+    def test_owner_deletes_only_the_session_post_once(self):
+        login = self.start().json
+        self.assertIs(login["canDelete"], True)
+        session = login["session"]
+        response = self.delete(session)
+        self.assertEqual(response.json, {"status": "deleted"})
+        self.assertIn("DELETE", response.headers["Access-Control-Allow-Methods"])
+        self.assertIsNone(self.source)
+        self.assertEqual(self.delete(session).status_code, 404)
+        self.assertEqual(len(self.deletions), 1)
+
+    def test_delete_rejects_wrong_origin_session_owner_version_or_target(self):
+        session = self.start().json["session"]
+        self.assertEqual(self.delete(session, origin="https://invalid.example").status_code, 403)
+        self.assertEqual(self.delete("forged").status_code, 401)
+        self.assertEqual(self.delete(session, version="invalid").status_code, 422)
+        self.assertEqual(self.delete(session, post="posts/2026-11-02-other.md").status_code, 422)
+        self.assertEqual(self.delete(session, version=NEW_VERSION).status_code, 409)
+        self.source = SOURCE.replace("draft: false", "draft: true")
+        self.assertEqual(self.delete(session).status_code, 403)
+        self.source = SOURCE.replace("author: 오은서", "author: 사지한")
+        self.assertEqual(self.delete(session).status_code, 403)
+        self.assertEqual(self.deletions, [])
+
+    def test_delete_race_leaves_newer_version_in_place(self):
+        session = self.start().json["session"]
+        self.simulate_race = True
+        self.assertEqual(self.delete(session).status_code, 409)
+        self.assertEqual(self.source, SOURCE)
+        self.assertEqual(self.version, NEW_VERSION)
+        self.assertEqual(self.deletions, [])
+
+    def test_upstream_delete_uses_json_and_accepts_empty_response(self):
+        with patch("editor.app.upstream_http.open") as open_upstream:
+            open_upstream.return_value.__enter__.return_value.read.return_value = b""
+            payload = {"branch": BRANCH, "last_commit_id": VERSION, "commit_message": "delete fixture"}
+            self.assertIsNone(upstream_json(GITLAB + "/fixture", delete=payload))
+            outgoing = open_upstream.call_args.args[0]
+            self.assertEqual(outgoing.get_method(), "DELETE")
+            self.assertEqual(outgoing.get_header("Content-type"), "application/json")
+            self.assertEqual(json.loads(outgoing.data), payload)
 
     def test_owner_saves_title_and_body_to_blog_and_retry_does_not_write_twice(self):
         login = self.start()
@@ -123,6 +186,9 @@ class EditorTests(unittest.TestCase):
         self.client = create_app(config).test_client()
         self.assertEqual(self.start(path=None).json, {"status": "verified"})
         self.assertEqual(self.save("forged").status_code, 403)
+        delete = self.delete("forged")
+        self.assertEqual(delete.status_code, 403)
+        self.assertNotIn("DELETE", delete.headers["Access-Control-Allow-Methods"])
         self.assertEqual(self.calls.call_count, 2)
         self.assertEqual(self.updates, [])
         self.emails = [{"email": "outsider@example.org", "verified": True}]
@@ -224,11 +290,17 @@ class EditorTests(unittest.TestCase):
         self.assertEqual(self.save(session, markdown="{{< invalid >}}").status_code, 422)
         self.assertEqual(self.updates, [])
 
-    def test_existing_articles_can_be_parsed(self):
+    def test_existing_articles_follow_public_editing_policy(self):
         with self.app.app_context():
             for path in Path("content/posts").glob("????-??-??-*.md"):
                 with self.subTest(path=path):
-                    file = {"content": base64.b64encode(path.read_bytes()).decode(), "last_commit_id": VERSION}
+                    source = path.read_bytes()
+                    file = {"content": base64.b64encode(source).decode(), "last_commit_id": VERSION}
+                    metadata = yaml.safe_load(FRONT_MATTER.match(source.decode())[1])
+                    if metadata.get("draft") is True:
+                        with self.assertRaises(Forbidden):
+                            parse_post(file)
+                        continue
                     post = parse_post(file)
                     self.assertTrue(post.markdown.strip())
                     self.assertTrue(post.author)
