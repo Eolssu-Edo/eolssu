@@ -7,4 +7,4 @@ COPY app.py .
 
 ENV PYTHONDONTWRITEBYTECODE=1
 USER 65532:65532
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--threads", "4", "--timeout", "45", "app:create_app()"]
+CMD ["gunicorn", "--no-control-socket", "--bind", "0.0.0.0:8000", "--threads", "4", "--timeout", "45", "app:create_app()"]
