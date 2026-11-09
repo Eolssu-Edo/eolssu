@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.practice.PracticeSettings
 import com.ssafy.eolssu.data.song.SampleSongs
@@ -239,11 +240,11 @@ class PracticeStateTest {
     @Test
     fun selectingPitchOpensFingeringButMarksOnlySelectForHold() {
         // 아리랑 첫 각: 黃 ㅡ 太 …
-        val pitch = ready.selectEvent(2)
+        val pitch = ready.selectUnit(arirang.displayUnits[2])
         assertEquals(PracticePanel.Fingering, pitch.panel)
-        assertEquals(Yul.Taeju, pitch.draft.note)
+        assertEquals(ScoreNote.Pitch(Yul.Taeju), pitch.draft.note)
 
-        val hold = ready.selectEvent(1)
+        val hold = ready.selectUnit(arirang.displayUnits[1])
         assertEquals(1, hold.selected)
         assertNull(hold.panel)
     }
@@ -261,26 +262,25 @@ class PracticeStateTest {
     @Test
     fun fingeringNavigationWalksScoreAndStopsAtEnds() {
         // 보드 운지법 패널의 이전·다음 음은 악보의 앞뒤 정간으로 움직인다.
-        val first = ready.selectEvent(0)
+        val first = ready.selectUnit(arirang.displayUnits[0])
         assertEquals(first, first.moveFingering(-1))
         val next = first.moveFingering(1)
         assertEquals(1, next.selected)
-        assertEquals(ready.fingeringYulAt(1), next.draft.note)
-        assertFalse(next.draft.noteRest)
+        assertEquals(ready.fingeringNoteAt(1), next.draft.note)
         val last = ready.copy(selected = ready.eventCount - 1)
         assertEquals(last, last.moveFingering(1))
     }
 
     @Test
-    fun fingeringYulFollowsPreviousPitchThroughHoldAndNullOnRest() {
+    fun fingeringNoteFollowsPreviousPitchThroughHoldAndStopsAtRest() {
         val events = arirang.timeline
-        val hold = events.indexOfFirst { it.note == com.ssafy.eolssu.core.model.ScoreNote.Hold }
+        val hold = events.indexOfFirst { it.note == ScoreNote.Hold }
         assertTrue(hold > 0)
-        assertEquals(ready.fingeringYulAt(hold - 1), ready.fingeringYulAt(hold))
-        val rest = events.indexOfFirst { it.note == com.ssafy.eolssu.core.model.ScoreNote.Rest }
+        assertEquals(ready.fingeringNoteAt(hold - 1), ready.fingeringNoteAt(hold))
+        val rest = events.indexOfFirst { it.note == ScoreNote.Rest }
         if (rest >= 0) {
-            assertNull(ready.fingeringYulAt(rest))
-            assertTrue(ready.copy(selected = rest - 1).moveFingering(1).draft.noteRest)
+            assertEquals(ScoreNote.Rest, ready.fingeringNoteAt(rest))
+            assertEquals(ScoreNote.Rest, ready.copy(selected = rest - 1).moveFingering(1).draft.note)
         }
     }
 

@@ -2,10 +2,29 @@ package com.ssafy.eolssu.feature.practice
 
 import com.ssafy.eolssu.core.model.*
 import com.ssafy.eolssu.core.model.fingering.*
+import com.ssafy.eolssu.data.practice.PracticeSettings
 import com.ssafy.eolssu.feature.practice.component.fingerCells
+import com.ssafy.eolssu.feature.practice.component.fingeringFor
 import kotlin.test.*
 
 class PracticeFingeringPageTest {
+    @Test fun gangwonArirangHighNotesOpenFingering() {
+        // 강원도 아리랑 2각 1~4정간의 원본 율명과 옥타브.
+        val notes = listOf(
+            ScoreNote.SourcePitch("황", 2), ScoreNote.SourcePitch("무", 1),
+            ScoreNote.SourcePitch("태", 2), ScoreNote.SourcePitch("황", 2),
+        )
+        val song = fingerSong(notes.map { ScoreCell(it) })
+        val ready = PracticeUiState(song = song, settings = PracticeSettings(instrumentId = GuideInstrument.Danso.id))
+
+        for ((index, holes) in listOf(0 to "10000", 2 to "10100", 3 to "10000")) {
+            val selected = ready.selectUnit(song.displayUnits[index])
+            assertEquals(PracticePanel.Fingering, selected.panel)
+            assertEquals(notes[index], selected.draft.note)
+            assertEquals(holes.map(HoleState::parse), selected.instrument.fingeringFor(selected.draft.note)?.holes)
+        }
+    }
+
     @Test fun dansoCheongNamInScoreHasHalfHoleFingering() {
         val note = ScoreNote.SourcePitch("남", 1)
         val cell = fingerCells(fingerSong(listOf(ScoreCell(note))), GuideInstrument.Danso).single()

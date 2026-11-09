@@ -165,6 +165,11 @@ fun LearnPracticeScreen(
             // 듣기 판은 단계 내용 없이도 쓸 수 있어, 내용을 받는 중·실패여도 그대로 둔다.
             val loaded = (detail as? LearnDetailLoad.Loaded)?.detail
             loaded?.pass?.let { PassCard(stage, it) }
+            // 앱이 음높이로 판정하면 판정 안내를, 판정하지 않는 단계는 스스로 확인 안내를 듣기 판 위에 둔다.
+            when {
+                state.judgesByPitch -> LearnNote(stringResource(Res.string.learn_practice_pitch_note), Modifier.padding(bottom = 14.dp))
+                !state.judgesBySound -> LearnNote(stringResource(Res.string.learn_practice_self_note), Modifier.padding(bottom = 14.dp))
+            }
             ListenPanel(state, instrument)
             if (loaded != null) {
                 PracticeMaterial(stage, loaded, instrument, state)
@@ -536,10 +541,6 @@ private fun PracticeMaterial(stage: LearnStage, detail: LearnStageDetail, instru
         else -> LearnSection(stringResource(Res.string.learn_section_tasks)) { LearnTaskList(detail.tasks) }
     }
     if (state.mic == LearnMicStatus.Unsupported) return
-    when {
-        state.judgesByPitch -> LearnNote(stringResource(Res.string.learn_practice_pitch_note), Modifier.padding(bottom = 16.dp))
-        !state.judgesBySound -> LearnNote(stringResource(Res.string.learn_practice_self_note), Modifier.padding(bottom = 16.dp))
-    }
     LearnSmallNote(stringResource(if (state.judgesByPitch) Res.string.learn_practice_pitch_privacy else Res.string.learn_practice_privacy))
 }
 

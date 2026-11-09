@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.guide.learn
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -55,16 +53,19 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.guide.component.GuideFaint
 import com.ssafy.eolssu.feature.guide.component.dashedRoundBorder
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.learn_card_dot
+import eolssu.shared.generated.resources.learn_card_again
 import eolssu.shared.generated.resources.learn_card_next
 import eolssu.shared.generated.resources.learn_card_open
 import eolssu.shared.generated.resources.learn_card_open_done
 import eolssu.shared.generated.resources.learn_card_prev
 import eolssu.shared.generated.resources.learn_card_stage
+import eolssu.shared.generated.resources.learn_card_start
 import eolssu.shared.generated.resources.learn_done
 import eolssu.shared.generated.resources.learn_optional
 import eolssu.shared.generated.resources.learn_stage_1
@@ -84,8 +85,8 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToInt
 
 /*
- * LEARN-02 단계 목록의 그림 카드 넘기기(`.lc`): 이전 · 정사각형 카드 · 다음, 카드 아래 단계 이름과 점 9개.
- * 손가락으로 밀거나 화살표 · 점 · 키보드 ←→로 넘기고, 카드를 누르면 그 단계 상세를 연다.
+ * LEARN-02 단계 목록의 그림 카드 넘기기(`.lc`): 이전 · 정사각형 카드 · 다음, 카드 아래 단계 이름과 시작 버튼.
+ * 손가락으로 밀거나 화살표 · 위 산길 지도 · 키보드 ←→로 넘기고, 시작 버튼이나 카드를 누르면 그 단계 상세를 연다.
  */
 
 /** 단계 그림 원본(1536 × 1024)의 크기. */
@@ -200,9 +201,16 @@ internal fun LearnStageCarousel(
                 textAlign = TextAlign.Center,
             )
         }
-        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            stages.forEach { s -> CarouselDot(s, on = s.number == shownPage, done = state.isDone(s.number)) { go(s.number) } }
-        }
+        // 카드 그림만으로는 누를 수 있는지 알기 어려워, 눈에 띄는 시작 버튼을 함께 둔다(카드를 눌러도 열린다).
+        val done = state.isDone(stage.number)
+        EolssuButton(
+            text = stringResource(if (done) Res.string.learn_card_again else Res.string.learn_card_start),
+            onClick = { onOpen(stage.number) },
+            modifier = Modifier.padding(top = 14.dp).widthIn(min = 180.dp),
+            style = if (done) EolssuButtonStyle.Secondary else EolssuButtonStyle.Primary,
+            icon = EolssuIcons.Play,
+            small = true,
+        )
     }
 }
 
@@ -247,7 +255,7 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit) {
             .clickable(role = Role.Button) { onOpen(stage.number) }
             .semantics { contentDescription = description },
     ) {
-        StageArt(stage.number, Modifier.fillMaxSize().background(colors.background))
+        LearnStageArt(stage.number, Modifier.fillMaxSize().background(colors.background))
         // 테두리는 그림 위에 그린다. 완료는 1dp 테두리 + 안쪽 2dp 그림자(`box-shadow: inset`)라 3dp다
         val border = when {
             done -> Modifier.border(3.dp, colors.primary, shape)
@@ -263,9 +271,9 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit) {
     }
 }
 
-/** 단계 그림에서 [LearnArtCrops]의 정사각형 부분을 카드 크기로 그린다. */
+/** 단계 그림에서 [LearnArtCrops]의 정사각형 부분을 카드 크기로 그린다. 단계 상세 머리에도 쓴다. */
 @Composable
-private fun StageArt(stage: Int, modifier: Modifier) {
+internal fun LearnStageArt(stage: Int, modifier: Modifier) {
     val bitmap = imageResource(LearnArts[stage - 1])
     val crop = LearnArtCrops[stage - 1]
     Canvas(modifier.clearAndSetSemantics {}) {
@@ -306,30 +314,5 @@ private fun CardBadge(modifier: Modifier, check: Boolean, text: String) {
         val fg = if (check) colors.onPrimary else colors.textMuted
         if (check) Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(11.dp), tint = fg)
         Text(text, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 11.sp, fontWeight = FontWeight.Bold), color = fg)
-    }
-}
-
-/** 점 하나(`.lc-dots button`): 누르는 칸 18dp, 점 7dp. 지금 카드는 긴 연두, 완료는 진한 회색, 나머지는 옅은 회색. */
-@Composable
-private fun CarouselDot(stage: LearnStage, on: Boolean, done: Boolean, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    val width by animateDpAsState(if (on) 18.dp else 7.dp)
-    val description = stringResource(Res.string.learn_card_dot, stage.number, stage.title)
-    Box(
-        Modifier
-            .size(18.dp)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics {
-                contentDescription = description
-                selected = on
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        val color = when {
-            on -> colors.primary
-            done -> GuideFaint
-            else -> colors.lineSoft
-        }
-        Box(Modifier.width(width).height(7.dp).background(color, if (on) RoundedCornerShape(4.dp) else CircleShape))
     }
 }

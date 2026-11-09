@@ -81,6 +81,21 @@ object IosOAuthRelay : OAuthRoute {
 }
 
 /**
+ * 개발 앱(얼쑤 개발, 번들 ID `com.ssafy.eolssu.dev`)의 iOS 복귀. Apple만 개발 앱 전용 주소를 보내 서버가 개발 앱 번들 ID로 코드를 교환하게 한다.
+ * Apple 코드는 받은 앱의 번들 ID로만 교환된다. 다른 제공자와 앱 복귀는 [IosOAuthRelay]와 같다.
+ */
+object IosDevOAuthRelay : OAuthRoute by IosOAuthRelay {
+    const val BUNDLE_ID = "com.ssafy.eolssu.dev"
+
+    override fun uriFor(provider: SocialProvider) =
+        if (provider == SocialProvider.Apple) "https://${OAuthRedirect.HOST}/api/auth/ios-dev/oauth/${provider.pathName}/callback"
+        else IosOAuthRelay.uriFor(provider)
+
+    /** 실행 중인 앱의 번들 ID에 맞는 iOS 복귀 경로. */
+    fun forBundle(bundleId: String?): OAuthRoute = if (bundleId == BUNDLE_ID) IosDevOAuthRelay else IosOAuthRelay
+}
+
+/**
  * iOS 기본 Apple 로그인(`docs/specs/social-auth.md` Sign in with Apple). 서버 start가 준 Apple 인증 주소를 열지 않고
  * `state`·`nonce`만 꺼내 기본 로그인 요청에 넣는다. 끝나면 다른 제공자의 서버 중계 복귀와 같은 앱 주소를 만들어 같은 확인([OAuthAttempts.accept])을 거친다.
  */

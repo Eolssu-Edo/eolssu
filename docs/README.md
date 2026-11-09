@@ -1,7 +1,12 @@
 # 프로젝트 문서
 
+- [기초부터 배우기 2·3단계 할 일별 따라 배우기 (619)](plans/S15P31E102-619.md)
+- [Mattermost 점검 메시지 구성](specs/mattermost-inspection-messages.md) · [616 계획·검증](plans/S15P31E102-616.md)
+- [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
 - [연습 화면 외 정간보 공통 형식 (591)](knowledge/frontend/reading-score-format.md)
+- [원격 Mac Ad Hoc 배포 구성·제약](knowledge/infra/ios-ad-hoc-mac-migration.md)
+- [iOS Jenkins Mac 이관·Ad Hoc 자동 배포 (444)](plans/S15P31E102-444.md) · [운영 절차](../infra/ios-qa/README.md)
 - [운영 iOS 간편 로그인 복귀 주소와 Apple 로그인 설정 (563)](plans/S15P31E102-563.md)
 - [이전 연주 결과·녹음 기록 통합 (553)](plans/S15P31E102-553.md)
 - [홈 평가 시작 화살표·정간보 카드 배경 정리 (554)](plans/S15P31E102-554.md)
@@ -12,6 +17,7 @@
 - [악보 파일 선택·접수 경계와 미확인 사항](knowledge/frontend/sheet-import-submission.md)
 - [홈 카드 배치·상단 정리와 Android 뒤로 가기 두 번 종료 (549)](plans/S15P31E102-549.md) · [홈 스펙](specs/home-scroll-ink.md)
 - [오류 위치 상세 복합 오류·점수 화면 오류 요약 (548)](plans/S15P31E102-548.md)
+- [기초부터 배우기 단계 개요·안내 개선 (565)](plans/S15P31E102-565.md)
 - [연습 기록지 요약 카드 정리·점수 변화 악기·곡 필터 (547)](plans/S15P31E102-547.md)
 - [이전 연주와 비교 점수 도장·문구 (545)](plans/S15P31E102-545.md)
 - [휴대폰 연습 악보 각 묶음 (542)](plans/S15P31E102-542.md)
@@ -76,6 +82,7 @@
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
 
 - [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)
+- [연습 악보 음 선택·운지·예시음 계획과 검증 (613)](plans/S15P31E102-613.md)
 - [한 음씩 연습 판정 기준 조회 (493)](specs/note-practice-criteria.md) · [계획](plans/S15P31E102-493.md)
 - [V25 삭제 전 호환 백엔드 릴리스](specs/mission-migration-compat.md) · [499 계획·검증](plans/S15P31E102-499.md) · [배포 순서와 제약](knowledge/infra/mission-migration-compat.md)
 
@@ -355,6 +362,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [녹음 저장 이관(국내 디스크·R2 복귀)·Naver 메일 준비](../infra/storage/README.md)
 - [약관 본문 공개와 버전 등록](../infra/terms/README.md)
 - [개인정보 로그·문의·감사 보유기간 운영](../infra/privacy/README.md)
+- [음원 재생·OMR 로그 보존 (625)](plans/S15P31E102-625.md)
 
 - [S15P31E102-314 네이버 간편 로그인 연동 준비](plans/S15P31E102-314.md)
 
@@ -372,6 +380,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [Android16 QA 밝기·한글 도구 호환성](knowledge/infra/qa-tablet-native-tools.md)
 
 - [QA APK MR 자동 반영과 기기별 최신 설치](knowledge/infra/qa-apk-mr-metadata.md)
+- [QA MR 동기화 10개 단위 조회 (624)](plans/S15P31E102-624.md)
 
 - [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)
 

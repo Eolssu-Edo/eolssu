@@ -126,7 +126,7 @@ pipeline {
         stage('Validate runtime Compose') {
             steps {
                 sh '''
-                docker compose --env-file /opt/eolssu/config/ci.env.example -f /opt/eolssu/config/compose.yml config --quiet
+                docker compose --env-file /opt/eolssu/config/ci.env.example -f /opt/eolssu/config/compose.yml --profile backend-slots config --quiet
                 '''
             }
         }

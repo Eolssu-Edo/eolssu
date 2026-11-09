@@ -19,9 +19,8 @@ services:
     volumes:
       - ${WEB_DIST_DIR:?WEB_DIST_DIR를 지정하세요}:/usr/share/nginx/html:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./backend-route:/etc/nginx/backend-route:ro
       - /opt/eolssu/acme/.well-known:/usr/share/nginx/html/.well-known:ro
-    depends_on:
-      - backend
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1/"]
       interval: 5s
@@ -29,7 +28,8 @@ services:
       retries: 12
     restart: unless-stopped
 
-  backend:
+  backend: &backend
+    profiles: ["backend-slots"]
     logging:
       driver: syslog
       options:
@@ -39,8 +39,13 @@ services:
     user: "10001:10001"
     working_dir: /app
     command: ["java", "-jar", "/app/app.jar"]
-    environment:
+    environment: &backend-env
+      EOLSSU_DEPLOYMENT_SLOT: backend
       SERVER_PORT: "8080"
+      SERVER_SHUTDOWN: graceful
+      SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE: 120s
+      SPRING_TASK_SCHEDULING_SHUTDOWN_AWAIT_TERMINATION: "true"
+      SPRING_TASK_SCHEDULING_SHUTDOWN_AWAIT_TERMINATION_PERIOD: 120s
       LEGAL_PUBLICATION_ENABLED: ${LEGAL_PUBLICATION_ENABLED:-false}
       SPRING_PROFILES_ACTIVE: ops
       DB_URL: "jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-eolssu}?connectTimeout=2000&socketTimeout=2000"
@@ -72,6 +77,8 @@ services:
       AUTH_OAUTH_APPLE_KEY_ID: ${AUTH_OAUTH_APPLE_KEY_ID:-}
       AUTH_OAUTH_APPLE_PRIVATE_KEY: ${AUTH_OAUTH_APPLE_PRIVATE_KEY:-}
       AUTH_OAUTH_APPLE_REDIRECT_URIS: ${AUTH_OAUTH_APPLE_REDIRECT_URIS:-}
+      AUTH_OAUTH_APPLE_DEV_CLIENT_ID: ${AUTH_OAUTH_APPLE_DEV_CLIENT_ID:-}
+      AUTH_OAUTH_APPLE_DEV_REDIRECT_URIS: ${AUTH_OAUTH_APPLE_DEV_REDIRECT_URIS:-}
       RECORDING_STORAGE_ENDPOINT: ${RECORDING_STORAGE_ENDPOINT:-}
       RECORDING_STORAGE_BUCKET: ${RECORDING_STORAGE_BUCKET:-}
       RECORDING_STORAGE_ACCESS_KEY_ID: ${RECORDING_STORAGE_ACCESS_KEY_ID:-}
@@ -79,7 +86,7 @@ services:
       RECORDING_STORAGE_REGION: ${RECORDING_STORAGE_REGION:-auto}
       RECORDING_STORAGE_TYPE: ${RECORDING_STORAGE_TYPE:-s3}
       RECORDING_STORAGE_LOCAL_DIRECTORY: /var/lib/eolssu/recordings
-      RECORDING_STORAGE_LOCAL_READ_BASE_URL: ${RECORDING_STORAGE_LOCAL_READ_BASE_URL:-http://backend:8080/api/recordings/read}
+      RECORDING_STORAGE_LOCAL_READ_BASE_URL: ${RECORDING_STORAGE_LOCAL_READ_BASE_URL:-http://frontend:8081/api/recordings/read}
       RECORDING_STORAGE_LOCAL_SIGNING_SECRET: ${RECORDING_STORAGE_LOCAL_SIGNING_SECRET:-}
       SHEET_STORAGE_ENDPOINT: ${SHEET_STORAGE_ENDPOINT:-}
       SHEET_STORAGE_BUCKET: ${SHEET_STORAGE_BUCKET:-}
@@ -98,6 +105,12 @@ services:
       # 연주 분석 AI(아래 ai 서비스). 같은 Compose 내부망 주소라 비밀값이 아니다(PRA-03).
       ANALYSIS_AI_BASE_URL: http://ai:8000
     volumes:
+      - ./backend-route:/etc/eolssu/backend-route:ro
+      - type: bind
+        source: ${BACKEND_SHARED_DIR:-/opt/eolssu/backend-shared}
+        target: /var/lib/eolssu/deployment
+        bind:
+          create_host_path: false
       - ${BACKEND_JAR:?BACKEND_JAR를 지정하세요}:/app/app.jar:ro
       - ${RECORDING_STORAGE_LOCAL_HOST_DIRECTORY:-/opt/eolssu/recordings}:/var/lib/eolssu/recordings
     depends_on:
@@ -109,7 +122,14 @@ services:
       timeout: 5s
       start_period: 30s
       retries: 3
+    stop_grace_period: 250s
     restart: unless-stopped
+
+  backend-green:
+    <<: *backend
+    environment:
+      <<: *backend-env
+      EOLSSU_DEPLOYMENT_SLOT: backend-green
 
   # 481: explicitly enable only after local resource/asset verification.
   playback:

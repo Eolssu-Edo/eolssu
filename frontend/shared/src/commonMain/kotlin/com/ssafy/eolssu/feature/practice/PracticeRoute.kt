@@ -15,6 +15,8 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.audio.RecordedTake
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
 import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
@@ -50,12 +52,16 @@ fun PracticeRoute(
     onGoHome: () -> Unit,
     onSwitchToEval: () -> Unit,
     onEvaluate: ((songId: String, bpm: Int, take: RecordedTake?) -> Unit)?,
+    fingeringAudio: @Composable (GuideInstrument, FingeringNote, (Boolean) -> Unit) -> Unit,
     onConfirmBackChange: ((() -> Unit)?) -> Unit = {},
     mine: Boolean = false,
     sheetTitle: String? = null,
     viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine") { parametersOf(songId, solo, mine) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // 평가 연주에서 음마다 모은 실시간 음높이 안내(S15P31E102-597). 관측이 없는 플랫폼은 집계가 비어 아무것도 칠하지 않는다.
+    val pitchTally by viewModel.livePitch.collectAsStateWithLifecycle()
+    val livePitch = remember(state.song, state.solo, pitchTally) { livePitchMarks(state, pitchTally) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     LaunchedEffect(sheetTitle) { viewModel.showSheetTitle(sheetTitle) }
@@ -93,7 +99,7 @@ fun PracticeRoute(
         actions = PracticeScreenActions(
             onBack = back,
             onOpenSettings = { viewModel.openPanel(PracticePanel.Settings) },
-            onSelectEvent = { viewModel.selectEvent(it.index) },
+            onSelectUnit = viewModel::selectUnit,
             onUserScroll = viewModel::stopFollowing,
             onFollowNow = viewModel::followNow,
             onCancelCountdown = viewModel::cancelCountdown,
@@ -132,7 +138,7 @@ fun PracticeRoute(
                 onDraft = viewModel::updateDraft,
                 onToggleBigScore = viewModel::toggleBigScore,
                 onMoveFingering = viewModel::moveFingering,
-                onListen = { viewModel.listen(state.draft.note) },
+                fingeringAudio = { instrument, note -> fingeringAudio(instrument, note, viewModel::reportFingeringAudio) },
                 onTogglePreview = viewModel::togglePreview,
                 onSetInstrument = viewModel::setInstrument,
                 onToggleFingeringView = viewModel::toggleFingeringView,
@@ -169,5 +175,6 @@ fun PracticeRoute(
                 },
             ),
         ),
+        livePitch = livePitch,
     )
 }

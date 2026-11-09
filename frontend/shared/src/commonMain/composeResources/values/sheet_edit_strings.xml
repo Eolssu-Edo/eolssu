@@ -9,16 +9,14 @@
     <string name="sheetedit_new_subtitle">정간보로 만들어 내 악보에 저장해요</string>
     <string name="sheetedit_new_question">어떻게 추가할까요?</string>
     <string name="sheetedit_new_jg_title">정간보 가져오기</string>
-    <string name="sheetedit_new_jg_desc">사진·PDF의 정간보를 정간 그대로 읽어요</string>
     <string name="sheetedit_new_staff_title">오선보 가져오기</string>
-    <string name="sheetedit_new_staff_desc">사진·PDF의 오선보를 율명으로 바꿔 정간보로 옮겨요</string>
+    <string name="sheetedit_new_jg_caption">사진·PDF 정간보</string>
+    <string name="sheetedit_new_staff_caption">사진·PDF 오선보</string>
     <string name="sheetedit_new_copy_title">내 악보·제공 곡 불러오기</string>
-    <string name="sheetedit_new_copy_desc">목록에서 고르면 바로 편집해요 · 원본은 그대로 둬요</string>
     <string name="sheetedit_new_hwang_title">황(黃)으로 읽을 음</string>
     <string name="sheetedit_new_hwang_desc">이 음을 황으로 놓고 율명을 정해요</string>
     <string name="sheetedit_new_hwang_default">%1$s · 단소 기본</string>
-    <string name="sheetedit_new_file_hint">기기에 있는 사진(JPG·PNG)이나 PDF를 골라요 · 악보 한 쪽이 다 보이게, 기울지 않게 찍으면 잘 읽혀요.</string>
-    <string name="sheetedit_new_pick_file">사진·PDF 고르기</string>
+    <string name="sheetedit_new_pick_file">사진·PDF 선택하기</string>
 
     <!-- DevicePick 기기 기본 선택 창 자리 -->
     <string name="sheetedit_device_title_jg">정간보 사진·PDF 가져오기</string>

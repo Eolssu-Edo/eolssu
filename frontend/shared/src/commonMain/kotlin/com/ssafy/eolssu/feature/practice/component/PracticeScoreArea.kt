@@ -29,7 +29,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.ssafy.eolssu.core.model.ScoreEvent
+import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.displayUnitAt
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
@@ -38,6 +38,8 @@ import com.ssafy.eolssu.core.ui.score.BandGap
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
+import com.ssafy.eolssu.core.model.ScoreUnitKey
+import com.ssafy.eolssu.core.ui.score.ScoreCellMark
 import com.ssafy.eolssu.core.ui.score.ScoreCursor
 import com.ssafy.eolssu.core.ui.score.ScoreHighlight
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
@@ -45,6 +47,7 @@ import com.ssafy.eolssu.core.ui.score.ScorePlayback
 import com.ssafy.eolssu.core.ui.score.rememberScoreCursor
 import com.ssafy.eolssu.core.ui.score.twoBandColumnCount
 import com.ssafy.eolssu.core.ui.score.scoreStrips
+import com.ssafy.eolssu.feature.practice.LivePitchMark
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.stepCurrentIndex
@@ -83,12 +86,14 @@ enum class PracticeScoreStyle {
 fun PracticeScoreArea(
     state: PracticeUiState,
     style: PracticeScoreStyle,
-    onSelectEvent: (ScoreEvent) -> Unit,
+    onSelectUnit: (ScoreDisplayUnit) -> Unit,
     onUserScroll: () -> Unit,
     onFollowNow: () -> Unit,
     modifier: Modifier = Modifier,
+    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
 ) {
     val song = state.song ?: return
+    val pitchMarks = livePitchCellMarks(livePitch)
     val padding = when (style) {
         PracticeScoreStyle.Phone -> PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp)
         PracticeScoreStyle.TabletPortrait -> PaddingValues(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 12.dp)
@@ -120,8 +125,8 @@ fun PracticeScoreArea(
         // 한 음씩 따라 불기는 진행 모습(playback) 없이 지금 음의 정간에만 연두 테두리를 둔다(곁줄에는 표시하지 않는다).
         val currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex
         val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
-        val selectedIndex = if (state.mode == PracticeMode.Ready && state.stepCurrentIndex == null) state.selected else null
-        val onEventClick = if (state.mode == PracticeMode.Ready) onSelectEvent else null
+        val selectedCell = state.scoreSelection?.let { it.column to it.row }
+        val onUnitClick = onSelectUnit.takeIf { state.canSelectUnit }
         val annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap()
         if (bandColumns == null) {
             val scrollState = rememberHorizontalScoreScroll(state)
@@ -136,9 +141,10 @@ fun PracticeScoreArea(
                 playback = playback,
                 follow = state.follow,
                 onUserScroll = onUserScroll,
-                selectedIndex = selectedIndex,
-                onEventClick = onEventClick,
+                selectedCell = selectedCell,
+                onUnitClick = onUnitClick,
                 annotations = annotations,
+                unitMarks = pitchMarks,
             )
         } else {
             val bandHeight = (maxHeight - BandGap) / 2
@@ -156,10 +162,11 @@ fun PracticeScoreArea(
                         currentIndex = currentIndex,
                         highlight = highlight,
                         playback = playback,
-                        selectedIndex = selectedIndex,
-                        onEventClick = onEventClick,
+                        selectedCell = selectedCell,
+                        onUnitClick = onUnitClick,
                         columns = first until minOf(first + bandColumns, columnCount),
                         annotations = annotations,
+                        unitMarks = pitchMarks,
                     )
                 }
             }
@@ -263,13 +270,15 @@ private fun rememberBandScroll(
 @Composable
 fun PracticeBoardScore(
     state: PracticeUiState,
-    onSelectEvent: (ScoreEvent) -> Unit,
+    onSelectUnit: (ScoreDisplayUnit) -> Unit,
     onUserScroll: () -> Unit,
     onFollowNow: () -> Unit,
     modifier: Modifier = Modifier,
+    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
 ) {
     val song = state.song ?: return
     val colors = EolssuTheme.colors
+    val pitchMarks = livePitchCellMarks(livePitch)
     val big = state.settings.bigScore
     val strips = remember(song) { scoreStrips(song.score, song.jangdan) }
     val longestStrip = strips.maxOf { it.rows.count() }
@@ -297,14 +306,15 @@ fun PracticeBoardScore(
                     playback = playback,
                     follow = state.follow,
                     onUserScroll = onUserScroll,
-                    selectedIndex = if (state.mode == PracticeMode.Ready && state.stepCurrentIndex == null) state.selected else null,
-                    onEventClick = if (state.mode == PracticeMode.Ready) onSelectEvent else null,
+                    selectedCell = state.scoreSelection?.let { it.column to it.row },
+                    onUnitClick = onSelectUnit.takeIf { state.canSelectUnit },
                     look = JeongganboLook.practice(big),
                     annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap(),
                     columnsPerStack = packing.columnsPerStack,
                     stackGap = PracticeStackGap,
                     cellHeights = packing.cellHeights,
                     stackRowHeights = packing.stackRowHeights,
+                    unitMarks = pitchMarks,
                 )
             }
             // 준비 안내의 공간을 재생 중에도 유지해 악보 높이/묶음 수가 변하지 않게 한다.
@@ -331,6 +341,23 @@ fun PracticeBoardScore(
                     color = colors.accentText,
                 )
             }
+        }
+    }
+}
+
+/**
+ * 평가 연주에서 음마다 모은 실시간 음높이 안내를 그 음의 표시 자리에 칠한다(S15P31E102-597).
+ * 맞음은 연두, 다른 음은 주황, 판단 보류는 회색 테두리만 둔다. 연주 후 채점의 틀린 칸 표시와 달리 아이콘·문구는 없다.
+ */
+@Composable
+private fun livePitchCellMarks(marks: Map<ScoreUnitKey, LivePitchMark>): Map<ScoreUnitKey, ScoreCellMark> {
+    if (marks.isEmpty()) return emptyMap()
+    val colors = EolssuTheme.colors
+    return marks.mapValues { (_, mark) ->
+        when (mark) {
+            LivePitchMark.Correct -> ScoreCellMark(fill = colors.accentTintStrong, ring = colors.green, ringWidth = 1.5.dp)
+            LivePitchMark.Wrong -> ScoreCellMark(fill = colors.pitchErrorSoft, ring = colors.pitchError, ringWidth = 1.5.dp)
+            LivePitchMark.Listening -> ScoreCellMark(ring = colors.textDisabled, ringWidth = 1.5.dp)
         }
     }
 }

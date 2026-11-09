@@ -61,6 +61,19 @@ data class EolssuColors(
     /** 틀린 종류 표시: 음 길이 — 정간 점선 테두리·아이콘 상자 바탕, 정간 바탕. */
     val lengthError: Color,
     val lengthErrorSoft: Color,
+    /**
+     * 악보의 틀린 정간 표시(연한 색): 종류마다 정간 테두리(`…Line`)와 바탕(`…Faint`). 음정·박자·음 길이·미검출 순.
+     * 칸 표시가 율명보다 튀지 않게 [pitchError] 등보다 연하게 둔다. 아이콘 상자는 흰 아이콘이 보이게 진한 색을 그대로 쓴다.
+     * 선·바탕으로만 쓰고 글자색으로 쓰지 않는다.
+     */
+    val pitchErrorLine: Color,
+    val pitchErrorFaint: Color,
+    val rhythmErrorLine: Color,
+    val rhythmErrorFaint: Color,
+    val lengthErrorLine: Color,
+    val lengthErrorFaint: Color,
+    val missedErrorLine: Color,
+    val missedErrorFaint: Color,
     /** 이전 연주에서 틀린 정간·기록 상세의 틀린 정간 바탕(옅은 붉은색). 테두리는 [rec]. 글자 바탕으로만 쓴다. */
     val recFaint: Color,
     /** 학습 화면의 녹색: 다음 단추 · 지금 쪽 표시. 글자는 [onPrimary]. */
@@ -114,6 +127,14 @@ val LightEolssuColors = EolssuColors(
     rhythmErrorText = Color(0xFF3B4A99),
     lengthError = Color(0xFF2C2C2C),
     lengthErrorSoft = Color(0xFFECECEA),
+    pitchErrorLine = Color(0xFFE9C6A4),
+    pitchErrorFaint = Color(0xFFFDF7EF),
+    rhythmErrorLine = Color(0xFFBFC8EE),
+    rhythmErrorFaint = Color(0xFFF5F7FE),
+    lengthErrorLine = Color(0xFFB8B8B4),
+    lengthErrorFaint = Color(0xFFF7F7F5),
+    missedErrorLine = Color(0xFFD2CCC1),
+    missedErrorFaint = Color(0xFFF8F6F2),
     recFaint = Color(0xFFFDF4F2),
     green = Color(0xFFADBE31),
     radical = Color(0xFF7E8C1C),

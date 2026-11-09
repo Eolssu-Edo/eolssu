@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
+import com.ssafy.eolssu.core.model.ScoreUnitKey
+import com.ssafy.eolssu.feature.practice.LivePitchMark
 import com.ssafy.eolssu.feature.practice.PracticeScreenActions
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.PracticeUiState
@@ -25,7 +27,12 @@ import com.ssafy.eolssu.feature.practice.component.PracticeSideDock
  * 내용은 최대 [WindowBreakpoints.ContentMaxWidth]로 가운데에 두고, 양옆은 40dp 이상 띄운다.
  */
 @Composable
-internal fun PracticeExpandedLayout(state: PracticeUiState, snackbarHostState: SnackbarHostState, actions: PracticeScreenActions) {
+internal fun PracticeExpandedLayout(
+    state: PracticeUiState,
+    snackbarHostState: SnackbarHostState,
+    actions: PracticeScreenActions,
+    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
+) {
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
         contentMaxWidth = WindowBreakpoints.ContentMaxWidth + SideGutter * 2,
@@ -43,8 +50,8 @@ internal fun PracticeExpandedLayout(state: PracticeUiState, snackbarHostState: S
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             PracticeScoreArea(
-                state, PracticeScoreStyle.TabletLandscape, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow,
-                Modifier.weight(1f),
+                state, PracticeScoreStyle.TabletLandscape, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
+                Modifier.weight(1f), livePitch = livePitch,
             )
             PracticeSideDock(state, actions.panel, actions.bottom, Modifier.width(DockWidth).fillMaxHeight())
         }

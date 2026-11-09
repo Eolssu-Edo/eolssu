@@ -14,6 +14,7 @@ import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingSpec
+import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.model.fingeringYul
@@ -101,6 +102,7 @@ class PracticeViewModel(
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
     private fun clearAccount() {
         pitchSession.stop()
+        pitchTally.value = LivePitchTally()
         take = null
         takeKey = ""
         screenShown = false
@@ -108,9 +110,18 @@ class PracticeViewModel(
         _uiState.value = PracticeUiState()
         viewModelScope.launch { stopAll() }
     }
-    private val pitchSession = PracticePitchSession(recorder, accountScope) { _uiState.value.position }
+    private val pitchTally = MutableStateFlow(LivePitchTally())
+    private val pitchSession = PracticePitchSession(recorder, accountScope, { feedback -> pitchTally.update { it.add(feedback) } }) {
+        _uiState.value.position
+    }
     /** 현재·직전 음높이 안내. 화면에서는 이 흐름만 구독하며 녹음 제어와 독립적이다. */
     val pitchFeedback: StateFlow<PracticePitchFeedback> = pitchSession.state
+
+    /**
+     * 이번 평가 연주에서 음마다 모은 실시간 판정(S15P31E102-597). 지나간 음은 색을 고정한다. 멈춤·이어 연주·연주 완료 동안 남고,
+     * 새 연주를 시작하거나(처음부터 다시 포함) 준비로 돌아가거나 연주 중 화면을 벗어나면 비운다.
+     */
+    val livePitch: StateFlow<LivePitchTally> = pitchTally.asStateFlow()
 
     private val jangdanAudio = JangdanSession(jangdanPlayer, accountScope)
     private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource) { song, bpm ->
@@ -297,7 +308,16 @@ class PracticeViewModel(
 
     init {
         accountScope.launch {
-            _uiState.map { it.position }.distinctUntilChanged().collect { pitchSession.refresh() }
+            _uiState.map { it.position }.distinctUntilChanged().collect { position ->
+                pitchSession.refresh()
+                // 두 음 앞까지 지나간 음은 색을 고정한다. 직전 음은 늦게 도착하는 결과를 더 받는다.
+                _uiState.value.song?.let { song -> pitchTally.update { it.freezeBefore(song, position - 1) } }
+            }
+        }
+        accountScope.launch {
+            _uiState.map { it.mode == PracticeMode.Ready || (it.mode == PracticeMode.Countdown && !it.resume) }
+                .distinctUntilChanged()
+                .collect { newTake -> if (newTake) pitchTally.value = LivePitchTally() }
         }
         retryLoadSong()
         accountScope.launch {
@@ -425,7 +445,11 @@ class PracticeViewModel(
 
     // 악보·패널
 
-    fun selectEvent(index: Int) = _uiState.update { it.selectEvent(index) }
+    fun selectUnit(unit: ScoreDisplayUnit) = _uiState.update { it.selectUnit(unit) }
+
+    fun reportFingeringAudio(playing: Boolean) {
+        _uiState.update { it.copy(fingeringAudioPlaying = playing && it.panel == PracticePanel.Fingering) }
+    }
 
     fun openPanel(panel: PracticePanel) {
         stopPreview()
@@ -462,8 +486,8 @@ class PracticeViewModel(
 
     fun moveFingering(delta: Int) = _uiState.update { it.moveFingering(delta) }
 
-    /** 음 듣기: 소리는 아직 없고 1.2초 동안 재생 중으로 보인다. */
-    fun listen(yul: Yul) {
+    /** 한 음씩 따라 불기에서 재생 연결 전까지 유지하는 표시다. */
+    private fun listen(yul: Yul) {
         if (!accountScope.isActive) return
         listenJob?.cancel()
         _uiState.update { it.copy(listening = yul) }
@@ -551,7 +575,7 @@ class PracticeViewModel(
         val position = song.timeline.indexOfLast { it.startTick!! <= target }.coerceAtLeast(0)
         val msPerTick = 60_000.0 / state.bpm / timing.ticksPerBeat
         _uiState.update { it.copy(mode = if (it.mode == PracticeMode.Ready) PracticeMode.Model else it.mode,
-            position = position, selected = position, playing = false, follow = true,
+            position = position, selected = position, selectedCell = state.cellForEvent(position), playing = false, follow = true,
             eventElapsedMs = (target - song.timeline[position].startTick!!) * msPerTick,
             elapsedMs = target * msPerTick, eventStartedAt = null, modelClock = null) }
         modelStartsAtAttack = true
@@ -768,6 +792,7 @@ class PracticeViewModel(
         when (state.mode) {
             PracticeMode.Recording, PracticeMode.Countdown -> {
                 stopAll()
+                pitchTally.value = LivePitchTally()
                 _uiState.update { it.interrupt() }
             }
             PracticeMode.Model -> modelAudio.suspendAndRelease()
@@ -839,7 +864,7 @@ class PracticeViewModel(
         syncStep()
     }
 
-    /** 왼쪽 '지금 음' 칸: 지금 기다리는 음을 들려준다. 음 하나를 내는 재생 API가 없어 운지법의 '음 듣기'와 같이 소리 없이 재생 중으로만 보인다. */
+    /** 왼쪽 '지금 음' 칸: 지금 기다리는 음을 들려준다. 이 버튼에는 아직 예시음을 연결하지 않았다. */
     fun listenStepNote() {
         val state = _uiState.value
         val yul = state.stepShownIndex?.let { state.song?.timeline?.getOrNull(it) }?.note?.fingeringYul ?: return

@@ -65,7 +65,7 @@ class FingeringViewModel(
                         else -> return@mapNotNull null
                     }
                     FingeringInstrumentOption(item.instrumentId, item.name, renderer)
-                } else _uiState.value.instrumentOptions
+                }.sortedBy { it.instrument.ordinal } else _uiState.value.instrumentOptions
                 currentCoroutineContext().ensureActive()
                 val selected = options.firstOrNull { it.instrument == _uiState.value.instrument } ?: options.firstOrNull()
                 _uiState.update { it.copy(instrumentOptions = options, instrumentListState = ReferenceLoadState.Ready,

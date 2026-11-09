@@ -13,6 +13,7 @@ import urllib.request
 
 API = 'https://lab.ssafy.com/api/v4/projects/s15-final%2FS15P31E102/merge_requests'
 MAX_BYTES = 4 * 1024 * 1024
+BATCH_SIZE = 10
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -21,7 +22,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def fetch_batch(ids, token, api_base=API):
-    query = urllib.parse.urlencode([('scope', 'all'), ('per_page', '100')] + [('iids[]', str(i)) for i in ids])
+    query = urllib.parse.urlencode([('scope', 'all'), ('per_page', str(len(ids)))] + [('iids[]', str(i)) for i in ids])
     request = urllib.request.Request(api_base + '?' + query, headers={'PRIVATE-TOKEN': token, 'Accept': 'application/json'})
     with urllib.request.build_opener(NoRedirect()).open(request, timeout=15) as response:
         body = response.read(MAX_BYTES + 1)
@@ -69,8 +70,8 @@ def sync(root, token, fetch=fetch_batch):
     ids = sorted(set(read_index(root).get('mergeRequests', {}).values()))
     incoming = {}
     # Network calls must not hold the publisher's archive lock.
-    for offset in range(0, len(ids), 100):
-        batch = ids[offset:offset + 100]
+    for offset in range(0, len(ids), BATCH_SIZE):
+        batch = ids[offset:offset + BATCH_SIZE]
         incoming.update(details_for(fetch(batch, token), batch))
     if not incoming:
         return 0

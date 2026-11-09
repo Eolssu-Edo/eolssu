@@ -2,13 +2,14 @@ package com.ssafy.eolssu.data.song
 
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.ScorePosition
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.SongLevel
 import com.ssafy.eolssu.core.model.displayUnitAt
 import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.core.model.timeline
 import com.ssafy.eolssu.feature.practice.PracticeUiState
-import com.ssafy.eolssu.feature.practice.selectEvent
+import com.ssafy.eolssu.feature.practice.selectUnit
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
@@ -59,6 +60,24 @@ class CommonScoreDataTest {
         assertEquals(0, song.displayUnitAt(1, 0.75f)?.column)
     }
 
+    @Test fun selectingAnAttackDoesNotSelectTheFollowingBlankCellWithTheSameEvent() {
+        val song = smallScoreSong()
+        val ready = PracticeUiState(song = song)
+        assertNull(ready.scoreSelection)
+
+        val attack = song.displayUnits[1]
+        val blank = song.displayUnits[3]
+        assertEquals(attack.event, blank.event)
+        val selected = ready.selectUnit(attack)
+        assertEquals(attack.event.index, selected.selected)
+        assertEquals(ScorePosition(attack.column, attack.row), selected.scoreSelection)
+        assertTrue(selected.scoreSelection != ScorePosition(blank.column, blank.row))
+
+        val continued = selected.selectUnit(blank)
+        assertEquals(ScorePosition(blank.column, blank.row), continued.scoreSelection)
+        assertNull(continued.panel)
+    }
+
     @Test fun timingUsesScoreBpmUnitRatherThanLegacyJangdanSubdivision() {
         val song = smallScoreSong()
         assertEquals(1000.0, song.cellDurationMs())
@@ -70,8 +89,9 @@ class CommonScoreDataTest {
         assertEquals(1750.0, state.eventDurationMs(1))
         // REST의 시작은 2박째: 세마치 구음 6번 칸 = 세 번째 묶음. 원본 정간 row(0)로 추정하면 틀린다.
         assertEquals(2, state.copy(position = 2).beatIndex)
-        assertEquals(com.ssafy.eolssu.core.model.Yul.CheongJungnyeo, state.selectEvent(1).draft.note)
-        assertEquals(com.ssafy.eolssu.core.model.Yul.CheongJungnyeo, state.selectEvent(0).selectEvent(1).draft.note)
+        val note = ScoreNote.SourcePitch("중", 1)
+        assertEquals(note, state.selectUnit(song.displayUnits[1]).draft.note)
+        assertEquals(note, state.selectUnit(song.displayUnits[0]).selectUnit(song.displayUnits[1]).draft.note)
     }
 
     @Test fun unsupportedOctavesRemainExactAndNeverFallBackToBaseFingering() {

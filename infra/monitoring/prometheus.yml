@@ -6,7 +6,7 @@ scrape_configs:
   - job_name: eolssu-backend
     metrics_path: /api/actuator/prometheus
     static_configs:
-      - targets: ["backend:8080"]
+      - targets: ["frontend:8081"]
 
   - job_name: node # 서버 자원. node-exporter는 Docker 내부 네트워크에서만 읽힌다
     static_configs:
