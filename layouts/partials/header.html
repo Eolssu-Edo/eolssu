@@ -1,7 +1,7 @@
 {{- /* 현재 화면이 속한 메뉴: 블로그(홈·글·분류), 프로젝트, 팀 소개 */ -}}
 {{- $current := "blog" -}}
 {{- if eq .RelPermalink ("project/" | relURL) }}{{ $current = "project" }}{{ else if eq .RelPermalink ("about/" | relURL) }}{{ $current = "team" }}{{ end -}}
-<header class="site-header">
+<header class="site-header" id="page-top" tabindex="-1">
   <div class="wrap header-inner">
     <a class="brand" href="{{ "/" | relURL }}" aria-label="{{ site.Data.project.name }} 블로그 홈">
       <img src="{{ site.Data.brand.logo | relURL }}" alt="{{ site.Data.project.name }}" width="1200" height="622" decoding="async">
