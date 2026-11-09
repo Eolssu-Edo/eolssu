@@ -55,30 +55,22 @@ class PracticeTimeMeterTest {
     }
 
     @Test
-    fun remindsOnceAtNineThirtyAndStopsCountingAtTenMinutes() {
+    fun stopsCountingAtTenMinutesOfInactivity() {
         show()
-        assertEquals(PracticeTimeMeter.ReminderAt, meter.untilReminder())
-        time += 9.minutes + 29.seconds
-        assertFalse(meter.takeReminder())
-        time += 1.seconds
-        assertTrue(meter.takeReminder())
-        assertFalse(meter.takeReminder())
-        assertNull(meter.untilReminder())
+        time += 9.minutes + 30.seconds
+        assertEquals(570_000L, assertNotNull(meter.snapshot()).countedMillis)
 
-        time += 20.minutes // 응답 없음
+        time += 20.minutes
         val segment = assertNotNull(meter.hide())
         assertEquals(29 * 60 + 30, segment.visibleSeconds)
         assertEquals(10 * 60, segment.countedSeconds)
     }
 
     @Test
-    fun answeringReminderCountsAgainForTenMinutes() {
+    fun activityBeforeIdleLimitRestartsIdleWindow() {
         show()
-        time += 9.minutes + 30.seconds
-        assertTrue(meter.takeReminder())
-        time += 10.seconds
-        meter.onActivity() // 알림에 응답
-        assertEquals(PracticeTimeMeter.ReminderAt, meter.untilReminder())
+        time += 9.minutes + 40.seconds
+        meter.onActivity()
 
         time += 15.minutes
         val segment = assertNotNull(meter.hide())
@@ -99,14 +91,11 @@ class PracticeTimeMeterTest {
         show()
         meter.setRunning(ContinuousActivity.PLAYBACK, true)
         meter.setRunning(ContinuousActivity.METRONOME, true)
-        assertNull(meter.untilReminder())
         time += 20.minutes
-        assertFalse(meter.takeReminder())
 
         meter.setRunning(ContinuousActivity.PLAYBACK, false)
         time += 5.minutes // 메트로놈만 돌아감
         meter.setRunning(ContinuousActivity.METRONOME, false)
-        assertEquals(PracticeTimeMeter.ReminderAt, meter.untilReminder())
         time += 15.minutes // 멈춘 뒤 10분까지 인정
 
         assertEquals(35 * 60, assertNotNull(meter.hide()).countedSeconds)
