@@ -10,7 +10,7 @@
   {{- end }}
   <title>{{ if .IsHome }}{{ site.Title }}{{ else if eq .Kind "taxonomy" }}{{ if eq .Data.Plural "tags" }}태그{{ else }}분류{{ end }} · {{ site.Title }}{{ else }}{{ .Title }} · {{ site.Title }}{{ end }}</title>
   <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ with .Summary }}{{ . | plainify | truncate 120 }}{{ else }}{{ site.Params.description }}{{ end }}{{ end }}">
-  <link rel="icon" href="{{ site.Data.brand.mascot | relURL }}" type="image/webp">
+  <link rel="icon" href="{{ "images/tiger-face-icon.png" | relURL }}" type="image/png" sizes="64x64">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&amp;display=swap">
