@@ -38,6 +38,8 @@ import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.feature.song.component.SongSearchField
+import com.ssafy.eolssu.feature.song.component.SongSortButton
+import com.ssafy.eolssu.feature.song.component.songTitleMarquee
 import com.ssafy.eolssu.feature.song.edit.component.HintText
 import com.ssafy.eolssu.feature.song.edit.component.PillChip
 import com.ssafy.eolssu.feature.song.edit.component.PillButton
@@ -79,6 +81,7 @@ fun EditPickScreen(
     onRetry: () -> Unit,
     onSelectTab: (EditPickTab) -> Unit,
     onSearch: (String) -> Unit,
+    onToggleSort: () -> Unit,
     onToggle: (EditPickTarget) -> Unit,
     onConfirm: () -> Unit,
 ) {
@@ -116,7 +119,12 @@ fun EditPickScreen(
                         large = true,
                         counts = listOf(state.sheets.size, state.songs.size),
                     )
-                    if (state.tab == EditPickTab.Songs) SongSearchField(state.query, onSearch, onClear = { onSearch("") })
+                    if (state.tab == EditPickTab.Songs) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SongSearchField(state.query, onSearch, onClear = { onSearch("") }, modifier = Modifier.weight(1f))
+                            SongSortButton(state.sort, onToggleSort)
+                        }
+                    }
                     val picked = state.pickedTitle
                     HintText(
                         when {
@@ -242,7 +250,12 @@ private fun PickRow(tile: String, tileStyle: TextStyle, title: String, meta: Str
                 Text(tile, style = tileStyle)
             }
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold))
+                Text(
+                    title,
+                    modifier = Modifier.songTitleMarquee(),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                    maxLines = 1,
+                )
                 Text(meta, modifier = Modifier.padding(top = 2.dp), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textSub)
             }
             RadioDot(selected, size = 20.dp, background = colors.surface)

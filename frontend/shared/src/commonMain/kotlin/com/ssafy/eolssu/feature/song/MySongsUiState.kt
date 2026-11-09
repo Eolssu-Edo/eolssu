@@ -22,6 +22,7 @@ data class MySongsUiState(
     val deleting: MySheet? = null,
     val instrumentId: String? = null,
     val filter: SongLevelFilter = SongLevelFilter.All,
+    val sort: SongSortOrder = SongSortOrder.Ascending,
     val sheetLoadState: SongLoadState = SongLoadState.Loading,
     val deleteFailed: Boolean = false,
     val conversions: Map<String, SheetConversion> = emptyMap(),
@@ -41,9 +42,9 @@ data class MySongsUiState(
     val convertingIds: List<String>
         get() = sheets.orEmpty().filter { conversionOf(it)?.status?.inProgress == true }.map { it.id }
 
-    /** 선택한 단계의 제공 곡. 평가 가능 여부로 제외하지 않고 서버 순서를 유지한다. */
+    /** 선택한 단계의 제공 곡을 [sort] 순서로. 평가 가능 여부로 제외하지 않는다. */
     val visibleSongs: List<SongSummary>
-        get() = songs.filter { filter.level == null || it.level == filter.level }
+        get() = songs.filter { filter.level == null || it.level == filter.level }.sortedByTitle(sort) { it.title }
 
     /**
      * 내 악보 목록을 받는다. 삭제를 묻던 악보가 목록에서 빠졌으면 창도 닫는다.

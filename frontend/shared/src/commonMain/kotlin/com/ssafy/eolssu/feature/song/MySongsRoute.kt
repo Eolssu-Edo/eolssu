@@ -84,6 +84,7 @@ fun MySongsRoute(
             onRetry = { if (state.tab == MySongsTab.Sheets) viewModel.refreshSheets() else viewModel.retry() },
             onSelectTab = viewModel::selectTab,
             onSelectFilter = viewModel::selectFilter,
+            onToggleSort = viewModel::toggleSort,
             onOpenSong = onPractice,
             onOpenSheet = { sheet ->
                 val songId = sheet.songId

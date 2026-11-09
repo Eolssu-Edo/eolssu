@@ -18,19 +18,20 @@ class MySongsLevelFilterTest {
     @Test
     fun eachLevelShowsOnlyMatchingSongsIncludingPracticeOnlySongs() {
         val state = MySongsUiState(songs = songs)
-        assertEquals(listOf("intro-practice", "intro-ai"), state.copy(filter = SongLevelFilter.Intro).visibleSongs.map { it.id })
+        assertEquals(listOf("intro-ai", "intro-practice"), state.copy(filter = SongLevelFilter.Intro).visibleSongs.map { it.id })
         assertEquals(listOf("elementary"), state.copy(filter = SongLevelFilter.Elementary).visibleSongs.map { it.id })
         assertEquals(listOf("intermediate"), state.copy(filter = SongLevelFilter.Intermediate).visibleSongs.map { it.id })
         assertEquals(songs, state.songs, "필터링해도 원본 목록을 보존한다")
     }
 
     @Test
-    fun allIsDefaultAndRestoresOriginalOrderAndUnknownDifficulty() {
+    fun allIsDefaultAndRestoresEverySongInTitleOrderAndUnknownDifficulty() {
         val initial = MySongsUiState(songs = songs)
+        val byTitle = songs.sortedBy { it.title }
         assertEquals(SongLevelFilter.All, initial.filter)
-        assertEquals(songs, initial.visibleSongs)
+        assertEquals(byTitle, initial.visibleSongs)
         val filtered = initial.copy(filter = SongLevelFilter.Intermediate)
-        assertEquals(songs, filtered.copy(filter = SongLevelFilter.All).visibleSongs)
+        assertEquals(byTitle, filtered.copy(filter = SongLevelFilter.All).visibleSongs)
     }
 
     @Test
@@ -43,7 +44,7 @@ class MySongsLevelFilterTest {
         assertTrue(state.visibleSongs.isEmpty())
         assertFalse(state.songs.isEmpty(), "해당 단계에 곡이 없는 경우와 서버의 빈 목록을 구분한다")
         assertEquals(SongLoadState.Ready, state.loadState)
-        assertEquals(listOf("intro-practice", "intro-ai"), state.copy(filter = SongLevelFilter.All).visibleSongs.map { it.id })
+        assertEquals(listOf("intro-ai", "intro-practice"), state.copy(filter = SongLevelFilter.All).visibleSongs.map { it.id })
     }
 
     private fun song(id: String, difficulty: Int, evaluable: Boolean = true) = SongSummary(
