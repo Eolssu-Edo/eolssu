@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.song.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -23,7 +24,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +33,9 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 
 /** 곡 줄 왼쪽 율명 기호. 보드처럼 목록 순서대로 黃 · 太 · 仲 · 林을 돌려 쓰는 장식이다(곡의 실제 첫 음과 무관). */
 private val RowSymbols = listOf(Yul.Hwangjong, Yul.Taeju, Yul.Jungnyeo, Yul.Imjong)
+
+/** 곡 이름이 한 줄에 다 들어가지 않으면 왼쪽으로 흘려 끝까지 보이고, 끝에 닿으면 처음부터 다시 흘린다. 다 들어가면 움직이지 않는다. */
+internal fun Modifier.songTitleMarquee(): Modifier = basicMarquee(iterations = Int.MAX_VALUE)
 
 /** 목록에서 [index]번째 곡 줄의 율명 기호. */
 internal fun songRowSymbol(index: Int): String = RowSymbols[index.mod(RowSymbols.size)].symbol
@@ -66,10 +69,10 @@ internal fun SongListRow(
             Column(Modifier.weight(1f).padding(start = 13.dp, end = 13.dp)) {
                 Text(
                     song.title,
+                    modifier = Modifier.songTitleMarquee(),
                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
                     color = colors.text,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     meta,

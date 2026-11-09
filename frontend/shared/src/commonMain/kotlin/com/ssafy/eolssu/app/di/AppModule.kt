@@ -162,7 +162,7 @@ val appModule = module {
         LearnSongStage(get()) { id -> catalog.load().firstOrNull { it.instrumentId == id }?.code }
     }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get(), judgeLearnSong = get<LearnSongStage>()::judge, learnTrackOf = get<LearnSongStage>()::trackOf) }
-    viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get()) }
+    viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get(), songs = get()) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
     viewModel { GrowthViewModel(get(), get(), get(), get()) }
 
@@ -223,7 +223,7 @@ val appModule = module {
     }
     viewModel { (sourceId: String) -> SectionSelectViewModel(sourceId, get()) }
     viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int) ->
-        SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull())
+        SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull(), settingsStore = get())
     }
     viewModel { (sessionId: String) -> SectionResultViewModel(sessionId, get()) }
     viewModel { (recordId: String) -> CompareViewModel(recordId, get()) }

@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.model.ScoreSection
+import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.data.practice.WeakSectionRepository
 import kotlinx.coroutines.Job
@@ -28,6 +29,7 @@ import kotlin.uuid.Uuid
  * @param recorder 녹음기. 없는 플랫폼(웹)에서는 재평가를 시작하지 못한다고 알린다.
  * @param micPermission OS 마이크 권한. 없으면 허용된 것으로 본다.
  * @param newKey 녹음 하나의 `Idempotency-Key`(세션 생성 응답을 놓쳐 다시 만들 때 같은 키).
+ * @param settingsStore 연습 화면의 악보 설정(크게 보기·한글·계이름). 구간 반복 악보도 기본 평가 화면과 같은 모양으로 그린다.
  */
 class SectionLoopViewModel(
     private val sourceId: String,
@@ -38,12 +40,16 @@ class SectionLoopViewModel(
     private val recorder: AudioRecorder? = null,
     private val micPermission: MicPermission? = null,
     private val newKey: () -> String = { Uuid.random().toString() },
+    private val settingsStore: PracticeSettingsStore? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SectionLoopUiState(section = section, bpm = bpm, repeats = repeats))
     val uiState: StateFlow<SectionLoopUiState> = _uiState.asStateFlow()
     private var job: Job? = null
 
     init {
+        settingsStore?.let { store ->
+            viewModelScope.launch { store.settings.collect { settings -> _uiState.update { it.copy(settings = settings) } } }
+        }
         viewModelScope.launch {
             val source = repository.source(sourceId)
             _uiState.update {

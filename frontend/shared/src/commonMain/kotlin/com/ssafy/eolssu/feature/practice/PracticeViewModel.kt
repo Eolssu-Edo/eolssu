@@ -453,6 +453,9 @@ class PracticeViewModel(
     }
 
     fun openPanel(panel: PracticePanel) {
+        val state = _uiState.value
+        if (panel == PracticePanel.Settings && state.mode == PracticeMode.Recording &&
+            !state.finished && state.popup == null) pauseRecordingFor(PracticePopup.SettingsPaused)
         stopPreview()
         _uiState.update { it.openPanel(panel) }
     }
@@ -745,12 +748,14 @@ class PracticeViewModel(
         _uiState.update { it.cancelCountdown() }
     }
 
-    fun askAbort() {
+    fun askAbort() = pauseRecordingFor(PracticePopup.Abort)
+
+    private fun pauseRecordingFor(popup: PracticePopup) {
         captureStepProgress()
         val state = _uiState.value
         stepJob?.cancel()
         pauseRecorder()
-        _uiState.update { it.askAbort(state.currentEventFraction.toFloat(), state.eventElapsedMs) }
+        _uiState.update { it.askAbort(state.currentEventFraction.toFloat(), state.eventElapsedMs).copy(popup = popup) }
     }
 
     /** '계속 연주': 3·2·1 뒤 멈춘 자리부터. */

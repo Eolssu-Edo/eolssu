@@ -39,6 +39,18 @@ data class Song(
 
     val displayUnits: List<ScoreDisplayUnit> by lazy { score.displayUnits(timeline) }
 
+    /** 원본 시김새는 이음 칸마다 반복하지 않고 음이 시작하는 소박에 표시한다. */
+    internal val writtenScoreAnnotations: Map<ScoreUnitKey, List<String>> by lazy {
+        buildMap {
+            for (unit in displayUnits) {
+                val signs = unit.event.sigimsae
+                if (signs.isEmpty()) continue
+                val key = unit.key
+                if (unit.event.id == "${key.cellId}-r${key.row}-u${key.col}") put(key, signs)
+            }
+        }
+    }
+
     /** 공통 악보의 BPM 단위를 그대로 사용한다. 장단 이름만으로 정간 길이를 추정하지 않는다. */
     fun cellDurationMs(bpm: Int = baseBpm): Double {
         require(bpm > 0) { "BPM은 양수여야 한다" }

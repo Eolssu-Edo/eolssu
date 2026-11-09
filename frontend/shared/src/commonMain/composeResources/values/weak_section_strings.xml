@@ -34,12 +34,12 @@
     <string name="weak_cell_in_section">%1$s, 선택한 구간</string>
 
     <!-- PRACTICE-03 구간 반복 -->
+    <string name="weak_loop_title">구간 연습</string>
     <string name="weak_loop_badge_running">구간 반복 중 · %1$d/%2$d회</string>
     <string name="weak_loop_badge_paused">반복 멈춤 · %1$d/%2$d회</string>
     <string name="weak_loop_badge_running_endless">구간 반복 중 · %1$d회째</string>
     <string name="weak_loop_badge_paused_endless">반복 멈춤 · %1$d회째</string>
     <string name="weak_loop_badge_done">반복 끝 · %1$d/%2$d회</string>
-    <string name="weak_loop_progress">%1$d회째 반복 · %2$s / %3$s</string>
     <string name="weak_loop_pause">반복 멈춤</string>
     <string name="weak_loop_resume">반복 계속</string>
     <string name="weak_loop_restart">다시 연습</string>
@@ -47,7 +47,6 @@
     <string name="weak_loop_badge_recording">재평가 녹음 중</string>
     <string name="weak_loop_stop_recording">녹음 그만하기</string>
     <string name="weak_loop_count_record">%1$d박 센 뒤 %2$d각 %3$d정간부터 한 번 녹음해요</string>
-    <string name="weak_loop_record_progress">녹음 중 · %1$s / %2$s</string>
     <string name="weak_loop_record_hint">끝까지 연주하면 바로 분석해요</string>
     <string name="weak_loop_no_recorder">이 기기에서는 녹음할 수 없어요. 앱에서 재평가해 주세요.</string>
     <string name="weak_loop_no_notes">이 구간에는 연주할 음이 없어 재평가할 수 없어요. 다른 구간을 골라 주세요.</string>

@@ -1,7 +1,5 @@
 package com.ssafy.eolssu.feature.song
 
-import com.ssafy.eolssu.core.ui.component.EolssuBadgeStyle
-import com.ssafy.eolssu.feature.song.component.providedSongBadgeStyle
 import com.ssafy.eolssu.feature.song.component.songTileLetter
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,12 +12,6 @@ class SongPracticeRowsTest {
         assertEquals("밀", songTileLetter("  밀양아리랑"), "앞 공백은 건너뛴다")
         assertEquals("", songTileLetter(""))
         assertEquals("", songTileLetter("   "))
-    }
-
-    @Test
-    fun providedSongBadgeFollowsEvaluable() {
-        assertEquals(EolssuBadgeStyle.Play, providedSongBadgeStyle(evaluable = true))
-        assertEquals(EolssuBadgeStyle.Outline, providedSongBadgeStyle(evaluable = false))
     }
 
     @Test

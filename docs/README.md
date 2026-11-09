@@ -1,6 +1,7 @@
 # 프로젝트 문서
 
 - [기초부터 배우기 4~8단계 따라 배우기 (626)](plans/S15P31E102-626.md)
+- [연습 평가 장구 박자 표시·설정 중 일시정지 반영 (634)](plans/S15P31E102-634.md) · [연습 조작 스펙](specs/practice-controls.md)
 - [기초부터 배우기 2·3단계 할 일별 따라 배우기 (619)](plans/S15P31E102-619.md)
 - [Mattermost 점검 메시지 구성](specs/mattermost-inspection-messages.md) · [616 계획·검증](plans/S15P31E102-616.md)
 - [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)

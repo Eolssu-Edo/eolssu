@@ -85,5 +85,8 @@ class EditPickViewModel(
 
     fun search(query: String) = _uiState.update { it.copy(query = query) }
 
+    /** 제공 곡 이름 오름차순·내림차순을 바꾼다. */
+    fun toggleSort() = _uiState.update { it.copy(sort = it.sort.toggled()) }
+
     fun toggle(target: EditPickTarget) = _uiState.update { it.toggle(target) }
 }

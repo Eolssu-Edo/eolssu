@@ -49,6 +49,8 @@
     <string name="song_list_heading">당신의 소리로\n완성할 한 곡.</string>
     <string name="song_list_intro">한 각씩 익히고, 한 곡을 완성해 보세요.</string>
     <string name="song_search_placeholder">곡 제목으로 찾아보세요</string>
+    <string name="song_sort_ascending">가나다순</string>
+    <string name="song_sort_descending">가나다 역순</string>
     <string name="song_search_label">곡 제목 검색</string>
     <string name="song_count">%1$d곡</string>
     <string name="song_count_instrument">%1$d곡 · %2$s</string>
@@ -282,7 +284,9 @@
     <string name="records_this_week_summary">%1$d회 연습 · 최고 %2$d점</string>
     <string name="records_this_week_none">아직 이번 주 연습 기록이 없어요</string>
     <string name="records_growth_link">연습 기록지</string>
-    <string name="records_song_count">곡 %1$d개 · 곡을 누르면 녹음 내역이 펼쳐져요</string>
+    <string name="records_by_song">곡별 기록</string>
+    <string name="records_instrument_all">악기 전체</string>
+    <string name="records_instrument_empty">이 악기로 저장한 연주가 없어요.</string>
     <string name="records_sort_new">최신순</string>
     <string name="records_sort_old">오래된 순</string>
     <string name="records_group_meta">녹음 %1$d개 · 최근 %2$s</string>
@@ -692,15 +696,12 @@
 
     <!-- 내 악보 · PDF 올리기 (SONG-03 · UPLOAD-01 · UPLOAD-02) -->
     <string name="mysongs_title">연습곡 고르기</string>
-    <string name="mysongs_subtitle">제공 곡이나 내 악보로 연습해요.</string>
     <string name="mysongs_tab_songs">제공 곡</string>
     <string name="mysongs_tab_sheets">내 악보</string>
-    <string name="mysongs_evaluable_badge">AI 평가</string>
-    <string name="mysongs_practice_only_badge">연습 전용</string>
-    <string name="mysongs_songs_hint">점수 없이 혼자 연습해요 · AI 평가 표시가 있는 곡은 연습 화면에서 평가로 넘어갈 수 있어요</string>
+    <string name="mysongs_no_jangdan">장단 없음</string>
+    <string name="mysongs_practice_only">%1$s · 연습 전용</string>
     <string name="mysongs_empty_body">다른 단계를 선택하거나 전체 곡을 확인해 보세요.</string>
     <string name="mysongs_reset_filter">전체 곡 보기</string>
-    <string name="mysongs_practice_only">%1$s · 연습 전용</string>
     <string name="mysongs_add">악보 추가</string>
     <string name="mysongs_sheet_count">내 악보 %1$d개</string>
     <string name="mysongs_kind_jeongganbo">정간보</string>

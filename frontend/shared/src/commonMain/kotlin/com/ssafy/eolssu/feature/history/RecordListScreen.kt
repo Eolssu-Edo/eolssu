@@ -18,6 +18,8 @@ import com.ssafy.eolssu.feature.history.component.HistoryTopBar
 import com.ssafy.eolssu.feature.history.component.RecordGroups
 import com.ssafy.eolssu.feature.history.component.RecordListSpacing
 import com.ssafy.eolssu.feature.history.component.RecordListToolbar
+import com.ssafy.eolssu.feature.history.component.RecordsInstrumentEmpty
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.feature.history.component.RecordsEmpty
 import com.ssafy.eolssu.feature.history.component.WeekCard
 import com.ssafy.eolssu.feature.history.component.historyFrame
@@ -28,7 +30,7 @@ import eolssu.shared.generated.resources.records_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * RECORD-01 연습 기록: 이번 주 요약 · 곡별 녹음 묶음(펼치기) · 정렬.
+ * RECORD-01 연습 기록: 이번 주 요약 · 곡별 녹음 묶음(펼치기) · 악기 필터 · 정렬.
  * 휴대폰·태블릿 세로는 한 칸이고 녹음을 누르면 [onOpenRecord]로 기록 상세에 간다.
  * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded])은 [detail]이 있으면 왼쪽 목록 · 오른쪽 기록 상세의 두 칸이고,
  * 녹음을 누르면([onOpenRecord]) 오른쪽 상세만 바뀐다.
@@ -43,6 +45,7 @@ fun RecordListScreen(
     onSort: (RecordSort) -> Unit,
     onOpenRecord: (String) -> Unit,
     onRetry: () -> Unit = {},
+    onInstrument: (Instrument?) -> Unit = {},
     detail: RecordDetailUiState? = null,
     detailActions: RecordDetailActions? = null,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
@@ -60,6 +63,7 @@ fun RecordListScreen(
             onOpenGrowth = onOpenGrowth,
             onToggle = onToggle,
             onSort = onSort,
+            onInstrument = onInstrument,
             onSelect = onOpenRecord,
             detail = detail,
             detailActions = detailActions,
@@ -85,12 +89,12 @@ fun RecordListScreen(
                 return@Column
             }
             if (state.recordsAvailable) WeekCard(state, spacing, onOpenGrowth)
-            if (!state.recordsAvailable || state.groups.isEmpty()) {
+            if (!state.recordsAvailable || state.records.isEmpty()) {
                 RecordsEmpty(available = state.recordsAvailable)
                 return@Column
             }
-            RecordListToolbar(state.groups.size, state.sort, spacing, onSort)
-            RecordGroups(state, spacing, onToggle, onOpenRecord)
+            RecordListToolbar(state.instrument, state.sort, spacing, onInstrument, onSort)
+            if (state.groups.isEmpty()) RecordsInstrumentEmpty() else RecordGroups(state, spacing, onToggle, onOpenRecord)
         }
     }
 }
