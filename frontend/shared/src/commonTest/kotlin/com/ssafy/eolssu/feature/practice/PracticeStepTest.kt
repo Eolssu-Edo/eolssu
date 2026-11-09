@@ -120,12 +120,13 @@ class PracticeStepTest {
 
     @Test fun busyStepBlocksScoreSelectionAndCountsAsPracticeActivity() {
         val listening = solo.toggleStep().tapStepPlaying()
-        assertEquals(listening, listening.selectEvent(5))
+        val tapped = requireNotNull(listening.song).displayUnits[5]
+        assertEquals(listening, listening.selectUnit(tapped))
         assertEquals(setOf(ContinuousActivity.RECORDING), listening.runningActivities)
         val paused = listening.pauseStep()
         assertEquals(StepPhase.Paused, paused.step.phase)
         assertEquals(emptySet(), paused.runningActivities)
-        assertEquals(5, paused.selectEvent(5).selected)
+        assertEquals(5, paused.selectUnit(tapped).selected)
     }
 
     @Test fun turningOffWhileListeningKeepsPositionPausedForLater() {

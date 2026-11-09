@@ -36,6 +36,7 @@ import com.ssafy.eolssu.feature.history.GrowthRoute
 import com.ssafy.eolssu.feature.history.RecordDetailRoute
 import com.ssafy.eolssu.feature.history.RecordListRoute
 import com.ssafy.eolssu.core.model.fingering.Blow
+import com.ssafy.eolssu.feature.guide.FingeringBasicAudio
 import com.ssafy.eolssu.feature.guide.FingeringRoute
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.guide.ReadingPage
@@ -232,6 +233,7 @@ fun EolssuNavHost(
                 val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
                 PracticeRoute(
                     songId = songId,
+                    fingeringAudio = { instrument, note, onPlaying -> FingeringBasicAudio(instrument, note, onPlaying) },
                     solo = entry.savedStateHandle.get<Boolean>("solo") ?: false,
                     showSwitchedNotice = entry.savedStateHandle.get<Boolean>("switched") ?: false,
                     onBack = { navController.popBackStackFrom(entry) },

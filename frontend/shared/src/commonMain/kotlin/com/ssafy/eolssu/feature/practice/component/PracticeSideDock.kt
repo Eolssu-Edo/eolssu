@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -44,6 +45,7 @@ import eolssu.shared.generated.resources.practice_dock_hint
 import eolssu.shared.generated.resources.practice_dock_info
 import eolssu.shared.generated.resources.practice_dock_locked
 import eolssu.shared.generated.resources.practice_dock_song_info
+import eolssu.shared.generated.resources.practice_fingering_rest
 import eolssu.shared.generated.resources.practice_fingering_title
 import eolssu.shared.generated.resources.practice_jangdan_sound_on
 import eolssu.shared.generated.resources.practice_menu_jangdan
@@ -105,7 +107,11 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
     // 평가 중 속도만 고정한다. 장단과 보기 설정은 바꿀 수 있다.
     val locked = state.playbackSettingsLocked
     val notationOn = settings.showHangul || settings.showSolfege
-    val note = state.draft.note
+    val noteLabel = when (val note = state.draft.note) {
+        is ScoreNote.Pitch -> if (note.yul.drawnAs == null) "${note.symbol} ${note.yul.fullName}" else note.yul.fullName
+        is ScoreNote.SourcePitch -> note.fullName
+        else -> stringResource(Res.string.practice_fingering_rest)
+    }
     Column {
         Text(
             stringResource(Res.string.practice_settings),
@@ -126,7 +132,7 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
             stringResource(Res.string.practice_menu_tempo),
             tempoLabel(TempoStep.nearest(song.baseBpm, state.bpm)), state.bpm != song.baseBpm, locked,
         ) { actions.onOpen(PracticePanel.Tempo) }
-        QuickRow(stringResource(Res.string.practice_fingering_title), if (note.drawnAs == null) "${note.symbol} ${note.fullName}" else note.fullName, on = false, locked = false) {
+        QuickRow(stringResource(Res.string.practice_fingering_title), noteLabel, on = false, locked = false) {
             actions.onOpen(PracticePanel.Fingering)
         }
         val bigLabel = stringResource(Res.string.practice_big_score)

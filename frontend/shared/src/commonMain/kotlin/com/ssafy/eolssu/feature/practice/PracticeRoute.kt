@@ -15,6 +15,8 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.audio.RecordedTake
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
 import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
@@ -50,6 +52,7 @@ fun PracticeRoute(
     onGoHome: () -> Unit,
     onSwitchToEval: () -> Unit,
     onEvaluate: ((songId: String, bpm: Int, take: RecordedTake?) -> Unit)?,
+    fingeringAudio: @Composable (GuideInstrument, FingeringNote, (Boolean) -> Unit) -> Unit,
     onConfirmBackChange: ((() -> Unit)?) -> Unit = {},
     mine: Boolean = false,
     sheetTitle: String? = null,
@@ -96,7 +99,7 @@ fun PracticeRoute(
         actions = PracticeScreenActions(
             onBack = back,
             onOpenSettings = { viewModel.openPanel(PracticePanel.Settings) },
-            onSelectEvent = { viewModel.selectEvent(it.index) },
+            onSelectUnit = viewModel::selectUnit,
             onUserScroll = viewModel::stopFollowing,
             onFollowNow = viewModel::followNow,
             onCancelCountdown = viewModel::cancelCountdown,
@@ -135,7 +138,7 @@ fun PracticeRoute(
                 onDraft = viewModel::updateDraft,
                 onToggleBigScore = viewModel::toggleBigScore,
                 onMoveFingering = viewModel::moveFingering,
-                onListen = { viewModel.listen(state.draft.note) },
+                fingeringAudio = { instrument, note -> fingeringAudio(instrument, note, viewModel::reportFingeringAudio) },
                 onTogglePreview = viewModel::togglePreview,
                 onSetInstrument = viewModel::setInstrument,
                 onToggleFingeringView = viewModel::toggleFingeringView,

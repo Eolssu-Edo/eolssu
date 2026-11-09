@@ -23,11 +23,15 @@ import org.jetbrains.compose.resources.stringResource
 
 /** 음마다 기본음·요성 예시를 스피커 버튼으로 들려준다. 같은 버튼을 다시 누르면 멈춘다. */
 @Composable
-fun ReferenceAudioControls(selection: ReferenceAudioSelection, controller: ReferenceAudioController) {
+fun ReferenceAudioControls(
+    selection: ReferenceAudioSelection,
+    controller: ReferenceAudioController,
+    basicOnly: Boolean = false,
+) {
     val colors = EolssuTheme.colors
     val state = controller.state
     val basic = state.clipFor(selection, ReferenceAudioKind.Basic)
-    val yoseong = state.clipFor(selection, ReferenceAudioKind.Yoseong)
+    val yoseong = if (basicOnly) null else state.clipFor(selection, ReferenceAudioKind.Yoseong)
     val playback = controller.playback.takeIf {
         it.status == AudioPlaybackStatus.Unavailable || it.sourceId in setOfNotNull(basic?.assetId, yoseong?.assetId)
     } ?: AudioPlaybackState()
@@ -49,14 +53,21 @@ fun ReferenceAudioControls(selection: ReferenceAudioSelection, controller: Refer
             return@Column
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            ReferenceAudioKind.entries.forEach { kind ->
+            val kinds = if (basicOnly) listOf(ReferenceAudioKind.Basic) else ReferenceAudioKind.entries
+            kinds.forEach { kind ->
                 val clip = if (kind == ReferenceAudioKind.Basic) basic else yoseong
                 val active = clip != null && playback.sourceId == clip.assetId &&
                     playback.status in setOf(AudioPlaybackStatus.Loading, AudioPlaybackStatus.Playing)
-                val label = stringResource(if (kind == ReferenceAudioKind.Basic) Res.string.reference_audio_basic else Res.string.reference_audio_yoseong)
+                val label = stringResource(when {
+                    basicOnly && !active -> Res.string.practice_listen_note
+                    kind == ReferenceAudioKind.Basic -> Res.string.reference_audio_basic
+                    else -> Res.string.reference_audio_yoseong
+                })
+                val buttonLabel = if (basicOnly && active) stringResource(Res.string.reference_audio_stop, label) else label
                 SpeakerButton(
-                    label = label,
+                    label = buttonLabel,
                     active = active,
+                    actionLabel = basicOnly,
                     enabled = clip != null && playback.status != AudioPlaybackStatus.Unavailable,
                     onClick = { controller.play(selection, kind) },
                     modifier = Modifier.weight(1f),
@@ -76,9 +87,20 @@ fun ReferenceAudioControls(selection: ReferenceAudioSelection, controller: Refer
 }
 
 @Composable
-private fun SpeakerButton(label: String, active: Boolean, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun SpeakerButton(
+    label: String,
+    active: Boolean,
+    actionLabel: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = EolssuTheme.colors
-    val description = stringResource(if (active) Res.string.reference_audio_stop else Res.string.reference_audio_listen, label)
+    val description = when {
+        actionLabel -> label
+        active -> stringResource(Res.string.reference_audio_stop, label)
+        else -> stringResource(Res.string.reference_audio_listen, label)
+    }
     Surface(
         onClick = onClick, enabled = enabled,
         modifier = modifier.heightIn(min = 48.dp).semantics { contentDescription = description },
