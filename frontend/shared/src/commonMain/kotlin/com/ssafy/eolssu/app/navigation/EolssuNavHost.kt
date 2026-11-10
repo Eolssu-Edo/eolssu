@@ -54,6 +54,7 @@ import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.LEARN_SONG_STAGE
 import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
+import com.ssafy.eolssu.feature.practice.PracticeSettingsRoute
 import com.ssafy.eolssu.feature.result.AnalysisExit
 import com.ssafy.eolssu.feature.result.AnalysisRoute
 import com.ssafy.eolssu.feature.result.ResultRoute
@@ -75,7 +76,7 @@ object EolssuDestination {
     const val SONG_DETAIL = "songs/{songId}"
 
     /** [title]은 내 악보 연습에서 곡 제목 대신 보일 악보 제목(비우면 곡 제목). */
-    const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}&mine={mine}&learn={learn}&title={title}"
+    const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}&mine={mine}&learn={learn}&direct={direct}&title={title}"
 
     /**
      * [recording]·[key]는 연습 화면에서 마친 녹음, [session]은 앱을 다시 켜고 보내는 기기에 남은 녹음의 세션이다.
@@ -104,9 +105,10 @@ object EolssuDestination {
     /**
      * [solo]: 평가 없이 혼자 연습. [switched]: 연습 모드에서 평가로 바꿔 들어옴. [mine]: 내 악보 연습(평가 버튼 없음, solo와 함께).
      * [learn]: 기초부터 배우기 8단계의 곡 연습(평가 버튼 없음, 운지법과 함께 보기로 시작, solo와 함께).
+     * [direct]: 곡 정보의 '연주 평가 시작'. 대기 상태 없이 바로 평가를 시작하고, 준비로 돌아갈 일이 생기면 곡 정보로 돌아간다(S15P31E102-705).
      */
-    fun practice(songId: String, solo: Boolean = false, switched: Boolean = false, mine: Boolean = false, title: String? = null, learn: Boolean = false) =
-        "practice/$songId?solo=${solo || mine || learn}&switched=$switched&mine=$mine&learn=$learn&title=${title.orEmpty().encodeURLParameter()}"
+    fun practice(songId: String, solo: Boolean = false, switched: Boolean = false, mine: Boolean = false, title: String? = null, learn: Boolean = false, direct: Boolean = false) =
+        "practice/$songId?solo=${solo || mine || learn}&switched=$switched&mine=$mine&learn=$learn&direct=$direct&title=${title.orEmpty().encodeURLParameter()}"
     // 운지법 보기·정간보 쉽게 읽기·기초부터 배우기. 운지법 보기는 기초부터 배우기에서 악기·취법을, 정간보 쉽게 읽기는 펼칠 쪽을 넘겨받는다.
     const val GUIDE_FINGERING = "guide/fingering?instrument={instrument}&blow={blow}"
     const val GUIDE_READING = "guide/reading?page={page}"
@@ -226,7 +228,8 @@ fun EolssuNavHost(
                 SongListRoute(
                     onBack = { navController.popBackStackFrom(entry) },
                     onOpenSong = { id -> performance.move(null, PerfTarget.SONG_DETAIL) { navController.navigate(EolssuDestination.songDetail(id)) } },
-                    onStartPractice = { id -> performance.move(null, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.practice(id)) } },
+                    onStartPractice = { id -> performance.move(null, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.practice(id, direct = true)) } },
+                    settingsSheet = { id, onClose -> PracticeSettingsRoute(id, onClose) },
                     pickSongId = pickSongId,
                     onPickTaken = { entry.savedStateHandle[PICK_SONG_KEY] = null },
                     onSessionExpired = {
@@ -250,7 +253,8 @@ fun EolssuNavHost(
                     perf = perf,
                     songId = songId,
                     onBack = { navController.popBackStackFrom(entry) },
-                    onStartPractice = { id -> performance.move(perf, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.practice(id)) } },
+                    onStartPractice = { id -> performance.move(perf, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.practice(id, direct = true)) } },
+                    settingsSheet = { id, onClose -> PracticeSettingsRoute(id, onClose) },
                 )
             }
             composable(
@@ -267,6 +271,7 @@ fun EolssuNavHost(
                     },
                     navArgument("mine") { type = NavType.BoolType; defaultValue = false },
                     navArgument("learn") { type = NavType.BoolType; defaultValue = false },
+                    navArgument("direct") { type = NavType.BoolType; defaultValue = false },
                     navArgument("title") { type = NavType.StringType; defaultValue = "" },
                 ),
             ) { entry ->
@@ -296,6 +301,7 @@ fun EolssuNavHost(
                     mine = mine,
                     learn = entry.savedStateHandle.get<Boolean>("learn") ?: false,
                     sheetTitle = entry.savedStateHandle.get<String>("title"),
+                    direct = entry.savedStateHandle.get<Boolean>("direct") ?: false,
                 )
             }
             composable(
@@ -342,7 +348,8 @@ fun EolssuNavHost(
                             }
                         }
                     },
-                    onBackToPractice = { navController.popBackStackFrom(entry) },
+                    // 곡 정보에서 바로 시작한 평가면 준비 상태의 연주 평가 화면을 건너 곡 정보로 돌아간다.
+                    onBackToPractice = { navController.popBackStackFrom(entry, pastDirectPractice = true) },
                     onExit = { exit ->
                         when (exit) {
                             AnalysisExit.SessionGone -> if (!navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false)) {
@@ -363,16 +370,18 @@ fun EolssuNavHost(
                     perf = perf,
                     evaluationId = evaluationId,
                     initialSong = evaluationSong?.takeIf { it.first == evaluationId }?.second,
-                    onBack = { navController.popBackStackFrom(entry) },
+                    onBack = { navController.popBackStackFrom(entry, pastDirectPractice = true) },
                     onPracticeAgain = { songId ->
                         if (navController.currentBackStackEntry?.id == entry.id) {
                             val previous = navController.previousBackStackEntry
+                            // '다시 하기'는 곡 정보로 돌아가 설정을 보고 다시 '연주 평가 시작'을 누르게 한다(S15P31E102-705).
+                            // 곡 정보에서 바로 시작한 평가가 아니면(일반 연습에서 평가로 바꿈) 지금처럼 그 연주 평가 화면으로 돌아간다.
                             if (previous?.destination?.route == EolssuDestination.PRACTICE &&
                                 previous.savedStateHandle.get<String>("songId") == songId
                             ) {
-                                navController.popBackStackFrom(entry)
+                                navController.popBackStackFrom(entry, pastDirectPractice = true)
                             } else {
-                                navController.navigate(EolssuDestination.practice(songId)) {
+                                navController.navigate(EolssuDestination.songDetail(songId)) {
                                     popUpTo(EolssuDestination.RESULT) { inclusive = true }
                                 }
                             }
@@ -607,8 +616,14 @@ private val measuredDestinations = setOf(
     WeakSectionDestination.ERRORS, WeakSectionDestination.SELECT, WeakSectionDestination.LOOP, WeakSectionDestination.RESULT,
 )
 
-internal fun NavController.popBackStackFrom(entry: NavBackStackEntry) {
-    if (currentBackStackEntry?.id == entry.id) popBackStack()
+internal fun NavController.popBackStackFrom(entry: NavBackStackEntry, pastDirectPractice: Boolean = false) {
+    if (currentBackStackEntry?.id != entry.id) return
+    popBackStack()
+    // 곡 정보에서 바로 시작한 연주 평가(direct)는 준비 상태를 보이지 않으므로 그 화면까지 닫아 곡 정보(태블릿 가로는 곡 목록 오른쪽 칸)로 간다.
+    val practice = currentBackStackEntry
+    if (pastDirectPractice && practice?.destination?.route == EolssuDestination.PRACTICE &&
+        practice.savedStateHandle.get<Boolean>("direct") == true
+    ) popBackStack()
 }
 
 /** 분석 경로의 구간 재평가 인자. 셋 중 하나라도 없으면 곡 전체 연주다. */

@@ -27,6 +27,36 @@ class CommonPreviewTests(unittest.TestCase):
         return convert_common_score(source, bpm=60, instrument=source['score']['instrument'].lower().replace('_', '-'),
                                     input_sha256='a'*64, notation_policy=preview.MODE, **kwargs)
 
+    def test_canonical_cross_column_note_keeps_sustain_in_preview(self):
+        source = from_melody('청황 남 | - | -\n | | ')
+        sustained, rest = source['events'][-2:]
+        sustained['durationTick'] += rest['durationTick']
+        source['events'].pop()
+        for cell in source['columns'][1]['cells']:
+            for unit in cell['units']:
+                unit['eventId'] = sustained['id']
+        before = deepcopy(source)
+        score, mapping = self.convert(source)
+        self.assertEqual([(n.get('pitch'), Fraction(n['duration'])) for n in score['notes']],
+                         [(75, Fraction(1, 2)), (72, Fraction(11, 2))])
+        self.assertEqual(source, before)
+        self.assertEqual(mapping['events'][-1]['id'], sustained['id'])
+        self.assertEqual(mapping['events'][-1]['duration_seconds'], 5.5)
+        segments = mapping['performanceTimeline']['segments']
+        self.assertEqual(segments[-1]['endMs'], 6000)
+        self.assertEqual({s['eventId'] for s in segments[1:]}, {sustained['id']})
+        self.assertNotIn('gak_continuations', mapping['expression_source_map'])
+
+    def test_next_column_attack_or_rest_does_not_extend_the_previous_note(self):
+        for next_column, expected in (
+            ('남 | -', [(72, Fraction(2)), (72, Fraction(2))]),
+            ('쉼 | -', [(72, Fraction(2)), (None, Fraction(1)), (None, Fraction(1))]),
+            (' | ', [(72, Fraction(2)), (None, Fraction(1)), (None, Fraction(1))]),
+        ):
+            with self.subTest(next_column=next_column):
+                score, _ = self.convert(from_melody('남 | -\n' + next_column))
+                self.assertEqual([(n.get('pitch'), Fraction(n['duration'])) for n in score['notes']], expected)
+
     def test_explicit_gak_continuation_changes_only_performance(self):
         source = from_melody('청황 남 | - | -\n | | ')
         before = deepcopy(source)
