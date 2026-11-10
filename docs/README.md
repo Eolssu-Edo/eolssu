@@ -38,6 +38,7 @@
 - [Android 채점모드 실시간 음높이 표시 시제품 계획](plans/S15P31E102-515.md)
 - [Android 녹음 시작 직후 밀린 입력과 시각 기준 (559)](knowledge/frontend/android-recorder-startup-backlog.md)
 - [내 악보 조회·초안 복원과 편집 저장 API 연결 (532)](plans/S15P31E102-532.md)
+- [내 악보 편집에서 제목과 기본 빠르기 변경 (689)](plans/S15P31E102-689.md)
 - [서버 악보 편집의 표기·시간·저장 순서 보존 근거 (532)](knowledge/frontend/user-sheet-document-editing.md)
 - [정간보 편집의 악기별 악보 선택·율명 음역·시김새 입력 근거 (551)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md)
 

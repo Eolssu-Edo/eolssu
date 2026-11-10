@@ -159,4 +159,41 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertTrue(model.uiState.value.reviewIssues.isEmpty())
         assertEquals("태", writes.single().score.events.last().yul)
     }
+
+    @Test fun detailsEditIsOneUndoStepAndPersistsBothValuesWithoutChangingTheScoreTiming() = runTest {
+        val writes = mutableListOf<Pair<Boolean, SheetWorkingCopy>>()
+        val original = document()
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = original
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                writes += draft to copy
+                return if (draft) SheetWrite.Saved("1", 1) else SheetWrite.Saved("2")
+            }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        model.updateDetails("   ", 90)
+        model.updateDetails("가".repeat(51), 90)
+        model.updateDetails("잘못된 빠르기", 29)
+        model.updateDetails("잘못된 빠르기", 161)
+        assertFalse(model.uiState.value.canUndo)
+
+        val title = "가".repeat(49) + "🎵"
+        model.updateDetails(" $title ", 90)
+        assertEquals(title to 90, model.uiState.value.draft.run { this.title to bpm })
+        model.undo()
+        assertEquals("실제 악보" to 60, model.uiState.value.draft.run { this.title to bpm })
+        model.redo()
+        advanceTimeBy(1_000); runCurrent()
+        model.requestSave(); runCurrent()
+
+        assertEquals(listOf(true, false), writes.map { it.first })
+        writes.forEach { (_, copy) ->
+            assertEquals(title to 90, copy.title to copy.bpm)
+            assertEquals(title, copy.score.score.title)
+            assertEquals(original.score?.music, copy.score.music)
+            assertEquals(original.score?.events, copy.score.events)
+        }
+        assertEquals(1, writes.last().second.revision)
+    }
 }
