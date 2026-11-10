@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -297,7 +299,8 @@ fun PracticeBoardScore(
                 JeongganboView(
                     song = song,
                     // 연주 중 손으로 스크롤하기 어려우므로 휴대폰 악보는 좌우로만 넘긴다. 묶음 배치가 정간을 남은 높이에 맞춘다.
-                    modifier = Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight().clipToBounds() else Modifier),
+                    modifier = Modifier.observeFirstDraw(PerfPhase.PRACTICE_DRAWN).fillMaxWidth()
+                        .then(if (bounded) Modifier.fillMaxHeight().clipToBounds() else Modifier),
                     metrics = packing.metrics,
                     notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege),
                     scrollState = rememberHorizontalScoreScroll(state),

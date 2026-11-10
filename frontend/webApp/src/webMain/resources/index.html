@@ -1,35 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
-    <title>eolssu</title>
+    <title>얼쑤</title>
+    <meta name="theme-color" content="#F9FAF9">
     <link type="text/css" rel="stylesheet" href="styles.css">
 </head>
-<body style="text-align: center; align-content: center">
-    <svg id="loading" xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50" role="presentation">
-        <circle cx="25" cy="25" r="20" stroke="#ccc" stroke-width="4" fill="none"/>
-        <circle cx="25" cy="25" r="20" stroke="#333" stroke-width="4" fill="none" stroke-linecap="round"
-                stroke-dasharray="90 125">
-            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s"
-                              repeatCount="indefinite"/>
-        </circle>
-    </svg>
+<body style="margin: 0; background: #F9FAF9">
+    <!-- 앱(Wasm)을 불러오는 동안: 로고와 작은 도는 표시만 둔다. 앱이 화면을 붙이면 지운다. -->
+    <div id="boot-loading" role="img" aria-label="불러오는 중"
+         style="position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px">
+        <img src="eolssu-logo.webp" alt="" width="112" height="58">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 50 50" aria-hidden="true">
+            <circle cx="25" cy="25" r="20" stroke="#EEEBE3" stroke-width="5" fill="none"/>
+            <circle cx="25" cy="25" r="20" stroke="#7E8C1C" stroke-width="5" fill="none" stroke-linecap="round"
+                    stroke-dasharray="90 125">
+                <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s"
+                                  repeatCount="indefinite"/>
+            </circle>
+        </svg>
+    </div>
     <script>
         (function () {
             // Android 간편 로그인 복귀 주소(App Links). 제공자가 사용자 조작 없이 바로 돌려보내면 Chrome은 앱을 열지 않고
             // 이 주소를 웹으로 연다. 사용자가 누른 intent 링크는 앱으로 넘어가므로 돌아가기 버튼을 보여 준다(docs/specs/social-auth.md).
             var androidReturn = /^\/auth\/android\/oauth\/(kakao|google|naver)\/callback$/.test(location.pathname);
             if (!androidReturn) {
+                new MutationObserver(function (records, observer) {
+                    var appAttached = Array.prototype.some.call(document.body.children, function (el) {
+                        return el.id !== 'boot-loading' && el.tagName !== 'SCRIPT';
+                    });
+                    if (!appAttached) return;
+                    var loading = document.getElementById('boot-loading');
+                    if (loading) loading.remove();
+                    observer.disconnect();
+                }).observe(document.body, { childList: true });
                 var app = document.createElement("script");
                 app.src = "webApp.js";
                 document.body.appendChild(app);
                 return;
             }
-            document.documentElement.lang = "ko";
             document.title = "얼쑤 앱으로 돌아가기";
-            document.getElementById("loading").remove();
+            document.getElementById("boot-loading").remove();
 
             var heading = document.createElement("h1");
             heading.textContent = "얼쑤 앱으로 돌아가기";
@@ -50,7 +64,8 @@
             help.style.cssText = "margin: 24px 0 0; font-size: 14px; color: #777;";
 
             var main = document.createElement("main");
-            main.style.cssText = "padding: 0 16px; font-family: sans-serif;";
+            main.style.cssText = "min-height: 100vh; display: flex; flex-direction: column; align-items: center;"
+                + " justify-content: center; padding: 0 16px; text-align: center; font-family: sans-serif;";
             main.append(heading, guide, button, help);
             document.body.appendChild(main);
         })();
