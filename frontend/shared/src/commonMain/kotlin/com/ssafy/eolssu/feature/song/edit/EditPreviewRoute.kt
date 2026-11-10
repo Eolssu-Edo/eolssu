@@ -5,8 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
@@ -51,6 +53,14 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
     val player = rememberReferenceAudioPlayer()
     val playback by player.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val previewId = viewModel.previewPlaybackId()
+    var previewStarted by remember { mutableStateOf(false) }
+    LaunchedEffect(previewId) {
+        if (previewStarted && player.state.value.sourceId != previewId) {
+            previewStarted = false
+            player.stop()
+        }
+    }
     val uriHandler = LocalUriHandler.current
     val messages = mapOf(
         SheetEditMessage.SaveFailed to stringResource(Res.string.sheet_save_failed),
@@ -89,16 +99,26 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
         state = state,
         snackbarHostState = snackbarHostState,
         playback = playback,
-        previewPlaying = viewModel.previewPlaybackId()?.let { id ->
+        previewPlaying = previewId?.let { id ->
             playback.sourceId == id && playback.status in setOf(AudioPlaybackStatus.Playing, AudioPlaybackStatus.Loading)
         } == true,
         onBack = onBack,
-        onTogglePlay = { scope.launch { toggleSheetAudio(player, viewModel, preview = true) } },
+        onTogglePlay = {
+            scope.launch {
+                previewStarted = viewModel.previewPlaybackId() != null
+                toggleSheetAudio(player, viewModel, preview = true)
+            }
+        },
         onToggleJangdan = viewModel::toggleWithJangdan,
         audio = SheetAudioActions(
             onRequest = viewModel::requestAudio,
             onRefresh = { viewModel.refreshAudio() },
-            onTogglePlayback = { scope.launch { toggleSheetAudio(player, viewModel) } },
+            onTogglePlayback = {
+                scope.launch {
+                    previewStarted = false
+                    toggleSheetAudio(player, viewModel)
+                }
+            },
             onSave = { kind ->
                 scope.launch {
                     val file = viewModel.audioFile(kind) ?: return@launch
