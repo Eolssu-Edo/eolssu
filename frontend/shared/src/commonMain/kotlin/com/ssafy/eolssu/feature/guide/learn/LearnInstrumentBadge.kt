@@ -62,7 +62,7 @@ internal val GuideInstrument.sealText: String
         GuideInstrument.DaegeumSanjo -> "散笒"
     }
 
-/** 악기마다 다른 낙관 색. 산길 지도 꼭대기 깃발도 이 색이다. */
+/** 악기마다 다른 낙관 색. 달리기 지도 결승선 깃발도 이 색이다. */
 internal fun GuideInstrument.sealColor(colors: EolssuColors): Color = when (this) {
     GuideInstrument.Danso -> colors.rec
     GuideInstrument.Sogeum -> colors.rhythmError

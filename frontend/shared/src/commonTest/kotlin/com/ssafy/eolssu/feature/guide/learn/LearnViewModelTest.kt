@@ -94,6 +94,23 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
         assertEquals(calls, api.completionCalls.size)
     }
 
+    /** 마지막 단계를 마치면 완료로 남기고 그 단계 카드를 펼친 채 결승 축하를 한 번 보인다(S15P31E102-688). */
+    @Test
+    fun finishingTrackMarksLastStageAndCelebratesOnce() = runTest {
+        val model = model()
+        runCurrent()
+        model.finishTrack(7)
+        val state = model.uiState.value
+        assertTrue(state.isDone(7))
+        assertEquals(7, state.cardStage)
+        assertTrue(state.finishCelebration)
+        runCurrent()
+        assertEquals(setOf(7), api.doneSeqs("danso"))
+
+        model.endFinishCelebration()
+        assertFalse(model.uiState.value.finishCelebration)
+    }
+
     @Test
     fun failedMarkIsRevertedAndReported() = runTest {
         val model = model()
