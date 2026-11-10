@@ -25,11 +25,29 @@ interface UserSheetMapper {
 
     fun count(@Param("userId") userId: Long, @Param("kind") kind: String?): Long
 
+    fun insertPublishedCopy(row: NewPublishedSheetCopyRow): Int
+
     fun updateScore(update: SheetScoreUpdateRow): Int
 
     fun updateDraft(update: SheetDraftUpdateRow): Int
 
     fun delete(@Param("sheetId") sheetId: Long, @Param("userId") userId: Long): Int
+}
+
+class NewPublishedSheetCopyRow(
+    val userId: Long,
+    val title: String,
+    val jangdanId: Long?,
+    val bpm: Int,
+    val bpmUnit: String,
+    val columnCount: Int,
+    val scoreJson: String,
+    val noteCount: Int,
+    val idempotencyKey: String,
+    val requestHash: String,
+    val createdAt: LocalDateTime,
+) {
+    var id: Long? = null
 }
 
 data class UserSheetRow(
