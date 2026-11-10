@@ -18,6 +18,7 @@ data class SheetDocument(
     val id: String, val title: String, val jangdanId: String?, val bpm: Int,
     val scoreVersion: String, val score: CommonScoreData?, val draft: SheetWorkingCopy?,
     val reviewStatus: String, val conversionStatus: String?, val issues: List<JsonObject>,
+    val notices: List<JsonObject> = emptyList(),
 )
 data class SheetWorkingCopy(val title: String, val jangdanId: String?, val bpm: Int,
     val score: CommonScoreData, val baseScoreVersion: String, val revision: Int,
@@ -50,7 +51,7 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
             SheetWorkingCopy(it.title, it.jangdanId, it.bpm, data, it.baseScoreVersion, it.draftRevision)
         }
         SheetDocument(dto.sheetId, dto.title, dto.jangdanId, dto.bpm, dto.scoreVersion, original, copy,
-            dto.reviewStatus, dto.conversionStatus, dto.issues)
+            dto.reviewStatus, dto.conversionStatus, dto.issues, dto.notices)
     }
 
     override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite = member.inSession {
@@ -83,7 +84,8 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
 
 @Serializable private class DocumentDto(val sheetId: String, val title: String, val jangdanId: String? = null,
     val bpm: Int, val scoreVersion: String, val scoreData: JsonObject? = null, val draft: DraftDto? = null,
-    val reviewStatus: String, val conversionStatus: String? = null, val issues: List<JsonObject> = emptyList())
+    val reviewStatus: String, val conversionStatus: String? = null, val issues: List<JsonObject> = emptyList(),
+    val notices: List<JsonObject> = emptyList())
 @Serializable private class DraftDto(val title: String, val jangdanId: String? = null, val bpm: Int,
     val score: JsonObject, val baseScoreVersion: String, val draftRevision: Int)
 @Serializable private class WriteBody(val baseScoreVersion: String, val title: String, val jangdanId: String?,

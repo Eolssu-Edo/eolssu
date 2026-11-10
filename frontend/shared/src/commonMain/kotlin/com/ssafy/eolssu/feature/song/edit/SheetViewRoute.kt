@@ -66,7 +66,7 @@ internal fun SheetViewRoute(
     val title = stringResource(Res.string.sheet_view_title)
     val loaded = content
     if (loaded == null) {
-        SheetDocumentNotice(loading, onBack, { attempt++ }, title)
+        SheetDocumentNotice(loading, onBack, { attempt++ }, title = title)
         return
     }
     val draft = loaded.draft

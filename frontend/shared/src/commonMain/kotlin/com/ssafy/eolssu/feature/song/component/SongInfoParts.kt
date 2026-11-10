@@ -31,12 +31,11 @@ import eolssu.shared.generated.resources.song_info_bpm
 import eolssu.shared.generated.resources.song_info_instrument
 import eolssu.shared.generated.resources.song_info_jangdan
 import eolssu.shared.generated.resources.song_info_level
-import eolssu.shared.generated.resources.song_preview_hint
 import eolssu.shared.generated.resources.song_start_practice
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * SONG-02 본문(휴대폰·태블릿 공통, 보드 `Song-Detail` 순서): 악보 표지 · 제목과 난이도 · 곡 소개 · 정보 격자 · 안내 · '이 곡 연습하기 →'.
+ * SONG-02 본문(휴대폰·태블릿 공통, 보드 `Song-Detail` 순서): 악보 표지 · 제목과 난이도 · 곡 소개 · 정보 격자 · '이 곡 연습하기 →'.
  * 태블릿은 표지에 [coverColumns]각을 보이고([large]면 정간을 키운다) 정보 격자를 4열([infoColumns])로 둔다.
  */
 @Composable
@@ -61,11 +60,6 @@ internal fun SongDetailBody(
             )
         }
         SongInfoGrid(song, Modifier.padding(vertical = 20.dp), columns = infoColumns)
-        Text(
-            stringResource(Res.string.song_preview_hint),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
-            color = EolssuTheme.colors.textMuted,
-        )
         EolssuButton(stringResource(Res.string.song_start_practice), onStartPractice, Modifier.padding(top = 12.dp))
     }
 }

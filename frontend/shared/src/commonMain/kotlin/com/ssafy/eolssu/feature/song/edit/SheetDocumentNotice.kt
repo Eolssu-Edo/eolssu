@@ -17,14 +17,20 @@ internal fun SheetDocumentNotice(
     loading: Boolean,
     onBack: () -> Unit,
     onRetry: () -> Unit,
+    practiceVersionChanged: Boolean = false,
     title: String = stringResource(Res.string.sheet_document_title),
 ) {
     EolssuScaffold(topBar = { EolssuTopBar(title, onBack = onBack) }) {
         Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)) {
             if (loading) CircularProgressIndicator()
-            Text(stringResource(if (loading) Res.string.sheet_document_loading else Res.string.sheet_document_failed))
-            if (!loading) EolssuButton(stringResource(Res.string.song_catalog_retry), onRetry)
+            val message = when {
+                loading -> Res.string.sheet_document_loading
+                practiceVersionChanged -> Res.string.sheet_document_practice_version_changed
+                else -> Res.string.sheet_document_failed
+            }
+            Text(stringResource(message))
+            if (!loading && !practiceVersionChanged) EolssuButton(stringResource(Res.string.song_catalog_retry), onRetry)
         }
     }
 }

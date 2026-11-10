@@ -68,7 +68,9 @@ import eolssu.shared.generated.resources.song_list_heading
 import eolssu.shared.generated.resources.song_reset_filters
 import eolssu.shared.generated.resources.song_search_label
 import eolssu.shared.generated.resources.song_sort_ascending
+import eolssu.shared.generated.resources.song_sort_ascending_description
 import eolssu.shared.generated.resources.song_sort_descending
+import eolssu.shared.generated.resources.song_sort_descending_description
 import eolssu.shared.generated.resources.song_search_placeholder
 import org.jetbrains.compose.resources.stringResource
 
@@ -220,12 +222,15 @@ internal fun SongLevelChips(
 }
 
 /**
- * 곡 이름 정렬 버튼: 정렬 아이콘과 지금 순서('가나다순'·'가나다 역순')를 보이고, 누르면 반대 순서로 바꾼다.
- * 고르기 칩과 같은 36dp(14sp) 흰 알약이고, [small]이면 목록 위 안내 줄에 맞춘 28dp(12sp)다.
+ * 곡 이름 정렬 버튼: 정렬 아이콘과 지금 순서('ㄱ→ㅎ'·'ㅎ→ㄱ')를 보이고, 누르면 반대 순서로 바꾼다.
+ * 화면 읽기에는 화살표 표기 대신 '가나다순'·'가나다 역순'으로 읽힌다.
+ * 고르기 칩과 같은 36dp(15sp) 흰 알약이고, [small]이면 목록 위 안내 줄에 맞춘 28dp(13sp)다.
  */
 @Composable
 internal fun SongSortButton(order: SongSortOrder, onToggle: () -> Unit, modifier: Modifier = Modifier, small: Boolean = false) {
     val colors = EolssuTheme.colors
+    val ascending = order == SongSortOrder.Ascending
+    val description = stringResource(if (ascending) Res.string.song_sort_ascending_description else Res.string.song_sort_descending_description)
     Surface(
         onClick = onToggle,
         modifier = modifier.heightIn(min = if (small) 28.dp else 36.dp),
@@ -241,8 +246,10 @@ internal fun SongSortButton(order: SongSortOrder, onToggle: () -> Unit, modifier
         ) {
             Icon(EolssuIcons.Sort, contentDescription = null, modifier = Modifier.size(if (small) 14.dp else 16.dp))
             Text(
-                stringResource(if (order == SongSortOrder.Ascending) Res.string.song_sort_ascending else Res.string.song_sort_descending),
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = if (small) 12.sp else 14.sp, fontWeight = FontWeight.Medium),
+                stringResource(if (ascending) Res.string.song_sort_ascending else Res.string.song_sort_descending),
+                modifier = Modifier.clearAndSetSemantics { contentDescription = description },
+                // 낱자(ㄱ·ㅎ)는 글꼴에서 작게 그려져 아이콘보다 1sp 크게 둔다.
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = if (small) 13.sp else 15.sp, fontWeight = FontWeight.Medium),
                 maxLines = 1,
             )
         }
@@ -258,6 +265,7 @@ private fun songLevelFilterLabel(filter: SongLevelFilter): String =
 internal fun SongEmptyResult(
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
+    title: String = stringResource(Res.string.song_empty),
     body: String = stringResource(Res.string.song_empty_body),
     resetLabel: String = stringResource(Res.string.song_reset_filters),
 ) {
@@ -275,7 +283,7 @@ internal fun SongEmptyResult(
             color = EmptySymbolColor,
         )
         Text(
-            stringResource(Res.string.song_empty),
+            title,
             modifier = Modifier.padding(top = 14.dp, bottom = 8.dp).semantics { heading() },
             style = EolssuTheme.serif.songTitle.copy(fontSize = 20.sp),
             color = EolssuTheme.colors.text,
