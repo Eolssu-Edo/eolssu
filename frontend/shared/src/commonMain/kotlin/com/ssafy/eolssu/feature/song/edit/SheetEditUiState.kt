@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.song.edit
 
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import com.ssafy.eolssu.data.song.validCatalogId
 
 /** EDIT-02 아래 입력판의 탭. */
@@ -9,6 +10,12 @@ enum class EditTab { Yul, Sigimsae, Cell }
 
 /** 편집기 보기: 정간보(EDIT-02) / 오선보로 보기(EDIT-03). 한쪽을 고치면 다른 쪽도 같은 악보를 보인다. */
 enum class EditView { Jeongganbo, Staff }
+
+sealed interface SheetEditJangdanPicker {
+    data object Loading : SheetEditJangdanPicker
+    data object Failed : SheetEditJangdanPicker
+    data class Ready(val options: List<CatalogJangdanSummary>) : SheetEditJangdanPicker
+}
 
 /** 화면 아래에 잠깐 띄우는 안내. */
 enum class SheetEditMessage {
@@ -58,7 +65,7 @@ enum class SheetEditMessage {
 
     ReviewBeforeReshape,
 
-    /** 아직 만들지 않은 기능(장단 바꾸기). */
+    /** 서버 문서가 없는 경로 등에서 제공하지 않는 기능. */
     ComingSoon,
 }
 
@@ -101,9 +108,22 @@ data class SheetEditUiState(
     val closeWarning: Boolean = false,
     val reviewIssues: List<SheetReviewIssue> = emptyList(),
     val checkedIssueIds: Set<String> = emptySet(),
+    val jangdanPicker: SheetEditJangdanPicker? = null,
 ) {
     val canUndo: Boolean get() = past.isNotEmpty()
     val canRedo: Boolean get() = future.isNotEmpty()
+    val canIncludeJangdan: Boolean get() = draft.original == null || serverSheetId == null || draft.jangdanId != null
+
+    fun selectJangdan(id: String): SheetEditUiState {
+        val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: return this
+        val option = options.firstOrNull { it.jangdanId == id && it.bpmUnit == draft.original?.music?.bpmUnit } ?: return this
+        if (option.jangdanId == draft.jangdanId && option.name == draft.jangdanName) return copy(jangdanPicker = null)
+        val next = draft.copy(jangdanId = option.jangdanId, editedJangdanName = option.name)
+        return commit(next).copy(jangdanPicker = null)
+    }
+
+    private fun withJangdanFor(next: SheetDraft): Boolean =
+        if (next.jangdanId == draft.jangdanId) withJangdan else next.jangdanId != null
 
     val audioSettingsChanged: Boolean
         get() = (audio as? SheetAudioUi.Ready)?.audio?.let {
@@ -132,6 +152,7 @@ data class SheetEditUiState(
             future = emptyList(),
             selected = index,
             selectedSub = keptSub,
+            withJangdan = withJangdanFor(next),
         )
     }
 
@@ -209,12 +230,14 @@ data class SheetEditUiState(
 
     fun undo(): SheetEditUiState {
         val previous = past.lastOrNull() ?: return this
-        return copy(draft = previous, past = past.dropLast(1), future = listOf(draft) + future, selected = selected.coerceIn(0, previous.cells.lastIndex), selectedSub = null)
+        return copy(draft = previous, past = past.dropLast(1), future = listOf(draft) + future,
+            selected = selected.coerceIn(0, previous.cells.lastIndex), selectedSub = null, withJangdan = withJangdanFor(previous))
     }
 
     fun redo(): SheetEditUiState {
         val next = future.firstOrNull() ?: return this
-        return copy(draft = next, past = past + draft, future = future.drop(1), selected = selected.coerceIn(0, next.cells.lastIndex), selectedSub = null)
+        return copy(draft = next, past = past + draft, future = future.drop(1),
+            selected = selected.coerceIn(0, next.cells.lastIndex), selectedSub = null, withJangdan = withJangdanFor(next))
     }
 
     /** 오선보에서 고른 음표. */
