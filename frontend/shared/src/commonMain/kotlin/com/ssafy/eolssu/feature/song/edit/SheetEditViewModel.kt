@@ -99,8 +99,8 @@ class SheetEditViewModel(
         _uiState.update { it.copy(draft = SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1)),
             documentLoading = false, documentFailed = true, saving = false, message = null, audio = SheetAudioUi.None,
             deviceAudio = null, audioDownloading = false,
-            past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet(),
             reviewNotices = emptyList(),
+            past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet(),
             jangdanPicker = null) }
     }
 
