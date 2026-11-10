@@ -71,6 +71,7 @@ import eolssu.shared.generated.resources.mysongs_meta_updated
 import eolssu.shared.generated.resources.mysongs_origin_copied
 import eolssu.shared.generated.resources.mysongs_origin_imported
 import eolssu.shared.generated.resources.mysongs_status_practice
+import eolssu.shared.generated.resources.mysongs_status_review
 import eolssu.shared.generated.resources.song_difficulty_number
 import org.jetbrains.compose.resources.stringResource
 
@@ -224,10 +225,14 @@ internal fun MySheetRow(
             ) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     when {
-                        conversion == null || usable -> {
-                            EolssuBadge(stringResource(Res.string.mysongs_status_practice), style = EolssuBadgeStyle.Play, small = true)
+                        usable -> {
+                            if (sheet.practiceReady) {
+                                EolssuBadge(stringResource(Res.string.mysongs_status_practice), style = EolssuBadgeStyle.Play, small = true)
+                            } else {
+                                EolssuBadge(stringResource(Res.string.mysongs_status_review), small = true)
+                            }
                             val issues = conversion?.issueCount ?: 0
-                            if (issues > 0) EolssuBadge(stringResource(Res.string.mysongs_conversion_issues, issues), small = true)
+                            if (!sheet.practiceReady && issues > 0) EolssuBadge(stringResource(Res.string.mysongs_conversion_issues, issues), small = true)
                         }
                         status == SheetConversionStatus.Failed -> {
                             EolssuBadge(stringResource(Res.string.mysongs_conversion_failed), small = true)

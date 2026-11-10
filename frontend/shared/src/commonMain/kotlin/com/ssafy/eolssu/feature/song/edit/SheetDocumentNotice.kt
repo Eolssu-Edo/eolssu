@@ -13,8 +13,13 @@ import org.jetbrains.compose.resources.stringResource
 
 /** 실제 문서를 읽기 전에는 예시 악보와 편집·저장 버튼을 노출하지 않는다. */
 @Composable
-internal fun SheetDocumentNotice(loading: Boolean, onBack: () -> Unit, onRetry: () -> Unit) {
-    EolssuScaffold(topBar = { EolssuTopBar(stringResource(Res.string.sheet_document_title), onBack = onBack) }) {
+internal fun SheetDocumentNotice(
+    loading: Boolean,
+    onBack: () -> Unit,
+    onRetry: () -> Unit,
+    title: String = stringResource(Res.string.sheet_document_title),
+) {
+    EolssuScaffold(topBar = { EolssuTopBar(title, onBack = onBack) }) {
         Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)) {
             if (loading) CircularProgressIndicator()

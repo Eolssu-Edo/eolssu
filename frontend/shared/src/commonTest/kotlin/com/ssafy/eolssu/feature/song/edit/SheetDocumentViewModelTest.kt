@@ -150,13 +150,29 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         runCurrent()
         assertNull(model.uiState.value.message)
         assertTrue(model.uiState.value.saving)
-        reply.complete(SheetWrite.Saved("2"))
+        reply.complete(SheetWrite.Saved("2", reviewStatus = "EVALUABLE"))
         runCurrent()
-        assertEquals(SheetEditMessage.Saved, model.uiState.value.message)
+        assertEquals(SheetEditMessage.SavedForPractice, model.uiState.value.message)
         assertFalse(model.uiState.value.saving)
         assertEquals("1", writes.single().baseScoreVersion)
         assertEquals(listOf("i1"), writes.single().resolvedIssueIds)
         assertTrue(model.uiState.value.reviewIssues.isEmpty())
         assertEquals("태", writes.single().score.events.last().yul)
+    }
+
+    @Test fun finalSaveUsesReturnedReviewStatusWhenReviewIsStillRequired() = runTest {
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document().copy(reviewStatus = "NEEDS_REVIEW")
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                assertFalse(draft)
+                return SheetWrite.Saved("2", reviewStatus = "NEEDS_REVIEW")
+            }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        model.requestSave()
+        runCurrent()
+
+        assertEquals(SheetEditMessage.SavedNeedsReview, model.uiState.value.message)
     }
 }
