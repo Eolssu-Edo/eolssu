@@ -31,7 +31,7 @@ class MyBatisPublishedSheetCopyRepository(
     override fun save(copy: PublishedSheetCopy): SheetCopyResult = checkNotNull(transaction.execute {
         val request = copy.request
         // 파일 접수와 같은 잠금으로 회원당 악보 한도를 함께 지킨다.
-        if (imports.lockUser(request.memberId) == null) return@execute SheetCopyResult.Rejected(SheetCopyFailure.NotFound)
+        if (imports.lockActiveUser(request.memberId) == null) return@execute SheetCopyResult.Rejected(SheetCopyFailure.NotFound)
         replay(request)?.let { return@execute it }
         if (imports.countSheets(request.memberId) >= SHEET_LIMIT_PER_MEMBER) {
             return@execute SheetCopyResult.Rejected(SheetCopyFailure.Limit)

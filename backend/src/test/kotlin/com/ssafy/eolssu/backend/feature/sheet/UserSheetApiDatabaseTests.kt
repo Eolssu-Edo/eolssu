@@ -5,6 +5,9 @@ import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.crypto.MACSigner
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
+import com.ssafy.eolssu.backend.feature.sheet.application.CopyPublishedSheet
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetCopyFailure
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetCopyResult
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -38,6 +41,7 @@ private const val OTHER = 991391L
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class UserSheetApiDatabaseTests {
     @Autowired private lateinit var jdbc: JdbcTemplate
+    @Autowired private lateinit var copyPublishedSheet: CopyPublishedSheet
     @Value("\${local.server.port}") private var port = 0
     private val client = HttpClient.newHttpClient()
     private val json = JsonMapper.builder().build()
@@ -204,6 +208,37 @@ class UserSheetApiDatabaseTests {
         assertEquals(409, full.statusCode(), full.body())
         assertEquals("SHEET_LIMIT_EXCEEDED", json.readTree(full.body()).path("result").path("errorCode").asString())
         assertEquals(10, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
+    }
+
+    @Test
+    fun `a published score with no columns cannot be copied`() {
+        jdbc.update(
+            """INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
+                SELECT 993902,instrument_id,jangdan_id,title,difficulty,default_bpm,
+                JSON_SET(score_json,'$.columns',JSON_ARRAY(),'$.events',JSON_ARRAY()),score_version,0,FALSE,'PUBLISHED'
+                FROM songs WHERE id=1""",
+        )
+
+        val response = copySong(OWNER, "empty-source", """"993902"""")
+
+        assertEquals(409, response.statusCode(), response.body())
+        assertEquals("STATE_CONFLICT", json.readTree(response.body()).path("result").path("errorCode").asString())
+        assertEquals(0, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
+    }
+
+    @Test
+    fun `a member who withdrew after authentication cannot create a copy`() {
+        assertEquals(200, get(OWNER, "/api/users/me/sheets").statusCode())
+        jdbc.update(
+            """UPDATE users SET status='WITHDRAWAL_PENDING', withdrawal_requested_at=UTC_TIMESTAMP(6),
+                purge_scheduled_at=UTC_TIMESTAMP(6) + INTERVAL 30 DAY WHERE id=?""", OWNER,
+        )
+
+        // 인증 필터를 이미 지난 요청의 회원 ID를 사용해 탈퇴 후 실행 순서를 재현한다.
+        val result = copyPublishedSheet.copy(OWNER, 1, "withdrawn-before-copy-lock")
+
+        assertEquals(SheetCopyResult.Rejected(SheetCopyFailure.NotFound), result)
+        assertEquals(0, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
     }
 
     @Test

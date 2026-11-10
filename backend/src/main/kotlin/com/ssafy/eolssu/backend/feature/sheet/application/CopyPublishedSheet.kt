@@ -59,7 +59,7 @@ class CopyPublishedSheet(
         ) {
             return SheetCopyResult.Rejected(SheetCopyFailure.InvalidScore)
         }
-        val score = scores.prepare(song.scoreJson, 1) as? PreparedScore.Ready
+        val score = (scores.prepare(song.scoreJson, 1) as? PreparedScore.Ready)?.takeIf { it.columnCount > 0 }
             ?: return SheetCopyResult.Rejected(SheetCopyFailure.InvalidScore)
         val suffix = " (사본)"
         val originalTitle = song.title.trim()
