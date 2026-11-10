@@ -61,6 +61,10 @@ class HttpPlaybackClientTests {
             val client = HttpPlaybackClient("http://127.0.0.1:${server.address.port}", Duration.ofSeconds(2), json)
             assertEquals(json.readTree(performance), client.generate(body).performance)
             assertEquals(sourceHash, requestedHash)
+            timeline = performance.replace(sourceHash, "1".repeat(64))
+            assertNull(client.generate(body).performance)
+            timeline = performance.replace("\"scoreVersion\":2", "\"scoreVersion\":1")
+            assertNull(client.generate(body).performance)
             timeline = performance.replace(audioHash, "0".repeat(64))
             assertNull(client.generate(body).performance)
             timeline = null
