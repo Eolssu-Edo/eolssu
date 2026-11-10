@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.SessionSection
 import androidx.compose.foundation.layout.Arrangement
@@ -90,8 +91,9 @@ fun AnalysisRoute(
     onExit: (AnalysisExit) -> Unit,
     section: SessionSection? = null,
     initialSong: Song? = null,
+    perf: PerformanceVisit? = null,
     viewModel: AnalysisViewModel = koinViewModel(key = "analysis-$songId-$bpm-${take?.key ?: pendingSessionId}") {
-        parametersOf(songId, bpm, take, pendingSessionId, section, initialSong)
+        parametersOf(songId, bpm, take, pendingSessionId, section, initialSong, perf)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
