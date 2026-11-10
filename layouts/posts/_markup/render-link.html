@@ -1,0 +1,6 @@
+{{- if findRE "^#edo-color-[0-9a-f]{6}$" .Destination -}}
+  {{- $color := strings.TrimPrefix "#edo-color-" .Destination -}}
+  <span style="{{ printf "color:#%s" $color | safeCSS }}">{{ .Text }}</span>
+{{- else -}}
+  <a href="{{ .Destination }}"{{ with .Title }} title="{{ . }}"{{ end }}>{{ .Text }}</a>
+{{- end -}}
