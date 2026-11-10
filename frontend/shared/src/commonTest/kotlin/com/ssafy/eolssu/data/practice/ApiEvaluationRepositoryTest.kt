@@ -29,6 +29,7 @@ import kotlin.test.assertTrue
 /** 서버 분석 상태(PRA-03)와 평가 결과(평가 조회 API) 응답을 앱 모델로 바꾸는지. 서버는 MockEngine으로 대신한다. */
 class ApiEvaluationRepositoryTest {
     private val paths = mutableListOf<String>()
+    private var songReads = 0
 
     @Test fun changedScoreVersionAndNewMemberCannotReuseOldResult() = runTest {
         var version = 2
@@ -46,6 +47,32 @@ class ApiEvaluationRepositoryTest {
         assertEquals(3, paths.size)
     }
 
+    @Test fun screenScoresArriveBeforeSongLookupAndMatchingSongIsReused() = runTest {
+        val repo = repository {
+            HttpStatusCode.OK to """{"isSuccess":true,"result":{"sessionId":"41","songId":"2","scoreVersion":1,
+                "bpm":60,"startedAt":"2026-10-29T00:00:00Z","totalScore":80,"pitchScore":90,"timingScore":70,
+                "durationScore":80,"notes":[{"noteIdx":0,"verdict":"PITCH"}]}}"""
+        }
+        val (result, loadedSong) = checkNotNull(repo.resultForScreen("41", song) { scores ->
+            assertEquals(80, scores.total)
+            assertEquals(listOf(90, 70, 80), scores.metrics.map { it.score })
+            assertTrue(scores.errors.isEmpty())
+            assertEquals(0, songReads)
+        })
+        assertEquals(song, loadedSong)
+        assertEquals(1, result.errors.size)
+        assertEquals(0, songReads)
+
+        val staleSong = song.copy(scoreVersion = 2)
+        val refreshed = repo.resultForScreen("41", staleSong) { assertEquals(0, songReads) }
+        assertEquals(song, refreshed?.second)
+        assertEquals(1, songReads)
+
+        val denied = repository { HttpStatusCode.NotFound to "{}" }
+        assertNull(denied.resultForScreen("41", song) { error("서버가 거절한 점수는 표시하지 않는다") })
+        assertEquals(1, songReads)
+    }
+
     /** 악보 시간축에 지속·쉼이 섞인 예시 곡을 서버 곡 ID "2"로 쓴다. */
     private val song: Song = SampleSongs.first { s -> s.timeline.any { it.note !is ScoreNote.Pitch } }.let { base ->
         var noteIndex = 0
@@ -58,7 +85,10 @@ class ApiEvaluationRepositoryTest {
         override suspend fun getInstruments() = emptyList<com.ssafy.eolssu.data.song.CatalogInstrument>()
         override suspend fun getSongs(instrumentId: String?) = listOf(song.toSummary())
 
-        override suspend fun getSong(songId: String) = song.takeIf { it.id == songId }
+        override suspend fun getSong(songId: String): Song? {
+            songReads++
+            return song.takeIf { it.id == songId }
+        }
     }
 
     private fun repository(reply: (path: String) -> Pair<HttpStatusCode, String>?) = ApiEvaluationRepository(

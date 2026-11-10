@@ -8,6 +8,8 @@ import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.ScoreError
 import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreEvent
+import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.network.ensureAccountSession
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
 import com.ssafy.eolssu.data.song.SongRepository
@@ -72,15 +74,32 @@ class ApiEvaluationRepository(
     }
 
     /** 조회마다 서버 소유권을 확인한다. 다른 로그인 세션에 이전 회원의 캐시를 노출하지 않는다. */
-    override suspend fun result(evaluationId: String): EvaluationResult? = member.inSession {
-        if (!evaluationId.isServerId()) return@inSession fallback?.result(evaluationId)
+    override suspend fun result(evaluationId: String): EvaluationResult? =
+        loadResult(evaluationId, initialSong = null, onScores = null)?.first
+
+    override suspend fun resultForScreen(
+        evaluationId: String,
+        initialSong: Song?,
+        onScores: (EvaluationResult) -> Unit,
+    ): Pair<EvaluationResult, Song?>? = loadResult(evaluationId, initialSong, onScores)
+
+    private suspend fun loadResult(
+        evaluationId: String,
+        initialSong: Song?,
+        onScores: ((EvaluationResult) -> Unit)?,
+    ): Pair<EvaluationResult, Song?>? = member.inSession {
+        if (!evaluationId.isServerId()) return@inSession fallback?.result(evaluationId)?.let { it to null }
         val response = client.sendOrNull { get("/api/practice-sessions/$evaluationId/evaluation") }
         if (response?.status != HttpStatusCode.OK) return@inSession null
         val evaluation = response.apiResponse<Evaluation>()?.result ?: return@inSession null
         if (evaluation.sessionId != evaluationId) return@inSession null
-        val song = songs.getSong(evaluation.songId) ?: return@inSession null
-        if (song.scoreVersion != evaluation.scoreVersion) return@inSession null
-        return@inSession evaluation.toResult(song.timeline)
+        ensureAccountSession()
+        onScores?.invoke(evaluation.toResult(null))
+        val song = initialSong?.takeIf { it.id == evaluation.songId && it.scoreVersion == evaluation.scoreVersion }
+            ?: songs.getSong(evaluation.songId)
+            ?: return@inSession null
+        if (song.id != evaluation.songId || song.scoreVersion != evaluation.scoreVersion) return@inSession null
+        evaluation.toResult(song.timeline) to song
     }
 
     private fun Evaluation.toResult(timeline: List<ScoreEvent>?): EvaluationResult {

@@ -57,6 +57,7 @@ import com.ssafy.eolssu.feature.practice.PracticeRoute
 import com.ssafy.eolssu.feature.result.AnalysisExit
 import com.ssafy.eolssu.feature.result.AnalysisRoute
 import com.ssafy.eolssu.feature.result.ResultRoute
+import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.feature.song.MySongsRoute
 import com.ssafy.eolssu.feature.song.SongDetailRoute
 import com.ssafy.eolssu.feature.song.SongListRoute
@@ -150,9 +151,12 @@ fun EolssuNavHost(
     val start = remember(qaSkipConsent, sessionExpired) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent, sessionExpired) }
     val practiceSettings = koinInject<PracticeSettingsStore>()
     val member = koinInject<SignedInMember>()
+    // 녹음 키로 분석에 넘기고 세션 ID로 결과에 넘기는 같은 화면 흐름의 곡 스냅샷.
+    var evaluationSong by remember { mutableStateOf<Pair<String, Song>?>(null) }
     LaunchedEffect(member, navController) {
         var previous = member.session.value
         member.session.collect { current ->
+            if (current != previous) evaluationSong = null
             if (previous.memberId != null && current != previous) {
                 navController.navigate(if (current.memberId == null) AuthDestination.LOGIN else EolssuDestination.HOME) {
                     popUpTo(navController.graph.id) { inclusive = true }
@@ -261,7 +265,10 @@ fun EolssuNavHost(
                             popUpTo(EolssuDestination.PRACTICE) { inclusive = true }
                         }
                     },
-                    onEvaluate = { id, bpm, take -> navController.navigate(EolssuDestination.analysis(id, bpm, take)) },
+                    onEvaluate = { id, bpm, take, song ->
+                        evaluationSong = if (take != null && song != null) take.key to song else null
+                        navController.navigate(EolssuDestination.analysis(id, bpm, take))
+                    },
                     // 연주 중에는 Web 브라우저 뒤로 가기도 화면의 뒤로 가기처럼 확인 창을 띄운다.
                     onConfirmBackChange = { browserBackGuard?.onBack = it },
                     // 마이크 거부는 연습 화면 안에서 안내한다(보드 Dialog-PermDenied·PermBlocked, S15P31E102-357).
@@ -301,8 +308,10 @@ fun EolssuNavHost(
                     take = if (recording.isNotEmpty() && key.isNotEmpty()) RecordedTake(recording, key) else null,
                     pendingSessionId = entry.savedStateHandle.get<String>("session")?.takeIf { it.isNotEmpty() },
                     section = section,
+                    initialSong = evaluationSong?.takeIf { it.first == key }?.second,
                     // 구간 재평가는 구간 재평가 결과로, 곡 전체 연주는 평가 결과로 간다.
-                    onResult = { id ->
+                    onResult = { id, song ->
+                        evaluationSong = if (section == null && song != null) id to song else null
                         val route = section?.let { WeakSectionDestination.sectionResult(it.parentSessionId, id) } ?: EolssuDestination.result(id)
                         navController.navigate(route) {
                             popUpTo(EolssuDestination.ANALYSIS) { inclusive = true }
@@ -323,8 +332,10 @@ fun EolssuNavHost(
                 EolssuDestination.RESULT,
                 arguments = listOf(navArgument("evaluationId") { type = NavType.StringType }),
             ) { entry ->
+                val evaluationId = entry.savedStateHandle.get<String>("evaluationId").orEmpty()
                 ResultRoute(
-                    evaluationId = entry.savedStateHandle.get<String>("evaluationId").orEmpty(),
+                    evaluationId = evaluationId,
+                    initialSong = evaluationSong?.takeIf { it.first == evaluationId }?.second,
                     onBack = { navController.popBackStackFrom(entry) },
                     onPracticeAgain = { navController.popBackStackFrom(entry) },
                     onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },

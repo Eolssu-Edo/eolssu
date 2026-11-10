@@ -40,6 +40,7 @@ data class ResultUiState(
     val memo: String = "",
     val songLookup: SongLookup = SongLookup.Loading,
     val resultLookup: SongLookup = SongLookup.Loading,
+    val scorePreview: EvaluationResult? = null,
     val learnSongPassed: Boolean = false,
     val learnSongTrack: String? = null,
 )
@@ -54,6 +55,7 @@ class ResultViewModel(
     member: SignedInMember? = null,
     private val judgeLearnSong: (suspend (EvaluationResult, Song) -> LearnSongPass)? = null,
     private val learnTrackOf: (suspend (Song) -> String?)? = null,
+    private val initialSong: Song? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ResultUiState())
     val uiState: StateFlow<ResultUiState> = _uiState.asStateFlow()
@@ -74,16 +76,31 @@ class ResultViewModel(
         if (resultJob?.isActive == true || _uiState.value.result != null) return
         _uiState.update { it.copy(resultLookup = SongLookup.Loading) }
         resultJob = accountScope.launch {
-            val result = try {
-                evaluationRepository.result(evaluationId)
+            var scoresReceived = false
+            val loaded = try {
+                evaluationRepository.resultForScreen(evaluationId, initialSong) { preview ->
+                    scoresReceived = true
+                    _uiState.update { it.copy(scorePreview = preview) }
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                _uiState.update { it.copy(resultLookup = SongLookup.Failed) }
+                _uiState.update { it.copy(resultLookup = SongLookup.Failed, scorePreview = it.scorePreview.takeIf { scoresReceived }) }
                 return@launch
             }
-            _uiState.update { it.copy(result = result, resultLookup = if (result == null) SongLookup.Missing else SongLookup.Ready) }
-            retrySong()
+            if (loaded == null) {
+                _uiState.update {
+                    it.copy(resultLookup = if (scoresReceived) SongLookup.Failed else SongLookup.Missing,
+                        scorePreview = it.scorePreview.takeIf { scoresReceived })
+                }
+                return@launch
+            }
+            val (result, song) = loaded
+            _uiState.update {
+                it.copy(result = result, resultLookup = SongLookup.Ready, song = song,
+                    songLookup = if (song == null) SongLookup.Loading else SongLookup.Ready, scorePreview = null)
+            }
+            if (song == null) retrySong() else markLearnSong(result, song)
         }
     }
 

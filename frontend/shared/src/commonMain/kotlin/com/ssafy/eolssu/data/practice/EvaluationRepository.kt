@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.ScoreError
+import com.ssafy.eolssu.core.model.Song
 
 /**
  * 연주 평가. 녹음을 분석에 맡긴 뒤 상태를 물어 결과를 받는다(PRA-03 상태 조회).
@@ -23,6 +24,13 @@ interface EvaluationRepository {
 
     /** 평가 결과. 찾지 못하면 null. */
     suspend fun result(evaluationId: String): EvaluationResult?
+
+    /** 점수는 먼저 전달하고, 상세 매핑에 사용한 곡을 결과와 함께 반환한다. */
+    suspend fun resultForScreen(
+        evaluationId: String,
+        initialSong: Song?,
+        onScores: (EvaluationResult) -> Unit,
+    ): Pair<EvaluationResult, Song?>? = result(evaluationId)?.let { it to null }
 }
 
 /** 분석 다시 시도(PRA-03 `POST /api/practice-sessions/{sessionId}/retry`)의 응답. */

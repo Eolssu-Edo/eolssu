@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import com.ssafy.eolssu.core.model.Song
 
 /**
  * RESULT-02 연결.
@@ -40,7 +41,8 @@ fun ResultRoute(
     onViewAllErrors: (() -> Unit)? = null,
     onWeakSection: (() -> Unit)? = null,
     onLearnNextStage: ((track: String?) -> Unit)? = null,
-    viewModel: ResultViewModel = koinViewModel(key = evaluationId) { parametersOf(evaluationId) },
+    initialSong: Song? = null,
+    viewModel: ResultViewModel = koinViewModel(key = evaluationId) { parametersOf(evaluationId, initialSong) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
