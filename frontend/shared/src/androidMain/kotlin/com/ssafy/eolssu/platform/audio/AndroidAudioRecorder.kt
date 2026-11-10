@@ -134,12 +134,14 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             when (val result = RecordingEchoCalibrator.calibrate(captured.samples, strikes, lengths, quiet, RATE)) {
                 is EchoCalibrationResult.Accepted -> {
                     currentCoroutineContext().ensureActive()
-                    check(session === next && !next.cancelled)
-                    next.echo = PreparedEcho(output, baseline, captured.deviceId, RecordingEchoFilter(result.model))
-                    next.probe.clearSamples()
-                    echoState.value = RecordingEchoStatus.Ready
+                    synchronized(stateLock) {
+                        check(session === next && !next.cancelled && !next.failed && !next.closed)
+                        next.echo = PreparedEcho(output, baseline, captured.deviceId, RecordingEchoFilter(result.model))
+                        next.probe.clearSamples()
+                        echoState.value = RecordingEchoStatus.Ready
+                        accepted = true
+                    }
                     if (debugBuild) Log.d("EolssuEcho", "calibration=accepted clips=${clips.size} frames=${captured.frames} similarity=${result.model.minimumSimilarity}")
-                    accepted = true
                 }
                 is EchoCalibrationResult.Rejected -> if (session === next && !next.cancelled) {
                     echoState.value = result.reason
@@ -161,8 +163,10 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
     }
 
     override fun discardEchoCalibration() {
-        session?.let { it.clearEcho(); if (it.warming) it.cancelled = true }
-        echoState.value = RecordingEchoStatus.Off
+        synchronized(stateLock) {
+            session?.let { if (it.warming) it.cancelled = true; it.clearEcho() }
+            echoState.value = RecordingEchoStatus.Off
+        }
     }
 
     override val pitchReadings = readings.asSharedFlow()
@@ -215,6 +219,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
         val done = CountDownLatch(1)
         @Volatile var cancelled = false
         @Volatile var failed = false
+        @Volatile var closed = false
         @Volatile var echo: PreparedEcho? = null
         val probe = EchoCaptureProbe()
         @Volatile var level = 0f
@@ -390,7 +395,10 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 writer?.close()
                 probe.clearSamples()
                 if (debugBuild && writer != null) Log.d("EolssuEcho", "recording=$id applied=$correctedBlocks examined=$examinedBlocks frames=$fileSamples state=${echoState.value}")
-                if (failed) invalidateEcho() else clearEcho()
+                synchronized(stateLock) {
+                    closed = true
+                    if (failed) invalidateEcho() else clearEcho()
+                }
                 level = 0f
                 if (!keep || cancelled) file.delete()
                 while (true) {
@@ -474,8 +482,8 @@ private data class PreparedEcho(
     val filter: RecordingEchoFilter,
 )
 
-private fun sameOutput(before: JangdanOutputSnapshot, now: JangdanOutputSnapshot): Boolean =
-    before.epoch == now.epoch && before.volume == now.volume && before.deviceId == now.deviceId &&
+internal fun sameOutput(before: JangdanOutputSnapshot, now: JangdanOutputSnapshot): Boolean =
+    now.frameZeroNanos != null && before.epoch == now.epoch && before.volume == now.volume && before.deviceId == now.deviceId &&
         now.deviceType == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER && now.underruns == before.underruns && !now.clipped
 
 private data class EchoCaptureSnapshot(
