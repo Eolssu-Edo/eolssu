@@ -61,7 +61,7 @@ ORDER BY e.seq;
 
 ## 지표 해석
 
-첫 게시물에서 호스트, 수집 완료 시각·소요 시간·요청 ID와 영역별 판정 건수를 확인한다. `장애`는 중지·unhealthy·명시적인 실패 응답, `주의`는 용량·메모리 임계값, `미검증`은 실행만 확인되고 준비 상태 검사가 없는 경우, `미측정`은 값을 읽지 못한 경우다. 상한이 없는 메모리는 참고로 표시한다. 명령을 실행할 때마다 새로 수집한다.
+첫 게시물에서 호스트, 수집 완료 시각·소요 시간·요청 ID와 영역별 판정 건수를 확인한다. `장애`는 중지·unhealthy·명시적인 실패 응답, `주의`는 용량·메모리 임계값, `미검증`은 실행만 확인되고 준비 상태 검사가 없는 경우, `미측정`은 값을 읽지 못한 경우다. 상한이 없는 메모리는 참고로 표시한다. edo1 Docker 저장공간과 Jenkins 데이터에는 최근 관측값을 우선 사용한다. 다른 값은 명령 실행 때 수집한다.
 
 | 표 묶음 | 먼저 볼 곳 | 의미 |
 | --- | --- | --- |
@@ -75,8 +75,8 @@ edo1 상태는 API 라우팅 슬롯과 해당 컨테이너 상태를 한 줄로 
 
 - CPU는 Docker의 코어 합산 기준으로 100%를 넘을 수 있다. 서버 CPU는 200ms 표본이고 Load는 1·5·15분 평균이다. 장기 추세나 피크를 의미하지 않는다.
 - 서버 RAM 사용량은 전체에서 MemAvailable을 뺀 값이다. 컨테이너 RAM은 Docker CLI와 같은 inactive file cache 제외 기준이다. 설정하지 않은 제한은 `미설정`, 수집하지 못한 값은 `확인 불가`로 표시한다. 컨테이너 합계는 서버 전체 사용량과 같지 않다.
-- 파일시스템 용량과 Docker 저장공간을 구분한다. Docker Root Dir의 파일시스템 전체·여유는 호스트와 공유하는 용량이며 예약량이 아니다. 컨테이너 쓰기 계층의 `StorageOpt.size`가 없으면 제한 미설정으로 표시하며 로그·볼륨은 그 제한의 대상이 아니다. 서버 점검은 Engine 저장공간 요약을 한 번 읽고, 이 조회에 실패해도 Docker 상태와 RAM을 표시한다. 컨테이너 점검은 볼륨 사용량만 조회한다. Docker의 회수 가능량을 그대로 표시하며 자동 정리하지 않는다. 이미지·캐시 등 분류 사이의 공유 공간 때문에 각 분류를 합해 물리 점유량으로 해석하면 안 된다.
-- 컨테이너 쓰기 계층, 회전 파일을 포함한 로컬 로그, 볼륨·bind mount를 구분한다. 공유 볼륨은 `공유`라고 표시하며 컨테이너 표의 저장소 값을 서버 전체로 합산하지 않는다. bind는 요청 내 같은 경로를 한 번만 `nice du -sx`로 읽고 경로당 최대 12초·전체 bind 측정 25초로 제한한다. Jenkins와 같은 데이터 경로의 읽기 실패·경로별 시간 제한·공유 예산 소진을 구분한다. node-exporter의 읽기 전용 호스트 루트는 서버 파일시스템 관측용으로 표시한다. 전체 수집 80초·SSH 90초 상한은 유지한다. `json-file`과 `local` 로그의 주·회전 파일 크기만 읽으며 내용은 열지 않는다. local은 Docker Root Dir 아래 유효한 64자리 컨테이너 ID의 `local-logs/container.log*`를 읽는다. edo1의 고정 syslog 태그는 로컬 rsyslog 일별 파일의 메타데이터를 읽고, 백엔드 양 슬롯은 API 공용 로그로 표시한다. 심볼릭 링크를 제외하고 100파일을 넘거나 경로가 없으면 미측정이다.
+- 파일시스템 용량과 Docker 저장공간을 구분한다. Docker Root Dir의 파일시스템 전체·여유는 호스트와 공유하는 용량이며 예약량이 아니다. 컨테이너 쓰기 계층의 `StorageOpt.size`가 없으면 제한 미설정으로 표시하며 로그·볼륨은 그 제한의 대상이 아니다. 서버 점검은 Docker가 계산한 점유량과 회수 가능량을 표시한다. 저장공간을 읽지 못해도 Docker 상태와 RAM을 표시한다. 컨테이너 점검은 볼륨 사용량을 따로 조회한다. 이미지·캐시 등 분류 사이의 공유 공간 때문에 각 분류를 합해 물리 점유량으로 해석하면 안 된다.
+- 컨테이너 쓰기 계층, 회전 파일을 포함한 로컬 로그, 볼륨·bind mount를 구분한다. 공유 볼륨은 `공유`라고 표시하며 컨테이너 표의 저장소 값을 서버 전체로 합산하지 않는다. bind는 요청 내 같은 경로를 한 번만 `nice du -sx`로 읽는다. Jenkins 관측과 직접 수집의 한도는 [edo1 저장공간 관측](#edo1-저장공간-관측)을 따른다. 저장소 읽기 실패·경로별 시간 제한·전체 예산 소진을 구분한다. node-exporter의 읽기 전용 호스트 루트는 서버 파일시스템 관측용으로 표시한다. 전체 수집 80초·SSH 90초 상한은 유지한다. `json-file`과 `local` 로그의 주·회전 파일 크기만 읽으며 내용은 열지 않는다. local은 Docker Root Dir 아래 유효한 64자리 컨테이너 ID의 `local-logs/container.log*`를 읽는다. edo1의 고정 syslog 태그는 로컬 rsyslog 일별 파일의 메타데이터를 읽고, 백엔드 양 슬롯은 API 공용 로그로 표시한다. 심볼릭 링크를 제외하고 100파일을 넘거나 경로가 없으면 미측정이다.
 - NET과 블록 I/O는 별도의 누적 전송량이다. Docker 블록 I/O 필드가 없거나 null이면 확인된 cgroup v2 카운터를 읽고, 읽을 수 있는 빈 기록은 `기록 없음`으로 표시한다. 메모리·디스크·inode 80% 이상은 주의 항목으로 알리고, 디스크·inode 90% 이상은 긴급 용량 점검이 필요한 주의로 표시한다. 용량만으로 서비스 장애를 확정하지 않는다. 이는 이 프로젝트의 기본 기준이며 보편적인 장애 임계값은 아니다.
 - Load는 CPU 사용률과 다르며 실행 가능 작업과 중단 불가 대기의 평균이다. 5분 또는 15분 값이 코어 수를 넘으면 컨테이너 CPU 상위부터 보고, CPU가 낮으면 호스트 I/O 대기를 확인한다. 이는 수동 확인 기준으로 자동 장애 건수에 넣지 않는다. CPU는 0.2초 표본이므로 한 번의 값만으로 지속성을 판정하지 않는다. RAM 80% 이상 등 자원 주의 시 사용자가 30초 간격 3회 재실행해 값을 비교하도록 안내하며 명령이 자동 대기·반복하지 않는다.
 - 실패 서비스는 현재 systemd 실패 상태이며 1개 이상이면 `systemctl --failed`로 대상을 확인한다. OOM은 최근 24시간 커널에서 매칭된 로그 줄 수이며 사건 건수가 아니다. 과거 기록은 주의로 구분해 시각·대상을 현재 RAM·한도와 비교한다. Docker OOM 플래그와 재시작 횟수도 최근 24시간 발생 횟수를 뜻하지 않는다.
@@ -107,6 +107,26 @@ edo2 HTTPS는 자기 공인 IP의 `/healthz`와 JSON `status=ok`를 확인하는
 3. 두 명령이 정상이라면 나머지 네 점검 명령은 트리거를 보관용 이름으로 바꾸고 자동 완성을 해제한다. 중계 설정에서도 네 명령의 키를 제거한다. 새 트리거 두 개가 자동 완성되고 이전 트리거는 실행되지 않는지 확인한다.
 
 복구할 때는 Mattermost의 트리거·제목·자동 완성 설정과 동일 배포에서 백업한 중계 코드·비공개 설정을 함께 복원한다. 재기동 후 `/healthz`와 복원한 명령을 확인한다.
+
+## edo1 저장공간 관측
+
+edo1의 [타이머](edo-check-storage.timer)는 매시 07·22·37·52분(KST)에 [저장공간 서비스](edo-check-storage.service)를 시작한다. 타이머가 꺼져 있는 동안 놓친 예약이 있으면 다시 켤 때 한 번 실행한다. 서비스는 Docker Unix 소켓에서 점유량·회수 가능량을 읽고 Jenkins의 `/var/lib/jenkins` 데이터 bind를 `du`로 측정한다. Docker 요청은 최대 120초, Jenkins 측정은 최대 90초, 서비스 전체는 종료 대기를 포함해 최대 4분이다. 측정 프로세스는 낮은 CPU·I/O 우선순위로 실행한다.
+
+각 항목의 성공값과 측정 시각은 root 전용 `/var/lib/edo-check-storage/edo1.json`에 원자적으로 갱신한다. 실패한 항목은 기존 성공값과 시각을 보존한다. 45분 이내 관측값은 보고서에 측정 시각과 함께 표시한다. 관측값이 없거나 만료되면 edo1의 Docker 저장공간은 한 번 최대 40초, 검증된 Jenkins bind는 최대 30초 동안 직접 조회한다. 다른 bind는 경로당 최대 12초다. edo1의 bind 전체는 최대 36초이며 컨테이너 수집 시작 후 61초를 넘기지 않는다. edo2는 기존 Docker 저장공간 20초·bind 전체 25초 제한을 사용한다.
+
+edo1에서 새 수집기와 유닛을 반영한 뒤 첫 측정을 실행하고 타이머를 켠다. 서비스의 성공과 상태 파일의 권한을 확인하고 `/edo1`의 서버 저장공간 및 Jenkins 행에서 값과 측정 시각을 확인한다.
+
+```sh
+sudo systemd-analyze verify /etc/systemd/system/edo-check-storage.service /etc/systemd/system/edo-check-storage.timer
+sudo systemctl daemon-reload
+sudo systemctl start edo-check-storage.service
+sudo journalctl -u edo-check-storage.service -n 20 --no-pager
+sudo stat -c '%a %U:%G %n' /var/lib/edo-check-storage /var/lib/edo-check-storage/edo1.json
+sudo systemctl enable --now edo-check-storage.timer
+systemctl list-timers edo-check-storage.timer --all --no-pager
+```
+
+복구할 때는 edo1에서 `sudo systemctl disable --now edo-check-storage.timer`와 `sudo systemctl stop edo-check-storage.service`를 실행한다. 이전 수집기를 복원하고 이 작업으로 추가한 두 유닛 파일을 제거한 뒤 `sudo systemctl daemon-reload`를 실행한다. 측정 파일은 보존하고 고정 SSH 명령의 수집을 다시 확인한다.
 
 ## 확인과 갱신
 
