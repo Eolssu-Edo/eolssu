@@ -31,6 +31,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -41,7 +42,7 @@ enum class TextFieldType { Text, Email, Password, Number }
 /**
  * 이름표가 붙은 입력칸(`.au-field`): 이름표 13sp · 칸 높이 48dp · 아래 도움말 또는 오류.
  * [error]가 있으면 테두리를 굵은 검정으로 바꾸고 도움말 대신 오류를 보인다. [trailing]은 칸 오른쪽 끝 글자(인증번호 남은 시간)다.
- * 로그인·가입과 마이페이지가 함께 쓴다.
+ * 로그인·가입과 마이페이지가 함께 쓴다. 칸 높이는 [fieldHeight](기본 52dp)로 줄일 수 있고, 글꼴을 키우면 내용에 맞게 높아진다.
  */
 @Composable
 fun EolssuTextField(
@@ -56,6 +57,7 @@ fun EolssuTextField(
     imeAction: ImeAction = ImeAction.Next,
     onImeAction: (() -> Unit)? = null,
     trailing: String? = null,
+    fieldHeight: Dp = 52.dp,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -84,7 +86,7 @@ fun EolssuTextField(
             }),
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 52.dp)
+                .heightIn(min = fieldHeight)
                 .semantics {
                     contentDescription = label
                     if (error != null) error(error)
@@ -93,7 +95,7 @@ fun EolssuTextField(
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 52.dp)
+                        .heightIn(min = fieldHeight)
                         .background(colors.surface, shape)
                         .border(if (error != null) 1.5.dp else 1.dp, if (error != null) colors.rec else colors.line, shape)
                         .padding(horizontal = 14.dp, vertical = 12.dp),

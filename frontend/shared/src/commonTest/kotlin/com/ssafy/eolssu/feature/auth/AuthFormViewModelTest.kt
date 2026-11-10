@@ -12,6 +12,7 @@ import com.ssafy.eolssu.data.user.MemberResult
 import com.ssafy.eolssu.data.user.Registration
 import com.ssafy.eolssu.data.user.TermAgreement
 import com.ssafy.eolssu.data.user.AuthRepository
+import com.ssafy.eolssu.data.user.LoginResult
 import com.ssafy.eolssu.data.user.VerificationPurpose
 import io.ktor.client.engine.mock.respond
 import kotlin.test.Test
@@ -62,7 +63,15 @@ class AuthFormViewModelTest {
 
     @Test
     fun loginFailureShowsErrorUntilAFieldChanges() = runTest {
-        val viewModel = LoginViewModel(repository)
+        // 입력 검사는 통과하지만 서버가 계정을 거절하는 경우.
+        var accept = false
+        val server = object : AuthRepository by repository {
+            override suspend fun logIn(email: String, password: String) =
+                if (accept) repository.logIn(email, password) else LoginResult.WrongCredentials
+        }
+        val viewModel = LoginViewModel(server)
+        viewModel.changeEmail("user@example.com")
+        viewModel.changePassword("wrong")
 
         assertFalse(runImmediately { viewModel.logIn() })
         assertEquals(FieldError.LoginFailed, viewModel.uiState.value.error)
@@ -70,6 +79,7 @@ class AuthFormViewModelTest {
         viewModel.changeEmail("user@example.com")
         assertNull(viewModel.uiState.value.error)
 
+        accept = true
         viewModel.changePassword("password")
         assertTrue(runImmediately { viewModel.logIn() })
         assertNull(viewModel.uiState.value.error)

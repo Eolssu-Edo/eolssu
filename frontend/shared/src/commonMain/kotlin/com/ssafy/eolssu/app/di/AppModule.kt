@@ -67,6 +67,7 @@ import com.ssafy.eolssu.data.user.LearnProgressRepository
 import com.ssafy.eolssu.data.user.LearnSongStage
 import com.ssafy.eolssu.data.user.LessonApi
 import com.ssafy.eolssu.data.user.OAuthAttempts
+import com.ssafy.eolssu.data.user.LoginPreferences
 import com.ssafy.eolssu.data.user.OAuthRedirect
 import com.ssafy.eolssu.data.user.OAuthRoute
 import com.ssafy.eolssu.data.user.AccountDraft
@@ -199,7 +200,9 @@ val appModule = module {
     single { TermsRepository(get()) }
     viewModelOf(::ConsentViewModel)
     viewModel { (termId: String) -> TermsViewModel(termId, get()) }
-    viewModelOf(::LoginViewModel)
+    // 아이디 기억하기·자동 로그인 선택. 회원이 바뀌면 자동 로그인 표시를 지우므로 앱 시작 때 만든다(App).
+    single { LoginPreferences(get(), getOrNull(), get()) }
+    viewModel { LoginViewModel(get(), get(), get(), get()) }
     viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get(), get()) }
     viewModel { PasswordSetupViewModel(get(), get()) }
     viewModel { (social: Boolean) -> ProfileSetupViewModel(get(), get(), get(), get(), get(), social) }

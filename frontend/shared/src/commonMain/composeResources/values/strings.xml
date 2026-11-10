@@ -594,7 +594,6 @@
     <string name="auth_provider_naver">네이버</string>
     <string name="auth_provider_google">Google</string>
     <string name="auth_provider_apple">Apple</string>
-    <string name="auth_or_email">또는 이메일로</string>
     <string name="auth_email">이메일</string>
     <string name="auth_email_placeholder">example@email.com</string>
     <string name="auth_password">비밀번호</string>
@@ -602,6 +601,8 @@
     <string name="auth_login">로그인</string>
     <string name="auth_find_password">비밀번호 찾기</string>
     <string name="auth_signup_with_email">이메일로 회원가입</string>
+    <string name="auth_remember_email">아이디 기억하기</string>
+    <string name="auth_keep_signed_in">자동 로그인</string>
     <string name="auth_oauth_title">%1$s로 로그인</string>
     <string name="auth_oauth_placeholder_title">[%1$s 로그인·동의 화면]</string>
     <string name="auth_oauth_placeholder_body">계정 선택과 정보 제공 동의는\n제공자 화면에서 진행돼요.</string>
@@ -628,7 +629,6 @@
     <string name="auth_error_password_mismatch">비밀번호가 서로 달라요.</string>
     <string name="auth_error_nickname_empty">닉네임을 입력해 주세요.</string>
     <string name="auth_social_login">%1$s로 로그인</string>
-    <string name="auth_social_signup_hint">처음이라면 간편 로그인으로 바로 가입할 수 있어요.</string>
     <string name="auth_confirm">확인</string>
     <string name="auth_close">닫기</string>
     <string name="auth_locked_title">잠시 후 다시 로그인해 주세요</string>

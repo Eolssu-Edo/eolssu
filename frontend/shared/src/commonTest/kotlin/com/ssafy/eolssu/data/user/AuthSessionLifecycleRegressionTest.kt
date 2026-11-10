@@ -120,14 +120,14 @@ class AuthSessionLifecycleRegressionTest {
     fun logoutThenSameMemberLoginAndTokenRefreshKeepWorking() = runTest {
         val fixture = Fixture(this)
         try {
-            val first = LoginViewModel(fixture.auth, fixture.users)
+            val first = fixture.login()
             assertTrue(first.logIn())
             val firstSession = fixture.member.session.value
             fixture.auth.logOut()
             runCurrent()
             assertNull(fixture.member.id)
             assertTrue(fixture.member.session.value.epoch > firstSession.epoch)
-            assertTrue(LoginViewModel(fixture.auth, fixture.users).logIn())
+            assertTrue(fixture.login().logIn())
             val secondSession = fixture.member.session.value
             assertEquals("7", secondSession.memberId)
             assertTrue(secondSession.epoch > firstSession.epoch)
@@ -142,7 +142,7 @@ class AuthSessionLifecycleRegressionTest {
     fun profileClearPreservesSessionButExpiredStartupAndWithdrawalInvalidateIt() = runTest {
         val fixture = Fixture(this)
         try {
-            assertTrue(LoginViewModel(fixture.auth, fixture.users).logIn())
+            assertTrue(fixture.login().logIn())
             val signedIn = fixture.member.session.value
             fixture.users.clearProfile()
             assertEquals(signedIn, fixture.member.session.value)
@@ -154,7 +154,7 @@ class AuthSessionLifecycleRegressionTest {
             })
             assertNull(fixture.member.id)
             fixture.expired = false
-            assertTrue(LoginViewModel(fixture.auth, fixture.users).logIn())
+            assertTrue(fixture.login().logIn())
             val beforeWithdrawal = fixture.member.session.value
             assertEquals(PasswordCheckResult.Done, fixture.users.withdraw("password"))
             assertNull(fixture.member.id)
@@ -163,6 +163,12 @@ class AuthSessionLifecycleRegressionTest {
     }
 
     private class Fixture(scope: CoroutineScope) {
+        /** 보내기 전 입력 검사를 통과하는 로그인 화면. 계정 확인은 목 서버가 한다. */
+        fun login() = LoginViewModel(auth, users).apply {
+            changeEmail("member@example.com")
+            changePassword("password")
+        }
+
         val member = SignedInMember(FakeKeyValueStore())
         var requireRefresh = false
         var expired = false
