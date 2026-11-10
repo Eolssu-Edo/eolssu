@@ -1,0 +1,65 @@
+<label for="post-markdown">본문 (Markdown)</label>
+<div class="post-composer" data-post-composer>
+  <div class="post-composer-bar">
+    <div class="post-composer-scroll">
+      <div class="post-composer-group" role="group" aria-label="본문 보기">
+        <button type="button" aria-pressed="true" data-view="source">원문</button>
+        <button type="button" aria-pressed="false" aria-controls="post-preview" data-view="preview">미리보기</button>
+      </div>
+      <div class="post-composer-group" role="group" aria-label="Markdown 서식">
+        <button type="button" data-format="heading" title="소제목" aria-label="소제목">H₂</button>
+        <button type="button" data-format="bold" title="굵게" aria-label="굵게"><b>B</b></button>
+        <button type="button" data-format="italic" title="기울임" aria-label="기울임"><i>I</i></button>
+        <button type="button" data-format="strike" title="취소선" aria-label="취소선"><s>S</s></button>
+        <button type="button" data-format="link" title="링크" aria-label="링크">↗</button>
+        <button type="button" data-format="quote" title="인용" aria-label="인용">❞</button>
+        <button type="button" data-format="list" title="목록" aria-label="목록">≡</button>
+        <button type="button" data-format="fence" title="코드 블록" aria-label="코드 블록">&lt;/&gt;</button>
+        <button type="button" aria-expanded="false" aria-controls="post-format-menu" title="서식 더보기" aria-label="서식 더보기" data-disclosure>⋯</button>
+      </div>
+      <div class="post-composer-group post-composer-colors" role="group" aria-label="글자 색">
+        {{- range slice (slice "a02e31" "빨강") (slice "9c4a14" "주황") (slice "37621d" "초록") (slice "2056a1" "파랑") (slice "703aa0" "보라") }}
+        <button type="button" class="post-color-swatch" data-color="{{ index . 0 }}" title="{{ index . 1 }}" aria-label="{{ index . 1 }}" style="{{ printf "--swatch:#%s" (index . 0) | safeCSS }}"></button>
+        {{- end }}
+        <button type="button" aria-expanded="false" aria-controls="post-color-menu" title="색상 더보기" aria-label="색상 더보기" data-disclosure>▾</button>
+      </div>
+    </div>
+    <button class="post-composer-save" type="submit">임시 저장</button>
+  </div>
+  <div class="post-composer-menu post-composer-group" id="post-format-menu" role="group" aria-label="추가 Markdown 서식" hidden>
+    <button type="button" data-format="ordered">번호 목록</button>
+    <button type="button" data-format="task">체크 목록</button>
+    <button type="button" data-format="code">인라인 코드</button>
+    <button type="button" data-format="table">표</button>
+    <button type="button" data-format="image">이미지 링크</button>
+    <button type="button" data-format="rule">구분선</button>
+  </div>
+  <div class="post-composer-menu" id="post-color-menu" role="group" aria-label="추가 색상" hidden>
+    <div class="post-composer-group post-composer-colors">
+      {{- range slice (slice "303643" "먹색") (slice "6b485b" "자주 회색") (slice "92365f" "진분홍") (slice "962031" "진빨강") (slice "76500e" "황갈색") (slice "646019" "올리브색") (slice "216c61" "청록색") (slice "1f4168" "남색") (slice "514085" "남보라") (slice "6f533c" "갈색") }}
+      <button type="button" class="post-color-swatch" data-color="{{ index . 0 }}" title="{{ index . 1 }}" aria-label="{{ index . 1 }}" style="{{ printf "--swatch:#%s" (index . 0) | safeCSS }}"></button>
+      {{- end }}
+    </div>
+    <div class="post-composer-group post-color-custom">
+      <label for="post-color-picker">컬러 피커</label>
+      <input id="post-color-picker" type="color" value="#703aa0">
+      <label for="post-color-value">HEX 또는 RGB</label>
+      <input id="post-color-value" type="text" value="#703AA0" maxlength="24" spellcheck="false" aria-describedby="post-color-hint">
+      <button type="button" data-color-apply>적용</button>
+      <button type="button" data-color="default">색 지우기</button>
+    </div>
+    <p class="post-color-hint" id="post-color-hint" role="status">RGB 예시 123, 63, 161</p>
+  </div>
+  <div class="post-composer-content">
+    <textarea id="post-markdown" name="markdown" rows="16" required></textarea>
+    <section id="post-preview" class="post-composer-preview" aria-label="본문 미리보기" hidden>
+      <h2 class="post-preview-title"></h2>
+      <div class="article-body" data-preview-body></div>
+    </section>
+  </div>
+</div>
+<p class="post-composer-note" role="status" data-composer-status></p>
+{{- range slice "js/vendor/markdown-it-15.0.3.min.js" "js/editor-format.js" }}
+{{- $version := substr (sha256 (readFile (printf "static/%s" .))) 0 12 }}
+<script src="{{ . | relURL }}?v={{ $version }}" defer></script>
+{{- end }}

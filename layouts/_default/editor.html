@@ -1,6 +1,6 @@
 {{ define "main" }}
 <div class="article-shell wrap">
-  <section class="article prose-page" aria-labelledby="editor-title">
+  <section class="article post-editor-page" aria-labelledby="editor-title">
     <a class="back-link" href="{{ "/" | relURL }}" data-editor-back>← 블로그로 돌아가기</a>
     <header class="article-heading"><h1 id="editor-title">{{ .Title }}</h1></header>
     {{- if site.Params.editorapi }}
@@ -11,10 +11,8 @@
     <form class="post-editor" data-editor-form hidden>
       <label for="post-title">제목</label>
       <input id="post-title" name="title" type="text" maxlength="160" required>
-      <label for="post-markdown">본문 (Markdown)</label>
-      <textarea id="post-markdown" name="markdown" rows="20" required></textarea>
+      {{ partial "post-composer.html" . }}
       <div class="post-editor-actions">
-        <button class="button-primary" type="submit">임시 저장</button>
         <button class="post-editor-delete" type="button" data-editor-delete>삭제 대기에 추가</button>
       </div>
     </form>
