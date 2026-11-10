@@ -25,7 +25,7 @@ data class SheetWorkingCopy(val title: String, val jangdanId: String?, val bpm: 
     val resolvedIssueIds: List<String> = emptyList())
 
 sealed interface SheetWrite {
-    data class Saved(val scoreVersion: String, val revision: Int = 0) : SheetWrite
+    data class Saved(val scoreVersion: String, val revision: Int = 0, val reviewStatus: String? = null) : SheetWrite
     data object Conflict : SheetWrite
     data object Unfilled : SheetWrite
     data object TooLarge : SheetWrite
@@ -69,7 +69,9 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
                 val result = response.apiResponse<WrittenDto>()?.takeIf { it.isSuccess }?.result
                 if (result?.sheetId != sheetId) SheetWrite.Failed
                 else if (draft && result.draftRevision == copy.revision + 1) SheetWrite.Saved(copy.baseScoreVersion, requireNotNull(result.draftRevision))
-                else if (!draft && result.scoreVersion?.toIntOrNull() == copy.baseScoreVersion.toInt() + 1) SheetWrite.Saved(requireNotNull(result.scoreVersion))
+                else if (!draft && result.scoreVersion?.toIntOrNull() == copy.baseScoreVersion.toInt() + 1) {
+                    SheetWrite.Saved(requireNotNull(result.scoreVersion), reviewStatus = result.reviewStatus)
+                }
                 else SheetWrite.Failed
             }
             409 -> SheetWrite.Conflict
@@ -88,4 +90,5 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
     val score: JsonObject, val baseScoreVersion: String, val draftRevision: Int)
 @Serializable private class WriteBody(val baseScoreVersion: String, val title: String, val jangdanId: String?,
     val bpm: Int, val score: JsonObject, val draftRevision: Int? = null, val resolvedIssueIds: List<String>? = null)
-@Serializable private class WrittenDto(val sheetId: String, val scoreVersion: String? = null, val draftRevision: Int? = null)
+@Serializable private class WrittenDto(val sheetId: String, val scoreVersion: String? = null,
+    val draftRevision: Int? = null, val reviewStatus: String? = null)

@@ -13,6 +13,7 @@ import eolssu.shared.generated.resources.auth_error_nickname_empty
 import eolssu.shared.generated.resources.auth_error_password_empty
 import eolssu.shared.generated.resources.auth_error_password_mismatch
 import eolssu.shared.generated.resources.auth_error_password_rule
+import eolssu.shared.generated.resources.auth_error_password_too_long
 import org.jetbrains.compose.resources.StringResource
 import eolssu.shared.generated.resources.member_api_unavailable
 import eolssu.shared.generated.resources.member_api_session_expired
@@ -44,6 +45,7 @@ enum class FieldError(val message: StringResource) {
     EmailAlreadyExists(Res.string.auth_error_email_exists),
     PasswordEmpty(Res.string.auth_error_password_empty),
     PasswordRule(Res.string.auth_error_password_rule),
+    PasswordTooLong(Res.string.auth_error_password_too_long),
     PasswordMismatch(Res.string.auth_error_password_mismatch),
     NicknameEmpty(Res.string.auth_error_nickname_empty),
 
@@ -82,9 +84,11 @@ object AuthValidation {
         else -> null
     }
 
+    /** 조건을 덜 채우면 [FieldError.PasswordRule](화면은 체크리스트로 보인다), 네 조건을 채웠지만 128자를 넘으면 [FieldError.PasswordTooLong]. */
     fun passwordError(password: String): FieldError? = when {
         password.isEmpty() -> FieldError.PasswordEmpty
-        !PasswordRule.isValid(password) -> FieldError.PasswordRule
+        !PasswordRule.meetsAllChecks(password) -> FieldError.PasswordRule
+        PasswordRule.isTooLong(password) -> FieldError.PasswordTooLong
         else -> null
     }
 

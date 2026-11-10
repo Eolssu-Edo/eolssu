@@ -131,7 +131,7 @@ val appModule = module {
     single { SignedInMember(get()) }
     single<SongRepository> { ApiSongRepository(get()) }
     single<ModelAudioRepository> { ApiModelAudioRepository(get()) }
-    single { SheetPracticeRepository(get(), get(), get(), get(), get()) }
+    single { SheetPracticeRepository(get(), get(), get(), get(), get(), get(), get()) }
     single { InstrumentCatalog(get()) }
     single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
     single<ReferenceAudioRepository> { ApiReferenceAudioRepository(get(), get()) }
@@ -154,11 +154,14 @@ val appModule = module {
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String, perf: PerformanceVisit?) -> SongDetailViewModel(songId, get(), perf) }
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
-    viewModel { (songId: String, solo: Boolean, mine: Boolean, learn: Boolean, perf: PerformanceVisit?) ->
+    // 여섯째 인자 direct: 곡 정보에서 바로 시작한 연주 평가(S15P31E102-705).
+    viewModel { parameters ->
+        val (songId: String, solo: Boolean, mine: Boolean, learn: Boolean, perf: PerformanceVisit?) = parameters
+        val direct: Boolean = parameters[5]
         val personalPractice = if (mine) get<SheetPracticeRepository>() else null
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
             modelAudioRepository = personalPractice ?: get<ModelAudioRepository>(), audioPlayer = get(), mine = mine, learn = learn, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
-            notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf)
+            notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf, personalAudio = personalPractice, direct = direct)
     }
     viewModel { parameters ->
         val (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) = parameters

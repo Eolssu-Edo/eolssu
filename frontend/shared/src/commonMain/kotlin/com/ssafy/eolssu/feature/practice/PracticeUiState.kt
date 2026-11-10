@@ -89,6 +89,11 @@ data class PracticeUiState(
     val solo: Boolean = false,
     val mine: Boolean = false,
     val learn: Boolean = false,
+    /**
+     * 곡 정보의 '연주 평가 시작'으로 들어와 대기 상태 없이 바로 평가 녹음을 시작하는 연주 평가(S15P31E102-705). 준비 화면의 플레이어를 두지 않는다.
+     * 녹음을 지원하지 않는 환경(Web)은 지금처럼 준비 화면에서 녹음 미지원 안내를 보이도록 false로 둔다.
+     */
+    val direct: Boolean = false,
     val fingeringOverride: Boolean? = null,
     val sheetTitle: String? = null,
     val step: PracticeStep = PracticeStep(),
@@ -129,6 +134,8 @@ data class PracticeUiState(
     val sheetPerformanceBpm: Int? = null,
     /** 모범 음원이 재생 중일 때만 있다. 진행 선을 음원 위치에 맞춰 매 프레임 이어 그린다. */
     val modelClock: ModelClock? = null,
+    /** 기기 음원 저장을 지원하는 내 악보 연습에만 표시한다. */
+    val personalAudio: PracticePersonalAudio? = null,
 ) {
     val jangdanProblem: Boolean get() = !jangdanSupported || jangdanStatus in setOf(JangdanStatus.Failed, JangdanStatus.Unsupported, JangdanStatus.Interrupted)
 
@@ -491,15 +498,26 @@ fun PracticeSettings.applyTempo(draft: PracticeDraft, song: Song, mine: Boolean 
 }
 
 /** 플레이어의 고정 안내 칸에만 표시한다. 정상 재생에는 문구가 없다. */
-internal enum class PracticePlayerNotice { None, Loading, Failed, Unavailable, PersonalAudioUnavailable, EmbeddedJangdan, Unsupported, Interrupted }
+internal enum class PracticePlayerNotice {
+    None, Loading, Failed, Unavailable, PersonalAudioUnavailable, PersonalDownloadFailed, PersonalScoreChanged, EmbeddedJangdan, Unsupported, Interrupted,
+}
 
-internal val PracticeUiState.practiceAudioShortcutVersion: Int?
-    get() = song?.scoreVersion?.takeIf { it > 0 && playerNotice == PracticePlayerNotice.PersonalAudioUnavailable }
+enum class PracticePersonalAudio { Checking, Missing, Downloading, Failed, VersionChanged, Ready }
+
+internal val PracticeUiState.personalAudioControl: PracticePersonalAudio?
+    get() = personalAudio?.takeUnless { !mine || mode == PracticeMode.Rhythm || it == PracticePersonalAudio.Ready }
 
 internal val PracticeUiState.playerNotice: PracticePlayerNotice
     get() {
         val rhythm = mode == PracticeMode.Rhythm
         val accompaniment = rhythm || settings.jangdanSound
+        personalAudioControl?.let {
+            return when (it) {
+                PracticePersonalAudio.Failed -> PracticePlayerNotice.PersonalDownloadFailed
+                PracticePersonalAudio.VersionChanged -> PracticePlayerNotice.PersonalScoreChanged
+                else -> PracticePlayerNotice.None
+            }
+        }
         if ((!rhythm && modelAudioStatus == ModelAudioStatus.Loading) ||
             (accompaniment && jangdanStatus == JangdanStatus.Loading)) return PracticePlayerNotice.Loading
         if (!rhythm) when (modelAudioStatus) {

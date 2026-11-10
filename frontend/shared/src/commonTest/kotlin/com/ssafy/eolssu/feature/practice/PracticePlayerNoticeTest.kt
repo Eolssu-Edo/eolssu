@@ -1,20 +1,18 @@
 package com.ssafy.eolssu.feature.practice
 
-import com.ssafy.eolssu.data.song.smallScoreSong
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class PracticePlayerNoticeTest {
-    @Test fun audioShortcutRequiresMissingPersonalAudioAndAConfirmedVersion() {
-        val state = PracticeUiState(mine = true, mode = PracticeMode.Model,
-            song = smallScoreSong().copy(scoreVersion = 3), modelAudioStatus = ModelAudioStatus.Unavailable)
-
-        assertEquals(3, state.practiceAudioShortcutVersion)
-        assertNull(state.copy(mine = false).practiceAudioShortcutVersion)
-        assertNull(state.copy(song = state.song?.copy(scoreVersion = null)).practiceAudioShortcutVersion)
-        assertNull(state.copy(mode = PracticeMode.Rhythm).practiceAudioShortcutVersion)
-        assertNull(state.copy(modelAudioStatus = ModelAudioStatus.Playing).practiceAudioShortcutVersion)
+    @Test fun missingPersonalAudioReplacesTheModelControlsButNotRhythm() {
+        val state = PracticeUiState(mine = true, personalAudio = PracticePersonalAudio.Missing)
+        assertEquals(PracticePersonalAudio.Missing, state.personalAudioControl)
+        assertEquals(PracticePlayerNotice.None, state.playerNotice)
+        assertEquals(PracticePlayerNotice.PersonalDownloadFailed, state.copy(personalAudio = PracticePersonalAudio.Failed).playerNotice)
+        assertNull(state.copy(personalAudio = PracticePersonalAudio.Ready).personalAudioControl)
+        assertNull(state.copy(mine = false).personalAudioControl)
+        assertNull(state.copy(mode = PracticeMode.Rhythm).personalAudioControl)
     }
 
     @Test fun readyPlayingAndCompletedNeverShowRoutinePlaybackText() {

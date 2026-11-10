@@ -26,6 +26,7 @@ internal fun SongDetailTabletLayout(
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onStartPractice: () -> Unit,
+    onOpenSettings: () -> Unit,
     onRetry: () -> Unit,
 ) {
     SongTabletScaffold(
@@ -43,6 +44,7 @@ internal fun SongDetailTabletLayout(
         SongDetailBody(
             song,
             onStartPractice,
+            onOpenSettings,
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())

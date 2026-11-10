@@ -40,7 +40,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * SONG-01 + SONG-02 태블릿 가로·넓은 웹 창 배치. 새 디자인 보드에는 태블릿 판이 없어,
  * 왼쪽에 휴대폰 `Song-List`의 본문, 오른쪽 칸에 `Song-Detail`의 본문(표지 6각 · 5정간 · 정보 4열)을 둔다.
- * 왼쪽 목록에서 곡을 누르면 화면을 옮기지 않고 오른쪽 칸의 곡 정보를 바꾸고, 오른쪽 '이 곡 연습하기 →'로 연습 화면에 간다.
+ * 왼쪽 목록에서 곡을 누르면 화면을 옮기지 않고 오른쪽 칸의 곡 정보를 바꾸고, 오른쪽 '연주 평가 시작'으로 연주 평가를 바로 시작한다('연습 설정'으로 먼저 설정을 고른다).
  * 고른 곡이 검색·필터로 목록에서 빠지면 오른쪽에 '곡을 골라주세요'를 보인다.
  */
 @Composable
@@ -72,6 +72,7 @@ internal fun SongListExpandedLayout(
                 SongDetailPane(
                     detail,
                     actions.onStartPractice,
+                    actions.onOpenSettings,
                     actions.onRetryDetail,
                     Modifier.weight(1f).fillMaxHeight().padding(top = 22.dp, bottom = 24.dp),
                 )
@@ -82,7 +83,7 @@ internal fun SongListExpandedLayout(
 
 /** 오른쪽 곡 정보 칸. [detail]이 null이면 곡을 고르라는 안내, 곡을 불러오는 중·실패면 [SongLoadNotice]다. */
 @Composable
-private fun SongDetailPane(detail: SongDetailUiState?, onStartPractice: () -> Unit, onRetry: () -> Unit, modifier: Modifier) {
+private fun SongDetailPane(detail: SongDetailUiState?, onStartPractice: () -> Unit, onOpenSettings: () -> Unit, onRetry: () -> Unit, modifier: Modifier) {
     val colors = EolssuTheme.colors
     Column(modifier.border(1.dp, colors.lineSoft, RoundedCornerShape(20.dp))) {
         val song = detail?.song
@@ -92,6 +93,7 @@ private fun SongDetailPane(detail: SongDetailUiState?, onStartPractice: () -> Un
             else -> SongDetailBody(
                 song,
                 onStartPractice,
+                onOpenSettings,
                 Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
                 coverColumns = 6,
                 coverRows = 5,
