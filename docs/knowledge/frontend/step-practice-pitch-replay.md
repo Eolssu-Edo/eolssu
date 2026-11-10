@@ -1,6 +1,6 @@
 # 한 음씩 따라 불기 판정의 실측 높이 재생 검증
 
-- Task: [S15P31E102-653](https://ssafy.atlassian.net/browse/S15P31E102-653) · Story [S15P31E102-35](https://ssafy.atlassian.net/browse/S15P31E102-35)
+- Task: [S15P31E102-653](https://ssafy.atlassian.net/browse/S15P31E102-653) · Story 음높이 추적·채점
 - 계기: 혼자 연습의 한 음씩 따라 불기(운지법 보기 켬)에서 맞게 불었다고 생각해도 다음 음으로 넘어가지 않는다는 보고(2026-11-10).
 - 상태: 재생 검증 완료. 판정 기준 변경은 합의 전이며, 실기기 로그는 아직 확인하지 않았다.
 
