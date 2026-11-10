@@ -10,6 +10,8 @@ import com.ssafy.eolssu.core.model.SongLevel
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.data.practice.PracticeSettings
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.song.SampleSongRepository
@@ -66,6 +68,21 @@ class PracticeStepTest {
         assertNull(on.stepCurrentIndex)
         assertEquals(0, on.stepShownIndex)
         assertFalse(on.toggleStep().stepUi)
+    }
+
+    /** '현재 정간' 칸을 누르면 보이는 정간 음의 운지 예시음을 낸다. 한 음씩이 꺼져 있으면 낼 음이 없다(S15P31E102-717). */
+    @Test fun currentCellPlaysFingeringNoteOfShownStep() {
+        val on = solo.toggleStep()
+        assertEquals("黃", on.stepNoteToPlay?.hanja)
+        assertEquals("太", on.tapStepPlaying().matchStepNote(0).stepNoteToPlay?.hanja)
+        assertNull(solo.stepNoteToPlay)
+    }
+
+    /** 서버 공통 악보의 율명·옥타브(청고선 등)도 운지표의 같은 음으로 찾아 예시음을 낸다(S15P31E102-717). */
+    @Test fun currentCellPlaysSourcePitchFromCommonScore() {
+        val common = song.copy(score = Score(listOf(listOf(ScoreCell(ScoreNote.SourcePitch("고", 1)), ScoreCell(ScoreNote.Rest), ScoreCell(ScoreNote.Rest)))))
+        val sogeum = PracticeUiState(song = common, solo = true, settings = PracticeSettings(instrumentId = GuideInstrument.Sogeum.id)).toggleStep()
+        assertEquals("㴌", sogeum.stepNoteToPlay?.hanja)
     }
 
     @Test fun matchedNoteAdvancesToNextNoteSkippingHoldAndRest() {
