@@ -126,6 +126,7 @@ data class PracticeUiState(
     /** Optional local preview timing; ignored outside Model mode, including recording/scoring. */
     val modelPerformance: ScorePerformance? = null,
     val modelPerformancePositionMs: Double = 0.0,
+    val sheetPerformanceBpm: Int? = null,
     /** 모범 음원이 재생 중일 때만 있다. 진행 선을 음원 위치에 맞춰 매 프레임 이어 그린다. */
     val modelClock: ModelClock? = null,
 ) {
@@ -169,7 +170,7 @@ data class PracticeUiState(
         }
 
     val totalSeconds: Int get() = if (mode == PracticeMode.Model && modelPerformance != null && bpm > 0)
-        (modelPerformance.durationMs * (song?.baseBpm ?: bpm) / bpm / 1000).roundToInt()
+        (modelPerformance.durationMs * (sheetPerformanceBpm ?: song?.baseBpm ?: bpm) / bpm / 1000).roundToInt()
         else song?.durationSeconds(bpm) ?: 0
 
     /**
@@ -232,7 +233,9 @@ data class PracticeUiState(
             val song = song ?: return 0
             val jangdan = song.displayJangdan ?: return -1
             song.jangdanPlayback?.let { mapping ->
-                val cell = mapping.cellAt(currentTick ?: return -1)
+                val performedTick = sheetPerformanceBpm?.takeIf { mode == PracticeMode.Model && modelPerformance != null }
+                    ?.let { sheetPerformanceTick(modelPerformancePositionMs, it, requireNotNull(song.score.timing).ticksPerBeat) }
+                val cell = mapping.cellAt(performedTick ?: currentTick ?: return -1)
                 return if (cell < 0) -1 else jangdan.daegangIndexOfRow(cell)
             }
             if (eventCount == 0) return -1
@@ -260,7 +263,7 @@ fun PracticeUiState.selectPlaybackMode(target: PracticeMode): PracticeUiState {
     if (mode !in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm) ||
         target !in setOf(PracticeMode.Model, PracticeMode.Rhythm) || mode == target) return this
     return copy(mode = target, playing = false, eventStartedAt = null, modelClock = null,
-        modelPerformance = null, modelPerformancePositionMs = 0.0,
+        modelPerformance = null, modelPerformancePositionMs = 0.0, sheetPerformanceBpm = null,
         pausedFraction = currentEventFraction.toFloat(), follow = true)
 }
 

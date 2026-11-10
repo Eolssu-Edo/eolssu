@@ -96,7 +96,7 @@ internal class ModelAudioSession(
                     AudioPlaybackStatus.Unavailable -> ModelAudioStatus.Unsupported
                 }
                 // A truncated file must not be reported as a completed model performance.
-                val minimumEnd = audio.startOffsetMs + (audio.performance?.durationMs ?: currentSong?.durationMs(audio.bpm) ?: 0.0)
+                val minimumEnd = audio.startOffsetMs + (currentSong?.modelScoreDurationMs(audio) ?: 0.0)
                 val checked = if (media.status == AudioPlaybackStatus.Completed && media.positionMs + 1.0 < minimumEnd)
                     ModelAudioStatus.Failed else status
                 val previous = _state.value
@@ -143,7 +143,7 @@ internal class ModelAudioSession(
             when {
                 repository == null -> _state.value = ModelAudioState(ModelAudioStatus.Unsupported)
                 audio == null -> _state.value = ModelAudioState(ModelAudioStatus.Unavailable)
-                !audio.matches(song) || audio.startOffsetMs + (audio.performance?.durationMs ?: song.durationMs(audio.bpm)) > audio.durationMs + 1.0 ->
+                !audio.matches(song) || audio.startOffsetMs + song.modelScoreDurationMs(audio) > audio.durationMs + 1.0 ->
                     _state.value = ModelAudioState(ModelAudioStatus.Failed)
                 else -> startWhenReady(request, song, audio, startTick?.let { song.modelMediaPosition(audio, it) } ?: 0)
             }
@@ -178,7 +178,7 @@ internal class ModelAudioSession(
         if (!fraction.isFinite()) return
         val audio = _state.value.audio ?: return
         val song = currentSong ?: return
-        val duration = audio.performance?.durationMs ?: song.durationMs(audio.bpm)
+        val duration = song.modelScoreDurationMs(audio)
         seekTo(audio.startOffsetMs + (duration * fraction.coerceIn(0f, 1f)).toLong())
     }
 
@@ -188,7 +188,7 @@ internal class ModelAudioSession(
         val song = currentSong ?: return
         if (current.status !in setOf(ModelAudioStatus.Playing, ModelAudioStatus.Paused, ModelAudioStatus.Completed, ModelAudioStatus.Interrupted)) return
         val start = audio.startOffsetMs
-        val end = start + (audio.performance?.durationMs ?: song.durationMs(audio.bpm)).toLong()
+        val end = start + song.modelScoreDurationMs(audio).toLong()
         val target = positionMs.coerceIn(start, end)
         if (current.status == ModelAudioStatus.Playing) {
             sourceId = null
@@ -296,18 +296,20 @@ internal fun Song.modelPointAt(audio: ModelAudio, mediaPositionMs: Double): Mode
     val position = timeline.indexOfLast { requireNotNull(it.startTick) <= tick }.coerceAtLeast(0)
     val event = timeline[position]
     val fraction = ((tick - requireNotNull(event.startTick)) / requireNotNull(event.durationTick)).coerceIn(0.0, 1.0)
-    return ModelPoint(position, fraction, mediaScoreMs.coerceAtMost(durationMs(audio.bpm)))
+    return ModelPoint(position, fraction, mediaScoreMs.coerceAtMost(modelScoreDurationMs(audio)))
 }
 
 internal fun PracticeUiState.withModelAudio(playback: ModelAudioState): PracticeUiState {
     if (mode != PracticeMode.Model) return this
     val base = copy(modelAudioStatus = playback.status, playing = playback.status == ModelAudioStatus.Playing,
-        eventStartedAt = null, modelPerformance = playback.audio?.performance, modelPerformancePositionMs = 0.0, modelClock = null)
+        eventStartedAt = null, modelPerformance = playback.audio?.performance, modelPerformancePositionMs = 0.0,
+        sheetPerformanceBpm = playback.audio?.takeIf { it.sheetPlayback != null && it.performance != null }?.bpm,
+        modelClock = null)
     val audio = playback.audio ?: return base
     val song = song ?: return base
     if (song.score.timing == null || song.timeline.isEmpty()) return base
     if (audio.performance != null && !audio.matches(song)) {
-        return base.copy(modelAudioStatus = ModelAudioStatus.Failed, playing = false, modelPerformance = null)
+        return base.copy(modelAudioStatus = ModelAudioStatus.Failed, playing = false, modelPerformance = null, sheetPerformanceBpm = null)
     }
     val point = song.modelPointAt(audio, playback.mediaPositionMs.toDouble())
     val event = song.timeline[point.position]
@@ -316,6 +318,26 @@ internal fun PracticeUiState.withModelAudio(playback: ModelAudioState): Practice
         modelPerformancePositionMs = if (audio.performance != null) point.scoreMs else 0.0,
         modelClock = playback.anchor?.let { ModelClock(audio, it) })
 }
+
+internal fun Song.modelScoreDurationMs(audio: ModelAudio): Double {
+    val written = durationMs(audio.bpm)
+    return audio.performance?.durationMs ?: if (audio.sheetPlayback == null) written
+        else minOf(written, (audio.durationMs - audio.startOffsetMs).toDouble())
+}
+
+/** 내 악보 렌더러의 장구는 반복 후에도 연주 경과 시간과 시작 BPM에 맞춰 이어진다. */
+internal fun Song.modelJangdanTickAt(audio: ModelAudio, mediaPositionMs: Double): Double {
+    if (audio.sheetPlayback != null && audio.performance != null) {
+        val elapsed = (mediaPositionMs - audio.startOffsetMs).coerceIn(0.0, audio.performance.durationMs)
+        return sheetPerformanceTick(elapsed, audio.bpm, requireNotNull(score.timing).ticksPerBeat)
+    }
+    val point = modelPointAt(audio, mediaPositionMs)
+    val event = timeline[point.position]
+    return requireNotNull(event.startTick) + requireNotNull(event.durationTick) * point.fraction
+}
+
+internal fun sheetPerformanceTick(elapsedMs: Double, renderBpm: Int, ticksPerBeat: Int): Double =
+    elapsedMs * renderBpm * ticksPerBeat / 60_000.0
 
 /** 원본 악보 tick을 모범 음원의 위치로 바꾼다. 꾸밈음의 연주 시간과 앞 여백을 보존한다. */
 internal fun Song.modelMediaPosition(audio: ModelAudio, tick: Double): Long {

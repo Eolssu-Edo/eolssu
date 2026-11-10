@@ -56,7 +56,7 @@ class SheetPracticeRepository(
         val version = song.scoreVersion?.takeIf { it > 0 } ?: return@inSession null
         val bpmUnit = song.score.timing?.bpmUnit?.name ?: return@inSession null
         val file = deviceAudio.find(accountId, song.id, version.toString()) ?: return@inSession null
-        ModelAudio(
+        val audio = ModelAudio(
             songId = song.id,
             scoreVersion = version,
             audioUrl = "",
@@ -68,6 +68,12 @@ class SheetPracticeRepository(
             sha256 = file.sha256,
             sheetPlayback = SheetPlayback(file.withJangdan, file.localFile),
         )
+        val performance = file.performance ?: return@inSession audio
+        try {
+            audio.withPerformance(performance.timeline.toString(), song, performance.sourceCommonSha256)
+        } catch (_: IllegalArgumentException) {
+            audio
+        }
     }
 }
 
