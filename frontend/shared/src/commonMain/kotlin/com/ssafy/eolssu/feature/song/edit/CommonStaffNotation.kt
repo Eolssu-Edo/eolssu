@@ -12,6 +12,8 @@ internal sealed interface CommonStaffProjection {
     enum class Unsupported : CommonStaffProjection { Incomplete, Document, Tuning, PitchRange, TimingUnit, Duration, Size }
 }
 
+internal enum class CommonStaffAccidental { Flat, Natural }
+
 internal data class CommonStaffGlyph(
     val event: ScoreEvent,
     val key: StaffNoteKey,
@@ -21,6 +23,7 @@ internal data class CommonStaffGlyph(
     val tuplet: Boolean,
     val sliceIndex: Int,
     val sliceCount: Int,
+    val accidental: CommonStaffAccidental?,
 ) {
     val tieFromPrevious: Boolean get() = pitch != null && sliceIndex > 0
     val tieToNext: Boolean get() = pitch != null && sliceIndex < sliceCount - 1
@@ -41,6 +44,7 @@ internal fun SheetDraft.commonStaffProjection(): CommonStaffProjection {
 
     val columnStarts = score.columns.runningFold(0) { start, column -> start + column.size }
     val glyphs = mutableListOf<CommonStaffGlyph>()
+    val activeFlats = mutableSetOf<Int>()
     for (event in requireNotNull(score.events)) {
         val duration = requireNotNull(event.durationTick)
         if (duration > MaxGlyphs.toLong() * 7 * timing.ticksPerBeat) return CommonStaffProjection.Unsupported.Size
@@ -69,8 +73,19 @@ internal fun SheetDraft.commonStaffProjection(): CommonStaffProjection {
         val sub = cell.units.indexOfFirst { it.eventId == event.id }
         if (sub < 0) return CommonStaffProjection.Unsupported.Document
         val key = StaffNoteKey(columnStarts[event.column] + event.row, sub)
+        // 마디선이 없으므로 같은 오선 위치의 플랫은 제자리표가 나올 때까지 적용된다.
+        val accidental = when {
+            pitch == null -> null
+            pitch.flat -> {
+                activeFlats.add(pitch.step)
+                CommonStaffAccidental.Flat
+            }
+            activeFlats.remove(pitch.step) -> CommonStaffAccidental.Natural
+            else -> null
+        }
         shapes.forEachIndexed { index, shape ->
-            glyphs += CommonStaffGlyph(event, key, pitch, shape.denominator, shape.dots, tuplet, index, shapes.size)
+            glyphs += CommonStaffGlyph(event, key, pitch, shape.denominator, shape.dots, tuplet, index, shapes.size,
+                accidental.takeIf { index == 0 })
         }
     }
     return CommonStaffProjection.Ready(glyphs)

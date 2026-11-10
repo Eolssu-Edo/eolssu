@@ -13,4 +13,5 @@
     <string name="sheet_staff_dots">점 %1$d개</string>
     <string name="sheet_staff_triplet">셋잇단음표 3:2</string>
     <string name="sheet_staff_tie">붙임줄</string>
+    <string name="sheet_staff_natural">제자리표</string>
 </resources>

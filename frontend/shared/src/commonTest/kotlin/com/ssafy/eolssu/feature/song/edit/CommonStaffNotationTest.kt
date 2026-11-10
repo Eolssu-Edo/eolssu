@@ -27,6 +27,7 @@ class CommonStaffNotationTest {
         assertTrue(tied.last().tieFromPrevious)
         assertTrue(tied.all { it.key == StaffNoteKey(0, 1) })
         assertEquals("A♭5", tied.first().pitch?.name)
+        assertEquals(List(tied.size) { if (it == 0) CommonStaffAccidental.Flat else null }, tied.map { it.accidental })
 
         val state = SheetEditUiState.initial(EditSource.Mine("31"), draft, EditView.Staff)
             .copy(availablePitches = setOf("중" to 1, "임" to 1))
@@ -63,6 +64,26 @@ class CommonStaffNotationTest {
         val glyphs = assertIs<CommonStaffProjection.Ready>(triplet.editingDraft("셋잇단음표", 60, null).commonStaffProjection()).glyphs
         assertEquals(listOf("E♭2", null, "D7"), glyphs.map { it.pitch?.name })
         assertTrue(glyphs.all { it.tuplet && it.denominator == 8 && it.dots == 0 })
+    }
+
+    @Test fun naturalSignOnlyCancelsAnEarlierFlatAtTheSameStaffPosition() {
+        val original = smallScoreData()
+        val notes = listOf("대" to 0, "황" to 0, "대" to 1, "대" to 0, "대" to 0)
+        val cells = notes.mapIndexed { index, (yul, octave) ->
+            val id = "c0-j$index"
+            CommonScoreData.Cell(id, index, listOf(CommonScoreData.Unit(0, 0, ScoreNote.SourcePitch(yul, octave).hangul, "$id-r0-u0")))
+        }
+        val score = original.copy(
+            music = original.music.copy(bpmUnit = "QUARTER", ticksPerBeat = 1, ticksPerJeonggan = 1),
+            columns = listOf(CommonScoreData.Column(0, cells)),
+            events = notes.mapIndexed { index, (yul, octave) ->
+                val cell = cells[index]
+                CommonScoreData.Event(cell.units.single().eventId, "NOTE", yul, octave, index.toLong(), 1, cell.id, false, emptyList())
+            },
+        )
+        val glyphs = assertIs<CommonStaffProjection.Ready>(score.editingDraft("임시표", 60, null).commonStaffProjection()).glyphs
+        assertEquals(listOf("E4", "E♭4", "E5", "E4", "E4"), glyphs.map { it.pitch?.name })
+        assertEquals(listOf(null, CommonStaffAccidental.Flat, null, CommonStaffAccidental.Natural, null), glyphs.map { it.accidental })
     }
 
     @Test fun incompleteAndUnsupportedScoresHaveDistinctFallbacks() {

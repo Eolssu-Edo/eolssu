@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.feature.song.edit.CommonStaffAccidental
 import com.ssafy.eolssu.feature.song.edit.CommonStaffGlyph
 import com.ssafy.eolssu.feature.song.edit.CommonStaffProjection
 import com.ssafy.eolssu.feature.song.edit.SheetEditUiState
@@ -89,6 +90,7 @@ internal fun CommonStaffEditor(
                             val pitch = glyph.pitch?.name ?: stringResource(Res.string.score_rest)
                             val label = buildList {
                                 add(stringResource(Res.string.sheet_staff_value, pitch, glyph.denominator))
+                                if (glyph.accidental == CommonStaffAccidental.Natural) add(stringResource(Res.string.sheet_staff_natural))
                                 if (glyph.dots > 0) add(stringResource(Res.string.sheet_staff_dots, glyph.dots))
                                 if (glyph.tuplet) add(stringResource(Res.string.sheet_staff_triplet))
                                 if (glyph.tieFromPrevious || glyph.tieToNext) add(stringResource(Res.string.sheet_staff_tie))
@@ -177,18 +179,27 @@ private fun DrawScope.drawStaffGlyph(glyph: CommonStaffGlyph, bottom: Float, ste
             }
         }
         val left = x - px(27f)
-        if (pitch.flat) {
-            drawLine(color, Offset(left, y - px(21f)), Offset(left, y + px(7f)), stroke)
-            drawPath(Path().apply {
-                moveTo(left, y - px(2f))
-                cubicTo(left + px(13f), y - px(10f), left + px(13f), y + px(3f), left, y + px(7f))
-            }, color, style = Stroke(stroke))
-        } else {
-            val right = left + px(7f)
-            drawLine(color, Offset(left, y - px(13f)), Offset(left, y + px(6f)), stroke)
-            drawLine(color, Offset(right, y - px(6f)), Offset(right, y + px(13f)), stroke)
-            drawLine(color, Offset(left, y - px(2f)), Offset(right, y - px(6f)), px(2.4f))
-            drawLine(color, Offset(left, y + px(6f)), Offset(right, y + px(2f)), px(2.4f))
+        when (glyph.accidental) {
+            CommonStaffAccidental.Flat -> {
+                drawLine(color, Offset(left, y - px(21f)), Offset(left, y + px(7f)), stroke)
+                drawPath(Path().apply {
+                    moveTo(left, y - px(2f))
+                    cubicTo(left + px(13f), y - px(10f), left + px(13f), y + px(3f), left, y + px(7f))
+                }, color, style = Stroke(stroke))
+            }
+            CommonStaffAccidental.Natural -> {
+                val right = left + px(9f)
+                drawPath(Path().apply {
+                    moveTo(left, y - px(17f))
+                    lineTo(left, y + px(7f))
+                    lineTo(right, y + px(2f))
+                    lineTo(right, y + px(16f))
+                    moveTo(left, y - px(2f))
+                    lineTo(right, y - px(7f))
+                    lineTo(right, y + px(2f))
+                }, color, style = Stroke(px(2f)))
+            }
+            null -> Unit
         }
     } else if (denominator <= 2) {
         val restY = if (denominator == 1) bottom - 6 * step else bottom - 4 * step - px(5f)
