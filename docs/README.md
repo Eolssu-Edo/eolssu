@@ -86,6 +86,7 @@
 
 - [내 악보 음원 생성·보관 API](specs/sheet-audio.md) · [481 계획·검증](plans/S15P31E102-481.md) · [삭제·재시작 복구 근거](knowledge/backend/sheet-audio-recovery.md)
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
+- [내 악보 연습에서 음원 받기 화면으로 이동 (690)](plans/S15P31E102-690.md)
 
 - [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)
 - [연습 악보 음 선택·운지·예시음 계획과 검증 (613)](plans/S15P31E102-613.md)
@@ -127,7 +128,6 @@
 - [연습 기록 저장·목록·녹음 재생·삭제 API (REC-01~04)](specs/practice-records.md) · [342 계획](plans/S15P31E102-342.md)
 - [내 악보 생성·조회·목록 API (SHT-01·03·08)](specs/user-sheets.md) · [390 계획](plans/S15P31E102-390.md)
 - [내 악보 음원 생성·재생 앱 흐름 (SHT-12·13 FE)](specs/sheet-audio-app-flow.md) · [484 계획](plans/S15P31E102-484.md)
-- [내 악보 연습에서 음원 받기 화면으로 이동 (690)](plans/S15P31E102-690.md)
 - [악보 인식 서비스 계약 (SHT-07 내부, omr)](specs/score-recognition.md) · [변환 가능성 조사](knowledge/ai/score-omr-feasibility.md)
 - [저장한 기록의 녹음 보관과 미저장 녹음 30일 정리](specs/recording-retention.md) · [375 계획](plans/S15P31E102-375.md)
 - [기초부터 배우기 학습 단계·진도 API (LRN-01·02·03)](specs/learning-progress-apis.md) · [344 계획](plans/S15P31E102-344.md)
