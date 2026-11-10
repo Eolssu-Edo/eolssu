@@ -173,6 +173,33 @@ S15P31E102-451에서 5곡을 더했다(35항목). 북천이 단소1(25)과 천�
 
 목표 파일은 `enable_scoring.target_score(운영 악보, convert_answer(정답))`로 만든다. 운영 곡 정보·출처 ID·황 음높이는 운영 값을 두고, 음표·정간·틱은 정답 값을 쓴다. 박 단위나 정간당 박이 다르면 멈춘다. 악보 버전을 올리면 그 곡의 모범 음원은 새 버전 음원이 연결될 때까지 나오지 않는다(`ModelAudioMapper.xml`). 그래서 적용 시점은 모범 음원 담당과 맞춘다.
 
+## 기존 악보를 유지한 36곡 채점 켜기
+
+S15P31E102-704는 699의 교정 10곡을 제외한 36곡을 별도로 처리한다. [근거와 한계](../../docs/knowledge/data/existing-score-enablement.md), [계획](scoring-plans/existing-704.json)을 따른다. 기존 악보·검수 표시·판본·모범 음원을 바꾸지 않고 `is_scorable`과 DB 자동 `updated_at`만 바꾼다. `enable_scoring.py`의 기존 교정 CLI와 구별하며, 새 도구는 그 파일의 DB 접속·해시 함수만 가져온다.
+
+운영 담당자가 두 Python 파일과 계획을 같은 상대 경로로 준비하고, **공유 배포 lock `/run/lock/eolssu-backend-deploy.lock`을 잡은 상태에서 DB 백업을 먼저 완료한 뒤** 아래를 실행한다. 새 receipt 경로만 허용한다. 기본 실행은 조회이고, 전체 36곡의 식별·악보 해시·현재 판본과 빠르기의 공개 음원이 맞아야 적용할 수 있다.
+
+```sh
+sudo python3 enable_existing_scores.py --plan scoring-plans/existing-704.json --receipt /root/existing-704-check.json
+sudo python3 enable_existing_scores.py --plan scoring-plans/existing-704.json --receipt /root/existing-704-apply.json --apply
+sudo python3 enable_existing_scores.py --plan scoring-plans/existing-704.json --receipt /root/existing-704-after.json
+```
+
+한 트랜잭션에서 대상 곡과 모든 판본의 음원 행을 잠그고 직전 조회의 열 해시·행 수·채점 상태를 대조한다. 충돌 시 전부 롤백하며 이미 켜진 곡은 다시 쓰지 않는다. 적용 후 별도 조회로 보존과 활성화 여부를 확인한다. `apply-outcome-unknown` 또는 `committed-readback-pending`이면 커밋 여부를 추측하지 않고 새 receipt를 사용한 조회 모드부터 실행한다. 출력에 `updated: []`, `pending: []`이면 해당 실행에서 쓴 곡이 없고 전체가 이미 활성화된 상태다.
+
+빠른 검사는 `python -m unittest discover -s infra/catalog -p "test_enable_existing_scores.py" -v`다. 실제 MySQL 트랜잭션 검증은 작업 전용 컨테이너만 허용한다. 아래 비밀번호는 일회성 로컬 테스트 전용이며 포트를 노출하지 않는다. 준비 상태를 `mysqladmin ping`으로 확인한 뒤 테스트한다.
+
+```powershell
+docker run --detach --name eolssu-existing-score-704-test --env MYSQL_ROOT_PASSWORD=local-704-test-only mysql:8.4 --skip-log-bin
+docker exec -e MYSQL_PWD=local-704-test-only eolssu-existing-score-704-test mysqladmin -uroot ping --silent
+$env:EXISTING_SCORE_TEST_MYSQL_CONTAINER='eolssu-existing-score-704-test'
+$env:EXISTING_SCORE_TEST_MYSQL_PASSWORD='local-704-test-only'
+python -m unittest discover -s infra/catalog -p "test_enable_existing_scores.py" -v
+docker rm --force --volumes eolssu-existing-score-704-test
+```
+
+검증은 36곡 활성화, 원본 악보·검수·음원 보존, 재실행 변경 0, 부분 완료 시 기존 시각 보존, 늦은 곡/음원 충돌·삭제·추가·동시 플래그 변경의 원자적 롤백을 포함한다. 실제 AI 추론과 공개 API 결과는 운영 실행 담당자가 별도로 기록한다.
+
 ## 교정 9곡의 악보·음원 동시 적용 (699)
 
 `publish_scoring_repairs.py`는 정확히 `19,32,37,45,50,63,65,104,109`만 처리한다. 62는 포함할 수 없다. `release.json`의 schema는 `eolssu-scoring-repair-release/v1`, task는 `S15P31E102-699`이며 각 entry에 변경 전 곡·v1 음원 행, 목표 score/audio/performance 파일의 상대 경로·SHA-256·bytes와 목표 음원 메타데이터를 담는다. 실제 적용 묶음의 SHA와 검증·복구 근거는 [699 실행 기록](../../docs/plans/S15P31E102-699.md#2026-11-10-운영-적용-결과)을 따른다.
