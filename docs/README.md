@@ -1,6 +1,9 @@
 # 프로젝트 문서
 
 - [iOS 연습 장단 소리 재생 연결 (714)](plans/S15P31E102-714.md) · [장단 재생 스펙](specs/jangdan-practice-playback.md#ios-연습-장단-재생-s15p31e102-714)
+- [한 음씩 연습 안내 문구 삭제·현재 정간 칸 정렬과 예시음 재생 수정 (717)](plans/S15P31E102-717.md)
+- [연습 화면 계이름 표시·장단 안내 문구 삭제와 평가 화면 표기 스위치 이동 (716)](plans/S15P31E102-716.md)
+- [기초부터 배우기 할 일 박스식 진행과 앞뒤 단계 이동 (688)](plans/S15P31E102-688.md)
 - [기초부터 배우기 단계 축소 화면 반영 (658)](plans/S15P31E102-658.md)
 - [기존 악보를 유지한 36곡 AI 채점 활성화 (704)](plans/S15P31E102-704.md) · [스펙](specs/existing-score-enablement.md) · [대조·AI 입력 근거](knowledge/data/existing-score-enablement.md)
 - [Android 카카오·네이버 간편 로그인 앱 복귀 실패 수정 (687)](plans/S15P31E102-687.md)

@@ -93,12 +93,11 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /**
- * 율명 옆에 작게 붙이는 보조 표기. 율명은 항상 가장 크게 그린다.
- *
- * @property showSolfege 곡에 계이름 데이터([Song.solfege])가 있을 때만 표시된다.
+ * 율명 옆에 작게 붙이는 보조 표기(한글 읽는 법). 율명은 항상 가장 크게 그린다.
+ * 계이름 표시는 쓰지 않아 없앴다(S15P31E102-716).
  */
 @Immutable
-data class ScoreNotation(val showHangul: Boolean = false, val showSolfege: Boolean = false)
+data class ScoreNotation(val showHangul: Boolean = false)
 
 /** 현재 위치 강조 색. 평소·모범 연주는 [Position](노랑·파랑), 녹음 중은 [Recording](빨강)이다. */
 enum class ScoreHighlight { Position, Recording }
@@ -245,7 +244,6 @@ fun JeongganboView(
         look.daegangWhenFits && song.score.columns[column].size == song.jangdan?.gak -> patternStarts
         else -> emptyList()
     }
-    val solfege = song.solfege.takeIf { notation.showSolfege }
     // 위아래로 붙은 두 정간이 모두 테두리를 그리면 맞닿은 변을 반씩만 그려 다른 변과 두께를 맞춘다.
     fun unitMode(cell: Pair<Int, Int>): Boolean =
         unitErrors.isNotEmpty() && decorations[cell] == null && (unitsByCell[cell]?.size ?: 0) > 1
@@ -317,7 +315,6 @@ fun JeongganboView(
                 drawTopLine = !(strip.strip > 0 && row == strip.rows.first),
                 isDaegangStart = row in starts,
                 notation = notation,
-                solfege = solfege,
                 currentIndex = shownIndex,
                 currentEvent = shownIndex?.let { song.timeline.getOrNull(it) },
                 highlight = highlight,
@@ -575,7 +572,6 @@ private fun ScoreCellBox(
     drawTopLine: Boolean,
     isDaegangStart: Boolean,
     notation: ScoreNotation,
-    solfege: Map<Yul, String>?,
     currentIndex: Int?,
     currentEvent: ScoreEvent?,
     highlight: ScoreHighlight,
@@ -788,7 +784,6 @@ private fun ScoreCellBox(
                                 showDivider = r > 0,
                                 isCurrentInSplit = !live && units.size > 1 && unit.event.index == currentIndex,
                                 notation = notation,
-                                solfege = solfege,
                                 mutedGlyph = mutedGlyph,
                                 playing = playingKey != null && unit.key == playingKey,
                                 onClick = onUnitClick?.let { { it(unit) } } ?: onEventClick?.let { { it(unit.event) } },
@@ -954,7 +949,6 @@ private fun ScoreNoteBox(
     showDivider: Boolean,
     isCurrentInSplit: Boolean,
     notation: ScoreNotation,
-    solfege: Map<Yul, String>?,
     mutedGlyph: Boolean,
     onClick: (() -> Unit)?,
     isSelected: Boolean,
@@ -988,7 +982,6 @@ private fun ScoreNoteBox(
         note == ScoreNote.Rest -> stringResource(Res.string.score_rest_hangul)
         else -> null
     }
-    val solfegeText = note.fingeringYul?.let { solfege?.get(it) }
 
     var noteModifier = modifier.fillMaxWidth()
     if (isCurrentInSplit) noteModifier = noteModifier.background(Color.White.copy(alpha = 0.55f))
@@ -1046,17 +1039,14 @@ private fun ScoreNoteBox(
                 glyphs.forEach { ScoreSigimsaeGlyph(it, yulSize * look.sigimsaeScale) }
             }
         }
-        if (hangul != null || solfegeText != null) {
+        if (hangul != null) {
             val auxStyle = MaterialTheme.typography.labelSmall.copy(fontSize = auxSize, lineHeight = auxSize * 1.1f)
             val auxColor = when {
                 playing -> colors.rec
                 mutedGlyph -> colors.textDisabled
                 else -> colors.textMuted
             }
-            Column(Modifier.clearAndSetSemantics {}) {
-                if (hangul != null) Text(hangul, style = auxStyle, color = auxColor)
-                if (solfegeText != null) Text(solfegeText, style = auxStyle, color = if (look.board) auxColor else colors.playText)
-            }
+            Text(hangul, style = auxStyle, color = auxColor, modifier = Modifier.clearAndSetSemantics {})
         }
       }
       sigimsae.filter { scoreSigimsaeImage(it) == null }.forEach {

@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -86,7 +87,7 @@ import kotlin.math.roundToInt
 
 /*
  * LEARN-02 단계 목록의 그림 카드 넘기기(`.lc`): 이전 · 정사각형 카드 · 다음, 카드 아래 단계 이름과 시작 버튼.
- * 손가락으로 밀거나 화살표 · 위 산길 지도 · 키보드 ←→로 넘기고, 시작 버튼이나 카드를 누르면 그 단계 상세를 연다.
+ * 손가락으로 밀거나 화살표 · 위 달리기 지도 · 키보드 ←→로 넘기고, 시작 버튼이나 카드를 누르면 그 단계 상세를 연다.
  */
 
 /** 단계 그림 원본(1536 × 1024)의 크기. */
@@ -119,6 +120,15 @@ private val LearnArts: List<DrawableResource> = listOf(
 
 /** 카드 넘기기의 최대 너비(`.lc`). 태블릿 세로에서도 이 너비로 가운데에 둔다. */
 private val CarouselMaxWidth = 480.dp
+
+/** 단계 카드 한 변의 최대 크기. 카드를 조금 줄여 목록이 한눈에 들어오게 한다. */
+private val CardMaxSize = 240.dp
+
+/** 단계 카드에서 그림이 차지하는 비율. 캐릭터 둘레에 바탕을 남겨 잘리지 않게 한다. */
+private const val LearnCardArtInset = 0.86f
+
+/** 단계 그림 바탕(원본 그림의 회색, RGB 224). 줄인 그림 둘레를 같은 색으로 채운다. */
+private val LearnArtBackground = Color(0xFFE0E0E0)
 
 /**
  * 단계 카드 넘기기.
@@ -250,7 +260,7 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, m
     )
     Box(
         Modifier
-            .widthIn(max = maxSize)
+            .widthIn(max = if (maxSize == Dp.Unspecified) CardMaxSize else minOf(maxSize, CardMaxSize))
             .fillMaxWidth()
             .aspectRatio(1f)
             .onSizeChanged { onHeight(it.height) }
@@ -259,7 +269,8 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, m
             .clickable(role = Role.Button) { onOpen(stage.number) }
             .semantics { contentDescription = description },
     ) {
-        LearnStageArt(stage.number, Modifier.fillMaxSize().background(colors.background))
+        // 그림을 카드보다 조금 작게 가운데에 두어 캐릭터가 잘리지 않고 모두 보이게 한다. 둘레는 그림 바탕과 같은 회색으로 채운다.
+        LearnStageArt(stage.number, Modifier.fillMaxSize().background(LearnArtBackground), inset = LearnCardArtInset)
         // 테두리는 그림 위에 그린다. 완료는 1dp 테두리 + 안쪽 2dp 그림자(`box-shadow: inset`)라 3dp다
         val border = when {
             done -> Modifier.border(3.dp, colors.primary, shape)
@@ -275,9 +286,13 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, m
     }
 }
 
-/** 단계 그림에서 [LearnArtCrops]의 정사각형 부분을 카드 크기로 그린다. 단계 상세 머리에도 쓴다. */
+/**
+ * 단계 그림에서 [LearnArtCrops]의 정사각형 부분을 카드 크기로 그린다. 단계 상세 머리에도 쓴다.
+ *
+ * @param inset 그림을 카드 한 변의 이 비율로 줄여 가운데에 둔다(1이면 꽉 채운다).
+ */
 @Composable
-internal fun LearnStageArt(stage: Int, modifier: Modifier) {
+internal fun LearnStageArt(stage: Int, modifier: Modifier, inset: Float = 1f) {
     val bitmap = imageResource(LearnArts[stage - 1])
     val crop = LearnArtCrops[stage - 1]
     Canvas(modifier.clearAndSetSemantics {}) {
@@ -288,7 +303,8 @@ internal fun LearnStageArt(stage: Int, modifier: Modifier) {
             bitmap,
             srcOffset = IntOffset((crop.left * k).roundToInt(), (crop.top * k).roundToInt()),
             srcSize = IntSize(src, src),
-            dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+            dstOffset = IntOffset((size.width * (1 - inset) / 2).roundToInt(), (size.height * (1 - inset) / 2).roundToInt()),
+            dstSize = IntSize((size.width * inset).roundToInt(), (size.height * inset).roundToInt()),
             filterQuality = FilterQuality.Medium,
         )
     }

@@ -60,6 +60,8 @@ fun PracticeRoute(
     onSwitchToEval: () -> Unit,
     onEvaluate: ((songId: String, bpm: Int, take: RecordedTake?, song: Song?) -> Unit)?,
     fingeringAudio: @Composable (GuideInstrument, FingeringNote, (Boolean) -> Unit) -> Unit,
+    /** 한 음씩 '현재 정간' 칸의 운지 예시음 재생기(S15P31E102-717). 앱이 운지 가이드의 기본 예시음을 연결한다. */
+    stepNoteAudio: @Composable (GuideInstrument) -> (FingeringNote) -> Unit = { { } },
     onConfirmBackChange: ((() -> Unit)?) -> Unit = {},
     mine: Boolean = false,
     sheetTitle: String? = null,
@@ -73,6 +75,8 @@ fun PracticeRoute(
     val pitchTally by viewModel.livePitch.collectAsStateWithLifecycle()
     val livePitch = remember(state.song, state.solo, pitchTally) { livePitchMarks(state, pitchTally) }
     val snackbarHostState = remember { SnackbarHostState() }
+    // 한 음씩은 혼자 연습에만 있어 그때만 예시음 목록을 받는다.
+    val playStepNote: (FingeringNote) -> Unit = if (state.solo) stepNoteAudio(state.instrument) else { _ -> }
     val scope = rememberCoroutineScope()
     LaunchedEffect(sheetTitle) { viewModel.showSheetTitle(sheetTitle) }
     LaunchedEffect(showSwitchedNotice, state.song?.id) {
@@ -117,6 +121,7 @@ fun PracticeRoute(
             actions = PracticeScreenActions(
                 onBack = back,
                 onOpenSettings = { viewModel.openPanel(PracticePanel.Settings) },
+                onToggleHangul = viewModel::toggleHangul,
                 onSelectUnit = viewModel::selectUnit,
                 onUserScroll = viewModel::stopFollowing,
                 onFollowNow = viewModel::followNow,
@@ -146,7 +151,10 @@ fun PracticeRoute(
                     onSeekToFraction = viewModel::seekToFraction,
                     onToggleStep = viewModel::toggleStep,
                     onTapStepPlaying = viewModel::tapStepPlaying,
-                    onListenStepNote = viewModel::listenStepNote,
+                    onListenStepNote = {
+                        viewModel.uiState.value.stepNoteToPlay?.let(playStepNote)
+                        viewModel.listenStepNote()
+                    },
                     onConfirmStepNote = viewModel::confirmStepNoteManually,
                 ),
                 panel = PracticePanelActions(

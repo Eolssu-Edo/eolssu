@@ -44,6 +44,8 @@ data class LearnUiState(
     val playing: String? = null,
     val selectedStage: Int? = null,
     val viewedCard: Int? = null,
+    /** 마지막 단계를 마치고 단계 목록에 돌아왔을 때 호랑이가 결승선에서 뛰는 중이다(S15P31E102-688). */
+    val finishCelebration: Boolean = false,
 ) {
     /** 지금 악기의 단계 목록 상태. 아직 요청하지 않았으면 받는 중으로 본다. */
     val track: LearnTrackLoad get() = tracks[instrument] ?: LearnTrackLoad.Loading

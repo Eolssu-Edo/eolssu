@@ -3,7 +3,7 @@ package com.ssafy.eolssu.feature.guide.learn
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.learn_done_go_songs
+import eolssu.shared.generated.resources.learn_done_go_finish
 import eolssu.shared.generated.resources.learn_tour_done_body_beat
 import eolssu.shared.generated.resources.learn_tour_done_body_notes
 import eolssu.shared.generated.resources.learn_tour_done_body_patterns
@@ -27,13 +27,14 @@ class LearnStageTourTest {
     )
 
     /**
-     * 4단계 첫 음은 3단계 첫 소리와 같아 칸을 두지 않는다(S15P31E102-655). 두 번째 음의 운지가 있어야
-     * 할 일 2칸(옮겨 가기 · 남은 음), 없으면 따라 배우기를 두지 않는다.
+     * 4단계는 율명을 처음 보는 사람도 따라 하도록 음마다 운지 박스를 하나씩 둔다(S15P31E102-688).
+     * 운지표에 없는 음은 빼고, 짚을 음이 없으면 따라 배우기를 두지 않는다.
      */
-    @Test fun stageFourSkipsTheFirstSoundAndHasTwoSteps() {
-        assertEquals(2, stageTourCount(4, detail(listOf("汰", "潢", "無", "林", "仲")), danso))
-        assertEquals(0, stageTourCount(4, detail(listOf("汰")), danso))
-        assertEquals(0, stageTourCount(4, detail(listOf("汰", "없는음")), danso))
+    @Test fun stageFourHasOneFingeringStepPerNote() {
+        assertEquals(5, stageTourCount(4, detail(listOf("汰", "潢", "無", "林", "仲")), danso))
+        assertEquals(listOf("汰", "林"), stageFourNotes(detail(listOf("汰", "없는음", "林")), danso).map { it.hanja })
+        assertEquals(0, stageTourCount(4, detail(listOf("없는음")), danso))
+        assertEquals(0, stageTourCount(4, detail(), danso))
     }
 
     /** 5단계는 기본 5음이 있으면 올라가기·내려가기 2칸, 모자라면 없다(건너뛰기·세 음 동요는 같은 음의 반복이라 뺐다). */
@@ -58,9 +59,19 @@ class LearnStageTourTest {
         assertEquals(0, stageTourCount(7, detail(), danso))
     }
 
-    /** 마지막 단계(7단계)를 마치면 '완료했어요!' 버튼이 다음 단계 대신 곡 연습으로 간다(S15P31E102-658). */
-    @Test fun lastStageDoneLeadsToSongPractice() {
-        assertEquals(Res.string.learn_done_go_songs, learnDoneAction(last = true))
+    /** 단계마다 할 일 박스 수(S15P31E102-688): 1단계는 짚는 곳, 2·3단계는 서버 할 일, 4~7단계는 따라 배우기 칸, 그 밖은 없다. */
+    @Test fun stepCountPerStage() {
+        assertEquals(danso.tourSpots.size, learnStepCount(1, detail(), danso))
+        assertEquals(3, learnStepCount(2, detail(tasks = 3), danso))
+        assertEquals(4, learnStepCount(3, detail(tasks = 4), danso))
+        assertEquals(2, learnStepCount(5, detail(listOf("仲", "林", "無", "潢", "汰")), danso))
+        assertEquals(1, learnStepCount(7, detail(tasks = 1), danso))
+        assertEquals(0, learnStepCount(8, detail(tasks = 3), danso))
+    }
+
+    /** 마지막 단계(7단계)를 마치면 '완료했어요!' 버튼이 다음 단계 대신 단계 목록 결승선으로 돌아간다(S15P31E102-688). */
+    @Test fun lastStageDoneLeadsBackToFinishLine() {
+        assertEquals(Res.string.learn_done_go_finish, learnDoneAction(last = true))
         assertEquals(Res.string.learn_tour_done_next, learnDoneAction(last = false))
     }
 
