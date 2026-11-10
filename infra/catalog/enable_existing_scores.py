@@ -16,7 +16,7 @@ from enable_scoring import canonical_sha, mysql, quote
 
 EXPECTED_IDS = frozenset([36] + [i for i in range(51, 89) if i not in (62, 63, 65)])
 SONG_HASH = "SHA2(CAST(JSON_ARRAY(id,instrument_id,jangdan_id,title,description,difficulty,default_bpm,score_json,score_version,umulsai_text,note_count,source,status,created_at,deleted_at) AS CHAR),256)"
-AUDIO_HASH = "SHA2(CAST(JSON_ARRAY(song_id,score_version,audio_url,object_key,performance_object_key,source_common_sha256,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256,status,generation_metadata,created_at,updated_at) AS CHAR),256)"
+AUDIO_HASH = "SHA2(CAST(JSON_ARRAY(song_id,score_version,object_key,performance_object_key,source_common_sha256,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256,status,generation_metadata,created_at,updated_at) AS CHAR),256)"
 
 
 def load_plan(path):

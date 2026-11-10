@@ -115,7 +115,7 @@ class MySqlTests(unittest.TestCase):
           note_count INT,source VARCHAR(255),is_scorable BOOLEAN,status VARCHAR(20),
           created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)
           ON UPDATE CURRENT_TIMESTAMP(6),deleted_at DATETIME(6) NULL) ENGINE=InnoDB;
-          CREATE TABLE song_model_audios (song_id BIGINT,score_version INT,audio_url TEXT,object_key TEXT,
+          CREATE TABLE song_model_audios (song_id BIGINT,score_version INT,object_key TEXT,
           performance_object_key TEXT,source_common_sha256 CHAR(64),bpm INT,bpm_unit VARCHAR(32),duration_ms INT,
           start_offset_ms INT,content_type VARCHAR(64),sha256 CHAR(64),status VARCHAR(16),generation_metadata JSON,
           created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)
