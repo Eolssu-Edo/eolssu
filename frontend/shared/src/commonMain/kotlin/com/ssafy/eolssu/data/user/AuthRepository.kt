@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.user
 
+import com.ssafy.eolssu.core.model.EmailRule
 import com.ssafy.eolssu.core.model.SocialProvider
 
 /**
@@ -88,7 +89,7 @@ class SampleAuthRepository(private val now: () -> Long) : AuthRepository {
     override suspend fun logIn(email: String, password: String): LoginResult {
         val address = email.trim().lowercase()
         return when {
-            !emailPattern.matches(address) || password.isEmpty() -> LoginResult.WrongCredentials
+            !EmailRule.isValid(address) || password.isEmpty() -> LoginResult.WrongCredentials
             address == LockedEmail -> LoginResult.Locked(now() + 15 * 60_000L)
             else -> LoginResult.Success(withdrawalCancelled = address == WithdrawnEmail)
         }
@@ -114,6 +115,5 @@ class SampleAuthRepository(private val now: () -> Long) : AuthRepository {
         const val LockedEmail = "locked@example.com"
         const val WithdrawnEmail = "withdrawn@example.com"
         private val registeredEmails = setOf(RegisteredEmail, LockedEmail, WithdrawnEmail)
-        private val emailPattern = Regex("""^[^\s@]+@[^\s@]+\.[^\s@]+$""")
     }
 }

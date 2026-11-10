@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -36,7 +37,7 @@ enum class EolssuButtonStyle { Primary, Secondary, Text, Danger, Ghost }
 
 /**
  * 연두 디자인 버튼. 최소 48dp 터치 영역을 유지하고 글꼴 확대 시 내용에 맞게 높아진다.
- * [busy]이면 글자 대신 도는 표시를 보이고 누를 수 없다. 좁은 칸에 두 개를 나란히 둘 때는 [compact]로 옆 여백을 줄인다.
+ * [busy]이면 글자 대신 도는 표시를 보이고 누를 수 없다. [minHeight]를 주면 모양별 기본 높이 대신 쓴다. 좁은 칸에 두 개를 나란히 둘 때는 [compact]로 옆 여백을 줄인다.
  */
 @Composable
 fun EolssuButton(
@@ -51,6 +52,7 @@ fun EolssuButton(
     compact: Boolean = false,
     contentColor: Color? = null,
     borderColor: Color? = null,
+    minHeight: Dp? = null,
 ) {
     val colors = EolssuTheme.colors
     val (container, content, border) = when (style) {
@@ -61,7 +63,7 @@ fun EolssuButton(
         EolssuButtonStyle.Danger -> Triple(colors.rec, colors.onRec, colors.rec)
         EolssuButtonStyle.Ghost -> Triple(Color.Transparent, colors.textSub, Color.Transparent)
     }
-    val height = when {
+    val height = minHeight ?: when {
         style == EolssuButtonStyle.Text -> 48.dp
         small -> 48.dp
         else -> 52.dp

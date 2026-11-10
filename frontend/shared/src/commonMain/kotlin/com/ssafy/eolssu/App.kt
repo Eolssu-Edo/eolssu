@@ -27,7 +27,9 @@ import com.ssafy.eolssu.app.navigation.EolssuNavHost
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
+import com.ssafy.eolssu.data.user.AuthRepository
 import com.ssafy.eolssu.data.user.FirstRunRepository
+import com.ssafy.eolssu.data.user.LoginPreferences
 import com.ssafy.eolssu.data.user.UserRepository
 import com.ssafy.eolssu.data.user.MemberResult
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -62,14 +64,25 @@ internal fun App(
         val firstRun = koinInject<FirstRunRepository>()
         val users = koinInject<UserRepository>()
         val member = koinInject<SignedInMember>()
+        val authRepository = koinInject<AuthRepository>()
+        val loginPreferences = koinInject<LoginPreferences>()
         // 로그인한 회원이 남아 있을 때만 서버에서 회원 설정을 복구한다. 로그아웃 상태면 묻지 않고 바로 로그인 화면으로 간다
         // (물으면 401이 와서 로그아웃 상태가 '로그인 만료'로 보였다).
         val restoreNeeded = remember { firstRun.isCompleted() && member.id != null }
+        // 지난 이메일 로그인에서 자동 로그인을 끄고 들어왔으면 이번 실행은 복구 대신 로그아웃한다. 회원이 없어져 안내 없이 로그인에서 시작한다.
+        val endSession = remember { restoreNeeded && loginPreferences.endSessionOnLaunch() }
         var restored by remember { mutableStateOf<MemberResult?>(if (restoreNeeded) null else MemberResult.Done) }
         var retry by remember { mutableStateOf(0) }
         // 화면별 재조회와 OAuth 브라우저 복귀가 아닌, 앱 생성 시 회원 설정을 한 번 복구한다.
         LaunchedEffect(users, retry) {
-            if (restoreNeeded) {
+            if (endSession) {
+                // 마이페이지 로그아웃과 같은 순서: 남은 연습 시간을 보내 본 뒤 서버 로그아웃·쿠키 삭제·회원 정보 정리.
+                practiceTimeQueue.logOut {
+                    authRepository.logOut()
+                    users.logOut()
+                }.join()
+                restored = MemberResult.Done
+            } else if (restoreNeeded) {
                 restored = users.refresh().also { if (it == MemberResult.Unauthenticated) users.logOut() }
             }
         }
