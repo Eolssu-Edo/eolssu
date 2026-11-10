@@ -47,13 +47,13 @@ class AnalysisSessionTest {
     }
 
     @Test
-    fun pollsEveryTwoSecondsAndStopsWhenDone() {
+    fun pollsEverySecondAtFirstAndStopsWhenDone() {
         start()
         assertEquals(1, repository.queries)
-        time.advanceBy(2_000)
+        time.advanceBy(1_000)
         assertEquals(2, repository.queries)
         repository.status = { AnalysisStatus.Done("evaluation-1") }
-        time.advanceBy(2_000)
+        time.advanceBy(1_000)
         assertEquals("evaluation-1", state.evaluationId)
         time.advanceBy(10_000)
         assertEquals(3, repository.queries)
@@ -81,7 +81,7 @@ class AnalysisSessionTest {
     @Test
     fun returningQueriesOnceAndResumesPollingWhilePending() {
         start()
-        time.advanceBy(1_000)
+        time.advanceBy(500)
         session.pause()
         time.advanceBy(300_000)
         assertEquals(1, repository.queries)
@@ -118,7 +118,7 @@ class AnalysisSessionTest {
         assertEquals(1, repository.retries)
         assertNull(state.failure)
         assertEquals(before + 1, repository.queries)
-        time.advanceBy(2_000)
+        time.advanceBy(1_000)
         assertEquals(before + 2, repository.queries)
     }
 

@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import com.ssafy.eolssu.core.model.Song
 
 /**
  * RESULT-02 연결.
@@ -33,14 +34,15 @@ import org.koin.core.parameter.parametersOf
 fun ResultRoute(
     evaluationId: String,
     onBack: () -> Unit,
-    onPracticeAgain: () -> Unit,
+    onPracticeAgain: (songId: String) -> Unit,
     onOtherSong: () -> Unit,
     onHome: () -> Unit,
     onGoRecords: ((recordId: String) -> Unit)?,
     onViewAllErrors: (() -> Unit)? = null,
     onWeakSection: (() -> Unit)? = null,
     onLearnNextStage: ((track: String?) -> Unit)? = null,
-    viewModel: ResultViewModel = koinViewModel(key = evaluationId) { parametersOf(evaluationId) },
+    initialSong: Song? = null,
+    viewModel: ResultViewModel = koinViewModel(key = evaluationId) { parametersOf(evaluationId, initialSong) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -84,7 +86,7 @@ fun ResultRoute(
             onSave = viewModel::save,
             onViewAllErrors = onViewAllErrors ?: showComingSoon,
             onWeakSection = onWeakSection ?: showComingSoon,
-            onPracticeAgain = onPracticeAgain,
+            onPracticeAgain = { (state.result?.songId ?: state.scorePreview?.songId)?.let(onPracticeAgain) },
             onOtherSong = onOtherSong,
             onHome = onHome,
             onMemoChange = viewModel::changeMemo,
