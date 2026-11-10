@@ -41,6 +41,8 @@ fun LoginRoute(
         snackbarHostState = snackbarHostState,
         onEmailChange = viewModel::changeEmail,
         onPasswordChange = viewModel::changePassword,
+        onRememberEmailChange = viewModel::changeRememberEmail,
+        onKeepSignedInChange = viewModel::changeKeepSignedIn,
         onLogIn = { scope.launch { if (viewModel.logIn()) onLoggedIn() } },
         onSocialLogIn = onSocialLogIn,
         onFindPassword = {

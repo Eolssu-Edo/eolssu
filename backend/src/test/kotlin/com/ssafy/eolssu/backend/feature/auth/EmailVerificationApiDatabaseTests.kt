@@ -84,20 +84,22 @@ class EmailVerificationApiDatabaseTests {
     fun `reset collation alias delivers only to the registered email and binds the proof to it`() {
         jdbc.update("INSERT INTO pitches (id,yul,octave,hanja,hangul,semitone) VALUES (990001,'검증',0,'黃','검증',50)")
         jdbc.update("INSERT INTO instruments (id,code,name,range_low_pitch_id,range_high_pitch_id,pitch_tolerance_cent) VALUES (990001,'AUTH_TEST','검증',990001,990001,50)")
-        jdbc.update("INSERT INTO users (id,email,password_hash,nickname,instrument_id,status) VALUES (990001,'member@auth143.test','test-hash','검증',990001,'ACTIVE')")
-        val sent = send("mémber@auth143.test", "PASSWORD_RESET")
+        jdbc.update("INSERT INTO users (id,email,password_hash,nickname,instrument_id,status) VALUES (990001,'Member@auth143.test','test-hash','검증',990001,'ACTIVE')")
+        // 형식 규칙(S15P31E102-686)은 ASCII 주소만 받으므로 악센트 변형은 400이고, 대소문자 변형으로 원래 주소 발송을 확인한다.
+        assertError(send("mémber@auth143.test", "PASSWORD_RESET"), 400, "INVALID_REQUEST")
+        val sent = send("MEMBER@auth143.test", "PASSWORD_RESET")
         assertEquals(202, sent.statusCode(), sent.body())
-        assertEquals(listOf("member@auth143.test"), mail.recipients.toList())
+        assertEquals(listOf("Member@auth143.test"), mail.recipients.toList())
         val id = tree(sent).path("result").path("verificationId").asString().toLong()
-        assertEquals("member@auth143.test", jdbc.queryForObject("SELECT email FROM email_verifications WHERE id = ?", String::class.java, id))
+        assertEquals("Member@auth143.test", jdbc.queryForObject("SELECT email FROM email_verifications WHERE id = ?", String::class.java, id))
         val verified = confirm(id, mail.messages.single())
         assertEquals(200, verified.statusCode(), verified.body())
-        assertEquals("member@auth143.test", tree(verified).path("result").path("email").asString())
+        assertEquals("Member@auth143.test", tree(verified).path("result").path("email").asString())
     }
 
     @Test
     fun `invalid public input is common 400 without writing or sending`() {
-        for (body in listOf("{}", "{\"email\":\"bad\",\"purpose\":\"SIGN_UP\"}", "{\"email\":\"a@auth143.test\",\"purpose\":\"UNKNOWN\"}", "{")) {
+        for (body in listOf("{}", "{\"email\":\"bad\",\"purpose\":\"SIGN_UP\"}", "{\"email\":\"a@b\",\"purpose\":\"PASSWORD_RESET\"}", "{\"email\":\"a..b@auth143.test\",\"purpose\":\"SIGN_UP\"}", "{\"email\":\"a@auth143.test\",\"purpose\":\"UNKNOWN\"}", "{")) {
             assertError(post("/api/auth/email-verifications", body), 400, "INVALID_REQUEST")
         }
         for (path in listOf("not-a-number", "-1", "0")) assertError(post("/api/auth/email-verifications/$path/confirm", "{\"code\":\"123456\"}"), 400, "INVALID_REQUEST")
