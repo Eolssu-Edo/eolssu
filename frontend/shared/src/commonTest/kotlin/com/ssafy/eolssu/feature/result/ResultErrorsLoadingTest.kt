@@ -91,19 +91,17 @@ internal class ResultErrorsLoadingTest : CatalogViewModelTest() {
         assertFalse(model.uiState.value.failed)
     }
 
-    @Test fun sourceFailureCanRetryWithoutKeepingCellOrFilter() = runTest {
+    @Test fun sourceFailureCanRetryWithoutKeepingFilter() = runTest {
         var fail = true
         val model = keep(ResultErrorsViewModel("41", Sources { if (fail) error("offline") else source("41") }))
         runCurrent()
         assertTrue(model.uiState.value.failed)
         assertFalse(model.uiState.value.loading)
         assertNull(model.uiState.value.result)
-        model.selectCell(ScoreCellPosition(4, 4))
         model.selectFilter(ErrorFilter.Rhythm)
         fail = false
         model.retry()
         assertTrue(model.uiState.value.loading)
-        assertNull(model.uiState.value.selectedCell)
         assertEquals(ErrorFilter.All, model.uiState.value.filter)
         runCurrent()
         assertEquals("41", model.uiState.value.result?.id)
