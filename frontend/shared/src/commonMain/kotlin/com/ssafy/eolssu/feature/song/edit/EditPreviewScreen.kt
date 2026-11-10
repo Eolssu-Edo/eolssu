@@ -19,20 +19,27 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.audio.AudioPlaybackState
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
+import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
@@ -74,6 +81,8 @@ import eolssu.shared.generated.resources.sheetedit_preview_beat_sub
 import eolssu.shared.generated.resources.sheetedit_preview_draft
 import eolssu.shared.generated.resources.sheetedit_preview_hint
 import eolssu.shared.generated.resources.sheetedit_preview_listen
+import eolssu.shared.generated.resources.sheetedit_preview_progress
+import eolssu.shared.generated.resources.sheetedit_preview_seek
 import eolssu.shared.generated.resources.sheetedit_preview_pause
 import eolssu.shared.generated.resources.sheetedit_preview_play
 import eolssu.shared.generated.resources.sheetedit_preview_save
@@ -84,6 +93,7 @@ import eolssu.shared.generated.resources.sheetedit_warn_message
 import eolssu.shared.generated.resources.sheetedit_warn_more
 import eolssu.shared.generated.resources.sheetedit_warn_title
 import eolssu.shared.generated.resources.sheetedit_where_cell
+import kotlin.math.roundToLong
 import org.jetbrains.compose.resources.stringResource
 
 /** 경고 창에 위치를 모두 적는 빈 정간 수. 넘으면 '외 n곳'으로 줄인다. */
@@ -107,9 +117,11 @@ fun EditPreviewScreen(
     state: SheetEditUiState,
     snackbarHostState: SnackbarHostState,
     playback: AudioPlaybackState,
+    previewProgress: AudioPlaybackState?,
     previewPlaying: Boolean,
     onBack: () -> Unit,
     onTogglePlay: () -> Unit,
+    onSeekPreview: (Long) -> Unit,
     onToggleJangdan: () -> Unit,
     audio: SheetAudioActions,
     onSaveDraft: () -> Unit,
@@ -120,12 +132,18 @@ fun EditPreviewScreen(
     val colors = EolssuTheme.colors
     val draft = state.draft
     val song = remember(draft) { draft.toSong() }
+    val annotations = remember(draft) { draft.annotations() }
+    val linearTiming = remember(annotations) { hasLinearPreviewTiming(annotations.values.flatten()) }
+    val currentCell = previewProgress
+        ?.takeIf { linearTiming && it.status != AudioPlaybackStatus.Completed }
+        ?.let { previewCellAt(song, it.positionMs) }
     EolssuScaffold(
         containerColor = colors.surface,
         snackbarHostState = snackbarHostState,
         topBar = { EolssuTopBar(stringResource(Res.string.sheetedit_preview_title), onBack = onBack, subtitle = draft.title) },
         bottomBar = {
             PlayerRow(state, song.durationSeconds(draft.bpm), previewPlaying, onTogglePlay, onToggleJangdan, audio)
+            if (previewProgress != null) PreviewProgressRow(previewProgress, onSeekPreview)
             SheetAudioRow(state, playback, audio)
             if ((state.source as? EditSource.Mine)?.practiceVersion == null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -158,14 +176,61 @@ fun EditPreviewScreen(
             EditScoreBoard(
                 song = song,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                marks = previewMarks(draft),
-                annotations = remember(draft) { draft.annotations() },
+                marks = previewMarks(draft, currentCell),
+                annotations = annotations,
+                focusColumn = currentCell?.first,
                 notation = ScoreNotation(showHangul = true),
             )
         }
     }
     if (state.emptyWarning) EmptyWarningDialog(draft, onFillEmpty, onSaveDraft, onCloseWarning)
 }
+
+@Composable
+private fun PreviewProgressRow(playback: AudioPlaybackState, onSeek: (Long) -> Unit) {
+    val duration = playback.durationMs
+    var draggedFraction by remember(playback.sourceId) { mutableStateOf<Float?>(null) }
+    val fraction = draggedFraction ?: (playback.positionMs.toDouble() / duration).coerceIn(0.0, 1.0).toFloat()
+    val position = (fraction.toDouble() * duration).roundToLong()
+    val seekLabel = stringResource(Res.string.sheetedit_preview_seek)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Slider(
+            value = fraction,
+            onValueChange = { draggedFraction = it },
+            onValueChangeFinished = {
+                draggedFraction?.let { onSeek((it.toDouble() * duration).roundToLong()) }
+                draggedFraction = null
+            },
+            modifier = Modifier.weight(1f).semantics { contentDescription = seekLabel },
+        )
+        Text(
+            stringResource(Res.string.sheetedit_preview_progress, formatClock(position / 1000.0), formatClock(duration / 1000.0)),
+            style = MaterialTheme.typography.bodySmall,
+            color = EolssuTheme.colors.textSub,
+        )
+    }
+}
+
+internal fun previewCellAt(song: Song, positionMs: Long): Pair<Int, Int>? {
+    val cell = (positionMs / song.cellDurationMs()).toInt()
+    if (positionMs < 0 || cell >= song.score.totalUnits) return null
+    var row = cell
+    song.score.columns.forEachIndexed { column, cells ->
+        if (row < cells.size) return column to row
+        row -= cells.size
+    }
+    return null
+}
+
+// The audio renderer changes the written position for these marks. Its exact
+// performance clock is a separate contract. Elapsed time and seeking still work.
+private val PreviewTimeChangingMarks = setOf(
+    "반복표", "도돌이표", "본래속도로", "점점느리게", "점점속하게", "조금느리게", "조금속하게",
+    "덧길이표", "반길이표", "len-double", "len-half",
+)
+
+internal fun hasLinearPreviewTiming(marks: Iterable<String>): Boolean =
+    marks.none { it.substringBefore('@') in PreviewTimeChangingMarks }
 
 /** 미리듣기 원형 버튼 · '미리듣기 · 0:18'과 '장단 소리 함께' · 음원 칩. */
 @Composable
