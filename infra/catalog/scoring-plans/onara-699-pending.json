@@ -1,0 +1,21 @@
+{
+  "task": "S15P31E102-699",
+  "stage": "WAITING_FOR_CLIENT_DEPLOYMENT",
+  "songId": 62,
+  "scoreVersion": 1,
+  "targetScoreVersion": 2,
+  "source": "mr203-fixed-jeongak-daegeum-012-p1",
+  "currentSha256": "5e7a9487cedbf0d59eb6d84cc13f4bb9aa562ba53374c6107aa5fc2cd3d05510",
+  "targetSha256": "b6e4420ef30a0aefa1f5c73acc8dd4902117fb72d7c74e9689229fe4d22904ed",
+  "targetScore": "onara-699-scores/62.json",
+  "prerequisites": [
+    "Compatible web, Android and iOS clients deployed",
+    "v2 audio and performance atomically linked"
+  ],
+  "correction": {
+    "eventId": "c3-j9-r1-u0",
+    "startSeconds": 45.5,
+    "endSeconds": 51.0,
+    "defaultBpm": 30
+  }
+}
