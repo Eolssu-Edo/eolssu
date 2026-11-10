@@ -38,17 +38,10 @@ import com.ssafy.eolssu.feature.guide.component.blowShortLabel
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.learn_pattern_ascending_detail
 import eolssu.shared.generated.resources.learn_pattern_descending_detail
-import eolssu.shared.generated.resources.learn_pattern_skip_one_detail
-import eolssu.shared.generated.resources.learn_pattern_skip_two_detail
-import eolssu.shared.generated.resources.learn_pattern_three_note_song_detail
-import eolssu.shared.generated.resources.learn_task_first
-import eolssu.shared.generated.resources.learn_task_first_detail
 import eolssu.shared.generated.resources.learn_task_move
 import eolssu.shared.generated.resources.learn_task_move_detail
 import eolssu.shared.generated.resources.learn_task_range
 import eolssu.shared.generated.resources.learn_task_range_detail
-import eolssu.shared.generated.resources.learn_task_range_scale
-import eolssu.shared.generated.resources.learn_task_range_scale_detail
 import eolssu.shared.generated.resources.learn_task_rest
 import eolssu.shared.generated.resources.learn_task_rest_detail
 import eolssu.shared.generated.resources.learn_tour_done_body_beat
@@ -67,13 +60,14 @@ import org.jetbrains.compose.resources.stringResource
  * 그림과 한 줄 설명을 보이고, 마지막 칸의 '연습 시작'으로 단계 연습에 간다. 8단계는 마지막 칸의 곡을 눌러 평가 없이
  * 운지법과 함께 연습하고, '다 익혔어요'로 스스로 마친다.
  * 4·5·6단계는 서버 할 일이 비어 있어 단계 상세가 보이던 할 일(4·6단계)·패턴(5단계)을 칸으로 쓰고, 7·8단계는 서버 할 일을 그대로 쓴다.
+ * 앞 단계와 반복되는 칸은 두지 않는다(S15P31E102-655): 4단계 첫 음(3단계 첫 소리와 같은 음), 6단계 음계 오르내리기.
  */
 
 /** 4~8단계 따라 배우기 칸 수. 칸을 만들 수 없으면(내용이 모자람) 0이고, 단계 상세는 따라 배우기 없이 보인다. */
 internal fun stageTourCount(stage: Int, detail: LearnStageDetail, instrument: GuideInstrument): Int = when (stage) {
-    4 -> if (detail.pitchNames.take(2).mapNotNull(instrument::noteOf).size == 2) 3 else 0
+    4 -> if (detail.pitchNames.getOrNull(1)?.let(instrument::noteOf) != null) 2 else 0
     5 -> if (detail.pitchNames.size >= 5) LearnPattern.entries.size else 0
-    6 -> detail.ranges.size * 2
+    6 -> detail.ranges.size
     else -> detail.tasks.size
 }
 
@@ -97,9 +91,6 @@ private val LearnPattern.detail: StringResource
     get() = when (this) {
         LearnPattern.Ascending -> Res.string.learn_pattern_ascending_detail
         LearnPattern.Descending -> Res.string.learn_pattern_descending_detail
-        LearnPattern.SkipOne -> Res.string.learn_pattern_skip_one_detail
-        LearnPattern.SkipTwo -> Res.string.learn_pattern_skip_two_detail
-        LearnPattern.ThreeNoteSong -> Res.string.learn_pattern_three_note_song_detail
     }
 
 /**
@@ -125,12 +116,9 @@ internal fun LearnStageTour(
     }
     TourPanel(tasks, step) { s ->
         when (stage) {
-            4 -> when (s) {
-                0, 1 -> noteCard(detail.pitchNames.getOrNull(s)?.let(noteOf))
-                else -> LearnPatternBox { NoteChips(detail.pitchNames.mapNotNull(noteOf)) }
-            }
+            4 -> if (s == 0) noteCard(detail.pitchNames.getOrNull(1)?.let(noteOf)) else LearnPatternBox { NoteChips(detail.pitchNames.mapNotNull(noteOf)) }
             5 -> LearnPatternBox { NoteChips(LearnPattern.entries[s].notes(detail.pitchNames).mapNotNull(noteOf)) }
-            6 -> if (s % 2 == 0) noteCard(detail.ranges.getOrNull(s / 2)?.first?.let(noteOf)) else StageArtFigure(stage)
+            6 -> noteCard(detail.ranges.getOrNull(s)?.first?.let(noteOf))
             7 -> {
                 val split = beatSplitOf(s)
                 if (s == 0) TongueFigure() else if (split != null) SplitFigure(split) else StageArtFigure(stage)
@@ -145,28 +133,22 @@ internal fun LearnStageTour(
     }
 }
 
-/** 4~8단계 칸의 이름과 한 줄 설명. 4·6단계는 단계 상세가 보이던 할 일과 같은 문구다. */
+/** 4~8단계 칸의 이름과 한 줄 설명. 4·6단계는 단계 상세가 보이던 할 일에서 앞 단계와 반복되는 칸을 뺀 문구다. */
 @Composable
 internal fun stageTourTasks(instrument: GuideInstrument, stage: Int, detail: LearnStageDetail): List<LearnTask> {
     if (stageTourCount(stage, detail, instrument) == 0) return emptyList()
     return when (stage) {
         4 -> {
-            val first = instrument.noteOf(detail.pitchNames[0]) ?: return emptyList()
             val second = instrument.noteOf(detail.pitchNames[1]) ?: return emptyList()
             listOf(
-                LearnTask(stringResource(Res.string.learn_task_first, first.name), stringResource(Res.string.learn_task_first_detail, first.reading)),
                 LearnTask(stringResource(Res.string.learn_task_move, second.name), stringResource(Res.string.learn_task_move_detail)),
                 LearnTask(stringResource(Res.string.learn_task_rest), stringResource(Res.string.learn_task_rest_detail)),
             )
         }
         5 -> LearnPattern.entries.map { LearnTask(stringResource(it.label), stringResource(it.detail)) }
-        6 -> detail.ranges.flatMap { range ->
-            val blowName = blowShortLabel(range.label)
+        6 -> detail.ranges.map { range ->
             val name = instrument.noteOf(range.first)?.name ?: range.first
-            listOf(
-                LearnTask(stringResource(Res.string.learn_task_range, blowName, name), stringResource(Res.string.learn_task_range_detail)),
-                LearnTask(stringResource(Res.string.learn_task_range_scale, blowName), stringResource(Res.string.learn_task_range_scale_detail)),
-            )
+            LearnTask(stringResource(Res.string.learn_task_range, blowShortLabel(range.label), name), stringResource(Res.string.learn_task_range_detail))
         }
         else -> detail.tasks.map { LearnTask(it.title.plain(), it.detail?.plain()) }
     }
