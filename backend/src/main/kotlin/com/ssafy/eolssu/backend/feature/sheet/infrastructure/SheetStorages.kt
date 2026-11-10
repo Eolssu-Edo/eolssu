@@ -8,6 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.time.Duration
+import java.time.Instant
 import org.springframework.boot.context.properties.ConfigurationProperties
 import software.amazon.awssdk.core.exception.SdkException
 
@@ -22,6 +23,9 @@ class S3SheetSourceStorage(private val store: S3ObjectStore) : SheetSourceStorag
     override fun readUrl(key: String, ttl: Duration): String = store.readUrl(key, ttl)
 
     override fun downloadUrl(key: String, ttl: Duration, fileName: String): String = store.readUrl(key,ttl,fileName)
+
+    override fun downloadUrlBefore(key: String, ttl: Duration, fileName: String, deadline: Instant): String? =
+        store.readUrlBefore(key,ttl,fileName,deadline)
 
     override fun close() = store.close()
 

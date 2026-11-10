@@ -1,12 +1,12 @@
 package com.ssafy.eolssu.feature.song.edit
 
 import com.ssafy.eolssu.data.song.SheetAudio
-import com.ssafy.eolssu.data.song.SheetAudioFile
+import com.ssafy.eolssu.core.audio.DeviceSheetAudio
 import com.ssafy.eolssu.data.song.SheetAudioStatus
 
 /**
  * 미리보기(EDIT-04)의 내 악보 음원 칸 상태. 서버 상태(SHT-13)를 화면 단계로 옮긴 것이다.
- * 만드는 중·실패·확인 못 함에도 서버가 돌려준 이전 파일([latest])은 그대로 재생·저장할 수 있다.
+ * 기기에 내려받은 파일의 재생 상태는 서버 요청 상태와 별개다.
  */
 sealed interface SheetAudioUi {
     /** 만든 음원이 없다(SHT-13 404). '음원 만들기'를 보인다. */
@@ -57,13 +57,9 @@ internal fun SheetAudio.toUi(): SheetAudioUi = when (status) {
     SheetAudioStatus.Failed -> SheetAudioUi.Failed(this)
 }
 
-/** 재생·저장할 파일 종류. */
-enum class SheetAudioKind { M4a, Midi }
+/** 다운로드 링크나 경로를 노출하지 않고 기기에 저장한 음원을 식별한다. */
+val DeviceSheetAudio.playbackId: String get() = "sheet-audio:$sha256"
 
-fun SheetAudio.file(kind: SheetAudioKind): SheetAudioFile? = when (kind) {
-    SheetAudioKind.M4a -> audio
-    SheetAudioKind.Midi -> midi
-}
-
-/** 플레이어가 같은 파일을 구별하는 이름. 서명 URL은 새로 받을 때마다 바뀌므로 쓰지 않는다. */
-val SheetAudioFile.playbackId: String get() = "sheet-audio:" + (sha256 ?: "$fileName:$byteSize")
+internal fun DeviceSheetAudio.matchesDownload(audio: SheetAudio): Boolean =
+    sha256 == audio.audio?.sha256 && instrumentId == audio.instrumentId &&
+        bpm == audio.bpm && withJangdan == audio.withJangdan

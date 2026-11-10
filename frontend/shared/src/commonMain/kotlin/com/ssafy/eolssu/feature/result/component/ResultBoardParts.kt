@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.result.component
 
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import com.ssafy.eolssu.core.ui.score.errorCount
 import com.ssafy.eolssu.core.ui.score.visibleErrors
 import com.ssafy.eolssu.core.ui.score.visibleErrorKinds
@@ -226,7 +228,7 @@ fun ScoreRing(score: Int, modifier: Modifier = Modifier) {
     val ring = painterResource(Res.drawable.enso_ring)
     val total = score.coerceIn(0, 100)
     val unit = stringResource(Res.string.result_score_of)
-    Box(modifier.size(112.dp).semantics(mergeDescendants = true) { contentDescription = "$total$unit" }, contentAlignment = Alignment.Center) {
+    Box(modifier.observeFirstDraw(PerfPhase.SCORE_DRAWN).size(112.dp).semantics(mergeDescendants = true) { contentDescription = "$total$unit" }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) { with(ring) { draw(size) } }
         Column(Modifier.clearAndSetSemantics {}, horizontalAlignment = Alignment.CenterHorizontally) {
             Text("$total", style = MaterialTheme.typography.titleMedium.copy(fontSize = 38.sp, lineHeight = 38.sp), color = colors.text)

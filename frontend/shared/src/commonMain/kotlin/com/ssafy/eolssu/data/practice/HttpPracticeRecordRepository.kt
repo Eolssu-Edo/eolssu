@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.data.practice
 
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.measureLoad
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.PracticeRecord
@@ -63,7 +65,10 @@ class HttpPracticeRecordRepository(
         return@inSession true
     }
 
-    private suspend fun list(songId: String?, page: Int): RecordList? {
+    private suspend fun list(songId: String?, page: Int): RecordList? =
+        measureLoad(PerfTarget.RECORD_PAGE, "${songId.orEmpty()}:$page") { loadPage(songId, page) }
+
+    private suspend fun loadPage(songId: String?, page: Int): RecordList? {
         val response = client.sendOrNull {
             get("/api/users/me/practice-records") {
                 songId?.let { parameter("songId", it) }

@@ -5,13 +5,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.AudioPlayer
-import com.ssafy.eolssu.core.audio.AudioSource
 import com.ssafy.eolssu.core.audio.rememberReferenceAudioPlayer
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
@@ -20,10 +20,13 @@ import eolssu.shared.generated.resources.sheetedit_msg_audio_failed
 import eolssu.shared.generated.resources.sheetedit_msg_audio_in_progress
 import eolssu.shared.generated.resources.sheetedit_msg_audio_invalid
 import eolssu.shared.generated.resources.sheetedit_msg_audio_link_failed
+import eolssu.shared.generated.resources.sheetedit_msg_audio_downloaded
+import eolssu.shared.generated.resources.sheetedit_audio_expired
 import eolssu.shared.generated.resources.sheetedit_msg_audio_needs_save
 import eolssu.shared.generated.resources.sheetedit_msg_audio_not_found
 import eolssu.shared.generated.resources.sheetedit_msg_audio_not_ready
 import eolssu.shared.generated.resources.sheetedit_msg_audio_ready
+import eolssu.shared.generated.resources.sheetedit_preview_needs_audio
 import eolssu.shared.generated.resources.sheetedit_msg_audio_requested
 import eolssu.shared.generated.resources.sheetedit_msg_audio_too_long
 import eolssu.shared.generated.resources.sheetedit_msg_audio_unknown
@@ -32,12 +35,13 @@ import eolssu.shared.generated.resources.sheetedit_msg_saved
 import eolssu.shared.generated.resources.sheet_save_failed
 import eolssu.shared.generated.resources.sheet_save_conflict
 import eolssu.shared.generated.resources.sheet_save_too_large
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlin.time.Clock
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * EDIT-04 연결. 편집기와 같은 [viewModel]을 받는다. 뒤로 가기와 경고 창의 '빈 정간 채우기'는 [onBack]으로 편집기에 돌아간다.
- * 저장·임시저장은 서버 응답을 확인한 뒤 알린다. 음원(SHT-12·13)은 이 화면의 플레이어로 재생하고, 파일 저장은 서명 URL을 기기 브라우저로 연다.
+ * 악보 저장은 서버에 반영하고, 음원은 내려받아 기기에 저장한 파일을 재생한다.
  */
 @Composable
 fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
@@ -49,7 +53,22 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
     val snackbarHostState = remember { SnackbarHostState() }
     val player = rememberReferenceAudioPlayer()
     val playback by player.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
+    val previewId = viewModel.previewPlaybackId()
+    val savedAudioId = state.deviceAudio?.playbackId
+    var previewStarted by remember { mutableStateOf(false) }
+    LaunchedEffect(previewId, savedAudioId) {
+        val loadedId = player.state.value.sourceId
+        if (loadedId != null && (loadedId != savedAudioId || previewStarted && loadedId != previewId)) {
+            previewStarted = false
+            player.stop()
+        }
+    }
+    val pendingDownload = (state.audio as? SheetAudioUi.Ready)?.audio?.audio
+    LaunchedEffect(pendingDownload) {
+        val file = pendingDownload ?: return@LaunchedEffect
+        delay((file.urlExpiresAt - Clock.System.now().toEpochMilliseconds()).coerceAtLeast(0))
+        viewModel.expireAudioDownload(file)
+    }
     val uriHandler = LocalUriHandler.current
     val messages = mapOf(
         SheetEditMessage.SaveFailed to stringResource(Res.string.sheet_save_failed),
@@ -69,6 +88,9 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
         SheetEditMessage.AudioBusy to stringResource(Res.string.sheetedit_msg_audio_busy),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),
         SheetEditMessage.AudioLinkFailed to stringResource(Res.string.sheetedit_msg_audio_link_failed),
+        SheetEditMessage.AudioDownloaded to stringResource(Res.string.sheetedit_msg_audio_downloaded),
+        SheetEditMessage.AudioExpired to stringResource(Res.string.sheetedit_audio_expired),
+        SheetEditMessage.PreviewNeedsAudio to stringResource(Res.string.sheetedit_preview_needs_audio),
         SheetEditMessage.ComingSoon to stringResource(Res.string.common_coming_soon),
     )
     LaunchedEffect(state.message) {
@@ -80,7 +102,6 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
     // 미리듣기와 음원 재생은 이 화면에서만 한다. 음원 생성 상태 조회는 ViewModel이 이어 간다.
     DisposableEffect(Unit) {
         onDispose {
-            viewModel.stopPreview()
             player.release()
         }
     }
@@ -88,17 +109,29 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
         state = state,
         snackbarHostState = snackbarHostState,
         playback = playback,
+        previewPlaying = previewId?.let { id ->
+            playback.sourceId == id && playback.status in setOf(AudioPlaybackStatus.Playing, AudioPlaybackStatus.Loading)
+        } == true,
         onBack = onBack,
-        onTogglePlay = viewModel::togglePreview,
+        onTogglePlay = {
+            previewStarted = viewModel.previewPlaybackId() != null
+            toggleSheetAudio(player, viewModel, preview = true)
+        },
         onToggleJangdan = viewModel::toggleWithJangdan,
         audio = SheetAudioActions(
             onRequest = viewModel::requestAudio,
             onRefresh = { viewModel.refreshAudio() },
-            onTogglePlayback = { scope.launch { toggleSheetAudio(player, viewModel) } },
-            onSave = { kind ->
-                scope.launch {
-                    val file = viewModel.audioFile(kind) ?: return@launch
-                    try { uriHandler.openUri(file.url) } catch (_: Exception) { viewModel.reportAudioLinkFailed() }
+            onTogglePlayback = {
+                previewStarted = false
+                toggleSheetAudio(player, viewModel)
+            },
+            onSave = {
+                if (viewModel.canSaveAudioOnDevice) {
+                    viewModel.saveAudioOnDevice()
+                } else {
+                    viewModel.downloadableAudio()?.let { file ->
+                        try { uriHandler.openUri(file.url) } catch (_: Exception) { viewModel.reportAudioLinkFailed() }
+                    }
                 }
             },
         ),
@@ -112,11 +145,10 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
     )
 }
 
-/** 같은 파일이 재생·일시정지 중이면 그 상태만 바꾸고, 아니면 (만료됐으면 새로 받은) 서명 URL로 처음부터 튼다. */
-private suspend fun toggleSheetAudio(player: AudioPlayer, viewModel: SheetEditViewModel) {
+private fun toggleSheetAudio(player: AudioPlayer, viewModel: SheetEditViewModel, preview: Boolean = false) {
+    val source = viewModel.devicePlayback(preview) ?: return
     val current = player.state.value
-    val loadedId = viewModel.uiState.value.audio.latest?.audio?.playbackId
-    if (loadedId != null && current.sourceId == loadedId) {
+    if (current.sourceId == source.id) {
         when (current.status) {
             AudioPlaybackStatus.Playing -> { player.pause(); return }
             AudioPlaybackStatus.Paused -> { player.resume(1f); return }
@@ -124,6 +156,5 @@ private suspend fun toggleSheetAudio(player: AudioPlayer, viewModel: SheetEditVi
             else -> Unit
         }
     }
-    val file = viewModel.audioFile(SheetAudioKind.M4a) ?: return
-    player.load(AudioSource(file.playbackId, file.url), 0, 1f)
+    player.load(source, 0, 1f)
 }

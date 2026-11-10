@@ -54,6 +54,7 @@ import eolssu.shared.generated.resources.practice_countdown_soon
 import eolssu.shared.generated.resources.practice_score_failed
 import eolssu.shared.generated.resources.practice_score_loading
 import eolssu.shared.generated.resources.practice_score_missing
+import eolssu.shared.generated.resources.practice_sheet_needs_review
 import eolssu.shared.generated.resources.practice_score_retry
 import com.ssafy.eolssu.feature.practice.component.practicePageTitle
 import org.jetbrains.compose.resources.stringResource
@@ -128,6 +129,7 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
             if (state.isSongLoading) CircularProgressIndicator(color = EolssuTheme.colors.accentText)
             Text(stringResource(when (state.songError) {
                 PracticeSongError.NotFound -> Res.string.practice_score_missing
+                PracticeSongError.NeedsReview -> Res.string.practice_sheet_needs_review
                 PracticeSongError.Failed -> Res.string.practice_score_failed
                 null -> Res.string.practice_score_loading
             }), style = MaterialTheme.typography.bodyLarge)

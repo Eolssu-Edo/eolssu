@@ -214,7 +214,8 @@ class PracticeStepTest {
             }
             val vm = PracticeViewModel(testSong.id, true, songs, PracticeSettingsStore(storage), PracticeTimeMeter({ 0L }),
                 PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope),
-                playbackTimeSource = testScheduler.timeSource, mine = mine, stepJudge = judge)
+                playbackTimeSource = testScheduler.timeSource, mine = mine, stepJudge = judge,
+                loadPersonalSheet = { id -> testSong.takeIf { it.id == id } })
             models.put("practice", vm)
             runCurrent()
             block(vm)

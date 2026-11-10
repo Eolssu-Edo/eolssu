@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.ScoreSection
@@ -31,12 +33,13 @@ data class SectionResultUiState(val loading: Boolean = true, val evaluation: Sec
 class SectionResultViewModel(
     sessionId: String,
     repository: WeakSectionRepository,
+    private val perf: PerformanceVisit? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SectionResultUiState())
     val uiState: StateFlow<SectionResultUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launch(perf.context()) {
             val evaluation = repository.sectionResult(sessionId)
             _uiState.update { it.copy(loading = false, evaluation = evaluation) }
         }

@@ -16,6 +16,7 @@ import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.SectionComparisonApiResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.WeakSectionsResult
 import com.ssafy.eolssu.backend.feature.record.api.*
+import com.ssafy.eolssu.backend.feature.sheet.api.PublishedSheetCopyResponse
 import com.ssafy.eolssu.backend.feature.sheet.api.SavedSheetDraft
 import com.ssafy.eolssu.backend.feature.sheet.api.SavedSheetScore
 import com.ssafy.eolssu.backend.feature.sheet.api.SheetConversionView
@@ -200,6 +201,10 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.GET,"/api/users/me/sheets","listSheets","내 악보","내 악보 목록",
         "본인 악보만 updatedAt·sheetId 내림차순으로 page(0부터)·size(1~100, 기본 20)로 나눕니다. kind는 JEONGGANBO·MIDI·PDF이며 그 밖의 값은 400입니다. 장단 없는 곡 복사본은 jangdanId·jangdanName이 null입니다.",
         SheetList::class.java),
+    ApiContract(HttpMethod.POST,"/api/users/me/sheets/copies","copyPublishedSheet","내 악보","제공 곡을 내 악보로 복사",
+        "Idempotency-Key 필수. 게시 곡 songId(양의 1~18자리 문자열)의 악보를 버전 1의 개인 악보로 복사해 201 sheetId를 반환합니다. 편집과 음원 생성이 지원하는 빠르기는 30~160 BPM이며 이 범위 밖의 원본은 409입니다. 같은 회원·키·곡은 같은 ID를 반환합니다. 다른 요청은 409입니다. 내 악보는 10개까지이며, 진행 중 파일 변환이 있으면 종료 뒤 복사할 수 있습니다. 요청 본문은 1MiB까지입니다.",
+        PublishedSheetCopyResponse::class.java,listOf(201),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,IDEMPOTENCY_CONFLICT,SHEET_LIMIT_EXCEEDED,CONVERSION_IN_PROGRESS,PAYLOAD_TOO_LARGE),
+        requestExamples=listOf(RequestExample("providedSong", "게시 곡 복사", mapOf("songId" to "1")))),
     ApiContract(HttpMethod.GET,"/api/users/me/sheets/{sheetId}/score","getSheetScore","내 악보","내 악보 공통 악보 조회",
         "본인 악보의 설정과 공통 악보 원본(scoreData)을 반환합니다. 한 번도 저장하지 않은 빈 악보의 scoreData는 null입니다. 없거나 다른 회원의 악보는 404입니다.",
         SheetScore::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
@@ -221,10 +226,10 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.POST,"/api/users/me/sheets/{sheetId}/conversion/retry","retrySheetConversion","내 악보","실패한 악보 변환 재시도",
         "원본 비보관으로 기존 원본 재시도를 지원하지 않습니다. 본인 불러오기 악보는 상태와 무관하게 409 STATE_CONFLICT입니다. 없는 악보·타인 소유·MANUAL은 404이며 새 파일은 imports로 다시 올립니다.",
         null,emptyList(),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
-    ApiContract(HttpMethod.POST,"/api/users/me/sheets/{sheetId}/audio","createSheetAudio","내 악보","내 악보 M4A·MIDI 비동기 생성",
-        "확정 저장한 본인 EVALUABLE 악보만 접수합니다. 선택 설정은 instrumentId(생략=단소), withJangdan(기본 false), bpm(30~160, 생략=악보 BPM)입니다. 같은 버전·설정의 DONE은 200으로 재사용하고 신규 생성은 202입니다. 길이는 DATA 생성기로 꼬리까지 사전 계산해 600초 초과를 거절하고 M4A 15MiB 초과는 FAILED TOO_LARGE입니다. 회원당 분당 10회·진행 중 1건이며 새 생성 실패 시 이전 파일을 보존합니다. 다른 악기도 원래 음높이를 유지해 합성하며 실제 연주 가능 음역을 뜻하지 않습니다. 장단은 0초부터 실제 수행 악보 끝까지 반복합니다.",
+    ApiContract(HttpMethod.POST,"/api/users/me/sheets/{sheetId}/audio","createSheetAudio","내 악보","내 악보 다운로드용 M4A 비동기 생성",
+        "확정 저장한 본인 EVALUABLE 악보만 접수합니다. 선택 설정은 instrumentId(생략=단소), withJangdan(기본 false), bpm(30~160, 생략=악보 BPM)입니다. 같은 버전·설정의 완료 파일은 다운로드 기한 안에서만 200으로 재사용하고 신규 생성은 202입니다. 길이는 DATA 생성기로 꼬리까지 사전 계산해 600초 초과를 거절하고 M4A 15MiB 초과는 FAILED TOO_LARGE입니다. 회원당 분당 10회·진행 중 1건입니다. 다른 악기도 원래 음높이를 유지해 합성하며 실제 연주 가능 음역을 뜻하지 않습니다. 장단은 0초부터 실제 수행 악보 끝까지 반복합니다.",
         com.ssafy.eolssu.backend.feature.sheet.application.SheetAudioView::class.java,listOf(200,202),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,EXPORT_TOO_LONG,AUDIO_IN_PROGRESS,TOO_MANY_REQUESTS,AUDIO_UNAVAILABLE,PAYLOAD_TOO_LARGE)),
-    ApiContract(HttpMethod.GET,"/api/users/me/sheets/{sheetId}/audio","getSheetAudio","내 악보","내 악보 음원 상태·재생 URL 조회",
-        "본인 악보의 생성 상태와 버전·outdated를 조회합니다. 생성 요청 이력이 없으면 404입니다. 이전 완료 파일은 재생성 중·실패에도 유지합니다. M4A·MIDI의 15분 서명 URL과 만료 시각·악보 제목의 다운로드 파일 이름을 요청마다 발급하고 Cache-Control: no-store로 돌려줍니다. 서명 URL은 DB에 저장하지 않습니다.",
+    ApiContract(HttpMethod.GET,"/api/users/me/sheets/{sheetId}/audio","getSheetAudio","내 악보","내 악보 음원 상태·임시 다운로드 조회",
+        "본인 악보의 생성 상태와 버전·outdated를 조회합니다. 생성 요청 이력이 없으면 404입니다. 완료한 M4A는 완료 후 10분의 고정 기한 안에서 서명 URL로 다운로드합니다. 조회는 파일 기한을 늘리거나 음원을 생성하지 않습니다. 완료본이 만료되면 FAILED·AUDIO_EXPIRED를 반환하고 파일은 서버에서 정리합니다. MIDI는 null입니다. 응답은 Cache-Control: no-store입니다.",
         com.ssafy.eolssu.backend.feature.sheet.application.SheetAudioView::class.java,errors=listOf(RESOURCE_NOT_FOUND,AUDIO_UNAVAILABLE)),
 )

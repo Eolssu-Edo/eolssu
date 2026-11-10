@@ -30,6 +30,13 @@
     </select>
 
     <!-- SHT-04: 읽은 버전 그대로일 때만 바꾼다(다른 기기의 저장과 겹치면 0행). 초안은 지우고 순번을 0으로 되돌린다. -->
+    <insert id="insertPublishedCopy" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO user_sheets (user_id, title, kind, source, status, jangdan_id, bpm, bpm_unit, column_count,
+                                 score_json, note_count, idempotency_key, request_hash, created_at, updated_at)
+        VALUES (#{userId}, #{title}, 'JEONGGANBO', 'MANUAL', 'EVALUABLE', #{jangdanId}, #{bpm}, #{bpmUnit}, #{columnCount},
+                #{scoreJson}, #{noteCount}, #{idempotencyKey}, #{requestHash}, #{createdAt}, #{createdAt})
+    </insert>
+
     <update id="updateScore">
         UPDATE user_sheets
         SET title = #{title}, status = #{status}, jangdan_id = #{jangdanId}, bpm = #{bpm}, bpm_unit = #{bpmUnit}, column_count = #{columnCount},

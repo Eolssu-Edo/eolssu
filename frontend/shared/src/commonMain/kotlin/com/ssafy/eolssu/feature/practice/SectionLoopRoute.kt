@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
@@ -36,9 +37,10 @@ fun SectionLoopRoute(
     repeats: Int?,
     onBack: () -> Unit,
     onEvaluate: (songId: String, take: RecordedTake, section: SessionSection) -> Unit,
+    perf: PerformanceVisit? = null,
     viewModel: SectionLoopViewModel = koinViewModel(key = "section-loop-$sourceId-$section-$bpm-$repeats") {
         // Koin 인자에 null을 넘기지 않도록 ‘계속’은 0으로 보낸다.
-        parametersOf(sourceId, section, bpm, repeats ?: 0)
+        parametersOf(sourceId, section, bpm, repeats ?: 0, perf)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
