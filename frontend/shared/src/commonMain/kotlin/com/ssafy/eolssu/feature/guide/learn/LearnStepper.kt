@@ -26,7 +26,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -43,6 +45,8 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -155,6 +159,16 @@ private fun StepBox(
         label = "stepBorder",
     )
     val borderWidth by animateDpAsState(if (open) 2.dp else 1.dp, label = "stepBorderWidth")
+    // 처음 그릴 때가 아니라 '해 봤어요'·누르기로 새로 펼쳐지면, 펼쳐지는 동안 그 박스가 보이도록 화면을 내린다.
+    val requester = remember { BringIntoViewRequester() }
+    var firstOpen by remember { mutableStateOf(true) }
+    LaunchedEffect(open) {
+        if (open && !firstOpen) {
+            delay(BringIntoViewDelayMillis)
+            requester.bringIntoView()
+        }
+        firstOpen = false
+    }
     val state = stringResource(
         when {
             done -> Res.string.learn_step_state_done
@@ -170,6 +184,7 @@ private fun StepBox(
                 alpha = appear.value * if (locked) 0.55f else 1f
                 translationY = (1f - appear.value) * 28.dp.toPx()
             }
+            .bringIntoViewRequester(requester)
             .clip(shape)
             .background(background)
             .border(borderWidth, borderColor, shape)
@@ -264,6 +279,9 @@ private fun StepBadge(number: Int, done: Boolean, open: Boolean) {
         }
     }
 }
+
+/** 박스가 펼쳐지기 시작하고 화면을 내리기까지 기다리는 시간(펼친 높이가 어느 정도 잡힌 뒤). */
+private const val BringIntoViewDelayMillis = 320L
 
 /** 박스가 하나씩 떠오르는 간격. */
 private const val EntranceStaggerMillis = 70L
