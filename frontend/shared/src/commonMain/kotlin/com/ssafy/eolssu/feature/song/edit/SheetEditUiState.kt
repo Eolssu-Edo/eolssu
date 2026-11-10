@@ -62,6 +62,8 @@ enum class SheetEditMessage {
     /** 파일 주소를 기기 브라우저로 열지 못했다. */
     AudioLinkFailed,
 
+    ReviewBeforeReshape,
+
     /** 서버 문서가 없는 경로 등에서 제공하지 않는 기능. */
     ComingSoon,
 }
@@ -104,6 +106,8 @@ data class SheetEditUiState(
     val saving: Boolean = false,
     val saveConflict: Boolean = false,
     val closeWarning: Boolean = false,
+    val reviewIssues: List<SheetReviewIssue> = emptyList(),
+    val checkedIssueIds: Set<String> = emptySet(),
     val jangdanPicker: SheetEditJangdanPicker? = null,
 ) {
     val canUndo: Boolean get() = past.isNotEmpty()
@@ -121,8 +125,15 @@ data class SheetEditUiState(
     private fun withJangdanFor(next: SheetDraft): Boolean =
         if (next.jangdanId == draft.jangdanId) withJangdan else next.jangdanId != null
 
-    /** 인식 결과에서 왔고 아직 확인하지 않은 정간이 남았으면 그 수. 아니면 0. */
-    val pendingChecks: Int get() = (source as? EditSource.Import)?.pendingChecks ?: 0
+    val pendingChecks: Int
+        get() = (source as? EditSource.Import)?.pendingChecks
+            ?: reviewIssues.filterNot { it.id in checkedIssueIds }.distinctBy(SheetReviewIssue::cellId).size
+
+    val nextReviewIssue: SheetReviewIssue?
+        get() = reviewIssues.firstOrNull { it.id !in checkedIssueIds }
+
+    val nextReviewCellIndex: Int?
+        get() = nextReviewIssue?.let { issue -> draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } }
 
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. */
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. 고른 소박은 그 정간이 여전히 나뉘어 있을 때만 남긴다. */

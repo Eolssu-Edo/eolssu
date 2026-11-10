@@ -83,9 +83,6 @@ import eolssu.shared.generated.resources.learn_more_fingering_detail
 import eolssu.shared.generated.resources.learn_more_reading
 import eolssu.shared.generated.resources.learn_pattern_ascending
 import eolssu.shared.generated.resources.learn_pattern_descending
-import eolssu.shared.generated.resources.learn_pattern_skip_one
-import eolssu.shared.generated.resources.learn_pattern_skip_two
-import eolssu.shared.generated.resources.learn_pattern_three_note_song
 import eolssu.shared.generated.resources.learn_section_beat
 import eolssu.shared.generated.resources.learn_section_inspect
 import eolssu.shared.generated.resources.learn_section_new_notes
@@ -100,16 +97,8 @@ import eolssu.shared.generated.resources.learn_section_tasks
 import eolssu.shared.generated.resources.learn_stage_subtitle_optional
 import eolssu.shared.generated.resources.learn_stage_title
 import eolssu.shared.generated.resources.learn_start_practice
-import eolssu.shared.generated.resources.learn_task_first
-import eolssu.shared.generated.resources.learn_task_first_detail
-import eolssu.shared.generated.resources.learn_task_move
-import eolssu.shared.generated.resources.learn_task_move_detail
 import eolssu.shared.generated.resources.learn_task_range
 import eolssu.shared.generated.resources.learn_task_range_detail
-import eolssu.shared.generated.resources.learn_task_range_scale
-import eolssu.shared.generated.resources.learn_task_range_scale_detail
-import eolssu.shared.generated.resources.learn_task_rest
-import eolssu.shared.generated.resources.learn_task_rest_detail
 import eolssu.shared.generated.resources.learn_tour_done_body_posture
 import eolssu.shared.generated.resources.learn_unmark_done
 import org.jetbrains.compose.resources.StringResource
@@ -367,21 +356,9 @@ private fun StageBody(
                     NoteCard(instrument, note, noteAudioContent, cell)
                 }
             }
+            // 두 번째 음의 운지가 있으면 따라 배우기로 보이므로, 여기는 할 일을 칸으로 만들 수 없을 때만 그린다.
             LearnSection(stringResource(Res.string.learn_section_order)) {
                 LearnPatternBox { NoteChips(detail.pitchNames.mapNotNull(noteOf)) }
-            }
-            if (first != null && second != null) {
-                LearnSection(tasksTitle) {
-                    LearnTaskList(
-                        listOf(
-                            LearnTask(stringResource(Res.string.learn_task_first, first.name), stringResource(Res.string.learn_task_first_detail, first.reading)),
-                            LearnTask(stringResource(Res.string.learn_task_move, second.name), stringResource(Res.string.learn_task_move_detail)),
-                            LearnTask(stringResource(Res.string.learn_task_rest), stringResource(Res.string.learn_task_rest_detail)),
-                        ),
-                        grid,
-                        collapsible = true,
-                    )
-                }
             }
         }
         5 -> LearnSection(stringResource(Res.string.learn_section_patterns), more = { fingeringMore(Res.string.learn_more_fingering, Blow.Mid) }) {
@@ -410,13 +387,9 @@ private fun StageBody(
             }
             LearnSection(tasksTitle) {
                 LearnTaskList(
-                    detail.ranges.flatMap { range ->
-                        val blowName = blowShortLabel(range.label)
+                    detail.ranges.map { range ->
                         val name = noteOf(range.first)?.name ?: range.first
-                        listOf(
-                            LearnTask(stringResource(Res.string.learn_task_range, blowName, name), stringResource(Res.string.learn_task_range_detail)),
-                            LearnTask(stringResource(Res.string.learn_task_range_scale, blowName), stringResource(Res.string.learn_task_range_scale_detail)),
-                        )
+                        LearnTask(stringResource(Res.string.learn_task_range, blowShortLabel(range.label), name), stringResource(Res.string.learn_task_range_detail))
                     },
                     grid,
                     collapsible = true,
@@ -452,9 +425,6 @@ internal val LearnPattern.label: StringResource
     get() = when (this) {
         LearnPattern.Ascending -> Res.string.learn_pattern_ascending
         LearnPattern.Descending -> Res.string.learn_pattern_descending
-        LearnPattern.SkipOne -> Res.string.learn_pattern_skip_one
-        LearnPattern.SkipTwo -> Res.string.learn_pattern_skip_two
-        LearnPattern.ThreeNoteSong -> Res.string.learn_pattern_three_note_song
     }
 
 @Composable

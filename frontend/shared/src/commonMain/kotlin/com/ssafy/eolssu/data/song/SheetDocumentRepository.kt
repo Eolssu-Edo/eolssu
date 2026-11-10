@@ -20,7 +20,8 @@ data class SheetDocument(
     val reviewStatus: String, val conversionStatus: String?, val issues: List<JsonObject>,
 )
 data class SheetWorkingCopy(val title: String, val jangdanId: String?, val bpm: Int,
-    val score: CommonScoreData, val baseScoreVersion: String, val revision: Int)
+    val score: CommonScoreData, val baseScoreVersion: String, val revision: Int,
+    val resolvedIssueIds: List<String> = emptyList())
 
 sealed interface SheetWrite {
     data class Saved(val scoreVersion: String, val revision: Int = 0) : SheetWrite
@@ -58,7 +59,8 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
             put("/api/users/me/sheets/$sheetId/score" + if (draft) "/draft" else "") {
                 contentType(ContentType.Application.Json)
                 setBody(WriteBody(copy.baseScoreVersion, copy.title, copy.jangdanId, copy.bpm,
-                    Json.encodeToJsonElement(copy.score) as JsonObject, copy.revision.takeIf { draft }))
+                    Json.encodeToJsonElement(copy.score) as JsonObject, copy.revision.takeIf { draft },
+                    copy.resolvedIssueIds.takeIf { !draft && it.isNotEmpty() }))
             }
         } ?: return@inSession SheetWrite.Failed
         when (response.status.value) {
@@ -83,5 +85,5 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
 @Serializable private class DraftDto(val title: String, val jangdanId: String? = null, val bpm: Int,
     val score: JsonObject, val baseScoreVersion: String, val draftRevision: Int)
 @Serializable private class WriteBody(val baseScoreVersion: String, val title: String, val jangdanId: String?,
-    val bpm: Int, val score: JsonObject, val draftRevision: Int? = null)
+    val bpm: Int, val score: JsonObject, val draftRevision: Int? = null, val resolvedIssueIds: List<String>? = null)
 @Serializable private class WrittenDto(val sheetId: String, val scoreVersion: String? = null, val draftRevision: Int? = null)
