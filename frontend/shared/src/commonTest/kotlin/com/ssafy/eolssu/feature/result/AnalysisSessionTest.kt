@@ -262,6 +262,27 @@ class AnalysisSessionTest {
     }
 
     @Test
+    fun resendKeepsTheSpecificUploadFailureUntilSendingSucceeds() {
+        uploader.outcomes += UploadOutcome.TimedOut
+        uploader.outcomes += UploadOutcome.ConnectionFailed
+        uploader.outcomes += UploadOutcome.ServerError
+        startWithRecording()
+        assertEquals(UploadProblem.TimedOut, uploadState.upload)
+        assertEquals(0, repository.queries)
+
+        uploadSession.resend()
+        assertEquals(UploadProblem.ConnectionFailed, uploadState.upload)
+        uploadSession.resend()
+        assertEquals(UploadProblem.ServerError, uploadState.upload)
+        uploadSession.resend()
+
+        assertNull(uploadState.upload)
+        assertEquals(false, uploadState.resending)
+        assertEquals(1, repository.queries)
+        assertEquals(List(4) { "41" to "kept/practice-1.m4a" }, uploader.calls)
+    }
+
+    @Test
     fun resendThatFailsAgainStillOffersResend() {
         uploader.outcomes += UploadOutcome.Unreachable
         uploader.outcomes += UploadOutcome.Unreachable
