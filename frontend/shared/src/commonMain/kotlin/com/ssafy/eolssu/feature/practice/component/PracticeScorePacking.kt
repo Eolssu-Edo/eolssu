@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.model.Score
 import com.ssafy.eolssu.core.model.ScoreCell
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
+import com.ssafy.eolssu.core.ui.score.columnSplitAt
 import com.ssafy.eolssu.core.ui.score.scoreStrips
 
 internal val PracticeStackGap = 6.dp
@@ -39,6 +40,12 @@ private const val PracticeMinSplitGlyph = 16f
 /** 글자를 줄여서라도 두 각을 쌓는 짧은 각(아리랑·도라지타령의 세마치 3정간 등)의 최대 정간 수. */
 private const val PracticeShortColumnCells = 4
 
+/**
+ * 한 각이 최소 정간 크기로 한 세로줄에 들어가지 않을 때 두 줄로 나눌 수 있는 각의 최소 정간 수(줄마다 3정간 이상). 짧은 각은 [PracticeShortColumnCells] 묶음 규칙을 따른다.
+ * S15P31E102-654: 단소 아리랑(12정간 중 8개가 3소박)이 한 줄에 들어가려고 정간이 15dp 안팎까지 줄던 문제.
+ */
+private const val PracticeSplitColumnCells = 6
+
 /** 이미 여러 표시 줄로 나눈 각은 기존 렌더링을 보존한다. 정간 수로 짧은 각을 단정하지 않는다. */
 internal fun Score.supportsPracticeColumnPacking(jangdan: Jangdan? = null): Boolean =
     columns.isNotEmpty() && columns.all { it.isNotEmpty() } && scoreStrips(this, jangdan).all { it.strip == 0 }
@@ -52,6 +59,8 @@ internal data class PracticeScorePacking(
     val height: Dp,
     /** 같은 가로줄에 놓이는 각들이 공유하는 세로 공간. */
     val stackRowHeights: List<Dp>,
+    /** 한 각을 대강 경계에서 두 줄로 나눠 그린다([com.ssafy.eolssu.core.ui.score.JeongganboView]의 splitColumns). 이때 [columnsPerStack]은 1이다. */
+    val splitColumns: Boolean = false,
 )
 
 /** 각의 실제 높이에 맞춰 위→아래로 쌓고, 들어가지 않는 다음 각은 왼쪽 세로줄로 넘긴다. */
@@ -86,6 +95,14 @@ internal fun practiceScorePacking(
     var count = 1
     var fitted = metrics.cellHeight
     var textRatio = 1f
+    var splitInTwo = false
+    // 두 줄로 나눈 각의 줄별 무게(정간 수, 3줄 정간은 1.5). 각 순서대로 첫 줄·둘째 줄.
+    val splitWeights = score.columns.mapIndexed { column, cells ->
+        val at = columnSplitAt(cells.size, jangdan)
+        listOf(0 until at, at until cells.size).map { rows ->
+            rows.sumOf { row -> if ((column to row) in expanded) 1.5 else 1.0 }.toFloat()
+        }
+    }
     val packable = score.supportsPracticeColumnPacking(jangdan)
     if (packable && availableHeight.value.isFinite()) {
         // 글꼴 확대에서도 묶음을 유지한다. 글자도 같은 배율로 커지므로 정간 최소 크기는 배율 전 값으로 본다.
@@ -112,6 +129,14 @@ internal fun practiceScorePacking(
         } else if (found != null) {
             count = found
             fitted = minOf(metrics.cellHeight, allowedFor(found))
+        } else if (score.columns.maxOf { it.size } >= PracticeSplitColumnCells) {
+            // 한 각도 최소 크기로 들어가지 않는 높이: 각을 대강 경계에서 두 줄로 나누고 각 번호는 첫 줄에만 둔다(S15P31E102-654).
+            // 나눠도 모자라면 정간과 글자를 같은 비율로 줄인다.
+            splitInTwo = true
+            val longest = splitWeights.flatten().max()
+            val allowed = (availableHeight - 14.dp - (metrics.headHeight + PracticeStackRowPadding) * scale) / (longest * scale)
+            fitted = minOf(metrics.cellHeight, allowed).coerceAtLeast(PracticeMinFallbackCell)
+            if (fitted < minimum) textRatio = fitted / minimum
         } else {
             // 한 각도 최소 크기로 들어가지 않는 낮은 화면: 세로 스크롤 대신 정간과 글자를 같은 비율로 줄인다.
             fitted = allowedFor(1).coerceIn(PracticeMinFallbackCell, minimum)
@@ -129,6 +154,28 @@ internal fun practiceScorePacking(
         }
     }
     val groups = score.columns.indices.toList().chunked(count)
+    if (splitInTwo) {
+        // 줄마다 가장 긴 줄의 높이에 맞춰 정간을 비례 확대해 모든 줄의 아래 끝을 맞춘다(한 각씩 둘 때와 같은 방식).
+        val longest = splitWeights.flatten().max()
+        val rowHeight = metrics.headHeight + fitted * longest + PracticeStackRowPadding
+        return PracticeScorePacking(
+            columnsPerStack = 1,
+            metrics = metrics.copy(cellHeight = fitted, yulSize = metrics.yulSize * textRatio, auxSize = metrics.auxSize * textRatio),
+            cellHeights = buildMap {
+                score.columns.forEachIndexed { column, cells ->
+                    val at = columnSplitAt(cells.size, jangdan)
+                    cells.indices.forEach { row ->
+                        val weight = splitWeights[column][if (row < at) 0 else 1]
+                        put(column to row, fitted * (longest / weight) * if ((column to row) in expanded) 1.5f else 1f)
+                    }
+                }
+            },
+            columnGroups = groups,
+            height = rowHeight * scale + 12.dp,
+            stackRowHeights = listOf(rowHeight),
+            splitColumns = true,
+        )
+    }
     val sharedWeights = if (groups.isEmpty()) emptyList() else rowWeights(count)
     val rowHeights = sharedWeights.map { weight ->
         metrics.headHeight + fitted * weight + PracticeStackRowPadding

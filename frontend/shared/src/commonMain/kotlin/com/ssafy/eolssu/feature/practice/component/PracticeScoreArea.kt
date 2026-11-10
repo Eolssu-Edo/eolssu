@@ -311,6 +311,7 @@ fun PracticeBoardScore(
                     look = JeongganboLook.practice(big),
                     annotations = state.scoreAnnotations,
                     columnsPerStack = packing.columnsPerStack,
+                    splitColumns = packing.splitColumns,
                     stackGap = PracticeStackGap,
                     cellHeights = packing.cellHeights,
                     stackRowHeights = packing.stackRowHeights,

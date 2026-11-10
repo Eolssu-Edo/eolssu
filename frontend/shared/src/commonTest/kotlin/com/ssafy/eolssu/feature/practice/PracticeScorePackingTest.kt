@@ -242,11 +242,13 @@ class PracticeScorePackingTest {
 
     @Test
     fun tooLowAreaShrinksCellsAndTextTogetherInsteadOfScrolling() {
+        // 8정간 각을 두 줄(4·4)로 나눠도 들어가지 않는 높이: 나눈 채로 정간과 글자를 함께 줄인다.
         val score = Score(List(6) { List(8) { cell } })
-        val packing = practiceScorePacking(score, metrics, 260.dp, fontScale = 1.3f)
+        val packing = practiceScorePacking(score, metrics, 140.dp, fontScale = 1.3f)
         assertEquals(1, packing.columnsPerStack)
+        assertTrue(packing.splitColumns)
         assertTrue(packing.metrics.cellHeight < 32.dp)
-        assertTrue(renderedHeight(packing, 1.3f) <= 260.dp)
+        assertTrue(renderedHeight(packing, 1.3f) <= 140.dp)
         val ratio = packing.metrics.cellHeight / 32.dp
         assertEquals(metrics.yulSize.value * ratio, packing.metrics.yulSize.value, 0.01f)
         assertEquals(metrics.auxSize.value * ratio, packing.metrics.auxSize.value, 0.01f)
@@ -254,16 +256,59 @@ class PracticeScorePackingTest {
 
     @Test
     fun veryLowAreaNeverClipsAColumnEvenWithTinyText() {
-        // 360×640dp 휴대폰에서 아리랑 각(12정간 중 8개가 3소박)의 악보 영역은 약 183dp다. 정간 하한 때문에 아래가 잘리면 안 된다.
-        val triple = ScoreCell(note, note, note)
-        val column = listOf(cell, triple, triple, cell, triple, triple, cell, triple, triple, cell, triple, triple)
-        val score = Score(List(4) { column })
+        // 360×640dp 휴대폰에서 아리랑 각(12정간 중 8개가 3소박)의 악보 영역은 약 183dp다. 두 줄로 나눈 뒤에도 아래가 잘리면 안 된다.
+        val score = Score(List(4) { arirangColumn() })
         for (scale in listOf(1f, 1.3f)) {
             val packing = practiceScorePacking(score, metrics, 183.dp, fontScale = scale)
+            assertTrue(packing.splitColumns)
             assertTrue(renderedHeight(packing, scale) <= 183.dp, "글꼴 ${scale}배 높이 ${renderedHeight(packing, scale)}")
             assertTrue(packing.metrics.cellHeight > 0.dp)
             assertTrue(packing.metrics.yulSize < metrics.yulSize)
         }
+    }
+
+    @Test
+    fun columnThatDoesNotFitAtMinimumSplitsInTwoAtTheMiddleAndGetsTallerCells() {
+        // S15P31E102-654 단소 아리랑: 한 각(12정간)을 한 줄에 넣으면 정간이 약 15dp까지 준다. 6·6 두 줄로 나누면 두 배 가까이 커진다.
+        val score = Score(List(4) { arirangColumn() })
+        val packing = practiceScorePacking(score, metrics, 300.dp)
+        assertTrue(packing.splitColumns)
+        assertEquals(1, packing.columnsPerStack)
+        // 한 줄 무게 8(정간 2 + 3줄 정간 4×1.5): (300 − 14 − 머리 − 2) ÷ 8
+        val expected = (300.dp - 14.dp - metrics.headHeight - 2.dp) / 8f
+        assertEquals(expected.value, packing.metrics.cellHeight.value, 0.01f)
+        assertTrue(renderedHeight(packing, 1f) <= 300.dp)
+        // 원본 좌표마다 높이가 있고 3줄 정간은 1.5배다.
+        assertEquals(packing.metrics.cellHeight * 1.5f, packing.cellHeights.getValue(0 to 1))
+        val strips = scoreStrips(score, null, splitColumns = true)
+        assertEquals(8, strips.size)
+        assertEquals(listOf(0 until 6, 6 until 12), strips.filter { it.column == 0 }.map { it.rows })
+        // 각 번호 머리는 첫 줄(strip 0)에만 있다.
+        assertEquals(listOf(0, 1), strips.filter { it.column == 0 }.map { it.strip })
+    }
+
+    @Test
+    fun columnsThatFitAtMinimumKeepOneLinePerColumn() {
+        val score = Score(List(4) { arirangColumn() })
+        val packing = practiceScorePacking(score, metrics, 700.dp)
+        assertTrue(!packing.splitColumns)
+        assertEquals(1, packing.columnsPerStack)
+    }
+
+    @Test
+    fun knownJangdanSplitsAtTheDaegangBoundaryNearestTheMiddle() {
+        val semachi = Jangdan("세마치", listOf(3, 3, 3), beats = 3, subdivision = 3)
+        assertEquals(6, com.ssafy.eolssu.core.ui.score.columnSplitAt(9, semachi))
+        val gutgeori = Jangdan("굿거리", listOf(3, 3, 3, 3), beats = 4, subdivision = 3)
+        assertEquals(6, com.ssafy.eolssu.core.ui.score.columnSplitAt(12, gutgeori))
+        // 장단과 각 길이가 다르거나 장단을 모르면 가운데에서 나눈다.
+        assertEquals(6, com.ssafy.eolssu.core.ui.score.columnSplitAt(12, semachi))
+        assertEquals(5, com.ssafy.eolssu.core.ui.score.columnSplitAt(9, null))
+    }
+
+    private fun arirangColumn(): List<ScoreCell> {
+        val triple = ScoreCell(note, note, note)
+        return listOf(cell, triple, triple, cell, triple, triple, cell, triple, triple, cell, triple, triple)
     }
 
     private fun dorajiCatalogScore(): Score {

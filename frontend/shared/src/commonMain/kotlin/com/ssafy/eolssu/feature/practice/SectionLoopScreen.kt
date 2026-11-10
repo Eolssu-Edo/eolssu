@@ -196,6 +196,7 @@ private fun SectionBoardScore(state: SectionLoopUiState, song: Song, modifier: M
                 look = JeongganboLook.practice(big),
                 columns = shown,
                 columnsPerStack = packing.columnsPerStack,
+                splitColumns = packing.splitColumns,
                 stackGap = PracticeStackGap,
                 cellHeights = packing.cellHeights,
                 stackRowHeights = packing.stackRowHeights,
