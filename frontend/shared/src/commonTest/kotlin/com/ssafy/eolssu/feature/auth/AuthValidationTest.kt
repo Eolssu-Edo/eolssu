@@ -59,4 +59,11 @@ class AuthValidationTest {
         assertEquals(FieldError.NicknameEmpty, AuthValidation.nicknameError("  "))
         assertNull(AuthValidation.nicknameError("얼쑤"))
     }
+
+    @Test
+    fun nicknameAllowsTenCharactersAfterTrim() {
+        assertNull(AuthValidation.nicknameError("가".repeat(10)))
+        assertNull(AuthValidation.nicknameError(" ${"가".repeat(10)} "))
+        assertEquals(FieldError.InvalidInput, AuthValidation.nicknameError("가".repeat(11)))
+    }
 }
