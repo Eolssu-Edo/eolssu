@@ -31,7 +31,7 @@ class StandbyWebTests(unittest.TestCase):
         return relay.build_report(result, 'fixture').replace('\u2060', '').replace('\u00a0', ' '), run
 
     def test_direct_tls_probe_supplies_readiness_in_both_reports(self):
-        for mode, label in (('health', '대기 웹 정상'), ('containers', '실행 · HTTPS 검사 통과')):
+        for mode, label in (('health', '| 대기 웹 | ✅ **정상** |'), ('containers', '실행 · HTTPS 검사 통과')):
             with self.subTest(mode=mode):
                 report, run = self.render(mode)
                 self.assertIn(label, report)
