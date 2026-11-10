@@ -63,6 +63,18 @@ class PracticeDirectEvaluationTest {
         assertFalse(vm.uiState.value.recordingSupported)
     }
 
+    /** 연주 평가 제목 옆 '쉬운 표기' 스위치는 한글 읽는 법 표시를 바로 켜고 끈다(S15P31E102-716). */
+    @Test fun titleNotationSwitchTogglesHangulImmediately() = directTest(direct = false) { vm, settings ->
+        vm.toggleHangul()
+        runCurrent()
+        assertTrue(settings.settings.value.showHangul)
+        assertTrue(vm.uiState.value.settings.showHangul)
+        vm.toggleHangul()
+        runCurrent()
+        assertFalse(settings.settings.value.showHangul)
+        assertFalse(vm.uiState.value.settings.showHangul)
+    }
+
     private fun directTest(
         direct: Boolean = true,
         solo: Boolean = false,

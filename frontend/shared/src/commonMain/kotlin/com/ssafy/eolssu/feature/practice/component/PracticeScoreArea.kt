@@ -123,7 +123,7 @@ fun PracticeScoreArea(
         }
         val recording = state.mode == PracticeMode.Recording || state.resuming
         val playback = state.scorePlayback()
-        val notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege)
+        val notation = ScoreNotation(state.settings.showHangul)
         // 한 음씩 따라 불기는 진행 모습(playback) 없이 지금 음의 정간에만 연두 테두리를 둔다(곁줄에는 표시하지 않는다).
         val currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex
         val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
@@ -302,7 +302,7 @@ fun PracticeBoardScore(
                     modifier = Modifier.observeFirstDraw(PerfPhase.PRACTICE_DRAWN).fillMaxWidth()
                         .then(if (bounded) Modifier.fillMaxHeight().clipToBounds() else Modifier),
                     metrics = packing.metrics,
-                    notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege),
+                    notation = ScoreNotation(state.settings.showHangul),
                     scrollState = rememberHorizontalScoreScroll(state),
                     currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex,
                     highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position,

@@ -23,7 +23,6 @@ class EditPreviewProgressTest {
         baseBpm = 120,
         description = "",
         evaluable = false,
-        solfege = null,
         score = Score(
             columns = listOf(listOf(rest, rest), listOf(rest)),
             timing = ScoreTiming(311.13, "", ScoreBpmUnit.DOTTED_QUARTER, 480, 240),

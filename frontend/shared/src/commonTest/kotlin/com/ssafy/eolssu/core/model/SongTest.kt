@@ -13,7 +13,6 @@ class SongTest {
         baseBpm = bpm,
         description = "",
         evaluable = true,
-        solfege = null,
         score = Score(List(columns) { List(9) { ScoreCell(ScoreNote.Pitch(Yul.Hwangjong)) } }),
     )
 

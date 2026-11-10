@@ -79,10 +79,31 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 fun PracticeStepToggle(state: PracticeUiState, onToggle: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
     val on = state.step.on
-    val enabled = state.mode == PracticeMode.Ready || state.mode == PracticeMode.Model
-    val description = stringResource(Res.string.practice_step_toggle_desc, stringResource(if (on) Res.string.practice_step_on else Res.string.practice_step_off))
+    PracticeMiniToggle(
+        label = stringResource(Res.string.practice_step_toggle),
+        on = on,
+        onToggle = onToggle,
+        modifier = modifier,
+        enabled = state.mode == PracticeMode.Ready || state.mode == PracticeMode.Model,
+        description = stringResource(Res.string.practice_step_toggle_desc, stringResource(if (on) Res.string.practice_step_on else Res.string.practice_step_off)),
+    )
+}
+
+/**
+ * 작은 알약 스위치: 32dp 높이 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두). 누르는 영역은 44dp 이상이다.
+ * ‘한 음씩’ 토글과 연주 평가 제목 옆 ‘운지법 보기’·‘쉬운 표기’(S15P31E102-716)가 함께 쓴다.
+ */
+@Composable
+fun PracticeMiniToggle(
+    label: String,
+    on: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    description: String = label,
+) {
+    val colors = EolssuTheme.colors
     Row(
         modifier
             .heightIn(min = 44.dp)
@@ -101,7 +122,7 @@ fun PracticeStepToggle(state: PracticeUiState, onToggle: () -> Unit, modifier: M
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                stringResource(Res.string.practice_step_toggle),
+                label,
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
                 color = if (enabled) colors.text else colors.textDisabled,
                 maxLines = 1,

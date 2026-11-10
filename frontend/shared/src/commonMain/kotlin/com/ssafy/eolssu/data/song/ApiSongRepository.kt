@@ -86,7 +86,6 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
             baseBpm = item.defaultBpm,
             description = item.description.orEmpty(),
             evaluable = item.isScorable,
-            solfege = null,
             score = score,
             instrumentId = item.instrumentId,
             scoreVersion = item.scoreVersion,

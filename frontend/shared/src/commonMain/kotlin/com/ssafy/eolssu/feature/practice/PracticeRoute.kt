@@ -117,6 +117,7 @@ fun PracticeRoute(
             actions = PracticeScreenActions(
                 onBack = back,
                 onOpenSettings = { viewModel.openPanel(PracticePanel.Settings) },
+                onToggleHangul = viewModel::toggleHangul,
                 onSelectUnit = viewModel::selectUnit,
                 onUserScroll = viewModel::stopFollowing,
                 onFollowNow = viewModel::followNow,

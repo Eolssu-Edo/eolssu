@@ -31,7 +31,7 @@ class ScorePerformanceFixtureTest {
         val source = CommonScoreData.decode(bytes.toString(Charsets.UTF_8))
         assertEquals(instrument, source.score.instrument)
         val song = Song("338", source.score.title, SongLevel.Intro, Jangdan(source.music.jangdan, listOf(4), 4, 1),
-            60, "", false, null, source.toScore(), scoreVersion = 1)
+            60, "", false, source.toScore(), scoreVersion = 1)
         val audioHash = Json.parseToJsonElement(json).jsonObject.getValue("audioSha256").jsonPrimitive.content
         val audio = ModelAudio(song.id, 1, "https://example.com/$name.wav", 60, "QUARTER", 29550, 0, "audio/wav", audioHash)
             .withPerformance(json, song, sourceHash)

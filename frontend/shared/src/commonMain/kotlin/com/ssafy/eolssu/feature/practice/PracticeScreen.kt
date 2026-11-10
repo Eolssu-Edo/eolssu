@@ -44,6 +44,7 @@ import com.ssafy.eolssu.feature.practice.component.PracticeRecordingBar
 import com.ssafy.eolssu.feature.practice.component.PracticePlaybackLoadingOverlay
 import com.ssafy.eolssu.feature.practice.component.PracticeStepPanels
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
+import com.ssafy.eolssu.feature.practice.component.PracticeTitleToggles
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.component.reportUserActivity
 import com.ssafy.eolssu.feature.practice.layout.PracticeExpandedLayout
@@ -72,6 +73,8 @@ class PracticeScreenActions(
     val panel: PracticePanelActions,
     val dialog: PracticeDialogActions,
     val onRetrySong: () -> Unit = {},
+    /** 연주 평가 제목 옆 ‘쉬운 표기’(S15P31E102-716). */
+    val onToggleHangul: () -> Unit = {},
 )
 
 /**
@@ -111,6 +114,7 @@ fun PracticeScreen(
             actions.panel,
             tablet = widthClass != WindowWidthClass.Compact,
             modifier = Modifier.reportUserActivity(actions.onUserActivity),
+            titleToggles = widthClass == WindowWidthClass.Compact && state.showsTitleToggles,
         )
     }
     state.popup?.takeUnless { it == PracticePopup.SettingsPaused && state.panel != null }
@@ -168,7 +172,11 @@ private fun PracticeCompactLayout(
                     .fillMaxSize()
                     .padding(start = 20.dp, end = 20.dp, top = if (fingering || recordingBar) 8.dp else 18.dp, bottom = 12.dp),
             ) {
-                PracticeTitleRow(state, statusAtEnd = true)
+                PracticeTitleRow(
+                    state,
+                    statusAtEnd = true,
+                    toggles = if (state.showsTitleToggles) PracticeTitleToggles(actions.panel.onToggleFingeringView, actions.onToggleHangul) else null,
+                )
                 Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
                 if (fingering) {
                     PracticeFingeringPage(state, actions.onSelectUnit, modifier = Modifier.weight(1f))
