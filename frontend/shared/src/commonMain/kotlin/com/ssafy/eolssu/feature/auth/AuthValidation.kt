@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.model.EmailRule
 import com.ssafy.eolssu.core.model.PasswordRule
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_error_email_empty
@@ -66,10 +67,10 @@ enum class FieldError(val message: StringResource) {
  * 비밀번호 규칙은 서버와 같은 '영문·숫자·특수문자를 포함한 8~128자'다. 닉네임은 현재 서버의 NotBlank·Size(max=60) 계약을 따른다.
  */
 object AuthValidation {
-    private val emailPattern = Regex("""^[^\s@]+@[^\s@]+\.[^\s@]+$""")
     private val codePattern = Regex("""^\d{6}$""")
 
-    fun isEmail(value: String): Boolean = emailPattern.matches(value.trim())
+    /** 앞뒤 공백만 잘라 서버와 같은 [EmailRule]로 검사한다. */
+    fun isEmail(value: String): Boolean = EmailRule.isValid(value.trim())
 
     /** 인증번호는 6자리 숫자다. 앞자리 0을 지키려고 문자열 그대로 보낸다. */
     fun isCode(value: String): Boolean = codePattern.matches(value)
