@@ -132,7 +132,7 @@ hugo server -D
 3. Pipeline 잡 `eolssu-blog`: **Pipeline script from SCM**, 저장소 `https://lab.ssafy.com/s15-final/S15P31E102.git`, Credentials `eolssu-gitlab`, 브랜치 `*/blog`, Script Path `Jenkinsfile`
 4. 잡을 **한 번 직접 실행**하면 polling 트리거가 등록돼요. 다음부터는 `blog` 브랜치 변경을 1분 안에 감지해요
 
-빌드는 호스트 에이전트에서 `docker run`으로 Hugo 이미지를 실행하고, 배포는 에이전트의 `git`으로 해요. 실패하면 Stages에서 정리·checkout·Hugo 출력 준비·Hugo 빌드·산출물 검사·Pages 원격 준비·파일 복사·커밋·Push 중 실패한 단계를 확인하세요. S15P31E102-262 변경은 `blog` 병합 후 적용됩니다. `scripts/deploy.sh`는 인자 없이 기존 일괄 게시를 유지하며 Jenkins는 `prepare`, `sync`, `commit`, `push`를 분리 호출합니다. `PAGES_WORK_DIR`은 workspace의 전용 임시 디렉터리이고 성공·실패 모두 Pipeline의 `post/always`에서 정리합니다.
+빌드는 [블로그 전용 에이전트 `edo1-blog`](docs/blog-jenkins-executor.md)에서 `docker run`으로 Hugo 이미지를 실행하고, 배포는 에이전트의 `git`으로 해요. 실패하면 Stages에서 정리·checkout·Hugo 출력 준비·Hugo 빌드·산출물 검사·Pages 원격 준비·파일 복사·커밋·Push 중 실패한 단계를 확인하세요. S15P31E102-262 변경은 `blog` 병합 후 적용됩니다. `scripts/deploy.sh`는 인자 없이 기존 일괄 게시를 유지하며 Jenkins는 `prepare`, `sync`, `commit`, `push`를 분리 호출합니다. `PAGES_WORK_DIR`은 workspace의 전용 임시 디렉터리이고 성공·실패 모두 Pipeline의 `post/always`에서 정리합니다.
 
 ### Team Edo 주소로 전환하기
 

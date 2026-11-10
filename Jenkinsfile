@@ -4,7 +4,7 @@
 // Jenkins가 loopback에서만 수신하므로 GitLab webhook 대신 SCM polling을 쓴다.
 // 필요: 호스트 에이전트의 Docker·git / Credentials 'eolssu-gitlab'(GitLab 읽기), 'github-blog-token'(Secret text)
 pipeline {
-    agent any
+    agent { label 'edo1-blog' }
 
     options {
         skipDefaultCheckout()
