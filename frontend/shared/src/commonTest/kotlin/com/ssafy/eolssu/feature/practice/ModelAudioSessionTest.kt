@@ -7,6 +7,7 @@ import com.ssafy.eolssu.core.audio.AudioSource
 import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
 import com.ssafy.eolssu.data.song.ModelAudio
 import com.ssafy.eolssu.data.song.ModelAudioRepository
+import com.ssafy.eolssu.data.song.SheetPlayback
 import com.ssafy.eolssu.data.song.audioFixture
 import com.ssafy.eolssu.data.song.smallScoreSong
 import kotlinx.coroutines.CompletableDeferred
@@ -105,6 +106,19 @@ class ModelAudioSessionTest {
         assertEquals(12.0, tail.currentTick)
         assertEquals(100f, tail.progressPercent)
         assertTrue(tail.playing)
+    }
+
+    @Test fun personalMixUsesItsGeneratedBpmWithoutLayeringAccompaniment() = runTest {
+        val player = FakeAudioPlayer()
+        val audio = audioFixture().copy(bpm = 75, sheetPlayback = SheetPlayback(withJangdan = true, urlExpiresAt = Long.MAX_VALUE))
+        var accompanimentRequests = 0
+        val session = ModelAudioSession(modelRepository { audio }, player, backgroundScope,
+            prepareAccompaniment = { _, _ -> accompanimentRequests++; false })
+        session.play(song, 60)
+        runCurrent()
+        assertEquals(1, player.loads)
+        assertEquals(0.8f, player.requestedSpeed)
+        assertEquals(0, accompanimentRequests)
     }
 
     @Test fun unsupportedAndTruncatedFileAreNotSuccessfulPlayback() = runTest {

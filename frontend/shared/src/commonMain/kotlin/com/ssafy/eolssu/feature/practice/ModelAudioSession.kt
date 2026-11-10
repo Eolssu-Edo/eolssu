@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.time.Clock
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
@@ -229,23 +230,38 @@ internal class ModelAudioSession(
     }
 
     private suspend fun startWhenReady(request: Long, song: Song, audio: ModelAudio, positionMs: Long, resume: Boolean = false) {
+        val expiresAt = audio.sheetPlayback?.urlExpiresAt
+        val needsLink = expiresAt != null && expiresAt <= Clock.System.now().toEpochMilliseconds()
+        val playable = if (needsLink) {
+            val refreshed = repository?.get(song)
+            if (request != requestId || !active) return
+            if (refreshed == null || !refreshed.matches(song) || refreshed.sha256 != audio.sha256 ||
+                refreshed.bpm != audio.bpm || refreshed.sheetPlayback?.withJangdan != audio.sheetPlayback.withJangdan
+            ) {
+                player.stop()
+                sourceId = null
+                _state.value = ModelAudioState(ModelAudioStatus.Unavailable)
+                return
+            }
+            refreshed
+        } else audio
         var ready: Boolean
         do {
             val preparingBpm = bpm
-            ready = prepareAccompaniment(song, preparingBpm)
+            ready = playable.sheetPlayback?.withJangdan == true || prepareAccompaniment(song, preparingBpm)
             if (request != requestId || !active) return
         } while (preparingBpm != bpm)
         if (!ready) {
             player.stop()
             sourceId = null
-            _state.value = ModelAudioState(ModelAudioStatus.Failed, audio, positionMs)
-        } else if (resume) {
-            player.resume(speed(audio))
+            _state.value = ModelAudioState(ModelAudioStatus.Failed, playable, positionMs)
+        } else if (resume && !needsLink) {
+            player.resume(speed(playable))
         } else {
             val id = "model-$request"
             sourceId = id
-            _state.value = ModelAudioState(ModelAudioStatus.Loading, audio, positionMs)
-            player.load(AudioSource(id, audio.audioUrl), positionMs, speed(audio))
+            _state.value = ModelAudioState(ModelAudioStatus.Loading, playable, positionMs)
+            player.load(AudioSource(id, playable.audioUrl), positionMs, speed(playable))
         }
     }
 
