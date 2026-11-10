@@ -46,12 +46,14 @@
 
 - CPU는 Docker의 코어 합산 기준으로 100%를 넘을 수 있다. 서버 CPU는 200ms 표본이고 Load는 1·5·15분 평균이다. 장기 추세나 피크를 의미하지 않는다.
 - 서버 RAM 사용량은 전체에서 MemAvailable을 뺀 값이다. 컨테이너 RAM은 Docker CLI와 같은 inactive file cache 제외 기준이다. 설정하지 않은 제한은 `미설정`, 수집하지 못한 값은 `확인 불가`로 표시한다. 컨테이너 합계는 서버 전체 사용량과 같지 않다.
-- 파일시스템 용량과 Docker 저장공간을 구분한다. Docker Root Dir의 파일시스템 전체·여유는 호스트와 공유하는 용량이며 예약량이 아니다. 컨테이너 쓰기 계층의 `StorageOpt.size`가 없으면 제한 미설정으로 표시하며 로그·볼륨은 그 제한의 대상이 아니다. 이미지 공유 계층은 Engine `LayersSize`를 사용하고 볼륨은 고유 볼륨별로 집계한다. Docker의 회수 가능량을 그대로 표시하며 자동 정리하지 않는다. 이미지·캐시 등 분류 사이의 공유 공간 때문에 각 분류를 합해 물리 점유량으로 해석하면 안 된다.
-- 컨테이너 쓰기 계층, 회전 파일을 포함한 로컬 로그, 볼륨·bind mount를 구분한다. 공유 볼륨은 `공유`라고 표시하며 컨테이너 표의 저장소 값을 서버 전체로 합산하지 않는다. bind는 요청 내 같은 경로를 한 번만 `nice du -sx`로 읽고 경로당 최대 12초·전체 bind 측정 25초로 제한한다. Jenkins 실제 측정 8.5초를 확인해 기존 3초 제한을 보완했다. 전체 수집 80초·SSH 90초 상한은 유지한다. `json-file`과 `local` 로그의 주·회전 파일 크기만 읽으며 내용은 열지 않는다. local은 Docker Root Dir 아래 유효한 64자리 컨테이너 ID의 `local-logs/container.log*`를 읽는다. 심볼릭 링크를 제외하고 100파일을 넘거나 경로가 없으면 미측정이다.
-- NET·BLOCK I/O는 누적 전송량이며 디스크 점유량이 아니다. 메모리·디스크·inode 80% 이상은 주의 항목으로 알리고, 디스크·inode 90% 이상은 긴급 용량 점검이 필요한 주의로 표시한다. 용량만으로 서비스 장애를 확정하지 않는다. 이는 이 프로젝트의 기본 기준이며 보편적인 장애 임계값은 아니다.
+- 파일시스템 용량과 Docker 저장공간을 구분한다. Docker Root Dir의 파일시스템 전체·여유는 호스트와 공유하는 용량이며 예약량이 아니다. 컨테이너 쓰기 계층의 `StorageOpt.size`가 없으면 제한 미설정으로 표시하며 로그·볼륨은 그 제한의 대상이 아니다. 서버 점검은 Engine 저장공간 요약을 한 번 읽고, 이 조회에 실패해도 Docker 상태와 RAM을 표시한다. 컨테이너 점검은 볼륨 사용량만 조회한다. Docker의 회수 가능량을 그대로 표시하며 자동 정리하지 않는다. 이미지·캐시 등 분류 사이의 공유 공간 때문에 각 분류를 합해 물리 점유량으로 해석하면 안 된다.
+- 컨테이너 쓰기 계층, 회전 파일을 포함한 로컬 로그, 볼륨·bind mount를 구분한다. 공유 볼륨은 `공유`라고 표시하며 컨테이너 표의 저장소 값을 서버 전체로 합산하지 않는다. bind는 요청 내 같은 경로를 한 번만 `nice du -sx`로 읽고 경로당 최대 12초·전체 bind 측정 25초로 제한한다. Jenkins와 같은 데이터 경로의 읽기 실패·경로별 시간 제한·공유 예산 소진을 구분한다. node-exporter의 읽기 전용 호스트 루트는 서버 파일시스템 관측용으로 표시한다. 전체 수집 80초·SSH 90초 상한은 유지한다. `json-file`과 `local` 로그의 주·회전 파일 크기만 읽으며 내용은 열지 않는다. local은 Docker Root Dir 아래 유효한 64자리 컨테이너 ID의 `local-logs/container.log*`를 읽는다. edo1의 고정 syslog 태그는 로컬 rsyslog 일별 파일의 메타데이터를 읽고, 백엔드 양 슬롯은 API 공용 로그로 표시한다. 심볼릭 링크를 제외하고 100파일을 넘거나 경로가 없으면 미측정이다.
+- NET과 블록 I/O는 별도의 누적 전송량이다. Docker 블록 I/O 필드가 없거나 null이면 확인된 cgroup v2 카운터를 읽고, 읽을 수 있는 빈 기록은 `기록 없음`으로 표시한다. 메모리·디스크·inode 80% 이상은 주의 항목으로 알리고, 디스크·inode 90% 이상은 긴급 용량 점검이 필요한 주의로 표시한다. 용량만으로 서비스 장애를 확정하지 않는다. 이는 이 프로젝트의 기본 기준이며 보편적인 장애 임계값은 아니다.
 - Load는 CPU 사용률과 다르며 실행 가능 작업과 중단 불가 대기의 평균이다. 5분 또는 15분 값이 코어 수를 넘으면 컨테이너 CPU 상위부터 보고, CPU가 낮으면 호스트 I/O 대기를 확인한다. 이는 수동 확인 기준으로 자동 장애 건수에 넣지 않는다. CPU는 0.2초 표본이므로 한 번의 값만으로 지속성을 판정하지 않는다. RAM 80% 이상 등 자원 주의 시 사용자가 30초 간격 3회 재실행해 값을 비교하도록 안내하며 명령이 자동 대기·반복하지 않는다.
 - 실패 서비스는 현재 systemd 실패 상태이며 1개 이상이면 `systemctl --failed`로 대상을 확인한다. OOM은 최근 24시간 커널에서 매칭된 로그 줄 수이며 사건 건수가 아니다. 과거 기록은 주의로 구분해 시각·대상을 현재 RAM·한도와 비교한다. Docker OOM 플래그와 재시작 횟수도 최근 24시간 발생 횟수를 뜻하지 않는다.
-- frontend·backend·mysql·ai와 Grafana·Prometheus·node-exporter의 실제 컨테이너 이름을 필수 대상으로 확인한다. 중지·일시정지를 예전 healthy 값으로 정상 판정하지 않는다. health 모드에서는 inspect만 수집하며 stats 실패가 실행 정보까지 지우지 않도록 분리한다. API `/api/actuator/health/readiness`의 404·HTML 200·예상하지 않은 JSON은 미검증이며 `status=UP`만 정상, 명시적 `DOWN/OUT_OF_SERVICE`는 장애다. 운영 API readiness는 애플리케이션 준비 상태와 기존 MySQL 연결을 함께 검사하며 자세한 DB 정보는 공개하지 않는다. Grafana는 loopback `/api/health`, n8n은 `127.0.0.1:5688/healthz/readiness`의 상태·본문을 확인한다. Docker 검사가 없어도 해당 HTTP 준비 검사가 통과하면 중복된 미검증 행을 표시하지 않는다. Docker healthy 자체는 설정된 healthcheck의 통과이며 별도 준비 검사의 범위를 보장하지 않는다. 외부 검사는 edo2에서 수행한다.
+- frontend·backend·mysql·ai와 Grafana·Prometheus·node-exporter의 실제 컨테이너 이름을 필수 대상으로 확인한다. 중지·일시정지를 예전 healthy 값으로 정상 판정하지 않는다. health 모드에서는 inspect만 수집하며 stats 실패가 실행 정보까지 지우지 않도록 분리한다. API `/api/actuator/health/readiness`의 404·HTML 200·예상하지 않은 JSON은 미검증이며 `status=UP`만 정상, 명시적 `DOWN/OUT_OF_SERVICE`는 장애다. 운영 API readiness는 애플리케이션 준비 상태와 기존 MySQL 연결을 함께 검사하며 자세한 DB 정보는 공개하지 않는다. 상태·컨테이너 점검 모두 Grafana의 loopback `/api/health`와 n8n의 `127.0.0.1:5688/healthz/readiness`에서 상태·본문을 확인한다. 컨테이너 점검의 node-exporter 행에는 Prometheus의 `node` 수집 상태와 시각도 표시한다. Docker 검사가 없어도 해당 HTTP 준비 검사가 통과하면 중복된 미검증 행을 표시하지 않는다. Docker healthy 자체는 설정된 healthcheck의 통과이며 별도 준비 검사의 범위를 보장하지 않는다. 외부 검사는 edo2에서 수행한다.
+
+edo1 상태 점검은 이전 배포용 블로그 편집기 보관본 중 Docker inspect가 정상 종료를 확인한 항목을 서비스 검사에서 제외한다. 컨테이너 인벤토리에서는 계속 확인할 수 있다. [판정 조건과 재현 기록](../../docs/plans/S15P31E102-662.md)
 
 서버별 세 명령은 수시 인프라 점검이다. 장기 요청량·오류율·p95/p99 지연·I/O 지연, 실제 사용자 업무 기능은 실행하지 않는다. 백업 복구는 마지막 검증 결과 파일만 읽으며 이 점검에서 복구를 실행하지 않는다. 자원과 기본 응답이 정상이어도 이를 전체 서비스 정상으로 확대 해석하지 않는다. 상시 지표와 업무 기능 검증의 추가 여부는 별도 요구 범위로 정한다.
 
@@ -64,6 +66,8 @@ edo2는 Docker 엔진이 활성화된 서버다. 2026-11-09 점검에서는 MySQ
 공간을 정리할 때는 정확한 자원 ID·Compose 소유·다른 컨테이너 참조를 먼저 확인한다. `docker system prune -a --volumes`처럼 범위가 넓은 정리를 사용하지 않는다. 백업 암호문·키·운영/복구 설정은 보존한다. APT 캐시·과거 작업 설정은 용도·다음 실행 영향을 확인해 별도 승인된 대상만 정리한다.
 
 health는 nginx·edo-check·docker·ssh daemon, Certbot 갱신·백업 status/prune/restore-test timer, backup status/restore-test oneshot 이력과 Nginx 구성·UFW·127.0.0.1:8765 `/healthz`를 검사한다. timer는 active와 다음 실행 예약, oneshot은 실행 시각·결과·종료 코드를 확인한다. inactive는 oneshot 성공 후 정상 대기일 수 있다. 실행 이력이 없거나 이번 실행 중이면 `미검증`이며 작업을 자동 실행하지 않는다. systemd 실행 성공은 백업 파일의 무결성·복구 성공을 보증하지 않는다.
+
+edo2 대기 웹에 Docker 준비 검사가 미설정이면 대기 웹의 고정 loopback 포트에서 localhost 인증서와 `/index.html`의 HTML 200을 확인한다. 대기 웹 상태와 중계 상태를 각기 표시한다.
 
 edo2 HTTPS는 자기 공인 IP의 `/healthz`와 JSON `status=ok`를 확인하는 **자체 관측**이다. 실제 Mattermost 입력·공개 callback 성공은 별도 검증한다. IP 인증서는 수명 160시간이므로 만료 24시간 미만을 주의 기준으로 사용하고 갱신 timer를 함께 확인한다. 일반 서비스 인증서의 7일 기준과 구분한다.
 

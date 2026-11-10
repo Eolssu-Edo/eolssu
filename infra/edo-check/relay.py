@@ -81,16 +81,28 @@ def cell(value):
 
 
 STATUS_ICONS = {
-    '정상': '✅', '장애': '❌', '주의': '⚠️', '미검증': '❓', '미측정': '🚫', '설정 참고': 'ℹ️',
+    '정상': '✅', '검증 완료': '✅', '장애': '❌', '주의': '⚠️', '미검증': '❓', '미측정': '🚫', '설정 참고': 'ℹ️',
+    '통신 정상': '✅', '로컬 수신 정상': '✅', '복제 통신 정상': '✅',
+    '실행 · HTTPS 검사 통과': '✅', '실행 · HTTPS 미측정': '🚫',
     '실행 · 검사 통과': '✅', '실행 · 준비 미검증': '❓',
+    '실행 · 검증 완료': '✅', '실행 · 준비 확인 불가': '🚫', '실행 · 준비 상태 주의': '⚠️',
+    '실행 · 통신 정상': '✅', '실행 · 로컬 수신 확인': '✅',
     '검사한 범위 정상': '✅', '장애 확인': '❌', '주의 필요': '⚠️', '일부 확인 못 함': '❓',
     '일부 측정 못 함': '🚫',
     '해당 없음': '➖', '컨테이너 없음': '➖',
 }
 
+CONTAINER_READINESS_LABELS = {
+    '정상': '실행 · 검증 완료', '장애': '장애', '주의': '실행 · 준비 상태 주의',
+    '미측정': '실행 · 준비 확인 불가', '미검증': '실행 · 준비 미검증',
+}
+
 
 def display_status(value):
     """Decorate final labels only; health decisions and counts keep raw values."""
+    if isinstance(value, tuple):
+        label, evidence = value
+        return f'{display_status(label)} · {cell(evidence)}'
     icon = STATUS_ICONS.get(str(value))
     if not icon:
         return cell(value)
@@ -156,6 +168,14 @@ def compact_image_reference(value):
 
 MODE_LABELS = {'health': '상태', 'server': '서버', 'containers': '컨테이너'}
 HEALTH_LABELS = {'실패': '장애', '미설정': '미검증', '확인 불가': '미측정'}
+HEALTH_SUCCESS_LABELS = {
+    'edo1': {
+        'edo1 서비스 준비 검사': '검증 완료',
+        'edo1 서비스 HTTP 통신 검사': '통신 정상',
+        'edo1 MySQL 프록시 로컬 수신 검사': '로컬 수신 정상',
+    },
+    'edo2': {'edo2 복제 감시 systemd': '복제 통신 정상'},
+}
 BACKEND_SLOTS = {'backend': '블루', 'backend-green': '그린'}
 FINDING_ORDER = ('장애', '주의', '미측정', '미검증')
 REPORT_LIMIT = 14000
@@ -184,6 +204,9 @@ def health_summary(target, rows, facts):
         observed = [f'{friendly(name)} {checks[name]}' for name in standby if name in checks]
         if observed:
             lines.append('Docker 검사 · ' + ' · '.join(observed))
+        web = checks.get('eolssu-standby-579-frontend-1')
+        if web:
+            lines.append(f'대기 웹 {web}')
     return lines
 
 
@@ -269,6 +292,7 @@ def build_report(result, request_id):
     inherited_findings = {tuple(item) for item in findings}
     if result['mode'] == 'health':
         rendered = []
+        success_labels = HEALTH_SUCCESS_LABELS[target]
         # Prefer a successful direct readiness probe over an absent Docker check.
         ready = {row[0] for row in rows if row[1] == target + ' loopback HTTP' and row[2] == '정상'}
         for row in rows:
@@ -293,7 +317,9 @@ def build_report(result, request_id):
                           'edo2에서 공개 HTTPS 재요청; /edo1-containers의 웹·API 실행 상태와 Nginx upstream 확인' if '외부 HTTPS' in location else
                           'edo1에서 해당 loopback 준비 경로 재요청; 서비스 로그의 DB 연결 오류 확인' if 'loopback' in location else
                           'edo1에서 대상 docker inspect의 State·Health와 docker logs --tail 50 확인')
-            if location in ('edo1 systemd', 'edo2 systemd', 'edo2 구성 검사', 'edo2 백업 메타데이터', 'edo1 모니터링 HTTP') or name == 'eolssu-runtime-ai-1':
+            if (location in success_labels or name in ('eolssu-runtime-ai-1', 'eolssu-replication-proxy-579')
+                    or location in ('edo1 systemd', 'edo2 systemd', 'edo2 구성 검사', 'edo2 백업 메타데이터',
+                                    'edo1 모니터링 HTTP', 'edo2 대기 웹 loopback HTTPS')):
                 action = str(row[5]) if len(row) > 5 else 'edo2의 해당 unit·설정 확인'
             elif target == 'edo2' and 'TLS' in location:
                 action = ('만료 24시간 미만: snap.certbot.renew.timer와 최근 갱신 로그 확인; 인증서 갱신 뒤 /edo2-health 재실행'
@@ -311,7 +337,8 @@ def build_report(result, request_id):
                 checked = re.sub(r'\b\d{2}:\d{2}:\d{2}\b', r'`\g<0>`', checked)
             if elapsed != '—':
                 checked += ' · ' + str(elapsed)
-            rendered.append([friendly(name), status, checked, '—' if status == '정상' else action])
+            verdict = success_labels.get(location, status) if status == '정상' else status
+            rendered.append([friendly(name), verdict, checked, '—' if status == '정상' else action])
             if status != '정상':
                 findings.append([status, friendly(name) + ': ' + str(evidence), action])
         tables.append(('서비스 검사 결과', ['대상', '판정', '검사 근거 · 소요', '필요한 조치'], rendered))
@@ -371,8 +398,11 @@ def build_report(result, request_id):
         for row in rows:
             name, state = str(row[0]), str(row[1])
             fact = facts.get(name, {})
+            readiness_evidence = None
             if '확인 불가' in state:
                 status = '미측정'
+            elif target == 'edo1' and state.startswith('exited/') and fact.get('rollback_retained') is True:
+                status = '롤백 보관 · 중지'
             elif not state.startswith('running/') or 'unhealthy' in state:
                 status = '장애'
             else:
@@ -383,13 +413,46 @@ def build_report(result, request_id):
                 findings.append(['장애', friendly(name) + ': ' + state, '컨테이너 실행 상태·최근 로그 확인'])
             elif str(row[7]).endswith('/예'):
                 findings.append(['주의', friendly(name) + ' OOM 강제 종료 기록 있음', '현재 실행 상태와 별도로 메모리 한도·커널 OOM 기록 확인'])
-            if status == '실행 · 준비 미검증':
+            readiness = fact.get('readiness')
+            if (target == 'edo1' and state in ('running/미설정', 'running/healthy')
+                    and isinstance(readiness, (list, tuple)) and len(readiness) == 3
+                    and all(isinstance(value, str) for value in readiness)):
+                verdict, evidence, elapsed = readiness
+                kind = HEALTH_LABELS.get(verdict, verdict)
+                if evidence.strip() and kind in CONTAINER_READINESS_LABELS:
+                    status = CONTAINER_READINESS_LABELS[kind]
+                    readiness_evidence = evidence if elapsed in ('', '—') else f'{evidence} · {elapsed}'
+                    if kind == '정상':
+                        scope = fact.get('readiness_kind')
+                        if scope == 'http_communication':
+                            status = '실행 · 통신 정상'
+                        elif scope == 'tcp_listener':
+                            status = '실행 · 로컬 수신 확인'
+                            replication_hint = '복제 통신은 /edo2-health에서 확인'
+                            if replication_hint not in evidence:
+                                readiness_evidence += ' · ' + replication_hint
+                    else:
+                        findings.append([kind, friendly(name) + ': ' + evidence,
+                                         '/edo1-health에서 준비 검사 근거·서비스 상태 확인'])
+            elif status == '실행 · 준비 미검증' and target == 'edo2' and readiness:
+                verdict, evidence, _ = readiness
+                if verdict == '정상':
+                    status = '실행 · HTTPS 검사 통과'
+                else:
+                    kind = HEALTH_LABELS.get(verdict, verdict)
+                    status = '장애' if kind == '장애' else '실행 · HTTPS 미측정'
+                    findings.append([kind, friendly(name) + ': ' + evidence, '/edo2-health에서 대기 웹 HTTPS 검사 확인'])
+            if status == '실행 · 준비 미검증' and readiness_evidence is None:
                 findings.append(['미검증', friendly(name) + ' 준비 상태', '/edo1-health에서 실제 준비 상태 검사 확인; 장애 확정 아님'])
-            missing = [label for index, label in ((4, '쓰기/로그'), (5, '데이터 용량'), (9, '누적 NET/IO'))
-                       if '미측정' in str(row[index]) or '확인 불가' in str(row[index])]
+            net, separator, block = str(row[9]).partition(' · IO ')
+            measurements = [(row[4], '쓰기/로그'), (row[5], '데이터 용량')]
+            measurements.extend([(net, '누적 네트워크'), (block, '누적 블록 I/O')] if separator
+                                else [(net, '누적 NET/IO')])
+            missing = [label for value, label in measurements if '미측정' in str(value) or '확인 불가' in str(value)]
             if status != '미측정' and missing:
-                findings.append(['미측정', friendly(name) + ' ' + ', '.join(missing),
-                                 'Docker가 통계를 제공하는지 확인; 기록 없음은 0으로 단정하지 않음' if missing == ['누적 NET/IO'] else '재점검 후 측정 경로·드라이버 지원 확인'])
+                action = ('Docker 네트워크 통계·cgroup 블록 I/O 확인' if all(label.startswith('누적') for label in missing)
+                          else '재점검 후 측정 경로·드라이버 지원 확인')
+                findings.append(['미측정', friendly(name) + ' ' + ', '.join(missing), action])
             ram = str(row[3]).replace('미설정', '제한 없음').replace(' · —', '')
             if fact.get('ram_bytes') is not None:
                 used, limit, host = fact['ram_bytes'], fact.get('ram_limit'), fact.get('host_ram')
@@ -400,18 +463,18 @@ def build_report(result, request_id):
             cpu = str(row[2]).replace('/미설정', ' · 제한 없음').replace('/', ' / ')
             write, _, old_log = str(row[4]).partition(' · 로그 ')
             log = fact.get('log', old_log or '미측정')
-            resource_rows.append([friendly(name), status, cpu, ram,
-                                  '쓰기 ' + write.replace('/미설정(호스트 공유)', ' · 호스트 공유') + ' / 로그 ' + str(log)])
+            resource_rows.append([friendly(name), (status, readiness_evidence) if readiness_evidence else status,
+                                  cpu, ram, '쓰기 ' + write.replace('/미설정(호스트 공유)', ' · 호스트 공유') + ' / 로그 ' + str(log)])
             for mount in str(row[5]).split('; '):
                 mount_target, separator, usage = mount.rpartition(': ')
                 storage_rows.append([friendly(name), mount_target if separator else '데이터 저장소', usage if separator else mount,
                                      '다른 컨테이너와 중복 합산 금지' if '(공유)' in mount else
-                                     '12초 또는 전체 25초 측정 예산; 재점검 필요' if '확인 불가' in mount else
+                                     '같은 명령을 1회 재실행' if '확인 불가' in mount else
                                      '별도 데이터 mount 없음' if mount == '없음' else '볼륨/bind 값은 쓰기 계층·로그와 별개'])
             display_name = friendly(name)
             runtime_name = name if display_name == name else f'{display_name} ({name})'
             runtime_rows.append([runtime_name, row[6], row[7], row[8], row[9], row[10]])
-            if status != '미측정' and (fact.get('ram_bytes') is None or fact.get('cpu_percent') is None):
+            if status not in ('미측정', '롤백 보관 · 중지') and (fact.get('ram_bytes') is None or fact.get('cpu_percent') is None):
                 findings.append(['미측정', friendly(name) + ' CPU 또는 RAM', '다시 점검; 실행 상태와 통계 수집은 별개'])
         tables.extend([
             ('컨테이너 현재 자원', ['서비스', '상태', 'CPU / 상한', 'RAM / 상한', '쓰기 · 로그'], resource_rows),
@@ -455,7 +518,8 @@ def build_report(result, request_id):
     if counts['설정 참고']:
         notes.extend(['', f"ℹ️ **설정 참고 {counts['설정 참고']}건**: 메모리 제한 없음은 현재 장애라는 뜻이 아닙니다. 해당 컨테이너는 호스트 메모리를 공유합니다."])
     if mode == 'containers' and rows:
-        notes.extend(['', f'CPU 100%=1코어 사용(2코어 한도는 200%). RAM은 cache 제외. 쓰기·로그·데이터는 별도 공간이며 공유 볼륨은 중복 합산하지 않습니다. 별도 mount 없음은 데이터가 없다는 뜻이 아닙니다. NET·IO는 누적 전송량입니다. 준비 상태는 /{target}-health에서 확인하세요.'])
+        readiness_note = '준비 검사 상세' if target == 'edo1' else '준비 상태'
+        notes.extend(['', f'CPU 100%=1코어 사용(2코어 한도는 200%). RAM은 cache 제외. 쓰기·로그·데이터는 별도 공간이며 공유 볼륨은 중복 합산하지 않습니다. 별도 mount 없음은 데이터가 없다는 뜻이 아닙니다. NET·IO는 누적 전송량입니다. {readiness_note}는 /{target}-health에서 확인하세요.'])
     if mode == 'health':
         notes.extend(['', 'Docker healthy는 설정된 healthcheck 통과입니다. HTTP 준비 응답·업무 기능·장기 오류율은 서로 다른 검사 범위입니다.'])
         if target == 'edo2':
