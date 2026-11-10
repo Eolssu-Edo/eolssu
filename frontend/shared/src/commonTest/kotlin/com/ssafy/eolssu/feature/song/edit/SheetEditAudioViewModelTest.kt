@@ -1,6 +1,13 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
+import com.ssafy.eolssu.data.song.SheetDocument
+import com.ssafy.eolssu.data.song.SheetDocumentRepository
+import com.ssafy.eolssu.data.song.SheetWorkingCopy
+import com.ssafy.eolssu.data.song.SheetWrite
+import com.ssafy.eolssu.data.song.smallScoreData
 import com.ssafy.eolssu.data.song.SheetAudio
 import com.ssafy.eolssu.data.song.SheetAudioFailure
 import com.ssafy.eolssu.data.song.SheetAudioFile
@@ -20,6 +27,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -68,9 +76,60 @@ class SheetEditAudioViewModelTest {
     private fun found(status: SheetAudioStatus, outdated: Boolean = false, files: Boolean = status == SheetAudioStatus.Done, failure: SheetAudioFailure? = null) =
         SheetAudioLookup.Found(audio(status, outdated, files, failure))
 
-    private fun TestScope.viewModel(repository: FakeSheetAudioRepository, source: EditSource = EditSource.Mine("12"), now: () -> Long = { 0L }): SheetEditViewModel {
+    private fun TestScope.viewModel(repository: FakeSheetAudioRepository, source: EditSource = EditSource.Mine("12"),
+        now: () -> Long = { 0L }, documents: SheetDocumentRepository? = null): SheetEditViewModel {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-        return SheetEditViewModel(source, EditView.Jeongganbo, SampleMySheetRepository(), repository, now = now)
+        return SheetEditViewModel(source, EditView.Jeongganbo, SampleMySheetRepository(), repository, now = now, documents = documents)
+    }
+
+    @Test fun previewWithoutGeneratedAudioDoesNotClaimPlayback() = runTest {
+        val repository = FakeSheetAudioRepository().apply { statuses += SheetAudioLookup.None }
+        val vm = viewModel(repository)
+        try {
+            runCurrent()
+            assertNull(vm.previewAudioFile())
+            assertNull(vm.previewPlaybackId())
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun previewUsesOnlyTheCurrentSavedScoreAndJangdanSettings() = runTest {
+        val repository = FakeSheetAudioRepository().apply { statuses += found(SheetAudioStatus.Done) }
+        val documents = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = SheetDocument(
+                sheetId, "미리듣기", "1", 60, "2", smallScoreData(), null, "EVALUABLE", "DONE", emptyList(),
+            )
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) = SheetWrite.Failed
+        }
+        val vm = viewModel(repository, documents = documents)
+        try {
+            runCurrent()
+            assertEquals("https://r2.example/12.m4a", vm.previewAudioFile()?.url)
+            vm.toggleWithJangdan()
+            assertNull(vm.previewAudioFile())
+            assertEquals(SheetEditMessage.PreviewNeedsAudio, vm.uiState.value.message)
+            assertTrue(vm.uiState.value.audioSettingsChanged)
+            repository.onRequest = { settings ->
+                SheetAudioRequest.Accepted(audio(SheetAudioStatus.Done).copy(withJangdan = settings.withJangdan))
+            }
+            vm.requestAudio(); runCurrent()
+            assertEquals(false, repository.requests.single().second.withJangdan)
+            assertNotNull(vm.previewAudioFile())
+            vm.toggleWithJangdan()
+
+            repository.statuses.clear()
+            repository.statuses += found(SheetAudioStatus.Done, outdated = true)
+            vm.refreshAudio(); runCurrent()
+            assertNull(vm.previewAudioFile())
+            assertNotNull(vm.audioFile(SheetAudioKind.M4a), "옛 음원은 기존 음원 칸에서 계속 쓸 수 있다")
+
+            vm.selectCell(2)
+            vm.put(ScoreNote.Pitch(Yul.Taeju))
+            assertNull(vm.previewAudioFile())
+            assertEquals(SheetEditMessage.AudioNeedsSave, vm.uiState.value.message)
+        } finally {
+            advanceUntilIdle()
+            Dispatchers.resetMain()
+        }
     }
 
     @Test fun openingASavedSheetReadsItsAudioAndKeepsPollingUntilDone() = runTest {

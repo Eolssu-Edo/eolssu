@@ -54,6 +54,7 @@ enum class SheetEditMessage {
 
     /** 파일 주소를 기기 브라우저로 열지 못했다. */
     AudioLinkFailed,
+    PreviewNeedsAudio,
 
     /** 아직 만들지 않은 기능(장단 바꾸기). */
     ComingSoon,
@@ -86,7 +87,6 @@ data class SheetEditUiState(
     val staffKey: StaffNoteKey? = null,
     val yulRegister: YulRegister = YulRegister.Base,
     val availablePitches: Set<Pair<String, Int>>? = null,
-    val previewPlaying: Boolean = false,
     val withJangdan: Boolean = true,
     val emptyWarning: Boolean = false,
     val savedOnce: Boolean = false,
@@ -100,6 +100,11 @@ data class SheetEditUiState(
 ) {
     val canUndo: Boolean get() = past.isNotEmpty()
     val canRedo: Boolean get() = future.isNotEmpty()
+
+    val audioSettingsChanged: Boolean
+        get() = (audio as? SheetAudioUi.Ready)?.audio?.let {
+            it.withJangdan != withJangdan || it.bpm != draft.bpm
+        } == true
 
     /** 인식 결과에서 왔고 아직 확인하지 않은 정간이 남았으면 그 수. 아니면 0. */
     val pendingChecks: Int get() = (source as? EditSource.Import)?.pendingChecks ?: 0
@@ -231,7 +236,7 @@ data class SheetEditUiState(
     fun requestAudio(): SheetEditUiState = when {
         !savedOnce -> copy(message = SheetEditMessage.AudioNeedsSave)
         serverSheetId == null -> copy(message = SheetEditMessage.ComingSoon)
-        !audio.canRequest -> this
+        !audio.canRequest && !audioSettingsChanged -> this
         else -> copy(audio = SheetAudioUi.Requesting(audio.latest))
     }
 
