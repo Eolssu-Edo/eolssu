@@ -34,7 +34,7 @@ import com.ssafy.eolssu.core.model.Song
 fun ResultRoute(
     evaluationId: String,
     onBack: () -> Unit,
-    onPracticeAgain: () -> Unit,
+    onPracticeAgain: (songId: String) -> Unit,
     onOtherSong: () -> Unit,
     onHome: () -> Unit,
     onGoRecords: ((recordId: String) -> Unit)?,
@@ -86,7 +86,7 @@ fun ResultRoute(
             onSave = viewModel::save,
             onViewAllErrors = onViewAllErrors ?: showComingSoon,
             onWeakSection = onWeakSection ?: showComingSoon,
-            onPracticeAgain = onPracticeAgain,
+            onPracticeAgain = { (state.result?.songId ?: state.scorePreview?.songId)?.let(onPracticeAgain) },
             onOtherSong = onOtherSong,
             onHome = onHome,
             onMemoChange = viewModel::changeMemo,

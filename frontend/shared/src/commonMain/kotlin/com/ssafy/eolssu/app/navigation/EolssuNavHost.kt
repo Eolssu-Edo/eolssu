@@ -337,7 +337,20 @@ fun EolssuNavHost(
                     evaluationId = evaluationId,
                     initialSong = evaluationSong?.takeIf { it.first == evaluationId }?.second,
                     onBack = { navController.popBackStackFrom(entry) },
-                    onPracticeAgain = { navController.popBackStackFrom(entry) },
+                    onPracticeAgain = { songId ->
+                        if (navController.currentBackStackEntry?.id == entry.id) {
+                            val previous = navController.previousBackStackEntry
+                            if (previous?.destination?.route == EolssuDestination.PRACTICE &&
+                                previous.savedStateHandle.get<String>("songId") == songId
+                            ) {
+                                navController.popBackStackFrom(entry)
+                            } else {
+                                navController.navigate(EolssuDestination.practice(songId)) {
+                                    popUpTo(EolssuDestination.RESULT) { inclusive = true }
+                                }
+                            }
+                        }
+                    },
                     onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
                     onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
                     onGoRecords = { navController.navigate(EolssuDestination.records(it)) },

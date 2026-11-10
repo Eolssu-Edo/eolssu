@@ -9,6 +9,8 @@ import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.EvaluationRepository
+import com.ssafy.eolssu.data.practice.ScreenEvaluation
+import com.ssafy.eolssu.core.network.ensureAccountSession
 import com.ssafy.eolssu.data.practice.PracticeRecordRepository
 import com.ssafy.eolssu.data.practice.PracticeRecordUnavailable
 import com.ssafy.eolssu.data.song.SongRepository
@@ -62,8 +64,10 @@ class ResultViewModel(
     private var songJob: Job? = null
     private var resultJob: Job? = null
     private var learnJudged = false
+    private var pendingEvaluation: ScreenEvaluation? = null
 
     private val accountScope = member.screenScope(viewModelScope) {
+        pendingEvaluation = null
         _uiState.value = ResultUiState()
     }
 
@@ -76,25 +80,27 @@ class ResultViewModel(
         if (resultJob?.isActive == true || _uiState.value.result != null) return
         _uiState.update { it.copy(resultLookup = SongLookup.Loading) }
         resultJob = accountScope.launch {
-            var scoresReceived = false
             val loaded = try {
-                evaluationRepository.resultForScreen(evaluationId, initialSong) { preview ->
-                    scoresReceived = true
-                    _uiState.update { it.copy(scorePreview = preview) }
+                val evaluation = pendingEvaluation ?: evaluationRepository.resultForScreen(evaluationId, initialSong).also { fetched ->
+                    ensureAccountSession()
+                    pendingEvaluation = fetched
+                    _uiState.update { it.copy(scorePreview = fetched?.scores) }
                 }
+                evaluation?.loadDetails?.invoke()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                _uiState.update { it.copy(resultLookup = SongLookup.Failed, scorePreview = it.scorePreview.takeIf { scoresReceived }) }
+                ensureAccountSession()
+                _uiState.update { it.copy(resultLookup = SongLookup.Failed) }
                 return@launch
             }
+            ensureAccountSession()
             if (loaded == null) {
-                _uiState.update {
-                    it.copy(resultLookup = if (scoresReceived) SongLookup.Failed else SongLookup.Missing,
-                        scorePreview = it.scorePreview.takeIf { scoresReceived })
-                }
+                val lookup = if (pendingEvaluation == null) SongLookup.Missing else SongLookup.Failed
+                _uiState.update { it.copy(resultLookup = lookup) }
                 return@launch
             }
+            pendingEvaluation = null
             val (result, song) = loaded
             _uiState.update {
                 it.copy(result = result, resultLookup = SongLookup.Ready, song = song,

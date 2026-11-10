@@ -218,7 +218,7 @@ internal class AnalysisSession(
         pollJob?.cancel()
     }
 
-    /** 화면에 돌아왔다. 아직 분석 중이면 바로 한 번 묻고, `PENDING`이면 2초 조회를 다시 시작한다. */
+    /** 화면에 돌아왔다. 아직 분석 중이면 즉시 조회하고 기존 조회 주기를 이어 간다. */
     fun resume() {
         paused = false
         val state = _state.value

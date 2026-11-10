@@ -25,13 +25,16 @@ interface EvaluationRepository {
     /** 평가 결과. 찾지 못하면 null. */
     suspend fun result(evaluationId: String): EvaluationResult?
 
-    /** 점수는 먼저 전달하고, 상세 매핑에 사용한 곡을 결과와 함께 반환한다. */
-    suspend fun resultForScreen(
-        evaluationId: String,
-        initialSong: Song?,
-        onScores: (EvaluationResult) -> Unit,
-    ): Pair<EvaluationResult, Song?>? = result(evaluationId)?.let { it to null }
+    /** 화면에서 점수를 먼저 표시하고 상세 조회를 다시 시도할 수 있게 한다. */
+    suspend fun resultForScreen(evaluationId: String, initialSong: Song?): ScreenEvaluation? =
+        result(evaluationId)?.let { result -> ScreenEvaluation(result) { result to null } }
 }
+
+/** 이미 받은 점수와, 같은 평가 응답을 악보에 매핑하는 작업. */
+class ScreenEvaluation(
+    val scores: EvaluationResult,
+    val loadDetails: suspend () -> Pair<EvaluationResult, Song?>?,
+)
 
 /** 분석 다시 시도(PRA-03 `POST /api/practice-sessions/{sessionId}/retry`)의 응답. */
 enum class RetryOutcome {
