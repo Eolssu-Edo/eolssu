@@ -219,12 +219,10 @@ data class SheetEditUiState(
     /** '탁': 탁성 → 배탁성 → 기본. 청 쪽에서 누르면 바로 탁성이다. */
     fun lowerRegister(): SheetEditUiState = copy(yulRegister = yulRegister.lower())
 
-    fun resetRegister(): SheetEditUiState = copy(yulRegister = YulRegister.Base)
-
     /** 지금 음역 단계를 붙여 [base]를 적는다. 서버에 등록되지 않은 음은 적지 않는다. 적고 나면 음역은 기본으로 돌아간다. */
     fun putYul(base: Yul): SheetEditUiState = putYul(base, yulRegister.octave)
 
-    /** 버튼과 직접 입력이 함께 쓰는 율명 입력. 같은 음 데이터([SheetDraft.pitchNote])로 적는다. */
+    /** [base]를 [octave] 음역으로 적는다. 같은 음 데이터([SheetDraft.pitchNote])로 적는다. */
     fun putYul(base: Yul, octave: Int): SheetEditUiState {
         if (!isAvailablePitch(availablePitches, base, octave)) return this
         return put(draft.pitchNote(base, octave)).copy(yulRegister = YulRegister.Base)

@@ -79,7 +79,6 @@
 
     <!-- EditPick 불러올 악보 고르기 -->
     <string name="sheetedit_pick_title">불러올 악보 고르기</string>
-    <string name="sheetedit_pick_subtitle">악기를 고른 뒤 그 악기의 악보를 골라요</string>
     <string name="sheetedit_pick_confirm">선택</string>
     <string name="sheetedit_pick_copy">내 악보로 복사</string>
     <string name="sheetedit_pick_copying">복사 중</string>
@@ -107,9 +106,6 @@
     <string name="sheetedit_view_staff">오선보</string>
     <string name="sheetedit_banner_import">불러온 악보 · 인식을 확인할 정간 %1$d개가 남았어요</string>
     <string name="sheetedit_banner_open">확인 정간 보기</string>
-    <string name="sheetedit_hint_jeongganbo">오른쪽 각부터 위→아래로 입력해요 · 시김새는 정간 오른쪽에 작게 표시</string>
-    <string name="sheetedit_selected">선택</string>
-    <string name="sheetedit_selected_sigimsae">시김새 %1$s</string>
     <string name="sheetedit_autosaved">자동 임시저장됨</string>
     <string name="sheetedit_tab_yul">율명·기호</string>
     <string name="sheetedit_tab_sigimsae">시김새</string>
@@ -132,7 +128,6 @@
     <string name="sheetedit_jangdan_same_unit">악보의 빠르기와 음 길이를 유지하려면 박자 단위가 같은 장단을 골라야 해요.</string>
     <string name="sheetedit_jangdan_none_compatible">현재 악보와 박자 단위가 같은 장단이 없어요.</string>
     <string name="sheetedit_jangdan_load_failed">장단 목록을 불러오지 못했어요.</string>
-    <string name="sheetedit_cell_note">장단을 바꾸면 한 각의 정간 수와 박 구분선이 함께 바뀌어요. ‘한 정간 나누기’는 한 정간에 음을 위→아래로 여러 개 넣을 때 써요.</string>
     <string name="sheetedit_staff_hint">한쪽을 고치면 다른 쪽도 바로 바뀌어요</string>
     <string name="sheetedit_staff_system">정간보 %1$d–%2$d각</string>
     <string name="sheetedit_staff_where_span">%1$s부터 %2$d정간</string>
@@ -224,29 +219,11 @@
     <string name="sheetedit_pick_unchecked">악기를 확인하지 못한 내 악보 %1$d개는 목록에서 뺐어요</string>
     <string name="sheetedit_register_tak">탁</string>
     <string name="sheetedit_register_cheong">청</string>
-    <string name="sheetedit_register_reset">기본</string>
-    <string name="sheetedit_register_baetak">배탁성</string>
-    <string name="sheetedit_register_tak_name">탁성</string>
-    <string name="sheetedit_register_base">기본음</string>
-    <string name="sheetedit_register_cheong_name">청성</string>
-    <string name="sheetedit_register_jungcheong">중청성</string>
     <string name="sheetedit_register_baetak_short">배탁</string>
     <string name="sheetedit_register_jungcheong_short">중청</string>
-    <string name="sheetedit_selected_sub">소박 %1$d/%2$d</string>
-    <string name="sheetedit_register_now">음역 · %1$s</string>
-    <string name="sheetedit_register_hint">한 번 더 누르면 배탁·중청, 율명을 적으면 기본으로 돌아가요</string>
-    <string name="sheetedit_yul_scroll_hint">좌우로 밀어 12율을 모두 볼 수 있어요</string>
     <string name="sheetedit_key_unavailable">%1$s · 등록되지 않은 음</string>
-    <string name="sheetedit_text_label">한글로 입력</string>
-    <string name="sheetedit_text_placeholder">예: 태 · 청태 · 중청태 · 탁태</string>
-    <string name="sheetedit_text_submit">완료</string>
-    <string name="sheetedit_text_preview">%1$s(으)로 적어요</string>
-    <string name="sheetedit_text_unknown">‘%1$s’은(는) 율명으로 읽을 수 없어요</string>
-    <string name="sheetedit_text_incomplete">음역 뒤에 율명을 이어서 써 주세요</string>
-    <string name="sheetedit_text_unavailable">%1$s은(는) 등록된 음이 아니라 적을 수 없어요</string>
     <string name="sheetedit_sig_none">이 정간에 붙인 시김새가 없어요</string>
     <string name="sheetedit_sig_need_pitch">율명에만 시김새를 붙일 수 있어요</string>
     <string name="sheetedit_sig_limit">한 정간에 %1$d개까지 붙일 수 있어요</string>
-    <string name="sheetedit_sig_scroll_hint">좌우로 밀어 시김새 %1$d가지를 모두 볼 수 있어요</string>
     <string name="sheetedit_sig_remove">%1$s 떼기</string>
 </resources>

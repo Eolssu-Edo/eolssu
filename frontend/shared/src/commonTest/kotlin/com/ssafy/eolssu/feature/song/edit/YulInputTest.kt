@@ -50,19 +50,17 @@ class YulInputTest {
     @Test
     fun registeredPitchListDecidesWhatCanBeWritten() {
         val available = setOf("태" to 0, "태" to 1, "태" to 2, "임" to -1)
-        assertEquals(YulTextOutcome.PutPitch(Yul.Taeju, 2), resolveYulText("중청태", available))
-        assertEquals(YulTextOutcome.Unavailable(Yul.Taeju, -2), resolveYulText("배탁태", available), "등록되지 않은 음은 가까운 음으로 바꾸지 않는다")
-        assertEquals(YulTextOutcome.PutSymbol(ScoreNote.Hold), resolveYulText("ㅡ", available))
-        assertEquals(YulTextOutcome.PutPitch(Yul.Taeju, -2), resolveYulText("배탁태", null), "목록을 받지 못했으면 서버 저장 때 확인한다")
+        assertEquals(true, isAvailablePitch(available, Yul.Taeju, 2))
+        assertEquals(false, isAvailablePitch(available, Yul.Taeju, -2), "등록되지 않은 음은 막는다")
+        assertEquals(true, isAvailablePitch(null, Yul.Taeju, -2), "목록을 받지 못했으면 서버 저장 때 확인한다")
     }
 
     @Test
-    fun buttonAndTextInputWriteTheSameNote() {
+    fun registerButtonWritesTheRegisteredNote() {
         val start = SheetEditUiState.initial(EditSource.Mine("1"), SheetEditSamples.draftFor(EditSource.Mine("1"), emptyList()))
             .copy(availablePitches = setOf("태" to 1))
         val byButton = start.raiseRegister().putYul(Yul.Taeju)
-        val byText = (resolveYulText("청태", start.availablePitches) as YulTextOutcome.PutPitch).let { start.putYul(it.base, it.octave) }
-        assertEquals(byButton.draft, byText.draft)
+        assertEquals(byButton.draft, start.putYul(Yul.Taeju, 1).draft)
         assertEquals(ScoreNote.Pitch(Yul.CheongTaeju), byButton.draft.cells[0].single())
         assertEquals(YulRegister.Base, byButton.yulRegister, "율명을 적으면 음역은 기본으로 돌아간다")
         assertEquals(start.draft, start.putYul(Yul.Hwangjong, 0).draft, "등록되지 않은 음은 적지 않는다")

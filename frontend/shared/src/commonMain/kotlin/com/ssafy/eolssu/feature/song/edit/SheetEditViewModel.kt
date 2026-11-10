@@ -306,10 +306,8 @@ class SheetEditViewModel(
     fun put(note: ScoreNote) = change { it.put(note) }
     fun erase() = change { it.erase() }
     fun putYul(base: Yul) = change { it.putYul(base) }
-    fun putYul(base: Yul, octave: Int) = change { it.putYul(base, octave) }
     fun raiseRegister() = change { it.raiseRegister() }
     fun lowerRegister() = change { it.lowerRegister() }
-    fun resetRegister() = change { it.resetRegister() }
     fun toggleSigimsae(value: Sigimsae) = change { it.toggleSigimsae(value) }
     fun removeSigimsae(position: Int) = change { it.removeSigimsae(position) }
     fun split() = change { it.split() }
