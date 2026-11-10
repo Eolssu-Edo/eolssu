@@ -250,6 +250,6 @@ val appModule = module {
     viewModel { (kind: ImportKind, hwang: HwangPitch) -> ImportResultViewModel(kind, hwang) }
     // 내 악보 음원(SHT-12·13)은 서버 계약대로 부른다. 서버 ID가 없는 예시 악보는 저장소가 서버에 묻지 않는다.
     single<SheetAudioRepository> { ApiSheetAudioRepository(get(), member = get(), server = get()) }
-    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), get(), get(), documents = get(), member = get(),
-        songs = get(), pitchCatalog = get(), deviceAudioStore = get()) }
+    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), now = get(), documents = get(), member = get(),
+        songs = get(), pitchCatalog = get(), deviceAudioStore = get(), loadAudioInstruments = get<InstrumentCatalog>()::load) }
 }

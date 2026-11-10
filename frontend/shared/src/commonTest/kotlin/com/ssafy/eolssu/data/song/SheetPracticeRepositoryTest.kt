@@ -4,6 +4,9 @@ import com.ssafy.eolssu.core.audio.DeviceSheetAudio
 import com.ssafy.eolssu.core.audio.LocalAudioFile
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.SheetAudioDownload
+import com.ssafy.eolssu.core.audio.SheetAudioPerformance
+import com.ssafy.eolssu.feature.practice.modelMediaPosition
+import com.ssafy.eolssu.feature.practice.modelPointAt
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
@@ -19,6 +22,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -77,6 +81,42 @@ class SheetPracticeRepositoryTest {
             assertNull(repository.get(song))
             assertTrue(requests.none { it.endsWith("/audio") }, "기기에 저장한 음원을 재생할 때 서버 음원 상태를 조회하지 않는다")
             assertTrue(requests.none { it.startsWith("/api/songs") })
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test fun usesTheSavedPerformanceForRepeatedHighlightsAndSeekWithLegacyFallback() = runTest {
+        val song = smallScoreSong().copy(id = "42", scoreVersion = 1)
+        val sourceHash = "b".repeat(64)
+        val audioHash = "a".repeat(64)
+        val spans = """[
+            {"occurrenceId":"1","eventId":"c0-j0-r0-u0","cellId":"c0-j0","row":0,"col":0,"startTick":0,"endTick":1,"startMs":0,"endMs":200,"sigimsae":[]},
+            {"occurrenceId":"2","eventId":"c0-j0-r0-u1","cellId":"c0-j0","row":0,"col":1,"startTick":1,"endTick":2,"startMs":200,"endMs":400,"sigimsae":["니레"]},
+            {"occurrenceId":"3","eventId":"c0-j0-r0-u1","cellId":"c0-j0","row":1,"col":0,"startTick":2,"endTick":4,"startMs":400,"endMs":600,"sigimsae":[]},
+            {"occurrenceId":"4","eventId":"c0-j0-r0-u1","cellId":"c0-j1","row":0,"col":0,"startTick":4,"endTick":8,"startMs":600,"endMs":1100,"sigimsae":[]},
+            {"occurrenceId":"5","eventId":"c1-j0-r0-u0","cellId":"c1-j0","row":0,"col":0,"startTick":8,"endTick":12,"startMs":1100,"endMs":2000,"sigimsae":[]},
+            {"occurrenceId":"6","eventId":"c0-j0-r0-u0","cellId":"c0-j0","row":0,"col":0,"startTick":0,"endTick":1,"startMs":2000,"endMs":2200,"sigimsae":[]}
+        ]"""
+        val timeline = Json.parseToJsonElement("""{"schema":"common-score-performance/v1","policy":"educational-preview/v1",
+            "sourceSha256":"$sourceHash","audioSha256":"$audioHash","scoreVersion":1,"sourceId":"unit-test-score",
+            "instrument":"DANSO","bpmUnit":"DOTTED_QUARTER","bpm":72,"durationMs":2200,"segments":$spans}""").jsonObject
+        val local = savedAudio()
+        var file = local.copy(performance = SheetAudioPerformance(sourceHash, timeline))
+        val client = createHttpClient(MockEngine { error("Practice must use the saved audio and performance") }, ServerAddress.Production)
+        try {
+            val repository = practiceRepository(client, PracticeDeviceAudio { _, _, _ -> file })
+            val audio = assertNotNull(repository.get(song))
+            assertEquals(2200.0, assertNotNull(audio.performance).durationMs)
+            assertEquals(0, song.modelPointAt(audio, 2100.0).position)
+            assertEquals(1100L, song.modelMediaPosition(audio, 8.0))
+
+            file = local.copy(performance = SheetAudioPerformance("c".repeat(64), timeline))
+            assertNull(assertNotNull(repository.get(song)).performance)
+            file = local
+            val legacy = assertNotNull(repository.get(song))
+            assertNull(legacy.performance)
+            assertEquals(2, song.modelPointAt(legacy, 2100.0).position)
         } finally {
             client.close()
         }

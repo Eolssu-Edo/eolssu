@@ -23,5 +23,27 @@ internal fun SheetDocument.editorReviewIssues(score: CommonScoreData): List<Shee
     }.distinctBy(SheetReviewIssue::id)
 }
 
+/** Information about the conversion as a whole, outside the per-cell review checklist. */
+data class SheetReviewNotice(
+    val type: String,
+    val page: Int?,
+    val reason: String?,
+    val semitones: Int?,
+    val jangdan: String?,
+)
+
+internal fun SheetDocument.editorReviewNotices(): List<SheetReviewNotice> =
+    notices.map { notice ->
+        val detail = notice["detail"] as? JsonObject
+        SheetReviewNotice(
+            type = notice.text("type").orEmpty(),
+            page = (notice["pageIdx"] as? JsonPrimitive)?.intOrNull
+                ?.takeIf { it in 0 until Int.MAX_VALUE }?.plus(1),
+            reason = detail?.text("reason"),
+            semitones = (detail?.get("semitones") as? JsonPrimitive)?.intOrNull?.takeIf { it in -127..127 },
+            jangdan = detail?.text("jangdan")?.takeIf { it.length <= 30 },
+        )
+    }
+
 private fun JsonObject.text(key: String): String? =
     (get(key) as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }

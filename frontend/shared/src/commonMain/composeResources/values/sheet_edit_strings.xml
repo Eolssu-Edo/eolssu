@@ -159,6 +159,8 @@
     <string name="sheetedit_preview_beat_sub">한 각 %1$d정간 · %2$d박 · %3$d각</string>
     <string name="sheetedit_preview_hint">오른쪽 각부터 위→아래로 읽어요</string>
     <string name="sheetedit_preview_listen">미리듣기 · %1$s</string>
+    <string name="sheetedit_preview_progress">%1$s / %2$s</string>
+    <string name="sheetedit_preview_seek">미리듣기 재생 위치</string>
     <string name="sheetedit_preview_play">미리듣기 재생</string>
     <string name="sheetedit_preview_pause">미리듣기 일시정지</string>
     <string name="sheetedit_preview_with_jangdan">장단 소리 함께</string>
@@ -191,8 +193,12 @@
     <string name="sheetedit_msg_draft">임시저장했어요 · 내 악보에서 이어서 고칠 수 있어요</string>
     <string name="sheetedit_msg_saved">저장했어요 · 내 악보에서 연습할 수 있어요</string>
     <string name="sheetedit_audio_settings_changed">음원 설정이 바뀌었어요. 음원을 다시 만들어 주세요</string>
+    <string name="sheetedit_audio_instrument_choose">연주 악기를 선택해 주세요</string>
+    <string name="sheetedit_audio_instrument_failed">연주 악기 목록을 불러오지 못했어요</string>
+    <string name="sheetedit_audio_instrument_label">연주 악기 · %1$s</string>
+    <string name="sheetedit_audio_instrument_loading">연주 악기 목록을 불러오는 중이에요</string>
     <string name="sheetedit_preview_needs_audio">현재 악보의 M4A를 먼저 내려받아 주세요</string>
-    <string name="sheetedit_msg_audio_needs_save">저장한 악보가 있어야 음원을 만들 수 있어요</string>
+    <string name="sheetedit_msg_audio_needs_save">현재 악보를 저장한 뒤 음원을 만들거나 미리 들어 주세요</string>
     <string name="sheetedit_msg_audio_requested">음원을 만들고 있어요 · 다 되면 알려 드릴게요</string>
     <string name="sheetedit_msg_audio_ready">음원이 준비됐어요 · 미리보기에서 재생하거나 저장할 수 있어요</string>
     <string name="sheetedit_msg_audio_failed">음원을 만들지 못했어요 · 미리보기에서 다시 시도할 수 있어요</string>

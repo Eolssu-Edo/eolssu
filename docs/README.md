@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [Android 카카오·네이버 간편 로그인 앱 복귀 실패 수정 (687)](plans/S15P31E102-687.md)
 - [닉네임 최대 10자 서버 검증 (685)](plans/S15P31E102-685.md)
 - [기초부터 배우기 1·7단계 반복 할 일 서버 문구 정리 (656)](plans/S15P31E102-656.md)
 - [기초부터 배우기 4~6단계 따라 배우기 반복 칸 정리 (655)](plans/S15P31E102-655.md)
@@ -38,10 +39,13 @@
 - [Android 채점모드 실시간 음높이 표시 시제품 계획](plans/S15P31E102-515.md)
 - [Android 녹음 시작 직후 밀린 입력과 시각 기준 (559)](knowledge/frontend/android-recorder-startup-backlog.md)
 - [내 악보 조회·초안 복원과 편집 저장 API 연결 (532)](plans/S15P31E102-532.md)
+- [내 악보 편집에서 제목과 기본 빠르기 변경 (689)](plans/S15P31E102-689.md)
 - [서버 악보 편집의 표기·시간·저장 순서 보존 근거 (532)](knowledge/frontend/user-sheet-document-editing.md)
 - [정간보 편집의 악기별 악보 선택·율명 음역·시김새 입력 근거 (551)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md)
+- [내 악보 편집에서 정간보와 오선보 전환 (693)](plans/S15P31E102-693.md)
 
 - [내 악보 목록·삭제와 연주 비교 API 연결·보류 항목 (525)](plans/S15P31E102-525.md)
+- [내 악보 음원 생성에서 연주 악기 표시와 선택 제공 (692)](plans/S15P31E102-692.md)
 - [마이페이지 학습 단계 이동·마스코트](specs/profile-learning-card.md) · [S15P31E102-524 계획·검증](plans/S15P31E102-524.md)
 
 - [서비스 장단 카탈로그 확장 스펙](specs/jangdan-catalog-extension.md) · [추가 근거·시작 빠르기·검증](knowledge/backend/jangdan-catalog-extension.md)
@@ -86,7 +90,9 @@
 - [업로드 원본 임시 처리·비보관 전환 (534)](plans/S15P31E102-534.md) · [수명주기·검증 경계](knowledge/backend/temporary-sheet-source-lifecycle.md) · [현행 정책](specs/user-sheets.md#업로드-원본-비보관-정책-2026-11-06-확정-s15p31e102-534)
 
 - [내 악보 음원 생성·보관 API](specs/sheet-audio.md) · [481 계획·검증](plans/S15P31E102-481.md) · [삭제·재시작 복구 근거](knowledge/backend/sheet-audio-recovery.md)
+- [내 악보 생성 음원의 실제 연주 위치 (675)](plans/S15P31E102-675.md)
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
+- [내 악보 연습에서 음원 받기 화면으로 이동 (690)](plans/S15P31E102-690.md)
 
 - [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)
 - [연습 악보 음 선택·운지·예시음 계획과 검증 (613)](plans/S15P31E102-613.md)
@@ -128,6 +134,7 @@
 - [연습 기록 저장·목록·녹음 재생·삭제 API (REC-01~04)](specs/practice-records.md) · [342 계획](plans/S15P31E102-342.md)
 - [내 악보 생성·조회·목록 API (SHT-01·03·08)](specs/user-sheets.md) · [390 계획](plans/S15P31E102-390.md)
 - [내 악보 음원 생성·재생 앱 흐름 (SHT-12·13 FE)](specs/sheet-audio-app-flow.md) · [484 계획](plans/S15P31E102-484.md)
+- [내 악보 미리듣기 진행 표시와 구간 탐색 (691)](plans/S15P31E102-691.md)
 - [악보 인식 서비스 계약 (SHT-07 내부, omr)](specs/score-recognition.md) · [변환 가능성 조사](knowledge/ai/score-omr-feasibility.md)
 - [저장한 기록의 녹음 보관과 미저장 녹음 30일 정리](specs/recording-retention.md) · [375 계획](plans/S15P31E102-375.md)
 - [기초부터 배우기 학습 단계·진도 API (LRN-01·02·03)](specs/learning-progress-apis.md) · [344 계획](plans/S15P31E102-344.md)
@@ -259,6 +266,7 @@
 - [정간보·오선보 이미지·PDF의 공통 악보 변환 가능성 조사](knowledge/ai/score-omr-feasibility.md)
 
 - [S15P31E102-471 내 악보 불러오기·원본 보관·변환 상태](plans/S15P31E102-471.md)
+- [내 악보 검수 화면의 악보 전체 알림 표시 (694)](plans/S15P31E102-694.md)
 
 - [S15P31E102-472 인식 작업자·결과 저장·재시도](plans/S15P31E102-472.md) · [시간 제한·사진 방향·재시도 근거](knowledge/backend/sheet-conversion-worker.md)
 

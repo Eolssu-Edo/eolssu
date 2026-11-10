@@ -33,6 +33,43 @@ assert request['instrument']=='danso'
                 self.assertEqual(bundle.read('audio.m4a'), b'fixed-m4a')
                 self.assertEqual(json.loads(bundle.read('result.json')), {'durationMs': 2250})
 
+    def test_http_only_includes_performance_when_requested(self):
+        script = """import json, pathlib, sys
+p = pathlib.Path(sys.argv[-1])
+request = json.loads((p/'request.json').read_text())
+(p/'audio.m4a').write_bytes(b'audio')
+(p/'score.mid').write_bytes(b'midi')
+(p/'result.json').write_text('{"durationMs":2250}')
+(p/'performance.common.json').write_text(json.dumps({'sourceSha256': request.get('performanceSourceSha256')}))
+"""
+        service = PlaybackService([sys.executable, '-c', script], timeout_seconds=10)
+        server = ThreadingHTTPServer(('127.0.0.1', 0), handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        source_hash = 'a' * 64
+        body = json.dumps({'score': {}, 'instrument': 'danso', 'bpm': 60, 'withJangdan': False})
+        try:
+            for requested in (False, True):
+                headers = {'Content-Type': 'application/json'}
+                if requested:
+                    headers['X-Eolssu-Performance-Source-Sha256'] = source_hash
+                with self.subTest(requested=requested):
+                    connection = http.client.HTTPConnection('127.0.0.1', server.server_port, timeout=3)
+                    try:
+                        connection.request('POST', '/v1/render', body, headers)
+                        response = connection.getresponse()
+                        self.assertEqual(response.status, 200)
+                        with zipfile.ZipFile(io.BytesIO(response.read())) as bundle:
+                            self.assertEqual('performance.common.json' in bundle.namelist(), requested)
+                            if requested:
+                                self.assertEqual(json.loads(bundle.read('performance.common.json')), {'sourceSha256': source_hash})
+                    finally:
+                        connection.close()
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
     def test_overlapping_estimates_wait_their_turn_instead_of_failing(self):
         with tempfile.TemporaryDirectory() as root:
             script = Path(root) / 'estimate.py'

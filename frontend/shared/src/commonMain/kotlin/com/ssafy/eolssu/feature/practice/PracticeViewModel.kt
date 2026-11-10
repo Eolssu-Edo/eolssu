@@ -144,9 +144,7 @@ class PracticeViewModel(
         val song = _uiState.value.song ?: return null
         val playback = modelAudio.state.value
         val audio = playback.audio ?: return null
-        val point = song.modelPointAt(audio, playback.mediaPositionMs.toDouble())
-        val event = song.timeline[point.position]
-        return requireNotNull(event.startTick) + requireNotNull(event.durationTick) * point.fraction
+        return song.modelJangdanTickAt(audio, playback.mediaPositionMs.toDouble())
     }
 
     private fun currentPlan(): JangdanPlan? {
@@ -188,15 +186,11 @@ class PracticeViewModel(
             if (now.mode != PracticeMode.Model || !now.playing || song == null || clock == null) null
             else {
                 val mediaMs = clock.anchor.positionNow()
-                val endMs = clock.audio.startOffsetMs + (clock.audio.performance?.durationMs ?: song.durationMs(clock.audio.bpm))
+                val endMs = clock.audio.startOffsetMs + song.modelScoreDurationMs(clock.audio)
                 when {
                     mediaMs < clock.audio.startOffsetMs -> -1.0
                     mediaMs >= endMs -> null
-                    else -> {
-                        val point = song.modelPointAt(clock.audio, mediaMs)
-                        val event = song.timeline[point.position]
-                        requireNotNull(event.startTick) + requireNotNull(event.durationTick) * point.fraction
-                    }
+                    else -> song.modelJangdanTickAt(clock.audio, mediaMs)
                 }
             }
         })

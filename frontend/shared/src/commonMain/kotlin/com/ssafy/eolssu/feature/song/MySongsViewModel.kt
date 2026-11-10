@@ -197,6 +197,14 @@ class MySongsViewModel(
 
     fun selectFilter(filter: SongLevelFilter) = _uiState.update { it.copy(filter = filter) }
 
+    /** 두 탭이 함께 쓰는 제목 검색어를 바꾼다. */
+    fun changeQuery(query: String) = _uiState.update { it.copy(query = query) }
+
+    fun clearQuery() = changeQuery("")
+
+    /** 제공 곡 빈 결과의 초기화: 검색어와 단계를 모두 처음으로 되돌린다. */
+    fun resetSongFilters() = _uiState.update { it.copy(query = "", filter = SongLevelFilter.All) }
+
     /** 제공 곡 이름 오름차순·내림차순을 바꾼다. */
     fun toggleSort() = _uiState.update { it.copy(sort = it.sort.toggled()) }
 
