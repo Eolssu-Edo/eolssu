@@ -61,14 +61,16 @@ class ContainerTelemetryTests(unittest.TestCase):
         mounts = [{'Type': 'bind', 'Source': '/', 'Destination': '/host', 'RW': False},
                   {'Type': 'bind', 'Source': '/var/lib/jenkins', 'Destination': '/var/lib/jenkins', 'RW': True}]
         value = container(name='eolssu-monitoring-node-exporter-1', mounts=mounts, io=[])
-        with patch.object(collector, 'run', side_effect=subprocess.TimeoutExpired([], 12)) as run:
+        with patch.object(collector, 'run', side_effect=subprocess.TimeoutExpired([], 12)) as run, \
+                patch.object(collector, 'jenkins_home_identity', return_value=[1, 2]):
             report = collect(value, 'edo1')
         self.assertEqual(run.call_count, 1)
         self.assertEqual(run.call_args.args[0][-1], '/var/lib/jenkins')
         self.assertIn('호스트 관측용', report['rows'][0][5])
         self.assertIn('경로당 12초 한도', report['rows'][0][5])
         value['detail']['Name'] = '/other'
-        with patch.object(collector, 'run', return_value=subprocess.CompletedProcess([], 1, '', 'denied')) as run:
+        with patch.object(collector, 'run', return_value=subprocess.CompletedProcess([], 1, '', 'denied')) as run, \
+                patch.object(collector, 'jenkins_home_identity', return_value=[1, 2]):
             report = collect(value, 'edo1')
         self.assertEqual(run.call_count, 2)
         self.assertIn('저장소 읽기 실패', report['rows'][0][5])

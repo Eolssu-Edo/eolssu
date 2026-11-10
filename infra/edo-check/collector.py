@@ -12,6 +12,7 @@ import socket
 import stat
 import subprocess
 import sys
+import tempfile
 import time
 
 MYSQL_PROXY = 'eolssu-replication-proxy-579'
@@ -67,6 +68,12 @@ EOLSSU_SYSLOG_TAGS = {'eolssu-frontend', 'eolssu-backend', 'eolssu-ai', 'eolssu-
 PROC_ROOT = Path('/proc')
 CGROUP_ROOT = Path('/sys/fs/cgroup')
 BLOG_EDITOR_ROLLBACK_NAME = re.compile(r'eolssu-blog-editor-writable-(?:before|rollback|pre)-[0-9a-f]{8}')
+STORAGE_SNAPSHOT_PATH = Path('/var/lib/edo-check-storage/edo1.json')
+STORAGE_MAX_AGE = timedelta(minutes=45)
+JENKINS_CONTROLLER = 'eolssu-jenkins-controller-1'
+JENKINS_HOME = '/var/lib/jenkins'
+DOCKER_DISK_CATEGORIES = ('ImageUsage', 'ContainerUsage', 'VolumeUsage', 'BuildCacheUsage')
+DOCKER_DISK_ERRORS = (OSError, http.client.HTTPException, RuntimeError, ValueError, TypeError, AttributeError)
 
 
 def resource_stats(stats):
@@ -86,16 +93,15 @@ def image_disk_bytes(data):
     return data.get('LayersSize')
 
 
-def disk_usage_summary(issues):
-    try:
-        storage = docker('/system/df', timeout=20)
-        if not isinstance(storage, dict):
-            raise ValueError('unexpected Docker storage response')
-    except (OSError, http.client.HTTPException, RuntimeError, ValueError):
-        issues.append('Docker 저장공간 수집 실패·시간 초과')
-        return '확인 불가', '확인 불가'
+def valid_storage_bytes(value):
+    return type(value) is int and 0 <= value <= 2**63 - 1
 
-    categories = ('ImageUsage', 'ContainerUsage', 'VolumeUsage', 'BuildCacheUsage')
+
+def docker_disk_bytes(timeout):
+    storage = docker('/system/df', timeout=timeout)
+    if not isinstance(storage, dict):
+        raise ValueError('unexpected Docker storage response')
+    categories = DOCKER_DISK_CATEGORIES
     if 'LayersSize' in storage and not any(category in storage for category in categories):
         # Before Engine API 1.52 the response did not include reclaimable summaries.
         def total(values):
@@ -112,14 +118,27 @@ def disk_usage_summary(issues):
         used = [summary.get('TotalSize', 0) if isinstance(summary, dict) else None for summary in summaries]
         reclaimable = [summary.get('Reclaimable', 0) if isinstance(summary, dict) else None for summary in summaries]
 
-    def valid_bytes(value):
-        return type(value) is int and value >= 0
+    return used, reclaimable
 
-    if not all(map(valid_bytes, used + reclaimable)):
+
+def disk_usage_summary(issues, *, target):
+    measured = fresh_storage_measurement('docker') if target == 'edo1' else None
+    if measured:
+        sample, captured = measured
+        used, reclaimable = sample['used'], sample['reclaimable']
+    else:
+        try:
+            used, reclaimable = docker_disk_bytes(timeout=40 if target == 'edo1' else 20)
+        except DOCKER_DISK_ERRORS:
+            issues.append('Docker 저장공간 수집 실패·시간 초과')
+            return '확인 불가', '확인 불가'
+    if not all(map(valid_storage_bytes, used + reclaimable)):
         issues.append('Docker 저장공간 일부 수집 실패')
-    used_text = ' / '.join(size(value) if valid_bytes(value) else '확인 불가' for value in used)
-    reclaimable_text = ' · '.join(f'{label} {size(value) if valid_bytes(value) else "확인 불가"}'
+    used_text = ' / '.join(size(value) if valid_storage_bytes(value) else '확인 불가' for value in used)
+    reclaimable_text = ' · '.join(f'{label} {size(value) if valid_storage_bytes(value) else "확인 불가"}'
                                   for label, value in zip(('이미지', '쓰기', '볼륨', '캐시'), reclaimable))
+    if measured:
+        reclaimable_text += ' · ' + measured_at(captured)
     return used_text, reclaimable_text
 
 
@@ -291,7 +310,7 @@ def server_report(target='edo1'):
         docker_state = docker_ram = disk = reclaimable = '확인 불가'
         issues.append('Docker 데몬·자원 수집 실패')
     else:
-        disk, reclaimable = disk_usage_summary(issues)
+        disk, reclaimable = disk_usage_summary(issues, target=target)
     operating_system = next((line.split('=', 1)[1].strip('"') for line in Path('/etc/os-release').read_text().splitlines() if line.startswith('PRETTY_NAME=')), 'Linux')
     row = [socket.gethostname() + ' / ' + operating_system + ' / ' + os.uname().release + ' / ' + duration(float(Path('/proc/uptime').read_text().split()[0])),
            f'{cpu_sample():.1f}% / {os.cpu_count()}코어 · Load ' + '/'.join(f'{x:.2f}' for x in os.getloadavg()),
@@ -305,7 +324,7 @@ def server_report(target='edo1'):
             '이미지/쓰기/볼륨/캐시', '회수 가능량(Docker)', '시스템 실패/OOM 24h'], [row], issues, facts
 
 
-def mounted_storage(mounts, volumes, measurements=None, *, name=None):
+def mounted_storage(mounts, volumes, measurements=None, *, name=None, target='edo1'):
     result = []
     for mount in mounts[:12]:
         if mount['Type'] == 'volume':
@@ -318,11 +337,17 @@ def mounted_storage(mounts, volumes, measurements=None, *, name=None):
                     and destination == '/host' and mount.get('RW') is False):
                 result.append('bind /host: 호스트 관측용 (서버 파일시스템 지표 참고)')
                 continue
-            if measurements is not None and path in measurements:
+            jenkins = (target == 'edo1' and name == JENKINS_CONTROLLER and path == destination == JENKINS_HOME)
+            measured = fresh_storage_measurement('jenkins') if jenkins else None
+            if measured:
+                sample, captured = measured
+                amount = size(sample['bytes']) + ' · ' + measured_at(captured)
+            elif measurements is not None and path in measurements:
                 amount = measurements[path]
             else:
-                remaining = measurements['deadline'] - time.monotonic() if measurements is not None else 12
-                amount = bind_usage(path, remaining)
+                path_limit = 30 if jenkins else 12
+                remaining = measurements['deadline'] - time.monotonic() if measurements is not None else path_limit
+                amount = bind_usage(path, remaining, path_limit=path_limit)
                 if measurements is not None:
                     measurements[path] = amount
             result.append('bind ' + destination + ': ' + amount)
@@ -333,21 +358,114 @@ def mounted_storage(mounts, volumes, measurements=None, *, name=None):
     return '; '.join(result) or '없음'
 
 
-def bind_usage(path, remaining):
+def allocated_bind_bytes(path, *, timeout):
+    identity = jenkins_home_identity() if path == JENKINS_HOME else None
+    measured = run(['nice', '-n', '10', 'du', '-sx', '--block-size=1', '--', path], timeout=timeout)
+    if measured.returncode != 0:
+        raise OSError('storage read failed')
+    if identity is not None and identity != jenkins_home_identity():
+        raise OSError('Jenkins home changed during collection')
+    amount = int(measured.stdout.split()[0])
+    if not valid_storage_bytes(amount):
+        raise ValueError('invalid storage size')
+    return amount
+
+
+def bind_usage(path, remaining, *, path_limit=12):
     if remaining <= 0:
-        return '확인 불가 (전체 25초 측정 예산 소진)'
+        return '확인 불가 (전체 bind 측정 예산 소진)'
     try:
-        measured = run(['nice', '-n', '10', 'du', '-sx', '--block-size=1', '--', path], timeout=min(12, remaining))
-        if measured.returncode != 0:
-            return '확인 불가 (저장소 읽기 실패)'
-        return size(int(measured.stdout.split()[0]))
+        return size(allocated_bind_bytes(path, timeout=min(path_limit, remaining)))
     except subprocess.TimeoutExpired:
-        reason = '경로당 12초 한도' if remaining >= 12 else '전체 25초 측정 예산 소진'
+        reason = f'경로당 {path_limit}초 한도' if remaining >= path_limit else '전체 bind 측정 예산 소진'
         return f'확인 불가 ({reason})'
     except OSError:
         return '확인 불가 (저장소 읽기 실패)'
     except (IndexError, ValueError):
         return '확인 불가 (측정값 해석 실패)'
+
+
+def read_storage_snapshot():
+    try:
+        with STORAGE_SNAPSHOT_PATH.open() as stream:
+            snapshot = json.loads(stream.read(4096))
+        return snapshot if isinstance(snapshot, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def jenkins_home_identity():
+    home = os.stat(JENKINS_HOME, follow_symlinks=False)
+    if not stat.S_ISDIR(home.st_mode):
+        raise OSError('Jenkins home is not a directory')
+    return [home.st_dev, home.st_ino]
+
+
+def complete_disk_measurement(used, reclaimable):
+    return all(isinstance(values, list) and len(values) == len(DOCKER_DISK_CATEGORIES)
+               and all(map(valid_storage_bytes, values)) for values in (used, reclaimable))
+
+
+def fresh_storage_measurement(kind):
+    sample = read_storage_snapshot().get(kind)
+    if not isinstance(sample, dict):
+        return None
+    try:
+        captured = datetime.fromisoformat(sample['captured_at'])
+        if captured.tzinfo is None or not timedelta(0) <= datetime.now(timezone.utc) - captured <= STORAGE_MAX_AGE:
+            return None
+        if kind == 'docker':
+            valid = complete_disk_measurement(sample['used'], sample['reclaimable'])
+        else:
+            valid = valid_storage_bytes(sample['bytes']) and sample['identity'] == jenkins_home_identity()
+    except (KeyError, OSError, TypeError, ValueError, OverflowError):
+        return None
+    return (sample, captured) if valid else None
+
+
+def measured_at(captured):
+    korean_time = captured.astimezone(timezone(timedelta(hours=9)))
+    return f'실측 `{korean_time:%Y-%m-%d %H:%M:%S KST}`'
+
+
+def write_storage_snapshot(snapshot):
+    # NamedTemporaryFile uses 0600. Replace from the same root-owned directory.
+    with tempfile.NamedTemporaryFile(mode='w', dir=STORAGE_SNAPSHOT_PATH.parent, delete=False) as stream:
+        temporary = Path(stream.name)
+        try:
+            json.dump(snapshot, stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+            temporary.replace(STORAGE_SNAPSHOT_PATH)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+
+def refresh_storage_snapshot():
+    snapshot = read_storage_snapshot()
+    failed = []
+    try:
+        used, reclaimable = docker_disk_bytes(timeout=120)
+        if not complete_disk_measurement(used, reclaimable):
+            raise ValueError('incomplete Docker storage response')
+    except DOCKER_DISK_ERRORS:
+        failed.append('Docker 저장공간')
+    else:
+        snapshot['docker'] = {'captured_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                              'used': used, 'reclaimable': reclaimable}
+        write_storage_snapshot(snapshot)
+    try:
+        identity = jenkins_home_identity()
+        amount = allocated_bind_bytes(JENKINS_HOME, timeout=90)
+        if identity != jenkins_home_identity():
+            raise OSError('Jenkins home changed during collection')
+    except (OSError, subprocess.TimeoutExpired, IndexError, ValueError):
+        failed.append('Jenkins 데이터 용량')
+    else:
+        snapshot['jenkins'] = {'captured_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                               'bytes': amount, 'identity': identity}
+        write_storage_snapshot(snapshot)
+    return failed
 
 
 def syslog_usage(tag):
@@ -635,11 +753,14 @@ def is_retained_blog_rollback(target, name, detail):
 
 
 def container_report(target='edo1'):
+    started = time.monotonic()
     info, containers, storage, issues = snapshot(True, target=target)
     volume_items = (storage.get('VolumeUsage') or {}).get('Items', storage.get('Volumes'))
     volumes = {v['Name']: v for v in volume_items or []}
     rows, facts, readiness_inputs = [], [], []
-    measurements = {'deadline': time.monotonic() + 25}
+    # Leave time for readiness checks before the existing 80-second SSH collector limit.
+    bind_deadline = min(time.monotonic() + 36, started + 61) if target == 'edo1' else time.monotonic() + 25
+    measurements = {'deadline': bind_deadline}
     for value in containers:
         item, detail, stats = value['item'], value['detail'], value['stats']
         name = detail.get('Name', (item.get('Names') or ['?'])[0]).lstrip('/')
@@ -684,7 +805,7 @@ def container_report(target='edo1'):
         if retained:
             cpu = ram = net = block = '해당 없음'
         pids = '해당 없음' if retained else str(stats.get('pids_stats', {}).get('current', '확인 불가'))
-        mounted = mounted_storage(detail.get('Mounts', []), volumes, measurements, name=name)
+        mounted = mounted_storage(detail.get('Mounts', []), volumes, measurements, name=name, target=target)
         if '확인 불가' in mounted:
             issues.append(name + ' 데이터 용량 미측정')
         fact = {'name': name, 'running': state.get('Running'), 'health': health,
@@ -1041,6 +1162,13 @@ def main(mode, target='edo1'):
 
 
 if __name__ == '__main__':
+    if sys.argv[1:] == ['storage-snapshot', 'edo1']:
+        failed = refresh_storage_snapshot()
+        if failed:
+            print('저장공간 실측 갱신 실패 · ' + ', '.join(failed), file=sys.stderr)
+            if not all(fresh_storage_measurement(kind) for kind in ('docker', 'jenkins')):
+                raise SystemExit(1)
+        raise SystemExit(0)
     if len(sys.argv) not in (2, 3):
         raise SystemExit('one fixed mode required')
     print(json.dumps(main(sys.argv[1], sys.argv[2] if len(sys.argv) == 3 else 'edo1'), ensure_ascii=False))
