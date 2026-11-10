@@ -125,7 +125,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         val reply = CompletableDeferred<SheetWrite>()
         val writes = mutableListOf<SheetWorkingCopy>()
         val repository = object : SheetDocumentRepository {
-            override suspend fun get(sheetId: String) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), null, "EVALUABLE", null, emptyList())
+            override suspend fun get(sheetId: String) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), null, "NEEDS_REVIEW", "DONE", listOf(kotlinx.serialization.json.Json.parseToJsonElement("""{"issueId":"i1","cellId":"c0-j1","type":"OUT_OF_RANGE"}""") as kotlinx.serialization.json.JsonObject))
             override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
                 writes += copy
                 assertFalse(draft)
@@ -137,6 +137,11 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         runCurrent()
         assertEquals("실제 악보", model.uiState.value.draft.title)
         assertEquals(listOf(2, 1), model.uiState.value.draft.sizes)
+        assertEquals(1, model.uiState.value.pendingChecks)
+        model.openNextReviewCell()
+        assertEquals(1, model.uiState.value.selected)
+        model.checkReviewIssue()
+        assertEquals(setOf("i1"), model.uiState.value.checkedIssueIds)
         model.selectView(EditView.Staff)
         assertEquals(EditView.Jeongganbo, model.uiState.value.view, "서버 악보의 오선보 확장은 사용자 결정으로 분리했다")
         model.selectCell(2)
@@ -150,6 +155,8 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertEquals(SheetEditMessage.Saved, model.uiState.value.message)
         assertFalse(model.uiState.value.saving)
         assertEquals("1", writes.single().baseScoreVersion)
+        assertEquals(listOf("i1"), writes.single().resolvedIssueIds)
+        assertTrue(model.uiState.value.reviewIssues.isEmpty())
         assertEquals("태", writes.single().score.events.last().yul)
     }
 }

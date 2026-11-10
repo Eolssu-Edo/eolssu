@@ -23,6 +23,7 @@ import eolssu.shared.generated.resources.sheet_close_unsaved
 import eolssu.shared.generated.resources.sheet_close_message
 import eolssu.shared.generated.resources.sheet_discard_close
 import eolssu.shared.generated.resources.sheet_keep_editing
+import eolssu.shared.generated.resources.sheet_review_before_reshape
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -49,6 +50,7 @@ fun SheetEditRoute(
         SheetEditMessage.SaveConflict to stringResource(Res.string.sheet_save_conflict),
         SheetEditMessage.SaveTooLarge to stringResource(Res.string.sheet_save_too_large),
         SheetEditMessage.ComingSoon to stringResource(Res.string.common_coming_soon),
+        SheetEditMessage.ReviewBeforeReshape to stringResource(Res.string.sheet_review_before_reshape),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),
@@ -67,6 +69,8 @@ fun SheetEditRoute(
             onClose = { viewModel.closeEditor(onClose) },
             onPreview = onPreview,
             onOpenChecks = onOpenChecks,
+            onOpenReviewCell = viewModel::openNextReviewCell,
+            onCheckReviewIssue = viewModel::checkReviewIssue,
             onSelectView = viewModel::selectView,
             onSelectCell = viewModel::selectCell,
             onSelectUnit = viewModel::selectUnit,
