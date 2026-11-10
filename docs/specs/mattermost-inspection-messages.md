@@ -10,4 +10,4 @@
 
 ## edo1 블로그 편집기 롤백 보관본
 
-`/edo1-health`에서 `eolssu-blog-editor-writable-(before|rollback|pre)-<8자리 소문자 16진수>` 형식의 보관본은 Docker inspect가 정상 종료를 확인한 경우 서비스 검사에서 제외한다. 종료 상태는 `exited`이고 실행·OOM·Docker 오류가 없어야 하며 종료 코드는 0이어야 한다. 조회 실패·비정상 종료는 기존 판정을 따른다. 운영 이름 `eolssu-blog-editor-writable`과 edo2는 이 조건에 해당하지 않는다. `/edo1-containers`에서는 보관본도 인벤토리에 포함된다.
+`/edo1-health`에서 `eolssu-blog-editor-writable-(before|rollback|pre)-<8자리 소문자 16진수>` 형식의 보관본은 Docker inspect가 정상 종료를 확인한 경우 서비스 검사에서 제외한다. 종료 상태는 `exited`이고 실행·OOM·Docker 오류가 없어야 하며 종료 코드는 0이어야 한다. 조회 실패·비정상 종료는 기존 판정을 따른다. 운영 이름 `eolssu-blog-editor-writable`과 edo2는 이 조건에 해당하지 않는다. `/edo1-containers`에서는 보관본도 인벤토리에 포함한다. 정상 종료가 확인된 보관본의 상태는 `롤백 보관 · 중지`, 실행 통계는 `해당 없음`으로 표시한다. 저장공간은 계속 수집한다.

@@ -377,6 +377,8 @@ def build_report(result, request_id):
             fact = facts.get(name, {})
             if '확인 불가' in state:
                 status = '미측정'
+            elif target == 'edo1' and state.startswith('exited/') and fact.get('rollback_retained') is True:
+                status = '롤백 보관 · 중지'
             elif not state.startswith('running/') or 'unhealthy' in state:
                 status = '장애'
             else:
@@ -428,7 +430,7 @@ def build_report(result, request_id):
             display_name = friendly(name)
             runtime_name = name if display_name == name else f'{display_name} ({name})'
             runtime_rows.append([runtime_name, row[6], row[7], row[8], row[9], row[10]])
-            if status != '미측정' and (fact.get('ram_bytes') is None or fact.get('cpu_percent') is None):
+            if status not in ('미측정', '롤백 보관 · 중지') and (fact.get('ram_bytes') is None or fact.get('cpu_percent') is None):
                 findings.append(['미측정', friendly(name) + ' CPU 또는 RAM', '다시 점검; 실행 상태와 통계 수집은 별개'])
         tables.extend([
             ('컨테이너 현재 자원', ['서비스', '상태', 'CPU / 상한', 'RAM / 상한', '쓰기 · 로그'], resource_rows),

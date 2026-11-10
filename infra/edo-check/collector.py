@@ -440,6 +440,15 @@ def block_io_usage(stats, detail):
     return f'{size(read)}/{size(written)}'
 
 
+def is_retained_blog_rollback(target, name, detail):
+    state = detail.get('State', {})
+    return (target == 'edo1' and BLOG_EDITOR_ROLLBACK_NAME.fullmatch(name) is not None
+            and detail.get('Name') == '/' + name
+            and state.get('Status') == 'exited' and state.get('Running') is False
+            and state.get('ExitCode') == 0 and state.get('OOMKilled') is False
+            and state.get('Error') == '')
+
+
 def container_report(target='edo1'):
     info, containers, storage, issues = snapshot(True, target=target)
     volume_items = (storage.get('VolumeUsage') or {}).get('Items', storage.get('Volumes'))
@@ -454,7 +463,8 @@ def container_report(target='edo1'):
             continue
         state, host, config = detail['State'], detail['HostConfig'], detail['Config']
         health = state.get('Health', {}).get('Status', '미설정')
-        if health == 'unhealthy' or not state.get('Running') or state.get('OOMKilled'):
+        retained = is_retained_blog_rollback(target, (item.get('Names') or ['?'])[0].lstrip('/'), detail)
+        if not retained and (health == 'unhealthy' or not state.get('Running') or state.get('OOMKilled')):
             issues.append(name + ': ' + state['Status'] + '/' + health)
         metrics = resource_stats(stats)
         limit = host.get('Memory', 0)
@@ -485,6 +495,9 @@ def container_report(target='edo1'):
         cpu = f'{metrics["cpu"]:.1f}%' if metrics['cpu_available'] else '확인 불가'
         ram = size(metrics['memory']) if metrics['memory_available'] else '확인 불가'
         disk_limit = (host.get('StorageOpt') or {}).get('size', '미설정(호스트 공유)')
+        if retained:
+            cpu = ram = net = block = '해당 없음'
+        pids = '해당 없음' if retained else str(stats.get('pids_stats', {}).get('current', '확인 불가'))
         mounted = mounted_storage(detail.get('Mounts', []), volumes, measurements, name=name)
         if '확인 불가' in mounted:
             issues.append(name + ' 데이터 용량 미측정')
@@ -493,12 +506,12 @@ def container_report(target='edo1'):
                       'ram_bytes': metrics['memory'] if metrics['memory_available'] else None,
                       'ram_limit': limit, 'host_ram': info.get('MemTotal'), 'cpu_limit': cpus,
                       'cpu_percent': metrics['cpu'] if metrics['cpu_available'] else None,
-                      'log': log, 'mounts': mounted, 'readiness': readiness})
+                      'log': log, 'mounts': mounted, 'readiness': readiness, 'rollback_retained': retained})
         rows.append([name, state['Status'] + '/' + health, f'{cpu}/{cpu_limit}',
                      f'{ram}/{size(limit) if limit else "미설정"} · {percent}',
                      size(item.get('SizeRw')) + '/' + disk_limit + ' · 로그 ' + log, mounted,
                      uptime + f'/{detail.get("RestartCount", 0)}회', f'{state.get("ExitCode", "?")}/{"예" if state.get("OOMKilled") else "아니오"}',
-                     str(stats.get('pids_stats', {}).get('current', '확인 불가')) + '/' + ports,
+                     pids + '/' + ports,
                      net + ' · IO ' + block, config.get('Image', '?')])
     return ['컨테이너', '실행/Health', 'CPU 사용/제한', 'RAM 사용/제한·비율', '쓰기 사용/제한·로그(회전 포함)',
             '데이터 저장소/사용량', '가동/재시작', '종료 코드/OOM', 'PID/공개 포트', 'NET 수신/송신·IO 읽기/쓰기(누적)', '이미지'], rows, issues, facts
@@ -694,11 +707,7 @@ def health_report(target='edo1'):
         item, detail = value['item'], value['detail']
         state = detail.get('State', {})
         name = (item.get('Names') or ['?'])[0].lstrip('/')
-        if (target == 'edo1' and BLOG_EDITOR_ROLLBACK_NAME.fullmatch(name)
-                and detail.get('Name') == '/' + name
-                and state.get('Status') == 'exited' and state.get('Running') is False
-                and state.get('ExitCode') == 0 and state.get('OOMKilled') is False
-                and state.get('Error') == ''):
+        if not value.get('unavailable') and is_retained_blog_rollback(target, name, detail):
             continue
         health = state.get('Health', {}).get('Status')
         observed_state = state.get('Status', item['State'])

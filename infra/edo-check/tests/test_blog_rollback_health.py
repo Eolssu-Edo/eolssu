@@ -9,11 +9,14 @@ EDITOR = 'eolssu-blog-editor-writable'
 
 def exited_container(name, **state_overrides):
     return {
-        'item': {'Names': ['/' + name], 'State': 'exited'},
+        'item': {'Names': ['/' + name], 'State': 'exited', 'SizeRw': 4096},
+        'stats': {},
         'detail': {
             'Name': '/' + name,
+            'HostConfig': {'Memory': 64 * 1024 * 1024, 'LogConfig': {'Type': 'none'}},
+            'Config': {'Image': 'editor'},
             'State': {'Status': 'exited', 'Running': False, 'ExitCode': 0,
-                      'OOMKilled': False, 'Error': '', **state_overrides},
+                      'OOMKilled': False, 'Error': '', 'StartedAt': '2026-11-10T00:00:00Z', **state_overrides},
         },
     }
 
@@ -62,3 +65,21 @@ class BlogRollbackHealthTests(unittest.TestCase):
             with self.subTest(target=target, name=name, detail=container['detail']):
                 _, rows, _, _ = self.health_report([container], target)
                 self.assertEqual(next(row for row in rows if row[0] == name)[2], expected)
+
+    def test_container_inventory_keeps_backups_without_alerting_on_expected_stops(self):
+        backups = [f'{EDITOR}-{suffix}' for suffix in
+                   ('before-504fa817', 'rollback-a542ceaf', 'rollback-b134848e', 'pre-317108c7')]
+        abnormal = EDITOR + '-rollback-deadbeef'
+        containers = [exited_container(name) for name in [*backups, EDITOR]]
+        containers.append(exited_container(abnormal, ExitCode=1))
+        with patch.object(collector, 'snapshot', return_value=({}, containers, {}, [])):
+            result = collector.main('containers', 'edo1')
+        report = relay.build_report(result, 'fixture').replace('\u200b', '')
+        self.assertIn('**장애 2**', report)
+        for name in backups:
+            self.assertIn(f'| {name} | 롤백 보관 · 중지 | 해당 없음', report)
+            self.assertNotIn(name + ' CPU 또는 RAM', report)
+            self.assertNotIn(name + ' 누적', report)
+        for name in (EDITOR, abnormal):
+            self.assertIn(name + ': exited/미설정', report)
+        self.assertIn('쓰기 4.0KiB', report)
