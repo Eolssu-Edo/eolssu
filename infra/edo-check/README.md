@@ -1,17 +1,13 @@
 # Mattermost edo1·edo2 점검 중계
 
-관련 작업은 edo1 [S15P31E102-95](../../docs/plans/S15P31E102-95.md), edo2 확장 [S15P31E102-133](../../docs/plans/S15P31E102-133.md)이다. 명령 등록·접근 제한·실제 배포 증거는 해당 기록을 따른다.
+Mattermost의 Team 이도 (CI/CD,서버점검) 채널에서 대상 호스트의 명령을 실행한다. [통합 작업](../../docs/plans/S15P31E102-701.md) · [edo1 최초 구성](../../docs/plans/S15P31E102-95.md) · [edo2 최초 구성](../../docs/plans/S15P31E102-133.md)
 
 | 명령 | 실행 경로·결과 |
 | --- | --- |
-| `/edo1-server` | edo2 → 전용 SSH → edo1 서버·Docker 전체 현황 표 |
-| `/edo1-containers` | edo2 → 전용 SSH → edo1 컨테이너별 자원·상태·저장공간 표 |
-| `/edo1-health` | edo1 내부 health와 edo2의 외부 HTTPS·인증서 검사 표 |
-| `/edo2-server` | edo2 → 전용 loopback SSH → edo2 서버·Docker 전체 현황 |
-| `/edo2-containers` | edo2 컨테이너별 자원·상태·저장량, 등록 0개는 해당 없음 |
-| `/edo2-health` | edo2 서비스·타이머·oneshot·중계 내부 HTTP·자체 HTTPS·IP 인증서 |
+| `/edo1` | 전용 SSH로 edo1의 서비스·서버·컨테이너를 수집하고 edo2에서 공개 HTTPS·인증서를 검사 |
+| `/edo2` | 전용 loopback SSH로 edo2의 서비스·서버·컨테이너를 수집하고 자체 HTTPS·IP 인증서를 검사 |
 
-여섯 명령의 Mattermost Request URL은 `https://15.165.144.7/integrations/mattermost/commands`, 메서드는 POST다. Team 이도 (CI/CD,서버점검), 채널 ID `7pqaof6zkt8rdbqbdjjsfpfscw`만 허용한다. 명령마다 서로 다른 토큰을 사용하며 command/token에서 서버와 모드를 결정한다. form의 target·mode 덮어쓰기와 명령 인자는 거부한다. 다른 채널과 잘못된 요청에는 실행자에게만 거부 안내를 반환한다. 성공·수집 실패·시간 초과 보고는 요청의 `response_url`에 `in_channel`로 전송해 같은 채널 전체에 표시한다.
+두 명령의 Mattermost Request URL은 `https://15.165.144.7/integrations/mattermost/commands`, 메서드는 POST다. 채널 ID `7pqaof6zkt8rdbqbdjjsfpfscw`에서만 허용한다. 명령마다 다른 토큰으로 대상을 결정한다. form의 target·mode 덮어쓰기와 명령 인자는 거부한다. 접수와 거부 안내는 실행자에게 보인다. 점검 결과는 요청의 `response_url`에 `in_channel`로 전송해 같은 채널에 게시한다.
 
 ## QA 앱 로그 수집
 
@@ -57,21 +53,23 @@ ORDER BY e.seq;
 
 ## 요청 처리와 제한
 
-명령별 토큰을 상수 시간 비교하고 채널을 확인한 후 작업을 접수한다. 요청은 8KiB 이하, 중복 form 필드는 거부한다. 동일 `response_url` 요청은 30분간 중복 실행하지 않고, 같은 채널·같은 서버·같은 모드는 10초 간격으로 제한한다. 동시 수집은 두 서버 합계 최대 3개다. 이 상태는 단일 중계 프로세스 메모리에 있어 재시작하면 초기화된다. 별도 큐나 완료 이력 저장소는 두지 않는다.
+명령별 토큰을 상수 시간 비교하고 채널을 확인한 후 작업을 접수한다. 요청은 8KiB 이하, 중복 form 필드는 거부한다. 동일 `response_url` 요청은 30분간 중복 실행하지 않고, 같은 채널·같은 서버는 10초 간격으로 제한한다. 호스트 하나의 점검이 진행 중이면 같은 호스트의 중복 실행을 거부한다. 점검 작업은 전용 작업자 풀을 최대 세 개 사용하며 `/applog`는 별도 작업자 풀에서 처리한다. 접수 상태는 중계 프로세스 메모리에 있으며 재시작하면 초기화된다.
 
-응답 URL은 고정 Mattermost HTTPS 호스트·443과 `/hooks/commands/<26자리 ID>`만 허용한다. 쿼리·userinfo·다른 경로와 redirect를 허용하지 않는다. DNS의 모든 주소가 공인 주소인지 확인하고 검증한 주소에 연결하면서 TLS 호스트 검증을 유지한다. 콜백 실패는 요청 ID·모드만 journal에 기록하며, 응답 유실 뒤 중복 게시를 피하기 위해 자동 재전송하지 않는다. 콜백 URL·토큰·개인 키는 로그에 남기지 않는다.
+요청 하나에서 `health`, `server`, `containers`를 같은 호스트에 순차 실행한다. 각 수집기의 80초와 SSH의 90초 상한은 고정 명령마다 적용한다. 한 모드의 수집 실패나 시간 초과는 해당 영역의 미측정으로 기록한다. 다른 영역의 결과는 같은 요청 ID로 함께 게시한다.
+
+응답 URL은 고정 Mattermost HTTPS 호스트·443과 `/hooks/commands/<26자리 ID>`만 허용한다. 쿼리·userinfo·다른 경로와 redirect를 허용하지 않는다. DNS의 모든 주소가 공인 주소인지 확인하고 검증한 주소에 연결하면서 TLS 호스트 검증을 유지한다. 보고서가 여러 게시물로 나뉘면 한 번의 콜백에 `extra_responses`로 함께 전송한다. Mattermost는 게시물을 순서대로 저장하므로 응답 실패 시 일부 게시물이 남을 수 있다. 중계는 실패를 요청 ID와 함께 journal에 기록한다. 중복 게시를 피하도록 자동 재전송은 꺼져 있다. 콜백 URL·토큰·개인 키는 로그에 남기지 않는다. [Mattermost 지연·복수 응답](https://docs.mattermost.com/developers/integrate/slash-commands/custom#delayed-and-multiple-responses)
 
 ## 지표 해석
 
-보고서는 **호스트·점검 종류 → 판정과 건수 → 수집 완료 시각·소요 시간·요청 ID → 상세 표** 순서로 읽는다. `장애`는 중지·unhealthy·명시적인 실패 응답, `주의`는 용량·메모리 임계값, `미검증`은 실행만 확인되고 준비 상태 검사가 없는 경우, `미측정`은 값을 읽지 못한 경우다. 상한이 없는 메모리는 참고로 표시하며 장애 건수에 넣지 않는다. 수집 시각은 외부 HTTP·TLS 검사까지 끝난 시점이다. 명령을 실행할 때마다 새로 수집한다.
+첫 게시물에서 호스트, 수집 완료 시각·소요 시간·요청 ID와 영역별 판정 건수를 확인한다. `장애`는 중지·unhealthy·명시적인 실패 응답, `주의`는 용량·메모리 임계값, `미검증`은 실행만 확인되고 준비 상태 검사가 없는 경우, `미측정`은 값을 읽지 못한 경우다. 상한이 없는 메모리는 참고로 표시한다. 명령을 실행할 때마다 새로 수집한다.
 
-| 명령 | 먼저 볼 곳 | 의미 |
+| 표 묶음 | 먼저 볼 곳 | 의미 |
 | --- | --- | --- |
-| `/edo1-server` | RAM 가용량·파일시스템 공간과 inode, 시스템 실패·OOM | 서버 자원 압박과 시스템 오류 확인. Docker 데몬 응답과 서비스 준비 상태는 별도다. |
-| `/edo1-containers` | 실행 상태·CPU·RAM·쓰기 계층·로그 | CPU 100%는 1코어. 메모리 상한이 있으면 상한 대비 비율, 없으면 호스트 RAM 대비 비율을 표시한다. |
-| `/edo1-health` | 장애·미검증 항목의 근거와 다음 조치 | healthcheck 없음은 장애 확정이 아니다. Grafana·n8n은 별도 HTTP 준비 응답으로, Prometheus는 준비 HTTP와 실제 수집 대상 상태도 확인한다. |
+| 상태 | 서비스 · 호스트 · 백업 | 서비스 판정과 근거, 시스템 데몬과 보안 설정, 백업 최신성과 복구 검증을 각각 확인한다. |
+| 서버 | 자원 · 저장공간 | CPU·RAM·시스템 실패·OOM과 파일시스템·inode·Docker 저장공간을 확인한다. |
+| 컨테이너 | 상태 · 자원 · 데이터 저장공간 · 실행·포트 · 통신량·이미지 | 준비 검사와 CPU·RAM·쓰기 계층·로그를 각 표에서 확인한다. 원래 이름은 실행 상세에서 확인한다. |
 
-edo1 상태는 API 라우팅 슬롯과 해당 컨테이너 상태를 한 줄로 표시한다. 컨테이너 점검은 수집·실행 개수와 CPU·RAM 상위 대상을 한 줄로 표시한다. 각 검사 근거와 서버 자원 수치는 표에 있다. 장애·주의·미측정·미검증 순서로 먼저 확인할 항목을 다섯 건까지 표시한다. 나머지 항목은 상세 또는 추가 확인 표에서 찾을 수 있다. [메시지 스펙](../../docs/specs/mattermost-inspection-messages.md) · [작업 기록](../../docs/plans/S15P31E102-676.md)
+edo1 상태는 API 라우팅 슬롯과 해당 컨테이너 상태를 한 줄로 표시한다. 컨테이너 점검은 수집·실행 개수와 CPU·RAM 상위 대상을 한 줄로 표시한다. 장애·주의·미측정·미검증 순서로 먼저 확인할 항목을 다섯 건까지 표시한다. 게시물은 최대 14,000자, 요청 하나에 최대 다섯 건이다. 후속 게시물은 첫 게시물과 같은 요청 ID를 사용한다. [메시지 스펙](../../docs/specs/mattermost-inspection-messages.md)
 
 표 본문의 값 전체를 굵게 하지 않고 제목·구분·상태 판정을 강조한다. 상태는 ✅ 정상·검사 통과, ❌ 장애, ⚠️ 주의, ❓ 미검증, 🚫 미측정, ℹ️ 설정 참고로 구분하며 텍스트를 함께 표시한다. 접수 중은 ⏳, 수집 실패도 🚫로 표시해 서비스 장애와 구분한다. 단순 실행 중·검사 시작 중·과거 healthy에는 체크를 붙이지 않는다. 상단 건수는 0보다 큰 항목만 이모지와 굵은 글씨로 강조한다. 좁은 상태 열에서 한글이 한 글자씩 갈라지지 않도록 상태 단어에 word joiner, 아이콘 뒤에 줄바꿈 없는 공백을 사용한다. 컨테이너 이름은 웹·API·배포 등 역할로 표시하고 실행 상세에 원래 식별자를 보존한다. 로그·볼륨·bind·쓰기 계층을 구분하고 저장소마다 한 행을 사용한다. 누락은 0으로 치환하지 않으며 같은 원인을 중복 집계하지 않는다.
 
@@ -86,7 +84,7 @@ edo1 상태는 API 라우팅 슬롯과 해당 컨테이너 상태를 한 줄로 
 
 edo1 상태 점검은 이전 배포용 블로그 편집기 보관본 중 Docker inspect가 정상 종료를 확인한 항목을 서비스 검사에서 제외한다. 컨테이너 인벤토리에서는 계속 확인할 수 있다. [판정 조건과 재현 기록](../../docs/plans/S15P31E102-662.md)
 
-서버별 세 명령은 수시 인프라 점검이다. 장기 요청량·오류율·p95/p99 지연·I/O 지연, 실제 사용자 업무 기능은 실행하지 않는다. 백업 복구는 마지막 검증 결과 파일만 읽으며 이 점검에서 복구를 실행하지 않는다. 자원과 기본 응답이 정상이어도 이를 전체 서비스 정상으로 확대 해석하지 않는다. 상시 지표와 업무 기능 검증의 추가 여부는 별도 요구 범위로 정한다.
+서버별 통합 명령은 수시 인프라 점검이다. 장기 요청량·오류율·p95/p99 지연·I/O 지연, 실제 사용자 업무 기능은 실행하지 않는다. 백업 복구는 마지막 검증 결과 파일만 읽으며 이 점검에서 복구를 실행하지 않는다. 자원과 기본 응답이 정상이어도 이를 전체 서비스 정상으로 확대 해석하지 않는다. 상시 지표와 업무 기능 검증의 추가 여부는 별도 요구 범위로 정한다.
 
 ### edo2의 기대 구성
 
@@ -102,12 +100,13 @@ edo2 대기 웹에 Docker 준비 검사가 미설정이면 대기 웹의 고정 
 
 edo2 HTTPS는 자기 공인 IP의 `/healthz`와 JSON `status=ok`를 확인하는 **자체 관측**이다. 실제 Mattermost 입력·공개 callback 성공은 별도 검증한다. IP 인증서는 수명 160시간이므로 만료 24시간 미만을 주의 기준으로 사용하고 갱신 timer를 함께 확인한다. 일반 서비스 인증서의 7일 기준과 구분한다.
 
-### 확장 배포·복구
+## 통합 명령 전환과 복구
 
-코드·설정·unit을 root 전용으로 함께 백업한다. 기존 edo1 토큰 3개·채널 제한을 보존하고 새 edo2 토큰 3개와 targets를 비공개 설정에 추가한다. `validate_config`로 명령 그룹 완전성·토큰 중복·필수 SSH 설정을 검증하고, sudoers는 visudo·dispatch는 sh 문법·unit은 systemd-analyze로 검증한다. 중계를 멈춘 짧은 구간에 후보 파일들을 교체하고 한 번 재시작한다. 실패하면 같은 백업의 코드·설정·unit을 함께 복구한다. 앱·Docker·백업 작업·방화벽은 재시작하거나 변경하지 않는다.
+1. 진행 중인 요청이 끝나면 edo2의 중계 코드와 비공개 설정을 root 전용으로 백업한다. Mattermost의 기존 점검 명령별 트리거·제목·자동 완성 설정을 확인한다.
+2. Mattermost 통합 관리에서 기존 `edo1-health`, `edo2-health`를 각각 `edo1`, `edo2`로 수정한다. 수정하면 각 명령의 토큰이 유지된다. edo2의 `/etc/edo-check/relay.json`에서는 해당 두 토큰의 키만 `/edo1`, `/edo2`로 옮긴다. 채널·호스트 설정과 `/applog` 설정을 보존하고 `validate_config`로 후보를 검증한다. 중계를 재기동한 뒤 `/healthz`와 두 명령의 공개 게시를 확인한다. [Mattermost 명령 수정 구현](https://github.com/mattermost/mattermost/blob/v11.7.2/server/channels/app/command.go#L703-L733)
+3. 두 명령이 정상이라면 나머지 네 점검 명령은 트리거를 보관용 이름으로 바꾸고 자동 완성을 해제한다. 중계 설정에서도 네 명령의 키를 제거한다. 새 트리거 두 개가 자동 완성되고 이전 트리거는 실행되지 않는지 확인한다.
 
-기존 edo1 3개 토큰/전역 SSH 설정의 기동 호환을 지원한다. 새 형식에서 설정되지 않은 edo2를 edo1로 대체하지 않으며, 서버별 토큰은 세 명령 한 묶음으로 설정한다. 토큰 값은 채팅·로그·저장소에 남기지 않는다.
-- 표는 의미가 같은 정보끼리 묶는다. 서버는 항목·현재값·기준/조치 3열, 컨테이너는 자원 5열·저장공간 3열·실행 상세 5열, health는 대상·판정·근거/소요·조치 4열이다. health의 조치는 같은 행에 한 번만 표시하며 수집 전체의 별도 문제가 있을 때만 앞에 요약 표를 추가한다. 표 셀에 HTML 개행을 넣지 않는다. 상단 수집 시각은 인라인 코드로 감싸 콜론 사이 숫자가 이모지로 해석되지 않게 한다. 표마다 최대 100행, 전체 약 14,000자 제한을 넘으면 생략을 명시한다. 점검 명령 자체는 애플리케이션·DB·Docker 구성을 변경하지 않는다.
+복구할 때는 Mattermost의 트리거·제목·자동 완성 설정과 동일 배포에서 백업한 중계 코드·비공개 설정을 함께 복원한다. 재기동 후 `/healthz`와 복원한 명령을 확인한다.
 
 ## 확인과 갱신
 
@@ -124,7 +123,7 @@ ssh edo2 'sudo -n nginx -t'
 curl --fail --max-time 10 https://15.165.144.7/healthz
 ```
 
-테스트는 loopback 임시 포트만 사용한다. 소켓 생성이 차단된 샌드박스에서는 해당 실행 권한이 필요하다. 실제 Mattermost 흐름은 CI/CD 채널에서 양 서버 여섯 명령을 각각 실행하고 대상 서버와 수집 시각이 맞는 공개 메시지가 남는지 확인한다. 토큰 검증·다른 채널 거부·잘못된 callback·중복 요청과 양 서버의 전용 점검 SSH에서 `id`·`health; id`·빈 명령·추가 인자·SFTP·포워딩 거부도 확인한다. 실제 운영 컨테이너를 중단해 장애를 만들지 않는다.
+테스트는 loopback 임시 포트만 사용한다. 소켓 생성이 차단된 샌드박스에서는 해당 실행 권한이 필요하다. CI/CD 채널에서 `/edo1`과 `/edo2`를 실행하고 대상·시각·요청 ID, 영역별 판정, 주제별 표, 후속 게시물의 연결을 확인한다. 토큰·채널·콜백·중복 요청과 부분 수집 실패는 자동 회귀로 확인한다. 전용 점검 SSH에서 `id`·`health; id`·빈 명령·추가 인자·SFTP·포워딩 거부도 확인한다.
 
 Let’s Encrypt IPv4 인증서는 `shortlived` 프로필이며 `/etc/letsencrypt/live/edo2-static-ip/`에 있다. 갱신은 `snap.certbot.renew.timer`가 수행한다. 갱신 후 deploy hook이 `nginx -t` 통과 뒤 Nginx를 reload한다. 아래 모의 검사는 클라이언트의 무작위 갱신 대기 시간이 포함될 수 있다.
 
@@ -143,10 +142,10 @@ sudoers 후보를 `visudo -cf`, Nginx 후보를 `nginx -t`, unit을 `systemd-ana
 
 실패하면 백업한 같은 Task의 파일을 복구하고 같은 검사·재시작·reload를 수행한다. 초기 배포 전 Nginx 원본은 edo2의 `/var/backups/edo2-ufw/nginx.default.before-check`, HTTP 전용 설정은 `nginx.http.before-tls`다. HTTPS를 제거하는 초기 복구에서는 먼저 중계를 중지해 명령 수신을 차단한다. UFW를 꺼서 우회하지 않는다. 임의 sudo 실행은 [sudoers](edo-check.sudoers)로 거부되며, 필요 시 해당 전용 키를 회수해 점검 접근만 중단할 수 있다.
 
-## 최신 운영 구성 점검 (S15P31E102-271)
+## 서비스 준비와 백업 점검
 
-edo1 필수 컨테이너는 runtime frontend·라우팅 설정이 가리키는 backend 슬롯·mysql·ai 및 monitoring grafana·prometheus·node-exporter다. AI Docker healthy는 현재 TCP 연결 검사 통과만 의미하므로 health 보고에서는 분석 HTTP 준비·추론 기능을 `미검증`으로 명시한다. Prometheus는 127.0.0.1:3001 `/-/ready`와 `/api/v1/targets`를 확인하며 node·eolssu-backend job의 up 및 마지막 수집 90초 이내를 검사한다. node 수집이 정상인 경우 중복된 node-exporter healthcheck 미설정 행을 생략한다. edo1 Docker·SSH·Certbot timer와 종류별 백업 timer·oneshot도 검사한다.
+edo1 필수 컨테이너는 runtime frontend·라우팅 설정이 가리키는 backend 슬롯·mysql·ai 및 monitoring grafana·prometheus·node-exporter다. AI는 입력 검증 HTTP 응답이 기대와 일치하면 `통신 정상`으로 표시한다. Prometheus는 127.0.0.1:3001 `/-/ready`와 `/api/v1/targets`를 확인하며 node·eolssu-backend job의 up 및 마지막 수집 90초 이내를 검사한다. node 수집이 정상인 경우 중복된 node-exporter healthcheck 미설정 행을 생략한다. edo1 Docker·SSH·Certbot timer와 종류별 백업 timer·oneshot도 검사한다. [서비스 준비 검사](../../docs/specs/edo1-service-readiness.md)
 
 edo2는 db·config·jenkins·grafana·controller-key 백업의 최신 메타데이터와 암호문 존재를 검사한다. db 90분, 나머지 27시간 기준이며 암호문 무결성을 다시 계산하거나 복호화하지 않는다. `/var/lib/eolssu-backup/restore-last.json`의 완료 상태·8일 이내 여부를 별도로 검사한다. systemd 성공, 백업 최신성, 실제 복구 검증은 서로 다른 근거로 표시한다. 실제 실패 상태는 지우지 않는다.
 
-[갱신 스펙](../../docs/specs/server-inspection-current-runtime.md)과 [실행 기록](../../docs/plans/S15P31E102-271.md)을 따른다. 등록된 명령 이름·URL·토큰·채널 권한 변경은 필요하지 않다. 두 서버 수집기를 공통 최신 코드로 맞추고 edo2 중계만 재시작하면 다음 명령부터 적용된다.
+초기 판정 기준은 운영 구성 갱신 기록에서 확인할 수 있다. [운영 구성 갱신](../../docs/specs/server-inspection-current-runtime.md) · [실행 기록](../../docs/plans/S15P31E102-271.md)
