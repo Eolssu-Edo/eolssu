@@ -1,17 +1,20 @@
 package com.ssafy.eolssu.data.song
 
+import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.model.JangdanPlayback
 import com.ssafy.eolssu.core.model.ScoreTiming
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.SongLevel
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.inSession
 
-/** 개인 악보의 확정본과 같은 버전의 생성 음원만 연습 화면에 연결한다. */
+/** 같은 계정이 확정 악보 버전으로 기기에 내려받은 음원만 연습에 연결한다. */
 class SheetPracticeRepository(
     private val documents: SheetDocumentRepository,
-    private val audio: SheetAudioRepository,
+    private val deviceAudio: SheetAudioDeviceStore,
     private val references: ReferenceCatalogRepository,
     private val instruments: InstrumentCatalog,
-    private val now: () -> Long,
+    private val member: SignedInMember,
 ) : ModelAudioRepository {
     suspend fun load(sheetId: String): Song? {
         val document = documents.get(sheetId) ?: return null
@@ -48,39 +51,27 @@ class SheetPracticeRepository(
         )
     }
 
-    override suspend fun get(song: Song): ModelAudio? = when (val result = audio.status(song.id)) {
-        SheetAudioLookup.None -> null
-        SheetAudioLookup.Unavailable -> throw CatalogUnavailable()
-        is SheetAudioLookup.Found -> result.audio.forPractice(song)
-    }
-
-    private fun SheetAudio.forPractice(song: Song): ModelAudio? {
-        val version = song.scoreVersion ?: return null
-        if (sheetId != song.id || status != SheetAudioStatus.Done || outdated ||
-            scoreVersion != version.toString() || currentScoreVersion != scoreVersion
-        ) return null
-        val file = audio ?: throw CatalogUnavailable()
-        val duration = file.durationMs?.takeIf { it in 1..600_000L } ?: throw CatalogUnavailable()
-        val sha256 = file.sha256?.takeIf { it.matches(SheetAudioSha256) } ?: throw CatalogUnavailable()
-        if (bpm !in 30..160 || file.contentType != "audio/mp4" || file.expiresWithin(now(), 0)) throw CatalogUnavailable()
-        return ModelAudio(
-            songId = sheetId,
+    override suspend fun get(song: Song): ModelAudio? = member.inSession {
+        val accountId = member.id ?: return@inSession null
+        val version = song.scoreVersion?.takeIf { it > 0 } ?: return@inSession null
+        val bpmUnit = song.score.timing?.bpmUnit?.name ?: return@inSession null
+        val file = deviceAudio.find(accountId, song.id, version.toString()) ?: return@inSession null
+        ModelAudio(
+            songId = song.id,
             scoreVersion = version,
-            audioUrl = file.url,
-            bpm = bpm,
-            bpmUnit = requireNotNull(song.score.timing).bpmUnit.name,
-            durationMs = duration,
+            audioUrl = "",
+            bpm = file.bpm,
+            bpmUnit = bpmUnit,
+            durationMs = file.durationMs,
             startOffsetMs = 0,
-            contentType = file.contentType,
-            sha256 = sha256,
-            sheetPlayback = SheetPlayback(withJangdan, file.urlExpiresAt),
+            contentType = "audio/mp4",
+            sha256 = file.sha256,
+            sheetPlayback = SheetPlayback(file.withJangdan, file.localFile),
         )
     }
 }
 
 class SheetPracticeNeedsReview : Exception()
-
-private val SheetAudioSha256 = Regex("[a-f0-9]{64}")
 
 /** 악보와 장단의 BPM 단위가 다르면 한 주기를 악보의 tick 단위로 바꾼다. */
 private fun CatalogJangdanDetail.playbackFor(timing: ScoreTiming): JangdanPlayback? {

@@ -1,7 +1,9 @@
 package com.ssafy.eolssu.platform
 
 import com.ssafy.eolssu.core.audio.AudioPlayer
+import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
+import com.ssafy.eolssu.core.audio.UnavailableSheetAudioDeviceStore
 
 import com.ssafy.eolssu.core.audio.SoundPlayer
 import com.ssafy.eolssu.core.network.ServerAddress
@@ -20,6 +22,7 @@ import org.koin.dsl.module
  */
 internal fun webPlatformModule(): Module = module {
     factory<AudioPlayer> { UnavailableAudioPlayer() }
+    single<SheetAudioDeviceStore> { UnavailableSheetAudioDeviceStore }
     single<KeyValueStore> { WebKeyValueStore() }
     single<HttpClientEngine> { Js.create() }
     single { ServerAddress(window.location.origin) }

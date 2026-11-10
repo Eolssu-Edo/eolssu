@@ -47,7 +47,7 @@ S15P31E102-390·413은 내 악보 목록·조회·확정 저장·초안·삭제�
 
 인식 연결에는 `SHEET_CONVERSION_OMR_BASE_URL`(Compose 기본 `http://omr:8000`)을 사용하며 호출 제한은 630초입니다. OMR는 `SHEET_IMPORT_READ_BASE_URL`(기본 `http://backend:8080/api/internal/sheet-imports`)의 만료 토큰 URL로 원본을 읽습니다. 외부 Nginx는 `/api/internal/`을 404로 차단하며 이 경로의 접근 로그도 끕니다. 한 backend 인스턴스에서 실행하고, 임시 디렉터리를 영구 볼륨이나 백업 대상에 넣지 않습니다. `eolssu.scheduling.enabled=false`는 큐·시작 복구·주기 정리를 끄는 테스트 전용 설정이므로 운영에서는 쓰지 않습니다. 원본 불러오기는 R2 연결값이 없어도 동작하며, `SHEET_STORAGE_*`는 아래 생성 음원과 사용자가 삭제하는 과거 원본용입니다.
 
-S15P31E102-481: `db`·`ops`에서 `POST`·`GET /api/users/me/sheets/{sheetId}/audio`로 M4A·MIDI를 비동기 생성해 악보 전용 저장소의 `sheet-audio/`에 보관합니다. 계약은 [내 악보 음원 스펙](../docs/specs/sheet-audio.md)이고 V30이 필요합니다. `SHEET_AUDIO_BASE_URL`이 비었거나 저장소가 없으면 새 요청은 503입니다. 작업자는 `eolssu.scheduling.enabled=false`에서 돌지 않습니다. 실제 생성기 경로까지 검사하려면 `databaseTest`에 `PLAYBACK_TEST_BASE_URL`을 지정합니다.
+S15P31E102-684에서 내 악보 음원을 임시 다운로드로 변경했습니다. `POST /api/users/me/sheets/{sheetId}/audio`로 M4A 생성을 접수하고, 같은 경로의 GET으로 상태와 다운로드 링크를 조회합니다. 완료된 M4A는 `sheet-audio/`에 10분간 두고 만료된 객체는 작업자가 정리합니다. V37은 완료 파일의 기한을 저장합니다. `SHEET_AUDIO_BASE_URL`이 비었거나 저장소가 없으면 새 요청은 503입니다. 작업자는 `eolssu.scheduling.enabled=false`에서 돌지 않습니다. 실제 생성기 경로까지 검사하려면 `databaseTest`에 `PLAYBACK_TEST_BASE_URL`을 지정합니다. [내 악보 음원 스펙](../docs/specs/sheet-audio.md)
 
 ### 카탈로그 조회(CAT-03~10)
 

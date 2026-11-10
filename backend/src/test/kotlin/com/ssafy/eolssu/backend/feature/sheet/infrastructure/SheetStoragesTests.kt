@@ -5,11 +5,18 @@ import com.sun.net.httpserver.HttpServer
 import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -55,6 +62,18 @@ class SheetStoragesTests {
         assertTrue(disposition.contains("filename*=UTF-8''"))
         assertTrue(java.net.URLDecoder.decode(disposition.substringAfter("filename*=UTF-8''"),Charsets.UTF_8).contains("아리랑 (내 편곡).m4a"))
         assertFailsWith<IllegalArgumentException> { storage.downloadUrl("k",java.time.Duration.ofMinutes(15),"bad\r\nname") }
+    }
+
+    @Test
+    fun `temporary download signatures cannot outlive the object deadline`() {
+        val key = "sheet-audio/1/test/audio.m4a"
+        val deadline = Instant.now().plusSeconds(30)
+        val url = java.net.URI(assertNotNull(storage.downloadUrlBefore(key, Duration.ofMinutes(10), "test.m4a", deadline)))
+        val query = url.rawQuery.split('&').associate { it.substringBefore('=') to it.substringAfter('=') }
+        val signedAt = LocalDateTime.parse(query.getValue("X-Amz-Date"), DateTimeFormatter.ofPattern("uuuuMMdd'T'HHmmss'Z'"))
+            .toInstant(ZoneOffset.UTC)
+        assertTrue(!signedAt.plusSeconds(query.getValue("X-Amz-Expires").toLong()).isAfter(deadline))
+        assertNull(storage.downloadUrlBefore(key, Duration.ofMinutes(10), "test.m4a", Instant.now().minusSeconds(1)))
     }
 
     @Test

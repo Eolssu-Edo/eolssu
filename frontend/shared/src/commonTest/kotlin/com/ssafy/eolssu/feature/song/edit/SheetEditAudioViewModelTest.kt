@@ -1,7 +1,13 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.audio.DeviceSheetAudio
+import com.ssafy.eolssu.core.audio.LocalAudioFile
+import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
+import com.ssafy.eolssu.core.audio.SheetAudioDownload
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
 import com.ssafy.eolssu.data.song.SheetDocument
 import com.ssafy.eolssu.data.song.SheetDocumentRepository
@@ -33,7 +39,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 
-/** 미리보기의 음원 흐름: 요청 → 폴링 → 준비·실패, 만료 URL 재조회, 악보 바뀜 재생성. 서버는 대본대로 답하는 가짜 저장소다. */
+/** 미리보기의 요청·다운로드·기기 재생 흐름. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SheetEditAudioViewModelTest {
     private class FakeSheetAudioRepository : SheetAudioRepository {
@@ -70,16 +76,45 @@ class SheetEditAudioViewModelTest {
         sheetId = "12", status = status, scoreVersion = "2", currentScoreVersion = if (outdated) "3" else "2", outdated = outdated,
         instrumentId = "1", withJangdan = true, bpm = 60, failureCode = failure, pollAfterMs = pollAfterMs.takeIf { status.inProgress },
         audio = if (files) file(expiresAt, url) else null,
-        midi = if (files) file(expiresAt, "https://r2.example/12.mid").copy(contentType = "audio/midi", fileName = "a.mid", sha256 = null) else null,
     )
 
     private fun found(status: SheetAudioStatus, outdated: Boolean = false, files: Boolean = status == SheetAudioStatus.Done, failure: SheetAudioFailure? = null) =
         SheetAudioLookup.Found(audio(status, outdated, files, failure))
 
+    private val documents = object : SheetDocumentRepository {
+        override suspend fun get(sheetId: String) = SheetDocument(
+            sheetId, "미리듣기", "1", 60, "2", smallScoreData(), null, "EVALUABLE", "DONE", emptyList(),
+        )
+        override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) = SheetWrite.Failed
+    }
+
+    private class FakeDeviceStore : SheetAudioDeviceStore {
+        override val available = true
+        private val files = mutableMapOf<Triple<String, String, String>, DeviceSheetAudio>()
+        var downloads = 0
+
+        override suspend fun find(accountId: String, sheetId: String, scoreVersion: String) =
+            files[Triple(accountId, sheetId, scoreVersion)]
+
+        override suspend fun save(accountId: String, sheetId: String, scoreVersion: String, download: SheetAudioDownload): DeviceSheetAudio {
+            downloads++
+            return DeviceSheetAudio(LocalAudioFile("/local/sheet.m4a"), download.instrumentId, download.bpm,
+                download.withJangdan, download.sha256, download.durationMs).also {
+                files[Triple(accountId, sheetId, scoreVersion)] = it
+            }
+        }
+
+        override suspend fun delete(accountId: String, sheetId: String) {
+            files.keys.removeAll { it.first == accountId && it.second == sheetId }
+        }
+    }
+
     private fun TestScope.viewModel(repository: FakeSheetAudioRepository, source: EditSource = EditSource.Mine("12"),
-        now: () -> Long = { 0L }, documents: SheetDocumentRepository? = null): SheetEditViewModel {
+        now: () -> Long = { 0L }, documents: SheetDocumentRepository? = null, member: SignedInMember? = null,
+        store: SheetAudioDeviceStore? = null): SheetEditViewModel {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-        return SheetEditViewModel(source, EditView.Jeongganbo, SampleMySheetRepository(), repository, now = now, documents = documents)
+        return SheetEditViewModel(source, EditView.Jeongganbo, SampleMySheetRepository(), repository, now = now, documents = documents,
+            member = member, deviceAudioStore = store)
     }
 
     @Test fun previewWithoutGeneratedAudioDoesNotClaimPlayback() = runTest {
@@ -87,45 +122,45 @@ class SheetEditAudioViewModelTest {
         val vm = viewModel(repository)
         try {
             runCurrent()
-            assertNull(vm.previewAudioFile())
+            assertNull(vm.devicePlayback(preview = true))
             assertNull(vm.previewPlaybackId())
         } finally { Dispatchers.resetMain() }
     }
 
-    @Test fun previewUsesOnlyTheCurrentSavedScoreAndJangdanSettings() = runTest {
+    @Test fun previewUsesOnlyTheDownloadedFileWithMatchingSettingsAndWorksAfterExpiry() = runTest {
         val repository = FakeSheetAudioRepository().apply { statuses += found(SheetAudioStatus.Done) }
-        val documents = object : SheetDocumentRepository {
-            override suspend fun get(sheetId: String) = SheetDocument(
-                sheetId, "미리듣기", "1", 60, "2", smallScoreData(), null, "EVALUABLE", "DONE", emptyList(),
-            )
-            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) = SheetWrite.Failed
-        }
-        val vm = viewModel(repository, documents = documents)
+        val store = FakeDeviceStore()
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("7") }
+        var now = 0L
+        val vm = viewModel(repository, now = { now }, documents = documents, member = member, store = store)
         try {
             runCurrent()
-            assertEquals("https://r2.example/12.m4a", vm.previewAudioFile()?.url)
-            vm.toggleWithJangdan()
-            assertNull(vm.previewAudioFile())
-            assertEquals(SheetEditMessage.PreviewNeedsAudio, vm.uiState.value.message)
-            assertTrue(vm.uiState.value.audioSettingsChanged)
-            repository.onRequest = { settings ->
-                SheetAudioRequest.Accepted(audio(SheetAudioStatus.Done).copy(withJangdan = settings.withJangdan))
-            }
-            vm.requestAudio(); runCurrent()
-            assertEquals(false, repository.requests.single().second.withJangdan)
-            assertNotNull(vm.previewAudioFile())
-            vm.toggleWithJangdan()
+            assertNull(vm.devicePlayback(preview = true), "서버 생성 결과를 직접 재생하지 않는다")
+            vm.saveAudioOnDevice(); runCurrent()
+            val local = assertNotNull(vm.devicePlayback(preview = true))
+            assertEquals("", local.url)
+            assertNotNull(local.localFile)
+            assertEquals(1, store.downloads)
+            assertEquals(SheetEditMessage.AudioDownloaded, vm.uiState.value.message)
 
-            repository.statuses.clear()
-            repository.statuses += found(SheetAudioStatus.Done, outdated = true)
-            vm.refreshAudio(); runCurrent()
-            assertNull(vm.previewAudioFile())
-            assertNotNull(vm.audioFile(SheetAudioKind.M4a), "옛 음원은 기존 음원 칸에서 계속 쓸 수 있다")
+            now = 10_000_000
+            assertNull(vm.downloadableAudio())
+            assertEquals(SheetAudioFailure.Expired, assertIs<SheetAudioUi.Failed>(vm.uiState.value.audio).audio.failureCode)
+            assertEquals(local, vm.devicePlayback(preview = true))
+            assertEquals(1, repository.statusCalls, "기기 재생에 서버 조회가 필요 없다")
+
+            vm.toggleWithJangdan()
+            assertNull(vm.devicePlayback(preview = true))
+            assertEquals(SheetEditMessage.PreviewNeedsAudio, vm.uiState.value.message)
+            vm.toggleWithJangdan()
 
             vm.selectCell(2)
             vm.put(ScoreNote.Pitch(Yul.Taeju))
-            assertNull(vm.previewAudioFile())
+            assertNull(vm.devicePlayback(preview = true))
             assertEquals(SheetEditMessage.AudioNeedsSave, vm.uiState.value.message)
+            member.set("8")
+            assertNull(vm.devicePlayback(preview = false))
+            assertNull(store.find("8", "12", "2"))
         } finally {
             advanceUntilIdle()
             Dispatchers.resetMain()
@@ -191,7 +226,7 @@ class SheetEditAudioViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
-    @Test fun outdatedAudioCanBeRegeneratedWhileThePreviousFileStaysPlayable() = runTest {
+    @Test fun outdatedAudioCanBeRegeneratedButItsPreviousServerFileIsNotDownloaded() = runTest {
         val repository = FakeSheetAudioRepository().apply { statuses += found(SheetAudioStatus.Done, outdated = true) }
         repository.onRequest = { SheetAudioRequest.Accepted(audio(SheetAudioStatus.Queued, outdated = true, files = true)) }
         val vm = viewModel(repository)
@@ -203,8 +238,8 @@ class SheetEditAudioViewModelTest {
             vm.requestAudio(); runCurrent()
             val generating = assertIs<SheetAudioUi.Generating>(vm.uiState.value.audio)
             assertNotNull(generating.audio.audio, "다시 만드는 동안 이전 파일을 계속 쓸 수 있다")
-            assertNotNull(vm.audioFile(SheetAudioKind.M4a))
-            assertEquals(1, repository.statusCalls, "만료 전이라 이전 파일 URL을 그대로 쓴다")
+            assertNull(vm.downloadableAudio())
+            assertEquals(1, repository.statusCalls)
 
             repository.statuses.clear()
             repository.statuses += SheetAudioLookup.Found(audio(SheetAudioStatus.Done, url = "https://r2.example/12-v3.m4a"))
@@ -261,28 +296,30 @@ class SheetEditAudioViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
-    @Test fun expiringUrlIsRefreshedBeforePlaybackOrDownload() = runTest {
+    @Test fun expiredDownloadRequiresAnExplicitNewRequest() = runTest {
         val repository = FakeSheetAudioRepository().apply { statuses += found(SheetAudioStatus.Done) }
         var now = 1_000_000L
-        val vm = viewModel(repository, now = { now })
+        val vm = viewModel(repository, now = { now }, documents = documents)
         try {
             runCurrent()
-            assertEquals("https://r2.example/12.m4a", vm.audioFile(SheetAudioKind.M4a)?.url)
-            assertEquals(1, repository.statusCalls, "만료 전에는 다시 묻지 않는다")
-
-            now = 10_000_000 - 20_000
-            repository.statuses.clear()
-            repository.statuses += SheetAudioLookup.Found(audio(SheetAudioStatus.Done, expiresAt = 20_000_000, url = "https://r2.example/12-fresh.m4a"))
-            assertEquals("https://r2.example/12-fresh.m4a", vm.audioFile(SheetAudioKind.M4a)?.url)
-            assertEquals(2, repository.statusCalls)
-            assertEquals("a.mid", vm.audioFile(SheetAudioKind.Midi)?.fileName)
-            assertEquals(2, repository.statusCalls, "새 URL은 두 파일에 함께 온다")
-
-            repository.statuses.clear()
-            repository.statuses += SheetAudioLookup.Unavailable
+            assertNotNull(vm.downloadableAudio())
             now = 20_000_000
-            assertNull(vm.audioFile(SheetAudioKind.M4a))
-            assertEquals(SheetEditMessage.AudioBusy, vm.uiState.value.message)
+            assertNull(vm.downloadableAudio())
+            assertEquals(SheetEditMessage.AudioExpired, vm.uiState.value.message)
+            assertEquals(1, repository.statusCalls)
+            assertTrue(repository.requests.isEmpty())
+            repository.onRequest = { SheetAudioRequest.Accepted(audio(SheetAudioStatus.Done, expiresAt = 20_600_000)) }
+            vm.requestAudio(); runCurrent()
+            assertEquals(1, repository.requests.size)
+            assertNotNull(vm.downloadableAudio())
+
+            repository.statuses.clear()
+            repository.statuses += SheetAudioLookup.Found(
+                audio(SheetAudioStatus.Done, expiresAt = 20_600_000).copy(scoreVersion = "3", currentScoreVersion = "3"),
+            )
+            vm.refreshAudio(); runCurrent()
+            assertNull(vm.downloadableAudio())
+            assertEquals(SheetEditMessage.SaveConflict, vm.uiState.value.message)
         } finally { Dispatchers.resetMain() }
     }
 
@@ -319,7 +356,7 @@ class SheetEditAudioViewModelTest {
             sample.requestAudio(); runCurrent()
             assertEquals(SheetEditMessage.ComingSoon, sample.uiState.value.message)
             assertEquals(SheetAudioUi.None, sample.uiState.value.audio)
-            assertNull(sample.audioFile(SheetAudioKind.M4a))
+            assertNull(sample.downloadableAudio())
         } finally { Dispatchers.resetMain() }
 
         val copy = viewModel(repository, EditSource.CopySong("arirang"))
