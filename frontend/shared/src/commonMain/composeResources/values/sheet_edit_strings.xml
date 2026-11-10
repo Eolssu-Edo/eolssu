@@ -198,7 +198,8 @@
     <string name="sheetedit_audio_instrument_label">연주 악기 · %1$s</string>
     <string name="sheetedit_audio_instrument_loading">연주 악기 목록을 불러오는 중이에요</string>
     <string name="sheetedit_preview_needs_audio">현재 악보의 M4A를 먼저 내려받아 주세요</string>
-    <string name="sheetedit_msg_audio_needs_save">현재 악보를 저장한 뒤 음원을 만들거나 미리 들어 주세요</string>
+    <string name="sheetedit_preview_needs_practice_audio">연습 화면에서 음원을 받은 뒤 미리 들을 수 있어요</string>
+    <string name="sheetedit_msg_audio_needs_save">편집한 내용을 저장한 뒤 다시 시도해 주세요</string>
     <string name="sheetedit_msg_audio_requested">음원을 만들고 있어요 · 다 되면 알려 드릴게요</string>
     <string name="sheetedit_msg_audio_ready">음원이 준비됐어요 · 미리보기에서 재생하거나 저장할 수 있어요</string>
     <string name="sheetedit_msg_audio_failed">음원을 만들지 못했어요 · 미리보기에서 다시 시도할 수 있어요</string>

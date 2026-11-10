@@ -132,7 +132,7 @@ fun EditPreviewScreen(
     onTogglePlay: () -> Unit,
     onSeekPreview: (Long) -> Unit,
     onToggleJangdan: () -> Unit,
-    audio: SheetAudioActions,
+    audio: SheetAudioActions?,
     onSaveDraft: () -> Unit,
     onSave: () -> Unit,
     onFillEmpty: () -> Unit,
@@ -151,12 +151,12 @@ fun EditPreviewScreen(
         snackbarHostState = snackbarHostState,
         topBar = { EolssuTopBar(stringResource(Res.string.sheetedit_preview_title), onBack = onBack, subtitle = draft.title) },
         bottomBar = {
-            if (state.savedOnce) state.audioInstruments?.let { instruments ->
+            if (audio != null && state.savedOnce) state.audioInstruments?.let { instruments ->
                 AudioInstrumentPicker(instruments, enabled = !state.audio.busy && !state.audioDownloading, actions = audio)
             }
             PlayerRow(state, song.durationSeconds(draft.bpm), previewPlaying, onTogglePlay, onToggleJangdan, audio)
             if (previewProgress != null) PreviewProgressRow(previewProgress, onSeekPreview)
-            SheetAudioRow(state, playback, audio)
+            if (audio != null) SheetAudioRow(state, playback, audio)
             if ((state.source as? EditSource.Mine)?.practiceVersion == null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     EolssuButton(stringResource(Res.string.sheetedit_preview_draft), onSaveDraft, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving && !state.saveConflict)
@@ -248,7 +248,7 @@ internal fun hasLinearPreviewTiming(marks: Iterable<String>): Boolean =
 @Composable
 private fun PlayerRow(
     state: SheetEditUiState, seconds: Int, previewPlaying: Boolean,
-    onTogglePlay: () -> Unit, onToggleJangdan: () -> Unit, audio: SheetAudioActions,
+    onTogglePlay: () -> Unit, onToggleJangdan: () -> Unit, audio: SheetAudioActions?,
 ) {
     val colors = EolssuTheme.colors
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -266,24 +266,28 @@ private fun PlayerRow(
                 stringResource(Res.string.sheetedit_preview_listen, formatClock(seconds.toDouble())),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold),
             )
-            Row(
-                Modifier.toggleable(value = state.withJangdan, enabled = state.canIncludeJangdan && !state.audioDownloading,
-                    role = Role.Checkbox, onValueChange = { onToggleJangdan() }),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Checkbox(
-                    checked = state.withJangdan,
-                    onCheckedChange = null,
-                    enabled = state.canIncludeJangdan && !state.audioDownloading,
-                    modifier = Modifier.size(32.dp),
-                    colors = CheckboxDefaults.colors(checkedColor = colors.primary, checkmarkColor = colors.onPrimary, uncheckedColor = colors.textDisabled),
-                )
-                Text(stringResource(Res.string.sheetedit_preview_with_jangdan), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textSub)
+            if (audio != null) {
+                Row(
+                    Modifier.toggleable(value = state.withJangdan, enabled = state.canIncludeJangdan && !state.audioDownloading,
+                        role = Role.Checkbox, onValueChange = { onToggleJangdan() }),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = state.withJangdan,
+                        onCheckedChange = null,
+                        enabled = state.canIncludeJangdan && !state.audioDownloading,
+                        modifier = Modifier.size(32.dp),
+                        colors = CheckboxDefaults.colors(checkedColor = colors.primary, checkmarkColor = colors.onPrimary, uncheckedColor = colors.textDisabled),
+                    )
+                    Text(stringResource(Res.string.sheetedit_preview_with_jangdan), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textSub)
+                }
             }
         }
-        val instrumentSelected = state.audioInstruments == null || state.audioInstruments.selectedId != null
-        val canRequest = !state.audioDownloading && (!state.savedOnce || instrumentSelected)
-        AudioChip(state.audio, state.audioSettingsChanged, canRequest, audio)
+        if (audio != null) {
+            val instrumentSelected = state.audioInstruments == null || state.audioInstruments.selectedId != null
+            val canRequest = !state.audioDownloading && (!state.savedOnce || instrumentSelected)
+            AudioChip(state.audio, state.audioSettingsChanged, canRequest, audio)
+        }
     }
 }
 

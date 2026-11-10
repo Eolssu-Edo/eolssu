@@ -30,6 +30,7 @@ import eolssu.shared.generated.resources.sheetedit_msg_audio_not_found
 import eolssu.shared.generated.resources.sheetedit_msg_audio_not_ready
 import eolssu.shared.generated.resources.sheetedit_msg_audio_ready
 import eolssu.shared.generated.resources.sheetedit_preview_needs_audio
+import eolssu.shared.generated.resources.sheetedit_preview_needs_practice_audio
 import eolssu.shared.generated.resources.sheetedit_msg_audio_requested
 import eolssu.shared.generated.resources.sheetedit_msg_audio_too_long
 import eolssu.shared.generated.resources.sheetedit_msg_audio_unknown
@@ -57,7 +58,8 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
     val player = rememberReferenceAudioPlayer()
     val playback by player.state.collectAsStateWithLifecycle()
     val previewId = viewModel.previewPlaybackId()
-    val savedAudioId = state.playableDeviceAudio?.playbackId
+    val showsAudioExport = viewModel.showsAudioExport
+    val savedAudioId = if (showsAudioExport) state.playableDeviceAudio?.playbackId else previewId
     var previewStarted by remember { mutableStateOf(false) }
     LaunchedEffect(previewId, savedAudioId) {
         val loadedId = player.state.value.sourceId
@@ -94,7 +96,9 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
         SheetEditMessage.AudioLinkFailed to stringResource(Res.string.sheetedit_msg_audio_link_failed),
         SheetEditMessage.AudioDownloaded to stringResource(Res.string.sheetedit_msg_audio_downloaded),
         SheetEditMessage.AudioExpired to stringResource(Res.string.sheetedit_audio_expired),
-        SheetEditMessage.PreviewNeedsAudio to stringResource(Res.string.sheetedit_preview_needs_audio),
+        SheetEditMessage.PreviewNeedsAudio to stringResource(
+            if (showsAudioExport) Res.string.sheetedit_preview_needs_audio else Res.string.sheetedit_preview_needs_practice_audio,
+        ),
         SheetEditMessage.ComingSoon to stringResource(Res.string.common_coming_soon),
     )
     LaunchedEffect(state.message) {
@@ -128,7 +132,7 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
             }
         },
         onToggleJangdan = viewModel::toggleWithJangdan,
-        audio = SheetAudioActions(
+        audio = if (showsAudioExport) SheetAudioActions(
             onSelectInstrument = viewModel::selectAudioInstrument,
             onRetryInstruments = viewModel::loadAudioInstrumentOptions,
             onRequest = viewModel::requestAudio,
@@ -146,7 +150,7 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
                     }
                 }
             },
-        ),
+        ) else null,
         onSaveDraft = viewModel::saveDraft,
         onSave = viewModel::requestSave,
         onFillEmpty = {
