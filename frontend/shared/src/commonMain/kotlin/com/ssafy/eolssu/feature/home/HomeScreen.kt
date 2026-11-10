@@ -31,8 +31,8 @@ enum class HomeFeature(val label: StringResource, val icon: ImageVector) {
 }
 
 /**
- * 2열 카드 격자의 순서(왼쪽 · 오른쪽 한 줄씩). 왼쪽 열은 학습(기초부터 배우기 · 운지법 보기 · 정간보 쉽게 읽기),
- * 오른쪽 열은 연습·관리(연습곡 선택하기 · 연습 기록 보기 · 악보 추가·편집하기)다. 휴대폰·태블릿·넓은 창 모두 2열(2×3)로 놓는다.
+ * 2열 카드 격자의 순서(왼쪽 · 오른쪽 한 줄씩). 왼쪽 열은 학습(기초 배우기 · 운지법 보기 · 정간보 읽기),
+ * 오른쪽 열은 연습·관리(연습하기 · 연습 기록 보기 · 악보 추가·편집하기)다. 휴대폰·태블릿·넓은 창 모두 2열(2×3)로 놓는다.
  */
 internal val HomeFeatureGrid = listOf(
     HomeFeature.Learn, HomeFeature.SongSelect,

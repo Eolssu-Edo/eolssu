@@ -24,10 +24,10 @@
     <string name="home_brand">얼쑤</string>
     <string name="home_hero_title">얼쑤! 나도 이제 국악인</string>
     <string name="home_start_evaluation">AI 연주 평가 시작</string>
-    <string name="home_feature_song_select">연습곡 선택하기</string>
+    <string name="home_feature_song_select">연습하기</string>
     <string name="home_feature_fingering">운지법 보기</string>
-    <string name="home_feature_reading">정간보 쉽게 읽기</string>
-    <string name="home_feature_learn">기초부터 배우기</string>
+    <string name="home_feature_reading">정간보 읽기</string>
+    <string name="home_feature_learn">기초 배우기</string>
     <string name="home_feature_records">연습 기록 보기</string>
     <string name="home_feature_edit_sheets">악보 추가·편집하기</string>
 
