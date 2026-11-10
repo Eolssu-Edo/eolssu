@@ -15,6 +15,8 @@ param(
   [ValidateRange(1,65535)][int]$ReversePort = 27890,
   [switch]$AutoRecover,
   [string]$SupervisorStopFile,
+  [string]$ApplogTokenFile,
+  [string]$ApplogDeviceIdentity,
   [string]$AccessKeyFile = (Join-Path $env:LOCALAPPDATA 'EolssuQA/relay/access-key.txt')
 )
 $ErrorActionPreference = 'Stop'
@@ -25,6 +27,13 @@ if ($BasePath -notmatch '^/(?:[A-Za-z0-9_-]+/)*$') { throw '잘못된 QA 경로�
 if ($DeviceName -match '\p{C}' -or -not $DeviceName.Trim()) { throw '잘못된 기기 이름입니다.' }
 if ($DeviceId -ne 'phone' -and ($BasePath -eq '/qa/' -or $Port -eq 17680 -or $ReversePort -eq 27890)) { throw '추가 기기는 전용 경로와 포트를 지정하세요.' }
 if (-not (Test-Path -LiteralPath $AccessKeyFile)) { throw '사용자 전용 접속 키 파일이 필요합니다.' }
+if ($ApplogTokenFile -or $ApplogDeviceIdentity) {
+  if ($DeviceId -ne 'phone' -or $BasePath -ne '/qa/' -or $Port -ne 17680 -or $ReversePort -ne 27890 -or
+      $ApplogDeviceIdentity -cnotmatch '^[A-Za-z0-9_-]{4,80}$' -or -not $ApplogTokenFile -or
+      -not (Test-Path -LiteralPath $ApplogTokenFile -PathType Leaf)) {
+    throw '앱 로그는 지정한 휴대폰의 접속 키 파일과 실제 기기 ID가 필요합니다.'
+  }
+}
 if (Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue) { throw '기존 QA 중계를 먼저 종료하세요.' }
 $qaKey = [IO.File]::ReadAllText($AccessKeyFile).Trim()
 if ($qaKey.Length -lt 24) { throw '접속 키는 24자 이상이어야 합니다.' }
@@ -33,11 +42,13 @@ $qaRuntime = if ($RuntimeDirectory) { (Resolve-Path -LiteralPath $RuntimeDirecto
 if ($DeviceId -ne 'phone' -and $qaRuntime -eq $qaKeyDirectory) { throw '추가 기기는 별도 RuntimeDirectory를 지정하세요.' }
 $qaToolRoot = if ($ToolRoot) { (Resolve-Path -LiteralPath $ToolRoot).Path } else { Split-Path -Parent $qaKeyDirectory }
 $qaPrevious = @{}
-foreach ($qaName in @('QA_EXPECTED_IDENTITY','QA_TOKEN','QA_SERIAL','QA_ADB','QA_ADB_PORT','QA_PORT','QA_ORIGIN','QA_BASE_PATH','QA_DEVICE_ID','QA_DEVICE_NAME','QA_TRUST_PROXY','QA_APK_DIR','QA_APK_SSH_HOST','QA_SCREEN_SERVER','QA_VIDEO_SERVER','QA_STOP_FILE','QA_WIRELESS_STATE')) { $qaPrevious[$qaName] = [Environment]::GetEnvironmentVariable($qaName,'Process') }
+foreach ($qaName in @('QA_APPLOG_TOKEN','QA_APPLOG_DEVICE_IDENTITY','QA_EXPECTED_IDENTITY','QA_TOKEN','QA_SERIAL','QA_ADB','QA_ADB_PORT','QA_PORT','QA_ORIGIN','QA_BASE_PATH','QA_DEVICE_ID','QA_DEVICE_NAME','QA_TRUST_PROXY','QA_APK_DIR','QA_APK_SSH_HOST','QA_SCREEN_SERVER','QA_VIDEO_SERVER','QA_STOP_FILE','QA_WIRELESS_STATE')) { $qaPrevious[$qaName] = [Environment]::GetEnvironmentVariable($qaName,'Process') }
 $qaNodeProcess = $null; $qaTunnelProcess = $null; $qaAdbChild=$null; $qaWirelessChild=$null
 $qaConfiguredSerial=$Serial
 $qaWirelessState=Join-Path $qaRuntime 'wireless-state.json'
 try {
+  $env:QA_APPLOG_TOKEN=$null
+  $env:QA_APPLOG_DEVICE_IDENTITY=$null
   $env:QA_EXPECTED_IDENTITY=$null
   if($AutoRecover -and $Serial -match '^\d{1,3}(?:\.\d{1,3}){3}:\d+$' -and (Test-Path -LiteralPath $qaWirelessState)){
     $qaSavedWireless=Get-Content -LiteralPath $qaWirelessState -Raw | ConvertFrom-Json
@@ -61,7 +72,19 @@ try {
     $qaWirelessArgs=@($qaWatcher,$Adb,[string]$AdbPort,$qaConfiguredSerial,$qaWirelessState) | ForEach-Object { '"'+$_+'"' }
     $qaWirelessChild=Start-Process -FilePath $qaNode -ArgumentList $qaWirelessArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $qaRuntime 'wireless.stdout.log') -RedirectStandardError (Join-Path $qaRuntime 'wireless.stderr.log')
   }
-  $qaNodeProcess = Start-Process -FilePath $qaNode -ArgumentList @(('"'+$qaServer+'"')) -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $qaRuntime 'relay.stdout.log') -RedirectStandardError (Join-Path $qaRuntime 'relay.stderr.log')
+  try {
+    if ($ApplogTokenFile) {
+      $env:QA_APPLOG_TOKEN=[IO.File]::ReadAllText($ApplogTokenFile).Trim()
+      if ($env:QA_APPLOG_TOKEN -cnotmatch '^[A-Za-z0-9_-]{32,128}$' -or $env:QA_APPLOG_TOKEN -ceq $qaKey) {
+        throw '앱 로그 전용 접속 키 설정이 올바르지 않습니다.'
+      }
+      $env:QA_APPLOG_DEVICE_IDENTITY=$ApplogDeviceIdentity
+    }
+    $qaNodeProcess = Start-Process -FilePath $qaNode -ArgumentList @(('"'+$qaServer+'"')) -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $qaRuntime 'relay.stdout.log') -RedirectStandardError (Join-Path $qaRuntime 'relay.stderr.log')
+  } finally {
+    $env:QA_APPLOG_TOKEN=$null
+    $env:QA_APPLOG_DEVICE_IDENTITY=$null
+  }
   $qaTunnelProcess = Start-Process -FilePath $qaSsh -ArgumentList @('-NT','-o','BatchMode=yes','-o','ConnectTimeout=10','-o','ExitOnForwardFailure=yes','-o','ServerAliveInterval=20','-o','ServerAliveCountMax=3','-R',"127.0.0.1:${ReversePort}:127.0.0.1:${Port}",$SshHost) -WindowStyle Hidden -PassThru -RedirectStandardError (Join-Path $qaRuntime 'tunnel.stderr.log')
   @{nodePid=$qaNodeProcess.Id;sshPid=$qaTunnelProcess.Id;stopFile=$env:QA_STOP_FILE;origin=$PublicOrigin;basePath=$BasePath;deviceId=$DeviceId;serial=$Serial;port=$Port;reversePort=$ReversePort;sshHost=$SshHost;startedUtc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $qaRuntime 'processes.json') -Encoding utf8
   Write-Host "QA 접속 주소: $PublicOrigin$BasePath"

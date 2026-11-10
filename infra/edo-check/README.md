@@ -13,6 +13,37 @@
 
 여섯 명령의 Mattermost Request URL은 `https://15.165.144.7/integrations/mattermost/commands`, 메서드는 POST다. Team 이도 (CI/CD,서버점검), 채널 ID `7pqaof6zkt8rdbqbdjjsfpfscw`만 허용한다. 명령마다 서로 다른 토큰을 사용하며 command/token에서 서버와 모드를 결정한다. form의 target·mode 덮어쓰기와 명령 인자는 거부한다. 다른 채널과 잘못된 요청에는 실행자에게만 거부 안내를 반환한다. 성공·수집 실패·시간 초과 보고는 요청의 `response_url`에 `in_channel`로 전송해 같은 채널 전체에 표시한다.
 
+## QA 앱 로그 수집
+
+`/applog`는 위와 같은 Request URL을 사용한다. 명령을 실행하면 Windows 휴대폰 중계의 기존 역방향 SSH 포트 `127.0.0.1:27890`으로 연결한다. 시작할 때 확정한 순번까지 로그를 작은 묶음으로 받아 SQLite에 확정한 뒤 앱에 삭제 확인을 보낸다. 저장이나 응답이 끊기면 결과에 서버 저장 순번과 앱 삭제 확인 순번을 표시한다. 다시 실행하면 앱이 보관한 로그를 기준으로 이어가며 이미 저장된 같은 기록은 중복으로 남기지 않는다. 접수와 요약은 명령을 실행한 사람에게만 보인다.
+
+활성화하려면 Windows QA 중계와 QA APK를 먼저 적용한다. EDO2의 `/etc/edo-check/relay.json`에 다음 객체를 추가하고, Mattermost에서 `/applog`의 토큰을 등록한다. 토큰은 기존 점검 토큰과 서로 달라야 한다. `tunnel_token`은 Windows QA 중계의 수집 전용 토큰과 일치해야 한다.
+
+```json
+{
+  "applog": {
+    "token": "REPLACE_WITH_APPLOG_MATTERMOST_TOKEN",
+    "tunnel_token": "REPLACE_WITH_APPLOG_WINDOWS_BRIDGE_TOKEN",
+    "team_id": "REPLACE_WITH_APPROVED_TEAM_ID",
+    "channel_ids": ["REPLACE_WITH_APPROVED_CHANNEL_ID"],
+    "user_ids": ["REPLACE_WITH_APPROVED_USER_ID"]
+  }
+}
+```
+
+서비스 유닛을 반영하고 `sudo systemctl daemon-reload`를 실행한 뒤 `sudo systemctl restart edo-check`로 적용한다. 앱 로그 수집만 중지하려면 설정에서 `applog` 객체를 제거한 뒤 같은 서비스를 재시작한다.
+
+원문은 `/var/log/eolssu-qa-perf/events.sqlite3`에 저장한다. 서비스는 시작할 때와 매시간 7일을 지난 수집 자료를 정리한다. 요청 ID로 조회할 때는 SSH에 접속한 뒤 아래 쿼리의 값을 교체한다.
+
+```sql
+SELECT e.seq, e.body
+FROM applog_requests AS r
+JOIN applog_events AS e ON e.stream_id = r.stream_id
+    AND e.seq > r.after AND e.seq <= r.saved
+WHERE r.request_id = 'REPLACE_WITH_REQUEST_ID'
+ORDER BY e.seq;
+```
+
 ## 구성과 권한
 
 - edo2: Ubuntu 24.04, Python 3.12 표준 라이브러리, Ubuntu Nginx, 공식 Certbot snap 5.8.0. 런타임 Python 외부 패키지는 없다.

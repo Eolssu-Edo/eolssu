@@ -17,6 +17,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         lockPortraitOnPhone()
+        QaPerformanceLog.install(applicationContext)
         // 화면을 돌려 다시 만들어질 때는 같은 Intent가 다시 오므로 처음 만들 때만 넘긴다.
         if (savedInstanceState == null) deliverLink(intent)
 
@@ -25,6 +26,16 @@ class MainActivity : ComponentActivity() {
                 // TEMP S15P31E102-309: Android debug QA build is the only opt-in entry.
                 qaSkipConsent = BuildConfig.DEBUG && BuildConfig.QA_SKIP_CONSENT)
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        QaPerformanceLog.show(this)
+    }
+
+    override fun onStop() {
+        QaPerformanceLog.hide(this)
+        super.onStop()
     }
 
     // singleTask라 앱이 떠 있을 때의 복귀는 새 화면 대신 여기로 온다.

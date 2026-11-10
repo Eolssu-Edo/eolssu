@@ -185,6 +185,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [Android QA APK 화면 재조회·데이터 재사용 계측 설계 (678)](plans/S15P31E102-678.md)
 - [Android 채점모드 실시간 음높이 표시 설계](knowledge/frontend/realtime-pitch-prototype-design.md)
 - [Android 런처 아이콘 크기·잘림 보정 (522)](plans/S15P31E102-522.md)
 

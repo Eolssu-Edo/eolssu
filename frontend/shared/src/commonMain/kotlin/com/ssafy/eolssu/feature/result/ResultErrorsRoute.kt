@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -12,7 +13,8 @@ fun ResultErrorsRoute(
     sourceId: String,
     onBack: () -> Unit,
     onSelectSection: () -> Unit,
-    viewModel: ResultErrorsViewModel = koinViewModel(key = "result-errors-$sourceId") { parametersOf(sourceId) },
+    perf: PerformanceVisit? = null,
+    viewModel: ResultErrorsViewModel = koinViewModel(key = "result-errors-$sourceId") { parametersOf(sourceId, perf) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     ResultErrorsScreen(state, onBack, viewModel::selectFilter, viewModel::selectCell, onSelectSection, onRetry = viewModel::retry)

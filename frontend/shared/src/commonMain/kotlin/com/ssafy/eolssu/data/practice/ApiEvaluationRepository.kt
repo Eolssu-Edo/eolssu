@@ -1,5 +1,13 @@
 package com.ssafy.eolssu.data.practice
 
+import com.ssafy.eolssu.core.diagnostics.PerfSource
+import com.ssafy.eolssu.core.diagnostics.PerfReason
+import com.ssafy.eolssu.core.diagnostics.PerformanceReason
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.measureLoad
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.EvaluationResult
@@ -92,7 +100,10 @@ class ApiEvaluationRepository(
         }
     }
 
-    private suspend fun fetchEvaluation(evaluationId: String): Evaluation? {
+    private suspend fun fetchEvaluation(evaluationId: String): Evaluation? =
+        measureLoad(PerfTarget.EVALUATION, evaluationId, { it.scoreVersion }) { loadEvaluation(evaluationId) }
+
+    private suspend fun loadEvaluation(evaluationId: String): Evaluation? {
         val response = client.sendOrNull { get("/api/practice-sessions/$evaluationId/evaluation") }
         if (response?.status != HttpStatusCode.OK) return null
         val evaluation = response.apiResponse<Evaluation>()?.result ?: return null
@@ -100,9 +111,14 @@ class ApiEvaluationRepository(
     }
 
     private suspend fun loadDetails(evaluation: Evaluation, initialSong: Song?): Pair<EvaluationResult, Song>? {
-        val song = initialSong?.takeIf { it.id == evaluation.songId && it.scoreVersion == evaluation.scoreVersion }
-            ?: songs.getSong(evaluation.songId)
-            ?: return null
+        val carried = initialSong?.takeIf { it.id == evaluation.songId && it.scoreVersion == evaluation.scoreVersion }
+        if (carried != null) currentCoroutineContext()[PerformanceVisit]?.reuse(
+            PerfTarget.SONG_BUNDLE, carried.id, PerfSource.NAVIGATION, carried.scoreVersion,
+        )
+        val song = carried ?: if (initialSong?.id == evaluation.songId && currentCoroutineContext()[PerformanceVisit] != null) {
+            withContext(PerformanceReason(PerfReason.VERSION_MISMATCH)) { songs.getSong(evaluation.songId) }
+        } else songs.getSong(evaluation.songId)
+        if (song == null) return null
         if (song.id != evaluation.songId || song.scoreVersion != evaluation.scoreVersion) return null
         return evaluation.toResult(song.timeline) to song
     }
