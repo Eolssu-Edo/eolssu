@@ -22,6 +22,7 @@ import com.ssafy.eolssu.data.practice.ScoreViewApi
 import com.ssafy.eolssu.data.practice.HttpPracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SheetDocumentRepository
+import com.ssafy.eolssu.data.song.SheetPracticeRepository
 import com.ssafy.eolssu.data.song.ApiSheetDocumentRepository
 import com.ssafy.eolssu.data.song.SheetImportRepository
 import com.ssafy.eolssu.data.song.ApiSheetImportRepository
@@ -125,6 +126,7 @@ val appModule = module {
     single { SignedInMember(get()) }
     single<SongRepository> { ApiSongRepository(get()) }
     single<ModelAudioRepository> { ApiModelAudioRepository(get()) }
+    single { SheetPracticeRepository(get(), get(), get(), get(), get()) }
     single { InstrumentCatalog(get()) }
     single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
     single<ReferenceAudioRepository> { ApiReferenceAudioRepository(get(), get()) }
@@ -148,9 +150,10 @@ val appModule = module {
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
     viewModel { (songId: String, solo: Boolean, mine: Boolean, learn: Boolean) ->
+        val personalPractice = if (mine) get<SheetPracticeRepository>() else null
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
-            modelAudioRepository = get(), audioPlayer = get(), mine = mine, learn = learn, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
-            notePractice = get())
+            modelAudioRepository = personalPractice ?: get<ModelAudioRepository>(), audioPlayer = get(), mine = mine, learn = learn, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
+            notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load })
     }
     viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) ->
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
