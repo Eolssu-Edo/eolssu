@@ -61,7 +61,10 @@ internal fun SheetDraft.layout(index: Int): List<CommonScoreData.Unit> {
 internal fun SheetDraft.toCommonScore(): CommonScoreData {
     val source = requireNotNull(original)
     val initial = source.editingDraft(title, bpm, jangdan)
-    if (cells == initial.cells && sizes == initial.sizes && sourceCellIds == initial.sourceCellIds && sigimsae == initial.sigimsae) return source.copy(score = source.score.copy(title = title))
+    val music = source.music.copy(jangdan = jangdanName)
+    if (cells == initial.cells && sizes == initial.sizes && sourceCellIds == initial.sourceCellIds && sigimsae == initial.sigimsae) {
+        return source.copy(score = source.score.copy(title = title), music = music)
+    }
     val byId = source.events.associateBy { it.id }
     val initialSigns = initial.sigimsae.mapKeys { (slot, _) -> initial.sourceCellIds?.get(slot.cell) to slot.sub }
     val layouts = cells.indices.map(::layout)
@@ -113,7 +116,7 @@ internal fun SheetDraft.toCommonScore(): CommonScoreData {
         })
     }
     return source.copy(score = source.score.copy(title = title),
-        music = source.music.copy(ticksPerJeonggan = ticks.toInt(), ticksPerBeat = (source.music.ticksPerBeat * factor).toInt()),
+        music = music.copy(ticksPerJeonggan = ticks.toInt(), ticksPerBeat = (music.ticksPerBeat * factor).toInt()),
         columns = columns, events = events)
 }
 

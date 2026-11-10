@@ -18,7 +18,7 @@ import kotlin.time.TimeMark
 enum class PracticeMode { Ready, Model, Rhythm, Countdown, Recording, Interrupted }
 
 /** 상세 API가 없는 곡과 일시적인 조회·악보 검증 실패를 구분한다. */
-enum class PracticeSongError { NotFound, Failed }
+enum class PracticeSongError { NotFound, NeedsReview, Failed }
 
 /** 아래에서 올라오는 보조 패널. */
 enum class PracticePanel { Settings, Notation, Fingering, Jangdan, Tempo }
@@ -131,7 +131,10 @@ data class PracticeUiState(
 ) {
     val jangdanProblem: Boolean get() = !jangdanSupported || jangdanStatus in setOf(JangdanStatus.Failed, JangdanStatus.Unsupported, JangdanStatus.Interrupted)
 
-    val bpm: Int get() = song?.let { settings.bpmBySong[it.id] ?: it.baseBpm } ?: 0
+    val bpm: Int get() = song?.let {
+        val savedBpm = if (mine) settings.bpmBySheet[it.id] else settings.bpmBySong[it.id]
+        savedBpm ?: it.baseBpm
+    } ?: 0
 
     /** 화면 제목. 내 악보면 그 악보 제목, 아니면 곡 제목. */
     val title: String get() = sheetTitle ?: song?.title.orEmpty()
@@ -479,11 +482,13 @@ fun PracticeSettings.applyNotation(draft: PracticeDraft, song: Song): PracticeSe
 fun PracticeSettings.applyJangdan(draft: PracticeDraft): PracticeSettings =
     copy(jangdanSound = draft.jangdanSound, beatVisual = draft.beatVisual)
 
-fun PracticeSettings.applyTempo(draft: PracticeDraft, song: Song): PracticeSettings =
-    copy(bpmBySong = bpmBySong + (song.id to draft.step.bpm(song.baseBpm)))
+fun PracticeSettings.applyTempo(draft: PracticeDraft, song: Song, mine: Boolean = false): PracticeSettings {
+    val entry = song.id to draft.step.bpm(song.baseBpm)
+    return if (mine) copy(bpmBySheet = bpmBySheet + entry) else copy(bpmBySong = bpmBySong + entry)
+}
 
 /** 플레이어의 고정 안내 칸에만 표시한다. 정상 재생에는 문구가 없다. */
-internal enum class PracticePlayerNotice { None, Loading, Failed, Unavailable, Unsupported, Interrupted }
+internal enum class PracticePlayerNotice { None, Loading, Failed, Unavailable, PersonalAudioUnavailable, EmbeddedJangdan, Unsupported, Interrupted }
 
 internal val PracticeUiState.playerNotice: PracticePlayerNotice
     get() {
@@ -493,11 +498,12 @@ internal val PracticeUiState.playerNotice: PracticePlayerNotice
             (accompaniment && jangdanStatus == JangdanStatus.Loading)) return PracticePlayerNotice.Loading
         if (!rhythm) when (modelAudioStatus) {
             ModelAudioStatus.Failed -> return PracticePlayerNotice.Failed
-            ModelAudioStatus.Unavailable -> return PracticePlayerNotice.Unavailable
+            ModelAudioStatus.Unavailable -> return if (mine) PracticePlayerNotice.PersonalAudioUnavailable else PracticePlayerNotice.Unavailable
             ModelAudioStatus.Unsupported -> return PracticePlayerNotice.Unsupported
             ModelAudioStatus.Interrupted -> return PracticePlayerNotice.Interrupted
             else -> Unit
         }
+        if (!rhythm && modelClock?.audio?.sheetPlayback?.withJangdan == true) return PracticePlayerNotice.EmbeddedJangdan
         if (accompaniment) {
             if (!jangdanSupported) return PracticePlayerNotice.Unavailable
             when (jangdanStatus) {

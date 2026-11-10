@@ -232,7 +232,7 @@ internal class ModelAudioSession(
         var ready: Boolean
         do {
             val preparingBpm = bpm
-            ready = prepareAccompaniment(song, preparingBpm)
+            ready = audio.sheetPlayback != null || prepareAccompaniment(song, preparingBpm)
             if (request != requestId || !active) return
         } while (preparingBpm != bpm)
         if (!ready) {
@@ -245,7 +245,7 @@ internal class ModelAudioSession(
             val id = "model-$request"
             sourceId = id
             _state.value = ModelAudioState(ModelAudioStatus.Loading, audio, positionMs)
-            player.load(AudioSource(id, audio.audioUrl), positionMs, speed(audio))
+            player.load(AudioSource(id, audio.audioUrl, localFile = audio.sheetPlayback?.localFile), positionMs, speed(audio))
         }
     }
 
