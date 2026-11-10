@@ -122,6 +122,9 @@
     <string name="sheetedit_cell_jangdan">장단 · %1$s</string>
     <string name="sheetedit_cell_jangdan_desc">%1$d박 · 박마다 %2$d정간 · %3$d BPM</string>
     <string name="sheetedit_cell_jangdan_change">장단 바꾸기</string>
+    <string name="sheetedit_jangdan_same_unit">악보의 빠르기와 음 길이를 유지하려면 박자 단위가 같은 장단을 골라야 해요.</string>
+    <string name="sheetedit_jangdan_none_compatible">현재 악보와 박자 단위가 같은 장단이 없어요.</string>
+    <string name="sheetedit_jangdan_load_failed">장단 목록을 불러오지 못했어요.</string>
     <string name="sheetedit_cell_note">장단을 바꾸면 한 각의 정간 수와 박 구분선이 함께 바뀌어요. ‘한 정간 나누기’는 한 정간에 음을 위→아래로 여러 개 넣을 때 써요.</string>
     <string name="sheetedit_staff_hint">한쪽을 고치면 다른 쪽도 바로 바뀌어요</string>
     <string name="sheetedit_staff_system">정간보 %1$d–%2$d각</string>

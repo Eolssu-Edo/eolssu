@@ -91,6 +91,8 @@ data class SheetDraft(
     val columnSizes: List<Int>? = null,
     val sourceCellIds: List<String?>? = null,
     val original: CommonScoreData? = null,
+    val jangdanId: String? = null,
+    internal val editedJangdanName: String? = null,
 ) {
     init {
         require(cells.isNotEmpty() && (columnSizes?.let { it.all { n -> n > 0 } && it.sum() == cells.size } ?: (cells.size % requireNotNull(jangdan).gak == 0)))
@@ -102,7 +104,7 @@ data class SheetDraft(
 
     val sizes: List<Int> get() = columnSizes ?: List(cells.size / gak) { gak }
 
-    val jangdanName: String get() = original?.music?.jangdan ?: jangdan?.name.orEmpty()
+    val jangdanName: String get() = editedJangdanName ?: original?.music?.jangdan ?: jangdan?.name.orEmpty()
 
     internal val originalCells: Map<String, CommonScoreData.Cell> by lazy {
         original?.columns?.flatMap { it.cells }?.associateBy { it.id }.orEmpty()
