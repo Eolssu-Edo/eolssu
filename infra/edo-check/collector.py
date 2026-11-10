@@ -15,9 +15,11 @@ import sys
 import time
 
 MYSQL_PROXY = 'eolssu-replication-proxy-579'
+GRAFANA = 'eolssu-monitoring-grafana-1'
+N8N = 'hey-edo1-n8n-1'
+NODE_EXPORTER = 'eolssu-monitoring-node-exporter-1'
 REQUIRED_CONTAINERS = {MYSQL_PROXY, 'eolssu-runtime-frontend-1', 'eolssu-runtime-mysql-1', 'eolssu-runtime-ai-1',
-                       'eolssu-monitoring-grafana-1', 'eolssu-monitoring-prometheus-1',
-                       'eolssu-monitoring-node-exporter-1'}
+                       GRAFANA, 'eolssu-monitoring-prometheus-1', NODE_EXPORTER}
 REQUIRED_BY_TARGET = {'edo1': REQUIRED_CONTAINERS, 'edo2': set()}
 STANDBY_WEB = 'eolssu-standby-579-frontend-1'
 STANDBY_WEB_LOCATION = 'edo2 대기 웹 loopback HTTPS'
@@ -42,6 +44,8 @@ EDO1_PUBLISHED_PROBES = {
     BLOG_LOGIN: ('8000/tcp', '172.18.0.1', 18120, '/config'),
     BLOG_WRITABLE: ('8000/tcp', '172.18.0.1', 18121, '/config'),
     PHPMYADMIN: ('80/tcp', '127.0.0.1', 8081, '/'),
+    GRAFANA: ('3000/tcp', '127.0.0.1', 3000, '/api/health'),
+    N8N: ('5678/tcp', '127.0.0.1', 5688, '/healthz/readiness'),
 }
 EDO1_BRIDGE_PROBES = {
     ANALYSIS_AI: ('eolssu-runtime_default', 8000, '/v1/analyses'),
@@ -54,6 +58,9 @@ EDO1_READINESS_ACTIONS = {
     PHPMYADMIN: 'phpMyAdmin 127.0.0.1:8081 로그인 화면과 컨테이너 로그 확인',
     ANALYSIS_AI: '분석 API 경로와 HTTP 422 필수 입력 검증 응답 확인',
     REVIEW_TUNNEL: 'Cloudflared 내부 /ready와 엣지 연결 상태 확인',
+    GRAFANA: 'Grafana /api/health 응답과 자체 DB 상태 확인',
+    N8N: 'n8n /healthz/readiness 응답과 서비스 로그 확인',
+    NODE_EXPORTER: 'Prometheus의 node 수집 상태와 node-exporter 확인',
 }
 EOLSSU_SYSLOG_DIR = Path('/var/log/eolssu/ordinary')
 EOLSSU_SYSLOG_TAGS = {'eolssu-frontend', 'eolssu-backend', 'eolssu-ai', 'eolssu-mysql', 'eolssu-playback', 'eolssu-omr'}
@@ -440,6 +447,13 @@ def readiness_response(name, status, content_type, cors_origin, body):
     if not isinstance(payload, dict):
         return mismatch
 
+    if name in (GRAFANA, N8N):
+        _, _, _, path = EDO1_PUBLISHED_PROBES[name]
+        field = 'database' if name == GRAFANA else 'status'
+        if status == 200 and payload.get(field) == 'ok':
+            return '정상', f'GET {path} HTTP 200 · {field}=ok'
+        return mismatch
+
     if name == REVIEW_TUNNEL:
         connections = payload.get('readyConnections')
         if type(connections) is int and payload.get('status') == status:
@@ -474,6 +488,11 @@ def edo1_service_readiness(name, detail):
         return '확인 불가', 'Docker inspect 대상 이름 확인 불가', '—'
     if name == MYSQL_PROXY:
         return mysql_proxy_readiness(detail)
+    if name == NODE_EXPORTER:
+        for row in prometheus_health(include_ready=False):
+            if row[0] == 'node 지표 수집':
+                return row[2], 'Prometheus · ' + row[3], row[4]
+        return '확인 불가', 'Prometheus에서 node-exporter 수집 상태 확인 불가', '—'
     if name in EDO1_PUBLISHED_PROBES:
         container_port, host, port, path = EDO1_PUBLISHED_PROBES[name]
         if not has_port_binding(detail, container_port, host, port):
@@ -835,9 +854,12 @@ def scrape_state(targets, job):
     return ('주의' if age > 90 else '정상'), f'up · 최근 수집 {age:.0f}초 전 · 기준 90초 이내'
 
 
-def prometheus_health():
+def prometheus_health(*, include_ready=True):
     rows = []
-    for name, path in [('Prometheus 준비', '/-/ready'), ('수집 대상', '/api/v1/targets')]:
+    probes = [('수집 대상', '/api/v1/targets')]
+    if include_ready:
+        probes.insert(0, ('Prometheus 준비', '/-/ready'))
+    for name, path in probes:
         connection = http.client.HTTPConnection('127.0.0.1', 3001, timeout=4)
         action = 'edo1의 127.0.0.1:3001' + path + ' 응답과 Prometheus 수집 설정·대상 서비스 상태 확인'
         try:
@@ -961,7 +983,10 @@ def health_report(target='edo1'):
         if name == ANALYSIS_AI and status == '정상':
             status, evidence = '미검증', 'TCP 연결 검사 통과 · 분석 API HTTP 통신 미검증'
             action = EDO1_READINESS_ACTIONS[ANALYSIS_AI]
-        readiness = container_readiness(target, name, detail) if status in ('정상', '미검증') else None
+        # edo1 상태 보고서는 Prometheus 결과를 앞에서 이미 수집했다.
+        readiness = (container_readiness(target, name, detail)
+                     if status in ('정상', '미검증') and (target != 'edo1' or name != NODE_EXPORTER)
+                     else None)
         if readiness:
             if target == 'edo1':
                 _, location = EDO1_READINESS_TYPES.get(name, (None, EDO1_READINESS_LOCATION))
@@ -971,22 +996,20 @@ def health_report(target='edo1'):
             rows.append([name, location, *readiness, next_action])
         else:
             rows.append([name, 'Docker healthcheck', status, evidence, '—', action])
-    probes = [('Grafana', 3000, '/api/health'), ('n8n', 5688, '/healthz/readiness')] if target == 'edo1' else [('중계 내부 HTTP', 8765, '/healthz')]
-    for name, port, path in probes:
-        if name == 'n8n' and 'hey-edo1-n8n-1' not in names:
-            continue
+    if target == 'edo2':
         started = time.monotonic()
-        connection = http.client.HTTPConnection('127.0.0.1', port, timeout=4)
+        connection = http.client.HTTPConnection('127.0.0.1', 8765, timeout=4)
         try:
-            connection.request('GET', path)
+            connection.request('GET', '/healthz')
             response = connection.getresponse()
             body = json.loads(response.read(4096))
-            good = response.status == 200 and (body.get('database') == 'ok' if name == 'Grafana' else body.get('status') == 'ok')
-            checked = '준비 상태·DB 응답 확인' if target == 'edo1' else 'JSON status=ok · 중계 프로세스 응답'
-            rows.append([name, target + ' loopback HTTP', '정상' if good else '실패', f'HTTP {response.status} · {checked if good else "기대한 상태 불일치"}',
-                         f'{(time.monotonic()-started)*1000:.0f}ms', '준비 상태·DB 응답 확인' if target == 'edo1' else 'edo-check.service와 127.0.0.1:8765/healthz 응답 확인'])
-        except Exception:
-            rows.append([name, target + ' loopback HTTP', '실패', '응답 확인 불가', '—', path])
+            good = response.status == 200 and body.get('status') == 'ok'
+            checked = 'JSON status=ok · 중계 프로세스 응답' if good else '기대한 상태 불일치'
+            rows.append(['중계 내부 HTTP', 'edo2 loopback HTTP', '정상' if good else '실패',
+                         f'HTTP {response.status} · {checked}', f'{(time.monotonic()-started)*1000:.0f}ms',
+                         'edo-check.service와 127.0.0.1:8765/healthz 응답 확인'])
+        except (OSError, http.client.HTTPException, ValueError, AttributeError):
+            rows.append(['중계 내부 HTTP', 'edo2 loopback HTTP', '실패', '응답 확인 불가', '—', '/healthz'])
         finally:
             connection.close()
     facts = {'backend_slot': slot} if target == 'edo1' else None
