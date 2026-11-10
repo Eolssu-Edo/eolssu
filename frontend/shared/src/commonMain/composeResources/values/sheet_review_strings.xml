@@ -9,4 +9,16 @@
     <string name="sheet_review_uncertain">인식 결과를 확인해 주세요</string>
     <string name="sheet_review_save_checks">악보를 저장하면 확인한 항목이 반영돼요</string>
     <string name="sheet_review_before_reshape">확인한 항목을 저장한 뒤 각을 추가하거나 삭제할 수 있어요</string>
+    <string name="sheet_review_notice_count">악보 전체 알림 %1$d건</string>
+    <string name="sheet_review_notice_title">악보 전체 알림</string>
+    <string name="sheet_review_notice_page">%1$d쪽 · %2$s</string>
+    <string name="sheet_review_notice_grid">정간 격자를 읽지 못해 이 페이지를 건너뛰었어요.</string>
+    <string name="sheet_review_notice_staff">오선보를 찾지 못해 이 페이지를 건너뛰었어요.</string>
+    <string name="sheet_review_notice_text">율명 글자를 읽지 못해 이 페이지를 건너뛰었어요.</string>
+    <string name="sheet_review_notice_unreadable">악보의 일부를 읽지 못했어요.</string>
+    <string name="sheet_review_notice_jangdan">%1$s으로 변환했어요. 원래 장단과 맞는지 확인해 주세요.</string>
+    <string name="sheet_review_notice_jangdan_mismatch">악보 한 각의 길이와 장단의 박 구성이 달라요.</string>
+    <string name="sheet_review_notice_transposed">음높이 조정 · %1$s반음</string>
+    <string name="sheet_review_notice_transposed_unknown">변환하면서 조를 옮겼어요.</string>
+    <string name="sheet_review_notice_other">악보를 원본과 비교해 확인해 주세요.</string>
 </resources>

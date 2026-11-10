@@ -115,6 +115,7 @@ fun PracticeRoute(
                 onRetrySong = viewModel::retryLoadSong,
                 bottom = PracticeBottomActions(
                     onStartModel = viewModel::startModel,
+                    onDownloadSheetAudio = viewModel::downloadPersonalAudio,
                     onSelectModel = viewModel::selectModel,
                     onSelectRhythm = viewModel::selectRhythm,
                     onStartRhythm = viewModel::startRhythm,

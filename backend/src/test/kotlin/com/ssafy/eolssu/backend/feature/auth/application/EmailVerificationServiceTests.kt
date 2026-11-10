@@ -76,17 +76,42 @@ class EmailVerificationServiceTests {
 
     @Test
     fun `password reset delivers to the stored email instead of a collation alias`() {
-        val storedEmail = "member@example.com"
-        val alias = "mémber@example.com"
+        // 회원 행이 대소문자를 섞어 저장돼 있어도 DB 비교로 찾은 원래 주소로만 보낸다.
+        val storedEmail = "Member@Example.com"
+        val alias = "member@example.com"
         repository.members.add(storedEmail)
         repository.memberAliases[alias] = storedEmail
         var recipient = ""
         val capture = object : VerificationMailSender {
             override fun send(email: String, purpose: VerificationPurpose, code: String) { recipient = email }
         }
-        val sent = assertIs<SendVerificationResult.Accepted>(service(capture).send(alias, VerificationPurpose.PASSWORD_RESET))
+        val sent = assertIs<SendVerificationResult.Accepted>(service(capture).send("MEMBER@example.com", VerificationPurpose.PASSWORD_RESET))
         assertEquals(storedEmail, recipient)
         assertEquals(storedEmail, repository.records.getValue(sent.verificationId).email)
+    }
+
+    @Test
+    fun `malformed emails are rejected for every purpose without storing a row or sending`() {
+        repository.members.add("member@example.com")
+        val invalid = listOf(
+            "a@b", "a@b.", "@b.com", "a@.com", "a..b@c.com", "a@b..com", "a b@c.com", "a@-b.com",
+            "a@b.c", "a,b@c.com", "mémber@example.com", "a".repeat(65) + "@example.com",
+        )
+        for (purpose in VerificationPurpose.entries) {
+            for (email in invalid) assertEquals(SendVerificationResult.InvalidEmail, service().send(email, purpose), "$purpose $email")
+        }
+        assertTrue(repository.records.isEmpty())
+        assertTrue(deliveries.isEmpty())
+    }
+
+    @Test
+    fun `well formed emails keep being accepted and normalized`() {
+        for ((index, email) in listOf("user@naver.com", "first.last+tag@sub.example.co.kr", "UPPER.Case@Example.COM").withIndex()) {
+            clock = Clock.fixed(now.plusSeconds(index * 60L), ZoneOffset.UTC)
+            val sent = assertIs<SendVerificationResult.Accepted>(service().send(email, VerificationPurpose.SIGN_UP), email)
+            assertEquals(email.lowercase(), repository.records.getValue(sent.verificationId).email)
+        }
+        assertEquals(3, deliveries.size)
     }
 
     @Test

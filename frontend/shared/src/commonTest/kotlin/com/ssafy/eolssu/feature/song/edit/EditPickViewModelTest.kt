@@ -109,7 +109,9 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
         val opened = mutableListOf<String>()
         model.selectInstrument(Instrument.Danso)
         runCurrent()
+        assertEquals(EditPickTab.Songs, model.uiState.value.tab, "처음에는 첫 탭인 제공 곡을 보인다")
 
+        model.selectTab(EditPickTab.Mine)
         model.toggle(EditPickTarget.Sheet("31"))
         model.confirmSelection { opened += it }
         assertEquals(listOf("31"), opened)
@@ -194,9 +196,9 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
         runCurrent()
         assertEquals(setOf("태" to 2), model.uiState.value.availablePitches)
         val before = model.uiState.value.draft
-        model.putYul(Yul.Taeju, 1)
+        model.raiseRegister(); model.putYul(Yul.Taeju)
         assertEquals(before, model.uiState.value.draft, "등록되지 않은 청태는 적지 않는다")
-        model.raiseRegister(); model.raiseRegister(); model.putYul(Yul.Taeju)
+        model.raiseRegister(); model.putYul(Yul.Taeju)
         assertEquals(ScoreNote.SourcePitch("태", 2), model.uiState.value.draft.cells[0].single())
     }
 }

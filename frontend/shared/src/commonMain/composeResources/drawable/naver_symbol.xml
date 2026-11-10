@@ -1,0 +1,4 @@
+<!-- 네이버 로그인 버튼의 N 심볼(네이버 로그인 디자인 가이드). 초록 바탕 위에 흰색으로 쓴다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="20" android:viewportHeight="20">
+    <path android:fillColor="#FFFFFF" android:pathData="M13.56,10.7L6.17,0H0v20h6.44V9.3L13.83,20H20V0h-6.44z" />
+</vector>

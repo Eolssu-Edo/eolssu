@@ -36,8 +36,7 @@ class EmailVerificationViewModel(
 
     /** 숫자만 6자리까지 받는다. 새 번호가 필요한 오류는 새로 받을 때까지 남긴다. */
     fun changeCode(code: String) = _uiState.update {
-        val keepError = it.codeError == CodeError.Expired || it.codeError == CodeError.TooManyAttempts
-        it.copy(code = code.filter { c -> c in '0'..'9' }.take(6), codeError = if (keepError) it.codeError else null)
+        it.copy(code = code.filter { c -> c in '0'..'9' }.take(6), codeError = it.codeError?.takeIf { e -> e.needsNewCode })
     }
 
     /** 인증번호를 보냈으면 true. 이메일이 틀렸거나 이미 가입된 이메일이면 오류를 남긴다. */
@@ -108,7 +107,8 @@ class EmailVerificationViewModel(
             }
             is ConfirmCodeResult.Mismatch -> CodeError.Mismatch(result.remainingAttempts)
             ConfirmCodeResult.TooManyAttempts -> CodeError.TooManyAttempts
-            ConfirmCodeResult.Expired -> CodeError.Expired
+            // 서버가 만료로 답해도 화면의 3분이 남아 있으면 시간 초과가 아니라 쓸 수 없게 된 번호다.
+            ConfirmCodeResult.Expired -> if (now() < state.expiresAtMillis) CodeError.NoLongerValid else CodeError.Expired
             ConfirmCodeResult.Unavailable -> CodeError.Unavailable
         }
         _uiState.update { it.copy(codeError = error) }

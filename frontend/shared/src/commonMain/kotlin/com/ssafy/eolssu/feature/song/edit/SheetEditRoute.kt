@@ -4,13 +4,17 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.backhandler.BackHandler
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
+import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
@@ -40,7 +44,8 @@ fun SheetEditRoute(
     onOpenChecks: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    BackHandler(enabled = state.draft.original != null && !state.closeWarning) { viewModel.closeEditor(onClose) }
+    var detailsOpen by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = state.draft.original != null && !state.closeWarning && !detailsOpen) { viewModel.closeEditor(onClose) }
     if (state.documentLoading || state.documentFailed) {
         SheetDocumentNotice(state.documentLoading, onClose, viewModel::loadDocument)
         return
@@ -69,24 +74,23 @@ fun SheetEditRoute(
         actions = SheetEditActions(
             onClose = { viewModel.closeEditor(onClose) },
             onPreview = onPreview,
+            onOpenDetails = { detailsOpen = true },
             onOpenChecks = onOpenChecks,
             onOpenReviewCell = viewModel::openNextReviewCell,
             onCheckReviewIssue = viewModel::checkReviewIssue,
             onSelectView = viewModel::selectView,
             onSelectCell = viewModel::selectCell,
             onSelectUnit = viewModel::selectUnit,
-            onUndo = viewModel::undo,
-            onRedo = viewModel::redo,
             onSelectStaffNote = viewModel::selectStaffNote,
             onShiftStaffNote = viewModel::shiftStaffNote,
             input = EditInputActions(
+                onUndo = viewModel::undo,
+                onRedo = viewModel::redo,
                 onSelectTab = viewModel::selectTab,
                 onPut = viewModel::put,
                 onPutYul = { viewModel.putYul(it) },
-                onPutYulAt = { base, octave -> viewModel.putYul(base, octave) },
                 onRaiseRegister = viewModel::raiseRegister,
                 onLowerRegister = viewModel::lowerRegister,
-                onResetRegister = viewModel::resetRegister,
                 onErase = viewModel::erase,
                 onToggleSigimsae = viewModel::toggleSigimsae,
                 onRemoveSigimsae = viewModel::removeSigimsae,
@@ -97,6 +101,15 @@ fun SheetEditRoute(
                 onChangeJangdan = viewModel::changeJangdan,
             ),
         ),
+    )
+    if (detailsOpen && state.canEditDetails) SheetEditDetailsDialog(
+        initialTitle = state.draft.title,
+        initialBpm = state.draft.bpm,
+        onApply = { title, bpm ->
+            viewModel.updateDetails(title, bpm)
+            detailsOpen = false
+        },
+        onDismiss = { detailsOpen = false },
     )
     state.jangdanPicker?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft.original?.music?.bpmUnit,

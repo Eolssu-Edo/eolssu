@@ -79,7 +79,6 @@
 
     <!-- EditPick 불러올 악보 고르기 -->
     <string name="sheetedit_pick_title">불러올 악보 고르기</string>
-    <string name="sheetedit_pick_subtitle">악기를 고른 뒤 그 악기의 악보를 골라요</string>
     <string name="sheetedit_pick_confirm">선택</string>
     <string name="sheetedit_pick_copy">내 악보로 복사</string>
     <string name="sheetedit_pick_copying">복사 중</string>
@@ -98,7 +97,7 @@
 
     <!-- EDIT-02 정간보 편집 · EDIT-03 오선보로 보기 -->
     <string name="sheetedit_close">편집 닫기</string>
-    <string name="sheetedit_preview">미리보기</string>
+    <string name="sheetedit_preview">편집 내용 확인</string>
     <string name="sheetedit_subtitle_editing">편집 중 · %1$s · %2$d BPM</string>
     <string name="sheetedit_subtitle_staff">오선보로 보기 · 황 = %1$s 기준</string>
     <string name="sheetedit_undo">실행 취소</string>
@@ -107,9 +106,6 @@
     <string name="sheetedit_view_staff">오선보</string>
     <string name="sheetedit_banner_import">불러온 악보 · 인식을 확인할 정간 %1$d개가 남았어요</string>
     <string name="sheetedit_banner_open">확인 정간 보기</string>
-    <string name="sheetedit_hint_jeongganbo">오른쪽 각부터 위→아래로 입력해요 · 시김새는 정간 오른쪽에 작게 표시</string>
-    <string name="sheetedit_selected">선택</string>
-    <string name="sheetedit_selected_sigimsae">시김새 %1$s</string>
     <string name="sheetedit_autosaved">자동 임시저장됨</string>
     <string name="sheetedit_tab_yul">율명·기호</string>
     <string name="sheetedit_tab_sigimsae">시김새</string>
@@ -132,7 +128,6 @@
     <string name="sheetedit_jangdan_same_unit">악보의 빠르기와 음 길이를 유지하려면 박자 단위가 같은 장단을 골라야 해요.</string>
     <string name="sheetedit_jangdan_none_compatible">현재 악보와 박자 단위가 같은 장단이 없어요.</string>
     <string name="sheetedit_jangdan_load_failed">장단 목록을 불러오지 못했어요.</string>
-    <string name="sheetedit_cell_note">장단을 바꾸면 한 각의 정간 수와 박 구분선이 함께 바뀌어요. ‘한 정간 나누기’는 한 정간에 음을 위→아래로 여러 개 넣을 때 써요.</string>
     <string name="sheetedit_staff_hint">한쪽을 고치면 다른 쪽도 바로 바뀌어요</string>
     <string name="sheetedit_staff_system">정간보 %1$d–%2$d각</string>
     <string name="sheetedit_staff_where_span">%1$s부터 %2$d정간</string>
@@ -153,12 +148,14 @@
     <string name="sheetedit_duration_dotted_half">점2분음표 (6정간)</string>
     <string name="sheetedit_duration_other">%1$s정간</string>
 
-    <!-- EDIT-04 미리보기 · 저장 -->
-    <string name="sheetedit_preview_title">미리보기 · 저장</string>
+    <!-- EDIT-04 편집 내용 확인 및 저장 -->
+    <string name="sheetedit_preview_title">편집 내용 확인</string>
     <string name="sheetedit_preview_beat">%1$s · %2$d BPM</string>
     <string name="sheetedit_preview_beat_sub">한 각 %1$d정간 · %2$d박 · %3$d각</string>
     <string name="sheetedit_preview_hint">오른쪽 각부터 위→아래로 읽어요</string>
     <string name="sheetedit_preview_listen">미리듣기 · %1$s</string>
+    <string name="sheetedit_preview_progress">%1$s / %2$s</string>
+    <string name="sheetedit_preview_seek">미리듣기 재생 위치</string>
     <string name="sheetedit_preview_play">미리듣기 재생</string>
     <string name="sheetedit_preview_pause">미리듣기 일시정지</string>
     <string name="sheetedit_preview_with_jangdan">장단 소리 함께</string>
@@ -189,20 +186,27 @@
     <string name="sheetedit_warn_more">%1$s 외 %2$d곳</string>
     <string name="sheetedit_warn_fill">빈 정간 채우기</string>
     <string name="sheetedit_msg_draft">임시저장했어요 · 내 악보에서 이어서 고칠 수 있어요</string>
-    <string name="sheetedit_msg_saved">저장했어요 · 내 악보에서 연습할 수 있어요</string>
+    <string name="sheetedit_msg_saved">악보를 저장했어요</string>
+    <string name="sheetedit_msg_saved_for_practice">저장했어요 · 내 악보에서 연습할 수 있어요</string>
+    <string name="sheetedit_msg_saved_needs_review">저장했어요 · 남은 정간을 확인하고 저장하면 연습할 수 있어요</string>
     <string name="sheetedit_audio_settings_changed">음원 설정이 바뀌었어요. 음원을 다시 만들어 주세요</string>
+    <string name="sheetedit_audio_instrument_choose">연주 악기를 선택해 주세요</string>
+    <string name="sheetedit_audio_instrument_failed">연주 악기 목록을 불러오지 못했어요</string>
+    <string name="sheetedit_audio_instrument_label">연주 악기 · %1$s</string>
+    <string name="sheetedit_audio_instrument_loading">연주 악기 목록을 불러오는 중이에요</string>
     <string name="sheetedit_preview_needs_audio">현재 악보의 M4A를 먼저 내려받아 주세요</string>
-    <string name="sheetedit_msg_audio_needs_save">저장한 악보가 있어야 음원을 만들 수 있어요</string>
+    <string name="sheetedit_preview_needs_practice_audio">연습 화면에서 음원을 받은 뒤 미리 들을 수 있어요</string>
+    <string name="sheetedit_msg_audio_needs_save">편집한 내용을 저장한 뒤 다시 시도해 주세요</string>
     <string name="sheetedit_msg_audio_requested">음원을 만들고 있어요 · 다 되면 알려 드릴게요</string>
-    <string name="sheetedit_msg_audio_ready">음원이 준비됐어요 · 미리보기에서 재생하거나 저장할 수 있어요</string>
-    <string name="sheetedit_msg_audio_failed">음원을 만들지 못했어요 · 미리보기에서 다시 시도할 수 있어요</string>
+    <string name="sheetedit_msg_audio_ready">음원이 준비됐어요 · ‘편집 내용 확인’ 화면에서 재생하거나 저장할 수 있어요</string>
+    <string name="sheetedit_msg_audio_failed">음원을 만들지 못했어요 · ‘편집 내용 확인’ 화면에서 다시 시도할 수 있어요</string>
     <string name="sheetedit_msg_audio_too_long">연주 길이가 10분을 넘어요 · 빠르기나 각 수를 줄여 주세요</string>
     <string name="sheetedit_msg_audio_invalid">장단 소리나 빠르기 설정이 맞지 않아요 · 장단이 없는 악보는 장단 소리를 끄고 만들어요</string>
     <string name="sheetedit_msg_audio_in_progress">만들고 있는 음원이 끝난 뒤 다시 눌러 주세요</string>
     <string name="sheetedit_msg_audio_not_ready">빈 정간 없이 저장한 악보만 음원을 만들 수 있어요</string>
     <string name="sheetedit_msg_audio_not_found">악보를 찾지 못했어요 · 내 악보 목록을 확인해 주세요</string>
     <string name="sheetedit_msg_audio_busy">음원 서버에 연결하지 못했어요 · 잠시 후 다시 해 주세요</string>
-    <string name="sheetedit_msg_audio_unknown">음원 상태를 확인하지 못했어요 · 미리보기에서 다시 확인해 주세요</string>
+    <string name="sheetedit_msg_audio_unknown">음원 상태를 확인하지 못했어요 · ‘편집 내용 확인’ 화면에서 다시 확인해 주세요</string>
     <string name="sheetedit_msg_audio_link_failed">음원을 내려받지 못했어요</string>
     <string name="sheetedit_pick_step_instrument">1. 편집할 악기</string>
     <string name="sheetedit_pick_step_sheet">2. 편집할 악보</string>
@@ -215,29 +219,11 @@
     <string name="sheetedit_pick_unchecked">악기를 확인하지 못한 내 악보 %1$d개는 목록에서 뺐어요</string>
     <string name="sheetedit_register_tak">탁</string>
     <string name="sheetedit_register_cheong">청</string>
-    <string name="sheetedit_register_reset">기본</string>
-    <string name="sheetedit_register_baetak">배탁성</string>
-    <string name="sheetedit_register_tak_name">탁성</string>
-    <string name="sheetedit_register_base">기본음</string>
-    <string name="sheetedit_register_cheong_name">청성</string>
-    <string name="sheetedit_register_jungcheong">중청성</string>
     <string name="sheetedit_register_baetak_short">배탁</string>
     <string name="sheetedit_register_jungcheong_short">중청</string>
-    <string name="sheetedit_selected_sub">소박 %1$d/%2$d</string>
-    <string name="sheetedit_register_now">음역 · %1$s</string>
-    <string name="sheetedit_register_hint">한 번 더 누르면 배탁·중청, 율명을 적으면 기본으로 돌아가요</string>
-    <string name="sheetedit_yul_scroll_hint">좌우로 밀어 12율을 모두 볼 수 있어요</string>
     <string name="sheetedit_key_unavailable">%1$s · 등록되지 않은 음</string>
-    <string name="sheetedit_text_label">한글로 입력</string>
-    <string name="sheetedit_text_placeholder">예: 태 · 청태 · 중청태 · 탁태</string>
-    <string name="sheetedit_text_submit">완료</string>
-    <string name="sheetedit_text_preview">%1$s(으)로 적어요</string>
-    <string name="sheetedit_text_unknown">‘%1$s’은(는) 율명으로 읽을 수 없어요</string>
-    <string name="sheetedit_text_incomplete">음역 뒤에 율명을 이어서 써 주세요</string>
-    <string name="sheetedit_text_unavailable">%1$s은(는) 등록된 음이 아니라 적을 수 없어요</string>
     <string name="sheetedit_sig_none">이 정간에 붙인 시김새가 없어요</string>
     <string name="sheetedit_sig_need_pitch">율명에만 시김새를 붙일 수 있어요</string>
     <string name="sheetedit_sig_limit">한 정간에 %1$d개까지 붙일 수 있어요</string>
-    <string name="sheetedit_sig_scroll_hint">좌우로 밀어 시김새 %1$d가지를 모두 볼 수 있어요</string>
     <string name="sheetedit_sig_remove">%1$s 떼기</string>
 </resources>

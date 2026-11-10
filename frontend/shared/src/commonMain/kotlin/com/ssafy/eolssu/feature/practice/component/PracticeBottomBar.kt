@@ -86,6 +86,7 @@ class PracticeBottomActions(
     val onConfirmStepNote: () -> Unit = {},
     val onStartRhythm: () -> Unit = {},
     val onToggleRhythm: () -> Unit = {},
+    val onDownloadSheetAudio: () -> Unit = {},
 )
 
 /**
