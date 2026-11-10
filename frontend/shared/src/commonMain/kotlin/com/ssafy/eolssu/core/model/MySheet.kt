@@ -28,4 +28,6 @@ data class MySheet(
     val status: String? = null,
     val conversionStatus: String? = null,
     val hasDraft: Boolean = false,
-)
+) {
+    val practiceReady: Boolean get() = status == "EVALUABLE"
+}

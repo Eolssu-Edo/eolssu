@@ -164,7 +164,7 @@ class SheetPracticeRepositoryTest {
         deviceAudio: SheetAudioDeviceStore = PracticeDeviceAudio { _, _, _ -> null },
         member: SignedInMember = SignedInMember(FakeKeyValueStore()).apply { set("7") },
     ) = SheetPracticeRepository(ApiSheetDocumentRepository(client), deviceAudio, ApiReferenceCatalogRepository(client),
-        InstrumentCatalog(client), member)
+        InstrumentCatalog(client), member, ApiSheetAudioRepository(client), { 0L })
 
     private fun savedAudio() = DeviceSheetAudio(
         localFile = LocalAudioFile("/app/files/sheet-audio/42.m4a"),

@@ -81,9 +81,9 @@
     <string name="practice_settings_locked">연주 중에는 바꿀 수 없어요</string>
     <string name="practice_follow_now">현재 위치로</string>
     <string name="practice_hint_ready">모범 연주를 듣고 준비되면 시작하세요.</string>
-    <string name="practice_recording_unsupported">현재 환경에서는 녹음과 연주 평가를 지원하지 않아요. 악보를 보며 연습할 수 있어요.</string>
+    <string name="practice_recording_unsupported">현재 환경에서는 녹음과 연주 평가를 지원하지 않아요.</string>
     <string name="practice_hint_solo">점수 없이 악보를 보며 혼자 연습해요. 평가하려면 위 버튼으로 넘어가요.</string>
-    <string name="practice_hint_solo_only">이 곡은 AI 평가 데이터가 없어 연습만 할 수 있어요. 점수 없이 악보를 보며 모범 연주를 따라 불어요.</string>
+    <string name="practice_hint_solo_only">이 곡은 연습만 가능해요</string>
     <string name="practice_listen_model">모범 연주 듣기</string>
     <string name="practice_start_eval">연주 평가 시작</string>
     <string name="practice_switch_to_eval">이 곡으로 평가하기</string>
@@ -613,7 +613,6 @@
     <string name="auth_signup_title">회원가입</string>
     <string name="auth_step">%1$d / %2$d</string>
     <string name="auth_step_description">%2$d단계 중 %1$d단계</string>
-    <string name="auth_password_help">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
     <string name="auth_password_confirm">비밀번호 확인</string>
     <string name="auth_password_confirm_placeholder">비밀번호를 한 번 더 입력</string>
     <string name="auth_next">다음</string>
@@ -667,15 +666,16 @@
     <string name="auth_code_placeholder">6자리 숫자</string>
     <string name="auth_code_help">3분 안에 입력해 주세요.</string>
     <string name="auth_code_confirm">확인</string>
-    <string name="auth_code_not_received">메일이 오지 않았나요?</string>
     <string name="auth_code_resend">다시 받기</string>
     <string name="auth_code_resend_wait">다시 받기 · %1$s</string>
     <string name="auth_code_new">새 인증번호 받기</string>
+    <string name="auth_code_new_wait">새 인증번호 받기 · %1$s</string>
     <string name="auth_code_resent">새 인증번호를 보냈어요.</string>
     <string name="auth_code_error_invalid">인증번호 6자리를 입력해 주세요.</string>
     <string name="auth_code_error_mismatch">인증번호가 맞지 않아요. %1$d번 더 입력할 수 있어요.</string>
     <string name="auth_code_error_expired">입력 시간 3분이 지났어요. 새 인증번호를 받아 주세요.</string>
     <string name="auth_code_error_too_many">5번 틀려서 이 인증번호는 쓸 수 없어요. 새 인증번호를 받아 주세요.</string>
+    <string name="auth_code_error_no_longer_valid">이 인증번호는 더 이상 쓸 수 없어요. 새 인증번호를 받아 주세요.</string>
     <string name="auth_signup_password_heading">로그인에 쓸\n비밀번호를 정해요</string>
     <string name="auth_reset_password_heading">새 비밀번호를\n정해요</string>
     <string name="auth_email_verified">%1$s 인증을 마쳤어요</string>
@@ -684,6 +684,13 @@
     <string name="auth_reset_done_notice">비밀번호를 바꿨어요. 새 비밀번호로 로그인해 주세요.</string>
     <string name="auth_error_email_exists">이미 가입된 이메일이에요. 로그인해 주세요.</string>
     <string name="auth_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
+    <string name="auth_error_password_too_long">비밀번호는 128자까지 정할 수 있어요.</string>
+    <string name="auth_password_check_letter">영문 포함</string>
+    <string name="auth_password_check_digit">숫자 포함</string>
+    <string name="auth_password_check_special">특수문자 포함</string>
+    <string name="auth_password_check_length">8자 이상</string>
+    <string name="auth_password_check_met">충족</string>
+    <string name="auth_password_check_unmet">아직 충족하지 않음</string>
 
     <!-- 내 악보 · PDF 올리기 (SONG-03 · UPLOAD-01 · UPLOAD-02) -->
     <string name="mysongs_title">연습곡 고르기</string>

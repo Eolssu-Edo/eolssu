@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.audio.AudioSource
+import com.ssafy.eolssu.core.audio.DeviceSheetAudio
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.SheetAudioDownload
 import com.ssafy.eolssu.core.network.ensureAccountSession
@@ -65,6 +66,7 @@ class SheetEditViewModel(
     private val loadAudioInstruments: (suspend () -> List<CatalogInstrument>)? = null,
 ) : ViewModel() {
     private val practiceVersion = (source as? EditSource.Mine)?.practiceVersion
+    internal val showsAudioExport: Boolean get() = !canSaveAudioOnDevice || practiceVersion != null
 
     /** 서버 문서나 제공 곡 원본을 읽어 와야 여는 경로. 읽기 전에는 예시 악보를 보이지 않는다. */
     private val loadsRemote = (documents != null && source is EditSource.Mine) || (songs != null && source is EditSource.CopySong)
@@ -73,7 +75,8 @@ class SheetEditViewModel(
             if (loadsRemote) SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1))
             else SheetEditSamples.draftFor(source, mySheetRepository.sheets.value), startView)
             .copy(documentLoading = loadsRemote,
-                audioInstruments = if (source is EditSource.Mine && loadAudioInstruments != null) SheetAudioInstruments() else null),
+                audioInstruments = if (showsAudioExport && source is EditSource.Mine && loadAudioInstruments != null)
+                    SheetAudioInstruments() else null),
     )
 
     /** 서버에 저장할 수 없는 악보(예시·제공 곡 복사본)의 처음 상태. 고친 뒤 닫으면 버릴지 묻는다. */
@@ -227,13 +230,19 @@ class SheetEditViewModel(
                             version = result.scoreVersion
                             revision = result.revision
                             if (versionChanged) audioDownloadJob?.cancel()
+                            val saveMessage = when {
+                                draft -> SheetEditMessage.Draft
+                                result.reviewStatus == "EVALUABLE" -> SheetEditMessage.SavedForPractice
+                                result.reviewStatus == "NEEDS_REVIEW" -> SheetEditMessage.SavedNeedsReview
+                                else -> SheetEditMessage.Saved
+                            }
                             _uiState.update { it.copy(savedOnce = it.savedOnce || !draft,
                                 audio = if (!draft && it.audio.latest != null) SheetAudioUi.None else it.audio,
                                 deviceAudio = if (versionChanged) null else it.deviceAudio,
                                 audioDownloading = !versionChanged && it.audioDownloading,
                                 reviewIssues = it.reviewIssues.filterNot { issue -> issue.id in resolvedIds },
                                 checkedIssueIds = it.checkedIssueIds - resolvedIds.toSet(),
-                                message = if (announce) (if (draft) SheetEditMessage.Draft else SheetEditMessage.Saved) else it.message) }
+                                message = if (announce) saveMessage else it.message) }
                             if (!draft) {
                                 savedJangdanId = snapshot.draft.jangdanId
                                 mySheetRepository.refresh()
@@ -297,10 +306,8 @@ class SheetEditViewModel(
     fun put(note: ScoreNote) = change { it.put(note) }
     fun erase() = change { it.erase() }
     fun putYul(base: Yul) = change { it.putYul(base) }
-    fun putYul(base: Yul, octave: Int) = change { it.putYul(base, octave) }
     fun raiseRegister() = change { it.raiseRegister() }
     fun lowerRegister() = change { it.lowerRegister() }
-    fun resetRegister() = change { it.resetRegister() }
     fun toggleSigimsae(value: Sigimsae) = change { it.toggleSigimsae(value) }
     fun removeSigimsae(position: Int) = change { it.removeSigimsae(position) }
     fun split() = change { it.split() }
@@ -353,6 +360,7 @@ class SheetEditViewModel(
     }
 
     fun loadAudioInstrumentOptions() {
+        if (!showsAudioExport) return
         val load = loadAudioInstruments ?: return
         val instrumentCode = confirmedDraft?.original?.score?.instrument ?: return
         if (!accountScope.isActive || audioInstrumentsJob?.isActive == true) return
@@ -397,6 +405,7 @@ class SheetEditViewModel(
 
     /** '음원 만들기'·'다시 만들기'·'다시 시도'. 저장된 서버 악보가 있을 때만 SHT-12를 부르고, 접수되면 끝날 때까지 상태를 묻는다. */
     fun requestAudio() {
+        if (!showsAudioExport) return
         val current = _uiState.value
         if (!accountScope.isActive || current.documentLoading || current.documentFailed || current.saving || current.audioDownloading) return
         if (loaded != null && (current.draft.jangdanId != savedJangdanId || current.draft.bpm != confirmedDraft?.bpm)) {
@@ -438,6 +447,7 @@ class SheetEditViewModel(
 
     /** '다시 확인'과 화면 진입: SHT-13으로 현재 상태를 읽고, 만드는 중이면 조회를 잇는다. [announce]면 연결 실패도 알린다. */
     fun refreshAudio(announce: Boolean = true) {
+        if (!showsAudioExport) return
         val repository = sheetAudio ?: return
         val sheetId = _uiState.value.serverSheetId ?: return
         startAudioJob {
@@ -507,11 +517,13 @@ class SheetEditViewModel(
         }
     }
 
-    /** 편집 중인 내용과 선택한 악기·장단·빠르기가 일치하는 확정 버전의 음원만 미리 듣는다. */
-    fun previewPlaybackId(): String? {
+    /** 확정 악보와 같은 버전·빠르기의 기기 음원만 미리 듣는다. */
+    fun previewPlaybackId(): String? = previewDeviceAudio()?.playbackId
+
+    private fun previewDeviceAudio(): DeviceSheetAudio? {
         val state = _uiState.value
-        if (state.saving || state.draft != confirmedDraft) return null
-        return state.playableDeviceAudio?.playbackId
+        if (!accountScope.isActive || state.saving || state.draft != confirmedDraft) return null
+        return if (showsAudioExport) state.playableDeviceAudio else state.deviceAudio?.takeIf { it.bpm == state.draft.bpm }
     }
 
     fun devicePlayback(preview: Boolean): AudioSource? {
@@ -520,8 +532,8 @@ class SheetEditViewModel(
             change { it.copy(message = SheetEditMessage.AudioNeedsSave) }
             return null
         }
-        val file = _uiState.value.playableDeviceAudio
-        if (file == null || preview && previewPlaybackId() != file.playbackId) {
+        val file = if (preview) previewDeviceAudio() else _uiState.value.playableDeviceAudio
+        if (file == null) {
             change { it.copy(message = SheetEditMessage.PreviewNeedsAudio) }
             return null
         }

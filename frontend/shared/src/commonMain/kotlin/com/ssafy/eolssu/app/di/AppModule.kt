@@ -131,7 +131,7 @@ val appModule = module {
     single { SignedInMember(get()) }
     single<SongRepository> { ApiSongRepository(get()) }
     single<ModelAudioRepository> { ApiModelAudioRepository(get()) }
-    single { SheetPracticeRepository(get(), get(), get(), get(), get()) }
+    single { SheetPracticeRepository(get(), get(), get(), get(), get(), get(), get()) }
     single { InstrumentCatalog(get()) }
     single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
     single<ReferenceAudioRepository> { ApiReferenceAudioRepository(get(), get()) }
@@ -161,7 +161,7 @@ val appModule = module {
         val personalPractice = if (mine) get<SheetPracticeRepository>() else null
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
             modelAudioRepository = personalPractice ?: get<ModelAudioRepository>(), audioPlayer = get(), mine = mine, learn = learn, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
-            notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf, direct = direct)
+            notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf, personalAudio = personalPractice, direct = direct)
     }
     viewModel { parameters ->
         val (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) = parameters
