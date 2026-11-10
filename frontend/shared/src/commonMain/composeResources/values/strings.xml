@@ -224,6 +224,10 @@
     <string name="analysis_back_to_practice">연습으로 돌아가기</string>
     <string name="analysis_play_again">다시 연주하기</string>
     <string name="analysis_upload_failed_title">녹음을 보내지 못했어요.</string>
+    <string name="analysis_upload_timed_out">녹음을 보내는 데 시간이 너무 오래 걸렸어요.</string>
+    <string name="analysis_upload_connection_failed">서버 연결에 문제가 생겼어요.</string>
+    <string name="analysis_upload_server_error">서버 응답에 문제가 생겼어요.</string>
+    <string name="analysis_upload_unreachable">잠시 후 다시 보내 주세요.</string>
     <string name="analysis_upload_kept">녹음은 기기에 남아 있어요.</string>
     <string name="analysis_upload_rejected">이 녹음은 보낼 수 없어요. 다시 연주해 주세요.</string>
     <string name="analysis_upload_missing">기기에서 녹음을 찾지 못했어요. 다시 연주해 주세요.</string>
