@@ -153,7 +153,7 @@ internal class AnalysisSession(
         val recording = recording
         val take = take
         val state = _state.value
-        if (state.upload != UploadProblem.CanResend || state.resending) return
+        if (state.upload?.retryable != true || state.resending) return
         if (recording == null && take == null) return
         _state.update { it.copy(resending = true) }
         scope.launch {
@@ -170,6 +170,9 @@ internal class AnalysisSession(
                 startPolling()
             }
             SendResult.CanResend -> _state.update { it.copy(upload = UploadProblem.CanResend, resending = false) }
+            SendResult.TimedOut -> _state.update { it.copy(upload = UploadProblem.TimedOut, resending = false) }
+            SendResult.ConnectionFailed -> _state.update { it.copy(upload = UploadProblem.ConnectionFailed, resending = false) }
+            SendResult.ServerError -> _state.update { it.copy(upload = UploadProblem.ServerError, resending = false) }
             SendResult.Rejected -> _state.update { it.copy(upload = UploadProblem.Rejected, resending = false) }
             SendResult.Missing -> _state.update { it.copy(upload = UploadProblem.Missing, resending = false) }
             SendResult.Expired -> _state.update { it.copy(upload = null, resending = false, failure = AnalysisFailure.UploadTimeout) }

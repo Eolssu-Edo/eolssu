@@ -34,6 +34,7 @@ class SheetAudioDatabaseTests {
     @Autowired lateinit var mapper: SheetAudioMapper
     @Autowired lateinit var sheets: UserSheetRepository
     @Autowired lateinit var scores: SheetScores
+    @Autowired lateinit var copies: CopyPublishedSheet
     @Autowired lateinit var manager: PlatformTransactionManager
     @Autowired lateinit var jangdanResolver: SheetAudioJangdanResolver
     @Autowired lateinit var purge: com.ssafy.eolssu.backend.feature.auth.application.WithdrawalPurgeService
@@ -73,6 +74,22 @@ class SheetAudioDatabaseTests {
         jdbc.update("DELETE FROM user_sheets WHERE user_id IN(994481,994482)")
         jdbc.update("DELETE FROM users WHERE id IN(994481,994482)")
     }
+    @Test fun `a published copy can request audio with its own score version`() {
+        val copy = assertIs<SheetCopyResult.Created>(copies.copy(994481, 1, "audio-copy-key"))
+        try {
+            val queued = audio.request(994481, copy.sheetId, null, false, null)
+            assertEquals("QUEUED", queued.body.status)
+            assertEquals("1", queued.body.scoreVersion)
+            audio.runOne()
+            val result = audio.get(994481, copy.sheetId)
+            assertEquals("DONE", result.status)
+            assertNotNull(result.audio)
+            assertNotNull(result.midi)
+        } finally {
+            audio.delete(994481, copy.sheetId)
+        }
+    }
+
     @Test fun `owned queued request becomes done and identical request reuses the same pair`() {
         assertEquals("QUEUED",audio.request(994481,994481,null,false,null).body.status)
         assertEquals(ErrorCode.AUDIO_IN_PROGRESS,assertFailsWith<SheetAudioRejection> { audio.request(994481,994481,null,false,null) }.code)
