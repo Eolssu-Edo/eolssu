@@ -215,6 +215,8 @@ fun JeongganboView(
     look: JeongganboLook = JeongganboLook.Classic,
     /** 연습 화면의 짧은 각 묶음. 원본 각·음표 좌표는 바꾸지 않는다. */
     columnsPerStack: Int = 1,
+    /** 한 줄로 그릴 각을 대강 경계에서 두 줄로 나눈다([scoreStrips]). 각 번호 머리는 첫 줄에만 둔다. 원본 좌표는 바꾸지 않는다. */
+    splitColumns: Boolean = false,
     stackGap: Dp = 12.dp,
     /** 원본 (각, 정간) 좌표별 높이. 다른 화면은 기존 고정 높이를 쓴다. */
     cellHeights: Map<Pair<Int, Int>, Dp> = emptyMap(),
@@ -232,7 +234,9 @@ fun JeongganboView(
     val renderMetrics = metrics.forFontScale(LocalDensity.current.fontScale)
     val stackSize = columnsPerStack.coerceAtLeast(1)
     val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
-    val strips = remember(song, maxColumns, maxRows, columns) { scoreStrips(song.score, song.jangdan, maxColumns, maxRows, columns) }
+    val strips = remember(song, maxColumns, maxRows, columns, splitColumns) {
+        scoreStrips(song.score, song.jangdan, maxColumns, maxRows, columns, splitColumns)
+    }
     val unitsByCell = remember(song) { song.displayUnits.groupBy { it.column to it.row } }
     // 원본에는 대강 경계가 없다. 예전 장단의 고정 분할을 새 악보에 덧씌우지 않되, 보드처럼 각 길이가 장단 정간 수와 같으면 선만 긋는다.
     val patternStarts = song.jangdan?.daegangStarts.orEmpty()
