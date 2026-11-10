@@ -159,6 +159,8 @@
     <string name="sheetedit_preview_beat_sub">한 각 %1$d정간 · %2$d박 · %3$d각</string>
     <string name="sheetedit_preview_hint">오른쪽 각부터 위→아래로 읽어요</string>
     <string name="sheetedit_preview_listen">미리듣기 · %1$s</string>
+    <string name="sheetedit_preview_progress">%1$s / %2$s</string>
+    <string name="sheetedit_preview_seek">미리듣기 재생 위치</string>
     <string name="sheetedit_preview_play">미리듣기 재생</string>
     <string name="sheetedit_preview_pause">미리듣기 일시정지</string>
     <string name="sheetedit_preview_with_jangdan">장단 소리 함께</string>
