@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -102,7 +103,6 @@ class LearnStageActions(
     val onOpenStage: (Int) -> Unit,
     val onToggleDone: (Int) -> Unit,
     val onConfirm: (Int) -> Unit,
-    val onStartPractice: (Int) -> Unit,
     val onListenModel: () -> Unit,
     val onOpenFingering: (Blow) -> Unit,
     val onOpenReading: (ReadingPage) -> Unit,
@@ -137,6 +137,8 @@ fun LearnStageScreen(
     snackbarHostState: SnackbarHostState,
     actions: LearnStageActions,
     noteAudioContent: @Composable (FingeringNote) -> Unit,
+    /** 3~7단계의 연습 박스. 마지막 할 일 박스로 붙는다. */
+    practice: StepPractice? = null,
 ) {
     val tablet = widthClass != WindowWidthClass.Compact
     val tour = rememberLearnTour(stage.number)
@@ -161,6 +163,7 @@ fun LearnStageScreen(
             contentPadding = PaddingValues(start = side, end = side, bottom = 24.dp),
             columns = if (tablet) LearnStageColumns.Portrait else LearnStageColumns.Compact,
             tour = tour,
+            practice = practice,
         )
     }
 }
@@ -188,6 +191,7 @@ internal fun LearnStageContent(
     columns: LearnStageColumns = LearnStageColumns.Compact,
     scrollState: ScrollState = rememberScrollState(),
     tour: LearnTour = rememberLearnTour(stage.number),
+    practice: StepPractice? = null,
 ) {
     // 1단계 따라 배우기를 다 마치면 '완료했어요!'를 띄우고, '다음 단계로'는 '확인하고 다음 단계'와 같이 완료 표시 뒤 2단계로 간다.
     if (stage.number == 1) LearnTourDoneDialog(tour) { actions.onConfirm(stage.number) }
@@ -203,7 +207,7 @@ internal fun LearnStageContent(
                 val detail = load.detail
                 StagePosition(state, stage.number) { DoneToggleButton(state.isDone(stage.number), onClick = { actions.onToggleDone(stage.number) }) }
                 StageHero(stage, detail)
-                StageBody(state, stage, detail, actions, columns, noteAudioContent, tour)
+                StageBody(state, stage, detail, actions, columns, noteAudioContent, tour, practice)
             }
             else -> LearnLoadStatus(
                 failed = load == LearnDetailLoad.Failed,
@@ -303,6 +307,7 @@ private fun StageBody(
     columns: LearnStageColumns,
     noteAudioContent: @Composable (FingeringNote) -> Unit,
     tour: LearnTour,
+    practice: StepPractice?,
 ) {
     val instrument = state.instrument
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
@@ -312,11 +317,11 @@ private fun StageBody(
     }
     val grid = columns.grid
     val taskImageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified
-    // 할 일 박스를 다 마치면 설명 단계(1·2단계)는 '완료했어요!'를 띄우고, 연습 단계(3~7단계)는 아래 '연습 시작'이 반짝인다(S15P31E102-688).
+    // 할 일 박스를 다 마치면 설명 단계(1·2단계)는 '완료했어요!'를 띄우고, 연습 단계(3~7단계)는 마지막 연습 박스가 펼쳐진다(S15P31E102-688).
     val onAllDone = { if (stage.primaryAction == LearnStageAction.Confirm) tour.finish() }
-    // 4~7단계는 처음부터 1번 박스가 펼쳐진 할 일 박스만 둔다.
+    // 4~7단계는 처음부터 1번 박스가 펼쳐진 할 일 박스와 마지막 연습 박스만 둔다.
     if (stage.number >= 4 && hasTaskTour(stage.number) && stageTourCount(stage.number, detail, instrument) > 0) {
-        LearnSection(tasksTitle) { LearnStageTour(instrument, stage.number, detail, tour, noteAudioContent, onAllDone) }
+        LearnSection(tasksTitle) { LearnStageTour(instrument, stage.number, detail, tour, noteAudioContent, onAllDone, practice) }
         return
     }
 
@@ -331,7 +336,7 @@ private fun StageBody(
             val tasks = detail.tasks.plain()
             val first = if (stage.number == 3) detail.pitchNames.firstOrNull()?.let(noteOf) else null
             LearnSection(tasksTitle) {
-                LearnTaskTour(instrument, stage.number, tasks, tour, first, noteAudioContent, imageMaxWidth = taskImageMaxWidth, onAllDone = onAllDone)
+                LearnTaskTour(instrument, stage.number, tasks, tour, first, noteAudioContent, imageMaxWidth = taskImageMaxWidth, onAllDone = onAllDone, practice = practice)
             }
         }
         4 -> {
@@ -384,6 +389,11 @@ private fun StageBody(
         }
         else -> LearnSection(tasksTitle) { LearnTaskList(detail.tasks.plain(), grid, collapsible = true) }
     }
+    // 할 일을 박스로 만들 수 없는 4~7단계도 연습 박스 하나는 둔다.
+    if (stage.number >= 4 && practice != null) {
+        Spacer(Modifier.height(16.dp))
+        TourPanel(emptyList(), tour, practice = practice) {}
+    }
 }
 
 internal val LearnPattern.label: StringResource
@@ -421,7 +431,8 @@ private val CitationPattern = Regex("""\s*\((?:[^()]*(?:차시|교실|지도서)
 /**
  * 하단 고정 영역(S15P31E102-688): 양옆에 이전·다음 단계로 가는 동그란 버튼, 가운데 판정 방식별 주 버튼
  * (설명 단계 '확인하고 다음 단계', 연습 단계 '연습 시작', 듣기 단계 '모범 연주 듣기').
- * 할 일 박스를 모두 마치면 주 버튼이 살짝 커졌다 작아지며 다음 할 일을 알린다.
+ * 연습 단계의 '연습 시작'은 화면을 옮기지 않고 마지막 연습 박스를 바로 펼친다.
+ * 할 일 박스를 모두 마치면 주 버튼이 살짝 커졌다 작아지며 다음 할 일을 알린다(연습 박스가 펼쳐져 있으면 쉰다).
  */
 @Composable
 internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions: LearnStageActions, tour: LearnTour) {
@@ -431,12 +442,12 @@ internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions
     val next = state.stages.getOrNull(index + 1)?.takeIf { index >= 0 }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         StageNavButton(previous, forward = false, onOpen = actions.onOpenStage)
-        val primary = Modifier.weight(1f).attention(tour.allDone(stepCount))
+        val primary = Modifier.weight(1f).attention(tour.allDone(stepCount) && tour.open != stepCount)
         when (stage.primaryAction) {
             LearnStageAction.Confirm -> EolssuButton(stringResource(Res.string.learn_confirm_next), { actions.onConfirm(stage.number) }, primary)
             LearnStageAction.ListenModel -> EolssuButton(stringResource(Res.string.learn_listen_model), actions.onListenModel, primary, icon = GuideIcons.Speaker)
             LearnStageAction.Practice ->
-                EolssuButton(stringResource(Res.string.learn_start_practice), { actions.onStartPractice(stage.number) }, primary, icon = EolssuIcons.Mic)
+                EolssuButton(stringResource(Res.string.learn_start_practice), { tour.jumpTo(stepCount) }, primary, icon = EolssuIcons.Mic)
         }
         StageNavButton(next, forward = true, onOpen = actions.onOpenStage)
     }

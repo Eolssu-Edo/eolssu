@@ -74,6 +74,17 @@ class LearnFirstTourTest {
         assertEquals(2, tour.doneCount)
     }
 
+    /** 아래 '연습 시작'은 앞 박스를 마치지 않아도 연습 박스를 바로 펼친다. 앞 박스는 마침으로 남지 않는다. */
+    @Test
+    fun jumpOpensPracticeBoxWithoutMarkingEarlierBoxes() {
+        val tour = LearnTour()
+        tour.jumpTo(3)
+        assertEquals(3, tour.open)
+        assertEquals(0, tour.doneCount)
+        tour.toggle(3)
+        assertNull(tour.open)
+    }
+
     @Test
     fun finishShowsCelebration() {
         val tour = LearnTour()

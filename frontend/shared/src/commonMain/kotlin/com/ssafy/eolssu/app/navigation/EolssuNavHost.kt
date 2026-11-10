@@ -45,7 +45,6 @@ import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.ReadingRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnListRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnNavigation
-import com.ssafy.eolssu.feature.guide.learn.LearnPracticeRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnStageRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.feature.home.HomeFeature
@@ -112,7 +111,6 @@ object EolssuDestination {
     const val LEARN = "learn"
     const val LEARN_LIST = "learn/stages"
     const val LEARN_STAGE = "learn/stages/{stage}?instrument={instrument}"
-    const val LEARN_PRACTICE = "learn/stages/{stage}/practice"
 
     fun guideFingering(instrument: GuideInstrument? = null, blow: Blow? = null) =
         "guide/fingering?instrument=${instrument?.id.orEmpty()}&blow=${blow?.name.orEmpty()}"
@@ -122,7 +120,6 @@ object EolssuDestination {
     fun learnStage(stage: Int, instrument: GuideInstrument? = null) =
         "learn/stages/$stage" + (instrument?.let { "?instrument=${it.id}" } ?: "")
 
-    fun learnPractice(stage: Int) = "learn/stages/$stage/practice"
 
     // 내 악보 (SONG-03)
     const val MY_SONGS = "my-songs?sheets={sheets}"
@@ -434,8 +431,12 @@ fun EolssuNavHost(
                 val learnNavigation = LearnNavigation(
                     onOpenFingering = { instrument, blow -> navController.navigate(EolssuDestination.guideFingering(instrument, blow)) },
                     onOpenReading = { page -> navController.navigate(EolssuDestination.guideReading(page)) },
-                    onOpenSongList = { navController.navigate(EolssuDestination.SONG_LIST) },
-                    onOpenPractice = { navController.navigate(EolssuDestination.learnPractice(it)) },
+                    // 마지막 단계(7단계)를 마치면 단계 상세를 닫고 단계 목록 위에 곡 목록을 연다(S15P31E102-658). 뒤로 가면 단계 목록이다.
+                    // 마이페이지·주소로 바로 들어와 목록이 없으면 상세 위에 연다.
+                    onOpenSongList = {
+                        navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)
+                        navController.navigate(EolssuDestination.SONG_LIST)
+                    },
                 )
                 composable(EolssuDestination.LEARN_LIST) { entry ->
                     LearnListRoute(
@@ -481,31 +482,6 @@ fun EolssuNavHost(
                             navigation = learnNavigation,
                         )
                     }
-                }
-                composable(
-                    EolssuDestination.LEARN_PRACTICE,
-                    arguments = listOf(navArgument("stage") { type = NavType.IntType }),
-                ) { entry ->
-                    LearnPracticeRoute(
-                        stageNumber = entry.savedStateHandle.get<Int>("stage") ?: 3,
-                        learnViewModel = learnViewModel(navController, entry),
-                        onBack = { navController.popBackStackFrom(entry) },
-                        // 완료로 표시하면 연습과 그 단계 상세를 다음 단계 상세로 바꿔 끼운다(주소로 바로 들어와 목록이 없어도 연습으로 돌아가지 않게).
-                        // 태블릿 가로처럼 목록에서 바로 연 연습이면 바꿔 끼울 상세가 없어 다음 단계 상세가 목록으로 돌아가 그 단계를 고른다.
-                        // 마지막 단계(7단계)면 단계 목록 위에 곡 목록을 열어 곡 연습으로 이어 간다(S15P31E102-658). 뒤로 가면 단계 목록이다.
-                        onCompleted = { next ->
-                            if (next != null) {
-                                navController.navigate(EolssuDestination.learnStage(next)) {
-                                    popUpTo(EolssuDestination.LEARN_STAGE) { inclusive = true }
-                                }
-                            } else {
-                                val toList = navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)
-                                navController.navigate(EolssuDestination.SONG_LIST) {
-                                    if (!toList) popUpTo(EolssuDestination.LEARN_PRACTICE) { inclusive = true }
-                                }
-                            }
-                        },
-                    )
                 }
             }
             profileGraph(navController)

@@ -140,10 +140,15 @@ internal class LearnTour(
         return allDone(count)
     }
 
-    /** 마친 박스·지금 박스를 펼치거나 접는다. 열리지 않은 박스는 무시한다. */
+    /** 마친 박스·지금 박스를 펼치거나 접는다. 열리지 않은 박스는 무시한다(바로 펼친 박스는 접을 수 있다). */
     fun toggle(index: Int) {
-        if (index > doneCount) return
+        if (index > doneCount && open != index) return
         openState.value = if (open == index) null else index
+    }
+
+    /** 앞 박스를 마치지 않아도 [index]번 박스를 바로 펼친다(아래 '연습 시작'이 연습 박스를 연다). 앞 박스는 마침으로 남기지 않는다. */
+    fun jumpTo(index: Int) {
+        openState.value = index
     }
 
     fun finish() { celebrateState.value = true }

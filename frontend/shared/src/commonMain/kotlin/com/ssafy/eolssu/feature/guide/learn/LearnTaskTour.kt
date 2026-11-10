@@ -117,8 +117,9 @@ internal fun LearnTaskTour(
     noteAudioContent: @Composable (FingeringNote) -> Unit,
     imageMaxWidth: Dp = Dp.Unspecified,
     onAllDone: () -> Unit = {},
+    practice: StepPractice? = null,
 ) {
-    TourPanel(tasks, tour, onAllDone) { s ->
+    TourPanel(tasks, tour, onAllDone, practice) { s ->
         TaskFigure(taskVisual(stage, s), instrument, stage, firstNote, noteAudioContent, imageMaxWidth)
     }
 }

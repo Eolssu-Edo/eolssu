@@ -37,6 +37,7 @@ import com.ssafy.eolssu.feature.guide.learn.LearnTitleFontSize
 import com.ssafy.eolssu.feature.guide.learn.LearnStage
 import com.ssafy.eolssu.feature.guide.learn.LearnStageActions
 import com.ssafy.eolssu.feature.guide.learn.LearnStageBottomBar
+import com.ssafy.eolssu.feature.guide.learn.StepPractice
 import com.ssafy.eolssu.feature.guide.learn.LearnStageColumns
 import com.ssafy.eolssu.feature.guide.learn.LearnStageContent
 import com.ssafy.eolssu.feature.guide.learn.rememberLearnTour
@@ -67,6 +68,7 @@ internal fun LearnExpandedLayout(
     listActions: LearnListActions,
     stageActions: LearnStageActions,
     noteAudioContent: @Composable (FingeringNote) -> Unit,
+    practice: StepPractice? = null,
 ) {
     val colors = EolssuTheme.colors
     Scaffold(
@@ -122,6 +124,7 @@ internal fun LearnExpandedLayout(
                                 contentPadding = PaddingValues(start = GuideTabletSidePadding, end = outer, bottom = 24.dp),
                                 columns = if (wide) LearnStageColumns.Landscape else LearnStageColumns.Compact,
                                 tour = tour,
+                                practice = practice,
                             )
                         }
                     }

@@ -81,23 +81,52 @@ internal fun learnStepCount(stage: Int, detail: LearnStageDetail, instrument: Gu
 }
 
 /**
- * 할 일 박스 묶음. [figure]는 펼친 박스에 보일 그림이다. 마지막 박스까지 마치면 [onAllDone]을 부른다.
+ * 단계 화면 안에서 하는 연습(S15P31E102-688). 3~7단계는 할 일 박스 뒤에 이 박스를 하나 더 두고, 펼치면 '듣기 시작'으로 바로 판정한다.
+ *
+ * @property title 연습 박스 이름.
+ * @property content 펼친 연습 박스 내용(통과 기준 · 듣기 판 · 듣기 버튼). '해 봤어요' 대신 통과·스스로 확인으로 마친다.
+ */
+class StepPractice(val title: String, val content: @Composable () -> Unit)
+
+/**
+ * 할 일 박스 묶음. [figure]는 펼친 박스에 보일 그림이다. [practice]가 있으면 마지막에 연습 박스를 붙인다.
+ * 할 일 박스를 모두 마치면 연습 박스가 펼쳐지고, 연습 박스가 없으면 [onAllDone]을 부른다.
  */
 @Composable
-internal fun TourPanel(tasks: List<LearnTask>, tour: LearnTour, onAllDone: () -> Unit = {}, figure: @Composable (Int) -> Unit) {
-    if (tasks.isEmpty()) return
+internal fun TourPanel(
+    tasks: List<LearnTask>,
+    tour: LearnTour,
+    onAllDone: () -> Unit = {},
+    practice: StepPractice? = null,
+    figure: @Composable (Int) -> Unit,
+) {
+    if (tasks.isEmpty() && practice == null) return
+    val total = tasks.size + if (practice != null) 1 else 0
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        StepProgress(done = tour.doneCount.coerceAtMost(tasks.size), total = tasks.size)
+        StepProgress(done = tour.doneCount.coerceAtMost(total), total = total)
         tasks.forEachIndexed { i, task ->
             StepBox(
                 index = i,
                 task = task,
                 done = tour.isDone(i),
                 open = tour.open == i,
-                locked = i > tour.doneCount,
+                locked = i > tour.doneCount && tour.open != i,
                 onToggle = { tour.toggle(i) },
-                onTry = { if (tour.complete(i, tasks.size)) onAllDone() },
+                onTry = { if (tour.complete(i, total)) onAllDone() },
             ) { figure(i) }
+        }
+        if (practice != null) {
+            val i = tasks.size
+            StepBox(
+                index = i,
+                task = LearnTask(practice.title),
+                done = tour.isDone(i),
+                open = tour.open == i,
+                locked = i > tour.doneCount && tour.open != i,
+                onToggle = { tour.toggle(i) },
+                onTry = {},
+                practice = practice.content,
+            ) {}
         }
     }
 }
@@ -133,6 +162,7 @@ private fun StepBox(
     locked: Boolean,
     onToggle: () -> Unit,
     onTry: () -> Unit,
+    practice: (@Composable () -> Unit)? = null,
     figure: @Composable () -> Unit,
 ) {
     val colors = EolssuTheme.colors
@@ -226,6 +256,10 @@ private fun StepBox(
                 Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                if (practice != null) {
+                    practice()
+                    return@Column
+                }
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { figure() }
                 task.detail?.let {
                     Text(

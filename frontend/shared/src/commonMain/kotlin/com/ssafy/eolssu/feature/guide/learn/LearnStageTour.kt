@@ -87,6 +87,7 @@ internal fun LearnStageTour(
     tour: LearnTour,
     noteAudioContent: @Composable (FingeringNote) -> Unit,
     onAllDone: () -> Unit = {},
+    practice: StepPractice? = null,
 ) {
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
     val tasks = stageTourTasks(instrument, stage, detail)
@@ -94,7 +95,7 @@ internal fun LearnStageTour(
     val noteCard: @Composable (FingeringNote?) -> Unit = { note ->
         if (note != null) NoteCard(instrument, note, noteAudioContent, Modifier.widthIn(max = 360.dp)) else StageArtFigure(stage)
     }
-    TourPanel(tasks, tour, onAllDone) { s ->
+    TourPanel(tasks, tour, onAllDone, practice) { s ->
         when (stage) {
             4 -> if (s == 0) noteCard(detail.pitchNames.getOrNull(1)?.let(noteOf)) else LearnPatternBox { NoteChips(detail.pitchNames.mapNotNull(noteOf)) }
             5 -> LearnPatternBox { NoteChips(LearnPattern.entries[s].notes(detail.pitchNames).mapNotNull(noteOf)) }

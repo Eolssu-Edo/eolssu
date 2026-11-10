@@ -515,8 +515,6 @@
     <string name="learn_listen_model">모범 연주 듣기</string>
     <string name="learn_listen_model_pending">모범 연주는 실제 음원이 연결되면 재생돼요.</string>
     <string name="learn_start_practice">연습 시작</string>
-    <string name="learn_practice_title">%1$d단계 연습 · %2$s</string>
-    <string name="learn_practice_listen_title">소리 듣기</string>
     <string name="learn_practice_badge_ready">준비</string>
     <string name="learn_practice_badge_listening">듣는 중</string>
     <string name="learn_practice_badge_passed">통과</string>
@@ -535,8 +533,7 @@
     <string name="learn_practice_blocked">마이크 권한이 꺼져 있어요. 기기 설정에서 마이크를 허용해 주세요.</string>
     <string name="learn_practice_failed">마이크를 켜지 못했어요. 다른 앱이 마이크를 쓰고 있는지 확인하고 다시 시도해 주세요.</string>
     <string name="learn_practice_settings_failed">설정을 열 수 없어요. 기기 설정에서 마이크를 허용해 주세요.</string>
-    <string name="learn_practice_section_notes">연습할 음</string>
-    <string name="learn_practice_section_how">이렇게 불어요</string>
+    <string name="learn_practice_box_title">직접 불어 보고 확인받기</string>
     <string name="learn_practice_start">듣기 시작</string>
     <string name="learn_practice_stop">그만하기</string>
     <string name="learn_practice_restart">처음부터</string>
