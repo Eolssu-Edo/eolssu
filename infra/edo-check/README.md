@@ -57,7 +57,7 @@ ORDER BY e.seq;
 
 요청 하나에서 `health`, `server`, `containers`를 같은 호스트에 순차 실행한다. 각 수집기의 80초와 SSH의 90초 상한은 고정 명령마다 적용한다. 한 모드의 수집 실패나 시간 초과는 해당 영역의 미측정으로 기록한다. 다른 영역의 결과는 같은 요청 ID로 함께 게시한다.
 
-응답 URL은 고정 Mattermost HTTPS 호스트·443과 `/hooks/commands/<26자리 ID>`만 허용한다. 쿼리·userinfo·다른 경로와 redirect를 허용하지 않는다. DNS의 모든 주소가 공인 주소인지 확인하고 검증한 주소에 연결하면서 TLS 호스트 검증을 유지한다. 보고서가 여러 게시물로 나뉘면 한 번의 콜백에 `extra_responses`로 함께 전송한다. Mattermost는 게시물을 순서대로 저장하므로 응답 실패 시 일부 게시물이 남을 수 있다. 중계는 실패를 요청 ID와 함께 journal에 기록한다. 중복 게시를 피하도록 자동 재전송은 꺼져 있다. 콜백 URL·토큰·개인 키는 로그에 남기지 않는다. [Mattermost 지연·복수 응답](https://docs.mattermost.com/developers/integrate/slash-commands/custom#delayed-and-multiple-responses)
+응답 URL은 고정 Mattermost HTTPS 호스트·443과 `/hooks/commands/<26자리 ID>`만 허용한다. 쿼리·userinfo·다른 경로와 redirect를 허용하지 않는다. DNS의 모든 주소가 공인 주소인지 확인하고 검증한 주소에 연결하면서 TLS 호스트 검증을 유지한다. 게시물마다 같은 응답 URL에 차례대로 전송한다. 한 게시물 전송이 실패하면 이후 게시물을 계속 보내며 journal에 요청 ID와 게시물 번호를 기록한다. 중복 게시를 피하도록 자동 재전송은 꺼져 있다. 콜백 URL·토큰·개인 키는 로그에 남기지 않는다. [Mattermost 지연·복수 응답](https://docs.mattermost.com/developers/integrate/slash-commands/custom#delayed-and-multiple-responses)
 
 ## 지표 해석
 
