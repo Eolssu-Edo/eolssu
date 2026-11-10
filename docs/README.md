@@ -5,6 +5,7 @@
 - [연습 평가 장구 박자 표시·설정 중 일시정지 반영 (634)](plans/S15P31E102-634.md) · [연습 조작 스펙](specs/practice-controls.md)
 - [기초부터 배우기 2·3단계 할 일별 따라 배우기 (619)](plans/S15P31E102-619.md)
 - [Mattermost 점검 메시지 구성](specs/mattermost-inspection-messages.md) · [616 계획·검증](plans/S15P31E102-616.md)
+- [Mattermost 점검 수집과 판정](specs/mattermost-inspection-measurements.md) · [664 계획·검증](plans/S15P31E102-664.md)
 - [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
 - [연습 화면 외 정간보 공통 형식 (591)](knowledge/frontend/reading-score-format.md)

@@ -8,6 +8,7 @@ import os
 import re
 from pathlib import Path
 import socket
+import stat
 import subprocess
 import sys
 import time
@@ -16,6 +17,13 @@ REQUIRED_CONTAINERS = {'eolssu-runtime-frontend-1', 'eolssu-runtime-mysql-1', 'e
                        'eolssu-monitoring-grafana-1', 'eolssu-monitoring-prometheus-1',
                        'eolssu-monitoring-node-exporter-1'}
 REQUIRED_BY_TARGET = {'edo1': REQUIRED_CONTAINERS, 'edo2': set()}
+STANDBY_WEB = 'eolssu-standby-579-frontend-1'
+STANDBY_WEB_LOCATION = 'edo2 대기 웹 loopback HTTPS'
+STANDBY_WEB_ACTION = '대기 웹 127.0.0.1:18443 포트·localhost 인증서·/index.html 응답 확인'
+EOLSSU_SYSLOG_DIR = Path('/var/log/eolssu/ordinary')
+EOLSSU_SYSLOG_TAGS = {'eolssu-frontend', 'eolssu-backend', 'eolssu-ai', 'eolssu-mysql', 'eolssu-playback', 'eolssu-omr'}
+PROC_ROOT = Path('/proc')
+CGROUP_ROOT = Path('/sys/fs/cgroup')
 
 
 def resource_stats(stats):
@@ -32,7 +40,44 @@ def resource_stats(stats):
 
 
 def image_disk_bytes(data):
-    return data.get('LayersSize', 0)
+    return data.get('LayersSize')
+
+
+def disk_usage_summary(issues):
+    try:
+        storage = docker('/system/df', timeout=20)
+        if not isinstance(storage, dict):
+            raise ValueError('unexpected Docker storage response')
+    except (OSError, http.client.HTTPException, RuntimeError, ValueError):
+        issues.append('Docker 저장공간 수집 실패·시간 초과')
+        return '확인 불가', '확인 불가'
+
+    categories = ('ImageUsage', 'ContainerUsage', 'VolumeUsage', 'BuildCacheUsage')
+    if 'LayersSize' in storage and not any(category in storage for category in categories):
+        # Before Engine API 1.52 the response did not include reclaimable summaries.
+        def total(values):
+            return sum(values) if all(isinstance(value, int) and value >= 0 for value in values) else None
+
+        used = [image_disk_bytes(storage),
+                total([item.get('SizeRw') for item in storage.get('Containers') or []]),
+                total([(item.get('UsageData') or {}).get('Size') for item in storage.get('Volumes') or []]),
+                total([item.get('Size') for item in storage.get('BuildCache') or []])]
+        reclaimable = [None] * len(categories)
+    else:
+        summaries = [storage.get(category) for category in categories]
+        # Engine omits zero totals from a present category, including an empty object.
+        used = [summary.get('TotalSize', 0) if isinstance(summary, dict) else None for summary in summaries]
+        reclaimable = [summary.get('Reclaimable', 0) if isinstance(summary, dict) else None for summary in summaries]
+
+    def valid_bytes(value):
+        return type(value) is int and value >= 0
+
+    if not all(map(valid_bytes, used + reclaimable)):
+        issues.append('Docker 저장공간 일부 수집 실패')
+    used_text = ' / '.join(size(value) if valid_bytes(value) else '확인 불가' for value in used)
+    reclaimable_text = ' · '.join(f'{label} {size(value) if valid_bytes(value) else "확인 불가"}'
+                                  for label, value in zip(('이미지', '쓰기', '볼륨', '캐시'), reclaimable))
+    return used_text, reclaimable_text
 
 
 def size(value):
@@ -94,7 +139,7 @@ def required_containers(target, slot):
 
 def snapshot(with_storage=False, collect_stats=True, target='edo1', *, required=None):
     info = docker('/info')
-    containers = docker('/containers/json?all=1&size=1')
+    containers = docker('/containers/json?all=1' + ('&size=1' if with_storage else ''))
     issues = []
     if len(containers) > 100:
         issues.append(f'컨테이너 {len(containers)}개 중 100개만 수집')
@@ -121,9 +166,9 @@ def snapshot(with_storage=False, collect_stats=True, target='edo1', *, required=
     storage = {}
     if with_storage:
         try:
-            storage = docker('/system/df', timeout=20)
+            storage = docker('/system/df?type=volume&verbose=1', timeout=20)
         except Exception:
-            issues.append('Docker 저장공간 수집 실패·시간 초과')
+            issues.append('Docker 볼륨 저장공간 수집 실패·시간 초과')
     return info, collected, storage, issues
 
 
@@ -181,7 +226,7 @@ def server_report(target='edo1'):
     disks = host_disks(issues)
     failures, oom_lines = system_events(issues)
     try:
-        info, containers, storage, docker_issues = snapshot(True, target=target)
+        info, containers, _, docker_issues = snapshot(target=target)
         issues.extend(docker_issues)
         running = sum(c['item']['State'] == 'running' for c in containers)
         docker_root = info.get('DockerRootDir')
@@ -199,22 +244,11 @@ def server_report(target='edo1'):
         if missing:
             docker_ram += f' · {missing}개 확인 불가'
             issues.append(f'컨테이너 RAM {missing}개 수집 불가: 합계는 일부 사용량')
-        if storage:
-            volumes = storage.get('Volumes') or []
-            known_volumes = all(v.get('UsageData', {}).get('Size', -1) >= 0 for v in volumes)
-            volume_size = sum(v['UsageData']['Size'] for v in volumes) if known_volumes else None
-            cache = storage.get('BuildCache') or []
-            # Shared cache records are not added to image-layer bytes; both categories stay separate.
-            cache_size = sum(c.get('Size', 0) for c in cache)
-            write_size = sum(c.get('SizeRw', 0) for c in storage.get('Containers') or [])
-            disk = f"{size(image_disk_bytes(storage))} / {size(write_size)} / {size(volume_size)} / {size(cache_size)}"
-            reclaim = run(['docker', 'system', 'df', '--format', '{{.Type}}={{.Reclaimable}}'], timeout=15)
-            reclaimable = '; '.join(reclaim.stdout.strip().splitlines()) if reclaim.returncode == 0 else '확인 불가'
-        else:
-            disk = reclaimable = '확인 불가'
     except Exception:
         docker_state = docker_ram = disk = reclaimable = '확인 불가'
         issues.append('Docker 데몬·자원 수집 실패')
+    else:
+        disk, reclaimable = disk_usage_summary(issues)
     operating_system = next((line.split('=', 1)[1].strip('"') for line in Path('/etc/os-release').read_text().splitlines() if line.startswith('PRETTY_NAME=')), 'Linux')
     row = [socket.gethostname() + ' / ' + operating_system + ' / ' + os.uname().release + ' / ' + duration(float(Path('/proc/uptime').read_text().split()[0])),
            f'{cpu_sample():.1f}% / {os.cpu_count()}코어 · Load ' + '/'.join(f'{x:.2f}' for x in os.getloadavg()),
@@ -228,29 +262,27 @@ def server_report(target='edo1'):
             '이미지/쓰기/볼륨/캐시', '회수 가능량(Docker)', '시스템 실패/OOM 24h'], [row], issues, facts
 
 
-def mounted_storage(mounts, volumes, measurements=None):
+def mounted_storage(mounts, volumes, measurements=None, *, name=None):
     result = []
     for mount in mounts[:12]:
         if mount['Type'] == 'volume':
             volume = volumes.get(mount.get('Name'), {})
-            usage = volume.get('UsageData', {})
+            usage = volume.get('UsageData') or {}
             result.append(f"볼륨 {mount.get('Name', '?')}: {size(usage.get('Size'))}" + (' (공유)' if usage.get('RefCount', 0) > 1 else ''))
         elif mount['Type'] == 'bind':
-            path = mount['Source']
-            try:
-                if measurements is not None and path in measurements:
-                    result.append('bind ' + mount['Destination'] + ': ' + measurements[path])
-                    continue
-                remaining = min(12, measurements.get('deadline', time.monotonic()+12) - time.monotonic()) if measurements is not None else 12
-                if remaining <= 0:
-                    raise TimeoutError('measurement budget exhausted')
-                measured = run(['nice', '-n', '10', 'du', '-sx', '--block-size=1', '--', path], timeout=remaining)
-                amount = size(int(measured.stdout.split()[0])) if measured.returncode == 0 else '확인 불가'
-            except Exception:
-                amount = '시간 초과·확인 불가'
-            if measurements is not None:
-                measurements[path] = amount
-            result.append('bind ' + mount['Destination'] + ': ' + amount)
+            path, destination = mount['Source'], mount['Destination']
+            if (name == 'eolssu-monitoring-node-exporter-1' and path == '/'
+                    and destination == '/host' and mount.get('RW') is False):
+                result.append('bind /host: 호스트 관측용 (서버 파일시스템 지표 참고)')
+                continue
+            if measurements is not None and path in measurements:
+                amount = measurements[path]
+            else:
+                remaining = measurements['deadline'] - time.monotonic() if measurements is not None else 12
+                amount = bind_usage(path, remaining)
+                if measurements is not None:
+                    measurements[path] = amount
+            result.append('bind ' + destination + ': ' + amount)
         else:
             result.append(mount['Type'] + ': ' + mount['Destination'])
     if len(mounts) > 12:
@@ -258,8 +290,58 @@ def mounted_storage(mounts, volumes, measurements=None):
     return '; '.join(result) or '없음'
 
 
-def log_usage(detail, docker_root):
-    driver = detail['HostConfig'].get('LogConfig', {}).get('Type', '?')
+def bind_usage(path, remaining):
+    if remaining <= 0:
+        return '확인 불가 (전체 25초 측정 예산 소진)'
+    try:
+        measured = run(['nice', '-n', '10', 'du', '-sx', '--block-size=1', '--', path], timeout=min(12, remaining))
+        if measured.returncode != 0:
+            return '확인 불가 (저장소 읽기 실패)'
+        return size(int(measured.stdout.split()[0]))
+    except subprocess.TimeoutExpired:
+        reason = '경로당 12초 한도' if remaining >= 12 else '전체 25초 측정 예산 소진'
+        return f'확인 불가 ({reason})'
+    except OSError:
+        return '확인 불가 (저장소 읽기 실패)'
+    except (IndexError, ValueError):
+        return '확인 불가 (측정값 해석 실패)'
+
+
+def syslog_usage(tag):
+    directory = EOLSSU_SYSLOG_DIR
+    pattern = re.compile(re.escape(tag) + r'\.[0-9]{4}-[0-9]{2}-[0-9]{2}\.log')
+    count = total = 0
+    try:
+        if directory.resolve(strict=True) != directory:
+            return '미측정 (syslog 로그 경로 불일치)'
+        with os.scandir(directory) as files:
+            for index, file in enumerate(files, 1):
+                if index > 1024:
+                    return '미측정 (syslog 탐색 한도 초과)'
+                if not pattern.fullmatch(file.name):
+                    continue
+                metadata = file.stat(follow_symlinks=False)
+                if stat.S_ISREG(metadata.st_mode):
+                    count += 1
+                    total += metadata.st_size
+                    if count > 100:
+                        return '미측정 (syslog 파일 수 한도 초과)'
+    except (OSError, RuntimeError):
+        return '미측정 (syslog 파일 접근 실패)'
+    if not count:
+        return '미측정 (syslog 파일 없음)'
+    label = 'API 공용 로그' if tag == 'eolssu-backend' else '일별 보관분 포함'
+    return f'{size(total)} (syslog, {label})'
+
+
+def log_usage(detail, docker_root, target='edo1'):
+    log_config = detail['HostConfig'].get('LogConfig', {})
+    driver = log_config.get('Type', '?')
+    if driver == 'syslog' and target == 'edo1':
+        options = log_config.get('Config') or {}
+        tag = options.get('tag')
+        if options.get('syslog-address') == 'tcp://127.0.0.1:1514' and tag in EOLSSU_SYSLOG_TAGS:
+            return syslog_usage(tag)
     if driver == 'none':
         return '저장 안 함 (none)'
     path = detail.get('LogPath')
@@ -282,9 +364,85 @@ def log_usage(detail, docker_root):
         return f'미측정 ({driver} 파일 접근 실패)'
 
 
+def standby_web_readiness(target, name, detail):
+    state = detail.get('State', {})
+    if (target != 'edo2' or name != STANDBY_WEB or detail.get('Name') != '/' + name
+            or state.get('Running') is not True or state.get('Status') != 'running'
+            or state.get('OOMKilled') or state.get('Health', {}).get('Status')):
+        return None
+    ports = detail.get('NetworkSettings', {}).get('Ports') or {}
+    if {'HostIp': '127.0.0.1', 'HostPort': '18443'} not in (ports.get('8443/tcp') or []):
+        return '확인 불가', '대기 웹 loopback 포트 매핑 확인 불가', '—'
+
+    started = time.monotonic()
+    try:
+        response = run(['curl', '--disable', '--silent', '--show-error', '--noproxy', '*',
+                        '--resolve', 'localhost:18443:127.0.0.1', '--max-time', '3',
+                        '--cacert', '/opt/eolssu-standby-579/tls/localhost.crt',
+                        '--output', '/dev/null', '--write-out', '%{http_code} %{content_type}',
+                        'https://localhost:18443/index.html'], timeout=4)
+    except OSError:
+        return '확인 불가', 'HTTPS 검사 실행 불가', '—'
+    except subprocess.TimeoutExpired:
+        return '실패', '대기 웹 HTTPS 응답 시간 초과', '—'
+    elapsed = f'{(time.monotonic()-started)*1000:.0f}ms'
+    if response.returncode == 77:
+        return '확인 불가', '대기 웹 신뢰 인증서 읽기 실패', elapsed
+    if response.returncode != 0:
+        return '실패', f'HTTPS 연결·인증서 검사 실패 (curl {response.returncode})', elapsed
+    status, _, content_type = response.stdout.strip().partition(' ')
+    if status == '200' and content_type.split(';', 1)[0].strip().lower() == 'text/html':
+        return '정상', '인증서 검증 · /index.html HTTP 200', elapsed
+    code = status if re.fullmatch(r'[1-5][0-9]{2}', status) else '확인 불가'
+    return '실패', f'/index.html HTTP {code} · 기대한 HTML 200 응답 불일치', elapsed
+
+
+def cgroup_block_io(detail):
+    state = detail.get('State', {})
+    container_id, pid = detail.get('Id', ''), state.get('Pid')
+    if (not state.get('Running') or type(pid) is not int or pid <= 0
+            or not isinstance(container_id, str) or not re.fullmatch(r'[a-f0-9]{64}', container_id)):
+        return None
+    try:
+        membership = (PROC_ROOT / str(pid) / 'cgroup').read_text(encoding='ascii').splitlines()
+        supported = {f'0::/system.slice/docker-{container_id}.scope', f'0::/docker/{container_id}'}
+        match = next((line for line in membership if line in supported), None)
+        if match is None:
+            return None
+        path = CGROUP_ROOT / match.removeprefix('0::/') / 'io.stat'
+        with path.open(encoding='ascii') as source:
+            contents = source.read(16385)
+        if len(contents) > 16384:
+            return None
+        if not contents.strip():
+            return '기록 없음'
+        read = written = 0
+        for line in contents.splitlines():
+            device, *fields = line.split()
+            values = dict(field.split('=', 1) for field in fields)
+            if not re.fullmatch(r'[0-9]+:[0-9]+', device) or any(
+                    not re.fullmatch(r'[0-9]{1,20}', values.get(key, '')) for key in ('rbytes', 'wbytes')):
+                return None
+            read += int(values['rbytes'])
+            written += int(values['wbytes'])
+        return f'{size(read)}/{size(written)}'
+    except (OSError, UnicodeError, ValueError):
+        return None
+
+
+def block_io_usage(stats, detail):
+    counters = (stats.get('blkio_stats') or {}).get('io_service_bytes_recursive')
+    if counters is None:
+        return cgroup_block_io(detail) or '미측정 (블록 I/O 통계 없음)'
+    read = sum(entry['value'] for entry in counters if entry['op'].lower() == 'read')
+    written = sum(entry['value'] for entry in counters if entry['op'].lower() == 'write')
+    return f'{size(read)}/{size(written)}'
+
+
 def container_report(target='edo1'):
     info, containers, storage, issues = snapshot(True, target=target)
-    volumes = {v['Name']: v for v in storage.get('Volumes') or []}
+    volume_items = (storage.get('VolumeUsage') or {}).get('Items', storage.get('Volumes'))
+    volumes = {v['Name']: v for v in volume_items or []}
     rows, facts, measurements = [], [], {'deadline': time.monotonic() + 25}
     for value in containers:
         item, detail, stats = value['item'], value['detail'], value['stats']
@@ -308,13 +466,15 @@ def container_report(target='edo1'):
         cpu_limit = f'{cpus:g}코어' if cpus else '미설정'
         if host.get('CpusetCpus'):
             cpu_limit += ' · CPU집합 ' + host['CpusetCpus']
-        log = log_usage(detail, info.get('DockerRootDir', '/var/lib/docker'))
+        log = log_usage(detail, info.get('DockerRootDir', '/var/lib/docker'), target)
         if '미측정' in log:
             issues.append(name + ' 로그 ' + log)
-        networks = stats.get('networks', {})
-        net = size(sum(v.get('rx_bytes', 0) for v in networks.values())) + '/' + size(sum(v.get('tx_bytes', 0) for v in networks.values()))
-        io = stats.get('blkio_stats', {}).get('io_service_bytes_recursive') or []
-        block = size(sum(v['value'] for v in io if v['op'].lower() == 'read')) + '/' + size(sum(v['value'] for v in io if v['op'].lower() == 'write'))
+        networks = stats.get('networks')
+        if networks is None:
+            net = '미측정 (네트워크 통계 없음)'
+        else:
+            net = f"{size(sum(v.get('rx_bytes', 0) for v in networks.values()))}/{size(sum(v.get('tx_bytes', 0) for v in networks.values()))}"
+        block = block_io_usage(stats, detail)
         ports = ','.join(f"{p.get('IP', '')}:{p['PublicPort']}→{p['PrivatePort']}" for p in item.get('Ports', []) if 'PublicPort' in p) or '없음'
         try:
             started = datetime.fromisoformat(state['StartedAt'].replace('Z', '+00:00'))
@@ -324,18 +484,15 @@ def container_report(target='edo1'):
         cpu = f'{metrics["cpu"]:.1f}%' if metrics['cpu_available'] else '확인 불가'
         ram = size(metrics['memory']) if metrics['memory_available'] else '확인 불가'
         disk_limit = (host.get('StorageOpt') or {}).get('size', '미설정(호스트 공유)')
-        if 'networks' not in stats:
-            net = '미측정 (네트워크 통계 없음)'
-        if 'io_service_bytes_recursive' not in stats.get('blkio_stats', {}) or stats.get('blkio_stats', {}).get('io_service_bytes_recursive') is None:
-            block = '미측정 (IO 통계 없음)'
-        mounted = mounted_storage(detail.get('Mounts', []), volumes, measurements)
+        mounted = mounted_storage(detail.get('Mounts', []), volumes, measurements, name=name)
         if '확인 불가' in mounted:
-            issues.append(name + ' 데이터 용량 미측정: 12초 한도 또는 저장소 접근 실패')
+            issues.append(name + ' 데이터 용량 미측정')
+        readiness = standby_web_readiness(target, name, detail)
         facts.append({'name': name, 'running': state.get('Running'), 'health': health,
                       'ram_bytes': metrics['memory'] if metrics['memory_available'] else None,
                       'ram_limit': limit, 'host_ram': info.get('MemTotal'), 'cpu_limit': cpus,
                       'cpu_percent': metrics['cpu'] if metrics['cpu_available'] else None,
-                      'log': log, 'mounts': mounted})
+                      'log': log, 'mounts': mounted, 'readiness': readiness})
         rows.append([name, state['Status'] + '/' + health, f'{cpu}/{cpu_limit}',
                      f'{ram}/{size(limit) if limit else "미설정"} · {percent}',
                      size(item.get('SizeRw')) + '/' + disk_limit + ' · 로그 ' + log, mounted,
@@ -533,7 +690,8 @@ def health_report(target='edo1'):
     names = {name.lstrip('/') for value in containers for name in value['item'].get('Names', [])}
     rows.extend([name, target + ' Docker', '실패', '필수 컨테이너 누락', '—', '실행 구성 확인 필요'] for name in sorted(required - names))
     for value in containers:
-        item, state = value['item'], value['detail'].get('State', {})
+        item, detail = value['item'], value['detail']
+        state = detail.get('State', {})
         name = (item.get('Names') or ['?'])[0].lstrip('/')
         health = state.get('Health', {}).get('Status')
         observed_state = state.get('Status', item['State'])
@@ -548,7 +706,11 @@ def health_report(target='edo1'):
         if name == 'eolssu-runtime-ai-1' and status == '정상':
             status, evidence = '미검증', 'TCP 연결 검사 통과 · 분석 HTTP 준비·추론 기능 미검증'
             action = 'AI 서비스의 분석 준비 검증 경로·검증 절차 확인; TCP 통과만으로 추론 성공을 확정하지 않음'
-        rows.append([name, 'Docker healthcheck', status, evidence, '—', action])
+        readiness = standby_web_readiness(target, name, detail) if status == '미검증' else None
+        if readiness:
+            rows.append([name, STANDBY_WEB_LOCATION, *readiness, STANDBY_WEB_ACTION])
+        else:
+            rows.append([name, 'Docker healthcheck', status, evidence, '—', action])
     probes = [('Grafana', 3000, '/api/health'), ('n8n', 5688, '/healthz/readiness')] if target == 'edo1' else [('중계 내부 HTTP', 8765, '/healthz')]
     for name, port, path in probes:
         if name == 'n8n' and 'hey-edo1-n8n-1' not in names:
