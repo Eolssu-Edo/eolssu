@@ -28,6 +28,8 @@ class SongListActions(
     val onResetFilters: () -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onStartPractice: () -> Unit,
+    /** 태블릿 가로 오른쪽 칸의 '연습 설정'. */
+    val onOpenSettings: () -> Unit,
     val onRetry: () -> Unit,
     val onRetryDetail: () -> Unit,
 )

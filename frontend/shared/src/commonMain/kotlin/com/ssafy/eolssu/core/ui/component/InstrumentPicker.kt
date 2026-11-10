@@ -6,10 +6,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -18,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.Instrument
@@ -25,8 +30,10 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 악기 고르기(`.au-inst`): 세 칸 76dp, 흰 바탕 · 옅은 테두리이고 고른 칸은 연두 바탕(`.on`)이다. [label]이 있으면 위에, [help]는 아래에 둔다.
- * 가입 프로필 설정(AUTH-07)과 마이페이지 연습 악기(MY-01)가 함께 쓴다.
+ * 악기 고르기(`.au-inst`): 악기 네 개를 한 줄에 같은 너비 · 56dp 높이 · 14dp 모서리(주 버튼과 같은 모양)로 8dp 간격을 두고 놓는다.
+ * 고르지 않은 칸은 흰 바탕 · 보조 버튼과 같은 테두리, 고른 칸은 연두 바탕 · 흰 굵은 글자(`.on`)라 한눈에 구분된다.
+ * 좁은 휴대폰에서도 '산조대금'이 한 줄에 들어가도록 글자는 칸 너비에 맞춰 12~17sp 사이로 줄어든다. [label]이 있으면 위에, [help]는 아래에 둔다.
+ * 가입 프로필 설정(AUTH-07)이 쓴다.
  */
 @Composable
 fun InstrumentPicker(
@@ -39,6 +46,7 @@ fun InstrumentPicker(
     enabled: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
+    val shape = RoundedCornerShape(14.dp)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (label != null) {
             Text(
@@ -47,32 +55,33 @@ fun InstrumentPicker(
                 color = colors.text,
             )
         }
-        Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            instruments.chunked(2).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { instrument ->
-                        val isSelected = instrument == selected
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(76.dp)
-                                .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton, onClick = { onSelect(instrument) }),
-                            shape = RoundedCornerShape(14.dp),
-                            color = if (isSelected) colors.primary else colors.surface,
-                            contentColor = if (isSelected) colors.onPrimary else colors.text,
-                            border = BorderStroke(1.dp, if (isSelected) colors.primary else colors.lineSoft),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    stringResource(instrument.label),
-                                    style = EolssuTheme.serif.headline.copy(
-                                        fontSize = 21.sp,
-                                        lineHeight = 28.sp,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    ),
-                                )
-                            }
-                        }
+        Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            instruments.forEach { instrument ->
+                val isSelected = instrument == selected
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 56.dp)
+                        .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton, onClick = { onSelect(instrument) }),
+                    shape = shape,
+                    color = if (isSelected) colors.primary else colors.surface,
+                    contentColor = if (isSelected) colors.onPrimary else colors.text,
+                    border = BorderStroke(1.dp, if (isSelected) colors.primary else colors.line),
+                ) {
+                    Box(Modifier.padding(horizontal = 6.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
+                        BasicText(
+                            stringResource(instrument.label),
+                            style = EolssuTheme.serif.headline.copy(
+                                fontSize = 17.sp,
+                                lineHeight = 24.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = LocalContentColor.current,
+                                textAlign = TextAlign.Center,
+                            ),
+                            maxLines = 1,
+                            softWrap = false,
+                            autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 17.sp, stepSize = 0.5.sp),
+                        )
                     }
                 }
             }

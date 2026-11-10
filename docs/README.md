@@ -91,6 +91,7 @@
 - [업로드 원본 임시 처리·비보관 전환 (534)](plans/S15P31E102-534.md) · [수명주기·검증 경계](knowledge/backend/temporary-sheet-source-lifecycle.md) · [현행 정책](specs/user-sheets.md#업로드-원본-비보관-정책-2026-11-06-확정-s15p31e102-534)
 
 - [내 악보 음원 생성·보관 API](specs/sheet-audio.md) · [481 계획·검증](plans/S15P31E102-481.md) · [삭제·재시작 복구 근거](knowledge/backend/sheet-audio-recovery.md)
+- [내 악보 연습 화면에서 음원 다운로드 연결 (702)](plans/S15P31E102-702.md)
 - [내 악보 생성 음원의 실제 연주 위치 (675)](plans/S15P31E102-675.md)
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
 - [내 악보 연습에서 음원 받기 화면으로 이동 (690)](plans/S15P31E102-690.md)
@@ -134,6 +135,7 @@
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 - [연습 기록 저장·목록·녹음 재생·삭제 API (REC-01~04)](specs/practice-records.md) · [342 계획](plans/S15P31E102-342.md)
 - [내 악보 생성·조회·목록 API (SHT-01·03·08)](specs/user-sheets.md) · [390 계획](plans/S15P31E102-390.md)
+- [내 악보 검토 전 열람과 저장 안내 개선 (698)](plans/S15P31E102-698.md)
 - [내 악보 음원 생성·재생 앱 흐름 (SHT-12·13 FE)](specs/sheet-audio-app-flow.md) · [484 계획](plans/S15P31E102-484.md)
 - [내 악보 미리듣기 진행 표시와 구간 탐색 (691)](plans/S15P31E102-691.md)
 - [악보 인식 서비스 계약 (SHT-07 내부, omr)](specs/score-recognition.md) · [변환 가능성 조사](knowledge/ai/score-omr-feasibility.md)

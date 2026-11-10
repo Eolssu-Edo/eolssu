@@ -43,6 +43,7 @@ enum class TextFieldType { Text, Email, Password, Number }
  * 이름표가 붙은 입력칸(`.au-field`): 이름표 13sp · 칸 높이 48dp · 아래 도움말 또는 오류.
  * [error]가 있으면 테두리를 굵은 검정으로 바꾸고 도움말 대신 오류를 보인다. [trailing]은 칸 오른쪽 끝 글자(인증번호 남은 시간)다.
  * 로그인·가입과 마이페이지가 함께 쓴다. 칸 높이는 [fieldHeight](기본 52dp)로 줄일 수 있고, 글꼴을 키우면 내용에 맞게 높아진다.
+ * [counter](예: `4/10`)가 있으면 도움말·오류 줄 오른쪽 끝에 함께 보인다. 길이 제한 자체는 값을 가진 쪽이 [onValueChange]에서 지킨다.
  */
 @Composable
 fun EolssuTextField(
@@ -58,6 +59,7 @@ fun EolssuTextField(
     onImeAction: (() -> Unit)? = null,
     trailing: String? = null,
     fieldHeight: Dp = 52.dp,
+    counter: String? = null,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -117,16 +119,24 @@ fun EolssuTextField(
                 }
             },
         )
-        when {
-            error != null -> Row(
-                Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(EolssuIcons.Info, contentDescription = null, modifier = Modifier.size(15.dp), tint = colors.text)
-                Text(error, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
+        val helpStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp)
+        if (error != null || help != null || counter != null) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                Box(Modifier.weight(1f)) {
+                    when {
+                        error != null -> Row(
+                            Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(EolssuIcons.Info, contentDescription = null, modifier = Modifier.size(15.dp), tint = colors.text)
+                            Text(error, style = helpStyle.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+                        }
+                        help != null -> Text(help, style = helpStyle, color = colors.textMuted)
+                    }
+                }
+                if (counter != null) Text(counter, style = helpStyle.copy(fontFeatureSettings = "tnum"), color = colors.textMuted)
             }
-            help != null -> Text(help, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp), color = colors.textMuted)
         }
     }
 }

@@ -34,7 +34,7 @@ class SheetDocumentRepositoryTest {
             } else {
                 sent += Json.parseToJsonElement((request.body as io.ktor.http.content.TextContent).text).jsonObject
                 if (conflict) return@MockEngine respond("""{"isSuccess":false,"code":409,"result":{"errorCode":"STATE_CONFLICT"}}""", HttpStatusCode.Conflict, headersOf(HttpHeaders.ContentType,"application/json"))
-                if (path.endsWith("/draft")) """{"sheetId":"31","draftRevision":4}""" else """{"sheetId":"31","scoreVersion":"8"}"""
+                if (path.endsWith("/draft")) """{"sheetId":"31","draftRevision":4}""" else """{"sheetId":"31","scoreVersion":"8","reviewStatus":"NEEDS_REVIEW","pendingIssueCount":1}"""
             }
             respond("""{"isSuccess":true,"code":200,"result":$result}""", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType,"application/json"))
         }, ServerAddress.Production))
@@ -46,7 +46,7 @@ class SheetDocumentRepositoryTest {
         assertEquals(JsonPrimitive(3), sent.last()["draftRevision"])
         assertEquals(JsonPrimitive("7"), sent.last()["baseScoreVersion"])
         assertTrue(sent.last()["resolvedIssueIds"] == null || sent.last()["resolvedIssueIds"] == JsonNull)
-        assertEquals(SheetWrite.Saved("8"), repository.save("31", copy, draft = false))
+        assertEquals(SheetWrite.Saved("8", reviewStatus = "NEEDS_REVIEW"), repository.save("31", copy, draft = false))
         assertTrue(sent.last()["draftRevision"] == null || sent.last()["draftRevision"] == JsonNull)
         assertEquals(JsonArray(listOf(JsonPrimitive("i1"))), sent.last()["resolvedIssueIds"])
         conflict = true
