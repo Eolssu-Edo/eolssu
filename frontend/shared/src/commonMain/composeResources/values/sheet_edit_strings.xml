@@ -81,6 +81,13 @@
     <string name="sheetedit_pick_title">불러올 악보 고르기</string>
     <string name="sheetedit_pick_subtitle">악기를 고른 뒤 그 악기의 악보를 골라요</string>
     <string name="sheetedit_pick_confirm">선택</string>
+    <string name="sheetedit_pick_copy">내 악보로 복사</string>
+    <string name="sheetedit_pick_copying">복사 중</string>
+    <string name="sheetedit_pick_hint_copy">%1$s을(를) 내 악보로 복사해 편집해요.</string>
+    <string name="sheetedit_pick_copy_failed">악보를 복사하지 못했어요. 다시 시도해 주세요.</string>
+    <string name="sheetedit_pick_copy_limit">내 악보가 10개예요. 악보를 지운 뒤 복사해 주세요.</string>
+    <string name="sheetedit_pick_copy_conversion_in_progress">변환 중인 악보가 끝난 뒤 복사해 주세요.</string>
+    <string name="sheetedit_pick_copy_not_found">제공 곡을 찾지 못했어요.</string>
     <string name="sheetedit_pick_hint_mine">고르고 ‘선택’을 누르면 바로 편집해요</string>
     <string name="sheetedit_pick_hint_songs">제공 곡은 복사본으로 고쳐요</string>
     <string name="sheetedit_pick_hint_picked">고른 악보 · %1$s</string>

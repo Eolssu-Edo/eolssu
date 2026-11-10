@@ -16,6 +16,7 @@ import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.SectionComparisonApiResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.WeakSectionsResult
 import com.ssafy.eolssu.backend.feature.record.api.*
+import com.ssafy.eolssu.backend.feature.sheet.api.PublishedSheetCopyResponse
 import com.ssafy.eolssu.backend.feature.sheet.api.SavedSheetDraft
 import com.ssafy.eolssu.backend.feature.sheet.api.SavedSheetScore
 import com.ssafy.eolssu.backend.feature.sheet.api.SheetConversionView
@@ -200,6 +201,10 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.GET,"/api/users/me/sheets","listSheets","내 악보","내 악보 목록",
         "본인 악보만 updatedAt·sheetId 내림차순으로 page(0부터)·size(1~100, 기본 20)로 나눕니다. kind는 JEONGGANBO·MIDI·PDF이며 그 밖의 값은 400입니다. 장단 없는 곡 복사본은 jangdanId·jangdanName이 null입니다.",
         SheetList::class.java),
+    ApiContract(HttpMethod.POST,"/api/users/me/sheets/copies","copyPublishedSheet","내 악보","제공 곡을 내 악보로 복사",
+        "Idempotency-Key 필수. 게시 곡 songId(양의 1~18자리 문자열)의 악보를 버전 1의 개인 악보로 복사해 201 sheetId를 반환합니다. 편집과 음원 생성이 지원하는 빠르기는 30~160 BPM이며 이 범위 밖의 원본은 409입니다. 같은 회원·키·곡은 같은 ID를 반환합니다. 다른 요청은 409입니다. 내 악보는 10개까지이며, 진행 중 파일 변환이 있으면 종료 뒤 복사할 수 있습니다. 요청 본문은 1MiB까지입니다.",
+        PublishedSheetCopyResponse::class.java,listOf(201),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,IDEMPOTENCY_CONFLICT,SHEET_LIMIT_EXCEEDED,CONVERSION_IN_PROGRESS,PAYLOAD_TOO_LARGE),
+        requestExamples=listOf(RequestExample("providedSong", "게시 곡 복사", mapOf("songId" to "1")))),
     ApiContract(HttpMethod.GET,"/api/users/me/sheets/{sheetId}/score","getSheetScore","내 악보","내 악보 공통 악보 조회",
         "본인 악보의 설정과 공통 악보 원본(scoreData)을 반환합니다. 한 번도 저장하지 않은 빈 악보의 scoreData는 null입니다. 없거나 다른 회원의 악보는 404입니다.",
         SheetScore::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
