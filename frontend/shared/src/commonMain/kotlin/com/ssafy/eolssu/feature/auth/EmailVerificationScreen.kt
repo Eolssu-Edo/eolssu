@@ -31,6 +31,7 @@ import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
 import com.ssafy.eolssu.feature.auth.component.AuthStepProgress
 import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.feature.auth.component.AuthTopBar
+import com.ssafy.eolssu.feature.auth.component.SignupTopBar
 import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
@@ -55,24 +56,17 @@ import eolssu.shared.generated.resources.auth_email
 import eolssu.shared.generated.resources.auth_email_placeholder
 import eolssu.shared.generated.resources.auth_reset_title
 import eolssu.shared.generated.resources.auth_reset_verify_heading
-import eolssu.shared.generated.resources.auth_signup_title
 import eolssu.shared.generated.resources.auth_signup_verify_heading
 import org.jetbrains.compose.resources.stringResource
 
-/** 이메일 가입 단계 수: 1 이메일 인증 · 2 비밀번호 설정 · 3 프로필 설정. */
-internal const val SignupStepCount = 3
-
-/** 비밀번호 찾기 단계 수: 1 이메일 인증 · 2 새 비밀번호. */
+/** 비밀번호 찾기 단계 수: 1 이메일 인증 · 2 새 비밀번호. 가입 단계는 [SignupPath]가 정한다. */
 internal const val PasswordResetStepCount = 2
-
-internal val VerificationPurpose.stepCount: Int
-    get() = if (this == VerificationPurpose.SignUp) SignupStepCount else PasswordResetStepCount
 
 /** 남은 초를 `m:ss`로 쓴다. */
 internal fun formatMinutesSeconds(seconds: Long): String = "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
 
 /**
- * AUTH-06 이메일 인증(가입 1/3)·AUTH-10 비밀번호 찾기(1/2). 이메일을 넣고 '인증번호 받기'를 누르면 같은 화면에 6자리 칸과
+ * AUTH-06 이메일 인증(이메일 가입 2/4)·AUTH-10 비밀번호 찾기(1/2). 이메일을 넣고 '인증번호 받기'를 누르면 같은 화면에 6자리 칸과
  * 남은 시간(3분)이 나오고, 60초 뒤부터 다시 받을 수 있다. 만료되거나 5번 틀리면 '확인'을 막고 새 인증번호를 받게 한다.
  */
 @Composable
@@ -96,13 +90,17 @@ fun EmailVerificationScreen(
         modifier = Modifier.imePadding(),
         snackbarHostState = snackbarHostState,
         topBar = {
-            Column {
-                AuthTopBar(
-                    stringResource(if (signUp) Res.string.auth_signup_title else Res.string.auth_reset_title),
-                    onBack = onBack,
-                    right = { AuthStepLabel(1, purpose.stepCount) },
-                )
-                AuthStepProgress(1, purpose.stepCount)
+            if (signUp) {
+                SignupTopBar(SignupProgress(SignupPath.Email, SignupStep.EmailVerification), onBack = onBack)
+            } else {
+                Column {
+                    AuthTopBar(
+                        stringResource(Res.string.auth_reset_title),
+                        onBack = onBack,
+                        right = { AuthStepLabel(1, PasswordResetStepCount) },
+                    )
+                    AuthStepProgress(1, PasswordResetStepCount)
+                }
             }
         },
         bottomBar = {

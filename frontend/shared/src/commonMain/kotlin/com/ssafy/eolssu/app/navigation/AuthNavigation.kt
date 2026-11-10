@@ -26,6 +26,7 @@ import com.ssafy.eolssu.feature.auth.LoginRoute
 import com.ssafy.eolssu.feature.auth.OAuthRoute
 import com.ssafy.eolssu.feature.auth.PasswordSetupRoute
 import com.ssafy.eolssu.feature.auth.ProfileSetupRoute
+import com.ssafy.eolssu.feature.auth.SignupPath
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.feature.auth.TermsRoute
 import eolssu.shared.generated.resources.Res
@@ -230,6 +231,7 @@ fun NavGraphBuilder.authGraph(
     ) { entry ->
         val next = entry.savedStateHandle.get<String>("next")?.let { name -> SignUpNext.entries.firstOrNull { it.name == name } } ?: SignUpNext.Email
         ConsentRoute(
+            path = next.path,
             onBack = { navController.popBackStackFrom(entry) },
             onOpenTerms = { navController.navigate(AuthDestination.terms(it)) },
             // 동의 화면을 남겨 다음 단계에서 뒤로 가면 고른 체크 그대로 돌아온다.
@@ -296,10 +298,10 @@ fun NavGraphBuilder.authGraph(
     }
 }
 
-/** 가입 약관 동의 뒤 갈 곳. */
-private enum class SignUpNext(val route: String) {
-    Email(AuthDestination.SIGNUP),
-    Social(AuthDestination.SOCIAL_PROFILE),
+/** 가입 약관 동의 뒤 갈 곳과, 그 가입 경로의 단계([SignupPath], 단계 표시용). */
+private enum class SignUpNext(val route: String, val path: SignupPath) {
+    Email(AuthDestination.SIGNUP, SignupPath.Email),
+    Social(AuthDestination.SOCIAL_PROFILE, SignupPath.Social),
 }
 
 private fun NavBackStackEntry.socialProvider(): SocialProvider? =
