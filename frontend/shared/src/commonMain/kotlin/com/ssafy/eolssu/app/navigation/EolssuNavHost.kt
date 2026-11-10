@@ -284,9 +284,11 @@ fun EolssuNavHost(
                     showSwitchedNotice = entry.savedStateHandle.get<Boolean>("switched") ?: false,
                     onBack = { navController.popBackStackFrom(entry) },
                     onGoHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
+                    // 혼자 연습 위에 평가 화면을 쌓아, 평가 화면에서 뒤로 가면 쓰던 혼자 연습 화면(곡·악기·상태 그대로)으로 돌아온다.
+                    // 이 화면이 맨 위일 때만 열어 빠른 연속 누름에 평가 화면이 겹쳐 쌓이지 않게 한다.
                     onSwitchToEval = {
-                        navController.navigate(EolssuDestination.practice(songId, switched = true)) {
-                            popUpTo(EolssuDestination.PRACTICE) { inclusive = true }
+                        if (navController.currentBackStackEntry?.id == entry.id) {
+                            navController.navigate(EolssuDestination.practice(songId, switched = true))
                         }
                     },
                     onEvaluate = { id, bpm, take, song ->
