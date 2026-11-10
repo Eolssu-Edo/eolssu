@@ -20,6 +20,7 @@ internal data class ScoreStrip(val column: Int, val strip: Int, val rows: IntRan
  * @param maxColumns 앞에서부터 이 수의 각만 그린다. 미리보기용.
  * @param maxRows 각마다 첫 정간부터 이 수만 한 줄로 그린다. 표기 설정 예시 칸용.
  * @param columnRange 이 범위의 각만 그린다. 악보를 여러 단으로 나눠 그릴 때 쓴다.
+ * @param splitColumns 한 줄로 그릴 각을 [columnSplitAt]에서 두 줄로 나눈다. 휴대폰 연습 악보에서 한 각이 화면 높이에 들어가지 않을 때 쓴다.
  */
 internal fun scoreStrips(
     score: Score,
@@ -27,6 +28,7 @@ internal fun scoreStrips(
     maxColumns: Int? = null,
     maxRows: Int? = null,
     columnRange: IntRange? = null,
+    splitColumns: Boolean = false,
 ): List<ScoreStrip> {
     val columnCount = minOf(maxColumns ?: score.columns.size, score.columns.size)
     val columns = (0 until columnCount).let { all -> if (columnRange == null) all.toList() else all.filter { it in columnRange } }
@@ -50,9 +52,24 @@ internal fun scoreStrips(
                 strips += ScoreStrip(column, strips.size, start until minOf(start + maxStrip, size))
                 start += maxStrip
             }
-            strips
+            if (splitColumns && strips.size == 1 && size >= 2) {
+                val at = columnSplitAt(size, jangdan)
+                listOf(ScoreStrip(column, 0, 0 until at), ScoreStrip(column, 1, at until size))
+            } else {
+                strips
+            }
         }
     }
+}
+
+/**
+ * 한 각을 두 줄로 나눌 때 첫 줄의 정간 수. 각 길이가 장단 정간 수와 같으면 가운데에 가장 가까운 대강 경계에서 나누고,
+ * 대강을 모르면(공통 악보처럼 장단 정보가 없거나 각 길이가 다르면) 가운데에서 나눈다. 예: 세마치 9(3·3·3) → 6, 12정간 → 6.
+ */
+internal fun columnSplitAt(size: Int, jangdan: Jangdan?): Int {
+    val half = (size + 1) / 2
+    val starts = jangdan?.takeIf { it.gak == size }?.daegangStarts.orEmpty().filter { it in 1 until size }
+    return starts.minByOrNull { kotlin.math.abs(it - half) } ?: half
 }
 
 /**
