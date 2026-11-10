@@ -4,6 +4,7 @@ import com.ssafy.eolssu.core.audio.DeviceSheetAudio
 
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.data.song.CatalogInstrument
 import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import com.ssafy.eolssu.data.song.validCatalogId
 
@@ -18,6 +19,12 @@ sealed interface SheetEditJangdanPicker {
     data object Failed : SheetEditJangdanPicker
     data class Ready(val options: List<CatalogJangdanSummary>) : SheetEditJangdanPicker
 }
+
+data class SheetAudioInstruments(
+    val options: List<CatalogInstrument> = emptyList(),
+    val selectedId: String? = null,
+    val loading: Boolean = true,
+)
 
 /** 화면 아래에 잠깐 띄우는 안내. */
 enum class SheetEditMessage {
@@ -45,6 +52,7 @@ enum class SheetEditMessage {
 
     /** 요청 설정이 맞지 않다(400 INVALID_REQUEST: 장단 없는 악보에 장단 소리, bpm 범위 밖). */
     AudioInvalid,
+    AudioInstrumentRequired,
 
     /** 이 회원의 다른 음원을 만드는 중이다(409 AUDIO_IN_PROGRESS). */
     AudioInProgress,
@@ -104,6 +112,7 @@ data class SheetEditUiState(
     val emptyWarning: Boolean = false,
     val savedOnce: Boolean = false,
     val audio: SheetAudioUi = SheetAudioUi.None,
+    val audioInstruments: SheetAudioInstruments? = null,
     val deviceAudio: DeviceSheetAudio? = null,
     val audioDownloading: Boolean = false,
     val message: SheetEditMessage? = null,
@@ -131,10 +140,17 @@ data class SheetEditUiState(
     private fun withJangdanFor(next: SheetDraft): Boolean =
         if (next.jangdanId == draft.jangdanId) withJangdan else next.jangdanId != null
 
+    internal fun matchesAudioSettings(instrumentId: String, bpm: Int, withJangdan: Boolean): Boolean =
+        bpm == draft.bpm && withJangdan == this.withJangdan &&
+            (audioInstruments == null || audioInstruments.selectedId == instrumentId)
+
     val audioSettingsChanged: Boolean
         get() = (audio as? SheetAudioUi.Ready)?.audio?.let {
-            it.withJangdan != withJangdan || it.bpm != draft.bpm
+            !matchesAudioSettings(it.instrumentId, it.bpm, it.withJangdan)
         } == true
+
+    internal val playableDeviceAudio: DeviceSheetAudio?
+        get() = deviceAudio?.takeIf { matchesAudioSettings(it.instrumentId, it.bpm, it.withJangdan) }
 
     val pendingChecks: Int
         get() = (source as? EditSource.Import)?.pendingChecks
