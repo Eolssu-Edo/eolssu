@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.app.navigation
 
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -45,25 +46,31 @@ object WeakSectionDestination {
  * 화면 이동: 평가 결과 ‘취약 구간 연습’ → 구간 고르기 → 구간 반복 → 재평가, 평가 결과 ‘악보 전체에서 보기’ → 오류 위치 → 구간 고르기,
  * 기록 상세 ‘지난 연주와 비교’ → 이전 연주 비교 → 구간 고르기. 재평가의 ‘곡 전체 다시 평가’는 그 곡의 연습 화면으로 간다.
  */
-fun NavGraphBuilder.weakSectionGraph(navController: NavController) {
+internal fun NavGraphBuilder.weakSectionGraph(navController: NavController, performance: PerformanceNavigation) {
     val sourceArg = navArgument("source") { type = NavType.StringType }
     val sectionArgs = listOf("sc", "sr", "ec", "er").map { name -> navArgument(name) { type = NavType.IntType; defaultValue = 0 } }
     val bpmArg = navArgument("bpm") { type = NavType.IntType; defaultValue = 60 }
 
     composable(WeakSectionDestination.ERRORS, arguments = listOf(sourceArg)) { entry ->
         val source = entry.source()
+        val perf = performance.visit(entry, PerfTarget.WEAK_ERRORS)
         ResultErrorsRoute(
+            perf = perf,
             sourceId = source,
             onBack = { navController.popBackStackFrom(entry) },
-            onSelectSection = { navController.navigate(WeakSectionDestination.select(source)) },
+            onSelectSection = { performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(source)) } },
         )
     }
     composable(WeakSectionDestination.SELECT, arguments = listOf(sourceArg)) { entry ->
         val source = entry.source()
+        val perf = performance.visit(entry, PerfTarget.WEAK_SELECT)
         SectionSelectRoute(
+            perf = perf,
             sourceId = source,
             onBack = { navController.popBackStackFrom(entry) },
-            onStart = { section, bpm, repeats -> navController.navigate(WeakSectionDestination.loop(source, section, bpm, repeats)) },
+            onStart = { section, bpm, repeats ->
+                performance.move(perf, PerfTarget.WEAK_LOOP) { navController.navigate(WeakSectionDestination.loop(source, section, bpm, repeats)) }
+            },
         )
     }
     composable(
@@ -73,19 +80,25 @@ fun NavGraphBuilder.weakSectionGraph(navController: NavController) {
         val source = entry.source()
         val section = entry.section()
         val bpm = entry.savedStateHandle.get<Int>("bpm") ?: 60
+        val perf = performance.visit(entry, PerfTarget.WEAK_LOOP)
         SectionLoopRoute(
+            perf = perf,
             sourceId = source,
             section = section,
             bpm = bpm,
             repeats = entry.savedStateHandle.get<Int>("repeats")?.takeIf { it > 0 },
             onBack = { navController.popBackStackFrom(entry) },
             // 구간만 녹음한 연주를 분석에 맡긴다. 분석이 끝나면 구간 재평가 결과로 간다.
-            onEvaluate = { songId, take, sessionSection -> navController.navigate(EolssuDestination.analysis(songId, bpm, take, section = sessionSection)) },
+            onEvaluate = { songId, take, sessionSection ->
+                performance.move(perf, PerfTarget.ANALYSIS) { navController.navigate(EolssuDestination.analysis(songId, bpm, take, section = sessionSection)) }
+            },
         )
     }
     composable(WeakSectionDestination.RESULT, arguments = listOf(sourceArg, navArgument("sessionId") { type = NavType.StringType })) { entry ->
         val source = entry.source()
+        val perf = performance.visit(entry, PerfTarget.SECTION_RESULT)
         SectionResultRoute(
+            perf = perf,
             sessionId = entry.savedStateHandle.get<String>("sessionId").orEmpty(),
             onBack = { navController.popBackStackFrom(entry) },
             onPracticeAgain = { navController.popBackStackFrom(entry) },

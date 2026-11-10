@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.result
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.ssafy.eolssu.core.diagnostics.LocalPerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,26 +30,29 @@ fun SectionResultRoute(
     onPracticeAgain: () -> Unit,
     onOtherSection: () -> Unit,
     onWholeSong: (songId: String) -> Unit,
-    viewModel: SectionResultViewModel = koinViewModel(key = "section-result-$sessionId") { parametersOf(sessionId) },
+    perf: PerformanceVisit? = null,
+    viewModel: SectionResultViewModel = koinViewModel(key = "section-result-$sessionId") { parametersOf(sessionId, perf) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val comingSoon = stringResource(Res.string.common_coming_soon)
-    SectionResultScreen(
-        state = state,
-        snackbarHostState = snackbarHostState,
-        actions = SectionResultActions(
-            onBack = onBack,
-            onSave = {
-                scope.launch {
-                    snackbarHostState.currentSnackbarData?.dismiss()
-                    snackbarHostState.showSnackbar(comingSoon)
-                }
-            },
-            onPracticeAgain = onPracticeAgain,
-            onOtherSection = onOtherSection,
-            onWholeSong = { state.evaluation?.let { onWholeSong(it.song.id) } },
-        ),
-    )
+    CompositionLocalProvider(LocalPerformanceVisit provides perf) {
+        SectionResultScreen(
+            state = state,
+            snackbarHostState = snackbarHostState,
+            actions = SectionResultActions(
+                onBack = onBack,
+                onSave = {
+                    scope.launch {
+                        snackbarHostState.currentSnackbarData?.dismiss()
+                        snackbarHostState.showSnackbar(comingSoon)
+                    }
+                },
+                onPracticeAgain = onPracticeAgain,
+                onOtherSection = onOtherSection,
+                onWholeSong = { state.evaluation?.let { onWholeSong(it.song.id) } },
+            ),
+        )
+    }
 }

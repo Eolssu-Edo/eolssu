@@ -1,5 +1,12 @@
 package com.ssafy.eolssu.core.network
 
+import com.ssafy.eolssu.core.diagnostics.PerfKind
+import com.ssafy.eolssu.core.diagnostics.PerfReason
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.PerformanceEvent
+import com.ssafy.eolssu.core.diagnostics.PerformanceFlow
+import com.ssafy.eolssu.core.diagnostics.PerformanceLog
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.storage.FakeSecureStore
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
@@ -24,6 +31,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -60,6 +68,42 @@ class HttpClientsTest {
 
         assertEquals(HttpStatusCode.Created, client.post("/api/users/me/score-views").status)
         assertEquals(listOf("POST /api/users/me/score-views", "POST /api/auth/refresh", "POST /api/users/me/score-views"), requests)
+    }
+
+    @Test
+    fun diagnosticFlowDistinguishesReplayAndAliasesRepeatedSongRequests() = runTest {
+        val events = mutableListOf<PerformanceEvent>()
+        val flow = PerformanceFlow()
+        var refreshed = false
+        val client = client { request ->
+            when {
+                request.url.encodedPath == "/api/auth/refresh" -> respond("", HttpStatusCode.OK).also { refreshed = true }
+                refreshed -> respond("", HttpStatusCode.OK)
+                else -> respond("", HttpStatusCode.Unauthorized)
+            }
+        }
+        PerformanceLog.sink = { events += it }
+        try {
+            withContext(PerformanceVisit(flow, PerfTarget.SONG_DETAIL)) {
+                client.get("/api/songs/471901")
+            }
+            withContext(PerformanceVisit(flow, PerfTarget.PRACTICE)) {
+                client.get("/api/songs/471901/score")
+            }
+            assertEquals(
+                listOf(PerfReason.INITIAL, PerfReason.REFRESH, PerfReason.REPLAY, PerfReason.INITIAL),
+                events.map { it.reason },
+            )
+            assertEquals(listOf(401, 200, 200, 200), events.map { it.status })
+            assertTrue(events.all { it.kind == PerfKind.HTTP_ATTEMPT && "471901" !in it.encode() })
+            assertEquals(1, events.map { it.flow }.distinct().size)
+            assertEquals(2, events.map { it.visit }.distinct().size)
+            assertNotNull(events[0].resource)
+            assertEquals(events[0].resource, events[3].resource)
+        } finally {
+            PerformanceLog.sink = null
+            client.close()
+        }
     }
 
     @Test

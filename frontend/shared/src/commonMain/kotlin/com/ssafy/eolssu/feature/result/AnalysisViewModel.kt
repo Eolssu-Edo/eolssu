@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
+import com.ssafy.eolssu.core.diagnostics.PerfReason
+import kotlinx.coroutines.plus
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
@@ -82,11 +86,12 @@ class AnalysisViewModel(
     member: SignedInMember? = null,
     private val section: SessionSection? = null,
     private val initialSong: Song? = null,
+    private val perf: PerformanceVisit? = null,
 ) : ViewModel() {
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
     private fun clearAccount(): Unit = session.clearAccount()
     private val session = AnalysisSession(
-        accountScope,
+        accountScope + perf.context(),
         evaluationRepository,
         clock = TimeSource.Monotonic.markNow().let { start -> { start.elapsedNow().inWholeMilliseconds } },
         sleep = { delay(it) },
@@ -106,7 +111,7 @@ class AnalysisViewModel(
 
     private fun loadSong() {
         if (songJob?.isActive == true) return
-        songJob = accountScope.launch { session.loadSong(songId, bpm, songRepository, take, pendingSessionId, section, initialSong) }
+        songJob = accountScope.launch(perf.context(if (songJob == null) PerfReason.INITIAL else PerfReason.RETRY)) { session.loadSong(songId, bpm, songRepository, take, pendingSessionId, section, initialSong) }
     }
 
     /** 분석 다시 시도. */
