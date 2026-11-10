@@ -53,6 +53,8 @@
 - 실패 서비스는 현재 systemd 실패 상태이며 1개 이상이면 `systemctl --failed`로 대상을 확인한다. OOM은 최근 24시간 커널에서 매칭된 로그 줄 수이며 사건 건수가 아니다. 과거 기록은 주의로 구분해 시각·대상을 현재 RAM·한도와 비교한다. Docker OOM 플래그와 재시작 횟수도 최근 24시간 발생 횟수를 뜻하지 않는다.
 - frontend·backend·mysql·ai와 Grafana·Prometheus·node-exporter의 실제 컨테이너 이름을 필수 대상으로 확인한다. 중지·일시정지를 예전 healthy 값으로 정상 판정하지 않는다. health 모드에서는 inspect만 수집하며 stats 실패가 실행 정보까지 지우지 않도록 분리한다. API `/api/actuator/health/readiness`의 404·HTML 200·예상하지 않은 JSON은 미검증이며 `status=UP`만 정상, 명시적 `DOWN/OUT_OF_SERVICE`는 장애다. 운영 API readiness는 애플리케이션 준비 상태와 기존 MySQL 연결을 함께 검사하며 자세한 DB 정보는 공개하지 않는다. Grafana는 loopback `/api/health`, n8n은 `127.0.0.1:5688/healthz/readiness`의 상태·본문을 확인한다. Docker 검사가 없어도 해당 HTTP 준비 검사가 통과하면 중복된 미검증 행을 표시하지 않는다. Docker healthy 자체는 설정된 healthcheck의 통과이며 별도 준비 검사의 범위를 보장하지 않는다. 외부 검사는 edo2에서 수행한다.
 
+edo1 상태 점검은 이전 배포용 블로그 편집기 보관본 중 Docker inspect가 정상 종료를 확인한 항목을 서비스 검사에서 제외한다. 컨테이너 인벤토리에서는 계속 확인할 수 있다. [판정 조건과 재현 기록](../../docs/plans/S15P31E102-662.md)
+
 서버별 세 명령은 수시 인프라 점검이다. 장기 요청량·오류율·p95/p99 지연·I/O 지연, 실제 사용자 업무 기능은 실행하지 않는다. 백업 복구는 마지막 검증 결과 파일만 읽으며 이 점검에서 복구를 실행하지 않는다. 자원과 기본 응답이 정상이어도 이를 전체 서비스 정상으로 확대 해석하지 않는다. 상시 지표와 업무 기능 검증의 추가 여부는 별도 요구 범위로 정한다.
 
 ### edo2의 기대 구성

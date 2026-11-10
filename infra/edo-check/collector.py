@@ -24,6 +24,7 @@ EOLSSU_SYSLOG_DIR = Path('/var/log/eolssu/ordinary')
 EOLSSU_SYSLOG_TAGS = {'eolssu-frontend', 'eolssu-backend', 'eolssu-ai', 'eolssu-mysql', 'eolssu-playback', 'eolssu-omr'}
 PROC_ROOT = Path('/proc')
 CGROUP_ROOT = Path('/sys/fs/cgroup')
+BLOG_EDITOR_ROLLBACK_NAME = re.compile(r'eolssu-blog-editor-writable-(?:before|rollback|pre)-[0-9a-f]{8}')
 
 
 def resource_stats(stats):
@@ -693,6 +694,12 @@ def health_report(target='edo1'):
         item, detail = value['item'], value['detail']
         state = detail.get('State', {})
         name = (item.get('Names') or ['?'])[0].lstrip('/')
+        if (target == 'edo1' and BLOG_EDITOR_ROLLBACK_NAME.fullmatch(name)
+                and detail.get('Name') == '/' + name
+                and state.get('Status') == 'exited' and state.get('Running') is False
+                and state.get('ExitCode') == 0 and state.get('OOMKilled') is False
+                and state.get('Error') == ''):
+            continue
         health = state.get('Health', {}).get('Status')
         observed_state = state.get('Status', item['State'])
         running = state.get('Running', item['State'] == 'running') and observed_state == 'running'
