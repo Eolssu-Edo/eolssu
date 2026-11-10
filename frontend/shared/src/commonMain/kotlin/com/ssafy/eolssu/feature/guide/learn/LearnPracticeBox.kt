@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
@@ -204,7 +205,7 @@ private fun ListenPanel(state: LearnPracticeUiState, instrument: GuideInstrument
             LevelMeter(state.level, sounding = state.sounding)
             val pitch = state.pitch
             if (pitch != null) {
-                PitchNotes(pitch, instrument)
+                PitchNotes(pitch, instrument, state.stage)
                 HoldBar(pitch.holdProgress, pitch.holdMs, pitch.holdTargetMs.toDouble(), Res.string.learn_practice_pitch_hold)
             } else if (state.judgesBySound) {
                 CountDots(state.successes)
@@ -372,53 +373,86 @@ private fun HoldBar(progress: Float, holdMs: Double, targetMs: Double, label: St
 }
 
 /**
+ * 음높이 판정 음을 나눠 보일 줄. 5단계는 올라가기·내려오기를 한 줄씩(S15P31E102-688), 다른 단계는 한 묶음이다.
+ */
+internal fun pitchNoteRows(stage: Int, count: Int): List<IntRange> =
+    if (stage == 5 && count >= 2 && count % 2 == 0) listOf(0 until count / 2, count / 2 until count)
+    else listOf(0 until count)
+
+/**
  * 음높이 판정에서 차례로 낼 음. 맞은 음은 연두, 틀린 음은 빨간 테두리, 지금 낼 음은 굵은 테두리다.
+ * 5단계는 올라가기·내려오기를 한 줄씩 두고 음 사이에 '>'를 넣어 부는 차례를 보인다.
  * 읽기 프로그램에는 음마다 이름과 상태를 알린다.
  */
 @Composable
-private fun PitchNotes(pitch: LearnPitchProgress, instrument: GuideInstrument) {
+private fun PitchNotes(pitch: LearnPitchProgress, instrument: GuideInstrument, stage: Int) {
+    val rows = pitchNoteRows(stage, pitch.notes.size)
+    if (rows.size == 1) {
+        FlowRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            pitch.notes.indices.forEach { i -> PitchNote(pitch, instrument, i, 44.dp) }
+        }
+        return
+    }
     val colors = EolssuTheme.colors
-    FlowRow(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        pitch.notes.forEachIndexed { i, hanja ->
-            val reading = instrument.noteOf(hanja)?.reading ?: hanja
-            val result = pitch.results.getOrNull(i)
-            val current = i == pitch.index && !pitch.finished
-            val description = when {
-                result == LearnNoteResult.Hit -> stringResource(Res.string.learn_practice_pitch_note_hit, reading)
-                result == LearnNoteResult.Miss -> stringResource(Res.string.learn_practice_pitch_note_miss, reading)
-                current -> stringResource(Res.string.learn_practice_pitch_note_current, reading)
-                else -> stringResource(Res.string.learn_practice_pitch_note_waiting, reading)
-            }
-            val line = when {
-                result == LearnNoteResult.Hit -> colors.accent
-                result == LearnNoteResult.Miss -> colors.recText
-                current -> colors.text
-                else -> colors.line
-            }
-            Box(
-                Modifier
-                    .size(44.dp)
-                    .background(if (result == LearnNoteResult.Hit) colors.accent else colors.background, CircleShape)
-                    .border(if (current) 2.dp else 1.dp, line, CircleShape)
-                    .clearAndSetSemantics { contentDescription = description },
-                contentAlignment = Alignment.Center,
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        rows.forEach { row ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    reading,
-                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = if (current) FontWeight.Bold else FontWeight.Normal),
-                    color = when {
-                        result == LearnNoteResult.Miss -> colors.recText
-                        result == LearnNoteResult.Hit || current -> colors.text
-                        else -> colors.textMuted
-                    },
-                    maxLines = 1,
-                )
+                row.forEach { i ->
+                    if (i != row.first) {
+                        Text(">", style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp), color = colors.textMuted, modifier = Modifier.clearAndSetSemantics { })
+                    }
+                    PitchNote(pitch, instrument, i, 40.dp)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun PitchNote(pitch: LearnPitchProgress, instrument: GuideInstrument, i: Int, size: Dp) {
+    val colors = EolssuTheme.colors
+    val hanja = pitch.notes[i]
+    val reading = instrument.noteOf(hanja)?.reading ?: hanja
+    val result = pitch.results.getOrNull(i)
+    val current = i == pitch.index && !pitch.finished
+    val description = when {
+        result == LearnNoteResult.Hit -> stringResource(Res.string.learn_practice_pitch_note_hit, reading)
+        result == LearnNoteResult.Miss -> stringResource(Res.string.learn_practice_pitch_note_miss, reading)
+        current -> stringResource(Res.string.learn_practice_pitch_note_current, reading)
+        else -> stringResource(Res.string.learn_practice_pitch_note_waiting, reading)
+    }
+    val line = when {
+        result == LearnNoteResult.Hit -> colors.accent
+        result == LearnNoteResult.Miss -> colors.recText
+        current -> colors.text
+        else -> colors.line
+    }
+    Box(
+        Modifier
+            .size(size)
+            .background(if (result == LearnNoteResult.Hit) colors.accent else colors.background, CircleShape)
+            .border(if (current) 2.dp else 1.dp, line, CircleShape)
+            .clearAndSetSemantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            reading,
+            style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = if (current) FontWeight.Bold else FontWeight.Normal),
+            color = when {
+                result == LearnNoteResult.Miss -> colors.recText
+                result == LearnNoteResult.Hit || current -> colors.text
+                else -> colors.textMuted
+            },
+            maxLines = 1,
+        )
     }
 }
 

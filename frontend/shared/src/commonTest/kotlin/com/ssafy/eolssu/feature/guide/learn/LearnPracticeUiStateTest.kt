@@ -17,6 +17,14 @@ class LearnPracticeUiStateTest {
 
     private fun firstSound() = LearnPracticeUiState(stage = 3).startListening()
 
+    /** 5단계 연습 음은 올라가기 한 줄, 내려오기 한 줄로 나눠 보이고(S15P31E102-688), 다른 단계는 한 묶음이다. */
+    @Test
+    fun stageFivePitchNotesSplitIntoUpAndDownRows() {
+        assertEquals(listOf(0 until 5, 5 until 10), pitchNoteRows(stage = 5, count = 10))
+        assertEquals(listOf(0 until 6), pitchNoteRows(stage = 4, count = 6))
+        assertEquals(listOf(0 until 1), pitchNoteRows(stage = 6, count = 1))
+    }
+
     @Test
     fun countsASoundHeldForTwoSecondsOnce() {
         val held = firstSound().feed(loud, 2_000)
