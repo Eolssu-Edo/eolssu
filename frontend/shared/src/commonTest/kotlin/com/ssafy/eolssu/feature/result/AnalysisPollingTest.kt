@@ -25,7 +25,12 @@ class AnalysisPollingTest {
     }
 
     @Test
-    fun pendingWaitsTwoSecondsBeforeNextQuery() {
+    fun pendingPollsFasterOnlyInTheFirstEightSeconds() {
+        assertEquals(PollStep.Wait(1_000), polling.onStatus(AnalysisStatus.Pending))
+        now = 7_500
+        assertEquals(PollStep.Wait(500), polling.onStatus(AnalysisStatus.Pending))
+        now = 8_000
+        polling.resume()
         assertEquals(PollStep.Wait(2_000), polling.onStatus(AnalysisStatus.Pending))
     }
 

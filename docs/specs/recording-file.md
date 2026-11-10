@@ -97,7 +97,7 @@
 
 - 저장 성공을 커밋한 뒤 백엔드가 백그라운드에서 AI 서비스에 HTTP로 분석을 요청한다. 요청에는 세션 ID, 곡·연습 구간·BPM, 원본을 15분 동안 읽을 수 있는 서명 URL(presigned URL)이 들어간다.
 - AI가 결과를 돌려주면 백엔드가 평가 결과를 저장하고 `DONE`으로, 실패 사유(`DECODE_ERROR`·`NO_SOUND`·`TOO_SHORT`)를 돌려주면 `FAILED`로 바꾼다. 시간 초과(`TIMEOUT`)·연결 실패(`SERVER_ERROR`)를 포함한 실패 코드 전체, 늦은 결과 무시, 분석 다시 시도는 PRA-03 [연주 분석 실패 사유와 화면 안내](https://ssafy.atlassian.net/browse/S15P31E102-167)를 따른다.
-- 앱은 업로드 202를 받으면 분석 대기 화면에서 세션 상태를 2초 간격으로 조회하고 `DONE`·`FAILED`가 되면 멈춘다.
+- 앱은 업로드 202를 받으면 분석 대기 화면에서 [분석 상태 조회 규칙](practice-analysis-failure.md#상태-조회와-시간-초과)에 따라 세션 상태를 조회하고 `DONE`·`FAILED`가 되면 멈춘다.
 - 큐·별도 작업 서비스는 두지 않는다. AI 요청·응답 본문은 분석 연동 작업([S15P31E102-186](https://ssafy.atlassian.net/browse/S15P31E102-186))에서, 시간 초과 값과 `PENDING`에 남은 세션 처리는 PRA-03에서 정한다.
 
 ### 분석용 변환

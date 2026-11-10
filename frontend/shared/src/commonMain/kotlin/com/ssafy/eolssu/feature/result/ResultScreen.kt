@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -129,7 +130,22 @@ fun ResultScreen(
             SongLookupContent(
                 if (state.result == null) state.resultLookup else state.songLookup,
                 if (state.result == null) actions.onRetryResult else actions.onRetrySong,
-                actions.onBack, resultLookup = state.result == null,
+                actions.onBack,
+                resultLookup = state.result == null && state.scorePreview == null,
+                header = state.scorePreview?.let { preview ->
+                    {
+                        Column(Modifier.widthIn(max = CompactContentMaxWidth).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            val summary = preview.summary()
+                            TotalScoreCard(
+                                total = preview.total,
+                                feedback = resultFeedback(preview, summary),
+                                practiceAgain = stringResource(Res.string.result_practice_again),
+                                onPracticeAgain = actions.onPracticeAgain,
+                            )
+                            MetricCards(preview, summary.weak)
+                        }
+                    }
+                },
             )
         }
         return

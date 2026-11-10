@@ -79,6 +79,7 @@ class AnalysisViewModel(
     sessions: PracticeSessionRepository? = null,
     member: SignedInMember? = null,
     private val section: SessionSection? = null,
+    private val initialSong: Song? = null,
 ) : ViewModel() {
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
     private fun clearAccount(): Unit = session.clearAccount()
@@ -103,7 +104,7 @@ class AnalysisViewModel(
 
     private fun loadSong() {
         if (songJob?.isActive == true) return
-        songJob = accountScope.launch { session.loadSong(songId, bpm, songRepository, take, pendingSessionId, section) }
+        songJob = accountScope.launch { session.loadSong(songId, bpm, songRepository, take, pendingSessionId, section, initialSong) }
     }
 
     /** 분석 다시 시도. */
