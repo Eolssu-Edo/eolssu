@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,7 +24,8 @@ fun SongDetailRoute(
     songId: String,
     onBack: () -> Unit,
     onStartPractice: ((songId: String) -> Unit)?,
-    viewModel: SongDetailViewModel = koinViewModel(key = songId) { parametersOf(songId) },
+    perf: PerformanceVisit? = null,
+    viewModel: SongDetailViewModel = koinViewModel(key = songId) { parametersOf(songId, perf) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

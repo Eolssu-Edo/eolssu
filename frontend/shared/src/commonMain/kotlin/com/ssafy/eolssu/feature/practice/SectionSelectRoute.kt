@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -17,7 +18,8 @@ fun SectionSelectRoute(
     sourceId: String,
     onBack: () -> Unit,
     onStart: (section: ScoreSection, bpm: Int, repeats: Int?) -> Unit,
-    viewModel: SectionSelectViewModel = koinViewModel(key = "section-select-$sourceId") { parametersOf(sourceId) },
+    perf: PerformanceVisit? = null,
+    viewModel: SectionSelectViewModel = koinViewModel(key = "section-select-$sourceId") { parametersOf(sourceId, perf) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     SectionSelectScreen(

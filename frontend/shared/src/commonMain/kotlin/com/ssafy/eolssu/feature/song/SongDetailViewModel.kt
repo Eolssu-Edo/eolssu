@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.PerfReason
+import com.ssafy.eolssu.core.diagnostics.context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.Song
@@ -14,7 +17,9 @@ import kotlinx.coroutines.Job
 /** SONG-02 상태. 곡을 불러오기 전에는 null이다. */
 data class SongDetailUiState(val song: Song? = null, val loadState: SongLoadState = SongLoadState.Loading)
 
-class SongDetailViewModel(private val songId: String, private val songRepository: SongRepository) : ViewModel() {
+class SongDetailViewModel(private val songId: String, private val songRepository: SongRepository,
+    private val perf: PerformanceVisit? = null,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(SongDetailUiState())
     val uiState: StateFlow<SongDetailUiState> = _uiState.asStateFlow()
 
@@ -24,7 +29,7 @@ class SongDetailViewModel(private val songId: String, private val songRepository
 
     fun retry() {
         if (loadJob?.isActive == true) return
-        loadJob = viewModelScope.launch {
+        loadJob = viewModelScope.launch(perf.context(if (loadJob == null) PerfReason.INITIAL else PerfReason.RETRY)) {
             _uiState.value = SongDetailUiState()
             try {
                 val song = songRepository.getSong(songId)

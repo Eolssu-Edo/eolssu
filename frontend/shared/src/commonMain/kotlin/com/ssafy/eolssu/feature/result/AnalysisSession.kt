@@ -1,5 +1,12 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.PerfSource
+import com.ssafy.eolssu.core.diagnostics.PerfKind
+import com.ssafy.eolssu.core.diagnostics.PerfReason
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.PerformanceLog
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.Song
@@ -78,7 +85,11 @@ internal class AnalysisSession(
     ) {
         _state.update { it.copy(songLookup = SongLookup.Loading) }
         val song = try {
-            initialSong?.takeIf { it.id == songId } ?: songs.getSong(songId)
+            val carried = initialSong?.takeIf { it.id == songId }
+            if (carried != null) currentCoroutineContext()[PerformanceVisit]?.reuse(
+                PerfTarget.SONG_BUNDLE, carried.id, PerfSource.NAVIGATION, carried.scoreVersion,
+            )
+            carried ?: songs.getSong(songId)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -255,20 +266,35 @@ internal class AnalysisSession(
         val id = analysisId ?: return
         if (paused) return
         pollJob?.cancel()
-        pollJob = scope.launch {
-            while (true) {
-                val step = queryStatus(id)?.let(polling::onStatus) ?: polling.onNoResponse()
-                when (step) {
-                    is PollStep.Wait -> sleep(step.millis)
-                    is PollStep.Done -> {
-                        _state.update { it.copy(evaluationId = step.evaluationId) }
-                        return@launch
-                    }
-                    is PollStep.Failed -> {
-                        _state.update { it.copy(failure = step.reason) }
-                        return@launch
+        val perf = scope.coroutineContext[PerformanceVisit]
+        pollJob = scope.launch(perf.context(PerfReason.POLL)) {
+            val started = PerformanceLog.now()
+            var count = 0
+            var failed = 0
+            var outcome = PerfReason.CANCELLED
+            try {
+                while (true) {
+                    val status = queryStatus(id)
+                    count++
+                    if (status == null) failed++
+                    val step = status?.let(polling::onStatus) ?: polling.onNoResponse()
+                    when (step) {
+                        is PollStep.Wait -> sleep(step.millis)
+                        is PollStep.Done -> {
+                            outcome = PerfReason.READY
+                            _state.update { it.copy(evaluationId = step.evaluationId) }
+                            return@launch
+                        }
+                        is PollStep.Failed -> {
+                            outcome = PerfReason.FAILED
+                            _state.update { it.copy(failure = step.reason) }
+                            return@launch
+                        }
                     }
                 }
+            } finally {
+                perf?.event(PerfKind.POLL_SUMMARY, PerfTarget.PRACTICE_STATUS,
+                    durationMs = PerformanceLog.now() - started, count = count, failed = failed, outcome = outcome)
             }
         }
     }
