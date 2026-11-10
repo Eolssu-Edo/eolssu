@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.feature.auth.api
 import com.ssafy.eolssu.backend.common.error.*
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.auth.application.*
+import com.ssafy.eolssu.backend.feature.auth.domain.NicknamePolicy
 import com.ssafy.eolssu.backend.feature.user.api.LinkedProviderResult
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
@@ -118,7 +119,7 @@ data class MergedMemberResult(val userId:String,val nickname:String,val instrume
 
 class SocialSignUpRequest(
     @field:Pattern(regexp="[A-Za-z0-9_-]{43}") val signupTicket:String,
-    @field:NotBlank @field:Size(max=60) val nickname:String,
+    @field:NotBlank @field:Size(max=NicknamePolicy.MAX_LENGTH) val nickname:String,
     @field:Valid val agreements:List<AgreementRequest>,
     @field:Pattern(regexp="[1-9][0-9]{0,17}") val instrumentId:String?=null,
     @field:Pattern(regexp="HANJA|HANGUL|SOLFEGE") val notationMode:String?=null,
