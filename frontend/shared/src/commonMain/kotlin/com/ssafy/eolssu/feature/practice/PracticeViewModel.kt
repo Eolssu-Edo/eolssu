@@ -86,11 +86,12 @@ class PracticeViewModel(
     private val loadPersonalSheet: (suspend (String) -> Song?)? = null,
     private val perf: PerformanceVisit? = null,
     private val personalAudio: SheetPracticeRepository? = null,
+    direct: Boolean = false,
 ) : ViewModel() {
     private var stepJudge: StepNoteJudge = stepJudge
 
     private val _uiState = MutableStateFlow(
-        PracticeUiState(solo = solo || mine, mine = mine, learn = learn, fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
+        PracticeUiState(solo = solo || mine, mine = mine, learn = learn, direct = direct && !solo && !mine && !learn && recorder != null, fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
             inputMeasured = recorder?.measuresLevel == true, isSongLoading = true),
     )
     val uiState: StateFlow<PracticeUiState> = _uiState.asStateFlow()
@@ -734,11 +735,20 @@ class PracticeViewModel(
 
     private var entryEvaluationStarted = false
 
-    /** 일반 연습에서 평가로 이동한 경우, 곡 로딩 후 한 번만 권한 확인·카운트다운을 시작한다. */
+    /** 일반 연습에서 평가로 이동했거나 곡 정보에서 바로 평가를 시작한 경우, 곡 로딩 후 한 번만 권한 확인·카운트다운을 시작한다. */
     fun startEvaluationOnEntry() {
         if (entryEvaluationStarted || _uiState.value.song == null || !_uiState.value.recordingSupported) return
         entryEvaluationStarted = true
         requestEvaluation()
+    }
+
+    /**
+     * 곡 정보에서 바로 시작한 평가가 한 번 시작된 뒤 준비 상태로 돌아와 있는지. 다른 화면(분석·결과)에서 돌아왔을 때
+     * 보일 플레이어가 없으므로 곡 정보로 돌아갈지 판단한다.
+     */
+    fun leavesDirectOnReturn(): Boolean {
+        val state = _uiState.value
+        return state.direct && entryEvaluationStarted && state.mode == PracticeMode.Ready && state.popup == null
     }
 
     fun requestEvaluation() {
