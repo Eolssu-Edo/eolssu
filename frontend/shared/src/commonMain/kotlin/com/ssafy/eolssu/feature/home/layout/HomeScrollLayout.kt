@@ -204,7 +204,7 @@ internal fun HomeScrollLayout(
                     )
                     if (openFeatures) {
                         FeatureSection(onFeatureClick,
-                            columns = HomeFeatureColumns, cardMinHeight = 132.dp,
+                            columns = HomeFeatureColumns,
                             large = medium || expanded,
                             modifier = Modifier.offset(
                                 x = (if (expanded) contentLeft + finalHeroW + 40f else contentLeft).dp,
