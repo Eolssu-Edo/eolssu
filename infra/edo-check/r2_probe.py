@@ -223,7 +223,7 @@ def main():
             print('R2 write probe result could not be saved', file=sys.stderr)
             return 1
         print(json.dumps(result))
-        return 0 if detail == WRITE_OK else 1
+        return 0
     print('usage: r2_probe.py {read,write}', file=sys.stderr)
     return 2
 

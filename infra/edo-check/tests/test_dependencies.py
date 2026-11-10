@@ -23,7 +23,7 @@ class Edo1DependencyTests(unittest.TestCase):
         attempt = before(4)
         write = {'last_attempt_at': attempt, 'status': write_status,
                  'detail': 'put_get_delete_ok' if write_status == 'ok' else 'write_read',
-                 'last_success_at': attempt if write_status == 'ok' else before(12)}
+                 'last_success_at': before(3.98 if write_status == 'ok' else 12)}
         outside = {'captured_at': before(outside_age),
                    'relay': {'ok': outside_ok, 'detail': 'HTTP 200 · 중계 JSON 정상' if outside_ok else 'HTTP 503'},
                    'terms': {'ok': True, 'detail': 'HTTP 200 · 약관 목록 JSON 정상'}}

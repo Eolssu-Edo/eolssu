@@ -1074,11 +1074,10 @@ def r2_write_status():
         success_value = data.get('last_success_at')
         success = observation_time(success_value)[0] if success_value is not None else None
         status, detail = data['status'], data['detail']
-        if success is not None and success > attempt:
-            raise ValueError('invalid write probe times')
-        if status == 'ok' and detail == 'put_get_delete_ok' and success == attempt:
+        if (status == 'ok' and detail == 'put_get_delete_ok' and success is not None
+                and timedelta(0) <= success - attempt <= timedelta(seconds=40)):
             verdict, evidence = '정상', '합성 객체 쓰기·읽기·삭제 통과'
-        elif status == 'failed':
+        elif status == 'failed' and (success is None or success <= attempt):
             verdict = '실패'
             evidence = {'write_configuration': '운영 저장소 설정 확인 실패', 'write_dependency': 'R2 도구 준비 실패',
                         'write_put_conflict': '점검 객체 키 충돌', 'write_put': '합성 객체 쓰기 실패',
