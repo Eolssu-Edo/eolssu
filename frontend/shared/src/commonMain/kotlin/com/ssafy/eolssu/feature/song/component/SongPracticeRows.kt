@@ -26,6 +26,7 @@ import eolssu.shared.generated.resources.mysongs_no_jangdan
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -76,7 +77,7 @@ import org.jetbrains.compose.resources.stringResource
 /** 제공 곡 줄 왼쪽 칸 글자: 제목의 첫 글자(앞 공백은 건너뜀). 제목이 비면 빈 문자열. */
 internal fun songTileLetter(title: String): String = title.trimStart().firstOrNull()?.toString().orEmpty()
 
-/** 제공 곡 제목 밑 문구: 장단 이름. 목록 응답에 없으면 '장단 없음'이고, 줄에서 붉게 강조한다([ProvidedSongRow]). */
+/** 제공 곡 제목 밑 문구: 장단 이름. 목록 응답에 없으면 '장단 없음'이고, 줄에서 옅은 회색으로 보인다([ProvidedSongRow]). */
 @Composable
 internal fun providedSongMeta(song: SongSummary): String =
     if (song.jangdanName.isBlank()) stringResource(Res.string.mysongs_no_jangdan) else jangdanLabel(song.jangdanName)
@@ -113,10 +114,15 @@ private fun RowTile(content: @Composable () -> Unit) {
 
 /**
  * 제목 16sp · 보조 13sp(`.srow .t`). 제목이 길면 [songTitleMarquee]로 흘려 보인다.
- * [metaWarning]이면 보조 문구를 붉은 굵은 글자로 보인다('장단 없음').
+ * 보조 문구는 [metaColor]·[metaWeight]로 그리며 기본은 회색 보통 굵기다.
  */
 @Composable
-private fun RowScope.RowText(title: String, meta: String, metaWarning: Boolean = false) {
+private fun RowScope.RowText(
+    title: String,
+    meta: String,
+    metaColor: Color = EolssuTheme.colors.textMuted,
+    metaWeight: FontWeight? = null,
+) {
     Column(Modifier.weight(1f)) {
         Text(
             title,
@@ -127,8 +133,8 @@ private fun RowScope.RowText(title: String, meta: String, metaWarning: Boolean =
         )
         Text(
             meta,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = if (metaWarning) FontWeight.SemiBold else null),
-            color = if (metaWarning) EolssuTheme.colors.recText else EolssuTheme.colors.textMuted,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = metaWeight),
+            color = metaColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -136,7 +142,7 @@ private fun RowScope.RowText(title: String, meta: String, metaWarning: Boolean =
 }
 
 /**
- * SONG-03 제공 곡 줄: 첫 글자 칸 · 제목 · 장단(없으면 붉은 '장단 없음') · 줄 아래쪽에 맞춘 난이도 배지 · 화살표.
+ * SONG-03 제공 곡 줄: 첫 글자 칸 · 제목 · 장단(검은 Medium, 없으면 옅은 회색 '장단 없음') · 줄 아래쪽에 맞춘 난이도 배지 · 화살표.
  * 연습곡 고르기에서는 누르면 평가 없는 연습 모드에, 평가할 곡 고르기에서는 곡 상세(태블릿 가로는 오른쪽 칸)로 간다.
  */
 @Composable
@@ -149,7 +155,13 @@ internal fun ProvidedSongRow(song: SongSummary, meta: String, onClick: () -> Uni
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             RowTile { Text(songTileLetter(song.title), style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp), color = colors.text) }
-            RowText(song.title, meta, metaWarning = song.jangdanName.isBlank())
+            val noJangdan = song.jangdanName.isBlank()
+            RowText(
+                song.title,
+                meta,
+                metaColor = if (noJangdan) colors.textDisabled else colors.text,
+                metaWeight = if (noJangdan) null else FontWeight.Medium,
+            )
             Box(Modifier.align(Alignment.Bottom)) {
                 val level = song.level
                 if (level != null) EolssuLevelBadge(level, small = true)
