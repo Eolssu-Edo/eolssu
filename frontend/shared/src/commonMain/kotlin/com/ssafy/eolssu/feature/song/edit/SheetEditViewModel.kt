@@ -293,7 +293,13 @@ class SheetEditViewModel(
     fun undo() = change { it.undo() }
     fun redo() = change { it.redo() }
     fun selectTab(tab: EditTab) = change { it.copy(tab = tab) }
-    fun selectView(view: EditView) = change { it.copy(view = if (it.draft.original != null) EditView.Jeongganbo else view) }
+    fun selectView(view: EditView) = change { state ->
+        if (state.view == view || state.draft.original == null) return@change state.copy(view = view)
+        when (view) {
+            EditView.Staff -> state.copy(view = view, staffKey = StaffNoteKey(state.selected, state.selectedSub ?: 0))
+            EditView.Jeongganbo -> (state.staffKey?.let { state.selectUnit(it.start, it.sub) } ?: state).copy(view = view)
+        }
+    }
     fun selectStaffNote(key: StaffNoteKey) = change { it.selectStaffNote(key) }
     fun shiftStaffNote(steps: Int) = change { it.shiftStaffNote(steps) }
     fun changeJangdan() {
