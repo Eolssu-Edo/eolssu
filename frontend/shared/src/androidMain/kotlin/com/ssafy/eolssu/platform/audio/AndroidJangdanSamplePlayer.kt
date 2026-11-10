@@ -15,12 +15,9 @@ import android.os.Process
 import android.util.Log
 import com.ssafy.eolssu.core.audio.JANGDAN_SAMPLE_RATE
 import com.ssafy.eolssu.core.audio.JangdanClip
-import com.ssafy.eolssu.core.audio.JangdanSample
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** One continuous PCM timeline, shared with the recorder's acoustic echo reference. */
@@ -35,17 +32,18 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
     private val attributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
     private val lock = Any()
-    private val preparing = Mutex()
-    private val originals = mutableMapOf<JangdanSample, ShortArray>()
-    private val samples = mutableMapOf<JangdanClip, ShortArray>()
+    private val samples = JangdanPcmCache(
+        decode = { sample -> withContext(Dispatchers.IO) { decodeJangdanPcm(cache.fileFor(sample)) } },
+        stretch = { pcm, frames -> withContext(Dispatchers.Default) { stretchJangdanRoll(pcm, frames) } },
+    )
     private val commands = ArrayDeque<Command>()
     private val events = ArrayDeque<RenderedJangdanEvent>()
-    private var adjustedClip: JangdanClip? = null
     private var track: AudioTrack? = null
     private var worker: Thread? = null
     private var running = false
     private var begun = false
-    private var released = false
+    private var generation = 0L
+    private var retainClock = false
     private var epoch = 0L
     private var frameZeroNanos: Long? = null
     private var clockObservedNanos = 0L
@@ -76,41 +74,17 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         }
     }
 
-    override suspend fun prepare(clips: Set<JangdanClip>): Boolean = preparing.withLock {
-        val adjusted = clips.filter { it.targetFrames != null }
-        if (adjusted.size > 1 || adjusted.any { it.targetFrames !in 1..JANGDAN_SAMPLE_RATE * 4 }) return@withLock false
-        if (synchronized(lock) { released }) return@withLock false
-        try {
-            for (clip in clips) {
-                if (synchronized(lock) { samples.containsKey(clip) }) continue
-                val original = synchronized(lock) { originals[clip.sample] } ?: withContext(Dispatchers.IO) {
-                    decodeJangdanPcm(cache.fileFor(clip.sample))
-                }
-                val pcm = clip.targetFrames?.let { frames ->
-                    withContext(Dispatchers.Default) { stretchJangdanRoll(original, frames) }
-                } ?: original
-                synchronized(lock) {
-                    if (released) return@withLock false
-                    originals[clip.sample] = original
-                    samples[clip] = pcm
-                }
-            }
-            synchronized(lock) {
-                val next = adjusted.firstOrNull()
-                adjustedClip?.takeIf { it != next }?.let(samples::remove)
-                adjustedClip = next
-            }
-            true
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            Log.w("JangdanPcm", "Unable to prepare PCM samples", failure)
-            false
-        }
+    override suspend fun prepare(clips: Set<JangdanClip>): Boolean = try {
+        samples.prepare(clips)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        Log.w("JangdanPcm", "Unable to prepare PCM samples", failure)
+        false
     }
 
     /** Returns a copy: neither the recorder nor a new prepare can modify a playing voice. */
-    fun pcmFor(clip: JangdanClip): ShortArray? = synchronized(lock) { samples[clip]?.copyOf() }
+    fun pcmFor(clip: JangdanClip): ShortArray? = samples.get(clip)?.copyOf()
 
     fun outputSnapshot(): JangdanOutputSnapshot = synchronized(lock) {
         val currentClock = frameZeroNanos.takeIf { System.nanoTime() - clockObservedNanos <= 500_000_000L }
@@ -118,43 +92,48 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
             deviceId, deviceType, underruns, clipped, events.toList())
     }
 
-    override fun begin(accompanyingModel: Boolean): Boolean = synchronized(lock) {
-        if (released) return false
-        interrupted = false
-        // The model player already owns focus. Requesting it again would interrupt that same media.
-        if (!accompanyingModel && !ownsFocus) {
-            val granted = if (Build.VERSION.SDK_INT >= 26) {
-                val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                    .setAudioAttributes(attributes).setOnAudioFocusChangeListener(listener).build()
-                focus = request
-                manager.requestAudioFocus(request)
-            } else {
-                @Suppress("DEPRECATION")
-                manager.requestAudioFocus(listener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+    override fun begin(accompanyingModel: Boolean): Boolean {
+        var closing: Pair<Thread?, AudioTrack>? = null
+        val started = synchronized(lock) {
+            interrupted = false
+            // The model player already owns focus. Requesting it again would interrupt that same media.
+            if (!accompanyingModel && !ownsFocus) {
+                val granted = if (Build.VERSION.SDK_INT >= 26) {
+                    val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                        .setAudioAttributes(attributes).setOnAudioFocusChangeListener(listener).build()
+                    focus = request
+                    manager.requestAudioFocus(request)
+                } else {
+                    @Suppress("DEPRECATION")
+                    manager.requestAudioFocus(listener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+                }
+                ownsFocus = granted == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+                if (!ownsFocus) return false
             }
-            ownsFocus = granted == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-            if (!ownsFocus) return false
-        }
-        try {
-            if (!registered) {
-                if (Build.VERSION.SDK_INT >= 33) context.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), Context.RECEIVER_NOT_EXPORTED)
-                else context.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
-                registered = true
+            try {
+                if (!registered) {
+                    if (Build.VERSION.SDK_INT >= 33) context.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), Context.RECEIVER_NOT_EXPORTED)
+                    else context.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+                    registered = true
+                }
+                if (!running) startTrack()
+                begun = true
+                true
+            } catch (failure: Exception) {
+                Log.w("JangdanPcm", "Unable to begin PCM playback", failure)
+                interrupted = true
+                stopLogicalPlayback()
+                closing = detachOutput()
+                false
             }
-            if (!running) startTrack()
-            begun = true
-            true
-        } catch (failure: Exception) {
-            Log.w("JangdanPcm", "Unable to begin PCM playback", failure)
-            interrupted = true
-            stop()
-            false
         }
+        closeOutput(closing)
+        return started
     }
 
     override fun play(clip: JangdanClip, gain: Float): Boolean = synchronized(lock) {
         if (!begun || !running || interrupted || !gain.isFinite()) return false
-        val pcm = samples[clip] ?: return false
+        val pcm = samples.get(clip) ?: return false
         // Bound requests even if an unhealthy device stops draining the output worker.
         if (commands.size >= 64) return false
         commands.addLast(Command.Play(clip, pcm, gain.coerceIn(0f, 1f) * 0.65f))
@@ -166,7 +145,25 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         if (running) commands.addLast(Command.Silence)
     }
 
-    override fun stop() = synchronized(lock) {
+    /** Only a live calibration/take may retain the silent track between logical playback sessions. */
+    fun retainCalibrationClock(retain: Boolean) {
+        val closing = synchronized(lock) {
+            retainClock = retain
+            if (!retain && !begun) detachOutput() else null
+        }
+        closeOutput(closing)
+    }
+
+    override fun stop() {
+        val closing = synchronized(lock) {
+            stopLogicalPlayback()
+            if (retainClock) null else detachOutput()
+        }
+        closeOutput(closing)
+    }
+
+    /** Caller holds lock. */
+    private fun stopLogicalPlayback() {
         begun = false
         silence()
         if (registered) { context.unregisterReceiver(noisy); registered = false }
@@ -176,23 +173,41 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         }
         ownsFocus = false
         focus = null
-        // Keep writing silence: calibration and the following take must share this hardware clock.
     }
 
     override fun release() {
         val closing = synchronized(lock) {
-            if (released) return
-            stop()
-            released = true
-            running = false
-            commands.clear()
+            stopLogicalPlayback()
+            retainClock = false
             samples.clear()
-            originals.clear()
-            frameZeroNanos = null
-            worker to track
+            detachOutput()
         }
-        // A paused track releases a blocking write. Only the worker releases the AudioTrack itself.
-        runCatching { closing.second?.pause() }
+        closeOutput(closing)
+    }
+
+    /** Detach before unblocking/joining: an old worker can never publish into a new begin. */
+    private fun detachOutput(): Pair<Thread?, AudioTrack>? {
+        val output = track ?: return null
+        val closing = worker to output
+        generation++
+        track = null
+        worker = null
+        running = false
+        commands.clear()
+        events.clear()
+        frameZeroNanos = null
+        deviceId = null
+        deviceType = null
+        clipped = false
+        epoch++
+        return closing
+    }
+
+    private fun closeOutput(closing: Pair<Thread?, AudioTrack>?) {
+        if (closing == null) return
+        // Flush also frees space for a write that raced with pause but has not entered native code yet.
+        runCatching { closing.second.pause() }
+        runCatching { closing.second.flush() }
         closing.first?.join(500)
     }
 
@@ -222,10 +237,11 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         events.clear()
         track = output
         running = true
-        worker = Thread({ pump(output) }, "jangdan-pcm").also { it.start() }
+        val token = generation
+        worker = Thread({ pump(output, token) }, "jangdan-pcm").also { it.start() }
     }
 
-    private fun pump(output: AudioTrack) {
+    private fun pump(output: AudioTrack, token: Long) {
         val mixer = JangdanPcmMixer()
         val timestamp = AudioTimestamp()
         val clock = JangdanOutputClock()
@@ -238,7 +254,7 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
             while (true) {
                 var flush = false
                 synchronized(lock) {
-                    if (!running || track !== output) return
+                    if (!running || track !== output || token != generation) return
                     while (commands.isNotEmpty()) {
                         when (val command = commands.removeFirst()) {
                             is Command.Play -> if (mixer.play(command.clip, command.pcm, command.gain)) epoch++
@@ -259,18 +275,19 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
                     clock.reset()
                     nextClockPollNanos = 0
                     synchronized(lock) {
+                        if (!running || track !== output || token != generation) return
                         epoch++
                         frameZeroNanos = null
                         events.clear()
                         clipped = false
+                        output.play()
                     }
-                    output.play()
                 }
                 val next = block ?: mixer.render(BLOCK_FRAMES, writtenFrames).also { block = it }
                 val offset = next.written
                 val count = output.write(next.pcm, offset, next.remaining, AudioTrack.WRITE_BLOCKING)
                 if (count <= 0) {
-                    if (synchronized(lock) { !running }) return
+                    if (synchronized(lock) { !running || track !== output || token != generation }) return
                     error("Jangdan PCM write failed: $count")
                 }
                 val started = next.accept(count)
@@ -279,6 +296,7 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
                 writtenFrames += count
                 val route = output.routedDevice
                 synchronized(lock) {
+                    if (!running || track !== output || token != generation) return
                     if (next.clipped && !clipped) epoch++
                     clipped = next.clipped
                     if (deviceId != null && (deviceId != route?.id || deviceType != route?.type)) {
@@ -307,13 +325,13 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
             }
         } catch (failure: Exception) {
             Log.w("JangdanPcm", "PCM playback stopped", failure)
-            synchronized(lock) { if (!released) interrupted = true }
+            synchronized(lock) { if (track === output && token == generation) interrupted = true }
         } finally {
             runCatching { output.pause() }
             runCatching { output.flush() }
             output.release()
             synchronized(lock) {
-                if (track === output) {
+                if (track === output && token == generation) {
                     track = null
                     worker = null
                     running = false
