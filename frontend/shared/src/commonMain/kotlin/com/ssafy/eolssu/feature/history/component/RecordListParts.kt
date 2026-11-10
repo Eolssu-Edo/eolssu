@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import androidx.compose.material3.CircularProgressIndicator
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
@@ -143,7 +145,7 @@ internal fun WeekCard(state: RecordListUiState, spacing: RecordListSpacing, onOp
 internal fun RecordsEmpty(available: Boolean, modifier: Modifier = Modifier) {
     Text(
         stringResource(if (available) Res.string.records_empty else Res.string.records_unavailable),
-        modifier = modifier.fillMaxWidth().padding(vertical = 56.dp),
+        modifier = modifier.observeFirstDraw(PerfPhase.RECORD_EMPTY).fillMaxWidth().padding(vertical = 56.dp),
         style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
         textAlign = TextAlign.Center,
     )
@@ -250,7 +252,10 @@ private fun SongGroupCard(
     val expandedLabel = stringResource(Res.string.records_expanded)
     val collapsedLabel = stringResource(Res.string.records_collapsed)
     // 보드: 흰 묶음 카드(테두리 `#E8E4DA`, 반지름 16), 펼친 머리는 `#EFF2D6`.
-    Surface(shape = RoundedCornerShape(16.dp), color = colors.surface, border = BorderStroke(1.dp, colors.lineSoft)) {
+    Surface(
+        modifier = Modifier.observeFirstDraw(PerfPhase.RECORD_DRAWN),
+        shape = RoundedCornerShape(16.dp), color = colors.surface, border = BorderStroke(1.dp, colors.lineSoft),
+    ) {
         Column {
             Row(
                 Modifier
