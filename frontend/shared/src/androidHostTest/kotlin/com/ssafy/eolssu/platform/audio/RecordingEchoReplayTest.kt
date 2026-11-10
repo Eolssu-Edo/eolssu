@@ -89,7 +89,7 @@ class RecordingEchoReplayTest {
             val before = raw.drop(holdoutStart).sumOf { it.toDouble() * it }
             val after = output.drop(holdoutStart).sumOf { it.toDouble() * it }
             val reduction = 10 * log10(before / after)
-            println("$name accepted similarity=${model.minimumSimilarity} appliedBlocks=$applied rmsReductionDb=$reduction processingMs=${elapsedNanos / 1e6}")
+            println("$name accepted similarity=${model.minimumSimilarity} responseResidual=${model.maximumResponseResidual} appliedBlocks=$applied rmsReductionDb=$reduction processingMs=${elapsedNanos / 1e6}")
             System.getenv("EOLSSU_ECHO_REPLAY_OUTPUT")?.let { outputPath ->
                 val destination = File(outputPath).also { it.mkdirs() }
                 val buffer = ByteBuffer.allocate(output.size * 2).order(ByteOrder.LITTLE_ENDIAN)

@@ -49,6 +49,22 @@ class RecordingEchoFilterTest {
         assertIs<EchoCalibrationResult.Accepted>(calibrate(cleanCapture()))
     }
 
+    @Test fun rejectsInstrumentPresentOnlyDuringCalibrationStrikes() {
+        // Quiet gaps and matching high-frequency attacks do not prove that the bass
+        // response is clean: this previously learned a nonexistent 467 Hz held note.
+        val capture = FloatArray(rate * 5)
+        starts.forEachIndexed { repeat, start ->
+            for (i in 0 until clipLength) {
+                val envelope = exp(-i.toDouble() / (rate * .07))
+                val strike = envelope * (.13 * sin(2 * PI * 180 * i / rate) +
+                    .08 * sin(2 * PI * 1237 * i / rate))
+                capture[start + i] = (strike + .08 * sin(2 * PI * 467 * i / rate + repeat * .7)).toFloat()
+            }
+        }
+        assertEquals(RecordingEchoStatus.Unreliable,
+            assertIs<EchoCalibrationResult.Rejected>(calibrate(capture)).reason)
+    }
+
     @Test fun rejectsLoudAperiodicInputAndNonRepeatingStrikes() {
         val random = Random(73)
         val loud = cleanCapture()

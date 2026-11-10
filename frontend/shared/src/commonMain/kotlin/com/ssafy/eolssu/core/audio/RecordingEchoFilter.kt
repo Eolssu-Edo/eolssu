@@ -25,6 +25,7 @@ class RecordingEchoModel internal constructor(
     internal val templates: Map<JangdanClip, FloatArray>,
     /** Lowest accepted repeat match; useful for local replay diagnostics. */
     val minimumSimilarity: Float,
+    internal val maximumResponseResidual: Float,
 )
 
 object RecordingEchoCalibrator {
@@ -76,8 +77,12 @@ object RecordingEchoCalibrator {
 
         val fit = bandLimited(capture, trainingEnd, 900.0, 5500.0, sampleRate)
         val clean = bandLimited(capture, trainingEnd, 90.0, 10000.0, sampleRate)
+        val bass = bandLimited(capture, trainingEnd, 90.0, 700.0, sampleRate)
+        val cleanNoise = quietPower(clean, quietWindows)
+        val bassNoise = quietPower(bass, quietWindows)
         val templates = mutableMapOf<JangdanClip, FloatArray>()
         var minimumSimilarity = 1f
+        var maximumResponseResidual = 0f
         for ((clip, group) in groups) {
             val frames = clipFrames.getValue(clip)
             val begin = min(sampleRate / 50, frames / 8)
@@ -103,12 +108,18 @@ object RecordingEchoCalibrator {
             }
             val size = pre + frames + tail
             if (offsets.any { it < 0 || it + size > trainingEnd }) return unreliable
-            // A long roll must agree beyond its initial attack too.
-            if (frames > sampleRate / 2) {
-                val reference = offsets[accepted.indexOf(medoid)] + pre
-                val coherent = offsets.count { correlation(clean, reference, clean, it + pre, frames, 8) >= .55f }
-                if (coherent < 3) return unreliable
-            }
+            // Matching an attack in 900–5500 Hz cannot validate the lower frequencies
+            // that will also be subtracted. Check every clip's entire response in both
+            // bands, including short strikes and the tail. Ambient noise measured during
+            // silence is allowed; inconsistent musical energy above it is not learned.
+            val responseOffsets = offsets.map { it + pre }
+            val gains = accepted.map { group[it].gain }
+            val responseResidual = max(
+                responseResidual(clean, responseOffsets, gains, frames + tail, cleanNoise),
+                responseResidual(bass, responseOffsets, gains, frames + tail, bassNoise),
+            )
+            if (responseResidual > .15f) return unreliable
+            maximumResponseResidual = max(maximumResponseResidual, responseResidual)
             val values = FloatArray(accepted.size)
             val template = FloatArray(size) { i ->
                 for (j in accepted.indices) values[j] = clean[offsets[j] + i] / group[accepted[j]].gain
@@ -123,7 +134,43 @@ object RecordingEchoCalibrator {
             for (i in 0 until fadeOut) template[size - 1 - i] *= i.toFloat() / fadeOut
             templates[clip] = template
         }
-        return EchoCalibrationResult.Accepted(RecordingEchoModel(sampleRate, pre, templates, minimumSimilarity))
+        return EchoCalibrationResult.Accepted(RecordingEchoModel(
+            sampleRate, pre, templates, minimumSimilarity, maximumResponseResidual,
+        ))
+    }
+
+    private fun quietPower(signal: FloatArray, windows: List<EchoQuietWindow>): Float = median(windows.map {
+        (energy(signal, it.startFrame.toInt(), it.endFrame.toInt()) / (it.endFrame - it.startFrame)).toFloat()
+    })
+
+    private fun responseResidual(
+        signal: FloatArray,
+        offsets: List<Int>,
+        gains: List<Float>,
+        frames: Int,
+        noisePower: Float,
+    ): Float {
+        val values = FloatArray(offsets.size)
+        val residuals = DoubleArray(offsets.size)
+        var modelEnergy = 0.0
+        for (i in 0 until frames) {
+            for (j in offsets.indices) values[j] = signal[offsets[j] + i] / gains[j]
+            values.sort()
+            val middle = values.size / 2
+            val center = if (values.size % 2 == 0) (values[middle - 1] + values[middle]) * .5f else values[middle]
+            modelEnergy += center.toDouble() * center
+            for (j in offsets.indices) {
+                val difference = signal[offsets[j] + i] / gains[j] - center
+                residuals[j] += difference.toDouble() * difference
+            }
+        }
+        // The 2x noise allowance accounts for noise in a repeat and in its median model.
+        // This is a repeatability check, not proof against an external sound repeated in
+        // exactly the same phase and gain as playback.
+        return median(offsets.indices.map { j ->
+            val noiseAllowance = 2.0 * noisePower * frames / (gains[j] * gains[j])
+            (max(0.0, residuals[j] - noiseAllowance) / max(modelEnergy, 1e-12)).toFloat()
+        })
     }
 
     private fun isQuiet(capture: FloatArray, window: EchoQuietWindow): Boolean {
