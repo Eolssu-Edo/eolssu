@@ -217,7 +217,7 @@ val appModule = module {
     viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull(), get()) }
 
     // 내 악보 목록과 편집 문서는 같은 인증 HTTP 클라이언트를 쓴다.
-    single<MySheetRepository> { ApiMySheetRepository(get(), member = get()) }
+    single<MySheetRepository> { ApiMySheetRepository(get(), member = get(), deviceAudioStore = get()) }
     single<SheetDocumentRepository> { ApiSheetDocumentRepository(get(), member = get()) }
     single<SheetImportRepository> { ApiSheetImportRepository(get(), get()) }
     single<PublishedSheetCopyRepository> { ApiPublishedSheetCopyRepository(get(), get()) }
@@ -244,7 +244,7 @@ val appModule = module {
     viewModel { EditPickViewModel(get(), get(), documents = get(), copies = get(), member = get()) }
     viewModel { (kind: ImportKind, hwang: HwangPitch) -> ImportResultViewModel(kind, hwang) }
     // 내 악보 음원(SHT-12·13)은 서버 계약대로 부른다. 서버 ID가 없는 예시 악보는 저장소가 서버에 묻지 않는다.
-    single<SheetAudioRepository> { ApiSheetAudioRepository(get(), member = get()) }
+    single<SheetAudioRepository> { ApiSheetAudioRepository(get(), member = get(), server = get()) }
     viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), get(), get(), documents = get(), member = get(),
-        songs = get(), pitchCatalog = get()) }
+        songs = get(), pitchCatalog = get(), deviceAudioStore = get()) }
 }

@@ -2,6 +2,10 @@ package com.ssafy.eolssu.feature.song.edit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.audio.AudioSource
+import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
+import com.ssafy.eolssu.core.audio.SheetAudioDownload
+import com.ssafy.eolssu.core.network.ensureAccountSession
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.song.ReferenceCatalogRepository
@@ -18,6 +22,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.ssafy.eolssu.data.song.SheetAudio
+import com.ssafy.eolssu.data.song.SheetAudioFailure
 import com.ssafy.eolssu.data.song.SheetAudioFile
 import com.ssafy.eolssu.data.song.SheetAudioLookup
 import com.ssafy.eolssu.data.song.SheetAudioRepository
@@ -52,9 +57,10 @@ class SheetEditViewModel(
     private val instruments: InstrumentRepository? = null,
     private val now: () -> Long = { 0L },
     private val documents: SheetDocumentRepository? = null,
-    member: SignedInMember? = null,
+    private val member: SignedInMember? = null,
     private val songs: SongRepository? = null,
     private val pitchCatalog: ReferenceCatalogRepository? = null,
+    private val deviceAudioStore: SheetAudioDeviceStore? = null,
 ) : ViewModel() {
     /** 서버 문서나 제공 곡 원본을 읽어 와야 여는 경로. 읽기 전에는 예시 악보를 보이지 않는다. */
     private val loadsRemote = (documents != null && source is EditSource.Mine) || (songs != null && source is EditSource.CopySong)
@@ -71,6 +77,7 @@ class SheetEditViewModel(
 
     /** 음원 요청·상태 조회 작업. 한 번에 하나만 돈다. */
     private var audioJob: Job? = null
+    private var audioDownloadJob: Job? = null
     private var autoSaveJob: Job? = null
     private var loadJob: Job? = null
     private var jangdanJob: Job? = null
@@ -91,7 +98,9 @@ class SheetEditViewModel(
         version = ""
         _uiState.update { it.copy(draft = SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1)),
             documentLoading = false, documentFailed = true, saving = false, message = null, audio = SheetAudioUi.None,
-            past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet(), jangdanPicker = null) }
+            deviceAudio = null, audioDownloading = false,
+            past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet(),
+            jangdanPicker = null) }
     }
 
     init {
@@ -135,6 +144,12 @@ class SheetEditViewModel(
                 val draft = score.editingDraft(copy?.title ?: document.title, copy?.bpm ?: document.bpm, jangdan = null)
                     .copy(jangdanId = jangdanId)
                 savedJangdanId = document.jangdanId
+                val deviceAudio = member?.id?.let { accountId ->
+                    try { deviceAudioStore?.find(accountId, id, document.scoreVersion) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { null }
+                }
+                ensureAccountSession()
                 loaded = document
                 version = document.scoreVersion
                 revision = copy?.revision ?: 0
@@ -144,7 +159,8 @@ class SheetEditViewModel(
                 _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,
                     withJangdan = draft.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
-                    reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet()) }
+                    reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet(),
+                    deviceAudio = deviceAudio) }
                 refreshAudio(announce = false)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { _uiState.update { it.copy(documentLoading = false, documentFailed = true) } }
@@ -191,10 +207,14 @@ class SheetEditViewModel(
                         is SheetWrite.Saved -> {
                             persistedDraft = snapshot.draft
                             if (!draft) confirmedDraft = snapshot.draft
+                            val versionChanged = result.scoreVersion != version
                             version = result.scoreVersion
                             revision = result.revision
+                            if (versionChanged) audioDownloadJob?.cancel()
                             _uiState.update { it.copy(savedOnce = it.savedOnce || !draft,
                                 audio = if (!draft && it.audio.latest != null) SheetAudioUi.None else it.audio,
+                                deviceAudio = if (versionChanged) null else it.deviceAudio,
+                                audioDownloading = !versionChanged && it.audioDownloading,
                                 reviewIssues = it.reviewIssues.filterNot { issue -> issue.id in resolvedIds },
                                 checkedIssueIds = it.checkedIssueIds - resolvedIds.toSet(),
                                 message = if (announce) (if (draft) SheetEditMessage.Draft else SheetEditMessage.Saved) else it.message) }
@@ -324,8 +344,9 @@ class SheetEditViewModel(
 
     /** '음원 만들기'·'다시 만들기'·'다시 시도'. 저장된 서버 악보가 있을 때만 SHT-12를 부르고, 접수되면 끝날 때까지 상태를 묻는다. */
     fun requestAudio() {
-        if (!accountScope.isActive || _uiState.value.documentLoading || _uiState.value.documentFailed || _uiState.value.saving) return
-        if (loaded != null && _uiState.value.draft.jangdanId != savedJangdanId) {
+        val current = _uiState.value
+        if (!accountScope.isActive || current.documentLoading || current.documentFailed || current.saving || current.audioDownloading) return
+        if (loaded != null && current.draft.jangdanId != savedJangdanId) {
             change { it.copy(message = SheetEditMessage.AudioNeedsSave) }
             return
         }
@@ -335,6 +356,8 @@ class SheetEditViewModel(
             return
         }
         var started = false
+        (_uiState.value.audio as? SheetAudioUi.Ready)?.audio?.audio
+            ?.takeIf { it.expiresWithin(now(), 0) }?.let(::expireAudioDownload)
         val next = _uiState.updateAndGet { state ->
             val changed = state.requestAudio()
             started = changed.audio is SheetAudioUi.Requesting && state.audio !is SheetAudioUi.Requesting
@@ -370,30 +393,55 @@ class SheetEditViewModel(
         }
     }
 
-    /**
-     * 재생·저장할 파일. 서명 URL이 [URL_REFRESH_MARGIN_MS] 안에 만료되면 SHT-13으로 새 URL을 받아 돌려준다.
-     * 파일이 없거나 새 URL을 받지 못하면 null이고, 받지 못한 경우 안내를 띄운다.
-     */
-    suspend fun audioFile(kind: SheetAudioKind): SheetAudioFile? {
+    val canSaveAudioOnDevice: Boolean get() = deviceAudioStore?.available == true
+
+    fun downloadableAudio(): SheetAudioFile? {
+        val audio = (_uiState.value.audio as? SheetAudioUi.Ready)?.audio ?: return null
+        if (!accountScope.isActive) return null
+        if (audio.outdated || audio.scoreVersion != version || audio.currentScoreVersion != version) {
+            change { it.copy(message = SheetEditMessage.SaveConflict) }
+            return null
+        }
+        val file = audio.audio ?: return null
+        if (!file.expiresWithin(now(), 0)) return file
+        expireAudioDownload(file)
+        change { it.copy(message = SheetEditMessage.AudioExpired) }
+        return null
+    }
+
+    fun expireAudioDownload(file: SheetAudioFile) = change { state ->
+        val ready = state.audio as? SheetAudioUi.Ready ?: return@change state
+        if (ready.audio.audio != file) return@change state
+        state.copy(audio = SheetAudioUi.Failed(ready.audio.copy(
+            status = SheetAudioStatus.Failed, failureCode = SheetAudioFailure.Expired, audio = null,
+        )))
+    }
+
+    fun saveAudioOnDevice() {
+        val store = deviceAudioStore?.takeIf { it.available } ?: return
+        val accountId = member?.id ?: return
         val state = _uiState.value
-        val sheetId = state.serverSheetId ?: return null
-        val file = state.audio.latest?.file(kind) ?: return null
-        if (!file.expiresWithin(now(), URL_REFRESH_MARGIN_MS)) return file
-        val repository = sheetAudio ?: return null
-        return when (val lookup = repository.status(sheetId)) {
-            is SheetAudioLookup.Found -> {
-                change { it.copy(audio = lookup.audio.toUi()) }
-                if (lookup.audio.status.inProgress) startAudioJob { watch(sheetId, lookup.audio) }
-                lookup.audio.file(kind)
-            }
-            SheetAudioLookup.None -> {
-                change { it.copy(audio = SheetAudioUi.None) }
-                null
-            }
-            SheetAudioLookup.Unavailable -> {
-                change { it.copy(message = SheetEditMessage.AudioBusy) }
-                null
-            }
+        val sheetId = state.serverSheetId ?: return
+        val audio = (state.audio as? SheetAudioUi.Ready)?.audio ?: return
+        val file = downloadableAudio() ?: return
+        if (state.audioDownloading || state.deviceAudio?.matchesDownload(audio) == true) return
+        if (file.contentType != "audio/mp4") return reportAudioLinkFailed()
+        val hash = file.sha256 ?: return reportAudioLinkFailed()
+        val duration = file.durationMs ?: return reportAudioLinkFailed()
+        val scoreVersion = version
+        val download = SheetAudioDownload(file.url, file.byteSize, hash, duration, audio.instrumentId, audio.bpm, audio.withJangdan)
+        change { it.copy(audioDownloading = true) }
+        audioDownloadJob = accountScope.launch {
+            try {
+                val saved = store.save(accountId, sheetId, scoreVersion, download)
+                ensureAccountSession()
+                if (version == scoreVersion) {
+                    if (saved == null) reportAudioLinkFailed()
+                    else change { it.copy(deviceAudio = saved, message = SheetEditMessage.AudioDownloaded) }
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { reportAudioLinkFailed() }
+            finally { if (version == scoreVersion) change { it.copy(audioDownloading = false) } }
         }
     }
 
@@ -401,22 +449,23 @@ class SheetEditViewModel(
     fun previewPlaybackId(): String? {
         val state = _uiState.value
         if (state.saving || state.draft != confirmedDraft) return null
-        return state.audio.latest?.takeIf { audio ->
-            audio.status == SheetAudioStatus.Done && !audio.outdated && audio.scoreVersion == version &&
-                audio.withJangdan == state.withJangdan && audio.bpm == state.draft.bpm
-        }?.audio?.playbackId
+        return state.deviceAudio?.takeIf { audio ->
+            audio.withJangdan == state.withJangdan && audio.bpm == state.draft.bpm
+        }?.playbackId
     }
 
-    suspend fun previewAudioFile(): SheetAudioFile? {
-        if (_uiState.value.draft != confirmedDraft) {
+    fun devicePlayback(preview: Boolean): AudioSource? {
+        if (!accountScope.isActive) return null
+        if (preview && _uiState.value.draft != confirmedDraft) {
             change { it.copy(message = SheetEditMessage.AudioNeedsSave) }
             return null
         }
-        if (previewPlaybackId() == null) {
+        val file = _uiState.value.deviceAudio
+        if (file == null || preview && previewPlaybackId() != file.playbackId) {
             change { it.copy(message = SheetEditMessage.PreviewNeedsAudio) }
             return null
         }
-        return audioFile(SheetAudioKind.M4a)?.takeIf { it.playbackId == previewPlaybackId() }
+        return AudioSource(file.playbackId, "", file.localFile)
     }
 
     fun reportAudioLinkFailed() = change { it.copy(message = SheetEditMessage.AudioLinkFailed) }
@@ -480,7 +529,5 @@ class SheetEditViewModel(
 
         const val MAX_POLL_MISSES = 5
 
-        /** 서명 URL 만료 이만큼 전부터 새로 받는다. */
-        const val URL_REFRESH_MARGIN_MS = 30_000L
     }
 }

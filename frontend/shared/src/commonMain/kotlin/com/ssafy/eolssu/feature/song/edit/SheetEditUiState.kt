@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.audio.DeviceSheetAudio
+
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.song.CatalogJangdanSummary
@@ -61,6 +63,8 @@ enum class SheetEditMessage {
 
     /** 파일 주소를 기기 브라우저로 열지 못했다. */
     AudioLinkFailed,
+    AudioDownloaded,
+    AudioExpired,
     PreviewNeedsAudio,
 
     ReviewBeforeReshape,
@@ -100,6 +104,8 @@ data class SheetEditUiState(
     val emptyWarning: Boolean = false,
     val savedOnce: Boolean = false,
     val audio: SheetAudioUi = SheetAudioUi.None,
+    val deviceAudio: DeviceSheetAudio? = null,
+    val audioDownloading: Boolean = false,
     val message: SheetEditMessage? = null,
     val documentLoading: Boolean = false,
     val documentFailed: Boolean = false,

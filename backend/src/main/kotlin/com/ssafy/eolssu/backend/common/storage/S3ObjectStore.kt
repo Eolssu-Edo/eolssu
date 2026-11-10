@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.common.storage
 import java.net.URI
 import java.nio.file.Path
 import java.time.Duration
+import java.time.Instant
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.checksums.RequestChecksumCalculation
@@ -28,6 +29,21 @@ class S3ObjectStore(private val client: S3Client, private val presigner: S3Presi
 
     // 서명은 로컬 계산이라 네트워크를 쓰지 않는다. R2의 서명 URL은 S3 API 도메인에서만 동작한다.
     fun readUrl(key: String, ttl: Duration, fileName: String? = null): String =
+        presign(key,ttl,fileName).url().toString()
+
+    fun readUrlBefore(key: String, ttl: Duration, fileName: String, deadline: Instant): String? {
+        // The signer has its own clock. Bound and verify its absolute expiry as well as the caller's TTL.
+        val remaining=Duration.ofSeconds(Duration.between(Instant.now(),deadline).seconds)
+        val requested=minOf(ttl,remaining)
+        if(requested.isZero || requested.isNegative) return null
+        val signed=presign(key,requested,fileName)
+        if(!signed.expiration().isAfter(deadline)) return signed.url().toString()
+        val shorter=requested.minusSeconds(Duration.between(deadline,signed.expiration()).seconds+1)
+        if(shorter.isZero || shorter.isNegative) return null
+        return presign(key,shorter,fileName).takeUnless { it.expiration().isAfter(deadline) }?.url()?.toString()
+    }
+
+    private fun presign(key: String, ttl: Duration, fileName: String?) =
         presigner.presignGetObject { it.signatureDuration(ttl).getObjectRequest { request ->
             request.bucket(bucket).key(key)
             if(fileName!=null) {
@@ -36,7 +52,6 @@ class S3ObjectStore(private val client: S3Client, private val presigner: S3Presi
                 request.responseContentDisposition("attachment; filename=\"download\"; filename*=UTF-8''$encoded")
             }
         } }
-            .url().toString()
 
     // Spring이 빈을 내릴 때 부른다. 연결 풀 스레드를 정리한다.
     override fun close() {
