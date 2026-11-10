@@ -17,9 +17,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
@@ -51,6 +56,9 @@ import com.ssafy.eolssu.feature.practice.layout.PracticeMediumLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_countdown_cancel
 import eolssu.shared.generated.resources.practice_countdown_soon
+import eolssu.shared.generated.resources.practice_echo_measuring
+import eolssu.shared.generated.resources.practice_echo_quiet
+import eolssu.shared.generated.resources.practice_echo_progress
 import eolssu.shared.generated.resources.practice_score_failed
 import eolssu.shared.generated.resources.practice_score_loading
 import eolssu.shared.generated.resources.practice_score_missing
@@ -100,7 +108,10 @@ fun PracticeScreen(
             WindowWidthClass.Expanded -> PracticeExpandedLayout(state, snackbarHostState, actions, livePitch)
         }
         // 평가 시작 3·2·1은 리듬 게임처럼 정간보 화면 위에 겹쳐 띄운다(배치와 관계없이, 아래 악보가 비쳐 보인다).
-        if (state.mode == PracticeMode.Countdown) CountdownOverlay(state, actions.onCancelCountdown)
+        if (state.mode == PracticeMode.Countdown && state.popup == null) {
+            if (state.echoMeasuring) EchoCalibrationOverlay(state, actions.onCancelCountdown)
+            else CountdownOverlay(state, actions.onCancelCountdown)
+        }
         // 장단·모범 연주를 불러오는 동안에는 연주 재개 3·2·1과 같은 자리·크기로 화면 가운데에 띄운다.
         PracticePlaybackLoadingOverlay(state)
     }
@@ -209,4 +220,29 @@ private fun CountdownOverlay(state: PracticeUiState, onCancel: () -> Unit) {
             )
         },
     )
+}
+
+@Composable
+private fun EchoCalibrationOverlay(state: PracticeUiState, onCancel: () -> Unit) {
+    val colors = EolssuTheme.colors
+    Column(
+        Modifier.fillMaxSize().background(colors.background.copy(alpha = 0.94f))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
+    ) {
+        CircularProgressIndicator(color = colors.accentText)
+        Text(stringResource(Res.string.practice_echo_measuring), style = MaterialTheme.typography.titleLarge, color = colors.text)
+        Text(
+            stringResource(Res.string.practice_echo_quiet),
+            modifier = Modifier.padding(horizontal = 24.dp).semantics { liveRegion = LiveRegionMode.Polite },
+            style = MaterialTheme.typography.bodyLarge, color = colors.text, textAlign = TextAlign.Center,
+        )
+        state.echoProgress?.let { progress ->
+            Text(stringResource(Res.string.practice_echo_progress, progress.completed, progress.total),
+                style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
+        }
+        EolssuButton(stringResource(Res.string.practice_countdown_cancel), onCancel,
+            style = EolssuButtonStyle.Secondary, modifier = Modifier.padding(horizontal = 48.dp))
+    }
 }

@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.audio.EchoCalibrationProgress
+import com.ssafy.eolssu.core.audio.RecordingEchoStatus
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.ScorePosition
@@ -29,7 +31,7 @@ enum class PracticePanel { Settings, Notation, Fingering, Jangdan, Tempo }
  * [RecordFailed]는 녹음을 시작·저장하지 못함, [TooLarge]는 녹음 파일이 보낼 수 있는 크기(20MiB)를 넘음.
  * [PermDenied]는 OS 권한 창에서 허용하지 않음, [PermBlocked]는 ‘다시 묻지 않음’이라 기기 설정에서만 허용할 수 있음(보드 Dialog-PermDenied·PermBlocked).
  */
-enum class PracticePopup { Permission, Abort, SettingsPaused, End, EndAtLimit, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge, PermDenied, PermBlocked }
+enum class PracticePopup { Permission, Abort, SettingsPaused, End, EndAtLimit, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge, PermDenied, PermBlocked, EchoCalibrationFailed }
 
 /** 연주 중 입력이 이 시간(ms)보다 오래 없으면 마이크를 확인하라고 안내한다(와이어프레임 `noInputMs > 1500`). */
 const val NO_INPUT_HINT_MS = 1500.0
@@ -108,6 +110,10 @@ data class PracticeUiState(
     val popup: PracticePopup? = null,
     val draft: PracticeDraft = PracticeDraft(),
     val count: Int = 3,
+    val echoSupported: Boolean = false,
+    val echoMeasuring: Boolean = false,
+    val echoProgress: EchoCalibrationProgress? = null,
+    val echoStatus: RecordingEchoStatus = RecordingEchoStatus.Off,
     val resume: Boolean = false,
     val micLevel: Float = 0f,
     val recordingSupported: Boolean = false,
@@ -132,6 +138,10 @@ data class PracticeUiState(
     /** 기기 음원 저장을 지원하는 내 악보 연습에만 표시한다. */
     val personalAudio: PracticePersonalAudio? = null,
 ) {
+    val echoCorrectionOff: Boolean
+        get() = echoSupported && mode == PracticeMode.Recording && !finished && settings.jangdanSound &&
+            echoStatus !in setOf(RecordingEchoStatus.Ready, RecordingEchoStatus.Active)
+
     val jangdanProblem: Boolean get() = !jangdanSupported || jangdanStatus in setOf(JangdanStatus.Failed, JangdanStatus.Unsupported, JangdanStatus.Interrupted)
 
     val bpm: Int get() = song?.let {
@@ -196,7 +206,7 @@ data class PracticeUiState(
     val runningActivities: Set<ContinuousActivity>
         get() = buildSet {
             if ((mode in setOf(PracticeMode.Model, PracticeMode.Rhythm) && playing) || listening != null || (panel == PracticePanel.Fingering && fingeringAudioPlaying)) add(ContinuousActivity.PLAYBACK)
-            if (mode == PracticeMode.Countdown || (mode == PracticeMode.Recording && !finished && popup == null)) {
+            if ((mode == PracticeMode.Countdown && !echoMeasuring && popup == null) || (mode == PracticeMode.Recording && !finished && popup == null)) {
                 add(ContinuousActivity.RECORDING)
             }
             // 한 음씩 따라 불기에서 '내 연주'를 듣는 중도 연주로 센다.
@@ -304,6 +314,7 @@ fun PracticeUiState.requestEvaluation(micGranted: Boolean): PracticeUiState {
 /** 3·2·1 카운트다운. [resume]이면 멈춘 자리부터 이어서 연주한다. */
 fun PracticeUiState.beginCountdown(resume: Boolean = false): PracticeUiState = copy(
     mode = PracticeMode.Countdown, resume = resume, popup = null, panel = null, count = 3, playing = false, eventStartedAt = null,
+    echoMeasuring = false, echoProgress = null,
 )
 
 fun PracticeUiState.beginRecording(): PracticeUiState = copy(
@@ -320,6 +331,7 @@ fun PracticeUiState.cancelCountdown(): PracticeUiState =
 fun PracticeUiState.toReady(): PracticeUiState = copy(
     mode = PracticeMode.Ready, position = 0, elapsedMs = 0.0, popup = null, playing = false, finished = false, micLevel = 0f,
     eventStartedAt = null, pausedFraction = 0f, eventElapsedMs = 0.0, resume = false, hadInput = false, noInputMs = 0.0,
+    echoMeasuring = false, echoProgress = null, echoStatus = RecordingEchoStatus.Off,
 )
 
 /** 사용자가 악보를 끌어 따라가기를 멈춘다. 평가 연주 중이면 지금 각을 기억해 다음 각부터 다시 따라가게 한다. */

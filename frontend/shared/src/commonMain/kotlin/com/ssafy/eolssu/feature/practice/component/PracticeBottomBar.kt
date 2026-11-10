@@ -49,6 +49,7 @@ import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.practice_echo_off
 import eolssu.shared.generated.resources.practice_abort
 import eolssu.shared.generated.resources.practice_mic_off
 import eolssu.shared.generated.resources.practice_mic_on
@@ -118,6 +119,8 @@ fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBo
         Box(Modifier.fillMaxWidth().height(6.dp).background(colors.surfaceStrong, RoundedCornerShape(3.dp))) {
             Box(Modifier.fillMaxWidth((state.progressPercent / 100f).coerceIn(0f, 1f)).fillMaxHeight().background(colors.rec, RoundedCornerShape(3.dp)))
         }
+        if (state.echoCorrectionOff) Text(stringResource(Res.string.practice_echo_off),
+            style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
         if (state.noInputHint) NoInputBanner()
         val locked = state.mode != PracticeMode.Recording
         if (locked) {

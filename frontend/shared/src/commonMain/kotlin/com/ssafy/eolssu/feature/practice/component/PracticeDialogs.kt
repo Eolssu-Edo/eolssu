@@ -51,6 +51,11 @@ import eolssu.shared.generated.resources.practice_step_denied_body
 import eolssu.shared.generated.resources.practice_step_permission_body
 import eolssu.shared.generated.resources.practice_step_record_failed_body
 import eolssu.shared.generated.resources.practice_restart
+import eolssu.shared.generated.resources.practice_echo_failed_title
+import eolssu.shared.generated.resources.practice_echo_failed_body
+import eolssu.shared.generated.resources.practice_echo_retry
+import eolssu.shared.generated.resources.practice_echo_skip
+import eolssu.shared.generated.resources.practice_countdown_cancel
 import org.jetbrains.compose.resources.stringResource
 
 /** 확인 창에서 부르는 동작. */
@@ -68,6 +73,9 @@ class PracticeDialogActions(
     val onToReady: () -> Unit,
     /** ‘설정에서 허용하기’: 기기 앱 설정으로 보낸다. */
     val onOpenMicSettings: () -> Unit = {},
+    val onRetryEcho: () -> Unit = {},
+    val onSkipEcho: () -> Unit = {},
+    val onCancelEcho: () -> Unit = {},
 )
 
 /**
@@ -78,6 +86,15 @@ class PracticeDialogActions(
 fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep: Boolean = false) {
     val colors = EolssuTheme.colors
     when (popup) {
+        PracticePopup.EchoCalibrationFailed -> EolssuDialog(
+            title = stringResource(Res.string.practice_echo_failed_title),
+            message = stringResource(Res.string.practice_echo_failed_body),
+            icon = EolssuIcons.Mic,
+        ) {
+            EolssuButton(stringResource(Res.string.practice_echo_retry), actions.onRetryEcho)
+            EolssuButton(stringResource(Res.string.practice_echo_skip), actions.onSkipEcho, style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.practice_countdown_cancel), actions.onCancelEcho, style = EolssuButtonStyle.Ghost)
+        }
         PracticePopup.Permission -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_permission_title),
             message = stringResource(if (forStep) Res.string.practice_step_permission_body else Res.string.practice_popup_permission_body),

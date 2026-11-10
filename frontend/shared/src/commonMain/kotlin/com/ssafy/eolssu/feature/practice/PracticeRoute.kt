@@ -152,6 +152,9 @@ fun PracticeRoute(
                     onToggleFingeringView = viewModel::toggleFingeringView,
                 ),
                 dialog = PracticeDialogActions(
+                    onRetryEcho = viewModel::retryEchoCalibration,
+                    onSkipEcho = viewModel::continueWithoutEcho,
+                    onCancelEcho = viewModel::cancelCountdown,
                     onGrantMic = {
                         scope.launch { if (viewModel.requestMicPermission()) viewModel.grantMicAndStart() else viewModel.micDenied() }
                     },

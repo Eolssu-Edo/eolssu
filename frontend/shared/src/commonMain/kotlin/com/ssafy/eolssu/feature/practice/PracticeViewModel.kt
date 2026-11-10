@@ -18,6 +18,7 @@ import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingSpec
+import com.ssafy.eolssu.core.audio.RecordingEchoStatus
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.Yul
@@ -32,6 +33,7 @@ import com.ssafy.eolssu.data.song.SheetPracticeRepository
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.ModelAudioRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +44,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
@@ -91,13 +94,14 @@ class PracticeViewModel(
 
     private val _uiState = MutableStateFlow(
         PracticeUiState(solo = solo || mine, mine = mine, learn = learn, fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
-            inputMeasured = recorder?.measuresLevel == true, isSongLoading = true),
+            inputMeasured = recorder?.measuresLevel == true, isSongLoading = true, echoSupported = recorder?.supportsEchoCalibration == true),
     )
     val uiState: StateFlow<PracticeUiState> = _uiState.asStateFlow()
 
     private var stepJob: Job? = null
     private var stepClock: PracticeTimelineClock? = null
     private var countdownJob: Job? = null
+    private var countdownGeneration = 0L
     private var previewJob: Job? = null
     private var listenJob: Job? = null
     private var levelJob: Job? = null
@@ -110,6 +114,7 @@ class PracticeViewModel(
     private var take: RecordedTake? = null
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
     private fun clearAccount() {
+        invalidateCountdown()
         pitchSession.stop()
         pitchTally.value = LivePitchTally()
         take = null
@@ -312,6 +317,13 @@ class PracticeViewModel(
 
 
     init {
+        recorder?.echoStatus?.let { status ->
+            accountScope.launch {
+                status.collect { echo ->
+                    _uiState.update { if (it.mode == PracticeMode.Recording) it.copy(echoStatus = echo) else it }
+                }
+            }
+        }
         accountScope.launch {
             _uiState.map { it.position }.distinctUntilChanged().collect { position ->
                 pitchSession.refresh()
@@ -426,6 +438,7 @@ class PracticeViewModel(
 
     /** 화면이 가려짐(떠남·백그라운드·화면 잠금·탭 숨김). 구간을 닫아 보낸다. */
     fun onScreenHidden() {
+        if (_uiState.value.mode == PracticeMode.Countdown) onLeaveScreen()
         screenShown = false
         personalAudioJob?.cancel()
         _uiState.update {
@@ -794,8 +807,24 @@ class PracticeViewModel(
     fun closePopup() = _uiState.update { it.copy(popup = null) }
 
     fun cancelCountdown() {
-        countdownJob?.cancel()
+        if (_uiState.value.mode != PracticeMode.Countdown) return
+        invalidateCountdown()
+        stopJangdan()
+        if (!_uiState.value.resume && recorder?.supportsEchoCalibration == true) cancelRecorder()
         _uiState.update { it.cancelCountdown() }
+    }
+
+    fun retryEchoCalibration() {
+        if (_uiState.value.popup != PracticePopup.EchoCalibrationFailed || !accountScope.isActive) return
+        _uiState.update { it.beginCountdown() }
+        runCountdown()
+    }
+
+    fun continueWithoutEcho() {
+        if (_uiState.value.popup != PracticePopup.EchoCalibrationFailed || !accountScope.isActive) return
+        recorder?.discardEchoCalibration()
+        _uiState.update { it.beginCountdown().copy(echoStatus = RecordingEchoStatus.Off) }
+        runCountdown(skipEcho = true)
     }
 
     fun askAbort() = pauseRecordingFor(PracticePopup.Abort)
@@ -840,7 +869,9 @@ class PracticeViewModel(
         val state = _uiState.value
         when {
             state.mode == PracticeMode.Countdown -> {
-                countdownJob?.cancel()
+                invalidateCountdown()
+                stopJangdan()
+                if (!state.resume && recorder?.supportsEchoCalibration == true) cancelRecorder()
                 _uiState.update { it.copy(popup = PracticePopup.Exit) }
             }
             state.mode == PracticeMode.Recording && !state.finished && state.popup == null -> pauseRecordingFor(PracticePopup.Exit)
@@ -894,28 +925,67 @@ class PracticeViewModel(
         stepJob?.cancel()
         stepClock = null
         _uiState.update { it.copy(eventStartedAt = null, pausedFraction = it.currentEventFraction.toFloat()) }
-        countdownJob?.cancel()
+        invalidateCountdown()
         previewJob?.cancel()
         listenJob?.cancel()
         cancelRecorder()
         pauseStep()
     }
 
-    private fun runCountdown() {
+    /** 플랫폼 보정이 취소 뒤 늦게 끝나도 화면이나 녹음을 다시 시작하지 못하게 한다. */
+    private fun invalidateCountdown() {
+        countdownGeneration++
         countdownJob?.cancel()
+        _uiState.update { it.copy(echoMeasuring = false, echoProgress = null) }
+    }
+
+    private fun runCountdown(skipEcho: Boolean = false) {
+        val previous = countdownJob
+        invalidateCountdown()
+        val generation = countdownGeneration
+        val initial = _uiState.value
+        val clips = if (!initial.resume && !skipEcho && initial.settings.jangdanSound && recorder?.supportsEchoCalibration == true)
+            currentPlan()?.strikes?.map { it.clip }?.toSet()?.takeIf { it.isNotEmpty() } else null
+        if (clips != null) _uiState.update { it.copy(echoMeasuring = true, echoStatus = RecordingEchoStatus.Measuring) }
         countdownJob = accountScope.launch {
+            // 연속 취소에서도 이전 보정의 finally까지 기다려 같은 player를 차례로 사용한다.
+            withContext(NonCancellable) { previous?.join() }
+            if (generation != countdownGeneration || !isActive) return@launch
+            if (clips != null) {
+                val prepared = try {
+                    recorder!!.prepareEcho(jangdanPlayer, clips) { progress ->
+                        if (generation == countdownGeneration && isActive) _uiState.update { it.copy(echoProgress = progress) }
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    false
+                }
+                if (generation != countdownGeneration || !isActive) return@launch
+                if (!prepared) {
+                    val status = recorder?.echoStatus?.value ?: RecordingEchoStatus.Unreliable
+                    cancelRecorder()
+                    stopJangdan()
+                    _uiState.update { it.copy(echoMeasuring = false, echoProgress = null, echoStatus = status, popup = PracticePopup.EchoCalibrationFailed) }
+                    return@launch
+                }
+                _uiState.update { it.copy(echoMeasuring = false, echoProgress = null, echoStatus = RecordingEchoStatus.Ready) }
+            }
             while (_uiState.value.count > 1) {
                 delay(1000)
                 _uiState.update { it.copy(count = it.count - 1) }
             }
             delay(1000)
+            if (generation != countdownGeneration || !isActive) return@launch
             val resume = _uiState.value.resume
             val carry = _uiState.value.eventElapsedMs
             if (!(if (resume) resumeRecorder() else startRecorder())) {
                 _uiState.update { it.failRecording() }
                 return@launch
             }
-            _uiState.update { if (resume) it.resumeRecording() else it.beginRecording() }
+            _uiState.update {
+                (if (resume) it.resumeRecording() else it.beginRecording()).copy(echoStatus = recorder?.echoStatus?.value ?: RecordingEchoStatus.Off)
+            }
             startStepping(if (resume) carry else 0.0)
             val state = _uiState.value
             state.song?.let { pitchSession.start(it, state.bpm, state.elapsedMs) }
