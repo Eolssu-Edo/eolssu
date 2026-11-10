@@ -54,7 +54,6 @@ enum class TempoStep(val ratio: Double) {
  */
 data class PracticeDraft(
     val showHangul: Boolean = false,
-    val showSolfege: Boolean = false,
     val jangdanSound: Boolean = false,
     val beatVisual: Boolean = true,
     val step: TempoStep = TempoStep.Normal,
@@ -143,6 +142,12 @@ data class PracticeUiState(
         val savedBpm = if (mine) settings.bpmBySheet[it.id] else settings.bpmBySong[it.id]
         savedBpm ?: it.baseBpm
     } ?: 0
+
+    /**
+     * 연주 평가(혼자 연습·내 악보 연습이 아님)는 곡 제목 옆에 ‘운지법 보기’·‘쉬운 표기’ 스위치를 두고 톱니 설정에서는 뺀다(S15P31E102-716).
+     * 제목 줄이 있는 휴대폰 배치에서만 쓴다.
+     */
+    val showsTitleToggles: Boolean get() = !solo && !mine
 
     /** 화면 제목. 내 악보면 그 악보 제목, 아니면 곡 제목. */
     val title: String get() = sheetTitle ?: song?.title.orEmpty()
@@ -458,7 +463,7 @@ fun PracticeUiState.openPanel(panel: PracticePanel): PracticeUiState {
     if (playbackSettingsLocked && panel == PracticePanel.Tempo) return this
     val song = song
     val draft = when (panel) {
-        PracticePanel.Notation -> draft.copy(showHangul = settings.showHangul, showSolfege = settings.showSolfege)
+        PracticePanel.Notation -> draft.copy(showHangul = settings.showHangul)
         PracticePanel.Jangdan -> draft.copy(jangdanSound = settings.jangdanSound, beatVisual = settings.beatVisual, previewing = false, previewBeat = 0)
         PracticePanel.Tempo -> draft.copy(step = if (song != null) TempoStep.nearest(song.baseBpm, bpm) else TempoStep.Normal)
         else -> draft
@@ -485,9 +490,9 @@ fun PracticeUiState.moveFingering(delta: Int): PracticeUiState {
     return copy(selected = next, selectedCell = cellForEvent(next), listening = null, draft = draft.copy(note = fingeringNoteAt(next)))
 }
 
-/** 표기 패널 적용. 계이름 데이터가 없는 곡은 계이름을 켜지 않는다. */
-fun PracticeSettings.applyNotation(draft: PracticeDraft, song: Song): PracticeSettings =
-    copy(showHangul = draft.showHangul, showSolfege = draft.showSolfege && song.solfege != null)
+/** 표기 패널 적용: 한글 읽는 법 표시. */
+fun PracticeSettings.applyNotation(draft: PracticeDraft): PracticeSettings =
+    copy(showHangul = draft.showHangul)
 
 fun PracticeSettings.applyJangdan(draft: PracticeDraft): PracticeSettings =
     copy(jangdanSound = draft.jangdanSound, beatVisual = draft.beatVisual)

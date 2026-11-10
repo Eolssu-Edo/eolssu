@@ -479,7 +479,7 @@ class PracticeViewModel(
         val state = _uiState.value
         val song = state.song ?: return
         when (state.panel) {
-            PracticePanel.Notation -> settingsStore.update { it.applyNotation(state.draft, song) }
+            PracticePanel.Notation -> settingsStore.update { it.applyNotation(state.draft) }
             PracticePanel.Jangdan -> {
                 settingsStore.update { it.applyJangdan(state.draft) }
                 if (!state.draft.jangdanSound) pauseRhythm()
@@ -542,6 +542,9 @@ class PracticeViewModel(
         if (_uiState.value.fingeringOverride != null) _uiState.update { it.copy(fingeringOverride = !it.fingeringView) }
         else settingsStore.update { it.copy(fingeringView = !it.fingeringView) }
     }
+
+    /** 연주 평가 제목 옆 ‘쉬운 표기’ 스위치. 한글 읽는 법 표시를 바로 켜고 끈다(S15P31E102-716). */
+    fun toggleHangul() = settingsStore.update { it.copy(showHangul = !it.showHangul) }
 
     /** 연습 설정의 ‘연습 악기’. 운지 그림과 제목 옆 표시에만 쓰고 프로필 악기는 바꾸지 않는다. */
     fun setInstrument(id: String) = settingsStore.update { it.copy(instrumentId = id) }

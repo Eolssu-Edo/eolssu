@@ -101,6 +101,7 @@
     <string name="practice_switched_to_eval">평가 모드로 바꿨어요. ‘연주 평가 시작’을 누르면 평가해요.</string>
 
     <string name="practice_menu_notation">쉬운 표기</string>
+    <string name="practice_title_fingering">운지법 보기</string>
     <string name="practice_menu_jangdan">장단</string>
     <string name="practice_menu_tempo">속도</string>
     <string name="practice_on">켜짐</string>
@@ -111,8 +112,6 @@
 
     <string name="practice_notation_title">악보 표시 설정</string>
     <string name="practice_notation_hangul">한글 읽는 법 표시</string>
-    <string name="practice_notation_solfege">계이름 표시</string>
-    <string name="practice_notation_solfege_none">이 곡은 계이름 데이터가 아직 없어요</string>
 
     <string name="practice_fingering_title">운지법</string>
     <string name="practice_fingering_instrument">현재 악기: %1$s</string>
@@ -125,14 +124,10 @@
     <string name="practice_jangdan_title">장단</string>
     <string name="practice_jangdan_meta">한 각 %1$d정간 · 대강 %2$s%3$s · %4$d BPM</string>
     <string name="practice_jangdan_sub">· 박마다 %1$d소박</string>
-    <string name="practice_jangdan_gueum_note">구음은 예시예요. 속도는 ‘연습 속도’ 설정 값을 그대로 따라요.</string>
-    <string name="practice_jangdan_no_gueum">이 장단의 구음 데이터는 아직 연결되지 않았어요. 박 수와 강박 위치만 표시해요. 속도는 ‘연습 속도’ 설정 값을 그대로 따라요.</string>
     <string name="practice_jangdan_preview_start">장단 듣기</string>
     <string name="practice_jangdan_preview_stop">미리듣기 정지</string>
     <string name="practice_jangdan_sound">연습 중 장단 소리</string>
-    <string name="practice_jangdan_sound_desc">모범 연주·장단 연습·평가 연주에서 소리를 들려줘요</string>
     <string name="practice_jangdan_beat">현재 박 시각 표시</string>
-    <string name="practice_jangdan_beat_desc">연주 중 하단에 현재 박을 표시해요</string>
     <string name="practice_jangdan_mic_notice">평가 녹음 중에는 장단 소리가 꺼져요.</string>
 
     <string name="practice_tempo_title">연습 속도</string>

@@ -187,7 +187,7 @@ private fun SectionBoardScore(state: SectionLoopUiState, song: Song, modifier: M
                 song = song,
                 modifier = Modifier.fillMaxSize().clipToBounds(),
                 metrics = packing.metrics,
-                notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege),
+                notation = ScoreNotation(state.settings.showHangul),
                 scrollState = rememberScrollState(),
                 currentIndex = current?.let { c -> song.timeline.firstOrNull { it.column == c.column && it.row == c.row }?.index },
                 highlight = if (state.recording) ScoreHighlight.Recording else ScoreHighlight.Position,

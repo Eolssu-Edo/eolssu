@@ -39,7 +39,7 @@ class PracticeStepTest {
      */
     private val song = Song(
         id = "step-test", title = "한 음씩 검사", level = SongLevel.Intro,
-        jangdan = Jangdan("세마치", listOf(3, 3, 3), 3, 3), baseBpm = 60, description = "", evaluable = false, solfege = null,
+        jangdan = Jangdan("세마치", listOf(3, 3, 3), 3, 3), baseBpm = 60, description = "", evaluable = false,
         score = Score(
             listOf(
                 listOf(ScoreCell(pitch(Yul.Hwangjong)), ScoreCell(ScoreNote.Hold), ScoreCell(ScoreNote.Rest)),
