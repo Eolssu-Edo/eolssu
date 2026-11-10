@@ -25,6 +25,7 @@ import com.ssafy.eolssu.data.song.SheetAudioSettings
 import com.ssafy.eolssu.data.song.SheetAudioStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -135,7 +136,8 @@ class SheetEditAudioViewModelTest {
         }
         val store = FakeDeviceStore()
         val member = SignedInMember(FakeKeyValueStore()).apply { set("7") }
-        val vm = viewModel(repository, documents = scoreDocuments, member = member, store = store,
+        val vm = viewModel(repository, source = EditSource.Mine("12", practiceVersion = 2),
+            documents = scoreDocuments, member = member, store = store,
             loadAudioInstruments = { listOf(CatalogInstrument("3", "DANSO", "단소"), CatalogInstrument("9", "SOGEUM", "소금")) })
         try {
             runCurrent()
@@ -179,6 +181,38 @@ class SheetEditAudioViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
+    @Test fun deviceEditorPreviewsThePracticeDownloadWithoutLoadingExportOptions() = runTest {
+        val repository = FakeSheetAudioRepository().apply { statuses += SheetAudioLookup.None }
+        val store = FakeDeviceStore()
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("7") }
+        val download = SheetAudioDownload("https://r2.example/12.m4a", 1000, "ab".repeat(32), 18550,
+            instrumentId = "1", bpm = 60, withJangdan = false)
+        val saved = store.save("7", "12", "2", download)
+        var instrumentLoads = 0
+        val vm = viewModel(repository, documents = documents, member = member, store = store, loadAudioInstruments = {
+            instrumentLoads++
+            listOf(CatalogInstrument("1", "DANSO", "단소"))
+        })
+        try {
+            runCurrent()
+            assertFalse(vm.showsAudioExport)
+            assertEquals(saved.localFile, vm.devicePlayback(preview = true)?.localFile)
+            vm.requestAudio()
+            vm.refreshAudio()
+            runCurrent()
+            assertTrue(repository.requests.isEmpty())
+            assertEquals(0, repository.statusCalls)
+            assertEquals(0, instrumentLoads)
+
+            vm.updateDetails("미리듣기", 92)
+            assertNull(vm.devicePlayback(preview = true))
+            assertEquals(SheetEditMessage.AudioNeedsSave, vm.uiState.value.message)
+        } finally {
+            advanceUntilIdle()
+            Dispatchers.resetMain()
+        }
+    }
+
     @Test fun previewWithoutGeneratedAudioDoesNotClaimPlayback() = runTest {
         val repository = FakeSheetAudioRepository().apply { statuses += SheetAudioLookup.None }
         val vm = viewModel(repository)
@@ -215,7 +249,8 @@ class SheetEditAudioViewModelTest {
         val store = FakeDeviceStore()
         val member = SignedInMember(FakeKeyValueStore()).apply { set("7") }
         var now = 0L
-        val vm = viewModel(repository, now = { now }, documents = documents, member = member, store = store)
+        val vm = viewModel(repository, source = EditSource.Mine("12", practiceVersion = 2),
+            now = { now }, documents = documents, member = member, store = store)
         try {
             runCurrent()
             assertNull(vm.devicePlayback(preview = true), "서버 생성 결과를 직접 재생하지 않는다")

@@ -23,6 +23,8 @@ import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.readByteArray
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /** Generation settings and identity stay with the downloaded file when the server link expires. */
 data class DeviceSheetAudio(
@@ -32,7 +34,20 @@ data class DeviceSheetAudio(
     val withJangdan: Boolean,
     val sha256: String,
     val durationMs: Long,
+    val performance: SheetAudioPerformance? = null,
 )
+
+@Serializable
+data class SheetAudioPerformance(val sourceCommonSha256: String, val timeline: JsonObject) {
+    internal fun matchesFile(audioSha256: String, scoreVersion: String): Boolean =
+        sourceCommonSha256.matches(Regex("[a-f0-9]{64}")) &&
+            timeline["sourceSha256"] == JsonPrimitive(sourceCommonSha256) &&
+            timeline["audioSha256"] == JsonPrimitive(audioSha256) &&
+            timeline["scoreVersion"] == JsonPrimitive(scoreVersion.toIntOrNull()) &&
+            timeline.toString().encodeToByteArray().size <= MAX_SHEET_PERFORMANCE_BYTES
+}
+
+private const val MAX_SHEET_PERFORMANCE_BYTES = 2 * 1024 * 1024
 
 data class SheetAudioDownload(
     val url: String,
@@ -42,6 +57,7 @@ data class SheetAudioDownload(
     val instrumentId: String,
     val bpm: Int,
     val withJangdan: Boolean,
+    val performance: SheetAudioPerformance? = null,
 )
 
 /** The most recently downloaded M4A for each account and sheet. */
@@ -96,6 +112,7 @@ internal class FileSheetAudioDeviceStore(
         val metadata = SavedAudio(
             scoreVersion, download.instrumentId, download.bpm, download.withJangdan,
             download.sha256, download.durationMs, download.byteSize,
+            download.performance?.takeIf { it.matchesFile(download.sha256, scoreVersion) },
         )
         if (!metadata.valid() || !isDownloadUrl(download.url)) return@stored null
         val previous = readMetadata(directory)
@@ -171,7 +188,7 @@ internal class FileSheetAudioDeviceStore(
 
     private fun readMetadata(directory: Path): SavedAudio? {
         val path = Path(directory, METADATA_FILE)
-        val file = files.metadataOrNull(path)?.takeIf { it.isRegularFile && it.size in 1..1024 } ?: return null
+        val file = files.metadataOrNull(path)?.takeIf { it.isRegularFile && it.size in 1..MAX_METADATA_BYTES } ?: return null
         val text = files.source(path).buffered().use { it.readByteArray(file.size.toInt()).decodeToString() }
         return runCatching { Json.decodeFromString<SavedAudio>(text) }.getOrNull()?.takeIf { it.valid() }
     }
@@ -192,7 +209,8 @@ internal class FileSheetAudioDeviceStore(
         val path = audioPath(directory)
         val file = files.metadataOrNull(path) ?: return null
         if (!file.isRegularFile || file.size != byteSize) return null
-        return DeviceSheetAudio(LocalAudioFile(path.toString()), instrumentId, bpm, withJangdan, sha256, durationMs)
+        return DeviceSheetAudio(LocalAudioFile(path.toString()), instrumentId, bpm, withJangdan, sha256, durationMs,
+            performance?.takeIf { it.matchesFile(sha256, scoreVersion) })
     }
 
     @Serializable
@@ -204,6 +222,7 @@ internal class FileSheetAudioDeviceStore(
         val sha256: String,
         val durationMs: Long,
         val byteSize: Long,
+        val performance: SheetAudioPerformance? = null,
     ) {
         fun valid(): Boolean = ID.matches(scoreVersion) && scoreVersion.toIntOrNull() != null && ID.matches(instrumentId) &&
             bpm in 30..160 && SHA256.matches(sha256) && durationMs in 1..600_000 && byteSize in 12..15L * 1024 * 1024
@@ -213,6 +232,7 @@ internal class FileSheetAudioDeviceStore(
 
     private companion object {
         const val METADATA_FILE = "metadata.json"
+        const val MAX_METADATA_BYTES = MAX_SHEET_PERFORMANCE_BYTES + 1024L
         val ID = Regex("[1-9][0-9]{0,18}")
         val SHA256 = Regex("[a-f0-9]{64}")
         val AUDIO_NAME = Regex("[a-f0-9]{64}\\.m4a")

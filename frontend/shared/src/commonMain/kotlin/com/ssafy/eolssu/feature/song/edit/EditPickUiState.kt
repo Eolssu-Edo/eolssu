@@ -7,8 +7,8 @@ import com.ssafy.eolssu.data.song.PublishedSheetCopyProblem
 import com.ssafy.eolssu.feature.song.SongSortOrder
 import com.ssafy.eolssu.feature.song.sortedByTitle
 
-/** 불러올 악보 목록의 탭. */
-enum class EditPickTab { Mine, Songs }
+/** 불러올 악보 목록의 탭. 화면에 이 순서(제공 곡 → 내 악보)로 놓는다. */
+enum class EditPickTab { Songs, Mine }
 
 /** 목록에서 고른 악보. */
 sealed interface EditPickTarget {
@@ -33,7 +33,7 @@ enum class EditPickLoad { NeedsInstrument, Loading, Ready, Failed }
 data class EditPickUiState(
     val instrument: Instrument? = null,
     val load: EditPickLoad = EditPickLoad.NeedsInstrument,
-    val tab: EditPickTab = EditPickTab.Mine,
+    val tab: EditPickTab = EditPickTab.Songs,
     val query: String = "",
     val sort: SongSortOrder = SongSortOrder.Ascending,
     val picked: EditPickTarget? = null,

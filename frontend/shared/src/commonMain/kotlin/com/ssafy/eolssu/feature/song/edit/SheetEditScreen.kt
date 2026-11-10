@@ -75,9 +75,7 @@ import eolssu.shared.generated.resources.sheetedit_duration_half
 import eolssu.shared.generated.resources.sheetedit_duration_other
 import eolssu.shared.generated.resources.sheetedit_duration_quarter
 import eolssu.shared.generated.resources.sheetedit_duration_sixteenth
-import eolssu.shared.generated.resources.sheetedit_hint_jeongganbo
 import eolssu.shared.generated.resources.sheetedit_preview
-import eolssu.shared.generated.resources.sheetedit_redo
 import eolssu.shared.generated.resources.sheetedit_staff_back
 import eolssu.shared.generated.resources.sheetedit_staff_hint
 import eolssu.shared.generated.resources.sheetedit_staff_note_label
@@ -89,10 +87,11 @@ import eolssu.shared.generated.resources.sheetedit_staff_where_span
 import eolssu.shared.generated.resources.sheetedit_staff_where_sub
 import eolssu.shared.generated.resources.sheetedit_subtitle_editing
 import eolssu.shared.generated.resources.sheetedit_subtitle_staff
-import eolssu.shared.generated.resources.sheetedit_undo
 import eolssu.shared.generated.resources.sheetedit_up
 import eolssu.shared.generated.resources.sheetedit_view_jeongganbo
 import eolssu.shared.generated.resources.sheetedit_view_staff
+import eolssu.shared.generated.resources.sheetedit_undo
+import eolssu.shared.generated.resources.sheetedit_redo
 import eolssu.shared.generated.resources.sheetedit_where_short
 import org.jetbrains.compose.resources.stringResource
 
@@ -106,8 +105,6 @@ class SheetEditActions(
     val onSelectCell: (Int) -> Unit,
     /** 악보에서 누른 정간과 그 안의 소박 순서. */
     val onSelectUnit: (Int, Int) -> Unit,
-    val onUndo: () -> Unit,
-    val onRedo: () -> Unit,
     val onSelectStaffNote: (StaffNoteKey) -> Unit,
     val onShiftStaffNote: (Int) -> Unit,
     val input: EditInputActions,
@@ -168,9 +165,10 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 if (draft.original != null) SegmentTabs(viewLabels, state.view.ordinal, selectView, Modifier.padding(end = 6.dp))
                 if (staff && draft.original == null) {
                     HintText(stringResource(Res.string.sheetedit_staff_hint), Modifier.weight(1f).padding(start = 4.dp), size = 12)
-                } else {
-                    SquareIconButton(SheetEditIcons.Undo, stringResource(Res.string.sheetedit_undo), actions.onUndo, enabled = state.canUndo)
-                    SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.onRedo, enabled = state.canRedo)
+                } else if (staff) {
+                    // 정간보 보기에서는 실행 취소·다시 실행이 아래 입력판 첫 줄에 있다. 입력판이 없는 오선보 편집에만 여기에 둔다.
+                    SquareIconButton(SheetEditIcons.Undo, stringResource(Res.string.sheetedit_undo), actions.input.onUndo, enabled = state.canUndo)
+                    SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.input.onRedo, enabled = state.canRedo)
                 }
                 if (state.canEditDetails) SquareIconButton(EolssuIcons.Pencil, stringResource(Res.string.sheet_details_edit), actions.onOpenDetails)
                 if (!staff) Box(Modifier.weight(1f))
@@ -200,7 +198,6 @@ private fun JeongganboContent(state: SheetEditUiState, actions: SheetEditActions
         else if (state.pendingChecks > 0) ImportBanner(state.pendingChecks, actions.onOpenChecks)
         if (state.reviewNotices.isNotEmpty()) SheetReviewNotices(state.reviewNotices)
         Column(Modifier.weight(1f).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            HintText(stringResource(Res.string.sheetedit_hint_jeongganbo))
             EditScoreBoard(
                 song = song,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -214,7 +211,7 @@ private fun JeongganboContent(state: SheetEditUiState, actions: SheetEditActions
                 },
             )
         }
-        EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.availablePitches, actions.input)
+        EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.availablePitches, state.canUndo, state.canRedo, actions.input)
     }
 }
 
