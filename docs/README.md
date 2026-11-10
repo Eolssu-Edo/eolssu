@@ -257,6 +257,7 @@
 - [정간보·오선보 이미지·PDF의 공통 악보 변환 가능성 조사](knowledge/ai/score-omr-feasibility.md)
 
 - [S15P31E102-471 내 악보 불러오기·원본 보관·변환 상태](plans/S15P31E102-471.md)
+- [내 악보 검수 화면의 악보 전체 알림 표시 (694)](plans/S15P31E102-694.md)
 
 - [S15P31E102-472 인식 작업자·결과 저장·재시도](plans/S15P31E102-472.md) · [시간 제한·사진 방향·재시도 근거](knowledge/backend/sheet-conversion-worker.md)
 

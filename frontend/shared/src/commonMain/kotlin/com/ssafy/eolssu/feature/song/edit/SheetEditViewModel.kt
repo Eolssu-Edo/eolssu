@@ -100,6 +100,7 @@ class SheetEditViewModel(
             documentLoading = false, documentFailed = true, saving = false, message = null, audio = SheetAudioUi.None,
             deviceAudio = null, audioDownloading = false,
             past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet(),
+            reviewNotices = emptyList(),
             jangdanPicker = null) }
     }
 
@@ -160,6 +161,7 @@ class SheetEditViewModel(
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,
                     withJangdan = draft.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
                     reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet(),
+                    reviewNotices = document.editorReviewNotices(),
                     deviceAudio = deviceAudio) }
                 refreshAudio(announce = false)
             } catch (cancelled: CancellationException) { throw cancelled }
