@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.home.component
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -15,10 +16,13 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_my_page
+import eolssu.shared.generated.resources.home_my_page_jeolssu
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 휴대폰 홈 마이페이지 판(`.plate`): 그림이 비치는 반투명 흰 바탕의 38dp 원, 사람 아이콘 16dp, 옅은 그림자.
+ * 홈 마이페이지 판(`.plate`): 그림이 비치는 반투명 흰 바탕의 38dp 원에 마스코트 절쑤 얼굴 32dp, 옅은 그림자.
+ * 얼굴 그림은 기술 블로그 탭 아이콘과 같은 64px 원본이다.
  * 누르면 [onClick]으로 마이페이지(MY-01)에 간다. 누르는 영역은 Compose의 최소 터치 영역(48dp)으로 원 바깥까지 넓어진다.
  */
 @Composable
@@ -33,7 +37,11 @@ internal fun MyPagePlate(onClick: () -> Unit, modifier: Modifier = Modifier) {
         shadowElevation = 1.dp,
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(EolssuIcons.User, contentDescription = stringResource(Res.string.home_my_page), modifier = Modifier.size(16.dp))
+            Image(
+                painter = painterResource(Res.drawable.home_my_page_jeolssu),
+                contentDescription = stringResource(Res.string.home_my_page),
+                modifier = Modifier.size(32.dp),
+            )
         }
     }
 }
