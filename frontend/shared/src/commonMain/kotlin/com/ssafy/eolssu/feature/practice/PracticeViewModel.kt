@@ -829,7 +829,18 @@ class PracticeViewModel(
         runCountdown()
     }
 
-    fun askRestart() = _uiState.update { it.copy(popup = PracticePopup.Restart) }
+    /**
+     * '처음부터'. 연주 중이면 연주 중단·설정을 열 때처럼 녹음·진행을 그 자리에서 멈추고 확인 창을 띄운다.
+     * 이미 멈춰 있으면 창만 바꾼다. '계속 연주'는 [keepPlayingAfterExit], '처음부터 시작'은 [restartNow].
+     */
+    fun askRestart() {
+        val state = _uiState.value
+        if (state.mode == PracticeMode.Recording && !state.finished && state.eventStartedAt != null) {
+            pauseRecordingFor(PracticePopup.Restart)
+        } else {
+            _uiState.update { it.copy(popup = PracticePopup.Restart) }
+        }
+    }
 
     fun restartNow() {
         if (!accountScope.isActive) return
@@ -866,7 +877,7 @@ class PracticeViewModel(
         return false
     }
 
-    /** 나가기 확인 창의 '계속 연주': 멈춘 연주는 3·2·1 뒤 멈춘 자리부터, 멈춘 카운트다운은 3부터 다시 센다. */
+    /** 나가기·처음부터 확인 창의 '계속 연주': 멈춘 연주는 3·2·1 뒤 멈춘 자리부터, 멈춘 카운트다운은 3부터 다시 센다. */
     fun keepPlayingAfterExit() {
         val state = _uiState.value
         when {
