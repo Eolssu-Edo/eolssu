@@ -22,6 +22,7 @@ STANDBY_WEB = 'eolssu-standby-579-frontend-1'
 STANDBY_WEB_LOCATION = 'edo2 대기 웹 loopback HTTPS'
 STANDBY_WEB_ACTION = '대기 웹 127.0.0.1:18443 포트·localhost 인증서·/index.html 응답 확인'
 EDO1_READINESS_LOCATION = 'edo1 서비스 준비 검사'
+EDO1_HTTP_COMMUNICATION_LOCATION = 'edo1 서비스 HTTP 통신 검사'
 BLOG_ORIGIN = 'https://team-edo.github.io'
 BLOG_LOGIN = 'eolssu-blog-editor'
 BLOG_WRITABLE = 'eolssu-blog-editor-writable'
@@ -44,7 +45,7 @@ EDO1_READINESS_ACTIONS = {
     BLOG_WRITABLE: '블로그 쓰기 편집기의 내부 /config, OAuth 설정·CORS와 canBatch 확인',
     MYSQL_PROXY: 'edo1 포트 매핑·수신 상태와 edo2 eolssu-replication-watch.service 결과 확인',
     PHPMYADMIN: 'phpMyAdmin 127.0.0.1:8081 로그인 화면과 컨테이너 로그 확인',
-    ANALYSIS_AI: '분석 API 입력 검증과 별도로 격리된 음원으로 추론·채점 확인',
+    ANALYSIS_AI: '분석 API 경로와 HTTP 422 필수 입력 검증 응답 확인',
     REVIEW_TUNNEL: 'Cloudflared 내부 /ready와 엣지 연결 상태 확인',
 }
 EOLSSU_SYSLOG_DIR = Path('/var/log/eolssu/ordinary')
@@ -439,7 +440,7 @@ def readiness_response(name, status, content_type, cors_origin, body):
         if isinstance(errors, list) and all(
             {'loc': ['body', field], 'type': 'missing'} in errors for field in ('audioUrl', 'notes')
         ):
-            return '미검증', 'POST /v1/analyses HTTP 422 · 필수 입력 검증 · 실제 음원 처리·추론 미검증'
+            return '정상', 'POST /v1/analyses · HTTP 422 (입력 검증 응답)'
     elif (name in (BLOG_LOGIN, BLOG_WRITABLE) and status == 200
           and content_type == 'application/json' and cors_origin == BLOG_ORIGIN
           and payload.get('authorize') == 'https://github.com/login/oauth/authorize'
@@ -671,6 +672,8 @@ def container_report(target='edo1'):
     # Readiness timeouts must not consume the shared bind-mount measurement budget.
     for fact, detail in readiness_inputs:
         fact['readiness'] = container_readiness(target, fact['name'], detail)
+        if target == 'edo1' and fact['name'] == ANALYSIS_AI and fact['readiness'] is not None:
+            fact['readiness_kind'] = 'http_communication'
     return ['컨테이너', '실행/Health', 'CPU 사용/제한', 'RAM 사용/제한·비율', '쓰기 사용/제한·로그(회전 포함)',
             '데이터 저장소/사용량', '가동/재시작', '종료 코드/OOM', 'PID/공개 포트', 'NET 수신/송신·IO 읽기/쓰기(누적)', '이미지'], rows, issues, facts
 
@@ -878,12 +881,15 @@ def health_report(target='edo1'):
         action = ('실행 상태·서비스 로그 확인' if status == '실패' else
                   '현재 조치 없음' if status == '정상' else '실행만 확인됨; 서비스 준비 상태 검사 필요')
         if name == ANALYSIS_AI and status == '정상':
-            status, evidence = '미검증', 'TCP 연결 검사 통과 · 분석 HTTP 준비·추론 기능 미검증'
-            action = 'AI 서비스의 분석 준비 검증 경로·검증 절차 확인; TCP 통과만으로 추론 성공을 확정하지 않음'
+            status, evidence = '미검증', 'TCP 연결 검사 통과 · 분석 API HTTP 통신 미검증'
+            action = EDO1_READINESS_ACTIONS[ANALYSIS_AI]
         readiness = container_readiness(target, name, detail) if status in ('정상', '미검증') else None
         if readiness:
-            location = EDO1_READINESS_LOCATION if target == 'edo1' else STANDBY_WEB_LOCATION
-            next_action = EDO1_READINESS_ACTIONS[name] if target == 'edo1' else STANDBY_WEB_ACTION
+            if target == 'edo1':
+                location = EDO1_HTTP_COMMUNICATION_LOCATION if name == ANALYSIS_AI else EDO1_READINESS_LOCATION
+                next_action = EDO1_READINESS_ACTIONS[name]
+            else:
+                location, next_action = STANDBY_WEB_LOCATION, STANDBY_WEB_ACTION
             rows.append([name, location, *readiness, next_action])
         else:
             rows.append([name, 'Docker healthcheck', status, evidence, '—', action])

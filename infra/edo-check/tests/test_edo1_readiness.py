@@ -82,12 +82,16 @@ class Edo1ReadinessTests(unittest.TestCase):
         rows = {row[0]: row for row in health['rows']}
         facts = {fact['name']: fact for fact in detailed['facts']}
         expected = {BLOG_LOGIN: '정상', BLOG_WRITABLE: '정상', MYSQL_PROXY: '미검증',
-                    PHPMYADMIN: '정상', AI: '미검증', TUNNEL: '정상'}
+                    PHPMYADMIN: '정상', AI: '정상', TUNNEL: '정상'}
         for name, status in expected.items():
             with self.subTest(name=name):
                 self.assertEqual(rows[name][2], status)
                 self.assertEqual(rows[name][2:4], facts[name]['readiness'][:2])
-        self.assertIn('추론', rows[AI][3])
+        ai_evidence = 'POST /v1/analyses · HTTP 422 (입력 검증 응답)'
+        self.assertEqual(rows[AI][3], ai_evidence)
+        self.assertEqual(facts[AI]['readiness_kind'], 'http_communication')
+        self.assertEqual(len(facts[AI]['readiness']), 3)
+        self.assertNotIn('readiness_kind', facts[MYSQL_PROXY])
         self.assertIn('복제 미검증', rows[MYSQL_PROXY][3])
         self.assertEqual(self.requests[8000].request.call_args.args[:2], ('POST', '/v1/analyses'))
         self.assertEqual(self.requests[8000].request.call_args.kwargs['body'], b'{}')
@@ -97,7 +101,8 @@ class Edo1ReadinessTests(unittest.TestCase):
         self.assertIn('| eolssu-blog-editor-writable | ✅\u00a0**검증 완료** | GET /config HTTP 200', report)
         self.assertIn('| Grafana | ✅\u00a0**정상** |', report)
         self.assertIn('장애 0 · 주의 0', report)
-        self.assertIn('**미검증 2**', report)
+        self.assertIn('**미검증 1**', report)
+        self.assertIn('| 연주 분석 AI | ✅\u00a0**통신 정상** | ' + ai_evidence, report)
         self.assertIn('eolssu-replication-watch.service', report)
         self.assertNotIn('hidden-client-id', report)
 
@@ -112,6 +117,7 @@ class Edo1ReadinessTests(unittest.TestCase):
         rows = {row[0]: row for row in health['rows']}
         report = relay.build_report(health, 'fixture').replace('\u2060', '')
         self.assertNotIn('검증 완료', report)
+        self.assertNotIn('통신 정상', report)
         self.assertIn('**장애 5**', report)
         self.assertIn('**미측정 1**', report)
         for name in (BLOG_LOGIN, BLOG_WRITABLE, PHPMYADMIN, AI, TUNNEL):
@@ -141,3 +147,24 @@ class Edo1ReadinessTests(unittest.TestCase):
         self.responses[20241] = (200, '', ConnectionRefusedError())
         rows = {row[0]: row for row in self.collect()['rows']}
         self.assertEqual(rows[TUNNEL][2], '확인 불가')
+
+    def test_ai_http_failure_and_docker_stop_cannot_report_communication_success(self):
+        for reply, status in (
+            ((500, 'application/json', {}), '실패'),
+            ((422, 'application/json', TimeoutError()), '실패'),
+            ((422, 'application/json', PermissionError()), '확인 불가'),
+        ):
+            with self.subTest(reply=reply):
+                self.responses[8000] = reply
+                health = self.collect()
+                ai_row = next(row for row in health['rows'] if row[0] == AI)
+                self.assertEqual(ai_row[2], status)
+                self.assertNotIn('통신 정상', relay.build_report(health, 'fixture').replace('\u2060', ''))
+
+        self.requests.clear()
+        self.containers[4]['detail']['State'].update(Status='exited', Running=False)
+        health = self.collect()
+        ai_row = next(row for row in health['rows'] if row[0] == AI)
+        self.assertEqual(ai_row[2], '실패')
+        self.assertNotIn(8000, self.requests)
+        self.assertNotIn('통신 정상', relay.build_report(health, 'fixture').replace('\u2060', ''))
