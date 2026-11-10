@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh edo1 storage measurements every 15 minutes
+
+[Timer]
+OnCalendar=*-*-* *:07/15:00 Asia/Seoul
+Persistent=yes
+
+[Install]
+WantedBy=timers.target
