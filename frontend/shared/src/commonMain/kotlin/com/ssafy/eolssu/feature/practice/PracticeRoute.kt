@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.model.Song
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -52,7 +53,7 @@ fun PracticeRoute(
     onBack: () -> Unit,
     onGoHome: () -> Unit,
     onSwitchToEval: () -> Unit,
-    onEvaluate: ((songId: String, bpm: Int, take: RecordedTake?) -> Unit)?,
+    onEvaluate: ((songId: String, bpm: Int, take: RecordedTake?, song: Song?) -> Unit)?,
     fingeringAudio: @Composable (GuideInstrument, FingeringNote, (Boolean) -> Unit) -> Unit,
     onConfirmBackChange: ((() -> Unit)?) -> Unit = {},
     mine: Boolean = false,
@@ -160,7 +161,7 @@ fun PracticeRoute(
                     val take = viewModel.takeForEvaluation()
                     if (take != null) {
                         viewModel.toReady()
-                        onEvaluate?.invoke(songId, bpm, take)
+                        onEvaluate?.invoke(songId, bpm, take, state.song)
                     }
                 },
                 onRestartNow = viewModel::restartNow,

@@ -74,10 +74,11 @@ internal class AnalysisSession(
         take: RecordedTake? = null,
         pendingSessionId: String? = null,
         section: SessionSection? = null,
+        initialSong: Song? = null,
     ) {
         _state.update { it.copy(songLookup = SongLookup.Loading) }
         val song = try {
-            songs.getSong(songId)
+            initialSong?.takeIf { it.id == songId } ?: songs.getSong(songId)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -165,7 +166,7 @@ internal class AnalysisSession(
             SendResult.Sent -> {
                 _state.update { it.copy(upload = null, resending = false) }
                 analysisId = recording?.sessionId
-                polling.resume()
+                polling.start()
                 startPolling()
             }
             SendResult.CanResend -> _state.update { it.copy(upload = UploadProblem.CanResend, resending = false) }
@@ -199,7 +200,7 @@ internal class AnalysisSession(
             }
             when (outcome) {
                 RetryOutcome.Started, RetryOutcome.Conflict -> {
-                    polling.resume()
+                    if (outcome == RetryOutcome.Started) polling.start() else polling.resume()
                     _state.update { it.copy(failure = null, retrying = false) }
                     startPolling()
                 }
@@ -217,7 +218,7 @@ internal class AnalysisSession(
         pollJob?.cancel()
     }
 
-    /** 화면에 돌아왔다. 아직 분석 중이면 바로 한 번 묻고, `PENDING`이면 2초 조회를 다시 시작한다. */
+    /** 화면에 돌아왔다. 아직 분석 중이면 즉시 조회하고 기존 조회 주기를 이어 간다. */
     fun resume() {
         paused = false
         val state = _state.value
@@ -237,7 +238,7 @@ internal class AnalysisSession(
     /** [block]을 부르고 성공하면 기다리는 상태로 돌린다. 실패하면 사유가 없는 실패라 [AnalysisFailure.ServerError]로 본다. */
     private suspend fun attempt(block: suspend () -> Unit): Boolean = try {
         block()
-        polling.resume()
+        polling.start()
         _state.update { it.copy(failure = null, retrying = false) }
         true
     } catch (e: Exception) {
