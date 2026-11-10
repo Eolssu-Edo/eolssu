@@ -1,4 +1,4 @@
-package com.ssafy.eolssu.feature.auth.component
+package com.ssafy.eolssu.core.ui.component
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -8,16 +8,18 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.dp
 
 /**
- * 로그인 화면 아래 겹친 산 능선(`.mtn-wrap`, 보드 390×210 좌표)을 이 영역 바닥에 210dp 높이로 그린다. 꾸밈이라 읽지 않는다.
- * 능선마다 위에서 아래로 옅어지는 연두 먹색이고 전체 불투명도는 0.7이다. 보드의 흐림 효과는 넣지 않았다.
+ * 로그인 보드의 겹친 산 능선(`.mtn-wrap`, 보드 390×210 좌표)을 이 영역 바닥에 210dp 높이로 그린다. 꾸밈이라 읽지 않는다.
+ * 능선마다 위에서 아래로 옅어지는 [color] 먹색이고 전체 불투명도는 0.7이다. 보드의 흐림 효과는 넣지 않았다.
+ * 로그인 화면(휴대폰 배치)과 홈 카드 화면 아래에서 쓴다.
+ * [lifts]는 뒤에서 앞 순서로 각 능선을 보드 좌표만큼 위로 올린다. 비우면 보드 그대로다.
  */
-internal fun Modifier.loginMountains(color: Color): Modifier = drawBehind {
+internal fun Modifier.mountainRidges(color: Color, lifts: List<Float> = emptyList()): Modifier = drawBehind {
     val height = MountainHeight.toPx()
     val bottom = size.height
     val sx = size.width / ViewWidth
     val sy = height / ViewHeight
-    val originY = bottom - height
-    Ridges.forEach { (heights, opacity) ->
+    Ridges.forEachIndexed { ridge, (heights, opacity) ->
+        val originY = bottom - height - lifts.getOrElse(ridge) { 0f } * sy
         val path = Path().apply {
             moveTo(0f, bottom)
             heights.forEachIndexed { index, y -> lineTo(index * RidgeStep * sx, originY + y * sy) }
