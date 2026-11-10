@@ -3,7 +3,8 @@
 {{- if and .repo .repoId .category .categoryId }}
 <section class="comments" aria-labelledby="comments-title">
   <h2 id="comments-title" class="sr-only">댓글</h2>
-  <script src="https://giscus.app/client.js"
+  {{- $clientVersion := substr (sha256 (readFile "static/js/giscus-client.js")) 0 12 }}
+  <script src="{{ "js/giscus-client.js" | relURL }}?v={{ $clientVersion }}"
     data-repo="{{ .repo }}"
     data-repo-id="{{ .repoId }}"
     data-category="{{ .category }}"
@@ -16,7 +17,6 @@
     data-theme="{{ "css/giscus-theme.css" | absURL }}"
     data-lang="ko"
     data-loading="lazy"
-    crossorigin="anonymous"
     async></script>
   <p class="comments-note">댓글과 반응은 GitHub 계정으로 로그인해 남길 수 있어요.</p>
 </section>
