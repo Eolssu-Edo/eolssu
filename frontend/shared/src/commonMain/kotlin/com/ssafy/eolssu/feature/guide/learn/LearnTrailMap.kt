@@ -66,7 +66,7 @@ import kotlin.math.floor
 import kotlin.math.sin
 
 /**
- * 9단계를 산길로 그린다. 아래에서 시작해 굽이굽이 올라가 9단계가 꼭대기다.
+ * 7단계를 산길로 그린다. 아래에서 시작해 굽이굽이 올라가 7단계가 꼭대기다(S15P31E102-658).
  * 마친 단계는 연두로 채우고, 지금 아래 카드로 보는 단계에는 호랑이가 서 있고 굵은 테두리다.
  * 단계를 누르면 아래 그림 카드가 그 단계로 넘어간다.
  */
@@ -85,7 +85,7 @@ internal fun LearnTrailMap(state: LearnUiState, viewedStage: Int, onShowStage: (
             .border(1.dp, colors.lineSoft, shape),
     ) {
         val width = maxWidth
-        val points = TrailPoints.take(stages.size)
+        val points = trailPoints(stages.size)
         val ink = colors.text
         val grass = colors.primary
         val sun = colors.rec
@@ -292,15 +292,16 @@ private val NodeSize: Dp = 32.dp
 private val TigerWidth: Dp = 60.dp
 private val TigerHeight: Dp = 49.dp
 
-/** 카드 안 상대 위치(0~1). 산기슭에서 굽이굽이 올라 9단계가 큰 산 꼭대기다. */
+/** 처음 [count]단계의 카드 안 상대 위치(0~1). */
+internal fun trailPoints(count: Int): List<Offset> = TrailPoints.take(count)
+
+/** 카드 안 상대 위치(0~1). 산기슭에서 굽이굽이 올라 7단계가 큰 산 꼭대기다. */
 private val TrailPoints: List<Offset> = listOf(
-    Offset(0.09f, 0.86f),
-    Offset(0.31f, 0.89f),
-    Offset(0.55f, 0.82f),
-    Offset(0.80f, 0.70f),
-    Offset(0.62f, 0.55f),
-    Offset(0.37f, 0.52f),
-    Offset(0.20f, 0.36f),
-    Offset(0.40f, 0.26f),
-    Offset(0.60f, 0.19f),
+    Offset(0.10f, 0.86f),
+    Offset(0.38f, 0.89f),
+    Offset(0.70f, 0.80f),
+    Offset(0.66f, 0.60f),
+    Offset(0.36f, 0.52f),
+    Offset(0.24f, 0.33f),
+    Offset(0.58f, 0.19f),
 )

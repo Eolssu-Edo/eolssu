@@ -62,7 +62,6 @@ import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.HttpLessonApi
 import com.ssafy.eolssu.data.user.LearnProgressRepository
-import com.ssafy.eolssu.data.user.LearnSongStage
 import com.ssafy.eolssu.data.user.LessonApi
 import com.ssafy.eolssu.data.user.OAuthAttempts
 import com.ssafy.eolssu.data.user.OAuthRedirect
@@ -161,14 +160,8 @@ val appModule = module {
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
         AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get(), get(), section, initialSong)
     }
-    // 곡 전체 결과로 기초부터 배우기 8단계 통과를 판정한다(S15P31E102-611). 곡의 서버 악기 ID는 악기 목록에서 code로 바꾼다.
-    single {
-        val catalog = get<InstrumentCatalog>()
-        LearnSongStage(get()) { id -> catalog.load().firstOrNull { it.instrumentId == id }?.code }
-    }
     viewModel { (evaluationId: String, initialSong: Song?) ->
-        ResultViewModel(evaluationId, get(), get(), get(), get(), judgeLearnSong = get<LearnSongStage>()::judge,
-            learnTrackOf = get<LearnSongStage>()::trackOf, initialSong = initialSong)
+        ResultViewModel(evaluationId, get(), get(), get(), get(), initialSong = initialSong)
     }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get(), songs = get()) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
@@ -176,8 +169,7 @@ val appModule = module {
 
     // 운지법 보기·기초부터 배우기
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
-    // 8단계 곡은 배우는 악기의 악보로 고른다. 곡의 서버 악기 ID는 악기 목록에서 code로 바꾼다.
-    viewModel { LearnViewModel(get(), get(), get(), instrumentCodes = { get<InstrumentCatalog>().load().associate { it.instrumentId to it.code } }) }
+    viewModel { LearnViewModel(get(), get()) }
     // 단계 연습은 녹음기로 소리 크기만 잰다. 녹음기·마이크 권한이 없는 플랫폼은 스스로 확인만 한다.
     viewModel { (stage: Int) ->
         val catalog = get<InstrumentCatalog>()

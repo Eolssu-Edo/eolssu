@@ -3,7 +3,6 @@ package com.ssafy.eolssu.feature.guide.learn
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.user.LearnProgressRepository
-import com.ssafy.eolssu.testing.CatalogSongs
 import com.ssafy.eolssu.testing.CatalogViewModelTest
 import com.ssafy.eolssu.testing.FakeLessonApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,7 +21,7 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
     private val api = FakeLessonApi()
     private val store = FakeKeyValueStore()
 
-    private fun model() = keep(LearnViewModel(CatalogSongs(), LearnProgressRepository(api, store)))
+    private fun model() = keep(LearnViewModel(LearnProgressRepository(api, store)))
 
     @Test
     fun loadsServerStagesAndDoneMarksForStartingInstrument() = runTest {
@@ -32,8 +31,8 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
         runCurrent()
 
         val state = model.uiState.value
-        assertEquals((1..9).toList(), state.stages.map { it.number })
-        assertEquals(listOf(9), state.stages.filter { it.optional }.map { it.number })
+        assertEquals((1..7).toList(), state.stages.map { it.number })
+        assertTrue(state.stages.none { it.optional })
         assertEquals(setOf(1), state.doneStages)
         assertEquals(2, state.nextStage?.number)
     }
@@ -159,19 +158,19 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
         assertEquals(LearnDetailLoad.Loading, model.uiState.value.detail(42))
     }
 
-    /** 연주 결과 화면이 8단계를 완료로 남기면(S15P31E102-611) 뒤에 남아 있던 학습 화면도 로딩 표시 없이 완료를 보인다. */
+    /** 다른 화면이 완료를 남기면 뒤에 남아 있던 학습 화면도 로딩 표시 없이 완료를 보인다. */
     @Test
     fun completionSavedElsewhereIsShownWithoutReloadingUi() = runTest {
         val repository = LearnProgressRepository(api, store)
-        val model = keep(LearnViewModel(CatalogSongs(), repository))
+        val model = keep(LearnViewModel(repository))
         runCurrent()
-        assertFalse(8 in model.uiState.value.doneStages)
+        assertFalse(7 in model.uiState.value.doneStages)
 
-        repository.setCompleted(api.id("danso", 8), true)
+        repository.setCompleted(api.id("danso", 7), true)
         assertIs<LearnTrackLoad.Loaded>(model.uiState.value.track)
         runCurrent()
 
-        assertTrue(8 in model.uiState.value.doneStages)
+        assertTrue(7 in model.uiState.value.doneStages)
         assertIs<LearnTrackLoad.Loaded>(model.uiState.value.track)
     }
 
@@ -179,7 +178,7 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
     @Test
     fun ownMarkStaysAfterRefresh() = runTest {
         val repository = LearnProgressRepository(api, store)
-        val model = keep(LearnViewModel(CatalogSongs(), repository))
+        val model = keep(LearnViewModel(repository))
         runCurrent()
         model.toggleDone(3)
         runCurrent()

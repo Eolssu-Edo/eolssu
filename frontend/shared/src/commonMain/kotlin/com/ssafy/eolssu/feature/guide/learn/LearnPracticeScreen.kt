@@ -134,6 +134,8 @@ fun LearnPracticeScreen(
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
     actions: LearnPracticeActions,
+    /** 마지막 단계(7단계)면 '완료했어요!'가 곡 연습으로 이어 간다. */
+    last: Boolean = false,
 ) {
     val tablet = widthClass != WindowWidthClass.Compact
     // 4~7단계는 통과(음높이 판정)하거나 스스로 확인하면 따라 배우기와 같은 '완료했어요!'를 띄우고, '다음 단계로'가 완료 표시 뒤 다음 단계로 간다.
@@ -149,7 +151,7 @@ fun LearnPracticeScreen(
             celebrating = true
         }
     }
-    if (celebrating) LearnDoneDialog(learnDoneBody(stage.number), onDismiss = { celebrating = false }, onNext = actions.onComplete)
+    if (celebrating) LearnDoneDialog(learnDoneBody(stage.number), onDismiss = { celebrating = false }, onNext = actions.onComplete, action = learnDoneAction(last))
     val onSelfDone: () -> Unit = if (celebrates) {
         {
             actions.onStop()

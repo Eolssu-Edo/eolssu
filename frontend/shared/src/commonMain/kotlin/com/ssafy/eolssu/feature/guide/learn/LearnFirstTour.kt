@@ -365,11 +365,11 @@ internal fun LearnTourDoneDialog(tour: LearnTour, body: StringResource = Res.str
 
 /** 따라 배우기 밖(단계 연습 통과 등)에서 띄우는 같은 '완료했어요!' 창. */
 @Composable
-internal fun LearnDoneDialog(body: StringResource, onDismiss: () -> Unit, onNext: () -> Unit) {
+internal fun LearnDoneDialog(body: StringResource, onDismiss: () -> Unit, onNext: () -> Unit, action: StringResource = Res.string.learn_tour_done_next) {
     EolssuDoneDialog(
         title = stringResource(Res.string.learn_tour_done_title),
         body = stringResource(body),
-        action = stringResource(Res.string.learn_tour_done_next),
+        action = stringResource(action),
         onDismiss = onDismiss,
         onAction = onNext,
     )

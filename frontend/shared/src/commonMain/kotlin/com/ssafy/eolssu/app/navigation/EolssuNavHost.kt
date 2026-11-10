@@ -51,7 +51,6 @@ import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.user.FirstRunRepository
-import com.ssafy.eolssu.data.user.LEARN_SONG_STAGE
 import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
 import com.ssafy.eolssu.feature.result.AnalysisExit
@@ -356,7 +355,6 @@ fun EolssuNavHost(
                     onGoRecords = { navController.navigate(EolssuDestination.records(it)) },
                     onViewAllErrors = { navController.navigate(WeakSectionDestination.errors(entry.savedStateHandle.get<String>("evaluationId").orEmpty())) },
                     onWeakSection = { navController.navigate(WeakSectionDestination.select(entry.savedStateHandle.get<String>("evaluationId").orEmpty())) },
-                    onLearnNextStage = { track -> navController.navigate(EolssuDestination.learnStage(LEARN_SONG_STAGE + 1, GuideInstrument.fromId(track))) },
                 )
             }
             composable(
@@ -436,8 +434,6 @@ fun EolssuNavHost(
                 val learnNavigation = LearnNavigation(
                     onOpenFingering = { instrument, blow -> navController.navigate(EolssuDestination.guideFingering(instrument, blow)) },
                     onOpenReading = { page -> navController.navigate(EolssuDestination.guideReading(page)) },
-                    // 8단계 곡은 평가 없이 운지법과 함께 보며 연습한다.
-                    onOpenSong = { navController.navigate(EolssuDestination.practice(it, learn = true)) },
                     onOpenSongList = { navController.navigate(EolssuDestination.SONG_LIST) },
                     onOpenPractice = { navController.navigate(EolssuDestination.learnPractice(it)) },
                 )
@@ -495,14 +491,18 @@ fun EolssuNavHost(
                         learnViewModel = learnViewModel(navController, entry),
                         onBack = { navController.popBackStackFrom(entry) },
                         // 완료로 표시하면 연습과 그 단계 상세를 다음 단계 상세로 바꿔 끼운다(주소로 바로 들어와 목록이 없어도 연습으로 돌아가지 않게).
-                        // 태블릿 가로처럼 목록에서 바로 연 연습이면 바꿔 끼울 상세가 없어 다음 단계 상세가 목록으로 돌아가 그 단계를 고른다. 마지막 단계면 목록으로 돌아간다.
+                        // 태블릿 가로처럼 목록에서 바로 연 연습이면 바꿔 끼울 상세가 없어 다음 단계 상세가 목록으로 돌아가 그 단계를 고른다.
+                        // 마지막 단계(7단계)면 단계 목록 위에 곡 목록을 열어 곡 연습으로 이어 간다(S15P31E102-658). 뒤로 가면 단계 목록이다.
                         onCompleted = { next ->
                             if (next != null) {
                                 navController.navigate(EolssuDestination.learnStage(next)) {
                                     popUpTo(EolssuDestination.LEARN_STAGE) { inclusive = true }
                                 }
                             } else {
-                                navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)
+                                val toList = navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)
+                                navController.navigate(EolssuDestination.SONG_LIST) {
+                                    if (!toList) popUpTo(EolssuDestination.LEARN_PRACTICE) { inclusive = true }
+                                }
                             }
                         },
                     )

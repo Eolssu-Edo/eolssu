@@ -14,27 +14,27 @@ class MyLearningProgressTest {
     fun unstartedLearningShowsFirstStageAndNoCompletions() {
         val progress = MyLearningProgress(emptySet())
         assertEquals(0, progress.completedCount)
-        assertEquals(9, progress.totalStages)
+        assertEquals(7, progress.totalStages)
         assertEquals(1, progress.nextStage)
     }
 
     @Test
     fun skippedStagesDoNotInflateCurrentLevel() {
-        val progress = MyLearningProgress(setOf(1, 3, 9))
+        val progress = MyLearningProgress(setOf(1, 3, 7))
         assertEquals(3, progress.completedCount)
-        assertEquals(2, progress.nextStage, "9단계를 먼저 표시해도 아직 안 한 2단계가 다음 단계다")
+        assertEquals(2, progress.nextStage, "7단계를 먼저 표시해도 아직 안 한 2단계가 다음 단계다")
     }
 
     @Test
-    fun completingEveryStageShowsCompletionWithoutInventingStageTen() {
-        val progress = MyLearningProgress((1..9).toSet())
-        assertEquals(9, progress.completedCount)
+    fun completingEveryStageShowsCompletionWithoutInventingStageEight() {
+        val progress = MyLearningProgress((1..7).toSet())
+        assertEquals(7, progress.completedCount)
         assertNull(progress.nextStage)
     }
 
     @Test
     fun unsupportedStageNumbersDoNotCountAsProgress() {
-        val progress = MyLearningProgress(setOf(-1, 0, 1, 10, 999))
+        val progress = MyLearningProgress(setOf(-1, 0, 1, 8, 9, 999))
         assertEquals(1, progress.completedCount)
         assertEquals(2, progress.nextStage)
     }
