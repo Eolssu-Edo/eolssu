@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
+import com.ssafy.eolssu.core.diagnostics.PerfReason
+import kotlinx.coroutines.plus
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
@@ -46,9 +50,11 @@ enum class AnalysisExit {
 }
 
 /** 녹음을 보내지 못한 사유. 세션 업로드 시간이 지난 410은 [AnalysisFailure.UploadTimeout]으로 보인다. */
-enum class UploadProblem {
-    /** 연결 실패나 503·500. 녹음이 기기에 남아 있어 '녹음 다시 보내기'를 준다. */
-    CanResend,
+enum class UploadProblem(val retryable: Boolean = false) {
+    CanResend(retryable = true),
+    TimedOut(retryable = true),
+    ConnectionFailed(retryable = true),
+    ServerError(retryable = true),
 
     /** 413·415·422·404. 같은 파일은 다시 보내도 거부되므로 '다시 연주하기'만 준다. */
     Rejected,
@@ -80,11 +86,12 @@ class AnalysisViewModel(
     member: SignedInMember? = null,
     private val section: SessionSection? = null,
     private val initialSong: Song? = null,
+    private val perf: PerformanceVisit? = null,
 ) : ViewModel() {
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
     private fun clearAccount(): Unit = session.clearAccount()
     private val session = AnalysisSession(
-        accountScope,
+        accountScope + perf.context(),
         evaluationRepository,
         clock = TimeSource.Monotonic.markNow().let { start -> { start.elapsedNow().inWholeMilliseconds } },
         sleep = { delay(it) },
@@ -104,7 +111,7 @@ class AnalysisViewModel(
 
     private fun loadSong() {
         if (songJob?.isActive == true) return
-        songJob = accountScope.launch { session.loadSong(songId, bpm, songRepository, take, pendingSessionId, section, initialSong) }
+        songJob = accountScope.launch(perf.context(if (songJob == null) PerfReason.INITIAL else PerfReason.RETRY)) { session.loadSong(songId, bpm, songRepository, take, pendingSessionId, section, initialSong) }
     }
 
     /** 분석 다시 시도. */

@@ -11,6 +11,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
+import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import eolssu.shared.generated.resources.sheetedit_msg_audio_failed
@@ -23,6 +24,7 @@ import eolssu.shared.generated.resources.sheet_close_unsaved
 import eolssu.shared.generated.resources.sheet_close_message
 import eolssu.shared.generated.resources.sheet_discard_close
 import eolssu.shared.generated.resources.sheet_keep_editing
+import eolssu.shared.generated.resources.sheet_review_before_reshape
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -49,6 +51,7 @@ fun SheetEditRoute(
         SheetEditMessage.SaveConflict to stringResource(Res.string.sheet_save_conflict),
         SheetEditMessage.SaveTooLarge to stringResource(Res.string.sheet_save_too_large),
         SheetEditMessage.ComingSoon to stringResource(Res.string.common_coming_soon),
+        SheetEditMessage.ReviewBeforeReshape to stringResource(Res.string.sheet_review_before_reshape),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),
@@ -67,6 +70,8 @@ fun SheetEditRoute(
             onClose = { viewModel.closeEditor(onClose) },
             onPreview = onPreview,
             onOpenChecks = onOpenChecks,
+            onOpenReviewCell = viewModel::openNextReviewCell,
+            onCheckReviewIssue = viewModel::checkReviewIssue,
             onSelectView = viewModel::selectView,
             onSelectCell = viewModel::selectCell,
             onSelectUnit = viewModel::selectUnit,
@@ -93,6 +98,10 @@ fun SheetEditRoute(
             ),
         ),
     )
+    state.jangdanPicker?.let { picker ->
+        SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft.original?.music?.bpmUnit,
+            onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)
+    }
     if (state.closeWarning) EolssuDialog(
         title = stringResource(Res.string.sheet_close_unsaved),
         message = stringResource(Res.string.sheet_close_message),

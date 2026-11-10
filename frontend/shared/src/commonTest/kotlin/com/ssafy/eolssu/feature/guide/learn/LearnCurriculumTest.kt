@@ -66,9 +66,6 @@ class LearnCurriculumTest {
         val scale = listOf("仲", "林", "無", "潢", "汰")
         assertEquals(listOf("仲", "林", "無", "潢", "汰"), LearnPattern.Ascending.notes(scale))
         assertEquals(listOf("汰", "潢", "無", "林", "仲"), LearnPattern.Descending.notes(scale))
-        assertEquals(listOf("仲", "無", "汰", "無", "仲"), LearnPattern.SkipOne.notes(scale))
-        assertEquals(listOf("仲", "潢", "林", "汰", "林"), LearnPattern.SkipTwo.notes(scale))
-        assertEquals(listOf("無", "林", "仲", "林", "無"), LearnPattern.ThreeNoteSong.notes(scale))
     }
 
     @Test

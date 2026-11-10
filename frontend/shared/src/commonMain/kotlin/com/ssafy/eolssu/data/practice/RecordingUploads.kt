@@ -24,16 +24,19 @@ data class PendingRecording(
 
 /**
  * 업로드 API(PRA-02 `docs/specs/recording-file.md`) 응답을 앱이 다룰 결과로 나눈 것.
- * 202와, 응답을 놓친 재전송이 받는 409(이미 저장됨)는 [Uploaded]다. 연결 실패·503·500은 같은 세션에 다시 올릴 수 있어 [Unreachable],
- * 410은 [Expired], 413·415·422와 404(세션 없음)는 같은 파일·세션으로 다시 보내도 안 되므로 [Rejected]다.
- * [Rejected]의 화면 문구는 파일과 세션 어느 쪽 탓으로도 읽히지 않게 쓴다.
+ * 202와 응답을 놓친 재전송이 받는 409는 [Uploaded]다. 시간 초과·연결 실패·5xx는 같은 세션에 다시 올릴 수 있다.
+ * 410은 [Expired], 413·415·422와 404(세션 없음)는 [Rejected]다.
  */
 sealed interface UploadOutcome {
     /** 저장됨(202, 409). 서버가 분석을 시작했거나 이미 시작했다. 상태 조회로 결과를 확인한다. */
     data object Uploaded : UploadOutcome
 
-    /** 연결 실패, 503, 500. 같은 세션에 다시 올릴 수 있다. */
+    /** 구체적인 원인을 분류하지 못해도 같은 세션에 다시 올릴 수 있다. */
     data object Unreachable : UploadOutcome
+
+    data object TimedOut : UploadOutcome
+    data object ConnectionFailed : UploadOutcome
+    data object ServerError : UploadOutcome
 
     /** 410. 세션 업로드 시간이 지났다. */
     data object Expired : UploadOutcome
@@ -44,12 +47,12 @@ sealed interface UploadOutcome {
 
 /** 녹음 업로드. HTTP 구현은 [HttpRecordingUploader]다. */
 interface RecordingUploader {
-    /** [path]의 녹음을 세션 [sessionId]에 올린다. 연결 오류는 [UploadOutcome.Unreachable]로 돌려주거나 예외로 던진다. */
+    /** [path]의 녹음을 세션 [sessionId]에 올린다. 연결 오류는 [UploadOutcome.ConnectionFailed]로 돌려주거나 예외로 던진다. */
     suspend fun upload(sessionId: String, path: String): UploadOutcome
 }
 
 /** [NotOwner]는 로그인한 회원이 세션 소유자와 달라 파일을 건드리지 않은 경우다. */
-enum class SendResult { Sent, CanResend, Expired, Rejected, Missing, NotOwner }
+enum class SendResult { Sent, CanResend, TimedOut, ConnectionFailed, ServerError, Expired, Rejected, Missing, NotOwner }
 
 /**
  * 기기 시계가 서버보다 빠를 수 있어, 업로드 시간이 지나도 이만큼은 파일을 지우지 않는다. 그동안 다시 보내면 서버가 410으로 판정한다.
@@ -128,6 +131,9 @@ class RecordingUploads(
         }
         return when (outcome) {
             UploadOutcome.Unreachable -> SendResult.CanResend
+            UploadOutcome.TimedOut -> SendResult.TimedOut
+            UploadOutcome.ConnectionFailed -> SendResult.ConnectionFailed
+            UploadOutcome.ServerError -> SendResult.ServerError
             UploadOutcome.Uploaded -> SendResult.Sent.also { discard(pending, path) }
             UploadOutcome.Expired -> SendResult.Expired.also { discard(pending, path) }
             UploadOutcome.Rejected -> SendResult.Rejected.also { discard(pending, path) }

@@ -102,6 +102,10 @@ interface SheetSourceStorage {
 
     fun downloadUrl(key: String, ttl: Duration, fileName: String): String = readUrl(key,ttl)
 
+    /** Returns a signed download bounded by the artifact deadline, or null if it is too late to sign. */
+    fun downloadUrlBefore(key: String, ttl: Duration, fileName: String, deadline: Instant): String? =
+        downloadUrl(key,ttl,fileName)
+
     /** 작업자가 보관된 원본을 읽는다. URL은 이 저장소가 서명한 값만 사용한다. */
     fun download(key: String, target: Path) = download(key,target,Duration.ofSeconds(40))
 

@@ -1,5 +1,12 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceLog
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.PerfSource
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
+import com.ssafy.eolssu.core.diagnostics.measureLoad
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.AudioSource
@@ -55,6 +62,7 @@ internal class ModelAudioSession(
     private val player: AudioPlayer,
     private val scope: CoroutineScope,
     private val timeSource: TimeSource = TimeSource.Monotonic,
+    private val perf: PerformanceVisit? = null,
     private val prepareAccompaniment: suspend (Song, Int) -> Boolean = { _, _ -> true },
 ) {
     private val _state = MutableStateFlow(ModelAudioState())
@@ -65,12 +73,18 @@ internal class ModelAudioSession(
     private var active = false
     private var currentSong: Song? = null
     private var bpm = 0
+    private var startedAt: Long? = null
 
     init {
         scope.launch {
             player.state.collect { media ->
                 if (!active || media.sourceId != sourceId || sourceId == null) return@collect
                 val audio = _state.value.audio ?: return@collect
+                val actionStarted = startedAt
+                if (actionStarted != null && media.status == AudioPlaybackStatus.Playing) {
+                    startedAt = null
+                    perf?.milestone(PerfPhase.PLAYER_STARTED, once = false, startedAt = actionStarted)
+                }
                 val status = when (media.status) {
                     AudioPlaybackStatus.Idle -> return@collect
                     AudioPlaybackStatus.Loading -> ModelAudioStatus.Loading
@@ -100,11 +114,15 @@ internal class ModelAudioSession(
             _state.value = ModelAudioState(ModelAudioStatus.Unsupported)
             return
         }
+        val actionStarted = perf?.let { PerformanceLog.now() }
+        startedAt = actionStarted
+        if (actionStarted != null) perf?.milestone(PerfPhase.MODEL_AUDIO_PLAY, once = false, startedAt = actionStarted)
         currentSong = song
         this.bpm = bpm
         val cached = _state.value.audio?.takeIf { it.matches(song) }
         val previous = _state.value
         if (cached != null && previous.status in setOf(ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)) {
+            perf?.reuse(PerfTarget.MODEL_AUDIO, song.id, PerfSource.RETAINED, song.scoreVersion)
             val resume = player.state.value.sourceId == sourceId &&
                 player.state.value.status == AudioPlaybackStatus.Paused
             val target = startTick?.let { song.modelMediaPosition(cached, it) } ?: previous.mediaPositionMs
@@ -117,7 +135,10 @@ internal class ModelAudioSession(
         player.stop()
         _state.value = ModelAudioState(ModelAudioStatus.Loading)
         launchPreparation(request, CoroutineStart.DEFAULT) {
-            val audio = repository?.get(song)
+            val audio = repository?.let { measureLoad(PerfTarget.MODEL_AUDIO, song.id, { song.scoreVersion }) { it.get(song) } }
+            if (audio?.performance != null && actionStarted != null) {
+                perf?.milestone(PerfPhase.TIMELINE_READY, once = false, startedAt = actionStarted)
+            }
             if (request != requestId || !active) return@launchPreparation
             when {
                 repository == null -> _state.value = ModelAudioState(ModelAudioStatus.Unsupported)
@@ -217,7 +238,7 @@ internal class ModelAudioSession(
     }
 
     private fun launchPreparation(request: Long, start: CoroutineStart, action: suspend () -> Unit) {
-        loadJob = scope.launch(start = start) {
+        loadJob = scope.launch(perf.context(), start = start) {
             try {
                 action()
             } catch (cancelled: CancellationException) {
@@ -232,7 +253,7 @@ internal class ModelAudioSession(
         var ready: Boolean
         do {
             val preparingBpm = bpm
-            ready = prepareAccompaniment(song, preparingBpm)
+            ready = audio.sheetPlayback != null || prepareAccompaniment(song, preparingBpm)
             if (request != requestId || !active) return
         } while (preparingBpm != bpm)
         if (!ready) {
@@ -245,7 +266,8 @@ internal class ModelAudioSession(
             val id = "model-$request"
             sourceId = id
             _state.value = ModelAudioState(ModelAudioStatus.Loading, audio, positionMs)
-            player.load(AudioSource(id, audio.audioUrl), positionMs, speed(audio))
+            startedAt?.let { perf?.milestone(PerfPhase.PLAYER_LOAD, once = false, startedAt = it) }
+            player.load(AudioSource(id, audio.audioUrl, localFile = audio.sheetPlayback?.localFile), positionMs, speed(audio))
         }
     }
 

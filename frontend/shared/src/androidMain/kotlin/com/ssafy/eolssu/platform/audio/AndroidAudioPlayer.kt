@@ -21,6 +21,7 @@ import com.ssafy.eolssu.core.audio.ReferenceAudioPlayer
 import com.ssafy.eolssu.core.audio.referenceSeekTarget
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.FileInputStream
 import java.net.URI
 
 /** Foreground-only player. All MediaPlayer operations/callbacks use one worker looper. */
@@ -66,12 +67,8 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
     override fun load(source: AudioSource, positionMs: Long, speed: Float) = dispatch {
         disposeMedia()
         _state.value = AudioPlaybackState(source.id, AudioPlaybackStatus.Loading, positionMs.coerceAtLeast(0))
-        val uri = runCatching { URI(source.url) }.getOrNull()
-        val debugLoopback = uri?.scheme == "http" && uri.host == "127.0.0.1" &&
-            appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
-            NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(uri.host)
-        if (uri == null || (uri.scheme != "https" && !debugLoopback) || uri.host.isNullOrBlank() ||
-            uri.rawUserInfo != null || uri.rawFragment != null ||
+        val localFile = source.localFile
+        if ((if (localFile == null) !validRemoteUrl(source.url) else source.url.isNotEmpty()) ||
             !validSpeed(speed) || positionMs !in 0..Int.MAX_VALUE.toLong()
         ) {
             fail()
@@ -120,7 +117,8 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
                     }.onFailure { fail() }
                 }
             }
-            current.setDataSource(source.url)
+            if (localFile == null) current.setDataSource(source.url)
+            else FileInputStream(localFile.path).use { current.setDataSource(it.fd) }
             current.prepareAsync()
             handler.postDelayed(prepareTimeout, 30_000L)
         }.onFailure { fail() }
@@ -277,5 +275,15 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
     }
 
     private fun validSpeed(value: Float) = value.isFinite() && value in 0.25f..4f
+
+    private fun validRemoteUrl(value: String): Boolean {
+        val uri = runCatching { URI(value) }.getOrNull() ?: return false
+        val debugLoopback = uri.scheme == "http" && uri.host == "127.0.0.1" &&
+            appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+            NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(uri.host)
+        return (uri.scheme == "https" || debugLoopback) && !uri.host.isNullOrBlank() &&
+            uri.rawUserInfo == null && uri.rawFragment == null
+    }
+
     private fun dispatch(block: () -> Unit) { if (!released) handler.post { if (!released) block() } }
 }

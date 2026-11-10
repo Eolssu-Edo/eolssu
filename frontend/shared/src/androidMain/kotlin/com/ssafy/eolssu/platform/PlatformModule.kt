@@ -1,6 +1,10 @@
 package com.ssafy.eolssu.platform
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.security.NetworkSecurityPolicy
+import com.ssafy.eolssu.core.audio.FileSheetAudioDeviceStore
+import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
 import com.ssafy.eolssu.platform.audio.AndroidJangdanSamplePlayer
 import com.ssafy.eolssu.platform.audio.JangdanSampleCache
@@ -26,6 +30,8 @@ import com.ssafy.eolssu.platform.storage.AndroidKeyValueStore
 import com.ssafy.eolssu.platform.storage.AndroidSecureStore
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.io.files.Path
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -48,6 +54,13 @@ internal fun androidPlatformModule(context: Context, serverAddress: ServerAddres
         // 연습 화면마다 따로 녹음한다.
         factory<AudioRecorder> { AndroidAudioRecorder(appContext) }
         factory<AudioPlayer> { AndroidAudioPlayer(appContext) }
+        single<SheetAudioDeviceStore> {
+            FileSheetAudioDeviceStore(
+                Path(appContext.noBackupFilesDir.absolutePath, "sheet-audio-v1"), get(), Dispatchers.IO,
+                allowDebugLoopback = appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+                    NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("127.0.0.1"),
+            )
+        }
         single { JangdanSampleCache(File(appContext.cacheDir, "jangdan-practice-v1"), get()) }
         factory<JangdanSamplePlayer> { AndroidJangdanSamplePlayer(appContext, get()) }
         // 업로드를 기다리는 녹음. RecordingUploads가 쓴다.

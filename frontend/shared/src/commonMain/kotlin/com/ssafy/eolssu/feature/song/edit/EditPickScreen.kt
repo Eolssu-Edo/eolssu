@@ -48,6 +48,14 @@ import com.ssafy.eolssu.feature.song.edit.component.SegmentTabs
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_tab_sheets
 import eolssu.shared.generated.resources.mysongs_tab_songs
+import com.ssafy.eolssu.data.song.PublishedSheetCopyProblem
+import eolssu.shared.generated.resources.sheetedit_pick_copy
+import eolssu.shared.generated.resources.sheetedit_pick_copying
+import eolssu.shared.generated.resources.sheetedit_pick_copy_failed
+import eolssu.shared.generated.resources.sheetedit_pick_copy_limit
+import eolssu.shared.generated.resources.sheetedit_pick_copy_conversion_in_progress
+import eolssu.shared.generated.resources.sheetedit_pick_copy_not_found
+import eolssu.shared.generated.resources.sheetedit_pick_hint_copy
 import eolssu.shared.generated.resources.sheetedit_pick_confirm
 import eolssu.shared.generated.resources.sheetedit_pick_empty
 import eolssu.shared.generated.resources.sheetedit_pick_empty_mine
@@ -93,7 +101,12 @@ fun EditPickScreen(
                 onBack = onBack,
                 subtitle = stringResource(Res.string.sheetedit_pick_subtitle),
             ) {
-                PillButton(stringResource(Res.string.sheetedit_pick_confirm), onConfirm, enabled = state.canSelect, square = true)
+                val action = when {
+                    state.copying -> Res.string.sheetedit_pick_copying
+                    state.tab == EditPickTab.Songs -> Res.string.sheetedit_pick_copy
+                    else -> Res.string.sheetedit_pick_confirm
+                }
+                PillButton(stringResource(action), onConfirm, enabled = state.canSelect, square = true)
             }
         },
     ) {
@@ -128,12 +141,23 @@ fun EditPickScreen(
                     val picked = state.pickedTitle
                     HintText(
                         when {
+                            picked != null && state.picked is EditPickTarget.Song ->
+                                stringResource(Res.string.sheetedit_pick_hint_copy, picked)
                             picked != null -> stringResource(Res.string.sheetedit_pick_hint_picked, picked)
                             state.tab == EditPickTab.Mine -> stringResource(Res.string.sheetedit_pick_hint_mine)
                             else -> stringResource(Res.string.sheetedit_pick_hint_songs)
                         },
                         size = 12,
                     )
+                    state.copyProblem?.let { problem ->
+                        val message = when (problem) {
+                            PublishedSheetCopyProblem.Limit -> Res.string.sheetedit_pick_copy_limit
+                            PublishedSheetCopyProblem.ConversionInProgress -> Res.string.sheetedit_pick_copy_conversion_in_progress
+                            PublishedSheetCopyProblem.NotFound -> Res.string.sheetedit_pick_copy_not_found
+                            PublishedSheetCopyProblem.Failed -> Res.string.sheetedit_pick_copy_failed
+                        }
+                        HintText(stringResource(message), size = 12)
+                    }
                 }
                 LazyColumn(
                     Modifier.weight(1f).fillMaxWidth(),

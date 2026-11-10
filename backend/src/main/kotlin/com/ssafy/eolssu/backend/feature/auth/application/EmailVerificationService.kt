@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.auth.application
 
+import com.ssafy.eolssu.backend.feature.auth.domain.EmailPolicy
 import com.ssafy.eolssu.backend.feature.auth.domain.EmailVerificationRepository
 import com.ssafy.eolssu.backend.feature.auth.domain.VerificationMailSender
 import com.ssafy.eolssu.backend.feature.auth.domain.VerificationPurpose
@@ -49,7 +50,8 @@ class EmailVerificationService(
 
     fun send(email: String, purpose: VerificationPurpose): SendVerificationResult {
         val normalized = email.lowercase(Locale.ROOT)
-        if (normalized.length > 320) return SendVerificationResult.InvalidEmail
+        // 형식이 틀린 주소는 목적과 회원 여부에 관계없이 행을 만들거나 보내기 전에 거절한다.
+        if (!EmailPolicy.isValid(normalized)) return SendVerificationResult.InvalidEmail
         return try {
             repository.withVerificationTransaction {
                 val now = clock.instant().truncatedTo(ChronoUnit.MICROS)

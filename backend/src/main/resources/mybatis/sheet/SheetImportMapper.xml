@@ -31,6 +31,10 @@
         SELECT id FROM users WHERE id = #{userId} FOR UPDATE
     </select>
 
+    <select id="lockActiveUser" resultType="long">
+        SELECT id FROM users WHERE id = #{userId} AND status = 'ACTIVE' FOR UPDATE
+    </select>
+
     <!-- 변환이 끝나기 전 각 수는 1로 둔다(CHECK). 응답은 변환 상태로 0을 준다. 정렬 시각은 접수 시각(UTC)이다. -->
     <insert id="insertSheet" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO user_sheets (user_id, title, kind, source, status, jangdan_id, bpm, bpm_unit, column_count,

@@ -2,7 +2,6 @@ package com.ssafy.eolssu.app.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
@@ -13,7 +12,6 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
-import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.browser.IncomingLinks
 import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.data.user.FirstRunRepository
@@ -25,7 +23,6 @@ import com.ssafy.eolssu.feature.auth.AccountLinkRoute
 import com.ssafy.eolssu.feature.auth.ConsentRoute
 import com.ssafy.eolssu.feature.auth.EmailVerificationRoute
 import com.ssafy.eolssu.feature.auth.LoginRoute
-import com.ssafy.eolssu.feature.auth.MicPermissionScreen
 import com.ssafy.eolssu.feature.auth.OAuthRoute
 import com.ssafy.eolssu.feature.auth.PasswordSetupRoute
 import com.ssafy.eolssu.feature.auth.ProfileSetupRoute
@@ -33,7 +30,6 @@ import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.feature.auth.TermsRoute
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_link_done
-import eolssu.shared.generated.resources.auth_mic_denied_notice
 import eolssu.shared.generated.resources.auth_reset_done_notice
 import eolssu.shared.generated.resources.auth_welcome
 import eolssu.shared.generated.resources.my_link_done
@@ -42,23 +38,20 @@ import eolssu.shared.generated.resources.member_api_session_expired
 import eolssu.shared.generated.resources.my_nickname_changed
 import eolssu.shared.generated.resources.my_password_changed
 import eolssu.shared.generated.resources.my_withdrawn
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.koin.compose.getKoin
 
 /** 첫 실행·로그인·회원가입·비밀번호 찾기 화면 경로. */
 object AuthDestination {
-    const val CONSENT = "auth/consent"
     const val TERMS = "auth/terms/{agreement}"
-    const val MIC = "auth/mic"
     const val LOGIN = "auth/login"
     const val OAUTH = "auth/oauth/{provider}"
     const val LINK = "auth/link/{provider}"
     const val SIGNUP = "auth/signup"
 
     /**
-     * 가입하려는데 동의한 약관이 없을 때의 약관 동의(앱을 다시 켰거나 서버가 동의를 다시 요구함). 첫 실행의 [CONSENT]와 달리
-     * 마이크 안내를 다시 거치지 않고 `next`(이메일 가입 [SIGNUP] 또는 간편 로그인 가입 [SOCIAL_PROFILE])로 바로 간다.
+     * 회원가입 첫 단계인 약관 동의. 동의하면 `next`(이메일 가입 [SIGNUP] 또는 간편 로그인 가입 [SOCIAL_PROFILE])로 간다.
+     * 다음 단계에서 뒤로 가면 이 화면으로 돌아와 고른 체크를 그대로 보여 준다.
      */
     const val SIGNUP_CONSENT = "auth/signup/consent?next={next}"
     const val SIGNUP_PASSWORD = "auth/signup/password"
@@ -78,14 +71,25 @@ object AuthDestination {
     fun link(provider: SocialProvider) = "auth/link/${provider.name}"
 }
 
-/** 첫 실행을 마쳤으면 홈, 아니면 약관 동의에서 시작한다. */
-// TEMP S15P31E102-309: bypass only the initial consent screen; never persist consent/completion.
-fun startDestination(firstRunCompleted: Boolean, qaSkipConsent: Boolean = false, sessionExpired: Boolean = false): String = when {
-    firstRunCompleted && sessionExpired -> AuthDestination.LOGIN
-    firstRunCompleted -> EolssuDestination.HOME
-    qaSkipConsent -> AuthDestination.MIC
-    else -> AuthDestination.CONSENT
-}
+/**
+ * 로그인한 회원이 있으면 홈, 없으면 로그인에서 시작한다([startNeedsLogin]). 처음 켠 기기, 로그아웃 뒤 다시 켠 기기, 세션이 만료된 기기가 로그인으로 간다.
+ * 약관 동의는 회원가입 흐름([AuthDestination.SIGNUP_CONSENT])에서, 마이크 권한은 처음 녹음을 시작할 때 연습 화면에서 받는다.
+ * TEMP S15P31E102-309: [qaSkipConsent]는 첫 실행 약관 동의를 건너뛰던 QA 빌드 값이다. 첫 실행에 약관 화면이 없어져 시작 화면은 같다.
+ */
+@Suppress("UNUSED_PARAMETER")
+fun startDestination(
+    firstRunCompleted: Boolean,
+    qaSkipConsent: Boolean = false,
+    sessionExpired: Boolean = false,
+    signedIn: Boolean = true,
+): String = if (startNeedsLogin(firstRunCompleted, sessionExpired, signedIn)) AuthDestination.LOGIN else EolssuDestination.HOME
+
+/**
+ * 앱을 켤 때 로그인이 필요한지. 첫 실행(로그인·가입)을 마치지 않았거나, 로그인한 회원이 없거나, 세션이 만료됐으면 필요하다.
+ * 세션 만료일 때만 '로그인이 만료됐어요' 안내를 띄우고, 처음 켰거나 로그아웃 뒤 다시 켠 경우는 안내 없이 로그인 화면을 보인다.
+ */
+internal fun startNeedsLogin(firstRunCompleted: Boolean, sessionExpired: Boolean, signedIn: Boolean): Boolean =
+    !firstRunCompleted || sessionExpired || !signedIn
 
 /** 복원 중인 일회성 OAuth 완료 요청과 가입 흐름을 초기 세션 확인이 덮지 않는다. */
 internal fun shouldRedirectExpiredSession(route: String?): Boolean =
@@ -96,7 +100,6 @@ internal fun shouldRedirectExpiredSession(route: String?): Boolean =
  * 계정 연결 안내는 문구에 간편 로그인 제공자 이름을 넣으므로 제공자도 함께 남긴다.
  */
 enum class StartNotice(val message: StringResource) {
-    MicDenied(Res.string.auth_mic_denied_notice),
     Welcome(Res.string.auth_welcome),
 
     /** 로그인 중 계정 연결(AUTH-09) 뒤 홈. */
@@ -170,34 +173,20 @@ private fun NavController.navigateWithVerifiedEmail(route: String, email: String
 private fun NavBackStackEntry.verifiedEmail(): String = savedStateHandle.get<String>(VERIFIED_EMAIL_KEY).orEmpty()
 
 /**
- * AUTH-01~11 화면 이동. 약관 동의 → 마이크 안내 → 로그인 → 홈.
+ * AUTH-01~11 화면 이동. 첫 실행은 로그인(또는 가입) → 홈.
  * 간편 로그인: 연결된 계정 → 홈, 같은 이메일 계정 → 계정 연결 확인(AUTH-09), 처음 온 계정 → 소셜 가입(프로필 설정 AUTH-07) → 홈.
  * 소셜 가입 전 서버가 '가입된 계정 없음'을 주면 이메일 가입을 안내한다.
  * 계정 연결 확인·가입으로 갈 때는 간편 로그인 화면을 비워 뒤로 가기로 다 쓴 제공자 화면에 돌아오지 않는다.
- * 가입하려는데 동의한 약관이 없으면(앱을 다시 켰거나 서버가 동의를 다시 요구함) 가입용 약관 동의([AuthDestination.SIGNUP_CONSENT])를 먼저 거친다.
- * 이메일 가입은 이메일 인증(AUTH-06) → 비밀번호 설정(AUTH-08) → 프로필 설정(AUTH-07) → 홈,
+ * 가입은 항상 약관 동의(AUTH-01, [AuthDestination.SIGNUP_CONSENT])에서 시작하고, 약관 '보기'는 약관 상세(AUTH-02)를 열었다가 동의 화면으로 돌아온다.
+ * 이메일 가입은 약관 동의 → 이메일 인증(AUTH-06) → 비밀번호 설정(AUTH-08) → 프로필 설정(AUTH-07) → 홈,
  * 비밀번호 찾기는 이메일 인증(AUTH-10) → 새 비밀번호(AUTH-11) → 로그인이다.
- * 로그인 화면에 들어가면 약관 동의·마이크 안내는 비워 뒤로 가기로 돌아가지 않는다.
- * 마이크 안내에서 '허용'하면 OS 권한 창을 띄우고, 거기서도 허용하면 [onMicAllowed]로 남겨 연습 화면에서 다시 묻지 않는다.
- * OS 권한 창에서 거부하면 '허용 안 함'과 같게 처리한다.
+ * 마이크 권한은 여기서 묻지 않고 처음 녹음을 시작할 때 연습 화면이 묻는다.
  */
 fun NavGraphBuilder.authGraph(
     navController: NavController,
-    onMicAllowed: () -> Unit,
     onFinished: (notice: StartNotice?, provider: SocialProvider?) -> Unit,
 ) {
-    val toLogin: (StartNotice?) -> Unit = { notice ->
-        navController.navigateWithNotice(AuthDestination.LOGIN, notice) {
-            popUpTo(AuthDestination.CONSENT) { inclusive = true }
-        }
-    }
     val fromLogin: (String) -> Unit = { route -> navController.navigate(route) { popUpTo(AuthDestination.LOGIN) } }
-    composable(AuthDestination.CONSENT) {
-        ConsentRoute(
-            onOpenTerms = { navController.navigate(AuthDestination.terms(it)) },
-            onStart = { navController.navigate(AuthDestination.MIC) },
-        )
-    }
     composable(
         AuthDestination.TERMS,
         arguments = listOf(navArgument("agreement") { type = NavType.StringType }),
@@ -206,23 +195,6 @@ fun NavGraphBuilder.authGraph(
         TermsRoute(
             termId = name.orEmpty(),
             onClose = { navController.popBackStackFrom(entry) },
-        )
-    }
-    composable(AuthDestination.MIC) {
-        val micPermission = getKoin().getOrNull<MicPermission>()
-        val scope = rememberCoroutineScope()
-        MicPermissionScreen(
-            onAllow = {
-                scope.launch {
-                    if (micPermission?.request() != false) {
-                        onMicAllowed()
-                        toLogin(null)
-                    } else {
-                        toLogin(StartNotice.MicDenied)
-                    }
-                }
-            },
-            onDeny = { toLogin(StartNotice.MicDenied) },
         )
     }
     composable(AuthDestination.LOGIN) { entry ->
@@ -234,7 +206,7 @@ fun NavGraphBuilder.authGraph(
             onLoggedIn = { onFinished(null, null) },
             onSocialLogIn = { navController.navigate(AuthDestination.oauth(it)) },
             onFindPassword = { navController.navigate(AuthDestination.PASSWORD_RESET) },
-            onSignUp = { navController.navigate(draft.signUpRoute(SignUpNext.Email)) },
+            onSignUp = { navController.navigate(AuthDestination.signupConsent(SignUpNext.Email.name)) },
             providers = socialProviders(),
         )
     }
@@ -243,14 +215,13 @@ fun NavGraphBuilder.authGraph(
         arguments = listOf(navArgument("provider") { type = NavType.StringType }),
     ) { entry ->
         val provider = entry.socialProvider() ?: SocialProvider.Kakao
-        val draft = getKoin().get<AccountDraft>()
         OAuthRoute(
             provider = provider,
             onBack = { navController.popBackStackFrom(entry) },
             onLoggedIn = { onFinished(null, null) },
             onLinkAvailable = { fromLogin(AuthDestination.link(provider)) },
-            onSocialSignUp = { fromLogin(draft.signUpRoute(SignUpNext.Social)) },
-            onSignUp = { fromLogin(draft.signUpRoute(SignUpNext.Email)) },
+            onSocialSignUp = { fromLogin(AuthDestination.signupConsent(SignUpNext.Social.name)) },
+            onSignUp = { fromLogin(AuthDestination.signupConsent(SignUpNext.Email.name)) },
         )
     }
     composable(
@@ -259,8 +230,10 @@ fun NavGraphBuilder.authGraph(
     ) { entry ->
         val next = entry.savedStateHandle.get<String>("next")?.let { name -> SignUpNext.entries.firstOrNull { it.name == name } } ?: SignUpNext.Email
         ConsentRoute(
+            onBack = { navController.popBackStackFrom(entry) },
             onOpenTerms = { navController.navigate(AuthDestination.terms(it)) },
-            onStart = { fromLogin(next.route) },
+            // 동의 화면을 남겨 다음 단계에서 뒤로 가면 고른 체크 그대로 돌아온다.
+            onStart = { navController.navigate(next.route) },
         )
     }
     composable(AuthDestination.SOCIAL_PROFILE) { entry ->
@@ -328,10 +301,6 @@ private enum class SignUpNext(val route: String) {
     Email(AuthDestination.SIGNUP),
     Social(AuthDestination.SOCIAL_PROFILE),
 }
-
-/** 동의한 약관이 있으면 [next]로 바로, 없으면 가입용 약관 동의를 거쳐 간다. */
-private fun AccountDraft.signUpRoute(next: SignUpNext): String =
-    if (agreements.isEmpty()) AuthDestination.signupConsent(next.name) else next.route
 
 private fun NavBackStackEntry.socialProvider(): SocialProvider? =
     savedStateHandle.get<String>("provider")?.let { name -> SocialProvider.entries.firstOrNull { it.name == name } }

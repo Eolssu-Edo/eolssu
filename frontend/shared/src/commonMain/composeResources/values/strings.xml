@@ -24,10 +24,10 @@
     <string name="home_brand">얼쑤</string>
     <string name="home_hero_title">얼쑤! 나도 이제 국악인</string>
     <string name="home_start_evaluation">AI 연주 평가 시작</string>
-    <string name="home_feature_song_select">연습곡 선택하기</string>
+    <string name="home_feature_song_select">연습하기</string>
     <string name="home_feature_fingering">운지법 보기</string>
-    <string name="home_feature_reading">정간보 쉽게 읽기</string>
-    <string name="home_feature_learn">기초부터 배우기</string>
+    <string name="home_feature_reading">정간보 읽기</string>
+    <string name="home_feature_learn">기초 배우기</string>
     <string name="home_feature_records">연습 기록 보기</string>
     <string name="home_feature_edit_sheets">악보 추가·편집하기</string>
 
@@ -225,6 +225,10 @@
     <string name="analysis_back_to_practice">연습으로 돌아가기</string>
     <string name="analysis_play_again">다시 연주하기</string>
     <string name="analysis_upload_failed_title">녹음을 보내지 못했어요.</string>
+    <string name="analysis_upload_timed_out">녹음을 보내는 데 시간이 너무 오래 걸렸어요.</string>
+    <string name="analysis_upload_connection_failed">서버 연결에 문제가 생겼어요.</string>
+    <string name="analysis_upload_server_error">서버 응답에 문제가 생겼어요.</string>
+    <string name="analysis_upload_unreachable">잠시 후 다시 보내 주세요.</string>
     <string name="analysis_upload_kept">녹음은 기기에 남아 있어요.</string>
     <string name="analysis_upload_rejected">이 녹음은 보낼 수 없어요. 다시 연주해 주세요.</string>
     <string name="analysis_upload_missing">기기에서 녹음을 찾지 못했어요. 다시 연주해 주세요.</string>
@@ -470,9 +474,6 @@
     <string name="learn_tour_done_body_song">곡 하나를 끝까지 불었어요.</string>
     <string name="learn_pattern_ascending_detail">낮은 음부터 한 음씩 차례로 올라가요.</string>
     <string name="learn_pattern_descending_detail">높은 음부터 한 음씩 차례로 내려와요.</string>
-    <string name="learn_pattern_skip_one_detail">한 음씩 건너뛰며 오르내려요.</string>
-    <string name="learn_pattern_skip_two_detail">두 음씩 건너뛰어 멀리 옮겨 가요.</string>
-    <string name="learn_pattern_three_note_song_detail">세 음으로 된 짧은 노래처럼 불어요.</string>
     <string name="learn_stage_position">%1$d / %2$d</string>
     <string name="learn_stage_position_description">전체 %1$d단계 중 %2$d단계</string>
     <string name="learn_tour_tongue">투</string>
@@ -495,8 +496,6 @@
     <string name="learn_section_tasks">이 단계에서 할 일</string>
     <string name="learn_section_new_notes">이번에 익힐 음</string>
     <string name="learn_section_order">배우는 순서</string>
-    <string name="learn_task_first">%1$s 2초 이상 내기</string>
-    <string name="learn_task_first_detail">율명 구음 “%1$s”를 소리 내어 읽고 불어요.</string>
     <string name="learn_task_move">%1$s로 옮겨 가기</string>
     <string name="learn_task_move_detail">구멍 하나 차이를 손가락으로 익혀요.</string>
     <string name="learn_task_rest">남은 음을 같은 방식으로</string>
@@ -504,14 +503,9 @@
     <string name="learn_section_patterns">연습 패턴</string>
     <string name="learn_pattern_ascending">순차 상행</string>
     <string name="learn_pattern_descending">순차 하행</string>
-    <string name="learn_pattern_skip_one">한 음 건너뛰기</string>
-    <string name="learn_pattern_skip_two">두 음 건너뛰기</string>
-    <string name="learn_pattern_three_note_song">세 음 동요</string>
     <string name="learn_section_range">새로 내는 음역</string>
     <string name="learn_task_range">%1$s로 %2$s 내기</string>
     <string name="learn_task_range_detail">평취와 같은 운지에서 입김만 바꿔 봐요.</string>
-    <string name="learn_task_range_scale">%1$s 음계 오르내리기</string>
-    <string name="learn_task_range_scale_detail">한 음씩 옥타브를 확인해요.</string>
     <string name="learn_section_beat">박 나누기 표기</string>
     <string name="learn_section_read_order">정간보 읽는 순서</string>
     <string name="learn_section_scale">이 악기의 기본 5음</string>
@@ -595,18 +589,12 @@
     <string name="auth_terms_clause_4">제4조 (연주 녹음의 이용)</string>
     <string name="auth_terms_clause_5">제5조 (서비스의 변경과 중단)</string>
     <string name="auth_terms_pending">[약관 본문은 서버 약관 목록의 문서 주소(contentUrl)로 보여 줘요]</string>
-    <string name="auth_mic_title">연주를 들으려면\n마이크가 필요해요</string>
-    <string name="auth_mic_lead">녹음은 연습 화면에서 시작 버튼을 눌렀을 때만 해요.</string>
-    <string name="auth_mic_allow">허용</string>
-    <string name="auth_mic_deny">허용 안 함</string>
-    <string name="auth_mic_denied_notice">연습을 시작할 때 마이크 권한을 다시 안내해요.</string>
     <string name="auth_brand">얼쑤</string>
     <string name="auth_tagline">내 연주, 얼마나 정확할까?</string>
     <string name="auth_provider_kakao">카카오</string>
     <string name="auth_provider_naver">네이버</string>
     <string name="auth_provider_google">Google</string>
     <string name="auth_provider_apple">Apple</string>
-    <string name="auth_or_email">또는 이메일로</string>
     <string name="auth_email">이메일</string>
     <string name="auth_email_placeholder">example@email.com</string>
     <string name="auth_password">비밀번호</string>
@@ -614,6 +602,8 @@
     <string name="auth_login">로그인</string>
     <string name="auth_find_password">비밀번호 찾기</string>
     <string name="auth_signup_with_email">이메일로 회원가입</string>
+    <string name="auth_remember_email">아이디 기억하기</string>
+    <string name="auth_keep_signed_in">자동 로그인</string>
     <string name="auth_oauth_title">%1$s로 로그인</string>
     <string name="auth_oauth_placeholder_title">[%1$s 로그인·동의 화면]</string>
     <string name="auth_oauth_placeholder_body">계정 선택과 정보 제공 동의는\n제공자 화면에서 진행돼요.</string>
@@ -640,7 +630,6 @@
     <string name="auth_error_password_mismatch">비밀번호가 서로 달라요.</string>
     <string name="auth_error_nickname_empty">닉네임을 입력해 주세요.</string>
     <string name="auth_social_login">%1$s로 로그인</string>
-    <string name="auth_social_signup_hint">처음이라면 간편 로그인으로 바로 가입할 수 있어요.</string>
     <string name="auth_confirm">확인</string>
     <string name="auth_close">닫기</string>
     <string name="auth_locked_title">잠시 후 다시 로그인해 주세요</string>

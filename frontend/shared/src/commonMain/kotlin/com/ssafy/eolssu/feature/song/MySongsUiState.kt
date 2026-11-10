@@ -5,7 +5,7 @@ import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.data.song.SheetConversion
 import com.ssafy.eolssu.data.song.SheetConversionStatus
 
-/** SONG-03 탭. 홈 '연습곡 선택하기'로 들어오면 제공 곡부터, '악보 추가·편집하기'로 들어오면 내 악보부터 보인다. */
+/** SONG-03 탭. 홈 '연습하기'로 들어오면 제공 곡부터, '악보 추가·편집하기'로 들어오면 내 악보부터 보인다. */
 enum class MySongsTab { Songs, Sheets }
 
 /**

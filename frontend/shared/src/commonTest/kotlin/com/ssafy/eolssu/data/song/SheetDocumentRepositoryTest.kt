@@ -26,12 +26,14 @@ class SheetDocumentRepositoryTest {
         }, ServerAddress.Production))
         val document = assertNotNull(repository.get("31"))
         assertEquals("편집 중", document.draft?.title)
-        val copy = assertNotNull(document.draft)
+        val copy = assertNotNull(document.draft).copy(resolvedIssueIds = listOf("i1"))
         assertEquals(SheetWrite.Saved("7", 4), repository.save("31", copy, draft = true))
         assertEquals(JsonPrimitive(3), sent.last()["draftRevision"])
         assertEquals(JsonPrimitive("7"), sent.last()["baseScoreVersion"])
+        assertTrue(sent.last()["resolvedIssueIds"] == null || sent.last()["resolvedIssueIds"] == JsonNull)
         assertEquals(SheetWrite.Saved("8"), repository.save("31", copy, draft = false))
         assertTrue(sent.last()["draftRevision"] == null || sent.last()["draftRevision"] == JsonNull)
+        assertEquals(JsonArray(listOf(JsonPrimitive("i1"))), sent.last()["resolvedIssueIds"])
         conflict = true
         assertEquals(SheetWrite.Conflict, repository.save("31", copy, draft = false))
     }

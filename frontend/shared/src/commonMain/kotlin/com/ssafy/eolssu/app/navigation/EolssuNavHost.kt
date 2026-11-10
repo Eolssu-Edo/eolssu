@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.app.navigation
 
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Box
@@ -49,7 +50,6 @@ import com.ssafy.eolssu.feature.guide.learn.LearnPracticeRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnStageRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.feature.home.HomeFeature
-import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.LEARN_SONG_STAGE
 import com.ssafy.eolssu.feature.home.HomeRoute
@@ -134,7 +134,7 @@ object EolssuDestination {
 
 /**
  * 앱의 화면 이동 그래프. 기능 사이의 이동은 이곳에서 콜백으로 연결한다.
- * 첫 실행을 마치지 않았으면 약관 동의([AuthDestination.CONSENT])에서 시작한다.
+ * 로그인한 회원이 없으면(처음 켬·로그아웃 뒤·세션 만료) 로그인에서 시작한다. 약관 동의는 회원가입 흐름에서, 마이크 권한은 녹음을 시작할 때 받는다.
  * [onNavHostReady]는 Web 진입점이 브라우저 뒤로 가기·주소를 연결할 때 쓴다.
  */
 @Composable
@@ -148,15 +148,28 @@ fun EolssuNavHost(
 ) {
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
     val firstRunRepository = koinInject<FirstRunRepository>()
-    val start = remember(qaSkipConsent, sessionExpired) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent, sessionExpired) }
-    val practiceSettings = koinInject<PracticeSettingsStore>()
     val member = koinInject<SignedInMember>()
+    // 앱을 켤 때의 로그인 여부. 로그아웃 뒤 다시 켜면 회원이 없어 만료 안내 없이 로그인에서 시작한다.
+    val firstRunCompleted = remember { firstRunRepository.isCompleted() }
+    val signedInAtStart = remember { member.id != null }
+    val start = remember(qaSkipConsent, sessionExpired) {
+        startDestination(firstRunCompleted, qaSkipConsent, sessionExpired, signedInAtStart)
+    }
+    val performance = remember(navController) { PerformanceNavigation(navController) }
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect { entry ->
+            if (entry.destination.route !in measuredDestinations) performance.leave()
+        }
+    }
     // 녹음 키로 분석에 넘기고 세션 ID로 결과에 넘기는 같은 화면 흐름의 곡 스냅샷.
     var evaluationSong by remember { mutableStateOf<Pair<String, Song>?>(null) }
     LaunchedEffect(member, navController) {
         var previous = member.session.value
         member.session.collect { current ->
-            if (current != previous) evaluationSong = null
+            if (current != previous) {
+                evaluationSong = null
+                performance.reset()
+            }
             if (previous.memberId != null && current != previous) {
                 navController.navigate(if (current.memberId == null) AuthDestination.LOGIN else EolssuDestination.HOME) {
                     popUpTo(navController.graph.id) { inclusive = true }
@@ -196,7 +209,10 @@ fun EolssuNavHost(
                             HomeFeature.EditSheets -> SheetEditDestination.new()
                             HomeFeature.Records -> EolssuDestination.records()
                         }
-                        route?.let(navController::navigate)
+                        route?.let {
+                            if (feature == HomeFeature.Records) performance.move(null, PerfTarget.RECORDS) { navController.navigate(it) }
+                            else navController.navigate(it)
+                        }
                         route != null
                     },
                     onOpenMyPage = { navController.navigate(ProfileDestination.MY_PAGE) },
@@ -209,8 +225,8 @@ fun EolssuNavHost(
                 val pickSongId by entry.savedStateHandle.getStateFlow<String?>(PICK_SONG_KEY, null).collectAsStateWithLifecycle()
                 SongListRoute(
                     onBack = { navController.popBackStackFrom(entry) },
-                    onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
-                    onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
+                    onOpenSong = { id -> performance.move(null, PerfTarget.SONG_DETAIL) { navController.navigate(EolssuDestination.songDetail(id)) } },
+                    onStartPractice = { id -> performance.move(null, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.practice(id)) } },
                     pickSongId = pickSongId,
                     onPickTaken = { entry.savedStateHandle[PICK_SONG_KEY] = null },
                     onSessionExpired = {
@@ -229,10 +245,12 @@ fun EolssuNavHost(
                 if (currentWindowLayout().widthClass == WindowWidthClass.Expanded) {
                     LaunchedEffect(Unit) { navController.showSongInList(songId) }
                 }
+                val perf = performance.visit(entry, PerfTarget.SONG_DETAIL)
                 SongDetailRoute(
+                    perf = perf,
                     songId = songId,
                     onBack = { navController.popBackStackFrom(entry) },
-                    onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
+                    onStartPractice = { id -> performance.move(perf, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.practice(id)) } },
                 )
             }
             composable(
@@ -253,7 +271,9 @@ fun EolssuNavHost(
                 ),
             ) { entry ->
                 val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
+                val perf = performance.visit(entry, PerfTarget.PRACTICE)
                 PracticeRoute(
+                    perf = perf,
                     songId = songId,
                     fingeringAudio = { instrument, note, onPlaying -> FingeringBasicAudio(instrument, note, onPlaying) },
                     solo = entry.savedStateHandle.get<Boolean>("solo") ?: false,
@@ -267,7 +287,7 @@ fun EolssuNavHost(
                     },
                     onEvaluate = { id, bpm, take, song ->
                         evaluationSong = if (take != null && song != null) take.key to song else null
-                        navController.navigate(EolssuDestination.analysis(id, bpm, take))
+                        performance.move(perf, PerfTarget.ANALYSIS) { navController.navigate(EolssuDestination.analysis(id, bpm, take)) }
                     },
                     // 연주 중에는 Web 브라우저 뒤로 가기도 화면의 뒤로 가기처럼 확인 창을 띄운다.
                     onConfirmBackChange = { browserBackGuard?.onBack = it },
@@ -302,7 +322,9 @@ fun EolssuNavHost(
                 val recording = entry.savedStateHandle.get<String>("recording").orEmpty()
                 val key = entry.savedStateHandle.get<String>("key").orEmpty()
                 val section = entry.sessionSection()
+                val perf = performance.visit(entry, PerfTarget.ANALYSIS)
                 AnalysisRoute(
+                    perf = perf,
                     songId = entry.savedStateHandle.get<String>("songId").orEmpty(),
                     bpm = entry.savedStateHandle.get<Int>("bpm") ?: 0,
                     take = if (recording.isNotEmpty() && key.isNotEmpty()) RecordedTake(recording, key) else null,
@@ -313,8 +335,10 @@ fun EolssuNavHost(
                     onResult = { id, song ->
                         evaluationSong = if (section == null && song != null) id to song else null
                         val route = section?.let { WeakSectionDestination.sectionResult(it.parentSessionId, id) } ?: EolssuDestination.result(id)
-                        navController.navigate(route) {
-                            popUpTo(EolssuDestination.ANALYSIS) { inclusive = true }
+                        performance.move(perf, if (section == null) PerfTarget.RESULT else PerfTarget.SECTION_RESULT) {
+                            navController.navigate(route) {
+                                popUpTo(EolssuDestination.ANALYSIS) { inclusive = true }
+                            }
                         }
                     },
                     onBackToPractice = { navController.popBackStackFrom(entry) },
@@ -333,7 +357,9 @@ fun EolssuNavHost(
                 arguments = listOf(navArgument("evaluationId") { type = NavType.StringType }),
             ) { entry ->
                 val evaluationId = entry.savedStateHandle.get<String>("evaluationId").orEmpty()
+                val perf = performance.visit(entry, PerfTarget.RESULT)
                 ResultRoute(
+                    perf = perf,
                     evaluationId = evaluationId,
                     initialSong = evaluationSong?.takeIf { it.first == evaluationId }?.second,
                     onBack = { navController.popBackStackFrom(entry) },
@@ -353,9 +379,9 @@ fun EolssuNavHost(
                     },
                     onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
                     onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
-                    onGoRecords = { navController.navigate(EolssuDestination.records(it)) },
-                    onViewAllErrors = { navController.navigate(WeakSectionDestination.errors(entry.savedStateHandle.get<String>("evaluationId").orEmpty())) },
-                    onWeakSection = { navController.navigate(WeakSectionDestination.select(entry.savedStateHandle.get<String>("evaluationId").orEmpty())) },
+                    onGoRecords = { id -> performance.move(perf, PerfTarget.RECORDS) { navController.navigate(EolssuDestination.records(id)) } },
+                    onViewAllErrors = { performance.move(perf, PerfTarget.WEAK_ERRORS) { navController.navigate(WeakSectionDestination.errors(evaluationId)) } },
+                    onWeakSection = { performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(evaluationId)) } },
                     onLearnNextStage = { track -> navController.navigate(EolssuDestination.learnStage(LEARN_SONG_STAGE + 1, GuideInstrument.fromId(track))) },
                 )
             }
@@ -369,23 +395,27 @@ fun EolssuNavHost(
                     },
                 ),
             ) { entry ->
+                val perf = performance.visit(entry, PerfTarget.RECORDS)
                 RecordListRoute(
+                    perf = perf,
                     justSavedId = entry.savedStateHandle.get<String>("saved"),
                     onBack = { navController.popBackStackFrom(entry) },
                     onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
-                    onOpenRecord = { navController.navigate(EolssuDestination.recordResult(it)) },
+                    onOpenRecord = { id -> performance.move(perf, PerfTarget.RECORD_DETAIL) { navController.navigate(EolssuDestination.recordResult(id)) } },
                     onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
-                    onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
+                    onSelectSection = { id -> performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(id)) } },
                 )
             }
             composable(
                 EolssuDestination.RECORD_RESULT,
                 arguments = listOf(navArgument("recordId") { type = NavType.StringType }),
             ) { entry ->
+                val perf = performance.visit(entry, PerfTarget.RECORD_DETAIL)
                 val recordId = entry.savedStateHandle.get<String>("recordId").orEmpty()
                 // 태블릿 가로·넓은 창은 연습 기록 + 기록 상세 두 칸으로 보이고 이 기록을 고른다.
                 if (currentWindowLayout().widthClass == WindowWidthClass.Expanded) {
                     RecordListRoute(
+                        perf = perf,
                         justSavedId = null,
                         onBack = { navController.popBackStackFrom(entry) },
                         onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
@@ -509,11 +539,10 @@ fun EolssuNavHost(
                 }
             }
             profileGraph(navController)
-            weakSectionGraph(navController)
+            weakSectionGraph(navController, performance)
             sheetEditGraph(navController)
             authGraph(
                 navController,
-                onMicAllowed = practiceSettings::grantMic,
                 onFinished = { notice, provider -> navController.finishFirstRun(firstRunRepository, notice, provider) },
             )
 
@@ -526,7 +555,7 @@ fun EolssuNavHost(
                     startOnSheets = entry.savedStateHandle.get<Boolean>("sheets") == true,
                     onBack = { navController.popBackStackFrom(entry) },
                     onPractice = { navController.navigate(EolssuDestination.practice(it, solo = true)) },
-                    onPracticeSheet = { songId, title -> navController.navigate(EolssuDestination.practice(songId, mine = true, title = title)) },
+                    onPracticeSheet = { sheetId -> navController.navigate(EolssuDestination.practice(sheetId, mine = true)) },
                     onAddSheet = { navController.navigate(SheetEditDestination.new()) },
                     onReimportSheet = { failure -> navController.navigate(SheetEditDestination.new(failure)) },
                     onEditSheet = { navController.navigate(SheetEditDestination.editMine(it.id)) },
@@ -548,9 +577,14 @@ fun EolssuNavHost(
     LaunchedEffect(navController) {
         // Web 연결은 주소를 먼저 적용한 뒤 계속 수집하므로, 끝나기를 기다리지 않는다.
         launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { onNavHostReady(navController) }
-        if (sessionExpired && shouldRedirectExpiredSession(navController.currentBackStackEntry?.destination?.route))
-            navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {
-            popUpTo(navController.graph.id) { inclusive = true }
+        // Web 주소로 다른 화면에 바로 들어와도 로그인이 필요하면 로그인으로 돌려보낸다. 만료 안내는 실제로 세션이 만료됐을 때만 띄운다.
+        val route = navController.currentBackStackEntry?.destination?.route
+        if (startNeedsLogin(firstRunCompleted, sessionExpired, signedInAtStart) && shouldRedirectExpiredSession(route) &&
+            (sessionExpired || route != AuthDestination.LOGIN)
+        ) {
+            navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired.takeIf { sessionExpired }) {
+                popUpTo(navController.graph.id) { inclusive = true }
+            }
         }
     }
 }
@@ -559,6 +593,12 @@ fun EolssuNavHost(
  * [entry] 화면이 맨 위일 때만 한 화면 뒤로 간다. 화면의 뒤로 가기·닫기는 이것으로 연결한다.
  * 화면이 바뀌는 동안 떠나는 화면의 버튼이 한 번 더 눌리면 그 아래 화면까지 꺼내, 첫 화면에서는 쌓인 화면이 비어 흰 화면이 된다.
  */
+private val measuredDestinations = setOf(
+    EolssuDestination.SONG_DETAIL, EolssuDestination.PRACTICE, EolssuDestination.ANALYSIS,
+    EolssuDestination.RESULT, EolssuDestination.RECORDS, EolssuDestination.RECORD_RESULT,
+    WeakSectionDestination.ERRORS, WeakSectionDestination.SELECT, WeakSectionDestination.LOOP, WeakSectionDestination.RESULT,
+)
+
 internal fun NavController.popBackStackFrom(entry: NavBackStackEntry) {
     if (currentBackStackEntry?.id == entry.id) popBackStack()
 }

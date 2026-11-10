@@ -121,7 +121,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("32", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("36", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -276,7 +276,7 @@ class DatabaseIntegrationTests {
     fun `seeds nine published stages for each of the four learning tracks`() {
         val rows = jdbc.queryForList("SELECT id, track, seq, title, judge_type, is_optional, status FROM lessons ORDER BY id")
         val tracks = listOf("DANSO", "SOGEUM", "DAEGEUM_JEONGAK", "DAEGEUM_SANJO")
-        val titles = listOf("악기 알기·감상", "자세·호흡", "첫 소리", "기본음", "음 잇기", "음역 넓히기", "혀치기·박 나누기", "악보와 곡", "장식음·시김새")
+        val titles = listOf("악기 알기·감상", "자세·호흡", "첫 소리", "기본음", "음 잇기", "음역 넓히기", "혀치기", "악보와 곡", "장식음·시김새")
         val judges = listOf("READ", "READ", "PITCH", "PITCH", "PITCH", "PITCH", "BEAT", "BEAT", "LISTEN")
         assertEquals(36, rows.size)
         rows.forEachIndexed { index, row ->
@@ -303,6 +303,13 @@ class DatabaseIntegrationTests {
         assertJson("""["淋","㑣"]""", content("DAEGEUM_JEONGAK", 6, "$.ranges[*].firstPitch"))
         assertJson("""{"title":"풍년가","meta":"굿거리장단"}""", content("DANSO", 8, "$.songs[5]"))
         assertJson("null", content("DANSO", 9, "$.passCriteria"))
+        // V36(S15P31E102-656): 1단계 듣기 할 일을 하나로 합치고 7단계는 혀치기만 남긴다.
+        tracks.forEach { track ->
+            assertJson("""["악기 구조와 이름 보기","모범 연주 듣기"]""", content(track, 1, "$.tasks[*].title"))
+            assertJson("""["혀치기"]""", content(track, 7, "$.tasks[*].title"))
+        }
+        assertJson(""""같은 음을 \"투·투·투\" 혀로 끊어 4번 반복해요."""", content("SOGEUM", 7, "$.tasks[0].description"))
+        assertJson(""""같은 음을 고르게 끊어 내는지 봐요(예시)."""", content("DANSO", 7, "$.passCriteria.description"))
 
         assertMysqlError(1062, "lessons.uq_lessons_track_seq") {
             jdbc.update("INSERT INTO lessons (track, seq, title, judge_type, content_json, status) VALUES ('DANSO', 1, '중복', 'READ', '{}', 'DRAFT')")

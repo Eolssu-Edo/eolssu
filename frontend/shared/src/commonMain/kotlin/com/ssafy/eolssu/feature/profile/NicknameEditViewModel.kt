@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.profile
 
 import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.model.NicknameRule
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
 import com.ssafy.eolssu.core.network.inAccount
@@ -13,7 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/** MY-02. 닉네임 규칙은 아직 '[규칙 안내]' 자리라 비어 있는지만 본다. */
+/** MY-02. 닉네임은 앞뒤 공백을 뺀 뒤 비어 있지 않고 [NicknameRule.MAX_LENGTH]자 이하여야 한다. */
 class NicknameEditViewModel(private val userRepository: UserRepository, member: SignedInMember? = null) : ViewModel() {
     private var submitting = false
     private val _uiState = MutableStateFlow(NicknameEditUiState(nickname = userRepository.profile.value.nickname))
@@ -34,7 +35,7 @@ class NicknameEditViewModel(private val userRepository: UserRepository, member: 
             _uiState.update { it.copy(error = ProfileFieldError.NicknameEmpty) }
             return@inAccount false
         }
-        if (nickname.length > 60) { _uiState.update { it.copy(error = ProfileFieldError.InvalidInput) }; return@inAccount false }
+        if (NicknameRule.isTooLong(nickname)) { _uiState.update { it.copy(error = ProfileFieldError.InvalidInput) }; return@inAccount false }
         submitting = true
         val result = try { userRepository.changeNickname(nickname) } finally { submitting = false }
         if (result == MemberResult.Done) return@inAccount true

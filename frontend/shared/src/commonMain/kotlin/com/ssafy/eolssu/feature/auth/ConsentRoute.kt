@@ -9,9 +9,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import org.koin.compose.viewmodel.koinViewModel
 
-/** AUTH-01 연결. '보기'는 [onOpenTerms]로 약관 화면, 시작하기는 [onStart]로 마이크 안내 화면에 간다. */
+/**
+ * AUTH-01 연결(회원가입 첫 단계). '보기'는 [onOpenTerms]로 약관 상세, 동의 버튼은 필수 약관을 모두 골랐을 때만 [onStart]로 다음 가입 단계에 간다.
+ * [onBack]은 상단 바 뒤로 가기다.
+ */
 @Composable
 fun ConsentRoute(
+    onBack: () -> Unit,
     onOpenTerms: (String) -> Unit,
     onStart: () -> Unit,
     viewModel: ConsentViewModel = koinViewModel(),
@@ -22,6 +26,7 @@ fun ConsentRoute(
     ConsentScreen(
         state = state,
         widthClass = currentWindowLayout().widthClass,
+        onBack = onBack,
         onToggle = viewModel::toggle,
         onToggleAll = viewModel::toggleAll,
         onOpenTerms = onOpenTerms,
