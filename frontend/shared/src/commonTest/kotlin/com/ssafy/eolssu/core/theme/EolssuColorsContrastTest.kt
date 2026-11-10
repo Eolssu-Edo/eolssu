@@ -50,9 +50,9 @@ class EolssuColorsContrastTest {
         assertReadable("rhythmErrorText / rhythmErrorSoft", colors.rhythmErrorText, colors.rhythmErrorSoft)
         assertReadable("text / accentTint", colors.text, colors.accentTint)
         assertReadable("playText / accentTint", colors.playText, colors.accentTint)
-        assertReadable("accentText / accentTint (level 1)", colors.accentText, colors.accentTint)
-        assertReadable("text / accentTintStrong (level 2)", colors.text, colors.accentTintStrong)
-        assertReadable("background / text (level 3)", colors.background, colors.text)
+        assertReadable("accentText / accentTint", colors.accentText, colors.accentTint)
+        assertReadable("text / accentTintStrong", colors.text, colors.accentTintStrong)
+        assertReadable("background / text (ink badge)", colors.background, colors.text)
         assertReadable("textMuted / surface (outline badge)", colors.textMuted, colors.surface)
     }
 
