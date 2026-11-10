@@ -29,6 +29,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -59,7 +61,9 @@ import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
+import com.ssafy.eolssu.feature.result.layout.ResultFillColumn
 import com.ssafy.eolssu.feature.result.layout.ResultTabletLayout
+import androidx.compose.foundation.layout.BoxWithConstraints
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
 import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
@@ -88,6 +92,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import com.ssafy.eolssu.feature.result.component.BoardTopBar
 import com.ssafy.eolssu.feature.result.component.ErrorLocationCard
+import com.ssafy.eolssu.feature.result.component.errorLocationCardHeight
 import com.ssafy.eolssu.feature.result.component.LiteBadge
 import com.ssafy.eolssu.feature.result.component.TotalScoreCard
 import eolssu.shared.generated.resources.result_feedback_even_good
@@ -215,39 +220,50 @@ private fun ResultCompactLayout(state: ResultUiState, snackbarHostState: Snackba
     ) {
         if (result == null || song == null) return@EolssuScaffold
         val summary = result.summary()
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            TotalScoreCard(
-                total = result.total,
-                feedback = resultFeedback(result, summary),
-                practiceAgain = stringResource(Res.string.result_practice_again),
-                onPracticeAgain = actions.onPracticeAgain,
-                extra = if (result.sample) {
-                    { LiteBadge(stringResource(Res.string.result_sample_badge)) }
-                } else {
-                    null
+        // 틀린 부분 카드는 곡과 관계없이 같은 높이로 고정된다([errorLocationCardHeight]). 악보가 카드보다 길면 아랫부분만 가려진다.
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val fontScale = LocalDensity.current.fontScale
+            val cardHeight = remember(fontScale) { errorLocationCardHeight(fontScale) }
+            ResultFillColumn(
+                fillHeight = cardHeight,
+                gap = 14.dp,
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+                top = {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        TotalScoreCard(
+                            total = result.total,
+                            feedback = resultFeedback(result, summary),
+                            practiceAgain = stringResource(Res.string.result_practice_again),
+                            onPracticeAgain = actions.onPracticeAgain,
+                            extra = if (result.sample) {
+                                { LiteBadge(stringResource(Res.string.result_sample_badge)) }
+                            } else {
+                                null
+                            },
+                        )
+                        MetricCards(result, summary.weak)
+                    }
+                },
+                fill = { ErrorLocationCard(result, song, actions.onViewAllErrors) },
+                bottom = {
+                    Column(
+                        Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        EolssuButton(stringResource(Res.string.result_home), actions.onHome, style = EolssuButtonStyle.Secondary, icon = EolssuIcons.House)
+                        Text(
+                            stringResource(Res.string.result_other_song),
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .clickable(role = Role.Button, onClick = actions.onOtherSong)
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
+                            color = EolssuTheme.colors.textSub,
+                        )
+                    }
                 },
             )
-            MetricCards(result, summary.weak)
-            ErrorLocationCard(result, song, actions.onViewAllErrors)
-            Column(
-                Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                EolssuButton(stringResource(Res.string.result_home), actions.onHome, style = EolssuButtonStyle.Secondary, icon = EolssuIcons.House)
-                Text(
-                    stringResource(Res.string.result_other_song),
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .clickable(role = Role.Button, onClick = actions.onOtherSong)
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-                    color = EolssuTheme.colors.textSub,
-                )
-            }
         }
     }
 }

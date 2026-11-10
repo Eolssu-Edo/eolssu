@@ -28,10 +28,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -99,9 +102,12 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
-import com.ssafy.eolssu.core.ui.score.ReadingScoreFormat
+import com.ssafy.eolssu.core.ui.score.JeongganboLook
+import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
+import com.ssafy.eolssu.feature.practice.component.PracticeSplitLineFill
+import com.ssafy.eolssu.feature.practice.component.PracticeStackGap
+import com.ssafy.eolssu.feature.practice.component.practiceScorePacking
 import com.ssafy.eolssu.core.ui.score.ScoreHorizontalPadding
-import com.ssafy.eolssu.core.ui.score.rememberReadingScoreFormat
 import com.ssafy.eolssu.core.ui.score.scoreStrips
 import eolssu.shared.generated.resources.result_errors_preview
 
@@ -340,8 +346,14 @@ fun TotalScoreCard(
 
 /**
  * 점수 화면의 틀린 부분 카드(`.card`, 안쪽 14 · 사이 10): 제목(Song Myung 17sp)과 틀린 정간 수 ·
- * 틀린 정간이 가장 몰린 곳의 정간보(공통 형식 [ReadingScoreFormat], 카드 폭에 들어가는 각만, 스크롤 없음) ·
- * 오른쪽 아래 작은 ‘틀린 부분 상세 보기 ›’. 범례·종류 필터·고른 정간 설명은 상세 화면(RESULT-03)에서만 보여준다.
+ * 취약 구간 정간보 · 오른쪽 아래 작은 ‘틀린 부분 상세 보기 ›’. 범례·종류 필터·고른 정간 설명은 상세 화면(RESULT-03)에서만 보여준다.
+ *
+ * 정간보는 악보 연습·AI 연주 평가 휴대폰 악보와 같은 크기·모양(연습 보드 [JeongganboMetrics.practiceBoard] ·
+ * [practiceScorePacking] · [JeongganboLook.practice])으로 그린다. 악보 전체를 그리되 틀린 칸이 가장 몰린 두 각
+ * ([EvaluationResult.densestColumnPair])이 카드 가운데 오도록 고정하고([weakSectionBoard]) 좌우 각은 카드 폭만큼 보인다. 스크롤은 없다.
+ * 긴 각은 연습 화면처럼 다음 줄로 넘기고, 정간은 연습 최소 크기보다 줄이지 않는다([weakSectionScoreHeight]). 페이지는 스크롤하지 않으며
+ * 카드보다 긴 악보는 각 머리(시작 각 번호)부터 보이고 아랫부분만 가려진다.
+ * 높이는 [modifier]로 정해 준다(`weight`·`height`).
  */
 @Composable
 fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewDetail: () -> Unit, modifier: Modifier = Modifier) {
@@ -349,11 +361,7 @@ fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewDetail: () -> 
     val count = result.errorCount(ErrorFilter.All)
     val cluster = result.densestColumnPair()
     val columnCount = song.score.columns.size
-    val format = rememberReadingScoreFormat(song)
-    val stripsPerColumn = remember(song) {
-        val counts = scoreStrips(song.score, song.jangdan).groupingBy { it.column }.eachCount()
-        List(columnCount) { counts[it] ?: 1 }
-    }
+    val longestStrip = remember(song) { scoreStrips(song.score, song.jangdan).maxOfOrNull { it.rows.count() } ?: 0 }
     Column(
         modifier.fillMaxWidth().background(colors.surface, CardShape).border(1.dp, colors.lineSoft, CardShape).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -372,26 +380,32 @@ fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewDetail: () -> 
             )
         }
         if (columnCount > 0) {
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val rendered = format.metrics.forFontScale(LocalDensity.current.fontScale)
-                val slots = ((maxWidth - ScoreHorizontalPadding + rendered.columnGap) / (rendered.columnWidth + rendered.columnGap))
-                    .toInt().coerceAtLeast(1)
-                val shown = previewColumns(cluster?.first, stripsPerColumn, slots)
-                val description = stringResource(Res.string.result_errors_preview, shown.first + 1, shown.last + 1)
-                // 보이는 줄만큼의 폭으로 카드 가운데에 둔다(각이 적은 곡도 한쪽에 붙지 않게).
-                val used = shown.sumOf { stripsPerColumn[it] }
-                val width = rendered.columnWidth * used + rendered.columnGap * (used - 1) + ScoreHorizontalPadding
+            // 악보 전체를 그리고 취약 구간이 카드 가운데 오도록 고정한다. 좌우의 다른 각도 카드 폭만큼 보이고 스크롤은 없다.
+            BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).clipToBounds()) {
+                val fontScale = LocalDensity.current.fontScale
+                val board = remember(song, longestStrip, cluster, maxWidth, maxHeight, fontScale) {
+                    weakSectionBoard(song, longestStrip, cluster?.first, maxWidth, maxHeight, fontScale)
+                }
+                val description = stringResource(Res.string.result_errors_preview, board.weak.first + 1, board.weak.last + 1)
                 JeongganboView(
                     song = song,
-                    modifier = Modifier.align(Alignment.Center).width(width).semantics { contentDescription = description },
-                    metrics = format.metrics,
+                    // 카드보다 넓으면 가운데 정렬된 뒤 [WeakSectionBoard.offset]만큼 옮겨 취약 구간을 가운데 둔다.
+                    // 높이는 카드에 맞추지 않고 위(각 머리)부터 그린다. 카드보다 길면 아랫부분만 가려진다.
+                    modifier = Modifier.align(Alignment.TopCenter).wrapContentHeight(Alignment.Top, unbounded = true)
+                        .requiredWidth(board.width).offset(x = board.offset)
+                        .semantics { contentDescription = description },
+                    metrics = board.metrics,
                     scrollState = null,
                     errors = result.visibleErrors(ErrorFilter.All),
                     errorKinds = result.visibleErrorKinds(ErrorFilter.All),
                     unitErrors = result.visibleUnitErrors(song, ErrorFilter.All),
-                    columns = shown,
-                    look = format.look,
-                    cellHeights = format.cellHeights,
+                    columns = board.columns,
+                    look = JeongganboLook.practice(big = false),
+                    columnsPerStack = board.columnsPerStack,
+                    splitColumns = board.splitColumns,
+                    stackGap = board.stackGap,
+                    cellHeights = board.cellHeights,
+                    stackRowHeights = board.stackRowHeights,
                 )
             }
         }
@@ -402,19 +416,129 @@ fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewDetail: () -> 
     }
 }
 
+/** 카드에 그릴 정간보의 배치·크기. 악보 전체([columns])를 그리고 취약 구간([weak])이 카드 가운데 오게 [offset]만큼 옮긴다. */
+internal data class WeakSectionBoard(
+    val columns: IntRange,
+    /** 틀린 칸이 가장 몰린 두 각(틀린 칸이 없으면 첫 각). */
+    val weak: IntRange,
+    val metrics: JeongganboMetrics,
+    val columnsPerStack: Int,
+    val splitColumns: Boolean,
+    val stackGap: Dp,
+    val cellHeights: Map<Pair<Int, Int>, Dp>,
+    val stackRowHeights: List<Dp>,
+    /** 악보 전체 폭. 카드보다 넓을 수 있다. */
+    val width: Dp,
+    /** 카드 가운데 정렬 기준에서 오른쪽(+)으로 옮길 거리. */
+    val offset: Dp,
+)
+
 /**
- * 카드에 보여 줄 각 범위. 틀린 칸이 가장 몰린 두 각([clusterStart], [clusterStart]+1)부터 앞 각으로 넓히고,
- * 자리가 남으면 뒤 각으로 넓힌다. 각마다 세로 줄 수([stripsPerColumn])를 더해 [slots]를 넘지 않는다.
- * 틀린 칸이 없으면 첫 각부터 보여 준다. 첫 각은 자리가 모자라도 하나는 보여 준다.
+ * 연습 화면 휴대폰 악보와 같은 배치([practiceScorePacking])를 [maxHeight]에 맞춰 구하고, 악보 전체 중 취약 구간이
+ * 카드([maxWidth]) 가운데 오도록 위치를 정한다. 악보 끝 쪽 각이라 가운데에 둘 수 없으면 빈 곳이 생기지 않게 끝에 맞춘다.
+ * 연습·평가 악보와 같은 크기를 지키려고 폭에 맞춰 줄이지 않는다.
  */
-internal fun previewColumns(clusterStart: Int?, stripsPerColumn: List<Int>, slots: Int): IntRange {
-    val last = stripsPerColumn.lastIndex
-    if (last < 0) return IntRange.EMPTY
-    val anchor = (clusterStart?.plus(1) ?: 0).coerceIn(0, last)
-    var first = anchor
-    var end = anchor
-    var used = stripsPerColumn[anchor]
-    while (first > 0 && used + stripsPerColumn[first - 1] <= slots) used += stripsPerColumn[--first]
-    while (end < last && used + stripsPerColumn[end + 1] <= slots) used += stripsPerColumn[++end]
-    return first..end
+internal fun weakSectionBoard(
+    song: Song,
+    longestStrip: Int,
+    clusterStart: Int?,
+    maxWidth: Dp,
+    maxHeight: Dp,
+    fontScale: Float,
+): WeakSectionBoard {
+    val base = JeongganboMetrics.practiceBoard(big = false, longestStrip = longestStrip).copy(splitLineFill = PracticeSplitLineFill)
+    // 카드가 낮아도 연습·평가 크기를 지키려고 최소 정간이 들어가는 높이 이상으로 배치한다. 넘치는 아랫부분은 카드에서 가려진다.
+    val packHeight = maxOf(maxHeight, weakSectionScoreHeight(song, base, fontScale))
+    val packing = practiceScorePacking(song.score, base, packHeight, fontScale, song.jangdan)
+    val counts = scoreStrips(song.score, song.jangdan, splitColumns = packing.splitColumns).groupingBy { it.column }.eachCount()
+    val stripsPerColumn = List(song.score.columns.size) { counts[it] ?: 1 }
+    val perStack = packing.columnsPerStack.coerceAtLeast(1)
+    val weak = weakColumns(clusterStart, stripsPerColumn.size)
+    val lines = weakSectionLines(stripsPerColumn, perStack, weak)
+    val rendered = packing.metrics.forFontScale(fontScale)
+    // 연습·평가 악보와 같은 크기를 지키려고 폭에 맞춰 줄이지 않는다. 카드보다 넓은 부분은 좌우 끝에서 가려진다.
+    val width = rendered.columnWidth * lines.total + rendered.columnGap * (lines.total - 1).coerceAtLeast(0) + ScoreHorizontalPadding
+    // 첫 각이 오른쪽 끝에서 시작한다. 취약 구간 가운데의 오른쪽 끝에서의 거리.
+    val fromRight = ScoreHorizontalPadding / 2 + (rendered.columnWidth + rendered.columnGap) * lines.weakCenter + rendered.columnWidth / 2
+    val slack = ((width - maxWidth) / 2).coerceAtLeast(0.dp)
+    val offset = (fromRight - width / 2).coerceIn(-slack, slack)
+    return WeakSectionBoard(
+        columns = if (stripsPerColumn.isEmpty()) IntRange.EMPTY else stripsPerColumn.indices,
+        weak = weak,
+        metrics = packing.metrics,
+        columnsPerStack = perStack,
+        splitColumns = packing.splitColumns,
+        stackGap = PracticeStackGap,
+        cellHeights = packing.cellHeights,
+        stackRowHeights = packing.stackRowHeights,
+        width = width,
+        offset = offset,
+    )
+}
+
+/** 카드 틀(안쪽 여백 14×2 · 사이 10×2 · 제목 줄 22sp · ‘틀린 부분 상세 보기’ 32)의 높이. */
+private fun errorLocationCardChrome(fontScale: Float): Dp = 28.dp + 20.dp + 22.dp * fontScale.coerceAtLeast(1f) + 32.dp
+
+/**
+ * 틀린 부분 카드의 고정 높이. 곡과 관계없이 같다: 카드 틀 + [ErrorLocationScoreHeight].
+ * 악보는 카드 높이와 관계없이 연습·평가 크기로 그리고([weakSectionScoreHeight]) 카드보다 길면 아랫부분이 가려진다.
+ */
+internal fun errorLocationCardHeight(fontScale: Float): Dp = errorLocationCardChrome(fontScale) + ErrorLocationScoreHeight
+
+/**
+ * 카드 안 악보 칸 높이. 단소 아리랑(한 각 12정간 중 3소박 8개)을 연습·평가 최소 정간 32dp로 두 줄에 나눠 그린 높이
+ * (여백 14 + 각 머리 22 + 2 + 한 줄 무게 8 × 32 = 294, 4dp 단위로 맞춰 296)다.
+ */
+private val ErrorLocationScoreHeight = 296.dp
+
+/**
+ * 연습·평가 악보의 최소 정간(연습 [practiceScorePacking]의 최소 정간) 아래로 줄지 않는 가장 낮은 악보 높이.
+ * 연습 배치를 그대로 돌려 최소 정간 이상이 되는 높이를 찾는다. 카드가 이보다 낮아도 이 높이로 배치해 크기를 지킨다.
+ */
+internal fun weakSectionScoreHeight(song: Song, base: JeongganboMetrics, fontScale: Float): Dp {
+    if (song.score.columns.isEmpty()) return 0.dp
+    val minimum = minOf(base.cellHeight, if (base.cellHeight > 44.dp) 44.dp else 32.dp)
+    var height = WeakSectionMinScan
+    while (height < WeakSectionMaxScan) {
+        if (practiceScorePacking(song.score, base, height, fontScale, song.jangdan).metrics.cellHeight >= minimum) return height
+        height += WeakSectionScanStep
+    }
+    return WeakSectionMaxScan
+}
+
+private val WeakSectionMinScan = 40.dp
+private val WeakSectionMaxScan = 1600.dp
+private val WeakSectionScanStep = 4.dp
+
+/** 틀린 칸이 가장 몰린 두 각([clusterStart], [clusterStart]+1). 틀린 칸이 없으면 첫 각. */
+internal fun weakColumns(clusterStart: Int?, columnCount: Int): IntRange {
+    if (columnCount <= 0) return IntRange.EMPTY
+    val last = columnCount - 1
+    if (clusterStart == null) return 0..0
+    val first = clusterStart.coerceIn(0, last)
+    return first..minOf(first + 1, last)
+}
+
+/** 악보 전체 세로줄 수와 취약 구간의 세로줄 수·가운데 위치(오른쪽 첫 줄부터 0, 소수 가능). */
+internal data class WeakSectionLines(val total: Int, val weakCount: Int, val weakCenter: Float)
+
+/**
+ * 악보 전체를 그릴 때 세로줄 수와 취약 구간([weak])이 놓이는 줄. 한 세로줄에 한 각(또는 한 각의 여러 줄)을 두면 각마다
+ * [stripsPerColumn]줄, 연습 화면처럼 [columnsPerStack]개 각을 위아래로 쌓으면 묶음마다 한 줄이다.
+ */
+internal fun weakSectionLines(stripsPerColumn: List<Int>, columnsPerStack: Int, weak: IntRange): WeakSectionLines {
+    if (stripsPerColumn.isEmpty() || weak.isEmpty()) return WeakSectionLines(0, 0, 0f)
+    val firstLine: Int
+    val lastLine: Int
+    val total: Int
+    if (columnsPerStack > 1) {
+        total = (stripsPerColumn.size + columnsPerStack - 1) / columnsPerStack
+        firstLine = weak.first / columnsPerStack
+        lastLine = weak.last / columnsPerStack
+    } else {
+        total = stripsPerColumn.sum()
+        firstLine = (0 until weak.first).sumOf { stripsPerColumn[it] }
+        lastLine = firstLine + weak.sumOf { stripsPerColumn[it] } - 1
+    }
+    return WeakSectionLines(total, lastLine - firstLine + 1, (firstLine + lastLine) / 2f)
 }
