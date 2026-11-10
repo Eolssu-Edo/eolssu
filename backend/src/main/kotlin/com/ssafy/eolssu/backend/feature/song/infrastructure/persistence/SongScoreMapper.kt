@@ -12,5 +12,5 @@ interface SongScoreMapper {
 
 data class PublishedScoreRow(
     val songId: Long, val scoreVersion: Int, val noteCount: Int,
-    val defaultBpm: Int, val bpmUnit: String, val scoreJson: String,
+    val defaultBpm: Int, val bpmUnit: String, val scoreJson: String, val title: String, val jangdanId: Long?,
 )

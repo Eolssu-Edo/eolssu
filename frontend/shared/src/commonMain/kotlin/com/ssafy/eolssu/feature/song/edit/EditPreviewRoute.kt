@@ -5,8 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
@@ -24,6 +26,7 @@ import eolssu.shared.generated.resources.sheetedit_msg_audio_needs_save
 import eolssu.shared.generated.resources.sheetedit_msg_audio_not_found
 import eolssu.shared.generated.resources.sheetedit_msg_audio_not_ready
 import eolssu.shared.generated.resources.sheetedit_msg_audio_ready
+import eolssu.shared.generated.resources.sheetedit_preview_needs_audio
 import eolssu.shared.generated.resources.sheetedit_msg_audio_requested
 import eolssu.shared.generated.resources.sheetedit_msg_audio_too_long
 import eolssu.shared.generated.resources.sheetedit_msg_audio_unknown
@@ -50,6 +53,14 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
     val player = rememberReferenceAudioPlayer()
     val playback by player.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val previewId = viewModel.previewPlaybackId()
+    var previewStarted by remember { mutableStateOf(false) }
+    LaunchedEffect(previewId) {
+        if (previewStarted && player.state.value.sourceId != previewId) {
+            previewStarted = false
+            player.stop()
+        }
+    }
     val uriHandler = LocalUriHandler.current
     val messages = mapOf(
         SheetEditMessage.SaveFailed to stringResource(Res.string.sheet_save_failed),
@@ -69,6 +80,7 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
         SheetEditMessage.AudioBusy to stringResource(Res.string.sheetedit_msg_audio_busy),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),
         SheetEditMessage.AudioLinkFailed to stringResource(Res.string.sheetedit_msg_audio_link_failed),
+        SheetEditMessage.PreviewNeedsAudio to stringResource(Res.string.sheetedit_preview_needs_audio),
         SheetEditMessage.ComingSoon to stringResource(Res.string.common_coming_soon),
     )
     LaunchedEffect(state.message) {
@@ -80,7 +92,6 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
     // 미리듣기와 음원 재생은 이 화면에서만 한다. 음원 생성 상태 조회는 ViewModel이 이어 간다.
     DisposableEffect(Unit) {
         onDispose {
-            viewModel.stopPreview()
             player.release()
         }
     }
@@ -88,13 +99,26 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
         state = state,
         snackbarHostState = snackbarHostState,
         playback = playback,
+        previewPlaying = previewId?.let { id ->
+            playback.sourceId == id && playback.status in setOf(AudioPlaybackStatus.Playing, AudioPlaybackStatus.Loading)
+        } == true,
         onBack = onBack,
-        onTogglePlay = viewModel::togglePreview,
+        onTogglePlay = {
+            scope.launch {
+                previewStarted = viewModel.previewPlaybackId() != null
+                toggleSheetAudio(player, viewModel, preview = true)
+            }
+        },
         onToggleJangdan = viewModel::toggleWithJangdan,
         audio = SheetAudioActions(
             onRequest = viewModel::requestAudio,
             onRefresh = { viewModel.refreshAudio() },
-            onTogglePlayback = { scope.launch { toggleSheetAudio(player, viewModel) } },
+            onTogglePlayback = {
+                scope.launch {
+                    previewStarted = false
+                    toggleSheetAudio(player, viewModel)
+                }
+            },
             onSave = { kind ->
                 scope.launch {
                     val file = viewModel.audioFile(kind) ?: return@launch
@@ -113,9 +137,9 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
 }
 
 /** 같은 파일이 재생·일시정지 중이면 그 상태만 바꾸고, 아니면 (만료됐으면 새로 받은) 서명 URL로 처음부터 튼다. */
-private suspend fun toggleSheetAudio(player: AudioPlayer, viewModel: SheetEditViewModel) {
+private suspend fun toggleSheetAudio(player: AudioPlayer, viewModel: SheetEditViewModel, preview: Boolean = false) {
     val current = player.state.value
-    val loadedId = viewModel.uiState.value.audio.latest?.audio?.playbackId
+    val loadedId = if (preview) viewModel.previewPlaybackId() else viewModel.uiState.value.audio.latest?.audio?.playbackId
     if (loadedId != null && current.sourceId == loadedId) {
         when (current.status) {
             AudioPlaybackStatus.Playing -> { player.pause(); return }
@@ -124,6 +148,6 @@ private suspend fun toggleSheetAudio(player: AudioPlayer, viewModel: SheetEditVi
             else -> Unit
         }
     }
-    val file = viewModel.audioFile(SheetAudioKind.M4a) ?: return
+    val file = (if (preview) viewModel.previewAudioFile() else viewModel.audioFile(SheetAudioKind.M4a)) ?: return
     player.load(AudioSource(file.playbackId, file.url), 0, 1f)
 }

@@ -81,6 +81,13 @@
     <string name="sheetedit_pick_title">불러올 악보 고르기</string>
     <string name="sheetedit_pick_subtitle">악기를 고른 뒤 그 악기의 악보를 골라요</string>
     <string name="sheetedit_pick_confirm">선택</string>
+    <string name="sheetedit_pick_copy">내 악보로 복사</string>
+    <string name="sheetedit_pick_copying">복사 중</string>
+    <string name="sheetedit_pick_hint_copy">%1$s을(를) 내 악보로 복사해 편집해요.</string>
+    <string name="sheetedit_pick_copy_failed">악보를 복사하지 못했어요. 다시 시도해 주세요.</string>
+    <string name="sheetedit_pick_copy_limit">내 악보가 10개예요. 악보를 지운 뒤 복사해 주세요.</string>
+    <string name="sheetedit_pick_copy_conversion_in_progress">변환 중인 악보가 끝난 뒤 복사해 주세요.</string>
+    <string name="sheetedit_pick_copy_not_found">제공 곡을 찾지 못했어요.</string>
     <string name="sheetedit_pick_hint_mine">고르고 ‘선택’을 누르면 바로 편집해요</string>
     <string name="sheetedit_pick_hint_songs">제공 곡은 복사본으로 고쳐요</string>
     <string name="sheetedit_pick_hint_picked">고른 악보 · %1$s</string>
@@ -182,6 +189,8 @@
     <string name="sheetedit_warn_fill">빈 정간 채우기</string>
     <string name="sheetedit_msg_draft">임시저장했어요 · 내 악보에서 이어서 고칠 수 있어요</string>
     <string name="sheetedit_msg_saved">저장했어요 · 내 악보에서 연습할 수 있어요</string>
+    <string name="sheetedit_audio_settings_changed">음원 설정이 바뀌었어요. 음원을 다시 만들어 주세요</string>
+    <string name="sheetedit_preview_needs_audio">현재 악보의 음원을 먼저 만들어 주세요</string>
     <string name="sheetedit_msg_audio_needs_save">저장한 악보가 있어야 음원을 만들 수 있어요</string>
     <string name="sheetedit_msg_audio_requested">음원을 만들고 있어요 · 다 되면 알려 드릴게요</string>
     <string name="sheetedit_msg_audio_ready">음원이 준비됐어요 · 미리보기에서 재생하거나 저장할 수 있어요</string>

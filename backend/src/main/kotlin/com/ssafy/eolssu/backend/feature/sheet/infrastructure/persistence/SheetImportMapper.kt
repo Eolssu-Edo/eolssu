@@ -20,6 +20,8 @@ interface SheetImportMapper {
     /** 회원 행 잠금. 접수를 회원 단위로 줄 세워 상한·진행 중 확인과 삽입 사이에 끼어들지 못하게 한다. */
     fun lockUser(@Param("userId") userId: Long): Long?
 
+    fun lockActiveUser(@Param("userId") userId: Long): Long?
+
     fun insertSheet(row: NewImportSheetRow): Int
 
     fun insertConversion(row: NewConversionRow): Int

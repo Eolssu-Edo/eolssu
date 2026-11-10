@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song.edit
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongLevel
+import com.ssafy.eolssu.data.song.PublishedSheetCopyProblem
 import com.ssafy.eolssu.feature.song.SongSortOrder
 import com.ssafy.eolssu.feature.song.sortedByTitle
 
@@ -39,6 +40,8 @@ data class EditPickUiState(
     val sheets: List<MySheet> = emptyList(),
     val songs: List<EditPickSong> = emptyList(),
     val uncheckedSheets: Int = 0,
+    val copying: Boolean = false,
+    val copyProblem: PublishedSheetCopyProblem? = null,
 ) {
     /** 검색어가 이름에 든 제공 곡을 [sort] 순서로. 검색어 앞뒤 공백은 무시한다. */
     val visibleSongs: List<EditPickSong>
@@ -54,12 +57,12 @@ data class EditPickUiState(
             null -> null
         }
 
-    val canSelect: Boolean get() = load == EditPickLoad.Ready && pickedTitle != null
+    val canSelect: Boolean get() = load == EditPickLoad.Ready && !copying && pickedTitle != null
 
     /** 같은 줄을 다시 누르면 고름을 푼다. */
-    fun toggle(target: EditPickTarget): EditPickUiState = copy(picked = if (picked == target) null else target)
+    fun toggle(target: EditPickTarget): EditPickUiState = copy(picked = if (picked == target) null else target, copyProblem = null)
 
     /** 악기를 바꾸면 이전 악기의 목록과 고른 악보를 비우고 새로 받는다. 편집 전이라 버릴 작업은 없다. */
     fun chooseInstrument(next: Instrument): EditPickUiState =
-        copy(instrument = next, load = EditPickLoad.Loading, picked = null, sheets = emptyList(), songs = emptyList(), uncheckedSheets = 0)
+        copy(instrument = next, load = EditPickLoad.Loading, picked = null, sheets = emptyList(), songs = emptyList(), uncheckedSheets = 0, copyProblem = null)
 }

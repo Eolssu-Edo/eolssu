@@ -10,7 +10,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.ssafy.eolssu.feature.song.edit.EditNewRoute
 import com.ssafy.eolssu.feature.song.edit.EditPickRoute
-import com.ssafy.eolssu.feature.song.edit.EditPickTarget
 import com.ssafy.eolssu.feature.song.edit.EditPreviewRoute
 import com.ssafy.eolssu.feature.song.edit.EditSource
 import com.ssafy.eolssu.feature.song.edit.EditView
@@ -77,13 +76,10 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
     composable(SheetEditDestination.PICK) { entry ->
         EditPickRoute(
             onBack = { navController.popBackStackFrom(entry) },
-            onSelected = { target ->
-                // 내 악보는 그 악보를 직접 고친다(SHT-08 원본·초안 그대로, SHT-04·11 저장). 서버에 복사본을 만드는 API는 없다.
-                val source = when (target) {
-                    is EditPickTarget.Sheet -> EditSource.Mine(target.sheetId)
-                    is EditPickTarget.Song -> EditSource.CopySong(target.songId)
+            onOpenSheet = { sheetId ->
+                if (navController.currentBackStackEntry?.id == entry.id) {
+                    navController.navigate(SheetEditDestination.editMine(sheetId))
                 }
-                navController.navigate(SheetEditDestination.edit(source))
             },
         )
     }

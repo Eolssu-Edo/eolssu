@@ -17,7 +17,7 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import org.springframework.web.filter.OncePerRequestFilter
 
 /**
- * SHT-04·11 본문을 JSON으로 읽기 전에 [maxBytes]로 자른다(413). 컨트롤러가 본문 전체를 트리로 만든 뒤 재면
+ * 악보 편집·복사·음원 요청 본문을 JSON으로 읽기 전에 [maxBytes]로 자른다(413). 컨트롤러가 본문 전체를 트리로 만든 뒤 재면
  * 큰 본문이 메모리를 먼저 쓰기 때문이다. Content-Length가 없는(chunked) 본문은 상한+1바이트까지만 읽어 판단한다.
  * 경로는 Spring MVC와 같은 PathPattern(디코딩한 경로)으로 맞춘다. 원문 URI로 비교하면 `/%73core` 같은 인코딩 경로가 빠져나간다.
  */
@@ -27,6 +27,7 @@ class SheetBodyLimitFilter(private val maxBytes: Int, private val errorWriter: E
             paths.matcher(HttpMethod.PUT, "/api/users/me/sheets/{sheetId}/score"),
             paths.matcher(HttpMethod.PUT, "/api/users/me/sheets/{sheetId}/score/draft"),
             paths.matcher(HttpMethod.POST, "/api/users/me/sheets/{sheetId}/audio"),
+            paths.matcher(HttpMethod.POST, "/api/users/me/sheets/copies"),
         )
     }
 

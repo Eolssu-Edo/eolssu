@@ -5,6 +5,9 @@ import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.crypto.MACSigner
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
+import com.ssafy.eolssu.backend.feature.sheet.application.CopyPublishedSheet
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetCopyFailure
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetCopyResult
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -38,6 +41,7 @@ private const val OTHER = 991391L
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class UserSheetApiDatabaseTests {
     @Autowired private lateinit var jdbc: JdbcTemplate
+    @Autowired private lateinit var copyPublishedSheet: CopyPublishedSheet
     @Value("\${local.server.port}") private var port = 0
     private val client = HttpClient.newHttpClient()
     private val json = JsonMapper.builder().build()
@@ -107,7 +111,9 @@ class UserSheetApiDatabaseTests {
         // 1번 곡 장단의 단위와 다른 값이라, 장단을 다시 읽지 않고 행에 저장한 단위를 쓰는지 구별된다.
         assertTrue(jdbc.queryForObject("SELECT j.bpm_unit FROM songs s JOIN jangdans j ON j.id=s.jangdan_id WHERE s.id=1", String::class.java) != "QUARTER")
 
-        val sheetId = insertSongCopy(OWNER, "장단 없음", songId = 993902)
+        val copied = copySong(OWNER, "no-jangdan", """"993902"""")
+        assertEquals(201, copied.statusCode(), copied.body())
+        val sheetId = json.readTree(copied.body()).path("result").path("sheetId").asString()
         val score = get(OWNER, "/api/users/me/sheets/$sheetId/score")
         assertEquals(200, score.statusCode(), score.body())
         val stored = json.readTree(score.body()).path("result")
@@ -148,6 +154,90 @@ class UserSheetApiDatabaseTests {
 
         assertEquals(405, removed.statusCode(), removed.body())
         assertEquals("METHOD_NOT_ALLOWED", json.readTree(removed.body()).path("result").path("errorCode").asString())
+        assertEquals(0, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
+    }
+
+    @Test
+    fun `copying a provided song produces an independently editable personal score`() {
+        val original = json.readTree(get(null, "/api/songs/1/score").body()).path("result")
+        val copied = copySong(OWNER, "provided-copy")
+        assertEquals(201, copied.statusCode(), copied.body())
+        val sheetId = json.readTree(copied.body()).path("result").path("sheetId").asString()
+        val document = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result")
+        assertEquals("아리랑 (사본)", document.path("title").asString())
+        assertEquals("1", document.path("scoreVersion").asString())
+        assertEquals("EVALUABLE", document.path("reviewStatus").asString())
+        assertEquals(original.path("events"), document.path("events"))
+        assertEquals(404, get(OTHER, "/api/users/me/sheets/$sheetId/score").statusCode())
+
+        val saved = send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score",
+            scoreBody("1", document.path("scoreData"), title = "내 아리랑"))
+        assertEquals(200, saved.statusCode(), saved.body())
+        val reopened = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result")
+        assertEquals("내 아리랑", reopened.path("title").asString())
+        assertEquals("2", reopened.path("scoreVersion").asString())
+        assertEquals(original, json.readTree(get(null, "/api/songs/1/score").body()).path("result"))
+
+        val replayed = copySong(OWNER, "provided-copy")
+        assertEquals(201, replayed.statusCode(), replayed.body())
+        assertEquals(sheetId, json.readTree(replayed.body()).path("result").path("sheetId").asString())
+        assertEquals(1, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
+        val conflict = copySong(OWNER, "provided-copy", """"2"""")
+        assertEquals(409, conflict.statusCode(), conflict.body())
+        assertEquals("IDEMPOTENCY_CONFLICT", json.readTree(conflict.body()).path("result").path("errorCode").asString())
+    }
+
+    @Test
+    fun `copy requires a published song, valid input, authentication, and a free slot`() {
+        assertEquals(401, copySong(null, "public").statusCode())
+        assertEquals(400, copySong(OWNER, null).statusCode())
+        assertEquals(400, copySong(OWNER, "numeric", "1").statusCode())
+        assertEquals(404, copySong(OWNER, "unknown", """"99999999"""").statusCode())
+        assertEquals(413, copySong(OWNER, "large", "1" + " ".repeat(1 shl 20)).statusCode())
+        jdbc.update(
+            """INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
+                SELECT 993902,instrument_id,jangdan_id,title,difficulty,180,score_json,score_version,note_count,is_scorable,'DRAFT' FROM songs WHERE id=1""",
+        )
+        assertEquals(404, copySong(OWNER, "unpublished", """"993902"""").statusCode())
+        jdbc.update("UPDATE songs SET status='PUBLISHED' WHERE id=993902")
+        val tooFast = copySong(OWNER, "too-fast", """"993902"""")
+        assertEquals(409, tooFast.statusCode(), tooFast.body())
+        assertEquals("STATE_CONFLICT", json.readTree(tooFast.body()).path("result").path("errorCode").asString())
+        repeat(10) { insertBlank(OWNER, "기존 악보 $it") }
+        val full = copySong(OWNER, "full")
+        assertEquals(409, full.statusCode(), full.body())
+        assertEquals("SHEET_LIMIT_EXCEEDED", json.readTree(full.body()).path("result").path("errorCode").asString())
+        assertEquals(10, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
+    }
+
+    @Test
+    fun `a published score with no columns cannot be copied`() {
+        jdbc.update(
+            """INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
+                SELECT 993902,instrument_id,jangdan_id,title,difficulty,default_bpm,
+                JSON_SET(score_json,'$.columns',JSON_ARRAY(),'$.events',JSON_ARRAY()),score_version,0,FALSE,'PUBLISHED'
+                FROM songs WHERE id=1""",
+        )
+
+        val response = copySong(OWNER, "empty-source", """"993902"""")
+
+        assertEquals(409, response.statusCode(), response.body())
+        assertEquals("STATE_CONFLICT", json.readTree(response.body()).path("result").path("errorCode").asString())
+        assertEquals(0, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
+    }
+
+    @Test
+    fun `a member who withdrew after authentication cannot create a copy`() {
+        assertEquals(200, get(OWNER, "/api/users/me/sheets").statusCode())
+        jdbc.update(
+            """UPDATE users SET status='WITHDRAWAL_PENDING', withdrawal_requested_at=UTC_TIMESTAMP(6),
+                purge_scheduled_at=UTC_TIMESTAMP(6) + INTERVAL 30 DAY WHERE id=?""", OWNER,
+        )
+
+        // 인증 필터를 이미 지난 요청의 회원 ID를 사용해 탈퇴 후 실행 순서를 재현한다.
+        val result = copyPublishedSheet.copy(OWNER, 1, "withdrawn-before-copy-lock")
+
+        assertEquals(SheetCopyResult.Rejected(SheetCopyFailure.NotFound), result)
         assertEquals(0, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
     }
 
@@ -344,6 +434,14 @@ class UserSheetApiDatabaseTests {
             .method(method, body?.let(HttpRequest.BodyPublishers::ofString) ?: HttpRequest.BodyPublishers.noBody()).build(),
         HttpResponse.BodyHandlers.ofString(),
     )
+
+    private fun copySong(user: Long?, key: String?, songId: String = """"1""""): HttpResponse<String> {
+        val builder = authorized(URI("http://localhost:$port/api/users/me/sheets/copies"), user)
+            .header("Content-Type", "application/json")
+        key?.let { builder.header("Idempotency-Key", it) }
+        return client.send(builder.POST(HttpRequest.BodyPublishers.ofString("""{"songId":$songId}""")).build(),
+            HttpResponse.BodyHandlers.ofString())
+    }
 
     private fun count(sql: String) = jdbc.queryForObject(sql, Int::class.java)!!
 

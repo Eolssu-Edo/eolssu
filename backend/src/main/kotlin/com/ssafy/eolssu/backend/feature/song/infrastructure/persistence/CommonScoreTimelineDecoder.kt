@@ -1,8 +1,5 @@
 package com.ssafy.eolssu.backend.feature.song.infrastructure.persistence
 
-import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.ScoreJsonNotes
-import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.ScoreNotesException
-import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.ScorePitchRow
 import com.ssafy.eolssu.backend.feature.song.domain.*
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
@@ -10,17 +7,28 @@ import tools.jackson.databind.json.JsonMapper
 
 /** CAT-04 uses the same NOTE indices, pitch lookup and beat conversion as PRA-03. */
 class CommonScoreTimelineDecoder(private val json: JsonMapper) : SongScoreDecoder {
-    private val analysisNotes = ScoreJsonNotes(json)
+    override fun decode(score: PublishedSongScore, pitches: List<ScorePitch>): DecodedSongScore =
+        decode(score, pitches, null)
 
-    override fun decode(score: PublishedSongScore, pitches: List<ScorePitch>): DecodedSongScore = try {
-        decodeValidated(score, pitches)
+    /** 시간축을 검증하면서 초안에서만 편집할 수 있는 미등록 율명을 찾는다. */
+    fun unregisteredPitches(score: PublishedSongScore, pitches: List<ScorePitch>): List<UnregisteredScorePitch> =
+        buildList { decode(score, pitches, this) }
+
+    private fun decode(
+        score: PublishedSongScore,
+        pitches: List<ScorePitch>,
+        unregistered: MutableList<UnregisteredScorePitch>?,
+    ): DecodedSongScore = try {
+        decodeValidated(score, pitches, unregistered)
     } catch (_: JacksonException) {
-        throw InvalidStoredScore()
-    } catch (_: ScoreNotesException) {
         throw InvalidStoredScore()
     }
 
-    private fun decodeValidated(stored: PublishedSongScore, pitches: List<ScorePitch>): DecodedSongScore {
+    private fun decodeValidated(
+        stored: PublishedSongScore,
+        pitches: List<ScorePitch>,
+        unregistered: MutableList<UnregisteredScorePitch>?,
+    ): DecodedSongScore {
         val score = json.readTree(stored.scoreJson)
         val schemaVersion = score.int("schemaVersion")
         ensure(schemaVersion == 1 && stored.scoreVersion > 0 && stored.noteCount >= 0)
@@ -38,10 +46,8 @@ class CommonScoreTimelineDecoder(private val json: JsonMapper) : SongScoreDecode
         val positions = positions(score, ids.toSet())
         val pitchesByYul = pitches.associateBy { it.yul to it.octave }
         ensure(pitchesByYul.size == pitches.size && pitches.all { it.id > 0 })
-        val analysisPitches = pitches.associate { (it.yul to it.octave) to ScorePitchRow(it.id, it.yul, it.octave.toShort(), it.semitone.toShort()) }
-        val noteCount = events.count { it.text("kind") == "NOTE" }
-        ensure(noteCount == stored.noteCount)
-        val notes = if (noteCount == 0) emptyList() else analysisNotes.notes(stored.scoreJson, 0, noteCount - 1, analysisPitches)
+        val registeredYuls = if (unregistered != null) pitches.mapTo(hashSetOf(), ScorePitch::yul) else emptySet()
+        ensure(events.count { it.text("kind") == "NOTE" } == stored.noteCount)
         var noteIndex = 0
         var endTick = 0L
         val usedPitches = mutableListOf<ScorePitch>()
@@ -62,15 +68,23 @@ class CommonScoreTimelineDecoder(private val json: JsonMapper) : SongScoreDecode
             endTick = start.toLong() + duration
             ensure(event.path("breathAfter").isBoolean && event.array("sigimsae").all { it.isString })
             val kind = event.text("kind")
+            val onset = start.toDouble() / ticksPerBeat
+            val beats = duration.toDouble() / ticksPerBeat
             if (kind == "NOTE") {
-                val note = notes[noteIndex++]
-                usedPitches += pitchesByYul[event.text("yul") to event.int("octave")] ?: throw InvalidStoredScore()
-                ScoreTimelineEvent(id, kind, note.idx, note.pitchId.toString(), column, cell, position.subIdx,
-                    start, duration, note.startBeat, note.beats)
+                val yul = event.text("yul")
+                val octave = event.int("octave")
+                val pitch = pitchesByYul[yul to octave]
+                if (pitch != null) {
+                    usedPitches += pitch
+                } else {
+                    if (unregistered == null || yul !in registeredYuls || octave !in -2..2) throw InvalidStoredScore()
+                    unregistered += UnregisteredScorePitch(id, cellId, yul, octave)
+                }
+                ScoreTimelineEvent(id, kind, noteIndex++, pitch?.id?.toString(), column, cell, position.subIdx,
+                    start, duration, onset, beats)
             } else {
                 ensure(kind == "REST" && event.path("yul").isNull && event.path("octave").isNull)
-                ScoreTimelineEvent(id, kind, null, null, column, cell, position.subIdx,
-                    start, duration, start.toDouble() / ticksPerBeat, duration.toDouble() / ticksPerBeat)
+                ScoreTimelineEvent(id, kind, null, null, column, cell, position.subIdx, start, duration, onset, beats)
             }
         }
         val cellCount = score.array("columns").sumOf { it.array("cells").size().toLong() }
