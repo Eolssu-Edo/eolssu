@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.auth
 
 import androidx.lifecycle.ViewModel
 import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.NicknameRule
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.UserRepository
 import com.ssafy.eolssu.data.user.*
@@ -25,7 +26,10 @@ class ProfileSetupViewModel(
     private val _uiState = MutableStateFlow(ProfileSetupUiState())
     val uiState: StateFlow<ProfileSetupUiState> = _uiState.asStateFlow()
 
-    fun changeNickname(nickname: String) = _uiState.update { it.copy(nickname = nickname, nicknameError = null) }
+    /** 서버 길이([NicknameRule.MAX_LENGTH]자)를 넘는 입력·붙여넣기는 칸에 남기지 않는다. */
+    fun changeNickname(nickname: String) = _uiState.update {
+        it.copy(nickname = NicknameRule.limit(it.nickname, nickname), nicknameError = null)
+    }
 
     fun selectInstrument(instrument: Instrument) = _uiState.update { it.copy(instrument = instrument) }
 
