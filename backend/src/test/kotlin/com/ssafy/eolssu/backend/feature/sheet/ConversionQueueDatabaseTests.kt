@@ -20,12 +20,19 @@ import java.time.Clock
 import java.time.ZoneOffset
 import java.time.Duration
 import java.nio.file.Path
+import com.ssafy.eolssu.backend.feature.sheet.application.EditUserSheet
+import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
+import com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetScoreCommand
+import com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetScoreResult
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetScoreLookup
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage
 import com.ssafy.eolssu.backend.feature.sheet.domain.UserSheetRepository
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetScoreUpdate
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.*
 import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
+import kotlin.test.assertIs
 
 @Tag("database")
 @ActiveProfiles("db")
@@ -186,6 +193,55 @@ class ConversionQueueDatabaseTests {
         failed.runOne()
         assertEquals("STATE_CONFLICT",queue.retry(992473,992473).status)
     }
+    @Test fun `a converted draft with an unregistered pitch is reopened and saved after correction`() {
+        val json = JsonMapper.builder().build()
+        val score = json.readTree(jdbc.queryForObject("SELECT score_json FROM songs WHERE id=1", String::class.java))
+        val note = score.path("events").first { it.path("kind").asString() == "NOTE" } as ObjectNode
+        val originalYul = note.path("yul").asString()
+        val originalOctave = note.path("octave").asInt()
+        note.put("yul", "유").put("octave", -1)
+        val unit = score.path("columns").flatMap { it.path("cells").flatMap { cell -> cell.path("units").toList() } }
+            .first { it.path("eventId") == note.path("id") && it.path("symbol").asString() !in setOf("", "-") } as ObjectNode
+        val originalSymbol = unit.path("symbol").asString()
+        unit.put("symbol", "배유")
+
+        val job = assertNotNull(queue.claim(now))
+        assertTrue(queue.building(job))
+        val response = json.createObjectNode().apply {
+            set("score", score)
+            putObject("jgb").put("v", 1)
+        }
+        val built = RecognitionResultBuilder(json, scores).build(job, response)
+        assertTrue(queue.complete(job, built, now))
+
+        val found = assertIs<SheetScoreLookup.Found>(GetUserSheets(sheets, scores).get(job.userId, job.sheetId))
+        val sheet = found.sheet
+        val imported = assertNotNull(sheet.imported)
+        val draft = assertNotNull(sheet.draft)
+        assertEquals("NEEDS_REVIEW", sheet.status.name)
+        assertEquals("DONE", imported.conversionStatus.name)
+        assertEquals(1, sheet.pendingCellCount)
+        assertNull(sheet.scoreJson)
+        assertTrue(found.events.isEmpty())
+        val draftScore = json.readTree(draft.json).path("score")
+        assertEquals(score.path("events"), draftScore.path("events"))
+        val issueId = json.readTree(assertNotNull(imported.resultJson)).path("issues").first().path("issueId").asString()
+        val editor = EditUserSheet(sheets, scores, Clock.fixed(now, ZoneOffset.UTC), json)
+        val save = SaveSheetScoreCommand(job.userId, job.sheetId, sheet.scoreVersion, null, sheet.jangdanId, sheet.bpm,
+            json.writeValueAsString(draftScore), listOf(issueId))
+        assertEquals(SaveSheetScoreResult.InvalidRequest, editor.save(save))
+
+        val draftNote = draftScore.path("events").first { it.path("id") == note.path("id") } as ObjectNode
+        draftNote.put("yul", originalYul).put("octave", originalOctave)
+        val draftUnit = draftScore.path("columns").flatMap { it.path("cells").flatMap { cell -> cell.path("units").toList() } }
+            .first { it.path("eventId") == note.path("id") && it.path("symbol").asString() == "배유" } as ObjectNode
+        draftUnit.put("symbol", originalSymbol)
+        val saved = assertIs<SaveSheetScoreResult.Saved>(editor.save(save.copy(scoreJson = json.writeValueAsString(draftScore))))
+        assertEquals("EVALUABLE", saved.sheet.status.name)
+        assertEquals(0, saved.sheet.pendingCellCount)
+        assertNull(saved.sheet.draft)
+    }
+
     companion object {
         @JvmStatic @DynamicPropertySource fun properties(registry: DynamicPropertyRegistry) {
             registry.add("eolssu.scheduling.enabled") { "false" }
