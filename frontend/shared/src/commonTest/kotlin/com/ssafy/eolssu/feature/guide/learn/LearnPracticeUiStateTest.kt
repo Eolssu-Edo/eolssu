@@ -25,6 +25,15 @@ class LearnPracticeUiStateTest {
         assertEquals(listOf(0 until 1), pitchNoteRows(stage = 6, count = 1))
     }
 
+    /** 5단계 통과 기준 문구는 서버 예시(8음 중 7음) 대신 실제 판정 음 수와 필요한 맞은 음 수를 쓴다(S15P31E102-688). */
+    @Test
+    fun stageFivePassCountFollowsPitchPlan() {
+        val pitch = LearnPitchProgress(notes = List(10) { "仲" }, required = 9, holdTargetMs = 300)
+        assertEquals(10 to 9, stageFivePassCount(5, pitch))
+        assertNull(stageFivePassCount(5, null))
+        assertNull(stageFivePassCount(4, pitch))
+    }
+
     @Test
     fun countsASoundHeldForTwoSecondsOnce() {
         val held = firstSound().feed(loud, 2_000)

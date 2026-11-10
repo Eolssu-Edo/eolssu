@@ -79,6 +79,7 @@ import eolssu.shared.generated.resources.learn_practice_start
 import eolssu.shared.generated.resources.learn_practice_stop
 import eolssu.shared.generated.resources.learn_practice_unsupported
 import eolssu.shared.generated.resources.learn_practice_waiting
+import eolssu.shared.generated.resources.learn_pass_pattern
 import eolssu.shared.generated.resources.learn_section_pass
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -137,19 +138,28 @@ internal fun LearnPracticeBox(
         actions.onComplete
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        detail?.pass?.let { PassLine(it) }
+        detail?.pass?.let { pass ->
+            val counts = stageFivePassCount(stage.number, state.pitch)
+            PassLine(if (counts != null) stringResource(Res.string.learn_pass_pattern, counts.first, counts.second) else pass.rule.plain())
+        }
         ListenPanel(state, instrument)
         LearnPracticeBottomBar(state, actions, onSelfDone)
     }
 }
 
 /** 통과 기준 한 줄: 연두 체크와 기준 문장. 화면 읽기에는 '통과 기준, …'으로 읽힌다. */
+/**
+ * 5단계 통과 기준의 (낼 음 수, 맞혀야 할 음 수). 서버 문구는 예시(8음 중 7음)라 실제 판정 계획 [pitch]로 바꿔 보인다.
+ * 5단계가 아니거나 음높이 판정이 없으면 null(서버 문구 그대로).
+ */
+internal fun stageFivePassCount(stage: Int, pitch: LearnPitchProgress?): Pair<Int, Int>? =
+    if (stage == 5 && pitch != null) pitch.notes.size to pitch.required else null
+
 @Composable
-private fun PassLine(pass: LearnPass) {
+private fun PassLine(rule: String) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(14.dp)
     val label = stringResource(Res.string.learn_section_pass)
-    val rule = pass.rule.plain()
     Row(
         Modifier
             .fillMaxWidth()
