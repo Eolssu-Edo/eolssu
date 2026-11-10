@@ -40,6 +40,8 @@ import org.koin.core.parameter.parametersOf
  * @param learn 기초부터 배우기 8단계의 곡 연습. 혼자 연습과 같되 평가로 넘어가는 버튼이 없고 '운지법과 함께 보기'로 시작한다.
  * @param sheetTitle 내 악보 제목(‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다. 비우면 곡 제목.
  * @param showSwitchedNotice 일반 연습에서 평가로 전환한 진입. 곡 로딩 후 평가를 한 번만 바로 시작한다.
+ * @param direct 곡 정보의 '연주 평가 시작'으로 들어온 연주 평가(S15P31E102-705). 곡 로딩 후 바로 평가를 시작하고,
+ *   준비 상태로 돌아갈 일(시작 취소·연주 중단·연습 준비로·마이크 거부)이 생기면 [onBack]으로 곡 정보에 돌아간다.
  * @param onSwitchToEval 연습 모드에서 같은 곡의 평가 연습으로 바꾼다.
  * @param onEvaluate 연주를 마치고 '평가하기'. 저장된 녹음이 있을 때만 연습 화면을 준비 상태로 돌리고 분석 화면으로 간다.
  * @param onConfirmBackChange 떠나기 전에 확인할 때(연주·카운트다운 중) 화면의 뒤로 가기 동작을, 아니면 null을 알린다.
@@ -63,8 +65,9 @@ fun PracticeRoute(
     sheetTitle: String? = null,
     learn: Boolean = false,
     onOpenSheetAudio: ((version: Int) -> Unit)? = null,
+    direct: Boolean = false,
     perf: PerformanceVisit? = null,
-    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn") { parametersOf(songId, solo, mine, learn, perf) },
+    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn-$direct") { parametersOf(songId, solo, mine, learn, perf, direct) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val audioVersion = state.practiceAudioShortcutVersion
@@ -75,10 +78,12 @@ fun PracticeRoute(
     val scope = rememberCoroutineScope()
     LaunchedEffect(sheetTitle) { viewModel.showSheetTitle(sheetTitle) }
     LaunchedEffect(showSwitchedNotice, state.song?.id) {
-        if (showSwitchedNotice) viewModel.startEvaluationOnEntry()
+        if (showSwitchedNotice || state.direct) viewModel.startEvaluationOnEntry()
     }
     // 앱을 벗어나면(전화·다른 앱) 연주를 끊긴 것으로 처리한다.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onLeaveScreen() }
+    // 곡 정보에서 바로 시작한 평가는 분석·결과에서 기기 뒤로 가기로 돌아와도 준비 상태를 보이지 않고 곡 정보로 간다.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (viewModel.leavesDirectOnReturn()) onBack() }
     // 연습 시간은 화면이 앞에 보이는 동안만 잰다. 다른 화면으로 가거나 백그라운드·화면 잠금, 웹 탭 숨김이면 멈춘다
     // (Compose 웹도 탭이 가려지면 ON_STOP을 보낸다).
     LifecycleStartEffect(viewModel) {
@@ -87,6 +92,11 @@ fun PracticeRoute(
     }
 
     val back = { if (viewModel.onBack()) onBack() }
+    // 곡 정보에서 바로 시작한 평가는 준비 상태를 보이지 않고 곡 정보로 돌아간다.
+    val leaveToSongInfo = {
+        viewModel.stopAll()
+        onBack()
+    }
     // 기기 뒤로 가기도 화면의 뒤로 가기와 같게: 연주 중이면 확인 창을 띄운다. 태블릿 가로처럼 패널이 화면 안에 열려 있으면 패널부터 닫는다.
     // 휴대폰의 하단 시트·확인 창은 자기 창에서 뒤로 가기를 먼저 받는다.
     @Suppress("DEPRECATION") // ui-backhandler 1.12의 BackHandler. 대신할 NavigationEventHandler는 아직 의존성에 없다.
@@ -112,7 +122,7 @@ fun PracticeRoute(
                 onSelectUnit = viewModel::selectUnit,
                 onUserScroll = viewModel::stopFollowing,
                 onFollowNow = viewModel::followNow,
-                onCancelCountdown = viewModel::cancelCountdown,
+                onCancelCountdown = { if (state.direct && !state.resume) leaveToSongInfo() else viewModel.cancelCountdown() },
                 onUserActivity = viewModel::onUserActivity,
                 onRetrySong = viewModel::retryLoadSong,
                 bottom = PracticeBottomActions(
@@ -159,11 +169,14 @@ fun PracticeRoute(
                     onGrantMic = {
                         scope.launch { if (viewModel.requestMicPermission()) viewModel.grantMicAndStart() else viewModel.micDenied() }
                     },
-                    onDenyMic = viewModel::closePopup,
-                    onClose = viewModel::closePopup,
+                    onDenyMic = { if (state.direct) leaveToSongInfo() else viewModel.closePopup() },
+                    onClose = {
+                        val denied = state.popup == PracticePopup.PermDenied || state.popup == PracticePopup.PermBlocked
+                        if (state.direct && denied) leaveToSongInfo() else viewModel.closePopup()
+                    },
                     onGoHome = {
                         viewModel.stopAll()
-                        onGoHome()
+                        if (state.direct) onBack() else onGoHome()
                     },
                     onResume = viewModel::resumeRecording,
                     onEvaluate = {
@@ -180,11 +193,15 @@ fun PracticeRoute(
                         onBack()
                     },
                     onKeepPlayingAfterExit = viewModel::keepPlayingAfterExit,
-                    onToReady = viewModel::toReady,
+                    onToReady = { if (state.direct) leaveToSongInfo() else viewModel.toReady() },
                     onOpenMicSettings = {
                         val opened = viewModel.openMicSettings()
-                        viewModel.closePopup()
-                        if (!opened) scope.launch { snackbarHostState.showSnackbar(getString(Res.string.common_coming_soon)) }
+                        if (state.direct) {
+                            leaveToSongInfo()
+                        } else {
+                            viewModel.closePopup()
+                            if (!opened) scope.launch { snackbarHostState.showSnackbar(getString(Res.string.common_coming_soon)) }
+                        }
                     },
                 ),
             ),

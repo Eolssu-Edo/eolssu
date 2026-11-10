@@ -89,6 +89,11 @@ data class PracticeUiState(
     val solo: Boolean = false,
     val mine: Boolean = false,
     val learn: Boolean = false,
+    /**
+     * 곡 정보의 '연주 평가 시작'으로 들어와 대기 상태 없이 바로 평가 녹음을 시작하는 연주 평가(S15P31E102-705). 준비 화면의 플레이어를 두지 않는다.
+     * 녹음을 지원하지 않는 환경(Web)은 지금처럼 준비 화면에서 녹음 미지원 안내를 보이도록 false로 둔다.
+     */
+    val direct: Boolean = false,
     val fingeringOverride: Boolean? = null,
     val sheetTitle: String? = null,
     val step: PracticeStep = PracticeStep(),
