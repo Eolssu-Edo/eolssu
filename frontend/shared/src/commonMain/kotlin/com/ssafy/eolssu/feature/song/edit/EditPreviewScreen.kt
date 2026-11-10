@@ -127,9 +127,11 @@ fun EditPreviewScreen(
         bottomBar = {
             PlayerRow(state, song.durationSeconds(draft.bpm), previewPlaying, onTogglePlay, onToggleJangdan, audio)
             SheetAudioRow(state, playback, audio)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                EolssuButton(stringResource(Res.string.sheetedit_preview_draft), onSaveDraft, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving && !state.saveConflict)
-                EolssuButton(stringResource(Res.string.sheetedit_preview_save), onSave, Modifier.weight(1.4f), compact = true, enabled = !state.saving && !state.saveConflict)
+            if ((state.source as? EditSource.Mine)?.practiceVersion == null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    EolssuButton(stringResource(Res.string.sheetedit_preview_draft), onSaveDraft, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving && !state.saveConflict)
+                    EolssuButton(stringResource(Res.string.sheetedit_preview_save), onSave, Modifier.weight(1.4f), compact = true, enabled = !state.saving && !state.saveConflict)
+                }
             }
         },
     ) {

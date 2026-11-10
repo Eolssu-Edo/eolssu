@@ -62,6 +62,8 @@ class SheetEditViewModel(
     private val pitchCatalog: ReferenceCatalogRepository? = null,
     private val deviceAudioStore: SheetAudioDeviceStore? = null,
 ) : ViewModel() {
+    private val practiceVersion = (source as? EditSource.Mine)?.practiceVersion
+
     /** 서버 문서나 제공 곡 원본을 읽어 와야 여는 경로. 읽기 전에는 예시 악보를 보이지 않는다. */
     private val loadsRemote = (documents != null && source is EditSource.Mine) || (songs != null && source is EditSource.CopySong)
     private val _uiState = MutableStateFlow(
@@ -97,7 +99,8 @@ class SheetEditViewModel(
         confirmedDraft = null
         version = ""
         _uiState.update { it.copy(draft = SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1)),
-            documentLoading = false, documentFailed = true, saving = false, message = null, audio = SheetAudioUi.None,
+            documentLoading = false, documentFailed = true, practiceVersionChanged = false,
+            saving = false, message = null, audio = SheetAudioUi.None,
             deviceAudio = null, audioDownloading = false,
             past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet(),
             jangdanPicker = null) }
@@ -133,12 +136,18 @@ class SheetEditViewModel(
         val repository = documents ?: return
         val id = _uiState.value.serverSheetId ?: return
         if (!accountScope.isActive || loadJob?.isActive == true || loaded != null) return
-        _uiState.update { it.copy(documentLoading = true, documentFailed = false) }
+        _uiState.update { it.copy(documentLoading = true, documentFailed = false, practiceVersionChanged = false) }
         loadJob = accountScope.launch {
             try {
                 val document = repository.get(id) ?: error("악보 조회 실패")
+                ensureAccountSession()
+                if (practiceVersion != null && document.scoreVersion.toIntOrNull() != practiceVersion) {
+                    _uiState.update { it.copy(documentLoading = false, documentFailed = true,
+                        practiceVersionChanged = true, savedOnce = false) }
+                    return@launch
+                }
                 check(document.conversionStatus == null || document.conversionStatus == "DONE")
-                val copy = document.draft
+                val copy = document.draft.takeIf { practiceVersion == null }
                 val score = copy?.score ?: document.score ?: error("변환 완료 악보 없음")
                 val jangdanId = if (copy == null) document.jangdanId else copy.jangdanId
                 val draft = score.editingDraft(copy?.title ?: document.title, copy?.bpm ?: document.bpm, jangdan = null)

@@ -490,6 +490,9 @@ fun PracticeSettings.applyTempo(draft: PracticeDraft, song: Song, mine: Boolean 
 /** 플레이어의 고정 안내 칸에만 표시한다. 정상 재생에는 문구가 없다. */
 internal enum class PracticePlayerNotice { None, Loading, Failed, Unavailable, PersonalAudioUnavailable, EmbeddedJangdan, Unsupported, Interrupted }
 
+internal val PracticeUiState.practiceAudioShortcutVersion: Int?
+    get() = song?.scoreVersion?.takeIf { it > 0 && playerNotice == PracticePlayerNotice.PersonalAudioUnavailable }
+
 internal val PracticeUiState.playerNotice: PracticePlayerNotice
     get() {
         val rhythm = mode == PracticeMode.Rhythm

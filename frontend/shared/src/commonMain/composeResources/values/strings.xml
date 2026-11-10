@@ -6,6 +6,7 @@
     <string name="sheet_document_title">내 악보 편집</string>
     <string name="sheet_document_loading">악보를 불러오고 있어요.</string>
     <string name="sheet_document_failed">악보를 불러오지 못했어요. 변환이 완료됐는지와 연결 상태를 확인해 주세요.</string>
+    <string name="sheet_document_practice_version_changed">악보가 업데이트됐어요. 연습을 닫고 같은 악보를 다시 열어 주세요.</string>
     <string name="sheet_save_failed">저장하지 못했어요. 현재 편집은 유지돼요. 다시 시도해 주세요.</string>
     <string name="sheet_save_conflict">다른 곳에서 악보가 변경됐어요. 현재 편집은 유지했어요. 다시 열어 최신 악보를 확인해 주세요.</string>
     <string name="sheet_save_too_large">악보가 저장할 수 있는 크기를 넘었어요. 현재 편집은 유지돼요.</string>

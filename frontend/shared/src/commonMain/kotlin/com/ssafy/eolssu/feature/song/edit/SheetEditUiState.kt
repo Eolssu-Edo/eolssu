@@ -109,6 +109,7 @@ data class SheetEditUiState(
     val message: SheetEditMessage? = null,
     val documentLoading: Boolean = false,
     val documentFailed: Boolean = false,
+    val practiceVersionChanged: Boolean = false,
     val saving: Boolean = false,
     val saveConflict: Boolean = false,
     val closeWarning: Boolean = false,

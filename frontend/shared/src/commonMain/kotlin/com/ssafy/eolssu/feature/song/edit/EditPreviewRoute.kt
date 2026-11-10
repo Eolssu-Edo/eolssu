@@ -47,7 +47,7 @@ import org.jetbrains.compose.resources.stringResource
 fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     if (state.documentLoading || state.documentFailed) {
-        SheetDocumentNotice(state.documentLoading, onBack, viewModel::loadDocument)
+        SheetDocumentNotice(state.documentLoading, onBack, viewModel::loadDocument, state.practiceVersionChanged)
         return
     }
     val snackbarHostState = remember { SnackbarHostState() }

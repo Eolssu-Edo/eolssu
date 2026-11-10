@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.feature.practice.ModelAudioStatus
@@ -143,6 +144,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
                 enabled = state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading, height = 24.dp)
             // 로딩은 화면 가운데에 띄우므로 트랙 아래 칸은 실패·중단 사유가 있을 때만 둔다.
             if (state.playerNotice.inCard) PlayerNoticeArea(state.playerNotice, Modifier.fillMaxWidth().height(20.dp))
+            actions.onOpenSheetAudio?.let { PracticeAudioLink(it, Modifier.align(Alignment.CenterHorizontally)) }
         }
         return
     }
@@ -162,7 +164,14 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
         SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
             enabled = state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading)
         controls(Modifier.fillMaxWidth())
+        actions.onOpenSheetAudio?.let { PracticeAudioLink(it, Modifier.align(Alignment.CenterHorizontally)) }
     }
+}
+
+@Composable
+private fun PracticeAudioLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    EolssuButton(stringResource(Res.string.practice_sheet_audio_open), onClick, modifier,
+        style = EolssuButtonStyle.Secondary, small = true)
 }
 
 /** 카드 안 안내 칸에 보일 상태. 불러오는 중은 화면 가운데 막([PracticePlaybackLoadingOverlay])이 맡는다. */
