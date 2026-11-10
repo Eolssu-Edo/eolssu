@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.app.di
 
+import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingFiles
@@ -154,16 +155,21 @@ val appModule = module {
             modelAudioRepository = get(), audioPlayer = get(), mine = mine, learn = learn, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
             notePractice = get())
     }
-    viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) ->
+    viewModel { parameters ->
+        val (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) = parameters
+        val initialSong: Song? = parameters[5]
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
-        AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get(), get(), section)
+        AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get(), get(), section, initialSong)
     }
     // 곡 전체 결과로 기초부터 배우기 8단계 통과를 판정한다(S15P31E102-611). 곡의 서버 악기 ID는 악기 목록에서 code로 바꾼다.
     single {
         val catalog = get<InstrumentCatalog>()
         LearnSongStage(get()) { id -> catalog.load().firstOrNull { it.instrumentId == id }?.code }
     }
-    viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get(), judgeLearnSong = get<LearnSongStage>()::judge, learnTrackOf = get<LearnSongStage>()::trackOf) }
+    viewModel { (evaluationId: String, initialSong: Song?) ->
+        ResultViewModel(evaluationId, get(), get(), get(), get(), judgeLearnSong = get<LearnSongStage>()::judge,
+            learnTrackOf = get<LearnSongStage>()::trackOf, initialSong = initialSong)
+    }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get(), songs = get()) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
     viewModel { GrowthViewModel(get(), get(), get(), get()) }
