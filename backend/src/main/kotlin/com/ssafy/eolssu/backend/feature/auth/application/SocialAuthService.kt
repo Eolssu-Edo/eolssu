@@ -110,7 +110,7 @@ class SocialAuthService(
     fun signUp(command:SocialSignUpCommand,bindings:Map<String,String>):SignUpResult.Created {
         val signup=signUps?:fail(ErrorCode.SERVICE_UNAVAILABLE)
         val catalog=terms?:fail(ErrorCode.SERVICE_UNAVAILABLE)
-        if(command.nickname.isBlank() || command.nickname.length>60 || command.agreements.map{it.termId}.distinct().size!=command.agreements.size ||
+        if(command.nickname.isBlank() || command.nickname.length>NicknamePolicy.MAX_LENGTH || command.agreements.map{it.termId}.distinct().size!=command.agreements.size ||
             command.notationMode?.let{it !in setOf("HANJA","HANGUL","SOLFEGE")}==true) fail(ErrorCode.INVALID_REQUEST)
         val hash=secrets.hashToken(command.ticket)
         val proof=proofs.find(hash)?:fail(ErrorCode.SIGNUP_TICKET_EXPIRED)

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.model.NicknameRule
 import com.ssafy.eolssu.core.model.PasswordRule
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_error_email_empty
@@ -92,7 +93,7 @@ object AuthValidation {
 
     fun nicknameError(nickname: String): FieldError? = when {
         nickname.isBlank() -> FieldError.NicknameEmpty
-        nickname.length > 60 -> FieldError.InvalidInput
+        NicknameRule.isTooLong(nickname) -> FieldError.InvalidInput
         else -> null
     }
 }

@@ -136,7 +136,7 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.GET,"/api/users/me","getMyInfo","회원","내 정보와 학습 설정 조회",
         "회원 정보·선택 악기·기본 악보 표기·연결된 소셜 제공자를 반환합니다. hasPassword는 저장된 비밀번호 해시 존재 여부의 필수 boolean이며 이메일·소셜 연결 유무와 독립적입니다. 해시 원문은 반환하지 않습니다.",MyInfoResult::class.java),
     ApiContract(HttpMethod.PATCH,"/api/users/me","changeNickname","회원","닉네임 수정",
-        "공백이 아닌 최대 60자 닉네임을 저장합니다.",MyProfileResult::class.java),
+        "공백이 아닌 최대 10자 닉네임을 저장합니다. 길이는 UTF-16 문자 수로 세며 기존 저장값은 바꾸지 않습니다.",MyProfileResult::class.java),
     ApiContract(HttpMethod.PATCH,"/api/users/me/preferences","changePreferences","회원","악기와 악보 표기 설정",
         "instrumentId 또는 notationMode를 하나 이상 보냅니다. 활성 악기만 선택할 수 있고 표기는 HANJA·HANGUL·SOLFEGE입니다.",
         PreferencesSaved::class.java,errors=listOf(UNPROCESSABLE_INPUT)),
