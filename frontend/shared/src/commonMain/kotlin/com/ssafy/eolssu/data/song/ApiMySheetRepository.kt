@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.data.song
 
+import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
+
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.MySheetOrigin
@@ -22,7 +24,11 @@ import kotlinx.serialization.Serializable
 import kotlin.time.Instant
 
 /** SHT-01·02. 성공한 서버 응답만 게시하며 예시 곡에 연결하지 않는다. */
-class ApiMySheetRepository(private val client: HttpClient, private val member: SignedInMember? = null) : MySheetRepository {
+class ApiMySheetRepository(
+    private val client: HttpClient,
+    private val member: SignedInMember? = null,
+    private val deviceAudioStore: SheetAudioDeviceStore? = null,
+) : MySheetRepository {
     private val state = MutableStateFlow<List<MySheet>>(emptyList())
     override val sheets = state.asStateFlow()
     private val lock = Mutex()
@@ -54,12 +60,18 @@ class ApiMySheetRepository(private val client: HttpClient, private val member: S
 
     override suspend fun delete(sheetId: String) = member.inSession {
         require(validCatalogId(sheetId))
+        val accountId = member?.id
         lock.withLock {
             val response = client.sendOrNull { delete("/api/users/me/sheets/$sheetId") }
             // 404도 이미 지워졌음을 확인한 응답이다. 서버 오류일 때 목록에서 지우지 않는다.
             if (response?.status?.value !in listOf(204, 404)) throw CatalogUnavailable()
             ensureAccountSession()
             state.update { items -> items.filterNot { it.id == sheetId } }
+            if (accountId != null) {
+                try { deviceAudioStore?.delete(accountId, sheetId) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { /* 서버 삭제는 끝났다. */ }
+            }
         }
     }
 

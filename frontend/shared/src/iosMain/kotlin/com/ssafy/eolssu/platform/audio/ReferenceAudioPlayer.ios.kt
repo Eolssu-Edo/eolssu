@@ -14,8 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.koin.compose.koinInject
 import platform.AVFAudio.AVAudioPlayer
-import platform.Foundation.NSData
-import platform.Foundation.create
+import platform.Foundation.*
 
 @Composable
 actual fun rememberReferenceAudioPlayer(): ReferenceAudioPlayer {
@@ -37,11 +36,19 @@ private class IosReferenceAudioPlayer(private val client: HttpClient) : Referenc
         mutable.value = AudioPlaybackState(source.id, AudioPlaybackStatus.Loading)
         job = scope.launch {
             try {
-                val response = client.get(source.url)
-                check(response.status.value == 200)
-                val bytes = response.body<ByteArray>()
+                val localFile = source.localFile
+                val data = if (localFile == null) {
+                    val response = client.get(source.url)
+                    check(response.status.value == 200)
+                    val bytes = response.body<ByteArray>()
+                    bytes.usePinned { NSData.create(bytes = it.addressOf(0), length = bytes.size.toULong()) }
+                } else {
+                    check(source.url.isEmpty())
+                    checkNotNull(NSData.dataWithContentsOfURL(
+                        NSURL.fileURLWithPath(localFile.path), options = NSDataReadingMappedIfSafe, error = null,
+                    ))
+                }
                 ensureActive()
-                val data = bytes.usePinned { NSData.create(bytes = it.addressOf(0), length = bytes.size.toULong()) }
                 val current = AVAudioPlayer(data = data, error = null)
                 current.enableRate = true
                 current.rate = speed
