@@ -14,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
@@ -96,7 +97,7 @@ class ApiSheetAudioRepositoryTest {
             assertEquals(expiresAt, audio.urlExpiresAt)
             assertEquals(18550L, audio.durationMs)
             assertEquals("아리랑 (내 편곡).m4a", audio.fileName)
-            assertEquals("audio/midi", accepted.audio.midi?.contentType)
+            assertEquals("audio/mp4", audio.contentType)
             assertNull(accepted.audio.pollAfterMs)
             assertNull(accepted.audio.failureCode)
         } finally { client.close() }
@@ -132,8 +133,7 @@ class ApiSheetAudioRepositoryTest {
             assertEquals(SheetAudioFailure.TooLarge, found.audio.failureCode)
             assertTrue(found.audio.outdated)
             assertEquals("3", found.audio.currentScoreVersion)
-            assertEquals(2048L, found.audio.midi?.byteSize)
-            assertEquals(expiresAt, found.audio.audio?.urlExpiresAt)
+            assertEquals(expiresAt, assertNotNull(found.audio.audio).urlExpiresAt)
             assertEquals("/api/users/me/sheets/12/audio", requests.single().url.encodedPath)
         } finally { client.close() }
     }
@@ -151,6 +151,15 @@ class ApiSheetAudioRepositoryTest {
         }
     }
 
+    @Test fun expiredDownloadHasNoFileAndCanBeRequestedAgain() = runTest {
+        val client = client { HttpStatusCode.OK to audioJson("FAILED", files = false, failureCode = "AUDIO_EXPIRED") }
+        try {
+            val result = assertIs<SheetAudioLookup.Found>(ApiSheetAudioRepository(client).status("12")).audio
+            assertEquals(SheetAudioFailure.Expired, result.failureCode)
+            assertNull(result.audio)
+        } finally { client.close() }
+    }
+
     @Test fun malformedAudioIsRejectedInsteadOfPlayed() = runTest {
         val bad = listOf(
             audioJson("DONE", audioUrl = "http://r2.example/plain.m4a"),
@@ -164,6 +173,22 @@ class ApiSheetAudioRepositoryTest {
             try {
                 assertEquals(SheetAudioLookup.Unavailable, ApiSheetAudioRepository(client).status("12"), body)
                 assertEquals(SheetAudioRequest.Unavailable, ApiSheetAudioRepository(client).request("12"), body)
+            } finally { client.close() }
+        }
+    }
+
+    @Test fun debugDownloadMustUseTheConfiguredLoopbackOrigin() = runTest {
+        val server = ServerAddress("http://127.0.0.1:18084")
+        val cases = listOf(
+            "http://127.0.0.1:18084/file.m4a" to true,
+            "http://127.0.0.1:18085/file.m4a" to false,
+            "http://127.0.0.1:18084@wrong.example/file.m4a" to false,
+        )
+        for ((url, allowed) in cases) {
+            val client = client { HttpStatusCode.OK to audioJson("DONE", audioUrl = url) }
+            try {
+                val response = ApiSheetAudioRepository(client, server = server).status("12")
+                assertEquals(allowed, response is SheetAudioLookup.Found)
             } finally { client.close() }
         }
     }

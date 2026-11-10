@@ -40,15 +40,20 @@ class SheetAudioDatabaseTests {
     @Autowired lateinit var purge: com.ssafy.eolssu.backend.feature.auth.application.WithdrawalPurgeService
     private val json=JsonMapper.builder().build()
     private val objects=mutableSetOf<String>()
+    private val downloadTtls=mutableListOf<Duration>()
     private var failPut=false
     private var failGeneration=false
     private var failDelete: (String)->Boolean={ false }
     private var deleteCrash=false
     private val storage=object: SheetSourceStorage {
         override val available=true
-        override fun put(key: String,file: Path,contentType: String) { objects.add(key); if(failPut && key.endsWith(".mid")) throw SheetSourceStorageException("fixture partial write $key") }
+        override fun put(key: String,file: Path,contentType: String) { objects.add(key); if(failPut) throw SheetSourceStorageException("fixture partial write $key") }
         override fun delete(key: String) { if(deleteCrash) throw IllegalStateException("fixture crash"); if(failDelete(key)) throw SheetSourceStorageException("fixture delete failure"); objects.remove(key) }
         override fun readUrl(key: String,ttl: Duration)="https://fixture.invalid/$key"
+        override fun downloadUrl(key: String,ttl: Duration,fileName: String): String {
+            downloadTtls += ttl
+            return readUrl(key,ttl)
+        }
     }
     private lateinit var audio: SheetAudios
     private fun fakeClient(generate: (String)->GeneratedSheetAudio)=object: PlaybackClient {
@@ -58,7 +63,7 @@ class SheetAudioDatabaseTests {
 
     @BeforeEach fun setup() {
         cleanup()
-        failPut=false; failGeneration=false; failDelete={ false }; deleteCrash=false; objects.clear(); routed=storage
+        failPut=false; failGeneration=false; failDelete={ false }; deleteCrash=false; objects.clear(); downloadTtls.clear(); routed=storage
         jdbc.update("INSERT INTO users(id,nickname,status,instrument_id) VALUES(994481,'음원 검사','ACTIVE',1),(994482,'다른 회원','ACTIVE',1)")
         jdbc.update("""INSERT INTO user_sheets(id,user_id,title,kind,source,status,jangdan_id,bpm,bpm_unit,column_count,score_version,score_json,note_count,idempotency_key,request_hash)
             SELECT 994481,994481,'음원 검사','JEONGGANBO','MANUAL','EVALUABLE',s.jangdan_id,s.default_bpm,
@@ -84,23 +89,113 @@ class SheetAudioDatabaseTests {
             val result = audio.get(994481, copy.sheetId)
             assertEquals("DONE", result.status)
             assertNotNull(result.audio)
-            assertNotNull(result.midi)
+            assertNull(result.midi)
         } finally {
             audio.delete(994481, copy.sheetId)
         }
     }
 
-    @Test fun `owned queued request becomes done and identical request reuses the same pair`() {
+    @Test fun `owned queued request publishes only M4A and identical request reuses it`() {
         assertEquals("QUEUED",audio.request(994481,994481,null,false,null).body.status)
         assertEquals(ErrorCode.AUDIO_IN_PROGRESS,assertFailsWith<SheetAudioRejection> { audio.request(994481,994481,null,false,null) }.code)
         assertEquals(ErrorCode.RESOURCE_NOT_FOUND,assertFailsWith<SheetAudioRejection> { audio.get(994482,994481) }.code)
         audio.runOne()
         assertEquals("DONE",audio.get(994481,994481).status)
-        assertEquals(2,objects.size)
+        assertTrue(objects.single().endsWith("/audio.m4a"))
         assertTrue(audio.request(994481,994481,null,false,null).reused)
-        assertEquals(2,objects.size)
+        assertTrue(objects.single().endsWith("/audio.m4a"))
     }
-    @Test fun `failed replacement preserves previous urls then successful replacement retires only old pair`() {
+
+    @Test fun `download expires at a fixed deadline and only a new request renders again`() {
+        val clock = MovingClock(Instant.parse("2026-11-05T00:00:00Z"))
+        var renders = 0
+        val worker = audioWith(fakeClient { renders++; made() }, clock)
+        worker.request(994481, 994481, null, false, null)
+        clock.now = clock.now.plusSeconds(5)
+        worker.runOne()
+        val deadline = clock.now.plus(Duration.ofMinutes(10))
+        val first = worker.get(994481, 994481)
+        assertEquals(deadline, assertNotNull(first.audio).urlExpiresAt)
+        assertNull(first.midi)
+        val oldKey = objects.single()
+
+        clock.now = deadline.minusSeconds(40)
+        assertEquals(deadline, assertNotNull(worker.get(994481, 994481).audio).urlExpiresAt)
+        assertTrue(worker.request(994481, 994481, null, false, null).reused)
+        assertEquals(1, renders)
+        assertEquals(listOf(Duration.ofMinutes(10), Duration.ofSeconds(40), Duration.ofSeconds(40)), downloadTtls)
+
+        clock.now = deadline
+        val expired = worker.get(994481, 994481)
+        assertEquals("FAILED", expired.status)
+        assertEquals("AUDIO_EXPIRED", expired.failureCode)
+        assertNull(expired.audio)
+        worker.runOne()
+        assertTrue(objects.isEmpty())
+        assertEquals(1, renders)
+
+        assertFalse(worker.request(994481, 994481, null, false, null).reused)
+        worker.runOne()
+        assertEquals(2, renders)
+        assertNotEquals(oldKey, objects.single())
+        assertNotNull(worker.get(994481, 994481).audio)
+    }
+    @Test fun `cleanup retries deletion and preserves a newer queued request when its previous download expires`() {
+        val clock = MovingClock(Instant.parse("2026-11-05T00:00:00Z"))
+        val worker = audioWith(fakeClient { made() }, clock)
+        worker.request(994481, 994481, null, false, null)
+        worker.runOne()
+        val oldKey = objects.single()
+        clock.now = clock.now.plusSeconds(590)
+        worker.request(994481, 994481, null, false, 90)
+        assertNotNull(worker.get(994481, 994481).audio)
+
+        clock.now = clock.now.plusSeconds(10)
+        failDelete = { it == oldKey }
+        worker.cleanup()
+        assertEquals(setOf(oldKey), objects)
+        val queued = worker.get(994481, 994481)
+        assertEquals("QUEUED", queued.status)
+        assertNull(queued.failureCode)
+        assertNull(queued.audio)
+        assertEquals(listOf(oldKey), mapper.retiredForSheet(994481))
+
+        failDelete = { false }
+        worker.runOne()
+        assertNotEquals(oldKey, objects.single())
+        assertEquals("DONE", worker.get(994481, 994481).status)
+        assertEquals(90, worker.get(994481, 994481).bpm)
+        assertTrue(mapper.retiredForSheet(994481).isEmpty())
+    }
+
+    @Test fun `legacy files receive no new links and retire when their generation is replaced`() {
+        audio.request(994481, 994481, null, false, null)
+        audio.runOne()
+        val row = assertNotNull(mapper.find(994481, 994481))
+        val oldAudioKey = objects.single()
+        val oldMidiKey = oldAudioKey.substringBeforeLast('/') + "/score.mid"
+        mapper.objectPending(oldMidiKey, 994481, row.generation)
+        mapper.resolveObjects(row.generation, "CURRENT")
+        objects.add(oldMidiKey)
+        jdbc.update("""UPDATE sheet_audios SET result_expires_at=NULL,
+            result_json=JSON_SET(result_json,'$.midi',JSON_OBJECT('key',?,'byteSize',14,'fileName','old.mid'))
+            WHERE sheet_id=994481""", oldMidiKey)
+
+        val legacy = audio.get(994481, 994481)
+        assertEquals("AUDIO_EXPIRED", legacy.failureCode)
+        assertNull(legacy.audio)
+        assertNull(legacy.midi)
+        assertTrue(downloadTtls.isEmpty())
+        audio.cleanup()
+        assertEquals(setOf(oldAudioKey, oldMidiKey), objects)
+
+        assertFalse(audio.request(994481, 994481, null, false, null).reused)
+        audio.runOne()
+        assertNotEquals(oldAudioKey, objects.single())
+        assertNull(audio.get(994481, 994481).midi)
+    }
+
+    @Test fun `failed replacement preserves the previous unexpired download until successful replacement`() {
         audio.request(994481,994481,null,false,null); audio.runOne()
         val previous=objects.toSet()
         failGeneration=true
@@ -112,10 +207,10 @@ class SheetAudioDatabaseTests {
         assertEquals(previous,objects)
         failGeneration=false
         audio.request(994481,994481,null,false,90); audio.runOne()
-        assertEquals(2,objects.size)
+        assertEquals(1,objects.size)
         assertTrue(objects.intersect(previous).isEmpty())
     }
-    @Test fun `partial object upload failure is compensated and deletion clears the successful pair`() {
+    @Test fun `partial object upload failure is compensated and deletion clears the completed download`() {
         failPut=true
         audio.request(994481,994481,null,false,null); audio.runOne()
         assertEquals("FAILED",audio.get(994481,994481).status)
@@ -230,7 +325,7 @@ class SheetAudioDatabaseTests {
         assertFalse(remoteStatus().path("audio").isObject)
         audio.request(994481,994481,null,false,null); audio.runOne()
         assertEquals("DONE",audio.get(994481,994481).status)
-        assertEquals(2,objects.size)
+        assertEquals(1,objects.size)
         assertEquals(204,deleteSheet().statusCode())
         assertEquals(0,sheetCount())
         assertTrue(objects.isEmpty())
@@ -333,7 +428,7 @@ class SheetAudioDatabaseTests {
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_audio_objects WHERE state='CURRENT' AND sheet_id=994481",Int::class.java))
         audio.runOne(); audio.runOne()
         assertEquals("DONE",audio.get(994481,994481).status)
-        assertEquals(2,objects.size)
+        assertEquals(1,objects.size)
     }
     @Test fun `an unexpected deletion failure also leaves the sheet usable`() {
         audio.request(994481,994481,null,false,null); audio.runOne()
@@ -515,7 +610,7 @@ class SheetAudioDatabaseTests {
     }
     @Test
     @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="PLAYBACK_TEST_BASE_URL",matches=".+")
-    fun `real CAT HTTP generation persists a pair and exposes its signed download metadata`() {
+    fun `real CAT HTTP generation stores only M4A and exposes its signed download metadata`() {
         val real=SheetAudios(mapper,sheets,scores,SheetAudioJangdanResolver { null },storage,
             HttpPlaybackClient(System.getenv("PLAYBACK_TEST_BASE_URL"),Duration.ofSeconds(100),json),json,Clock.systemUTC(),manager)
         assertFalse(real.request(994481,994481,null,false,null).reused)
@@ -526,7 +621,8 @@ class SheetAudioDatabaseTests {
         assertEquals("음원 검사.m4a",file.fileName)
         assertTrue(assertNotNull(file.durationMs)>0)
         assertTrue(assertNotNull(file.sha256).matches(Regex("[0-9a-f]{64}")))
-        assertEquals(2,objects.size)
+        assertEquals(1,objects.size)
+        assertNull(result.midi)
     }
     @Test
     @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="PLAYBACK_TEST_BASE_URL",matches=".+")

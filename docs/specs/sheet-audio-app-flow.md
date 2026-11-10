@@ -1,5 +1,7 @@
 # 내 악보 음원 생성·재생 앱 흐름 (SHT-12·13 FE 반영)
 
+S15P31E102-684부터 다운로드와 재생 동작은 [임시 M4A 다운로드와 기기 재생](sheet-audio.md#임시-m4a-다운로드와-기기-재생-s15p31e102-684)을 따릅니다. 아래는 484의 구현 기록입니다.
+
 - Jira: [S15P31E102-484](https://ssafy.atlassian.net/browse/S15P31E102-484), Story [S15P31E102-319](https://ssafy.atlassian.net/browse/S15P31E102-319). 진행: [484 계획](../plans/S15P31E102-484.md). 서버 구현: [S15P31E102-481](https://ssafy.atlassian.net/browse/S15P31E102-481)(미구현). 편집·저장 전체 연결: [S15P31E102-351](https://ssafy.atlassian.net/browse/S15P31E102-351).
 - 근거: [Notion API 명세](https://app.notion.com/p/API-3fea0252aa45804cb9f0f896ec0310ad)의 SHT-12·SHT-13(2026-11-04 개편본, 2026-11-04 브라우저로 읽음). 이전 설계(10분 다운로드 링크, 쿠키 없는 토큰, 서버 비저장, `sheet_export_links`)는 더 이상 쓰지 않는다. [내 악보 스펙](user-sheets.md)의 '2차 결정' SHT-12·13 줄은 이전 초안이며 백엔드 481에서 고친다.
 - 상태: FE 구현 기준. 서버가 없어 실호출·기기 검증은 하지 않았다.

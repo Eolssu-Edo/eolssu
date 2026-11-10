@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.song
 
+import com.ssafy.eolssu.core.audio.LocalAudioFile
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.ScorePerformance
 import com.ssafy.eolssu.core.network.apiResponse
@@ -36,7 +37,7 @@ data class ModelAudio(
             it.audioDurationMs == durationMs && it.audioStartOffsetMs == startOffsetMs } ?: true)
 }
 
-data class SheetPlayback(val withJangdan: Boolean, val urlExpiresAt: Long)
+data class SheetPlayback(val withJangdan: Boolean, val localFile: LocalAudioFile)
 
 interface ModelAudioRepository {
     /** null means no published matching audio. Transport/protocol failures throw [CatalogUnavailable]. */
