@@ -28,7 +28,6 @@ import kotlinx.coroutines.launch
  *
  * @property loading 데이터를 받는 중. 끝났는데 [song]·[result]가 없으면 찾지 못한 것이다.
  * @property section 서버가 추천한 취약 구간(각 전체). 추천할 구간이 없거나 받지 못하면 null.
- * @property selectedCell 눌러 고른 정간. null이면 [shownCell]이 취약 구간의 첫 오류를 고른다.
  */
 data class ResultErrorsUiState(
     val loading: Boolean = true,
@@ -37,7 +36,6 @@ data class ResultErrorsUiState(
     val song: Song? = null,
     val result: EvaluationResult? = null,
     val filter: ErrorFilter = ErrorFilter.All,
-    val selectedCell: ScoreCellPosition? = null,
     val section: ScoreSection? = null,
 ) {
     val songTitle: String? get() = song?.title?.let { title ->
@@ -46,13 +44,6 @@ data class ResultErrorsUiState(
 
     /** 취약 구간 안의 틀린 정간 수. */
     val sectionErrorCount: Int get() = section?.let { sec -> result?.errors?.filter { sec.contains(it.column, it.row) }?.distinctBy { it.column to it.row }?.size } ?: 0
-
-    /** 고른 정간. 고르지 않았으면 추천 취약 구간의 첫 오류, 추천이 없으면 틀린 정간이 가장 몰린 곳의 첫 오류다. */
-    val shownCell: ScoreCellPosition?
-        get() = selectedCell
-            ?: section?.let { sec -> result?.errors?.filter { sec.contains(it.column, it.row) }?.minWithOrNull(compareBy({ it.column }, { it.row })) }
-                ?.let { ScoreCellPosition(it.column, it.row) }
-            ?: result?.defaultSelectedCell()
 }
 
 class ResultErrorsViewModel(
@@ -116,7 +107,4 @@ class ResultErrorsViewModel(
     }
 
     fun selectFilter(filter: ErrorFilter) = _uiState.update { it.copy(filter = filter) }
-
-    fun selectCell(cell: ScoreCellPosition) = _uiState.update { it.copy(selectedCell = cell) }
-
 }
