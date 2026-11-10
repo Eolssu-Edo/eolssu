@@ -23,8 +23,10 @@ from urllib.parse import parse_qs, urlsplit
 import uuid
 
 TARGETS = ('edo1', 'edo2')
-MODES = {f'/{target}-{mode}': mode for target in TARGETS for mode in ('server', 'containers', 'health')}
-COMMAND_TARGETS = {command: command.split('-')[0][1:] for command in MODES}
+COLLECTION_MODES = ('health', 'server', 'containers')
+MODES = {f'/{target}-{mode}': mode for target in TARGETS for mode in COLLECTION_MODES}
+MODES.update({f'/{target}': 'overview' for target in TARGETS})
+COMMAND_TARGETS = {command: command[1:].split('-', 1)[0] for command in MODES}
 ENDPOINT = '/integrations/mattermost/commands'
 APPLOG = '/applog'
 APPLOG_DATABASE = Path('/var/log/eolssu-qa-perf/events.sqlite3')
@@ -99,10 +101,11 @@ def validate_config(config):
             if not isinstance(values, list) or not values or not all(isinstance(value, str) and value for value in values):
                 raise ValueError('invalid applog access list')
     for target in TARGETS:
-        group = {command for command in MODES if COMMAND_TARGETS[command] == target}
-        if commands & group:
-            if not group.issubset(commands):
-                raise ValueError('incomplete target command group')
+        overview = f'/{target}'
+        legacy = {f'/{target}-{mode}' for mode in COLLECTION_MODES}
+        if overview not in commands and commands & legacy and not legacy.issubset(commands):
+            raise ValueError('incomplete target command group')
+        if overview in commands or commands & legacy:
             settings = target_settings(config, target)
             if any(not settings.get(key) for key in ('ssh_target', 'known_hosts', 'identity_file', 'service_host')):
                 raise ValueError('incomplete target configuration')
@@ -917,6 +920,7 @@ class App:
         self.lock = threading.Lock()
         self.seen = {}
         self.last_run = {}
+        self.active_targets = set()
         self.slots = threading.BoundedSemaphore(3)
         self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=3)
         if self.config.get('applog'):
@@ -930,7 +934,8 @@ class App:
         key = hashlib.sha256(request['response_url'].encode()).hexdigest()
         if request['mode'] == 'applog':
             return self.submit_applog(request, key)
-        throttle = (request['channel_id'], request['target'], request['mode'])
+        target, mode = request['target'], request['mode']
+        throttle = (request['channel_id'], target, mode)
         now = time.monotonic()
         with self.lock:
             self.seen = {k: v for k, v in self.seen.items() if now - v < 1800}
@@ -938,13 +943,15 @@ class App:
                 return '이미 접수한 점검 요청입니다.'
             if now - self.last_run.get(throttle, -1000) < 10:
                 return '같은 점검은 10초 후 다시 요청하세요.'
-            if len(self.seen) >= 512 or not self.slots.acquire(blocking=False):
+            if target in self.active_targets or len(self.seen) >= 512 or not self.slots.acquire(blocking=False):
                 return '점검 실행 중입니다. 잠시 후 다시 요청하세요.'
+            self.active_targets.add(target)
             self.seen[key] = now
             self.last_run[throttle] = now
         request_id = uuid.uuid4().hex[:10]
         self.pool.submit(self.run, request, request_id)
-        return f"⏳ {request['target']} {MODE_LABELS[request['mode']]} 점검을 시작했습니다. 완료 후 이 채널에 공개합니다. 요청 {request_id}"
+        label = target if mode == 'overview' else f'{target} {MODE_LABELS[mode]}'
+        return f'⏳ {label} 점검을 시작했습니다. 완료 후 이 채널에 공개합니다. 요청 {request_id}'
 
     def submit_applog(self, request, key):
         now = time.monotonic()
@@ -984,39 +991,78 @@ class App:
                 logging.error('applog_retention_failed error=%s', type(error).__name__)
             time.sleep(3600)
 
+    def collect(self, settings, target, mode):
+        ssh = ['ssh', '-4', '-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
+               '-o', 'ConnectTimeout=8', '-o', 'IdentitiesOnly=yes',
+               '-o', 'UserKnownHostsFile=' + settings['known_hosts'],
+               '-i', settings['identity_file'], settings['ssh_target'], mode]
+        completed = subprocess.run(ssh, capture_output=True, timeout=90, check=True)
+        if len(completed.stdout) > 250000:
+            raise ValueError('oversize result')
+        result = json.loads(completed.stdout)
+        if result.get('mode') != mode or result.get('target', 'edo1') != target:
+            raise ValueError('unexpected collection target or mode')
+        columns, rows = result['columns'], result['rows']
+        minimum_columns = 4 if mode == 'health' else 1
+        if (not isinstance(columns, list) or not minimum_columns <= len(columns) <= 20
+                or not isinstance(rows, list)
+                or any(not isinstance(row, list) or len(row) != len(columns) for row in rows)):
+            raise ValueError('unexpected collection table')
+        result['target'] = target
+        return result
+
+    def collect_overview(self, settings, target, request_id):
+        results = {}
+        # Keep Docker disk-usage scans sequential on each host.
+        for mode in COLLECTION_MODES:
+            try:
+                results[mode] = self.collect(settings, target, mode)
+            except Exception as error:
+                logging.error('collection_failed request=%s target=%s mode=%s error=%s',
+                              request_id, target, mode, type(error).__name__)
+        if 'health' not in results:
+            results['health'] = {
+                'target': target, 'mode': 'health',
+                'columns': ['대상', '위치/방식', '판정', '응답/측정값', '소요', '상세'],
+                'rows': [[f'{target} 내부 상태', 'SSH 수집', '미측정', '수집 실패', '—', 'SSH 연결·점검 로그 확인']],
+            }
+        return results
+
     def run(self, request, request_id):
         target = request.get('target', 'edo1')
+        mode = request['mode']
         started = time.monotonic()
         try:
             settings = target_settings(self.config, target)
-            ssh = ['ssh', '-4', '-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
-                   '-o', 'ConnectTimeout=8', '-o', 'IdentitiesOnly=yes',
-                   '-o', 'UserKnownHostsFile=' + settings['known_hosts'],
-                   '-i', settings['identity_file'], settings['ssh_target'], request['mode']]
-            completed = subprocess.run(ssh, capture_output=True, timeout=90, check=True)
-            if len(completed.stdout) > 250000:
-                raise ValueError('oversize result')
-            result = json.loads(completed.stdout)
-            if result.get('mode') != request['mode'] or result.get('target', 'edo1') != target:
-                raise ValueError('unexpected collection target or mode')
-            result['target'] = target
-            if request['mode'] == 'health':
-                result['rows'].extend(external_health(settings['service_host'], target=target))
-            result['captured_at'] = datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S KST')
-            result['elapsed_seconds'] = round(time.monotonic()-started, 2)
-            report = build_report(result, request_id)
+            results = (self.collect_overview(settings, target, request_id) if mode == 'overview'
+                       else {mode: self.collect(settings, target, mode)})
+            if 'health' in results:
+                results['health']['rows'].extend(external_health(settings['service_host'], target=target))
+            captured_at = datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S KST')
+            elapsed_seconds = round(time.monotonic() - started, 2)
+            if mode == 'overview':
+                reports = build_overview(target, results, request_id, captured_at, elapsed_seconds)
+            else:
+                result = dict(results[mode], captured_at=captured_at, elapsed_seconds=elapsed_seconds)
+                reports = [build_report(result, request_id)]
         except subprocess.TimeoutExpired:
-            report = f'🚫 **{target} 점검 시간 초과** · 요청 {request_id}. 수집 결과 미측정입니다. 같은 명령을 1회 재실행하고 반복되면 edo2의 edo-check journal에서 해당 요청 ID를 확인하세요.'
+            reports = [f'🚫 **{target} 점검 시간 초과** · 요청 {request_id}. 수집 결과 미측정입니다. 같은 명령을 1회 재실행하고 반복되면 edo2의 edo-check journal에서 해당 요청 ID를 확인하세요.']
         except Exception:
-            logging.error('collection_failed request=%s target=%s mode=%s', request_id, target, request['mode'])
-            report = f'🚫 **{target} 점검 실패** · 요청 {request_id}. 수집 결과 미측정입니다. 운영자는 edo2→{target} SSH 연결과 edo-check journal의 해당 요청 ID를 확인하세요.'
+            logging.error('collection_failed request=%s target=%s mode=%s', request_id, target, mode)
+            reports = [f'🚫 **{target} 점검 실패** · 요청 {request_id}. 수집 결과 미측정입니다. 운영자는 edo2→{target} SSH 연결과 edo-check journal의 해당 요청 ID를 확인하세요.']
         try:
-            post_callback(request['response_url'], report)
-            logging.info('delivered request=%s target=%s mode=%s', request_id, target, request['mode'])
-        except Exception:
-            logging.error('delivery_failed request=%s target=%s mode=%s', request_id, target, request['mode'])
+            for part, report in enumerate(reports, 1):
+                try:
+                    post_callback(request['response_url'], report)
+                    logging.info('delivered request=%s target=%s mode=%s part=%s/%s',
+                                 request_id, target, mode, part, len(reports))
+                except Exception:
+                    logging.error('delivery_failed request=%s target=%s mode=%s part=%s/%s',
+                                  request_id, target, mode, part, len(reports))
         finally:
-            self.slots.release()
+            with self.lock:
+                self.active_targets.discard(target)
+                self.slots.release()
 
 
 def external_health(host, target='edo1'):
