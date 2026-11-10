@@ -2,6 +2,7 @@
 
 - [기존 악보를 유지한 36곡 AI 채점 활성화 (704)](plans/S15P31E102-704.md) · [스펙](specs/existing-score-enablement.md) · [대조·AI 입력 근거](knowledge/data/existing-score-enablement.md)
 - [Android 카카오·네이버 간편 로그인 앱 복귀 실패 수정 (687)](plans/S15P31E102-687.md)
+- [채점 비활성 공개 46곡의 원본·운영 악보 대조 (699)](knowledge/data/catalog-notation-restoration.md#2026-11-10-채점-비활성-46곡-재점검) · [교정 스펙](specs/catalog-scoring-repair.md) · [계획·운영 검증](plans/S15P31E102-699.md)
 - [닉네임 최대 10자 서버 검증 (685)](plans/S15P31E102-685.md)
 - [기초부터 배우기 1·7단계 반복 할 일 서버 문구 정리 (656)](plans/S15P31E102-656.md)
 - [기초부터 배우기 4~6단계 따라 배우기 반복 칸 정리 (655)](plans/S15P31E102-655.md)

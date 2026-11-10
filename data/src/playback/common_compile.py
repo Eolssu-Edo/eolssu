@@ -53,7 +53,7 @@ def compile_slots(source, base_score, base_map, slots, config, continuations):
                     f'{label}: 각 경계 지속은 바로 앞 각의 본음과 첫 지속칸이 필요합니다')
             loc['gak_continuation'] = dict(continuations[gak])
         if group['kind'] == 'hold' and notes and not notes[-1].get('rest') and (
-                active_event == slot['eventId'] and active_gak == gak or crosses):
+                active_event == slot['eventId'] or crosses):
             target = notes[sustain_index]
             require(not target.get('breath_seconds'), f'{label}: 숨표 뒤의 연장은 명시한 새 음이 필요합니다')
             expr.validate_sustain_effects(target, group, label)

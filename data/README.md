@@ -395,3 +395,14 @@ python -m unittest discover -s data/tests -p 'test_*.py' -v
 합성 WAV·MP3와 임시 악보로 포맷·구간 저장·원본 복사·파일별 라벨 병합·선택 번호·참조 누락·중복·분석창·검수 상태·출력 보호를 검사합니다. 서버 경로도 별도 임시 루트로 시험합니다. 이 회귀 검사는 실제 악기 데이터의 수집·라벨링 검증이나 율명의 음악적 정답 검증을 대신하지 않습니다. 실제 원음을 사용한 결과는 각 악기의 검수 기록을 확인합니다.
 
 sources v2·v3의 펼친 원본 및 출력 바이트 동등성, 프로필 참조·개별 값 우선 적용·명시적 `null`·객체 독립성도 검사합니다. 원본 검증 CLI는 임시 원본으로 기존 목록과 프로필 목록의 성공·파일 누락·크기·해시 오류 처리를 확인합니다.
+
+## 비채점 카탈로그 교정 (699)
+
+`src/scores/repair_scoring.py`는 고정한 운영 snapshot과 동일 원본 JGB를 다시 대조한 뒤 9곡 교정본을 만든다. 기존 파일이 목표와 다르면 덮어쓰지 않는다. 저장소 루트에서 다음을 실행한다. 원본 JGB의 경로는 조사 보고서 `sourcePath`에 있어야 한다.
+
+```powershell
+python -m data.src.scores.repair_scoring --snapshots data/processed/scoring-audit-699 --audit-report data/processed/scoring-audit-699/comparison.json --plan infra/catalog/scoring-plans/repair-699.json --evidence data/processed/scoring-audit-699/repair-evidence.json
+python -m unittest data.tests.test_repair_scoring data.tests.test_rebind_performance
+```
+
+동일 명령에 `--check`를 더하면 생성 파일을 읽기 전용으로 대조한다. `rebind_performance()`는 확인한 이벤트 대응표와 실제 파일 SHA를 받아 기존 음원의 구간별 시간을 새 악보에 연결한다. 다른 길이·일반 음높이·숨표가 바뀌면 재사용을 거절한다. 따라서 104·109는 교정·숨표를 반영한 음원을 별도로 생성했다. 운영 적용과 보류 중인 오나라의 조건은 [실행 기록](../docs/plans/S15P31E102-699.md#2026-11-10-운영-적용-결과), [catalog 명령](../infra/catalog/README.md#교정-9곡의-악보음원-동시-적용-699)에 있다.

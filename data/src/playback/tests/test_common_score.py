@@ -13,6 +13,44 @@ from data.src.playback.tests._helpers import sampler, common_small_score as smal
 
 
 class CommonScorePlaybackTests(unittest.TestCase):
+    def test_sustained_note_crosses_columns_as_one_midi_note(self):
+        for symbol in ("", "-"):
+            with self.subTest(symbol=symbol):
+                source = cross_column_score(symbol)
+                normalized, mapping = convert_common_score(source, bpm=30, instrument="danso", input_sha256="a"*64)
+                perf = compile_score(normalized, "danso")
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = Path(tmp) / "out.mid"
+                    write_midi(perf, path)
+                    midi = read_midi(path)
+                self.assertEqual(len(midi["notes"]), 1)
+                self.assertEqual(perf["events"][0]["parent_ids"], ["c0-j0-r1-u0"])
+                self.assertAlmostEqual(midi["notes"][0]["start"], .5)
+                self.assertAlmostEqual(midi["notes"][0]["end"] + midi["notes"][0]["release_seconds"], 6, delta=.0001)
+                self.assertEqual(mapping["total_ticks"], 14)
+                self.assertEqual(mapping["score_seconds"], 7)
+                sustained = mapping["events"][1]
+                self.assertEqual(sustained["duration_seconds"], 5.5)
+                self.assertEqual([u["cellId"] for u in sustained["displayUnits"]],
+                                 ["c0-j0", "c0-j1", "c0-j2", "c1-j0", "c1-j1", "c1-j2"])
+
+    def test_cross_column_continuations_reject_invalid_references_pitch_and_time(self):
+        changes = [
+            (lambda s: s["columns"][1]["cells"][0]["units"][0].update(eventId="missing"), "eventId"),
+            (lambda s: s["columns"][1]["cells"][0]["units"][0].update(eventId=s["events"][-1]["id"]), "시간"),
+            (lambda s: s["columns"][1]["cells"][0]["units"][0].update(symbol="황"), "율명"),
+            (lambda s: s["columns"][1]["cells"][0]["units"][0].update(symbol="남"), "율명"),
+            (lambda s: (s["events"][1].update(durationTick=5), s["events"][2].update(startTick=6, durationTick=8)), "시간"),
+            (lambda s: s["events"][1].update(cellId="c1-j0"), "시작 정간"),
+            (lambda s: s["columns"][0]["cells"][0]["units"][1].update(symbol=""), "시작 음"),
+        ]
+        for change, message in changes:
+            with self.subTest(message=message):
+                source = cross_column_score()
+                change(source)
+                with self.assertRaisesRegex(ValueError, message):
+                    convert_common_score(source, bpm=30, instrument="danso", input_sha256="a"*64)
+
     def test_invalid_integer_and_subdivision_identify_input_location(self):
         for value, location in ((1.0, "music.ticksPerBeat"), (7, "c0-j0-r0-u0")):
             with self.subTest(value=value):
@@ -113,6 +151,27 @@ class CommonScorePlaybackTests(unittest.TestCase):
             self.assertEqual(mapping["total_ticks"], 144)
             self.assertEqual(mapping["score_seconds"], 30)
             self.assertAlmostEqual(manifest["results"][0]["seconds"], 30.55, delta=.0001)
+
+
+def cross_column_score(symbol=""):
+    """Authored two-column fixture: rest, 5.5-second sustain, rest at BPM 30."""
+    source = small_score()
+    source["music"].update(ticksPerBeat=4, ticksPerJeonggan=2)
+    rest, note, end = "c0-j0-r0-u0", "c0-j0-r1-u0", "c1-j3-r0-u0"
+    source["events"] = [
+        {**source["events"][0], "durationTick": 1},
+        {**source["events"][1], "id": note, "cellId": "c0-j0", "yul": "남", "startTick": 1, "durationTick": 11},
+        {**source["events"][3], "id": end, "cellId": "c1-j3", "startTick": 12, "durationTick": 2},
+    ]
+    source["columns"] = [{"index": c, "cells": [
+        {"id": f"c{c}-j{j}", "index": j, "units": [{"row": 0, "col": 0, "symbol": symbol, "eventId": note}]}
+        for j in range(count)]} for c, count in enumerate((3, 4))]
+    source["columns"][0]["cells"][0]["units"] = [
+        {"row": 0, "col": 0, "symbol": "쉼", "eventId": rest},
+        {"row": 1, "col": 0, "symbol": "남", "eventId": note},
+    ]
+    source["columns"][1]["cells"][3]["units"][0].update(symbol="쉼", eventId=end)
+    return source
 
 
 if __name__ == "__main__":
