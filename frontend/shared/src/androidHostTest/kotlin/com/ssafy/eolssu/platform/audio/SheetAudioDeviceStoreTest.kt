@@ -2,6 +2,7 @@ package com.ssafy.eolssu.platform.audio
 
 import com.ssafy.eolssu.core.audio.FileSheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.SheetAudioDownload
+import com.ssafy.eolssu.core.audio.SheetAudioPerformance
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -23,6 +24,9 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.files.Path
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class SheetAudioDeviceStoreTest {
     @Test
@@ -50,6 +54,35 @@ class SheetAudioDeviceStoreTest {
             reopened.delete("5", "27")
             assertNull(reopened.find("5", "27", "2"))
             assertFalse(File(stored.localFile.path).exists())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun performanceSurvivesRestartOnlyWithItsVerifiedAudioAndVersion() = runTest {
+        val directory = createTempDirectory().toFile()
+        val bytes = m4a(1)
+        val info = download(bytes)
+        val sourceHash = "b".repeat(64)
+        val timeline = buildJsonObject {
+            put("sourceSha256", sourceHash)
+            put("audioSha256", info.sha256)
+            put("scoreVersion", 2)
+            put("fixture", JsonPrimitive("x".repeat(2048)))
+        }
+        val performance = SheetAudioPerformance(sourceHash, timeline)
+        val engine = MockEngine { respond(bytes, headers = audioHeaders) }
+        try {
+            val stored = assertNotNull(store(directory, engine).save("5", "27", "2", info.copy(performance = performance)))
+            assertEquals(performance, stored.performance)
+            val reopened = store(directory, engine)
+            assertEquals(performance, assertNotNull(reopened.find("5", "27", "2")).performance)
+            assertNull(reopened.find("5", "27", "3"))
+            val replacement = assertNotNull(reopened.save("5", "27", "3", info.copy(performance = performance)))
+            assertNull(replacement.performance)
+            assertNull(reopened.find("5", "27", "2"))
+            assertContentEquals(bytes, File(replacement.localFile.path).readBytes())
         } finally {
             directory.deleteRecursively()
         }

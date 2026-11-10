@@ -85,6 +85,7 @@
 - [업로드 원본 임시 처리·비보관 전환 (534)](plans/S15P31E102-534.md) · [수명주기·검증 경계](knowledge/backend/temporary-sheet-source-lifecycle.md) · [현행 정책](specs/user-sheets.md#업로드-원본-비보관-정책-2026-11-06-확정-s15p31e102-534)
 
 - [내 악보 음원 생성·보관 API](specs/sheet-audio.md) · [481 계획·검증](plans/S15P31E102-481.md) · [삭제·재시작 복구 근거](knowledge/backend/sheet-audio-recovery.md)
+- [내 악보 생성 음원의 실제 연주 위치 (675)](plans/S15P31E102-675.md)
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
 
 - [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)

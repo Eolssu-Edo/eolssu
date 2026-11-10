@@ -7,6 +7,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.net.http.HttpTimeoutException
 import java.nio.ByteBuffer
+import java.security.MessageDigest
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
@@ -15,9 +16,16 @@ import java.util.concurrent.Flow
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.zip.ZipInputStream
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
-data class GeneratedSheetAudio(val m4a: ByteArray,val midi: ByteArray,val durationMs: Long)
+private const val PERFORMANCE_ENTRY = "performance.common.json"
+private const val PERFORMANCE_SOURCE_HEADER = "X-Eolssu-Performance-Source-Sha256"
+private const val MAX_PERFORMANCE_BYTES = 2 * 1024 * 1024
+
+data class GeneratedSheetAudio(val m4a: ByteArray, val midi: ByteArray, val durationMs: Long, val performance: JsonNode? = null)
+
+internal fun ByteArray.sheetAudioSha256(): String = MessageDigest.getInstance("SHA-256").digest(this).toHexString()
 class PlaybackFailure(val reason: String): RuntimeException(reason)
 fun interface PlaybackClient {
     fun generate(requestJson: String): GeneratedSheetAudio
@@ -52,9 +60,13 @@ class HttpPlaybackClient(private val baseUrl: String, private val timeout: Durat
     override fun generate(requestJson: String): GeneratedSheetAudio {
         if(!configured) throw PlaybackFailure("SERVER_ERROR")
         try {
+            val snapshot = json.readTree(requestJson)
+            val sourceHash = snapshot.path("score").takeIf(JsonNode::isObject)
+                ?.let { json.writeValueAsBytes(it).sheetAudioSha256() }
             val request=HttpRequest.newBuilder(URI(baseUrl.trimEnd('/')+"/v1/render")).timeout(timeout)
-                .header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(requestJson)).build()
-            val future=client.sendAsync(request,HttpResponse.BodyHandler { LimitedBody(17*1024*1024) })
+                .header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(requestJson))
+            sourceHash?.let { request.header(PERFORMANCE_SOURCE_HEADER, it) }
+            val future=client.sendAsync(request.build(),HttpResponse.BodyHandler { LimitedBody(17*1024*1024 + MAX_PERFORMANCE_BYTES) })
             val response=try { future.get(timeout.toMillis(),TimeUnit.MILLISECONDS) } finally { if(!future.isDone) future.cancel(true) }
             if(response.statusCode()==409) throw PlaybackFailure("BUSY")
             if(response.statusCode()!=200) {
@@ -62,7 +74,7 @@ class HttpPlaybackClient(private val baseUrl: String, private val timeout: Durat
                 throw PlaybackFailure(code?.takeIf { it in setOf("TIMEOUT","TOO_LARGE") } ?: "SERVER_ERROR")
             }
             if(response.headers().firstValue("Content-Type").orElse("").substringBefore(';')!="application/zip") throw PlaybackFailure("SERVER_ERROR")
-            return decode(response.body())
+            return decode(response.body(), snapshot, sourceHash)
         } catch(e: PlaybackFailure) { throw e
         } catch(_: TimeoutException) { throw PlaybackFailure("TIMEOUT")
         } catch(_: HttpTimeoutException) { throw PlaybackFailure("TIMEOUT")
@@ -71,25 +83,55 @@ class HttpPlaybackClient(private val baseUrl: String, private val timeout: Durat
         } catch(_: Exception) { throw PlaybackFailure("SERVER_ERROR") }
     }
 
-    internal fun decode(bytes: ByteArray): GeneratedSheetAudio {
+    internal fun decode(bytes: ByteArray, snapshot: JsonNode? = null, sourceHash: String? = null): GeneratedSheetAudio {
         val files=mutableMapOf<String,ByteArray>()
         ZipInputStream(bytes.inputStream()).use { zip ->
             while(true) {
                 val entry=zip.nextEntry ?: break
-                val limit=when(entry.name) { "audio.m4a" -> 15*1024*1024; "score.mid" -> 1024*1024; "result.json" -> 4096; else -> throw PlaybackFailure("SERVER_ERROR") }
+                val limit = when (entry.name) {
+                    "audio.m4a" -> 15 * 1024 * 1024
+                    "score.mid" -> 1024 * 1024
+                    "result.json" -> 4096
+                    PERFORMANCE_ENTRY -> MAX_PERFORMANCE_BYTES
+                    else -> throw PlaybackFailure("SERVER_ERROR")
+                }
                 if(entry.isDirectory || files.containsKey(entry.name)) throw PlaybackFailure("SERVER_ERROR")
                 val payload=zip.readNBytes(limit+1)
                 if(payload.isEmpty() || payload.size>limit) throw PlaybackFailure("TOO_LARGE")
                 files[entry.name]=payload
             }
         }
-        if(files.size!=3) throw PlaybackFailure("SERVER_ERROR")
-        val m4a=checkNotNull(files["audio.m4a"])
-        val midi=checkNotNull(files["score.mid"])
+        val m4a = files["audio.m4a"] ?: throw PlaybackFailure("SERVER_ERROR")
+        val midi = files["score.mid"] ?: throw PlaybackFailure("SERVER_ERROR")
+        val result = files["result.json"] ?: throw PlaybackFailure("SERVER_ERROR")
         if(m4a.size<12 || String(m4a,4,4,Charsets.US_ASCII)!="ftyp" || midi.size<14 || String(midi,0,4,Charsets.US_ASCII)!="MThd") throw PlaybackFailure("SERVER_ERROR")
-        val duration=json.readTree(files["result.json"]).path("durationMs")
+        val duration=json.readTree(result).path("durationMs")
         if(!duration.isIntegralNumber || duration.longValue() !in 1..600000) throw PlaybackFailure("SERVER_ERROR")
-        return GeneratedSheetAudio(m4a,midi,duration.longValue())
+        val performance = if (snapshot != null && sourceHash != null) {
+            files[PERFORMANCE_ENTRY]?.let { payload ->
+                val timeline = runCatching { json.readTree(payload) }.getOrNull()
+                timeline?.takeIf { matchesPerformance(it, snapshot, sourceHash, m4a, duration.longValue()) }
+            }
+        } else null
+        return GeneratedSheetAudio(m4a, midi, duration.longValue(), performance)
+    }
+
+    private fun matchesPerformance(timeline: JsonNode, snapshot: JsonNode, sourceHash: String, m4a: ByteArray, durationMs: Long): Boolean {
+        val score = snapshot.path("score")
+        val identity = score.path("score")
+        val segments = timeline.path("segments")
+        val duration = timeline.path("durationMs").asDouble(Double.NaN)
+        return timeline.path("schema").asString() == "common-score-performance/v1" &&
+            timeline.path("policy").asString() == "educational-preview/v1" &&
+            timeline.path("sourceSha256").asString() == sourceHash &&
+            timeline.path("scoreVersion").isIntegralNumber && timeline.path("scoreVersion") == identity.path("scoreVersion") &&
+            timeline.path("sourceId").isString && timeline.path("sourceId") == identity.path("sourceId") &&
+            timeline.path("instrument").isString && timeline.path("instrument") == identity.path("instrument") &&
+            timeline.path("bpm").isNumber && timeline.path("bpm").asDouble() == snapshot.path("bpm").asDouble(Double.NaN) &&
+            timeline.path("bpmUnit").isString && timeline.path("bpmUnit") == score.path("music").path("bpmUnit") &&
+            timeline.path("audioSha256").asString() == m4a.sheetAudioSha256() &&
+            timeline.path("durationMs").isNumber && duration > 0 && duration <= durationMs + 1.0 &&
+            segments.isArray && !segments.isEmpty
     }
 }
 

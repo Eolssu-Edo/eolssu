@@ -429,7 +429,8 @@ class SheetEditViewModel(
         val hash = file.sha256 ?: return reportAudioLinkFailed()
         val duration = file.durationMs ?: return reportAudioLinkFailed()
         val scoreVersion = version
-        val download = SheetAudioDownload(file.url, file.byteSize, hash, duration, audio.instrumentId, audio.bpm, audio.withJangdan)
+        val download = SheetAudioDownload(file.url, file.byteSize, hash, duration, audio.instrumentId, audio.bpm, audio.withJangdan,
+            file.performance)
         change { it.copy(audioDownloading = true) }
         audioDownloadJob = accountScope.launch {
             try {
