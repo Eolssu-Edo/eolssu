@@ -129,6 +129,9 @@
     <string name="sheetedit_cell_jangdan">장단 · %1$s</string>
     <string name="sheetedit_cell_jangdan_desc">%1$d박 · 박마다 %2$d정간 · %3$d BPM</string>
     <string name="sheetedit_cell_jangdan_change">장단 바꾸기</string>
+    <string name="sheetedit_jangdan_same_unit">악보의 빠르기와 음 길이를 유지하려면 박자 단위가 같은 장단을 골라야 해요.</string>
+    <string name="sheetedit_jangdan_none_compatible">현재 악보와 박자 단위가 같은 장단이 없어요.</string>
+    <string name="sheetedit_jangdan_load_failed">장단 목록을 불러오지 못했어요.</string>
     <string name="sheetedit_cell_note">장단을 바꾸면 한 각의 정간 수와 박 구분선이 함께 바뀌어요. ‘한 정간 나누기’는 한 정간에 음을 위→아래로 여러 개 넣을 때 써요.</string>
     <string name="sheetedit_staff_hint">한쪽을 고치면 다른 쪽도 바로 바뀌어요</string>
     <string name="sheetedit_staff_system">정간보 %1$d–%2$d각</string>
@@ -176,8 +179,9 @@
     <string name="sheetedit_audio_play">재생</string>
     <string name="sheetedit_audio_pause">일시정지</string>
     <string name="sheetedit_audio_play_failed">재생할 수 없어요</string>
-    <string name="sheetedit_audio_save_m4a">M4A 저장</string>
-    <string name="sheetedit_audio_save_midi">MIDI 저장</string>
+    <string name="sheetedit_audio_save_m4a">M4A 내려받기</string>
+    <string name="sheetedit_audio_expired">다운로드 시간이 끝났어요</string>
+    <string name="sheetedit_msg_audio_downloaded">이 기기에 음원을 저장했어요</string>
     <string name="sheetedit_preview_draft">임시저장</string>
     <string name="sheetedit_preview_save">저장</string>
     <string name="sheetedit_warn_title">빈 정간 %1$d개를 채워야 저장할 수 있어요</string>
@@ -187,7 +191,7 @@
     <string name="sheetedit_msg_draft">임시저장했어요 · 내 악보에서 이어서 고칠 수 있어요</string>
     <string name="sheetedit_msg_saved">저장했어요 · 내 악보에서 연습할 수 있어요</string>
     <string name="sheetedit_audio_settings_changed">음원 설정이 바뀌었어요. 음원을 다시 만들어 주세요</string>
-    <string name="sheetedit_preview_needs_audio">현재 악보의 음원을 먼저 만들어 주세요</string>
+    <string name="sheetedit_preview_needs_audio">현재 악보의 M4A를 먼저 내려받아 주세요</string>
     <string name="sheetedit_msg_audio_needs_save">저장한 악보가 있어야 음원을 만들 수 있어요</string>
     <string name="sheetedit_msg_audio_requested">음원을 만들고 있어요 · 다 되면 알려 드릴게요</string>
     <string name="sheetedit_msg_audio_ready">음원이 준비됐어요 · 미리보기에서 재생하거나 저장할 수 있어요</string>
@@ -199,7 +203,7 @@
     <string name="sheetedit_msg_audio_not_found">악보를 찾지 못했어요 · 내 악보 목록을 확인해 주세요</string>
     <string name="sheetedit_msg_audio_busy">음원 서버에 연결하지 못했어요 · 잠시 후 다시 해 주세요</string>
     <string name="sheetedit_msg_audio_unknown">음원 상태를 확인하지 못했어요 · 미리보기에서 다시 확인해 주세요</string>
-    <string name="sheetedit_msg_audio_link_failed">파일 주소를 열지 못했어요</string>
+    <string name="sheetedit_msg_audio_link_failed">음원을 내려받지 못했어요</string>
     <string name="sheetedit_pick_step_instrument">1. 편집할 악기</string>
     <string name="sheetedit_pick_step_sheet">2. 편집할 악보</string>
     <string name="sheetedit_pick_need_instrument">악기를 고르면 그 악기의 악보만 보여요</string>

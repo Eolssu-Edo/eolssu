@@ -8,9 +8,11 @@ data class SheetAudioRow(
     val instrumentId: Long, val withJangdan: Boolean, val bpm: Int, val status: String,
     val failureCode: String?, val requestJson: String, val resultJson: String?,
     val acceptedAt: LocalDateTime, val startedAt: LocalDateTime?, val finishedAt: LocalDateTime?, val deleting: Boolean,
+    val resultExpiresAt: LocalDateTime?,
 )
 data class AudioRate(val windowAt: LocalDateTime, val requestCount: Int)
 data class AudioInstrument(val id: Long, val code: String)
+data class ExpiringAudio(val sheetId: Long, val userId: Long)
 
 @Mapper
 interface SheetAudioMapper {
@@ -49,16 +51,26 @@ interface SheetAudioMapper {
     @Update("""UPDATE sheet_audios SET status='FAILED',failure_code=#{code},finished_at=#{at}
         WHERE sheet_id=#{id} AND generation=#{generation} AND status='RUNNING'""")
     fun fail(@Param("id") id: Long,@Param("generation") generation: String,@Param("code") code: String,@Param("at") at: LocalDateTime): Int
-    @Update("""UPDATE sheet_audios SET status='DONE',failure_code=NULL,result_json=#{result},finished_at=#{at}
+    @Update("""UPDATE sheet_audios SET status='DONE',failure_code=NULL,result_json=#{result},
+        result_expires_at=#{expiresAt},finished_at=#{at}
         WHERE sheet_id=#{id} AND generation=#{generation} AND status='RUNNING' AND deleting=FALSE""")
-    fun done(@Param("id") id: Long,@Param("generation") generation: String,@Param("result") result: String,@Param("at") at: LocalDateTime): Int
+    fun done(@Param("id") id: Long,@Param("generation") generation: String,@Param("result") result: String,
+        @Param("at") at: LocalDateTime,@Param("expiresAt") expiresAt: LocalDateTime): Int
+    @Select("""SELECT sheet_id,user_id FROM sheet_audios WHERE result_expires_at<=#{at}
+        ORDER BY result_expires_at,sheet_id LIMIT 100""")
+    fun expiredResults(at: LocalDateTime): List<ExpiringAudio>
+    @Update("""UPDATE sheet_audios SET
+        failure_code=CASE WHEN status='DONE' THEN 'AUDIO_EXPIRED' ELSE failure_code END,
+        status=CASE WHEN status='DONE' THEN 'FAILED' ELSE status END,
+        result_json=NULL,result_expires_at=NULL WHERE sheet_id=#{id} AND result_expires_at<=#{at}""")
+    fun expireResult(@Param("id") id: Long,@Param("at") at: LocalDateTime): Int
     @Update("UPDATE sheet_audios SET status='FAILED',failure_code='SERVER_ERROR',finished_at=#{at} WHERE status='RUNNING'")
     fun recover(at: LocalDateTime): Int
     @Update("UPDATE sheet_audios SET deleting=TRUE,status='FAILED',failure_code='SERVER_ERROR' WHERE sheet_id=#{id}")
     fun cancel(id: Long): Int
-    @Update("UPDATE sheet_audios SET deleting=FALSE,result_json=NULL WHERE sheet_id=#{sheetId} AND user_id=#{userId} AND deleting=TRUE")
+    @Update("UPDATE sheet_audios SET deleting=FALSE,result_json=NULL,result_expires_at=NULL WHERE sheet_id=#{sheetId} AND user_id=#{userId} AND deleting=TRUE")
     fun release(@Param("sheetId") sheetId: Long,@Param("userId") userId: Long): Int
-    @Update("UPDATE sheet_audios SET deleting=FALSE,result_json=NULL WHERE deleting=TRUE") fun releaseAll(): Int
+    @Update("UPDATE sheet_audios SET deleting=FALSE,result_json=NULL,result_expires_at=NULL WHERE deleting=TRUE") fun releaseAll(): Int
     @Insert("INSERT INTO sheet_audio_objects(object_key,sheet_id,generation,state) VALUES(#{key},#{sheetId},#{generation},'PENDING')")
     fun objectPending(@Param("key") key: String,@Param("sheetId") sheetId: Long,@Param("generation") generation: String): Int
     @Update("UPDATE sheet_audio_objects SET state='RETIRED' WHERE sheet_id=#{sheetId} AND state='CURRENT'")

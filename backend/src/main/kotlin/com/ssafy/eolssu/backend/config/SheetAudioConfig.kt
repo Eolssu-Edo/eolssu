@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.PlatformTransactionManager
 import tools.jackson.databind.json.JsonMapper
 
-/** Longer than one whole attempt, which also has to upload both files after the render. */
+/** Longer than one whole attempt, which also has to upload the M4A after the render. */
 internal fun staleRunningAfter(generationTimeout: Duration): Duration=generationTimeout.plusMinutes(5)
 
 @Configuration(proxyBeanMethods=false)
@@ -46,4 +46,6 @@ class SheetAudioScheduler(private val audio: SheetAudios, private val slot: Depl
     @Volatile private var ready=false
     @EventListener(ApplicationReadyEvent::class) fun recover() { slot.recoverIfAlone(audio::recover); ready=true }
     @Scheduled(fixedDelay=1000) fun run() { if(ready && slot.selected()) audio.runOne() }
+    // A slow render must not delay expiry and deletion of a different download.
+    @Scheduled(fixedDelay=1000) fun cleanup() { if(ready && slot.selected()) audio.cleanup() }
 }

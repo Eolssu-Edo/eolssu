@@ -553,7 +553,7 @@ fun EolssuNavHost(
                     startOnSheets = entry.savedStateHandle.get<Boolean>("sheets") == true,
                     onBack = { navController.popBackStackFrom(entry) },
                     onPractice = { navController.navigate(EolssuDestination.practice(it, solo = true)) },
-                    onPracticeSheet = { songId, title -> navController.navigate(EolssuDestination.practice(songId, mine = true, title = title)) },
+                    onPracticeSheet = { sheetId -> navController.navigate(EolssuDestination.practice(sheetId, mine = true)) },
                     onAddSheet = { navController.navigate(SheetEditDestination.new()) },
                     onReimportSheet = { failure -> navController.navigate(SheetEditDestination.new(failure)) },
                     onEditSheet = { navController.navigate(SheetEditDestination.editMine(it.id)) },

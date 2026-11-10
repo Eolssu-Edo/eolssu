@@ -26,6 +26,7 @@ import com.ssafy.eolssu.data.practice.NotePracticeCriteriaLoad
 import com.ssafy.eolssu.data.practice.NotePracticeCriteriaRepository
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
+import com.ssafy.eolssu.data.song.SheetPracticeNeedsReview
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.ModelAudioRepository
 import kotlinx.coroutines.Job
@@ -74,18 +75,19 @@ class PracticeViewModel(
     private val newKey: () -> String = { Uuid.random().toString() },
     modelAudioRepository: ModelAudioRepository? = null,
     audioPlayer: AudioPlayer = UnavailableAudioPlayer(),
-    mine: Boolean = false,
+    private val mine: Boolean = false,
     learn: Boolean = false,
     stepJudge: StepNoteJudge = ManualStepNoteJudge(),
     member: SignedInMember? = null,
     private val jangdanPlayer: JangdanSamplePlayer = UnavailableJangdanSamplePlayer(),
     private val notePractice: NotePracticeCriteriaRepository? = null,
+    private val loadPersonalSheet: (suspend (String) -> Song?)? = null,
     private val perf: PerformanceVisit? = null,
 ) : ViewModel() {
     private var stepJudge: StepNoteJudge = stepJudge
 
     private val _uiState = MutableStateFlow(
-        PracticeUiState(solo = solo, mine = mine, learn = learn, fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
+        PracticeUiState(solo = solo || mine, mine = mine, learn = learn, fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
             inputMeasured = recorder?.measuresLevel == true, isSongLoading = true),
     )
     val uiState: StateFlow<PracticeUiState> = _uiState.asStateFlow()
@@ -166,7 +168,9 @@ class PracticeViewModel(
 
     private fun syncModelJangdan() {
         val state = _uiState.value
-        if (state.mode != PracticeMode.Model || !state.playing || !state.settings.jangdanSound) {
+        if (state.mode != PracticeMode.Model || !state.playing || !state.settings.jangdanSound ||
+            modelAudio.state.value.audio?.sheetPlayback?.withJangdan == true
+        ) {
             if (soundPurpose == SoundPurpose.Model) stopJangdan()
             return
         }
@@ -366,7 +370,7 @@ class PracticeViewModel(
         _uiState.update { it.copy(isSongLoading = true, songError = null) }
         songJob = accountScope.launch(perf.context(if (songJob == null) PerfReason.INITIAL else PerfReason.RETRY)) {
             try {
-                val song = songRepository.getSong(songId)
+                val song = if (mine) loadPersonalSheet?.invoke(songId) else songRepository.getSong(songId)
                 when {
                     song == null -> _uiState.update { it.copy(songError = PracticeSongError.NotFound) }
                     song.timeline.isEmpty() -> _uiState.update { it.copy(songError = PracticeSongError.Failed) }
@@ -380,6 +384,8 @@ class PracticeViewModel(
                 }
             } catch (e: CancellationException) {
                 throw e
+            } catch (_: SheetPracticeNeedsReview) {
+                _uiState.update { it.copy(songError = PracticeSongError.NeedsReview) }
             } catch (_: Exception) {
                 _uiState.update { it.copy(songError = PracticeSongError.Failed) }
             } finally {
@@ -399,7 +405,7 @@ class PracticeViewModel(
     }
 
     private fun startTimeTracking() {
-        if (!accountScope.isActive) return
+        if (mine || !accountScope.isActive) return
         timeMeter.show(songId)
         snapshotJob?.cancel()
         snapshotJob = accountScope.launch {
@@ -421,7 +427,7 @@ class PracticeViewModel(
         pauseStep()
         snapshotJob?.cancel()
         val segment = timeMeter.hide()
-        if (accountScope.isActive) timeQueue.close(segment)
+        if (!mine && accountScope.isActive) timeQueue.close(segment)
     }
 
     /** 터치·스크롤·키 입력. */
@@ -489,7 +495,7 @@ class PracticeViewModel(
         if (_uiState.value.mode == PracticeMode.Model) {
             modelResumeAfterTick = modelTickAtReportedPosition()
             val song = _uiState.value.song ?: return
-            settingsStore.update { it.applyTempo(_uiState.value.draft, song) }
+            settingsStore.update { it.applyTempo(_uiState.value.draft, song, mine) }
             _uiState.update { it.copy(settings = settingsStore.settings.value).withModelAudio(modelAudio.state.value) }
             modelAudio.setBpm(_uiState.value.bpm)
             if (close) closePanel()
@@ -502,7 +508,7 @@ class PracticeViewModel(
         val running = stepJob?.isActive == true || preparingRhythm
         if (state.mode == PracticeMode.Rhythm) pauseRhythm()
         val carry = state.currentEventFraction
-        settingsStore.update { it.applyTempo(state.draft, song) }
+        settingsStore.update { it.applyTempo(state.draft, song, mine) }
         _uiState.update {
             val updated = it.copy(settings = settingsStore.settings.value)
             updated.copy(eventElapsedMs = updated.eventDurationMs() * carry, pausedFraction = carry.toFloat())
@@ -675,7 +681,7 @@ class PracticeViewModel(
     }
 
     fun requestEvaluation() {
-        if (!accountScope.isActive) return
+        if (mine || !accountScope.isActive) return
         if (recorder == null) return
         pauseRhythm()
         stopPreview()
