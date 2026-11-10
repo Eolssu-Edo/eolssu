@@ -85,6 +85,7 @@ STATUS_ICONS = {
     '실행 · HTTPS 검사 통과': '✅', '실행 · HTTPS 미측정': '🚫',
     '실행 · 검사 통과': '✅', '실행 · 준비 미검증': '❓',
     '실행 · 검증 완료': '✅', '실행 · 준비 확인 불가': '🚫', '실행 · 준비 상태 주의': '⚠️',
+    '실행 · 통신 정상': '✅',
     '검사한 범위 정상': '✅', '장애 확인': '❌', '주의 필요': '⚠️', '일부 확인 못 함': '❓',
     '일부 측정 못 함': '🚫',
     '해당 없음': '➖', '컨테이너 없음': '➖',
@@ -406,7 +407,8 @@ def build_report(result, request_id):
                 verdict, evidence, elapsed = readiness
                 kind = HEALTH_LABELS.get(verdict, verdict)
                 if evidence.strip() and kind in CONTAINER_READINESS_LABELS:
-                    status = CONTAINER_READINESS_LABELS[kind]
+                    status = ('실행 · 통신 정상' if kind == '정상' and fact.get('readiness_kind') == 'http_communication'
+                              else CONTAINER_READINESS_LABELS[kind])
                     readiness_evidence = evidence if elapsed in ('', '—') else f'{evidence} · {elapsed}'
                     if kind != '정상':
                         findings.append([kind, friendly(name) + ': ' + evidence,
