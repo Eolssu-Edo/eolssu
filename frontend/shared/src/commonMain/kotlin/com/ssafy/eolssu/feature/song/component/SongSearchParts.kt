@@ -49,6 +49,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuChip
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.EolssuLevelChip
 import com.ssafy.eolssu.core.ui.component.PageHeading
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.feature.song.SongLevelFilter
@@ -193,7 +194,7 @@ internal fun SongSearchField(
     }
 }
 
-/** 난이도 필터 칩 줄(전체 · 입문 · 초급 · 중급). 고른 칩은 연두 바탕이다. */
+/** 난이도 필터 칩 줄(전체 · 입문 · 초급 · 중급). '전체'는 고르면 연두 바탕이고, 난이도 칩은 배지 그림과 색을 따른다. */
 @Composable
 internal fun SongLevelChips(
     selected: SongLevelFilter,
@@ -203,7 +204,9 @@ internal fun SongLevelChips(
 ) {
     val chips: @Composable () -> Unit = {
         SongLevelFilter.entries.forEach { filter ->
-            EolssuChip(songLevelFilterLabel(filter), selected = selected == filter, onClick = { onSelect(filter) })
+            val level = filter.level
+            if (level == null) EolssuChip(songLevelFilterLabel(filter), selected = selected == filter, onClick = { onSelect(filter) })
+            else EolssuLevelChip(level, selected = selected == filter, onClick = { onSelect(filter) })
         }
     }
     if (singleLine) {

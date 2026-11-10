@@ -31,11 +31,11 @@ data class EolssuColors(
     val accent: Color,
     /** 연두 10%. */
     val accentSoft: Color,
-    /** 연두 20%: 상태 배지 · 난이도 '입문' 바탕. */
+    /** 연두 20%: 상태 배지 바탕. */
     val accentTint: Color,
-    /** 연두 40%: 난이도 '초급' 바탕. */
+    /** 연두 40%: 완료 아이콘 고리 · 강조 태그 바탕. */
     val accentTintStrong: Color,
-    /** 연두 60%: 난이도 배지 테두리. 글자에 쓰지 않는다. */
+    /** 연두 60%: 연두 바탕 상자의 테두리. 글자에 쓰지 않는다. */
     val accentTintLine: Color,
     val accentText: Color,
     /** 모범 연주(재생) 상태(짙은 연두). */
