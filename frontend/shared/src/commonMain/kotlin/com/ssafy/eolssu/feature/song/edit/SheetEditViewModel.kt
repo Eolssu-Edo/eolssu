@@ -292,6 +292,7 @@ class SheetEditViewModel(
     fun deleteColumn() = change { if (it.reviewIssues.isEmpty()) it.deleteColumn() else it.copy(message = SheetEditMessage.ReviewBeforeReshape) }
     fun undo() = change { it.undo() }
     fun redo() = change { it.redo() }
+    fun updateDetails(title: String, bpm: Int) = change { it.updateDetails(title, bpm) }
     fun selectTab(tab: EditTab) = change { it.copy(tab = tab) }
     fun selectView(view: EditView) = change { it.copy(view = if (it.draft.original != null) EditView.Jeongganbo else view) }
     fun selectStaffNote(key: StaffNoteKey) = change { it.selectStaffNote(key) }
@@ -346,7 +347,7 @@ class SheetEditViewModel(
     fun requestAudio() {
         val current = _uiState.value
         if (!accountScope.isActive || current.documentLoading || current.documentFailed || current.saving || current.audioDownloading) return
-        if (loaded != null && current.draft.jangdanId != savedJangdanId) {
+        if (loaded != null && (current.draft.jangdanId != savedJangdanId || current.draft.bpm != confirmedDraft?.bpm)) {
             change { it.copy(message = SheetEditMessage.AudioNeedsSave) }
             return
         }

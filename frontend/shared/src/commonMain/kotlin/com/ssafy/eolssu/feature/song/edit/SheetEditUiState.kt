@@ -119,6 +119,13 @@ data class SheetEditUiState(
     val canUndo: Boolean get() = past.isNotEmpty()
     val canRedo: Boolean get() = future.isNotEmpty()
     val canIncludeJangdan: Boolean get() = draft.original == null || serverSheetId == null || draft.jangdanId != null
+    val canEditDetails: Boolean get() = draft.original != null && serverSheetId != null
+
+    internal fun updateDetails(title: String, bpm: Int): SheetEditUiState {
+        if (!canEditDetails || bpm !in SheetBpmRange) return this
+        val normalizedTitle = normalizedSheetTitle(title) ?: return this
+        return commit(draft.copy(title = normalizedTitle, bpm = bpm))
+    }
 
     fun selectJangdan(id: String): SheetEditUiState {
         val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: return this
@@ -303,4 +310,15 @@ data class SheetEditUiState(
             )
         }
     }
+}
+
+internal val SheetBpmRange = 30..160
+
+/** SHT-04·11 count Unicode code points after trimming, including a surrogate pair as one. */
+internal fun normalizedSheetTitle(value: String): String? {
+    val title = value.trim()
+    val length = title.indices.count { index ->
+        index == 0 || !title[index].isLowSurrogate() || !title[index - 1].isHighSurrogate()
+    }
+    return title.takeIf { length in 1..50 }
 }

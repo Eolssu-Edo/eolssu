@@ -64,6 +64,7 @@ import eolssu.shared.generated.resources.sheet_review_removed_cell
 import eolssu.shared.generated.resources.sheet_review_save_checks
 import eolssu.shared.generated.resources.sheet_review_uncertain
 import eolssu.shared.generated.resources.sheetedit_close
+import eolssu.shared.generated.resources.sheet_details_edit
 import eolssu.shared.generated.resources.sheetedit_down
 import eolssu.shared.generated.resources.sheetedit_duration_dotted_eighth
 import eolssu.shared.generated.resources.sheetedit_duration_dotted_half
@@ -98,6 +99,7 @@ import org.jetbrains.compose.resources.stringResource
 class SheetEditActions(
     val onClose: () -> Unit,
     val onPreview: () -> Unit,
+    val onOpenDetails: () -> Unit,
     val onOpenChecks: () -> Unit,
     val onSelectView: (EditView) -> Unit,
     val onSelectCell: (Int) -> Unit,
@@ -165,8 +167,9 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 } else {
                     SquareIconButton(SheetEditIcons.Undo, stringResource(Res.string.sheetedit_undo), actions.onUndo, enabled = state.canUndo)
                     SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.onRedo, enabled = state.canRedo)
-                    Box(Modifier.weight(1f))
                 }
+                if (state.canEditDetails) SquareIconButton(EolssuIcons.Pencil, stringResource(Res.string.sheet_details_edit), actions.onOpenDetails)
+                if (!staff) Box(Modifier.weight(1f))
                 if (state.draft.original == null) SegmentTabs(
                     labels = listOf(stringResource(Res.string.sheetedit_view_jeongganbo), stringResource(Res.string.sheetedit_view_staff)),
                     selected = state.view.ordinal,

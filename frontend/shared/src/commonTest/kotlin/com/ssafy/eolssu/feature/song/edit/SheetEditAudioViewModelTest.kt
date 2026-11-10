@@ -127,6 +127,27 @@ class SheetEditAudioViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
+    @Test fun audioGenerationWaitsForChangedBaseBpmToBeConfirmed() = runTest {
+        val repository = FakeSheetAudioRepository().apply { statuses += SheetAudioLookup.None }
+        val savedDocuments = object : SheetDocumentRepository by documents {
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) =
+                if (draft) SheetWrite.Saved(copy.baseScoreVersion, copy.revision + 1) else SheetWrite.Saved("3")
+        }
+        val vm = viewModel(repository, documents = savedDocuments)
+        try {
+            runCurrent()
+            vm.updateDetails("미리듣기", 92)
+            vm.saveDraft(); runCurrent()
+            vm.requestAudio(); runCurrent()
+            assertTrue(repository.requests.isEmpty())
+            assertEquals(SheetEditMessage.AudioNeedsSave, vm.uiState.value.message)
+
+            vm.requestSave(); runCurrent()
+            vm.requestAudio(); runCurrent()
+            assertEquals(92, repository.requests.single().second.bpm)
+        } finally { Dispatchers.resetMain() }
+    }
+
     @Test fun previewUsesOnlyTheDownloadedFileWithMatchingSettingsAndWorksAfterExpiry() = runTest {
         val repository = FakeSheetAudioRepository().apply { statuses += found(SheetAudioStatus.Done) }
         val store = FakeDeviceStore()
