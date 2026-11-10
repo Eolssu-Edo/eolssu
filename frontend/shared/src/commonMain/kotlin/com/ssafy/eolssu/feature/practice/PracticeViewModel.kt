@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
+import com.ssafy.eolssu.core.diagnostics.PerfReason
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
 import androidx.lifecycle.ViewModel
@@ -76,6 +80,7 @@ class PracticeViewModel(
     member: SignedInMember? = null,
     private val jangdanPlayer: JangdanSamplePlayer = UnavailableJangdanSamplePlayer(),
     private val notePractice: NotePracticeCriteriaRepository? = null,
+    private val perf: PerformanceVisit? = null,
 ) : ViewModel() {
     private var stepJudge: StepNoteJudge = stepJudge
 
@@ -122,7 +127,7 @@ class PracticeViewModel(
     val livePitch: StateFlow<LivePitchTally> = pitchTally.asStateFlow()
 
     private val jangdanAudio = JangdanSession(jangdanPlayer, accountScope)
-    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource) { song, bpm ->
+    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource, perf = perf) { song, bpm ->
         val plan = if (settingsStore.settings.value.jangdanSound && jangdanPlayer.available) song.jangdanPlanAt(bpm) else null
         plan == null || jangdanAudio.prepareAccompaniment(plan)
     }
@@ -359,13 +364,14 @@ class PracticeViewModel(
         if (!accountScope.isActive) return
         if (songJob?.isActive == true || _uiState.value.song != null) return
         _uiState.update { it.copy(isSongLoading = true, songError = null) }
-        songJob = accountScope.launch {
+        songJob = accountScope.launch(perf.context(if (songJob == null) PerfReason.INITIAL else PerfReason.RETRY)) {
             try {
                 val song = songRepository.getSong(songId)
                 when {
                     song == null -> _uiState.update { it.copy(songError = PracticeSongError.NotFound) }
                     song.timeline.isEmpty() -> _uiState.update { it.copy(songError = PracticeSongError.Failed) }
                     else -> {
+                        perf?.milestone(PerfPhase.PRACTICE_READY)
                         _uiState.update { it.copy(song = song) }
                         _uiState.update { it.copy(jangdanSupported = jangdanPlayer.available && currentPlan() != null) }
                         if (screenShown) startTimeTracking()

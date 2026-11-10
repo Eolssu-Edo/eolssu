@@ -87,7 +87,8 @@ def validate_config(config):
             raise ValueError('invalid applog configuration')
         for key in ('token', 'tunnel_token'):
             value = settings[key]
-            if (not isinstance(value, str) or not re.fullmatch(r'[!-~]{20,256}', value)
+            pattern = r'[A-Za-z0-9_-]{32,128}' if key == 'tunnel_token' else r'[!-~]{20,256}'
+            if (not isinstance(value, str) or not re.fullmatch(pattern, value)
                     or value in tokens):
                 raise ValueError('invalid applog token configuration')
             tokens.append(value)
@@ -549,7 +550,7 @@ APPLOG_ENUMS = {
     'source': {'network', 'navigation', 'retained'},
     'method': {'get', 'post'},
     'outcome': {'ready', 'missing', 'failed', 'cancelled', 'http_timeout'},
-    'reason': set(('initial retry refresh replay poll overflow storage uncertain cancelled failed missing '
+    'reason': set(('initial retry version_mismatch refresh replay poll overflow storage uncertain cancelled failed missing '
                    'ready left unavailable http_timeout').split()),
     'phase': set(('score_ready score_drawn practice_ready practice_drawn record_drawn record_empty '
                   'model_audio_play timeline_ready player_load player_started').split()),
@@ -672,7 +673,7 @@ def prune_applog(database):
 def collect_applog(token, request_id, database=APPLOG_DATABASE, *, tunnel=request_applog):
     deadline = time.monotonic() + APPLOG_TIMEOUT
     after = saved = acknowledged = end = None
-    attempts = reused = dropped = 0
+    attempts = auth_attempts = retry_attempts = polls = reused = dropped = 0
     unknown_gap = False
     builds = set()
     slowest = {}
@@ -681,7 +682,7 @@ def collect_applog(token, request_id, database=APPLOG_DATABASE, *, tunnel=reques
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError()
-        result = tunnel(token, request_id, op, timeout=min(remaining, 5), **fields)
+        result = tunnel(token, request_id, op, timeout=min(remaining, 9), **fields)
         if not isinstance(result, dict) or result.get('request_id') != request_id or result.get('op') != op:
             raise ValueError('applog reply does not match request')
         return result
@@ -708,7 +709,16 @@ def collect_applog(token, request_id, database=APPLOG_DATABASE, *, tunnel=reques
                     event = row['event']
                     if len(builds) < 4:
                         builds.add((event['version_name'], event['version_code']))
-                    attempts += event['kind'] == 'http_attempt'
+                    if event['kind'] == 'http_attempt':
+                        reason = event.get('reason')
+                        if reason in ('refresh', 'replay'):
+                            auth_attempts += 1
+                        elif reason == 'retry':
+                            retry_attempts += 1
+                        elif reason != 'poll':
+                            attempts += 1
+                    if event['kind'] == 'poll_summary':
+                        polls += event.get('count', 0)
                     reused += event['kind'] == 'data_load' and event.get('source') in ('navigation', 'retained')
                     dropped += event.get('missing', 0) if event['kind'] == 'log_gap' else 0
                     unknown_gap |= event['kind'] == 'log_gap' and event.get('reason') == 'uncertain'
@@ -735,7 +745,9 @@ def collect_applog(token, request_id, database=APPLOG_DATABASE, *, tunnel=reques
                      else f'저장·삭제 확인 순번 {acknowledged}')
     if builds:
         versions = ', '.join(f'`{name}` ({code})' for name, code in sorted(builds))
-        parts.extend([f'APK {versions}', f'HTTP 시도 {attempts} · 데이터 재사용 {reused} · 기록 누락 {dropped}'])
+        parts.extend([f'APK {versions}',
+                      f'HTTP 최초 시도 {attempts} · 인증 갱신·재전송 {auth_attempts} · 재시도 {retry_attempts} · 상태 확인 {polls}',
+                      f'데이터 재사용 {reused} · 기록 누락 {dropped}'])
         if unknown_gap:
             parts.append('이전 실행의 기록 누락 가능성이 있습니다.')
         phases = {

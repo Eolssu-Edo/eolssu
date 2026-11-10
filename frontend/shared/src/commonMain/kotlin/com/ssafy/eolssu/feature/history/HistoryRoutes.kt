@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.ssafy.eolssu.core.diagnostics.LocalPerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import eolssu.shared.generated.resources.record_play_unavailable
@@ -58,7 +61,8 @@ fun RecordListRoute(
     initialRecordId: String? = null,
     onSelectSection: (recordId: String) -> Unit = {},
     onCompare: (recordId: String) -> Unit = {},
-    viewModel: RecordListViewModel = koinViewModel(key = "records-$justSavedId") { parametersOf(justSavedId) },
+    perf: PerformanceVisit? = null,
+    viewModel: RecordListViewModel = koinViewModel(key = "records-$justSavedId") { parametersOf(justSavedId, perf) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 처음 한 번만 고른다. 화면을 다시 그려도(회전 등) 사용자가 그 뒤에 고른 기록을 덮지 않는다.
@@ -69,11 +73,13 @@ fun RecordListRoute(
             initialShown = true
         }
     }
-    val widthClass = currentWindowLayout().widthClass
-    if (widthClass == WindowWidthClass.Expanded) {
-        RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection)
-    } else {
-        RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry, onInstrument = viewModel::changeInstrument)
+    CompositionLocalProvider(LocalPerformanceVisit provides perf) {
+        val widthClass = currentWindowLayout().widthClass
+        if (widthClass == WindowWidthClass.Expanded) {
+            RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection)
+        } else {
+            RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry, onInstrument = viewModel::changeInstrument)
+        }
     }
 }
 

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
+import com.ssafy.eolssu.core.diagnostics.PerfReason
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
 import kotlinx.coroutines.isActive
@@ -30,6 +33,7 @@ class RecordListViewModel(
     now: () -> Long,
     member: SignedInMember? = null,
     private val songs: SongRepository? = null,
+    private val perf: PerformanceVisit? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         RecordListUiState(
@@ -45,10 +49,12 @@ class RecordListViewModel(
         _uiState.value = RecordListUiState(today = current.today, recordsAvailable = recordRepository.available, songInstruments = current.songInstruments)
     }
 
+    private var perfRequested = false
+
     init {
         accountScope.launch { recordRepository.records.collect { list -> _uiState.update { it.copy(records = list) } } }
         if (recordRepository.available) retry()
-        songs?.let { repo -> viewModelScope.launch { resolveInstruments(repo) } }
+        songs?.let { repo -> viewModelScope.launch(perf.context()) { resolveInstruments(repo) } }
     }
 
     private suspend fun resolveInstruments(repo: SongRepository) {
@@ -81,7 +87,8 @@ class RecordListViewModel(
         if (!accountScope.isActive) return
         if (_uiState.value.loading) return
         _uiState.update { it.copy(loading = true, loadFailed = false) }
-        accountScope.launch {
+        accountScope.launch(perf.context(if (perfRequested) PerfReason.RETRY else PerfReason.INITIAL)) {
+            perfRequested = true
             val ok = recordRepository.refresh()
             _uiState.update { it.copy(loading = false, loadFailed = !ok) }
         }

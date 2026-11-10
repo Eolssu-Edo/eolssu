@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
+import com.ssafy.eolssu.core.diagnostics.PerfReason
 import com.ssafy.eolssu.core.ui.score.ErrorFilter
 import com.ssafy.eolssu.feature.practice.toSection
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -57,6 +60,7 @@ class ResultErrorsViewModel(
     private val repository: WeakSectionRepository,
     private val loadInstruments: suspend () -> List<CatalogInstrument> = { emptyList() },
     member: SignedInMember? = null,
+    private val perf: PerformanceVisit? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ResultErrorsUiState())
     val uiState: StateFlow<ResultErrorsUiState> = _uiState.asStateFlow()
@@ -71,7 +75,7 @@ class ResultErrorsViewModel(
     fun retry() {
         if (!accountScope.isActive || loadJob?.isActive == true) return
         _uiState.value = ResultErrorsUiState()
-        loadJob = accountScope.launch {
+        loadJob = accountScope.launch(perf.context(if (loadJob == null) PerfReason.INITIAL else PerfReason.RETRY)) {
             val source = try {
                 repository.source(sourceId)
             } catch (cancelled: CancellationException) {

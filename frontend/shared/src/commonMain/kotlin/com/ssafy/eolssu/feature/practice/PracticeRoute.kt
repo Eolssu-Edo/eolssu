@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.practice
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.ssafy.eolssu.core.diagnostics.LocalPerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.model.Song
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -59,7 +62,8 @@ fun PracticeRoute(
     mine: Boolean = false,
     sheetTitle: String? = null,
     learn: Boolean = false,
-    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn") { parametersOf(songId, solo, mine, learn) },
+    perf: PerformanceVisit? = null,
+    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn") { parametersOf(songId, solo, mine, learn, perf) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 평가 연주에서 음마다 모은 실시간 음높이 안내(S15P31E102-597). 관측이 없는 플랫폼은 집계가 비어 아무것도 칠하지 않는다.
@@ -95,89 +99,91 @@ fun PracticeRoute(
         onDispose { currentOnConfirmBackChange(null) }
     }
 
-    PracticeScreen(
-        state = state,
-        widthClass = currentWindowLayout().widthClass,
-        snackbarHostState = snackbarHostState,
-        actions = PracticeScreenActions(
-            onBack = back,
-            onOpenSettings = { viewModel.openPanel(PracticePanel.Settings) },
-            onSelectUnit = viewModel::selectUnit,
-            onUserScroll = viewModel::stopFollowing,
-            onFollowNow = viewModel::followNow,
-            onCancelCountdown = viewModel::cancelCountdown,
-            onUserActivity = viewModel::onUserActivity,
-            onRetrySong = viewModel::retryLoadSong,
-            bottom = PracticeBottomActions(
-                onStartModel = viewModel::startModel,
-                onSelectModel = viewModel::selectModel,
-                onSelectRhythm = viewModel::selectRhythm,
-                onStartRhythm = viewModel::startRhythm,
-                onToggleRhythm = viewModel::toggleRhythm,
-                onToggleModel = viewModel::toggleModel,
-                onRestartModel = viewModel::restartModel,
-                onStopModel = viewModel::stopModel,
-                onStartEval = viewModel::requestEvaluation,
-                onSwitchToEval = {
-                    if (state.recordingSupported) {
+    CompositionLocalProvider(LocalPerformanceVisit provides perf) {
+        PracticeScreen(
+            state = state,
+            widthClass = currentWindowLayout().widthClass,
+            snackbarHostState = snackbarHostState,
+            actions = PracticeScreenActions(
+                onBack = back,
+                onOpenSettings = { viewModel.openPanel(PracticePanel.Settings) },
+                onSelectUnit = viewModel::selectUnit,
+                onUserScroll = viewModel::stopFollowing,
+                onFollowNow = viewModel::followNow,
+                onCancelCountdown = viewModel::cancelCountdown,
+                onUserActivity = viewModel::onUserActivity,
+                onRetrySong = viewModel::retryLoadSong,
+                bottom = PracticeBottomActions(
+                    onStartModel = viewModel::startModel,
+                    onSelectModel = viewModel::selectModel,
+                    onSelectRhythm = viewModel::selectRhythm,
+                    onStartRhythm = viewModel::startRhythm,
+                    onToggleRhythm = viewModel::toggleRhythm,
+                    onToggleModel = viewModel::toggleModel,
+                    onRestartModel = viewModel::restartModel,
+                    onStopModel = viewModel::stopModel,
+                    onStartEval = viewModel::requestEvaluation,
+                    onSwitchToEval = {
+                        if (state.recordingSupported) {
+                            viewModel.stopAll()
+                            onSwitchToEval()
+                        }
+                    },
+                    onAskRestart = viewModel::askRestart,
+                    onAskAbort = viewModel::askAbort,
+                    onSeek = viewModel::seekModel,
+                    onSeekToFraction = viewModel::seekToFraction,
+                    onToggleStep = viewModel::toggleStep,
+                    onTapStepPlaying = viewModel::tapStepPlaying,
+                    onListenStepNote = viewModel::listenStepNote,
+                    onConfirmStepNote = viewModel::confirmStepNoteManually,
+                ),
+                panel = PracticePanelActions(
+                    onClose = viewModel::closePanel,
+                    onDismiss = viewModel::dismissPanels,
+                    onOpen = viewModel::openPanel,
+                    onDraft = viewModel::updateDraft,
+                    onToggleBigScore = viewModel::toggleBigScore,
+                    onMoveFingering = viewModel::moveFingering,
+                    fingeringAudio = { instrument, note -> fingeringAudio(instrument, note, viewModel::reportFingeringAudio) },
+                    onTogglePreview = viewModel::togglePreview,
+                    onSetInstrument = viewModel::setInstrument,
+                    onToggleFingeringView = viewModel::toggleFingeringView,
+                ),
+                dialog = PracticeDialogActions(
+                    onGrantMic = {
+                        scope.launch { if (viewModel.requestMicPermission()) viewModel.grantMicAndStart() else viewModel.micDenied() }
+                    },
+                    onDenyMic = viewModel::closePopup,
+                    onClose = viewModel::closePopup,
+                    onGoHome = {
                         viewModel.stopAll()
-                        onSwitchToEval()
-                    }
-                },
-                onAskRestart = viewModel::askRestart,
-                onAskAbort = viewModel::askAbort,
-                onSeek = viewModel::seekModel,
-                onSeekToFraction = viewModel::seekToFraction,
-                onToggleStep = viewModel::toggleStep,
-                onTapStepPlaying = viewModel::tapStepPlaying,
-                onListenStepNote = viewModel::listenStepNote,
-                onConfirmStepNote = viewModel::confirmStepNoteManually,
+                        onGoHome()
+                    },
+                    onResume = viewModel::resumeRecording,
+                    onEvaluate = {
+                        val bpm = state.bpm
+                        val take = viewModel.takeForEvaluation()
+                        if (take != null) {
+                            viewModel.toReady()
+                            onEvaluate?.invoke(songId, bpm, take, state.song)
+                        }
+                    },
+                    onRestartNow = viewModel::restartNow,
+                    onExit = {
+                        viewModel.stopAll()
+                        onBack()
+                    },
+                    onKeepPlayingAfterExit = viewModel::keepPlayingAfterExit,
+                    onToReady = viewModel::toReady,
+                    onOpenMicSettings = {
+                        val opened = viewModel.openMicSettings()
+                        viewModel.closePopup()
+                        if (!opened) scope.launch { snackbarHostState.showSnackbar(getString(Res.string.common_coming_soon)) }
+                    },
+                ),
             ),
-            panel = PracticePanelActions(
-                onClose = viewModel::closePanel,
-                onDismiss = viewModel::dismissPanels,
-                onOpen = viewModel::openPanel,
-                onDraft = viewModel::updateDraft,
-                onToggleBigScore = viewModel::toggleBigScore,
-                onMoveFingering = viewModel::moveFingering,
-                fingeringAudio = { instrument, note -> fingeringAudio(instrument, note, viewModel::reportFingeringAudio) },
-                onTogglePreview = viewModel::togglePreview,
-                onSetInstrument = viewModel::setInstrument,
-                onToggleFingeringView = viewModel::toggleFingeringView,
-            ),
-            dialog = PracticeDialogActions(
-                onGrantMic = {
-                    scope.launch { if (viewModel.requestMicPermission()) viewModel.grantMicAndStart() else viewModel.micDenied() }
-                },
-                onDenyMic = viewModel::closePopup,
-                onClose = viewModel::closePopup,
-                onGoHome = {
-                    viewModel.stopAll()
-                    onGoHome()
-                },
-                onResume = viewModel::resumeRecording,
-                onEvaluate = {
-                    val bpm = state.bpm
-                    val take = viewModel.takeForEvaluation()
-                    if (take != null) {
-                        viewModel.toReady()
-                        onEvaluate?.invoke(songId, bpm, take, state.song)
-                    }
-                },
-                onRestartNow = viewModel::restartNow,
-                onExit = {
-                    viewModel.stopAll()
-                    onBack()
-                },
-                onKeepPlayingAfterExit = viewModel::keepPlayingAfterExit,
-                onToReady = viewModel::toReady,
-                onOpenMicSettings = {
-                    val opened = viewModel.openMicSettings()
-                    viewModel.closePopup()
-                    if (!opened) scope.launch { snackbarHostState.showSnackbar(getString(Res.string.common_coming_soon)) }
-                },
-            ),
-        ),
-        livePitch = livePitch,
-    )
+            livePitch = livePitch,
+        )
+    }
 }

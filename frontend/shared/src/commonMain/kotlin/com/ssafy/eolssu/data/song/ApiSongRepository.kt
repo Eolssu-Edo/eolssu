@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.data.song
 
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.measureLoad
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.JangdanPlayback
 import com.ssafy.eolssu.core.model.Song
@@ -37,7 +39,10 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
     override suspend fun getEditableSong(songId: String): EditableSong? = load(songId)
 
     /** CAT-01·04를 함께 검증한다. 편집기는 화면 모델과 함께 원본 공통 악보도 받는다. */
-    private suspend fun load(songId: String): EditableSong? {
+    private suspend fun load(songId: String): EditableSong? =
+        measureLoad(PerfTarget.SONG_BUNDLE, songId, { it.song.scoreVersion }) { loadVerified(songId) }
+
+    private suspend fun loadVerified(songId: String): EditableSong? {
         if (!validCatalogId(songId)) return null
         val response = client.sendOrNull { get("/api/songs/$songId") } ?: throw CatalogUnavailable()
         if (response.status.value == 404) return null
