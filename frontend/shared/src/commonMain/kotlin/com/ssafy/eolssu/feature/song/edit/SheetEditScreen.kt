@@ -35,6 +35,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
 import com.ssafy.eolssu.feature.song.edit.component.CompactEditScoreMetrics
+import com.ssafy.eolssu.feature.song.edit.component.CommonStaffEditor
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.EditInputPanel
 import com.ssafy.eolssu.feature.song.edit.component.EditScoreBoard
@@ -64,6 +65,7 @@ import eolssu.shared.generated.resources.sheet_review_removed_cell
 import eolssu.shared.generated.resources.sheet_review_save_checks
 import eolssu.shared.generated.resources.sheet_review_uncertain
 import eolssu.shared.generated.resources.sheetedit_close
+import eolssu.shared.generated.resources.sheet_details_edit
 import eolssu.shared.generated.resources.sheetedit_down
 import eolssu.shared.generated.resources.sheetedit_duration_dotted_eighth
 import eolssu.shared.generated.resources.sheetedit_duration_dotted_half
@@ -88,6 +90,8 @@ import eolssu.shared.generated.resources.sheetedit_subtitle_staff
 import eolssu.shared.generated.resources.sheetedit_up
 import eolssu.shared.generated.resources.sheetedit_view_jeongganbo
 import eolssu.shared.generated.resources.sheetedit_view_staff
+import eolssu.shared.generated.resources.sheetedit_undo
+import eolssu.shared.generated.resources.sheetedit_redo
 import eolssu.shared.generated.resources.sheetedit_where_short
 import org.jetbrains.compose.resources.stringResource
 
@@ -95,6 +99,7 @@ import org.jetbrains.compose.resources.stringResource
 class SheetEditActions(
     val onClose: () -> Unit,
     val onPreview: () -> Unit,
+    val onOpenDetails: () -> Unit,
     val onOpenChecks: () -> Unit,
     val onSelectView: (EditView) -> Unit,
     val onSelectCell: (Int) -> Unit,
@@ -116,13 +121,15 @@ class SheetEditActions(
 fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostState, actions: SheetEditActions) {
     val draft = state.draft
     val staff = state.view == EditView.Staff
+    val viewLabels = listOf(stringResource(Res.string.sheetedit_view_jeongganbo), stringResource(Res.string.sheetedit_view_staff))
+    val selectView: (Int) -> Unit = { actions.onSelectView(EditView.entries[it]) }
     EolssuScaffold(
         containerColor = EolssuTheme.colors.surface,
         snackbarHostState = snackbarHostState,
         topBar = {
             EditorTopBar(
                 title = draft.title,
-                subtitle = if (staff) {
+                subtitle = if (staff && draft.original == null) {
                     stringResource(Res.string.sheetedit_subtitle_staff, state.hwang.label)
                 } else {
                     stringResource(Res.string.sheetedit_subtitle_editing, jangdanLabel(draft.jangdanName), draft.bpm)
@@ -155,19 +162,25 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 Modifier.fillMaxWidth().padding(start = 16.dp, end = 20.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (staff) {
+                if (draft.original != null) SegmentTabs(viewLabels, state.view.ordinal, selectView, Modifier.padding(end = 6.dp))
+                if (staff && draft.original == null) {
                     HintText(stringResource(Res.string.sheetedit_staff_hint), Modifier.weight(1f).padding(start = 4.dp), size = 12)
-                } else {
-                    // 실행 취소·다시 실행은 아래 입력판 첫 줄에 있다.
-                    Box(Modifier.weight(1f))
+                } else if (staff) {
+                    // 정간보 보기에서는 실행 취소·다시 실행이 아래 입력판 첫 줄에 있다. 입력판이 없는 오선보 편집에만 여기에 둔다.
+                    SquareIconButton(SheetEditIcons.Undo, stringResource(Res.string.sheetedit_undo), actions.input.onUndo, enabled = state.canUndo)
+                    SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.input.onRedo, enabled = state.canRedo)
                 }
+                if (state.canEditDetails) SquareIconButton(EolssuIcons.Pencil, stringResource(Res.string.sheet_details_edit), actions.onOpenDetails)
+                if (!staff) Box(Modifier.weight(1f))
                 if (state.draft.original == null) SegmentTabs(
-                    labels = listOf(stringResource(Res.string.sheetedit_view_jeongganbo), stringResource(Res.string.sheetedit_view_staff)),
+                    labels = viewLabels,
                     selected = state.view.ordinal,
-                    onSelect = { actions.onSelectView(EditView.entries[it]) },
+                    onSelect = selectView,
                 )
             }
-            if (staff) {
+            if (staff && draft.original != null) {
+                CommonStaffEditor(state, actions.onSelectStaffNote, actions.onShiftStaffNote, Modifier.weight(1f))
+            } else if (staff) {
                 StaffContent(state, actions, Modifier.weight(1f))
             } else {
                 JeongganboContent(state, actions, Modifier.weight(1f))
@@ -183,6 +196,7 @@ private fun JeongganboContent(state: SheetEditUiState, actions: SheetEditActions
     Column(modifier) {
         if (state.reviewIssues.isNotEmpty()) ReviewBanner(state, actions)
         else if (state.pendingChecks > 0) ImportBanner(state.pendingChecks, actions.onOpenChecks)
+        if (state.reviewNotices.isNotEmpty()) SheetReviewNotices(state.reviewNotices)
         Column(Modifier.weight(1f).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             EditScoreBoard(
                 song = song,

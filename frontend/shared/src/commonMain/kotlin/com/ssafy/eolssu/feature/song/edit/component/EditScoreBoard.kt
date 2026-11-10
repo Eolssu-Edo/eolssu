@@ -118,10 +118,15 @@ internal fun editorUnitMarks(draft: SheetDraft, selected: Int, sub: Int?): Map<S
 
 /** EDIT-04 표시: 저장하려면 채워야 하는 빈 정간을 옅은 붉은 바탕과 붉은 점선으로 알린다. */
 @Composable
-internal fun previewMarks(draft: SheetDraft): Map<Pair<Int, Int>, ScoreCellMark> {
+internal fun previewMarks(draft: SheetDraft, currentCell: Pair<Int, Int>?): Map<Pair<Int, Int>, ScoreCellMark> {
     val colors = EolssuTheme.colors
-    val mark = ScoreCellMark(fill = colors.recSoft, ring = colors.rec, ringWidth = 1.5.dp, dashed = true)
-    return draft.emptyCells.associate { (draft.columnOf(it) to draft.rowOf(it)) to mark }
+    val empty = ScoreCellMark(fill = colors.recSoft, ring = colors.rec, ringWidth = 1.5.dp, dashed = true)
+    return buildMap {
+        draft.emptyCells.forEach { put(draft.columnOf(it) to draft.rowOf(it), empty) }
+        if (currentCell != null && currentCell !in this) {
+            put(currentCell, ScoreCellMark(fill = colors.accentTint, ring = colors.primary))
+        }
+    }
 }
 
 /** EDIT-06 표시: 확인할 정간은 먹색 점선과 '?', 고친 정간은 연두 바탕과 '✓', 보고 있는 정간은 연두 안쪽 테두리. */

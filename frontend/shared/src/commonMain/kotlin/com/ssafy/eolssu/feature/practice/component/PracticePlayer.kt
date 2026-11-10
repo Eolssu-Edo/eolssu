@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.feature.practice.ModelAudioStatus
@@ -55,6 +56,8 @@ import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.PracticePlayerNotice
 import com.ssafy.eolssu.feature.practice.playerNotice
+import com.ssafy.eolssu.feature.practice.PracticePersonalAudio
+import com.ssafy.eolssu.feature.practice.personalAudioControl
 import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.*
 import com.ssafy.eolssu.feature.practice.JangdanStatus
@@ -107,7 +110,25 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     )
     val canPlay = if (rhythm) state.jangdanSupported && state.jangdanStatus != JangdanStatus.Loading
         else state.modelAudioStatus != ModelAudioStatus.Loading && state.modelAudioStatus != ModelAudioStatus.Unsupported
-    val controls: @Composable (Modifier) -> Unit = { rowModifier ->
+    val personalAudio = state.personalAudioControl
+    val canSeek = personalAudio == null && state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading
+    val controls: @Composable (Modifier) -> Unit = if (personalAudio != null) { modifier ->
+        Box(modifier, contentAlignment = Alignment.Center) {
+            val label = when (personalAudio) {
+                PracticePersonalAudio.Checking -> Res.string.practice_sheet_audio_checking
+                PracticePersonalAudio.Downloading -> Res.string.practice_sheet_audio_downloading
+                PracticePersonalAudio.Failed -> Res.string.practice_sheet_audio_retry
+                PracticePersonalAudio.VersionChanged -> Res.string.practice_sheet_audio_version_changed
+                else -> Res.string.practice_sheet_audio_download
+            }
+            EolssuButton(
+                stringResource(label),
+                actions.onDownloadSheetAudio,
+                enabled = personalAudio == PracticePersonalAudio.Missing || personalAudio == PracticePersonalAudio.Failed,
+                small = true,
+            )
+        }
+    } else { rowModifier ->
         Row(rowModifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
             SeekButton(stringResource(Res.string.practice_seek_back), stringResource(Res.string.practice_seek_back_desc), small = compact) { actions.onSeek(-PRACTICE_SEEK_MS) }
             Surface(
@@ -140,7 +161,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
             }
             SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
-                enabled = state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading, height = 24.dp)
+                enabled = canSeek, height = 24.dp)
             // 로딩은 화면 가운데에 띄우므로 트랙 아래 칸은 실패·중단 사유가 있을 때만 둔다.
             if (state.playerNotice.inCard) PlayerNoticeArea(state.playerNotice, Modifier.fillMaxWidth().height(20.dp))
         }
@@ -160,7 +181,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         }
         SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
-            enabled = state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading)
+            enabled = canSeek)
         controls(Modifier.fillMaxWidth())
     }
 }
@@ -222,6 +243,8 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         PracticePlayerNotice.Failed -> stringResource(Res.string.practice_player_failed)
         PracticePlayerNotice.Unavailable -> stringResource(Res.string.practice_player_unavailable)
         PracticePlayerNotice.PersonalAudioUnavailable -> stringResource(Res.string.practice_sheet_audio_unavailable)
+        PracticePlayerNotice.PersonalDownloadFailed -> stringResource(Res.string.practice_sheet_audio_download_failed)
+        PracticePlayerNotice.PersonalScoreChanged -> stringResource(Res.string.practice_sheet_audio_reopen)
         PracticePlayerNotice.EmbeddedJangdan -> stringResource(Res.string.practice_sheet_audio_with_jangdan)
         PracticePlayerNotice.Unsupported -> stringResource(Res.string.practice_player_unsupported)
         PracticePlayerNotice.Interrupted -> stringResource(Res.string.practice_player_interrupted)

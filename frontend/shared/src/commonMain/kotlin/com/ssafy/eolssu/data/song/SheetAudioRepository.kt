@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.song
 
+import com.ssafy.eolssu.core.audio.SheetAudioPerformance
 import com.ssafy.eolssu.core.network.ApiError
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -65,6 +66,7 @@ data class SheetAudioFile(
     val fileName: String,
     val sha256: String? = null,
     val durationMs: Long? = null,
+    val performance: SheetAudioPerformance? = null,
 ) {
     /** [now]부터 [marginMs] 안에 만료되거나 이미 만료됐으면 true. */
     fun expiresWithin(now: Long, marginMs: Long): Boolean = now + marginMs >= urlExpiresAt
@@ -244,10 +246,11 @@ private class AudioFileDto(
     val fileName: String,
     val sha256: String? = null,
     val durationMs: Long? = null,
+    val performance: SheetAudioPerformance? = null,
 ) {
     fun toModel(allowedDownload: (String) -> Boolean): SheetAudioFile? {
         if (!allowedDownload(url) || byteSize <= 0 || fileName.isBlank()) return null
         val expiresAt = runCatching { Instant.parse(urlExpiresAt).toEpochMilliseconds() }.getOrNull() ?: return null
-        return SheetAudioFile(url, expiresAt, contentType, byteSize, fileName, sha256, durationMs)
+        return SheetAudioFile(url, expiresAt, contentType, byteSize, fileName, sha256, durationMs, performance)
     }
 }

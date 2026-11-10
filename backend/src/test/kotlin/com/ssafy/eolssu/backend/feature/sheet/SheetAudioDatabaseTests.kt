@@ -106,6 +106,33 @@ class SheetAudioDatabaseTests {
         assertTrue(objects.single().endsWith("/audio.m4a"))
     }
 
+    @Test fun `the optional performance is available only for the current downloadable audio`() {
+        val clock = MovingClock(Instant.parse("2026-11-05T00:00:00Z"))
+        val sourceHash = "a".repeat(64)
+        val m4a = ByteArray(20)
+        val worker = audioWith(fakeClient { request ->
+            val version = json.readTree(request).path("score").path("score").path("scoreVersion").asInt()
+            val timeline = json.createObjectNode().put("scoreVersion", version)
+                .put("sourceSha256", sourceHash).put("audioSha256", m4a.sheetAudioSha256())
+            GeneratedSheetAudio(m4a, ByteArray(14), 1234, timeline)
+        }, clock)
+
+        assertNull(worker.request(994481, 994481, null, false, null).body.audio)
+        worker.runOne()
+        val file = assertNotNull(worker.get(994481, 994481).audio)
+        val performance = assertNotNull(file.performance)
+        assertEquals(sourceHash, performance.sourceCommonSha256)
+        assertEquals(file.sha256, performance.timeline.path("audioSha256").asString())
+        assertEquals(1, objects.size)
+
+        assertTrue(worker.request(994481, 994481, null, false, null).reused)
+        val next = worker.request(994481, 994481, null, false, 90).body
+        assertEquals("QUEUED", next.status)
+        assertNull(next.audio?.performance)
+        clock.now = file.urlExpiresAt
+        assertNull(worker.get(994481, 994481).audio)
+    }
+
     @Test fun `download expires at a fixed deadline and only a new request renders again`() {
         val clock = MovingClock(Instant.parse("2026-11-05T00:00:00Z"))
         var renders = 0
@@ -621,6 +648,10 @@ class SheetAudioDatabaseTests {
         assertEquals("음원 검사.m4a",file.fileName)
         assertTrue(assertNotNull(file.durationMs)>0)
         assertTrue(assertNotNull(file.sha256).matches(Regex("[0-9a-f]{64}")))
+        val performance = assertNotNull(file.performance)
+        assertEquals(result.scoreVersion.toInt(), performance.timeline.path("scoreVersion").asInt())
+        assertEquals(file.sha256, performance.timeline.path("audioSha256").asString())
+        assertTrue(performance.timeline.path("segments").size() > 0)
         assertEquals(1,objects.size)
         assertNull(result.midi)
     }

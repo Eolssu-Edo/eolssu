@@ -8,6 +8,7 @@ import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import com.ssafy.eolssu.data.song.CatalogInstrument
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
 import com.ssafy.eolssu.data.song.SheetDocument
 import com.ssafy.eolssu.data.song.SheetDocumentRepository
@@ -24,6 +25,7 @@ import com.ssafy.eolssu.data.song.SheetAudioSettings
 import com.ssafy.eolssu.data.song.SheetAudioStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -111,10 +113,104 @@ class SheetEditAudioViewModelTest {
 
     private fun TestScope.viewModel(repository: FakeSheetAudioRepository, source: EditSource = EditSource.Mine("12"),
         now: () -> Long = { 0L }, documents: SheetDocumentRepository? = null, member: SignedInMember? = null,
-        store: SheetAudioDeviceStore? = null): SheetEditViewModel {
+        store: SheetAudioDeviceStore? = null,
+        loadAudioInstruments: (suspend () -> List<CatalogInstrument>)? = null): SheetEditViewModel {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         return SheetEditViewModel(source, EditView.Jeongganbo, SampleMySheetRepository(), repository, now = now, documents = documents,
-            member = member, deviceAudioStore = store)
+            member = member, deviceAudioStore = store, loadAudioInstruments = loadAudioInstruments)
+    }
+
+    @Test fun defaultsToTheConfirmedSheetInstrumentAndBlocksMismatchedAudio() = runTest {
+        val repository = FakeSheetAudioRepository().apply {
+            statuses += SheetAudioLookup.None
+            onRequest = { settings ->
+                SheetAudioRequest.Accepted(audio(SheetAudioStatus.Done).copy(instrumentId = checkNotNull(settings.instrumentId)))
+            }
+        }
+        val scoreDocuments = object : SheetDocumentRepository by documents {
+            override suspend fun get(sheetId: String): SheetDocument {
+                val document = documents.get(sheetId)
+                val score = checkNotNull(document.score)
+                return document.copy(score = score.copy(score = score.score.copy(instrument = "SOGEUM")))
+            }
+        }
+        val store = FakeDeviceStore()
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("7") }
+        val vm = viewModel(repository, source = EditSource.Mine("12", practiceVersion = 2),
+            documents = scoreDocuments, member = member, store = store,
+            loadAudioInstruments = { listOf(CatalogInstrument("3", "DANSO", "단소"), CatalogInstrument("9", "SOGEUM", "소금")) })
+        try {
+            runCurrent()
+            assertEquals("9", vm.uiState.value.audioInstruments?.selectedId)
+            vm.requestAudio(); runCurrent()
+            assertEquals("9", repository.requests.single().second.instrumentId)
+            vm.saveAudioOnDevice(); runCurrent()
+            assertNotNull(vm.devicePlayback(preview = true))
+
+            vm.selectAudioInstrument("3")
+            assertTrue(vm.uiState.value.audioSettingsChanged)
+            assertNull(vm.downloadableAudio())
+            assertNull(vm.devicePlayback(preview = false))
+            assertNull(vm.previewPlaybackId())
+            vm.requestAudio(); runCurrent()
+            assertEquals(listOf("9", "3"), repository.requests.map { it.second.instrumentId })
+            assertNotNull(vm.downloadableAudio())
+            assertNull(vm.devicePlayback(preview = true))
+
+            vm.selectAudioInstrument("9")
+            assertNotNull(vm.devicePlayback(preview = true), "원래 설정의 기기 파일은 다시 쓸 수 있다")
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun aMissingCatalogRequiresRetryBeforeAnInstrumentIsSent() = runTest {
+        val repository = FakeSheetAudioRepository().apply { statuses += SheetAudioLookup.None }
+        var catalogReady = false
+        val vm = viewModel(repository, documents = documents, loadAudioInstruments = {
+            if (!catalogReady) error("catalog offline")
+            listOf(CatalogInstrument("3", "DANSO", "단소"))
+        })
+        try {
+            runCurrent()
+            vm.requestAudio(); runCurrent()
+            assertTrue(repository.requests.isEmpty())
+            catalogReady = true
+            vm.loadAudioInstrumentOptions(); runCurrent()
+            assertEquals("3", vm.uiState.value.audioInstruments?.selectedId)
+            vm.requestAudio(); runCurrent()
+            assertEquals("3", repository.requests.single().second.instrumentId)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun deviceEditorPreviewsThePracticeDownloadWithoutLoadingExportOptions() = runTest {
+        val repository = FakeSheetAudioRepository().apply { statuses += SheetAudioLookup.None }
+        val store = FakeDeviceStore()
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("7") }
+        val download = SheetAudioDownload("https://r2.example/12.m4a", 1000, "ab".repeat(32), 18550,
+            instrumentId = "1", bpm = 60, withJangdan = false)
+        val saved = store.save("7", "12", "2", download)
+        var instrumentLoads = 0
+        val vm = viewModel(repository, documents = documents, member = member, store = store, loadAudioInstruments = {
+            instrumentLoads++
+            listOf(CatalogInstrument("1", "DANSO", "단소"))
+        })
+        try {
+            runCurrent()
+            assertFalse(vm.showsAudioExport)
+            assertEquals(saved.localFile, vm.devicePlayback(preview = true)?.localFile)
+            vm.requestAudio()
+            vm.refreshAudio()
+            runCurrent()
+            assertTrue(repository.requests.isEmpty())
+            assertEquals(0, repository.statusCalls)
+            assertEquals(0, instrumentLoads)
+
+            vm.updateDetails("미리듣기", 92)
+            assertNull(vm.devicePlayback(preview = true))
+            assertEquals(SheetEditMessage.AudioNeedsSave, vm.uiState.value.message)
+        } finally {
+            advanceUntilIdle()
+            Dispatchers.resetMain()
+        }
     }
 
     @Test fun previewWithoutGeneratedAudioDoesNotClaimPlayback() = runTest {
@@ -127,12 +223,34 @@ class SheetEditAudioViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
+    @Test fun audioGenerationWaitsForChangedBaseBpmToBeConfirmed() = runTest {
+        val repository = FakeSheetAudioRepository().apply { statuses += SheetAudioLookup.None }
+        val savedDocuments = object : SheetDocumentRepository by documents {
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) =
+                if (draft) SheetWrite.Saved(copy.baseScoreVersion, copy.revision + 1) else SheetWrite.Saved("3")
+        }
+        val vm = viewModel(repository, documents = savedDocuments)
+        try {
+            runCurrent()
+            vm.updateDetails("미리듣기", 92)
+            vm.saveDraft(); runCurrent()
+            vm.requestAudio(); runCurrent()
+            assertTrue(repository.requests.isEmpty())
+            assertEquals(SheetEditMessage.AudioNeedsSave, vm.uiState.value.message)
+
+            vm.requestSave(); runCurrent()
+            vm.requestAudio(); runCurrent()
+            assertEquals(92, repository.requests.single().second.bpm)
+        } finally { Dispatchers.resetMain() }
+    }
+
     @Test fun previewUsesOnlyTheDownloadedFileWithMatchingSettingsAndWorksAfterExpiry() = runTest {
         val repository = FakeSheetAudioRepository().apply { statuses += found(SheetAudioStatus.Done) }
         val store = FakeDeviceStore()
         val member = SignedInMember(FakeKeyValueStore()).apply { set("7") }
         var now = 0L
-        val vm = viewModel(repository, now = { now }, documents = documents, member = member, store = store)
+        val vm = viewModel(repository, source = EditSource.Mine("12", practiceVersion = 2),
+            now = { now }, documents = documents, member = member, store = store)
         try {
             runCurrent()
             assertNull(vm.devicePlayback(preview = true), "서버 생성 결과를 직접 재생하지 않는다")

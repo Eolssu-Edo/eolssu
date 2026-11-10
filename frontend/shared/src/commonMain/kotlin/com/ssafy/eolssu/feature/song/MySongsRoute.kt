@@ -19,7 +19,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import com.ssafy.eolssu.data.song.SheetConversionFailure
 
 /**
- * SONG-03 연결. 제공 곡은 [onPractice]로 평가 없는 연습 모드에, 내 악보는 [onPracticeSheet]로 내 악보 연습(평가 버튼 없음)에 간다.
+ * SONG-03 연결. 제공 곡은 [onPractice]로 평가 없는 연습 모드에, 내 악보 선택은 [onOpenSheet]로 열람 또는 연습에 연결한다.
  * 내 악보 위 '악보 추가'는 시트 없이 바로 [onAddSheet]로, 변환 실패 악보의 '다시 불러오기'는 실패 원인과 함께 [onReimportSheet]로 악보 추가(EDIT-01)에, 악보마다 '편집'은 [onEditSheet]로 내 악보 편집(EDIT-02)에 가고,
  * 휴지통은 묻는 창을 거쳐 지운다(2차 결합본 결정: 악보 추가 시트와 보기 전용 PDF 화면을 뺐다).
  * 상단 바의 연습 악기 드롭다운으로 악기를 바꾸면 제공 곡 목록이 그 악기로 바뀌고, 세션이 끝났으면 [onSessionExpired]로 로그인에 간다.
@@ -33,7 +33,7 @@ fun MySongsRoute(
     onEditSheet: (MySheet) -> Unit,
     onReimportSheet: (SheetConversionFailure?) -> Unit = { onAddSheet() },
     startOnSheets: Boolean = false,
-    onPracticeSheet: (sheetId: String) -> Unit,
+    onOpenSheet: (MySheet) -> Unit,
     onSessionExpired: () -> Unit = {},
     viewModel: MySongsViewModel = koinViewModel(),
 ) {
@@ -73,9 +73,12 @@ fun MySongsRoute(
             onRetry = { if (state.tab == MySongsTab.Sheets) viewModel.refreshSheets() else viewModel.retry() },
             onSelectTab = viewModel::selectTab,
             onSelectFilter = viewModel::selectFilter,
+            onQueryChange = viewModel::changeQuery,
+            onClearQuery = viewModel::clearQuery,
+            onResetSongFilters = viewModel::resetSongFilters,
             onToggleSort = viewModel::toggleSort,
             onOpenSong = onPractice,
-            onOpenSheet = { sheet -> onPracticeSheet(sheet.id) },
+            onOpenSheet = onOpenSheet,
             onEditSheet = onEditSheet,
             onAddSheet = onAddSheet,
             onDeleteSheet = viewModel::askDelete,

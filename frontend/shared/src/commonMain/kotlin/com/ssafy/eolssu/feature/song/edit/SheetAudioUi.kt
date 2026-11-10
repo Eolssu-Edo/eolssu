@@ -62,4 +62,5 @@ val DeviceSheetAudio.playbackId: String get() = "sheet-audio:$sha256"
 
 internal fun DeviceSheetAudio.matchesDownload(audio: SheetAudio): Boolean =
     sha256 == audio.audio?.sha256 && instrumentId == audio.instrumentId &&
-        bpm == audio.bpm && withJangdan == audio.withJangdan
+        bpm == audio.bpm && withJangdan == audio.withJangdan &&
+        (audio.audio.performance == null || performance == audio.audio.performance)

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.model.EmailRule
 import com.ssafy.eolssu.core.model.NicknameRule
 import com.ssafy.eolssu.core.model.PasswordRule
 import eolssu.shared.generated.resources.Res
@@ -12,6 +13,7 @@ import eolssu.shared.generated.resources.auth_error_nickname_empty
 import eolssu.shared.generated.resources.auth_error_password_empty
 import eolssu.shared.generated.resources.auth_error_password_mismatch
 import eolssu.shared.generated.resources.auth_error_password_rule
+import eolssu.shared.generated.resources.auth_error_password_too_long
 import org.jetbrains.compose.resources.StringResource
 import eolssu.shared.generated.resources.member_api_unavailable
 import eolssu.shared.generated.resources.member_api_session_expired
@@ -43,6 +45,7 @@ enum class FieldError(val message: StringResource) {
     EmailAlreadyExists(Res.string.auth_error_email_exists),
     PasswordEmpty(Res.string.auth_error_password_empty),
     PasswordRule(Res.string.auth_error_password_rule),
+    PasswordTooLong(Res.string.auth_error_password_too_long),
     PasswordMismatch(Res.string.auth_error_password_mismatch),
     NicknameEmpty(Res.string.auth_error_nickname_empty),
 
@@ -67,10 +70,10 @@ enum class FieldError(val message: StringResource) {
  * 비밀번호 규칙은 서버와 같은 '영문·숫자·특수문자를 포함한 8~128자'다. 닉네임은 서버와 같은 공백이 아닌 최대 10자([NicknameRule])다.
  */
 object AuthValidation {
-    private val emailPattern = Regex("""^[^\s@]+@[^\s@]+\.[^\s@]+$""")
     private val codePattern = Regex("""^\d{6}$""")
 
-    fun isEmail(value: String): Boolean = emailPattern.matches(value.trim())
+    /** 앞뒤 공백만 잘라 서버와 같은 [EmailRule]로 검사한다. */
+    fun isEmail(value: String): Boolean = EmailRule.isValid(value.trim())
 
     /** 인증번호는 6자리 숫자다. 앞자리 0을 지키려고 문자열 그대로 보낸다. */
     fun isCode(value: String): Boolean = codePattern.matches(value)
@@ -81,9 +84,11 @@ object AuthValidation {
         else -> null
     }
 
+    /** 조건을 덜 채우면 [FieldError.PasswordRule](화면은 체크리스트로 보인다), 네 조건을 채웠지만 128자를 넘으면 [FieldError.PasswordTooLong]. */
     fun passwordError(password: String): FieldError? = when {
         password.isEmpty() -> FieldError.PasswordEmpty
-        !PasswordRule.isValid(password) -> FieldError.PasswordRule
+        !PasswordRule.meetsAllChecks(password) -> FieldError.PasswordRule
+        PasswordRule.isTooLong(password) -> FieldError.PasswordTooLong
         else -> null
     }
 

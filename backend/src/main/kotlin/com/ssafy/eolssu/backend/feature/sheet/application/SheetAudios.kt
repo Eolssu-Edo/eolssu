@@ -6,7 +6,6 @@ import com.ssafy.eolssu.backend.feature.sheet.infrastructure.*
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.*
 import com.ssafy.eolssu.backend.feature.song.domain.*
 import java.nio.file.Files
-import java.security.MessageDigest
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -107,8 +106,12 @@ class SheetAudios(
             if(ttl.isZero || ttl.isNegative) null else {
                 val url=try { storage.downloadUrlBefore(item.path("key").asString(),ttl,name,expires) }
                     catch(_: Exception) { reject(ErrorCode.AUDIO_UNAVAILABLE) }
-                url?.let { SheetAudioFileView(it,expires,"audio/mp4",item.path("byteSize").longValue(),name,
-                    item.path("sha256").asString(),result.path("durationMs").longValue()) }
+                val performance = result.path("performance").takeIf {
+                row.status == "DONE" && row.scoreVersion == sheet.scoreVersion && it.isObject &&
+                    it.path("timeline").isObject && it.path("sourceCommonSha256").isString
+            }?.let { SheetAudioPerformanceView(it.path("sourceCommonSha256").asString(), it.path("timeline")) }
+            url?.let { SheetAudioFileView(it,expires,"audio/mp4",item.path("byteSize").longValue(),name,
+                    item.path("sha256").asString(),result.path("durationMs").longValue(),performance) }
             }
         }
         // A retained file keeps its own version while a newer request runs or fails.
@@ -159,8 +162,15 @@ class SheetAudios(
                 storage.put(audioKey,audio,"audio/mp4")
             } finally { Files.deleteIfExists(audio) }
             val title=(sheets.find(job.sheetId,job.userId)?.title ?: "악보").map { if(it.code<32 || it in "\\/:*?\"<>|") '_' else it }.joinToString("").trim().ifBlank { "악보" }
-            val result=json.writeValueAsString(mapOf("scoreVersion" to job.scoreVersion,"durationMs" to generated.durationMs,
-                "audio" to mapOf("key" to audioKey,"byteSize" to generated.m4a.size,"sha256" to MessageDigest.getInstance("SHA-256").digest(generated.m4a).joinToString("") { "%02x".format(it) },"fileName" to "$title.m4a")))
+            val audioHash = generated.m4a.sheetAudioSha256()
+            val resultFields = mutableMapOf<String, Any>("scoreVersion" to job.scoreVersion, "durationMs" to generated.durationMs,
+                "audio" to mapOf("key" to audioKey, "byteSize" to generated.m4a.size, "sha256" to audioHash, "fileName" to "$title.m4a"))
+            generated.performance?.takeIf {
+                it.path("scoreVersion").asInt() == job.scoreVersion && it.path("audioSha256").asString() == audioHash
+            }?.let {
+                resultFields["performance"] = SheetAudioPerformanceView(it.path("sourceSha256").asString(), it)
+            }
+            val result = json.writeValueAsString(resultFields)
             published=transaction.execute {
                 mapper.lockSheet(job.sheetId,job.userId) ?: return@execute false
                 val completed=clock.instant().truncatedTo(ChronoUnit.MICROS)

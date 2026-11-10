@@ -271,6 +271,7 @@ fun EolssuNavHost(
                 ),
             ) { entry ->
                 val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
+                val mine = entry.savedStateHandle.get<Boolean>("mine") ?: false
                 val perf = performance.visit(entry, PerfTarget.PRACTICE)
                 PracticeRoute(
                     perf = perf,
@@ -292,7 +293,7 @@ fun EolssuNavHost(
                     // 연주 중에는 Web 브라우저 뒤로 가기도 화면의 뒤로 가기처럼 확인 창을 띄운다.
                     onConfirmBackChange = { browserBackGuard?.onBack = it },
                     // 마이크 거부는 연습 화면 안에서 안내한다(보드 Dialog-PermDenied·PermBlocked, S15P31E102-357).
-                    mine = entry.savedStateHandle.get<Boolean>("mine") ?: false,
+                    mine = mine,
                     learn = entry.savedStateHandle.get<Boolean>("learn") ?: false,
                     sheetTitle = entry.savedStateHandle.get<String>("title"),
                 )
@@ -555,7 +556,14 @@ fun EolssuNavHost(
                     startOnSheets = entry.savedStateHandle.get<Boolean>("sheets") == true,
                     onBack = { navController.popBackStackFrom(entry) },
                     onPractice = { navController.navigate(EolssuDestination.practice(it, solo = true)) },
-                    onPracticeSheet = { sheetId -> navController.navigate(EolssuDestination.practice(sheetId, mine = true)) },
+                    onOpenSheet = { sheet ->
+                        if (navController.currentBackStackEntry?.id == entry.id) {
+                            navController.navigate(
+                                if (sheet.practiceReady) EolssuDestination.practice(sheet.id, mine = true)
+                                else SheetEditDestination.viewMine(sheet.id),
+                            )
+                        }
+                    },
                     onAddSheet = { navController.navigate(SheetEditDestination.new()) },
                     onReimportSheet = { failure -> navController.navigate(SheetEditDestination.new(failure)) },
                     onEditSheet = { navController.navigate(SheetEditDestination.editMine(it.id)) },

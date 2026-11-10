@@ -67,6 +67,7 @@ import com.ssafy.eolssu.data.user.LearnProgressRepository
 import com.ssafy.eolssu.data.user.LearnSongStage
 import com.ssafy.eolssu.data.user.LessonApi
 import com.ssafy.eolssu.data.user.OAuthAttempts
+import com.ssafy.eolssu.data.user.LoginPreferences
 import com.ssafy.eolssu.data.user.OAuthRedirect
 import com.ssafy.eolssu.data.user.OAuthRoute
 import com.ssafy.eolssu.data.user.AccountDraft
@@ -130,7 +131,7 @@ val appModule = module {
     single { SignedInMember(get()) }
     single<SongRepository> { ApiSongRepository(get()) }
     single<ModelAudioRepository> { ApiModelAudioRepository(get()) }
-    single { SheetPracticeRepository(get(), get(), get(), get(), get()) }
+    single { SheetPracticeRepository(get(), get(), get(), get(), get(), get(), get()) }
     single { InstrumentCatalog(get()) }
     single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
     single<ReferenceAudioRepository> { ApiReferenceAudioRepository(get(), get()) }
@@ -157,7 +158,7 @@ val appModule = module {
         val personalPractice = if (mine) get<SheetPracticeRepository>() else null
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
             modelAudioRepository = personalPractice ?: get<ModelAudioRepository>(), audioPlayer = get(), mine = mine, learn = learn, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
-            notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf)
+            notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf, personalAudio = personalPractice)
     }
     viewModel { parameters ->
         val (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) = parameters
@@ -199,7 +200,9 @@ val appModule = module {
     single { TermsRepository(get()) }
     viewModelOf(::ConsentViewModel)
     viewModel { (termId: String) -> TermsViewModel(termId, get()) }
-    viewModelOf(::LoginViewModel)
+    // 아이디 기억하기·자동 로그인 선택. 회원이 바뀌면 자동 로그인 표시를 지우므로 앱 시작 때 만든다(App).
+    single { LoginPreferences(get(), getOrNull(), get()) }
+    viewModel { LoginViewModel(get(), get(), get(), get()) }
     viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get(), get()) }
     viewModel { PasswordSetupViewModel(get(), get()) }
     viewModel { (social: Boolean) -> ProfileSetupViewModel(get(), get(), get(), get(), get(), social) }
@@ -247,6 +250,6 @@ val appModule = module {
     viewModel { (kind: ImportKind, hwang: HwangPitch) -> ImportResultViewModel(kind, hwang) }
     // 내 악보 음원(SHT-12·13)은 서버 계약대로 부른다. 서버 ID가 없는 예시 악보는 저장소가 서버에 묻지 않는다.
     single<SheetAudioRepository> { ApiSheetAudioRepository(get(), member = get(), server = get()) }
-    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), get(), get(), documents = get(), member = get(),
-        songs = get(), pitchCatalog = get(), deviceAudioStore = get()) }
+    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), now = get(), documents = get(), member = get(),
+        songs = get(), pitchCatalog = get(), deviceAudioStore = get(), loadAudioInstruments = get<InstrumentCatalog>()::load) }
 }

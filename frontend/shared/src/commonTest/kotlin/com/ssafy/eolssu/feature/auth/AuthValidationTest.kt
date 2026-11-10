@@ -18,6 +18,23 @@ class AuthValidationTest {
         assertFalse(AuthValidation.isEmail("us er@example.com"))
     }
 
+    /** 서버 인증번호 발송(S15P31E102-686)과 같은 형식 규칙. 앞뒤 공백만 잘라 검사한다. */
+    @Test
+    fun emailFollowsTheServerVerificationRule() {
+        for (email in listOf("user@naver.com", "first.last+tag@sub.example.co.kr", "UPPER.Case@Example.COM", "a_b%c-d@my-domain.io")) {
+            assertTrue(AuthValidation.isEmail(email), email)
+            assertNull(AuthValidation.emailError(email), email)
+        }
+        for (email in listOf(
+            "a@b", "a@b.", "@b.com", "a@.com", "a..b@c.com", ".a@b.com", "a.@b.com", "a@b..com", "a b@c.com",
+            "a@-b.com", "a@b-.com", "a@b.c", "a@b.123", "a,b@c.com", "a@b@c.com", "a@b_c.com", "mémber@example.com",
+            "a".repeat(65) + "@example.com",
+        )) {
+            assertFalse(AuthValidation.isEmail(email), email)
+            assertEquals(FieldError.EmailInvalid, AuthValidation.emailError(email), email)
+        }
+    }
+
     @Test
     fun codeIsExactlySixDigitsKeepingLeadingZero() {
         assertTrue(AuthValidation.isCode("012345"))
@@ -34,7 +51,9 @@ class AuthValidationTest {
         assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("eolssu!!"))
         assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("12345678!"))
         assertNull(AuthValidation.passwordError("a1!" + "x".repeat(125)))
-        assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("a1!" + "x".repeat(126)))
+        assertEquals(FieldError.PasswordTooLong, AuthValidation.passwordError("a1!" + "x".repeat(126)))
+        // 조건을 덜 채운 채 128자를 넘으면 체크리스트로 보이는 조건 오류가 먼저다.
+        assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("x".repeat(129)))
     }
 
     @Test

@@ -1,5 +1,6 @@
 """Renderer subprocess for the internal service. All asset paths are server-owned."""
 import copy
+import hashlib
 import json
 import math
 import os
@@ -114,7 +115,17 @@ def render(directory):
     peak = float(np.max(np.abs(audio)))
     require(math.isfinite(peak) and peak > 0, 'Silent/nonfinite render')
     credit = CREDIT + ' 원음 유지 합성이며 실제 악기 연주 가능 음역을 뜻하지 않습니다.' + (' 장구 음원 출처: 국립국악원(공공누리 제1유형).' if request['withJangdan'] else '')
-    write_audio(audio * min(1, .85 / peak), root / 'audio.m4a', resolve_encoder(), credit=credit)
+    final_audio = root / 'audio.m4a'
+    write_audio(audio * min(1, .85 / peak), final_audio, resolve_encoder(), credit=credit)
+    if source_hash := request.get('performanceSourceSha256'):
+        performance = json.loads((out / 'performance.common.json').read_text(encoding='utf-8'))
+        with final_audio.open('rb') as encoded:
+            performance['audioSha256'] = hashlib.file_digest(encoded, 'sha256').hexdigest()
+        # The rendering instrument changes timbre. The written identity comes from the committed input.
+        performance['sourceSha256'] = source_hash
+        performance['instrument'] = request['score']['score']['instrument']
+        (root / 'performance.common.json').write_text(
+            json.dumps(performance, ensure_ascii=False, allow_nan=False, separators=(',', ':')), encoding='utf-8')
     (root / 'result.json').write_text(json.dumps({'durationMs': math.ceil(len(audio) * 1000 / FS)}), encoding='utf-8')
 
 
