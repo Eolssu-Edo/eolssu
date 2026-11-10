@@ -227,13 +227,19 @@ class SheetEditViewModel(
                             version = result.scoreVersion
                             revision = result.revision
                             if (versionChanged) audioDownloadJob?.cancel()
+                            val saveMessage = when {
+                                draft -> SheetEditMessage.Draft
+                                result.reviewStatus == "EVALUABLE" -> SheetEditMessage.SavedForPractice
+                                result.reviewStatus == "NEEDS_REVIEW" -> SheetEditMessage.SavedNeedsReview
+                                else -> SheetEditMessage.Saved
+                            }
                             _uiState.update { it.copy(savedOnce = it.savedOnce || !draft,
                                 audio = if (!draft && it.audio.latest != null) SheetAudioUi.None else it.audio,
                                 deviceAudio = if (versionChanged) null else it.deviceAudio,
                                 audioDownloading = !versionChanged && it.audioDownloading,
                                 reviewIssues = it.reviewIssues.filterNot { issue -> issue.id in resolvedIds },
                                 checkedIssueIds = it.checkedIssueIds - resolvedIds.toSet(),
-                                message = if (announce) (if (draft) SheetEditMessage.Draft else SheetEditMessage.Saved) else it.message) }
+                                message = if (announce) saveMessage else it.message) }
                             if (!draft) {
                                 savedJangdanId = snapshot.draft.jangdanId
                                 mySheetRepository.refresh()

@@ -34,6 +34,8 @@ enum class SheetEditMessage {
 
     /** 저장(SHT-04). 빈 정간이 없을 때만 된다. */
     Saved,
+    SavedForPractice,
+    SavedNeedsReview,
 
     /** 저장한 적이 없어 음원을 만들 수 없다. */
     AudioNeedsSave,

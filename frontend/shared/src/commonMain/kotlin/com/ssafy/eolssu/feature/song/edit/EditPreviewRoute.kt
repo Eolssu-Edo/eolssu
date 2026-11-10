@@ -35,6 +35,8 @@ import eolssu.shared.generated.resources.sheetedit_msg_audio_too_long
 import eolssu.shared.generated.resources.sheetedit_msg_audio_unknown
 import eolssu.shared.generated.resources.sheetedit_msg_draft
 import eolssu.shared.generated.resources.sheetedit_msg_saved
+import eolssu.shared.generated.resources.sheetedit_msg_saved_for_practice
+import eolssu.shared.generated.resources.sheetedit_msg_saved_needs_review
 import eolssu.shared.generated.resources.sheet_save_failed
 import eolssu.shared.generated.resources.sheet_save_conflict
 import eolssu.shared.generated.resources.sheet_save_too_large
@@ -79,6 +81,8 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
         SheetEditMessage.SaveTooLarge to stringResource(Res.string.sheet_save_too_large),
         SheetEditMessage.Draft to stringResource(Res.string.sheetedit_msg_draft),
         SheetEditMessage.Saved to stringResource(Res.string.sheetedit_msg_saved),
+        SheetEditMessage.SavedForPractice to stringResource(Res.string.sheetedit_msg_saved_for_practice),
+        SheetEditMessage.SavedNeedsReview to stringResource(Res.string.sheetedit_msg_saved_needs_review),
         SheetEditMessage.AudioNeedsSave to stringResource(Res.string.sheetedit_msg_audio_needs_save),
         SheetEditMessage.AudioRequested to stringResource(Res.string.sheetedit_msg_audio_requested),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
