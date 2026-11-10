@@ -25,25 +25,29 @@ class LearnStageTourTest {
         ranges = ranges,
     )
 
-    /** 4단계는 앞 두 음의 운지가 있어야 할 일 3칸(첫 음 · 옮겨 가기 · 남은 음), 없으면 따라 배우기를 두지 않는다. */
-    @Test fun stageFourHasThreeStepsOnlyWithTwoKnownNotes() {
-        assertEquals(3, stageTourCount(4, detail(listOf("汰", "潢", "無", "林", "仲")), danso))
+    /**
+     * 4단계 첫 음은 3단계 첫 소리와 같아 칸을 두지 않는다(S15P31E102-655). 두 번째 음의 운지가 있어야
+     * 할 일 2칸(옮겨 가기 · 남은 음), 없으면 따라 배우기를 두지 않는다.
+     */
+    @Test fun stageFourSkipsTheFirstSoundAndHasTwoSteps() {
+        assertEquals(2, stageTourCount(4, detail(listOf("汰", "潢", "無", "林", "仲")), danso))
         assertEquals(0, stageTourCount(4, detail(listOf("汰")), danso))
         assertEquals(0, stageTourCount(4, detail(listOf("汰", "없는음")), danso))
     }
 
-    /** 5단계는 기본 5음이 있으면 패턴 5칸, 모자라면 없다. */
-    @Test fun stageFiveHasOneStepPerPattern() {
-        assertEquals(5, stageTourCount(5, detail(listOf("仲", "林", "無", "潢", "汰")), danso))
+    /** 5단계는 기본 5음이 있으면 올라가기·내려가기 2칸, 모자라면 없다(건너뛰기·세 음 동요는 같은 음의 반복이라 뺐다). */
+    @Test fun stageFiveHasAscendingAndDescendingOnly() {
+        assertEquals(listOf(LearnPattern.Ascending, LearnPattern.Descending), LearnPattern.entries)
+        assertEquals(2, stageTourCount(5, detail(listOf("仲", "林", "無", "潢", "汰")), danso))
         assertEquals(0, stageTourCount(5, detail(listOf("仲", "林")), danso))
     }
 
-    /** 6단계는 새 음역마다 '내기 · 음계 오르내리기' 2칸. */
-    @Test fun stageSixHasTwoStepsPerRange() {
+    /** 6단계는 새 음역마다 첫 음 내기 1칸(음계 오르내리기는 4·5단계 음의 반복이라 뺐다). */
+    @Test fun stageSixHasOneStepPerRange() {
         val high = LearnRange(Blow.High, "역취 · 한 옥타브 위", "", "㳞")
         val low = LearnRange(Blow.Low, "저취 · 한 옥타브 아래", "", "㣴")
-        assertEquals(2, stageTourCount(6, detail(ranges = listOf(high)), danso))
-        assertEquals(4, stageTourCount(6, detail(ranges = listOf(high, low)), danso))
+        assertEquals(1, stageTourCount(6, detail(ranges = listOf(high)), danso))
+        assertEquals(2, stageTourCount(6, detail(ranges = listOf(high, low)), danso))
         assertEquals(0, stageTourCount(6, detail(), danso))
     }
 
