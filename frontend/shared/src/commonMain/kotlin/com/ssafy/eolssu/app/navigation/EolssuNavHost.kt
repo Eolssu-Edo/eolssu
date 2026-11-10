@@ -49,7 +49,6 @@ import com.ssafy.eolssu.feature.guide.learn.LearnPracticeRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnStageRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.feature.home.HomeFeature
-import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.LEARN_SONG_STAGE
 import com.ssafy.eolssu.feature.home.HomeRoute
@@ -134,7 +133,7 @@ object EolssuDestination {
 
 /**
  * 앱의 화면 이동 그래프. 기능 사이의 이동은 이곳에서 콜백으로 연결한다.
- * 첫 실행을 마치지 않았으면 마이크 안내([AuthDestination.MIC])에서 시작한다. 약관 동의는 회원가입 흐름에서 받는다.
+ * 로그인한 회원이 없으면(처음 켬·로그아웃 뒤·세션 만료) 로그인에서 시작한다. 약관 동의는 회원가입 흐름에서, 마이크 권한은 녹음을 시작할 때 받는다.
  * [onNavHostReady]는 Web 진입점이 브라우저 뒤로 가기·주소를 연결할 때 쓴다.
  */
 @Composable
@@ -148,9 +147,13 @@ fun EolssuNavHost(
 ) {
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
     val firstRunRepository = koinInject<FirstRunRepository>()
-    val start = remember(qaSkipConsent, sessionExpired) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent, sessionExpired) }
-    val practiceSettings = koinInject<PracticeSettingsStore>()
     val member = koinInject<SignedInMember>()
+    // 앱을 켤 때의 로그인 여부. 로그아웃 뒤 다시 켜면 회원이 없어 만료 안내 없이 로그인에서 시작한다.
+    val firstRunCompleted = remember { firstRunRepository.isCompleted() }
+    val signedInAtStart = remember { member.id != null }
+    val start = remember(qaSkipConsent, sessionExpired) {
+        startDestination(firstRunCompleted, qaSkipConsent, sessionExpired, signedInAtStart)
+    }
     // 녹음 키로 분석에 넘기고 세션 ID로 결과에 넘기는 같은 화면 흐름의 곡 스냅샷.
     var evaluationSong by remember { mutableStateOf<Pair<String, Song>?>(null) }
     LaunchedEffect(member, navController) {
@@ -513,7 +516,6 @@ fun EolssuNavHost(
             sheetEditGraph(navController)
             authGraph(
                 navController,
-                onMicAllowed = practiceSettings::grantMic,
                 onFinished = { notice, provider -> navController.finishFirstRun(firstRunRepository, notice, provider) },
             )
 
@@ -548,9 +550,14 @@ fun EolssuNavHost(
     LaunchedEffect(navController) {
         // Web 연결은 주소를 먼저 적용한 뒤 계속 수집하므로, 끝나기를 기다리지 않는다.
         launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { onNavHostReady(navController) }
-        if (sessionExpired && shouldRedirectExpiredSession(navController.currentBackStackEntry?.destination?.route))
-            navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {
-            popUpTo(navController.graph.id) { inclusive = true }
+        // Web 주소로 다른 화면에 바로 들어와도 로그인이 필요하면 로그인으로 돌려보낸다. 만료 안내는 실제로 세션이 만료됐을 때만 띄운다.
+        val route = navController.currentBackStackEntry?.destination?.route
+        if (startNeedsLogin(firstRunCompleted, sessionExpired, signedInAtStart) && shouldRedirectExpiredSession(route) &&
+            (sessionExpired || route != AuthDestination.LOGIN)
+        ) {
+            navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired.takeIf { sessionExpired }) {
+                popUpTo(navController.graph.id) { inclusive = true }
+            }
         }
     }
 }

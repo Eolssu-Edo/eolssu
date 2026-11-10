@@ -584,11 +584,6 @@
     <string name="auth_terms_clause_4">제4조 (연주 녹음의 이용)</string>
     <string name="auth_terms_clause_5">제5조 (서비스의 변경과 중단)</string>
     <string name="auth_terms_pending">[약관 본문은 서버 약관 목록의 문서 주소(contentUrl)로 보여 줘요]</string>
-    <string name="auth_mic_title">연주를 들으려면\n마이크가 필요해요</string>
-    <string name="auth_mic_lead">녹음은 연습 화면에서 시작 버튼을 눌렀을 때만 해요.</string>
-    <string name="auth_mic_allow">허용</string>
-    <string name="auth_mic_deny">허용 안 함</string>
-    <string name="auth_mic_denied_notice">연습을 시작할 때 마이크 권한을 다시 안내해요.</string>
     <string name="auth_brand">얼쑤</string>
     <string name="auth_tagline">내 연주, 얼마나 정확할까?</string>
     <string name="auth_provider_kakao">카카오</string>
