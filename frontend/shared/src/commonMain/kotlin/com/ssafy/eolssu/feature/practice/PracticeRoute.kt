@@ -62,10 +62,12 @@ fun PracticeRoute(
     mine: Boolean = false,
     sheetTitle: String? = null,
     learn: Boolean = false,
+    onOpenSheetAudio: ((version: Int) -> Unit)? = null,
     perf: PerformanceVisit? = null,
     viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn") { parametersOf(songId, solo, mine, learn, perf) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val audioVersion = state.practiceAudioShortcutVersion
     // 평가 연주에서 음마다 모은 실시간 음높이 안내(S15P31E102-597). 관측이 없는 플랫폼은 집계가 비어 아무것도 칠하지 않는다.
     val pitchTally by viewModel.livePitch.collectAsStateWithLifecycle()
     val livePitch = remember(state.song, state.solo, pitchTally) { livePitchMarks(state, pitchTally) }
@@ -115,6 +117,9 @@ fun PracticeRoute(
                 onRetrySong = viewModel::retryLoadSong,
                 bottom = PracticeBottomActions(
                     onStartModel = viewModel::startModel,
+                    onOpenSheetAudio = if (audioVersion != null && onOpenSheetAudio != null) {
+                        { onOpenSheetAudio(audioVersion) }
+                    } else null,
                     onSelectModel = viewModel::selectModel,
                     onSelectRhythm = viewModel::selectRhythm,
                     onStartRhythm = viewModel::startRhythm,

@@ -15,6 +15,40 @@ import kotlin.test.*
 internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
     private fun document(draft: SheetWorkingCopy? = null) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), draft, "EVALUABLE", null, emptyList())
 
+    @Test fun practiceAudioOpensTheConfirmedScoreAndIgnoresAnEditorDraft() = runTest {
+        val draft = SheetWorkingCopy("이어 쓰기", null, 55, smallScoreData(), "1", 3)
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document(draft)
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite =
+                error("The audio screen must not write a score")
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31", practiceVersion = 1), EditView.Jeongganbo,
+            SampleMySheetRepository(), documents = repository))
+        runCurrent()
+
+        val state = model.uiState.value
+        assertFalse(state.documentFailed)
+        assertTrue(state.savedOnce)
+        assertEquals("실제 악보", state.draft.title)
+        assertEquals(60, state.draft.bpm)
+    }
+
+    @Test fun practiceAudioRejectsAScoreVersionDifferentFromThePracticeScreen() = runTest {
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document().copy(scoreVersion = "2")
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite =
+                error("The audio screen must not write a score")
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31", practiceVersion = 1), EditView.Jeongganbo,
+            SampleMySheetRepository(), documents = repository))
+        runCurrent()
+
+        val state = model.uiState.value
+        assertFalse(state.documentLoading)
+        assertTrue(state.practiceVersionChanged)
+        assertFalse(state.savedOnce)
+    }
+
     @Test fun closeDoesNotSkipAnInFlightConfirmationEvenWhenDraftWasAlreadySaved() = runTest {
         val reply = CompletableDeferred<SheetWrite>()
         var closed = false

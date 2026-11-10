@@ -35,6 +35,7 @@ object SheetEditDestination {
     const val IMPORT_RESULT = "sheet-edit/import/{kind}/result?hwang={hwang}"
     const val EDIT = "sheet-edit/edit?from={from}&id={id}&pending={pending}&hwang={hwang}"
     const val PREVIEW = "sheet-edit/preview"
+    const val PRACTICE_AUDIO = "sheet-edit/practice-audio/{id}/{version}"
 
     /** 악보 추가. 내 악보 '다시 불러오기'면 [failure]로 변환 실패 원인을 넘겨 안내 창을 먼저 띄운다. */
     fun new(failure: SheetConversionFailure? = null) = if (failure == null) "sheet-edit/new" else "sheet-edit/new?failure=${failure.name}"
@@ -53,6 +54,8 @@ object SheetEditDestination {
 
     /** 내 악보 목록의 '편집'(Edit-Mine). */
     fun editMine(sheetId: String) = edit(EditSource.Mine(sheetId))
+
+    fun practiceAudio(sheetId: String, version: Int) = "sheet-edit/practice-audio/$sheetId/$version"
 }
 
 /**
@@ -136,6 +139,19 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
     composable(SheetEditDestination.PREVIEW) { entry ->
         EditPreviewRoute(
             viewModel = sheetEditViewModel(navController, entry),
+            onBack = { navController.popBackStackFrom(entry) },
+        )
+    }
+    composable(
+        SheetEditDestination.PRACTICE_AUDIO,
+        arguments = listOf(navArgument("id") { type = NavType.StringType }, navArgument("version") { type = NavType.IntType }),
+    ) { entry ->
+        val source = EditSource.Mine(
+            sheetId = checkNotNull(entry.savedStateHandle.get<String>("id")),
+            practiceVersion = checkNotNull(entry.savedStateHandle.get<Int>("version")),
+        )
+        EditPreviewRoute(
+            viewModel = koinViewModel(viewModelStoreOwner = entry) { parametersOf(source, EditView.Jeongganbo) },
             onBack = { navController.popBackStackFrom(entry) },
         )
     }
