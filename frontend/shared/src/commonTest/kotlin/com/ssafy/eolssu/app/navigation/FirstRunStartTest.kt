@@ -25,16 +25,28 @@ class FirstRunStartTest {
     fun expiredSessionReturnsCompletedDeviceToLoginWithoutSkippingFirstRun() {
         assertEquals(AuthDestination.LOGIN, startDestination(true, sessionExpired = true))
         assertEquals(AuthDestination.LOGIN, startDestination(true, qaSkipConsent = true, sessionExpired = true))
-        assertEquals(AuthDestination.MIC, startDestination(false, sessionExpired = true))
+        assertEquals(AuthDestination.LOGIN, startDestination(false, sessionExpired = true))
+    }
+
+    @Test
+    fun signedOutCompletedDeviceStartsAtLoginWithoutExpiredNotice() {
+        // 로그아웃 뒤 다시 켜면 로그인에서 시작하고, 만료 안내는 세션 만료일 때만 띄운다.
+        assertEquals(AuthDestination.LOGIN, startDestination(true, signedIn = false))
+        assertTrue(startNeedsLogin(firstRunCompleted = true, sessionExpired = false, signedIn = false))
+        assertTrue(startNeedsLogin(firstRunCompleted = true, sessionExpired = true, signedIn = false))
+        assertFalse(startNeedsLogin(firstRunCompleted = true, sessionExpired = false, signedIn = true))
+        // 처음 켠 기기도 마이크 안내 없이 로그인에서 시작한다(마이크 권한은 녹음을 시작할 때 받는다).
+        assertEquals(AuthDestination.LOGIN, startDestination(false, signedIn = false))
+        assertTrue(startNeedsLogin(firstRunCompleted = false, sessionExpired = false, signedIn = false))
     }
 
     // TEMP S15P31E102-309: QA 옵션 제거 시 아래 두 검사도 제거한다.
     @Test
     fun qaFirstLaunchSkipsOnlyConsentWithoutPersistingCompletion() {
         val repository = FirstRunRepository(FakeKeyValueStore())
-        assertEquals(AuthDestination.MIC, startDestination(repository.isCompleted(), qaSkipConsent = true))
+        assertEquals(AuthDestination.LOGIN, startDestination(repository.isCompleted(), qaSkipConsent = true))
         assertFalse(repository.isCompleted())
-        assertEquals(AuthDestination.MIC, startDestination(repository.isCompleted()))
+        assertEquals(AuthDestination.LOGIN, startDestination(repository.isCompleted()))
     }
 
     @Test
@@ -43,11 +55,11 @@ class FirstRunStartTest {
     }
 
     @Test
-    fun firstLaunchStartsAtMicNoticeBecauseConsentIsInSignup() {
+    fun firstLaunchStartsAtLoginWithoutMicNotice() {
         val repository = FirstRunRepository(FakeKeyValueStore())
 
         assertFalse(repository.isCompleted())
-        assertEquals(AuthDestination.MIC, startDestination(repository.isCompleted()))
+        assertEquals(AuthDestination.LOGIN, startDestination(repository.isCompleted()))
     }
 
     @Test
