@@ -105,6 +105,14 @@ edo2 HTTPS는 자기 공인 IP의 `/healthz`와 JSON `status=ok`를 확인하는
 기존 edo1 3개 토큰/전역 SSH 설정의 기동 호환을 지원한다. 새 형식에서 설정되지 않은 edo2를 edo1로 대체하지 않으며, 서버별 토큰은 세 명령 한 묶음으로 설정한다. 토큰 값은 채팅·로그·저장소에 남기지 않는다.
 - 표는 의미가 같은 정보끼리 묶는다. 서버는 항목·현재값·기준/조치 3열, 컨테이너는 자원 5열·저장공간 3열·실행 상세 5열, health는 대상·판정·근거/소요·조치 4열이다. health의 조치는 같은 행에 한 번만 표시하며 수집 전체의 별도 문제가 있을 때만 앞에 요약 표를 추가한다. 표 셀에 HTML 개행을 넣지 않는다. 상단 수집 시각은 인라인 코드로 감싸 콜론 사이 숫자가 이모지로 해석되지 않게 한다. 표마다 최대 100행, 전체 약 14,000자 제한을 넘으면 생략을 명시한다. 점검 명령 자체는 애플리케이션·DB·Docker 구성을 변경하지 않는다.
 
+## edo1 독립 HTTPS 로그
+
+`edo-check-outside.timer`는 매분 edo2 중계의 HTTPS `/healthz`와 공개 `/api/terms`의 응답을 확인한다. 검사 시각과 대상별 최근 판정은 `/var/lib/edo-check-outside/latest.json`에 매번 기록한다. 운영 보고서의 독립 HTTPS 행은 이 파일을 읽는다.
+
+`journalctl -u edo-check-outside.service`에서는 대상별 `outage_started`(warning)와 `recovered`(notice), 서비스 실행 오류를 확인한다. 서비스 단위에서 정상 시작·종료에 해당하는 info를 걸러낸다. journal에 최근 출력이 없어도 정상일 수 있으므로 마지막 검사 시각은 상태 파일에서 확인한다.
+
+설치 또는 갱신 시 `outside.py`와 `edo-check-outside.service`를 한 세트로 취급한다. 기존 스크립트와 유닛을 백업한 뒤 타이머를 중지하고 서비스의 진행 중 실행이 끝난 뒤 두 파일을 기존 경로에 설치한다. `systemd-analyze verify`와 `systemctl daemon-reload`를 거쳐 타이머를 다시 시작한다. 연속된 두 실행에서 상태 파일의 수정 시각이 갱신되고, 정상이라면 새로운 결과 로그가 없으며, 운영 보고서가 두 판정을 표시하는지 확인한다. 복구 시 타이머를 중지하고 두 파일을 같이 복원한 뒤 `daemon-reload`와 타이머 시작을 반복한다. 상태 파일은 보존한다. [운영 로그 측정과 적용 범위](../../docs/knowledge/infra/edo-operational-logging.md)
+
 ## 확인과 갱신
 
 이미지 열은 이름·태그만 표시하고 태그와 함께 지정된 `@sha256:<64자리>`는 생략한다. 태그 없는 digest 참조·이미지 ID는 앞 12자리와 `…`를 남긴다. 표 표시만 축약하며 수집 원본·배포 pin은 보존한다. 전체 참조는 대상 서버에서 `docker inspect --format '{{.Config.Image}}' <컨테이너명>`으로 확인한다.
