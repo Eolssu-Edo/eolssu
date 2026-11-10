@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [Android 평가 녹음의 스피커 장단 유입 완화 (695)](plans/S15P31E102-695.md) · [Galaxy 실측과 재생 참조 실험](knowledge/frontend/android-jangdan-recording-echo.md)
 - [기초부터 배우기 1·7단계 반복 할 일 서버 문구 정리 (656)](plans/S15P31E102-656.md)
 - [기초부터 배우기 4~6단계 따라 배우기 반복 칸 정리 (655)](plans/S15P31E102-655.md)
 - [한 음씩 따라 불기 판정의 실측 높이 재생 검증 (653)](knowledge/frontend/step-practice-pitch-replay.md)
