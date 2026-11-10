@@ -33,6 +33,18 @@ class SocialAuthReviewRegressionTests {
         override fun matches(rawPassword:CharSequence?,encodedPassword:String?)=action()
     }
 
+    @Test fun `social sign up service rejects nickname longer than ten characters`() {
+        val signUp=SocialAuthService(repository,proofs,OAuthProofService(proofs,secrets,clock),mock(OAuthGateway::class.java),secrets,
+            mock(AuthTokenIssuer::class.java),verification,encoder{false},LoginAttemptLimiter(),clock,
+            signUps=mock(SignUpRepository::class.java),terms=mock(com.ssafy.eolssu.backend.feature.term.domain.TermRepository::class.java))
+        fun attempt(nickname:String)=assertFailsWith<SocialAuthFailure>{
+            signUp.signUp(SocialSignUpCommand(ticket,nickname,listOf(TermAgreement(1,"v1",true))),mapOf("GOOGLE" to binding))
+        }.code
+        assertEquals(ErrorCode.INVALID_REQUEST,attempt("가".repeat(11)))
+        // 10자는 길이 검사를 통과해 다음 단계(티켓 조회)에서 멈춘다.
+        assertEquals(ErrorCode.SIGNUP_TICKET_EXPIRED,attempt("가".repeat(10)))
+    }
+
     @Test fun `parallel guesses cannot compare more than five passwords`() {
         val entered=CountDownLatch(1);val release=CountDownLatch(1);val arrivals=CountDownLatch(8)
         val seen=ConcurrentHashMap.newKeySet<Long>()
