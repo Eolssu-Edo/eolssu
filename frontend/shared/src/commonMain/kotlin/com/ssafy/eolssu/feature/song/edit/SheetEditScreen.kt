@@ -55,6 +55,14 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.score_rest
 import eolssu.shared.generated.resources.sheetedit_banner_import
 import eolssu.shared.generated.resources.sheetedit_banner_open
+import eolssu.shared.generated.resources.sheet_review_checked
+import eolssu.shared.generated.resources.sheet_review_location
+import eolssu.shared.generated.resources.sheet_review_missing_pitch
+import eolssu.shared.generated.resources.sheet_review_pitch_label
+import eolssu.shared.generated.resources.sheet_review_range
+import eolssu.shared.generated.resources.sheet_review_removed_cell
+import eolssu.shared.generated.resources.sheet_review_save_checks
+import eolssu.shared.generated.resources.sheet_review_uncertain
 import eolssu.shared.generated.resources.sheetedit_close
 import eolssu.shared.generated.resources.sheetedit_down
 import eolssu.shared.generated.resources.sheetedit_duration_dotted_eighth
@@ -100,6 +108,8 @@ class SheetEditActions(
     val onSelectStaffNote: (StaffNoteKey) -> Unit,
     val onShiftStaffNote: (Int) -> Unit,
     val input: EditInputActions,
+    val onOpenReviewCell: () -> Unit = {},
+    val onCheckReviewIssue: () -> Unit = {},
 )
 
 /**
@@ -177,7 +187,8 @@ private fun JeongganboContent(state: SheetEditUiState, actions: SheetEditActions
     val draft = state.draft
     val song = remember(draft) { draft.toSong() }
     Column(modifier) {
-        if (state.pendingChecks > 0) ImportBanner(state.pendingChecks, actions.onOpenChecks)
+        if (state.reviewIssues.isNotEmpty()) ReviewBanner(state, actions)
+        else if (state.pendingChecks > 0) ImportBanner(state.pendingChecks, actions.onOpenChecks)
         Column(Modifier.weight(1f).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             HintText(stringResource(Res.string.sheetedit_hint_jeongganbo))
             EditScoreBoard(
@@ -194,6 +205,44 @@ private fun JeongganboContent(state: SheetEditUiState, actions: SheetEditActions
             )
         }
         EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.availablePitches, actions.input)
+    }
+}
+
+@Composable
+private fun ReviewBanner(state: SheetEditUiState, actions: SheetEditActions) {
+    val issue = state.nextReviewIssue
+    val cellIndex = state.nextReviewCellIndex
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)
+            .background(EolssuTheme.colors.accentTint, RoundedCornerShape(10.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        if (issue == null) {
+            HintText(stringResource(Res.string.sheet_review_save_checks))
+        } else {
+            HintText(stringResource(Res.string.sheetedit_banner_import, state.pendingChecks))
+            val reason = when (issue.kind) {
+                "UNREGISTERED_PITCH" -> issue.pitch?.let { (name, octave) ->
+                    stringResource(Res.string.sheet_review_pitch_label, name, octave)
+                } ?: stringResource(Res.string.sheet_review_missing_pitch)
+                "OUT_OF_RANGE" -> stringResource(Res.string.sheet_review_range)
+                else -> stringResource(Res.string.sheet_review_uncertain)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    if (cellIndex == null) stringResource(Res.string.sheet_review_removed_cell, reason)
+                    else stringResource(Res.string.sheet_review_location, state.draft.columnOf(cellIndex) + 1, state.draft.rowOf(cellIndex) + 1, reason),
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (cellIndex != null && cellIndex != state.selected) {
+                    PillButton(stringResource(Res.string.sheetedit_banner_open), actions.onOpenReviewCell)
+                } else {
+                    PillButton(stringResource(Res.string.sheet_review_checked), actions.onCheckReviewIssue)
+                }
+            }
+        }
     }
 }
 
@@ -362,6 +411,7 @@ internal fun SheetEditMessage.shownInEditor(): Boolean = this in EditorMessages
 
 private val EditorMessages = setOf(
     SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge,
+    SheetEditMessage.ReviewBeforeReshape,
     SheetEditMessage.ComingSoon,
     SheetEditMessage.AudioReady,
     SheetEditMessage.AudioFailed,
