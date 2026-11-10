@@ -11,6 +11,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
+import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import eolssu.shared.generated.resources.sheetedit_msg_audio_failed
@@ -97,6 +98,10 @@ fun SheetEditRoute(
             ),
         ),
     )
+    state.jangdanPicker?.let { picker ->
+        SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft.original?.music?.bpmUnit,
+            onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)
+    }
     if (state.closeWarning) EolssuDialog(
         title = stringResource(Res.string.sheet_close_unsaved),
         message = stringResource(Res.string.sheet_close_message),
