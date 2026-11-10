@@ -3,19 +3,70 @@
 import concurrent.futures
 from datetime import datetime, timedelta, timezone
 import http.client
+from ipaddress import IPv4Address, IPv4Network
 import json
 import os
 import re
 from pathlib import Path
 import socket
+import stat
 import subprocess
 import sys
 import time
 
-REQUIRED_CONTAINERS = {'eolssu-runtime-frontend-1', 'eolssu-runtime-mysql-1', 'eolssu-runtime-ai-1',
-                       'eolssu-monitoring-grafana-1', 'eolssu-monitoring-prometheus-1',
-                       'eolssu-monitoring-node-exporter-1'}
+MYSQL_PROXY = 'eolssu-replication-proxy-579'
+GRAFANA = 'eolssu-monitoring-grafana-1'
+N8N = 'hey-edo1-n8n-1'
+NODE_EXPORTER = 'eolssu-monitoring-node-exporter-1'
+REQUIRED_CONTAINERS = {MYSQL_PROXY, 'eolssu-runtime-frontend-1', 'eolssu-runtime-mysql-1', 'eolssu-runtime-ai-1',
+                       GRAFANA, 'eolssu-monitoring-prometheus-1', NODE_EXPORTER}
 REQUIRED_BY_TARGET = {'edo1': REQUIRED_CONTAINERS, 'edo2': set()}
+STANDBY_WEB = 'eolssu-standby-579-frontend-1'
+STANDBY_WEB_LOCATION = 'edo2 대기 웹 loopback HTTPS'
+STANDBY_WEB_ACTION = '대기 웹 127.0.0.1:18443 포트·localhost 인증서·/index.html 응답 확인'
+EDO1_READINESS_LOCATION = 'edo1 서비스 준비 검사'
+EDO2_REPLICATION_WATCH_LOCATION = 'edo2 복제 감시 systemd'
+REPLICATION_WATCH_TIMER = 'eolssu-replication-watch.timer'
+REPLICATION_WATCH_SERVICE = 'eolssu-replication-watch.service'
+REPLICATION_WATCH_MAX_AGE_SECONDS = 45  # 20s cadence, 1s timer accuracy, 8s service timeout.
+BLOG_ORIGIN = 'https://team-edo.github.io'
+BLOG_LOGIN = 'eolssu-blog-editor'
+BLOG_WRITABLE = 'eolssu-blog-editor-writable'
+PHPMYADMIN = 'eolssu-mysql-admin-phpmyadmin-1'
+ANALYSIS_AI = 'eolssu-runtime-ai-1'
+REVIEW_TUNNEL = 'hey-edo1-tunnel-1'
+EDO1_READINESS_TYPES = {
+    ANALYSIS_AI: ('http_communication', 'edo1 서비스 HTTP 통신 검사'),
+    MYSQL_PROXY: ('tcp_listener', 'edo1 MySQL 프록시 로컬 수신 검사'),
+}
+DOCKER_BRIDGE_RANGE = IPv4Network('172.16.0.0/12')
+EDO1_PUBLISHED_PROBES = {
+    BLOG_LOGIN: ('8000/tcp', '172.18.0.1', 18120, '/config'),
+    BLOG_WRITABLE: ('8000/tcp', '172.18.0.1', 18121, '/config'),
+    PHPMYADMIN: ('80/tcp', '127.0.0.1', 8081, '/'),
+    GRAFANA: ('3000/tcp', '127.0.0.1', 3000, '/api/health'),
+    N8N: ('5678/tcp', '127.0.0.1', 5688, '/healthz/readiness'),
+}
+EDO1_BRIDGE_PROBES = {
+    ANALYSIS_AI: ('eolssu-runtime_default', 8000, '/v1/analyses'),
+    REVIEW_TUNNEL: ('hey-edo1_control', 20241, '/ready'),
+}
+EDO1_READINESS_ACTIONS = {
+    BLOG_LOGIN: '블로그 로그인 편집기의 내부 /config, OAuth 설정과 CORS 확인',
+    BLOG_WRITABLE: '블로그 쓰기 편집기의 내부 /config, OAuth 설정·CORS와 canBatch 확인',
+    MYSQL_PROXY: 'edo1 프록시 실행·포트 매핑·수신 확인. 복제 통신은 /edo2-health에서 확인',
+    PHPMYADMIN: 'phpMyAdmin 127.0.0.1:8081 로그인 화면과 컨테이너 로그 확인',
+    ANALYSIS_AI: '분석 API 경로와 HTTP 422 필수 입력 검증 응답 확인',
+    REVIEW_TUNNEL: 'Cloudflared 내부 /ready와 엣지 연결 상태 확인',
+    GRAFANA: 'Grafana /api/health 응답과 자체 DB 상태 확인',
+    N8N: 'n8n /healthz/readiness 응답과 서비스 로그 확인',
+    NODE_EXPORTER: 'Prometheus의 node 수집 상태와 node-exporter 확인',
+}
+EOLSSU_SYSLOG_DIR = Path('/var/log/eolssu/ordinary')
+EOLSSU_SYSLOG_TAGS = {'eolssu-frontend', 'eolssu-backend', 'eolssu-ai', 'eolssu-mysql', 'eolssu-playback', 'eolssu-omr'}
+PROC_ROOT = Path('/proc')
+CGROUP_ROOT = Path('/sys/fs/cgroup')
+BLOG_EDITOR_ROLLBACK_NAME = re.compile(r'eolssu-blog-editor-writable-(?:before|rollback|pre)-[0-9a-f]{8}')
 
 
 def resource_stats(stats):
@@ -32,7 +83,44 @@ def resource_stats(stats):
 
 
 def image_disk_bytes(data):
-    return data.get('LayersSize', 0)
+    return data.get('LayersSize')
+
+
+def disk_usage_summary(issues):
+    try:
+        storage = docker('/system/df', timeout=20)
+        if not isinstance(storage, dict):
+            raise ValueError('unexpected Docker storage response')
+    except (OSError, http.client.HTTPException, RuntimeError, ValueError):
+        issues.append('Docker 저장공간 수집 실패·시간 초과')
+        return '확인 불가', '확인 불가'
+
+    categories = ('ImageUsage', 'ContainerUsage', 'VolumeUsage', 'BuildCacheUsage')
+    if 'LayersSize' in storage and not any(category in storage for category in categories):
+        # Before Engine API 1.52 the response did not include reclaimable summaries.
+        def total(values):
+            return sum(values) if all(isinstance(value, int) and value >= 0 for value in values) else None
+
+        used = [image_disk_bytes(storage),
+                total([item.get('SizeRw') for item in storage.get('Containers') or []]),
+                total([(item.get('UsageData') or {}).get('Size') for item in storage.get('Volumes') or []]),
+                total([item.get('Size') for item in storage.get('BuildCache') or []])]
+        reclaimable = [None] * len(categories)
+    else:
+        summaries = [storage.get(category) for category in categories]
+        # Engine omits zero totals from a present category, including an empty object.
+        used = [summary.get('TotalSize', 0) if isinstance(summary, dict) else None for summary in summaries]
+        reclaimable = [summary.get('Reclaimable', 0) if isinstance(summary, dict) else None for summary in summaries]
+
+    def valid_bytes(value):
+        return type(value) is int and value >= 0
+
+    if not all(map(valid_bytes, used + reclaimable)):
+        issues.append('Docker 저장공간 일부 수집 실패')
+    used_text = ' / '.join(size(value) if valid_bytes(value) else '확인 불가' for value in used)
+    reclaimable_text = ' · '.join(f'{label} {size(value) if valid_bytes(value) else "확인 불가"}'
+                                  for label, value in zip(('이미지', '쓰기', '볼륨', '캐시'), reclaimable))
+    return used_text, reclaimable_text
 
 
 def size(value):
@@ -94,7 +182,7 @@ def required_containers(target, slot):
 
 def snapshot(with_storage=False, collect_stats=True, target='edo1', *, required=None):
     info = docker('/info')
-    containers = docker('/containers/json?all=1&size=1')
+    containers = docker('/containers/json?all=1' + ('&size=1' if with_storage else ''))
     issues = []
     if len(containers) > 100:
         issues.append(f'컨테이너 {len(containers)}개 중 100개만 수집')
@@ -121,9 +209,9 @@ def snapshot(with_storage=False, collect_stats=True, target='edo1', *, required=
     storage = {}
     if with_storage:
         try:
-            storage = docker('/system/df', timeout=20)
+            storage = docker('/system/df?type=volume&verbose=1', timeout=20)
         except Exception:
-            issues.append('Docker 저장공간 수집 실패·시간 초과')
+            issues.append('Docker 볼륨 저장공간 수집 실패·시간 초과')
     return info, collected, storage, issues
 
 
@@ -181,7 +269,7 @@ def server_report(target='edo1'):
     disks = host_disks(issues)
     failures, oom_lines = system_events(issues)
     try:
-        info, containers, storage, docker_issues = snapshot(True, target=target)
+        info, containers, _, docker_issues = snapshot(target=target)
         issues.extend(docker_issues)
         running = sum(c['item']['State'] == 'running' for c in containers)
         docker_root = info.get('DockerRootDir')
@@ -199,22 +287,11 @@ def server_report(target='edo1'):
         if missing:
             docker_ram += f' · {missing}개 확인 불가'
             issues.append(f'컨테이너 RAM {missing}개 수집 불가: 합계는 일부 사용량')
-        if storage:
-            volumes = storage.get('Volumes') or []
-            known_volumes = all(v.get('UsageData', {}).get('Size', -1) >= 0 for v in volumes)
-            volume_size = sum(v['UsageData']['Size'] for v in volumes) if known_volumes else None
-            cache = storage.get('BuildCache') or []
-            # Shared cache records are not added to image-layer bytes; both categories stay separate.
-            cache_size = sum(c.get('Size', 0) for c in cache)
-            write_size = sum(c.get('SizeRw', 0) for c in storage.get('Containers') or [])
-            disk = f"{size(image_disk_bytes(storage))} / {size(write_size)} / {size(volume_size)} / {size(cache_size)}"
-            reclaim = run(['docker', 'system', 'df', '--format', '{{.Type}}={{.Reclaimable}}'], timeout=15)
-            reclaimable = '; '.join(reclaim.stdout.strip().splitlines()) if reclaim.returncode == 0 else '확인 불가'
-        else:
-            disk = reclaimable = '확인 불가'
     except Exception:
         docker_state = docker_ram = disk = reclaimable = '확인 불가'
         issues.append('Docker 데몬·자원 수집 실패')
+    else:
+        disk, reclaimable = disk_usage_summary(issues)
     operating_system = next((line.split('=', 1)[1].strip('"') for line in Path('/etc/os-release').read_text().splitlines() if line.startswith('PRETTY_NAME=')), 'Linux')
     row = [socket.gethostname() + ' / ' + operating_system + ' / ' + os.uname().release + ' / ' + duration(float(Path('/proc/uptime').read_text().split()[0])),
            f'{cpu_sample():.1f}% / {os.cpu_count()}코어 · Load ' + '/'.join(f'{x:.2f}' for x in os.getloadavg()),
@@ -228,29 +305,27 @@ def server_report(target='edo1'):
             '이미지/쓰기/볼륨/캐시', '회수 가능량(Docker)', '시스템 실패/OOM 24h'], [row], issues, facts
 
 
-def mounted_storage(mounts, volumes, measurements=None):
+def mounted_storage(mounts, volumes, measurements=None, *, name=None):
     result = []
     for mount in mounts[:12]:
         if mount['Type'] == 'volume':
             volume = volumes.get(mount.get('Name'), {})
-            usage = volume.get('UsageData', {})
+            usage = volume.get('UsageData') or {}
             result.append(f"볼륨 {mount.get('Name', '?')}: {size(usage.get('Size'))}" + (' (공유)' if usage.get('RefCount', 0) > 1 else ''))
         elif mount['Type'] == 'bind':
-            path = mount['Source']
-            try:
-                if measurements is not None and path in measurements:
-                    result.append('bind ' + mount['Destination'] + ': ' + measurements[path])
-                    continue
-                remaining = min(12, measurements.get('deadline', time.monotonic()+12) - time.monotonic()) if measurements is not None else 12
-                if remaining <= 0:
-                    raise TimeoutError('measurement budget exhausted')
-                measured = run(['nice', '-n', '10', 'du', '-sx', '--block-size=1', '--', path], timeout=remaining)
-                amount = size(int(measured.stdout.split()[0])) if measured.returncode == 0 else '확인 불가'
-            except Exception:
-                amount = '시간 초과·확인 불가'
-            if measurements is not None:
-                measurements[path] = amount
-            result.append('bind ' + mount['Destination'] + ': ' + amount)
+            path, destination = mount['Source'], mount['Destination']
+            if (name == 'eolssu-monitoring-node-exporter-1' and path == '/'
+                    and destination == '/host' and mount.get('RW') is False):
+                result.append('bind /host: 호스트 관측용 (서버 파일시스템 지표 참고)')
+                continue
+            if measurements is not None and path in measurements:
+                amount = measurements[path]
+            else:
+                remaining = measurements['deadline'] - time.monotonic() if measurements is not None else 12
+                amount = bind_usage(path, remaining)
+                if measurements is not None:
+                    measurements[path] = amount
+            result.append('bind ' + destination + ': ' + amount)
         else:
             result.append(mount['Type'] + ': ' + mount['Destination'])
     if len(mounts) > 12:
@@ -258,8 +333,58 @@ def mounted_storage(mounts, volumes, measurements=None):
     return '; '.join(result) or '없음'
 
 
-def log_usage(detail, docker_root):
-    driver = detail['HostConfig'].get('LogConfig', {}).get('Type', '?')
+def bind_usage(path, remaining):
+    if remaining <= 0:
+        return '확인 불가 (전체 25초 측정 예산 소진)'
+    try:
+        measured = run(['nice', '-n', '10', 'du', '-sx', '--block-size=1', '--', path], timeout=min(12, remaining))
+        if measured.returncode != 0:
+            return '확인 불가 (저장소 읽기 실패)'
+        return size(int(measured.stdout.split()[0]))
+    except subprocess.TimeoutExpired:
+        reason = '경로당 12초 한도' if remaining >= 12 else '전체 25초 측정 예산 소진'
+        return f'확인 불가 ({reason})'
+    except OSError:
+        return '확인 불가 (저장소 읽기 실패)'
+    except (IndexError, ValueError):
+        return '확인 불가 (측정값 해석 실패)'
+
+
+def syslog_usage(tag):
+    directory = EOLSSU_SYSLOG_DIR
+    pattern = re.compile(re.escape(tag) + r'\.[0-9]{4}-[0-9]{2}-[0-9]{2}\.log')
+    count = total = 0
+    try:
+        if directory.resolve(strict=True) != directory:
+            return '미측정 (syslog 로그 경로 불일치)'
+        with os.scandir(directory) as files:
+            for index, file in enumerate(files, 1):
+                if index > 1024:
+                    return '미측정 (syslog 탐색 한도 초과)'
+                if not pattern.fullmatch(file.name):
+                    continue
+                metadata = file.stat(follow_symlinks=False)
+                if stat.S_ISREG(metadata.st_mode):
+                    count += 1
+                    total += metadata.st_size
+                    if count > 100:
+                        return '미측정 (syslog 파일 수 한도 초과)'
+    except (OSError, RuntimeError):
+        return '미측정 (syslog 파일 접근 실패)'
+    if not count:
+        return '미측정 (syslog 파일 없음)'
+    label = 'API 공용 로그' if tag == 'eolssu-backend' else '일별 보관분 포함'
+    return f'{size(total)} (syslog, {label})'
+
+
+def log_usage(detail, docker_root, target='edo1'):
+    log_config = detail['HostConfig'].get('LogConfig', {})
+    driver = log_config.get('Type', '?')
+    if driver == 'syslog' and target == 'edo1':
+        options = log_config.get('Config') or {}
+        tag = options.get('tag')
+        if options.get('syslog-address') == 'tcp://127.0.0.1:1514' and tag in EOLSSU_SYSLOG_TAGS:
+            return syslog_usage(tag)
     if driver == 'none':
         return '저장 안 함 (none)'
     path = detail.get('LogPath')
@@ -282,10 +407,239 @@ def log_usage(detail, docker_root):
         return f'미측정 ({driver} 파일 접근 실패)'
 
 
+def has_port_binding(detail, container_port, host, port):
+    ports = detail.get('NetworkSettings', {}).get('Ports') or {}
+    return {'HostIp': host, 'HostPort': str(port)} in (ports.get(container_port) or [])
+
+
+def mysql_proxy_readiness(detail):
+    ports = detail.get('NetworkSettings', {}).get('Ports')
+    if not isinstance(ports, dict):
+        return '확인 불가', 'MySQL 프록시 포트 매핑 정보 수집 불가', '—'
+    if not has_port_binding(detail, '3306/tcp', '127.0.0.1', 13306):
+        return '실패', 'MySQL 프록시 loopback 포트 매핑 없음', '—'
+    started = time.monotonic()
+    # Opening and dropping a pre-auth connection can count against the shared MySQL proxy host.
+    try:
+        listener = run(['/usr/bin/ss', '-H', '-lnt4', '( src 127.0.0.1 and sport = :13306 )'], timeout=2)
+    except (OSError, subprocess.TimeoutExpired):
+        return '확인 불가', 'MySQL 프록시 로컬 수신 상태 수집 불가', '—'
+    elapsed = f'{(time.monotonic()-started)*1000:.0f}ms'
+    if listener.returncode != 0:
+        return '확인 불가', 'MySQL 프록시 로컬 수신 상태 수집 불가', elapsed
+    if not listener.stdout.strip():
+        return '실패', 'ss에서 127.0.0.1:13306 로컬 수신 소켓 없음', elapsed
+    return '정상', '컨테이너 실행 중 · ss로 127.0.0.1:13306 로컬 수신 확인 · 복제 통신은 /edo2-health에서 확인', elapsed
+
+
+def readiness_response(name, status, content_type, cors_origin, body):
+    mismatch = '실패', f'HTTP {status} · 기대한 서비스 응답 불일치'
+    if name == PHPMYADMIN:
+        markers = (b'id="login_form"', b'name="pma_username"', b'name="pma_password"')
+        if status == 200 and content_type == 'text/html' and all(marker in body for marker in markers):
+            return '정상', 'GET / HTTP 200 · phpMyAdmin 로그인 양식 · MySQL 인증 미검증'
+        return mismatch
+
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        return mismatch
+    if not isinstance(payload, dict):
+        return mismatch
+
+    if name in (GRAFANA, N8N):
+        _, _, _, path = EDO1_PUBLISHED_PROBES[name]
+        field = 'database' if name == GRAFANA else 'status'
+        if status == 200 and payload.get(field) == 'ok':
+            return '정상', f'GET {path} HTTP 200 · {field}=ok'
+        return mismatch
+
+    if name == REVIEW_TUNNEL:
+        connections = payload.get('readyConnections')
+        if type(connections) is int and payload.get('status') == status:
+            if status == 200 and connections > 0:
+                return '정상', f'GET /ready HTTP 200 · Cloudflare 엣지 연결 {connections}개 · 웹훅 미검증'
+            if status == 503 and connections == 0:
+                return '실패', 'GET /ready HTTP 503 · Cloudflare 엣지 연결 0개'
+    elif name == ANALYSIS_AI and status == 422 and content_type == 'application/json':
+        errors = payload.get('errors')
+        if isinstance(errors, list) and all(
+            {'loc': ['body', field], 'type': 'missing'} in errors for field in ('audioUrl', 'notes')
+        ):
+            return '정상', 'POST /v1/analyses · HTTP 422 (입력 검증 응답)'
+    elif (name in (BLOG_LOGIN, BLOG_WRITABLE) and status == 200
+          and content_type == 'application/json' and cors_origin == BLOG_ORIGIN
+          and payload.get('authorize') == 'https://github.com/login/oauth/authorize'
+          and isinstance(payload.get('clientId'), str) and payload['clientId'].strip()
+          and payload.get('redirectUri') == BLOG_ORIGIN + '/edit/'
+          and (name == BLOG_LOGIN or payload.get('canBatch') is True)):
+        checked = 'OAuth·일괄 반영 설정' if name == BLOG_WRITABLE else '내부 OAuth 설정'
+        return '정상', f'GET /config HTTP 200 · {checked}·CORS 확인 · 실제 로그인 미검증'
+    return mismatch
+
+def edo1_service_readiness(name, detail):
+    if name not in EDO1_READINESS_ACTIONS:
+        return None
+    state = detail.get('State', {})
+    if (state.get('Running') is not True or state.get('Status') != 'running'
+            or state.get('OOMKilled') or state.get('Health', {}).get('Status') not in (None, 'healthy')):
+        return None
+    if detail.get('Name') != '/' + name:
+        return '확인 불가', 'Docker inspect 대상 이름 확인 불가', '—'
+    if name == MYSQL_PROXY:
+        return mysql_proxy_readiness(detail)
+    if name == NODE_EXPORTER:
+        for row in prometheus_health(include_ready=False):
+            if row[0] == 'node 지표 수집':
+                return row[2], 'Prometheus · ' + row[3], row[4]
+        return '확인 불가', 'Prometheus에서 node-exporter 수집 상태 확인 불가', '—'
+    if name in EDO1_PUBLISHED_PROBES:
+        container_port, host, port, path = EDO1_PUBLISHED_PROBES[name]
+        if not has_port_binding(detail, container_port, host, port):
+            return '확인 불가', '기대한 Docker 포트 매핑 확인 불가', '—'
+    else:
+        network, port, path = EDO1_BRIDGE_PROBES[name]
+        networks = detail.get('NetworkSettings', {}).get('Networks') or {}
+        host = (networks.get(network) or {}).get('IPAddress', '')
+        try:
+            if IPv4Address(host) not in DOCKER_BRIDGE_RANGE:
+                return '확인 불가', '기대한 Docker 내부 주소 확인 불가', '—'
+        except ValueError:
+            return '확인 불가', '기대한 Docker 내부 주소 확인 불가', '—'
+
+    method, body, headers = 'GET', None, {}
+    if name == ANALYSIS_AI:
+        method, body, headers = 'POST', b'{}', {'Content-Type': 'application/json'}
+    elif name in (BLOG_LOGIN, BLOG_WRITABLE):
+        headers = {'Origin': BLOG_ORIGIN}
+
+    started = time.monotonic()
+    connection = http.client.HTTPConnection(host, port, timeout=2)
+    response = None
+    try:
+        connection.request(method, path, body=body, headers=headers)
+        response = connection.getresponse()
+        expected_status = 422 if name == ANALYSIS_AI else 200
+        tunnel_unready = name == REVIEW_TUNNEL and response.status == 503
+        if response.status != expected_status and not tunnel_unready:
+            elapsed = f'{(time.monotonic()-started)*1000:.0f}ms'
+            return '실패', f'{method} {path} HTTP {response.status} · 기대 HTTP {expected_status} 불일치', elapsed
+        limit = 32768 if name == PHPMYADMIN else 4096
+        payload = response.read(limit + 1)
+        content_type = response.getheader('Content-Type', '').split(';', 1)[0].strip().lower()
+        elapsed = f'{(time.monotonic()-started)*1000:.0f}ms'
+        if len(payload) > limit:
+            verdict = '실패' if tunnel_unready else '확인 불가'
+            return verdict, f'HTTP {response.status} · 응답 검사 크기 한도 초과', elapsed
+        return (*readiness_response(name, response.status, content_type,
+                                    response.getheader('Access-Control-Allow-Origin'), payload), elapsed)
+    except PermissionError:
+        return '확인 불가', '내부 HTTP 검사 권한 확인 필요', '—'
+    except (OSError, http.client.HTTPException):
+        elapsed = f'{(time.monotonic()-started)*1000:.0f}ms'
+        if name == REVIEW_TUNNEL and response is None:
+            # Cloudflared can choose a different metrics port when its default is occupied.
+            return '확인 불가', 'Cloudflared 기본 포트 /ready 응답 확인 불가', elapsed
+        return '실패', f'{method} {path} HTTP 응답 확인 실패', elapsed
+    finally:
+        connection.close()
+
+
+def container_readiness(target, name, detail):
+    if target == 'edo1':
+        return edo1_service_readiness(name, detail)
+    return standby_web_readiness(target, name, detail)
+
+
+def standby_web_readiness(target, name, detail):
+    state = detail.get('State', {})
+    if (target != 'edo2' or name != STANDBY_WEB or detail.get('Name') != '/' + name
+            or state.get('Running') is not True or state.get('Status') != 'running'
+            or state.get('OOMKilled') or state.get('Health', {}).get('Status')):
+        return None
+    if not has_port_binding(detail, '8443/tcp', '127.0.0.1', 18443):
+        return '확인 불가', '대기 웹 loopback 포트 매핑 확인 불가', '—'
+
+    started = time.monotonic()
+    try:
+        response = run(['curl', '--disable', '--silent', '--show-error', '--noproxy', '*',
+                        '--resolve', 'localhost:18443:127.0.0.1', '--max-time', '3',
+                        '--cacert', '/opt/eolssu-standby-579/tls/localhost.crt',
+                        '--output', '/dev/null', '--write-out', '%{http_code} %{content_type}',
+                        'https://localhost:18443/index.html'], timeout=4)
+    except OSError:
+        return '확인 불가', 'HTTPS 검사 실행 불가', '—'
+    except subprocess.TimeoutExpired:
+        return '실패', '대기 웹 HTTPS 응답 시간 초과', '—'
+    elapsed = f'{(time.monotonic()-started)*1000:.0f}ms'
+    if response.returncode == 77:
+        return '확인 불가', '대기 웹 신뢰 인증서 읽기 실패', elapsed
+    if response.returncode != 0:
+        return '실패', f'HTTPS 연결·인증서 검사 실패 (curl {response.returncode})', elapsed
+    status, _, content_type = response.stdout.strip().partition(' ')
+    if status == '200' and content_type.split(';', 1)[0].strip().lower() == 'text/html':
+        return '정상', '인증서 검증 · /index.html HTTP 200', elapsed
+    code = status if re.fullmatch(r'[1-5][0-9]{2}', status) else '확인 불가'
+    return '실패', f'/index.html HTTP {code} · 기대한 HTML 200 응답 불일치', elapsed
+
+
+def cgroup_block_io(detail):
+    state = detail.get('State', {})
+    container_id, pid = detail.get('Id', ''), state.get('Pid')
+    if (not state.get('Running') or type(pid) is not int or pid <= 0
+            or not isinstance(container_id, str) or not re.fullmatch(r'[a-f0-9]{64}', container_id)):
+        return None
+    try:
+        membership = (PROC_ROOT / str(pid) / 'cgroup').read_text(encoding='ascii').splitlines()
+        supported = {f'0::/system.slice/docker-{container_id}.scope', f'0::/docker/{container_id}'}
+        match = next((line for line in membership if line in supported), None)
+        if match is None:
+            return None
+        path = CGROUP_ROOT / match.removeprefix('0::/') / 'io.stat'
+        with path.open(encoding='ascii') as source:
+            contents = source.read(16385)
+        if len(contents) > 16384:
+            return None
+        if not contents.strip():
+            return '기록 없음'
+        read = written = 0
+        for line in contents.splitlines():
+            device, *fields = line.split()
+            values = dict(field.split('=', 1) for field in fields)
+            if not re.fullmatch(r'[0-9]+:[0-9]+', device) or any(
+                    not re.fullmatch(r'[0-9]{1,20}', values.get(key, '')) for key in ('rbytes', 'wbytes')):
+                return None
+            read += int(values['rbytes'])
+            written += int(values['wbytes'])
+        return f'{size(read)}/{size(written)}'
+    except (OSError, UnicodeError, ValueError):
+        return None
+
+
+def block_io_usage(stats, detail):
+    counters = (stats.get('blkio_stats') or {}).get('io_service_bytes_recursive')
+    if counters is None:
+        return cgroup_block_io(detail) or '미측정 (블록 I/O 통계 없음)'
+    read = sum(entry['value'] for entry in counters if entry['op'].lower() == 'read')
+    written = sum(entry['value'] for entry in counters if entry['op'].lower() == 'write')
+    return f'{size(read)}/{size(written)}'
+
+
+def is_retained_blog_rollback(target, name, detail):
+    state = detail.get('State', {})
+    return (target == 'edo1' and BLOG_EDITOR_ROLLBACK_NAME.fullmatch(name) is not None
+            and detail.get('Name') == '/' + name
+            and state.get('Status') == 'exited' and state.get('Running') is False
+            and state.get('ExitCode') == 0 and state.get('OOMKilled') is False
+            and state.get('Error') == '')
+
+
 def container_report(target='edo1'):
     info, containers, storage, issues = snapshot(True, target=target)
-    volumes = {v['Name']: v for v in storage.get('Volumes') or []}
-    rows, facts, measurements = [], [], {'deadline': time.monotonic() + 25}
+    volume_items = (storage.get('VolumeUsage') or {}).get('Items', storage.get('Volumes'))
+    volumes = {v['Name']: v for v in volume_items or []}
+    rows, facts, readiness_inputs = [], [], []
+    measurements = {'deadline': time.monotonic() + 25}
     for value in containers:
         item, detail, stats = value['item'], value['detail'], value['stats']
         name = detail.get('Name', (item.get('Names') or ['?'])[0]).lstrip('/')
@@ -295,7 +649,8 @@ def container_report(target='edo1'):
             continue
         state, host, config = detail['State'], detail['HostConfig'], detail['Config']
         health = state.get('Health', {}).get('Status', '미설정')
-        if health == 'unhealthy' or not state.get('Running') or state.get('OOMKilled'):
+        retained = is_retained_blog_rollback(target, (item.get('Names') or ['?'])[0].lstrip('/'), detail)
+        if not retained and (health == 'unhealthy' or not state.get('Running') or state.get('OOMKilled')):
             issues.append(name + ': ' + state['Status'] + '/' + health)
         metrics = resource_stats(stats)
         limit = host.get('Memory', 0)
@@ -308,13 +663,15 @@ def container_report(target='edo1'):
         cpu_limit = f'{cpus:g}코어' if cpus else '미설정'
         if host.get('CpusetCpus'):
             cpu_limit += ' · CPU집합 ' + host['CpusetCpus']
-        log = log_usage(detail, info.get('DockerRootDir', '/var/lib/docker'))
+        log = log_usage(detail, info.get('DockerRootDir', '/var/lib/docker'), target)
         if '미측정' in log:
             issues.append(name + ' 로그 ' + log)
-        networks = stats.get('networks', {})
-        net = size(sum(v.get('rx_bytes', 0) for v in networks.values())) + '/' + size(sum(v.get('tx_bytes', 0) for v in networks.values()))
-        io = stats.get('blkio_stats', {}).get('io_service_bytes_recursive') or []
-        block = size(sum(v['value'] for v in io if v['op'].lower() == 'read')) + '/' + size(sum(v['value'] for v in io if v['op'].lower() == 'write'))
+        networks = stats.get('networks')
+        if networks is None:
+            net = '미측정 (네트워크 통계 없음)'
+        else:
+            net = f"{size(sum(v.get('rx_bytes', 0) for v in networks.values()))}/{size(sum(v.get('tx_bytes', 0) for v in networks.values()))}"
+        block = block_io_usage(stats, detail)
         ports = ','.join(f"{p.get('IP', '')}:{p['PublicPort']}→{p['PrivatePort']}" for p in item.get('Ports', []) if 'PublicPort' in p) or '없음'
         try:
             started = datetime.fromisoformat(state['StartedAt'].replace('Z', '+00:00'))
@@ -324,24 +681,31 @@ def container_report(target='edo1'):
         cpu = f'{metrics["cpu"]:.1f}%' if metrics['cpu_available'] else '확인 불가'
         ram = size(metrics['memory']) if metrics['memory_available'] else '확인 불가'
         disk_limit = (host.get('StorageOpt') or {}).get('size', '미설정(호스트 공유)')
-        if 'networks' not in stats:
-            net = '미측정 (네트워크 통계 없음)'
-        if 'io_service_bytes_recursive' not in stats.get('blkio_stats', {}) or stats.get('blkio_stats', {}).get('io_service_bytes_recursive') is None:
-            block = '미측정 (IO 통계 없음)'
-        mounted = mounted_storage(detail.get('Mounts', []), volumes, measurements)
+        if retained:
+            cpu = ram = net = block = '해당 없음'
+        pids = '해당 없음' if retained else str(stats.get('pids_stats', {}).get('current', '확인 불가'))
+        mounted = mounted_storage(detail.get('Mounts', []), volumes, measurements, name=name)
         if '확인 불가' in mounted:
-            issues.append(name + ' 데이터 용량 미측정: 12초 한도 또는 저장소 접근 실패')
-        facts.append({'name': name, 'running': state.get('Running'), 'health': health,
-                      'ram_bytes': metrics['memory'] if metrics['memory_available'] else None,
-                      'ram_limit': limit, 'host_ram': info.get('MemTotal'), 'cpu_limit': cpus,
-                      'cpu_percent': metrics['cpu'] if metrics['cpu_available'] else None,
-                      'log': log, 'mounts': mounted})
+            issues.append(name + ' 데이터 용량 미측정')
+        fact = {'name': name, 'running': state.get('Running'), 'health': health,
+                'ram_bytes': metrics['memory'] if metrics['memory_available'] else None,
+                'ram_limit': limit, 'host_ram': info.get('MemTotal'), 'cpu_limit': cpus,
+                'cpu_percent': metrics['cpu'] if metrics['cpu_available'] else None,
+                'log': log, 'mounts': mounted, 'rollback_retained': retained}
+        facts.append(fact)
+        readiness_inputs.append((fact, detail))
         rows.append([name, state['Status'] + '/' + health, f'{cpu}/{cpu_limit}',
                      f'{ram}/{size(limit) if limit else "미설정"} · {percent}',
                      size(item.get('SizeRw')) + '/' + disk_limit + ' · 로그 ' + log, mounted,
                      uptime + f'/{detail.get("RestartCount", 0)}회', f'{state.get("ExitCode", "?")}/{"예" if state.get("OOMKilled") else "아니오"}',
-                     str(stats.get('pids_stats', {}).get('current', '확인 불가')) + '/' + ports,
+                     pids + '/' + ports,
                      net + ' · IO ' + block, config.get('Image', '?')])
+    # Readiness timeouts must not consume the shared bind-mount measurement budget.
+    for fact, detail in readiness_inputs:
+        fact['readiness'] = container_readiness(target, fact['name'], detail)
+        readiness_type = EDO1_READINESS_TYPES.get(fact['name'])
+        if target == 'edo1' and readiness_type and fact['readiness'] is not None:
+            fact['readiness_kind'] = readiness_type[0]
     return ['컨테이너', '실행/Health', 'CPU 사용/제한', 'RAM 사용/제한·비율', '쓰기 사용/제한·로그(회전 포함)',
             '데이터 저장소/사용량', '가동/재시작', '종료 코드/OOM', 'PID/공개 포트', 'NET 수신/송신·IO 읽기/쓰기(누적)', '이미지'], rows, issues, facts
 
@@ -375,6 +739,66 @@ def systemd_health(unit, kind='service', target='edo2'):
         return '미측정', 'systemd 수집 실패·시간 초과', f'{target}에서 systemctl show {unit} 재확인'
 
 
+def replication_watch_status():
+    properties = ('Id,LoadState,ActiveState,SubState,Result,ExecMainCode,ExecMainStatus,'
+                  'ExecMainStartTimestampMonotonic,ExecMainExitTimestampMonotonic')
+    unavailable = '확인 불가', '복제 감시 systemd 상태 조회 불가'
+    try:
+        result = run(['systemctl', 'show', '--property=' + properties,
+                      REPLICATION_WATCH_TIMER, REPLICATION_WATCH_SERVICE])
+    except (OSError, subprocess.TimeoutExpired):
+        return unavailable
+    if result.returncode:
+        return unavailable
+
+    units = {}
+    for section in result.stdout.strip().split('\n\n'):
+        state = dict(line.split('=', 1) for line in section.splitlines() if '=' in line)
+        units[state.get('Id')] = state
+    try:
+        timer, service = units[REPLICATION_WATCH_TIMER], units[REPLICATION_WATCH_SERVICE]
+        timer_load, service_load = timer['LoadState'], service['LoadState']
+        if not (timer_load and service_load):
+            return unavailable
+        if timer_load != 'loaded' or service_load != 'loaded':
+            return '실패', '복제 감시 예약 또는 서비스 unit 로드 실패'
+
+        timer_active, timer_substate = timer['ActiveState'], timer['SubState']
+        if not (timer_active and timer_substate):
+            return unavailable
+        if timer_active != 'active' or timer_substate not in ('waiting', 'running'):
+            return '실패', '복제 감시 예약 비활성'
+
+        active, result_name = service['ActiveState'], service['Result']
+        code, exit_status = service['ExecMainCode'], service['ExecMainStatus']
+        if not (active and result_name and code.isdecimal() and exit_status.isdecimal()):
+            return unavailable
+        if active == 'failed' or result_name != 'success':
+            return '실패', f'복제 감시 실패 · 결과 {result_name} · 종료 상태 {exit_status}'
+        if active in ('activating', 'deactivating'):
+            return '미검증', '복제 감시 실행 중 · 완료 결과 대기'
+        if active != 'inactive':  # The scheduled oneshot returns to inactive after completion.
+            return unavailable
+
+        start = int(service['ExecMainStartTimestampMonotonic'])
+        finish = int(service['ExecMainExitTimestampMonotonic'])
+    except (KeyError, ValueError):
+        return '확인 불가', '복제 감시 systemd 결과 또는 시각 정보 불완전'
+
+    if start == finish == 0:
+        return '미검증', '복제 감시 완료 이력 없음'
+    if code != '1' or exit_status != '0':  # CLD_EXITED and successful exit status.
+        return '실패', f'복제 감시 비정상 종료 · 종료 유형 {code} · 종료 상태 {exit_status}'
+    now = time.monotonic_ns() // 1000
+    if not 0 < start <= finish <= now:
+        return '확인 불가', '복제 감시 완료 시각 확인 불가'
+    age = (now - finish) / 1_000_000
+    freshness = f'최근 완료 {age:.1f}초 전 · 유효 {REPLICATION_WATCH_MAX_AGE_SECONDS}초'
+    if age > REPLICATION_WATCH_MAX_AGE_SECONDS:
+        return '주의', f'{freshness} 초과 · 마지막 결과 성공'
+    return '정상', f'{freshness} · 수신·적용 정상 · 적용 지연 10초 이하'
+
+
 def edo2_host_health():
     rows = []
     units = [('Nginx', 'nginx.service', 'service'), ('점검 중계', 'edo-check.service', 'service'),
@@ -388,6 +812,9 @@ def edo2_host_health():
     for name, unit, kind in units:
         status, evidence, action = systemd_health(unit, kind)
         rows.append([name, 'edo2 systemd', status, evidence, '—', action])
+    status, evidence = replication_watch_status()
+    rows.append(['MySQL 복제 감시', EDO2_REPLICATION_WATCH_LOCATION, status, evidence, '—',
+                 f'edo2에서 systemctl status {REPLICATION_WATCH_TIMER}와 journalctl -u {REPLICATION_WATCH_SERVICE} 확인'])
     for name, command, good_text, action in (
             ('Nginx 구성', ['nginx', '-t'], None, 'edo2에서 nginx -t의 실패 위치·인증서 경로 확인'),
             ('UFW', ['ufw', 'status'], 'Status: active', 'edo2에서 ufw status verbose로 방화벽 활성 상태 확인')):
@@ -427,9 +854,12 @@ def scrape_state(targets, job):
     return ('주의' if age > 90 else '정상'), f'up · 최근 수집 {age:.0f}초 전 · 기준 90초 이내'
 
 
-def prometheus_health():
+def prometheus_health(*, include_ready=True):
     rows = []
-    for name, path in [('Prometheus 준비', '/-/ready'), ('수집 대상', '/api/v1/targets')]:
+    probes = [('수집 대상', '/api/v1/targets')]
+    if include_ready:
+        probes.insert(0, ('Prometheus 준비', '/-/ready'))
+    for name, path in probes:
         connection = http.client.HTTPConnection('127.0.0.1', 3001, timeout=4)
         action = 'edo1의 127.0.0.1:3001' + path + ' 응답과 Prometheus 수집 설정·대상 서비스 상태 확인'
         try:
@@ -533,8 +963,11 @@ def health_report(target='edo1'):
     names = {name.lstrip('/') for value in containers for name in value['item'].get('Names', [])}
     rows.extend([name, target + ' Docker', '실패', '필수 컨테이너 누락', '—', '실행 구성 확인 필요'] for name in sorted(required - names))
     for value in containers:
-        item, state = value['item'], value['detail'].get('State', {})
+        item, detail = value['item'], value['detail']
+        state = detail.get('State', {})
         name = (item.get('Names') or ['?'])[0].lstrip('/')
+        if not value.get('unavailable') and is_retained_blog_rollback(target, name, detail):
+            continue
         health = state.get('Health', {}).get('Status')
         observed_state = state.get('Status', item['State'])
         running = state.get('Running', item['State'] == 'running') and observed_state == 'running'
@@ -545,26 +978,38 @@ def health_report(target='edo1'):
         evidence = ('중지·일시정지: ' + observed_state) if not running else (health or '실행 중 · 건강 검사 없음')
         action = ('실행 상태·서비스 로그 확인' if status == '실패' else
                   '현재 조치 없음' if status == '정상' else '실행만 확인됨; 서비스 준비 상태 검사 필요')
-        if name == 'eolssu-runtime-ai-1' and status == '정상':
-            status, evidence = '미검증', 'TCP 연결 검사 통과 · 분석 HTTP 준비·추론 기능 미검증'
-            action = 'AI 서비스의 분석 준비 검증 경로·검증 절차 확인; TCP 통과만으로 추론 성공을 확정하지 않음'
-        rows.append([name, 'Docker healthcheck', status, evidence, '—', action])
-    probes = [('Grafana', 3000, '/api/health'), ('n8n', 5688, '/healthz/readiness')] if target == 'edo1' else [('중계 내부 HTTP', 8765, '/healthz')]
-    for name, port, path in probes:
-        if name == 'n8n' and 'hey-edo1-n8n-1' not in names:
-            continue
+        if target == 'edo1' and name == MYSQL_PROXY:
+            action = EDO1_READINESS_ACTIONS[MYSQL_PROXY]
+        if name == ANALYSIS_AI and status == '정상':
+            status, evidence = '미검증', 'TCP 연결 검사 통과 · 분석 API HTTP 통신 미검증'
+            action = EDO1_READINESS_ACTIONS[ANALYSIS_AI]
+        # edo1 상태 보고서는 Prometheus 결과를 앞에서 이미 수집했다.
+        readiness = (container_readiness(target, name, detail)
+                     if status in ('정상', '미검증') and (target != 'edo1' or name != NODE_EXPORTER)
+                     else None)
+        if readiness:
+            if target == 'edo1':
+                _, location = EDO1_READINESS_TYPES.get(name, (None, EDO1_READINESS_LOCATION))
+                next_action = EDO1_READINESS_ACTIONS[name]
+            else:
+                location, next_action = STANDBY_WEB_LOCATION, STANDBY_WEB_ACTION
+            rows.append([name, location, *readiness, next_action])
+        else:
+            rows.append([name, 'Docker healthcheck', status, evidence, '—', action])
+    if target == 'edo2':
         started = time.monotonic()
-        connection = http.client.HTTPConnection('127.0.0.1', port, timeout=4)
+        connection = http.client.HTTPConnection('127.0.0.1', 8765, timeout=4)
         try:
-            connection.request('GET', path)
+            connection.request('GET', '/healthz')
             response = connection.getresponse()
             body = json.loads(response.read(4096))
-            good = response.status == 200 and (body.get('database') == 'ok' if name == 'Grafana' else body.get('status') == 'ok')
-            checked = '준비 상태·DB 응답 확인' if target == 'edo1' else 'JSON status=ok · 중계 프로세스 응답'
-            rows.append([name, target + ' loopback HTTP', '정상' if good else '실패', f'HTTP {response.status} · {checked if good else "기대한 상태 불일치"}',
-                         f'{(time.monotonic()-started)*1000:.0f}ms', '준비 상태·DB 응답 확인' if target == 'edo1' else 'edo-check.service와 127.0.0.1:8765/healthz 응답 확인'])
-        except Exception:
-            rows.append([name, target + ' loopback HTTP', '실패', '응답 확인 불가', '—', path])
+            good = response.status == 200 and body.get('status') == 'ok'
+            checked = 'JSON status=ok · 중계 프로세스 응답' if good else '기대한 상태 불일치'
+            rows.append(['중계 내부 HTTP', 'edo2 loopback HTTP', '정상' if good else '실패',
+                         f'HTTP {response.status} · {checked}', f'{(time.monotonic()-started)*1000:.0f}ms',
+                         'edo-check.service와 127.0.0.1:8765/healthz 응답 확인'])
+        except (OSError, http.client.HTTPException, ValueError, AttributeError):
+            rows.append(['중계 내부 HTTP', 'edo2 loopback HTTP', '실패', '응답 확인 불가', '—', '/healthz'])
         finally:
             connection.close()
     facts = {'backend_slot': slot} if target == 'edo1' else None
