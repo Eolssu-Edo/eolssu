@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.NicknameRule
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.InstrumentPicker
@@ -72,6 +73,7 @@ fun ProfileSetupScreen(
                     help = stringResource(Res.string.member_api_nickname_rule),
                     error = state.nicknameError?.let { stringResource(it.message) },
                     imeAction = ImeAction.Done,
+                    counter = "${state.nickname.length}/${NicknameRule.MAX_LENGTH}",
                 )
                 InstrumentPicker(
                     selected = state.instrument,
