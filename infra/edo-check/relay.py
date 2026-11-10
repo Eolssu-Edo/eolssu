@@ -209,7 +209,9 @@ HEALTH_SUCCESS_LABELS = {
 }
 BACKEND_SLOTS = {'backend': '블루', 'backend-green': '그린'}
 FINDING_ORDER = ('장애', '주의', '미측정', '미검증')
+COUNT_KINDS = ('장애', '주의', '미검증', '미측정')
 REPORT_LIMIT = 14000
+OVERVIEW_POST_LIMIT = 5
 OMISSION_NOTICE = '출력 제한으로 나머지 행과 표를 생략했습니다.'
 
 
@@ -240,7 +242,15 @@ def report_summary(mode, target, columns, rows, facts):
     return ''
 
 
-def build_report(result, request_id):
+def health_group(name, location):
+    if any(word in name for word in ('백업', '복구', '복제', 'replica', 'replication')):
+        return '백업·복제'
+    if location.endswith(('systemd', '구성 검사', '모니터링 HTTP')) or name == 'Docker 조회':
+        return '호스트·모니터링'
+    return '서비스·통신'
+
+
+def report_content(result, *, overview=False):
     target = result.get('target', 'edo1')
     if target not in TARGETS:
         raise ValueError('unexpected report target')
@@ -285,7 +295,8 @@ def build_report(result, request_id):
 
     inherited_findings = {tuple(item) for item in findings}
     if result['mode'] == 'health':
-        rendered = []
+        titles = ('서비스·통신', '호스트·모니터링', '백업·복제') if overview else ('서비스 검사 결과',)
+        groups = {title: [] for title in titles}
         success_labels = HEALTH_SUCCESS_LABELS[target]
         # Prefer a successful direct readiness probe over an absent Docker check.
         ready = {row[0] for row in rows if row[1] == target + ' loopback HTTP' and row[2] == '정상'}
@@ -332,10 +343,12 @@ def build_report(result, request_id):
             if elapsed != '—':
                 checked += ' · ' + str(elapsed)
             verdict = success_labels.get(location, status) if status == '정상' else status
-            rendered.append([friendly(name), verdict, checked, '—' if status == '정상' else action])
+            title = health_group(name, location) if overview else '서비스 검사 결과'
+            groups[title].append([friendly(name), verdict, checked, '—' if status == '정상' else action])
             if status != '정상':
                 findings.append([status, friendly(name) + ': ' + str(evidence), action])
-        tables.append(('서비스 검사 결과', ['대상', '판정', '검사 근거 · 소요', '필요한 조치'], rendered))
+        tables.extend((title, ['대상', '판정', '검사 근거 · 소요', '필요한 조치'], group)
+                      for title, group in groups.items() if group or not overview)
 
     elif result['mode'] == 'server' and len(columns) == 10 and len(rows) == 1:
         values, facts = rows[0], result.get('facts') or {}
@@ -351,7 +364,7 @@ def build_report(result, request_id):
                     '실패 서비스는 systemctl --failed · OOM은 최근 24시간 로그 줄 수']
         if target == 'edo2':
             criteria[5] = '엔진 조회 실패 시 docker.service·소켓 권한 확인'
-        entries = []
+        entries, storage_entries = [], []
         for index, (label, value) in enumerate(zip(columns, values)):
             if index == 1 and facts.get('load'):
                 value = str(value).split(' · Load ')[0]
@@ -359,20 +372,23 @@ def build_report(result, request_id):
                                 f"실행·대기 작업 평균 · 5분·15분 중 {facts['cpu_cores']} 초과 시 /edo1-containers CPU 상위 확인 · CPU 사용률이 낮으면 I/O 대기 확인"])
             if index == 2:
                 value = ram_usage(values, facts)
+            group = storage_entries if overview and index in (4, 7, 8) else entries
             if index == 4:
                 for part in str(value).split('; '):
-                    entries.append(['파일시스템', part, criteria[index]])
+                    group.append(['파일시스템', part, criteria[index]])
             elif index == 7 and len(str(value).split(' / ')) == 4:
                 for title, number in zip(('Docker 이미지', '컨테이너 쓰기 계층', 'Docker 볼륨', '빌드 캐시'), str(value).split(' / ')):
                     action = {'Docker 이미지': '미사용 이미지 확인',
                               '컨테이너 쓰기 계층': '/edo1-containers 쓰기 상위 확인',
                               'Docker 볼륨': '/edo1-containers 저장공간 확인',
                               '빌드 캐시': 'docker builder du 확인'}[title]
-                    entries.append([title, number, '디스크 80% 이상이면 ' + action])
+                    group.append([title, number, '디스크 80% 이상이면 ' + action])
             else:
-                entries.append([label, value, criteria[index]])
-        tables.append(('서버 현재 자원', ['항목', '현재값', '확인 기준 · 다음 조치'],
-                       [[label, value, host_instructions(criterion, target)] for label, value, criterion in entries]))
+                group.append([label, value, criteria[index]])
+        groups = [('서버 자원', entries), ('서버 저장공간', storage_entries)] if overview else [('서버 현재 자원', entries)]
+        tables.extend((title, ['항목', '현재값', '확인 기준 · 다음 조치'],
+                       [[label, value, host_instructions(criterion, target)] for label, value, criterion in group])
+                      for title, group in groups)
 
     elif result['mode'] == 'containers' and len(columns) == 11 and not rows:
         tables.append(('컨테이너 현황', ['대상', '판정', '확인한 내용'],
@@ -420,7 +436,9 @@ def build_report(result, request_id):
                         findings.append([kind, friendly(name) + ': ' + evidence,
                                          '/edo1-health에서 준비 검사 근거·서비스 상태 확인'])
             elif status == '실행 · 준비 미검증' and target == 'edo2' and readiness:
-                verdict, evidence, _ = readiness
+                verdict, evidence, elapsed = readiness
+                if overview:
+                    readiness_evidence = evidence if elapsed in ('', '—') else f'{evidence} · {elapsed}'
                 if verdict == '정상':
                     status = '실행 · HTTPS 검사 통과'
                 else:
@@ -461,14 +479,33 @@ def build_report(result, request_id):
             runtime_rows.append([runtime_name, row[6], row[7], row[8], row[9], row[10]])
             if status not in ('미측정', '롤백 보관 · 중지') and (fact.get('ram_bytes') is None or fact.get('cpu_percent') is None):
                 findings.append(['미측정', friendly(name) + ' CPU 또는 RAM', '다시 점검; 실행 상태와 통계 수집은 별개'])
-        tables.extend([
-            ('컨테이너 현재 자원', ['서비스', '상태', 'CPU / 상한', 'RAM / 상한', '쓰기 · 로그'], resource_rows),
+        if overview:
+            tables.extend([
+                ('컨테이너 상태', ['서비스', '판정', '검사 근거'],
+                 [[name, *status] if isinstance(status, tuple) else [name, status, '—']
+                  for name, status, *_ in resource_rows]),
+                ('컨테이너 자원', ['서비스', 'CPU / 상한', 'RAM / 상한', '쓰기 · 로그'],
+                 [[name, cpu, ram, disk] for name, _, cpu, ram, disk in resource_rows]),
+            ])
+        else:
+            tables.append(('컨테이너 현재 자원', ['서비스', '상태', 'CPU / 상한', 'RAM / 상한', '쓰기 · 로그'], resource_rows))
+        tables.append(
             ('데이터 저장공간', ['서비스', '볼륨 · 마운트', '사용량 · 참고'],
-             [[service, target, usage + (' · ' + note if '확인 불가' in usage else '')] for service, target, usage, note in storage_rows]),
-            ('실행 세부 정보', ['서비스 / 실제 이름', '가동·재시작 / 종료·OOM', 'PID · 공개 포트', 'NET·IO 누적', '이미지'],
-             [[service, f'{uptime} / {exit_oom}', ports, io, compact_image_reference(image)]
-              for service, uptime, exit_oom, ports, io, image in runtime_rows]),
-        ])
+             [[service, mount, usage + (' · ' + note if '확인 불가' in usage else '')]
+              for service, mount, usage, note in storage_rows]))
+        if overview:
+            tables.extend([
+                ('실행·포트', ['서비스 / 실제 이름', '가동·재시작 / 종료·OOM', 'PID · 공개 포트'],
+                 [[name, f'{uptime} / {exit_oom}', ports] for name, uptime, exit_oom, ports, _, _ in runtime_rows]),
+                ('통신량·이미지', ['서비스', 'NET·IO 누적', '이미지'],
+                 [[resource[0], io, compact_image_reference(image)]
+                  for resource, (_, _, _, _, io, image) in zip(resource_rows, runtime_rows)]),
+            ])
+        else:
+            tables.append(
+                ('실행 세부 정보', ['서비스 / 실제 이름', '가동·재시작 / 종료·OOM', 'PID · 공개 포트', 'NET·IO 누적', '이미지'],
+                 [[service, f'{uptime} / {exit_oom}', ports, io, compact_image_reference(image)]
+                  for service, uptime, exit_oom, ports, io, image in runtime_rows]))
     else:
         tables.append(('점검 결과', columns, rows))
 
@@ -476,23 +513,8 @@ def build_report(result, request_id):
     inherited_findings = {(kind, evidence, host_instructions(action, target))
                           for kind, evidence, action in inherited_findings}
     findings = list({tuple(item): item for item in findings}.values())
-    counts = {kind: sum(item[0] == kind for item in findings) for kind in ('장애', '주의', '미검증', '미측정', '설정 참고')}
+    counts = {kind: sum(item[0] == kind for item in findings) for kind in (*COUNT_KINDS, '설정 참고')}
     counts['미측정'] += sum(1 for _, _, data in tables for row in data if any('미측정' in str(x) or '확인 불가' in str(x) for x in row)) if mode == 'server' else 0
-    kinds = ('장애', '주의', '미검증', '미측정')
-    totals = ' · '.join(f'{STATUS_ICONS[kind]} **{kind} {counts[kind]}**' if counts[kind] else f'{kind} 0'
-                        for kind in kinds)
-    if not any(counts[kind] for kind in kinds):
-        status = '컨테이너 없음' if mode == 'containers' and len(columns) == 11 and not rows and not findings else '정상'
-        totals = f'{STATUS_ICONS[status]} {status} · {totals}'
-    captured = cell(result.get('captured_at', '확인 불가')).replace('`', '')
-    elapsed = result.get('elapsed_seconds')
-    duration = f'{elapsed}초' if elapsed is not None else '미측정'
-    parts = [f"### {target} {MODE_LABELS.get(mode, mode)}",
-             totals,
-             f"`{captured}` · {duration} · 요청 `{request_id}`"]
-    summary = report_summary(mode, target, columns, rows, result.get('facts'))
-    if summary:
-        parts.append(cell(summary))
     actionable = sorted((item for item in findings if item[0] in FINDING_ORDER),
                         key=lambda item: FINDING_ORDER.index(item[0]))
     finding_columns = ['구분', '대상 / 근거', '다음 조치']
@@ -505,12 +527,40 @@ def build_report(result, request_id):
     if counts['설정 참고']:
         notes.extend(['', f"ℹ️ RAM 한도 미설정 {counts['설정 참고']}개 · 호스트 RAM 공유"])
     if mode == 'containers' and rows:
-        notes.extend(['', f'CPU 100%=1코어 · RAM 캐시 제외 · 공유 볼륨 중복 집계 주의 · 상태 /{target}-health'])
+        notes.extend(['', 'CPU 100%=1코어 · RAM 캐시 제외 · 공유 볼륨 중복 집계 주의'
+                      + ('' if overview else f' · 상태 /{target}-health')])
+    summary = report_summary(mode, target, columns, rows, result.get('facts'))
+    return counts, summary, tables, notes
+
+
+def report_metadata(captured, elapsed, request_id):
+    captured = cell(captured).replace('`', '')
+    duration = f'{elapsed}초' if elapsed is not None else '미측정'
+    return f"`{captured}` · {duration} · 요청 `{request_id}`"
+
+
+def table_header(title, columns):
+    return ['', f'**{title}**', '', '| ' + ' | '.join(f'**{cell(column)}**' for column in columns) + ' |',
+            '| ' + ' | '.join('---' for _ in columns) + ' |']
+
+
+def build_report(result, request_id):
+    counts, summary, tables, notes = report_content(result)
+    mode, target = result['mode'], result.get('target', 'edo1')
+    totals = ' · '.join(f'{STATUS_ICONS[kind]} **{kind} {counts[kind]}**' if counts[kind] else f'{kind} 0'
+                        for kind in COUNT_KINDS)
+    if not any(counts[kind] for kind in COUNT_KINDS):
+        empty = tables[0][0] == '컨테이너 현황' and not counts['설정 참고']
+        status = '컨테이너 없음' if empty else '정상'
+        totals = f'{STATUS_ICONS[status]} {status} · {totals}'
+    parts = [f"### {target} {MODE_LABELS.get(mode, mode)}", totals,
+             report_metadata(result.get('captured_at', '확인 불가'), result.get('elapsed_seconds'), request_id)]
+    if summary:
+        parts.append(cell(summary))
     reserved = len('\n'.join(notes)) + len(OMISSION_NOTICE) + 3
     body_limit = REPORT_LIMIT - reserved
     for title, table_columns, table_rows in tables:
-        header = ['', '**' + title + '**', '', '| ' + ' | '.join('**'+cell(x)+'**' for x in table_columns) + ' |',
-                  '| ' + ' | '.join('---' for _ in table_columns) + ' |']
+        header = table_header(title, table_columns)
         if len('\n'.join(parts + header)) > body_limit:
             parts.extend(['', OMISSION_NOTICE])
             break
@@ -526,6 +576,95 @@ def build_report(result, request_id):
                 return '\n'.join(parts + ['', OMISSION_NOTICE] + notes)
             parts.extend(['', omitted])
     return '\n'.join(parts + notes)
+
+
+def overview_cell(value):
+    if isinstance(value, str):
+        value = value.replace('복제 통신은 /edo2-health에서 확인', '복제 통신은 /edo2의 백업·복제 표에서 확인')
+        value = re.sub(r'(?<![\w/])/(edo[12])-(health|server|containers)(?![a-zA-Z0-9-])', r'/\1', value)
+    return display_status(value)
+
+
+def table_blocks(title, columns, rows, budget):
+    block = '\n' + '\n'.join(table_header(title, columns))
+    continuation = '\n' + '\n'.join(table_header(title + ' (계속)', columns))
+    omitted = False
+    for row in rows:
+        line = '\n| ' + ' | '.join(overview_cell(value) for value in row) + ' |'
+        if len(continuation) + len(line) > budget:
+            omitted = True
+            continue
+        if len(block) + len(line) > budget:
+            yield block
+            block = continuation
+        block += line
+    yield block
+    if omitted:
+        yield '\n\n' + OMISSION_NOTICE
+
+
+def pack_blocks(blocks, budget):
+    pages = []
+    page = ''
+    for block in blocks:
+        if page and len(page) + len(block) > budget:
+            pages.append(page)
+            page = ''
+        page += block
+    if page:
+        pages.append(page)
+    return pages
+
+
+def build_overview(target, results, request_id, captured_at, elapsed_seconds):
+    counts_rows, summaries, core, details, notes = [], [], [], [], []
+    totals = dict.fromkeys(COUNT_KINDS, 0)
+    detail_titles = {'데이터 저장공간', '실행·포트', '통신량·이미지'}
+    for mode in ('health', 'server', 'containers'):
+        label = MODE_LABELS[mode]
+        try:
+            result = dict(results[mode], target=target)
+            counts, summary, tables, mode_notes = report_content(result, overview=True)
+        except (KeyError, IndexError, TypeError, ValueError, AttributeError):
+            counts = dict.fromkeys(COUNT_KINDS, 0)
+            counts['미측정'] = 1
+            summary, mode_notes = '', []
+            tables = [(f'{label} 수집 실패', ['판정', '다음 조치'],
+                       [['미측정', f'/{target} 재실행 · 반복되면 edo-check journal의 요청 ID 확인']])]
+        counts_rows.append([label, *(f'{STATUS_ICONS[kind]} **{counts[kind]}**' if counts[kind] else '0'
+                                     for kind in COUNT_KINDS)])
+        for kind in COUNT_KINDS:
+            totals[kind] += counts[kind]
+        if summary:
+            summaries.append(cell(summary))
+        for title, columns, rows in tables:
+            if title in ('먼저 확인할 항목', '추가 확인 항목'):
+                title = label + ' · ' + title
+            (details if title in detail_titles else core).append((title, columns, rows))
+        notes.extend(mode_notes)
+
+    status = next((kind for kind in FINDING_ORDER if totals[kind]), '정상')
+    intro = '\n'.join([f'### {target}', f'{STATUS_ICONS[status]} {status}',
+                       report_metadata(captured_at, elapsed_seconds, request_id)])
+    summary_lines = ''.join('\n' + summary for summary in summaries)
+    continuation = f'### {target} 상세\n요청 `{request_id}`'
+    budget = REPORT_LIMIT - max(len(intro + summary_lines), len(continuation)) - len(OMISSION_NOTICE) - 16
+    core.insert(0, ('점검 요약', ['구분', *COUNT_KINDS], counts_rows))
+    core_blocks = [block for title, columns, rows in core for block in table_blocks(title, columns, rows, budget)]
+    detail_blocks = [block for title, columns, rows in details for block in table_blocks(title, columns, rows, budget)]
+    if notes:
+        detail_blocks.append('\n' + '\n'.join(notes))
+    if sum(map(len, core_blocks + detail_blocks)) <= budget:
+        bodies = [''.join(core_blocks + detail_blocks)]
+    else:
+        bodies = pack_blocks(core_blocks, budget) + pack_blocks(detail_blocks, budget)
+    if len(bodies) > OVERVIEW_POST_LIMIT:
+        bodies = bodies[:OVERVIEW_POST_LIMIT]
+        bodies[-1] += '\n\n' + OMISSION_NOTICE
+    return [(intro if index == 1 else continuation)
+            + (f' · {index}/{len(bodies)}' if len(bodies) > 1 else '')
+            + (summary_lines if index == 1 else '') + body
+            for index, body in enumerate(bodies, 1)]
 
 
 class PublicHTTPS(http.client.HTTPSConnection):
