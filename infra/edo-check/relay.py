@@ -81,7 +81,7 @@ def cell(value):
 
 
 STATUS_ICONS = {
-    '정상': '✅', '장애': '❌', '주의': '⚠️', '미검증': '❓', '미측정': '🚫', '설정 참고': 'ℹ️',
+    '정상': '✅', '검증 완료': '✅', '장애': '❌', '주의': '⚠️', '미검증': '❓', '미측정': '🚫', '설정 참고': 'ℹ️',
     '실행 · HTTPS 검사 통과': '✅', '실행 · HTTPS 미측정': '🚫',
     '실행 · 검사 통과': '✅', '실행 · 준비 미검증': '❓',
     '검사한 범위 정상': '✅', '장애 확인': '❌', '주의 필요': '⚠️', '일부 확인 못 함': '❓',
@@ -157,6 +157,7 @@ def compact_image_reference(value):
 
 MODE_LABELS = {'health': '상태', 'server': '서버', 'containers': '컨테이너'}
 HEALTH_LABELS = {'실패': '장애', '미설정': '미검증', '확인 불가': '미측정'}
+EDO1_READINESS_LOCATION = 'edo1 서비스 준비 검사'
 BACKEND_SLOTS = {'backend': '블루', 'backend-green': '그린'}
 FINDING_ORDER = ('장애', '주의', '미측정', '미검증')
 REPORT_LIMIT = 14000
@@ -297,7 +298,9 @@ def build_report(result, request_id):
                           'edo2에서 공개 HTTPS 재요청; /edo1-containers의 웹·API 실행 상태와 Nginx upstream 확인' if '외부 HTTPS' in location else
                           'edo1에서 해당 loopback 준비 경로 재요청; 서비스 로그의 DB 연결 오류 확인' if 'loopback' in location else
                           'edo1에서 대상 docker inspect의 State·Health와 docker logs --tail 50 확인')
-            if location in ('edo1 systemd', 'edo2 systemd', 'edo2 구성 검사', 'edo2 백업 메타데이터', 'edo1 모니터링 HTTP', 'edo2 대기 웹 loopback HTTPS') or name == 'eolssu-runtime-ai-1':
+            if location in ('edo1 systemd', 'edo2 systemd', 'edo2 구성 검사', 'edo2 백업 메타데이터',
+                            'edo1 모니터링 HTTP', EDO1_READINESS_LOCATION,
+                            'edo2 대기 웹 loopback HTTPS') or name == 'eolssu-runtime-ai-1':
                 action = str(row[5]) if len(row) > 5 else 'edo2의 해당 unit·설정 확인'
             elif target == 'edo2' and 'TLS' in location:
                 action = ('만료 24시간 미만: snap.certbot.renew.timer와 최근 갱신 로그 확인; 인증서 갱신 뒤 /edo2-health 재실행'
@@ -315,7 +318,8 @@ def build_report(result, request_id):
                 checked = re.sub(r'\b\d{2}:\d{2}:\d{2}\b', r'`\g<0>`', checked)
             if elapsed != '—':
                 checked += ' · ' + str(elapsed)
-            rendered.append([friendly(name), status, checked, '—' if status == '정상' else action])
+            verdict = '검증 완료' if target == 'edo1' and location == EDO1_READINESS_LOCATION and status == '정상' else status
+            rendered.append([friendly(name), verdict, checked, '—' if status == '정상' else action])
             if status != '정상':
                 findings.append([status, friendly(name) + ': ' + str(evidence), action])
         tables.append(('서비스 검사 결과', ['대상', '판정', '검사 근거 · 소요', '필요한 조치'], rendered))

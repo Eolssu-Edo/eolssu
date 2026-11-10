@@ -3,6 +3,7 @@
 import concurrent.futures
 from datetime import datetime, timedelta, timezone
 import http.client
+from ipaddress import IPv4Address, IPv4Network
 import json
 import os
 import re
@@ -20,6 +21,32 @@ REQUIRED_BY_TARGET = {'edo1': REQUIRED_CONTAINERS, 'edo2': set()}
 STANDBY_WEB = 'eolssu-standby-579-frontend-1'
 STANDBY_WEB_LOCATION = 'edo2 대기 웹 loopback HTTPS'
 STANDBY_WEB_ACTION = '대기 웹 127.0.0.1:18443 포트·localhost 인증서·/index.html 응답 확인'
+EDO1_READINESS_LOCATION = 'edo1 서비스 준비 검사'
+BLOG_ORIGIN = 'https://team-edo.github.io'
+BLOG_LOGIN = 'eolssu-blog-editor'
+BLOG_WRITABLE = 'eolssu-blog-editor-writable'
+MYSQL_PROXY = 'eolssu-replication-proxy-579'
+PHPMYADMIN = 'eolssu-mysql-admin-phpmyadmin-1'
+ANALYSIS_AI = 'eolssu-runtime-ai-1'
+REVIEW_TUNNEL = 'hey-edo1-tunnel-1'
+DOCKER_BRIDGE_RANGE = IPv4Network('172.16.0.0/12')
+EDO1_PUBLISHED_PROBES = {
+    BLOG_LOGIN: ('8000/tcp', '172.18.0.1', 18120, '/config'),
+    BLOG_WRITABLE: ('8000/tcp', '172.18.0.1', 18121, '/config'),
+    PHPMYADMIN: ('80/tcp', '127.0.0.1', 8081, '/'),
+}
+EDO1_BRIDGE_PROBES = {
+    ANALYSIS_AI: ('eolssu-runtime_default', 8000, '/v1/analyses'),
+    REVIEW_TUNNEL: ('hey-edo1_control', 20241, '/ready'),
+}
+EDO1_READINESS_ACTIONS = {
+    BLOG_LOGIN: '블로그 로그인 편집기의 내부 /config, OAuth 설정과 CORS 확인',
+    BLOG_WRITABLE: '블로그 쓰기 편집기의 내부 /config, OAuth 설정·CORS와 canBatch 확인',
+    MYSQL_PROXY: 'edo1 포트 매핑·수신 상태와 edo2 eolssu-replication-watch.service 결과 확인',
+    PHPMYADMIN: 'phpMyAdmin 127.0.0.1:8081 로그인 화면과 컨테이너 로그 확인',
+    ANALYSIS_AI: '분석 API 입력 검증과 별도로 격리된 음원으로 추론·채점 확인',
+    REVIEW_TUNNEL: 'Cloudflared 내부 /ready와 엣지 연결 상태 확인',
+}
 EOLSSU_SYSLOG_DIR = Path('/var/log/eolssu/ordinary')
 EOLSSU_SYSLOG_TAGS = {'eolssu-frontend', 'eolssu-backend', 'eolssu-ai', 'eolssu-mysql', 'eolssu-playback', 'eolssu-omr'}
 PROC_ROOT = Path('/proc')
@@ -365,14 +392,140 @@ def log_usage(detail, docker_root, target='edo1'):
         return f'미측정 ({driver} 파일 접근 실패)'
 
 
+def has_port_binding(detail, container_port, host, port):
+    ports = detail.get('NetworkSettings', {}).get('Ports') or {}
+    return {'HostIp': host, 'HostPort': str(port)} in (ports.get(container_port) or [])
+
+
+def mysql_proxy_readiness(detail):
+    if not has_port_binding(detail, '3306/tcp', '127.0.0.1', 13306):
+        return '확인 불가', 'MySQL 프록시 loopback 포트 매핑 확인 불가', '—'
+    started = time.monotonic()
+    # Opening and dropping a pre-auth connection can count against the shared MySQL proxy host.
+    try:
+        listener = run(['/usr/bin/ss', '-H', '-lnt4', '( src 127.0.0.1 and sport = :13306 )'], timeout=2)
+    except (OSError, subprocess.TimeoutExpired):
+        return '확인 불가', 'MySQL 프록시 로컬 수신 상태 수집 불가', '—'
+    elapsed = f'{(time.monotonic()-started)*1000:.0f}ms'
+    if listener.returncode != 0 or not listener.stdout.strip():
+        return '확인 불가', 'MySQL 프록시 로컬 수신 소켓 확인 불가', elapsed
+    return '미검증', 'ss로 127.0.0.1:13306 수신 확인 · MySQL 전달·복제 미검증', elapsed
+
+
+def readiness_response(name, status, content_type, cors_origin, body):
+    mismatch = '실패', f'HTTP {status} · 기대한 서비스 응답 불일치'
+    if name == PHPMYADMIN:
+        markers = (b'id="login_form"', b'name="pma_username"', b'name="pma_password"')
+        if status == 200 and content_type == 'text/html' and all(marker in body for marker in markers):
+            return '정상', 'GET / HTTP 200 · phpMyAdmin 로그인 양식 · MySQL 인증 미검증'
+        return mismatch
+
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        return mismatch
+    if not isinstance(payload, dict):
+        return mismatch
+
+    if name == REVIEW_TUNNEL:
+        connections = payload.get('readyConnections')
+        if type(connections) is int and payload.get('status') == status:
+            if status == 200 and connections > 0:
+                return '정상', f'GET /ready HTTP 200 · Cloudflare 엣지 연결 {connections}개 · 웹훅 미검증'
+            if status == 503 and connections == 0:
+                return '실패', 'GET /ready HTTP 503 · Cloudflare 엣지 연결 0개'
+    elif name == ANALYSIS_AI and status == 422 and content_type == 'application/json':
+        errors = payload.get('errors')
+        if isinstance(errors, list) and all(
+            {'loc': ['body', field], 'type': 'missing'} in errors for field in ('audioUrl', 'notes')
+        ):
+            return '미검증', 'POST /v1/analyses HTTP 422 · 필수 입력 검증 · 실제 음원 처리·추론 미검증'
+    elif (name in (BLOG_LOGIN, BLOG_WRITABLE) and status == 200
+          and content_type == 'application/json' and cors_origin == BLOG_ORIGIN
+          and payload.get('authorize') == 'https://github.com/login/oauth/authorize'
+          and isinstance(payload.get('clientId'), str) and payload['clientId'].strip()
+          and payload.get('redirectUri') == BLOG_ORIGIN + '/edit/'
+          and (name == BLOG_LOGIN or payload.get('canBatch') is True)):
+        checked = 'OAuth·일괄 반영 설정' if name == BLOG_WRITABLE else '내부 OAuth 설정'
+        return '정상', f'GET /config HTTP 200 · {checked}·CORS 확인 · 실제 로그인 미검증'
+    return mismatch
+
+def edo1_service_readiness(name, detail):
+    if name not in EDO1_READINESS_ACTIONS:
+        return None
+    state = detail.get('State', {})
+    if (state.get('Running') is not True or state.get('Status') != 'running'
+            or state.get('OOMKilled') or state.get('Health', {}).get('Status') not in (None, 'healthy')):
+        return None
+    if detail.get('Name') != '/' + name:
+        return '확인 불가', 'Docker inspect 대상 이름 확인 불가', '—'
+    if name == MYSQL_PROXY:
+        return mysql_proxy_readiness(detail)
+    if name in EDO1_PUBLISHED_PROBES:
+        container_port, host, port, path = EDO1_PUBLISHED_PROBES[name]
+        if not has_port_binding(detail, container_port, host, port):
+            return '확인 불가', '기대한 Docker 포트 매핑 확인 불가', '—'
+    else:
+        network, port, path = EDO1_BRIDGE_PROBES[name]
+        networks = detail.get('NetworkSettings', {}).get('Networks') or {}
+        host = (networks.get(network) or {}).get('IPAddress', '')
+        try:
+            if IPv4Address(host) not in DOCKER_BRIDGE_RANGE:
+                return '확인 불가', '기대한 Docker 내부 주소 확인 불가', '—'
+        except ValueError:
+            return '확인 불가', '기대한 Docker 내부 주소 확인 불가', '—'
+
+    method, body, headers = 'GET', None, {}
+    if name == ANALYSIS_AI:
+        method, body, headers = 'POST', b'{}', {'Content-Type': 'application/json'}
+    elif name in (BLOG_LOGIN, BLOG_WRITABLE):
+        headers = {'Origin': BLOG_ORIGIN}
+
+    started = time.monotonic()
+    connection = http.client.HTTPConnection(host, port, timeout=2)
+    response = None
+    try:
+        connection.request(method, path, body=body, headers=headers)
+        response = connection.getresponse()
+        expected_status = 422 if name == ANALYSIS_AI else 200
+        tunnel_unready = name == REVIEW_TUNNEL and response.status == 503
+        if response.status != expected_status and not tunnel_unready:
+            elapsed = f'{(time.monotonic()-started)*1000:.0f}ms'
+            return '실패', f'{method} {path} HTTP {response.status} · 기대 HTTP {expected_status} 불일치', elapsed
+        limit = 32768 if name == PHPMYADMIN else 4096
+        payload = response.read(limit + 1)
+        content_type = response.getheader('Content-Type', '').split(';', 1)[0].strip().lower()
+        elapsed = f'{(time.monotonic()-started)*1000:.0f}ms'
+        if len(payload) > limit:
+            verdict = '실패' if tunnel_unready else '확인 불가'
+            return verdict, f'HTTP {response.status} · 응답 검사 크기 한도 초과', elapsed
+        return (*readiness_response(name, response.status, content_type,
+                                    response.getheader('Access-Control-Allow-Origin'), payload), elapsed)
+    except PermissionError:
+        return '확인 불가', '내부 HTTP 검사 권한 확인 필요', '—'
+    except (OSError, http.client.HTTPException):
+        elapsed = f'{(time.monotonic()-started)*1000:.0f}ms'
+        if name == REVIEW_TUNNEL and response is None:
+            # Cloudflared can choose a different metrics port when its default is occupied.
+            return '확인 불가', 'Cloudflared 기본 포트 /ready 응답 확인 불가', elapsed
+        return '실패', f'{method} {path} HTTP 응답 확인 실패', elapsed
+    finally:
+        connection.close()
+
+
+def container_readiness(target, name, detail):
+    if target == 'edo1':
+        return edo1_service_readiness(name, detail)
+    return standby_web_readiness(target, name, detail)
+
+
 def standby_web_readiness(target, name, detail):
     state = detail.get('State', {})
     if (target != 'edo2' or name != STANDBY_WEB or detail.get('Name') != '/' + name
             or state.get('Running') is not True or state.get('Status') != 'running'
             or state.get('OOMKilled') or state.get('Health', {}).get('Status')):
         return None
-    ports = detail.get('NetworkSettings', {}).get('Ports') or {}
-    if {'HostIp': '127.0.0.1', 'HostPort': '18443'} not in (ports.get('8443/tcp') or []):
+    if not has_port_binding(detail, '8443/tcp', '127.0.0.1', 18443):
         return '확인 불가', '대기 웹 loopback 포트 매핑 확인 불가', '—'
 
     started = time.monotonic()
@@ -453,7 +606,8 @@ def container_report(target='edo1'):
     info, containers, storage, issues = snapshot(True, target=target)
     volume_items = (storage.get('VolumeUsage') or {}).get('Items', storage.get('Volumes'))
     volumes = {v['Name']: v for v in volume_items or []}
-    rows, facts, measurements = [], [], {'deadline': time.monotonic() + 25}
+    rows, facts, readiness_inputs = [], [], []
+    measurements = {'deadline': time.monotonic() + 25}
     for value in containers:
         item, detail, stats = value['item'], value['detail'], value['stats']
         name = detail.get('Name', (item.get('Names') or ['?'])[0]).lstrip('/')
@@ -501,18 +655,22 @@ def container_report(target='edo1'):
         mounted = mounted_storage(detail.get('Mounts', []), volumes, measurements, name=name)
         if '확인 불가' in mounted:
             issues.append(name + ' 데이터 용량 미측정')
-        readiness = standby_web_readiness(target, name, detail)
-        facts.append({'name': name, 'running': state.get('Running'), 'health': health,
-                      'ram_bytes': metrics['memory'] if metrics['memory_available'] else None,
-                      'ram_limit': limit, 'host_ram': info.get('MemTotal'), 'cpu_limit': cpus,
-                      'cpu_percent': metrics['cpu'] if metrics['cpu_available'] else None,
-                      'log': log, 'mounts': mounted, 'readiness': readiness, 'rollback_retained': retained})
+        fact = {'name': name, 'running': state.get('Running'), 'health': health,
+                'ram_bytes': metrics['memory'] if metrics['memory_available'] else None,
+                'ram_limit': limit, 'host_ram': info.get('MemTotal'), 'cpu_limit': cpus,
+                'cpu_percent': metrics['cpu'] if metrics['cpu_available'] else None,
+                'log': log, 'mounts': mounted, 'rollback_retained': retained}
+        facts.append(fact)
+        readiness_inputs.append((fact, detail))
         rows.append([name, state['Status'] + '/' + health, f'{cpu}/{cpu_limit}',
                      f'{ram}/{size(limit) if limit else "미설정"} · {percent}',
                      size(item.get('SizeRw')) + '/' + disk_limit + ' · 로그 ' + log, mounted,
                      uptime + f'/{detail.get("RestartCount", 0)}회', f'{state.get("ExitCode", "?")}/{"예" if state.get("OOMKilled") else "아니오"}',
                      pids + '/' + ports,
                      net + ' · IO ' + block, config.get('Image', '?')])
+    # Readiness timeouts must not consume the shared bind-mount measurement budget.
+    for fact, detail in readiness_inputs:
+        fact['readiness'] = container_readiness(target, fact['name'], detail)
     return ['컨테이너', '실행/Health', 'CPU 사용/제한', 'RAM 사용/제한·비율', '쓰기 사용/제한·로그(회전 포함)',
             '데이터 저장소/사용량', '가동/재시작', '종료 코드/OOM', 'PID/공개 포트', 'NET 수신/송신·IO 읽기/쓰기(누적)', '이미지'], rows, issues, facts
 
@@ -719,12 +877,14 @@ def health_report(target='edo1'):
         evidence = ('중지·일시정지: ' + observed_state) if not running else (health or '실행 중 · 건강 검사 없음')
         action = ('실행 상태·서비스 로그 확인' if status == '실패' else
                   '현재 조치 없음' if status == '정상' else '실행만 확인됨; 서비스 준비 상태 검사 필요')
-        if name == 'eolssu-runtime-ai-1' and status == '정상':
+        if name == ANALYSIS_AI and status == '정상':
             status, evidence = '미검증', 'TCP 연결 검사 통과 · 분석 HTTP 준비·추론 기능 미검증'
             action = 'AI 서비스의 분석 준비 검증 경로·검증 절차 확인; TCP 통과만으로 추론 성공을 확정하지 않음'
-        readiness = standby_web_readiness(target, name, detail) if status == '미검증' else None
+        readiness = container_readiness(target, name, detail) if status in ('정상', '미검증') else None
         if readiness:
-            rows.append([name, STANDBY_WEB_LOCATION, *readiness, STANDBY_WEB_ACTION])
+            location = EDO1_READINESS_LOCATION if target == 'edo1' else STANDBY_WEB_LOCATION
+            next_action = EDO1_READINESS_ACTIONS[name] if target == 'edo1' else STANDBY_WEB_ACTION
+            rows.append([name, location, *readiness, next_action])
         else:
             rows.append([name, 'Docker healthcheck', status, evidence, '—', action])
     probes = [('Grafana', 3000, '/api/health'), ('n8n', 5688, '/healthz/readiness')] if target == 'edo1' else [('중계 내부 HTTP', 8765, '/healthz')]
