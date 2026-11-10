@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [edo1 서비스 준비 상태 검사 (665)](specs/edo1-service-readiness.md) · [작업·검증](plans/S15P31E102-665.md)
 - [edo1 블로그 편집기 롤백 보관본 오탐 수정 (662)](plans/S15P31E102-662.md)
 - [한 음씩 따라 불기 판정의 실측 높이 재생 검증 (653)](knowledge/frontend/step-practice-pitch-replay.md)
 - [기초부터 배우기 4~8단계 따라 배우기 (626)](plans/S15P31E102-626.md)
