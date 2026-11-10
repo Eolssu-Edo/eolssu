@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sheet_review_checked">확인했어요</string>
+    <string name="sheet_review_location">%1$d각 %2$d정간 · %3$s</string>
+    <string name="sheet_review_removed_cell">위치를 찾을 수 없는 정간 · %1$s</string>
+    <string name="sheet_review_missing_pitch">등록되지 않은 율명</string>
+    <string name="sheet_review_pitch_label">등록되지 않은 율명 · %1$s (%2$d옥타브)</string>
+    <string name="sheet_review_range">선택한 악기의 음역 밖</string>
+    <string name="sheet_review_uncertain">인식 결과를 확인해 주세요</string>
+    <string name="sheet_review_save_checks">악보를 저장하면 확인한 항목이 반영돼요</string>
+    <string name="sheet_review_before_reshape">확인한 항목을 저장한 뒤 각을 추가하거나 삭제할 수 있어요</string>
+</resources>

@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.config
 
 import com.ssafy.eolssu.backend.common.error.ErrorResponseWriter
 import com.ssafy.eolssu.backend.feature.sheet.api.SheetBodyLimitFilter
+import com.ssafy.eolssu.backend.feature.sheet.application.CopyPublishedSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.EditUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetImportFiles
@@ -17,6 +18,7 @@ import com.ssafy.eolssu.backend.feature.sheet.infrastructure.PdfBoxPageCounter
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.S3SheetSourceStorage
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.SheetStorageProperties
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.UnavailableSheetSourceStorage
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.MyBatisPublishedSheetCopyRepository
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.MyBatisSheetImportRepository
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SheetImportMapper
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.MyBatisUserSheetRepository
@@ -53,6 +55,11 @@ class UserSheetConfig {
 
     @Bean
     fun editUserSheet(repository: UserSheetRepository, scores: SheetScores, clock: Clock) = EditUserSheet(repository, scores, clock)
+
+    @Bean
+    fun copyPublishedSheet(songs: SongScoreMapper, sheets: UserSheetMapper, imports: SheetImportMapper,
+        transactionManager: PlatformTransactionManager, scores: SheetScores, clock: Clock) =
+        CopyPublishedSheet(MyBatisPublishedSheetCopyRepository(songs, sheets, imports, TransactionTemplate(transactionManager)), scores, clock)
 
     // R2는 생성 음원과 명시적 과거 원본 삭제용이다. 새 업로드의 임시 저장소와 분리한다.
     @Bean(defaultCandidate=false)

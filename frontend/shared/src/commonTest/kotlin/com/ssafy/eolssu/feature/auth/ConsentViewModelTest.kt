@@ -83,6 +83,33 @@ class ConsentViewModelTest {
     }
 
     @Test
+    fun returningFromLaterSignupStepKeepsChecksUntilServerRequiresFreshConsent() = runTest {
+        var version = 1
+        val client = createHttpClient(MockEngine {
+            respond("""{"isSuccess":true,"result":{"items":[
+                {"termId":"17","code":"SERVICE_TERMS","title":"약관","required":true,"version":"v$version","contentUrl":"https://example.test/terms"}]}}""",
+                headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        val draft = AccountDraft()
+        val vm = ConsentViewModel(TermsRepository(client), draft)
+        vm.load()
+        vm.toggle("17")
+        assertTrue(vm.accept())
+        vm.load() // Back from email verification: checks and agreements stay.
+        assertEquals(setOf("17"), vm.uiState.value.checked)
+        assertEquals("v1", draft.agreements.single().version)
+        version = 2
+        draft.agreements = emptyList() // Server answered TERMS_AGREEMENT_REQUIRED during registration.
+        vm.load()
+        assertTrue(vm.uiState.value.checked.isEmpty())
+        assertFalse(vm.accept())
+        vm.toggle("17")
+        assertTrue(vm.accept())
+        assertEquals("v2", draft.agreements.single().version)
+        client.close()
+    }
+
+    @Test
     fun emptyOrUnavailableTermsNeverPermitSignup() = runTest {
         for (empty in listOf(true, false)) {
             val client = createHttpClient(MockEngine {

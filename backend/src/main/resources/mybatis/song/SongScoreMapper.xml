@@ -3,7 +3,7 @@
 <mapper namespace="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongScoreMapper">
     <select id="findPublished" resultType="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.PublishedScoreRow">
         SELECT s.id AS song_id, s.score_version, s.note_count, s.default_bpm,
-               COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')), '') AS bpm_unit, s.score_json
+               COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')), '') AS bpm_unit, s.score_json, s.title, s.jangdan_id
         FROM songs s LEFT JOIN jangdans j ON j.id = s.jangdan_id
         WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.deleted_at IS NULL
     </select>

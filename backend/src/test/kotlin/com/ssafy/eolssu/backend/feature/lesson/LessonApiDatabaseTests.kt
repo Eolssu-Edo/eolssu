@@ -126,6 +126,10 @@ class LessonApiDatabaseTests {
         val jeongakRanges = result(get("/api/lessons/24", "961"))
         assertEquals(listOf("HIGH" to "淋", "LOW" to "㑣"), jeongakRanges["ranges"].values().map { it["blow"].asString() to it["firstPitch"].asString() })
 
+        val tongue = result(get("/api/lessons/16", "961"))
+        assertEquals("혀치기", tongue["title"].asString())
+        assertEquals(listOf("혀치기"), tongue["tasks"].values().map { it["title"].asString() })
+
         val songs = result(get("/api/lessons/8", "961"))
         assertEquals(listOf("비행기", "새야새야", "아리랑", "도라지타령", "천안삼거리", "풍년가"), songs["songs"].values().map { it["title"].asString() })
         assertEquals(listOf("仲", "林", "無", "潢", "汰"), songs["pitchNames"].values().map { it.asString() })

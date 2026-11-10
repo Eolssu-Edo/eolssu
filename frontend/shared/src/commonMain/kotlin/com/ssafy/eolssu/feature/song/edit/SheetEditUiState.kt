@@ -54,6 +54,9 @@ enum class SheetEditMessage {
 
     /** 파일 주소를 기기 브라우저로 열지 못했다. */
     AudioLinkFailed,
+    PreviewNeedsAudio,
+
+    ReviewBeforeReshape,
 
     /** 아직 만들지 않은 기능(장단 바꾸기). */
     ComingSoon,
@@ -86,7 +89,6 @@ data class SheetEditUiState(
     val staffKey: StaffNoteKey? = null,
     val yulRegister: YulRegister = YulRegister.Base,
     val availablePitches: Set<Pair<String, Int>>? = null,
-    val previewPlaying: Boolean = false,
     val withJangdan: Boolean = true,
     val emptyWarning: Boolean = false,
     val savedOnce: Boolean = false,
@@ -97,12 +99,26 @@ data class SheetEditUiState(
     val saving: Boolean = false,
     val saveConflict: Boolean = false,
     val closeWarning: Boolean = false,
+    val reviewIssues: List<SheetReviewIssue> = emptyList(),
+    val checkedIssueIds: Set<String> = emptySet(),
 ) {
     val canUndo: Boolean get() = past.isNotEmpty()
     val canRedo: Boolean get() = future.isNotEmpty()
 
-    /** 인식 결과에서 왔고 아직 확인하지 않은 정간이 남았으면 그 수. 아니면 0. */
-    val pendingChecks: Int get() = (source as? EditSource.Import)?.pendingChecks ?: 0
+    val audioSettingsChanged: Boolean
+        get() = (audio as? SheetAudioUi.Ready)?.audio?.let {
+            it.withJangdan != withJangdan || it.bpm != draft.bpm
+        } == true
+
+    val pendingChecks: Int
+        get() = (source as? EditSource.Import)?.pendingChecks
+            ?: reviewIssues.filterNot { it.id in checkedIssueIds }.distinctBy(SheetReviewIssue::cellId).size
+
+    val nextReviewIssue: SheetReviewIssue?
+        get() = reviewIssues.firstOrNull { it.id !in checkedIssueIds }
+
+    val nextReviewCellIndex: Int?
+        get() = nextReviewIssue?.let { issue -> draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } }
 
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. */
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. 고른 소박은 그 정간이 여전히 나뉘어 있을 때만 남긴다. */
@@ -231,7 +247,7 @@ data class SheetEditUiState(
     fun requestAudio(): SheetEditUiState = when {
         !savedOnce -> copy(message = SheetEditMessage.AudioNeedsSave)
         serverSheetId == null -> copy(message = SheetEditMessage.ComingSoon)
-        !audio.canRequest -> this
+        !audio.canRequest && !audioSettingsChanged -> this
         else -> copy(audio = SheetAudioUi.Requesting(audio.latest))
     }
 
