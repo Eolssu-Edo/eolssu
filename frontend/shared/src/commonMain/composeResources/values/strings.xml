@@ -495,10 +495,9 @@
     <string name="learn_section_tasks">이 단계에서 할 일</string>
     <string name="learn_section_new_notes">이번에 익힐 음</string>
     <string name="learn_section_order">배우는 순서</string>
-    <string name="learn_task_move">%1$s로 옮겨 가기</string>
-    <string name="learn_task_move_detail">구멍 하나 차이를 손가락으로 익혀요.</string>
-    <string name="learn_task_rest">남은 음을 같은 방식으로</string>
-    <string name="learn_task_rest_detail">한 음이 통과되면 다음 음으로 넘어가요.</string>
+    <string name="learn_task_note">%1$s 짚어 불기</string>
+    <string name="learn_task_note_detail">그림에서 까만 구멍은 막고 하얀 구멍은 열어요. 소리를 들어 보고 따라 불어요.</string>
+    <string name="learn_sequence_note">%1$d번째 %2$s</string>
     <string name="learn_section_patterns">연습 패턴</string>
     <string name="learn_pattern_ascending">순차 상행</string>
     <string name="learn_pattern_descending">순차 하행</string>

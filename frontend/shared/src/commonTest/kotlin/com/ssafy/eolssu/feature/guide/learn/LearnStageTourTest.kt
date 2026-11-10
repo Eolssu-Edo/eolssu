@@ -27,13 +27,14 @@ class LearnStageTourTest {
     )
 
     /**
-     * 4단계 첫 음은 3단계 첫 소리와 같아 칸을 두지 않는다(S15P31E102-655). 두 번째 음의 운지가 있어야
-     * 할 일 2칸(옮겨 가기 · 남은 음), 없으면 따라 배우기를 두지 않는다.
+     * 4단계는 율명을 처음 보는 사람도 따라 하도록 음마다 운지 박스를 하나씩 둔다(S15P31E102-688).
+     * 운지표에 없는 음은 빼고, 짚을 음이 없으면 따라 배우기를 두지 않는다.
      */
-    @Test fun stageFourSkipsTheFirstSoundAndHasTwoSteps() {
-        assertEquals(2, stageTourCount(4, detail(listOf("汰", "潢", "無", "林", "仲")), danso))
-        assertEquals(0, stageTourCount(4, detail(listOf("汰")), danso))
-        assertEquals(0, stageTourCount(4, detail(listOf("汰", "없는음")), danso))
+    @Test fun stageFourHasOneFingeringStepPerNote() {
+        assertEquals(5, stageTourCount(4, detail(listOf("汰", "潢", "無", "林", "仲")), danso))
+        assertEquals(listOf("汰", "林"), stageFourNotes(detail(listOf("汰", "없는음", "林")), danso).map { it.hanja })
+        assertEquals(0, stageTourCount(4, detail(listOf("없는음")), danso))
+        assertEquals(0, stageTourCount(4, detail(), danso))
     }
 
     /** 5단계는 기본 5음이 있으면 올라가기·내려가기 2칸, 모자라면 없다(건너뛰기·세 음 동요는 같은 음의 반복이라 뺐다). */
