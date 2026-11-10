@@ -43,8 +43,8 @@ class LearnNavigation(
     val onOpenFingering: (GuideInstrument, Blow) -> Unit,
     /** 정간보 쉽게 읽기를 그 단계에 맞는 쪽으로 펼쳐 연다. */
     val onOpenReading: (ReadingPage) -> Unit,
-    /** 마지막 단계(7단계)를 마친 뒤 곡 연습(곡 목록)으로 간다. 단계 상세는 닫는다. */
-    val onOpenSongList: () -> Unit,
+    /** 마지막 단계(7단계)를 마친 뒤 단계 상세를 닫고 단계 목록으로 돌아간다(결승 축하를 본다). */
+    val onReturnToList: () -> Unit,
 )
 
 /**
@@ -92,6 +92,7 @@ fun LearnListRoute(
         // 가로 배치는 넘긴 카드가 곧 오른쪽 칸의 단계다
         onShowCard = { stage -> if (twoPane) viewModel.selectStage(stage) else viewModel.viewCard(stage) },
         onRetryTrack = viewModel::retryTrack,
+        onFinishCelebrated = viewModel::endFinishCelebration,
     )
     LearnSaveErrorEffect(state.saveError, snackbarHostState, viewModel::clearSaveError)
 
@@ -103,8 +104,8 @@ fun LearnListRoute(
             state,
             viewModel,
             onSettingsFailed = { snackbarHostState.notifier(scope)({ getString(Res.string.learn_practice_settings_failed) }) },
-            // 가로 배치는 다음 단계를 오른쪽 칸에 고르고, 마지막 단계면 곡 연습으로 간다.
-            onCompleted = { next -> next?.let(viewModel::selectStage) ?: navigation.onOpenSongList() },
+            // 가로 배치는 다음 단계를 오른쪽 칸에 고른다. 마지막 단계면 왼쪽 지도에서 결승 축하를 본다.
+            onCompleted = { next -> next?.let(viewModel::selectStage) },
         )
         LearnExpandedLayout(
             state = state,
@@ -134,7 +135,7 @@ fun LearnListRoute(
 
 /**
  * 단계 상세. 이전·다음 단계는 [onOpenStage]로 바꾸고, 마지막 단계를 확인하면 [onBack]으로 목록에 돌아간다.
- * 3~7단계는 마지막 연습 박스에서 화면을 옮기지 않고 듣고 판정하며, 마지막 단계를 마치면 단계 목록 위에 곡 목록을 연다.
+ * 3~7단계는 마지막 연습 박스에서 화면을 옮기지 않고 듣고 판정하며, 마지막 단계를 마치면 단계 목록으로 돌아가 결승 축하를 본다.
  * 창이 가로 배치 너비가 되면 이 단계를 고른 채 [onShowInList]로 단계 목록(목록 + 상세 한 화면)에 돌아간다.
  */
 @Composable
@@ -177,7 +178,7 @@ fun LearnStageRoute(
         state,
         viewModel,
         onSettingsFailed = { snackbarHostState.notifier(scope)({ getString(Res.string.learn_practice_settings_failed) }) },
-        onCompleted = { next -> next?.let(onOpenStage) ?: navigation.onOpenSongList() },
+        onCompleted = { next -> next?.let(onOpenStage) ?: navigation.onReturnToList() },
     )
     LearnStageScreen(
         state = state,

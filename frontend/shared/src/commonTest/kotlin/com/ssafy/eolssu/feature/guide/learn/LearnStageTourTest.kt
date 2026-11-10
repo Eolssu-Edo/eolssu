@@ -3,7 +3,7 @@ package com.ssafy.eolssu.feature.guide.learn
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.learn_done_go_songs
+import eolssu.shared.generated.resources.learn_done_go_finish
 import eolssu.shared.generated.resources.learn_tour_done_body_beat
 import eolssu.shared.generated.resources.learn_tour_done_body_notes
 import eolssu.shared.generated.resources.learn_tour_done_body_patterns
@@ -68,9 +68,9 @@ class LearnStageTourTest {
         assertEquals(0, learnStepCount(8, detail(tasks = 3), danso))
     }
 
-    /** 마지막 단계(7단계)를 마치면 '완료했어요!' 버튼이 다음 단계 대신 곡 연습으로 간다(S15P31E102-658). */
-    @Test fun lastStageDoneLeadsToSongPractice() {
-        assertEquals(Res.string.learn_done_go_songs, learnDoneAction(last = true))
+    /** 마지막 단계(7단계)를 마치면 '완료했어요!' 버튼이 다음 단계 대신 단계 목록 결승선으로 돌아간다(S15P31E102-688). */
+    @Test fun lastStageDoneLeadsBackToFinishLine() {
+        assertEquals(Res.string.learn_done_go_finish, learnDoneAction(last = true))
         assertEquals(Res.string.learn_tour_done_next, learnDoneAction(last = false))
     }
 

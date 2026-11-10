@@ -33,7 +33,7 @@ import eolssu.shared.generated.resources.learn_task_range
 import eolssu.shared.generated.resources.learn_task_range_detail
 import eolssu.shared.generated.resources.learn_task_rest
 import eolssu.shared.generated.resources.learn_task_rest_detail
-import eolssu.shared.generated.resources.learn_done_go_songs
+import eolssu.shared.generated.resources.learn_done_go_finish
 import eolssu.shared.generated.resources.learn_tour_done_body_beat
 import eolssu.shared.generated.resources.learn_tour_done_body_notes
 import eolssu.shared.generated.resources.learn_tour_done_body_patterns
@@ -70,7 +70,7 @@ internal fun learnDoneBody(stage: Int): StringResource = when (stage) {
 
 /** '완료했어요!' 창의 버튼. 마지막 단계는 다음 단계 대신 곡 연습으로 간다. */
 internal fun learnDoneAction(last: Boolean): StringResource =
-    if (last) Res.string.learn_done_go_songs else Res.string.learn_tour_done_next
+    if (last) Res.string.learn_done_go_finish else Res.string.learn_tour_done_next
 
 private val LearnPattern.detail: StringResource
     get() = when (this) {

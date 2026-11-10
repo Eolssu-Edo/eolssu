@@ -431,11 +431,14 @@ fun EolssuNavHost(
                 val learnNavigation = LearnNavigation(
                     onOpenFingering = { instrument, blow -> navController.navigate(EolssuDestination.guideFingering(instrument, blow)) },
                     onOpenReading = { page -> navController.navigate(EolssuDestination.guideReading(page)) },
-                    // 마지막 단계(7단계)를 마치면 단계 상세를 닫고 단계 목록 위에 곡 목록을 연다(S15P31E102-658). 뒤로 가면 단계 목록이다.
-                    // 마이페이지·주소로 바로 들어와 목록이 없으면 상세 위에 연다.
-                    onOpenSongList = {
-                        navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)
-                        navController.navigate(EolssuDestination.SONG_LIST)
+                    // 마지막 단계(7단계)를 마치면 단계 상세를 닫고 단계 목록으로 돌아가 결승 축하를 본다(S15P31E102-688).
+                    // 마이페이지·주소로 바로 들어와 목록이 없으면 상세를 목록으로 바꿔 끼운다.
+                    onReturnToList = {
+                        if (!navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)) {
+                            navController.navigate(EolssuDestination.LEARN_LIST) {
+                                popUpTo(EolssuDestination.LEARN_STAGE) { inclusive = true }
+                            }
+                        }
                     },
                 )
                 composable(EolssuDestination.LEARN_LIST) { entry ->

@@ -16,7 +16,7 @@ import org.koin.core.parameter.parametersOf
 /**
  * 3~7단계 연습 박스 연결(S15P31E102-688). 단계 화면을 옮기지 않고 마지막 할 일 박스에서 듣고 판정한다.
  * 단계마다 연습 상태([LearnPracticeViewModel])를 따로 두고, 화면을 벗어나면(ON_STOP) 듣기를 멈춘다.
- * 완료로 표시하면 [onCompleted]로 다음 단계(마지막이면 null)를 넘긴다. 연습 단계가 아니면 null이다.
+ * 완료로 표시하면 [onCompleted]로 다음 단계(마지막이면 null)를 넘긴다. 마지막 단계면 결승 축하를 켠다. 연습 단계가 아니면 null이다.
  */
 @Composable
 internal fun rememberLearnStagePractice(
@@ -42,7 +42,7 @@ internal fun rememberLearnStagePractice(
             onRestart = viewModel::reset,
             onComplete = {
                 viewModel.stopListening()
-                learnViewModel.confirm(number)
+                if (next == null) learnViewModel.finishTrack(number) else learnViewModel.confirm(number)
                 onCompleted(next)
             },
             onOpenSettings = { if (!viewModel.openMicSettings()) onSettingsFailed() },

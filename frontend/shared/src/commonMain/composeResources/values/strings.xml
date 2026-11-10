@@ -466,7 +466,7 @@
     <string name="learn_stage_nav_prev">이전 단계 %1$d단계 %2$s</string>
     <string name="learn_stage_nav_next">다음 단계 %1$d단계 %2$s</string>
     <string name="learn_tour_done_next">다음 단계로</string>
-    <string name="learn_done_go_songs">곡 연습하러 가기</string>
+    <string name="learn_done_go_finish">돌다리 다 건너기</string>
     <string name="learn_tour_done_body_posture">바른 자세와 숨쉬기를 익혔어요.</string>
     <string name="learn_tour_done_body_notes">기본음의 율명과 운지를 익혔어요.</string>
     <string name="learn_tour_done_body_patterns">음을 이어 부는 법을 익혔어요.</string>

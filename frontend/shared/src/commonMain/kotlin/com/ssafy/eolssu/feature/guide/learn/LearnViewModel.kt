@@ -103,6 +103,14 @@ class LearnViewModel(
 
     fun selectStage(stage: Int?) = _uiState.update { it.selectStage(stage) }
 
+    /** 마지막 [stage]를 마쳤다. 완료로 남기고 단계 목록에서 그 단계 카드를 펼쳐 결승 축하를 한 번 보인다. */
+    fun finishTrack(stage: Int) {
+        confirm(stage)
+        _uiState.update { it.viewCard(stage).copy(finishCelebration = true) }
+    }
+
+    fun endFinishCelebration() = _uiState.update { it.copy(finishCelebration = false) }
+
     fun toggleShownDone(stage: Int) = updateDone(stage) { it.toggleShownDone(stage) }
 
     fun viewCard(stage: Int) = _uiState.update { it.viewCard(stage) }
