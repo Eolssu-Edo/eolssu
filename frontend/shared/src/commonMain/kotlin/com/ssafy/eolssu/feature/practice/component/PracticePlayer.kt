@@ -315,31 +315,42 @@ private fun PlayerTrack(fraction: Float, modifier: Modifier = Modifier) {
 }
 
 /**
- * 플레이어 아래 행동(보드 `.btn.primary` + `.notice`):
+ * 플레이어 아래 행동(보드 `.btn.primary`):
  * - 평가 준비: ‘연주 평가 시작’.
  * - 일반 연습·평가 가능 곡: ‘연주 평가 시작’으로 평가를 바로 시작한다.
- * - 연습 모드·평가 불가 곡: 안내만 ‘이 곡은 AI 평가 데이터가 없어 연습만 할 수 있어요. …’
+ * - 연습 모드·평가 불가 곡: 꺼진 ‘연주 평가 시작’과 그 아래 회색 글자 ‘이 곡은 연습만 가능해요’.
  * - 내 악보 연습·기초부터 배우기 곡 연습: 평가 버튼도 안내도 없다(Practice-Mine).
- * 녹음을 지원하지 않는 환경은 안내 카드에 그 사실을 적고 버튼을 끈다.
+ * 녹음을 지원하지 않는 환경은 버튼을 끄고 그 아래 회색 글자로 이유를 적는다.
  */
 @Composable
 fun PracticeCallToAction(state: PracticeUiState, actions: PracticeBottomActions, modifier: Modifier = Modifier, hideNotice: Boolean = false) {
     val song = state.song ?: return
-    val unsupported = !state.recordingSupported && (!state.solo || song.evaluable)
+    val unsupported = stringResource(Res.string.practice_recording_unsupported).takeIf { !state.recordingSupported }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         PracticeModeSwitch(state, actions)
         when {
             state.mine || state.learn -> Unit
-            !state.solo -> {
-                EolssuButton(stringResource(Res.string.practice_start_eval), actions.onStartEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
-                // 운지법과 함께 보기에서는 평가 안내를 숨긴다(보드 `.paged-fingering .practice-demo-notice`).
-                if (unsupported) PracticeNotice(stringResource(Res.string.practice_recording_unsupported))
-            }
-            song.evaluable -> {
-                EolssuButton(stringResource(Res.string.practice_start_eval), actions.onSwitchToEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
-                if (unsupported) PracticeNotice(stringResource(Res.string.practice_recording_unsupported))
-            }
-            else -> PracticeNotice(stringResource(Res.string.practice_hint_solo_only))
+            !state.solo -> PracticeEvalButton(actions.onStartEval, enabled = state.recordingSupported, caption = unsupported)
+            song.evaluable -> PracticeEvalButton(actions.onSwitchToEval, enabled = state.recordingSupported, caption = unsupported)
+            // 평가 가능 곡과 같은 자리에 꺼진 버튼을 두고, 바로 아래에 이유를 적는다.
+            else -> PracticeEvalButton({}, enabled = false, caption = stringResource(Res.string.practice_hint_solo_only))
+        }
+    }
+}
+
+/** ‘연주 평가 시작’ 버튼. [caption]이 있으면 버튼 바로 아래 가운데에 작은 회색 글자로 적는다. */
+@Composable
+private fun PracticeEvalButton(onClick: () -> Unit, enabled: Boolean, caption: String?) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        EolssuButton(stringResource(Res.string.practice_start_eval), onClick, icon = EolssuIcons.Mic, enabled = enabled)
+        if (caption != null) {
+            Text(
+                caption,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                color = EolssuTheme.colors.textMuted,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
@@ -366,19 +377,6 @@ private fun PracticeModeSwitch(state: PracticeUiState, actions: PracticeBottomAc
             }
         }
     }
-}
-
-/** 안내 카드(`.notice`): 흰 바탕, 옅은 테두리, 반지름 10, 12sp 짙은 연두 글자. */
-@Composable
-fun PracticeNotice(text: String, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(10.dp)
-    Text(
-        text,
-        modifier = modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape).padding(horizontal = 14.dp, vertical = 13.dp),
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 20.4.sp),
-        color = colors.accentText,
-    )
 }
 
 /** Also shown when a saved ON preference cannot actually produce accompaniment. */
