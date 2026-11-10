@@ -129,12 +129,14 @@ test('read and ACK are checked for matching stream, range and response budget', 
 test('ADB uses only the verified physical transport and cleans exactly its own response file', async () => {
   let currentIdentity = identity;
   let failRead = false;
+  let delivered = true;
   const calls = [];
   const phone = new AdbPhone({
     serial: '192.0.2.2:5555', executor: async (_file, args, options) => {
       calls.push({ args, options });
       if (args.includes('devices')) return { stdout: '192.0.2.2:5555 device transport_id:7\n' };
       if (args.includes('ro.serialno')) return { stdout: currentIdentity + '\n' };
+      if (args.includes('broadcast')) return { stdout: `Broadcast completed: result=${delivered ? -1 : 0}\r\n` };
       if (args.includes('cat')) {
         if (failRead) throw new Error('no response');
         return { stdout: Buffer.from(JSON.stringify(snapshot)) };
@@ -158,6 +160,11 @@ test('ADB uses only the verified physical transport and cleans exactly its own r
   failRead = true;
   await assert.rejects(phone.applog(ack, identity), /no response/);
   assert.deepEqual(calls.at(-1).args, [...adb, 'shell', ...runAs, 'rm', '-f', `cache/qa-perf/${request_id}-ack.json`]);
+  delivered = false;
+  const undelivered = calls.length;
+  await assert.rejects(phone.applog(begin, identity), /did not complete/);
+  assert.equal(calls.slice(undelivered).some(call => call.args.includes('cat')), false);
+  assert.deepEqual(calls.at(-1).args, [...adb, 'shell', ...runAs, 'rm', '-f', `cache/qa-perf/${request_id}-begin.json`]);
   currentIdentity = 'WRONG_PHONE';
   const before = calls.length;
   await assert.rejects(phone.applog(begin, identity), /identity mismatch/);

@@ -67,7 +67,9 @@ export class AdbPhone {
 
     await clear(timeout(1000));
     try {
-      await this.execute([...selection, ...broadcast], false, timeout(4500), 4096);
+      const delivered = await this.execute([...selection, ...broadcast], false, timeout(4500), 4096);
+      // The QA receiver reports RESULT_OK only after atomically publishing its response.
+      if (!/^Broadcast completed: result=-1\r?$/m.test(delivered)) throw new Error('QA app did not complete the log request');
       return await this.execute([...selection, 'exec-out', ...asApp, 'cat', file], true, timeout(1500), ApplogMaxBytes);
     } finally {
       await clear(1000).catch(() => {});
