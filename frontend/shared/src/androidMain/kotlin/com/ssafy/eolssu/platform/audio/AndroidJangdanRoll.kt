@@ -20,16 +20,15 @@ import kotlinx.coroutines.ensureActive
 private const val PCM_FRAME_BYTES = 2
 
 @OptIn(UnstableApi::class)
-internal suspend fun stretchJangdanRoll(source: CachedJangdanSample, targetFrames: Int): ByteArray {
-    val pcm = decodeRoll(source)
+internal fun stretchJangdanRoll(pcm: ShortArray, targetFrames: Int): ShortArray {
+    require(pcm.isNotEmpty() && targetFrames in 1..JANGDAN_SAMPLE_RATE * 4)
     val sonic = SonicAudioProcessor().apply {
-        setSpeed(source.frames.toFloat() / targetFrames)
+        setSpeed(pcm.size.toFloat() / targetFrames)
         configure(AudioProcessor.AudioFormat(JANGDAN_SAMPLE_RATE, 1, C.ENCODING_PCM_16BIT))
         flush(AudioProcessor.StreamMetadata.DEFAULT)
     }
-    val input = ByteBuffer.allocateDirect(pcm.size).order(ByteOrder.nativeOrder()).apply {
-        put(pcm)
-        flip()
+    val input = ByteBuffer.allocateDirect(pcm.size * PCM_FRAME_BYTES).order(ByteOrder.nativeOrder()).apply {
+        asShortBuffer().put(pcm)
     }
     val output = if (sonic.isActive) {
         sonic.queueInput(input)
@@ -38,21 +37,15 @@ internal suspend fun stretchJangdanRoll(source: CachedJangdanSample, targetFrame
     } else {
         input
     }
-    val dataSize = targetFrames * PCM_FRAME_BYTES
-    val wave = ByteBuffer.allocate(44 + dataSize).order(ByteOrder.LITTLE_ENDIAN)
-    wave.put("RIFF".encodeToByteArray()).putInt(36 + dataSize)
-    wave.put("WAVEfmt ".encodeToByteArray()).putInt(16)
-    wave.putShort(1).putShort(1).putInt(JANGDAN_SAMPLE_RATE)
-    wave.putInt(JANGDAN_SAMPLE_RATE * PCM_FRAME_BYTES).putShort(2).putShort(16)
-    wave.put("data".encodeToByteArray()).putInt(dataSize)
     // Sonic may round its output length. Keep the score's frame count, trimming or zero-padding the tail.
     check(output.hasRemaining()) { "Empty jangdan roll after time stretch" }
-    output.limit(minOf(output.limit(), output.position() + dataSize))
-    wave.put(output)
-    return wave.array()
+    val result = ShortArray(targetFrames)
+    output.order(ByteOrder.nativeOrder()).asShortBuffer().get(result, 0, minOf(targetFrames, output.remaining() / PCM_FRAME_BYTES))
+    sonic.reset()
+    return result
 }
 
-private suspend fun decodeRoll(source: CachedJangdanSample): ByteArray {
+internal suspend fun decodeJangdanPcm(source: CachedJangdanSample): ShortArray {
     val extractor = MediaExtractor()
     try {
         extractor.setDataSource(source.file.absolutePath)
@@ -72,7 +65,8 @@ private suspend fun decodeRoll(source: CachedJangdanSample): ByteArray {
         try {
             decoder.configure(format, null, null, 0)
             decoder.start()
-            return readRollPcm(extractor, decoder, firstTimeUs, priming, source.frames)
+            val bytes = readRollPcm(extractor, decoder, firstTimeUs, priming, source.frames)
+            return ShortArray(source.frames).also { ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()).asShortBuffer().get(it) }
         } finally {
             decoder.release()
         }
@@ -135,5 +129,5 @@ private suspend fun readRollPcm(
         if (written == frames) return data
         if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) break
     }
-    error("Incomplete jangdan roll PCM: $written/$frames frames")
+    error("Incomplete jangdan PCM: $written/$frames frames")
 }
