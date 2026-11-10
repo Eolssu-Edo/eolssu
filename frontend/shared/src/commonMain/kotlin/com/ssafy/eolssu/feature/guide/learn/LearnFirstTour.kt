@@ -1,43 +1,26 @@
 package com.ssafy.eolssu.feature.guide.learn
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -45,23 +28,15 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.HolePoint
 import com.ssafy.eolssu.core.model.fingering.image
 import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDoneDialog
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.learn_tour_back
 import eolssu.shared.generated.resources.learn_tour_cheong
@@ -71,15 +46,11 @@ import eolssu.shared.generated.resources.learn_tour_chilseong_body
 import eolssu.shared.generated.resources.learn_tour_done_body
 import eolssu.shared.generated.resources.learn_tour_done_next
 import eolssu.shared.generated.resources.learn_tour_done_title
-import eolssu.shared.generated.resources.learn_tour_finish
 import eolssu.shared.generated.resources.learn_tour_holes
 import eolssu.shared.generated.resources.learn_tour_left_body
 import eolssu.shared.generated.resources.learn_tour_mouth
 import eolssu.shared.generated.resources.learn_tour_mouth_body
-import eolssu.shared.generated.resources.learn_tour_next
-import eolssu.shared.generated.resources.learn_tour_prev
 import eolssu.shared.generated.resources.learn_tour_right_body
-import eolssu.shared.generated.resources.learn_tour_start
 import eolssu.shared.generated.resources.learn_tour_thumb_body
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -87,8 +58,8 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.math.hypot
 
 /*
- * 1단계 '악기 알기' 따라 배우기. '학습 시작'을 누르면 악기 그림에서 취구 → 구멍을 하나씩 동그라미로 짚으며 한 줄씩 알려 주고,
- * 다 보면 '완료했어요!'를 띄운 뒤 다음 단계로 간다. 악기 부분 이름·손 위치는 운지 그림(구멍 좌표)과 같은 앱 쪽 안내라 여기에 둔다.
+ * 1단계 '악기 알기' 할 일 박스. 악기 그림에서 취구 → 구멍을 박스 하나씩 동그라미로 짚으며 한 줄씩 알려 주고,
+ * 다 마치면 '완료했어요!'를 띄운 뒤 다음 단계로 간다. 악기 부분 이름·손 위치는 운지 그림(구멍 좌표)과 같은 앱 쪽 안내라 여기에 둔다.
  */
 
 /**
@@ -141,58 +112,62 @@ internal val GuideInstrument.tourSpots: List<TourSpot>
     }
 
 /**
- * 따라 배우기 진행. [step]이 null이면 시작 전이고, [celebrating]이면 '완료했어요!'를 띄운다.
- * 화면 회전 뒤에도 이어지도록 저장한다.
+ * 할 일 박스 진행(S15P31E102-688). 처음부터 1번 박스가 열려 있고, '해 봤어요'로 앞에서부터 마치면 다음 박스가 열린다.
+ * 마친 박스는 다시 펼쳐 볼 수 있다. [celebrating]이면 '완료했어요!'를 띄운다. 화면 회전 뒤에도 이어지도록 저장한다.
+ *
+ * @property open 펼친 박스. null이면 모두 접혀 있다.
+ * @property doneCount 앞에서부터 마친 박스 수. 그다음 박스가 지금 할 일이고, 그 뒤는 아직 열리지 않는다.
  */
 @Stable
-internal class LearnTour(private val stepState: MutableState<Int?>, private val celebrateState: MutableState<Boolean>) {
-    val step: Int? get() = stepState.value
+internal class LearnTour(
+    private val openState: MutableState<Int?> = mutableStateOf(FirstOpenBox),
+    private val doneState: MutableState<Int> = mutableStateOf(0),
+    private val celebrateState: MutableState<Boolean> = mutableStateOf(false),
+) {
+    val open: Int? get() = openState.value
+    val doneCount: Int get() = doneState.value
     val celebrating: Boolean get() = celebrateState.value
-    val started: Boolean get() = stepState.value != null
 
-    fun start() { stepState.value = 0 }
-    fun next(last: Int) { stepState.value = ((stepState.value ?: -1) + 1).coerceAtMost(last) }
-    fun prev() { stepState.value = ((stepState.value ?: 0) - 1).coerceAtLeast(0) }
+    fun isDone(index: Int): Boolean = index < doneCount
+
+    fun allDone(count: Int): Boolean = count > 0 && doneCount >= count
+
+    /** [index]번 박스를 '해 봤어요': 마침으로 남기고 아직 안 한 첫 박스를 연다(없으면 모두 접는다). 다 마쳤으면 true. 열리지 않은 박스는 무시한다. */
+    fun complete(index: Int, count: Int): Boolean {
+        if (index > doneCount || index >= count) return false
+        doneState.value = maxOf(doneCount, index + 1)
+        openState.value = doneCount.takeIf { it < count }
+        return allDone(count)
+    }
+
+    /** 마친 박스·지금 박스를 펼치거나 접는다. 열리지 않은 박스는 무시한다. */
+    fun toggle(index: Int) {
+        if (index > doneCount) return
+        openState.value = if (open == index) null else index
+    }
+
     fun finish() { celebrateState.value = true }
     fun dismiss() { celebrateState.value = false }
 }
 
-/** [stage]가 바뀌면(가로 배치에서 다른 단계를 고름) 처음부터 다시 한다. */
+private const val FirstOpenBox = 0
+
+/** [stage]가 바뀌면(가로 배치에서 다른 단계를 고름) 1번 박스부터 다시 한다. */
 @Composable
 internal fun rememberLearnTour(stage: Int): LearnTour {
-    val step = rememberSaveable(stage) { mutableStateOf<Int?>(null) }
+    val open = rememberSaveable(stage) { mutableStateOf<Int?>(FirstOpenBox) }
+    val done = rememberSaveable(stage) { mutableStateOf(0) }
     val celebrate = rememberSaveable(stage) { mutableStateOf(false) }
-    return remember(step, celebrate) { LearnTour(step, celebrate) }
+    return remember(open, done, celebrate) { LearnTour(open, done, celebrate) }
 }
 
-/** 1단계 본문: 시작 전에는 악기 그림과 부분 이름, 시작하면 짚는 곳에 동그라미와 한 줄 설명, 지나온 곳은 체크로 쌓인다. */
+/** 1단계 할 일 박스: 짚을 곳마다 박스 하나. 펼치면 악기 그림에서 그곳을 동그라미로 짚고 한 줄 설명을 보인다. */
 @Composable
-internal fun LearnFirstTourFigure(instrument: GuideInstrument, tour: LearnTour, imageMaxWidth: Dp = Dp.Unspecified) {
-    val colors = EolssuTheme.colors
+internal fun LearnFirstTourFigure(instrument: GuideInstrument, tour: LearnTour, imageMaxWidth: Dp = Dp.Unspecified, onAllDone: () -> Unit = {}) {
     val spots = instrument.tourSpots
-    val step = tour.step?.coerceIn(0, spots.lastIndex)
-    val shape = RoundedCornerShape(14.dp)
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(colors.surface, shape)
-            .border(1.dp, if (step != null) colors.accentTintLine else colors.lineSoft, shape)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        TourInstrumentImage(instrument, Modifier.align(Alignment.CenterHorizontally), imageMaxWidth) {
-            if (step != null) SpotRings(instrument, spots[step])
-        }
-        // 시작 전에는 부분 이름만, 시작하면 지나온 곳은 체크, 지금 곳은 연두 테두리, 남은 곳은 옅게.
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            spots.forEachIndexed { i, spot ->
-                SpotChip(spotTitle(spot), done = step != null && i < step, current = i == step, muted = step != null)
-            }
-        }
-        if (step == null) return@Column
-        AnimatedContent(step, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(120)) }, label = "tourCaption") { s ->
-            TourCaption(spotTitle(spots[s]), stringResource(spots[s].body))
-        }
+    val tasks = spots.map { LearnTask(spotTitle(it), stringResource(it.body)) }
+    TourPanel(tasks, tour, onAllDone) { s ->
+        TourInstrumentImage(instrument, imageMaxWidth = imageMaxWidth) { SpotRings(instrument, spots[s]) }
     }
 }
 
@@ -217,23 +192,6 @@ internal fun TourInstrumentImage(
             contentScale = ContentScale.Fit,
         )
         overlay()
-    }
-}
-
-/** 따라 배우기 한 칸 설명: 'n / 전체', 이름, 한 줄 설명. 화면 읽기는 바뀔 때마다 읽어 준다. */
-@Composable
-internal fun TourCaption(title: String, body: String?) {
-    val colors = EolssuTheme.colors
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(colors.accentSoft, RoundedCornerShape(12.dp))
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-            .semantics { liveRegion = LiveRegionMode.Polite },
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold))
-        if (body != null) Text(body, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp))
     }
 }
 
@@ -284,74 +242,6 @@ internal fun SpotRings(instrument: GuideInstrument, spot: TourSpot, color: Color
             val c = Offset(p.x * k, p.y * k)
             drawCircle(halo, radius = r * (1f + 0.7f * pulse), center = c)
             drawCircle(color, radius = r, center = c, style = Stroke(stroke))
-        }
-    }
-}
-
-@Composable
-internal fun SpotChip(text: String, done: Boolean, current: Boolean, muted: Boolean) {
-    val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(13.dp)
-    Row(
-        Modifier
-            .height(26.dp)
-            .background(if (done) colors.primary else colors.surface, shape)
-            .border(if (current) 2.dp else 1.dp, if (current) colors.play else colors.lineSoft, shape)
-            .padding(horizontal = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        if (done) Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(11.dp), tint = colors.onPrimary)
-        Text(
-            text,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = if (current) FontWeight.Bold else FontWeight.Normal),
-            color = when {
-                done -> colors.onPrimary
-                current || !muted -> colors.text
-                else -> colors.textMuted
-            },
-        )
-    }
-}
-
-/** 1단계 아래 버튼: 시작 전 '학습 시작', 진행 중 '이전 · 다음', 마지막 곳에서 '다 익혔어요'. */
-@Composable
-internal fun LearnFirstTourBar(instrument: GuideInstrument, tour: LearnTour) {
-    if (tour.step == null) {
-        LearnTourStartButton(tour, Modifier.fillMaxWidth())
-        return
-    }
-    LearnTourBar(instrument.tourSpots.lastIndex, tour) { modifier -> LearnTourFinishButton(tour, modifier) }
-}
-
-/** '학습 시작'. */
-@Composable
-internal fun LearnTourStartButton(tour: LearnTour, modifier: Modifier = Modifier) {
-    EolssuButton(stringResource(Res.string.learn_tour_start), tour::start, modifier, icon = EolssuIcons.Play)
-}
-
-/** '다 익혔어요': '완료했어요!'를 띄운다. */
-@Composable
-internal fun LearnTourFinishButton(tour: LearnTour, modifier: Modifier = Modifier) {
-    EolssuButton(stringResource(Res.string.learn_tour_finish), tour::finish, modifier, icon = EolssuIcons.Check)
-}
-
-/** 따라 배우기 진행 중 아래 버튼: '이전 · 다음', 마지막 칸([last])에서는 '다음' 자리에 [finish]를 둔다. */
-@Composable
-internal fun LearnTourBar(last: Int, tour: LearnTour, finish: @Composable (Modifier) -> Unit) {
-    val step = tour.step ?: return
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        EolssuButton(
-            stringResource(Res.string.learn_tour_prev),
-            tour::prev,
-            Modifier.weight(1f),
-            style = EolssuButtonStyle.Secondary,
-            enabled = step > 0,
-        )
-        if (step < last) {
-            EolssuButton(stringResource(Res.string.learn_tour_next), { tour.next(last) }, Modifier.weight(1f))
-        } else {
-            finish(Modifier.weight(1f))
         }
     }
 }

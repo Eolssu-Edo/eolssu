@@ -58,6 +58,16 @@ class LearnStageTourTest {
         assertEquals(0, stageTourCount(7, detail(), danso))
     }
 
+    /** 단계마다 할 일 박스 수(S15P31E102-688): 1단계는 짚는 곳, 2·3단계는 서버 할 일, 4~7단계는 따라 배우기 칸, 그 밖은 없다. */
+    @Test fun stepCountPerStage() {
+        assertEquals(danso.tourSpots.size, learnStepCount(1, detail(), danso))
+        assertEquals(3, learnStepCount(2, detail(tasks = 3), danso))
+        assertEquals(4, learnStepCount(3, detail(tasks = 4), danso))
+        assertEquals(2, learnStepCount(5, detail(listOf("仲", "林", "無", "潢", "汰")), danso))
+        assertEquals(1, learnStepCount(7, detail(tasks = 1), danso))
+        assertEquals(0, learnStepCount(8, detail(tasks = 3), danso))
+    }
+
     /** 마지막 단계(7단계)를 마치면 '완료했어요!' 버튼이 다음 단계 대신 곡 연습으로 간다(S15P31E102-658). */
     @Test fun lastStageDoneLeadsToSongPractice() {
         assertEquals(Res.string.learn_done_go_songs, learnDoneAction(last = true))

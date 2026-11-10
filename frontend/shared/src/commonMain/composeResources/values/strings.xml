@@ -443,10 +443,6 @@
     <string name="learn_card_next">다음 단계</string>
     <string name="learn_card_open">%1$d단계 %2$s 열기</string>
     <string name="learn_card_open_done">%1$d단계 %2$s, 완료 열기</string>
-    <string name="learn_tour_start">학습 시작</string>
-    <string name="learn_tour_prev">이전</string>
-    <string name="learn_tour_next">다음</string>
-    <string name="learn_tour_finish">다 익혔어요</string>
     <string name="learn_tour_mouth">취구</string>
     <string name="learn_tour_mouth_body">여기에 입술을 대고 입김을 불어 넣어요.</string>
     <string name="learn_tour_back">뒷구멍</string>
@@ -460,6 +456,15 @@
     <string name="learn_tour_chilseong_body">손가락으로 막지 않는 구멍이에요.</string>
     <string name="learn_tour_done_title">완료했어요!</string>
     <string name="learn_tour_done_body">악기의 생김새를 모두 익혔어요.</string>
+    <string name="learn_step_try">해 봤어요</string>
+    <string name="learn_step_progress">할 일 %1$d / %2$d</string>
+    <string name="learn_step_all_done">할 일을 모두 마쳤어요!</string>
+    <string name="learn_step_state_done">마침</string>
+    <string name="learn_step_state_open">지금 할 일</string>
+    <string name="learn_step_state_locked">앞 할 일을 마치면 열려요</string>
+    <string name="learn_step_box_description">%1$d번 %2$s, %3$s</string>
+    <string name="learn_stage_nav_prev">이전 단계 %1$d단계 %2$s</string>
+    <string name="learn_stage_nav_next">다음 단계 %1$d단계 %2$s</string>
     <string name="learn_tour_done_next">다음 단계로</string>
     <string name="learn_done_go_songs">곡 연습하러 가기</string>
     <string name="learn_tour_done_body_posture">바른 자세와 숨쉬기를 익혔어요.</string>

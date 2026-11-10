@@ -1,12 +1,13 @@
 package com.ssafy.eolssu.feature.guide.learn
 
-import androidx.compose.runtime.mutableStateOf
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.learn_tour_holes
 import eolssu.shared.generated.resources.learn_tour_mouth
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class LearnFirstTourTest {
@@ -26,19 +27,60 @@ class LearnFirstTourTest {
         }
     }
 
-    /** 다음은 마지막 곳에서 멈추고, 이전은 첫 곳 아래로 가지 않는다. */
+    /** 할 일 박스(S15P31E102-688): 처음부터 1번 박스가 열려 있고 아무것도 마치지 않았다. */
     @Test
-    fun tourStepsStayInRange() {
-        val step = mutableStateOf<Int?>(null)
-        val tour = LearnTour(step, mutableStateOf(false))
-        tour.prev()
-        assertEquals(0, tour.step)
-        tour.next(last = 2); tour.next(last = 2); tour.next(last = 2)
-        assertEquals(2, tour.step)
-        tour.prev(); tour.prev(); tour.prev()
-        assertEquals(0, tour.step)
+    fun firstBoxIsOpenFromTheStart() {
+        val tour = LearnTour()
+        assertEquals(0, tour.open)
+        assertEquals(0, tour.doneCount)
+        assertFalse(tour.allDone(count = 3))
+    }
+
+    /** '해 봤어요'는 그 박스를 마침으로 남기고 다음 박스를 연다. 마지막 박스면 모두 접고 다 마쳤다고 알린다. */
+    @Test
+    fun completingABoxOpensTheNextOne() {
+        val tour = LearnTour()
+        assertFalse(tour.complete(0, count = 3))
+        assertTrue(tour.isDone(0))
+        assertEquals(1, tour.open)
+        assertFalse(tour.complete(1, count = 3))
+        assertTrue(tour.complete(2, count = 3))
+        assertNull(tour.open)
+        assertTrue(tour.allDone(count = 3))
+    }
+
+    /** 아직 열리지 않은 박스는 건너뛰어 마치거나 펼칠 수 없다. */
+    @Test
+    fun lockedBoxesCannotBeSkipped() {
+        val tour = LearnTour()
+        assertFalse(tour.complete(2, count = 3))
+        assertEquals(0, tour.doneCount)
+        tour.toggle(2)
+        assertEquals(0, tour.open)
+    }
+
+    /** 마친 박스는 다시 펼쳐 볼 수 있고, 거기서 '해 봤어요'를 누르면 아직 안 한 첫 박스로 간다. 펼친 박스를 누르면 접힌다. */
+    @Test
+    fun doneBoxesCanBeReopened() {
+        val tour = LearnTour()
+        tour.complete(0, count = 3)
+        tour.complete(1, count = 3)
+        tour.toggle(0)
+        assertEquals(0, tour.open)
+        assertFalse(tour.complete(0, count = 3))
+        assertEquals(2, tour.open)
+        tour.toggle(2)
+        assertNull(tour.open)
+        assertEquals(2, tour.doneCount)
+    }
+
+    @Test
+    fun finishShowsCelebration() {
+        val tour = LearnTour()
         tour.finish()
         assertTrue(tour.celebrating)
+        tour.dismiss()
+        assertFalse(tour.celebrating)
     }
 
     /** 휴대폰처럼 그림이 작으면 최소 크기 때문에 붙은 구멍의 동그라미가 겹치므로, 구멍 사이 절반 안으로 줄인다. */

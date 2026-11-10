@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -46,8 +45,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 /*
- * 4~7단계 따라 배우기(S15P31E102-626). 2·3단계([LearnTaskTour])처럼 단계 상세에서 '학습 시작'을 누르면 할 일을 한 칸씩 넘기며
- * 그림과 한 줄 설명을 보이고, 마지막 칸의 '연습 시작'으로 단계 연습에 간다.
+ * 4~7단계 따라 배우기(S15P31E102-626). 2·3단계([LearnTaskTour])처럼 할 일 박스를 하나씩 펼쳐 그림과 한 줄 설명을 보이고(S15P31E102-688),
+ * 모두 마치면 아래 '연습 시작'으로 단계 연습에 간다.
  * 4·5·6단계는 서버 할 일이 비어 있어 단계 상세가 보이던 할 일(4·6단계)·패턴(5단계)을 칸으로 쓰고, 7단계는 서버 할 일(혀치기)을 그대로 쓴다.
  * 8·9단계(악보와 곡·시김새)는 곡 연습·정간보 쉽게 읽기와 겹쳐 서버가 숨긴다(S15P31E102-657·658).
  * 앞 단계와 반복되는 칸은 두지 않는다(S15P31E102-655): 4단계 첫 음(3단계 첫 소리와 같은 음), 6단계 음계 오르내리기.
@@ -79,7 +78,7 @@ private val LearnPattern.detail: StringResource
         LearnPattern.Descending -> Res.string.learn_pattern_descending_detail
     }
 
-/** 4~7단계 따라 배우기 진행 중 판. 시작 전에는 그리지 않는다(단계 상세가 기존 내용을 보인다). */
+/** 4~7단계 할 일 박스. 펼친 박스에 그 칸의 그림(운지 카드·음 순서·혀치기)을 보인다. */
 @Composable
 internal fun LearnStageTour(
     instrument: GuideInstrument,
@@ -87,15 +86,15 @@ internal fun LearnStageTour(
     detail: LearnStageDetail,
     tour: LearnTour,
     noteAudioContent: @Composable (FingeringNote) -> Unit,
+    onAllDone: () -> Unit = {},
 ) {
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
     val tasks = stageTourTasks(instrument, stage, detail)
     if (tasks.isEmpty()) return
-    val step = tour.step?.coerceIn(0, tasks.lastIndex) ?: return
     val noteCard: @Composable (FingeringNote?) -> Unit = { note ->
         if (note != null) NoteCard(instrument, note, noteAudioContent, Modifier.widthIn(max = 360.dp)) else StageArtFigure(stage)
     }
-    TourPanel(tasks, step) { s ->
+    TourPanel(tasks, tour, onAllDone) { s ->
         when (stage) {
             4 -> if (s == 0) noteCard(detail.pitchNames.getOrNull(1)?.let(noteOf)) else LearnPatternBox { NoteChips(detail.pitchNames.mapNotNull(noteOf)) }
             5 -> LearnPatternBox { NoteChips(LearnPattern.entries[s].notes(detail.pitchNames).mapNotNull(noteOf)) }
