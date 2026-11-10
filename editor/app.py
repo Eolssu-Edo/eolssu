@@ -7,6 +7,7 @@ import json
 import os
 import re
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -14,6 +15,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+from uuid import uuid4
 
 import yaml
 from flask import Flask, abort, jsonify, request
@@ -36,7 +38,10 @@ EMAIL = re.compile(r"[^\s@]+@[^\s@]+\.[^\s@]+")
 FRONT_MATTER = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*\r?\n", re.DOTALL)
 YAML_STRING = "tag:yaml.org,2002:str"
 MAX_SOURCE = 250_000
+MAX_QUEUE = 20
 SESSION_SECONDS = 15 * 60
+QUEUE_REVISION = re.compile(r"[a-f0-9]{64}")
+BATCH_CHANGED = "대기 목록이 바뀌었습니다. 목록을 다시 확인해 주세요."
 
 
 class UpstreamError(Exception):
@@ -53,7 +58,7 @@ class NoRedirect(HTTPRedirectHandler):
 upstream_http = build_opener(NoRedirect)
 
 
-def upstream_json(url, *, headers=None, form=None, update=None, delete=None, expected_type=dict):
+def upstream_json(url, *, headers=None, form=None, update=None, delete=None, submit=None, expected_type=dict):
     headers = dict(headers or {}, Accept="application/json", **{"User-Agent": "Team-Edo-Blog-Editor"})
     data = None
     method = "GET"
@@ -61,10 +66,11 @@ def upstream_json(url, *, headers=None, form=None, update=None, delete=None, exp
         method = "POST"
         data = urlencode(form).encode()
         headers["Content-Type"] = "application/x-www-form-urlencoded"
-    if update is not None or delete is not None:
-        method = "DELETE" if delete is not None else "PUT"
-        data = json.dumps(delete if delete is not None else update, ensure_ascii=False).encode()
-        headers["Content-Type"] = "application/json"
+    for verb, payload in (("PUT", update), ("DELETE", delete), ("POST", submit)):
+        if payload is not None:
+            method = verb
+            data = json.dumps(payload, ensure_ascii=False).encode()
+            headers["Content-Type"] = "application/json"
     upstream = Request(url, data, headers, method=method)
     try:
         with upstream_http.open(upstream, timeout=5) as response:
@@ -153,6 +159,53 @@ def read_secret(name):
     return Path(filename).read_text(encoding="utf-8").strip() if filename else os.environ.get(name, "")
 
 
+def queue_connection(path):
+    db = sqlite3.connect(path, timeout=2)
+    db.row_factory = sqlite3.Row
+    return db
+
+
+def queue_state(db, owner):
+    rows = db.execute("""
+        SELECT path, item, draft_title, delete_title FROM editor_queue
+        WHERE owner = ? ORDER BY path
+    """, (owner,)).fetchall()
+    revision = hashlib.sha256("".join(row["item"] for row in rows).encode()).hexdigest()
+    return {
+        "revision": revision,
+        "items": [
+            {"post": row["path"], "item": row["item"],
+             "kind": "delete" if row["delete_title"] is not None else "edit",
+             "title": row["delete_title"] or row["draft_title"]}
+            for row in rows
+        ],
+    }
+
+
+def queue_entry(db, owner, path):
+    return db.execute("SELECT * FROM editor_queue WHERE owner = ? AND path = ?", (owner, path)).fetchone()
+
+
+def validate_edit(data, post):
+    title, markdown = data.get("title"), data.get("markdown")
+    if (
+        not isinstance(title, str) or not 1 <= len(title.strip()) <= 160
+        or any(ord(char) < 32 for char in title)
+        or not isinstance(markdown, str) or not markdown.strip() or "\x00" in markdown
+    ):
+        abort(422, description="제목과 본문을 확인해 주세요.")
+    if re.search(r"\{\{[<%]", markdown):
+        abort(422, description="본문에는 일반 Markdown만 사용할 수 있습니다.")
+    content = post.with_edit(title.strip(), markdown)
+    try:
+        size = len(content.encode())
+    except UnicodeEncodeError:
+        abort(422, description="제목과 본문에 저장할 수 없는 문자가 있습니다.")
+    if size > MAX_SOURCE:
+        abort(413, description="글이 너무 깁니다.")
+    return title.strip(), markdown, content
+
+
 def create_app(config=None):
     app = Flask(__name__)
     app.config.from_mapping(
@@ -164,6 +217,7 @@ def create_app(config=None):
         AUTHOR_EMAILS_FILE=os.environ.get("EDITOR_GITHUB_AUTHOR_EMAILS_FILE", ""),
         MAX_CONTENT_LENGTH=MAX_SOURCE + 20_000,
         VIEWS_DB=os.environ.get("BLOG_VIEWS_DB", ""),
+        QUEUE_DB=os.environ.get("BLOG_QUEUE_DB", ""),
     )
     if config:
         app.config.update(config)
@@ -181,6 +235,7 @@ def create_app(config=None):
         if not app.config[setting]:
             raise ValueError(f"Missing editor configuration: {setting}")
     writes_enabled = bool(app.config["WRITE_TOKEN"])
+    queue_db = app.config["QUEUE_DB"] if writes_enabled else ""
     if writes_enabled and len(app.config["SESSION_SECRET"]) < 32:
         raise ValueError("EDITOR_SESSION_SECRET must contain at least 32 characters.")
     owners = json.loads(Path(app.config["AUTHOR_EMAILS_FILE"]).read_text(encoding="utf-8"))
@@ -200,7 +255,9 @@ def create_app(config=None):
         signer_kwargs={"digest_method": hashlib.sha256},
     ) if writes_enabled else None
     redirect_uri = origin + "/edit/"
-    project_files = GITLAB + "/api/v4/projects/" + quote(PROJECT, safe="") + "/repository/files/"
+    repository = GITLAB + "/api/v4/projects/" + quote(PROJECT, safe="") + "/repository/"
+    project_files = repository + "files/"
+    project_commits = repository + "commits"
     write_headers = {"PRIVATE-TOKEN": app.config["WRITE_TOKEN"]}
 
     @app.before_request
@@ -228,6 +285,11 @@ def create_app(config=None):
     @app.errorhandler(UpstreamError)
     def upstream_error(error):
         return jsonify(error="글 서버에 연결할 수 없습니다. 다시 시도해 주세요."), 502
+
+    @app.errorhandler(sqlite3.OperationalError)
+    def storage_error(error):
+        app.logger.error("Blog SQLite operation failed: %s", error)
+        return jsonify(error="저장소를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요."), 503
 
     def json_body():
         data = request.get_json(silent=True)
@@ -261,6 +323,26 @@ def create_app(config=None):
             return serializer.loads(auth.removeprefix("Bearer "), max_age=SESSION_SECONDS)
         except BadData:
             abort(401, description="GitHub로 다시 로그인해 주세요.")
+
+    def batch_identity():
+        if not queue_db:
+            abort(503, description="일괄 반영을 준비하고 있습니다. 잠시 후 다시 시도해 주세요.")
+        session = editor_session()
+        if session.get("scope") != "batch" or session.get("author") not in owners:
+            abort(401, description="GitHub로 다시 로그인해 주세요.")
+        author = session["author"]
+        owner = hashlib.sha256(owners[author].casefold().encode()).hexdigest()
+        return author, owner
+
+    def legacy_session():
+        if not writes_enabled:
+            abort(403, description="현재는 작성자 확인만 할 수 있습니다.")
+        if queue_db:
+            abort(409, description="편집 방식이 바뀌었습니다. 화면을 새로고침해 주세요.")
+        session = editor_session()
+        if "post" not in session:
+            abort(401, description="GitHub로 다시 로그인해 주세요.")
+        return session
 
     def verified_author(headers):
         matches = set()
@@ -319,13 +401,16 @@ def create_app(config=None):
     @app.get("/config")
     def login_config():
         return jsonify(authorize=GITHUB + "/login/oauth/authorize", clientId=app.config["CLIENT_ID"],
-                       redirectUri=redirect_uri)
+                       redirectUri=redirect_uri, canBatch=bool(queue_db))
 
     @app.post("/session")
     def start_session():
         data = json_body()
         path = data.get("post")
-        edit_post = writes_enabled and path is not None
+        batch = data.get("mode") == "batch"
+        if batch and not queue_db:
+            abort(503, description="일괄 반영을 준비하고 있습니다. 잠시 후 다시 시도해 주세요.")
+        edit_post = writes_enabled and not batch and path is not None
         if edit_post:
             file_endpoint(path)
         code = data.get("code")
@@ -352,6 +437,9 @@ def create_app(config=None):
             if error.status in (400, 401, 403):
                 abort(401, description="GitHub로 다시 로그인해 주세요.")
             raise
+        if batch:
+            return jsonify(session=serializer.dumps({"author": author, "scope": "batch"}),
+                           expiresIn=SESSION_SECONDS)
         if not edit_post:
             return jsonify(status="verified")
         post = read_owned_post(path, author)
@@ -360,31 +448,16 @@ def create_app(config=None):
 
     @app.put("/post")
     def save_post():
-        if not writes_enabled:
-            abort(403, description="현재는 작성자 확인만 할 수 있습니다.")
-        session = editor_session()
+        if request.args.get("mode") == "batch":
+            return stage_post(delete=False)
+        session = legacy_session()
         data = json_body()
-        title = data.get("title")
-        markdown = data.get("markdown")
         version = data.get("version")
-        if (
-            not isinstance(title, str) or not 1 <= len(title.strip()) <= 160
-            or any(ord(char) < 32 for char in title)
-            or not isinstance(markdown, str) or not markdown.strip() or "\x00" in markdown
-            or not isinstance(version, str) or not COMMIT.fullmatch(version)
-        ):
+        if not isinstance(version, str) or not COMMIT.fullmatch(version):
             abort(422, description="제목과 본문을 확인해 주세요.")
-        if re.search(r"\{\{[<%]", markdown):
-            abort(422, description="본문에는 일반 Markdown만 사용할 수 있습니다.")
         path = session["post"]
         post = read_owned_post(path, session["author"])
-        content = post.with_edit(title.strip(), markdown)
-        try:
-            size = len(content.encode())
-        except UnicodeEncodeError:
-            abort(422, description="제목과 본문에 저장할 수 없는 문자가 있습니다.")
-        if size > MAX_SOURCE:
-            abort(413, description="글이 너무 깁니다.")
+        _, _, content = validate_edit(data, post)
         if content == post.source:
             return jsonify(status="unchanged")
         if version != post.version:
@@ -404,9 +477,9 @@ def create_app(config=None):
 
     @app.delete("/post")
     def delete_post():
-        if not writes_enabled:
-            abort(403, description="현재는 작성자 확인만 할 수 있습니다.")
-        session = editor_session()
+        if request.args.get("mode") == "batch":
+            return stage_post(delete=True)
+        session = legacy_session()
         data = json_body()
         version = data.get("version")
         if set(data) != {"version"} or not isinstance(version, str) or not COMMIT.fullmatch(version):
@@ -428,5 +501,197 @@ def create_app(config=None):
                 abort(409, description=conflict)
             raise
         return jsonify(status="deleted")
+
+    if queue_db:
+        with closing(queue_connection(queue_db)) as db, db:
+            db.executescript("""
+                CREATE TABLE IF NOT EXISTS editor_queue (
+                    owner TEXT NOT NULL, path TEXT NOT NULL, item TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    draft_title TEXT, draft_markdown TEXT, draft_version TEXT,
+                    delete_title TEXT, delete_version TEXT,
+                    PRIMARY KEY (owner, path)
+                );
+                CREATE TABLE IF NOT EXISTS editor_applied (
+                    owner TEXT PRIMARY KEY, revision TEXT NOT NULL, commit_sha TEXT NOT NULL
+                );
+            """)
+
+    @app.get("/post")
+    def read_batch():
+        author, owner = batch_identity()
+        path = request.args.get("post")
+        if path is None:
+            with closing(queue_connection(queue_db)) as db:
+                return jsonify(queue_state(db, owner))
+        post = read_owned_post(path, author)
+        with closing(queue_connection(queue_db)) as db, db:
+            db.execute("BEGIN")
+            entry = queue_entry(db, owner, path)
+            state = queue_state(db, owner)
+        draft = None
+        if entry and entry["draft_title"] is not None:
+            draft = {"title": entry["draft_title"], "markdown": entry["draft_markdown"],
+                     "version": entry["draft_version"]}
+        return jsonify(title=post.title.value, markdown=post.markdown, version=post.version, draft=draft, queue=state,
+                       item=entry["item"] if entry else None,
+                       deletePending=bool(entry and entry["delete_version"]))
+
+    def require_item(entry, data):
+        if "item" not in data or data["item"] != (entry["item"] if entry else None):
+            abort(409, description=BATCH_CHANGED)
+
+    def stage_post(*, delete):
+        author, owner = batch_identity()
+        data = json_body()
+        path, version = data.get("post"), data.get("version")
+        if not isinstance(version, str) or not COMMIT.fullmatch(version):
+            abort(422, description="편집할 글의 버전을 확인해 주세요.")
+        post = read_owned_post(path, author)
+        if post.version != version:
+            abort(409, description="공개 글이 바뀌었습니다. 최신 글을 다시 확인해 주세요.")
+        if not delete:
+            title, markdown, content = validate_edit(data, post)
+        with closing(queue_connection(queue_db)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            entry = queue_entry(db, owner, path)
+            require_item(entry, data)
+            if entry and entry["delete_version"]:
+                abort(409, description="삭제 대기를 먼저 취소해 주세요.")
+            if not delete and content == post.source:
+                db.execute("DELETE FROM editor_queue WHERE owner = ? AND path = ?", (owner, path))
+                return jsonify(queue_state(db, owner))
+            if not entry and db.execute("SELECT COUNT(*) FROM editor_queue WHERE owner = ?", (owner,)).fetchone()[0] >= MAX_QUEUE:
+                abort(422, description=f"대기 목록에는 최대 {MAX_QUEUE}개 글을 담을 수 있습니다.")
+            item, updated_at = uuid4().hex, datetime.now(timezone.utc).isoformat()
+            if delete:
+                db.execute("""
+                    INSERT INTO editor_queue (owner, path, item, updated_at, delete_title, delete_version)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT (owner, path) DO UPDATE SET item=excluded.item, updated_at=excluded.updated_at,
+                        delete_title=excluded.delete_title, delete_version=excluded.delete_version
+                """, (owner, path, item, updated_at, post.title.value, version))
+            else:
+                db.execute("""
+                    INSERT INTO editor_queue (owner, path, item, updated_at, draft_title, draft_markdown, draft_version)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT (owner, path) DO UPDATE SET item=excluded.item, updated_at=excluded.updated_at,
+                        draft_title=excluded.draft_title, draft_markdown=excluded.draft_markdown, draft_version=excluded.draft_version
+                """, (owner, path, item, updated_at, title, markdown, version))
+            return jsonify(queue_state(db, owner))
+
+    def undo_item(owner, data):
+        path = data.get("post")
+        file_endpoint(path)
+        with closing(queue_connection(queue_db)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            entry = queue_entry(db, owner, path)
+            if entry is None:
+                abort(409, description=BATCH_CHANGED)
+            require_item(entry, data)
+            if entry["delete_version"] and entry["draft_version"]:
+                db.execute("""
+                    UPDATE editor_queue SET item = ?, delete_title = NULL, delete_version = NULL
+                    WHERE owner = ? AND path = ?
+                """, (uuid4().hex, owner, path))
+            else:
+                db.execute("DELETE FROM editor_queue WHERE owner = ? AND path = ?", (owner, path))
+            return jsonify(queue_state(db, owner))
+
+    def build_action(author, entry):
+        path = entry["path"]
+        version = entry["delete_version"] or entry["draft_version"]
+        try:
+            post = read_owned_post(path, author)
+        except HTTPException as error:
+            if error.code in (403, 404):
+                return None
+            raise
+        if post.version != version:
+            return None
+        action = {"file_path": "content/" + path, "last_commit_id": version}
+        if entry["delete_version"]:
+            return dict(action, action="delete")
+        return dict(action, action="update", content=post.with_edit(entry["draft_title"], entry["draft_markdown"]))
+
+    def confirmed_commit(trailer, entries):
+        # A timed-out POST may already have landed. Identify our exact batch before clearing drafts.
+        since = datetime.fromisoformat(max(entry["updated_at"] for entry in entries)) - timedelta(minutes=1)
+        for page in range(1, 5):
+            params = urlencode({"ref_name": BRANCH, "since": since.isoformat(), "per_page": 100, "page": page})
+            commits = upstream_json(project_commits + "?" + params, headers=write_headers, expected_type=list)
+            for commit in commits:
+                if isinstance(commit, dict) and str(commit.get("message", "")).rstrip().endswith("\n" + trailer):
+                    sha = commit.get("id")
+                    if isinstance(sha, str) and COMMIT.fullmatch(sha):
+                        return sha
+            if len(commits) < 100:
+                return None
+        raise UpstreamError(502)
+
+    def previous_result(db, owner, revision):
+        return db.execute("""
+            SELECT commit_sha FROM editor_applied WHERE owner = ? AND revision = ?
+        """, (owner, revision)).fetchone()
+
+    def apply_batch(author, owner, revision):
+        if not isinstance(revision, str) or not QUEUE_REVISION.fullmatch(revision):
+            abort(422, description="반영할 대기 목록을 확인해 주세요.")
+        with closing(queue_connection(queue_db)) as db, db:
+            db.execute("BEGIN")
+            previous = previous_result(db, owner, revision)
+            state = queue_state(db, owner)
+            if previous:
+                return jsonify(**state, commit=previous["commit_sha"])
+            if state["revision"] != revision or not state["items"]:
+                abort(409, description=BATCH_CHANGED)
+            entries = db.execute("SELECT * FROM editor_queue WHERE owner = ? ORDER BY path", (owner,)).fetchall()
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            actions = list(executor.map(lambda entry: build_action(author, entry), entries))
+        sha = None
+        trailer = "Blog-Batch: " + revision
+        if None in actions:
+            sha = confirmed_commit(trailer, entries)
+            if not sha:
+                return jsonify(error="공개 글이 변경됐습니다. 해당 글을 다시 확인해 주세요.",
+                               post=entries[actions.index(None)]["path"]), 409
+
+        with closing(queue_connection(queue_db)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            previous = previous_result(db, owner, revision)
+            state = queue_state(db, owner)
+            if previous:
+                return jsonify(**state, commit=previous["commit_sha"])
+            if state["revision"] != revision:
+                abort(409, description=BATCH_CHANGED)
+            if not sha:
+                try:
+                    commit = upstream_json(project_commits, headers=write_headers, submit={
+                        "branch": BRANCH, "actions": actions,
+                        "commit_message": f"docs(blog): {author} 글 변경 일괄 반영\n\n{trailer}",
+                    })
+                except UpstreamError as error:
+                    if error.status in (400, 409):
+                        abort(409, description="일괄 반영을 완료하지 못했습니다. 글과 대기 목록을 다시 확인해 주세요.")
+                    raise
+                sha = commit.get("id")
+                if not isinstance(sha, str) or not COMMIT.fullmatch(sha):
+                    raise UpstreamError(502)
+            db.execute("DELETE FROM editor_queue WHERE owner = ?", (owner,))
+            db.execute("""
+                INSERT INTO editor_applied (owner, revision, commit_sha) VALUES (?, ?, ?)
+                ON CONFLICT (owner) DO UPDATE SET revision=excluded.revision, commit_sha=excluded.commit_sha
+            """, (owner, revision, sha))
+            return jsonify(**queue_state(db, owner), commit=sha)
+
+    @app.post("/post")
+    def handle_batch():
+        author, owner = batch_identity()
+        data = json_body()
+        if data.get("action") == "undo":
+            return undo_item(owner, data)
+        if data.get("action") == "apply":
+            return apply_batch(author, owner, data.get("revision"))
+        abort(400, description="요청 형식을 확인해 주세요.")
 
     return app

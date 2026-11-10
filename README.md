@@ -19,6 +19,8 @@ Hugo로 만든 프로젝트 소개·기술 블로그·팀 소개 사이트예요
 
 누가 어디에서 무엇을 하는지, TIL 머리말과 요청 문구, 검토·commit·push·MR·게시 확인 절차는 [블로그 사용 방식](docs/blog-workflow.md)을 따라 주세요. 개발 브랜치에서 실행하면 스킬이 `origin/blog` 기반의 별도 worktree·글 작업 브랜치를 준비합니다. Git 반영 시 선택한 공개 Markdown만 올리고, 로컬 TIL과 앱 변경은 포함하지 않습니다. 공개 글 MR의 대상은 `blog`입니다. GitLab MR의 Draft 표시와 Hugo의 `draft`는 별개입니다.
 
+공개 글에서 작성자가 수정하거나 삭제할 때는 [글 편집과 일괄 반영 안내](editor/README.md)를 따릅니다. [동작·검증 계획](docs/blog-batch-editor.md)에는 임시 저장과 배포 조건을 정리했습니다.
+
 ## 글 쓰기
 
 1. `blog` 브랜치에서 글 브랜치를 만들어요. **develop에서 만들지 않아요.**

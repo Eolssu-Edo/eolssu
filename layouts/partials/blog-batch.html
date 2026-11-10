@@ -1,0 +1,23 @@
+<div class="blog-batch" data-blog-editor="{{ site.Params.editorapi }}" data-editor-writes="{{ site.Params.editorwrites }}">
+  {{- if site.Params.editorwrites }}
+  <button class="blog-batch-open" type="button" aria-haspopup="dialog" aria-controls="blog-batch-review" data-batch-open hidden>
+    반영 대기 <span class="blog-batch-count" data-batch-count></span><span class="sr-only">건</span>
+  </button>
+  <p class="blog-batch-notice" role="status" data-batch-notice hidden></p>
+  <dialog class="blog-batch-review" id="blog-batch-review" aria-labelledby="blog-batch-title" data-batch-review>
+    <header class="blog-batch-heading">
+      <h2 id="blog-batch-title">반영할 변경사항</h2>
+      <button class="blog-batch-quiet" type="button" data-batch-close autofocus>닫기</button>
+    </header>
+    <p class="blog-batch-summary" role="status" data-batch-summary></p>
+    <ul class="blog-batch-items" data-batch-items></ul>
+    <p class="blog-batch-note">자동 배포가 끝나면 공개 블로그에 반영됩니다.</p>
+    <p class="blog-batch-error" role="alert" data-batch-error hidden></p>
+    <div class="post-editor-actions">
+      <button class="button-primary" type="button" data-batch-apply>한 번에 반영 요청</button>
+    </div>
+  </dialog>
+  {{- end }}
+</div>
+{{- $version := substr (sha256 (readFile "static/js/editor.js")) 0 12 }}
+<script src="{{ "js/editor.js" | relURL }}?v={{ $version }}" defer></script>
