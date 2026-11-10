@@ -22,10 +22,10 @@ class FirstRunStartTest {
     }
 
     @Test
-    fun expiredSessionReturnsCompletedDeviceToLoginWithoutSkippingFirstConsent() {
+    fun expiredSessionReturnsCompletedDeviceToLoginWithoutSkippingFirstRun() {
         assertEquals(AuthDestination.LOGIN, startDestination(true, sessionExpired = true))
         assertEquals(AuthDestination.LOGIN, startDestination(true, qaSkipConsent = true, sessionExpired = true))
-        assertEquals(AuthDestination.CONSENT, startDestination(false, sessionExpired = true))
+        assertEquals(AuthDestination.MIC, startDestination(false, sessionExpired = true))
     }
 
     // TEMP S15P31E102-309: QA 옵션 제거 시 아래 두 검사도 제거한다.
@@ -34,7 +34,7 @@ class FirstRunStartTest {
         val repository = FirstRunRepository(FakeKeyValueStore())
         assertEquals(AuthDestination.MIC, startDestination(repository.isCompleted(), qaSkipConsent = true))
         assertFalse(repository.isCompleted())
-        assertEquals(AuthDestination.CONSENT, startDestination(repository.isCompleted()))
+        assertEquals(AuthDestination.MIC, startDestination(repository.isCompleted()))
     }
 
     @Test
@@ -43,11 +43,11 @@ class FirstRunStartTest {
     }
 
     @Test
-    fun firstLaunchStartsAtConsent() {
+    fun firstLaunchStartsAtMicNoticeBecauseConsentIsInSignup() {
         val repository = FirstRunRepository(FakeKeyValueStore())
 
         assertFalse(repository.isCompleted())
-        assertEquals(AuthDestination.CONSENT, startDestination(repository.isCompleted()))
+        assertEquals(AuthDestination.MIC, startDestination(repository.isCompleted()))
     }
 
     @Test

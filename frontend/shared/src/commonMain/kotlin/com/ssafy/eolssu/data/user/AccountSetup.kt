@@ -3,7 +3,10 @@ package com.ssafy.eolssu.data.user
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
 import io.ktor.client.HttpClient
+import io.ktor.client.request.accept
 import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.Url
 import kotlinx.serialization.Serializable
 
@@ -46,6 +49,19 @@ class TermsRepository(private val client: HttpClient) {
                 items.all { it.termId.matches(Regex("[1-9][0-9]*")) && it.version.isNotBlank() && it.title.isNotBlank() && isHttpsDocumentUrl(it.contentUrl) }
         }
     }
+    /**
+     * 약관 본문([AccountTerm.contentUrl]의 HTML)을 받아 [TermsBlock] 목록으로 바꾼다. 공개 문서라 화면에서 바로 보여 준다.
+     * HTTPS 문서 주소가 아니거나, 200이 아니거나(공개 준비 중 503 등), 본문이 비었거나, 응답을 받지 못하면 null.
+     */
+    suspend fun loadDocument(contentUrl: String): List<TermsBlock>? {
+        if (!isHttpsDocumentUrl(contentUrl)) return null
+        // 문서 주소는 text/html만 내준다. 공통 클라이언트는 JSON만 받겠다고 보내 406이 나므로 HTML을 받겠다고 밝힌다.
+        val response = client.sendOrNull { get(contentUrl) { accept(ContentType.Text.Html) } } ?: return null
+        if (response.status.value != 200) return null
+        val html = runCatching { response.bodyAsText() }.getOrNull() ?: return null
+        return parseTermsDocument(html).takeIf { it.isNotEmpty() }
+    }
+
     @Serializable private class TermList(val items: List<AccountTerm>)
 }
 

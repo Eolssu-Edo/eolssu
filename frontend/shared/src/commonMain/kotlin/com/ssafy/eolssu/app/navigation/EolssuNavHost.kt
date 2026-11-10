@@ -134,7 +134,7 @@ object EolssuDestination {
 
 /**
  * 앱의 화면 이동 그래프. 기능 사이의 이동은 이곳에서 콜백으로 연결한다.
- * 첫 실행을 마치지 않았으면 약관 동의([AuthDestination.CONSENT])에서 시작한다.
+ * 첫 실행을 마치지 않았으면 마이크 안내([AuthDestination.MIC])에서 시작한다. 약관 동의는 회원가입 흐름에서 받는다.
  * [onNavHostReady]는 Web 진입점이 브라우저 뒤로 가기·주소를 연결할 때 쓴다.
  */
 @Composable
