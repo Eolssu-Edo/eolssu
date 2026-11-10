@@ -20,7 +20,6 @@ import com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.learn_listen_model_pending
 import eolssu.shared.generated.resources.learn_reset_message
-import eolssu.shared.generated.resources.learn_song_missing
 import eolssu.shared.generated.resources.learn_title
 import eolssu.shared.generated.resources.learn_track_failed
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
@@ -43,7 +42,7 @@ class LearnNavigation(
     val onOpenFingering: (GuideInstrument, Blow) -> Unit,
     /** 정간보 쉽게 읽기를 그 단계에 맞는 쪽으로 펼쳐 연다. */
     val onOpenReading: (ReadingPage) -> Unit,
-    val onOpenSong: (songId: String) -> Unit,
+    /** 마지막 단계(7단계)를 마친 뒤 곡 연습(곡 목록)으로 간다. */
     val onOpenSongList: () -> Unit,
     /** 3~7단계의 단계 연습을 연다. */
     val onOpenPractice: (stage: Int) -> Unit,
@@ -206,17 +205,10 @@ private fun learnStageActions(
         viewModel.confirm(n)
         onConfirmed(state.stageAfterConfirm(n))
     },
-    onStartPractice = { n ->
-        if (n == 8) navigation.onOpenSongList() else navigation.onOpenPractice(n)
-    },
+    onStartPractice = navigation.onOpenPractice,
     onListenModel = { notify { getString(Res.string.learn_listen_model_pending) } },
     onOpenFingering = { blow -> navigation.onOpenFingering(state.instrument, blow) },
     onOpenReading = navigation.onOpenReading,
-    onOpenSong = { song ->
-        val songId = state.songIds[song.title]
-        if (songId != null) navigation.onOpenSong(songId) else notify { getString(Res.string.learn_song_missing, song.title) }
-    },
-    onRetrySongs = viewModel::retrySongs,
     onRetryDetail = { viewModel.loadDetail(it, force = true) },
 )
 

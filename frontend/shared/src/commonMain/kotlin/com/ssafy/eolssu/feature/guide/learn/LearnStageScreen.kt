@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -37,7 +35,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.data.user.LEARN_SONG_STAGE
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -46,9 +43,7 @@ import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.guide.ReadingPage
-import com.ssafy.eolssu.feature.guide.component.BorrowCard
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
-import com.ssafy.eolssu.feature.guide.component.GuideFaint
 import com.ssafy.eolssu.feature.guide.component.GuideGrid
 import com.ssafy.eolssu.feature.guide.component.GuideIcons
 import com.ssafy.eolssu.feature.guide.component.GuideTabletBottomContent
@@ -56,11 +51,8 @@ import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.LearnPatternBox
 import com.ssafy.eolssu.feature.guide.component.LearnSection
 import com.ssafy.eolssu.feature.guide.component.LearnTaskList
-import com.ssafy.eolssu.feature.guide.component.LengthRow
 import com.ssafy.eolssu.feature.guide.component.MoreLink
 import com.ssafy.eolssu.feature.guide.component.NoteChips
-import com.ssafy.eolssu.feature.guide.component.ReadOrderBoard
-import com.ssafy.eolssu.feature.guide.component.SigimsaeBasicBlock
 import com.ssafy.eolssu.feature.guide.component.blowShortLabel
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
@@ -70,9 +62,6 @@ import eolssu.shared.generated.resources.learn_stage_position_description
 import eolssu.shared.generated.resources.learn_stage_position
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import eolssu.shared.generated.resources.catalog_consumer_loading
-import eolssu.shared.generated.resources.catalog_consumer_failed
-import eolssu.shared.generated.resources.catalog_consumer_retry
 import eolssu.shared.generated.resources.learn_confirm_next
 import eolssu.shared.generated.resources.learn_detail_failed
 import eolssu.shared.generated.resources.learn_listen_model
@@ -80,19 +69,13 @@ import eolssu.shared.generated.resources.learn_mark_done
 import eolssu.shared.generated.resources.learn_more_fingering
 import eolssu.shared.generated.resources.learn_more_fingering_blow
 import eolssu.shared.generated.resources.learn_more_fingering_detail
-import eolssu.shared.generated.resources.learn_more_reading
 import eolssu.shared.generated.resources.learn_pattern_ascending
 import eolssu.shared.generated.resources.learn_pattern_descending
-import eolssu.shared.generated.resources.learn_section_beat
 import eolssu.shared.generated.resources.learn_section_inspect
 import eolssu.shared.generated.resources.learn_section_new_notes
 import eolssu.shared.generated.resources.learn_section_order
 import eolssu.shared.generated.resources.learn_section_patterns
 import eolssu.shared.generated.resources.learn_section_range
-import eolssu.shared.generated.resources.learn_section_read_order
-import eolssu.shared.generated.resources.learn_section_scale
-import eolssu.shared.generated.resources.learn_section_sigimsae
-import eolssu.shared.generated.resources.learn_section_songs
 import eolssu.shared.generated.resources.learn_section_tasks
 import eolssu.shared.generated.resources.learn_stage_subtitle_optional
 import eolssu.shared.generated.resources.learn_stage_title
@@ -115,8 +98,6 @@ class LearnStageActions(
     val onListenModel: () -> Unit,
     val onOpenFingering: (Blow) -> Unit,
     val onOpenReading: (ReadingPage) -> Unit,
-    val onOpenSong: (LearnSong) -> Unit,
-    val onRetrySongs: () -> Unit = {},
     /** 단계 내용을 받지 못했을 때 '다시 시도'. */
     val onRetryDetail: (Int) -> Unit = {},
 )
@@ -204,8 +185,6 @@ internal fun LearnStageContent(
     if (stage.number == 1) LearnTourDoneDialog(tour) { actions.onConfirm(stage.number) }
     // 2단계 따라 배우기도 같은 창을 띄우고 완료 표시 뒤 3단계로 간다(3단계는 마지막 칸에서 바로 '연습 시작').
     if (stage.number == 2) LearnTourDoneDialog(tour, Res.string.learn_tour_done_body_posture) { actions.onConfirm(stage.number) }
-    // 8단계는 평가 없이 곡을 연습하고 돌아와 마지막 칸의 '다 익혔어요'로 스스로 마친다.
-    if (stage.number == LEARN_SONG_STAGE) LearnTourDoneDialog(tour, learnDoneBody(stage.number)) { actions.onConfirm(stage.number) }
     Column(
         modifier
             .verticalScroll(scrollState)
@@ -305,27 +284,12 @@ private fun StageBody(
     val fingeringMore: @Composable (StringResource, Blow) -> Unit = { label, blow ->
         MoreLink(stringResource(label), onClick = { actions.onOpenFingering(blow) })
     }
-    val readingMore: (ReadingPage) -> @Composable () -> Unit = { page -> { MoreLink(stringResource(Res.string.learn_more_reading), onClick = { actions.onOpenReading(page) }) } }
     val grid = columns.grid
     val taskImageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified
-    // 8단계 연습할 곡. 받는 중·실패도 같은 자리에 보인다.
-    val songs: @Composable () -> Unit = {
-        when {
-            state.songsLoading -> Text(stringResource(Res.string.catalog_consumer_loading))
-            state.songsFailed -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(Res.string.catalog_consumer_failed))
-                EolssuButton(stringResource(Res.string.catalog_consumer_retry), actions.onRetrySongs)
-            }
-            else -> FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                detail.songs.forEach { song -> SongChip(song) { actions.onOpenSong(song) } }
-            }
-        }
-    }
-
-    // 4~8단계는 시작 전에 할 일 이름만 보이고, 따라 배우는 동안은 칸마다 그림과 한 줄 설명을 보이는 판만 둔다.
+    // 4~7단계는 시작 전에 할 일 이름만 보이고, 따라 배우는 동안은 칸마다 그림과 한 줄 설명을 보이는 판만 둔다.
     if (stage.number >= 4 && hasTaskTour(stage.number) && stageTourCount(stage.number, detail, instrument) > 0) {
         if (tour.started) {
-            LearnStageTour(instrument, stage.number, detail, tour, noteAudioContent, songs)
+            LearnStageTour(instrument, stage.number, detail, tour, noteAudioContent)
         } else {
             LearnSection(tasksTitle) { LearnTaskList(stageTourTasks(instrument, stage.number, detail).titles(), grid) }
         }
@@ -396,28 +360,7 @@ private fun StageBody(
                 )
             }
         }
-        7 -> {
-            LearnSection(tasksTitle) { LearnTaskList(detail.tasks.plain(), grid, collapsible = true) }
-            LearnSection(stringResource(Res.string.learn_section_beat), more = readingMore(ReadingPage.Length)) {
-                BorrowCard { LengthRow() }
-            }
-        }
-        8 -> {
-            LearnSection(stringResource(Res.string.learn_section_read_order), more = readingMore(ReadingPage.Order)) {
-                BorrowCard { ReadOrderBoard() }
-            }
-            LearnSection(stringResource(Res.string.learn_section_scale), more = { fingeringMore(Res.string.learn_more_fingering, Blow.Mid) }) {
-                LearnPatternBox { NoteChips(detail.pitchNames.mapNotNull(noteOf)) }
-            }
-            LearnSection(stringResource(Res.string.learn_section_songs)) { songs() }
-            LearnSection(tasksTitle) { LearnTaskList(detail.tasks.plain(), grid, collapsible = true) }
-        }
-        9 -> {
-            LearnSection(tasksTitle) { LearnTaskList(detail.tasks.plain(), grid, collapsible = true) }
-            LearnSection(stringResource(Res.string.learn_section_sigimsae), more = readingMore(ReadingPage.Sigimsae)) {
-                BorrowCard { SigimsaeBasicBlock(columns = columns.sigimsae) }
-            }
-        }
+        else -> LearnSection(tasksTitle) { LearnTaskList(detail.tasks.plain(), grid, collapsible = true) }
     }
 }
 
@@ -443,23 +386,6 @@ private fun PatternName(name: String) {
     Text(name, style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, lineHeight = 18.sp))
 }
 
-/** 8단계 연습할 곡(`.lp-song`): 곡 이름만 둔 작은 칩. 누르면 곡 상세로 간다. */
-@Composable
-private fun SongChip(song: LearnSong, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
-        color = colors.surface,
-        border = BorderStroke(1.dp, colors.lineSoft),
-    ) {
-        Row(Modifier.height(36.dp).padding(start = 14.dp, end = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(song.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
-            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(14.dp), tint = GuideFaint)
-        }
-    }
-}
-
 /** 서버 문구 끝의 출처·예시 표기(예: `(대금 기초편 7차시)`, `(예시)`)를 화면에서 뺀다. */
 internal fun String.plain(): String = replace(CitationPattern, "").trim()
 
@@ -471,8 +397,8 @@ internal fun List<LearnTask>.titles() = map { LearnTask(it.title.plain(), null) 
 private val CitationPattern = Regex("""\s*\((?:[^()]*(?:차시|교실|지도서)[^()]*|예시)\)""")
 
 /**
- * 하단 고정 영역: 완료 표시 토글과 판정 방식별 주 버튼. 1~8단계는 따라 배우기 버튼(학습 시작 · 이전/다음)이다.
- * 2단계는 마지막 칸에서 '다 익혔어요', 3~8단계는 시작 전 '완료로 표시'를 두고 마지막 칸에서 '연습 시작'으로 이어진다.
+ * 하단 고정 영역: 완료 표시 토글과 판정 방식별 주 버튼. 1~7단계는 따라 배우기 버튼(학습 시작 · 이전/다음)이다.
+ * 2단계는 마지막 칸에서 '다 익혔어요', 3~7단계는 시작 전 '완료로 표시'를 두고 마지막 칸에서 '연습 시작'으로 이어진다.
  */
 @Composable
 internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions: LearnStageActions, tour: LearnTour) {
@@ -488,7 +414,7 @@ internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions
         val practice = stage.primaryAction == LearnStageAction.Practice
         when {
             tour.step != null -> LearnTourBar(taskCount - 1, tour) { modifier ->
-                if (practice && stage.number != LEARN_SONG_STAGE) {
+                if (practice) {
                     EolssuButton(stringResource(Res.string.learn_start_practice), { actions.onStartPractice(stage.number) }, modifier, icon = EolssuIcons.Mic)
                 } else {
                     LearnTourFinishButton(tour, modifier)

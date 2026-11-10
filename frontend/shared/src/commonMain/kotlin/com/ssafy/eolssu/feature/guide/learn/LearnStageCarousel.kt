@@ -77,8 +77,6 @@ import eolssu.shared.generated.resources.learn_stage_4
 import eolssu.shared.generated.resources.learn_stage_5
 import eolssu.shared.generated.resources.learn_stage_6
 import eolssu.shared.generated.resources.learn_stage_7
-import eolssu.shared.generated.resources.learn_stage_8
-import eolssu.shared.generated.resources.learn_stage_9
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
@@ -98,7 +96,7 @@ internal const val LearnArtHeight = 1024
 /** 단계 그림에서 카드에 보일 정사각형 부분(원본 픽셀). 와이어프레임 `THUMB`의 [x, y, 한 변]이다. */
 internal data class LearnArtCrop(val left: Int, val top: Int, val size: Int)
 
-/** 1~9단계 그림의 자르기 값. */
+/** 1~7단계 그림의 자르기 값. 8·9단계는 서버가 숨겨 그림도 뺐다(S15P31E102-658). */
 internal val LearnArtCrops: List<LearnArtCrop> = listOf(
     LearnArtCrop(209, 43, 960),
     LearnArtCrop(294, 56, 940),
@@ -107,8 +105,6 @@ internal val LearnArtCrops: List<LearnArtCrop> = listOf(
     LearnArtCrop(200, 0, 1024),
     LearnArtCrop(245, 0, 1010),
     LearnArtCrop(176, 0, 1024),
-    LearnArtCrop(225, 0, 1024),
-    LearnArtCrop(240, 0, 1024),
 )
 
 private val LearnArts: List<DrawableResource> = listOf(
@@ -119,8 +115,6 @@ private val LearnArts: List<DrawableResource> = listOf(
     Res.drawable.learn_stage_5,
     Res.drawable.learn_stage_6,
     Res.drawable.learn_stage_7,
-    Res.drawable.learn_stage_8,
-    Res.drawable.learn_stage_9,
 )
 
 /** 카드 넘기기의 최대 너비(`.lc`). 태블릿 세로에서도 이 너비로 가운데에 둔다. */

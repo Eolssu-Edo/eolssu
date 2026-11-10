@@ -53,6 +53,7 @@ fun LearnPracticeRoute(
         instrument = learnState.instrument,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
+        last = learnState.stageAfterConfirm(stage.number) == null,
         actions = LearnPracticeActions(
             onBack = back,
             onStart = viewModel::startListening,

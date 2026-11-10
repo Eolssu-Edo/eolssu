@@ -81,8 +81,8 @@ internal enum class TaskVisual {
     FirstNote,
 }
 
-/** 할 일 따라 배우기가 있는 단계. 4~8단계는 [LearnStageTour]가 칸을 만든다. */
-internal fun hasTaskTour(stage: Int): Boolean = stage in 2..8
+/** 할 일 따라 배우기가 있는 단계. 4~7단계는 [LearnStageTour]가 칸을 만든다. */
+internal fun hasTaskTour(stage: Int): Boolean = stage in 2..7
 
 /**
  * [stage]의 [index]번째 할 일에 보일 그림. 서버 할 일 순서(2단계 앉은 자세·악기 잡기·복식호흡,

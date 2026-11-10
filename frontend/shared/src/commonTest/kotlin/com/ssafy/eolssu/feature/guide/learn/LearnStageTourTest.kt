@@ -3,15 +3,16 @@ package com.ssafy.eolssu.feature.guide.learn
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.learn_done_go_songs
 import eolssu.shared.generated.resources.learn_tour_done_body_beat
 import eolssu.shared.generated.resources.learn_tour_done_body_notes
 import eolssu.shared.generated.resources.learn_tour_done_body_patterns
 import eolssu.shared.generated.resources.learn_tour_done_body_range
-import eolssu.shared.generated.resources.learn_tour_done_body_song
+import eolssu.shared.generated.resources.learn_tour_done_next
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** 4~8단계 따라 배우기(S15P31E102-626)의 칸 수와 그림·완료 문구 짝. */
+/** 4~7단계 따라 배우기(S15P31E102-626)의 칸 수와 완료 문구 짝. */
 class LearnStageTourTest {
     private val danso = GuideInstrument.Danso
     private fun detail(
@@ -51,16 +52,16 @@ class LearnStageTourTest {
         assertEquals(0, stageTourCount(6, detail(), danso))
     }
 
-    /** 7·8단계는 서버 할 일 수 그대로다. */
-    @Test fun stagesSevenAndEightFollowServerTasks() {
-        assertEquals(3, stageTourCount(7, detail(tasks = 3), danso))
-        assertEquals(3, stageTourCount(8, detail(tasks = 3), danso))
-        assertEquals(0, stageTourCount(8, detail(), danso))
+    /** 7단계(혀치기)는 서버 할 일 수 그대로다. */
+    @Test fun stageSevenFollowsServerTasks() {
+        assertEquals(1, stageTourCount(7, detail(tasks = 1), danso))
+        assertEquals(0, stageTourCount(7, detail(), danso))
     }
 
-    /** 7단계 서버 할 일 순서(혀치기 · 1정간을 2로 · 3으로)와 박 나누기 그림 짝. */
-    @Test fun stageSevenSplitsFollowServerTaskOrder() {
-        assertEquals(listOf(null, 2, 3, null), (0..3).map(::beatSplitOf))
+    /** 마지막 단계(7단계)를 마치면 '완료했어요!' 버튼이 다음 단계 대신 곡 연습으로 간다(S15P31E102-658). */
+    @Test fun lastStageDoneLeadsToSongPractice() {
+        assertEquals(Res.string.learn_done_go_songs, learnDoneAction(last = true))
+        assertEquals(Res.string.learn_tour_done_next, learnDoneAction(last = false))
     }
 
     @Test fun doneBodyPerStage() {
@@ -70,9 +71,8 @@ class LearnStageTourTest {
                 Res.string.learn_tour_done_body_patterns,
                 Res.string.learn_tour_done_body_range,
                 Res.string.learn_tour_done_body_beat,
-                Res.string.learn_tour_done_body_song,
             ),
-            (4..8).map(::learnDoneBody),
+            (4..7).map(::learnDoneBody),
         )
     }
 }

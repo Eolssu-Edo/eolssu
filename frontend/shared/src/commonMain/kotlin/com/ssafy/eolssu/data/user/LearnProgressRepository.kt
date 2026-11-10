@@ -93,8 +93,8 @@ class LearnProgressRepository(
         else member.id?.let { "learn_done_member_${it.length}_${it}_$trackId" }
 
     companion object {
-        /** 기초부터 배우기 단계 수(필수 8 + 선택 1). 단계 그림도 9장이다. */
-        const val STAGE_COUNT = 9
+        /** 기초부터 배우기 공개 단계 수. V37로 8·9단계를 숨겨 7이다(S15P31E102-657·658). 단계 그림도 7장이다. */
+        const val STAGE_COUNT = 7
 
         private const val SEPARATOR = ","
     }

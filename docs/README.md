@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [기초부터 배우기 단계 축소 화면 반영 (658)](plans/S15P31E102-658.md)
 - [기존 악보를 유지한 36곡 AI 채점 활성화 (704)](plans/S15P31E102-704.md) · [스펙](specs/existing-score-enablement.md) · [대조·AI 입력 근거](knowledge/data/existing-score-enablement.md)
 - [Android 카카오·네이버 간편 로그인 앱 복귀 실패 수정 (687)](plans/S15P31E102-687.md)
 - [채점 비활성 공개 46곡의 원본·운영 악보 대조 (699)](knowledge/data/catalog-notation-restoration.md#2026-11-10-채점-비활성-46곡-재점검) · [교정 스펙](specs/catalog-scoring-repair.md) · [계획·운영 검증](plans/S15P31E102-699.md)

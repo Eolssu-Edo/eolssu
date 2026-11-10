@@ -31,8 +31,6 @@ enum class LearnSaveError { Mark, Reset }
  * @property details 악기·단계별 상세 내용. 단계 상세를 처음 열 때 받는다.
  * @property saveError 서버에 남기지 못해 표시를 되돌렸다. 화면이 안내를 띄운 뒤 지운다.
  * @property playing '음 듣기'를 누른 율명. 음원이 없어 버튼만 잠시 강조한다.
- * @property songsByTrack 악기 트랙(`danso` 등) → 곡 제목 → 그 악기 악보의 평가 가능한 곡 식별자(8단계 곡 후보).
- *   악기를 알 수 없는 곡은 null 열쇠에 두고, 지금 악기에 같은 제목이 없을 때만 쓴다.
  * @property selectedStage 태블릿 가로 배치(단계 목록 + 단계 상세 한 화면)에서 고른 단계. 고르지 않았으면 null.
  * @property viewedCard 휴대폰·태블릿 세로 단계 목록에서 넘겨 보던 카드. 넘기거나 상세를 열면 남고, 없으면 [cardStage]가 다음에 할 단계를 보여 준다.
  */
@@ -44,11 +42,8 @@ data class LearnUiState(
     val details: Map<GuideInstrument, Map<Int, LearnDetailLoad>> = emptyMap(),
     val saveError: LearnSaveError? = null,
     val playing: String? = null,
-    val songsByTrack: Map<String?, Map<String, String>> = emptyMap(),
     val selectedStage: Int? = null,
     val viewedCard: Int? = null,
-    val songsLoading: Boolean = true,
-    val songsFailed: Boolean = false,
 ) {
     /** 지금 악기의 단계 목록 상태. 아직 요청하지 않았으면 받는 중으로 본다. */
     val track: LearnTrackLoad get() = tracks[instrument] ?: LearnTrackLoad.Loading
@@ -85,10 +80,7 @@ data class LearnUiState(
     /** 단계 목록 카드에 펼칠 단계. 처음에는 다음에 할 단계(모두 마쳤으면 1단계), 넘겨 보거나 상세를 연 뒤에는 그 단계다. */
     val cardStage: Int get() = viewedCard ?: nextStage?.number ?: FirstStage
 
-    /** [stage]를 확인한 뒤 갈 단계. 마지막 단계면 null(단계 목록). */
-    /** 지금 악기로 연습할 8단계 곡: 곡 제목 → 곡 식별자. 다른 악기 악보는 고르지 않는다. */
-    val songIds: Map<String, String> get() = songsByTrack[null].orEmpty() + songsByTrack[instrument.id].orEmpty()
-
+    /** [stage]를 확인한 뒤 갈 단계. 마지막 단계면 null(곡 연습으로 안내한다). */
     fun stageAfterConfirm(stage: Int): Int? = stages.firstOrNull { it.number > stage }?.number
 }
 
