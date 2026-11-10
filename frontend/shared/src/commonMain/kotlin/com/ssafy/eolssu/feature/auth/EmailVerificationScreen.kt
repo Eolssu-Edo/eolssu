@@ -40,9 +40,11 @@ import eolssu.shared.generated.resources.auth_code_confirm
 import eolssu.shared.generated.resources.auth_code_error_expired
 import eolssu.shared.generated.resources.auth_code_error_invalid
 import eolssu.shared.generated.resources.auth_code_error_mismatch
+import eolssu.shared.generated.resources.auth_code_error_no_longer_valid
 import eolssu.shared.generated.resources.auth_code_error_too_many
 import eolssu.shared.generated.resources.auth_code_help
 import eolssu.shared.generated.resources.auth_code_new
+import eolssu.shared.generated.resources.auth_code_new_wait
 import eolssu.shared.generated.resources.auth_code_placeholder
 import eolssu.shared.generated.resources.auth_code_resend
 import eolssu.shared.generated.resources.auth_code_resend_wait
@@ -140,13 +142,17 @@ fun EmailVerificationScreen(
                         error = state.codeErrorAt(now)?.let { codeErrorText(it) },
                         imeAction = ImeAction.Done,
                         onImeAction = onConfirm,
-                        trailing = formatMinutesSeconds(state.secondsLeft(now)),
+                        // 새 번호가 필요하면 남은 시간은 의미가 없어 숨긴다(서버가 먼저 무효로 답한 경우 시간이 남아 보인다).
+                        trailing = if (needsNewCode) null else formatMinutesSeconds(state.secondsLeft(now)),
                     )
                     ResendRow(
+                        // 재발송 간격(60초)은 새 번호가 필요할 때도 서버가 지키므로, 남은 시간을 보여 막힌 이유를 알린다.
                         label = when {
+                            state.resendSecondsLeft(now) > 0 -> stringResource(
+                                if (needsNewCode) Res.string.auth_code_new_wait else Res.string.auth_code_resend_wait,
+                                formatMinutesSeconds(state.resendSecondsLeft(now)),
+                            )
                             needsNewCode -> stringResource(Res.string.auth_code_new)
-                            state.resendSecondsLeft(now) > 0 ->
-                                stringResource(Res.string.auth_code_resend_wait, formatMinutesSeconds(state.resendSecondsLeft(now)))
                             else -> stringResource(Res.string.auth_code_resend)
                         },
                         enabled = state.resendSecondsLeft(now) == 0L,
@@ -165,6 +171,7 @@ private fun codeErrorText(error: CodeError): String = when (error) {
     is CodeError.Mismatch -> stringResource(Res.string.auth_code_error_mismatch, error.remainingAttempts)
     CodeError.Expired -> stringResource(Res.string.auth_code_error_expired)
     CodeError.TooManyAttempts -> stringResource(Res.string.auth_code_error_too_many)
+    CodeError.NoLongerValid -> stringResource(Res.string.auth_code_error_no_longer_valid)
 }
 
 /** 인증번호 칸 바로 아래 오른쪽의 다시 받기 버튼(`.au-resend`). 재발송 간격이 남았으면 남은 시간을 보이고 막는다. */

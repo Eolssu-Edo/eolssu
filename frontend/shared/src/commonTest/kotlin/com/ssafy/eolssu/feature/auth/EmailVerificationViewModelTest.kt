@@ -152,6 +152,46 @@ class EmailVerificationViewModelTest {
         assertTrue(viewModel.uiState.value.needsNewCode(now))
     }
 
+    /** 3분이 남았는데 서버가 410(새 번호로 바뀜·이미 사용)으로 답한 경우. 시간 초과 안내 대신 새 번호를 받게 하고, 60초 간격은 지킨다. */
+    @Test
+    fun serverRejectedCodeWithTimeLeftNeedsNewCodeAfterResendWait() = runTest {
+        var answer: ConfirmCodeResult = ConfirmCodeResult.Expired
+        val repository = object : AuthRepository {
+            override suspend fun logIn(email: String, password: String) = LoginResult.WrongCredentials
+
+            override fun logOut() = Unit
+            override suspend fun sendCode(email: String, purpose: VerificationPurpose) = SendCodeResult.Sent("v1", now + 180_000, now + 60_000)
+            override suspend fun confirmCode(verificationId: String, code: String) = answer
+        }
+        val viewModel = viewModel(VerificationPurpose.SignUp, repository)
+        viewModel.changeEmail("new@example.com")
+        viewModel.sendCode()
+        now += 55_000
+        viewModel.changeCode("123456")
+
+        assertFalse(viewModel.confirmCode())
+        viewModel.uiState.value.let {
+            assertEquals(CodeError.NoLongerValid, it.codeErrorAt(now))
+            assertTrue(it.needsNewCode(now))
+            assertEquals(5, it.resendSecondsLeft(now))
+        }
+        viewModel.changeCode("654321")
+        assertEquals(CodeError.NoLongerValid, viewModel.uiState.value.codeError)
+        assertFalse(viewModel.resendCode())
+
+        now += 5_000
+        assertTrue(viewModel.resendCode())
+        assertNull(viewModel.uiState.value.codeError)
+        assertFalse(viewModel.uiState.value.needsNewCode(now))
+
+        // 3분이 실제로 지난 뒤의 410은 그대로 시간 초과다.
+        now += 180_000
+        answer = ConfirmCodeResult.Expired
+        viewModel.changeCode("123456")
+        assertFalse(viewModel.confirmCode())
+        assertEquals(CodeError.Expired, viewModel.uiState.value.codeError)
+    }
+
     @Test
     fun editingEmailAfterSendingDropsTheCode() = runTest {
         val viewModel = viewModel(VerificationPurpose.SignUp)
