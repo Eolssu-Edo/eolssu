@@ -73,8 +73,10 @@ class SheetEditViewModel(
     private var audioJob: Job? = null
     private var autoSaveJob: Job? = null
     private var loadJob: Job? = null
+    private var jangdanJob: Job? = null
     private var closeJob: Job? = null
     private var persistedDraft: SheetDraft? = null
+    private var savedJangdanId: String? = null
     private var confirmedDraft: SheetDraft? = null
     private val writeLock = Mutex()
     private var loaded: SheetDocument? = null
@@ -84,11 +86,12 @@ class SheetEditViewModel(
         loaded = null
         baseline = null
         persistedDraft = null
+        savedJangdanId = null
         confirmedDraft = null
         version = ""
         _uiState.update { it.copy(draft = SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1)),
             documentLoading = false, documentFailed = true, saving = false, message = null, audio = SheetAudioUi.None,
-            past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet()) }
+            past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet(), jangdanPicker = null) }
     }
 
     init {
@@ -128,15 +131,19 @@ class SheetEditViewModel(
                 check(document.conversionStatus == null || document.conversionStatus == "DONE")
                 val copy = document.draft
                 val score = copy?.score ?: document.score ?: error("변환 완료 악보 없음")
+                val jangdanId = if (copy == null) document.jangdanId else copy.jangdanId
                 val draft = score.editingDraft(copy?.title ?: document.title, copy?.bpm ?: document.bpm, jangdan = null)
+                    .copy(jangdanId = jangdanId)
+                savedJangdanId = document.jangdanId
                 loaded = document
                 version = document.scoreVersion
                 revision = copy?.revision ?: 0
                 persistedDraft = draft
                 confirmedDraft = document.score?.editingDraft(document.title, document.bpm, jangdan = null)
+                    ?.copy(jangdanId = document.jangdanId)
                 _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,
-                    withJangdan = document.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
+                    withJangdan = draft.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
                     reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet()) }
                 refreshAudio(announce = false)
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -178,7 +185,7 @@ class SheetEditViewModel(
                     if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
                     val resolvedIds = if (draft) emptyList() else _uiState.value.reviewIssues
                         .map(SheetReviewIssue::id).filter { it in snapshot.checkedIssueIds }
-                    val copy = SheetWorkingCopy(snapshot.draft.title, loaded?.draft?.jangdanId ?: loaded?.jangdanId,
+                    val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
                         snapshot.draft.bpm, score, version, revision, resolvedIds)
                     when (val result = repository.save(id, copy, draft)) {
                         is SheetWrite.Saved -> {
@@ -192,6 +199,7 @@ class SheetEditViewModel(
                                 checkedIssueIds = it.checkedIssueIds - resolvedIds.toSet(),
                                 message = if (announce) (if (draft) SheetEditMessage.Draft else SheetEditMessage.Saved) else it.message) }
                             if (!draft) {
+                                savedJangdanId = snapshot.draft.jangdanId
                                 mySheetRepository.refresh()
                                 refreshAudio(announce = false)
                             }
@@ -268,9 +276,35 @@ class SheetEditViewModel(
     fun selectView(view: EditView) = change { it.copy(view = if (it.draft.original != null) EditView.Jeongganbo else view) }
     fun selectStaffNote(key: StaffNoteKey) = change { it.selectStaffNote(key) }
     fun shiftStaffNote(steps: Int) = change { it.shiftStaffNote(steps) }
-    fun changeJangdan() = change { it.copy(message = SheetEditMessage.ComingSoon) }
+    fun changeJangdan() {
+        val state = _uiState.value
+        if (!accountScope.isActive || state.documentLoading || state.documentFailed || jangdanJob?.isActive == true) return
+        val catalog = pitchCatalog
+        if (loaded == null || catalog == null) {
+            change { it.copy(message = SheetEditMessage.ComingSoon) }
+            return
+        }
+        change { it.copy(jangdanPicker = SheetEditJangdanPicker.Loading) }
+        jangdanJob = accountScope.launch {
+            val picker = try {
+                SheetEditJangdanPicker.Ready(catalog.jangdans())
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                SheetEditJangdanPicker.Failed
+            }
+            change { it.copy(jangdanPicker = picker) }
+        }
+    }
 
-    fun toggleWithJangdan() = change { it.copy(withJangdan = !it.withJangdan) }
+    fun selectJangdan(id: String) = change { it.selectJangdan(id) }
+
+    fun closeJangdanPicker() {
+        jangdanJob?.cancel()
+        change { it.copy(jangdanPicker = null) }
+    }
+
+    fun toggleWithJangdan() = change { if (it.canIncludeJangdan) it.copy(withJangdan = !it.withJangdan) else it }
     fun requestSave() {
         if (documents == null) { change { it.requestSave() }; return }
         if (_uiState.value.serverSheetId == null) { change { it.copy(message = SheetEditMessage.ComingSoon) }; return }
@@ -291,6 +325,10 @@ class SheetEditViewModel(
     /** '음원 만들기'·'다시 만들기'·'다시 시도'. 저장된 서버 악보가 있을 때만 SHT-12를 부르고, 접수되면 끝날 때까지 상태를 묻는다. */
     fun requestAudio() {
         if (!accountScope.isActive || _uiState.value.documentLoading || _uiState.value.documentFailed || _uiState.value.saving) return
+        if (loaded != null && _uiState.value.draft.jangdanId != savedJangdanId) {
+            change { it.copy(message = SheetEditMessage.AudioNeedsSave) }
+            return
+        }
         val repository = sheetAudio
         if (repository == null) {
             change { it.copy(message = SheetEditMessage.ComingSoon) }

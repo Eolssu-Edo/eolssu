@@ -9,6 +9,8 @@ import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
@@ -26,7 +28,17 @@ class HttpRecordingUploader(
     private val fileSize: (String) -> Long? = { SystemFileSystem.metadataOrNull(Path(it))?.size },
     private val openFile: (String) -> kotlinx.io.Source = { SystemFileSystem.source(Path(it)).buffered() },
 ) : RecordingUploader {
-    override suspend fun upload(sessionId: String, path: String): UploadOutcome {
+    override suspend fun upload(sessionId: String, path: String): UploadOutcome =
+        withTimeoutOrNull(UPLOAD_TIMEOUT_MILLIS) {
+            val outcome = uploadOnce(sessionId, path)
+            if (outcome != UploadOutcome.TimedOut && outcome != UploadOutcome.ConnectionFailed) {
+                return@withTimeoutOrNull outcome
+            }
+            delay(RETRY_DELAY_MILLIS)
+            uploadOnce(sessionId, path)
+        } ?: UploadOutcome.TimedOut
+
+    private suspend fun uploadOnce(sessionId: String, path: String): UploadOutcome {
         val size = fileSize(path)
         val sent = client.sendCatching {
             submitFormWithBinaryData(
@@ -45,17 +57,24 @@ class HttpRecordingUploader(
                 timeout { requestTimeoutMillis = UPLOAD_TIMEOUT_MILLIS }
             }
         }
-        val status = (sent as? NetworkResult.Received)?.response?.status?.value ?: return UploadOutcome.Unreachable
-        return when (status) {
-            202, 409 -> UploadOutcome.Uploaded
-            410 -> UploadOutcome.Expired
-            404, 413, 415, 422 -> UploadOutcome.Rejected
-            else -> if (status in 400..499 && status != 401) UploadOutcome.Rejected else UploadOutcome.Unreachable
+        return when (sent) {
+            NetworkResult.TimedOut -> UploadOutcome.TimedOut
+            NetworkResult.ConnectionFailed -> UploadOutcome.ConnectionFailed
+            is NetworkResult.Received -> when (sent.response.status.value) {
+                202, 409 -> UploadOutcome.Uploaded
+                401 -> UploadOutcome.Unreachable
+                408 -> UploadOutcome.TimedOut
+                410 -> UploadOutcome.Expired
+                in 400..499 -> UploadOutcome.Rejected
+                in 500..599 -> UploadOutcome.ServerError
+                else -> UploadOutcome.Unreachable
+            }
         }
     }
 
     private companion object {
-        /** 20MiB를 느린 연결로 올려도 끊기지 않게 요청 전체 시간을 기본(30초)보다 길게 둔다. */
+        /** 20MiB 전송에 기본 30초보다 시간을 더 주며, 자동 재시도까지 이 한도 안에서 끝낸다. */
         const val UPLOAD_TIMEOUT_MILLIS = 120_000L
+        const val RETRY_DELAY_MILLIS = 1_000L
     }
 }
