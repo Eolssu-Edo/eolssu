@@ -47,6 +47,27 @@ class EmailVerificationViewModelTest {
     }
 
     @Test
+    fun malformedEmailIsBlockedBeforeSendingForEveryPurpose() = runTest {
+        var sends = 0
+        val repository = object : AuthRepository by SampleAuthRepository({ now }) {
+            override suspend fun sendCode(email: String, purpose: VerificationPurpose): SendCodeResult {
+                sends++
+                return SendCodeResult.Sent("v1", now + 180_000, now + 60_000)
+            }
+        }
+        for (purpose in listOf(VerificationPurpose.SignUp, VerificationPurpose.PasswordReset)) {
+            for (email in listOf("a@b", "a@b..com", "a..b@c.com", "a@-b.com")) {
+                val vm = viewModel(purpose, repository)
+                vm.changeEmail(email)
+                assertFalse(vm.sendCode(), "$purpose $email")
+                assertEquals(FieldError.EmailInvalid, vm.uiState.value.emailError)
+                assertFalse(vm.uiState.value.codeSent)
+            }
+        }
+        assertEquals(0, sends)
+    }
+
+    @Test
     fun signupBlocksRegisteredEmailButResetHidesIt() = runTest {
         val signUp = viewModel(VerificationPurpose.SignUp)
         signUp.changeEmail(SampleAuthRepository.RegisteredEmail)
