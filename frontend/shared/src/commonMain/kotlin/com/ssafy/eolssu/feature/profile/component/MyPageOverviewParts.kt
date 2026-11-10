@@ -75,7 +75,7 @@ internal fun MyPageIconTile(icon: ImageVector, size: Dp = 36.dp) {
     }
 }
 
-/** 프로필 얼굴 자리: 홈 '기초부터 배우기' 카드의 호랑이 얼굴을 연두 10% 원 안에 둔다. */
+/** 프로필 얼굴 자리: 홈 '기초 배우기' 카드의 호랑이 얼굴을 연두 10% 원 안에 둔다. */
 @Composable
 internal fun MyPageAvatar() {
     Box(

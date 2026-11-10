@@ -1,6 +1,15 @@
 package com.ssafy.eolssu.core.network
 
+import com.ssafy.eolssu.core.diagnostics.PerfKind
+import com.ssafy.eolssu.core.diagnostics.PerfMethod
+import com.ssafy.eolssu.core.diagnostics.PerfReason
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.PerformanceLoad
+import com.ssafy.eolssu.core.diagnostics.PerformanceLog
+import com.ssafy.eolssu.core.diagnostics.PerformanceReason
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import io.ktor.client.HttpClient
+import io.ktor.client.call.HttpClientCall
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.network.sockets.ConnectTimeoutException
@@ -22,6 +31,7 @@ import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -80,12 +90,89 @@ fun createHttpClient(engine: HttpClientEngine, server: ServerAddress, cookies: C
     val refresher = TokenRefresher()
     client.plugin(HttpSend).intercept { request ->
         val seen = refresher.generation
-        val call = execute(request)
+        val path = request.url.encodedPath
+        val method = request.method
+        val call = observedAttempt(path, method) { execute(request) }
         if (call.response.status != HttpStatusCode.Unauthorized || skipsRefresh(request.method, request.url.encodedPath)) return@intercept call
         val refreshed = refresher.refresh(seen) { client.post(REFRESH_PATH).status.isSuccess() }
-        if (refreshed) execute(request) else call
+        if (refreshed) observedAttempt(path, method, PerfReason.REPLAY) { execute(request) } else call
     }
     return client
+}
+
+private val songEndpoint = Regex("/api/songs/([1-9][0-9]{0,18})(/score|/model-audio(?:/performance|/play)?)?")
+private val sessionEndpoint = Regex("/api/practice-sessions/([1-9][0-9]{0,18})(/evaluation|/weak-sections|/comparison|/retry)?")
+
+private fun observedTarget(path: String): Pair<PerfTarget, String?>? = when (path) {
+    "/api/auth/refresh" -> PerfTarget.AUTH_REFRESH to null
+    "/api/users/me/practice-records" -> PerfTarget.RECORD_PAGE to null
+    "/api/instruments" -> PerfTarget.INSTRUMENTS to null
+    "/api/songs" -> PerfTarget.SONG_LIST to null
+    else -> songEndpoint.matchEntire(path)?.let {
+        when (it.groupValues[2]) {
+            "/score" -> PerfTarget.SCORE
+            "/model-audio" -> PerfTarget.MODEL_AUDIO_METADATA
+            "/model-audio/performance" -> PerfTarget.MODEL_AUDIO_TIMELINE
+            "/model-audio/play" -> PerfTarget.MODEL_AUDIO
+            else -> PerfTarget.SONG_DETAIL
+        } to it.groupValues[1]
+    } ?: sessionEndpoint.matchEntire(path)?.let {
+        when (it.groupValues[2]) {
+            "/evaluation" -> PerfTarget.EVALUATION
+            "/weak-sections" -> PerfTarget.WEAK_SECTIONS
+            "/comparison" -> PerfTarget.COMPARISON
+            else -> PerfTarget.PRACTICE_STATUS
+        } to it.groupValues[1]
+    }
+}
+
+private suspend fun observedAttempt(
+    path: String,
+    method: HttpMethod,
+    overrideReason: PerfReason? = null,
+    send: suspend () -> HttpClientCall,
+): HttpClientCall {
+    val visit = currentCoroutineContext()[PerformanceVisit] ?: return send()
+    val (target, rawKey) = observedTarget(path) ?: return send()
+    val verb = when (method) {
+        HttpMethod.Get -> PerfMethod.GET
+        HttpMethod.Post -> PerfMethod.POST
+        else -> return send()
+    }
+    val load = currentCoroutineContext()[PerformanceLoad]
+    val resource = if (target == PerfTarget.AUTH_REFRESH) null else load?.resource ?: rawKey?.let {
+        val category = if (target in setOf(PerfTarget.SCORE, PerfTarget.SONG_DETAIL)) PerfTarget.SONG_BUNDLE else target
+        visit.flow.alias(category, it)
+    }
+    val reason = overrideReason ?: if (target == PerfTarget.AUTH_REFRESH) PerfReason.REFRESH
+        else currentCoroutineContext()[PerformanceReason]?.reason ?: PerfReason.INITIAL
+    val start = PerformanceLog.now()
+    var status: Int? = null
+    var outcome = PerfReason.FAILED
+    try {
+        return send().also {
+            status = it.response.status.value
+            outcome = if (it.response.status.isSuccess()) PerfReason.READY else PerfReason.FAILED
+        }
+    } catch (cancelled: CancellationException) {
+        outcome = PerfReason.CANCELLED
+        throw cancelled
+    } catch (timeout: HttpRequestTimeoutException) {
+        outcome = PerfReason.HTTP_TIMEOUT
+        throw timeout
+    } catch (timeout: ConnectTimeoutException) {
+        outcome = PerfReason.HTTP_TIMEOUT
+        throw timeout
+    } catch (timeout: SocketTimeoutException) {
+        outcome = PerfReason.HTTP_TIMEOUT
+        throw timeout
+    } finally {
+        if (reason != PerfReason.POLL || outcome != PerfReason.READY) {
+            visit.event(PerfKind.HTTP_ATTEMPT, target, load = load?.id, resource = resource,
+                reason = reason, status = status, durationMs = PerformanceLog.now() - start,
+                method = verb, outcome = outcome)
+        }
+    }
 }
 
 /** 요청 결과. 응답을 받았거나([Received]), 받지 못한 이유. 응답 코드(503·410·413 등)는 [Received.response]에서 본다. */
