@@ -55,8 +55,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.mountainRidges
 import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.feature.home.HomeFeatureColumns
 import com.ssafy.eolssu.feature.home.HomeScrollRange
@@ -145,6 +147,8 @@ internal fun HomeScrollLayout(
         val artWidth = mix(w, finalHeroW, frame.eased)
         val artLeft = if (expanded) contentLeft * frame.eased else 0f
         val openFeatures = frame.progress > .6f
+        val featureAlpha = ((frame.progress - .6f) / .25f).coerceIn(0f, 1f)
+        val mountainColor = EolssuTheme.colors.radical
         val open: () -> Unit = { scope.launch { goTo(rangePx) } }
         Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
             Box(Modifier.fillMaxWidth().height((h + HomeScrollRange + overflow).dp)) {
@@ -166,6 +170,15 @@ internal fun HomeScrollLayout(
                         Box(Modifier.offset(x = (contentLeft + finalHeroW + 24f).dp)
                             .width((contentW - finalHeroW).dp).height((h + overflow).dp)
                             .graphicsLayer { alpha = frame.eased }.background(HomeGround))
+                    }
+                    if (featureAlpha > 0f) {
+                        // 카드 뒤 화면 아래의 산 능선. 무대가 멈춘 뒤 더 스크롤한 만큼 내려 늘 화면 바닥에 붙인다.
+                        Box(
+                            Modifier.offset(y = (s - HomeScrollRange).coerceAtLeast(0f).dp)
+                                .fillMaxWidth().height(h.dp)
+                                .graphicsLayer { alpha = featureAlpha }
+                                .mountainRidges(mountainColor, HomeRidgeLifts),
+                        )
                     }
                     Column(
                         Modifier.offset(x = artLeft.dp, y = (frame.headlineBottom - headlineH).dp)
@@ -211,7 +224,7 @@ internal fun HomeScrollLayout(
                                 y = featureTop.dp,
                             ).width((if (expanded) contentW - finalHeroW - 40f else contentW).dp)
                                 .onSizeChanged { featureH = it.height / density.density }
-                                .graphicsLayer { alpha = ((frame.progress - .6f) / .25f).coerceIn(0f, 1f) },
+                                .graphicsLayer { alpha = featureAlpha },
                         )
                     }
                     if (frame.arrowAlpha > 0f) {
@@ -273,6 +286,9 @@ private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, x: Flo
         ))
     }
 }
+
+/** 홈 산 능선은 맨 앞 능선은 두고 가운데·맨 뒤 능선만 차례로 더 높인다(뒤 → 앞, 보드 좌표). */
+private val HomeRidgeLifts = listOf(36f, 20f, 0f)
 
 /** 상단 판과 화면(안전 영역) 위 가장자리 사이의 틈. */
 private val HomeHeaderTop = 12.dp
