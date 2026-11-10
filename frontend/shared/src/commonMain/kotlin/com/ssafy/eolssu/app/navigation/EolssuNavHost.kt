@@ -33,7 +33,6 @@ import androidx.navigation.navArgument
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.audio.RecordedTake
-import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.history.GrowthRoute
@@ -273,7 +272,6 @@ fun EolssuNavHost(
             ) { entry ->
                 val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
                 val mine = entry.savedStateHandle.get<Boolean>("mine") ?: false
-                val deviceAudio: SheetAudioDeviceStore = koinInject()
                 val perf = performance.visit(entry, PerfTarget.PRACTICE)
                 PracticeRoute(
                     perf = perf,
@@ -296,11 +294,6 @@ fun EolssuNavHost(
                     onConfirmBackChange = { browserBackGuard?.onBack = it },
                     // 마이크 거부는 연습 화면 안에서 안내한다(보드 Dialog-PermDenied·PermBlocked, S15P31E102-357).
                     mine = mine,
-                    onOpenSheetAudio = if (mine && deviceAudio.available) { version ->
-                        if (navController.currentBackStackEntry?.id == entry.id) {
-                            navController.navigate(SheetEditDestination.practiceAudio(songId, version))
-                        }
-                    } else null,
                     learn = entry.savedStateHandle.get<Boolean>("learn") ?: false,
                     sheetTitle = entry.savedStateHandle.get<String>("title"),
                 )
