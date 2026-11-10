@@ -1,6 +1,6 @@
 # 프로젝트 문서
 
-- [Android 평가 녹음의 스피커 장단 유입 완화 (695)](plans/S15P31E102-695.md) · [Galaxy 실측과 재생 참조 실험](knowledge/frontend/android-jangdan-recording-echo.md)
+- [Android 평가 녹음의 스피커 장단 유입 완화 (695)](plans/S15P31E102-695.md) · [구현 스펙](specs/android-recording-echo.md) · [Galaxy 실측과 재생 참조 실험](knowledge/frontend/android-jangdan-recording-echo.md)
 - [Android 카카오·네이버 간편 로그인 앱 복귀 실패 수정 (687)](plans/S15P31E102-687.md)
 - [닉네임 최대 10자 서버 검증 (685)](plans/S15P31E102-685.md)
 - [기초부터 배우기 1·7단계 반복 할 일 서버 문구 정리 (656)](plans/S15P31E102-656.md)

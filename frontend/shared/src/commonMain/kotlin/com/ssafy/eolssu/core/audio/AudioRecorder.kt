@@ -3,6 +3,7 @@ package com.ssafy.eolssu.core.audio
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /** 녹음 파일의 샘플 위치로 표현한 음높이 관측값. */
 data class PitchReading(
@@ -62,6 +63,17 @@ data class RecordedAudio(val path: String, val bytes: Long) {
  * 플랫폼 구현은 `platform/audio`에 두고, 구현이 없는 플랫폼(현재 Web)은 등록하지 않는다.
  */
 interface AudioRecorder {
+    /** 지원하는 구현만 새 평가의 조용한 준비 구간을 사용한다. 보정음은 녹음 파일에 넣지 않는다. */
+    val supportsEchoCalibration: Boolean get() = false
+    val echoStatus: StateFlow<RecordingEchoStatus>? get() = null
+    suspend fun prepareEcho(
+        player: JangdanSamplePlayer,
+        clips: Set<JangdanClip>,
+        progress: (EchoCalibrationProgress) -> Unit,
+    ): Boolean = false
+    /** 보정 없이 계속하기. 이미 만들어진 녹음의 샘플은 바꾸지 않는다. */
+    fun discardEchoCalibration() = Unit
+
     /** 실시간 음높이 관측을 지원하지 않는 플랫폼은 null이다. */
     val pitchReadings: Flow<PitchReading>? get() = null
 
