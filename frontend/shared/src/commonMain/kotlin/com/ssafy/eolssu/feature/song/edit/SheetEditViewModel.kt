@@ -75,6 +75,7 @@ class SheetEditViewModel(
     private var loadJob: Job? = null
     private var closeJob: Job? = null
     private var persistedDraft: SheetDraft? = null
+    private var confirmedDraft: SheetDraft? = null
     private val writeLock = Mutex()
     private var loaded: SheetDocument? = null
     private var version = ""
@@ -83,6 +84,7 @@ class SheetEditViewModel(
         loaded = null
         baseline = null
         persistedDraft = null
+        confirmedDraft = null
         version = ""
         _uiState.update { it.copy(draft = SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1)),
             documentLoading = false, documentFailed = true, saving = false, message = null, audio = SheetAudioUi.None,
@@ -131,6 +133,7 @@ class SheetEditViewModel(
                 version = document.scoreVersion
                 revision = copy?.revision ?: 0
                 persistedDraft = draft
+                confirmedDraft = document.score?.editingDraft(document.title, document.bpm, jangdan = null)
                 _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,
                     withJangdan = document.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
@@ -180,6 +183,7 @@ class SheetEditViewModel(
                     when (val result = repository.save(id, copy, draft)) {
                         is SheetWrite.Saved -> {
                             persistedDraft = snapshot.draft
+                            if (!draft) confirmedDraft = snapshot.draft
                             version = result.scoreVersion
                             revision = result.revision
                             _uiState.update { it.copy(savedOnce = it.savedOnce || !draft,
@@ -266,9 +270,7 @@ class SheetEditViewModel(
     fun shiftStaffNote(steps: Int) = change { it.shiftStaffNote(steps) }
     fun changeJangdan() = change { it.copy(message = SheetEditMessage.ComingSoon) }
 
-    fun togglePreview() = change { it.copy(previewPlaying = !it.previewPlaying) }
     fun toggleWithJangdan() = change { it.copy(withJangdan = !it.withJangdan) }
-    fun stopPreview() = change { it.copy(previewPlaying = false) }
     fun requestSave() {
         if (documents == null) { change { it.requestSave() }; return }
         if (_uiState.value.serverSheetId == null) { change { it.copy(message = SheetEditMessage.ComingSoon) }; return }
@@ -355,6 +357,28 @@ class SheetEditViewModel(
                 null
             }
         }
+    }
+
+    /** 편집 중인 내용 및 장단 설정과 일치하는 확정 버전의 음원만 미리 듣는다. */
+    fun previewPlaybackId(): String? {
+        val state = _uiState.value
+        if (state.saving || state.draft != confirmedDraft) return null
+        return state.audio.latest?.takeIf { audio ->
+            audio.status == SheetAudioStatus.Done && !audio.outdated && audio.scoreVersion == version &&
+                audio.withJangdan == state.withJangdan && audio.bpm == state.draft.bpm
+        }?.audio?.playbackId
+    }
+
+    suspend fun previewAudioFile(): SheetAudioFile? {
+        if (_uiState.value.draft != confirmedDraft) {
+            change { it.copy(message = SheetEditMessage.AudioNeedsSave) }
+            return null
+        }
+        if (previewPlaybackId() == null) {
+            change { it.copy(message = SheetEditMessage.PreviewNeedsAudio) }
+            return null
+        }
+        return audioFile(SheetAudioKind.M4a)?.takeIf { it.playbackId == previewPlaybackId() }
     }
 
     fun reportAudioLinkFailed() = change { it.copy(message = SheetEditMessage.AudioLinkFailed) }
