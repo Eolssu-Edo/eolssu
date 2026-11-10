@@ -1,6 +1,7 @@
 import json
 import subprocess
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 from test_relay import load, relay
@@ -12,6 +13,9 @@ MYSQL_PROXY = 'eolssu-replication-proxy-579'
 PHPMYADMIN = 'eolssu-mysql-admin-phpmyadmin-1'
 AI = 'eolssu-runtime-ai-1'
 TUNNEL = 'hey-edo1-tunnel-1'
+GRAFANA = 'eolssu-monitoring-grafana-1'
+N8N = 'hey-edo1-n8n-1'
+NODE_EXPORTER = 'eolssu-monitoring-node-exporter-1'
 ORIGIN = 'https://team-edo.github.io'
 
 
@@ -36,6 +40,8 @@ class Edo1ReadinessTests(unittest.TestCase):
             container(PHPMYADMIN, binding=('80/tcp', '127.0.0.1', 8081)),
             container(AI, network=('eolssu-runtime_default', '172.18.0.15'), health='healthy'),
             container(TUNNEL, network=('hey-edo1_control', '172.23.0.4')),
+            container(GRAFANA, binding=('3000/tcp', '127.0.0.1', 3000)),
+            container(N8N, binding=('5678/tcp', '127.0.0.1', 5688)),
         ]
         blog = {'authorize': 'https://github.com/login/oauth/authorize', 'clientId': 'hidden-client-id',
                 'redirectUri': ORIGIN + '/edit/'}
@@ -48,6 +54,7 @@ class Edo1ReadinessTests(unittest.TestCase):
                 {'loc': ['body', key], 'type': 'missing'} for key in ('audioUrl', 'notes')]}),
             20241: (200, '', {'status': 200, 'readyConnections': 4}),
             3000: (200, 'application/json', {'database': 'ok'}),
+            5688: (200, 'application/json', {'status': 'ok'}),
         }
         self.requests = {}
         self.ss = subprocess.CompletedProcess([], 0, 'LISTEN 0 4096 127.0.0.1:13306 0.0.0.0:*\n', '')
@@ -82,7 +89,7 @@ class Edo1ReadinessTests(unittest.TestCase):
         rows = {row[0]: row for row in health['rows']}
         facts = {fact['name']: fact for fact in detailed['facts']}
         expected = {BLOG_LOGIN: '정상', BLOG_WRITABLE: '정상', MYSQL_PROXY: '정상',
-                    PHPMYADMIN: '정상', AI: '정상', TUNNEL: '정상'}
+                    PHPMYADMIN: '정상', AI: '정상', TUNNEL: '정상', GRAFANA: '정상', N8N: '정상'}
         for name, status in expected.items():
             with self.subTest(name=name):
                 self.assertEqual(rows[name][2], status)
@@ -97,9 +104,9 @@ class Edo1ReadinessTests(unittest.TestCase):
         self.assertEqual(self.requests[8000].request.call_args.kwargs['body'], b'{}')
         self.assertEqual(self.requests[18120].request.call_args.kwargs['headers']['Origin'], ORIGIN)
         report = relay.build_report(health, 'fixture').replace('\u2060', '')
-        self.assertEqual(report.count('**검증 완료**'), 4)
+        self.assertEqual(report.count('**검증 완료**'), 6)
         self.assertIn('| eolssu-blog-editor-writable | ✅\u00a0**검증 완료** | GET /config HTTP 200', report)
-        self.assertIn('| Grafana | ✅\u00a0**정상** |', report)
+        self.assertIn('| 모니터링(Grafana) | ✅\u00a0**검증 완료** | GET /api/health HTTP 200', report)
         self.assertIn('장애 0 · 주의 0', report)
         self.assertIn('미검증 0', report)
         self.assertIn('**로컬 수신 정상**', report)
@@ -107,21 +114,41 @@ class Edo1ReadinessTests(unittest.TestCase):
         self.assertNotIn('**복제 통신 정상**', report)
         self.assertNotIn('hidden-client-id', report)
 
+    def test_container_report_uses_the_node_scrape_without_rechecking_prometheus_readiness(self):
+        self.containers = [container(NODE_EXPORTER)]
+        active_target = {'labels': {'job': 'node'}, 'health': 'up',
+                         'lastScrape': datetime.now(timezone.utc).isoformat()}
+        targets = {'status': 'success', 'data': {'activeTargets': [active_target]}}
+        for response, expected in ((targets, '정상'), (b'invalid json', '확인 불가')):
+            with self.subTest(expected=expected):
+                self.responses[3001] = (200, 'application/json', response)
+                with patch.object(collector, 'snapshot', return_value=({}, self.containers, {}, [])), \
+                     patch.object(collector.http.client, 'HTTPConnection', side_effect=self.connection) as http:
+                    report = collector.main('containers', 'edo1')
+                readiness = report['facts'][0]['readiness']
+                self.assertIsNotNone(readiness)
+                self.assertEqual(readiness[0], expected)
+                self.assertIn('Prometheus', readiness[1])
+                http.assert_called_once()
+                self.requests[3001].request.assert_called_once_with('GET', '/api/v1/targets')
+
     def test_invalid_responses_fail_and_unavailable_addresses_remain_visible(self):
         self.responses[18120] = (200, 'text/html', b'<html>wrong app</html>')
         self.responses[18121] = (200, 'application/json', {'canBatch': False})
         self.responses[8081] = (200, 'text/html', b'<html>not the login form</html>')
         self.responses[8000] = (422, 'application/json', {'errors': []})
         self.responses[20241] = (503, '', {'status': 503, 'readyConnections': 0})
+        self.responses[3000] = (200, 'application/json', {'database': 'error'})
+        self.responses[5688] = (503, 'application/json', {'status': 'error'})
         self.ss = subprocess.CompletedProcess([], 0, '', '')
         health = self.collect()
         rows = {row[0]: row for row in health['rows']}
         report = relay.build_report(health, 'fixture').replace('\u2060', '')
         self.assertNotIn('검증 완료', report)
         self.assertNotIn('통신 정상', report)
-        self.assertIn('**장애 6**', report)
+        self.assertIn('**장애 8**', report)
         self.assertNotIn('로컬 수신 정상', report)
-        for name in (BLOG_LOGIN, BLOG_WRITABLE, PHPMYADMIN, AI, TUNNEL):
+        for name in (BLOG_LOGIN, BLOG_WRITABLE, PHPMYADMIN, AI, TUNNEL, GRAFANA, N8N):
             self.assertEqual(rows[name][2], '실패', rows[name])
         self.assertEqual(rows[MYSQL_PROXY][2], '실패')
         self.assertIn('0', rows[TUNNEL][3])
