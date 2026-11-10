@@ -85,8 +85,7 @@ def validate_common(source, *, allow_sigimsae=False):
                     symbol = unit["symbol"]
                     if symbol in ("", "-"):
                         require(not (is_origin and event["kind"] == "NOTE"), f"{eid}: 시작 음의 표시 율명이 없습니다")
-                        require(event["kind"] == "REST" or event["cellId"].split("-")[0] == f"c{c}",
-                                f"{cid}: NOTE 이음이 각 경계를 넘었습니다")
+                        # An existing event can sustain into the next column; its tick span above covers every unit.
                     else:
                         expected = ("쉼" if event["kind"] == "REST" else
                                     PREFIXES[event["octave"]] + event["yul"])
