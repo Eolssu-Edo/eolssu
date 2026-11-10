@@ -73,9 +73,7 @@ import eolssu.shared.generated.resources.sheetedit_duration_half
 import eolssu.shared.generated.resources.sheetedit_duration_other
 import eolssu.shared.generated.resources.sheetedit_duration_quarter
 import eolssu.shared.generated.resources.sheetedit_duration_sixteenth
-import eolssu.shared.generated.resources.sheetedit_hint_jeongganbo
 import eolssu.shared.generated.resources.sheetedit_preview
-import eolssu.shared.generated.resources.sheetedit_redo
 import eolssu.shared.generated.resources.sheetedit_staff_back
 import eolssu.shared.generated.resources.sheetedit_staff_hint
 import eolssu.shared.generated.resources.sheetedit_staff_note_label
@@ -87,7 +85,6 @@ import eolssu.shared.generated.resources.sheetedit_staff_where_span
 import eolssu.shared.generated.resources.sheetedit_staff_where_sub
 import eolssu.shared.generated.resources.sheetedit_subtitle_editing
 import eolssu.shared.generated.resources.sheetedit_subtitle_staff
-import eolssu.shared.generated.resources.sheetedit_undo
 import eolssu.shared.generated.resources.sheetedit_up
 import eolssu.shared.generated.resources.sheetedit_view_jeongganbo
 import eolssu.shared.generated.resources.sheetedit_view_staff
@@ -103,8 +100,6 @@ class SheetEditActions(
     val onSelectCell: (Int) -> Unit,
     /** 악보에서 누른 정간과 그 안의 소박 순서. */
     val onSelectUnit: (Int, Int) -> Unit,
-    val onUndo: () -> Unit,
-    val onRedo: () -> Unit,
     val onSelectStaffNote: (StaffNoteKey) -> Unit,
     val onShiftStaffNote: (Int) -> Unit,
     val input: EditInputActions,
@@ -163,8 +158,7 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 if (staff) {
                     HintText(stringResource(Res.string.sheetedit_staff_hint), Modifier.weight(1f).padding(start = 4.dp), size = 12)
                 } else {
-                    SquareIconButton(SheetEditIcons.Undo, stringResource(Res.string.sheetedit_undo), actions.onUndo, enabled = state.canUndo)
-                    SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.onRedo, enabled = state.canRedo)
+                    // 실행 취소·다시 실행은 아래 입력판 첫 줄에 있다.
                     Box(Modifier.weight(1f))
                 }
                 if (state.draft.original == null) SegmentTabs(
@@ -190,7 +184,6 @@ private fun JeongganboContent(state: SheetEditUiState, actions: SheetEditActions
         if (state.reviewIssues.isNotEmpty()) ReviewBanner(state, actions)
         else if (state.pendingChecks > 0) ImportBanner(state.pendingChecks, actions.onOpenChecks)
         Column(Modifier.weight(1f).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            HintText(stringResource(Res.string.sheetedit_hint_jeongganbo))
             EditScoreBoard(
                 song = song,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -204,7 +197,7 @@ private fun JeongganboContent(state: SheetEditUiState, actions: SheetEditActions
                 },
             )
         }
-        EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.availablePitches, actions.input)
+        EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.availablePitches, state.canUndo, state.canRedo, actions.input)
     }
 }
 

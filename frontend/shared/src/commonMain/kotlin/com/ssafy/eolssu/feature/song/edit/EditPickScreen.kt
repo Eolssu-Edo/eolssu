@@ -73,12 +73,11 @@ import eolssu.shared.generated.resources.sheetedit_pick_hint_songs
 import eolssu.shared.generated.resources.sheetedit_pick_kind_jeongganbo
 import eolssu.shared.generated.resources.sheetedit_pick_meta
 import eolssu.shared.generated.resources.sheetedit_pick_meta_updated
-import eolssu.shared.generated.resources.sheetedit_pick_subtitle
 import eolssu.shared.generated.resources.sheetedit_pick_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 불러올 악보 고르기(EditPick): 1) 편집할 악기 → 2) 그 악기의 내 악보 / 제공 곡 탭, 제공 곡 검색, 고를 수 있는 줄 목록.
+ * 불러올 악보 고르기(EditPick): 1) 편집할 악기 → 2) 그 악기의 제공 곡 / 내 악보 탭, 제공 곡 검색, 고를 수 있는 줄 목록.
  * 악기를 고르기 전에는 악보를 보이지 않는다. 줄을 누르면 고르기만 하고 오른쪽 위 '선택'으로 편집에 간다(고르기 전에는 흐린 '선택').
  */
 @Composable
@@ -99,7 +98,6 @@ fun EditPickScreen(
             EolssuTopBar(
                 stringResource(Res.string.sheetedit_pick_title),
                 onBack = onBack,
-                subtitle = stringResource(Res.string.sheetedit_pick_subtitle),
             ) {
                 val action = when {
                     state.copying -> Res.string.sheetedit_pick_copying
@@ -126,11 +124,13 @@ fun EditPickScreen(
             } else {
                 Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SegmentTabs(
-                        labels = listOf(stringResource(Res.string.mysongs_tab_sheets), stringResource(Res.string.mysongs_tab_songs)),
+                        labels = EditPickTab.entries.map {
+                            stringResource(if (it == EditPickTab.Songs) Res.string.mysongs_tab_songs else Res.string.mysongs_tab_sheets)
+                        },
                         selected = state.tab.ordinal,
                         onSelect = { onSelectTab(EditPickTab.entries[it]) },
                         large = true,
-                        counts = listOf(state.sheets.size, state.songs.size),
+                        counts = EditPickTab.entries.map { if (it == EditPickTab.Songs) state.songs.size else state.sheets.size },
                     )
                     if (state.tab == EditPickTab.Songs) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
