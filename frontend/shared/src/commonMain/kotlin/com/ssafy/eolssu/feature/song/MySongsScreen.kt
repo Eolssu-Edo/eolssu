@@ -35,16 +35,20 @@ import com.ssafy.eolssu.feature.song.component.providedSongMeta
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
+import com.ssafy.eolssu.feature.song.component.SongSearchField
 import com.ssafy.eolssu.feature.song.component.SongSortButton
 import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
+import eolssu.shared.generated.resources.mysongs_clear_query
 import eolssu.shared.generated.resources.mysongs_delete
 import eolssu.shared.generated.resources.mysongs_delete_message
 import eolssu.shared.generated.resources.mysongs_delete_title
 import eolssu.shared.generated.resources.mysongs_empty_body
 import eolssu.shared.generated.resources.mysongs_reset_filter
 import eolssu.shared.generated.resources.mysongs_sheet_count
+import eolssu.shared.generated.resources.mysongs_sheet_empty
+import eolssu.shared.generated.resources.mysongs_sheet_empty_body
 import eolssu.shared.generated.resources.mysongs_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -53,6 +57,10 @@ class MySongsActions(
     val onBack: () -> Unit,
     val onSelectTab: (MySongsTab) -> Unit,
     val onSelectFilter: (SongLevelFilter) -> Unit,
+    val onQueryChange: (String) -> Unit,
+    val onClearQuery: () -> Unit,
+    /** 제공 곡 빈 결과의 '검색 조건 초기화'·'전체 곡 보기': 검색어와 단계를 함께 되돌린다. */
+    val onResetSongFilters: () -> Unit,
     val onToggleSort: () -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onOpenSheet: (MySheet) -> Unit,
@@ -129,7 +137,8 @@ private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHos
 }
 
 /**
- * SONG-03 본문(`.body`, 간격 12dp): 탭 · 제공 곡(단계 필터 · 오른쪽 정렬 버튼 · 곡 줄) 또는 내 악보(악보 추가 · 'n개' · 악보 줄).
+ * SONG-03 본문(`.body`, 간격 12dp): 탭 · 두 탭이 함께 쓰는 제목 검색칸 · 제공 곡(단계 필터 · 오른쪽 정렬 버튼 · 곡 줄)
+ * 또는 내 악보(악보 추가 · 'n개' · 악보 줄, 검색에 맞는 악보가 없으면 '찾는 악보가 없어요.').
  * 개수 문구는 왼쪽 4dp 들이고 목록과 8dp 떨어진다. [columns]가 2 이상이면 줄을 격자로 놓는다.
  */
 @Composable
@@ -142,14 +151,18 @@ internal fun MySongsBody(
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         MySongsTabSwitch(state.tab, state.songs.size, state.sheetCount, actions.onSelectTab, Modifier.padding(top = 4.dp))
+        SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery)
+        val searching = state.query.isNotBlank()
         when (state.tab) {
             MySongsTab.Songs -> {
                 SongLevelChips(state.filter, actions.onSelectFilter, singleLine = true)
                 if (state.loadState != SongLoadState.Ready || state.songs.isEmpty()) {
                     SongLoadNotice(state.loadState, actions.onRetry)
                 } else if (state.visibleSongs.isEmpty()) {
-                    SongEmptyResult(
-                        onReset = { actions.onSelectFilter(SongLevelFilter.All) },
+                    // 검색어가 있으면 평가할 곡 고르기와 같은 문구('다른 제목이나 난이도로…' · '검색 조건 초기화')를 쓴다.
+                    if (searching) SongEmptyResult(onReset = actions.onResetSongFilters)
+                    else SongEmptyResult(
+                        onReset = actions.onResetSongFilters,
                         body = stringResource(Res.string.mysongs_empty_body),
                         resetLabel = stringResource(Res.string.mysongs_reset_filter),
                     )
@@ -164,8 +177,16 @@ internal fun MySongsBody(
             }
             MySongsTab.Sheets -> {
                 AddSheetButton(actions.onAddSheet)
-                val sheets = state.sheets.orEmpty()
+                val sheets = state.visibleSheets
                 if (state.sheetLoadState != SongLoadState.Ready) SongLoadNotice(state.sheetLoadState, actions.onRetry)
+                if (sheets.isEmpty() && state.sheetCount > 0 && searching) {
+                    SongEmptyResult(
+                        onReset = actions.onClearQuery,
+                        title = stringResource(Res.string.mysongs_sheet_empty),
+                        body = stringResource(Res.string.mysongs_sheet_empty_body),
+                        resetLabel = stringResource(Res.string.mysongs_clear_query),
+                    )
+                }
                 if (sheets.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ListNote(stringResource(Res.string.mysongs_sheet_count, sheets.size))

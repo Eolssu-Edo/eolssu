@@ -5,6 +5,7 @@ import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.auth.application.SignUpResult
 import com.ssafy.eolssu.backend.feature.auth.application.SignUpService
+import com.ssafy.eolssu.backend.feature.auth.domain.NicknamePolicy
 import com.ssafy.eolssu.backend.feature.auth.domain.SignUpCommand
 import com.ssafy.eolssu.backend.feature.auth.domain.TermAgreement
 import jakarta.validation.Valid
@@ -43,7 +44,7 @@ class SignUpController(private val service: SignUpService, private val cookies: 
 class SignUpRequest(
     @field:NotBlank @field:Email @field:Size(max = 320) val email: String,
     val password: String,
-    @field:NotBlank @field:Size(max = 60) val nickname: String,
+    @field:NotBlank @field:Size(max = NicknamePolicy.MAX_LENGTH) val nickname: String,
     @field:NotBlank val verificationToken: String,
     @field:Valid val agreements: List<AgreementRequest>,
     @field:Pattern(regexp = "[1-9][0-9]{0,17}") val instrumentId: String? = null,

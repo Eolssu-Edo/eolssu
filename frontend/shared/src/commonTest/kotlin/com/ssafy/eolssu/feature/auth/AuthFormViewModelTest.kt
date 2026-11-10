@@ -12,6 +12,7 @@ import com.ssafy.eolssu.data.user.MemberResult
 import com.ssafy.eolssu.data.user.Registration
 import com.ssafy.eolssu.data.user.TermAgreement
 import com.ssafy.eolssu.data.user.AuthRepository
+import com.ssafy.eolssu.data.user.LoginResult
 import com.ssafy.eolssu.data.user.VerificationPurpose
 import io.ktor.client.engine.mock.respond
 import kotlin.test.Test
@@ -62,7 +63,15 @@ class AuthFormViewModelTest {
 
     @Test
     fun loginFailureShowsErrorUntilAFieldChanges() = runTest {
-        val viewModel = LoginViewModel(repository)
+        // 입력 검사는 통과하지만 서버가 계정을 거절하는 경우.
+        var accept = false
+        val server = object : AuthRepository by repository {
+            override suspend fun logIn(email: String, password: String) =
+                if (accept) repository.logIn(email, password) else LoginResult.WrongCredentials
+        }
+        val viewModel = LoginViewModel(server)
+        viewModel.changeEmail("user@example.com")
+        viewModel.changePassword("wrong")
 
         assertFalse(runImmediately { viewModel.logIn() })
         assertEquals(FieldError.LoginFailed, viewModel.uiState.value.error)
@@ -70,6 +79,7 @@ class AuthFormViewModelTest {
         viewModel.changeEmail("user@example.com")
         assertNull(viewModel.uiState.value.error)
 
+        accept = true
         viewModel.changePassword("password")
         assertTrue(runImmediately { viewModel.logIn() })
         assertNull(viewModel.uiState.value.error)
@@ -152,6 +162,38 @@ class AuthFormViewModelTest {
         assertNull(instruments.instrument.value)
         viewModel.selectInstrument(Instrument.Danso)
         assertTrue(viewModel.complete())
+        catalogClient.close()
+    }
+
+    @Test
+    fun profileKeepsNicknameWithinTenCharactersAndSendsItWithTheChosenInstrument() = runTest {
+        val catalogClient = com.ssafy.eolssu.core.network.createHttpClient(io.ktor.client.engine.mock.MockEngine {
+            respond(
+                """{"isSuccess":true,"result":{"items":[{"instrumentId":"73","code":"DANSO","name":"단소"},{"instrumentId":"74","code":"SOGEUM","name":"소금"}]}}""",
+                headers = io.ktor.http.headersOf(io.ktor.http.HttpHeaders.ContentType, "application/json"),
+            )
+        }, com.ssafy.eolssu.core.network.ServerAddress.Production)
+        val instruments = InstrumentRepository(FakeKeyValueStore(), com.ssafy.eolssu.data.song.InstrumentCatalog(catalogClient))
+        val sent = mutableListOf<Registration>()
+        val viewModel = ProfileSetupViewModel(instruments, SampleUserRepository(),
+            object : AuthRepository by SampleAuthRepository({ 0L }) {
+                override suspend fun signUp(request: Registration): MemberResult { sent += request; return MemberResult.Done }
+            },
+            AccountDraft().apply { email = "member@example.test"; token = "verified"; password = "test-pass1!"; purpose = VerificationPurpose.SignUp; agreements = listOf(TermAgreement("1", "v1", true)) })
+
+        // 붙여넣기로 넘친 글자는 남기지 않고, 가득 찬 칸에 더 쳐도 바뀌지 않는다.
+        viewModel.changeNickname("얼쑤얼쑤얼쑤얼쑤얼쑤얼쑤")
+        assertEquals("얼쑤얼쑤얼쑤얼쑤얼쑤", viewModel.uiState.value.nickname)
+        viewModel.changeNickname("얼쑤얼쑤얼쑤얼쑤얼쑤가")
+        assertEquals("얼쑤얼쑤얼쑤얼쑤얼쑤", viewModel.uiState.value.nickname)
+        viewModel.selectInstrument(Instrument.Sogeum)
+        assertEquals(Instrument.Sogeum, viewModel.uiState.value.instrument)
+
+        assertTrue(viewModel.complete())
+        assertEquals(1, sent.size)
+        assertEquals("얼쑤얼쑤얼쑤얼쑤얼쑤", sent.single().nickname)
+        assertEquals("74", sent.single().instrumentId)
+        assertEquals(Instrument.Sogeum, instruments.instrument.value)
         catalogClient.close()
     }
 

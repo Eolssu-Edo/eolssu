@@ -172,3 +172,20 @@ S15P31E102-451에서 5곡을 더했다(35항목). 북천이 단소1(25)과 천�
 - 서버에는 `enable_scoring.py`, `scoring-plans/danso.json`, `scoring-plans/danso-scores/`를 같은 상대 위치로 둔다.
 
 목표 파일은 `enable_scoring.target_score(운영 악보, convert_answer(정답))`로 만든다. 운영 곡 정보·출처 ID·황 음높이는 운영 값을 두고, 음표·정간·틱은 정답 값을 쓴다. 박 단위나 정간당 박이 다르면 멈춘다. 악보 버전을 올리면 그 곡의 모범 음원은 새 버전 음원이 연결될 때까지 나오지 않는다(`ModelAudioMapper.xml`). 그래서 적용 시점은 모범 음원 담당과 맞춘다.
+
+## 교정 9곡의 악보·음원 동시 적용 (699)
+
+`publish_scoring_repairs.py`는 정확히 `19,32,37,45,50,63,65,104,109`만 처리한다. 62는 포함할 수 없다. `release.json`의 schema는 `eolssu-scoring-repair-release/v1`, task는 `S15P31E102-699`이며 각 entry에 변경 전 곡·v1 음원 행, 목표 score/audio/performance 파일의 상대 경로·SHA-256·bytes와 목표 음원 메타데이터를 담는다. 실제 적용 묶음의 SHA와 검증·복구 근거는 [699 실행 기록](../../docs/plans/S15P31E102-699.md#2026-11-10-운영-적용-결과)을 따른다.
+
+Python 파일 세 개(`publish_scoring_repairs.py`, `enable_scoring.py`, `stage_model_audio.py`)와 검증한 bundle을 서버에 준비한다. receipt는 매번 새 경로를 쓴다.
+
+```sh
+sudo python3 publish_scoring_repairs.py --bundle release --receipt 699-check.json
+sudo flock -w 120 /run/lock/eolssu-backend-deploy.lock python3 publish_scoring_repairs.py --bundle release --receipt 699-apply.json --apply
+sudo python3 publish_scoring_repairs.py --bundle release --receipt 699-after.json
+sudo /opt/eolssu-backup/backup.py send db
+```
+
+적용 모드는 새 해시 prefix에 조건부 R2 PUT·전체 읽기 SHA·MIME를 검사하고, lock 안에서 DB·설정 prechange 백업을 완료한다. 곡·음원 행 잠금과 변경 전 값·음원 수·세션 부재를 다시 확인한 한 트랜잭션에서 v2 음원 추가·악보 교체·채점 활성화를 수행한다. 기존 v1 음원과 조회 이력은 유지한다. 운영 드리프트나 일부만 적용된 상태이면 중단한다. timeout/`apply-outcome-unknown`이면 새 receipt의 조회 모드로 커밋 여부부터 확인한다. 롤백이 필요하면 신규 연습 세션 유무를 다시 확인하고 보관한 beforeSong에 대한 대상별 역변경을 준비한다. 공유 DB 전체를 과거 백업으로 덮어쓰지 않는다.
+
+빠른 검사: `python -m unittest discover -s infra/catalog -p test_publish_scoring_repairs.py`. 실제 DB 검사는 일회성 `eolssu-existing-score-704-test` MySQL 컨테이너와 별도 `repair_score_699_test` DB를 쓴다. `REPAIR_SCORE_TEST_MYSQL_CONTAINER`, `REPAIR_SCORE_TEST_MYSQL_PASSWORD`를 지정하면 성공·재실행 보존과 마지막 곡의 메타데이터/음원/추가 판본/세션 충돌에서 전체 롤백을 검사한다.

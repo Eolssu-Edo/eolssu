@@ -2,8 +2,19 @@ package com.ssafy.eolssu.feature.practice
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class PracticePlayerNoticeTest {
+    @Test fun missingPersonalAudioReplacesTheModelControlsButNotRhythm() {
+        val state = PracticeUiState(mine = true, personalAudio = PracticePersonalAudio.Missing)
+        assertEquals(PracticePersonalAudio.Missing, state.personalAudioControl)
+        assertEquals(PracticePlayerNotice.None, state.playerNotice)
+        assertEquals(PracticePlayerNotice.PersonalDownloadFailed, state.copy(personalAudio = PracticePersonalAudio.Failed).playerNotice)
+        assertNull(state.copy(personalAudio = PracticePersonalAudio.Ready).personalAudioControl)
+        assertNull(state.copy(mine = false).personalAudioControl)
+        assertNull(state.copy(mode = PracticeMode.Rhythm).personalAudioControl)
+    }
+
     @Test fun readyPlayingAndCompletedNeverShowRoutinePlaybackText() {
         for (status in listOf(ModelAudioStatus.Idle, ModelAudioStatus.Playing, ModelAudioStatus.Paused, ModelAudioStatus.Completed)) {
             assertEquals(PracticePlayerNotice.None, PracticeUiState(modelAudioStatus = status).playerNotice)

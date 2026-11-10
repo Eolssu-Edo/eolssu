@@ -35,6 +35,7 @@ import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
 import com.ssafy.eolssu.feature.auth.component.AuthStepProgress
 import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.feature.auth.component.AuthTopBar
+import com.ssafy.eolssu.feature.auth.component.PasswordChecklist
 import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
@@ -44,7 +45,6 @@ import eolssu.shared.generated.resources.auth_next
 import eolssu.shared.generated.resources.auth_password
 import eolssu.shared.generated.resources.auth_password_confirm
 import eolssu.shared.generated.resources.auth_password_confirm_placeholder
-import eolssu.shared.generated.resources.auth_password_help
 import eolssu.shared.generated.resources.auth_password_placeholder
 import eolssu.shared.generated.resources.auth_reset_done
 import eolssu.shared.generated.resources.auth_reset_password_heading
@@ -85,15 +85,19 @@ fun PasswordSetupScreen(
             AuthHeading(stringResource(if (signUp) Res.string.auth_signup_password_heading else Res.string.auth_reset_password_heading))
             VerifiedEmail(email)
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                EolssuTextField(
-                    value = state.password,
-                    onValueChange = onPasswordChange,
-                    label = stringResource(if (signUp) Res.string.auth_password else Res.string.auth_new_password),
-                    placeholder = stringResource(Res.string.auth_password_placeholder),
-                    type = TextFieldType.Password,
-                    help = stringResource(Res.string.auth_password_help),
-                    error = state.passwordError?.let { stringResource(it.message) },
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // 규칙 미충족은 문장 대신 체크리스트로 보이므로, 입력칸 오류 문장은 그 밖의 오류(미입력·128자 초과·재인증)만 쓴다.
+                    val ruleError = state.passwordError == FieldError.PasswordRule
+                    EolssuTextField(
+                        value = state.password,
+                        onValueChange = onPasswordChange,
+                        label = stringResource(if (signUp) Res.string.auth_password else Res.string.auth_new_password),
+                        placeholder = stringResource(Res.string.auth_password_placeholder),
+                        type = TextFieldType.Password,
+                        error = state.passwordError?.takeUnless { ruleError }?.let { stringResource(it.message) },
+                    )
+                    PasswordChecklist(state.password, highlightUnmet = ruleError)
+                }
                 EolssuTextField(
                     value = state.passwordConfirm,
                     onValueChange = onPasswordConfirmChange,

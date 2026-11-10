@@ -1,5 +1,8 @@
 import copy
+import hashlib
+import os
 import unittest
+from unittest.mock import patch
 import tempfile
 import json
 import time
@@ -7,15 +10,40 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from data.src.playback.tests._helpers import common_notes
+from data.src.playback.tests._helpers import common_notes, common_small_score, HAVE_ENCODER, sampler
 from data.src.playback.common_score import convert_common_score
 from data.src.playback.midi import read_midi, write_midi
-from data.src.playback.render_request import prepare_score, jangdan_events, load_janggu, estimate
+from data.src.playback.render_request import prepare_score, jangdan_events, load_janggu, estimate, render
 from data.src.playback.score import compile_score
 from data.src.playback.tests._helpers import score, synthetic_sampler
 
 
 class RenderRequestTests(unittest.TestCase):
+    @unittest.skipUnless(HAVE_ENCODER, "M4A requires ffmpeg and ffprobe")
+    def test_render_binds_repeat_and_tempo_cues_to_final_m4a_and_written_score(self):
+        score = common_small_score()
+        score['events'][1]['sigimsae'] = ['반복표', '조금느리게', '덧길이표']
+        score['events'][2]['sigimsae'] = ['본래속도로', '반길이표']
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            assets = root / 'assets.json'
+            assets.write_text('{"sogeum":"unused.zip"}', encoding='utf-8')
+            source_hash = 'b' * 64
+            request = {'score': score, 'instrument': 'sogeum', 'bpm': 60, 'withJangdan': False,
+                       'performanceSourceSha256': source_hash}
+            (root / 'request.json').write_text(json.dumps(request), encoding='utf-8')
+            with patch.dict(os.environ, {'PLAYBACK_ASSETS_JSON': str(assets)}), \
+                    patch('data.src.playback.__main__.CatSampler', return_value=sampler()):
+                render(directory)
+            performance = json.loads((root / 'performance.common.json').read_text(encoding='utf-8'))
+            self.assertEqual(performance['sourceSha256'], source_hash)
+            self.assertEqual(performance['instrument'], 'DANSO')
+            self.assertEqual(performance['scoreVersion'], score['score']['scoreVersion'])
+            self.assertEqual(performance['audioSha256'], hashlib.sha256((root / 'audio.m4a').read_bytes()).hexdigest())
+            self.assertEqual([s['startTick'] for s in performance['segments']], [0, 1, 2, 3] * 2)
+            self.assertEqual([s['endMs'] for s in performance['segments']],
+                             [1000, 2875, 3375, 4375, 5375, 7250, 7750, 8750])
+
     def test_estimate_uses_export_tail_and_rejects_ten_minutes_before_rendering(self):
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)

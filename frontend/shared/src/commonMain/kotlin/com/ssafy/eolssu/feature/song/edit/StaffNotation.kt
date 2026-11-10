@@ -109,8 +109,9 @@ data class StaffPitch(val letter: Int, val octave: Int, val flat: Boolean) {
 }
 
 /** 황을 [hwang]으로 놓았을 때 [yul]의 오선보 음 높이. */
-fun staffPitch(yul: Yul, hwang: HwangPitch): StaffPitch {
-    val midi = hwang.midi + yulSemitone(yul)
+fun staffPitch(yul: Yul, hwang: HwangPitch): StaffPitch = staffPitch(hwang.midi + yulSemitone(yul))
+
+internal fun staffPitch(midi: Int): StaffPitch {
     val (letter, flat) = FlatSpelling[midi % 12]
     return StaffPitch(letter, midi / 12 - 1, flat)
 }

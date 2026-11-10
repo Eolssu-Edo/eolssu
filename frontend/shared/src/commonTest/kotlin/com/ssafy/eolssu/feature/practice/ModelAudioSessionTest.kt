@@ -4,9 +4,11 @@ import com.ssafy.eolssu.core.audio.AudioPlaybackState
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.AudioSource
+import com.ssafy.eolssu.core.audio.LocalAudioFile
 import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
 import com.ssafy.eolssu.data.song.ModelAudio
 import com.ssafy.eolssu.data.song.ModelAudioRepository
+import com.ssafy.eolssu.data.song.SheetPlayback
 import com.ssafy.eolssu.data.song.audioFixture
 import com.ssafy.eolssu.data.song.smallScoreSong
 import kotlinx.coroutines.CompletableDeferred
@@ -17,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -41,6 +44,8 @@ class ModelAudioSessionTest {
         session.play(song, song.baseBpm)
         runCurrent()
         assertEquals(1, player.loads)
+        assertEquals(audioFixture().audioUrl, player.requestedSource?.url)
+        assertNull(player.requestedSource?.localFile)
         assertEquals(ModelAudioStatus.Loading, session.state.value.status)
         player.emit(AudioPlaybackStatus.Playing, 350)
         runCurrent()
@@ -107,6 +112,35 @@ class ModelAudioSessionTest {
         assertTrue(tail.playing)
     }
 
+    @Test fun personalMixPlaysFromDeviceAndUsesItsGeneratedBpmWithoutLayeringAccompaniment() = runTest {
+        val player = FakeAudioPlayer()
+        val localFile = LocalAudioFile("/app/files/sheet-audio/42.m4a")
+        val audio = audioFixture().copy(audioUrl = "", bpm = 75, sheetPlayback = SheetPlayback(withJangdan = true, localFile = localFile))
+        var accompanimentRequests = 0
+        val session = ModelAudioSession(modelRepository { audio }, player, backgroundScope,
+            prepareAccompaniment = { _, _ -> accompanimentRequests++; false })
+        session.play(song, 60)
+        runCurrent()
+        assertEquals(1, player.loads)
+        assertEquals(localFile, player.requestedSource?.localFile)
+        assertEquals("", player.requestedSource?.url)
+        assertEquals(0.8f, player.requestedSpeed)
+        assertEquals(0, accompanimentRequests)
+    }
+
+    @Test fun missingOptionalAccompanimentDoesNotPreventPlayingDownloadedPersonalAudio() = runTest {
+        val localFile = LocalAudioFile("/app/files/sheet-audio/42.m4a")
+        val audio = audioFixture().copy(audioUrl = "", sheetPlayback = SheetPlayback(withJangdan = false, localFile = localFile))
+        val player = FakeAudioPlayer()
+        val session = ModelAudioSession(modelRepository { audio }, player, backgroundScope, prepareAccompaniment = { _, _ -> false })
+        session.play(song, song.baseBpm)
+        runCurrent()
+        assertEquals(localFile, player.requestedSource?.localFile)
+        player.emit(AudioPlaybackStatus.Playing, 500)
+        runCurrent()
+        assertEquals(ModelAudioStatus.Playing, session.state.value.status)
+    }
+
     @Test fun unsupportedAndTruncatedFileAreNotSuccessfulPlayback() = runTest {
         val unavailable = ModelAudioSession(modelRepository { audioFixture() }, UnavailableAudioPlayer(), backgroundScope)
         unavailable.play(song, 60)
@@ -134,9 +168,11 @@ internal class FakeAudioPlayer : AudioPlayer {
     var loads = 0
     var requestedPosition = 0L
     var requestedSpeed = 1f
+    var requestedSource: AudioSource? = null
     var released = false
     override fun load(source: AudioSource, positionMs: Long, speed: Float) {
         loads++
+        requestedSource = source
         requestedPosition = positionMs
         requestedSpeed = speed
         state.value = AudioPlaybackState(source.id, AudioPlaybackStatus.Loading, positionMs, 3550)

@@ -106,18 +106,51 @@ class PracticeSongLoadTest {
         }
     }
 
+    @Test fun aPersonalSheetIdIsNeverUsedToLoadAPublishedSong() {
+        var catalogRequests = 0
+        val personal = smallScoreSong().copy(title = "내 악보")
+        var loadedSheetId: String? = null
+        loadTest(repository { catalogRequests++; smallScoreSong() }, mine = true, loadPersonalSheet = { id ->
+            loadedSheetId = id
+            personal
+        }) { vm, meter, _ ->
+            vm.onScreenShown()
+            runCurrent()
+            assertEquals(0, catalogRequests)
+            assertEquals("db-42", loadedSheetId)
+            assertEquals(personal, vm.uiState.value.song)
+            assertTrue(vm.uiState.value.solo)
+            assertFalse(meter.isOpen)
+        }
+    }
+
+    @Test fun personalTempoIsSeparateFromPublishedSongWithTheSameId() {
+        val song = smallScoreSong()
+        val settings = com.ssafy.eolssu.data.practice.PracticeSettings(bpmBySong = mapOf(song.id to 48))
+        val personal = PracticeUiState(song = song, mine = true, settings = settings)
+        assertEquals(song.baseBpm, personal.bpm)
+        val saved = settings.applyTempo(personal.draft, song, mine = true)
+        assertEquals(song.baseBpm, saved.bpmBySheet[song.id])
+        assertEquals(48, personal.copy(mine = false, settings = saved).bpm)
+    }
+
     private fun repository(load: suspend () -> Song?): SongRepository = object : SongRepository by SampleSongRepository() {
         override suspend fun getSong(songId: String): Song? = load()
     }
 
-    private fun loadTest(repository: SongRepository, block: suspend TestScope.(PracticeViewModel, PracticeTimeMeter, ViewModelStore) -> Unit) = runTest {
+    private fun loadTest(
+        repository: SongRepository,
+        mine: Boolean = false,
+        loadPersonalSheet: (suspend (String) -> Song?)? = null,
+        block: suspend TestScope.(PracticeViewModel, PracticeTimeMeter, ViewModelStore) -> Unit,
+    ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val store = ViewModelStore()
         val meter = PracticeTimeMeter(now = { 0L })
         try {
             val settings = FakeKeyValueStore()
             val vm = PracticeViewModel("db-42", false, repository, PracticeSettingsStore(settings), meter,
-                PracticeTimeQueue(settings, null, com.ssafy.eolssu.core.network.SignedInMember(settings), backgroundScope))
+                PracticeTimeQueue(settings, null, com.ssafy.eolssu.core.network.SignedInMember(settings), backgroundScope), mine = mine, loadPersonalSheet = loadPersonalSheet)
             store.put("practice", vm)
             block(vm, meter, store)
         } finally {

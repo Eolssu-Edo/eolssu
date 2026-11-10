@@ -22,6 +22,7 @@ data class PracticeSettings(
     val bpmBySong: Map<String, Int> = emptyMap(),
     val fingeringView: Boolean = false,
     val instrumentId: String? = null,
+    val bpmBySheet: Map<String, Int> = emptyMap(),
 )
 
 /**

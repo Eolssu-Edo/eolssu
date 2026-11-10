@@ -44,6 +44,7 @@ import eolssu.shared.generated.resources.practice_popup_restart_confirm
 import eolssu.shared.generated.resources.practice_popup_restart_title
 import eolssu.shared.generated.resources.practice_popup_start_again
 import eolssu.shared.generated.resources.practice_popup_to_ready
+import eolssu.shared.generated.resources.practice_popup_to_song_info
 import eolssu.shared.generated.resources.practice_popup_too_large_body
 import eolssu.shared.generated.resources.practice_popup_too_large_title
 import eolssu.shared.generated.resources.practice_step_blocked_body
@@ -73,9 +74,11 @@ class PracticeDialogActions(
 /**
  * PRACTICE-01 확인 창(보드 Dialog-*). 아이콘 고리는 권한·완료·경고 셋이고, 제목만 있는 창(재시작·나가기·중단 확인)은 고리가 없다.
  * [forStep]이면(혼자 연습) 마이크 권한·녹음 실패 안내를 평가 대신 한 음씩 따라 불기 문구로 보이고, 녹음 실패는 확인만 둔다.
+ * [toSongInfo]면(곡 정보에서 바로 시작한 평가) ‘홈으로 가기’·‘연습 준비로’ 대신 ‘곡 정보로’를 보인다(같은 동작이 곡 정보로 돌아간다).
  */
 @Composable
-fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep: Boolean = false) {
+fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep: Boolean = false, toSongInfo: Boolean = false) {
+    val toReady = stringResource(if (toSongInfo) Res.string.practice_popup_to_song_info else Res.string.practice_popup_to_ready)
     val colors = EolssuTheme.colors
     when (popup) {
         PracticePopup.Permission -> EolssuDialog(
@@ -95,7 +98,7 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
             title = stringResource(Res.string.practice_popup_abort_title),
             message = stringResource(Res.string.practice_popup_abort_body),
         ) {
-            EolssuButton(stringResource(Res.string.practice_popup_go_home), actions.onGoHome)
+            EolssuButton(stringResource(if (toSongInfo) Res.string.practice_popup_to_song_info else Res.string.practice_popup_go_home), actions.onGoHome)
             EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onResume, style = EolssuButtonStyle.Secondary)
         }
         PracticePopup.End, PracticePopup.EndAtLimit -> EolssuDialog(
@@ -152,7 +155,7 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
             iconTint = colors.recText,
         ) {
             EolssuButton(stringResource(Res.string.practice_popup_start_again), actions.onRestartNow)
-            EolssuButton(stringResource(Res.string.practice_popup_to_ready), actions.onToReady, style = EolssuButtonStyle.Secondary)
+            EolssuButton(toReady, actions.onToReady, style = EolssuButtonStyle.Secondary)
         }
         PracticePopup.RecordFailed -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_record_failed_title),
@@ -165,7 +168,7 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
                 EolssuButton(stringResource(Res.string.common_confirm), actions.onClose)
             } else {
                 EolssuButton(stringResource(Res.string.practice_popup_start_again), actions.onRestartNow)
-                EolssuButton(stringResource(Res.string.practice_popup_to_ready), actions.onToReady, style = EolssuButtonStyle.Secondary)
+                EolssuButton(toReady, actions.onToReady, style = EolssuButtonStyle.Secondary)
             }
         }
         PracticePopup.TooLarge -> EolssuDialog(
@@ -176,7 +179,7 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
             iconTint = colors.recText,
         ) {
             EolssuButton(stringResource(Res.string.practice_restart), actions.onRestartNow)
-            EolssuButton(stringResource(Res.string.practice_popup_to_ready), actions.onToReady, style = EolssuButtonStyle.Secondary)
+            EolssuButton(toReady, actions.onToReady, style = EolssuButtonStyle.Secondary)
         }
     }
 }

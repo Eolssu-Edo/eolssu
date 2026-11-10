@@ -13,7 +13,17 @@ sealed interface CodeError {
 
     /** 5번 틀렸다. 새 인증번호를 받아야 한다. */
     data object TooManyAttempts : CodeError
+
+    /**
+     * 남은 시간이 있는데 서버가 이 인증번호를 받지 않았다(410: 새 번호로 바뀌었거나 이미 인증에 썼다).
+     * 3분이 지났다는 안내는 틀리므로 따로 둔다. 새 인증번호를 받아야 한다.
+     */
+    data object NoLongerValid : CodeError
 }
+
+/** 새 인증번호를 받기 전까지 남는 오류. */
+internal val CodeError.needsNewCode: Boolean
+    get() = this == CodeError.Expired || this == CodeError.TooManyAttempts || this == CodeError.NoLongerValid
 
 /**
  * AUTH-06 이메일 인증(가입 1/3)·AUTH-10 비밀번호 찾기(1/2) 입력 상태.
@@ -40,7 +50,7 @@ data class EmailVerificationUiState(
         if (codeSent && codeError == null && now >= expiresAtMillis) CodeError.Expired else codeError
 
     /** 만료됐거나 5번 틀려 새 인증번호를 받아야 한다. 이때는 '확인'을 막고 바로 다시 받게 한다. */
-    fun needsNewCode(now: Long): Boolean = codeErrorAt(now).let { it == CodeError.Expired || it == CodeError.TooManyAttempts }
+    fun needsNewCode(now: Long): Boolean = codeErrorAt(now)?.needsNewCode == true
 
     private fun ceilSeconds(millis: Long): Long = (millis.coerceAtLeast(0) + 999) / 1000
 }

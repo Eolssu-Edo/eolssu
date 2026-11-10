@@ -54,6 +54,7 @@ import eolssu.shared.generated.resources.practice_countdown_soon
 import eolssu.shared.generated.resources.practice_score_failed
 import eolssu.shared.generated.resources.practice_score_loading
 import eolssu.shared.generated.resources.practice_score_missing
+import eolssu.shared.generated.resources.practice_sheet_needs_review
 import eolssu.shared.generated.resources.practice_score_retry
 import com.ssafy.eolssu.feature.practice.component.practicePageTitle
 import org.jetbrains.compose.resources.stringResource
@@ -113,7 +114,7 @@ fun PracticeScreen(
         )
     }
     state.popup?.takeUnless { it == PracticePopup.SettingsPaused && state.panel != null }
-        ?.let { PracticeDialog(it, actions.dialog, forStep = state.solo) }
+        ?.let { PracticeDialog(it, actions.dialog, forStep = state.solo, toSongInfo = state.direct) }
 }
 
 /** 곡 상세를 거치지 않고 연습으로 들어와도 로딩·404·통신 실패에서 빠져나오고 재시도할 수 있다. */
@@ -128,6 +129,7 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
             if (state.isSongLoading) CircularProgressIndicator(color = EolssuTheme.colors.accentText)
             Text(stringResource(when (state.songError) {
                 PracticeSongError.NotFound -> Res.string.practice_score_missing
+                PracticeSongError.NeedsReview -> Res.string.practice_sheet_needs_review
                 PracticeSongError.Failed -> Res.string.practice_score_failed
                 null -> Res.string.practice_score_loading
             }), style = MaterialTheme.typography.bodyLarge)
@@ -152,7 +154,8 @@ private fun PracticeCompactLayout(
     livePitch: Map<ScoreUnitKey, LivePitchMark>,
 ) {
     val recordingBar = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
-    val showPlayer = state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)
+    // 곡 정보에서 바로 시작한 평가는 준비 상태의 플레이어·행동 버튼을 두지 않는다(모범 연주 듣기 없이 바로 평가).
+    val showPlayer = !state.direct && state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)
     val fingering = state.fingeringView
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
