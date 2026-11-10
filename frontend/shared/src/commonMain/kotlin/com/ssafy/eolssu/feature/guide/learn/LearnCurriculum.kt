@@ -88,8 +88,8 @@ internal fun LessonDetail.toStageDetail() = LearnStageDetail(
     songs = songs.map { LearnSong(it.title, it.meta) },
 )
 
-/** 5단계 연습 패턴. */
-enum class LearnPattern { Ascending, Descending, SkipOne, SkipTwo, ThreeNoteSong }
+/** 5단계 연습 패턴. 건너뛰기·세 음 동요는 같은 5음의 반복이라 뺐다(S15P31E102-655). */
+enum class LearnPattern { Ascending, Descending }
 
 /** [scale](기본 5음, 낮은 음부터)로 만든 패턴의 음 순서. 기본 5음이 모자라면 빈 목록이다. */
 fun LearnPattern.notes(scale: List<String>): List<String> {
@@ -97,8 +97,5 @@ fun LearnPattern.notes(scale: List<String>): List<String> {
     return when (this) {
         LearnPattern.Ascending -> scale
         LearnPattern.Descending -> scale.reversed()
-        LearnPattern.SkipOne -> listOf(scale[0], scale[2], scale[4], scale[2], scale[0])
-        LearnPattern.SkipTwo -> listOf(scale[0], scale[3], scale[1], scale[4], scale[1])
-        LearnPattern.ThreeNoteSong -> listOf(scale[2], scale[1], scale[0], scale[1], scale[2])
     }
 }
