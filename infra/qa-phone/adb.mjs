@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { validateAction } from './control.mjs';
 import {pasteUnicode} from './unicode-input.mjs';
+import { ApplogMaxBytes } from './applog.mjs';
 const execute = promisify(execFile);
 export class AdbPhone {
   constructor({ adb = 'adb', serial, port = 5037, textHelper = null, identity = null, executor = execute }) {
@@ -11,9 +12,9 @@ export class AdbPhone {
     this.adb = adb; this.serial = serial; this.port = port; this.size = null;this.textHelper=textHelper;
     this.identity=identity;this.executor=executor;this.transportId=null;this.bindingTask=null;
   }
-  async execute(args, binary = false, timeout = 3000) {
+  async execute(args, binary = false, timeout = 3000, maxBuffer = 20 * 1024 * 1024) {
     const { stdout } = await this.executor(this.adb, args, {
-      encoding: binary ? 'buffer' : 'utf8', timeout, maxBuffer: 20 * 1024 * 1024, windowsHide: true,
+      encoding: binary ? 'buffer' : 'utf8', timeout, maxBuffer, windowsHide: true,
     });
     return stdout;
   }
@@ -40,6 +41,37 @@ export class AdbPhone {
     const selection=await this.deviceArgs();
     try{return await this.execute([...selection,...args],binary,timeout);}
     catch(error){this.transportId=null;this.size=null;throw error;}
+  }
+  async applog(request, expectedIdentity) {
+    const deadline = performance.now() + 7000;
+    const timeout = limit => {
+      const left = Math.floor(deadline - performance.now());
+      if (left <= 0) throw new Error('QA app log deadline');
+      return Math.min(left, limit);
+    };
+    const selection = await this.deviceArgs();
+    if (this.identity !== expectedIdentity) throw new Error('configured QA phone identity mismatch');
+
+    const qaPackage = 'com.ssafy.eolssu.qa';
+    const androidUser = '0';
+    const file = `cache/qa-perf/${request.request_id}-${request.op}.json`;
+    const asApp = ['run-as', qaPackage, '--user', androidUser];
+    const clear = limit => this.execute([...selection, 'shell', ...asApp, 'rm', '-f', file], false, limit, 4096);
+    const broadcast = ['shell', 'am', 'broadcast', '--user', androidUser, '--receiver-registered-only',
+      '-a', `${qaPackage}.APPLOG`, '-p', qaPackage,
+      '--es', 'op', request.op, '--es', 'request_id', request.request_id];
+    if (request.stream_id) {
+      const cursor = request.op === 'read' ? request.after : request.through;
+      broadcast.push('--es', 'stream_id', request.stream_id, '--el', 'cursor', String(cursor));
+    }
+
+    await clear(timeout(1000));
+    try {
+      await this.execute([...selection, ...broadcast], false, timeout(4500), 4096);
+      return await this.execute([...selection, 'exec-out', ...asApp, 'cat', file], true, timeout(1500), ApplogMaxBytes);
+    } finally {
+      await clear(1000).catch(() => {});
+    }
   }
   async inputReady() {
     // A lost ADB client must not leave a phone-side input command running.
