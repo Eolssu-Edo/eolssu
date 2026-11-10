@@ -123,6 +123,7 @@ data class SheetEditUiState(
     val saveConflict: Boolean = false,
     val closeWarning: Boolean = false,
     val reviewIssues: List<SheetReviewIssue> = emptyList(),
+    val reviewNotices: List<SheetReviewNotice> = emptyList(),
     val checkedIssueIds: Set<String> = emptySet(),
     val jangdanPicker: SheetEditJangdanPicker? = null,
 ) {

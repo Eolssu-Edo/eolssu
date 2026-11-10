@@ -198,6 +198,7 @@ private fun JeongganboContent(state: SheetEditUiState, actions: SheetEditActions
     Column(modifier) {
         if (state.reviewIssues.isNotEmpty()) ReviewBanner(state, actions)
         else if (state.pendingChecks > 0) ImportBanner(state.pendingChecks, actions.onOpenChecks)
+        if (state.reviewNotices.isNotEmpty()) SheetReviewNotices(state.reviewNotices)
         Column(Modifier.weight(1f).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             HintText(stringResource(Res.string.sheetedit_hint_jeongganbo))
             EditScoreBoard(

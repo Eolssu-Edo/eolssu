@@ -106,6 +106,7 @@ class SheetEditViewModel(
             documentLoading = false, documentFailed = true, practiceVersionChanged = false,
             saving = false, message = null, audio = SheetAudioUi.None,
             deviceAudio = null, audioDownloading = false,
+            reviewNotices = emptyList(),
             past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet(),
             jangdanPicker = null, audioInstruments = null) }
     }
@@ -173,6 +174,7 @@ class SheetEditViewModel(
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,
                     withJangdan = draft.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
                     reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet(),
+                    reviewNotices = document.editorReviewNotices(),
                     deviceAudio = deviceAudio) }
                 loadAudioInstrumentOptions()
                 refreshAudio(announce = false)
