@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
+import com.ssafy.eolssu.core.diagnostics.PerfReason
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.PerfSource
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
 import kotlinx.coroutines.isActive
@@ -51,6 +57,7 @@ class ResultViewModel(
     private val recordRepository: PracticeRecordRepository,
     member: SignedInMember? = null,
     private val initialSong: Song? = null,
+    private val perf: PerformanceVisit? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ResultUiState())
     val uiState: StateFlow<ResultUiState> = _uiState.asStateFlow()
@@ -71,11 +78,14 @@ class ResultViewModel(
         if (!accountScope.isActive) return
         if (resultJob?.isActive == true || _uiState.value.result != null) return
         _uiState.update { it.copy(resultLookup = SongLookup.Loading) }
-        resultJob = accountScope.launch {
+        resultJob = accountScope.launch(perf.context(if (resultJob == null) PerfReason.INITIAL else PerfReason.RETRY)) {
             val loaded = try {
-                val evaluation = pendingEvaluation ?: evaluationRepository.resultForScreen(evaluationId, initialSong).also { fetched ->
+                val retained = pendingEvaluation
+                if (retained != null) perf?.reuse(PerfTarget.EVALUATION, evaluationId, PerfSource.RETAINED)
+                val evaluation = retained ?: evaluationRepository.resultForScreen(evaluationId, initialSong).also { fetched ->
                     ensureAccountSession()
                     pendingEvaluation = fetched
+                    if (fetched != null) perf?.milestone(PerfPhase.SCORE_READY)
                     _uiState.update { it.copy(scorePreview = fetched?.scores) }
                 }
                 evaluation?.loadDetails?.invoke()
@@ -108,7 +118,7 @@ class ResultViewModel(
         val songId = result.songId
         if (songJob?.isActive == true || _uiState.value.song != null) return
         _uiState.update { it.copy(songLookup = SongLookup.Loading) }
-        songJob = accountScope.launch {
+        songJob = accountScope.launch(perf.context(PerfReason.RETRY)) {
             val song = try {
                 songRepository.getSong(songId)
             } catch (cancelled: CancellationException) {

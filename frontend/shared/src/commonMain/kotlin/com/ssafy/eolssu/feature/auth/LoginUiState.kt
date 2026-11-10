@@ -3,13 +3,22 @@ package com.ssafy.eolssu.feature.auth
 import com.ssafy.eolssu.core.model.KoreanDateTime
 
 /**
- * AUTH-04 이메일 로그인 입력 상태. 실패 문구는 비밀번호 칸 아래에, 로그인 결과 안내는 [notice] 창으로 띄운다.
+ * AUTH-04 이메일 로그인 입력 상태. 서버 실패 문구([error])는 비밀번호 칸 아래에, 로그인 결과 안내는 [notice] 창으로 띄운다.
+ * @property emailError·passwordError 서버에 보내기 전 검사(빈 칸·이메일 형식)의 오류. 해당 칸 아래에 보인다.
+ * @property rememberEmail '아이디 기억하기' 체크. 기억한 이메일이 있으면 켜진 채로 시작한다.
+ * @property keepSignedIn '자동 로그인' 체크. 마지막 선택을 따르고, 고른 적이 없으면 켜져 있다.
+ * @property loggingIn 서버 응답을 기다리는 중. 로그인 버튼에 도는 표시를 보이고 다시 누를 수 없다.
  * @property lockedUntil 잠김 안내의 '[HH:MM]부터 다시 시도' 시각. 서버가 알려 주지 않았으면 null.
  */
 data class LoginUiState(
     val email: String = "",
     val password: String = "",
+    val emailError: FieldError? = null,
+    val passwordError: FieldError? = null,
     val error: FieldError? = null,
+    val rememberEmail: Boolean = false,
+    val keepSignedIn: Boolean = true,
+    val loggingIn: Boolean = false,
     val notice: LoginNotice? = null,
     val lockedUntil: KoreanDateTime? = null,
 )

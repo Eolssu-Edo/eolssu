@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuLevelBadge
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
@@ -31,18 +33,20 @@ import eolssu.shared.generated.resources.song_info_bpm
 import eolssu.shared.generated.resources.song_info_instrument
 import eolssu.shared.generated.resources.song_info_jangdan
 import eolssu.shared.generated.resources.song_info_level
-import eolssu.shared.generated.resources.song_preview_hint
-import eolssu.shared.generated.resources.song_start_practice
+import eolssu.shared.generated.resources.song_open_settings
+import eolssu.shared.generated.resources.song_start_evaluation
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * SONG-02 본문(휴대폰·태블릿 공통, 보드 `Song-Detail` 순서): 악보 표지 · 제목과 난이도 · 곡 소개 · 정보 격자 · 안내 · '이 곡 연습하기 →'.
+ * SONG-02 본문(휴대폰·태블릿 공통, 보드 `Song-Detail` 순서): 악보 표지 · 제목과 난이도 · 곡 소개 · 정보 격자 · '연습 설정' | '연주 평가 시작'.
+ * '연주 평가 시작'([onStartPractice])은 연주 평가 화면에서 대기 없이 바로 평가를 시작하고, '연습 설정'([onOpenSettings])은 그 전에 쉬운 표기·장단·속도를 고른다(S15P31E102-705).
  * 태블릿은 표지에 [coverColumns]각을 보이고([large]면 정간을 키운다) 정보 격자를 4열([infoColumns])로 둔다.
  */
 @Composable
 internal fun SongDetailBody(
     song: Song,
     onStartPractice: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     coverColumns: Int = 2,
     coverRows: Int = 5,
@@ -61,12 +65,14 @@ internal fun SongDetailBody(
             )
         }
         SongInfoGrid(song, Modifier.padding(vertical = 20.dp), columns = infoColumns)
-        Text(
-            stringResource(Res.string.song_preview_hint),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
-            color = EolssuTheme.colors.textMuted,
-        )
-        EolssuButton(stringResource(Res.string.song_start_practice), onStartPractice, Modifier.padding(top = 12.dp))
+        // 두 버튼은 연습 화면의 짝 버튼처럼 1 : 1.4로 나란히 둔다.
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            EolssuButton(
+                stringResource(Res.string.song_open_settings), onOpenSettings, Modifier.weight(1f),
+                style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Cog, compact = true,
+            )
+            EolssuButton(stringResource(Res.string.song_start_evaluation), onStartPractice, Modifier.weight(1.4f), compact = true)
+        }
     }
 }
 

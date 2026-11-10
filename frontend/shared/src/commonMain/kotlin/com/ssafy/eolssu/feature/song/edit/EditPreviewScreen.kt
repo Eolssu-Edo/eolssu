@@ -17,22 +17,31 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.audio.AudioPlaybackState
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
+import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
@@ -55,6 +64,11 @@ import eolssu.shared.generated.resources.sheetedit_audio_failure_timeout
 import eolssu.shared.generated.resources.sheetedit_audio_failure_too_large
 import eolssu.shared.generated.resources.sheetedit_audio_failure_unknown
 import eolssu.shared.generated.resources.sheetedit_audio_generating
+import eolssu.shared.generated.resources.sheetedit_audio_instrument_choose
+import eolssu.shared.generated.resources.sheetedit_audio_instrument_failed
+import eolssu.shared.generated.resources.sheetedit_audio_instrument_label
+import eolssu.shared.generated.resources.sheetedit_audio_instrument_loading
+import eolssu.shared.generated.resources.song_catalog_retry
 import eolssu.shared.generated.resources.sheetedit_audio_outdated
 import eolssu.shared.generated.resources.sheetedit_audio_settings_changed
 import eolssu.shared.generated.resources.sheetedit_audio_pause
@@ -66,7 +80,7 @@ import eolssu.shared.generated.resources.sheetedit_audio_regenerate
 import eolssu.shared.generated.resources.sheetedit_audio_requesting
 import eolssu.shared.generated.resources.sheetedit_audio_retry
 import eolssu.shared.generated.resources.sheetedit_audio_save_m4a
-import eolssu.shared.generated.resources.sheetedit_audio_save_midi
+import eolssu.shared.generated.resources.sheetedit_audio_expired
 import eolssu.shared.generated.resources.sheetedit_audio_unknown
 import eolssu.shared.generated.resources.sheetedit_preview_audio
 import eolssu.shared.generated.resources.sheetedit_preview_beat
@@ -74,6 +88,8 @@ import eolssu.shared.generated.resources.sheetedit_preview_beat_sub
 import eolssu.shared.generated.resources.sheetedit_preview_draft
 import eolssu.shared.generated.resources.sheetedit_preview_hint
 import eolssu.shared.generated.resources.sheetedit_preview_listen
+import eolssu.shared.generated.resources.sheetedit_preview_progress
+import eolssu.shared.generated.resources.sheetedit_preview_seek
 import eolssu.shared.generated.resources.sheetedit_preview_pause
 import eolssu.shared.generated.resources.sheetedit_preview_play
 import eolssu.shared.generated.resources.sheetedit_preview_save
@@ -84,22 +100,25 @@ import eolssu.shared.generated.resources.sheetedit_warn_message
 import eolssu.shared.generated.resources.sheetedit_warn_more
 import eolssu.shared.generated.resources.sheetedit_warn_title
 import eolssu.shared.generated.resources.sheetedit_where_cell
+import kotlin.math.roundToLong
 import org.jetbrains.compose.resources.stringResource
 
 /** 경고 창에 위치를 모두 적는 빈 정간 수. 넘으면 '외 n곳'으로 줄인다. */
 private const val WARN_LISTED = 3
 
-/** 내 악보 음원 칸의 동작. [onSave]는 M4A·MIDI 서명 URL을 기기 브라우저로 연다. */
+/** 내 악보 음원 요청·다운로드와 기기 저장본 재생 동작. */
 class SheetAudioActions(
+    val onSelectInstrument: (String) -> Unit,
+    val onRetryInstruments: () -> Unit,
     val onRequest: () -> Unit,
     val onRefresh: () -> Unit,
     val onTogglePlayback: () -> Unit,
-    val onSave: (SheetAudioKind) -> Unit,
+    val onSave: () -> Unit,
 )
 
 /**
  * EDIT-04 미리보기 · 저장: 장단 한 줄 · 연습 화면과 같은 정간보(율명 옆 한글) · 미리듣기(장단 소리 함께) ·
- * 내 악보 음원(SHT-12·13: 만들기 → 만드는 중 → 재생·M4A·MIDI 저장, 악보가 바뀌면 다시 만들기, 실패하면 다시 시도) ·
+ * 내 악보 음원(SHT-12·13: 만들기 → 내려받기 → 기기 재생) ·
  * 임시저장(빈 정간 허용) / 저장(빈 정간이 있으면 경고 창). 빈 정간은 옅은 붉은 바탕과 점선으로 보인다.
  */
 @Composable
@@ -107,11 +126,13 @@ fun EditPreviewScreen(
     state: SheetEditUiState,
     snackbarHostState: SnackbarHostState,
     playback: AudioPlaybackState,
+    previewProgress: AudioPlaybackState?,
     previewPlaying: Boolean,
     onBack: () -> Unit,
     onTogglePlay: () -> Unit,
+    onSeekPreview: (Long) -> Unit,
     onToggleJangdan: () -> Unit,
-    audio: SheetAudioActions,
+    audio: SheetAudioActions?,
     onSaveDraft: () -> Unit,
     onSave: () -> Unit,
     onFillEmpty: () -> Unit,
@@ -120,16 +141,27 @@ fun EditPreviewScreen(
     val colors = EolssuTheme.colors
     val draft = state.draft
     val song = remember(draft) { draft.toSong() }
+    val annotations = remember(draft) { draft.annotations() }
+    val linearTiming = remember(annotations) { hasLinearPreviewTiming(annotations.values.flatten()) }
+    val currentCell = previewProgress
+        ?.takeIf { linearTiming && it.status != AudioPlaybackStatus.Completed }
+        ?.let { previewCellAt(song, it.positionMs) }
     EolssuScaffold(
         containerColor = colors.surface,
         snackbarHostState = snackbarHostState,
         topBar = { EolssuTopBar(stringResource(Res.string.sheetedit_preview_title), onBack = onBack, subtitle = draft.title) },
         bottomBar = {
+            if (audio != null && state.savedOnce) state.audioInstruments?.let { instruments ->
+                AudioInstrumentPicker(instruments, enabled = !state.audio.busy && !state.audioDownloading, actions = audio)
+            }
             PlayerRow(state, song.durationSeconds(draft.bpm), previewPlaying, onTogglePlay, onToggleJangdan, audio)
-            SheetAudioRow(state.audio, state.audioSettingsChanged, playback, audio)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                EolssuButton(stringResource(Res.string.sheetedit_preview_draft), onSaveDraft, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving && !state.saveConflict)
-                EolssuButton(stringResource(Res.string.sheetedit_preview_save), onSave, Modifier.weight(1.4f), compact = true, enabled = !state.saving && !state.saveConflict)
+            if (previewProgress != null) PreviewProgressRow(previewProgress, onSeekPreview)
+            if (audio != null) SheetAudioRow(state, playback, audio)
+            if ((state.source as? EditSource.Mine)?.practiceVersion == null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    EolssuButton(stringResource(Res.string.sheetedit_preview_draft), onSaveDraft, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving && !state.saveConflict)
+                    EolssuButton(stringResource(Res.string.sheetedit_preview_save), onSave, Modifier.weight(1.4f), compact = true, enabled = !state.saving && !state.saveConflict)
+                }
             }
         },
     ) {
@@ -156,8 +188,9 @@ fun EditPreviewScreen(
             EditScoreBoard(
                 song = song,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                marks = previewMarks(draft),
-                annotations = remember(draft) { draft.annotations() },
+                marks = previewMarks(draft, currentCell),
+                annotations = annotations,
+                focusColumn = currentCell?.first,
                 notation = ScoreNotation(showHangul = true),
             )
         }
@@ -165,11 +198,57 @@ fun EditPreviewScreen(
     if (state.emptyWarning) EmptyWarningDialog(draft, onFillEmpty, onSaveDraft, onCloseWarning)
 }
 
+@Composable
+private fun PreviewProgressRow(playback: AudioPlaybackState, onSeek: (Long) -> Unit) {
+    val duration = playback.durationMs
+    var draggedFraction by remember(playback.sourceId) { mutableStateOf<Float?>(null) }
+    val fraction = draggedFraction ?: (playback.positionMs.toDouble() / duration).coerceIn(0.0, 1.0).toFloat()
+    val position = (fraction.toDouble() * duration).roundToLong()
+    val seekLabel = stringResource(Res.string.sheetedit_preview_seek)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Slider(
+            value = fraction,
+            onValueChange = { draggedFraction = it },
+            onValueChangeFinished = {
+                draggedFraction?.let { onSeek((it.toDouble() * duration).roundToLong()) }
+                draggedFraction = null
+            },
+            modifier = Modifier.weight(1f).semantics { contentDescription = seekLabel },
+        )
+        Text(
+            stringResource(Res.string.sheetedit_preview_progress, formatClock(position / 1000.0), formatClock(duration / 1000.0)),
+            style = MaterialTheme.typography.bodySmall,
+            color = EolssuTheme.colors.textSub,
+        )
+    }
+}
+
+internal fun previewCellAt(song: Song, positionMs: Long): Pair<Int, Int>? {
+    val cell = (positionMs / song.cellDurationMs()).toInt()
+    if (positionMs < 0 || cell >= song.score.totalUnits) return null
+    var row = cell
+    song.score.columns.forEachIndexed { column, cells ->
+        if (row < cells.size) return column to row
+        row -= cells.size
+    }
+    return null
+}
+
+// The audio renderer changes the written position for these marks. Its exact
+// performance clock is a separate contract. Elapsed time and seeking still work.
+private val PreviewTimeChangingMarks = setOf(
+    "반복표", "도돌이표", "본래속도로", "점점느리게", "점점속하게", "조금느리게", "조금속하게",
+    "덧길이표", "반길이표", "len-double", "len-half",
+)
+
+internal fun hasLinearPreviewTiming(marks: Iterable<String>): Boolean =
+    marks.none { it.substringBefore('@') in PreviewTimeChangingMarks }
+
 /** 미리듣기 원형 버튼 · '미리듣기 · 0:18'과 '장단 소리 함께' · 음원 칩. */
 @Composable
 private fun PlayerRow(
     state: SheetEditUiState, seconds: Int, previewPlaying: Boolean,
-    onTogglePlay: () -> Unit, onToggleJangdan: () -> Unit, audio: SheetAudioActions,
+    onTogglePlay: () -> Unit, onToggleJangdan: () -> Unit, audio: SheetAudioActions?,
 ) {
     val colors = EolssuTheme.colors
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -187,20 +266,28 @@ private fun PlayerRow(
                 stringResource(Res.string.sheetedit_preview_listen, formatClock(seconds.toDouble())),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold),
             )
-            Row(
-                Modifier.toggleable(value = state.withJangdan, role = Role.Checkbox, onValueChange = { onToggleJangdan() }),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Checkbox(
-                    checked = state.withJangdan,
-                    onCheckedChange = null,
-                    modifier = Modifier.size(32.dp),
-                    colors = CheckboxDefaults.colors(checkedColor = colors.primary, checkmarkColor = colors.onPrimary, uncheckedColor = colors.textDisabled),
-                )
-                Text(stringResource(Res.string.sheetedit_preview_with_jangdan), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textSub)
+            if (audio != null) {
+                Row(
+                    Modifier.toggleable(value = state.withJangdan, enabled = state.canIncludeJangdan && !state.audioDownloading,
+                        role = Role.Checkbox, onValueChange = { onToggleJangdan() }),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = state.withJangdan,
+                        onCheckedChange = null,
+                        enabled = state.canIncludeJangdan && !state.audioDownloading,
+                        modifier = Modifier.size(32.dp),
+                        colors = CheckboxDefaults.colors(checkedColor = colors.primary, checkmarkColor = colors.onPrimary, uncheckedColor = colors.textDisabled),
+                    )
+                    Text(stringResource(Res.string.sheetedit_preview_with_jangdan), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textSub)
+                }
             }
         }
-        AudioChip(state.audio, state.audioSettingsChanged, audio)
+        if (audio != null) {
+            val instrumentSelected = state.audioInstruments == null || state.audioInstruments.selectedId != null
+            val canRequest = !state.audioDownloading && (!state.savedOnce || instrumentSelected)
+            AudioChip(state.audio, state.audioSettingsChanged, canRequest, audio)
+        }
     }
 }
 
@@ -209,7 +296,7 @@ private fun PlayerRow(
  * 악보가 바뀌면 '다시 만들기', 실패는 '다시 시도', 상태를 못 읽으면 '다시 확인'.
  */
 @Composable
-private fun AudioChip(ui: SheetAudioUi, settingsChanged: Boolean, actions: SheetAudioActions) {
+private fun AudioChip(ui: SheetAudioUi, settingsChanged: Boolean, canRequest: Boolean, actions: SheetAudioActions) {
     val colors = EolssuTheme.colors
     val chip: Triple<String, ImageVector?, (() -> Unit)?> = when (ui) {
         SheetAudioUi.None -> Triple(stringResource(Res.string.sheetedit_preview_audio), SheetEditIcons.Download, actions.onRequest)
@@ -218,17 +305,21 @@ private fun AudioChip(ui: SheetAudioUi, settingsChanged: Boolean, actions: Sheet
         is SheetAudioUi.Ready ->
             if (ui.audio.outdated || settingsChanged) Triple(stringResource(Res.string.sheetedit_audio_regenerate), EolssuIcons.Restart, actions.onRequest)
             else Triple(stringResource(Res.string.sheetedit_audio_ready), EolssuIcons.Check, null)
-        is SheetAudioUi.Failed -> Triple(stringResource(Res.string.sheetedit_audio_retry), EolssuIcons.Restart, actions.onRequest)
+        is SheetAudioUi.Failed -> Triple(
+            stringResource(if (ui.audio.failureCode == SheetAudioFailure.Expired) Res.string.sheetedit_audio_regenerate else Res.string.sheetedit_audio_retry),
+            EolssuIcons.Restart, actions.onRequest,
+        )
         is SheetAudioUi.Unknown -> Triple(stringResource(Res.string.sheetedit_audio_refresh), EolssuIcons.Restart, actions.onRefresh)
     }
     val (label, icon, onClick) = chip
+    val enabled = onClick != null && (ui is SheetAudioUi.Unknown || canRequest)
     Surface(
         onClick = onClick ?: {},
         modifier = Modifier.heightIn(min = 40.dp),
-        enabled = onClick != null,
+        enabled = enabled,
         shape = CircleShape,
         color = colors.surface,
-        contentColor = if (onClick == null) colors.textMuted else colors.text,
+        contentColor = if (enabled) colors.text else colors.textMuted,
         border = BorderStroke(1.dp, colors.lineSoft),
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -239,29 +330,30 @@ private fun AudioChip(ui: SheetAudioUi, settingsChanged: Boolean, actions: Sheet
     }
 }
 
-/**
- * 음원 칩 아래 줄: 악보가 바뀜·실패·확인 못 함 안내와, 보관된 파일이 있으면 재생 · M4A 저장 · MIDI 저장.
- * 새로 만드는 중이나 실패에도 서버에 남은 이전 파일은 그대로 쓸 수 있다. 둘 다 없으면 아무것도 그리지 않는다.
- */
 @Composable
-private fun SheetAudioRow(ui: SheetAudioUi, settingsChanged: Boolean, playback: AudioPlaybackState, actions: SheetAudioActions) {
+private fun SheetAudioRow(state: SheetEditUiState, playback: AudioPlaybackState, actions: SheetAudioActions) {
     val colors = EolssuTheme.colors
+    val ui = state.audio
     val latest = ui.latest
+    val saved = state.playableDeviceAudio
+    val download = (ui as? SheetAudioUi.Ready)?.audio?.takeUnless { it.outdated || state.audioSettingsChanged }
+    val canDownload = download?.audio != null && saved?.matchesDownload(download) != true
     val notice = when {
+        ui is SheetAudioUi.Failed && ui.audio.failureCode == SheetAudioFailure.Expired -> stringResource(Res.string.sheetedit_audio_expired)
         ui is SheetAudioUi.Failed -> stringResource(Res.string.sheetedit_audio_failed, failureLabel(ui.audio.failureCode))
         ui is SheetAudioUi.Unknown -> stringResource(Res.string.sheetedit_audio_unknown)
         latest?.outdated == true && ui !is SheetAudioUi.Generating -> stringResource(Res.string.sheetedit_audio_outdated)
-        settingsChanged -> stringResource(Res.string.sheetedit_audio_settings_changed)
+        state.audioSettingsChanged || (state.deviceAudio != null && saved == null && !canDownload) ->
+            stringResource(Res.string.sheetedit_audio_settings_changed)
         else -> null
     }
-    val file = latest?.audio
-    if (notice == null && file == null) return
+    val loaded = saved != null && playback.sourceId == saved.playbackId
+    val status = if (loaded) playback.status else AudioPlaybackStatus.Idle
+    if (notice == null && saved == null && !canDownload && !state.audioDownloading) return
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (notice != null) Text(notice, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textSub)
-        if (file != null) {
-            val loaded = playback.sourceId == file.playbackId
-            val status = if (loaded) playback.status else AudioPlaybackStatus.Idle
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (saved != null) {
                 EolssuButton(
                     text = stringResource(if (status == AudioPlaybackStatus.Playing) Res.string.sheetedit_audio_pause else Res.string.sheetedit_audio_play),
                     onClick = actions.onTogglePlayback,
@@ -269,13 +361,45 @@ private fun SheetAudioRow(ui: SheetAudioUi, settingsChanged: Boolean, playback: 
                     small = true,
                     busy = status == AudioPlaybackStatus.Loading,
                 )
-                EolssuButton(stringResource(Res.string.sheetedit_audio_save_m4a), { actions.onSave(SheetAudioKind.M4a) }, style = EolssuButtonStyle.Secondary, small = true)
-                if (latest.midi != null) {
-                    EolssuButton(stringResource(Res.string.sheetedit_audio_save_midi), { actions.onSave(SheetAudioKind.Midi) }, style = EolssuButtonStyle.Secondary, small = true)
-                }
             }
-            if (loaded && status == AudioPlaybackStatus.Failed) {
-                Text(stringResource(Res.string.sheetedit_audio_play_failed), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textSub)
+            if (canDownload || state.audioDownloading) {
+                EolssuButton(stringResource(Res.string.sheetedit_audio_save_m4a), actions.onSave,
+                    style = EolssuButtonStyle.Secondary, small = true, busy = state.audioDownloading)
+            }
+        }
+        if (loaded && status == AudioPlaybackStatus.Failed) {
+            Text(stringResource(Res.string.sheetedit_audio_play_failed), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textSub)
+        }
+    }
+}
+
+@Composable
+private fun AudioInstrumentPicker(instruments: SheetAudioInstruments, enabled: Boolean, actions: SheetAudioActions) {
+    var expanded by remember { mutableStateOf(false) }
+    val selected = instruments.options.firstOrNull { it.instrumentId == instruments.selectedId }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        when {
+            instruments.loading -> Text(stringResource(Res.string.sheetedit_audio_instrument_loading))
+            instruments.options.isEmpty() -> {
+                Text(stringResource(Res.string.sheetedit_audio_instrument_failed), Modifier.weight(1f))
+                EolssuButton(stringResource(Res.string.song_catalog_retry), actions.onRetryInstruments,
+                    style = EolssuButtonStyle.Secondary, small = true)
+            }
+            else -> Box {
+                val label = selected?.let { stringResource(Res.string.sheetedit_audio_instrument_label, it.name) }
+                    ?: stringResource(Res.string.sheetedit_audio_instrument_choose)
+                EolssuButton(label, { expanded = true }, style = EolssuButtonStyle.Secondary, small = true, enabled = enabled)
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    instruments.options.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.name) },
+                            onClick = {
+                                expanded = false
+                                actions.onSelectInstrument(option.instrumentId)
+                            },
+                        )
+                    }
+                }
             }
         }
     }
@@ -287,6 +411,7 @@ private fun failureLabel(code: SheetAudioFailure?): String = stringResource(
         SheetAudioFailure.Timeout -> Res.string.sheetedit_audio_failure_timeout
         SheetAudioFailure.TooLarge -> Res.string.sheetedit_audio_failure_too_large
         SheetAudioFailure.ServerError -> Res.string.sheetedit_audio_failure_server
+        SheetAudioFailure.Expired -> Res.string.sheetedit_audio_expired
         SheetAudioFailure.Unknown, null -> Res.string.sheetedit_audio_failure_unknown
     },
 )

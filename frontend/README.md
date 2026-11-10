@@ -329,6 +329,6 @@ release 키가 없으면 이 스크립트는 중단하며 debug 키로 대체하
 
 ## 임시 Android QA APK (TEMP S15P31E102-309)
 
-기존 테스트 계정으로 후속 API를 검증할 때만 `./gradlew :androidApp:assembleDebug -Peolssu.qaSkipConsent=true`로 빌드합니다. 첫 실행은 약관 대신 마이크 안내에서 시작하고 실제 로그인은 유지합니다. 약관 동의 기록은 만들지 않으며 신규 가입은 우회하지 않습니다. 기본 debug·release·Web·iOS에는 적용하지 않습니다. release는 이 속성을 주어도 우회가 꺼집니다.
+기존 테스트 계정으로 후속 API를 검증할 때만 `./gradlew :androidApp:assembleDebug -Peolssu.qaSkipConsent=true`로 빌드합니다. 첫 실행은 다른 빌드와 같이 로그인 화면에서 시작하고(약관 동의는 회원가입 흐름, 마이크 권한은 첫 녹음 때) 실제 로그인은 유지합니다. 약관 동의 기록은 만들지 않으며 신규 가입은 우회하지 않습니다. 기본 debug·release·Web·iOS에는 적용하지 않습니다. release는 이 속성을 주어도 우회가 꺼집니다.
 
 해제는 위 속성을 빼고 재빌드합니다. 이미 실제 로그인으로 첫 실행을 마친 기기는 기존 동작대로 홈에서 시작하므로 정상 첫 실행 비교에는 새 설치 상태의 별도 테스트 기기를 사용합니다. [제거 위치·조건과 검증 결과](../docs/plans/S15P31E102-309.md)를 따릅니다.

@@ -72,8 +72,8 @@ sealed interface EditSource {
     /** 내 악보를 복사해 고친다. 원본은 그대로 둔다. */
     data class CopySheet(val sheetId: String) : EditSource
 
-    /** 내 악보 목록의 '편집'으로 그 악보를 직접 고친다. 이미 저장된 악보다. */
-    data class Mine(val sheetId: String) : EditSource
+    /** 내 악보 편집. [practiceVersion]이 있으면 연습 중인 확정 악보로 음원 받기 화면을 연다. */
+    data class Mine(val sheetId: String, val practiceVersion: Int? = null) : EditSource
 }
 
 /**
@@ -91,6 +91,8 @@ data class SheetDraft(
     val columnSizes: List<Int>? = null,
     val sourceCellIds: List<String?>? = null,
     val original: CommonScoreData? = null,
+    val jangdanId: String? = null,
+    internal val editedJangdanName: String? = null,
 ) {
     init {
         require(cells.isNotEmpty() && (columnSizes?.let { it.all { n -> n > 0 } && it.sum() == cells.size } ?: (cells.size % requireNotNull(jangdan).gak == 0)))
@@ -102,7 +104,7 @@ data class SheetDraft(
 
     val sizes: List<Int> get() = columnSizes ?: List(cells.size / gak) { gak }
 
-    val jangdanName: String get() = original?.music?.jangdan ?: jangdan?.name.orEmpty()
+    val jangdanName: String get() = editedJangdanName ?: original?.music?.jangdan ?: jangdan?.name.orEmpty()
 
     internal val originalCells: Map<String, CommonScoreData.Cell> by lazy {
         original?.columns?.flatMap { it.cells }?.associateBy { it.id }.orEmpty()

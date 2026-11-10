@@ -43,25 +43,68 @@ internal fun SheetDraft.originalCell(index: Int): CommonScoreData.Cell? =
 
 /** [index] 정간의 표시 자리(row/col) 목록. 순서는 [SheetDraft.cells]의 음 순서와 같다. */
 internal fun SheetDraft.layout(index: Int): List<CommonScoreData.Unit> {
-    val cell = originalCell(index)
-    if (cell != null && cell.editingNotes() == cells[index]) return cell.units
+    originalCell(index)?.withEditedPitches(cells[index])?.let { return it }
     return cells[index].mapIndexed { row, note ->
-        val symbol = when (note) {
-            ScoreNote.Blank -> ""
-            ScoreNote.Hold -> "-"
-            ScoreNote.Rest -> "쉼"
-            is ScoreNote.SourcePitch -> note.hangul
-            is ScoreNote.Pitch -> note.yul.hangul
-        }
-        CommonScoreData.Unit(row, 0, symbol, "")
+        CommonScoreData.Unit(row, 0, note.editingSymbol(), "")
     }
+}
+
+private fun ScoreNote.editingSymbol(): String = when (this) {
+    ScoreNote.Blank -> ""
+    ScoreNote.Hold -> "-"
+    ScoreNote.Rest -> "쉼"
+    is ScoreNote.SourcePitch -> hangul
+    is ScoreNote.Pitch -> yul.hangul
+}
+
+/** 음높이만 바꾼 소박의 row·col과 시작 이벤트를 그대로 둔다. */
+private fun CommonScoreData.Cell.withEditedPitches(notes: List<ScoreNote>): List<CommonScoreData.Unit>? {
+    if (units.size != notes.size) return null
+    val before = editingNotes()
+    if (before == notes) return units
+    return units.mapIndexed { sub, unit ->
+        val note = notes[sub]
+        when {
+            note == before[sub] -> unit
+            note.isPitch() && before[sub].isPitch() && unit.eventId == "$id-r${unit.row}-u${unit.col}" ->
+                unit.copy(symbol = note.editingSymbol())
+            else -> return null
+        }
+    }
+}
+
+/** 원본 배치의 음높이만 달라졌으면 원본 이벤트 길이와 참조를 재계산하지 않는다. */
+private fun SheetDraft.pitchOnlyScore(source: CommonScoreData, music: CommonScoreData.Music): CommonScoreData? {
+    val replacements = mutableMapOf<String, ScoreNote.SourcePitch>()
+    var index = 0
+    val columns = source.columns.map { column -> column.copy(cells = column.cells.map { cell ->
+        val units = cell.withEditedPitches(cells[index++]) ?: return null
+        units.forEachIndexed { sub, unit ->
+            if (unit.symbol != cell.units[sub].symbol) replacements[unit.eventId] = parseSourcePitch(unit.symbol)
+        }
+        cell.copy(units = units)
+    }) }
+    val events = source.events.map { event ->
+        val note = replacements.remove(event.id)
+        when {
+            note == null -> event
+            event.kind == "NOTE" -> event.copy(yul = note.yul, octave = note.octave)
+            else -> return null
+        }
+    }
+    if (replacements.isNotEmpty()) return null
+    return source.copy(score = source.score.copy(title = title), music = music, columns = columns, events = events)
 }
 
 /** 바꾼 칸만 새 배치로 만들고, 같은 표기의 각·음 위치와 이벤트 참조를 함께 옮긴다. */
 internal fun SheetDraft.toCommonScore(): CommonScoreData {
     val source = requireNotNull(original)
     val initial = source.editingDraft(title, bpm, jangdan)
-    if (cells == initial.cells && sizes == initial.sizes && sourceCellIds == initial.sourceCellIds && sigimsae == initial.sigimsae) return source.copy(score = source.score.copy(title = title))
+    val music = source.music.copy(jangdan = jangdanName)
+    if (sizes == initial.sizes && sourceCellIds == initial.sourceCellIds && sigimsae == initial.sigimsae) {
+        if (cells == initial.cells) return source.copy(score = source.score.copy(title = title), music = music)
+        pitchOnlyScore(source, music)?.let { return it }
+    }
     val byId = source.events.associateBy { it.id }
     val initialSigns = initial.sigimsae.mapKeys { (slot, _) -> initial.sourceCellIds?.get(slot.cell) to slot.sub }
     val layouts = cells.indices.map(::layout)
@@ -113,7 +156,7 @@ internal fun SheetDraft.toCommonScore(): CommonScoreData {
         })
     }
     return source.copy(score = source.score.copy(title = title),
-        music = source.music.copy(ticksPerJeonggan = ticks.toInt(), ticksPerBeat = (source.music.ticksPerBeat * factor).toInt()),
+        music = music.copy(ticksPerJeonggan = ticks.toInt(), ticksPerBeat = (music.ticksPerBeat * factor).toInt()),
         columns = columns, events = events)
 }
 

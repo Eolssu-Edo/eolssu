@@ -4,7 +4,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /** A foreground audio source. The id identifies one playback request, not a database row. */
-data class AudioSource(val id: String, val url: String)
+data class AudioSource(val id: String, val url: String, val localFile: LocalAudioFile? = null)
+
+/** A file issued by the app's own audio store. Network URLs cannot be used as local files. */
+class LocalAudioFile internal constructor(internal val path: String)
 
 enum class AudioPlaybackStatus { Idle, Loading, Playing, Paused, Completed, Interrupted, Failed, Unavailable }
 

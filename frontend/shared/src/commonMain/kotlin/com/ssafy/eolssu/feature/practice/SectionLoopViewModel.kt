@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.audio.AudioRecorder
@@ -41,6 +43,7 @@ class SectionLoopViewModel(
     private val micPermission: MicPermission? = null,
     private val newKey: () -> String = { Uuid.random().toString() },
     private val settingsStore: PracticeSettingsStore? = null,
+    private val perf: PerformanceVisit? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SectionLoopUiState(section = section, bpm = bpm, repeats = repeats))
     val uiState: StateFlow<SectionLoopUiState> = _uiState.asStateFlow()
@@ -50,7 +53,7 @@ class SectionLoopViewModel(
         settingsStore?.let { store ->
             viewModelScope.launch { store.settings.collect { settings -> _uiState.update { it.copy(settings = settings) } } }
         }
-        viewModelScope.launch {
+        viewModelScope.launch(perf.context()) {
             val source = repository.source(sourceId)
             _uiState.update {
                 it.copy(

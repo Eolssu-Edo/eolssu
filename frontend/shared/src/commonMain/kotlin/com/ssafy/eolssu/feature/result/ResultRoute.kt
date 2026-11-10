@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.result
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.ssafy.eolssu.core.diagnostics.LocalPerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,7 +39,8 @@ fun ResultRoute(
     onViewAllErrors: (() -> Unit)? = null,
     onWeakSection: (() -> Unit)? = null,
     initialSong: Song? = null,
-    viewModel: ResultViewModel = koinViewModel(key = evaluationId) { parametersOf(evaluationId, initialSong) },
+    perf: PerformanceVisit? = null,
+    viewModel: ResultViewModel = koinViewModel(key = evaluationId) { parametersOf(evaluationId, initialSong, perf) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -60,32 +64,34 @@ fun ResultRoute(
             snackbarHostState.showSnackbar(comingSoon)
         }
     }
-    ResultScreen(
-        state = state,
-        widthClass = currentWindowLayout().widthClass,
-        snackbarHostState = snackbarHostState,
-        actions = ResultActions(
-            onBack = onBack,
-            onSave = viewModel::save,
-            onViewAllErrors = onViewAllErrors ?: showComingSoon,
-            onWeakSection = onWeakSection ?: showComingSoon,
-            onPracticeAgain = { (state.result?.songId ?: state.scorePreview?.songId)?.let(onPracticeAgain) },
-            onOtherSong = onOtherSong,
-            onHome = onHome,
-            onMemoChange = viewModel::changeMemo,
-            onCloseSheet = viewModel::closeSheet,
-            onGoRecords = {
-                val recordId = state.savedRecord?.id
-                if (onGoRecords != null && recordId != null) {
-                    viewModel.closeSheet()
-                    onGoRecords(recordId)
-                } else {
-                    viewModel.closeSheet()
-                    showComingSoon()
-                }
-            },
-            onRetrySong = viewModel::retrySong,
-            onRetryResult = viewModel::retryResult,
-        ),
-    )
+    CompositionLocalProvider(LocalPerformanceVisit provides perf) {
+        ResultScreen(
+            state = state,
+            widthClass = currentWindowLayout().widthClass,
+            snackbarHostState = snackbarHostState,
+            actions = ResultActions(
+                onBack = onBack,
+                onSave = viewModel::save,
+                onViewAllErrors = onViewAllErrors ?: showComingSoon,
+                onWeakSection = onWeakSection ?: showComingSoon,
+                onPracticeAgain = { (state.result?.songId ?: state.scorePreview?.songId)?.let(onPracticeAgain) },
+                onOtherSong = onOtherSong,
+                onHome = onHome,
+                onMemoChange = viewModel::changeMemo,
+                onCloseSheet = viewModel::closeSheet,
+                onGoRecords = {
+                    val recordId = state.savedRecord?.id
+                    if (onGoRecords != null && recordId != null) {
+                        viewModel.closeSheet()
+                        onGoRecords(recordId)
+                    } else {
+                        viewModel.closeSheet()
+                        showComingSoon()
+                    }
+                },
+                onRetrySong = viewModel::retrySong,
+                onRetryResult = viewModel::retryResult,
+            ),
+        )
+    }
 }
