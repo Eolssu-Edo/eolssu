@@ -221,6 +221,8 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         PracticePlayerNotice.None, PracticePlayerNotice.Loading -> ""
         PracticePlayerNotice.Failed -> stringResource(Res.string.practice_player_failed)
         PracticePlayerNotice.Unavailable -> stringResource(Res.string.practice_player_unavailable)
+        PracticePlayerNotice.PersonalAudioUnavailable -> stringResource(Res.string.practice_sheet_audio_unavailable)
+        PracticePlayerNotice.EmbeddedJangdan -> stringResource(Res.string.practice_sheet_audio_with_jangdan)
         PracticePlayerNotice.Unsupported -> stringResource(Res.string.practice_player_unsupported)
         PracticePlayerNotice.Interrupted -> stringResource(Res.string.practice_player_interrupted)
     }

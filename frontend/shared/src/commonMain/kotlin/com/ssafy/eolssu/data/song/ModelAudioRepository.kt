@@ -27,13 +27,16 @@ data class ModelAudio(
     val performanceUrl: String? = null,
     val sourceCommonSha256: String? = null,
     @Transient val performance: ScorePerformance? = null,
+    @Transient val sheetPlayback: SheetPlayback? = null,
 ) {
     /** A current score must never play a different version or a differently defined beat. */
     fun matches(song: Song): Boolean = songId == song.id && scoreVersion == song.scoreVersion &&
-        bpm == song.baseBpm && bpmUnit == song.score.timing?.bpmUnit?.name &&
+        (sheetPlayback != null || bpm == song.baseBpm) && bpmUnit == song.score.timing?.bpmUnit?.name &&
         (performance?.let { it.matches(song) && it.audioSha256 == sha256 &&
             it.audioDurationMs == durationMs && it.audioStartOffsetMs == startOffsetMs } ?: true)
 }
+
+data class SheetPlayback(val withJangdan: Boolean, val urlExpiresAt: Long)
 
 interface ModelAudioRepository {
     /** null means no published matching audio. Transport/protocol failures throw [CatalogUnavailable]. */

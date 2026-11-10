@@ -188,12 +188,14 @@ private fun PlayerRow(
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold),
             )
             Row(
-                Modifier.toggleable(value = state.withJangdan, role = Role.Checkbox, onValueChange = { onToggleJangdan() }),
+                Modifier.toggleable(value = state.withJangdan, enabled = state.canIncludeJangdan,
+                    role = Role.Checkbox, onValueChange = { onToggleJangdan() }),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Checkbox(
                     checked = state.withJangdan,
                     onCheckedChange = null,
+                    enabled = state.canIncludeJangdan,
                     modifier = Modifier.size(32.dp),
                     colors = CheckboxDefaults.colors(checkedColor = colors.primary, checkmarkColor = colors.onPrimary, uncheckedColor = colors.textDisabled),
                 )
