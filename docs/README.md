@@ -43,6 +43,7 @@
 - [정간보 편집의 악기별 악보 선택·율명 음역·시김새 입력 근거 (551)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md)
 
 - [내 악보 목록·삭제와 연주 비교 API 연결·보류 항목 (525)](plans/S15P31E102-525.md)
+- [내 악보 음원 생성에서 연주 악기 표시와 선택 제공 (692)](plans/S15P31E102-692.md)
 - [마이페이지 학습 단계 이동·마스코트](specs/profile-learning-card.md) · [S15P31E102-524 계획·검증](plans/S15P31E102-524.md)
 
 - [서비스 장단 카탈로그 확장 스펙](specs/jangdan-catalog-extension.md) · [추가 근거·시작 빠르기·검증](knowledge/backend/jangdan-catalog-extension.md)

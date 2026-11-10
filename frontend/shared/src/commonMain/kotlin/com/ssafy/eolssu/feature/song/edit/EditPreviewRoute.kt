@@ -21,6 +21,7 @@ import eolssu.shared.generated.resources.sheetedit_msg_audio_busy
 import eolssu.shared.generated.resources.sheetedit_msg_audio_failed
 import eolssu.shared.generated.resources.sheetedit_msg_audio_in_progress
 import eolssu.shared.generated.resources.sheetedit_msg_audio_invalid
+import eolssu.shared.generated.resources.sheetedit_audio_instrument_choose
 import eolssu.shared.generated.resources.sheetedit_msg_audio_link_failed
 import eolssu.shared.generated.resources.sheetedit_msg_audio_downloaded
 import eolssu.shared.generated.resources.sheetedit_audio_expired
@@ -56,7 +57,7 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
     val player = rememberReferenceAudioPlayer()
     val playback by player.state.collectAsStateWithLifecycle()
     val previewId = viewModel.previewPlaybackId()
-    val savedAudioId = state.deviceAudio?.playbackId
+    val savedAudioId = state.playableDeviceAudio?.playbackId
     var previewStarted by remember { mutableStateOf(false) }
     LaunchedEffect(previewId, savedAudioId) {
         val loadedId = player.state.value.sourceId
@@ -84,6 +85,7 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
         SheetEditMessage.AudioTooLong to stringResource(Res.string.sheetedit_msg_audio_too_long),
         SheetEditMessage.AudioInvalid to stringResource(Res.string.sheetedit_msg_audio_invalid),
+        SheetEditMessage.AudioInstrumentRequired to stringResource(Res.string.sheetedit_audio_instrument_choose),
         SheetEditMessage.AudioInProgress to stringResource(Res.string.sheetedit_msg_audio_in_progress),
         SheetEditMessage.AudioNotReady to stringResource(Res.string.sheetedit_msg_audio_not_ready),
         SheetEditMessage.AudioNotFound to stringResource(Res.string.sheetedit_msg_audio_not_found),
@@ -127,6 +129,8 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
         },
         onToggleJangdan = viewModel::toggleWithJangdan,
         audio = SheetAudioActions(
+            onSelectInstrument = viewModel::selectAudioInstrument,
+            onRetryInstruments = viewModel::loadAudioInstrumentOptions,
             onRequest = viewModel::requestAudio,
             onRefresh = { viewModel.refreshAudio() },
             onTogglePlayback = {
