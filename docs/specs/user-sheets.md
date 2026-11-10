@@ -97,6 +97,12 @@ FE 접수 흐름(S15P31E102-539, 사용자 2026-11-06 결정): 정간보의 장�
 
 탈퇴 일괄 삭제의 회원 행 삭제(3단계)에 `user_sheets`를 더한다.
 
+## 미등록 율명의 검수 초안 (S15P31E102-669)
+
+- 인식 결과의 타임라인이 유효하고 일부 율명만 목록에 없으면 변환은 `DONE`으로 끝난다. 내 악보는 `NEEDS_REVIEW` 상태에서 원래 음높이와 이벤트를 담은 초안을 연다.
+- SHT-08에서 `scoreData`는 null이며 `draft.score`에 악보가 들어간다. `issues`에 해당 음의 `cellId`와 `eventId`를 가리키는 `UNREADABLE` 항목을 반환한다. `detail.reason`은 `UNREGISTERED_PITCH`이며 `detail.yul`과 `detail.octave`로 원래 음을 확인할 수 있다.
+- 확정 저장은 등록된 음만 받는다. 사용자가 해당 음을 고치고 확인 항목을 해결하면 SHT-04의 기존 절차로 저장한다.
+
 ## 2차 결정 (2026-11-03, 미구현)
 
 사용자 결정(S15P31E102-382)의 당시 미구현 기록이다. 요청·응답·오류의 상세는 [Notion API 명세](https://app.notion.com/p/API-3fea0252aa45804cb9f0f896ec0310ad)의 SHT-01~13을 따른다. 이후 구현 여부는 위 작업별 절을 우선한다.
