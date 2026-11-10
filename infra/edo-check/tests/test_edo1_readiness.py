@@ -81,7 +81,7 @@ class Edo1ReadinessTests(unittest.TestCase):
         detailed = self.collect('containers')
         rows = {row[0]: row for row in health['rows']}
         facts = {fact['name']: fact for fact in detailed['facts']}
-        expected = {BLOG_LOGIN: '정상', BLOG_WRITABLE: '정상', MYSQL_PROXY: '미검증',
+        expected = {BLOG_LOGIN: '정상', BLOG_WRITABLE: '정상', MYSQL_PROXY: '정상',
                     PHPMYADMIN: '정상', AI: '정상', TUNNEL: '정상'}
         for name, status in expected.items():
             with self.subTest(name=name):
@@ -91,8 +91,8 @@ class Edo1ReadinessTests(unittest.TestCase):
         self.assertEqual(rows[AI][3], ai_evidence)
         self.assertEqual(facts[AI]['readiness_kind'], 'http_communication')
         self.assertEqual(len(facts[AI]['readiness']), 3)
-        self.assertNotIn('readiness_kind', facts[MYSQL_PROXY])
-        self.assertIn('복제 미검증', rows[MYSQL_PROXY][3])
+        self.assertEqual(facts[MYSQL_PROXY]['readiness_kind'], 'tcp_listener')
+        self.assertIn('복제 통신은 /edo2-health', rows[MYSQL_PROXY][3])
         self.assertEqual(self.requests[8000].request.call_args.args[:2], ('POST', '/v1/analyses'))
         self.assertEqual(self.requests[8000].request.call_args.kwargs['body'], b'{}')
         self.assertEqual(self.requests[18120].request.call_args.kwargs['headers']['Origin'], ORIGIN)
@@ -101,9 +101,10 @@ class Edo1ReadinessTests(unittest.TestCase):
         self.assertIn('| eolssu-blog-editor-writable | ✅\u00a0**검증 완료** | GET /config HTTP 200', report)
         self.assertIn('| Grafana | ✅\u00a0**정상** |', report)
         self.assertIn('장애 0 · 주의 0', report)
-        self.assertIn('**미검증 1**', report)
+        self.assertIn('미검증 0', report)
+        self.assertIn('**로컬 수신 정상**', report)
         self.assertIn('| 연주 분석 AI | ✅\u00a0**통신 정상** | ' + ai_evidence, report)
-        self.assertIn('eolssu-replication-watch.service', report)
+        self.assertNotIn('**복제 통신 정상**', report)
         self.assertNotIn('hidden-client-id', report)
 
     def test_invalid_responses_fail_and_unavailable_addresses_remain_visible(self):
@@ -118,11 +119,11 @@ class Edo1ReadinessTests(unittest.TestCase):
         report = relay.build_report(health, 'fixture').replace('\u2060', '')
         self.assertNotIn('검증 완료', report)
         self.assertNotIn('통신 정상', report)
-        self.assertIn('**장애 5**', report)
-        self.assertIn('**미측정 1**', report)
+        self.assertIn('**장애 6**', report)
+        self.assertNotIn('로컬 수신 정상', report)
         for name in (BLOG_LOGIN, BLOG_WRITABLE, PHPMYADMIN, AI, TUNNEL):
             self.assertEqual(rows[name][2], '실패', rows[name])
-        self.assertEqual(rows[MYSQL_PROXY][2], '확인 불가')
+        self.assertEqual(rows[MYSQL_PROXY][2], '실패')
         self.assertIn('0', rows[TUNNEL][3])
 
     def test_docker_failure_and_wrong_route_do_not_send_probes(self):
@@ -168,3 +169,19 @@ class Edo1ReadinessTests(unittest.TestCase):
         self.assertEqual(ai_row[2], '실패')
         self.assertNotIn(8000, self.requests)
         self.assertNotIn('통신 정상', relay.build_report(health, 'fixture').replace('\u2060', ''))
+
+    def test_proxy_socket_query_failure_and_container_failure_are_distinct(self):
+        self.ss = subprocess.CompletedProcess([], 1, '', 'fixture error')
+        rows = {row[0]: row for row in self.collect()['rows']}
+        self.assertEqual(rows[MYSQL_PROXY][2], '확인 불가')
+
+        proxy = next(item for item in self.containers if item['detail']['Name'] == '/' + MYSQL_PROXY)
+        proxy['detail']['NetworkSettings']['Ports'] = {}
+        rows = {row[0]: row for row in self.collect()['rows']}
+        self.assertEqual(rows[MYSQL_PROXY][2], '실패')
+        self.assertIn('포트 매핑', rows[MYSQL_PROXY][3])
+
+        proxy['detail']['State'].update(Status='exited', Running=False)
+        rows = {row[0]: row for row in self.collect()['rows']}
+        self.assertEqual(rows[MYSQL_PROXY][2], '실패')
+        self.assertIn('exited', rows[MYSQL_PROXY][3])

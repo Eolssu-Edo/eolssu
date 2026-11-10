@@ -14,7 +14,8 @@ import subprocess
 import sys
 import time
 
-REQUIRED_CONTAINERS = {'eolssu-runtime-frontend-1', 'eolssu-runtime-mysql-1', 'eolssu-runtime-ai-1',
+MYSQL_PROXY = 'eolssu-replication-proxy-579'
+REQUIRED_CONTAINERS = {MYSQL_PROXY, 'eolssu-runtime-frontend-1', 'eolssu-runtime-mysql-1', 'eolssu-runtime-ai-1',
                        'eolssu-monitoring-grafana-1', 'eolssu-monitoring-prometheus-1',
                        'eolssu-monitoring-node-exporter-1'}
 REQUIRED_BY_TARGET = {'edo1': REQUIRED_CONTAINERS, 'edo2': set()}
@@ -22,14 +23,20 @@ STANDBY_WEB = 'eolssu-standby-579-frontend-1'
 STANDBY_WEB_LOCATION = 'edo2 대기 웹 loopback HTTPS'
 STANDBY_WEB_ACTION = '대기 웹 127.0.0.1:18443 포트·localhost 인증서·/index.html 응답 확인'
 EDO1_READINESS_LOCATION = 'edo1 서비스 준비 검사'
-EDO1_HTTP_COMMUNICATION_LOCATION = 'edo1 서비스 HTTP 통신 검사'
+EDO2_REPLICATION_WATCH_LOCATION = 'edo2 복제 감시 systemd'
+REPLICATION_WATCH_TIMER = 'eolssu-replication-watch.timer'
+REPLICATION_WATCH_SERVICE = 'eolssu-replication-watch.service'
+REPLICATION_WATCH_MAX_AGE_SECONDS = 45  # 20s cadence, 1s timer accuracy, 8s service timeout.
 BLOG_ORIGIN = 'https://team-edo.github.io'
 BLOG_LOGIN = 'eolssu-blog-editor'
 BLOG_WRITABLE = 'eolssu-blog-editor-writable'
-MYSQL_PROXY = 'eolssu-replication-proxy-579'
 PHPMYADMIN = 'eolssu-mysql-admin-phpmyadmin-1'
 ANALYSIS_AI = 'eolssu-runtime-ai-1'
 REVIEW_TUNNEL = 'hey-edo1-tunnel-1'
+EDO1_READINESS_TYPES = {
+    ANALYSIS_AI: ('http_communication', 'edo1 서비스 HTTP 통신 검사'),
+    MYSQL_PROXY: ('tcp_listener', 'edo1 MySQL 프록시 로컬 수신 검사'),
+}
 DOCKER_BRIDGE_RANGE = IPv4Network('172.16.0.0/12')
 EDO1_PUBLISHED_PROBES = {
     BLOG_LOGIN: ('8000/tcp', '172.18.0.1', 18120, '/config'),
@@ -43,7 +50,7 @@ EDO1_BRIDGE_PROBES = {
 EDO1_READINESS_ACTIONS = {
     BLOG_LOGIN: '블로그 로그인 편집기의 내부 /config, OAuth 설정과 CORS 확인',
     BLOG_WRITABLE: '블로그 쓰기 편집기의 내부 /config, OAuth 설정·CORS와 canBatch 확인',
-    MYSQL_PROXY: 'edo1 포트 매핑·수신 상태와 edo2 eolssu-replication-watch.service 결과 확인',
+    MYSQL_PROXY: 'edo1 프록시 실행·포트 매핑·수신 확인. 복제 통신은 /edo2-health에서 확인',
     PHPMYADMIN: 'phpMyAdmin 127.0.0.1:8081 로그인 화면과 컨테이너 로그 확인',
     ANALYSIS_AI: '분석 API 경로와 HTTP 422 필수 입력 검증 응답 확인',
     REVIEW_TUNNEL: 'Cloudflared 내부 /ready와 엣지 연결 상태 확인',
@@ -399,8 +406,11 @@ def has_port_binding(detail, container_port, host, port):
 
 
 def mysql_proxy_readiness(detail):
+    ports = detail.get('NetworkSettings', {}).get('Ports')
+    if not isinstance(ports, dict):
+        return '확인 불가', 'MySQL 프록시 포트 매핑 정보 수집 불가', '—'
     if not has_port_binding(detail, '3306/tcp', '127.0.0.1', 13306):
-        return '확인 불가', 'MySQL 프록시 loopback 포트 매핑 확인 불가', '—'
+        return '실패', 'MySQL 프록시 loopback 포트 매핑 없음', '—'
     started = time.monotonic()
     # Opening and dropping a pre-auth connection can count against the shared MySQL proxy host.
     try:
@@ -408,9 +418,11 @@ def mysql_proxy_readiness(detail):
     except (OSError, subprocess.TimeoutExpired):
         return '확인 불가', 'MySQL 프록시 로컬 수신 상태 수집 불가', '—'
     elapsed = f'{(time.monotonic()-started)*1000:.0f}ms'
-    if listener.returncode != 0 or not listener.stdout.strip():
-        return '확인 불가', 'MySQL 프록시 로컬 수신 소켓 확인 불가', elapsed
-    return '미검증', 'ss로 127.0.0.1:13306 수신 확인 · MySQL 전달·복제 미검증', elapsed
+    if listener.returncode != 0:
+        return '확인 불가', 'MySQL 프록시 로컬 수신 상태 수집 불가', elapsed
+    if not listener.stdout.strip():
+        return '실패', 'ss에서 127.0.0.1:13306 로컬 수신 소켓 없음', elapsed
+    return '정상', '컨테이너 실행 중 · ss로 127.0.0.1:13306 로컬 수신 확인 · 복제 통신은 /edo2-health에서 확인', elapsed
 
 
 def readiness_response(name, status, content_type, cors_origin, body):
@@ -672,8 +684,9 @@ def container_report(target='edo1'):
     # Readiness timeouts must not consume the shared bind-mount measurement budget.
     for fact, detail in readiness_inputs:
         fact['readiness'] = container_readiness(target, fact['name'], detail)
-        if target == 'edo1' and fact['name'] == ANALYSIS_AI and fact['readiness'] is not None:
-            fact['readiness_kind'] = 'http_communication'
+        readiness_type = EDO1_READINESS_TYPES.get(fact['name'])
+        if target == 'edo1' and readiness_type and fact['readiness'] is not None:
+            fact['readiness_kind'] = readiness_type[0]
     return ['컨테이너', '실행/Health', 'CPU 사용/제한', 'RAM 사용/제한·비율', '쓰기 사용/제한·로그(회전 포함)',
             '데이터 저장소/사용량', '가동/재시작', '종료 코드/OOM', 'PID/공개 포트', 'NET 수신/송신·IO 읽기/쓰기(누적)', '이미지'], rows, issues, facts
 
@@ -707,6 +720,66 @@ def systemd_health(unit, kind='service', target='edo2'):
         return '미측정', 'systemd 수집 실패·시간 초과', f'{target}에서 systemctl show {unit} 재확인'
 
 
+def replication_watch_status():
+    properties = ('Id,LoadState,ActiveState,SubState,Result,ExecMainCode,ExecMainStatus,'
+                  'ExecMainStartTimestampMonotonic,ExecMainExitTimestampMonotonic')
+    unavailable = '확인 불가', '복제 감시 systemd 상태 조회 불가'
+    try:
+        result = run(['systemctl', 'show', '--property=' + properties,
+                      REPLICATION_WATCH_TIMER, REPLICATION_WATCH_SERVICE])
+    except (OSError, subprocess.TimeoutExpired):
+        return unavailable
+    if result.returncode:
+        return unavailable
+
+    units = {}
+    for section in result.stdout.strip().split('\n\n'):
+        state = dict(line.split('=', 1) for line in section.splitlines() if '=' in line)
+        units[state.get('Id')] = state
+    try:
+        timer, service = units[REPLICATION_WATCH_TIMER], units[REPLICATION_WATCH_SERVICE]
+        timer_load, service_load = timer['LoadState'], service['LoadState']
+        if not (timer_load and service_load):
+            return unavailable
+        if timer_load != 'loaded' or service_load != 'loaded':
+            return '실패', '복제 감시 예약 또는 서비스 unit 로드 실패'
+
+        timer_active, timer_substate = timer['ActiveState'], timer['SubState']
+        if not (timer_active and timer_substate):
+            return unavailable
+        if timer_active != 'active' or timer_substate not in ('waiting', 'running'):
+            return '실패', '복제 감시 예약 비활성'
+
+        active, result_name = service['ActiveState'], service['Result']
+        code, exit_status = service['ExecMainCode'], service['ExecMainStatus']
+        if not (active and result_name and code.isdecimal() and exit_status.isdecimal()):
+            return unavailable
+        if active == 'failed' or result_name != 'success':
+            return '실패', f'복제 감시 실패 · 결과 {result_name} · 종료 상태 {exit_status}'
+        if active in ('activating', 'deactivating'):
+            return '미검증', '복제 감시 실행 중 · 완료 결과 대기'
+        if active != 'inactive':  # The scheduled oneshot returns to inactive after completion.
+            return unavailable
+
+        start = int(service['ExecMainStartTimestampMonotonic'])
+        finish = int(service['ExecMainExitTimestampMonotonic'])
+    except (KeyError, ValueError):
+        return '확인 불가', '복제 감시 systemd 결과 또는 시각 정보 불완전'
+
+    if start == finish == 0:
+        return '미검증', '복제 감시 완료 이력 없음'
+    if code != '1' or exit_status != '0':  # CLD_EXITED and successful exit status.
+        return '실패', f'복제 감시 비정상 종료 · 종료 유형 {code} · 종료 상태 {exit_status}'
+    now = time.monotonic_ns() // 1000
+    if not 0 < start <= finish <= now:
+        return '확인 불가', '복제 감시 완료 시각 확인 불가'
+    age = (now - finish) / 1_000_000
+    freshness = f'최근 완료 {age:.1f}초 전 · 유효 {REPLICATION_WATCH_MAX_AGE_SECONDS}초'
+    if age > REPLICATION_WATCH_MAX_AGE_SECONDS:
+        return '주의', f'{freshness} 초과 · 마지막 결과 성공'
+    return '정상', f'{freshness} · 수신·적용 정상 · 적용 지연 10초 이하'
+
+
 def edo2_host_health():
     rows = []
     units = [('Nginx', 'nginx.service', 'service'), ('점검 중계', 'edo-check.service', 'service'),
@@ -720,6 +793,9 @@ def edo2_host_health():
     for name, unit, kind in units:
         status, evidence, action = systemd_health(unit, kind)
         rows.append([name, 'edo2 systemd', status, evidence, '—', action])
+    status, evidence = replication_watch_status()
+    rows.append(['MySQL 복제 감시', EDO2_REPLICATION_WATCH_LOCATION, status, evidence, '—',
+                 f'edo2에서 systemctl status {REPLICATION_WATCH_TIMER}와 journalctl -u {REPLICATION_WATCH_SERVICE} 확인'])
     for name, command, good_text, action in (
             ('Nginx 구성', ['nginx', '-t'], None, 'edo2에서 nginx -t의 실패 위치·인증서 경로 확인'),
             ('UFW', ['ufw', 'status'], 'Status: active', 'edo2에서 ufw status verbose로 방화벽 활성 상태 확인')):
@@ -880,13 +956,15 @@ def health_report(target='edo1'):
         evidence = ('중지·일시정지: ' + observed_state) if not running else (health or '실행 중 · 건강 검사 없음')
         action = ('실행 상태·서비스 로그 확인' if status == '실패' else
                   '현재 조치 없음' if status == '정상' else '실행만 확인됨; 서비스 준비 상태 검사 필요')
+        if target == 'edo1' and name == MYSQL_PROXY:
+            action = EDO1_READINESS_ACTIONS[MYSQL_PROXY]
         if name == ANALYSIS_AI and status == '정상':
             status, evidence = '미검증', 'TCP 연결 검사 통과 · 분석 API HTTP 통신 미검증'
             action = EDO1_READINESS_ACTIONS[ANALYSIS_AI]
         readiness = container_readiness(target, name, detail) if status in ('정상', '미검증') else None
         if readiness:
             if target == 'edo1':
-                location = EDO1_HTTP_COMMUNICATION_LOCATION if name == ANALYSIS_AI else EDO1_READINESS_LOCATION
+                _, location = EDO1_READINESS_TYPES.get(name, (None, EDO1_READINESS_LOCATION))
                 next_action = EDO1_READINESS_ACTIONS[name]
             else:
                 location, next_action = STANDBY_WEB_LOCATION, STANDBY_WEB_ACTION

@@ -82,7 +82,7 @@ def cell(value):
 
 STATUS_ICONS = {
     '정상': '✅', '검증 완료': '✅', '장애': '❌', '주의': '⚠️', '미검증': '❓', '미측정': '🚫', '설정 참고': 'ℹ️',
-    '통신 정상': '✅',
+    '통신 정상': '✅', '로컬 수신 정상': '✅', '복제 통신 정상': '✅',
     '실행 · HTTPS 검사 통과': '✅', '실행 · HTTPS 미측정': '🚫',
     '실행 · 검사 통과': '✅', '실행 · 준비 미검증': '❓',
     '검사한 범위 정상': '✅', '장애 확인': '❌', '주의 필요': '⚠️', '일부 확인 못 함': '❓',
@@ -158,9 +158,13 @@ def compact_image_reference(value):
 
 MODE_LABELS = {'health': '상태', 'server': '서버', 'containers': '컨테이너'}
 HEALTH_LABELS = {'실패': '장애', '미설정': '미검증', '확인 불가': '미측정'}
-EDO1_READINESS_LABELS = {
-    'edo1 서비스 준비 검사': '검증 완료',
-    'edo1 서비스 HTTP 통신 검사': '통신 정상',
+HEALTH_SUCCESS_LABELS = {
+    'edo1': {
+        'edo1 서비스 준비 검사': '검증 완료',
+        'edo1 서비스 HTTP 통신 검사': '통신 정상',
+        'edo1 MySQL 프록시 로컬 수신 검사': '로컬 수신 정상',
+    },
+    'edo2': {'edo2 복제 감시 systemd': '복제 통신 정상'},
 }
 BACKEND_SLOTS = {'backend': '블루', 'backend-green': '그린'}
 FINDING_ORDER = ('장애', '주의', '미측정', '미검증')
@@ -278,6 +282,7 @@ def build_report(result, request_id):
     inherited_findings = {tuple(item) for item in findings}
     if result['mode'] == 'health':
         rendered = []
+        success_labels = HEALTH_SUCCESS_LABELS[target]
         # Prefer a successful direct readiness probe over an absent Docker check.
         ready = {row[0] for row in rows if row[1] == target + ' loopback HTTP' and row[2] == '정상'}
         for row in rows:
@@ -302,7 +307,7 @@ def build_report(result, request_id):
                           'edo2에서 공개 HTTPS 재요청; /edo1-containers의 웹·API 실행 상태와 Nginx upstream 확인' if '외부 HTTPS' in location else
                           'edo1에서 해당 loopback 준비 경로 재요청; 서비스 로그의 DB 연결 오류 확인' if 'loopback' in location else
                           'edo1에서 대상 docker inspect의 State·Health와 docker logs --tail 50 확인')
-            if (location in EDO1_READINESS_LABELS or name == 'eolssu-runtime-ai-1'
+            if (location in success_labels or name in ('eolssu-runtime-ai-1', 'eolssu-replication-proxy-579')
                     or location in ('edo1 systemd', 'edo2 systemd', 'edo2 구성 검사', 'edo2 백업 메타데이터',
                                     'edo1 모니터링 HTTP', 'edo2 대기 웹 loopback HTTPS')):
                 action = str(row[5]) if len(row) > 5 else 'edo2의 해당 unit·설정 확인'
@@ -322,7 +327,7 @@ def build_report(result, request_id):
                 checked = re.sub(r'\b\d{2}:\d{2}:\d{2}\b', r'`\g<0>`', checked)
             if elapsed != '—':
                 checked += ' · ' + str(elapsed)
-            verdict = EDO1_READINESS_LABELS.get(location, status) if target == 'edo1' and status == '정상' else status
+            verdict = success_labels.get(location, status) if status == '정상' else status
             rendered.append([friendly(name), verdict, checked, '—' if status == '정상' else action])
             if status != '정상':
                 findings.append([status, friendly(name) + ': ' + str(evidence), action])
