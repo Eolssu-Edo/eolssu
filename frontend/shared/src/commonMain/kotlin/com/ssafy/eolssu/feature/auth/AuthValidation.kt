@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.auth
 
 import com.ssafy.eolssu.core.model.EmailRule
+import com.ssafy.eolssu.core.model.NicknameRule
 import com.ssafy.eolssu.core.model.PasswordRule
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_error_email_empty
@@ -64,7 +65,7 @@ enum class FieldError(val message: StringResource) {
 
 /**
  * 서버에 보내기 전의 입력 검사. 계정 확인·이메일 중복·인증번호는 서버 응답을 따른다.
- * 비밀번호 규칙은 서버와 같은 '영문·숫자·특수문자를 포함한 8~128자'다. 닉네임은 현재 서버의 NotBlank·Size(max=60) 계약을 따른다.
+ * 비밀번호 규칙은 서버와 같은 '영문·숫자·특수문자를 포함한 8~128자'다. 닉네임은 서버와 같은 공백이 아닌 최대 10자([NicknameRule])다.
  */
 object AuthValidation {
     private val codePattern = Regex("""^\d{6}$""")
@@ -93,7 +94,7 @@ object AuthValidation {
 
     fun nicknameError(nickname: String): FieldError? = when {
         nickname.isBlank() -> FieldError.NicknameEmpty
-        nickname.length > 60 -> FieldError.InvalidInput
+        NicknameRule.isTooLong(nickname) -> FieldError.InvalidInput
         else -> null
     }
 }

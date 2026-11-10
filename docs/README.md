@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [닉네임 최대 10자 서버 검증 (685)](plans/S15P31E102-685.md)
 - [기초부터 배우기 1·7단계 반복 할 일 서버 문구 정리 (656)](plans/S15P31E102-656.md)
 - [기초부터 배우기 4~6단계 따라 배우기 반복 칸 정리 (655)](plans/S15P31E102-655.md)
 - [한 음씩 따라 불기 판정의 실측 높이 재생 검증 (653)](knowledge/frontend/step-practice-pitch-replay.md)
@@ -185,6 +186,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [Android QA APK 화면 재조회·데이터 재사용 계측 설계 (678)](plans/S15P31E102-678.md)
 - [Android 채점모드 실시간 음높이 표시 설계](knowledge/frontend/realtime-pitch-prototype-design.md)
 - [Android 런처 아이콘 크기·잘림 보정 (522)](plans/S15P31E102-522.md)
 

@@ -104,14 +104,14 @@ class MyInfoControllerTests {
     @Test
     fun `blank too long or missing nickname is an invalid request`() {
         repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA", true)
-        for (body in listOf("""{"nickname":" "}""", """{"nickname":"${"가".repeat(61)}"}""", "{}")) {
+        for (body in listOf("""{"nickname":" "}""", """{"nickname":"${"가".repeat(11)}"}""", "{}")) {
             mvc.perform(patch("/api/users/me").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest)
                 .andExpect(content().json("""{"result":{"errorCode":"INVALID_REQUEST"}}"""))
         }
-        mvc.perform(patch("/api/users/me").contentType(MediaType.APPLICATION_JSON).content("""{"nickname":"${"가".repeat(60)}"}"""))
+        mvc.perform(patch("/api/users/me").contentType(MediaType.APPLICATION_JSON).content("""{"nickname":"${"가".repeat(10)}"}"""))
             .andExpect(status().isOk)
-        kotlin.test.assertEquals("가".repeat(60), repository.members.getValue(7).nickname)
+        kotlin.test.assertEquals("가".repeat(10), repository.members.getValue(7).nickname)
     }
 
     @Test

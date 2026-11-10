@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import com.ssafy.eolssu.core.ui.component.metricLabel
 import com.ssafy.eolssu.core.ui.component.MetricCards
 import androidx.compose.foundation.BorderStroke
@@ -284,6 +286,7 @@ internal fun TotalScore(
                     append(stringResource(Res.string.result_total_unit))
                 }
             },
+            modifier = Modifier.observeFirstDraw(PerfPhase.SCORE_DRAWN),
             style = EolssuTheme.serif.brand.copy(fontSize = scoreSize, lineHeight = scoreSize),
         )
         // 서버 결과는 총평이 없다.

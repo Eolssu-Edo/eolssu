@@ -5,6 +5,7 @@ import { readFile, access, unlink } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { Control, Rejected } from './control.mjs';
 import { AdbPhone } from './adb.mjs';
+import { ApplogHost, ApplogPath, ApplogTokenPattern, parseApplogRequest, parseApplogResponse } from './applog.mjs';
 import { Catalog } from './catalog.mjs';
 import { createMirror } from './mirror.mjs';
 import { PhoneVideo } from './video.mjs';
@@ -26,10 +27,17 @@ async function body(req) {
   try { const value = JSON.parse(Buffer.concat(chunks).toString('utf8')); if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(); return value; }
   catch { throw new Rejected('invalid JSON', 400); }
 }
-export async function startRelay({ phone, token, port = 17680, origin, basePath = '/', deviceId = 'phone', deviceName = '휴대폰', trustProxy = false, catalog = null, mirror = null, video = null, screenKeeper = null, wireless = null } = {}) {
+export async function startRelay({ phone, token, port = 17680, origin, basePath = '/', deviceId = 'phone', deviceName = '휴대폰', trustProxy = false, catalog = null, mirror = null, video = null, screenKeeper = null, wireless = null, applog = null } = {}) {
   if (typeof token !== 'string' || token.length < 24) throw new Error('QA_TOKEN must contain at least 24 characters');
   if (typeof basePath !== 'string' || !/^\/(?:[a-zA-Z0-9_-]+\/)*$/.test(basePath)) throw new Error('invalid QA_BASE_PATH');
   if (!/^[a-z][a-z0-9-]{0,31}$/.test(deviceId) || typeof deviceName !== 'string' || !deviceName.trim() || deviceName.length > 60 || /[\p{C}]/u.test(deviceName)) throw new Error('invalid QA device identity');
+  if (applog && (deviceId !== 'phone' || basePath !== '/qa/' || typeof phone.applog !== 'function' ||
+      typeof applog.token !== 'string' || !ApplogTokenPattern.test(applog.token) || applog.token === token ||
+      typeof applog.identity !== 'string' || !/^[A-Za-z0-9_-]{4,80}$/.test(applog.identity))) {
+    throw new Error('invalid phone app log configuration');
+  }
+  const applogCredential = applog ? hash(applog.token) : null;
+  let applogTask = null;
   const device = { id: deviceId, name: deviceName.trim() };
   // A parent-path cookie is also sent to nested paths. Distinct names avoid order-dependent login.
   const cookieName = ['/', '/qa/'].includes(basePath) ? 'qa_session' : 'qa_session_' + hash(basePath).toString('hex').slice(0,16);
@@ -94,6 +102,36 @@ export async function startRelay({ phone, token, port = 17680, origin, basePath 
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     const json = (code, value) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(value)); };
     try {
+      if (req.url === ApplogPath && req.method === 'POST') {
+        if (!applogCredential) throw new Rejected('not found', 404);
+        const supplied = /^Bearer ([A-Za-z0-9_-]{32,128})$/.exec(req.headers.authorization || '')?.[1];
+        if (req.headers.host !== ApplogHost || req.headers.origin || req.headers['sec-fetch-site'] ||
+            !supplied || !timingSafeEqual(hash(supplied), applogCredential)) {
+          throw new Rejected('app_log_unauthorized', 401);
+        }
+        let request;
+        try {
+          request = parseApplogRequest(await body(req));
+        } catch (error) {
+          throw new Rejected('app_log_invalid_request', error instanceof Rejected ? error.status : 400);
+        }
+        if (closed) throw new Rejected('app_log_unavailable', 503);
+        if (control.maintenance) throw new Rejected('app_log_installing', 409);
+        if (applogTask) throw new Rejected('app_log_busy', 409);
+        try {
+          let raw;
+          try {
+            applogTask = phone.applog(request, applog.identity);
+            raw = await applogTask;
+          } catch {
+            throw new Rejected('app_log_unavailable', 503);
+          }
+          json(200, parseApplogResponse(raw, request));
+        } finally {
+          applogTask = null;
+        }
+        return;
+      }
       if (req.headers.host !== new URL(url).host) throw new Rejected('invalid host', 403);
       const pathname = new URL(req.url, url).pathname;
       if (!pathname.startsWith(basePath)) throw new Rejected('not found', 404);
@@ -180,6 +218,7 @@ export async function startRelay({ phone, token, port = 17680, origin, basePath 
         case '/api/builds/install': {
           if(!catalog) throw new Rejected('APK 보관소가 설정되지 않았습니다',503);
           control.owns(id); control.checkMaintenance();
+          if (applogTask) throw new Rejected('앱 로그를 읽고 있습니다. 잠시 후 다시 설치하세요.',409);
           const build=catalog.list().builds.find(v=>v.id===data.id);
           if(!build) throw new Rejected('APK를 찾을 수 없습니다',404);
           const drained=control.beginMaintenance(id,data.epoch);
@@ -244,6 +283,7 @@ export async function startRelay({ phone, token, port = 17680, origin, basePath 
   schedule();
   return { url, publicUrl: url + basePath, control, async close() {
     closed = true; clearTimeout(timer); if(screenKeeper)await screenKeeper.close(); if(mirror?.close)await mirror.close();if(catalog)await catalog.tail; if(video)await video.stop(); if(installTask) await installTask; await control.tail; await control.setOnline(false);
+    if (applogTask) await applogTask.catch(() => {});
     server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
     if (capturing) await capturing;
   }};
@@ -257,7 +297,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const screenKeeper=process.env.QA_SCREEN_SERVER ? new ScreenKeeper(phone,process.env.QA_SCREEN_SERVER) : null;
     const wirelessFile=process.env.QA_WIRELESS_STATE,execute=promisify(execFile);
     const wireless=wirelessFile?{state:()=>wirelessPortState(wirelessFile),change:port=>queueWirelessPort({file:wirelessFile,port,run:async args=>(await execute(phone.adb,['-P',String(phone.port),...args],{windowsHide:true,timeout:4000,maxBuffer:256*1024})).stdout})}:null;
-    const relay = await startRelay({ phone, catalog, mirror, video, screenKeeper, wireless, token: process.env.QA_TOKEN, port: Number(process.env.QA_PORT || 17680), origin: process.env.QA_ORIGIN, basePath: process.env.QA_BASE_PATH || '/', deviceId:process.env.QA_DEVICE_ID || 'phone', deviceName:process.env.QA_DEVICE_NAME || '휴대폰', trustProxy: process.env.QA_TRUST_PROXY === '1' });
+    const applog = process.env.QA_APPLOG_TOKEN || process.env.QA_APPLOG_DEVICE_IDENTITY ?
+      { token: process.env.QA_APPLOG_TOKEN, identity: process.env.QA_APPLOG_DEVICE_IDENTITY } : null;
+    delete process.env.QA_APPLOG_TOKEN;
+    delete process.env.QA_APPLOG_DEVICE_IDENTITY;
+    const relay = await startRelay({ phone, catalog, mirror, video, screenKeeper, wireless, applog, token: process.env.QA_TOKEN, port: Number(process.env.QA_PORT || 17680), origin: process.env.QA_ORIGIN, basePath: process.env.QA_BASE_PATH || '/', deviceId:process.env.QA_DEVICE_ID || 'phone', deviceName:process.env.QA_DEVICE_NAME || '휴대폰', trustProxy: process.env.QA_TRUST_PROXY === '1' });
     console.log(`QA phone relay: ${relay.publicUrl} (loopback only; audio stays on phone)`);
     let stopping = false, stopTimer;
     const stop = async () => { if (stopping) return; stopping = true; clearInterval(stopTimer); await relay.close();if(process.env.QA_STOP_FILE)await unlink(process.env.QA_STOP_FILE).catch(()=>{}); process.exit(0); };

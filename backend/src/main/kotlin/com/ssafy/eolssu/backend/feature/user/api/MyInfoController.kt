@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.feature.user.api
 import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
+import com.ssafy.eolssu.backend.feature.auth.domain.NicknamePolicy
 import com.ssafy.eolssu.backend.feature.user.application.MyInfoService
 import com.ssafy.eolssu.backend.feature.user.application.MyInfoWithProviders
 import com.ssafy.eolssu.backend.feature.user.application.PreferencesResult
@@ -78,7 +79,7 @@ data class MyInfoResult(
 }
 
 /** 닉네임은 가입(AUTH-02)과 같은 규칙이다. */
-class NicknameRequest(@field:NotBlank @field:Size(max = 60) val nickname: String)
+class NicknameRequest(@field:NotBlank @field:Size(max = NicknamePolicy.MAX_LENGTH) val nickname: String)
 
 data class MyProfileResult(val userId: String, val nickname: String, val instrumentId: String, val notationMode: String) {
     constructor(info: MyInfo) : this(info.userId.toString(), info.nickname, info.instrumentId.toString(), info.notationMode)
