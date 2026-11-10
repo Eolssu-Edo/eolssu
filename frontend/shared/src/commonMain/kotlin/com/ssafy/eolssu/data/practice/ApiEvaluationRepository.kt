@@ -8,11 +8,12 @@ import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.ScoreError
 import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreEvent
+import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.apiResponse
+import com.ssafy.eolssu.core.network.inSession
 import com.ssafy.eolssu.core.network.sendOrNull
 import com.ssafy.eolssu.data.song.SongRepository
-import com.ssafy.eolssu.core.network.SignedInMember
-import com.ssafy.eolssu.core.network.inSession
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -21,6 +22,7 @@ import io.ktor.http.HttpStatusCode
 import kotlin.math.roundToInt
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 
 /**
@@ -74,13 +76,35 @@ class ApiEvaluationRepository(
     /** 조회마다 서버 소유권을 확인한다. 다른 로그인 세션에 이전 회원의 캐시를 노출하지 않는다. */
     override suspend fun result(evaluationId: String): EvaluationResult? = member.inSession {
         if (!evaluationId.isServerId()) return@inSession fallback?.result(evaluationId)
+        val evaluation = fetchEvaluation(evaluationId) ?: return@inSession null
+        loadDetails(evaluation, initialSong = null)?.first
+    }
+
+    override suspend fun resultForScreen(evaluationId: String, initialSong: Song?): ScreenEvaluation? = member.inSession {
+        if (!evaluationId.isServerId()) return@inSession fallback?.resultForScreen(evaluationId, initialSong)
+        val account = member?.session?.value
+        val evaluation = fetchEvaluation(evaluationId) ?: return@inSession null
+        ScreenEvaluation(evaluation.toResult(null)) {
+            member.inSession {
+                if (member?.session?.value != account) throw CancellationException("로그인 세션이 변경됨")
+                loadDetails(evaluation, initialSong)
+            }
+        }
+    }
+
+    private suspend fun fetchEvaluation(evaluationId: String): Evaluation? {
         val response = client.sendOrNull { get("/api/practice-sessions/$evaluationId/evaluation") }
-        if (response?.status != HttpStatusCode.OK) return@inSession null
-        val evaluation = response.apiResponse<Evaluation>()?.result ?: return@inSession null
-        if (evaluation.sessionId != evaluationId) return@inSession null
-        val song = songs.getSong(evaluation.songId) ?: return@inSession null
-        if (song.scoreVersion != evaluation.scoreVersion) return@inSession null
-        return@inSession evaluation.toResult(song.timeline)
+        if (response?.status != HttpStatusCode.OK) return null
+        val evaluation = response.apiResponse<Evaluation>()?.result ?: return null
+        return evaluation.takeIf { it.sessionId == evaluationId && it.songId.isServerId() }
+    }
+
+    private suspend fun loadDetails(evaluation: Evaluation, initialSong: Song?): Pair<EvaluationResult, Song>? {
+        val song = initialSong?.takeIf { it.id == evaluation.songId && it.scoreVersion == evaluation.scoreVersion }
+            ?: songs.getSong(evaluation.songId)
+            ?: return null
+        if (song.id != evaluation.songId || song.scoreVersion != evaluation.scoreVersion) return null
+        return evaluation.toResult(song.timeline) to song
     }
 
     private fun Evaluation.toResult(timeline: List<ScoreEvent>?): EvaluationResult {
