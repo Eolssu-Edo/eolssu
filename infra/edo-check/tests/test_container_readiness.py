@@ -73,3 +73,32 @@ class ContainerReadinessTests(unittest.TestCase):
                 self.assertIn('장애 1', report.splitlines()[1])
                 self.assertIn('| 연주 분석 AI | ❌ **장애**', report)
                 self.assertNotIn('통신 정상', report)
+
+    def test_proxy_listener_success_keeps_inventory_and_points_to_replica_health(self):
+        proxy = 'eolssu-replication-proxy-579'
+        evidence = 'ss로 127.0.0.1:13306 수신 확인'
+        hint = '복제 통신은 /edo2-health에서 확인'
+        readiness_kinds = {proxy: 'tcp_listener'}
+        report = self.render([(proxy, 'running/미설정', ['정상', evidence, '2ms'])],
+                             readiness_kinds=readiness_kinds)
+        self.assertIn(f'| MySQL 복제 프록시 | ✅ **실행 · 로컬 수신 확인** · {evidence} · 2ms · {hint} |', report)
+        self.assertIn('MySQL 복제 프록시 (eolssu-replication-proxy-579)', report)
+        self.assertIn('미검증 0', report.splitlines()[1])
+        self.assertNotIn('검증 완료', report)
+        report = self.render([(proxy, 'running/미설정', ['정상', f'{evidence} · {hint}', '2ms'])],
+                             readiness_kinds=readiness_kinds)
+        self.assertEqual(report.count(hint), 1)
+
+    def test_proxy_stop_and_listener_failures_remain_visible(self):
+        proxy = 'eolssu-replication-proxy-579'
+        for state, readiness, expected_count, expected_status in (
+            ('exited/미설정', ['정상', '이전 수신 확인', '2ms'], '장애 1', '장애'),
+            ('running/미설정', ['실패', '로컬 수신 소켓 없음', '2ms'], '장애 1', '장애'),
+            ('running/미설정', ['확인 불가', '수신 상태 조회 실패', '—'], '미측정 1', '실행 · 준비 확인 불가'),
+        ):
+            with self.subTest(state=state, readiness=readiness):
+                report = self.render([(proxy, state, readiness)], readiness_kinds={proxy: 'tcp_listener'})
+                self.assertIn(expected_count, report.splitlines()[1])
+                self.assertIn(f'**{expected_status}**', report)
+                self.assertNotIn('실행 · 로컬 수신 확인', report)
+                self.assertNotIn('복제 통신은 /edo2-health에서 확인', report)
