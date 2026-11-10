@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.SessionSection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -80,16 +81,17 @@ fun AnalysisRoute(
     bpm: Int,
     take: RecordedTake?,
     pendingSessionId: String?,
-    onResult: (evaluationId: String) -> Unit,
+    onResult: (evaluationId: String, song: Song?) -> Unit,
     onBackToPractice: () -> Unit,
     onExit: (AnalysisExit) -> Unit,
     section: SessionSection? = null,
+    initialSong: Song? = null,
     viewModel: AnalysisViewModel = koinViewModel(key = "analysis-$songId-$bpm-${take?.key ?: pendingSessionId}") {
-        parametersOf(songId, bpm, take, pendingSessionId, section)
+        parametersOf(songId, bpm, take, pendingSessionId, section, initialSong)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    LaunchedEffect(state.evaluationId) { state.evaluationId?.let(onResult) }
+    LaunchedEffect(state.evaluationId) { state.evaluationId?.let { onResult(it, state.song) } }
     LaunchedEffect(state.exit) { state.exit?.let(onExit) }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.resume() }
