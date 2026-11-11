@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent { label 'edo1-web' }
 
     options {
         skipDefaultCheckout()
