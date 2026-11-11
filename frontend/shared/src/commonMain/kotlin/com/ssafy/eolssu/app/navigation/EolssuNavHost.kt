@@ -552,7 +552,7 @@ fun EolssuNavHost(
                         if (navController.currentBackStackEntry?.id == entry.id) {
                             navController.navigate(
                                 if (sheet.practiceReady) EolssuDestination.practice(sheet.id, mine = true)
-                                else SheetEditDestination.viewMine(sheet.id),
+                                else SheetEditDestination.editMine(sheet.id),
                             )
                         }
                     },

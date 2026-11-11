@@ -61,6 +61,8 @@
 - [장단 음원·곡별 검수 자료 전달과 재생 공통 스펙 (160·340)](specs/jangdan-practice-playback.md)
 - [장단 음원 생성·출처·빠르기 조사 (160)](knowledge/data/jangdan-preview-audio.md) · [107개 곡별 검수 결과 (160)](knowledge/data/jangdan-song-review.md)
 
+- [내 악보 편집 진입과 저장 오류 처리 (725)](plans/S15P31E102-725.md) · [저장 검증·빠르기 입력 근거](knowledge/frontend/sheet-editor-save-validation.md)
+
 ## 문서 위치
 
 | 내용 | 위치 |
