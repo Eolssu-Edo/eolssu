@@ -62,20 +62,28 @@ sudo docker compose -f "$compose_file" config --quiet &&
 
     sudo docker compose -f "$compose_file" config --quiet || exit 1
     change_started=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) || exit 1
-    sudo docker compose -f "$compose_file" up -d --no-deps --pull never --no-build --timeout 60 --wait --wait-timeout 125 mysql || exit 1
+    up_status=0
+    sudo docker compose -f "$compose_file" up -d --no-deps --pull never --no-build --timeout 60 --wait --wait-timeout 125 mysql || up_status=$?
 
+    diagnostic_status=0
     if [ "$old_mysql_state" = False:running ]; then
-        change_finished=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) || exit 1
-        sudo docker events --since "$change_started" --until "$change_finished" \
-            --filter type=container --filter "container=$old_mysql_id" --filter event=kill --filter event=die \
-            --format '{{.Action}} signal={{index .Actor.Attributes "signal"}} exit={{index .Actor.Attributes "exitCode"}}'
-    else
-        printf '롤백 시작 전에 MySQL %s의 exited 상태를 확인했습니다.\n' "$old_mysql_id"
+        change_finished=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) &&
+            sudo docker events --since "$change_started" --until "$change_finished" \
+                --filter type=container --filter "container=$old_mysql_id" --filter event=kill --filter event=die \
+                --format '{{.Action}} signal={{index .Actor.Attributes "signal"}} exit={{index .Actor.Attributes "exitCode"}}' ||
+            diagnostic_status=$?
+    elif [ "$up_status" -eq 0 ]; then
+        printf '롤백 시작 전에 MySQL %s의 exited 상태를 확인했습니다.\n' "$old_mysql_id" || diagnostic_status=$?
     fi
+
+    if [ "$up_status" -ne 0 ]; then
+        exit "$up_status"
+    fi
+    exit "$diagnostic_status"
 )
 ```
 
-MySQL이 실행 중이었다면 `die`의 종료 코드가 `0`이고 `kill`의 시그널 `9`가 없을 때 정상 종료로 판정한다. 종료 증거가 없거나 강제 종료가 관측되면 다음 단계를 보류한다. 롤백에서 `exited`가 확인됐으면 해당 상태를 기록하고 새 MySQL의 기동과 복제 확인을 진행한다. [Docker 이벤트 조회](https://docs.docker.com/reference/cli/docker/system/events/)
+적용 또는 롤백 직전 MySQL이 실행 중이었다면 `up --wait`가 실패해도 기존 ID로 종료 이벤트를 조회한다. `up`이 실패하면 그 종료 코드를 반환한다. `up`이 성공하고 종료 이벤트 조회가 실패하면 조회 실패를 반환한다. `die`의 종료 코드가 `0`이고 `kill`의 시그널 `9`가 없을 때 정상 종료로 판정한다. 종료 증거가 없거나 강제 종료가 관측되면 다음 단계를 보류한다. 롤백 전 기존 MySQL의 `exited`를 확인했고 `up`도 성공했으면 그 상태를 기록하고 새 MySQL의 기동과 복제를 확인한다. [Docker 이벤트 조회](https://docs.docker.com/reference/cli/docker/system/events/)
 
 대상에 `json-file`과 `max-size=10m`·`max-file=3`가 적용됐는지 `docker inspect`로 확인한다. 같은 이미지와 볼륨·네트워크를 사용하고 다른 컨테이너 ID가 유지됐는지도 대조한다. 대기 웹은 `https://localhost:18443/`, 대기 API는 같은 주소의 `/api/actuator/health/readiness`와 `/api/terms`를 대기계 인증서 `/opt/eolssu-standby-579/tls/localhost.crt`로 확인한다. 세 경로 모두 HTTP 200이어야 하며, 준비 상태의 `status`는 `UP`이어야 한다.
 
