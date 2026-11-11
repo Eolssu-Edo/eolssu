@@ -115,7 +115,6 @@ import com.ssafy.eolssu.data.practice.WeakSectionRepository
 import com.ssafy.eolssu.feature.history.CompareViewModel
 import com.ssafy.eolssu.feature.practice.SectionLoopViewModel
 import com.ssafy.eolssu.feature.practice.SectionSelectViewModel
-import com.ssafy.eolssu.feature.result.ResultErrorsViewModel
 import com.ssafy.eolssu.feature.result.SectionResultViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -173,7 +172,7 @@ val appModule = module {
         AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get(), get(), section, initialSong, perf)
     }
     viewModel { (evaluationId: String, initialSong: Song?, perf: PerformanceVisit?) ->
-        ResultViewModel(evaluationId, get(), get(), get(), get(), initialSong = initialSong, perf = perf)
+        ResultViewModel(evaluationId, get(), get(), get(), get(), initialSong = initialSong, perf = perf, weakSections = get())
     }
     viewModel { (justSavedId: String?, perf: PerformanceVisit?) -> RecordListViewModel(justSavedId, get(), get(), get(), songs = get(), perf = perf) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
@@ -235,15 +234,12 @@ val appModule = module {
 
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
     single<WeakSectionRepository> { ApiWeakSectionRepository(get(), get(), get(), get(), get()) }
-    viewModel { (sourceId: String, perf: PerformanceVisit?) ->
-        ResultErrorsViewModel(sourceId, get(), loadInstruments = get<InstrumentCatalog>()::load, member = get(), perf = perf)
-    }
     viewModel { (sourceId: String, perf: PerformanceVisit?) -> SectionSelectViewModel(sourceId, get(), perf) }
     viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int, perf: PerformanceVisit?) ->
         SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull(), settingsStore = get(), perf = perf)
     }
     viewModel { (sessionId: String, perf: PerformanceVisit?) -> SectionResultViewModel(sessionId, get(), perf) }
-    viewModel { (recordId: String) -> CompareViewModel(recordId, get()) }
+    viewModel { (recordId: String, previousId: String?) -> CompareViewModel(recordId, get(), previousId) }
     // 악보 추가·편집(2차). 인식·저장 API를 붙이기 전이라 예시 악보로 화면 흐름만 다룬다.
     viewModelOf(::EditNewViewModel)
     viewModel { EditPickViewModel(get(), get(), documents = get(), copies = get(), member = get()) }

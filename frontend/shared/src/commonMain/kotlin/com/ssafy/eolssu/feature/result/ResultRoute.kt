@@ -22,10 +22,8 @@ import org.koin.core.parameter.parametersOf
 import com.ssafy.eolssu.core.model.Song
 
 /**
- * RESULT-02 연결.
+ * 연주 결과(RESULT-02·03) 연결.
  *
- * @param onGoRecords 저장 뒤 '기록 보러 가기'. null이면 기록 화면이 아직 없어 '준비 중' 안내를 띄운다.
- * @param onViewAllErrors ‘오류 위치 상세 보기’ → RESULT-03 오류 위치. null이면 '준비 중' 안내를 띄운다.
  * @param onWeakSection ‘취약 구간 연습’ → PRACTICE-02 취약 구간 선택(2차). null이면 '준비 중' 안내를 띄운다.
  */
 @Composable
@@ -35,8 +33,6 @@ fun ResultRoute(
     onPracticeAgain: (songId: String) -> Unit,
     onOtherSong: () -> Unit,
     onHome: () -> Unit,
-    onGoRecords: ((recordId: String) -> Unit)?,
-    onViewAllErrors: (() -> Unit)? = null,
     onWeakSection: (() -> Unit)? = null,
     initialSong: Song? = null,
     perf: PerformanceVisit? = null,
@@ -72,23 +68,14 @@ fun ResultRoute(
             actions = ResultActions(
                 onBack = onBack,
                 onSave = viewModel::save,
-                onViewAllErrors = onViewAllErrors ?: showComingSoon,
+                onConfirmSave = viewModel::confirmSave,
                 onWeakSection = onWeakSection ?: showComingSoon,
                 onPracticeAgain = { (state.result?.songId ?: state.scorePreview?.songId)?.let(onPracticeAgain) },
                 onOtherSong = onOtherSong,
                 onHome = onHome,
                 onMemoChange = viewModel::changeMemo,
                 onCloseSheet = viewModel::closeSheet,
-                onGoRecords = {
-                    val recordId = state.savedRecord?.id
-                    if (onGoRecords != null && recordId != null) {
-                        viewModel.closeSheet()
-                        onGoRecords(recordId)
-                    } else {
-                        viewModel.closeSheet()
-                        showComingSoon()
-                    }
-                },
+                onSelectFilter = viewModel::selectFilter,
                 onRetrySong = viewModel::retrySong,
                 onRetryResult = viewModel::retryResult,
             ),

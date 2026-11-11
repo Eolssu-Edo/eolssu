@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.history.component
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -15,6 +14,10 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import com.ssafy.eolssu.core.ui.component.DrumThumb
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import eolssu.shared.generated.resources.record_result_practice
 import androidx.compose.foundation.layout.Arrangement
@@ -42,44 +45,22 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.formatClock
-import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.feature.history.RecordDetailActions
 import com.ssafy.eolssu.feature.history.RecordDetailUiState
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_pause
 import eolssu.shared.generated.resources.practice_play
-import eolssu.shared.generated.resources.record_detail_back5
 import eolssu.shared.generated.resources.record_detail_back5_label
-import eolssu.shared.generated.resources.record_detail_fwd5
 import eolssu.shared.generated.resources.record_detail_fwd5_label
 import eolssu.shared.generated.resources.record_detail_position
 import eolssu.shared.generated.resources.record_detail_seek
-import eolssu.shared.generated.resources.records_score_unit
-import eolssu.shared.generated.resources.weak_record_compare
-import eolssu.shared.generated.resources.weak_record_compare_with
 import org.jetbrains.compose.resources.stringResource
 
-
-/** 큰 점수(Noto Serif 굵게) + 작은 '점'. */
-@Composable
-internal fun RecordScoreText(record: PracticeRecord, size: TextUnit) {
-    val colors = EolssuTheme.colors
-    Text(
-        buildAnnotatedString {
-            append("${record.score}")
-            withStyle(SpanStyle(fontSize = 12.sp, color = colors.textMuted, fontWeight = FontWeight.Medium)) { append(stringResource(Res.string.records_score_unit)) }
-        },
-        // 보드: 점수는 Noto Serif KR 굵게.
-        style = EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size, fontWeight = FontWeight.Bold),
-    )
-}
 
 /** 지금 위치(시간 · 각·칸)와 전체 길이. */
 @Composable
@@ -144,17 +125,26 @@ internal fun PlaybackSlider(state: RecordDetailUiState, actions: RecordDetailAct
     )
 }
 
-/** −5초 · 재생 · +5초 버튼. */
+/** 재생 묶음 바탕(시안 #F3F1EC). 테마에 같은 색이 없어 여기에만 둔다. */
+private val PlayGroupBackground = Color(0xFFF3F1EC)
+
+/**
+ * 재생 묶음: 회색 알약 안에 ↺5 · 재생 · ↻5. 재생 버튼은 연두 원(52) 안 먹색 재생 표시이고, 5초 버튼은 바탕 없는 44dp다.
+ * 녹음을 다시 들을 수 없는 기록(`recordingAvailable` false)은 모두 쓸 수 없다.
+ */
 @Composable
-internal fun PlaybackButtons(state: RecordDetailUiState, actions: RecordDetailActions, skipSize: Dp, playSize: Dp, gap: Dp) {
+internal fun PlaybackButtons(state: RecordDetailUiState, actions: RecordDetailActions) {
     val colors = EolssuTheme.colors
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(gap)) {
-        SkipButton(stringResource(Res.string.record_detail_back5), stringResource(Res.string.record_detail_back5_label), skipSize, state.canPlay) { actions.onSkip(-5) }
-        // 녹음을 다시 들을 수 없는 기록(`recordingAvailable` false)은 재생 버튼을 쓸 수 없다.
+    Row(
+        Modifier.background(PlayGroupBackground, RoundedCornerShape(30.dp)).padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        SkipButton(EolssuIcons.ReplayBack, stringResource(Res.string.record_detail_back5_label), state.canPlay, digitOffset = 0.2.dp) { actions.onSkip(-5) }
         Surface(
             onClick = actions.onTogglePlay,
             enabled = state.canPlay,
-            modifier = Modifier.size(playSize),
+            modifier = Modifier.size(52.dp),
             shape = CircleShape,
             color = if (state.canPlay) colors.primary else colors.surfaceStrong,
             contentColor = if (state.canPlay) colors.onPrimary else colors.textDisabled,
@@ -163,66 +153,46 @@ internal fun PlaybackButtons(state: RecordDetailUiState, actions: RecordDetailAc
                 Icon(
                     if (state.playing) EolssuIcons.Pause else EolssuIcons.Play,
                     contentDescription = stringResource(if (state.playing) Res.string.practice_pause else Res.string.practice_play),
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }
-        SkipButton(stringResource(Res.string.record_detail_fwd5), stringResource(Res.string.record_detail_fwd5_label), skipSize, state.canPlay) { actions.onSkip(5) }
+        SkipButton(EolssuIcons.ReplayForward, stringResource(Res.string.record_detail_fwd5_label), state.canPlay, digitOffset = (-0.2).dp) { actions.onSkip(5) }
     }
 }
 
 /**
- * ‘지난 연주와 비교 · 10월 13일 68점 ›’(2차 RECORD-02 `RecordDetail-Ext`): 40dp · 반지름 10 · 크림 바탕. 누르면 COMPARE-01로 간다.
- * [previous]는 이 기록 바로 전의 같은 곡 전체 연주이고, 없으면 이름만 적는다.
+ * 하단 재생 영역 내용(시간 · 막대 · 재생 묶음과 ‘취약 구간 연습’). 휴대폰·태블릿이 같은 구성이다.
  */
 @Composable
-internal fun CompareEntry(previous: PracticeRecord?, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    Surface(onClick = onClick, modifier = modifier.fillMaxWidth().height(40.dp), shape = RoundedCornerShape(10.dp), color = colors.accentTint, contentColor = colors.text) {
-        Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                buildAnnotatedString {
-                    append(stringResource(Res.string.weak_record_compare))
-                    if (previous != null) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, color = colors.textSub)) {
-                            append(" · " + stringResource(Res.string.weak_record_compare_with, monthDayLabel(previous.recordedAt), previous.score))
-                        }
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                maxLines = 1,
-            )
-            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp))
-        }
-    }
-}
-
-/**
- * 하단 재생 영역 내용(시간 · 막대 · 버튼 줄). 휴대폰과 태블릿 세로가 같은 구성이고 버튼 사이만 다르다([gap]).
- */
-@Composable
-internal fun PlaybackBarContent(state: RecordDetailUiState, actions: RecordDetailActions, gap: Dp) {
+internal fun PlaybackBarContent(state: RecordDetailUiState, actions: RecordDetailActions) {
     PlaybackTimeRow(state)
     PlaybackSlider(state, actions)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PlaybackButtons(state, actions, skipSize = 44.dp, playSize = 48.dp, gap = gap)
-        EolssuButton(stringResource(Res.string.record_result_practice), actions.onPractice, modifier = Modifier.weight(1f), enabled = state.canPractice, small = true)
+        PlaybackButtons(state, actions)
+        EolssuButton(stringResource(Res.string.record_result_practice), actions.onPractice, modifier = Modifier.weight(1f), enabled = state.canPractice)
     }
 }
 
+/** 5초 이동(44dp, 바탕 없음): 둥근 화살표 가운데에 ‘5’. */
 @Composable
-private fun SkipButton(text: String, label: String, size: Dp, enabled: Boolean, onClick: () -> Unit) {
+private fun SkipButton(icon: ImageVector, label: String, enabled: Boolean, digitOffset: Dp, onClick: () -> Unit) {
+    val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.size(size).semantics { contentDescription = label },
+        modifier = Modifier.size(44.dp).semantics { contentDescription = label },
         shape = CircleShape,
-        color = EolssuTheme.colors.surface,
-        border = BorderStroke(1.dp, EolssuTheme.colors.lineSoft),
+        color = Color.Transparent,
+        contentColor = if (enabled) colors.text else colors.textDisabled,
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
+            Icon(icon, contentDescription = null, modifier = Modifier.size(26.dp))
+            Text(
+                "5",
+                modifier = Modifier.offset(x = digitOffset, y = 1.dp),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 9.sp, fontWeight = FontWeight.Bold),
+            )
         }
     }
 }

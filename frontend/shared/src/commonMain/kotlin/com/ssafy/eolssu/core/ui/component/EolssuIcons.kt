@@ -96,6 +96,14 @@ object EolssuIcons {
     /** 마이페이지 로그아웃(문 밖으로 나가는 화살표). */
     val LogOut = lineIcon("LogOut", "M10 4H5v16h5", "M14 8l4 4 -4 4M18 12H9")
     val Trash = lineIcon("Trash", "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1 -13M9 7V4h6v3")
+    /** 기록 고르기·비교 기록 바꾸기 버튼의 달력. */
+    val Calendar = lineIcon("Calendar", rect(3f, 5f, 18f, 16f, 2f), "M3 10h18M8 3v4M16 3v4")
+    /** 5초 뒤로(반시계 화살표). 가운데 숫자는 따로 적는다. */
+    val ReplayBack = lineIcon("ReplayBack", "M4.5 12a7.5 7.5 0 1 0 2.4 -5.5", "M4 3.5v4h4")
+    /** 5초 앞으로(시계 방향 화살표). */
+    val ReplayForward = lineIcon("ReplayForward", "M19.5 12a7.5 7.5 0 1 1 -2.4 -5.5", "M20 3.5v4h-4")
+    /** ‘지금 위치로’(과녁 십자). */
+    val Locate = lineIcon("Locate", circle(12f, 12f, 6f), "M12 2v3M12 19v3M2 12h3M19 12h3", filled = listOf(circle(12f, 12f, 1.5f)))
 
     private fun dot(cx: Float, cy: Float) = circle(cx, cy, 0.9f)
 

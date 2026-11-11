@@ -389,8 +389,6 @@ fun EolssuNavHost(
                     },
                     onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
                     onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
-                    onGoRecords = { id -> performance.move(perf, PerfTarget.RECORDS) { navController.navigate(EolssuDestination.records(id)) } },
-                    onViewAllErrors = { performance.move(perf, PerfTarget.WEAK_ERRORS) { navController.navigate(WeakSectionDestination.errors(evaluationId)) } },
                     onWeakSection = { performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(evaluationId)) } },
                 )
             }
@@ -411,7 +409,7 @@ fun EolssuNavHost(
                     onBack = { navController.popBackStackFrom(entry) },
                     onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
                     onOpenRecord = { id -> performance.move(perf, PerfTarget.RECORD_DETAIL) { navController.navigate(EolssuDestination.recordResult(id)) } },
-                    onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
+                    onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                     onSelectSection = { id -> performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(id)) } },
                 )
             }
@@ -430,7 +428,7 @@ fun EolssuNavHost(
                         onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
                         onOpenRecord = { navController.navigate(EolssuDestination.recordResult(it)) },
                         initialRecordId = recordId,
-                        onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
+                        onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                         onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
                     )
                 } else {
@@ -438,7 +436,7 @@ fun EolssuNavHost(
                         recordId = recordId,
                         onDeleted = { navController.popBackStackFrom(entry) },
                         onBack = { navController.popBackStackFrom(entry) },
-                        onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
+                        onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                         onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
                     )
                 }
@@ -596,7 +594,7 @@ fun EolssuNavHost(
 private val measuredDestinations = setOf(
     EolssuDestination.SONG_DETAIL, EolssuDestination.PRACTICE, EolssuDestination.ANALYSIS,
     EolssuDestination.RESULT, EolssuDestination.RECORDS, EolssuDestination.RECORD_RESULT,
-    WeakSectionDestination.ERRORS, WeakSectionDestination.SELECT, WeakSectionDestination.LOOP, WeakSectionDestination.RESULT,
+    WeakSectionDestination.SELECT, WeakSectionDestination.LOOP, WeakSectionDestination.RESULT,
 )
 
 internal fun NavController.popBackStackFrom(entry: NavBackStackEntry, pastDirectPractice: Boolean = false) {
