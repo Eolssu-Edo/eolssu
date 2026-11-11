@@ -127,12 +127,18 @@ class PracticeStateTest {
     }
 
     @Test
-    fun directEvaluationShowsPreparingLayoutBeforeCountdown() {
+    fun directEvaluationWaitsWithRecordingLayoutBeforeStart() {
         val direct = PracticeUiState(song = arirang, direct = true)
         assertEquals(PracticeMode.Ready, direct.mode)
-        assertTrue(direct.preparing)
+        assertTrue(direct.awaitingStart)
+        assertFalse(direct.preparing)
         assertTrue(direct.recordingLayout)
-        assertTrue(direct.beginCountdown().preparing)
+
+        val counting = direct.beginCountdown()
+        assertFalse(counting.awaitingStart)
+        assertTrue(counting.preparing)
+        assertTrue(counting.cancelCountdown().awaitingStart)
+        assertFalse(ready.awaitingStart)
     }
 
     @Test
@@ -317,13 +323,12 @@ class PracticeStateTest {
         val denied = ready.requestEvaluation(micGranted = false).denyMic(blocked = false)
         assertEquals(PracticeMode.Ready, denied.mode)
         assertNull(denied.popup)
-        assertFalse(denied.leaveDirect)
         assertEquals(PracticePopup.PermBlocked, ready.denyMic(blocked = true).popup)
 
+        // 연주 평가는 거부해도 평가 대기 상태에 남는다(S15P31E102-747).
         val direct = ready.copy(direct = true)
-        assertTrue(direct.denyMic(blocked = false).leaveDirect)
-        assertFalse(direct.denyMic(blocked = true).leaveDirect) // 설정 안내 창의 버튼으로 곡 정보로 돌아간다.
-        assertFalse(direct.denyMic(blocked = false).requestEvaluation(micGranted = false).leaveDirect)
+        assertTrue(direct.denyMic(blocked = false).awaitingStart)
+        assertTrue(direct.denyMic(blocked = true).awaitingStart)
     }
 
     @Test
