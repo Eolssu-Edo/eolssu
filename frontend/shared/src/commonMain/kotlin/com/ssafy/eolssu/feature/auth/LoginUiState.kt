@@ -43,4 +43,7 @@ enum class LoginNotice {
 
     /** 탈퇴 대기 계정으로 로그인해 탈퇴가 취소됐다. 확인을 누르면 홈으로 간다. */
     WithdrawalCancelled,
+
+    /** 마이페이지에서 탈퇴를 신청하고 로그아웃되어 왔다(S15P31E102-768). 확인을 누르면 닫힌다. */
+    Withdrawn,
 }

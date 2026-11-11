@@ -46,11 +46,11 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 배너 아래 가는 구분선과 기능 격자. [HomeFeatureGrid] 순서를 [columns]열로 나누고,
- * 칸마다 그림 상자 아래에 제목을 둔다.
+ * 배너 아래 기능 격자. [HomeFeatureGrid] 순서를 [columns]열로 나누고,
+ * 칸마다 그림과 제목을 한 상자 안에 둔다. 마이페이지처럼 선 없이 바탕과 흰 상자의 명도 차이로 나눈다(S15P31E102-768).
  *
  * @param columns 한 줄의 칸 수. 왼쪽 학습 · 오른쪽 연습·관리 구분을 지키려고 2(2×3)를 쓴다.
- * @param cardMinHeight 그림 상자의 최소 높이. 제목을 상자 안에 두던 카드와 같은 높이를 쓴다.
+ * @param cardMinHeight 상자의 최소 높이.
  * @param large 태블릿 배치용 제목 글자 크기.
  */
 @Composable
@@ -61,9 +61,8 @@ internal fun FeatureSection(
     modifier: Modifier = Modifier,
     large: Boolean = false,
 ) {
-    Column(modifier) {
-        Box(Modifier.padding(bottom = 16.dp).fillMaxWidth().height(1.dp).background(EolssuTheme.colors.sectionLine))
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier.padding(top = 4.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             HomeFeatureGrid.chunked(columns).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { feature ->
@@ -84,35 +83,30 @@ internal fun FeatureSection(
 }
 
 /**
- * 기능 칸: 흰 바탕 · 옅은 초록빛 테두리 · 모서리 13dp의 그림 상자(칸 너비 전체, 높이 [boxMinHeight])와
- * 그 아래 가운데 정렬 제목. 그림은 높이 80dp로 상자 가운데에 둔다.
- * 상자와 제목을 합친 칸 전체가 누르는 영역이고, 누름 물결은 상자 안에만 그린다.
+ * 기능 칸: 마이페이지 카드와 같은 테두리 없는 흰 바탕 · 모서리 20dp의 상자(칸 너비 전체, 높이 [boxMinHeight]) 안에
+ * 높이 80dp 그림과 그 아래 가운데 정렬 제목을 함께 둔다. 상자 전체가 누르는 영역이다.
  */
 @Composable
 private fun FeatureTile(feature: HomeFeature, onClick: () -> Unit, boxMinHeight: Dp, large: Boolean, modifier: Modifier = Modifier) {
     val interaction = remember { MutableInteractionSource() }
-    val shape = RoundedCornerShape(13.dp)
+    val shape = RoundedCornerShape(20.dp)
     Column(
-        modifier.clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
+        modifier.fillMaxWidth().heightIn(min = boxMinHeight)
+            .clip(shape)
+            .background(EolssuTheme.colors.surface)
+            .clickable(interactionSource = interaction, indication = ripple(), role = Role.Button, onClick = onClick)
+            .padding(vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        Box(
-            Modifier.fillMaxWidth().heightIn(min = boxMinHeight)
-                .clip(shape)
-                .background(EolssuTheme.colors.surface)
-                .border(1.dp, EolssuTheme.colors.cardLine, shape)
-                .indication(interaction, ripple()),
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(
-                painterResource(feature.illustration),
-                contentDescription = null,
-                modifier = Modifier.padding(horizontal = 15.dp).fillMaxWidth().height(80.dp).offset(x = feature.illustrationNudge),
-            )
-        }
+        Image(
+            painterResource(feature.illustration),
+            contentDescription = null,
+            modifier = Modifier.padding(horizontal = 15.dp).fillMaxWidth().height(80.dp).offset(x = feature.illustrationNudge),
+        )
         Text(
             stringResource(feature.label),
-            modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
+            modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp).fillMaxWidth(),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.titleSmall.copy(
                 fontSize = if (large) 15.sp else 13.sp,

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.core.ui.component
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +61,8 @@ fun EolssuTextField(
     trailing: String? = null,
     fieldHeight: Dp = 52.dp,
     counter: String? = null,
+    bordered: Boolean = true,
+    containerColor: Color? = null,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -99,8 +102,12 @@ fun EolssuTextField(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = fieldHeight)
-                        .background(colors.surface, shape)
-                        .border(if (error != null) 1.5.dp else 1.dp, if (error != null) colors.rec else colors.line, shape)
+                        .background(containerColor ?: colors.surface, shape)
+                        // [bordered]가 false면 평소엔 테두리 없이 바탕색만, 오류일 때만 빨간 테두리를 두른다(S15P31E102-768).
+                        .then(
+                            if (error != null) Modifier.border(1.5.dp, colors.rec, shape)
+                            else if (bordered) Modifier.border(1.dp, colors.line, shape) else Modifier,
+                        )
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {

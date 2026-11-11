@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.guide.component
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -79,7 +78,6 @@ private fun BlowTabButton(tab: BlowTab, onSelect: (Blow) -> Unit, large: Boolean
             tab.enabled -> colors.text
             else -> UnavailableBlowText
         },
-        border = BorderStroke(1.dp, if (tab.selected) colors.primary else colors.lineSoft),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(

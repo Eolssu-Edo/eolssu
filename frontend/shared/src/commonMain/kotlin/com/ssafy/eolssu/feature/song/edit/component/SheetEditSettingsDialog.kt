@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import androidx.compose.ui.graphics.Color
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -80,6 +82,8 @@ internal fun SheetEditSettingsDialog(
             type = TextFieldType.Number,
             imeAction = ImeAction.Done,
             error = if (validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
+            bordered = false,
+            containerColor = EolssuTheme.colors.groupedBackground,
         )
         Text(stringResource(Res.string.sheet_settings_jangdan), style = MaterialTheme.typography.labelLarge)
         SheetJangdanTimingText(draft)
@@ -132,6 +136,7 @@ internal fun SheetEditSettingsDialog(
             enabled = validBpm != null && validSelection && !saving,
         )
         EolssuButton(stringResource(Res.string.common_cancel), onDismiss,
-            style = EolssuButtonStyle.Secondary, enabled = !saving)
+            style = EolssuButtonStyle.Secondary, enabled = !saving,
+            containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
     }
 }

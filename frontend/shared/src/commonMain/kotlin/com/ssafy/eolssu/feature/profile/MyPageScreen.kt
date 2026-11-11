@@ -143,9 +143,11 @@ fun MyPageScreen(
                 EolssuButton(stringResource(Res.string.common_cancel), onClick = onDismissDialog, style = EolssuButtonStyle.Text)
             }
         }
+        // 휴대폰 뒤로 가기·바깥 누르기로도 '취소'처럼 닫는다(S15P31E102-768).
         MyPageDialog.LogOut -> EolssuDialog(
             title = stringResource(Res.string.my_logout_confirm_title),
             message = stringResource(Res.string.my_logout_confirm_message),
+            onDismissRequest = onDismissDialog,
         ) {
             EolssuButton(stringResource(Res.string.my_logout), onClick = onConfirmLogOut)
             EolssuButton(stringResource(Res.string.common_cancel), onClick = onDismissDialog, style = EolssuButtonStyle.Text)

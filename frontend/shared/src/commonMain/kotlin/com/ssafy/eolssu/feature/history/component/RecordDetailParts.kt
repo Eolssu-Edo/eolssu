@@ -22,12 +22,12 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import eolssu.shared.generated.resources.record_result_practice
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -125,18 +125,16 @@ internal fun PlaybackSlider(state: RecordDetailUiState, actions: RecordDetailAct
     )
 }
 
-/** 재생 묶음 바탕(시안 #F3F1EC). 테마에 같은 색이 없어 여기에만 둔다. */
-private val PlayGroupBackground = Color(0xFFF3F1EC)
-
 /**
- * 재생 묶음: 회색 알약 안에 ↺5 · 재생 · ↻5. 재생 버튼은 연두 원(52) 안 먹색 재생 표시이고, 5초 버튼은 바탕 없는 44dp다.
+ * 재생 묶음: 회색 바탕 위 흰 사각 묶음(52dp, 모서리 14) 안에 ↺5 · 재생 · ↻5(S15P31E102-768). 재생 버튼은 연두 사각(52×44, 모서리 10)이고, 5초 버튼은 바탕 없는 44dp다.
  * 녹음을 다시 들을 수 없는 기록(`recordingAvailable` false)은 모두 쓸 수 없다.
  */
 @Composable
 internal fun PlaybackButtons(state: RecordDetailUiState, actions: RecordDetailActions) {
     val colors = EolssuTheme.colors
     Row(
-        Modifier.background(PlayGroupBackground, RoundedCornerShape(30.dp)).padding(4.dp),
+        // 옆 '취약 구간 연습' 버튼과 같은 높이 52dp · 모서리 14dp 사각 묶음, 안쪽 재생 버튼은 모서리 10dp(S15P31E102-768).
+        Modifier.background(colors.surface, RoundedCornerShape(14.dp)).padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -144,8 +142,8 @@ internal fun PlaybackButtons(state: RecordDetailUiState, actions: RecordDetailAc
         Surface(
             onClick = actions.onTogglePlay,
             enabled = state.canPlay,
-            modifier = Modifier.size(52.dp),
-            shape = CircleShape,
+            modifier = Modifier.size(width = 52.dp, height = 44.dp),
+            shape = RoundedCornerShape(10.dp),
             color = if (state.canPlay) colors.primary else colors.surfaceStrong,
             contentColor = if (state.canPlay) colors.onPrimary else colors.textDisabled,
         ) {
@@ -166,8 +164,11 @@ internal fun PlaybackButtons(state: RecordDetailUiState, actions: RecordDetailAc
  */
 @Composable
 internal fun PlaybackBarContent(state: RecordDetailUiState, actions: RecordDetailActions) {
-    PlaybackTimeRow(state)
-    PlaybackSlider(state, actions)
+    // 연습 화면 플레이어 카드처럼 시간·막대를 테두리 없는 흰 카드에 담는다(S15P31E102-768).
+    Column(Modifier.fillMaxWidth().background(EolssuTheme.colors.surface, RoundedCornerShape(16.dp)).padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 2.dp)) {
+        PlaybackTimeRow(state)
+        PlaybackSlider(state, actions)
+    }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         PlaybackButtons(state, actions)
         EolssuButton(stringResource(Res.string.record_result_practice), actions.onPractice, modifier = Modifier.weight(1f), enabled = state.canPractice)
@@ -182,7 +183,7 @@ private fun SkipButton(icon: ImageVector, label: String, enabled: Boolean, digit
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier.size(44.dp).semantics { contentDescription = label },
-        shape = CircleShape,
+        shape = RoundedCornerShape(10.dp),
         color = Color.Transparent,
         contentColor = if (enabled) colors.text else colors.textDisabled,
     ) {

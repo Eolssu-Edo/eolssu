@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.user
 
+import com.ssafy.eolssu.core.model.ProfileImage
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.apiResponse
