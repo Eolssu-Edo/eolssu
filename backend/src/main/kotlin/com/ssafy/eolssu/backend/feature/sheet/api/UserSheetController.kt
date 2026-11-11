@@ -37,7 +37,6 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
-import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.annotation.JsonDeserialize
 import tools.jackson.databind.json.JsonMapper
@@ -334,20 +333,7 @@ data class SheetItem(
         fun of(sheet: UserSheet, json: JsonMapper) = SheetItem(
             sheet.id.toString(), sheet.kind, sheet.title, sheet.status.name, sheet.jangdanId?.toString(), sheet.jangdanName,
             sheet.source, sheet.pendingCellCount, sheet.imported?.pageCount, sheet.draft != null, sheet.imported?.conversionStatus?.name,
-            sheet.updatedAt, instrumentCode(sheet, json),
+            sheet.updatedAt, sheet.editorInstrumentCode(json),
         )
-
-        private fun instrumentCode(sheet: UserSheet, json: JsonMapper): String? {
-            val draft = sheet.draft
-            val source = draft?.json ?: sheet.scoreJson ?: return null
-            return try {
-                val document = json.readTree(source)
-                val score = if (draft == null) document else document.path("score")
-                score.path("score").path("instrument")
-                    .takeIf { it.isString }?.stringValue()?.takeIf { it.isNotBlank() }
-            } catch (_: JacksonException) {
-                null
-            }
-        }
     }
 }

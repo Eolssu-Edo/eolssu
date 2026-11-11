@@ -107,15 +107,15 @@ class UserSheetControllerTests {
 
     @Test
     fun `list returns the owner's effective score instrument and keeps blank sheets`() {
-        val danso = """{"score":{"instrument":"DANSO"}}"""
+        val danso = commonScore("DANSO")
         stored[702] = sheet(702, "단소 악보", danso)
         stored[703] = sheet(703, "소금 초안", danso).copy(
-            draft = SheetDraft("""{"score":{"score":{"instrument":"SOGEUM"}}}""", 1, updatedAt),
+            draft = draft(commonScore("SOGEUM")),
         )
         stored[704] = sheet(704, "빈 악보", null)
         stored[705] = sheet(705, "남의 단소 악보", danso, userId = 2)
         stored[706] = sheet(706, "악기 없는 초안", danso).copy(
-            draft = SheetDraft("""{"score":{"score":{"instrument":""}}}""", 1, updatedAt),
+            draft = draft(commonScore("")),
         )
 
         mvc.perform(get("/api/users/me/sheets")).andExpect(status().isOk)
@@ -126,6 +126,30 @@ class UserSheetControllerTests {
             .andExpect(jsonPath("$.result.items[2].instrumentCode").doesNotExist())
             .andExpect(jsonPath("$.result.items[3].instrumentCode").doesNotExist())
     }
+
+    @Test
+    fun `list withholds instrument codes for already stored unreadable drafts`() {
+        val missingPart = commonScore("SOGEUM").replace(",\"part\":0", "")
+        stored[707] = sheet(707, "열 수 없는 초안", commonScore("DANSO")).copy(draft = draft(missingPart))
+
+        mvc.perform(get("/api/users/me/sheets")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.items[0].sheetId").value("707"))
+            .andExpect(jsonPath("$.result.items[0].hasDraft").value(true))
+            .andExpect(jsonPath("$.result.items[0].instrumentCode").doesNotExist())
+    }
+
+    private fun commonScore(instrument: String): String = """
+        {
+          "schemaVersion":1,
+          "score":{"title":"악보","instrument":"$instrument","part":0,"sourceId":"test","scoreVersion":1},
+          "music":{"hwangHz":311.13,"jangdan":"","bpmUnit":"JEONGGAN","ticksPerBeat":4,"ticksPerJeonggan":4},
+          "columns":[],
+          "events":[],
+          "provenance":{"sourceId":"test","jgbSha256":"test","review":"inferred","converter":"test"}
+        }
+    """.trimIndent()
+
+    private fun draft(score: String) = SheetDraft("""{"title":"초안","bpm":72,"score":$score}""", 1, updatedAt)
 
     @Test
     fun `list pages the owner's sheets and validates its query`() {
