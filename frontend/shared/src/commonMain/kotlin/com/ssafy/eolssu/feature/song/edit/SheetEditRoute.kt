@@ -19,6 +19,7 @@ import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
+import com.ssafy.eolssu.feature.song.edit.component.SheetPitchCorrectionDialog
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import eolssu.shared.generated.resources.sheetedit_msg_audio_failed
@@ -45,6 +46,7 @@ import eolssu.shared.generated.resources.sheet_review_missing_pitch
 import eolssu.shared.generated.resources.sheet_review_pitch_label
 import eolssu.shared.generated.resources.sheet_review_range
 import eolssu.shared.generated.resources.sheet_review_uncertain
+import eolssu.shared.generated.resources.sheet_pitch_corrected_review
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -61,9 +63,10 @@ fun SheetEditRoute(
     var detailsOpen by rememberSaveable { mutableStateOf(false) }
     var saveOpen by rememberSaveable { mutableStateOf(false) }
     var correctionOpen by rememberSaveable { mutableStateOf(false) }
+    var pitchCorrection by remember { mutableStateOf<SheetPitchCorrection?>(null) }
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
-    BackHandler(enabled = state.draft.original != null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && !state.confirming) { viewModel.closeEditor(onClose) }
+    BackHandler(enabled = state.draft.original != null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
     if (state.documentLoading || state.documentFailed) {
         SheetDocumentNotice(state.documentLoading, onClose, viewModel::loadDocument)
         return
@@ -106,20 +109,27 @@ fun SheetEditRoute(
                 if (state.completionValidation.correctionCellIndices.isNotEmpty()) {
                     viewModel.openCompletionIssue()
                     focusRequestKey++
-                    correctionOpen = true
+                    val current = viewModel.uiState.value
+                    pitchCorrection = current.pitchCorrectionsAt(current.selected).firstOrNull()
+                    correctionOpen = pitchCorrection == null
                 } else saveOpen = true
             },
             onOpenDetails = { detailsOpen = true },
-            onSelectCell = viewModel::selectCell,
-            onSelectUnit = viewModel::selectUnit,
+            onSelectCell = { index ->
+                viewModel.selectCell(index)
+                pitchCorrection = viewModel.uiState.value.pitchCorrectionsAt(index).firstOrNull()
+            },
+            onSelectUnit = { index, sub ->
+                viewModel.selectUnit(index, sub)
+                pitchCorrection = viewModel.uiState.value.pitchCorrectionsAt(index, sub).firstOrNull()
+            },
             input = EditInputActions(
                 onUndo = viewModel::undo,
                 onRedo = viewModel::redo,
                 onSelectTab = viewModel::selectTab,
                 onPut = viewModel::put,
                 onPutYul = { viewModel.putYul(it) },
-                onRaiseRegister = viewModel::raiseRegister,
-                onLowerRegister = viewModel::lowerRegister,
+                onSelectRegister = viewModel::selectRegister,
                 onErase = viewModel::erase,
                 onToggleSigimsae = viewModel::toggleSigimsae,
                 onRemoveSigimsae = viewModel::removeSigimsae,
@@ -131,6 +141,19 @@ fun SheetEditRoute(
             ),
         ),
     )
+    pitchCorrection?.let { target ->
+        if (target in state.pitchCorrectionsAt(target.cell, target.sub)) SheetPitchCorrectionDialog(
+            state = state,
+            target = target,
+            onSelect = { pitch ->
+                viewModel.applyPitchCorrection(target, pitch)
+                pitchCorrection = null
+                correctionOpen = false
+                focusRequestKey++
+            },
+            onDismiss = { pitchCorrection = null },
+        ) else LaunchedEffect(target) { pitchCorrection = null }
+    }
     if (saveOpen) SheetEditDetailsDialog(
         initialTitle = state.draft.title,
         initialBpm = state.draft.bpm,
@@ -175,7 +198,9 @@ fun SheetEditRoute(
             showCellAction = false,
         )
         state.selectedReviewIssue?.let { issue ->
-            val reason = when (issue.kind) {
+            val reason = if (state.canCheckSelectedReviewIssue && issue.kind in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE")) {
+                stringResource(Res.string.sheet_pitch_corrected_review)
+            } else when (issue.kind) {
                 "UNREGISTERED_PITCH" -> issue.pitch?.let { (name, octave) -> stringResource(Res.string.sheet_review_pitch_label, name, octave) }
                     ?: stringResource(Res.string.sheet_review_missing_pitch)
                 "OUT_OF_RANGE" -> stringResource(Res.string.sheet_review_range)

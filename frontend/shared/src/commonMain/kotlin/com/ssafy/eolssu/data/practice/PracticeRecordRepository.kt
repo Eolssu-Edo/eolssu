@@ -30,7 +30,7 @@ interface PracticeRecordRepository {
     suspend fun refresh(): Boolean = true
 
     /**
-     * 기록 상세: 항목 점수·오류 위치·메모·다시 듣기 여부까지 채운 기록. 없거나 지운 기록이면 null.
+     * 기록 상세: 항목 점수·원본 음 판정·메모·다시 듣기 여부. 오류 위치는 당시 악보를 받은 뒤 [PracticeRecord.withScore]로 채운다. 없거나 지운 기록이면 null.
      * 응답을 받지 못하면 예외를 던진다.
      */
     suspend fun detail(recordId: String): PracticeRecord? = records.value.firstOrNull { it.id == recordId }

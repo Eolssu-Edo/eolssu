@@ -14,6 +14,7 @@ interface EvaluationReadMapper {
     ): Long?
     fun notes(@Param("evaluationId") evaluationId: Long): List<NoteResultRow>
     fun score(@Param("songId") songId: Long): EvaluationScoreRow?
+    fun scoreRevision(@Param("songId") songId: Long, @Param("scoreVersion") scoreVersion: Int): EvaluationScoreRow?
 }
 
 data class EvaluationReadRow(val sessionId: Long, val songId: Long, val scoreVersion: Int, val bpm: Int, val bpmUnit: String,

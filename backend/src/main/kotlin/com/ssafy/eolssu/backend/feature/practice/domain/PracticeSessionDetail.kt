@@ -26,6 +26,8 @@ data class PracticeSessionDetail(
     val memo: String?,
     /** 저장한 기록의 상세를 처음 연 시각(REC-02 `isNew`). 응답에는 넣지 않는다. */
     val viewedAt: LocalDateTime? = null,
+    val scoreVersion: Int = 1,
+    val songTitle: String = "",
 ) {
     val retryable: Boolean
         get() = status == "FAILED" && failReason in RETRYABLE_FAIL_REASONS

@@ -13,6 +13,13 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import tools.jackson.databind.json.JsonMapper
 
 class SongControllerTests {
+    @Test fun `requested detail revision must exist and malformed versions are rejected`() {
+        mvc.perform(get("/api/songs/7").param("scoreVersion", "3")).andExpect(status().isOk)
+        mvc.perform(get("/api/songs/7").param("scoreVersion", "99")).andExpect(status().isNotFound)
+        for (version in listOf("", "0", "-1", "01", "1.0", "2147483648", "bad")) {
+            mvc.perform(get("/api/songs/7").param("scoreVersion", version)).andExpect(status().isBadRequest)
+        }
+    }
     @Test fun `instrument filter rejects malformed identifiers and missing instruments`() {
         for (id in listOf("", "0", "-1", "01", "+1", " 1", "1 ", "1.0", "abc", "9223372036854775808")) {
             mvc.perform(get("/api/songs").param("instrumentId", id))
@@ -28,6 +35,7 @@ class SongControllerTests {
     private val mapper = object : SongMapper {
         override fun findById(id: Long) = song.takeIf { it.id == id }
         override fun findPublished(id: Long) = findById(id)
+        override fun findPublishedRevision(id: Long, scoreVersion: Int) = findPublished(id)?.takeIf { it.scoreVersion == scoreVersion }
         override fun listPublished(instrumentId: Long?) = listOf(song, song.copy(id = 29, jangdanId = null,
             scoreJson = """{"music":{"jangdan":"세마치","bpmUnit":"QUARTER"}}"""))
             .filter { instrumentId == null || it.instrumentId == instrumentId }

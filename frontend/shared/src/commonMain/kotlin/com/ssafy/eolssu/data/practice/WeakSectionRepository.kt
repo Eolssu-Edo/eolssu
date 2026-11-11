@@ -25,6 +25,9 @@ interface WeakSectionRepository {
     /** 세션 [sourceId]의 곡과 평가 결과(틀린 정간, EVA-01). 없거나 받지 못하면 null. */
     suspend fun source(sourceId: String): WeakSectionSource?
 
+    /** 새 구간 녹음 전에 현재 공개 판본과 대조한다. null은 조회 실패다. */
+    suspend fun isCurrent(source: WeakSectionSource): Boolean? = true
+
     /** 세션 [sessionId]의 추천 취약 구간(EVA-03, 추천 순서). 추천할 구간이 없으면 빈 목록, 받지 못하면 null. */
     suspend fun weakSections(sessionId: String): List<WeakSectionPick>?
 
@@ -121,8 +124,13 @@ class ApiWeakSectionRepository(
 ) : WeakSectionRepository {
     override suspend fun source(sourceId: String): WeakSectionSource? = guarded {
         val evaluation = evaluations.result(sourceId) ?: return@guarded null
-        val song = songs.getSong(evaluation.songId) ?: return@guarded null
+        val song = (if (evaluation.scoreVersion == null) songs.getSong(evaluation.songId) else songs.getSong(evaluation.songId, evaluation.scoreVersion)) ?: return@guarded null
         WeakSectionSource(song, evaluation)
+    }
+
+    override suspend fun isCurrent(source: WeakSectionSource): Boolean? = guarded {
+        val current = songs.getSong(source.song.id) ?: return@guarded null
+        current.scoreVersion == source.song.scoreVersion
     }
 
     override suspend fun weakSections(sessionId: String): List<WeakSectionPick>? = member.inSession {
@@ -133,25 +141,26 @@ class ApiWeakSectionRepository(
 
     override suspend fun sectionResult(sessionId: String): SectionEvaluation? = guarded {
         val evaluation = evaluations.result(sessionId) ?: return@guarded null
-        val song = songs.getSong(evaluation.songId) ?: return@guarded null
+        val song = (if (evaluation.scoreVersion == null) songs.getSong(evaluation.songId) else songs.getSong(evaluation.songId, evaluation.scoreVersion)) ?: return@guarded null
         SectionEvaluation(song, sessionId, evaluation.bpm, evaluation.total, evaluation.metrics, check(sessionId, baseline = null))
     }
 
     override suspend fun comparison(recordId: String): RecordComparison? = guarded {
         if (!records.refresh()) return@guarded null
         val current = records.detail(recordId) ?: return@guarded null
-        val song = songs.getSong(current.songId) ?: return@guarded null
+        val song = (if (current.scoreVersion == null) songs.getSong(current.songId) else songs.getSong(current.songId, current.scoreVersion)) ?: return@guarded null
         val first = current.recordedAt.epochDay - CompareDays + 1
         val previous = records.records.value
             .filter { it.id != current.id && it.songId == current.songId && it.section == null }
             .filter { it.recordedAt.epochDay >= first && it.recordedAtMillis < current.recordedAtMillis }
             .sortedByDescending { it.recordedAtMillis }
-        RecordComparison(song, current, previous, current.recordedAt)
+        RecordComparison(song, current.withScore(song), previous, current.recordedAt)
     }
 
     override suspend fun previous(currentId: String, previousId: String): PreviousRecord? = guarded {
         val record = records.detail(previousId) ?: return@guarded null
-        PreviousRecord(record, check(currentId, baseline = previousId))
+        val song = (if (record.scoreVersion == null) songs.getSong(record.songId) else songs.getSong(record.songId, record.scoreVersion)) ?: return@guarded null
+        PreviousRecord(record.withScore(song), check(currentId, baseline = previousId))
     }
 
     /** EVA-04. [baseline]이 없으면 서버는 세션을 만들 때 넘긴 기준 세션과 견준다. */

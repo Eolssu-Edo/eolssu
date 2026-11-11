@@ -68,7 +68,6 @@
     <string name="song_bpm_value">%1$d BPM</string>
     <string name="song_preview_label">악보 일부 미리보기 · 오른쪽 각부터 읽어요</string>
     <string name="song_start_evaluation">연주 평가 시작</string>
-    <string name="song_open_settings">연습 설정</string>
     <string name="song_cover_seal">얼쑤</string>
     <string name="practice_subtitle">%1$s · %2$s</string>
     <string name="practice_subtitle_solo">%1$s · 연습 모드</string>
@@ -83,14 +82,16 @@
     <string name="practice_hint_ready">모범 연주를 듣고 준비되면 시작하세요.</string>
     <string name="practice_recording_unsupported">현재 환경에서는 녹음과 연주 평가를 지원하지 않아요.</string>
     <string name="practice_hint_solo">점수 없이 악보를 보며 혼자 연습해요. 평가하려면 위 버튼으로 넘어가요.</string>
-    <string name="practice_hint_solo_only">이 곡은 연습만 가능해요</string>
+    <string name="practice_solo_only">연습만 가능해요</string>
     <string name="practice_listen_model">모범 연주 듣기</string>
     <string name="practice_start_eval">연주 평가 시작</string>
+    <string name="practice_start_eval_short">평가 시작</string>
     <string name="practice_switch_to_eval">이 곡으로 평가하기</string>
     <string name="practice_play">재생</string>
     <string name="practice_pause">일시정지</string>
     <string name="practice_time">%1$s / %2$s</string>
     <string name="practice_rec_time_detail">/ %1$s · %2$s</string>
+    <string name="practice_rec_time_total">/ %1$s</string>
     <string name="practice_mic_on">입력 감지</string>
     <string name="practice_mic_off">입력 없음</string>
     <string name="practice_no_input_hint">소리가 잘 들리지 않아요. 마이크를 확인해주세요.</string>
@@ -165,7 +166,7 @@
     <string name="practice_popup_interrupted_body">앱을 벗어나거나 전화가 와서 연주가 끊겼어요. 끊긴 연주는 평가하지 않아요.</string>
     <string name="practice_popup_start_again">다시 시작</string>
     <string name="practice_popup_to_ready">연습 준비로</string>
-    <string name="practice_popup_to_song_info">곡 정보로</string>
+    <string name="practice_popup_to_waiting">연주 대기로</string>
     <string name="practice_popup_record_failed_title">녹음하지 못했어요</string>
     <string name="practice_popup_record_failed_body">다른 앱이 마이크를 쓰고 있거나 저장 공간이 부족할 수 있어요. 다시 시작해 주세요.</string>
     <string name="practice_popup_too_large_title">녹음 파일이 너무 커요</string>
@@ -418,13 +419,11 @@
     <string name="guide_reading_sigimsae">시김새</string>
     <string name="guide_reading_sigimsae_small">음을 꾸미는 표시</string>
     <string name="guide_sigimsae_basic">처음 배우는 시김새</string>
-    <string name="guide_sigimsae_tap_basic">누르면 부는 모양을 소리와 함께 보여 줘요</string>
     <string name="guide_sigimsae_figure">%1$s 부는 모양: %2$s. 점선은 적힌 음, 굵은 선은 부는 소리예요</string>
     <string name="guide_sigimsae_legend_written">적힌 음</string>
     <string name="guide_sigimsae_legend_blown">부는 소리</string>
     <string name="guide_sigimsae_replay">다시 듣기</string>
     <string name="guide_sigimsae_more">더 많은 시김새</string>
-    <string name="guide_sigimsae_tap_more">누르면 한 줄 설명이 나와요</string>
     <string name="guide_sigimsae_tip_open">설명 펼침</string>
     <string name="guide_sigimsae_tip_closed">설명 접힘</string>
 
@@ -601,7 +600,6 @@
     <string name="auth_oauth_placeholder_body">계정 선택과 정보 제공 동의는\n제공자 화면에서 진행돼요.</string>
     <string name="auth_signup_title">회원가입</string>
     <string name="auth_step">%1$d / %2$d</string>
-    <string name="auth_step_description">%2$d단계 중 %1$d단계</string>
     <string name="auth_signup_step_consent">약관 동의</string>
     <string name="auth_signup_step_email">이메일 인증</string>
     <string name="auth_signup_step_password">비밀번호 설정</string>
@@ -652,6 +650,7 @@
     <string name="auth_link_done">%1$s 계정을 연결했어요. 다음부터 %1$s로 로그인할 수 있어요.</string>
     <string name="auth_signup_verify_heading">로그인에 쓸\n이메일을 확인해요</string>
     <string name="auth_reset_title">비밀번호 찾기</string>
+    <string name="auth_reset_step_progress_description">비밀번호 찾기 %2$d단계 중 %1$d단계, %3$s</string>
     <string name="auth_reset_verify_heading">가입한 이메일로\n인증번호를 보내요</string>
     <string name="auth_code_send">인증번호 받기</string>
     <string name="auth_code_sent">%1$s로 인증번호를 보냈어요.</string>
@@ -779,6 +778,21 @@
     <string name="my_nickname">닉네임</string>
     <string name="my_nickname_help">[닉네임 규칙 안내]</string>
     <string name="my_nickname_changed">닉네임을 바꿨어요.</string>
+    <string name="my_profile_image_edit">프로필 그림 바꾸기</string>
+    <string name="my_profile_change">프로필 변경</string>
+    <string name="my_profile_image_changed">프로필 그림을 바꿨어요.</string>
+    <string name="my_profile_image_hello">반가워요</string>
+    <string name="my_profile_image_danso">단소 연주</string>
+    <string name="my_profile_image_study">악보 공부</string>
+    <string name="my_profile_image_look">여기 보세요</string>
+    <string name="my_profile_image_great">잘했어요</string>
+    <string name="my_profile_image_jangdan">장단 타기</string>
+    <string name="my_profile_image_again">다시 해봐요</string>
+    <string name="my_profile_image_surprise">깜짝이야</string>
+    <string name="my_profile_image_proud">쑥스러워요</string>
+    <string name="my_profile_image_okay">괜찮아요</string>
+    <string name="my_profile_image_rest">잠깐 쉬어요</string>
+    <string name="my_profile_image_done">연습 완료</string>
     <string name="my_save">저장</string>
     <string name="my_instrument">연습 악기</string>
     <string name="my_instrument_help">홈과 연습·평가 화면이 고른 악기로 바뀌어요.</string>

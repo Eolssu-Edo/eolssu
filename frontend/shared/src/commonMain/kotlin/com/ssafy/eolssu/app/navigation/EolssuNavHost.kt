@@ -53,7 +53,6 @@ import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
-import com.ssafy.eolssu.feature.practice.PracticeSettingsRoute
 import com.ssafy.eolssu.feature.result.AnalysisExit
 import com.ssafy.eolssu.feature.result.AnalysisRoute
 import com.ssafy.eolssu.feature.result.ResultRoute
@@ -81,7 +80,7 @@ object EolssuDestination {
      * [recording]·[key]는 연습 화면에서 마친 녹음, [session]은 앱을 다시 켜고 보내는 기기에 남은 녹음의 세션이다.
      * [start]·[end]·[parent]는 구간 반복의 재평가 녹음(음표 번호 범위와 기준 세션)이고, 곡 전체 연주면 비어 있다.
      */
-    const val ANALYSIS = "analysis/{songId}/{bpm}?recording={recording}&key={key}&session={session}&start={start}&end={end}&parent={parent}"
+    const val ANALYSIS = "analysis/{songId}/{bpm}?recording={recording}&key={key}&session={session}&start={start}&end={end}&parent={parent}&scoreVersion={scoreVersion}"
     const val RESULT = "result/{evaluationId}"
 
     const val RECORDS = "records?saved={saved}"
@@ -96,7 +95,7 @@ object EolssuDestination {
 
     fun analysis(songId: String, bpm: Int, take: RecordedTake? = null, pendingSessionId: String? = null, section: SessionSection? = null) =
         "analysis/$songId/$bpm?recording=${take?.path.orEmpty().encodeURLParameter()}&key=${take?.key.orEmpty()}" +
-            "&session=${pendingSessionId.orEmpty()}" +
+            "&session=${pendingSessionId.orEmpty()}&scoreVersion=${take?.scoreVersion ?: -1}" +
             (section?.let { "&start=${it.startNoteIdx}&end=${it.endNoteIdx}&parent=${it.parentSessionId}" } ?: "")
 
     fun result(evaluationId: String) = "result/$evaluationId"
@@ -227,7 +226,6 @@ fun EolssuNavHost(
                     onBack = { navController.popBackStackFrom(entry) },
                     onOpenSong = { id -> performance.move(null, PerfTarget.SONG_DETAIL) { navController.navigate(EolssuDestination.songDetail(id)) } },
                     onStartPractice = { id -> performance.move(null, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.practice(id, direct = true)) } },
-                    settingsSheet = { id, onClose -> PracticeSettingsRoute(id, onClose) },
                     pickSongId = pickSongId,
                     onPickTaken = { entry.savedStateHandle[PICK_SONG_KEY] = null },
                     onSessionExpired = {
@@ -252,7 +250,6 @@ fun EolssuNavHost(
                     songId = songId,
                     onBack = { navController.popBackStackFrom(entry) },
                     onStartPractice = { id -> performance.move(perf, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.practice(id, direct = true)) } },
-                    settingsSheet = { id, onClose -> PracticeSettingsRoute(id, onClose) },
                 )
             }
             composable(
@@ -282,7 +279,6 @@ fun EolssuNavHost(
                     fingeringAudio = { instrument, note, onPlaying -> FingeringBasicAudio(instrument, note, onPlaying) },
                     stepNoteAudio = { instrument -> rememberBasicNotePlayer(instrument) },
                     solo = entry.savedStateHandle.get<Boolean>("solo") ?: false,
-                    showSwitchedNotice = entry.savedStateHandle.get<Boolean>("switched") ?: false,
                     onBack = { navController.popBackStackFrom(entry) },
                     onGoHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
                     // 혼자 연습 위에 평가 화면을 쌓아, 평가 화면에서 뒤로 가면 쓰던 혼자 연습 화면(곡·악기·상태 그대로)으로 돌아온다.
@@ -326,6 +322,7 @@ fun EolssuNavHost(
                     navArgument("start") { type = NavType.IntType; defaultValue = -1 },
                     navArgument("end") { type = NavType.IntType; defaultValue = -1 },
                     navArgument("parent") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("scoreVersion") { type = NavType.IntType; defaultValue = -1 },
                 ),
             ) { entry ->
                 val recording = entry.savedStateHandle.get<String>("recording").orEmpty()
@@ -336,7 +333,8 @@ fun EolssuNavHost(
                     perf = perf,
                     songId = entry.savedStateHandle.get<String>("songId").orEmpty(),
                     bpm = entry.savedStateHandle.get<Int>("bpm") ?: 0,
-                    take = if (recording.isNotEmpty() && key.isNotEmpty()) RecordedTake(recording, key) else null,
+                    take = if (recording.isNotEmpty() && key.isNotEmpty()) RecordedTake(recording, key,
+                        entry.savedStateHandle.get<Int>("scoreVersion")?.takeIf { it > 0 }) else null,
                     pendingSessionId = entry.savedStateHandle.get<String>("session")?.takeIf { it.isNotEmpty() },
                     section = section,
                     initialSong = evaluationSong?.takeIf { it.first == key }?.second,

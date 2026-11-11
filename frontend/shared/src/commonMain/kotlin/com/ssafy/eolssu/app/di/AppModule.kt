@@ -79,12 +79,15 @@ import com.ssafy.eolssu.feature.auth.AccountLinkViewModel
 import com.ssafy.eolssu.feature.auth.ConsentViewModel
 import com.ssafy.eolssu.feature.auth.OAuthViewModel
 import com.ssafy.eolssu.feature.auth.TermsViewModel
+import com.ssafy.eolssu.data.user.PublishedLegalDocument
+import com.ssafy.eolssu.feature.profile.LegalDocumentViewModel
 import com.ssafy.eolssu.feature.auth.EmailVerificationViewModel
 import com.ssafy.eolssu.feature.auth.LoginViewModel
 import com.ssafy.eolssu.feature.auth.PasswordSetupViewModel
 import com.ssafy.eolssu.feature.auth.ProfileSetupViewModel
 import com.ssafy.eolssu.feature.profile.MyPageViewModel
 import com.ssafy.eolssu.feature.profile.NicknameEditViewModel
+import com.ssafy.eolssu.feature.profile.ProfileImageViewModel
 import com.ssafy.eolssu.feature.profile.PasswordChangeViewModel
 import com.ssafy.eolssu.feature.profile.SocialLinkViewModel
 import com.ssafy.eolssu.feature.profile.WithdrawViewModel
@@ -195,6 +198,7 @@ val appModule = module {
     single { TermsRepository(get()) }
     viewModelOf(::ConsentViewModel)
     viewModel { (termId: String) -> TermsViewModel(termId, get()) }
+    viewModel { (document: PublishedLegalDocument) -> LegalDocumentViewModel(document, get()) }
     // 아이디 기억하기·자동 로그인 선택. 회원이 바뀌면 자동 로그인 표시를 지우므로 앱 시작 때 만든다(App).
     single { LoginPreferences(get(), getOrNull(), get()) }
     viewModel { LoginViewModel(get(), get(), get(), get()) }
@@ -212,6 +216,7 @@ val appModule = module {
     single<UserRepository> { ApiUserRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
     viewModelOf(::MyPageViewModel)
     viewModelOf(::NicknameEditViewModel)
+    viewModelOf(::ProfileImageViewModel)
     viewModelOf(::PasswordChangeViewModel)
     viewModel { WithdrawViewModel(get(), get(), get(), getOrNull(), getOrNull(), get()) }
     viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull(), get()) }

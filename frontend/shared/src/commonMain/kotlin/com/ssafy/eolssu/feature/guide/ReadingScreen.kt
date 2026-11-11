@@ -47,7 +47,10 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
@@ -143,42 +146,46 @@ private fun ReadingBook(
                 }
             },
     ) {
-        Column(Modifier.fillMaxSize()) {
-            ReadingTocButton(current, tocOpen, onClick = { tocOpen = !tocOpen }, Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp))
-            HorizontalPager(pagerState, Modifier.weight(1f).fillMaxWidth().mouseDragPaging(pagerState)) { index ->
-                val page = pages[index]
-                val visible = index == pagerState.settledPage
-                BoxWithConstraints(
-                    Modifier
-                        .fillMaxSize()
-                        .then(if (visible) Modifier else Modifier.clearAndSetSemantics {}),
-                ) {
-                    val viewport = maxHeight
-                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                        // 내용이 짧으면 위아래 여백을 똑같이 나눠 가운데에 놓고, 길면 위에서부터 스크롤한다
-                        Box(
-                            Modifier.fillMaxWidth().heightIn(min = viewport).padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            ReadingPageCard(
-                                page,
-                                Modifier,
-                                sigimsaeColumns = 1,
-                                moreColumns = 4,
-                                animate = visible && page == ReadingPage.Order,
-                                moreTip = moreTip,
-                                onMoreTip = onMoreTip,
-                                interactive = visible,
-                                showTitle = false,
-                                audio = audio,
-                                onPlayAudio = onPlayAudio,
-                                onStopAudio = onStopAudio,
-                            )
+        UniformCardHeight { uniformHeight ->
+            Column(Modifier.fillMaxSize()) {
+                ReadingTocButton(current, tocOpen, onClick = { tocOpen = !tocOpen }, Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp))
+                HorizontalPager(pagerState, Modifier.weight(1f).fillMaxWidth().mouseDragPaging(pagerState)) { index ->
+                    val page = pages[index]
+                    val visible = index == pagerState.settledPage
+                    BoxWithConstraints(
+                        Modifier
+                            .fillMaxSize()
+                            .then(if (visible) Modifier else Modifier.clearAndSetSemantics {}),
+                    ) {
+                        val viewport = maxHeight
+                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                            // 내용이 짧으면 위아래 여백을 똑같이 나눠 가운데에 놓고, 길면 위에서부터 스크롤한다
+                            Box(
+                                Modifier.fillMaxWidth().heightIn(min = viewport).padding(start = BookSidePadding, end = BookSidePadding, top = 8.dp, bottom = 16.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                ReadingPageCard(
+                                    page,
+                                    Modifier,
+                                    sigimsaeColumns = 1,
+                                    moreColumns = 4,
+                                    animate = visible && page == ReadingPage.Order,
+                                    moreTip = moreTip,
+                                    onMoreTip = onMoreTip,
+                                    interactive = visible,
+                                    showTitle = false,
+                                    audio = audio,
+                                    onPlayAudio = onPlayAudio,
+                                    onStopAudio = onStopAudio,
+                                    book = true,
+                                    uniformHeight = uniformHeight.takeIf { page in UniformPages },
+                                )
+                            }
                         }
                     }
                 }
+                ReadingBookNav(current, onGo = go)
             }
-            ReadingBookNav(current, onGo = go)
         }
         if (tocOpen) {
             // 목차 밖을 누르면 닫는다
@@ -268,9 +275,60 @@ private fun ReadingTabletGrid(
     }
 }
 
+/** 휴대폰에서 스크롤 없이 한 화면에 다 보이는 쪽. 세 카드의 높이를 하나로 맞춘다([UniformCardHeight]). */
+private val UniformPages = listOf(ReadingPage.Intro, ReadingPage.Order, ReadingPage.Pitch)
+
+/** 높이를 맞춘 카드에 위 · 아래로 각각 더하는 세로 여백(QA: 음의 높낮이 카드 기준 위아래 13px). */
+private val UniformCardExtra = 13.dp
+
+/** 휴대폰 책의 정간보란 井 그림 최대 너비(기본 170). 높이를 맞춘 카드의 빈자리를 채우되 3 음의 높낮이 카드보다 높아지지 않는 크기다. */
+private val BookIntroFigureMaxWidth = 200.dp
+
+/** 휴대폰 쪽의 좌우 여백. 카드 너비는 쪽 너비에서 이 값의 두 배를 뺀 값이다. */
+private val BookSidePadding = 20.dp
+
+/**
+ * 휴대폰 책의 [UniformPages] 카드 높이를 구해 [content]에 넘긴다.
+ * 세 카드를 쪽과 같은 너비로 보이지 않게 재어 가장 높은 카드(보통 3 음의 높낮이)에 위아래 [UniformCardExtra]를 더한다.
+ * 최소 높이로만 쓰므로 글자가 커지거나 오류 문구가 붙어 내용이 더 높아지면 카드도 늘어나 잘리지 않는다.
+ */
+@Composable
+private fun UniformCardHeight(content: @Composable (Dp?) -> Unit) {
+    SubcomposeLayout(Modifier.fillMaxSize()) { constraints ->
+        val cardWidth = (constraints.maxWidth - (BookSidePadding * 2).roundToPx()).coerceAtLeast(0)
+        val tallest = subcompose(UniformSlot.Measure) {
+            UniformPages.forEach { page ->
+                ReadingPageCard(
+                    page,
+                    Modifier.clearAndSetSemantics {},
+                    sigimsaeColumns = 1,
+                    moreColumns = 4,
+                    animate = false,
+                    moreTip = null,
+                    onMoreTip = {},
+                    audio = ReadingAudioState(),
+                    onPlayAudio = {},
+                    onStopAudio = {},
+                    interactive = false,
+                    showTitle = false,
+                    book = true,
+                )
+            }
+        }.maxOfOrNull { it.measure(Constraints(minWidth = cardWidth, maxWidth = cardWidth)).height } ?: 0
+        val height = if (tallest > 0) tallest.toDp() + UniformCardExtra * 2 else null
+        val body = subcompose(UniformSlot.Content) { content(height) }.map { it.measure(constraints) }
+        layout(constraints.maxWidth, constraints.maxHeight) { body.forEach { it.place(0, 0) } }
+    }
+}
+
+private enum class UniformSlot { Measure, Content }
+
 /**
  * 쪽 하나의 카드. 휴대폰 쪽과 태블릿 격자가 함께 쓴다.
  * 휴대폰은 위쪽 목차 단추가 이미 쪽 표시·이름을 보여 주므로 카드 머리([showTitle])를 빼고, 목차가 없는 태블릿 격자만 카드마다 머리를 단다.
+ *
+ * @param book 휴대폰 책의 쪽이면 참. 정간보란 井 그림을 키운다([BookIntroFigureMaxWidth]).
+ * @param uniformHeight 휴대폰 책에서 맞춘 카드 최소 높이. 있으면 내용을 카드 세로 가운데에 놓는다.
  */
 @Composable
 private fun ReadingPageCard(
@@ -286,17 +344,23 @@ private fun ReadingPageCard(
     onStopAudio: () -> Unit,
     interactive: Boolean = true,
     showTitle: Boolean = true,
+    book: Boolean = false,
+    uniformHeight: Dp? = null,
 ) {
     val title = if (showTitle) page.title() else null
+    val sized = if (uniformHeight != null) modifier.heightIn(min = uniformHeight) else modifier
+    val arrangement = if (uniformHeight != null) Arrangement.Center else Arrangement.Top
     when (page) {
-        ReadingPage.Intro -> GuideCard(modifier, mark = page.mark, title = title) { ReadIntro() }
-        ReadingPage.Order -> GuideCard(modifier, mark = page.mark, title = title) { ReadOrderBoard(animate = animate) }
+        ReadingPage.Intro -> GuideCard(sized, mark = page.mark, title = title, verticalArrangement = arrangement) {
+            if (book) ReadIntro(figureMaxWidth = BookIntroFigureMaxWidth) else ReadIntro()
+        }
+        ReadingPage.Order -> GuideCard(sized, mark = page.mark, title = title, verticalArrangement = arrangement) { ReadOrderBoard(animate = animate) }
         ReadingPage.Length -> GuideCard(modifier, mark = page.mark, title = title) { LengthRow(audio = audio, onPlayAudio = onPlayAudio, enabled = interactive) }
-        ReadingPage.Pitch -> GuideCard(modifier, mark = page.mark, title = title) { PitchSteps(audio, onPlayAudio, enabled = interactive) }
+        ReadingPage.Pitch -> GuideCard(sized, mark = page.mark, title = title, verticalArrangement = arrangement) { PitchSteps(audio, onPlayAudio, enabled = interactive) }
         ReadingPage.Sigimsae -> GuideCard(modifier, mark = page.mark, title = title, small = stringResource(Res.string.guide_reading_sigimsae_small)) {
             SigimsaeBasicBlock(columns = sigimsaeColumns, enabled = interactive, onOpen = onStopAudio)
         }
-        ReadingPage.SigimsaeMore -> GuideCard(modifier, mark = page.mark, title = title, small = "$MoreSigimsaeCount") {
+        ReadingPage.SigimsaeMore -> GuideCard(modifier, mark = page.mark, title = title) {
             SigimsaeMorePage(moreTip, onMoreTip, columns = moreColumns, enabled = interactive)
         }
     }
