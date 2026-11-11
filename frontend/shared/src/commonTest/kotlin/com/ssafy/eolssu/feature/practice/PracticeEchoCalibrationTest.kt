@@ -22,10 +22,38 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeEchoCalibrationTest {
+    @Test fun preparationUsesTheSelectedSongTempoRatherThanThePatternDefault() = practice { vm, recorder, _, settings, _ ->
+        val song = assertNotNull(vm.uiState.value.song)
+        settings.update { it.copy(bpmBySong = it.bpmBySong + (song.id to 77)) }; runCurrent()
+        vm.requestEvaluation(); runCurrent()
+        val plan = assertNotNull(recorder.plan)
+        assertEquals(60_000.0 / 77 / song.score.timing!!.ticksPerBeat, plan.msPerTick)
+        assertEquals(song.jangdanPlayback, plan.mapping)
+        vm.cancelCountdown(); runCurrent()
+    }
+
+    @Test fun rejectedCorrectionStillStartsOnThePreparedBoundaryAndKeepsItsStatus() = practice { vm, recorder, _, _, _ ->
+        recorder.preparedStatus = RecordingEchoStatus.Unreliable
+        recorder.captureBoundary = CaptureBoundary(1, 1, 0, 44_100, 1_000_000_000, true,
+            observedNanos = 1_150_000_000)
+        vm.requestEvaluation(); runCurrent()
+        recorder.pending.complete(true); runCurrent()
+        assertEquals(1, recorder.starts)
+        assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
+        assertEquals(RecordingEchoStatus.Unreliable, vm.uiState.value.echoStatus)
+        assertTrue(vm.uiState.value.echoCorrectionOff)
+        assertNull(vm.uiState.value.popup)
+        assertEquals(150.0, vm.uiState.value.elapsedMs, 0.001)
+        assertEquals(0, recorder.cancels)
+    }
+
     @Test fun preparationJangdanCountsThreeTwoOneAndStartsRecordingWithoutAnotherTimer() = practice { vm, recorder, player, _, _ ->
         vm.requestEvaluation(); runCurrent()
         assertEquals(1, recorder.preparations)
         assertSame(player, recorder.player)
+        val plan = assertNotNull(recorder.plan)
+        assertEquals(60_000.0 / vm.uiState.value.bpm / vm.uiState.value.song!!.score.timing!!.ticksPerBeat, plan.msPerTick)
+        assertEquals(vm.uiState.value.song!!.jangdanPlayback, plan.mapping)
         assertTrue(recorder.clips.any { it.targetFrames != null }, "Stretched rolls must be calibrated")
         advanceTimeBy(5_000); runCurrent()
         assertEquals(0, recorder.starts)
@@ -40,7 +68,7 @@ class PracticeEchoCalibrationTest {
         assertEquals(1, vm.uiState.value.count)
         advanceTimeBy(5_000); runCurrent()
         assertEquals(1, vm.uiState.value.count)
-        assertEquals(0, recorder.starts, "The last group must finish collection and validation before recording")
+        assertEquals(0, recorder.starts, "The last jangdan cycle must reach its recording boundary")
         recorder.pending.complete(true); runCurrent()
         assertEquals(1, recorder.starts)
         assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
@@ -276,6 +304,8 @@ private class EchoRecorder : AudioRecorder {
     override val measuresLevel = false
     override var supportsEchoCalibration = true
     override val echoStatus = MutableStateFlow(RecordingEchoStatus.Off)
+    override var captureBoundary: CaptureBoundary? = null
+    var preparedStatus = RecordingEchoStatus.Ready
     var preparations = 0
     var starts = 0
     var cancels = 0
@@ -284,6 +314,7 @@ private class EchoRecorder : AudioRecorder {
     var pending = CompletableDeferred<Boolean>()
     var ignoreCancellation = false
     var player: JangdanSamplePlayer? = null
+    var plan: JangdanPlan? = null
     var clips = emptySet<JangdanClip>()
     private var publishProgress: (EchoCalibrationProgress) -> Unit = {}
     fun reportCount(count: Int) = publishProgress(EchoCalibrationProgress(0, clips.size * 3, count))
@@ -291,6 +322,7 @@ private class EchoRecorder : AudioRecorder {
         val clips = plan.strikes.map { it.clip }.toSet()
         preparations++
         this.player = player
+        this.plan = plan
         this.clips = clips
         publishProgress = progress
         echoStatus.value = RecordingEchoStatus.Measuring
@@ -299,10 +331,10 @@ private class EchoRecorder : AudioRecorder {
             pending.invokeOnCompletion { continuation.resume(true) }
         } else pending.await()
         progress(EchoCalibrationProgress(clips.size * 3, clips.size * 3, 1))
-        return prepared.also { echoStatus.value = if (it) RecordingEchoStatus.Ready else RecordingEchoStatus.NotQuiet }
+        return prepared.also { echoStatus.value = if (it) preparedStatus else RecordingEchoStatus.NotQuiet }
     }
     override fun discardEchoCalibration() { discards++; echoStatus.value = RecordingEchoStatus.Off }
-    override fun start() { starts++; echoStatus.value = if (echoStatus.value == RecordingEchoStatus.Ready) RecordingEchoStatus.Active else RecordingEchoStatus.Off }
+    override fun start() { starts++; if (echoStatus.value == RecordingEchoStatus.Ready) echoStatus.value = RecordingEchoStatus.Active }
     override fun pause() { echoStatus.value = RecordingEchoStatus.Off }
     override fun resume() { resumes++ }
     override fun stop() = RecordedAudio("echo.m4a", 1024)

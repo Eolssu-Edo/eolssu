@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -40,7 +41,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
  * @param action 안내 문구 아래에 둘 버튼(평가 시작의 ‘시작 취소’). 막 아래는 누를 수 없으므로 빠져나갈 길은 여기에 둔다.
  */
 @Composable
-fun BeatCountdownOverlay(count: Int, message: String, modifier: Modifier = Modifier, beats: Int = 3, action: (@Composable () -> Unit)? = null) {
+fun BeatCountdownOverlay(count: Int, message: String, modifier: Modifier = Modifier, beats: Int = 3, showCount: Boolean = true, action: (@Composable () -> Unit)? = null) {
     val colors = EolssuTheme.colors
     Column(
         modifier
@@ -54,12 +55,15 @@ fun BeatCountdownOverlay(count: Int, message: String, modifier: Modifier = Modif
         Column(
             Modifier.semantics(mergeDescendants = true) {
                 liveRegion = LiveRegionMode.Assertive
-                contentDescription = "$count · $message"
+                contentDescription = if (showCount) "$count · $message" else message
             },
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            BeatCountRing(count, beats = beats)
+            if (showCount) BeatCountRing(count, beats = beats)
+            else Box(Modifier.size(150.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(Modifier.size(48.dp), color = colors.text)
+            }
             Text(
                 message,
                 modifier = Modifier.padding(horizontal = 24.dp).clearAndSetSemantics {},

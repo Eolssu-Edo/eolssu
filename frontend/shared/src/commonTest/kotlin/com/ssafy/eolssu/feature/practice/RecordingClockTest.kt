@@ -8,6 +8,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TestTimeSource
 
@@ -15,6 +16,19 @@ class RecordingClockTest {
 
     private val time = TestTimeSource()
     private val clock = RecordingClock(time)
+
+    @Test
+    fun scheduledCaptureIncludesTimeBeforeUiResumesAndPreservesPause() {
+        clock.start(150.milliseconds)
+        time += 1.seconds
+        clock.pause()
+        time += 10.seconds
+        clock.resume()
+        time += 2.seconds
+        assertEquals(3150.milliseconds, clock.elapsed())
+        clock.start((-1).milliseconds)
+        assertEquals(Duration.ZERO, clock.elapsed())
+    }
 
     @Test
     fun pausedTimeIsNotCounted() {

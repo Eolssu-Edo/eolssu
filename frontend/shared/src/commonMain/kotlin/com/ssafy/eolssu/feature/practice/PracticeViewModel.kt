@@ -50,6 +50,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 
@@ -228,7 +229,7 @@ class PracticeViewModel(
         val plan = currentPlan() ?: return
         soundPurpose = SoundPurpose.Recording
         val start = state.elapsedMs / plan.msPerTick
-        jangdanAudio.start(plan, accompanyingModel = true, startAtTick = start, tick = {
+        jangdanAudio.start(plan, accompanyingModel = true, startAtTick = start, allowPreparedPlayback = true, tick = {
             val now = _uiState.value
             if (now.mode != PracticeMode.Recording || now.finished || now.popup != null || !now.settings.jangdanSound) null
             else (stepClock?.sample()?.elapsedMs ?: now.elapsedMs) / plan.msPerTick
@@ -1086,12 +1087,16 @@ class PracticeViewModel(
                 _uiState.update { it.failRecording() }
                 return@launch
             }
+            // 예약된 입력 시작과 화면 복귀 사이에도 이미 녹음은 진행된다.
+            val initialMs = if (resume) 0.0 else recordingClock.elapsed().inWholeNanoseconds / 1_000_000.0
+            val scoreStartMs = if (resume) _uiState.value.elapsedMs else 0.0
             _uiState.update {
-                (if (resume) it.resumeRecording() else it.beginRecording()).copy(echoStatus = recorder?.echoStatus?.value ?: RecordingEchoStatus.Off)
+                (if (resume) it.resumeRecording() else it.beginRecording().copy(elapsedMs = initialMs, eventElapsedMs = initialMs))
+                    .copy(echoStatus = recorder?.echoStatus?.value ?: RecordingEchoStatus.Off)
             }
-            startStepping(if (resume) carry else 0.0)
+            startStepping(if (resume) carry else initialMs)
             val state = _uiState.value
-            state.song?.let { pitchSession.start(it, state.bpm, state.elapsedMs) }
+            state.song?.let { pitchSession.start(it, state.bpm, scoreStartMs) }
         }
     }
 
@@ -1210,7 +1215,10 @@ class PracticeViewModel(
         takeKey = newKey()
         takeScoreVersion = _uiState.value.song?.scoreVersion
         if (runCatching { recorder.start() }.isFailure) return false
-        recordingClock.start()
+        val boundary = recorder.captureBoundary
+        val captured = if (boundary?.timestampValid == true)
+            (boundary.observedNanos - boundary.monotonicNanos).coerceAtLeast(0L).nanoseconds else Duration.ZERO
+        recordingClock.start(captured)
         watchRecording()
         return true
     }

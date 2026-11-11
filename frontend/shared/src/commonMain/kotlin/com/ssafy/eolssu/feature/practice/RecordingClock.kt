@@ -11,8 +11,8 @@ class RecordingClock(private val timeSource: TimeSource = TimeSource.Monotonic) 
 
     val running: Boolean get() = runningSince != null
 
-    fun start() {
-        done = Duration.ZERO
+    fun start(alreadyRecorded: Duration = Duration.ZERO) {
+        done = alreadyRecorded.coerceAtLeast(Duration.ZERO)
         runningSince = timeSource.markNow()
     }
 

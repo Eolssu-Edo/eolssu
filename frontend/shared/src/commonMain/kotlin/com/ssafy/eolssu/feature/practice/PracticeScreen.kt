@@ -48,6 +48,7 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_countdown_cancel
 import eolssu.shared.generated.resources.practice_countdown_soon
 import eolssu.shared.generated.resources.practice_echo_count_in
+import eolssu.shared.generated.resources.practice_echo_loading
 import eolssu.shared.generated.resources.practice_score_failed
 import eolssu.shared.generated.resources.practice_score_loading
 import eolssu.shared.generated.resources.practice_score_missing
@@ -200,13 +201,19 @@ private fun PracticeCompactLayout(
 
 /**
  * 평가 시작 카운트다운(결합본 3·2·1 원형): 정간보 화면 전체를 옅은 막(74%)으로 덮어 악보가 비쳐 보이게 하고,
- * 가운데 3·2·1 원과 준비 안내, 그 아래 ‘시작 취소’를 둔다. 장단 보정 중에는 숫자를 실제 준비 묶음에 맞춘다.
+ * 가운데 3·2·1 원과 준비 안내, 그 아래 ‘시작 취소’를 둔다. 장단 보정 중에는 숫자를 실제 장단 주기에 맞춘다.
  */
 @Composable
 private fun CountdownOverlay(state: PracticeUiState, onCancel: () -> Unit) {
+    val waitingForJangdan = state.echoMeasuring && state.echoProgress == null
     BeatCountdownOverlay(
         count = state.count,
-        message = stringResource(if (state.echoMeasuring) Res.string.practice_echo_count_in else Res.string.practice_countdown_soon),
+        showCount = !waitingForJangdan,
+        message = stringResource(when {
+            waitingForJangdan -> Res.string.practice_echo_loading
+            state.echoMeasuring -> Res.string.practice_echo_count_in
+            else -> Res.string.practice_countdown_soon
+        }),
         action = {
             EolssuButton(
                 stringResource(Res.string.practice_countdown_cancel),
