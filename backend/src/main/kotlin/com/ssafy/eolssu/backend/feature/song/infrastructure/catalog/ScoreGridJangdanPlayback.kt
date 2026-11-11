@@ -31,6 +31,7 @@ class ScoreGridJangdanPlayback(
             "중모리", "타령", "계면가락도드리" -> 12 * ticksPerJeonggan
             "엇모리" -> 10 * ticksPerJeonggan
             "단모리" -> 4 * ticksPerJeonggan
+            "4박 기본 반주" -> if (score.bpmUnit == "QUARTER") 4 * ticksPerBeat else return null
             else -> return null
         }
 

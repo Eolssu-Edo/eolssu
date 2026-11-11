@@ -28,6 +28,7 @@ class JangdanPlaybackApiDatabaseTests {
     private val json = JsonMapper.builder().build()
     private val client = HttpClient.newHttpClient()
     private var ownsSong = false
+    private var ownsFourBeat = false
     private val source = json.readTree(requireNotNull(javaClass.getResourceAsStream("/jangdan-playback/6.json")))
 
     @BeforeEach fun prepare() {
@@ -39,10 +40,15 @@ class JangdanPlaybackApiDatabaseTests {
             instrument, source.path("score").path("title").asString(), json.writeValueAsString(source),
             source.path("events").count { it.path("kind").asString() == "NOTE" }, source.path("score").path("sourceId").asString())
         ownsSong = true
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM jangdans WHERE id=12 OR name='4박 기본 반주'", Int::class.java))
+        jdbc.update("""INSERT INTO jangdans(id,name,pattern,default_bpm,bpm_unit) VALUES
+            (12,'4박 기본 반주','{"beats":["덩","덕","궁","덕"],"group":[1,1,1,1]}',160,'QUARTER')""")
+        ownsFourBeat = true
     }
 
     @AfterEach fun cleanup() {
         if (ownsSong) jdbc.update("DELETE FROM songs WHERE id=6")
+        if (ownsFourBeat) jdbc.update("DELETE FROM jangdans WHERE id=12")
         client.close()
     }
 
@@ -96,7 +102,7 @@ class JangdanPlaybackApiDatabaseTests {
         assertNull(jdbc.queryForObject("SELECT jangdan_id FROM songs WHERE id=6", Long::class.java))
     }
 
-    @Test fun `reviewed airplane revisions expose supplemental Danmori at 77 BPM without rewriting the score`() {
+    @Test fun `reviewed airplane revisions expose supplemental four beat accompaniment at 77 BPM without rewriting the score`() {
         val revisions = listOf(
             Triple("danso", "DANSO", "893185e48fc87c300d591f5e4f0774291f21da17828fdaea5f0f865705ae4b18"),
             Triple("sogeum", "SOGEUM", "b6dd52ce1fe0a3349ceb7453975f88db84c9bfb7192b9bdb4bd22bf2ab41a972"),
@@ -120,23 +126,24 @@ class JangdanPlaybackApiDatabaseTests {
             assertEquals(77, result.path("defaultBpm").intValue())
             assertTrue(result.path("jangdanPlayback").isNull)
             val playback = result.path("supplementalJangdanPlayback")
-            assertEquals("7", playback.path("jangdanId").asString())
-            assertEquals("단모리", playback.path("name").asString())
+            assertEquals("12", playback.path("jangdanId").asString())
+            assertEquals("4박 기본 반주", playback.path("name").asString())
             assertEquals(4L, playback.path("cycleTicks").longValue())
-            assertEquals(8, playback.path("pattern").path("beats").size())
+            assertEquals(listOf("덩", "덕", "궁", "덕"), playback.path("pattern").path("beats").toList().map { it.asString() })
+            assertEquals(listOf(1, 1, 1, 1), playback.path("pattern").path("group").toList().map { it.intValue() })
             assertEquals(0L, playback.path("startTick").longValue())
             assertNull(jdbc.queryForObject("SELECT jangdan_id FROM songs WHERE id=6", Long::class.java))
             val detail = get("/api/songs/6")
-            assertEquals("단모리", detail.path("jangdanName").asString())
+            assertEquals("4박 기본 반주", detail.path("jangdanName").asString())
             assertTrue(detail.path("jangdan").isNull)
             assertEquals(original, detail.path("score"))
             val listed = get("/api/songs").path("items").single { it.path("songId").asString() == "6" }
-            assertEquals("단모리", listed.path("jangdanName").asString())
+            assertEquals("4박 기본 반주", listed.path("jangdanName").asString())
             assertTrue(listed.path("jangdan").isNull)
         }
     }
 
-    @Test fun `Jeongak airplane second revision preview has supplemental Danmori without changing the stored score`() {
+    @Test fun `Jeongak airplane second revision preview has supplemental four beat accompaniment without changing the stored score`() {
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE id=56", Int::class.java))
         val cells = (0..3).joinToString { """{"id":"c0-j$it","index":$it,"units":[{"row":0,"col":0,"symbol":"-","eventId":"c0-j0-r0-u0"}]}""" }
         val original = json.readTree("""{"schemaVersion":1,
@@ -156,11 +163,12 @@ class JangdanPlaybackApiDatabaseTests {
             assertEquals(77, result.path("defaultBpm").intValue())
             assertTrue(result.path("jangdanPlayback").isNull)
             val playback = result.path("supplementalJangdanPlayback")
-            assertEquals("7", playback.path("jangdanId").asString())
-            assertEquals("단모리", playback.path("name").asString())
+            assertEquals("12", playback.path("jangdanId").asString())
+            assertEquals("4박 기본 반주", playback.path("name").asString())
             assertEquals(24L, playback.path("cycleTicks").longValue())
-            assertEquals(8, playback.path("pattern").path("beats").size())
-            assertEquals("단모리", get("/api/songs/56").path("jangdanName").asString())
+            assertEquals(listOf("덩", "덕", "궁", "덕"), playback.path("pattern").path("beats").toList().map { it.asString() })
+            assertEquals(listOf(1, 1, 1, 1), playback.path("pattern").path("group").toList().map { it.intValue() })
+            assertEquals("4박 기본 반주", get("/api/songs/56").path("jangdanName").asString())
             assertNull(jdbc.queryForObject("SELECT jangdan_id FROM songs WHERE id=56", Long::class.java))
         } finally {
             jdbc.update("DELETE FROM songs WHERE id=56")
