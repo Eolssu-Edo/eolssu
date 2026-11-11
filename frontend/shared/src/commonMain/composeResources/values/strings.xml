@@ -270,6 +270,7 @@
     <string name="records_instrument_empty">이 악기로 저장한 연주가 없어요.</string>
     <string name="records_sort_new">최신순</string>
     <string name="records_sort_old">오래된 순</string>
+    <string name="records_load_more">더 보기</string>
     <string name="records_group_meta">녹음 %1$d개 · 최근 %2$s</string>
     <string name="records_best">최고</string>
     <string name="records_score_unit">점</string>

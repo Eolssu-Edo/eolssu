@@ -102,7 +102,9 @@ internal fun recordTitleLine(state: RecordDetailUiState): String? = state.record
 @Composable
 internal fun RecordComparePick(state: RecordDetailUiState, actions: RecordDetailActions) {
     val pick = state.comparePick
-    if (state.comparePickOpen && pick != null) ComparePickSheet(pick, actions.onCloseCompare, actions.onPickCompare)
+    if (state.comparePickOpen && pick != null) {
+        ComparePickSheet(pick, actions.onCloseCompare, actions.onPickCompare, state.compareLoad, actions.onCompare)
+    }
 }
 
 /** 세 배치에서 같은 요약·필터·악보를 쓴다. 짧은 창은 본문 전체를 스크롤한다. */

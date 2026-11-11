@@ -69,6 +69,7 @@ internal class RecordListInstrumentFilterTest : CatalogViewModelTest() {
         assertEquals(4, state.groups.size)
 
         model.changeInstrument(Instrument.Sogeum)
+        runCurrent()
         assertEquals(listOf("sogeum-arirang"), model.uiState.value.groups.map { it.songId })
         assertTrue(model.uiState.value.isOpen("sogeum-arirang"))
         assertEquals("r2", model.uiState.value.selectedRecordId)

@@ -45,6 +45,8 @@ fun RecordListScreen(
     onSort: (RecordSort) -> Unit,
     onOpenRecord: (String) -> Unit,
     onRetry: () -> Unit = {},
+    onLoadMore: (String) -> Unit = {},
+    onRetryNewest: () -> Unit = {},
     onInstrument: (Instrument?) -> Unit = {},
     detail: RecordDetailUiState? = null,
     detailActions: RecordDetailActions? = null,
@@ -64,6 +66,9 @@ fun RecordListScreen(
             onSort = onSort,
             onInstrument = onInstrument,
             onSelect = onOpenRecord,
+            onRetry = onRetry,
+            onLoadMore = onLoadMore,
+            onRetryNewest = onRetryNewest,
             detail = detail,
             detailActions = detailActions,
             snackbarHostState = snackbarHostState,
@@ -86,15 +91,15 @@ fun RecordListScreen(
         ) {
             if (state.showLoadStatus) {
                 RecordsLoadStatus(failed = state.loadFailed, onRetry = onRetry)
-                return@Column
+                if (state.summaries.isEmpty()) return@Column
             }
             if (state.recordsAvailable) WeekCard(state, spacing, onOpenGrowth)
-            if (!state.recordsAvailable || state.records.isEmpty()) {
+            if (!state.recordsAvailable || state.summaries.isEmpty()) {
                 RecordsEmpty(available = state.recordsAvailable)
                 return@Column
             }
             RecordListToolbar(state.instrument, state.sort, spacing, onInstrument, onSort)
-            if (state.groups.isEmpty()) RecordsInstrumentEmpty() else RecordGroups(state, spacing, onToggle, onOpenRecord)
+            if (state.groups.isEmpty()) RecordsInstrumentEmpty() else RecordGroups(state, spacing, onToggle, onOpenRecord, onLoadMore)
         }
     }
 }

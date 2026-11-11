@@ -7,7 +7,9 @@ import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.ScoreError
 import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.network.ServerAddress
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -33,6 +35,7 @@ class HttpPracticeRecordRepositoryTest {
 
     private fun repository(
         evaluation: EvaluationResult? = null,
+        member: SignedInMember? = null,
         reply: (Sent) -> Pair<HttpStatusCode, String>?,
     ) = HttpPracticeRecordRepository(
         createHttpClient(
@@ -50,6 +53,7 @@ class HttpPracticeRecordRepositoryTest {
             override suspend fun retryAnalysis(analysisId: String) = error("쓰지 않음")
             override suspend fun result(evaluationId: String) = evaluation
         },
+        member,
     )
 
     private fun ok(result: String) = HttpStatusCode.OK to """{"isSuccess":true,"code":200,"result":$result}"""
@@ -71,6 +75,33 @@ class HttpPracticeRecordRepositoryTest {
         assertEquals("보존할 메모", detail.memo)
         assertTrue(detail.recordingAvailable)
         assertEquals(listOf("/api/practice-sessions/41"), sent.map { it.path })
+    }
+
+    @Test
+    fun pagedWholeSongKeepsItsSectionInDetailOnlyForTheSelectingAccount() = runTest {
+        val member = SignedInMember(FakeKeyValueStore())
+        member.set("first")
+        val session = member.session.value
+        val repo = repository(evaluation = result, member = member) { call ->
+            when (call.path) {
+                "/api/users/me/practice-records" -> ok("""{"songs":[{"songId":"1"}],"songId":"1",
+                    |"items":[${item("41", "1", "아리랑", "2026-10-20T06:20:00Z")}],"totalPages":1}""".trimMargin())
+                "/api/practice-sessions/41" -> ok("""{"sessionId":"41","songId":"1","status":"DONE"}""")
+                else -> null
+            }
+        }
+        val row = checkNotNull(repo.loadListPage()).records.single()
+        assertTrue(repo.records.value.isEmpty())
+        assertNull(repo.detailPreview(row.id))
+
+        repo.rememberDetailPreview(row, session)
+        assertEquals(row, repo.detailPreview(row.id))
+        assertNull(checkNotNull(repo.detail(row.id)).section)
+
+        member.set("first")
+        assertNull(repo.detailPreview(row.id))
+        repo.rememberDetailPreview(row, session)
+        assertNull(repo.detailPreview(row.id))
     }
 
     @Test

@@ -51,6 +51,7 @@ import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
 import com.ssafy.eolssu.feature.history.CompareDay
 import com.ssafy.eolssu.feature.history.CompareMonth
+import com.ssafy.eolssu.feature.history.RecordCompareLoad
 import com.ssafy.eolssu.feature.history.ComparePick
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
@@ -76,10 +77,16 @@ import org.jetbrains.compose.resources.stringResource
  * 처음에는 비교 중인 기록, 없으면 바로 전 기록의 날을 보여 준다.
  */
 @Composable
-internal fun ComparePickSheet(pick: ComparePick, onDismiss: () -> Unit, onPick: (String) -> Unit) {
+internal fun ComparePickSheet(
+    pick: ComparePick,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit,
+    load: RecordCompareLoad = RecordCompareLoad.Ready,
+    onRetry: () -> Unit = {},
+) {
     val colors = EolssuTheme.colors
-    var shownDay by remember(pick.current.id) { mutableLongStateOf(pick.initialDay) }
-    var month by remember(pick.current.id) { mutableStateOf(CompareMonth.of(KoreanDateTime.ofEpochDay(pick.initialDay))) }
+    var shownDay by remember(pick.current.id, pick.initialDay) { mutableLongStateOf(pick.initialDay) }
+    var month by remember(pick.current.id, pick.initialDay) { mutableStateOf(CompareMonth.of(KoreanDateTime.ofEpochDay(pick.initialDay))) }
     // 연습 설정 시트처럼 회색 시트 위에 달력을 흰 카드로 담는다(S15P31E102-768).
     EolssuBottomSheet(
         onDismiss = onDismiss,
@@ -95,6 +102,10 @@ internal fun ComparePickSheet(pick: ComparePick, onDismiss: () -> Unit, onPick: 
             }
         },
     ) {
+        if (load != RecordCompareLoad.Ready) {
+            RecordsLoadStatus(failed = load == RecordCompareLoad.Failed, onRetry = onRetry)
+            return@EolssuBottomSheet
+        }
         if (pick.candidates.isEmpty()) {
             Text(stringResource(Res.string.weak_compare_none), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), color = colors.textSub)
             return@EolssuBottomSheet
