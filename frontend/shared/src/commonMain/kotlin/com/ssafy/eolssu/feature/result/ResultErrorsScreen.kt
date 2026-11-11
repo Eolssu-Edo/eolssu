@@ -112,7 +112,7 @@ fun ResultErrorsScreen(
         val section = state.section
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // 페이지는 세로로, 악보는 그 안에서 가로로만 움직인다. 악보 영역은 남은 높이를 채우되
-            // 연습·평가 최소 정간보다 작아지지 않게 하고, 모자라면 페이지 전체가 세로로 스크롤된다.
+            // 각을 두 줄로 나누지 않고 연습·평가 최소 정간보다 작아지지 않게 하며, 모자라면 페이지 전체가 세로로 스크롤된다.
             val pageHeight = maxHeight
             val density = LocalDensity.current
             var headerHeight by remember { mutableStateOf<Dp?>(null) }
@@ -157,8 +157,9 @@ private val ScoreAreaPadding = 12.dp
 
 /**
  * 곡 전체 정간보. 악보 연습·AI 연주 평가 휴대폰 악보와 같은 크기·모양(연습 보드 [JeongganboMetrics.practiceBoard] ·
- * [practiceScorePacking] · [JeongganboLook.practice])으로 그린다. 긴 각은 연습 화면처럼 다음 줄로 넘기고 짧은 각은 위아래로 쌓으며,
- * 악보 전체는 가로로만 넘긴다(처음에는 오른쪽 끝의 첫 각). 정간 크기는 연습 최소 정간 아래로 줄이지 않는다([weakSectionScoreHeight]).
+ * [practiceScorePacking] · [JeongganboLook.practice])으로 그린다. 연습 화면과 달리 긴 각도 두 줄로 나누지 않고 한 줄에 두며
+ * (S15P31E102-740, 화면보다 길면 페이지를 세로로 스크롤), 짧은 각은 위아래로 쌓는다. 악보 전체는 가로로 넘긴다(처음에는 오른쪽 끝의 첫 각).
+ * 정간 크기는 연습 최소 정간 아래로 줄이지 않는다([weakSectionScoreHeight]).
  * 정보 표시용이라 정간을 누르거나 고를 수 없다. 틀린 정간은 [filter] 종류만 색·아이콘으로, 취약 구간 각은 연두 테두리로 표시한다.
  */
 @Composable
@@ -175,7 +176,7 @@ private fun ErrorDetailScore(
     val base = remember(longestStrip) {
         JeongganboMetrics.practiceBoard(big = false, longestStrip = longestStrip).copy(splitLineFill = PracticeSplitLineFill)
     }
-    val minimum = remember(song, base, fontScale) { weakSectionScoreHeight(song, base, fontScale) }
+    val minimum = remember(song, base, fontScale) { weakSectionScoreHeight(song, base, fontScale, oneLine = true) }
     val height = maxOf(availableHeight, minimum)
     val packing = remember(song, base, height, fontScale) { practiceScorePacking(song.score, base, height, fontScale, song.jangdan) }
     JeongganboView(

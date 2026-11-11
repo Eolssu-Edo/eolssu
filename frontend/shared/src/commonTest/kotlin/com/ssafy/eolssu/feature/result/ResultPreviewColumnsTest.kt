@@ -1,10 +1,22 @@
 package com.ssafy.eolssu.feature.result
 
+import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.model.Score
+import com.ssafy.eolssu.core.model.ScoreCell
+import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.SongLevel
+import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
+import com.ssafy.eolssu.feature.practice.component.practiceScorePacking
 import com.ssafy.eolssu.feature.result.component.WeakSectionLines
 import com.ssafy.eolssu.feature.result.component.weakColumns
 import com.ssafy.eolssu.feature.result.component.weakSectionLines
+import com.ssafy.eolssu.feature.result.component.weakSectionScoreHeight
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /** 결과 카드가 악보 전체 중 틀린 칸이 가장 몰린 두 각을 가운데에 두는지. */
 class ResultPreviewColumnsTest {
@@ -35,5 +47,23 @@ class ResultPreviewColumnsTest {
         // 두 묶음에 걸치면 두 줄.
         assertEquals(WeakSectionLines(total = 4, weakCount = 2, weakCenter = 1.5f), weakSectionLines(List(10) { 1 }, 3, 5..6))
         assertEquals(WeakSectionLines(0, 0, 0f), weakSectionLines(emptyList(), 3, IntRange.EMPTY))
+    }
+
+    @Test
+    fun errorDetailHeightKeepsLongGakOnOneLine() {
+        // S15P31E102-740 단소 아리랑 각(12정간 중 3소박 8개): 결과 카드는 두 줄로 나눈 높이, 틀린 부분 상세는 한 줄 높이를 쓴다.
+        val note = ScoreNote.Pitch(Yul.Hwangjong)
+        val cell = ScoreCell(note)
+        val triple = ScoreCell(note, note, note)
+        val column = listOf(cell, triple, triple, cell, triple, triple, cell, triple, triple, cell, triple, triple)
+        val song = Song("arirang", "아리랑", SongLevel.Intro, null, 60, "", true, Score(List(4) { column }))
+        val base = JeongganboMetrics.practiceBoard(false, 12)
+        val card = weakSectionScoreHeight(song, base, 1f)
+        val detail = weakSectionScoreHeight(song, base, 1f, oneLine = true)
+        assertTrue(practiceScorePacking(song.score, base, card, 1f).splitColumns)
+        val packing = practiceScorePacking(song.score, base, detail, 1f)
+        assertFalse(packing.splitColumns)
+        assertTrue(packing.metrics.cellHeight >= 32.dp)
+        assertTrue(detail > card)
     }
 }
