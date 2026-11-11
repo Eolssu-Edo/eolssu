@@ -147,6 +147,25 @@ class MyInfoApiDatabaseTests {
             jdbc.queryForMap("SELECT instrument_id, notation_mode FROM users WHERE id = ?", userId))
     }
 
+    @Test
+    fun `profile image starts as hello and saves one of the twelve keys`() {
+        val access = signIn()
+        assertEquals("HELLO", tree(get("/api/users/me", access)).path("result").path("profileImage").asString())
+
+        val saved = patch("/api/users/me/profile-image", access, """{"profileImage":"JANGDAN"}""")
+        assertEquals(200, saved.statusCode(), saved.body())
+        assertEquals("JANGDAN", tree(saved).path("result").path("profileImage").asString())
+        assertEquals("JANGDAN", tree(get("/api/users/me", access)).path("result").path("profileImage").asString())
+
+        assertError(patch("/api/users/me/profile-image", access, """{"profileImage":"PURPLE"}"""), 400, "INVALID_REQUEST")
+        assertEquals("JANGDAN", jdbc.queryForObject("SELECT profile_image FROM users WHERE id = ?", String::class.java, userId))
+        // 목록 밖 값은 DB CHECK(V38)도 막는다.
+        kotlin.test.assertFails { jdbc.update("UPDATE users SET profile_image = 'PURPLE' WHERE id = ?", userId) }
+        jdbc.update("UPDATE users SET status = 'WITHDRAWAL_PENDING', withdrawal_requested_at = '2026-10-28', purge_scheduled_at = '2026-11-27' WHERE id = ?", userId)
+        assertError(patch("/api/users/me/profile-image", access, """{"profileImage":"DONE"}"""), 401, "UNAUTHENTICATED")
+        assertEquals("JANGDAN", jdbc.queryForObject("SELECT profile_image FROM users WHERE id = ?", String::class.java, userId))
+    }
+
     private fun signIn(): String {
         val response = client.send(
             HttpRequest.newBuilder(URI("http://localhost:$port/api/auth/sign-in")).header("Content-Type", "application/json")
