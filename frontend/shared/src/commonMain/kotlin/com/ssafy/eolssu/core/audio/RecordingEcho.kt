@@ -6,4 +6,5 @@ enum class RecordingEchoStatus {
     NotQuiet, Unreliable, Changed, Unavailable,
 }
 
-data class EchoCalibrationProgress(val completed: Int, val total: Int)
+/** 실제 준비 장단 묶음에 맞춘 표시 숫자. 마지막 묶음의 판정이 끝날 때까지 1을 유지한다. */
+data class EchoCalibrationProgress(val completed: Int, val total: Int, val countIn: Int = 3)
