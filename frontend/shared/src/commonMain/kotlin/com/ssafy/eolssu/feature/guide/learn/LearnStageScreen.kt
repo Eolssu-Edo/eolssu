@@ -78,8 +78,6 @@ import eolssu.shared.generated.resources.learn_section_tasks
 import eolssu.shared.generated.resources.learn_stage_subtitle_optional
 import eolssu.shared.generated.resources.learn_stage_title
 import eolssu.shared.generated.resources.learn_start_practice
-import eolssu.shared.generated.resources.learn_task_range
-import eolssu.shared.generated.resources.learn_task_range_detail
 import eolssu.shared.generated.resources.learn_tour_done_body_posture
 import eolssu.shared.generated.resources.learn_unmark_done
 import org.jetbrains.compose.resources.StringResource
@@ -108,6 +106,10 @@ class LearnStageActions(
     val onOpenReading: (ReadingPage) -> Unit,
     /** 단계 내용을 받지 못했을 때 '다시 시도'. */
     val onRetryDetail: (Int) -> Unit = {},
+    /** 단계([Int])에서 지난번에 마친 할 일 박스 수(S15P31E102-749). */
+    val stepsDone: (Int) -> Int = { 0 },
+    /** 단계에서 마친 할 일 박스 수가 바뀌었다. 나갔다 돌아와도 이어 하도록 남긴다. */
+    val onStepsDone: (Int, Int) -> Unit = { _, _ -> },
 )
 
 /**
@@ -141,14 +143,14 @@ fun LearnStageScreen(
     practice: StepPractice? = null,
 ) {
     val tablet = widthClass != WindowWidthClass.Compact
-    val tour = rememberLearnTour(stage.number)
+    val tour = rememberLearnTour(stage.number, state.instrument, { actions.stepsDone(stage.number) }) { actions.onStepsDone(stage.number, it) }
     EolssuScaffold(
         topBar = {
             GuideTopBar(learnStageTitle(stage), onBack = actions.onBack, widthClass = widthClass, subtitle = learnStageSubtitle(state, stage))
         },
         bottomBar = {
-            if (tablet) GuideTabletBottomContent { LearnStageBottomBar(state, stage, actions, tour) }
-            else LearnStageBottomBar(state, stage, actions, tour)
+            if (tablet) GuideTabletBottomContent { LearnStageBottomBar(state, stage, actions, tour, practice) }
+            else LearnStageBottomBar(state, stage, actions, tour, practice)
         },
         snackbarHostState = snackbarHostState,
         contentMaxWidth = widthClass.guidePageMaxWidth,
@@ -376,20 +378,13 @@ private fun StageBody(
                     }
                 }
             }
-            LearnSection(tasksTitle) {
-                LearnTaskList(
-                    detail.ranges.map { range ->
-                        val name = noteOf(range.first)?.name ?: range.first
-                        LearnTask(stringResource(Res.string.learn_task_range, blowShortLabel(range.label), name), stringResource(Res.string.learn_task_range_detail))
-                    },
-                    grid,
-                    collapsible = true,
-                )
+            if (detail.ranges.isNotEmpty()) {
+                LearnSection(tasksTitle) { LearnTaskList(listOf(rangeTask(detail.ranges)), grid, collapsible = true) }
             }
         }
         else -> LearnSection(tasksTitle) { LearnTaskList(detail.tasks.plain(), grid, collapsible = true) }
     }
-    // 할 일을 박스로 만들 수 없는 4~7단계도 연습 박스 하나는 둔다.
+    // 할 일을 박스로 만들 수 없는 4~7단계도 연습 박스 하나는 둔다(5·6단계는 할 일 박스가 없으니 연습 박스로 듣는다).
     if (stage.number >= 4 && practice != null) {
         Spacer(Modifier.height(16.dp))
         TourPanel(emptyList(), tour, practice = practice) {}
@@ -431,11 +426,12 @@ private val CitationPattern = Regex("""\s*\((?:[^()]*(?:차시|교실|지도서)
 /**
  * 하단 고정 영역(S15P31E102-688): 양옆에 이전·다음 단계로 가는 동그란 버튼, 가운데 판정 방식별 주 버튼
  * (설명 단계 '확인하고 다음 단계', 연습 단계 '연습 시작', 듣기 단계 '모범 연주 듣기').
- * 연습 단계의 '연습 시작'은 화면을 옮기지 않고 마지막 연습 박스를 바로 펼친다.
+ * 연습 단계의 '연습 시작'은 화면을 옮기지 않고 듣는 박스를 펼치며, 박스가 펼쳐지면 바로 듣기 시작한다(S15P31E102-749).
+ * 3·4·7단계는 마지막 연습 박스, 할 일 박스 안에서 듣는 5·6단계는 아직 마치지 않은 첫 박스다.
  * 할 일 박스를 모두 마치면 주 버튼이 살짝 커졌다 작아지며 다음 할 일을 알린다(연습 박스가 펼쳐져 있으면 쉰다).
  */
 @Composable
-internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions: LearnStageActions, tour: LearnTour) {
+internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions: LearnStageActions, tour: LearnTour, practice: StepPractice? = null) {
     val stepCount = (state.detail(stage.number) as? LearnDetailLoad.Loaded)?.detail?.let { learnStepCount(stage.number, it, state.instrument) } ?: 0
     val index = state.stages.indexOfFirst { it.number == stage.number }
     val previous = state.stages.getOrNull(index - 1)?.takeIf { index > 0 }
@@ -446,11 +442,31 @@ internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions
         when (stage.primaryAction) {
             LearnStageAction.Confirm -> EolssuButton(stringResource(Res.string.learn_confirm_next), { actions.onConfirm(stage.number) }, primary)
             LearnStageAction.ListenModel -> EolssuButton(stringResource(Res.string.learn_listen_model), actions.onListenModel, primary, icon = GuideIcons.Speaker)
-            LearnStageAction.Practice ->
-                EolssuButton(stringResource(Res.string.learn_start_practice), { tour.jumpTo(stepCount) }, primary, icon = EolssuIcons.Mic)
+            LearnStageAction.Practice -> {
+                val control = practice?.primary?.takeIf { practice.passed || listeningBoxOpen(stage.number, stepCount, tour.open, tour.doneCount) }
+                if (control != null) control(Modifier.weight(1f))
+                else EolssuButton(stringResource(Res.string.learn_start_practice), { tour.jumpTo(practiceBoxIndex(stage.number, stepCount, tour.doneCount)) }, primary, icon = EolssuIcons.Mic)
+            }
         }
         StageNavButton(next, forward = true, onOpen = actions.onOpenStage)
     }
+}
+
+/**
+ * '연습 시작'이 펼칠 박스. 3·4·7단계는 할 일 뒤의 연습 박스([stepCount]번), 할 일 박스 안에서 듣는 5·6단계는
+ * 아직 마치지 않은 첫 박스(다 마쳤으면 마지막 박스)다. 할 일 박스가 없으면 연습 박스(0번)다.
+ */
+internal fun practiceBoxIndex(stage: Int, stepCount: Int, doneCount: Int): Int =
+    if (judgesInTasks(stage) && stepCount > 0) doneCount.coerceIn(0, stepCount - 1) else stepCount
+
+/**
+ * 듣는 박스가 펼쳐져 있는지(S15P31E102-749). 그동안 아래 가운데 버튼은 '연습 시작' 대신 듣기 조작(그만하기·다시 시작)이 된다.
+ * 3·4·7단계는 연습 박스([stepCount]번), 5·6단계는 아직 마치지 않은 할 일 박스다.
+ */
+internal fun listeningBoxOpen(stage: Int, stepCount: Int, open: Int?, doneCount: Int): Boolean = when {
+    open == null -> false
+    judgesInTasks(stage) && stepCount > 0 -> open in 0 until stepCount && open >= doneCount
+    else -> open == stepCount
 }
 
 /** 이전·다음 단계로 가는 동그란 버튼. 갈 단계가 없으면(1단계의 이전, 마지막 단계의 다음) 옅게 두고 누를 수 없다. */

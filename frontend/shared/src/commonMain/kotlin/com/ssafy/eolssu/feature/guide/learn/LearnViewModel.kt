@@ -95,7 +95,13 @@ class LearnViewModel(
         val cleared = state.stages.filter { it.number in state.doneStages }
         _uiState.update { it.resetDone() }
         cleared.forEach { stage -> save(instrument, stage, completed = false, LearnSaveError.Reset) }
+        progressRepository.clearSteps(instrument.id)
     }
+
+    /** 지금 악기 [stage]단계에서 앞에서부터 마친 할 일 박스 수. 단계를 나갔다 돌아와도 이어 한다(S15P31E102-749). */
+    fun stepsDone(stage: Int): Int = progressRepository.stepsDone(_uiState.value.instrument.id, stage)
+
+    fun saveStepsDone(stage: Int, count: Int) = progressRepository.saveStepsDone(_uiState.value.instrument.id, stage, count)
 
     fun toggleDone(stage: Int) = updateDone(stage) { it.toggleDone(stage) }
 

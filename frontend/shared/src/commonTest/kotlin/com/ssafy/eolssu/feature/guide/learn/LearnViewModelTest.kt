@@ -143,6 +143,18 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
         assertEquals(LearnSaveError.Reset, model.uiState.value.saveError)
     }
 
+    /** 단계 안 할 일 진행은 다시 열어도 남고, '처음부터 다시 하기'로 함께 지운다(S15P31E102-749). */
+    @Test
+    fun stepsDoneSurviveReopeningAndResetClearsThem() = runTest {
+        val model = model()
+        runCurrent()
+        model.saveStepsDone(3, 2)
+        assertEquals(2, model().stepsDone(3))
+
+        model.resetDone()
+        assertEquals(0, model.stepsDone(3))
+    }
+
     @Test
     fun detailLoadsOnceAndFailureCanBeRetried() = runTest {
         val model = model()

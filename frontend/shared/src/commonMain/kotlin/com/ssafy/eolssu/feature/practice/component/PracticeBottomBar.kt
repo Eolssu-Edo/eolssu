@@ -46,6 +46,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.MicLevelBadge
 import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
@@ -53,8 +54,6 @@ import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_abort
 import eolssu.shared.generated.resources.practice_countdown_ready
-import eolssu.shared.generated.resources.practice_mic_off
-import eolssu.shared.generated.resources.practice_mic_on
 import eolssu.shared.generated.resources.practice_no_input_hint
 import eolssu.shared.generated.resources.practice_rec_time_total
 import eolssu.shared.generated.resources.practice_start_eval_short
@@ -137,7 +136,7 @@ private fun RecordingBarContent(state: PracticeUiState, actions: PracticeBottomA
                 style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
                 color = colors.text,
             )
-            MicBadge(state.micLevel)
+            MicLevelBadge(state.micLevel)
         }
         if (state.settings.beatVisual) song.displayJangdan?.let { JangguBeats(it.daegang.size, if (state.finished || awaiting) -1 else state.beatIndex) }
         Box(Modifier.fillMaxWidth().height(6.dp).background(colors.surfaceStrong, RoundedCornerShape(3.dp))) {
@@ -213,39 +212,6 @@ private fun OffButton(text: String, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.textDisabled, textAlign = TextAlign.Center)
-    }
-}
-
-/** 마이크 뱃지(`.badge.lite`, 30dp): 마이크 아이콘 · 3dp 막대 5개 · ‘입력 없음’/‘입력 감지’. */
-@Composable
-private fun MicBadge(level: Float) {
-    val colors = EolssuTheme.colors
-    val off = level == 0f
-    Row(
-        Modifier
-            .height(30.dp)
-            .background(colors.surface, CircleShape)
-            .border(1.dp, colors.lineSoft, CircleShape)
-            .padding(horizontal = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Icon(EolssuIcons.Mic, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.textMuted)
-        Row(Modifier.height(14.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            listOf(0.4f, 0.8f, 1f, 0.6f, 0.3f).forEach { f ->
-                Box(
-                    Modifier
-                        .width(3.dp)
-                        .height((level * f * 14).coerceAtLeast(2f).dp)
-                        .background(if (off) colors.textMuted else colors.rec, RoundedCornerShape(1.dp)),
-                )
-            }
-        }
-        Text(
-            stringResource(if (off) Res.string.practice_mic_off else Res.string.practice_mic_on),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
-            color = colors.textMuted,
-        )
     }
 }
 

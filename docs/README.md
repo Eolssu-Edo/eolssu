@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [기초부터 배우기 3~7단계 연습 안내 간소화와 마이크 표시를 연주 평가와 통일 (749)](plans/S15P31E102-749.md)
 - [공개곡 판본 보관·조회와 안전 게시 (745)](plans/S15P31E102-745.md) · [계약](specs/published-score-history.md) · [판본 보존 근거](knowledge/backend/published-score-history.md)
 
 - [정간보 쉽게 읽기 QA 반영: 한 화면 쪽 카드 크기 통일과 불필요한 안내 정리 (742)](plans/S15P31E102-742.md)

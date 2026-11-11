@@ -113,29 +113,25 @@ class LearnPracticePitchViewModelTest {
         vm.stopListening()
     }
 
-    @Test fun stageFiveStopsWhenItCanNoLongerPass() = runTest(dispatcher) {
+    /** 5단계는 다른 음을 내도 멈추지 않고 지금 음을 계속 기다린다(S15P31E102-749). */
+    @Test fun stageFiveKeepsListeningThroughWrongNotes() = runTest(dispatcher) {
         val recorder = Recorder()
         val vm = viewModel(recorder, stage = 5)
         vm.prepare(GuideInstrument.Danso, detail.copy(pitchNames = listOf("仲", "林", "無", "潢", "汰")))
         runCurrent()
         vm.startListening()
         runCurrent()
-        // 첫 두 음을 다른 음(汰)으로 내면 10음 중 9음을 맞힐 수 없다.
         repeat(2) {
             hold(recorder, hz("汰"), 400)
             hold(recorder, null, 200)
         }
+        val wrong = vm.uiState.value
+        assertTrue(wrong.listening)
+        assertEquals(0, wrong.pitch?.index)
+        assertEquals(emptyList(), wrong.pitch?.results)
 
-        val state = vm.uiState.value
-        assertFalse(state.listening)
-        assertEquals(LearnPracticeCue.NotPassed, state.cue)
-        assertEquals(listOf(LearnNoteResult.Miss, LearnNoteResult.Miss), state.pitch?.results)
-
-        // 다시 들으면 처음부터 잰다
-        vm.startListening()
-        runCurrent()
-        assertEquals(0, vm.uiState.value.pitch?.index)
-        assertEquals(emptyList(), vm.uiState.value.pitch?.results)
+        hold(recorder, hz("仲"), 400)
+        assertEquals(listOf(LearnNoteResult.Hit), vm.uiState.value.pitch?.results)
         vm.stopListening()
     }
 
@@ -151,10 +147,12 @@ class LearnPracticePitchViewModelTest {
         runCurrent()
         assertFalse(noCriteria.uiState.value.autoJudged)
 
+        // 7단계는 음높이 대신 '투' 횟수로 판정한다(S15P31E102-749).
         val stageSeven = viewModel(Recorder(), stage = 7)
         stageSeven.prepare(GuideInstrument.Danso, detail)
         runCurrent()
-        assertFalse(stageSeven.uiState.value.autoJudged)
+        assertNull(stageSeven.uiState.value.pitch)
+        assertTrue(stageSeven.uiState.value.judgesByTongue)
     }
 
     @Test fun criteriaAreLookedUpByTheServerInstrumentCode() = runTest(dispatcher) {
