@@ -239,6 +239,14 @@ receipt는 묶음 밖의 새 파일에 쓴다. 업로드는 `model-audio/drafts/
 
 **행 잠금만으로 세션 생성 경쟁을 막을 수는 없다.** 기존 요청이 이전 악보 판본을 읽고 INSERT 직전에 잠기면 적용 COMMIT 뒤 낡은 판본으로 재개할 수 있다. 실행자는 세션 생성과 분석 재시도를 운영 진입점에서 임시 차단하고, 이미 진입한 HTTP 요청을 모두 drain한 뒤에만 `--traffic-quiesced`를 지정해야 한다. 이 플래그는 실행자의 외부 조치 확인이며 도구 자체가 차단·drain을 수행하거나 자동 증명하지 않는다. 차단은 DB 적용과 사후 재조회가 끝날 때까지 유지하고, 새 판본의 API·음원 연결을 확인한 뒤 해제한다. 플래그 없는 `--apply`는 DB 조회·쓰기 전에 거부한다.
 
+edo1의 기존 Nginx 진입점에는 같은 디렉터리의 `publish_score_tempo_quiesced.py`를 쓸 수 있다. root로 실행하며 공통 적용기의 배포 잠금을 한 번만 얻는다. 현재 `active.conf` 해시를 보존하고, 단독 소유한 `tempo-728-gate.conf`를 배타적으로 생성해 `/api/practice-sessions` 하위 요청을 잠시 503으로 차단한다. Nginx 설정 검사·reload 후 이전 worker 종료와 backend의 활성 POST 처리 수 0을 확인한 뒤 백업·DB 교체에 진입한다. 지표 누락·NaN·음수는 실패 처리한다. 완료·실패 모두 자신의 gate만 제거하고 설정 검사·reload·readiness·세션 경로 복구와 기존 route 해시를 확인한다. 관측 결과는 apply receipt 옆 `.gate.json`에 남긴다.
+
+```sh
+sudo python3 publish_score_tempo_quiesced.py --bundle release --receipt 728-apply.json --upload-receipt 728-upload.json
+```
+
+서버의 ingress/container/metric 구성이 달라지면 이 고정 운영 wrapper를 그대로 사용하지 않는다. 강제 종료 후 gate가 남았을 때는 receipt·진행 중 작업·현재 DB를 먼저 확인하고, 소유권이 확인된 `/opt/eolssu/config/backend-route/tempo-728-gate.conf` **한 파일만** 제거한다. `docker exec eolssu-runtime-frontend-1 nginx -t`가 성공하면 `nginx -s reload`하고 readiness 200과 연습 경로의 503 해제를 확인한다. `active.conf`와 다른 include는 삭제하거나 덮어쓰지 않는다. 정상 스크립트의 `restore-failed`는 수동 복구 확인 전 완료로 보고하지 않는다.
+
 적용 직전과 COMMIT 이후 재조회 전에 receipt를 디스크에 동기화한다. `apply-outcome-unknown`/`committed-readback-pending`이나 연결 중단 후에는 새 receipt의 조회 모드로 실제 상태부터 확인한다. 이미 목표 판본·음원과 일치하면 재실행은 쓰지 않는다. 부분 적용이나 미래 판본이 있으면 중단한다. 복구 자료는 변경 전 행을 포함한 불변 `release.json`, 보존된 이전 음원·객체, prechange 백업이다. 역변경은 현재 목표 행과 신규 활성/사용 세션을 다시 확인한 대상별 CAS SQL로 준비한다. 이 도구는 자동 역변경이나 과거 DB 전체 덮어쓰기를 수행하지 않는다.
 
 빠른 검사: `python -m unittest discover -s infra/catalog -p test_publish_score_tempo.py -v`. 실제 MySQL 검사는 포트를 노출하지 않는 별도 `eolssu-tempo-728-test` MySQL 8.4 컨테이너의 `tempo728_test` 스키마만 사용한다. `TEMPO_TEST_MYSQL_CONTAINER`와 `TEMPO_TEST_MYSQL_PASSWORD`를 해당 로컬 값으로 지정하면 원자적 변경·이전 음원/완료 세션 보존·늦은 메타데이터 충돌·활성 세션 추가 시 전체 롤백을 검사한다. 운영 API·앱 재생 확인은 적용 뒤 별도 수행한다.
