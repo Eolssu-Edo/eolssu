@@ -58,8 +58,9 @@ class RecordingEchoReplayTest {
                 EchoQuietWindow(shift + 414540L, shift + 454230L))
             val result = RecordingEchoCalibrator.calibrate(input, strikes, lengths, quiet)
             if (name == "170050") {
-                assertEquals(RecordingEchoStatus.NotQuiet, assertIs<EchoCalibrationResult.Rejected>(result).reason)
-                println("$name rejected=NotQuiet")
+                val rejected = assertIs<EchoCalibrationResult.Rejected>(result)
+                assertEquals(RecordingEchoStatus.NotQuiet, rejected.reason)
+                println("$name rejected=NotQuiet diagnostic=${rejected.diagnostic}")
                 continue
             }
             val model = assertIs<EchoCalibrationResult.Accepted>(result).model
@@ -90,10 +91,13 @@ class RecordingEchoReplayTest {
             val after = output.drop(holdoutStart).sumOf { it.toDouble() * it }
             val reduction = 10 * log10(before / after)
             println("$name accepted similarity=${model.minimumSimilarity} responseResidual=${model.maximumResponseResidual} appliedBlocks=$applied rmsReductionDb=$reduction processingMs=${elapsedNanos / 1e6}")
+            // Diagnostics must not change the already verified PCM output for this take.
+            val buffer = ByteBuffer.allocate(output.size * 2).order(ByteOrder.LITTLE_ENDIAN)
+            output.forEach { buffer.putShort(it) }
+            val outputDigest = MessageDigest.getInstance("SHA-256").digest(buffer.array()).joinToString("") { "%02x".format(it) }
+            assertEquals("5b32a16c0cdeff40a5c90527a1a3e04125ff86def9817a8042a9d1e00d22a28a", outputDigest)
             System.getenv("EOLSSU_ECHO_REPLAY_OUTPUT")?.let { outputPath ->
                 val destination = File(outputPath).also { it.mkdirs() }
-                val buffer = ByteBuffer.allocate(output.size * 2).order(ByteOrder.LITTLE_ENDIAN)
-                output.forEach { buffer.putShort(it) }
                 File(destination, "guarded-$name.s16le").writeBytes(buffer.array())
             }
         }

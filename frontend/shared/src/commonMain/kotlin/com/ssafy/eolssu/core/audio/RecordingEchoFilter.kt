@@ -14,9 +14,34 @@ data class EchoCalibrationStrike(val clip: JangdanClip, val startFrame: Long, va
 data class EchoQuietWindow(val startFrame: Long, val endFrame: Long)
 data class EchoPlaybackEvent(val clip: JangdanClip, val startFrame: Long, val gain: Float)
 
+enum class EchoCalibrationGate {
+    UnsupportedSampleRate, MissingStrikes, MissingQuietWindows, InvalidClipFrames,
+    MissingClip, InvalidGain, ClipSetMismatch, InsufficientRepeats,
+    InvalidQuietWindow, InsufficientQuietFrames, InvalidStrikeWindow, QuietWindowOverlap,
+    InvalidSample, Clipping, QuietPeriodicInput, QuietLoudInput,
+    MatchWindowTooShort, RepeatMatchCount, RepeatSimilarity, AlignedWindowBounds,
+    ResponseWideResidual, ResponseLowResidual, TemplatePower,
+}
+
+/** Numeric calibration evidence only; never contains microphone samples or waveforms. */
+data class EchoCalibrationDiagnostic(
+    val gate: EchoCalibrationGate,
+    val clip: JangdanClip? = null,
+    val startFrame: Long? = null,
+    val endFrame: Long? = null,
+    val value: Double? = null,
+    val limit: Double? = null,
+    val count: Int? = null,
+    val rms: Double? = null,
+    val quietWindow: EchoQuietWindow? = null,
+)
+
 sealed interface EchoCalibrationResult {
     data class Accepted(val model: RecordingEchoModel) : EchoCalibrationResult
-    data class Rejected(val reason: RecordingEchoStatus) : EchoCalibrationResult
+    data class Rejected(
+        val reason: RecordingEchoStatus,
+        val diagnostic: EchoCalibrationDiagnostic? = null,
+    ) : EchoCalibrationResult
 }
 
 class RecordingEchoModel internal constructor(
@@ -41,24 +66,54 @@ object RecordingEchoCalibrator {
         quietWindows: List<EchoQuietWindow>,
         sampleRate: Int = 44100,
     ): EchoCalibrationResult {
-        val unreliable = EchoCalibrationResult.Rejected(RecordingEchoStatus.Unreliable)
-        if (sampleRate != 44100 || strikes.isEmpty() || quietWindows.isEmpty()) return unreliable
+        if (sampleRate != 44100) return unreliable(EchoCalibrationDiagnostic(
+            EchoCalibrationGate.UnsupportedSampleRate, value = sampleRate.toDouble(), limit = 44100.0,
+        ))
+        if (strikes.isEmpty()) return unreliable(EchoCalibrationDiagnostic(EchoCalibrationGate.MissingStrikes, count = 0))
+        if (quietWindows.isEmpty()) return unreliable(EchoCalibrationDiagnostic(EchoCalibrationGate.MissingQuietWindows, count = 0))
         val pre = (sampleRate * .045).roundToInt()
         val tail = (sampleRate * .12).roundToInt()
         val pad = sampleRate / 200
-        if (clipFrames.isEmpty() || clipFrames.values.any { it !in 1..sampleRate * 4 } ||
-            strikes.any { it.clip !in clipFrames || !it.gain.isFinite() || it.gain !in .01f..1f }) {
-            return unreliable
+        if (clipFrames.isEmpty()) return unreliable(EchoCalibrationDiagnostic(EchoCalibrationGate.InvalidClipFrames, count = 0))
+        clipFrames.entries.firstOrNull { it.value !in 1..sampleRate * 4 }?.let { (clip, frames) ->
+            return unreliable(EchoCalibrationDiagnostic(
+                EchoCalibrationGate.InvalidClipFrames, clip, value = frames.toDouble(),
+                limit = if (frames < 1) 1.0 else sampleRate * 4.0,
+            ))
+        }
+        strikes.firstOrNull { it.clip !in clipFrames || !it.gain.isFinite() || it.gain !in .01f..1f }?.let {
+            return unreliable(if (it.clip !in clipFrames) {
+                EchoCalibrationDiagnostic(EchoCalibrationGate.MissingClip, it.clip, it.startFrame)
+            } else {
+                EchoCalibrationDiagnostic(EchoCalibrationGate.InvalidGain, it.clip, it.startFrame,
+                    value = it.gain.toDouble(), limit = if (it.gain < .01f) .01 else 1.0)
+            })
         }
         val groups = strikes.groupBy { it.clip }
-        if (groups.keys != clipFrames.keys || groups.values.any { it.size < 3 }) return unreliable
-        if (quietWindows.any { it.startFrame < 0 || it.endFrame <= it.startFrame || it.endFrame > capture.size } ||
-            quietWindows.sumOf { it.endFrame - it.startFrame } < sampleRate * .3) return unreliable
+        if (groups.keys != clipFrames.keys) return unreliable(EchoCalibrationDiagnostic(
+            EchoCalibrationGate.ClipSetMismatch, clipFrames.keys.firstOrNull { it !in groups }, count = groups.size,
+        ))
+        groups.entries.firstOrNull { it.value.size < 3 }?.let { (clip, group) ->
+            return unreliable(EchoCalibrationDiagnostic(EchoCalibrationGate.InsufficientRepeats,
+                clip, value = group.size.toDouble(), limit = 3.0, count = group.size))
+        }
+        quietWindows.firstOrNull { it.startFrame < 0 || it.endFrame <= it.startFrame || it.endFrame > capture.size }?.let {
+            return unreliable(EchoCalibrationDiagnostic(EchoCalibrationGate.InvalidQuietWindow,
+                startFrame = it.startFrame, endFrame = it.endFrame, count = capture.size))
+        }
+        val quietFrames = quietWindows.sumOf { it.endFrame - it.startFrame }
+        if (quietFrames < sampleRate * .3) return unreliable(EchoCalibrationDiagnostic(
+            EchoCalibrationGate.InsufficientQuietFrames, value = quietFrames.toDouble(), limit = sampleRate * .3,
+        ))
         for (strike in strikes) {
             val end = strike.startFrame + clipFrames.getValue(strike.clip) + tail + pad
-            if (strike.startFrame < pre + pad || end > capture.size || end < strike.startFrame) return unreliable
-            if (quietWindows.any { it.startFrame < end && it.endFrame > strike.startFrame - pre - pad }) {
-                return unreliable
+            if (strike.startFrame < pre + pad || end > capture.size || end < strike.startFrame) {
+                return unreliable(EchoCalibrationDiagnostic(EchoCalibrationGate.InvalidStrikeWindow,
+                    strike.clip, strike.startFrame - pre - pad, end, count = capture.size))
+            }
+            quietWindows.firstOrNull { it.startFrame < end && it.endFrame > strike.startFrame - pre - pad }?.let {
+                return unreliable(EchoCalibrationDiagnostic(EchoCalibrationGate.QuietWindowOverlap,
+                    strike.clip, strike.startFrame - pre - pad, end, quietWindow = it))
             }
         }
         val trainingEnd = max(
@@ -67,12 +122,18 @@ object RecordingEchoCalibrator {
         ).toInt()
         var rails = 0
         for (i in 0 until trainingEnd) {
-            if (!capture[i].isFinite() || abs(capture[i]) > 1f) return unreliable
+            if (!capture[i].isFinite() || abs(capture[i]) > 1f) return unreliable(EchoCalibrationDiagnostic(
+                EchoCalibrationGate.InvalidSample, startFrame = i.toLong(), count = 1,
+            ))
             if (abs(capture[i]) >= .999f) rails++
         }
-        if (rails > max(3, trainingEnd / 1000)) return unreliable
+        if (rails > max(3, trainingEnd / 1000)) return unreliable(EchoCalibrationDiagnostic(
+            EchoCalibrationGate.Clipping, value = rails.toDouble(), limit = max(3, trainingEnd / 1000).toDouble(), count = trainingEnd,
+        ))
         for (window in quietWindows) {
-            if (!isQuiet(capture, window)) return EchoCalibrationResult.Rejected(RecordingEchoStatus.NotQuiet)
+            quietDiagnostic(capture, window)?.let {
+                return EchoCalibrationResult.Rejected(RecordingEchoStatus.NotQuiet, it)
+            }
         }
 
         val fit = bandLimited(capture, trainingEnd, 900.0, 5500.0, sampleRate)
@@ -87,7 +148,9 @@ object RecordingEchoCalibrator {
             val frames = clipFrames.getValue(clip)
             val begin = min(sampleRate / 50, frames / 8)
             val length = min(frames - begin, (sampleRate * .4).roundToInt())
-            if (length < sampleRate / 40) return unreliable
+            if (length < sampleRate / 40) return unreliable(EchoCalibrationDiagnostic(
+                EchoCalibrationGate.MatchWindowTooShort, clip, value = length.toDouble(), limit = (sampleRate / 40).toDouble(),
+            ))
             val matches = group.map { reference ->
                 group.map { target ->
                     bestMatch(fit, (reference.startFrame + begin).toInt(),
@@ -98,27 +161,36 @@ object RecordingEchoCalibrator {
                 median(matches[row].filterIndexed { index, _ -> index != row }.map { it.score })
             }
             val accepted = matches[medoid].indices.filter { matches[medoid][it].score >= .5f }
-            if (accepted.size < 3) return unreliable
+            if (accepted.size < 3) return unreliable(EchoCalibrationDiagnostic(
+                EchoCalibrationGate.RepeatMatchCount, clip, value = accepted.size.toDouble(), limit = 3.0, count = group.size,
+            ))
             val similarity = median(accepted.filter { it != medoid }.map { matches[medoid][it].score })
-            if (similarity < .55f) return unreliable
+            if (similarity < .55f) return unreliable(EchoCalibrationDiagnostic(
+                EchoCalibrationGate.RepeatSimilarity, clip, value = similarity.toDouble(), limit = .55, count = accepted.size,
+            ))
             minimumSimilarity = min(minimumSimilarity, similarity)
             val centerLag = median(accepted.map { matches[medoid][it].lag.toFloat() }).roundToInt()
             val offsets = accepted.map { index ->
                 group[index].startFrame.toInt() - pre + matches[medoid][index].lag - centerLag
             }
             val size = pre + frames + tail
-            if (offsets.any { it < 0 || it + size > trainingEnd }) return unreliable
+            offsets.firstOrNull { it < 0 || it + size > trainingEnd }?.let {
+                return unreliable(EchoCalibrationDiagnostic(EchoCalibrationGate.AlignedWindowBounds,
+                    clip, it.toLong(), (it + size).toLong(), count = trainingEnd))
+            }
             // Matching an attack in 900–5500 Hz cannot validate the lower frequencies
             // that will also be subtracted. Check every clip's entire response in both
             // bands, including short strikes and the tail. Ambient noise measured during
             // silence is allowed; inconsistent musical energy above it is not learned.
             val responseOffsets = offsets.map { it + pre }
             val gains = accepted.map { group[it].gain }
-            val responseResidual = max(
-                responseResidual(clean, responseOffsets, gains, frames + tail, cleanNoise),
-                responseResidual(bass, responseOffsets, gains, frames + tail, bassNoise),
-            )
-            if (responseResidual > .15f) return unreliable
+            val wideResidual = responseResidual(clean, responseOffsets, gains, frames + tail, cleanNoise)
+            val lowResidual = responseResidual(bass, responseOffsets, gains, frames + tail, bassNoise)
+            val responseResidual = max(wideResidual, lowResidual)
+            if (responseResidual > .15f) return unreliable(EchoCalibrationDiagnostic(
+                if (lowResidual > wideResidual) EchoCalibrationGate.ResponseLowResidual else EchoCalibrationGate.ResponseWideResidual,
+                clip, value = responseResidual.toDouble(), limit = .15, count = accepted.size,
+            ))
             maximumResponseResidual = max(maximumResponseResidual, responseResidual)
             val values = FloatArray(accepted.size)
             val template = FloatArray(size) { i ->
@@ -127,7 +199,10 @@ object RecordingEchoCalibrator {
                 val middle = values.size / 2
                 if (values.size % 2 == 0) (values[middle - 1] + values[middle]) * .5f else values[middle]
             }
-            if (energy(template, pre, pre + frames) / frames < 1e-6) return unreliable
+            val templatePower = energy(template, pre, pre + frames) / frames
+            if (templatePower < 1e-6) return unreliable(EchoCalibrationDiagnostic(
+                EchoCalibrationGate.TemplatePower, clip, value = templatePower, limit = 1e-6, count = frames,
+            ))
             val fadeIn = sampleRate / 50
             val fadeOut = sampleRate * 3 / 100
             for (i in 0 until fadeIn) template[i] *= i.toFloat() / fadeIn
@@ -138,6 +213,9 @@ object RecordingEchoCalibrator {
             sampleRate, pre, templates, minimumSimilarity, maximumResponseResidual,
         ))
     }
+
+    private fun unreliable(diagnostic: EchoCalibrationDiagnostic) =
+        EchoCalibrationResult.Rejected(RecordingEchoStatus.Unreliable, diagnostic)
 
     private fun quietPower(signal: FloatArray, windows: List<EchoQuietWindow>): Float = median(windows.map {
         (energy(signal, it.startFrame.toInt(), it.endFrame.toInt()) / (it.endFrame - it.startFrame)).toFloat()
@@ -173,7 +251,7 @@ object RecordingEchoCalibrator {
         })
     }
 
-    private fun isQuiet(capture: FloatArray, window: EchoQuietWindow): Boolean {
+    private fun quietDiagnostic(capture: FloatArray, window: EchoQuietWindow): EchoCalibrationDiagnostic? {
         // A 93 ms decimated window still contains several periods of a low wind note.
         val size = 1024
         var tonalRun = 0
@@ -191,19 +269,28 @@ object RecordingEchoCalibrator {
             val rms = sqrt(energy(block) / size)
             loudRun = if (rms > .018) loudRun + 1 else 0
             var tonal = false
+            var periodicity = 0f
             if (rms > .006) {
                 for (lag in 4..183) {
-                    if (correlation(block, 0, block, lag, size - lag, 1) > .85f) {
+                    val score = correlation(block, 0, block, lag, size - lag, 1)
+                    periodicity = max(periodicity, score)
+                    if (score > .85f) {
                         tonal = true
                         break
                     }
                 }
             }
             tonalRun = if (tonal) tonalRun + 1 else 0
-            if (tonalRun >= 3 || loudRun >= 3) return false
+            if (tonalRun >= 3 || loudRun >= 3) return EchoCalibrationDiagnostic(
+                if (tonalRun >= 3) EchoCalibrationGate.QuietPeriodicInput else EchoCalibrationGate.QuietLoudInput,
+                startFrame = first.toLong(), endFrame = (first + size * 4).toLong(),
+                value = if (tonalRun >= 3) periodicity.toDouble() else rms,
+                limit = if (tonalRun >= 3) .85 else .018,
+                count = if (tonalRun >= 3) tonalRun else loudRun, rms = rms, quietWindow = window,
+            )
             first += size * 2
         }
-        return true
+        return null
     }
 
     private data class Match(val lag: Int, val score: Float)

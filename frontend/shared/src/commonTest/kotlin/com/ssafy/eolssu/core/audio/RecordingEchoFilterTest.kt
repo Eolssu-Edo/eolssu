@@ -11,6 +11,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.test.assertFalse
 import kotlin.test.assertContentEquals
+import kotlin.test.assertNotNull
 
 class RecordingEchoFilterTest {
     private val rate = 44100
@@ -49,6 +50,71 @@ class RecordingEchoFilterTest {
         assertIs<EchoCalibrationResult.Accepted>(calibrate(cleanCapture()))
     }
 
+    @Test fun diagnosticsDistinguishPeriodicInputFromLoudNoiseWithoutChangingStatus() {
+        val random = Random(73)
+        val periodic = cleanCapture()
+        val noisy = cleanCapture()
+        for (i in quiet[0].startFrame.toInt() until quiet[0].endFrame.toInt()) {
+            periodic[i] = (.04 * sin(2 * PI * 467 * i / rate)).toFloat()
+            noisy[i] = random.nextFloat() * .2f - .1f
+        }
+        val toneResult = assertIs<EchoCalibrationResult.Rejected>(calibrate(periodic))
+        val noiseResult = assertIs<EchoCalibrationResult.Rejected>(calibrate(noisy))
+        assertEquals(RecordingEchoStatus.NotQuiet, toneResult.reason)
+        assertEquals(RecordingEchoStatus.NotQuiet, noiseResult.reason)
+        val tone = assertNotNull(toneResult.diagnostic)
+        val noise = assertNotNull(noiseResult.diagnostic)
+        assertEquals(EchoCalibrationGate.QuietPeriodicInput, tone.gate)
+        assertEquals(EchoCalibrationGate.QuietLoudInput, noise.gate)
+        assertTrue(assertNotNull(tone.value) > assertNotNull(tone.limit))
+        assertTrue(assertNotNull(tone.rms) > .006)
+        assertEquals(3, tone.count)
+        assertTrue(assertNotNull(tone.startFrame) >= quiet[0].startFrame)
+        assertTrue(assertNotNull(tone.endFrame) <= quiet[0].endFrame)
+        assertTrue(assertNotNull(noise.value) > assertNotNull(noise.limit))
+    }
+
+    @Test fun diagnosticsDistinguishGeometryClippingAndRepeatFailures() {
+        val capture = cleanCapture()
+        val incomplete = assertIs<EchoCalibrationResult.Rejected>(calibrate(capture.copyOf(rate * 4)))
+        val tooFew = assertIs<EchoCalibrationResult.Rejected>(RecordingEchoCalibrator.calibrate(
+            capture, strikes.take(2), mapOf(clip to clipLength), quiet))
+        capture.fill(1f, starts.first(), starts.first() + 1000)
+        val clipped = assertIs<EchoCalibrationResult.Rejected>(calibrate(capture))
+        for (result in listOf(incomplete, tooFew, clipped)) {
+            assertEquals(RecordingEchoStatus.Unreliable, result.reason)
+        }
+        assertEquals(EchoCalibrationGate.InvalidStrikeWindow, assertNotNull(incomplete.diagnostic).gate)
+        val repeatDiagnostic = assertNotNull(tooFew.diagnostic)
+        assertEquals(EchoCalibrationGate.InsufficientRepeats, repeatDiagnostic.gate)
+        assertEquals(EchoCalibrationGate.Clipping, assertNotNull(clipped.diagnostic).gate)
+        assertEquals(clip, repeatDiagnostic.clip)
+        assertEquals(2, repeatDiagnostic.count)
+    }
+
+    @Test fun diagnosticLocatesStrikeResponseThatOverlapsThePreviousQuietWindow() {
+        val precedingQuiet = EchoQuietWindow(rate * 2L - 4000, rate * 2L)
+        val result = assertIs<EchoCalibrationResult.Rejected>(RecordingEchoCalibrator.calibrate(
+            cleanCapture(), strikes, mapOf(clip to clipLength), quiet + precedingQuiet))
+        assertEquals(RecordingEchoStatus.Unreliable, result.reason)
+        val diagnostic = assertNotNull(result.diagnostic)
+        assertEquals(EchoCalibrationGate.QuietWindowOverlap, diagnostic.gate)
+        assertEquals(clip, diagnostic.clip)
+        assertEquals(precedingQuiet, diagnostic.quietWindow)
+        assertTrue(assertNotNull(diagnostic.startFrame) < precedingQuiet.endFrame)
+        assertTrue(assertNotNull(diagnostic.endFrame) > precedingQuiet.startFrame)
+    }
+
+    @Test fun diagnosticSeparatesWeakTemplateFromInconsistentRepeats() {
+        val weak = cleanCapture().map { it * .001f }.toFloatArray()
+        val result = assertIs<EchoCalibrationResult.Rejected>(calibrate(weak))
+        assertEquals(RecordingEchoStatus.Unreliable, result.reason)
+        val diagnostic = assertNotNull(result.diagnostic)
+        assertEquals(EchoCalibrationGate.TemplatePower, diagnostic.gate)
+        assertEquals(clip, diagnostic.clip)
+        assertTrue(assertNotNull(diagnostic.value) < assertNotNull(diagnostic.limit))
+    }
+
     @Test fun rejectsInstrumentPresentOnlyDuringCalibrationStrikes() {
         // Quiet gaps and matching high-frequency attacks do not prove that the bass
         // response is clean: this previously learned a nonexistent 467 Hz held note.
@@ -61,8 +127,11 @@ class RecordingEchoFilterTest {
                 capture[start + i] = (strike + .08 * sin(2 * PI * 467 * i / rate + repeat * .7)).toFloat()
             }
         }
-        assertEquals(RecordingEchoStatus.Unreliable,
-            assertIs<EchoCalibrationResult.Rejected>(calibrate(capture)).reason)
+        val result = assertIs<EchoCalibrationResult.Rejected>(calibrate(capture))
+        assertEquals(RecordingEchoStatus.Unreliable, result.reason)
+        val diagnostic = assertNotNull(result.diagnostic)
+        assertEquals(EchoCalibrationGate.ResponseLowResidual, diagnostic.gate)
+        assertTrue(assertNotNull(diagnostic.value) > assertNotNull(diagnostic.limit))
     }
 
     @Test fun rejectsLoudAperiodicInputAndNonRepeatingStrikes() {
@@ -77,8 +146,9 @@ class RecordingEchoFilterTest {
         for (start in starts) {
             for (i in start until start + clipLength) inconsistent[i] = random.nextFloat() * .2f - .1f
         }
-        assertEquals(RecordingEchoStatus.Unreliable,
-            assertIs<EchoCalibrationResult.Rejected>(calibrate(inconsistent)).reason)
+        val result = assertIs<EchoCalibrationResult.Rejected>(calibrate(inconsistent))
+        assertEquals(RecordingEchoStatus.Unreliable, result.reason)
+        assertEquals(EchoCalibrationGate.RepeatMatchCount, assertNotNull(result.diagnostic).gate)
     }
 
     @Test fun incompleteOrSilentCalibrationNeverCreatesAModel() {
