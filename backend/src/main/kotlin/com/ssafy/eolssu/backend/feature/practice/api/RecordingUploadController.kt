@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.feature.practice.api
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.feature.practice.application.RecordingUploadResult
@@ -15,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
@@ -33,12 +35,15 @@ class RecordingUploadController(private val uploadRecording: UploadRecording) {
         @AuthenticationPrincipal jwt: Jwt,
         @PathVariable @Positive sessionId: Long,
         @RequestPart("audio") audio: MultipartFile,
+        @RequestHeader(EvaluationTimingId.HEADER, required = false) timingId: String? = null,
     ): ResponseEntity<*> {
         // ffprobe는 경로로 읽으므로 임시 파일에 옮기고, 요청이 끝나면 지운다.
         val file = Files.createTempFile("recording-", ".m4a")
         val result = try {
             audio.transferTo(file)
-            uploadRecording.upload(requireNotNull(jwt.subject).toLong(), sessionId, file, audio.size)
+            uploadRecording.upload(
+                requireNotNull(jwt.subject).toLong(), sessionId, file, audio.size, EvaluationTimingId.parse(timingId),
+            )
         } finally {
             Files.deleteIfExists(file)
         }

@@ -2,6 +2,14 @@ package com.ssafy.eolssu.feature.result
 
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.audio.RecordedTake
+import com.ssafy.eolssu.core.diagnostics.EvaluationTiming
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.PerfReason
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.PerformanceEvent
+import com.ssafy.eolssu.core.diagnostics.PerformanceFlow
+import com.ssafy.eolssu.core.diagnostics.PerformanceLog
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -12,6 +20,7 @@ import com.ssafy.eolssu.data.practice.FakeRecordingFiles
 import com.ssafy.eolssu.data.practice.FakeUploader
 import com.ssafy.eolssu.data.practice.PendingRecording
 import com.ssafy.eolssu.data.practice.PracticeSessionRepository
+import com.ssafy.eolssu.data.practice.RecordingUploader
 import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.practice.RetryOutcome
 import com.ssafy.eolssu.data.practice.SessionStart
@@ -23,11 +32,14 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.minutes
 
@@ -378,6 +390,90 @@ class AnalysisSessionTest {
     }
 
     @Test
+    fun evaluationTimingFollowsResendAndRetryThroughFirstDone() {
+        val events = mutableListOf<PerformanceEvent>()
+        val previousSink = PerformanceLog.sink
+        PerformanceLog.sink = { events += it }
+        val visit = PerformanceVisit(PerformanceFlow(), PerfTarget.ANALYSIS)
+        val uploadIds = mutableListOf<String>()
+        val sender = object : RecordingUploader {
+            override suspend fun upload(sessionId: String, path: String): UploadOutcome {
+                uploadIds += checkNotNull(currentCoroutineContext()[EvaluationTiming]).id
+                time.advanceBy(125)
+                return if (uploadIds.size == 1) UploadOutcome.Unreachable else UploadOutcome.Uploaded
+            }
+        }
+        val timedUploads = RecordingUploads(
+            sender, FakeKeyValueStore(), FakeRecordingFiles(take.path), { uploadNow },
+            SignedInMember(FakeKeyValueStore()).apply { set("A") },
+        )
+        sessions.onCreate = { time.advanceBy(50) }
+        val measured = AnalysisSession(
+            CoroutineScope(Dispatchers.Unconfined + visit), repository,
+            clock = { time.now }, sleep = time::sleep, uploads = timedUploads, sessions = sessions,
+        )
+
+        try {
+            scope.launch { measured.start(SampleSongs.first().copy(scoreVersion = 1), bpm = 60, take = take) }
+            assertEquals(UploadProblem.CanResend, measured.state.value.upload)
+            assertEquals(0, repository.queries)
+
+            measured.resend()
+            assertEquals(1, repository.queries)
+            measured.pause()
+            measured.resume()
+            assertEquals(2, repository.queries)
+
+            repository.status = { AnalysisStatus.Failed(AnalysisFailure.ServerError) }
+            time.advanceBy(1_000)
+            repository.retryOutcome = {
+                time.advanceBy(90)
+                error("접수 응답 유실")
+            }
+            measured.retry()
+            assertEquals(AnalysisFailure.ServerError, measured.state.value.failure)
+            val acceptedId = assertNotNull(repository.retryTimingIds.single())
+            repository.retryOutcome = {
+                time.advanceBy(40)
+                RetryOutcome.Accepted(started = false, timingId = acceptedId)
+            }
+            repository.status = { AnalysisStatus.Done("41", timingId = acceptedId) }
+            measured.retry()
+            measured.resume()
+            assertEquals("41", measured.state.value.evaluationId)
+
+            val resultVisit = PerformanceVisit(visit.flow, PerfTarget.RESULT)
+            resultVisit.milestone(PerfPhase.SCORE_DRAWN)
+            resultVisit.milestone(PerfPhase.SCORE_DRAWN)
+            val stages = events.filter { it.phase != null }
+            assertEquals(
+                listOf(PerfPhase.SESSION_CREATE, PerfPhase.RECORDING_UPLOAD, PerfPhase.RECORDING_UPLOAD,
+                    PerfPhase.FIRST_STATUS_REQUEST, PerfPhase.ANALYSIS_RETRY, PerfPhase.ANALYSIS_RETRY,
+                    PerfPhase.ANALYSIS_READY, PerfPhase.SCORE_DRAWN),
+                stages.map { it.phase },
+            )
+            assertEquals(1, stages.map { it.flow }.distinct().size)
+            assertEquals(50L, stages.first().durationMs)
+            val uploadEvents = stages.filter { it.phase == PerfPhase.RECORDING_UPLOAD }
+            assertEquals(listOf(125L, 125L), uploadEvents.map { it.durationMs })
+            assertEquals(listOf(PerfReason.FAILED, PerfReason.READY), uploadEvents.map { it.outcome })
+            assertEquals(listOf(PerfReason.INITIAL, PerfReason.RETRY), uploadEvents.map { it.reason })
+            assertEquals(uploadIds, uploadEvents.map { it.evaluationTimingId })
+            assertEquals(1, uploadIds.distinct().size)
+            val retryEvents = stages.filter { it.phase == PerfPhase.ANALYSIS_RETRY }
+            assertEquals(listOf(90L, 40L), retryEvents.map { it.durationMs })
+            assertEquals(listOf(PerfReason.FAILED, PerfReason.ALREADY_PENDING), retryEvents.map { it.outcome })
+            assertNotEquals(uploadIds.first(), acceptedId)
+            assertNotEquals(acceptedId, assertNotNull(repository.retryTimingIds.last()))
+            assertEquals(listOf(acceptedId, acceptedId), retryEvents.map { it.evaluationTimingId })
+            assertEquals(acceptedId, stages.single { it.phase == PerfPhase.ANALYSIS_READY }.evaluationTimingId)
+        } finally {
+            measured.pause()
+            PerformanceLog.sink = previousSink
+        }
+    }
+
+    @Test
     fun takeCreatesSessionUploadsAndPollsThatSession() {
         startWithTake()
         assertEquals(listOf(Triple(SampleSongs.first().id, 60, "take-1")), sessions.calls)
@@ -447,8 +543,10 @@ private class FakeSessions : PracticeSessionRepository {
     val results = ArrayDeque<SessionStart>()
     val calls = mutableListOf<Triple<String, Int, String>>()
     val sections = mutableListOf<SessionSection?>()
+    var onCreate: () -> Unit = {}
 
     override suspend fun create(songId: String, bpm: Int, idempotencyKey: String, section: SessionSection?): SessionStart {
+        onCreate()
         calls += Triple(songId, bpm, idempotencyKey)
         sections += section
         return results.removeFirstOrNull() ?: SessionStart.Created("41", startedAtMillis = 0L, memberId = "A")
@@ -484,6 +582,7 @@ private class FakeEvaluations : EvaluationRepository {
     var queries = 0
     val queriedIds = mutableListOf<String>()
     var retries = 0
+    val retryTimingIds = mutableListOf<String?>()
 
     override suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int): String {
         requestGate?.await()
@@ -502,6 +601,7 @@ private class FakeEvaluations : EvaluationRepository {
 
     override suspend fun retryAnalysis(analysisId: String): RetryOutcome {
         retries++
+        retryTimingIds += currentCoroutineContext()[EvaluationTiming]?.id
         return retryOutcome()
     }
 

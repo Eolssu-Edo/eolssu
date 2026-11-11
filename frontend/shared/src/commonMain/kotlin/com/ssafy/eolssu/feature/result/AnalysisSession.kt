@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.EvaluationTiming
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.diagnostics.PerfSource
 import com.ssafy.eolssu.core.diagnostics.PerfKind
 import com.ssafy.eolssu.core.diagnostics.PerfReason
@@ -32,6 +34,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * 분석 하나의 요청·상태 조회·재시도와 화면의 백그라운드 전환(PRA-03 상태 조회와 시간 초과).
@@ -47,7 +50,7 @@ import kotlinx.coroutines.launch
 internal class AnalysisSession(
     private val scope: CoroutineScope,
     private val repository: EvaluationRepository,
-    clock: () -> Long,
+    private val clock: () -> Long,
     private val sleep: suspend (Long) -> Unit,
     private val uploads: RecordingUploads? = null,
     private val sessions: PracticeSessionRepository? = null,
@@ -58,6 +61,8 @@ internal class AnalysisSession(
     private val _state = MutableStateFlow(AnalysisUiState())
     val state: StateFlow<AnalysisUiState> = _state.asStateFlow()
     private val polling = AnalysisPolling(clock)
+    private val perf = scope.coroutineContext[PerformanceVisit]
+    private val uploadTiming by lazy { perf?.let { EvaluationTiming() } }
     private var request: Request? = null
     private var analysisId: String? = null
     private var pollJob: Job? = null
@@ -136,7 +141,7 @@ internal class AnalysisSession(
         when {
             recording != null && uploads != null -> {
                 this.recording = recording
-                afterSend(uploads.send(recording))
+                sendRecording(PerfReason.INITIAL) { uploads.send(recording) }
             }
             take != null && uploads != null && sessions != null -> {
                 this.take = take
@@ -160,7 +165,7 @@ internal class AnalysisSession(
     }
 
     /** 세션을 만들고 녹음을 올린다. 세션을 만들지 못하면 녹음은 녹음기 자리에 남고, 다시 보내기가 같은 키로 다시 만든다. */
-    private suspend fun createAndSend(take: RecordedTake) {
+    private suspend fun createAndSend(take: RecordedTake, reason: PerfReason = PerfReason.INITIAL) {
         val uploads = uploads ?: return
         val sessions = sessions ?: return
         val request = request ?: return
@@ -169,11 +174,14 @@ internal class AnalysisSession(
             _state.update { it.copy(upload = UploadProblem.Rejected, resending = false) }
             return
         }
-        when (val created = sessions.create(request.songId, request.bpm, take.key, version, request.section)) {
+        val created = measureStage(PerfPhase.SESSION_CREATE, reason, classify = { if (it is SessionStart.Created) PerfReason.READY else PerfReason.FAILED }) {
+            sessions.create(request.songId, request.bpm, take.key, version, request.section)
+        }
+        when (created) {
             is SessionStart.Created -> {
                 val pending = PendingRecording(created.sessionId, take.path, created.startedAtMillis, request.songId, request.bpm, created.memberId)
                 recording = pending
-                afterSend(uploads.send(pending))
+                sendRecording(reason) { uploads.send(pending) }
             }
             SessionStart.Unreachable -> _state.update { it.copy(upload = UploadProblem.CanResend, resending = false) }
             SessionStart.Rejected -> _state.update { it.copy(upload = UploadProblem.Rejected, resending = false) }
@@ -193,11 +201,17 @@ internal class AnalysisSession(
         if (recording == null && take == null) return
         _state.update { it.copy(resending = true) }
         scope.launch {
-            if (recording != null) afterSend(uploads.resend(recording)) else if (take != null) createAndSend(take)
+            if (recording != null) sendRecording(PerfReason.RETRY) { uploads.resend(recording) }
+            else if (take != null) createAndSend(take, PerfReason.RETRY)
         }
     }
 
-    private suspend fun afterSend(result: SendResult) {
+    private suspend fun sendRecording(reason: PerfReason, send: suspend () -> SendResult) {
+        val result = measureStage(
+            PerfPhase.RECORDING_UPLOAD, reason, uploadTiming,
+            classify = { if (it == SendResult.Sent) PerfReason.READY else PerfReason.FAILED },
+            operation = send,
+        )
         when (result) {
             SendResult.Sent -> {
                 _state.update { it.copy(upload = null, resending = false) }
@@ -232,14 +246,24 @@ internal class AnalysisSession(
                 return@launch
             }
             val outcome = try {
-                repository.retryAnalysis(id)
+                measureStage(
+                    PerfPhase.ANALYSIS_RETRY, PerfReason.RETRY, perf?.let { EvaluationTiming() },
+                    classify = {
+                        when (it) {
+                            is RetryOutcome.Accepted -> if (it.started) PerfReason.READY else PerfReason.ALREADY_PENDING
+                            RetryOutcome.Started -> PerfReason.READY
+                            else -> PerfReason.FAILED
+                        }
+                    },
+                    timingIdForResult = { (it as? RetryOutcome.Accepted)?.timingId },
+                ) { repository.retryAnalysis(id) }
             } catch (e: Exception) {
                 if (e is CancellationException) currentCoroutineContext().ensureActive()
                 null
             }
             when (outcome) {
-                RetryOutcome.Started, RetryOutcome.Conflict -> {
-                    if (outcome == RetryOutcome.Started) polling.start() else polling.resume()
+                is RetryOutcome.Accepted, RetryOutcome.Started, RetryOutcome.Conflict -> {
+                    if (outcome == RetryOutcome.Conflict) polling.resume() else polling.start()
                     _state.update { it.copy(failure = null, retrying = false) }
                     startPolling()
                 }
@@ -291,7 +315,6 @@ internal class AnalysisSession(
         val id = analysisId ?: return
         if (paused) return
         pollJob?.cancel()
-        val perf = scope.coroutineContext[PerformanceVisit]
         pollJob = scope.launch(perf.context(PerfReason.POLL)) {
             val started = PerformanceLog.now()
             var count = 0
@@ -307,6 +330,7 @@ internal class AnalysisSession(
                         is PollStep.Wait -> sleep(step.millis)
                         is PollStep.Done -> {
                             outcome = PerfReason.READY
+                            perf?.milestone(PerfPhase.ANALYSIS_READY, evaluationTimingId = step.timingId)
                             _state.update { it.copy(evaluationId = step.evaluationId) }
                             return@launch
                         }
@@ -324,6 +348,34 @@ internal class AnalysisSession(
         }
     }
 
+    private suspend fun <T> measureStage(
+        phase: PerfPhase,
+        reason: PerfReason,
+        timing: EvaluationTiming? = null,
+        classify: (T) -> PerfReason,
+        timingIdForResult: (T) -> String? = { timing?.id },
+        operation: suspend () -> T,
+    ): T {
+        val visit = perf ?: return operation()
+        val startedAt = clock()
+        var outcome = PerfReason.FAILED
+        var timingId = timing?.id
+        try {
+            val result = if (timing == null) operation() else withContext(timing) { operation() }
+            outcome = classify(result)
+            timingId = timingIdForResult(result)
+            return result
+        } catch (cancelled: CancellationException) {
+            outcome = PerfReason.CANCELLED
+            throw cancelled
+        } finally {
+            visit.event(
+                PerfKind.MILESTONE, phase = phase, reason = reason, outcome = outcome,
+                durationMs = clock() - startedAt, evaluationTimingId = timingId,
+            )
+        }
+    }
+
     /**
      * 남은 시간 안에 받은 상태. 연결 오류·서버 오류·저장소가 던진 취소와 남은 시간 안에 오지 않은 응답은 모두
      * 응답 없음(null)으로 보고, 70초 동안 이어지면 [AnalysisFailure.Timeout]이 된다. 상태 조회 API가 정해지면 오류별 처리를 나눈다.
@@ -334,6 +386,7 @@ internal class AnalysisSession(
         if (remaining == 0L) return@coroutineScope null
         val query = async {
             try {
+                perf?.milestone(PerfPhase.FIRST_STATUS_REQUEST)
                 repository.analysisStatus(id)
             } catch (e: Exception) {
                 if (e is CancellationException) currentCoroutineContext().ensureActive()

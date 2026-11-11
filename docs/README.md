@@ -3,6 +3,7 @@
 - [홈 기능 카드 그림을 서로 다른 모양으로 바꾸고 카드 제목 키우기 (779)](plans/S15P31E102-779.md)
 - [기초 배우기·운지법 보기·정간보 읽기 화면을 마이페이지 스타일로 맞추고 홈·연습 기록·악보 추가 제목 정리 (768)](plans/S15P31E102-768.md)
 - [마이페이지 진도 뱃지에 최근 기초 악기를 표시하고 간편 로그인·최근 연주·하단 문서 줄 정리 (759)](plans/S15P31E102-759.md)
+- [평가 제출부터 점수 표시까지 단계별 시간 계측 (763)](plans/S15P31E102-763.md)
 - [기초부터 배우기 3~7단계 연습 안내 간소화와 마이크 표시를 연주 평가와 통일 (749)](plans/S15P31E102-749.md)
 - [Blue Valentine 소금 제공 곡과 4박 반주 (746)](specs/blue-valentine-provided-song.md) · [계획·검증](plans/S15P31E102-746.md) · [생성·게시 근거](knowledge/data/sogeum-playback.md)
 - [DB 백업 정렬 메모리 부족 복구 (751)](plans/S15P31E102-751.md) · [계약](specs/backup-dump-sort-memory.md)

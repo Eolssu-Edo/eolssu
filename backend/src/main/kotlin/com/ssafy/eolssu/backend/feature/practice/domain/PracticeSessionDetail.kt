@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.practice.domain
 
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import java.time.LocalDateTime
 
 /** 같은 녹음으로 분석을 다시 시도할 수 있는 실패 코드(PRA-03). 나머지는 다시 연주한다. */
@@ -28,6 +29,7 @@ data class PracticeSessionDetail(
     val viewedAt: LocalDateTime? = null,
     val scoreVersion: Int = 1,
     val songTitle: String = "",
+    val analysisTimingId: EvaluationTimingId? = null,
 ) {
     val retryable: Boolean
         get() = status == "FAILED" && failReason in RETRYABLE_FAIL_REASONS

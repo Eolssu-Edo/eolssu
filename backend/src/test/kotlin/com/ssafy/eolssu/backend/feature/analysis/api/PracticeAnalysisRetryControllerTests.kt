@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.analysis.api
 
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
 import com.ssafy.eolssu.backend.feature.analysis.application.RetryPracticeAnalysis
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRetryRepository
@@ -18,19 +19,20 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver
 import org.springframework.test.web.servlet.ResultActions
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 
-/** PRA-03 분석 다시 시도 API(노션 명세 `POST /practice-sessions/{sessionId}/retry`, S15P31E102-222). */
+/** PRA-04 분석 다시 시도 API(노션 명세 `POST /practice-sessions/{sessionId}/retry`, S15P31E102-222). */
 class PracticeAnalysisRetryControllerTests {
     /** 회원 1의 세션 501. [startable]이 false면 다른 시도가 계속 끼어든 것처럼 새 시도를 시작하지 못한다. */
     private class Sessions(var state: AnalysisState, var startable: Boolean = true) : AnalysisRetryRepository {
         val failedStarts = mutableListOf<Int>()
         override fun findState(sessionId: Long, userId: Long) = state.takeIf { sessionId == 501L && userId == 1L }
-        override fun startRetry(sessionId: Long, userId: Long, attempt: Int, startedAt: LocalDateTime): Boolean {
+        override fun startRetry(sessionId: Long, userId: Long, attempt: Int, startedAt: LocalDateTime, timingId: EvaluationTimingId?): Boolean {
             if (!startable) return false
-            state = AnalysisState("PENDING", null, attempt + 1)
+            state = AnalysisState("PENDING", null, attempt + 1, timingId)
             return true
         }
         override fun failStart(sessionId: Long, attempt: Int, startedAt: LocalDateTime): Boolean {
@@ -42,11 +44,18 @@ class PracticeAnalysisRetryControllerTests {
 
     private val started = mutableListOf<Long>()
 
-    private fun retry(sessions: Sessions, startAnalysis: (Long) -> Unit = { started += it }, path: String = "/api/practice-sessions/501/retry"): ResultActions {
-        val useCase = RetryPracticeAnalysis(sessions, { false }, startAnalysis, Clock.fixed(Instant.parse("2026-10-29T01:00:00Z"), ZoneOffset.UTC))
+    private fun retry(
+        sessions: Sessions,
+        startAnalysis: (Long) -> Unit = { started += it },
+        path: String = "/api/practice-sessions/501/retry",
+        timingId: String? = null,
+    ): ResultActions {
+        val useCase = RetryPracticeAnalysis(sessions, { false }, { sessionId, _, _ -> startAnalysis(sessionId) }, Clock.fixed(Instant.parse("2026-10-29T01:00:00Z"), ZoneOffset.UTC))
         val mockMvc = MockMvcBuilders.standaloneSetup(PracticeAnalysisRetryController(useCase))
             .setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).setControllerAdvice(GlobalExceptionHandler()).build()
-        return mockMvc.perform(post(path).header("Idempotency-Key", "retry-1"))
+        val request = post(path).header("Idempotency-Key", "retry-1")
+        timingId?.let { request.header(EvaluationTimingId.HEADER, it) }
+        return mockMvc.perform(request)
     }
 
     @AfterEach
@@ -83,6 +92,19 @@ class PracticeAnalysisRetryControllerTests {
         signIn("1")
         retry(Sessions(AnalysisState("PENDING", null, 2))).acceptedPending()
         assertEquals(emptyList(), started)
+    }
+
+    @Test
+    fun `returns the original attempt timing ID when the client retries after losing a response`() {
+        signIn("1")
+        val sessions = Sessions(AnalysisState("FAILED", "TIMEOUT", 1))
+        val acceptedId = "b23ba41a-7e5e-4938-8b3b-93ce5ac25c95"
+        retry(sessions, timingId = acceptedId).acceptedPending()
+            .andExpect(header().string(EvaluationTimingId.RETRY_STATUS_HEADER, "started"))
+        retry(sessions, timingId = "354505d7-5e9c-41fa-a4ba-3d0695f56cdc").acceptedPending()
+            .andExpect(header().string(EvaluationTimingId.RETRY_STATUS_HEADER, "already-pending"))
+            .andExpect(header().string(EvaluationTimingId.HEADER, acceptedId))
+        assertEquals(listOf(501L), started)
     }
 
     @Test
@@ -129,7 +151,7 @@ class PracticeAnalysisRetryControllerTests {
     @Test
     fun `requires a printable Idempotency-Key of at most 100 characters`() {
         signIn("1")
-        val useCase = RetryPracticeAnalysis(Sessions(AnalysisState("FAILED", "TIMEOUT", 1)), { false }, { started += it }, Clock.systemUTC())
+        val useCase = RetryPracticeAnalysis(Sessions(AnalysisState("FAILED", "TIMEOUT", 1)), { false }, { sessionId, _, _ -> started += sessionId }, Clock.systemUTC())
         val mockMvc = MockMvcBuilders.standaloneSetup(PracticeAnalysisRetryController(useCase))
             .setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).setControllerAdvice(GlobalExceptionHandler()).build()
         mockMvc.perform(post("/api/practice-sessions/501/retry")).error(400, "INVALID_REQUEST")
