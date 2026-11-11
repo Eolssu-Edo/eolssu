@@ -127,7 +127,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
 
     @Test fun compatibleJangdanUsesDottedQuarterPatternLengthAndAllowsAShortLastColumn() {
         val draft = smallScoreData().editingDraft("검사", 60, null).copy(jangdanId = "3")
-        val compatible = CatalogJangdanSummary("3", "검사 장단", 60, "DOTTED_QUARTER", 6, 2)
+        val compatible = CatalogJangdanSummary("3", "세마치", 60, "DOTTED_QUARTER", 6, 2)
         val state = SheetEditUiState(EditSource.Mine("31"), draft,
             availableJangdans = listOf(compatible), reviewNotices = listOf(SheetReviewNotice("JANGDAN_MISMATCH", null, null, null, null)))
         assertTrue(state.completionValidation.canComplete, "2박 각과 마지막 1박 각은 6개 패턴의 점4분음표 장단과 맞는다")
