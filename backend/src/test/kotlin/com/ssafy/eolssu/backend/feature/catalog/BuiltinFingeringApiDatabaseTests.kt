@@ -28,6 +28,27 @@ class BuiltinFingeringApiDatabaseTests {
     @Value("\${local.server.port}") private var port = 0
     private val json = JsonMapper.builder().build()
 
+    @Test fun `authoring API follows all 98 registered fingerings and keeps physical evidence separate`() {
+        HttpClient.newHttpClient().use { client ->
+            for ((code, count) in mapOf("DANSO" to 17, "SOGEUM" to 20, "JEONGAK_DAEGEUM" to 30, "SANJO_DAEGEUM" to 31)) {
+                val id = jdbc.queryForObject("SELECT id FROM instruments WHERE code=?", Long::class.java, code)!!
+                val capability = body(client, "/api/instruments/$id/authoring-capabilities")
+                val notes = capability.path("items").toList()
+                val fingerings = body(client, "/api/instruments/$id/fingerings").path("items").toList().map { it.path("pitchId").asString() }.toSet()
+                assertEquals(count, notes.count { it.path("selectable").asBoolean() }, code)
+                assertEquals(fingerings, notes.filter { it.path("selectable").asBoolean() }.map { it.path("pitchId").asString() }.toSet())
+                assertTrue(notes.all { it.path("physicalVerification").asString() == "UNKNOWN" })
+                if (code == "SOGEUM") {
+                    val missing = notes.single { it.path("yul").asString() == "이" && it.path("octave").asInt() == 1 }
+                    assertEquals("WITHIN_REFERENCE_RANGE", missing.path("physical").asString())
+                    assertEquals("UNKNOWN", missing.path("fingering").asString())
+                    assertFalse(missing.path("selectable").asBoolean())
+                    assertTrue(notes.single { it.path("yul").asString() == "황" && it.path("octave").asInt() == 2 }.path("selectable").asBoolean())
+                }
+            }
+        }
+    }
+
     @Test fun `OpenAPI marks both fingering representations nullable and documents the hole states`() {
         HttpClient.newHttpClient().use { client ->
             val response = client.send(HttpRequest.newBuilder(URI("http://localhost:$port/api/v3/api-docs")).GET().build(),

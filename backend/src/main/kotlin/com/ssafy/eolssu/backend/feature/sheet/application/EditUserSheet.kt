@@ -28,6 +28,7 @@ data class SaveSheetScoreCommand(
 sealed interface SaveSheetScoreResult {
     data class Saved(val sheet: UserSheet, val events: List<ScoreTimelineEvent>) : SaveSheetScoreResult
     data object NotFound : SaveSheetScoreResult
+    data class UnsupportedPitches(val details: UnsupportedAuthoringPitches) : SaveSheetScoreResult
     data object InvalidRequest : SaveSheetScoreResult
     data class UnfilledCells(val cellIds: List<String>) : SaveSheetScoreResult
     data object StateConflict : SaveSheetScoreResult
@@ -59,6 +60,7 @@ class EditUserSheet(
     private val scores: SheetScores,
     private val clock: Clock,
     private val json: JsonMapper = JsonMapper.builder().build(),
+    private val authoring: SheetAuthoringValidation? = null,
 ) {
     fun save(command: SaveSheetScoreCommand): SaveSheetScoreResult {
         if (command.scoreJson.toByteArray().size > MAX_SCORE_BYTES) return SaveSheetScoreResult.TooLarge
@@ -88,6 +90,8 @@ class EditUserSheet(
         }
         val events = scores.timeline(prepared.json, version, prepared.noteCount, command.bpm, prepared.bpmUnit)
             ?: return SaveSheetScoreResult.InvalidRequest
+
+        authoring?.validate(prepared.json)?.let { return SaveSheetScoreResult.UnsupportedPitches(it) }
 
         val updated = repository.updateScore(
             SheetScoreUpdate(

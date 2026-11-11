@@ -33,10 +33,10 @@ class SheetAudioConfig {
         SheetAudioJangdan(row.name,row.bpmUnit,JangdanPlaybackPattern(pattern.path("beats").toList().map { it.asString() },pattern.path("group").toList().map { it.intValue() }))
     }
     @Bean fun sheetAudios(mapper: SheetAudioMapper,sheets: UserSheetRepository,scores: SheetScores,jangdans: SheetAudioJangdanResolver,storage: SheetSourceStorage,
-        client: PlaybackClient,json: JsonMapper,clock: Clock,manager: PlatformTransactionManager,
+        client: PlaybackClient,json: JsonMapper,clock: Clock,manager: PlatformTransactionManager,authoring: SheetAuthoringValidation,
         @Value("\${eolssu.sheet-audio.timeout-seconds:100}") seconds: Long)=
         // The worker is sequential, so a RUNNING row older than a whole attempt has no live owner.
-        SheetAudios(mapper,sheets,scores,jangdans,storage,client,json,clock,manager,staleRunningAfter(Duration.ofSeconds(seconds)))
+        SheetAudios(mapper,sheets,scores,jangdans,storage,client,json,clock,manager,staleRunningAfter(Duration.ofSeconds(seconds)),authoring)
 }
 
 @Component
