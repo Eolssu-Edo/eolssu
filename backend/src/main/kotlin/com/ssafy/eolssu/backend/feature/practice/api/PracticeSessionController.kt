@@ -156,12 +156,14 @@ data class PracticeSessionResult(
     val retryable: Boolean,
     val savedAt: Instant?,
     val memo: String?,
+    val scoreVersion: Int,
+    val songTitle: String,
 ) {
     companion object {
         fun of(detail: PracticeSessionDetail) = with(detail) {
             PracticeSessionResult(
                 sessionId.toString(), songId.toString(), bpm, bpmUnit, startNoteIdx, endNoteIdx, status, evaluationId?.toString(),
-                failReason, recordingAvailable, startedAt.utc(), endedAt?.utc(), retryable, savedAt?.utc(), memo,
+                failReason, recordingAvailable, startedAt.utc(), endedAt?.utc(), retryable, savedAt?.utc(), memo, scoreVersion, songTitle,
             )
         }
 

@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param
 interface SongMapper {
     fun listPublished(@Param("instrumentId") instrumentId: Long? = null): List<SongRow>
     fun findPublished(@Param("id") id: Long): SongRow?
+    fun findPublishedRevision(@Param("id") id: Long, @Param("scoreVersion") scoreVersion: Int): SongRow?
 
     fun findById(@Param("id") id: Long): SongRow?
 }

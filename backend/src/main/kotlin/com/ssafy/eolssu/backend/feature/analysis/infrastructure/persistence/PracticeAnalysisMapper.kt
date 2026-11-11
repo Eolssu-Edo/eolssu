@@ -27,6 +27,7 @@ interface PracticeAnalysisMapper {
 
     /** 분석 음표를 만들 곡 악보. 곡이 없으면 null. */
     fun findScore(@Param("songId") songId: Long): SongScoreRow?
+    fun findScoreRevision(@Param("songId") songId: Long, @Param("scoreVersion") scoreVersion: Int): SongScoreRow?
 
     /** 율명·옥타브를 반음·음 ID로 바꾸는 기준 데이터(V5 시드). */
     fun findPitches(): List<ScorePitchRow>

@@ -13,6 +13,13 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import tools.jackson.databind.json.JsonMapper
 
 class SongScoreControllerTests {
+    @Test fun `requested score revision never falls back and malformed versions are rejected`() {
+        mvc.perform(get("/api/songs/7/score").param("scoreVersion", "3")).andExpect(status().isOk)
+        mvc.perform(get("/api/songs/7/score").param("scoreVersion", "99")).andExpect(status().isNotFound)
+        for (version in listOf("", "0", "-1", "01", "1.0", "2147483648", "bad")) {
+            mvc.perform(get("/api/songs/7/score").param("scoreVersion", version)).andExpect(status().isBadRequest)
+        }
+    }
     private val json = JsonMapper.builder().build()
     private val pitches = listOf(ScorePitch(9007199254740993, "중", 0, 5, "仲", "중"), ScorePitch(3, "임", 0, 7, "林", "임"))
     private var stored: PublishedSongScore? = PublishedSongScore(7, 3, 2, 96, "DOTTED_QUARTER", score)
