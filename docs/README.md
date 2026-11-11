@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [정간보 단모리 변환 시간 교정 (732)](specs/danmori-conversion-timing.md) · [오류 원인과 기존 데이터 영향](knowledge/ai/jeongganbo-beat-timing.md)
+
 - [iOS 연습 장단 소리 재생 연결 (714)](plans/S15P31E102-714.md) · [장단 재생 스펙](specs/jangdan-practice-playback.md#ios-연습-장단-재생-s15p31e102-714)
 - [한 음씩 연습 안내 문구 삭제·현재 정간 칸 정렬과 예시음 재생 수정 (717)](plans/S15P31E102-717.md)
 - [연습 화면 계이름 표시·장단 안내 문구 삭제와 평가 화면 표기 스위치 이동 (716)](plans/S15P31E102-716.md)

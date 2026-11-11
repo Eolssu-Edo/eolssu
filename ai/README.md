@@ -116,6 +116,8 @@ uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
 
 정간보 글자 층 PDF는 `src/omr_service/jeongganbo_text.py`가 `data/src/scores/standard_score_text.py`(pymupdf, 별도 프로세스)와 [jeongganbo-generator](https://github.com/danbinaerinHan/jeongganbo-generator) `9d4a24e`의 `tools/import-ngc-omr.mjs`(Node)로 읽습니다. 클론 위치를 `JGB_GENERATOR_DIR`에 넣고 실행합니다(클론 방법은 [데이터 README](../data/README.md#정간보-omr)). 없으면 정간보 요청은 `ENGINE_ERROR`이고, 변환까지 가는 테스트(`tests/unit/test_omr_text_engine.py`)는 건너뜁니다.
 
+정간보 글자 층 엔진 2(`jeongganbo-text/standard_score_text@2`)는 장단 패턴의 칸 음가를 BPM 박으로 환산합니다. 단모리의 8분 소박 8칸은 4분 박 4개여서 4정간 각이 120 BPM에서 2초입니다. 엇모리·타령·계면가락도드리의 8분 칸과 세령산의 점4분 칸도 구분합니다. `uv run pytest tests/unit/test_omr_text_engine.py tests/unit/test_omr_staff_engine.py`로 장단별 단위와 PDF→공통 악보→합성 시간축을 검사합니다. 기존 저장 악보와 내려받은 음원은 이 코드 변경으로 자동 교정되지 않습니다.
+
 오선보는 `src/omr_service/staff_engine.py`가 쪽마다 Audiveris를 별도 프로세스로 돌리고(쪽당 60초와 남은 요청 시간 중 짧은 쪽, 넘으면 끝냄), 쪽들의 MusicXML을 이어 `staff_musicxml.py`로 정간보 줄을 만든 뒤 글자 층과 같은 변환을 거칩니다. 명령은 `AUDIVERIS_CMD`(기본 `audiveris`)이고, 테스트(`tests/unit/test_omr_staff_engine.py`)는 가짜 Audiveris를 씁니다.
 
 ### 악보 인식 이미지
