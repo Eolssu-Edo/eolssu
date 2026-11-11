@@ -12,11 +12,6 @@ internal fun scoreJangdanName(score: JsonNode, version: Int, requirePlayback: Bo
     return reviewed.name
 }
 
-internal fun allowsReviewedInitialRest(score: JsonNode, version: Int): Boolean {
-    val reviewed = reviewedScoreJangdan(score, version) ?: return false
-    return reviewed.playback && reviewed.allowInitialRest && declaredScoreJangdanName(score) == reviewed.name
-}
-
 private fun reviewedScoreJangdan(score: JsonNode, version: Int): ReviewedJangdan? {
     val identity = score.path("score")
     val sourceId = identity.path("sourceId").textOrNull() ?: return null
@@ -33,16 +28,15 @@ private data class ReviewedJangdan(
     val jgbHash: String,
     val playback: Boolean = false,
     val version: Int = 1,
-    val allowInitialRest: Boolean = false,
 )
 
 // Source and rhythm evidence: docs/knowledge/data/jangdan-song-review.md (503, 506),
 // docs/specs/airplane-four-instruments.md (707, 77 BPM practice accompaniment).
 private val reviewedJangdans = mapOf(
-    // S15P31E102-746: all 118 bars are complete 4/4 bars, including the opening 1.5-beat rest.
+    // S15P31E102-746: reviewed fallback for the linked third edition.
     "user-blue-valentine-20261111-sogeum" to ReviewedJangdan("SOGEUM", "4박 기본 반주",
         "971be444d01a313ce5bdfd3f03915ea9b01b314430743d5d4172ab1241e818a4",
-        playback = true, version = 3, allowInitialRest = true),
+        playback = true, version = 3),
     "mr203-fixed-jeongak-daegeum-006-p1" to ReviewedJangdan("JEONGAK_DAEGEUM", "4박 기본 반주",
         "b8960383360b471a20214c05b2a37b3f511911aaa38f8db358e5e03a28a77e02", playback = true, version = 2),
     "airplane-beginner-danso-v1" to ReviewedJangdan("DANSO", "4박 기본 반주",

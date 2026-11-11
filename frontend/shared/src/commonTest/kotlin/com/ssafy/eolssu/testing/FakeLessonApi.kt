@@ -18,6 +18,9 @@ internal class FakeLessonApi(private val owner: () -> String? = { "me" }) : Less
     /** 회원 → 완료한 단계 ID. */
     val completed = mutableMapOf<String?, MutableSet<String>>()
 
+    /** 단계 ID → 서버가 돌려줄 완료 시각(ISO-8601). 없으면 완료 단계도 시각 없이 온다. */
+    val completedAt = mutableMapOf<String, String>()
+
     /** 완료 표시 요청(단계 ID, 표시 여부) 순서대로. */
     val completionCalls = mutableListOf<Pair<String, Boolean>>()
 
@@ -35,7 +38,10 @@ internal class FakeLessonApi(private val owner: () -> String? = { "me" }) : Less
     override suspend fun track(trackId: String): LessonTrack? {
         if (!online) return null
         val done = completed[owner()].orEmpty()
-        val items = (1..STAGES).map { seq -> LessonItem(id(trackId, seq), seq, "단계 $seq", judge(seq), false, id(trackId, seq) in done) }
+        val items = (1..STAGES).map { seq -> LessonItem(
+            id(trackId, seq), seq, "단계 $seq", judge(seq), false, id(trackId, seq) in done,
+            completedAt = completedAt[id(trackId, seq)]?.takeIf { id(trackId, seq) in done },
+        ) }
         return LessonTrack(items, items.count { it.completed && !it.optional }, STAGES)
     }
 

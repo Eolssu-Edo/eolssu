@@ -57,8 +57,8 @@ class MyPageViewModelTest {
         val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
         assertNull(viewModel.lastLearningProgress(Instrument.Danso))
 
-        viewModel.rememberLearningProgress(Instrument.Danso, MyLearningProgress(setOf(1, 2)))
-        assertEquals(MyLearningProgress(setOf(1, 2)), viewModel.lastLearningProgress(Instrument.Danso))
+        viewModel.rememberLearningProgress(Instrument.Danso, MyLearningProgress(setOf(1, 2), Instrument.Danso))
+        assertEquals(MyLearningProgress(setOf(1, 2), Instrument.Danso), viewModel.lastLearningProgress(Instrument.Danso))
         // 다른 악기의 진도를 잠깐이라도 보여 주지 않는다.
         assertNull(viewModel.lastLearningProgress(Instrument.DaegeumJeongak))
         assertNull(viewModel.lastLearningProgress(null))

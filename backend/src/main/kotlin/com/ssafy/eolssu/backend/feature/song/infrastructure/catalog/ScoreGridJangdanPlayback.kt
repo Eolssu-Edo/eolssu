@@ -37,10 +37,9 @@ class ScoreGridJangdanPlayback(
 
         if (cycleTicks !in 1..1_000_000_000) return null
 
-        // The current score format has no separate downbeat marker for a pickup.
+        // The score origin anchors the jangdan downbeat, including when the melody starts with a rest.
         val first = source.path("events").path(0)
-        val reviewedRest = first.path("kind").stringValue() == "REST" && allowsReviewedInitialRest(source, score.scoreVersion)
-        if ((first.path("kind").stringValue() != "NOTE" && !reviewedRest) || first.path("cellId").stringValue() != "c0-j0" ||
+        if (first.path("cellId").stringValue() != "c0-j0" ||
             !first.path("startTick").isIntegralNumber || first.path("startTick").longValue() != 0L) return null
         val columns = source.path("columns")
         if (!columns.isArray || columns.isEmpty || columns.any {

@@ -22,6 +22,7 @@ import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
+import com.ssafy.eolssu.feature.practice.component.LocalStepPitchGauge
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
 import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
 import com.ssafy.eolssu.feature.practice.component.PracticePanelActions
@@ -105,7 +106,8 @@ fun PracticeRoute(
         onDispose { currentOnConfirmBackChange(null) }
     }
 
-    CompositionLocalProvider(LocalPerformanceVisit provides perf) {
+    // 디버그 빌드에서만 한 음씩 음높이 막대에 값을 넘긴다(S15P31E102-666).
+    CompositionLocalProvider(LocalPerformanceVisit provides perf, LocalStepPitchGauge provides viewModel.stepGauge) {
         PracticeScreen(
             state = state,
             widthClass = currentWindowLayout().widthClass,

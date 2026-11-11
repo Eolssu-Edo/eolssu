@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.time.Instant
 
 /**
  * 기초부터 배우기 진도. 완료 표시는 회원 계정(LRN-01·03)에 남겨 재설치·다른 기기에서도 이어진다.
@@ -75,6 +76,24 @@ class LearnProgressRepository(
         return tracks.flatMap { track -> track.items.filter { it.completed }.map { it.seq } }.filter { it in 1..STAGE_COUNT }.toSet()
     }
 
+    /**
+     * 가장 최근에 완료 표시한 기초 배우기의 악기와 그 악기의 완료 단계(마이페이지 진도 뱃지, S15P31E102-759).
+     * 네 악기 진도를 모두 받아 서버 완료 시각이 가장 늦은 단계의 악기를 고른다. 완료 기록이 없으면 [fallback](연습 악기)이다.
+     * 한 악기라도 받지 못하면 null이다.
+     */
+    suspend fun recentProgress(fallback: Instrument): RecentLearning? {
+        val tracks = Instrument.entries.associateWith { instrument ->
+            instrument.learnIds.map { track(it) ?: return null }
+        }
+        val latest = tracks.mapNotNull { (instrument, list) ->
+            list.flatMap { it.items }.mapNotNull { item -> item.completedAt?.let { runCatching { Instant.parse(it) }.getOrNull() } }
+                .maxOrNull()?.let { instrument to it }
+        }.maxByOrNull { it.second }?.first
+        val instrument = latest ?: fallback
+        val stages = tracks.getValue(instrument).flatMap { track -> track.items.filter { it.completed }.map { it.seq } }
+        return RecentLearning(instrument, stages.filter { it in 1..STAGE_COUNT }.toSet())
+    }
+
     /** 이 기기에 남아 아직 올리지 못한 완료 표시. */
     internal fun deviceStages(trackId: String): Set<Int> =
         key(trackId)?.let(store::getString)
@@ -88,6 +107,36 @@ class LearnProgressRepository(
         store.putString(key, stages.sorted().joinToString(SEPARATOR))
     }
 
+    /**
+     * [trackId] [stage]단계 안에서 앞에서부터 마친 할 일 박스 수(S15P31E102-749). 단계를 나갔다 돌아와도 이어 하도록 이 기기에만 남긴다.
+     * 회원마다 따로 두고, 로그인 정보가 아직 없으면 0이다.
+     */
+    fun stepsDone(trackId: String, stage: Int): Int =
+        stepsKey(trackId)?.let(store::getString)?.let { parseSteps(it)[stage] } ?: 0
+
+    fun saveStepsDone(trackId: String, stage: Int, count: Int) {
+        val key = stepsKey(trackId) ?: return
+        val steps = store.getString(key)?.let(::parseSteps).orEmpty().toMutableMap()
+        if (count > 0) steps[stage] = count else steps.remove(stage)
+        store.putString(key, steps.entries.sortedBy { it.key }.joinToString(SEPARATOR) { "${it.key}:${it.value}" })
+    }
+
+    /** '처음부터 다시 하기': [trackId]의 단계 안 진행을 모두 지운다. */
+    fun clearSteps(trackId: String) {
+        val key = stepsKey(trackId) ?: return
+        store.putString(key, "")
+    }
+
+    private fun parseSteps(value: String): Map<Int, Int> = value.split(SEPARATOR).mapNotNull { entry ->
+        val (stage, count) = entry.split(":").takeIf { it.size == 2 } ?: return@mapNotNull null
+        val s = stage.toIntOrNull() ?: return@mapNotNull null
+        val c = count.toIntOrNull()?.takeIf { it > 0 } ?: return@mapNotNull null
+        s to c
+    }.toMap()
+
+    private fun stepsKey(trackId: String): String? = if (member == null) "learn_steps_$trackId"
+        else member.id?.let { "learn_steps_member_${it.length}_${it}_$trackId" }
+
     // 회원을 가리지 않던 예전 공용 키는 보존하되 어느 회원에게도 올리지 않는다.
     private fun key(trackId: String): String? = if (member == null) "learn_done_$trackId"
         else member.id?.let { "learn_done_member_${it.length}_${it}_$trackId" }
@@ -99,6 +148,9 @@ class LearnProgressRepository(
         private const val SEPARATOR = ","
     }
 }
+
+/** 최근 기초 배우기 악기와 그 악기의 완료 단계 번호. */
+data class RecentLearning(val instrument: Instrument, val stages: Set<Int>)
 
 /** 학습 화면 악기 식별자(`GuideInstrument.id`). */
 private val Instrument.learnIds: List<String>
