@@ -3,5 +3,4 @@
     <string name="legal_service">서비스 이용약관</string>
     <string name="legal_privacy">개인정보 처리방침</string>
     <string name="legal_deletion">계정·데이터 삭제 안내</string>
-    <string name="legal_open_failed">문서를 열지 못했어요. 다시 시도해 주세요.</string>
 </resources>
