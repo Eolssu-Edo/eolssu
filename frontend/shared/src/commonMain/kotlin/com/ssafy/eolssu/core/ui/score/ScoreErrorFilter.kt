@@ -16,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -87,7 +86,8 @@ fun EvaluationResult.visibleErrors(filter: ErrorFilter): Map<Pair<Int, Int>, Sco
 
 /**
  * 오류 종류 5칸 세그먼트(전체 · 음정 · 박자 · 길이 · 미검출). 칸마다 위에 종류 아이콘과 개수, 아래에 이름을 둔다(높이 40).
- * 고른 칸은 흰 바탕, 나머지는 회색 바탕 그대로다. 이전 연주 결과와 연주 결과가 함께 쓴다.
+ * 연습곡 고르기 탭과 같은 모양이다: 테두리 없는 흰 틀(모서리 14dp, 안쪽 4dp) 안에서 고른 칸만 그림자 없이 연두 알약(모서리 10dp)으로 칠한다(S15P31E102-768).
+ * 이전 연주 결과와 연주 결과가 함께 쓴다.
  */
 @Composable
 fun ErrorKindSegments(
@@ -98,8 +98,8 @@ fun ErrorKindSegments(
 ) {
     val colors = EolssuTheme.colors
     Row(
-        modifier.fillMaxWidth().background(colors.surfaceStrong, RoundedCornerShape(12.dp)).padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(14.dp)).padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         ErrorFilter.entries.forEach { filter ->
             val on = filter == selected
@@ -108,15 +108,14 @@ fun ErrorKindSegments(
             val description = stringResource(Res.string.error_segment_description, name, count)
             Surface(
                 onClick = { onSelect(filter) },
-                modifier = Modifier.weight(1f).height(40.dp)
-                    .then(if (on) Modifier.shadow(1.5.dp, RoundedCornerShape(9.dp)) else Modifier)
+                modifier = Modifier.weight(1f).height(44.dp)
                     .semantics(mergeDescendants = true) {
                         this.selected = on
                         contentDescription = description
                     },
-                shape = RoundedCornerShape(9.dp),
-                color = if (on) colors.surface else Color.Transparent,
-                contentColor = colors.text,
+                shape = RoundedCornerShape(10.dp),
+                color = if (on) colors.primary else Color.Transparent,
+                contentColor = if (on) colors.onPrimary else colors.text,
             ) {
                 Column(
                     Modifier.clearAndSetSemantics {},
@@ -134,7 +133,7 @@ fun ErrorKindSegments(
                     Text(
                         name,
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 13.sp),
-                        color = colors.textSub,
+                        color = if (on) colors.onPrimary else colors.textSub,
                         maxLines = 1,
                     )
                 }

@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.history.component.HistoryTopBar
+import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.history.component.RecordGroups
 import com.ssafy.eolssu.feature.history.component.RecordListSpacing
 import com.ssafy.eolssu.feature.history.component.RecordListToolbar
@@ -25,7 +26,6 @@ import com.ssafy.eolssu.feature.history.component.WeekCard
 import com.ssafy.eolssu.feature.history.component.historyFrame
 import com.ssafy.eolssu.feature.history.layout.RecordsExpandedLayout
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.records_subtitle
 import eolssu.shared.generated.resources.records_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -45,6 +45,8 @@ fun RecordListScreen(
     onSort: (RecordSort) -> Unit,
     onOpenRecord: (String) -> Unit,
     onRetry: () -> Unit = {},
+    onLoadMore: (String) -> Unit = {},
+    onRetryNewest: () -> Unit = {},
     onInstrument: (Instrument?) -> Unit = {},
     detail: RecordDetailUiState? = null,
     detailActions: RecordDetailActions? = null,
@@ -52,19 +54,21 @@ fun RecordListScreen(
 ) {
     val frame = historyFrame(widthClass)
     val title = stringResource(Res.string.records_title)
-    val subtitle = if (state.recordsAvailable) stringResource(Res.string.records_subtitle, state.records.size) else null
     if (widthClass == WindowWidthClass.Expanded && detail != null && detailActions != null) {
         RecordsExpandedLayout(
             state = state,
             frame = frame,
             title = title,
-            subtitle = subtitle,
+            subtitle = null,
             onBack = onBack,
             onOpenGrowth = onOpenGrowth,
             onToggle = onToggle,
             onSort = onSort,
             onInstrument = onInstrument,
             onSelect = onOpenRecord,
+            onRetry = onRetry,
+            onLoadMore = onLoadMore,
+            onRetryNewest = onRetryNewest,
             detail = detail,
             detailActions = detailActions,
             snackbarHostState = snackbarHostState,
@@ -73,10 +77,11 @@ fun RecordListScreen(
     }
     val spacing = if (frame.isTablet) RecordListSpacing.Portrait else RecordListSpacing.Compact
     EolssuScaffold(
-        containerColor = EolssuTheme.colors.surface,
+        containerColor = EolssuTheme.colors.groupedBackground,
         snackbarHostState = snackbarHostState,
         contentMaxWidth = frame.contentMaxWidth,
-        topBar = { HistoryTopBar(frame, title, subtitle, onBack) },
+        // 제목은 마이페이지 등 다른 화면과 같은 공용 상단 바를 쓰고 저장 개수는 보이지 않는다(S15P31E102-768).
+        topBar = { if (frame.isTablet) HistoryTopBar(frame, title, null, onBack) else EolssuTopBar(title, onBack = onBack) },
     ) {
         Column(
             Modifier
@@ -86,15 +91,15 @@ fun RecordListScreen(
         ) {
             if (state.showLoadStatus) {
                 RecordsLoadStatus(failed = state.loadFailed, onRetry = onRetry)
-                return@Column
+                if (state.summaries.isEmpty()) return@Column
             }
             if (state.recordsAvailable) WeekCard(state, spacing, onOpenGrowth)
-            if (!state.recordsAvailable || state.records.isEmpty()) {
+            if (!state.recordsAvailable || state.summaries.isEmpty()) {
                 RecordsEmpty(available = state.recordsAvailable)
                 return@Column
             }
             RecordListToolbar(state.instrument, state.sort, spacing, onInstrument, onSort)
-            if (state.groups.isEmpty()) RecordsInstrumentEmpty() else RecordGroups(state, spacing, onToggle, onOpenRecord)
+            if (state.groups.isEmpty()) RecordsInstrumentEmpty() else RecordGroups(state, spacing, onToggle, onOpenRecord, onLoadMore)
         }
     }
 }

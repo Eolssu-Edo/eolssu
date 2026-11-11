@@ -400,7 +400,12 @@ class PracticeViewModel(
                     else -> {
                         perf?.milestone(PerfPhase.PRACTICE_READY)
                         _uiState.update {
-                            it.copy(song = song, personalAudio = PracticePersonalAudio.Checking.takeIf { supportsPersonalAudio })
+                            val audio = when {
+                                supportsPersonalAudio -> PracticePersonalAudio.Checking
+                                mine && personalAudio != null -> PracticePersonalAudio.Unsupported
+                                else -> null
+                            }
+                            it.copy(song = song, personalAudio = audio)
                         }
                         if (supportsPersonalAudio) checkPersonalAudio(song)
                         _uiState.update { it.copy(jangdanSupported = jangdanPlayer.available && currentPlan() != null) }
@@ -448,7 +453,9 @@ class PracticeViewModel(
         screenShown = false
         personalAudioJob?.cancel()
         _uiState.update {
-            if (it.personalAudio == PracticePersonalAudio.Downloading) it.copy(personalAudio = PracticePersonalAudio.Checking) else it
+            if (it.personalAudio == PracticePersonalAudio.Preparing || it.personalAudio == PracticePersonalAudio.Downloading) {
+                it.copy(personalAudio = PracticePersonalAudio.Checking)
+            } else it
         }
         pauseRhythm()
         stopPreview()
@@ -659,6 +666,9 @@ class PracticeViewModel(
     private fun checkPersonalAudio(song: Song) {
         val repository = personalAudio ?: return
         if (personalAudioJob?.isActive == true) return
+        val missing = if (_uiState.value.personalAudio == PracticePersonalAudio.Failed) {
+            PracticePersonalAudio.Failed
+        } else PracticePersonalAudio.Missing
         _uiState.update { it.copy(personalAudio = PracticePersonalAudio.Checking) }
         personalAudioJob = accountScope.launch {
             val available = try {
@@ -670,7 +680,7 @@ class PracticeViewModel(
             }
             _uiState.update {
                 if (it.song != song) it
-                else it.copy(personalAudio = if (available) PracticePersonalAudio.Ready else PracticePersonalAudio.Missing)
+                else it.copy(personalAudio = if (available) PracticePersonalAudio.Ready else missing)
             }
         }
     }
@@ -681,17 +691,25 @@ class PracticeViewModel(
         val state = _uiState.value
         val song = state.song ?: return
         if (state.personalAudioControl !in setOf(PracticePersonalAudio.Missing, PracticePersonalAudio.Failed)) return
-        _uiState.update { it.copy(personalAudio = PracticePersonalAudio.Downloading) }
+        _uiState.update { it.copy(personalAudio = PracticePersonalAudio.Preparing) }
         personalAudioJob = accountScope.launch {
             val result = try {
-                repository.download(song)
+                repository.download(song) {
+                    _uiState.update { current ->
+                        if (current.song == song && current.personalAudio == PracticePersonalAudio.Preparing) {
+                            current.copy(personalAudio = PracticePersonalAudio.Downloading)
+                        } else current
+                    }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 SheetPracticeDownload.Failed
             }
             _uiState.update { current ->
-                if (current.song != song || current.personalAudio != PracticePersonalAudio.Downloading) return@update current
+                if (current.song != song ||
+                    current.personalAudio !in setOf(PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading)
+                ) return@update current
                 when (result) {
                     SheetPracticeDownload.Saved -> current.copy(personalAudio = PracticePersonalAudio.Ready, modelAudioStatus = ModelAudioStatus.Idle)
                     SheetPracticeDownload.Failed -> current.copy(personalAudio = PracticePersonalAudio.Failed)

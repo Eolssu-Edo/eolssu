@@ -113,24 +113,48 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
         else state.modelAudioStatus != ModelAudioStatus.Loading && state.modelAudioStatus != ModelAudioStatus.Unsupported
     val personalAudio = state.personalAudioControl
     val canSeek = personalAudio == null && state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading
+    // 음원 받기 버튼도 재생 버튼 줄과 같은 높이에 넣는다. 카드 높이가 모범 연주·장단 연습에서 같아야
+    // 악보 칸 높이가 같아져 정간보 배치가 모드마다 바뀌지 않는다(S15P31E102-768).
+    val controlsHeight = if (compact) 40.dp else 48.dp
     val controls: @Composable (Modifier) -> Unit = if (personalAudio != null) { modifier ->
-        Box(modifier, contentAlignment = Alignment.Center) {
+        Box(modifier.height(controlsHeight), contentAlignment = Alignment.Center) {
             val label = when (personalAudio) {
                 PracticePersonalAudio.Checking -> Res.string.practice_sheet_audio_checking
+                PracticePersonalAudio.Preparing -> Res.string.practice_sheet_audio_preparing
                 PracticePersonalAudio.Downloading -> Res.string.practice_sheet_audio_downloading
+                PracticePersonalAudio.Unsupported -> Res.string.practice_player_unsupported
                 PracticePersonalAudio.Failed -> Res.string.practice_sheet_audio_retry
                 PracticePersonalAudio.VersionChanged -> Res.string.practice_sheet_audio_version_changed
                 else -> Res.string.practice_sheet_audio_download
             }
-            EolssuButton(
-                stringResource(label),
-                actions.onDownloadSheetAudio,
-                enabled = personalAudio == PracticePersonalAudio.Missing || personalAudio == PracticePersonalAudio.Failed,
-                small = true,
-            )
+            if (personalAudio == PracticePersonalAudio.Missing || personalAudio == PracticePersonalAudio.Failed) {
+                Box(
+                    Modifier.height(if (compact) 32.dp else 40.dp).clip(RoundedCornerShape(10.dp))
+                        .background(colors.primary)
+                        .clickable(role = Role.Button, onClick = actions.onDownloadSheetAudio)
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(label),
+                        style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                        color = colors.onPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            } else {
+                Text(
+                    stringResource(label),
+                    Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textMuted,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     } else { rowModifier ->
-        Row(rowModifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
+        Row(rowModifier.height(controlsHeight), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
             SeekButton(stringResource(Res.string.practice_seek_back), stringResource(Res.string.practice_seek_back_desc), small = compact) { actions.onSeek(-PRACTICE_SEEK_MS) }
             Surface(
                 onClick = { if (rhythm) actions.onToggleRhythm() else if (playing) actions.onToggleModel() else actions.onStartModel() },
@@ -150,7 +174,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     if (compact) {
         // 휴대폰 연습 화면: 시간·조작을 한 줄에 두고 막대·안내 칸을 낮춰 악보·운지 공간을 넓힌다.
         Column(
-            modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape)
+            modifier.fillMaxWidth().background(colors.surface, shape)
                 .padding(horizontal = 12.dp, vertical = 4.dp),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -169,7 +193,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
         return
     }
     Column(
-        modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape)
+        modifier.fillMaxWidth().background(colors.surface, shape)
             .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         Row(Modifier.fillMaxWidth().semantics { contentDescription = time },
@@ -213,6 +237,7 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         PracticePlayerNotice.PersonalAudioUnavailable -> stringResource(Res.string.practice_sheet_audio_unavailable)
         PracticePlayerNotice.PersonalDownloadFailed -> stringResource(Res.string.practice_sheet_audio_download_failed)
         PracticePlayerNotice.PersonalScoreChanged -> stringResource(Res.string.practice_sheet_audio_reopen)
+        PracticePlayerNotice.PersonalAudioReady -> stringResource(Res.string.practice_sheet_audio_ready)
         PracticePlayerNotice.EmbeddedJangdan -> stringResource(Res.string.practice_sheet_audio_with_jangdan)
         PracticePlayerNotice.Unsupported -> stringResource(Res.string.practice_player_unsupported)
         PracticePlayerNotice.Interrupted -> stringResource(Res.string.practice_player_interrupted)
@@ -221,7 +246,7 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         Row(verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             if (message.isNotEmpty()) Text(
-                message, modifier = Modifier.semantics { contentDescription = message },
+                message, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 maxLines = 2, overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
                 color = EolssuTheme.colors.textMuted,
@@ -329,21 +354,25 @@ private fun PracticeEvalButton(
     }
 }
 
-/** 하나만 선택하는 두 칸. 모드 선택은 소리를 재생하지 않는다. */
+/**
+ * 하나만 선택하는 두 칸. 모드 선택은 소리를 재생하지 않는다.
+ * 연습곡 고르기 탭과 같은 모양이다: 테두리 없는 흰 틀(모서리 14dp, 안쪽 4dp) 안에서 고른 칸만 연두 알약(모서리 10dp)으로 칠한다.
+ */
 @Composable
 private fun PracticeModeSwitch(state: PracticeUiState, actions: PracticeBottomActions) {
     val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(12.dp)
-    Row(Modifier.fillMaxWidth().clip(shape).border(1.dp, colors.line, shape).selectableGroup()) {
+    val frame = RoundedCornerShape(14.dp)
+    val pill = RoundedCornerShape(10.dp)
+    Row(Modifier.fillMaxWidth().background(colors.surface, frame).padding(4.dp).selectableGroup()) {
         listOf(
             Triple(stringResource(Res.string.practice_player_label), state.mode != PracticeMode.Rhythm, actions.onSelectModel),
             Triple(stringResource(Res.string.jangdan_practice_start), state.mode == PracticeMode.Rhythm, actions.onSelectRhythm),
         ).forEachIndexed { index, (label, selected, select) ->
             val enabled = index == 0 || state.jangdanSupported
             Box(
-                Modifier.weight(1f).background(if (selected) colors.primary else colors.surface)
+                Modifier.weight(1f).clip(pill).background(if (selected) colors.primary else colors.surface)
                     .selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = select)
-                    .heightIn(min = 44.dp).padding(horizontal = 8.dp, vertical = 8.dp),
+                    .heightIn(min = 40.dp).padding(horizontal = 8.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center,

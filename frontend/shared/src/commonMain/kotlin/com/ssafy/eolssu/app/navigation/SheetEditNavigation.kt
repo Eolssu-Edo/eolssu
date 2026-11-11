@@ -131,6 +131,7 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
             viewModel = sheetEditViewModel(entry),
             onClose = { navController.closeEditor(entry) },
             onOpenChecks = { navController.popBackStackFrom(entry) },
+            onSaved = { navController.openMySheetsAfterSave(entry) },
         )
     }
     composable(
@@ -157,6 +158,24 @@ private fun NavController.closeEditor(entry: NavBackStackEntry) {
     if (currentBackStackEntry?.id != entry.id) return
     if (popBackStack(EolssuDestination.MY_SONGS, inclusive = false)) return
     if (!popBackStack(SheetEditDestination.NEW, inclusive = true)) popBackStack()
+}
+
+/**
+ * 저장 뒤: 편집기와 그 앞의 악보 추가·불러오기 화면을 닫고 연습곡 고르기 '내 악보' 탭을 새로 연다.
+ * 아래에 연습곡 고르기가 있으면 그 화면도 바꿔 열어 탭을 '내 악보'로 맞춘다.
+ */
+private fun NavController.openMySheetsAfterSave(entry: NavBackStackEntry) {
+    if (currentBackStackEntry?.id != entry.id) return
+    val inStack = { route: String -> runCatching { getBackStackEntry(route) }.isSuccess }
+    val popTo = when {
+        inStack(EolssuDestination.MY_SONGS) -> EolssuDestination.MY_SONGS
+        inStack(SheetEditDestination.NEW) -> SheetEditDestination.NEW
+        else -> null
+    }
+    navigate(EolssuDestination.mySongs(sheets = true)) {
+        if (popTo != null) popUpTo(popTo) { inclusive = true } else popUpTo(entry.destination.id) { inclusive = true }
+        launchSingleTop = true
+    }
 }
 
 private fun kindArgument() = navArgument("kind") { type = NavType.StringType; defaultValue = ImportKind.Jeongganbo.routeId }

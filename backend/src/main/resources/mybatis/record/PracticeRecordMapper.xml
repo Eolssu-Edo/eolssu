@@ -27,13 +27,23 @@
 
     <!-- 저장은 DONE에서만 되므로 기록에는 평가가 있다 -->
     <select id="songSummaries" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.SongRecordSummaryRow">
-        SELECT ps.song_id, s.title, COUNT(*) AS record_count, MAX(ps.saved_at) AS last_saved_at, MAX(e.total_score) AS best_score
+        SELECT ps.song_id, s.title, COUNT(*) AS record_count, MAX(ps.saved_at) AS last_saved_at,
+               MAX(e.total_score) AS best_score, i.code AS instrument_code, MAX(ps.started_at) AS last_started_at
         FROM practice_sessions ps
         JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN instruments i ON i.id = s.instrument_id
         JOIN evaluations e ON e.session_id = ps.id
         WHERE ps.user_id = #{userId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
-        GROUP BY ps.song_id, s.title
+        GROUP BY ps.song_id, s.title, i.code
         ORDER BY last_saved_at DESC, ps.song_id DESC
+    </select>
+
+    <select id="savedRecordWeek" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.SavedRecordWeekRow">
+        SELECT COUNT(*) AS record_count, MAX(e.total_score) AS best_score
+        FROM practice_sessions ps
+        JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.user_id = #{userId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
+          AND ps.started_at &gt;= #{from} AND ps.started_at &lt; #{until}
     </select>
 
     <select id="songRecords" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.RecordSessionRow">

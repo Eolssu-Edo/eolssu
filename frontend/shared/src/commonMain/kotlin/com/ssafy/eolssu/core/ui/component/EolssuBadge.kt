@@ -114,6 +114,7 @@ fun levelBadgeStyle(level: SongLevel): EolssuBadgeStyle = when (level) {
 
 /**
  * 고르기 칩(`.chip`): 흰 바탕 · 옅은 테두리, 고르면 연두 바탕, [enabled]가 false면 회색 바탕의 흐린 글자.
+ * [bordered]가 false면 테두리 없이 그린다(회색 바탕 화면용). [containerColor]는 고르지 않은 칩의 바탕이다(흰 카드 안이면 회색).
  * 보이는 높이는 36dp(14sp)이고 [small]이면 28dp(12sp, 연습 속도 칩)다. 누르는 영역은 Material 최소 크기(48dp)를 유지하고, 확대 글꼴을 수용한다.
  */
 @Composable
@@ -124,6 +125,8 @@ fun EolssuChip(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     small: Boolean = false,
+    bordered: Boolean = true,
+    containerColor: Color? = null,
 ) {
     val colors = EolssuTheme.colors
     val on = selected && enabled
@@ -138,14 +141,14 @@ fun EolssuChip(
         color = when {
             !enabled -> colors.surfaceStrong
             on -> colors.primary
-            else -> colors.surface
+            else -> containerColor ?: colors.surface
         },
         contentColor = when {
             !enabled -> colors.textDisabled
             on -> colors.onPrimary
             else -> colors.textSub
         },
-        border = BorderStroke(1.dp, if (on) colors.primary else colors.lineSoft),
+        border = if (bordered) BorderStroke(1.dp, if (on) colors.primary else colors.lineSoft) else null,
     ) {
         Box(Modifier.padding(horizontal = if (small) 10.dp else 14.dp, vertical = 2.dp), contentAlignment = Alignment.Center) {
             Text(
@@ -164,7 +167,7 @@ fun EolssuChip(
  * 고르지 않으면 흰 바탕 · 옅은 테두리, 고르면 그 난이도 배지의 바탕 · 테두리 · 글자색이다.
  */
 @Composable
-fun EolssuLevelChip(level: SongLevel, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun EolssuLevelChip(level: SongLevel, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, bordered: Boolean = true) {
     val colors = EolssuTheme.colors
     val palette = requireNotNull(levelBadgePalette(levelBadgeStyle(level)))
     Surface(
@@ -176,7 +179,8 @@ fun EolssuLevelChip(level: SongLevel, selected: Boolean, onClick: () -> Unit, mo
         shape = CircleShape,
         color = if (selected) palette.background else colors.surface,
         contentColor = if (selected) palette.text else colors.textSub,
-        border = BorderStroke(1.dp, if (selected) palette.line else colors.lineSoft),
+        // 고른 칩은 난이도 바탕색으로만 구분하고 테두리를 두지 않는다(S15P31E102-768).
+        border = if (bordered && !selected) BorderStroke(1.dp, colors.lineSoft) else null,
     ) {
         Row(
             Modifier.padding(start = 11.dp, end = 14.dp, top = 2.dp, bottom = 2.dp),
@@ -234,7 +238,7 @@ private val PineNeedleLight = Color(0xFFB9D7C6)
 private val PineTrunk = Color(0xFF6E4630)
 
 /**
- * 옅은 바탕의 알약에 같은 계열 테두리를 두르고, 왼쪽에 단계 그림, 오른쪽에 짙은 글자를 둔다.
+ * 테두리 없는 옅은 바탕의 알약에 왼쪽에 단계 그림, 오른쪽에 짙은 글자를 둔다(S15P31E102-768).
  * 높이·좌우 여백·글자 크기는 상태 배지와 맞춘 예전 난이도 배지와 같고, 그림만큼 폭이 늘어난다.
  */
 @Composable
@@ -243,7 +247,6 @@ private fun LevelBadge(text: String, palette: LevelBadgePalette, modifier: Modif
         modifier
             .heightIn(min = if (small) 20.dp else 24.dp)
             .background(palette.background, CircleShape)
-            .border(1.dp, palette.line, CircleShape)
             .padding(start = 7.dp, end = 9.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(3.dp),

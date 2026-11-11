@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.analysis
 
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.crypto.MACSigner
@@ -113,6 +114,36 @@ class PracticeAnalysisRetryApiDatabaseTests {
     }
 
     @Test
+    fun `duplicate retry and owned status report the timing ID persisted for the accepted attempt`() {
+        val id = session(OWNER, "FAILED", failReason = "TIMEOUT", attempt = 1, startedAt = utcNow().minusMinutes(5))
+        val acceptedId = "b23ba41a-7e5e-4938-8b3b-93ce5ac25c95"
+        val headers = mapOf("Idempotency-Key" to "retry-1", "Cookie" to "access_token=${token(OWNER)}")
+        assertAcceptedPending(post(id.toString(), headers + (EvaluationTimingId.HEADER to acceptedId)), id)
+        val duplicate = post(id.toString(), headers + (EvaluationTimingId.HEADER to "354505d7-5e9c-41fa-a4ba-3d0695f56cdc"))
+        assertAcceptedPending(duplicate, id)
+        assertEquals("already-pending", duplicate.headers().firstValue(EvaluationTimingId.RETRY_STATUS_HEADER).orElse(null))
+        assertEquals(acceptedId, duplicate.headers().firstValue(EvaluationTimingId.HEADER).orElse(null))
+        assertEquals(acceptedId, row(id)["analysis_timing_id"])
+        assertEquals(listOf(id), fixtures.submitted)
+
+        fun status(member: Long): HttpResponse<String> {
+            val request = HttpRequest.newBuilder(URI("http://localhost:$port/api/practice-sessions/$id"))
+                .timeout(Duration.ofSeconds(15)).header("Cookie", "access_token=${token(member)}").GET().build()
+            return client.send(request, HttpResponse.BodyHandlers.ofString())
+        }
+        val owned = status(OWNER)
+        assertEquals(200, owned.statusCode())
+        assertEquals(acceptedId, owned.headers().firstValue(EvaluationTimingId.HEADER).orElse(null))
+        val other = status(OTHER)
+        assertEquals(404, other.statusCode())
+        assertTrue(other.headers().firstValue(EvaluationTimingId.HEADER).isEmpty)
+
+        // 구버전 서버는 진단 컬럼을 모르는 상태로 시도 번호만 올린다.
+        jdbc.update("UPDATE practice_sessions SET analysis_attempt = analysis_attempt + 1 WHERE id = ?", id)
+        assertTrue(status(OWNER).headers().firstValue(EvaluationTimingId.HEADER).isEmpty)
+    }
+
+    @Test
     fun `rejects sessions that cannot be retried and other members' sessions without changing them`() {
         val noSound = session(OWNER, "FAILED", failReason = "NO_SOUND", attempt = 1, startedAt = utcNow().minusMinutes(5))
         val done = session(OWNER, "DONE", attempt = 1, startedAt = utcNow().minusMinutes(5))
@@ -156,7 +187,7 @@ class PracticeAnalysisRetryApiDatabaseTests {
     }
 
     private fun row(id: Long) =
-        jdbc.queryForMap("SELECT status, fail_reason, analysis_attempt, analysis_started_at FROM practice_sessions WHERE id = ?", id)
+        jdbc.queryForMap("SELECT status, fail_reason, analysis_attempt, analysis_started_at, analysis_timing_id FROM practice_sessions WHERE id = ?", id)
 
     private fun retry(id: Long, key: String = "retry-1") =
         post(id.toString(), mapOf("Idempotency-Key" to key, "Cookie" to "access_token=${token(OWNER)}"))
@@ -198,7 +229,7 @@ class PracticeAnalysisRetryApiDatabaseTests {
         val submitted: MutableList<Long> = Collections.synchronizedList(mutableListOf())
 
         // 다시 시도가 새 시도를 넘기는 실행기. 실제 분석(AI 호출) 대신 넘겨받은 세션만 적는다.
-        @Bean @Primary fun recordingAnalysisOnUpload() = AnalysisOnUpload({ submitted += it }, { it.run() })
+        @Bean @Primary fun recordingAnalysisOnUpload() = AnalysisOnUpload({ sessionId, _, _ -> submitted += sessionId }, { it.run() })
     }
 
     companion object {

@@ -46,6 +46,7 @@ interface PracticeSessionMapper {
         @Param("sampleRate") sampleRate: Int,
         @Param("channels") channels: Int,
         @Param("uploadedAt") uploadedAt: LocalDateTime,
+        @Param("timingId") timingId: String?,
     ): Int
 
     fun findByIdempotencyKey(@Param("userId") userId: Long, @Param("idempotencyKey") idempotencyKey: String): PracticeSessionRow?
@@ -86,4 +87,5 @@ data class PracticeSessionDetailRow(
     val viewedAt: LocalDateTime?,
     val scoreVersion: Int,
     val songTitle: String,
+    val analysisTimingId: String?,
 )

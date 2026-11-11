@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -44,7 +45,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 
 /**
- * 칸 나눈 탭(`role=tablist`). 흰 틀 안에서 고른 칸만 연두 바탕이다.
+ * 칸 나눈 탭(`role=tablist`). 테두리 없는 흰 틀 안에서 고른 칸만 연두 바탕이다.
  * [large]는 목록 탭(틀 14 · 칸 40dp · 15sp), 아니면 편집기 도구 탭(틀 10 · 칸 34dp · 13sp)이다.
  */
 @Composable
@@ -59,38 +60,33 @@ internal fun SegmentTabs(
     frameColor: Color = EolssuTheme.colors.surface,
 ) {
     val colors = EolssuTheme.colors
-    val frame = RoundedCornerShape(if (large) 14.dp else 10.dp)
+    val frame = RoundedCornerShape(14.dp)
     Row(
         modifier
             .then(if (fill) Modifier.fillMaxWidth() else Modifier)
             .background(frameColor, frame)
-            .then(if (frameColor == colors.surface) Modifier.border(1.dp, colors.lineSoft, frame) else Modifier)
-            .padding(if (large) 4.dp else 3.dp),
-        horizontalArrangement = Arrangement.spacedBy(if (large) 0.dp else 3.dp),
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (large) 0.dp else 4.dp),
     ) {
         labels.forEachIndexed { index, label ->
             val on = index == selected
-            Surface(
-                onClick = { onSelect(index) },
-                modifier = (if (fill) Modifier.weight(1f) else Modifier)
-                    .heightIn(min = if (large) 40.dp else 34.dp)
-                    .semantics {
-                        role = Role.Tab
-                        this.selected = on
-                    },
-                shape = RoundedCornerShape(if (large) 11.dp else 8.dp),
-                color = if (on) colors.primary else Color.Transparent,
-                contentColor = if (on) colors.onPrimary else if (large) colors.textSub else colors.textMuted,
+            val pill = RoundedCornerShape(10.dp)
+            // Surface(onClick)는 48dp 최소 터치 칸을 강제해 틀 안의 알약이 작아 보인다. 알약 크기 그대로 누르게 한다(S15P31E102-768).
+            Row(
+                (if (fill) Modifier.weight(1f) else Modifier)
+                    .height(if (large) 48.dp else 40.dp)
+                    .clip(pill)
+                    .background(if (on) colors.primary else Color.Transparent)
+                    .clickable(role = Role.Tab) { onSelect(index) }
+                    .semantics { this.selected = on }
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    Modifier.padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    val style = MaterialTheme.typography.bodyLarge.copy(fontSize = if (large) 15.sp else 13.sp)
-                    Text(label, style = style.copy(fontWeight = if (on || !large) FontWeight.SemiBold else FontWeight.Medium), maxLines = 1)
-                    counts?.getOrNull(index)?.let { Text("$it", style = style.copy(fontWeight = FontWeight.Medium), color = colors.textMuted) }
-                }
+                val style = MaterialTheme.typography.bodyLarge.copy(fontSize = if (large) 15.sp else 14.sp)
+                Text(label, style = style.copy(fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium), maxLines = 1,
+                    color = if (on) colors.onPrimary else colors.textSub)
+                counts?.getOrNull(index)?.let { Text("$it", style = style.copy(fontWeight = FontWeight.Medium), color = if (on) colors.onPrimary.copy(alpha = 0.7f) else colors.textMuted) }
             }
         }
     }
@@ -108,10 +104,10 @@ internal fun KindCard(title: String, caption: String, icon: ImageVector, selecte
         selected = selected,
         onClick = onClick,
         modifier = modifier.semantics { role = Role.RadioButton },
-        shape = RoundedCornerShape(16.dp),
+        // 회색 바탕 위 테두리 없는 흰 카드(모서리 20), 고르면 연두 채움(S15P31E102-768).
+        shape = RoundedCornerShape(20.dp),
         color = if (selected) colors.primary else colors.surface,
         contentColor = colors.text,
-        border = BorderStroke(2.dp, if (selected) colors.primary else colors.lineSoft),
     ) {
         Column(Modifier.padding(16.dp)) {
             Box(
@@ -139,7 +135,7 @@ internal fun KindCard(title: String, caption: String, icon: ImageVector, selecte
 @Composable
 internal fun LinkRow(icon: ImageVector, title: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
-    Surface(onClick = onClick, modifier = modifier.fillMaxWidth().heightIn(min = 64.dp), color = colors.surface, contentColor = colors.text) {
+    Surface(onClick = onClick, modifier = modifier.fillMaxWidth().heightIn(min = 64.dp), shape = RoundedCornerShape(20.dp), color = colors.surface, contentColor = colors.text) {
         Row(
             Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -166,17 +162,28 @@ internal fun RadioDot(selected: Boolean, modifier: Modifier = Modifier, size: Dp
     )
 }
 
-/** 알약 칩(34dp · 13sp 600): 고르면 연두, 아니면 흰 바탕에 옅은 테두리. */
+/**
+ * 알약 칩(34dp · 13sp 600): 테두리 없이 고르면 연두, 아니면 [containerColor](기본 회색 채움, 흰 카드 안용)(S15P31E102-768).
+ * 회색 바탕 위에 둘 때는 [containerColor]로 흰색을 준다.
+ */
 @Composable
-internal fun PillChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
+internal fun PillChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+    enabled: Boolean = true,
+    containerColor: Color? = null,
+) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.heightIn(min = 34.dp).semantics { this.selected = selected },
         shape = CircleShape,
-        color = if (selected) colors.primary else colors.surface,
-        contentColor = colors.text,
-        border = BorderStroke(1.dp, if (selected) colors.primary else colors.lineSoft),
+        color = if (selected) colors.primary else containerColor ?: colors.groupedBackground,
+        contentColor = if (selected) colors.onPrimary else if (enabled) colors.text else colors.textDisabled,
     ) {
         // [compact]: 한 줄에 여러 칩을 나눠 넣을 때 좌우 여백·글자를 줄이고 줄바꿈 없이 가운데에 둔다.
         Box(Modifier.padding(horizontal = if (compact) 8.dp else 12.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
@@ -231,7 +238,7 @@ internal fun EditorTopBar(
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         CenteredTitleRow(
             modifier.widthIn(max = CompactContentMaxWidth).fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
-            start = { EolssuIconButton(EolssuIcons.Close, closeLabel, onClose) },
+            start = { EolssuIconButton(EolssuIcons.Close, closeLabel, onClose, bordered = false) },
             end = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { right() } },
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -263,7 +270,8 @@ internal fun PillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    square: Boolean = false,
+    square: Boolean = true,
+    secondary: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     Surface(
@@ -277,14 +285,15 @@ internal fun PillButton(
                 Modifier
                     .height(40.dp)
                     .widthIn(min = 64.dp)
-                    .background(if (enabled) colors.primary else colors.surfaceStrong, if (square) RoundedCornerShape(12.dp) else CircleShape)
+                    // 다른 작은 버튼과 같은 모서리 12dp. [secondary]는 회색 채움(편집처럼 보조 동작)(S15P31E102-768).
+                    .background(if (!enabled) colors.surfaceStrong else if (secondary) colors.groupedBackground else colors.primary, if (square) RoundedCornerShape(12.dp) else CircleShape)
                     .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     label,
                     style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
-                    color = if (enabled) colors.onPrimary else colors.textDisabled,
+                    color = if (!enabled) colors.textDisabled else if (secondary) colors.text else colors.onPrimary,
                 )
             }
         }
@@ -308,8 +317,7 @@ internal fun SquareIconButton(
                 Modifier
                     .size(size)
                     .alpha(if (enabled) 1f else 0.4f)
-                    .background(colors.surface, RoundedCornerShape(10.dp))
-                    .border(1.dp, colors.lineSoft, RoundedCornerShape(10.dp)),
+                    .background(colors.surface, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(icon, contentDescription = label, modifier = Modifier.size(18.dp), tint = colors.text)

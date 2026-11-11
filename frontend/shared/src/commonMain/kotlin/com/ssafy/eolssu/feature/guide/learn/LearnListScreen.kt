@@ -77,9 +77,10 @@ fun LearnListScreen(
 ) {
     EolssuScaffold(
         topBar = {
-            GuideTopBar(stringResource(Res.string.learn_title), onBack = onBack, widthClass = widthClass, titleFontSize = LearnTitleFontSize)
+            GuideTopBar(stringResource(Res.string.learn_title), onBack = onBack, widthClass = widthClass)
         },
         snackbarHostState = snackbarHostState,
+        containerColor = EolssuTheme.colors.groupedBackground,
         contentMaxWidth = widthClass.guidePageMaxWidth,
     ) {
         val side = widthClass.guideSidePadding
@@ -92,9 +93,6 @@ fun LearnListScreen(
         )
     }
 }
-
-/** 기초부터 배우기 제목 크기. 부제 없이 제목만 두어 다른 화면(16sp)보다 키운다. */
-internal val LearnTitleFontSize = 21.sp
 
 /**
  * 단계 목록 본문(악기 · 달리기 지도 · 단계 카드 넘기기). 세로로 스크롤한다. 단계 구성 출처는 마이페이지 '자료 및 데이터 출처'에 둔다.
