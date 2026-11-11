@@ -85,7 +85,7 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                     actions.onSelectUnit(index, draft.subIndexOf(index, unitRow, unitCol))
                 },
             )
-            EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.availablePitches, state.canUndo, state.canRedo, actions.input)
+            EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.supportedInputPitches, state.canUndo, state.canRedo, actions.input)
         }
     }
 }

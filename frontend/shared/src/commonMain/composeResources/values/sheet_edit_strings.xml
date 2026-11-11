@@ -221,7 +221,7 @@
     <string name="sheetedit_register_cheong">청</string>
     <string name="sheetedit_register_baetak_short">배탁</string>
     <string name="sheetedit_register_jungcheong_short">중청</string>
-    <string name="sheetedit_key_unavailable">%1$s · 등록되지 않은 음</string>
+    <string name="sheetedit_key_unavailable">%1$s · 현재 악보의 지원 목록에 없는 음</string>
     <string name="sheetedit_sig_none">이 정간에 붙인 시김새가 없어요</string>
     <string name="sheetedit_sig_need_pitch">율명에만 시김새를 붙일 수 있어요</string>
     <string name="sheetedit_sig_limit">한 정간에 %1$d개까지 붙일 수 있어요</string>

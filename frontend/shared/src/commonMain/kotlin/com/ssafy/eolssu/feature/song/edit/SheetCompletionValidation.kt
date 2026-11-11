@@ -162,12 +162,7 @@ internal fun SheetDraft.isCompatibleWith(jangdan: CatalogJangdanSummary): Boolea
     val seryeongsanCell = jangdan.name == "세령산" && ticks * 2 == beat * 3
     if (ticks <= 0 || beat <= 0 || (ticks != beat && ticks * 2 != beat && ticks * 3 != beat && !seryeongsanCell)) return false
     // data/reference/jangdans.json과 OMR 엔진의 칸 음가. 8분음표 단위로 정수 비교한다.
-    val cellEighths = when (jangdan.name) {
-        "중모리" -> 2
-        "세령산" -> 3
-        "세마치", "굿거리", "자진모리", "중중모리", "자진타령", "엇모리", "단모리", "타령", "계면가락도드리" -> 1
-        else -> return false
-    }
+    val cellEighths = jangdan.patternCellEighths() ?: return false
     val beatEighths = when (jangdan.bpmUnit) {
         "QUARTER" -> 2
         "DOTTED_QUARTER" -> 3
