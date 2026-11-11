@@ -63,6 +63,7 @@ class PracticeSessionController(
             endNoteIdx = request.endNoteIdx,
             parentSessionId = request.parentSessionId?.toLong(),
             jangdanSoundOn = request.jangdanSoundOn,
+            expectedScoreVersion = request.expectedScoreVersion,
         )
         return when (val result = createPracticeSession.execute(command)) {
             is CreatePracticeSessionResult.Created -> ResponseEntity.status(HttpStatus.CREATED).body(
@@ -110,6 +111,8 @@ data class CreatePracticeSessionRequest(
     @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val parentSessionId: String? = null,
     @field:Schema(description = "장단 소리를 켜고 연주했는지. 지금은 저장하지 않고 같은 키 재전송 비교에만 쓴다. 생략하면 false", example = "false")
     @param:JsonDeserialize(using = StrictBooleanDeserializer::class) val jangdanSoundOn: Boolean? = null,
+    @field:Schema(description = "녹음한 악보 판본. 양의 정수이며 현재 판본과 다르면 409. 생략·null은 과거 판본이 보관된 곡의 신규 요청에서 409", example = "2")
+    @field:Positive @param:JsonDeserialize(using = StrictIntDeserializer::class) val expectedScoreVersion: Int? = null,
 )
 
 data class CreatedPracticeSessionResponse(

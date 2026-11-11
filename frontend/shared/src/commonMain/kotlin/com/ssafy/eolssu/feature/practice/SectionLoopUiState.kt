@@ -151,6 +151,12 @@ data class SectionTake(val take: RecordedTake, val section: SessionSection)
 
 /** 재평가를 시작하지 못했거나 녹음을 버린 이유. */
 enum class SectionLoopNotice {
+    /** 결과를 만든 뒤 공개 악보가 바뀌었다. 최신 연습에서 다시 시작해야 한다. */
+    ScoreChanged,
+
+    /** 현재 공개 판본을 확인하지 못해 녹음을 시작하지 않는다. */
+    ScoreUnavailable,
+
     /** 녹음기가 없는 플랫폼(웹). */
     NoRecorder,
 

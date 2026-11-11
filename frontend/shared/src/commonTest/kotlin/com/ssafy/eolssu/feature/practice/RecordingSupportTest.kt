@@ -35,6 +35,13 @@ import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RecordingSupportTest {
+    @Test fun publicRecordingCarriesTheScoreVersionUsedAtItsStart() =
+        recordingTest(FakePracticeRecorder(), song = smallScoreSong().copy(scoreVersion = 1)) { vm, _ ->
+            vm.grantMicAndStart()
+            finishSong(vm)
+            assertEquals(1, vm.takeForEvaluation()?.scoreVersion)
+        }
+
     @Test fun noRecorderCannotStartEvaluationEvenAfterPermissionWasRemembered() = recordingTest { vm, settings ->
         settings.grantMic()
         vm.requestEvaluation()

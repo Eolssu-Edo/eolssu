@@ -25,6 +25,9 @@ interface WeakSectionRepository {
     /** 세션 [sourceId]의 곡과 평가 결과(틀린 정간, EVA-01). 없거나 받지 못하면 null. */
     suspend fun source(sourceId: String): WeakSectionSource?
 
+    /** 새 구간 녹음 전에 현재 공개 판본과 대조한다. null은 조회 실패다. */
+    suspend fun isCurrent(source: WeakSectionSource): Boolean? = true
+
     /** 세션 [sessionId]의 추천 취약 구간(EVA-03, 추천 순서). 추천할 구간이 없으면 빈 목록, 받지 못하면 null. */
     suspend fun weakSections(sessionId: String): List<WeakSectionPick>?
 
@@ -123,6 +126,11 @@ class ApiWeakSectionRepository(
         val evaluation = evaluations.result(sourceId) ?: return@guarded null
         val song = songs.getSong(evaluation.songId) ?: return@guarded null
         WeakSectionSource(song, evaluation)
+    }
+
+    override suspend fun isCurrent(source: WeakSectionSource): Boolean? = guarded {
+        val current = songs.getSong(source.song.id) ?: return@guarded null
+        current.scoreVersion == source.song.scoreVersion
     }
 
     override suspend fun weakSections(sessionId: String): List<WeakSectionPick>? = member.inSession {

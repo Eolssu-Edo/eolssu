@@ -10,6 +10,9 @@ import com.ssafy.eolssu.feature.practice.PracticePopup
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
 import eolssu.shared.generated.resources.common_confirm
+import eolssu.shared.generated.resources.practice_score_check_title
+import eolssu.shared.generated.resources.weak_score_changed
+import eolssu.shared.generated.resources.weak_score_unavailable
 import eolssu.shared.generated.resources.practice_popup_abort_body
 import eolssu.shared.generated.resources.practice_popup_abort_title
 import eolssu.shared.generated.resources.practice_popup_blocked_body
@@ -82,6 +85,12 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
     val toReady = stringResource(Res.string.practice_popup_to_ready)
     val colors = EolssuTheme.colors
     when (popup) {
+        PracticePopup.ScoreChanged, PracticePopup.ScoreUnavailable -> EolssuDialog(
+            title = stringResource(Res.string.practice_score_check_title),
+            message = stringResource(if (popup == PracticePopup.ScoreChanged) Res.string.weak_score_changed else Res.string.weak_score_unavailable),
+        ) {
+            EolssuButton(stringResource(Res.string.common_confirm), actions.onClose)
+        }
         PracticePopup.Permission -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_permission_title),
             message = stringResource(if (forStep) Res.string.practice_step_permission_body else Res.string.practice_popup_permission_body),

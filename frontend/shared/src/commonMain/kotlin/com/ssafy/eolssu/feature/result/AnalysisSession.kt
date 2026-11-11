@@ -52,7 +52,8 @@ internal class AnalysisSession(
     private val uploads: RecordingUploads? = null,
     private val sessions: PracticeSessionRepository? = null,
 ) {
-    private class Request(val songId: String, val bpm: Int, val recordedSeconds: Int, val section: SessionSection?)
+    private class Request(val songId: String, val bpm: Int, val recordedSeconds: Int, val section: SessionSection?,
+        val scoreVersion: Int?)
 
     private val _state = MutableStateFlow(AnalysisUiState())
     val state: StateFlow<AnalysisUiState> = _state.asStateFlow()
@@ -84,12 +85,20 @@ internal class AnalysisSession(
         initialSong: Song? = null,
     ) {
         _state.update { it.copy(songLookup = SongLookup.Loading) }
+        if (take != null && pendingSessionId == null &&
+            (take.scoreVersion?.let { it <= 0 } == true ||
+                (take.scoreVersion == null && (initialSong?.takeIf { it.id == songId }?.scoreVersion ?: 0) <= 0))) {
+            _state.update { it.copy(songLookup = SongLookup.Failed, upload = UploadProblem.Rejected) }
+            return
+        }
         val song = try {
-            val carried = initialSong?.takeIf { it.id == songId }
+            val version = take?.scoreVersion
+            val carried = initialSong?.takeIf { it.id == songId && (version == null || it.scoreVersion == version) }
             if (carried != null) currentCoroutineContext()[PerformanceVisit]?.reuse(
                 PerfTarget.SONG_BUNDLE, carried.id, PerfSource.NAVIGATION, carried.scoreVersion,
             )
-            carried ?: songs.getSong(songId)
+            // 새 세션은 현재 게시 판본만 허용한다. 기존 세션 재전송은 별도 경로를 유지한다.
+            if (take != null && pendingSessionId == null) songs.getSong(songId) else carried ?: songs.getSong(songId)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -101,7 +110,14 @@ internal class AnalysisSession(
         if (pendingSessionId != null) {
             _state.update { it.copy(song = song, songLookup = if (song == null) SongLookup.Missing else SongLookup.Ready) }
             startPending(song, bpm, pendingSessionId)
-        } else start(song, bpm, take = take, section = section)
+        } else {
+            val recordedVersion = take?.scoreVersion ?: initialSong?.takeIf { it.id == songId }?.scoreVersion
+            if (take != null && song != null && song.scoreVersion != recordedVersion) {
+                _state.update { it.copy(song = song, songLookup = SongLookup.Ready, upload = UploadProblem.Rejected) }
+                return
+            }
+            start(song, bpm, take = take, section = section)
+        }
     }
 
     /**
@@ -111,7 +127,11 @@ internal class AnalysisSession(
     suspend fun start(song: Song?, bpm: Int, recording: PendingRecording? = null, take: RecordedTake? = null, section: SessionSection? = null) {
         _state.update { it.copy(song = song, songLookup = if (song == null) SongLookup.Missing else SongLookup.Ready) }
         if (song == null) return
-        request = Request(song.id, bpm, song.durationSeconds(bpm), section)
+        if (take?.scoreVersion != null && take.scoreVersion != song.scoreVersion) {
+            _state.update { it.copy(upload = UploadProblem.Rejected) }
+            return
+        }
+        request = Request(song.id, bpm, song.durationSeconds(bpm), section, take?.scoreVersion ?: song.scoreVersion)
         val uploads = uploads
         when {
             recording != null && uploads != null -> {
@@ -144,7 +164,12 @@ internal class AnalysisSession(
         val uploads = uploads ?: return
         val sessions = sessions ?: return
         val request = request ?: return
-        when (val created = sessions.create(request.songId, request.bpm, take.key, request.section)) {
+        val version = request.scoreVersion
+        if (version == null || version <= 0) {
+            _state.update { it.copy(upload = UploadProblem.Rejected, resending = false) }
+            return
+        }
+        when (val created = sessions.create(request.songId, request.bpm, take.key, version, request.section)) {
             is SessionStart.Created -> {
                 val pending = PendingRecording(created.sessionId, take.path, created.startedAtMillis, request.songId, request.bpm, created.memberId)
                 recording = pending

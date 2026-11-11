@@ -92,9 +92,29 @@ class PracticeSessionControllerTests {
     }
 
     @Test
+    fun `archive requires explicit version for new requests but permits legacy replay`() {
+        signIn("1")
+        fun request(key: String, field: String = "") = mockMvc.perform(post("/api/practice-sessions")
+            .header("Idempotency-Key", key).contentType(MediaType.APPLICATION_JSON)
+            .content("""{"songId":"101","bpm":96$field}"""))
+        request("old").andExpect(status().isCreated)
+        sessions.songs[101] = sessions.songs.getValue(101).copy(hasArchivedScore = true, scoreVersion = 2)
+        request("missing").andExpect(status().isConflict)
+        request("null", ",\"expectedScoreVersion\":null").andExpect(status().isConflict)
+        request("stale", ",\"expectedScoreVersion\":1").andExpect(status().isConflict)
+        kotlin.test.assertEquals(1, sessions.inserted.size)
+        request("old", ",\"expectedScoreVersion\":null").andExpect(status().isCreated)
+        request("new", ",\"expectedScoreVersion\":2").andExpect(status().isCreated)
+        kotlin.test.assertEquals(2, sessions.inserted.size)
+    }
+
+    @Test
     fun `create rejects JSON values whose type differs from the spec instead of coercing them`() {
         signIn("1")
         val bodies = listOf(
+            """{"songId":"101","bpm":96,"expectedScoreVersion":0}""",
+            """{"songId":"101","bpm":96,"expectedScoreVersion":"1"}""",
+            """{"songId":"101","bpm":96,"expectedScoreVersion":1.1}""",
             """{"songId":"101","bpm":96.7}""", """{"songId":"101","bpm":"96"}""", """{"songId":"101","bpm":2147483648}""",
             """{"songId":101,"bpm":96}""", """{"songId":"101","bpm":96,"jangdanSoundOn":1}""", """{"songId":"101","bpm":96,"jangdanSoundOn":"true"}""",
             """{"songId":"101","bpm":96,"bpmUnit":0}""", """{"songId":"101","bpm":96,"bpmUnit":"quarter"}""",
