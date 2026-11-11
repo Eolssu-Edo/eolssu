@@ -355,8 +355,14 @@ class SheetEditViewModel(
         state.copy(checkedIssueIds = state.checkedIssueIds + issue.id)
     }
 
+    fun checkSelectedReviewIssue() = change { state ->
+        val issue = state.selectedReviewIssue ?: return@change state
+        if (!state.canCheckSelectedReviewIssue) return@change state.copy(completionWarning = true)
+        state.copy(checkedIssueIds = state.checkedIssueIds + issue.id)
+    }
+
     fun openCompletionIssue() = change { state ->
-        state.completionValidation.firstCellIndex?.let { state.select(it).copy(view = EditView.Jeongganbo, completionWarning = false) } ?: state
+        state.focusCompletionIssue().copy(completionWarning = false)
     }
 
     fun selectCell(index: Int) = change { it.select(index) }
@@ -375,6 +381,10 @@ class SheetEditViewModel(
     fun undo() = change { it.undo() }
     fun redo() = change { it.redo() }
     fun updateDetails(title: String, bpm: Int) = change { it.updateDetails(title, bpm) }
+    fun updateSettings(bpm: Int, jangdanId: String?) {
+        jangdanJob?.cancel()
+        change { it.updateSettings(bpm, jangdanId) }
+    }
     fun selectTab(tab: EditTab) = change { it.copy(tab = tab) }
     fun selectView(view: EditView) = change { state ->
         if (state.view == view || state.draft.original == null) return@change state.copy(view = view)
@@ -467,7 +477,7 @@ class SheetEditViewModel(
     private fun blockInvalidCompletion(state: SheetEditUiState): Boolean {
         val validation = state.completionValidation
         if (validation.canComplete) return false
-        _uiState.update { it.copy(emptyWarning = validation.hasEmptyCells, completionWarning = !validation.hasEmptyCells) }
+        _uiState.update { it.focusCompletionIssue().copy(emptyWarning = validation.hasEmptyCells, completionWarning = !validation.hasEmptyCells) }
         return true
     }
 

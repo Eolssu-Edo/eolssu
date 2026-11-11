@@ -22,13 +22,21 @@ SCORES = ROOT / "data/src/scores"
 sys.path.insert(0, str(SCORES))
 import score_data  # noqa: E402  data/와 같은 변환을 쓴다(중복 구현하지 않음)
 
-ENGINE, ENGINE_VERSION = "jeongganbo-text", "1"  # 읽기·변환 규칙을 바꾸면 올린다
-CONVERTER = "jeongganbo-text/standard_score_text"
+ENGINE, ENGINE_VERSION = "jeongganbo-text", "2"  # 읽기·변환 규칙을 바꾸면 올린다
+CONVERTER = "jeongganbo-text/standard_score_text@2"
 NO_YUL_EXIT, NO_GRID_EXIT = 3, 4  # standard_score_text.py: 율명 글자가 없는 쪽, 정간 격자를 못 읽은 쪽
 # 장단과 각의 정간 수가 맞을 때 나오는 정간당 박. 그 밖이면 고른 장단이 악보와 다를 수 있다(JANGDAN_MISMATCH)
 USUAL_BEATS = {Fraction(1), Fraction(1, 2), Fraction(1, 3)}
 log = logging.getLogger("omr_service.api")  # api의 로그 설정을 함께 쓴다
 JANGDANS = {r["name"]: r for r in json.loads((ROOT / "data/reference/jangdans.json").read_text(encoding="utf-8"))["rows"]}
+# pattern.beats는 BPM 박이 아닌 구음 칸이다. jangdans.json 설명의 각 칸 음가를 4분음표로 환산한다.
+PATTERN_CELL_QUARTERS = {
+    "세마치": Fraction(1, 2), "굿거리": Fraction(1, 2), "중모리": Fraction(1),
+    "자진모리": Fraction(1, 2), "중중모리": Fraction(1, 2), "엇모리": Fraction(1, 2),
+    "단모리": Fraction(1, 2), "타령": Fraction(1, 2), "계면가락도드리": Fraction(1, 2),
+    "세령산": Fraction(3, 2), "자진타령": Fraction(1, 2),
+}
+BPM_UNIT_QUARTERS = {"QUARTER": Fraction(1), "DOTTED_QUARTER": Fraction(3, 2)}
 
 
 class NoTextLayer(Exception):
@@ -38,8 +46,8 @@ class NoTextLayer(Exception):
 def beats_per_jeonggan(jangdan: str, jeonggans_per_gak: int) -> Fraction:
     """한 각을 장단 한 번으로 보고 정간 하나의 박(bpm_unit 기준)을 정한다. 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박."""
     row = JANGDANS[jangdan]
-    cells = len(row["pattern"]["beats"])  # 세마치·굿거리는 8분음표, 중모리는 4분음표 칸(jangdans.json 설명)
-    beats = Fraction(cells, 3) if row["bpm_unit"] == "DOTTED_QUARTER" else Fraction(cells)
+    cells = len(row["pattern"]["beats"])
+    beats = cells * PATTERN_CELL_QUARTERS[jangdan] / BPM_UNIT_QUARTERS[row["bpm_unit"]]
     return beats / jeonggans_per_gak
 
 
@@ -98,7 +106,8 @@ def recognize(job) -> dict:
     def bpj_of(doc):
         per_gak = int(doc["controls"]["beats"])
         bpj = beats_per_jeonggan(request.jangdan, per_gak)
-        if bpj not in USUAL_BEATS:
+        seryeongsan_cell = request.jangdan == "세령산" and bpj == Fraction(3, 2)
+        if bpj not in USUAL_BEATS and not seryeongsan_cell:
             issues.append({"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
                            "detail": {"jangdan": request.jangdan, "jeongganPerGak": per_gak}})
         return bpj
