@@ -64,6 +64,7 @@
 | 데이터 담당 범위·파일 관리 | [data/README.md](../data/README.md) |
 | Docker·Compose·Nginx·백엔드 Jenkins 실행 | [infra/README.md](../infra/README.md) |
 | edo1 운영 서버·eolssu 이름·Jenkins 접속 | [infra/runtime/README.md](../infra/runtime/README.md) |
+| 내 악보 생성 음원 R2 운영 설정·검증 | [710 작업 기록](plans/S15P31E102-710.md) |
 | 운영 Compose 교체·권한 유지 | [스펙](specs/runtime-compose-install.md) · [541 원인·검증](plans/S15P31E102-541.md) |
 | Jenkins 컨테이너·호스트 에이전트·복구 | [Jenkins 컨트롤러 운영 문서](../infra/jenkins/controller/README.md) |
 | Jenkins 실패 Mattermost 알림·짧은 로그·복구 | [운영 문서](../infra/jenkins/notifications/README.md) · [스펙](specs/jenkins-failure-notifications.md) · [진단 근거](knowledge/infra/jenkins-failure-notifications.md) · [509 실행 기록](plans/S15P31E102-509.md) |
