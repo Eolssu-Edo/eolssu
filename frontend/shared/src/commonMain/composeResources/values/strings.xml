@@ -68,7 +68,6 @@
     <string name="song_bpm_value">%1$d BPM</string>
     <string name="song_preview_label">악보 일부 미리보기 · 오른쪽 각부터 읽어요</string>
     <string name="song_start_evaluation">연주 평가 시작</string>
-    <string name="song_open_settings">연습 설정</string>
     <string name="song_cover_seal">얼쑤</string>
     <string name="practice_subtitle">%1$s · %2$s</string>
     <string name="practice_subtitle_solo">%1$s · 연습 모드</string>
@@ -86,11 +85,13 @@
     <string name="practice_hint_solo_only">이 곡은 연습만 가능해요</string>
     <string name="practice_listen_model">모범 연주 듣기</string>
     <string name="practice_start_eval">연주 평가 시작</string>
+    <string name="practice_start_eval_short">평가 시작</string>
     <string name="practice_switch_to_eval">이 곡으로 평가하기</string>
     <string name="practice_play">재생</string>
     <string name="practice_pause">일시정지</string>
     <string name="practice_time">%1$s / %2$s</string>
     <string name="practice_rec_time_detail">/ %1$s · %2$s</string>
+    <string name="practice_rec_time_total">/ %1$s</string>
     <string name="practice_mic_on">입력 감지</string>
     <string name="practice_mic_off">입력 없음</string>
     <string name="practice_no_input_hint">소리가 잘 들리지 않아요. 마이크를 확인해주세요.</string>

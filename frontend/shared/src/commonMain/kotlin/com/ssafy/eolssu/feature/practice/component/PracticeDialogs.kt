@@ -74,11 +74,12 @@ class PracticeDialogActions(
 /**
  * PRACTICE-01 확인 창(보드 Dialog-*). 아이콘 고리는 권한·완료·경고 셋이고, 제목만 있는 창(재시작·나가기·중단 확인)은 고리가 없다.
  * [forStep]이면(혼자 연습) 마이크 권한·녹음 실패 안내를 평가 대신 한 음씩 따라 불기 문구로 보이고, 녹음 실패는 확인만 둔다.
- * [toSongInfo]면(곡 정보에서 바로 시작한 평가) ‘홈으로 가기’·‘연습 준비로’ 대신 ‘곡 정보로’를 보인다(같은 동작이 곡 정보로 돌아간다).
+ * [toSongInfo]면(곡 정보에서 시작한 연주 평가) ‘홈으로 가기’ 대신 ‘곡 정보로’를 보인다(같은 동작이 곡 정보로 돌아간다).
+ * ‘연습 준비로’는 연주 평가에서도 평가 대기 상태로 돌아가므로 그대로 둔다(S15P31E102-747).
  */
 @Composable
 fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep: Boolean = false, toSongInfo: Boolean = false) {
-    val toReady = stringResource(if (toSongInfo) Res.string.practice_popup_to_song_info else Res.string.practice_popup_to_ready)
+    val toReady = stringResource(Res.string.practice_popup_to_ready)
     val colors = EolssuTheme.colors
     when (popup) {
         PracticePopup.Permission -> EolssuDialog(
