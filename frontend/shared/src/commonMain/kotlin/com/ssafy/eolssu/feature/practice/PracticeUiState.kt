@@ -195,6 +195,20 @@ data class PracticeUiState(
     /** 이어서 연주하려고 카운트다운하는 중. 하단은 연주 중 모습을 유지한다. */
     val resuming: Boolean get() = mode == PracticeMode.Countdown && resume
 
+    /**
+     * 평가 연주를 처음 시작하려는 중. 연주 중 배치를 그대로 두고 하단 막대 가운데에 ‘준비’만 보인다.
+     * 곡 정보에서 바로 시작한 평가([direct])는 곡을 불러온 직후 카운트다운 전의 준비 상태도 포함해,
+     * 연습 준비 배치가 한 번 그려졌다가 카운트다운 배치로 줄어드는 움직임이 없게 한다.
+     */
+    val preparing: Boolean get() = (mode == PracticeMode.Countdown && !resume) || (direct && mode == PracticeMode.Ready)
+
+    /**
+     * 하단을 연주 중 막대로 두는 상태(평가 준비·카운트다운·연주·중단). 카운트다운 뒤에 비치는 악보가 연주를 시작한 뒤와
+     * 같은 높이·배치가 되도록 카운트다운에도 같은 막대 자리를 둔다.
+     */
+    val recordingLayout: Boolean
+        get() = preparing || mode == PracticeMode.Countdown || mode == PracticeMode.Recording || mode == PracticeMode.Interrupted
+
     /** 연주 중 입력이 [NO_INPUT_HINT_MS]보다 오래 없어 마이크를 확인하라고 안내하는 상태. */
     val noInputHint: Boolean
         get() = inputMeasured && mode == PracticeMode.Recording && !finished && noInputMs > NO_INPUT_HINT_MS

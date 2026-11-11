@@ -98,6 +98,7 @@
     <string name="practice_abort">연주 중단</string>
     <string name="practice_countdown_soon">숨을 고르고 준비해 주세요.</string>
     <string name="practice_countdown_cancel">시작 취소</string>
+    <string name="practice_countdown_ready">준비</string>
     <string name="practice_switched_to_eval">평가 모드로 바꿨어요. ‘연주 평가 시작’을 누르면 평가해요.</string>
 
     <string name="practice_menu_notation">쉬운 표기</string>

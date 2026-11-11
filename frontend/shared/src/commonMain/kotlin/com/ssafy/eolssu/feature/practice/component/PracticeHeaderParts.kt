@@ -152,13 +152,14 @@ fun PracticePill(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun PracticeStatusLabel(state: PracticeUiState, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
-    val recording = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
+    // 평가 시작 카운트다운도 연주 중과 같은 붉은 점·글자로 ‘준비해 주세요’를 보인다.
+    val recording = state.recordingLayout
     val text = practiceStepStatus(state) ?: stringResource(
         when {
             state.mode == PracticeMode.Interrupted -> Res.string.practice_mode_interrupted
             state.mode == PracticeMode.Recording && state.finished -> Res.string.practice_mode_finished
             state.mode == PracticeMode.Recording || state.resuming -> Res.string.practice_mode_recording
-            state.mode == PracticeMode.Countdown -> Res.string.practice_mode_countdown
+            state.mode == PracticeMode.Countdown || state.preparing -> Res.string.practice_mode_countdown
             else -> Res.string.practice_mode_ready
         },
     )
