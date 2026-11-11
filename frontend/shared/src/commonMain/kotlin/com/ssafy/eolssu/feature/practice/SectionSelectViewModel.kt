@@ -27,8 +27,9 @@ class SectionSelectViewModel(
             val picks = async { repository.weakSections(sourceId) }
             val source = repository.source(sourceId)
             val recommended = source?.let { picks.await()?.firstOrNull()?.toSection(it.song.score) }
+            val current = source?.let { repository.isCurrent(it) }
             _uiState.update {
-                it.copy(loading = false, song = source?.song, result = source?.evaluation, recommended = recommended, section = recommended)
+                it.copy(loading = false, song = source?.song, result = source?.evaluation, recommended = recommended, section = recommended, currentScore = current)
             }
         }
     }

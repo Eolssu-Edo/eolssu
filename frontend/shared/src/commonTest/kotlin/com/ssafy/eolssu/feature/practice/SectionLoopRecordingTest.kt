@@ -58,6 +58,40 @@ internal class SectionLoopRecordingTest : CatalogViewModelTest() {
     private fun model(recorder: FakePracticeRecorder? = FakePracticeRecorder(), mic: Mic? = Mic(granted = true)) =
         keep(SectionLoopViewModel("30", section, bpm = 60, repeats = 1, repository = source, recorder = recorder, micPermission = mic, newKey = { "take-key" }))
 
+    @Test fun changedRevisionCannotStartASectionOrOpenTheMicrophone() = runTest {
+        val stale = object : WeakSectionRepository by source {
+            override suspend fun isCurrent(source: WeakSectionSource) = false
+        }
+        val select = keep(SectionSelectViewModel("30", stale))
+        val recorder = FakePracticeRecorder()
+        val mic = Mic(granted = false, allow = true)
+        val loop = keep(SectionLoopViewModel("30", section, 60, 1, stale, recorder, mic))
+        advanceUntilIdle()
+        select.tap(section.start)
+        select.tap(section.end)
+        assertFalse(select.uiState.value.canStart)
+        loop.startEvaluation()
+        advanceUntilIdle()
+        assertEquals(0, mic.requests)
+        assertEquals(0, recorder.starts)
+        assertNull(loop.uiState.value.take)
+    }
+
+    @Test fun unavailableCurrentScoreCannotOpenTheMicrophone() = runTest {
+        val unavailable = object : WeakSectionRepository by source {
+            override suspend fun isCurrent(source: WeakSectionSource): Boolean? = null
+        }
+        val recorder = FakePracticeRecorder()
+        val mic = Mic(granted = false, allow = true)
+        val loop = keep(SectionLoopViewModel("30", section, 60, 1, unavailable, recorder, mic))
+        advanceUntilIdle()
+        loop.startEvaluation()
+        advanceUntilIdle()
+        assertEquals(SectionLoopNotice.ScoreUnavailable, loop.uiState.value.notice)
+        assertEquals(0, mic.requests)
+        assertEquals(0, recorder.starts)
+    }
+
     @Test
     fun recordsSectionOnceAndHandsTakeWithNoteRangeAndParent() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -79,6 +113,17 @@ internal class SectionLoopRecordingTest : CatalogViewModelTest() {
 
         model.takeConsumed()
         assertNull(model.uiState.value.take)
+    }
+
+    @Test fun sectionTakeCarriesTheRevisionUsedByTheRecorder() = runTest {
+        val published = object : WeakSectionRepository by source {
+            override suspend fun source(sourceId: String) = WeakSectionSource(song.copy(scoreVersion = 1), checkNotNull(CatalogEvaluations().cached))
+        }
+        val model = keep(SectionLoopViewModel("30", section, 60, 1, published, FakePracticeRecorder()))
+        advanceUntilIdle()
+        model.startEvaluation()
+        advanceUntilIdle()
+        assertEquals(1, model.uiState.value.take?.take?.scoreVersion)
     }
 
     @Test

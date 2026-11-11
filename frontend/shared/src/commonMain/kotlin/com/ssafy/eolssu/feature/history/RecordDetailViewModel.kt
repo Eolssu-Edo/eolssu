@@ -55,7 +55,7 @@ data class RecordDetailUiState(
     val eventCount: Int get() = song?.timeline?.size ?: 0
 
     /** 녹음을 다시 들을 수 있을 때만 재생 버튼을 쓴다(S15P31E102-369: `recordingAvailable`이 false면 재생을 숨긴다). */
-    val canPlay: Boolean get() = record?.recordingAvailable == true && eventCount > 0 && delete != RecordDeleteState.Deleted
+    val canPlay: Boolean get() = record?.recordingAvailable == true && delete != RecordDeleteState.Deleted
 
     val canPractice: Boolean get() = song != null && detailLoaded && delete != RecordDeleteState.Deleted
 
@@ -68,7 +68,7 @@ data class RecordDetailUiState(
         EvaluationResult(
             id = it.id, songId = it.songId, total = it.score, feedback = "", metrics = it.metrics,
             errors = it.errors, bpm = it.bpm, recordedSeconds = it.recordedSeconds, recordedAt = it.recordedAt,
-            sample = false, eventErrors = it.eventErrors,
+            sample = false, eventErrors = it.eventErrors, scoreVersion = it.scoreVersion, notes = it.notes,
         )
     }
 
@@ -170,7 +170,7 @@ class RecordDetailViewModel(
         val record = recordRepository.records.value.firstOrNull { it.id == recordId }
         _uiState.update { state ->
             state.copy(
-                record = record, song = state.song?.takeIf { it.id == record?.songId }, position = 0, playing = false,
+                record = record, song = state.song?.takeIf { it.id == record?.songId && it.scoreVersion == record.scoreVersion }, position = 0, playing = false,
                 playbackPositionMs = 0L, audioDurationMs = null,
                 previous = record?.previousIn(recordRepository.records.value),
                 detailLoaded = false, instrumentName = null, delete = RecordDeleteState.Idle, notice = null,
@@ -178,23 +178,21 @@ class RecordDetailViewModel(
             )
         }
         loadDetail(recordId)
-        if (record != null && _uiState.value.song == null) retrySong()
-        else _uiState.value.song?.let(::loadInstrumentName)
+        _uiState.value.song?.let(::loadInstrumentName)
     }
 
     private fun loadDetail(recordId: String) {
         if (!accountScope.isActive) return
         detailJob = accountScope.launch {
             val detail = try {
-                // 기록 상세 경로로 바로 들어와 목록을 아직 받지 않았으면 먼저 받는다.
-                if (recordRepository.records.value.none { it.id == recordId }) recordRepository.refresh()
                 recordRepository.detail(recordId)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
                 currentCoroutineContext().ensureActive()
                 _uiState.update {
-                    if (it.record == null) it.copy(songLookup = RecordSongLookup.Failed) else it.copy(notice = RecordNotice.DetailFailed)
+                    it.copy(song = null, songLookup = RecordSongLookup.Failed,
+                        notice = if (it.record == null) null else RecordNotice.DetailFailed)
                 }
                 return@launch
             }
@@ -203,29 +201,38 @@ class RecordDetailViewModel(
                 _uiState.update { it.copy(record = null, song = null, songLookup = RecordSongLookup.Missing, playing = false) }
                 return@launch
             }
-            val hadRecord = _uiState.value.record != null
-            _uiState.update { it.copy(record = detail, detailLoaded = true, previous = detail.previousIn(recordRepository.records.value)) }
-            if (!hadRecord || _uiState.value.song == null) retrySong()
+            val retained = _uiState.value.song?.takeIf { it.id == detail.songId && it.scoreVersion == detail.scoreVersion }
+            _uiState.update { it.copy(record = detail, song = null, detailLoaded = true, previous = detail.previousIn(recordRepository.records.value)) }
+            if (retained == null) retrySong() else try {
+                applySong(retained)
+            } catch (error: IllegalArgumentException) {
+                _uiState.update { it.copy(songLookup = RecordSongLookup.Failed) }
+            } catch (error: IllegalStateException) {
+                _uiState.update { it.copy(songLookup = RecordSongLookup.Failed) }
+            }
         }
     }
 
     fun retrySong() {
         if (!accountScope.isActive) return
-        val record = _uiState.value.record
-        if (record == null) {
-            // 상세를 받지 못해 기록을 모르는 상태에서 다시 시도하면 상세부터 다시 받는다.
+        // 목록 캐시나 이전 악보가 있어도 상세 실패는 상세부터 다시 요청한다.
+        if (!_uiState.value.detailLoaded) {
             if (_uiState.value.songLookup == RecordSongLookup.Failed && detailJob?.isActive != true && currentId.isNotEmpty()) {
-                _uiState.update { it.copy(songLookup = RecordSongLookup.Loading) }
+                _uiState.update { it.copy(songLookup = RecordSongLookup.Loading, notice = null) }
                 loadDetail(currentId)
             }
             return
         }
+        val record = _uiState.value.record ?: return
         if (songJob?.isActive == true || _uiState.value.song != null) return
         val request = ++songRequest
         _uiState.update { it.copy(songLookup = RecordSongLookup.Loading) }
         songJob = accountScope.launch {
             val song = try {
-                songRepository.getSong(record.songId)
+                (if (record.scoreVersion == null) songRepository.getSong(record.songId) else songRepository.getSong(record.songId, record.scoreVersion))?.also { song ->
+                    check(song.id == record.songId && (record.scoreVersion == null || song.scoreVersion == record.scoreVersion))
+                    _uiState.value.evaluation?.withScore(song)
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -241,8 +248,18 @@ class RecordDetailViewModel(
                     it.copy(song = song, songLookup = if (song == null) RecordSongLookup.Missing else RecordSongLookup.Ready)
                 } else it
             }
-            if (request == songRequest && song != null) loadInstrumentName(song)
+            if (request == songRequest && song != null) applySong(song)
         }
+    }
+
+    private fun applySong(song: Song) {
+        val state = _uiState.value
+        val record = state.record ?: return
+        _uiState.update {
+            val ready = it.copy(song = song, songLookup = RecordSongLookup.Ready, record = record.withScore(song))
+            ready.copy(position = ready.indexAt(ready.playbackPositionMs / 1000.0))
+        }
+        loadInstrumentName(song)
     }
 
     private fun loadInstrumentName(song: Song) {

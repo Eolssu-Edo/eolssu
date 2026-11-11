@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 2차 취약 구간 연습(RESULT-03 · PRACTICE-02~03 · RESULT-04)과 이전 연주 비교(COMPARE-01) 문구. S15P31E102-455 -->
 <resources>
+    <string name="practice_score_check_title">악보를 확인해 주세요</string>
+    <string name="weak_score_changed">악보가 업데이트됐어요. 곡 목록에서 최신 악보를 열어 연습해 주세요.</string>
+    <string name="weak_score_unavailable">현재 악보를 확인하지 못했어요. 이전 화면으로 돌아가 다시 시도해 주세요.</string>
     <!-- 공통 -->
     <string name="weak_cell_where">%1$d각 %2$d정간</string>
     <string name="weak_section_columns">%1$d–%2$d각</string>

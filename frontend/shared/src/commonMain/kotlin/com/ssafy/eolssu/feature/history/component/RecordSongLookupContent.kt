@@ -24,6 +24,8 @@ import eolssu.shared.generated.resources.catalog_consumer_failed
 import eolssu.shared.generated.resources.catalog_consumer_loading
 import eolssu.shared.generated.resources.catalog_consumer_missing
 import eolssu.shared.generated.resources.catalog_consumer_record_missing
+import eolssu.shared.generated.resources.catalog_consumer_record_loading
+import eolssu.shared.generated.resources.catalog_consumer_record_failed
 import eolssu.shared.generated.resources.catalog_consumer_retry
 import org.jetbrains.compose.resources.stringResource
 
@@ -38,6 +40,8 @@ internal fun RecordSongLookupContent(state: RecordDetailUiState, actions: Record
         if (loading) CircularProgressIndicator()
         Text(
             stringResource(when {
+                state.record == null && loading -> Res.string.catalog_consumer_record_loading
+                state.record == null && state.songLookup == RecordSongLookup.Failed -> Res.string.catalog_consumer_record_failed
                 state.record == null -> Res.string.catalog_consumer_record_missing
                 loading -> Res.string.catalog_consumer_loading
                 state.songLookup == RecordSongLookup.Missing -> Res.string.catalog_consumer_missing
@@ -45,7 +49,7 @@ internal fun RecordSongLookupContent(state: RecordDetailUiState, actions: Record
             }),
             textAlign = TextAlign.Center,
         )
-        if (state.record != null && !loading) EolssuButton(stringResource(Res.string.catalog_consumer_retry), actions.onRetrySong)
+        if (!loading && (state.record != null || state.songLookup == RecordSongLookup.Failed)) EolssuButton(stringResource(Res.string.catalog_consumer_retry), actions.onRetrySong)
         EolssuButton(stringResource(Res.string.catalog_consumer_back), actions.onBack, style = EolssuButtonStyle.Secondary)
     }
 }

@@ -18,4 +18,4 @@ class PracticeSessionInsert(
     var id: Long = 0
 }
 
-data class PlayableSongRow(val id: Long, val bpmUnit: String, val noteCount: Int, val scoreVersion: Int)
+data class PlayableSongRow(val id: Long, val bpmUnit: String, val noteCount: Int, val scoreVersion: Int, val hasArchivedScore: Boolean)

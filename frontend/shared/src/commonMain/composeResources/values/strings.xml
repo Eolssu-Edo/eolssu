@@ -419,13 +419,11 @@
     <string name="guide_reading_sigimsae">시김새</string>
     <string name="guide_reading_sigimsae_small">음을 꾸미는 표시</string>
     <string name="guide_sigimsae_basic">처음 배우는 시김새</string>
-    <string name="guide_sigimsae_tap_basic">누르면 부는 모양을 소리와 함께 보여 줘요</string>
     <string name="guide_sigimsae_figure">%1$s 부는 모양: %2$s. 점선은 적힌 음, 굵은 선은 부는 소리예요</string>
     <string name="guide_sigimsae_legend_written">적힌 음</string>
     <string name="guide_sigimsae_legend_blown">부는 소리</string>
     <string name="guide_sigimsae_replay">다시 듣기</string>
     <string name="guide_sigimsae_more">더 많은 시김새</string>
-    <string name="guide_sigimsae_tap_more">누르면 한 줄 설명이 나와요</string>
     <string name="guide_sigimsae_tip_open">설명 펼침</string>
     <string name="guide_sigimsae_tip_closed">설명 접힘</string>
 

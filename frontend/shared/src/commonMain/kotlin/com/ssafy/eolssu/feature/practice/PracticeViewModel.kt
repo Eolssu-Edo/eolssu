@@ -32,6 +32,9 @@ import com.ssafy.eolssu.data.song.SheetPracticeRepository
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.ModelAudioRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -108,10 +111,12 @@ class PracticeViewModel(
     private var levelJob: Job? = null
     private var snapshotJob: Job? = null
     private var songJob: Job? = null
+    private var evaluationCheckJob: Job? = null
     private var personalAudioJob: Job? = null
     private var screenShown = false
     private val recordingClock = RecordingClock(playbackTimeSource)
     private var takeKey = ""
+    private var takeScoreVersion: Int? = null
     private var take: RecordedTake? = null
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
     private fun clearAccount() {
@@ -119,6 +124,7 @@ class PracticeViewModel(
         pitchTally.value = LivePitchTally()
         take = null
         takeKey = ""
+        takeScoreVersion = null
         screenShown = false
         timeMeter.hide()
         _uiState.value = PracticeUiState()
@@ -761,6 +767,11 @@ class PracticeViewModel(
      * 기기가 더 묻지 않는 차단 상태면 권한 창을 띄울 수 없으므로 설정 안내만 보인다.
      */
     fun requestEvaluation() {
+        if (mine || !accountScope.isActive || recorder == null) return
+        whenCurrentScore { requestCurrentEvaluation() }
+    }
+
+    private fun requestCurrentEvaluation() {
         if (mine || !accountScope.isActive) return
         if (recorder == null) return
         if (micRequestJob?.isActive == true) return
@@ -794,6 +805,33 @@ class PracticeViewModel(
         }
     }
 
+    private fun whenCurrentScore(start: () -> Unit) {
+        if (evaluationCheckJob?.isActive == true) return
+        evaluationCheckJob = accountScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            if (currentScoreForEvaluation()) start()
+        }
+    }
+
+    /** 녹음 화면의 악보와 현재 공개 판본을 비교한다. 개인 악보·혼자 연습은 기존 흐름을 유지한다. */
+    private suspend fun currentScoreForEvaluation(): Boolean {
+        val song = _uiState.value.song ?: return false
+        val version = song.scoreVersion ?: return true
+        if (mine || _uiState.value.solo) return true
+        val current = try { songRepository.getSong(song.id) }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { null }
+        currentCoroutineContext().ensureActive()
+        if (!accountScope.isActive || _uiState.value.song?.id != song.id || _uiState.value.song?.scoreVersion != version) return false
+        val popup = when {
+            current == null -> PracticePopup.ScoreUnavailable
+            current.scoreVersion != version -> PracticePopup.ScoreChanged
+            else -> return true
+        }
+        if (_uiState.value.mode == PracticeMode.Recording || _uiState.value.resume) cancelRecorder()
+        _uiState.update { it.toReady().copy(popup = popup) }
+        return false
+    }
+
     /** 혼자 연습 마이크 안내에서 '계속'을 누르면 OS 권한을 묻는다. 허용하면 true. */
     suspend fun requestMicPermission(): Boolean = recorder != null && (micPermission?.request() ?: true)
 
@@ -814,9 +852,11 @@ class PracticeViewModel(
         stopPreview()
         stopJangdan()
         modelAudio.stop()
-        settingsStore.grantMic()
-        _uiState.update { it.beginCountdown() }
-        runCountdown()
+        whenCurrentScore {
+            settingsStore.grantMic()
+            _uiState.update { it.beginCountdown() }
+            runCountdown()
+        }
     }
 
     /**
@@ -824,6 +864,7 @@ class PracticeViewModel(
      * 연주 평가는 시작하지 않고, 기기가 더 묻지 않는 차단일 때만 설정 안내를 띄운다([denyMic]).
      */
     fun micDenied() {
+        if (_uiState.value.popup in setOf(PracticePopup.ScoreChanged, PracticePopup.ScoreUnavailable)) return
         if (_uiState.value.solo) {
             // 한 음씩은 아직 시작하지 않았다. 악보·진행 위치는 그대로 두고 안내만 띄운다.
             _uiState.update { it.copy(popup = if (micPermission?.isPermanentlyDenied() == true) PracticePopup.PermBlocked else PracticePopup.PermDenied) }
@@ -925,6 +966,7 @@ class PracticeViewModel(
 
     /** 화면을 벗어남(앱 전환·전화 등). 연주 중이면 끊긴 것으로 처리하고, 모범 연주는 일시정지한다. */
     fun onLeaveScreen() {
+        evaluationCheckJob?.cancel()
         pauseRhythm()
         stopPreview()
         stopJangdan()
@@ -942,6 +984,7 @@ class PracticeViewModel(
 
     /** 타이머를 모두 멈추고 진행 중인 녹음을 버린다. 마친 녹음 파일은 남긴다. */
     fun stopAll() {
+        evaluationCheckJob?.cancel()
         pauseRhythm()
         stopPreview()
         stopJangdan()
@@ -1091,6 +1134,7 @@ class PracticeViewModel(
         val recorder = recorder ?: return false
         take = null
         takeKey = newKey()
+        takeScoreVersion = _uiState.value.song?.scoreVersion
         if (runCatching { recorder.start() }.isFailure) return false
         recordingClock.start()
         watchRecording()
@@ -1130,7 +1174,7 @@ class PracticeViewModel(
         levelJob?.cancel()
         recordingClock.reset()
         val audio = recorder?.stop()
-        take = audio?.takeUnless { it.tooLarge }?.let { RecordedTake(it.path, takeKey) }
+        take = audio?.takeUnless { it.tooLarge }?.let { RecordedTake(it.path, takeKey, takeScoreVersion) }
         _uiState.update { it.checkRecording(saved = audio != null, tooLarge = audio?.tooLarge == true) }
     }
 

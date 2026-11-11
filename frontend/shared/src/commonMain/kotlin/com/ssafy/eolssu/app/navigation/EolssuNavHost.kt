@@ -80,7 +80,7 @@ object EolssuDestination {
      * [recording]·[key]는 연습 화면에서 마친 녹음, [session]은 앱을 다시 켜고 보내는 기기에 남은 녹음의 세션이다.
      * [start]·[end]·[parent]는 구간 반복의 재평가 녹음(음표 번호 범위와 기준 세션)이고, 곡 전체 연주면 비어 있다.
      */
-    const val ANALYSIS = "analysis/{songId}/{bpm}?recording={recording}&key={key}&session={session}&start={start}&end={end}&parent={parent}"
+    const val ANALYSIS = "analysis/{songId}/{bpm}?recording={recording}&key={key}&session={session}&start={start}&end={end}&parent={parent}&scoreVersion={scoreVersion}"
     const val RESULT = "result/{evaluationId}"
 
     const val RECORDS = "records?saved={saved}"
@@ -95,7 +95,7 @@ object EolssuDestination {
 
     fun analysis(songId: String, bpm: Int, take: RecordedTake? = null, pendingSessionId: String? = null, section: SessionSection? = null) =
         "analysis/$songId/$bpm?recording=${take?.path.orEmpty().encodeURLParameter()}&key=${take?.key.orEmpty()}" +
-            "&session=${pendingSessionId.orEmpty()}" +
+            "&session=${pendingSessionId.orEmpty()}&scoreVersion=${take?.scoreVersion ?: -1}" +
             (section?.let { "&start=${it.startNoteIdx}&end=${it.endNoteIdx}&parent=${it.parentSessionId}" } ?: "")
 
     fun result(evaluationId: String) = "result/$evaluationId"
@@ -323,6 +323,7 @@ fun EolssuNavHost(
                     navArgument("start") { type = NavType.IntType; defaultValue = -1 },
                     navArgument("end") { type = NavType.IntType; defaultValue = -1 },
                     navArgument("parent") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("scoreVersion") { type = NavType.IntType; defaultValue = -1 },
                 ),
             ) { entry ->
                 val recording = entry.savedStateHandle.get<String>("recording").orEmpty()
@@ -333,7 +334,8 @@ fun EolssuNavHost(
                     perf = perf,
                     songId = entry.savedStateHandle.get<String>("songId").orEmpty(),
                     bpm = entry.savedStateHandle.get<Int>("bpm") ?: 0,
-                    take = if (recording.isNotEmpty() && key.isNotEmpty()) RecordedTake(recording, key) else null,
+                    take = if (recording.isNotEmpty() && key.isNotEmpty()) RecordedTake(recording, key,
+                        entry.savedStateHandle.get<Int>("scoreVersion")?.takeIf { it > 0 }) else null,
                     pendingSessionId = entry.savedStateHandle.get<String>("session")?.takeIf { it.isNotEmpty() },
                     section = section,
                     initialSong = evaluationSong?.takeIf { it.first == key }?.second,
