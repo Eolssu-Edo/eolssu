@@ -16,7 +16,8 @@
     <!-- 공개·채점 가능·미삭제 곡. 장단이 없으면 공통 악보의 bpm 단위를 사용하고, 유효한 단위가 없으면 연습 대상에서 제외한다 -->
     <select id="findPlayableSong" resultType="com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PlayableSongRow">
         SELECT s.id, COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit'))) AS bpm_unit,
-               s.note_count, s.score_version
+               s.note_count, s.score_version,
+               EXISTS (SELECT 1 FROM song_score_versions v WHERE v.song_id = s.id AND v.score_version &lt;&gt; s.score_version) AS has_archived_score
         FROM songs s
         LEFT JOIN jangdans j ON j.id = s.jangdan_id
         WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.is_scorable AND s.deleted_at IS NULL
@@ -26,7 +27,11 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO practice_sessions (user_id, song_id, parent_session_id, score_version, bpm, bpm_unit, idempotency_key, request_hash, start_note_idx, end_note_idx, status, started_at)
-        VALUES (#{userId}, #{songId}, #{parentSessionId}, #{scoreVersion}, #{bpm}, #{bpmUnit}, #{idempotencyKey}, #{requestHash}, #{startNoteIdx}, #{endNoteIdx}, 'RECORDING', #{startedAt})
+        SELECT #{userId}, s.id, #{parentSessionId}, s.score_version,
+               #{bpm}, #{bpmUnit}, #{idempotencyKey}, #{requestHash}, #{startNoteIdx}, #{endNoteIdx}, 'RECORDING', #{startedAt}
+        FROM songs s
+        WHERE s.id = #{songId} AND s.score_version = #{scoreVersion}
+          AND s.status = 'PUBLISHED' AND s.is_scorable AND s.deleted_at IS NULL
     </insert>
 
     <update id="failRecordingStartedBefore">

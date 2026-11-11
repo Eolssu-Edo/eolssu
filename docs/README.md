@@ -108,6 +108,7 @@
 - [내 악보 연습 화면에서 음원 다운로드 연결 (702)](plans/S15P31E102-702.md)
 - [내 악보 생성 음원의 실제 연주 위치 (675)](plans/S15P31E102-675.md)
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
+- [녹음 판본과 신규 연습 세션 보호 (453)](specs/recorded-score-version.md) · [계획·검증](plans/S15P31E102-453.md)
 - [내 악보 연습에서 음원 받기 화면으로 이동 (690)](plans/S15P31E102-690.md)
 
 - [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)

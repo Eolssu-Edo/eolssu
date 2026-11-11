@@ -10,10 +10,10 @@ class MyBatisPracticeSessionCreationRepository(private val mapper: PracticeSessi
         mapper.findByIdempotencyKey(userId, idempotencyKey)?.toSession()
 
     override fun findPlayableSong(songId: Long) =
-        mapper.findPlayableSong(songId)?.let { PracticeSong(it.id, BpmUnit.valueOf(it.bpmUnit), it.noteCount, it.scoreVersion) }
+        mapper.findPlayableSong(songId)?.let { PracticeSong(it.id, BpmUnit.valueOf(it.bpmUnit), it.noteCount, it.scoreVersion, it.hasArchivedScore) }
 
     override fun findSession(sessionId: Long) =
-        mapper.findById(sessionId)?.let { ParentSessionCandidate(it.id, it.userId, it.songId, it.status) }
+        mapper.findById(sessionId)?.let { ParentSessionCandidate(it.id, it.userId, it.songId, it.status, it.scoreVersion) }
 
     // 트랜잭션 없이 한 문장으로 저장한다. 유일 제약에 진 요청이 이어서 하는 조회가 이긴 요청의 커밋된 행을 본다.
     override fun insert(session: NewPracticeSession): Long? {
@@ -23,7 +23,7 @@ class MyBatisPracticeSessionCreationRepository(private val mapper: PracticeSessi
             LocalDateTime.ofInstant(session.startedAt, ZoneOffset.UTC),
         )
         try {
-            check(mapper.insert(row) == 1)
+            if (mapper.insert(row) == 0) return null
         } catch (_: DuplicateKeyException) {
             // practice_sessions의 유일 제약은 (user_id, idempotency_key) 하나뿐이다.
             return null

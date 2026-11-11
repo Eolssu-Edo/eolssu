@@ -44,6 +44,7 @@ private const val OTHER_SONG = 991703L
 @Import(PracticeSessionApiDatabaseTests.Fixtures::class)
 class PracticeSessionApiDatabaseTests {
     @Autowired private lateinit var jdbc: JdbcTemplate
+    @Autowired private lateinit var creation: com.ssafy.eolssu.backend.feature.practice.domain.PracticeSessionCreationRepository
     @Value("\${local.server.port}") private var port = 0
     private val json = JsonMapper.builder().build()
     private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
@@ -104,6 +105,65 @@ class PracticeSessionApiDatabaseTests {
         assertTrue((row["request_hash"] as String).matches(Regex("[0-9a-f]{64}")))
         assertEquals(LocalDateTime.parse("2026-10-28T03:00:00.123456"), row["started_at"])
         assertNull(row["parent_session_id"])
+    }
+
+    @Test
+    fun `archive requires recorded version while legacy successful key still replays`() {
+        val legacy = create("legacy", """{"songId":"$SONG","bpm":96}""")
+        assertEquals(201, legacy.statusCode(), legacy.body())
+        archiveAndPublish()
+        for (field in listOf("", ",\"expectedScoreVersion\":null", ",\"expectedScoreVersion\":3")) {
+            assertError(create("new-$field", """{"songId":"$SONG","bpm":96$field}"""), 409, "STATE_CONFLICT")
+        }
+        assertEquals(1, count(OWNER))
+        val replay = create("legacy", """{"songId":"$SONG","bpm":96,"expectedScoreVersion":null}""")
+        assertEquals(201, replay.statusCode(), replay.body())
+        assertEquals(tree(legacy).path("result"), tree(replay).path("result"))
+        val current = create("current", """{"songId":"$SONG","bpm":96,"expectedScoreVersion":4}""")
+        assertEquals(201, current.statusCode(), current.body())
+        assertEquals(2, count(OWNER))
+    }
+
+    @Test
+    fun `rollback to a lower current score still requires an explicit recorded version`() {
+        archiveAndPublish() // v3을 보관한 뒤 v4 공개
+        jdbc.update("UPDATE songs SET score_version = 2 WHERE id = ?", SONG)
+        assertTrue(creation.findPlayableSong(SONG)!!.hasArchivedScore)
+        assertError(create("rollback-missing", """{"songId":"$SONG","bpm":96}"""), 409, "STATE_CONFLICT")
+        assertError(create("rollback-null", """{"songId":"$SONG","bpm":96,"expectedScoreVersion":null}"""), 409, "STATE_CONFLICT")
+        assertEquals(0, count(OWNER))
+        assertEquals(201, create("rollback-current", """{"songId":"$SONG","bpm":96,"expectedScoreVersion":2}""").statusCode())
+    }
+
+    @Test
+    fun `old parent score cannot start a new section`() {
+        val parent = session(OWNER, SONG, "DONE")
+        archiveAndPublish()
+        assertError(create("old-parent", """{"songId":"$SONG","bpm":96,"expectedScoreVersion":4,"parentSessionId":"$parent"}"""), 409, "STATE_CONFLICT")
+        assertEquals(1, count(OWNER))
+    }
+
+    @Test
+    fun `insert does not persist the stale version after publication wins`() {
+        val read = creation.findPlayableSong(SONG)!!
+        assertFalse(read.hasArchivedScore)
+        archiveAndPublish()
+        assertTrue(creation.findPlayableSong(SONG)!!.hasArchivedScore)
+        val inserted = creation.insert(com.ssafy.eolssu.backend.feature.practice.domain.NewPracticeSession(
+            OWNER, SONG, null, read.scoreVersion, 96, read.bpmUnit, "racing", "hash", 0, 71, Instant.now(),
+        ))
+        assertNull(inserted)
+        assertEquals(0, count(OWNER))
+    }
+
+    private fun archiveAndPublish() {
+        jdbc.update("""INSERT INTO song_score_versions
+            (song_id, score_version, instrument_id, jangdan_id, title, description, difficulty, default_bpm,
+             score_json, umulsai_text, note_count, source, is_scorable, status, created_at, updated_at, deleted_at)
+            SELECT id, score_version, instrument_id, jangdan_id, title, description, difficulty, default_bpm,
+                   score_json, umulsai_text, note_count, source, is_scorable, status, created_at, updated_at, deleted_at
+            FROM songs WHERE id = ?""", SONG)
+        jdbc.update("UPDATE songs SET score_version = 4 WHERE id = ?", SONG)
     }
 
     @Test
@@ -174,8 +234,8 @@ class PracticeSessionApiDatabaseTests {
     }
 
     private fun session(userId: Long, songId: Long, status: String): Long {
-        jdbc.update("""INSERT INTO practice_sessions (user_id, song_id, bpm, bpm_unit, end_note_idx, status, started_at)
-            VALUES (?, ?, 90, 'DOTTED_QUARTER', 71, ?, '2026-10-27 03:00:00')""", userId, songId, status)
+        jdbc.update("""INSERT INTO practice_sessions (user_id, song_id, score_version, bpm, bpm_unit, end_note_idx, status, started_at)
+            VALUES (?, ?, 3, 90, 'DOTTED_QUARTER', 71, ?, '2026-10-27 03:00:00')""", userId, songId, status)
         return jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long::class.java)!!
     }
 

@@ -1,6 +1,8 @@
 package com.ssafy.eolssu.feature.practice
 
 import androidx.lifecycle.ViewModelStore
+import com.ssafy.eolssu.core.audio.MicPermission
+import kotlinx.coroutines.CompletableDeferred
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
@@ -25,6 +27,67 @@ import kotlin.test.assertTrue
 /** 곡 정보의 '연주 평가 시작'으로 들어온 연주 평가(S15P31E102-705): 대기 상태 없이 바로 시작하고, 준비로 돌아오면 곡 정보로 돌아갈 상태가 된다. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeDirectEvaluationTest {
+    @Test fun cachedOldWholeScoreCannotStartCountdownOrMicrophone() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val models = ViewModelStore()
+        try {
+            val storage = FakeKeyValueStore()
+            val settings = PracticeSettingsStore(storage).apply { grantMic() }
+            val old = smallScoreSong().copy(id = "42", scoreVersion = 1)
+            var current = old
+            val songs = object : SongRepository by SampleSongRepository() {
+                override suspend fun getSong(songId: String) = current
+            }
+            val recorder = FakePracticeRecorder()
+            val vm = PracticeViewModel(old.id, false, songs, settings, PracticeTimeMeter({ 0L }, testScheduler.timeSource),
+                PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope), recorder,
+                playbackTimeSource = testScheduler.timeSource)
+            models.put("stale", vm)
+            runCurrent()
+            current = old.copy(scoreVersion = 2)
+            vm.requestEvaluation()
+            runCurrent()
+            assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
+            assertEquals(0, recorder.starts)
+        } finally { models.clear(); Dispatchers.resetMain() }
+    }
+
+    @Test fun publicationWhilePermissionIsOpenDoesNotOpenTheMicrophone() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val models = ViewModelStore()
+        try {
+            val storage = FakeKeyValueStore()
+            val settings = PracticeSettingsStore(storage)
+            val old = smallScoreSong().copy(id = "42", scoreVersion = 1)
+            var current = old
+            val songs = object : SongRepository by SampleSongRepository() {
+                override suspend fun getSong(songId: String) = current
+            }
+            val recorder = FakePracticeRecorder()
+            val answer = CompletableDeferred<Boolean>()
+            val permission = object : MicPermission {
+                override fun isGranted() = false
+                override suspend fun request() = answer.await()
+            }
+            val vm = PracticeViewModel(old.id, false, songs, settings, PracticeTimeMeter({ 0L }, testScheduler.timeSource),
+                PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope), recorder, permission,
+                playbackTimeSource = testScheduler.timeSource)
+            models.put("published", vm)
+            runCurrent()
+            vm.requestEvaluation()
+            runCurrent()
+            assertNull(vm.uiState.value.popup)
+            assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
+            current = old.copy(scoreVersion = 2)
+            answer.complete(true)
+            runCurrent()
+            assertEquals(0, recorder.starts)
+            assertEquals(PracticePopup.ScoreChanged, vm.uiState.value.popup)
+            vm.micDenied() // 권한 처리 콜백이 판본 변경 안내를 덮지 않는다.
+            assertEquals(PracticePopup.ScoreChanged, vm.uiState.value.popup)
+        } finally { models.clear(); Dispatchers.resetMain() }
+    }
+
     @Test fun directEvaluationStartsCountdownOnEntryWithoutReadyStep() = directTest { vm, settings ->
         settings.grantMic()
         assertTrue(vm.uiState.value.direct)
