@@ -79,6 +79,8 @@ import com.ssafy.eolssu.feature.auth.AccountLinkViewModel
 import com.ssafy.eolssu.feature.auth.ConsentViewModel
 import com.ssafy.eolssu.feature.auth.OAuthViewModel
 import com.ssafy.eolssu.feature.auth.TermsViewModel
+import com.ssafy.eolssu.data.user.PublishedLegalDocument
+import com.ssafy.eolssu.feature.profile.LegalDocumentViewModel
 import com.ssafy.eolssu.feature.auth.EmailVerificationViewModel
 import com.ssafy.eolssu.feature.auth.LoginViewModel
 import com.ssafy.eolssu.feature.auth.PasswordSetupViewModel
@@ -195,6 +197,7 @@ val appModule = module {
     single { TermsRepository(get()) }
     viewModelOf(::ConsentViewModel)
     viewModel { (termId: String) -> TermsViewModel(termId, get()) }
+    viewModel { (document: PublishedLegalDocument) -> LegalDocumentViewModel(document, get()) }
     // 아이디 기억하기·자동 로그인 선택. 회원이 바뀌면 자동 로그인 표시를 지우므로 앱 시작 때 만든다(App).
     single { LoginPreferences(get(), getOrNull(), get()) }
     viewModel { LoginViewModel(get(), get(), get(), get()) }

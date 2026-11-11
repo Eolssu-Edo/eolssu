@@ -9,7 +9,7 @@ import eolssu.shared.generated.resources.member_api_unavailable
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
-import eolssu.shared.generated.resources.legal_open_failed
+import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.SocialProvider
@@ -31,6 +31,7 @@ import org.koin.compose.koinInject
 
 /**
  * MY-01 연결. 닉네임 수정·비밀번호 변경·탈퇴는 [onOpen], 간편 로그인 연결은 [onLink], 로그아웃 확인 뒤에는 [onLoggedOut]으로 간다.
+ * 하단 법적 문서는 [onOpenLegal]로 앱 안 문서 화면을 연다.
  * [startMessage]는 닉네임 수정·연결처럼 다녀온 화면이 남긴 안내다.
  */
 @Composable
@@ -40,6 +41,7 @@ fun MyPageRoute(
     onLink: (SocialProvider) -> Unit,
     onLoggedOut: () -> Unit,
     onSessionExpired: () -> Unit,
+    onOpenLegal: (PublishedLegalDocument) -> Unit,
     startMessage: StartMessage? = null,
     onStartMessageShown: () -> Unit = {},
     providers: List<SocialProvider> = SocialProvider.entries - SocialProvider.Apple,
@@ -123,11 +125,7 @@ fun MyPageRoute(
             }
         },
         onDismissDialog = viewModel::dismissDialog,
-        onOpenLegal = { document ->
-            if (runCatching { uriHandler.openUri(document.url) }.isFailure) {
-                show { getString(Res.string.legal_open_failed) }
-            }
-        },
+        onOpenLegal = onOpenLegal,
         onOpenFeedback = {
             if (runCatching { uriHandler.openUri(FEEDBACK_FORM_URL) }.isFailure) {
                 show { getString(Res.string.my_feedback_open_failed) }

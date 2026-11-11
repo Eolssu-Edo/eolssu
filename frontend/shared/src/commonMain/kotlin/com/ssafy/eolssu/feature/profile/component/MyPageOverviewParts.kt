@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -216,58 +215,45 @@ internal fun ProfileProviderLogo(provider: SocialProvider) {
     )
 }
 
-/** 글자는 작게 두고 누르는 영역은 48dp 이상 유지한다. [underline]을 끄면 밑줄 없는 회색 글자(마이페이지 하단 링크)다. */
+/** 글자는 작게 두고 누르는 영역은 48dp 이상 유지한다. */
 @Composable
-internal fun ProfileTextLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, underline: Boolean = true) {
+internal fun ProfileTextLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, textDecoration = if (underline) TextDecoration.Underline else TextDecoration.None),
-            color = EolssuTheme.colors.textMuted,
-        )
+        Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, textDecoration = TextDecoration.Underline), color = EolssuTheme.colors.textMuted)
     }
 }
 
 /**
- * 마이페이지 맨 아래 푸터: 구분선 없이 회색 바탕 위에 '자료 및 데이터 출처'와 법적 문서 링크를 밑줄 없는 작은 회색 글씨로 두고,
- * 링크 사이는 옅은 세로 막대로 나눈다(막대는 화면 낭독에서 뺀다).
+ * 마이페이지 맨 아래 푸터: 구분선 없이 회색 바탕 위에 '자료 및 데이터 출처'와 법적 문서(서비스 이용약관 · 개인정보 처리방침 ·
+ * 계정·데이터 삭제 안내)를 같은 모양의 줄(작은 회색 글씨 · 옅은 화살표)로 쌓는다. 모두 앱 안 화면으로 연다(S15P31E102-731).
  */
 @Composable
 internal fun MyPageFooter(onOpenSources: () -> Unit, onOpenLegal: (PublishedLegalDocument) -> Unit) {
-    val colors = EolssuTheme.colors
     Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(role = Role.Button, onClick = onOpenSources)
-                .padding(horizontal = MyPageCardInset),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                stringResource(Res.string.my_sources),
-                Modifier.weight(1f),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
-                color = colors.textMuted,
-            )
-            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.textDisabled)
-        }
-        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, itemVerticalAlignment = Alignment.CenterVertically) {
-            ProfileTextLink(stringResource(Res.string.legal_service), { onOpenLegal(PublishedLegalDocument.Service) }, underline = false)
-            FooterBar()
-            ProfileTextLink(stringResource(Res.string.legal_privacy), { onOpenLegal(PublishedLegalDocument.Privacy) }, underline = false)
-            FooterBar()
-            ProfileTextLink(stringResource(Res.string.legal_deletion), { onOpenLegal(PublishedLegalDocument.Deletion) }, underline = false)
-        }
+        FooterRow(stringResource(Res.string.my_sources), onOpenSources)
+        FooterRow(stringResource(Res.string.legal_service)) { onOpenLegal(PublishedLegalDocument.Service) }
+        FooterRow(stringResource(Res.string.legal_privacy)) { onOpenLegal(PublishedLegalDocument.Privacy) }
+        FooterRow(stringResource(Res.string.legal_deletion)) { onOpenLegal(PublishedLegalDocument.Deletion) }
     }
 }
 
-/** 하단 링크 사이의 옅은 세로 막대. */
+/** 푸터 한 줄: 누르는 영역 48dp 이상. */
 @Composable
-private fun FooterBar() {
-    Box(Modifier.clearAndSetSemantics {}.size(width = 1.dp, height = 10.dp).background(EolssuTheme.colors.line))
+private fun FooterRow(text: String, onClick: () -> Unit) {
+    val colors = EolssuTheme.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = MyPageCardInset),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
+        Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.textDisabled)
+    }
 }
