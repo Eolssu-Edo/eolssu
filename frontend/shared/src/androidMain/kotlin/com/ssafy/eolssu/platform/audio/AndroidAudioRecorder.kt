@@ -85,6 +85,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             check(output.begin(accompanyingModel = false))
             val quiet = mutableListOf<EchoQuietWindow>()
             val events = mutableListOf<RenderedJangdanEvent>()
+            val observedShifts = mutableListOf<Long>()
             progress(EchoCalibrationProgress(0, clips.size * 4))
             delay(1_000)
             val baseline = output.outputSnapshot()
@@ -112,6 +113,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                     val microphone = next.probe.snapshot(includeSamples = false)
                     check(sameOutput(baseline, out) && microphone.deviceId == input.deviceId)
                     val start = ((checkNotNull(out.frameZeroNanos) - checkNotNull(microphone.zeroNanos)) * RATE / 1e9).roundToLong() + hit.frame
+                    observedShifts += start - hit.frame
                     val quietStart = start + lengths.getValue(clip) + RATE / 4
                     // Slightly different quiet gaps avoid always sampling the same unrelated tonal phase.
                     val quietEnd = quietStart + RATE * (350 + round * 17) / 1000
@@ -131,6 +133,14 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             check(sameOutput(baseline, rendered) && captured.deviceId == input.deviceId)
             val shift = ((checkNotNull(rendered.frameZeroNanos) - checkNotNull(captured.zeroNanos)) * RATE / 1e9).roundToLong()
             val strikes = events.map { EchoCalibrationStrike(it.clip, it.frame + shift, it.gain) }
+            if (debugBuild) {
+                val lead = strikes.mapNotNull { strike ->
+                    quiet.filter { it.startFrame <= strike.startFrame }.maxByOrNull { it.endFrame }
+                        ?.let { strike.startFrame - it.endFrame }
+                }.minOrNull()
+                Log.d("EolssuEcho", "calibration=layout frames=${captured.frames} clips=${clips.size} shift=$shift " +
+                    "shiftMin=${observedShifts.minOrNull()} shiftMax=${observedShifts.maxOrNull()} minLeadFrames=$lead")
+            }
             when (val result = RecordingEchoCalibrator.calibrate(captured.samples, strikes, lengths, quiet, RATE)) {
                 is EchoCalibrationResult.Accepted -> {
                     currentCoroutineContext().ensureActive()
@@ -145,7 +155,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 }
                 is EchoCalibrationResult.Rejected -> if (session === next && !next.cancelled) {
                     echoState.value = result.reason
-                    if (debugBuild) Log.d("EolssuEcho", "calibration=rejected reason=${result.reason}")
+                    if (debugBuild) Log.d("EolssuEcho", "calibration=rejected reason=${result.reason} diagnostic=${result.diagnostic}")
                 }
             }
         } catch (cancelled: CancellationException) {
