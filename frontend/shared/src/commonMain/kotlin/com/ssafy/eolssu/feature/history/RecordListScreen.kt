@@ -45,6 +45,7 @@ fun RecordListScreen(
     onSort: (RecordSort) -> Unit,
     onOpenRecord: (String) -> Unit,
     onRetry: () -> Unit = {},
+    onLoadMore: (String) -> Unit = {},
     onInstrument: (Instrument?) -> Unit = {},
     detail: RecordDetailUiState? = null,
     detailActions: RecordDetailActions? = null,
@@ -52,7 +53,7 @@ fun RecordListScreen(
 ) {
     val frame = historyFrame(widthClass)
     val title = stringResource(Res.string.records_title)
-    val subtitle = if (state.recordsAvailable) stringResource(Res.string.records_subtitle, state.records.size) else null
+    val subtitle = if (state.recordsAvailable) stringResource(Res.string.records_subtitle, state.totalRecordCount) else null
     if (widthClass == WindowWidthClass.Expanded && detail != null && detailActions != null) {
         RecordsExpandedLayout(
             state = state,
@@ -65,6 +66,8 @@ fun RecordListScreen(
             onSort = onSort,
             onInstrument = onInstrument,
             onSelect = onOpenRecord,
+            onRetry = onRetry,
+            onLoadMore = onLoadMore,
             detail = detail,
             detailActions = detailActions,
             snackbarHostState = snackbarHostState,
@@ -88,13 +91,13 @@ fun RecordListScreen(
                 RecordsLoadStatus(failed = state.loadFailed, onRetry = onRetry)
                 return@Column
             }
-            if (state.recordsAvailable) WeekCard(state, spacing, onOpenGrowth)
-            if (!state.recordsAvailable || state.records.isEmpty()) {
+            if (state.recordsAvailable && (state.week != null || state.summaries.isEmpty())) WeekCard(state, spacing, onOpenGrowth)
+            if (!state.recordsAvailable || state.summaries.isEmpty()) {
                 RecordsEmpty(available = state.recordsAvailable)
                 return@Column
             }
             RecordListToolbar(state.instrument, state.sort, spacing, onInstrument, onSort)
-            if (state.groups.isEmpty()) RecordsInstrumentEmpty() else RecordGroups(state, spacing, onToggle, onOpenRecord)
+            if (state.groups.isEmpty()) RecordsInstrumentEmpty() else RecordGroups(state, spacing, onToggle, onOpenRecord, onLoadMore)
         }
     }
 }

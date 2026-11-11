@@ -25,6 +25,12 @@ interface PracticeRecordMapper {
     /** 기록이 있는 곡 묶음. 최근 저장 시각 내림차순, 같으면 곡 ID 내림차순. */
     fun songSummaries(@Param("userId") userId: Long): List<SongRecordSummaryRow>
 
+    fun savedRecordWeek(
+        @Param("userId") userId: Long,
+        @Param("from") from: LocalDateTime,
+        @Param("until") until: LocalDateTime,
+    ): SavedRecordWeekRow
+
     /** 한 곡의 기록. `newest`면 연주 시작 시각·세션 ID 내림차순, 아니면 오름차순. */
     fun songRecords(
         @Param("userId") userId: Long,
@@ -55,7 +61,11 @@ data class SongRecordSummaryRow(
     val recordCount: Int,
     val lastSavedAt: LocalDateTime,
     val bestScore: Int,
+    val instrumentCode: String?,
+    val lastStartedAt: LocalDateTime,
 )
+
+data class SavedRecordWeekRow(val recordCount: Int, val bestScore: Int?)
 
 data class RecordSessionRow(
     val sessionId: Long,

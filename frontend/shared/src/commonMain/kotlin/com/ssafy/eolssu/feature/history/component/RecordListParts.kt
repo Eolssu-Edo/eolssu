@@ -63,7 +63,9 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
-import com.ssafy.eolssu.feature.history.RecordGroup
+import com.ssafy.eolssu.data.practice.RecordSongSummary
+import com.ssafy.eolssu.feature.history.RecordPages
+import eolssu.shared.generated.resources.records_load_more
 import com.ssafy.eolssu.feature.history.RecordListUiState
 import com.ssafy.eolssu.feature.history.RecordSort
 import eolssu.shared.generated.resources.Res
@@ -229,24 +231,26 @@ internal fun RecordGroups(
     spacing: RecordListSpacing,
     onToggle: (String) -> Unit,
     onOpenRecord: (String) -> Unit,
+    onLoadMore: (String) -> Unit,
     selectedId: String? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         state.groups.forEach { group ->
-            SongGroupCard(group, state.isOpen(group.songId), state, spacing, selectedId, onToggle, onOpenRecord)
+            SongGroupCard(group, state.isOpen(group.songId), state, spacing, selectedId, onToggle, onOpenRecord, onLoadMore)
         }
     }
 }
 
 @Composable
 private fun SongGroupCard(
-    group: RecordGroup,
+    group: RecordSongSummary,
     open: Boolean,
     state: RecordListUiState,
     spacing: RecordListSpacing,
     selectedId: String?,
     onToggle: (String) -> Unit,
     onOpenRecord: (String) -> Unit,
+    onLoadMore: (String) -> Unit,
 ) {
     val colors = EolssuTheme.colors
     val expandedLabel = stringResource(Res.string.records_expanded)
@@ -268,9 +272,9 @@ private fun SongGroupCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(group.songTitle, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold))
+                    Text(group.title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold))
                     Text(
-                        stringResource(Res.string.records_group_meta, group.records.size, dayLabel(group.latest, state.today)),
+                        stringResource(Res.string.records_group_meta, group.recordCount, dayLabel(group.lastStartedAt, state.today)),
                         modifier = Modifier.padding(top = 2.dp),
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = colors.textMuted,
@@ -279,7 +283,7 @@ private fun SongGroupCard(
                 Text(
                     buildAnnotatedString {
                         append(stringResource(Res.string.records_best) + " ")
-                        withStyle(SpanStyle(fontSize = 15.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.best}") }
+                        withStyle(SpanStyle(fontSize = 15.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.bestScore}") }
                         append(stringResource(Res.string.records_score_unit))
                     },
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
@@ -289,7 +293,8 @@ private fun SongGroupCard(
             }
             if (open) {
                 HorizontalDivider(color = colors.lineSoft)
-                group.records.forEachIndexed { k, record ->
+                val page = state.pages[group.songId] ?: RecordPages(loading = state.loading)
+                page.records.forEachIndexed { k, record ->
                     if (k > 0) HorizontalDivider(color = colors.background)
                     RecordRow(
                         record = record,
@@ -298,6 +303,14 @@ private fun SongGroupCard(
                         spacing = spacing,
                         selected = selectedId?.let { it == record.id },
                     ) { onOpenRecord(record.id) }
+                }
+                when {
+                    page.loading -> RecordsLoadStatus(failed = false, onRetry = {})
+                    page.failed -> RecordsLoadStatus(failed = true, onRetry = { onLoadMore(group.songId) })
+                    page.nextPage != null -> EolssuButton(
+                        stringResource(Res.string.records_load_more), { onLoadMore(group.songId) },
+                        modifier = Modifier.padding(8.dp), style = EolssuButtonStyle.Secondary, small = true,
+                    )
                 }
             }
         }

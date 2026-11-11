@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.history
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
 import com.ssafy.eolssu.data.song.SampleSongs
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -23,28 +24,18 @@ class HistoryStateTest {
     }
 
     @Test
-    fun groupsBySongInRecentOrderAndOpensFirst() {
-        val state = RecordListUiState(records = records, today = oct18)
-        assertEquals(listOf("아리랑", "도라지타령"), state.groups.map { it.songTitle })
-        assertEquals(3, state.groups.first().records.size)
-        assertEquals(79, state.groups.first().best)
+    fun localFixtureReturnsGroupsAndAWeekIndependentlyOfThePage() = runTest {
+        val repo = SamplePracticeRecordRepository()
+        val first = checkNotNull(repo.loadListPage(weekOf = oct18))
+        val state = RecordListUiState(summaries = first.songs, week = first.week)
+        assertEquals(listOf("아리랑", "도라지타령"), state.groups.map { it.title })
+        assertEquals(3, state.groups.first().recordCount)
+        assertEquals(79, state.groups.first().bestScore)
         assertTrue(state.isOpen("arirang"))
         assertFalse(state.isOpen("doraji"))
-    }
-
-    @Test
-    fun toggleKeepsOtherGroupsAndSortReversesInsideGroup() {
-        val state = RecordListUiState(records = records, today = oct18).toggle("doraji")
-        assertTrue(state.isOpen("arirang") && state.isOpen("doraji"))
-        assertFalse(state.toggle("arirang").isOpen("arirang"))
-        val oldest = state.copy(sort = RecordSort.Oldest).groups.first().records
-        assertEquals(KoreanDateTime(2026, 10, 12, 18, 40), oldest.first().recordedAt)
-    }
-
-    @Test
-    fun thisWeekCountsSameWeekOnly() {
-        assertEquals(4 to 79, RecordListUiState(records = records, today = oct18).thisWeek)
-        assertNull(RecordListUiState(records = records, today = KoreanDateTime(2026, 10, 27, 9, 0)).thisWeek)
+        assertEquals(4 to 79, state.thisWeek)
+        val oldest = checkNotNull(repo.loadListPage("arirang", oldest = true))
+        assertEquals(KoreanDateTime(2026, 10, 12, 18, 40), oldest.records.first().recordedAt)
     }
 
     @Test

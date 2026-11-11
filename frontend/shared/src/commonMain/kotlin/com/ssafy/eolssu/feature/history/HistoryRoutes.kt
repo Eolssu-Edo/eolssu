@@ -78,7 +78,7 @@ fun RecordListRoute(
         if (widthClass == WindowWidthClass.Expanded) {
             RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection)
         } else {
-            RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry, onInstrument = viewModel::changeInstrument)
+            RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry, onLoadMore = viewModel::loadMore, onInstrument = viewModel::changeInstrument)
         }
     }
 }
@@ -100,12 +100,15 @@ private fun RecordsTwoPaneRoute(
     val selectedId = state.selectedRecordId
     val detailViewModel: RecordDetailViewModel = koinViewModel(key = "records-pane-$justSavedId") { parametersOf(selectedId.orEmpty()) }
     LaunchedEffect(detailViewModel, selectedId) {
-        if (selectedId != null) detailViewModel.show(selectedId)
+        detailViewModel.show(selectedId.orEmpty())
     }
     DisposableEffect(detailViewModel) {
         onDispose { detailViewModel.pause() }
     }
     val detail by detailViewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(detail.record?.id, detail.detailLoaded) {
+        if (detail.detailLoaded) detail.record?.let(viewModel::revealLinkedRecord)
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     RecordNoticeEffect(detail.notice, snackbarHostState, detailViewModel::consumeNotice)
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { detailViewModel.pause() }
@@ -119,6 +122,7 @@ private fun RecordsTwoPaneRoute(
         onSort = viewModel::changeSort,
         onOpenRecord = viewModel::select,
         onRetry = viewModel::retry,
+        onLoadMore = viewModel::loadMore,
         onInstrument = viewModel::changeInstrument,
         detail = detail,
         detailActions = rememberRecordDetailActions(detailViewModel, onBack, onCompare, onSelectSection),

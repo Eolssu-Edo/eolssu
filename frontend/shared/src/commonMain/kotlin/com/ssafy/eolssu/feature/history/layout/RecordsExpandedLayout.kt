@@ -29,6 +29,7 @@ import com.ssafy.eolssu.feature.history.component.RecordListToolbar
 import com.ssafy.eolssu.feature.history.component.RecordsInstrumentEmpty
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.feature.history.component.RecordsEmpty
+import com.ssafy.eolssu.feature.history.component.RecordsLoadStatus
 import com.ssafy.eolssu.feature.history.component.WeekCard
 
 /**
@@ -47,6 +48,8 @@ internal fun RecordsExpandedLayout(
     onSort: (RecordSort) -> Unit,
     onInstrument: (Instrument?) -> Unit,
     onSelect: (String) -> Unit,
+    onRetry: () -> Unit,
+    onLoadMore: (String) -> Unit,
     detail: RecordDetailUiState,
     detailActions: RecordDetailActions,
     snackbarHostState: SnackbarHostState,
@@ -62,14 +65,18 @@ internal fun RecordsExpandedLayout(
             val listWidth = (maxWidth * 0.36f).coerceIn(320.dp, 400.dp)
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 Column(Modifier.width(listWidth).fillMaxHeight()) {
-                    if (state.recordsAvailable) WeekCard(state, spacing, onOpenGrowth)
-                    if (!state.recordsAvailable || state.records.isEmpty()) {
+                    if (state.recordsAvailable && !state.showLoadStatus && (state.week != null || state.summaries.isEmpty())) {
+                        WeekCard(state, spacing, onOpenGrowth)
+                    }
+                    if (state.showLoadStatus) {
+                        RecordsLoadStatus(failed = state.loadFailed, onRetry = onRetry)
+                    } else if (!state.recordsAvailable || state.summaries.isEmpty()) {
                         RecordsEmpty(available = state.recordsAvailable)
                     } else {
                         RecordListToolbar(state.instrument, state.sort, spacing, onInstrument, onSort)
                         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                             if (state.groups.isEmpty()) RecordsInstrumentEmpty()
-                            else RecordGroups(state, spacing, onToggle, onSelect, selectedId = state.selectedRecordId)
+                            else RecordGroups(state, spacing, onToggle, onSelect, onLoadMore, selectedId = state.selectedRecordId)
                         }
                     }
                 }

@@ -19,7 +19,9 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -30,7 +32,7 @@ import kotlin.time.Instant
 /**
  * 서버 연습 기록 API(REC-01~04, `docs/specs/practice-records.md`). 기록 ID는 연습 세션 ID다.
  *
- * - 목록(REC-02)은 곡별로 나눠 주므로, 곡마다 받아 최신순 한 목록으로 합친다. 목록에는 항목 점수·오류 위치가 없다.
+ * - 기록 화면은 REC-02의 묶음과 필요한 페이지만 읽는다. 비교·프로필은 기존 전체 목록을 사용한다.
  * - 상세는 PRA-03(메모·다시 듣기 여부, 처음 열면 서버가 NEW를 끈다)과 평가(EVA-01·02, [evaluations])를 합친다.
  * - 저장(REC-01)은 연주 결과 화면에서 적은 메모를 같은 요청에 실어 한 번에 저장한다(메모가 없으면 본문 `{}`). 기록 상세의 메모 수정도 같은 요청에 `memo`를 싣는다(앞뒤 공백은 서버가 자르고 빈 값은 지운다).
  */
@@ -42,7 +44,35 @@ class HttpPracticeRecordRepository(
     private val _records = MutableStateFlow<List<PracticeRecord>>(emptyList())
     override val records: StateFlow<List<PracticeRecord>> = _records.asStateFlow()
 
+    private val _listChanges = MutableSharedFlow<RecordListChange>(extraBufferCapacity = 16)
+    override val listChanges = _listChanges.asSharedFlow()
+
     init { member?.onChange { _records.value = emptyList() } }
+
+    override suspend fun loadListPage(songId: String?, oldest: Boolean, page: Int, weekOf: KoreanDateTime?): RecordListPage? =
+        member.inSession {
+            val result = list(songId, page, oldest, RECORD_LIST_PAGE_SIZE, weekOf) ?: return@inSession null
+            if (songId != null && result.songId != songId) return@inSession null
+            RecordListPage(
+                result.totalRecordCount ?: result.songs.sumOf { it.recordCount },
+                result.songs.map { it.toSummary() },
+                result.songId,
+                result.items.map { it.toRecord() },
+                result.totalPages,
+                result.week?.let { RecordWeek(it.recordCount, it.bestScore) },
+            )
+        }
+
+    override suspend fun recordsForSong(songId: String): List<PracticeRecord>? = member.inSession {
+        val items = mutableListOf<RecordItem>()
+        var page = 0
+        do {
+            val result = list(songId, page++) ?: return@inSession null
+            if (result.songId != songId) return@inSession null
+            items += result.items
+        } while (page < result.totalPages)
+        return@inSession items.distinctBy { it.sessionId }.map { it.toRecord() }
+    }
 
     override suspend fun refresh(): Boolean = member.inSession {
         val first = list(songId = null, page = 0) ?: return@inSession false
@@ -65,16 +95,27 @@ class HttpPracticeRecordRepository(
         return@inSession true
     }
 
-    private suspend fun list(songId: String?, page: Int): RecordList? =
-        measureLoad(PerfTarget.RECORD_PAGE, "${songId.orEmpty()}:$page") { loadPage(songId, page) }
+    private suspend fun list(
+        songId: String?,
+        page: Int,
+        oldest: Boolean = false,
+        size: Int = PAGE_SIZE,
+        weekOf: KoreanDateTime? = null,
+    ): RecordList? = measureLoad(PerfTarget.RECORD_PAGE, "${songId.orEmpty()}:$page") {
+        loadPage(songId, page, oldest, size, weekOf)
+    }
 
-    private suspend fun loadPage(songId: String?, page: Int): RecordList? {
+    private suspend fun loadPage(songId: String?, page: Int, oldest: Boolean, size: Int, weekOf: KoreanDateTime?): RecordList? {
         val response = client.sendOrNull {
             get("/api/users/me/practice-records") {
                 songId?.let { parameter("songId", it) }
-                parameter("sort", "NEWEST")
+                parameter("sort", if (oldest) "OLDEST" else "NEWEST")
                 parameter("page", page)
-                parameter("size", PAGE_SIZE)
+                parameter("size", size)
+                weekOf?.let { day ->
+                    parameter("groupOrder", "LAST_STARTED")
+                    parameter("weekOf", "${day.year}-${day.month.toString().padStart(2, '0')}-${day.day.toString().padStart(2, '0')}")
+                }
             }
         } ?: return null
         if (response.status != HttpStatusCode.OK) return null
@@ -95,6 +136,7 @@ class HttpPracticeRecordRepository(
         )
         ensureAccountSession()
         _records.update { list -> listOf(record) + list.filterNot { it.id == record.id } }
+        _listChanges.emit(RecordListChange.Reload())
         return@inSession record
     }
 
@@ -102,6 +144,7 @@ class HttpPracticeRecordRepository(
         val saved = putRecord(recordId, MemoBody(memo))
         ensureAccountSession()
         _records.update { list -> list.map { if (it.id == recordId) it.copy(memo = saved.memo.orEmpty()) else it } }
+        _listChanges.emit(RecordListChange.Updated(recordId, saved.memo.orEmpty()))
     }
 
     /** REC-01. 200이 아니거나 응답을 받지 못하면 예외를 던진다(결과 화면은 '저장하지 못함'으로 보인다). */
@@ -150,6 +193,7 @@ class HttpPracticeRecordRepository(
         )
         ensureAccountSession()
         _records.update { list -> list.map { if (it.id == recordId) it.copy(memo = record.memo, isNew = false) else it } }
+        _listChanges.emit(RecordListChange.Updated(recordId, record.memo, viewed = true))
         return@inSession record
     }
 
@@ -171,7 +215,8 @@ class HttpPracticeRecordRepository(
             // 다시 보낸 삭제의 404는 '이미 지워짐'이다(REC-04).
             HttpStatusCode.OK, HttpStatusCode.NotFound -> {
                 ensureAccountSession()
-            _records.update { list -> list.filterNot { it.id == recordId } }
+                _records.update { list -> list.filterNot { it.id == recordId } }
+                _listChanges.emit(RecordListChange.Reload(deletedId = recordId))
                 RecordDeleteOutcome.Deleted
             }
             HttpStatusCode.ServiceUnavailable -> RecordDeleteOutcome.Busy
@@ -256,13 +301,33 @@ class HttpPracticeRecordRepository(
     @Serializable
     private class RecordList(
         val songs: List<SongGroup> = emptyList(),
+        val totalRecordCount: Int? = null,
+        val week: Week? = null,
         val songId: String? = null,
         val items: List<RecordItem> = emptyList(),
         val totalPages: Int = 0,
     )
 
     @Serializable
-    private class SongGroup(val songId: String)
+    private class SongGroup(
+        val songId: String,
+        val title: String = "",
+        val recordCount: Int = 0,
+        val lastStartedAt: String? = null,
+        val lastSavedAt: String? = null,
+        val bestScore: Int = 0,
+        val instrumentCode: String? = null,
+    ) {
+        fun toSummary() = RecordSongSummary(
+            songId, title, recordCount,
+            (lastStartedAt ?: lastSavedAt)?.let { KoreanDateTime.fromEpochMillis(Instant.parse(it).toEpochMilliseconds()) }
+                ?: KoreanDateTime.ofEpochDay(0),
+            bestScore, instrumentCode,
+        )
+    }
+
+    @Serializable
+    private class Week(val recordCount: Int, val bestScore: Int? = null)
 
     @Serializable
     private class RecordItem(
