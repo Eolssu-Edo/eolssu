@@ -70,9 +70,9 @@ class EditPickViewModel(
             val songs = if (instrumentId == null) emptyList() else songRepository.getSongs(instrumentId).mapNotNull { song ->
                 song.level?.let { EditPickSong(song.id, song.title, it, song.jangdanName) }
             }
-            mySheetRepository.refresh()
+            val listRefreshed = mySheetRepository.refresh()
             val all = mySheetRepository.sheets.value
-            val codes = all.associate { it.id to instrumentCodeOf(it) }
+            val codes = all.associate { it.id to instrumentCodeOf(it, listRefreshed) }
             _uiState.update {
                 if (it.instrument != instrument) it else it.copy(
                     load = EditPickLoad.Ready,
@@ -88,12 +88,12 @@ class EditPickViewModel(
         }
     }
 
-    private suspend fun instrumentCodeOf(sheet: MySheet): String? {
-        if (!sheet.instrumentCode.isNullOrBlank()) return sheet.instrumentCode
+    private suspend fun instrumentCodeOf(sheet: MySheet, listRefreshed: Boolean): String? {
+        if (listRefreshed && !sheet.instrumentCode.isNullOrBlank()) return sheet.instrumentCode
 
         val repository = documents ?: return null
-        // 자동 저장은 목록의 수정 시각을 유지하므로 초안이 있으면 상세를 다시 읽는다.
-        val key = (sheet.id to sheet.updatedAt).takeUnless { sheet.hasDraft }
+        // 갱신에 실패하면 최신 초안 여부를 알 수 없고, 자동 저장은 수정 시각을 유지한다.
+        val key = if (listRefreshed && !sheet.hasDraft) sheet.id to sheet.updatedAt else null
         if (key != null && key in sheetInstruments) return sheetInstruments[key]
         val document = try { repository.get(sheet.id) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
         val code = (document?.draft?.score ?: document?.score)?.score?.instrument?.takeIf { it.isNotBlank() }

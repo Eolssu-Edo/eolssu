@@ -206,6 +206,52 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
     }
 
     @Test
+    fun rechecksAdvertisedAndCachedInstrumentsWhenTheListRefreshFails() = runTest {
+        fun item(id: String, extra: String = "") =
+            """{"sheetId":"$id","kind":"JEONGGANBO","title":"악보 $id","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z"$extra}"""
+
+        val score = Json.encodeToString(smallScoreData().let { it.copy(score = it.score.copy(instrument = "DANSO")) })
+        val items = listOf(item("35", ",\"hasDraft\":true,\"instrumentCode\":\"DANSO\""), item("36"))
+        val detailRequests = mutableListOf<String>()
+        var listAvailable = true
+        val client = createHttpClient(MockEngine { request ->
+            val result = when (val path = request.url.encodedPath) {
+                "/api/users/me/sheets" -> {
+                    if (!listAvailable) return@MockEngine respond("{}", HttpStatusCode.ServiceUnavailable)
+                    """{"items":[${items.joinToString()}],"page":0,"totalPages":1}"""
+                }
+                "/api/users/me/sheets/35/score", "/api/users/me/sheets/36/score" -> {
+                    val id = path.substringBeforeLast('/').substringAfterLast('/')
+                    detailRequests += id
+                    val draft = if (listAvailable) "" else
+                        ""","draft":{"title":"초안","bpm":60,"baseScoreVersion":"1","draftRevision":2,"score":{"score":{"instrument":"DANSO"}}}"""
+                    """{"sheetId":"$id","title":"악보 $id","bpm":60,"scoreVersion":"1","reviewStatus":"NEEDS_REVIEW","scoreData":$score$draft}"""
+                }
+                else -> error("Unexpected request $path")
+            }
+            respond("""{"isSuccess":true,"code":200,"result":$result}""",
+                HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val model = keep(EditPickViewModel(ApiMySheetRepository(client), songs, ApiSheetDocumentRepository(client)))
+            model.selectInstrument(Instrument.Danso)
+            assertEquals(listOf("35", "36"), model.uiState.first { it.load == EditPickLoad.Ready }.sheets.map { it.id })
+            assertEquals(listOf("36"), detailRequests)
+
+            listAvailable = false
+            model.selectInstrument(Instrument.Sogeum)
+            val refreshed = model.uiState.first { it.load == EditPickLoad.Ready }
+            assertEquals(2, refreshed.uncheckedSheets)
+            assertEquals(listOf("36", "35", "36"), detailRequests)
+
+            model.selectInstrument(Instrument.Danso)
+            assertTrue(model.uiState.first { it.load == EditPickLoad.Ready }.sheets.isEmpty())
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
     fun onlyProvidedSongUsesCopyAndRetriesTheSameRequestBeforeOpeningThePersonalId() = runTest {
         val calls = mutableListOf<Pair<String, String>>()
         val firstResponse = CompletableDeferred<PublishedSheetCopyResult>()
