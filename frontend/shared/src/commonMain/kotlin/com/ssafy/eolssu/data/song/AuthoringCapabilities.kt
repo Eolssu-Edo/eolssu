@@ -13,13 +13,15 @@ import kotlin.math.roundToInt
         (69 + 12 * log2(hwangHz / 440)).roundToInt() == nominalHwangMidi
     fun issues(score: CommonScoreData): List<AuthoringPitchIssue> {
         val byPitch = items.associateBy { it.yul to it.octave }
-        return score.events.filter { it.kind == "NOTE" }.mapNotNull { note ->
+        val issues = score.events.filter { it.kind == "NOTE" }.mapNotNull { note ->
             val reasons = buildList {
                 addAll(byPitch[note.yul to note.octave]?.reasonCodes ?: listOf("PITCH_UNREGISTERED"))
                 if (!matchesTuning(score.music.hwangHz)) add("REFERENCE_TUNING_MISMATCH")
             }
             if (reasons.isEmpty()) null else AuthoringPitchIssue(note.id, note.cellId, note.yul.orEmpty(), note.octave ?: 0, reasons)
         }
+        return if (issues.isEmpty() && !matchesTuning(score.music.hwangHz))
+            listOf(AuthoringPitchIssue("", "", "", 0, listOf("REFERENCE_TUNING_MISMATCH"))) else issues
     }
 }
 @Serializable data class AuthoringPhysicalRange(val minMidi: Int? = null, val maxMidi: Int? = null,

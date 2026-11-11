@@ -34,6 +34,7 @@ class SheetAudioDatabaseTests {
     @Autowired lateinit var mapper: SheetAudioMapper
     @Autowired lateinit var sheets: UserSheetRepository
     @Autowired lateinit var scores: SheetScores
+    @Autowired lateinit var authoring: SheetAuthoringValidation
     @Autowired lateinit var copies: CopyPublishedSheet
     @Autowired lateinit var manager: PlatformTransactionManager
     @Autowired lateinit var jangdanResolver: SheetAudioJangdanResolver
@@ -78,6 +79,41 @@ class SheetAudioDatabaseTests {
         jdbc.update("DELETE FROM sheet_audio_objects WHERE sheet_id IN(994481,994482)")
         jdbc.update("DELETE FROM user_sheets WHERE user_id IN(994481,994482)")
         jdbc.update("DELETE FROM users WHERE id IN(994481,994482)")
+    }
+    @Test fun `HTTP save and audio use the same support policy while invalid drafts remain editable`() {
+        val sheet = sheets.find(994481, 994481)!!
+        val score = json.readTree(sheet.scoreJson) as tools.jackson.databind.node.ObjectNode
+        (score.path("score") as tools.jackson.databind.node.ObjectNode).put("instrument", "SOGEUM")
+        (score.path("music") as tools.jackson.databind.node.ObjectNode).put("hwangHz", 311.1269837220809).put("jangdan", "")
+        score.path("events").filter { it.path("kind").asString() == "NOTE" }.forEach {
+            (it as tools.jackson.databind.node.ObjectNode).put("yul", "응").put("octave", 0)
+        }
+        fun body(version: Int, draft: Boolean = false) = json.writeValueAsString(mapOf(
+            "baseScoreVersion" to version.toString(), "title" to "지원음 검사", "bpm" to sheet.bpm,
+            "jangdanId" to null, "score" to score, "draftRevision" to if (draft) 0 else null))
+        val saved = send(994481, body(sheet.scoreVersion), "PUT", "/api/users/me/sheets/994481/score")
+        assertEquals(200, saved.statusCode(), saved.body())
+        val nextVersion = sheet.scoreVersion + 1
+        val current = jdbc.queryForObject("SELECT score_json FROM user_sheets WHERE id=994481", String::class.java)
+        val sogeum = jdbc.queryForObject("SELECT id FROM instruments WHERE code='SOGEUM'", Long::class.java)!!
+        val danso = jdbc.queryForObject("SELECT id FROM instruments WHERE code='DANSO'", Long::class.java)!!
+        val rejectedAudio = send(994481, """{"instrumentId":"$danso","withJangdan":false}""")
+        assertEquals(400, rejectedAudio.statusCode(), rejectedAudio.body())
+        assertEquals("FINGERING_UNKNOWN", json.readTree(rejectedAudio.body()).path("result").path("details").path("issues")[0].path("reasonCodes")[0].asString())
+        val accepted = send(994481, "{}")
+        assertEquals(202, accepted.statusCode(), accepted.body())
+        assertEquals(sogeum.toString(), json.readTree(accepted.body()).path("result").path("instrumentId").asString())
+        val note = score.path("events").first { it.path("kind").asString() == "NOTE" } as tools.jackson.databind.node.ObjectNode
+        note.put("yul", "이").put("octave", 1)
+        val rejectedSave = send(994481, body(nextVersion), "PUT", "/api/users/me/sheets/994481/score")
+        assertEquals(400, rejectedSave.statusCode(), rejectedSave.body())
+        val issue = json.readTree(rejectedSave.body()).path("result").path("details").path("issues")[0]
+        assertEquals(note.path("id"), issue.path("eventId"))
+        assertEquals("FINGERING_UNKNOWN", issue.path("reasonCodes")[0].asString())
+        assertEquals(current, jdbc.queryForObject("SELECT score_json FROM user_sheets WHERE id=994481", String::class.java))
+        val draft = send(994481, body(nextVersion, true), "PUT", "/api/users/me/sheets/994481/score/draft")
+        assertEquals(200, draft.statusCode(), draft.body())
+        assertContains(jdbc.queryForObject("SELECT draft_json FROM user_sheets WHERE id=994481", String::class.java)!!, "이")
     }
     @Test fun `a published copy can request audio with its own score version`() {
         val copy = assertIs<SheetCopyResult.Created>(copies.copy(994481, 1, "audio-copy-key"))
@@ -639,7 +675,7 @@ class SheetAudioDatabaseTests {
     @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="PLAYBACK_TEST_BASE_URL",matches=".+")
     fun `real CAT HTTP generation stores only M4A and exposes its signed download metadata`() {
         val real=SheetAudios(mapper,sheets,scores,SheetAudioJangdanResolver { null },storage,
-            HttpPlaybackClient(System.getenv("PLAYBACK_TEST_BASE_URL"),Duration.ofSeconds(100),json),json,Clock.systemUTC(),manager)
+            HttpPlaybackClient(System.getenv("PLAYBACK_TEST_BASE_URL"),Duration.ofSeconds(100),json),json,Clock.systemUTC(),manager,authoring=authoring)
         assertFalse(real.request(994481,994481,null,false,null).reused)
         real.runOne()
         val result=real.get(994481,994481)
@@ -660,7 +696,7 @@ class SheetAudioDatabaseTests {
     fun `real CAT HTTP generation mixes the catalog jangdan of the sheet`() {
         jdbc.update("UPDATE user_sheets SET jangdan_id=(SELECT MIN(id) FROM jangdans) WHERE id=994481")
         val real=SheetAudios(mapper,sheets,scores,jangdanResolver,storage,
-            HttpPlaybackClient(System.getenv("PLAYBACK_TEST_BASE_URL"),Duration.ofSeconds(100),json),json,Clock.systemUTC(),manager)
+            HttpPlaybackClient(System.getenv("PLAYBACK_TEST_BASE_URL"),Duration.ofSeconds(100),json),json,Clock.systemUTC(),manager,authoring=authoring)
         real.request(994481,994481,null,true,null)
         real.runOne()
         val result=real.get(994481,994481)

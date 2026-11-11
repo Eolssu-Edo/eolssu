@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.feature.catalog
 
 import com.ssafy.eolssu.backend.feature.catalog.application.AuthoringCapabilities
+import com.ssafy.eolssu.backend.feature.catalog.domain.CatalogReferenceRepository
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetAuthoringValidation
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
@@ -17,6 +18,21 @@ class AuthoringCapabilitiesTests {
         assertEquals("UNKNOWN", notes[1].physicalVerification)
         assertEquals(listOf("FINGERING_UNKNOWN"), notes[1].reasonCodes)
         assertFalse(notes[1].selectable)
+    }
+
+    @Test fun `an empty registration is still missing guidance and unknown notation is not selectable`() {
+        val source = ReferenceFixture()
+        val empty = object : CatalogReferenceRepository by source {
+            override fun fingerings(instrumentId: Long, pitchId: Long?) = source.fingerings(instrumentId, pitchId).map { it.copy(imageUrl = null) }
+        }
+        assertEquals("UNKNOWN", AuthoringCapabilities(empty).get(9007199254740993)!!.items.first().fingering)
+        val unknownGlyph = object : CatalogReferenceRepository by source {
+            override fun pitches(lowSemitone: Int?, highSemitone: Int?) = source.pitches(lowSemitone, highSemitone).map { it.copy(yul = "미지원") }
+        }
+        val note = AuthoringCapabilities(unknownGlyph).get(9007199254740993)!!.items.first()
+        assertEquals("REGISTERED", note.fingering)
+        assertEquals("UNSUPPORTED", note.notation)
+        assertFalse(note.selectable)
     }
 
     @Test fun `save policy identifies event and preserves no-fingering as unknown`() {

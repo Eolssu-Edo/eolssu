@@ -10,8 +10,6 @@ data class UnsupportedAuthoringPitches(val instrumentCode: String, val issues: L
 
 /** Only final authoring/audio requests use this policy. Draft storage and published reads stay lossless. */
 class SheetAuthoringValidation(private val capabilities: AuthoringCapabilities, private val json: JsonMapper) {
-    fun instrumentId(scoreJson: String): Long? = capabilities.instrumentId(json.readTree(scoreJson).path("score").path("instrument").asString())
-
     fun validate(scoreJson: String, instrumentId: Long? = null): UnsupportedAuthoringPitches? {
         val score = json.readTree(scoreJson)
         val code = score.path("score").path("instrument").asString()

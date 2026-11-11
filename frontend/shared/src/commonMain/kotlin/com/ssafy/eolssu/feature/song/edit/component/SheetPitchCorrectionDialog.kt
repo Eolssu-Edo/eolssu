@@ -27,10 +27,18 @@ internal fun SheetPitchCorrectionDialog(
 ) {
     val (base, octave) = target.pitch
     val name = ScoreNote.SourcePitch(base.hangul, octave).fullName
+    val capability = state.authoringCapabilities?.items?.firstOrNull { it.yul == base.hangul && it.octave == octave }
     val unregistered = state.availablePitches?.contains(base.hangul to octave) == false
     EolssuDialog(
         title = stringResource(Res.string.sheet_pitch_correction_title),
-        message = stringResource(if (unregistered) Res.string.sheet_pitch_correction_unregistered else Res.string.sheet_pitch_correction_range, name),
+        message = stringResource(when {
+            "FINGERING_UNKNOWN" in capability?.reasonCodes.orEmpty() -> Res.string.sheet_pitch_fingering_unknown
+            "NOTATION_UNSUPPORTED" in capability?.reasonCodes.orEmpty() -> Res.string.sheet_pitch_notation_unsupported
+            "SYNTHESIS_UNSUPPORTED" in capability?.reasonCodes.orEmpty() -> Res.string.sheet_pitch_synthesis_unsupported
+            state.draft.original?.music?.hwangHz?.let { state.authoringCapabilities?.matchesTuning(it) } == false -> Res.string.sheet_pitch_tuning_mismatch
+            unregistered -> Res.string.sheet_pitch_correction_unregistered
+            else -> Res.string.sheet_pitch_correction_range
+        }, name),
         modifier = Modifier.verticalScroll(rememberScrollState()),
         onDismissRequest = onDismiss,
     ) {

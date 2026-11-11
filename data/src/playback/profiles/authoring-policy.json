@@ -5,9 +5,5 @@
     0,
     127
   ],
-  "notation_octave_range": [
-    -2,
-    2
-  ],
   "synthesis_note": "Internal playback preserves requested MIDI using nearest sample pitch shift. It does not certify physical playability or sample quality."
 }

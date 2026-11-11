@@ -458,3 +458,9 @@ S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V11의 nu
 ### 소셜 신규 가입·재인증 탈퇴
 
 [OAuth 가입 계약](../docs/specs/social-sign-up.md)을 따릅니다. V12 적용이 필요하며 운영 마이그레이션은 배포 전에 별도 절차로 수행합니다. 신규 인증은409 SOCIAL_SIGN_UP_REQUIRED의10분·1회 signupTicket을 반환하며 POST /api/auth/oauth/sign-up에서 현재 약관·닉네임으로 가입을 완료합니다. 비밀번호는 저장하지 않고 확인되지 않은 이메일은NULL입니다. GET /api/users/me.email도nullable입니다. 소셜 탈퇴는 연결 제공자 WITHDRAW 재인증 증명으로 기존 DELETE /api/users/me를 호출하며, 기존 비밀번호 방식도 유지합니다. FE는 신규 약관 화면·nullable 이메일·탈퇴 복귀 흐름을 연결해야 합니다. 원문 티켓·코드·쿠키를 로그에 기록하거나 자동 재전송하지 마세요.
+
+### 악보 작성 지원음
+
+`GET /api/instruments/{instrumentId}/authoring-capabilities`는 등록 운지·화면 표기·CAT 합성의 교집합과 제외 사유를 반환합니다. 문헌상 물리 음역과 실물 연주 검수 상태는 별도이며 운지 미등록은 `UNKNOWN`입니다. 기존 CAT-06 음역 조회와 과거 악보 읽기는 유지합니다. 최종 저장(SHT-04)과 생성(SHT-12)에 같은 정책을 적용하고 초안(SHT-11)은 미지원 음도 보존합니다. `INVALID_REQUEST.details`의 `UNSUPPORTED_PITCHES`에는 악기 코드, eventId, cellId와 reasonCodes가 있습니다. 음원 악기를 생략하면 저장 악기의 코드를 사용합니다.
+
+정책 원본은 `data/src/playback/profiles/authoring-policy.json`·악기 profile과 표기 계약 `data/src/scores/score_data.schema.json`이며 `processResources`가 직접 묶습니다. [작성 일관성 스펙](../docs/specs/score-authoring-consistency.md)을 따릅니다. 검증은 `BuiltinFingeringApiDatabaseTests`의 실제 98운지 카탈로그 HTTP, `SheetAudioDatabaseTests`의 저장·초안·음원 HTTP를 사용합니다.
