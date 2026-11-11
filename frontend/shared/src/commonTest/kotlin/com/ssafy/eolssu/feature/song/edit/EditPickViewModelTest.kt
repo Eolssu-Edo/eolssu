@@ -41,6 +41,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -160,6 +162,44 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
             assertEquals(listOf("32"), sogeum.sheets.map { it.id })
             assertEquals(1, sogeum.uncheckedSheets)
             assertEquals(listOf("33", "34"), detailRequests)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun dropsAnUnreadableDraftEvenWhenItsListTimestampDidNotChange() = runTest {
+        val data = smallScoreData().let { it.copy(score = it.score.copy(instrument = "DANSO")) }
+        val readable = Json.parseToJsonElement(Json.encodeToString(data)).jsonObject
+        val unreadable = JsonObject(readable + ("score" to JsonObject(readable.getValue("score").jsonObject - "part")))
+        var draft = readable
+        var revision = 1
+        var detailRequests = 0
+        val client = createHttpClient(MockEngine { request ->
+            val result = when (request.url.encodedPath) {
+                "/api/users/me/sheets" -> """{"items":[{"sheetId":"35","kind":"JEONGGANBO","title":"초안","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z","hasDraft":true,"instrumentCode":null}],"page":0,"totalPages":1}"""
+                "/api/users/me/sheets/35/score" -> {
+                    detailRequests++
+                    """{"sheetId":"35","title":"초안","bpm":60,"scoreVersion":"1","reviewStatus":"NEEDS_REVIEW","scoreData":$readable,"draft":{"title":"초안","bpm":60,"baseScoreVersion":"1","draftRevision":$revision,"score":$draft}}"""
+                }
+                else -> error("Unexpected request ${request.url.encodedPath}")
+            }
+            respond("""{"isSuccess":true,"code":200,"result":$result}""",
+                HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val model = keep(EditPickViewModel(ApiMySheetRepository(client), songs, ApiSheetDocumentRepository(client)))
+            model.selectInstrument(Instrument.Danso)
+            assertEquals(listOf("35"), model.uiState.first { it.load == EditPickLoad.Ready }.sheets.map { it.id })
+
+            draft = unreadable
+            revision++
+            model.selectInstrument(Instrument.Sogeum)
+            assertEquals(1, model.uiState.first { it.load == EditPickLoad.Ready }.uncheckedSheets)
+            assertEquals(2, detailRequests)
+
+            model.selectInstrument(Instrument.Danso)
+            assertTrue(model.uiState.first { it.load == EditPickLoad.Ready }.sheets.isEmpty())
         } finally {
             client.close()
         }

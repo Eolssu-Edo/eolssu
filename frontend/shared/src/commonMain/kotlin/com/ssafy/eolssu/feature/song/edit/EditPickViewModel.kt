@@ -41,7 +41,7 @@ class EditPickViewModel(
     private var loadJob: Job? = null
     private val copyKeys = mutableMapOf<String, String>()
 
-    /** 내 악보 ID·수정 시각 → 공통 악보의 악기 code. 읽지 못했으면 null. 같은 화면에서 악기를 바꿔도 다시 받지 않는다. */
+    /** 초안이 없는 내 악보 ID·수정 시각 → 공통 악보의 악기 코드. 빈 악보의 코드는 null이다. */
     private val sheetInstruments = mutableMapOf<Pair<String, Any>, String?>()
 
     private val accountScope = member.screenScope(viewModelScope) {
@@ -92,11 +92,12 @@ class EditPickViewModel(
         if (!sheet.instrumentCode.isNullOrBlank()) return sheet.instrumentCode
 
         val repository = documents ?: return null
-        val key = sheet.id to sheet.updatedAt
-        if (key in sheetInstruments) return sheetInstruments[key]
+        // 자동 저장은 목록의 수정 시각을 유지하므로 초안이 있으면 상세를 다시 읽는다.
+        val key = (sheet.id to sheet.updatedAt).takeUnless { sheet.hasDraft }
+        if (key != null && key in sheetInstruments) return sheetInstruments[key]
         val document = try { repository.get(sheet.id) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
         val code = (document?.draft?.score ?: document?.score)?.score?.instrument?.takeIf { it.isNotBlank() }
-        if (document != null) sheetInstruments[key] = code
+        if (key != null && document != null) sheetInstruments[key] = code
         return code
     }
 
