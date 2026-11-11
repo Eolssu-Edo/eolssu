@@ -28,6 +28,47 @@ class JangdanPlaybackTests {
     }
     private val resolver = ScoreGridJangdanPlayback(json, ::catalog)
 
+    private val fourBeatName = "4박 기본 반주"
+    private val blueValentineHash = "971be444d01a313ce5bdfd3f03915ea9b01b314430743d5d4172ab1241e818a4"
+    private val fourBeatResolver = ScoreGridJangdanPlayback(json) { name ->
+        if (name == fourBeatName) JangdanRow(12, name,
+            """{"beats":["덩","덕","궁","덕"],"group":[1,1,1,1]}""", 160, "QUARTER", null,
+            LocalDateTime.MIN, LocalDateTime.MIN) else catalog(name)
+    }
+    private fun blueValentine(): PublishedSongScore = PublishedSongScore(135, 3, 1, 160, "QUARTER", """{
+        "schemaVersion":1,"score":{"sourceId":"user-blue-valentine-20261111-sogeum","instrument":"SOGEUM","scoreVersion":3},
+        "music":{"jangdan":"$fourBeatName","ticksPerBeat":4,"ticksPerJeonggan":4,"bpmUnit":"QUARTER"},
+        "provenance":{"jgbSha256":"$blueValentineHash"},"columns":[{"index":0,"cells":[
+          {"id":"c0-j0","index":0,"units":[{"row":0,"col":0,"symbol":"쉼","eventId":"rest"}]},
+          {"id":"c0-j1","index":1,"units":[{"row":0,"col":0,"symbol":"쉼","eventId":"rest"},{"row":1,"col":0,"symbol":"청대","eventId":"note"}]},
+          {"id":"c0-j2","index":2,"units":[{"row":0,"col":0,"symbol":"-","eventId":"note"}]},
+          {"id":"c0-j3","index":3,"units":[{"row":0,"col":0,"symbol":"-","eventId":"note"}]}]}],
+        "events":[{"id":"rest","cellId":"c0-j0","kind":"REST","startTick":0,"durationTick":6},
+          {"id":"note","cellId":"c0-j1","kind":"NOTE","yul":"대","octave":1,"startTick":6,"durationTick":10}]}""")
+
+    @Test fun `reviewed Blue Valentine starts four beat accompaniment on its opening rest`() {
+        val playback = assertNotNull(fourBeatResolver.resolve(blueValentine()))
+        assertEquals("12", playback.jangdanId)
+        assertEquals(0L, playback.startTick)
+        assertEquals(16L, playback.cycleTicks)
+        assertEquals(listOf("덩", "덕", "궁", "덕"), playback.pattern.beats)
+        assertEquals(listOf(1, 1, 1, 1), playback.pattern.group)
+    }
+
+    @Test fun `opening rest exception does not leak to unreviewed identities or incomplete bars`() {
+        val source = blueValentine()
+        for (changed in listOf(source.scoreJson.replace(blueValentineHash, "0".repeat(64)),
+            source.scoreJson.replace("user-blue-valentine-20261111-sogeum", "another-song"),
+            source.scoreJson.replace("SOGEUM", "DANSO"), source.scoreJson.replace(fourBeatName, "단모리"))) {
+            assertNull(fourBeatResolver.resolve(source.copy(scoreJson = changed)))
+        }
+        assertNull(fourBeatResolver.resolve(source.copy(scoreVersion = 2)))
+        assertNull(fourBeatResolver.resolve(source.copy(scoreVersion = 4)))
+        val partial = json.readTree(source.scoreJson) as ObjectNode
+        (partial.path("columns").path(0) as ObjectNode).withArray("cells").remove(3)
+        assertNull(fourBeatResolver.resolve(source.copy(scoreJson = partial.toString())))
+    }
+
     private val airplaneSources = listOf(
         Triple("danso", "DANSO", "893185e48fc87c300d591f5e4f0774291f21da17828fdaea5f0f865705ae4b18"),
         Triple("sogeum", "SOGEUM", "b6dd52ce1fe0a3349ceb7453975f88db84c9bfb7192b9bdb4bd22bf2ab41a972"),

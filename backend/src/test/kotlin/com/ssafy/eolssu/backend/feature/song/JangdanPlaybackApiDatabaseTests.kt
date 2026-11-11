@@ -28,7 +28,6 @@ class JangdanPlaybackApiDatabaseTests {
     private val json = JsonMapper.builder().build()
     private val client = HttpClient.newHttpClient()
     private var ownsSong = false
-    private var ownsFourBeat = false
     private val source = json.readTree(requireNotNull(javaClass.getResourceAsStream("/jangdan-playback/6.json")))
 
     @BeforeEach fun prepare() {
@@ -40,15 +39,10 @@ class JangdanPlaybackApiDatabaseTests {
             instrument, source.path("score").path("title").asString(), json.writeValueAsString(source),
             source.path("events").count { it.path("kind").asString() == "NOTE" }, source.path("score").path("sourceId").asString())
         ownsSong = true
-        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM jangdans WHERE id=12 OR name='4박 기본 반주'", Int::class.java))
-        jdbc.update("""INSERT INTO jangdans(id,name,pattern,default_bpm,bpm_unit) VALUES
-            (12,'4박 기본 반주','{"beats":["덩","덕","궁","덕"],"group":[1,1,1,1]}',160,'QUARTER')""")
-        ownsFourBeat = true
     }
 
     @AfterEach fun cleanup() {
         if (ownsSong) jdbc.update("DELETE FROM songs WHERE id=6")
-        if (ownsFourBeat) jdbc.update("DELETE FROM jangdans WHERE id=12")
         client.close()
     }
 
@@ -172,6 +166,43 @@ class JangdanPlaybackApiDatabaseTests {
             assertNull(jdbc.queryForObject("SELECT jangdan_id FROM songs WHERE id=56", Long::class.java))
         } finally {
             jdbc.update("DELETE FROM songs WHERE id=56")
+        }
+    }
+
+    @Test fun `linked four beat edition resolves its reviewed opening rest through public APIs`() {
+        val cells = listOf(
+            """{"id":"c0-j0","index":0,"units":[{"row":0,"col":0,"symbol":"쉼","eventId":"c0-j0-r0-u0"}]}""",
+            """{"id":"c0-j1","index":1,"units":[{"row":0,"col":0,"symbol":"쉼","eventId":"c0-j0-r0-u0"},{"row":1,"col":0,"symbol":"청중","eventId":"c0-j1-r1-u0"}]}""",
+            """{"id":"c0-j2","index":2,"units":[{"row":0,"col":0,"symbol":"-","eventId":"c0-j1-r1-u0"}]}""",
+            """{"id":"c0-j3","index":3,"units":[{"row":0,"col":0,"symbol":"-","eventId":"c0-j1-r1-u0"}]}""",
+        ).joinToString()
+        // Synthetic sustained note: checks source binding and grid, without redistributing the melody.
+        val original = json.readTree("""{"schemaVersion":1,
+            "score":{"title":"4박 연결 검증","sourceId":"user-blue-valentine-20261111-sogeum","instrument":"SOGEUM","scoreVersion":3},
+            "music":{"hwangHz":311.13,"jangdan":"4박 기본 반주","bpmUnit":"QUARTER","ticksPerBeat":4,"ticksPerJeonggan":4},
+            "provenance":{"jgbSha256":"971be444d01a313ce5bdfd3f03915ea9b01b314430743d5d4172ab1241e818a4"},
+            "columns":[{"index":0,"cells":[$cells]}],"events":[
+              {"id":"c0-j0-r0-u0","kind":"REST","yul":null,"octave":null,"cellId":"c0-j0","startTick":0,"durationTick":6,"breathAfter":false,"sigimsae":[]},
+              {"id":"c0-j1-r1-u0","kind":"NOTE","yul":"중","octave":1,"cellId":"c0-j1","startTick":6,"durationTick":10,"breathAfter":false,"sigimsae":[]}]}""")
+        val instrument = jdbc.queryForObject("SELECT id FROM instruments WHERE code='SOGEUM'", Long::class.java)
+        jdbc.update("""INSERT INTO songs(id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,
+            score_version,note_count,is_scorable,status,source) VALUES(135,?,12,'4박 연결 검증',3,160,?,3,1,FALSE,'PUBLISHED',?)""",
+            instrument, original.toString(), "user-blue-valentine-20261111-sogeum")
+        try {
+            val result = get("/api/songs/135/score")
+            assertEquals(original, result.path("score"))
+            assertEquals(3, result.path("scoreVersion").intValue())
+            val playback = result.path("jangdanPlayback")
+            assertEquals("12", playback.path("jangdanId").asString())
+            assertEquals(0L, playback.path("startTick").longValue())
+            assertEquals(16L, playback.path("cycleTicks").longValue())
+            assertEquals(listOf("덩", "덕", "궁", "덕"), playback.path("pattern").path("beats").toList().map { it.asString() })
+            assertEquals("4박 기본 반주", get("/api/songs/135").path("jangdanName").asString())
+            jdbc.update("UPDATE songs SET score_json=? WHERE id=135",
+                original.toString().replace("user-blue-valentine-20261111-sogeum", "unreviewed-source"))
+            assertTrue(get("/api/songs/135/score").path("jangdanPlayback").isNull)
+        } finally {
+            jdbc.update("DELETE FROM songs WHERE id=135")
         }
     }
 

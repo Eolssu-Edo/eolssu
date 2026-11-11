@@ -39,6 +39,8 @@ ssh -o ClearAllForwardings=yes edo1 'sudo flock -w 120 /run/lock/eolssu-backend-
 
 DB와 설정은 서로 다른 스냅샷이다. 저장된 시각·릴리스·스키마 호환성을 확인해야 하며, 백업 주기만으로 엄격한 1시간 RPO를 보장하지 않는다. 원본 MySQL binlog의 외부 전송·시점 재생은 포함하지 않는다. 설정 변경은 공용 lock과 변경 전 명령을 사용하는 운영 절차를 따른다.
 
+큰 JSON 행의 기본 키 정렬에서 MySQL Error 1038이 발생하지 않도록 덤프 연결에만 `sort_buffer_size=8388608`(8 MiB)을 지정한다. 운영 덤프와 격리 복원의 데이터 대조 덤프가 같은 옵션을 사용하며 전역 DB 설정은 바꾸지 않는다. [751 재현·검증](../../docs/plans/S15P31E102-751.md)
+
 ## 상태·수동 실행
 
 ```sh
