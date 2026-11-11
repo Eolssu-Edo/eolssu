@@ -70,11 +70,6 @@
     <string name="song_cover_seal">얼쑤</string>
     <string name="practice_subtitle">%1$s · %2$s</string>
     <string name="practice_subtitle_solo">%1$s · 연습 모드</string>
-    <string name="practice_mode_ready">연습 준비</string>
-    <string name="practice_mode_model">모범 연주 중</string>
-    <string name="practice_mode_countdown">준비해 주세요</string>
-    <string name="practice_mode_recording">연주 중</string>
-    <string name="practice_mode_interrupted">연주 중단</string>
     <string name="practice_settings">연습 설정</string>
     <string name="practice_settings_locked">연주 중에는 바꿀 수 없어요</string>
     <string name="practice_follow_now">현재 위치로</string>
@@ -172,8 +167,6 @@
     <string name="practice_popup_too_large_body">20MB를 넘는 녹음은 평가할 수 없어요. 다시 연주해 주세요.</string>
     <string name="practice_title">연습</string>
     <string name="practice_eval_title">연주 평가</string>
-    <string name="practice_mode_finished">연주 완료</string>
-    <string name="practice_score_hint">율명을 누르면 운지법을 볼 수 있어요 · 오른쪽 각부터 읽어요</string>
     <string name="practice_player_label">모범 연주</string>
     <string name="practice_listen_model_resume">모범 연주 이어 듣기</string>
     <string name="practice_seek_back">−5초</string>

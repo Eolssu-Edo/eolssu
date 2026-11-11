@@ -25,9 +25,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -53,7 +51,6 @@ import com.ssafy.eolssu.feature.practice.LivePitchMark
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.stepCurrentIndex
-import com.ssafy.eolssu.feature.practice.stepUi
 import com.ssafy.eolssu.feature.practice.modelPointAt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -66,7 +63,6 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_follow_now
-import eolssu.shared.generated.resources.practice_score_hint
 import org.jetbrains.compose.resources.stringResource
 
 /** 연습 악보를 놓는 배치. 정간 크기·여백과 두 단 나누기가 달라진다. */
@@ -270,7 +266,7 @@ private fun rememberBandScroll(
 /**
  * 휴대폰 보드의 악보 영역. 각의 실제 높이로 위→아래 들어가는 수를 정하고 다음 묶음은 왼쪽에 둔다.
  * 3줄 이상의 소박 표기 정간은 높이를 늘린다. 공간이 부족하면 정간과 글자를 함께 줄여 세로 스크롤 없이 좌우로만 넘긴다.
- * 아래에는 준비 상태 안내(‘율명을 누르면 운지법을 볼 수 있어요 · 오른쪽 각부터 읽어요’)와, 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다.
+ * 아래에는 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다.
  */
 @Composable
 fun PracticeBoardScore(
@@ -325,17 +321,6 @@ fun PracticeBoardScore(
                     unitMarksAfterPass = true,
                 )
             }
-            // 준비 안내의 공간을 재생 중에도 유지해 악보 높이/묶음 수가 변하지 않게 한다.
-            // 한 음씩은 두 칸만으로 충분해 안내를 두지 않는다(S15P31E102-717).
-            // 연주 평가의 시작 전 대기는 연주 중 배치라 안내를 보이지 않는다.
-            val showHint = state.mode == PracticeMode.Ready && !state.awaitingStart
-            if (!state.stepUi) Text(
-                stringResource(Res.string.practice_score_hint),
-                modifier = Modifier.padding(top = 8.dp).alpha(if (showHint) 1f else 0f)
-                    .then(if (showHint) Modifier else Modifier.clearAndSetSemantics {}),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
-                color = colors.textMuted,
-            )
             if (state.live && !state.follow) {
                 // 보드 `.score-follow`: 오른쪽 정렬 작은 버튼.
                 val shape = RoundedCornerShape(8.dp)

@@ -174,7 +174,7 @@ private fun PracticeCompactLayout(
             ) {
                 PracticeTitleRow(
                     state,
-                    statusAtEnd = true,
+                    showPill = false,
                     toggles = if (state.showsTitleToggles) PracticeTitleToggles(actions.panel.onToggleFingeringView, actions.onToggleHangul) else null,
                 )
                 Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))

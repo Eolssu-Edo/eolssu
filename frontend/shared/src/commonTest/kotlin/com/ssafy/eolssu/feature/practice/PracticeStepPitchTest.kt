@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
 import com.ssafy.eolssu.core.audio.AudioRecorder
+import com.ssafy.eolssu.core.audio.PitchGate
 import com.ssafy.eolssu.core.audio.PitchReading
 import com.ssafy.eolssu.core.audio.RecordedAudio
 import com.ssafy.eolssu.core.model.ScoreNote
@@ -176,6 +177,7 @@ internal class StepRecorder(private val failStart: Boolean = false, observes: Bo
     override val pitchReadings: Flow<PitchReading>? = flow.takeIf { observes }
     val readings: Flow<PitchReading> get() = flow
     override val measuresLevel = false
+    override var pitchGate: PitchGate = PitchGate.Default
     var starts = 0
     var cancels = 0
     private var recording = 0L

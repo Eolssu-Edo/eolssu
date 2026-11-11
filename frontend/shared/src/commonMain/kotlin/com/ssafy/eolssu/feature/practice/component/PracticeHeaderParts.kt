@@ -2,25 +2,19 @@ package com.ssafy.eolssu.feature.practice.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -33,18 +27,11 @@ import com.ssafy.eolssu.core.ui.component.EolssuPageIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuPageTopBar
 import com.ssafy.eolssu.core.ui.component.PageHeading
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
-import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import eolssu.shared.generated.resources.jangdan_practice_label
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_eval_title
 import eolssu.shared.generated.resources.practice_menu_notation
-import eolssu.shared.generated.resources.practice_mode_countdown
-import eolssu.shared.generated.resources.practice_mode_finished
-import eolssu.shared.generated.resources.practice_mode_interrupted
-import eolssu.shared.generated.resources.practice_mode_model
-import eolssu.shared.generated.resources.practice_mode_ready
-import eolssu.shared.generated.resources.practice_mode_recording
 import eolssu.shared.generated.resources.practice_settings
 import eolssu.shared.generated.resources.practice_subtitle
 import eolssu.shared.generated.resources.practice_subtitle_mine
@@ -94,16 +81,15 @@ fun PracticeTopBar(
 /**
  * 본문 첫 줄(`.section-row`): 곡 제목(Song Myung 25sp, 운지법과 함께 보기는 22sp)과 오른쪽 `.pill` ‘{악기} · {난이도}’.
  * 연습 모드는 ‘{악기} · 연습 모드’, 내 악보 연습은 ‘{악기} · 내 악보’다.
- * [statusAtEnd]이면 `.pill` 자리에 상태 문구(‘● 연습 준비’·‘● 연주 중’ 등)를 두어, 휴대폰 화면에서 상태 줄 한 줄만큼 악보를 올린다.
- * 한 음씩 안내처럼 긴 문구는 제목을 밀어내지 않게 폭을 제한해 줄바꿈한다.
- * [toggles]가 있으면(연주 평가 휴대폰 화면, S15P31E102-716) 제목 아래 줄에 상태 문구(왼쪽)와 ‘운지법 보기’·‘쉬운 표기’ 스위치(오른쪽)를 둔다.
+ * [showPill]이 false이면(휴대폰 연습 화면) 오른쪽을 비워 둔다. 상태 문구(‘연습 준비’·‘연주 중’ 등)는 어느 화면에도 두지 않는다.
+ * [toggles]가 있으면(연주 평가 휴대폰 화면, S15P31E102-716) 제목 아래 줄 오른쪽에 ‘운지법 보기’·‘쉬운 표기’ 스위치를 둔다.
  * 곡 제목은 어느 경우에도 한 줄이고, 다 들어가지 않을 때만 왼쪽으로 흘린다(S15P31E102-730).
  */
 @Composable
 fun PracticeTitleRow(
     state: PracticeUiState,
     modifier: Modifier = Modifier,
-    statusAtEnd: Boolean = false,
+    showPill: Boolean = true,
     toggles: PracticeTitleToggles? = null,
 ) {
     val song = state.song ?: return
@@ -113,13 +99,11 @@ fun PracticeTitleRow(
         else stringResource(Res.string.practice_subtitle, instrument, songLevelLabel(song.level))
     if (toggles != null) {
         // 연주 평가는 들어오자마자 카운트다운·연주로 이어지므로 연주 중에도 바로 바꾼다. 표시만 바뀌고 평가는 멈추지 않는다.
-        // 제목은 토글에 밀려 줄바꿈되지 않게 한 줄을 다 쓰고(S15P31E102-730), 상태 문구와 스위치는 그 아래 한 줄에 둔다.
+        // 제목은 토글에 밀려 줄바꿈되지 않게 한 줄을 다 쓰고(S15P31E102-730), 스위치는 그 아래 줄 오른쪽에 둔다.
         Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             PageHeading(state.title, Modifier.fillMaxWidth(), compact = state.fingeringView, singleLine = true)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.weight(1f)) {
-                    if (statusAtEnd) PracticeStatusLabel(state)
-                }
+                Spacer(Modifier.weight(1f))
                 PracticeMiniToggle(stringResource(Res.string.practice_title_fingering), state.fingeringView, toggles.onToggleFingering)
                 PracticeMiniToggle(stringResource(Res.string.practice_menu_notation), state.settings.showHangul, toggles.onToggleNotation)
             }
@@ -128,7 +112,7 @@ fun PracticeTitleRow(
     }
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         PageHeading(state.title, Modifier.weight(1f), compact = state.fingeringView, singleLine = true)
-        if (statusAtEnd) PracticeStatusLabel(state, Modifier.widthIn(max = 168.dp)) else PracticePill(pill)
+        if (showPill) PracticePill(pill)
     }
 }
 
@@ -146,37 +130,4 @@ fun PracticePill(text: String, modifier: Modifier = Modifier) {
         color = colors.accentText,
         maxLines = 1,
     )
-}
-
-/**
- * 상태 문구(`.status-label`): 7dp 점과 12sp 글자. 연주 중 계열은 붉은 점·붉은 글자 600.
- * 연습 준비 / 모범 연주 중 / 준비해 주세요 / 연주 중 / 연주 완료 / 연주 중단.
- * 한 음씩 따라 불기 중이면 ‘한 음씩 · 黃(황)을 불어 보세요’ / 멈춤 / 끝까지 따라 불었어요([practiceStepStatus]).
- */
-@Composable
-fun PracticeStatusLabel(state: PracticeUiState, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    // 평가 시작 카운트다운도 연주 중과 같은 붉은 점·글자로 ‘준비해 주세요’를 보인다. 평가 시작 전 대기는 ‘연습 준비’ 그대로다.
-    val recording = state.recordingLayout && !state.awaitingStart
-    val text = practiceStepStatus(state) ?: stringResource(
-        when {
-            state.mode == PracticeMode.Interrupted -> Res.string.practice_mode_interrupted
-            state.mode == PracticeMode.Recording && state.finished -> Res.string.practice_mode_finished
-            state.mode == PracticeMode.Recording || state.resuming -> Res.string.practice_mode_recording
-            state.mode == PracticeMode.Countdown -> Res.string.practice_mode_countdown
-            else -> Res.string.practice_mode_ready
-        },
-    )
-    Row(
-        modifier.semantics { liveRegion = LiveRegionMode.Polite },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
-        Box(Modifier.size(7.dp).background(if (recording) colors.rec else colors.accent, CircleShape))
-        Text(
-            text,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp, fontWeight = if (recording) FontWeight.SemiBold else FontWeight.Normal),
-            color = if (recording) colors.recText else colors.textSub,
-        )
-    }
 }
