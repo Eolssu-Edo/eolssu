@@ -15,12 +15,9 @@ import com.ssafy.eolssu.core.audio.PitchReading
 import com.ssafy.eolssu.core.audio.RecordedAudio
 import com.ssafy.eolssu.core.audio.YinPitchEstimator
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
-import com.ssafy.eolssu.core.audio.JangdanClip
 import com.ssafy.eolssu.core.audio.JangdanPlan
 import com.ssafy.eolssu.core.audio.RecordingEchoStatus
 import com.ssafy.eolssu.core.audio.EchoCalibrationProgress
-import com.ssafy.eolssu.core.audio.EchoCalibrationStrike
-import com.ssafy.eolssu.core.audio.EchoQuietWindow
 import com.ssafy.eolssu.core.audio.EchoPlaybackEvent
 import com.ssafy.eolssu.core.audio.EchoCalibrationResult
 import com.ssafy.eolssu.core.audio.RecordingEchoCalibrator
@@ -35,6 +32,9 @@ import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.roundToLong
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -68,15 +68,11 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
         val clips = plan.strikes.map { it.clip }.toSet()
         if (clips.isEmpty()) return@withContext false
         var preparing: Session? = null
-        var accepted = false
+        var prepared = false
         echoState.value = RecordingEchoStatus.Measuring
         try {
             check(output.prepare(clips))
             val lengths = clips.associateWith { checkNotNull(output.pcmFor(it)).size }
-            val rounds = 3
-            val totalStrikes = clips.size * rounds
-            // Bound preparatory mic storage. A very large/unsupported plan can still record raw.
-            check(lengths.values.sumOf { it.toLong() + RATE * 3L / 4 } * rounds < RATE * 55L)
             val next = synchronized(stateLock) {
                 val previous = session
                 previous?.cancelled = true
@@ -85,91 +81,109 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             preparing = next
             next.worker.start()
             next.await(next.ready)
+            next.referencePlayer = output
             output.retainCalibrationClock(true)
             check(output.begin(accompanyingModel = false))
-            val quiet = mutableListOf<EchoQuietWindow>()
-            val events = mutableListOf<RenderedJangdanEvent>()
-            val observedShifts = mutableListOf<Long>()
-            progress(EchoCalibrationProgress(0, totalStrikes, countIn = rounds))
             delay(1_000)
             val baseline = output.outputSnapshot()
             check(baseline.frameZeroNanos != null && baseline.volume > 0 &&
                 baseline.deviceType == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER && !baseline.clipped)
-            val input = next.probe.snapshot(includeSamples = false)
-            check(input.zeroNanos != null && input.deviceType == AudioDeviceInfo.TYPE_BUILTIN_MIC)
-            quiet += EchoQuietWindow(RATE / 10L, input.frames)
-            var lastFrame = baseline.events.lastOrNull()?.frame ?: -1L
-            repeat(rounds) { round ->
-                val countIn = rounds - round
-                currentCoroutineContext().ensureActive()
-                progress(EchoCalibrationProgress(events.size, totalStrikes, countIn))
-                if (debugBuild) Log.d("EolssuEcho", "calibration=countIn number=$countIn completed=${events.size} total=$totalStrikes")
-                val firstInRound = events.size
-                for (clip in clips.sortedBy { it.sample.ordinal }) {
-                    currentCoroutineContext().ensureActive()
-                    check(!next.cancelled && !next.failed && !output.interrupted)
-                    check(output.play(clip, 1f))
-                    val eventDeadline = System.nanoTime() + 1_000_000_000L
-                    var event: RenderedJangdanEvent? = null
-                    while (event == null && System.nanoTime() < eventDeadline) {
-                        delay(10)
-                        event = output.outputSnapshot().events.firstOrNull { it.frame > lastFrame && it.clip == clip }
-                    }
-                    val hit = checkNotNull(event)
-                    lastFrame = hit.frame
-                    events += hit
-                    if (debugBuild && events.size == firstInRound + 1) {
-                        Log.d("EolssuEcho", "calibration=countInPlayback number=$countIn frame=${hit.frame}")
-                    }
-                    val out = output.outputSnapshot()
-                    val microphone = next.probe.snapshot(includeSamples = false)
-                    check(sameOutput(baseline, out) && microphone.deviceId == input.deviceId)
-                    val start = ((checkNotNull(out.frameZeroNanos) - checkNotNull(microphone.zeroNanos)) * RATE / 1e9).roundToLong() + hit.frame
-                    observedShifts += start - hit.frame
-                    val quietStart = start + lengths.getValue(clip) + RATE / 4
-                    // Slightly different quiet gaps avoid always sampling the same unrelated tonal phase.
-                    val quietEnd = quietStart + RATE * (350 + round * 17) / 1000
-                    val deadline = System.nanoTime() + (lengths.getValue(clip) * 1_000_000_000L / RATE) + 2_000_000_000L
-                    while (next.probe.frames < quietEnd && System.nanoTime() < deadline) {
-                        delay(20)
-                        check(!next.cancelled && !next.failed && !output.interrupted)
-                        check(sameOutput(baseline, output.outputSnapshot()))
-                    }
-                    check(next.probe.frames >= quietEnd)
-                    quiet += EchoQuietWindow(quietStart, quietEnd)
-                    progress(EchoCalibrationProgress(events.size, totalStrikes, countIn))
+            val initialInput = next.probe.snapshot(includeSamples = false)
+            check(initialInput.zeroNanos != null && initialInput.deviceType == AudioDeviceInfo.TYPE_BUILTIN_MIC)
+            val scheduled = checkNotNull(output.scheduleCountIn(plan))
+            val recordNanos = scheduled.frameZeroNanos + scheduled.recordingStartFrame * 1_000_000_000L / RATE
+            // The encoder exists before the downbeat; capture splits the read crossing this boundary.
+            next.command(Action.ArmRecording, recordNanos)
+            val initialShift = inputFrameAtNanos(scheduled.frameZeroNanos, initialInput.zeroNanos)
+            val geometry = jangdanEchoPreparation(scheduled.preparationEvents, lengths, initialShift,
+                initialInput.frames, scheduled.recordingStartFrame + initialShift)
+                ?.takeIf { it.trainingEnd < RATE * 55L }
+            if (geometry == null) {
+                next.rejectCalibration(RecordingEchoStatus.Unreliable)
+                next.retainProbe = false
+                next.probe.clearSamples()
+                if (debugBuild) Log.d("EolssuEcho", "calibration=bypassed reason=OverlappingOrInsufficientResponses")
+            }
+            var fitting = false
+            var count = 0
+            fun startFitIfReady() {
+                if (fitting || geometry == null || !next.calibrationAllowed ||
+                    next.probe.frames < geometry.trainingEnd + RATE / 100) return
+                val captured = next.probe.snapshot(includeSamples = true)
+                val rendered = output.outputSnapshot()
+                val zero = captured.zeroNanos ?: return
+                val outputZero = rendered.frameZeroNanos ?: return
+                val shift = inputFrameAtNanos(outputZero, zero)
+                val selected = jangdanEchoPreparation(scheduled.preparationEvents, lengths, shift,
+                    initialInput.frames, scheduled.recordingStartFrame + shift) ?: return
+                if (captured.samples.size < selected.trainingEnd) return
+                fitting = true
+                next.retainProbe = false
+                next.probe.clearSamples()
+                if (!sameOutput(baseline, rendered) || rendered.epoch != scheduled.epoch ||
+                    captured.deviceId != initialInput.deviceId || abs(shift - initialShift) > RATE / 200 ||
+                    !scheduled.preparationEvents.all { planned -> rendered.events.contains(planned) }) {
+                    next.rejectCalibration(RecordingEchoStatus.Unreliable)
+                    return
                 }
-            }
-            val captured = next.probe.snapshot(includeSamples = true)
-            val rendered = output.outputSnapshot()
-            check(sameOutput(baseline, rendered) && captured.deviceId == input.deviceId)
-            val shift = ((checkNotNull(rendered.frameZeroNanos) - checkNotNull(captured.zeroNanos)) * RATE / 1e9).roundToLong()
-            val strikes = events.map { EchoCalibrationStrike(it.clip, it.frame + shift, it.gain) }
-            if (debugBuild) {
-                val lead = strikes.mapNotNull { strike ->
-                    quiet.filter { it.startFrame <= strike.startFrame }.maxByOrNull { it.endFrame }
-                        ?.let { strike.startFrame - it.endFrame }
-                }.minOrNull()
-                Log.d("EolssuEcho", "calibration=layout frames=${captured.frames} clips=${clips.size} shift=$shift " +
-                    "shiftMin=${observedShifts.minOrNull()} shiftMax=${observedShifts.maxOrNull()} minLeadFrames=$lead")
-            }
-            when (val result = RecordingEchoCalibrator.calibrate(captured.samples, strikes, lengths, quiet, RATE)) {
-                is EchoCalibrationResult.Accepted -> {
+                // A read can already straddle the start beat. Never train on its performance suffix.
+                val training = captured.samples.copyOf(selected.trainingEnd.toInt())
+                next.fitCalibration {
+                    val result = RecordingEchoCalibrator.calibrate(training, selected.strikes, lengths, selected.quiet, RATE)
                     currentCoroutineContext().ensureActive()
                     synchronized(stateLock) {
-                        check(session === next && !next.cancelled && !next.failed && !next.closed)
-                        next.echo = PreparedEcho(output, baseline, captured.deviceId, RecordingEchoFilter(result.model))
-                        next.probe.clearSamples()
-                        echoState.value = RecordingEchoStatus.Ready
-                        accepted = true
+                        if (session !== next || next.cancelled || next.failed || next.closed || !next.calibrationAllowed) return@fitCalibration
+                        val liveOutput = output.outputSnapshot()
+                        if (!sameOutput(baseline, liveOutput) || next.inputDeviceId != initialInput.deviceId ||
+                            !next.timestampValid || abs(inputFrameAtNanos(checkNotNull(liveOutput.frameZeroNanos), next.physicalZeroNanos) - shift) > RATE / 200) {
+                            next.rejectCalibration(RecordingEchoStatus.Changed)
+                            return@fitCalibration
+                        }
+                        when (result) {
+                            is EchoCalibrationResult.Accepted -> {
+                                next.echo = PreparedEcho(output, baseline, captured.deviceId, RecordingEchoFilter(result.model))
+                                echoState.value = if (next.warming) RecordingEchoStatus.Ready else RecordingEchoStatus.Active
+                                if (debugBuild) Log.d("EolssuEcho", "calibration=accepted clips=${clips.size} frames=${training.size} similarity=${result.model.minimumSimilarity} afterStart=${!next.warming}")
+                            }
+                            is EchoCalibrationResult.Rejected -> {
+                                next.rejectCalibration(result.reason)
+                                if (debugBuild) Log.d("EolssuEcho", "calibration=rejected reason=${result.reason} diagnostic=${result.diagnostic}")
+                            }
+                        }
                     }
-                    if (debugBuild) Log.d("EolssuEcho", "calibration=accepted clips=${clips.size} frames=${captured.frames} similarity=${result.model.minimumSimilarity}")
-                }
-                is EchoCalibrationResult.Rejected -> if (session === next && !next.cancelled) {
-                    echoState.value = result.reason
-                    if (debugBuild) Log.d("EolssuEcho", "calibration=rejected reason=${result.reason} diagnostic=${result.diagnostic}")
                 }
             }
+            while (!next.recordingStarted.isDone) {
+                currentCoroutineContext().ensureActive()
+                check(!next.cancelled && !next.failed && !next.closed && !output.interrupted)
+                check(output.isCountInActive(scheduled)) { "Scheduled playback was cancelled" }
+                check(System.nanoTime() < recordNanos + 2_000_000_000L) { "Scheduled capture did not start" }
+                val now = System.nanoTime()
+                val cycle = scheduled.cycleStartFrames.indexOfLast {
+                    now >= scheduled.frameZeroNanos + it * 1_000_000_000L / RATE
+                }
+                if (cycle >= 0 && count != 3 - cycle) {
+                    count = 3 - cycle
+                    val completed = scheduled.preparationEvents.count {
+                        now >= scheduled.frameZeroNanos + it.frame * 1_000_000_000L / RATE
+                    }
+                    progress(EchoCalibrationProgress(completed, scheduled.preparationEvents.size, count))
+                    if (debugBuild) Log.d("EolssuEcho", "calibration=countIn number=$count frame=${scheduled.cycleStartFrames[cycle]} recordingFrame=${scheduled.recordingStartFrame}")
+                }
+                if (next.calibrationAllowed &&
+                    (!sameOutput(baseline, output.outputSnapshot()) || next.inputDeviceId != initialInput.deviceId)) {
+                    next.rejectCalibration(RecordingEchoStatus.Changed)
+                }
+                startFitIfReady()
+                delay(5)
+            }
+            next.await(next.recordingStarted)
+            startFitIfReady()
+            if (!fitting && geometry != null && next.calibrationAllowed) next.rejectCalibration(RecordingEchoStatus.Unreliable)
+            currentCoroutineContext().ensureActive()
+            check(!next.cancelled && !next.failed && !output.interrupted)
+            check(output.isCountInActive(scheduled))
+            prepared = true
         } catch (cancelled: CancellationException) {
             if (session === preparing) echoState.value = RecordingEchoStatus.Off
             throw cancelled
@@ -177,11 +191,14 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             if (preparing == null || session === preparing) echoState.value = RecordingEchoStatus.Unavailable
             if (debugBuild) Log.d("EolssuEcho", "calibration=unavailable", failure)
         } finally {
-            if (!accepted) output.retainCalibrationClock(false)
-            output.stop()
-            if (!accepted) preparing?.cancelled = true
+            if (!prepared) {
+                preparing?.cancelled = true
+                preparing?.clearEcho()
+                output.retainCalibrationClock(false)
+                output.stop()
+            }
         }
-        accepted
+        prepared
     }
 
     override fun discardEchoCalibration() {
@@ -198,8 +215,8 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
     override val interrupted: Boolean get() = session?.failed == true
 
     override fun start() {
-        session?.takeIf { it.warming && !it.cancelled && it.echo != null }?.let {
-            it.command(Action.BeginRecording)
+        session?.takeIf { it.armedStartNanos != null && !it.cancelled && !it.failed && !it.closed }?.let {
+            it.await(it.recordingStarted)
             return
         }
         echoState.value = RecordingEchoStatus.Off
@@ -230,19 +247,26 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
     }
     override fun level(): Float = session?.level ?: 0f
 
-    private enum class Action { BeginRecording, Pause, Resume, Stop }
-    private data class Command(val action: Action, val result: CompletableFuture<Unit>)
+    private enum class Action { ArmRecording, Pause, Resume, Stop }
+    private data class Command(val action: Action, val result: CompletableFuture<Unit>, val startNanos: Long? = null)
     private data class Window(val samples: FloatArray, val reading: PitchReading)
 
     private inner class Session(val id: Long, private val previous: Session?, @Volatile var warming: Boolean = false) {
         val file = File(directory, "practice-$id-${System.currentTimeMillis()}.m4a")
         val ready = CompletableFuture<Unit>()
+        val recordingStarted = CompletableFuture<Unit>()
         val result = CompletableFuture<RecordedAudio?>()
         val done = CountDownLatch(1)
         @Volatile var cancelled = false
         @Volatile var failed = false
         @Volatile var closed = false
         @Volatile var echo: PreparedEcho? = null
+        @Volatile var referencePlayer: AndroidJangdanSamplePlayer? = null
+        @Volatile var armedStartNanos: Long? = null
+        @Volatile var retainProbe = true
+        @Volatile var calibrationAllowed = true
+            private set
+        private var calibrationJob: Job? = null
         val probe = EchoCaptureProbe()
         @Volatile var level = 0f
         @Volatile var boundary = CaptureBoundary(id, 0, 0, RATE, System.nanoTime(), false)
@@ -258,11 +282,15 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
         private var segmentNanos = 0L
         private var physicalFrames = 0L
         private var segmentPhysicalStart = 0L
-        private var physicalZeroNanos = 0L
+        @Volatile var physicalZeroNanos = 0L
+            private set
+        @Volatile var inputDeviceId: Int? = null
+            private set
         private var lastTimestampNanos = 0L
         private var correctedBlocks = 0L
         private var examinedBlocks = 0L
-        private var timestampValid = false
+        @Volatile var timestampValid = false
+            private set
         private var fill = 0
         private val rolling = FloatArray(WINDOW + HOP)
         val worker = Thread({ capture() }, "practice-recording-$id")
@@ -272,11 +300,32 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             future.get(4, TimeUnit.SECONDS)
         } catch (e: Exception) { cancelled = true; throw e }
 
-        fun command(action: Action) {
+        fun command(action: Action, startNanos: Long? = null) {
             check(!cancelled && !result.isDone) { "Recording is closed" }
             val response = CompletableFuture<Unit>()
-            check(commands.offer(Command(action, response)))
+            check(commands.offer(Command(action, response, startNanos)))
             await(response)
+        }
+
+        fun fitCalibration(fit: suspend () -> Unit) = synchronized(stateLock) {
+            if (calibrationAllowed && !cancelled && !closed && session === this) {
+                calibrationJob = CoroutineScope(Dispatchers.Default).launch {
+                    try { fit() }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (failure: Exception) {
+                        rejectCalibration(RecordingEchoStatus.Unavailable)
+                        if (debugBuild) Log.d("EolssuEcho", "calibration=fitUnavailable", failure)
+                    }
+                }
+            }
+        }
+
+        fun rejectCalibration(reason: RecordingEchoStatus) = synchronized(stateLock) {
+            calibrationAllowed = false
+            retainProbe = false
+            probe.clearSamples()
+            echo = null
+            if (session === this && !cancelled && !closed) echoState.value = reason
         }
 
         private fun newSegment(input: AudioRecord) {
@@ -325,17 +374,14 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                     if (command != null) {
                         try {
                             when (command.action) {
-                                Action.BeginRecording -> {
+                                Action.ArmRecording -> {
                                     check(warming && !paused)
+                                    check(writer == null && timestampValid)
+                                    val start = checkNotNull(command.startNanos)
+                                    check(start > System.nanoTime()) { "Recording boundary already passed" }
                                     writer = AndroidAacWriter(file, RATE)
-                                    warming = false
-                                    segment++
-                                    segmentStart = fileSamples
-                                    segmentPhysicalStart = physicalFrames
-                                    segmentNanos = physicalZeroNanos + physicalFrames * 1_000_000_000L / RATE
-                                    boundary = CaptureBoundary(id, segment, segmentStart, RATE, segmentNanos, timestampValid)
-                                    echoState.value = if (echo != null) RecordingEchoStatus.Active else RecordingEchoStatus.Off
-                                    analysis.start()
+                                    check(start > System.nanoTime()) { "Encoder was not ready before the recording boundary" }
+                                    armedStartNanos = start
                                 }
                                 Action.Pause -> if (!paused) {
                                     invalidateEcho()
@@ -355,9 +401,10 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                         continue
                     }
                     if (paused) continue
-                    val count = input.read(pcm, 0, pcm.size, AudioRecord.READ_BLOCKING)
+                    var count = input.read(pcm, 0, pcm.size, AudioRecord.READ_BLOCKING)
                     check(count > 0) { "Microphone read failed: $count" }
                     if (cancelled) break
+                    inputDeviceId = input.routedDevice?.id
                     if (input.getTimestamp(timestamp, AudioTimestamp.TIMEBASE_MONOTONIC) == AudioRecord.SUCCESS) {
                         if (captureTimestampAligned(timestamp.framePosition, physicalFrames + count, input.bufferSizeInFrames)) {
                             physicalZeroNanos = timestamp.nanoTime - timestamp.framePosition * 1_000_000_000 / RATE
@@ -372,10 +419,31 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                         }
                     }
                     if (warming) {
-                        probe.append(pcm, count, timestampValid.takeIf { it }?.let { physicalZeroNanos }, input.routedDevice,
-                            retain = echo == null)
-                        physicalFrames += count
-                        continue
+                        val planned = armedStartNanos?.let { inputFrameAtNanos(it, physicalZeroNanos) }
+                        val prefix = planned?.let { preparationPrefixFrames(physicalFrames, count, it.coerceAtLeast(0)) } ?: count
+                        if (prefix > 0) {
+                            probe.append(pcm, prefix, timestampValid.takeIf { it }?.let { physicalZeroNanos }, input.routedDevice,
+                                retain = retainProbe)
+                            physicalFrames += prefix
+                        }
+                        if (prefix == count) continue
+                        check(planned != null && writer != null)
+                        // This exact sample is the first sample of the submitted take. The input
+                        // stream is never stopped or re-created between preparation and performance.
+                        segment++
+                        segmentStart = fileSamples
+                        segmentPhysicalStart = physicalFrames
+                        segmentNanos = physicalZeroNanos + physicalFrames * 1_000_000_000L / RATE
+                        boundary = CaptureBoundary(id, segment, segmentStart, RATE, segmentNanos, timestampValid)
+                        synchronized(stateLock) {
+                            warming = false
+                            if (echo != null && session === this) echoState.value = RecordingEchoStatus.Active
+                        }
+                        analysis.start()
+                        if (debugBuild) Log.d("EolssuEcho", "recording=scheduled id=$id inputFrame=$physicalFrames targetNanos=$armedStartNanos actualNanos=$segmentNanos prefix=$prefix timestampValid=$timestampValid")
+                        recordingStarted.complete(Unit)
+                        pcm.copyInto(pcm, 0, prefix, count)
+                        count -= prefix
                     }
                     processEcho(pcm, count, input)
                     checkNotNull(writer).write(pcm, count)
@@ -428,22 +496,27 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                     pending.result.completeExceptionally(IllegalStateException("Recording closed"))
                 }
                 ready.completeExceptionally(IllegalStateException("Recording cancelled"))
+                recordingStarted.completeExceptionally(IllegalStateException("Recording closed before its boundary"))
                 result.complete(if (keep && !cancelled && file.length() > 0) RecordedAudio(file.absolutePath, file.length()) else null)
                 done.countDown()
             }
         }
 
         private fun invalidateEcho() {
-            if (echo != null) {
+            synchronized(stateLock) {
+                val wasEnabled = echo != null || (armedStartNanos != null && calibrationAllowed)
                 clearEcho()
-                if (session === this) echoState.value = RecordingEchoStatus.Changed
+                if (wasEnabled && session === this) echoState.value = RecordingEchoStatus.Changed
             }
         }
 
-        fun clearEcho() {
-            val previous = echo
+        fun clearEcho() = synchronized(stateLock) {
+            calibrationAllowed = false
+            calibrationJob?.cancel()
+            calibrationJob = null
             echo = null
-            previous?.player?.retainCalibrationClock(false)
+            referencePlayer?.retainCalibrationClock(false)
+            referencePlayer = null
         }
 
         private fun processEcho(pcm: ShortArray, count: Int, input: AudioRecord) {
