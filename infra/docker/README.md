@@ -38,24 +38,44 @@ sudo docker compose -f "$compose_file" config --quiet &&
     sudo docker compose -f "$compose_file" ps "$service"
 ```
 
-대기·복제 MySQL의 적용과 롤백에는 아래 명령을 한 번 실행한다. 정상 종료에 최대 60초를 주고, 새 컨테이너의 기동·헬스체크에는 별도로 최대 125초를 준다. `old_mysql_id`와 `change_started`는 해당 실행 직전에 기록한다. [Compose 실행 옵션](https://docs.docker.com/reference/cli/docker/compose/up/) · [종료 유예](https://docs.docker.com/reference/compose-file/services/#stop_grace_period)
+대기·복제 MySQL에는 `mysql_action=apply`를 지정하고, 롤백에는 `mysql_action=rollback`을 지정한 뒤 아래 블록을 한 번 실행한다. 조회가 성공해 Compose 서비스 컨테이너가 하나로 확인되고 상태가 `running`일 때 재생성한다. 롤백에서는 `exited`가 확인된 경우도 진행하며, 종료 이벤트 조회를 생략한 이유를 출력한다. 정상 종료에 최대 60초를 주고 새 컨테이너의 기동·헬스체크에는 별도로 최대 125초를 준다. [Compose 실행 옵션](https://docs.docker.com/reference/cli/docker/compose/up/) · [종료 유예](https://docs.docker.com/reference/compose-file/services/#stop_grace_period)
 
 ```sh
-old_mysql_id=$(sudo docker compose -f "$compose_file" ps -q mysql)
-change_started=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)
-sudo docker compose -f "$compose_file" config --quiet &&
-    sudo docker compose -f "$compose_file" up -d --no-deps --pull never --no-build --timeout 60 --wait --wait-timeout 125 mysql
+(
+    old_mysql_id=$(sudo docker compose -f "$compose_file" ps --all --quiet mysql) || exit 1
+    case "$old_mysql_id" in
+        ''|*[!0-9a-f]*)
+            printf '%s\n' 'MySQL 컨테이너 ID를 하나로 확인할 수 없습니다.' >&2
+            exit 1
+            ;;
+    esac
+
+    old_mysql_state=$(sudo docker inspect --type container \
+        --format '{{index .Config.Labels "com.docker.compose.oneoff"}}:{{.State.Status}}' "$old_mysql_id") || exit 1
+    case "${mysql_action-}:$old_mysql_state" in
+        apply:False:running|rollback:False:running|rollback:False:exited) ;;
+        *)
+            printf '%s\n' 'MySQL 작업 유형과 서비스 컨테이너 상태를 확인하세요.' >&2
+            exit 1
+            ;;
+    esac
+
+    sudo docker compose -f "$compose_file" config --quiet || exit 1
+    change_started=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) || exit 1
+    sudo docker compose -f "$compose_file" up -d --no-deps --pull never --no-build --timeout 60 --wait --wait-timeout 125 mysql || exit 1
+
+    if [ "$old_mysql_state" = False:running ]; then
+        change_finished=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) || exit 1
+        sudo docker events --since "$change_started" --until "$change_finished" \
+            --filter type=container --filter "container=$old_mysql_id" --filter event=kill --filter event=die \
+            --format '{{.Action}} signal={{index .Actor.Attributes "signal"}} exit={{index .Actor.Attributes "exitCode"}}'
+    else
+        printf '롤백 시작 전에 MySQL %s의 exited 상태를 확인했습니다.\n' "$old_mysql_id"
+    fi
+)
 ```
 
-MySQL 단계 직후 이전 컨테이너의 종료 이벤트를 확인한다. `die`의 종료 코드가 `0`이고 `kill`의 시그널 `9`가 없으면 정상 종료로 판정한다. 종료 증거가 없거나 강제 종료가 관측되면 다음 단계를 보류한다. 롤백 시작 전에 MySQL이 이미 종료된 경우 그 상태를 기록하고 새 MySQL의 기동과 복제 확인을 진행한다. [Docker 이벤트 조회](https://docs.docker.com/reference/cli/docker/system/events/)
-
-```sh
-if [ -n "$old_mysql_id" ]; then
-    sudo docker events --since "$change_started" --until "$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)" \
-        --filter type=container --filter "container=$old_mysql_id" --filter event=kill --filter event=die \
-        --format '{{.Action}} signal={{index .Actor.Attributes "signal"}} exit={{index .Actor.Attributes "exitCode"}}'
-fi
-```
+MySQL이 실행 중이었다면 `die`의 종료 코드가 `0`이고 `kill`의 시그널 `9`가 없을 때 정상 종료로 판정한다. 종료 증거가 없거나 강제 종료가 관측되면 다음 단계를 보류한다. 롤백에서 `exited`가 확인됐으면 해당 상태를 기록하고 새 MySQL의 기동과 복제 확인을 진행한다. [Docker 이벤트 조회](https://docs.docker.com/reference/cli/docker/system/events/)
 
 대상에 `json-file`과 `max-size=10m`·`max-file=3`가 적용됐는지 `docker inspect`로 확인한다. 같은 이미지와 볼륨·네트워크를 사용하고 다른 컨테이너 ID가 유지됐는지도 대조한다. 대기 웹은 `https://localhost:18443/`, 대기 API는 같은 주소의 `/api/actuator/health/readiness`와 `/api/terms`를 대기계 인증서 `/opt/eolssu-standby-579/tls/localhost.crt`로 확인한다. 세 경로 모두 HTTP 200이어야 하며, 준비 상태의 `status`는 `UP`이어야 한다.
 
