@@ -12,6 +12,10 @@ class MyInfoService(private val repository: MyInfoRepository) {
     fun changeNickname(userId: Long, nickname: String): MyInfo? =
         if (repository.updateNickname(userId, nickname)) repository.findActive(userId) else null
 
+    /** 바꾼 뒤의 내 정보. ACTIVE 회원이 아니면 null. */
+    fun changeProfileImage(userId: Long, profileImage: String): MyInfo? =
+        if (repository.updateProfileImage(userId, profileImage)) repository.findActive(userId) else null
+
     fun changePreferences(userId: Long, instrumentId: Long?, notationMode: String?): PreferencesResult {
         if (instrumentId != null && !repository.activeInstrumentExists(instrumentId)) return PreferencesResult.InactiveInstrument
         if (!repository.updatePreferences(userId, instrumentId, notationMode)) return PreferencesResult.NotFound

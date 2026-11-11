@@ -22,8 +22,8 @@ SCORES = ROOT / "data/src/scores"
 sys.path.insert(0, str(SCORES))
 import score_data  # noqa: E402  data/와 같은 변환을 쓴다(중복 구현하지 않음)
 
-ENGINE, ENGINE_VERSION = "jeongganbo-text", "2"  # 읽기·변환 규칙을 바꾸면 올린다
-CONVERTER = "jeongganbo-text/standard_score_text@2"
+ENGINE, ENGINE_VERSION = "jeongganbo-text", "3"  # 읽기·변환 규칙을 바꾸면 올린다
+CONVERTER = "jeongganbo-text/standard_score_text@3"
 NO_YUL_EXIT, NO_GRID_EXIT = 3, 4  # standard_score_text.py: 율명 글자가 없는 쪽, 정간 격자를 못 읽은 쪽
 # 장단과 각의 정간 수가 맞을 때 나오는 정간당 박. 그 밖이면 고른 장단이 악보와 다를 수 있다(JANGDAN_MISMATCH)
 USUAL_BEATS = {Fraction(1), Fraction(1, 2), Fraction(1, 3)}
@@ -112,11 +112,12 @@ def recognize(job) -> dict:
                            "detail": {"jangdan": request.jangdan, "jeongganPerGak": per_gak}})
         return bpj
 
-    doc, score = lines_to_score(lines, request, request.jangdan, bpj_of, deadline, CONVERTER)
+    doc, score = lines_to_score(lines, request, request.jangdan, bpj_of, deadline, CONVERTER,
+                               continue_explicit_ties=True)
     return {"engine": ENGINE, "engineVersion": ENGINE_VERSION, "jgb": doc, "score": score, "issues": issues}
 
 
-def lines_to_score(lines, request, jangdan_name, bpj_of, deadline, converter):
+def lines_to_score(lines, request, jangdan_name, bpj_of, deadline, converter, *, continue_explicit_ties=False):
     """JG-like 줄 → (.jgb.json 문서, 공통 악보). 글자 층·오선보 경로가 같이 쓴다.
 
     jeongganbo-generator import-ngc-omr.mjs로 문서를 만들고 score_data.convert로 바꾼다. bpj_of(문서)가 정간 하나의 박이다.
@@ -140,7 +141,8 @@ def lines_to_score(lines, request, jangdan_name, bpj_of, deadline, converter):
         score = score_data.convert(
             doc, beats_per_jeonggan=bpj_of(doc), title=request.conversion_id, instrument=request.instrument,
             source_id=request.conversion_id, jangdan=jangdan["name"], bpm_unit=jangdan["bpm_unit"],
-            review="inferred", jgb_sha256=hashlib.sha256(jgb_bytes).hexdigest())
+            review="inferred", jgb_sha256=hashlib.sha256(jgb_bytes).hexdigest(),
+            continue_explicit_ties=continue_explicit_ties)
     except ValueError as e:  # 예: 율명 없는 독립 시김새는 score_data가 아직 받지 않는다
         log.info("convert failed: %s", _clean(str(e)))
         raise

@@ -94,7 +94,8 @@ class PracticeBottomActions(
 /**
  * 연주 중 하단(`.bottombar`, 상태 D·소리 입력 없음·중단): 경과 시간 ‘0:20 / 0:48’ · 마이크 뱃지 · 현재 박 장구 ·
  * 6dp 붉은 진행 막대 · 입력 없음 안내 · ‘처음부터 다시’ + ‘연주 중단’. 중단됨·이어 연주 카운트다운에서는 두 버튼이 회색으로 잠긴다.
- * 연주 평가의 시작 전 대기([PracticeUiState.awaitingStart])는 0:00 · 빈 진행 막대에 ‘처음부터’를 잠그고 ‘연주 중단’ 자리에 ‘평가 시작’을 둔다.
+ * 연주 평가([PracticeUiState.direct])는 ‘처음부터’ 없이 한 버튼만 너비를 채워 둔다. 시작 전 대기([PracticeUiState.awaitingStart])는
+ * 0:00 · 빈 진행 막대에 ‘평가 시작’, 연주 중에는 ‘연주 중단’이다.
  * 박 표시는 진행 막대 위에 두고, 시간·마이크 줄과 박 표시가 진행 막대에 붙지 않게 사이를 띄운다.
  * [stacked]이면 두 버튼을 위아래로 쌓는다(태블릿 가로 상태 패널).
  * 평가 시작 카운트다운([PracticeUiState.preparing])에는 같은 내용을 보이지 않게 그려 높이를 지키고, 가운데에 ‘준비’만 둔다.
@@ -144,17 +145,19 @@ private fun RecordingBarContent(state: PracticeUiState, actions: PracticeBottomA
         }
         if (state.noInputHint) NoInputBanner()
         val locked = state.mode != PracticeMode.Recording
-        if (awaiting) {
-            PairedButtons(
-                stacked,
-                first = { OffButton(stringResource(Res.string.practice_restart), it) },
-                second = { m ->
-                    EolssuButton(
-                        stringResource(Res.string.practice_start_eval_short), actions.onStartEval, m, compact = true, small = true,
-                        icon = EolssuIcons.Mic, enabled = state.recordingSupported,
-                    )
-                },
-            )
+        if (state.direct) {
+            // 연주 평가는 ‘처음부터’ 없이 한 버튼만 둔다(S15P31E102-750). 중단하면 확인 창에서 이 대기 상태로 돌아온다.
+            when {
+                awaiting -> EolssuButton(
+                    stringResource(Res.string.practice_start_eval_short), actions.onStartEval, Modifier.fillMaxWidth(), compact = true, small = true,
+                    icon = EolssuIcons.Mic, enabled = state.recordingSupported,
+                )
+                locked -> OffButton(stringResource(Res.string.practice_abort), Modifier.fillMaxWidth())
+                else -> EolssuButton(
+                    stringResource(Res.string.practice_abort), actions.onAskAbort, Modifier.fillMaxWidth(), compact = true, small = true,
+                    style = EolssuButtonStyle.Danger, icon = EolssuIcons.Stop,
+                )
+            }
         } else if (locked) {
             PairedButtons(stacked, first = { OffButton(stringResource(Res.string.practice_restart), it) }, second = { OffButton(stringResource(Res.string.practice_abort), it) })
         } else {

@@ -196,9 +196,9 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
         runCurrent()
         assertEquals(setOf("태" to 2), model.uiState.value.availablePitches)
         val before = model.uiState.value.draft
-        model.raiseRegister(); model.putYul(Yul.Taeju)
+        model.selectRegister(YulRegister.Cheong); model.putYul(Yul.Taeju)
         assertEquals(before, model.uiState.value.draft, "등록되지 않은 청태는 적지 않는다")
-        model.raiseRegister(); model.putYul(Yul.Taeju)
+        model.selectRegister(YulRegister.JungCheong); model.putYul(Yul.Taeju)
         assertEquals(ScoreNote.SourcePitch("태", 2), model.uiState.value.draft.cells[0].single())
     }
 }

@@ -279,7 +279,6 @@ fun EolssuNavHost(
                     fingeringAudio = { instrument, note, onPlaying -> FingeringBasicAudio(instrument, note, onPlaying) },
                     stepNoteAudio = { instrument -> rememberBasicNotePlayer(instrument) },
                     solo = entry.savedStateHandle.get<Boolean>("solo") ?: false,
-                    showSwitchedNotice = entry.savedStateHandle.get<Boolean>("switched") ?: false,
                     onBack = { navController.popBackStackFrom(entry) },
                     onGoHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
                     // 혼자 연습 위에 평가 화면을 쌓아, 평가 화면에서 뒤로 가면 쓰던 혼자 연습 화면(곡·악기·상태 그대로)으로 돌아온다.
