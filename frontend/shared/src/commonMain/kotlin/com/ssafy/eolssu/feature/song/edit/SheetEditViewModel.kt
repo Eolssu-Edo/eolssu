@@ -370,8 +370,8 @@ class SheetEditViewModel(
     fun put(note: ScoreNote) = change { it.put(note) }
     fun erase() = change { it.erase() }
     fun putYul(base: Yul) = change { it.putYul(base) }
-    fun raiseRegister() = change { it.raiseRegister() }
-    fun lowerRegister() = change { it.lowerRegister() }
+    fun applyPitchCorrection(target: SheetPitchCorrection, pitch: Pair<Yul, Int>) = change { it.applyPitchCorrection(target, pitch) }
+    fun selectRegister(register: YulRegister) = change { it.selectRegister(register) }
     fun toggleSigimsae(value: Sigimsae) = change { it.toggleSigimsae(value) }
     fun removeSigimsae(position: Int) = change { it.removeSigimsae(position) }
     fun split() = change { it.split() }

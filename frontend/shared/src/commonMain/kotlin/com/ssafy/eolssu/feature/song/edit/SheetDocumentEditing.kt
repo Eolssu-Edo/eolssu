@@ -121,6 +121,7 @@ internal fun SheetDraft.toCommonScore(): CommonScoreData {
     val factor = ticks / source.music.ticksPerJeonggan
     require(source.music.ticksPerBeat.toLong() * factor <= Int.MAX_VALUE)
     val events = mutableListOf<CommonScoreData.Event>()
+    var lastSourceEventId: String? = null
     var flatIndex = 0
     val columns = sizes.mapIndexed { c, count ->
         CommonScoreData.Column(c, List(count) { j ->
@@ -133,17 +134,31 @@ internal fun SheetDraft.toCommonScore(): CommonScoreData {
                 val id = "$cellId-r${unit.row}-u${unit.col}"
                 val start = index * ticks + ticks * unit.row / rowGroups.size + ticks * unit.col / rowGroups.size / rowGroups.getValue(unit.row).size
                 val length = ticks / rowGroups.size / rowGroups.getValue(unit.row).size
+                val sourceEvent = byId[unit.eventId]
+                val originalRestStart = sourceEvent?.kind == "REST" &&
+                    unit.eventId == "${old?.id}-r${unit.row}-u${unit.col}"
                 if (unit.symbol.isEmpty() && unit.eventId.isEmpty()) {
                     CommonScoreData.Unit(unit.row, unit.col, "", "") // 입력 중인 빈 자리. 초안에만 저장한다.
+                } else if (unit.symbol in setOf("", "-") && originalRestStart) {
+                    // 기존 JGB는 각 첫 '-'를 별도 쉼 이벤트로 확정하기도 한다. 표시만 보고 소리로 바꾸지 않는다.
+                    events += requireNotNull(sourceEvent).copy(id = id, startTick = start, durationTick = length, cellId = cellId)
+                    lastSourceEventId = sourceEvent.id
+                    CommonScoreData.Unit(unit.row, unit.col, unit.symbol, id)
                 } else if (unit.symbol in setOf("", "-")) {
                     val last = events.lastOrNull()
-                    if (last != null && last.startTick + last.durationTick == start && (last.kind == "REST" || last.cellId.substringBefore('-') == "c$c")) {
+                    // 명시적 지속과 원본에서 같은 이벤트를 가리키는 이음은 각 경계를 넘어도 유지한다.
+                    // 새 각의 입력 중 빈칸을 앞 음에 임의로 붙이지 않는다.
+                    val sourceContinuation = unit.eventId.isNotEmpty() && unit.eventId == lastSourceEventId
+                    if (last != null && last.startTick + last.durationTick == start &&
+                        (last.kind == "REST" || last.cellId.substringBefore('-') == "c$c" ||
+                            (unit.symbol == "-" && unit.eventId.isEmpty()) || sourceContinuation)) {
                         events[events.lastIndex] = last.copy(durationTick = start + length - last.startTick)
                         CommonScoreData.Unit(unit.row, unit.col, unit.symbol, last.id)
                     } else CommonScoreData.Unit(unit.row, unit.col, unit.symbol, "") // 미완성 이음도 초안에는 보존한다.
                 } else {
                     val note = if (unit.symbol == "쉼") null else parseSourcePitch(unit.symbol)
                     val prior = byId[unit.eventId] ?: old?.units?.firstOrNull { it.row == unit.row && it.col == unit.col }?.let { byId[it.eventId] }
+                    lastSourceEventId = prior?.id
                     // 편집 상태는 소박마다 원본 시김새를 모두 담으므로, 바뀐 소박은 그 목록으로 통째로 바꾼다.
                     val slot = NoteSlot(index, sub)
                     val signs = if (sigimsae[slot] != initialSigns[old?.id to sub]) sigimsae[slot].orEmpty().map { it.scoreName } else prior?.sigimsae.orEmpty()

@@ -81,6 +81,7 @@ internal fun SheetCompletionNotice(
         }
         if (validation.hasJangdanMismatch) {
             Text(stringResource(Res.string.sheet_completion_jangdan, jangdanLabel(state.draft.jangdanName)), style = MaterialTheme.typography.bodySmall)
+            SheetJangdanTimingText(state.draft)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 EolssuButton(stringResource(Res.string.sheetedit_cell_jangdan_change), onChangeJangdan, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving)
                 EolssuButton(stringResource(Res.string.sheet_completion_clear_jangdan), onClearJangdan, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving)
