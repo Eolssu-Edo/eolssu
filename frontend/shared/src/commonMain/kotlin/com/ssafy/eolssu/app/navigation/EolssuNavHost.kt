@@ -104,7 +104,8 @@ object EolssuDestination {
     /**
      * [solo]: 평가 없이 혼자 연습. [switched]: 연습 모드에서 평가로 바꿔 들어옴. [mine]: 내 악보 연습(평가 버튼 없음, solo와 함께).
      * [learn]: 기초부터 배우기 8단계의 곡 연습(평가 버튼 없음, 운지법과 함께 보기로 시작, solo와 함께).
-     * [direct]: 곡 정보의 '연주 평가 시작'. 대기 상태 없이 바로 평가를 시작하고, 준비로 돌아갈 일이 생기면 곡 정보로 돌아간다(S15P31E102-705).
+     * [direct]: 대기 상태 없이 바로 평가를 시작하고, 준비로 돌아갈 일이 생기면 들어온 화면으로 돌아간다.
+     * 곡 정보의 '연주 평가 시작'(S15P31E102-705)과 혼자 연습에서 바꾼 평가([switched]와 함께, S15P31E102-739)가 쓴다.
      */
     fun practice(songId: String, solo: Boolean = false, switched: Boolean = false, mine: Boolean = false, title: String? = null, learn: Boolean = false, direct: Boolean = false) =
         "practice/$songId?solo=${solo || mine || learn}&switched=$switched&mine=$mine&learn=$learn&direct=$direct&title=${title.orEmpty().encodeURLParameter()}"
@@ -286,9 +287,10 @@ fun EolssuNavHost(
                     onGoHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
                     // 혼자 연습 위에 평가 화면을 쌓아, 평가 화면에서 뒤로 가면 쓰던 혼자 연습 화면(곡·악기·상태 그대로)으로 돌아온다.
                     // 이 화면이 맨 위일 때만 열어 빠른 연속 누름에 평가 화면이 겹쳐 쌓이지 않게 한다.
+                    // 곡 정보에서 시작한 평가처럼 대기 상태를 두지 않아(direct), 뒤로 가면 '연주 평가' 대기 화면을 거치지 않고 바로 연습으로 간다(S15P31E102-739).
                     onSwitchToEval = {
                         if (navController.currentBackStackEntry?.id == entry.id) {
-                            navController.navigate(EolssuDestination.practice(songId, switched = true))
+                            navController.navigate(EolssuDestination.practice(songId, switched = true, direct = true))
                         }
                     },
                     onEvaluate = { id, bpm, take, song ->
@@ -348,7 +350,7 @@ fun EolssuNavHost(
                             }
                         }
                     },
-                    // 곡 정보에서 바로 시작한 평가면 준비 상태의 연주 평가 화면을 건너 곡 정보로 돌아간다.
+                    // 대기 상태 없이 시작한 평가면 준비 상태의 연주 평가 화면을 건너 들어온 화면(곡 정보 또는 혼자 연습)으로 돌아간다.
                     onBackToPractice = { navController.popBackStackFrom(entry, pastDirectPractice = true) },
                     onExit = { exit ->
                         when (exit) {
@@ -374,8 +376,8 @@ fun EolssuNavHost(
                     onPracticeAgain = { songId ->
                         if (navController.currentBackStackEntry?.id == entry.id) {
                             val previous = navController.previousBackStackEntry
-                            // '다시 하기'는 곡 정보로 돌아가 설정을 보고 다시 '연주 평가 시작'을 누르게 한다(S15P31E102-705).
-                            // 곡 정보에서 바로 시작한 평가가 아니면(일반 연습에서 평가로 바꿈) 지금처럼 그 연주 평가 화면으로 돌아간다.
+                            // '다시 하기'는 평가를 시작한 화면으로 돌아가 다시 '연주 평가 시작'을 누르게 한다.
+                            // 곡 정보에서 시작했으면 곡 정보(S15P31E102-705), 혼자 연습에서 바꿨으면 그 연습 화면(S15P31E102-739)이다.
                             if (previous?.destination?.route == EolssuDestination.PRACTICE &&
                                 previous.savedStateHandle.get<String>("songId") == songId
                             ) {
@@ -602,7 +604,8 @@ private val measuredDestinations = setOf(
 internal fun NavController.popBackStackFrom(entry: NavBackStackEntry, pastDirectPractice: Boolean = false) {
     if (currentBackStackEntry?.id != entry.id) return
     popBackStack()
-    // 곡 정보에서 바로 시작한 연주 평가(direct)는 준비 상태를 보이지 않으므로 그 화면까지 닫아 곡 정보(태블릿 가로는 곡 목록 오른쪽 칸)로 간다.
+    // 대기 상태 없이 시작한 연주 평가(direct)는 준비 상태를 보이지 않으므로 그 화면까지 닫아 들어온 화면으로 간다.
+    // 곡 정보에서 시작했으면 곡 정보(태블릿 가로는 곡 목록 오른쪽 칸), 혼자 연습에서 바꿨으면 그 연습 화면이다.
     val practice = currentBackStackEntry
     if (pastDirectPractice && practice?.destination?.route == EolssuDestination.PRACTICE &&
         practice.savedStateHandle.get<Boolean>("direct") == true

@@ -40,8 +40,9 @@ import org.koin.core.parameter.parametersOf
  * @param learn 기초부터 배우기 8단계의 곡 연습. 혼자 연습과 같되 평가로 넘어가는 버튼이 없고 '운지법과 함께 보기'로 시작한다.
  * @param sheetTitle 내 악보 제목(‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다. 비우면 곡 제목.
  * @param showSwitchedNotice 일반 연습에서 평가로 전환한 진입. 곡 로딩 후 평가를 한 번만 바로 시작한다.
- * @param direct 곡 정보의 '연주 평가 시작'으로 들어온 연주 평가(S15P31E102-705). 곡 로딩 후 바로 평가를 시작하고,
- *   준비 상태로 돌아갈 일(시작 취소·연주 중단·연습 준비로·마이크 거부)이 생기면 [onBack]으로 곡 정보에 돌아간다.
+ * @param direct 대기 상태 없이 들어오자마자 평가를 시작하는 연주 평가. 곡 정보의 '연주 평가 시작'(S15P31E102-705)과
+ *   혼자 연습에서 바꾼 평가([showSwitchedNotice]와 함께, S15P31E102-739)가 쓴다. 준비 상태로 돌아갈 일(시작 취소·연주 중단·
+ *   연습 준비로·마이크 거부)이 생기면 [onBack]으로 들어온 화면(곡 정보 또는 혼자 연습)에 돌아간다.
  * @param onSwitchToEval 연습 모드에서 같은 곡의 평가 연습으로 바꾼다.
  * @param onEvaluate 연주를 마치고 '평가하기'. 저장된 녹음이 있을 때만 연습 화면을 준비 상태로 돌리고 분석 화면으로 간다.
  * @param onConfirmBackChange 떠나기 전에 확인할 때(연주·카운트다운 중) 화면의 뒤로 가기 동작을, 아니면 null을 알린다.
@@ -94,8 +95,10 @@ fun PracticeRoute(
     }
 
     val back = { if (viewModel.onBack()) onBack() }
-    // 곡 정보에서 바로 시작한 평가는 준비 상태를 보이지 않고 곡 정보로 돌아간다.
-    val leaveToSongInfo = {
+    // 확인 창의 '곡 정보로'는 곡 정보에서 바로 시작한 평가에만 쓴다. 혼자 연습에서 바꾼 평가는 기존 문구('연습 준비로'·'홈으로 가기')를 둔다.
+    val toSongInfo = state.direct && !showSwitchedNotice
+    // 대기 상태 없이 시작한 평가는 준비 상태를 보이지 않고 들어온 화면(곡 정보 또는 혼자 연습)으로 돌아간다.
+    val leaveEvaluation = {
         viewModel.stopAll()
         onBack()
     }
@@ -125,7 +128,7 @@ fun PracticeRoute(
                 onSelectUnit = viewModel::selectUnit,
                 onUserScroll = viewModel::stopFollowing,
                 onFollowNow = viewModel::followNow,
-                onCancelCountdown = { if (state.direct && !state.resume) leaveToSongInfo() else viewModel.cancelCountdown() },
+                onCancelCountdown = { if (state.direct && !state.resume) leaveEvaluation() else viewModel.cancelCountdown() },
                 onUserActivity = viewModel::onUserActivity,
                 onRetrySong = viewModel::retryLoadSong,
                 bottom = PracticeBottomActions(
@@ -173,14 +176,14 @@ fun PracticeRoute(
                     onGrantMic = {
                         scope.launch { if (viewModel.requestMicPermission()) viewModel.grantMicAndStart() else viewModel.micDenied() }
                     },
-                    onDenyMic = { if (state.direct) leaveToSongInfo() else viewModel.closePopup() },
+                    onDenyMic = { if (state.direct) leaveEvaluation() else viewModel.closePopup() },
                     onClose = {
                         val denied = state.popup == PracticePopup.PermDenied || state.popup == PracticePopup.PermBlocked
-                        if (state.direct && denied) leaveToSongInfo() else viewModel.closePopup()
+                        if (state.direct && denied) leaveEvaluation() else viewModel.closePopup()
                     },
                     onGoHome = {
                         viewModel.stopAll()
-                        if (state.direct) onBack() else onGoHome()
+                        if (toSongInfo) onBack() else onGoHome()
                     },
                     onResume = viewModel::resumeRecording,
                     onEvaluate = {
@@ -197,11 +200,11 @@ fun PracticeRoute(
                         onBack()
                     },
                     onKeepPlayingAfterExit = viewModel::keepPlayingAfterExit,
-                    onToReady = { if (state.direct) leaveToSongInfo() else viewModel.toReady() },
+                    onToReady = { if (state.direct) leaveEvaluation() else viewModel.toReady() },
                     onOpenMicSettings = {
                         val opened = viewModel.openMicSettings()
                         if (state.direct) {
-                            leaveToSongInfo()
+                            leaveEvaluation()
                         } else {
                             viewModel.closePopup()
                             if (!opened) scope.launch { snackbarHostState.showSnackbar(getString(Res.string.common_coming_soon)) }
@@ -210,6 +213,7 @@ fun PracticeRoute(
                 ),
             ),
             livePitch = livePitch,
+            toSongInfo = toSongInfo,
         )
     }
 }

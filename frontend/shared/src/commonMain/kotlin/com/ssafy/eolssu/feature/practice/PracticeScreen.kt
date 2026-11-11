@@ -91,6 +91,8 @@ fun PracticeScreen(
     snackbarHostState: SnackbarHostState,
     actions: PracticeScreenActions,
     livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
+    /** 확인 창에 '곡 정보로'를 보일지. 곡 정보에서 바로 시작한 평가만 해당한다. */
+    toSongInfo: Boolean = state.direct,
 ) {
     if (state.song == null) {
         PracticeSongLoadScreen(state, actions, snackbarHostState)
@@ -118,7 +120,7 @@ fun PracticeScreen(
         )
     }
     state.popup?.takeUnless { it == PracticePopup.SettingsPaused && state.panel != null }
-        ?.let { PracticeDialog(it, actions.dialog, forStep = state.solo, toSongInfo = state.direct) }
+        ?.let { PracticeDialog(it, actions.dialog, forStep = state.solo, toSongInfo = toSongInfo) }
 }
 
 /** 곡 상세를 거치지 않고 연습으로 들어와도 로딩·404·통신 실패에서 빠져나오고 재시도할 수 있다. */
