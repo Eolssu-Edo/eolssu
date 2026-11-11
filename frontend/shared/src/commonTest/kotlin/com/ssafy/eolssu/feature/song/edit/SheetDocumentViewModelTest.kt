@@ -250,6 +250,48 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
     }
 
+    @Test fun editDuringCloseSaveIsAutoSavedAfterContinuingToEdit() = runTest {
+        val reply = CompletableDeferred<SheetWrite>()
+        val writes = mutableListOf<SheetWorkingCopy>()
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document()
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                assertTrue(draft)
+                writes += copy
+                return if (writes.size == 1) reply.await() else SheetWrite.Saved("1", copy.revision + 1)
+            }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        model.updateDetails("닫기에서 저장한 초안", 60)
+        var closed = false
+        model.closeEditor { closed = true }
+        runCurrent()
+
+        model.selectCell(2)
+        model.erase()
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(1, writes.size)
+
+        reply.complete(SheetWrite.Saved("1", 1))
+        runCurrent()
+        assertFalse(closed)
+        assertTrue(model.uiState.value.closeWarning)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(1, writes.size)
+
+        model.continueEditing()
+        advanceUntilIdle()
+
+        assertEquals(listOf(0, 1), writes.map { it.revision })
+        assertNotEquals(writes[0].score, writes[1].score)
+        assertTrue(model.uiState.value.draft.cells[2].isEmpty())
+        assertFalse(model.uiState.value.closeWarning)
+        assertEquals(SheetSaveStatus.DraftSaved, model.uiState.value.saveStatus)
+    }
+
     @Test fun undoAfterLostAutoSaveAcknowledgementUsesTheServerRevision() = runTest {
         val writes = mutableListOf<SheetWorkingCopy>()
         var stored: SheetWorkingCopy? = null

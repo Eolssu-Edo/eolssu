@@ -188,14 +188,17 @@ class SheetEditViewModel(
             else next
         }
         if (before != _uiState.value.draft && loaded != null && !_uiState.value.saveConflict) {
-            autoSaveJob?.cancel()
-            // 닫기 저장이 진행 중이면 그 작업이 최신 편집본을 확인한다.
-            if (closeJob?.isActive == true) return
-            autoSaveJob = accountScope.launch {
-                delay(1_000)
-                // 대기 중인 저장을 무효화할 수 있게 하되, 시작한 PUT은 응답까지 기다린다.
-                persist(draft = true, announce = false, autoSave = coroutineContext.job)?.join()
-            }
+            scheduleAutoSave()
+        }
+    }
+
+    private fun scheduleAutoSave() {
+        autoSaveJob?.cancel()
+        if (closeJob?.isActive == true || _uiState.value.closeWarning) return
+        autoSaveJob = accountScope.launch {
+            delay(1_000)
+            // 대기 중인 저장을 무효화할 수 있게 하되, 시작한 PUT은 응답까지 기다린다.
+            persist(draft = true, announce = false, autoSave = coroutineContext.job)?.join()
         }
     }
 
@@ -464,7 +467,15 @@ class SheetEditViewModel(
         }
     }
 
-    fun continueEditing() = _uiState.update { it.copy(closeWarning = false) }
+    fun continueEditing() {
+        val state = _uiState.value
+        _uiState.update { it.copy(closeWarning = false) }
+        // 닫기 저장이 처리한 초안은 실패 안내를 유지하고, 그 뒤에 편집한 초안은 자동저장을 재개한다.
+        if (state.closeWarning && loaded != null && !state.saveConflict &&
+            lastFinishedDraftSave?.draft != state.draft && !isDraftPersisted(state.draft)) {
+            scheduleAutoSave()
+        }
+    }
 
     fun discardChangesAndClose(onClose: () -> Unit) {
         if (!accountScope.isActive) return
