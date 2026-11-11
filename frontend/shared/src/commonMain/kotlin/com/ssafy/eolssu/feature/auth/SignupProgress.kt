@@ -1,10 +1,14 @@
 package com.ssafy.eolssu.feature.auth
 
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.auth_reset_step_progress_description
+import eolssu.shared.generated.resources.auth_reset_title
 import eolssu.shared.generated.resources.auth_signup_step_consent
 import eolssu.shared.generated.resources.auth_signup_step_email
 import eolssu.shared.generated.resources.auth_signup_step_password
 import eolssu.shared.generated.resources.auth_signup_step_profile
+import eolssu.shared.generated.resources.auth_signup_step_progress_description
+import eolssu.shared.generated.resources.auth_signup_title
 import org.jetbrains.compose.resources.StringResource
 import kotlin.math.abs
 
@@ -24,12 +28,31 @@ enum class SignupStep(val label: StringResource) {
 }
 
 /**
- * 가입 경로별로 거치는 단계. 화면 이동 그래프(`app/navigation/AuthNavigation`)의 실제 순서와 같다.
+ * 단계 표시를 쓰는 경로별로 거치는 단계. 화면 이동 그래프(`app/navigation/AuthNavigation`)의 실제 순서와 같다.
  * 간편 로그인 가입은 제공자가 이메일을 확인하므로 이메일 인증·비밀번호 단계가 없다.
+ * 비밀번호 찾기(AUTH-10)는 가입과 같은 이메일 인증·비밀번호 화면을 거치므로 같은 단계 표시를 쓴다.
+ * [title]은 상단 바 제목, [progressDescription]은 화면 읽기 문구(번호·전체 수·단계명)다.
  */
-enum class SignupPath(val steps: List<SignupStep>) {
-    Email(listOf(SignupStep.Consent, SignupStep.EmailVerification, SignupStep.Password, SignupStep.Profile)),
-    Social(listOf(SignupStep.Consent, SignupStep.Profile)),
+enum class SignupPath(
+    val steps: List<SignupStep>,
+    val title: StringResource,
+    val progressDescription: StringResource,
+) {
+    Email(
+        listOf(SignupStep.Consent, SignupStep.EmailVerification, SignupStep.Password, SignupStep.Profile),
+        Res.string.auth_signup_title,
+        Res.string.auth_signup_step_progress_description,
+    ),
+    Social(
+        listOf(SignupStep.Consent, SignupStep.Profile),
+        Res.string.auth_signup_title,
+        Res.string.auth_signup_step_progress_description,
+    ),
+    PasswordReset(
+        listOf(SignupStep.EmailVerification, SignupStep.Password),
+        Res.string.auth_reset_title,
+        Res.string.auth_reset_step_progress_description,
+    ),
 }
 
 /** 단계 표시에서 한 단계의 상태. */

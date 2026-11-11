@@ -12,7 +12,7 @@ open class GetWeakSections(private val evaluations: PracticeEvaluations, private
     open fun execute(userId: Long, sessionId: Long, limit: Int): WeakSectionsLookup {
         val row = evaluations.findOwned(sessionId, userId) ?: return WeakSectionsLookup.NotFound
         if (row.status != "DONE") return WeakSectionsLookup.NotReady
-        // 곡 악보가 세션 이후 바뀌면 음표 순번과 정간이 어긋나므로 계산하지 않는다.
+        // 세션의 정확한 판본을 찾을 수 없으면 현재 악보의 음표 순번으로 대체하지 않는다.
         val cells = scores.noteCells(row.songId, row.scoreVersion)?.takeIf { it.size > row.endNoteIdx }
             ?: return WeakSectionsLookup.ScoreChanged
         val notes = evaluations.notes(requireNotNull(row.evaluationId))

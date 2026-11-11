@@ -89,7 +89,6 @@ class PracticeEvaluationMicPermissionTest {
         runCurrent()
         assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
         assertNull(vm.uiState.value.popup)
-        assertFalse(vm.uiState.value.leaveDirect)
         assertEquals(0, recorder.starts)
 
         vm.requestEvaluation()
@@ -98,14 +97,16 @@ class PracticeEvaluationMicPermissionTest {
         assertNull(vm.uiState.value.popup)
     }
 
-    @Test fun deniedInDirectEvaluationReturnsToSongInfo() = micTest(Mic(), direct = true) { vm, mic, _, recorder ->
-        vm.startEvaluationOnEntry()
+    /** 연주 평가에서 기기 권한을 거부하면 들어온 화면으로 돌아가지 않고 평가 대기 상태에 남는다(S15P31E102-747). */
+    @Test fun deniedInDirectEvaluationStaysInWaitingState() = micTest(Mic(), direct = true) { vm, mic, _, recorder ->
+        vm.requestEvaluation()
         runCurrent()
         assertEquals(1, mic.requests)
         mic.answer(false)
         runCurrent()
-        assertTrue(vm.uiState.value.leaveDirect)
+        assertTrue(vm.uiState.value.awaitingStart)
         assertNull(vm.uiState.value.popup)
+        assertFalse(vm.leavesDirectOnReturn())
         assertEquals(0, recorder.starts)
     }
 

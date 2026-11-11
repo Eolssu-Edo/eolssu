@@ -173,7 +173,7 @@ class PracticeRecordApiDatabaseTests {
             json.readTree(
                 """{"sessionId":"991346","songId":"1","title":"아리랑","isFullSong":true,"startColumnIdx":null,"endColumnIdx":null,
                    "recordingDurationMs":2876,"bpm":96,"bpmUnit":"DOTTED_QUARTER","totalScore":90,"startNoteIdx":0,"endNoteIdx":60,
-                   "startedAt":"2026-11-01T10:00:00Z","recordingAvailable":false,"memo":null,"isNew":false}""",
+                   "startedAt":"2026-11-01T10:00:00Z","recordingAvailable":false,"memo":null,"isNew":false,"scoreVersion":2}""",
             ),
             newest.path("items").path(0),
         )
@@ -181,7 +181,7 @@ class PracticeRecordApiDatabaseTests {
             json.readTree(
                 """{"sessionId":"991342","songId":"1","title":"아리랑","isFullSong":false,"startColumnIdx":0,"endColumnIdx":1,
                    "recordingDurationMs":2876,"bpm":96,"bpmUnit":"DOTTED_QUARTER","totalScore":77,"startNoteIdx":16,"endNoteIdx":19,
-                   "startedAt":"2026-11-01T10:00:00Z","recordingAvailable":true,"memo":null,"isNew":true}""",
+                   "startedAt":"2026-11-01T10:00:00Z","recordingAvailable":true,"memo":null,"isNew":true,"scoreVersion":1}""",
             ),
             newest.path("items").path(1),
         )
