@@ -5,10 +5,9 @@ import kotlin.test.assertEquals
 
 class CompareDeltaLabelTest {
     @Test
-    fun deltaLabelShowsSignAndExclamationOnlyWhenScoreRose() {
-        assertEquals("+40점!", compareDeltaLabel(40))
-        assertEquals("+1점!", compareDeltaLabel(1))
-        assertEquals("−10점", compareDeltaLabel(-10))
-        assertEquals("0점", compareDeltaLabel(0))
+    fun metricDeltaLabelShowsSignOrZero() {
+        assertEquals("+12", metricDeltaLabel(12))
+        assertEquals("−4", metricDeltaLabel(-4))
+        assertEquals("0", metricDeltaLabel(0))
     }
 }

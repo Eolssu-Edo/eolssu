@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.history.component
 
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+
 import com.ssafy.eolssu.core.ui.score.ReadingScoreFormat
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import androidx.compose.foundation.layout.Arrangement
@@ -48,7 +52,7 @@ internal fun stripSlots(width: Dp, metrics: JeongganboMetrics): Int =
 
 /**
  * 너비에 맞춰 여러 줄로 접은 정간보(`Tab-RecordDetail-Port`). 줄마다 오른쪽 각부터 읽고, 다음 줄은 아래에서 다시 오른쪽부터 잇는다.
- * [follow]이면 현재 음이 든 줄이 다 보이지 않을 때 그 줄로 세로 스크롤한다.
+ * [follow]이면 현재 음이 든 줄이 다 보이지 않을 때 그 줄로 세로 스크롤한다. 사용자가 끌면 [onUserScroll]을 부른다.
  */
 @Composable
 internal fun WrappedJeongganbo(
@@ -61,7 +65,9 @@ internal fun WrappedJeongganbo(
     modifier: Modifier = Modifier,
     errorKinds: Map<Pair<Int, Int>, List<ScoreErrorKind>> = emptyMap(),
     unitErrors: Map<ScoreUnitKey, List<ScoreErrorKind>> = emptyMap(),
+    onUserScroll: () -> Unit = {},
 ) {
+    val latestOnUserScroll by rememberUpdatedState(onUserScroll)
     BoxWithConstraints(modifier) {
         val slots = stripSlots(maxWidth, format.metrics.forFontScale(LocalDensity.current.fontScale))
         val rows = remember(song, slots) {
@@ -69,6 +75,9 @@ internal fun WrappedJeongganbo(
             wrapColumns(song.score.columns.indices.map { strips[it] ?: 1 }, slots)
         }
         val listState = rememberLazyListState()
+        LaunchedEffect(listState) {
+            listState.interactionSource.interactions.collect { if (it is DragInteraction.Start) latestOnUserScroll() }
+        }
         val column = currentIndex?.let { song.timeline.getOrNull(it)?.column }
         val currentRow = column?.let { c -> rows.indexOfFirst { c in it } } ?: -1
         LaunchedEffect(currentRow, follow, rows) {

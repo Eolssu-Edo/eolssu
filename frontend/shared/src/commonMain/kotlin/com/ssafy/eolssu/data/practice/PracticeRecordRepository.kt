@@ -21,8 +21,8 @@ interface PracticeRecordRepository {
     /** 최신순 기록. */
     val records: StateFlow<List<PracticeRecord>>
 
-    /** 평가 결과를 전체 연주 기록으로 저장한다. 같은 결과는 한 번만 저장된다. */
-    suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord
+    /** 평가 결과를 [memo]와 함께 전체 연주 기록으로 저장한다(REC-01 한 번). 같은 결과는 한 번만 저장된다. */
+    suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String = ""): PracticeRecord
 
     suspend fun updateMemo(recordId: String, memo: String)
 
@@ -70,7 +70,7 @@ class SamplePracticeRecordRepository : PracticeRecordRepository {
     private val _records = MutableStateFlow(SampleRecords)
     override val records: StateFlow<List<PracticeRecord>> = _records.asStateFlow()
 
-    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord {
+    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String): PracticeRecord {
         val id = "record-${result.id}"
         _records.value.firstOrNull { it.id == id }?.let { return it }
         val record = PracticeRecord(
@@ -84,7 +84,7 @@ class SamplePracticeRecordRepository : PracticeRecordRepository {
             bpm = result.bpm,
             score = result.total,
             metrics = result.metrics,
-            memo = "",
+            memo = memo,
             errors = result.errors,
             eventErrors = result.eventErrors,
         )

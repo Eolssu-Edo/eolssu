@@ -7,29 +7,26 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 /**
- * COMPARE-01 이전 연주와 비교 연결. 기록과 서버 비교(EVA-04)로 그리고, 녹음은 아직 재생하지 않는다.
+ * COMPARE-01 이전 연주와 비교 연결. 기록과 서버 비교(EVA-04)로 그린다.
  *
- * @param onPractice ‘틀린 구간 연습하기’ → PRACTICE-02 취약 구간 선택. 이 기록 ID를 넘긴다.
+ * @param previousId 이전 연주 결과의 기록 고르기 시트에서 고른 기록. null이면 바로 전 기록과 견준다.
  */
 @Composable
 fun CompareRoute(
     recordId: String,
+    previousId: String?,
     onBack: () -> Unit,
-    onPractice: (recordId: String) -> Unit,
-    viewModel: CompareViewModel = koinViewModel(key = "compare-$recordId") { parametersOf(recordId) },
+    viewModel: CompareViewModel = koinViewModel(key = "compare-$recordId-${previousId.orEmpty()}") { parametersOf(recordId, previousId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     CompareScreen(
         state = state,
         actions = CompareActions(
             onBack = onBack,
-            onSelect = viewModel::select,
-            onTogglePlay = viewModel::togglePlay,
             onOpenPicker = viewModel::openPicker,
             onClosePicker = viewModel::closePicker,
-            onPickDay = viewModel::pickDay,
             onPickRecord = viewModel::pickRecord,
-            onPractice = { onPractice(recordId) },
+            onToggleMetrics = viewModel::toggleMetrics,
         ),
     )
 }
