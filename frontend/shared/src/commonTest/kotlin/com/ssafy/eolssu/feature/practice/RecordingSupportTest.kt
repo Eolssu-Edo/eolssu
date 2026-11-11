@@ -79,7 +79,8 @@ class RecordingSupportTest {
             settings.grantMic()
             vm.requestEvaluation()
             assertTrue(vm.uiState.value.recordingSupported)
-            assertEquals(PracticePopup.Permission, vm.uiState.value.popup)
+            runCurrent()
+            assertNull(vm.uiState.value.popup) // 서비스 안내 창 없이 기기 권한만 묻고, 다시 물을 수 있는 거부는 안내 창을 띄우지 않는다.
             assertFalse(vm.requestMicPermission())
             advanceTimeBy(4000)
             runCurrent()
