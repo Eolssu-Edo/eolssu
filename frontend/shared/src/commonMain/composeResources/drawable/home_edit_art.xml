@@ -1,14 +1,12 @@
-<!-- Decorative add/edit sheet motif (sheet, pencil, plus badge) in the Main board style; not a real score. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="144dp" android:height="88dp" android:viewportWidth="144" android:viewportHeight="88">
-    <group android:rotation="-8" android:pivotX="58" android:pivotY="45"><path android:fillColor="#E9EDEB" android:pathData="M38,16 H84 Q88,16 88,20 V74 Q88,78 84,78 H38 Q34,78 34,74 V20 Q34,16 38,16Z" /></group>
-    <path android:fillColor="#FFFFFF" android:strokeColor="#9EAAA4" android:strokeWidth="1" android:pathData="M50,8 H100 Q103,8 103,11 V71 Q103,74 100,74 H50 Q47,74 47,71 V11 Q47,8 50,8Z" />
-    <path android:strokeColor="#D5DDD8" android:strokeWidth="1" android:pathData="M66,8V74 M84,8V74 M47,30H103 M47,52H103" />
-    <group android:rotation="45" android:pivotX="112" android:pivotY="40">
-        <path android:fillColor="#ADBE31" android:pathData="M108,20 H116 V54 H108Z" />
-        <path android:fillColor="#344B40" android:pathData="M108,14 H116 V20 H108Z" />
-        <path android:fillColor="#F2E6CE" android:pathData="M108,54 L112,63 L116,54Z" />
-        <path android:fillColor="#344B40" android:pathData="M110.6,59.8 L112,63 L113.4,59.8Z" />
+<!-- Decorative paper and pencil (S15P31E102-779). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="150dp" android:height="92dp" android:viewportWidth="150" android:viewportHeight="92">
+    <path android:fillColor="#FFFFFF" android:pathData="M50,10 H86 Q96,10 96,20 V72 Q96,82 86,82 H50 Q40,82 40,72 V20 Q40,10 50,10Z" />
+    <path android:strokeColor="#D9D3C6" android:strokeWidth="1.5" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M50,10 H86 Q96,10 96,20 V72 Q96,82 86,82 H50 Q40,82 40,72 V20 Q40,10 50,10Z" />
+    <path android:fillColor="#E8E4DA" android:pathData="M52.25,22 H69.75 Q72,22 72,24.25 V24.25 Q72,26.5 69.75,26.5 H52.25 Q50,26.5 50,24.25 V24.25 Q50,22 52.25,22ZM52.25,33 H81.75 Q84,33 84,35.25 V35.25 Q84,37.5 81.75,37.5 H52.25 Q50,37.5 50,35.25 V35.25 Q50,33 52.25,33ZM52.25,44 H75.75 Q78,44 78,46.25 V46.25 Q78,48.5 75.75,48.5 H52.25 Q50,48.5 50,46.25 V46.25 Q50,44 52.25,44ZM52.25,55 H63.75 Q66,55 66,57.25 V57.25 Q66,59.5 63.75,59.5 H52.25 Q50,59.5 50,57.25 V57.25 Q50,55 52.25,55Z" />
+    <group android:rotation="40" android:pivotX="96" android:pivotY="52">
+    <path android:fillColor="#ADBE31" android:pathData="M92,18 H100 Q102,18 102,20 V60 Q102,62 100,62 H92 Q90,62 90,60 V20 Q90,18 92,18Z" />
+    <path android:fillColor="#CED883" android:pathData="M92,18 H100 Q102,18 102,20 V23 Q102,25 100,25 H92 Q90,25 90,23 V20 Q90,18 92,18Z" />
+    <path android:fillColor="#F1D9A8" android:pathData="M90,62 H102 L96,75Z" />
+    <path android:fillColor="#2E3E32" android:pathData="M94,71 H98 L96,75Z" />
     </group>
-    <path android:fillColor="#344B40" android:pathData="M127,65 A14,14 0,1 1,99,65 A14,14 0,1 1,127,65" />
-    <path android:strokeColor="#FFFFFF" android:strokeWidth="2.5" android:strokeLineCap="round" android:pathData="M113,58V72 M106,65H120" />
 </vector>

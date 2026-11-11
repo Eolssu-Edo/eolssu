@@ -39,8 +39,8 @@ import eolssu.shared.generated.resources.home_edit_art
 import eolssu.shared.generated.resources.home_fingering_art
 import eolssu.shared.generated.resources.home_records_art
 import eolssu.shared.generated.resources.home_score_art
-import eolssu.shared.generated.resources.home_song_art
 import eolssu.shared.generated.resources.home_tiger
+import eolssu.shared.generated.resources.tiger_play
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -109,8 +109,8 @@ private fun FeatureTile(feature: HomeFeature, onClick: () -> Unit, boxMinHeight:
             modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp).fillMaxWidth(),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.titleSmall.copy(
-                fontSize = if (large) 15.sp else 13.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = if (large) 17.sp else 15.sp,
+                fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.4).sp,
             ),
             color = EolssuTheme.colors.cardInk,
@@ -121,7 +121,7 @@ private fun FeatureTile(feature: HomeFeature, onClick: () -> Unit, boxMinHeight:
 
 private val HomeFeature.illustration: DrawableResource
     get() = when (this) {
-        HomeFeature.SongSelect -> Res.drawable.home_song_art
+        HomeFeature.SongSelect -> Res.drawable.tiger_play
         HomeFeature.Records -> Res.drawable.home_records_art
         HomeFeature.Reading -> Res.drawable.home_score_art
         HomeFeature.Fingering -> Res.drawable.home_fingering_art
