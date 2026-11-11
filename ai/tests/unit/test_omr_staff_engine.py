@@ -48,6 +48,10 @@ GUTGEORI = (b'<?xml version="1.0"?><score-partwise><part id="P1"><measure><attri
             b'<time><beats>12</beats><beat-type>8</beat-type></time></attributes>'
             + b"".join(b"<note><pitch><step>%s</step><octave>4</octave></pitch><duration>3</duration><voice>1</voice></note>"
                        % s for s in [b"E", b"G", b"A", b"G"]) + b"</measure></part></score-partwise>")
+FOUR_QUARTERS = (b'<?xml version="1.0"?><score-partwise><part id="P1"><measure><attributes><divisions>1</divisions>'
+                 b'<time><beats>4</beats><beat-type>4</beat-type></time></attributes>'
+                 + b"".join(b"<note><pitch><step>%s</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice></note>"
+                            % s for s in [b"E", b"G", b"A", b"G"]) + b"</measure></part></score-partwise>")
 
 
 def page_png(mode):
@@ -61,8 +65,9 @@ def page_png(mode):
 def fake_audiveris(tmp_path, monkeypatch):
     script = tmp_path / "audiveris.py"
     (tmp_path / "gutgeori.musicxml").write_bytes(GUTGEORI)
+    (tmp_path / "four-quarters.musicxml").write_bytes(FOUR_QUARTERS)
     fixtures = {"score": str(FIXTURES / "danso_onara.audiveris.mxl"), "s44": str(FIXTURES / "danso_bukcheon.audiveris.mxl"),
-                "s128": str(tmp_path / "gutgeori.musicxml")}
+                "s128": str(tmp_path / "gutgeori.musicxml"), "quarters": str(tmp_path / "four-quarters.musicxml")}
     script.write_text(FAKE.format(fixtures=fixtures), encoding="utf-8")
     monkeypatch.setattr(staff_engine, "AUDIVERIS_LOGS", tmp_path / "audiveris-logs")  # 개발 PC의 로그를 지우지 않게
     monkeypatch.setattr(staff_engine, "AUDIVERIS", [sys.executable, str(script)])
@@ -104,6 +109,19 @@ def test_requested_jangdan_wins_and_mismatch_is_flagged(fake_audiveris):
     assert out["status"] == "DONE" and out["score"]["music"]["jangdan"] == "세마치"
     assert {"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
             "detail": {"jangdan": "세마치", "jeongganPerGak": 4}} in out["notices"]
+
+
+@needs_generator
+def test_four_quarter_staff_measure_matches_danmori_without_stretching(fake_audiveris):
+    out = post("quarters", jangdan="단모리").json()
+    assert out["status"] == "DONE"
+    score = out["score"]
+    ticks = score["music"]["ticksPerBeat"]
+    assert score["music"]["ticksPerJeonggan"] == ticks
+    assert [(e["startTick"] / ticks, e["durationTick"] / ticks) for e in score["events"]] == [
+        (0, 1), (1, 1), (2, 1), (3, 1),
+    ]
+    assert not any(n["kind"] == "JANGDAN_MISMATCH" for n in out["notices"])
 
 
 @needs_generator

@@ -9,6 +9,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.ui.component.PlaybackLoadingOverlay
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.feature.history.*
@@ -25,16 +29,23 @@ internal fun RecordDetailPane(state: RecordDetailUiState, actions: RecordDetailA
             return@Box
         }
         RecordDeleteConfirmation(state, actions)
+        RecordComparePick(state, actions)
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(Res.string.record_result_title), style = MaterialTheme.typography.titleMedium)
-                    recordResultSubtitle(state)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = EolssuTheme.colors.textMuted) }
-                }
+                Text(
+                    recordTitleLine(state).orEmpty(),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 RecordDeleteButton(state.delete == RecordDeleteState.Deleting, actions.onAskDelete)
             }
-            RecordResultContent(state, actions, wrapped = false, modifier = Modifier.weight(1f).fillMaxWidth())
-            if (state.song != null) PlaybackBarContent(state, actions, gap = 8.dp)
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                RecordResultContent(state, actions, wrapped = false, modifier = Modifier.fillMaxSize())
+                if (state.playbackLoading) PlaybackLoadingOverlay()
+            }
+            PlaybackBarContent(state, actions)
         }
     }
 }

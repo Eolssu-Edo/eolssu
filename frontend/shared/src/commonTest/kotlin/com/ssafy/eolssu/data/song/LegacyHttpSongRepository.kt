@@ -113,7 +113,6 @@ internal fun SongItem.toSong(): Song {
         baseBpm = defaultBpm,
         description = description.orEmpty(),
         evaluable = isScorable,
-        solfege = null,
         score = Score(columns),
     )
 }

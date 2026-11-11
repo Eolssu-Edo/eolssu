@@ -27,7 +27,28 @@ data class PracticeRecord(
     val memo: String,
     val errors: List<ScoreError>,
     val eventErrors: Map<Int, List<ScoreErrorKind>> = emptyMap(),
+    val notes: List<EvaluationNote> = emptyList(),
+    val scoreVersion: Int? = null,
+    val startNoteIndex: Int? = null,
+    val endNoteIndex: Int? = null,
     val recordingAvailable: Boolean = false,
     val isNew: Boolean = false,
     val recordedAtMillis: Long = ((recordedAt.epochDay * 24 + recordedAt.hour - 9) * 60 + recordedAt.minute) * 60_000,
-)
+) {
+    /** 악보가 준비된 경우에만 원본 판정과 구간 표기를 복구한다. */
+    fun withScore(song: Song): PracticeRecord {
+        val mapped = EvaluationResult(id, songId, score, "", metrics, errors, bpm, recordedSeconds,
+            recordedAt, sample = false, scoreVersion = scoreVersion, eventErrors = eventErrors, notes = notes).withScore(song)
+        val pitches = song.timeline.filter { it.noteIndex != null }
+        val first = pitches.firstOrNull { it.noteIndex == startNoteIndex }
+        val last = pitches.firstOrNull { it.noteIndex == endNoteIndex }
+        val loadedSection = if (startNoteIndex != null && endNoteIndex != null && first != null && last != null) {
+            when {
+                first == pitches.first() && last == pitches.last() -> null
+                first.column == last.column -> "${first.column + 1}각"
+                else -> "${first.column + 1}–${last.column + 1}각"
+            }
+        } else section
+        return copy(errors = mapped.errors, eventErrors = mapped.eventErrors, section = loadedSection)
+    }
+}

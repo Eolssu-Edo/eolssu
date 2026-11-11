@@ -44,6 +44,7 @@ import com.ssafy.eolssu.feature.practice.component.PracticeRecordingBar
 import com.ssafy.eolssu.feature.practice.component.PracticePlaybackLoadingOverlay
 import com.ssafy.eolssu.feature.practice.component.PracticeStepPanels
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
+import com.ssafy.eolssu.feature.practice.component.PracticeTitleToggles
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.component.reportUserActivity
 import com.ssafy.eolssu.feature.practice.layout.PracticeExpandedLayout
@@ -72,6 +73,8 @@ class PracticeScreenActions(
     val panel: PracticePanelActions,
     val dialog: PracticeDialogActions,
     val onRetrySong: () -> Unit = {},
+    /** 연주 평가 제목 옆 ‘쉬운 표기’(S15P31E102-716). */
+    val onToggleHangul: () -> Unit = {},
 )
 
 /**
@@ -111,10 +114,11 @@ fun PracticeScreen(
             actions.panel,
             tablet = widthClass != WindowWidthClass.Compact,
             modifier = Modifier.reportUserActivity(actions.onUserActivity),
+            titleToggles = widthClass == WindowWidthClass.Compact && state.showsTitleToggles,
         )
     }
     state.popup?.takeUnless { it == PracticePopup.SettingsPaused && state.panel != null }
-        ?.let { PracticeDialog(it, actions.dialog, forStep = state.solo, toSongInfo = state.direct) }
+        ?.let { PracticeDialog(it, actions.dialog, forStep = state.solo, evaluation = state.direct) }
 }
 
 /** 곡 상세를 거치지 않고 연습으로 들어와도 로딩·404·통신 실패에서 빠져나오고 재시도할 수 있다. */
@@ -153,8 +157,8 @@ private fun PracticeCompactLayout(
     actions: PracticeScreenActions,
     livePitch: Map<ScoreUnitKey, LivePitchMark>,
 ) {
-    val recordingBar = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
-    // 곡 정보에서 바로 시작한 평가는 준비 상태의 플레이어·행동 버튼을 두지 않는다(모범 연주 듣기 없이 바로 평가).
+    val recordingBar = state.recordingLayout
+    // 연주 평가는 준비 상태의 플레이어·행동 버튼 없이 하단의 평가 대기 막대(‘평가 시작’)를 둔다.
     val showPlayer = !state.direct && state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)
     val fingering = state.fingeringView
     EolssuScaffold(
@@ -168,7 +172,11 @@ private fun PracticeCompactLayout(
                     .fillMaxSize()
                     .padding(start = 20.dp, end = 20.dp, top = if (fingering || recordingBar) 8.dp else 18.dp, bottom = 12.dp),
             ) {
-                PracticeTitleRow(state, statusAtEnd = true)
+                PracticeTitleRow(
+                    state,
+                    showPill = false,
+                    toggles = if (state.showsTitleToggles) PracticeTitleToggles(actions.panel.onToggleFingeringView, actions.onToggleHangul) else null,
+                )
                 Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
                 if (fingering) {
                     PracticeFingeringPage(state, actions.onSelectUnit, modifier = Modifier.weight(1f))

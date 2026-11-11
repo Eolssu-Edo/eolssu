@@ -42,7 +42,7 @@ class CommonScorePlaybackFixtureTest {
         val millisPerTick = 60_000.0 / bpm / ticksPerBeat
         val data = CommonScoreData.decode(bytes.toString(Charsets.UTF_8))
         val song = Song("arirang-playback-proof", "아리랑", SongLevel.Intro,
-            Jangdan("세마치", listOf(3, 3, 3), 3, 3), bpm, "", true, null, data.toScore())
+            Jangdan("세마치", listOf(3, 3, 3), 3, 3), bpm, "", true, data.toScore())
 
         assertEquals("DOTTED_QUARTER", music.string("bpmUnit"))
         assertEquals(music.string("bpmUnit"), song.score.timing?.bpmUnit?.name)

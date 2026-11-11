@@ -1,5 +1,18 @@
 # 데이터 수집·정제
 
+## 기존 악보 장단·빠르기 교정 (728)
+
+묶음 생성은 현재 악보·빠르기와 표현 companion SHA가 렌더 당시 manifest와 일치해야 합니다. 표현 파일을 고쳤다면 `--render`로 다시 생성한 뒤 포장합니다. 숫자 폴더 대신 기존 운영 `cases/<악기>-<번호>-p<쪽>/` 형식으로 묶습니다.
+
+[곡별 근거표와 판단](../docs/knowledge/data/common/rhythm-metronome/README.md)을 먼저 확인합니다. `prepare_tempo_corrections.py`는 현재 운영 스냅샷의 정확한 sourceId·판본을 확인하고 장단명·빠르기·근거 있는 박 표기만 수정합니다. 비행기 56·132·133·134번은 제외합니다. 음표·가사·시김새·정간 tick은 유지하며 다음 판본의 모범 음원과 수행 시간표를 만듭니다.
+
+```sh
+python -m data.src.scores.prepare_tempo_corrections --snapshot data/processed/tempo-728/db-baseline.json --decisions data/reference/score-tempo-corrections.json --expressions data/processed/tempo-728/expression-inputs.json --assets PATH_TO_BATCH_ASSETS_JSON --out data/processed/tempo-728/prepared --song-id 54 --render
+python -m data.src.scores.prepare_tempo_corrections --snapshot data/processed/tempo-728/db-baseline.json --decisions data/reference/score-tempo-corrections.json --expressions data/processed/tempo-728/expression-inputs.json --assets PATH_TO_BATCH_ASSETS_JSON --out data/processed/tempo-728/prepared --render --bundle data/processed/tempo-728/release
+```
+
+`expression-inputs.json`은 곡 ID 문자열과 **현재 판본에 대응하는** 표현 companion 경로의 JSON 맵입니다. 이전 판본의 companion을 그대로 재사용하지 않습니다. 자산 맵은 기존 playback의 악기별 CAT ZIP 형식이며 실제 보유 경로로 지정합니다. 필요 라이브러리와 FFmpeg/FFprobe 설정은 기존 playback 안내를 따릅니다. `--render` 없이 준비·검증만 가능하고 `--bundle` 대상은 새 디렉터리여야 합니다. 서버 게시·백업·충돌 검사·복구는 [운영 도구](../infra/catalog/README.md#장단빠르기와-모범-음원-동시-교정-728)를 사용합니다.
+
 등록 장단 미리듣기 M4A를 만들 때는 [원본 출처와 생성 명령](../docs/knowledge/data/jangdan-preview-audio.md)을 참고합니다.
 
 연습 반주의 굿거리 굴림5개와 공통 타격6개는 같은 문서의 [연습용 PCM 생성](../docs/knowledge/data/jangdan-preview-audio.md#연습용-pcm-생성)을 따릅니다. 공식 실제 굴림 원본을 사용하며 생성·길이 검사와 음악적 청음 상태를 구분합니다.
@@ -395,3 +408,14 @@ python -m unittest discover -s data/tests -p 'test_*.py' -v
 합성 WAV·MP3와 임시 악보로 포맷·구간 저장·원본 복사·파일별 라벨 병합·선택 번호·참조 누락·중복·분석창·검수 상태·출력 보호를 검사합니다. 서버 경로도 별도 임시 루트로 시험합니다. 이 회귀 검사는 실제 악기 데이터의 수집·라벨링 검증이나 율명의 음악적 정답 검증을 대신하지 않습니다. 실제 원음을 사용한 결과는 각 악기의 검수 기록을 확인합니다.
 
 sources v2·v3의 펼친 원본 및 출력 바이트 동등성, 프로필 참조·개별 값 우선 적용·명시적 `null`·객체 독립성도 검사합니다. 원본 검증 CLI는 임시 원본으로 기존 목록과 프로필 목록의 성공·파일 누락·크기·해시 오류 처리를 확인합니다.
+
+## 비채점 카탈로그 교정 (699)
+
+`src/scores/repair_scoring.py`는 고정한 운영 snapshot과 동일 원본 JGB를 다시 대조한 뒤 9곡 교정본을 만든다. 기존 파일이 목표와 다르면 덮어쓰지 않는다. 저장소 루트에서 다음을 실행한다. 원본 JGB의 경로는 조사 보고서 `sourcePath`에 있어야 한다.
+
+```powershell
+python -m data.src.scores.repair_scoring --snapshots data/processed/scoring-audit-699 --audit-report data/processed/scoring-audit-699/comparison.json --plan infra/catalog/scoring-plans/repair-699.json --evidence data/processed/scoring-audit-699/repair-evidence.json
+python -m unittest data.tests.test_repair_scoring data.tests.test_rebind_performance
+```
+
+동일 명령에 `--check`를 더하면 생성 파일을 읽기 전용으로 대조한다. `rebind_performance()`는 확인한 이벤트 대응표와 실제 파일 SHA를 받아 기존 음원의 구간별 시간을 새 악보에 연결한다. 다른 길이·일반 음높이·숨표가 바뀌면 재사용을 거절한다. 따라서 104·109는 교정·숨표를 반영한 음원을 별도로 생성했다. 운영 적용과 보류 중인 오나라의 조건은 [실행 기록](../docs/plans/S15P31E102-699.md#2026-11-10-운영-적용-결과), [catalog 명령](../infra/catalog/README.md#교정-9곡의-악보음원-동시-적용-699)에 있다.

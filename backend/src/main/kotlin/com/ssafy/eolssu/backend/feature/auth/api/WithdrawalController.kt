@@ -7,6 +7,7 @@ import com.ssafy.eolssu.backend.feature.auth.application.WithdrawalResult
 import com.ssafy.eolssu.backend.feature.auth.application.WithdrawalService
 import com.ssafy.eolssu.backend.feature.auth.application.SocialAuthService
 import com.ssafy.eolssu.backend.feature.auth.application.SocialAuthFailure
+import com.ssafy.eolssu.backend.feature.auth.domain.SocialProvider
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.Valid
@@ -33,7 +34,7 @@ class WithdrawalController(private val service: WithdrawalService, private val c
         if(hasPassword==hasTicket) return error(ErrorCode.INVALID_REQUEST)
         val result=try {
             if(hasTicket) {
-                val bindings=listOf("kakao","google","naver").mapNotNull{provider->http.cookies?.filter{it.name=="oauth_flow_$provider"}?.singleOrNull()?.value?.let{provider.uppercase() to it}}.toMap()
+                val bindings=SocialProvider.entries.map{it.name.lowercase()}.mapNotNull{provider->http.cookies?.filter{it.name=="oauth_flow_$provider"}?.singleOrNull()?.value?.let{provider.uppercase() to it}}.toMap()
                 social.withdraw(requireNotNull(jwt.subject).toLong(),checkNotNull(request.withdrawalTicket),bindings)
             } else service.withdraw(requireNotNull(jwt.subject).toLong(),checkNotNull(request.currentPassword))
         } catch(failure:SocialAuthFailure){return error(failure.code,failure.details)}

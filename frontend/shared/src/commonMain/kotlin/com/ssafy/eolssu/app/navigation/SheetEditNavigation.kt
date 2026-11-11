@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.app.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
@@ -10,7 +11,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.ssafy.eolssu.feature.song.edit.EditNewRoute
 import com.ssafy.eolssu.feature.song.edit.EditPickRoute
-import com.ssafy.eolssu.feature.song.edit.EditPreviewRoute
 import com.ssafy.eolssu.feature.song.edit.EditSource
 import com.ssafy.eolssu.feature.song.edit.EditView
 import com.ssafy.eolssu.feature.song.edit.HwangPitch
@@ -19,7 +19,6 @@ import com.ssafy.eolssu.feature.song.edit.ImportResultRoute
 import com.ssafy.eolssu.feature.song.edit.SheetImportRoute
 import com.ssafy.eolssu.feature.song.edit.SheetEditRoute
 import com.ssafy.eolssu.feature.song.edit.SheetEditViewModel
-import com.ssafy.eolssu.feature.song.edit.SheetViewRoute
 import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblem
 import com.ssafy.eolssu.data.song.SheetConversionFailure
 import org.koin.compose.viewmodel.koinViewModel
@@ -35,9 +34,7 @@ object SheetEditDestination {
     const val IMPORT = "sheet-edit/import/{kind}?hwang={hwang}&pick={pick}"
     const val IMPORT_RESULT = "sheet-edit/import/{kind}/result?hwang={hwang}"
     const val EDIT = "sheet-edit/edit?from={from}&id={id}&pending={pending}&hwang={hwang}"
-    const val PREVIEW = "sheet-edit/preview"
     const val VIEW = "sheet-edit/view/{id}"
-    const val PRACTICE_AUDIO = "sheet-edit/practice-audio/{id}/{version}"
 
     /** 악보 추가. 내 악보 '다시 불러오기'면 [failure]로 변환 실패 원인을 넘겨 안내 창을 먼저 띄운다. */
     fun new(failure: SheetConversionFailure? = null) = if (failure == null) "sheet-edit/new" else "sheet-edit/new?failure=${failure.name}"
@@ -57,15 +54,13 @@ object SheetEditDestination {
     /** 내 악보 목록의 '편집'(Edit-Mine). */
     fun editMine(sheetId: String) = edit(EditSource.Mine(sheetId))
 
-    fun viewMine(sheetId: String) = "sheet-edit/view/$sheetId"
-    fun practiceAudio(sheetId: String, version: Int) = "sheet-edit/practice-audio/$sheetId/$version"
 }
 
 /**
  * 악보 추가·편집 화면 이동. 내 악보 '악보 추가' → 악보 추가(EDIT-01) →
  * 정간보·오선보: 파일·악기·장단 선택 → 실제 업로드 접수 → 내 악보 목록. 변환 진행·실패는 목록에서 보이고(SHT-10·14), 인식 결과 확인 화면 연결은 후속 작업이다.
  * 기존 예시 결과·복사 편집 경로는 이 접수 흐름에서 사용하지 않는다.
- * 편집기의 '미리보기'(EDIT-04)는 편집 경로에 묶인 같은 ViewModel을 쓴다. 편집 닫기는 내 악보(SONG-03)로 돌아간다.
+ * 편집과 저장은 편집 경로 안에서 처리한다. 편집 닫기는 내 악보(SONG-03)로 돌아간다.
  */
 fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
     composable(
@@ -133,9 +128,8 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
         ),
     ) { entry ->
         SheetEditRoute(
-            viewModel = sheetEditViewModel(navController, entry),
+            viewModel = sheetEditViewModel(entry),
             onClose = { navController.closeEditor(entry) },
-            onPreview = { navController.navigate(SheetEditDestination.PREVIEW) },
             onOpenChecks = { navController.popBackStackFrom(entry) },
         )
     }
@@ -144,36 +138,14 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
         arguments = listOf(navArgument("id") { type = NavType.StringType }),
     ) { entry ->
         val sheetId = entry.savedStateHandle.get<String>("id").orEmpty()
-        fun openFromView(destination: String) {
+        // 이전 버전의 열람 경로도 중간 화면 없이 편집기로 연결한다.
+        LaunchedEffect(sheetId) {
             if (navController.currentBackStackEntry?.id == entry.id) {
-                navController.navigate(destination) { popUpTo(SheetEditDestination.VIEW) { inclusive = true } }
+                navController.navigate(SheetEditDestination.editMine(sheetId)) {
+                    popUpTo(SheetEditDestination.VIEW) { inclusive = true }
+                }
             }
         }
-        SheetViewRoute(
-            sheetId = sheetId,
-            onBack = { navController.popBackStackFrom(entry) },
-            onEdit = { openFromView(SheetEditDestination.editMine(sheetId)) },
-            onPractice = { openFromView(EolssuDestination.practice(sheetId, mine = true)) },
-        )
-    }
-    composable(SheetEditDestination.PREVIEW) { entry ->
-        EditPreviewRoute(
-            viewModel = sheetEditViewModel(navController, entry),
-            onBack = { navController.popBackStackFrom(entry) },
-        )
-    }
-    composable(
-        SheetEditDestination.PRACTICE_AUDIO,
-        arguments = listOf(navArgument("id") { type = NavType.StringType }, navArgument("version") { type = NavType.IntType }),
-    ) { entry ->
-        val source = EditSource.Mine(
-            sheetId = checkNotNull(entry.savedStateHandle.get<String>("id")),
-            practiceVersion = checkNotNull(entry.savedStateHandle.get<Int>("version")),
-        )
-        EditPreviewRoute(
-            viewModel = koinViewModel(viewModelStoreOwner = entry) { parametersOf(source, EditView.Jeongganbo) },
-            onBack = { navController.popBackStackFrom(entry) },
-        )
     }
 }
 
@@ -216,15 +188,11 @@ private fun NavBackStackEntry.editSource(): EditSource {
 }
 
 /**
- * 편집기와 미리보기가 함께 쓰는 ViewModel. 편집 경로([SheetEditDestination.EDIT])에 묶어, 미리보기에서 돌아와도 고친 악보가 남는다.
- * 오선보 가져오기에서 왔으면 오선보 보기로 연다.
+ * 편집 경로([SheetEditDestination.EDIT])에 묶인 ViewModel.
+ * 가져온 파일 종류와 관계없이 정간보 편집기로 연다.
  */
 @Composable
-private fun sheetEditViewModel(navController: NavController, entry: NavBackStackEntry): SheetEditViewModel {
-    val editEntry = remember(entry) {
-        if (entry.destination.route == SheetEditDestination.EDIT) entry else navController.getBackStackEntry(SheetEditDestination.EDIT)
-    }
-    val source = remember(editEntry) { editEntry.editSource() }
-    val startView = if ((source as? EditSource.Import)?.kind == ImportKind.Staff) EditView.Staff else EditView.Jeongganbo
-    return koinViewModel(viewModelStoreOwner = editEntry) { parametersOf(source, startView) }
+private fun sheetEditViewModel(entry: NavBackStackEntry): SheetEditViewModel {
+    val source = remember(entry) { entry.editSource() }
+    return koinViewModel(viewModelStoreOwner = entry) { parametersOf(source, EditView.Jeongganbo) }
 }

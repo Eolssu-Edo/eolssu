@@ -34,6 +34,9 @@ CELLS = {
     "계면가락도드리": ("QUARTER", Fraction(1, 2)),
     "세령산": ("QUARTER", Fraction(3, 2)),
 }
+# The preview CLI keeps its fixed V21 IDs; runtime also accepts the user-approved accompaniment.
+PREVIEW_CATALOG_NAMES = tuple(CELLS)
+CELLS["4박 기본 반주"] = ("QUARTER", Fraction(1))
 SINGLE = {"떵": "덩", "덩": "덩", "쿵": "쿵", "궁": "쿵", "덕": "덕", "따": "덕", "다": "다"}
 
 
@@ -111,7 +114,7 @@ def main():
     args = parser.parse_args()
 
     rows = json.loads(args.reference.read_text(encoding="utf-8"))["rows"]
-    if [row["name"] for row in rows] != list(CELLS):
+    if [row["name"] for row in rows] != list(PREVIEW_CATALOG_NAMES):
         raise ValueError("Catalog row order no longer matches the ten V21 IDs")
     samples = {}
     sources = {}

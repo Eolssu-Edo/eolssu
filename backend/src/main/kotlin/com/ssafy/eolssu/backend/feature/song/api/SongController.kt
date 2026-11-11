@@ -35,9 +35,14 @@ class SongController(private val songs: SongMapper, private val jangdans: Jangda
     }
 
     @GetMapping("/{songId}")
-    fun get(@PathVariable songId: Long): ResponseEntity<*> =
-        songs.findPublished(songId)?.let { ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "곡 상세 조회 성공", item(it))) }
+    fun get(@PathVariable songId: Long, @RequestParam(required = false) scoreVersion: String? = null): ResponseEntity<*> {
+        val revision = scoreVersion?.let {
+            requestedScoreVersion(it) ?: return ResponseEntity.badRequest().body(ErrorResponse.of(ErrorCode.INVALID_REQUEST))
+        }
+        val song = if (revision == null) songs.findPublished(songId) else songs.findPublishedRevision(songId, revision)
+        return song?.let { ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "곡 상세 조회 성공", item(it))) }
             ?: ResponseEntity.status(404).body(ErrorResponse.of(ErrorCode.RESOURCE_NOT_FOUND))
+    }
 
     // 목록은 악보 본문을 싣지 않는다. 악보는 상세·CAT-04에서 곡 단위로 조회한다.
     private fun listItem(song: SongRow) = SongListItem(song.id.toString(), song.instrumentId.toString(), song.title, song.description,

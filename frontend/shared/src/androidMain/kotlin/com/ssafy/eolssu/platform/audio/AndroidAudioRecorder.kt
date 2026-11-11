@@ -10,6 +10,7 @@ import android.media.MediaRecorder
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.CaptureBoundary
 import com.ssafy.eolssu.core.audio.PitchConfirmation
+import com.ssafy.eolssu.core.audio.PitchGate
 import com.ssafy.eolssu.core.audio.PitchReading
 import com.ssafy.eolssu.core.audio.RecordedAudio
 import com.ssafy.eolssu.core.audio.YinPitchEstimator
@@ -35,6 +36,8 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
     private var completed: File? = null
 
     override val pitchReadings = readings.asSharedFlow()
+    override val diagnostics: Boolean get() = debugBuild
+    @Volatile override var pitchGate: PitchGate = PitchGate.Default
     override val captureBoundary: CaptureBoundary?
         get() = session?.let { it.boundary.copy(observedNanos = System.nanoTime(), analysisAvailable = it.analysisAvailable) }
     override val measuresLevel = true
@@ -230,17 +233,18 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             try {
                 while (analyzing && !cancelled) {
                     val window = windows.poll(50, TimeUnit.MILLISECONDS) ?: continue
-                    val estimate = if (window.reading.analysisAvailable) YinPitchEstimator.estimate(window.samples, RATE) else null
+                    val estimate = if (window.reading.analysisAvailable) YinPitchEstimator.estimate(window.samples, RATE, pitchGate) else null
                     val value = confirmation.apply(window.reading.copy(frequencyHz = estimate?.frequencyHz,
                         rawFrequencyHz = estimate?.frequencyHz,
                         normalizedDifference = estimate?.normalizedDifference,
-                        analysisAvailable = window.reading.analysisAvailable && !gap))
+                        analysisAvailable = window.reading.analysisAvailable && !gap,
+                        inputDbfs = if (window.reading.analysisAvailable) YinPitchEstimator.rmsDbfs(window.samples) else null))
                     gap = !readings.tryEmit(value)
                     if (debugBuild && Log.isLoggable("EolssuPitch", Log.DEBUG)) {
                         Log.d("EolssuPitch", "recording=${value.recordingId} segment=${value.segmentId} " +
                             "sequence=${value.sequence} start=${value.startSample} end=${value.endSample} rate=${value.sampleRate} " +
                             "raw=${value.rawFrequencyHz} confirmed=${value.frequencyHz} available=${value.analysisAvailable} " +
-                            "difference=${value.normalizedDifference} captured=${value.capturedEndNanos} " +
+                            "difference=${value.normalizedDifference} dbfs=${value.inputDbfs} captured=${value.capturedEndNanos} " +
                             "observed=${System.nanoTime()} emitted=${!gap}")
                     }
                 }

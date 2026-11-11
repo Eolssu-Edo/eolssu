@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.guide.learn
 
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.data.user.LearnProgressRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -195,7 +196,7 @@ class LearnUiStateTest {
 
     @Test
     fun stageArtCropsAreSquaresInsideTheArtwork() {
-        assertEquals(stages.size, LearnArtCrops.size)
+        assertEquals(LearnProgressRepository.STAGE_COUNT, LearnArtCrops.size, "공개 단계마다 그림이 하나씩이다")
         LearnArtCrops.forEach { crop ->
             assertTrue(crop.left >= 0 && crop.left + crop.size <= LearnArtWidth, "$crop")
             assertTrue(crop.top >= 0 && crop.top + crop.size <= LearnArtHeight, "$crop")

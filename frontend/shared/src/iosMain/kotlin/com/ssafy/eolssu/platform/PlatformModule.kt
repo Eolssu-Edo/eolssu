@@ -3,6 +3,8 @@ package com.ssafy.eolssu.platform
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.FileSheetAudioDeviceStore
+import com.ssafy.eolssu.core.audio.JangdanSampleFiles
+import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordingFiles
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
@@ -17,6 +19,7 @@ import com.ssafy.eolssu.data.user.IosDevOAuthRelay
 import com.ssafy.eolssu.data.user.OAuthRoute
 import com.ssafy.eolssu.platform.audio.IosAudioPlayer
 import com.ssafy.eolssu.platform.audio.IosAudioRecorder
+import com.ssafy.eolssu.platform.audio.IosJangdanSamplePlayer
 import com.ssafy.eolssu.platform.audio.IosRecordingFiles
 import com.ssafy.eolssu.platform.audio.IosSoundPlayer
 import com.ssafy.eolssu.platform.audio.applicationSupportPath
@@ -66,6 +69,12 @@ internal fun iosPlatformModule(): Module = module {
                 .setResourceValue(true, forKey = NSURLIsExcludedFromBackupKey, error = null))
         }
     }
+    // 검수 장단 M4A는 다시 받을 수 있으므로 시스템이 비울 수 있는 Caches에 둔다.
+    single {
+        val caches = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, true).first() as String
+        JangdanSampleFiles(Path(caches, "jangdan-practice-v1"), get(), Dispatchers.IO)
+    }
+    factory<JangdanSamplePlayer> { IosJangdanSamplePlayer(get(), Dispatchers.IO) }
     single<RecordingFiles> { IosRecordingFiles() }
     single<SoundPlayer> { IosSoundPlayer() }
 }

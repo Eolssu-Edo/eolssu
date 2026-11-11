@@ -7,11 +7,14 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.ssafy.eolssu.core.model.SocialProvider
+import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import com.ssafy.eolssu.feature.profile.DataSourcesRoute
+import com.ssafy.eolssu.feature.profile.LegalDocumentRoute
 import com.ssafy.eolssu.feature.profile.MyPageRoute
 import com.ssafy.eolssu.feature.profile.MyPageTarget
 import com.ssafy.eolssu.feature.profile.NicknameEditRoute
 import com.ssafy.eolssu.feature.profile.PasswordChangeRoute
+import com.ssafy.eolssu.feature.profile.ProfileImageRoute
 import com.ssafy.eolssu.feature.profile.SocialLinkRoute
 import com.ssafy.eolssu.feature.profile.WithdrawRoute
 
@@ -19,12 +22,15 @@ import com.ssafy.eolssu.feature.profile.WithdrawRoute
 object ProfileDestination {
     const val MY_PAGE = "my"
     const val NICKNAME = "my/nickname"
+    const val PROFILE_IMAGE = "my/profile-image"
     const val PASSWORD = "my/password"
     const val WITHDRAW = "my/withdraw"
     const val SOURCES = "my/sources"
     const val LINK = "my/link/{provider}"
+    const val LEGAL = "my/legal/{document}"
 
     fun link(provider: SocialProvider) = "my/link/${provider.name}"
+    fun legal(document: PublishedLegalDocument) = "my/legal/${document.name}"
 }
 
 /**
@@ -45,6 +51,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
                 navController.navigate(
                     when (target) {
                         MyPageTarget.Nickname -> ProfileDestination.NICKNAME
+                        MyPageTarget.ProfileImage -> ProfileDestination.PROFILE_IMAGE
                         MyPageTarget.Password -> ProfileDestination.PASSWORD
                         MyPageTarget.Withdraw -> ProfileDestination.WITHDRAW
                         MyPageTarget.Sources -> ProfileDestination.SOURCES
@@ -53,6 +60,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
                 )
             },
             onLink = { navController.navigate(ProfileDestination.link(it)) },
+            onOpenLegal = { navController.navigate(ProfileDestination.legal(it)) },
             onLoggedOut = { toLogin(StartNotice.LoggedOut) },
             onSessionExpired = { toLogin(StartNotice.SessionExpired) },
             startMessage = entry.startNotice(),
@@ -66,6 +74,12 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
             onSaved = { navController.popWithNotice(StartNotice.NicknameChanged) },
         )
     }
+    composable(ProfileDestination.PROFILE_IMAGE) { entry ->
+        ProfileImageRoute(
+            onBack = { navController.popBackStackFrom(entry) },
+            onSaved = { navController.popWithNotice(StartNotice.ProfileImageChanged) },
+        )
+    }
     composable(ProfileDestination.PASSWORD) { entry ->
         PasswordChangeRoute(
             onBack = { navController.popBackStackFrom(entry) },
@@ -74,6 +88,12 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
     }
     composable(ProfileDestination.SOURCES) { entry ->
         DataSourcesRoute(onBack = { navController.popBackStackFrom(entry) })
+    }
+    composable(
+        ProfileDestination.LEGAL,
+        arguments = listOf(navArgument("document") { type = NavType.StringType }),
+    ) { entry ->
+        LegalDocumentRoute(entry.legalDocument(), onBack = { navController.popBackStackFrom(entry) })
     }
     composable(ProfileDestination.WITHDRAW) { entry ->
         WithdrawRoute(
@@ -93,6 +113,9 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
         )
     }
 }
+
+private fun NavBackStackEntry.legalDocument(): PublishedLegalDocument =
+    savedStateHandle.get<String>("document")?.let { name -> PublishedLegalDocument.entries.firstOrNull { it.name == name } } ?: PublishedLegalDocument.Service
 
 private fun NavBackStackEntry.linkProvider(): SocialProvider =
     savedStateHandle.get<String>("provider")?.let { name -> SocialProvider.entries.firstOrNull { it.name == name } } ?: SocialProvider.Kakao

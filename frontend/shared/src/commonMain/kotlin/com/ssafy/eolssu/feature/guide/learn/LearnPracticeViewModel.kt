@@ -112,6 +112,12 @@ class LearnPracticeViewModel(
         _uiState.update { it.reset() }
     }
 
+    /** 할 일 박스 체크를 풀어 [noteIndex]번째 음부터 다시 낸다(S15P31E102-749). 듣는 중이면 이어 듣는다. */
+    fun rewindTo(noteIndex: Int) {
+        tracker?.rewind(noteIndex)
+        _uiState.update { it.rewindTo(noteIndex) }
+    }
+
     /** 거부 안내의 '설정에서 허용하기'. 열 수 없으면 false. */
     fun openMicSettings(): Boolean = micPermission?.openSettings() == true
 

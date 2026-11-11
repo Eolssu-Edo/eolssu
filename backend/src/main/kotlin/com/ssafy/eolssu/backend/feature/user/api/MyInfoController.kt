@@ -8,6 +8,7 @@ import com.ssafy.eolssu.backend.feature.user.application.MyInfoService
 import com.ssafy.eolssu.backend.feature.user.application.MyInfoWithProviders
 import com.ssafy.eolssu.backend.feature.user.application.PreferencesResult
 import com.ssafy.eolssu.backend.feature.user.domain.MyInfo
+import com.ssafy.eolssu.backend.feature.user.domain.ProfileImages
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
@@ -42,6 +43,12 @@ class MyInfoController(private val service: MyInfoService) {
         return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "회원정보 수정 성공", MyProfileResult(changed)))
     }
 
+    @PatchMapping("/profile-image")
+    fun changeProfileImage(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: ProfileImageRequest): ResponseEntity<*> {
+        val changed = service.changeProfileImage(jwt.userId(), checkNotNull(request.profileImage)) ?: return memberUnavailable()
+        return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "프로필 그림 저장 성공", ProfileImageSaved(changed)))
+    }
+
     @PatchMapping("/preferences")
     fun changePreferences(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: PreferencesRequest): ResponseEntity<*> {
         if (request.instrumentId == null && request.notationMode == null) return error(ErrorCode.INVALID_REQUEST)
@@ -70,10 +77,13 @@ data class MyInfoResult(
     val nickname: String,
     val instrumentId: String,
     val notationMode: String,
+    @field:Schema(description = "절쑤 그림 키. 가입 직후는 HELLO", allowableValues = ["HELLO", "DANSO", "STUDY", "LOOK", "GREAT", "JANGDAN", "AGAIN", "SURPRISE", "PROUD", "OKAY", "REST", "DONE"])
+    val profileImage: String,
     val linkedProviders: List<LinkedProviderResult>,
 ) {
     constructor(found: MyInfoWithProviders) : this(
         found.info.userId.toString(), found.info.email, found.info.hasPassword, found.info.nickname, found.info.instrumentId.toString(), found.info.notationMode,
+        found.info.profileImage,
         found.linkedProviders.map { LinkedProviderResult(it.provider, it.linkedAt) },
     )
 }
@@ -83,6 +93,13 @@ class NicknameRequest(@field:NotBlank @field:Size(max = NicknamePolicy.MAX_LENGT
 
 data class MyProfileResult(val userId: String, val nickname: String, val instrumentId: String, val notationMode: String) {
     constructor(info: MyInfo) : this(info.userId.toString(), info.nickname, info.instrumentId.toString(), info.notationMode)
+}
+
+/** 앱에 담긴 절쑤 그림 12종 중 하나의 키(대문자). */
+class ProfileImageRequest(@field:NotBlank @field:Pattern(regexp = ProfileImages.PATTERN) val profileImage: String? = null)
+
+data class ProfileImageSaved(val userId: String, val profileImage: String) {
+    constructor(info: MyInfo) : this(info.userId.toString(), info.profileImage)
 }
 
 /** 한 필드 이상. 악기는 활성 악기여야 한다. */

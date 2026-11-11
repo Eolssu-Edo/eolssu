@@ -140,7 +140,6 @@ data class SheetDraft(
         baseBpm = bpm,
         description = "",
         evaluable = false,
-        solfege = null,
         score = if (original != null) renderEditingScore() else Score(cells.chunked(gak).map { column -> column.map { ScoreCell(it.ifEmpty { listOf(ScoreNote.Blank) }) } }),
     )
 

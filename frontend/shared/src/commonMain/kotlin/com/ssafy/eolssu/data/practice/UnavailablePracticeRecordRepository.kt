@@ -14,7 +14,7 @@ class UnavailablePracticeRecordRepository : PracticeRecordRepository {
     override val available: Boolean = false
     override val records: StateFlow<List<PracticeRecord>> = MutableStateFlow(emptyList<PracticeRecord>()).asStateFlow()
 
-    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord =
+    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String): PracticeRecord =
         throw PracticeRecordUnavailable()
 
     override suspend fun updateMemo(recordId: String, memo: String): Unit = throw PracticeRecordUnavailable()

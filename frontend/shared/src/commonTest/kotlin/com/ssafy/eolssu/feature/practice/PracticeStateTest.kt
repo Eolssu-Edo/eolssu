@@ -62,10 +62,11 @@ class PracticeStateTest {
     }
 
     @Test
-    fun evaluationAsksMicOnceThenCountsDown() {
+    fun evaluationWaitsForDeviceMicPermissionWithoutServiceNoticeThenCountsDown() {
         val asked = ready.startModel().requestEvaluation(micGranted = false)
         assertEquals(PracticeMode.Ready, asked.mode)
-        assertEquals(PracticePopup.Permission, asked.popup)
+        assertFalse(asked.playing)
+        assertNull(asked.popup)
 
         val counting = ready.requestEvaluation(micGranted = true)
         assertEquals(PracticeMode.Countdown, counting.mode)
@@ -105,6 +106,39 @@ class PracticeStateTest {
         val resumed = counting.resumeRecording()
         assertEquals(PracticeMode.Recording, resumed.mode)
         assertEquals(12, resumed.position)
+    }
+
+    @Test
+    fun startCountdownKeepsRecordingLayoutAndShowsPreparing() {
+        assertFalse(ready.recordingLayout)
+
+        val counting = ready.beginCountdown()
+        assertTrue(counting.recordingLayout)
+        assertTrue(counting.preparing)
+        assertFalse(counting.resuming)
+
+        val recording = counting.beginRecording()
+        assertTrue(recording.recordingLayout)
+        assertFalse(recording.preparing)
+
+        val resuming = recording.askAbort(fraction = 0f).beginCountdown(resume = true)
+        assertTrue(resuming.recordingLayout)
+        assertFalse(resuming.preparing)
+    }
+
+    @Test
+    fun directEvaluationWaitsWithRecordingLayoutBeforeStart() {
+        val direct = PracticeUiState(song = arirang, direct = true)
+        assertEquals(PracticeMode.Ready, direct.mode)
+        assertTrue(direct.awaitingStart)
+        assertFalse(direct.preparing)
+        assertTrue(direct.recordingLayout)
+
+        val counting = direct.beginCountdown()
+        assertFalse(counting.awaitingStart)
+        assertTrue(counting.preparing)
+        assertTrue(counting.cancelCountdown().awaitingStart)
+        assertFalse(ready.awaitingStart)
     }
 
     @Test
@@ -285,11 +319,16 @@ class PracticeStateTest {
     }
 
     @Test
-    fun micDenialStaysOnScreenWithDeniedOrBlockedPopup() {
+    fun micDenialStaysReadyAndOnlyBlockedShowsSettingsNotice() {
         val denied = ready.requestEvaluation(micGranted = false).denyMic(blocked = false)
         assertEquals(PracticeMode.Ready, denied.mode)
-        assertEquals(PracticePopup.PermDenied, denied.popup)
+        assertNull(denied.popup)
         assertEquals(PracticePopup.PermBlocked, ready.denyMic(blocked = true).popup)
+
+        // 연주 평가는 거부해도 평가 대기 상태에 남는다(S15P31E102-747).
+        val direct = ready.copy(direct = true)
+        assertTrue(direct.denyMic(blocked = false).awaitingStart)
+        assertTrue(direct.denyMic(blocked = true).awaitingStart)
     }
 
     @Test
@@ -309,10 +348,17 @@ class PracticeStateTest {
     }
 
     @Test
-    fun notationKeepsSolfegeOffWithoutData() {
-        val draft = PracticeDraft(showHangul = true, showSolfege = true)
-        assertTrue(PracticeSettings().applyNotation(draft, arirang).showSolfege)
-        assertFalse(PracticeSettings().applyNotation(draft, milyang).showSolfege)
+    fun notationAppliesHangulReading() {
+        assertTrue(PracticeSettings().applyNotation(PracticeDraft(showHangul = true)).showHangul)
+        assertFalse(PracticeSettings(showHangul = true).applyNotation(PracticeDraft(showHangul = false)).showHangul)
+    }
+
+    /** 연주 평가만 곡 제목 옆에 운지법 보기·쉬운 표기 스위치를 두고, 혼자 연습·내 악보 연습은 톱니 안에 둔다(S15P31E102-716). */
+    @Test
+    fun onlyEvaluationShowsNotationTogglesBesideTitle() {
+        assertTrue(ready.showsTitleToggles)
+        assertFalse(ready.copy(solo = true).showsTitleToggles)
+        assertFalse(ready.copy(mine = true).showsTitleToggles)
     }
 
     @Test

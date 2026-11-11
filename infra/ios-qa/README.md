@@ -3,7 +3,7 @@
 `develop`의 iOS 빌드 입력 변경 → 기존 backend 잡 성공 → `eolssu-ios-qa` → 은서 Mac(`ios-eunseo`) → Ad Hoc IPA → https://k15e102.p.ssafy.io/ipas/ . iPhone은 Safari에서 설치한다. Mac과 같은 네트워크나 USB 연결은 필요 없다.
 
 - 유료 팀 `WDA26H33JA`, Bundle ID `com.ssafy.eolssu`, Sign in with Apple 유지.
-- 등록 iPhone이 포함된 Ad Hoc 배포 프로파일과 배포 인증서가 필요하다. `release-testing`은 현재 Xcode의 Ad Hoc export 명칭이다.
+- 등록 iPhone이 포함된 Ad Hoc 배포 프로파일이 필요하다. 배포 인증서는 아래 API 키 인증으로 클라우드 서명한다. `release-testing`은 현재 Xcode의 Ad Hoc export 명칭이다.
 - `build-ipa.sh`와 `verify-ipa.py`는 Mac의 `~/jenkins-agent/`에서 관리한다. `publish-ipa.py`는 edo1 `/opt/eolssu/config/`에서 관리한다. 변경된 저장소 코드가 과거 develop 재빌드를 막지 않도록 파이프라인은 관리 복사본을 사용한다.
 - 게시된 IPA는 등록 기기에서만 설치된다. 기존 HTTPS 공개 경로와 최근 5개 보관 정책을 유지한다. TestFlight·앱스토어 심사 제출은 실행하지 않는다.
 - `publish-ipa.py`는 CMS 내부 메타데이터를 검사한다. 암호학적 서명 검증은 Xcode export 및 기기의 iOS 검증이 담당한다.
@@ -17,9 +17,20 @@
 - `~/Library/LaunchAgents/com.eolssu.jenkins-tunnel.plist`: SSH로 서버 loopback 8080을 Mac loopback 18089에 전달.
 - `~/Library/LaunchAgents/com.eolssu.jenkins-agent.plist`: Java 21 + WebSocket inbound agent.
 - secret은 `~/jenkins-agent/secret`, 0600. 서버 관리자 인증·개인키·secret은 저장소에 넣지 않는다.
-- Mac 사용자 로그인, 잠금 해제된 서명 키체인, 인터넷 연결이 필요하다. 잠자기·종료·로그아웃 중에는 빌드할 수 없다.
+- Mac 사용자 로그인, 인터넷 연결, `~/jenkins-agent/asc/`의 API 키가 필요하다. 잠자기·종료·로그아웃 중에는 빌드할 수 없다.
 
 상태 확인: `launchctl print gui/$(id -u)/com.eolssu.jenkins-agent`, `~/jenkins-agent/com.eolssu.jenkins-agent.err.log`. secret 내용은 출력하지 않는다.
+
+## 서명: App Store Connect API 키 (S15P31E102-757)
+
+`build-ipa.sh`는 archive·export 모두 App Store Connect API 키로 인증한다. Mac의 Xcode 계정 로그인이 풀려도 빌드가 멈추지 않게 하기 위해서다(2026-11-10 `exportArchive No Accounts`로 연속 실패). 배포 인증서는 로컬 키체인에 두지 않고 Apple 클라우드 서명을 쓴다.
+
+- 키: App Store Connect → 사용자 및 액세스 → 통합 → App Store Connect API에서 **팀 키**를 만든다. 클라우드 서명 인증서와 프로파일을 만들 수 있게 역할은 **Admin**으로 한다. `.p8`은 생성 직후 한 번만 내려받을 수 있다.
+- Mac 배치: `~/jenkins-agent/asc/`(0700)에 `AuthKey_<KEY_ID>.p8` 하나와 Issuer ID 한 줄을 담은 `issuer-id`를 둔다. 두 파일은 0600이다. 다른 위치는 `IOS_ASC_KEY_DIR`로 지정한다.
+- 키·ID는 저장소·Jenkins 설정·로그에 넣지 않는다. 스크립트는 사용 여부만 출력한다.
+- 키가 없으면 경고를 남기고 Xcode 계정 세션으로 서명한다. `.p8`이 여러 개거나 `issuer-id`가 없거나 형식이 틀리면 빌드를 멈춘다.
+- 교체: 새 키로 폴더의 두 파일을 바꾸고, 셸에서 마지막 아카이브로 `xcodebuild -exportArchive … -authenticationKeyPath …`가 성공하는지 확인한 뒤 이전 키를 App Store Connect에서 폐기한다.
+- 저장소 파일을 바꾸면 관리 복사본 `~/jenkins-agent/build-ipa.sh`도 같게 갱신한다.
 
 ## 수동 재빌드
 
