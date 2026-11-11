@@ -102,6 +102,8 @@ fun PracticeRoute(
         viewModel.stopAll()
         onBack()
     }
+    // 곡 정보에서 바로 시작한 평가에서 기기 권한 창을 거부하면 서비스 안내 창 없이 곡 정보로 돌아간다(S15P31E102-733).
+    LaunchedEffect(state.leaveDirect) { if (state.leaveDirect) leaveToSongInfo() }
     // 기기 뒤로 가기도 화면의 뒤로 가기와 같게: 연주 중이면 확인 창을 띄운다. 태블릿 가로처럼 패널이 화면 안에 열려 있으면 패널부터 닫는다.
     // 휴대폰의 하단 시트·확인 창은 자기 창에서 뒤로 가기를 먼저 받는다.
     @Suppress("DEPRECATION") // ui-backhandler 1.12의 BackHandler. 대신할 NavigationEventHandler는 아직 의존성에 없다.
@@ -173,6 +175,7 @@ fun PracticeRoute(
                     onToggleFingeringView = viewModel::toggleFingeringView,
                 ),
                 dialog = PracticeDialogActions(
+                    // 마이크 안내 창(Permission)은 혼자 연습 '한 음씩'에서만 뜬다. 연주 평가는 기기 권한 창을 바로 띄운다.
                     onGrantMic = {
                         scope.launch { if (viewModel.requestMicPermission()) viewModel.grantMicAndStart() else viewModel.micDenied() }
                     },

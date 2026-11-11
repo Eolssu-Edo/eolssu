@@ -62,10 +62,11 @@ class PracticeStateTest {
     }
 
     @Test
-    fun evaluationAsksMicOnceThenCountsDown() {
+    fun evaluationWaitsForDeviceMicPermissionWithoutServiceNoticeThenCountsDown() {
         val asked = ready.startModel().requestEvaluation(micGranted = false)
         assertEquals(PracticeMode.Ready, asked.mode)
-        assertEquals(PracticePopup.Permission, asked.popup)
+        assertFalse(asked.playing)
+        assertNull(asked.popup)
 
         val counting = ready.requestEvaluation(micGranted = true)
         assertEquals(PracticeMode.Countdown, counting.mode)
@@ -312,11 +313,17 @@ class PracticeStateTest {
     }
 
     @Test
-    fun micDenialStaysOnScreenWithDeniedOrBlockedPopup() {
+    fun micDenialStaysReadyAndOnlyBlockedShowsSettingsNotice() {
         val denied = ready.requestEvaluation(micGranted = false).denyMic(blocked = false)
         assertEquals(PracticeMode.Ready, denied.mode)
-        assertEquals(PracticePopup.PermDenied, denied.popup)
+        assertNull(denied.popup)
+        assertFalse(denied.leaveDirect)
         assertEquals(PracticePopup.PermBlocked, ready.denyMic(blocked = true).popup)
+
+        val direct = ready.copy(direct = true)
+        assertTrue(direct.denyMic(blocked = false).leaveDirect)
+        assertFalse(direct.denyMic(blocked = true).leaveDirect) // 설정 안내 창의 버튼으로 곡 정보로 돌아간다.
+        assertFalse(direct.denyMic(blocked = false).requestEvaluation(micGranted = false).leaveDirect)
     }
 
     @Test

@@ -55,7 +55,8 @@ import kotlin.uuid.Uuid
  * 끊기거나 버린 연주의 녹음은 지운다. [recorder]가 없는 플랫폼은 평가 연주를 시작할 수 없다.
  * 입력 없음 안내·팝업은 [AudioRecorder.measuresLevel]인 녹음기가 있을 때만 띄우고, 나머지는 서버 판정에 맡긴다.
  * 끝까지 마친 녹음은 [takeForEvaluation]으로 분석 화면에 넘긴다. 녹음마다 새 세션 키를 [newKey]로 만든다.
- * 마이크 권한은 앱 안의 '허용'과 [micPermission](OS 권한)이 모두 있어야 있는 것으로 본다.
+ * 연주 평가는 [micPermission](OS 권한)만 보고 서비스 안내 창 없이 기기 권한 창을 바로 띄운다. 혼자 연습 '한 음씩'은
+ * 앱 안의 '허용'과 OS 권한이 모두 있어야 있는 것으로 본다.
  *
  * 화면이 보이는 동안 [timeMeter]로 연습 시간을 잰다. 재생·녹음·장단 미리듣기 상태는 화면 상태에서 읽어 넘기고,
  * 입력·화면 보임은 Route가 알린다. 열린 구간은 30초마다, 닫힌 구간은 닫을 때 [timeQueue]에 남긴다.
@@ -757,21 +758,51 @@ class PracticeViewModel(
         return state.direct && entryEvaluationStarted && state.mode == PracticeMode.Ready && state.popup == null
     }
 
+    /** 기기 권한 창의 응답을 기다리는 평가 시작. 응답 전에는 다시 눌러도 권한 요청·카운트다운을 겹쳐 시작하지 않는다. */
+    private var micRequestJob: Job? = null
+
+    /**
+     * '연주 평가 시작'(S15P31E102-733). 서비스 안내 창 없이 기기(OS) 마이크 권한만 확인한다.
+     * 이미 허용돼 있으면 바로 카운트다운, 아직 묻지 않았거나 다시 물을 수 있으면 기기 권한 창을 바로 띄우고 허용될 때만 시작한다.
+     * 기기가 더 묻지 않는 차단 상태면 권한 창을 띄울 수 없으므로 설정 안내만 보인다.
+     */
     fun requestEvaluation() {
         if (mine || !accountScope.isActive) return
         if (recorder == null) return
+        if (micRequestJob?.isActive == true) return
         pauseRhythm()
         stopPreview()
         stopJangdan()
         modelAudio.stop()
         stepJob?.cancel()
-        _uiState.update { it.requestEvaluation(micGranted()) }
-        if (_uiState.value.mode == PracticeMode.Countdown) runCountdown()
+        val permission = micPermission
+        if (permission == null || permission.isGranted()) {
+            settingsStore.grantMic()
+            _uiState.update { it.requestEvaluation(micGranted = true) }
+            runCountdown()
+            return
+        }
+        _uiState.update { it.requestEvaluation(micGranted = false) }
+        if (permission.isPermanentlyDenied()) {
+            micDenied()
+            return
+        }
+        micRequestJob = accountScope.launch {
+            val allowed = try {
+                permission.request()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false // 권한 창을 띄우지 못했거나 기기 마이크를 쓸 수 없으면 거부와 같이 평가를 시작하지 않는다.
+            }
+            if (allowed) grantMicAndStart() else micDenied()
+        }
     }
 
-    /** 마이크 안내에서 '계속'을 누르면 OS 권한을 묻는다. 허용하면 true. */
+    /** 혼자 연습 마이크 안내에서 '계속'을 누르면 OS 권한을 묻는다. 허용하면 true. */
     suspend fun requestMicPermission(): Boolean = recorder != null && (micPermission?.request() ?: true)
 
+    /** 혼자 연습 '한 음씩'의 마이크 권한: 앱 안의 '허용'과 OS 권한이 모두 있어야 한다. */
     private fun micGranted(): Boolean = settingsStore.micGranted.value && micPermission?.isGranted() != false
 
     /** OS 권한까지 허용된 뒤 연주를 시작한다. 혼자 연습이면 한 음씩 듣기를 시작한다. */
@@ -793,7 +824,10 @@ class PracticeViewModel(
         runCountdown()
     }
 
-    /** OS 권한 창에서 허용하지 않음. 화면에 머물며 거부 안내(다시 묻지 못하면 설정 안내)를 띄운다. */
+    /**
+     * OS 권한을 얻지 못함. 혼자 연습은 화면에 머물며 거부 안내(다시 묻지 못하면 설정 안내)를 띄운다.
+     * 연주 평가는 시작하지 않고, 기기가 더 묻지 않는 차단일 때만 설정 안내를 띄운다([denyMic]).
+     */
     fun micDenied() {
         if (_uiState.value.solo) {
             // 한 음씩은 아직 시작하지 않았다. 악보·진행 위치는 그대로 두고 안내만 띄운다.

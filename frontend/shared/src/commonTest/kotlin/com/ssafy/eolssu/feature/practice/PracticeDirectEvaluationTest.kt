@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.setMain
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** 곡 정보의 '연주 평가 시작'으로 들어온 연주 평가(S15P31E102-705): 대기 상태 없이 바로 시작하고, 준비로 돌아오면 곡 정보로 돌아갈 상태가 된다. */
@@ -32,9 +33,11 @@ class PracticeDirectEvaluationTest {
         assertFalse(vm.leavesDirectOnReturn())
     }
 
-    @Test fun directEvaluationAsksMicPermissionFirstWhenNotGranted() = directTest { vm, _ ->
+    /** 기기 권한만 보고 서비스 마이크 안내 창은 띄우지 않는다(S15P31E102-733). 테스트의 기기 권한은 없음(null) = 허용이다. */
+    @Test fun directEvaluationStartsWithoutServiceMicNotice() = directTest { vm, _ ->
         vm.startEvaluationOnEntry()
-        assertEquals(PracticePopup.Permission, vm.uiState.value.popup)
+        assertEquals(PracticeMode.Countdown, vm.uiState.value.mode)
+        assertNull(vm.uiState.value.popup)
         assertFalse(vm.leavesDirectOnReturn())
     }
 
