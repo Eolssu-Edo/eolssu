@@ -157,7 +157,7 @@ private fun PracticeCompactLayout(
     actions: PracticeScreenActions,
     livePitch: Map<ScoreUnitKey, LivePitchMark>,
 ) {
-    val recordingBar = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
+    val recordingBar = state.recordingLayout
     // 곡 정보에서 바로 시작한 평가는 준비 상태의 플레이어·행동 버튼을 두지 않는다(모범 연주 듣기 없이 바로 평가).
     val showPlayer = !state.direct && state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)
     val fingering = state.fingeringView

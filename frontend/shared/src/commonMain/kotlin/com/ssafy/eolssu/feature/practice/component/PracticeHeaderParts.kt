@@ -96,7 +96,8 @@ fun PracticeTopBar(
  * 연습 모드는 ‘{악기} · 연습 모드’, 내 악보 연습은 ‘{악기} · 내 악보’다.
  * [statusAtEnd]이면 `.pill` 자리에 상태 문구(‘● 연습 준비’·‘● 연주 중’ 등)를 두어, 휴대폰 화면에서 상태 줄 한 줄만큼 악보를 올린다.
  * 한 음씩 안내처럼 긴 문구는 제목을 밀어내지 않게 폭을 제한해 줄바꿈한다.
- * [toggles]가 있으면(연주 평가 휴대폰 화면, S15P31E102-716) 제목 오른쪽에 ‘운지법 보기’·‘쉬운 표기’ 스위치를 두고 상태 문구는 제목 아래로 옮긴다.
+ * [toggles]가 있으면(연주 평가 휴대폰 화면, S15P31E102-716) 제목 아래 줄에 상태 문구(왼쪽)와 ‘운지법 보기’·‘쉬운 표기’ 스위치(오른쪽)를 둔다.
+ * 곡 제목은 어느 경우에도 한 줄이고, 다 들어가지 않을 때만 왼쪽으로 흘린다(S15P31E102-730).
  */
 @Composable
 fun PracticeTitleRow(
@@ -112,18 +113,21 @@ fun PracticeTitleRow(
         else stringResource(Res.string.practice_subtitle, instrument, songLevelLabel(song.level))
     if (toggles != null) {
         // 연주 평가는 들어오자마자 카운트다운·연주로 이어지므로 연주 중에도 바로 바꾼다. 표시만 바뀌고 평가는 멈추지 않는다.
-        Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                PageHeading(state.title, compact = state.fingeringView)
-                if (statusAtEnd) PracticeStatusLabel(state)
+        // 제목은 토글에 밀려 줄바꿈되지 않게 한 줄을 다 쓰고(S15P31E102-730), 상태 문구와 스위치는 그 아래 한 줄에 둔다.
+        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            PageHeading(state.title, Modifier.fillMaxWidth(), compact = state.fingeringView, singleLine = true)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.weight(1f)) {
+                    if (statusAtEnd) PracticeStatusLabel(state)
+                }
+                PracticeMiniToggle(stringResource(Res.string.practice_title_fingering), state.fingeringView, toggles.onToggleFingering)
+                PracticeMiniToggle(stringResource(Res.string.practice_menu_notation), state.settings.showHangul, toggles.onToggleNotation)
             }
-            PracticeMiniToggle(stringResource(Res.string.practice_title_fingering), state.fingeringView, toggles.onToggleFingering)
-            PracticeMiniToggle(stringResource(Res.string.practice_menu_notation), state.settings.showHangul, toggles.onToggleNotation)
         }
         return
     }
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PageHeading(state.title, Modifier.weight(1f), compact = state.fingeringView)
+        PageHeading(state.title, Modifier.weight(1f), compact = state.fingeringView, singleLine = true)
         if (statusAtEnd) PracticeStatusLabel(state, Modifier.widthIn(max = 168.dp)) else PracticePill(pill)
     }
 }
@@ -152,13 +156,14 @@ fun PracticePill(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun PracticeStatusLabel(state: PracticeUiState, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
-    val recording = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
+    // 평가 시작 카운트다운도 연주 중과 같은 붉은 점·글자로 ‘준비해 주세요’를 보인다.
+    val recording = state.recordingLayout
     val text = practiceStepStatus(state) ?: stringResource(
         when {
             state.mode == PracticeMode.Interrupted -> Res.string.practice_mode_interrupted
             state.mode == PracticeMode.Recording && state.finished -> Res.string.practice_mode_finished
             state.mode == PracticeMode.Recording || state.resuming -> Res.string.practice_mode_recording
-            state.mode == PracticeMode.Countdown -> Res.string.practice_mode_countdown
+            state.mode == PracticeMode.Countdown || state.preparing -> Res.string.practice_mode_countdown
             else -> Res.string.practice_mode_ready
         },
     )

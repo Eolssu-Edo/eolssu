@@ -71,4 +71,17 @@ python -X utf8 -m pytest data/src/playback/tests/test_common_score.py data/src/p
 
 실제 M4A 재현 스크립트 인자는 `소스루트 새출력폴더 예상음악초 [기존입력PDF]`다. 구현 소스에서 예상 4초로 먼저 실행하고, 기반 소스에서 같은 PDF를 넘겨 예상 8초와 비교했다. 출력 폴더는 기존 증거를 덮어쓰지 않도록 새 경로를 사용한다.
 
-제품 코드는 로컬 커밋 상태이며 Push·MR·제품 배포와 정식 리뷰는 아직 진행하지 않았다. 운영 영향 조사는 완료됐고, 배포 전 운영 변환기는 이번 코드 변경으로 바뀌지 않는다.
+위 구현 검증 시점에는 제품 코드를 로컬 커밋한 상태였고 운영 영향 조사를 완료했다. 제품 코드 배포는 별도이며, 배포 전 운영 변환기는 이번 코드 변경으로 바뀌지 않는다.
+
+## MR 준비 중 저장 검증 통합
+
+후속 MR 요청으로 `develop`의 `ec9a8238`을 통합할 때, 새 프론트엔드 `SheetDraft.isCompatibleWith()`에서도 `QUARTER`의 패턴 칸 수를 그대로 박 수로 비교하는 문제를 확인했다. 정상화된 단모리 4정간 각이 8박 기대값과 달라 장단 선택·최종 저장에서 거부됐으며, 세령산의 정간당 3/2박도 기존 비율 검사에서 거부됐다. 변환과 저장 검증에 같은 소박 단위를 적용해 두 경로를 맞춘다. 예상 음원 길이 계산은 원본 tick 비율을 사용하므로 그대로 유지한다.
+
+새 장단 호환 검사 3개는 수정 전 모두 실패했고 수정 후 통과했다. 11종의 정상 값, 단모리의 기존 두 배 길이 거부, 세령산만 3/2박 허용, 세마치 2정간 거부, 짧은 마지막 각 허용을 확인했다. 현재 카탈로그에 없는 장단명은 음가를 추정하지 않는다. 편집 기능 전체 Android 호스트 검사도 17 suites/114 tests 통과, 실패·오류·건너뜀 0개다.
+
+```powershell
+# frontend/에서, 기존 Android Studio JBR와 Android SDK 사용
+.\gradlew.bat :shared:testAndroidHostTest --tests 'com.ssafy.eolssu.feature.song.edit.*' --max-workers=2 --console=plain
+```
+
+작업자 통합 커밋 `12dbec9e`의 FE 3파일 패치를 본 브랜치에 적용했다. 로그는 `%TEMP%/danmori-732-fe-red.log`, `danmori-732-fe-green.log`, `danmori-732-fe-regression.log`다. 이번 통합은 저장 허용 판정만 바꾸며 APK·모바일 실기기·iOS 검증은 실행하지 않았다.

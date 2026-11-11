@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sheet_editor_tempo">빠르기 %1$d BPM</string>
+    <string name="sheet_editor_edit">편집</string>
+    <string name="sheet_editor_audio">미리듣기</string>
+    <string name="sheet_save_dialog_title">악보 저장</string>
+    <string name="sheet_save_estimated_duration">예상 음원 길이 · %1$s</string>
+    <string name="sheet_save_unfilled">빈 정간을 모두 채운 뒤 저장해 주세요.</string>
+</resources>

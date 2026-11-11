@@ -26,6 +26,8 @@ data class SheetAudioInstruments(
     val loading: Boolean = true,
 )
 
+enum class SheetCompletionCatalogState { NotRequired, Loading, Ready, Failed }
+
 /** 화면 아래에 잠깐 띄우는 안내. */
 enum class SheetEditMessage {
     SaveFailed, SaveConflict, SaveTooLarge,
@@ -110,8 +112,12 @@ data class SheetEditUiState(
     val staffKey: StaffNoteKey? = null,
     val yulRegister: YulRegister = YulRegister.Base,
     val availablePitches: Set<Pair<String, Int>>? = null,
+    val instrumentPitches: Set<Pair<String, Int>>? = null,
+    val completionCatalogState: SheetCompletionCatalogState = SheetCompletionCatalogState.NotRequired,
+    val availableJangdans: List<CatalogJangdanSummary>? = null,
     val withJangdan: Boolean = true,
     val emptyWarning: Boolean = false,
+    val completionWarning: Boolean = false,
     val savedOnce: Boolean = false,
     val audio: SheetAudioUi = SheetAudioUi.None,
     val audioInstruments: SheetAudioInstruments? = null,
@@ -122,6 +128,7 @@ data class SheetEditUiState(
     val documentFailed: Boolean = false,
     val practiceVersionChanged: Boolean = false,
     val saving: Boolean = false,
+    val confirming: Boolean = false,
     val saveConflict: Boolean = false,
     val closeWarning: Boolean = false,
     val reviewIssues: List<SheetReviewIssue> = emptyList(),
@@ -129,6 +136,11 @@ data class SheetEditUiState(
     val checkedIssueIds: Set<String> = emptySet(),
     val jangdanPicker: SheetEditJangdanPicker? = null,
 ) {
+    val completionValidation: SheetCompletionValidation by lazy { validateCompletion() }
+    internal val validatedCheckedIssueIds: Set<String>
+        get() = checkedIssueIds.intersect(completionValidation.checkableIssueIds)
+    val canCheckNextReviewIssue: Boolean
+        get() = !confirming && nextReviewIssue?.id in completionValidation.checkableIssueIds
     val canUndo: Boolean get() = past.isNotEmpty()
     val canRedo: Boolean get() = future.isNotEmpty()
     val canIncludeJangdan: Boolean get() = draft.original == null || serverSheetId == null || draft.jangdanId != null
@@ -142,11 +154,15 @@ data class SheetEditUiState(
 
     fun selectJangdan(id: String): SheetEditUiState {
         val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: return this
-        val option = options.firstOrNull { it.jangdanId == id && it.bpmUnit == draft.original?.music?.bpmUnit } ?: return this
+        val option = options.firstOrNull { it.jangdanId == id && draft.isCompatibleWith(it) } ?: return this
         if (option.jangdanId == draft.jangdanId && option.name == draft.jangdanName) return copy(jangdanPicker = null)
         val next = draft.copy(jangdanId = option.jangdanId, editedJangdanName = option.name)
         return commit(next).copy(jangdanPicker = null)
     }
+
+    /** 사용자가 장단 연결을 해제한다. 정간·이벤트·tick·BPM은 그대로 두며 실행 취소할 수 있다. */
+    fun clearJangdan(): SheetEditUiState =
+        commit(draft.copy(jangdanId = null, editedJangdanName = "")).copy(withJangdan = false, jangdanPicker = null)
 
     private fun withJangdanFor(next: SheetDraft): Boolean =
         if (next.jangdanId == draft.jangdanId) withJangdan else next.jangdanId != null
@@ -165,10 +181,10 @@ data class SheetEditUiState(
 
     val pendingChecks: Int
         get() = (source as? EditSource.Import)?.pendingChecks
-            ?: reviewIssues.filterNot { it.id in checkedIssueIds }.distinctBy(SheetReviewIssue::cellId).size
+            ?: reviewIssues.filterNot { it.id in validatedCheckedIssueIds }.distinctBy(SheetReviewIssue::cellId).size
 
     val nextReviewIssue: SheetReviewIssue?
-        get() = reviewIssues.firstOrNull { it.id !in checkedIssueIds }
+        get() = reviewIssues.firstOrNull { it.id !in validatedCheckedIssueIds }
 
     val nextReviewCellIndex: Int?
         get() = nextReviewIssue?.let { issue -> draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } }
@@ -186,7 +202,18 @@ data class SheetEditUiState(
             selected = index,
             selectedSub = keptSub,
             withJangdan = withJangdanFor(next),
+            checkedIssueIds = checkedIssuesAfter(next),
         )
+    }
+
+    /** 한 번 확인한 칸도 내용이나 시김새를 바꾸거나 실행 취소하면 다시 확인한다. */
+    private fun checkedIssuesAfter(next: SheetDraft): Set<String> = checkedIssueIds.filterTo(mutableSetOf()) { id ->
+        val issue = reviewIssues.firstOrNull { it.id == id } ?: return@filterTo false
+        val before = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
+        val after = next.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
+        draft.cells[before] == next.cells[after] &&
+            draft.sigimsae.filterKeys { it.cell == before }.mapKeys { it.key.sub } ==
+            next.sigimsae.filterKeys { it.cell == after }.mapKeys { it.key.sub }
     }
 
     fun select(index: Int): SheetEditUiState = copy(selected = index.coerceIn(0, draft.cells.lastIndex), selectedSub = null)
@@ -262,13 +289,15 @@ data class SheetEditUiState(
     fun undo(): SheetEditUiState {
         val previous = past.lastOrNull() ?: return this
         return copy(draft = previous, past = past.dropLast(1), future = listOf(draft) + future,
-            selected = selected.coerceIn(0, previous.cells.lastIndex), selectedSub = null, withJangdan = withJangdanFor(previous))
+            selected = selected.coerceIn(0, previous.cells.lastIndex), selectedSub = null, withJangdan = withJangdanFor(previous),
+            checkedIssueIds = checkedIssuesAfter(previous))
     }
 
     fun redo(): SheetEditUiState {
         val next = future.firstOrNull() ?: return this
         return copy(draft = next, past = past + draft, future = future.drop(1),
-            selected = selected.coerceIn(0, next.cells.lastIndex), selectedSub = null, withJangdan = withJangdanFor(next))
+            selected = selected.coerceIn(0, next.cells.lastIndex), selectedSub = null, withJangdan = withJangdanFor(next),
+            checkedIssueIds = checkedIssuesAfter(next))
     }
 
     /** 오선보에서 고른 음표. */
@@ -310,11 +339,14 @@ data class SheetEditUiState(
     }
 
     /** '저장': 빈 정간이 있으면 경고 창을 열고, 없으면 저장했다고 알린다. */
-    fun requestSave(): SheetEditUiState =
-        if (draft.emptyCells.isNotEmpty()) copy(emptyWarning = true) else copy(emptyWarning = false, savedOnce = true, message = SheetEditMessage.Saved)
+    fun requestSave(): SheetEditUiState = when {
+        completionValidation.hasEmptyCells -> copy(emptyWarning = true)
+        !completionValidation.canComplete -> copy(completionWarning = true)
+        else -> copy(emptyWarning = false, completionWarning = false, savedOnce = true, message = SheetEditMessage.Saved)
+    }
 
     /** '임시저장': 빈 정간이 있어도 된다. 경고 창에서 눌러도 같다. */
-    fun saveDraft(): SheetEditUiState = copy(emptyWarning = false, message = SheetEditMessage.Draft)
+    fun saveDraft(): SheetEditUiState = copy(emptyWarning = false, completionWarning = false, message = SheetEditMessage.Draft)
 
     /** 서버에 저장된 내 악보 ID. 예시 악보나 아직 서버에 저장하지 않은 악보는 null이라 음원을 만들 수 없다. */
     val serverSheetId: String? get() = (source as? EditSource.Mine)?.sheetId?.takeIf { validCatalogId(it) }
