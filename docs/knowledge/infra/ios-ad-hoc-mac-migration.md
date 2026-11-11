@@ -8,7 +8,8 @@ S15P31E102-444, 2026-11-09. 목적은 develop의 최신 iOS 개발본을 원격 
 - 사용자 결정으로 유료 팀 Ad Hoc 서명과 기존 HTTPS `/ipas/` 게시를 사용한다. TestFlight 업로드·심사 제출은 수행하지 않는다.
 - Ad Hoc 프로파일의 등록 기기에만 설치된다. IPA는 Release archive에서 `release-testing`으로 export한다. Xcode `-help`에서 이 명칭이 구 `ad-hoc`을 대체함을 확인했다.
 - 최초 서명 때 macOS 키체인 접근 승인이 필요했다. 사용자가 직접 암호를 입력했다. 에이전트가 암호를 수집·저장하지 않는다.
-- Mac은 로그인·네트워크 연결·서명 키체인 접근이 가능해야 한다. 빌드 중 idle sleep만 caffeinate로 막고 전역 전원 설정은 바꾸지 않는다.
+- Mac은 로그인·네트워크 연결이 가능해야 한다. 빌드 중 idle sleep만 caffeinate로 막고 전역 전원 설정은 바꾸지 않는다.
+- 2026-11-10 Mac의 Xcode 계정 정보가 사라지자 export가 `No Accounts`로 실패했다. 로컬에 배포 인증서가 없고 Xcode 계정을 통한 클라우드 서명에 의존했기 때문이다. S15P31E102-757에서 App Store Connect API 키 인증으로 바꿔 Xcode 로그인 상태와 무관하게 했다.
 
 ## 구성과 검사
 
