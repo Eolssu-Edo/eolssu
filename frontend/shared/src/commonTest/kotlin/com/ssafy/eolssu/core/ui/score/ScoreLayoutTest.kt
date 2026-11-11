@@ -3,14 +3,18 @@ package com.ssafy.eolssu.core.ui.score
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.Score
 import com.ssafy.eolssu.core.model.ScoreCell
+import com.ssafy.eolssu.core.model.ScoreDisplayUnit
+import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.ScoreTiming
 import com.ssafy.eolssu.core.model.ScoreBpmUnit
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.model.key
 import com.ssafy.eolssu.core.model.timeline
 import com.ssafy.eolssu.data.song.smallScoreSong
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ScoreLayoutTest {
@@ -113,5 +117,29 @@ class ScoreLayoutTest {
         assertEquals(CellProgress.Past, cellProgressAt(0.0, 1.25))
         assertEquals(CellProgress.Current, cellProgressAt(1.0, 1.25))
         assertEquals(CellProgress.Upcoming, cellProgressAt(1.0, null))
+    }
+
+    @Test
+    fun liveMarkWaitsUntilPlayheadPassesTheWholeUnit() {
+        // 세 줄로 나눈 정간의 마지막 소박: 2/3 ~ 1 정간.
+        val event = ScoreEvent(4, "e4", 0, 0, 2, 0, ScoreNote.Pitch(Yul.Hwangjong), 2.0 / 3, 1.0 / 3)
+        val unit = ScoreDisplayUnit(0, 0, 2, 0, "黃", event.note, event, 2.0 / 3, 1.0 / 3)
+
+        assertFalse(unitPassed(unit, null))
+        assertFalse(unitPassed(unit, 2.0 / 3))
+        assertFalse(unitPassed(unit, event.unitStart + event.unitDuration * 0.99f))
+        // 진행이 음 끝(fraction 1)에 닿으면 분수 합 오차와 관계없이 지난 것으로 본다.
+        assertTrue(unitPassed(unit, event.unitStart + event.unitDuration * 1f))
+        assertTrue(unitPassed(unit, 1.5))
+    }
+
+    @Test
+    fun everyDisplayUnitPassesExactlyWhenItsEventEnds() {
+        val song = smallScoreSong()
+        for (unit in song.displayUnits) {
+            val event = unit.event
+            assertTrue(unitPassed(unit, event.unitStart + event.unitDuration * 1f), "${unit.key} at its event end")
+            assertFalse(unitPassed(unit, unit.unitStart), "${unit.key} at its own start")
+        }
     }
 }
