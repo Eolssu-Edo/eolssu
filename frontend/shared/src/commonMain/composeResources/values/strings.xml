@@ -841,9 +841,7 @@
     <string name="my_error_current_password_wrong">현재 비밀번호가 맞지 않아요.</string>
     <string name="my_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
     <string name="my_error_password_mismatch">새 비밀번호가 서로 달라요.</string>
-    <string name="practice_echo_measuring">장단 소리 확인 중</string>
-    <string name="practice_echo_quiet">악기를 불지 말고 기다려주세요\n휴대폰 위치와 소리 크기를 유지해 주세요.</string>
-    <string name="practice_echo_progress">%1$d / %2$d 확인 중</string>
+    <string name="practice_echo_count_in">장단을 들으며 준비해 주세요.\n숫자가 사라지면 악기를 불어 주세요.</string>
     <string name="practice_echo_failed_title">장단 보정을 준비하지 못했어요</string>
     <string name="practice_echo_failed_body">주변을 조용하게 하고 휴대폰을 고정해 주세요. 장단이 작게 들리면 볼륨을 조금 올린 뒤 다시 확인해 주세요. 보정 없이 연주할 수도 있어요.</string>
     <string name="practice_echo_retry">다시 확인하기</string>

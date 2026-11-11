@@ -954,7 +954,9 @@ class PracticeViewModel(
             if (clips != null) {
                 val prepared = try {
                     recorder!!.prepareEcho(jangdanPlayer, clips) { progress ->
-                        if (generation == countdownGeneration && isActive) _uiState.update { it.copy(echoProgress = progress) }
+                        if (generation == countdownGeneration && isActive) _uiState.update {
+                            it.copy(echoProgress = progress, count = progress.countIn.coerceIn(1, 3))
+                        }
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
@@ -970,12 +972,14 @@ class PracticeViewModel(
                     return@launch
                 }
                 _uiState.update { it.copy(echoMeasuring = false, echoProgress = null, echoStatus = RecordingEchoStatus.Ready) }
-            }
-            while (_uiState.value.count > 1) {
+            } else {
+                // 준비 장단이 없는 시작·재개는 기존 3초 카운트를 사용한다.
+                while (_uiState.value.count > 1) {
+                    delay(1000)
+                    _uiState.update { it.copy(count = it.count - 1) }
+                }
                 delay(1000)
-                _uiState.update { it.copy(count = it.count - 1) }
             }
-            delay(1000)
             if (generation != countdownGeneration || !isActive) return@launch
             val resume = _uiState.value.resume
             val carry = _uiState.value.eventElapsedMs
