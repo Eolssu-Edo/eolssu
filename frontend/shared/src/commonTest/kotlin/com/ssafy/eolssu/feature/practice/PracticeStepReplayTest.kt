@@ -102,16 +102,27 @@ class PracticeStepReplayTest {
         assertEquals(List(sogeumMedium.size) { null }, replay(sogeumMedium))
     }
 
-    @Test fun wholeInstrumentOffsetHasACliffAt50Cents() {
-        // 같은 단소를 통째로 올려 분다. +45센트까지는 첫 음 조율이 흡수해 모두 통과하고, +60센트면 하나도 통과하지 못한다.
+    // 재생 한 번이 브라우저(Wasm·JS) 테스트 제한 2초의 상당 부분을 쓰므로 테스트 하나에 재생을 한 번만 둔다(S15P31E102-735).
+
+    // 같은 단소를 통째로 올려 분다. +45센트까지는 첫 음 조율이 흡수해 모두 통과하고, ±60센트면 하나도 통과하지 못한다.
+    @Test fun wholeInstrumentOffsetOf45CentsStillPassesEveryNote() {
         assertTrue(replay(dansoMedium.map { it.shifted(45.0) }).all { it != null })
+    }
+
+    @Test fun wholeInstrumentOffsetOf60CentsHighPassesNoNote() {
         assertTrue(replay(dansoMedium.map { it.shifted(60.0) }).all { it == null })
+    }
+
+    @Test fun wholeInstrumentOffsetOf60CentsLowPassesNoNote() {
         assertTrue(replay(dansoMedium.map { it.shifted(-60.0) }).all { it == null })
     }
 
-    @Test fun analysisGapsShorterThanTheHoldBlockEveryNote() {
-        // 300ms 유지에는 끊김 없는 확인 창 약 17개(약 0.34초)가 필요하다. 분석 불가 창이 그보다 자주 끼면 맞게 불어도 넘어가지 않는다.
+    // 300ms 유지에는 끊김 없는 확인 창 약 17개(약 0.34초)가 필요하다. 분석 불가 창이 그보다 자주 끼면 맞게 불어도 넘어가지 않는다.
+    @Test fun analysisGapEvery25WindowsStillPassesEveryNote() {
         assertTrue(replay(dansoMedium, dropEvery = 25).all { it != null })
+    }
+
+    @Test fun analysisGapEvery15WindowsBlocksEveryNote() {
         assertTrue(replay(dansoMedium, dropEvery = 15).all { it == null })
     }
 
