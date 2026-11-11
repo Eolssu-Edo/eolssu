@@ -213,3 +213,19 @@ M4A SHA-256은 `b6f9f579704ea663f59f5745827bb9f79d3c55b447c31e096a029a6771a4750c
 격리 후보와 적용 후 실제 내부 `POST /v1/render`에서 CAT·장구를 포함한4음 M4A를 생성했다. 길이2050ms·AAC mono44.1kHz·32,954bytes, 타악 MIDI `(0,35),(.375,38),(.75,36),(1.125,38)`가 일치했다. M4A SHA-256은 `adbc75eac2efd637b45341e48f850a0d15f91d211e13441c4142e8c0e3ae01ef`다. 이 환경의 FFmpeg8 디코딩은 유효 MP4 길이 뒤731샘플의 AAC 패킷 패딩을 출력하므로 유효 길이·한 패킷 미만 패딩·패딩의 낮은 RMS를 나누어 검사했다. 디코딩 배열 길이만으로 실제 재생 길이가 늘었다고 판정하지 않는다.
 
 DB 변경 전 사본은 `/opt/eolssu/ops746-four-beat-pattern/catalog-before-jangdan.sql`(3,830,758bytes, SHA-256 `b696b2aae7dae3e59fc22a5c90a32b5c5d92f38d530cde94a1a6701d6cb49c3c`)이다. 로컬 `data/processed/blue-valentine-jangdan-registration/`의 `server-receipt.json`, `client-proof.json`, `server-runtime-deployed.json`, `final-verification.json`에 근거를 보존했다. 이번 요청은 장단 카탈로그 등록이며 곡135는 기존2판·490음·장단 미연결 상태를 유지한다. 단독 미리듣기 파일은 등록하지 않아 새 상세의 `soundUrl`은null이다. 카탈로그·장구 혼합 생성 지원과 단독 미리듣기 파일 게시를 구분한다. 소스 수정은 현재 작업 브랜치에 남겼고 커밋·Push·MR은 요청되지 않아 수행하지 않았다.
+
+### 3판 장단 연결·R2 등록과 MR 준비
+
+후속 ‘연결하고 등록하고 MR’ 요청으로 같은 곡135를 **3판·장단12**로 연결했다. 제목 Blue Valentine·소금2·난이도3·비채점·118각490음은 유지한다. 공통 악보의 장단명과 판본만 바꾸고2판의 모든 이벤트·표시 자리·음고·붙임줄·수행 시점을 보존했다. 기존 `rebind_performance()`로 실제 측정된 수행 시간표를 새 악보 해시에 연결했으며 선율 M4A는 재합성하거나 장구를 혼합하지 않았다. 앱이 선율과 장구를 별도로 재생하기 때문이다.
+
+현재 R2 release는 `4c83afd25f030e45b26246d35fb0bae0240a4b1c9ad5834d59baddd93ab10a6f`, case는 `sogeum-746-p3`, 공통 악보 SHA-256은 `1ee3947068500a3f0565ec8a279e790455da1bef03bf708ee7e66bbb685995c9`다. 선율 음원은2판과 같은3,221,809bytes·SHA-256 `ef610d5946f39e39f405b2fba7338f396f51dd9a2c47e2b9e4090bc2bd2e3ec0`이다. 공개 곡 상세·CAT-04·모범 음원 메타데이터는 모두3판이고 장단12·490음이 일치한다. 음원 전체 GET200·Range206·수행 시간표의 판본·오디오 및 악보 해시 결합을 확인했다.
+
+공용 배포 lock 아래 여섯 카탈로그 테이블의 일관된 변경 전 사본을 확보하고 기존2판을 `song_score_versions`에 보존한 뒤3판을 단일 트랜잭션으로 게시했다. 이전2판 `GET /api/songs/135/score?scoreVersion=2`도200이며 원래 공통 악보와 같다. 다른 기존 행의 전체 컬럼 해시는 모두 보존됐다. 사본 `/opt/eolssu/ops746-blue-valentine-linked-v3/catalog-before-link.sql`은3,833,023bytes·SHA-256 `294d3004a360576f3bc1d545bb300ca431ba01ff9cd733ca9ca7ec113084bc0e`다.
+
+4박 단독 미리듣기도 실제 장구 샘플로 만들었다.160 BPM의 네 타점은0·375·750·1125ms, MP4 유효 길이는1500ms, AAC mono44.1kHz·13,552bytes다. `jangdan-preview/v1/12/3d47b551f64df1be997fecff6c7ca8d2c811a3accef051dacdf417657665a0aa.m4a`에 불변 업로드하고 전체 해시를 확인했다. 백엔드 번들의 같은 해시와 V40의 ID12 재사용·충돌 검사, 참조 JSON을 MR에 포함한다.
+
+새 백엔드 로직은 이 곡의 sourceId·소금·JGB 해시·3판이 모두 맞는 경우에만 첫1.5박 쉼부터4박 반주를 허용한다. 곡이118개 완전한4/4 마디임을 근거로 한 주기를16tick으로 정했다. 다른 곡의 첫 쉼·못갖춘마디 억제는 유지한다. 작은 합성 음표로 실제 MySQL·HTTP의 장단 계획과 잘못된 식별자·해시·악기·판본·불완전한 마디의 억제를 검증했다. 사용자 악보 선율은 테스트 파일에 복사하지 않았다.
+
+백엔드 `build`는719개 통과·외부107곡 snapshot opt-in1개 미실행, 폐기 가능한 MySQL의 카탈로그·장단·과거 판본 HTTP 통합28개는 전부 통과했다. V40을 같은 DB에 두 번 다시 적용해 행 변화가 없고, 기존 ID12의 BPM이 다르면 MySQL CHECK3819로 거부됨을 확인했다. 재생 엔진252개도 통과했고 검증용 MySQL 컨테이너는 제거했다.
+
+**운영 경계:** 현재 데이터 연결·선율 조회·2판 보관은 반영됐다. 운영 백엔드는 `develop`에 포함된 커밋만 배포하도록 제한하고 MR은 사람이 병합한다. 따라서 새 첫 쉼 반주와 단독 미리듣기의 API 노출은 이 MR 병합 후 정식 백엔드 배포 대기다. 현재 운영 CAT-04의 `jangdanPlayback`과 장단12의 `soundUrl`은null이며, 로컬 새 백엔드의 실제 HTTP에서는 해당 계획·미리듣기 서명 경로가 검증됐다. 실기기 UI를 확인한 것으로 보고하지 않는다. 생성·재결합·업로드·운영 영수증·공개 검증은 `data/processed/blue-valentine-linked-v3/`에 보존한다.
