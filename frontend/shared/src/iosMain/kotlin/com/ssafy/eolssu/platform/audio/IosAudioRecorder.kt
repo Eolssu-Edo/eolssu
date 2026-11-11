@@ -49,7 +49,7 @@ import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSURL
 import platform.Foundation.NSUserDomainMask
 import platform.Foundation.timeIntervalSince1970
-import platform.darwin.mach_absolute_time
+import platform.QuartzCore.CACurrentMediaTime
 
 /**
  * `AVAudioEngine`의 마이크 입력 하나를 모노·AAC 128kbps·44.1kHz m4a 저장(PRA-02)과 실시간 음높이 분석에 함께 쓴다.
@@ -249,7 +249,7 @@ class IosAudioRecorder : AudioRecorder {
                 val convert = converter ?: return
                 val output = file ?: return
                 val capacity = ceil(buffer.frameLength.toDouble() * RATE / buffer.format.sampleRate).toInt() + CONVERTER_SLACK
-                val converted = AVAudioPCMBuffer(pCMFormat = convert.outputFormat, frameCapacity = capacity.toUInt()) ?: return
+                val converted = AVAudioPCMBuffer(pCMFormat = convert.outputFormat, frameCapacity = capacity.toUInt())
                 var supplied = false
                 convert.convertToBuffer(converted, error = null) { _, status ->
                     if (supplied) {
@@ -340,7 +340,7 @@ class IosAudioRecorder : AudioRecorder {
 
         fun hostNanos(hostTime: ULong): Long = (AVAudioTime.secondsForHostTime(hostTime) * NANOS_PER_SECOND).toLong()
 
-        /** 엔진 입력 시각(host time)과 같은 시계의 현재 시각. */
-        fun nowNanos(): Long = hostNanos(mach_absolute_time())
+        /** 엔진 입력 시각(host time)과 같은 시계(`mach_absolute_time`)의 현재 시각. */
+        fun nowNanos(): Long = (CACurrentMediaTime() * NANOS_PER_SECOND).toLong()
     }
 }
