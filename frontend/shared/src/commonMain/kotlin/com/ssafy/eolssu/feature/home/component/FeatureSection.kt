@@ -83,7 +83,7 @@ internal fun FeatureSection(
 
 /**
  * 기능 칸: 마이페이지 카드와 같은 테두리 없는 흰 바탕 · 모서리 20dp의 상자(칸 너비 전체, 높이 [boxMinHeight]) 안에
- * 높이 80dp 그림과 그 아래 가운데 정렬 제목을 함께 둔다. 상자 전체가 누르는 영역이다.
+ * 높이 96dp 그림과 그 아래 가운데 정렬 제목을 함께 둔다. 상자 전체가 누르는 영역이다.
  */
 @Composable
 private fun FeatureTile(feature: HomeFeature, onClick: () -> Unit, boxMinHeight: Dp, large: Boolean, modifier: Modifier = Modifier) {
@@ -94,18 +94,18 @@ private fun FeatureTile(feature: HomeFeature, onClick: () -> Unit, boxMinHeight:
             .clip(shape)
             .background(EolssuTheme.colors.surface)
             .clickable(interactionSource = interaction, indication = ripple(), role = Role.Button, onClick = onClick)
-            .padding(vertical = 14.dp),
+            .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Image(
             painterResource(feature.illustration),
             contentDescription = null,
-            modifier = Modifier.padding(horizontal = 15.dp).fillMaxWidth().height(80.dp),
+            modifier = Modifier.padding(horizontal = 8.dp).fillMaxWidth().height(96.dp),
         )
         Text(
             stringResource(feature.label),
-            modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp).fillMaxWidth(),
+            modifier = Modifier.padding(top = 8.dp, start = 8.dp, end = 8.dp).fillMaxWidth(),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.titleSmall.copy(
                 fontSize = if (large) 17.sp else 15.sp,
