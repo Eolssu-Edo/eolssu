@@ -49,7 +49,6 @@ import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.StepPhase
 import com.ssafy.eolssu.feature.practice.reading
 import com.ssafy.eolssu.feature.practice.stepShownIndex
-import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_step_listen_desc
 import eolssu.shared.generated.resources.practice_step_manual_confirm
@@ -57,15 +56,10 @@ import eolssu.shared.generated.resources.practice_step_mine
 import eolssu.shared.generated.resources.practice_step_now
 import eolssu.shared.generated.resources.practice_step_off
 import eolssu.shared.generated.resources.practice_step_on
-import eolssu.shared.generated.resources.practice_step_particle_eul
-import eolssu.shared.generated.resources.practice_step_particle_reul
 import eolssu.shared.generated.resources.practice_step_rec_desc_on
 import eolssu.shared.generated.resources.practice_step_rec_desc_resume
 import eolssu.shared.generated.resources.practice_step_rec_desc_start
 import eolssu.shared.generated.resources.practice_step_recording
-import eolssu.shared.generated.resources.practice_step_status
-import eolssu.shared.generated.resources.practice_step_status_finished
-import eolssu.shared.generated.resources.practice_step_status_paused
 import eolssu.shared.generated.resources.practice_step_toggle
 import eolssu.shared.generated.resources.practice_step_toggle_desc
 import org.jetbrains.compose.resources.stringResource
@@ -164,9 +158,9 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
             ) {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (yul != null) {
-                        YulGlyph(yul, 32.sp, fontWeight = FontWeight.Bold)
+                        YulGlyph(yul, 28.sp, fontWeight = FontWeight.Bold)
                     } else {
-                        Text(note?.symbol.orEmpty(), style = EolssuTheme.serif.yul.copy(fontSize = 32.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold))
+                        Text(note?.symbol.orEmpty(), style = EolssuTheme.serif.yul.copy(fontSize = 28.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold))
                     }
                     Text(note?.reading.orEmpty(), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textSub)
                 }
@@ -190,7 +184,7 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
                         Box(Modifier.size(16.dp).background(colors.recSoft, CircleShape).padding(3.dp).background(colors.rec, CircleShape))
                         Text(
                             stringResource(Res.string.practice_step_recording),
-                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold),
                             color = colors.recText,
                             maxLines = 1,
                         )
@@ -198,6 +192,8 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
                 }
             }
         }
+        // 디버그 빌드에서만 값이 있다(S15P31E102-666). 릴리스에서는 아무것도 그리지 않는다.
+        if (listening) PracticeStepGauge()
         if (state.step.manualConfirm && listening) {
             // 실제 음 판정(S15P31E102-341)을 붙이기 전의 대역 조작. 판정기가 스스로 판정하면 보이지 않는다.
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -224,7 +220,7 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
 }
 
 /**
- * 두 칸 중 하나: 왼쪽에 이름과 내용, 오른쪽 가운데에 36dp 동그란 아이콘. 높이 96dp 이상.
+ * 두 칸 중 하나: 왼쪽에 이름과 내용, 오른쪽 가운데에 32dp 동그란 아이콘. 높이 80dp 이상.
  * 이름·내용은 왼쪽 여백을 넓혀 조금 안쪽에 두고, 내용 줄 높이를 고정해 두 칸의 이름과 내용이 같은 높이에 오게 한다.
  */
 @Composable
@@ -241,18 +237,18 @@ private fun StepPanel(
     val shape = RoundedCornerShape(14.dp)
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 96.dp).clearAndSetSemantics { contentDescription = description; role = Role.Button },
+        modifier = modifier.heightIn(min = 80.dp).clearAndSetSemantics { contentDescription = description; role = Role.Button },
         shape = shape,
         color = if (recording) colors.recSoft.copy(alpha = 0.5f) else colors.surface,
         border = BorderStroke(1.dp, if (recording) colors.rec.copy(alpha = 0.3f) else colors.lineSoft),
         contentColor = colors.text,
     ) {
         Row(
-            Modifier.padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+            Modifier.padding(start = 20.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(label, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textMuted)
                 Box(Modifier.height(StepContentHeight), contentAlignment = Alignment.CenterStart) { content() }
             }
@@ -261,37 +257,12 @@ private fun StepPanel(
     }
 }
 
-/** 두 칸의 내용 줄 높이. 32sp 율명 한 줄이 들어간다. */
-private val StepContentHeight = 40.dp
+/** 두 칸의 내용 줄 높이. 28sp 율명 한 줄이 들어간다. */
+private val StepContentHeight = 36.dp
 
 @Composable
 private fun StepIcon(icon: ImageVector, background: Color, tint: Color) {
-    Box(Modifier.size(36.dp).background(background, CircleShape), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(32.dp).background(background, CircleShape), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = tint)
     }
-}
-
-/** 한 음씩 상태 문구. 한 음씩이 아니거나 시작 전이면 null(기존 상태 문구를 쓴다). */
-@Composable
-fun practiceStepStatus(state: PracticeUiState): String? {
-    if (!state.stepUi || state.mode != PracticeMode.Ready) return null
-    return when (state.step.phase) {
-        StepPhase.Idle -> null
-        StepPhase.Paused -> stringResource(Res.string.practice_step_status_paused)
-        StepPhase.Finished -> stringResource(Res.string.practice_step_status_finished)
-        StepPhase.Listening -> {
-            val note = state.song?.timeline?.getOrNull(state.step.target)?.note ?: return null
-            val reading = note.reading.orEmpty()
-            stringResource(Res.string.practice_step_status, note.symbol, reading, stringResource(objectParticle(reading)))
-        }
-    }
-}
-
-/** 받침이 있으면 ‘을’, 없으면 ‘를’. 한글이 아니면 ‘를’. */
-private fun objectParticle(word: String) =
-    if (hasFinalConsonant(word)) Res.string.practice_step_particle_eul else Res.string.practice_step_particle_reul
-
-internal fun hasFinalConsonant(word: String): Boolean {
-    val code = word.lastOrNull()?.code?.minus(0xAC00) ?: return false
-    return code in 0 until 11172 && code % 28 != 0
 }
