@@ -214,6 +214,18 @@ M4A SHA-256은 `b6f9f579704ea663f59f5745827bb9f79d3c55b447c31e096a029a6771a4750c
 
 DB 변경 전 사본은 `/opt/eolssu/ops746-four-beat-pattern/catalog-before-jangdan.sql`(3,830,758bytes, SHA-256 `b696b2aae7dae3e59fc22a5c90a32b5c5d92f38d530cde94a1a6701d6cb49c3c`)이다. 로컬 `data/processed/blue-valentine-jangdan-registration/`의 `server-receipt.json`, `client-proof.json`, `server-runtime-deployed.json`, `final-verification.json`에 근거를 보존했다. 이번 요청은 장단 카탈로그 등록이며 곡135는 기존2판·490음·장단 미연결 상태를 유지한다. 단독 미리듣기 파일은 등록하지 않아 새 상세의 `soundUrl`은null이다. 카탈로그·장구 혼합 생성 지원과 단독 미리듣기 파일 게시를 구분한다. 소스 수정은 현재 작업 브랜치에 남겼고 커밋·Push·MR은 요청되지 않아 수행하지 않았다.
 
+### 4판 반음 이조와 첫 쉼 반주 조건 제거
+
+사용자는 운지 누락 확인 뒤 전체를 반음 낮춰 다시 게시하도록 요청했고, 첫 쉼으로 반주를 막는 조건도 없애도록 확정했다. 3판의490음 중 이58·청대48·청유165·청이10, 합계281음이 현재 소금 운지표에 없었다. [국립국악원 소금 교재](https://www.gugak.go.kr/site/inc/file/fileDownloadLog?boardid=10929&boardseq=41191&dirname=%2Fboard%2F138&filename=kor_sogeum.pdf&sistype=D&type=F) 인쇄61쪽의 기본 운지표에도 이 네 음은 없고,82쪽은 전통 소금의 빠른 반음계 연주가 매우 까다롭다고 설명한다. 자료 누락을 실물 연주 불가로 확정하지 않는다.
+
+3판의 모든 본음을 일괄1반음 낮추면 이→임·무→남·응→무·청대→청황·청협→청태·청중→청고·청유→청중·청이→청임·청무→청남이 된다. MIDI70–84, 임(B♭4)부터 청남(C6)까지이며490음 전부 현재 API의 소금 운지에 대응한다. 개별 음의 상대 간격·118각·544개 이벤트·쉼·붙임줄·수행 시간표는 보존한다. 원음에서 이미 옥타브 편곡한3판을 기준으로 한 이조이며 원래 원곡의 음역을 복구하는 작업은 아니다.
+
+공통 악보에서 이벤트 율명과 표시 율명을 함께 바꾸고 hwangHz는 유지했다. 입력 JGB 해시는 출처로 보존하고 converter에 common-transpose@1:-1-from-v3, 생성 메타데이터에 이전 악보/음원 해시와 이조를 기록한다. 기존 CAT 생성기를 확장 음역 없이 다시 실행했다. 독립 원본 JGB 기반 MIDI490음의 음고가 일치하고 onset/note-off 최대 오차는0.013ms다. 실제 AAC490음 안정창의 최대 오차20.72cent·쉼43창·182.645805초·피크0.851 미만 검사를 통과했으며 이전 실제 수행 segments도 모두 같다. 이는 실물 악기·전문 연주자 검수가 아니다.
+
+첫 음표 종류와 곡별 allowInitialRest 예외를 제거한다. 장단 시작은 악보 그리드의0tick에 맞추며 선율 첫 음은6tick(1.5박)이다. 완전한 주기·유효한 장단·그리드 시작점 검사는 유지한다. 임의 오프셋이나 불완전한 못갖춘마디의 자동 판정은 새로 도입하지 않는다. 4판의 R2·운영 교체는 이 변경의 정식 배포 뒤 수행하며 이전3판과 다른 카탈로그 행을 보존한다.
+
+로컬 생성·독립 검증 근거는 data/processed/blue-valentine-minus1-v4/의 adaptation.json·verification.json·bundle/release.json이다. 공통 악보 SHAe6c889d4f46807dfd42835c8b51564b61f0a64960d88eb4ee1cb7443066c5873, 선율 SHA51eb36be75a45c1223dfd1ee80a2226b194da812ea58fae19a76ccc364201ac1, release9ab3976de01e971bd915dcd5097264cb1bd81e13bd554f283ddc2550762ad241이다. 아래3판의 배포 대기는 당시 기록이다.
+
 ### 3판 장단 연결·R2 등록과 MR 준비
 
 후속 ‘연결하고 등록하고 MR’ 요청으로 같은 곡135를 **3판·장단12**로 연결했다. 제목 Blue Valentine·소금2·난이도3·비채점·118각490음은 유지한다. 공통 악보의 장단명과 판본만 바꾸고2판의 모든 이벤트·표시 자리·음고·붙임줄·수행 시점을 보존했다. 기존 `rebind_performance()`로 실제 측정된 수행 시간표를 새 악보 해시에 연결했으며 선율 M4A는 재합성하거나 장구를 혼합하지 않았다. 앱이 선율과 장구를 별도로 재생하기 때문이다.

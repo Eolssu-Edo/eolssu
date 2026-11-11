@@ -198,8 +198,20 @@ class JangdanPlaybackApiDatabaseTests {
             assertEquals(16L, playback.path("cycleTicks").longValue())
             assertEquals(listOf("덩", "덕", "궁", "덕"), playback.path("pattern").path("beats").toList().map { it.asString() })
             assertEquals("4박 기본 반주", get("/api/songs/135").path("jangdanName").asString())
+            val transposed = original.toString()
+                .replace("\"scoreVersion\":3", "\"scoreVersion\":4")
+                .replace("\"symbol\":\"청중\"", "\"symbol\":\"청고\"")
+                .replace("\"yul\":\"중\"", "\"yul\":\"고\"")
+            jdbc.update("UPDATE songs SET score_json=?,score_version=4 WHERE id=135", transposed)
+            val fourth = get("/api/songs/135/score")
+            assertEquals(4, fourth.path("scoreVersion").intValue())
+            assertEquals(json.readTree(transposed), fourth.path("score"))
+            assertEquals(playback, fourth.path("jangdanPlayback"))
             jdbc.update("UPDATE songs SET score_json=? WHERE id=135",
-                original.toString().replace("user-blue-valentine-20261111-sogeum", "unreviewed-source"))
+                transposed.replace("user-blue-valentine-20261111-sogeum", "unreviewed-source"))
+            assertEquals(playback, get("/api/songs/135/score").path("jangdanPlayback"))
+            jdbc.update("UPDATE songs SET score_json=? WHERE id=135",
+                transposed.replace("4박 기본 반주", "unknown-pattern"))
             assertTrue(get("/api/songs/135/score").path("jangdanPlayback").isNull)
         } finally {
             jdbc.update("DELETE FROM songs WHERE id=135")
