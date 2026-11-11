@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -21,10 +22,14 @@ import kotlinx.coroutines.test.setMain
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** 곡 정보의 '연주 평가 시작'으로 들어온 연주 평가(S15P31E102-705): 대기 상태 없이 바로 시작하고, 준비로 돌아오면 곡 정보로 돌아갈 상태가 된다. */
+/**
+ * 곡 정보의 '연주 평가 시작'으로 들어온 연주 평가(S15P31E102-705): 들어오면 평가 대기 상태로 두고 '평가 시작'을 눌러야 시작한다(S15P31E102-747).
+ * 녹음을 분석에 넘긴 뒤 돌아오면 대기 상태를 다시 보이지 않고 들어온 화면으로 돌아갈 상태가 된다.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeDirectEvaluationTest {
     @Test fun cachedOldWholeScoreCannotStartCountdownOrMicrophone() = runTest {
@@ -41,13 +46,17 @@ class PracticeDirectEvaluationTest {
             val recorder = FakePracticeRecorder()
             val vm = PracticeViewModel(old.id, false, songs, settings, PracticeTimeMeter({ 0L }, testScheduler.timeSource),
                 PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope), recorder,
-                playbackTimeSource = testScheduler.timeSource)
+                playbackTimeSource = testScheduler.timeSource, direct = true)
             models.put("stale", vm)
             runCurrent()
+            assertTrue(vm.uiState.value.awaitingStart)
+            assertEquals(0, recorder.starts)
             current = old.copy(scoreVersion = 2)
             vm.requestEvaluation()
             runCurrent()
             assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
+            assertEquals(PracticePopup.ScoreChanged, vm.uiState.value.popup)
+            assertFalse(vm.leavesDirectOnReturn())
             assertEquals(0, recorder.starts)
         } finally { models.clear(); Dispatchers.resetMain() }
     }
@@ -71,7 +80,7 @@ class PracticeDirectEvaluationTest {
             }
             val vm = PracticeViewModel(old.id, false, songs, settings, PracticeTimeMeter({ 0L }, testScheduler.timeSource),
                 PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope), recorder, permission,
-                playbackTimeSource = testScheduler.timeSource)
+                playbackTimeSource = testScheduler.timeSource, direct = true)
             models.put("published", vm)
             runCurrent()
             vm.requestEvaluation()
@@ -88,34 +97,50 @@ class PracticeDirectEvaluationTest {
         } finally { models.clear(); Dispatchers.resetMain() }
     }
 
-    @Test fun directEvaluationStartsCountdownOnEntryWithoutReadyStep() = directTest { vm, settings ->
+    @Test fun directEvaluationWaitsForStartButtonOnEntry() = directTest { vm, settings ->
         settings.grantMic()
         assertTrue(vm.uiState.value.direct)
-        vm.startEvaluationOnEntry()
-        assertEquals(PracticeMode.Countdown, vm.uiState.value.mode)
+        advanceTimeBy(5_000)
+        runCurrent()
+        assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
+        assertTrue(vm.uiState.value.awaitingStart)
+        assertTrue(vm.uiState.value.recordingLayout)
         assertFalse(vm.leavesDirectOnReturn())
     }
 
     /** 기기 권한만 보고 서비스 마이크 안내 창은 띄우지 않는다(S15P31E102-733). 테스트의 기기 권한은 없음(null) = 허용이다. */
-    @Test fun directEvaluationStartsWithoutServiceMicNotice() = directTest { vm, _ ->
-        vm.startEvaluationOnEntry()
+    @Test fun startButtonBeginsCountdownWithoutServiceMicNotice() = directTest { vm, _ ->
+        vm.requestEvaluation()
         assertEquals(PracticeMode.Countdown, vm.uiState.value.mode)
+        assertFalse(vm.uiState.value.awaitingStart)
         assertNull(vm.uiState.value.popup)
         assertFalse(vm.leavesDirectOnReturn())
     }
 
-    @Test fun backToReadyAfterDirectStartLeavesForSongInfo() = directTest { vm, settings ->
-        settings.grantMic()
-        assertFalse(vm.leavesDirectOnReturn()) // 아직 시작 전(곡 로딩 직후)에는 남는다.
-        vm.startEvaluationOnEntry()
+    @Test fun cancelledCountdownReturnsToWaitingStateAndStaysOnScreen() = directTest { vm, _ ->
+        vm.requestEvaluation()
+        vm.cancelCountdown()
+        runCurrent()
+        assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
+        assertTrue(vm.uiState.value.awaitingStart)
+        assertNull(vm.uiState.value.popup)
+        assertFalse(vm.leavesDirectOnReturn()) // 기기 권한 창이 닫히며 화면이 다시 보여도 대기 상태에 남는다.
+    }
+
+    @Test fun returnAfterHandingTakeToAnalysisLeavesWaitingState() = directTest { vm, _ ->
+        vm.requestEvaluation()
+        finishSong(vm)
+        assertEquals(PracticePopup.End, vm.uiState.value.popup)
+        assertNotNull(vm.takeForEvaluation())
         vm.toReady() // 분석으로 넘기기 전 준비 상태로 돌린 것과 같다.
         assertTrue(vm.leavesDirectOnReturn())
     }
 
-    @Test fun switchedEvaluationKeepsReadyScreen() = directTest(direct = false) { vm, settings ->
-        settings.grantMic()
+    @Test fun switchedEvaluationKeepsReadyScreen() = directTest(direct = false) { vm, _ ->
         assertFalse(vm.uiState.value.direct)
-        vm.startEvaluationOnEntry()
+        vm.requestEvaluation()
+        finishSong(vm)
+        assertNotNull(vm.takeForEvaluation())
         vm.toReady()
         assertFalse(vm.leavesDirectOnReturn())
     }
@@ -139,6 +164,11 @@ class PracticeDirectEvaluationTest {
         runCurrent()
         assertFalse(settings.settings.value.showHangul)
         assertFalse(vm.uiState.value.settings.showHangul)
+    }
+
+    private fun TestScope.finishSong(vm: PracticeViewModel) {
+        advanceTimeBy(3000 + requireNotNull(vm.uiState.value.song).durationMs().toLong() + 100)
+        runCurrent()
     }
 
     private fun directTest(

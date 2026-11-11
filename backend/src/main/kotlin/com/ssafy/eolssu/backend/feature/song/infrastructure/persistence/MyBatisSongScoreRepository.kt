@@ -7,6 +7,11 @@ class MyBatisSongScoreRepository(private val mapper: SongScoreMapper) : SongScor
         PublishedSongScore(it.songId, it.scoreVersion, it.noteCount, it.defaultBpm, it.bpmUnit, it.scoreJson)
     }
 
+    override fun findPublishedRevision(songId: Long, scoreVersion: Int): PublishedSongScore? =
+        mapper.findPublishedRevision(songId, scoreVersion)?.let {
+            PublishedSongScore(it.songId, it.scoreVersion, it.noteCount, it.defaultBpm, it.bpmUnit, it.scoreJson)
+        }
+
     override fun pitches(): List<ScorePitch> = mapper.findPitches().map {
         ScorePitch(it.id, it.yul, it.octave.toInt(), it.semitone.toInt(), it.hanja, it.hangul)
     }

@@ -20,7 +20,7 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * SONG-02 곡 정보(보드 `Song-Detail`): 악보 표지(앞 2각 미니 정간보 · 세로 제목 · '얼쑤' 도장), 제목과 난이도, 곡 소개,
- * 정보 격자, 본문 안의 '연습 설정' | '연주 평가 시작'.
+ * 정보 격자, 본문 안의 '연주 평가 시작'.
  * 태블릿([WindowWidthClass.Medium] · [WindowWidthClass.Expanded])은 같은 순서를 720dp 너비로 보인다.
  * 태블릿 가로의 곡 목록에서는 이 화면 대신 목록 오른쪽 칸에 같은 정보를 보이므로, 가로로 이 화면에 오는 경우(배우기 단계의 곡 열기 등)도 세로 배치를 쓴다.
  */
@@ -31,11 +31,10 @@ fun SongDetailScreen(
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onStartPractice: () -> Unit,
-    onOpenSettings: () -> Unit,
     onRetry: () -> Unit,
 ) {
     if (widthClass != WindowWidthClass.Compact) {
-        SongDetailTabletLayout(state, snackbarHostState, onBack, onStartPractice, onOpenSettings, onRetry)
+        SongDetailTabletLayout(state, snackbarHostState, onBack, onStartPractice, onRetry)
         return
     }
     EolssuScaffold(
@@ -50,7 +49,6 @@ fun SongDetailScreen(
         SongDetailBody(
             song,
             onStartPractice,
-            onOpenSettings,
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())

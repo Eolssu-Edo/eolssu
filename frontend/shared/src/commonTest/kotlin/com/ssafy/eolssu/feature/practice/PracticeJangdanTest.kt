@@ -93,12 +93,12 @@ class PracticeJangdanTest {
         assertEquals(4.0, vm.uiState.value.currentTick!!, 0.001)
     }
 
-    @Test fun evaluationEntryStartsCountdownOnceAndDoesNotRestartAfterCancel() = practice { vm, _, _, _ ->
-        vm.startEvaluationOnEntry(); runCurrent()
+    @Test fun cancelledEvaluationCountdownDoesNotRestartByItself() = practice { vm, _, _, _ ->
+        vm.requestEvaluation(); runCurrent()
         assertEquals(PracticeMode.Countdown, vm.uiState.value.mode)
         vm.cancelCountdown(); runCurrent()
         assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
-        vm.startEvaluationOnEntry(); runCurrent()
+        advanceTimeBy(5_000); runCurrent()
         assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
     }
 

@@ -64,11 +64,15 @@
 
     <!-- 세션당 평가는 하나다. 기록을 지운 세션은 회원 조회에서 없는 세션과 같다(REC-04). 녹음은 원본이 있을 때만 재생할 수 있다 -->
     <select id="findDetail" resultType="com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionDetailRow">
-        SELECT ps.id AS session_id, ps.user_id, ps.song_id, ps.bpm, ps.bpm_unit, ps.start_note_idx, ps.end_note_idx, ps.status,
+        SELECT ps.id AS session_id, ps.user_id, ps.song_id, ps.bpm, ps.bpm_unit, ps.start_note_idx, ps.end_note_idx, ps.status, ps.score_version,
                e.id AS evaluation_id, ps.fail_reason,
                (ps.recording_url IS NOT NULL AND ps.record_deleted_at IS NULL) AS recording_available,
-               ps.started_at, ps.ended_at, ps.analysis_started_at, ps.saved_at, ps.memo, ps.viewed_at
+               ps.started_at, ps.ended_at, ps.analysis_started_at, ps.saved_at, ps.memo, ps.viewed_at,
+               COALESCE(v.title, s.title) AS song_title
         FROM practice_sessions ps
+        JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN song_score_versions v ON v.song_id = ps.song_id AND v.score_version = ps.score_version
+            AND s.score_version != ps.score_version
         LEFT JOIN evaluations e ON e.session_id = ps.id
         WHERE ps.id = #{sessionId} AND ps.user_id = #{userId} AND ps.record_deleted_at IS NULL
     </select>

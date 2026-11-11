@@ -746,22 +746,16 @@ class PracticeViewModel(
 
     // 평가 연주
 
-    private var entryEvaluationStarted = false
-
-    /** 일반 연습에서 평가로 이동했거나 곡 정보에서 바로 평가를 시작한 경우, 곡 로딩 후 한 번만 권한 확인·카운트다운을 시작한다. */
-    fun startEvaluationOnEntry() {
-        if (entryEvaluationStarted || _uiState.value.song == null || !_uiState.value.recordingSupported) return
-        entryEvaluationStarted = true
-        requestEvaluation()
-    }
+    /** 마친 녹음을 분석 화면에 넘겼는지([takeForEvaluation]). */
+    private var handedToAnalysis = false
 
     /**
-     * 곡 정보에서 바로 시작한 평가가 한 번 시작된 뒤 준비 상태로 돌아와 있는지. 다른 화면(분석·결과)에서 돌아왔을 때
-     * 보일 플레이어가 없으므로 곡 정보로 돌아갈지 판단한다.
+     * 연주 평가([PracticeUiState.direct])의 녹음을 분석에 넘긴 뒤 이 화면으로 돌아왔는지. 분석·결과에서 기기 뒤로 가기로 돌아와도
+     * 평가 대기 상태를 다시 보이지 않고 들어온 화면으로 돌아갈지 판단한다. 기기 권한 창이 닫힐 때의 화면 복귀는 해당하지 않는다.
      */
     fun leavesDirectOnReturn(): Boolean {
         val state = _uiState.value
-        return state.direct && entryEvaluationStarted && state.mode == PracticeMode.Ready && state.popup == null
+        return state.direct && handedToAnalysis && state.mode == PracticeMode.Ready && state.popup == null
     }
 
     /** 기기 권한 창의 응답을 기다리는 평가 시작. 응답 전에는 다시 눌러도 권한 요청·카운트다운을 겹쳐 시작하지 않는다. */
@@ -781,6 +775,7 @@ class PracticeViewModel(
         if (mine || !accountScope.isActive) return
         if (recorder == null) return
         if (micRequestJob?.isActive == true) return
+        handedToAnalysis = false
         pauseRhythm()
         stopPreview()
         stopJangdan()
@@ -1131,7 +1126,7 @@ class PracticeViewModel(
         if (!accountScope.isActive) return null
         val state = _uiState.value
         if (!state.finished || (state.popup != PracticePopup.End && state.popup != PracticePopup.EndAtLimit)) return null
-        if (take == null) _uiState.update { it.failRecording() }
+        if (take == null) _uiState.update { it.failRecording() } else handedToAnalysis = true
         return take
     }
 

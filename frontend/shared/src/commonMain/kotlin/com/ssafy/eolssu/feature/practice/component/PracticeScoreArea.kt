@@ -324,8 +324,8 @@ fun PracticeBoardScore(
             }
             // 준비 안내의 공간을 재생 중에도 유지해 악보 높이/묶음 수가 변하지 않게 한다.
             // 한 음씩은 두 칸만으로 충분해 안내를 두지 않는다(S15P31E102-717).
-            // 곡 정보에서 바로 시작한 평가의 준비 상태는 곧 카운트다운이므로 안내를 보이지 않는다.
-            val showHint = state.mode == PracticeMode.Ready && !state.preparing
+            // 연주 평가의 시작 전 대기는 연주 중 배치라 안내를 보이지 않는다.
+            val showHint = state.mode == PracticeMode.Ready && !state.awaitingStart
             if (!state.stepUi) Text(
                 stringResource(Res.string.practice_score_hint),
                 modifier = Modifier.padding(top = 8.dp).alpha(if (showHint) 1f else 0f)

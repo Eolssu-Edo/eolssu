@@ -160,7 +160,7 @@ private fun PracticeCompactLayout(
     livePitch: Map<ScoreUnitKey, LivePitchMark>,
 ) {
     val recordingBar = state.recordingLayout
-    // 곡 정보에서 바로 시작한 평가는 준비 상태의 플레이어·행동 버튼을 두지 않는다(모범 연주 듣기 없이 바로 평가).
+    // 연주 평가는 준비 상태의 플레이어·행동 버튼 없이 하단의 평가 대기 막대(‘평가 시작’)를 둔다.
     val showPlayer = !state.direct && state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)
     val fingering = state.fingeringView
     EolssuScaffold(

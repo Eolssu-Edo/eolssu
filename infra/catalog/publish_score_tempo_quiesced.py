@@ -79,7 +79,7 @@ def drain_backend_posts():
         time.sleep(.2)
 
 
-def main():
+def main(publisher=publisher):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bundle', type=Path, required=True)
     parser.add_argument('--receipt', type=Path, required=True)

@@ -53,7 +53,6 @@ import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
-import com.ssafy.eolssu.feature.practice.PracticeSettingsRoute
 import com.ssafy.eolssu.feature.result.AnalysisExit
 import com.ssafy.eolssu.feature.result.AnalysisRoute
 import com.ssafy.eolssu.feature.result.ResultRoute
@@ -227,7 +226,6 @@ fun EolssuNavHost(
                     onBack = { navController.popBackStackFrom(entry) },
                     onOpenSong = { id -> performance.move(null, PerfTarget.SONG_DETAIL) { navController.navigate(EolssuDestination.songDetail(id)) } },
                     onStartPractice = { id -> performance.move(null, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.practice(id, direct = true)) } },
-                    settingsSheet = { id, onClose -> PracticeSettingsRoute(id, onClose) },
                     pickSongId = pickSongId,
                     onPickTaken = { entry.savedStateHandle[PICK_SONG_KEY] = null },
                     onSessionExpired = {
@@ -252,7 +250,6 @@ fun EolssuNavHost(
                     songId = songId,
                     onBack = { navController.popBackStackFrom(entry) },
                     onStartPractice = { id -> performance.move(perf, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.practice(id, direct = true)) } },
-                    settingsSheet = { id, onClose -> PracticeSettingsRoute(id, onClose) },
                 )
             }
             composable(
