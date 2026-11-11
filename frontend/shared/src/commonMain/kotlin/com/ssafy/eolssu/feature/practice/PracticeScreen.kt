@@ -165,7 +165,7 @@ private fun PracticeCompactLayout(
                     .fillMaxSize()
                     .padding(start = 20.dp, end = 20.dp, top = if (fingering || recordingBar) 8.dp else 18.dp, bottom = 12.dp),
             ) {
-                PracticeTitleRow(state, statusAtEnd = true)
+                PracticeTitleRow(state, showPill = false)
                 Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
                 if (fingering) {
                     PracticeFingeringPage(state, actions.onSelectUnit, modifier = Modifier.weight(1f))

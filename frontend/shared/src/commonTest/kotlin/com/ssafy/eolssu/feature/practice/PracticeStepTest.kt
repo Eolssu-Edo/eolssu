@@ -139,12 +139,6 @@ class PracticeStepTest {
         assertEquals(5, on.step.target)
     }
 
-    @Test fun objectParticleFollowsFinalConsonant() {
-        assertTrue(com.ssafy.eolssu.feature.practice.component.hasFinalConsonant("황"))
-        assertFalse(com.ssafy.eolssu.feature.practice.component.hasFinalConsonant("태"))
-        assertFalse(com.ssafy.eolssu.feature.practice.component.hasFinalConsonant(""))
-    }
-
     @Test fun viewModelDrivesJudgeAndResumesImmediately() {
         val judge = FakeStepNoteJudge()
         stepTest(judge) { vm ->

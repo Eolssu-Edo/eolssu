@@ -121,6 +121,14 @@ class PracticeViewModel(
      */
     val livePitch: StateFlow<LivePitchTally> = pitchTally.asStateFlow()
 
+    private val stepGaugeState = MutableStateFlow<StepPitchGauge?>(null).takeIf { recorder?.diagnostics == true }
+
+    /**
+     * 한 음씩 따라 불기에서 지금 소리가 목표 음에 어떻게 닿는지(S15P31E102-666). 디버그 빌드에서만 있고 릴리스·관측 없는 플랫폼은 null이다.
+     * 관측마다(약 20ms) 바뀌므로 [uiState]에 넣지 않고 막대만 따로 구독한다.
+     */
+    val stepGauge: StateFlow<StepPitchGauge?>? = stepGaugeState?.asStateFlow()
+
     private val jangdanAudio = JangdanSession(jangdanPlayer, accountScope)
     private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource) { song, bpm ->
         val plan = if (settingsStore.settings.value.jangdanSound && jangdanPlayer.available) song.jangdanPlanAt(bpm) else null
@@ -914,7 +922,8 @@ class PracticeViewModel(
         accountScope.launch {
             when (val load = repository.criteria(instrumentId)) {
                 is NotePracticeCriteriaLoad.Found -> {
-                    val judge = pitchStepJudgeFor(song, load.criteria, recorder, accountScope, ::onStepJudgeFailed) ?: return@launch
+                    val gauge = stepGaugeState?.let { state -> { value: StepPitchGauge? -> state.value = value } }
+                    val judge = pitchStepJudgeFor(song, load.criteria, recorder, accountScope, gauge, ::onStepJudgeFailed) ?: return@launch
                     pauseStep()
                     stepJudge.stop()
                     stepJudge = judge

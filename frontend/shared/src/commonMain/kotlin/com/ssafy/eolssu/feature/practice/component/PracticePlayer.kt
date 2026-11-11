@@ -302,7 +302,8 @@ fun PracticeCallToAction(state: PracticeUiState, actions: PracticeBottomActions,
     val song = state.song ?: return
     val unsupported = !state.recordingSupported && (!state.solo || song.evaluable)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        PracticeModeSwitch(state, actions)
+        // 한 음씩을 켜면 모범 연주·장단으로 연습 고르기를 숨긴다.
+        if (!state.stepUi) PracticeModeSwitch(state, actions)
         when {
             state.mine || state.learn -> Unit
             !state.solo -> {
