@@ -226,6 +226,8 @@ private fun learnStageActions(
     onOpenFingering = { blow -> navigation.onOpenFingering(state.instrument, blow) },
     onOpenReading = navigation.onOpenReading,
     onRetryDetail = { viewModel.loadDetail(it, force = true) },
+    stepsDone = viewModel::stepsDone,
+    onStepsDone = viewModel::saveStepsDone,
 )
 
 private fun SnackbarHostState.notifier(scope: CoroutineScope): (suspend () -> String) -> Unit =

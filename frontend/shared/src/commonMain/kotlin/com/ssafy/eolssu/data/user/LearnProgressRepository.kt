@@ -88,6 +88,36 @@ class LearnProgressRepository(
         store.putString(key, stages.sorted().joinToString(SEPARATOR))
     }
 
+    /**
+     * [trackId] [stage]단계 안에서 앞에서부터 마친 할 일 박스 수(S15P31E102-749). 단계를 나갔다 돌아와도 이어 하도록 이 기기에만 남긴다.
+     * 회원마다 따로 두고, 로그인 정보가 아직 없으면 0이다.
+     */
+    fun stepsDone(trackId: String, stage: Int): Int =
+        stepsKey(trackId)?.let(store::getString)?.let { parseSteps(it)[stage] } ?: 0
+
+    fun saveStepsDone(trackId: String, stage: Int, count: Int) {
+        val key = stepsKey(trackId) ?: return
+        val steps = store.getString(key)?.let(::parseSteps).orEmpty().toMutableMap()
+        if (count > 0) steps[stage] = count else steps.remove(stage)
+        store.putString(key, steps.entries.sortedBy { it.key }.joinToString(SEPARATOR) { "${it.key}:${it.value}" })
+    }
+
+    /** '처음부터 다시 하기': [trackId]의 단계 안 진행을 모두 지운다. */
+    fun clearSteps(trackId: String) {
+        val key = stepsKey(trackId) ?: return
+        store.putString(key, "")
+    }
+
+    private fun parseSteps(value: String): Map<Int, Int> = value.split(SEPARATOR).mapNotNull { entry ->
+        val (stage, count) = entry.split(":").takeIf { it.size == 2 } ?: return@mapNotNull null
+        val s = stage.toIntOrNull() ?: return@mapNotNull null
+        val c = count.toIntOrNull()?.takeIf { it > 0 } ?: return@mapNotNull null
+        s to c
+    }.toMap()
+
+    private fun stepsKey(trackId: String): String? = if (member == null) "learn_steps_$trackId"
+        else member.id?.let { "learn_steps_member_${it.length}_${it}_$trackId" }
+
     // 회원을 가리지 않던 예전 공용 키는 보존하되 어느 회원에게도 올리지 않는다.
     private fun key(trackId: String): String? = if (member == null) "learn_done_$trackId"
         else member.id?.let { "learn_done_member_${it.length}_${it}_$trackId" }
