@@ -150,6 +150,13 @@ internal fun HomeScrollLayout(
         val featureAlpha = ((frame.progress - .6f) / .25f).coerceIn(0f, 1f)
         val mountainColor = EolssuTheme.colors.radical
         val open: () -> Unit = { scope.launch { goTo(rangePx) } }
+        // 화살표는 펼친 무대 아래 카드 끝까지 내린다. 펼치는 도중 카드 높이를 처음 재면 바닥이 늘 수 있어 한 번 더 맞춘다.
+        val openToBottom: () -> Unit = {
+            scope.launch {
+                goTo(scroll.maxValue)
+                if (scroll.value < scroll.maxValue) goTo(scroll.maxValue)
+            }
+        }
         Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
             Box(Modifier.fillMaxWidth().height((h + HomeScrollRange + overflow).dp)) {
                 Box(
@@ -231,7 +238,7 @@ internal fun HomeScrollLayout(
                         Box(
                             Modifier.offset(x = ((w - 48f) / 2f).dp, y = (h - 82f).dp).size(48.dp)
                                 .graphicsLayer { alpha = frame.arrowAlpha }
-                                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.home_scroll_to_features), onClick = open),
+                                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.home_scroll_to_features), onClick = openToBottom),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(EolssuIcons.ChevronDown, stringResource(Res.string.home_scroll_to_features),
