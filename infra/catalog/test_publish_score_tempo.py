@@ -16,8 +16,10 @@ import publish_score_tempo as tool
 def fixture(root, sid=54):
     score = {'schemaVersion': 1, 'score': {'sourceId': f'src-{sid}', 'scoreVersion': 2, 'instrument': 'JEONGAK_DAEGEUM'},
              'music': {'jangdan': '', 'bpmUnit': 'QUARTER', 'ticksPerBeat': 4, 'ticksPerJeonggan': 2},
-             'events': [{'id': 'e0', 'kind': 'NOTE', 'startTick': 0, 'durationTick': 8}],
-             'columns': [], 'provenance': {'review': 'inferred'}}
+             'events': [{'id': 'e0', 'kind': 'NOTE', 'startTick': 0, 'durationTick': 8, 'sigimsae': []}],
+             'columns': [{'index': 0, 'cells': [dict(id=f'c0-j{j}',index=j,
+                 units=[dict(row=0,col=0,eventId='e0',symbol='황' if j==0 else '-')]) for j in range(4)]}],
+             'provenance': {'review': 'inferred'}}
     before = dict(id=sid, source=f'src-{sid}', version=2, bpm=30, scorable=1, notes=1,
                   status='PUBLISHED', deleted=None, jangdan=None, score=score, title='뱃노래',
                   difficulty=2, instrumentId=2, umulsai=None, description=None)
@@ -33,7 +35,8 @@ def fixture(root, sid=54):
     perf = dict(schema='common-score-performance/v1', policy='educational-preview/v1',
                 sourceId=f'src-{sid}', instrument='JEONGAK_DAEGEUM', scoreVersion=3,
                 sourceSha256=tool.sha(body), audioSha256=tool.sha(audio), bpm=99, bpmUnit='QUARTER',
-                durationMs=1212.1212, segments=[dict(eventId='e0', startMs=0, endMs=1212.1212)])
+                durationMs=1212.1212, segments=[dict(occurrenceId=f'o{j}',eventId='e0',cellId=f'c0-j{j}',row=0,col=0,
+                    startTick=2*j,endTick=2*j+2,startMs=j*303.0303,endMs=(j+1)*303.0303,sigimsae=[]) for j in range(4)])
     files = {}
     for key, path, content in [('scoreFile',f'{sid}/source.json',body), ('audioFile',f'{sid}/audio.m4a',audio),
                                ('performanceFile',f'{sid}/performance.json',json.dumps(perf).encode())]:
@@ -54,6 +57,59 @@ class ReleaseGuards(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.original = fixture(self.root)
+
+    def replace_performance(self, perf):
+        release=json.loads((self.root/'release.json').read_bytes())
+        desc=release['entries'][0]['performanceFile']
+        raw=json.dumps(perf).encode()
+        (self.root/desc['path']).write_bytes(raw)
+        desc.update(sha256=tool.sha(raw),bytes=len(raw))
+        (self.root/'release.json').write_text(json.dumps(release),encoding='utf-8')
+
+    def test_two_millisecond_truncated_performance_is_rejected(self):
+        perf=json.loads((self.root/self.original['performanceFile']['path']).read_bytes())
+        perf['segments']=perf['segments'][:2]
+        for i,s in enumerate(perf['segments']): s.update(startMs=i,endMs=i+1)
+        perf['durationMs']=2
+        self.replace_performance(perf)
+        with self.assertRaises(ValueError): tool.load_release(self.root)
+
+    def test_wrong_written_slot_and_duplicate_occurrence_are_rejected(self):
+        original=json.loads((self.root/self.original['performanceFile']['path']).read_bytes())
+        for key,value in [('startTick',1),('endTick',3),('cellId','c9-j9'),('row',1),('col',1),('occurrenceId','o1')]:
+            perf=copy.deepcopy(original); perf['segments'][0][key]=value
+            self.replace_performance(perf)
+            with self.subTest(key=key),self.assertRaises(ValueError): tool.load_release(self.root)
+
+    def test_complete_but_wrong_speed_and_nonfinite_times_are_rejected(self):
+        original=json.loads((self.root/self.original['performanceFile']['path']).read_bytes())
+        for scale in (0.001,0.5,float('nan')):
+            perf=copy.deepcopy(original)
+            for s in perf['segments']:
+                s['startMs']*=scale; s['endMs']*=scale
+            perf['durationMs']*=scale
+            self.replace_performance(perf)
+            with self.subTest(scale=scale),self.assertRaises(ValueError): tool.load_release(self.root)
+
+    def test_apply_requires_quiesced_traffic_before_database_access(self):
+        with tempfile.TemporaryDirectory() as receipts:
+            with self.assertRaisesRegex(ValueError,'quiesced'),patch.object(tool,'mysql') as db:
+                tool.run(self.root,Path(receipts)/'apply.json',apply=True,runner=db)
+            db.assert_not_called()
+
+    def test_fractional_subdivisions_cover_one_event_without_rounding_away_slots(self):
+        source=copy.deepcopy(self.original['beforeSong']['score'])
+        source['music'].update(ticksPerBeat=6,ticksPerJeonggan=6)
+        source['events'][0]['durationTick']=6
+        source['columns']=[dict(index=0,cells=[dict(id='c0-j0',index=0,units=[
+            dict(row=r,col=c,eventId='e0',symbol='-') for r,count in enumerate((2,1,3)) for c in range(count)])])]
+        positions=[(0,0,0,1),(0,1,1,2),(1,0,2,4),(2,0,4,14/3),(2,1,14/3,16/3),(2,2,16/3,6)]
+        perf=dict(durationMs=60000/99,segments=[dict(occurrenceId=f'o{i}',eventId='e0',cellId='c0-j0',
+            row=r,col=c,startTick=start,endTick=end,startMs=start*60000/99/6,endMs=end*60000/99/6,sigimsae=[])
+            for i,(r,c,start,end) in enumerate(positions)])
+        self.assertAlmostEqual(60000/99,tool.validate_performance_timing(source,perf,99))
+        perf['segments'][3]['startTick']=4.1
+        with self.assertRaises(ValueError): tool.validate_performance_timing(source,perf,99)
 
     def test_tempo_and_jangdan_only_preserve_scoring_and_history(self):
         entries, objects, digest = tool.load_release(self.root)
@@ -130,7 +186,7 @@ class ReleaseGuards(unittest.TestCase):
                 return json.dumps(entries[0]['beforeSong'])
             with patch.object(tool,'deployment_lock',return_value=nullcontext()),patch.object(tool,'backup'):
                 with self.assertRaises(RuntimeError):
-                    tool.run(self.root,receipt,apply=True,upload_receipt=upload,runner=runner)
+                    tool.run(self.root,receipt,apply=True,traffic_quiesced=True,upload_receipt=upload,runner=runner)
             self.assertEqual('apply-outcome-unknown',json.loads(receipt.read_bytes())['status'])
 
     def test_transaction_guards_old_rows_and_inserts_new_version(self):

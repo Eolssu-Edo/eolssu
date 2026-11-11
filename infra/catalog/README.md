@@ -223,18 +223,21 @@ sudo /opt/eolssu-backup/backup.py send db
 
 서버에는 `publish_score_tempo.py`, `enable_scoring.py`, `stage_model_audio.py`를 같은 디렉터리에 준비한다. `--song-id`를 반복하면 읽기 전용으로 `songs`와 모든 판본의 `audios`, 활성 세션 수를 JSON으로 내보낸다. 이 스냅샷의 곡 행과 현재 판본 음원 행을 각각 `beforeSong`, `beforeAudio`에 넣는다.
 
-묶음의 `release.json`은 `schema: eolssu-score-tempo-release/v1`, `task: S15P31E102-728`, `entries`를 가진다. 각 entry는 `songId`, `beforeSong`, `beforeAudio`, `targetBpm`, `scoreFile`, `audioFile`, `performanceFile`, `audioMetadata`와 필요 시 위 박 표기 근거를 담는다. 세 파일 명세는 상대 `path`, `sha256`, `bytes`이며 음원은 `.m4a`, 나머지는 `.json`이다. `audioMetadata`에는 `source_common_sha256`, `bpm`, `bpm_unit`, `duration_ms`, `start_offset_ms`, `content_type`, `sha256`, `status`, `generation_metadata`를 넣는다. 목표 파일의 실제 코덱·음악적 해석과 디코딩 길이는 생성 단계에서 검증한다. 적용기는 파일 해시·악보 변경 범위·수행 시간표의 판본/해시/연속성·메타데이터를 다시 검사한다.
+묶음의 `release.json`은 `schema: eolssu-score-tempo-release/v1`, `task: S15P31E102-728`, `entries`를 가진다. 각 entry는 `songId`, `beforeSong`, `beforeAudio`, `targetBpm`, `scoreFile`, `audioFile`, `performanceFile`, `audioMetadata`와 필요 시 위 박 표기 근거를 담는다. 세 파일 명세는 상대 `path`, `sha256`, `bytes`이며 음원은 `.m4a`, 나머지는 `.json`이다. `audioMetadata`에는 `source_common_sha256`, `bpm`, `bpm_unit`, `duration_ms`, `start_offset_ms`, `content_type`, `sha256`, `status`, `generation_metadata`를 넣는다. 목표 파일의 실제 코덱·음악적 해석과 디코딩 길이는 생성 단계에서 검증한다. 적용기는 파일 해시·악보 변경 범위·수행 시간표의 판본/해시/메타데이터를 다시 검사한다. 시간표는 원보 격자의 모든 분할 위치를 순서대로 한 번씩 포함해야 하며, 정간·행·열·이벤트 ID·tick 범위·시김새 대응과 고유 occurrenceId를 대조한다. 각 시작·끝 시간은 목표 BPM과 원보 tick에서 계산한 명목 시각과 1ms 이내여야 한다. 이 교정 도구는 한 번의 악보 순회·고정 빠르기만 지원하고 반복이나 표현용 길이·템포 변화를 승인하지 않는다.
 
 ```sh
 sudo python3 publish_score_tempo.py --song-id 54 --song-id 55 > before-728.json
 sudo python3 publish_score_tempo.py --bundle release --receipt 728-check.json
 sudo python3 publish_score_tempo.py --bundle release --receipt 728-upload.json --upload-only
-sudo python3 publish_score_tempo.py --bundle release --receipt 728-apply.json --apply --upload-receipt 728-upload.json
+# 먼저 세션 생성·분석 재시도를 차단하고 이미 들어온 요청이 모두 끝났음을 확인한다.
+sudo python3 publish_score_tempo.py --bundle release --receipt 728-apply.json --apply --upload-receipt 728-upload.json --traffic-quiesced
 sudo python3 publish_score_tempo.py --bundle release --receipt 728-after.json
 sudo /opt/eolssu-backup/backup.py send db
 ```
 
-receipt는 묶음 밖의 새 파일에 쓴다. 업로드는 `model-audio/drafts/<release.json SHA256>/`의 새 키에 조건부 PUT하고 전체 GET 해시·MIME·만료 설정을 확인한다. 적용은 같은 묶음과 정확히 일치하는 업로드 receipt를 요구한다. **적용기가 배포 lock을 직접 얻으므로 바깥에서 같은 lock을 다시 잡지 않는다.** 잠금이 사용 중이면 변경 없이 실패한다. 잠금 안에서 prechange 백업을 완료하고 곡·음원 원래 값과 활성 `RECORDING`/`PENDING` 세션 부재를 재검사한다. 트랜잭션에서도 같은 조건을 검사하며, 다른 변경이나 새 활성 세션을 발견하면 대상 전체를 롤백한다. `HIDDEN`/`DRAFT` 쌍도 그대로 유지한다.
+receipt는 묶음 밖의 새 파일에 쓴다. 업로드는 `model-audio/drafts/<release.json SHA256>/`의 새 키에 조건부 PUT하고 전체 GET 해시·MIME·만료 설정을 확인한다. 적용은 같은 묶음과 정확히 일치하는 업로드 receipt를 요구한다. **적용기가 배포 lock을 직접 얻으므로 바깥에서 같은 lock을 다시 잡지 않는다.** 잠금이 사용 중이면 변경 없이 실패한다. 잠금 안에서 prechange 백업을 완료하고 곡·음원 원래 값과 활성 `RECORDING`/`PENDING` 세션 부재를 재검사한다. 트랜잭션에서도 같은 조건을 검사하며, 발견된 다른 변경이나 활성 세션에는 대상 전체를 롤백한다. `HIDDEN`/`DRAFT` 쌍도 그대로 유지한다.
+
+**행 잠금만으로 세션 생성 경쟁을 막을 수는 없다.** 기존 요청이 이전 악보 판본을 읽고 INSERT 직전에 잠기면 적용 COMMIT 뒤 낡은 판본으로 재개할 수 있다. 실행자는 세션 생성과 분석 재시도를 운영 진입점에서 임시 차단하고, 이미 진입한 HTTP 요청을 모두 drain한 뒤에만 `--traffic-quiesced`를 지정해야 한다. 이 플래그는 실행자의 외부 조치 확인이며 도구 자체가 차단·drain을 수행하거나 자동 증명하지 않는다. 차단은 DB 적용과 사후 재조회가 끝날 때까지 유지하고, 새 판본의 API·음원 연결을 확인한 뒤 해제한다. 플래그 없는 `--apply`는 DB 조회·쓰기 전에 거부한다.
 
 적용 직전과 COMMIT 이후 재조회 전에 receipt를 디스크에 동기화한다. `apply-outcome-unknown`/`committed-readback-pending`이나 연결 중단 후에는 새 receipt의 조회 모드로 실제 상태부터 확인한다. 이미 목표 판본·음원과 일치하면 재실행은 쓰지 않는다. 부분 적용이나 미래 판본이 있으면 중단한다. 복구 자료는 변경 전 행을 포함한 불변 `release.json`, 보존된 이전 음원·객체, prechange 백업이다. 역변경은 현재 목표 행과 신규 활성/사용 세션을 다시 확인한 대상별 CAS SQL로 준비한다. 이 도구는 자동 역변경이나 과거 DB 전체 덮어쓰기를 수행하지 않는다.
 

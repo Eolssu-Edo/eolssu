@@ -3,11 +3,14 @@
 Dry-run is the default. Apply takes the shared deployment lock itself, verifies
 an upload receipt and takes the existing prechange backup. Historical audio and
 completed sessions are retained. Only RECORDING/PENDING sessions block a change.
+Apply also requires session creation/retry traffic to be blocked and in-flight
+requests drained by the operator; row locks cannot prevent stale pre-read inserts.
 """
 import argparse
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
+from fractions import Fraction
 import json
 import math
 import os
@@ -73,6 +76,89 @@ def validate_score_change(entry, target):
     require(target == expected, 'Unapproved score content or time-grid change')
 
 
+def finite_number(value):
+    return type(value) in (int,float) and math.isfinite(value)
+
+
+def written_slots(source):
+    """Enumerate the existing v1 grid using rational row/unit subdivisions."""
+    width=source['music']['ticksPerJeonggan']
+    require(type(width) is int and width>0,'Invalid source grid width')
+    offset,slots=0,[]
+    for ci,column in enumerate(source['columns']):
+        require(column['index']==ci and column['cells'],'Invalid source column')
+        for ji,cell in enumerate(column['cells']):
+            require(cell['id']==f'c{ci}-j{ji}' and cell['index']==ji and cell['units'],'Invalid source cell')
+            rows={}
+            for unit in cell['units']:
+                require(type(unit['row']) is int and type(unit['col']) is int,'Invalid source slot indices')
+                rows.setdefault(unit['row'],[]).append(unit)
+            require(list(rows)==list(range(len(rows))),'Noncontiguous source rows')
+            for row,units in rows.items():
+                require([u['col'] for u in units]==list(range(len(units))),'Noncontiguous source units')
+                duration=Fraction(width,len(rows)*len(units))
+                for unit in units:
+                    start=offset+Fraction(width*row,len(rows))+duration*unit['col']
+                    slots.append(dict(eventId=unit['eventId'],cellId=cell['id'],row=row,col=unit['col'],startTick=start,endTick=start+duration))
+            offset+=width
+    require(slots,'Missing source slots')
+    events,cursor={},0
+    for event in source['events']:
+        require(isinstance(event['id'],str) and event['id'] not in events and
+                type(event['startTick']) is int and type(event['durationTick']) is int and
+                event['startTick']==cursor and event['durationTick']>0,'Invalid source event coverage')
+        events[event['id']]=event
+        cursor+=event['durationTick']
+    require(cursor==offset,'Source grid and event extent differ')
+    cursor=Fraction(0)
+    covered=set()
+    for slot in slots:
+        event=events.get(slot['eventId'])
+        require(event is not None and slot['startTick']==cursor and
+                event['startTick']<=slot['startTick']<slot['endTick']<=event['startTick']+event['durationTick'],
+                'Source slot and event coverage differ')
+        covered.add(slot['eventId']); cursor=slot['endTick']
+    require(covered==set(events),'Source events missing from grid')
+    return slots
+
+
+def validate_performance_timing(source,perf,bpm):
+    """This correction release is one written pass at a constant target BPM."""
+    slots=written_slots(source)
+    segments=perf['segments']
+    require(isinstance(segments,list) and len(segments)==len(slots),'Performance must cover every written slot once')
+    tpb=source['music']['ticksPerBeat']
+    require(type(tpb) is int and tpb>0,'Invalid source beat resolution')
+    ms_per_tick=Fraction(60000,bpm*tpb)
+    fields={'eventId','cellId','row','col','startTick','endTick','occurrenceId','startMs','endMs','sigimsae'}
+    seen,end=set(),0
+    annotations={event['id']:[] for event in source['events']}
+    for slot,segment in zip(slots,segments):
+        require(isinstance(segment,dict) and set(segment)==fields,'Performance segment fields differ')
+        occurrence=segment['occurrenceId']
+        require(isinstance(occurrence,str) and occurrence.strip() and occurrence not in seen,'Duplicate or empty occurrenceId')
+        seen.add(occurrence)
+        for key in ('eventId','cellId','row','col'):
+            require(segment[key]==slot[key] and (key not in ('row','col') or type(segment[key]) is int),'Performance written position differs')
+        for key in ('startTick','endTick'):
+            require(finite_number(segment[key]) and abs(segment[key]-float(slot[key]))<=1e-6,'Performance tick position differs')
+        start,finish=segment['startMs'],segment['endMs']
+        require(finite_number(start) and finite_number(finish) and start>=0 and finish>start and abs(start-end)<=1e-6,
+                'Invalid performance timeline')
+        # The MIDI tempo uses integer microseconds; tolerate <= 1 ms accumulated
+        # rounding, never an arbitrary scale or expressive tempo/length change.
+        require(abs(start-float(slot['startTick']*ms_per_tick))<=1 and
+                abs(finish-float(slot['endTick']*ms_per_tick))<=1,'Performance time differs from score ticks and target BPM')
+        marks=segment['sigimsae']
+        require(isinstance(marks,list) and all(isinstance(m,str) and m for m in marks),'Invalid performance annotations')
+        annotations[slot['eventId']].extend(marks)
+        end=finish
+    require(finite_number(perf['durationMs']) and abs(end-perf['durationMs'])<=1e-6,'Performance duration differs')
+    for event in source['events']:
+        require(annotations[event['id']]==event['sigimsae'],'Performance source annotations differ')
+    return end
+
+
 def load_release(root):
     raw = safe_file(root, 'release.json').read_bytes()
     release = json.loads(raw)
@@ -115,14 +201,7 @@ def load_release(root):
                 perf['audioSha256'] == sha(bodies['audioFile']) and perf['sourceId'] == target['score']['sourceId'] and
                 perf['instrument'] == target['score']['instrument'] and perf['bpm'] == entry['targetBpm'] and
                 perf['bpmUnit'] == target['music']['bpmUnit'], 'Performance identity differs')
-        end = 0
-        ids = {e['id'] for e in target['events']}
-        require(perf['segments'], 'Missing performance segments')
-        for segment in perf['segments']:
-            require(segment['eventId'] in ids and all(type(segment[k]) in (int,float) and math.isfinite(segment[k]) for k in ('startMs','endMs')) and
-                    abs(segment['startMs']-end) <= 1e-6 and segment['endMs'] > end, 'Invalid performance timeline')
-            end = segment['endMs']
-        require(abs(end-perf['durationMs']) <= 1e-6, 'Performance duration differs')
+        end = validate_performance_timing(target,perf,entry['targetBpm'])
         wanted = deepcopy(before)
         wanted.update(score=target, version=version, bpm=entry['targetBpm'])
         audio = dict(entry['audioMetadata'])
@@ -240,11 +319,12 @@ def _apply(entries, objects, digest, upload_receipt, report, receipt, runner, ch
         report.update(status='applied',updated=pending,pending=[])
 
 
-def run(root,receipt,*,apply=False,upload_only=False,upload_receipt=None,env_file='/opt/eolssu/.env',runner=mysql):
+def run(root,receipt,*,apply=False,upload_only=False,upload_receipt=None,traffic_quiesced=False,env_file='/opt/eolssu/.env',runner=mysql):
     require(not(apply and upload_only),'Choose upload or apply')
+    require(not apply or traffic_quiesced is True,'Apply requires quiesced session creation/retry traffic and drained in-flight requests')
     root,receipt=Path(root),Path(receipt)
     require(not receipt.resolve().is_relative_to(root.resolve()),'Receipt must stay outside bundle')
-    report=dict(task=TASK,status='started')
+    report=dict(task=TASK,status='started',trafficQuiesced=traffic_quiesced)
     fd=os.open(receipt,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     with os.fdopen(fd,'w',encoding='utf-8') as stream:
         def checkpoint():
@@ -288,6 +368,7 @@ def main():
     parser.add_argument('--apply',action='store_true')
     parser.add_argument('--upload-only',action='store_true')
     parser.add_argument('--upload-receipt',type=Path)
+    parser.add_argument('--traffic-quiesced',action='store_true',help='Operator confirms session creation/retry blocked and in-flight requests drained until apply/readback completes')
     parser.add_argument('--env-file',default='/opt/eolssu/.env')
     args=parser.parse_args()
     try:
@@ -297,7 +378,7 @@ def main():
             print(json.dumps(dict(songs=list(songs.values()),audios=list(audios.values()),activeSessions=active_sessions(args.song_id)),ensure_ascii=False))
         else:
             require(args.bundle is not None and args.receipt is not None,'Bundle and receipt required')
-            result=run(args.bundle,args.receipt,apply=args.apply,upload_only=args.upload_only,upload_receipt=args.upload_receipt,env_file=args.env_file)
+            result=run(args.bundle,args.receipt,apply=args.apply,upload_only=args.upload_only,upload_receipt=args.upload_receipt,traffic_quiesced=args.traffic_quiesced,env_file=args.env_file)
             print(json.dumps({k:v for k,v in result.items() if k!='objects'},ensure_ascii=False))
     except Exception as error:
         print('Tempo publication stopped ('+type(error).__name__+'); inspect receipt and current rows before retrying',file=sys.stderr)
