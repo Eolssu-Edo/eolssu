@@ -172,7 +172,7 @@
 - [오류 음표·취약 구간·구간 재평가 비교 API (EVA-02·03·04)](specs/evaluation-detail-apis.md) · [307 계획](plans/S15P31E102-307.md) · [310 계획](plans/S15P31E102-310.md) · [502 구간 점수 계획](plans/S15P31E102-502.md) · [494 EVA-04 2차 개편](plans/S15P31E102-494.md) · [343 앱 검증](plans/S15P31E102-343.md) · [480 인식 음·녹음 위치](plans/S15P31E102-480.md)
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 - [연습 기록 저장·목록·녹음 재생·삭제 API (REC-01~04)](specs/practice-records.md) · [342 계획](plans/S15P31E102-342.md)
-- [내 악보 생성·조회·목록 API (SHT-01·03·08)](specs/user-sheets.md) · [390 계획](plans/S15P31E102-390.md)
+- [내 악보 생성·조회·목록 API (SHT-01·03·08)](specs/user-sheets.md) · [390 계획](plans/S15P31E102-390.md) · [765 목록 악기 코드](plans/S15P31E102-765.md)
 - [내 악보 검토 전 열람과 저장 안내 개선 (698)](plans/S15P31E102-698.md)
 - [내 악보 음원 생성·재생 앱 흐름 (SHT-12·13 FE)](specs/sheet-audio-app-flow.md) · [484 계획](plans/S15P31E102-484.md)
 - [내 악보 미리듣기 진행 표시와 구간 탐색 (691)](plans/S15P31E102-691.md)

@@ -80,12 +80,13 @@ class ApiMySheetRepository(
         val sheetId: String, val kind: String, val title: String, val status: String,
         val source: String, val updatedAt: String, val jangdanName: String? = null,
         val conversionStatus: String? = null, val hasDraft: Boolean = false,
+        val instrumentCode: String? = null,
     ) {
         fun model(): MySheet {
             require(validCatalogId(sheetId) && kind == "JEONGGANBO" && title.isNotBlank())
             return MySheet(sheetId, MySheetOrigin.Imported, title, jangdanName = jangdanName,
                 updatedAt = KoreanDateTime.fromEpochMillis(Instant.parse(updatedAt).toEpochMilliseconds()),
-                status = status, conversionStatus = conversionStatus, hasDraft = hasDraft)
+                status = status, conversionStatus = conversionStatus, hasDraft = hasDraft, instrumentCode = instrumentCode)
         }
     }
 }
