@@ -8,6 +8,7 @@ import com.ssafy.eolssu.data.user.LessonPitchNote
 import com.ssafy.eolssu.data.user.LessonRange
 import com.ssafy.eolssu.data.user.LessonText
 import com.ssafy.eolssu.data.user.LessonTrack
+import kotlinx.coroutines.delay
 
 /**
  * 학습 API(LRN-01·02·03)를 대신하는 메모리 서버. 트랙마다 7단계(V37로 8·9단계는 숨김)이고 단계 ID는 `트랙-단계`다.
@@ -18,8 +19,14 @@ internal class FakeLessonApi(private val owner: () -> String? = { "me" }) : Less
     /** 회원 → 완료한 단계 ID. */
     val completed = mutableMapOf<String?, MutableSet<String>>()
 
+    /** 단계 ID → 서버가 돌려줄 완료 시각(ISO-8601). 없으면 완료 단계도 시각 없이 온다. */
+    val completedAt = mutableMapOf<String, String>()
+
     /** 완료 표시 요청(단계 ID, 표시 여부) 순서대로. */
     val completionCalls = mutableListOf<Pair<String, Boolean>>()
+
+    /** 단계 목록 응답이 오기까지 걸리는 시간(가상 시간, 밀리초). 여러 목록을 동시에 받는지 볼 때 쓴다. */
+    var trackDelayMs = 0L
 
     /** false면 단계 목록·상세를 받지 못한다(오프라인). */
     var online = true
@@ -33,9 +40,13 @@ internal class FakeLessonApi(private val owner: () -> String? = { "me" }) : Less
         (1..9).filter { id(trackId, it) in completed[member].orEmpty() }.toSet()
 
     override suspend fun track(trackId: String): LessonTrack? {
+        if (trackDelayMs > 0) delay(trackDelayMs)
         if (!online) return null
         val done = completed[owner()].orEmpty()
-        val items = (1..STAGES).map { seq -> LessonItem(id(trackId, seq), seq, "단계 $seq", judge(seq), false, id(trackId, seq) in done) }
+        val items = (1..STAGES).map { seq -> LessonItem(
+            id(trackId, seq), seq, "단계 $seq", judge(seq), false, id(trackId, seq) in done,
+            completedAt = completedAt[id(trackId, seq)]?.takeIf { id(trackId, seq) in done },
+        ) }
         return LessonTrack(items, items.count { it.completed && !it.optional }, STAGES)
     }
 

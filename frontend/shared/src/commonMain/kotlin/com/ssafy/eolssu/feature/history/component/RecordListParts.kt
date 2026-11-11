@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
+import com.ssafy.eolssu.core.ui.component.EolssuMenuShape
 import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import androidx.compose.material3.CircularProgressIndicator
@@ -9,7 +11,6 @@ import eolssu.shared.generated.resources.records_load_failed
 import eolssu.shared.generated.resources.growth_retry
 import eolssu.shared.generated.resources.records_section
 import eolssu.shared.generated.resources.records_row_today
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -124,7 +125,7 @@ internal data class RecordListSpacing(
 internal fun WeekCard(state: RecordListUiState, spacing: RecordListSpacing, onOpenGrowth: () -> Unit) {
     val week = state.thisWeek
     // 보드: 흰 바탕 · `#E8E4DA` 테두리 · 반지름 16.
-    Surface(onClick = onOpenGrowth, shape = RoundedCornerShape(16.dp), color = EolssuTheme.colors.surface, border = BorderStroke(1.dp, EolssuTheme.colors.lineSoft)) {
+    Surface(onClick = onOpenGrowth, shape = RoundedCornerShape(16.dp), color = EolssuTheme.colors.surface) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = spacing.weekPaddingH, vertical = spacing.weekPaddingV),
             verticalAlignment = Alignment.CenterVertically,
@@ -206,7 +207,6 @@ private fun <T> SelectBox(value: T, options: List<T>, label: @Composable (T) -> 
                 .width(108.dp)
                 .height(38.dp)
                 .background(EolssuTheme.colors.surface, RoundedCornerShape(10.dp))
-                .border(1.dp, EolssuTheme.colors.lineSoft, RoundedCornerShape(10.dp))
                 .clickable(role = Role.DropdownList) { expanded = true }
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -214,9 +214,16 @@ private fun <T> SelectBox(value: T, options: List<T>, label: @Composable (T) -> 
             Text(label(value), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp), maxLines = 1)
             Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = EolssuTheme.colors.surface) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = EolssuMenuShape,
+            containerColor = EolssuTheme.colors.surface,
+            shadowElevation = 8.dp,
+            modifier = Modifier.width(160.dp).padding(horizontal = 6.dp),
+        ) {
             options.forEach { option ->
-                DropdownMenuItem(text = { Text(label(option)) }, onClick = {
+                EolssuMenuItem(label(option), option == value, onClick = {
                     expanded = false
                     onPick(option)
                 })
@@ -263,7 +270,7 @@ private fun SongGroupCard(
     // 보드: 흰 묶음 카드(테두리 `#E8E4DA`, 반지름 16), 펼친 머리는 `#EFF2D6`.
     Surface(
         modifier = Modifier.observeFirstDraw(PerfPhase.RECORD_DRAWN),
-        shape = RoundedCornerShape(16.dp), color = colors.surface, border = BorderStroke(1.dp, colors.lineSoft),
+        shape = RoundedCornerShape(16.dp), color = colors.surface,
     ) {
         Column {
             Row(

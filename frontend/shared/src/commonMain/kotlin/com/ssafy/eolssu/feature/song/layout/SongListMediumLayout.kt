@@ -7,6 +7,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.feature.song.SongListActions
 import com.ssafy.eolssu.feature.song.SongListUiState
 import com.ssafy.eolssu.feature.song.component.songListItems
@@ -30,6 +31,7 @@ internal fun SongListMediumLayout(
         title = stringResource(Res.string.song_list_title),
         onBack = actions.onBack,
         pageTopBar = true,
+        containerColor = EolssuTheme.colors.groupedBackground,
         snackbarHostState = snackbarHostState,
         topBarRight = { instrumentPicker() },
     ) { gutter ->

@@ -87,7 +87,34 @@ cd ~/eolssu-monitoring && cp .env.example .env && chmod 600 .env && nano .env
 docker compose up -d
 ```
 
-`docker compose ps`에서 grafana·node-exporter가 `Up`, prometheus가 `Up (healthy)`이면 됩니다. 예전 Compose에 있던 metabase 컨테이너는 `docker compose up -d --remove-orphans`로 함께 지웁니다. 수집 대상 상태는 서버에서 `curl -s 127.0.0.1:3001/api/v1/targets`의 `"health":"up"`으로 확인합니다.
+`docker compose ps`에서 grafana·node-exporter·prometheus가 `Up (healthy)`인지 확인합니다. Grafana는 `/api/health`의 데이터베이스 상태를 확인합니다. node-exporter는 `/metrics`에서 시간 지표를 확인합니다. Prometheus의 실제 수집 상태는 `curl -s 127.0.0.1:3001/api/v1/targets`의 `"health":"up"`으로 확인합니다. 예전 Compose에 있던 metabase 컨테이너는 `docker compose up -d --remove-orphans`로 함께 지웁니다.
+
+### 운영 헬스체크 반영
+
+기존 Compose를 백업하고 새 설정을 `docker compose config --quiet`로 검증한 뒤, 변경된 모니터링 컨테이너 두 개만 다시 만듭니다.
+
+```bash
+cd /home/ubuntu/eolssu-monitoring
+docker compose up -d --no-deps --no-build --pull never --wait --wait-timeout 90 grafana node-exporter
+docker compose ps grafana node-exporter
+```
+
+n8n은 별도 Compose 프로젝트 `hey-edo1`에 속합니다. [헬스체크 오버레이](hey-edo1-healthcheck.compose.json)는 n8n 컨테이너의 `127.0.0.1:5678/healthz/readiness`와 응답의 `status=ok`를 검사합니다. 운영 `/home/ubuntu/hey/compose.json`은 비밀값을 담고 있으므로 운영 서버에서 보호된 경로에 백업하고, 오버레이의 `services.n8n.healthcheck`만 적용합니다. 운영 Compose를 새로 생성할 때도 같은 필드를 포함합니다.
+
+운영 n8n 데이터베이스에서 진행 중인 실행이 없는지 아래 읽기 전용 조회로 확인합니다. 결과가 `0`이면 적용한 Compose를 검증하고 n8n을 다시 만듭니다.
+
+```bash
+query="SELECT count(*) FROM execution_entity WHERE status IN ('running','new','waiting') AND \"deletedAt\" IS NULL;"
+docker exec -e 'PGOPTIONS=-c default_transaction_read_only=on -c statement_timeout=3000' \
+  hey-edo1-postgres-1 psql -X -v ON_ERROR_STOP=1 -U postgres -d n8n -Atc "$query"
+
+cd /home/ubuntu/hey
+docker compose -p hey-edo1 -f compose.json config --quiet
+docker compose -p hey-edo1 -f compose.json up -d --no-deps --no-build --pull never --wait --wait-timeout 90 n8n
+docker compose -p hey-edo1 -f compose.json ps n8n
+```
+
+실패하면 변경한 헬스체크 필드를 이전 상태로 복원하고 같은 서비스만 다시 만듭니다. 설정 백업 이후 다른 배포가 있었다면 현재 Compose에서 해당 필드만 복원해 이후 변경을 보존합니다.
 
 ## 3. 접속과 DB 연결
 

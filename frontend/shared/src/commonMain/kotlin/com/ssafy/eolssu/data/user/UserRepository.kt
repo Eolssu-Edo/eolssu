@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.user
 
+import com.ssafy.eolssu.core.model.ProfileImage
 import com.ssafy.eolssu.core.model.SocialProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,21 +20,6 @@ data class UserProfile(
     val hasPassword: Boolean? = null,
     val profileImage: ProfileImage = ProfileImage.Hello,
 )
-
-/**
- * 마이페이지 프로필 그림(S15P31E102-738): 앱에 담긴 절쑤 그림 12종. 서버에는 [key]만 저장한다(`users.profile_image`).
- * 순서는 고르기 화면의 순서다.
- */
-enum class ProfileImage(val key: String) {
-    Hello("HELLO"), Danso("DANSO"), Study("STUDY"), Look("LOOK"),
-    Great("GREAT"), Jangdan("JANGDAN"), Again("AGAIN"), Surprise("SURPRISE"),
-    Proud("PROUD"), Okay("OKAY"), Rest("REST"), Done("DONE");
-
-    companion object {
-        /** 키가 없거나(이전 서버) 모르는 키면 기본 그림이다. */
-        fun fromKey(key: String?): ProfileImage = entries.firstOrNull { it.key == key } ?: Hello
-    }
-}
 
 /**
  * 이메일·비밀번호로 로그인하는 회원인지. 서버가 `hasPassword`를 주면 그 값을 쓰고, 주지 않으면 이메일이 있는지로 짐작한다.

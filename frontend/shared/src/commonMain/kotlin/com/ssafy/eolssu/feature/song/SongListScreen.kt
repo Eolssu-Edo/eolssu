@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuPageTopBar
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
@@ -56,9 +57,11 @@ fun SongListScreen(
 
 @Composable
 private fun SongListCompact(state: SongListUiState, actions: SongListActions, snackbarHostState: SnackbarHostState, instrumentPicker: @Composable () -> Unit) {
+    // 연습곡 고르기와 같은 회색 바탕 · 테두리 없는 흰 칸(S15P31E102-768).
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
-        topBar = { EolssuPageTopBar(stringResource(Res.string.song_list_title), onBack = actions.onBack, right = { instrumentPicker() }) },
+        containerColor = EolssuTheme.colors.groupedBackground,
+        topBar = { EolssuPageTopBar(stringResource(Res.string.song_list_title), onBack = actions.onBack, right = { instrumentPicker() }, divider = false) },
     ) {
         LazyColumn(
             Modifier.fillMaxSize(),

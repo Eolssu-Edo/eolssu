@@ -147,8 +147,8 @@ internal fun EditInputPanel(
     Column(
         modifier
             .fillMaxWidth()
-            .background(colors.surface, shape)
-            .border(1.dp, colors.lineSoft, shape)
+            // 회색 바탕 위 테두리 없는 흰 자판(설정 시트와 같은 묶음 모양, S15P31E102-768).
+            .background(colors.groupedBackground, shape)
             .padding(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -169,7 +169,6 @@ internal fun EditInputPanel(
             selected = tab.ordinal,
             onSelect = { actions.onSelectTab(EditTab.entries[it]) },
             fill = true,
-            frameColor = colors.surfaceStrong,
         )
         when (tab) {
             EditTab.Yul -> YulKeys(draft, selected, selectedSub, register, availablePitches, actions)
@@ -296,7 +295,6 @@ private fun RegisterButton(register: YulRegister, name: String, on: Boolean, onC
         shape = RoundedCornerShape(10.dp),
         color = if (on) colors.primary else colors.surface,
         contentColor = if (on) colors.onPrimary else colors.text,
-        border = BorderStroke(if (on) 2.dp else 1.dp, if (on) colors.text else colors.lineSoft),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             Box(Modifier.fillMaxWidth().height(24.dp), contentAlignment = Alignment.Center) {
@@ -308,7 +306,7 @@ private fun RegisterButton(register: YulRegister, name: String, on: Boolean, onC
                     ComposedGlyph(radical, "", 19.sp, 19.sp, overlap = 0.45f)
                 }
             }
-            Text(name, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = if (on) colors.text else colors.textMuted, maxLines = 1)
+            Text(name, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = if (on) colors.onPrimary else colors.textMuted, maxLines = 1)
         }
     }
 }
@@ -332,7 +330,7 @@ private fun YulKey(note: ScoreNote, enabled: Boolean, selected: Boolean, onClick
         shape = RoundedCornerShape(10.dp),
         color = if (selected) colors.accentTint else colors.surface,
         contentColor = colors.text,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.text else colors.lineSoft),
+        border = if (selected) BorderStroke(1.5.dp, colors.accent) else null,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(vertical = 4.dp)) {
             Box(Modifier.height(24.dp), contentAlignment = Alignment.Center) {
@@ -359,7 +357,7 @@ private fun SymbolKey(note: ScoreNote, label: String, selected: Boolean, onClick
         shape = RoundedCornerShape(10.dp),
         color = if (selected) colors.accentTint else colors.surface,
         contentColor = colors.text,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.text else colors.lineSoft),
+        border = if (selected) BorderStroke(1.5.dp, colors.accent) else null,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Text(note.symbol, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, lineHeight = 19.sp))
@@ -371,7 +369,7 @@ private fun SymbolKey(note: ScoreNote, label: String, selected: Boolean, onClick
 /** 가로로 밀 수 있는 목록 양 끝을 입력판 바탕색으로 흐리게 해 더 있다는 것을 알린다. */
 @Composable
 private fun BoxScope.ScrollFades(state: LazyListState) {
-    val surface = EolssuTheme.colors.surface
+    val surface = EolssuTheme.colors.groupedBackground
     // matchParentSize: 흐림 상자가 목록 높이를 키우지 않고 목록 크기에 맞춘다.
     Box(Modifier.matchParentSize()) {
         if (state.canScrollBackward) Box(
@@ -396,7 +394,6 @@ private fun ToolButton(label: String, onClick: () -> Unit, modifier: Modifier = 
         shape = RoundedCornerShape(10.dp),
         color = colors.surface,
         contentColor = colors.text,
-        border = BorderStroke(1.dp, colors.lineSoft),
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 8.dp)) {
             Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
@@ -416,7 +413,7 @@ private fun SigimsaeKeys(draft: SheetDraft, selected: Int, sub: Int, actions: Ed
     val full = added.size >= SheetDraft.MAX_SIGIMSAE
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 36.dp).background(colors.background, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 6.dp),
+            Modifier.fillMaxWidth().heightIn(min = 36.dp).background(colors.surface, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -456,9 +453,8 @@ private fun AddedSigimsae(value: Sigimsae, onRemove: () -> Unit) {
         onClick = onRemove,
         modifier = Modifier.heightIn(min = 32.dp).semantics { contentDescription = description },
         shape = CircleShape,
-        color = colors.surface,
+        color = colors.accentTint,
         contentColor = colors.text,
-        border = BorderStroke(1.dp, colors.text),
     ) {
         Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             // 그림이 없으면 이름이 바로 옆에 있으니 대신 적는 글자를 두 번 쓰지 않는다.
@@ -481,7 +477,7 @@ private fun SigimsaeCard(value: Sigimsae, order: Int, enabled: Boolean, onClick:
         shape = RoundedCornerShape(10.dp),
         color = if (on) colors.accentTint else colors.surface,
         contentColor = colors.text,
-        border = BorderStroke(2.dp, if (on) colors.text else colors.lineSoft),
+        border = if (on) BorderStroke(1.5.dp, colors.accent) else null,
     ) {
         Box {
             Column(
@@ -552,7 +548,7 @@ private fun CellTools(draft: SheetDraft, actions: EditInputActions) {
             ToolButton(stringResource(Res.string.sheetedit_cell_delete_column), actions.onDeleteColumn, Modifier.weight(1f))
         }
         Row(
-            Modifier.fillMaxWidth().background(colors.background, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -570,10 +566,9 @@ private fun CellTools(draft: SheetDraft, actions: EditInputActions) {
             Surface(
                 onClick = actions.onChangeJangdan,
                 modifier = Modifier.heightIn(min = 34.dp),
-                shape = CircleShape,
-                color = colors.surface,
+                shape = RoundedCornerShape(10.dp),
+                color = colors.groupedBackground,
                 contentColor = colors.text,
-                border = BorderStroke(1.dp, colors.lineSoft),
             ) {
                 Box(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
                     Text(stringResource(Res.string.sheetedit_cell_jangdan_change), style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold))

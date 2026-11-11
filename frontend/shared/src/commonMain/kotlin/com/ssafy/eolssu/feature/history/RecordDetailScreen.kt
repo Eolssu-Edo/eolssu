@@ -2,6 +2,8 @@ package com.ssafy.eolssu.feature.history
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -65,7 +67,8 @@ fun RecordDetailScreen(
     val frame = historyFrame(widthClass)
     RecordDeleteConfirmation(state, actions)
     EolssuScaffold(
-        containerColor = EolssuTheme.colors.surface,
+        containerColor = EolssuTheme.colors.groupedBackground,
+        bottomDivider = false,
         snackbarHostState = snackbarHostState,
         contentMaxWidth = frame.contentMaxWidth,
         topBar = {
@@ -128,6 +131,7 @@ internal fun RecordResultContent(
                 total = record.score,
                 metrics = record.metrics,
                 modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+                filled = true,
                 action = if (state.canCompare || hasMemo) {
                     {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -190,16 +194,31 @@ internal fun RecordResultContent(
     }
 }
 
-/** 메모 창: 제목 ‘메모’ · 적은 메모 · ‘닫기’. 바깥을 눌러도 닫힌다. */
+/**
+ * 메모 창: 제목 ‘메모’ · 회색 칸 안의 적은 메모 · ‘닫기’. 바깥을 눌러도 닫힌다.
+ * 마이페이지처럼 테두리 없이 회색 채움으로 나눈다(S15P31E102-768).
+ */
 @Composable
 private fun RecordMemoDialog(memo: String, onDismiss: () -> Unit) {
+    val colors = EolssuTheme.colors
     EolssuDialog(
         title = stringResource(Res.string.record_memo_button),
-        message = memo,
         icon = EolssuIcons.Chat,
         onDismissRequest = onDismiss,
     ) {
-        EolssuButton(stringResource(Res.string.common_close), onDismiss, style = EolssuButtonStyle.Secondary)
+        Text(
+            memo,
+            Modifier.fillMaxWidth().padding(bottom = 6.dp).background(colors.groupedBackground, RoundedCornerShape(14.dp)).padding(horizontal = 16.dp, vertical = 14.dp),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
+            color = colors.textSub,
+        )
+        EolssuButton(
+            stringResource(Res.string.common_close),
+            onDismiss,
+            style = EolssuButtonStyle.Secondary,
+            containerColor = colors.groupedBackground,
+            borderColor = Color.Transparent,
+        )
     }
 }
 

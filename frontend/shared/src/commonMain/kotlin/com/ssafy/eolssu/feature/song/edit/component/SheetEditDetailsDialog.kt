@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import androidx.compose.ui.graphics.Color
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +63,8 @@ internal fun SheetEditDetailsDialog(
             label = stringResource(Res.string.sheet_details_title),
             placeholder = "",
             error = if (validTitle == null) stringResource(Res.string.sheet_details_title_error) else null,
+            bordered = false,
+            containerColor = EolssuTheme.colors.groupedBackground,
         )
         EolssuTextField(
             value = bpm,
@@ -70,6 +74,8 @@ internal fun SheetEditDetailsDialog(
             type = TextFieldType.Number,
             imeAction = ImeAction.Done,
             error = if (validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
+            bordered = false,
+            containerColor = EolssuTheme.colors.groupedBackground,
         )
         val estimate = validBpm?.let { durationSeconds?.invoke(it) }
         if (estimate != null) {
@@ -88,6 +94,7 @@ internal fun SheetEditDetailsDialog(
             onClick = { if (validTitle != null && validBpm != null) onApply(validTitle, validBpm) },
             enabled = validTitle != null && validBpm != null && canApply && !saving,
         )
-        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, enabled = !saving)
+        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, enabled = !saving,
+            containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
     }
 }

@@ -58,6 +58,7 @@ fun SheetEditRoute(
     viewModel: SheetEditViewModel,
     onClose: () -> Unit,
     onOpenChecks: () -> Unit,
+    onSaved: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var detailsOpen by rememberSaveable { mutableStateOf(false) }
@@ -89,8 +90,13 @@ fun SheetEditRoute(
     LaunchedEffect(state.message) {
         val message = state.message?.takeIf { it.shownInEditor() } ?: return@LaunchedEffect
         val text = messages[message] ?: return@LaunchedEffect
-        if (message in setOf(SheetEditMessage.Saved, SheetEditMessage.SavedForPractice, SheetEditMessage.SavedNeedsReview)) saveOpen = false
         viewModel.consumeMessage()
+        // 저장하기가 끝나면 편집기를 닫고 연습곡 고르기 '내 악보' 목록으로 간다(S15P31E102-768).
+        if (message in setOf(SheetEditMessage.Saved, SheetEditMessage.SavedForPractice, SheetEditMessage.SavedNeedsReview)) {
+            saveOpen = false
+            onSaved()
+            return@LaunchedEffect
+        }
         if (saveOpen && message in setOf(SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge)) {
             saveError = text
             return@LaunchedEffect

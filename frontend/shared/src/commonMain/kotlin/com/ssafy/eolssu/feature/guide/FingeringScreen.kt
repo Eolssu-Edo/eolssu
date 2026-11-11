@@ -63,6 +63,7 @@ fun FingeringScreen(
     EolssuScaffold(
         topBar = { GuideTopBar(stringResource(Res.string.guide_fingering_title), onBack = onBack, widthClass = widthClass) },
         snackbarHostState = snackbarHostState,
+        containerColor = EolssuTheme.colors.groupedBackground,
         contentMaxWidth = widthClass.guidePageMaxWidth,
     ) {
         if (!state.hasSelectedInstrument) {

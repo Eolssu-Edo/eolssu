@@ -26,6 +26,7 @@ internal fun SongInstrumentPicker(
     snackbarHostState: SnackbarHostState,
     onSessionExpired: () -> Unit,
     modifier: Modifier = Modifier,
+    bordered: Boolean = true,
 ) {
     val instrument by selection.instrument.collectAsStateWithLifecycle()
     val saving by selection.saving.collectAsStateWithLifecycle()
@@ -34,6 +35,7 @@ internal fun SongInstrumentPicker(
         instrument = instrument,
         enabled = !saving,
         modifier = modifier,
+        bordered = bordered,
         onSelect = { selected ->
             scope.launch {
                 val message = when (selection.select(selected)) {
