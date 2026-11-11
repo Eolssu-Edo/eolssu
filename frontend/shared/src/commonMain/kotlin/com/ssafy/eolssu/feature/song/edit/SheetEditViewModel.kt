@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 
 /**
@@ -188,7 +189,11 @@ class SheetEditViewModel(
         }
         if (before != _uiState.value.draft && loaded != null && !_uiState.value.saveConflict) {
             autoSaveJob?.cancel()
-            autoSaveJob = accountScope.launch { delay(1_000); persist(draft = true, announce = false) }
+            autoSaveJob = accountScope.launch {
+                delay(1_000)
+                // 대기 중인 저장을 무효화할 수 있게 하되, 시작한 PUT은 응답까지 기다린다.
+                persist(draft = true, announce = false, autoSave = coroutineContext.job)?.join()
+            }
         }
     }
 
@@ -262,7 +267,12 @@ class SheetEditViewModel(
 
     private class DraftSave(val draft: SheetDraft, var unconfirmedRequest: SheetWorkingCopy?)
 
-    private fun persist(draft: Boolean, announce: Boolean = true, closing: Boolean = false): Job? {
+    private fun persist(
+        draft: Boolean,
+        announce: Boolean = true,
+        closing: Boolean = false,
+        autoSave: Job? = null,
+    ): Job? {
         val repository = documents ?: return null
         val requested = _uiState.value
         val id = requested.serverSheetId ?: return null
@@ -278,7 +288,7 @@ class SheetEditViewModel(
         return accountScope.launch {
             try {
                 writeLock.withLock {
-                    if (_uiState.value.saveConflict) return@withLock
+                    if (autoSave?.isActive == false || _uiState.value.saveConflict) return@withLock
                     val precedingDraft = lastFinishedDraftSave
                     // 닫기는 잠금을 기다리는 동안 끝난 같은 초안 요청의 결과를 사용한다.
                     if (closing && precedingDraft !== draftBeforeClose && precedingDraft?.draft == _uiState.value.draft) {
@@ -288,7 +298,9 @@ class SheetEditViewModel(
                     try {
                         if (precedingDraft?.unconfirmedRequest != null) {
                             _uiState.update { it.copy(saving = true, saveStatus = null) }
-                            if (!reconcileDraftSave(repository, id, precedingDraft)) {
+                            val reconciled = reconcileDraftSave(repository, id, precedingDraft)
+                            if (autoSave?.isActive == false) return@withLock
+                            if (!reconciled) {
                                 if (!_uiState.value.saveConflict) recordSaveFailure(_uiState.value.draft, draft, announce)
                                 return@withLock
                             }
@@ -356,7 +368,9 @@ class SheetEditViewModel(
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (_: Exception) {
-                        recordSaveFailure(writing ?: _uiState.value.draft, draft, announce)
+                        if (writing != null || autoSave?.isActive != false) {
+                            recordSaveFailure(writing ?: _uiState.value.draft, draft, announce)
+                        }
                     } finally {
                         if (accountScope.isActive) _uiState.update { it.copy(saving = false, confirming = false) }
                     }
