@@ -18,12 +18,14 @@ data class SheetDocument(
     val id: String, val title: String, val jangdanId: String?, val bpm: Int,
     val scoreVersion: String, val score: CommonScoreData?, val draft: SheetWorkingCopy?,
     val reviewStatus: String, val conversionStatus: String?, val issues: List<JsonObject>,
+    val notices: List<JsonObject> = emptyList(),
 )
 data class SheetWorkingCopy(val title: String, val jangdanId: String?, val bpm: Int,
-    val score: CommonScoreData, val baseScoreVersion: String, val revision: Int)
+    val score: CommonScoreData, val baseScoreVersion: String, val revision: Int,
+    val resolvedIssueIds: List<String> = emptyList())
 
 sealed interface SheetWrite {
-    data class Saved(val scoreVersion: String, val revision: Int = 0) : SheetWrite
+    data class Saved(val scoreVersion: String, val revision: Int = 0, val reviewStatus: String? = null) : SheetWrite
     data object Conflict : SheetWrite
     data object Unfilled : SheetWrite
     data object TooLarge : SheetWrite
@@ -49,7 +51,7 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
             SheetWorkingCopy(it.title, it.jangdanId, it.bpm, data, it.baseScoreVersion, it.draftRevision)
         }
         SheetDocument(dto.sheetId, dto.title, dto.jangdanId, dto.bpm, dto.scoreVersion, original, copy,
-            dto.reviewStatus, dto.conversionStatus, dto.issues)
+            dto.reviewStatus, dto.conversionStatus, dto.issues, dto.notices)
     }
 
     override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite = member.inSession {
@@ -58,7 +60,8 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
             put("/api/users/me/sheets/$sheetId/score" + if (draft) "/draft" else "") {
                 contentType(ContentType.Application.Json)
                 setBody(WriteBody(copy.baseScoreVersion, copy.title, copy.jangdanId, copy.bpm,
-                    Json.encodeToJsonElement(copy.score) as JsonObject, copy.revision.takeIf { draft }))
+                    Json.encodeToJsonElement(copy.score) as JsonObject, copy.revision.takeIf { draft },
+                    copy.resolvedIssueIds.takeIf { !draft && it.isNotEmpty() }))
             }
         } ?: return@inSession SheetWrite.Failed
         when (response.status.value) {
@@ -66,7 +69,9 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
                 val result = response.apiResponse<WrittenDto>()?.takeIf { it.isSuccess }?.result
                 if (result?.sheetId != sheetId) SheetWrite.Failed
                 else if (draft && result.draftRevision == copy.revision + 1) SheetWrite.Saved(copy.baseScoreVersion, requireNotNull(result.draftRevision))
-                else if (!draft && result.scoreVersion?.toIntOrNull() == copy.baseScoreVersion.toInt() + 1) SheetWrite.Saved(requireNotNull(result.scoreVersion))
+                else if (!draft && result.scoreVersion?.toIntOrNull() == copy.baseScoreVersion.toInt() + 1) {
+                    SheetWrite.Saved(requireNotNull(result.scoreVersion), reviewStatus = result.reviewStatus)
+                }
                 else SheetWrite.Failed
             }
             409 -> SheetWrite.Conflict
@@ -79,9 +84,11 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
 
 @Serializable private class DocumentDto(val sheetId: String, val title: String, val jangdanId: String? = null,
     val bpm: Int, val scoreVersion: String, val scoreData: JsonObject? = null, val draft: DraftDto? = null,
-    val reviewStatus: String, val conversionStatus: String? = null, val issues: List<JsonObject> = emptyList())
+    val reviewStatus: String, val conversionStatus: String? = null, val issues: List<JsonObject> = emptyList(),
+    val notices: List<JsonObject> = emptyList())
 @Serializable private class DraftDto(val title: String, val jangdanId: String? = null, val bpm: Int,
     val score: JsonObject, val baseScoreVersion: String, val draftRevision: Int)
 @Serializable private class WriteBody(val baseScoreVersion: String, val title: String, val jangdanId: String?,
-    val bpm: Int, val score: JsonObject, val draftRevision: Int? = null)
-@Serializable private class WrittenDto(val sheetId: String, val scoreVersion: String? = null, val draftRevision: Int? = null)
+    val bpm: Int, val score: JsonObject, val draftRevision: Int? = null, val resolvedIssueIds: List<String>? = null)
+@Serializable private class WrittenDto(val sheetId: String, val scoreVersion: String? = null,
+    val draftRevision: Int? = null, val reviewStatus: String? = null)

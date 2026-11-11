@@ -57,6 +57,44 @@ def glyphs(page):
     return out
 
 
+def vector_symbols(page, glyphs_):
+    """글자 대신 도형으로 그린 삼각 쉼표를 읽는다. 점으로 음역을 추정하지 않는다."""
+    sizes = sorted(n["size"] for n in glyphs_ if n["c"] in NOTE and n["c"] not in "-△")
+    if not sizes:
+        return glyphs_
+    size = sizes[len(sizes) // 2]
+    rests, clips = [], []
+    for d in page.get_drawings(extended=True):
+        while clips and clips[-1][0] >= d["level"]:
+            clips.pop()
+        if d["type"] == "clip":
+            clips.append((d["level"], d["scissor"] if not clips else d["scissor"] & clips[-1][1]))
+            continue
+        if d["type"] == "group":
+            continue
+        r, items = d["rect"], d["items"]
+        if clips and not clips[-1][1].contains(r):
+            continue
+        cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
+        if not (len(items) == 3 and all(it[0] == "l" for it in items) and
+                0.35 * size <= r.width <= 1.8 * size and 0.6 <= r.height / r.width <= 1.4):
+            continue
+        # 닫힌 위쪽 삼각형만 쉼표다. 꺾쇠·화살표·작은 격자 선분은 제외한다.
+        points = [it[1] for it in items]
+        if any(abs(items[i][2] - items[(i + 1) % 3][1]) > 0.1 for i in range(3)):
+            continue
+        top = min(points, key=lambda p: p.y)
+        base = [p for p in points if p is not top]
+        if abs(top.x - cx) > r.width * 0.12 or abs(base[0].y - base[1].y) > r.height * 0.12:
+            continue
+        if any(n["c"] == "△" and abs(n["x"] - cx) < size / 2 and abs(n["y"] - cy) < size / 2
+               for n in glyphs_):
+            continue
+        rests.append(dict(c="△", x=cx, y=cy, size=size, i=len(glyphs_) + len(rests)))
+
+    return glyphs_ + rests
+
+
 def lines(page):
     """보이는 가로·세로 선분. 일부 PDF(소금·단소 표준악보집)는 긴 선을 그린 뒤 잘라내기 영역(clip)으로 칸 안만
     보이게 해서, 잘라내기 영역과 겹치는 부분만 남긴다."""
@@ -189,7 +227,7 @@ def voices(page, cols):
 
 
 def read_page(page):
-    g = glyphs(page)
+    g = vector_symbols(page, glyphs(page))
     hanja = [n for n in g if n["c"] in NOTE and n["c"] not in "-△"]
     if not hanja:
         raise NoYulText("율명 글자가 없음(오선보이거나 글자 층이 없는 PDF)")
@@ -207,7 +245,21 @@ def read_page(page):
     boxes_ = {b for b in map(box_of, hanja) if b}
     # 이음·쉼표만 든 단(곡 끝 '- - - △' 등)도 같은 x의 음 열이면 읽는다. 가사 칸의 '-'는 x가 달라 들어오지 않는다.
     xs = {(a, b) for a, b, _, _ in boxes_}
-    boxes_ |= {b for n in g if n["c"] in "-－△" for b in [box_of(n)] if b and b[:2] in xs}
+    boxes_ |= {b for n in g if n["c"] in "-－△" for b in [box_of(n)]
+               if b and (n["c"] == "△" or b[:2] in xs)}
+    # 처음 나타난 x에도 이음만 있는 각이 올 수 있다. 같은 단의 이웃 악보 열과
+    # 너비·위아래 경계가 맞는 격자만 이어 붙여 가사 칸의 '-'와 구분한다.
+    tie_boxes = {b for n in g if n["c"] in "-－" for b in [box_of(n)] if b} - boxes_
+    while tie_boxes:
+        adjacent = {b for b in tie_boxes if any(
+            abs(b[2] - a[2]) < 1 and abs(b[3] - a[3]) < 1 and
+            0.8 < (b[1] - b[0]) / (a[1] - a[0]) < 1.2 and
+            min(abs(b[0] - a[1]), abs(a[0] - b[1])) < a[1] - a[0]
+            for a in boxes_)}
+        if not adjacent:
+            break
+        boxes_ |= adjacent
+        tie_boxes -= adjacent
     if not boxes_:
         raise ValueError("정간 열을 찾지 못함(율명은 있지만 정간 격자가 없는 쪽)")
     if not boxes_:

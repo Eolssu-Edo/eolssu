@@ -1,7 +1,11 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.audio.DeviceSheetAudio
+
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.data.song.CatalogInstrument
+import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import com.ssafy.eolssu.data.song.validCatalogId
 
 /** EDIT-02 아래 입력판의 탭. */
@@ -9,6 +13,20 @@ enum class EditTab { Yul, Sigimsae, Cell }
 
 /** 편집기 보기: 정간보(EDIT-02) / 오선보로 보기(EDIT-03). 한쪽을 고치면 다른 쪽도 같은 악보를 보인다. */
 enum class EditView { Jeongganbo, Staff }
+
+sealed interface SheetEditJangdanPicker {
+    data object Loading : SheetEditJangdanPicker
+    data object Failed : SheetEditJangdanPicker
+    data class Ready(val options: List<CatalogJangdanSummary>) : SheetEditJangdanPicker
+}
+
+data class SheetAudioInstruments(
+    val options: List<CatalogInstrument> = emptyList(),
+    val selectedId: String? = null,
+    val loading: Boolean = true,
+)
+
+enum class SheetCompletionCatalogState { NotRequired, Loading, Ready, Failed }
 
 /** 화면 아래에 잠깐 띄우는 안내. */
 enum class SheetEditMessage {
@@ -18,6 +36,8 @@ enum class SheetEditMessage {
 
     /** 저장(SHT-04). 빈 정간이 없을 때만 된다. */
     Saved,
+    SavedForPractice,
+    SavedNeedsReview,
 
     /** 저장한 적이 없어 음원을 만들 수 없다. */
     AudioNeedsSave,
@@ -36,6 +56,7 @@ enum class SheetEditMessage {
 
     /** 요청 설정이 맞지 않다(400 INVALID_REQUEST: 장단 없는 악보에 장단 소리, bpm 범위 밖). */
     AudioInvalid,
+    AudioInstrumentRequired,
 
     /** 이 회원의 다른 음원을 만드는 중이다(409 AUDIO_IN_PROGRESS). */
     AudioInProgress,
@@ -54,8 +75,13 @@ enum class SheetEditMessage {
 
     /** 파일 주소를 기기 브라우저로 열지 못했다. */
     AudioLinkFailed,
+    AudioDownloaded,
+    AudioExpired,
+    PreviewNeedsAudio,
 
-    /** 아직 만들지 않은 기능(장단 바꾸기). */
+    ReviewBeforeReshape,
+
+    /** 서버 문서가 없는 경로 등에서 제공하지 않는 기능. */
     ComingSoon,
 }
 
@@ -86,23 +112,105 @@ data class SheetEditUiState(
     val staffKey: StaffNoteKey? = null,
     val yulRegister: YulRegister = YulRegister.Base,
     val availablePitches: Set<Pair<String, Int>>? = null,
-    val previewPlaying: Boolean = false,
+    val instrumentPitches: Set<Pair<String, Int>>? = null,
+    val completionCatalogState: SheetCompletionCatalogState = SheetCompletionCatalogState.NotRequired,
+    val availableJangdans: List<CatalogJangdanSummary>? = null,
     val withJangdan: Boolean = true,
     val emptyWarning: Boolean = false,
+    val completionWarning: Boolean = false,
     val savedOnce: Boolean = false,
     val audio: SheetAudioUi = SheetAudioUi.None,
+    val audioInstruments: SheetAudioInstruments? = null,
+    val deviceAudio: DeviceSheetAudio? = null,
+    val audioDownloading: Boolean = false,
     val message: SheetEditMessage? = null,
     val documentLoading: Boolean = false,
     val documentFailed: Boolean = false,
+    val practiceVersionChanged: Boolean = false,
     val saving: Boolean = false,
+    val confirming: Boolean = false,
     val saveConflict: Boolean = false,
     val closeWarning: Boolean = false,
+    val reviewIssues: List<SheetReviewIssue> = emptyList(),
+    val reviewNotices: List<SheetReviewNotice> = emptyList(),
+    val checkedIssueIds: Set<String> = emptySet(),
+    val jangdanPicker: SheetEditJangdanPicker? = null,
 ) {
+    val completionValidation: SheetCompletionValidation by lazy { validateCompletion() }
+    internal val validatedCheckedIssueIds: Set<String>
+        get() = checkedIssueIds.intersect(completionValidation.checkableIssueIds)
+    val canCheckNextReviewIssue: Boolean
+        get() = !confirming && nextReviewIssue?.id in completionValidation.checkableIssueIds
     val canUndo: Boolean get() = past.isNotEmpty()
     val canRedo: Boolean get() = future.isNotEmpty()
+    val canIncludeJangdan: Boolean get() = draft.original == null || serverSheetId == null || draft.jangdanId != null
+    val canEditDetails: Boolean get() = draft.original != null && serverSheetId != null
 
-    /** 인식 결과에서 왔고 아직 확인하지 않은 정간이 남았으면 그 수. 아니면 0. */
-    val pendingChecks: Int get() = (source as? EditSource.Import)?.pendingChecks ?: 0
+    internal fun updateDetails(title: String, bpm: Int): SheetEditUiState {
+        if (!canEditDetails || bpm !in SheetBpmRange) return this
+        val normalizedTitle = normalizedSheetTitle(title) ?: return this
+        return commit(draft.copy(title = normalizedTitle, bpm = bpm))
+    }
+
+    /** 편집 설정의 빠르기·장단을 한 번에 적용한다. 제목은 저장 창에서만 바꾼다. */
+    internal fun updateSettings(bpm: Int, jangdanId: String?): SheetEditUiState {
+        if (!canEditDetails || bpm !in SheetBpmRange) return this
+        val next = when {
+            jangdanId == null -> draft.copy(bpm = bpm, jangdanId = null, editedJangdanName = "")
+            jangdanId == draft.jangdanId -> draft.copy(bpm = bpm)
+            else -> {
+                val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: availableJangdans.orEmpty()
+                val option = options.firstOrNull { it.jangdanId == jangdanId && draft.isCompatibleWith(it) } ?: return this
+                draft.copy(bpm = bpm, jangdanId = jangdanId, editedJangdanName = option.name)
+            }
+        }
+        return commit(next).copy(jangdanPicker = null, withJangdan = if (jangdanId == null) false else withJangdanFor(next))
+    }
+
+    fun selectJangdan(id: String): SheetEditUiState {
+        val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: return this
+        val option = options.firstOrNull { it.jangdanId == id && draft.isCompatibleWith(it) } ?: return this
+        if (option.jangdanId == draft.jangdanId && option.name == draft.jangdanName) return copy(jangdanPicker = null)
+        val next = draft.copy(jangdanId = option.jangdanId, editedJangdanName = option.name)
+        return commit(next).copy(jangdanPicker = null)
+    }
+
+    /** 사용자가 장단 연결을 해제한다. 정간·이벤트·tick·BPM은 그대로 두며 실행 취소할 수 있다. */
+    fun clearJangdan(): SheetEditUiState =
+        commit(draft.copy(jangdanId = null, editedJangdanName = "")).copy(withJangdan = false, jangdanPicker = null)
+
+    private fun withJangdanFor(next: SheetDraft): Boolean =
+        if (next.jangdanId == draft.jangdanId) withJangdan else next.jangdanId != null
+
+    internal fun matchesAudioSettings(instrumentId: String, bpm: Int, withJangdan: Boolean): Boolean =
+        bpm == draft.bpm && withJangdan == this.withJangdan &&
+            (audioInstruments == null || audioInstruments.selectedId == instrumentId)
+
+    val audioSettingsChanged: Boolean
+        get() = (audio as? SheetAudioUi.Ready)?.audio?.let {
+            !matchesAudioSettings(it.instrumentId, it.bpm, it.withJangdan)
+        } == true
+
+    internal val playableDeviceAudio: DeviceSheetAudio?
+        get() = deviceAudio?.takeIf { matchesAudioSettings(it.instrumentId, it.bpm, it.withJangdan) }
+
+    val pendingChecks: Int
+        get() = (source as? EditSource.Import)?.pendingChecks
+            ?: reviewIssues.filterNot { it.id in validatedCheckedIssueIds }.distinctBy(SheetReviewIssue::cellId).size
+
+    val nextReviewIssue: SheetReviewIssue?
+        get() = reviewIssues.firstOrNull { it.id !in validatedCheckedIssueIds }
+
+    val nextReviewCellIndex: Int?
+        get() = nextReviewIssue?.let { issue -> draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } }
+
+    val selectedReviewIssue: SheetReviewIssue?
+        get() = draft.sourceCellIds?.getOrNull(selected)?.let { cellId ->
+            reviewIssues.firstOrNull { it.cellId == cellId && it.id !in validatedCheckedIssueIds }
+        }
+
+    val canCheckSelectedReviewIssue: Boolean
+        get() = !confirming && selectedReviewIssue?.id in completionValidation.checkableIssueIds
 
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. */
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. 고른 소박은 그 정간이 여전히 나뉘어 있을 때만 남긴다. */
@@ -116,7 +224,19 @@ data class SheetEditUiState(
             future = emptyList(),
             selected = index,
             selectedSub = keptSub,
+            withJangdan = withJangdanFor(next),
+            checkedIssueIds = checkedIssuesAfter(next),
         )
+    }
+
+    /** 한 번 확인한 칸도 내용이나 시김새를 바꾸거나 실행 취소하면 다시 확인한다. */
+    private fun checkedIssuesAfter(next: SheetDraft): Set<String> = checkedIssueIds.filterTo(mutableSetOf()) { id ->
+        val issue = reviewIssues.firstOrNull { it.id == id } ?: return@filterTo false
+        val before = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
+        val after = next.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
+        draft.cells[before] == next.cells[after] &&
+            draft.sigimsae.filterKeys { it.cell == before }.mapKeys { it.key.sub } ==
+            next.sigimsae.filterKeys { it.cell == after }.mapKeys { it.key.sub }
     }
 
     fun select(index: Int): SheetEditUiState = copy(selected = index.coerceIn(0, draft.cells.lastIndex), selectedSub = null)
@@ -143,21 +263,23 @@ data class SheetEditUiState(
         return commit(next, if (advance) (selected + 1).coerceAtMost(next.cells.lastIndex) else selected, null)
     }
 
-    /** '청': 청성 → 중청성 → 기본. 탁 쪽에서 누르면 바로 청성이다. */
-    fun raiseRegister(): SheetEditUiState = copy(yulRegister = yulRegister.higher())
-
-    /** '탁': 탁성 → 배탁성 → 기본. 청 쪽에서 누르면 바로 탁성이다. */
-    fun lowerRegister(): SheetEditUiState = copy(yulRegister = yulRegister.lower())
-
-    fun resetRegister(): SheetEditUiState = copy(yulRegister = YulRegister.Base)
+    /** 다섯 음역 중 하나를 직접 고른다. 다시 눌러도 같은 음역을 유지하며 악보는 바꾸지 않는다. */
+    fun selectRegister(register: YulRegister): SheetEditUiState = copy(yulRegister = register)
 
     /** 지금 음역 단계를 붙여 [base]를 적는다. 서버에 등록되지 않은 음은 적지 않는다. 적고 나면 음역은 기본으로 돌아간다. */
     fun putYul(base: Yul): SheetEditUiState = putYul(base, yulRegister.octave)
 
-    /** 버튼과 직접 입력이 함께 쓰는 율명 입력. 같은 음 데이터([SheetDraft.pitchNote])로 적는다. */
+    /** [base]를 [octave] 음역으로 적는다. 같은 음 데이터([SheetDraft.pitchNote])로 적는다. */
     fun putYul(base: Yul, octave: Int): SheetEditUiState {
-        if (!isAvailablePitch(availablePitches, base, octave)) return this
+        if (!isAvailablePitch(supportedInputPitches, base, octave)) return this
         return put(draft.pitchNote(base, octave)).copy(yulRegister = YulRegister.Base)
+    }
+
+    /** 후보를 보는 동안 입력이 바뀌었으면 적용하지 않는다. 시작 음만 교체해 지속·분할·원본 이벤트를 보존한다. */
+    internal fun applyPitchCorrection(target: SheetPitchCorrection, pitch: Pair<Yul, Int>): SheetEditUiState {
+        if (confirming || target !in pitchCorrectionsAt(target.cell, target.sub) || pitch !in pitchAlternatives(target.pitch)) return this
+        val next = draft.putAt(target.originCell, target.originSub, draft.pitchNote(pitch.first, pitch.second))
+        return commit(next, target.originCell, target.originSub)
     }
 
     /** 고른 소박만, 소박을 고르지 않았으면 정간 전체를 지운다. */
@@ -193,33 +315,69 @@ data class SheetEditUiState(
 
     fun undo(): SheetEditUiState {
         val previous = past.lastOrNull() ?: return this
-        return copy(draft = previous, past = past.dropLast(1), future = listOf(draft) + future, selected = selected.coerceIn(0, previous.cells.lastIndex), selectedSub = null)
+        return copy(draft = previous, past = past.dropLast(1), future = listOf(draft) + future,
+            selected = selected.coerceIn(0, previous.cells.lastIndex), selectedSub = null, withJangdan = withJangdanFor(previous),
+            checkedIssueIds = checkedIssuesAfter(previous))
     }
 
     fun redo(): SheetEditUiState {
         val next = future.firstOrNull() ?: return this
-        return copy(draft = next, past = past + draft, future = future.drop(1), selected = selected.coerceIn(0, next.cells.lastIndex), selectedSub = null)
+        return copy(draft = next, past = past + draft, future = future.drop(1),
+            selected = selected.coerceIn(0, next.cells.lastIndex), selectedSub = null, withJangdan = withJangdanFor(next),
+            checkedIssueIds = checkedIssuesAfter(next))
     }
 
     /** 오선보에서 고른 음표. */
     fun staffNote(notes: List<StaffNote> = staffNotes(draft)): StaffNote? = notes.pick(staffKey)
 
     /** 오선보에서 음표를 고르면 정간보의 선택도 그 음표가 시작하는 정간으로 옮긴다. */
-    fun selectStaffNote(key: StaffNoteKey): SheetEditUiState = copy(staffKey = key, selected = key.start, selectedSub = null)
+    fun selectStaffNote(key: StaffNoteKey): SheetEditUiState =
+        if (draft.original != null) selectUnit(key.start, key.sub).copy(staffKey = key)
+        else copy(staffKey = key, selected = key.start, selectedSub = null)
+
+    internal fun canShiftCommonStaffPitch(direction: Int): Boolean = commonStaffPitchTarget(direction) != null
+
+    private fun commonStaffPitchTarget(direction: Int): ScoreNote? {
+        if (direction != -1 && direction != 1) return null
+        val key = staffKey ?: return null
+        val (base, octave) = draft.cells.getOrNull(key.start)?.getOrNull(key.sub)?.pitchKey() ?: return null
+        val hwang = draft.original?.music?.hwangHz?.let(::staffHwangMidi) ?: return null
+        val count = BaseYuls.size
+        var target = (octave + 2) * count + base.ordinal + direction
+        while (target in 0 until count * 5 && hwang + target - 2 * count in 0..127) {
+            val pitch = BaseYuls[target % count]
+            val register = target / count - 2
+            if (isAvailablePitch(availablePitches, pitch, register)) return draft.pitchNote(pitch, register)
+            target += direction
+        }
+        return null
+    }
 
     /** 오선보에서 고른 음표의 높이를 [steps]만큼 바꾼다. 쉼표는 바꾸지 않는다. */
     fun shiftStaffNote(steps: Int): SheetEditUiState {
+        if (draft.original != null) {
+            val key = staffKey ?: return this
+            val target = commonStaffPitchTarget(steps) ?: return this
+            return commit(draft.putAt(key.start, key.sub, target), key.start, key.sub)
+        }
         val note = staffNote() ?: return this
         if (note.isRest) return this
         return commit(draft.shiftPitch(note.key.start, note.key.sub, steps), note.key.start).copy(staffKey = note.key)
     }
 
     /** '저장': 빈 정간이 있으면 경고 창을 열고, 없으면 저장했다고 알린다. */
-    fun requestSave(): SheetEditUiState =
-        if (draft.emptyCells.isNotEmpty()) copy(emptyWarning = true) else copy(emptyWarning = false, savedOnce = true, message = SheetEditMessage.Saved)
+    fun requestSave(): SheetEditUiState = when {
+        completionValidation.hasEmptyCells -> focusCompletionIssue().copy(emptyWarning = true)
+        !completionValidation.canComplete -> focusCompletionIssue().copy(completionWarning = true)
+        else -> copy(emptyWarning = false, completionWarning = false, savedOnce = true, message = SheetEditMessage.Saved)
+    }
+
+    internal fun focusCompletionIssue(): SheetEditUiState = completionValidation.firstCellIndex?.let {
+        select(it).copy(view = EditView.Jeongganbo)
+    } ?: this
 
     /** '임시저장': 빈 정간이 있어도 된다. 경고 창에서 눌러도 같다. */
-    fun saveDraft(): SheetEditUiState = copy(emptyWarning = false, message = SheetEditMessage.Draft)
+    fun saveDraft(): SheetEditUiState = copy(emptyWarning = false, completionWarning = false, message = SheetEditMessage.Draft)
 
     /** 서버에 저장된 내 악보 ID. 예시 악보나 아직 서버에 저장하지 않은 악보는 null이라 음원을 만들 수 없다. */
     val serverSheetId: String? get() = (source as? EditSource.Mine)?.sheetId?.takeIf { validCatalogId(it) }
@@ -231,7 +389,7 @@ data class SheetEditUiState(
     fun requestAudio(): SheetEditUiState = when {
         !savedOnce -> copy(message = SheetEditMessage.AudioNeedsSave)
         serverSheetId == null -> copy(message = SheetEditMessage.ComingSoon)
-        !audio.canRequest -> this
+        !audio.canRequest && !audioSettingsChanged -> this
         else -> copy(audio = SheetAudioUi.Requesting(audio.latest))
     }
 
@@ -258,4 +416,15 @@ data class SheetEditUiState(
             )
         }
     }
+}
+
+internal val SheetBpmRange = 30..160
+
+/** SHT-04·11 count Unicode code points after trimming, including a surrogate pair as one. */
+internal fun normalizedSheetTitle(value: String): String? {
+    val title = value.trim()
+    val length = title.indices.count { index ->
+        index == 0 || !title[index].isLowSurrogate() || !title[index - 1].isHighSurrogate()
+    }
+    return title.takeIf { length in 1..50 }
 }

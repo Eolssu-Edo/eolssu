@@ -4,14 +4,13 @@
     <string name="practice_step_toggle_desc">한 음씩 따라 불기 %1$s</string>
     <string name="practice_step_on">켜짐</string>
     <string name="practice_step_off">꺼짐</string>
-    <string name="practice_step_now">지금 음</string>
-    <string name="practice_step_listen_desc">지금 정간의 음 %1$s 듣기</string>
+    <string name="practice_step_now">현재 정간</string>
+    <string name="practice_step_listen_desc">현재 정간의 음 %1$s 듣기</string>
     <string name="practice_step_mine">내 연주</string>
     <string name="practice_step_recording">녹음 중</string>
     <string name="practice_step_rec_desc_on">녹음 중 · 누르면 멈춤</string>
     <string name="practice_step_rec_desc_resume">녹음 이어서 시작</string>
     <string name="practice_step_rec_desc_start">녹음 시작</string>
-    <string name="practice_step_progress">%1$d / %2$d음</string>
     <string name="practice_step_manual_confirm">맞게 분 것으로 넘기기 · 이 기기에서는 음을 판정하지 못해요</string>
     <!-- 한 음씩 마이크 권한·녹음 실패 안내(혼자 연습 화면) -->
     <string name="practice_step_permission_body">마이크로 들어온 소리로 지금 음을 맞게 불었는지 이 기기 안에서 확인해요. 녹음은 저장하거나 보내지 않아요. ‘계속’을 누르면 기기 권한 창이 열려요.</string>

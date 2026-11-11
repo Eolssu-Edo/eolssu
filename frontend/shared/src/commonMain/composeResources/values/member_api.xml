@@ -8,11 +8,9 @@
     <string name="member_api_terms_again">최신 약관 동의가 필요해요. 가입을 다시 시작해 주세요.</string>
     <string name="member_api_instrument_unavailable">선택한 악기를 사용할 수 없어요. 다른 악기를 선택해 주세요.</string>
     <string name="my_instrument_saving">악기를 저장하고 있어요.</string>
-    <string name="member_api_profile_loading">회원 정보를 불러오고 있어요.</string>
+    <string name="app_loading">불러오는 중</string>
     <string name="member_api_social_unavailable">간편 로그인 연결을 아직 사용할 수 없어요. 이메일 로그인을 이용해 주세요.</string>
     <string name="member_api_terms_loading">약관을 불러오는 중이에요.</string>
     <string name="member_api_retry">다시 시도</string>
-    <string name="member_api_open_terms">약관 원문 열기</string>
-    <string name="member_api_terms_version">버전 %1$s</string>
-    <string name="member_api_nickname_rule">닉네임은 1~60자로 입력해 주세요.</string>
+    <string name="member_api_nickname_rule">닉네임은 1~10자로 입력해 주세요.</string>
 </resources>

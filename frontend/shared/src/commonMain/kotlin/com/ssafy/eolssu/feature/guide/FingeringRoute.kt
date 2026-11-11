@@ -38,7 +38,11 @@ fun FingeringRoute(
         onSelectBlow = viewModel::selectBlow,
         onRetryInstruments = viewModel::retryCatalog,
         noteAudioContent = { note ->
-            ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note, state.shownBlow), audio)
+            ReferenceAudioControls(
+                ReferenceAudioSelection.forNote(state.instrument, note, state.shownBlow),
+                audio,
+                showLoadingMessage = false,
+            )
         },
     )
 }

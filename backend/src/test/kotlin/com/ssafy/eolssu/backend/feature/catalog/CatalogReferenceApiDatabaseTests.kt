@@ -227,7 +227,7 @@ class CatalogReferenceApiDatabaseTests {
             Expected("10", "세령산", 63, listOf("덩", "", "덩", "더러러러", "", "궁", "", "기닥", "", "다"), listOf(3,2,2,3)),
         )
         val items = body("/api/jangdans", staleCookie = true).path("items").toList()
-        assertEquals((1..11).map(Int::toString), items.map { it.path("jangdanId").asString() })
+        assertEquals((1..12).map(Int::toString), items.map { it.path("jangdanId").asString() })
         for (e in expected) {
             val summary = items.single { it.path("jangdanId").asString() == e.id }
             val detail = body("/api/jangdans/${e.id}", staleCookie = true)
@@ -244,6 +244,18 @@ class CatalogReferenceApiDatabaseTests {
             assertEquals("/api/jangdans/${e.id}/audio", detail.path("soundUrl").asString())
         }
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE jangdan_id>=6", Int::class.java))
+    }
+
+    @Test fun `four beat accompaniment exposes the approved arrangement separately from traditional sources`() {
+        val detail = body("/api/jangdans/12")
+        assertEquals("4박 기본 반주", detail.path("name").asString())
+        assertEquals(160, detail.path("defaultBpm").intValue())
+        assertEquals("QUARTER", detail.path("bpmUnit").asString())
+        assertEquals(listOf("덩", "덕", "궁", "덕"), detail.path("pattern").path("beats").toList().map { it.asString() })
+        assertEquals(listOf(1, 1, 1, 1), detail.path("pattern").path("group").toList().map { it.intValue() })
+        assertTrue(detail.path("source").asString().contains("사용자 승인 편곡 반주 패턴"))
+        assertTrue(detail.path("source").asString().contains("전통 장단 기본형으로 확정한 명칭이 아님"))
+        assertEquals("/api/jangdans/12/audio", detail.path("soundUrl").asString())
     }
 
     @Test fun `Jajin taryeong exposes the Danso teaching pattern without changing song foreign keys`() {

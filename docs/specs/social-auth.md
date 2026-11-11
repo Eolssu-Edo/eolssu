@@ -129,6 +129,10 @@ adb shell pm get-app-links com.ssafy.eolssu
 
 사용자 요청(2026-10-30)에 따라 일반 com.ssafy.eolssu와 QA com.ssafy.eolssu.qa의 실제 APK 지문을 독립 등록한다. 일반 환경변수는 유지하고 QA는 AUTH_ANDROID_QA_APP_SHA256_FINGERPRINTS를 사용한다. 운영 적용·기기 verified·카카오 왕복 결과는 [Task337](../plans/S15P31E102-337.md)에 기록하며 구현 테스트와 구분한다.
 
+## Android 복귀 안내 페이지 (S15P31E102-687)
+
+제공자가 사용자 조작 없이 곧바로 복귀 주소로 보내면(카카오·네이버 로그인 세션이 남아 있을 때) Chrome은 App Links로 앱을 열지 않고 그 주소를 웹으로 연다. 기기의 도메인 검증이 verified여도 같다. 웹 `index.html`은 경로가 `/auth/android/oauth/{kakao|google|naver}/callback`이면 웹 앱을 띄우지 않고 "얼쑤 앱 열기" 버튼을 보여 준다. 버튼은 같은 호스트·경로·쿼리를 `intent://…#Intent;scheme=https;action=VIEW;category=BROWSABLE;end`로 넘기며 패키지를 지정하지 않아 일반·QA 앱 모두 받는다. 사용자가 누른 intent 링크는 Chrome이 앱으로 넘긴다. redirectUri·완료 API·앱의 복귀 확인은 바꾸지 않는다. 자동 이동은 하지 않는다(앱이 없으면 같은 주소를 다시 여는 반복을 피한다).
+
 ## iOS 인증 복귀 (S15P31E102-417)
 
 사용자 결정(2026-11-03): iOS도 Android와 같은 간편 로그인·신규 가입·계정 연결 제안·마이페이지 연결·탈퇴 재인증을 제공한다. 무료 Apple 개발 계정(Personal Team)은 Associated Domains를 쓸 수 없어 Android의 HTTPS App Links 복귀를 iOS에서 그대로 받을 수 없으므로, 서버의 HTTPS 중계 주소를 거쳐 앱 전용 주소로 돌아온다. 공통 화면·시도 상태·완료 API 계약은 바꾸지 않고 redirectUri와 앱이 받는 복귀 주소만 플랫폼별로 둔다.

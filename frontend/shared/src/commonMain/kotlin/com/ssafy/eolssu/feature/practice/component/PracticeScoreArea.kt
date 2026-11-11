@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -118,7 +120,7 @@ fun PracticeScoreArea(
         }
         val recording = state.mode == PracticeMode.Recording || state.resuming
         val playback = state.scorePlayback()
-        val notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege)
+        val notation = ScoreNotation(state.settings.showHangul)
         // 한 음씩 따라 불기는 진행 모습(playback) 없이 지금 음의 정간에만 연두 테두리를 둔다(곁줄에는 표시하지 않는다).
         val currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex
         val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
@@ -142,6 +144,7 @@ fun PracticeScoreArea(
                 onUnitClick = onUnitClick,
                 annotations = annotations,
                 unitMarks = pitchMarks,
+                unitMarksAfterPass = true,
             )
         } else {
             val bandHeight = (maxHeight - BandGap) / 2
@@ -164,6 +167,7 @@ fun PracticeScoreArea(
                         columns = first until minOf(first + bandColumns, columnCount),
                         annotations = annotations,
                         unitMarks = pitchMarks,
+                        unitMarksAfterPass = true,
                     )
                 }
             }
@@ -294,9 +298,10 @@ fun PracticeBoardScore(
                 JeongganboView(
                     song = song,
                     // 연주 중 손으로 스크롤하기 어려우므로 휴대폰 악보는 좌우로만 넘긴다. 묶음 배치가 정간을 남은 높이에 맞춘다.
-                    modifier = Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight().clipToBounds() else Modifier),
+                    modifier = Modifier.observeFirstDraw(PerfPhase.PRACTICE_DRAWN).fillMaxWidth()
+                        .then(if (bounded) Modifier.fillMaxHeight().clipToBounds() else Modifier),
                     metrics = packing.metrics,
-                    notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege),
+                    notation = ScoreNotation(state.settings.showHangul),
                     scrollState = rememberHorizontalScoreScroll(state),
                     currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex,
                     highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position,
@@ -313,6 +318,7 @@ fun PracticeBoardScore(
                     cellHeights = packing.cellHeights,
                     stackRowHeights = packing.stackRowHeights,
                     unitMarks = pitchMarks,
+                    unitMarksAfterPass = true,
                 )
             }
             if (state.live && !state.follow) {
@@ -338,6 +344,7 @@ fun PracticeBoardScore(
 /**
  * 평가 연주에서 음마다 모은 실시간 음높이 안내를 그 음의 표시 자리에 칠한다(S15P31E102-597).
  * 맞음은 연두, 다른 음은 주황, 판단 보류는 회색 테두리만 둔다. 연주 후 채점의 틀린 칸 표시와 달리 아이콘·문구는 없다.
+ * 연주 중에는 진행 채움이 그 자리를 다 지난 뒤에 칠한다(S15P31E102-752).
  */
 @Composable
 private fun livePitchCellMarks(marks: Map<ScoreUnitKey, LivePitchMark>): Map<ScoreUnitKey, ScoreCellMark> {

@@ -61,6 +61,45 @@ class ApiUserRepositoryTest {
         client.close()
     }
 
+    /** 프로필 그림(S15P31E102-738): 서버 키를 읽어 그림으로 바꾸고, 바꿀 때는 서버가 받아들인 키만 보여 준다. */
+    @Test
+    fun profileImageIsReadFromServerKeyAndChangedOnlyWithAcceptedValue() = runTest {
+        var getKey: String? = "DANSO"
+        var patchStatus = HttpStatusCode.OK
+        val json = headersOf(HttpHeaders.ContentType, "application/json")
+        val client = createHttpClient(MockEngine { request ->
+            if (request.method == HttpMethod.Get) {
+                val image = getKey?.let { ""","profileImage":"$it"""" } ?: ""
+                respond("""{"isSuccess":true,"result":{"nickname":"회원","instrumentId":"1","notationMode":"HANJA"$image}}""", headers = json)
+            } else {
+                assertEquals(HttpMethod.Patch, request.method)
+                assertEquals("/api/users/me/profile-image", request.url.encodedPath)
+                assertEquals("""{"profileImage":"JANGDAN"}""", (request.body as TextContent).text)
+                if (patchStatus == HttpStatusCode.OK) respond("""{"isSuccess":true,"result":{"userId":"7","profileImage":"JANGDAN"}}""", headers = json)
+                else respond("""{"isSuccess":false,"result":{"errorCode":"SERVICE_UNAVAILABLE"}}""", patchStatus, json)
+            }
+        }, ServerAddress.Production)
+        val repo = ApiUserRepository(client, null)
+        assertEquals(MemberResult.Done, repo.refresh())
+        assertEquals(ProfileImage.Danso, repo.profile.value.profileImage)
+
+        // 서버가 받아들이지 않으면 그림을 바꾸지 않는다.
+        patchStatus = HttpStatusCode.ServiceUnavailable
+        assertEquals(MemberResult.Unavailable, repo.changeProfileImage(ProfileImage.Jangdan))
+        assertEquals(ProfileImage.Danso, repo.profile.value.profileImage)
+        patchStatus = HttpStatusCode.OK
+        assertEquals(MemberResult.Done, repo.changeProfileImage(ProfileImage.Jangdan))
+        assertEquals(ProfileImage.Jangdan, repo.profile.value.profileImage)
+
+        // 키가 없거나(이전 서버) 모르는 키면 기본 그림으로 보여 준다.
+        for (key in listOf(null, "PURPLE")) {
+            getKey = key
+            assertEquals(MemberResult.Done, repo.refresh())
+            assertEquals(ProfileImage.Hello, repo.profile.value.profileImage)
+        }
+        client.close()
+    }
+
     @Test
     fun withdrawalRequiresAcceptedRemoteDeletionBeforeClearingProfileAndCookies() = runTest {
         for (accepted in listOf(false, true)) {

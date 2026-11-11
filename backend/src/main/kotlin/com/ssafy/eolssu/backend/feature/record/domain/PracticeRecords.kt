@@ -52,7 +52,7 @@ data class DeletableRecord(val recordingKey: String?)
 /** 구간 첫·끝 음표의 각(0부터). */
 data class ColumnRange(val start: Int, val end: Int)
 
-/** 악보 버전의 음표 순번별 각(0부터). 지금 곡 악보 버전과 다르면 null. */
+/** 현재 또는 보관된 악보 판본의 음표 순번별 각(0부터). 판본이 없으면 null. */
 fun interface ScoreColumns {
     fun columns(songId: Long, scoreVersion: Int): List<Int>?
 }

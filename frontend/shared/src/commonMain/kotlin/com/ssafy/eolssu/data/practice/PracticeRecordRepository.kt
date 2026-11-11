@@ -21,8 +21,8 @@ interface PracticeRecordRepository {
     /** 최신순 기록. */
     val records: StateFlow<List<PracticeRecord>>
 
-    /** 평가 결과를 전체 연주 기록으로 저장한다. 같은 결과는 한 번만 저장된다. */
-    suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord
+    /** 평가 결과를 [memo]와 함께 전체 연주 기록으로 저장한다(REC-01 한 번). 같은 결과는 한 번만 저장된다. */
+    suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String = ""): PracticeRecord
 
     suspend fun updateMemo(recordId: String, memo: String)
 
@@ -30,7 +30,7 @@ interface PracticeRecordRepository {
     suspend fun refresh(): Boolean = true
 
     /**
-     * 기록 상세: 항목 점수·오류 위치·메모·다시 듣기 여부까지 채운 기록. 없거나 지운 기록이면 null.
+     * 기록 상세: 항목 점수·원본 음 판정·메모·다시 듣기 여부. 오류 위치는 당시 악보를 받은 뒤 [PracticeRecord.withScore]로 채운다. 없거나 지운 기록이면 null.
      * 응답을 받지 못하면 예외를 던진다.
      */
     suspend fun detail(recordId: String): PracticeRecord? = records.value.firstOrNull { it.id == recordId }
@@ -70,7 +70,7 @@ class SamplePracticeRecordRepository : PracticeRecordRepository {
     private val _records = MutableStateFlow(SampleRecords)
     override val records: StateFlow<List<PracticeRecord>> = _records.asStateFlow()
 
-    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord {
+    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String): PracticeRecord {
         val id = "record-${result.id}"
         _records.value.firstOrNull { it.id == id }?.let { return it }
         val record = PracticeRecord(
@@ -84,7 +84,7 @@ class SamplePracticeRecordRepository : PracticeRecordRepository {
             bpm = result.bpm,
             score = result.total,
             metrics = result.metrics,
-            memo = "",
+            memo = memo,
             errors = result.errors,
             eventErrors = result.eventErrors,
         )

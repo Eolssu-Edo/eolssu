@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.data.song
 
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.measureLoad
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.JangdanPlayback
 import com.ssafy.eolssu.core.model.Song
@@ -34,19 +36,28 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
 
     override suspend fun getSong(songId: String): Song? = load(songId)?.song
 
+    override suspend fun getSong(songId: String, scoreVersion: Int): Song? {
+        if (scoreVersion <= 0) throw CatalogUnavailable()
+        return load(songId, scoreVersion)?.song
+    }
+
     override suspend fun getEditableSong(songId: String): EditableSong? = load(songId)
 
     /** CAT-01·04를 함께 검증한다. 편집기는 화면 모델과 함께 원본 공통 악보도 받는다. */
-    private suspend fun load(songId: String): EditableSong? {
+    private suspend fun load(songId: String, scoreVersion: Int? = null): EditableSong? =
+        measureLoad(PerfTarget.SONG_BUNDLE, songId, { it.song.scoreVersion }) { loadVerified(songId, scoreVersion) }
+
+    private suspend fun loadVerified(songId: String, scoreVersion: Int?): EditableSong? {
         if (!validCatalogId(songId)) return null
-        val response = client.sendOrNull { get("/api/songs/$songId") } ?: throw CatalogUnavailable()
+        val response = client.sendOrNull { get("/api/songs/$songId") { scoreVersion?.let { parameter("scoreVersion", it) } } } ?: throw CatalogUnavailable()
         if (response.status.value == 404) return null
         if (response.status.value != 200) throw CatalogUnavailable()
         val item = response.apiResponse<CatalogSong>()?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
         val summary = item.summary()
-        if (summary.id != songId) throw CatalogUnavailable()
+        if (summary.id != songId || (scoreVersion != null && item.scoreVersion != scoreVersion)) throw CatalogUnavailable()
         val level = summary.level ?: throw CatalogUnavailable()
-        val scoreResponse = client.sendOrNull { get("/api/songs/$songId/score") } ?: throw CatalogUnavailable()
+        val scoreResponse = client.sendOrNull { get("/api/songs/$songId/score") { scoreVersion?.let { parameter("scoreVersion", it) } } } ?: throw CatalogUnavailable()
+        if (scoreResponse.status.value == 404) return null
         if (scoreResponse.status.value != 200) throw CatalogUnavailable()
         val scoreItem = scoreResponse.apiResponse<CatalogScore>()?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
         if (scoreItem.songId != songId || scoreItem.scoreVersion != item.scoreVersion ||
@@ -81,7 +92,6 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
             baseBpm = item.defaultBpm,
             description = item.description.orEmpty(),
             evaluable = item.isScorable,
-            solfege = null,
             score = score,
             instrumentId = item.instrumentId,
             scoreVersion = item.scoreVersion,

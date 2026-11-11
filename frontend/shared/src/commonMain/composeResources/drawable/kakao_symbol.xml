@@ -1,0 +1,6 @@
+<!-- 카카오 로그인 버튼의 말풍선 심볼(카카오 디자인 가이드). 노랑 바탕 위에 검정으로 쓴다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="14" android:viewportHeight="14">
+    <group android:translateX="-26.5" android:translateY="-15.88">
+        <path android:fillColor="#191919" android:pathData="m33.501 16.5225c-3.5788 0-6.4785 2.4812-6.4785 5.5416 0 1.9671 1.1994 3.6955 3.0067 4.6782l-.6111 2.469c-.0227.0737-.0049.1527.0438.2071.0356.0386.0842.0596.1312.0596.0406 0 .0811-.014.1151-.0439l2.6258-1.9197c.3777.0579.7667.0895 1.1654.0895 3.5773 0 6.4786-2.4813 6.4786-5.5416s-2.8997-5.5398-6.477-5.5398z" />
+    </group>
+</vector>

@@ -51,6 +51,23 @@ class MyPageViewModelTest {
     private val users = SampleUserRepository()
     private val timeQueue = PracticeTimeQueue(store, api = null, SignedInMember(store), CoroutineScope(Dispatchers.Unconfined))
 
+    /** 다른 화면에서 돌아와 진도를 다시 받는 동안에도 같은 악기의 마지막 뱃지를 그대로 보여 화면이 흔들리지 않는다(S15P31E102-731). */
+    @Test
+    fun keepsLastLearningProgressOfSameInstrumentWhileRefetching() {
+        val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
+        assertNull(viewModel.lastLearningProgress(Instrument.Danso))
+
+        viewModel.rememberLearningProgress(Instrument.Danso, MyLearningProgress(setOf(1, 2)))
+        assertEquals(MyLearningProgress(setOf(1, 2)), viewModel.lastLearningProgress(Instrument.Danso))
+        // 다른 악기의 진도를 잠깐이라도 보여 주지 않는다.
+        assertNull(viewModel.lastLearningProgress(Instrument.DaegeumJeongak))
+        assertNull(viewModel.lastLearningProgress(null))
+
+        // 받지 못하면 화면도 뱃지를 비우므로 다음에 돌아올 때도 비운 채로 시작한다.
+        viewModel.rememberLearningProgress(Instrument.Danso, null)
+        assertNull(viewModel.lastLearningProgress(Instrument.Danso))
+    }
+
     @Test
     fun instrumentChangeDoesNotClaimSuccessWithoutServerMapping() = runTest {
         val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
@@ -100,6 +117,20 @@ class MyPageViewModelTest {
         assertNull(viewModel.uiState.value.error)
         assertTrue(viewModel.save())
         assertEquals("새 닉네임", users.profile.value.nickname)
+    }
+
+    @Test
+    fun nicknameAllowsTenCharacters() = runTest {
+        val viewModel = NicknameEditViewModel(users)
+
+        viewModel.changeNickname("가".repeat(11))
+        assertFalse(viewModel.save())
+        assertEquals(ProfileFieldError.InvalidInput, viewModel.uiState.value.error)
+        assertEquals("얼쑤연주자", users.profile.value.nickname)
+
+        viewModel.changeNickname(" ${"가".repeat(10)} ")
+        assertTrue(viewModel.save())
+        assertEquals("가".repeat(10), users.profile.value.nickname)
     }
 
     @Test

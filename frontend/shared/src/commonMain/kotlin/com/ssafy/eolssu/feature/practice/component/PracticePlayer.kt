@@ -48,13 +48,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.formatClock
+import com.ssafy.eolssu.core.ui.component.PlaybackLoadingOverlay
 import com.ssafy.eolssu.feature.practice.ModelAudioStatus
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.PracticePlayerNotice
 import com.ssafy.eolssu.feature.practice.playerNotice
+import com.ssafy.eolssu.feature.practice.PracticePersonalAudio
+import com.ssafy.eolssu.feature.practice.personalAudioControl
 import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.*
 import com.ssafy.eolssu.feature.practice.JangdanStatus
@@ -64,7 +68,7 @@ import eolssu.shared.generated.resources.model_audio_interrupted
 import eolssu.shared.generated.resources.model_audio_loading
 import eolssu.shared.generated.resources.model_audio_unavailable
 import eolssu.shared.generated.resources.model_audio_unsupported
-import eolssu.shared.generated.resources.practice_hint_solo_only
+import eolssu.shared.generated.resources.practice_solo_only
 import eolssu.shared.generated.resources.practice_listen_model
 import eolssu.shared.generated.resources.practice_listen_model_resume
 import eolssu.shared.generated.resources.practice_pause
@@ -107,7 +111,25 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     )
     val canPlay = if (rhythm) state.jangdanSupported && state.jangdanStatus != JangdanStatus.Loading
         else state.modelAudioStatus != ModelAudioStatus.Loading && state.modelAudioStatus != ModelAudioStatus.Unsupported
-    val controls: @Composable (Modifier) -> Unit = { rowModifier ->
+    val personalAudio = state.personalAudioControl
+    val canSeek = personalAudio == null && state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading
+    val controls: @Composable (Modifier) -> Unit = if (personalAudio != null) { modifier ->
+        Box(modifier, contentAlignment = Alignment.Center) {
+            val label = when (personalAudio) {
+                PracticePersonalAudio.Checking -> Res.string.practice_sheet_audio_checking
+                PracticePersonalAudio.Downloading -> Res.string.practice_sheet_audio_downloading
+                PracticePersonalAudio.Failed -> Res.string.practice_sheet_audio_retry
+                PracticePersonalAudio.VersionChanged -> Res.string.practice_sheet_audio_version_changed
+                else -> Res.string.practice_sheet_audio_download
+            }
+            EolssuButton(
+                stringResource(label),
+                actions.onDownloadSheetAudio,
+                enabled = personalAudio == PracticePersonalAudio.Missing || personalAudio == PracticePersonalAudio.Failed,
+                small = true,
+            )
+        }
+    } else { rowModifier ->
         Row(rowModifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
             SeekButton(stringResource(Res.string.practice_seek_back), stringResource(Res.string.practice_seek_back_desc), small = compact) { actions.onSeek(-PRACTICE_SEEK_MS) }
             Surface(
@@ -140,7 +162,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
             }
             SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
-                enabled = state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading, height = 24.dp)
+                enabled = canSeek, height = 24.dp)
             // 로딩은 화면 가운데에 띄우므로 트랙 아래 칸은 실패·중단 사유가 있을 때만 둔다.
             if (state.playerNotice.inCard) PlayerNoticeArea(state.playerNotice, Modifier.fillMaxWidth().height(20.dp))
         }
@@ -160,7 +182,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         }
         SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
-            enabled = state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading)
+            enabled = canSeek)
         controls(Modifier.fillMaxWidth())
     }
 }
@@ -178,40 +200,7 @@ private val PracticePlayerNotice.inCard: Boolean
 fun PracticePlaybackLoadingOverlay(state: PracticeUiState, modifier: Modifier = Modifier) {
     val visible = state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm) &&
         !state.stepUi && state.playerNotice == PracticePlayerNotice.Loading
-    if (!visible) return
-    val colors = EolssuTheme.colors
-    val message = stringResource(Res.string.practice_player_loading)
-    Column(
-        modifier.fillMaxSize().background(colors.background.copy(alpha = 0.74f)),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-    ) {
-        Column(
-            Modifier.semantics(mergeDescendants = true) {
-                liveRegion = LiveRegionMode.Polite
-                contentDescription = message
-            },
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            // 3·2·1 북과 같은 150dp 원·그림자 안에 그림을 둔다(그림의 흰 바탕이 네모로 보이지 않게).
-            Box(
-                Modifier.size(150.dp)
-                    .shadow(14.dp, CircleShape, ambientColor = colors.text.copy(alpha = 0.14f), spotColor = colors.text.copy(alpha = 0.14f))
-                    .background(colors.surface, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                PracticeLoadingMascot(Modifier.size(124.dp))
-            }
-            Text(
-                message,
-                modifier = Modifier.padding(horizontal = 24.dp).clearAndSetSemantics {},
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
-                color = colors.text,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
+    if (visible) PlaybackLoadingOverlay(modifier)
 }
 
 /** 상태가 바뀌어도 이 칸의 너비·높이는 바뀌지 않는다. 불러오는 중은 비워 둔다. */
@@ -221,6 +210,10 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         PracticePlayerNotice.None, PracticePlayerNotice.Loading -> ""
         PracticePlayerNotice.Failed -> stringResource(Res.string.practice_player_failed)
         PracticePlayerNotice.Unavailable -> stringResource(Res.string.practice_player_unavailable)
+        PracticePlayerNotice.PersonalAudioUnavailable -> stringResource(Res.string.practice_sheet_audio_unavailable)
+        PracticePlayerNotice.PersonalDownloadFailed -> stringResource(Res.string.practice_sheet_audio_download_failed)
+        PracticePlayerNotice.PersonalScoreChanged -> stringResource(Res.string.practice_sheet_audio_reopen)
+        PracticePlayerNotice.EmbeddedJangdan -> stringResource(Res.string.practice_sheet_audio_with_jangdan)
         PracticePlayerNotice.Unsupported -> stringResource(Res.string.practice_player_unsupported)
         PracticePlayerNotice.Interrupted -> stringResource(Res.string.practice_player_interrupted)
     }
@@ -290,32 +283,48 @@ private fun PlayerTrack(fraction: Float, modifier: Modifier = Modifier) {
 }
 
 /**
- * 플레이어 아래 행동(보드 `.btn.primary` + `.notice`):
+ * 플레이어 아래 행동(보드 `.btn.primary`):
  * - 평가 준비: ‘연주 평가 시작’.
  * - 일반 연습·평가 가능 곡: ‘연주 평가 시작’으로 평가를 바로 시작한다.
- * - 연습 모드·평가 불가 곡: 안내만 ‘이 곡은 AI 평가 데이터가 없어 연습만 할 수 있어요. …’
+ * - 연습 모드·평가 불가 곡: 꺼진 버튼에 ‘연습만 가능해요’를 적는다.
  * - 내 악보 연습·기초부터 배우기 곡 연습: 평가 버튼도 안내도 없다(Practice-Mine).
- * 녹음을 지원하지 않는 환경은 안내 카드에 그 사실을 적고 버튼을 끈다.
+ * 녹음을 지원하지 않는 환경은 버튼을 끄고 그 아래 회색 글자로 이유를 적는다.
  */
 @Composable
 fun PracticeCallToAction(state: PracticeUiState, actions: PracticeBottomActions, modifier: Modifier = Modifier, hideNotice: Boolean = false) {
     val song = state.song ?: return
-    val unsupported = !state.recordingSupported && (!state.solo || song.evaluable)
+    val unsupported = stringResource(Res.string.practice_recording_unsupported).takeIf { !state.recordingSupported }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         // 한 음씩을 켜면 모범 연주·장단으로 연습 고르기를 숨긴다.
         if (!state.stepUi) PracticeModeSwitch(state, actions)
         when {
             state.mine || state.learn -> Unit
-            !state.solo -> {
-                EolssuButton(stringResource(Res.string.practice_start_eval), actions.onStartEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
-                // 운지법과 함께 보기에서는 평가 안내를 숨긴다(보드 `.paged-fingering .practice-demo-notice`).
-                if (unsupported) PracticeNotice(stringResource(Res.string.practice_recording_unsupported))
-            }
-            song.evaluable -> {
-                EolssuButton(stringResource(Res.string.practice_start_eval), actions.onSwitchToEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
-                if (unsupported) PracticeNotice(stringResource(Res.string.practice_recording_unsupported))
-            }
-            else -> PracticeNotice(stringResource(Res.string.practice_hint_solo_only))
+            !state.solo -> PracticeEvalButton(actions.onStartEval, enabled = state.recordingSupported, caption = unsupported)
+            song.evaluable -> PracticeEvalButton(actions.onSwitchToEval, enabled = state.recordingSupported, caption = unsupported)
+            // 평가 가능 곡과 같은 자리에 꺼진 버튼을 두고, 버튼 글자로 이유를 적는다.
+            else -> PracticeEvalButton({}, enabled = false, caption = null, label = stringResource(Res.string.practice_solo_only))
+        }
+    }
+}
+
+/** ‘연주 평가 시작’ 버튼. [caption]이 있으면 버튼 바로 아래 가운데에 작은 회색 글자로 적는다. */
+@Composable
+private fun PracticeEvalButton(
+    onClick: () -> Unit,
+    enabled: Boolean,
+    caption: String?,
+    label: String = stringResource(Res.string.practice_start_eval),
+) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        EolssuButton(label, onClick, icon = EolssuIcons.Mic, enabled = enabled)
+        if (caption != null) {
+            Text(
+                caption,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                color = EolssuTheme.colors.textMuted,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
@@ -342,19 +351,6 @@ private fun PracticeModeSwitch(state: PracticeUiState, actions: PracticeBottomAc
             }
         }
     }
-}
-
-/** 안내 카드(`.notice`): 흰 바탕, 옅은 테두리, 반지름 10, 12sp 짙은 연두 글자. */
-@Composable
-fun PracticeNotice(text: String, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(10.dp)
-    Text(
-        text,
-        modifier = modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape).padding(horizontal = 14.dp, vertical = 13.dp),
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 20.4.sp),
-        color = colors.accentText,
-    )
 }
 
 /** Also shown when a saved ON preference cannot actually produce accompaniment. */

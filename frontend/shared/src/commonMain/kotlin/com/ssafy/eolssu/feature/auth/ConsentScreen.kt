@@ -45,7 +45,8 @@ import com.ssafy.eolssu.feature.auth.component.AuthCheckBox
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthLead
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
-import com.ssafy.eolssu.feature.auth.component.authBodyTopWithoutBar
+import com.ssafy.eolssu.feature.auth.component.SignupTopBar
+import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_agree_all
@@ -60,14 +61,16 @@ import eolssu.shared.generated.resources.auth_view_terms_description
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * AUTH-01 약관 동의(첫 실행). 상단 바 없이 제목은 위, 동의 목록은 본문 아래쪽에 붙는다.
+ * AUTH-01 약관 동의(회원가입 첫 단계). 상단 바에는 로그인으로 돌아가는 뒤로 가기와 [path]의 단계 표시를 두고, 제목은 위, 동의 목록은 본문 아래쪽에 붙는다.
  * 태블릿은 제목과 동의 목록을 한 덩어리로 화면 가운데에 두고, 가로에서는 왼쪽에 브랜드 칸을 둔다.
- * 서버가 요구한 약관을 모두 명시적으로 선택해야 시작 버튼이 켜진다.
+ * 서버가 요구한 필수 약관을 모두 명시적으로 선택해야 동의 버튼이 켜진다.
  */
 @Composable
 fun ConsentScreen(
     state: ConsentUiState,
+    path: SignupPath,
     widthClass: WindowWidthClass,
+    onBack: () -> Unit,
     onToggle: (String) -> Unit,
     onToggleAll: () -> Unit,
     onOpenTerms: (String) -> Unit,
@@ -77,6 +80,7 @@ fun ConsentScreen(
     val frame = authFrameOf(widthClass, split = true)
     AuthScaffold(
         frame,
+        topBar = { SignupTopBar(SignupProgress(path, SignupStep.Consent), onBack = onBack) },
         bottomBar = {
             EolssuButton(
                 stringResource(if (state.canStart) Res.string.auth_start else Res.string.auth_start_disabled),
@@ -86,11 +90,11 @@ fun ConsentScreen(
         },
     ) {
         AuthBody(
-            topPadding = authBodyTopWithoutBar(),
+            topPadding = authBodyTopBelowProgress(),
             gap = 0.dp,
             verticalAlignment = if (frame.isTablet) Alignment.CenterVertically else Alignment.Top,
         ) {
-            Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 AuthHeading(stringResource(Res.string.auth_consent_title))
                 AuthLead(stringResource(Res.string.auth_consent_lead))
             }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sheet_details_edit">제목·빠르기 변경</string>
+    <string name="sheet_details_title">악보 제목</string>
+    <string name="sheet_details_bpm">기본 빠르기 (BPM)</string>
+    <string name="sheet_details_title_error">제목을 1~50자로 입력해 주세요</string>
+    <string name="sheet_details_bpm_error">30~160 사이의 정수를 입력해 주세요</string>
+    <string name="sheet_details_apply">적용</string>
+</resources>

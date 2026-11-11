@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import os
+import re
 import signal
 from pathlib import Path
 import subprocess
@@ -16,6 +17,8 @@ import zipfile
 MAX_REQUEST = 6 * 1024 * 1024
 MAX_AUDIO = 15 * 1024 * 1024
 MAX_MIDI = 1024 * 1024
+MAX_PERFORMANCE = 2 * 1024 * 1024
+PERFORMANCE_SOURCE_HEADER = 'X-Eolssu-Performance-Source-Sha256'
 ESTIMATE_WAIT_SECONDS = 5
 LOG = logging.getLogger('playback')
 INSTRUMENTS = {'danso', 'sogeum', 'jeongak-daegeum', 'sanjo-daegeum'}
@@ -36,13 +39,15 @@ class PlaybackService:
         self.slot = threading.Lock()
         self.estimate_slot = threading.Lock()
 
-    def generate(self, request):
-        return self._run(request, estimate=False)
+    def generate(self, request, performance_source_sha256=None):
+        return self._run(request, estimate=False, performance_source_sha256=performance_source_sha256)
 
     def estimate(self, request):
         return self._run(request, estimate=True)
 
-    def _run(self, request, *, estimate):
+    def _run(self, request, *, estimate, performance_source_sha256=None):
+        if performance_source_sha256 is not None and not re.fullmatch(r'[a-f0-9]{64}', performance_source_sha256):
+            raise GenerationError('INVALID_REQUEST', 400)
         if (not isinstance(request, dict) or set(request) - {'score', 'instrument', 'bpm', 'withJangdan', 'jangdan'}
                 or not isinstance(request.get('score'), dict)
                 or not isinstance(request.get('instrument'), str) or request['instrument'] not in INSTRUMENTS
@@ -58,6 +63,8 @@ class PlaybackService:
         try:
             with tempfile.TemporaryDirectory(prefix='sheet-audio-') as directory:
                 root = Path(directory)
+                if performance_source_sha256 is not None:
+                    request = {**request, 'performanceSourceSha256': performance_source_sha256}
                 (root / 'request.json').write_text(json.dumps(request, ensure_ascii=False, allow_nan=False), encoding='utf-8')
                 try:
                     # The command comes only from server configuration. Never use a shell
@@ -104,6 +111,11 @@ class PlaybackService:
                     raise GenerationError('SERVER_ERROR') from None
                 if estimate:
                     return result
+                if performance_source_sha256 is not None:
+                    performance = root / 'performance.common.json'
+                    if (performance.is_file() and not performance.is_symlink()
+                            and 0 < performance.stat().st_size <= MAX_PERFORMANCE):
+                        artifacts.append((performance.name, MAX_PERFORMANCE))
                 output = io.BytesIO()
                 with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED) as bundle:
                     for name, _ in artifacts:
@@ -138,7 +150,7 @@ def handler(service):
                 if self.path == '/v1/estimate':
                     self.reply(200,service.estimate(request))
                     return
-                payload = service.generate(request)
+                payload = service.generate(request, self.headers.get(PERFORMANCE_SOURCE_HEADER))
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/zip')
                 self.send_header('Content-Length', str(len(payload)))

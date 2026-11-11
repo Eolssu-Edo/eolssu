@@ -7,6 +7,10 @@ import com.ssafy.eolssu.core.model.MySheetOrigin
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.data.song.PublishedSheetCopyProblem
+import com.ssafy.eolssu.data.song.PublishedSheetCopyRepository
+import com.ssafy.eolssu.data.song.PublishedSheetCopyResult
 import com.ssafy.eolssu.data.song.CatalogFingerings
 import com.ssafy.eolssu.data.song.CatalogInstrument
 import com.ssafy.eolssu.data.song.CatalogJangdanDetail
@@ -25,6 +29,8 @@ import com.ssafy.eolssu.data.song.SheetWrite
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.smallScoreData
 import com.ssafy.eolssu.testing.CatalogViewModelTest
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
@@ -92,6 +98,67 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
     }
 
     @Test
+    fun onlyProvidedSongUsesCopyAndRetriesTheSameRequestBeforeOpeningThePersonalId() = runTest {
+        val calls = mutableListOf<Pair<String, String>>()
+        val firstResponse = CompletableDeferred<PublishedSheetCopyResult>()
+        val repository = PublishedSheetCopyRepository { id, key ->
+            calls += id to key
+            if (calls.size == 1) firstResponse.await() else PublishedSheetCopyResult.Created("71")
+        }
+        val model = keep(EditPickViewModel(mySheets, songs, documents, copies = repository))
+        val opened = mutableListOf<String>()
+        model.selectInstrument(Instrument.Danso)
+        runCurrent()
+        assertEquals(EditPickTab.Songs, model.uiState.value.tab, "처음에는 첫 탭인 제공 곡을 보인다")
+
+        model.selectTab(EditPickTab.Mine)
+        model.toggle(EditPickTarget.Sheet("31"))
+        model.confirmSelection { opened += it }
+        assertEquals(listOf("31"), opened)
+        assertTrue(calls.isEmpty())
+
+        model.selectTab(EditPickTab.Songs)
+        model.toggle(EditPickTarget.Song("101"))
+        model.confirmSelection { opened += it }
+        model.confirmSelection { opened += it }
+        runCurrent()
+        assertTrue(model.uiState.value.copying)
+        assertEquals(1, calls.size)
+        assertEquals("101", calls.single().first)
+        assertEquals(listOf("31"), opened)
+
+        firstResponse.complete(PublishedSheetCopyResult.Rejected(PublishedSheetCopyProblem.Failed))
+        runCurrent()
+        assertEquals(PublishedSheetCopyProblem.Failed, model.uiState.value.copyProblem)
+        model.confirmSelection { opened += it }
+        runCurrent()
+        assertEquals(listOf(calls.first(), calls.first()), calls)
+        assertEquals(listOf("31", "71"), opened)
+    }
+
+    @Test
+    fun changingAccountWhileCopyIsInProgressDoesNotOpenTheOldAccountsSheet() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("1") }
+        val response = CompletableDeferred<PublishedSheetCopyResult>()
+        val model = keep(EditPickViewModel(mySheets, songs, documents,
+            copies = PublishedSheetCopyRepository { _, _ -> response.await() }, member = member))
+        var opened: String? = null
+        model.selectInstrument(Instrument.Danso)
+        runCurrent()
+        model.selectTab(EditPickTab.Songs)
+        model.toggle(EditPickTarget.Song("101"))
+        model.confirmSelection { opened = it }
+        runCurrent()
+        assertTrue(model.uiState.value.copying)
+        member.set("2")
+        response.complete(PublishedSheetCopyResult.Created("71"))
+        runCurrent()
+        assertNull(opened)
+        assertEquals(EditPickLoad.NeedsInstrument, model.uiState.value.load)
+        assertFalse(model.uiState.value.copying)
+    }
+
+    @Test
     fun songCopyOpensTheRealScoreAndAsksBeforeDroppingEdits() = runTest {
         val repository = object : SongRepository {
             override suspend fun getInstruments() = emptyList<CatalogInstrument>()
@@ -129,9 +196,9 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
         runCurrent()
         assertEquals(setOf("태" to 2), model.uiState.value.availablePitches)
         val before = model.uiState.value.draft
-        model.putYul(Yul.Taeju, 1)
+        model.selectRegister(YulRegister.Cheong); model.putYul(Yul.Taeju)
         assertEquals(before, model.uiState.value.draft, "등록되지 않은 청태는 적지 않는다")
-        model.raiseRegister(); model.raiseRegister(); model.putYul(Yul.Taeju)
+        model.selectRegister(YulRegister.JungCheong); model.putYul(Yul.Taeju)
         assertEquals(ScoreNote.SourcePitch("태", 2), model.uiState.value.draft.cells[0].single())
     }
 }

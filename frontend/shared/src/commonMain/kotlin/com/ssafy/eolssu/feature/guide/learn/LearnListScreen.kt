@@ -54,10 +54,12 @@ class LearnListActions(
     val onShowCard: (Int) -> Unit,
     /** 단계 목록을 받지 못했을 때 '다시 시도'. */
     val onRetryTrack: () -> Unit = {},
+    /** 결승 축하(마지막 단계를 마친 뒤 호랑이가 뛰기)를 다 보였다. */
+    val onFinishCelebrated: () -> Unit = {},
 )
 
 /**
- * LEARN-02 단계 목록. 악기별 진행을 산길 지도로, 단계는 그림 카드로 보여주고, 잠금 없이 아무 단계나 열 수 있다.
+ * LEARN-02 단계 목록. 악기별 진행을 달리기 지도로, 단계는 그림 카드로 보여주고, 잠금 없이 아무 단계나 열 수 있다.
  * 태블릿 세로도 휴대폰처럼 카드를 넘기고 카드는 최대 480dp로 가운데에 둔다. 태블릿 가로는 단계 상세와 한 화면이라 [com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout]이 그린다.
  */
 @Composable
@@ -90,7 +92,7 @@ fun LearnListScreen(
 internal val LearnTitleFontSize = 21.sp
 
 /**
- * 단계 목록 본문(악기 · 산길 지도 · 단계 카드 넘기기). 세로로 스크롤한다. 단계 구성 출처는 마이페이지 '자료 및 데이터 출처'에 둔다.
+ * 단계 목록 본문(악기 · 달리기 지도 · 단계 카드 넘기기). 세로로 스크롤한다. 단계 구성 출처는 마이페이지 '자료 및 데이터 출처'에 둔다.
  *
  * @param currentStage 펼칠 단계 카드. 태블릿 가로 배치에서는 오른쪽 칸에 보이는 단계다.
  *
@@ -144,7 +146,7 @@ internal fun LearnListContent(
                 LearnLoadStatus(failed = track == LearnTrackLoad.Failed, failedMessage = Res.string.learn_track_failed, onRetry = actions.onRetryTrack)
                 return@Column
             }
-            LearnTrailMap(state, viewedStage = currentStage, onShowStage = actions.onShowCard, modifier = Modifier.padding(bottom = 6.dp))
+            LearnTrailMap(state, viewedStage = currentStage, onShowStage = actions.onShowCard, onCelebrated = actions.onFinishCelebrated, modifier = Modifier.padding(bottom = 6.dp))
             Text(
                 stringResource(Res.string.learn_reset),
                 Modifier.align(Alignment.End).padding(bottom = 10.dp).clickable(role = Role.Button, onClick = actions.onResetDone),

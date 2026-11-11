@@ -32,7 +32,8 @@ class RecognitionResultBuilder(private val json: JsonMapper,private val scores: 
         val bpm=job.bpm ?: defaultBpm
         val unit=root.path("music").path("bpmUnit").asString()
         val notes=root.path("events").count { it.path("kind").asString()=="NOTE" }
-        if(unfilled==0 && scores.timeline(raw,1,notes,bpm,unit)==null) throw RecognitionFailure("SERVER_ERROR")
+        val unregistered = if (unfilled > 0) emptyList() else
+            scores.recognitionUnregisteredPitches(raw, 1, notes, bpm, unit) ?: throw RecognitionFailure("SERVER_ERROR")
         val cells=root.path("columns").flatMap { it.path("cells").toList().map { c -> c.path("id").asString() } }.toSet()
         val events=root.path("events").toList().map { it.path("eventId").takeIf(JsonNode::isString)?.asString() ?: it.path("id").asString() }.toSet()
         val details=json.createObjectNode()
@@ -48,7 +49,16 @@ class RecognitionResultBuilder(private val json: JsonMapper,private val scores: 
             issues.add(mapped); pending += cell ?: checkNotNull(event)
         }
         response.path("notices").forEach { notices.add(annotation(it,response)) }
-        val draft=if(unfilled>0) json.createObjectNode().put("title",job.title).put("bpm",bpm)
+        val recognitionIssueCount = response.path("issues").size()
+        unregistered.forEachIndexed { index, note ->
+            val issue = issues.addObject().put("issueId", "i${recognitionIssueCount + index + 1}")
+                .put("type", "UNREADABLE").put("cellId", note.cellId).put("eventId", note.eventId)
+                .putNull("pageIdx").putNull("bbox")
+            issue.putArray("candidates")
+            issue.putObject("detail").put("reason", "UNREGISTERED_PITCH").put("yul", note.yul).put("octave", note.octave)
+            pending += note.cellId
+        }
+        val draft=if(unfilled>0 || unregistered.isNotEmpty()) json.createObjectNode().put("title",job.title).put("bpm",bpm)
             .putNull("jangdanId").set("score",root) else null
         return BuiltRecognition(if(draft==null) raw else null,draft?.let(json::writeValueAsString),root.path("columns").size(),notes,
             pending.size,json.writeValueAsString(details),root.path("music").path("jangdan").asString(),bpm,unit)

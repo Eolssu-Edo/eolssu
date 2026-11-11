@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -28,6 +29,17 @@ fun FingeringBasicAudio(instrument: GuideInstrument, note: FingeringNote, onPlay
     LaunchedEffect(playing) { reportPlaying(playing) }
     DisposableEffect(Unit) { onDispose { reportPlaying(false) } }
     ReferenceAudioControls(selection, audio, basicOnly = true)
+}
+
+/**
+ * 연습 '한 음씩'의 현재 정간 칸을 누를 때 운지 가이드와 같은 기본 예시음을 낸다(S15P31E102-717).
+ * 운지 팝업([FingeringBasicAudio])은 닫힐 때 목록을 비우므로, 목록과 재생기를 따로 둔다. 같은 음을 다시 누르면 멈춘다.
+ */
+@Composable
+fun rememberBasicNotePlayer(instrument: GuideInstrument): (FingeringNote) -> Unit {
+    val audio = rememberReferenceAudioController(instrument, resetKey = null, viewModel = koinViewModel(key = "step-note-audio"))
+    val play by rememberUpdatedState(audio.play)
+    return remember(instrument) { { note -> play(ReferenceAudioSelection.forNote(instrument, note), ReferenceAudioKind.Basic) } }
 }
 
 /** 목록과 플레이어는 화면이 소유하고, Lazy 카드에는 값과 동작만 전달한다. */

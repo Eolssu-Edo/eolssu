@@ -55,7 +55,24 @@ data class EvaluationResult(
     /** 서버 결과의 악보 버전. 예시 fixture에서만 null을 허용한다. */
     val scoreVersion: Int? = null,
     val eventErrors: Map<Int, List<ScoreErrorKind>> = emptyMap(),
+    /** 악보를 받기 전에도 보관하는 서버 음 판정. */
+    val notes: List<EvaluationNote> = emptyList(),
 ) {
+    /** 점수는 유지하고 정확한 판본에만 정간·소박 오류를 매핑한다. */
+    fun withScore(song: Song): EvaluationResult {
+        require(song.id == songId && (scoreVersion == null || song.scoreVersion == scoreVersion))
+        if (notes.isEmpty()) return this
+        val events = song.timeline.filter { it.noteIndex != null }.associateBy { it.noteIndex }
+        val mapped = notes.mapNotNull { note ->
+            val event = checkNotNull(events[note.noteIndex]) { "평가 음이 악보에 없음" }
+            ScoreErrorKind.fromVerdict(note.verdict)?.let { event to it }
+        }
+        return copy(
+            errors = mapped.map { (event, kind) -> ScoreError(event.column, event.row, kind) }.distinct(),
+            eventErrors = mapped.groupBy({ it.first.index }, { it.second }).mapValues { (_, kinds) -> kinds.distinct().sortedBy { it.ordinal } },
+        )
+    }
+
     /**
      * 틀린 칸이 가장 많이 몰린 이웃한 두 각(0부터)과 그 수. 틀린 칸이 없으면 null.
      * 결과 화면의 '틀린 칸 14개 중 9개가 3–4각에 몰려 있어요' 문구에 쓴다.
@@ -69,6 +86,9 @@ data class EvaluationResult(
             .maxBy { it.second }
     }
 }
+
+/** 음 인덱스는 정간 좌표가 아니며, 해당 판본의 시간축에서 해석한다. */
+data class EvaluationNote(val noteIndex: Int, val verdict: String)
 
 /**
  * 분석 실패 사유. 서버 `fail_reason` 코드와 같다(PRA-03 스펙).

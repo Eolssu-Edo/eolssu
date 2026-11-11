@@ -15,6 +15,40 @@ import kotlin.test.*
 internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
     private fun document(draft: SheetWorkingCopy? = null) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), draft, "EVALUABLE", null, emptyList())
 
+    @Test fun practiceAudioOpensTheConfirmedScoreAndIgnoresAnEditorDraft() = runTest {
+        val draft = SheetWorkingCopy("이어 쓰기", null, 55, smallScoreData(), "1", 3)
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document(draft)
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite =
+                error("The audio screen must not write a score")
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31", practiceVersion = 1), EditView.Jeongganbo,
+            SampleMySheetRepository(), documents = repository))
+        runCurrent()
+
+        val state = model.uiState.value
+        assertFalse(state.documentFailed)
+        assertTrue(state.savedOnce)
+        assertEquals("실제 악보", state.draft.title)
+        assertEquals(60, state.draft.bpm)
+    }
+
+    @Test fun practiceAudioRejectsAScoreVersionDifferentFromThePracticeScreen() = runTest {
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document().copy(scoreVersion = "2")
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite =
+                error("The audio screen must not write a score")
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31", practiceVersion = 1), EditView.Jeongganbo,
+            SampleMySheetRepository(), documents = repository))
+        runCurrent()
+
+        val state = model.uiState.value
+        assertFalse(state.documentLoading)
+        assertTrue(state.practiceVersionChanged)
+        assertFalse(state.savedOnce)
+    }
+
     @Test fun closeDoesNotSkipAnInFlightConfirmationEvenWhenDraftWasAlreadySaved() = runTest {
         val reply = CompletableDeferred<SheetWrite>()
         var closed = false
@@ -125,7 +159,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         val reply = CompletableDeferred<SheetWrite>()
         val writes = mutableListOf<SheetWorkingCopy>()
         val repository = object : SheetDocumentRepository {
-            override suspend fun get(sheetId: String) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), null, "EVALUABLE", null, emptyList())
+            override suspend fun get(sheetId: String) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), null, "NEEDS_REVIEW", "DONE", listOf(kotlinx.serialization.json.Json.parseToJsonElement("""{"issueId":"i1","cellId":"c0-j1","type":"LOW_CONFIDENCE"}""") as kotlinx.serialization.json.JsonObject))
             override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
                 writes += copy
                 assertFalse(draft)
@@ -137,19 +171,81 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         runCurrent()
         assertEquals("실제 악보", model.uiState.value.draft.title)
         assertEquals(listOf(2, 1), model.uiState.value.draft.sizes)
+        assertEquals(1, model.uiState.value.pendingChecks)
+        model.openNextReviewCell()
+        assertEquals(1, model.uiState.value.selected)
+        model.checkReviewIssue()
+        assertEquals(setOf("i1"), model.uiState.value.checkedIssueIds)
         model.selectView(EditView.Staff)
-        assertEquals(EditView.Jeongganbo, model.uiState.value.view, "서버 악보의 오선보 확장은 사용자 결정으로 분리했다")
+        assertEquals(EditView.Staff, model.uiState.value.view)
+        model.selectView(EditView.Jeongganbo)
+        assertEquals(1, model.uiState.value.selected, "보기 전환은 정간 위치를 유지한다")
         model.selectCell(2)
         model.put(ScoreNote.Pitch(Yul.Taeju))
         model.requestSave()
         runCurrent()
         assertNull(model.uiState.value.message)
         assertTrue(model.uiState.value.saving)
-        reply.complete(SheetWrite.Saved("2"))
+        reply.complete(SheetWrite.Saved("2", reviewStatus = "EVALUABLE"))
         runCurrent()
-        assertEquals(SheetEditMessage.Saved, model.uiState.value.message)
+        assertEquals(SheetEditMessage.SavedForPractice, model.uiState.value.message)
         assertFalse(model.uiState.value.saving)
         assertEquals("1", writes.single().baseScoreVersion)
+        assertEquals(listOf("i1"), writes.single().resolvedIssueIds)
+        assertTrue(model.uiState.value.reviewIssues.isEmpty())
         assertEquals("태", writes.single().score.events.last().yul)
+    }
+
+    @Test fun detailsEditIsOneUndoStepAndPersistsBothValuesWithoutChangingTheScoreTiming() = runTest {
+        val writes = mutableListOf<Pair<Boolean, SheetWorkingCopy>>()
+        val original = document()
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = original
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                writes += draft to copy
+                return if (draft) SheetWrite.Saved("1", 1) else SheetWrite.Saved("2")
+            }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        model.updateDetails("   ", 90)
+        model.updateDetails("가".repeat(51), 90)
+        model.updateDetails("잘못된 빠르기", 29)
+        model.updateDetails("잘못된 빠르기", 161)
+        assertFalse(model.uiState.value.canUndo)
+
+        val title = "가".repeat(49) + "🎵"
+        model.updateDetails(" $title ", 90)
+        assertEquals(title to 90, model.uiState.value.draft.run { this.title to bpm })
+        model.undo()
+        assertEquals("실제 악보" to 60, model.uiState.value.draft.run { this.title to bpm })
+        model.redo()
+        advanceTimeBy(1_000); runCurrent()
+        model.requestSave(); runCurrent()
+
+        assertEquals(listOf(true, false), writes.map { it.first })
+        writes.forEach { (_, copy) ->
+            assertEquals(title to 90, copy.title to copy.bpm)
+            assertEquals(title, copy.score.score.title)
+            assertEquals(original.score?.music, copy.score.music)
+            assertEquals(original.score?.events, copy.score.events)
+        }
+        assertEquals(1, writes.last().second.revision)
+    }
+
+    @Test fun finalSaveUsesReturnedReviewStatusWhenReviewIsStillRequired() = runTest {
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document().copy(reviewStatus = "NEEDS_REVIEW")
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                assertFalse(draft)
+                return SheetWrite.Saved("2", reviewStatus = "NEEDS_REVIEW")
+            }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        model.requestSave()
+        runCurrent()
+
+        assertEquals(SheetEditMessage.SavedNeedsReview, model.uiState.value.message)
     }
 }

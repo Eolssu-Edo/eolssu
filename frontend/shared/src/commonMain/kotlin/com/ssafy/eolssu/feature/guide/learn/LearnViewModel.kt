@@ -5,14 +5,9 @@ import com.ssafy.eolssu.core.network.screenScope
 import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.user.LearnProgressRepository
-import com.ssafy.eolssu.data.user.learnTrackOf
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,14 +23,11 @@ import kotlinx.coroutines.sync.withLock
  * 남기지 못하면 되돌리고 [LearnUiState.saveError]로 알린다.
  */
 class LearnViewModel(
-    private val songRepository: SongRepository,
     private val progressRepository: LearnProgressRepository,
     member: SignedInMember? = null,
-    private val instrumentCodes: suspend () -> Map<String, String> = { emptyMap() },
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LearnUiState())
     val uiState: StateFlow<LearnUiState> = _uiState.asStateFlow()
-    private var songsJob: Job? = null
     private val trackJobs = mutableMapOf<GuideInstrument, Job>()
     private val detailJobs = mutableMapOf<Pair<GuideInstrument, Int>, Job>()
     private val saveLock = Mutex()
@@ -47,12 +39,11 @@ class LearnViewModel(
 
     init {
         loadTrack(_uiState.value.instrument)
-        retrySongs()
         accountScope.launch { progressRepository.saves.drop(1).collect { refreshDone() } }
     }
 
     /**
-     * 다른 화면이 완료 표시를 바꾸면(연주 결과의 8단계 자동 통과, S15P31E102-611) 받아 둔 트랙을 로딩 표시 없이 다시 받는다.
+     * 다른 화면이 완료 표시를 바꾸면(단계 연습 통과 등) 받아 둔 트랙을 로딩 표시 없이 다시 받는다.
      * 이 화면의 저장이 진행 중이면 먼저 보인 표시가 되돌아가지 않도록 건너뛴다.
      */
     private suspend fun refreshDone() {
@@ -61,38 +52,7 @@ class LearnViewModel(
             if (load !is LearnTrackLoad.Loaded || trackJobs[instrument]?.isActive == true) continue
             val track = progressRepository.track(instrument.id) ?: continue
             if (pendingSaves > 0) return
-            _uiState.update { it.trackLoaded(instrument, track.items.map { item -> item.toStage() }, track.items.filter { item -> item.completed }.map { item -> item.seq }.toSet()) }
-        }
-    }
-
-    fun retrySongs() {
-        if (!accountScope.isActive) return
-        if (songsJob?.isActive == true) return
-        _uiState.update { it.copy(songsLoading = true, songsFailed = false) }
-        songsJob = accountScope.launch {
-            val songs = try {
-                songRepository.getSongs()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                currentCoroutineContext().ensureActive()
-                _uiState.update { it.copy(songsLoading = false, songsFailed = true) }
-                return@launch
-            }
-            currentCoroutineContext().ensureActive()
-            // 같은 제목도 악기마다 다른 악보라, 곡의 악기 트랙(악기 목록의 code)으로 나눈다. 악기 목록을 못 받으면 곡에 온 악보 code만 쓴다.
-            val codes = try {
-                instrumentCodes()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                emptyMap()
-            }
-            currentCoroutineContext().ensureActive()
-            val byTrack = songs.filter { it.evaluable }
-                .groupBy { song -> (song.instrumentCode ?: song.instrumentId?.let(codes::get))?.let(::learnTrackOf) }
-                .mapValues { (_, list) -> list.associate { it.title to it.id } }
-            _uiState.update { it.copy(songsByTrack = byTrack, songsLoading = false, songsFailed = false) }
+            _uiState.update { it.trackLoaded(instrument, track.items.shownStages(), track.items.shownDone()) }
         }
     }
 
@@ -143,6 +103,14 @@ class LearnViewModel(
 
     fun selectStage(stage: Int?) = _uiState.update { it.selectStage(stage) }
 
+    /** 마지막 [stage]를 마쳤다. 완료로 남기고 단계 목록에서 그 단계 카드를 펼쳐 결승 축하를 한 번 보인다. */
+    fun finishTrack(stage: Int) {
+        confirm(stage)
+        _uiState.update { it.viewCard(stage).copy(finishCelebration = true) }
+    }
+
+    fun endFinishCelebration() = _uiState.update { it.copy(finishCelebration = false) }
+
     fun toggleShownDone(stage: Int) = updateDone(stage) { it.toggleShownDone(stage) }
 
     fun viewCard(stage: Int) = _uiState.update { it.viewCard(stage) }
@@ -158,8 +126,8 @@ class LearnViewModel(
         _uiState.update { it.trackLoading(instrument) }
         trackJobs[instrument] = accountScope.launch {
             val track = progressRepository.track(instrument.id)
-            val stages = track?.items?.map { it.toStage() }
-            val done = track?.items.orEmpty().filter { it.completed }.map { it.seq }.toSet()
+            val stages = track?.items?.shownStages()
+            val done = track?.items.orEmpty().shownDone()
             _uiState.update { it.trackLoaded(instrument, stages, done) }
         }
     }

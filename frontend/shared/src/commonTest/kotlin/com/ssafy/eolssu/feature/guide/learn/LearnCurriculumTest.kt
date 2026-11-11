@@ -28,6 +28,13 @@ class LearnCurriculumTest {
         assertEquals(LearnStage(9, "장식음·시김새", LearnJudge.Listen, optional = true, lessonId = "42"), stage)
     }
 
+    /** V37 전 서버가 8·9단계를 주어도 앱은 그림·지도가 있는 7단계까지만 보인다(배포 순서와 무관, S15P31E102-658). */
+    @Test
+    fun stagesBeyondLastStageAreNotShown() {
+        val items = (1..9).map { LessonItem("$it", it, "단계 $it", "READ", optional = it == 9, completed = true) }
+        assertEquals((1..7).toList(), items.shownStages().map { it.number })
+    }
+
     @Test
     fun detailKeepsServerTextAndTrackContent() {
         val detail = LessonDetail(
@@ -46,7 +53,6 @@ class LearnCurriculumTest {
         assertEquals(LearnPass("음마다 2초", ""), detail.pass)
         assertEquals("순서" to "주의", detail.pitchNote to detail.pitchCaution)
         assertEquals(listOf(LearnRange(Blow.Low, "저취", "느슨하게", "㑣")), detail.ranges)
-        assertEquals(listOf(LearnSong("아리랑", "세마치장단")), detail.songs)
         assertEquals(listOf("취구"), detail.parts)
     }
 
@@ -66,9 +72,6 @@ class LearnCurriculumTest {
         val scale = listOf("仲", "林", "無", "潢", "汰")
         assertEquals(listOf("仲", "林", "無", "潢", "汰"), LearnPattern.Ascending.notes(scale))
         assertEquals(listOf("汰", "潢", "無", "林", "仲"), LearnPattern.Descending.notes(scale))
-        assertEquals(listOf("仲", "無", "汰", "無", "仲"), LearnPattern.SkipOne.notes(scale))
-        assertEquals(listOf("仲", "潢", "林", "汰", "林"), LearnPattern.SkipTwo.notes(scale))
-        assertEquals(listOf("無", "林", "仲", "林", "無"), LearnPattern.ThreeNoteSong.notes(scale))
     }
 
     @Test

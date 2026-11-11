@@ -1,0 +1,164 @@
+[
+  {
+    "songId": 19,
+    "source": "mr203-fixed-danso-015-p1",
+    "scoreVersion": 1,
+    "answer": "scoring-repair-699-19",
+    "breathEventIds": [],
+    "currentSha256": "fe5ab557c4e3f1b34ca6a5fdebfe36a65333f4cbbfed5db9d0bc11a236ef5916",
+    "targetSha256": "6a4a574769005e9ccf66c33a25068cbf88f0b671def07efac4682800a8bb77ca",
+    "targetScore": "repair-699-scores/19.json",
+    "targetScoreVersion": 2
+  },
+  {
+    "songId": 32,
+    "source": "mr203-fixed-danso-028-p1",
+    "scoreVersion": 1,
+    "answer": "scoring-repair-699-32",
+    "breathEventIds": [
+      "c0-j11-r0-u0",
+      "c1-j11-r0-u0",
+      "c2-j11-r0-u0",
+      "c3-j11-r0-u0",
+      "c4-j11-r0-u0",
+      "c5-j11-r0-u0",
+      "c6-j11-r1-u0",
+      "c7-j0-r0-u0",
+      "c8-j9-r0-u0",
+      "c12-j5-r0-u0",
+      "c13-j2-r0-u0",
+      "c14-j11-r0-u0",
+      "c20-j0-r0-u0",
+      "c20-j11-r0-u0",
+      "c21-j11-r0-u0",
+      "c22-j9-r0-u0",
+      "c23-j11-r0-u0",
+      "c24-j11-r0-u0",
+      "c25-j11-r0-u0",
+      "c26-j11-r0-u0",
+      "c27-j11-r0-u0",
+      "c28-j11-r0-u0",
+      "c29-j5-r0-u0",
+      "c29-j11-r0-u0",
+      "c30-j5-r0-u0",
+      "c30-j11-r0-u0"
+    ],
+    "currentSha256": "c58eb70af4703a403b0a25955965ca0d1917aa04943e1a12663d2d00e32519c1",
+    "targetSha256": "6638ea88463ddb2103413627160e7a96a0b9f9366530159c9e0667c5609c3ad8",
+    "targetScore": "repair-699-scores/32.json",
+    "targetScoreVersion": 2
+  },
+  {
+    "songId": 37,
+    "source": "mr203-fixed-danso-033-p1",
+    "scoreVersion": 1,
+    "answer": "scoring-repair-699-37",
+    "breathEventIds": [],
+    "currentSha256": "177e2e32a42d520356adf9e78dceced58335dd5199f2f006724f58033a79d00b",
+    "targetSha256": "ac945449c60df359b5bd82e63b210f8aded5589b7b0cd18de34f82ab5a8ad136",
+    "targetScore": "repair-699-scores/37.json",
+    "targetScoreVersion": 2
+  },
+  {
+    "songId": 45,
+    "source": "mr203-fixed-danso-042-p1",
+    "scoreVersion": 1,
+    "answer": "scoring-repair-699-45",
+    "breathEventIds": [
+      "c0-j11-r0-u0",
+      "c1-j9-r0-u0",
+      "c2-j11-r0-u0",
+      "c3-j11-r0-u0"
+    ],
+    "currentSha256": "66f745e3c97e187aa2a89871341212653151937e64614918705fe14c33504d46",
+    "targetSha256": "63245339f95e5b58c4dd9915a4f53426e9e2955cdf86ac464de111fc7981fb26",
+    "targetScore": "repair-699-scores/45.json",
+    "targetScoreVersion": 2
+  },
+  {
+    "songId": 50,
+    "source": "mr203-fixed-danso-047-p1",
+    "scoreVersion": 1,
+    "answer": "scoring-repair-699-50",
+    "breathEventIds": [],
+    "currentSha256": "ec40605ec8b3cdc88bfadbe67098aab4ebc0b5c318b5eb9eadf1b293a4138dbd",
+    "targetSha256": "d3437cce076b38020442298074496e6cb09731d74b231cbeaca5611bd9611ff5",
+    "targetScore": "repair-699-scores/50.json",
+    "targetScoreVersion": 2
+  },
+  {
+    "songId": 63,
+    "source": "mr203-fixed-jeongak-daegeum-013-p1",
+    "scoreVersion": 1,
+    "answer": "scoring-repair-699-63",
+    "breathEventIds": [
+      "c0-j3-r0-u0",
+      "c0-j6-r2-u0",
+      "c1-j0-r0-u0",
+      "c1-j2-r2-u0",
+      "c2-j1-r2-u0",
+      "c3-j0-r0-u0",
+      "c3-j6-r2-u1"
+    ],
+    "currentSha256": "9f463c11be7fc4df36b492ab0a3d82172f12acdc08f204dd228282ecb35c4319",
+    "targetSha256": "e555bdd366f1115a8459243ddb3ee62da86d66adb8a7c52d77e0ab9dd99d8641",
+    "targetScore": "repair-699-scores/63.json",
+    "targetScoreVersion": 2
+  },
+  {
+    "songId": 65,
+    "source": "mr203-fixed-jeongak-daegeum-015-p1",
+    "scoreVersion": 1,
+    "answer": "scoring-repair-699-65",
+    "breathEventIds": [
+      "c0-j2-r0-u0",
+      "c0-j8-r0-u0",
+      "c1-j2-r0-u0",
+      "c1-j8-r0-u0",
+      "c2-j2-r0-u0",
+      "c2-j8-r0-u0",
+      "c3-j2-r0-u0",
+      "c3-j8-r0-u0",
+      "c4-j2-r0-u0",
+      "c4-j8-r0-u0",
+      "c5-j2-r0-u0",
+      "c5-j8-r0-u0",
+      "c6-j2-r0-u0",
+      "c6-j8-r0-u0",
+      "c7-j1-r0-u0",
+      "c7-j8-r0-u0"
+    ],
+    "currentSha256": "3ea5f4db7b7418a0cc4442dee95c921a437c10c91f24989ad8270dcdac5b77d4",
+    "targetSha256": "0832f5a8eb4a5358f1027f9b3512b39f14569f5a3a5aa6e3a91927f0a6f83977",
+    "targetScore": "repair-699-scores/65.json",
+    "targetScoreVersion": 2
+  },
+  {
+    "songId": 104,
+    "source": "mr203-fixed-sogeum-016-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p202-part-1",
+    "breathEventIds": [
+      "c9-j3-r0-u0"
+    ],
+    "currentSha256": "72a7257579f74be5d654093151f70a25506b8ab01a5808aa89217cbf9adeafc1",
+    "targetSha256": "d612f2f4683029b2ee4886c3dcd510add7f86b23d7660a3e330555624cc0ac96",
+    "targetScore": "repair-699-scores/104.json",
+    "targetScoreVersion": 2
+  },
+  {
+    "songId": 109,
+    "source": "mr203-fixed-sogeum-020-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p203",
+    "breathEventIds": [
+      "c0-j3-r2-u0",
+      "c1-j5-r2-u0",
+      "c1-j9-r0-u0"
+    ],
+    "currentSha256": "6842ba0deabe9ecbcfcf5a45b762b1df049f2ab2a1ec733c17504a1f890bd2c9",
+    "targetSha256": "9261abc8aa8a732620fcc8ca0dfeeb3a6fa1c5c369775bd45a660013b9e573d5",
+    "targetScore": "repair-699-scores/109.json",
+    "targetScoreVersion": 2
+  }
+]

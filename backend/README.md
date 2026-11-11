@@ -1,5 +1,7 @@
 # 얼쑤 Backend
 
+공개곡의 선택적 `scoreVersion` 조회와 기존 연주 결과 보존은 [판본 계약](../docs/specs/published-score-history.md)·[설계와 검증](../docs/knowledge/backend/published-score-history.md)을 따릅니다. 미지정 조회는 현재 판본이며, 구판은 V38 보관 표와 게시기의 원자적 변경이 준비돼야 조회할 수 있습니다.
+
 약관 공개·등록 작업은 [실행 안내](../infra/terms/README.md)를 따릅니다. 버전별 HTML 및 앱 외 계정 삭제 안내는 `LEGAL_PUBLICATION_ENABLED=true`이고 국내 LocalRecordingStorage가 연결된 뒤에만 공개됩니다. 기본값은 false입니다. 운영 저장·보유기간·최종 본문을 확인하지 않은 상태에서 활성화하거나 terms를 임의 등록하지 않습니다.
 
 Spring Boot + Kotlin으로 구성한 독립 Gradle 애플리케이션입니다. MyBatis와 Flyway로 [ERD·정본 SQL](../docs/contracts/db-schema.md)의 MySQL 8.4 저장 계층을 구성합니다. 프로젝트명과 `spring.application.name`은 `eolssu`, 기본 패키지는 `com.ssafy.eolssu.backend`입니다. IDE에서는 저장소 루트가 아닌 `backend/`를 Gradle 프로젝트로 엽니다.
@@ -47,7 +49,7 @@ S15P31E102-390·413은 내 악보 목록·조회·확정 저장·초안·삭제�
 
 인식 연결에는 `SHEET_CONVERSION_OMR_BASE_URL`(Compose 기본 `http://omr:8000`)을 사용하며 호출 제한은 630초입니다. OMR는 `SHEET_IMPORT_READ_BASE_URL`(기본 `http://backend:8080/api/internal/sheet-imports`)의 만료 토큰 URL로 원본을 읽습니다. 외부 Nginx는 `/api/internal/`을 404로 차단하며 이 경로의 접근 로그도 끕니다. 한 backend 인스턴스에서 실행하고, 임시 디렉터리를 영구 볼륨이나 백업 대상에 넣지 않습니다. `eolssu.scheduling.enabled=false`는 큐·시작 복구·주기 정리를 끄는 테스트 전용 설정이므로 운영에서는 쓰지 않습니다. 원본 불러오기는 R2 연결값이 없어도 동작하며, `SHEET_STORAGE_*`는 아래 생성 음원과 사용자가 삭제하는 과거 원본용입니다.
 
-S15P31E102-481: `db`·`ops`에서 `POST`·`GET /api/users/me/sheets/{sheetId}/audio`로 M4A·MIDI를 비동기 생성해 악보 전용 저장소의 `sheet-audio/`에 보관합니다. 계약은 [내 악보 음원 스펙](../docs/specs/sheet-audio.md)이고 V30이 필요합니다. `SHEET_AUDIO_BASE_URL`이 비었거나 저장소가 없으면 새 요청은 503입니다. 작업자는 `eolssu.scheduling.enabled=false`에서 돌지 않습니다. 실제 생성기 경로까지 검사하려면 `databaseTest`에 `PLAYBACK_TEST_BASE_URL`을 지정합니다.
+S15P31E102-684에서 내 악보 음원을 임시 다운로드로 변경했습니다. `POST /api/users/me/sheets/{sheetId}/audio`로 M4A 생성을 접수하고, 같은 경로의 GET으로 상태와 다운로드 링크를 조회합니다. 완료된 M4A는 `sheet-audio/`에 10분간 두고 만료된 객체는 작업자가 정리합니다. V37은 완료 파일의 기한을 저장합니다. `SHEET_AUDIO_BASE_URL`이 비었거나 저장소가 없으면 새 요청은 503입니다. 작업자는 `eolssu.scheduling.enabled=false`에서 돌지 않습니다. 실제 생성기 경로까지 검사하려면 `databaseTest`에 `PLAYBACK_TEST_BASE_URL`을 지정합니다. [내 악보 음원 스펙](../docs/specs/sheet-audio.md)
 
 ### 카탈로그 조회(CAT-03~10)
 
@@ -120,7 +122,7 @@ V13은 라벨에 대응하는 누락 기준 음11행을 추가합니다. 기존1
 `db` 프로필에서 제공합니다. 로그인 토큰은 응답 본문에 넣지 않고 쿠키로만 내려갑니다.
 
 - 쿠키: 모두 HttpOnly·SameSite=Lax이고 Secure는 `AUTH_COOKIE_SECURE`(기본 `true`, 로컬 HTTP 개발에서만 `false`)를 따릅니다. `access_token`은 HS256 JWT(`sub`=users.id, 30분, Path `/api`), `refresh_token`은 임의 256비트(14일, Path `/api/auth`, DB에는 SHA-256만)입니다.
-- `POST /api/auth/sign-up`: 이메일·비밀번호(영문·숫자·특수문자 포함 8~128자, Argon2id 저장)·닉네임·SIGN_UP `verificationToken`·`agreements`(시행 중인 필수 약관 전부 현재 버전 동의)·선택 `instrumentId`(활성 악기, 생략하면 코드 `DANSO` 악기)·`notationMode`(기본 HANJA). 201과 로그인 쿠키. 토큰 문제는 401 `EMAIL_NOT_VERIFIED`, 중복은 409, 약관은 422 `TERMS_AGREEMENT_REQUIRED`이며 어느 단계가 실패해도 회원이 남지 않습니다.
+- `POST /api/auth/sign-up`: 이메일·비밀번호(영문·숫자·특수문자 포함 8~128자, Argon2id 저장)·닉네임(공백이 아닌 10자 이하)·SIGN_UP `verificationToken`·`agreements`(시행 중인 필수 약관 전부 현재 버전 동의)·선택 `instrumentId`(활성 악기, 생략하면 코드 `DANSO` 악기)·`notationMode`(기본 HANJA). 201과 로그인 쿠키. 토큰 문제는 401 `EMAIL_NOT_VERIFIED`, 중복은 409, 약관은 422 `TERMS_AGREEMENT_REQUIRED`이며 어느 단계가 실패해도 회원이 남지 않습니다.
 - `POST /api/auth/sign-in`: 이메일 없음·비밀번호 불일치는 같은 401 `INVALID_CREDENTIALS`입니다. 같은 이메일 15분 안 5번째 실패부터 15분 동안 429이고 `result.details.retryAvailableAt`을 줍니다. 잠금은 `users.email` 콜레이션(`utf8mb4_0900_ai_ci`)의 정렬 키 기준이라 악센트·대소문자 변형으로 피할 수 없고, 가입하지 않은 이메일에도 똑같이 걸려 가입 여부를 드러내지 않습니다. 실패 기록은 서버 메모리라 재시작하면 초기화됩니다. 비밀번호 확인(Argon2)은 DB 트랜잭션 밖에서 합니다. 탈퇴 대기 회원은 요청 후 30일 미만일 때만 로그인으로 ACTIVE로 돌아가고 `withdrawalCancelled=true`입니다. 회원 잠금을 얻은 뒤의 시각이 만료 정각 이상이면 401 `INVALID_CREDENTIALS`로 거절합니다.
 - `POST /api/auth/refresh`: `refresh_token` 쿠키만 봅니다. 성공하면 이전 토큰을 폐기(ROTATED)하고 두 쿠키를 새로 줍니다. 재발급으로 폐기된(ROTATED) 토큰이 다시 오면 그 회원의 토큰을 모두 폐기(REUSE_DETECTED)합니다. 비밀번호 변경·로그아웃·탈퇴로 폐기된 토큰은 401만 줍니다. 401이면 두 쿠키를 지웁니다. 두 탭이 동시에 재발급하면 한쪽이 재사용으로 판정돼 로그아웃될 수 있습니다.
 - `POST /api/auth/sign-out`: 로그인 필요. 쿠키의 refresh_token이 그 회원의 것일 때만 폐기(SIGN_OUT)하고 두 쿠키를 지웁니다.
@@ -131,7 +133,7 @@ V13은 라벨에 대응하는 누락 기준 음11행을 추가합니다. 기존1
 `db`·`ops` 프로필에서 제공하며 모두 로그인(access_token 쿠키)이 필요합니다. 토큰은 유효하지만 회원이 없거나 ACTIVE가 아니면 401 `UNAUTHENTICATED`입니다(회원 행이 없을 때 401은 GRO-04와 같음).
 
 - `GET /api/users/me`: 본인 이메일·닉네임·악기·표기와 연결된 간편 로그인(`linkedProviders`, 연결 순). 비밀번호 해시와 간편 로그인 제공자의 사용자 ID·이메일은 내보내지 않습니다. 닉네임·악기·표기 저장 응답에는 이메일을 넣지 않습니다.
-- `PATCH /api/users/me`: 닉네임(가입과 같은 규칙, 60자 이하).
+- `PATCH /api/users/me`: 닉네임(가입과 같은 규칙, 10자 이하).
 - `PATCH /api/users/me/preferences`: `instrumentId`·`notationMode` 중 한 개 이상. 없거나 비활성인 악기는 422 `UNPROCESSABLE_INPUT`. 곡별 BPM(`user_song_settings`)은 형식이 정해지지 않아 아직 받지 않습니다.
 - `PATCH /api/users/me/password`: 현재 비밀번호가 틀리면 403 `CURRENT_PASSWORD_MISMATCH`, 같은 회원 15분 안 5번째 실패부터 15분 동안 429(`retryAvailableAt`, 로그인 잠금과 따로 셈). 새 비밀번호는 가입 규칙을 따르고 현재 값과 같으면 400입니다. 성공하면 그 회원의 refresh를 모두 폐기(PASSWORD_CHANGED)하고 현재 기기에만 두 쿠키를 새로 줍니다. 다른 기기의 access_token은 만료(최대 30분)까지 쓸 수 있습니다.
 

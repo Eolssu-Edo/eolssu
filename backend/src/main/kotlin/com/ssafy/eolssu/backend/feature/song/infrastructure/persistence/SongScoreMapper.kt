@@ -7,10 +7,11 @@ import org.apache.ibatis.annotations.Param
 @Mapper
 interface SongScoreMapper {
     fun findPublished(@Param("songId") songId: Long): PublishedScoreRow?
+    fun findPublishedRevision(@Param("songId") songId: Long, @Param("scoreVersion") scoreVersion: Int): PublishedScoreRow?
     fun findPitches(): List<PitchRow>
 }
 
 data class PublishedScoreRow(
     val songId: Long, val scoreVersion: Int, val noteCount: Int,
-    val defaultBpm: Int, val bpmUnit: String, val scoreJson: String,
+    val defaultBpm: Int, val bpmUnit: String, val scoreJson: String, val title: String, val jangdanId: Long?,
 )

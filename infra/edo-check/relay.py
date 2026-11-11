@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 """Bounded Mattermost command receiver. Secrets and callback URLs are never logged."""
 import concurrent.futures
+from contextlib import closing
 import hashlib
 import hmac
 import http.client
@@ -12,6 +13,7 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import re
 import socket
+import sqlite3
 import ssl
 import subprocess
 import sys
@@ -24,17 +26,28 @@ TARGETS = ('edo1', 'edo2')
 MODES = {f'/{target}-{mode}': mode for target in TARGETS for mode in ('server', 'containers', 'health')}
 COMMAND_TARGETS = {command: command.split('-')[0][1:] for command in MODES}
 ENDPOINT = '/integrations/mattermost/commands'
+APPLOG = '/applog'
+APPLOG_DATABASE = Path('/var/log/eolssu-qa-perf/events.sqlite3')
+APPLOG_RESPONSE_LIMIT = 128 * 1024
+APPLOG_TIMEOUT = 600
+APPLOG_RETENTION = 7 * 24 * 60 * 60
 
 
 def authorize(form, config):
     command = form.get('command', '')
-    expected = config['tokens'].get(command, '')
-    if command not in MODES or not expected or not hmac.compare_digest(form.get('token', '').encode(), expected.encode()):
+    settings = config.get('applog') if command == APPLOG else config
+    if settings is None:
         raise ValueError('인증 실패')
-    if config.get('team_id') and form.get('team_id') != config['team_id']:
+    expected = settings.get('token', '') if command == APPLOG else config['tokens'].get(command, '')
+    if ((command != APPLOG and command not in MODES) or not expected
+            or not hmac.compare_digest(form.get('token', '').encode(), expected.encode())):
+        raise ValueError('인증 실패')
+    if settings.get('team_id') and form.get('team_id') != settings['team_id']:
         raise ValueError('허용되지 않은 팀')
-    if form.get('channel_id') not in config['channel_ids']:
+    if form.get('channel_id') not in settings['channel_ids']:
         raise ValueError('Team 이도 (CI/CD) 채널에서만 실행할 수 있습니다.')
+    if command == APPLOG and form.get('user_id') not in settings['user_ids']:
+        raise ValueError('허용되지 않은 실행자')
     if form.get('text', '').strip() or not form.get('user_id') or 'target' in form or 'mode' in form:
         raise ValueError('명령 인자를 지원하지 않습니다.')
     callback = form.get('response_url', '')
@@ -45,6 +58,8 @@ def authorize(form, config):
             or url.query or url.fragment
             or not re.fullmatch(r'/hooks/commands/[a-z0-9]{26}', url.path)):
         raise ValueError('잘못된 응답 주소')
+    if command == APPLOG:
+        return dict(form, target='edo2', mode='applog')
     return dict(form, target=COMMAND_TARGETS[command], mode=MODES[command])
 
 
@@ -65,6 +80,24 @@ def validate_config(config):
     tokens = list(config['tokens'].values())
     if any(not isinstance(value, str) or len(value) < 20 for value in tokens) or len(set(tokens)) != len(tokens):
         raise ValueError('invalid token configuration')
+    if 'applog' in config:
+        settings = config['applog']
+        keys = {'token', 'tunnel_token', 'team_id', 'channel_ids', 'user_ids'}
+        if not isinstance(settings, dict) or set(settings) != keys:
+            raise ValueError('invalid applog configuration')
+        for key in ('token', 'tunnel_token'):
+            value = settings[key]
+            pattern = r'[A-Za-z0-9_-]{32,128}' if key == 'tunnel_token' else r'[!-~]{20,256}'
+            if (not isinstance(value, str) or not re.fullmatch(pattern, value)
+                    or value in tokens):
+                raise ValueError('invalid applog token configuration')
+            tokens.append(value)
+        if not isinstance(settings['team_id'], str) or not settings['team_id']:
+            raise ValueError('invalid applog team')
+        for key in ('channel_ids', 'user_ids'):
+            values = settings[key]
+            if not isinstance(values, list) or not values or not all(isinstance(value, str) and value for value in values):
+                raise ValueError('invalid applog access list')
     for target in TARGETS:
         group = {command for command in MODES if COMMAND_TARGETS[command] == target}
         if commands & group:
@@ -494,11 +527,11 @@ class PublicHTTPS(http.client.HTTPSConnection):
         self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
 
 
-def post_callback(url, text):
+def post_callback(url, text, *, response_type='in_channel'):
     parsed = urlsplit(url)
     connection = PublicHTTPS(parsed.hostname, 443, timeout=15, context=ssl.create_default_context())
     try:
-        body = json.dumps({'response_type': 'in_channel', 'text': text}, ensure_ascii=False).encode()
+        body = json.dumps({'response_type': response_type, 'text': text}, ensure_ascii=False).encode()
         connection.request('POST', parsed.path, body, {'Content-Type': 'application/json'})
         response = connection.getresponse()
         response.read(4096)
@@ -506,6 +539,225 @@ def post_callback(url, text):
             raise RuntimeError('callback rejected')
     finally:
         connection.close()
+
+
+APPLOG_ENUMS = {
+    'kind': set('run_started action visit_started data_load http_attempt poll_summary milestone flow_end log_gap'.split()),
+    'target': set(('song_detail practice result weak_errors weak_select weak_loop section_result analysis '
+                   'records record_detail song_bundle score evaluation record_page model_audio_metadata '
+                   'model_audio_timeline model_audio practice_status weak_sections comparison auth_refresh '
+                   'instruments song_list').split()),
+    'source': {'network', 'navigation', 'retained'},
+    'method': {'get', 'post'},
+    'outcome': {'ready', 'missing', 'failed', 'cancelled', 'http_timeout'},
+    'reason': set(('initial retry version_mismatch refresh replay poll overflow storage uncertain cancelled failed missing '
+                   'ready left unavailable http_timeout').split()),
+    'phase': set(('score_ready score_drawn practice_ready practice_drawn record_drawn record_empty '
+                  'model_audio_play timeline_ready player_load player_started').split()),
+}
+APPLOG_REQUIRED = {'kind', 'ms', 'run_id', 'version_name', 'version_code'}
+APPLOG_NUMBERS = set('ms version_code flow visit load resource revision status duration_ms count failed missing'.split())
+APPLOG_FIELDS = APPLOG_REQUIRED | APPLOG_NUMBERS | APPLOG_ENUMS.keys()
+APPLOG_VERSION = re.compile(r'qa-[0-9]{8}\.[0-9]{6}-[a-f0-9]{8}(?:-qa309)?')
+APPLOG_ID = re.compile(r'[a-f0-9]{32}')
+
+
+def applog_id(value):
+    return isinstance(value, str) and APPLOG_ID.fullmatch(value) is not None
+
+
+def applog_number(value):
+    return type(value) is int and 0 <= value <= 2**53 - 1
+
+
+def encode_applog_event(event):
+    if not isinstance(event, dict) or not APPLOG_REQUIRED <= event.keys() <= APPLOG_FIELDS:
+        raise ValueError('invalid applog event fields')
+    if (not applog_id(event['run_id']) or not isinstance(event['version_name'], str)
+            or not APPLOG_VERSION.fullmatch(event['version_name'])):
+        raise ValueError('invalid applog build metadata')
+    if (not all(applog_number(event[key]) for key in event.keys() & APPLOG_NUMBERS)
+            or not 1 <= event['version_code'] <= 2100000000):
+        raise ValueError('invalid applog numeric values')
+    for key in event.keys() & APPLOG_ENUMS.keys():
+        value = event[key]
+        if not isinstance(value, str) or value not in APPLOG_ENUMS[key]:
+            raise ValueError('invalid applog enum')
+    encoded = json.dumps(event, ensure_ascii=True, sort_keys=True, separators=(',', ':'))
+    if len(encoded) > 1024:
+        raise ValueError('oversize applog event')
+    return encoded
+
+
+class AppLogUnavailable(ValueError):
+    def __init__(self, status):
+        self.status = status
+        super().__init__('QA bridge rejected applog request')
+
+
+def request_applog(token, request_id, op, *, timeout, **fields):
+    connection = http.client.HTTPConnection('127.0.0.1', 27890, timeout=timeout)
+    try:
+        body = json.dumps({'op': op, 'request_id': request_id, **fields})
+        connection.request('POST', '/_internal/qa-perf/snapshot', body, {
+            'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token,
+        })
+        response = connection.getresponse()
+        if response.status != 200:
+            raise AppLogUnavailable(response.status)
+        raw = response.read(APPLOG_RESPONSE_LIMIT + 1)
+        if len(raw) > APPLOG_RESPONSE_LIMIT:
+            raise ValueError('oversize applog response')
+        return json.loads(raw)
+    finally:
+        connection.close()
+
+
+def open_applog_store(database):
+    connection = sqlite3.connect(database, timeout=2)
+    try:
+        connection.execute('PRAGMA synchronous=FULL')
+        connection.execute('PRAGMA secure_delete=ON')
+        connection.executescript("""
+            CREATE TABLE IF NOT EXISTS applog_events (
+                stream_id TEXT NOT NULL, seq INTEGER NOT NULL, body TEXT NOT NULL,
+                received_at INTEGER NOT NULL, PRIMARY KEY (stream_id, seq)
+            );
+            CREATE INDEX IF NOT EXISTS applog_events_retention ON applog_events(received_at);
+            CREATE TABLE IF NOT EXISTS applog_requests (
+                request_id TEXT PRIMARY KEY, stream_id TEXT NOT NULL,
+                after INTEGER NOT NULL, end INTEGER NOT NULL, saved INTEGER NOT NULL,
+                acknowledged INTEGER NOT NULL, started_at INTEGER NOT NULL
+            );
+        """)
+        return connection
+    except Exception:
+        connection.close()
+        raise
+
+
+def save_applog_batch(connection, request_id, stream, after, end, rows):
+    if not isinstance(rows, list) or not rows or len(rows) > end - after:
+        raise ValueError('invalid applog batch size')
+    received_at = int(time.time())
+    with connection:
+        for seq, row in enumerate(rows, start=after + 1):
+            if (not isinstance(row, dict) or set(row) != {'seq', 'event'}
+                    or not applog_number(row['seq']) or row['seq'] != seq):
+                raise ValueError('applog sequence gap')
+            body = encode_applog_event(row['event'])
+            previous = connection.execute(
+                'SELECT body FROM applog_events WHERE stream_id=? AND seq=?', (stream, seq),
+            ).fetchone()
+            if previous is None:
+                connection.execute('INSERT INTO applog_events VALUES (?, ?, ?, ?)', (stream, seq, body, received_at))
+            elif previous[0] != body:
+                raise ValueError('conflicting applog retransmission')
+            else:
+                connection.execute(
+                    'UPDATE applog_events SET received_at=? WHERE stream_id=? AND seq=?',
+                    (received_at, stream, seq),
+                )
+        saved = after + len(rows)
+        connection.execute('UPDATE applog_requests SET saved=? WHERE request_id=?', (saved, request_id))
+    return saved
+
+
+def prune_applog(database):
+    cutoff = int(time.time()) - APPLOG_RETENTION
+    with closing(open_applog_store(database)) as connection, connection:
+        connection.execute('DELETE FROM applog_events WHERE received_at<=?', (cutoff,))
+        connection.execute('DELETE FROM applog_requests WHERE started_at<=?', (cutoff,))
+
+
+def collect_applog(token, request_id, database=APPLOG_DATABASE, *, tunnel=request_applog):
+    deadline = time.monotonic() + APPLOG_TIMEOUT
+    after = saved = acknowledged = end = None
+    attempts = auth_attempts = retry_attempts = polls = reused = dropped = 0
+    unknown_gap = False
+    builds = set()
+    slowest = {}
+
+    def request(op, **fields):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError()
+        result = tunnel(token, request_id, op, timeout=min(remaining, 9), **fields)
+        if not isinstance(result, dict) or result.get('request_id') != request_id or result.get('op') != op:
+            raise ValueError('applog reply does not match request')
+        return result
+
+    try:
+        begin = request('begin')
+        stream, after, end = begin['stream_id'], begin['ack'], begin['end']
+        if not applog_id(stream) or not applog_number(after) or not applog_number(end) or after > end:
+            raise ValueError('invalid applog range')
+        saved = acknowledged = after
+        with closing(open_applog_store(database)) as connection:
+            with connection:
+                connection.execute(
+                    'INSERT INTO applog_requests VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    (request_id, stream, after, end, saved, acknowledged, int(time.time())),
+                )
+            while acknowledged < end:
+                reply = request('read', stream_id=stream, after=acknowledged)
+                if reply.get('stream_id') != stream:
+                    raise ValueError('applog stream changed')
+                rows = reply['events']
+                saved = save_applog_batch(connection, request_id, stream, acknowledged, end, rows)
+                for row in rows:
+                    event = row['event']
+                    if len(builds) < 4:
+                        builds.add((event['version_name'], event['version_code']))
+                    if event['kind'] == 'http_attempt':
+                        reason = event.get('reason')
+                        if reason in ('refresh', 'replay'):
+                            auth_attempts += 1
+                        elif reason == 'retry':
+                            retry_attempts += 1
+                        elif reason != 'poll':
+                            attempts += 1
+                    if event['kind'] == 'poll_summary':
+                        polls += event.get('count', 0)
+                    reused += event['kind'] == 'data_load' and event.get('source') in ('navigation', 'retained')
+                    dropped += event.get('missing', 0) if event['kind'] == 'log_gap' else 0
+                    unknown_gap |= event['kind'] == 'log_gap' and event.get('reason') == 'uncertain'
+                    if event['kind'] == 'milestone' and 'phase' in event and 'duration_ms' in event:
+                        phase = event['phase']
+                        slowest[phase] = max(slowest.get(phase, 0), event['duration_ms'])
+                ack = request('ack', stream_id=stream, through=saved)
+                if not applog_number(ack.get('ack')) or ack['ack'] != saved:
+                    raise ValueError('applog deletion unconfirmed')
+                acknowledged = saved
+                with connection:
+                    connection.execute(
+                        'UPDATE applog_requests SET acknowledged=? WHERE request_id=?', (acknowledged, request_id),
+                    )
+        result = '수집할 새 로그가 없습니다.' if after == end else '로그 수집·기기 삭제 완료'
+    except (ValueError, KeyError, OSError, sqlite3.Error, http.client.HTTPException) as error:
+        logging.warning('applog_interrupted request=%s error=%s', request_id, type(error).__name__)
+        result = '로그 수집 중단 · 기기 연결과 QA 앱 상태를 확인한 뒤 다시 실행하세요.'
+        if isinstance(error, AppLogUnavailable):
+            result += f' (중계 HTTP {error.status})'
+    parts = [f'**{result}**', f'요청 ID `{request_id}`']
+    if acknowledged is not None:
+        parts.append(f'범위 {after + 1}–{end} · 저장 {saved} · 삭제 확인 {acknowledged}' if after < end
+                     else f'저장·삭제 확인 순번 {acknowledged}')
+    if builds:
+        versions = ', '.join(f'`{name}` ({code})' for name, code in sorted(builds))
+        parts.extend([f'APK {versions}',
+                      f'HTTP 최초 시도 {attempts} · 인증 갱신·재전송 {auth_attempts} · 재시도 {retry_attempts} · 상태 확인 {polls}',
+                      f'데이터 재사용 {reused} · 기록 누락 {dropped}'])
+        if unknown_gap:
+            parts.append('이전 실행의 기록 누락 가능성이 있습니다.')
+        phases = {
+            'score_drawn': '첫 점수', 'practice_drawn': '연습 악보',
+            'record_drawn': '첫 기록', 'player_started': '플레이어 시작',
+        }
+        timings = [f'{label} {slowest[phase]}ms' for phase, label in phases.items() if phase in slowest]
+        if timings:
+            parts.append('관측 최대 ' + ' · '.join(timings))
+    return '\n'.join(parts)
 
 
 class App:
@@ -516,10 +768,17 @@ class App:
         self.last_run = {}
         self.slots = threading.BoundedSemaphore(3)
         self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=3)
+        if self.config.get('applog'):
+            self.applog_seen = {}
+            self.applog_last_run = -1000
+            self.applog_slot = threading.BoundedSemaphore(1)
+            self.applog_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
     def submit(self, form):
         request = authorize(form, self.config)
         key = hashlib.sha256(request['response_url'].encode()).hexdigest()
+        if request['mode'] == 'applog':
+            return self.submit_applog(request, key)
         throttle = (request['channel_id'], request['target'], request['mode'])
         now = time.monotonic()
         with self.lock:
@@ -535,6 +794,44 @@ class App:
         request_id = uuid.uuid4().hex[:10]
         self.pool.submit(self.run, request, request_id)
         return f"⏳ {request['target']} {MODE_LABELS[request['mode']]} 점검을 시작했습니다. 완료 후 이 채널에 공개합니다. 요청 {request_id}"
+
+    def submit_applog(self, request, key):
+        now = time.monotonic()
+        with self.lock:
+            self.applog_seen = {key: seen for key, seen in self.applog_seen.items() if now - seen < 1800}
+            if key in self.applog_seen:
+                return '이미 접수한 앱 로그 요청입니다.'
+            if now - self.applog_last_run < 10:
+                return '앱 로그 수집 요청은 10초 간격으로 실행할 수 있습니다.'
+            if len(self.applog_seen) >= 512 or not self.applog_slot.acquire(blocking=False):
+                return '앱 로그를 수집 중입니다. 잠시 후 다시 요청하세요.'
+            self.applog_seen[key] = now
+            self.applog_last_run = now
+        request_id = uuid.uuid4().hex
+        self.applog_pool.submit(self.run_applog, request['response_url'], request_id)
+        return f'QA 휴대폰의 앱 로그 수집을 시작했습니다. 요청 ID `{request_id}`'
+
+    def run_applog(self, callback, request_id):
+        try:
+            try:
+                report = collect_applog(self.config['applog']['tunnel_token'], request_id)
+            except Exception as error:
+                logging.error('applog_failed request=%s error=%s', request_id, type(error).__name__)
+                report = f'앱 로그 처리 결과를 확인하지 못했습니다. 요청 ID `{request_id}`'
+            post_callback(callback, report, response_type='ephemeral')
+            logging.info('applog_delivered request=%s', request_id)
+        except Exception as error:
+            logging.error('applog_delivery_failed request=%s error=%s', request_id, type(error).__name__)
+        finally:
+            self.applog_slot.release()
+
+    def maintain_applog(self):
+        while True:
+            try:
+                prune_applog(APPLOG_DATABASE)
+            except (OSError, sqlite3.Error) as error:
+                logging.error('applog_retention_failed error=%s', type(error).__name__)
+            time.sleep(3600)
 
     def run(self, request, request_id):
         target = request.get('target', 'edo1')
@@ -662,4 +959,6 @@ if __name__ == '__main__':
     server = ThreadingHTTPServer(('127.0.0.1', 8765), Handler)
     server.daemon_threads = True
     server.app = App(config)
+    if config.get('applog'):
+        threading.Thread(target=server.app.maintain_applog, daemon=True, name='applog-retention').start()
     server.serve_forever()

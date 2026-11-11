@@ -80,5 +80,5 @@ class PracticeFingeringPageTest {
 }
 
 internal fun fingerSong(cells: List<ScoreCell>, jangdan: Jangdan? = null): Song = Song(
-    "finger-test", "운지 검사", SongLevel.Intro, jangdan, 60, "", false, null, Score(listOf(cells)),
+    "finger-test", "운지 검사", SongLevel.Intro, jangdan, 60, "", false, Score(listOf(cells)),
 )

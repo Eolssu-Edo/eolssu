@@ -28,6 +28,7 @@ KINDS = ('db', 'config', 'jenkins', 'grafana', 'controller-key')
 RUN = re.compile(r'\d{8}T\d{6}Z-[a-f0-9]{12}')
 MYSQL = 'eolssu-runtime-mysql-1'
 DUMP = ['--default-character-set=utf8mb4', '--single-transaction', '--quick', '--skip-extended-insert',
+        '--init-command=SET SESSION sort_buffer_size=8388608',
         '--complete-insert', '--hex-blob', '--order-by-primary', '--skip-comments', '--skip-dump-date',
         '--skip-add-locks', '--skip-disable-keys', '--skip-lock-tables', '--no-tablespaces', '--set-gtid-purged=OFF']
 

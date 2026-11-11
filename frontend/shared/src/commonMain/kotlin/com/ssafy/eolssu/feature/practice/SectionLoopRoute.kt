@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
@@ -19,6 +20,8 @@ import eolssu.shared.generated.resources.weak_loop_no_notes
 import eolssu.shared.generated.resources.weak_loop_no_recorder
 import eolssu.shared.generated.resources.weak_loop_open_settings
 import eolssu.shared.generated.resources.weak_loop_record_failed
+import eolssu.shared.generated.resources.weak_score_changed
+import eolssu.shared.generated.resources.weak_score_unavailable
 import org.jetbrains.compose.resources.getString
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -36,9 +39,10 @@ fun SectionLoopRoute(
     repeats: Int?,
     onBack: () -> Unit,
     onEvaluate: (songId: String, take: RecordedTake, section: SessionSection) -> Unit,
+    perf: PerformanceVisit? = null,
     viewModel: SectionLoopViewModel = koinViewModel(key = "section-loop-$sourceId-$section-$bpm-$repeats") {
         // Koin 인자에 null을 넘기지 않도록 ‘계속’은 0으로 보낸다.
-        parametersOf(sourceId, section, bpm, repeats ?: 0)
+        parametersOf(sourceId, section, bpm, repeats ?: 0, perf)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -56,6 +60,8 @@ fun SectionLoopRoute(
         snackbarHostState.currentSnackbarData?.dismiss()
         val message = getString(
             when (notice) {
+                SectionLoopNotice.ScoreChanged -> Res.string.weak_score_changed
+                SectionLoopNotice.ScoreUnavailable -> Res.string.weak_score_unavailable
                 SectionLoopNotice.NoRecorder -> Res.string.weak_loop_no_recorder
                 SectionLoopNotice.NoNotes -> Res.string.weak_loop_no_notes
                 SectionLoopNotice.MicDenied -> Res.string.weak_loop_mic_denied

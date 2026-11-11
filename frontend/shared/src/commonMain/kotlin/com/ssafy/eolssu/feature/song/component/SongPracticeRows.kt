@@ -29,7 +29,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -66,16 +65,13 @@ import eolssu.shared.generated.resources.mysongs_conversion_retry
 import eolssu.shared.generated.resources.jangdan_label
 import eolssu.shared.generated.resources.mysongs_delete_label
 import eolssu.shared.generated.resources.mysongs_edit
-import eolssu.shared.generated.resources.mysongs_kind_jeongganbo
 import eolssu.shared.generated.resources.mysongs_meta_updated
 import eolssu.shared.generated.resources.mysongs_origin_copied
 import eolssu.shared.generated.resources.mysongs_origin_imported
 import eolssu.shared.generated.resources.mysongs_status_practice
+import eolssu.shared.generated.resources.mysongs_status_review
 import eolssu.shared.generated.resources.song_difficulty_number
 import org.jetbrains.compose.resources.stringResource
-
-/** 제공 곡 줄 왼쪽 칸 글자: 제목의 첫 글자(앞 공백은 건너뜀). 제목이 비면 빈 문자열. */
-internal fun songTileLetter(title: String): String = title.trimStart().firstOrNull()?.toString().orEmpty()
 
 /** 제공 곡 제목 밑 문구: 장단 이름. 목록 응답에 없으면 '장단 없음'이고, 줄에서 옅은 회색으로 보인다([ProvidedSongRow]). */
 @Composable
@@ -100,15 +96,6 @@ private fun PracticeRowFrame(modifier: Modifier, onClick: (() -> Unit)? = null, 
             .then(if (selected) Modifier.semantics { this.selected = true } else Modifier)
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
         contentAlignment = Alignment.CenterStart,
-    ) { content() }
-}
-
-/** 44dp 연두 칸(`.tile`). */
-@Composable
-private fun RowTile(content: @Composable () -> Unit) {
-    Box(
-        Modifier.size(44.dp).background(EolssuTheme.colors.accentTint, RoundedCornerShape(12.dp)).clearAndSetSemantics {},
-        contentAlignment = Alignment.Center,
     ) { content() }
 }
 
@@ -142,7 +129,7 @@ private fun RowScope.RowText(
 }
 
 /**
- * SONG-03 제공 곡 줄: 첫 글자 칸 · 제목 · 장단(검은 Medium, 없으면 옅은 회색 '장단 없음') · 줄 아래쪽에 맞춘 난이도 배지 · 화살표.
+ * SONG-03 제공 곡 줄: 제목 · 장단(검은 Medium, 없으면 옅은 회색 '장단 없음') · 세로 가운데의 난이도 배지 · 화살표.
  * 연습곡 고르기에서는 누르면 평가 없는 연습 모드에, 평가할 곡 고르기에서는 곡 상세(태블릿 가로는 오른쪽 칸)로 간다.
  */
 @Composable
@@ -154,7 +141,6 @@ internal fun ProvidedSongRow(song: SongSummary, meta: String, onClick: () -> Uni
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            RowTile { Text(songTileLetter(song.title), style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp), color = colors.text) }
             val noJangdan = song.jangdanName.isBlank()
             RowText(
                 song.title,
@@ -162,18 +148,16 @@ internal fun ProvidedSongRow(song: SongSummary, meta: String, onClick: () -> Uni
                 metaColor = if (noJangdan) colors.textDisabled else colors.text,
                 metaWeight = if (noJangdan) null else FontWeight.Medium,
             )
-            Box(Modifier.align(Alignment.Bottom)) {
-                val level = song.level
-                if (level != null) EolssuLevelBadge(level, small = true)
-                else EolssuBadge(stringResource(Res.string.song_difficulty_number, song.difficulty), small = true)
-            }
+            val level = song.level
+            if (level != null) EolssuLevelBadge(level, small = true)
+            else EolssuBadge(stringResource(Res.string.song_difficulty_number, song.difficulty), small = true)
             Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
         }
     }
 }
 
 /**
- * SONG-03 내 악보 줄: 윗줄은 '정간보' 칸 · 제목 · 보조 문구(누르면 [onOpen])와 '편집' 칩([onEdit]),
+ * SONG-03 내 악보 줄: 윗줄은 제목 · 보조 문구(누르면 [onOpen])와 '편집' 칩([onEdit]),
  * 아랫줄은 글자 줄에 맞춘 상태 배지와 오른쪽 끝 휴지통([onDelete])이다.
  *
  * 불러오기로 만든 악보는 [conversion] 상태를 따른다. 변환 중이면 '변환 중' 배지만 두고 열기·편집을 막으며,
@@ -199,15 +183,7 @@ internal fun MySheetRow(
                 Row(
                     Modifier.weight(1f).clickable(enabled = usable, role = Role.Button, onClick = onOpen),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    RowTile {
-                        Text(
-                            stringResource(Res.string.mysongs_kind_jeongganbo),
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold),
-                            color = EolssuTheme.colors.text,
-                        )
-                    }
                     RowText(sheet.title, sheetMeta(sheet))
                 }
                 when {
@@ -218,16 +194,20 @@ internal fun MySheetRow(
                 }
             }
             Row(
-                Modifier.fillMaxWidth().padding(start = 56.dp),
+                Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     when {
-                        conversion == null || usable -> {
-                            EolssuBadge(stringResource(Res.string.mysongs_status_practice), style = EolssuBadgeStyle.Play, small = true)
+                        usable -> {
+                            if (sheet.practiceReady) {
+                                EolssuBadge(stringResource(Res.string.mysongs_status_practice), style = EolssuBadgeStyle.Play, small = true)
+                            } else {
+                                EolssuBadge(stringResource(Res.string.mysongs_status_review), small = true)
+                            }
                             val issues = conversion?.issueCount ?: 0
-                            if (issues > 0) EolssuBadge(stringResource(Res.string.mysongs_conversion_issues, issues), small = true)
+                            if (!sheet.practiceReady && issues > 0) EolssuBadge(stringResource(Res.string.mysongs_conversion_issues, issues), small = true)
                         }
                         status == SheetConversionStatus.Failed -> {
                             EolssuBadge(stringResource(Res.string.mysongs_conversion_failed), small = true)

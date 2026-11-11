@@ -48,7 +48,7 @@ class MyInfoControllerTests {
             .andExpect(
                 content().json(
                     """{"httpStatus":"OK","isSuccess":true,"code":200,"message":"내 정보·학습 설정 조회 성공","result":{"userId":"7","email":"me@example.test","hasPassword":true,"nickname":"연습자",
-                    "instrumentId":"3","notationMode":"HANJA","linkedProviders":[{"provider":"KAKAO","linkedAt":"2026-10-28T00:00:00Z"}]}}""",
+                    "instrumentId":"3","notationMode":"HANJA","profileImage":"HELLO","linkedProviders":[{"provider":"KAKAO","linkedAt":"2026-10-28T00:00:00Z"}]}}""",
                     true,
                 ),
             )
@@ -104,19 +104,54 @@ class MyInfoControllerTests {
     @Test
     fun `blank too long or missing nickname is an invalid request`() {
         repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA", true)
-        for (body in listOf("""{"nickname":" "}""", """{"nickname":"${"가".repeat(61)}"}""", "{}")) {
+        for (body in listOf("""{"nickname":" "}""", """{"nickname":"${"가".repeat(11)}"}""", "{}")) {
             mvc.perform(patch("/api/users/me").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest)
                 .andExpect(content().json("""{"result":{"errorCode":"INVALID_REQUEST"}}"""))
         }
-        mvc.perform(patch("/api/users/me").contentType(MediaType.APPLICATION_JSON).content("""{"nickname":"${"가".repeat(60)}"}"""))
+        mvc.perform(patch("/api/users/me").contentType(MediaType.APPLICATION_JSON).content("""{"nickname":"${"가".repeat(10)}"}"""))
             .andExpect(status().isOk)
-        kotlin.test.assertEquals("가".repeat(60), repository.members.getValue(7).nickname)
+        kotlin.test.assertEquals("가".repeat(10), repository.members.getValue(7).nickname)
     }
 
     @Test
     fun `nickname of a member that is not active is unauthenticated`() {
         mvc.perform(patch("/api/users/me").contentType(MediaType.APPLICATION_JSON).content("""{"nickname":"새 닉네임"}"""))
+            .andExpect(status().isUnauthorized)
+            .andExpect(content().json("""{"result":{"errorCode":"UNAUTHENTICATED"}}"""))
+    }
+
+    @Test
+    fun `profile image is changed to one of the twelve tiger poses`() {
+        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA", true)
+
+        mvc.perform(patch("/api/users/me/profile-image").contentType(MediaType.APPLICATION_JSON).content("""{"profileImage":"DANSO"}"""))
+            .andExpect(status().isOk)
+            .andExpect(
+                content().json(
+                    """{"httpStatus":"OK","isSuccess":true,"code":200,"message":"프로필 그림 저장 성공","result":{"userId":"7","profileImage":"DANSO"}}""",
+                    true,
+                ),
+            )
+        kotlin.test.assertEquals("DANSO", repository.members.getValue(7).profileImage)
+        mvc.perform(get("/api/users/me"))
+            .andExpect(content().json("""{"result":{"profileImage":"DANSO"}}"""))
+    }
+
+    @Test
+    fun `unknown blank or missing profile image is an invalid request`() {
+        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA", true)
+        for (body in listOf("{}", """{"profileImage":""}""", """{"profileImage":"hello"}""", """{"profileImage":"PURPLE"}""", """{"profileImage":null}""")) {
+            mvc.perform(patch("/api/users/me/profile-image").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest)
+                .andExpect(content().json("""{"result":{"errorCode":"INVALID_REQUEST"}}"""))
+        }
+        kotlin.test.assertEquals("HELLO", repository.members.getValue(7).profileImage)
+    }
+
+    @Test
+    fun `profile image of a member that is not active is unauthenticated`() {
+        mvc.perform(patch("/api/users/me/profile-image").contentType(MediaType.APPLICATION_JSON).content("""{"profileImage":"DONE"}"""))
             .andExpect(status().isUnauthorized)
             .andExpect(content().json("""{"result":{"errorCode":"UNAUTHENTICATED"}}"""))
     }
@@ -177,13 +212,18 @@ internal class MemoryMyInfoRepository : MyInfoRepository {
     override fun linkedProviders(userId: Long) = providers[userId].orEmpty()
     override fun updateNickname(userId: Long, nickname: String): Boolean {
         val member = members[userId] ?: return false
-        members[userId] = MyInfo(member.userId, member.email, nickname, member.instrumentId, member.notationMode, member.hasPassword)
+        members[userId] = MyInfo(member.userId, member.email, nickname, member.instrumentId, member.notationMode, member.hasPassword, member.profileImage)
         return true
     }
     override fun activeInstrumentExists(instrumentId: Long) = instrumentId in activeInstruments
     override fun updatePreferences(userId: Long, instrumentId: Long?, notationMode: String?): Boolean {
         val member = members[userId] ?: return false
-        members[userId] = MyInfo(member.userId, member.email, member.nickname, instrumentId ?: member.instrumentId, notationMode ?: member.notationMode, member.hasPassword)
+        members[userId] = MyInfo(member.userId, member.email, member.nickname, instrumentId ?: member.instrumentId, notationMode ?: member.notationMode, member.hasPassword, member.profileImage)
+        return true
+    }
+    override fun updateProfileImage(userId: Long, profileImage: String): Boolean {
+        val member = members[userId] ?: return false
+        members[userId] = MyInfo(member.userId, member.email, member.nickname, member.instrumentId, member.notationMode, member.hasPassword, profileImage)
         return true
     }
 }

@@ -121,7 +121,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("32", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("39", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -134,7 +134,7 @@ class DatabaseIntegrationTests {
                 "user_song_settings", "score_views", "oauth_proofs", "song_model_audios", "reference_audio_assets", "flyway_schema_history",
                 "kakao_unlink_subjects", "kakao_event_receipts", "reference_audio_pitch_relations", "user_sheets",
                 "sheet_conversions", "sheet_source_files", "sheet_source_pages",
-                "sheet_audios", "sheet_audio_objects", "sheet_audio_requests",
+                "sheet_audios", "sheet_audio_objects", "sheet_audio_requests", "song_score_versions",
             ),
             tables,
         )
@@ -179,15 +179,15 @@ class DatabaseIntegrationTests {
         )
         assertEquals("-", assertNotNull(mapper<NotationSymbolMapper>().findById(2)).symbol)
         assertEquals(
-            UserRow(1, "test@example.test", "test-fixture-hash", "연습자", 1, "HANGUL", "ACTIVE", null, null, null, time, time, null),
+            UserRow(1, "test@example.test", "test-fixture-hash", "연습자", 1, "HANGUL", "HELLO", "ACTIVE", null, null, null, time, time, null),
             mapper<UserMapper>().findById(1),
         )
         assertEquals(
-            UserRow(2, null, null, null, 1, "HANJA", "DELETED", time, null, null, time, time, time),
+            UserRow(2, null, null, null, 1, "HANJA", "HELLO", "DELETED", time, null, null, time, time, time),
             mapper<UserMapper>().findById(2),
         )
         assertEquals(
-            UserRow(3, "pending@example.test", "test-fixture-hash-3", "대기 회원", 1, "HANJA", "WITHDRAWAL_PENDING", null, time, time.plusDays(30), time, time, null),
+            UserRow(3, "pending@example.test", "test-fixture-hash-3", "대기 회원", 1, "HANJA", "HELLO", "WITHDRAWAL_PENDING", null, time, time.plusDays(30), time, time, null),
             mapper<UserMapper>().findById(3),
         )
         assertEquals(
@@ -276,7 +276,7 @@ class DatabaseIntegrationTests {
     fun `seeds nine published stages for each of the four learning tracks`() {
         val rows = jdbc.queryForList("SELECT id, track, seq, title, judge_type, is_optional, status FROM lessons ORDER BY id")
         val tracks = listOf("DANSO", "SOGEUM", "DAEGEUM_JEONGAK", "DAEGEUM_SANJO")
-        val titles = listOf("악기 알기·감상", "자세·호흡", "첫 소리", "기본음", "음 잇기", "음역 넓히기", "혀치기·박 나누기", "악보와 곡", "장식음·시김새")
+        val titles = listOf("악기 알기·감상", "자세·호흡", "첫 소리", "기본음", "음 잇기", "음역 넓히기", "혀치기", "악보와 곡", "장식음·시김새")
         val judges = listOf("READ", "READ", "PITCH", "PITCH", "PITCH", "PITCH", "BEAT", "BEAT", "LISTEN")
         assertEquals(36, rows.size)
         rows.forEachIndexed { index, row ->
@@ -303,6 +303,13 @@ class DatabaseIntegrationTests {
         assertJson("""["淋","㑣"]""", content("DAEGEUM_JEONGAK", 6, "$.ranges[*].firstPitch"))
         assertJson("""{"title":"풍년가","meta":"굿거리장단"}""", content("DANSO", 8, "$.songs[5]"))
         assertJson("null", content("DANSO", 9, "$.passCriteria"))
+        // V36(S15P31E102-656): 1단계 듣기 할 일을 하나로 합치고 7단계는 혀치기만 남긴다.
+        tracks.forEach { track ->
+            assertJson("""["악기 구조와 이름 보기","모범 연주 듣기"]""", content(track, 1, "$.tasks[*].title"))
+            assertJson("""["혀치기"]""", content(track, 7, "$.tasks[*].title"))
+        }
+        assertJson(""""같은 음을 \"투·투·투\" 혀로 끊어 4번 반복해요."""", content("SOGEUM", 7, "$.tasks[0].description"))
+        assertJson(""""같은 음을 고르게 끊어 내는지 봐요(예시)."""", content("DANSO", 7, "$.passCriteria.description"))
 
         assertMysqlError(1062, "lessons.uq_lessons_track_seq") {
             jdbc.update("INSERT INTO lessons (track, seq, title, judge_type, content_json, status) VALUES ('DANSO', 1, '중복', 'READ', '{}', 'DRAFT')")

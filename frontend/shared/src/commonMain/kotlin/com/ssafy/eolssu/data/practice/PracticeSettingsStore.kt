@@ -15,13 +15,13 @@ import kotlinx.coroutines.flow.update
  */
 data class PracticeSettings(
     val showHangul: Boolean = false,
-    val showSolfege: Boolean = false,
     val jangdanSound: Boolean = false,
     val beatVisual: Boolean = true,
     val bigScore: Boolean = false,
     val bpmBySong: Map<String, Int> = emptyMap(),
     val fingeringView: Boolean = false,
     val instrumentId: String? = null,
+    val bpmBySheet: Map<String, Int> = emptyMap(),
 )
 
 /**

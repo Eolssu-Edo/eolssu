@@ -50,8 +50,9 @@ object RecordingSpec {
 /**
  * 평가에 넘길 마친 녹음. [key]는 이 녹음으로 만들 연습 세션의 `Idempotency-Key`이며, 녹음을 새로 시작할 때마다 바뀐다.
  * 세션 생성 응답을 놓쳐 다시 만들 때 같은 키를 써서 세션이 하나만 생기게 한다.
+ * [scoreVersion]은 녹음을 시작할 때 사용한 공개 악보 판본이며, 이후 현재 판본으로 바꾸지 않는다.
  */
-data class RecordedTake(val path: String, val key: String)
+data class RecordedTake(val path: String, val key: String, val scoreVersion: Int? = null)
 
 /** 녹음을 마친 m4a 파일. */
 data class RecordedAudio(val path: String, val bytes: Long) {

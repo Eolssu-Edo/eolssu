@@ -19,7 +19,7 @@ import org.koin.core.parameter.parametersOf
 /**
  * SONG-01 연결. 곡을 고르면 [onOpenSong]으로 곡 상세로 간다.
  * 태블릿 가로·넓은 웹 창에서는 화면을 옮기지 않고 오른쪽 칸에 고른 곡의 정보를 보이며(곡 상세와 같은 [SongDetailViewModel]),
- * 그 칸의 '이 곡 연습하기'가 [onStartPractice]로 연습 화면에 간다. 고른 곡은 목록 ViewModel이 들고 있어 창 크기가 바뀌어도 남는다.
+ * 그 칸의 '연주 평가 시작'이 [onStartPractice]로 연주 평가 화면에 간다. 고른 곡은 목록 ViewModel이 들고 있어 창 크기가 바뀌어도 남는다.
  * 가로에서 곡을 직접 고른 채 세로로 바뀌면 [onOpenSong]으로 그 곡의 상세를 연다. 처음에 자동으로 고른 첫 곡이면 목록 그대로 둔다.
  * 상단 바의 연습 악기 드롭다운으로 악기를 바꾸면 그 악기의 곡으로 목록이 바뀌고, 세션이 끝났으면 [onSessionExpired]로 로그인에 간다.
  * [pickSongId]는 곡 상세가 가로로 바뀌어 이 화면으로 넘어올 때(배우기의 곡 열기 등) 직접 고른 것으로 둘 곡이고, 고른 뒤 [onPickTaken]으로 비운다.

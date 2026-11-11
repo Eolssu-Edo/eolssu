@@ -7,15 +7,18 @@ import kotlin.test.assertEquals
 
 class YulInputTest {
     @Test
-    fun registerButtonsStepWithoutMixingTakAndCheong() {
-        assertEquals(YulRegister.Cheong, YulRegister.Base.higher())
-        assertEquals(YulRegister.JungCheong, YulRegister.Cheong.higher(), "'청'을 두 번 누르면 중청")
-        assertEquals(YulRegister.Base, YulRegister.JungCheong.higher(), "세 번째는 기본으로 돌아간다")
-        assertEquals(YulRegister.Tak, YulRegister.Base.lower())
-        assertEquals(YulRegister.BaeTak, YulRegister.Tak.lower(), "'탁'을 두 번 누르면 배탁")
-        assertEquals(YulRegister.Base, YulRegister.BaeTak.lower())
-        assertEquals(YulRegister.Cheong, YulRegister.BaeTak.higher(), "탁 쪽에서 '청'을 누르면 바로 청성이다")
-        assertEquals(YulRegister.Tak, YulRegister.JungCheong.lower())
+    fun eachRegisterIsSelectedDirectlyWithoutEditingTheScore() {
+        val initial = SheetEditUiState.initial(EditSource.Mine("1"), SheetEditSamples.draftFor(EditSource.Mine("1"), emptyList()))
+        assertEquals(YulRegister.Base, initial.yulRegister)
+        for (before in YulRegister.entries) for (chosen in YulRegister.entries) {
+            val start = initial.copy(yulRegister = before)
+            val selected = start.selectRegister(chosen)
+            assertEquals(chosen, selected.yulRegister)
+            assertEquals(selected, selected.selectRegister(chosen), "같은 버튼을 다시 눌러도 음역을 순환하지 않는다")
+            assertEquals(start.draft, selected.draft, "음역 선택만으로 악보가 바뀌지 않는다")
+            assertEquals(start.selected, selected.selected)
+            assertEquals(start.canUndo, selected.canUndo)
+        }
     }
 
     @Test
@@ -50,19 +53,17 @@ class YulInputTest {
     @Test
     fun registeredPitchListDecidesWhatCanBeWritten() {
         val available = setOf("태" to 0, "태" to 1, "태" to 2, "임" to -1)
-        assertEquals(YulTextOutcome.PutPitch(Yul.Taeju, 2), resolveYulText("중청태", available))
-        assertEquals(YulTextOutcome.Unavailable(Yul.Taeju, -2), resolveYulText("배탁태", available), "등록되지 않은 음은 가까운 음으로 바꾸지 않는다")
-        assertEquals(YulTextOutcome.PutSymbol(ScoreNote.Hold), resolveYulText("ㅡ", available))
-        assertEquals(YulTextOutcome.PutPitch(Yul.Taeju, -2), resolveYulText("배탁태", null), "목록을 받지 못했으면 서버 저장 때 확인한다")
+        assertEquals(true, isAvailablePitch(available, Yul.Taeju, 2))
+        assertEquals(false, isAvailablePitch(available, Yul.Taeju, -2), "등록되지 않은 음은 막는다")
+        assertEquals(true, isAvailablePitch(null, Yul.Taeju, -2), "목록을 받지 못했으면 서버 저장 때 확인한다")
     }
 
     @Test
-    fun buttonAndTextInputWriteTheSameNote() {
+    fun registerButtonWritesTheRegisteredNote() {
         val start = SheetEditUiState.initial(EditSource.Mine("1"), SheetEditSamples.draftFor(EditSource.Mine("1"), emptyList()))
             .copy(availablePitches = setOf("태" to 1))
-        val byButton = start.raiseRegister().putYul(Yul.Taeju)
-        val byText = (resolveYulText("청태", start.availablePitches) as YulTextOutcome.PutPitch).let { start.putYul(it.base, it.octave) }
-        assertEquals(byButton.draft, byText.draft)
+        val byButton = start.selectRegister(YulRegister.Cheong).putYul(Yul.Taeju)
+        assertEquals(byButton.draft, start.putYul(Yul.Taeju, 1).draft)
         assertEquals(ScoreNote.Pitch(Yul.CheongTaeju), byButton.draft.cells[0].single())
         assertEquals(YulRegister.Base, byButton.yulRegister, "율명을 적으면 음역은 기본으로 돌아간다")
         assertEquals(start.draft, start.putYul(Yul.Hwangjong, 0).draft, "등록되지 않은 음은 적지 않는다")

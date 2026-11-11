@@ -47,13 +47,13 @@ class AnalysisSessionTest {
     }
 
     @Test
-    fun pollsEveryTwoSecondsAndStopsWhenDone() {
+    fun pollsEverySecondAtFirstAndStopsWhenDone() {
         start()
         assertEquals(1, repository.queries)
-        time.advanceBy(2_000)
+        time.advanceBy(1_000)
         assertEquals(2, repository.queries)
         repository.status = { AnalysisStatus.Done("evaluation-1") }
-        time.advanceBy(2_000)
+        time.advanceBy(1_000)
         assertEquals("evaluation-1", state.evaluationId)
         time.advanceBy(10_000)
         assertEquals(3, repository.queries)
@@ -81,7 +81,7 @@ class AnalysisSessionTest {
     @Test
     fun returningQueriesOnceAndResumesPollingWhilePending() {
         start()
-        time.advanceBy(1_000)
+        time.advanceBy(500)
         session.pause()
         time.advanceBy(300_000)
         assertEquals(1, repository.queries)
@@ -118,7 +118,7 @@ class AnalysisSessionTest {
         assertEquals(1, repository.retries)
         assertNull(state.failure)
         assertEquals(before + 1, repository.queries)
-        time.advanceBy(2_000)
+        time.advanceBy(1_000)
         assertEquals(before + 2, repository.queries)
     }
 
@@ -262,6 +262,27 @@ class AnalysisSessionTest {
     }
 
     @Test
+    fun resendKeepsTheSpecificUploadFailureUntilSendingSucceeds() {
+        uploader.outcomes += UploadOutcome.TimedOut
+        uploader.outcomes += UploadOutcome.ConnectionFailed
+        uploader.outcomes += UploadOutcome.ServerError
+        startWithRecording()
+        assertEquals(UploadProblem.TimedOut, uploadState.upload)
+        assertEquals(0, repository.queries)
+
+        uploadSession.resend()
+        assertEquals(UploadProblem.ConnectionFailed, uploadState.upload)
+        uploadSession.resend()
+        assertEquals(UploadProblem.ServerError, uploadState.upload)
+        uploadSession.resend()
+
+        assertNull(uploadState.upload)
+        assertEquals(false, uploadState.resending)
+        assertEquals(1, repository.queries)
+        assertEquals(List(4) { "41" to "kept/practice-1.m4a" }, uploader.calls)
+    }
+
+    @Test
     fun resendThatFailsAgainStillOffersResend() {
         uploader.outcomes += UploadOutcome.Unreachable
         uploader.outcomes += UploadOutcome.Unreachable
@@ -353,7 +374,7 @@ class AnalysisSessionTest {
     private val take = RecordedTake(path = "rec/practice-1.m4a", key = "take-1")
 
     private fun startWithTake() {
-        scope.launch { takeSession.start(SampleSongs.first(), bpm = 60, take = take) }
+        scope.launch { takeSession.start(SampleSongs.first().copy(scoreVersion = 1), bpm = 60, take = take) }
     }
 
     @Test
@@ -369,7 +390,7 @@ class AnalysisSessionTest {
     fun sectionTakeCreatesSectionSessionWithParentAndResendsTheSameSection() {
         val section = SessionSection(startNoteIdx = 12, endNoteIdx = 27, parentSessionId = "30")
         sessions.results += SessionStart.Unreachable
-        scope.launch { takeSession.start(SampleSongs.first(), bpm = 48, take = take, section = section) }
+        scope.launch { takeSession.start(SampleSongs.first().copy(scoreVersion = 1), bpm = 48, take = take, section = section) }
         assertEquals(UploadProblem.CanResend, takeSession.state.value.upload)
 
         takeSession.resend()

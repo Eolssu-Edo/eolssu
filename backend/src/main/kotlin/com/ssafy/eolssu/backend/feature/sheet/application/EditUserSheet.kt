@@ -143,6 +143,6 @@ class EditUserSheet(
         const val MAX_SCORE_BYTES = 1024 * 1024
         /** 제목 상한(앞뒤 공백을 자른 코드 포인트 수). */
         const val MAX_TITLE_LENGTH = 50
-        private val BPM_RANGE = 30..160
+        internal val BPM_RANGE = 30..160
     }
 }

@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
+import com.ssafy.eolssu.core.diagnostics.PerfReason
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
 import androidx.lifecycle.ViewModel
@@ -22,9 +26,15 @@ import com.ssafy.eolssu.data.practice.NotePracticeCriteriaLoad
 import com.ssafy.eolssu.data.practice.NotePracticeCriteriaRepository
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
+import com.ssafy.eolssu.data.song.SheetPracticeDownload
+import com.ssafy.eolssu.data.song.SheetPracticeNeedsReview
+import com.ssafy.eolssu.data.song.SheetPracticeRepository
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.ModelAudioRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +45,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
@@ -47,7 +58,8 @@ import kotlin.uuid.Uuid
  * 끊기거나 버린 연주의 녹음은 지운다. [recorder]가 없는 플랫폼은 평가 연주를 시작할 수 없다.
  * 입력 없음 안내·팝업은 [AudioRecorder.measuresLevel]인 녹음기가 있을 때만 띄우고, 나머지는 서버 판정에 맡긴다.
  * 끝까지 마친 녹음은 [takeForEvaluation]으로 분석 화면에 넘긴다. 녹음마다 새 세션 키를 [newKey]로 만든다.
- * 마이크 권한은 앱 안의 '허용'과 [micPermission](OS 권한)이 모두 있어야 있는 것으로 본다.
+ * 연주 평가는 [micPermission](OS 권한)만 보고 서비스 안내 창 없이 기기 권한 창을 바로 띄운다. 혼자 연습 '한 음씩'은
+ * 앱 안의 '허용'과 OS 권한이 모두 있어야 있는 것으로 본다.
  *
  * 화면이 보이는 동안 [timeMeter]로 연습 시간을 잰다. 재생·녹음·장단 미리듣기 상태는 화면 상태에서 읽어 넘기고,
  * 입력·화면 보임은 Route가 알린다. 열린 구간은 30초마다, 닫힌 구간은 닫을 때 [timeQueue]에 남긴다.
@@ -70,17 +82,23 @@ class PracticeViewModel(
     private val newKey: () -> String = { Uuid.random().toString() },
     modelAudioRepository: ModelAudioRepository? = null,
     audioPlayer: AudioPlayer = UnavailableAudioPlayer(),
-    mine: Boolean = false,
+    private val mine: Boolean = false,
     learn: Boolean = false,
     stepJudge: StepNoteJudge = ManualStepNoteJudge(),
     member: SignedInMember? = null,
     private val jangdanPlayer: JangdanSamplePlayer = UnavailableJangdanSamplePlayer(),
     private val notePractice: NotePracticeCriteriaRepository? = null,
+    private val loadPersonalSheet: (suspend (String) -> Song?)? = null,
+    private val perf: PerformanceVisit? = null,
+    private val personalAudio: SheetPracticeRepository? = null,
+    direct: Boolean = false,
+    /** 평가 녹음 최대 길이. 테스트만 짧게 바꾼다(S15P31E102-737). */
+    private val maxRecording: Duration = RecordingSpec.MaxDuration,
 ) : ViewModel() {
     private var stepJudge: StepNoteJudge = stepJudge
 
     private val _uiState = MutableStateFlow(
-        PracticeUiState(solo = solo, mine = mine, learn = learn, fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
+        PracticeUiState(solo = solo || mine, mine = mine, learn = learn, direct = direct && !solo && !mine && !learn && recorder != null, fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
             inputMeasured = recorder?.measuresLevel == true, isSongLoading = true),
     )
     val uiState: StateFlow<PracticeUiState> = _uiState.asStateFlow()
@@ -93,9 +111,12 @@ class PracticeViewModel(
     private var levelJob: Job? = null
     private var snapshotJob: Job? = null
     private var songJob: Job? = null
+    private var evaluationCheckJob: Job? = null
+    private var personalAudioJob: Job? = null
     private var screenShown = false
     private val recordingClock = RecordingClock(playbackTimeSource)
     private var takeKey = ""
+    private var takeScoreVersion: Int? = null
     private var take: RecordedTake? = null
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
     private fun clearAccount() {
@@ -103,6 +124,7 @@ class PracticeViewModel(
         pitchTally.value = LivePitchTally()
         take = null
         takeKey = ""
+        takeScoreVersion = null
         screenShown = false
         timeMeter.hide()
         _uiState.value = PracticeUiState()
@@ -130,7 +152,7 @@ class PracticeViewModel(
     val stepGauge: StateFlow<StepPitchGauge?>? = stepGaugeState?.asStateFlow()
 
     private val jangdanAudio = JangdanSession(jangdanPlayer, accountScope)
-    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource) { song, bpm ->
+    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource, perf = perf) { song, bpm ->
         val plan = if (settingsStore.settings.value.jangdanSound && jangdanPlayer.available) song.jangdanPlanAt(bpm) else null
         plan == null || jangdanAudio.prepareAccompaniment(plan)
     }
@@ -145,9 +167,7 @@ class PracticeViewModel(
         val song = _uiState.value.song ?: return null
         val playback = modelAudio.state.value
         val audio = playback.audio ?: return null
-        val point = song.modelPointAt(audio, playback.mediaPositionMs.toDouble())
-        val event = song.timeline[point.position]
-        return requireNotNull(event.startTick) + requireNotNull(event.durationTick) * point.fraction
+        return song.modelJangdanTickAt(audio, playback.mediaPositionMs.toDouble())
     }
 
     private fun currentPlan(): JangdanPlan? {
@@ -169,7 +189,9 @@ class PracticeViewModel(
 
     private fun syncModelJangdan() {
         val state = _uiState.value
-        if (state.mode != PracticeMode.Model || !state.playing || !state.settings.jangdanSound) {
+        if (state.mode != PracticeMode.Model || !state.playing || !state.settings.jangdanSound ||
+            modelAudio.state.value.audio?.sheetPlayback?.withJangdan == true
+        ) {
             if (soundPurpose == SoundPurpose.Model) stopJangdan()
             return
         }
@@ -187,15 +209,11 @@ class PracticeViewModel(
             if (now.mode != PracticeMode.Model || !now.playing || song == null || clock == null) null
             else {
                 val mediaMs = clock.anchor.positionNow()
-                val endMs = clock.audio.startOffsetMs + (clock.audio.performance?.durationMs ?: song.durationMs(clock.audio.bpm))
+                val endMs = clock.audio.startOffsetMs + song.modelScoreDurationMs(clock.audio)
                 when {
                     mediaMs < clock.audio.startOffsetMs -> -1.0
                     mediaMs >= endMs -> null
-                    else -> {
-                        val point = song.modelPointAt(clock.audio, mediaMs)
-                        val event = song.timeline[point.position]
-                        requireNotNull(event.startTick) + requireNotNull(event.durationTick) * point.fraction
-                    }
+                    else -> song.modelJangdanTickAt(clock.audio, mediaMs)
                 }
             }
         })
@@ -328,7 +346,13 @@ class PracticeViewModel(
         retryLoadSong()
         accountScope.launch {
             modelAudio.state.collect { playback ->
-                _uiState.update { if (it.mode == PracticeMode.Model) it.withModelAudio(playback) else it }
+                _uiState.update { state ->
+                    if (state.mode != PracticeMode.Model) return@update state
+                    val next = state.withModelAudio(playback)
+                    if (state.personalAudio == PracticePersonalAudio.Ready && playback.status == ModelAudioStatus.Unavailable) {
+                        next.copy(personalAudio = PracticePersonalAudio.Missing)
+                    } else next
+                }
                 syncModelJangdan()
             }
         }
@@ -367,14 +391,18 @@ class PracticeViewModel(
         if (!accountScope.isActive) return
         if (songJob?.isActive == true || _uiState.value.song != null) return
         _uiState.update { it.copy(isSongLoading = true, songError = null) }
-        songJob = accountScope.launch {
+        songJob = accountScope.launch(perf.context(if (songJob == null) PerfReason.INITIAL else PerfReason.RETRY)) {
             try {
-                val song = songRepository.getSong(songId)
+                val song = if (mine) loadPersonalSheet?.invoke(songId) else songRepository.getSong(songId)
                 when {
                     song == null -> _uiState.update { it.copy(songError = PracticeSongError.NotFound) }
                     song.timeline.isEmpty() -> _uiState.update { it.copy(songError = PracticeSongError.Failed) }
                     else -> {
-                        _uiState.update { it.copy(song = song) }
+                        perf?.milestone(PerfPhase.PRACTICE_READY)
+                        _uiState.update {
+                            it.copy(song = song, personalAudio = PracticePersonalAudio.Checking.takeIf { supportsPersonalAudio })
+                        }
+                        if (supportsPersonalAudio) checkPersonalAudio(song)
                         _uiState.update { it.copy(jangdanSupported = jangdanPlayer.available && currentPlan() != null) }
                         if (screenShown) startTimeTracking()
                         prepareStepJudge(song)
@@ -382,6 +410,8 @@ class PracticeViewModel(
                 }
             } catch (e: CancellationException) {
                 throw e
+            } catch (_: SheetPracticeNeedsReview) {
+                _uiState.update { it.copy(songError = PracticeSongError.NeedsReview) }
             } catch (_: Exception) {
                 _uiState.update { it.copy(songError = PracticeSongError.Failed) }
             } finally {
@@ -396,12 +426,13 @@ class PracticeViewModel(
     fun onScreenShown() {
         if (!accountScope.isActive) return
         screenShown = true
-        if (_uiState.value.song == null) return
+        val song = _uiState.value.song ?: return
+        if (supportsPersonalAudio && _uiState.value.personalAudio != PracticePersonalAudio.VersionChanged) checkPersonalAudio(song)
         startTimeTracking()
     }
 
     private fun startTimeTracking() {
-        if (!accountScope.isActive) return
+        if (mine || !accountScope.isActive) return
         timeMeter.show(songId)
         snapshotJob?.cancel()
         snapshotJob = accountScope.launch {
@@ -415,6 +446,10 @@ class PracticeViewModel(
     /** 화면이 가려짐(떠남·백그라운드·화면 잠금·탭 숨김). 구간을 닫아 보낸다. */
     fun onScreenHidden() {
         screenShown = false
+        personalAudioJob?.cancel()
+        _uiState.update {
+            if (it.personalAudio == PracticePersonalAudio.Downloading) it.copy(personalAudio = PracticePersonalAudio.Checking) else it
+        }
         pauseRhythm()
         stopPreview()
         stopJangdan()
@@ -423,7 +458,7 @@ class PracticeViewModel(
         pauseStep()
         snapshotJob?.cancel()
         val segment = timeMeter.hide()
-        if (accountScope.isActive) timeQueue.close(segment)
+        if (!mine && accountScope.isActive) timeQueue.close(segment)
     }
 
     /** 터치·스크롤·키 입력. */
@@ -462,7 +497,7 @@ class PracticeViewModel(
         val state = _uiState.value
         val song = state.song ?: return
         when (state.panel) {
-            PracticePanel.Notation -> settingsStore.update { it.applyNotation(state.draft, song) }
+            PracticePanel.Notation -> settingsStore.update { it.applyNotation(state.draft) }
             PracticePanel.Jangdan -> {
                 settingsStore.update { it.applyJangdan(state.draft) }
                 if (!state.draft.jangdanSound) pauseRhythm()
@@ -491,7 +526,7 @@ class PracticeViewModel(
         if (_uiState.value.mode == PracticeMode.Model) {
             modelResumeAfterTick = modelTickAtReportedPosition()
             val song = _uiState.value.song ?: return
-            settingsStore.update { it.applyTempo(_uiState.value.draft, song) }
+            settingsStore.update { it.applyTempo(_uiState.value.draft, song, mine) }
             _uiState.update { it.copy(settings = settingsStore.settings.value).withModelAudio(modelAudio.state.value) }
             modelAudio.setBpm(_uiState.value.bpm)
             if (close) closePanel()
@@ -504,7 +539,7 @@ class PracticeViewModel(
         val running = stepJob?.isActive == true || preparingRhythm
         if (state.mode == PracticeMode.Rhythm) pauseRhythm()
         val carry = state.currentEventFraction
-        settingsStore.update { it.applyTempo(state.draft, song) }
+        settingsStore.update { it.applyTempo(state.draft, song, mine) }
         _uiState.update {
             val updated = it.copy(settings = settingsStore.settings.value)
             updated.copy(eventElapsedMs = updated.eventDurationMs() * carry, pausedFraction = carry.toFloat())
@@ -525,6 +560,9 @@ class PracticeViewModel(
         if (_uiState.value.fingeringOverride != null) _uiState.update { it.copy(fingeringOverride = !it.fingeringView) }
         else settingsStore.update { it.copy(fingeringView = !it.fingeringView) }
     }
+
+    /** 연주 평가 제목 옆 ‘쉬운 표기’ 스위치. 한글 읽는 법 표시를 바로 켜고 끈다(S15P31E102-716). */
+    fun toggleHangul() = settingsStore.update { it.copy(showHangul = !it.showHangul) }
 
     /** 연습 설정의 ‘연습 악기’. 운지 그림과 제목 옆 표시에만 쓰고 프로필 악기는 바꾸지 않는다. */
     fun setInstrument(id: String) = settingsStore.update { it.copy(instrumentId = id) }
@@ -615,12 +653,61 @@ class PracticeViewModel(
 
     fun followNow() = _uiState.update { it.followNow() }
 
+    // 내 악보 음원
+    private val supportsPersonalAudio: Boolean get() = mine && personalAudio?.deviceAudioAvailable == true
+
+    private fun checkPersonalAudio(song: Song) {
+        val repository = personalAudio ?: return
+        if (personalAudioJob?.isActive == true) return
+        _uiState.update { it.copy(personalAudio = PracticePersonalAudio.Checking) }
+        personalAudioJob = accountScope.launch {
+            val available = try {
+                repository.hasLocalAudio(song)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
+            _uiState.update {
+                if (it.song != song) it
+                else it.copy(personalAudio = if (available) PracticePersonalAudio.Ready else PracticePersonalAudio.Missing)
+            }
+        }
+    }
+
+    fun downloadPersonalAudio() {
+        if (!accountScope.isActive || personalAudioJob?.isActive == true) return
+        val repository = personalAudio ?: return
+        val state = _uiState.value
+        val song = state.song ?: return
+        if (state.personalAudioControl !in setOf(PracticePersonalAudio.Missing, PracticePersonalAudio.Failed)) return
+        _uiState.update { it.copy(personalAudio = PracticePersonalAudio.Downloading) }
+        personalAudioJob = accountScope.launch {
+            val result = try {
+                repository.download(song)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                SheetPracticeDownload.Failed
+            }
+            _uiState.update { current ->
+                if (current.song != song || current.personalAudio != PracticePersonalAudio.Downloading) return@update current
+                when (result) {
+                    SheetPracticeDownload.Saved -> current.copy(personalAudio = PracticePersonalAudio.Ready, modelAudioStatus = ModelAudioStatus.Idle)
+                    SheetPracticeDownload.Failed -> current.copy(personalAudio = PracticePersonalAudio.Failed)
+                    SheetPracticeDownload.VersionChanged -> current.copy(personalAudio = PracticePersonalAudio.VersionChanged)
+                }
+            }
+        }
+    }
+
     // 모범 연주
 
     fun startModel() {
         if (!accountScope.isActive) return
         val state = _uiState.value
         val song = state.song ?: return
+        if (state.personalAudio != null && state.personalAudio != PracticePersonalAudio.Ready) return
         if (state.mode !in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)) return
         if (state.mode == PracticeMode.Model && (state.modelAudioStatus == ModelAudioStatus.Completed ||
                 state.position == state.eventCount - 1 && state.currentEventFraction >= 1.0)) {
@@ -647,7 +734,7 @@ class PracticeViewModel(
     }
 
     fun restartModel() {
-        if (!accountScope.isActive) return
+        if (!accountScope.isActive || _uiState.value.personalAudio?.let { it != PracticePersonalAudio.Ready } == true) return
         modelStartsAtAttack = true
         modelResumeAfterTick = null
         stopJangdan()
@@ -667,30 +754,96 @@ class PracticeViewModel(
 
     // 평가 연주
 
-    private var entryEvaluationStarted = false
+    /** 마친 녹음을 분석 화면에 넘겼는지([takeForEvaluation]). */
+    private var handedToAnalysis = false
 
-    /** 일반 연습에서 평가로 이동한 경우, 곡 로딩 후 한 번만 권한 확인·카운트다운을 시작한다. */
-    fun startEvaluationOnEntry() {
-        if (entryEvaluationStarted || _uiState.value.song == null || !_uiState.value.recordingSupported) return
-        entryEvaluationStarted = true
-        requestEvaluation()
+    /**
+     * 연주 평가([PracticeUiState.direct])의 녹음을 분석에 넘긴 뒤 이 화면으로 돌아왔는지. 분석·결과에서 기기 뒤로 가기로 돌아와도
+     * 평가 대기 상태를 다시 보이지 않고 들어온 화면으로 돌아갈지 판단한다. 기기 권한 창이 닫힐 때의 화면 복귀는 해당하지 않는다.
+     */
+    fun leavesDirectOnReturn(): Boolean {
+        val state = _uiState.value
+        return state.direct && handedToAnalysis && state.mode == PracticeMode.Ready && state.popup == null
     }
 
+    /** 기기 권한 창의 응답을 기다리는 평가 시작. 응답 전에는 다시 눌러도 권한 요청·카운트다운을 겹쳐 시작하지 않는다. */
+    private var micRequestJob: Job? = null
+
+    /**
+     * '연주 평가 시작'(S15P31E102-733). 서비스 안내 창 없이 기기(OS) 마이크 권한만 확인한다.
+     * 이미 허용돼 있으면 바로 카운트다운, 아직 묻지 않았거나 다시 물을 수 있으면 기기 권한 창을 바로 띄우고 허용될 때만 시작한다.
+     * 기기가 더 묻지 않는 차단 상태면 권한 창을 띄울 수 없으므로 설정 안내만 보인다.
+     */
     fun requestEvaluation() {
-        if (!accountScope.isActive) return
+        if (mine || !accountScope.isActive || recorder == null) return
+        whenCurrentScore { requestCurrentEvaluation() }
+    }
+
+    private fun requestCurrentEvaluation() {
+        if (mine || !accountScope.isActive) return
         if (recorder == null) return
+        if (micRequestJob?.isActive == true) return
+        handedToAnalysis = false
         pauseRhythm()
         stopPreview()
         stopJangdan()
         modelAudio.stop()
         stepJob?.cancel()
-        _uiState.update { it.requestEvaluation(micGranted()) }
-        if (_uiState.value.mode == PracticeMode.Countdown) runCountdown()
+        val permission = micPermission
+        if (permission == null || permission.isGranted()) {
+            settingsStore.grantMic()
+            _uiState.update { it.requestEvaluation(micGranted = true) }
+            runCountdown()
+            return
+        }
+        _uiState.update { it.requestEvaluation(micGranted = false) }
+        if (permission.isPermanentlyDenied()) {
+            micDenied()
+            return
+        }
+        micRequestJob = accountScope.launch {
+            val allowed = try {
+                permission.request()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false // 권한 창을 띄우지 못했거나 기기 마이크를 쓸 수 없으면 거부와 같이 평가를 시작하지 않는다.
+            }
+            if (allowed) grantMicAndStart() else micDenied()
+        }
     }
 
-    /** 마이크 안내에서 '계속'을 누르면 OS 권한을 묻는다. 허용하면 true. */
+    private fun whenCurrentScore(start: () -> Unit) {
+        if (evaluationCheckJob?.isActive == true) return
+        evaluationCheckJob = accountScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            if (currentScoreForEvaluation()) start()
+        }
+    }
+
+    /** 녹음 화면의 악보와 현재 공개 판본을 비교한다. 개인 악보·혼자 연습은 기존 흐름을 유지한다. */
+    private suspend fun currentScoreForEvaluation(): Boolean {
+        val song = _uiState.value.song ?: return false
+        val version = song.scoreVersion ?: return true
+        if (mine || _uiState.value.solo) return true
+        val current = try { songRepository.getSong(song.id) }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { null }
+        currentCoroutineContext().ensureActive()
+        if (!accountScope.isActive || _uiState.value.song?.id != song.id || _uiState.value.song?.scoreVersion != version) return false
+        val popup = when {
+            current == null -> PracticePopup.ScoreUnavailable
+            current.scoreVersion != version -> PracticePopup.ScoreChanged
+            else -> return true
+        }
+        if (_uiState.value.mode == PracticeMode.Recording || _uiState.value.resume) cancelRecorder()
+        _uiState.update { it.toReady().copy(popup = popup) }
+        return false
+    }
+
+    /** 혼자 연습 마이크 안내에서 '계속'을 누르면 OS 권한을 묻는다. 허용하면 true. */
     suspend fun requestMicPermission(): Boolean = recorder != null && (micPermission?.request() ?: true)
 
+    /** 혼자 연습 '한 음씩'의 마이크 권한: 앱 안의 '허용'과 OS 권한이 모두 있어야 한다. */
     private fun micGranted(): Boolean = settingsStore.micGranted.value && micPermission?.isGranted() != false
 
     /** OS 권한까지 허용된 뒤 연주를 시작한다. 혼자 연습이면 한 음씩 듣기를 시작한다. */
@@ -707,13 +860,19 @@ class PracticeViewModel(
         stopPreview()
         stopJangdan()
         modelAudio.stop()
-        settingsStore.grantMic()
-        _uiState.update { it.beginCountdown() }
-        runCountdown()
+        whenCurrentScore {
+            settingsStore.grantMic()
+            _uiState.update { it.beginCountdown() }
+            runCountdown()
+        }
     }
 
-    /** OS 권한 창에서 허용하지 않음. 화면에 머물며 거부 안내(다시 묻지 못하면 설정 안내)를 띄운다. */
+    /**
+     * OS 권한을 얻지 못함. 혼자 연습은 화면에 머물며 거부 안내(다시 묻지 못하면 설정 안내)를 띄운다.
+     * 연주 평가는 시작하지 않고, 기기가 더 묻지 않는 차단일 때만 설정 안내를 띄운다([denyMic]).
+     */
     fun micDenied() {
+        if (_uiState.value.popup in setOf(PracticePopup.ScoreChanged, PracticePopup.ScoreUnavailable)) return
         if (_uiState.value.solo) {
             // 한 음씩은 아직 시작하지 않았다. 악보·진행 위치는 그대로 두고 안내만 띄운다.
             _uiState.update { it.copy(popup = if (micPermission?.isPermanentlyDenied() == true) PracticePopup.PermBlocked else PracticePopup.PermDenied) }
@@ -751,7 +910,18 @@ class PracticeViewModel(
         runCountdown()
     }
 
-    fun askRestart() = _uiState.update { it.copy(popup = PracticePopup.Restart) }
+    /**
+     * '처음부터'. 연주 중이면 연주 중단·설정을 열 때처럼 녹음·진행을 그 자리에서 멈추고 확인 창을 띄운다.
+     * 이미 멈춰 있으면 창만 바꾼다. '계속 연주'는 [keepPlayingAfterExit], '처음부터 시작'은 [restartNow].
+     */
+    fun askRestart() {
+        val state = _uiState.value
+        if (state.mode == PracticeMode.Recording && !state.finished && state.eventStartedAt != null) {
+            pauseRecordingFor(PracticePopup.Restart)
+        } else {
+            _uiState.update { it.copy(popup = PracticePopup.Restart) }
+        }
+    }
 
     fun restartNow() {
         if (!accountScope.isActive) return
@@ -788,7 +958,7 @@ class PracticeViewModel(
         return false
     }
 
-    /** 나가기 확인 창의 '계속 연주': 멈춘 연주는 3·2·1 뒤 멈춘 자리부터, 멈춘 카운트다운은 3부터 다시 센다. */
+    /** 나가기·처음부터 확인 창의 '계속 연주': 멈춘 연주는 3·2·1 뒤 멈춘 자리부터, 멈춘 카운트다운은 3부터 다시 센다. */
     fun keepPlayingAfterExit() {
         val state = _uiState.value
         when {
@@ -804,6 +974,7 @@ class PracticeViewModel(
 
     /** 화면을 벗어남(앱 전환·전화 등). 연주 중이면 끊긴 것으로 처리하고, 모범 연주는 일시정지한다. */
     fun onLeaveScreen() {
+        evaluationCheckJob?.cancel()
         pauseRhythm()
         stopPreview()
         stopJangdan()
@@ -821,6 +992,7 @@ class PracticeViewModel(
 
     /** 타이머를 모두 멈추고 진행 중인 녹음을 버린다. 마친 녹음 파일은 남긴다. */
     fun stopAll() {
+        evaluationCheckJob?.cancel()
         pauseRhythm()
         stopPreview()
         stopJangdan()
@@ -963,7 +1135,7 @@ class PracticeViewModel(
         if (!accountScope.isActive) return null
         val state = _uiState.value
         if (!state.finished || (state.popup != PracticePopup.End && state.popup != PracticePopup.EndAtLimit)) return null
-        if (take == null) _uiState.update { it.failRecording() }
+        if (take == null) _uiState.update { it.failRecording() } else handedToAnalysis = true
         return take
     }
 
@@ -971,6 +1143,7 @@ class PracticeViewModel(
         val recorder = recorder ?: return false
         take = null
         takeKey = newKey()
+        takeScoreVersion = _uiState.value.song?.scoreVersion
         if (runCatching { recorder.start() }.isFailure) return false
         recordingClock.start()
         watchRecording()
@@ -1010,7 +1183,7 @@ class PracticeViewModel(
         levelJob?.cancel()
         recordingClock.reset()
         val audio = recorder?.stop()
-        take = audio?.takeUnless { it.tooLarge }?.let { RecordedTake(it.path, takeKey) }
+        take = audio?.takeUnless { it.tooLarge }?.let { RecordedTake(it.path, takeKey, takeScoreVersion) }
         _uiState.update { it.checkRecording(saved = audio != null, tooLarge = audio?.tooLarge == true) }
     }
 
@@ -1022,7 +1195,7 @@ class PracticeViewModel(
             var measuredAt = recordingClock.elapsed()
             while (isActive) {
                 val elapsed = recordingClock.elapsed()
-                if (elapsed >= RecordingSpec.MaxDuration) {
+                if (elapsed >= maxRecording) {
                     captureStepProgress()
                     stepJob?.cancel()
                     _uiState.update { it.endRecording(atLimit = true) }

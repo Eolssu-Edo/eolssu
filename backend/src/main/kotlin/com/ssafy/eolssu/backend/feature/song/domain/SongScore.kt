@@ -15,8 +15,13 @@ data class ScorePitch(
     val hanja: String, val hangul: String,
 )
 
+/** 카탈로그 확인이 필요한 인식 음. 편집 초안에서 원래 위치와 율명을 알려 준다. */
+data class UnregisteredScorePitch(val eventId: String, val cellId: String, val yul: String, val octave: Int)
+
 interface SongScoreRepository {
     fun findPublished(songId: Long): PublishedSongScore?
+    fun findPublishedRevision(songId: Long, scoreVersion: Int): PublishedSongScore? =
+        findPublished(songId)?.takeIf { it.scoreVersion == scoreVersion }
     fun pitches(): List<ScorePitch>
 }
 

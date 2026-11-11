@@ -33,6 +33,46 @@ class CreatePracticeSessionTests {
     }
 
     @Test
+    fun `versionless new request for a song with archived score cannot insert`() {
+        repository.songs[101] = repository.songs.getValue(101).copy(hasArchivedScore = true)
+        assertEquals(CreatePracticeSessionResult.StateConflict, service.execute(command()))
+        assertTrue(repository.inserted.isEmpty())
+    }
+
+    @Test
+    fun `recorded version must be positive and current before any insert`() {
+        assertEquals(CreatePracticeSessionResult.InvalidRequest, service.execute(command().copy(expectedScoreVersion = 0)))
+        assertEquals(CreatePracticeSessionResult.StateConflict, service.execute(command().copy(expectedScoreVersion = 2)))
+        assertTrue(repository.inserted.isEmpty())
+        repository.songs[101] = repository.songs.getValue(101).copy(hasArchivedScore = true)
+        created(service.execute(command().copy(expectedScoreVersion = 3)))
+        assertEquals(3, repository.inserted.single().scoreVersion)
+    }
+
+    @Test
+    fun `legacy key still replays after a prior score is archived`() {
+        val first = created(service.execute(command()))
+        repository.songs[101] = repository.songs.getValue(101).copy(scoreVersion = 4, hasArchivedScore = true)
+        assertEquals(first, created(service.execute(command())))
+        assertEquals(1, repository.inserted.size)
+        assertEquals(CreatePracticeSessionResult.IdempotencyConflict, service.execute(command().copy(expectedScoreVersion = 4)))
+    }
+
+    @Test
+    fun `parent recorded against an old score cannot create a new section session`() {
+        repository.sessions[10] = ParentSessionCandidate(10, 1, 101, "DONE", scoreVersion = 2)
+        assertEquals(CreatePracticeSessionResult.StateConflict, service.execute(command().copy(parentSessionId = 10, expectedScoreVersion = 3)))
+        assertTrue(repository.inserted.isEmpty())
+    }
+
+    @Test
+    fun `score replacement between lookup and insertion conflicts without a winner`() {
+        repository.rejectInsert = true
+        assertEquals(CreatePracticeSessionResult.StateConflict, service.execute(command().copy(expectedScoreVersion = 3)))
+        assertTrue(repository.inserted.isEmpty())
+    }
+
+    @Test
     fun `keeps explicit bpm unit and section inside the song`() {
         val session = created(service.execute(command().copy(bpmUnit = BpmUnit.QUARTER, startNoteIdx = 5, endNoteIdx = 5)))
         assertEquals(BpmUnit.QUARTER, session.bpmUnit)
@@ -64,8 +104,8 @@ class CreatePracticeSessionTests {
 
     @Test
     fun `parent session must be own, same song and done`() {
-        repository.sessions[10] = ParentSessionCandidate(10, userId = 1, songId = 101, status = "DONE")
-        repository.sessions[11] = ParentSessionCandidate(11, userId = 2, songId = 101, status = "DONE")
+        repository.sessions[10] = ParentSessionCandidate(10, userId = 1, songId = 101, status = "DONE", scoreVersion = 3)
+        repository.sessions[11] = ParentSessionCandidate(11, userId = 2, songId = 101, status = "DONE", scoreVersion = 3)
         repository.sessions[12] = ParentSessionCandidate(12, userId = 1, songId = 102, status = "DONE")
         repository.sessions[13] = ParentSessionCandidate(13, userId = 1, songId = 101, status = "FAILED")
         assertEquals(CreatePracticeSessionResult.NotFound, service.execute(command(key = "a").copy(parentSessionId = 99)))
@@ -122,6 +162,7 @@ class MemoryPracticeSessionRepository : PracticeSessionCreationRepository {
 
     // 설정하면 insert가 유일 제약에 걸린 것처럼 null을 돌려주고, 이후 조회는 이 세션을 돌려준다.
     var raceWinner: PracticeSession? = null
+    var rejectInsert = false
 
     override fun findByIdempotencyKey(userId: Long, idempotencyKey: String): PracticeSession? =
         byKey[userId to idempotencyKey] ?: raceWinner.takeIf { lostRace }
@@ -133,6 +174,7 @@ class MemoryPracticeSessionRepository : PracticeSessionCreationRepository {
     override fun findSession(sessionId: Long) = sessions[sessionId]
 
     override fun insert(session: NewPracticeSession): Long? {
+        if (rejectInsert) return null
         if (raceWinner != null) {
             lostRace = true
             return null

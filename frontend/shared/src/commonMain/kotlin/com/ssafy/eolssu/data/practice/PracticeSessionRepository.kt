@@ -39,18 +39,33 @@ interface PracticeSessionRepository {
      * 서버는 같은 키·같은 본문이면 처음 만든 세션을 그대로 돌려준다. [section]이 있으면 그 구간만 연주한 재평가 세션이다.
      */
     suspend fun create(songId: String, bpm: Int, idempotencyKey: String, section: SessionSection? = null): SessionStart
+
+    /** 녹음에 사용한 판본을 지정한다. 대역은 기존 생성 경계를 재사용할 수 있다. */
+    suspend fun create(songId: String, bpm: Int, idempotencyKey: String, expectedScoreVersion: Int,
+        section: SessionSection? = null): SessionStart = if (expectedScoreVersion > 0)
+            create(songId, bpm, idempotencyKey, section) else SessionStart.Rejected
 }
 
 /** [PracticeSessionRepository]를 `POST /api/practice-sessions`로 보낸다. 구간이 없으면 곡 전체 연주를 만든다. */
 class HttpPracticeSessionRepository(private val client: HttpClient, private val member: SignedInMember) : PracticeSessionRepository {
-    override suspend fun create(songId: String, bpm: Int, idempotencyKey: String, section: SessionSection?): SessionStart = member.whileSignedIn { memberId ->
+    override suspend fun create(songId: String, bpm: Int, idempotencyKey: String, section: SessionSection?): SessionStart =
+        createRequest(songId, bpm, idempotencyKey, section, null)
+
+    override suspend fun create(songId: String, bpm: Int, idempotencyKey: String, expectedScoreVersion: Int,
+        section: SessionSection?): SessionStart {
+        if (expectedScoreVersion <= 0) return SessionStart.Rejected
+        return createRequest(songId, bpm, idempotencyKey, section, expectedScoreVersion)
+    }
+
+    private suspend fun createRequest(songId: String, bpm: Int, idempotencyKey: String,
+        section: SessionSection?, expectedScoreVersion: Int?): SessionStart = member.whileSignedIn { memberId ->
         if (memberId.isNullOrBlank()) return@whileSignedIn SessionStart.Unreachable
         val sent = client.sendCatching {
             post("/api/practice-sessions") {
                 header(IDEMPOTENCY_KEY, idempotencyKey)
                 contentType(ContentType.Application.Json)
-                if (section == null) setBody(CreateRequest(songId, bpm))
-                else setBody(SectionRequest(songId, bpm, section.startNoteIdx, section.endNoteIdx, section.parentSessionId))
+                if (section == null) setBody(CreateRequest(songId, bpm, expectedScoreVersion))
+                else setBody(SectionRequest(songId, bpm, section.startNoteIdx, section.endNoteIdx, section.parentSessionId, expectedScoreVersion))
             }
         }
         val response = (sent as? NetworkResult.Received)?.response ?: return@whileSignedIn SessionStart.Unreachable
@@ -64,10 +79,11 @@ class HttpPracticeSessionRepository(private val client: HttpClient, private val 
     }
 
     @Serializable
-    private class CreateRequest(val songId: String, val bpm: Int)
+    private class CreateRequest(val songId: String, val bpm: Int, val expectedScoreVersion: Int? = null)
 
     @Serializable
-    private class SectionRequest(val songId: String, val bpm: Int, val startNoteIdx: Int, val endNoteIdx: Int, val parentSessionId: String)
+    private class SectionRequest(val songId: String, val bpm: Int, val startNoteIdx: Int, val endNoteIdx: Int,
+        val parentSessionId: String, val expectedScoreVersion: Int? = null)
 
     @Serializable
     private class CreatedSession(val sessionId: String, val startedAt: String)

@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.MockEngineConfig
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.HttpRequestData
 import io.ktor.http.HttpHeaders
@@ -14,7 +15,11 @@ import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
 import kotlinx.io.Buffer
@@ -32,13 +37,16 @@ class HttpPracticeSessionTest {
     private val bodies = mutableListOf<String>()
 
     /** [reply]가 null이면 연결 실패다. */
-    private fun client(reply: (path: String) -> Pair<HttpStatusCode, String>?) = createHttpClient(
-        MockEngine { request ->
-            requests += request
-            bodies += request.body.text()
-            val (status, body) = reply(request.url.encodedPath) ?: error("연결 실패")
-            respond(body, status, headersOf(HttpHeaders.ContentType, "application/json"))
-        },
+    private fun TestScope.client(reply: suspend (path: String) -> Pair<HttpStatusCode, String>?) = createHttpClient(
+        MockEngine(MockEngineConfig().apply {
+            dispatcher = StandardTestDispatcher(testScheduler)
+            addHandler { request ->
+                requests += request
+                bodies += request.body.text()
+                val (status, body) = reply(request.url.encodedPath) ?: error("연결 실패")
+                respond(body, status, headersOf(HttpHeaders.ContentType, "application/json"))
+            }
+        }),
         ServerAddress.Production,
     )
 
@@ -88,6 +96,17 @@ class HttpPracticeSessionTest {
         assertEquals(SessionStart.Unreachable, repo(HttpStatusCode.Created).create("2", 60, "k"))
     }
 
+    @Test fun recordedVersionIsSentForWholeAndSectionCreation() = runTest {
+        val repo = HttpPracticeSessionRepository(client { HttpStatusCode.Created to created }, member)
+        repo.create("2", 60, "whole-v1", expectedScoreVersion = 1)
+        repo.create("2", 60, "section-v1", expectedScoreVersion = 1, section = SessionSection(12, 27, "30"))
+        assertEquals("""{"songId":"2","bpm":60,"expectedScoreVersion":1}""", bodies[0])
+        assertContains(bodies[1], "\"expectedScoreVersion\":1")
+        assertContains(bodies[1], "\"parentSessionId\":\"30\"")
+        assertEquals(SessionStart.Rejected, repo.create("2", 60, "invalid", expectedScoreVersion = 0))
+        assertEquals(2, requests.size)
+    }
+
     @Test
     fun createKeepsTheOwnerUntilItsResponseIsBoundToTheSession() = runTest {
         val entered = CompletableDeferred<Unit>()
@@ -119,7 +138,7 @@ class HttpPracticeSessionTest {
         assertTrue(requests.isEmpty())
     }
 
-    private fun uploader(status: HttpStatusCode?) = HttpRecordingUploader(
+    private fun TestScope.uploader(status: HttpStatusCode?) = HttpRecordingUploader(
         client { status?.let { it to "{}" } },
         fileSize = { 3 },
         openFile = { Buffer().apply { write(byteArrayOf(1, 2, 3)) } },
@@ -147,11 +166,85 @@ class HttpPracticeSessionTest {
             HttpStatusCode.PayloadTooLarge to UploadOutcome.Rejected,
             HttpStatusCode.UnsupportedMediaType to UploadOutcome.Rejected,
             HttpStatusCode.UnprocessableEntity to UploadOutcome.Rejected,
-            HttpStatusCode.ServiceUnavailable to UploadOutcome.Unreachable,
-            HttpStatusCode.InternalServerError to UploadOutcome.Unreachable,
+            HttpStatusCode.ServiceUnavailable to UploadOutcome.ServerError,
+            HttpStatusCode.InternalServerError to UploadOutcome.ServerError,
         )
-        expected.forEach { (status, outcome) -> assertEquals(outcome, uploader(status).upload("41", "p"), "$status") }
-        assertEquals(UploadOutcome.Unreachable, uploader(null).upload("41", "p"))
+        expected.forEach { (status, outcome) ->
+            requests.clear()
+            assertEquals(outcome, uploader(status).upload("41", "p"), "$status")
+            assertEquals(1, requests.size, "$status")
+        }
+        assertEquals(UploadOutcome.ConnectionFailed, uploader(null).upload("41", "p"))
+    }
+
+    @Test
+    fun uploadRetriesTimeoutOnSameSessionAndAcceptsAnAlreadySavedRecording() = runTest {
+        val uploader = HttpRecordingUploader(
+            client { (if (requests.size == 1) HttpStatusCode.RequestTimeout else HttpStatusCode.Conflict) to "{}" },
+            fileSize = { 3 },
+            openFile = { Buffer().apply { write("abc".encodeToByteArray()) } },
+        )
+
+        assertEquals(UploadOutcome.Uploaded, uploader.upload("41", "kept/practice-1.m4a"))
+        assertEquals(List(2) { "/api/practice-sessions/41/recording" }, requests.map { it.url.encodedPath })
+        bodies.forEach { assertContains(it, "abc") }
+    }
+
+    @Test
+    fun uploadRetriesWhenTheConnectionEndsWithoutAResponse() = runTest {
+        val uploader = HttpRecordingUploader(
+            client { if (requests.size == 1) null else HttpStatusCode.Accepted to "{}" },
+            fileSize = { 3 },
+            openFile = { Buffer().apply { write("abc".encodeToByteArray()) } },
+        )
+
+        assertEquals(UploadOutcome.Uploaded, uploader.upload("41", "kept/practice-1.m4a"))
+        assertEquals(List(2) { "/api/practice-sessions/41/recording" }, requests.map { it.url.encodedPath })
+        bodies.forEach { assertContains(it, "abc") }
+    }
+
+    @Test
+    fun repeatedUploadTimeoutKeepsRecordingForManualResend() = runTest {
+        val uploader = HttpRecordingUploader(
+            client { (if (requests.size <= 2) HttpStatusCode.RequestTimeout else HttpStatusCode.Accepted) to "{}" },
+            fileSize = { 3 },
+            openFile = { Buffer().apply { write("abc".encodeToByteArray()) } },
+        )
+        val files = FakeRecordingFiles("rec/practice-1.m4a")
+        val uploads = RecordingUploads(uploader, FakeKeyValueStore(), files, { 0L }, member)
+        val recording = PendingRecording("41", "rec/practice-1.m4a", 0L, memberId = "A")
+
+        assertEquals(SendResult.TimedOut, uploads.send(recording))
+        assertEquals(2, requests.size)
+        assertEquals(recording.copy(path = "kept/practice-1.m4a"), uploads.pending())
+        assertTrue(files.exists("kept/practice-1.m4a"))
+
+        assertEquals(SendResult.Sent, uploads.resend(recording))
+        assertEquals(List(3) { "/api/practice-sessions/41/recording" }, requests.map { it.url.encodedPath })
+        bodies.forEach { assertContains(it, "abc") }
+        assertEquals(listOf("kept/practice-1.m4a"), files.deleted)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun automaticRetrySharesTheOriginalUploadTimeLimit() = runTest {
+        val uploader = HttpRecordingUploader(
+            client {
+                if (requests.size == 1) {
+                    delay(90_000)
+                    HttpStatusCode.RequestTimeout to "{}"
+                } else {
+                    delay(60_000)
+                    HttpStatusCode.Accepted to "{}"
+                }
+            },
+            fileSize = { 3 },
+            openFile = { Buffer().apply { write("abc".encodeToByteArray()) } },
+        )
+
+        assertEquals(UploadOutcome.TimedOut, uploader.upload("41", "kept/practice-1.m4a"))
+        assertEquals(2, requests.size)
+        assertEquals(120_000L, testScheduler.currentTime)
     }
 
     @Test

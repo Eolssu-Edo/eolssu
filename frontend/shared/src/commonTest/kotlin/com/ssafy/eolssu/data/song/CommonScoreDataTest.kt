@@ -60,6 +60,53 @@ class CommonScoreDataTest {
         assertEquals(0, song.displayUnitAt(1, 0.75f)?.column)
     }
 
+    @Test fun aSustainedNoteCrossesColumnsWithoutChangingItsIdentityOrTiming() {
+        for (symbol in listOf("", "-")) {
+            val song = smallScoreSong(crossColumnScoreData(symbol)).copy(baseBpm = 30)
+            val sustained = song.timeline[1]
+            val continuation = song.displayUnits[4]
+            assertEquals(3, song.timeline.size)
+            assertEquals(listOf(0L, 1L, 12L), song.timeline.map { it.startTick })
+            assertEquals(listOf(1L, 11L, 4L), song.timeline.map { it.durationTick })
+            assertEquals(listOf(0, 1, null), song.timeline.map { it.noteIndex })
+            assertEquals(0, sustained.column)
+            assertEquals(1, continuation.column)
+            assertEquals(sustained, continuation.event)
+            assertEquals(symbol, continuation.symbol)
+            assertEquals(5500.0, song.eventDurationMs(sustained))
+            assertEquals(8000.0, song.durationMs())
+            val playing = PracticeUiState(song = song, position = 1, eventElapsedMs = 4000.0)
+            assertEquals(continuation, playing.currentScoreUnit)
+            assertEquals(ScorePosition(1, 0), playing.selectUnit(continuation).scoreSelection)
+        }
+    }
+
+    @Test fun crossColumnContinuationsStillRequireValidOriginsPitchAndCoveredTime() {
+        val source = crossColumnScoreData()
+        val continuation = source.columns[1].cells[0]
+        fun withContinuation(symbol: String = "", eventId: String = source.events[1].id) = source.copy(
+            columns = listOf(source.columns[0], source.columns[1].copy(cells = listOf(
+                continuation.copy(units = listOf(CommonScoreData.Unit(0, 0, symbol, eventId))),
+                source.columns[1].cells[1],
+            ))),
+        )
+        val invalid = listOf(
+            withContinuation(eventId = "missing"),
+            withContinuation(eventId = source.events.last().id), // The next event has not started.
+            withContinuation(symbol = "청황"), // Different pitch.
+            withContinuation(symbol = "청중"), // Same pitch, but not a new attack.
+            source.copy(events = listOf(source.events[0], source.events[1].copy(durationTick = 7),
+                source.events[2].copy(startTick = 8, durationTick = 8))),
+            source.copy(events = listOf(source.events[0], source.events[1].copy(cellId = "c1-j0"), source.events[2])),
+            source.copy(columns = listOf(source.columns[0].copy(cells = listOf(
+                source.columns[0].cells[0].copy(units = source.columns[0].cells[0].units.map {
+                    if (it.row == 0 && it.col == 1) it.copy(symbol = "") else it
+                }), source.columns[0].cells[1],
+            )), source.columns[1])),
+        )
+        invalid.forEach { input -> assertFailsWith<ScoreDataException> { input.toScore() } }
+    }
+
     @Test fun selectingAnAttackDoesNotSelectTheFollowingBlankCellWithTheSameEvent() {
         val song = smallScoreSong()
         val ready = PracticeUiState(song = song)
@@ -150,8 +197,21 @@ class CommonScoreDataTest {
 
 internal fun smallScoreSong(data: CommonScoreData = smallScoreData()): Song = Song(
     "db-42", "작은 검사 악보", SongLevel.Intro,
-    Jangdan("세마치", listOf(3, 3, 3), 3, 3), 60, "", false, null, data.toScore(),
+    Jangdan("세마치", listOf(3, 3, 3), 3, 3), 60, "", false, data.toScore(),
 )
+
+private fun crossColumnScoreData(symbol: String = ""): CommonScoreData {
+    val source = smallScoreData()
+    val sustained = source.events[1]
+    val rest = source.events.last().copy(id = "c1-j1-r0-u0", cellId = "c1-j1", startTick = 12)
+    return source.copy(
+        columns = listOf(source.columns[0], CommonScoreData.Column(1, listOf(
+            CommonScoreData.Cell("c1-j0", 0, listOf(CommonScoreData.Unit(0, 0, symbol, sustained.id))),
+            CommonScoreData.Cell("c1-j1", 1, listOf(CommonScoreData.Unit(0, 0, "쉼", rest.id))),
+        ))),
+        events = listOf(source.events[0], sustained.copy(durationTick = 11), rest),
+    )
+}
 
 internal fun smallScoreData(): CommonScoreData {
     val a = "c0-j0-r0-u0"

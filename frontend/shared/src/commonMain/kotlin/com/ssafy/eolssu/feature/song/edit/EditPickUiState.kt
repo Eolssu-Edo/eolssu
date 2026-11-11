@@ -3,11 +3,12 @@ package com.ssafy.eolssu.feature.song.edit
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongLevel
+import com.ssafy.eolssu.data.song.PublishedSheetCopyProblem
 import com.ssafy.eolssu.feature.song.SongSortOrder
 import com.ssafy.eolssu.feature.song.sortedByTitle
 
-/** 불러올 악보 목록의 탭. */
-enum class EditPickTab { Mine, Songs }
+/** 불러올 악보 목록의 탭. 화면에 이 순서(제공 곡 → 내 악보)로 놓는다. */
+enum class EditPickTab { Songs, Mine }
 
 /** 목록에서 고른 악보. */
 sealed interface EditPickTarget {
@@ -32,13 +33,15 @@ enum class EditPickLoad { NeedsInstrument, Loading, Ready, Failed }
 data class EditPickUiState(
     val instrument: Instrument? = null,
     val load: EditPickLoad = EditPickLoad.NeedsInstrument,
-    val tab: EditPickTab = EditPickTab.Mine,
+    val tab: EditPickTab = EditPickTab.Songs,
     val query: String = "",
     val sort: SongSortOrder = SongSortOrder.Ascending,
     val picked: EditPickTarget? = null,
     val sheets: List<MySheet> = emptyList(),
     val songs: List<EditPickSong> = emptyList(),
     val uncheckedSheets: Int = 0,
+    val copying: Boolean = false,
+    val copyProblem: PublishedSheetCopyProblem? = null,
 ) {
     /** 검색어가 이름에 든 제공 곡을 [sort] 순서로. 검색어 앞뒤 공백은 무시한다. */
     val visibleSongs: List<EditPickSong>
@@ -54,12 +57,12 @@ data class EditPickUiState(
             null -> null
         }
 
-    val canSelect: Boolean get() = load == EditPickLoad.Ready && pickedTitle != null
+    val canSelect: Boolean get() = load == EditPickLoad.Ready && !copying && pickedTitle != null
 
     /** 같은 줄을 다시 누르면 고름을 푼다. */
-    fun toggle(target: EditPickTarget): EditPickUiState = copy(picked = if (picked == target) null else target)
+    fun toggle(target: EditPickTarget): EditPickUiState = copy(picked = if (picked == target) null else target, copyProblem = null)
 
     /** 악기를 바꾸면 이전 악기의 목록과 고른 악보를 비우고 새로 받는다. 편집 전이라 버릴 작업은 없다. */
     fun chooseInstrument(next: Instrument): EditPickUiState =
-        copy(instrument = next, load = EditPickLoad.Loading, picked = null, sheets = emptyList(), songs = emptyList(), uncheckedSheets = 0)
+        copy(instrument = next, load = EditPickLoad.Loading, picked = null, sheets = emptyList(), songs = emptyList(), uncheckedSheets = 0, copyProblem = null)
 }

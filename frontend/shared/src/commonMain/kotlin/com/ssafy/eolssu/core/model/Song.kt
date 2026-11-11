@@ -10,7 +10,6 @@ enum class SongLevel { Intro, Elementary, Intermediate }
  *
  * @property id 서비스가 발급한 식별자. sourceId·악기 코드·이벤트 ID와 구분하며 임의로 재작성하지 않는다.
  * @property evaluable 음표·박자 기준 데이터가 있어 AI 연주 평가를 할 수 있는지. 아니면 혼자 연습만 할 수 있다.
- * @property solfege 이 곡·악기 기준의 율명 → 계이름 대응. 데이터가 없으면 null이고 계이름을 표시하지 않는다.
  */
 data class Song(
     val id: String,
@@ -20,7 +19,6 @@ data class Song(
     val baseBpm: Int,
     val description: String,
     val evaluable: Boolean,
-    val solfege: Map<Yul, String>?,
     val score: Score,
     val instrumentId: String? = null,
     val scoreVersion: Int? = null,

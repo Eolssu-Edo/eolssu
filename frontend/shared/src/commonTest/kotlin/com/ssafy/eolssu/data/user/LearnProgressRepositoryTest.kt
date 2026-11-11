@@ -98,11 +98,11 @@ class LearnProgressRepositoryTest {
     }
 
     @Test
-    fun doneStagesFollowPracticeInstrumentIncludingOptionalStage() = runTest {
-        api.completed["me"] = mutableSetOf(api.id("danso", 1), api.id("danso", 9), api.id("daegeum-sanjo", 3))
+    fun doneStagesFollowPracticeInstrumentUpToLastStage() = runTest {
+        api.completed["me"] = mutableSetOf(api.id("danso", 1), api.id("danso", 7), api.id("daegeum-sanjo", 3))
         val repository = repository()
 
-        assertEquals(setOf(1, 9), repository.doneStages(Instrument.Danso))
+        assertEquals(setOf(1, 7), repository.doneStages(Instrument.Danso))
         assertEquals(setOf(3), repository.doneStages(Instrument.DaegeumSanjo))
         assertEquals(emptySet(), repository.doneStages(Instrument.DaegeumJeongak))
     }
@@ -123,6 +123,6 @@ class LearnProgressRepositoryTest {
     @Test
     fun trackCodesMatchServer() {
         assertEquals(setOf("DANSO", "SOGEUM", "DAEGEUM_JEONGAK", "DAEGEUM_SANJO"), GuideInstrument.entries.map { lessonTrackCode(it.id) }.toSet())
-        assertEquals(9, LearnProgressRepository.STAGE_COUNT)
+        assertEquals(7, LearnProgressRepository.STAGE_COUNT)
     }
 }

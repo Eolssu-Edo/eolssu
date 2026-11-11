@@ -31,10 +31,9 @@ import com.ssafy.eolssu.feature.auth.component.AuthBody
 import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
-import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
-import com.ssafy.eolssu.feature.auth.component.AuthStepProgress
 import com.ssafy.eolssu.core.ui.component.EolssuTextField
-import com.ssafy.eolssu.feature.auth.component.AuthTopBar
+import com.ssafy.eolssu.feature.auth.component.PasswordChecklist
+import com.ssafy.eolssu.feature.auth.component.SignupTopBar
 import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
@@ -44,16 +43,13 @@ import eolssu.shared.generated.resources.auth_next
 import eolssu.shared.generated.resources.auth_password
 import eolssu.shared.generated.resources.auth_password_confirm
 import eolssu.shared.generated.resources.auth_password_confirm_placeholder
-import eolssu.shared.generated.resources.auth_password_help
 import eolssu.shared.generated.resources.auth_password_placeholder
 import eolssu.shared.generated.resources.auth_reset_done
 import eolssu.shared.generated.resources.auth_reset_password_heading
-import eolssu.shared.generated.resources.auth_reset_title
 import eolssu.shared.generated.resources.auth_signup_password_heading
-import eolssu.shared.generated.resources.auth_signup_title
 import org.jetbrains.compose.resources.stringResource
 
-/** AUTH-08 비밀번호 설정(가입 2/3)·AUTH-11 새 비밀번호(비밀번호 찾기 2/2). 인증한 이메일과 비밀번호 규칙을 함께 보인다. */
+/** AUTH-08 비밀번호 설정(이메일 가입 3/4)·AUTH-11 새 비밀번호(비밀번호 찾기 2/2). 인증한 이메일과 비밀번호 규칙을 함께 보인다. */
 @Composable
 fun PasswordSetupScreen(
     purpose: VerificationPurpose,
@@ -70,14 +66,8 @@ fun PasswordSetupScreen(
         authFrameOf(widthClass, split = true),
         modifier = Modifier.imePadding(),
         topBar = {
-            Column {
-                AuthTopBar(
-                    stringResource(if (signUp) Res.string.auth_signup_title else Res.string.auth_reset_title),
-                    onBack = onBack,
-                    right = { AuthStepLabel(2, purpose.stepCount) },
-                )
-                AuthStepProgress(2, purpose.stepCount)
-            }
+            val path = if (signUp) SignupPath.Email else SignupPath.PasswordReset
+            SignupTopBar(SignupProgress(path, SignupStep.Password), onBack = onBack)
         },
         bottomBar = { EolssuButton(stringResource(if (signUp) Res.string.auth_next else Res.string.auth_reset_done), onClick = onSubmit) },
     ) {
@@ -85,15 +75,19 @@ fun PasswordSetupScreen(
             AuthHeading(stringResource(if (signUp) Res.string.auth_signup_password_heading else Res.string.auth_reset_password_heading))
             VerifiedEmail(email)
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                EolssuTextField(
-                    value = state.password,
-                    onValueChange = onPasswordChange,
-                    label = stringResource(if (signUp) Res.string.auth_password else Res.string.auth_new_password),
-                    placeholder = stringResource(Res.string.auth_password_placeholder),
-                    type = TextFieldType.Password,
-                    help = stringResource(Res.string.auth_password_help),
-                    error = state.passwordError?.let { stringResource(it.message) },
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // 규칙 미충족은 문장 대신 체크리스트로 보이므로, 입력칸 오류 문장은 그 밖의 오류(미입력·128자 초과·재인증)만 쓴다.
+                    val ruleError = state.passwordError == FieldError.PasswordRule
+                    EolssuTextField(
+                        value = state.password,
+                        onValueChange = onPasswordChange,
+                        label = stringResource(if (signUp) Res.string.auth_password else Res.string.auth_new_password),
+                        placeholder = stringResource(Res.string.auth_password_placeholder),
+                        type = TextFieldType.Password,
+                        error = state.passwordError?.takeUnless { ruleError }?.let { stringResource(it.message) },
+                    )
+                    PasswordChecklist(state.password, highlightUnmet = ruleError)
+                }
                 EolssuTextField(
                     value = state.passwordConfirm,
                     onValueChange = onPasswordConfirmChange,

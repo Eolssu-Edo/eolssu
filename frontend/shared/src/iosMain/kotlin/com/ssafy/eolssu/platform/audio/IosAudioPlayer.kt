@@ -85,10 +85,15 @@ class IosAudioPlayer : AudioPlayer {
     override fun load(source: AudioSource, positionMs: Long, speed: Float) = dispatch {
         disposeMedia()
         _state.value = AudioPlaybackState(source.id, AudioPlaybackStatus.Loading, positionMs.coerceAtLeast(0))
-        val url = NSURL.URLWithString(source.url)
-        if (url == null || url.scheme != "https" || url.host.isNullOrBlank() || url.user != null || url.password != null ||
-            url.fragment != null || !validSpeed(speed) || positionMs !in 0..Int.MAX_VALUE.toLong()
-        ) return@dispatch fail()
+        if (!validSpeed(speed) || positionMs !in 0..Int.MAX_VALUE.toLong()) return@dispatch fail()
+        val localFile = source.localFile
+        val url = if (localFile == null) {
+            NSURL.URLWithString(source.url)?.takeIf {
+                it.scheme == "https" && !it.host.isNullOrBlank() && it.user == null && it.password == null && it.fragment == null
+            }
+        } else {
+            localFile.takeIf { source.url.isEmpty() }?.let { NSURL.fileURLWithPath(it.path) }
+        } ?: return@dispatch fail()
         this.speed = speed
         val current = AVPlayerItem(uRL = url).apply { audioTimePitchAlgorithm = AVAudioTimePitchAlgorithmSpectral }
         val media = AVPlayer(playerItem = current)

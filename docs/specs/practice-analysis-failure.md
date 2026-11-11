@@ -63,12 +63,14 @@
 ## 상태 조회와 시간 초과
 
 1. 업로드가 끝나 분석 시도가 시작되면 세션은 `PENDING`이다. 서버는 시도 시작 시각과 시도 번호를 `practice_sessions.analysis_started_at`·`analysis_attempt`에 기록한다([DB 스키마](../contracts/db-schema.md) V4, S15P31E102-173).
-2. 앱은 대기 화면에서 2초마다 상태를 조회하고, `DONE` 또는 `FAILED`를 받으면 조회를 멈춘다. 화면은 서버가 준 상태를 그대로 따른다.
+2. 앱은 즉시 상태를 조회한다. 업로드 접수 또는 분석 재시도 뒤 첫 8초 동안 성공한 `PENDING` 응답 뒤에는 최대 1초, 이후에는 2초 뒤에 다시 조회한다. `DONE` 또는 `FAILED`를 받으면 조회를 멈춘다. 화면은 서버가 준 상태를 그대로 따른다.
 3. 서버는 시도 시작 뒤 제한 시간이 지나면 세션을 `FAILED`/`TIMEOUT`으로 바꾼다. 제한 시간은 설정값이며 기본 60초다.
 4. 서버가 재시작돼도 `PENDING`은 끝나야 한다. 상태 조회 때 `PENDING`이 제한 시간을 넘었으면 그 자리에서 `TIMEOUT`으로 바꾼 뒤 응답한다.
 5. 현재 시도 번호와 다른 결과나 `TIMEOUT` 뒤에 도착한 결과는 버린다. 세션 상태와 평가 결과를 바꾸지 않는다.
 6. 앱이 70초 동안 상태 응답을 하나도 받지 못하면(네트워크 단절) 앱만 `TIMEOUT` 화면을 보여 준다. 서버 상태는 바꾸지 않는다.
-7. 앱이 백그라운드로 가거나 대기 화면을 벗어나도 분석은 서버에서 계속한다. 돌아오면 상태를 한 번 조회하고, `PENDING`이면 2초 조회를 다시 시작한다.
+7. 앱이 백그라운드로 가거나 대기 화면을 벗어나도 분석은 서버에서 계속한다. 돌아오면 상태를 즉시 조회한다. 처음 8초를 계산하는 기준 시각은 복귀할 때 유지한다.
+
+평가 화면은 서버 평가 응답의 총점·항목 점수를 먼저 표시할 수 있다. 오류 위치와 기록 저장은 일치하는 곡과 악보 버전이 준비된 뒤 제공한다. 같은 평가 흐름에서 앱에 전달한 곡은 버전이 일치할 때 재사용한다. [S15P31E102-661 구현 계획](../plans/S15P31E102-661.md)
 
 ## 분석 요청과 상태 조회 계약 (S15P31E102-186)
 
@@ -115,7 +117,7 @@ POST {AI}/v1/analyses
 
 - `result`: `sessionId`·`songId`(문자열), `bpm`·`bpmUnit`, `startNoteIdx`·`endNoteIdx`, `status`, `evaluationId`(문자열, 없으면 null), `failReason`, `recordingAvailable`(녹음 원본이 있고 기록을 지우지 않음), `startedAt`·`endedAt`(UTC ISO8601), `retryable`(`FAILED`이고 `TIMEOUT`·`SERVER_ERROR`), `savedAt`, `memo`.
 - 없거나 다른 회원의 세션은 404 `RESOURCE_NOT_FOUND`(공통 오류 형식). 다른 회원의 세션은 상태도 바꾸지 않는다.
-- (S15P31E102-342에서 구현) 기록을 지운 세션(REC-04)도 404다. 저장했고 지우지 않은 세션을 처음 조회하면 응답 전에 `viewed_at`을 한 번 기록한다(REC-02 `isNew`). 응답 필드는 같다. 자세한 계약은 [연습 기록 API](practice-records.md)를 따른다.
+- (S15P31E102-342에서 구현) 기록을 지운 세션(REC-04)도 404다. 저장했고 지우지 않은 세션을 처음 조회하면 응답 전에 `viewed_at`을 한 번 기록한다(REC-02 `isNew`). 745에서 `scoreVersion`·`songTitle`을 추가했다([판본 계약](published-score-history.md)). 자세한 계약은 [연습 기록 API](practice-records.md)를 따른다.
 - 점수·음표별 결과는 `DONE`일 때 결과 조회 API(`GET /api/practice-sessions/{sessionId}/evaluation`)로 받는다.
 
 **구현 상태(2026-10-29).** S15P31E102-186은 분석 실행 흐름, AI HTTP 클라이언트, 결과 저장까지, S15P31E102-174는 시간 초과·`SERVER_ERROR`·늦은 결과 무시와 저장소의 시간 초과 전환(`expireOverdue`)까지 구현했다. 상태 조회 API는 인증(S15P31E102-143)이 들어온 뒤 S15P31E102-186에서 붙였고, 조회한 시도가 마감을 넘겼을 때만 `GetPracticeSession`이 `expireOverdue`를 부른다. 업로드 뒤 분석 시작은 S15P31E102-186이 연결했고, 업로드(S15P31E102-181)가 이벤트 발행과 녹음 서명 URL을 구현했다.

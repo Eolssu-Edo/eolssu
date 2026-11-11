@@ -36,12 +36,14 @@ internal fun SongLookupContent(
     onRetry: () -> Unit,
     onBack: () -> Unit,
     resultLookup: Boolean = false,
+    header: (@Composable () -> Unit)? = null,
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        header?.invoke()
         if (lookup == SongLookup.Loading) CircularProgressIndicator()
         Text(
             stringResource(when {

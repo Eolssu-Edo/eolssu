@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.context
 import kotlinx.coroutines.async
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,17 +17,19 @@ import kotlinx.coroutines.launch
 class SectionSelectViewModel(
     private val sourceId: String,
     private val repository: WeakSectionRepository,
+    private val perf: PerformanceVisit? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SectionSelectUiState())
     val uiState: StateFlow<SectionSelectUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launch(perf.context()) {
             val picks = async { repository.weakSections(sourceId) }
             val source = repository.source(sourceId)
             val recommended = source?.let { picks.await()?.firstOrNull()?.toSection(it.song.score) }
+            val current = source?.let { repository.isCurrent(it) }
             _uiState.update {
-                it.copy(loading = false, song = source?.song, result = source?.evaluation, recommended = recommended, section = recommended)
+                it.copy(loading = false, song = source?.song, result = source?.evaluation, recommended = recommended, section = recommended, currentScore = current)
             }
         }
     }

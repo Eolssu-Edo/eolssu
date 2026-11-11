@@ -18,6 +18,9 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.storage.KeyValueStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,6 +32,7 @@ import kotlin.test.assertTrue
 /** 서버 분석 상태(PRA-03)와 평가 결과(평가 조회 API) 응답을 앱 모델로 바꾸는지. 서버는 MockEngine으로 대신한다. */
 class ApiEvaluationRepositoryTest {
     private val paths = mutableListOf<String>()
+    private var songReads = 0
 
     @Test fun changedScoreVersionAndNewMemberCannotReuseOldResult() = runTest {
         var version = 2
@@ -46,6 +50,65 @@ class ApiEvaluationRepositoryTest {
         assertEquals(3, paths.size)
     }
 
+    @Test fun screenScoresArriveBeforeSongLookupAndMatchingSongIsReused() = runTest {
+        val repo = repository {
+            HttpStatusCode.OK to """{"isSuccess":true,"result":{"sessionId":"41","songId":"2","scoreVersion":1,
+                "bpm":60,"startedAt":"2026-10-29T00:00:00Z","totalScore":80,"pitchScore":90,"timingScore":70,
+                "durationScore":80,"notes":[{"noteIdx":0,"verdict":"PITCH"}]}}"""
+        }
+        val prepared = checkNotNull(repo.resultForScreen("41", song))
+        assertEquals(80, prepared.scores.total)
+        assertEquals(listOf(90, 70, 80), prepared.scores.metrics.map { it.score })
+        assertTrue(prepared.scores.errors.isEmpty())
+        assertEquals(0, songReads)
+
+        val (result, loadedSong) = checkNotNull(prepared.loadDetails())
+        assertEquals(song, loadedSong)
+        assertEquals(1, result.errors.size)
+        assertEquals(0, songReads)
+
+        val staleSong = song.copy(scoreVersion = 2)
+        val refreshed = checkNotNull(repo.resultForScreen("41", staleSong))
+        assertEquals(0, songReads)
+        assertEquals(song, refreshed.loadDetails()?.second)
+        assertEquals(1, songReads)
+
+        val denied = repository { HttpStatusCode.NotFound to "{}" }
+        assertNull(denied.resultForScreen("41", song))
+        assertEquals(1, songReads)
+    }
+
+    @Test fun unsupportedNoteVerdictDoesNotHideScoresBeforeScoreMapping() = runTest {
+        val repo = repository {
+            HttpStatusCode.OK to """{"isSuccess":true,"result":{"sessionId":"41","songId":"2","scoreVersion":1,
+                "bpm":60,"startedAt":"2026-10-29T00:00:00Z","totalScore":80,"pitchScore":90,"timingScore":70,
+                "durationScore":80,"notes":[{"noteIdx":0,"verdict":"UNSUPPORTED"}]}}"""
+        }
+        val prepared = checkNotNull(repo.resultForScreen("41", song))
+        assertEquals(80, prepared.scores.total)
+        assertEquals(0, songReads)
+        assertFailsWith<IllegalArgumentException> { prepared.loadDetails() }
+        assertEquals(80, prepared.scores.total)
+    }
+
+    @Test fun preparedDetailsCannotBeLoadedAfterSigningInAgain() = runTest {
+        val member = SignedInMember(object : KeyValueStore {
+            private val values = mutableMapOf<String, String>()
+            override fun getString(key: String): String? = values[key]
+            override fun putString(key: String, value: String) { values[key] = value }
+        })
+        member.set("1")
+        val repo = repository(member) {
+            HttpStatusCode.OK to """{"isSuccess":true,"result":{"sessionId":"41","songId":"2","scoreVersion":1,
+                "bpm":60,"startedAt":"2026-10-29T00:00:00Z","totalScore":80,"pitchScore":90,"timingScore":70,
+                "durationScore":80,"notes":[]}}"""
+        }
+        val prepared = checkNotNull(repo.resultForScreen("41", initialSong = null))
+        member.set("1")
+        assertFailsWith<CancellationException> { prepared.loadDetails() }
+        assertEquals(0, songReads)
+    }
+
     /** 악보 시간축에 지속·쉼이 섞인 예시 곡을 서버 곡 ID "2"로 쓴다. */
     private val song: Song = SampleSongs.first { s -> s.timeline.any { it.note !is ScoreNote.Pitch } }.let { base ->
         var noteIndex = 0
@@ -58,10 +121,16 @@ class ApiEvaluationRepositoryTest {
         override suspend fun getInstruments() = emptyList<com.ssafy.eolssu.data.song.CatalogInstrument>()
         override suspend fun getSongs(instrumentId: String?) = listOf(song.toSummary())
 
-        override suspend fun getSong(songId: String) = song.takeIf { it.id == songId }
+        override suspend fun getSong(songId: String): Song? {
+            songReads++
+            return song.takeIf { it.id == songId }
+        }
     }
 
-    private fun repository(reply: (path: String) -> Pair<HttpStatusCode, String>?) = ApiEvaluationRepository(
+    private fun repository(
+        member: SignedInMember? = null,
+        reply: (path: String) -> Pair<HttpStatusCode, String>?,
+    ) = ApiEvaluationRepository(
         createHttpClient(
             MockEngine { request ->
                 paths += request.url.encodedPath
@@ -72,6 +141,7 @@ class ApiEvaluationRepositoryTest {
         ),
         songs,
         fallback = SampleEvaluationRepository(now = { 0L }, analysisMillis = 0),
+        member = member,
     )
 
     private fun session(status: String, failReason: String? = null) = HttpStatusCode.OK to

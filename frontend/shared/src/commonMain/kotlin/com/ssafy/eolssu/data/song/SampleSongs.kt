@@ -32,12 +32,6 @@ internal object SampleJangdans {
 
 private val Y = Yul.entries.associateBy { it.symbol }
 
-/** 교과서식 평조 대응 예시(황=솔). 이 곡·악기 기준 데이터가 있는 곡에만 계이름을 표시한다. */
-private val PyeongjoSolfege = mapOf(
-    Yul.Hwangjong to "솔", Yul.Taeju to "라", Yul.Jungnyeo to "도", Yul.Imjong to "레", Yul.Namnyeo to "미",
-    Yul.CheongHwangjong to "솔′", Yul.CheongTaeju to "라′",
-)
-
 private fun cell(vararg symbols: String) = ScoreCell(symbols.map { requireNotNull(ScoreNote.fromSymbol(it)) { it } })
 
 /** "黃"·"太仲"(한 정간을 나눈 음)처럼 적은 각 하나. 두 글자 율명은 없으므로 한 글자씩 끊는다. */
@@ -93,51 +87,51 @@ internal val SampleSongs: List<Song> = listOf(
     Song(
         id = "arirang", title = "아리랑", level = SongLevel.Intro, jangdan = SampleJangdans.Semachi, baseBpm = 60,
         description = "가장 널리 알려진 경기민요예요. 음 수가 적고 느려서 대금 첫 연습곡으로 알맞아요.",
-        evaluable = true, solfege = PyeongjoSolfege, score = Score(ArirangColumns + ArirangColumns.take(6)),
+        evaluable = true, score = Score(ArirangColumns + ArirangColumns.take(6)),
     ),
     Song(
         id = "doraji", title = "도라지타령", level = SongLevel.Intro, jangdan = SampleJangdans.Semachi, baseBpm = 66,
         description = "밝고 경쾌한 경기민요예요. 아리랑과 같은 세마치장단으로 박 감각을 익히기 좋아요.",
-        evaluable = true, solfege = PyeongjoSolfege, score = generateScore(11, 8, 9, "黃太仲林南潢"),
+        evaluable = true, score = generateScore(11, 8, 9, "黃太仲林南潢"),
     ),
     Song(
         id = "milyang", title = "밀양아리랑", level = SongLevel.Elementary, jangdan = SampleJangdans.Semachi, baseBpm = 76,
         description = "경상도 민요예요. 아리랑보다 빠르고 음의 오르내림이 커요.",
-        evaluable = true, solfege = null, score = generateScore(23, 10, 9, "黃太仲林南無潢"),
+        evaluable = true, score = generateScore(23, 10, 9, "黃太仲林南無潢"),
     ),
     Song(
         id = "niliriya", title = "늴리리야", level = SongLevel.Elementary, jangdan = SampleJangdans.Gutgeori, baseBpm = 54,
         description = "굿거리장단의 경기민요예요. 4박의 흥겨운 느낌을 익힐 수 있어요.",
-        evaluable = true, solfege = null, score = generateScore(37, 8, 12, "黃太仲林南潢"),
+        evaluable = true, score = generateScore(37, 8, 12, "黃太仲林南潢"),
     ),
     Song(
         id = "hanobaek", title = "한오백년", level = SongLevel.Intermediate, jangdan = SampleJangdans.Jungmori, baseBpm = 48,
         description = "강원도 민요예요. 느린 중모리장단에서 긴 음을 고르게 유지하는 연습이 돼요.",
-        evaluable = false, solfege = null, score = generateScore(41, 7, 12, "黃太仲林南無潢汰"),
+        evaluable = false, score = generateScore(41, 7, 12, "黃太仲林南無潢汰"),
     ),
     Song(
         id = "taryeong", title = "타령", level = SongLevel.Intermediate, jangdan = SampleJangdans.Taryeong, baseBpm = 60,
         description = "영산회상에 들어 있는 곡이에요. 12정간 한 각이 3·3·3·3 대강으로 나뉘어요.",
-        evaluable = true, solfege = null, score = generateScore(53, 9, 12, "黃太仲林南無潢汰"),
+        evaluable = true, score = generateScore(53, 9, 12, "黃太仲林南無潢汰"),
     ),
     Song(
         id = "dodeuri", title = "도드리", level = SongLevel.Intro, jangdan = SampleJangdans.Dodeuri, baseBpm = 80,
         description = "6정간 한 각의 짧은 장단이에요. 한 각이 그대로 한 줄에 보여요.",
-        evaluable = true, solfege = null, score = generateScore(61, 8, 6, "黃太仲林南潢"),
+        evaluable = true, score = generateScore(61, 8, 6, "黃太仲林南潢"),
     ),
     Song(
         id = "seryeongsan", title = "세령산", level = SongLevel.Intermediate, jangdan = SampleJangdans.Seryeongsan, baseBpm = 50,
         description = "10정간 한 각이 3·2·2·3 대강으로 나뉘어요. 한 각이 한 줄에 보여요.",
-        evaluable = true, solfege = null, score = generateScore(67, 6, 10, "黃太仲林南無潢"),
+        evaluable = true, score = generateScore(67, 6, 10, "黃太仲林南無潢"),
     ),
     Song(
         id = "gagok16", title = "가곡 (16박)", level = SongLevel.Intermediate, jangdan = SampleJangdans.Gagok16, baseBpm = 40,
         description = "16정간 한 각이 11·5 대강으로 나뉘어요. 한 각을 11정간·5정간 두 줄로 보여줘요.",
-        evaluable = true, solfege = null, score = generateScore(71, 5, 16, "黃太仲林南無潢汰"),
+        evaluable = true, score = generateScore(71, 5, 16, "黃太仲林南無潢汰"),
     ),
     Song(
         id = "yeominrak", title = "여민락", level = SongLevel.Intermediate, jangdan = SampleJangdans.Yeominrak, baseBpm = 45,
         description = "20정간 한 각이 6·4·4·6 대강으로 나뉘어요. 한 각을 6·4 / 4·6 두 줄로 보여줘요.",
-        evaluable = true, solfege = null, score = generateScore(79, 6, 20, "黃太仲林南無潢汰"),
+        evaluable = true, score = generateScore(79, 6, 20, "黃太仲林南無潢汰"),
     ),
 )

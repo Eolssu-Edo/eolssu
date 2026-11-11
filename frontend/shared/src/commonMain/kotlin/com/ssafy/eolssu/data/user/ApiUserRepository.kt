@@ -44,7 +44,7 @@ class ApiUserRepository(
         if (profileRevision.value != revision) return@inSession MemberResult.Unavailable
         state.value = UserProfile(result.nickname, result.email ?: email ?: state.value.email, result.linkedProviders.mapNotNull { provider ->
             SocialProvider.entries.firstOrNull { it.name.equals(provider.provider, ignoreCase = true) }
-        }.toSet(), result.instrumentId, result.notationMode, result.hasPassword)
+        }.toSet(), result.instrumentId, result.notationMode, result.hasPassword, ProfileImage.fromKey(result.profileImage))
         if (instruments != null && !instruments.applyServerId(result.instrumentId)) return@inSession MemberResult.Unavailable
         return@inSession MemberResult.Done
     }
@@ -72,6 +72,20 @@ class ApiUserRepository(
         val result = response.apiResponse<Nickname>()?.takeIf { it.isSuccess }?.result ?: return@inSession MemberResult.Unavailable
         profileRevision.updateAndGet { it + 1 }
         state.value = state.value.copy(nickname = result.nickname)
+        return@inSession MemberResult.Done
+    }
+
+    override suspend fun changeProfileImage(image: ProfileImage): MemberResult = member.inSession {
+        val generation = sessionGeneration.value
+        val response = client.sendOrNull {
+            patch("/api/users/me/profile-image") { contentType(ContentType.Application.Json); setBody(ProfileImageBody(image.key)) }
+        } ?: return@inSession MemberResult.Unavailable
+        if (response.status.value != 200) return@inSession memberFailure(response.status.value)
+        val saved = response.apiResponse<ProfileImageBody>()?.takeIf { it.isSuccess }?.result ?: return@inSession MemberResult.Unavailable
+        if (sessionGeneration.value != generation) return@inSession MemberResult.Unauthenticated
+        if (saved.profileImage != image.key) return@inSession MemberResult.Unavailable
+        profileRevision.updateAndGet { it + 1 }
+        state.value = state.value.copy(profileImage = image)
         return@inSession MemberResult.Done
     }
 
@@ -205,6 +219,7 @@ class ApiUserRepository(
         val linkedProviders: List<Provider> = emptyList(),
         val email: String? = null,
         val hasPassword: Boolean? = null,
+        val profileImage: String? = null,
     )
     @Serializable private class WithdrawalTicket(val withdrawalTicket: String)
     @Serializable private class WithdrawalTicketBody(val withdrawalTicket: String)
@@ -213,6 +228,7 @@ class ApiUserRepository(
     @Serializable private class Preferences(val instrumentId: String, val notationMode: String)
     @Serializable private class Provider(val provider: String)
     @Serializable private class Nickname(val nickname: String)
+    @Serializable private class ProfileImageBody(val profileImage: String)
     @Serializable private class PasswordChange(val currentPassword: String, val newPassword: String)
     @Serializable private class CurrentPassword(val currentPassword: String)
     @Serializable private class PasswordChanged(val changed: Boolean)

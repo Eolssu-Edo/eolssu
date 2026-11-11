@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.practice.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
@@ -30,11 +31,13 @@ import com.ssafy.eolssu.feature.practice.PracticeUiState
 import eolssu.shared.generated.resources.jangdan_practice_label
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_eval_title
+import eolssu.shared.generated.resources.practice_menu_notation
 import eolssu.shared.generated.resources.practice_settings
 import eolssu.shared.generated.resources.practice_subtitle
 import eolssu.shared.generated.resources.practice_subtitle_mine
 import eolssu.shared.generated.resources.practice_subtitle_solo
 import eolssu.shared.generated.resources.practice_title
+import eolssu.shared.generated.resources.practice_title_fingering
 import org.jetbrains.compose.resources.stringResource
 
 /** 상단 제목: 혼자 연습·내 악보 연습은 ‘연습’, 평가 연습은 ‘연주 평가’. */
@@ -78,20 +81,43 @@ fun PracticeTopBar(
 /**
  * 본문 첫 줄(`.section-row`): 곡 제목(Song Myung 25sp, 운지법과 함께 보기는 22sp)과 오른쪽 `.pill` ‘{악기} · {난이도}’.
  * 연습 모드는 ‘{악기} · 연습 모드’, 내 악보 연습은 ‘{악기} · 내 악보’다.
- * [showPill]이 false이면(휴대폰 연습 화면) 오른쪽을 비워 둔다. 상태 문구는 두지 않는다.
+ * [showPill]이 false이면(휴대폰 연습 화면) 오른쪽을 비워 둔다. 상태 문구(‘연습 준비’·‘연주 중’ 등)는 어느 화면에도 두지 않는다.
+ * [toggles]가 있으면(연주 평가 휴대폰 화면, S15P31E102-716) 제목 아래 줄 오른쪽에 ‘운지법 보기’·‘쉬운 표기’ 스위치를 둔다.
+ * 곡 제목은 어느 경우에도 한 줄이고, 다 들어가지 않을 때만 왼쪽으로 흘린다(S15P31E102-730).
  */
 @Composable
-fun PracticeTitleRow(state: PracticeUiState, modifier: Modifier = Modifier, showPill: Boolean = true) {
+fun PracticeTitleRow(
+    state: PracticeUiState,
+    modifier: Modifier = Modifier,
+    showPill: Boolean = true,
+    toggles: PracticeTitleToggles? = null,
+) {
     val song = state.song ?: return
     val instrument = stringResource(state.instrument.label)
     val pill = if (state.mine) stringResource(Res.string.practice_subtitle_mine, instrument)
         else if (state.solo) stringResource(Res.string.practice_subtitle_solo, instrument)
         else stringResource(Res.string.practice_subtitle, instrument, songLevelLabel(song.level))
+    if (toggles != null) {
+        // 연주 평가는 들어오자마자 카운트다운·연주로 이어지므로 연주 중에도 바로 바꾼다. 표시만 바뀌고 평가는 멈추지 않는다.
+        // 제목은 토글에 밀려 줄바꿈되지 않게 한 줄을 다 쓰고(S15P31E102-730), 스위치는 그 아래 줄 오른쪽에 둔다.
+        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            PageHeading(state.title, Modifier.fillMaxWidth(), compact = state.fingeringView, singleLine = true)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.weight(1f))
+                PracticeMiniToggle(stringResource(Res.string.practice_title_fingering), state.fingeringView, toggles.onToggleFingering)
+                PracticeMiniToggle(stringResource(Res.string.practice_menu_notation), state.settings.showHangul, toggles.onToggleNotation)
+            }
+        }
+        return
+    }
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PageHeading(state.title, Modifier.weight(1f), compact = state.fingeringView)
+        PageHeading(state.title, Modifier.weight(1f), compact = state.fingeringView, singleLine = true)
         if (showPill) PracticePill(pill)
     }
 }
+
+/** 연주 평가 제목 옆 스위치 동작(S15P31E102-716). */
+class PracticeTitleToggles(val onToggleFingering: () -> Unit, val onToggleNotation: () -> Unit)
 
 /** `.pill`: 연두 20% 바탕에 10sp 600 짙은 연두 글자, 반지름 4, 여백 3·7. */
 @Composable

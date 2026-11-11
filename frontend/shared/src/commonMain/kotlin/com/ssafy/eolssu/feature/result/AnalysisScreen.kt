@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.SessionSection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -64,10 +66,14 @@ import eolssu.shared.generated.resources.analysis_retry_busy
 import eolssu.shared.generated.resources.analysis_running_body
 import eolssu.shared.generated.resources.analysis_running_title
 import eolssu.shared.generated.resources.analysis_title
+import eolssu.shared.generated.resources.analysis_upload_connection_failed
 import eolssu.shared.generated.resources.analysis_upload_failed_title
 import eolssu.shared.generated.resources.analysis_upload_kept
 import eolssu.shared.generated.resources.analysis_upload_missing
 import eolssu.shared.generated.resources.analysis_upload_rejected
+import eolssu.shared.generated.resources.analysis_upload_server_error
+import eolssu.shared.generated.resources.analysis_upload_timed_out
+import eolssu.shared.generated.resources.analysis_upload_unreachable
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -80,16 +86,18 @@ fun AnalysisRoute(
     bpm: Int,
     take: RecordedTake?,
     pendingSessionId: String?,
-    onResult: (evaluationId: String) -> Unit,
+    onResult: (evaluationId: String, song: Song?) -> Unit,
     onBackToPractice: () -> Unit,
     onExit: (AnalysisExit) -> Unit,
     section: SessionSection? = null,
+    initialSong: Song? = null,
+    perf: PerformanceVisit? = null,
     viewModel: AnalysisViewModel = koinViewModel(key = "analysis-$songId-$bpm-${take?.key ?: pendingSessionId}") {
-        parametersOf(songId, bpm, take, pendingSessionId, section)
+        parametersOf(songId, bpm, take, pendingSessionId, section, initialSong, perf)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    LaunchedEffect(state.evaluationId) { state.evaluationId?.let(onResult) }
+    LaunchedEffect(state.evaluationId) { state.evaluationId?.let { onResult(it, state.song) } }
     LaunchedEffect(state.exit) { state.exit?.let(onExit) }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.resume() }
@@ -200,6 +208,10 @@ fun AnalysisScreen(
                     }
                     if (!stopped) state.song?.let { LiteBadge(it.title) }
                     val lines = when {
+                        upload?.retryable == true -> listOf(
+                            stringResource(upload.messageRes()),
+                            stringResource(Res.string.analysis_upload_kept),
+                        )
                         upload != null -> listOf(stringResource(upload.messageRes()))
                         failure != null && failure.retryable -> listOf(
                             stringResource(failure.messageRes()),
@@ -218,7 +230,7 @@ fun AnalysisScreen(
                         Modifier.padding(top = 6.dp).fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        if (upload == UploadProblem.CanResend) {
+                        if (upload?.retryable == true) {
                             EolssuButton(stringResource(Res.string.analysis_resend), onResend, busy = state.resending)
                             EolssuButton(
                                 stringResource(Res.string.analysis_back_to_practice), onBackToPractice,
@@ -242,7 +254,10 @@ fun AnalysisScreen(
 
 /** 녹음을 보내지 못한 사유별 안내 문구 리소스. */
 internal fun UploadProblem.messageRes(): StringResource = when (this) {
-    UploadProblem.CanResend -> Res.string.analysis_upload_kept
+    UploadProblem.CanResend -> Res.string.analysis_upload_unreachable
+    UploadProblem.TimedOut -> Res.string.analysis_upload_timed_out
+    UploadProblem.ConnectionFailed -> Res.string.analysis_upload_connection_failed
+    UploadProblem.ServerError -> Res.string.analysis_upload_server_error
     UploadProblem.Rejected -> Res.string.analysis_upload_rejected
     UploadProblem.Missing -> Res.string.analysis_upload_missing
 }
