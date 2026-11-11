@@ -117,6 +117,7 @@ private fun DeleteSheetDialog(sheet: MySheet, actions: MySongsActions) {
 private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHostState, actions: MySongsActions, instrumentPicker: @Composable () -> Unit) {
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
+        containerColor = EolssuTheme.colors.groupedBackground,
         topBar = {
             EolssuTopBar(
                 stringResource(Res.string.mysongs_title),
@@ -151,11 +152,11 @@ internal fun MySongsBody(
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         MySongsTabSwitch(state.tab, state.songs.size, state.sheetCount, actions.onSelectTab, Modifier.padding(top = 4.dp))
-        SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery)
+        SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery, bordered = false)
         val searching = state.query.isNotBlank()
         when (state.tab) {
             MySongsTab.Songs -> {
-                SongLevelChips(state.filter, actions.onSelectFilter, singleLine = true)
+                SongLevelChips(state.filter, actions.onSelectFilter, singleLine = true, bordered = false)
                 if (state.loadState != SongLoadState.Ready || state.songs.isEmpty()) {
                     SongLoadNotice(state.loadState, actions.onRetry)
                 } else if (state.visibleSongs.isEmpty()) {
@@ -168,9 +169,9 @@ internal fun MySongsBody(
                     )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SongSortButton(state.sort, actions.onToggleSort, Modifier.align(Alignment.End), small = true)
+                        SongSortButton(state.sort, actions.onToggleSort, Modifier.align(Alignment.End), small = true, bordered = false)
                         CardGrid(state.visibleSongs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
-                            ProvidedSongRow(song, providedSongMeta(song), onClick = { actions.onOpenSong(song.id) }, modifier = rowModifier)
+                            ProvidedSongRow(song, providedSongMeta(song), onClick = { actions.onOpenSong(song.id) }, modifier = rowModifier, bordered = false)
                         }
                     }
                 }
@@ -201,6 +202,7 @@ internal fun MySongsBody(
                                 retrying = sheet.id in state.retrying,
                                 onRetryConversion = { actions.onRetryConversion(sheet) },
                                 onReimport = { actions.onReimportSheet(sheet) },
+                                bordered = false,
                             )
                         }
                     }

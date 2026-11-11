@@ -6,7 +6,7 @@ import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.inAccount
 import com.ssafy.eolssu.core.network.screenScope
 import com.ssafy.eolssu.data.user.MemberResult
-import com.ssafy.eolssu.data.user.ProfileImage
+import com.ssafy.eolssu.core.model.ProfileImage
 import com.ssafy.eolssu.data.user.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

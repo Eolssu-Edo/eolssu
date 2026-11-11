@@ -3,6 +3,9 @@ package com.ssafy.eolssu.data.user
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.KeyValueStore
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,10 +38,16 @@ class LearnProgressRepository(
      * [trackId](학습 화면 악기 식별자)의 단계와 본인 완료 표시. 이 기기에 남은 완료 표시가 있으면 먼저 올려 합친 결과다.
      * 목록을 받지 못하면 null이고, 기기 표시는 그대로 남는다.
      */
-    suspend fun track(trackId: String): LessonTrack? = upload.withLock {
-        val track = api.track(trackId) ?: return@withLock null
+    suspend fun track(trackId: String): LessonTrack? {
+        // 올릴 기기 표시가 없으면 잠그지 않아 여러 트랙을 한꺼번에 받을 수 있다(마이페이지 진도 뱃지, S15P31E102-768).
+        if (deviceStages(trackId).isEmpty()) return api.track(trackId)
+        return upload.withLock { uploadDeviceStages(trackId) }
+    }
+
+    private suspend fun uploadDeviceStages(trackId: String): LessonTrack? {
+        val track = api.track(trackId) ?: return null
         val pending = deviceStages(trackId)
-        if (pending.isEmpty()) return@withLock track
+        if (pending.isEmpty()) return track
         val left = mutableSetOf<Int>()
         var uploaded = false
         val items = track.items.map { item ->
@@ -54,7 +63,7 @@ class LearnProgressRepository(
         // 서버에 없는 단계 번호는 올릴 곳이 없어 버린다.
         saveDeviceStages(trackId, left)
         if (uploaded) _saves.update { it + 1 }
-        track.copy(items = items, completedCount = items.count { it.completed && !it.optional })
+        return track.copy(items = items, completedCount = items.count { it.completed && !it.optional })
     }
 
     /** LRN-02 단계 상세. */
@@ -81,18 +90,44 @@ class LearnProgressRepository(
      * 네 악기 진도를 모두 받아 서버 완료 시각이 가장 늦은 단계의 악기를 고른다. 완료 기록이 없으면 [fallback](연습 악기)이다.
      * 한 악기라도 받지 못하면 null이다.
      */
-    suspend fun recentProgress(fallback: Instrument): RecentLearning? {
-        val tracks = Instrument.entries.associateWith { instrument ->
-            instrument.learnIds.map { track(it) ?: return null }
-        }
+    suspend fun recentProgress(fallback: Instrument): RecentLearning? = recentProgress { fallback }
+
+    /**
+     * [recentProgress]와 같되, 연습 악기는 완료 기록이 하나도 없을 때만 [fallback]으로 묻는다(내 정보를 받기 전에 진도부터 받는다).
+     * 트랙은 한꺼번에 받는다. [fallback]이 null이면 null이다.
+     */
+    suspend fun recentProgress(fallback: suspend () -> Instrument?): RecentLearning? {
+        val ids = Instrument.entries.flatMap { it.learnIds }.distinct()
+        val loaded = coroutineScope { ids.map { id -> async { id to track(id) } }.awaitAll() }.toMap()
+        if (loaded.values.any { it == null }) return null
+        val tracks = Instrument.entries.associateWith { instrument -> instrument.learnIds.map { loaded.getValue(it)!! } }
         val latest = tracks.mapNotNull { (instrument, list) ->
             list.flatMap { it.items }.mapNotNull { item -> item.completedAt?.let { runCatching { Instant.parse(it) }.getOrNull() } }
                 .maxOrNull()?.let { instrument to it }
         }.maxByOrNull { it.second }?.first
-        val instrument = latest ?: fallback
+        val instrument = latest ?: fallback() ?: return null
         val stages = tracks.getValue(instrument).flatMap { track -> track.items.filter { it.completed }.map { it.seq } }
-        return RecentLearning(instrument, stages.filter { it in 1..STAGE_COUNT }.toSet())
+        return RecentLearning(instrument, stages.filter { it in 1..STAGE_COUNT }.toSet()).also(::saveRecent)
     }
+
+    /**
+     * 마지막으로 받은 [recentProgress] 결과(S15P31E102-768). 마이페이지가 서버 응답을 기다리지 않고 진도 뱃지를 바로 그릴 때 쓴다.
+     * 이 기기에 회원마다 남기며, 받은 적이 없거나 로그인 정보가 없으면 null이다.
+     */
+    fun cachedRecent(): RecentLearning? {
+        val value = recentKey()?.let(store::getString) ?: return null
+        val instrument = Instrument.entries.firstOrNull { it.name == value.substringBefore(':') } ?: return null
+        val stages = value.substringAfter(':', "").split(SEPARATOR).mapNotNull { it.toIntOrNull() }.filter { it in 1..STAGE_COUNT }.toSet()
+        return RecentLearning(instrument, stages)
+    }
+
+    private fun saveRecent(recent: RecentLearning) {
+        val key = recentKey() ?: return
+        store.putString(key, recent.instrument.name + ":" + recent.stages.sorted().joinToString(SEPARATOR))
+    }
+
+    private fun recentKey(): String? = if (member == null) "learn_recent"
+        else member.id?.let { "learn_recent_member_${it.length}_$it" }
 
     /** 이 기기에 남아 아직 올리지 못한 완료 표시. */
     internal fun deviceStages(trackId: String): Set<Int> =

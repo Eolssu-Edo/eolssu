@@ -80,8 +80,10 @@ internal fun ComparePickSheet(pick: ComparePick, onDismiss: () -> Unit, onPick: 
     val colors = EolssuTheme.colors
     var shownDay by remember(pick.current.id) { mutableLongStateOf(pick.initialDay) }
     var month by remember(pick.current.id) { mutableStateOf(CompareMonth.of(KoreanDateTime.ofEpochDay(pick.initialDay))) }
+    // 연습 설정 시트처럼 회색 시트 위에 달력을 흰 카드로 담는다(S15P31E102-768).
     EolssuBottomSheet(
         onDismiss = onDismiss,
+        containerColor = colors.groupedBackground,
         header = {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -97,7 +99,10 @@ internal fun ComparePickSheet(pick: ComparePick, onDismiss: () -> Unit, onPick: 
             Text(stringResource(Res.string.weak_compare_none), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), color = colors.textSub)
             return@EolssuBottomSheet
         }
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(
+            Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             MonthNavigation(month, canPrev = month > pick.firstMonth, canNext = month < pick.lastMonth, onMove = { month = month.plus(it) })
             // Web은 문자열 리소스를 비동기로 읽어 첫 그림에서 빈 문자열이 올 수 있으므로 인덱스로 바로 꺼내지 않는다.
             val weekdays = stringResource(Res.string.weak_compare_weekdays).map(Char::toString)
@@ -169,7 +174,7 @@ private fun MonthArrow(icon: androidx.compose.ui.graphics.vector.ImageVector, la
 }
 
 /**
- * 달력의 하루(40dp · 반지름 10): 보고 있는 날 연두 · 녹음한 날 흰 바탕 테두리 + 먹색 점 · 이번 기록 날 먹색 테두리 + 연두 점 ·
+ * 달력의 하루(40dp · 반지름 10): 보고 있는 날 연두 · 녹음한 날 회색 채움 + 먹색 점 · 이번 기록 날 연한 연두 채움 + 연두 점 ·
  * 이번 기록 이후 날은 더 흐린 글자. 녹음한 날만 누를 수 있다.
  */
 @Composable
@@ -183,10 +188,11 @@ private fun DayButton(day: CompareDay, on: Boolean, onClick: () -> Unit, modifie
         day.after -> stringResource(Res.string.weak_compare_day_after, dateLabel)
         else -> stringResource(Res.string.weak_compare_day_empty, dateLabel)
     }
+    // 테두리 없이 바탕색으로 나눈다(S15P31E102-768): 보고 있는 날 연두, 녹음한 날 회색 채움, 이번 기록 날은 연한 연두.
     val (background, border) = when {
-        on -> colors.accent to colors.accent
-        has -> colors.surface to colors.lineSoft
-        day.current -> colors.background to colors.text
+        on -> colors.accent to Color.Transparent
+        has -> colors.groupedBackground to Color.Transparent
+        day.current -> colors.accentTint to Color.Transparent
         else -> Color.Transparent to Color.Transparent
     }
     val text = when {
@@ -218,7 +224,7 @@ private fun DayButton(day: CompareDay, on: Boolean, onClick: () -> Unit, modifie
     }
 }
 
-/** 기록 칸(52dp · 반지름 14): 왼쪽 시간, 오른쪽 점수(명조), 끝에 ›. 지금 비교 중인 기록은 연두 바탕·테두리. */
+/** 기록 칸(52dp · 반지름 14): 왼쪽 시간, 오른쪽 점수(명조), 끝에 ›. 회색 시트 위 테두리 없는 흰 칸이고 지금 비교 중인 기록은 연한 연두 채움. */
 @Composable
 private fun RecordRow(record: PracticeRecord, on: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
@@ -232,7 +238,6 @@ private fun RecordRow(record: PracticeRecord, on: Boolean, onClick: () -> Unit) 
         },
         shape = RoundedCornerShape(14.dp),
         color = if (on) colors.accentTint else colors.surface,
-        border = BorderStroke(1.dp, if (on) colors.accent else colors.lineSoft),
     ) {
         Row(
             Modifier.clearAndSetSemantics {}.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),

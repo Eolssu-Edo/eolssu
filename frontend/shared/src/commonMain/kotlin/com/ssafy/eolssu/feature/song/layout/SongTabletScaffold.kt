@@ -17,6 +17,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -62,13 +63,14 @@ internal fun SongTabletScaffold(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     topBarRight: @Composable RowScope.() -> Unit = {},
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
+    containerColor: Color = EolssuTheme.colors.background,
     content: @Composable (gutter: Dp) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val gutter = tabletGutter(maxWidth, expanded)
         val windowWidth = maxWidth
         Scaffold(
-            containerColor = EolssuTheme.colors.background,
+            containerColor = containerColor,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 Box(Modifier.windowInsetsPadding(WindowInsets.statusBars)) {
