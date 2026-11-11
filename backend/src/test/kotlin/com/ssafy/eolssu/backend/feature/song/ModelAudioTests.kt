@@ -53,6 +53,7 @@ class ModelAudioTests {
         mvc.perform(get("/api/songs/${audio.songId}/model-audio"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.result.audioUrl").value("/api/songs/${audio.songId}/model-audio/play"))
+            .andExpect(jsonPath("$.result.playbackRevisionSupported").value(true))
     }
 
     @Test fun `missing audio is 404 and malformed ids are common 400`() {
@@ -98,6 +99,45 @@ class ModelAudioTests {
         stored = null
         mvc.perform(get("/api/songs/${audio.songId}/model-audio/play")).andExpect(status().isNotFound)
         assertEquals(1, storageCalls)
+    }
+
+    @Test fun `playback only signs the publication requested by the app`() {
+        val play = "/api/songs/${audio.songId}/model-audio/play"
+        val request = {
+            get(play).param("expectedScoreVersion", audio.scoreVersion.toString())
+                .param("expectedAudioSha256", audio.sha256)
+        }
+        for (replacement in listOf(audio.copy(scoreVersion = 4), audio.copy(sha256 = "b".repeat(64)))) {
+            stored = replacement
+            mvc.perform(request())
+                .andExpect(status().isConflict)
+                .andExpect(header().doesNotExist("Location"))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.result.errorCode").value("STATE_CONFLICT"))
+        }
+        assertEquals(0, storageCalls)
+
+        stored = audio
+        mvc.perform(request()).andExpect(status().isFound)
+            .andExpect(header().string("Location", "https://private.example.test/signed?token=temporary"))
+        assertEquals(1, storageCalls)
+    }
+
+    @Test fun `playback requires both well formed revision parameters if either is present`() {
+        val play = "/api/songs/${audio.songId}/model-audio/play"
+        val malformed = listOf(
+            get(play).param("expectedScoreVersion", "3"),
+            get(play).param("expectedAudioSha256", audio.sha256),
+            get(play).param("expectedScoreVersion", "03").param("expectedAudioSha256", audio.sha256),
+            get(play).param("expectedScoreVersion", "2147483648").param("expectedAudioSha256", audio.sha256),
+            get(play).param("expectedScoreVersion", "3").param("expectedAudioSha256", "A".repeat(64)),
+        )
+        for (request in malformed) {
+            mvc.perform(request).andExpect(status().isBadRequest)
+                .andExpect(header().doesNotExist("Location"))
+                .andExpect(jsonPath("$.result.errorCode").value("INVALID_REQUEST"))
+        }
+        assertEquals(0, storageCalls)
     }
 
     @Test fun `performance requires matching source hash and is returned as raw same origin JSON`() {
