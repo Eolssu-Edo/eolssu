@@ -6,6 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -43,6 +48,9 @@ import com.ssafy.eolssu.feature.profile.MyLearningProgress
 import com.ssafy.eolssu.feature.profile.MyRecentPractice
 import com.ssafy.eolssu.feature.profile.MyRecentPracticeStatus
 import eolssu.shared.generated.resources.*
+import com.ssafy.eolssu.data.user.ProfileImage
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -78,24 +86,86 @@ internal fun MyPageCardTitle(title: String, modifier: Modifier = Modifier, trail
     }
 }
 
-/** 프로필 얼굴 자리: 홈 '기초 배우기' 카드의 호랑이 얼굴을 흰 원 안에 둔다. 테두리 없이 회색 바탕과의 명도 차이로 원을 드러낸다. */
+/** 절쑤 그림 12종의 그림(S15P31E102-738). 얼굴과 갓이 원 가운데 오도록 자른 정사각형이다. */
+internal val ProfileImage.drawable: DrawableResource
+    get() = when (this) {
+        ProfileImage.Hello -> Res.drawable.profile_tiger_hello
+        ProfileImage.Danso -> Res.drawable.profile_tiger_danso
+        ProfileImage.Study -> Res.drawable.profile_tiger_study
+        ProfileImage.Look -> Res.drawable.profile_tiger_look
+        ProfileImage.Great -> Res.drawable.profile_tiger_great
+        ProfileImage.Jangdan -> Res.drawable.profile_tiger_jangdan
+        ProfileImage.Again -> Res.drawable.profile_tiger_again
+        ProfileImage.Surprise -> Res.drawable.profile_tiger_surprise
+        ProfileImage.Proud -> Res.drawable.profile_tiger_proud
+        ProfileImage.Okay -> Res.drawable.profile_tiger_okay
+        ProfileImage.Rest -> Res.drawable.profile_tiger_rest
+        ProfileImage.Done -> Res.drawable.profile_tiger_done
+    }
+
+/** 절쑤 그림 12종의 이름(고르기 화면·화면 낭독). */
+internal val ProfileImage.label: StringResource
+    get() = when (this) {
+        ProfileImage.Hello -> Res.string.my_profile_image_hello
+        ProfileImage.Danso -> Res.string.my_profile_image_danso
+        ProfileImage.Study -> Res.string.my_profile_image_study
+        ProfileImage.Look -> Res.string.my_profile_image_look
+        ProfileImage.Great -> Res.string.my_profile_image_great
+        ProfileImage.Jangdan -> Res.string.my_profile_image_jangdan
+        ProfileImage.Again -> Res.string.my_profile_image_again
+        ProfileImage.Surprise -> Res.string.my_profile_image_surprise
+        ProfileImage.Proud -> Res.string.my_profile_image_proud
+        ProfileImage.Okay -> Res.string.my_profile_image_okay
+        ProfileImage.Rest -> Res.string.my_profile_image_rest
+        ProfileImage.Done -> Res.string.my_profile_image_done
+    }
+
+/** 흰 원 안의 절쑤 그림. [ring]을 주면 원 바깥에 3dp 테두리를 두른다(고른 그림). */
 @Composable
-internal fun MyPageAvatar() {
+internal fun ProfileImageCircle(image: ProfileImage, size: Dp, ring: Color? = null) {
+    val colors = EolssuTheme.colors
     Box(
-        Modifier.size(84.dp).clip(CircleShape).background(EolssuTheme.colors.surface),
-        contentAlignment = Alignment.TopCenter,
+        Modifier
+            .size(size)
+            .then(if (ring != null) Modifier.border(3.dp, ring, CircleShape) else Modifier)
+            .padding(if (ring != null) 5.dp else 0.dp)
+            .clip(CircleShape)
+            .background(colors.surface),
     ) {
-        // 홈과 공유하는 전신 그림에서 얼굴과 갓이 원 안에 들어오게 배치한다(56dp 원의 74dp·5,13 배치를 같은 비율로 키움).
-        Image(
-            painterResource(Res.drawable.home_tiger),
-            contentDescription = null,
-            modifier = Modifier.requiredSize(111.dp).offset(x = 7.5.dp, y = 19.5.dp),
-            alignment = Alignment.TopCenter,
-        )
+        Image(painterResource(image.drawable), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     }
 }
 
-/** 닉네임 아래 '기초부터 배우기' 진도 뱃지: 흰 알약에 짙은 연두 글자로 다음에 배울 단계(모두 마치면 완료)를 적는다. */
+/**
+ * 마이페이지 얼굴 원(84dp): 고른 절쑤 그림 오른쪽 아래에 작은 연필 뱃지를 두고, 원 전체를 누르면 [onEdit]으로 그림 고르기를 연다.
+ * 뱃지는 바탕색 테두리로 원과 떨어져 보이게 한다.
+ */
+@Composable
+internal fun MyPageAvatar(image: ProfileImage, onEdit: () -> Unit) {
+    val colors = EolssuTheme.colors
+    val description = stringResource(Res.string.my_profile_image_edit)
+    Box(Modifier.size(84.dp).clearAndSetSemantics { contentDescription = description; role = Role.Button }) {
+        Box(Modifier.matchParentSize().clip(CircleShape).clickable(onClick = onEdit)) {
+            ProfileImageCircle(image, 84.dp)
+        }
+        Box(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 4.dp, y = 2.dp)
+                .size(30.dp)
+                .background(colors.groupedBackground, CircleShape)
+                .padding(2.dp)
+                .clip(CircleShape)
+                .background(colors.cardInk)
+                .clickable(onClick = onEdit),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.onInk)
+        }
+    }
+}
+
+/** 닉네임 아래 '기초부터 배우기' 진도 뱃지: 흰 알약에 먹초록 글자로 다음에 배울 단계(모두 마치면 완료)를 적는다. */
 @Composable
 internal fun LearningBadge(progress: MyLearningProgress) {
     val colors = EolssuTheme.colors
@@ -110,11 +180,11 @@ internal fun LearningBadge(progress: MyLearningProgress) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Icon(EolssuIcons.Book, contentDescription = null, modifier = Modifier.size(13.dp), tint = colors.play)
+        Icon(EolssuIcons.Book, contentDescription = null, modifier = Modifier.size(13.dp), tint = colors.cardInk)
         Text(
             text,
             style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
-            color = colors.accentText,
+            color = colors.cardInk,
             maxLines = 1,
         )
     }
@@ -180,7 +250,7 @@ internal fun MyRecentPracticeCard(recent: MyRecentPractice, status: MyRecentPrac
     }
 }
 
-/** 점수: 바탕 없이 큰 짙은 연두 숫자와 같은 기준선의 작은 '점'. 화면 낭독은 "85점"처럼 한 덩어리로 읽는다. */
+/** 점수: 바탕 없이 큰 먹초록 숫자와 같은 기준선의 작은 '점'. 화면 낭독은 "85점"처럼 한 덩어리로 읽는다. */
 @Composable
 private fun ScoreValue(score: Int) {
     val colors = EolssuTheme.colors
@@ -190,13 +260,13 @@ private fun ScoreValue(score: Int) {
             score.toString(),
             modifier = Modifier.alignByBaseline(),
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold),
-            color = colors.play,
+            color = colors.cardInk,
         )
         Text(
             stringResource(Res.string.my_recent_score_unit),
             modifier = Modifier.alignByBaseline().padding(start = 2.dp),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
-            color = colors.play,
+            color = colors.cardInk,
         )
     }
 }

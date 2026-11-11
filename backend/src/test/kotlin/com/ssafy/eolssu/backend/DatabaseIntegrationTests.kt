@@ -121,7 +121,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("38", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("39", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -179,15 +179,15 @@ class DatabaseIntegrationTests {
         )
         assertEquals("-", assertNotNull(mapper<NotationSymbolMapper>().findById(2)).symbol)
         assertEquals(
-            UserRow(1, "test@example.test", "test-fixture-hash", "연습자", 1, "HANGUL", "ACTIVE", null, null, null, time, time, null),
+            UserRow(1, "test@example.test", "test-fixture-hash", "연습자", 1, "HANGUL", "HELLO", "ACTIVE", null, null, null, time, time, null),
             mapper<UserMapper>().findById(1),
         )
         assertEquals(
-            UserRow(2, null, null, null, 1, "HANJA", "DELETED", time, null, null, time, time, time),
+            UserRow(2, null, null, null, 1, "HANJA", "HELLO", "DELETED", time, null, null, time, time, time),
             mapper<UserMapper>().findById(2),
         )
         assertEquals(
-            UserRow(3, "pending@example.test", "test-fixture-hash-3", "대기 회원", 1, "HANJA", "WITHDRAWAL_PENDING", null, time, time.plusDays(30), time, time, null),
+            UserRow(3, "pending@example.test", "test-fixture-hash-3", "대기 회원", 1, "HANJA", "HELLO", "WITHDRAWAL_PENDING", null, time, time.plusDays(30), time, time, null),
             mapper<UserMapper>().findById(3),
         )
         assertEquals(
