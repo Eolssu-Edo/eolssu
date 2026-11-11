@@ -4,8 +4,9 @@ import com.ssafy.eolssu.backend.feature.song.domain.*
 
 class GetSongScore(private val repository: SongScoreRepository, private val decoder: SongScoreDecoder,
     private val jangdanPlayback: SongJangdanPlaybackResolver = SongJangdanPlaybackResolver { null }) {
-    fun get(songId: Long): SongScoreLookup {
-        val stored = repository.findPublished(songId) ?: return SongScoreLookup.NotFound
+    fun get(songId: Long, scoreVersion: Int? = null): SongScoreLookup {
+        val stored = (if (scoreVersion == null) repository.findPublished(songId)
+            else repository.findPublishedRevision(songId, scoreVersion)) ?: return SongScoreLookup.NotFound
         return try {
             val decoded = decoder.decode(stored, repository.pitches())
             SongScoreLookup.Found(stored, decoded, jangdanPlayback.resolve(stored))
