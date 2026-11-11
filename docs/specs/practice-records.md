@@ -33,8 +33,9 @@
 
 | 필드 | 값 |
 | --- | --- |
-| isFullSong | `start_note_idx` = 0이고 `end_note_idx` = 곡 `note_count` − 1. 성장 집계의 전체 곡 연주와 같은 정의다 |
-| startColumnIdx·endColumnIdx | 구간 첫·끝 음표의 각(0부터, 화면은 +1). EVA-03·04와 같은 규칙(`songs.score_json` NOTE 순서의 cellId)으로 읽는다. 세션 악보 버전이 지금 곡 악보 버전과 다르면 null이다 |
+| scoreVersion | 세션에 저장한 악보 판본. 현재 판본과 같다고 가정하지 않는다 |
+| isFullSong | `start_note_idx` = 0이고 `end_note_idx` = 보관 판본의 `note_count`(없으면 현재 곡) − 1. 성장 집계의 전체 곡 연주와 같은 정의다 |
+| startColumnIdx·endColumnIdx | 구간 첫·끝 음표의 각(0부터, 화면은 +1). EVA-03·04와 같은 규칙으로 세션 판본의 현재 또는 보관 악보 NOTE 순서의 cellId를 읽는다. 해당 판본을 구할 수 없으면 null이다 |
 | recordingDurationMs | 업로드 때 저장한 녹음 길이(ms). 업로드하지 않은 세션이면 null이다. 녹음 파일이 정리돼 다시 들을 수 없어도 길이는 남는다(다시 들을 수 있는지는 `recordingAvailable`) |
 | bpm·bpmUnit | 세션 값. bpm은 bpmUnit 단위로 센 값 |
 | totalScore | 저장된 평가 총점(0~100) |
@@ -112,7 +113,7 @@
 ## PRA-03 변경 (`GET /api/practice-sessions/{sessionId}`)
 
 - 지운 기록은 404다(지금은 200이고 `recordingAvailable`만 false).
-- 기록이고 `viewed_at`이 비어 있으면, 응답 전에 `viewed_at`을 서버 시각으로 한 번 기록한다(조건부 갱신). 응답 필드는 바뀌지 않는다. 기록 상세가 아닌 화면이 PRA-03을 불러도 기록되며, 이는 받아들였다.
+- 기록이고 `viewed_at`이 비어 있으면, 응답 전에 `viewed_at`을 서버 시각으로 한 번 기록한다(조건부 갱신). 745에서 `scoreVersion`·`songTitle`을 추가한다. 제목은 보관 판본 제목(없으면 현재 곡 제목)이고 숨김·삭제된 곡이어도 본인 기록 접근은 유지한다. [판본 계약](published-score-history.md)을 따른다. 기록 상세가 아닌 화면이 PRA-03을 불러도 기록되며, 이는 받아들였다.
 - `recordingAvailable`의 정의, 분석 대기 조회·시간 초과 처리는 그대로다.
 
 ## 녹음 보관 정책과의 관계 (S15P31E102-375)
