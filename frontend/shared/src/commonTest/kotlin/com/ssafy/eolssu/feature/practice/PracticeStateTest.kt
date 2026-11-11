@@ -108,6 +108,33 @@ class PracticeStateTest {
     }
 
     @Test
+    fun startCountdownKeepsRecordingLayoutAndShowsPreparing() {
+        assertFalse(ready.recordingLayout)
+
+        val counting = ready.beginCountdown()
+        assertTrue(counting.recordingLayout)
+        assertTrue(counting.preparing)
+        assertFalse(counting.resuming)
+
+        val recording = counting.beginRecording()
+        assertTrue(recording.recordingLayout)
+        assertFalse(recording.preparing)
+
+        val resuming = recording.askAbort(fraction = 0f).beginCountdown(resume = true)
+        assertTrue(resuming.recordingLayout)
+        assertFalse(resuming.preparing)
+    }
+
+    @Test
+    fun directEvaluationShowsPreparingLayoutBeforeCountdown() {
+        val direct = PracticeUiState(song = arirang, direct = true)
+        assertEquals(PracticeMode.Ready, direct.mode)
+        assertTrue(direct.preparing)
+        assertTrue(direct.recordingLayout)
+        assertTrue(direct.beginCountdown().preparing)
+    }
+
+    @Test
     fun draggingScoreDuringRecordingFollowsAgainAtNextGak() {
         var state = ready.beginCountdown().beginRecording()
         val firstGak = state.currentScoreUnit!!.column
