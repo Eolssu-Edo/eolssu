@@ -780,6 +780,7 @@
     <string name="my_nickname_help">[닉네임 규칙 안내]</string>
     <string name="my_nickname_changed">닉네임을 바꿨어요.</string>
     <string name="my_profile_image_edit">프로필 그림 바꾸기</string>
+    <string name="my_profile_change">프로필 변경</string>
     <string name="my_profile_image_changed">프로필 그림을 바꿨어요.</string>
     <string name="my_profile_image_hello">반가워요</string>
     <string name="my_profile_image_danso">단소 연주</string>

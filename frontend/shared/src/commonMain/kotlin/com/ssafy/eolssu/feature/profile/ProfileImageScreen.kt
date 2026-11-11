@@ -19,8 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,7 +35,7 @@ import com.ssafy.eolssu.feature.profile.component.ProfileImageCircle
 import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
 import com.ssafy.eolssu.feature.profile.component.label
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.my_profile_image_edit
+import eolssu.shared.generated.resources.my_profile_change
 import eolssu.shared.generated.resources.my_save
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -67,8 +68,8 @@ fun ProfileImageRoute(
 }
 
 /**
- * 프로필 그림 고르기(S15P31E102-738). 마이페이지와 같은 회색 바탕 위 흰 카드에 절쑤 그림 12종을 원으로 늘어놓고,
- * 고른 그림은 짙은 연두 테두리와 굵은 이름으로 표시한다. 휴대폰은 한 줄에 3개, 태블릿은 4개다.
+ * 프로필 변경(S15P31E102-738). 마이페이지와 같은 회색 바탕 위 흰 카드에 절쑤 그림 12종을 이름 없이 원으로 늘어놓고,
+ * 고른 그림은 짙은 연두 테두리로 표시한다. 휴대폰은 한 줄에 3개, 태블릿은 4개다.
  */
 @Composable
 fun ProfileImageScreen(
@@ -82,7 +83,7 @@ fun ProfileImageScreen(
     val columns = if (widthClass == WindowWidthClass.Compact) 3 else 4
     ProfileScaffold(
         widthClass,
-        stringResource(Res.string.my_profile_image_edit),
+        stringResource(Res.string.my_profile_change),
         onBack,
         bottomBar = { EolssuButton(stringResource(Res.string.my_save), onClick = onSave) },
         gap = 12.dp,
@@ -115,30 +116,19 @@ fun ProfileImageScreen(
     }
 }
 
-/** 그림 하나: 원 그림과 이름. 고르면 원에 테두리를 두르고 이름을 굵게 한다. 누르는 영역은 칸 전체다. */
+/** 그림 하나: 원 그림만 보이고 이름은 화면 낭독으로만 읽는다. 고르면 원에 테두리를 두른다. 누르는 영역은 칸 전체다. */
 @Composable
 private fun ProfileImageOption(image: ProfileImage, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val colors = EolssuTheme.colors
-    Column(
+    val label = stringResource(image.label)
+    Box(
         modifier
             .clip(RoundedCornerShape(16.dp))
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .semantics { contentDescription = label }
             .padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        contentAlignment = Alignment.Center,
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            ProfileImageCircle(image, size = 76.dp, ring = if (selected) colors.play else null)
-        }
-        Text(
-            stringResource(image.label),
-            modifier = Modifier.padding(top = 8.dp),
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontSize = 13.sp,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            ),
-            color = if (selected) colors.accentText else colors.textSub,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-        )
+        ProfileImageCircle(image, size = 84.dp, ring = if (selected) colors.play else null)
     }
 }
