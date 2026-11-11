@@ -177,6 +177,7 @@ internal fun ReadOrderBoard(modifier: Modifier = Modifier, animate: Boolean = fa
                     val on = { y0: Float, y1: Float -> frame.active == c * 2 && tipY >= y0 && tipY < y1 }
                     val note = { t: String, baseline: Float, size: Float, glow: Boolean ->
                         val symbol = t == "ㅡ" || t == "△"
+                        if (t == "△") restFill(centerX(c), baseline, size, colors.surface)
                         text(
                             t, centerX(c), baseline, serif, size,
                             color = if (symbol) colors.textMuted else colors.text,
@@ -210,6 +211,32 @@ internal fun ReadOrderBoard(modifier: Modifier = Modifier, animate: Boolean = fa
             boldColor = colors.text,
         )
     }
+}
+
+/**
+ * 쉼(△) 글자의 바깥 삼각형 꼭짓점(그림 단위, 위 · 왼쪽 아래 · 오른쪽 아래).
+ * 율명 글꼴(Noto Serif KR SemiBold) △ 글리프의 바깥 윤곽이다: 1000 단위 글자 칸에서 (500, 826) · (30, 12) · (970, 12).
+ * 글자는 가운데 정렬이라 [x]가 글자 칸 가운데(500)이고, 높이는 [baseline]에서 위로 잰다. [size]는 글자 크기다.
+ */
+internal fun restTriangle(x: Float, baseline: Float, size: Float): List<Offset> {
+    val k = size / 1000f
+    return listOf(
+        Offset(x, baseline - 826 * k),
+        Offset(x - 470 * k, baseline - 12 * k),
+        Offset(x + 470 * k, baseline - 12 * k),
+    )
+}
+
+/** 쉼(△) 글자 안을 [color]로 채워 뒤의 세로선이 비치지 않게 한다. 글자 바로 앞에 그리고, 글자의 선은 그 위에 그대로 그린다. */
+private fun FigureScope.restFill(x: Float, baseline: Float, size: Float, color: Color) {
+    val (top, left, right) = restTriangle(x, baseline, size)
+    val p = Path().apply {
+        moveTo(u(top.x), u(top.y))
+        lineTo(u(left.x), u(left.y))
+        lineTo(u(right.x), u(right.y))
+        close()
+    }
+    draw.drawPath(p, color)
 }
 
 /** 아래를 가리키는 화살촉. 끝점 [y]를 가운데로 [half]만큼 앞뒤 · 양옆으로 편다(SVG marker). */
