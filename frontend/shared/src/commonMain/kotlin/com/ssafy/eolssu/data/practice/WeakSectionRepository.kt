@@ -124,7 +124,7 @@ class ApiWeakSectionRepository(
 ) : WeakSectionRepository {
     override suspend fun source(sourceId: String): WeakSectionSource? = guarded {
         val evaluation = evaluations.result(sourceId) ?: return@guarded null
-        val song = songs.getSong(evaluation.songId) ?: return@guarded null
+        val song = (if (evaluation.scoreVersion == null) songs.getSong(evaluation.songId) else songs.getSong(evaluation.songId, evaluation.scoreVersion)) ?: return@guarded null
         WeakSectionSource(song, evaluation)
     }
 
@@ -141,25 +141,26 @@ class ApiWeakSectionRepository(
 
     override suspend fun sectionResult(sessionId: String): SectionEvaluation? = guarded {
         val evaluation = evaluations.result(sessionId) ?: return@guarded null
-        val song = songs.getSong(evaluation.songId) ?: return@guarded null
+        val song = (if (evaluation.scoreVersion == null) songs.getSong(evaluation.songId) else songs.getSong(evaluation.songId, evaluation.scoreVersion)) ?: return@guarded null
         SectionEvaluation(song, sessionId, evaluation.bpm, evaluation.total, evaluation.metrics, check(sessionId, baseline = null))
     }
 
     override suspend fun comparison(recordId: String): RecordComparison? = guarded {
         if (!records.refresh()) return@guarded null
         val current = records.detail(recordId) ?: return@guarded null
-        val song = songs.getSong(current.songId) ?: return@guarded null
+        val song = (if (current.scoreVersion == null) songs.getSong(current.songId) else songs.getSong(current.songId, current.scoreVersion)) ?: return@guarded null
         val first = current.recordedAt.epochDay - CompareDays + 1
         val previous = records.records.value
             .filter { it.id != current.id && it.songId == current.songId && it.section == null }
             .filter { it.recordedAt.epochDay >= first && it.recordedAtMillis < current.recordedAtMillis }
             .sortedByDescending { it.recordedAtMillis }
-        RecordComparison(song, current, previous, current.recordedAt)
+        RecordComparison(song, current.withScore(song), previous, current.recordedAt)
     }
 
     override suspend fun previous(currentId: String, previousId: String): PreviousRecord? = guarded {
         val record = records.detail(previousId) ?: return@guarded null
-        PreviousRecord(record, check(currentId, baseline = previousId))
+        val song = (if (record.scoreVersion == null) songs.getSong(record.songId) else songs.getSong(record.songId, record.scoreVersion)) ?: return@guarded null
+        PreviousRecord(record.withScore(song), check(currentId, baseline = previousId))
     }
 
     /** EVA-04. [baseline]이 없으면 서버는 세션을 만들 때 넘긴 기준 세션과 견준다. */

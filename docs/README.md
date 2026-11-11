@@ -32,6 +32,7 @@
 - [iOS Jenkins Mac 이관·Ad Hoc 자동 배포 (444)](plans/S15P31E102-444.md) · [운영 절차](../infra/ios-qa/README.md)
 - [운영 iOS 간편 로그인 복귀 주소와 Apple 로그인 설정 (563)](plans/S15P31E102-563.md)
 - [이전 연주 결과·녹음 기록 통합 (553)](plans/S15P31E102-553.md)
+- [기록 상세 독립화와 당시 판본 조회 (454)](plans/S15P31E102-454.md) · [스펙](specs/record-detail-independence.md)
 - [홈 평가 시작 화살표·정간보 카드 배경 정리 (554)](plans/S15P31E102-554.md)
 - [iOS App Store Connect 등록과 첫 심사 제출 준비 (564)](plans/S15P31E102-564.md)
 - [기록 평가 변환·오류 표시·녹음 재생의 경계와 실행 관찰](knowledge/frontend/history-result-playback.md)
