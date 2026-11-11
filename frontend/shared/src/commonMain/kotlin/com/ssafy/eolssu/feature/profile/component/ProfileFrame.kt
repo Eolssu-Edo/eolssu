@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
@@ -39,6 +40,7 @@ private val TabletBottomButtonWidth: Dp = 560.dp
  * 마이페이지 화면 틀(MY-01~05). 휴대폰은 최대 560dp, 태블릿은 가운데 한 단에 본문(세로 560dp · 가로 640dp)과
  * 하단 버튼(560dp)을 둔다. 본문은 좌우 20dp·세로 스크롤이고 최소 화면 높이만큼 늘어난다.
  * 휴대폰 본문 위 여백은 [topPadding](양식 화면 `.au-body` 12dp, 마이페이지 `.my-body` 8dp)이다.
+ * [containerColor]를 주면 화면 바탕색을 바꾼다(마이페이지의 회색 바탕).
  */
 @Composable
 internal fun ProfileScaffold(
@@ -49,6 +51,7 @@ internal fun ProfileScaffold(
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
     gap: Dp = 20.dp,
     topPadding: Dp = 12.dp,
+    containerColor: Color? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tablet = widthClass != WindowWidthClass.Compact
@@ -63,6 +66,7 @@ internal fun ProfileScaffold(
         },
         bottomBar = if (bottomBar != null && tablet) tabletBottomBar(bottomBar) else bottomBar,
         snackbarHostState = snackbarHostState,
+        containerColor = containerColor,
         contentMaxWidth = when (widthClass) {
             WindowWidthClass.Compact -> CompactContentMaxWidth
             WindowWidthClass.Medium -> TabletPortraitBodyWidth + 40.dp
