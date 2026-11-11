@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.guide.learn
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,7 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -53,13 +58,19 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_instrument_select
 import org.jetbrains.compose.resources.stringResource
 
-/** 악기마다 다른 낙관(도장) 글자. 위아래 두 글자로 찍는다. */
-internal val GuideInstrument.sealText: String
+/**
+ * 낙관 칸에 그릴 악기 모양(S15P31E102-749). 한자 대신 생김새로 악기를 구별한다.
+ * [length]는 칸 대각선 대비 길이, [thickness]는 칸 한 변 대비 굵기, [holes]는 앞 지공 수.
+ * 단소는 짧고 굵으며 위 끝이 U자로 파였고, 소금은 짧고 가늘며 취구가 있다. 대금은 길고 취구와 청공이 있으며, 산조대금은 정악대금보다 조금 짧다.
+ */
+private class FluteShape(val length: Float, val thickness: Float, val holes: Int, val mouth: Boolean, val cheong: Boolean, val notch: Boolean)
+
+private val GuideInstrument.flute: FluteShape
     get() = when (this) {
-        GuideInstrument.Danso -> "短簫"
-        GuideInstrument.Sogeum -> "小笒"
-        GuideInstrument.DaegeumJeongak -> "正笒"
-        GuideInstrument.DaegeumSanjo -> "散笒"
+        GuideInstrument.Danso -> FluteShape(length = 0.78f, thickness = 0.17f, holes = 4, mouth = false, cheong = false, notch = true)
+        GuideInstrument.Sogeum -> FluteShape(length = 0.74f, thickness = 0.11f, holes = 6, mouth = true, cheong = false, notch = false)
+        GuideInstrument.DaegeumJeongak -> FluteShape(length = 0.98f, thickness = 0.13f, holes = 6, mouth = true, cheong = true, notch = false)
+        GuideInstrument.DaegeumSanjo -> FluteShape(length = 0.88f, thickness = 0.13f, holes = 6, mouth = true, cheong = true, notch = false)
     }
 
 /** 악기마다 다른 낙관 색. 달리기 지도 결승선 깃발도 이 색이다. */
@@ -70,21 +81,33 @@ internal fun GuideInstrument.sealColor(colors: EolssuColors): Color = when (this
     GuideInstrument.DaegeumSanjo -> colors.pitchError
 }
 
-/** 악기 낙관. 글자는 꾸밈이라 읽지 않고, 옆의 악기 이름이 읽힌다. */
+/** 악기 낙관: 악기 색 칸에 흰 악기 모양을 비스듬히 그린다. 그림은 꾸밈이라 읽지 않고, 옆의 악기 이름이 읽힌다. */
 @Composable
 internal fun InstrumentSeal(instrument: GuideInstrument, size: Dp = 26.dp) {
     val colors = EolssuTheme.colors
-    Box(
-        Modifier.size(size).clip(RoundedCornerShape(5.dp)).background(instrument.sealColor(colors)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy((-3).dp)) {
-            instrument.sealText.forEach {
-                Text(
-                    it.toString(),
-                    style = EolssuTheme.serif.yul.copy(fontSize = (size.value * 0.36f).sp, lineHeight = (size.value * 0.42f).sp, fontWeight = FontWeight.Bold),
-                    color = Color.White,
-                )
+    val seal = instrument.sealColor(colors)
+    val flute = instrument.flute
+    Canvas(Modifier.size(size).clip(RoundedCornerShape(5.dp)).background(seal)) {
+        val side = this.size.minDimension
+        val diagonal = side * 1.4142f
+        val length = diagonal * flute.length * 0.82f
+        val thick = side * flute.thickness
+        val left = center.x - length / 2
+        val top = center.y - thick / 2
+        rotate(-45f) {
+            drawRoundRect(Color.White, topLeft = Offset(left, top), size = Size(length, thick), cornerRadius = CornerRadius(thick / 2))
+            val hole = thick * 0.26f
+            // 위 끝(오른쪽 위): 단소는 U자 취구 홈, 소금·대금은 둥근 취구.
+            val head = left + length - thick * 0.9f
+            if (flute.notch) drawCircle(seal, radius = thick * 0.32f, center = Offset(left + length, center.y))
+            if (flute.mouth) drawCircle(seal, radius = hole * 1.15f, center = Offset(head, center.y))
+            if (flute.cheong) drawRect(seal, topLeft = Offset(head - thick * 1.5f - hole, center.y - hole * 0.7f), size = Size(hole * 2, hole * 1.4f))
+            // 앞 지공은 아래 끝 쪽 절반에 고르게 놓는다.
+            val start = left + thick * 1.1f
+            val span = length * 0.48f
+            repeat(flute.holes) { i ->
+                val x = start + span * (i + 0.5f) / flute.holes
+                drawCircle(seal, radius = hole, center = Offset(x, center.y))
             }
         }
     }
