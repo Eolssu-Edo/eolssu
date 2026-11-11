@@ -45,8 +45,13 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
         return player.prepare(clips).also { if (it) preparedClips = clips }
     }
 
-    fun start(plan: JangdanPlan?, accompanyingModel: Boolean, tick: () -> Double?, resumeAfterTick: Double? = null, startAtTick: Double? = null, onStarted: () -> Unit = {}) {
-        stop()
+    fun start(plan: JangdanPlan?, accompanyingModel: Boolean, tick: () -> Double?, resumeAfterTick: Double? = null, startAtTick: Double? = null, allowPreparedPlayback: Boolean = false, onStarted: () -> Unit = {}) {
+        val adopted = allowPreparedPlayback && plan != null && player.available && player.adoptPreparedPlayback(plan)
+        generation++
+        job?.cancel()
+        job = null
+        if (!adopted) player.stop()
+        mutableStatus.value = JangdanStatus.Idle
         if (!player.available || plan == null) {
             mutableStatus.value = JangdanStatus.Unsupported
             return
@@ -55,7 +60,7 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
         mutableStatus.value = JangdanStatus.Loading
         job = scope.launch {
             try {
-                if (!prepare(plan) || !player.begin(accompanyingModel)) {
+                if (!adopted && (!prepare(plan) || !player.begin(accompanyingModel))) {
                     mutableStatus.value = JangdanStatus.Failed
                     return@launch
                 }
@@ -68,11 +73,13 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
                         break
                     }
                     val now = tick() ?: break
-                    val strikes = cursor.due(now)
-                    if (cursor.movedBackward) player.silence()
-                    if (strikes.any { !player.play(it.clip, it.gain) }) {
-                        mutableStatus.value = JangdanStatus.Failed
-                        break
+                    if (!adopted) {
+                        val strikes = cursor.due(now)
+                        if (cursor.movedBackward) player.silence()
+                        if (strikes.any { !player.play(it.clip, it.gain) }) {
+                            mutableStatus.value = JangdanStatus.Failed
+                            break
+                        }
                     }
                     delay(5)
                 }

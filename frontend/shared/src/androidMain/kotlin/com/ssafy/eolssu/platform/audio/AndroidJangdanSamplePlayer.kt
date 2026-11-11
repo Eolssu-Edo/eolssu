@@ -15,10 +15,12 @@ import android.os.Process
 import android.util.Log
 import com.ssafy.eolssu.core.audio.JANGDAN_SAMPLE_RATE
 import com.ssafy.eolssu.core.audio.JangdanClip
+import com.ssafy.eolssu.core.audio.JangdanPlan
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToLong
 
 /** One continuous PCM timeline, shared with the recorder's acoustic echo reference. */
 internal class AndroidJangdanSamplePlayer(context: Context, private val cache: JangdanSampleCache) : JangdanSamplePlayer {
@@ -54,6 +56,9 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
     private var focus: AudioFocusRequest? = null
     private var ownsFocus = false
     private var registered = false
+    private var scheduled: JangdanFrameSchedule? = null
+    private var scheduledCountIn: ScheduledJangdanCountIn? = null
+    private var writtenFramesSnapshot = 0L
     override val available = true
     @Volatile override var interrupted = false
         private set
@@ -90,6 +95,31 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         val currentClock = frameZeroNanos.takeIf { System.nanoTime() - clockObservedNanos <= 500_000_000L }
         JangdanOutputSnapshot(currentClock, epoch, manager.getStreamVolume(AudioManager.STREAM_MUSIC),
             deviceId, deviceType, underruns, clipped, events.toList())
+    }
+
+    /** Schedule from a settled hardware clock, ahead of both presentation and buffered output. */
+    fun scheduleCountIn(plan: JangdanPlan, cycles: Int = 3): ScheduledJangdanCountIn? = synchronized(lock) {
+        if (!running || !begun || interrupted || scheduled != null || commands.isNotEmpty()) return null
+        val now = System.nanoTime()
+        val zero = frameZeroNanos?.takeIf { now - clockObservedNanos <= 500_000_000L } ?: return null
+        if (plan.strikes.any { samples.get(it.clip) == null }) return null
+        val presented = ((now - zero) * JANGDAN_SAMPLE_RATE / 1e9).roundToLong().coerceAtLeast(0)
+        val start = maxOf(writtenFramesSnapshot, presented) + JANGDAN_SAMPLE_RATE / 5 + BLOCK_FRAMES
+        val timeline = runCatching { JangdanFrameSchedule(plan, start, cycles, epoch, generation) }.getOrNull() ?: return null
+        val description = runCatching { timeline.describe(zero) }.getOrNull() ?: return null
+        scheduled = timeline
+        scheduledCountIn = description
+        description
+    }
+
+    /** Reference changes may disable correction while this exact playback reservation stays alive. */
+    fun isCountInActive(prepared: ScheduledJangdanCountIn): Boolean = synchronized(lock) {
+        running && begun && !interrupted && scheduledCountIn === prepared && scheduled?.nextFrame != null
+    }
+
+    override fun adoptPreparedPlayback(plan: JangdanPlan): Boolean = synchronized(lock) {
+        if (!running || !begun || interrupted) return false
+        scheduled?.adopt(plan, generation) == true
     }
 
     override fun begin(accompanyingModel: Boolean): Boolean {
@@ -132,7 +162,7 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
     }
 
     override fun play(clip: JangdanClip, gain: Float): Boolean = synchronized(lock) {
-        if (!begun || !running || interrupted || !gain.isFinite()) return false
+        if (!begun || !running || interrupted || scheduled != null || !gain.isFinite()) return false
         val pcm = samples.get(clip) ?: return false
         // Bound requests even if an unhealthy device stops draining the output worker.
         if (commands.size >= 64) return false
@@ -141,8 +171,16 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
     }
 
     override fun silence() = synchronized(lock) {
+        clearSchedule()
         commands.clear()
         if (running) commands.addLast(Command.Silence)
+    }
+
+    /** Caller holds lock. */
+    private fun clearSchedule() {
+        scheduled?.cancel()
+        scheduled = null
+        scheduledCountIn = null
     }
 
     /** Only a live calibration/take may retain the silent track between logical playback sessions. */
@@ -193,6 +231,8 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         track = null
         worker = null
         running = false
+        clearSchedule()
+        writtenFramesSnapshot = 0
         commands.clear()
         events.clear()
         frameZeroNanos = null
@@ -229,6 +269,8 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
             throw failure
         }
         epoch++
+        clearSchedule()
+        writtenFramesSnapshot = 0
         frameZeroNanos = null
         deviceId = null
         deviceType = null
@@ -266,6 +308,11 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
                             }
                         }
                     }
+                    if (flush) {
+                        // Do not accept a reservation against the old frame origin while native flush runs.
+                        clearSchedule()
+                        frameZeroNanos = null
+                    }
                 }
                 if (flush) {
                     output.pause()
@@ -277,13 +324,25 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
                     synchronized(lock) {
                         if (!running || track !== output || token != generation) return
                         epoch++
+                        writtenFramesSnapshot = 0
                         frameZeroNanos = null
                         events.clear()
                         clipped = false
                         output.play()
                     }
                 }
-                val next = block ?: mixer.render(BLOCK_FRAMES, writtenFrames).also { block = it }
+                val next = block ?: synchronized(lock) {
+                    if (!running || track !== output || token != generation) return
+                    val timeline = scheduled
+                    if (timeline != null) {
+                        for (hit in timeline.takeAt(writtenFrames)) {
+                            val pcm = checkNotNull(samples.get(hit.clip))
+                            if (mixer.play(hit.clip, pcm, hit.gain)) epoch++
+                        }
+                    }
+                    val frames = timeline?.blockFrames(writtenFrames, BLOCK_FRAMES) ?: BLOCK_FRAMES
+                    mixer.render(frames, writtenFrames)
+                }.also { block = it }
                 val offset = next.written
                 val count = output.write(next.pcm, offset, next.remaining, AudioTrack.WRITE_BLOCKING)
                 if (count <= 0) {
@@ -297,6 +356,7 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
                 val route = output.routedDevice
                 synchronized(lock) {
                     if (!running || track !== output || token != generation) return
+                    writtenFramesSnapshot = writtenFrames
                     if (next.clipped && !clipped) epoch++
                     clipped = next.clipped
                     if (deviceId != null && (deviceId != route?.id || deviceType != route?.type)) {
@@ -336,6 +396,8 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
                     worker = null
                     running = false
                     begun = false
+                    clearSchedule()
+                    writtenFramesSnapshot = 0
                     frameZeroNanos = null
                     commands.clear()
                     epoch++
