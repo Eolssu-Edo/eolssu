@@ -1,5 +1,18 @@
 # 데이터 수집·정제
 
+## 기존 악보 장단·빠르기 교정 (728)
+
+묶음 생성은 현재 악보·빠르기와 표현 companion SHA가 렌더 당시 manifest와 일치해야 합니다. 표현 파일을 고쳤다면 `--render`로 다시 생성한 뒤 포장합니다. 숫자 폴더 대신 기존 운영 `cases/<악기>-<번호>-p<쪽>/` 형식으로 묶습니다.
+
+[곡별 근거표와 판단](../docs/knowledge/data/common/rhythm-metronome/README.md)을 먼저 확인합니다. `prepare_tempo_corrections.py`는 현재 운영 스냅샷의 정확한 sourceId·판본을 확인하고 장단명·빠르기·근거 있는 박 표기만 수정합니다. 비행기 56·132·133·134번은 제외합니다. 음표·가사·시김새·정간 tick은 유지하며 다음 판본의 모범 음원과 수행 시간표를 만듭니다.
+
+```sh
+python -m data.src.scores.prepare_tempo_corrections --snapshot data/processed/tempo-728/db-baseline.json --decisions data/reference/score-tempo-corrections.json --expressions data/processed/tempo-728/expression-inputs.json --assets PATH_TO_BATCH_ASSETS_JSON --out data/processed/tempo-728/prepared --song-id 54 --render
+python -m data.src.scores.prepare_tempo_corrections --snapshot data/processed/tempo-728/db-baseline.json --decisions data/reference/score-tempo-corrections.json --expressions data/processed/tempo-728/expression-inputs.json --assets PATH_TO_BATCH_ASSETS_JSON --out data/processed/tempo-728/prepared --render --bundle data/processed/tempo-728/release
+```
+
+`expression-inputs.json`은 곡 ID 문자열과 **현재 판본에 대응하는** 표현 companion 경로의 JSON 맵입니다. 이전 판본의 companion을 그대로 재사용하지 않습니다. 자산 맵은 기존 playback의 악기별 CAT ZIP 형식이며 실제 보유 경로로 지정합니다. 필요 라이브러리와 FFmpeg/FFprobe 설정은 기존 playback 안내를 따릅니다. `--render` 없이 준비·검증만 가능하고 `--bundle` 대상은 새 디렉터리여야 합니다. 서버 게시·백업·충돌 검사·복구는 [운영 도구](../infra/catalog/README.md#장단빠르기와-모범-음원-동시-교정-728)를 사용합니다.
+
 등록 장단 미리듣기 M4A를 만들 때는 [원본 출처와 생성 명령](../docs/knowledge/data/jangdan-preview-audio.md)을 참고합니다.
 
 연습 반주의 굿거리 굴림5개와 공통 타격6개는 같은 문서의 [연습용 PCM 생성](../docs/knowledge/data/jangdan-preview-audio.md#연습용-pcm-생성)을 따릅니다. 공식 실제 굴림 원본을 사용하며 생성·길이 검사와 음악적 청음 상태를 구분합니다.
