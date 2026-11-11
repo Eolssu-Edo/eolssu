@@ -126,8 +126,9 @@ class UserSheetApiDatabaseTests {
 
     @Test
     fun `list pages only the owner's sheets newest first`() {
-        for (index in 1..3) insertBlank(OWNER, "악보 $index")
-        insertBlank(OTHER, "남의 악보")
+        insertSongCopy(OWNER, "악보 1")
+        for (index in 2..3) insertBlank(OWNER, "악보 $index")
+        insertSongCopy(OTHER, "남의 악보")
         jdbc.update("UPDATE user_sheets SET updated_at='2026-11-01 00:00:00' WHERE user_id=$OWNER")
         jdbc.update("UPDATE user_sheets SET updated_at='2026-11-02 00:00:00' WHERE user_id=$OWNER AND title='악보 1'")
 
@@ -139,12 +140,16 @@ class UserSheetApiDatabaseTests {
         val jangdanName = jdbc.queryForObject("SELECT name FROM jangdans WHERE id=?", String::class.java, jangdanId)
         assertEquals(jangdanName, item.path("jangdanName").asString())
         assertEquals("MANUAL", item.path("source").asString())
+        assertEquals("DANSO", item.path("instrumentCode").asString())
+        assertTrue(first.path("items").get(1).path("instrumentCode").isNull)
         assertEquals("2026-11-02T00:00:00Z", item.path("updatedAt").asString())
         assertTrue(item.has("sourcePageCount") && item.path("sourcePageCount").isNull)
         val second = json.readTree(get(OWNER, "/api/users/me/sheets?page=1&size=2").body()).path("result")
         assertEquals(listOf("악보 2"), second.path("items").titles())
         assertEquals(0, json.readTree(get(OWNER, "/api/users/me/sheets?kind=MIDI").body()).path("result").path("items").size())
         assertEquals(400, get(OWNER, "/api/users/me/sheets?size=101").statusCode())
+        assertEquals(listOf("남의 악보"), json.readTree(get(OTHER, "/api/users/me/sheets").body()).path("result").path("items").titles())
+        assertEquals(401, get(null, "/api/users/me/sheets").statusCode())
     }
 
     @Test

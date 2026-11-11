@@ -7,7 +7,11 @@ import com.ssafy.eolssu.core.model.MySheetOrigin
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.createHttpClient
+import com.ssafy.eolssu.data.song.ApiMySheetRepository
+import com.ssafy.eolssu.data.song.ApiSheetDocumentRepository
 import com.ssafy.eolssu.data.song.PublishedSheetCopyProblem
 import com.ssafy.eolssu.data.song.PublishedSheetCopyRepository
 import com.ssafy.eolssu.data.song.PublishedSheetCopyResult
@@ -30,9 +34,16 @@ import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.smallScoreData
 import com.ssafy.eolssu.testing.CatalogViewModelTest
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -95,6 +106,63 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
         assertNull(sogeum.picked)
         assertEquals(listOf("102"), sogeum.songs.map { it.id })
         assertEquals(listOf("32"), sogeum.sheets.map { it.id })
+    }
+
+    @Test
+    fun filtersFromListCodesAndOnlyRequestsDetailsForRowsWithoutCodes() = runTest {
+        fun item(id: String, extra: String = "") =
+            """{"sheetId":"$id","kind":"JEONGGANBO","title":"악보 $id","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z"$extra}"""
+
+        fun score(code: String) = smallScoreData().let {
+            Json.encodeToString(it.copy(score = it.score.copy(instrument = code)))
+        }
+
+        val detailRequests = mutableListOf<String>()
+        val client = createHttpClient(MockEngine { request ->
+            val path = request.url.encodedPath
+            val result = if (path == "/api/users/me/sheets") {
+                val items = listOf(
+                    item("31", ",\"instrumentCode\":\"DANSO\""),
+                    item("32", ",\"hasDraft\":true,\"instrumentCode\":\"SOGEUM\""),
+                    item("33", ""","instrumentCode":null"""),
+                    item("34"),
+                )
+                """{"items":[${items.joinToString()}],"page":0,"totalPages":1}"""
+            } else {
+                val id = path.substringBeforeLast('/').substringAfterLast('/')
+                assertEquals("/api/users/me/sheets/$id/score", path)
+                detailRequests += id
+                val stored = when (id) {
+                    "31", "32", "34" -> score("DANSO")
+                    "33" -> "null"
+                    else -> error("Unexpected sheet ID $id")
+                }
+                val draft = if (id == "32") {
+                    ""","draft":{"title":"소금 초안","bpm":60,"baseScoreVersion":"1","draftRevision":1,"score":${score("SOGEUM")}}"""
+                } else ""
+                """{"sheetId":"$id","title":"악보 $id","bpm":60,"scoreVersion":"1","reviewStatus":"NEEDS_REVIEW","scoreData":$stored$draft}"""
+            }
+            respond("""{"isSuccess":true,"code":200,"result":$result}""",
+                HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val model = keep(EditPickViewModel(ApiMySheetRepository(client), songs, ApiSheetDocumentRepository(client)))
+
+            model.selectInstrument(Instrument.Danso)
+            val danso = model.uiState.first { it.load != EditPickLoad.Loading }
+            assertEquals(EditPickLoad.Ready, danso.load)
+            assertEquals(listOf("31", "34"), danso.sheets.map { it.id })
+            assertEquals(1, danso.uncheckedSheets)
+
+            model.selectInstrument(Instrument.Sogeum)
+            val sogeum = model.uiState.first { it.load != EditPickLoad.Loading }
+            assertEquals(EditPickLoad.Ready, sogeum.load)
+            assertEquals(listOf("32"), sogeum.sheets.map { it.id })
+            assertEquals(1, sogeum.uncheckedSheets)
+            assertEquals(listOf("33", "34"), detailRequests)
+        } finally {
+            client.close()
+        }
     }
 
     @Test

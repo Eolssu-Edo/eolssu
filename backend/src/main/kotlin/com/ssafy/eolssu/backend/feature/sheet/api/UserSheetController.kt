@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.annotation.JsonDeserialize
 import tools.jackson.databind.json.JsonMapper
@@ -177,7 +178,7 @@ class UserSheetController(
             SuccessResponse.of(
                 HttpStatus.OK, "내 악보 목록 조회 성공",
                 SheetList(
-                    items = result.items.map(SheetItem::of),
+                    items = result.items.map { SheetItem.of(it, json) },
                     page = page,
                     size = size,
                     totalElements = result.totalElements,
@@ -326,12 +327,27 @@ data class SheetItem(
     /** 불러오기 악보의 변환 상태. MANUAL은 null. */
     val conversionStatus: String?,
     val updatedAt: Instant,
+    /** 편집기에 불러올 공통 악보의 악기 코드. 초안이 있으면 그 초안의 값이다. */
+    val instrumentCode: String?,
 ) {
     companion object {
-        fun of(sheet: UserSheet) = SheetItem(
+        fun of(sheet: UserSheet, json: JsonMapper) = SheetItem(
             sheet.id.toString(), sheet.kind, sheet.title, sheet.status.name, sheet.jangdanId?.toString(), sheet.jangdanName,
             sheet.source, sheet.pendingCellCount, sheet.imported?.pageCount, sheet.draft != null, sheet.imported?.conversionStatus?.name,
-            sheet.updatedAt,
+            sheet.updatedAt, instrumentCode(sheet, json),
         )
+
+        private fun instrumentCode(sheet: UserSheet, json: JsonMapper): String? {
+            val draft = sheet.draft
+            val source = draft?.json ?: sheet.scoreJson ?: return null
+            return try {
+                val document = json.readTree(source)
+                val score = if (draft == null) document else document.path("score")
+                score.path("score").path("instrument")
+                    .takeIf { it.isString }?.stringValue()?.takeIf { it.isNotBlank() }
+            } catch (_: JacksonException) {
+                null
+            }
+        }
     }
 }

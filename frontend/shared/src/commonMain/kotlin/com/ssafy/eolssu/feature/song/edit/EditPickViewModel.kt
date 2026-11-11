@@ -25,7 +25,7 @@ import kotlin.uuid.Uuid
 
 /**
  * 불러올 악보 고르기. 악기를 고르면 그 악기의 제공 곡(CAT-01 `instrumentId`)과 내 악보를 받는다.
- * 내 악보 목록(SHT-01)에는 악기가 없어서, 각 악보의 공통 악보(SHT-08) `score.instrument`로 고른 악기의 것만 남긴다.
+ * 내 악보는 목록(SHT-01)의 악기 코드로 거르고, 코드가 없으면 공통 악보(SHT-08)를 조회한다.
  * 악보를 읽지 못한 내 악보는 어느 악기 목록에도 넣지 않고 수만 알린다.
  */
 class EditPickViewModel(
@@ -88,8 +88,9 @@ class EditPickViewModel(
         }
     }
 
-    /** 초안이 있으면 초안, 없으면 확정 악보의 `score.instrument`. 변환 전이거나 읽지 못하면 null. */
     private suspend fun instrumentCodeOf(sheet: MySheet): String? {
+        if (!sheet.instrumentCode.isNullOrBlank()) return sheet.instrumentCode
+
         val repository = documents ?: return null
         val key = sheet.id to sheet.updatedAt
         if (key in sheetInstruments) return sheetInstruments[key]

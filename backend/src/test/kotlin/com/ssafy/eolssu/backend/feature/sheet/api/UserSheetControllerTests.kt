@@ -6,6 +6,7 @@ import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetSourceCleaner
 import com.ssafy.eolssu.backend.feature.sheet.application.PreparedScore
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraft
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraftUpdate
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetScoreUpdate
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetJangdan
@@ -102,6 +103,28 @@ class UserSheetControllerTests {
         for (id in listOf("0", "-1", "07", "abc", "9999999999999999999")) {
             mvc.perform(get("/api/users/me/sheets/$id/score")).andExpect(status().isBadRequest)
         }
+    }
+
+    @Test
+    fun `list returns the owner's effective score instrument and keeps blank sheets`() {
+        val danso = """{"score":{"instrument":"DANSO"}}"""
+        stored[702] = sheet(702, "단소 악보", danso)
+        stored[703] = sheet(703, "소금 초안", danso).copy(
+            draft = SheetDraft("""{"score":{"score":{"instrument":"SOGEUM"}}}""", 1, updatedAt),
+        )
+        stored[704] = sheet(704, "빈 악보", null)
+        stored[705] = sheet(705, "남의 단소 악보", danso, userId = 2)
+        stored[706] = sheet(706, "악기 없는 초안", danso).copy(
+            draft = SheetDraft("""{"score":{"score":{"instrument":""}}}""", 1, updatedAt),
+        )
+
+        mvc.perform(get("/api/users/me/sheets")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.items.length()").value(4))
+            .andExpect(jsonPath("$.result.items[0].instrumentCode").value("DANSO"))
+            .andExpect(jsonPath("$.result.items[1].instrumentCode").value("SOGEUM"))
+            .andExpect(jsonPath("$.result.items[1].hasDraft").value(true))
+            .andExpect(jsonPath("$.result.items[2].instrumentCode").doesNotExist())
+            .andExpect(jsonPath("$.result.items[3].instrumentCode").doesNotExist())
     }
 
     @Test

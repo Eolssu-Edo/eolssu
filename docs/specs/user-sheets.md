@@ -47,7 +47,8 @@
 ## SHT-01 `GET /api/users/me/sheets`
 
 - 쿼리: `kind`(`JEONGGANBO`/`MIDI`/`PDF`, 그 외 400), `page`(0 이상, 기본 0), `size`(1~100, 기본 20).
-- `result.items[]`: `sheetId`, `kind`, `title`, `status`, `jangdanId`·`jangdanName`(장단 없는 곡 복사본은 둘 다 null), `source`, `pendingCellCount`, `sourcePageCount`(null), `updatedAt`. `page`, `size`, `totalElements`, `totalPages`도 반환한다.
+- `result.items[]`: `sheetId`, `kind`, `title`, `status`, `jangdanId`·`jangdanName`(장단 없는 곡 복사본은 둘 다 null), `source`, `pendingCellCount`, `sourcePageCount`(null), `updatedAt`, `instrumentCode`(문자열 또는 null). `page`, `size`, `totalElements`, `totalPages`도 반환한다.
+- 모든 목록 항목에 `instrumentCode`를 포함한다. 초안이 있으면 초안 공통 악보의 `score.instrument`, 그 외에는 확정 공통 악보의 `score.instrument`를 반환한다. 비어 있거나 읽을 수 없는 값은 null이다. 항목에 코드를 받은 편집기는 해당 항목을 목록에서 바로 거른다. null 또는 필드가 없는 응답은 이전 상세 조회 경로를 사용한다. [S15P31E102-765 작업 기록](../plans/S15P31E102-765.md)
 - 본인 악보만, `updatedAt` 내림차순·`sheetId` 내림차순. 없으면 빈 배열.
 
 ## 노션 초안과 다른 점
