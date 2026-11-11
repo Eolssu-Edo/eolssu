@@ -1084,6 +1084,8 @@ class PracticeViewModel(
             val resume = _uiState.value.resume
             val carry = _uiState.value.eventElapsedMs
             if (!(if (resume) resumeRecorder() else startRecorder())) {
+                cancelRecorder()
+                stopJangdan()
                 _uiState.update { it.failRecording() }
                 return@launch
             }

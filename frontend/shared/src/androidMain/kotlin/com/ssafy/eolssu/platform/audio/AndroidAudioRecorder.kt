@@ -54,6 +54,8 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
     private val ids = AtomicLong()
     private val stateLock = Any()
     @Volatile private var session: Session? = null
+    /** A successful preparation is claimed once, even if its capture fails before UI returns. */
+    private var preparedSession: Session? = null
     private var completed: File? = null
 
     override val supportsEchoCalibration = true
@@ -74,6 +76,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             check(output.prepare(clips))
             val lengths = clips.associateWith { checkNotNull(output.pcmFor(it)).size }
             val next = synchronized(stateLock) {
+                preparedSession = null
                 val previous = session
                 previous?.cancelled = true
                 Session(ids.incrementAndGet(), previous, warming = true).also { session = it }
@@ -189,7 +192,11 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             currentCoroutineContext().ensureActive()
             check(!next.cancelled && !next.failed && !output.interrupted)
             check(output.isCountInActive(scheduled))
-            prepared = true
+            synchronized(stateLock) {
+                check(session === next && !next.cancelled && !next.failed && !next.closed)
+                preparedSession = next
+                prepared = true
+            }
         } catch (cancelled: CancellationException) {
             if (session === preparing) echoState.value = RecordingEchoStatus.Off
             throw cancelled
@@ -209,7 +216,8 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
 
     override fun discardEchoCalibration() {
         synchronized(stateLock) {
-            session?.let { if (it.warming) it.cancelled = true; it.clearEcho() }
+            session?.let { if (it.warming || it === preparedSession) it.cancelled = true; it.clearEcho() }
+            preparedSession = null
             echoState.value = RecordingEchoStatus.Off
         }
     }
@@ -221,8 +229,11 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
     override val interrupted: Boolean get() = session?.failed == true
 
     override fun start() {
-        session?.takeIf { it.armedStartNanos != null && !it.cancelled && !it.failed && !it.closed }?.let {
+        val prepared = synchronized(stateLock) { preparedSession.also { preparedSession = null } }
+        prepared?.let {
+            check(session === it && !it.cancelled && !it.failed && !it.closed) { "Prepared recording is no longer available" }
             it.await(it.recordingStarted)
+            check(session === it && !it.cancelled && !it.failed && !it.closed) { "Prepared recording stopped during handoff" }
             return
         }
         echoState.value = RecordingEchoStatus.Off
@@ -248,7 +259,10 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
         }
     }
     override fun cancel() {
-        synchronized(stateLock) { session?.let { it.cancelled = true; it.clearEcho() } }
+        synchronized(stateLock) {
+            preparedSession = null
+            session?.let { it.cancelled = true; it.clearEcho() }
+        }
         echoState.value = RecordingEchoStatus.Off
     }
     override fun level(): Float = session?.level ?: 0f

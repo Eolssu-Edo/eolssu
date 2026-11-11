@@ -22,6 +22,18 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeEchoCalibrationTest {
+    @Test fun failedHandoffCancelsTheAlreadyRunningPreparedPlaybackAndCapture() = practice { vm, recorder, player, _, _ ->
+        recorder.failStart = true
+        vm.requestEvaluation(); runCurrent()
+        val stops = player.stops
+        recorder.pending.complete(true); runCurrent()
+        assertEquals(PracticePopup.RecordFailed, vm.uiState.value.popup)
+        assertEquals(PracticeMode.Interrupted, vm.uiState.value.mode)
+        assertTrue(recorder.cancels > 0, "A failed prepared capture must be discarded")
+        assertTrue(player.stops > stops, "The native schedule is already running before start returns")
+        assertEquals(emptySet(), vm.uiState.value.runningActivities)
+    }
+
     @Test fun preparationUsesTheSelectedSongTempoRatherThanThePatternDefault() = practice { vm, recorder, _, settings, _ ->
         val song = assertNotNull(vm.uiState.value.song)
         settings.update { it.copy(bpmBySong = it.bpmBySong + (song.id to 77)) }; runCurrent()
@@ -308,6 +320,7 @@ private class EchoRecorder : AudioRecorder {
     var preparedStatus = RecordingEchoStatus.Ready
     var preparations = 0
     var starts = 0
+    var failStart = false
     var cancels = 0
     var resumes = 0
     var discards = 0
@@ -334,7 +347,11 @@ private class EchoRecorder : AudioRecorder {
         return prepared.also { echoStatus.value = if (it) preparedStatus else RecordingEchoStatus.NotQuiet }
     }
     override fun discardEchoCalibration() { discards++; echoStatus.value = RecordingEchoStatus.Off }
-    override fun start() { starts++; if (echoStatus.value == RecordingEchoStatus.Ready) echoStatus.value = RecordingEchoStatus.Active }
+    override fun start() {
+        starts++
+        check(!failStart) { "Prepared capture failed during handoff" }
+        if (echoStatus.value == RecordingEchoStatus.Ready) echoStatus.value = RecordingEchoStatus.Active
+    }
     override fun pause() { echoStatus.value = RecordingEchoStatus.Off }
     override fun resume() { resumes++ }
     override fun stop() = RecordedAudio("echo.m4a", 1024)
