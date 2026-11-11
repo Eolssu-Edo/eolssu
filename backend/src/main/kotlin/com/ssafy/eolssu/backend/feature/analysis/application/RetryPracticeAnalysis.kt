@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.analysis.application
 
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRetryRepository
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisState
 import com.ssafy.eolssu.backend.feature.analysis.domain.RETRYABLE_FAIL_REASONS
@@ -23,11 +24,11 @@ class RetryPracticeAnalysis(
      * 새 시도의 분석([AnalyzePracticeSession.analyze])을 백그라운드 작업으로 넘기기만 하고 바로 돌아온다.
      * 넘기지 못해 예외가 나면 그 시도를 `SERVER_ERROR`로 끝내 사용자가 마감까지 기다리지 않고 다시 시도할 수 있게 한다.
      */
-    private val startAnalysis: (Long) -> Unit,
+    private val startAnalysis: (Long, Int, EvaluationTimingId?) -> Unit,
     /** 시도 시작 시각은 마감 판정과 같은 시계로 정한다. */
     private val clock: Clock,
 ) {
-    fun retry(userId: Long, sessionId: Long): RetryOutcome {
+    fun retry(userId: Long, sessionId: Long, timingId: EvaluationTimingId? = null): RetryOutcome {
         // 읽은 뒤 다른 요청이 새 시도를 시작했다가 곧바로 실패하면 시도 번호가 달라 갱신이 0행이다. 몇 번만 다시 읽어 본다.
         repeat(MAX_START_TRIES) {
             val state = currentState(userId, sessionId) ?: return RetryOutcome.NotFound
@@ -36,7 +37,7 @@ class RetryPracticeAnalysis(
             val startedAt = LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)
             if (repository.startRetry(sessionId, userId, state.attempt, startedAt)) {
                 val attempt = state.attempt + 1
-                launch(sessionId, attempt, startedAt)
+                launch(sessionId, attempt, startedAt, timingId)
                 return RetryOutcome.Started(attempt)
             }
         }
@@ -54,9 +55,9 @@ class RetryPracticeAnalysis(
         return repository.findState(sessionId, userId)
     }
 
-    private fun launch(sessionId: Long, attempt: Int, startedAt: LocalDateTime) {
+    private fun launch(sessionId: Long, attempt: Int, startedAt: LocalDateTime, timingId: EvaluationTimingId?) {
         try {
-            startAnalysis(sessionId)
+            startAnalysis(sessionId, attempt, timingId)
         } catch (e: Exception) {
             log.warn("Analysis retry could not be started session={} attempt={} error={}", sessionId, attempt, e.javaClass.simpleName)
             // 실패 기록마저 실패해도(DB 장애 등) 원래 원인을 잃지 않는다. 그 시도는 마감 뒤 TIMEOUT으로 끝난다.

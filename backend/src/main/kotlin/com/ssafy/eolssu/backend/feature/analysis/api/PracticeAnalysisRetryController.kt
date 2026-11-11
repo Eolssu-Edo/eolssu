@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.feature.analysis.api
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.feature.analysis.application.RetryOutcome
@@ -34,9 +35,12 @@ class PracticeAnalysisRetryController(private val retryPracticeAnalysis: RetryPr
         @PathVariable @Positive sessionId: Long,
         // 명세상 필수지만 저장하지 않는다. 같은 요청을 다시 보내도 세션이 이미 PENDING이라 새 시도가 생기지 않는다.
         @RequestHeader("Idempotency-Key") @Pattern(regexp = "[!-~]{1,100}") idempotencyKey: String,
+        @RequestHeader(EvaluationTimingId.HEADER, required = false) timingId: String? = null,
     ): ResponseEntity<*> {
         val outcome = try {
-            retryPracticeAnalysis.retry(requireNotNull(jwt.subject).toLong(), sessionId)
+            retryPracticeAnalysis.retry(
+                requireNotNull(jwt.subject).toLong(), sessionId, EvaluationTimingId.parse(timingId),
+            )
         } catch (e: RejectedExecutionException) {
             // 분석을 실행기에 넘기지 못했다(대기열 가득 참, 분석 연결 전). 유스케이스가 그 시도를 SERVER_ERROR로 끝냈다.
             return error(ErrorCode.SERVICE_UNAVAILABLE)

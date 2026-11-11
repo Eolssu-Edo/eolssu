@@ -198,7 +198,7 @@ class PracticeAnalysisRetryApiDatabaseTests {
         val submitted: MutableList<Long> = Collections.synchronizedList(mutableListOf())
 
         // 다시 시도가 새 시도를 넘기는 실행기. 실제 분석(AI 호출) 대신 넘겨받은 세션만 적는다.
-        @Bean @Primary fun recordingAnalysisOnUpload() = AnalysisOnUpload({ submitted += it }, { it.run() })
+        @Bean @Primary fun recordingAnalysisOnUpload() = AnalysisOnUpload({ sessionId, _ -> submitted += sessionId }, { it.run() })
     }
 
     companion object {

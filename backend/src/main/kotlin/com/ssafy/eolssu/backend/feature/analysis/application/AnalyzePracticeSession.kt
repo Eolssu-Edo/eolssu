@@ -30,9 +30,12 @@ class AnalyzePracticeSession(
     private val clock: Clock,
     private val timeLimit: Duration = DEFAULT_ANALYSIS_TIME_LIMIT,
 ) {
-    fun analyze(sessionId: Long): AnalysisOutcome {
-        val pending = repository.findPending(sessionId, startedAfter())
-            ?: return if (expireIfOverdue(sessionId)) AnalysisOutcome.TimedOut else AnalysisOutcome.NotPending
+    fun analyze(sessionId: Long, timing: EvaluationAnalysisTiming? = null): AnalysisOutcome {
+        val pending = repository.findPending(sessionId, startedAfter()) ?: run {
+            val outcome = if (expireIfOverdue(sessionId)) AnalysisOutcome.TimedOut else AnalysisOutcome.NotPending
+            timing?.finished(outcome.code)
+            return outcome
+        }
         val began = clock.instant()
 
         val requested = try {
@@ -45,6 +48,7 @@ class AnalyzePracticeSession(
         }
 
         val outcome = finish(pending, requested)
+        timing?.finished(outcome.code, pending.attempt)
         log.info(
             "Analysis finished session={} attempt={} outcome={} elapsedMs={}",
             pending.sessionId, pending.attempt, outcome.code, Duration.between(began, clock.instant()).toMillis(),

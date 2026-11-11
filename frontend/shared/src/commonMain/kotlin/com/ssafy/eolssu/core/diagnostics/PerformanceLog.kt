@@ -29,9 +29,10 @@ enum class PerfReason {
 enum class PerfPhase {
     SCORE_READY, SCORE_DRAWN, PRACTICE_READY, PRACTICE_DRAWN, RECORD_DRAWN, RECORD_EMPTY,
     MODEL_AUDIO_PLAY, TIMELINE_READY, PLAYER_LOAD, PLAYER_STARTED,
+    SESSION_CREATE, RECORDING_UPLOAD, ANALYSIS_RETRY, FIRST_STATUS_REQUEST, ANALYSIS_READY,
 }
 
-/** Only enumerated labels and process-local aliases can cross the diagnostic sink. */
+/** Diagnostic events contain allowlisted labels, timings, aliases and random correlation IDs. */
 data class PerformanceEvent(
     val kind: PerfKind,
     val ms: Long,
@@ -50,6 +51,7 @@ data class PerformanceEvent(
     val failed: Int? = null,
     val method: PerfMethod? = null,
     val outcome: PerfReason? = null,
+    val evaluationTimingId: String? = null,
 ) {
     fun encode(): String = buildJsonObject {
         put("kind", kind.name.lowercase())
@@ -69,6 +71,7 @@ data class PerformanceEvent(
         failed?.let { put("failed", it) }
         method?.let { put("method", it.name.lowercase()) }
         outcome?.let { put("outcome", it.name.lowercase()) }
+        evaluationTimingId?.let { put("evaluation_timing_id", it) }
     }.toString()
 }
 
@@ -138,8 +141,9 @@ class PerformanceVisit(
         failed: Int? = null,
         method: PerfMethod? = null,
         outcome: PerfReason? = null,
+        evaluationTiming: EvaluationTiming? = null,
     ) = PerformanceLog.emit(PerformanceEvent(kind, PerformanceLog.now(), flow.id, id, target, load, resource,
-        revision, source, reason, phase, status, durationMs, count, failed, method, outcome))
+        revision, source, reason, phase, status, durationMs, count, failed, method, outcome, evaluationTiming?.id))
 
     fun reuse(target: PerfTarget, key: String, source: PerfSource, revision: Int? = null) =
         event(PerfKind.DATA_LOAD, target, load = PerformanceLog.id(), resource = flow.alias(target, key),

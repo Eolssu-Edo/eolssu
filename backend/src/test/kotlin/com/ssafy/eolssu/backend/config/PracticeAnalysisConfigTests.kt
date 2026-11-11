@@ -103,7 +103,7 @@ class PracticeAnalysisConfigTests {
     fun `a retried attempt starts on the server UTC clock and goes to the upload analysis executor`() {
         val started = mutableListOf<Long>()
         val retries = Retries(AnalysisState("FAILED", "TIMEOUT", 1))
-        val retry = config.retryPracticeAnalysis(retries, repository, AnalysisOnUpload({ started += it }, { it.run() }), AnalysisProperties())
+        val retry = config.retryPracticeAnalysis(retries, repository, AnalysisOnUpload({ sessionId, _ -> started += sessionId }, { it.run() }), AnalysisProperties())
         val before = utcNow()
         assertEquals(RetryOutcome.Started(2), retry.retry(userId = 1, sessionId = 7))
         val after = utcNow()

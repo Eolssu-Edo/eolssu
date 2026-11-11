@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.practice
 
+import com.ssafy.eolssu.core.diagnostics.EvaluationTiming
 import com.ssafy.eolssu.core.diagnostics.PerfSource
 import com.ssafy.eolssu.core.diagnostics.PerfReason
 import com.ssafy.eolssu.core.diagnostics.PerformanceReason
@@ -66,8 +67,12 @@ class ApiEvaluationRepository(
      */
     override suspend fun retryAnalysis(analysisId: String): RetryOutcome = member.inSession {
         if (!analysisId.isServerId()) return@inSession requireNotNull(fallback).retryAnalysis(analysisId)
+        val timing = currentCoroutineContext()[EvaluationTiming]
         val response = client.sendOrNull {
-            post("/api/practice-sessions/$analysisId/retry") { header(IDEMPOTENCY_KEY, newKey()) }
+            post("/api/practice-sessions/$analysisId/retry") {
+                header(IDEMPOTENCY_KEY, newKey())
+                timing?.let { header(EvaluationTiming.HEADER, it.id) }
+            }
         } ?: error("다시 시도 응답 없음")
         return@inSession when (response.status) {
             HttpStatusCode.Accepted -> RetryOutcome.Started

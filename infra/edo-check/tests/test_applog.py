@@ -22,6 +22,22 @@ def event(seq, **fields):
 
 
 class AppLogTests(unittest.TestCase):
+    def test_evaluation_timing_accepts_only_a_diagnostic_uuid(self):
+        event = {
+            'kind': 'milestone', 'ms': 400, 'run_id': 'a' * 32,
+            'version_name': 'qa-20261111.162704-866d9064', 'version_code': 1,
+            'target': 'analysis', 'phase': 'recording_upload', 'duration_ms': 125,
+            'evaluation_timing_id': 'b23ba41a-7e5e-4938-8b3b-93ce5ac25c95',
+        }
+        self.assertIn(event['evaluation_timing_id'], relay.encode_applog_event(event))
+        for invalid in ('1234', 'private@example.test', event['evaluation_timing_id'] + '\n'):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                relay.encode_applog_event({**event, 'evaluation_timing_id': invalid})
+        with self.assertRaises(ValueError):
+            relay.encode_applog_event({**event, 'phase': 'score_drawn'})
+        with self.assertRaises(ValueError):
+            relay.encode_applog_event({**event, 'recording_url': 'private'})
+
     def setUp(self):
         tmp = TemporaryDirectory()
         self.addCleanup(tmp.cleanup)

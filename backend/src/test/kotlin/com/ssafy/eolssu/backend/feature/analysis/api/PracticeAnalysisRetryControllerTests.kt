@@ -43,7 +43,7 @@ class PracticeAnalysisRetryControllerTests {
     private val started = mutableListOf<Long>()
 
     private fun retry(sessions: Sessions, startAnalysis: (Long) -> Unit = { started += it }, path: String = "/api/practice-sessions/501/retry"): ResultActions {
-        val useCase = RetryPracticeAnalysis(sessions, { false }, startAnalysis, Clock.fixed(Instant.parse("2026-10-29T01:00:00Z"), ZoneOffset.UTC))
+        val useCase = RetryPracticeAnalysis(sessions, { false }, { sessionId, _, _ -> startAnalysis(sessionId) }, Clock.fixed(Instant.parse("2026-10-29T01:00:00Z"), ZoneOffset.UTC))
         val mockMvc = MockMvcBuilders.standaloneSetup(PracticeAnalysisRetryController(useCase))
             .setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).setControllerAdvice(GlobalExceptionHandler()).build()
         return mockMvc.perform(post(path).header("Idempotency-Key", "retry-1"))
@@ -129,7 +129,7 @@ class PracticeAnalysisRetryControllerTests {
     @Test
     fun `requires a printable Idempotency-Key of at most 100 characters`() {
         signIn("1")
-        val useCase = RetryPracticeAnalysis(Sessions(AnalysisState("FAILED", "TIMEOUT", 1)), { false }, { started += it }, Clock.systemUTC())
+        val useCase = RetryPracticeAnalysis(Sessions(AnalysisState("FAILED", "TIMEOUT", 1)), { false }, { sessionId, _, _ -> started += sessionId }, Clock.systemUTC())
         val mockMvc = MockMvcBuilders.standaloneSetup(PracticeAnalysisRetryController(useCase))
             .setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).setControllerAdvice(GlobalExceptionHandler()).build()
         mockMvc.perform(post("/api/practice-sessions/501/retry")).error(400, "INVALID_REQUEST")

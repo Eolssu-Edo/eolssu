@@ -22,7 +22,7 @@ class MyBatisRecordingUploadRepository(
                 sessionId, userId, key, metadata.bytes, metadata.durationMs, metadata.sampleRate, metadata.channels, uploadedAt,
             ) == 1
         }
-        if (updated) events.publishEvent(RecordingUploaded(sessionId))
+        if (updated) events.publishEvent(RecordingUploaded(sessionId, recording.timingId))
         updated
     } == true
 }

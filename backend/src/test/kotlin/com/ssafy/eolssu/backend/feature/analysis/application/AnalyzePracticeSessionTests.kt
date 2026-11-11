@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.backend.feature.analysis.application
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisClient
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisFailReason
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRequest
@@ -20,6 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.web.client.ResourceAccessException
 
@@ -99,6 +104,41 @@ class AnalyzePracticeSessionTests {
         )
         assertEquals("DONE", repository.status)
         assertEquals(listOf<Any>(done), repository.stored)
+    }
+
+    @Test
+    fun `measures queue and processing time with a wall clock adjustment and no payload`() {
+        val logger = LoggerFactory.getLogger(EvaluationAnalysisTiming::class.java) as Logger
+        val output = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(output)
+        try {
+            val id = checkNotNull(EvaluationTimingId.parse("b23ba41a-7e5e-4938-8b3b-93ce5ac25c95"))
+            val executorQueue = ArrayDeque<Runnable>()
+            var ticks = 8_000_000_000L
+            val analysis = service({
+                ticks += 240_000_000L
+                clock.now = clock.now.minusSeconds(3)
+                done
+            })
+            val runner = AnalysisOnUpload(
+                { sessionId, timing -> analysis.analyze(sessionId, timing) },
+                { executorQueue.addLast(it) }, nanoTime = { ticks },
+            )
+
+            runner.submit(7, attempt = 2, timingId = id)
+            assertTrue(output.list.isEmpty())
+            ticks += 60_000_000L
+            executorQueue.removeFirst().run()
+
+            assertEquals("DONE", repository.status)
+            assertEquals(
+                "event=evaluation_analysis_timing id=${id.value} attempt=2 queue_ms=60 processing_ms=240 outcome=DONE",
+                output.list.single().formattedMessage,
+            )
+        } finally {
+            logger.detachAppender(output)
+            output.stop()
+        }
     }
 
     @Test

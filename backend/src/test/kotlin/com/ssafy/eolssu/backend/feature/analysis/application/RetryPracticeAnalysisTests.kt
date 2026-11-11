@@ -57,7 +57,7 @@ class RetryPracticeAnalysisTests {
     private fun service(startAnalysis: (Long) -> Unit = { launched += it }, retryClock: Clock = clock) = RetryPracticeAnalysis(
         repository,
         expireIfOverdue = { sessionId -> expired += sessionId; expire() },
-        startAnalysis = startAnalysis,
+        startAnalysis = { sessionId, _, _ -> startAnalysis(sessionId) },
         clock = retryClock,
     )
 
