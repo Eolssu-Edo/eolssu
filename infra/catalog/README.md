@@ -216,3 +216,26 @@ sudo /opt/eolssu-backup/backup.py send db
 적용 모드는 새 해시 prefix에 조건부 R2 PUT·전체 읽기 SHA·MIME를 검사하고, lock 안에서 DB·설정 prechange 백업을 완료한다. 곡·음원 행 잠금과 변경 전 값·음원 수·세션 부재를 다시 확인한 한 트랜잭션에서 v2 음원 추가·악보 교체·채점 활성화를 수행한다. 기존 v1 음원과 조회 이력은 유지한다. 운영 드리프트나 일부만 적용된 상태이면 중단한다. timeout/`apply-outcome-unknown`이면 새 receipt의 조회 모드로 커밋 여부부터 확인한다. 롤백이 필요하면 신규 연습 세션 유무를 다시 확인하고 보관한 beforeSong에 대한 대상별 역변경을 준비한다. 공유 DB 전체를 과거 백업으로 덮어쓰지 않는다.
 
 빠른 검사: `python -m unittest discover -s infra/catalog -p test_publish_scoring_repairs.py`. 실제 DB 검사는 일회성 `eolssu-existing-score-704-test` MySQL 컨테이너와 별도 `repair_score_699_test` DB를 쓴다. `REPAIR_SCORE_TEST_MYSQL_CONTAINER`, `REPAIR_SCORE_TEST_MYSQL_PASSWORD`를 지정하면 성공·재실행 보존과 마지막 곡의 메타데이터/음원/추가 판본/세션 충돌에서 전체 롤백을 검사한다.
+
+## 장단·빠르기와 모범 음원 동시 교정 (728)
+
+`publish_score_tempo.py`는 검수한 기존 곡에 다음 판본의 음원을 추가하고 악보·기본 BPM을 한 트랜잭션에서 바꾼다. 원래 음원 행·객체와 완료 세션을 보존하며, 악보에서는 `score.scoreVersion`과 `music.jangdan`만 변경할 수 있다. 별도 `beatNotationCorrection: {"basis": "원보 대응 근거"}`가 있으면 `ticksPerBeat`만 추가로 바꿀 수 있고, 이때 `이전 BPM × 이전 ticksPerBeat = 새 BPM × 새 ticksPerBeat`로 실제 재생 속도를 보존해야 한다. 음표·가사·시김새·정간 tick·채점 가능 여부·게시 상태는 그대로 둔다. 다른 작업에서 처리하는 비행기 56·132·133·134번은 거부한다.
+
+서버에는 `publish_score_tempo.py`, `enable_scoring.py`, `stage_model_audio.py`를 같은 디렉터리에 준비한다. `--song-id`를 반복하면 읽기 전용으로 `songs`와 모든 판본의 `audios`, 활성 세션 수를 JSON으로 내보낸다. 이 스냅샷의 곡 행과 현재 판본 음원 행을 각각 `beforeSong`, `beforeAudio`에 넣는다.
+
+묶음의 `release.json`은 `schema: eolssu-score-tempo-release/v1`, `task: S15P31E102-728`, `entries`를 가진다. 각 entry는 `songId`, `beforeSong`, `beforeAudio`, `targetBpm`, `scoreFile`, `audioFile`, `performanceFile`, `audioMetadata`와 필요 시 위 박 표기 근거를 담는다. 세 파일 명세는 상대 `path`, `sha256`, `bytes`이며 음원은 `.m4a`, 나머지는 `.json`이다. `audioMetadata`에는 `source_common_sha256`, `bpm`, `bpm_unit`, `duration_ms`, `start_offset_ms`, `content_type`, `sha256`, `status`, `generation_metadata`를 넣는다. 목표 파일의 실제 코덱·음악적 해석과 디코딩 길이는 생성 단계에서 검증한다. 적용기는 파일 해시·악보 변경 범위·수행 시간표의 판본/해시/연속성·메타데이터를 다시 검사한다.
+
+```sh
+sudo python3 publish_score_tempo.py --song-id 54 --song-id 55 > before-728.json
+sudo python3 publish_score_tempo.py --bundle release --receipt 728-check.json
+sudo python3 publish_score_tempo.py --bundle release --receipt 728-upload.json --upload-only
+sudo python3 publish_score_tempo.py --bundle release --receipt 728-apply.json --apply --upload-receipt 728-upload.json
+sudo python3 publish_score_tempo.py --bundle release --receipt 728-after.json
+sudo /opt/eolssu-backup/backup.py send db
+```
+
+receipt는 묶음 밖의 새 파일에 쓴다. 업로드는 `model-audio/drafts/<release.json SHA256>/`의 새 키에 조건부 PUT하고 전체 GET 해시·MIME·만료 설정을 확인한다. 적용은 같은 묶음과 정확히 일치하는 업로드 receipt를 요구한다. **적용기가 배포 lock을 직접 얻으므로 바깥에서 같은 lock을 다시 잡지 않는다.** 잠금이 사용 중이면 변경 없이 실패한다. 잠금 안에서 prechange 백업을 완료하고 곡·음원 원래 값과 활성 `RECORDING`/`PENDING` 세션 부재를 재검사한다. 트랜잭션에서도 같은 조건을 검사하며, 다른 변경이나 새 활성 세션을 발견하면 대상 전체를 롤백한다. `HIDDEN`/`DRAFT` 쌍도 그대로 유지한다.
+
+적용 직전과 COMMIT 이후 재조회 전에 receipt를 디스크에 동기화한다. `apply-outcome-unknown`/`committed-readback-pending`이나 연결 중단 후에는 새 receipt의 조회 모드로 실제 상태부터 확인한다. 이미 목표 판본·음원과 일치하면 재실행은 쓰지 않는다. 부분 적용이나 미래 판본이 있으면 중단한다. 복구 자료는 변경 전 행을 포함한 불변 `release.json`, 보존된 이전 음원·객체, prechange 백업이다. 역변경은 현재 목표 행과 신규 활성/사용 세션을 다시 확인한 대상별 CAS SQL로 준비한다. 이 도구는 자동 역변경이나 과거 DB 전체 덮어쓰기를 수행하지 않는다.
+
+빠른 검사: `python -m unittest discover -s infra/catalog -p test_publish_score_tempo.py -v`. 실제 MySQL 검사는 포트를 노출하지 않는 별도 `eolssu-tempo-728-test` MySQL 8.4 컨테이너의 `tempo728_test` 스키마만 사용한다. `TEMPO_TEST_MYSQL_CONTAINER`와 `TEMPO_TEST_MYSQL_PASSWORD`를 해당 로컬 값으로 지정하면 원자적 변경·이전 음원/완료 세션 보존·늦은 메타데이터 충돌·활성 세션 추가 시 전체 롤백을 검사한다. 운영 API·앱 재생 확인은 적용 뒤 별도 수행한다.
