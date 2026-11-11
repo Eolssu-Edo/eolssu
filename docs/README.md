@@ -19,6 +19,7 @@
 - [정간보 단모리 변환 시간 교정 (732)](specs/danmori-conversion-timing.md) · [오류 원인과 기존 데이터 영향](knowledge/ai/jeongganbo-beat-timing.md)
 - [비행기 네 악기 악보·CAT 음원·4박 기본 반주 연결 (707)](specs/airplane-four-instruments.md) · [계획·검증](plans/S15P31E102-707.md) · [악보·생성 근거](knowledge/data/airplane-beginner-score.md)
 
+- [iOS 녹음 입력과 실시간 음높이 분석 (562)](plans/S15P31E102-562.md)
 - [iOS 연습 장단 소리 재생 연결 (714)](plans/S15P31E102-714.md) · [장단 재생 스펙](specs/jangdan-practice-playback.md#ios-연습-장단-재생-s15p31e102-714)
 - [한 음씩 연습 안내 문구 삭제·현재 정간 칸 정렬과 예시음 재생 수정 (717)](plans/S15P31E102-717.md)
 - [연습 화면 계이름 표시·장단 안내 문구 삭제와 평가 화면 표기 스위치 이동 (716)](plans/S15P31E102-716.md)
