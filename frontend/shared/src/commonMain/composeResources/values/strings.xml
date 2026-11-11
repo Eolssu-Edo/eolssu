@@ -601,7 +601,6 @@
     <string name="auth_oauth_placeholder_body">계정 선택과 정보 제공 동의는\n제공자 화면에서 진행돼요.</string>
     <string name="auth_signup_title">회원가입</string>
     <string name="auth_step">%1$d / %2$d</string>
-    <string name="auth_step_description">%2$d단계 중 %1$d단계</string>
     <string name="auth_signup_step_consent">약관 동의</string>
     <string name="auth_signup_step_email">이메일 인증</string>
     <string name="auth_signup_step_password">비밀번호 설정</string>
@@ -652,6 +651,7 @@
     <string name="auth_link_done">%1$s 계정을 연결했어요. 다음부터 %1$s로 로그인할 수 있어요.</string>
     <string name="auth_signup_verify_heading">로그인에 쓸\n이메일을 확인해요</string>
     <string name="auth_reset_title">비밀번호 찾기</string>
+    <string name="auth_reset_step_progress_description">비밀번호 찾기 %2$d단계 중 %1$d단계, %3$s</string>
     <string name="auth_reset_verify_heading">가입한 이메일로\n인증번호를 보내요</string>
     <string name="auth_code_send">인증번호 받기</string>
     <string name="auth_code_sent">%1$s로 인증번호를 보냈어요.</string>

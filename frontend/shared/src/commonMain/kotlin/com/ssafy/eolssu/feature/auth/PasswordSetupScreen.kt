@@ -31,10 +31,7 @@ import com.ssafy.eolssu.feature.auth.component.AuthBody
 import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
-import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
-import com.ssafy.eolssu.feature.auth.component.AuthStepProgress
 import com.ssafy.eolssu.core.ui.component.EolssuTextField
-import com.ssafy.eolssu.feature.auth.component.AuthTopBar
 import com.ssafy.eolssu.feature.auth.component.PasswordChecklist
 import com.ssafy.eolssu.feature.auth.component.SignupTopBar
 import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
@@ -49,7 +46,6 @@ import eolssu.shared.generated.resources.auth_password_confirm_placeholder
 import eolssu.shared.generated.resources.auth_password_placeholder
 import eolssu.shared.generated.resources.auth_reset_done
 import eolssu.shared.generated.resources.auth_reset_password_heading
-import eolssu.shared.generated.resources.auth_reset_title
 import eolssu.shared.generated.resources.auth_signup_password_heading
 import org.jetbrains.compose.resources.stringResource
 
@@ -70,18 +66,8 @@ fun PasswordSetupScreen(
         authFrameOf(widthClass, split = true),
         modifier = Modifier.imePadding(),
         topBar = {
-            if (signUp) {
-                SignupTopBar(SignupProgress(SignupPath.Email, SignupStep.Password), onBack = onBack)
-            } else {
-                Column {
-                    AuthTopBar(
-                        stringResource(Res.string.auth_reset_title),
-                        onBack = onBack,
-                        right = { AuthStepLabel(2, PasswordResetStepCount) },
-                    )
-                    AuthStepProgress(2, PasswordResetStepCount)
-                }
-            }
+            val path = if (signUp) SignupPath.Email else SignupPath.PasswordReset
+            SignupTopBar(SignupProgress(path, SignupStep.Password), onBack = onBack)
         },
         bottomBar = { EolssuButton(stringResource(if (signUp) Res.string.auth_next else Res.string.auth_reset_done), onClick = onSubmit) },
     ) {

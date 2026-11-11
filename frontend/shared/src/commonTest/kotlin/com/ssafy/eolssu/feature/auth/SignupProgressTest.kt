@@ -102,7 +102,31 @@ class SignupProgressTest {
     }
 
     @Test
+    fun passwordResetIsEmailVerificationThenPassword() {
+        assertEquals(listOf(EmailVerification, Password), SignupPath.PasswordReset.steps)
+        val verify = SignupProgress(SignupPath.PasswordReset, EmailVerification)
+        assertEquals(1, verify.number)
+        assertEquals(2, verify.total)
+        assertEquals(Password, verify.next)
+        val password = SignupProgress(SignupPath.PasswordReset, Password)
+        assertEquals(2, password.number)
+        assertEquals(listOf(Done, Current), password.steps.map(password::statusOf))
+        assertNull(password.next)
+    }
+
+    @Test
+    fun passwordResetMovesBetweenItsTwoStepsAndStartsFreshAfterSignup() {
+        val transitions = SignupStepTransitions()
+        transitions.enter(SignupProgress(SignupPath.Email, EmailVerification))
+        // 가입 중 보던 이메일 인증 단계에서 비밀번호 찾기로 와도 이어 움직이지 않는다.
+        assertEquals(SignupStepEntry.Fresh, transitions.enter(SignupProgress(SignupPath.PasswordReset, EmailVerification)))
+        assertEquals(SignupStepEntry.Moved(fromIndex = 0), transitions.enter(SignupProgress(SignupPath.PasswordReset, Password)))
+        assertEquals(SignupStepEntry.Moved(fromIndex = 1), transitions.enter(SignupProgress(SignupPath.PasswordReset, EmailVerification)))
+    }
+
+    @Test
     fun stepOutsideThePathIsRejected() {
+        assertFailsWith<IllegalArgumentException> { SignupProgress(SignupPath.PasswordReset, Consent) }
         assertFailsWith<IllegalArgumentException> { SignupProgress(SignupPath.Social, Password) }
         assertFailsWith<IllegalArgumentException> { SignupProgress(SignupPath.Social, Consent).statusOf(EmailVerification) }
     }
