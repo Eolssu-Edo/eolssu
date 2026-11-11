@@ -148,6 +148,7 @@ fun PracticeScoreArea(
                 onUnitClick = onUnitClick,
                 annotations = annotations,
                 unitMarks = pitchMarks,
+                unitMarksAfterPass = true,
             )
         } else {
             val bandHeight = (maxHeight - BandGap) / 2
@@ -170,6 +171,7 @@ fun PracticeScoreArea(
                         columns = first until minOf(first + bandColumns, columnCount),
                         annotations = annotations,
                         unitMarks = pitchMarks,
+                        unitMarksAfterPass = true,
                     )
                 }
             }
@@ -320,6 +322,7 @@ fun PracticeBoardScore(
                     cellHeights = packing.cellHeights,
                     stackRowHeights = packing.stackRowHeights,
                     unitMarks = pitchMarks,
+                    unitMarksAfterPass = true,
                 )
             }
             // 준비 안내의 공간을 재생 중에도 유지해 악보 높이/묶음 수가 변하지 않게 한다.
@@ -356,6 +359,7 @@ fun PracticeBoardScore(
 /**
  * 평가 연주에서 음마다 모은 실시간 음높이 안내를 그 음의 표시 자리에 칠한다(S15P31E102-597).
  * 맞음은 연두, 다른 음은 주황, 판단 보류는 회색 테두리만 둔다. 연주 후 채점의 틀린 칸 표시와 달리 아이콘·문구는 없다.
+ * 연주 중에는 진행 채움이 그 자리를 다 지난 뒤에 칠한다(S15P31E102-752).
  */
 @Composable
 private fun livePitchCellMarks(marks: Map<ScoreUnitKey, LivePitchMark>): Map<ScoreUnitKey, ScoreCellMark> {
