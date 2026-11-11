@@ -120,21 +120,37 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
         Box(modifier.height(controlsHeight), contentAlignment = Alignment.Center) {
             val label = when (personalAudio) {
                 PracticePersonalAudio.Checking -> Res.string.practice_sheet_audio_checking
+                PracticePersonalAudio.Preparing -> Res.string.practice_sheet_audio_preparing
                 PracticePersonalAudio.Downloading -> Res.string.practice_sheet_audio_downloading
+                PracticePersonalAudio.Unsupported -> Res.string.practice_player_unsupported
                 PracticePersonalAudio.Failed -> Res.string.practice_sheet_audio_retry
                 PracticePersonalAudio.VersionChanged -> Res.string.practice_sheet_audio_version_changed
                 else -> Res.string.practice_sheet_audio_download
             }
-            val enabled = personalAudio == PracticePersonalAudio.Missing || personalAudio == PracticePersonalAudio.Failed
-            Box(
-                Modifier.height(if (compact) 32.dp else 40.dp).clip(RoundedCornerShape(10.dp))
-                    .background(if (enabled) colors.primary else colors.groupedBackground)
-                    .clickable(enabled = enabled, role = Role.Button, onClick = actions.onDownloadSheetAudio)
-                    .padding(horizontal = 14.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(stringResource(label), style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                    color = if (enabled) colors.onPrimary else colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (personalAudio == PracticePersonalAudio.Missing || personalAudio == PracticePersonalAudio.Failed) {
+                Box(
+                    Modifier.height(if (compact) 32.dp else 40.dp).clip(RoundedCornerShape(10.dp))
+                        .background(colors.primary)
+                        .clickable(role = Role.Button, onClick = actions.onDownloadSheetAudio)
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(label),
+                        style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                        color = colors.onPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            } else {
+                Text(
+                    stringResource(label),
+                    Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textMuted,
+                    textAlign = TextAlign.Center,
+                )
             }
         }
     } else { rowModifier ->
@@ -221,6 +237,7 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         PracticePlayerNotice.PersonalAudioUnavailable -> stringResource(Res.string.practice_sheet_audio_unavailable)
         PracticePlayerNotice.PersonalDownloadFailed -> stringResource(Res.string.practice_sheet_audio_download_failed)
         PracticePlayerNotice.PersonalScoreChanged -> stringResource(Res.string.practice_sheet_audio_reopen)
+        PracticePlayerNotice.PersonalAudioReady -> stringResource(Res.string.practice_sheet_audio_ready)
         PracticePlayerNotice.EmbeddedJangdan -> stringResource(Res.string.practice_sheet_audio_with_jangdan)
         PracticePlayerNotice.Unsupported -> stringResource(Res.string.practice_player_unsupported)
         PracticePlayerNotice.Interrupted -> stringResource(Res.string.practice_player_interrupted)
@@ -229,7 +246,7 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         Row(verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             if (message.isNotEmpty()) Text(
-                message, modifier = Modifier.semantics { contentDescription = message },
+                message, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 maxLines = 2, overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
                 color = EolssuTheme.colors.textMuted,
