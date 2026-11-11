@@ -112,6 +112,70 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertTrue(closed)
     }
 
+    @Test fun closeDuringFailedAutoSaveKeepsTheEditorOpenWithoutRetrying() = runTest {
+        val reply = CompletableDeferred<SheetWrite>()
+        val writes = mutableListOf<SheetWorkingCopy>()
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document()
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                assertTrue(draft)
+                writes += copy
+                return reply.await()
+            }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        model.updateDetails("저장 중인 초안", 60)
+        advanceTimeBy(1_000)
+        runCurrent()
+        var closed = false
+        model.closeEditor { closed = true }
+        runCurrent()
+        assertFalse(closed)
+
+        reply.complete(SheetWrite.Failed)
+        runCurrent()
+        assertEquals(1, writes.size)
+        assertFalse(closed)
+        assertTrue(model.uiState.value.closeWarning)
+        assertEquals("저장 중인 초안", model.uiState.value.draft.title)
+        assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
+    }
+
+    @Test fun undoAfterLostAutoSaveAcknowledgementUsesTheServerRevision() = runTest {
+        val writes = mutableListOf<SheetWorkingCopy>()
+        var stored: SheetWorkingCopy? = null
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document(stored)
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                assertTrue(draft)
+                writes += copy
+                if (copy.revision != (stored?.revision ?: 0)) return SheetWrite.Conflict
+                stored = copy.copy(revision = copy.revision + 1)
+                return if (writes.size == 2) SheetWrite.Failed else SheetWrite.Saved("1", copy.revision + 1)
+            }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        model.updateDetails("먼저 저장한 초안", 60)
+        advanceTimeBy(1_000)
+        runCurrent()
+        model.updateDetails("응답이 유실된 초안", 60)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
+        assertEquals("응답이 유실된 초안", stored?.title)
+
+        model.undo()
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(listOf(0, 1, 2), writes.map { it.revision })
+        assertEquals(SheetSaveStatus.DraftSaved, model.uiState.value.saveStatus)
+        val reopened = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        assertEquals("먼저 저장한 초안", reopened.uiState.value.draft.title)
+    }
+
     @Test fun failedExitSaveKeepsScreenAndAsksBeforeDiscardingEdits() = runTest {
         var closed = false
         val repository = object : SheetDocumentRepository {
@@ -166,16 +230,19 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
     @Test fun autoSaveKeepsLatestEditPendingAndRetriesOnlyAfterAnError() = runTest {
         val reply = CompletableDeferred<SheetWrite>()
         val writes = mutableListOf<SheetWorkingCopy>()
+        var stored: SheetWorkingCopy? = null
         val repository = object : SheetDocumentRepository {
-            override suspend fun get(sheetId: String) = document()
+            override suspend fun get(sheetId: String) = document(stored)
             override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
                 assertTrue(draft)
                 writes += copy
-                return when (writes.size) {
+                val result = when (writes.size) {
                     1 -> reply.await()
                     2 -> SheetWrite.Failed
                     else -> SheetWrite.Saved("1", 2)
                 }
+                if (result is SheetWrite.Saved) stored = copy.copy(revision = result.revision)
+                return result
             }
         }
         val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))

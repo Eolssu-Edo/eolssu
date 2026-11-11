@@ -96,6 +96,7 @@ class SheetEditViewModel(
     private var closeJob: Job? = null
     private var persistedDraft: SheetDraft? = null
     private var persistedStatus: SheetSaveStatus? = null
+    private var lastFinishedDraftSave: DraftSave? = null
     private var savedJangdanId: String? = null
     private var confirmedDraft: SheetDraft? = null
     private val writeLock = Mutex()
@@ -108,6 +109,7 @@ class SheetEditViewModel(
         baseline = null
         persistedDraft = null
         persistedStatus = null
+        lastFinishedDraftSave = null
         savedJangdanId = null
         confirmedDraft = null
         version = ""
@@ -258,7 +260,9 @@ class SheetEditViewModel(
         }
     }
 
-    private fun persist(draft: Boolean, announce: Boolean = true): Job? {
+    private class DraftSave(val draft: SheetDraft, var unconfirmedRequest: SheetWorkingCopy?)
+
+    private fun persist(draft: Boolean, announce: Boolean = true, closing: Boolean = false): Job? {
         val repository = documents ?: return null
         val requested = _uiState.value
         val id = requested.serverSheetId ?: return null
@@ -270,30 +274,51 @@ class SheetEditViewModel(
             // 쓰기 잠금을 기다리는 동안에도 확정 저장의 중복 입력을 막는다.
             confirmationPending = true
         }
+        val draftBeforeClose = lastFinishedDraftSave
         return accountScope.launch {
             try {
                 writeLock.withLock {
                     if (_uiState.value.saveConflict) return@withLock
-                    val snapshot = _uiState.value
-                    val sameDraft = draft && snapshot.draft == persistedDraft
-                    if (sameDraft && (!announce || persistedStatus == SheetSaveStatus.DraftSaved)) {
-                        _uiState.update {
-                            it.copy(saveStatus = if (announce || it.saveStatus == null) persistedStatus else it.saveStatus,
-                                message = if (announce && persistedStatus == SheetSaveStatus.DraftSaved) SheetEditMessage.Draft else it.message)
-                        }
+                    val precedingDraft = lastFinishedDraftSave
+                    // 닫기는 잠금을 기다리는 동안 끝난 같은 초안 요청의 결과를 사용한다.
+                    if (closing && precedingDraft !== draftBeforeClose && precedingDraft?.draft == _uiState.value.draft) {
                         return@withLock
                     }
-                    if (!draft && blockInvalidCompletion(snapshot)) return@withLock
-                    _uiState.update { it.copy(saving = true, confirming = !draft, saveStatus = null,
-                        emptyWarning = false, completionWarning = false) }
+                    var writing: SheetDraft? = null
                     try {
+                        if (precedingDraft?.unconfirmedRequest != null) {
+                            _uiState.update { it.copy(saving = true, saveStatus = null) }
+                            if (!reconcileDraftSave(repository, id, precedingDraft)) {
+                                if (!_uiState.value.saveConflict) recordSaveFailure(_uiState.value.draft, draft, announce)
+                                return@withLock
+                            }
+                        }
+                        val snapshot = _uiState.value
+                        if (draft && isDraftPersisted(snapshot.draft) && (!announce || persistedStatus == SheetSaveStatus.DraftSaved)) {
+                            _uiState.update {
+                                it.copy(saveStatus = if (announce || it.saveStatus == null) persistedStatus else it.saveStatus,
+                                    message = if (announce) SheetEditMessage.Draft else it.message)
+                            }
+                            return@withLock
+                        }
+                        if (!draft && blockInvalidCompletion(snapshot)) return@withLock
+                        writing = snapshot.draft
+                        _uiState.update { it.copy(saving = true, confirming = !draft, saveStatus = null,
+                            emptyWarning = false, completionWarning = false) }
                         val score = snapshot.draft.toCommonScore()
                         if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
                         val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
                             .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
                         val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
                             snapshot.draft.bpm, score, version, revision, resolvedIds)
-                        when (val result = repository.save(id, copy, draft)) {
+                        val attempt = if (draft) DraftSave(snapshot.draft, copy) else null
+                        val result = try {
+                            repository.save(id, copy, draft).also { ensureAccountSession() }
+                        } finally {
+                            if (attempt != null && accountScope.isActive) lastFinishedDraftSave = attempt
+                        }
+                        if (result != SheetWrite.Failed) attempt?.unconfirmedRequest = null
+                        when (result) {
                             is SheetWrite.Saved -> {
                                 persistedDraft = snapshot.draft
                                 persistedStatus = if (draft) SheetSaveStatus.DraftSaved else SheetSaveStatus.Confirmed
@@ -323,7 +348,7 @@ class SheetEditViewModel(
                                     refreshAudio(announce = false)
                                 }
                             }
-                            SheetWrite.Conflict -> _uiState.update { it.copy(saveConflict = true, message = SheetEditMessage.SaveConflict) }
+                            SheetWrite.Conflict -> reportSaveConflict()
                             SheetWrite.Unfilled -> _uiState.update { it.copy(emptyWarning = true) }
                             SheetWrite.TooLarge -> recordSaveFailure(snapshot.draft, draft, announce, SheetEditMessage.SaveTooLarge)
                             SheetWrite.Failed -> recordSaveFailure(snapshot.draft, draft, announce)
@@ -331,7 +356,7 @@ class SheetEditViewModel(
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (_: Exception) {
-                        recordSaveFailure(snapshot.draft, draft, announce)
+                        recordSaveFailure(writing ?: _uiState.value.draft, draft, announce)
                     } finally {
                         if (accountScope.isActive) _uiState.update { it.copy(saving = false, confirming = false) }
                     }
@@ -340,6 +365,42 @@ class SheetEditViewModel(
                 if (!draft) confirmationPending = false
             }
         }
+    }
+
+    private fun isDraftPersisted(draft: SheetDraft): Boolean =
+        lastFinishedDraftSave?.unconfirmedRequest == null && persistedDraft == draft
+
+    private fun reportSaveConflict() =
+        _uiState.update { it.copy(saveConflict = true, message = SheetEditMessage.SaveConflict) }
+
+    private suspend fun reconcileDraftSave(repository: SheetDocumentRepository, id: String, attempt: DraftSave): Boolean {
+        val request = requireNotNull(attempt.unconfirmedRequest)
+        val document = repository.get(id) ?: return false
+        ensureAccountSession()
+        val remote = document.draft
+        val nextRevision = request.revision + 1
+        when {
+            document.scoreVersion != request.baseScoreVersion -> {
+                reportSaveConflict()
+                return false
+            }
+            remote == request.copy(revision = nextRevision) -> {
+                revision = nextRevision
+                persistedDraft = attempt.draft
+                persistedStatus = SheetSaveStatus.DraftSaved
+            }
+            (remote?.revision ?: 0) == request.revision -> {
+                // 아직 처리 중인 요청도 같은 리비전을 쓸 수 있으므로 현재 초안은 PUT의 성공을 확인한다.
+                persistedDraft = null
+                persistedStatus = null
+            }
+            else -> {
+                reportSaveConflict()
+                return false
+            }
+        }
+        attempt.unconfirmedRequest = null
+        return true
     }
 
     private fun recordSaveFailure(
@@ -370,15 +431,15 @@ class SheetEditViewModel(
             return
         }
         val state = _uiState.value
-        if (persistedDraft == state.draft && !state.saving && !confirmationPending && !state.saveConflict) {
+        if (isDraftPersisted(state.draft) && !state.saving && !confirmationPending && !state.saveConflict) {
             onClose()
             return
         }
         autoSaveJob?.cancel()
-        val write = persist(draft = true, announce = false)
+        val write = persist(draft = true, announce = false, closing = true)
         closeJob = accountScope.launch {
             write?.join()
-            if (persistedDraft == _uiState.value.draft && !_uiState.value.saveConflict) onClose()
+            if (isDraftPersisted(_uiState.value.draft) && !_uiState.value.saveConflict) onClose()
             else _uiState.update { it.copy(closeWarning = true) }
         }
     }
