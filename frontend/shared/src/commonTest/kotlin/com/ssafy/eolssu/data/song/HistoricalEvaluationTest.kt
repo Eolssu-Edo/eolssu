@@ -66,6 +66,42 @@ class HistoricalEvaluationTest {
     }
 
     @Test
+    fun changedSongDetailsInvalidateTheSameScoreRevision() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+        var title = REVISION_TITLE
+        var scoreRequests = 0
+        val client = createHttpClient(MockEngine { request ->
+            val result = when (val path = request.url.encodedPath) {
+                "/api/songs/42" -> revisionSongResponse(1, title)
+                "/api/songs/42/score" -> {
+                    scoreRequests++
+                    revisionScoreResponse(1, title)
+                }
+                else -> error(path)
+            }
+            respond("""{"isSuccess":true,"result":$result}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val songs = ApiSongRepository(client, member)
+            val original = assertNotNull(songs.getSong("42", 1))
+            assertEquals(1, songs.getPublishedScoreVersion("42"))
+            assertSame(original, songs.retainedSong("42"))
+
+            title = "제목을 고친 검사 악보"
+            assertEquals(1, songs.getPublishedScoreVersion("42"))
+            assertNull(songs.retainedSong("42"))
+            assertNull(songs.retainedSong("42", 1))
+            assertEquals(1, scoreRequests)
+
+            val refreshed = assertNotNull(songs.getSong("42", 1))
+            assertEquals(title, refreshed.title)
+            assertEquals(title, refreshed.score.source?.title)
+            assertSame(refreshed, songs.retainedSong("42", 1))
+            assertEquals(2, scoreRequests)
+        } finally { client.close() }
+    }
+
+    @Test
     fun publishedReuseEndsOnLogoutAndSameMemberRelogin() = runTest {
         val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
         var latest = 1
@@ -183,11 +219,13 @@ class HistoricalEvaluationTest {
     }
 }
 
-internal fun revisionSongResponse(version: Int) =
-    """{"songId":"42","title":"작은 검사 악보","instrumentId":"1","difficulty":1,"defaultBpm":60,"jangdan":null,"isScorable":true,"noteCount":2,"scoreVersion":$version}"""
+private const val REVISION_TITLE = "작은 검사 악보"
 
-internal fun revisionScoreResponse(version: Int): String {
-    val data = smallScoreData().let { it.copy(score = it.score.copy(scoreVersion = version),
+internal fun revisionSongResponse(version: Int, title: String = REVISION_TITLE) =
+    """{"songId":"42","title":${Json.encodeToString(title)},"instrumentId":"1","difficulty":1,"defaultBpm":60,"jangdan":null,"isScorable":true,"noteCount":2,"scoreVersion":$version}"""
+
+internal fun revisionScoreResponse(version: Int, title: String = REVISION_TITLE): String {
+    val data = smallScoreData().let { it.copy(score = it.score.copy(scoreVersion = version, title = title),
         music = if (version == 1) it.music else it.music.copy(ticksPerBeat = 6)) }
     val events = data.events.mapIndexed { index, event ->
         val note = if (event.kind == "NOTE") index.toString() else "null"
