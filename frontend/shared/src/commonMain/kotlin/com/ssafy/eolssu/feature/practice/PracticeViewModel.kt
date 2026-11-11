@@ -91,7 +91,7 @@ class PracticeViewModel(
     private val loadPersonalSheet: (suspend (String) -> Song?)? = null,
     private val perf: PerformanceVisit? = null,
     private val personalAudio: SheetPracticeRepository? = null,
-    direct: Boolean = false,
+    private val direct: Boolean = false,
     /** 평가 녹음 최대 길이. 테스트만 짧게 바꾼다(S15P31E102-737). */
     private val maxRecording: Duration = RecordingSpec.MaxDuration,
 ) : ViewModel() {
@@ -393,7 +393,11 @@ class PracticeViewModel(
         _uiState.update { it.copy(isSongLoading = true, songError = null) }
         songJob = accountScope.launch(perf.context(if (songJob == null) PerfReason.INITIAL else PerfReason.RETRY)) {
             try {
-                val song = if (mine) loadPersonalSheet?.invoke(songId) else songRepository.getSong(songId)
+                val song = when {
+                    mine -> loadPersonalSheet?.invoke(songId)
+                    direct -> songRepository.retainedSong(songId) ?: songRepository.getSong(songId)
+                    else -> songRepository.getSong(songId)
+                }
                 when {
                     song == null -> _uiState.update { it.copy(songError = PracticeSongError.NotFound) }
                     song.timeline.isEmpty() -> _uiState.update { it.copy(songError = PracticeSongError.Failed) }
