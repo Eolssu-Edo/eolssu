@@ -13,6 +13,14 @@ internal data class JangdanEchoPreparation(
     val trainingEnd: Long,
 )
 
+/** Require accepted output for the training interval, not later attacks excluded from training. */
+internal fun renderedPreparationComplete(
+    planned: List<RenderedJangdanEvent>,
+    rendered: List<RenderedJangdanEvent>,
+    inputShift: Long,
+    trainingEnd: Long,
+): Boolean = planned.filter { it.frame + inputShift < trainingEnd }.all { it in rendered }
+
 internal fun jangdanEchoPreparation(
     events: List<RenderedJangdanEvent>,
     clipFrames: Map<JangdanClip, Int>,

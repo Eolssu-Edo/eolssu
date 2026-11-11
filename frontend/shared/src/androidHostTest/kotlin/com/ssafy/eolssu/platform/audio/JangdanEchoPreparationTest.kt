@@ -5,6 +5,8 @@ import com.ssafy.eolssu.core.audio.JangdanSample
 import com.ssafy.eolssu.core.audio.RecordingEchoCalibrator
 import com.ssafy.eolssu.core.audio.EchoCalibrationResult
 import com.ssafy.eolssu.core.audio.RecordingEchoStatus
+import com.ssafy.eolssu.core.audio.planJangdan
+import com.ssafy.eolssu.core.model.JangdanPlayback
 import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.roundToLong
@@ -14,6 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertContentEquals
 
@@ -26,6 +29,21 @@ class JangdanEchoPreparationTest {
     private fun airplane(bpm: Int) = List(12) { beat ->
         RenderedJangdanEvent(listOf(deong, deok, kung, deok)[beat % 4], .65f,
             44_100 + (beat * 60.0 * 44_100 / bpm).roundToLong())
+    }
+
+    @Test fun excludedFutureDoubleStrikeDoesNotRejectAlreadyRenderedIsolatedResponses() {
+        val plan = assertNotNull(planJangdan(JangdanPlayback("1", "검증", 0, 8,
+            listOf("덩", "덕", "궁", "덩", "덕", "궁", "궁", "덕덕"), listOf(4, 4)), 77, 1))
+        val scheduled = JangdanFrameSchedule(plan, 44_100, 3, 0, 0).describe(0)
+        val shift = 2_000L
+        val geometry = assertNotNull(jangdanEchoPreparation(scheduled.preparationEvents, lengths,
+            shift, 40_000, scheduled.recordingStartFrame + shift))
+        val rendered = scheduled.preparationEvents.filter { it.frame + shift < geometry.trainingEnd }
+        assertTrue(rendered.size < scheduled.preparationEvents.size, "The final double strike is still in the future")
+        assertFalse(scheduled.preparationEvents.all { it in rendered }, "The previous guard rejected this valid training window")
+        assertTrue(renderedPreparationComplete(scheduled.preparationEvents, rendered, shift, geometry.trainingEnd))
+        assertFalse(renderedPreparationComplete(scheduled.preparationEvents, rendered.dropLast(1), shift, geometry.trainingEnd),
+            "Every attack inside the training interval must still be accepted by AudioTrack")
     }
 
     @Test fun airplaneAt77BpmSuppliesThreeIsolatedResponsesPerClipBeforeTheFirstPerformanceBeat() {

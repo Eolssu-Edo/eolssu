@@ -122,7 +122,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 next.probe.clearSamples()
                 if (!sameOutput(baseline, rendered) || rendered.epoch != scheduled.epoch ||
                     captured.deviceId != initialInput.deviceId || abs(shift - initialShift) > RATE / 200 ||
-                    !scheduled.preparationEvents.all { planned -> rendered.events.contains(planned) }) {
+                    !renderedPreparationComplete(scheduled.preparationEvents, rendered.events, shift, selected.trainingEnd)) {
                     next.rejectCalibration(RecordingEchoStatus.Unreliable)
                     return
                 }
@@ -178,6 +178,12 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 delay(5)
             }
             next.await(next.recordingStarted)
+            if (debugBuild) {
+                val liveZero = output.outputSnapshot().frameZeroNanos
+                Log.d("EolssuEcho", "recording=outputBoundary targetNanos=$recordNanos " +
+                    "liveNanos=${liveZero?.let { it + scheduled.recordingStartFrame * 1_000_000_000L / RATE }} " +
+                    "clockShiftNanos=${liveZero?.minus(scheduled.frameZeroNanos)}")
+            }
             startFitIfReady()
             if (!fitting && geometry != null && next.calibrationAllowed) next.rejectCalibration(RecordingEchoStatus.Unreliable)
             currentCoroutineContext().ensureActive()
