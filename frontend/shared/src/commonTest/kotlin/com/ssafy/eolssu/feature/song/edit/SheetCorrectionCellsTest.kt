@@ -122,7 +122,7 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
     }
 
     @Test fun tempoAndJangdanApplyAsOneUndoStepWithoutChangingTitleOrTiming() {
-        val option = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 6, 2)
+        val option = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 3, 1, 1)
         val initial = state().let { it.copy(draft = it.draft.copy(jangdanId = "3"), availableJangdans = listOf(option)) }
         val changed = initial.updateSettings(120, "4")
         assertEquals(1, changed.past.size)
@@ -169,7 +169,7 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
             assertEquals(1, model.uiState.value.past.size, "빠르기·장단을 한 번에 적용한다")
             assertNull(model.uiState.value.jangdanPicker)
             if (fails) result.completeExceptionally(IllegalStateException("late catalog failure"))
-            else result.complete(listOf(CatalogJangdanSummary("3", "세마치", 80, "DOTTED_QUARTER", 6, 2)))
+            else result.complete(listOf(CatalogJangdanSummary("3", "세마치", 80, "DOTTED_QUARTER", 3, 1, 1)))
             runCurrent()
 
             assertNull(model.uiState.value.jangdanPicker, "적용 후 늦은 조회 결과가 선택 창을 다시 열면 안 된다")

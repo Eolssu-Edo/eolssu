@@ -55,7 +55,7 @@ class UserSheetControllerTests {
     private val mvc = MockMvcBuilders.standaloneSetup(
         UserSheetController(
             GetUserSheets(repository, scores),
-            EditUserSheet(repository, scores, Clock.fixed(updatedAt, ZoneOffset.UTC)),
+            EditUserSheet(repository, scores, Clock.fixed(updatedAt, ZoneOffset.UTC), jangdanValidation = null),
             JsonMapper.builder().build(),
             // 원본 파일이 없는 MANUAL 악보만 다룬다. 원본 삭제는 SheetImportsTests·DB 테스트가 본다.
             SheetSourceCleaner { _, _ -> true },

@@ -13,9 +13,9 @@
 | CAT-05 | `/songs/{songId}/model-audio` | 현재 악보 버전·곡 BPM·기준 bpmUnit과 일치하는 게시 음원 메타데이터. 미등록/초안/버전 불일치는 404. |
 | CAT-06 | `/pitches?instrumentId=...` | 생략 시 등록 율명, 지정 시 활성 악기의 음역. 음역은 양 끝 pitch의 semitone으로 비교하며 DB ID 순서를 높낮이로 해석하지 않는다. |
 | CAT-07 | `/instruments/{instrumentId}/fingerings?pitchId=...` | 해당 활성 악기의 등록 운지, 선택한 음의 운지. 없는 콘텐츠는 빈 목록이다. |
-| CAT-08 | `/jangdans/{jangdanId}` | 장단 이름·defaultBpm·bpmUnit·원본 pattern(beats/group)·source·soundUrl. 미리듣기가 있으면 같은 API 원점의 `/api/jangdans/{jangdanId}/audio`를 반환한다. |
+| CAT-08 | `/jangdans/{jangdanId}` | 장단 이름·defaultBpm·bpmUnit·원본 pattern(beats/group)·patternCellEighths·source·soundUrl. 미리듣기가 있으면 같은 API 원점의 `/api/jangdans/{jangdanId}/audio`를 반환한다. |
 | CAT-09 | `/notation-symbols` | symbolId/symbol/name/description/imageUrl 및 nullable source/descriptionStatus/imageLicense. [기존 FE 사전 연결](notation-symbol-catalog.md). 학습용 설명이며 악보 이벤트의 의미를 재정의하지 않는다. |
-| CAT-10 | `/jangdans` | jangdanId/name/defaultBpm/bpmUnit/beatCount/groupCount. 소박·묶음 수는 저장 pattern에서 구한다. |
+| CAT-10 | `/jangdans` | jangdanId/name/defaultBpm/bpmUnit/beatCount/groupCount/patternCellEighths. 소박·묶음 수는 저장 pattern에서 구한다. |
 
 ## 내장 운지 자료
 
@@ -83,3 +83,10 @@ S15P31E102-339에서 DB의 위치 식별자는 `object_key`다. `audioUrl`은 �
 S15P31E102-511의 V28은 단소 경복궁타령의 자진타령 기본형을 장단 ID 11로 추가한다. 3소박 4박이며 단소 교재의 12칸 구음을 쓴다. 경복궁타령 1판에는 현재 악보의 박 단위와 틱으로 계산한 `supplementalJangdanPlayback`을 제공한다. 장단 상세의 미리듣기 URL은 해당 자산이 생길 때까지 null이다.
 
 V21은 기존 ID1~3을 보존하며 자진모리4·중중모리5와 함께 엇모리6·단모리7·타령8·계면가락도드리9·세령산10을 추가한다. 후속5종은 기존 QUARTER 단위를 쓴다. 6~9의 구음 칸은8분음표,10은점4분음표 길이이며 group은 원본의 칸 묶음이다. 목록 beatCount는 각각10·8·12·12·10, groupCount는 모두4다. 엇모리 BPM90은8분음표180/2, 단모리120은 공식4/4 교재 하한이다. 정악3종48·48·63은 사용자가 재사용을 승인한 서비스 시작값이며 원전 확정 빠르기는 아니다. 응답 모양·곡 FK·BPM·공통 tick·음원은 그대로다. [후속 근거](../knowledge/backend/jangdan-catalog-extension.md#v20-보류5종의-근거-확보와-등록)를 따른다.
+
+
+### 악보 작성용 패턴 칸 음가 (S15P31E102-772)
+
+`patternCellEighths`는 패턴 한 칸의 길이를 8분음표 개수로 표현한 nullable 정수다. `data/reference/jangdans.json`의 `pattern_cell_eighths`를 원본 그대로 번들하고, DB 이름·BPM 단위·패턴이 모두 같은 행에만 제공한다. 미확인 패턴은 null이며 새 악보 선택·확정 저장에는 사용할 수 없다. DB 스키마와 기존 게시 판본은 바꾸지 않는다.
+
+주기 tick은 `beatCount × patternCellEighths × ticksPerBeat / BPM박의8분음표수`다. 분모는 QUARTER=2, DOTTED_QUARTER=3이며 결과는 정확한 정수여야 한다. ID7 단모리는 8분음표8칸, ID12 4박 기본 반주는 4분음표4칸이다. 길이는 모두 4분음표4박이지만 구음·묶음은 다르므로 치환하지 않는다. FE의 선택 안내·연습과 OMR·생성기는 명칭별 칸 길이 목록을 따로 두지 않는다.
