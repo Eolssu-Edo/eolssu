@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -37,9 +36,9 @@ import com.ssafy.eolssu.feature.home.HomeFeatureGrid
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_edit_art
 import eolssu.shared.generated.resources.home_fingering_art
+import eolssu.shared.generated.resources.home_learn_art
 import eolssu.shared.generated.resources.home_records_art
 import eolssu.shared.generated.resources.home_score_art
-import eolssu.shared.generated.resources.home_tiger
 import eolssu.shared.generated.resources.tiger_play
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -102,7 +101,7 @@ private fun FeatureTile(feature: HomeFeature, onClick: () -> Unit, boxMinHeight:
         Image(
             painterResource(feature.illustration),
             contentDescription = null,
-            modifier = Modifier.padding(horizontal = 15.dp).fillMaxWidth().height(80.dp).offset(x = feature.illustrationNudge),
+            modifier = Modifier.padding(horizontal = 15.dp).fillMaxWidth().height(80.dp),
         )
         Text(
             stringResource(feature.label),
@@ -125,10 +124,6 @@ private val HomeFeature.illustration: DrawableResource
         HomeFeature.Records -> Res.drawable.home_records_art
         HomeFeature.Reading -> Res.drawable.home_score_art
         HomeFeature.Fingering -> Res.drawable.home_fingering_art
-        HomeFeature.Learn -> Res.drawable.home_tiger
+        HomeFeature.Learn -> Res.drawable.home_learn_art
         HomeFeature.EditSheets -> Res.drawable.home_edit_art
     }
-
-/** 그림 가로 보정. 호랑이 그림은 원본 여백 때문에 왼쪽으로 치우쳐 보여 오른쪽으로 3dp 민다. */
-private val HomeFeature.illustrationNudge: Dp
-    get() = if (this == HomeFeature.Learn) 3.dp else 0.dp
