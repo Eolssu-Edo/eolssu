@@ -178,6 +178,78 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
     }
 
+    @Test fun closeDoesNotRetryTheSameDraftAfterUndoAndRedoWhileWaiting() = runTest {
+        val reply = CompletableDeferred<SheetWrite>()
+        val writes = mutableListOf<SheetWorkingCopy>()
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document()
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                assertTrue(draft)
+                writes += copy
+                return if (writes.size == 1) reply.await() else SheetWrite.Saved("1", 1)
+            }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        model.updateDetails("저장 중인 초안", 60)
+        advanceTimeBy(1_000)
+        runCurrent()
+
+        var closed = false
+        model.closeEditor { closed = true }
+        model.undo()
+        model.redo()
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(1, writes.size)
+        assertFalse(closed)
+
+        reply.complete(SheetWrite.Failed)
+        advanceUntilIdle()
+        assertEquals(listOf("저장 중인 초안"), writes.map { it.title })
+        assertFalse(closed)
+        assertTrue(model.uiState.value.closeWarning)
+        assertEquals("저장 중인 초안", model.uiState.value.draft.title)
+        assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
+    }
+
+    @Test fun closeDoesNotRetryIfTheDraftReturnsToTheFailedCopyDuringReconciliation() = runTest {
+        val reply = CompletableDeferred<SheetWrite>()
+        val reconciliation = CompletableDeferred<SheetDocument>()
+        val writes = mutableListOf<SheetWorkingCopy>()
+        var reads = 0
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = if (reads++ == 0) document() else reconciliation.await()
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                assertTrue(draft)
+                writes += copy
+                return if (writes.size == 1) reply.await() else SheetWrite.Saved("1", 1)
+            }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        model.updateDetails("저장 중인 초안", 60)
+        advanceTimeBy(1_000)
+        runCurrent()
+        model.updateDetails("새 편집", 60)
+
+        var closed = false
+        model.closeEditor { closed = true }
+        reply.complete(SheetWrite.Failed)
+        runCurrent()
+        assertEquals(2, reads)
+        assertFalse(closed)
+
+        model.undo()
+        reconciliation.complete(document())
+        advanceUntilIdle()
+        assertEquals(listOf("저장 중인 초안"), writes.map { it.title })
+        assertFalse(closed)
+        assertTrue(model.uiState.value.closeWarning)
+        assertEquals("저장 중인 초안", model.uiState.value.draft.title)
+        assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
+    }
+
     @Test fun undoAfterLostAutoSaveAcknowledgementUsesTheServerRevision() = runTest {
         val writes = mutableListOf<SheetWorkingCopy>()
         var stored: SheetWorkingCopy? = null

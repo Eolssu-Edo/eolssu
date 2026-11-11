@@ -189,6 +189,8 @@ class SheetEditViewModel(
         }
         if (before != _uiState.value.draft && loaded != null && !_uiState.value.saveConflict) {
             autoSaveJob?.cancel()
+            // 닫기 저장이 진행 중이면 그 작업이 최신 편집본을 확인한다.
+            if (closeJob?.isActive == true) return
             autoSaveJob = accountScope.launch {
                 delay(1_000)
                 // 대기 중인 저장을 무효화할 수 있게 하되, 시작한 PUT은 응답까지 기다린다.
@@ -290,13 +292,10 @@ class SheetEditViewModel(
                 writeLock.withLock {
                     if (autoSave?.isActive == false || _uiState.value.saveConflict) return@withLock
                     val precedingDraft = lastFinishedDraftSave
-                    // 닫기는 잠금을 기다리는 동안 끝난 같은 초안 요청의 결과를 사용한다.
-                    if (closing && precedingDraft !== draftBeforeClose && precedingDraft?.draft == _uiState.value.draft) {
-                        return@withLock
-                    }
+                    val finishedDuringClose = precedingDraft?.takeIf { closing && it !== draftBeforeClose }
                     var writing: SheetDraft? = null
                     try {
-                        if (precedingDraft?.unconfirmedRequest != null) {
+                        if (precedingDraft?.unconfirmedRequest != null && finishedDuringClose?.draft != _uiState.value.draft) {
                             _uiState.update { it.copy(saving = true, saveStatus = null) }
                             val reconciled = reconcileDraftSave(repository, id, precedingDraft)
                             if (autoSave?.isActive == false) return@withLock
@@ -306,6 +305,13 @@ class SheetEditViewModel(
                             }
                         }
                         val snapshot = _uiState.value
+                        // 서버 재조회 중 편집이 돌아온 경우도 먼저 끝난 같은 초안 요청의 결과를 사용한다.
+                        if (finishedDuringClose?.draft == snapshot.draft) {
+                            if (snapshot.saveStatus == null && !isDraftPersisted(snapshot.draft)) {
+                                recordSaveFailure(snapshot.draft, draft, announce)
+                            }
+                            return@withLock
+                        }
                         if (draft && isDraftPersisted(snapshot.draft) && (!announce || persistedStatus == SheetSaveStatus.DraftSaved)) {
                             _uiState.update {
                                 it.copy(saveStatus = if (announce || it.saveStatus == null) persistedStatus else it.saveStatus,
