@@ -36,7 +36,8 @@ import kotlin.math.sqrt
 /*
  * 연주 분석 대기 그림의 붓 일원상(S15P31E102-760). 미리 그린 그림을 돌리지 않고, 붓털 여러 가닥이 각자 먹을 머금고
  * 7시에서 시계 방향으로 돌며 화면에 그려 간다. 시작은 둥근 붓머리로 눌러 앉히고, 꼬리 구간(4시 → 6시)에서 붓을 들며
- * 가장자리 털부터 먹이 말라 갈라진다. 값은 웹 시안에서 고른 값(끝 6시 · 꼬리 시작 4시 · 굵기 1.40배 · 0.9초)이다.
+ * 가장자리 털부터 먹이 말라 갈라진다. 그리는 동안 앞끝은 털마다 들쭉날쭉 끌려오는 거친 붓 모양이다.
+ * 값은 웹 시안에서 고른 값(끝 6시 · 꼬리 시작 4시 · 굵기 1.40배 · 0.9초 · 거친 붓 앞끝)이다.
  */
 
 private const val StartClockDeg = 210.0 // 7시: 12시에서 시계 방향 210°
@@ -77,6 +78,9 @@ internal class EnsoBrush(
     private val wobB: Double
     private val wobC: Double
 
+    /** 앞끝에서 털마다 뒤처지는 정도. 획 결은 그대로 두려고 다른 난수열(시드 × 104729)로 만든다. */
+    private val lagNoise: List<DoubleArray>
+
     /** 7시에서 시계 방향으로 끝 위치까지 도는 각도. */
     val sweepDeg = 360.0 + endClockDeg - StartClockDeg
     private val tailStart = 1.0 - tailDeg / sweepDeg
@@ -99,6 +103,8 @@ internal class EnsoBrush(
         wobA = r.next() * 6.28
         wobB = r.next() * 6.28
         wobC = r.next() * 6.28
+        val lagRandom = Mulberry32(seed * 104729)
+        lagNoise = List(BristleCount) { DoubleArray(16) { lagRandom.next() } }
     }
 
     private fun tailProgress(s: Double) = ((s - tailStart) / (1.0 - tailStart)).coerceIn(0.0, 1.0)
@@ -150,29 +156,60 @@ internal class EnsoBrush(
         fun finish(alpha: Float, width: Float)
     }
 
-    /** 붓털마다 앞 프레임까지 그린 끝점. */
+    /** 붓털마다 앞 프레임까지 그린 끝점과 다음에 그릴 표본 번호. */
     class Trail(count: Int) {
+        val next = IntArray(count)
         val on = BooleanArray(count)
         val x = DoubleArray(count)
         val y = DoubleArray(count)
-        fun reset() = on.fill(false)
+        fun reset() {
+            next.fill(0)
+            on.fill(false)
+        }
     }
 
-    /** [s0]에서 [s1]까지 새로 그릴 부분을 [sink]에 넘긴다. 프레임마다 이어서 부르면 한 획이 된다. */
-    fun trace(s0: Double, s1: Double, sizePx: Double, trail: Trail, sink: Sink) {
-        if (s1 <= s0) return
+    // 한 획을 SampleStepPx 간격으로 나눈 표본 지점. 그림 크기가 같으면 다시 계산하지 않는다.
+    private var pathSize = -1.0
+    private var path: Array<Point> = emptyArray()
+
+    private fun samplesFor(sizePx: Double): Array<Point> {
+        if (pathSize != sizePx) {
+            val arc = sweepDeg * PI / 180.0 * sizePx * 0.43
+            val count = max(2, ceil(arc / SampleStepPx).toInt())
+            path = Array(count + 1) { point(it.toDouble() / count, sizePx) }
+            pathSize = sizePx
+        }
+        return path
+    }
+
+    /**
+     * [index]번 붓털이 획의 [progress]까지 왔을 때 실제로 닿아 있는 곳. 붓이 지나가는 동안 털마다 들쭉날쭉 뒤처져
+     * 앞끝이 빗살처럼 갈라진 거친 붓 모양이 되고, 어느 털이 뒤처지는지는 획을 따라 조금씩 바뀐다.
+     * 획을 다 그리면([progress] 1) 모든 털이 끝까지 닿는다.
+     */
+    fun reach(index: Int, progress: Double, sizePx: Double): Double {
+        if (progress >= 1.0) return 1.0
+        val b = bristles[index]
         val arc = sweepDeg * PI / 180.0 * sizePx * 0.43
-        val steps = max(1, ceil((s1 - s0) * arc / SampleStepPx).toInt())
-        val width = max(0.7, 2 * point(s1, sizePx).halfWidth / BristleCount * 2.0)
-        val samples = DoubleArray(steps) { k -> s0 + (s1 - s0) * (k + 1) / steps }
-        val points = Array(steps) { point(samples[it], sizePx) }
+        val halfWidth = point(progress, sizePx).halfWidth
+        val edge = 1 - sqrt(max(0.0, 1 - b.u * b.u))
+        val lag = halfWidth * (0.5 * edge + 1.5 * valueNoise(lagNoise[index], progress).pow(1.6))
+        return (progress - lag / arc).coerceAtLeast(0.0)
+    }
+
+    /** 붓이 획의 [progress]까지 왔을 때 새로 그릴 부분을 [sink]에 넘긴다. 프레임마다 이어서 부르면 한 획이 된다. */
+    fun trace(progress: Double, sizePx: Double, trail: Trail, sink: Sink) {
+        val samples = samplesFor(sizePx)
+        val last = samples.size - 1
+        val width = max(0.7, 2 * point(progress.coerceAtMost(1.0), sizePx).halfWidth / BristleCount * 2.0)
         bristles.forEachIndexed { i, b ->
             var drew = false
             var lastInk = 0.0
             val headS = headStart(b, sizePx)
-            for (k in 0 until steps) {
-                val s = samples[k]
-                val p = points[k]
+            val until = floor(reach(i, progress, sizePx) * last).toInt()
+            for (k in trail.next[i]..until) {
+                val s = k.toDouble() / last
+                val p = samples[k]
                 val spread = 1 + 0.35 * smooth(0.25, 1.0, tailProgress(s)) // 꼬리에서 털이 벌어진다
                 val off = b.u * p.halfWidth * spread + (valueNoise(b.jit, s) - 0.5) * p.halfWidth * 0.12
                 val x = p.x + p.nx * off
@@ -188,6 +225,7 @@ internal class EnsoBrush(
                 trail.x[i] = x
                 trail.y[i] = y
             }
+            trail.next[i] = max(trail.next[i], until + 1)
             if (drew) sink.finish((0.25 + 0.7 * lastInk).coerceIn(0.22, 0.9).toFloat(), width.toFloat())
         }
     }
@@ -253,7 +291,7 @@ internal fun BrushEnso(color: Color, modifier: Modifier = Modifier) {
         }
         if (target > layer.drawn) {
             layer.sink.color = color
-            brush.trace(layer.drawn, target, side.toDouble(), trail, layer.sink)
+            brush.trace(target, side.toDouble(), trail, layer.sink)
             layer.drawn = target
         }
         drawImage(layer.image, topLeft = Offset((size.width - side) / 2, (size.height - side) / 2), alpha = fade.value)

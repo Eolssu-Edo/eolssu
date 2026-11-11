@@ -63,8 +63,33 @@ class BrushEnsoTest {
                 finished++
             }
         }
-        brush.trace(0.0, 0.3, size, trail, sink)
+        brush.trace(0.3, size, trail, sink)
         assertEquals(brush.bristles.size, finished)
+    }
+
+    @Test
+    fun leadingEdgeIsRaggedBrushNotFlatCut() {
+        val count = brush.bristles.size
+        val reach = List(count) { brush.reach(it, 0.5, size) }
+        // 그리는 도중에는 털마다 뒤처지는 거리가 달라 앞끝이 들쭉날쭉하고, 앞지르는 털은 없다.
+        assertTrue(reach.all { it <= 0.5 })
+        assertTrue(reach.max() - reach.min() > 0.005)
+        // 거친 앞끝은 가장자리에서 가운데로 갈수록 고르게 앞서는 반원이 아니다.
+        val byEdge = brush.bristles.indices.sortedBy { abs(brush.bristles[it].u) }.map { reach[it] }
+        assertTrue(byEdge.zipWithNext().any { (inner, outer) -> outer > inner })
+
+        val trail = EnsoBrush.Trail(count)
+        val noop = object : EnsoBrush.Sink {
+            override fun line(x0: Float, y0: Float, x1: Float, y1: Float) = Unit
+            override fun finish(alpha: Float, width: Float) = Unit
+        }
+        brush.trace(0.5, size, trail, noop)
+        assertTrue(trail.next.toSet().size > count / 2)
+
+        // 다 그리면 모든 털이 끝까지 닿는다.
+        brush.trace(1.0, size, trail, noop)
+        assertEquals(1, trail.next.toSet().size)
+        assertEquals(1.0, brush.reach(0, 1.0, size))
     }
 
     private fun hypot(x: Double, y: Double) = kotlin.math.sqrt(x * x + y * y)
