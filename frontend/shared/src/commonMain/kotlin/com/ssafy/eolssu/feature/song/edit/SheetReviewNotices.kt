@@ -10,20 +10,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
-import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.common_close
-import eolssu.shared.generated.resources.sheet_review_notice_count
 import eolssu.shared.generated.resources.sheet_review_notice_grid
 import eolssu.shared.generated.resources.sheet_review_notice_jangdan
 import eolssu.shared.generated.resources.sheet_review_notice_jangdan_mismatch
@@ -31,41 +22,27 @@ import eolssu.shared.generated.resources.sheet_review_notice_other
 import eolssu.shared.generated.resources.sheet_review_notice_page
 import eolssu.shared.generated.resources.sheet_review_notice_staff
 import eolssu.shared.generated.resources.sheet_review_notice_text
-import eolssu.shared.generated.resources.sheet_review_notice_title
 import eolssu.shared.generated.resources.sheet_review_notice_transposed
 import eolssu.shared.generated.resources.sheet_review_notice_transposed_unknown
 import eolssu.shared.generated.resources.sheet_review_notice_unreadable
 import org.jetbrains.compose.resources.stringResource
 
+/** 변환 당시 참고 정보는 저장 화면에 바로 표시한다. 현재 오류는 SheetCompletionNotice에서 다룬다. */
 @Composable
-internal fun SheetReviewNotices(notices: List<SheetReviewNotice>) {
-    var open by remember(notices) { mutableStateOf(false) }
-    EolssuButton(
-        stringResource(Res.string.sheet_review_notice_count, notices.size),
-        { open = true },
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
-        style = EolssuButtonStyle.Secondary,
-        compact = true,
-    )
-    if (open) {
-        EolssuDialog(
-            title = stringResource(Res.string.sheet_review_notice_title),
-            onDismissRequest = { open = false },
-        ) {
-            Column(
-                Modifier.fillMaxWidth().heightIn(max = 240.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                for (notice in notices) {
-                    val label = notice.label()
-                    Text(
-                        notice.page?.let { stringResource(Res.string.sheet_review_notice_page, it, label) } ?: label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = EolssuTheme.colors.text,
-                    )
-                }
-            }
-            EolssuButton(stringResource(Res.string.common_close), { open = false })
+internal fun SheetConversionNotes(notices: List<SheetReviewNotice>) {
+    val information = notices.filterNot { it.type == "JANGDAN_MISMATCH" }
+    if (information.isEmpty()) return
+    Column(
+        Modifier.fillMaxWidth().heightIn(max = 96.dp).verticalScroll(rememberScrollState()).padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        information.forEach { notice ->
+            val label = notice.label()
+            Text(
+                notice.page?.let { stringResource(Res.string.sheet_review_notice_page, it, label) } ?: label,
+                style = MaterialTheme.typography.bodySmall,
+                color = EolssuTheme.colors.textMuted,
+            )
         }
     }
 }

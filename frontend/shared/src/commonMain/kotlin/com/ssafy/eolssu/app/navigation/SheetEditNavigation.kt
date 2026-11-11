@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.app.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
@@ -19,7 +20,6 @@ import com.ssafy.eolssu.feature.song.edit.ImportResultRoute
 import com.ssafy.eolssu.feature.song.edit.SheetImportRoute
 import com.ssafy.eolssu.feature.song.edit.SheetEditRoute
 import com.ssafy.eolssu.feature.song.edit.SheetEditViewModel
-import com.ssafy.eolssu.feature.song.edit.SheetViewRoute
 import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblem
 import com.ssafy.eolssu.data.song.SheetConversionFailure
 import org.koin.compose.viewmodel.koinViewModel
@@ -57,7 +57,6 @@ object SheetEditDestination {
     /** 내 악보 목록의 '편집'(Edit-Mine). */
     fun editMine(sheetId: String) = edit(EditSource.Mine(sheetId))
 
-    fun viewMine(sheetId: String) = "sheet-edit/view/$sheetId"
     fun practiceAudio(sheetId: String, version: Int) = "sheet-edit/practice-audio/$sheetId/$version"
 }
 
@@ -144,17 +143,14 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
         arguments = listOf(navArgument("id") { type = NavType.StringType }),
     ) { entry ->
         val sheetId = entry.savedStateHandle.get<String>("id").orEmpty()
-        fun openFromView(destination: String) {
+        // 이전 버전의 열람 경로도 중간 화면 없이 편집기로 연결한다.
+        LaunchedEffect(sheetId) {
             if (navController.currentBackStackEntry?.id == entry.id) {
-                navController.navigate(destination) { popUpTo(SheetEditDestination.VIEW) { inclusive = true } }
+                navController.navigate(SheetEditDestination.editMine(sheetId)) {
+                    popUpTo(SheetEditDestination.VIEW) { inclusive = true }
+                }
             }
         }
-        SheetViewRoute(
-            sheetId = sheetId,
-            onBack = { navController.popBackStackFrom(entry) },
-            onEdit = { openFromView(SheetEditDestination.editMine(sheetId)) },
-            onPractice = { openFromView(EolssuDestination.practice(sheetId, mine = true)) },
-        )
     }
     composable(SheetEditDestination.PREVIEW) { entry ->
         EditPreviewRoute(
@@ -217,7 +213,7 @@ private fun NavBackStackEntry.editSource(): EditSource {
 
 /**
  * 편집기와 미리보기가 함께 쓰는 ViewModel. 편집 경로([SheetEditDestination.EDIT])에 묶어, 미리보기에서 돌아와도 고친 악보가 남는다.
- * 오선보 가져오기에서 왔으면 오선보 보기로 연다.
+ * 가져온 파일 종류와 관계없이 정간보 편집기로 연다.
  */
 @Composable
 private fun sheetEditViewModel(navController: NavController, entry: NavBackStackEntry): SheetEditViewModel {
@@ -225,6 +221,5 @@ private fun sheetEditViewModel(navController: NavController, entry: NavBackStack
         if (entry.destination.route == SheetEditDestination.EDIT) entry else navController.getBackStackEntry(SheetEditDestination.EDIT)
     }
     val source = remember(editEntry) { editEntry.editSource() }
-    val startView = if ((source as? EditSource.Import)?.kind == ImportKind.Staff) EditView.Staff else EditView.Jeongganbo
-    return koinViewModel(viewModelStoreOwner = editEntry) { parametersOf(source, startView) }
+    return koinViewModel(viewModelStoreOwner = editEntry) { parametersOf(source, EditView.Jeongganbo) }
 }

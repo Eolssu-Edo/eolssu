@@ -58,6 +58,7 @@ import com.ssafy.eolssu.feature.song.edit.component.HintText
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditIcons
 import com.ssafy.eolssu.feature.song.edit.component.previewMarks
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.sheet_details_edit
 import eolssu.shared.generated.resources.sheetedit_audio_failed
 import eolssu.shared.generated.resources.sheetedit_audio_failure_server
 import eolssu.shared.generated.resources.sheetedit_audio_failure_timeout
@@ -117,7 +118,7 @@ class SheetAudioActions(
 )
 
 /**
- * EDIT-04 미리보기 · 저장: 장단 한 줄 · 연습 화면과 같은 정간보(율명 옆 한글) · 미리듣기(장단 소리 함께) ·
+ * EDIT-04 미리보기 · 저장: 제목·빠르기 수정 · 연습 화면과 같은 정간보(율명 옆 한글) · 미리듣기(장단 소리 함께) ·
  * 내 악보 음원(SHT-12·13: 만들기 → 내려받기 → 기기 재생) ·
  * 임시저장(빈 정간 허용) / 저장(빈 정간이 있으면 경고 창). 빈 정간은 옅은 붉은 바탕과 점선으로 보인다.
  */
@@ -129,6 +130,7 @@ fun EditPreviewScreen(
     previewProgress: AudioPlaybackState?,
     previewPlaying: Boolean,
     onBack: () -> Unit,
+    onOpenDetails: () -> Unit,
     onTogglePlay: () -> Unit,
     onSeekPreview: (Long) -> Unit,
     onToggleJangdan: () -> Unit,
@@ -137,6 +139,10 @@ fun EditPreviewScreen(
     onSave: () -> Unit,
     onFillEmpty: () -> Unit,
     onCloseWarning: () -> Unit,
+    onFixCompletionIssue: () -> Unit,
+    onChangeJangdan: () -> Unit,
+    onClearJangdan: () -> Unit,
+    onRetryCompletionCatalog: () -> Unit,
 ) {
     val colors = EolssuTheme.colors
     val draft = state.draft
@@ -149,7 +155,7 @@ fun EditPreviewScreen(
     EolssuScaffold(
         containerColor = colors.surface,
         snackbarHostState = snackbarHostState,
-        topBar = { EolssuTopBar(stringResource(Res.string.sheetedit_preview_title), onBack = onBack, subtitle = draft.title) },
+        topBar = { EolssuTopBar(stringResource(Res.string.sheetedit_preview_title), onBack = onBack) },
         bottomBar = {
             if (audio != null && state.savedOnce) state.audioInstruments?.let { instruments ->
                 AudioInstrumentPicker(instruments, enabled = !state.audio.busy && !state.audioDownloading, actions = audio)
@@ -160,29 +166,42 @@ fun EditPreviewScreen(
             if ((state.source as? EditSource.Mine)?.practiceVersion == null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     EolssuButton(stringResource(Res.string.sheetedit_preview_draft), onSaveDraft, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving && !state.saveConflict)
-                    EolssuButton(stringResource(Res.string.sheetedit_preview_save), onSave, Modifier.weight(1.4f), compact = true, enabled = !state.saving && !state.saveConflict)
+                    EolssuButton(stringResource(Res.string.sheetedit_preview_save), onSave, Modifier.weight(1.4f), compact = true, enabled = !state.saving && !state.saveConflict && state.completionValidation.canComplete)
                 }
             }
         },
     ) {
         Column(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            // 장단은 한 줄만: '세마치장단 · 60 BPM  한 각 9정간 · 3박 · 6각'.
-            Row(
+            Column(
                 Modifier.fillMaxWidth().background(colors.background, RoundedCornerShape(10.dp)).padding(horizontal = 12.dp, vertical = 9.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                Text(
+                    draft.title,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                )
                 Text(
                     stringResource(Res.string.sheetedit_preview_beat, jangdanLabel(draft.jangdanName), draft.bpm),
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                    maxLines = 1,
                 )
                 if (draft.jangdan != null) Text(
                     stringResource(Res.string.sheetedit_preview_beat_sub, draft.gak, draft.jangdan.beats, draft.columnCount),
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
                     color = colors.textMuted,
-                    maxLines = 1,
                 )
+                if (state.canEditDetails && (state.source as? EditSource.Mine)?.practiceVersion == null) {
+                    EolssuButton(
+                        text = stringResource(Res.string.sheet_details_edit),
+                        onClick = onOpenDetails,
+                        style = EolssuButtonStyle.Secondary,
+                        compact = true,
+                        enabled = !state.saving && !state.saveConflict,
+                    )
+                }
+            }
+            if ((state.source as? EditSource.Mine)?.practiceVersion == null) {
+                SheetCompletionNotice(state, onFixCompletionIssue, onChangeJangdan, onClearJangdan, onRetryCompletionCatalog)
+                SheetConversionNotes(state.reviewNotices)
             }
             HintText(stringResource(Res.string.sheetedit_preview_hint), Modifier.padding(top = 6.dp))
             EditScoreBoard(
