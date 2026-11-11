@@ -33,6 +33,6 @@ internal class RecordListAvailabilityTest : CatalogViewModelTest() {
 
 private class EmptyAvailableRecords : PracticeRecordRepository {
     override val records = MutableStateFlow(emptyList<PracticeRecord>())
-    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord = error("Not used")
+    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String): PracticeRecord = error("Not used")
     override suspend fun updateMemo(recordId: String, memo: String) = error("Not used")
 }

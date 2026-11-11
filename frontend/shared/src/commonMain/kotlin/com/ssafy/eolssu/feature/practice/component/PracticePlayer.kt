@@ -51,6 +51,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.formatClock
+import com.ssafy.eolssu.core.ui.component.PlaybackLoadingOverlay
 import com.ssafy.eolssu.feature.practice.ModelAudioStatus
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
@@ -199,40 +200,7 @@ private val PracticePlayerNotice.inCard: Boolean
 fun PracticePlaybackLoadingOverlay(state: PracticeUiState, modifier: Modifier = Modifier) {
     val visible = state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm) &&
         !state.stepUi && state.playerNotice == PracticePlayerNotice.Loading
-    if (!visible) return
-    val colors = EolssuTheme.colors
-    val message = stringResource(Res.string.practice_player_loading)
-    Column(
-        modifier.fillMaxSize().background(colors.background.copy(alpha = 0.74f)),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-    ) {
-        Column(
-            Modifier.semantics(mergeDescendants = true) {
-                liveRegion = LiveRegionMode.Polite
-                contentDescription = message
-            },
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            // 3·2·1 북과 같은 150dp 원·그림자 안에 그림을 둔다(그림의 흰 바탕이 네모로 보이지 않게).
-            Box(
-                Modifier.size(150.dp)
-                    .shadow(14.dp, CircleShape, ambientColor = colors.text.copy(alpha = 0.14f), spotColor = colors.text.copy(alpha = 0.14f))
-                    .background(colors.surface, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                PracticeLoadingMascot(Modifier.size(124.dp))
-            }
-            Text(
-                message,
-                modifier = Modifier.padding(horizontal = 24.dp).clearAndSetSemantics {},
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
-                color = colors.text,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
+    if (visible) PlaybackLoadingOverlay(modifier)
 }
 
 /** 상태가 바뀌어도 이 칸의 너비·높이는 바뀌지 않는다. 불러오는 중은 비워 둔다. */
