@@ -1,10 +1,5 @@
 package com.ssafy.eolssu.feature.result.component
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -31,7 +26,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -49,7 +43,6 @@ import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.feature.practice.component.practiceScorePacking
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.enso_spin
 import eolssu.shared.generated.resources.tiger_analysis_failed
 import eolssu.shared.generated.resources.tiger_confused_atlas
 import eolssu.shared.generated.resources.tiger_play
@@ -92,21 +85,11 @@ fun BoardTopBar(title: String, modifier: Modifier = Modifier, subtitle: String? 
     }
 }
 
-/** 보드 분석 대기 그림(220dp): 붓 일원상(210dp)이 3.2초에 한 바퀴 돌고 가운데에 연주하는 호랑이(128dp). */
+/** 보드 분석 대기 그림(220dp): 붓 일원상이 7시에서 시계 방향으로 그려지고([BrushEnso]) 가운데에 연주하는 호랑이(128dp). */
 @Composable
 fun AnalyzingFigure(modifier: Modifier = Modifier) {
-    val rotation by rememberInfiniteTransition(label = "enso").animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(durationMillis = 3200, easing = LinearEasing)),
-        label = "enso-rotation",
-    )
     Box(modifier.size(220.dp).clearAndSetSemantics {}) {
-        Image(
-            painterResource(Res.drawable.enso_spin),
-            contentDescription = null,
-            modifier = Modifier.padding(5.dp).fillMaxSize().graphicsLayer { rotationZ = rotation },
-        )
+        BrushEnso(color = EolssuTheme.colors.text, modifier = Modifier.fillMaxSize())
         // 보드 `translate(-50%, -52%)`: 호랑이 높이(약 104dp)의 2%만큼 위로.
         Image(
             painterResource(Res.drawable.tiger_play),
