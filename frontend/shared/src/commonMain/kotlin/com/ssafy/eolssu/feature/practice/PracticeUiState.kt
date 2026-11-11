@@ -89,10 +89,13 @@ data class PracticeUiState(
     val mine: Boolean = false,
     val learn: Boolean = false,
     /**
-     * 곡 정보의 '연주 평가 시작'으로 들어와 대기 상태 없이 바로 평가 녹음을 시작하는 연주 평가(S15P31E102-705). 준비 화면의 플레이어를 두지 않는다.
+     * 대기 상태 없이 바로 평가 녹음을 시작하는 연주 평가. 곡 정보의 '연주 평가 시작'(S15P31E102-705)과 혼자 연습에서 바꾼 평가(S15P31E102-739)가 쓴다.
+     * 준비 화면의 플레이어를 두지 않고, 준비 상태로 돌아갈 일이 생기면 들어온 화면으로 돌아간다.
      * 녹음을 지원하지 않는 환경(Web)은 지금처럼 준비 화면에서 녹음 미지원 안내를 보이도록 false로 둔다.
      */
     val direct: Boolean = false,
+    /** [direct] 평가에서 기기 권한 창의 거부로 평가를 시작하지 못해 곡 정보로 돌아가야 하는지(S15P31E102-733). 다시 누르면 기기 권한 창이 다시 뜬다. */
+    val leaveDirect: Boolean = false,
     val fingeringOverride: Boolean? = null,
     val sheetTitle: String? = null,
     val step: PracticeStep = PracticeStep(),
@@ -315,14 +318,17 @@ fun PracticeUiState.stopModel(): PracticeUiState = copy(
     eventStartedAt = null, eventElapsedMs = 0.0, pausedFraction = 0f,
 )
 
-/** 연주 평가 시작. 모범 연주 중이면 멈추고, 마이크 권한이 없으면 안내 창을 띄운다. */
+/**
+ * 연주 평가 시작. 모범 연주 중이면 멈추고, 마이크 권한이 있으면 카운트다운을 시작한다.
+ * 권한이 없으면 서비스 안내 창 없이 준비 상태로 두고, ViewModel이 기기 권한 창을 바로 띄운다(S15P31E102-733).
+ */
 fun PracticeUiState.requestEvaluation(micGranted: Boolean): PracticeUiState {
     val base = if (mode == PracticeMode.Model || mode == PracticeMode.Rhythm) {
         copy(mode = PracticeMode.Ready, playing = false, position = 0, elapsedMs = 0.0, eventStartedAt = null, eventElapsedMs = 0.0, pausedFraction = 0f)
     } else {
         this
-    }
-    return if (micGranted) base.beginCountdown() else base.copy(panel = null, popup = PracticePopup.Permission)
+    }.copy(leaveDirect = false)
+    return if (micGranted) base.beginCountdown() else base.copy(panel = null, popup = null)
 }
 
 /** 3·2·1 카운트다운. [resume]이면 멈춘 자리부터 이어서 연주한다. */
@@ -455,9 +461,13 @@ fun PracticeUiState.fingeringNoteAt(index: Int): ScoreNote {
     return ScoreNote.Rest
 }
 
-/** OS 권한 창에서 허용하지 않음. 화면에 머물며 [PracticePopup.PermDenied]·[PracticePopup.PermBlocked]를 띄운다. */
+/**
+ * 평가 시작 중 마이크 권한을 얻지 못함. 평가를 시작하지 않고 준비 상태로 돌아간다.
+ * 기기가 다시 묻지 못하는 차단([blocked])일 때만 설정 안내([PracticePopup.PermBlocked])를 띄우고,
+ * 다시 물을 수 있는 거부는 서비스 안내 창 없이 둔다(다시 누르면 기기 권한 창이 뜬다). [direct] 평가는 곡 정보로 돌아간다.
+ */
 fun PracticeUiState.denyMic(blocked: Boolean): PracticeUiState =
-    toReady().copy(panel = null, popup = if (blocked) PracticePopup.PermBlocked else PracticePopup.PermDenied)
+    toReady().copy(panel = null, popup = if (blocked) PracticePopup.PermBlocked else null, leaveDirect = direct && !blocked)
 
 /**
  * 준비 상태의 플레이어 −5초·+5초: 고른 음을 그 시간만큼 앞뒤의 음으로 옮긴다. 모범 연주 중에는 음원 위치를 옮긴다(ViewModel).

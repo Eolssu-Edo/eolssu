@@ -494,13 +494,16 @@ private val ErrorLocationScoreHeight = 296.dp
 /**
  * 연습·평가 악보의 최소 정간(연습 [practiceScorePacking]의 최소 정간) 아래로 줄지 않는 가장 낮은 악보 높이.
  * 연습 배치를 그대로 돌려 최소 정간 이상이 되는 높이를 찾는다. 카드가 이보다 낮아도 이 높이로 배치해 크기를 지킨다.
+ * [oneLine]이면 긴 각을 두 줄로 나누는 배치([PracticeScorePacking.splitColumns])는 건너뛰고 각이 한 줄에 들어가는 높이를 찾는다
+ * (틀린 부분 상세, S15P31E102-740).
  */
-internal fun weakSectionScoreHeight(song: Song, base: JeongganboMetrics, fontScale: Float): Dp {
+internal fun weakSectionScoreHeight(song: Song, base: JeongganboMetrics, fontScale: Float, oneLine: Boolean = false): Dp {
     if (song.score.columns.isEmpty()) return 0.dp
     val minimum = minOf(base.cellHeight, if (base.cellHeight > 44.dp) 44.dp else 32.dp)
     var height = WeakSectionMinScan
     while (height < WeakSectionMaxScan) {
-        if (practiceScorePacking(song.score, base, height, fontScale, song.jangdan).metrics.cellHeight >= minimum) return height
+        val packing = practiceScorePacking(song.score, base, height, fontScale, song.jangdan)
+        if (packing.metrics.cellHeight >= minimum && !(oneLine && packing.splitColumns)) return height
         height += WeakSectionScanStep
     }
     return WeakSectionMaxScan
