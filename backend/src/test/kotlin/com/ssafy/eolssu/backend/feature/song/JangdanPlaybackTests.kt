@@ -19,11 +19,55 @@ class JangdanPlaybackTests {
     private val examples = (scales.keys + setOf(63L, 7L)).associateWith(::fixture)
     private val stored = examples.getValue(6)
     private val score = stored.scoreJson
-    private fun catalog(name: String): JangdanRow? = production.path("patterns").firstOrNull { it.path("name").asString() == name }?.let {
+    private fun catalog(name: String): JangdanRow? = if (name == "4박 기본 반주")
+        JangdanRow(12, name, """{"beats":["덩","덕","궁","덕"],"group":[1,1,1,1]}""", 160,
+            "QUARTER", null, LocalDateTime.MIN, LocalDateTime.MIN)
+    else production.path("patterns").firstOrNull { it.path("name").asString() == name }?.let {
         JangdanRow(it.path("jangdanId").asString().toLong(), name, it.path("pattern").toString(), 66,
             it.path("bpmUnit").asString(), null, LocalDateTime.MIN, LocalDateTime.MIN)
     }
     private val resolver = ScoreGridJangdanPlayback(json, ::catalog)
+
+    private val fourBeatName = "4박 기본 반주"
+    private val blueValentineHash = "971be444d01a313ce5bdfd3f03915ea9b01b314430743d5d4172ab1241e818a4"
+    private val fourBeatResolver = ScoreGridJangdanPlayback(json) { name ->
+        if (name == fourBeatName) JangdanRow(12, name,
+            """{"beats":["덩","덕","궁","덕"],"group":[1,1,1,1]}""", 160, "QUARTER", null,
+            LocalDateTime.MIN, LocalDateTime.MIN) else catalog(name)
+    }
+    private fun blueValentine(): PublishedSongScore = PublishedSongScore(135, 3, 1, 160, "QUARTER", """{
+        "schemaVersion":1,"score":{"sourceId":"user-blue-valentine-20261111-sogeum","instrument":"SOGEUM","scoreVersion":3},
+        "music":{"jangdan":"$fourBeatName","ticksPerBeat":4,"ticksPerJeonggan":4,"bpmUnit":"QUARTER"},
+        "provenance":{"jgbSha256":"$blueValentineHash"},"columns":[{"index":0,"cells":[
+          {"id":"c0-j0","index":0,"units":[{"row":0,"col":0,"symbol":"쉼","eventId":"rest"}]},
+          {"id":"c0-j1","index":1,"units":[{"row":0,"col":0,"symbol":"쉼","eventId":"rest"},{"row":1,"col":0,"symbol":"청대","eventId":"note"}]},
+          {"id":"c0-j2","index":2,"units":[{"row":0,"col":0,"symbol":"-","eventId":"note"}]},
+          {"id":"c0-j3","index":3,"units":[{"row":0,"col":0,"symbol":"-","eventId":"note"}]}]}],
+        "events":[{"id":"rest","cellId":"c0-j0","kind":"REST","startTick":0,"durationTick":6},
+          {"id":"note","cellId":"c0-j1","kind":"NOTE","yul":"대","octave":1,"startTick":6,"durationTick":10}]}""")
+
+    @Test fun `reviewed Blue Valentine starts four beat accompaniment on its opening rest`() {
+        val playback = assertNotNull(fourBeatResolver.resolve(blueValentine()))
+        assertEquals("12", playback.jangdanId)
+        assertEquals(0L, playback.startTick)
+        assertEquals(16L, playback.cycleTicks)
+        assertEquals(listOf("덩", "덕", "궁", "덕"), playback.pattern.beats)
+        assertEquals(listOf(1, 1, 1, 1), playback.pattern.group)
+    }
+
+    @Test fun `opening rest exception does not leak to unreviewed identities or incomplete bars`() {
+        val source = blueValentine()
+        for (changed in listOf(source.scoreJson.replace(blueValentineHash, "0".repeat(64)),
+            source.scoreJson.replace("user-blue-valentine-20261111-sogeum", "another-song"),
+            source.scoreJson.replace("SOGEUM", "DANSO"), source.scoreJson.replace(fourBeatName, "단모리"))) {
+            assertNull(fourBeatResolver.resolve(source.copy(scoreJson = changed)))
+        }
+        assertNull(fourBeatResolver.resolve(source.copy(scoreVersion = 2)))
+        assertNull(fourBeatResolver.resolve(source.copy(scoreVersion = 4)))
+        val partial = json.readTree(source.scoreJson) as ObjectNode
+        (partial.path("columns").path(0) as ObjectNode).withArray("cells").remove(3)
+        assertNull(fourBeatResolver.resolve(source.copy(scoreJson = partial.toString())))
+    }
 
     private val airplaneSources = listOf(
         Triple("danso", "DANSO", "893185e48fc87c300d591f5e4f0774291f21da17828fdaea5f0f865705ae4b18"),
@@ -52,10 +96,16 @@ class JangdanPlaybackTests {
         assertEquals(240_000.0 / 77, playback.cycleTicks * 60_000.0 / source.defaultBpm, 0.000001)
     }
 
-    @Test fun `only reviewed airplane source instrument hash and version receive supplemental Danmori`() {
+    @Test fun `only reviewed airplane source instrument hash and version receive four beat accompaniment`() {
         for ((slug, instrument, hash) in airplaneSources) {
             val source = airplane(slug, instrument, hash)
-            assertEquals("단모리", assertNotNull(resolver.resolve(source)).name)
+            val playback = assertNotNull(resolver.resolve(source))
+            assertEquals("12", playback.jangdanId)
+            assertEquals("4박 기본 반주", playback.name)
+            assertEquals(4L, playback.cycleTicks)
+            assertEquals(listOf("덩", "덕", "궁", "덕"), playback.pattern.beats)
+            assertEquals(listOf(1, 1, 1, 1), playback.pattern.group)
+            assertEquals(3_116.883116883, playback.cycleTicks * 60_000.0 / source.defaultBpm, 0.000001)
             assertNull(resolver.resolve(source.copy(scoreVersion = 2)))
             for (changed in listOf(source.scoreJson.replace(hash, "0".repeat(64)),
                 source.scoreJson.replace("\"instrument\":\"$instrument\"", "\"instrument\":\"JEONGAK_DAEGEUM\""),
@@ -73,15 +123,23 @@ class JangdanPlaybackTests {
         val source = airplane("jeongak-daegeum", "JEONGAK_DAEGEUM", hash, version = 2, ticks = 6,
             sourceId = "mr203-fixed-jeongak-daegeum-006-p1").copy(songId = 56)
         val playback = assertNotNull(resolver.resolve(source))
-        assertEquals("7", playback.jangdanId)
+        assertEquals("12", playback.jangdanId)
         assertEquals(24L, playback.cycleTicks)
-        assertEquals(8, playback.pattern.beats.size)
-        assertEquals(3.0, playback.cycleTicks.toDouble() / playback.pattern.beats.size)
+        assertEquals(listOf("덩", "덕", "궁", "덕"), playback.pattern.beats)
+        assertEquals(listOf(1, 1, 1, 1), playback.pattern.group)
+        assertEquals(6.0, playback.cycleTicks.toDouble() / playback.pattern.beats.size)
         assertEquals(3_116.883116883, playback.cycleTicks * 60_000.0 / 77 / 6, 0.000001)
         assertNull(resolver.resolve(source.copy(scoreVersion = 1)))
         assertNull(resolver.resolve(source.copy(scoreVersion = 3)))
         assertNull(resolver.resolve(source.copy(scoreJson = source.scoreJson.replace(hash, "0".repeat(64)))))
         assertNull(resolver.resolve(source.copy(scoreJson = source.scoreJson.replace("JEONGAK_DAEGEUM", "SANJO_DAEGEUM"))))
+    }
+
+    @Test fun `four beat accompaniment follows quarter notes rather than the jeonggan scale`() {
+        val source = airplaneSources.first().let { (slug, instrument, hash) -> airplane(slug, instrument, hash) }
+        val changed = source.scoreJson.replace("\"ticksPerJeonggan\":1", "\"ticksPerJeonggan\":2")
+        assertEquals(4L, assertNotNull(resolver.resolve(source.copy(scoreJson = changed))).cycleTicks)
+        assertNull(resolver.resolve(source.copy(bpmUnit = "DOTTED_QUARTER")))
     }
 
     @Test fun `existing separately reviewed sources keep first revision matching`() {

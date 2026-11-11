@@ -1,5 +1,8 @@
 # 프로젝트 문서
 
+- [기초부터 배우기 3~7단계 연습 안내 간소화와 마이크 표시를 연주 평가와 통일 (749)](plans/S15P31E102-749.md)
+- [Blue Valentine 소금 제공 곡과 4박 반주 (746)](specs/blue-valentine-provided-song.md) · [계획·검증](plans/S15P31E102-746.md) · [생성·게시 근거](knowledge/data/sogeum-playback.md)
+- [DB 백업 정렬 메모리 부족 복구 (751)](plans/S15P31E102-751.md) · [계약](specs/backup-dump-sort-memory.md)
 - [마이페이지 프로필 그림을 절쑤 12종에서 골라 서버에 저장 (738)](plans/S15P31E102-738.md)
 - [마이페이지 화면을 테두리 없는 카드의 깔끔한 디자인으로 개선 (731)](plans/S15P31E102-731.md)
 - [내 악보 음역 선택과 변환 오류 수정 안내 (741)](plans/S15P31E102-741.md) · [스펙](specs/sheet-pitch-correction.md) · [PDF 오류 원인과 전후 대조](knowledge/frontend/sheet-pitch-conversion-corrections.md)
@@ -11,7 +14,7 @@
 
 - [기존 정간보 장단·빠르기 전수 조사와 교정 (728)](knowledge/data/common/rhythm-metronome/README.md) · [스펙](specs/score-tempo-correction.md) · [전체 근거표](knowledge/data/common/rhythm-metronome/score-tempo-audit.csv)
 - [정간보 단모리 변환 시간 교정 (732)](specs/danmori-conversion-timing.md) · [오류 원인과 기존 데이터 영향](knowledge/ai/jeongganbo-beat-timing.md)
-- [비행기 네 악기 악보·CAT 음원·단모리 연결 (707)](specs/airplane-four-instruments.md) · [분리 계획·검증](plans/S15P31E102-707.md) · [악보·생성 근거](knowledge/data/airplane-beginner-score.md)
+- [비행기 네 악기 악보·CAT 음원·4박 기본 반주 연결 (707)](specs/airplane-four-instruments.md) · [계획·검증](plans/S15P31E102-707.md) · [악보·생성 근거](knowledge/data/airplane-beginner-score.md)
 
 - [iOS 연습 장단 소리 재생 연결 (714)](plans/S15P31E102-714.md) · [장단 재생 스펙](specs/jangdan-practice-playback.md#ios-연습-장단-재생-s15p31e102-714)
 - [한 음씩 연습 안내 문구 삭제·현재 정간 칸 정렬과 예시음 재생 수정 (717)](plans/S15P31E102-717.md)

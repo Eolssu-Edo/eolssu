@@ -35,7 +35,7 @@ internal class RecordResultStateTest : CatalogViewModelTest() {
         override suspend fun detail(recordId: String): PracticeRecord? { opened += recordId; return read(recordId) }
         override suspend fun delete(recordId: String): RecordDeleteOutcome { deleted += recordId; return remove(recordId) }
         override suspend fun playback(recordId: String) = RecordPlayback.Ready("https://example.com/record.m4a", 900_000L, null)
-        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord = error("unused")
+        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String): PracticeRecord = error("unused")
         override suspend fun updateMemo(recordId: String, memo: String) = Unit
     }
 

@@ -31,11 +31,11 @@ internal class RecordDetailPlaybackTest : CatalogViewModelTest() {
         metrics = emptyList(), memo = "", errors = emptyList(), recordingAvailable = available, isNew = true,
     )
 
-    private class Records(listed: PracticeRecord, private val detail: PracticeRecord?) : PracticeRecordRepository {
-        override val records: StateFlow<List<PracticeRecord>> = MutableStateFlow(listOf(listed))
+    private class Records(listed: PracticeRecord, private val detail: PracticeRecord?, others: List<PracticeRecord> = emptyList()) : PracticeRecordRepository {
+        override val records: StateFlow<List<PracticeRecord>> = MutableStateFlow(listOf(listed) + others)
         val playbacks = mutableListOf<RecordPlayback>()
         var asked = 0
-        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String) = error("쓰지 않음")
+        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String) = error("쓰지 않음")
         override suspend fun updateMemo(recordId: String, memo: String) = Unit
         override suspend fun detail(recordId: String) = detail
         override suspend fun playback(recordId: String): RecordPlayback {
@@ -96,16 +96,23 @@ internal class RecordDetailPlaybackTest : CatalogViewModelTest() {
     }
 
     @Test
-    fun tappingLastEventStartsPausedRecordingAtThatEvent() = runTest {
+    fun tappingEventWhilePausedOnlyMovesPositionUntilPlayIsPressed() = runTest {
         val repo = Records(record(available = true), record(available = true))
         repo.playbacks += RecordPlayback.Ready("https://r2.example/a.m4a", 900_000, null)
         val player = FakeAudioPlayer()
         val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), player))
         runCurrent()
-        val last = model.uiState.value.eventCount - 1
-        model.playAt(last)
+        // 녹음 길이(48초) 안의 음을 고른다. 길이를 넘는 음은 끝으로 맞춰진다.
+        val target = 3
+        model.playAt(target)
         runCurrent()
-        assertEquals(model.uiState.value.startMillis(last), player.requestedPosition)
+        assertEquals(0, player.loads, "멈춰 있을 때 정간을 누르면 재생하지 않는다")
+        assertEquals(0, repo.asked)
+        assertFalse(model.uiState.value.playing)
+        assertEquals(target, model.uiState.value.position)
+        model.togglePlay()
+        runCurrent()
+        assertEquals(model.uiState.value.startMillis(target), player.requestedPosition, "재생 버튼을 누르면 고른 정간부터 재생한다")
         assertEquals(1, player.loads)
     }
 
@@ -301,5 +308,98 @@ internal class RecordDetailPlaybackTest : CatalogViewModelTest() {
         runCurrent()
         assertEquals(RecordSongLookup.Missing, model.uiState.value.songLookup)
         assertEquals(null, model.uiState.value.record)
+    }
+
+    @Test
+    fun firstPlayShowsLoadingUntilPlayerStartsAndCachedUrlSkipsIt() = runTest {
+        val repo = Records(record(available = true), record(available = true))
+        repo.playbacks += RecordPlayback.Ready("https://r2.example/a.m4a", expiresAtMillis = 900_000, durationMs = 48_000)
+        val player = FakeAudioPlayer()
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), player, now = { 0L }))
+        runCurrent()
+        assertFalse(model.uiState.value.playbackLoading)
+        model.togglePlay()
+        assertTrue(model.uiState.value.playbackLoading, "녹음 주소를 받는 처음 재생은 ‘로딩 중’")
+        runCurrent()
+        assertTrue(model.uiState.value.playbackLoading, "플레이어가 불러오는 중이면 그대로 둔다")
+        player.emit(AudioPlaybackStatus.Playing, 0)
+        runCurrent()
+        assertFalse(model.uiState.value.playbackLoading)
+        model.pause()
+        model.togglePlay()
+        assertFalse(model.uiState.value.playbackLoading, "받아 둔 주소로 이어 들을 때는 띄우지 않는다")
+    }
+
+    @Test
+    fun failedFirstPlayClearsLoading() = runTest {
+        val repo = Records(record(available = true), record(available = true))
+        repo.playbacks += RecordPlayback.Busy
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), FakeAudioPlayer(), now = { 0L }))
+        runCurrent()
+        model.togglePlay()
+        runCurrent()
+        assertFalse(model.uiState.value.playbackLoading)
+        assertFalse(model.uiState.value.playing)
+    }
+
+    @Test
+    fun manualScrollStopsFollowingUntilFollowNowOrNextPlay() = runTest {
+        val repo = Records(record(available = true), record(available = true))
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), FakeAudioPlayer(), now = { 0L }))
+        runCurrent()
+        assertTrue(model.uiState.value.follow)
+        assertFalse(model.uiState.value.showFollowNow)
+        model.detachFollow()
+        assertTrue(model.uiState.value.showFollowNow)
+        model.followNow()
+        assertFalse(model.uiState.value.showFollowNow)
+        model.detachFollow()
+        model.togglePlay()
+        assertTrue(model.uiState.value.follow, "다시 재생하면 재생 위치를 따라간다")
+    }
+
+    @Test
+    fun recordingWithoutAudioNeverShowsFollowNow() = runTest {
+        val repo = Records(record(available = false), record(available = false))
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository()))
+        runCurrent()
+        model.detachFollow()
+        assertFalse(model.uiState.value.showFollowNow)
+    }
+
+    @Test
+    fun compareOpensPickSheetWithAllEarlierWholeRecords() = runTest {
+        val current = record(available = true)
+        // copy는 recordedAtMillis 기본값을 다시 구하지 않으므로 생성자로 만든다.
+        fun earlier(id: String, month: Int, day: Int, section: String? = null) = PracticeRecord(
+            id = id, songId = song.id, songTitle = song.title, section = section, repeats = null,
+            recordedAt = KoreanDateTime(2026, month, day, 9, 0), recordedSeconds = 48, bpm = song.baseBpm, score = 70,
+            metrics = emptyList(), memo = "", errors = emptyList(),
+        )
+        val others = listOf(earlier("week", 10, 13), earlier("months", 6, 2), earlier("section", 10, 1, section = "3–4각"))
+        val repo = Records(current, current, others)
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), FakeAudioPlayer(), now = { 0L }))
+        runCurrent()
+        assertTrue(model.uiState.value.canCompare)
+        model.openComparePick()
+        val state = model.uiState.value
+        assertTrue(state.comparePickOpen)
+        val pick = checkNotNull(state.comparePick)
+        assertEquals(listOf("week", "months"), pick.candidates.map { it.id })
+        assertEquals(null, pick.selectedId)
+        assertEquals(KoreanDateTime(2026, 10, 13, 0, 0).epochDay, pick.initialDay, "처음엔 바로 전 기록의 날")
+        model.closeComparePick()
+        assertFalse(model.uiState.value.comparePickOpen)
+    }
+
+    @Test
+    fun sectionRecordCannotOpenCompare() = runTest {
+        val section = record(available = true).copy(section = "3–4각")
+        val repo = Records(section, section)
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), FakeAudioPlayer(), now = { 0L }))
+        runCurrent()
+        model.openComparePick()
+        assertFalse(model.uiState.value.canCompare)
+        assertFalse(model.uiState.value.comparePickOpen)
     }
 }

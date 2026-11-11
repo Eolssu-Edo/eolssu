@@ -60,7 +60,7 @@ fun RecordListRoute(
     onOpenRecord: (String) -> Unit,
     initialRecordId: String? = null,
     onSelectSection: (recordId: String) -> Unit = {},
-    onCompare: (recordId: String) -> Unit = {},
+    onCompare: (recordId: String, previousId: String) -> Unit = { _, _ -> },
     perf: PerformanceVisit? = null,
     viewModel: RecordListViewModel = koinViewModel(key = "records-$justSavedId") { parametersOf(justSavedId, perf) },
 ) {
@@ -94,7 +94,7 @@ private fun RecordsTwoPaneRoute(
     onBack: () -> Unit,
     onOpenGrowth: () -> Unit,
     viewModel: RecordListViewModel,
-    onCompare: (recordId: String) -> Unit,
+    onCompare: (recordId: String, previousId: String) -> Unit,
     onSelectSection: (String) -> Unit,
 ) {
     val selectedId = state.selectedRecordId
@@ -129,13 +129,13 @@ private fun RecordsTwoPaneRoute(
 /**
  * RECORD-02 연결.
  *
- * @param onCompare ‘지난 연주와 비교’ → COMPARE-01(2차).
+ * @param onCompare 기록 고르기 시트에서 고른 이전 기록과 비교 → COMPARE-01(2차).
  */
 @Composable
 fun RecordDetailRoute(
     recordId: String,
     onBack: () -> Unit,
-    onCompare: (recordId: String) -> Unit = {},
+    onCompare: (recordId: String, previousId: String) -> Unit = { _, _ -> },
     onSelectSection: (recordId: String) -> Unit = {},
     onDeleted: () -> Unit = onBack,
     viewModel: RecordDetailViewModel = koinViewModel(key = recordId) { parametersOf(recordId) },
@@ -200,12 +200,12 @@ private fun RecordNoticeEffect(notice: RecordNotice?, snackbarHostState: Snackba
     }
 }
 
-/** 기록 상세 동작. 뒤로 가기·비교로 가기 전에 재생을 멈추고, 비교는 지금 보이는 기록 ID로 연다. */
+/** 기록 상세 동작. 뒤로 가기·비교로 가기 전에 재생을 멈추고, 비교는 지금 보이는 기록과 시트에서 고른 이전 기록으로 연다. */
 @Composable
 private fun rememberRecordDetailActions(
     viewModel: RecordDetailViewModel,
     onBack: () -> Unit,
-    onCompare: (recordId: String) -> Unit,
+    onCompare: (recordId: String, previousId: String) -> Unit,
     onSelectSection: (recordId: String) -> Unit,
 ): RecordDetailActions {
     val latestOnBack by rememberUpdatedState(onBack)
@@ -232,12 +232,16 @@ private fun rememberRecordDetailActions(
                     latestOnSelectSection(id)
                 }
             },
-            onToggleFollow = viewModel::toggleFollow,
+            onFollowNow = viewModel::followNow,
+            onDetachFollow = viewModel::detachFollow,
             onRetrySong = viewModel::retrySong,
-            onCompare = {
+            onCompare = viewModel::openComparePick,
+            onCloseCompare = viewModel::closeComparePick,
+            onPickCompare = { previousId ->
                 viewModel.uiState.value.record?.id?.let { recordId ->
                     viewModel.pause()
-                    latestOnCompare(recordId)
+                    viewModel.closeComparePick()
+                    latestOnCompare(recordId, previousId)
                 }
             },
         )
