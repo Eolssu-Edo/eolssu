@@ -11,10 +11,14 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -24,6 +28,43 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 
 class HistoricalEvaluationTest {
+    @Test
+    fun aSlowScoreDoesNotDelayOrReplaceTheNextSong() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+        val firstScoreRequested = CompletableDeferred<Unit>()
+        val releaseFirstScore = CompletableDeferred<Unit>()
+        val client = createHttpClient(MockEngine { request ->
+            val path = request.url.encodedPath
+            val result = when (path) {
+                "/api/songs/42" -> revisionSongResponse(1)
+                "/api/songs/42/score" -> {
+                    firstScoreRequested.complete(Unit)
+                    releaseFirstScore.await()
+                    revisionScoreResponse(1)
+                }
+                "/api/songs/43" -> revisionSongResponse(1).replace("\"songId\":\"42\"", "\"songId\":\"43\"")
+                "/api/songs/43/score" -> revisionScoreResponse(1).replace("\"songId\":\"42\"", "\"songId\":\"43\"")
+                else -> error(path)
+            }
+            respond("""{"isSuccess":true,"result":$result}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val songs = ApiSongRepository(client, member)
+            val first = async { songs.getSong("42") }
+            firstScoreRequested.await()
+            val secondSong = try {
+                withContext(Dispatchers.Default) {
+                    assertNotNull(withTimeout(5_000) { songs.getSong("43") })
+                }
+            } finally {
+                releaseFirstScore.complete(Unit)
+            }
+            assertEquals("43", secondSong.id)
+            assertEquals("42", first.await()?.id)
+            assertSame(secondSong, songs.retainedSong("43"))
+        } finally { client.close() }
+    }
+
     @Test
     fun publishedReuseEndsOnLogoutAndSameMemberRelogin() = runTest {
         val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }

@@ -122,8 +122,8 @@ class ApiWeakSectionRepository(
     override suspend fun source(sourceId: String): WeakSectionSource? = guarded { loadSource(sourceId) }
 
     override suspend fun isCurrent(source: WeakSectionSource): Boolean? = guarded {
-        val current = songs.getSong(source.song.id) ?: return@guarded null
-        current.scoreVersion == source.song.scoreVersion
+        val current = songs.getPublishedScoreVersion(source.song.id) ?: return@guarded null
+        current == source.song.scoreVersion
     }
 
     override suspend fun weakSections(sessionId: String): List<WeakSectionPick>? = member.inSession {

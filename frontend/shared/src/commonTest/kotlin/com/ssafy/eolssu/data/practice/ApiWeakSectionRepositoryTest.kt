@@ -36,6 +36,35 @@ import kotlin.test.assertSame
 /** 취약 구간·비교 API(EVA-03·04)와 기록·평가 저장소를 묶는 저장소. 서버는 MockEngine으로 대신한다. */
 class ApiWeakSectionRepositoryTest {
     @Test
+    fun coldSelectionChecksPublicationWithoutDownloadingAnotherScore() = runTest {
+        for (publishedVersion in listOf(1, 2)) {
+            val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+            val catalog = mutableListOf<Pair<String, String?>>()
+            val client = createHttpClient(MockEngine { request ->
+                val path = request.url.encodedPath
+                val requestedVersion = request.url.parameters["scoreVersion"]
+                val version = requestedVersion?.toInt() ?: publishedVersion
+                if (path.startsWith("/api/songs/")) catalog += path to requestedVersion
+                val result = when (path) {
+                    "/api/practice-sessions/50/evaluation" -> evaluationResponse("50", 1)
+                    "/api/songs/42" -> revisionSongResponse(version)
+                    "/api/songs/42/score" -> revisionScoreResponse(version)
+                    else -> error(path)
+                }
+                respond(ok(result).second, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+            }, ServerAddress.Production)
+            try {
+                val songs = ApiSongRepository(client, member)
+                val evaluations = ApiEvaluationRepository(client, songs, member = member)
+                val repository = ApiWeakSectionRepository(client, evaluations, songs, records, member)
+                val source = checkNotNull(repository.source("50"))
+                assertEquals(publishedVersion == 1, repository.isCurrent(source))
+                assertEquals(listOf("/api/songs/42" to "1", "/api/songs/42/score" to "1", "/api/songs/42" to null), catalog)
+            } finally { client.close() }
+        }
+    }
+
+    @Test
     fun sourceLoadsItsEvaluationAndScoreBundleOnce() = runTest {
         val paths = mutableListOf<String>()
         val client = createHttpClient(MockEngine { request ->

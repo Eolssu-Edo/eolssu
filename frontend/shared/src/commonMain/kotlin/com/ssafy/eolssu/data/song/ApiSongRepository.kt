@@ -13,6 +13,7 @@ import com.ssafy.eolssu.core.network.AccountSession
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.ensureAccountSession
+import com.ssafy.eolssu.core.network.getPublicOrNull
 import com.ssafy.eolssu.core.network.inSession
 import com.ssafy.eolssu.core.network.sendOrNull
 import io.ktor.client.HttpClient
@@ -20,8 +21,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -33,11 +33,12 @@ class ApiSongRepository(
 ) : SongRepository {
     private data class RetainedSong(val account: AccountSession, val song: Song, val published: Boolean)
 
-    private val retained = MutableStateFlow<RetainedSong?>(null)
-    private val loadLock = Mutex()
+    private data class Cache(val request: Any? = null, val entry: RetainedSong? = null)
+
+    private val cache = MutableStateFlow(Cache())
 
     init {
-        member?.onChange { retained.value = null }
+        member?.onChange { cache.value = Cache() }
     }
 
     override suspend fun getInstruments() = InstrumentCatalog(client).load()
@@ -58,6 +59,24 @@ class ApiSongRepository(
 
     override suspend fun getSong(songId: String): Song? = load(songId)?.song
 
+    override suspend fun getPublishedScoreVersion(songId: String): Int? = member.inSession {
+        val account = member?.session?.value?.takeIf { it.memberId != null }
+        ensureAccountSession()
+        val request = beginLoad(account, songId, published = true)
+        val version = loadCatalogSong(songId)?.scoreVersion
+        ensureAccountSession()
+        if (request != null && version != null) {
+            cache.update { state ->
+                val entry = state.entry
+                if (state.request === request && entry != null && entry.account == account &&
+                    entry.song.id == songId && entry.song.scoreVersion == version
+                ) state.copy(entry = entry.copy(published = true))
+                else state
+            }
+        }
+        version
+    }
+
     override suspend fun getSong(songId: String, scoreVersion: Int): Song? {
         if (scoreVersion <= 0) throw CatalogUnavailable()
         return load(songId, scoreVersion)?.song
@@ -66,7 +85,7 @@ class ApiSongRepository(
     override suspend fun getEditableSong(songId: String): EditableSong? = load(songId)
 
     override suspend fun retainedSong(songId: String, scoreVersion: Int?): Song? = member.inSession {
-        val entry = retained.value ?: return@inSession null
+        val entry = cache.value.entry ?: return@inSession null
         val song = entry.song
         val matchesVersion = if (scoreVersion == null) entry.published else song.scoreVersion == scoreVersion
         if (entry.account != member?.session?.value || song.id != songId || !matchesVersion) return@inSession null
@@ -74,33 +93,53 @@ class ApiSongRepository(
         song
     }
 
-    /** CAT-01·04를 함께 검증한다. 편집기는 화면 모델과 함께 원본 공통 악보도 받는다. */
+    /** 곡 상세와 정본 악보를 함께 검증한다. 편집기는 화면 모델과 함께 원본 공통 악보도 받는다. */
     private suspend fun load(songId: String, scoreVersion: Int? = null): EditableSong? = member.inSession {
         val account = member?.session?.value?.takeIf { it.memberId != null }
-        loadLock.withLock {
-            ensureAccountSession()
-            val previous = retained.value?.takeIf { it.account == account && it.song.id == songId }
-            // 실패·취소된 최신 판본 확인 뒤에는 과거 응답을 현재 게시 판본으로 다시 쓰지 않는다.
-            if (scoreVersion == null && previous?.published == true) {
-                retained.compareAndSet(previous, previous.copy(published = false))
+        ensureAccountSession()
+        val request = beginLoad(account, songId, published = scoreVersion == null)
+        val bundle = measureLoad(PerfTarget.SONG_BUNDLE, songId, { it.song.scoreVersion }) { loadVerified(songId, scoreVersion) }
+        ensureAccountSession()
+        if (bundle != null && account != null && request != null) {
+            cache.update { state ->
+                if (state.request === request) state.copy(entry = RetainedSong(account, bundle.song, published = scoreVersion == null))
+                else state
             }
-            val bundle = measureLoad(PerfTarget.SONG_BUNDLE, songId, { it.song.scoreVersion }) { loadVerified(songId, scoreVersion) }
-            ensureAccountSession()
-            if (bundle != null && account != null) retained.value = RetainedSong(account, bundle.song, published = scoreVersion == null)
-            bundle
         }
+        bundle
     }
 
-    private suspend fun loadVerified(songId: String, scoreVersion: Int?): EditableSong? {
+    /** 새 조회가 시작되면 늦게 끝난 이전 조회는 공유 캐시를 덮어쓸 수 없다. */
+    private fun beginLoad(account: AccountSession?, songId: String, published: Boolean): Any? {
+        if (account == null) return null
+        val request = Any()
+        cache.update { state ->
+            if (member?.session?.value != account) return@update state
+            val entry = state.entry
+            // 확인이 실패하거나 취소되면 기존 악보는 정확한 기록 판본으로만 재사용한다.
+            if (published && entry != null && entry.account == account && entry.song.id == songId) {
+                Cache(request, entry.copy(published = false))
+            } else Cache(request, entry)
+        }
+        return request
+    }
+
+    private suspend fun loadCatalogSong(songId: String, scoreVersion: Int? = null): CatalogSong? {
         if (!validCatalogId(songId)) return null
-        val response = client.sendOrNull { get("/api/songs/$songId") { scoreVersion?.let { parameter("scoreVersion", it) } } } ?: throw CatalogUnavailable()
+        val response = client.getPublicOrNull("/api/songs/$songId") { scoreVersion?.let { parameter("scoreVersion", it) } }
+            ?: throw CatalogUnavailable()
         if (response.status.value == 404) return null
         if (response.status.value != 200) throw CatalogUnavailable()
         val item = response.apiResponse<CatalogSong>()?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
-        val summary = item.summary()
-        if (summary.id != songId || (scoreVersion != null && item.scoreVersion != scoreVersion)) throw CatalogUnavailable()
-        val level = summary.level ?: throw CatalogUnavailable()
-        val scoreResponse = client.sendOrNull { get("/api/songs/$songId/score") { scoreVersion?.let { parameter("scoreVersion", it) } } } ?: throw CatalogUnavailable()
+        if (item.songId != songId || item.scoreVersion <= 0 || (scoreVersion != null && item.scoreVersion != scoreVersion)) throw CatalogUnavailable()
+        return item
+    }
+
+    private suspend fun loadVerified(songId: String, scoreVersion: Int?): EditableSong? {
+        val item = loadCatalogSong(songId, scoreVersion) ?: return null
+        val level = item.summary().level ?: throw CatalogUnavailable()
+        val scoreResponse = client.getPublicOrNull("/api/songs/$songId/score") { scoreVersion?.let { parameter("scoreVersion", it) } }
+            ?: throw CatalogUnavailable()
         if (scoreResponse.status.value == 404) return null
         if (scoreResponse.status.value != 200) throw CatalogUnavailable()
         val scoreItem = scoreResponse.apiResponse<CatalogScore>()?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
