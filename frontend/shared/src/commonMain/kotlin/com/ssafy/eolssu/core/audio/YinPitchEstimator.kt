@@ -1,17 +1,37 @@
 package com.ssafy.eolssu.core.audio
 
+import kotlin.math.log10
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 /** 짧은 단음의 주기를 찾는다. 입력이 작거나 주기가 불명확하면 null이다. */
 data class PitchEstimate(val frequencyHz: Double, val normalizedDifference: Double)
 
+/**
+ * 높이를 구할 최소 조건. 창 RMS가 [minLevelDbfs]보다 작거나, 정규화 차이가 [maxDifference]보다 작은 주기가 없으면(김 소리·잡음)
+ * 높이를 구하지 않는다. [Default]는 모든 화면의 기본값이고, [Lenient]는 한 음씩 단소처럼 김 소리가 많은 악기용이다(S15P31E102-666).
+ */
+data class PitchGate(val minLevelDbfs: Double = -45.0, val maxDifference: Double = 0.15) {
+    companion object {
+        val Default = PitchGate()
+        val Lenient = PitchGate(minLevelDbfs = -55.0, maxDifference = 0.2)
+    }
+}
+
 object YinPitchEstimator {
     fun detect(samples: FloatArray, sampleRate: Int): Double? = estimate(samples, sampleRate)?.frequencyHz
 
-    fun estimate(samples: FloatArray, sampleRate: Int): PitchEstimate? {
+    /** 창의 RMS 크기(dBFS, 1.0 = 0dBFS). 모두 0이면 음의 무한대다. 높이를 못 구한 이유가 크기인지 보는 데 쓴다. */
+    fun rmsDbfs(samples: FloatArray): Double {
+        if (samples.isEmpty()) return Double.NEGATIVE_INFINITY
+        return 20 * log10(rms(samples))
+    }
+
+    private fun rms(samples: FloatArray) = sqrt(samples.sumOf { it.toDouble() * it } / samples.size)
+
+    fun estimate(samples: FloatArray, sampleRate: Int, gate: PitchGate = PitchGate.Default): PitchEstimate? {
         if (sampleRate <= 0 || samples.size < 4) return null
-        val rms = sqrt(samples.sumOf { it.toDouble() * it } / samples.size)
-        if (rms < 0.005623413) return null
+        if (rms(samples) < 10.0.pow(gate.minLevelDbfs / 20)) return null
         val maxLag = minOf(samples.size / 2, sampleRate / 60)
         val minLag = maxOf(2, sampleRate / 3000)
         if (maxLag <= minLag) return null
@@ -32,7 +52,7 @@ object YinPitchEstimator {
         }
         var lag = minLag
         while (lag < maxLag) {
-            if (difference[lag] < 0.15) {
+            if (difference[lag] < gate.maxDifference) {
                 while (lag + 1 <= maxLag && difference[lag + 1] < difference[lag]) lag++
                 val left = difference[lag - 1]
                 val center = difference[lag]

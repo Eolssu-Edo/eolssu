@@ -57,16 +57,18 @@ class NotePracticeCriteriaApiDatabaseTests {
             val id = jdbc.queryForObject("SELECT id FROM instruments WHERE code=?", Long::class.java, code)
             val response = get("/api/note-practice/criteria?instrumentId=$id", "access_token=expired.invalid.token")
             assertEquals(200, response.statusCode(), code)
-            assertTrue(response.body().contains("\"pitchToleranceCent\":50,"), response.body())
+            // 단소만 완화한 값이다(S15P31E102-666).
+            val danso = code == "DANSO"
+            assertTrue(response.body().contains("\"pitchToleranceCent\":${if (danso) 70 else 50},"), response.body())
             assertTrue(response.body().contains("\"minLevelDbfs\":-45,"), response.body())
             val result = json.readTree(response.body()).path("result")
             assertEquals(id.toString(), result.path("instrumentId").asString())
-            assertEquals("note-step-1", result.path("criteriaVersion").asString())
-            assertEquals(300, result.path("holdMs").asInt())
+            assertEquals(if (danso) "note-step-2" else "note-step-1", result.path("criteriaVersion").asString())
+            assertEquals(if (danso) 200 else 300, result.path("holdMs").asInt())
             assertEquals(0.8, result.path("minConfidence").asDouble())
             assertTrue(result.path("octaveMustMatch").asBoolean())
             assertEquals("FIRST_NOTE", result.path("tuning").asString())
-            assertEquals(50, result.path("maxTuningOffsetCent").asInt())
+            assertEquals(if (danso) 100 else 50, result.path("maxTuningOffsetCent").asInt())
             assertEquals("MAIN_PITCH", result.path("sigimsaeMode").asString())
             assertEquals(8000, result.path("hintAfterMs").asInt())
         }

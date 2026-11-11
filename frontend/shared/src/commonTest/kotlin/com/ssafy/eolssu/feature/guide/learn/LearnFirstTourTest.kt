@@ -85,6 +85,25 @@ class LearnFirstTourTest {
         assertNull(tour.open)
     }
 
+    /** 마친 박스의 체크를 누르면 그 박스부터 뒤까지 다시 할 일로 돌아가고 그 박스가 펼쳐진다(S15P31E102-749). */
+    @Test
+    fun undoingADoneBoxReopensItAndClearsLaterBoxes() {
+        val tour = LearnTour()
+        tour.complete(0, count = 3)
+        tour.complete(1, count = 3)
+        tour.complete(2, count = 3)
+        tour.finish()
+
+        assertTrue(tour.undo(1))
+        assertEquals(1, tour.doneCount)
+        assertEquals(1, tour.open)
+        assertFalse(tour.isDone(2))
+        assertFalse(tour.celebrating)
+        // 아직 마치지 않은 박스는 되돌릴 것이 없다
+        assertFalse(tour.undo(2))
+        assertEquals(1, tour.doneCount)
+    }
+
     @Test
     fun finishShowsCelebration() {
         val tour = LearnTour()
