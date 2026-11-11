@@ -58,6 +58,8 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.result_subtitle
 import eolssu.shared.generated.resources.weak_legend_wrong
 import eolssu.shared.generated.resources.weak_load_missing
+import eolssu.shared.generated.resources.weak_score_changed
+import eolssu.shared.generated.resources.weak_score_unavailable
 import eolssu.shared.generated.resources.weak_select_bpm
 import eolssu.shared.generated.resources.weak_select_bpm_short
 import eolssu.shared.generated.resources.weak_select_bpm_show
@@ -119,7 +121,11 @@ fun SectionSelectScreen(state: SectionSelectUiState, actions: SectionSelectActio
             ErrorKindLegend(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp), title = stringResource(Res.string.weak_legend_wrong), boxed = true)
             // 추천 구간은 처음 고른 구간(연두 테두리)으로만 보이고 따로 알약을 두지 않는다.
             Text(
-                stringResource(if (state.picking) Res.string.weak_select_hint_end else Res.string.weak_select_hint),
+                stringResource(when (state.currentScore) {
+                    false -> Res.string.weak_score_changed
+                    null -> Res.string.weak_score_unavailable
+                    true -> if (state.picking) Res.string.weak_select_hint_end else Res.string.weak_select_hint
+                }),
                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                 color = colors.textMuted,
