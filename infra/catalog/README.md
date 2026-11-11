@@ -223,6 +223,8 @@ sudo /opt/eolssu-backup/backup.py send db
 
 서버에는 `publish_score_tempo.py`, `enable_scoring.py`, `stage_model_audio.py`를 같은 디렉터리에 준비한다. `--song-id`를 반복하면 읽기 전용으로 `songs`와 모든 판본의 `audios`, 활성 세션 수를 JSON으로 내보낸다. 이 스냅샷의 곡 행과 현재 판본 음원 행을 각각 `beforeSong`, `beforeAudio`에 넣는다.
 
+파일 경로에는 곡의 숫자 ID 대신 기존 source의 case ID를 쓴다. 예를 들어 `mr203-fixed-danso-003-p1`의 음원은 `cases/danso-003-p1/danso.m4a`, 시간표는 같은 폴더의 `performance.common.json`이다. 파일명 악기와 case 악기는 공통 악보의 instrument와 일치해야 한다. V15의 `chk_model_audio_object_key`와 `chk_model_audio_performance`가 이 형식을 요구하므로 검증기는 업로드 전에 source·악기·경로 일치를 검사한다. MySQL 회귀 검사도 실제 V15 마이그레이션의 두 CHECK를 적용한다.
+
 묶음의 `release.json`은 `schema: eolssu-score-tempo-release/v1`, `task: S15P31E102-728`, `entries`를 가진다. 각 entry는 `songId`, `beforeSong`, `beforeAudio`, `targetBpm`, `scoreFile`, `audioFile`, `performanceFile`, `audioMetadata`와 필요 시 위 박 표기 근거를 담는다. 세 파일 명세는 상대 `path`, `sha256`, `bytes`이며 음원은 `.m4a`, 나머지는 `.json`이다. `audioMetadata`에는 `source_common_sha256`, `bpm`, `bpm_unit`, `duration_ms`, `start_offset_ms`, `content_type`, `sha256`, `status`, `generation_metadata`를 넣는다. 목표 파일의 실제 코덱·음악적 해석과 디코딩 길이는 생성 단계에서 검증한다. 적용기는 파일 해시·악보 변경 범위·수행 시간표의 판본/해시/메타데이터를 다시 검사한다. 시간표는 원보 격자의 모든 분할 위치를 순서대로 한 번씩 포함해야 하며, 정간·행·열·이벤트 ID·tick 범위·시김새 대응과 고유 occurrenceId를 대조한다. 각 시작·끝 시간은 목표 BPM과 원보 tick에서 계산한 명목 시각과 1ms 이내여야 한다. 이 교정 도구는 한 번의 악보 순회·고정 빠르기만 지원하고 반복이나 표현용 길이·템포 변화를 승인하지 않는다.
 
 ```sh

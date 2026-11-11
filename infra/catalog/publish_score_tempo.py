@@ -15,6 +15,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -182,6 +183,16 @@ def load_release(root):
         require((before['status'], old['status']) in (('PUBLISHED','PUBLISHED'),('HIDDEN','DRAFT')) and
                 before['deleted'] is None and before['scorable'] in (0,1), 'Original publication state differs')
         require(type(entry['targetBpm']) is int and 30 <= entry['targetBpm'] <= 400, 'Invalid target BPM')
+        # Match the deployed V15 CHECK before uploading any immutable object.
+        # Preserve the existing source case, not the numeric catalog song ID.
+        instrument=before['score']['score']['instrument'].lower().replace('_','-')
+        case=before['source'].removeprefix('mr203-fixed-')
+        require(before['source']=='mr203-fixed-'+case and
+                re.fullmatch(re.escape(instrument)+r'-[0-9]{3}-p[0-9]+',case) is not None and
+                instrument in ('danso','sogeum','jeongak-daegeum','sanjo-daegeum'), 'Unsupported source catalog path identity')
+        directory='cases/'+case+'/'
+        require(entry['audioFile']['path']==directory+instrument+'.m4a' and
+                entry['performanceFile']['path']==directory+'performance.common.json', 'Payload catalog path differs from source/instrument or deployed constraints')
         bodies = {}
         for key in ('scoreFile','audioFile','performanceFile'):
             item = entry[key]

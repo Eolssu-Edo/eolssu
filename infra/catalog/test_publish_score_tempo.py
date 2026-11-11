@@ -14,16 +14,20 @@ import publish_score_tempo as tool
 
 
 def fixture(root, sid=54):
-    score = {'schemaVersion': 1, 'score': {'sourceId': f'src-{sid}', 'scoreVersion': 2, 'instrument': 'JEONGAK_DAEGEUM'},
+    case=f'jeongak-daegeum-{sid:03}-p1'
+    source=f'mr203-fixed-{case}'
+    directory=f'cases/{case}'
+    score = {'schemaVersion': 1, 'score': {'sourceId': source, 'scoreVersion': 2, 'instrument': 'JEONGAK_DAEGEUM', 'part':1},
              'music': {'jangdan': '', 'bpmUnit': 'QUARTER', 'ticksPerBeat': 4, 'ticksPerJeonggan': 2},
              'events': [{'id': 'e0', 'kind': 'NOTE', 'startTick': 0, 'durationTick': 8, 'sigimsae': []}],
              'columns': [{'index': 0, 'cells': [dict(id=f'c0-j{j}',index=j,
                  units=[dict(row=0,col=0,eventId='e0',symbol='황' if j==0 else '-')]) for j in range(4)]}],
              'provenance': {'review': 'inferred'}}
-    before = dict(id=sid, source=f'src-{sid}', version=2, bpm=30, scorable=1, notes=1,
+    before = dict(id=sid, source=source, version=2, bpm=30, scorable=1, notes=1,
                   status='PUBLISHED', deleted=None, jangdan=None, score=score, title='뱃노래',
                   difficulty=2, instrumentId=2, umulsai=None, description=None)
-    old = dict(songId=sid, version=2, object_key=f'old/{sid}/audio', performance_object_key=f'old/{sid}/performance',
+    prefix='model-audio/drafts/'+'a'*64+'/'+directory
+    old = dict(songId=sid, version=2, object_key=prefix+'/jeongak-daegeum.m4a', performance_object_key=prefix+'/performance.common.json',
                source_common_sha256='a'*64, bpm=30, bpm_unit='QUARTER', duration_ms=4550,
                start_offset_ms=0, content_type='audio/mp4', sha256='b'*64, status='PUBLISHED',
                generation_metadata={'original': True}, created_at='2026-11-01 00:00:00', updated_at='2026-11-01 00:00:00')
@@ -33,15 +37,15 @@ def fixture(root, sid=54):
     body = json.dumps(target, ensure_ascii=False).encode()
     audio = b'test audio bytes'
     perf = dict(schema='common-score-performance/v1', policy='educational-preview/v1',
-                sourceId=f'src-{sid}', instrument='JEONGAK_DAEGEUM', scoreVersion=3,
+                sourceId=source, instrument='JEONGAK_DAEGEUM', scoreVersion=3,
                 sourceSha256=tool.sha(body), audioSha256=tool.sha(audio), bpm=99, bpmUnit='QUARTER',
                 durationMs=1212.1212, segments=[dict(occurrenceId=f'o{j}',eventId='e0',cellId=f'c0-j{j}',row=0,col=0,
                     startTick=2*j,endTick=2*j+2,startMs=j*303.0303,endMs=(j+1)*303.0303,sigimsae=[]) for j in range(4)])
     files = {}
-    for key, path, content in [('scoreFile',f'{sid}/source.json',body), ('audioFile',f'{sid}/audio.m4a',audio),
-                               ('performanceFile',f'{sid}/performance.json',json.dumps(perf).encode())]:
+    for key, path, content in [('scoreFile',directory+'/source.common.json',body), ('audioFile',directory+'/jeongak-daegeum.m4a',audio),
+                               ('performanceFile',directory+'/performance.common.json',json.dumps(perf).encode())]:
         p = root/path
-        p.parent.mkdir(exist_ok=True)
+        p.parent.mkdir(parents=True,exist_ok=True)
         p.write_bytes(content)
         files[key] = dict(path=path, sha256=tool.sha(content), bytes=len(content))
     meta = {k: v for k, v in old.items() if k in tool.AUDIO_FIELDS and k not in ('object_key','performance_object_key')}
@@ -73,6 +77,28 @@ class ReleaseGuards(unittest.TestCase):
         perf['durationMs']=2
         self.replace_performance(perf)
         with self.assertRaises(ValueError): tool.load_release(self.root)
+
+    def test_non_catalog_object_key_is_rejected_before_upload(self):
+        release=json.loads((self.root/'release.json').read_bytes())
+        entry=release['entries'][0]
+        for name in ('audioFile','performanceFile'):
+            desc=entry[name]
+            old=self.root/desc['path']
+            desc['path']='54/'+old.name
+            new=self.root/desc['path']; new.parent.mkdir(exist_ok=True)
+            new.write_bytes(old.read_bytes())
+        (self.root/'release.json').write_text(json.dumps(release),encoding='utf-8')
+        with self.assertRaisesRegex(ValueError,'catalog path'): tool.load_release(self.root)
+
+    def test_other_case_or_instrument_path_is_rejected(self):
+        original=json.loads((self.root/'release.json').read_bytes())
+        for path in ('cases/jeongak-daegeum-055-p1/jeongak-daegeum.m4a',
+                     'cases/jeongak-daegeum-054-p1/danso.m4a'):
+            release=copy.deepcopy(original)
+            release['entries'][0]['audioFile']['path']=path
+            (self.root/'release.json').write_text(json.dumps(release),encoding='utf-8')
+            with self.subTest(path=path),self.assertRaisesRegex(ValueError,'catalog path'):
+                tool.load_release(self.root)
 
     def test_wrong_written_slot_and_duplicate_occurrence_are_rejected(self):
         original=json.loads((self.root/self.original['performanceFile']['path']).read_bytes())
@@ -233,10 +259,15 @@ class MySqlCorrection(unittest.TestCase):
                  'difficulty INT,instrument_id BIGINT,umulsai_text TEXT,description TEXT) ENGINE=InnoDB;'
                  'CREATE TABLE song_model_audios (song_id BIGINT,score_version INT,object_key VARCHAR(512),performance_object_key VARCHAR(512),'
                  'source_common_sha256 CHAR(64),bpm INT,bpm_unit VARCHAR(32),duration_ms INT,start_offset_ms INT,content_type VARCHAR(64),'
-                 'sha256 CHAR(64),status VARCHAR(20),generation_metadata JSON,created_at DATETIME(6),updated_at DATETIME(6),'
+                 'sha256 CHAR(64),status VARCHAR(20),generation_metadata JSON,created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),'
+                 'updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),'
                  'PRIMARY KEY(song_id,score_version),FOREIGN KEY(song_id) REFERENCES songs(id)) ENGINE=InnoDB;'
                  'CREATE TABLE practice_sessions (id BIGINT PRIMARY KEY,song_id BIGINT,status VARCHAR(20),'
                  'FOREIGN KEY(song_id) REFERENCES songs(id), INDEX(song_id)) ENGINE=InnoDB;')
+        migration=(Path(__file__).resolve().parents[2]/'backend/src/main/resources/db/migration/V15__model_audio_object_keys.sql').read_text(encoding='utf-8')
+        constraints='ALTER TABLE song_model_audios MODIFY COLUMN object_key'+migration.split(
+            'ALTER TABLE song_model_audios MODIFY COLUMN object_key',1)[1].split('DROP TEMPORARY TABLE',1)[0]
+        self.sql(constraints)  # Actual checked-in production constraints, not a permissive test approximation.
         for e in self.entries:
             before=e['beforeSong']
             self.sql('INSERT INTO songs('+','.join(tool.SONG_COLUMNS.values())+') VALUES('+','.join(tool.literal(before[k]) for k in tool.SONG_COLUMNS)+');')
@@ -248,13 +279,13 @@ class MySqlCorrection(unittest.TestCase):
         for e in self.entries: e['beforeAudio']=audios[(e['songId'],2)]
 
     def test_atomic_apply_retains_old_audio_and_completed_sessions(self):
-        self.sql("INSERT INTO practice_sessions VALUES(1,54,'COMPLETED');")
+        self.sql("INSERT INTO practice_sessions VALUES(1,54,'DONE');")
         self.assertEqual([54,55],tool.check_state(self.entries,tool.inventory([54,55],self.sql)))
         self.sql(tool.build_sql(self.entries,[54,55]))
         state=tool.inventory([54,55],self.sql)
         self.assertEqual([],tool.check_state(self.entries,state))
         self.assertEqual(4,len(state[1]))
-        self.assertEqual('COMPLETED',self.sql('SELECT status FROM practice_sessions WHERE id=1;'))
+        self.assertEqual('DONE',self.sql('SELECT status FROM practice_sessions WHERE id=1;'))
 
     def test_second_song_drift_rolls_back_first_song_and_audio(self):
         self.sql("UPDATE songs SET title='concurrent edit' WHERE id=55;")
@@ -266,6 +297,14 @@ class MySqlCorrection(unittest.TestCase):
     def test_active_session_added_after_preflight_aborts_all(self):
         self.sql("INSERT INTO practice_sessions VALUES(1,55,'RECORDING');")
         with self.assertRaises(RuntimeError): self.sql(tool.build_sql(self.entries,[54,55]))
+        songs,audios=tool.inventory([54,55],self.sql)
+        self.assertEqual(30,songs[54]['bpm'])
+        self.assertEqual(2,len(audios))
+
+    def test_deployed_key_constraint_rejects_old_numeric_path_and_rolls_back(self):
+        self.entries[1]['targetAudio']['object_key']='model-audio/drafts/'+'c'*64+'/55/jeongak-daegeum.m4a'
+        with self.assertRaisesRegex(RuntimeError,'chk_model_audio_object_key'):
+            self.sql(tool.build_sql(self.entries,[54,55]))
         songs,audios=tool.inventory([54,55],self.sql)
         self.assertEqual(30,songs[54]['bpm'])
         self.assertEqual(2,len(audios))
