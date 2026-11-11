@@ -195,6 +195,8 @@ data class ScoreCellMark(
  * @param cellMarks (각, 정간) → 덧그릴 표시([ScoreCellMark]). 악보 편집에서 고른 정간·빈 정간을 표시한다.
  * @param focusCell 실제 표시 정간(각, 정간)을 가로·세로 스크롤 안에 보이게 한다. 줄을 나눈 각도 원본 좌표로 지정한다.
  * @param focusRequestKey 같은 정간으로 다시 이동할 때 증가시킨다. 사용자가 다른 곳으로 스크롤한 뒤에도 다시 보이게 한다.
+ * @param unitMarksAfterPass 재생·연주 중에는 [unitMarks]를 진행이 그 표시 자리를 다 지난 뒤에만 칠한다.
+ *   연주 중인 자리의 진행 채움을 덮지 않게 한다(연주 평가의 실시간 판정). 진행 모습([playback])이 없으면 모두 칠한다.
  */
 @Composable
 fun JeongganboView(
@@ -237,6 +239,7 @@ fun JeongganboView(
     cellMarks: Map<Pair<Int, Int>, ScoreCellMark> = emptyMap(),
     /** 나눈 정간의 소박 하나만 칠하는 표시(편집기에서 고른 소박). 정간 전체 표시([cellMarks]) 위에 그린다. */
     unitMarks: Map<ScoreUnitKey, ScoreCellMark> = emptyMap(),
+    unitMarksAfterPass: Boolean = false,
     focusCell: Pair<Int, Int>? = null,
     focusRequestKey: Int = 0,
 ) {
@@ -350,6 +353,7 @@ fun JeongganboView(
                 annotations = annotations,
                 cellMark = cellMarks[strip.column to row],
                 pickedUnits = unitMarks,
+                pickedAfterPass = unitMarksAfterPass,
                 playingKey = playingKey,
                 focusRequestKey = focusRequestKey.takeIf { focusCell == (strip.column to row) },
             )
@@ -603,6 +607,7 @@ private fun ScoreCellBox(
     annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
     cellMark: ScoreCellMark? = null,
     pickedUnits: Map<ScoreUnitKey, ScoreCellMark> = emptyMap(),
+    pickedAfterPass: Boolean = false,
     playingKey: ScoreUnitKey? = null,
     focusRequestKey: Int? = null,
 ) {
@@ -618,6 +623,14 @@ private fun ScoreCellBox(
         derivedStateOf {
             val position = currentEvent?.let { it.unitStart + if (live) it.unitDuration * currentFraction() else 0.0 }
             cellProgressAt(cellStart, position)
+        }
+    }
+    // 진행이 다 지난 표시 자리. null이면 [pickedUnits]를 모두 칠한다. 자리가 지날 때만 바뀌어 매 프레임 다시 그리지 않는다.
+    val passedUnits by remember(units, currentEvent, live, pickedAfterPass) {
+        derivedStateOf {
+            if (!pickedAfterPass || !live) return@derivedStateOf null
+            val position = currentEvent?.let { it.unitStart + it.unitDuration * currentFraction() }
+            units.filter { unitPassed(it, position) }.mapTo(HashSet()) { it.key }
         }
     }
     val (fill, ring) = when (highlight) {
@@ -779,7 +792,7 @@ private fun ScoreCellBox(
                                     }
                                 }
                             }
-                            val pick = pickedUnits[unit.key]
+                            val pick = pickedUnits[unit.key]?.takeIf { passedUnits?.contains(unit.key) != false }
                             val pickModifier = if (pick == null) Modifier else Modifier
                                 .background(pick.fill ?: Color.Transparent)
                                 .drawWithContent {

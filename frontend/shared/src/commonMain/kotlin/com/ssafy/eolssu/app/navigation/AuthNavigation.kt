@@ -36,6 +36,7 @@ import eolssu.shared.generated.resources.my_link_done
 import eolssu.shared.generated.resources.my_logged_out
 import eolssu.shared.generated.resources.member_api_session_expired
 import eolssu.shared.generated.resources.my_nickname_changed
+import eolssu.shared.generated.resources.my_profile_image_changed
 import eolssu.shared.generated.resources.my_password_changed
 import eolssu.shared.generated.resources.my_withdrawn
 import org.jetbrains.compose.resources.StringResource
@@ -104,6 +105,7 @@ enum class StartNotice(val message: StringResource) {
     AccountLinked(Res.string.auth_link_done),
     PasswordChanged(Res.string.auth_reset_done_notice),
     NicknameChanged(Res.string.my_nickname_changed),
+    ProfileImageChanged(Res.string.my_profile_image_changed),
     MyPasswordChanged(Res.string.my_password_changed),
 
     /** 마이페이지 간편 로그인 연결(MY-05) 뒤 마이페이지. */

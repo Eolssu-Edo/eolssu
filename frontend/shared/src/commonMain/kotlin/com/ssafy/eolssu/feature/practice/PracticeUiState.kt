@@ -557,8 +557,9 @@ internal val PracticeUiState.playerNotice: PracticePlayerNotice
             else -> Unit
         }
         if (!rhythm && modelClock?.audio?.sheetPlayback?.withJangdan == true) return PracticePlayerNotice.EmbeddedJangdan
+        // 곡에 장단 반주가 없으면 장단 연습만 재생할 소리가 없다. 모범 연주는 저장된 장단 소리 설정과 관계없이 음원만 재생하므로 안내하지 않는다.
+        if (!jangdanSupported) return if (rhythm) PracticePlayerNotice.Unavailable else PracticePlayerNotice.None
         if (accompaniment) {
-            if (!jangdanSupported) return PracticePlayerNotice.Unavailable
             when (jangdanStatus) {
                 JangdanStatus.Failed -> return PracticePlayerNotice.Failed
                 JangdanStatus.Unsupported -> return PracticePlayerNotice.Unsupported
