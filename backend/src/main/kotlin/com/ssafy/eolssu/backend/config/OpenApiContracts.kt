@@ -193,7 +193,7 @@ internal val apiContracts = listOf(
         "저장한 본인 기록과 녹음을 지웁니다. 녹음 파일을 먼저 지우고, 지우지 못하면 503이며 기록은 그대로입니다. 평가 점수는 남아 성장 집계는 바뀌지 않고, 지운 뒤에는 기록 상세·평가·연습 기록 API가 모두 404입니다. 다시 보내도 404이므로 재시도에서 받은 404는 이미 지운 것으로 처리합니다.",
         DeletedPracticeRecord::class.java,errors=listOf(RESOURCE_NOT_FOUND,SERVICE_UNAVAILABLE)),
     ApiContract(HttpMethod.GET,"/api/users/me/practice-records","listPracticeRecords","연습 기록","저장한 이전 연주 목록",
-        "저장했고 지우지 않은 본인 기록만 곡별로 묶습니다. songId를 생략하면 가장 최근에 저장한 곡을 펼치고, 펼친 곡의 기록만 연주 시작 시각 sort(NEWEST|OLDEST)·page(0부터)·size(1~100, 기본 20)로 나눕니다. isNew는 기록 상세를 처음 조회하기 전까지 true입니다. 범위 밖 값은 400입니다.",
+        "저장했고 지우지 않은 본인 기록만 곡별로 묶습니다. groupOrder는 LAST_SAVED(기본) 또는 LAST_STARTED이며, songId를 생략하면 해당 순서의 첫 곡을 펼칩니다. 펼친 곡의 기록만 연주 시작 시각 sort(NEWEST|OLDEST)·page(0부터)·size(1~100, 기본 20)로 나눕니다. weekOf(YYYY-MM-DD)를 보내면 선택한 곡과 무관하게 해당 날짜가 속한 KST 월요일~일요일에 시작한 저장 기록의 개수와 최고점을 week로 반환합니다. isNew는 기록 상세를 처음 조회하기 전까지 true입니다. 잘못된 값은 400입니다.",
         PracticeRecordList::class.java),
     ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/recording","getRecordingPlayback","연습 기록","녹음 다시 듣기 주소",
         "본인 세션에 녹음이 있으면 저장 여부와 관계없이 15분짜리 서명 URL(audio/mp4)을 발급합니다. 만료되면 다시 받아 같은 위치부터 이어 재생합니다. 녹음이 없거나 지운 기록은 404, 녹음 저장소를 쓸 수 없으면 503입니다.",

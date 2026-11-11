@@ -190,7 +190,7 @@ class RecordDetailViewModel(
             _uiState.value = RecordDetailUiState()
             return
         }
-        val record = recordRepository.records.value.firstOrNull { it.id == recordId }
+        val record = recordRepository.detailPreview(recordId)
         _uiState.update { state ->
             state.copy(
                 record = record, song = state.song?.takeIf { it.id == record?.songId && it.scoreVersion == record.scoreVersion }, position = 0, playing = false,

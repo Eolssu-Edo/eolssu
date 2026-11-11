@@ -21,11 +21,26 @@ class HistoryTabletStateTest {
     fun twoPaneSelectsLinkedRecordEvenBeforeItsPageIsLoaded() {
         val arirang = records.filter { it.songId == "arirang" }
         val group = RecordSongSummary("arirang", "아리랑", arirang.size, arirang.first().recordedAt, 79, null)
-        val state = RecordListUiState(summaries = listOf(group), pages = mapOf("arirang" to RecordPages(arirang.reversed())))
+        val state = RecordListUiState(summaries = listOf(group), pages = mapOf("arirang" to RecordPages(arirang, nextPage = null)))
         assertEquals(arirang.first().id, state.selectedRecordId)
         assertEquals("linked", state.copy(linkedId = "linked").selectedRecordId)
         assertEquals("picked", state.copy(linkedId = "linked", selectedId = "picked").selectedRecordId)
         assertNull(RecordListUiState().selectedRecordId)
+    }
+
+    @Test
+    fun twoPaneDoesNotSelectAnOlderRecordFromAnIncompleteOldestPage() {
+        val arirang = records.filter { it.songId == "arirang" }
+        val newest = arirang.first()
+        val group = RecordSongSummary("arirang", "아리랑", arirang.size, newest.recordedAt, 79, null)
+        val partial = RecordListUiState(
+            sort = RecordSort.Oldest,
+            summaries = listOf(group),
+            pages = mapOf("arirang" to RecordPages(arirang.drop(1).asReversed(), nextPage = 1)),
+        )
+        assertNull(partial.selectedRecordId)
+        assertEquals(arirang.last().id, partial.copy(selectedId = arirang.last().id).selectedRecordId)
+        assertEquals(newest.id, partial.copy(pages = mapOf("arirang" to RecordPages(arirang.asReversed(), nextPage = null))).selectedRecordId)
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.PracticeRecord
+import com.ssafy.eolssu.core.network.AccountSession
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -53,6 +54,15 @@ interface PracticeRecordRepository {
         return RecordListPage(all.size, groups, selected, rows.drop(page * RECORD_LIST_PAGE_SIZE).take(RECORD_LIST_PAGE_SIZE),
             (rows.size + RECORD_LIST_PAGE_SIZE - 1) / RECORD_LIST_PAGE_SIZE, week)
     }
+
+    /** 오래된순 화면에서 첫 페이지에 없는 곡의 최신 기록을 선택한다. */
+    suspend fun newestRecord(songId: String): PracticeRecord? =
+        records.value.filter { it.songId == songId }.maxByOrNull { it.recordedAtMillis }
+
+    /** 페이지에서 상세로 이동할 때 선택한 한 행을 넘긴다. */
+    fun rememberDetailPreview(record: PracticeRecord, session: AccountSession?) {}
+
+    fun detailPreview(recordId: String): PracticeRecord? = records.value.firstOrNull { it.id == recordId }
 
     /** 비교 선택창이 열릴 때 같은 곡의 이전 후보를 찾는다. */
     suspend fun recordsForSong(songId: String): List<PracticeRecord>? = records.value.filter { it.songId == songId }

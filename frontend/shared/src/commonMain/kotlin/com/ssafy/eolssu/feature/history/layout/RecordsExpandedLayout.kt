@@ -50,6 +50,7 @@ internal fun RecordsExpandedLayout(
     onSelect: (String) -> Unit,
     onRetry: () -> Unit,
     onLoadMore: (String) -> Unit,
+    onRetryNewest: () -> Unit,
     detail: RecordDetailUiState,
     detailActions: RecordDetailActions,
     snackbarHostState: SnackbarHostState,
@@ -65,22 +66,31 @@ internal fun RecordsExpandedLayout(
             val listWidth = (maxWidth * 0.36f).coerceIn(320.dp, 400.dp)
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 Column(Modifier.width(listWidth).fillMaxHeight()) {
-                    if (state.recordsAvailable && !state.showLoadStatus && (state.week != null || state.summaries.isEmpty())) {
+                    if (state.recordsAvailable && (!state.showLoadStatus || state.summaries.isNotEmpty())) {
                         WeekCard(state, spacing, onOpenGrowth)
                     }
                     if (state.showLoadStatus) {
                         RecordsLoadStatus(failed = state.loadFailed, onRetry = onRetry)
-                    } else if (!state.recordsAvailable || state.summaries.isEmpty()) {
-                        RecordsEmpty(available = state.recordsAvailable)
-                    } else {
+                    }
+                    if (state.summaries.isNotEmpty()) {
                         RecordListToolbar(state.instrument, state.sort, spacing, onInstrument, onSort)
                         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                             if (state.groups.isEmpty()) RecordsInstrumentEmpty()
                             else RecordGroups(state, spacing, onToggle, onSelect, onLoadMore, selectedId = state.selectedRecordId)
                         }
+                    } else if (!state.showLoadStatus) {
+                        RecordsEmpty(available = state.recordsAvailable)
                     }
                 }
-                RecordDetailPane(detail, detailActions, Modifier.weight(1f).fillMaxHeight())
+                if (state.newestLookupSongId != null) {
+                    RecordsLoadStatus(
+                        failed = state.newestLoadFailed,
+                        onRetry = onRetryNewest,
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    RecordDetailPane(detail, detailActions, Modifier.weight(1f).fillMaxHeight())
+                }
             }
         }
     }

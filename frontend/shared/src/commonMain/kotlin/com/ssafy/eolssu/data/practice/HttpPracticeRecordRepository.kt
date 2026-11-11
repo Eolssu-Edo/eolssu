@@ -7,6 +7,7 @@ import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
+import com.ssafy.eolssu.core.network.AccountSession
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.inSession
 import com.ssafy.eolssu.core.network.ensureAccountSession
@@ -41,13 +42,34 @@ class HttpPracticeRecordRepository(
     private val evaluations: EvaluationRepository,
     private val member: SignedInMember? = null,
 ) : PracticeRecordRepository {
+    private data class DetailPreview(val session: AccountSession?, val record: PracticeRecord)
+
+    private val detailPreview = MutableStateFlow<DetailPreview?>(null)
     private val _records = MutableStateFlow<List<PracticeRecord>>(emptyList())
     override val records: StateFlow<List<PracticeRecord>> = _records.asStateFlow()
 
     private val _listChanges = MutableSharedFlow<RecordListChange>(extraBufferCapacity = 16)
     override val listChanges = _listChanges.asSharedFlow()
 
-    init { member?.onChange { _records.value = emptyList() } }
+    init {
+        member?.onChange {
+            _records.value = emptyList()
+            detailPreview.value = null
+        }
+    }
+
+    override fun rememberDetailPreview(record: PracticeRecord, session: AccountSession?) {
+        if (session == member?.session?.value) detailPreview.value = DetailPreview(session, record)
+    }
+
+    override fun detailPreview(recordId: String): PracticeRecord? =
+        detailPreview.value?.takeIf { it.session == member?.session?.value && it.record.id == recordId }?.record
+            ?: super.detailPreview(recordId)
+
+    override suspend fun newestRecord(songId: String): PracticeRecord? = member.inSession {
+        list(songId, page = 0, size = 1)?.takeIf { it.songId == songId }
+            ?.items?.firstOrNull()?.toRecord()?.takeIf { it.songId == songId }
+    }
 
     override suspend fun loadListPage(songId: String?, oldest: Boolean, page: Int, weekOf: KoreanDateTime?): RecordListPage? =
         member.inSession {
@@ -144,6 +166,9 @@ class HttpPracticeRecordRepository(
         val saved = putRecord(recordId, MemoBody(memo))
         ensureAccountSession()
         _records.update { list -> list.map { if (it.id == recordId) it.copy(memo = saved.memo.orEmpty()) else it } }
+        detailPreview.update { preview ->
+            preview?.let { if (it.record.id == recordId) it.copy(record = it.record.copy(memo = saved.memo.orEmpty())) else it }
+        }
         _listChanges.emit(RecordListChange.Updated(recordId, saved.memo.orEmpty()))
     }
 
@@ -164,12 +189,13 @@ class HttpPracticeRecordRepository(
         if (response.status == HttpStatusCode.NotFound) {
             ensureAccountSession()
             _records.update { list -> list.filterNot { it.id == recordId } }
+            detailPreview.update { it?.takeUnless { preview -> preview.record.id == recordId } }
             return@inSession null
         }
         if (response.status != HttpStatusCode.OK) error("기록 상세 응답: ${response.status}")
         val session = checkNotNull(response.apiResponse<SessionDetail>()?.result) { "기록 상세 형식이 다름" }
         check(session.sessionId == recordId) { "기록 세션 식별자가 다름" }
-        val base = records.value.firstOrNull { it.id == recordId }
+        val base = detailPreview(recordId)?.takeIf { it.songId == session.songId }
         // 점수와 원본 판정만 받는다. 악보 조회 실패가 메모·녹음까지 숨기지 않게 한다.
         val evaluation = checkNotNull(evaluations.resultForScreen(recordId, initialSong = null)?.scores) { "기록 평가 없음" }
         check(evaluation.id == recordId && evaluation.songId == session.songId &&
@@ -216,6 +242,7 @@ class HttpPracticeRecordRepository(
             HttpStatusCode.OK, HttpStatusCode.NotFound -> {
                 ensureAccountSession()
                 _records.update { list -> list.filterNot { it.id == recordId } }
+                detailPreview.update { it?.takeUnless { preview -> preview.record.id == recordId } }
                 _listChanges.emit(RecordListChange.Reload(deletedId = recordId))
                 RecordDeleteOutcome.Deleted
             }

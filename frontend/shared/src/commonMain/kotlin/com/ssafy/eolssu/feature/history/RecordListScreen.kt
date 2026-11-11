@@ -46,6 +46,7 @@ fun RecordListScreen(
     onOpenRecord: (String) -> Unit,
     onRetry: () -> Unit = {},
     onLoadMore: (String) -> Unit = {},
+    onRetryNewest: () -> Unit = {},
     onInstrument: (Instrument?) -> Unit = {},
     detail: RecordDetailUiState? = null,
     detailActions: RecordDetailActions? = null,
@@ -68,6 +69,7 @@ fun RecordListScreen(
             onSelect = onOpenRecord,
             onRetry = onRetry,
             onLoadMore = onLoadMore,
+            onRetryNewest = onRetryNewest,
             detail = detail,
             detailActions = detailActions,
             snackbarHostState = snackbarHostState,
@@ -89,9 +91,9 @@ fun RecordListScreen(
         ) {
             if (state.showLoadStatus) {
                 RecordsLoadStatus(failed = state.loadFailed, onRetry = onRetry)
-                return@Column
+                if (state.summaries.isEmpty()) return@Column
             }
-            if (state.recordsAvailable && (state.week != null || state.summaries.isEmpty())) WeekCard(state, spacing, onOpenGrowth)
+            if (state.recordsAvailable) WeekCard(state, spacing, onOpenGrowth)
             if (!state.recordsAvailable || state.summaries.isEmpty()) {
                 RecordsEmpty(available = state.recordsAvailable)
                 return@Column

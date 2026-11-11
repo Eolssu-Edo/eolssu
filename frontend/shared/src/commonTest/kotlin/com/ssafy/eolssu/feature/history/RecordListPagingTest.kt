@@ -115,6 +115,17 @@ internal class RecordListPagingTest : CatalogViewModelTest() {
             model.changeInstrument(Instrument.Sogeum)
             assertEquals(listOf("2"), model.uiState.value.groups.map { it.songId })
             assertTrue(model.uiState.value.isOpen("2"))
+
+            model.changeInstrument(Instrument.Danso)
+            assertEquals(null, model.uiState.value.selectedRecordId)
+            failNext = true
+            model.loadNewestSelection()
+            model.uiState.first { it.newestLoadFailed }
+            assertEquals(null, model.uiState.value.selectedRecordId)
+            model.loadNewestSelection()
+            model.uiState.first { it.selectedRecordId == "125" }
+            assertEquals(listOf(Call("1", 0, "NEWEST", 1), Call("1", 0, "NEWEST", 1)), calls.takeLast(2))
+            assertEquals("101", model.uiState.value.pages.getValue("1").records.first().id)
             model.show("401")
             assertEquals("401", model.uiState.value.selectedRecordId)
 

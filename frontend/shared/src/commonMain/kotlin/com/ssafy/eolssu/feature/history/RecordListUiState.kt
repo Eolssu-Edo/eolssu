@@ -31,19 +31,41 @@ data class RecordListUiState(
     val pages: Map<String, RecordPages> = emptyMap(),
     val totalRecordCount: Int = 0,
     val week: RecordWeek? = null,
+    val newestRecord: PracticeRecord? = null,
+    val newestLoadFailed: Boolean = false,
 ) {
     val groups: List<RecordSongSummary>
         get() = instrument?.let { selected -> summaries.filter { songInstruments[it.songId] == selected } } ?: summaries
 
-    val showLoadStatus: Boolean get() = recordsAvailable && summaries.isEmpty() && (loading || loadFailed)
+    val showLoadStatus: Boolean get() = recordsAvailable && (loadFailed || summaries.isEmpty() && loading)
 
     val openSongs: Set<String>
         get() = opened ?: groups.firstOrNull()?.let { setOf(it.songId) }.orEmpty()
 
+    private val firstSongId: String? get() = groups.firstOrNull()?.songId
+
+    val newestLookupSongId: String?
+        get() {
+            if (selectedId != null || linkedId != null || sort != RecordSort.Oldest) return null
+            val songId = firstSongId ?: return null
+            val page = pages[songId] ?: return null
+            return songId.takeIf { page.nextPage != null && page.records.isNotEmpty() && newestRecord?.songId != songId }
+        }
+
     val selectedRecordId: String?
-        get() = selectedId ?: linkedId ?: groups.asSequence()
-            .mapNotNull { pages[it.songId]?.records?.maxByOrNull { record -> record.recordedAtMillis }?.id }
-            .firstOrNull()
+        get() {
+            (selectedId ?: linkedId)?.let { return it }
+            val songId = firstSongId ?: return null
+            if (newestLookupSongId != null) return null
+            return newestRecord?.takeIf { it.songId == songId }?.id
+                ?: pages[songId]?.records?.let { records ->
+                    if (sort == RecordSort.Oldest) records.lastOrNull()?.id else records.firstOrNull()?.id
+                }
+        }
+
+    fun recordForDetail(recordId: String): PracticeRecord? =
+        newestRecord?.takeIf { it.id == recordId }
+            ?: pages.values.firstNotNullOfOrNull { page -> page.records.firstOrNull { it.id == recordId } }
 
     fun isOpen(songId: String): Boolean = songId in openSongs
 

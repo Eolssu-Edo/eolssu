@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -128,13 +129,17 @@ internal fun WeekCard(state: RecordListUiState, spacing: RecordListSpacing, onOp
             Modifier.fillMaxWidth().padding(horizontal = spacing.weekPaddingH, vertical = spacing.weekPaddingV),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(Res.string.records_this_week), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = EolssuTheme.colors.textMuted)
-                Text(
-                    if (week != null) stringResource(Res.string.records_this_week_summary, week.first, week.second) else stringResource(Res.string.records_this_week_none),
-                    modifier = Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = spacing.weekSummarySize, fontWeight = FontWeight.Bold),
-                )
+            if (state.week != null || state.totalRecordCount == 0) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(Res.string.records_this_week), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = EolssuTheme.colors.textMuted)
+                    Text(
+                        if (week != null) stringResource(Res.string.records_this_week_summary, week.first, week.second) else stringResource(Res.string.records_this_week_none),
+                        modifier = Modifier.padding(top = 2.dp),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = spacing.weekSummarySize, fontWeight = FontWeight.Bold),
+                    )
+                }
+            } else {
+                Spacer(Modifier.weight(1f))
             }
             Text(stringResource(Res.string.records_growth_link), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
             Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.padding(start = 2.dp).size(14.dp))

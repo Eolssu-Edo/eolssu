@@ -46,6 +46,9 @@ class RecordListViewModel(
         _uiState.value = RecordListUiState(today = _uiState.value.today, recordsAvailable = recordRepository.available)
     }
     private val pageJobs = mutableMapOf<String, Job>()
+    private val accountSession = member?.session?.value
+    private var newestSelectionJob: Job? = null
+    private var newestSelectionSongId: String? = null
     private val triedInstruments = mutableSetOf<String>()
     private var catalogInstruments: Map<String, Instrument>? = null
     private var catalogSongs: Map<String, Instrument>? = null
@@ -79,6 +82,12 @@ class RecordListViewModel(
             perfRequested = true
             val first = pageOrNull { recordRepository.loadListPage(target, sort == RecordSort.Oldest, weekOf = current.today) }
             ensureAccountSession()
+            if (reloadPending) {
+                reloadPending = false
+                _uiState.update { it.copy(loading = false) }
+                retry()
+                return@launch
+            }
             if (first == null) {
                 _uiState.update { it.copy(loading = false, loadFailed = true) }
             } else {
@@ -93,15 +102,13 @@ class RecordListViewModel(
                         week = first.week,
                         songInstruments = state.songInstruments.filterKeys { id -> first.songs.any { it.songId == id } } + known,
                         pages = pages,
+                        newestRecord = null,
+                        newestLoadFailed = false,
                         loading = false,
                     )
                 }
                 resolveInstruments()
                 loadOpenedSongs()
-            }
-            if (reloadPending) {
-                reloadPending = false
-                retry()
             }
         }
     }
@@ -118,18 +125,47 @@ class RecordListViewModel(
     fun changeSort(sort: RecordSort) {
         if (!accountScope.isActive || _uiState.value.sort == sort) return
         cancelPages()
-        _uiState.update { it.copy(sort = sort, pages = emptyMap(), selectedId = it.selectedRecordId) }
+        _uiState.update {
+            it.copy(sort = sort, pages = emptyMap(), selectedId = it.selectedRecordId, newestRecord = null, newestLoadFailed = false)
+        }
         loadOpenedSongs()
     }
 
     fun changeInstrument(instrument: Instrument?) {
         if (!accountScope.isActive || _uiState.value.instrument == instrument) return
-        _uiState.update { it.copy(instrument = instrument, opened = null, selectedId = null, linkedId = null) }
+        newestSelectionJob?.cancel()
+        _uiState.update {
+            it.copy(instrument = instrument, opened = null, selectedId = null, linkedId = null, newestRecord = null, newestLoadFailed = false)
+        }
         loadOpenedSongs()
     }
 
     fun select(recordId: String) {
         if (accountScope.isActive) _uiState.update { it.copy(selectedId = recordId, linkedId = null) }
+    }
+
+    fun rememberDetailPreview(recordId: String) {
+        if (!accountScope.isActive) return
+        _uiState.value.recordForDetail(recordId)?.let { recordRepository.rememberDetailPreview(it, accountSession) }
+    }
+
+    fun loadNewestSelection() {
+        val state = _uiState.value
+        if (!accountScope.isActive || state.loading) return
+        val songId = state.newestLookupSongId ?: return
+        if (newestSelectionSongId == songId && newestSelectionJob?.isActive == true) return
+        newestSelectionJob?.cancel()
+        newestSelectionSongId = songId
+        _uiState.update { it.copy(newestLoadFailed = false) }
+        newestSelectionJob = accountScope.launch(perf.context()) {
+            val newest = pageOrNull { recordRepository.newestRecord(songId) }
+            ensureAccountSession()
+            _uiState.update { latest ->
+                if (latest.newestLookupSongId == songId) {
+                    latest.copy(newestRecord = newest, newestLoadFailed = newest == null)
+                } else latest
+            }
+        }
     }
 
     /** 상세 경로의 기록은 아직 목록 페이지에 없어도 직접 연다. */
@@ -168,6 +204,7 @@ class RecordListViewModel(
     }
 
     private fun cancelPages() {
+        newestSelectionJob?.cancel()
         pageJobs.values.forEach { it.cancel() }
         pageJobs.clear()
         _uiState.update { state -> state.copy(pages = state.pages.mapValues { (_, pages) -> pages.copy(loading = false) }) }
@@ -178,19 +215,32 @@ class RecordListViewModel(
 
     private fun applyUpdate(change: RecordListChange.Updated) {
         _uiState.update { state ->
-            state.copy(pages = state.pages.mapValues { (_, page) ->
-                page.copy(records = page.records.map { row ->
-                    if (row.id == change.id) row.copy(memo = change.memo, isNew = row.isNew && !change.viewed) else row
-                })
-            })
+            fun updated(row: PracticeRecord): PracticeRecord =
+                if (row.id == change.id) row.copy(memo = change.memo, isNew = row.isNew && !change.viewed) else row
+            state.copy(
+                pages = state.pages.mapValues { (_, page) -> page.copy(records = page.records.map(::updated)) },
+                newestRecord = state.newestRecord?.let(::updated),
+            )
         }
     }
 
     private fun removeRecord(recordId: String) {
         _uiState.update { state ->
+            val songId = state.recordForDetail(recordId)?.songId
+            val summary = state.summaries.firstOrNull { it.songId == songId }
             state.copy(
                 selectedId = state.selectedId?.takeUnless { it == recordId },
                 linkedId = state.linkedId?.takeUnless { it == recordId },
+                summaries = state.summaries.mapNotNull {
+                    when {
+                        it != summary -> it
+                        it.recordCount > 1 -> it.copy(recordCount = it.recordCount - 1)
+                        else -> null
+                    }
+                },
+                totalRecordCount = if (summary == null) state.totalRecordCount else (state.totalRecordCount - 1).coerceAtLeast(0),
+                week = null,
+                newestRecord = state.newestRecord?.takeUnless { it.id == recordId },
                 pages = state.pages.mapValues { (_, page) -> page.copy(records = page.records.filterNot { it.id == recordId }) },
             )
         }
