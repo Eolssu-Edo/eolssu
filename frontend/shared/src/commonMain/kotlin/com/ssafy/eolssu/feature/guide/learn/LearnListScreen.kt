@@ -128,7 +128,7 @@ internal fun LearnListContent(
                 .onSizeChanged { contentHeight = it.height }
                 .padding(contentPadding),
         ) {
-            // 진도는 악기마다 따로라, 작은 악기 칩(낙관)과 그 악기의 진도를 한 줄에 둔다.
+            // 진도는 악기마다 따로라, 작은 악기 칩(악기 그림)과 그 악기의 진도를 한 줄에 둔다.
             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 LearnInstrumentChip(
                     selected = state.instrument,
