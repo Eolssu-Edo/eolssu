@@ -4,6 +4,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.Score
+import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.ScoreEvent
 
 /**
@@ -121,3 +122,12 @@ internal fun cellProgressAt(cellStart: Double, position: Double?): CellProgress 
     position >= cellStart + 1 -> CellProgress.Past
     else -> CellProgress.Current
 }
+
+/**
+ * 진행 위치([position], 곡 처음부터의 정간 수)가 표시 자리 [unit]의 끝까지 지났는지. 위치가 없으면 지나지 않았다.
+ * 나눈 정간의 소박 경계는 분수 합이라 끝 값이 아주 조금 어긋날 수 있어 [PassedEpsilon]만큼 봐준다.
+ */
+internal fun unitPassed(unit: ScoreDisplayUnit, position: Double?): Boolean =
+    position != null && position >= unit.unitStart + unit.unitDuration - PassedEpsilon
+
+private const val PassedEpsilon = 1e-6
