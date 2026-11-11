@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController
 @Profile("db | ops")
 class PracticeAnalysisRetryController(private val retryPracticeAnalysis: RetryPracticeAnalysis) {
     /**
-     * API 명세 `POST /practice-sessions/{sessionId}/retry`(PRA-03 분석 다시 시도).
+     * API 명세 `POST /practice-sessions/{sessionId}/retry`(PRA-04 분석 다시 시도).
      * 이미 분석 중이면 새 시도 없이 같은 202로 답한다. 재녹음이 필요하거나 끝났거나 업로드 전이면 409, 잠시 후 다시면 503이다.
      * 유스케이스는 트랜잭션 밖에서 불러야 하므로 이 메서드에 트랜잭션을 걸지 않는다.
      */
@@ -46,13 +46,19 @@ class PracticeAnalysisRetryController(private val retryPracticeAnalysis: RetryPr
             return error(ErrorCode.SERVICE_UNAVAILABLE)
         }
         return when (outcome) {
-            is RetryOutcome.Started, is RetryOutcome.AlreadyPending -> ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(RetryResponse(result = RetryResult(sessionId.toString(), "PENDING", retryable = false)))
+            is RetryOutcome.Started -> accepted(sessionId, "started", outcome.timingId)
+            is RetryOutcome.AlreadyPending -> accepted(sessionId, "already-pending", outcome.timingId)
             is RetryOutcome.NotRetryable -> error(ErrorCode.STATE_CONFLICT)
             RetryOutcome.NotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
             RetryOutcome.Busy -> error(ErrorCode.SERVICE_UNAVAILABLE)
         }
     }
+
+    private fun accepted(sessionId: Long, retryStatus: String, timingId: EvaluationTimingId?) =
+        ResponseEntity.status(HttpStatus.ACCEPTED)
+            .header(EvaluationTimingId.RETRY_STATUS_HEADER, retryStatus)
+            .apply { timingId?.let { header(EvaluationTimingId.HEADER, it.value) } }
+            .body(RetryResponse(result = RetryResult(sessionId.toString(), "PENDING", retryable = false)))
 
     private fun error(code: ErrorCode) = ResponseEntity.status(code.status).body(ErrorResponse.of(code))
 }

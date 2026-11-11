@@ -10,7 +10,7 @@ import java.time.ZoneOffset
 import org.slf4j.LoggerFactory
 
 /**
- * `TIMEOUT`·`SERVER_ERROR`로 실패한 세션을 같은 녹음으로 다시 분석한다(PRA-03 '분석 다시 시도', S15P31E102-175).
+ * `TIMEOUT`·`SERVER_ERROR`로 실패한 세션을 같은 녹음으로 다시 분석한다(PRA-04 '분석 다시 시도', S15P31E102-175).
  * 새 시도는 읽은 시도 번호를 조건으로 한 조건부 갱신으로 하나만 시작하고 횟수 제한은 없다.
  * 이전 시도의 늦은 결과는 시도 번호가 달라 저장되지 않는다.
  *
@@ -35,10 +35,10 @@ class RetryPracticeAnalysis(
             if (!state.retryable()) return state.unchangedOutcome()
 
             val startedAt = LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)
-            if (repository.startRetry(sessionId, userId, state.attempt, startedAt)) {
+            if (repository.startRetry(sessionId, userId, state.attempt, startedAt, timingId)) {
                 val attempt = state.attempt + 1
                 launch(sessionId, attempt, startedAt, timingId)
-                return RetryOutcome.Started(attempt)
+                return RetryOutcome.Started(attempt, timingId)
             }
         }
         val state = currentState(userId, sessionId) ?: return RetryOutcome.NotFound
@@ -69,7 +69,7 @@ class RetryPracticeAnalysis(
     private fun AnalysisState.retryable() = status == "FAILED" && failReason in RETRYABLE_FAIL_REASONS
 
     private fun AnalysisState.unchangedOutcome() =
-        if (status == "PENDING") RetryOutcome.AlreadyPending(attempt) else RetryOutcome.NotRetryable(this)
+        if (status == "PENDING") RetryOutcome.AlreadyPending(attempt, timingId) else RetryOutcome.NotRetryable(this)
 
     private companion object {
         const val MAX_START_TRIES = 3
@@ -80,10 +80,10 @@ class RetryPracticeAnalysis(
 /** HTTP 응답으로 바꾸는 것은 `PracticeAnalysisRetryController`가 한다(S15P31E102-222). */
 sealed interface RetryOutcome {
     /** 새 시도를 시작했다. 세션은 이 번호의 `PENDING`이다. */
-    data class Started(val attempt: Int) : RetryOutcome
+    data class Started(val attempt: Int, val timingId: EvaluationTimingId? = null) : RetryOutcome
 
     /** 이미 분석 중이라 새 시도를 만들지 않았다. */
-    data class AlreadyPending(val attempt: Int) : RetryOutcome
+    data class AlreadyPending(val attempt: Int, val timingId: EvaluationTimingId? = null) : RetryOutcome
 
     /** 새로 녹음해야 하는 실패(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`·`UPLOAD_TIMEOUT`)이거나 이미 끝났거나 아직 업로드 전이다. */
     data class NotRetryable(val state: AnalysisState) : RetryOutcome

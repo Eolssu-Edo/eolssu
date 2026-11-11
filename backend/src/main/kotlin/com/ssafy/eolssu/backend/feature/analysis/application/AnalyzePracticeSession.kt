@@ -30,11 +30,15 @@ class AnalyzePracticeSession(
     private val clock: Clock,
     private val timeLimit: Duration = DEFAULT_ANALYSIS_TIME_LIMIT,
 ) {
-    fun analyze(sessionId: Long, timing: EvaluationAnalysisTiming? = null): AnalysisOutcome {
+    fun analyze(sessionId: Long, expectedAttempt: Int, timing: EvaluationAnalysisTiming? = null): AnalysisOutcome {
         val pending = repository.findPending(sessionId, startedAfter()) ?: run {
-            val outcome = if (expireIfOverdue(sessionId)) AnalysisOutcome.TimedOut else AnalysisOutcome.NotPending
+            val outcome = if (expireIfOverdue(sessionId, expectedAttempt)) AnalysisOutcome.TimedOut else AnalysisOutcome.NotPending
             timing?.finished(outcome.code)
             return outcome
+        }
+        if (pending.attempt != expectedAttempt) {
+            timing?.finished(AnalysisOutcome.Stale.code)
+            return AnalysisOutcome.Stale
         }
         val began = clock.instant()
 
@@ -48,7 +52,7 @@ class AnalyzePracticeSession(
         }
 
         val outcome = finish(pending, requested)
-        timing?.finished(outcome.code, pending.attempt)
+        timing?.finished(outcome.code)
         log.info(
             "Analysis finished session={} attempt={} outcome={} elapsedMs={}",
             pending.sessionId, pending.attempt, outcome.code, Duration.between(began, clock.instant()).toMillis(),
@@ -60,8 +64,8 @@ class AnalyzePracticeSession(
      * 상태 조회 때 부른다. 제한 시간을 넘긴 `PENDING`을 `TIMEOUT`으로 바꿨으면 true.
      * 누가 바꿨든 전환마다 한 줄 남겨 시간 초과 횟수를 셀 수 있게 한다.
      */
-    fun expireIfOverdue(sessionId: Long): Boolean {
-        val expired = repository.expireOverdue(sessionId, startedAfter())
+    fun expireIfOverdue(sessionId: Long, expectedAttempt: Int? = null): Boolean {
+        val expired = repository.expireOverdue(sessionId, startedAfter(), expectedAttempt)
         if (expired) log.info("Analysis timed out session={}", sessionId)
         return expired
     }
@@ -86,7 +90,7 @@ class AnalyzePracticeSession(
 
     // 저장이 거절되면 마감을 넘긴 것인지(TIMEOUT으로 바꾼다), 세션이 다른 시도·상태로 바뀐 것인지(버린다) 가린다.
     private fun afterRejectedSave(pending: PendingAnalysis) =
-        if (expireIfOverdue(pending.sessionId)) AnalysisOutcome.TimedOut else AnalysisOutcome.Discarded
+        if (expireIfOverdue(pending.sessionId, pending.attempt)) AnalysisOutcome.TimedOut else AnalysisOutcome.Discarded
 
     private fun startedAfter(): LocalDateTime = LocalDateTime.ofInstant(clock.instant().minus(timeLimit), ZoneOffset.UTC)
 
@@ -122,6 +126,11 @@ sealed interface AnalysisOutcome {
     /** 세션이 분석 대기가 아니라 AI를 부르지 않았다. */
     data object NotPending : AnalysisOutcome {
         override val code = "NOT_PENDING"
+    }
+
+    /** 큐에 넣은 시도보다 새로운 시도가 이미 접수되어 AI를 부르지 않았다. */
+    data object Stale : AnalysisOutcome {
+        override val code = "STALE"
     }
 
     /** 결과가 오는 사이 세션이 다른 시도로 바뀌었거나 상태 조회가 먼저 `TIMEOUT`으로 끝내 버렸다. */

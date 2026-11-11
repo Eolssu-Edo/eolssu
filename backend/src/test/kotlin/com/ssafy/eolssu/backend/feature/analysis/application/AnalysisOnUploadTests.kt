@@ -23,7 +23,7 @@ class AnalysisOnUploadTests {
 
     @Test
     fun `starts the analysis of the uploaded session on the executor`() {
-        AnalysisOnUpload({ sessionId, _ -> started += sessionId }, direct).onUploaded(RecordingUploaded(7))
+        AnalysisOnUpload({ sessionId, _, _ -> started += sessionId }, direct).onUploaded(RecordingUploaded(7))
         assertEquals(listOf(7L), started)
     }
 
@@ -35,18 +35,18 @@ class AnalysisOnUploadTests {
 
     @Test
     fun `a full queue does not fail the upload`() {
-        AnalysisOnUpload({ sessionId, _ -> started += sessionId }, { throw RejectedExecutionException("full") }).onUploaded(RecordingUploaded(7))
+        AnalysisOnUpload({ sessionId, _, _ -> started += sessionId }, { throw RejectedExecutionException("full") }).onUploaded(RecordingUploaded(7))
         assertEquals(emptyList(), started)
     }
 
     @Test
     fun `a failing analysis does not escape the background task`() {
-        AnalysisOnUpload({ _, _ -> throw IllegalStateException("db down") }, direct).onUploaded(RecordingUploaded(7))
+        AnalysisOnUpload({ _, _, _ -> throw IllegalStateException("db down") }, direct).onUploaded(RecordingUploaded(7))
     }
 
     @Test
     fun `submit hands a retried session to the same executor`() {
-        AnalysisOnUpload({ sessionId, _ -> started += sessionId }, direct).submit(9, attempt = 2)
+        AnalysisOnUpload({ sessionId, _, _ -> started += sessionId }, direct).submit(9, attempt = 2)
         assertEquals(listOf(9L), started)
     }
 
@@ -57,13 +57,13 @@ class AnalysisOnUploadTests {
 
     @Test
     fun `submit lets a full queue fail the retry`() {
-        assertFailsWith<RejectedExecutionException> { AnalysisOnUpload({ sessionId, _ -> started += sessionId }, { throw RejectedExecutionException("full") }).submit(9, attempt = 2) }
+        assertFailsWith<RejectedExecutionException> { AnalysisOnUpload({ sessionId, _, _ -> started += sessionId }, { throw RejectedExecutionException("full") }).submit(9, attempt = 2) }
         assertEquals(emptyList(), started)
     }
 
     @Test
     fun `a failing retried analysis does not escape the background task`() {
-        AnalysisOnUpload({ _, _ -> throw IllegalStateException("db down") }, direct).submit(9, attempt = 2)
+        AnalysisOnUpload({ _, _, _ -> throw IllegalStateException("db down") }, direct).submit(9, attempt = 2)
     }
 
     /** 트랜잭션만 흉내 내는 관리자. DB 없이 커밋·롤백·커밋 실패 뒤 이벤트 처리를 본다. */
@@ -86,7 +86,7 @@ class AnalysisOnUploadTests {
         fun transactionManager(): PlatformTransactionManager = NoResourceTransactionManager()
 
         @Bean
-        fun analysisOnUpload() = AnalysisOnUpload({ sessionId, _ -> started += sessionId }, Executor { it.run() })
+        fun analysisOnUpload() = AnalysisOnUpload({ sessionId, _, _ -> started += sessionId }, Executor { it.run() })
     }
 
     @Test

@@ -12,7 +12,7 @@ import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 
 /** In-memory links for the measured navigation paths. Route arguments stay with the navigator. */
 internal class PerformanceNavigation(private val nav: NavController) {
-    private data class Arrival(val flow: PerformanceFlow, val startedAt: Long)
+    private data class Arrival(val flow: PerformanceFlow, val startedAt: Long, val submission: Int?)
     private val incoming = LinkedHashMap<String, Arrival>()
     private val visits = LinkedHashMap<String, PerformanceVisit>()
     private var current: PerformanceVisit? = null
@@ -21,12 +21,13 @@ internal class PerformanceNavigation(private val nav: NavController) {
         if (PerformanceLog.sink == null) return navigate()
         val origin = from ?: PerformanceVisit(PerformanceFlow(), target)
         val startedAt = PerformanceLog.now()
-        origin.action(target)
+        val submission = origin.submissionFor(target)
+        origin.action(target, submission)
         val before = nav.currentBackStackEntry?.id
         navigate()
         nav.currentBackStackEntry?.id?.takeIf { it != before }?.let { id ->
             if (incoming.size == 8) incoming.remove(incoming.keys.first())
-            incoming[id] = Arrival(origin.flow, startedAt)
+            incoming[id] = Arrival(origin.flow, startedAt, submission)
         }
     }
 
@@ -36,7 +37,7 @@ internal class PerformanceNavigation(private val nav: NavController) {
         val visit = remember(entry.id) {
             val arrival = incoming[entry.id]
             visits[entry.id] ?: if (arrival == null) PerformanceVisit(PerformanceFlow(), target)
-                else PerformanceVisit(arrival.flow, target, arrival.startedAt)
+                else PerformanceVisit(arrival.flow, target, arrival.startedAt, arrival.submission)
         }
         LaunchedEffect(visit) {
             incoming.remove(entry.id)

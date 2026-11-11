@@ -30,6 +30,12 @@ class AppLogTests(unittest.TestCase):
             'evaluation_timing_id': 'b23ba41a-7e5e-4938-8b3b-93ce5ac25c95',
         }
         self.assertIn(event['evaluation_timing_id'], relay.encode_applog_event(event))
+        self.assertIn('"evaluation_submission":2', relay.encode_applog_event({
+            **event, 'phase': 'analysis_ready', 'evaluation_submission': 2,
+        }))
+        self.assertIn('already_pending', relay.encode_applog_event({
+            **event, 'phase': 'analysis_retry', 'outcome': 'already_pending',
+        }))
         for invalid in ('1234', 'private@example.test', event['evaluation_timing_id'] + '\n'):
             with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                 relay.encode_applog_event({**event, 'evaluation_timing_id': invalid})

@@ -428,9 +428,16 @@ class AnalysisSessionTest {
             time.advanceBy(1_000)
             repository.retryOutcome = {
                 time.advanceBy(90)
-                RetryOutcome.Started
+                error("접수 응답 유실")
             }
-            repository.status = { AnalysisStatus.Done("41") }
+            measured.retry()
+            assertEquals(AnalysisFailure.ServerError, measured.state.value.failure)
+            val acceptedId = assertNotNull(repository.retryTimingIds.single())
+            repository.retryOutcome = {
+                time.advanceBy(40)
+                RetryOutcome.Accepted(started = false, timingId = acceptedId)
+            }
+            repository.status = { AnalysisStatus.Done("41", timingId = acceptedId) }
             measured.retry()
             measured.resume()
             assertEquals("41", measured.state.value.evaluationId)
@@ -441,7 +448,8 @@ class AnalysisSessionTest {
             val stages = events.filter { it.phase != null }
             assertEquals(
                 listOf(PerfPhase.SESSION_CREATE, PerfPhase.RECORDING_UPLOAD, PerfPhase.RECORDING_UPLOAD,
-                    PerfPhase.FIRST_STATUS_REQUEST, PerfPhase.ANALYSIS_RETRY, PerfPhase.ANALYSIS_READY, PerfPhase.SCORE_DRAWN),
+                    PerfPhase.FIRST_STATUS_REQUEST, PerfPhase.ANALYSIS_RETRY, PerfPhase.ANALYSIS_RETRY,
+                    PerfPhase.ANALYSIS_READY, PerfPhase.SCORE_DRAWN),
                 stages.map { it.phase },
             )
             assertEquals(1, stages.map { it.flow }.distinct().size)
@@ -452,10 +460,13 @@ class AnalysisSessionTest {
             assertEquals(listOf(PerfReason.INITIAL, PerfReason.RETRY), uploadEvents.map { it.reason })
             assertEquals(uploadIds, uploadEvents.map { it.evaluationTimingId })
             assertEquals(1, uploadIds.distinct().size)
-            val retry = stages.single { it.phase == PerfPhase.ANALYSIS_RETRY }
-            assertEquals(90L, retry.durationMs)
-            assertNotEquals(uploadIds.first(), assertNotNull(retry.evaluationTimingId))
-            assertEquals(retry.evaluationTimingId, repository.retryTimingIds.single())
+            val retryEvents = stages.filter { it.phase == PerfPhase.ANALYSIS_RETRY }
+            assertEquals(listOf(90L, 40L), retryEvents.map { it.durationMs })
+            assertEquals(listOf(PerfReason.FAILED, PerfReason.ALREADY_PENDING), retryEvents.map { it.outcome })
+            assertNotEquals(uploadIds.first(), acceptedId)
+            assertNotEquals(acceptedId, assertNotNull(repository.retryTimingIds.last()))
+            assertEquals(listOf(acceptedId, acceptedId), retryEvents.map { it.evaluationTimingId })
+            assertEquals(acceptedId, stages.single { it.phase == PerfPhase.ANALYSIS_READY }.evaluationTimingId)
         } finally {
             measured.pause()
             PerformanceLog.sink = previousSink

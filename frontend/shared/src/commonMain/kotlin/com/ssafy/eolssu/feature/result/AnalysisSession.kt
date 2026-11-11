@@ -174,7 +174,7 @@ internal class AnalysisSession(
             _state.update { it.copy(upload = UploadProblem.Rejected, resending = false) }
             return
         }
-        val created = measureStage(PerfPhase.SESSION_CREATE, reason, succeeded = { it is SessionStart.Created }) {
+        val created = measureStage(PerfPhase.SESSION_CREATE, reason, classify = { if (it is SessionStart.Created) PerfReason.READY else PerfReason.FAILED }) {
             sessions.create(request.songId, request.bpm, take.key, version, request.section)
         }
         when (created) {
@@ -207,7 +207,11 @@ internal class AnalysisSession(
     }
 
     private suspend fun sendRecording(reason: PerfReason, send: suspend () -> SendResult) {
-        val result = measureStage(PerfPhase.RECORDING_UPLOAD, reason, uploadTiming, { it == SendResult.Sent }, send)
+        val result = measureStage(
+            PerfPhase.RECORDING_UPLOAD, reason, uploadTiming,
+            classify = { if (it == SendResult.Sent) PerfReason.READY else PerfReason.FAILED },
+            operation = send,
+        )
         when (result) {
             SendResult.Sent -> {
                 _state.update { it.copy(upload = null, resending = false) }
@@ -244,15 +248,22 @@ internal class AnalysisSession(
             val outcome = try {
                 measureStage(
                     PerfPhase.ANALYSIS_RETRY, PerfReason.RETRY, perf?.let { EvaluationTiming() },
-                    succeeded = { it == RetryOutcome.Started },
+                    classify = {
+                        when (it) {
+                            is RetryOutcome.Accepted -> if (it.started) PerfReason.READY else PerfReason.ALREADY_PENDING
+                            RetryOutcome.Started -> PerfReason.READY
+                            else -> PerfReason.FAILED
+                        }
+                    },
+                    timingIdForResult = { (it as? RetryOutcome.Accepted)?.timingId },
                 ) { repository.retryAnalysis(id) }
             } catch (e: Exception) {
                 if (e is CancellationException) currentCoroutineContext().ensureActive()
                 null
             }
             when (outcome) {
-                RetryOutcome.Started, RetryOutcome.Conflict -> {
-                    if (outcome == RetryOutcome.Started) polling.start() else polling.resume()
+                is RetryOutcome.Accepted, RetryOutcome.Started, RetryOutcome.Conflict -> {
+                    if (outcome == RetryOutcome.Conflict) polling.resume() else polling.start()
                     _state.update { it.copy(failure = null, retrying = false) }
                     startPolling()
                 }
@@ -319,7 +330,7 @@ internal class AnalysisSession(
                         is PollStep.Wait -> sleep(step.millis)
                         is PollStep.Done -> {
                             outcome = PerfReason.READY
-                            perf?.milestone(PerfPhase.ANALYSIS_READY)
+                            perf?.milestone(PerfPhase.ANALYSIS_READY, evaluationTimingId = step.timingId)
                             _state.update { it.copy(evaluationId = step.evaluationId) }
                             return@launch
                         }
@@ -341,15 +352,18 @@ internal class AnalysisSession(
         phase: PerfPhase,
         reason: PerfReason,
         timing: EvaluationTiming? = null,
-        succeeded: (T) -> Boolean,
+        classify: (T) -> PerfReason,
+        timingIdForResult: (T) -> String? = { timing?.id },
         operation: suspend () -> T,
     ): T {
         val visit = perf ?: return operation()
         val startedAt = clock()
         var outcome = PerfReason.FAILED
+        var timingId = timing?.id
         try {
             val result = if (timing == null) operation() else withContext(timing) { operation() }
-            if (succeeded(result)) outcome = PerfReason.READY
+            outcome = classify(result)
+            timingId = timingIdForResult(result)
             return result
         } catch (cancelled: CancellationException) {
             outcome = PerfReason.CANCELLED
@@ -357,7 +371,7 @@ internal class AnalysisSession(
         } finally {
             visit.event(
                 PerfKind.MILESTONE, phase = phase, reason = reason, outcome = outcome,
-                durationMs = clock() - startedAt, evaluationTiming = timing,
+                durationMs = clock() - startedAt, evaluationTimingId = timingId,
             )
         }
     }

@@ -549,7 +549,7 @@ APPLOG_ENUMS = {
                    'instruments song_list').split()),
     'source': {'network', 'navigation', 'retained'},
     'method': {'get', 'post'},
-    'outcome': {'ready', 'missing', 'failed', 'cancelled', 'http_timeout'},
+    'outcome': {'ready', 'missing', 'failed', 'cancelled', 'http_timeout', 'already_pending'},
     'reason': set(('initial retry version_mismatch refresh replay poll overflow storage uncertain cancelled failed missing '
                    'ready left unavailable http_timeout').split()),
     'phase': set(('score_ready score_drawn practice_ready practice_drawn record_drawn record_empty '
@@ -557,7 +557,7 @@ APPLOG_ENUMS = {
                   'analysis_retry first_status_request analysis_ready').split()),
 }
 APPLOG_REQUIRED = {'kind', 'ms', 'run_id', 'version_name', 'version_code'}
-APPLOG_NUMBERS = set('ms version_code flow visit load resource revision status duration_ms count failed missing'.split())
+APPLOG_NUMBERS = set('ms version_code flow visit load resource revision status duration_ms count failed missing evaluation_submission'.split())
 APPLOG_FIELDS = APPLOG_REQUIRED | APPLOG_NUMBERS | APPLOG_ENUMS.keys() | {'evaluation_timing_id'}
 APPLOG_VERSION = re.compile(r'qa-[0-9]{8}\.[0-9]{6}-[a-f0-9]{8}(?:-qa309)?')
 APPLOG_ID = re.compile(r'[a-f0-9]{32}')
@@ -583,7 +583,7 @@ def encode_applog_event(event):
         raise ValueError('invalid applog numeric values')
     if 'evaluation_timing_id' in event:
         timing_id = event['evaluation_timing_id']
-        if (event['kind'] != 'milestone' or event.get('phase') not in ('recording_upload', 'analysis_retry')
+        if (event['kind'] != 'milestone' or event.get('phase') not in ('recording_upload', 'analysis_retry', 'analysis_ready')
                 or not isinstance(timing_id, str) or not APPLOG_EVALUATION_TIMING_ID.fullmatch(timing_id)):
             raise ValueError('invalid evaluation timing ID')
     for key in event.keys() & APPLOG_ENUMS.keys():

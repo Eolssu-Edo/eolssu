@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.analysis.application
 
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRetryRepository
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisState
 import java.io.IOException
@@ -29,7 +30,7 @@ class RetryPracticeAnalysisTests {
 
         override fun findState(sessionId: Long, userId: Long) = state.takeIf { sessionId == 7L && userId == owner }
 
-        override fun startRetry(sessionId: Long, userId: Long, attempt: Int, startedAt: LocalDateTime): Boolean {
+        override fun startRetry(sessionId: Long, userId: Long, attempt: Int, startedAt: LocalDateTime, timingId: EvaluationTimingId?): Boolean {
             startRetryCalls++
             beforeStart()
             if (findState(sessionId, userId) == null || state.attempt != attempt) return false

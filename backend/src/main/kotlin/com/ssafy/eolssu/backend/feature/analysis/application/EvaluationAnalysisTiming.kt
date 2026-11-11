@@ -14,9 +14,8 @@ class EvaluationAnalysisTiming internal constructor(
 ) {
     private val queueMs = NANOSECONDS.toMillis(workerStartedAt - queuedAt)
 
-    internal fun finished(outcome: String, observedAttempt: Int? = null) {
-        // A delayed job can find a newer attempt. Its processing time cannot be attributed to this ID.
-        if (observedAttempt != null && observedAttempt != attempt) {
+    internal fun finished(outcome: String) {
+        if (outcome == AnalysisOutcome.Stale.code) {
             log.info("event=evaluation_analysis_timing id={} attempt={} outcome=STALE", id.value, attempt)
             return
         }

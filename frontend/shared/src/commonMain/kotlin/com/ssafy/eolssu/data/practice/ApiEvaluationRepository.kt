@@ -54,7 +54,7 @@ class ApiEvaluationRepository(
         if (response == null || response.status != HttpStatusCode.OK) error("상태 응답 없음: ${response?.status}")
         val session = checkNotNull(response.apiResponse<SessionStatus>()?.result) { "상태 형식이 다름" }
         return@inSession when (session.status) {
-            "DONE" -> AnalysisStatus.Done(analysisId)
+            "DONE" -> AnalysisStatus.Done(analysisId, EvaluationTiming.parseId(response.headers[EvaluationTiming.HEADER]))
             "FAILED" -> AnalysisStatus.Failed(AnalysisFailure.fromCode(session.failReason))
             // RECORDING은 업로드가 아직 반영되지 않은 순간이라 기다린다.
             else -> AnalysisStatus.Pending
@@ -75,7 +75,14 @@ class ApiEvaluationRepository(
             }
         } ?: error("다시 시도 응답 없음")
         return@inSession when (response.status) {
-            HttpStatusCode.Accepted -> RetryOutcome.Started
+            HttpStatusCode.Accepted -> {
+                val acceptedId = EvaluationTiming.parseId(response.headers[EvaluationTiming.HEADER])
+                when (response.headers[EvaluationTiming.RETRY_STATUS_HEADER]) {
+                    "started" -> RetryOutcome.Accepted(started = true, timingId = acceptedId)
+                    "already-pending" -> RetryOutcome.Accepted(started = false, timingId = acceptedId)
+                    else -> RetryOutcome.Started
+                }
+            }
             HttpStatusCode.Conflict -> RetryOutcome.Conflict
             HttpStatusCode.NotFound -> RetryOutcome.NotFound
             HttpStatusCode.Unauthorized -> RetryOutcome.Unauthorized

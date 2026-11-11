@@ -24,7 +24,7 @@ enum class PerfMethod { GET, POST }
 enum class PerfSource { NETWORK, NAVIGATION, RETAINED }
 enum class PerfReason {
     INITIAL, RETRY, VERSION_MISMATCH, REFRESH, REPLAY, POLL,
-    CANCELLED, FAILED, MISSING, READY, LEFT, UNAVAILABLE, HTTP_TIMEOUT,
+    CANCELLED, FAILED, MISSING, READY, LEFT, UNAVAILABLE, HTTP_TIMEOUT, ALREADY_PENDING,
 }
 enum class PerfPhase {
     SCORE_READY, SCORE_DRAWN, PRACTICE_READY, PRACTICE_DRAWN, RECORD_DRAWN, RECORD_EMPTY,
@@ -52,6 +52,7 @@ data class PerformanceEvent(
     val method: PerfMethod? = null,
     val outcome: PerfReason? = null,
     val evaluationTimingId: String? = null,
+    val evaluationSubmission: Int? = null,
 ) {
     fun encode(): String = buildJsonObject {
         put("kind", kind.name.lowercase())
@@ -72,6 +73,7 @@ data class PerformanceEvent(
         method?.let { put("method", it.name.lowercase()) }
         outcome?.let { put("outcome", it.name.lowercase()) }
         evaluationTimingId?.let { put("evaluation_timing_id", it) }
+        evaluationSubmission?.let { put("evaluation_submission", it) }
     }.toString()
 }
 
@@ -104,6 +106,7 @@ class PerformanceVisit(
     internal val flow: PerformanceFlow,
     val target: PerfTarget,
     private val enteredAt: Long = PerformanceLog.now(),
+    internal val evaluationSubmission: Int? = null,
 ) :
     AbstractCoroutineContextElement(Key) {
     companion object Key : CoroutineContext.Key<PerformanceVisit>
@@ -111,11 +114,20 @@ class PerformanceVisit(
     private val id = PerformanceLog.id()
     private val marks = MutableStateFlow(emptySet<PerfPhase>())
 
-    fun action(destination: PerfTarget) = event(PerfKind.ACTION, destination)
+    internal fun submissionFor(destination: PerfTarget): Int? = when (destination) {
+        PerfTarget.ANALYSIS -> PerformanceLog.id()
+        PerfTarget.RESULT, PerfTarget.SECTION_RESULT -> evaluationSubmission.takeIf { target == PerfTarget.ANALYSIS }
+        else -> null
+    }
+
+    fun action(destination: PerfTarget, submission: Int? = null) =
+        event(PerfKind.ACTION, destination, submission = submission)
     fun started() = event(PerfKind.VISIT_STARTED)
     fun ended() = event(PerfKind.FLOW_END, reason = PerfReason.LEFT)
 
-    fun milestone(phase: PerfPhase, once: Boolean = true, startedAt: Long = enteredAt) {
+    fun milestone(
+        phase: PerfPhase, once: Boolean = true, startedAt: Long = enteredAt, evaluationTimingId: String? = null,
+    ) {
         if (once) {
             while (true) {
                 val old = marks.value
@@ -123,7 +135,10 @@ class PerformanceVisit(
                 if (marks.compareAndSet(old, old + phase)) break
             }
         }
-        event(PerfKind.MILESTONE, phase = phase, durationMs = (PerformanceLog.now() - startedAt).coerceAtLeast(0))
+        event(
+            PerfKind.MILESTONE, phase = phase, durationMs = (PerformanceLog.now() - startedAt).coerceAtLeast(0),
+            evaluationTimingId = evaluationTimingId,
+        )
     }
 
     internal fun event(
@@ -141,9 +156,10 @@ class PerformanceVisit(
         failed: Int? = null,
         method: PerfMethod? = null,
         outcome: PerfReason? = null,
-        evaluationTiming: EvaluationTiming? = null,
+        evaluationTimingId: String? = null,
+        submission: Int? = evaluationSubmission,
     ) = PerformanceLog.emit(PerformanceEvent(kind, PerformanceLog.now(), flow.id, id, target, load, resource,
-        revision, source, reason, phase, status, durationMs, count, failed, method, outcome, evaluationTiming?.id))
+        revision, source, reason, phase, status, durationMs, count, failed, method, outcome, evaluationTimingId, submission))
 
     fun reuse(target: PerfTarget, key: String, source: PerfSource, revision: Int? = null) =
         event(PerfKind.DATA_LOAD, target, load = PerformanceLog.id(), resource = flow.alias(target, key),

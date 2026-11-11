@@ -16,7 +16,7 @@ import org.springframework.transaction.event.TransactionalEventListener
  * @param start 세션 하나를 분석한다. null이면 분석 연결에 필요한 구현이 아직 없다([missing]).
  */
 class AnalysisOnUpload(
-    private val start: ((sessionId: Long, timing: EvaluationAnalysisTiming?) -> Unit)?,
+    private val start: ((sessionId: Long, attempt: Int, timing: EvaluationAnalysisTiming?) -> Unit)?,
     private val executor: Executor,
     private val missing: List<String> = emptyList(),
     private val nanoTime: () -> Long = System::nanoTime,
@@ -50,7 +50,7 @@ class AnalysisOnUpload(
                     else EvaluationAnalysisTiming(timingId, attempt, queuedAt, nanoTime(), nanoTime)
                 // 세션은 PENDING으로 남아 제한 시간 뒤 TIMEOUT이 된다.
                 try {
-                    start(sessionId, timing)
+                    start(sessionId, attempt, timing)
                 } catch (e: Exception) {
                     timing?.finished("UNEXPECTED_ERROR")
                     log.warn("Analysis failed unexpectedly session={} error={}", sessionId, e.javaClass.simpleName)

@@ -60,5 +60,6 @@ class MyBatisPracticeAnalysisRepository(
     override fun saveFailed(analysis: PendingAnalysis, failReason: String, startedAfter: LocalDateTime) =
         mapper.markFailed(analysis.sessionId, analysis.attempt, failReason, startedAfter) == 1
 
-    override fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime) = mapper.expireOverdue(sessionId, startedAfter) == 1
+    override fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime, expectedAttempt: Int?) =
+        mapper.expireOverdue(sessionId, startedAfter, expectedAttempt) == 1
 }

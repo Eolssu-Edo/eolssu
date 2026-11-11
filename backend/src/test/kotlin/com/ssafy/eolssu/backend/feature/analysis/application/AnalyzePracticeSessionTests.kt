@@ -74,8 +74,8 @@ class AnalyzePracticeSessionTests {
             return true
         }
 
-        override fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime): Boolean {
-            if (status != "PENDING" || !started.isBefore(startedAfter)) return false
+        override fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime, expectedAttempt: Int?): Boolean {
+            if (status != "PENDING" || (expectedAttempt != null && attempt != expectedAttempt) || !started.isBefore(startedAfter)) return false
             status = "FAILED"
             failReason = "TIMEOUT"
             return true
@@ -97,13 +97,43 @@ class AnalyzePracticeSessionTests {
 
     @Test
     fun `sends the session attempt range notes and read url to the AI and stores a DONE result`() {
-        assertEquals(AnalysisOutcome.Saved(done), service({ done }).analyze(7))
+        assertEquals(AnalysisOutcome.Saved(done), service({ done }).analyze(7, expectedAttempt = 2))
         assertEquals(
             listOf(AnalysisRequest(7, 2, "https://storage.example/recordings/7/a.m4a?sig=x", 60, "JEONGGAN", notes)),
             requests,
         )
         assertEquals("DONE", repository.status)
         assertEquals(listOf<Any>(done), repository.stored)
+    }
+
+    @Test
+    fun `does not analyze or save a later attempt from an old queued job without a timing ID`() {
+        val executorQueue = ArrayDeque<Runnable>()
+        val analysis = service({ done })
+        val runner = AnalysisOnUpload(
+            { sessionId, attempt, timing -> analysis.analyze(sessionId, attempt, timing) },
+            { executorQueue.addLast(it) },
+        )
+
+        runner.submit(7, attempt = 1)
+        runner.submit(7, attempt = 2)
+        executorQueue.removeFirst().run()
+        assertTrue(requests.isEmpty())
+        assertEquals("PENDING", repository.status)
+        assertTrue(repository.stored.isEmpty())
+
+        executorQueue.removeFirst().run()
+        assertEquals(listOf(2), requests.map { it.attempt })
+        assertEquals("DONE", repository.status)
+    }
+
+    @Test
+    fun `cannot expire a newer attempt after the older worker reaches its deadline`() {
+        repository.attempt = 3
+        clock.now = startedAt.plusSeconds(61)
+        assertEquals(AnalysisOutcome.NotPending, service({ done }).analyze(7, expectedAttempt = 2))
+        assertEquals("PENDING", repository.status)
+        assertTrue(requests.isEmpty())
     }
 
     @Test
@@ -121,7 +151,7 @@ class AnalyzePracticeSessionTests {
                 done
             })
             val runner = AnalysisOnUpload(
-                { sessionId, timing -> analysis.analyze(sessionId, timing) },
+                { sessionId, attempt, timing -> analysis.analyze(sessionId, attempt, timing) },
                 { executorQueue.addLast(it) }, nanoTime = { ticks },
             )
 
@@ -145,7 +175,7 @@ class AnalyzePracticeSessionTests {
     fun `stores the failure reason the AI returns`() {
         val failed = AnalysisResult.Failed(AnalysisFailReason.NO_SOUND)
 
-        assertEquals(AnalysisOutcome.Saved(failed), service({ failed }).analyze(7))
+        assertEquals(AnalysisOutcome.Saved(failed), service({ failed }).analyze(7, expectedAttempt = 2))
         assertEquals("FAILED" to "NO_SOUND", repository.status to repository.failReason)
     }
 
@@ -153,13 +183,13 @@ class AnalyzePracticeSessionTests {
     fun `does not call the AI when the session is not waiting for analysis`() {
         repository.status = "DONE"
 
-        assertEquals(AnalysisOutcome.NotPending, service({ done }).analyze(7))
+        assertEquals(AnalysisOutcome.NotPending, service({ done }).analyze(7, expectedAttempt = 2))
         assertEquals(emptyList(), requests)
     }
 
     @Test
     fun `discards a result when the session moved on to another attempt`() {
-        val outcome = service({ repository.attempt = 3; done }).analyze(7)
+        val outcome = service({ repository.attempt = 3; done }).analyze(7, expectedAttempt = 2)
 
         assertEquals(AnalysisOutcome.Discarded, outcome)
         assertEquals("PENDING", repository.status)
@@ -168,7 +198,7 @@ class AnalyzePracticeSessionTests {
 
     @Test
     fun `records SERVER_ERROR when the AI cannot be reached`() {
-        val outcome = service({ throw ResourceAccessException("connection refused") }).analyze(7)
+        val outcome = service({ throw ResourceAccessException("connection refused") }).analyze(7, expectedAttempt = 2)
 
         assertEquals(AnalysisOutcome.ServerError, outcome)
         assertEquals("FAILED" to "SERVER_ERROR", repository.status to repository.failReason)
@@ -176,14 +206,14 @@ class AnalyzePracticeSessionTests {
 
     @Test
     fun `records SERVER_ERROR when the AI response breaks the contract`() {
-        service({ throw AnalysisResponseException("unknown status RUNNING") }).analyze(7)
+        service({ throw AnalysisResponseException("unknown status RUNNING") }).analyze(7, expectedAttempt = 2)
 
         assertEquals("FAILED" to "SERVER_ERROR", repository.status to repository.failReason)
     }
 
     @Test
     fun `records SERVER_ERROR without calling the AI when the score cannot be read`() {
-        val outcome = service({ done }, scoreNotes = { throw IllegalStateException("broken score_json") }).analyze(7)
+        val outcome = service({ done }, scoreNotes = { throw IllegalStateException("broken score_json") }).analyze(7, expectedAttempt = 2)
 
         assertEquals(AnalysisOutcome.ServerError, outcome)
         assertEquals(emptyList(), requests)
@@ -194,13 +224,13 @@ class AnalyzePracticeSessionTests {
     fun `records SERVER_ERROR when storing the result fails`() {
         repository.saveDoneFails = true
 
-        assertEquals(AnalysisOutcome.ServerError, service({ done }).analyze(7))
+        assertEquals(AnalysisOutcome.ServerError, service({ done }).analyze(7, expectedAttempt = 2))
         assertEquals("FAILED" to "SERVER_ERROR", repository.status to repository.failReason)
     }
 
     @Test
     fun `turns a result that arrives after the time limit into TIMEOUT`() {
-        val outcome = service({ clock.now = startedAt.plusSeconds(61); done }).analyze(7)
+        val outcome = service({ clock.now = startedAt.plusSeconds(61); done }).analyze(7, expectedAttempt = 2)
 
         assertEquals(AnalysisOutcome.TimedOut, outcome)
         assertEquals("FAILED" to "TIMEOUT", repository.status to repository.failReason)
@@ -209,7 +239,7 @@ class AnalyzePracticeSessionTests {
 
     @Test
     fun `turns a failure that happens after the time limit into TIMEOUT instead of SERVER_ERROR`() {
-        val outcome = service({ clock.now = startedAt.plusSeconds(61); throw ResourceAccessException("read timed out") }).analyze(7)
+        val outcome = service({ clock.now = startedAt.plusSeconds(61); throw ResourceAccessException("read timed out") }).analyze(7, expectedAttempt = 2)
 
         assertEquals(AnalysisOutcome.TimedOut, outcome)
         assertEquals("FAILED" to "TIMEOUT", repository.status to repository.failReason)
@@ -219,7 +249,7 @@ class AnalyzePracticeSessionTests {
     fun `turns a storage failure after the time limit into TIMEOUT`() {
         repository.saveDoneFails = true
 
-        assertEquals(AnalysisOutcome.TimedOut, service({ clock.now = startedAt.plusSeconds(61); done }).analyze(7))
+        assertEquals(AnalysisOutcome.TimedOut, service({ clock.now = startedAt.plusSeconds(61); done }).analyze(7, expectedAttempt = 2))
         assertEquals("FAILED" to "TIMEOUT", repository.status to repository.failReason)
     }
 
@@ -232,21 +262,21 @@ class AnalyzePracticeSessionTests {
             done
         })
 
-        assertEquals(AnalysisOutcome.Discarded, service.analyze(7))
+        assertEquals(AnalysisOutcome.Discarded, service.analyze(7, expectedAttempt = 2))
         assertEquals("FAILED" to "TIMEOUT", repository.status to repository.failReason)
         assertEquals(emptyList(), repository.stored)
     }
 
     @Test
     fun `keeps a result that arrives exactly at the time limit`() {
-        assertEquals(AnalysisOutcome.Saved(done), service({ clock.now = startedAt.plusSeconds(60); done }).analyze(7))
+        assertEquals(AnalysisOutcome.Saved(done), service({ clock.now = startedAt.plusSeconds(60); done }).analyze(7, expectedAttempt = 2))
     }
 
     @Test
     fun `expires an attempt that is already past the limit without calling the AI`() {
         clock.now = startedAt.plusSeconds(61)
 
-        assertEquals(AnalysisOutcome.TimedOut, service({ done }).analyze(7))
+        assertEquals(AnalysisOutcome.TimedOut, service({ done }).analyze(7, expectedAttempt = 2))
         assertEquals(emptyList(), requests)
         assertEquals("FAILED" to "TIMEOUT", repository.status to repository.failReason)
     }
