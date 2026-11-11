@@ -47,7 +47,7 @@ import eolssu.shared.generated.resources.practice_popup_restart_confirm
 import eolssu.shared.generated.resources.practice_popup_restart_title
 import eolssu.shared.generated.resources.practice_popup_start_again
 import eolssu.shared.generated.resources.practice_popup_to_ready
-import eolssu.shared.generated.resources.practice_popup_to_song_info
+import eolssu.shared.generated.resources.practice_popup_to_waiting
 import eolssu.shared.generated.resources.practice_popup_too_large_body
 import eolssu.shared.generated.resources.practice_popup_too_large_title
 import eolssu.shared.generated.resources.practice_step_blocked_body
@@ -77,11 +77,11 @@ class PracticeDialogActions(
 /**
  * PRACTICE-01 확인 창(보드 Dialog-*). 아이콘 고리는 권한·완료·경고 셋이고, 제목만 있는 창(재시작·나가기·중단 확인)은 고리가 없다.
  * [forStep]이면(혼자 연습) 마이크 권한·녹음 실패 안내를 평가 대신 한 음씩 따라 불기 문구로 보이고, 녹음 실패는 확인만 둔다.
- * [toSongInfo]면(곡 정보에서 시작한 연주 평가) ‘홈으로 가기’ 대신 ‘곡 정보로’를 보인다(같은 동작이 곡 정보로 돌아간다).
+ * [evaluation]이면(연주 평가) 연주 중단 창에서 화면을 나가는 ‘홈으로 가기’ 대신 ‘연주 대기로’를 보이고, 평가 대기 상태로 돌아간다(S15P31E102-750).
  * ‘연습 준비로’는 연주 평가에서도 평가 대기 상태로 돌아가므로 그대로 둔다(S15P31E102-747).
  */
 @Composable
-fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep: Boolean = false, toSongInfo: Boolean = false) {
+fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep: Boolean = false, evaluation: Boolean = false) {
     val toReady = stringResource(Res.string.practice_popup_to_ready)
     val colors = EolssuTheme.colors
     when (popup) {
@@ -108,7 +108,11 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
             title = stringResource(Res.string.practice_popup_abort_title),
             message = stringResource(Res.string.practice_popup_abort_body),
         ) {
-            EolssuButton(stringResource(if (toSongInfo) Res.string.practice_popup_to_song_info else Res.string.practice_popup_go_home), actions.onGoHome)
+            if (evaluation) {
+                EolssuButton(stringResource(Res.string.practice_popup_to_waiting), actions.onToReady)
+            } else {
+                EolssuButton(stringResource(Res.string.practice_popup_go_home), actions.onGoHome)
+            }
             EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onResume, style = EolssuButtonStyle.Secondary)
         }
         PracticePopup.End, PracticePopup.EndAtLimit -> EolssuDialog(
