@@ -252,3 +252,5 @@ sudo python3 publish_score_tempo_quiesced.py --bundle release --receipt 728-appl
 적용 직전과 COMMIT 이후 재조회 전에 receipt를 디스크에 동기화한다. `apply-outcome-unknown`/`committed-readback-pending`이나 연결 중단 후에는 새 receipt의 조회 모드로 실제 상태부터 확인한다. 이미 목표 판본·음원과 일치하면 재실행은 쓰지 않는다. 부분 적용이나 미래 판본이 있으면 중단한다. 복구 자료는 변경 전 행을 포함한 불변 `release.json`, 보존된 이전 음원·객체, prechange 백업이다. 역변경은 현재 목표 행과 신규 활성/사용 세션을 다시 확인한 대상별 CAS SQL로 준비한다. 이 도구는 자동 역변경이나 과거 DB 전체 덮어쓰기를 수행하지 않는다.
 
 빠른 검사: `python -m unittest discover -s infra/catalog -p test_publish_score_tempo.py -v`. 실제 MySQL 검사는 포트를 노출하지 않는 별도 `eolssu-tempo-728-test` MySQL 8.4 컨테이너의 `tempo728_test` 스키마만 사용한다. `TEMPO_TEST_MYSQL_CONTAINER`와 `TEMPO_TEST_MYSQL_PASSWORD`를 해당 로컬 값으로 지정하면 원자적 변경·이전 음원/완료 세션 보존·늦은 메타데이터 충돌·활성 세션 추가 시 전체 롤백을 검사한다. 운영 API·앱 재생 확인은 적용 뒤 별도 수행한다.
+
+728 wrapper의 prechange config 백업은 gate가 활성화된 동안 생성된다. 이 config 백업을 복구하면 임시 gate도 복원될 수 있으므로, 복구 종료 전에 위 소유권 확인·gate 제거·Nginx reload·503 해제 절차를 반드시 확인한다. DB만 되돌리는 경우에도 새 판본을 사용하는 활성/완료 세션을 먼저 조사한다.
