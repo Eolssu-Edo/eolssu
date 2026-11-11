@@ -31,6 +31,7 @@ class ScoreGridJangdanPlayback(
             "중모리", "타령", "계면가락도드리" -> 12 * ticksPerJeonggan
             "엇모리" -> 10 * ticksPerJeonggan
             "단모리" -> 4 * ticksPerJeonggan
+            "4박 기본 반주" -> if (score.bpmUnit == "QUARTER") 4 * ticksPerBeat else return null
             else -> return null
         }
 
@@ -38,7 +39,8 @@ class ScoreGridJangdanPlayback(
 
         // The current score format has no separate downbeat marker for a pickup.
         val first = source.path("events").path(0)
-        if (first.path("kind").stringValue() != "NOTE" || first.path("cellId").stringValue() != "c0-j0" ||
+        val reviewedRest = first.path("kind").stringValue() == "REST" && allowsReviewedInitialRest(source, score.scoreVersion)
+        if ((first.path("kind").stringValue() != "NOTE" && !reviewedRest) || first.path("cellId").stringValue() != "c0-j0" ||
             !first.path("startTick").isIntegralNumber || first.path("startTick").longValue() != 0L) return null
         val columns = source.path("columns")
         if (!columns.isArray || columns.isEmpty || columns.any {

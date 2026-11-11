@@ -178,3 +178,13 @@ MIDI86 보완은 [산조 후속 검증](sanjo-playback.md#긴-midi86-음과-낮�
 | “황응남임” 연습곡 | 75 평취, 76 저취 |
 
 세령산·타령의 ‘풀어 쓴 악보’는 장식음을 개별 음표로 적은 판본이다. V34는 목록 제목과 공통 악보의 제목을 함께 바꾸고, 음표·악보 버전과 모범 연주 음원·타임라인의 연결을 보존한다.
+
+## 제공 JGB의 CAT 합성 확인 (S15P31E102-746)
+
+2026-11-11, `origin/develop`의 `d5d437ec`와 사용자가 제공한 Blue Valentine JGB·PDF 2종으로 로컬 음원을 만들었다. JGB는 118각·472정간·490음이며 SHA-256은 `07f6a6ecb55f07b1986ef34301aeae401df969c90376350c91d779615655f139`다. 원본 파일과 선율·황종 MIDI63은 보존했다. 악기 선택 근거, 명시 빠르기 확인, 반주 제외와 각 경계 지속 11곳은 별도 준비 입력에만 기록했다.
+
+기존 `scores.playback_import` → 공통 악보 → MIDI → CAT `playback.__main__.run` 경로를 사용했다. `synthesis_extension=True`는 현재 서비스 `render_request.render`와 같은 원음 유지 정책이다. MIDI57은 인접 CAT 샘플로 합성하며, 실연 음역이나 운지 가능성을 보장하지 않는다. 전체 음역은 MIDI57–88이고 이조는 없다. 원보의 26·58마디 80 BPM과 30·62마디 160 BPM을 적용했다. `molto accel.`의 수치 곡선은 미지정이므로 첫 박은80, 다음15박은80→160의 선형 가속으로 명시했다. 이는 이 생성본의 근사이며 원곡 실연의 정답이 아니다.
+
+4각 시험 생성 후 전곡을 생성했다. 기존 가져오기 검사의 음높이·명목 시간 보존이 통과했고, 원본 JGB를 별도로 읽어 구한 기대값과 실제 MIDI490음의 음고 차이는0, 시작·note-off 최대 오차는 약0.013ms였다. 실제 AAC를 디코딩해490음의 안정창을 관측했고 최대 음정 오차34.27cent, 쉼43창의 최대 RMS는 `1.48e-6`이었다. 파일은44.1kHz·mono·AAC-LC,182.645805초, 피크0.85032이며 디코딩 패딩은0샘플이다. M4A SHA-256은 `a549b7882c6f67bec37ddf21a2ccf6aeeb2f4556f2cc01d11c950e765ad6145f`다.
+
+실행 입력·해시·연주 계획·MIDI·수행 시간표·검증 기록은 로컬 `C:/Users/SSAFY/.codex/worktrees/blue-valentine-cat-746/data/processed/blue-valentine/`에 보존한다. `common-import/`는 기존 가져오기 CLI 결과, `audio/`는 기존 생성기 결과, `verify_generated.py`와 `verification.json`은 이번 입력의 독립 대조다. PDF 선율의 전음표 재전사·전문가 연주 품질·실기기 재생·서비스 게시 검증은 수행하지 않았다. 사용자 제공 악보와 CAT 원본은 공유 fixture에 추가하지 않았다.
