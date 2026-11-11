@@ -156,16 +156,16 @@ internal fun MyPageAvatar(image: ProfileImage, onEdit: () -> Unit) {
                 .background(colors.groupedBackground, CircleShape)
                 .padding(2.dp)
                 .clip(CircleShape)
-                .background(colors.play)
+                .background(colors.cardInk)
                 .clickable(onClick = onEdit),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.onPlay)
+            Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.onInk)
         }
     }
 }
 
-/** 닉네임 아래 '기초부터 배우기' 진도 뱃지: 흰 알약에 짙은 연두 글자로 다음에 배울 단계(모두 마치면 완료)를 적는다. */
+/** 닉네임 아래 '기초부터 배우기' 진도 뱃지: 흰 알약에 먹초록 글자로 다음에 배울 단계(모두 마치면 완료)를 적는다. */
 @Composable
 internal fun LearningBadge(progress: MyLearningProgress) {
     val colors = EolssuTheme.colors
@@ -180,11 +180,11 @@ internal fun LearningBadge(progress: MyLearningProgress) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Icon(EolssuIcons.Book, contentDescription = null, modifier = Modifier.size(13.dp), tint = colors.play)
+        Icon(EolssuIcons.Book, contentDescription = null, modifier = Modifier.size(13.dp), tint = colors.cardInk)
         Text(
             text,
             style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
-            color = colors.accentText,
+            color = colors.cardInk,
             maxLines = 1,
         )
     }
@@ -250,7 +250,7 @@ internal fun MyRecentPracticeCard(recent: MyRecentPractice, status: MyRecentPrac
     }
 }
 
-/** 점수: 바탕 없이 큰 짙은 연두 숫자와 같은 기준선의 작은 '점'. 화면 낭독은 "85점"처럼 한 덩어리로 읽는다. */
+/** 점수: 바탕 없이 큰 먹초록 숫자와 같은 기준선의 작은 '점'. 화면 낭독은 "85점"처럼 한 덩어리로 읽는다. */
 @Composable
 private fun ScoreValue(score: Int) {
     val colors = EolssuTheme.colors
@@ -260,13 +260,13 @@ private fun ScoreValue(score: Int) {
             score.toString(),
             modifier = Modifier.alignByBaseline(),
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold),
-            color = colors.play,
+            color = colors.cardInk,
         )
         Text(
             stringResource(Res.string.my_recent_score_unit),
             modifier = Modifier.alignByBaseline().padding(start = 2.dp),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
-            color = colors.play,
+            color = colors.cardInk,
         )
     }
 }

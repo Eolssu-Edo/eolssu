@@ -69,7 +69,7 @@ fun ProfileImageRoute(
 
 /**
  * 프로필 변경(S15P31E102-738). 마이페이지와 같은 회색 바탕 위 흰 카드에 절쑤 그림 12종을 이름 없이 원으로 늘어놓고,
- * 고른 그림은 짙은 연두 테두리로 표시한다. 휴대폰은 한 줄에 3개, 태블릿은 4개다.
+ * 고른 그림은 먹초록 테두리로 표시한다. 휴대폰은 한 줄에 3개, 태블릿은 4개다.
  */
 @Composable
 fun ProfileImageScreen(
@@ -129,6 +129,6 @@ private fun ProfileImageOption(image: ProfileImage, selected: Boolean, onClick: 
             .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-        ProfileImageCircle(image, size = 84.dp, ring = if (selected) colors.play else null)
+        ProfileImageCircle(image, size = 84.dp, ring = if (selected) colors.cardInk else null)
     }
 }

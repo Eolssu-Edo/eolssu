@@ -237,7 +237,7 @@ private fun AccountRow(text: String, onClick: () -> Unit) {
 }
 
 /**
- * 작은 채움 버튼: 테두리 없는 높이 34dp 알약. '연결'([primary])은 연두 10% 바탕에 짙은 연두 글자, '해제'는 회색 바탕에 회색 글자.
+ * 작은 채움 버튼: 테두리 없는 높이 34dp 알약. '연결'([primary])은 홈 카드와 같은 먹초록 바탕에 흰 글자, '해제'는 회색 바탕에 회색 글자.
  * 누르는 영역은 Compose 최소 터치 영역(48dp)으로 넓어진다.
  */
 @Composable
@@ -246,8 +246,8 @@ private fun SmallButton(text: String, primary: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(50),
-        color = if (primary) colors.accentTint else colors.groupedBackground,
-        contentColor = if (primary) colors.accentText else colors.textSub,
+        color = if (primary) colors.cardInk else colors.groupedBackground,
+        contentColor = if (primary) colors.onInk else colors.textSub,
     ) {
         Box(Modifier.heightIn(min = 34.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
             Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
