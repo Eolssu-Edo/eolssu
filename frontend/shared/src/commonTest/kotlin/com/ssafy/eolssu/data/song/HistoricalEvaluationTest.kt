@@ -102,6 +102,43 @@ class HistoricalEvaluationTest {
     }
 
     @Test
+    fun changedSongDetailsInvalidateCachedRevisionEvenWhenScoreRequestFails() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+        var title = REVISION_TITLE
+        var scoreAvailable = true
+        val client = createHttpClient(MockEngine { request ->
+            val result = when (val path = request.url.encodedPath) {
+                "/api/songs/42" -> revisionSongResponse(1, title)
+                "/api/songs/42/score" -> {
+                    if (!scoreAvailable) return@MockEngine respond("{}", HttpStatusCode.ServiceUnavailable)
+                    revisionScoreResponse(1, title)
+                }
+                else -> error(path)
+            }
+            respond("""{"isSuccess":true,"result":$result}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val songs = ApiSongRepository(client, member)
+            val original = assertNotNull(songs.getSong("42"))
+            assertSame(original, songs.retainedSong("42", 1))
+
+            scoreAvailable = false
+            assertFailsWith<CatalogUnavailable> { songs.getSong("42") }
+            assertSame(original, songs.retainedSong("42", 1))
+
+            title = "제목을 고친 검사 악보"
+            assertFailsWith<CatalogUnavailable> { songs.getSong("42") }
+            assertNull(songs.retainedSong("42", 1))
+            assertNull(songs.retainedSong("42"))
+
+            scoreAvailable = true
+            val refreshed = assertNotNull(songs.getSong("42"))
+            assertEquals(title, refreshed.title)
+            assertSame(refreshed, songs.retainedSong("42", 1))
+        } finally { client.close() }
+    }
+
+    @Test
     fun publishedReuseEndsOnLogoutAndSameMemberRelogin() = runTest {
         val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
         var latest = 1

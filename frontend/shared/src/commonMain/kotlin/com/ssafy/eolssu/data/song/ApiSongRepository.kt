@@ -7,6 +7,7 @@ import com.ssafy.eolssu.core.diagnostics.measureLoad
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.JangdanPlayback
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.SongLevel
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.timeline
 import com.ssafy.eolssu.core.network.AccountSession
@@ -70,15 +71,8 @@ class ApiSongRepository(
         val request = beginLoad(account, songId, published = true)
         val current = loadCatalogSong(songId)
         ensureAccountSession()
-        if (request != null && current != null) {
-            cache.update { state ->
-                val entry = state.entry
-                if (state.request !== request || entry == null || entry.account != account ||
-                    entry.song.id != songId || entry.song.scoreVersion != current.scoreVersion
-                ) return@update state
-                // 곡 제목이나 채점 가능 여부는 악보 판본을 유지한 채 바뀔 수 있다.
-                state.copy(entry = entry.takeIf { it.detail == current }?.copy(published = true))
-            }
+        if (current != null) {
+            updateRetainedDetail(request, account, current, confirmPublished = true)
         }
         current?.scoreVersion
     }
@@ -106,7 +100,10 @@ class ApiSongRepository(
         val request = beginLoad(account, songId, published = scoreVersion == null)
         measureLoad(PerfTarget.SONG_BUNDLE, songId, { it.song.scoreVersion }) {
             val detail = loadCatalogSong(songId, scoreVersion) ?: return@measureLoad null
-            val bundle = loadVerified(detail, scoreVersion) ?: return@measureLoad null
+            val level = detail.summary().level ?: throw CatalogUnavailable()
+            ensureAccountSession()
+            updateRetainedDetail(request, account, detail, confirmPublished = false)
+            val bundle = loadVerified(detail, scoreVersion, level) ?: return@measureLoad null
             ensureAccountSession()
             if (account != null && request != null) {
                 val entry = RetainedSong(account, bundle.song, detail, published = scoreVersion == null)
@@ -115,6 +112,27 @@ class ApiSongRepository(
                 }
             }
             bundle
+        }
+    }
+
+    private fun updateRetainedDetail(
+        request: Any?,
+        account: AccountSession?,
+        detail: CatalogSong,
+        confirmPublished: Boolean,
+    ) {
+        if (request == null) return
+        cache.update { state ->
+            val entry = state.entry
+            if (state.request !== request || entry == null || entry.account != account ||
+                entry.detail.songId != detail.songId || entry.detail.scoreVersion != detail.scoreVersion
+            ) return@update state
+            // 곡 제목이나 채점 가능 여부는 악보 판본을 유지한 채 바뀔 수 있다.
+            when {
+                entry.detail != detail -> state.copy(entry = null)
+                confirmPublished -> state.copy(entry = entry.copy(published = true))
+                else -> state
+            }
         }
     }
 
@@ -144,9 +162,8 @@ class ApiSongRepository(
         return item
     }
 
-    private suspend fun loadVerified(item: CatalogSong, scoreVersion: Int?): EditableSong? {
+    private suspend fun loadVerified(item: CatalogSong, scoreVersion: Int?, level: SongLevel): EditableSong? {
         val songId = item.songId
-        val level = item.summary().level ?: throw CatalogUnavailable()
         val scoreResponse = client.getPublicOrNull("/api/songs/$songId/score") { scoreVersion?.let { parameter("scoreVersion", it) } }
             ?: throw CatalogUnavailable()
         if (scoreResponse.status.value == 404) return null
