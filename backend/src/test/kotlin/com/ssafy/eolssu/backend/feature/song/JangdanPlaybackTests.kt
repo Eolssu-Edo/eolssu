@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.feature.song
 
 import com.ssafy.eolssu.backend.feature.song.domain.*
 import com.ssafy.eolssu.backend.feature.song.infrastructure.catalog.ScoreGridJangdanPlayback
+import com.ssafy.eolssu.backend.feature.song.infrastructure.catalog.scoreJangdanName
 import com.ssafy.eolssu.backend.feature.jangdan.infrastructure.persistence.JangdanRow
 import java.time.LocalDateTime
 import org.junit.jupiter.api.Test
@@ -23,6 +24,77 @@ class JangdanPlaybackTests {
             it.path("bpmUnit").asString(), null, LocalDateTime.MIN, LocalDateTime.MIN)
     }
     private val resolver = ScoreGridJangdanPlayback(json, ::catalog)
+
+    private val airplaneSources = listOf(
+        Triple("danso", "DANSO", "893185e48fc87c300d591f5e4f0774291f21da17828fdaea5f0f865705ae4b18"),
+        Triple("sogeum", "SOGEUM", "b6dd52ce1fe0a3349ceb7453975f88db84c9bfb7192b9bdb4bd22bf2ab41a972"),
+        Triple("sanjo-daegeum", "SANJO_DAEGEUM", "b6dd52ce1fe0a3349ceb7453975f88db84c9bfb7192b9bdb4bd22bf2ab41a972"),
+    )
+
+    private fun airplane(source: String, instrument: String, hash: String, version: Int = 1, ticks: Int = 1,
+        sourceId: String = "airplane-beginner-$source-v1"): PublishedSongScore {
+        val cells = (0..3).joinToString { """{"id":"c0-j$it","index":$it,"units":[{"row":0,"col":0,"symbol":"-","eventId":"c0-j0-r0-u0"}]}""" }
+        return PublishedSongScore(132, version, 1, 77, "QUARTER", """{"schemaVersion":1,
+            "score":{"sourceId":"$sourceId","instrument":"$instrument","scoreVersion":$version},
+            "music":{"jangdan":"","ticksPerBeat":$ticks,"ticksPerJeonggan":$ticks,"bpmUnit":"QUARTER"},
+            "provenance":{"jgbSha256":"$hash"},"columns":[{"index":0,"cells":[$cells]}],
+            "events":[{"id":"c0-j0-r0-u0","cellId":"c0-j0","kind":"NOTE","startTick":0,"durationTick":${4 * ticks}}]}""")
+    }
+
+    @Test fun `Danmori eighth note cells can fall between integer score ticks`() {
+        val source = airplaneSources.first().let { (source, instrument, hash) -> airplane(source, instrument, hash) }
+        val declared = source.scoreJson.replace("\"jangdan\":\"\"", "\"jangdan\":\"단모리\"")
+        val playback = assertNotNull(resolver.resolve(source.copy(scoreJson = declared)))
+        assertEquals("7", playback.jangdanId)
+        assertEquals(4L, playback.cycleTicks)
+        assertEquals(listOf("덩", "", "따", "따", "궁", "따", "궁", ""), playback.pattern.beats)
+        assertEquals(0.5, playback.cycleTicks.toDouble() / playback.pattern.beats.size)
+        assertEquals(240_000.0 / 77, playback.cycleTicks * 60_000.0 / source.defaultBpm, 0.000001)
+    }
+
+    @Test fun `only reviewed airplane source instrument hash and version receive supplemental Danmori`() {
+        for ((slug, instrument, hash) in airplaneSources) {
+            val source = airplane(slug, instrument, hash)
+            assertEquals("단모리", assertNotNull(resolver.resolve(source)).name)
+            assertNull(resolver.resolve(source.copy(scoreVersion = 2)))
+            for (changed in listOf(source.scoreJson.replace(hash, "0".repeat(64)),
+                source.scoreJson.replace("\"instrument\":\"$instrument\"", "\"instrument\":\"JEONGAK_DAEGEUM\""),
+                source.scoreJson.replace("airplane-beginner-$slug-v1", "unreviewed-airplane-$slug"))) {
+                assertNull(resolver.resolve(source.copy(scoreJson = changed)))
+            }
+            val partial = json.readTree(source.scoreJson) as ObjectNode
+            (partial.path("columns").path(0) as ObjectNode).withArray("cells").remove(3)
+            assertNull(resolver.resolve(source.copy(scoreJson = partial.toString())))
+        }
+    }
+
+    @Test fun `Jeongak airplane preview uses only its corrected second revision at six ticks per quarter`() {
+        val hash = "b8960383360b471a20214c05b2a37b3f511911aaa38f8db358e5e03a28a77e02"
+        val source = airplane("jeongak-daegeum", "JEONGAK_DAEGEUM", hash, version = 2, ticks = 6,
+            sourceId = "mr203-fixed-jeongak-daegeum-006-p1").copy(songId = 56)
+        val playback = assertNotNull(resolver.resolve(source))
+        assertEquals("7", playback.jangdanId)
+        assertEquals(24L, playback.cycleTicks)
+        assertEquals(8, playback.pattern.beats.size)
+        assertEquals(3.0, playback.cycleTicks.toDouble() / playback.pattern.beats.size)
+        assertEquals(3_116.883116883, playback.cycleTicks * 60_000.0 / 77 / 6, 0.000001)
+        assertNull(resolver.resolve(source.copy(scoreVersion = 1)))
+        assertNull(resolver.resolve(source.copy(scoreVersion = 3)))
+        assertNull(resolver.resolve(source.copy(scoreJson = source.scoreJson.replace(hash, "0".repeat(64)))))
+        assertNull(resolver.resolve(source.copy(scoreJson = source.scoreJson.replace("JEONGAK_DAEGEUM", "SANJO_DAEGEUM"))))
+    }
+
+    @Test fun `existing separately reviewed sources keep first revision matching`() {
+        val revisions = listOf(
+            Triple("mr203-fixed-danso-003-p1", "e0a5b4f02b9378865d2a6fbc59be65d8883276dfdb97e0f6444ce19a179063bc", "자진타령"),
+            Triple("mr203-fixed-danso-030-p1", "46620fa702b0d5f52264841ac0d28493bf17920b0cfbdbbe885ca3aa7976ce77", "자진모리"),
+        )
+        for ((sourceId, hash, name) in revisions) {
+            val source = json.readTree(airplane("danso", "DANSO", hash, sourceId = sourceId).scoreJson)
+            assertEquals(name, scoreJangdanName(source, 1, requirePlayback = true))
+            assertNull(scoreJangdanName(source, 2, requirePlayback = true))
+        }
+    }
 
     private fun review(id: Long) = production.path("scores").first { it.path("songId").asString() == id.toString() }
     private fun fixture(id: Long): PublishedSongScore {
@@ -92,6 +164,7 @@ class JangdanPlaybackTests {
         assertEquals("쿵", assertNotNull(ScoreGridJangdanPlayback(json) { changed }.resolve(stored)).pattern.beats.first())
         val invalid = row.copy(pattern = """{"beats":["쿵"],"group":[2]}""")
         assertNull(ScoreGridJangdanPlayback(json) { invalid }.resolve(stored))
+        assertNull(ScoreGridJangdanPlayback(json) { row.copy(pattern = "{") }.resolve(stored))
     }
 
     @Test fun `unreviewed Seryeongsan and unspecified rhythm remain disabled with reasons in inventory`() {

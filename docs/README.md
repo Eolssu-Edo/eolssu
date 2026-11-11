@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [비행기 네 악기 악보·CAT 음원·단모리 연결 (707)](specs/airplane-four-instruments.md) · [분리 계획·검증](plans/S15P31E102-707.md) · [악보·생성 근거](knowledge/data/airplane-beginner-score.md)
+
 - [연주 평가 시작 시 서비스 마이크 안내 창 없이 기기 권한 요청만 표시 (733)](plans/S15P31E102-733.md)
 - [내 악보 편집 도구와 오류 정간 표시 정리 (736)](plans/S15P31E102-736.md) · [초기 오류 표시와 정간 이동 근거](knowledge/frontend/sheet-editor-save-validation.md#초기-오류-표시와-실제-정간으로-이동-736)
 
