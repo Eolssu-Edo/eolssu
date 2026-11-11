@@ -10,7 +10,7 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
-    private val compatible = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 4, 4)
+    private val compatible = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 6, 2)
     private val incompatible = CatalogJangdanSummary("5", "중모리", 90, "QUARTER", 12, 4)
 
     @Test fun changingJangdanLoadsChoicesAndPreservesTimingThroughDraftAndFinalSave() = runTest {
@@ -74,7 +74,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
 
     @Test fun choosingTheCurrentJangdanDoesNotWriteAndUndoRestoresBothIdAndName() = runTest {
         val repository = RecordingDocuments(smallScoreData(), jangdanId = "3")
-        val initial = CatalogJangdanSummary("3", "세마치", 80, "DOTTED_QUARTER", 3, 3)
+        val initial = CatalogJangdanSummary("3", "세마치", 80, "DOTTED_QUARTER", 6, 2)
         val catalog = JangdanCatalog(listOf(initial, compatible))
         val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
             SampleMySheetRepository(), documents = repository, pitchCatalog = catalog))
@@ -129,7 +129,9 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
 
     private class JangdanCatalog(private val options: List<CatalogJangdanSummary>) : ReferenceCatalogRepository {
         var reads = 0
-        override suspend fun allPitches() = emptyList<CatalogPitch>()
+        override suspend fun allPitches() = listOf("황" to 0, "중" to 1).map { (yul, octave) ->
+            CatalogPitch("$yul-$octave", yul, octave, yul, yul, 0)
+        }
         override suspend fun pitches(instrumentId: String): List<CatalogPitch> = error("unused")
         override suspend fun fingerings(instrumentId: String, pitchId: String?): CatalogFingerings = error("unused")
         override suspend fun jangdans(): List<CatalogJangdanSummary> {

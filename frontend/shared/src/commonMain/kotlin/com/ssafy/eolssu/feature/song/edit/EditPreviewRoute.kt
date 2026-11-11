@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -15,6 +16,8 @@ import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.referenceSeekTarget
 import com.ssafy.eolssu.core.audio.rememberReferenceAudioPlayer
+import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
+import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import eolssu.shared.generated.resources.sheetedit_msg_audio_busy
@@ -52,6 +55,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var detailsOpen by rememberSaveable { mutableStateOf(false) }
     if (state.documentLoading || state.documentFailed) {
         SheetDocumentNotice(state.documentLoading, onBack, viewModel::loadDocument, state.practiceVersionChanged)
         return
@@ -126,6 +130,7 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
             playback.sourceId == id && playback.status in setOf(AudioPlaybackStatus.Playing, AudioPlaybackStatus.Loading)
         } == true,
         onBack = onBack,
+        onOpenDetails = { detailsOpen = true },
         onTogglePlay = {
             previewStarted = viewModel.previewPlaybackId() != null
             toggleSheetAudio(player, viewModel, preview = true)
@@ -162,7 +167,29 @@ fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
             onBack()
         },
         onCloseWarning = viewModel::closeWarning,
+        onFixCompletionIssue = {
+            viewModel.openCompletionIssue()
+            onBack()
+        },
+        onChangeJangdan = viewModel::changeJangdan,
+        onClearJangdan = viewModel::clearJangdan,
+        onRetryCompletionCatalog = viewModel::retryCompletionCatalog,
     )
+    state.jangdanPicker?.let { picker ->
+        SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
+            onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)
+    }
+    if (detailsOpen && state.canEditDetails && (state.source as? EditSource.Mine)?.practiceVersion == null) {
+        SheetEditDetailsDialog(
+            initialTitle = state.draft.title,
+            initialBpm = state.draft.bpm,
+            onApply = { title, bpm ->
+                viewModel.updateDetails(title, bpm)
+                detailsOpen = false
+            },
+            onDismiss = { detailsOpen = false },
+        )
+    }
 }
 
 private fun AudioPlaybackState.previewProgress(id: String?, started: Boolean): AudioPlaybackState? =

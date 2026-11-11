@@ -2,20 +2,17 @@ package com.ssafy.eolssu.feature.song.edit
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -27,33 +24,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
-import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
-import com.ssafy.eolssu.feature.song.edit.component.CompactEditScoreMetrics
-import com.ssafy.eolssu.feature.song.edit.component.CommonStaffEditor
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.EditInputPanel
 import com.ssafy.eolssu.feature.song.edit.component.EditScoreBoard
-import com.ssafy.eolssu.feature.song.edit.component.EditScoreLook
-import com.ssafy.eolssu.feature.song.edit.component.editorUnitMarks
 import com.ssafy.eolssu.feature.song.edit.component.EditorTopBar
 import com.ssafy.eolssu.feature.song.edit.component.HintText
 import com.ssafy.eolssu.feature.song.edit.component.PillButton
-import com.ssafy.eolssu.feature.song.edit.component.SegmentTabs
-import com.ssafy.eolssu.feature.song.edit.component.SheetEditIcons
-import com.ssafy.eolssu.feature.song.edit.component.SquareIconButton
-import com.ssafy.eolssu.feature.song.edit.component.StaffSystemView
 import com.ssafy.eolssu.feature.song.edit.component.editorMarks
-import com.ssafy.eolssu.feature.song.edit.component.staffMarks
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.core.ui.score.JeongganboLook
+import com.ssafy.eolssu.feature.song.edit.component.editorUnitMarks
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.score_rest
 import eolssu.shared.generated.resources.sheetedit_banner_import
 import eolssu.shared.generated.resources.sheetedit_banner_open
 import eolssu.shared.generated.resources.sheet_review_checked
@@ -65,126 +47,66 @@ import eolssu.shared.generated.resources.sheet_review_removed_cell
 import eolssu.shared.generated.resources.sheet_review_save_checks
 import eolssu.shared.generated.resources.sheet_review_uncertain
 import eolssu.shared.generated.resources.sheetedit_close
-import eolssu.shared.generated.resources.sheet_details_edit
-import eolssu.shared.generated.resources.sheetedit_down
-import eolssu.shared.generated.resources.sheetedit_duration_dotted_eighth
-import eolssu.shared.generated.resources.sheetedit_duration_dotted_half
-import eolssu.shared.generated.resources.sheetedit_duration_dotted_quarter
-import eolssu.shared.generated.resources.sheetedit_duration_eighth
-import eolssu.shared.generated.resources.sheetedit_duration_half
-import eolssu.shared.generated.resources.sheetedit_duration_other
-import eolssu.shared.generated.resources.sheetedit_duration_quarter
-import eolssu.shared.generated.resources.sheetedit_duration_sixteenth
 import eolssu.shared.generated.resources.sheetedit_preview
-import eolssu.shared.generated.resources.sheetedit_staff_back
-import eolssu.shared.generated.resources.sheetedit_staff_hint
-import eolssu.shared.generated.resources.sheetedit_staff_note_label
-import eolssu.shared.generated.resources.sheetedit_staff_same_place
-import eolssu.shared.generated.resources.sheetedit_staff_same_place_hint
-import eolssu.shared.generated.resources.sheetedit_staff_system
-import eolssu.shared.generated.resources.sheetedit_staff_title
-import eolssu.shared.generated.resources.sheetedit_staff_where_span
-import eolssu.shared.generated.resources.sheetedit_staff_where_sub
-import eolssu.shared.generated.resources.sheetedit_subtitle_editing
-import eolssu.shared.generated.resources.sheetedit_subtitle_staff
-import eolssu.shared.generated.resources.sheetedit_up
-import eolssu.shared.generated.resources.sheetedit_view_jeongganbo
-import eolssu.shared.generated.resources.sheetedit_view_staff
-import eolssu.shared.generated.resources.sheetedit_undo
-import eolssu.shared.generated.resources.sheetedit_redo
-import eolssu.shared.generated.resources.sheetedit_where_short
+import eolssu.shared.generated.resources.sheet_editor_tempo
+import eolssu.shared.generated.resources.sheet_editor_edit
+import eolssu.shared.generated.resources.sheet_completion_saving
+import eolssu.shared.generated.resources.sheet_editor_audio
 import org.jetbrains.compose.resources.stringResource
 
-/** 편집기(EDIT-02 · 03)의 사용자 행동. */
+/** 정간보 편집기의 사용자 행동. */
 class SheetEditActions(
     val onClose: () -> Unit,
     val onPreview: () -> Unit,
+    val onSave: () -> Unit,
     val onOpenDetails: () -> Unit,
     val onOpenChecks: () -> Unit,
-    val onSelectView: (EditView) -> Unit,
     val onSelectCell: (Int) -> Unit,
-    /** 악보에서 누른 정간과 그 안의 소박 순서. */
     val onSelectUnit: (Int, Int) -> Unit,
-    val onSelectStaffNote: (StaffNoteKey) -> Unit,
-    val onShiftStaffNote: (Int) -> Unit,
     val input: EditInputActions,
     val onOpenReviewCell: () -> Unit = {},
     val onCheckReviewIssue: () -> Unit = {},
+    val onFixCompletionIssue: () -> Unit = {},
+    val onClearJangdan: () -> Unit = {},
+    val onRetryCompletionCatalog: () -> Unit = {},
 )
 
-/**
- * EDIT-02 정간보 편집 / EDIT-03 오선보로 보기. 위쪽 탭으로 두 보기를 오가며 같은 악보를 고친다.
- * 정간보는 연습 화면과 같은 렌더러로 그리고, 고른 정간은 연두 바탕·먹색 테두리, 빈 정간은 점선이다. 곁줄(가사 칸)은 칠하지 않는다.
- * 넓은 창에서는 [EolssuScaffold]가 휴대폰 너비로 가운데에 둔다.
- */
+/** 정간보 단일 편집 화면. 제목과 빠르기는 왼쪽 편집 버튼으로 변경한다. */
 @Composable
 fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostState, actions: SheetEditActions) {
     val draft = state.draft
-    val staff = state.view == EditView.Staff
-    val viewLabels = listOf(stringResource(Res.string.sheetedit_view_jeongganbo), stringResource(Res.string.sheetedit_view_staff))
-    val selectView: (Int) -> Unit = { actions.onSelectView(EditView.entries[it]) }
     EolssuScaffold(
         containerColor = EolssuTheme.colors.surface,
         snackbarHostState = snackbarHostState,
         topBar = {
             EditorTopBar(
                 title = draft.title,
-                subtitle = if (staff && draft.original == null) {
-                    stringResource(Res.string.sheetedit_subtitle_staff, state.hwang.label)
-                } else {
-                    stringResource(Res.string.sheetedit_subtitle_editing, jangdanLabel(draft.jangdanName), draft.bpm)
-                },
+                subtitle = jangdanLabel(draft.jangdanName),
                 closeLabel = stringResource(Res.string.sheetedit_close),
                 onClose = actions.onClose,
             ) {
-                PillButton(stringResource(Res.string.sheetedit_preview), actions.onPreview)
+                PillButton(stringResource(if (state.confirming) Res.string.sheet_completion_saving else Res.string.sheetedit_preview), actions.onSave, enabled = !state.confirming)
             }
-        },
-        bottomBar = if (staff) {
-            {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    EolssuButton(
-                        stringResource(Res.string.sheetedit_staff_back),
-                        { actions.onSelectView(EditView.Jeongganbo) },
-                        Modifier.weight(1f),
-                        style = EolssuButtonStyle.Secondary,
-                        compact = true,
-                    )
-                    EolssuButton(stringResource(Res.string.sheetedit_preview), actions.onPreview, Modifier.weight(1f), compact = true)
-                }
-            }
-        } else {
-            null
         },
     ) {
         Column(Modifier.fillMaxSize()) {
             Row(
-                Modifier.fillMaxWidth().padding(start = 16.dp, end = 20.dp, bottom = 4.dp),
+                Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                if (draft.original != null) SegmentTabs(viewLabels, state.view.ordinal, selectView, Modifier.padding(end = 6.dp))
-                if (staff && draft.original == null) {
-                    HintText(stringResource(Res.string.sheetedit_staff_hint), Modifier.weight(1f).padding(start = 4.dp), size = 12)
-                } else if (staff) {
-                    // 정간보 보기에서는 실행 취소·다시 실행이 아래 입력판 첫 줄에 있다. 입력판이 없는 오선보 편집에만 여기에 둔다.
-                    SquareIconButton(SheetEditIcons.Undo, stringResource(Res.string.sheetedit_undo), actions.input.onUndo, enabled = state.canUndo)
-                    SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.input.onRedo, enabled = state.canRedo)
-                }
-                if (state.canEditDetails) SquareIconButton(EolssuIcons.Pencil, stringResource(Res.string.sheet_details_edit), actions.onOpenDetails)
-                if (!staff) Box(Modifier.weight(1f))
-                if (state.draft.original == null) SegmentTabs(
-                    labels = viewLabels,
-                    selected = state.view.ordinal,
-                    onSelect = selectView,
+                Text(
+                    stringResource(Res.string.sheet_editor_tempo, draft.bpm),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EolssuTheme.colors.text,
                 )
+                if (state.canEditDetails) {
+                    PillButton(stringResource(Res.string.sheet_editor_edit), actions.onOpenDetails, enabled = !state.saving)
+                }
+                Spacer(Modifier.weight(1f))
+                PillButton(stringResource(Res.string.sheet_editor_audio), actions.onPreview, enabled = !state.confirming)
             }
-            if (staff && draft.original != null) {
-                CommonStaffEditor(state, actions.onSelectStaffNote, actions.onShiftStaffNote, Modifier.weight(1f))
-            } else if (staff) {
-                StaffContent(state, actions, Modifier.weight(1f))
-            } else {
-                JeongganboContent(state, actions, Modifier.weight(1f))
-            }
+            JeongganboContent(state, actions, Modifier.weight(1f))
         }
     }
 }
@@ -196,7 +118,8 @@ private fun JeongganboContent(state: SheetEditUiState, actions: SheetEditActions
     Column(modifier) {
         if (state.reviewIssues.isNotEmpty()) ReviewBanner(state, actions)
         else if (state.pendingChecks > 0) ImportBanner(state.pendingChecks, actions.onOpenChecks)
-        if (state.reviewNotices.isNotEmpty()) SheetReviewNotices(state.reviewNotices)
+        SheetCompletionNotice(state, actions.onFixCompletionIssue, actions.input.onChangeJangdan, actions.onClearJangdan, actions.onRetryCompletionCatalog,
+            Modifier.padding(horizontal = 20.dp, vertical = 4.dp), showReviewSummary = false)
         Column(Modifier.weight(1f).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             EditScoreBoard(
                 song = song,
@@ -246,7 +169,7 @@ private fun ReviewBanner(state: SheetEditUiState, actions: SheetEditActions) {
                 if (cellIndex != null && cellIndex != state.selected) {
                     PillButton(stringResource(Res.string.sheetedit_banner_open), actions.onOpenReviewCell)
                 } else {
-                    PillButton(stringResource(Res.string.sheet_review_checked), actions.onCheckReviewIssue)
+                    PillButton(stringResource(Res.string.sheet_review_checked), actions.onCheckReviewIssue, enabled = state.canCheckNextReviewIssue)
                 }
             }
         }
@@ -283,141 +206,12 @@ private fun ImportBanner(pending: Int, onOpen: () -> Unit) {
     }
 }
 
-/**
- * EDIT-03 오선보로 보기: 정간보 두 각씩 한 줄로 옮긴 오선보 두 줄(고른 음표가 든 네 각), 고른 음표 정보와 음 높이 올리기·내리기,
- * 같은 위치의 정간보. 같은 위치의 정간보는 곡 전체를 가로로 넘겨 볼 수 있어, 다른 각을 누르면 오선보도 그 각으로 넘어간다.
- * 황 = [SheetEditUiState.hwang] 기준이고 플랫으로 적는다.
- */
-@Composable
-private fun StaffContent(state: SheetEditUiState, actions: SheetEditActions, modifier: Modifier = Modifier) {
-    val draft = state.draft
-    val notes = remember(draft) { staffNotes(draft) }
-    val selected = state.staffNote(notes)
-    val song = remember(draft) { draft.toSong() }
-    val cellsPerSystem = draft.gak * 2
-    Column(
-        modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        val systems = notes.groupBy { it.system }
-        val systemCount = (draft.cells.size + cellsPerSystem - 1) / cellsPerSystem
-        for (system in visibleStaffSystems(selected?.key?.start ?: state.selected, cellsPerSystem, systemCount)) {
-            val first = system * cellsPerSystem
-            val firstColumn = draft.columnOf(first) + 1
-            val lastColumn = minOf(firstColumn + 1, draft.columnCount)
-            val systemNotes = systems[system].orEmpty()
-            StaffSystemView(
-                label = stringResource(Res.string.sheetedit_staff_system, firstColumn, lastColumn),
-                firstCell = first,
-                notes = systemNotes,
-                firstOrder = notes.indexOf(systemNotes.firstOrNull()) + 1,
-                gak = draft.gak,
-                hwang = state.hwang,
-                selected = selected?.key,
-                noteLabel = { note, order -> staffNoteLabel(note, order, state.hwang) },
-                onPick = actions.onSelectStaffNote,
-            )
-        }
-        if (selected != null) SelectedNoteCard(draft, selected, state.hwang, actions.onShiftStaffNote, Modifier.padding(top = 4.dp))
-        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                stringResource(Res.string.sheetedit_staff_same_place),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
-            )
-            HintText(stringResource(Res.string.sheetedit_staff_same_place_hint))
-        }
-        EditScoreBoard(
-            song = song,
-            modifier = Modifier.fillMaxWidth(),
-            marks = staffMarks(draft, selected),
-            annotations = remember(draft) { draft.annotations() },
-            metrics = CompactEditScoreMetrics,
-            look = JeongganboLook(style = JeongganboLook.Style.Board, lyricLane = 19.dp, headCompact = true, daegangWhenFits = true, sigimsaeScale = EditScoreLook.sigimsaeScale),
-            focusColumn = selected?.let { draft.columnOf(it.key.start) },
-            scrollVertically = false,
-            onCellClick = { column, row -> actions.onSelectStaffNote(StaffNoteKey(draft.indexOf(column, row), 0)) },
-        )
-    }
-}
-
-/** 고른 음표: 44dp 율명 칸 · 위치 · '중려 = 라♭(A♭4) · 점4분음표 (3정간)' · 음 높이 올리기·내리기. */
-@Composable
-private fun SelectedNoteCard(draft: SheetDraft, note: StaffNote, hwang: HwangPitch, onShift: (Int) -> Unit, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    Row(
-        modifier
-            .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(14.dp))
-            .border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(44.dp).background(colors.accentTint, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-            ScoreNoteGlyph(note.yul?.let { ScoreNote.Pitch(it) } ?: ScoreNote.Rest, size = 22.sp, fontWeight = FontWeight.Bold)
-        }
-        Column(Modifier.weight(1f)) {
-            val where = stringResource(Res.string.sheetedit_where_short, draft.columnOf(note.key.start) + 1, draft.rowOf(note.key.start) + 1)
-            Text(
-                if (note.subCount > 1) {
-                    stringResource(Res.string.sheetedit_staff_where_sub, where, note.key.sub + 1)
-                } else {
-                    stringResource(Res.string.sheetedit_staff_where_span, where, note.span)
-                },
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = colors.textMuted,
-            )
-            val yul = note.yul
-            Text(
-                if (yul == null) {
-                    stringResource(Res.string.score_rest)
-                } else {
-                    stringResource(Res.string.sheetedit_staff_title, yul.fullName, staffPitch(yul, hwang).solfegeName, durationLabel(note.length))
-                },
-                modifier = Modifier.padding(top = 2.dp),
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold),
-            )
-        }
-        Row {
-            SquareIconButton(SheetEditIcons.ChevronUp, stringResource(Res.string.sheetedit_up), { onShift(1) }, enabled = !note.isRest, size = 36.dp)
-            SquareIconButton(EolssuIcons.ChevronDown, stringResource(Res.string.sheetedit_down), { onShift(-1) }, enabled = !note.isRest, size = 36.dp)
-        }
-    }
-}
-
-/** '16분음표 (반 정간)'처럼 음표 이름과 정간 길이. */
-@Composable
-private fun durationLabel(length: Double): String = when (staffDuration(length)) {
-    StaffDuration.Sixteenth -> stringResource(Res.string.sheetedit_duration_sixteenth)
-    StaffDuration.Eighth -> stringResource(Res.string.sheetedit_duration_eighth)
-    StaffDuration.DottedEighth -> stringResource(Res.string.sheetedit_duration_dotted_eighth)
-    StaffDuration.Quarter -> stringResource(Res.string.sheetedit_duration_quarter)
-    StaffDuration.DottedQuarter -> stringResource(Res.string.sheetedit_duration_dotted_quarter)
-    StaffDuration.Half -> stringResource(Res.string.sheetedit_duration_half)
-    StaffDuration.DottedHalf -> stringResource(Res.string.sheetedit_duration_dotted_half)
-    StaffDuration.Other -> stringResource(Res.string.sheetedit_duration_other, formatCells(length))
-}
-
-/** 정간 수를 소수 한 자리까지(2 · 2.5). */
-private fun formatCells(length: Double): String {
-    val tenths = kotlin.math.round(length * 10).toLong()
-    return if (tenths % 10 == 0L) "${tenths / 10}" else "${tenths / 10}.${tenths % 10}"
-}
-
-/** 오선보 음표의 읽기 이름: '3번째 태주 파(F4)'. 쉼표는 '3번째 쉼표'. */
-@Composable
-private fun staffNoteLabel(note: StaffNote, order: Int, hwang: HwangPitch): String {
-    val yul = note.yul
-    val name = if (yul == null) stringResource(Res.string.score_rest) else "${yul.fullName} ${staffPitch(yul, hwang).solfegeName}"
-    return stringResource(Res.string.sheetedit_staff_note_label, order, name)
-}
-
 /** EDIT-02에서도 띄우는 안내: 편집기에서 생긴 것과, 뒤에서 만들던 음원의 완료·실패·확인 못 함 알림. */
 internal fun SheetEditMessage.shownInEditor(): Boolean = this in EditorMessages
 
 private val EditorMessages = setOf(
     SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge,
+    SheetEditMessage.Saved, SheetEditMessage.SavedForPractice, SheetEditMessage.SavedNeedsReview, SheetEditMessage.Draft,
     SheetEditMessage.ReviewBeforeReshape,
     SheetEditMessage.ComingSoon,
     SheetEditMessage.AudioReady,
