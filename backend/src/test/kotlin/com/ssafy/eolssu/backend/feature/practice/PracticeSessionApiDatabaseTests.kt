@@ -235,7 +235,7 @@ class PracticeSessionApiDatabaseTests {
 
     private fun session(userId: Long, songId: Long, status: String): Long {
         jdbc.update("""INSERT INTO practice_sessions (user_id, song_id, score_version, bpm, bpm_unit, end_note_idx, status, started_at)
-            VALUES (?, ?, 3, 90, 'DOTTED_QUARTER', 71, ?, '2026-10-27 03:00:00')""", userId, songId, status)
+            SELECT ?,id,score_version,90,'DOTTED_QUARTER',71,?,'2026-10-27 03:00:00' FROM songs WHERE id=?""", userId, status, songId)
         return jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long::class.java)!!
     }
 
