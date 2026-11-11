@@ -58,16 +58,12 @@ def glyphs(page):
 
 
 def vector_symbols(page, glyphs_):
-    """우물사이 PDF가 글자 대신 도형으로 그린 쉼표·옥타브 점을 읽는다.
-
-    변형 한자가 없는 음(중청대·배유·하배이 등)만 점을 옥타브로 해석한다.
-    일반 음 위의 점 하나를 스타카토가 아닌 청음으로 바꾸지 않는다.
-    """
+    """글자 대신 도형으로 그린 삼각 쉼표를 읽는다. 점으로 음역을 추정하지 않는다."""
     sizes = sorted(n["size"] for n in glyphs_ if n["c"] in NOTE and n["c"] not in "-△")
     if not sizes:
         return glyphs_
     size = sizes[len(sizes) // 2]
-    rests, dots, clips = [], [], []
+    rests, clips = [], []
     for d in page.get_drawings(extended=True):
         while clips and clips[-1][0] >= d["level"]:
             clips.pop()
@@ -80,10 +76,6 @@ def vector_symbols(page, glyphs_):
         if clips and not clips[-1][1].contains(r):
             continue
         cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
-        if (d.get("fill") is not None and d.get("fill_opacity", 1) > 0 and
-                len(items) in (4, 8) and all(it[0] == "c" for it in items) and
-                0.04 * size <= r.width <= 0.35 * size and 0.85 <= r.height / r.width <= 1.15):
-            dots.append((cx, cy, r.width))
         if not (len(items) == 3 and all(it[0] == "l" for it in items) and
                 0.35 * size <= r.width <= 1.8 * size and 0.6 <= r.height / r.width <= 1.4):
             continue
@@ -100,26 +92,7 @@ def vector_symbols(page, glyphs_):
             continue
         rests.append(dict(c="△", x=cx, y=cy, size=size, i=len(glyphs_) + len(rests)))
 
-    bases = {h: y for y, h in BASE.items()}
-    assigned = defaultdict(list)
-    for x, y, width in dots:
-        nearby = [n for n in glyphs_ if n["c"] in bases and abs(n["x"] - x) < n["size"] * 0.18
-                  and n["size"] * 0.25 < abs(n["y"] - y) < n["size"] * 1.1]
-        if nearby:
-            note = min(nearby, key=lambda n: abs(n["y"] - y))
-            assigned[(note["i"], y < note["y"])].append((y, width))
-    result = [dict(n) for n in glyphs_]
-    for (idx, above), group in assigned.items():
-        count = len(group)
-        prefix = ({2: "중청"} if above else {1: "배", 2: "하배", 3: "하하배"}).get(count)
-        n = result[idx]
-        if not prefix or bases[n["c"]] in OCT.get(prefix, {}):
-            continue
-        ordered = sorted(group)
-        if any(not 0.8 * a[1] <= b[0] - a[0] <= 2.5 * a[1] for a, b in zip(ordered, ordered[1:])):
-            continue
-        n["note"] = prefix + bases[n["c"]]
-    return result + rests
+    return glyphs_ + rests
 
 
 def lines(page):
@@ -194,7 +167,7 @@ def cell_text(notes, top, bottom):
         slots = [whole] if len(row) == 1 else [left, right] if len(row) == 2 else None
         if slots is None or None in slots:
             raise ValueError(f"한 행에 글자 {len(row)}개는 지원하지 않음: {''.join(n['c'] for n in row)}")
-        toks += [f":{p} {n.get('note', NOTE[n['c']])}" for p, n in zip(slots, row)]
+        toks += [f":{p} {NOTE[n['c']]}" for p, n in zip(slots, row)]
     return " ".join(toks), split
 
 

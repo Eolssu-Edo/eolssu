@@ -118,7 +118,7 @@ uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
 
 정간보 글자 층 엔진 2(`jeongganbo-text/standard_score_text@2`)는 장단 패턴의 칸 음가를 BPM 박으로 환산합니다. 단모리의 8분 소박 8칸은 4분 박 4개여서 4정간 각이 120 BPM에서 2초입니다. 엇모리·타령·계면가락도드리의 8분 칸과 세령산의 점4분 칸도 구분합니다. `uv run pytest tests/unit/test_omr_text_engine.py tests/unit/test_omr_staff_engine.py`로 장단별 단위와 PDF→공통 악보→합성 시간축을 검사합니다. 기존 저장 악보와 내려받은 음원은 이 코드 변경으로 자동 교정되지 않습니다.
 
-엔진 3(S15P31E102-741)은 이 시간 환산을 유지하고, 우물사이 PDF의 도형 옥타브 점·삼각 쉼표·각 경계의 명시적 이음을 복구합니다. `score_data`의 기존 검수 JGB·오선보 기본 동작은 유지하고 글자 층 PDF만 `continue_explicit_ties=True`로 변환합니다. [실제 PDF 전후 근거와 편집 안내](../docs/knowledge/frontend/sheet-pitch-conversion-corrections.md)를 참고하세요.
+엔진 3(S15P31E102-741)은 이 시간 환산을 유지하고, PDF의 도형 삼각 쉼표·각 경계의 명시적 이음을 복구합니다. 우물사이 전용 옥타브 점 인식은 포함하지 않으며, 점으로 한자의 음역을 추정하지 않습니다. `score_data`의 기존 검수 JGB·오선보 기본 동작은 유지하고 글자 층 PDF만 `continue_explicit_ties=True`로 변환합니다. [실제 PDF 전후 근거와 편집 안내](../docs/knowledge/frontend/sheet-pitch-conversion-corrections.md)를 참고하세요.
 
 오선보는 `src/omr_service/staff_engine.py`가 쪽마다 Audiveris를 별도 프로세스로 돌리고(쪽당 60초와 남은 요청 시간 중 짧은 쪽, 넘으면 끝냄), 쪽들의 MusicXML을 이어 `staff_musicxml.py`로 정간보 줄을 만든 뒤 글자 층과 같은 변환을 거칩니다. 명령은 `AUDIVERIS_CMD`(기본 `audiveris`)이고, 테스트(`tests/unit/test_omr_staff_engine.py`)는 가짜 Audiveris를 씁니다.
 
