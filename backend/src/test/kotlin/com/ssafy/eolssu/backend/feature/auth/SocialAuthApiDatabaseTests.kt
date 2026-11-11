@@ -120,6 +120,23 @@ class SocialAuthApiDatabaseTests {
         assertEquals(listOf("apple-refresh"),revoked.toList())
     }
 
+    @Test fun `apple reauthentication withdraws with its ticket`() {
+        val flow=appleFlow(true)
+        val linked=send("/api/users/me/social-accounts/apple","""{"authorizationCode":"apple","redirectUri":"https://example.test/callback","state":"${flow.first}"}""",flow.second+"; "+accessCookie())
+        assertEquals(201,linked.statusCode(),linked.body())
+        val started=send("/api/users/me/withdrawal/oauth/apple/start","""{"redirectUri":"https://example.test/callback"}""",accessCookie())
+        assertEquals(200,started.statusCode(),started.body())
+        val binding=started.headers().firstValue("Set-Cookie").orElseThrow().substringBefore(';')
+        val url=json.readTree(started.body()).path("result").path("authorizationUrl").asString()
+        val state=URLDecoder.decode(URI(url).rawQuery.substringAfter("state=").substringBefore('&'),Charsets.UTF_8)
+        val confirmed=send("/api/users/me/withdrawal/oauth/apple","""{"authorizationCode":"apple","redirectUri":"https://example.test/callback","state":"$state"}""","${accessCookie()}; $binding")
+        assertEquals(200,confirmed.statusCode(),confirmed.body())
+        val ticket=json.readTree(confirmed.body()).path("result").path("withdrawalTicket").asString()
+        val withdrawn=send("/api/users/me","""{"withdrawalTicket":"$ticket"}""","${accessCookie()}; $binding","DELETE")
+        assertEquals(200,withdrawn.statusCode(),withdrawn.body())
+        assertEquals("WITHDRAWAL_PENDING",jdbc.queryForObject("SELECT status FROM users WHERE id=990211",String::class.java))
+    }
+
     @Test fun `apple merge carries the token through its ticket and password withdrawal revokes it`() {
         revoked.clear()
         val flow=appleFlow(false)

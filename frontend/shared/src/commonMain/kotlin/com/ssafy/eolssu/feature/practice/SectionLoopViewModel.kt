@@ -11,6 +11,7 @@ import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.data.practice.WeakSectionRepository
+import com.ssafy.eolssu.data.practice.WeakSectionSource
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -48,6 +49,7 @@ class SectionLoopViewModel(
     private val _uiState = MutableStateFlow(SectionLoopUiState(section = section, bpm = bpm, repeats = repeats))
     val uiState: StateFlow<SectionLoopUiState> = _uiState.asStateFlow()
     private var job: Job? = null
+    private var loadedSource: WeakSectionSource? = null
 
     init {
         settingsStore?.let { store ->
@@ -55,6 +57,7 @@ class SectionLoopViewModel(
         }
         viewModelScope.launch(perf.context()) {
             val source = repository.source(sourceId)
+            loadedSource = source
             _uiState.update {
                 it.copy(
                     loading = false,
@@ -99,6 +102,11 @@ class SectionLoopViewModel(
         val recorder = recorder ?: return notice(SectionLoopNotice.NoRecorder)
         val notes = noteRange(song, section) ?: return notice(SectionLoopNotice.NoNotes)
         job = viewModelScope.launch {
+            when (loadedSource?.let { repository.isCurrent(it) }) {
+                false -> return@launch notice(SectionLoopNotice.ScoreChanged)
+                null -> return@launch notice(SectionLoopNotice.ScoreUnavailable)
+                true -> Unit
+            }
             val granted = micPermission?.let { it.isGranted() || it.request() } ?: true
             if (!granted) {
                 notice(if (micPermission?.isPermanentlyDenied() == true) SectionLoopNotice.MicBlocked else SectionLoopNotice.MicDenied)
@@ -123,6 +131,7 @@ class SectionLoopViewModel(
             delay(CountdownTickMillis)
             _uiState.update { it.countdownTick() }
         }
+        val recordedVersion = _uiState.value.song?.scoreVersion
         if (runCatching { recorder.start() }.isFailure) {
             _uiState.update { it.endRecording(SectionLoopNotice.RecordFailed) }
             return
@@ -138,7 +147,7 @@ class SectionLoopViewModel(
             _uiState.update { it.advance() }
         }
         val audio = runCatching { recorder.stop() }.getOrNull()
-        val take = audio?.takeUnless { it.tooLarge }?.let { RecordedTake(it.path, key) }
+        val take = audio?.takeUnless { it.tooLarge }?.let { RecordedTake(it.path, key, recordedVersion) }
         if (take == null) {
             _uiState.update { it.endRecording(SectionLoopNotice.RecordFailed) }
             return

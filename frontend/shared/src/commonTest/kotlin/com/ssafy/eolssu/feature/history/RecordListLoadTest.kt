@@ -20,7 +20,7 @@ internal class RecordListLoadTest : CatalogViewModelTest() {
     private class Records(var ok: Boolean) : PracticeRecordRepository {
         override val records: StateFlow<List<PracticeRecord>> = MutableStateFlow(emptyList())
         var refreshes = 0
-        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String) = error("쓰지 않음")
+        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String) = error("쓰지 않음")
         override suspend fun updateMemo(recordId: String, memo: String) = Unit
         override suspend fun refresh(): Boolean {
             refreshes++

@@ -29,6 +29,8 @@ data class SectionSelectUiState(
     val speed: TempoStep = TempoStep.Slow,
     /** 서버가 추천한 취약 구간(EVA-03, 각 전체). 추천할 구간이 없거나 받지 못하면 null이고 정간을 눌러 직접 고른다. */
     val recommended: ScoreSection? = null,
+    /** null은 현재 판본 조회 실패, false는 이전 판본이다. */
+    val currentScore: Boolean? = true,
 ) {
     /** 구간 반복 화면에 넘길 반복 횟수. 반복을 끄면 1, ‘계속’이면 null. */
     val repeats: Int? get() = if (loop) repeat.count else 1
@@ -36,7 +38,7 @@ data class SectionSelectUiState(
     val bpm: Int? get() = song?.let { speed.bpm(it.baseBpm) }
 
     /** 구간을 골라 연습을 시작할 수 있는지. 끝 정간을 기다리는 중에는 한 정간 구간으로 시작하지 않는다. */
-    val canStart: Boolean get() = section != null && !picking
+    val canStart: Boolean get() = section != null && !picking && currentScore == true
 }
 
 /**

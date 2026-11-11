@@ -10,8 +10,9 @@ class MyBatisPracticeScoreNotes(private val mapper: PracticeAnalysisMapper, json
     private val scoreNotes = ScoreJsonNotes(jsonMapper)
 
     override fun notesFor(analysis: PendingAnalysis): List<ScoreNote> {
-        val score = mapper.findScore(analysis.songId) ?: throw ScoreNotesException("song ${analysis.songId} not found")
-        // 세션을 만든 뒤 악보가 바뀌었으면 음표 번호가 어긋나 채점하지 않는다.
+        val score = mapper.findScoreRevision(analysis.songId, analysis.scoreVersion)
+            ?: throw ScoreNotesException("song ${analysis.songId} score revision ${analysis.scoreVersion} not found")
+        // 보관 판본을 포함해 조회한 정답은 세션에 기록된 판본과 같아야 한다.
         if (score.scoreVersion != analysis.scoreVersion) throw ScoreNotesException("score version changed since the session started")
         val pitches = mapper.findPitches().associateBy { it.yul to it.octave.toInt() }
         return scoreNotes.notes(score.scoreJson, analysis.startNoteIdx, analysis.endNoteIdx, pitches)

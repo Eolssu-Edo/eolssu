@@ -31,11 +31,12 @@ import eolssu.shared.generated.resources.song_info_bpm
 import eolssu.shared.generated.resources.song_info_instrument
 import eolssu.shared.generated.resources.song_info_jangdan
 import eolssu.shared.generated.resources.song_info_level
-import eolssu.shared.generated.resources.song_start_practice
+import eolssu.shared.generated.resources.song_start_evaluation
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * SONG-02 본문(휴대폰·태블릿 공통, 보드 `Song-Detail` 순서): 악보 표지 · 제목과 난이도 · 곡 소개 · 정보 격자 · '이 곡 연습하기 →'.
+ * SONG-02 본문(휴대폰·태블릿 공통, 보드 `Song-Detail` 순서): 악보 표지 · 제목과 난이도 · 곡 소개 · 정보 격자 · '연주 평가 시작'.
+ * '연주 평가 시작'([onStartPractice])은 연주 평가 화면의 대기 상태로 가고, 평가는 그 화면의 '평가 시작'으로 시작한다(S15P31E102-747).
  * 태블릿은 표지에 [coverColumns]각을 보이고([large]면 정간을 키운다) 정보 격자를 4열([infoColumns])로 둔다.
  */
 @Composable
@@ -60,7 +61,7 @@ internal fun SongDetailBody(
             )
         }
         SongInfoGrid(song, Modifier.padding(vertical = 20.dp), columns = infoColumns)
-        EolssuButton(stringResource(Res.string.song_start_practice), onStartPractice, Modifier.padding(top = 12.dp))
+        EolssuButton(stringResource(Res.string.song_start_evaluation), onStartPractice, Modifier.fillMaxWidth().padding(top = 12.dp), compact = true)
     }
 }
 

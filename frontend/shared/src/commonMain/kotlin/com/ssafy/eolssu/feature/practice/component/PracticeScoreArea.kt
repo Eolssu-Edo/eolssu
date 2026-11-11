@@ -25,9 +25,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -65,7 +63,6 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_follow_now
-import eolssu.shared.generated.resources.practice_score_hint
 import org.jetbrains.compose.resources.stringResource
 
 /** 연습 악보를 놓는 배치. 정간 크기·여백과 두 단 나누기가 달라진다. */
@@ -123,7 +120,7 @@ fun PracticeScoreArea(
         }
         val recording = state.mode == PracticeMode.Recording || state.resuming
         val playback = state.scorePlayback()
-        val notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege)
+        val notation = ScoreNotation(state.settings.showHangul)
         // 한 음씩 따라 불기는 진행 모습(playback) 없이 지금 음의 정간에만 연두 테두리를 둔다(곁줄에는 표시하지 않는다).
         val currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex
         val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
@@ -147,6 +144,7 @@ fun PracticeScoreArea(
                 onUnitClick = onUnitClick,
                 annotations = annotations,
                 unitMarks = pitchMarks,
+                unitMarksAfterPass = true,
             )
         } else {
             val bandHeight = (maxHeight - BandGap) / 2
@@ -169,6 +167,7 @@ fun PracticeScoreArea(
                         columns = first until minOf(first + bandColumns, columnCount),
                         annotations = annotations,
                         unitMarks = pitchMarks,
+                        unitMarksAfterPass = true,
                     )
                 }
             }
@@ -267,7 +266,7 @@ private fun rememberBandScroll(
 /**
  * 휴대폰 보드의 악보 영역. 각의 실제 높이로 위→아래 들어가는 수를 정하고 다음 묶음은 왼쪽에 둔다.
  * 3줄 이상의 소박 표기 정간은 높이를 늘린다. 공간이 부족하면 정간과 글자를 함께 줄여 세로 스크롤 없이 좌우로만 넘긴다.
- * 아래에는 준비 상태 안내(‘율명을 누르면 운지법을 볼 수 있어요 · 오른쪽 각부터 읽어요’)와, 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다.
+ * 아래에는 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다.
  */
 @Composable
 fun PracticeBoardScore(
@@ -302,7 +301,7 @@ fun PracticeBoardScore(
                     modifier = Modifier.observeFirstDraw(PerfPhase.PRACTICE_DRAWN).fillMaxWidth()
                         .then(if (bounded) Modifier.fillMaxHeight().clipToBounds() else Modifier),
                     metrics = packing.metrics,
-                    notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege),
+                    notation = ScoreNotation(state.settings.showHangul),
                     scrollState = rememberHorizontalScoreScroll(state),
                     currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex,
                     highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position,
@@ -319,16 +318,9 @@ fun PracticeBoardScore(
                     cellHeights = packing.cellHeights,
                     stackRowHeights = packing.stackRowHeights,
                     unitMarks = pitchMarks,
+                    unitMarksAfterPass = true,
                 )
             }
-            // 준비 안내의 공간을 재생 중에도 유지해 악보 높이/묶음 수가 변하지 않게 한다.
-            Text(
-                stringResource(Res.string.practice_score_hint),
-                modifier = Modifier.padding(top = 8.dp).alpha(if (state.mode == PracticeMode.Ready) 1f else 0f)
-                    .then(if (state.mode == PracticeMode.Ready) Modifier else Modifier.clearAndSetSemantics {}),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
-                color = colors.textMuted,
-            )
             if (state.live && !state.follow) {
                 // 보드 `.score-follow`: 오른쪽 정렬 작은 버튼.
                 val shape = RoundedCornerShape(8.dp)
@@ -352,6 +344,7 @@ fun PracticeBoardScore(
 /**
  * 평가 연주에서 음마다 모은 실시간 음높이 안내를 그 음의 표시 자리에 칠한다(S15P31E102-597).
  * 맞음은 연두, 다른 음은 주황, 판단 보류는 회색 테두리만 둔다. 연주 후 채점의 틀린 칸 표시와 달리 아이콘·문구는 없다.
+ * 연주 중에는 진행 채움이 그 자리를 다 지난 뒤에 칠한다(S15P31E102-752).
  */
 @Composable
 private fun livePitchCellMarks(marks: Map<ScoreUnitKey, LivePitchMark>): Map<ScoreUnitKey, ScoreCellMark> {

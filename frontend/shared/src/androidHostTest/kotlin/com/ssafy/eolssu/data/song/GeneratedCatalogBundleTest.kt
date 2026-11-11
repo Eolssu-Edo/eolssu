@@ -39,7 +39,7 @@ class GeneratedCatalogBundleTest {
             assertEquals(value("sourceCommonSha256"), sourceHash, caseId)
             val common = CommonScoreData.decode(bytes.toString(Charsets.UTF_8))
             val song = Song((index + 1).toString(), common.score.title, SongLevel.Intro, null,
-                value("defaultBpm").toDouble().toInt(), "", false, null, common.toScore(), scoreVersion = 1,
+                value("defaultBpm").toDouble().toInt(), "", false, common.toScore(), scoreVersion = 1,
                 noteCount = value("noteCount").toInt())
             instruments[common.score.instrument] = (instruments[common.score.instrument] ?: 0) + 1
             val audioData = case.getValue("audio").jsonObject

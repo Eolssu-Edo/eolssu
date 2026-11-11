@@ -11,11 +11,9 @@ import kotlinx.coroutines.withContext
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.EvaluationResult
+import com.ssafy.eolssu.core.model.EvaluationNote
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.MetricScore
-import com.ssafy.eolssu.core.model.ScoreError
-import com.ssafy.eolssu.core.model.ScoreErrorKind
-import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.apiResponse
@@ -92,7 +90,7 @@ class ApiEvaluationRepository(
         if (!evaluationId.isServerId()) return@inSession fallback?.resultForScreen(evaluationId, initialSong)
         val account = member?.session?.value
         val evaluation = fetchEvaluation(evaluationId) ?: return@inSession null
-        ScreenEvaluation(evaluation.toResult(null)) {
+        ScreenEvaluation(evaluation.toResult()) {
             member.inSession {
                 if (member?.session?.value != account) throw CancellationException("로그인 세션이 변경됨")
                 loadDetails(evaluation, initialSong)
@@ -116,14 +114,14 @@ class ApiEvaluationRepository(
             PerfTarget.SONG_BUNDLE, carried.id, PerfSource.NAVIGATION, carried.scoreVersion,
         )
         val song = carried ?: if (initialSong?.id == evaluation.songId && currentCoroutineContext()[PerformanceVisit] != null) {
-            withContext(PerformanceReason(PerfReason.VERSION_MISMATCH)) { songs.getSong(evaluation.songId) }
-        } else songs.getSong(evaluation.songId)
+            withContext(PerformanceReason(PerfReason.VERSION_MISMATCH)) { songs.getSong(evaluation.songId, evaluation.scoreVersion) }
+        } else songs.getSong(evaluation.songId, evaluation.scoreVersion)
         if (song == null) return null
         if (song.id != evaluation.songId || song.scoreVersion != evaluation.scoreVersion) return null
-        return evaluation.toResult(song.timeline) to song
+        return evaluation.toResult().withScore(song) to song
     }
 
-    private fun Evaluation.toResult(timeline: List<ScoreEvent>?): EvaluationResult {
+    private fun Evaluation.toResult(): EvaluationResult {
         val startedMillis = Instant.parse(startedAt).toEpochMilliseconds()
         val endedMillis = endedAt?.let { Instant.parse(it).toEpochMilliseconds() }
         return EvaluationResult(
@@ -137,39 +135,15 @@ class ApiEvaluationRepository(
                 MetricScore(EvaluationMetric.Rhythm, timingScore),
                 MetricScore(EvaluationMetric.Length, durationScore),
             ),
-            errors = timeline?.let { noteErrors(it) }.orEmpty(),
-            eventErrors = timeline?.let { eventErrors(it) }.orEmpty(),
+            errors = emptyList(),
             bpm = bpm,
             recordedSeconds = recordingDurationMs?.let { (it / 1000.0).roundToInt() }
                 ?: endedMillis?.let { ((it - startedMillis) / 1000.0).roundToInt() } ?: 0,
             recordedAt = KoreanDateTime.fromEpochMillis(startedMillis),
+            notes = notes.map { EvaluationNote(it.noteIdx, it.verdict) },
             sample = false,
             scoreVersion = scoreVersion,
         )
-    }
-
-    /**
-     * 틀린 음표를 악보 칸에 놓는다. `noteIdx`는 같은 악보에서 율명 음(지속·쉼 제외)만 연주 순서로 센 번호다.
-     * `PITCH`·`TIMING`·`MISSED`를 각각 음정·박자·소리 없음으로 표시한다.
-     * 알 수 없는 판정이나 해당 악보에 없는 음표 번호는 정상 결과로 표시하지 않는다.
-     */
-    private fun Evaluation.noteErrors(timeline: List<ScoreEvent>): List<ScoreError> {
-        val pitches = timeline.filter { it.noteIndex != null }.associateBy { it.noteIndex }
-        return notes.mapNotNull { note ->
-            val event = checkNotNull(pitches[note.noteIdx]) { "평가 음표가 현재 악보에 없습니다" }
-            val kind = ScoreErrorKind.fromVerdict(note.verdict) ?: return@mapNotNull null
-            ScoreError(column = event.column, row = event.row, kind = kind)
-        }.distinct()
-    }
-
-    /** 틀린 음표를 연주 순서([ScoreEvent.index])에 놓는다. 정간을 나눈 소박마다 어떤 판정인지 보여줄 때 쓴다. */
-    private fun Evaluation.eventErrors(timeline: List<ScoreEvent>): Map<Int, List<ScoreErrorKind>> {
-        val pitches = timeline.filter { it.noteIndex != null }.associateBy { it.noteIndex }
-        return notes.mapNotNull { note ->
-            val event = pitches[note.noteIdx] ?: return@mapNotNull null
-            val kind = ScoreErrorKind.fromVerdict(note.verdict) ?: return@mapNotNull null
-            event.index to kind
-        }.groupBy({ it.first }, { it.second }).mapValues { (_, kinds) -> kinds.distinct().sorted() }
     }
 
     private companion object {

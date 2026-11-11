@@ -37,6 +37,7 @@ import com.ssafy.eolssu.feature.guide.learn.LearnTitleFontSize
 import com.ssafy.eolssu.feature.guide.learn.LearnStage
 import com.ssafy.eolssu.feature.guide.learn.LearnStageActions
 import com.ssafy.eolssu.feature.guide.learn.LearnStageBottomBar
+import com.ssafy.eolssu.feature.guide.learn.StepPractice
 import com.ssafy.eolssu.feature.guide.learn.LearnStageColumns
 import com.ssafy.eolssu.feature.guide.learn.LearnStageContent
 import com.ssafy.eolssu.feature.guide.learn.rememberLearnTour
@@ -67,6 +68,7 @@ internal fun LearnExpandedLayout(
     listActions: LearnListActions,
     stageActions: LearnStageActions,
     noteAudioContent: @Composable (FingeringNote) -> Unit,
+    practice: StepPractice? = null,
 ) {
     val colors = EolssuTheme.colors
     Scaffold(
@@ -100,7 +102,7 @@ internal fun LearnExpandedLayout(
                 VerticalDivider(color = colors.line)
                 // 단계 목록을 받기 전·받지 못했으면 오른쪽 칸을 비운다(왼쪽 칸이 상태와 '다시 시도'를 보인다).
                 if (stage == null) return@Row
-                val tour = rememberLearnTour(stage.number)
+                val tour = rememberLearnTour(stage.number, state.instrument, { stageActions.stepsDone(stage.number) }) { stageActions.onStepsDone(stage.number, it) }
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     EolssuTopBar(
                         learnStageTitle(stage),
@@ -122,6 +124,7 @@ internal fun LearnExpandedLayout(
                                 contentPadding = PaddingValues(start = GuideTabletSidePadding, end = outer, bottom = 24.dp),
                                 columns = if (wide) LearnStageColumns.Landscape else LearnStageColumns.Compact,
                                 tour = tour,
+                                practice = practice,
                             )
                         }
                     }
@@ -132,7 +135,7 @@ internal fun LearnExpandedLayout(
                             .windowInsetsPadding(WindowInsets.navigationBars)
                             .padding(start = GuideTabletSidePadding, end = outer, top = 14.dp, bottom = 24.dp),
                     ) {
-                        GuideTabletBottomContent { LearnStageBottomBar(state, stage, stageActions, tour) }
+                        GuideTabletBottomContent { LearnStageBottomBar(state, stage, stageActions, tour, practice) }
                     }
                 }
             }

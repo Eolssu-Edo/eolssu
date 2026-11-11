@@ -9,6 +9,7 @@ data class UserRow(
     val nickname: String?,
     val instrumentId: Long,
     val notationMode: String,
+    val profileImage: String,
     val status: String,
     val lastLoginAt: LocalDateTime?,
     val withdrawalRequestedAt: LocalDateTime?,

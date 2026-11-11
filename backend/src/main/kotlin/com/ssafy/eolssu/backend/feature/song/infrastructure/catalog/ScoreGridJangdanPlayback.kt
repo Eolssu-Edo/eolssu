@@ -31,14 +31,15 @@ class ScoreGridJangdanPlayback(
             "중모리", "타령", "계면가락도드리" -> 12 * ticksPerJeonggan
             "엇모리" -> 10 * ticksPerJeonggan
             "단모리" -> 4 * ticksPerJeonggan
+            "4박 기본 반주" -> if (score.bpmUnit == "QUARTER") 4 * ticksPerBeat else return null
             else -> return null
         }
 
         if (cycleTicks !in 1..1_000_000_000) return null
 
-        // The current score format has no separate downbeat marker for a pickup.
+        // The score origin anchors the jangdan downbeat, including when the melody starts with a rest.
         val first = source.path("events").path(0)
-        if (first.path("kind").stringValue() != "NOTE" || first.path("cellId").stringValue() != "c0-j0" ||
+        if (first.path("cellId").stringValue() != "c0-j0" ||
             !first.path("startTick").isIntegralNumber || first.path("startTick").longValue() != 0L) return null
         val columns = source.path("columns")
         if (!columns.isArray || columns.isEmpty || columns.any {
@@ -54,9 +55,10 @@ class ScoreGridJangdanPlayback(
         }
         val beats = pattern.path("beats")
         val group = pattern.path("group")
+        // Clients schedule subdivisions as fractions of cycleTicks, including half-tick Danmori cells.
         if (!beats.isArray || beats.size() !in 1..64 || beats.any { !it.isString } || beats.none { it.asString().isNotBlank() } ||
             !group.isArray || group.any { !it.isInt || it.intValue() <= 0 } ||
-            group.sumOf { it.longValue() } != beats.size().toLong() || cycleTicks % beats.size() != 0L) return null
+            group.sumOf { it.longValue() } != beats.size().toLong()) return null
 
         return ScoreJangdanPlayback(jangdan.id.toString(), jangdan.name, 0, cycleTicks,
             JangdanPlaybackPattern(beats.toList().map { it.asString() }, group.toList().map { it.intValue() }))

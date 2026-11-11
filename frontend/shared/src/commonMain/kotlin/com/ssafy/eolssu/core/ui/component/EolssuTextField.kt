@@ -78,7 +78,8 @@ fun EolssuTextField(
                     TextFieldType.Text -> KeyboardType.Text
                     TextFieldType.Email -> KeyboardType.Email
                     TextFieldType.Password -> KeyboardType.Password
-                    TextFieldType.Number -> KeyboardType.NumberPassword
+                    // BPM·인증번호 등 일반 숫자를 자격 증명으로 분류하지 않는다.
+                    TextFieldType.Number -> KeyboardType.Number
                 },
                 autoCorrectEnabled = type == TextFieldType.Text,
                 imeAction = imeAction,

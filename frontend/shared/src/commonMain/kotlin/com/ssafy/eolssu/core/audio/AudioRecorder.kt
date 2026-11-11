@@ -18,6 +18,8 @@ data class PitchReading(
     val analysisAvailable: Boolean = true,
     /** 2회 확인 전 원시 분석값. frequencyHz가 미확정이어도 보존한다. */
     val rawFrequencyHz: Double? = frequencyHz,
+    /** 분석한 창의 RMS 크기(dBFS). 분석하지 않았거나 크기를 재지 않는 플랫폼은 null이다. 높이를 못 구한 이유를 가르는 진단용이다. */
+    val inputDbfs: Double? = null,
 )
 
 /** 녹음 중단과 재개 시 파일 위치와 입력 시각의 대응점. */
@@ -48,8 +50,9 @@ object RecordingSpec {
 /**
  * 평가에 넘길 마친 녹음. [key]는 이 녹음으로 만들 연습 세션의 `Idempotency-Key`이며, 녹음을 새로 시작할 때마다 바뀐다.
  * 세션 생성 응답을 놓쳐 다시 만들 때 같은 키를 써서 세션이 하나만 생기게 한다.
+ * [scoreVersion]은 녹음을 시작할 때 사용한 공개 악보 판본이며, 이후 현재 판본으로 바꾸지 않는다.
  */
-data class RecordedTake(val path: String, val key: String)
+data class RecordedTake(val path: String, val key: String, val scoreVersion: Int? = null)
 
 /** 녹음을 마친 m4a 파일. */
 data class RecordedAudio(val path: String, val bytes: Long) {
@@ -64,6 +67,19 @@ data class RecordedAudio(val path: String, val bytes: Long) {
 interface AudioRecorder {
     /** 실시간 음높이 관측을 지원하지 않는 플랫폼은 null이다. */
     val pitchReadings: Flow<PitchReading>? get() = null
+
+    /**
+     * 개발용 음높이 진단을 화면에 보여도 되는지. 디버그 빌드에서만 true이며, 연습 화면이 한 음씩 음높이 막대(S15P31E102-666)를 그린다.
+     */
+    val diagnostics: Boolean get() = false
+
+    /**
+     * 실시간 음높이 관측이 높이를 구할 조건. 한 음씩이 단소처럼 김 소리가 많은 악기에서만 [PitchGate.Lenient]로 바꾸고 멈출 때 되돌린다.
+     * 관측을 지원하지 않는 플랫폼은 값을 무시한다.
+     */
+    var pitchGate: PitchGate
+        get() = PitchGate.Default
+        set(_) {}
 
     /** 현재 녹음 구간의 입력 경계. */
     val captureBoundary: CaptureBoundary? get() = null

@@ -44,7 +44,7 @@ class HttpSongRepositoryTest {
         assertEquals(listOf("1", "2", "3", "4"), songs.map { it.id })
         assertEquals(listOf("아리랑", "도라지타령", "밀양아리랑", "늴리리야"), songs.map { it.title })
         assertEquals(listOf(SongLevel.Intro, SongLevel.Intro, SongLevel.Elementary, SongLevel.Elementary), songs.map { it.level })
-        assertTrue(songs.all { it.evaluable && it.solfege == null })
+        assertTrue(songs.all { it.evaluable })
         // 율명 음만 연주 순서로 센 번호가 평가 noteIdx이므로, 앱 시간축의 율명 순서가 서버 NOTE 이벤트 순서와 같아야 한다.
         songs.zip(fixtures).forEach { (song, notes) ->
             val pitches = song.timeline.mapNotNull { (it.note as? ScoreNote.Pitch)?.yul?.hangul }

@@ -105,12 +105,14 @@ data class CommonScoreData(
                     val eventStart = requireNotNull(event.startTick)
                     val eventEnd = eventStart + requireNotNull(event.durationTick)
                     checkScore(start + Epsilon >= eventStart && start + duration <= eventEnd + Epsilon, cell.id, "표시 자리가 연결된 이벤트 시간 밖이다")
-                    if (event.id == "${cell.id}-r${unit.row}-u${unit.col}") {
+                    val isOrigin = event.id == "${cell.id}-r${unit.row}-u${unit.col}"
+                    if (isOrigin) {
                         checkScore(abs(start - eventStart) < Epsilon, event.id, "이벤트 시작 tick과 표시 위치가 다르다")
                     }
                     when (unit.symbol) {
                         "", "-" -> {
-                            checkScore(event.note == ScoreNote.Rest || event.column == column.index, cell.id, "NOTE 이음이 각 경계를 넘었다")
+                            // 각을 넘어 이어지는 음도 위에서 검증한 이벤트 시간 범위 안의 표시 자리다.
+                            checkScore(!isOrigin || event.note == ScoreNote.Rest, cell.id, "시작 음의 표시 율명이 없다")
                             if (unit.symbol.isEmpty()) ScoreNote.Blank else ScoreNote.Hold
                         }
                         "쉼" -> {

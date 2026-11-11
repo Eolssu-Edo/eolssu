@@ -1,0 +1,7 @@
+<!-- 마이페이지 간편 로그인 줄의 네이버 로고: 카카오 로고와 같은 둥근 사각형(반지름 6/24)에 초록 바탕 · 흰 N 심볼(naver_symbol과 같은 모양). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="36dp" android:height="36dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#03C75A" android:pathData="M6,0H18A6,6 0,0 1,24 6V18A6,6 0,0 1,18 24H6A6,6 0,0 1,0 18V6A6,6 0,0 1,6 0Z" />
+    <group android:translateX="7.5" android:translateY="7.5" android:scaleX="0.45" android:scaleY="0.45">
+        <path android:fillColor="#FFFFFF" android:pathData="M13.56,10.7L6.17,0H0v20h6.44V9.3L13.83,20H20V0h-6.44z" />
+    </group>
+</vector>

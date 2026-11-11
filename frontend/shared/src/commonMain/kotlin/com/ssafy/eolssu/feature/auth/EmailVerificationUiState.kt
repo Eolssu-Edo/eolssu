@@ -26,7 +26,7 @@ internal val CodeError.needsNewCode: Boolean
     get() = this == CodeError.Expired || this == CodeError.TooManyAttempts || this == CodeError.NoLongerValid
 
 /**
- * AUTH-06 이메일 인증(가입 1/3)·AUTH-10 비밀번호 찾기(1/2) 입력 상태.
+ * AUTH-06 이메일 인증(이메일 가입 2/4)·AUTH-10 비밀번호 찾기(1/2) 입력 상태.
  * 인증번호를 보내면 [verificationId]가 생기고 인증번호 칸이 나온다. 남은 시간은 화면이 [secondsLeft]로 매초 다시 센다.
  */
 data class EmailVerificationUiState(

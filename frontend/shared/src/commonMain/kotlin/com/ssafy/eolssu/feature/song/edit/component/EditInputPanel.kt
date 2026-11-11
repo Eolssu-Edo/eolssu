@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -47,9 +48,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,6 +62,7 @@ import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
+import com.ssafy.eolssu.core.ui.score.ComposedGlyph
 import com.ssafy.eolssu.core.ui.score.ScoreSigimsaeGlyph
 import com.ssafy.eolssu.core.ui.score.scoreSigimsaeImage
 import com.ssafy.eolssu.feature.song.edit.BaseYuls
@@ -84,6 +89,7 @@ import eolssu.shared.generated.resources.sheetedit_key_input
 import eolssu.shared.generated.resources.sheetedit_key_rest
 import eolssu.shared.generated.resources.sheetedit_key_unavailable
 import eolssu.shared.generated.resources.sheetedit_register_cheong
+import eolssu.shared.generated.resources.sheetedit_register_base
 import eolssu.shared.generated.resources.sheetedit_register_tak
 import eolssu.shared.generated.resources.sheetedit_sig_chuseong
 import eolssu.shared.generated.resources.sheetedit_sig_jeonseong
@@ -106,8 +112,7 @@ class EditInputActions(
     val onSelectTab: (EditTab) -> Unit,
     val onPut: (ScoreNote) -> Unit,
     val onPutYul: (Yul) -> Unit,
-    val onRaiseRegister: () -> Unit,
-    val onLowerRegister: () -> Unit,
+    val onSelectRegister: (YulRegister) -> Unit,
     val onErase: () -> Unit,
     val onToggleSigimsae: (Sigimsae) -> Unit,
     val onRemoveSigimsae: (Int) -> Unit,
@@ -187,9 +192,9 @@ private fun legacySigimsaeName(value: Sigimsae): StringResource? = when (value.n
 }
 
 /**
- * 율명·기호 탭: `[탁] [청] … [⌫]` 줄, 12율 가로 스크롤 자판, 지속(ㅡ)·쉼(△).
+ * 율명·기호 탭: 다섯 음역 직접 선택, 12율 가로 스크롤 자판, 지속(ㅡ)·쉼(△)·지우기.
  * 자판 글자는 지금 음역 단계를 붙인 모양(청성이면 汰)으로 바뀌고, 서버에 등록되지 않은 음은 흐리게 막는다.
- * 탁·청 어느 쪽도 켜져 있지 않으면 기본음이다. 같은 버튼을 거듭 누르면 배탁·중청을 거쳐 기본으로 돌아온다.
+ * 기본음을 처음 선택하고, 어느 음역이든 한 번 눌러 직접 고른다.
  */
 @Composable
 private fun YulKeys(
@@ -205,22 +210,19 @@ private fun YulKeys(
     val notes = selectedSub?.let { listOfNotNull(draft.cells[selected].getOrNull(it)) } ?: draft.cells[selected]
     val current = notes.mapNotNull { it.pitchKey() }.toSet()
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            RegisterButton("亻", registerShortName(if (register.octave == -2) YulRegister.BaeTak else YulRegister.Tak), on = register.octave < 0, onClick = actions.onLowerRegister)
-            RegisterButton("氵", registerShortName(if (register.octave == 2) YulRegister.JungCheong else YulRegister.Cheong), on = register.octave > 0, onClick = actions.onRaiseRegister)
-            Box(Modifier.weight(1f))
-            // 다른 정간은 악보에서 직접 눌러 고른다(S15P31E102-550). 지우기는 휴대폰 키보드의 지우기 키처럼 줄 끝의 아이콘 버튼이다.
-            val eraseLabel = stringResource(Res.string.sheetedit_erase)
-            Surface(
-                onClick = actions.onErase,
-                modifier = Modifier.width(64.dp).height(48.dp).semantics { contentDescription = eraseLabel },
-                shape = RoundedCornerShape(10.dp),
-                color = colors.primary,
-                contentColor = colors.onPrimary,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(SheetEditIcons.Erase, contentDescription = null, modifier = Modifier.size(24.dp))
-                }
+        Row(
+            Modifier.fillMaxWidth().selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            YulRegister.entries.forEach { option ->
+                RegisterButton(
+                    register = option,
+                    name = registerShortName(option),
+                    on = register == option,
+                    onClick = { actions.onSelectRegister(option) },
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
         val listState = rememberLazyListState()
@@ -238,34 +240,56 @@ private fun YulKeys(
             }
             ScrollFades(listState)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SymbolKey(ScoreNote.Hold, stringResource(Res.string.sheetedit_key_hold), ScoreNote.Hold in notes) { actions.onPut(ScoreNote.Hold) }
             SymbolKey(ScoreNote.Rest, stringResource(Res.string.sheetedit_key_rest), ScoreNote.Rest in notes) { actions.onPut(ScoreNote.Rest) }
+            Box(Modifier.weight(1f))
+            val eraseLabel = stringResource(Res.string.sheetedit_erase)
+            Surface(
+                onClick = actions.onErase,
+                modifier = Modifier.width(64.dp).height(48.dp).semantics { contentDescription = eraseLabel },
+                shape = RoundedCornerShape(10.dp),
+                color = colors.primary,
+                contentColor = colors.onPrimary,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(SheetEditIcons.Erase, contentDescription = null, modifier = Modifier.size(24.dp))
+                }
+            }
         }
     }
 }
 
-/** 버튼 아래에 적는 음역 이름(탁·배탁·청·중청). */
+/** 버튼 아래에 적는 다섯 음역 이름. */
 @Composable
 private fun registerShortName(register: YulRegister): String = stringResource(
     when (register) {
         YulRegister.BaeTak -> Res.string.sheetedit_register_baetak_short
-        YulRegister.Tak, YulRegister.Base -> Res.string.sheetedit_register_tak
+        YulRegister.Tak -> Res.string.sheetedit_register_tak
+        YulRegister.Base -> Res.string.sheetedit_register_base
         YulRegister.Cheong -> Res.string.sheetedit_register_cheong
         YulRegister.JungCheong -> Res.string.sheetedit_register_jungcheong_short
     },
 )
 
 /**
- * 음역 버튼(48dp): 위에 정간보의 변(탁 亻 · 청 氵), 아래에 율명 자판처럼 작고 옅은 한글 이름(두 번 누르면 배탁·중청).
- * 그 음역이 걸려 있으면 연두 바탕에 먹색 테두리다.
+ * 음역 버튼: 변과 한글 이름을 각각 가운데에 놓는다. 기본의 변 공간은 비워 두되 한글 기준선을 유지한다.
+ * 기존 정간보 렌더러와 같은 부수(彳·亻·氵·氵氵)를 사용하고 선택은 연두 바탕·테두리·라디오 상태로 구별한다.
  */
 @Composable
-private fun RegisterButton(radical: String, name: String, on: Boolean, onClick: () -> Unit) {
+private fun RegisterButton(register: YulRegister, name: String, on: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
+    val radical = when (register) {
+        YulRegister.BaeTak -> "彳"
+        YulRegister.Tak -> "亻"
+        YulRegister.Base -> ""
+        YulRegister.Cheong -> "氵"
+        YulRegister.JungCheong -> "氵氵"
+    }
     Surface(
         onClick = onClick,
-        modifier = Modifier.width(48.dp).heightIn(min = 48.dp).semantics {
+        modifier = modifier.heightIn(min = 52.dp).semantics {
+            role = Role.RadioButton
             selected = on
             contentDescription = name
         },
@@ -274,9 +298,17 @@ private fun RegisterButton(radical: String, name: String, on: Boolean, onClick: 
         contentColor = if (on) colors.onPrimary else colors.text,
         border = BorderStroke(if (on) 2.dp else 1.dp, if (on) colors.text else colors.lineSoft),
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(vertical = 4.dp)) {
-            Text(radical, style = EolssuTheme.serif.yul.copy(fontSize = 19.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold))
-            Text(name, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = if (on) colors.text else colors.textMuted, maxLines = 1)
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+            Box(Modifier.fillMaxWidth().height(24.dp), contentAlignment = Alignment.Center) {
+                if (register == YulRegister.BaeTak) {
+                    // 彳은 글꼴에서 전각 폭의 가운데를 쓰지만 亻·氵는 왼쪽 절반만 쓴다.
+                    Text(radical, style = EolssuTheme.serif.yul.copy(fontSize = 19.sp, lineHeight = 19.sp))
+                } else if (radical.isNotEmpty()) {
+                    // 왼쪽 절반 부수는 렌더러와 같은 폭으로 줄여야 한글 중심과 맞는다.
+                    ComposedGlyph(radical, "", 19.sp, 19.sp, overlap = 0.45f)
+                }
+            }
+            Text(name, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = if (on) colors.text else colors.textMuted, maxLines = 1)
         }
     }
 }

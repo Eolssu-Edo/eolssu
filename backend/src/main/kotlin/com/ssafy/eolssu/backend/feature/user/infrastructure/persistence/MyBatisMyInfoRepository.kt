@@ -14,7 +14,7 @@ class MyBatisMyInfoRepository(
 ) : MyInfoRepository {
     override fun findActive(userId: Long) = users.findById(userId)
         ?.takeIf { it.status == "ACTIVE" }
-        ?.let { MyInfo(it.id, it.email, checkNotNull(it.nickname), it.instrumentId, it.notationMode, it.passwordHash != null) }
+        ?.let { MyInfo(it.id, it.email, checkNotNull(it.nickname), it.instrumentId, it.notationMode, it.passwordHash != null, it.profileImage) }
 
     override fun linkedProviders(userId: Long) =
         socialAccounts.findByUserId(userId).map { LinkedProvider(it.provider, it.createdAt.toInstant(ZoneOffset.UTC)) }
@@ -23,4 +23,5 @@ class MyBatisMyInfoRepository(
     override fun activeInstrumentExists(instrumentId: Long) = instruments.activeExists(instrumentId)
     override fun updatePreferences(userId: Long, instrumentId: Long?, notationMode: String?) =
         users.updatePreferences(userId, instrumentId, notationMode) == 1
+    override fun updateProfileImage(userId: Long, profileImage: String) = users.updateProfileImage(userId, profileImage) == 1
 }

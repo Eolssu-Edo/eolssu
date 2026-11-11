@@ -1,6 +1,30 @@
 # 프로젝트 문서
 
+- [마이페이지 진도 뱃지에 최근 기초 악기를 표시하고 간편 로그인·최근 연주·하단 문서 줄 정리 (759)](plans/S15P31E102-759.md)
+- [기초부터 배우기 3~7단계 연습 안내 간소화와 마이크 표시를 연주 평가와 통일 (749)](plans/S15P31E102-749.md)
+- [Blue Valentine 소금 제공 곡과 4박 반주 (746)](specs/blue-valentine-provided-song.md) · [계획·검증](plans/S15P31E102-746.md) · [생성·게시 근거](knowledge/data/sogeum-playback.md)
+- [DB 백업 정렬 메모리 부족 복구 (751)](plans/S15P31E102-751.md) · [계약](specs/backup-dump-sort-memory.md)
+- [마이페이지 프로필 그림을 절쑤 12종에서 골라 서버에 저장 (738)](plans/S15P31E102-738.md)
+- [마이페이지 화면을 테두리 없는 카드의 깔끔한 디자인으로 개선 (731)](plans/S15P31E102-731.md)
+- [내 악보 음역 선택과 변환 오류 수정 안내 (741)](plans/S15P31E102-741.md) · [스펙](specs/sheet-pitch-correction.md) · [PDF 오류 원인과 전후 대조](knowledge/frontend/sheet-pitch-conversion-corrections.md)
+- [공개곡 판본 보관·조회와 안전 게시 (745)](plans/S15P31E102-745.md) · [계약](specs/published-score-history.md) · [판본 보존 근거](knowledge/backend/published-score-history.md)
+
+- [정간보 쉽게 읽기 QA 반영: 한 화면 쪽 카드 크기 통일과 불필요한 안내 정리 (742)](plans/S15P31E102-742.md)
+- [연주 평가 시작 시 서비스 마이크 안내 창 없이 기기 권한 요청만 표시 (733)](plans/S15P31E102-733.md)
+- [내 악보 편집 도구와 오류 정간 표시 정리 (736)](plans/S15P31E102-736.md) · [초기 오류 표시와 정간 이동 근거](knowledge/frontend/sheet-editor-save-validation.md#초기-오류-표시와-실제-정간으로-이동-736)
+
+- [기존 정간보 장단·빠르기 전수 조사와 교정 (728)](knowledge/data/common/rhythm-metronome/README.md) · [스펙](specs/score-tempo-correction.md) · [전체 근거표](knowledge/data/common/rhythm-metronome/score-tempo-audit.csv)
+- [정간보 단모리 변환 시간 교정 (732)](specs/danmori-conversion-timing.md) · [오류 원인과 기존 데이터 영향](knowledge/ai/jeongganbo-beat-timing.md)
+- [비행기 네 악기 악보·CAT 음원·4박 기본 반주 연결 (707)](specs/airplane-four-instruments.md) · [계획·검증](plans/S15P31E102-707.md) · [악보·생성 근거](knowledge/data/airplane-beginner-score.md)
+
+- [iOS 연습 장단 소리 재생 연결 (714)](plans/S15P31E102-714.md) · [장단 재생 스펙](specs/jangdan-practice-playback.md#ios-연습-장단-재생-s15p31e102-714)
+- [한 음씩 연습 안내 문구 삭제·현재 정간 칸 정렬과 예시음 재생 수정 (717)](plans/S15P31E102-717.md)
+- [연습 화면 계이름 표시·장단 안내 문구 삭제와 평가 화면 표기 스위치 이동 (716)](plans/S15P31E102-716.md)
+- [기초부터 배우기 할 일 박스식 진행과 앞뒤 단계 이동 (688)](plans/S15P31E102-688.md)
+- [기초부터 배우기 단계 축소 화면 반영 (658)](plans/S15P31E102-658.md)
+- [기존 악보를 유지한 36곡 AI 채점 활성화 (704)](plans/S15P31E102-704.md) · [스펙](specs/existing-score-enablement.md) · [대조·AI 입력 근거](knowledge/data/existing-score-enablement.md)
 - [Android 카카오·네이버 간편 로그인 앱 복귀 실패 수정 (687)](plans/S15P31E102-687.md)
+- [채점 비활성 공개 46곡의 원본·운영 악보 대조 (699)](knowledge/data/catalog-notation-restoration.md#2026-11-10-채점-비활성-46곡-재점검) · [교정 스펙](specs/catalog-scoring-repair.md) · [계획·운영 검증](plans/S15P31E102-699.md)
 - [닉네임 최대 10자 서버 검증 (685)](plans/S15P31E102-685.md)
 - [기초부터 배우기 1·7단계 반복 할 일 서버 문구 정리 (656)](plans/S15P31E102-656.md)
 - [기초부터 배우기 4~6단계 따라 배우기 반복 칸 정리 (655)](plans/S15P31E102-655.md)
@@ -20,6 +44,7 @@
 - [iOS Jenkins Mac 이관·Ad Hoc 자동 배포 (444)](plans/S15P31E102-444.md) · [운영 절차](../infra/ios-qa/README.md)
 - [운영 iOS 간편 로그인 복귀 주소와 Apple 로그인 설정 (563)](plans/S15P31E102-563.md)
 - [이전 연주 결과·녹음 기록 통합 (553)](plans/S15P31E102-553.md)
+- [기록 상세 독립화와 당시 판본 조회 (454)](plans/S15P31E102-454.md) · [스펙](specs/record-detail-independence.md)
 - [홈 평가 시작 화살표·정간보 카드 배경 정리 (554)](plans/S15P31E102-554.md)
 - [iOS App Store Connect 등록과 첫 심사 제출 준비 (564)](plans/S15P31E102-564.md)
 - [기록 평가 변환·오류 표시·녹음 재생의 경계와 실행 관찰](knowledge/frontend/history-result-playback.md)
@@ -55,6 +80,8 @@
 - [서비스 장단 카탈로그 확장 스펙](specs/jangdan-catalog-extension.md) · [추가 근거·시작 빠르기·검증](knowledge/backend/jangdan-catalog-extension.md)
 - [장단 음원·곡별 검수 자료 전달과 재생 공통 스펙 (160·340)](specs/jangdan-practice-playback.md)
 - [장단 음원 생성·출처·빠르기 조사 (160)](knowledge/data/jangdan-preview-audio.md) · [107개 곡별 검수 결과 (160)](knowledge/data/jangdan-song-review.md)
+
+- [내 악보 편집 진입과 저장 오류 처리 (725)](plans/S15P31E102-725.md) · [저장 검증·빠르기 입력 근거](knowledge/frontend/sheet-editor-save-validation.md)
 
 ## 문서 위치
 
@@ -97,6 +124,7 @@
 - [내 악보 연습 화면에서 음원 다운로드 연결 (702)](plans/S15P31E102-702.md)
 - [내 악보 생성 음원의 실제 연주 위치 (675)](plans/S15P31E102-675.md)
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
+- [녹음 판본과 신규 연습 세션 보호 (453)](specs/recorded-score-version.md) · [계획·검증](plans/S15P31E102-453.md)
 - [내 악보 연습에서 음원 받기 화면으로 이동 (690)](plans/S15P31E102-690.md)
 
 - [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)
@@ -176,6 +204,7 @@
 - [Jenkins 전체 시간·executor 대기와 Wasm 최적화 지연 (510)](knowledge/infra/jenkins-latency.md) · [조사 계획·결과](plans/S15P31E102-510.md)
 - [프론트 웹 운영 배포 수동 전환 (520)](plans/S15P31E102-520.md) · [스펙](specs/jenkins-deploy-order.md#프론트-웹-수동-배포-s15p31e102-520)
 - [Jenkins 웹 수동 배포 전용 잡 분리 (527)](plans/S15P31E102-527.md)
+- [Jenkins 웹 수동 배포 잡 실행 슬롯 분리 (755)](plans/S15P31E102-755.md)
 - [Jenkins 검증 JAR·Gradle JVM 재사용 구현](specs/jenkins-build-reuse.md) · [격리 실제 실행 결과](knowledge/infra/jenkins-latency.md#후속-구현과-실제-검증)
 
 - [정간보 기호 사전 연결 계약](specs/notation-symbol-catalog.md) · [자료 대조와 검증 기록](knowledge/backend/notation-symbol-catalog.md)

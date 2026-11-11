@@ -155,6 +155,24 @@ class BuildEventsTests(unittest.TestCase):
         events, _ = build_events(read_units("- | 임", beats_per_jeonggan=F(1)))
         self.assertEqual([(e.kind, e.duration) for e in events], [("REST", F(1)), ("NOTE", F(1))])
 
+    def test_pdf_explicit_tie_continues_across_gak_but_new_gak_blank_does_not(self):
+        events, refs = build_events(read_units("청유 | -\n- | - | - | -\n | 임", beats_per_jeonggan=F(1)),
+                                   continue_explicit_ties=True)
+        self.assertEqual([(e.kind, e.yul, e.duration) for e in events],
+                         [("NOTE", "유", F(6)), ("REST", None, F(1)), ("NOTE", "임", F(1))])
+        self.assertEqual(refs[:6], [events[0].id] * 6)
+
+    def test_pdf_tie_without_preceding_note_never_invents_a_note(self):
+        events, _ = build_events(read_units("- | 쉼\n- | 임", beats_per_jeonggan=F(1)),
+                                 continue_explicit_ties=True)
+        self.assertEqual([(e.kind, e.duration) for e in events],
+                         [("REST", F(1)), ("REST", F(2)), ("NOTE", F(1))])
+
+    def test_blank_after_an_explicit_pdf_tie_in_the_same_gak_keeps_that_note(self):
+        events, _ = build_events(read_units("임\n- | ", beats_per_jeonggan=F(1)),
+                                 continue_explicit_ties=True)
+        self.assertEqual([(e.kind, e.yul, e.duration) for e in events], [("NOTE", "임", F(3))])
+
 
 META = dict(title="시험곡", instrument="DANSO", source_id="example-p1", jangdan="세마치", bpm_unit="DOTTED_QUARTER",
             review="reviewed", jgb_sha256="0" * 64)

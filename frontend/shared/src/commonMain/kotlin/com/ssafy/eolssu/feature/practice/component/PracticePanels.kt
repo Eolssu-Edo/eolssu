@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.Dp
@@ -88,15 +89,11 @@ import eolssu.shared.generated.resources.practice_fingering_view
 import eolssu.shared.generated.resources.practice_fingering_view_desc
 import eolssu.shared.generated.resources.practice_instrument
 import eolssu.shared.generated.resources.practice_jangdan_beat
-import eolssu.shared.generated.resources.practice_jangdan_beat_desc
-import eolssu.shared.generated.resources.practice_jangdan_gueum_note
 import eolssu.shared.generated.resources.practice_jangdan_meta
 import eolssu.shared.generated.resources.practice_jangdan_pattern_meta
-import eolssu.shared.generated.resources.practice_jangdan_no_gueum
 import eolssu.shared.generated.resources.practice_jangdan_preview_start
 import eolssu.shared.generated.resources.practice_jangdan_preview_stop
 import eolssu.shared.generated.resources.practice_jangdan_sound
-import eolssu.shared.generated.resources.practice_jangdan_sound_desc
 import eolssu.shared.generated.resources.practice_jangdan_sound_off
 import eolssu.shared.generated.resources.practice_jangdan_sound_on
 import eolssu.shared.generated.resources.practice_jangdan_sub
@@ -106,8 +103,6 @@ import eolssu.shared.generated.resources.practice_menu_jangdan
 import eolssu.shared.generated.resources.practice_menu_notation
 import eolssu.shared.generated.resources.practice_menu_tempo
 import eolssu.shared.generated.resources.practice_notation_hangul
-import eolssu.shared.generated.resources.practice_notation_solfege
-import eolssu.shared.generated.resources.practice_notation_solfege_none
 import eolssu.shared.generated.resources.practice_notation_title
 import eolssu.shared.generated.resources.practice_off
 import eolssu.shared.generated.resources.practice_on
@@ -144,6 +139,7 @@ fun PracticePanelSheet(
     actions: PracticePanelActions,
     tablet: Boolean = false,
     modifier: Modifier = Modifier,
+    titleToggles: Boolean = false,
 ) {
     val panel = state.panel ?: return
     val song = state.song ?: return
@@ -167,7 +163,7 @@ fun PracticePanelSheet(
                     PanelHeader(panel, state, actions.onClose)
                     Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        PanelBody(panel, state, song, actions)
+                        PanelBody(panel, state, song, actions, titleToggles)
                     }
                 }
             }
@@ -200,9 +196,9 @@ fun PanelHeader(panel: PracticePanel, state: PracticeUiState, onClose: () -> Uni
 }
 
 @Composable
-fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: Song, actions: PracticePanelActions) {
+fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: Song, actions: PracticePanelActions, titleToggles: Boolean = false) {
     when (panel) {
-        PracticePanel.Settings -> SettingsMenu(state, song, actions)
+        PracticePanel.Settings -> SettingsMenu(state, song, actions, titleToggles)
         PracticePanel.Notation -> NotationPanel(state.draft, song, actions)
         PracticePanel.Fingering -> FingeringPanel(state, actions)
         PracticePanel.Jangdan -> JangdanPanel(state, song, actions)
@@ -213,11 +209,12 @@ fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: So
 /**
  * PANEL-00 연습 설정: ‘연습 악기’ 고르기 → 쉬운 표기 · 장단 · 속도 메뉴 줄(`.menu-row`) → ‘운지법과 함께 보기’ 스위치(`.trow`).
  * AI 연주 평가로 들어온 연습([PracticeUiState.solo]가 아님)은 고른 곡의 악기로 평가하므로 ‘연습 악기’를 두지 않는다(S15P31E102-561).
+ * [titleToggles]이면 쉬운 표기·운지법이 곡 제목 옆 스위치에 있으므로 여기서 뺀다(S15P31E102-716).
  */
 @Composable
-private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
+private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePanelActions, titleToggles: Boolean) {
     val settings = state.settings
-    val notationOn = settings.showHangul || settings.showSolfege
+    val notationOn = settings.showHangul
     val step = TempoStep.nearest(song.baseBpm, state.bpm)
     val instrumentName = stringResource(state.instrument.label)
     // 평가 중에는 속도만 고정하고 장단 소리는 바꿀 수 있다.
@@ -225,7 +222,7 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     val lockedStatus = stringResource(Res.string.practice_settings_locked)
     Column {
         if (state.solo && !state.learn) InstrumentSelect(state.instrument, actions.onSetInstrument)
-        MenuRow(
+        if (!titleToggles) MenuRow(
             EolssuIcons.NotationMark, stringResource(Res.string.practice_menu_notation),
             stringResource(if (notationOn) Res.string.practice_on else Res.string.practice_off),
         ) { actions.onOpen(PracticePanel.Notation) }
@@ -239,7 +236,7 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
         MenuRow(EolssuIcons.TempoMark, stringResource(Res.string.practice_menu_tempo), if (locked) lockedStatus else tempoLabel(step), enabled = !locked) {
             actions.onOpen(PracticePanel.Tempo)
         }
-        SettingRow(
+        if (!titleToggles) SettingRow(
             stringResource(Res.string.practice_fingering_view),
             stringResource(Res.string.practice_fingering_view_desc, instrumentName),
             checked = state.fingeringView,
@@ -314,8 +311,17 @@ private fun MenuRow(icon: ImageVector, label: String, status: String, enabled: B
         ) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.text)
         }
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
-        Text(status, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
+        // 이름은 줄바꿈하지 않고, 긴 상태 문구가 남은 폭 안에서 줄을 바꾼다.
+        Text(label, softWrap = false, maxLines = 1, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
+        Text(
+            status,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+            color = colors.textMuted,
+            textAlign = TextAlign.End,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
         Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
     }
 }
@@ -369,21 +375,15 @@ private fun PanelCard(modifier: Modifier = Modifier, padding: Dp = 16.dp, conten
 }
 
 /**
- * PANEL-01 악보 표시 설정: 한글 읽는 법 · 계이름 스위치 줄과, 고른 설정을 보여 주는 미니 정간보 카드.
- * 스위치 설명과 예시 설명 문장은 두지 않는다. 계이름 데이터가 없는 곡에서만 스위치가 꺼진 이유를 적는다.
+ * PANEL-01 악보 표시 설정: 한글 읽는 법 스위치 줄과, 고른 설정을 보여 주는 미니 정간보 카드.
+ * 스위치 설명과 예시 설명 문장은 두지 않는다. 계이름 표시는 쓰지 않아 없앴다(S15P31E102-716).
  */
 @Composable
 private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePanelActions) {
-    val hasSolfege = song.solfege != null
     val colors = EolssuTheme.colors
     SettingRow(
         stringResource(Res.string.practice_notation_hangul), null,
         draft.showHangul, { actions.onDraft { it.copy(showHangul = !it.showHangul) } }, topLine = false,
-    )
-    SettingRow(
-        stringResource(Res.string.practice_notation_solfege),
-        if (hasSolfege) null else stringResource(Res.string.practice_notation_solfege_none),
-        hasSolfege && draft.showSolfege, { actions.onDraft { it.copy(showSolfege = !it.showSolfege) } }, enabled = hasSolfege,
     )
     Row(
         Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(16.dp)).border(1.dp, colors.lineSoft, RoundedCornerShape(16.dp)).padding(12.dp),
@@ -394,7 +394,7 @@ private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePan
             song = song,
             modifier = Modifier.width(90.dp),
             metrics = JeongganboMetrics(columnWidth = 86.dp, cellHeight = 44.dp, yulSize = 17.sp, auxSize = 9.sp, headHeight = 22.dp, columnGap = 0.dp, splitScaleTwo = 11f / 17f),
-            notation = ScoreNotation(draft.showHangul, hasSolfege && draft.showSolfege),
+            notation = ScoreNotation(draft.showHangul),
             scrollState = null,
             maxColumns = 1,
             maxRows = 3,
@@ -467,8 +467,10 @@ private fun holeName(instrument: GuideInstrument, index: Int): String =
     if (instrument == GuideInstrument.Danso) (if (index == 0) "뒷" else "$index") else "${index + 1}"
 
 /**
- * PANEL-04 장단: 장단 이름과 ‘한 각 N정간 · 대강 … · BPM’, 정간 칸(대강 첫 칸은 번호·구음, 미리듣기 중인 칸은 연두), 구음 안내,
- * ‘장단 듣기’, 장단 소리·현재 박 스위치, 헤드폰 안내 카드.
+ * PANEL-04 장단: 장단 이름과 ‘한 각 N정간 · 대강 … · BPM’, 정간 칸(대강 첫 칸은 번호·구음, 미리듣기 중인 칸은 연두),
+ * ‘장단 듣기’, 장단 소리·현재 박 스위치.
+ * 구음·속도 안내, 스위치 설명, 준비·재생 중 안내 같은 주석 문구는 두지 않고(S15P31E102-716),
+ * 장단 소리를 쓸 수 없거나 준비 중인 이유만 적는다.
  */
 @Composable
 private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
@@ -491,7 +493,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
             color = colors.textMuted,
         )
     }
-    TinyNote(jangdanHint(state))
+    if (state.jangdanProblem || song.jangdanPlayback == null || state.jangdanStatus == JangdanStatus.Loading) TinyNote(jangdanHint(state))
     val perRow = minOf(jangdan.gak, 12)
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         (0 until jangdan.gak).chunked(perRow).forEach { rowCells ->
@@ -516,7 +518,6 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
             }
         }
     }
-    TinyNote(stringResource(if (jangdan.gueum != null) Res.string.practice_jangdan_gueum_note else Res.string.practice_jangdan_no_gueum))
     EolssuButton(
         stringResource(if (draft.previewing) Res.string.practice_jangdan_preview_stop else Res.string.practice_jangdan_preview_start),
         actions.onTogglePreview,
@@ -528,11 +529,11 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
     )
     Column {
         SettingRow(
-            stringResource(Res.string.practice_jangdan_sound), stringResource(Res.string.practice_jangdan_sound_desc),
+            stringResource(Res.string.practice_jangdan_sound), null,
             draft.jangdanSound && state.jangdanSupported, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, enabled = state.jangdanSupported, vertical = 10.dp,
         )
         SettingRow(
-            stringResource(Res.string.practice_jangdan_beat), stringResource(Res.string.practice_jangdan_beat_desc),
+            stringResource(Res.string.practice_jangdan_beat), null,
             draft.beatVisual, { actions.onDraft { it.copy(beatVisual = !it.beatVisual) } }, vertical = 10.dp,
         )
     }

@@ -98,6 +98,57 @@ class PracticeLiveProgressTest {
         assertEquals(1042.0, vm.uiState.value.elapsedMs, 0.0001)
     }
 
+    @Test fun restartPopupPausesRecordingUntilKeepPlayingAndCountdownResumesFromSamePosition() = progressTest { vm, _ ->
+        vm.grantMicAndStart()
+        runCurrent()
+        advanceTimeBy(3000)
+        runCurrent()
+        advanceTimeBy(625)
+        runCurrent()
+        repeat(2) {
+            vm.askRestart()
+            assertEquals(PracticePopup.Restart, vm.uiState.value.popup)
+            assertEquals(null, vm.uiState.value.eventStartedAt)
+            advanceTimeBy(2000)
+            runCurrent()
+            assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
+            assertEquals(625.0, vm.uiState.value.elapsedMs, 0.0001)
+            vm.keepPlayingAfterExit()
+            runCurrent()
+            assertEquals(PracticeMode.Countdown, vm.uiState.value.mode)
+            assertEquals(null, vm.uiState.value.popup)
+            advanceTimeBy(3000)
+            runCurrent()
+            assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
+            assertEquals(625.0, vm.uiState.value.elapsedMs, 0.0001)
+        }
+        advanceTimeBy(417)
+        runCurrent()
+        assertEquals(1042.0, vm.uiState.value.elapsedMs, 0.0001)
+    }
+
+    @Test fun restartConfirmFromRestartPopupStartsANewTakeFromTheBeginning() = progressTest { vm, _ ->
+        vm.grantMicAndStart()
+        runCurrent()
+        advanceTimeBy(3000)
+        runCurrent()
+        advanceTimeBy(625)
+        runCurrent()
+        vm.askRestart()
+        vm.restartNow()
+        runCurrent()
+        assertEquals(PracticeMode.Countdown, vm.uiState.value.mode)
+        assertEquals(false, vm.uiState.value.resume)
+        assertEquals(null, vm.uiState.value.popup)
+        advanceTimeBy(3000)
+        runCurrent()
+        assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
+        assertEquals(0.0, vm.uiState.value.elapsedMs, 0.0001)
+        advanceTimeBy(625)
+        runCurrent()
+        assertEquals(625.0, vm.uiState.value.elapsedMs, 0.0001)
+    }
+
     @Test fun backDuringCountdownHoldsTheCountUntilKeepPlayingThenCountsFromThree() = progressTest { vm, _ ->
         vm.grantMicAndStart()
         runCurrent()

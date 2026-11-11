@@ -30,6 +30,17 @@ class PracticePlayerNoticeTest {
         assertEquals(PracticePlayerNotice.Loading, accompaniment.copy(settings = accompaniment.settings.copy(jangdanSound = true)).playerNotice)
     }
 
+    @Test fun missingJangdanOnlyBlocksRhythmNotTheModelAudio() {
+        // 저장된 장단 소리 설정이 켜져 있어도 장단이 없는 곡의 모범 연주는 음원만 재생하므로 '재생할 음원이 없어요'를 띄우지 않는다.
+        val withJangdanSound = PracticeUiState(jangdanSupported = false).let { it.copy(settings = it.settings.copy(jangdanSound = true)) }
+        for (status in listOf(ModelAudioStatus.Idle, ModelAudioStatus.Playing, ModelAudioStatus.Paused)) {
+            assertEquals(PracticePlayerNotice.None, withJangdanSound.copy(modelAudioStatus = status).playerNotice)
+            assertEquals(PracticePlayerNotice.None, withJangdanSound.copy(mode = PracticeMode.Model, modelAudioStatus = status).playerNotice)
+        }
+        assertEquals(PracticePlayerNotice.Unavailable, withJangdanSound.copy(modelAudioStatus = ModelAudioStatus.Unavailable).playerNotice)
+        assertEquals(PracticePlayerNotice.Unavailable, withJangdanSound.copy(mode = PracticeMode.Rhythm).playerNotice)
+    }
+
     @Test fun errorsRemainVisibleButStaleModelErrorsDoNotLeakIntoRhythm() {
         assertEquals(PracticePlayerNotice.Failed, PracticeUiState(modelAudioStatus = ModelAudioStatus.Failed).playerNotice)
         assertEquals(PracticePlayerNotice.Interrupted, PracticeUiState(mode = PracticeMode.Rhythm,

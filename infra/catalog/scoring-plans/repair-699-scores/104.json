@@ -1,0 +1,1929 @@
+{
+  "music": {
+    "bpmUnit": "QUARTER",
+    "hwangHz": 311.1269837220809,
+    "jangdan": "",
+    "ticksPerBeat": 8,
+    "ticksPerJeonggan": 12
+  },
+  "score": {
+    "part": 0,
+    "title": "북천이 맑다커늘 · 소금1",
+    "sourceId": "mr203-fixed-sogeum-016-p1",
+    "instrument": "SOGEUM",
+    "scoreVersion": 2
+  },
+  "events": [
+    {
+      "id": "c0-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 0,
+      "durationTick": 6,
+      "cellId": "c0-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c0-j0-r1-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 6,
+      "durationTick": 6,
+      "cellId": "c0-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c0-j1-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 12,
+      "durationTick": 6,
+      "cellId": "c0-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c0-j1-r1-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 18,
+      "durationTick": 6,
+      "cellId": "c0-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c0-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 24,
+      "durationTick": 6,
+      "cellId": "c0-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c0-j2-r1-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 30,
+      "durationTick": 6,
+      "cellId": "c0-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c0-j3-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 36,
+      "durationTick": 6,
+      "cellId": "c0-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c0-j3-r1-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 42,
+      "durationTick": 6,
+      "cellId": "c0-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c1-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 48,
+      "durationTick": 18,
+      "cellId": "c1-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c1-j1-r1-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 66,
+      "durationTick": 6,
+      "cellId": "c1-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c1-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 0,
+      "startTick": 72,
+      "durationTick": 6,
+      "cellId": "c1-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c1-j2-r1-u0",
+      "kind": "NOTE",
+      "yul": "황",
+      "octave": 1,
+      "startTick": 78,
+      "durationTick": 12,
+      "cellId": "c1-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c1-j3-r1-u0",
+      "kind": "REST",
+      "yul": null,
+      "octave": null,
+      "startTick": 90,
+      "durationTick": 6,
+      "cellId": "c1-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c2-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 96,
+      "durationTick": 6,
+      "cellId": "c2-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c2-j0-r1-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 102,
+      "durationTick": 6,
+      "cellId": "c2-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c2-j1-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 108,
+      "durationTick": 6,
+      "cellId": "c2-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c2-j1-r1-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 114,
+      "durationTick": 6,
+      "cellId": "c2-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c2-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 120,
+      "durationTick": 6,
+      "cellId": "c2-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c2-j2-r1-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 126,
+      "durationTick": 6,
+      "cellId": "c2-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c2-j3-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 132,
+      "durationTick": 6,
+      "cellId": "c2-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c2-j3-r1-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 138,
+      "durationTick": 6,
+      "cellId": "c2-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c3-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 144,
+      "durationTick": 18,
+      "cellId": "c3-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c3-j1-r1-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 162,
+      "durationTick": 6,
+      "cellId": "c3-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c3-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 168,
+      "durationTick": 6,
+      "cellId": "c3-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c3-j2-r1-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 174,
+      "durationTick": 12,
+      "cellId": "c3-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c3-j3-r1-u0",
+      "kind": "REST",
+      "yul": null,
+      "octave": null,
+      "startTick": 186,
+      "durationTick": 6,
+      "cellId": "c3-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c4-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 192,
+      "durationTick": 12,
+      "cellId": "c4-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c4-j1-r0-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 204,
+      "durationTick": 12,
+      "cellId": "c4-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c4-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 216,
+      "durationTick": 6,
+      "cellId": "c4-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c4-j2-r1-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 222,
+      "durationTick": 6,
+      "cellId": "c4-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c4-j3-r0-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 228,
+      "durationTick": 6,
+      "cellId": "c4-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c4-j3-r1-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 234,
+      "durationTick": 6,
+      "cellId": "c4-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c5-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "황",
+      "octave": 1,
+      "startTick": 240,
+      "durationTick": 6,
+      "cellId": "c5-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c5-j0-r1-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 246,
+      "durationTick": 12,
+      "cellId": "c5-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c5-j1-r1-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 258,
+      "durationTick": 6,
+      "cellId": "c5-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c5-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 0,
+      "startTick": 264,
+      "durationTick": 12,
+      "cellId": "c5-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c5-j3-r0-u0",
+      "kind": "NOTE",
+      "yul": "황",
+      "octave": 1,
+      "startTick": 276,
+      "durationTick": 12,
+      "cellId": "c5-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c6-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 0,
+      "startTick": 288,
+      "durationTick": 6,
+      "cellId": "c6-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c6-j0-r1-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 0,
+      "startTick": 294,
+      "durationTick": 6,
+      "cellId": "c6-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c6-j1-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 0,
+      "startTick": 300,
+      "durationTick": 6,
+      "cellId": "c6-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c6-j1-r1-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 0,
+      "startTick": 306,
+      "durationTick": 6,
+      "cellId": "c6-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c6-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "황",
+      "octave": 1,
+      "startTick": 312,
+      "durationTick": 6,
+      "cellId": "c6-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c6-j2-r1-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 318,
+      "durationTick": 6,
+      "cellId": "c6-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c6-j3-r0-u0",
+      "kind": "NOTE",
+      "yul": "황",
+      "octave": 1,
+      "startTick": 324,
+      "durationTick": 6,
+      "cellId": "c6-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c6-j3-r1-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 330,
+      "durationTick": 6,
+      "cellId": "c6-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c7-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 336,
+      "durationTick": 6,
+      "cellId": "c7-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c7-j0-r1-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 342,
+      "durationTick": 6,
+      "cellId": "c7-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c7-j1-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 348,
+      "durationTick": 9,
+      "cellId": "c7-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c7-j1-r1-u1",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 357,
+      "durationTick": 3,
+      "cellId": "c7-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c7-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 360,
+      "durationTick": 18,
+      "cellId": "c7-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c7-j3-r1-u0",
+      "kind": "REST",
+      "yul": null,
+      "octave": null,
+      "startTick": 378,
+      "durationTick": 6,
+      "cellId": "c7-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c8-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 384,
+      "durationTick": 6,
+      "cellId": "c8-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c8-j0-r1-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 390,
+      "durationTick": 6,
+      "cellId": "c8-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c8-j1-r0-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 396,
+      "durationTick": 12,
+      "cellId": "c8-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c8-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 408,
+      "durationTick": 9,
+      "cellId": "c8-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c8-j2-r1-u1",
+      "kind": "NOTE",
+      "yul": "황",
+      "octave": 2,
+      "startTick": 417,
+      "durationTick": 3,
+      "cellId": "c8-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c8-j3-r0-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 420,
+      "durationTick": 12,
+      "cellId": "c8-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c9-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 432,
+      "durationTick": 6,
+      "cellId": "c9-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c9-j0-r1-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 438,
+      "durationTick": 6,
+      "cellId": "c9-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c9-j1-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 444,
+      "durationTick": 12,
+      "cellId": "c9-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c9-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 456,
+      "durationTick": 9,
+      "cellId": "c9-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c9-j2-r1-u1",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 465,
+      "durationTick": 3,
+      "cellId": "c9-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c9-j3-r0-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 468,
+      "durationTick": 12,
+      "cellId": "c9-j3",
+      "breathAfter": true,
+      "sigimsae": []
+    },
+    {
+      "id": "c10-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 480,
+      "durationTick": 6,
+      "cellId": "c10-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c10-j0-r1-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 486,
+      "durationTick": 6,
+      "cellId": "c10-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c10-j1-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 492,
+      "durationTick": 6,
+      "cellId": "c10-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c10-j1-r1-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 498,
+      "durationTick": 6,
+      "cellId": "c10-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c10-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 504,
+      "durationTick": 6,
+      "cellId": "c10-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c10-j2-r1-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 510,
+      "durationTick": 6,
+      "cellId": "c10-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c10-j3-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 516,
+      "durationTick": 6,
+      "cellId": "c10-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c10-j3-r1-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 522,
+      "durationTick": 6,
+      "cellId": "c10-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c11-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 528,
+      "durationTick": 18,
+      "cellId": "c11-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c11-j1-r1-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 546,
+      "durationTick": 6,
+      "cellId": "c11-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c11-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 552,
+      "durationTick": 18,
+      "cellId": "c11-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c11-j3-r1-u0",
+      "kind": "REST",
+      "yul": null,
+      "octave": null,
+      "startTick": 570,
+      "durationTick": 6,
+      "cellId": "c11-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c12-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "고",
+      "octave": 1,
+      "startTick": 576,
+      "durationTick": 18,
+      "cellId": "c12-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c12-j1-r1-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 594,
+      "durationTick": 6,
+      "cellId": "c12-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c12-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "남",
+      "octave": 1,
+      "startTick": 600,
+      "durationTick": 24,
+      "cellId": "c12-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c13-j0-r0-u0",
+      "kind": "REST",
+      "yul": null,
+      "octave": null,
+      "startTick": 624,
+      "durationTick": 36,
+      "cellId": "c13-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c13-j3-r0-u0",
+      "kind": "REST",
+      "yul": null,
+      "octave": null,
+      "startTick": 660,
+      "durationTick": 12,
+      "cellId": "c13-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    }
+  ],
+  "columns": [
+    {
+      "index": 0,
+      "cells": [
+        {
+          "id": "c0-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c0-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c0-j0-r1-u0"
+            }
+          ],
+          "lyric": "북 {세로표}"
+        },
+        {
+          "id": "c0-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c0-j1-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c0-j1-r1-u0"
+            }
+          ],
+          "lyric": "천 {세로표}"
+        },
+        {
+          "id": "c0-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c0-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c0-j2-r1-u0"
+            }
+          ],
+          "lyric": "이 {세로표}"
+        },
+        {
+          "id": "c0-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c0-j3-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c0-j3-r1-u0"
+            }
+          ],
+          "lyric": "{세로표} {세로표}"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "cells": [
+        {
+          "id": "c1-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c1-j0-r0-u0"
+            }
+          ],
+          "lyric": "맑"
+        },
+        {
+          "id": "c1-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c1-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c1-j1-r1-u0"
+            }
+          ],
+          "lyric": "- 다"
+        },
+        {
+          "id": "c1-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "남",
+              "eventId": "c1-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청황",
+              "eventId": "c1-j2-r1-u0"
+            }
+          ],
+          "lyric": "커 늘"
+        },
+        {
+          "id": "c1-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c1-j2-r1-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "쉼",
+              "eventId": "c1-j3-r1-u0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "cells": [
+        {
+          "id": "c2-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c2-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c2-j0-r1-u0"
+            }
+          ],
+          "lyric": "우 {세로표}"
+        },
+        {
+          "id": "c2-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c2-j1-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c2-j1-r1-u0"
+            }
+          ],
+          "lyric": "장 {세로표}"
+        },
+        {
+          "id": "c2-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c2-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c2-j2-r1-u0"
+            }
+          ],
+          "lyric": "없 {세로표}"
+        },
+        {
+          "id": "c2-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c2-j3-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c2-j3-r1-u0"
+            }
+          ],
+          "lyric": "이 {세로표}"
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "cells": [
+        {
+          "id": "c3-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c3-j0-r0-u0"
+            }
+          ],
+          "lyric": "길"
+        },
+        {
+          "id": "c3-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c3-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c3-j1-r1-u0"
+            }
+          ],
+          "lyric": "- 을"
+        },
+        {
+          "id": "c3-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c3-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c3-j2-r1-u0"
+            }
+          ],
+          "lyric": "나 니"
+        },
+        {
+          "id": "c3-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c3-j2-r1-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "쉼",
+              "eventId": "c3-j3-r1-u0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "cells": [
+        {
+          "id": "c4-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c4-j0-r0-u0"
+            }
+          ],
+          "lyric": "산"
+        },
+        {
+          "id": "c4-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c4-j1-r0-u0"
+            }
+          ],
+          "lyric": "- {세로표}"
+        },
+        {
+          "id": "c4-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c4-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c4-j2-r1-u0"
+            }
+          ],
+          "lyric": "에 {세로표}"
+        },
+        {
+          "id": "c4-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c4-j3-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c4-j3-r1-u0"
+            }
+          ],
+          "lyric": "는 {세로표}"
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "cells": [
+        {
+          "id": "c5-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청황",
+              "eventId": "c5-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c5-j0-r1-u0"
+            }
+          ],
+          "lyric": "이"
+        },
+        {
+          "id": "c5-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c5-j0-r1-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c5-j1-r1-u0"
+            }
+          ]
+        },
+        {
+          "id": "c5-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "남",
+              "eventId": "c5-j2-r0-u0"
+            }
+          ],
+          "lyric": "고"
+        },
+        {
+          "id": "c5-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청황",
+              "eventId": "c5-j3-r0-u0"
+            }
+          ],
+          "lyric": "{세로표}"
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "cells": [
+        {
+          "id": "c6-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "남",
+              "eventId": "c6-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "남",
+              "eventId": "c6-j0-r1-u0"
+            }
+          ],
+          "lyric": "{세로표}"
+        },
+        {
+          "id": "c6-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "임",
+              "eventId": "c6-j1-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "남",
+              "eventId": "c6-j1-r1-u0"
+            }
+          ],
+          "lyric": "에"
+        },
+        {
+          "id": "c6-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청황",
+              "eventId": "c6-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c6-j2-r1-u0"
+            }
+          ],
+          "lyric": "는 {세로표}"
+        },
+        {
+          "id": "c6-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청황",
+              "eventId": "c6-j3-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c6-j3-r1-u0"
+            }
+          ],
+          "lyric": "{세로표} {세로표}"
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "cells": [
+        {
+          "id": "c7-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c7-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c7-j0-r1-u0"
+            }
+          ],
+          "lyric": "- 비"
+        },
+        {
+          "id": "c7-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c7-j1-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c7-j1-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 1,
+              "symbol": "청남",
+              "eventId": "c7-j1-r1-u1"
+            }
+          ],
+          "lyric": "로"
+        },
+        {
+          "id": "c7-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c7-j2-r0-u0"
+            }
+          ],
+          "lyric": "다"
+        },
+        {
+          "id": "c7-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c7-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "쉼",
+              "eventId": "c7-j3-r1-u0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "cells": [
+        {
+          "id": "c8-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c8-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c8-j0-r1-u0"
+            }
+          ],
+          "lyric": "오 늘"
+        },
+        {
+          "id": "c8-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c8-j1-r0-u0"
+            }
+          ],
+          "lyric": "은"
+        },
+        {
+          "id": "c8-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c8-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c8-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 1,
+              "symbol": "중청황",
+              "eventId": "c8-j2-r1-u1"
+            }
+          ],
+          "lyric": "찬 {세로표}"
+        },
+        {
+          "id": "c8-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c8-j3-r0-u0"
+            }
+          ],
+          "lyric": "비"
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "cells": [
+        {
+          "id": "c9-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c9-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c9-j0-r1-u0"
+            }
+          ],
+          "lyric": "맞 {세로표}"
+        },
+        {
+          "id": "c9-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c9-j1-r0-u0"
+            }
+          ],
+          "lyric": "았"
+        },
+        {
+          "id": "c9-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c9-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c9-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 1,
+              "symbol": "청남",
+              "eventId": "c9-j2-r1-u1"
+            }
+          ],
+          "lyric": "으 {세로표}"
+        },
+        {
+          "id": "c9-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c9-j3-r0-u0"
+            }
+          ],
+          "lyric": "니"
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "cells": [
+        {
+          "id": "c10-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c10-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c10-j0-r1-u0"
+            }
+          ],
+          "lyric": "얼 {세로표}"
+        },
+        {
+          "id": "c10-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c10-j1-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c10-j1-r1-u0"
+            }
+          ],
+          "lyric": "어 {세로표}"
+        },
+        {
+          "id": "c10-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c10-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c10-j2-r1-u0"
+            }
+          ],
+          "lyric": "잘 {세로표}"
+        },
+        {
+          "id": "c10-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c10-j3-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c10-j3-r1-u0"
+            }
+          ],
+          "lyric": "까 {세로표}"
+        }
+      ]
+    },
+    {
+      "index": 11,
+      "cells": [
+        {
+          "id": "c11-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c11-j0-r0-u0"
+            }
+          ],
+          "lyric": "하"
+        },
+        {
+          "id": "c11-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c11-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c11-j1-r1-u0"
+            }
+          ],
+          "lyric": "- 노"
+        },
+        {
+          "id": "c11-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c11-j2-r0-u0"
+            }
+          ],
+          "lyric": "라"
+        },
+        {
+          "id": "c11-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c11-j2-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "쉼",
+              "eventId": "c11-j3-r1-u0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 12,
+      "cells": [
+        {
+          "id": "c12-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청고",
+              "eventId": "c12-j0-r0-u0"
+            }
+          ],
+          "lyric": "아"
+        },
+        {
+          "id": "c12-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "-",
+              "eventId": "c12-j0-r0-u0"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c12-j1-r1-u0"
+            }
+          ],
+          "lyric": "- 아"
+        },
+        {
+          "id": "c12-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청남",
+              "eventId": "c12-j2-r0-u0"
+            }
+          ],
+          "lyric": "아"
+        },
+        {
+          "id": "c12-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "",
+              "eventId": "c12-j2-r0-u0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "index": 13,
+      "cells": [
+        {
+          "id": "c13-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "",
+              "eventId": "c13-j0-r0-u0"
+            }
+          ]
+        },
+        {
+          "id": "c13-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "",
+              "eventId": "c13-j0-r0-u0"
+            }
+          ]
+        },
+        {
+          "id": "c13-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "",
+              "eventId": "c13-j0-r0-u0"
+            }
+          ]
+        },
+        {
+          "id": "c13-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "쉼",
+              "eventId": "c13-j3-r0-u0"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "review": "reviewed",
+    "sourceId": "mr203-fixed-sogeum-016-p1",
+    "converter": "score_data@1",
+    "jgbSha256": "235db949e4e050a0b7af6b6e9a2bea7714573230c104fb75e92729845c5bb908"
+  },
+  "schemaVersion": 1
+}

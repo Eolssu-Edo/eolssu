@@ -6,7 +6,6 @@ import com.ssafy.eolssu.core.model.fingering.UNKNOWN_PITCH
 import com.ssafy.eolssu.core.model.fingering.pitchIndexOf
 import com.ssafy.eolssu.data.practice.NotePracticeCriteria
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.log2
 import kotlin.math.pow
 
@@ -21,9 +20,6 @@ const val LEARN_PITCH_STEADY_CENT = 25.0
 
 /** 4·6단계 통과 기준 예시: 음마다 2초 이상 유지. */
 const val LEARN_PITCH_HOLD_MS = 2_000
-
-/** 5단계 통과 기준 예시: 8음 중 7음. 앱 패턴 길이에 맞춰 이 비율을 올림한다. */
-const val LEARN_PATTERN_PASS_RATIO = 7.0 / 8
 
 /** 기초부터 배우기 악기의 황종 MIDI 번호. [GuideInstrument.hwang]은 C에서 센 반음이고 E♭4·F4 옥타브에 둔다(악보 공통 형식과 같음). */
 private fun GuideInstrument.hwangMidi(): Int = 60 + hwang
@@ -40,7 +36,7 @@ internal fun learnTargetHz(hanja: String, instrument: GuideInstrument): Double? 
 /**
  * 한 음을 맞게 냈는지 보는 규칙.
  *
- * @property countsMisses true면 다른 음을 [holdMs] 이어 낸 것을 틀림으로 세고 다음 음으로 간다(5단계). false면 맞을 때까지 기다린다.
+ * @property countsMisses true면 다른 음을 [holdMs] 이어 낸 것을 틀림으로 세고 다음 음으로 간다. false면 맞을 때까지 기다린다(지금 단계는 모두 false).
  */
 data class LearnPitchRule(
     val toleranceCent: Double,
@@ -64,15 +60,15 @@ internal fun learnPitchPlan(stage: Int, detail: LearnStageDetail, instrument: Gu
         octave, criteria.firstNoteTuning, criteria.maxTuningOffsetCent, misses)
     val (notes, rule) = when (stage) {
         4 -> detail.pitchNames to rule(LEARN_PITCH_STEADY_CENT, LEARN_PITCH_HOLD_MS, octave = false, misses = false)
+        // 5단계는 올라가기·내려오기 박스에서 한 음씩 맞을 때까지 기다리고 다섯 음을 다 내면 박스를 마친다(S15P31E102-749).
         5 -> (LearnPattern.Ascending.notes(detail.pitchNames) + LearnPattern.Descending.notes(detail.pitchNames)) to
-            rule(criteria.pitchToleranceCent, criteria.holdMs, octave = false, misses = true)
+            rule(criteria.pitchToleranceCent, criteria.holdMs, octave = false, misses = false)
         6 -> detail.ranges.map { it.first } to rule(criteria.pitchToleranceCent, LEARN_PITCH_HOLD_MS, octave = true, misses = false)
         else -> return null
     }
     if (notes.isEmpty()) return null
     val targets = notes.map { learnTargetHz(it, instrument) ?: return null }
-    val required = if (stage == 5) ceil(notes.size * LEARN_PATTERN_PASS_RATIO - 1e-9).toInt() else notes.size
-    return LearnPitchPlan(notes, targets, required, rule)
+    return LearnPitchPlan(notes, targets, notes.size, rule)
 }
 
 /** 한 음의 판정. */
@@ -123,6 +119,14 @@ internal class LearnPitchTracker(private val plan: LearnPitchPlan) {
         released = true
         last = null
         clearRuns()
+    }
+
+    /** [to]번째 음부터 다시 판정한다(박스 체크 해제, S15P31E102-749). 앞 음의 맞힘은 남기고 틀림 수는 지운다. */
+    fun rewind(to: Int) {
+        val keep = hits.coerceAtMost(to)
+        reset()
+        index = to.coerceIn(0, plan.notes.size)
+        hits = keep
     }
 
     /** [reading]까지 들었을 때 지금 음의 판정이 났으면 그 결과, 아니면 null. */
