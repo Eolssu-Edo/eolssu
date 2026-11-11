@@ -76,7 +76,7 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" \
 
 ### playback 내 악보 음원 생성기
 
-[내 악보 음원 스펙](../../docs/specs/sheet-audio.md)의 생성기는 `playback` 프로필로 따로 띄웁니다(S15P31E102-481). 인증이 없으므로 호스트 포트를 열지 않고, backend만 내부망 `http://playback:8000`으로 부릅니다. Jenkins 배포는 이 이미지를 만들지 않으므로 `omr`처럼 사람이 빌드·생성합니다(운영 미반영).
+[내 악보 음원 스펙](../../docs/specs/sheet-audio.md)의 생성기는 `playback` 프로필로 따로 띄웁니다(S15P31E102-481). 인증이 없으므로 호스트 포트를 열지 않고, backend만 내부망 `http://playback:8000`으로 부릅니다. Jenkins 배포는 이 이미지를 만들지 않으므로 `omr`처럼 사람이 빌드·생성합니다. 운영 상태는 [S15P31E102-710 작업 기록](../../docs/plans/S15P31E102-710.md)에서 확인합니다.
 
 - 이미지: 저장소 루트를 맥락으로 `data/playback.Dockerfile`을 빌드해 `eolssu-playback:runtime`으로 태그합니다.
 - 자산: `PLAYBACK_ASSETS_DIRECTORY`에 악기별 CAT v1.3 ZIP과 `assets.json`(악기 code → ZIP 파일 이름), `PLAYBACK_JANGGU_DIRECTORY`에 `deong`·`gi`·`kung`·`deok`·`da`·`deo`.wav를 둡니다. 없으면 서비스가 시작을 거부합니다.
@@ -155,6 +155,7 @@ sudo docker stop omr-probe && rm -rf /tmp/omr-probe
 | `AUTH_MAIL_FROM`·`AUTH_MAIL_FROM_NAME` | 발신 주소·이름(`얼쑤`) | 주소는 Compose가 `AUTH_MAIL_USERNAME`으로 채움. 이름이 없으면 주소만 표시 |
 | `AUTH_OAUTH_{KAKAO,GOOGLE,NAVER}_CLIENT_ID`·`_CLIENT_SECRET` | 간편 로그인 제공자별 앱 키. 백엔드가 개발자 콘솔에서 발급해 별도 경로로 전달 | 그 제공자의 로그인만 거절 |
 | `RECORDING_STORAGE_ENDPOINT`·`_BUCKET`·`_ACCESS_KEY_ID`·`_SECRET_ACCESS_KEY`·`_REGION` | 녹음 원본 저장소(Cloudflare R2) S3 API 주소·버킷과 버킷 전용 R2 API 토큰의 S3 키. 지역은 `auto`. 준비 방법은 [backend README](../../backend/README.md#녹음-업로드와-원본-저장소pra-02) | 녹음 업로드만 503으로 거절 |
+| `SHEET_STORAGE_ENDPOINT`·`_BUCKET`·`_ACCESS_KEY_ID`·`_SECRET_ACCESS_KEY`·`_REGION` | 내 악보 임시 M4A용 별도 비공개 R2 버킷과 그 버킷에 한정한 Object Read & Write 키. 지역 기본값은 `auto`. 버킷 공개 여부와 실제 업로드·서명 읽기·삭제는 [710 작업 기록](../../docs/plans/S15P31E102-710.md) 참조 | 필수 값이 비면 내 악보 음원 생성은 503으로 거절 |
 
 Compose는 값이 없는 변수를 빈 문자열로 넘기므로 백엔드는 빈 값을 미설정과 같게 처리합니다. `AUTH_COOKIE_SECURE`는 연결하지 않습니다. 백엔드 기본값이 `true`이고 운영은 HTTPS라 넣을 필요가 없습니다. 값을 넣거나 바꿀 때는 `.env`를 root 전용으로 백업한 뒤 `sudoedit`로 고치고, 아래 절차대로 backend만 재생성합니다. 서명 키를 바꾸면 기존 로그인 토큰은 모두 무효가 되고, 인증번호 해시 키를 바꾸면 발송 중인 인증번호가 모두 무효가 됩니다. Gmail 앱 비밀번호는 Google 계정 보안 설정에서 발급·폐기하며, 교체하면 이전 값은 바로 쓸 수 없습니다.
 
@@ -503,4 +504,4 @@ ssh edo1 'sudo -n docker inspect --format "{{.State.Status}} {{if .State.Health}
 
 534 브랜치의 원본 비보관 전환은 [정책](../../docs/specs/user-sheets.md#업로드-원본-비보관-정책-2026-11-06-확정-s15p31e102-534)을 따릅니다. 원본은 backend `/tmp/eolssu-sheet-imports`와 요청 처리 중의 `/tmp/eolssu-multipart`에 있는 비공개 임시 파일이며 최대 30분·종료 즉시 정리합니다. 두 디렉터리를 영구 볼륨·백업에 넣지 않습니다. Nginx가 본문을 받는 동안의 임시 파일은 승인된 예외이며 요청이 끝나면 지워집니다. 한 backend 인스턴스에서 운영합니다.
 
-`SHEET_IMPORT_READ_BASE_URL`은 단일 앱에서 사용합니다. 운영 블루그린에서는 접수 슬롯이 OMR 원본 읽기 주소를 자기 내부 이름으로 고정합니다. OMR만 내부망에서 만료 토큰으로 읽으며 Nginx의 `/api/internal/` 차단을 함께 배포해야 합니다. 모든 외부 프록시도 같은 경로를 차단해야 합니다. R2 설정이 없더라도 원본 불러오기는 동작하고, 생성 M4A·MIDI에는 계속 `SHEET_STORAGE_*`가 필요합니다. 기존 R2 원본 일괄 정리는 별도 승인·실행 범위입니다.
+`SHEET_IMPORT_READ_BASE_URL`은 단일 앱에서 사용합니다. 운영 블루그린에서는 접수 슬롯이 OMR 원본 읽기 주소를 자기 내부 이름으로 고정합니다. OMR만 내부망에서 만료 토큰으로 읽으며 Nginx의 `/api/internal/` 차단을 함께 배포해야 합니다. 모든 외부 프록시도 같은 경로를 차단해야 합니다. R2 설정과 별개로 원본을 불러올 수 있습니다. 생성 M4A는 `SHEET_STORAGE_*`의 버킷에 임시 보관합니다. 다운로드 기한은 생성 완료 후 10분이며, 만료된 파일은 백엔드가 정리합니다. MIDI는 내부 생성에서 사용합니다. 기존 R2 원본 일괄 정리는 별도 승인·실행 범위입니다.
