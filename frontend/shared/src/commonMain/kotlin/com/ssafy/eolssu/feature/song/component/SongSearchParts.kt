@@ -59,8 +59,6 @@ import com.ssafy.eolssu.feature.song.SongLoadState
 import com.ssafy.eolssu.feature.song.SongSortOrder
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_clear
-import eolssu.shared.generated.resources.song_count
-import eolssu.shared.generated.resources.song_count_instrument
 import eolssu.shared.generated.resources.song_empty
 import eolssu.shared.generated.resources.song_empty_body
 import eolssu.shared.generated.resources.song_level_all
@@ -92,8 +90,8 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
     }
     item(key = "search") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery)
-            SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(bottom = 16.dp))
+            SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery, bordered = false)
+            SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(bottom = 16.dp), bordered = false)
         }
     }
     val songs = state.visibleSongs
@@ -102,10 +100,10 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
             item(key = "notice") { SongLoadNotice(state.loadState, actions.onRetry) }
         songs.isEmpty() -> item(key = "empty") { SongEmptyResult(actions.onResetFilters) }
         else -> {
+            // 곡 수 안내('46곡 · 단소')는 두지 않고 정렬 버튼만 오른쪽에 둔다(S15P31E102-768).
             item(key = "count") {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SongCountHelper(songs.size, state, Modifier.weight(1f))
-                    SongSortButton(state.sort, actions.onToggleSort, small = true)
+                Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.End) {
+                    SongSortButton(state.sort, actions.onToggleSort, small = true, bordered = false)
                 }
             }
             // 연습곡 고르기와 같은 곡 줄(첫 글자 칸 · 제목 · 장단 · 난이도 배지)을 8dp 간격으로 쌓는다.
@@ -116,29 +114,11 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
                     onClick = { actions.onOpenSong(song.id) },
                     modifier = Modifier.padding(bottom = 8.dp),
                     selected = song.id == selectedId,
+                    bordered = false,
                 )
             }
         }
     }
-}
-
-/** 곡 수 안내(`.helper`) '9곡 · 대금'. 악기를 하나로 정할 수 없으면 곡 수만 적는다. */
-@Composable
-private fun SongCountHelper(count: Int, state: SongListUiState, modifier: Modifier = Modifier) {
-    val instrument = state.instrument
-    val instrumentName = state.instruments.firstOrNull { it.instrumentId == state.instrumentId }?.name
-    Text(
-        if (instrumentName != null) {
-            stringResource(Res.string.song_count_instrument, count, instrumentName)
-        } else if (instrument != null) {
-            stringResource(Res.string.song_count_instrument, count, stringResource(instrument.label))
-        } else {
-            stringResource(Res.string.song_count, count)
-        },
-        modifier = modifier,
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
-        color = EolssuTheme.colors.textMuted,
-    )
 }
 
 /** SONG-01 곡 제목 검색칸(`.search-box`): 높이 46dp, 흰 바탕 · 옅은 테두리 · 모서리 10dp, 13sp. 앱 안에서 제목으로 거른다. */
@@ -148,6 +128,7 @@ internal fun SongSearchField(
     onQueryChange: (String) -> Unit,
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
+    bordered: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(10.dp)
@@ -158,7 +139,7 @@ internal fun SongSearchField(
             .fillMaxWidth()
             .height(46.dp)
             .background(colors.surface, shape)
-            .border(1.dp, colors.lineSoft, shape)
+            .then(if (bordered) Modifier.border(1.dp, colors.lineSoft, shape) else Modifier)
             .padding(horizontal = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -203,12 +184,13 @@ internal fun SongLevelChips(
     onSelect: (SongLevelFilter) -> Unit,
     modifier: Modifier = Modifier,
     singleLine: Boolean = false,
+    bordered: Boolean = true,
 ) {
     val chips: @Composable () -> Unit = {
         SongLevelFilter.entries.forEach { filter ->
             val level = filter.level
-            if (level == null) EolssuChip(songLevelFilterLabel(filter), selected = selected == filter, onClick = { onSelect(filter) })
-            else EolssuLevelChip(level, selected = selected == filter, onClick = { onSelect(filter) })
+            if (level == null) EolssuChip(songLevelFilterLabel(filter), selected = selected == filter, onClick = { onSelect(filter) }, bordered = bordered)
+            else EolssuLevelChip(level, selected = selected == filter, onClick = { onSelect(filter) }, bordered = bordered)
         }
     }
     if (singleLine) {
@@ -227,7 +209,7 @@ internal fun SongLevelChips(
  * 고르기 칩과 같은 36dp(15sp) 흰 알약이고, [small]이면 목록 위 안내 줄에 맞춘 28dp(13sp)다.
  */
 @Composable
-internal fun SongSortButton(order: SongSortOrder, onToggle: () -> Unit, modifier: Modifier = Modifier, small: Boolean = false) {
+internal fun SongSortButton(order: SongSortOrder, onToggle: () -> Unit, modifier: Modifier = Modifier, small: Boolean = false, bordered: Boolean = true) {
     val colors = EolssuTheme.colors
     val ascending = order == SongSortOrder.Ascending
     val description = stringResource(if (ascending) Res.string.song_sort_ascending_description else Res.string.song_sort_descending_description)
@@ -237,7 +219,7 @@ internal fun SongSortButton(order: SongSortOrder, onToggle: () -> Unit, modifier
         shape = CircleShape,
         color = colors.surface,
         contentColor = colors.textSub,
-        border = BorderStroke(1.dp, colors.lineSoft),
+        border = if (bordered) BorderStroke(1.dp, colors.lineSoft) else null,
     ) {
         Row(
             Modifier.padding(horizontal = if (small) 10.dp else 12.dp, vertical = 2.dp),

@@ -1,6 +1,12 @@
 package com.ssafy.eolssu.feature.profile.component
 
 import androidx.compose.foundation.Image
+import com.ssafy.eolssu.core.model.Instrument
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
@@ -12,7 +18,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -40,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.InstrumentPicture
+import com.ssafy.eolssu.core.ui.component.ProfileImageCircle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import com.ssafy.eolssu.core.model.KoreanDateTime
@@ -48,7 +55,7 @@ import com.ssafy.eolssu.feature.profile.MyLearningProgress
 import com.ssafy.eolssu.feature.profile.MyRecentPractice
 import com.ssafy.eolssu.feature.profile.MyRecentPracticeStatus
 import eolssu.shared.generated.resources.*
-import com.ssafy.eolssu.data.user.ProfileImage
+import com.ssafy.eolssu.core.model.ProfileImage
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -58,8 +65,8 @@ import org.jetbrains.compose.resources.stringResource
 internal val MyPageCardInset: Dp = 20.dp
 
 /**
- * 마이페이지 카드: 회색 바탕(`groupedBackground`) 위의 테두리 없는 흰 카드 · 모서리 20dp.
- * 선 대신 바탕과의 명도 차이로 묶음을 나눈다(S15P31E102-731).
+ * 마이페이지 카드: 옅은 회색 바탕(`groupedBackground`) 위의 흰 카드 · 모서리 20dp.
+ * 테두리 없이 바탕과의 명도 차이로 묶음을 나눈다(S15P31E102-759).
  */
 @Composable
 internal fun MyPageCard(onClick: (() -> Unit)? = null, enabled: Boolean = true, content: @Composable () -> Unit) {
@@ -86,23 +93,6 @@ internal fun MyPageCardTitle(title: String, modifier: Modifier = Modifier, trail
     }
 }
 
-/** 절쑤 그림 12종의 그림(S15P31E102-738). 얼굴과 갓이 원 가운데 오도록 자른 정사각형이다. */
-internal val ProfileImage.drawable: DrawableResource
-    get() = when (this) {
-        ProfileImage.Hello -> Res.drawable.profile_tiger_hello
-        ProfileImage.Danso -> Res.drawable.profile_tiger_danso
-        ProfileImage.Study -> Res.drawable.profile_tiger_study
-        ProfileImage.Look -> Res.drawable.profile_tiger_look
-        ProfileImage.Great -> Res.drawable.profile_tiger_great
-        ProfileImage.Jangdan -> Res.drawable.profile_tiger_jangdan
-        ProfileImage.Again -> Res.drawable.profile_tiger_again
-        ProfileImage.Surprise -> Res.drawable.profile_tiger_surprise
-        ProfileImage.Proud -> Res.drawable.profile_tiger_proud
-        ProfileImage.Okay -> Res.drawable.profile_tiger_okay
-        ProfileImage.Rest -> Res.drawable.profile_tiger_rest
-        ProfileImage.Done -> Res.drawable.profile_tiger_done
-    }
-
 /** 절쑤 그림 12종의 이름(고르기 화면·화면 낭독). */
 internal val ProfileImage.label: StringResource
     get() = when (this) {
@@ -120,22 +110,6 @@ internal val ProfileImage.label: StringResource
         ProfileImage.Done -> Res.string.my_profile_image_done
     }
 
-/** 흰 원 안의 절쑤 그림. [ring]을 주면 원 바깥에 3dp 테두리를 두른다(고른 그림). */
-@Composable
-internal fun ProfileImageCircle(image: ProfileImage, size: Dp, ring: Color? = null) {
-    val colors = EolssuTheme.colors
-    Box(
-        Modifier
-            .size(size)
-            .then(if (ring != null) Modifier.border(3.dp, ring, CircleShape) else Modifier)
-            .padding(if (ring != null) 5.dp else 0.dp)
-            .clip(CircleShape)
-            .background(colors.surface),
-    ) {
-        Image(painterResource(image.drawable), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-    }
-}
-
 /**
  * 마이페이지 얼굴 원(84dp): 고른 절쑤 그림 오른쪽 아래에 작은 연필 뱃지를 두고, 원 전체를 누르면 [onEdit]으로 그림 고르기를 연다.
  * 뱃지는 바탕색 테두리로 원과 떨어져 보이게 한다.
@@ -144,7 +118,8 @@ internal fun ProfileImageCircle(image: ProfileImage, size: Dp, ring: Color? = nu
 internal fun MyPageAvatar(image: ProfileImage, onEdit: () -> Unit) {
     val colors = EolssuTheme.colors
     val description = stringResource(Res.string.my_profile_image_edit)
-    Box(Modifier.size(84.dp).clearAndSetSemantics { contentDescription = description; role = Role.Button }) {
+    // 부모 칸이 좁아도 타원이 되지 않게 정사각형을 강제한다(S15P31E102-768).
+    Box(Modifier.requiredSize(84.dp).clearAndSetSemantics { contentDescription = description; role = Role.Button }) {
         Box(Modifier.matchParentSize().clip(CircleShape).clickable(onClick = onEdit)) {
             ProfileImageCircle(image, 84.dp)
         }
@@ -165,22 +140,22 @@ internal fun MyPageAvatar(image: ProfileImage, onEdit: () -> Unit) {
     }
 }
 
-/** 닉네임 아래 '기초부터 배우기' 진도 뱃지: 흰 알약에 먹초록 글자로 다음에 배울 단계(모두 마치면 완료)를 적는다. */
+/** 닉네임 아래 '기초부터 배우기' 진도 뱃지: 흰 알약에 가장 최근에 배운 악기 그림(기초부터 배우기와 같은 그림, S15P31E102-768)과 먹초록 글자로 다음에 배울 단계(모두 마치면 완료)를 적는다. */
 @Composable
 internal fun LearningBadge(progress: MyLearningProgress) {
     val colors = EolssuTheme.colors
     val stage = progress.nextStage
     val text = if (stage != null) stringResource(Res.string.my_learning_badge, stage) else stringResource(Res.string.my_learning_badge_done)
-    val label = stringResource(Res.string.my_learning_badge_label, text)
+    val label = stringResource(Res.string.my_learning_badge_label, stringResource(progress.instrument.label), text)
     Row(
         Modifier
             .clearAndSetSemantics { contentDescription = label }
             .background(colors.surface, RoundedCornerShape(50))
             .padding(start = 10.dp, end = 12.dp, top = 5.dp, bottom = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(EolssuIcons.Book, contentDescription = null, modifier = Modifier.size(13.dp), tint = colors.cardInk)
+        InstrumentPicture(progress.instrument, size = 22.dp)
         Text(
             text,
             style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
@@ -203,10 +178,7 @@ internal fun MyRecentPracticeCard(recent: MyRecentPractice, status: MyRecentPrac
     MyPageCard(onClick = onOpenRecords, enabled = status != MyRecentPracticeStatus.Unavailable) {
         Column(Modifier.padding(horizontal = MyPageCardInset, vertical = 20.dp)) {
             MyPageCardTitle(stringResource(Res.string.my_recent_title)) {
-                if (shown) {
-                    val day = if (latest!!.recordedAt.isSameDay(today)) stringResource(Res.string.records_today) else monthDayLabel(latest.recordedAt)
-                    Text(day, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
-                } else if (status != MyRecentPracticeStatus.Unavailable) {
+                if (status != MyRecentPracticeStatus.Unavailable) {
                     Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textDisabled)
                 }
             }
@@ -226,16 +198,17 @@ internal fun MyRecentPracticeCard(recent: MyRecentPractice, status: MyRecentPrac
                 Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            latest!!.songTitle,
+                            latest.songTitle,
                             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
                             color = colors.text,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
+                        val day = if (latest.recordedAt.isSameDay(today)) stringResource(Res.string.records_today) else monthDayLabel(latest.recordedAt)
                         val kind = latest.section?.let { stringResource(Res.string.records_section, it) } ?: stringResource(Res.string.records_whole)
                         val week = if (recent.weekCount > 0) stringResource(Res.string.my_recent_meta, recent.weekCount) else null
                         Text(
-                            if (week != null) "$kind · $week" else kind,
+                            listOfNotNull(day, kind, week).joinToString(" · "),
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
                             color = colors.textMuted,
                             maxLines = 1,
@@ -243,7 +216,6 @@ internal fun MyRecentPracticeCard(recent: MyRecentPractice, status: MyRecentPrac
                         )
                     }
                     ScoreValue(latest.score)
-                    Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.padding(start = 8.dp).size(16.dp), tint = colors.textDisabled)
                 }
             }
         }
@@ -259,13 +231,19 @@ private fun ScoreValue(score: Int) {
         Text(
             score.toString(),
             modifier = Modifier.alignByBaseline(),
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 28.sp,
+                lineHeight = 32.sp,
+                fontWeight = FontWeight.Bold,
+                // 숫자 글꼴의 좌우 여백을 줄여 '점'이 숫자에 바로 붙게 한다.
+                letterSpacing = (-0.5).sp,
+            ),
             color = colors.cardInk,
         )
         Text(
             stringResource(Res.string.my_recent_score_unit),
-            modifier = Modifier.alignByBaseline().padding(start = 2.dp),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
+            modifier = Modifier.alignByBaseline().padding(start = 1.dp),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold),
             color = colors.cardInk,
         )
     }
@@ -306,7 +284,12 @@ internal fun ProfileTextLink(text: String, onClick: () -> Unit, modifier: Modifi
 internal fun MyPageFooter(onOpenSources: () -> Unit, onOpenLegal: (PublishedLegalDocument) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
         FooterRow(stringResource(Res.string.my_sources), onOpenSources)
-        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, itemVerticalAlignment = Alignment.CenterVertically) {
+        // 위 '자료 및 데이터 출처' 줄의 글자 시작과 화살표 끝에 맞춰 양 끝을 붙이고, 사이는 같은 간격으로 나눈다.
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = MyPageCardInset),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             FooterLink(stringResource(Res.string.legal_service)) { onOpenLegal(PublishedLegalDocument.Service) }
             FooterBar()
             FooterLink(stringResource(Res.string.legal_privacy)) { onOpenLegal(PublishedLegalDocument.Privacy) }
@@ -316,14 +299,14 @@ internal fun MyPageFooter(onOpenSources: () -> Unit, onOpenLegal: (PublishedLega
     }
 }
 
-/** 하단 가로 링크 하나: 밑줄 없는 12sp 회색 글씨, 누르는 영역 48dp 이상. */
+/** 하단 가로 링크 하나: 밑줄 없는 12sp 회색 글씨. 양 끝 글자가 줄 끝에 닿도록 좌우 여백 없이 두고 높이만 48dp 이상이다. */
 @Composable
 private fun FooterLink(text: String, onClick: () -> Unit) {
     Box(
-        Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 6.dp),
+        Modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = EolssuTheme.colors.textMuted)
+        Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = EolssuTheme.colors.textMuted, maxLines = 1, softWrap = false)
     }
 }
 

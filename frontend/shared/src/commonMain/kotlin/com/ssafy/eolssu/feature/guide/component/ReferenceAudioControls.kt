@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.guide.component
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -111,13 +110,12 @@ private fun SpeakerButton(
         onClick = onClick, enabled = enabled,
         modifier = modifier.heightIn(min = 48.dp).semantics { contentDescription = description },
         shape = RoundedCornerShape(10.dp),
-        color = if (active) colors.primary else colors.surface,
+        color = if (active) colors.primary else colors.accentTint,
         contentColor = when {
             active -> colors.onPrimary
-            enabled -> colors.text
+            enabled -> colors.accentText
             else -> colors.textMuted
         },
-        border = if (active) null else BorderStroke(1.dp, colors.lineSoft),
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {

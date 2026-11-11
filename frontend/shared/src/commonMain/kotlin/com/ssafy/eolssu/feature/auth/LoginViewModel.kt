@@ -80,4 +80,7 @@ class LoginViewModel(
     }
 
     fun dismissNotice() = _uiState.update { it.copy(notice = null) }
+
+    /** 탈퇴 신청을 마치고 온 안내 창을 띄운다. */
+    fun showWithdrawn() = _uiState.update { it.copy(notice = LoginNotice.Withdrawn) }
 }

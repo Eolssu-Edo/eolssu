@@ -60,6 +60,7 @@ fun EolssuBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     maxHeightFraction: Float = 0.78f,
+    containerColor: Color? = null,
     header: @Composable () -> Unit,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     body: @Composable ColumnScope.() -> Unit,
@@ -70,7 +71,7 @@ fun EolssuBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = EolssuTheme.colors.surface,
+        containerColor = containerColor ?: EolssuTheme.colors.surface,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         scrimColor = EolssuTheme.colors.text.copy(alpha = 0.45f),
         dragHandle = {
@@ -151,7 +152,8 @@ fun EolssuSwitch(
         color = if (checked) colors.primary else offColor ?: colors.line,
     ) {
         Box(Modifier.padding(3.dp), contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart) {
-            Box(Modifier.size(height - 6.dp).shadow(1.dp, CircleShape).background(Color.White, CircleShape))
+            // 앱 전체 스위치를 그림자 없는 흰 손잡이로 맞춘다(S15P31E102-768).
+            Box(Modifier.size(height - 6.dp).background(Color.White, CircleShape))
         }
     }
 }
@@ -192,7 +194,7 @@ fun ToggleRow(
 
 /**
  * 확인 창(연두 보드 `.dialog`): 양옆 28dp 안쪽의 흰 상자(반지름 20, 여백 24·20·20)에 48dp 아이콘 고리(`.ico-ring`) ·
- * Song Myung 19sp 제목 · 14sp 설명 · 세로로 쌓은 버튼(간격 8). 기본은 바깥을 누르거나 뒤로 가도 닫히지 않는다.
+ * 19sp 제목 · 14sp 설명 · 세로로 쌓은 버튼(간격 8). 기본은 바깥을 누르거나 뒤로 가도 닫히지 않는다.
  *
  * @param onDismissRequest 바깥(가림막)을 누르거나 뒤로 갈 때. 닫기 버튼 없이 이렇게 닫는 창만 넘긴다.
  * @param iconBackground 아이콘 고리 바탕. 기본 연두 20%(`accentTint`), 경고는 `recSoft`, 완료는 `accentTintStrong`.

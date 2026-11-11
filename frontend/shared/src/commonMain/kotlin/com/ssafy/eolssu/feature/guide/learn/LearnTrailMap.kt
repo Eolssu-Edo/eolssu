@@ -101,8 +101,7 @@ internal fun LearnTrailMap(
             Modifier
                 .fillMaxSize()
                 .clip(shape)
-                .background(paper)
-                .border(1.dp, colors.lineSoft, shape),
+                .background(paper),
         ) {
             val y = TrailRowY * size.height
             drawLakeScenery(y, points.map { it.x * size.width }, ink, paper, water, grass)

@@ -65,6 +65,7 @@ import io.ktor.http.encodeURLParameter
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.koin.compose.viewmodel.koinViewModel
+import com.ssafy.eolssu.data.user.UserRepository
 import org.koin.compose.koinInject
 
 /** 화면 경로. Web에서는 주소의 `#` 뒤에 그대로 보인다. 화면을 추가할 때 여기에 경로를 더한다. */
@@ -148,6 +149,7 @@ fun EolssuNavHost(
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
     val firstRunRepository = koinInject<FirstRunRepository>()
     val member = koinInject<SignedInMember>()
+    val users = koinInject<UserRepository>()
     // 앱을 켤 때의 로그인 여부. 로그아웃 뒤 다시 켜면 회원이 없어 만료 안내 없이 로그인에서 시작한다.
     val firstRunCompleted = remember { firstRunRepository.isCompleted() }
     val signedInAtStart = remember { member.id != null }
@@ -197,6 +199,7 @@ fun EolssuNavHost(
             composable(EolssuDestination.HOME) { entry ->
                 // 홈 아래에 쌓인 화면이 없을 때만 Android 뒤로 가기 두 번으로 앱을 닫는다. 홈으로 가는 이동은 모두 쌓인 화면을 비운다.
                 val homeIsRoot = remember(entry) { navController.previousBackStackEntry == null }
+                val profile by users.profile.collectAsStateWithLifecycle()
                 HomeRoute(
                     onStartEvaluation = { navController.navigate(EolssuDestination.SONG_LIST) },
                     onOpenFeature = { feature ->
@@ -215,6 +218,7 @@ fun EolssuNavHost(
                         route != null
                     },
                     onOpenMyPage = { navController.navigate(ProfileDestination.MY_PAGE) },
+                    profileImage = profile.profileImage,
                     startMessage = entry.startNotice(),
                     onStartMessageShown = entry::clearStartNotice,
                     exitOnDoubleBack = homeIsRoot,

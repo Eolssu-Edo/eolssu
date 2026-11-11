@@ -58,12 +58,13 @@ class MyPageViewModel(
      * 마지막으로 받은 학습 진도와 그 악기. 다른 화면에서 돌아와 진도를 다시 받는 동안 같은 악기면 이 뱃지를 그대로 보여,
      * 뱃지가 잠깐 사라졌다 나타나며 화면이 흔들리지 않게 한다(S15P31E102-731).
      */
-    private var lastProgress: Pair<Instrument, MyLearningProgress>? = null
+    private var lastProgress: MyLearningProgress? = null
 
-    fun lastLearningProgress(instrument: Instrument?): MyLearningProgress? = lastProgress?.takeIf { it.first == instrument }?.second
+    /** 마지막으로 받은 진도 뱃지. 다른 화면에서 돌아와 다시 받는 동안 그대로 보인다. */
+    fun lastLearningProgress(): MyLearningProgress? = lastProgress
 
-    fun rememberLearningProgress(instrument: Instrument, progress: MyLearningProgress?) {
-        lastProgress = progress?.let { instrument to it }
+    fun rememberLearningProgress(progress: MyLearningProgress?) {
+        lastProgress = progress
     }
 
     private val _loadingProfile = MutableStateFlow(true)

@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.auth
 
+import eolssu.shared.generated.resources.auth_withdrawn_title
+import eolssu.shared.generated.resources.auth_withdrawn_message
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -153,6 +155,14 @@ fun LoginScreen(
             icon = EolssuIcons.Check,
         ) {
             EolssuButton(stringResource(Res.string.auth_confirm), onClick = onWithdrawalCancelledConfirmed)
+        }
+        LoginNotice.Withdrawn -> EolssuDialog(
+            title = stringResource(Res.string.auth_withdrawn_title),
+            message = stringResource(Res.string.auth_withdrawn_message),
+            icon = EolssuIcons.Check,
+            onDismissRequest = onDismissNotice,
+        ) {
+            EolssuButton(stringResource(Res.string.auth_confirm), onClick = onDismissNotice)
         }
         null -> Unit
     }

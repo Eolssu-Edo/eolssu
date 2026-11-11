@@ -16,7 +16,7 @@ class RetiredAndroidTests(unittest.TestCase):
                              'expected_stop': 'retired fixture exemption', 'ram_bytes': None,
                              'cpu_percent': None}]}
         text = relay.build_report(report, 'fixture').replace('\u2060', '')
-        self.assertIn('장애 확인', text)
+        self.assertIn('❌ **장애 1**', text.splitlines()[1])
         self.assertNotIn('실험 중지', text)
 
     def test_health_has_no_exception_for_the_retired_android_name(self):

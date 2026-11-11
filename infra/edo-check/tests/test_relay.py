@@ -93,7 +93,7 @@ class RequestTests(unittest.TestCase):
         self.assertIn('**실행 세부 정보**', text)
         self.assertNotIn('<br>', text)
 
-    def test_mode_summaries_cover_both_targets_and_keep_details(self):
+    def test_short_report_headers_cover_both_targets_and_keep_details(self):
         server = {'mode': 'server', 'columns': [str(i) for i in range(10)],
                   'rows': [[f'value{i}' for i in range(10)]]}
         containers = {'mode': 'containers', 'columns': [str(i) for i in range(11)], 'rows': []}
@@ -105,20 +105,25 @@ class RequestTests(unittest.TestCase):
                            ['eolssu-replica-579-mysql-1', 'Docker healthcheck', '정상', 'healthy']],
                   'facts': {'backend_slot': 'backend'}}
         for target in ('edo1', 'edo2'):
-            for report, label, detail in ((server, '서버 점검', '서버 현재 자원'),
-                                           (containers, '컨테이너 점검', '컨테이너 현황'),
-                                           (health, '상태 점검', '서비스 검사 결과')):
+            for report, label, detail in ((server, '서버', '서버 현재 자원'),
+                                           (containers, '컨테이너', '컨테이너 현황'),
+                                           (health, '상태', '서비스 검사 결과')):
                 with self.subTest(target=target, mode=report['mode']):
                     text = relay.build_report(dict(report, target=target), 'req')
-                    self.assertIn(f'{target} {label}', text)
-                    self.assertLess(text.index('핵심 요약'), text.index(detail))
+                    self.assertEqual(text.splitlines()[0], f'### {target} {label}')
+                    intro, tables = text.split('\n\n', 1)
+                    self.assertNotIn('핵심 요약', intro)
+                    self.assertIn('장애 0', intro)
+                    self.assertIn(detail, tables)
+                    self.assertIn('요청 `req`', intro)
                     if report is health:
-                        summary = text.split('**핵심 요약**')[1].split('**')[0]
-                        self.assertIn('라우팅 설정 블루' if target == 'edo1' else '복구 검증 주의', summary)
-                        self.assertIn('API 정상' if target == 'edo1' else '중계 HTTPS 정상', summary)
-                        if target == 'edo2':
-                            self.assertIn('Docker 검사 · MySQL 복제본 정상', summary)
-                            self.assertIn('복제 지연과 장애 조치 가능 여부', text)
+                        self.assertIn('API health', tables)
+                        self.assertIn('실제 복구 검증 결과', tables)
+                        self.assertIn('MySQL 복제본', tables)
+                        if target == 'edo1':
+                            self.assertIn('API 라우팅 블루 · 컨테이너 정상', intro)
+                        else:
+                            self.assertEqual(len(intro.splitlines()), 3)
 
     def test_health_prioritizes_outages_and_preserves_later_details(self):
         rows = [[f'대기{i}', 'Docker', '미검증', '대기 중'] for i in range(7)]
@@ -130,11 +135,11 @@ class RequestTests(unittest.TestCase):
         self.assertNotIn('대기6', priority)
         self.assertIn('대기6', detail)
 
-    def test_long_report_keeps_summary_and_explicit_omission_within_limit(self):
+    def test_long_report_keeps_counts_and_explicit_omission_within_limit(self):
         report = {'mode': 'health', 'columns': ['대상', '방식', '판정', '근거'],
                   'rows': [[f'검사{i}', 'Docker', '정상', '상세' * 1000] for i in range(100)]}
         text = relay.build_report(report, 'req')
-        self.assertIn('핵심 요약', text)
+        self.assertIn('장애 0 · 주의 0 · 미검증 0 · 미측정 0', text)
         self.assertIn('출력 제한', text)
         self.assertLessEqual(len(text), 14000)
 
@@ -144,7 +149,7 @@ class RequestTests(unittest.TestCase):
                       'rows': [['edo1', '정상']], 'captured_at': stamp}
             with self.subTest(stamp=stamp):
                 text = relay.build_report(result, 'req')
-                self.assertIn('수집 시각: `2026-10-23 16:17:18 KST`', text)
+                self.assertIn('`2026-10-23 16:17:18 KST` ·', text)
 
     def test_callback_rejects_private_dns_before_connecting(self):
         connection = relay.PublicHTTPS('meeting.ssafy.com', timeout=1)
@@ -163,7 +168,7 @@ class RequestTests(unittest.TestCase):
         self.assertIn('미검증 1', text)
         self.assertIn('/edo1-health의 별도 HTTP 준비 검사', text)
         self.assertIn('healthcheck 구성 필요', text)
-        self.assertIn('자동 갱신되지', text)
+        self.assertNotIn('자동 갱신되지', text)
         self.assertNotIn('**실행 중 · 건강 검사 없음**', text)
 
     def test_api_html_200_is_not_reported_as_healthy(self):
@@ -261,7 +266,7 @@ class RequestTests(unittest.TestCase):
                   'facts': {'cpu_cores': 4, 'load': [1.0, 4.1, 3.5]}}
         text = relay.build_report(result, 'req')
         self.assertNotIn('추세 확인', text)
-        self.assertIn('5분 또는 15분 값이 4코어 수를 넘으면', text)
+        self.assertIn('5분·15분 중 4 초과', text)
         self.assertIn('30초 간격 3회', text)
         self.assertIn('80% 이상', text)
         self.assertIn('90% 이상', text)

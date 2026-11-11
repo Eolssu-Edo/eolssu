@@ -87,6 +87,6 @@ fun MySongsRoute(
             onRetryConversion = viewModel::retryConversion,
             onReimportSheet = { sheet -> onReimportSheet(state.conversionOf(sheet)?.failure) },
         ),
-        instrumentPicker = { SongInstrumentPicker(viewModel.instrumentSelection, snackbarHostState, onSessionExpired) },
+        instrumentPicker = { SongInstrumentPicker(viewModel.instrumentSelection, snackbarHostState, onSessionExpired, bordered = false) },
     )
 }

@@ -45,7 +45,7 @@ internal fun FingeringCard(
     inLearn: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(if (inLearn) 14.dp else 20.dp)
     val details = listOf(stringResource(Res.string.guide_note_reading, note.reading)) + note.remarks(inLearn).map { remark ->
         when (remark) {
             NoteRemark.Semitone -> stringResource(Res.string.guide_note_semitone)
@@ -56,7 +56,7 @@ internal fun FingeringCard(
         modifier
             .fillMaxWidth()
             .background(colors.surface, shape)
-            .border(1.dp, colors.lineSoft, shape)
+            .then(if (inLearn) Modifier.border(1.dp, colors.lineSoft, shape) else Modifier)
             .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = if (inLearn) 8.dp else 10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

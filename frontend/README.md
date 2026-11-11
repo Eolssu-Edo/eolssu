@@ -228,9 +228,10 @@ Web은 기기 글꼴로 한글·한자를 그리지 않기 때문에 글꼴 파�
 
 | 파일 | 용도 | 글자 범위 |
 | --- | --- | --- |
-| `ibm_plex_sans_kr_regular·semibold·bold.ttf` | 본문·버튼·사용자가 입력한 글자 | Google Fonts 공식 IBM Plex Sans KR 원본 |
-| `song_myung_regular.ttf` | 고정 제목 | Google Fonts 공식 Song Myung 원본 |
+| `ibm_plex_sans_kr_regular·semibold·bold.ttf` | 제목·본문·버튼·사용자가 입력한 글자 | Google Fonts 공식 IBM Plex Sans KR 원본 |
+| `song_myung_regular.ttf` | 미사용(제목은 S15P31E102-768부터 IBM Plex Sans KR SemiBold) | Google Fonts 공식 Song Myung 원본 |
 | `noto_serif_kr_semibold·bold.otf` | 율명·곡 제목 | 기존 Noto Serif KR 서브셋, 한글 2,350자·율명 한자·영숫자 |
+| `seal_brush.ttf` | 연습곡 표지의 붉은 '얼쑤' 도장 | 나눔손글씨 붓(Google Fonts `ofl/nanumbrushscript`)에서 `얼쑤` 2자만 남긴 서브셋(약 4.5KB). OFL 예약 글꼴 이름 때문에 글꼴 이름을 `Eolssu Seal Brush`로 바꿨고 라이선스 원문은 `files/licenses/nanum_brush_script_ofl.txt` |
 | `pretendard_regular·semibold·bold.otf` | 기존 리소스 보존, 기본 본문에서는 미사용 | Pretendard 1.3.9 원본 |
 
 - 기존 Noto Serif KR 서브셋에는 한글이 2,350자만 있으므로 **사용자가 입력한 글자는 본문 글꼴로 씁니다.** 율명은 기존 Noto Serif KR와 글리프 처리를 유지합니다.
