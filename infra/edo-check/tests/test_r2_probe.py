@@ -129,3 +129,63 @@ class SyntheticWriteTests(unittest.TestCase):
                 'status': 'failed', 'detail': 'write_read',
             })
             self.assertEqual(status.stat().st_mode & 0o777, 0o600)
+
+
+class SheetStorageTests(unittest.TestCase):
+    def setUp(self):
+        self.client = Mock()
+        self.client.put_object.return_value = {'ResponseMetadata': {'HTTPStatusCode': 200}}
+        self.client.delete_object.return_value = {'ResponseMetadata': {'HTTPStatusCode': 204}}
+        gone = RuntimeError('provider error with private metadata')
+        gone.response = {'ResponseMetadata': {'HTTPStatusCode': 404}}
+        self.client.head_object.side_effect = gone
+
+    def test_writes_checks_signed_download_and_verifies_removal(self):
+        response = Mock(status=200)
+        connection = Mock()
+        connection.getresponse.return_value = response
+
+        def signed_url(operation, Params, ExpiresIn):
+            self.assertEqual(operation, 'get_object')
+            self.assertEqual(Params['Bucket'], 'eolssu-sheet-audio')
+            self.assertLessEqual(ExpiresIn, 90)
+            return (f"https://{R2_HOST}/{Params['Bucket']}/{Params['Key']}"
+                    f"?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature={SIGNATURE}")
+
+        self.client.generate_presigned_url.side_effect = signed_url
+        response.read.side_effect = lambda _: self.client.put_object.call_args.kwargs['Body']
+        with patch.object(probe.http.client, 'HTTPSConnection', return_value=connection):
+            result = probe.sheet_cycle(self.client, 'eolssu-sheet-audio', R2_HOST)
+        self.assertEqual(result, 'put_signed_get_delete_ok')
+        key = self.client.put_object.call_args.kwargs['Key']
+        self.assertRegex(key, r'^sheet-audio/verification/edo-check/[0-9a-f]{32}\.txt$')
+        connection.request.assert_called_once()
+        self.assertEqual(connection.request.call_args.args[0], 'GET')
+        self.assertEqual(connection.request.call_args.kwargs, {})
+        self.client.delete_object.assert_called_once_with(Bucket='eolssu-sheet-audio', Key=key)
+        self.client.head_object.assert_called_once_with(Bucket='eolssu-sheet-audio', Key=key)
+
+    def test_invalid_signature_target_is_never_contacted_and_the_object_is_deleted(self):
+        self.client.generate_presigned_url.return_value = 'https://example.invalid/?X-Amz-Signature=hidden'
+        with patch.object(probe.http.client, 'HTTPSConnection') as connect:
+            self.assertEqual(probe.sheet_cycle(self.client, 'eolssu-sheet-audio', R2_HOST), 'sheet_download')
+        connect.assert_not_called()
+        self.client.delete_object.assert_called_once()
+
+    def test_conflict_never_deletes_and_uncertain_write_checks_its_own_key(self):
+        conflict = RuntimeError('private provider detail')
+        conflict.response = {'ResponseMetadata': {'HTTPStatusCode': 412}}
+        self.client.put_object.side_effect = conflict
+        self.assertEqual(probe.sheet_cycle(self.client, 'eolssu-sheet-audio', R2_HOST), 'sheet_conflict')
+        self.client.delete_object.assert_not_called()
+        self.client.put_object.side_effect = TimeoutError('private provider detail')
+        self.assertEqual(probe.sheet_cycle(self.client, 'eolssu-sheet-audio', R2_HOST), 'sheet_put')
+        self.client.delete_object.assert_called_once_with(**{
+            key: self.client.put_object.call_args.kwargs[key] for key in ('Bucket', 'Key')
+        })
+
+    def test_requires_absence_after_delete(self):
+        self.client.head_object.side_effect = None
+        self.client.head_object.return_value = {'ResponseMetadata': {'HTTPStatusCode': 200}}
+        with patch.object(probe, 'sheet_download_matches', return_value=True):
+            self.assertEqual(probe.sheet_cycle(self.client, 'eolssu-sheet-audio', R2_HOST), 'sheet_delete')

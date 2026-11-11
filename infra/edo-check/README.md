@@ -132,6 +132,8 @@ systemctl list-timers edo-check-storage.timer --all --no-pager
 
 `/edo1`의 R2 읽기 행은 공개 학습 음원 API의 302에서 서명 URL을 받아 R2의 HTTP 206과 고정 32바이트를 대조한다. 쓰기 행은 마지막 예약 실행의 합성 객체 쓰기·읽기·삭제 판정과 최근 성공 시각을 표시한다. `edo-check-r2-write.timer`는 KST 00:13부터 6시간 간격으로 실행한다. 작업은 운영 백엔드와 동일한 녹음 버킷 설정을 edo1의 기존 환경 파일에서 읽고 `recordings/verification/edo-check/`의 실행별 새 키만 사용한다. 조건부 PUT으로 기존 객체를 보호하고 생성이 확인된 자체 키만 삭제한다. 응답이 끊겨 생성 여부를 알 수 없는 키에는 기존 녹음 만료 정책이 적용된다. edo1의 시스템 Python에서 boto3가 필요하다.
 
+`악보 음원 R2` 행은 `/edo1` 실행 시 활성 백엔드의 악보 전용 버킷 설정을 읽는다. `sheet-audio/verification/edo-check/` 아래 실행마다 고유한 합성 객체 하나를 조건부로 만들고, 90초 GET 서명의 응답 본문과 원본 바이트를 비교한다. DELETE 응답 204와 같은 객체 HEAD 404가 확인돼야 삭제를 통과로 판정한다. 쓰기 응답이 끊겨도 이번 키의 정리를 시도하며, 조건부 쓰기 충돌이면 그 키를 보존한다. 보고서에는 고정 판정과 소요 시간만 표시한다. 삭제 확인에 실패하면 Cloudflare의 악보 전용 버킷에서 위 점검 접두사의 잔여 객체만 확인한다.
+
 `edo-check-outside.timer`는 edo1에서 매분 edo2의 공인 HTTPS `/healthz`와 공개 `/api/terms`를 조회한다. 중계의 `status=ok`와 약관 목록 JSON 계약을 확인한다. 두 결과는 edo1의 journal과 상태 파일에 기록한다. 보고서는 최근 검사 3분, R2 쓰기 최근 실행 6시간 30분, Docker·Jenkins 최근 실측 30분을 최신성 기준으로 사용한다. 작업 로그와 상태 파일에는 고정 판정과 시각만 기록한다.
 
 edo1에 두 스크립트를 `/opt/edo-check/`, 두 서비스와 타이머를 `/etc/systemd/system/`에 root 소유로 설치한다. `systemd-analyze verify`와 `systemctl daemon-reload` 뒤 다음 순서로 확인한다.

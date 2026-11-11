@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import shlex
+import subprocess
 import sys
 import tempfile
 import time
@@ -21,6 +22,8 @@ ASSET_ID = 'c64c09876e71be58f9ac1e457e42f5666e9b81e9cad0aa26806708725c3c0e86'
 ASSET_SHA256 = 'e6a9a9eb2fe9e0ee2506ec91aa0efe5323f022b9fa036a5c87e96285d986a81e'
 ASSET_PREFIX = bytes.fromhex('0000001c667479704d344120000002004d34412069736f6d69736f3200000662')
 BUCKET = 'eolssu-recordings'
+SHEET_BUCKET = 'eolssu-sheet-audio'
+SHEET_OK = 'put_signed_get_delete_ok'
 R2_HOST = re.compile(r'[a-f0-9]{32}\.r2\.cloudflarestorage\.com')
 READ_TIMEOUT = 3
 RECORDING_ENV = Path('/opt/eolssu/.env')
@@ -30,12 +33,12 @@ SETTINGS_PREFIX = 'RECORDING_STORAGE_'
 SETTINGS_FIELDS = ('ENDPOINT', 'BUCKET', 'ACCESS_KEY_ID', 'SECRET_ACCESS_KEY', 'REGION')
 
 
-def validated_location(location):
+def validated_location(location, expected_path, expected_host=None):
     if not location or len(location) > 2048 or any(ord(char) <= 32 or ord(char) >= 127 for char in location):
         raise ValueError('invalid R2 redirect')
     url = urlsplit(location)
-    expected_path = f'/{BUCKET}/reference-audio/v1/danso/{ASSET_ID}/{ASSET_SHA256}.m4a'
     if (url.scheme != 'https' or not R2_HOST.fullmatch(url.netloc)
+            or (expected_host is not None and url.netloc != expected_host)
             or url.path != expected_path or url.fragment):
         raise ValueError('invalid R2 redirect')
     query = parse_qs(url.query, strict_parsing=True, max_num_fields=12)
@@ -58,7 +61,8 @@ def check_read_range():
         return 'backend_connection'
 
     try:
-        url = validated_location(location)
+        path = f'/{BUCKET}/reference-audio/v1/danso/{ASSET_ID}/{ASSET_SHA256}.m4a'
+        url = validated_location(location, path)
     except ValueError:
         return 'invalid_redirect'
 
@@ -96,12 +100,37 @@ def recording_settings():
             if len(words) > 1:
                 raise ValueError('invalid R2 configuration')
             settings[key.removeprefix(SETTINGS_PREFIX)] = words[0] if words else ''
+    return validated_settings(settings, BUCKET)
+
+
+def active_sheet_settings():
+    slot = subprocess.run(['/opt/eolssu/bin/deploy-backend', '--active-container'],
+                          capture_output=True, check=True, text=True, timeout=4).stdout.strip()
+    if slot not in ('eolssu-runtime-backend-1', 'eolssu-runtime-backend-green-1'):
+        raise ValueError('invalid active backend')
+    output = subprocess.run(['docker', 'inspect', '--format', '{{json .Config.Env}}', slot],
+                            capture_output=True, check=True, text=True, timeout=4).stdout
+    entries = json.loads(output)
+    if not isinstance(entries, list):
+        raise ValueError('invalid active backend environment')
+    settings = {}
+    for entry in entries:
+        key, _, value = entry.partition('=')
+        name = key.removeprefix('SHEET_STORAGE_')
+        if key != name and name in SETTINGS_FIELDS:
+            if name in settings:
+                raise ValueError('duplicate active storage setting')
+            settings[name] = value
+    return validated_settings(settings, SHEET_BUCKET)
+
+
+def validated_settings(settings, bucket):
     if not all(settings.get(name) for name in SETTINGS_FIELDS[:-1]):
         raise ValueError('missing R2 configuration')
     endpoint = urlsplit(settings['ENDPOINT'])
     if (endpoint.scheme != 'https' or not R2_HOST.fullmatch(endpoint.netloc)
             or endpoint.path not in ('', '/') or endpoint.query or endpoint.fragment
-            or settings['BUCKET'] != BUCKET):
+            or settings['BUCKET'] != bucket):
         raise ValueError('unexpected R2 write target')
     settings['REGION'] = settings.get('REGION') or 'auto'
     return settings
@@ -165,6 +194,70 @@ def write_cycle(client, bucket):
     return WRITE_OK if verified else 'write_read'
 
 
+def sheet_download_matches(client, target, host, payload):
+    try:
+        signed = client.generate_presigned_url('get_object', Params=target, ExpiresIn=90)
+        path = f"/{target['Bucket']}/{target['Key']}"
+        url = validated_location(signed, path, expected_host=host)
+        with closing(http.client.HTTPSConnection(host, timeout=READ_TIMEOUT)) as connection:
+            connection.request('GET', f'{url.path}?{url.query}')
+            response = connection.getresponse()
+            return response.status == 200 and response.read(len(payload) + 1) == payload
+    except Exception:
+        return False
+
+
+def sheet_object_removed(client, target):
+    try:
+        if status_code(client.delete_object(**target)) != 204:
+            return False
+    except Exception:
+        return False
+    try:
+        client.head_object(**target)
+    except Exception as error:
+        return status_code(getattr(error, 'response', None) or {}) == 404
+    return False
+
+
+def sheet_cycle(client, bucket, host):
+    run_id = uuid4().hex
+    target = {'Bucket': bucket, 'Key': f'sheet-audio/verification/edo-check/{run_id}.txt'}
+    payload = f'edo1 sheet storage probe {run_id}\n'.encode('ascii')
+    try:
+        response = client.put_object(**target, Body=payload, ContentType='text/plain', ContentLength=len(payload))
+        code = status_code(response)
+    except Exception as error:
+        code = status_code(getattr(error, 'response', None) or {})
+    if code in (409, 412):
+        return 'sheet_conflict'
+
+    # A failed PUT response can still leave an object. Check cleanup for this run's unique key.
+    detail = 'sheet_put'
+    if code == 200:
+        detail = SHEET_OK if sheet_download_matches(client, target, host, payload) else 'sheet_download'
+    if not sheet_object_removed(client, target):
+        return 'sheet_delete' if detail == SHEET_OK else detail + '_delete'
+    return detail
+
+
+def check_sheet():
+    started = time.monotonic_ns()
+    try:
+        settings = active_sheet_settings()
+        host = urlsplit(settings['ENDPOINT']).netloc
+        with closing(write_client(settings)) as client:
+            detail = sheet_cycle(client, settings['BUCKET'], host)
+    except ImportError:
+        detail = 'sheet_dependency'
+    except (OSError, ValueError, TypeError, AttributeError, subprocess.SubprocessError):
+        detail = 'sheet_configuration'
+    except Exception:
+        detail = 'sheet_unavailable'
+    return {'status': 'ok' if detail == SHEET_OK else 'failed', 'detail': detail,
+            'elapsed_ms': (time.monotonic_ns() - started) // 1_000_000}
+
+
 def last_success_at(path):
     try:
         with path.open(encoding='utf-8') as source:
@@ -214,6 +307,9 @@ def main():
     if sys.argv[1:] == ['read']:
         print(json.dumps(read_probe()))
         return 0
+    if sys.argv[1:] == ['sheet']:
+        print(json.dumps(check_sheet()))
+        return 0
     if sys.argv[1:] == ['write']:
         attempted_at = datetime.now(timezone.utc)
         detail = check_write()
@@ -224,7 +320,7 @@ def main():
             return 1
         print(json.dumps(result))
         return 0
-    print('usage: r2_probe.py {read,write}', file=sys.stderr)
+    print('usage: r2_probe.py {read,write,sheet}', file=sys.stderr)
     return 2
 
 

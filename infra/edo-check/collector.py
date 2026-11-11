@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Root-owned, read-only collector; only fixed host profiles and modes are accepted."""
+"""Root-owned collector for fixed host profiles and operational checks."""
 import concurrent.futures
 from datetime import datetime, timedelta, timezone
 import http.client
@@ -1067,6 +1067,35 @@ def r2_read_status():
         return '미측정', 'R2 읽기 점검 실행 결과 확인 불가', '—'
 
 
+def sheet_r2_status():
+    try:
+        result = run(['/usr/bin/python3', '-B', '-I', R2_PROBE, 'sheet'], timeout=40)
+        if result.returncode or len(result.stdout) > 2048:
+            raise ValueError('invalid sheet probe output')
+        data = json.loads(result.stdout)
+        status, detail, elapsed = data['status'], data['detail'], data['elapsed_ms']
+        if type(elapsed) is not int or not 0 <= elapsed <= 40000:
+            raise ValueError('invalid probe duration')
+        if status == 'ok' and detail == 'put_signed_get_delete_ok':
+            return '정상', '합성 객체 쓰기 · 서명 다운로드 본문 일치 · 삭제 후 HTTP 404', f'{elapsed}ms'
+        reasons = {
+            'sheet_configuration': '활성 백엔드의 악보 R2 설정 확인 실패',
+            'sheet_dependency': 'R2 도구 준비 실패',
+            'sheet_unavailable': 'R2 점검 실행 실패',
+            'sheet_conflict': '점검 객체 키 충돌',
+            'sheet_put': '쓰기 실패 · 정리 확인',
+            'sheet_put_delete': '쓰기 실패 · 삭제 확인 실패',
+            'sheet_download': '서명 다운로드 검증 실패 · 정리 확인',
+            'sheet_download_delete': '서명 다운로드 검증 실패 · 삭제 확인 실패',
+            'sheet_delete': '삭제 확인 실패',
+        }
+        if status == 'failed' and detail in reasons:
+            return '실패', reasons[detail], f'{elapsed}ms'
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, TypeError):
+        pass
+    return '미측정', '악보 음원 R2 점검 결과 확인 불가', '—'
+
+
 def r2_write_status():
     try:
         data = read_record(R2_WRITE_RECORD)
@@ -1146,6 +1175,7 @@ def outside_observation_status():
 def edo1_dependency_rows():
     read_status, read_evidence, elapsed = r2_read_status()
     write_status, write_evidence = r2_write_status()
+    sheet_status, sheet_evidence, sheet_elapsed = sheet_r2_status()
     storage_status, storage_evidence = storage_observation_status()
     outside_status, outside_evidence = outside_observation_status()
     return [
@@ -1153,6 +1183,8 @@ def edo1_dependency_rows():
          '학습 음원 API의 서명 발급과 R2 읽기 확인'],
         ['R2 쓰기', EDO1_OPERATION_LOCATION, write_status, write_evidence, '—',
          'journalctl -u edo-check-r2-write.service 확인'],
+        ['악보 음원 R2', EDO1_OPERATION_LOCATION, sheet_status, sheet_evidence, sheet_elapsed,
+         '활성 백엔드의 악보 R2 설정, 전용 버킷 권한과 점검 객체 정리 확인'],
         ['저장공간 자동 측정', EDO1_OPERATION_LOCATION, storage_status, storage_evidence, '—',
          'edo-check-storage.timer와 journalctl -u edo-check-storage.service 확인'],
         ['독립 HTTPS', EDO1_OPERATION_LOCATION, outside_status, outside_evidence, '—',
