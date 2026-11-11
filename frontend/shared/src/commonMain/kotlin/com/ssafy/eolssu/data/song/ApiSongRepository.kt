@@ -1,23 +1,45 @@
 package com.ssafy.eolssu.data.song
 
+import com.ssafy.eolssu.core.diagnostics.PerfSource
 import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.diagnostics.measureLoad
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.JangdanPlayback
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.timeline
+import com.ssafy.eolssu.core.network.AccountSession
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.apiResponse
+import com.ssafy.eolssu.core.network.ensureAccountSession
+import com.ssafy.eolssu.core.network.inSession
 import com.ssafy.eolssu.core.network.sendOrNull
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /** CAT01/02 메타데이터와 CAT04 정본 악보. 식별자·버전·정수 tick을 보존한다. */
-class ApiSongRepository(private val client: HttpClient) : SongRepository {
+class ApiSongRepository(
+    private val client: HttpClient,
+    private val member: SignedInMember? = null,
+) : SongRepository {
+    private data class RetainedSong(val account: AccountSession, val song: Song, val published: Boolean)
+
+    private val retained = MutableStateFlow<RetainedSong?>(null)
+    private val loadLock = Mutex()
+
+    init {
+        member?.onChange { retained.value = null }
+    }
+
     override suspend fun getInstruments() = InstrumentCatalog(client).load()
 
     override suspend fun getSongs(instrumentId: String?): List<SongSummary> {
@@ -43,9 +65,31 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
 
     override suspend fun getEditableSong(songId: String): EditableSong? = load(songId)
 
+    override suspend fun retainedSong(songId: String, scoreVersion: Int?): Song? = member.inSession {
+        val entry = retained.value ?: return@inSession null
+        val song = entry.song
+        val matchesVersion = if (scoreVersion == null) entry.published else song.scoreVersion == scoreVersion
+        if (entry.account != member?.session?.value || song.id != songId || !matchesVersion) return@inSession null
+        currentCoroutineContext()[PerformanceVisit]?.reuse(PerfTarget.SONG_BUNDLE, song.id, PerfSource.RETAINED, song.scoreVersion)
+        song
+    }
+
     /** CAT-01·04를 함께 검증한다. 편집기는 화면 모델과 함께 원본 공통 악보도 받는다. */
-    private suspend fun load(songId: String, scoreVersion: Int? = null): EditableSong? =
-        measureLoad(PerfTarget.SONG_BUNDLE, songId, { it.song.scoreVersion }) { loadVerified(songId, scoreVersion) }
+    private suspend fun load(songId: String, scoreVersion: Int? = null): EditableSong? = member.inSession {
+        val account = member?.session?.value?.takeIf { it.memberId != null }
+        loadLock.withLock {
+            ensureAccountSession()
+            val previous = retained.value?.takeIf { it.account == account && it.song.id == songId }
+            // 실패·취소된 최신 판본 확인 뒤에는 과거 응답을 현재 게시 판본으로 다시 쓰지 않는다.
+            if (scoreVersion == null && previous?.published == true) {
+                retained.compareAndSet(previous, previous.copy(published = false))
+            }
+            val bundle = measureLoad(PerfTarget.SONG_BUNDLE, songId, { it.song.scoreVersion }) { loadVerified(songId, scoreVersion) }
+            ensureAccountSession()
+            if (bundle != null && account != null) retained.value = RetainedSong(account, bundle.song, published = scoreVersion == null)
+            bundle
+        }
+    }
 
     private suspend fun loadVerified(songId: String, scoreVersion: Int?): EditableSong? {
         if (!validCatalogId(songId)) return null

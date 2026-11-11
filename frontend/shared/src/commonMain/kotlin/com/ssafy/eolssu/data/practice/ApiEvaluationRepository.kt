@@ -113,7 +113,8 @@ class ApiEvaluationRepository(
         if (carried != null) currentCoroutineContext()[PerformanceVisit]?.reuse(
             PerfTarget.SONG_BUNDLE, carried.id, PerfSource.NAVIGATION, carried.scoreVersion,
         )
-        val song = carried ?: if (initialSong?.id == evaluation.songId && currentCoroutineContext()[PerformanceVisit] != null) {
+        val retained = carried ?: songs.retainedSong(evaluation.songId, evaluation.scoreVersion)
+        val song = retained ?: if (initialSong?.id == evaluation.songId && currentCoroutineContext()[PerformanceVisit] != null) {
             withContext(PerformanceReason(PerfReason.VERSION_MISMATCH)) { songs.getSong(evaluation.songId, evaluation.scoreVersion) }
         } else songs.getSong(evaluation.songId, evaluation.scoreVersion)
         if (song == null) return null

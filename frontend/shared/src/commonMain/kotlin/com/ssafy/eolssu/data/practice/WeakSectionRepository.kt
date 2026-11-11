@@ -119,11 +119,7 @@ class ApiWeakSectionRepository(
     private val records: PracticeRecordRepository,
     private val member: SignedInMember? = null,
 ) : WeakSectionRepository {
-    override suspend fun source(sourceId: String): WeakSectionSource? = guarded {
-        val evaluation = evaluations.result(sourceId) ?: return@guarded null
-        val song = (if (evaluation.scoreVersion == null) songs.getSong(evaluation.songId) else songs.getSong(evaluation.songId, evaluation.scoreVersion)) ?: return@guarded null
-        WeakSectionSource(song, evaluation)
-    }
+    override suspend fun source(sourceId: String): WeakSectionSource? = guarded { loadSource(sourceId) }
 
     override suspend fun isCurrent(source: WeakSectionSource): Boolean? = guarded {
         val current = songs.getSong(source.song.id) ?: return@guarded null
@@ -137,9 +133,19 @@ class ApiWeakSectionRepository(
     }
 
     override suspend fun sectionResult(sessionId: String): SectionEvaluation? = guarded {
-        val evaluation = evaluations.result(sessionId) ?: return@guarded null
-        val song = (if (evaluation.scoreVersion == null) songs.getSong(evaluation.songId) else songs.getSong(evaluation.songId, evaluation.scoreVersion)) ?: return@guarded null
+        val (song, evaluation) = loadSource(sessionId) ?: return@guarded null
         SectionEvaluation(song, sessionId, evaluation.bpm, evaluation.total, evaluation.metrics, check(sessionId, baseline = null))
+    }
+
+    private suspend fun loadSource(sessionId: String): WeakSectionSource? {
+        val screen = evaluations.resultForScreen(sessionId, initialSong = null) ?: return null
+        val (evaluation, loadedSong) = screen.loadDetails() ?: return null
+        // 악보를 함께 반환하지 않는 저장소에서는 평가 응답이 가리키는 판본을 직접 구한다.
+        val song = loadedSong ?: run {
+            val version = evaluation.scoreVersion
+            if (version == null) songs.getSong(evaluation.songId) else songs.getSong(evaluation.songId, version)
+        }
+        return song?.let { WeakSectionSource(it, evaluation) }
     }
 
     override suspend fun comparison(recordId: String): RecordComparison? = guarded {
@@ -174,7 +180,7 @@ class ApiWeakSectionRepository(
 
     /** 다른 저장소가 연결 오류를 예외로 던지면 받지 못한 것으로 본다. */
     private suspend fun <T> guarded(block: suspend () -> T?): T? = try {
-        block()
+        member.inSession(block)
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (_: Exception) {

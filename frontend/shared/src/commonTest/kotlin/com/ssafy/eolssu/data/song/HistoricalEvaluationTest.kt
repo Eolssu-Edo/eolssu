@@ -1,13 +1,19 @@
 package com.ssafy.eolssu.data.song
 
 import com.ssafy.eolssu.core.network.ServerAddress
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.ApiEvaluationRepository
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
@@ -15,8 +21,74 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 
 class HistoricalEvaluationTest {
+    @Test
+    fun publishedReuseEndsOnLogoutAndSameMemberRelogin() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+        var latest = 1
+        var requests = 0
+        val client = createHttpClient(MockEngine { request ->
+            requests++
+            val version = request.url.parameters["scoreVersion"]?.toInt() ?: latest
+            val result = if (request.url.encodedPath.endsWith("/score")) revisionScoreResponse(version) else revisionSongResponse(version)
+            respond("""{"isSuccess":true,"result":$result}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val songs = ApiSongRepository(client, member)
+            val detail = checkNotNull(songs.getSong("42"))
+            assertSame(detail, songs.retainedSong("42"))
+            assertNull(songs.retainedSong("43"))
+            assertEquals(2, requests)
+
+            latest = 2
+            val newDetail = checkNotNull(songs.getSong("42"))
+            assertEquals(2, newDetail.scoreVersion)
+            assertSame(newDetail, songs.retainedSong("42"))
+            member.set(null)
+            assertNull(songs.retainedSong("42"))
+            member.set("A")
+            assertNull(songs.retainedSong("42"))
+            assertEquals(2, songs.getSong("42", 2)?.scoreVersion)
+            assertEquals(6, requests)
+        } finally { client.close() }
+    }
+
+    @Test
+    fun cancelledAndFailedScoreRequestsAllowACompleteRetry() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+        val inScore = CompletableDeferred<Unit>()
+        var details = 0
+        var scores = 0
+        val client = createHttpClient(MockEngine { request ->
+            val result = if (request.url.encodedPath.endsWith("/score")) {
+                when (++scores) {
+                    1 -> { inScore.complete(Unit); awaitCancellation() }
+                    2 -> return@MockEngine respond("{}", HttpStatusCode.ServiceUnavailable)
+                    else -> revisionScoreResponse(1)
+                }
+            } else {
+                details++
+                revisionSongResponse(1)
+            }
+            respond("""{"isSuccess":true,"result":$result}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val songs = ApiSongRepository(client, member)
+            val loading = launch { songs.getSong("42") }
+            inScore.await()
+            loading.cancelAndJoin()
+            assertNull(songs.retainedSong("42"))
+            assertFailsWith<CatalogUnavailable> { songs.getSong("42") }
+            assertNull(songs.retainedSong("42"))
+            val song = checkNotNull(songs.getSong("42"))
+            assertSame(song, songs.retainedSong("42"))
+            assertEquals(3, details)
+            assertEquals(3, scores)
+        } finally { client.close() }
+    }
+
     @Test fun missingOrWrongRevisionNeverFallsBackToCurrentScore() = runTest {
         for (missing in listOf(true, false)) {
             var requests = 0

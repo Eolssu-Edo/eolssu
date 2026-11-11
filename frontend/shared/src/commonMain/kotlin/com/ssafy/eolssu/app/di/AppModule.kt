@@ -130,7 +130,7 @@ val appModule = module {
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>()) }
     single { SignedInMember(get()) }
-    single<SongRepository> { ApiSongRepository(get()) }
+    single<SongRepository> { ApiSongRepository(get(), get()) }
     single<ModelAudioRepository> { ApiModelAudioRepository(get()) }
     single { SheetPracticeRepository(get(), get(), get(), get(), get(), get(), get()) }
     single { InstrumentCatalog(get()) }
