@@ -127,6 +127,31 @@ class PracticeDirectEvaluationTest {
         assertFalse(vm.leavesDirectOnReturn()) // 기기 권한 창이 닫히며 화면이 다시 보여도 대기 상태에 남는다.
     }
 
+    /** 연주 중단 창의 '연주 대기로'(S15P31E102-750): 화면을 나가지 않고 녹음을 버린 뒤 평가 대기 상태로 돌아온다. */
+    @Test fun abortingPerformanceReturnsToWaitingStateOnScreen() = FakePracticeRecorder().let { abortRecorder -> directTest(fake = abortRecorder) { vm, _ ->
+        vm.requestEvaluation()
+        advanceTimeBy(3_000 + 1_000)
+        runCurrent()
+        assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
+        assertTrue(vm.uiState.value.elapsedMs > 0.0)
+        vm.askAbort()
+        assertEquals(PracticePopup.Abort, vm.uiState.value.popup)
+        val cancelsBefore = abortRecorder.cancels
+        vm.toReady()
+        runCurrent()
+        assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
+        assertTrue(vm.uiState.value.awaitingStart)
+        assertNull(vm.uiState.value.popup)
+        assertEquals(0.0, vm.uiState.value.elapsedMs)
+        assertTrue(abortRecorder.cancels > cancelsBefore) // 멈춰 둔 녹음을 버린다.
+        assertNull(vm.takeForEvaluation())
+        assertFalse(vm.leavesDirectOnReturn()) // 분석으로 넘긴 것이 아니므로 화면에 머문다.
+        // 대기 상태에서 다시 '평가 시작'을 누르면 처음부터 새로 센다.
+        vm.requestEvaluation()
+        assertEquals(PracticeMode.Countdown, vm.uiState.value.mode)
+        assertEquals(3, vm.uiState.value.count)
+    } }
+
     @Test fun returnAfterHandingTakeToAnalysisLeavesWaitingState() = directTest { vm, _ ->
         vm.requestEvaluation()
         finishSong(vm)
@@ -175,6 +200,7 @@ class PracticeDirectEvaluationTest {
         direct: Boolean = true,
         solo: Boolean = false,
         recorder: Boolean = true,
+        fake: FakePracticeRecorder = FakePracticeRecorder(),
         block: suspend TestScope.(PracticeViewModel, PracticeSettingsStore) -> Unit,
     ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -187,7 +213,7 @@ class PracticeDirectEvaluationTest {
                 override suspend fun getSong(songId: String) = song
             }
             val vm = PracticeViewModel(song.id, solo, songs, settings, PracticeTimeMeter({ 0L }, testScheduler.timeSource),
-                PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope), if (recorder) FakePracticeRecorder() else null,
+                PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope), if (recorder) fake else null,
                 playbackTimeSource = testScheduler.timeSource, newKey = { "take-key" }, direct = direct)
             models.put("practice", vm)
             runCurrent()

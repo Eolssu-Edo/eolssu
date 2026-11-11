@@ -166,7 +166,7 @@
     <string name="practice_popup_interrupted_body">앱을 벗어나거나 전화가 와서 연주가 끊겼어요. 끊긴 연주는 평가하지 않아요.</string>
     <string name="practice_popup_start_again">다시 시작</string>
     <string name="practice_popup_to_ready">연습 준비로</string>
-    <string name="practice_popup_to_song_info">곡 정보로</string>
+    <string name="practice_popup_to_waiting">연주 대기로</string>
     <string name="practice_popup_record_failed_title">녹음하지 못했어요</string>
     <string name="practice_popup_record_failed_body">다른 앱이 마이크를 쓰고 있거나 저장 공간이 부족할 수 있어요. 다시 시작해 주세요.</string>
     <string name="practice_popup_too_large_title">녹음 파일이 너무 커요</string>
