@@ -54,9 +54,10 @@ class ScoreGridJangdanPlayback(
         }
         val beats = pattern.path("beats")
         val group = pattern.path("group")
+        // Clients schedule subdivisions as fractions of cycleTicks, including half-tick Danmori cells.
         if (!beats.isArray || beats.size() !in 1..64 || beats.any { !it.isString } || beats.none { it.asString().isNotBlank() } ||
             !group.isArray || group.any { !it.isInt || it.intValue() <= 0 } ||
-            group.sumOf { it.longValue() } != beats.size().toLong() || cycleTicks % beats.size() != 0L) return null
+            group.sumOf { it.longValue() } != beats.size().toLong()) return null
 
         return ScoreJangdanPlayback(jangdan.id.toString(), jangdan.name, 0, cycleTicks,
             JangdanPlaybackPattern(beats.toList().map { it.asString() }, group.toList().map { it.intValue() }))
