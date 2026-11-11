@@ -10,7 +10,8 @@
 
     <!-- 재생 가능은 PRA-03과 같은 정의다. 기록을 지운 세션은 어느 조회에도 나오지 않는다 -->
     <sql id="recordColumns">
-        ps.id AS session_id, ps.song_id, s.title AS song_title, s.note_count, ps.score_version, ps.start_note_idx, ps.end_note_idx,
+        ps.id AS session_id, ps.song_id, COALESCE(v.title,s.title) AS song_title, COALESCE(v.note_count,s.note_count) AS note_count,
+        ps.score_version, ps.start_note_idx, ps.end_note_idx,
         ps.bpm, ps.bpm_unit, ps.status, ps.started_at, ps.recording_duration_ms, e.total_score, ps.saved_at, ps.memo,
         (ps.recording_url IS NOT NULL) AS recording_available, ps.viewed_at
     </sql>
@@ -19,6 +20,7 @@
         SELECT <include refid="recordColumns"/>
         FROM practice_sessions ps
         JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN song_score_versions v ON v.song_id = ps.song_id AND v.score_version = ps.score_version AND s.score_version &lt;&gt; ps.score_version
         LEFT JOIN evaluations e ON e.session_id = ps.id
         WHERE ps.id = #{sessionId} AND ps.user_id = #{userId} AND ps.record_deleted_at IS NULL
     </select>
@@ -38,6 +40,7 @@
         SELECT <include refid="recordColumns"/>
         FROM practice_sessions ps
         JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN song_score_versions v ON v.song_id = ps.song_id AND v.score_version = ps.score_version AND s.score_version &lt;&gt; ps.score_version
         JOIN evaluations e ON e.session_id = ps.id
         WHERE ps.user_id = #{userId} AND ps.song_id = #{songId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
         <choose>

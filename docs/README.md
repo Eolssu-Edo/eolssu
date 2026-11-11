@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [공개곡 판본 보관·조회와 안전 게시 (745)](plans/S15P31E102-745.md) · [계약](specs/published-score-history.md) · [판본 보존 근거](knowledge/backend/published-score-history.md)
+
 - [정간보 쉽게 읽기 QA 반영: 한 화면 쪽 카드 크기 통일과 불필요한 안내 정리 (742)](plans/S15P31E102-742.md)
 - [연주 평가 시작 시 서비스 마이크 안내 창 없이 기기 권한 요청만 표시 (733)](plans/S15P31E102-733.md)
 - [내 악보 편집 도구와 오류 정간 표시 정리 (736)](plans/S15P31E102-736.md) · [초기 오류 표시와 정간 이동 근거](knowledge/frontend/sheet-editor-save-validation.md#초기-오류-표시와-실제-정간으로-이동-736)
