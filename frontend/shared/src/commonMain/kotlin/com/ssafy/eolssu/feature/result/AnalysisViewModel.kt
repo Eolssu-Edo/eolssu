@@ -38,6 +38,8 @@ data class AnalysisUiState(
     val resending: Boolean = false,
     val songLookup: SongLookup = SongLookup.Loading,
     val exit: AnalysisExit? = null,
+    /** 녹음 전송 비율(0..1). 보낸 뒤 분석을 기다리는 동안 1이고, 이 화면에서 보내지 않았거나 보내지 못했으면 null이다. */
+    val uploadProgress: Float? = null,
 )
 
 /** 분석 대기 화면을 떠나는 이유. */

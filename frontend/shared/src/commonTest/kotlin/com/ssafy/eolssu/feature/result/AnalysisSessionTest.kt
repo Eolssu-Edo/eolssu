@@ -313,6 +313,39 @@ class AnalysisSessionTest {
     }
 
     @Test
+    fun uploadProgressShowsWhileSendingAndStaysWholeWhileAnalyzing() {
+        uploader.progress = listOf(0.5f)
+        uploader.gate = CompletableDeferred()
+        startWithRecording()
+        assertEquals(0.5f, uploadState.uploadProgress)
+
+        uploader.gate?.complete(Unit)
+        assertEquals(1f, uploadState.uploadProgress)
+        assertEquals(1, repository.queries)
+        time.advanceBy(1_000)
+        assertEquals(1f, uploadState.uploadProgress)
+    }
+
+    @Test
+    fun failedUploadClearsProgressAndResendStartsFromZero() {
+        uploader.outcomes += UploadOutcome.ConnectionFailed
+        uploader.progress = listOf(0.5f)
+        startWithRecording()
+        assertNull(uploadState.uploadProgress)
+
+        uploader.progress = emptyList()
+        uploader.gate = CompletableDeferred()
+        uploadSession.resend()
+        assertEquals(0f, uploadState.uploadProgress)
+    }
+
+    @Test
+    fun analysisWithoutUploadHasNoProgress() {
+        start()
+        assertNull(state.uploadProgress)
+    }
+
+    @Test
     fun sentRecordingGoesStraightToAnalysis() {
         startWithRecording()
         assertNull(uploadState.upload)

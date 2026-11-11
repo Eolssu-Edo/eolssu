@@ -136,7 +136,7 @@ internal class AnalysisSession(
         when {
             recording != null && uploads != null -> {
                 this.recording = recording
-                afterSend(uploads.send(recording))
+                afterSend(uploads.send(recording, sending()))
             }
             take != null && uploads != null && sessions != null -> {
                 this.take = take
@@ -173,7 +173,7 @@ internal class AnalysisSession(
             is SessionStart.Created -> {
                 val pending = PendingRecording(created.sessionId, take.path, created.startedAtMillis, request.songId, request.bpm, created.memberId)
                 recording = pending
-                afterSend(uploads.send(pending))
+                afterSend(uploads.send(pending, sending()))
             }
             SessionStart.Unreachable -> _state.update { it.copy(upload = UploadProblem.CanResend, resending = false) }
             SessionStart.Rejected -> _state.update { it.copy(upload = UploadProblem.Rejected, resending = false) }
@@ -193,14 +193,21 @@ internal class AnalysisSession(
         if (recording == null && take == null) return
         _state.update { it.copy(resending = true) }
         scope.launch {
-            if (recording != null) afterSend(uploads.resend(recording)) else if (take != null) createAndSend(take)
+            if (recording != null) afterSend(uploads.resend(recording, sending())) else if (take != null) createAndSend(take)
         }
     }
 
+    /** 전송 비율을 0부터 보이고, 그 뒤 받은 비율로 바꾸는 함수를 돌려준다. */
+    private fun sending(): (Float) -> Unit {
+        _state.update { it.copy(uploadProgress = 0f) }
+        return { progress -> _state.update { it.copy(uploadProgress = progress) } }
+    }
+
     private suspend fun afterSend(result: SendResult) {
+        if (result != SendResult.Sent) _state.update { it.copy(uploadProgress = null) }
         when (result) {
             SendResult.Sent -> {
-                _state.update { it.copy(upload = null, resending = false) }
+                _state.update { it.copy(upload = null, resending = false, uploadProgress = 1f) }
                 analysisId = recording?.sessionId
                 polling.start()
                 startPolling()
