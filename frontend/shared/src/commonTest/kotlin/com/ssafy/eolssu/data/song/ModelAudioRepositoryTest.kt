@@ -6,6 +6,8 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.Url
+import io.ktor.http.encodedPath
 import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -94,13 +96,17 @@ class ModelAudioRepositoryTest {
             val next = assertNotNull(repository.get(previewSong()))
             assertSame(first, next)
             assertEquals(listOf(MetadataPath, TimelinePath, MetadataPath), requests)
-            assertEquals(ServerAddress.Production.baseUrl.trimEnd('/') + PlayPath, next.audioUrl)
+            val play = Url(next.audioUrl)
+            assertEquals(PlayPath, play.encodedPath)
+            assertEquals("1", play.parameters["expectedScoreVersion"])
+            assertEquals(original.sha256, play.parameters["expectedAudioSha256"])
 
             val newAudioHash = "d".repeat(64)
             metadata = original.copy(sha256 = newAudioHash)
             timeline = previewJson().replace(original.sha256, newAudioHash)
             val changedAudio = assertNotNull(repository.get(previewSong()))
             assertEquals(newAudioHash, changedAudio.performance?.audioSha256)
+            assertEquals(newAudioHash, Url(changedAudio.audioUrl).parameters["expectedAudioSha256"])
             assertEquals(listOf(MetadataPath, TimelinePath), requests.takeLast(2))
 
             metadata = metadata.copy(scoreVersion = 2)
@@ -112,6 +118,7 @@ class ModelAudioRepositoryTest {
             assertFailsWith<CatalogUnavailable> { repository.get(oldScore) }
             val changedScore = assertNotNull(repository.get(newScore))
             assertEquals(2, changedScore.scoreVersion)
+            assertEquals("2", Url(changedScore.audioUrl).parameters["expectedScoreVersion"])
             assertEquals(listOf(MetadataPath, MetadataPath, TimelinePath), requests.takeLast(3))
 
             metadataStatus = HttpStatusCode.NotFound
@@ -155,6 +162,31 @@ class ModelAudioRepositoryTest {
         val expected = audioFixture().copy(songId = "9007199254740993", startOffsetMs = 235, durationMs = 3550)
         val client = client(expected) { assertEquals("/api/songs/9007199254740993/model-audio", it) }
         try { assertEquals(expected, ApiModelAudioRepository(client).get(audioSong(expected.songId))) } finally { client.close() }
+    }
+
+    @Test fun fetchesTheTimelineOnEachVisitWhenTheServerCannotCheckPlaybackRevision() = runTest {
+        val metadata = publishedPreview().copy(playbackRevisionSupported = false)
+        var timelineCalls = 0
+        val client = createHttpClient(MockEngine {
+            if (it.url.encodedPath == TimelinePath) {
+                timelineCalls++
+                respond(previewJson())
+            } else {
+                respond(
+                    """{"isSuccess":true,"result":${Json.encodeToString(metadata)}}""",
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            }
+        }, ServerAddress.Production)
+        try {
+            val repository = ApiModelAudioRepository(client)
+            repeat(2) {
+                val audio = assertNotNull(repository.get(previewSong()))
+                assertEquals(ServerAddress.Production.baseUrl.trimEnd('/') + PlayPath, audio.audioUrl)
+                assertNotNull(audio.performance)
+            }
+            assertEquals(2, timelineCalls)
+        } finally { client.close() }
     }
 
     @Test fun missingPublishedAudioIsDifferentFromServerFailure() = runTest {
@@ -221,4 +253,5 @@ private fun publishedPreview() = previewAudio().copy(
     audioUrl = PlayPath,
     performanceUrl = TimelinePath,
     sourceCommonSha256 = SourceHash,
+    playbackRevisionSupported = true,
 )

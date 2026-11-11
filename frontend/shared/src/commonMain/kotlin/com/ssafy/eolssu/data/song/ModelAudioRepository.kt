@@ -35,6 +35,7 @@ data class ModelAudio(
     val sourceCommonSha256: String? = null,
     @Transient val performance: ScorePerformance? = null,
     @Transient val sheetPlayback: SheetPlayback? = null,
+    val playbackRevisionSupported: Boolean = false,
 ) {
     /** A current score must never play a different version or a differently defined beat. */
     fun matches(song: Song): Boolean = songId == song.id && scoreVersion == song.scoreVersion &&
@@ -70,8 +71,11 @@ class ApiModelAudioRepository(private val client: HttpClient) : ModelAudioReposi
         ) throw CatalogUnavailable()
         val playPath = "/api/songs/$songId/model-audio/play"
         val usesServerPlayback = audio.audioUrl == playPath
+        val canPinPlayback = usesServerPlayback && audio.playbackRevisionSupported
         val resolved = audio.copy(audioUrl = when {
-            usesServerPlayback -> sameServerUrl(response.call.request.url, playPath)
+            usesServerPlayback -> sameServerPlaybackUrl(
+                response.call.request.url, playPath, audio.takeIf { canPinPlayback },
+            )
             isPublicAudioUrl(audio.audioUrl) -> audio.audioUrl
             else -> throw CatalogUnavailable()
         })
@@ -81,8 +85,8 @@ class ApiModelAudioRepository(private val client: HttpClient) : ModelAudioReposi
         if (performancePath != "/api/songs/$songId/model-audio/performance" || sourceHash == null || !Sha256.matches(sourceHash)) {
             throw CatalogUnavailable()
         }
-        // Keep only the stable /play path. Each new player load can get a fresh signed redirect.
-        if (usesServerPlayback) {
+        // Each new player load can get a fresh signed redirect for the verified publication.
+        if (canPinPlayback) {
             val cached = cacheLock.withLock {
                 verifiedBySong[songId]?.takeIf { it.copy(performance = null) == resolved && it.matches(song) }
             }
@@ -100,7 +104,7 @@ class ApiModelAudioRepository(private val client: HttpClient) : ModelAudioReposi
         } catch (_: IllegalArgumentException) {
             throw CatalogUnavailable()
         }
-        if (usesServerPlayback) {
+        if (canPinPlayback) {
             cacheLock.withLock {
                 verifiedBySong.remove(songId)
                 verifiedBySong[songId] = verified
@@ -114,11 +118,19 @@ class ApiModelAudioRepository(private val client: HttpClient) : ModelAudioReposi
 }
 
 /** Resolve only the exact server-generated path; protocol-relative/foreign paths are never fetched. */
-private fun sameServerUrl(base: Url, path: String): String {
+private fun sameServerPlaybackUrl(base: Url, path: String, revision: ModelAudio?): String {
     if (base.protocol.name != "https" && !(base.protocol.name == "http" && base.host in setOf("localhost", "127.0.0.1", "::1", "[::1]"))) {
         throw CatalogUnavailable()
     }
-    return URLBuilder(base).apply { encodedPath = path; parameters.clear(); fragment = "" }.buildString()
+    return URLBuilder(base).apply {
+        encodedPath = path
+        parameters.clear()
+        fragment = ""
+        revision?.let {
+            parameters.append("expectedScoreVersion", it.scoreVersion.toString())
+            parameters.append("expectedAudioSha256", it.sha256)
+        }
+    }.buildString()
 }
 
 private val Sha256 = Regex("[a-f0-9]{64}")

@@ -60,9 +60,11 @@ V8 `song_model_audios`는 `(song_id,score_version)`마다 기준 음원 한 개�
 
 S15P31E102-339는 장단 연결을 선택값으로 확장한다. 장단이 연결돼 있으면 기존 장단의 `bpmUnit`과 공통 악보의 일치 검증을 유지한다. 연결이 없으면 공통 악보 `music.bpmUnit`을 기준으로 사용하며 허용된 대문자 단위만 받는다. 원본 장단명만으로 장단 pattern을 추정하지 않는다. [검수대기 적재 계약](model-audio-catalog-load.md)은 기존 공개 곡과 새 DRAFT 자료를 구분한다.
 
-응답은 `songId`, 정수 `scoreVersion`, `audioUrl`, `bpm`, `bpmUnit`, `durationMs`, `startOffsetMs`, `contentType`, `sha256`과 선택적 `performanceUrl`, `sourceCommonSha256`이다. `durationMs`는 실제 인코딩된 파일 길이이며 잔향이 포함될 수 있다. 악보 총길이로 줄이거나 늘리지 않는다. `startOffsetMs`는 파일에서 악보 0박이 시작하는 위치이며 적재자가 측정해 명시한다. 기본값으로 추정하지 않는다. BPM은 songs 저장 계약(30~400)을 따르며 연습 녹음 세션의 별도 20~240 제한으로 축소하지 않는다.
+응답은 `songId`, 정수 `scoreVersion`, `audioUrl`, `bpm`, `bpmUnit`, `durationMs`, `startOffsetMs`, `contentType`, `sha256`, 불리언 `playbackRevisionSupported`와 nullable 필드 `performanceUrl`, `sourceCommonSha256`을 포함한다. `durationMs`는 실제 인코딩된 파일 길이이며 잔향이 포함될 수 있다. 악보 총길이로 줄이거나 늘리지 않는다. `startOffsetMs`는 파일에서 악보 0박이 시작하는 위치이며 적재자가 측정해 명시한다. 기본값으로 추정하지 않는다. BPM은 songs 저장 계약(30~400)을 따르며 연습 녹음 세션의 별도 20~240 제한으로 축소하지 않는다.
 
 S15P31E102-339에서 DB의 위치 식별자는 `object_key`다. `audioUrl`은 같은 서버의 `/api/songs/{songId}/model-audio/play` 경로이며 앱은 설정된 API 서버 주소를 기준으로 해석한다. 이 경로는 게시 상태·판본을 다시 확인하고 비공개 객체에 대한 짧은 GET 서명 URL로302 이동한다. `Cache-Control: no-store`이며 DB나 장기 캐시에 만료 URL을 저장하지 않는다. 새 요청은 DRAFT/HIDDEN 또는 버전 불일치에서404, 저장소 준비/읽기 실패에서503이다.
+
+`playbackRevisionSupported`가 `true`이면 앱은 확인한 `scoreVersion`을 `expectedScoreVersion`(앞자리 0 없는 1~2,147,483,647), `sha256`을 `expectedAudioSha256`(소문자 16진수 64자)으로 함께 전달한다. 두 값 중 하나만 전달하거나 형식이 잘못되면 400 `INVALID_REQUEST`다. 현재 게시 음원이 있고 한 값이라도 다르면 서명 발급 전에 409 `STATE_CONFLICT`로 응답한다. 두 오류 응답에는 `Cache-Control: no-store`를 적용한다. 두 값을 모두 생략한 기존 앱의 요청은 현재 게시 음원으로 이동한다. 이 필드가 빠진 서버에 연결한 앱은 방문마다 시간표를 조회한다.
 
 수행 시간표가 있는 경우 `/api/songs/{songId}/model-audio/performance`는 같은 서버에서 크기·시간 제한 아래 원본 JSON을 제공한다. `sourceCommonSha256`은 그 수행 시간표의 정본 공통 JSON 원문 바이트 해시다. CAT-04 응답을 다시 직렬화한 해시로 대체하지 않는다. FE는 곡·판본·공통 원문 해시·음원 해시·길이·시작 위치를 대조해 연결한다. 제공된 수행 자료가 잘못됐을 때 정본 시간표로 조용히 대체하지 않는다. 수행 자료가 아예 없는 기존 계약에서는 정본 시간표를 사용할 수 있다.
 
