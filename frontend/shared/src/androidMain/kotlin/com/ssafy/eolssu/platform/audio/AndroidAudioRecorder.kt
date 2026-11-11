@@ -508,15 +508,6 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 writer?.close()
                 probe.clearSamples()
                 if (debugBuild && writer != null) Log.d("EolssuEcho", "recording=$id applied=$correctedBlocks examined=$examinedBlocks frames=$fileSamples state=${echoState.value}")
-                // Opt-in numeric output evidence at teardown; never log microphone PCM.
-                if (debugBuild && Log.isLoggable("EolssuJangdan", Log.DEBUG)) {
-                    referencePlayer?.outputSnapshot()?.let { output ->
-                        Log.d("EolssuJangdan", "recording=$id zeroNanos=${output.frameZeroNanos} " +
-                            "recordingStartNanos=$armedStartNanos epoch=${output.epoch} " +
-                            "underruns=${output.underruns} clipped=${output.clipped} " +
-                            "events=${output.events.takeLast(64).joinToString(",") { "${it.frame}:${it.clip.sample.file}:${it.gain}" }}")
-                    }
-                }
                 synchronized(stateLock) {
                     closed = true
                     if (failed) invalidateEcho() else clearEcho()

@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioFormat
@@ -30,6 +31,7 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
     }
 
     private val context = context.applicationContext
+    private val debugBuild = this.context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     private val manager = this.context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val attributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
@@ -178,6 +180,14 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
 
     /** Caller holds lock. */
     private fun clearSchedule() {
+        // Record accepted output before silence/flush clears it. Never log microphone PCM.
+        if (scheduledCountIn != null && debugBuild && Log.isLoggable("EolssuJangdan", Log.DEBUG)) {
+            val output = outputSnapshot()
+            Log.d("EolssuJangdan", "generation=$generation zeroNanos=${output.frameZeroNanos} " +
+                "recordingStartFrame=${scheduledCountIn?.recordingStartFrame} epoch=${output.epoch} " +
+                "volume=${output.volume} underruns=${output.underruns} clipped=${output.clipped} " +
+                "events=${output.events.takeLast(64).joinToString(",") { "${it.frame}:${it.clip.sample.file}:${it.gain}" }}")
+        }
         scheduled?.cancel()
         scheduled = null
         scheduledCountIn = null
