@@ -104,6 +104,7 @@ fun SheetEditRoute(
         focusRequestKey = focusRequestKey,
         actions = SheetEditActions(
             onClose = { viewModel.closeEditor(onClose) },
+            onRetryDraft = viewModel::retryDraftSave,
             onSave = {
                 saveError = null
                 if (state.completionValidation.correctionCellIndices.isNotEmpty()) {

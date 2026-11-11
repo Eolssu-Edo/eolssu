@@ -95,9 +95,11 @@ class SheetEditViewModel(
     private var completionCatalogJob: Job? = null
     private var closeJob: Job? = null
     private var persistedDraft: SheetDraft? = null
+    private var persistedStatus: SheetSaveStatus? = null
     private var savedJangdanId: String? = null
     private var confirmedDraft: SheetDraft? = null
     private val writeLock = Mutex()
+    private var confirmationPending = false
     private var loaded: SheetDocument? = null
     private var version = ""
     private var revision = 0
@@ -105,12 +107,13 @@ class SheetEditViewModel(
         loaded = null
         baseline = null
         persistedDraft = null
+        persistedStatus = null
         savedJangdanId = null
         confirmedDraft = null
         version = ""
         _uiState.update { it.copy(draft = SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1)),
             documentLoading = false, documentFailed = true, practiceVersionChanged = false,
-            saving = false, confirming = false, message = null, audio = SheetAudioUi.None,
+            saving = false, confirming = false, saveStatus = null, message = null, audio = SheetAudioUi.None,
             deviceAudio = null, audioDownloading = false,
             reviewNotices = emptyList(), instrumentPitches = null, availableJangdans = null, completionWarning = false,
             completionCatalogState = SheetCompletionCatalogState.NotRequired,
@@ -177,7 +180,9 @@ class SheetEditViewModel(
             val next = transform(current)
             // 최종 저장 응답은 보낸 악보의 확인 결과다. 초안 자동 저장 중에는 계속 편집한다.
             if (current.confirming && (next.draft != current.draft || next.checkedIssueIds != current.checkedIssueIds ||
-                next.reviewIssues != current.reviewIssues)) current else next
+                next.reviewIssues != current.reviewIssues)) current
+            else if (next.draft != current.draft) next.copy(saveStatus = null)
+            else next
         }
         if (before != _uiState.value.draft && loaded != null && !_uiState.value.saveConflict) {
             autoSaveJob?.cancel()
@@ -258,60 +263,99 @@ class SheetEditViewModel(
         val requested = _uiState.value
         val id = requested.serverSheetId ?: return null
         if (!accountScope.isActive || requested.documentLoading || requested.documentFailed || loaded == null) return null
-        if (!draft && requested.confirming) return null
+        if (!draft && confirmationPending) return null
         if (requested.saveConflict) { _uiState.update { it.copy(message = SheetEditMessage.SaveConflict) }; return null }
-        if (!draft && blockInvalidCompletion(requested)) return null
+        if (!draft) {
+            if (blockInvalidCompletion(requested)) return null
+            // 쓰기 잠금을 기다리는 동안에도 확정 저장의 중복 입력을 막는다.
+            confirmationPending = true
+        }
         return accountScope.launch {
-            writeLock.withLock {
-                if (_uiState.value.saveConflict) return@withLock
-                // 앞선 초안 저장을 기다리는 동안 바뀐 내용도 완료 직전에 다시 검사한다.
-                val snapshot = if (draft) requested else _uiState.value
-                if (!draft && blockInvalidCompletion(snapshot)) return@withLock
-                _uiState.update { it.copy(saving = true, confirming = !draft, emptyWarning = false, completionWarning = false) }
-                try {
-                    val score = snapshot.draft.toCommonScore()
-                    if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
-                    val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
-                        .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
-                    val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
-                        snapshot.draft.bpm, score, version, revision, resolvedIds)
-                    when (val result = repository.save(id, copy, draft)) {
-                        is SheetWrite.Saved -> {
-                            persistedDraft = snapshot.draft
-                            if (!draft) confirmedDraft = snapshot.draft
-                            val versionChanged = result.scoreVersion != version
-                            version = result.scoreVersion
-                            revision = result.revision
-                            if (versionChanged) audioDownloadJob?.cancel()
-                            val saveMessage = when {
-                                draft -> SheetEditMessage.Draft
-                                result.reviewStatus == "EVALUABLE" -> SheetEditMessage.SavedForPractice
-                                result.reviewStatus == "NEEDS_REVIEW" -> SheetEditMessage.SavedNeedsReview
-                                else -> SheetEditMessage.Saved
-                            }
-                            _uiState.update { it.copy(savedOnce = it.savedOnce || !draft,
-                                audio = if (!draft && it.audio.latest != null) SheetAudioUi.None else it.audio,
-                                deviceAudio = if (versionChanged) null else it.deviceAudio,
-                                audioDownloading = !versionChanged && it.audioDownloading,
-                                reviewIssues = it.reviewIssues.filterNot { issue -> issue.id in resolvedIds },
-                                checkedIssueIds = it.checkedIssueIds - resolvedIds.toSet(),
-                                message = if (announce) saveMessage else it.message) }
-                            if (!draft) {
-                                savedJangdanId = snapshot.draft.jangdanId
-                                mySheetRepository.refresh()
-                                if (_uiState.value.audioInstruments?.options?.isEmpty() == true) loadAudioInstrumentOptions()
-                                refreshAudio(announce = false)
-                            }
+            try {
+                writeLock.withLock {
+                    if (_uiState.value.saveConflict) return@withLock
+                    val snapshot = _uiState.value
+                    val sameDraft = draft && snapshot.draft == persistedDraft
+                    if (sameDraft && (!announce || persistedStatus == SheetSaveStatus.DraftSaved)) {
+                        _uiState.update {
+                            it.copy(saveStatus = if (announce || it.saveStatus == null) persistedStatus else it.saveStatus,
+                                message = if (announce && persistedStatus == SheetSaveStatus.DraftSaved) SheetEditMessage.Draft else it.message)
                         }
-                        SheetWrite.Conflict -> _uiState.update { it.copy(saveConflict = true, message = SheetEditMessage.SaveConflict) }
-                        SheetWrite.Unfilled -> _uiState.update { it.copy(emptyWarning = true) }
-                        SheetWrite.TooLarge -> _uiState.update { it.copy(message = SheetEditMessage.SaveTooLarge) }
-                        SheetWrite.Failed -> _uiState.update { it.copy(message = SheetEditMessage.SaveFailed) }
+                        return@withLock
                     }
-                } catch (cancelled: CancellationException) { throw cancelled }
-                catch (_: Exception) { _uiState.update { it.copy(message = SheetEditMessage.SaveFailed) } }
-                finally { if (accountScope.isActive) _uiState.update { it.copy(saving = false, confirming = false) } }
+                    if (!draft && blockInvalidCompletion(snapshot)) return@withLock
+                    _uiState.update { it.copy(saving = true, confirming = !draft, saveStatus = null,
+                        emptyWarning = false, completionWarning = false) }
+                    try {
+                        val score = snapshot.draft.toCommonScore()
+                        if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
+                        val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
+                            .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
+                        val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
+                            snapshot.draft.bpm, score, version, revision, resolvedIds)
+                        when (val result = repository.save(id, copy, draft)) {
+                            is SheetWrite.Saved -> {
+                                persistedDraft = snapshot.draft
+                                persistedStatus = if (draft) SheetSaveStatus.DraftSaved else SheetSaveStatus.Confirmed
+                                if (!draft) confirmedDraft = snapshot.draft
+                                val versionChanged = result.scoreVersion != version
+                                version = result.scoreVersion
+                                revision = result.revision
+                                if (versionChanged) audioDownloadJob?.cancel()
+                                val saveMessage = when {
+                                    draft -> SheetEditMessage.Draft
+                                    result.reviewStatus == "EVALUABLE" -> SheetEditMessage.SavedForPractice
+                                    result.reviewStatus == "NEEDS_REVIEW" -> SheetEditMessage.SavedNeedsReview
+                                    else -> SheetEditMessage.Saved
+                                }
+                                _uiState.update { it.copy(savedOnce = it.savedOnce || !draft,
+                                    saveStatus = if (it.draft == snapshot.draft) persistedStatus else it.saveStatus,
+                                    audio = if (!draft && it.audio.latest != null) SheetAudioUi.None else it.audio,
+                                    deviceAudio = if (versionChanged) null else it.deviceAudio,
+                                    audioDownloading = !versionChanged && it.audioDownloading,
+                                    reviewIssues = it.reviewIssues.filterNot { issue -> issue.id in resolvedIds },
+                                    checkedIssueIds = it.checkedIssueIds - resolvedIds.toSet(),
+                                    message = if (announce) saveMessage else it.message) }
+                                if (!draft) {
+                                    savedJangdanId = snapshot.draft.jangdanId
+                                    accountScope.launch { mySheetRepository.refresh() }
+                                    if (_uiState.value.audioInstruments?.options?.isEmpty() == true) loadAudioInstrumentOptions()
+                                    refreshAudio(announce = false)
+                                }
+                            }
+                            SheetWrite.Conflict -> _uiState.update { it.copy(saveConflict = true, message = SheetEditMessage.SaveConflict) }
+                            SheetWrite.Unfilled -> _uiState.update { it.copy(emptyWarning = true) }
+                            SheetWrite.TooLarge -> recordSaveFailure(snapshot.draft, draft, announce, SheetEditMessage.SaveTooLarge)
+                            SheetWrite.Failed -> recordSaveFailure(snapshot.draft, draft, announce)
+                        }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        recordSaveFailure(snapshot.draft, draft, announce)
+                    } finally {
+                        if (accountScope.isActive) _uiState.update { it.copy(saving = false, confirming = false) }
+                    }
+                }
+            } finally {
+                if (!draft) confirmationPending = false
             }
+        }
+    }
+
+    private fun recordSaveFailure(
+        snapshot: SheetDraft,
+        draft: Boolean,
+        announce: Boolean,
+        message: SheetEditMessage = SheetEditMessage.SaveFailed,
+    ) {
+        val status = when {
+            message == SheetEditMessage.SaveTooLarge -> SheetSaveStatus.TooLarge
+            draft -> SheetSaveStatus.DraftFailed
+            else -> SheetSaveStatus.ConfirmationFailed
+        }
+        _uiState.update {
+            if (it.draft != snapshot) it
+            else it.copy(saveStatus = status, message = if (announce) message else it.message)
         }
     }
 
@@ -325,7 +369,11 @@ class SheetEditViewModel(
             else onClose()
             return
         }
-        if ((persistedDraft == _uiState.value.draft && !_uiState.value.saving && !_uiState.value.saveConflict)) { onClose(); return }
+        val state = _uiState.value
+        if (persistedDraft == state.draft && !state.saving && !confirmationPending && !state.saveConflict) {
+            onClose()
+            return
+        }
         autoSaveJob?.cancel()
         val write = persist(draft = true, announce = false)
         closeJob = accountScope.launch {
@@ -469,6 +517,13 @@ class SheetEditViewModel(
         autoSaveJob?.cancel()
         persist(draft = true)
     }
+    fun retryDraftSave() {
+        val state = _uiState.value
+        if (state.saveStatus != SheetSaveStatus.DraftFailed || state.saving || state.confirming || state.saveConflict) return
+        _uiState.update { it.copy(saveStatus = null) }
+        persist(draft = true, announce = false)
+    }
+
     fun closeWarning() = change { it.copy(emptyWarning = false) }
     fun closeCompletionWarning() = change { it.copy(completionWarning = false) }
     fun fillEmpty() = change { it.fillEmpty() }

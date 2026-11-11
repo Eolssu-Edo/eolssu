@@ -528,10 +528,10 @@ fun PracticeSettings.applyTempo(draft: PracticeDraft, song: Song, mine: Boolean 
 
 /** 플레이어의 고정 안내 칸에만 표시한다. 정상 재생에는 문구가 없다. */
 internal enum class PracticePlayerNotice {
-    None, Loading, Failed, Unavailable, PersonalAudioUnavailable, PersonalDownloadFailed, PersonalScoreChanged, EmbeddedJangdan, Unsupported, Interrupted,
+    None, Loading, Failed, Unavailable, PersonalAudioUnavailable, PersonalDownloadFailed, PersonalScoreChanged, PersonalAudioReady, EmbeddedJangdan, Unsupported, Interrupted,
 }
 
-enum class PracticePersonalAudio { Checking, Missing, Downloading, Failed, VersionChanged, Ready }
+enum class PracticePersonalAudio { Checking, Missing, Preparing, Downloading, Failed, VersionChanged, Unsupported, Ready }
 
 internal val PracticeUiState.personalAudioControl: PracticePersonalAudio?
     get() = personalAudio?.takeUnless { !mine || mode == PracticeMode.Rhythm || it == PracticePersonalAudio.Ready }
@@ -558,14 +558,17 @@ internal val PracticeUiState.playerNotice: PracticePlayerNotice
         }
         if (!rhythm && modelClock?.audio?.sheetPlayback?.withJangdan == true) return PracticePlayerNotice.EmbeddedJangdan
         // 곡에 장단 반주가 없으면 장단 연습만 재생할 소리가 없다. 모범 연주는 저장된 장단 소리 설정과 관계없이 음원만 재생하므로 안내하지 않는다.
-        if (!jangdanSupported) return if (rhythm) PracticePlayerNotice.Unavailable else PracticePlayerNotice.None
-        if (accompaniment) {
+        if (!jangdanSupported && rhythm) return PracticePlayerNotice.Unavailable
+        if (jangdanSupported && accompaniment) {
             when (jangdanStatus) {
                 JangdanStatus.Failed -> return PracticePlayerNotice.Failed
                 JangdanStatus.Unsupported -> return PracticePlayerNotice.Unsupported
                 JangdanStatus.Interrupted -> return PracticePlayerNotice.Interrupted
                 else -> Unit
             }
+        }
+        if (!rhythm && personalAudio == PracticePersonalAudio.Ready && modelAudioStatus == ModelAudioStatus.Idle) {
+            return PracticePlayerNotice.PersonalAudioReady
         }
         return PracticePlayerNotice.None
     }

@@ -25,6 +25,7 @@ import com.ssafy.eolssu.data.song.SheetAudioStatus
 import com.ssafy.eolssu.data.song.SheetPracticeRepository
 import com.ssafy.eolssu.data.song.smallScoreSong
 import io.ktor.client.engine.mock.MockEngine
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -48,17 +49,26 @@ class PracticePersonalAudioTest {
         assertEquals(0, player.loads)
         assertEquals(emptyList(), fixture.requests)
 
+        val downloadFinished = CompletableDeferred<Unit>()
+        fixture.downloadFinished = downloadFinished
         vm.downloadPersonalAudio()
         vm.downloadPersonalAudio()
         runCurrent()
-        assertEquals(PracticePersonalAudio.Downloading, vm.uiState.value.personalAudio)
+        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
         assertEquals(listOf(SheetAudioSettings(instrumentId = "9", withJangdan = false, bpm = 60)), fixture.requests)
         assertEquals(0, fixture.saves)
 
         advanceTimeBy(500)
         runCurrent()
         assertEquals(1, fixture.saves)
+        assertEquals(PracticePersonalAudio.Downloading, vm.uiState.value.personalAudio)
+        vm.startModel()
+        assertEquals(0, player.loads)
+
+        downloadFinished.complete(Unit)
+        runCurrent()
         assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(PracticePlayerNotice.PersonalAudioReady, vm.uiState.value.playerNotice)
         assertNull(vm.uiState.value.personalAudioControl)
         assertEquals(0, player.loads)
 
@@ -80,11 +90,23 @@ class PracticePersonalAudioTest {
         assertEquals(1, fixture.requests.size)
     }
 
+    @Test fun rejectsAnotherVersionsFileEvenWhenTheScoreIsStillCurrent() = practiceTest { vm, fixture, player ->
+        fixture.request = SheetAudioRequest.Accepted(fixture.done.copy(scoreVersion = "2"))
+        vm.downloadPersonalAudio()
+        runCurrent()
+        assertEquals(PracticePersonalAudio.Failed, vm.uiState.value.personalAudio)
+        assertEquals(0, fixture.saves)
+        vm.startModel()
+        runCurrent()
+        assertEquals(0, player.loads)
+    }
+
     @Test fun refusesExpiredLinkAndCanRetry() = practiceTest { vm, fixture, _ ->
         fixture.request = SheetAudioRequest.Accepted(fixture.done.copy(audio = fixture.done.audio?.copy(urlExpiresAt = 0)))
         vm.downloadPersonalAudio()
         runCurrent()
         assertEquals(PracticePersonalAudio.Failed, vm.uiState.value.personalAudio)
+        assertEquals(PracticePlayerNotice.PersonalDownloadFailed, vm.uiState.value.playerNotice)
         assertEquals(0, fixture.saves)
 
         fixture.request = SheetAudioRequest.Accepted(fixture.done)
@@ -151,6 +173,7 @@ class PracticePersonalAudioTest {
         var statusReads = 0
         var saves = 0
         var saved: DeviceSheetAudio? = null
+        var downloadFinished: CompletableDeferred<Unit>? = null
 
         override val available = true
         override suspend fun request(sheetId: String, settings: SheetAudioSettings): SheetAudioRequest {
@@ -170,6 +193,7 @@ class PracticePersonalAudioTest {
         override suspend fun save(accountId: String, sheetId: String, scoreVersion: String, download: SheetAudioDownload): DeviceSheetAudio {
             assertEquals(Triple("7", "42", "1"), Triple(accountId, sheetId, scoreVersion))
             saves++
+            downloadFinished?.await()
             return DeviceSheetAudio(LocalAudioFile("/app/files/42.m4a"), download.instrumentId, download.bpm,
                 download.withJangdan, download.sha256, download.durationMs, download.performance).also { saved = it }
         }

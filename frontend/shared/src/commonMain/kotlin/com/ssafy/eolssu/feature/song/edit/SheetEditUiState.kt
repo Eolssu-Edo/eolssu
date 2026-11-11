@@ -29,6 +29,8 @@ data class SheetAudioInstruments(
 enum class SheetCompletionCatalogState { NotRequired, Loading, Ready, Failed }
 
 /** 화면 아래에 잠깐 띄우는 안내. */
+enum class SheetSaveStatus { DraftSaved, Confirmed, DraftFailed, ConfirmationFailed, TooLarge }
+
 enum class SheetEditMessage {
     SaveFailed, SaveConflict, SaveTooLarge,
     /** 임시저장(SHT-11 초안). 빈 정간이 있어도 된다. */
@@ -127,6 +129,7 @@ data class SheetEditUiState(
     val documentLoading: Boolean = false,
     val documentFailed: Boolean = false,
     val practiceVersionChanged: Boolean = false,
+    val saveStatus: SheetSaveStatus? = null,
     val saving: Boolean = false,
     val confirming: Boolean = false,
     val saveConflict: Boolean = false,
