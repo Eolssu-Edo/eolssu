@@ -69,7 +69,7 @@ interface AudioRecorder {
     val echoStatus: StateFlow<RecordingEchoStatus>? get() = null
     suspend fun prepareEcho(
         player: JangdanSamplePlayer,
-        clips: Set<JangdanClip>,
+        plan: JangdanPlan,
         progress: (EchoCalibrationProgress) -> Unit,
     ): Boolean = false
     /** 보정 없이 계속하기. 이미 만들어진 녹음의 샘플은 바꾸지 않는다. */

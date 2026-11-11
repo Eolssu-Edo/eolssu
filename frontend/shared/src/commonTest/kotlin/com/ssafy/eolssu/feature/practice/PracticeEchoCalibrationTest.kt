@@ -287,7 +287,8 @@ private class EchoRecorder : AudioRecorder {
     var clips = emptySet<JangdanClip>()
     private var publishProgress: (EchoCalibrationProgress) -> Unit = {}
     fun reportCount(count: Int) = publishProgress(EchoCalibrationProgress(0, clips.size * 3, count))
-    override suspend fun prepareEcho(player: JangdanSamplePlayer, clips: Set<JangdanClip>, progress: (EchoCalibrationProgress) -> Unit): Boolean {
+    override suspend fun prepareEcho(player: JangdanSamplePlayer, plan: JangdanPlan, progress: (EchoCalibrationProgress) -> Unit): Boolean {
+        val clips = plan.strikes.map { it.clip }.toSet()
         preparations++
         this.player = player
         this.clips = clips

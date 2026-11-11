@@ -8,6 +8,8 @@ interface JangdanSamplePlayer {
     /** 모범 음원과 함께 틀 때는 그 플레이어가 오디오 포커스를 소유한다. */
     fun begin(accompanyingModel: Boolean): Boolean
     fun play(clip: JangdanClip, gain: Float): Boolean
+    /** 준비 세 주기 뒤 이어지는 예약 재생을 한 번 인수한다. 지원하지 않으면 기존 재생으로 시작한다. */
+    fun adoptPreparedPlayback(plan: JangdanPlan): Boolean = false
     fun silence()
     fun stop()
     fun release()

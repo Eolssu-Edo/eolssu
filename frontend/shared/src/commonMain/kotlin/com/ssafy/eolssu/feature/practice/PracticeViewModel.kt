@@ -1043,16 +1043,16 @@ class PracticeViewModel(
         invalidateCountdown()
         val generation = countdownGeneration
         val initial = _uiState.value
-        val clips = if (!initial.resume && !skipEcho && initial.settings.jangdanSound && recorder?.supportsEchoCalibration == true)
-            currentPlan()?.strikes?.map { it.clip }?.toSet()?.takeIf { it.isNotEmpty() } else null
-        if (clips != null) _uiState.update { it.copy(echoMeasuring = true, echoStatus = RecordingEchoStatus.Measuring) }
+        val echoPlan = if (!initial.resume && !skipEcho && initial.settings.jangdanSound && recorder?.supportsEchoCalibration == true)
+            currentPlan()?.takeIf { it.strikes.isNotEmpty() } else null
+        if (echoPlan != null) _uiState.update { it.copy(echoMeasuring = true, echoStatus = RecordingEchoStatus.Measuring) }
         countdownJob = accountScope.launch {
             // 연속 취소에서도 이전 보정의 finally까지 기다려 같은 player를 차례로 사용한다.
             withContext(NonCancellable) { previous?.join() }
             if (generation != countdownGeneration || !isActive) return@launch
-            if (clips != null) {
+            if (echoPlan != null) {
                 val prepared = try {
-                    recorder!!.prepareEcho(jangdanPlayer, clips) { progress ->
+                    recorder!!.prepareEcho(jangdanPlayer, echoPlan) { progress ->
                         if (generation == countdownGeneration && isActive) _uiState.update {
                             it.copy(echoProgress = progress, count = progress.countIn.coerceIn(1, 3))
                         }
@@ -1070,7 +1070,7 @@ class PracticeViewModel(
                     _uiState.update { it.copy(echoMeasuring = false, echoProgress = null, echoStatus = status, popup = PracticePopup.EchoCalibrationFailed) }
                     return@launch
                 }
-                _uiState.update { it.copy(echoMeasuring = false, echoProgress = null, echoStatus = RecordingEchoStatus.Ready) }
+                _uiState.update { it.copy(echoMeasuring = false, echoProgress = null, echoStatus = recorder?.echoStatus?.value ?: RecordingEchoStatus.Unavailable) }
             } else {
                 // 준비 장단이 없는 시작·재개는 기존 3초 카운트를 사용한다.
                 while (_uiState.value.count > 1) {

@@ -16,6 +16,7 @@ import com.ssafy.eolssu.core.audio.RecordedAudio
 import com.ssafy.eolssu.core.audio.YinPitchEstimator
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
 import com.ssafy.eolssu.core.audio.JangdanClip
+import com.ssafy.eolssu.core.audio.JangdanPlan
 import com.ssafy.eolssu.core.audio.RecordingEchoStatus
 import com.ssafy.eolssu.core.audio.EchoCalibrationProgress
 import com.ssafy.eolssu.core.audio.EchoCalibrationStrike
@@ -60,10 +61,11 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
 
     override suspend fun prepareEcho(
         player: JangdanSamplePlayer,
-        clips: Set<JangdanClip>,
+        plan: JangdanPlan,
         progress: (EchoCalibrationProgress) -> Unit,
     ): Boolean = withContext(Dispatchers.IO) {
         val output = player as? AndroidJangdanSamplePlayer ?: return@withContext false
+        val clips = plan.strikes.map { it.clip }.toSet()
         if (clips.isEmpty()) return@withContext false
         var preparing: Session? = null
         var accepted = false
