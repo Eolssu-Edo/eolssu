@@ -248,7 +248,7 @@ def report_summary(mode, target, columns, rows, facts):
 def health_group(name, location):
     if any(word in name for word in ('백업', '복구', '복제', 'replica', 'replication')):
         return '백업·복제'
-    if location.endswith(('systemd', '구성 검사', '모니터링 HTTP')) or name == 'Docker 조회':
+    if location.endswith(('systemd', '구성 검사', '모니터링 HTTP')) or name in ('Docker 조회', '저장공간 자동 측정'):
         return '호스트·모니터링'
     return '서비스·통신'
 
@@ -327,7 +327,7 @@ def report_content(result, *, overview=False):
                           'edo1에서 대상 docker inspect의 State·Health와 docker logs --tail 50 확인')
             if (location in success_labels or name in ('eolssu-runtime-ai-1', 'eolssu-replication-proxy-579')
                     or location in ('edo1 systemd', 'edo2 systemd', 'edo2 구성 검사', 'edo2 백업 메타데이터',
-                                    'edo1 모니터링 HTTP', 'edo2 대기 웹 loopback HTTPS')):
+                                    'edo1 모니터링 HTTP', 'edo1 운영 검사', 'edo2 대기 웹 loopback HTTPS')):
                 action = str(row[5]) if len(row) > 5 else 'edo2의 해당 unit·설정 확인'
             elif target == 'edo2' and 'TLS' in location:
                 action = ('만료 24시간 미만: snap.certbot.renew.timer와 최근 갱신 로그 확인; 인증서 갱신 뒤 /edo2-health 재실행'

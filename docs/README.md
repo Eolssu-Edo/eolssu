@@ -36,6 +36,7 @@
 - [기초부터 배우기 2·3단계 할 일별 따라 배우기 (619)](plans/S15P31E102-619.md)
 - [Mattermost 점검 메시지 구성](specs/mattermost-inspection-messages.md) · [701 명령 통합·표 구분](plans/S15P31E102-701.md) · [676 간결화](plans/S15P31E102-676.md) · [616 최초 구성](plans/S15P31E102-616.md)
 - [Mattermost 점검 수집과 판정](specs/mattermost-inspection-measurements.md) · [664 계획·검증](plans/S15P31E102-664.md) · [667 컨테이너 준비 검사 계획·검증](plans/S15P31E102-667.md)
+- [R2·저장공간 최신성·독립 HTTPS 운영 점검 (709)](plans/S15P31E102-709.md)
 - [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
 - [연습 화면 외 정간보 공통 형식 (591)](knowledge/frontend/reading-score-format.md)

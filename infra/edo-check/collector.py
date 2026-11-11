@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Root-owned, read-only collector; only fixed host profiles and modes are accepted."""
+"""Root-owned collector for fixed host profiles and operational checks."""
 import concurrent.futures
 from datetime import datetime, timedelta, timezone
 import http.client
@@ -70,6 +70,10 @@ CGROUP_ROOT = Path('/sys/fs/cgroup')
 BLOG_EDITOR_ROLLBACK_NAME = re.compile(r'eolssu-blog-editor-writable-(?:before|rollback|pre)-[0-9a-f]{8}')
 STORAGE_SNAPSHOT_PATH = Path('/var/lib/edo-check-storage/edo1.json')
 STORAGE_MAX_AGE = timedelta(minutes=45)
+R2_PROBE = '/opt/edo-check/r2_probe.py'
+R2_WRITE_RECORD = Path('/var/lib/edo-check-r2/write.json')
+OUTSIDE_RECORD = Path('/var/lib/edo-check-outside/latest.json')
+EDO1_OPERATION_LOCATION = 'edo1 운영 검사'
 JENKINS_CONTROLLER = 'eolssu-jenkins-controller-1'
 JENKINS_HOME = '/var/lib/jenkins'
 DOCKER_DISK_CATEGORIES = ('ImageUsage', 'ContainerUsage', 'VolumeUsage', 'BuildCacheUsage')
@@ -406,13 +410,16 @@ def complete_disk_measurement(used, reclaimable):
                and all(map(valid_storage_bytes, values)) for values in (used, reclaimable))
 
 
-def fresh_storage_measurement(kind):
+def fresh_storage_measurement(kind, *, max_age=STORAGE_MAX_AGE):
     sample = read_storage_snapshot().get(kind)
     if not isinstance(sample, dict):
         return None
     try:
         captured = datetime.fromisoformat(sample['captured_at'])
-        if captured.tzinfo is None or not timedelta(0) <= datetime.now(timezone.utc) - captured <= STORAGE_MAX_AGE:
+        if captured.tzinfo is None:
+            return None
+        age = datetime.now(timezone.utc) - captured
+        if age < timedelta(0) or (max_age is not None and age > max_age):
             return None
         if kind == 'docker':
             valid = complete_disk_measurement(sample['used'], sample['reclaimable'])
@@ -423,9 +430,13 @@ def fresh_storage_measurement(kind):
     return (sample, captured) if valid else None
 
 
-def measured_at(captured):
+def kst_timestamp(captured):
     korean_time = captured.astimezone(timezone(timedelta(hours=9)))
-    return f'실측 `{korean_time:%Y-%m-%d %H:%M:%S KST}`'
+    return f'`{korean_time:%Y-%m-%d %H:%M:%S KST}`'
+
+
+def measured_at(captured):
+    return '실측 ' + kst_timestamp(captured)
 
 
 def write_storage_snapshot(snapshot):
@@ -1019,6 +1030,168 @@ def read_record(path):
     return data
 
 
+def observation_time(value):
+    if not isinstance(value, str):
+        raise ValueError('missing observation time')
+    timestamp = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    if timestamp.tzinfo is None:
+        raise ValueError('timezone required')
+    age = datetime.now(timezone.utc) - timestamp
+    if age < timedelta(0):
+        raise ValueError('future observation')
+    return timestamp, age
+
+
+def r2_read_status():
+    try:
+        result = run(['/usr/bin/python3', '-B', '-I', R2_PROBE, 'read'], timeout=11)
+        if result.returncode or len(result.stdout) > 2048:
+            raise ValueError('invalid read probe result')
+        data = json.loads(result.stdout)
+        status, detail, elapsed = data['status'], data['detail'], data['elapsed_ms']
+        if type(elapsed) is not int or not 0 <= elapsed <= 11000:
+            raise ValueError('invalid probe duration')
+        if status == 'ok' and detail == 'range_ok':
+            return '정상', '백엔드 서명 발급 · R2 HTTP 206 · 점검 음원 32바이트 일치', f'{elapsed}ms'
+        if status != 'failed':
+            raise ValueError('invalid read probe status')
+        http_code = re.fullmatch(r'(backend|r2)_http_([1-5][0-9]{2})', detail)
+        if http_code:
+            source = '백엔드' if http_code[1] == 'backend' else 'R2'
+            reason = f'{source} HTTP {http_code[2]}'
+        else:
+            reason = {'invalid_redirect': '서명 주소 검증 실패', 'invalid_range': 'R2 부분 응답 검증 실패',
+                      'backend_connection': '백엔드 연결 실패', 'r2_connection': 'R2 연결 실패'}.get(detail, '읽기 검증 실패')
+        return '실패', reason, f'{elapsed}ms'
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, TypeError, OverflowError):
+        return '미측정', 'R2 읽기 점검 실행 결과 확인 불가', '—'
+
+
+def sheet_r2_status():
+    try:
+        result = run(['/usr/bin/python3', '-B', '-I', R2_PROBE, 'sheet'], timeout=40)
+        if result.returncode or len(result.stdout) > 2048:
+            raise ValueError('invalid sheet probe output')
+        data = json.loads(result.stdout)
+        status, detail, elapsed = data['status'], data['detail'], data['elapsed_ms']
+        if type(elapsed) is not int or not 0 <= elapsed <= 40000:
+            raise ValueError('invalid probe duration')
+        if status == 'ok' and detail == 'put_signed_get_delete_ok':
+            return '정상', '합성 객체 쓰기 · 서명 다운로드 본문 일치 · 삭제 후 HTTP 404', f'{elapsed}ms'
+        reasons = {
+            'sheet_configuration': '활성 백엔드의 악보 R2 설정 확인 실패',
+            'sheet_dependency': 'R2 도구 준비 실패',
+            'sheet_unavailable': 'R2 점검 실행 실패',
+            'sheet_conflict': '점검 객체 키 충돌',
+            'sheet_put': '쓰기 실패 · 정리 확인',
+            'sheet_put_delete': '쓰기 실패 · 삭제 확인 실패',
+            'sheet_download': '서명 다운로드 검증 실패 · 정리 확인',
+            'sheet_download_delete': '서명 다운로드 검증 실패 · 삭제 확인 실패',
+            'sheet_delete': '삭제 확인 실패',
+        }
+        if status == 'failed' and detail in reasons:
+            return '실패', reasons[detail], f'{elapsed}ms'
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, TypeError):
+        pass
+    return '미측정', '악보 음원 R2 점검 결과 확인 불가', '—'
+
+
+def r2_write_status():
+    try:
+        data = read_record(R2_WRITE_RECORD)
+        attempt, age = observation_time(data['last_attempt_at'])
+        success_value = data.get('last_success_at')
+        success = observation_time(success_value)[0] if success_value is not None else None
+        status, detail = data['status'], data['detail']
+        if (status == 'ok' and detail == 'put_get_delete_ok' and success is not None
+                and timedelta(0) <= success - attempt <= timedelta(seconds=40)):
+            verdict, evidence = '정상', '합성 객체 쓰기·읽기·삭제 통과'
+        elif status == 'failed' and (success is None or success <= attempt):
+            verdict = '실패'
+            evidence = {'write_configuration': '운영 저장소 설정 확인 실패', 'write_dependency': 'R2 도구 준비 실패',
+                        'write_put_conflict': '점검 객체 키 충돌', 'write_put': '합성 객체 쓰기 실패',
+                        'write_read': '합성 객체 읽기·대조 실패', 'write_delete': '합성 객체 삭제 확인 실패'}.get(detail, '쓰기 검증 실패')
+        else:
+            raise ValueError('invalid write probe status')
+        last = kst_timestamp(success) if success else '기록 없음'
+        if age > timedelta(hours=6, minutes=30):
+            return '주의', f'최근 실행 기록 지연 · {kst_timestamp(attempt)} · 최근 성공 {last}'
+        return verdict, f'{evidence} · 최근 성공 {last}'
+    except (OSError, ValueError, KeyError, TypeError, OverflowError):
+        return '미측정', 'R2 쓰기 점검 기록 확인 불가'
+
+
+def storage_observation_status():
+    try:
+        result = run(['systemctl', 'show', 'edo-check-storage.timer',
+                      '--property=LoadState,ActiveState,SubState,UnitFileState'])
+        if result.returncode:
+            raise ValueError('timer query failed')
+        timer = dict(line.split('=', 1) for line in result.stdout.splitlines() if '=' in line)
+        active = (timer['LoadState'] == 'loaded' and timer['ActiveState'] == 'active'
+                  and timer['SubState'] in ('waiting', 'running') and timer['UnitFileState'] == 'enabled')
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError):
+        active = None
+    evidence = ['타이머 활성' if active else '타이머 비활성 또는 자동 시작 해제' if active is False else '타이머 조회 실패']
+    samples = [(label, fresh_storage_measurement(kind, max_age=None))
+               for kind, label in (('docker', 'Docker'), ('jenkins', 'Jenkins'))]
+    for label, sample in samples:
+        evidence.append(f'{label} {kst_timestamp(sample[1]) if sample else "실측 기록 없음"}')
+    if active is False:
+        verdict = '실패'
+    elif active is None or any(not sample for _, sample in samples):
+        verdict = '미측정'
+    elif any(datetime.now(timezone.utc) - sample[1] > timedelta(minutes=30) for _, sample in samples):
+        verdict = '주의'
+        evidence.append('실측 30분 초과')
+    else:
+        verdict = '정상'
+    return verdict, ' · '.join(evidence)
+
+
+def outside_observation_status():
+    allowed = {'HTTP 200 · JSON 응답 아님', 'HTTP 200 · 응답 크기 초과', 'HTTP 200 · JSON 형식 불일치',
+               'HTTP 200 · JSON 해석 실패', 'TLS 인증 실패', 'HTTPS 응답 시간 초과', 'HTTPS 요청 실패'}
+    try:
+        data = read_record(OUTSIDE_RECORD)
+        captured, age = observation_time(data['captured_at'])
+        evidence, outcomes = [], []
+        for key, label, success in (('relay', 'edo2 중계', 'HTTP 200 · 중계 JSON 정상'),
+                                    ('terms', '공개 API', 'HTTP 200 · 약관 목록 JSON 정상')):
+            ok, detail = data[key]['ok'], data[key]['detail']
+            if type(ok) is not bool or not isinstance(detail, str) or (ok and detail != success):
+                raise ValueError('invalid HTTPS probe result')
+            safe = detail if ok or detail in allowed or re.fullmatch(r'HTTP [1-5][0-9]{2}', detail) else '응답 검증 실패'
+            outcomes.append(ok)
+            evidence.append(f'{label} {safe}')
+        evidence.append(kst_timestamp(captured))
+        if age > timedelta(minutes=3):
+            return '주의', '최근 검사 지연 · ' + ' · '.join(evidence)
+        return ('정상' if all(outcomes) else '실패'), ' · '.join(evidence)
+    except (OSError, ValueError, KeyError, TypeError, OverflowError):
+        return '미측정', '독립 HTTPS 최근 검사 기록 확인 불가'
+
+
+def edo1_dependency_rows():
+    read_status, read_evidence, elapsed = r2_read_status()
+    write_status, write_evidence = r2_write_status()
+    sheet_status, sheet_evidence, sheet_elapsed = sheet_r2_status()
+    storage_status, storage_evidence = storage_observation_status()
+    outside_status, outside_evidence = outside_observation_status()
+    return [
+        ['R2 읽기', EDO1_OPERATION_LOCATION, read_status, read_evidence, elapsed,
+         '학습 음원 API의 서명 발급과 R2 읽기 확인'],
+        ['R2 쓰기', EDO1_OPERATION_LOCATION, write_status, write_evidence, '—',
+         'journalctl -u edo-check-r2-write.service 확인'],
+        ['악보 음원 R2', EDO1_OPERATION_LOCATION, sheet_status, sheet_evidence, sheet_elapsed,
+         '활성 백엔드의 악보 R2 설정, 전용 버킷 권한과 점검 객체 정리 확인'],
+        ['저장공간 자동 측정', EDO1_OPERATION_LOCATION, storage_status, storage_evidence, '—',
+         'edo-check-storage.timer와 journalctl -u edo-check-storage.service 확인'],
+        ['독립 HTTPS', EDO1_OPERATION_LOCATION, outside_status, outside_evidence, '—',
+         'edo1에서 journalctl -u edo-check-outside.service 확인'],
+    ]
+
+
 def backup_health(store=Path('/var/lib/eolssu-backups'), keys=Path('/var/lib/eolssu-backup-keys'), state=Path('/var/lib/eolssu-backup')):
     rows = []
     for kind in BACKUP_KINDS:
@@ -1067,7 +1240,8 @@ def edo1_host_health():
 
 
 def health_report(target='edo1'):
-    rows = edo2_host_health() + backup_health() if target == 'edo2' else edo1_host_health() + prometheus_health()
+    rows = (edo2_host_health() + backup_health() if target == 'edo2'
+            else edo1_host_health() + prometheus_health() + edo1_dependency_rows())
     issues = []
     slot = configured_backend_slot(target, issues)
     required = required_containers(target, slot)
