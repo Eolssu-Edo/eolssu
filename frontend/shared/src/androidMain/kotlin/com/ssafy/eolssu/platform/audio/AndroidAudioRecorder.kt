@@ -71,8 +71,10 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
         try {
             check(output.prepare(clips))
             val lengths = clips.associateWith { checkNotNull(output.pcmFor(it)).size }
+            val rounds = 3
+            val totalStrikes = clips.size * rounds
             // Bound preparatory mic storage. A very large/unsupported plan can still record raw.
-            check(lengths.values.sumOf { it.toLong() + RATE * 3L / 4 } * 4 < RATE * 55L)
+            check(lengths.values.sumOf { it.toLong() + RATE * 3L / 4 } * rounds < RATE * 55L)
             val next = synchronized(stateLock) {
                 val previous = session
                 previous?.cancelled = true
@@ -86,7 +88,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             val quiet = mutableListOf<EchoQuietWindow>()
             val events = mutableListOf<RenderedJangdanEvent>()
             val observedShifts = mutableListOf<Long>()
-            progress(EchoCalibrationProgress(0, clips.size * 4))
+            progress(EchoCalibrationProgress(0, totalStrikes, countIn = rounds))
             delay(1_000)
             val baseline = output.outputSnapshot()
             check(baseline.frameZeroNanos != null && baseline.volume > 0 &&
@@ -95,7 +97,12 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             check(input.zeroNanos != null && input.deviceType == AudioDeviceInfo.TYPE_BUILTIN_MIC)
             quiet += EchoQuietWindow(RATE / 10L, input.frames)
             var lastFrame = baseline.events.lastOrNull()?.frame ?: -1L
-            repeat(4) { round ->
+            repeat(rounds) { round ->
+                val countIn = rounds - round
+                currentCoroutineContext().ensureActive()
+                progress(EchoCalibrationProgress(events.size, totalStrikes, countIn))
+                if (debugBuild) Log.d("EolssuEcho", "calibration=countIn number=$countIn completed=${events.size} total=$totalStrikes")
+                val firstInRound = events.size
                 for (clip in clips.sortedBy { it.sample.ordinal }) {
                     currentCoroutineContext().ensureActive()
                     check(!next.cancelled && !next.failed && !output.interrupted)
@@ -109,6 +116,9 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                     val hit = checkNotNull(event)
                     lastFrame = hit.frame
                     events += hit
+                    if (debugBuild && events.size == firstInRound + 1) {
+                        Log.d("EolssuEcho", "calibration=countInPlayback number=$countIn frame=${hit.frame}")
+                    }
                     val out = output.outputSnapshot()
                     val microphone = next.probe.snapshot(includeSamples = false)
                     check(sameOutput(baseline, out) && microphone.deviceId == input.deviceId)
@@ -125,7 +135,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                     }
                     check(next.probe.frames >= quietEnd)
                     quiet += EchoQuietWindow(quietStart, quietEnd)
-                    progress(EchoCalibrationProgress(events.size, clips.size * 4))
+                    progress(EchoCalibrationProgress(events.size, totalStrikes, countIn))
                 }
             }
             val captured = next.probe.snapshot(includeSamples = true)

@@ -33,8 +33,8 @@ class RecordingEchoFilterTest {
         }
     }
 
-    private fun calibrate(capture: FloatArray) = RecordingEchoCalibrator.calibrate(
-        capture, strikes, mapOf(clip to clipLength), quiet,
+    private fun calibrate(capture: FloatArray, selected: List<EchoCalibrationStrike> = strikes) = RecordingEchoCalibrator.calibrate(
+        capture, selected, mapOf(clip to clipLength), quiet,
     )
 
     @Test fun rejectsPersistentInstrumentInQuietCalibrationWindow() {
@@ -48,6 +48,21 @@ class RecordingEchoFilterTest {
 
     @Test fun acceptsSeparateConsistentStrikesAfterSilence() {
         assertIs<EchoCalibrationResult.Accepted>(calibrate(cleanCapture()))
+    }
+
+    @Test fun threeCountInStrikesMustAllMatchBeforeCreatingAModel() {
+        val selected = strikes.take(3)
+        assertIs<EchoCalibrationResult.Accepted>(calibrate(cleanCapture(), selected))
+        val inconsistent = cleanCapture()
+        val random = Random(695)
+        for (i in starts[2] until starts[2] + clipLength) {
+            inconsistent[i] = random.nextFloat() * .2f - .1f
+        }
+        val rejected = assertIs<EchoCalibrationResult.Rejected>(calibrate(inconsistent, selected))
+        assertEquals(RecordingEchoStatus.Unreliable, rejected.reason)
+        val diagnostic = assertNotNull(rejected.diagnostic)
+        assertEquals(EchoCalibrationGate.RepeatMatchCount, diagnostic.gate)
+        assertEquals(3, diagnostic.count)
     }
 
     @Test fun diagnosticsDistinguishPeriodicInputFromLoudNoiseWithoutChangingStatus() {
@@ -131,6 +146,20 @@ class RecordingEchoFilterTest {
         assertEquals(RecordingEchoStatus.Unreliable, result.reason)
         val diagnostic = assertNotNull(result.diagnostic)
         assertEquals(EchoCalibrationGate.ResponseLowResidual, diagnostic.gate)
+        assertTrue(assertNotNull(diagnostic.value) > assertNotNull(diagnostic.limit))
+    }
+
+    @Test fun threeCountInStrikesStillRejectInstrumentDuringTheAttacks() {
+        val capture = cleanCapture()
+        starts.take(3).forEachIndexed { repeat, start ->
+            for (i in 0 until clipLength) {
+                capture[start + i] += (.08 * sin(2 * PI * 467 * i / rate + repeat * .7)).toFloat()
+            }
+        }
+        val rejected = assertIs<EchoCalibrationResult.Rejected>(calibrate(capture, strikes.take(3)))
+        assertEquals(RecordingEchoStatus.Unreliable, rejected.reason)
+        val diagnostic = assertNotNull(rejected.diagnostic)
+        assertTrue(diagnostic.gate in setOf(EchoCalibrationGate.ResponseLowResidual, EchoCalibrationGate.ResponseWideResidual))
         assertTrue(assertNotNull(diagnostic.value) > assertNotNull(diagnostic.limit))
     }
 

@@ -8,6 +8,7 @@ import com.ssafy.eolssu.core.audio.JangdanClip
 import com.ssafy.eolssu.core.audio.JangdanSample
 import com.ssafy.eolssu.core.audio.RecordingEchoCalibrator
 import com.ssafy.eolssu.core.audio.RecordingEchoFilter
+import com.ssafy.eolssu.core.audio.RecordingEchoModel
 import com.ssafy.eolssu.core.audio.RecordingEchoStatus
 import java.io.File
 import java.nio.ByteBuffer
@@ -56,6 +57,32 @@ class RecordingEchoReplayTest {
             }
             val quiet = listOf(EchoQuietWindow(shift + 13230L, shift + 79380L),
                 EchoQuietWindow(shift + 414540L, shift + 454230L))
+            val playback = events.filter { it.getValue("partition").jsonPrimitive.content == "holdout" }.map {
+                EchoPlaybackEvent(clip(it.getValue("kind").jsonPrimitive.content),
+                    shift + it.getValue("reference_frame").jsonPrimitive.int.toLong(), it.getValue("gain").jsonPrimitive.float)
+            }
+            val holdoutStart = shift + (10.5 * 44100).roundToInt()
+            // Keep the measured timing and quiet windows fixed, varying only which three
+            // of the four repetitions train each clip. This does not simulate a shorter capture.
+            for (omitted in 0 until 4) {
+                val threeStrikes = strikes.groupBy { it.clip }.values.flatMap { group ->
+                    assertEquals(4, group.size)
+                    group.filterIndexed { index, _ -> index != omitted }
+                }
+                val threeResult = RecordingEchoCalibrator.calibrate(input, threeStrikes, lengths, quiet)
+                if (name == "170050") {
+                    val rejected = assertIs<EchoCalibrationResult.Rejected>(threeResult)
+                    assertEquals(RecordingEchoStatus.NotQuiet, rejected.reason)
+                    println("$name threeRepeats omit=$omitted rejected=${rejected.reason}")
+                } else {
+                    val accepted = assertIs<EchoCalibrationResult.Accepted>(threeResult).model
+                    val output = replay(raw, accepted, playback, holdoutStart, "$name threeRepeats omit=$omitted")
+                    val outputDigest = MessageDigest.getInstance("SHA-256").digest(output).joinToString("") { "%02x".format(it) }
+                    println("$name threeRepeats omit=$omitted outputSha256=$outputDigest")
+                    val label = if (omitted == 3) "first3" else "omit$omitted"
+                    writeOutput("guarded-$label-$name.s16le", output)
+                }
+            }
             val result = RecordingEchoCalibrator.calibrate(input, strikes, lengths, quiet)
             if (name == "170050") {
                 val rejected = assertIs<EchoCalibrationResult.Rejected>(result)
@@ -64,42 +91,52 @@ class RecordingEchoReplayTest {
                 continue
             }
             val model = assertIs<EchoCalibrationResult.Accepted>(result).model
-            val playback = events.filter { it.getValue("partition").jsonPrimitive.content == "holdout" }.map {
-                EchoPlaybackEvent(clip(it.getValue("kind").jsonPrimitive.content),
-                    shift + it.getValue("reference_frame").jsonPrimitive.int.toLong(), it.getValue("gain").jsonPrimitive.float)
-            }
-            val output = raw.copyOf()
-            val filter = RecordingEchoFilter(model)
-            var applied = 0
-            val block = ShortArray(882)
-            var elapsedNanos = 0L
-            for (first in raw.indices step block.size) {
-                val count = min(block.size, raw.size - first)
-                raw.copyInto(block, 0, first, first + count)
-                val start = System.nanoTime()
-                val changed = filter.process(block, count, first.toLong(), playback)
-                elapsedNanos += System.nanoTime() - start
-                if (changed) applied++
-                block.copyInto(output, first, 0, count)
-                val before = (0 until count).sumOf { raw[first + it].toDouble() * raw[first + it] }
-                val after = (0 until count).sumOf { block[it].toDouble() * block[it] }
-                assertTrue(after <= before + count, "energy increased at $first")
-            }
-            assertTrue(applied > 10, "A correction that always bypasses does not meet acceptance")
-            val holdoutStart = shift + (10.5 * 44100).roundToInt()
-            val before = raw.drop(holdoutStart).sumOf { it.toDouble() * it }
-            val after = output.drop(holdoutStart).sumOf { it.toDouble() * it }
-            val reduction = 10 * log10(before / after)
-            println("$name accepted similarity=${model.minimumSimilarity} responseResidual=${model.maximumResponseResidual} appliedBlocks=$applied rmsReductionDb=$reduction processingMs=${elapsedNanos / 1e6}")
+            val output = replay(raw, model, playback, holdoutStart, name)
             // Diagnostics must not change the already verified PCM output for this take.
-            val buffer = ByteBuffer.allocate(output.size * 2).order(ByteOrder.LITTLE_ENDIAN)
-            output.forEach { buffer.putShort(it) }
-            val outputDigest = MessageDigest.getInstance("SHA-256").digest(buffer.array()).joinToString("") { "%02x".format(it) }
+            val outputDigest = MessageDigest.getInstance("SHA-256").digest(output).joinToString("") { "%02x".format(it) }
             assertEquals("5b32a16c0cdeff40a5c90527a1a3e04125ff86def9817a8042a9d1e00d22a28a", outputDigest)
-            System.getenv("EOLSSU_ECHO_REPLAY_OUTPUT")?.let { outputPath ->
-                val destination = File(outputPath).also { it.mkdirs() }
-                File(destination, "guarded-$name.s16le").writeBytes(buffer.array())
-            }
+            writeOutput("guarded-$name.s16le", output)
+        }
+    }
+
+    private fun replay(
+        raw: ShortArray,
+        model: RecordingEchoModel,
+        playback: List<EchoPlaybackEvent>,
+        holdoutStart: Int,
+        label: String,
+    ): ByteArray {
+        val output = raw.copyOf()
+        val filter = RecordingEchoFilter(model)
+        var applied = 0
+        val block = ShortArray(882)
+        var elapsedNanos = 0L
+        for (first in raw.indices step block.size) {
+            val count = min(block.size, raw.size - first)
+            raw.copyInto(block, 0, first, first + count)
+            val start = System.nanoTime()
+            val changed = filter.process(block, count, first.toLong(), playback)
+            elapsedNanos += System.nanoTime() - start
+            if (changed) applied++
+            block.copyInto(output, first, 0, count)
+            val before = (0 until count).sumOf { raw[first + it].toDouble() * raw[first + it] }
+            val after = (0 until count).sumOf { block[it].toDouble() * block[it] }
+            assertTrue(after <= before + count, "energy increased at $first")
+        }
+        assertTrue(applied > 10, "A correction that always bypasses does not meet acceptance")
+        val before = raw.drop(holdoutStart).sumOf { it.toDouble() * it }
+        val after = output.drop(holdoutStart).sumOf { it.toDouble() * it }
+        val reduction = 10 * log10(before / after)
+        println("$label accepted similarity=${model.minimumSimilarity} responseResidual=${model.maximumResponseResidual} appliedBlocks=$applied rmsReductionDb=$reduction processingMs=${elapsedNanos / 1e6}")
+        val buffer = ByteBuffer.allocate(output.size * 2).order(ByteOrder.LITTLE_ENDIAN)
+        output.forEach { buffer.putShort(it) }
+        return buffer.array()
+    }
+
+    private fun writeOutput(name: String, bytes: ByteArray) {
+        System.getenv("EOLSSU_ECHO_REPLAY_OUTPUT")?.let { outputPath ->
+            val destination = File(outputPath).also { it.mkdirs() }
+            File(destination, name).writeBytes(bytes)
         }
     }
 }
