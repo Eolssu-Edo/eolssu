@@ -39,10 +39,10 @@ import org.koin.core.parameter.parametersOf
  * @param mine 내 악보로 연습(Practice-Mine). 혼자 연습과 같되 평가로 넘어가는 버튼이 없다.
  * @param learn 기초부터 배우기 8단계의 곡 연습. 혼자 연습과 같되 평가로 넘어가는 버튼이 없고 '운지법과 함께 보기'로 시작한다.
  * @param sheetTitle 내 악보 제목(‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다. 비우면 곡 제목.
- * @param showSwitchedNotice 일반 연습에서 평가로 전환한 진입. 확인 창의 '곡 정보로' 대신 기존 문구('홈으로 가기')를 둔다.
  * @param direct 연습 준비의 플레이어 없이 평가만 하는 연주 평가. 곡 정보의 '연주 평가 시작'(S15P31E102-705)과
- *   혼자 연습에서 바꾼 평가([showSwitchedNotice]와 함께, S15P31E102-739)가 쓴다. 들어오면 평가 대기 상태로 두고 하단의
+ *   혼자 연습에서 바꾼 평가(S15P31E102-739)가 쓴다. 들어오면 평가 대기 상태로 두고 하단의
  *   '평가 시작'을 눌러야 평가를 시작한다. 시작 취소·연습 준비로·마이크 거부도 이 대기 상태로 돌아온다(S15P31E102-747).
+ *   연주 중단 창도 화면을 나가지 않고 '연주 대기로' 이 대기 상태로 돌아온다(S15P31E102-750).
  * @param onSwitchToEval 연습 모드에서 같은 곡의 평가 연습으로 바꾼다.
  * @param onEvaluate 연주를 마치고 '평가하기'. 저장된 녹음이 있을 때만 연습 화면을 준비 상태로 돌리고 분석 화면으로 간다.
  * @param onConfirmBackChange 떠나기 전에 확인할 때(연주·카운트다운 중) 화면의 뒤로 가기 동작을, 아니면 null을 알린다.
@@ -55,7 +55,6 @@ import org.koin.core.parameter.parametersOf
 fun PracticeRoute(
     songId: String,
     solo: Boolean,
-    showSwitchedNotice: Boolean,
     onBack: () -> Unit,
     onGoHome: () -> Unit,
     onSwitchToEval: () -> Unit,
@@ -92,8 +91,6 @@ fun PracticeRoute(
     }
 
     val back = { if (viewModel.onBack()) onBack() }
-    // 확인 창의 '곡 정보로'는 곡 정보에서 바로 시작한 평가에만 쓴다. 혼자 연습에서 바꾼 평가는 기존 문구('연습 준비로'·'홈으로 가기')를 둔다.
-    val toSongInfo = state.direct && !showSwitchedNotice
     // 기기 뒤로 가기도 화면의 뒤로 가기와 같게: 연주 중이면 확인 창을 띄운다. 태블릿 가로처럼 패널이 화면 안에 열려 있으면 패널부터 닫는다.
     // 휴대폰의 하단 시트·확인 창은 자기 창에서 뒤로 가기를 먼저 받는다.
     @Suppress("DEPRECATION") // ui-backhandler 1.12의 BackHandler. 대신할 NavigationEventHandler는 아직 의존성에 없다.
@@ -173,7 +170,7 @@ fun PracticeRoute(
                     onClose = viewModel::closePopup,
                     onGoHome = {
                         viewModel.stopAll()
-                        if (toSongInfo) onBack() else onGoHome()
+                        onGoHome()
                     },
                     onResume = viewModel::resumeRecording,
                     onEvaluate = {
@@ -199,7 +196,6 @@ fun PracticeRoute(
                 ),
             ),
             livePitch = livePitch,
-            toSongInfo = toSongInfo,
         )
     }
 }
