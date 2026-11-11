@@ -159,7 +159,6 @@ internal fun GuideCard(
             .fillMaxWidth()
             .clip(shape)
             .background(colors.surface)
-            .border(1.dp, colors.lineSoft, shape)
             .padding(horizontal = 14.dp, vertical = 16.dp),
         verticalArrangement = verticalArrangement,
     ) {

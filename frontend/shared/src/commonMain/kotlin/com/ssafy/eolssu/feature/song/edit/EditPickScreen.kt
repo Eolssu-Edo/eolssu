@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.song.edit
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,7 +54,6 @@ import eolssu.shared.generated.resources.sheetedit_pick_copy_failed
 import eolssu.shared.generated.resources.sheetedit_pick_copy_limit
 import eolssu.shared.generated.resources.sheetedit_pick_copy_conversion_in_progress
 import eolssu.shared.generated.resources.sheetedit_pick_copy_not_found
-import eolssu.shared.generated.resources.sheetedit_pick_hint_copy
 import eolssu.shared.generated.resources.sheetedit_pick_confirm
 import eolssu.shared.generated.resources.sheetedit_pick_empty
 import eolssu.shared.generated.resources.sheetedit_pick_empty_mine
@@ -67,9 +65,6 @@ import eolssu.shared.generated.resources.sheetedit_pick_retry
 import eolssu.shared.generated.resources.sheetedit_pick_step_instrument
 import eolssu.shared.generated.resources.sheetedit_pick_step_sheet
 import eolssu.shared.generated.resources.sheetedit_pick_unchecked
-import eolssu.shared.generated.resources.sheetedit_pick_hint_mine
-import eolssu.shared.generated.resources.sheetedit_pick_hint_picked
-import eolssu.shared.generated.resources.sheetedit_pick_hint_songs
 import eolssu.shared.generated.resources.sheetedit_pick_kind_jeongganbo
 import eolssu.shared.generated.resources.sheetedit_pick_meta
 import eolssu.shared.generated.resources.sheetedit_pick_meta_updated
@@ -92,8 +87,10 @@ fun EditPickScreen(
     onToggle: (EditPickTarget) -> Unit,
     onConfirm: () -> Unit,
 ) {
+    // 연습곡 고르기처럼 회색 바탕 · 테두리 없는 흰 칸(S15P31E102-768).
     EolssuScaffold(
-        containerColor = EolssuTheme.colors.surface,
+        containerColor = EolssuTheme.colors.groupedBackground,
+        bottomDivider = false,
         topBar = {
             EolssuTopBar(
                 stringResource(Res.string.sheetedit_pick_title),
@@ -114,7 +111,8 @@ fun EditPickScreen(
                 // 악기 이름이 길어도 잘리지 않게 가로로 민다. 연습 악기 설정은 바꾸지 않는다.
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Instrument.entries.forEach { instrument ->
-                        PillChip(stringResource(instrument.label), selected = instrument == state.instrument, onClick = { onSelectInstrument(instrument) })
+                        PillChip(stringResource(instrument.label), selected = instrument == state.instrument, onClick = { onSelectInstrument(instrument) },
+                            containerColor = EolssuTheme.colors.surface)
                     }
                 }
                 StepLabel(stringResource(Res.string.sheetedit_pick_step_sheet))
@@ -132,23 +130,13 @@ fun EditPickScreen(
                         large = true,
                         counts = EditPickTab.entries.map { if (it == EditPickTab.Songs) state.songs.size else state.sheets.size },
                     )
+                    // 연습곡 고르기와 같게 검색칸 아래 오른쪽에 작은 정렬 버튼을 둔다. 고른 곡 안내 문구는 두지 않는다.
                     if (state.tab == EditPickTab.Songs) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SongSearchField(state.query, onSearch, onClear = { onSearch("") }, modifier = Modifier.weight(1f))
-                            SongSortButton(state.sort, onToggleSort)
+                        SongSearchField(state.query, onSearch, onClear = { onSearch("") }, bordered = false)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            SongSortButton(state.sort, onToggleSort, small = true, bordered = false)
                         }
                     }
-                    val picked = state.pickedTitle
-                    HintText(
-                        when {
-                            picked != null && state.picked is EditPickTarget.Song ->
-                                stringResource(Res.string.sheetedit_pick_hint_copy, picked)
-                            picked != null -> stringResource(Res.string.sheetedit_pick_hint_picked, picked)
-                            state.tab == EditPickTab.Mine -> stringResource(Res.string.sheetedit_pick_hint_mine)
-                            else -> stringResource(Res.string.sheetedit_pick_hint_songs)
-                        },
-                        size = 12,
-                    )
                     state.copyProblem?.let { problem ->
                         val message = when (problem) {
                             PublishedSheetCopyProblem.Limit -> Res.string.sheetedit_pick_copy_limit
@@ -250,25 +238,24 @@ private fun PickStatus(load: EditPickLoad, onRetry: () -> Unit, modifier: Modifi
                 },
             ),
         )
-        if (load == EditPickLoad.Failed) PillChip(stringResource(Res.string.sheetedit_pick_retry), selected = false, onClick = onRetry)
+        if (load == EditPickLoad.Failed) PillChip(stringResource(Res.string.sheetedit_pick_retry), selected = false, onClick = onRetry, containerColor = EolssuTheme.colors.surface)
     }
 }
 
-/** 고를 수 있는 줄(최소 64dp · 모서리 14): 왼쪽 44dp 글자 타일, 이름·보조 문구, 오른쪽 고름 표시. 고르면 연두 바탕. */
+/** 고를 수 있는 줄(최소 64dp · 모서리 16): 왼쪽 44dp 글자 타일, 이름·보조 문구, 오른쪽 고름 표시. 테두리 없는 흰 칸, 고르면 연한 연두 바탕(연습곡 줄과 같음). */
 @Composable
 private fun PickRow(tile: String, tileStyle: TextStyle, title: String, meta: String, selected: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { this.selected = selected },
-        shape = RoundedCornerShape(14.dp),
-        color = if (selected) colors.primary else colors.surface,
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) colors.accentTint else colors.surface,
         contentColor = colors.text,
-        border = BorderStroke(1.dp, if (selected) colors.primary else colors.lineSoft),
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(44.dp).background(if (selected) colors.surface else colors.accentTint, RoundedCornerShape(12.dp)),
+                Modifier.size(44.dp).background(if (selected) colors.surface else colors.groupedBackground, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(tile, style = tileStyle)

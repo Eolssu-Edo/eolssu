@@ -126,7 +126,7 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
         QuickRow(
             stringResource(Res.string.practice_menu_jangdan),
             if (state.jangdanProblem) jangdanHint(state) else if (settings.jangdanSound) stringResource(Res.string.practice_jangdan_sound_on, song.jangdanName) else jangdanLabel(song.jangdanName),
-            !state.jangdanProblem && settings.jangdanSound, locked = false,
+            !state.jangdanProblem && settings.jangdanSound, locked = song.jangdanPlayback == null,
         ) { actions.onOpen(PracticePanel.Jangdan) }
         QuickRow(
             stringResource(Res.string.practice_menu_tempo),
@@ -169,6 +169,7 @@ private fun QuickRow(label: String, status: String, on: Boolean, locked: Boolean
             status,
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal),
             color = if (on) colors.text else colors.textMuted,
+            maxLines = 1,
         )
         Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.lineStrong)
     }

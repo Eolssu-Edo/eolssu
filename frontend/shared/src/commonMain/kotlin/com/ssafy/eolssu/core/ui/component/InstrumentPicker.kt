@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.core.ui.component
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,9 +63,9 @@ fun InstrumentPicker(
                         .heightIn(min = 56.dp)
                         .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton, onClick = { onSelect(instrument) }),
                     shape = shape,
-                    color = if (isSelected) colors.primary else colors.surface,
+                    // 테두리 없이 고른 칸은 연두, 나머지는 회색 채움(S15P31E102-768).
+                    color = if (isSelected) colors.primary else colors.groupedBackground,
                     contentColor = if (isSelected) colors.onPrimary else colors.text,
-                    border = BorderStroke(1.dp, if (isSelected) colors.primary else colors.line),
                 ) {
                     Box(Modifier.padding(horizontal = 6.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
                         BasicText(

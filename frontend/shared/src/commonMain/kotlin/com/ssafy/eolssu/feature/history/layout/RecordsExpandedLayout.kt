@@ -53,7 +53,7 @@ internal fun RecordsExpandedLayout(
 ) {
     val spacing = RecordListSpacing.Pane
     EolssuScaffold(
-        containerColor = EolssuTheme.colors.surface,
+        containerColor = EolssuTheme.colors.groupedBackground,
         snackbarHostState = snackbarHostState,
         contentMaxWidth = frame.contentMaxWidth,
         topBar = { HistoryTopBar(frame, title, subtitle, onBack) },

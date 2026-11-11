@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.core.theme
 
+import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
@@ -66,7 +67,8 @@ fun EolssuTheme(content: @Composable () -> Unit) {
     val colors = LightEolssuColors
     val sans = ibmPlexSansKrFamily()
     val serif = notoSerifKrFamily()
-    val heading = songMyungFamily()
+    // 제목도 본문 글꼴을 쓴다(S15P31E102-768).
+    val heading = sans
     val typography = remember(sans, heading) { eolssuTypography(sans, heading) }
     val serifTypography = remember(serif, heading) { eolssuSerifTypography(serif, heading) }
     CompositionLocalProvider(
@@ -77,8 +79,10 @@ fun EolssuTheme(content: @Composable () -> Unit) {
             colorScheme = colors.toMaterialColorScheme(),
             shapes = EolssuShapes,
             typography = typography,
-            content = content,
-        )
+        ) {
+            // 스크롤 끝에서 화면이 늘어나는 Android 12+ 기본 효과를 끄고, 끝에 닿으면 그대로 멈추게 한다(S15P31E102-768).
+            CompositionLocalProvider(LocalOverscrollFactory provides null, content = content)
+        }
     }
 }
 

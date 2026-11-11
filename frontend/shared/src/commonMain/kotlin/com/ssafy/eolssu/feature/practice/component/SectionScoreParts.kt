@@ -80,9 +80,9 @@ internal fun SegmentButton(text: String, selected: Boolean, enabled: Boolean, on
         enabled = enabled,
         modifier = modifier.heightIn(min = 28.dp).semantics { this.selected = selected },
         shape = RoundedCornerShape(8.dp),
-        color = if (selected) colors.primary else colors.surface,
-        contentColor = colors.text,
-        border = BorderStroke(1.dp, if (selected) colors.primary else colors.lineSoft),
+        // 테두리 없이 고른 칸은 연두, 나머지는 회색 채움(S15P31E102-768).
+        color = if (selected) colors.primary else colors.groupedBackground,
+        contentColor = if (selected) colors.onPrimary else colors.text,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(text, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)

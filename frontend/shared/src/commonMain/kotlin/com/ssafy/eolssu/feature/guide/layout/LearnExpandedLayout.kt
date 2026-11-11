@@ -33,7 +33,6 @@ import com.ssafy.eolssu.feature.guide.component.GuideTabletBottomContent
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
 import com.ssafy.eolssu.feature.guide.learn.LearnListActions
 import com.ssafy.eolssu.feature.guide.learn.LearnListContent
-import com.ssafy.eolssu.feature.guide.learn.LearnTitleFontSize
 import com.ssafy.eolssu.feature.guide.learn.LearnStage
 import com.ssafy.eolssu.feature.guide.learn.LearnStageActions
 import com.ssafy.eolssu.feature.guide.learn.LearnStageBottomBar
@@ -73,7 +72,7 @@ internal fun LearnExpandedLayout(
     val colors = EolssuTheme.colors
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = colors.background,
+        containerColor = colors.groupedBackground,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.TopCenter) {
@@ -89,7 +88,6 @@ internal fun LearnExpandedLayout(
                         onBack = onBack,
                         modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = outer - 20.dp, end = 4.dp),
                         maxWidth = Dp.Infinity,
-                        titleFontSize = LearnTitleFontSize,
                     )
                     LearnListContent(
                         state,

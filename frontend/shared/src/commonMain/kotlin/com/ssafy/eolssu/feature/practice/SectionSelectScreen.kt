@@ -160,7 +160,7 @@ private fun SectionSettings(state: SectionSelectUiState, actions: SectionSelectA
         Column(Modifier.weight(1f).border(1.dp, colors.lineSoft, shape).padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(loopLabel, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
-                EolssuSwitch(state.loop, actions.onToggleLoop, loopLabel, width = 40.dp, height = 24.dp, offColor = colors.surfaceStrong)
+                EolssuSwitch(state.loop, actions.onToggleLoop, loopLabel, width = 40.dp, height = 24.dp)
             }
             Row(Modifier.alpha(if (state.loop) 1f else 0.4f), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 SectionRepeat.entries.forEach { repeat ->

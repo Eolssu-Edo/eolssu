@@ -261,7 +261,6 @@
     <string name="time_am">오전 %1$d:%2$s</string>
     <string name="time_pm">오후 %1$d:%2$s</string>
     <string name="records_title">연습 기록</string>
-    <string name="records_subtitle">저장한 연주 %1$d개</string>
     <string name="records_this_week">이번 주</string>
     <string name="records_this_week_summary">%1$d회 연습 · 최고 %2$d점</string>
     <string name="records_this_week_none">아직 이번 주 연습 기록이 없어요</string>
@@ -355,7 +354,7 @@
     <string name="guide_listen">%1$s 음 듣기</string>
     <string name="guide_listen_pending">음 듣기는 실제 음원이 연결되면 재생돼요.</string>
     <string name="guide_fingering_figure">%1$s 운지</string>
-    <string name="guide_reading_title">정간보 쉽게 읽기</string>
+    <string name="guide_reading_title">정간보 읽기</string>
     <string name="guide_reading_toc_open">쪽 목차 펼침</string>
     <string name="guide_reading_toc_closed">쪽 목차 접힘</string>
     <string name="guide_reading_prev">이전</string>
@@ -590,6 +589,8 @@
     <string name="auth_locked_title">잠시 후 다시 로그인해 주세요</string>
     <string name="auth_locked_message">비밀번호를 5번 잘못 입력해서 15분 동안 로그인할 수 없어요. 15분 뒤에 다시 시도해 주세요.</string>
     <string name="auth_locked_message_until">비밀번호를 5번 잘못 입력해서 15분 동안 로그인할 수 없어요. %1$s부터 다시 시도할 수 있어요.</string>
+    <string name="auth_withdrawn_title">탈퇴 신청이 완료됐어요</string>
+    <string name="auth_withdrawn_message">30일 안에 다시 로그인하면 탈퇴가 취소되고, 계정과 연습 기록을 그대로 쓸 수 있어요.</string>
     <string name="auth_withdrawal_cancelled_title">탈퇴 신청이 취소됐어요</string>
     <string name="auth_withdrawal_cancelled_message">탈퇴를 신청한 계정으로 30일 안에 로그인해서 탈퇴가 취소됐어요. 계정과 연습 기록을 그대로 쓸 수 있어요.</string>
     <string name="auth_oauth_result_hint">제공자 로그인 뒤 서버 결과 (예시)</string>
@@ -659,7 +660,6 @@
     <string name="mysongs_add">악보 추가</string>
     <string name="mysongs_sheet_count">내 악보 %1$d개</string>
     <string name="mysongs_origin_copied">제공 곡에서 고침</string>
-    <string name="mysongs_origin_imported">정간보 가져옴</string>
     <string name="mysongs_meta_updated">%1$s 수정</string>
     <string name="mysongs_status_practice">연습 가능</string>
     <string name="mysongs_edit">편집</string>

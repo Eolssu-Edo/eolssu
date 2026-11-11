@@ -126,7 +126,8 @@ fun PracticeScreen(
 private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScreenActions, snackbarHostState: SnackbarHostState) {
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
-        topBar = { EolssuPageTopBar(title = practicePageTitle(state), onBack = actions.onBack) },
+        containerColor = EolssuTheme.colors.groupedBackground,
+        topBar = { EolssuPageTopBar(title = practicePageTitle(state), onBack = actions.onBack, divider = false) },
     ) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)) {
@@ -163,6 +164,7 @@ private fun PracticeCompactLayout(
     val fingering = state.fingeringView
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
+        containerColor = EolssuTheme.colors.groupedBackground,
         topBar = { PracticeTopBar(state, actions.onBack, actions.onOpenSettings, onToggleStep = actions.bottom.onToggleStep) },
         bottomBar = if (recordingBar) { { PracticeRecordingBar(state, actions.bottom) } } else null,
     ) {

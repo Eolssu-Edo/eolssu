@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,7 +43,6 @@ import eolssu.shared.generated.resources.sheetedit_new_jg_title
 import eolssu.shared.generated.resources.sheetedit_new_pick_file
 import eolssu.shared.generated.resources.sheetedit_new_question
 import eolssu.shared.generated.resources.sheetedit_new_staff_title
-import eolssu.shared.generated.resources.sheetedit_new_subtitle
 import eolssu.shared.generated.resources.sheetedit_new_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -66,10 +63,11 @@ fun EditNewScreen(
     onDismissProblem: () -> Unit = {},
 ) {
     EolssuScaffold(
-        containerColor = EolssuTheme.colors.surface,
+        containerColor = EolssuTheme.colors.groupedBackground,
         topBar = {
-            EolssuTopBar(stringResource(Res.string.sheetedit_new_title), onBack = onBack, subtitle = stringResource(Res.string.sheetedit_new_subtitle))
+            EolssuTopBar(stringResource(Res.string.sheetedit_new_title), onBack = onBack)
         },
+        bottomDivider = false,
         bottomBar = { EolssuButton(stringResource(Res.string.sheetedit_new_pick_file), onOpenDevicePick) },
     ) {
         Column(
@@ -110,10 +108,7 @@ fun EditNewScreen(
                 SheetEditIcons.MySheet,
                 stringResource(Res.string.sheetedit_new_copy_title),
                 onClick = onLoadExisting,
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .border(2.dp, EolssuTheme.colors.lineSoft, RoundedCornerShape(16.dp)),
+                modifier = Modifier.padding(top = 8.dp),
             )
         }
     }
@@ -139,9 +134,8 @@ private fun HwangPicker(selected: HwangPitch, onSelect: (HwangPitch) -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(14.dp))
-            .border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .background(colors.surface, RoundedCornerShape(20.dp))
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         val title = stringResource(Res.string.sheetedit_new_hwang_title)

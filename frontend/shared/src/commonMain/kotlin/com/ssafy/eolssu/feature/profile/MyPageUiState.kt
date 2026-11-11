@@ -48,9 +48,12 @@ internal fun myRecentPracticeStatus(available: Boolean, hasRecords: Boolean, loa
     else -> MyRecentPracticeStatus.Empty
 }
 
-/** 연습 악기의 학습 진도(서버). 받지 못하면 null. */
 /** 가장 최근에 기초 배우기를 한 악기의 진도. 완료 기록이 없으면 연습 악기 [instrument]의 진도다. 받지 못하면 null. */
 internal suspend fun myLearningProgress(instrument: Instrument, repository: LearnProgressRepository): MyLearningProgress? =
+    myLearningProgress({ instrument }, repository)
+
+/** [myLearningProgress]와 같되, 연습 악기는 완료 기록이 없을 때만 [instrument]로 기다려 받는다(내 정보보다 진도를 먼저 받는다). */
+internal suspend fun myLearningProgress(instrument: suspend () -> Instrument?, repository: LearnProgressRepository): MyLearningProgress? =
     repository.recentProgress(fallback = instrument)?.let { MyLearningProgress(it.stages, it.instrument) }
 
 /** MY-01 위에 띄우는 확인 창. */
