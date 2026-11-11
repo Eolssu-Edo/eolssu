@@ -36,7 +36,7 @@ fun lessonTrackCode(trackId: String): String = trackId.uppercase().replace('-', 
 /** LRN-01 결과. [completedCount]는 서버가 센 필수 단계 완료 수다. */
 data class LessonTrack(val items: List<LessonItem>, val completedCount: Int, val requiredCount: Int)
 
-/** 단계 목록의 한 단계. [judgeType]은 READ·PITCH·BEAT·LISTEN. */
+/** 단계 목록의 한 단계. [judgeType]은 READ·PITCH·BEAT·LISTEN. [completedAt]은 서버가 남긴 완료 시각(ISO-8601)이고 완료 전이면 null이다. */
 data class LessonItem(
     val lessonId: String,
     val seq: Int,
@@ -44,6 +44,7 @@ data class LessonItem(
     val judgeType: String,
     val optional: Boolean,
     val completed: Boolean,
+    val completedAt: String? = null,
 )
 
 /**
@@ -127,7 +128,7 @@ class HttpLessonApi(private val client: HttpClient, private val member: SignedIn
         val optional: Boolean = false,
         val completedAt: String? = null,
     ) {
-        fun toModel() = LessonItem(lessonId, seq, title, judgeType, optional, completedAt != null)
+        fun toModel() = LessonItem(lessonId, seq, title, judgeType, optional, completedAt != null, completedAt)
     }
 
     @Serializable
