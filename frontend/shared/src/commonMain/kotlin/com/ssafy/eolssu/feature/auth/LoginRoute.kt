@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.auth
 
+import androidx.compose.runtime.LaunchedEffect
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.my_withdrawn
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,7 +35,15 @@ fun LoginRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    StartMessageEffect(snackbarHostState, startMessage, onStartMessageShown)
+    // 탈퇴 신청 안내는 지나가는 알림 대신 확인 창으로 한 번 띄운다(S15P31E102-768).
+    val withdrawn = startMessage?.text == Res.string.my_withdrawn
+    LaunchedEffect(withdrawn) {
+        if (withdrawn) {
+            viewModel.showWithdrawn()
+            onStartMessageShown()
+        }
+    }
+    StartMessageEffect(snackbarHostState, startMessage.takeUnless { withdrawn }, onStartMessageShown)
 
     LoginScreen(
         state = state,

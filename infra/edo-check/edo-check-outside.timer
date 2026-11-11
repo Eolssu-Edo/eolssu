@@ -1,0 +1,10 @@
+[Unit]
+Description=Check public relay and terms endpoints every minute from edo1
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=1min
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

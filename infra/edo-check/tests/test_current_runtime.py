@@ -69,15 +69,16 @@ class CurrentRuntimeTests(unittest.TestCase):
             self.assertIn('edo1 해당 백업', text)
             self.assertNotIn('/edo1-', text)
 
-    def test_ai_tcp_success_is_not_analysis_readiness(self):
-        data = {'item': {'Names':['/eolssu-runtime-ai-1'], 'State':'running'},
-                'detail': {'State': {'Status':'running','Running':True,'Health':{'Status':'healthy'}}}}
+    def test_ai_tcp_success_does_not_replace_an_unavailable_http_target(self):
+        name = 'eolssu-runtime-ai-1'
+        data = {'item': {'Names': ['/' + name], 'State': 'running'},
+                'detail': {'Name': '/' + name,
+                           'State': {'Status': 'running', 'Running': True, 'Health': {'Status': 'healthy'}}}}
         with patch.object(collector, 'snapshot', return_value=({},[data],{},[])), \
              patch.object(collector, 'edo1_host_health', return_value=[]), \
              patch.object(collector, 'prometheus_health', return_value=[]), \
              patch.object(collector.http.client, 'HTTPConnection', return_value=Mock(request=Mock(side_effect=OSError))):
             rows = collector.health_report()[1]
-        row = next(row for row in rows if row[0] == 'eolssu-runtime-ai-1')
-        self.assertEqual(row[2], '미검증')
-        self.assertIn('TCP', row[3])
-        self.assertIn('분석', row[3])
+        row = next(row for row in rows if row[0] == name)
+        self.assertEqual(row[2], '확인 불가')
+        self.assertIn('Docker 내부 주소 확인 불가', row[3])

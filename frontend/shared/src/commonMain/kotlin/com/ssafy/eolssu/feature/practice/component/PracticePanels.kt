@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -36,6 +37,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -43,11 +46,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
+import com.ssafy.eolssu.core.ui.component.EolssuMenuShape
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
@@ -156,7 +162,8 @@ fun PracticePanelSheet(
                 modifier = modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).fillMaxWidth()
                     .heightIn(max = maxSheetHeight),
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                color = EolssuTheme.colors.surface,
+                // 연습 설정과 하위 화면(쉬운 표기·장단·속도·운지법) 모두 회색 시트 위 흰 카드다(S15P31E102-768).
+                color = EolssuTheme.colors.groupedBackground,
             ) {
                 Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 24.dp)) {
                     PanelHeader(panel, state, actions.onClose)
@@ -219,8 +226,9 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     // 평가 중에는 속도만 고정하고 장단 소리는 바꿀 수 있다.
     val locked = state.playbackSettingsLocked
     val lockedStatus = stringResource(Res.string.practice_settings_locked)
-    Column {
-        if (state.solo && !state.learn) InstrumentSelect(state.instrument, actions.onSetInstrument)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (state.solo && !state.learn) SettingsCard { InstrumentSelect(state.instrument, actions.onSetInstrument) }
+        SettingsCard {
         if (!titleToggles) MenuRow(
             EolssuIcons.NotationMark, stringResource(Res.string.practice_menu_notation),
             stringResource(if (notationOn) Res.string.practice_on else Res.string.practice_off),
@@ -231,66 +239,82 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
                 state.jangdanProblem -> jangdanHint(state)
                 else -> stringResource(if (settings.jangdanSound) Res.string.practice_jangdan_sound_on else Res.string.practice_jangdan_sound_off, song.jangdanName)
             },
+            // 장단 연결이 검수 중인 악보는 장단 메뉴를 아예 열지 않는다(S15P31E102-768).
+            enabled = song.jangdanPlayback != null,
         ) { actions.onOpen(PracticePanel.Jangdan) }
         MenuRow(EolssuIcons.TempoMark, stringResource(Res.string.practice_menu_tempo), if (locked) lockedStatus else tempoLabel(step), enabled = !locked) {
             actions.onOpen(PracticePanel.Tempo)
         }
-        if (!titleToggles) SettingRow(
-            stringResource(Res.string.practice_fingering_view),
-            stringResource(Res.string.practice_fingering_view_desc, instrumentName),
-            checked = state.fingeringView,
-            onToggle = actions.onToggleFingeringView,
-        )
+        }
+        if (!titleToggles) SettingsCard {
+            SettingRow(
+                stringResource(Res.string.practice_fingering_view),
+                stringResource(Res.string.practice_fingering_view_desc, instrumentName),
+                checked = state.fingeringView,
+                onToggle = actions.onToggleFingeringView,
+                topLine = false,
+                horizontal = SettingsCardInset,
+                topPadding = 12.dp,
+            )
+        }
     }
 }
 
-/** ‘연습 악기’(`.instrument-select`): 13sp 라벨과 오른쪽 고르기 상자(38dp, 옅은 테두리, 반지름 8, 13sp 500). */
+/** 연습 설정 시트의 카드 안쪽 좌우 여백. */
+private val SettingsCardInset: Dp = 16.dp
+
+/** 연습 설정 묶음 카드: 회색 시트 위 테두리 없는 흰 카드 · 모서리 20dp(마이페이지 카드와 같은 모양, S15P31E102-768). */
+@Composable
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth().background(EolssuTheme.colors.surface, RoundedCornerShape(20.dp)).padding(vertical = 4.dp), content = content)
+}
+
+/** ‘연습 악기’: 15sp 600 라벨과 오른쪽 고르기 알약(38dp, 테두리 없는 회색 바탕, 13sp 500). */
 @Composable
 private fun InstrumentSelect(selected: GuideInstrument, onSelect: (String) -> Unit) {
     val colors = EolssuTheme.colors
     var open by remember { mutableStateOf(false) }
     val label = stringResource(Res.string.practice_instrument)
     Row(
-        Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 14.dp),
+        Modifier.fillMaxWidth().padding(horizontal = SettingsCardInset, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp), color = colors.text)
+        Text(label, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
         Box {
             Row(
                 Modifier
                     .heightIn(min = 38.dp)
-                    .border(1.dp, colors.line, RoundedCornerShape(8.dp))
-                    .background(colors.surface, RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(50))
+                    .background(colors.groupedBackground)
                     .clickable(role = Role.DropdownList) { open = true }
-                    .padding(start = 10.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                    .padding(start = 14.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(stringResource(selected.label), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), color = colors.text)
                 Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textMuted)
             }
-            DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = colors.surface) {
+            DropdownMenu(
+                expanded = open,
+                onDismissRequest = { open = false },
+                shape = EolssuMenuShape,
+                containerColor = colors.surface,
+                shadowElevation = 8.dp,
+                modifier = Modifier.width(168.dp).padding(horizontal = 6.dp),
+            ) {
                 GuideInstrument.entries.forEach { instrument ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(instrument.label),
-                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = if (instrument == selected) FontWeight.SemiBold else FontWeight.Normal),
-                            )
-                        },
-                        onClick = {
-                            open = false
-                            onSelect(instrument.id)
-                        },
-                    )
+                    EolssuMenuItem(stringResource(instrument.label), instrument == selected, onClick = {
+                        open = false
+                        onSelect(instrument.id)
+                    })
                 }
             }
         }
     }
 }
 
-/** 메뉴 줄(`.menu-row`, 56dp): 위 선, 36dp 흰 네모 아이콘, 15sp 600 이름, 13sp 상태, 꺾쇠. [enabled]가 아니면 흐리고 누를 수 없다. */
+/** 메뉴 줄(56dp): 흰 카드 안에서 선 없이, 36dp 회색 네모 아이콘, 15sp 600 이름, 13sp 상태, 꺾쇠. [enabled]가 아니면 흐리고 누를 수 없다. */
 @Composable
 private fun MenuRow(icon: ImageVector, label: String, status: String, enabled: Boolean = true, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
@@ -299,19 +323,28 @@ private fun MenuRow(icon: ImageVector, label: String, status: String, enabled: B
             .fillMaxWidth()
             .height(56.dp)
             .alpha(if (enabled) 1f else 0.45f)
-            .drawBehind { drawLine(colors.surfaceStrong, Offset(0f, 0f), Offset(size.width, 0f), 1.dp.toPx()) }
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = SettingsCardInset),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
-            Modifier.size(36.dp).background(colors.surface, RoundedCornerShape(10.dp)).border(1.dp, colors.lineSoft, RoundedCornerShape(10.dp)),
+            Modifier.size(36.dp).background(colors.groupedBackground, RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.text)
         }
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
-        Text(status, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
+        // 이름은 줄바꿈하지 않고, 긴 상태 문구가 남은 폭 안에서 줄을 바꾼다.
+        Text(label, softWrap = false, maxLines = 1, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
+        Text(
+            status,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+            color = colors.textMuted,
+            textAlign = TextAlign.End,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
         Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
     }
 }
@@ -329,6 +362,8 @@ private fun SettingRow(
     enabled: Boolean = true,
     topLine: Boolean = true,
     vertical: Dp = 12.dp,
+    horizontal: Dp = 0.dp,
+    topPadding: Dp? = null,
 ) {
     val colors = EolssuTheme.colors
     Row(
@@ -336,7 +371,8 @@ private fun SettingRow(
             .fillMaxWidth()
             .alpha(if (enabled) 1f else 0.55f)
             .then(if (topLine) Modifier.drawBehind { drawLine(colors.surfaceStrong, Offset(0f, 0f), Offset(size.width, 0f), 1.dp.toPx()) } else Modifier)
-            .padding(top = if (topLine) vertical else 0.dp, bottom = vertical),
+            .padding(top = topPadding ?: if (topLine) vertical else 0.dp, bottom = vertical)
+            .padding(horizontal = horizontal),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -356,12 +392,10 @@ private fun TinyNote(text: String, modifier: Modifier = Modifier) {
     Text(text, modifier, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp), color = EolssuTheme.colors.textMuted)
 }
 
-/** 흰 카드(`.card`): 옅은 테두리, 반지름 16. */
+/** 흰 카드: 회색 시트 위 테두리 없는 흰 바탕, 반지름 20(연습 설정 카드와 같은 모양). */
 @Composable
 private fun PanelCard(modifier: Modifier = Modifier, padding: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
-    val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(16.dp)
-    Column(modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape).padding(padding), content = content)
+    Column(modifier.fillMaxWidth().background(EolssuTheme.colors.surface, RoundedCornerShape(20.dp)).padding(padding), content = content)
 }
 
 /**
@@ -371,12 +405,15 @@ private fun PanelCard(modifier: Modifier = Modifier, padding: Dp = 16.dp, conten
 @Composable
 private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
-    SettingRow(
-        stringResource(Res.string.practice_notation_hangul), null,
-        draft.showHangul, { actions.onDraft { it.copy(showHangul = !it.showHangul) } }, topLine = false,
-    )
+    PanelCard(padding = 0.dp) {
+        SettingRow(
+            stringResource(Res.string.practice_notation_hangul), null,
+            draft.showHangul, { actions.onDraft { it.copy(showHangul = !it.showHangul) } },
+            topLine = false, vertical = 14.dp, horizontal = SettingsCardInset, topPadding = 14.dp,
+        )
+    }
     Row(
-        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(16.dp)).border(1.dp, colors.lineSoft, RoundedCornerShape(16.dp)).padding(12.dp),
+        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(20.dp)).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
@@ -473,6 +510,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
     }
     val draft = state.draft
     val starts = jangdan.daegangStarts
+    PanelCard {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(jangdanLabel(jangdan), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
         val sub = if (jangdan.subdivision > 1) " " + stringResource(Res.string.practice_jangdan_sub, jangdan.subdivision) else ""
@@ -483,9 +521,9 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
             color = colors.textMuted,
         )
     }
-    if (state.jangdanProblem || song.jangdanPlayback == null || state.jangdanStatus == JangdanStatus.Loading) TinyNote(jangdanHint(state))
+    if (state.jangdanProblem || song.jangdanPlayback == null || state.jangdanStatus == JangdanStatus.Loading) TinyNote(jangdanHint(state), Modifier.padding(top = 8.dp))
     val perRow = minOf(jangdan.gak, 12)
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
         (0 until jangdan.gak).chunked(perRow).forEach { rowCells ->
             Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 rowCells.forEach { i ->
@@ -512,19 +550,25 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
         stringResource(if (draft.previewing) Res.string.practice_jangdan_preview_stop else Res.string.practice_jangdan_preview_start),
         actions.onTogglePreview,
         enabled = state.jangdanSupported && state.jangdanStatus != JangdanStatus.Loading && !state.playbackSettingsLocked,
+        modifier = Modifier.padding(top = 14.dp),
         style = EolssuButtonStyle.Secondary,
         icon = if (draft.previewing) EolssuIcons.Stop else EolssuIcons.Play,
         contentColor = if (draft.previewing) colors.play else null,
-        borderColor = if (draft.previewing) colors.play else null,
+        // 흰 카드 안이라 테두리 대신 회색 채움으로 누르는 자리를 보인다.
+        containerColor = colors.groupedBackground,
+        borderColor = if (draft.previewing) colors.play else Color.Transparent,
     )
-    Column {
+    }
+    PanelCard(padding = 0.dp) {
         SettingRow(
             stringResource(Res.string.practice_jangdan_sound), null,
-            draft.jangdanSound && state.jangdanSupported, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, enabled = state.jangdanSupported, vertical = 10.dp,
+            draft.jangdanSound && state.jangdanSupported, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, enabled = state.jangdanSupported,
+            topLine = false, vertical = 14.dp, horizontal = SettingsCardInset, topPadding = 14.dp,
         )
         SettingRow(
             stringResource(Res.string.practice_jangdan_beat), null,
-            draft.beatVisual, { actions.onDraft { it.copy(beatVisual = !it.beatVisual) } }, vertical = 10.dp,
+            draft.beatVisual, { actions.onDraft { it.copy(beatVisual = !it.beatVisual) } },
+            topLine = false, vertical = 14.dp, horizontal = SettingsCardInset,
         )
     }
 
@@ -535,8 +579,10 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
 private fun TempoPanel(draft: PracticeDraft, song: Song, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
     val step = draft.step
+    PanelCard {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(tempoLabel(step), style = MaterialTheme.typography.headlineSmall.copy(fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.Normal), color = colors.text)
+        // 다른 제목처럼 SemiBold로 둔다(S15P31E102-768).
+        Text(tempoLabel(step), style = MaterialTheme.typography.headlineSmall.copy(fontSize = 28.sp, lineHeight = 34.sp), color = colors.text)
         Text(
             stringResource(Res.string.practice_tempo_sub, step.bpm(song.baseBpm), song.baseBpm),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
@@ -545,5 +591,6 @@ private fun TempoPanel(draft: PracticeDraft, song: Song, actions: PracticePanelA
         )
     }
     TempoSlider(step, onStep = { s -> actions.onDraft { it.copy(step = s) } })
-    TinyNote(stringResource(Res.string.practice_tempo_note))
+    }
+    TinyNote(stringResource(Res.string.practice_tempo_note), Modifier.padding(horizontal = 4.dp))
 }

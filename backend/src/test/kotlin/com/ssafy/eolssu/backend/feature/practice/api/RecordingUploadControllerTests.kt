@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.practice.api
 
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
 import com.ssafy.eolssu.backend.feature.practice.application.InMemoryRecordingStorage
 import com.ssafy.eolssu.backend.feature.practice.application.InMemoryRecordingUploadRepository
@@ -58,9 +59,12 @@ class RecordingUploadControllerTests {
         repository.sessions[id] = Session(1, RecordingUploadTarget(status, failReason, startedAt))
     }
 
-    private fun post(sessionId: Long = 501, bytes: ByteArray = byteArrayOf(1, 2, 3), part: String = "audio"): ResultActions {
+    private fun post(sessionId: Long = 501, bytes: ByteArray = byteArrayOf(1, 2, 3), part: String = "audio", timingId: String? = null): ResultActions {
         signIn("1")
-        return mockMvc.perform(multipart("/api/practice-sessions/$sessionId/recording").file(MockMultipartFile(part, "practice.m4a", "audio/mp4", bytes)))
+        val request = multipart("/api/practice-sessions/$sessionId/recording")
+            .file(MockMultipartFile(part, "practice.m4a", "audio/mp4", bytes))
+        if (timingId != null) request.header(EvaluationTimingId.HEADER, timingId)
+        return mockMvc.perform(request)
     }
 
     private fun ResultActions.andExpectError(status: Int, errorCode: String) = andExpect(status().`is`(status))
@@ -87,6 +91,20 @@ class RecordingUploadControllerTests {
         assertEquals(3, repository.sessions.getValue(501).recording?.metadata?.bytes)
         // 검사용 임시 파일은 요청이 끝나면 지운다.
         assertFalse(Files.exists(probedFiles.single()))
+    }
+
+    @Test
+    fun `only a valid diagnostic UUID reaches the accepted recording event data`() {
+        val id = "b23ba41a-7e5e-4938-8b3b-93ce5ac25c95"
+        session(501)
+        session(502)
+
+        post(501, timingId = id).andExpect(status().isAccepted)
+        post(501, timingId = "private@example.test").andExpectError(409, "SESSION_NOT_RECORDING")
+        post(502, timingId = "private@example.test").andExpect(status().isAccepted)
+
+        assertEquals(id, repository.sessions.getValue(501).recording?.timingId?.value)
+        assertEquals(null, repository.sessions.getValue(502).recording?.timingId)
     }
 
     @Test

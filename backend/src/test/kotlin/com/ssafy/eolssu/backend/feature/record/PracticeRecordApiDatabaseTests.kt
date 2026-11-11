@@ -145,6 +145,12 @@ class PracticeRecordApiDatabaseTests {
     // 지운 991345, 다른 회원 991344(가장 늦게 저장), 저장 안 한 991349(최고점 99), 분석 중 991343은 나오면 안 된다.
     @Test
     fun `lists only saved records grouped by song with order, paging and the first view mark`() {
+        val empty = result(list(OTHER, "?weekOf=2026-11-01"))
+        assertEquals(0, empty.path("totalRecordCount").asInt())
+        assertTrue(empty.path("songs").isEmpty && empty.path("items").isEmpty)
+        assertTrue(empty.path("songId").isNull)
+        assertEquals(0, empty.path("week").path("recordCount").asInt())
+
         session(991347, OWNER, 16, 17, "DONE", scoreVersion = 1, startedAt = "2026-11-01 09:00:00")
         session(991348, OWNER, 0, 90, "DONE", scoreVersion = 1, songId = 2, startedAt = "2026-10-31 08:00:00")
         session(991349, OWNER, 0, 90, "DONE", scoreVersion = 1, songId = 2, startedAt = "2026-10-31 09:00:00")
@@ -166,6 +172,21 @@ class PracticeRecordApiDatabaseTests {
         assertEquals(listOf("991350"), ids(latest))
         assertEquals("끝까지 숨이 부족함", latest.path("items").path(0).path("memo").asString())
         assertEquals(listOf(0, 20, 1, 1), listOf("page", "size", "totalElements", "totalPages").map { latest.path(it).asInt() })
+
+        assertEquals("DANSO", latest.path("songs").path(0).path("instrumentCode").asString())
+        assertTrue(latest.path("week").isMissingNode)
+
+        val started = result(list(OWNER, "?groupOrder=LAST_STARTED&weekOf=2026-11-01&size=1"))
+        assertEquals(listOf("1", "2", "3"), started.path("songs").values().map { it.path("songId").asString() })
+        assertEquals("2026-11-01T10:00:00Z", started.path("songs").path(0).path("lastStartedAt").asString())
+        assertEquals(listOf("991346"), ids(started))
+        assertEquals(5, started.path("week").path("recordCount").asInt())
+        assertEquals(90, started.path("week").path("bestScore").asInt())
+        val emptyWeek = result(list(OTHER, "?songId=3&weekOf=2026-11-02"))
+        assertEquals(listOf("1"), emptyWeek.path("songs").values().map { it.path("songId").asString() })
+        assertTrue(ids(emptyWeek).isEmpty())
+        assertEquals(0, emptyWeek.path("week").path("recordCount").asInt())
+        assertTrue(emptyWeek.path("week").path("bestScore").isNull)
 
         val newest = result(list(OWNER, "?songId=1"))
         assertEquals(listOf("991346", "991342", "991347"), ids(newest))
@@ -206,10 +227,28 @@ class PracticeRecordApiDatabaseTests {
         val other = result(list(OTHER, ""))
         assertEquals(listOf("1", "991344"), listOf(other.path("totalRecordCount").asString()) + ids(other))
         assertEquals(401, list(null, "").statusCode())
-        for (query in listOf("?size=101", "?page=-1", "?songId=0", "?songId=abc", "?sort=newest")) {
+        for (query in listOf("?size=101", "?page=-1", "?songId=0", "?songId=abc", "?sort=newest",
+            "?groupOrder=STARTED", "?weekOf=2026-02-30", "?weekOf=1000-01-01",
+        )) {
             val response = list(OWNER, query)
             assertEquals(400, response.statusCode(), query)
             assertEquals("INVALID_REQUEST", json.readTree(response.body()).path("result").path("errorCode").asString(), query)
+        }
+    }
+
+    @Test
+    fun `hidden catalog songs still include their instrument only in the owner's saved records`() {
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 10:05:00' WHERE id=991342")
+        val previous = jdbc.queryForObject("SELECT status FROM songs WHERE id=1", String::class.java)
+        jdbc.update("UPDATE songs SET status='HIDDEN' WHERE id=1")
+        try {
+            val owner = result(list(OWNER, ""))
+            assertEquals("DANSO", owner.path("songs").path(0).path("instrumentCode").asString())
+            assertEquals(listOf("991342"), ids(owner))
+            val other = result(list(OTHER, "?songId=1"))
+            assertTrue(other.path("songs").isEmpty && other.path("items").isEmpty)
+        } finally {
+            jdbc.update("UPDATE songs SET status=? WHERE id=1", previous)
         }
     }
 
