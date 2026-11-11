@@ -150,4 +150,26 @@ class LearnProgressRepositoryTest {
         assertEquals(setOf("DANSO", "SOGEUM", "DAEGEUM_JEONGAK", "DAEGEUM_SANJO"), GuideInstrument.entries.map { lessonTrackCode(it.id) }.toSet())
         assertEquals(7, LearnProgressRepository.STAGE_COUNT)
     }
+
+    /** 단계 안 할 일 진행(마친 박스 수)은 트랙·단계마다 기기에 남아 화면을 다시 열어도 이어진다(S15P31E102-749). */
+    @Test
+    fun stepsDoneAreKeptPerTrackAndStageUntilCleared() {
+        val repository = repository()
+        assertEquals(0, repository.stepsDone("danso", 3))
+
+        repository.saveStepsDone("danso", 3, 2)
+        repository.saveStepsDone("danso", 5, 1)
+        repository.saveStepsDone("sogeum", 3, 4)
+
+        val reopened = repository()
+        assertEquals(2, reopened.stepsDone("danso", 3))
+        assertEquals(1, reopened.stepsDone("danso", 5))
+        assertEquals(0, reopened.stepsDone("danso", 4))
+        assertEquals(4, reopened.stepsDone("sogeum", 3))
+
+        reopened.clearSteps("danso")
+        assertEquals(0, reopened.stepsDone("danso", 3))
+        assertEquals(0, reopened.stepsDone("danso", 5))
+        assertEquals(4, reopened.stepsDone("sogeum", 3))
+    }
 }

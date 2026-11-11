@@ -76,10 +76,10 @@ class LearnPitchJudgeTest {
 
         val five = plan(5)
         assertEquals(scale + scale.reversed(), five.notes)
-        assertEquals(9, five.required)
+        assertEquals(10, five.required)
         assertEquals(50.0, five.rule.toleranceCent)
         assertEquals(300, five.rule.holdMs)
-        assertTrue(five.rule.countsMisses)
+        assertFalse(five.rule.countsMisses)
 
         val six = plan(6)
         assertEquals(listOf("㳞"), six.notes)
@@ -136,25 +136,31 @@ class LearnPitchJudgeTest {
         assertEquals(1, plain.results.size)
     }
 
-    @Test fun stageFivePassesWithNineOfTenAndCountsAHeldWrongNote() {
+    /** 5단계는 다른 음을 오래 불어도 틀림으로 넘기지 않고, 맞는 음이 날 때까지 기다린다. 열 음을 다 내면 통과다(S15P31E102-749). */
+    @Test fun stageFiveWaitsForEachNoteAndPassesWhenAllAreHit() {
         val feed = feed(5)
         val notes = scale + scale.reversed()
-        notes.forEachIndexed { i, note -> feed.hold(if (i == 6) hz("仲") else hz(note), 400).breath() }
-        assertEquals(List(10) { if (it == 6) LearnNoteResult.Miss else LearnNoteResult.Hit }, feed.results)
-        assertEquals(9, feed.tracker.hits)
+        feed.hold(hz("汰"), 2_000).breath()
+        assertEquals(emptyList(), feed.results)
+        assertEquals(0, feed.tracker.index)
+        notes.forEach { feed.hold(hz(it), 400).breath() }
+        assertEquals(List(10) { LearnNoteResult.Hit }, feed.results)
+        assertEquals(0, feed.tracker.misses)
         assertTrue(feed.tracker.passed)
     }
 
-    @Test fun stageFiveFailsWithTwoWrongNotes() {
+    /** 5단계 내려오기 박스의 체크를 풀면 판정이 그 박스의 첫 음(6번째 음)으로 돌아간다(S15P31E102-749). */
+    @Test fun rewindingGoesBackToTheGivenNote() {
         val feed = feed(5)
-        val notes = scale + scale.reversed()
-        notes.forEachIndexed { i, note -> feed.hold(if (i == 2 || i == 7) hz("汰") else hz(note), 400).breath() }
-        // 두 번째 틀림에서 남은 음을 다 맞혀도 9음이 될 수 없어 끝난다. 뒤 두 음은 세지 않는다.
-        assertEquals(6, feed.tracker.hits)
-        assertEquals(2, feed.tracker.misses)
-        assertEquals(8, feed.tracker.index)
+        (scale + scale.reversed()).forEach { feed.hold(hz(it), 400).breath() }
         assertTrue(feed.tracker.finished)
-        assertFalse(feed.tracker.passed)
+
+        feed.tracker.rewind(5)
+        assertEquals(5, feed.tracker.index)
+        assertEquals(5, feed.tracker.hits)
+        assertFalse(feed.tracker.finished)
+        feed.breath().hold(hz(scale.last()), 400)
+        assertEquals(6, feed.tracker.index)
     }
 
     @Test fun stageFiveSilenceIsNotAWrongNote() {

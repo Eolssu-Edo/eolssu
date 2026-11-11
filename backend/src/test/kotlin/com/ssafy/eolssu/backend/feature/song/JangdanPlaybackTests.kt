@@ -55,18 +55,43 @@ class JangdanPlaybackTests {
         assertEquals(listOf(1, 1, 1, 1), playback.pattern.group)
     }
 
-    @Test fun `opening rest exception does not leak to unreviewed identities or incomplete bars`() {
+    @Test fun `transposed Blue Valentine fourth edition retains first beat accompaniment`() {
+        val previous = blueValentine()
+        val transposed = previous.copy(scoreVersion = 4, scoreJson = previous.scoreJson
+            .replace("\"scoreVersion\":3", "\"scoreVersion\":4")
+            .replace("\"symbol\":\"청대\"", "\"symbol\":\"청황\"")
+            .replace("\"yul\":\"대\"", "\"yul\":\"황\""))
+        val playback = assertNotNull(fourBeatResolver.resolve(transposed))
+        assertEquals("12", playback.jangdanId)
+        assertEquals(0L, playback.startTick)
+        assertEquals(16L, playback.cycleTicks)
+        assertEquals(listOf("덩", "덕", "궁", "덕"), playback.pattern.beats)
+        assertNotNull(fourBeatResolver.resolve(previous))
+        assertNotNull(fourBeatResolver.resolve(transposed.copy(scoreVersion = 5)))
+        assertNotNull(fourBeatResolver.resolve(transposed.copy(scoreJson = transposed.scoreJson
+            .replace(blueValentineHash, "0".repeat(64)))))
+    }
+
+    @Test fun `declared full bars allow opening rests without a reviewed source identity`() {
         val source = blueValentine()
         for (changed in listOf(source.scoreJson.replace(blueValentineHash, "0".repeat(64)),
             source.scoreJson.replace("user-blue-valentine-20261111-sogeum", "another-song"),
-            source.scoreJson.replace("SOGEUM", "DANSO"), source.scoreJson.replace(fourBeatName, "단모리"))) {
-            assertNull(fourBeatResolver.resolve(source.copy(scoreJson = changed)))
+            source.scoreJson.replace("SOGEUM", "DANSO"))) {
+            val playback = assertNotNull(fourBeatResolver.resolve(source.copy(scoreJson = changed)))
+            assertEquals(0L, playback.startTick)
+            assertEquals(16L, playback.cycleTicks)
         }
-        assertNull(fourBeatResolver.resolve(source.copy(scoreVersion = 2)))
-        assertNull(fourBeatResolver.resolve(source.copy(scoreVersion = 4)))
+    }
+
+    @Test fun `opening rests still require an origin and complete cycles`() {
+        val source = blueValentine()
         val partial = json.readTree(source.scoreJson) as ObjectNode
         (partial.path("columns").path(0) as ObjectNode).withArray("cells").remove(3)
         assertNull(fourBeatResolver.resolve(source.copy(scoreJson = partial.toString())))
+        assertNull(fourBeatResolver.resolve(source.copy(scoreJson = source.scoreJson
+            .replace("\"startTick\":0", "\"startTick\":1"))))
+        assertNull(fourBeatResolver.resolve(source.copy(scoreJson = source.scoreJson
+            .replace(fourBeatName, "unknown-pattern"))))
     }
 
     private val airplaneSources = listOf(
@@ -200,10 +225,10 @@ class JangdanPlaybackTests {
         assertEquals(12L, assertNotNull(resolver.resolve(stored.copy(bpmUnit = "DOTTED_QUARTER", scoreJson = changed.toString()))).cycleTicks)
     }
 
-    @Test fun `an ambiguous downbeat or partial column does not attach accompaniment`() {
+    @Test fun `opening rest keeps the grid downbeat while partial columns remain unsupported`() {
         val pickup = json.readTree(score) as ObjectNode
         (pickup.path("events").get(0) as ObjectNode).put("kind", "REST")
-        assertNull(resolver.resolve(stored.copy(scoreJson = pickup.toString())))
+        assertEquals(resolver.resolve(stored), resolver.resolve(stored.copy(scoreJson = pickup.toString())))
 
         val partial = json.readTree(score) as ObjectNode
         val cells = (partial.path("columns").get(0) as ObjectNode).withArray("cells")

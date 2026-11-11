@@ -15,12 +15,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -52,10 +55,11 @@ import eolssu.shared.generated.resources.learn_tour_mouth
 import eolssu.shared.generated.resources.learn_tour_mouth_body
 import eolssu.shared.generated.resources.learn_tour_right_body
 import eolssu.shared.generated.resources.learn_tour_thumb_body
+import kotlin.math.hypot
+import kotlinx.coroutines.flow.drop
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import kotlin.math.hypot
 
 /*
  * 1단계 '악기 알기' 할 일 박스. 악기 그림에서 취구 → 구멍을 박스 하나씩 동그라미로 짚으며 한 줄씩 알려 주고,
@@ -151,18 +155,40 @@ internal class LearnTour(
         openState.value = index
     }
 
+    /**
+     * 마친 [index]번 박스의 체크를 푼다(S15P31E102-749). 앞에서부터 차례로 하므로 그 뒤 박스도 함께 다시 할 일이 되고,
+     * 그 박스를 펼친다. '완료했어요!'는 거둔다. 마치지 않은 박스면 false.
+     */
+    fun undo(index: Int): Boolean {
+        if (index < 0 || index >= doneCount) return false
+        doneState.value = index
+        openState.value = index
+        celebrateState.value = false
+        return true
+    }
+
     fun finish() { celebrateState.value = true }
     fun dismiss() { celebrateState.value = false }
 }
 
 private const val FirstOpenBox = 0
 
-/** [stage]가 바뀌면(가로 배치에서 다른 단계를 고름) 1번 박스부터 다시 한다. */
+/**
+ * 단계마다의 할 일 진행. [saved]로 지난번에 마친 박스 수를 불러와 그다음 박스를 펼친 채 시작하고,
+ * 마친 박스 수가 바뀔 때마다 [onSave]로 남긴다(S15P31E102-749). 단계나 [owner](악기)가 바뀌면 그 단계의 저장된 진행으로 바꾼다.
+ */
 @Composable
-internal fun rememberLearnTour(stage: Int): LearnTour {
-    val open = rememberSaveable(stage) { mutableStateOf<Int?>(FirstOpenBox) }
-    val done = rememberSaveable(stage) { mutableStateOf(0) }
-    val celebrate = rememberSaveable(stage) { mutableStateOf(false) }
+internal fun rememberLearnTour(
+    stage: Int,
+    owner: Any? = null,
+    saved: () -> Int = { 0 },
+    onSave: (Int) -> Unit = {},
+): LearnTour {
+    val done = rememberSaveable(stage, owner) { mutableStateOf(saved().coerceAtLeast(0)) }
+    val open = rememberSaveable(stage, owner) { mutableStateOf<Int?>(done.value) }
+    val celebrate = rememberSaveable(stage, owner) { mutableStateOf(false) }
+    val save by rememberUpdatedState(onSave)
+    LaunchedEffect(done) { snapshotFlow { done.value }.drop(1).collect { save(it) } }
     return remember(open, done, celebrate) { LearnTour(open, done, celebrate) }
 }
 

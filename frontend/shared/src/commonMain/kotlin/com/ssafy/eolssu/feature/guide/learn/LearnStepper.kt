@@ -31,8 +31,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
@@ -65,6 +67,7 @@ import eolssu.shared.generated.resources.learn_step_state_done
 import eolssu.shared.generated.resources.learn_step_state_locked
 import eolssu.shared.generated.resources.learn_step_state_open
 import eolssu.shared.generated.resources.learn_step_try
+import eolssu.shared.generated.resources.learn_step_undo
 
 /*
  * 단계의 할 일 박스(S15P31E102-688). 할 일마다 박스 하나를 위에서 아래로 쌓는다. 처음에는 1번 박스가 펼쳐져 그림과 한 줄 설명,
@@ -81,12 +84,28 @@ internal fun learnStepCount(stage: Int, detail: LearnStageDetail, instrument: Gu
 }
 
 /**
- * 단계 화면 안에서 하는 연습(S15P31E102-688). 3~7단계는 할 일 박스 뒤에 이 박스를 하나 더 두고, 펼치면 '듣기 시작'으로 바로 판정한다.
+ * 단계 화면 안에서 하는 연습(S15P31E102-688). 3·4·7단계는 할 일 박스 뒤에 연습 박스를 하나 더 두고, 펼치면 바로 듣기 시작해 판정한다.
+ * 5·6단계는 연습 박스 없이 할 일 박스 안에서 바로 판정한다([segment], S15P31E102-749).
  *
  * @property title 연습 박스 이름.
- * @property content 펼친 연습 박스 내용(통과 기준 · 듣기 판 · 듣기 버튼). '해 봤어요' 대신 통과·스스로 확인으로 마친다.
+ * @property content 펼친 연습 박스 내용(통과 기준 · 듣기 판 · 버튼). '해 봤어요' 대신 통과·스스로 확인으로 마친다.
+ * @property segment 할 일 박스([Int]번) 안의 듣기. 맡은 음을 다 내면 두 번째 인자(박스 마침)를 부른다. 있으면 '해 봤어요'와 연습 박스를 두지 않는다.
+ * @property segmentReplacesFigure 박스 안 듣기가 그림까지 대신 그린다(5단계 정간보가 진행을 따라 칠해진다). 마친 박스를 다시 펼치면 그림을 보인다.
+ * @property overlay 단계를 마쳤을 때 띄우는 '완료했어요!' 창.
+ * @property primary 듣는 박스가 펼쳐졌거나 통과했을 때 아래 가운데 버튼('그만하기'·'다시 시작'·'다음 단계로' 등). null이면 '연습 시작'을 둔다.
+ * @property passed 연습을 통과했다. 아래 가운데 버튼이 박스와 상관없이 [primary]가 된다.
+ * @property onUndo 할 일 박스([Int]번)의 체크를 풀었을 때 판정도 그 박스 처음으로 되돌린다(5·6단계).
  */
-class StepPractice(val title: String, val content: @Composable () -> Unit)
+class StepPractice(
+    val title: String,
+    val segment: (@Composable (Int, () -> Unit) -> Unit)? = null,
+    val segmentReplacesFigure: Boolean = false,
+    val overlay: @Composable () -> Unit = {},
+    val primary: (@Composable (Modifier) -> Unit)? = null,
+    val passed: Boolean = false,
+    val onUndo: (Int) -> Unit = {},
+    val content: @Composable () -> Unit,
+)
 
 /**
  * 할 일 박스 묶음. [figure]는 펼친 박스에 보일 그림이다. [practice]가 있으면 마지막에 연습 박스를 붙인다.
@@ -101,7 +120,10 @@ internal fun TourPanel(
     figure: @Composable (Int) -> Unit,
 ) {
     if (tasks.isEmpty() && practice == null) return
-    val total = tasks.size + if (practice != null) 1 else 0
+    practice?.overlay?.invoke()
+    val segment = practice?.segment?.takeIf { tasks.isNotEmpty() }
+    val practiceBox = practice?.takeIf { segment == null }
+    val total = tasks.size + if (practiceBox != null) 1 else 0
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         StepProgress(done = tour.doneCount.coerceAtMost(total), total = total)
         tasks.forEachIndexed { i, task ->
@@ -113,19 +135,22 @@ internal fun TourPanel(
                 locked = i > tour.doneCount && tour.open != i,
                 onToggle = { tour.toggle(i) },
                 onTry = { if (tour.complete(i, total)) onAllDone() },
+                onUndo = { if (tour.undo(i)) practice?.onUndo?.invoke(i) },
+                inline = segment?.let { { done -> it(i, done) } },
+                inlineReplacesFigure = practice?.segmentReplacesFigure == true,
             ) { figure(i) }
         }
-        if (practice != null) {
+        if (practiceBox != null) {
             val i = tasks.size
             StepBox(
                 index = i,
-                task = LearnTask(practice.title),
+                task = LearnTask(practiceBox.title),
                 done = tour.isDone(i),
                 open = tour.open == i,
                 locked = i > tour.doneCount && tour.open != i,
                 onToggle = { tour.toggle(i) },
                 onTry = {},
-                practice = practice.content,
+                practice = practiceBox.content,
             ) {}
         }
     }
@@ -162,7 +187,10 @@ private fun StepBox(
     locked: Boolean,
     onToggle: () -> Unit,
     onTry: () -> Unit,
+    onUndo: () -> Unit = {},
     practice: (@Composable () -> Unit)? = null,
+    inline: (@Composable (() -> Unit) -> Unit)? = null,
+    inlineReplacesFigure: Boolean = false,
     figure: @Composable () -> Unit,
 ) {
     val colors = EolssuTheme.colors
@@ -207,6 +235,7 @@ private fun StepBox(
         },
     )
     val description = stringResource(Res.string.learn_step_box_description, index + 1, task.title, state)
+    val undoLabel = stringResource(Res.string.learn_step_undo)
     Column(
         Modifier
             .fillMaxWidth()
@@ -227,15 +256,21 @@ private fun StepBox(
                 .clearAndSetSemantics {
                     contentDescription = description
                     role = Role.Button
+                    // 마친 박스는 체크 동그라미를 눌러 다시 할 일로 되돌릴 수 있다(S15P31E102-749).
+                    if (done) customActions = listOf(CustomAccessibilityAction(undoLabel) { onUndo(); true })
                 }
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(start = 6.dp, end = 14.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            StepBadge(index + 1, done, open)
+            // 체크 동그라미만 누르면 체크가 풀리고, 제목 쪽을 누르면 펼치고 접는다. 누르는 자리는 48dp로 둔다.
+            Box(
+                Modifier.size(48.dp).clip(CircleShape).clickable(enabled = done, onClick = onUndo),
+                contentAlignment = Alignment.Center,
+            ) { StepBadge(index + 1, done, open) }
             Text(
                 task.title,
-                Modifier.weight(1f),
+                Modifier.weight(1f).padding(vertical = 8.dp),
                 style = MaterialTheme.typography.titleSmall.copy(
                     fontSize = 16.sp,
                     fontWeight = if (open) FontWeight.Bold else FontWeight.SemiBold,
@@ -260,7 +295,8 @@ private fun StepBox(
                     practice()
                     return@Column
                 }
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { figure() }
+                val live = inline != null && !done && inlineReplacesFigure
+                if (!live) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { figure() }
                 task.detail?.let {
                     Text(
                         it,
@@ -268,7 +304,12 @@ private fun StepBox(
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
                     )
                 }
-                EolssuButton(stringResource(Res.string.learn_step_try), onTry, Modifier.fillMaxWidth(), icon = EolssuIcons.Check)
+                if (inline != null) {
+                    // 마친 박스를 다시 펼치면 듣기를 새로 열지 않는다.
+                    if (!done) inline(onTry)
+                } else {
+                    EolssuButton(stringResource(Res.string.learn_step_try), onTry, Modifier.fillMaxWidth(), icon = EolssuIcons.Check)
+                }
             }
         }
     }
