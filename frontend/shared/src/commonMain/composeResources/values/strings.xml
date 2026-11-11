@@ -82,7 +82,7 @@
     <string name="practice_hint_ready">모범 연주를 듣고 준비되면 시작하세요.</string>
     <string name="practice_recording_unsupported">현재 환경에서는 녹음과 연주 평가를 지원하지 않아요.</string>
     <string name="practice_hint_solo">점수 없이 악보를 보며 혼자 연습해요. 평가하려면 위 버튼으로 넘어가요.</string>
-    <string name="practice_hint_solo_only">이 곡은 연습만 가능해요</string>
+    <string name="practice_solo_only">연습만 가능해요</string>
     <string name="practice_listen_model">모범 연주 듣기</string>
     <string name="practice_start_eval">연주 평가 시작</string>
     <string name="practice_start_eval_short">평가 시작</string>
