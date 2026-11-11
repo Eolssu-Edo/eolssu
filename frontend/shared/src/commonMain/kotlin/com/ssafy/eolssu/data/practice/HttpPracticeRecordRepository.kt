@@ -87,6 +87,8 @@ class HttpPracticeRecordRepository(
             metrics = result.metrics,
             errors = result.errors,
             eventErrors = result.eventErrors,
+            notes = result.notes,
+            scoreVersion = saved.scoreVersion ?: result.scoreVersion,
             recordedSeconds = saved.recordingDurationMs?.let { (it / 1000.0).roundToInt() } ?: result.recordedSeconds,
             recordingAvailable = saved.recordingDurationMs != null,
             isNew = true,
@@ -123,15 +125,28 @@ class HttpPracticeRecordRepository(
         }
         if (response.status != HttpStatusCode.OK) error("기록 상세 응답: ${response.status}")
         val session = checkNotNull(response.apiResponse<SessionDetail>()?.result) { "기록 상세 형식이 다름" }
-        val base = records.value.firstOrNull { it.id == recordId } ?: return@inSession null
-        val evaluation = evaluations.result(recordId)
-        val record = base.copy(
-            metrics = evaluation?.metrics ?: base.metrics,
-            errors = evaluation?.errors ?: base.errors,
-            eventErrors = evaluation?.eventErrors ?: base.eventErrors,
-            memo = session.memo.orEmpty(),
-            recordingAvailable = session.recordingAvailable,
-            isNew = false,
+        check(session.sessionId == recordId) { "기록 세션 식별자가 다름" }
+        val base = records.value.firstOrNull { it.id == recordId }
+        // 점수와 원본 판정만 받는다. 악보 조회 실패가 메모·녹음까지 숨기지 않게 한다.
+        val evaluation = checkNotNull(evaluations.resultForScreen(recordId, initialSong = null)?.scores) { "기록 평가 없음" }
+        check(evaluation.id == recordId && evaluation.songId == session.songId &&
+            (session.scoreVersion == null || evaluation.scoreVersion == session.scoreVersion)) { "기록 평가 식별자·판본이 다름" }
+        val startedMillis = session.startedAt?.let { Instant.parse(it).toEpochMilliseconds() }
+            ?: base?.recordedAtMillis
+        val record = PracticeRecord(
+            id = recordId, songId = session.songId,
+            songTitle = session.songTitle ?: base?.songTitle ?: "연습 기록",
+            section = base?.section ?: if (base == null) "구간 정보 없음" else null,
+            repeats = base?.repeats,
+            recordedAt = startedMillis?.let(KoreanDateTime::fromEpochMillis) ?: evaluation.recordedAt,
+            recordedAtMillis = startedMillis ?: ((evaluation.recordedAt.epochDay * 24 + evaluation.recordedAt.hour - 9) * 60 + evaluation.recordedAt.minute) * 60_000,
+            recordedSeconds = evaluation.recordedSeconds,
+            bpm = session.bpm ?: evaluation.bpm,
+            score = evaluation.total, metrics = evaluation.metrics,
+            errors = evaluation.errors, eventErrors = evaluation.eventErrors, notes = evaluation.notes,
+            scoreVersion = session.scoreVersion ?: evaluation.scoreVersion ?: base?.scoreVersion,
+            startNoteIndex = session.startNoteIdx, endNoteIndex = session.endNoteIdx,
+            memo = session.memo.orEmpty(), recordingAvailable = session.recordingAvailable, isNew = false,
         )
         ensureAccountSession()
         _records.update { list -> list.map { if (it.id == recordId) it.copy(memo = record.memo, isNew = false) else it } }
@@ -182,6 +197,7 @@ class HttpPracticeRecordRepository(
             errors = emptyList(),
             recordingAvailable = recordingAvailable,
             isNew = isNew,
+            scoreVersion = scoreVersion,
         )
     }
 
@@ -191,6 +207,7 @@ class HttpPracticeRecordRepository(
             id = sessionId,
             songId = songId,
             songTitle = songTitle ?: fallbackTitle,
+            scoreVersion = scoreVersion,
             section = section(isFullSong, startColumnIdx, endColumnIdx),
             repeats = null,
             recordedAt = KoreanDateTime.fromEpochMillis(recordedAtMillis),
@@ -225,6 +242,7 @@ class HttpPracticeRecordRepository(
         val sessionId: String,
         val songId: String,
         val songTitle: String? = null,
+        val scoreVersion: Int? = null,
         val memo: String? = null,
         val isFullSong: Boolean = true,
         val startColumnIdx: Int? = null,
@@ -251,6 +269,7 @@ class HttpPracticeRecordRepository(
         val sessionId: String,
         val songId: String,
         val title: String,
+        val scoreVersion: Int? = null,
         val isFullSong: Boolean = true,
         val startColumnIdx: Int? = null,
         val endColumnIdx: Int? = null,
@@ -264,7 +283,18 @@ class HttpPracticeRecordRepository(
     )
 
     @Serializable
-    private class SessionDetail(val recordingAvailable: Boolean = false, val memo: String? = null)
+    private class SessionDetail(
+        val sessionId: String,
+        val songId: String,
+        val songTitle: String? = null,
+        val scoreVersion: Int? = null,
+        val bpm: Int? = null,
+        val startedAt: String? = null,
+        val startNoteIdx: Int? = null,
+        val endNoteIdx: Int? = null,
+        val recordingAvailable: Boolean = false,
+        val memo: String? = null,
+    )
 
     @Serializable
     private class Playback(val playbackUrl: String, val urlExpiresAt: String, val durationMs: Long? = null)

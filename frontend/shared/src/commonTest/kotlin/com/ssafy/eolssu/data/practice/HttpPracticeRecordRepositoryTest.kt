@@ -60,6 +60,20 @@ class HttpPracticeRecordRepositoryTest {
         |"startNoteIdx":0,"endNoteIdx":10,"startedAt":"$startedAt","recordingAvailable":true,"memo":null,"isNew":$isNew}""".trimMargin()
 
     @Test
+    fun detailOpensWithoutListCache() = runTest {
+        val repo = repository(evaluation = result.copy(scoreVersion = 1)) {
+            ok("""{"sessionId":"41","songId":"1","songTitle":"당시 제목","scoreVersion":1,"status":"DONE",
+                "bpm":60,"startedAt":"2026-10-20T06:20:00Z","recordingAvailable":true,"memo":"보존할 메모"}""")
+        }
+        val detail = checkNotNull(repo.detail("41"))
+        assertEquals("당시 제목", detail.songTitle)
+        assertEquals(84, detail.score)
+        assertEquals("보존할 메모", detail.memo)
+        assertTrue(detail.recordingAvailable)
+        assertEquals(listOf("/api/practice-sessions/41"), sent.map { it.path })
+    }
+
+    @Test
     fun refreshMergesEverySongAndPageNewestFirst() = runTest {
         val repo = repository { call ->
             val q = call.query

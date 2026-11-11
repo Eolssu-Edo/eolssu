@@ -34,7 +34,7 @@ internal fun RecordDetailPane(state: RecordDetailUiState, actions: RecordDetailA
                 RecordDeleteButton(state.delete == RecordDeleteState.Deleting, actions.onAskDelete)
             }
             RecordResultContent(state, actions, wrapped = false, modifier = Modifier.weight(1f).fillMaxWidth())
-            if (state.song != null) PlaybackBarContent(state, actions, gap = 8.dp)
+            PlaybackBarContent(state, actions, gap = 8.dp)
         }
     }
 }

@@ -120,7 +120,7 @@ class ResultViewModel(
         _uiState.update { it.copy(songLookup = SongLookup.Loading) }
         songJob = accountScope.launch(perf.context(PerfReason.RETRY)) {
             val song = try {
-                songRepository.getSong(songId)
+                if (result.scoreVersion == null) songRepository.getSong(songId) else songRepository.getSong(songId, result.scoreVersion)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
