@@ -27,6 +27,9 @@ import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.feature.song.edit.SheetBpmRange
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.SheetEditJangdanPicker
+import com.ssafy.eolssu.feature.song.edit.SheetJangdanTimingText
+import com.ssafy.eolssu.feature.song.edit.SheetJangdanOptionLabel
+import com.ssafy.eolssu.feature.song.edit.SheetJangdanNoMatchHelp
 import com.ssafy.eolssu.feature.song.edit.isCompatibleWith
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
@@ -37,7 +40,6 @@ import eolssu.shared.generated.resources.sheet_settings_current_jangdan
 import eolssu.shared.generated.resources.sheet_settings_jangdan
 import eolssu.shared.generated.resources.sheet_settings_jangdan_loading
 import eolssu.shared.generated.resources.sheet_settings_jangdan_none
-import eolssu.shared.generated.resources.sheet_settings_no_compatible_jangdan
 import eolssu.shared.generated.resources.sheet_settings_title
 import eolssu.shared.generated.resources.sheetedit_jangdan_load_failed
 import eolssu.shared.generated.resources.sheetedit_jangdan_same_unit
@@ -80,6 +82,7 @@ internal fun SheetEditSettingsDialog(
             error = if (validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
         )
         Text(stringResource(Res.string.sheet_settings_jangdan), style = MaterialTheme.typography.labelLarge)
+        SheetJangdanTimingText(draft)
         Text(stringResource(Res.string.sheetedit_jangdan_same_unit), style = MaterialTheme.typography.bodySmall)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
@@ -103,7 +106,7 @@ internal fun SheetEditSettingsDialog(
                     selected = selectedId == option.jangdanId,
                     enabled = !saving && draft.isCompatibleWith(option),
                     onClick = { selectedId = option.jangdanId },
-                    label = { Text(option.name) },
+                    label = { SheetJangdanOptionLabel(option) },
                 )
             }
         }
@@ -119,7 +122,7 @@ internal fun SheetEditSettingsDialog(
             }
             is SheetEditJangdanPicker.Ready -> {
                 if (options.none { draft.isCompatibleWith(it) }) {
-                    Text(stringResource(Res.string.sheet_settings_no_compatible_jangdan), style = MaterialTheme.typography.bodySmall)
+                    SheetJangdanNoMatchHelp(draft)
                 }
             }
         }

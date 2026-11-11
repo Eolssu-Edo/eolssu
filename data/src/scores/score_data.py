@@ -10,8 +10,9 @@
 시간은 곡 장단의 bpm_unit 박으로 세며, 계산 중에는 반올림이 없도록 Fraction으로 둔다.
 
 이벤트 만들기: 율명·쉼표가 새 이벤트를 열고, 이음(-)과 빈 정간은 앞 이벤트의 길이에 더한다.
-단 지속은 제 각 안에서만이라, 마지막 음과 다른 각의 이음·빈 정간은 쉼이 된다(우물사이 realizeMelody,
-2026-08-14 확정). 숨표·시김새는 그 글자가 속한 이벤트에 붙는다.
+기본 검수 JGB 경로의 지속은 제 각 안에서만이라, 마지막 음과 다른 각의 이음·빈 정간은 쉼이 된다
+(우물사이 realizeMelody, 2026-08-14 확정). PDF 가져오기는 continue_explicit_ties로 명시적 이음의
+각 경계 연결만 허용한다. 숨표·시김새는 그 글자가 속한 이벤트에 붙는다.
 
 결과: 화면 배치용 columns → cells와 재생·채점용 events를 함께 담고 cellId·eventId로 잇는다(노션 B2).
 시간은 박을 ticksPerBeat 칸으로 나눈 정수 틱이다. ticksPerBeat는 모든 시작·길이·정간 길이 분모의
@@ -111,17 +112,24 @@ def read_units(melody, beats_per_jeonggan):
     return units
 
 
-def build_events(units):
-    """글자 목록을 이벤트 목록으로 묶는다. 글자마다 속한 이벤트 id 목록도 같은 순서로 돌려준다."""
+def build_events(units, *, continue_explicit_ties=False):
+    """글자 목록을 이벤트로 묶는다. PDF의 명시적 이음만 선택적으로 각 너머로 잇는다.
+
+    기존 검수 JGB 변환은 기본값을 유지한다. 새 각 첫 빈칸이나 앞 음 없는 이음은 음을 만들지 않는다.
+    """
     events, unit_events = [], []
-    note_column = None  # 마지막 음이 난 각. 지속은 제 각 안에서만 잇는다
+    note_column = None  # 마지막 음 또는 명시적으로 이어진 음이 있는 각
     for u in units:
-        if u.symbol in ("-", "") and (not events or events[-1].kind == "NOTE" and note_column != u.column):
+        explicit_tie = continue_explicit_ties and u.symbol == "-"
+        if u.symbol in ("-", "") and (not events or
+                events[-1].kind == "NOTE" and note_column != u.column and not explicit_tie):
             u = replace(u, symbol="쉼")  # 앞 음이 없거나 다른 각이면 쉼으로 끊는다
         if u.symbol in ("-", ""):
             last = events[-1]
             events[-1] = replace(last, duration=last.duration + u.duration,
                                  breath_after=last.breath_after or u.breath, sigimsae=last.sigimsae + u.sigimsae)
+            if explicit_tie and last.kind == "NOTE":
+                note_column = u.column
         else:
             prefix, yul = (u.symbol[:-1], u.symbol[-1]) if u.symbol != "쉼" else (None, None)
             if yul is not None:
@@ -134,7 +142,7 @@ def build_events(units):
 
 
 def convert(doc, *, beats_per_jeonggan, title, instrument, source_id, jangdan, bpm_unit, review, jgb_sha256,
-            part=None, score_version=1):
+            part=None, score_version=1, continue_explicit_ties=False):
     """우물사이 문서 하나를 공통 악보 데이터(dict)로 바꾼다. beats_per_jeonggan은 사람이 원본에서 정한 값이다."""
     melody, controls = melody_of(doc, part), doc.get("controls", {})
     gaks = gaks_of(melody)
@@ -151,7 +159,7 @@ def convert(doc, *, beats_per_jeonggan, title, instrument, source_id, jangdan, b
     if long:
         raise ValueError(f"각 {long}의 정간 수가 beats={beats}·gakBeats보다 많다")
     units = read_units(melody, Fraction(beats_per_jeonggan))
-    events, unit_events = build_events(units)
+    events, unit_events = build_events(units, continue_explicit_ties=continue_explicit_ties)
     tpb = math.lcm(Fraction(beats_per_jeonggan).denominator,
                    *(t.denominator for e in events for t in (e.start, e.duration)))
     tick = lambda beats: int(beats * tpb)  # tpb가 모든 분모의 배수라 나머지가 없다

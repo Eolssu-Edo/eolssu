@@ -263,19 +263,23 @@ data class SheetEditUiState(
         return commit(next, if (advance) (selected + 1).coerceAtMost(next.cells.lastIndex) else selected, null)
     }
 
-    /** '청': 청성 → 중청성 → 기본. 탁 쪽에서 누르면 바로 청성이다. */
-    fun raiseRegister(): SheetEditUiState = copy(yulRegister = yulRegister.higher())
-
-    /** '탁': 탁성 → 배탁성 → 기본. 청 쪽에서 누르면 바로 탁성이다. */
-    fun lowerRegister(): SheetEditUiState = copy(yulRegister = yulRegister.lower())
+    /** 다섯 음역 중 하나를 직접 고른다. 다시 눌러도 같은 음역을 유지하며 악보는 바꾸지 않는다. */
+    fun selectRegister(register: YulRegister): SheetEditUiState = copy(yulRegister = register)
 
     /** 지금 음역 단계를 붙여 [base]를 적는다. 서버에 등록되지 않은 음은 적지 않는다. 적고 나면 음역은 기본으로 돌아간다. */
     fun putYul(base: Yul): SheetEditUiState = putYul(base, yulRegister.octave)
 
     /** [base]를 [octave] 음역으로 적는다. 같은 음 데이터([SheetDraft.pitchNote])로 적는다. */
     fun putYul(base: Yul, octave: Int): SheetEditUiState {
-        if (!isAvailablePitch(availablePitches, base, octave)) return this
+        if (!isAvailablePitch(supportedInputPitches, base, octave)) return this
         return put(draft.pitchNote(base, octave)).copy(yulRegister = YulRegister.Base)
+    }
+
+    /** 후보를 보는 동안 입력이 바뀌었으면 적용하지 않는다. 시작 음만 교체해 지속·분할·원본 이벤트를 보존한다. */
+    internal fun applyPitchCorrection(target: SheetPitchCorrection, pitch: Pair<Yul, Int>): SheetEditUiState {
+        if (confirming || target !in pitchCorrectionsAt(target.cell, target.sub) || pitch !in pitchAlternatives(target.pitch)) return this
+        val next = draft.putAt(target.originCell, target.originSub, draft.pitchNote(pitch.first, pitch.second))
+        return commit(next, target.originCell, target.originSub)
     }
 
     /** 고른 소박만, 소박을 고르지 않았으면 정간 전체를 지운다. */

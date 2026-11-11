@@ -17,11 +17,13 @@ import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.feature.song.edit.SheetEditJangdanPicker
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
+import com.ssafy.eolssu.feature.song.edit.SheetJangdanTimingText
+import com.ssafy.eolssu.feature.song.edit.SheetJangdanOptionLabel
+import com.ssafy.eolssu.feature.song.edit.SheetJangdanNoMatchHelp
 import com.ssafy.eolssu.feature.song.edit.isCompatibleWith
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.sheetedit_cell_jangdan_change
-import eolssu.shared.generated.resources.sheetedit_jangdan_none_compatible
 import eolssu.shared.generated.resources.sheetedit_jangdan_same_unit
 import eolssu.shared.generated.resources.sheetedit_jangdan_load_failed
 import eolssu.shared.generated.resources.sheet_upload_reload
@@ -39,9 +41,11 @@ internal fun SheetEditJangdanDialog(
 ) {
     EolssuDialog(
         title = stringResource(Res.string.sheetedit_cell_jangdan_change),
+        modifier = Modifier.verticalScroll(rememberScrollState()),
         message = stringResource(Res.string.sheetedit_jangdan_same_unit),
         onDismissRequest = onDismiss,
     ) {
+        SheetJangdanTimingText(draft)
         when (picker) {
             SheetEditJangdanPicker.Loading -> CircularProgressIndicator()
             SheetEditJangdanPicker.Failed -> {
@@ -49,14 +53,14 @@ internal fun SheetEditJangdanDialog(
                 EolssuButton(stringResource(Res.string.sheet_upload_reload), onReload, style = EolssuButtonStyle.Secondary)
             }
             is SheetEditJangdanPicker.Ready -> {
-                if (picker.options.none { draft.isCompatibleWith(it) }) Text(stringResource(Res.string.sheetedit_jangdan_none_compatible))
+                if (picker.options.none { draft.isCompatibleWith(it) }) SheetJangdanNoMatchHelp(draft)
                 FlowRow(
                     modifier = Modifier.heightIn(max = 230.dp).verticalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     picker.options.forEach { option ->
                         FilterChip(selected = option.jangdanId == selectedId, enabled = draft.isCompatibleWith(option),
-                            onClick = { onSelect(option.jangdanId) }, label = { Text(option.name) })
+                            onClick = { onSelect(option.jangdanId) }, label = { SheetJangdanOptionLabel(option) })
                     }
                 }
             }
