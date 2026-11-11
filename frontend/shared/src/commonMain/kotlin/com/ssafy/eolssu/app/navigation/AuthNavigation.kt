@@ -32,7 +32,6 @@ import com.ssafy.eolssu.feature.auth.TermsRoute
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_link_done
 import eolssu.shared.generated.resources.auth_reset_done_notice
-import eolssu.shared.generated.resources.auth_welcome
 import eolssu.shared.generated.resources.my_link_done
 import eolssu.shared.generated.resources.my_logged_out
 import eolssu.shared.generated.resources.member_api_session_expired
@@ -101,8 +100,6 @@ internal fun shouldRedirectExpiredSession(route: String?): Boolean =
  * 계정 연결 안내는 문구에 간편 로그인 제공자 이름을 넣으므로 제공자도 함께 남긴다.
  */
 enum class StartNotice(val message: StringResource) {
-    Welcome(Res.string.auth_welcome),
-
     /** 로그인 중 계정 연결(AUTH-09) 뒤 홈. */
     AccountLinked(Res.string.auth_link_done),
     PasswordChanged(Res.string.auth_reset_done_notice),
@@ -156,7 +153,7 @@ fun NavBackStackEntry.clearStartNotice() {
 
 /**
  * 첫 실행을 마쳤다고 기기에 남기고 홈으로 간다. 뒤로 가기로 로그인·가입 화면에 돌아오지 않도록 쌓인 화면을 모두 비운다.
- * 홈에서 띄울 안내(가입 환영·계정 연결)는 [notice]로, 계정 연결 안내에 넣을 제공자는 [provider]로 넘긴다.
+ * 홈에서 띄울 안내(계정 연결)는 [notice]로, 계정 연결 안내에 넣을 제공자는 [provider]로 넘긴다.
  */
 fun NavController.finishFirstRun(firstRunRepository: FirstRunRepository, notice: StartNotice?, provider: SocialProvider? = null) {
     firstRunRepository.markCompleted()
@@ -241,7 +238,7 @@ fun NavGraphBuilder.authGraph(
     composable(AuthDestination.SOCIAL_PROFILE) { entry ->
         ProfileSetupRoute(
             onBack = { navController.popBackStackFrom(entry) },
-            onDone = { onFinished(StartNotice.Welcome, null) },
+            onDone = { onFinished(null, null) },
             social = true,
         )
     }
@@ -273,7 +270,7 @@ fun NavGraphBuilder.authGraph(
     composable(AuthDestination.PROFILE) { entry ->
         ProfileSetupRoute(
             onBack = { navController.popBackStackFrom(entry) },
-            onDone = { onFinished(StartNotice.Welcome, null) },
+            onDone = { onFinished(null, null) },
         )
     }
     composable(AuthDestination.PASSWORD_RESET) { entry ->
