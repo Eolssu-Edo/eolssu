@@ -727,8 +727,8 @@
     <string name="my_title">마이페이지</string>
     <string name="my_learning_badge">기초 %1$d단계</string>
     <string name="my_learning_badge_done">기초 완료</string>
-    <string name="my_learning_badge_label">기초부터 배우기 진도: %1$s</string>
-    <string name="my_recent_title">최근 연주 돌아보기</string>
+    <string name="my_learning_badge_label">기초부터 배우기 진도: %1$s %2$s</string>
+    <string name="my_recent_title">최근 연주</string>
     <string name="my_recent_score">%1$d점</string>
     <string name="my_recent_score_unit">점</string>
     <string name="my_recent_meta">이번 주 %1$d회 연습</string>
