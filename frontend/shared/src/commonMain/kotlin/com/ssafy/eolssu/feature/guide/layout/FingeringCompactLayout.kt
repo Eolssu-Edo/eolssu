@@ -11,7 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.feature.guide.FingeringActions
-import com.ssafy.eolssu.feature.guide.FingeringInstrumentNote
 import com.ssafy.eolssu.feature.guide.FingeringUiState
 import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
@@ -45,7 +44,6 @@ internal fun FingeringCompactLayout(
                 )
                 BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.padding(bottom = 10.dp))
                 HoleLegend(Modifier.padding(top = 2.dp, bottom = 6.dp))
-                FingeringInstrumentNote(instrument)
             }
         }
         items(state.notes, key = { "${instrument.id}-${state.shownBlow}-${it.hanja}" }) { note ->

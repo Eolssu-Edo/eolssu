@@ -27,10 +27,7 @@ import com.ssafy.eolssu.feature.auth.component.AuthBody
 import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
-import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
-import com.ssafy.eolssu.feature.auth.component.AuthStepProgress
 import com.ssafy.eolssu.core.ui.component.EolssuTextField
-import com.ssafy.eolssu.feature.auth.component.AuthTopBar
 import com.ssafy.eolssu.feature.auth.component.SignupTopBar
 import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
@@ -54,13 +51,9 @@ import eolssu.shared.generated.resources.auth_code_sent
 import eolssu.shared.generated.resources.auth_code_sent_reset
 import eolssu.shared.generated.resources.auth_email
 import eolssu.shared.generated.resources.auth_email_placeholder
-import eolssu.shared.generated.resources.auth_reset_title
 import eolssu.shared.generated.resources.auth_reset_verify_heading
 import eolssu.shared.generated.resources.auth_signup_verify_heading
 import org.jetbrains.compose.resources.stringResource
-
-/** 비밀번호 찾기 단계 수: 1 이메일 인증 · 2 새 비밀번호. 가입 단계는 [SignupPath]가 정한다. */
-internal const val PasswordResetStepCount = 2
 
 /** 남은 초를 `m:ss`로 쓴다. */
 internal fun formatMinutesSeconds(seconds: Long): String = "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
@@ -90,18 +83,8 @@ fun EmailVerificationScreen(
         modifier = Modifier.imePadding(),
         snackbarHostState = snackbarHostState,
         topBar = {
-            if (signUp) {
-                SignupTopBar(SignupProgress(SignupPath.Email, SignupStep.EmailVerification), onBack = onBack)
-            } else {
-                Column {
-                    AuthTopBar(
-                        stringResource(Res.string.auth_reset_title),
-                        onBack = onBack,
-                        right = { AuthStepLabel(1, PasswordResetStepCount) },
-                    )
-                    AuthStepProgress(1, PasswordResetStepCount)
-                }
-            }
+            val path = if (signUp) SignupPath.Email else SignupPath.PasswordReset
+            SignupTopBar(SignupProgress(path, SignupStep.EmailVerification), onBack = onBack)
         },
         bottomBar = {
             if (state.codeSent) {

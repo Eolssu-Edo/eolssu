@@ -21,12 +21,17 @@ import com.ssafy.eolssu.feature.guide.ReferenceLoadState
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
-/** 음마다 기본음·요성 예시를 스피커 버튼으로 들려준다. 같은 버튼을 다시 누르면 멈춘다. */
+/**
+ * 음마다 기본음·요성 예시를 스피커 버튼으로 들려준다. 같은 버튼을 다시 누르면 멈춘다.
+ * [showLoadingMessage]가 false면 불러오는 중 안내 문구를 숨긴다. 음원 목록을 받는 동안에도 문구 대신 버튼을 비활성으로
+ * 먼저 보이고 목록이 오면 누를 수 있게 하며, 재생 준비 중 문구도 띄우지 않는다(버튼의 재생 중 표시는 그대로).
+ */
 @Composable
 fun ReferenceAudioControls(
     selection: ReferenceAudioSelection,
     controller: ReferenceAudioController,
     basicOnly: Boolean = false,
+    showLoadingMessage: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
     val state = controller.state
@@ -37,7 +42,8 @@ fun ReferenceAudioControls(
     } ?: AudioPlaybackState()
 
     Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-        if (state.loadState != ReferenceLoadState.Ready || (basic == null && yoseong == null)) {
+        val listLoadingSilently = !showLoadingMessage && state.loadState == ReferenceLoadState.Loading
+        if (!listLoadingSilently && (state.loadState != ReferenceLoadState.Ready || (basic == null && yoseong == null))) {
             val message = when (state.loadState) {
                 ReferenceLoadState.Loading -> Res.string.reference_audio_loading_list
                 ReferenceLoadState.Failed, ReferenceLoadState.NotRegistered -> Res.string.reference_audio_failed_list
@@ -75,7 +81,7 @@ fun ReferenceAudioControls(
             }
         }
         val message = when (playback.status) {
-            AudioPlaybackStatus.Loading -> Res.string.reference_audio_loading_sound
+            AudioPlaybackStatus.Loading -> Res.string.reference_audio_loading_sound.takeIf { showLoadingMessage }
             AudioPlaybackStatus.Failed -> Res.string.reference_audio_failed_sound
             AudioPlaybackStatus.Interrupted -> Res.string.reference_audio_interrupted
             AudioPlaybackStatus.Unavailable -> Res.string.reference_audio_unavailable

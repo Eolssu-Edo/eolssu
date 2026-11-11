@@ -62,10 +62,11 @@ class PracticeStateTest {
     }
 
     @Test
-    fun evaluationAsksMicOnceThenCountsDown() {
+    fun evaluationWaitsForDeviceMicPermissionWithoutServiceNoticeThenCountsDown() {
         val asked = ready.startModel().requestEvaluation(micGranted = false)
         assertEquals(PracticeMode.Ready, asked.mode)
-        assertEquals(PracticePopup.Permission, asked.popup)
+        assertFalse(asked.playing)
+        assertNull(asked.popup)
 
         val counting = ready.requestEvaluation(micGranted = true)
         assertEquals(PracticeMode.Countdown, counting.mode)
@@ -126,12 +127,18 @@ class PracticeStateTest {
     }
 
     @Test
-    fun directEvaluationShowsPreparingLayoutBeforeCountdown() {
+    fun directEvaluationWaitsWithRecordingLayoutBeforeStart() {
         val direct = PracticeUiState(song = arirang, direct = true)
         assertEquals(PracticeMode.Ready, direct.mode)
-        assertTrue(direct.preparing)
+        assertTrue(direct.awaitingStart)
+        assertFalse(direct.preparing)
         assertTrue(direct.recordingLayout)
-        assertTrue(direct.beginCountdown().preparing)
+
+        val counting = direct.beginCountdown()
+        assertFalse(counting.awaitingStart)
+        assertTrue(counting.preparing)
+        assertTrue(counting.cancelCountdown().awaitingStart)
+        assertFalse(ready.awaitingStart)
     }
 
     @Test
@@ -312,11 +319,16 @@ class PracticeStateTest {
     }
 
     @Test
-    fun micDenialStaysOnScreenWithDeniedOrBlockedPopup() {
+    fun micDenialStaysReadyAndOnlyBlockedShowsSettingsNotice() {
         val denied = ready.requestEvaluation(micGranted = false).denyMic(blocked = false)
         assertEquals(PracticeMode.Ready, denied.mode)
-        assertEquals(PracticePopup.PermDenied, denied.popup)
+        assertNull(denied.popup)
         assertEquals(PracticePopup.PermBlocked, ready.denyMic(blocked = true).popup)
+
+        // 연주 평가는 거부해도 평가 대기 상태에 남는다(S15P31E102-747).
+        val direct = ready.copy(direct = true)
+        assertTrue(direct.denyMic(blocked = false).awaitingStart)
+        assertTrue(direct.denyMic(blocked = true).awaitingStart)
     }
 
     @Test
