@@ -152,6 +152,21 @@ data class SheetEditUiState(
         return commit(draft.copy(title = normalizedTitle, bpm = bpm))
     }
 
+    /** 편집 설정의 빠르기·장단을 한 번에 적용한다. 제목은 저장 창에서만 바꾼다. */
+    internal fun updateSettings(bpm: Int, jangdanId: String?): SheetEditUiState {
+        if (!canEditDetails || bpm !in SheetBpmRange) return this
+        val next = when {
+            jangdanId == null -> draft.copy(bpm = bpm, jangdanId = null, editedJangdanName = "")
+            jangdanId == draft.jangdanId -> draft.copy(bpm = bpm)
+            else -> {
+                val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: availableJangdans.orEmpty()
+                val option = options.firstOrNull { it.jangdanId == jangdanId && draft.isCompatibleWith(it) } ?: return this
+                draft.copy(bpm = bpm, jangdanId = jangdanId, editedJangdanName = option.name)
+            }
+        }
+        return commit(next).copy(jangdanPicker = null, withJangdan = if (jangdanId == null) false else withJangdanFor(next))
+    }
+
     fun selectJangdan(id: String): SheetEditUiState {
         val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: return this
         val option = options.firstOrNull { it.jangdanId == id && draft.isCompatibleWith(it) } ?: return this
@@ -188,6 +203,14 @@ data class SheetEditUiState(
 
     val nextReviewCellIndex: Int?
         get() = nextReviewIssue?.let { issue -> draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } }
+
+    val selectedReviewIssue: SheetReviewIssue?
+        get() = draft.sourceCellIds?.getOrNull(selected)?.let { cellId ->
+            reviewIssues.firstOrNull { it.cellId == cellId && it.id !in validatedCheckedIssueIds }
+        }
+
+    val canCheckSelectedReviewIssue: Boolean
+        get() = !confirming && selectedReviewIssue?.id in completionValidation.checkableIssueIds
 
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. */
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. 고른 소박은 그 정간이 여전히 나뉘어 있을 때만 남긴다. */
@@ -340,10 +363,14 @@ data class SheetEditUiState(
 
     /** '저장': 빈 정간이 있으면 경고 창을 열고, 없으면 저장했다고 알린다. */
     fun requestSave(): SheetEditUiState = when {
-        completionValidation.hasEmptyCells -> copy(emptyWarning = true)
-        !completionValidation.canComplete -> copy(completionWarning = true)
+        completionValidation.hasEmptyCells -> focusCompletionIssue().copy(emptyWarning = true)
+        !completionValidation.canComplete -> focusCompletionIssue().copy(completionWarning = true)
         else -> copy(emptyWarning = false, completionWarning = false, savedOnce = true, message = SheetEditMessage.Saved)
     }
+
+    internal fun focusCompletionIssue(): SheetEditUiState = completionValidation.firstCellIndex?.let {
+        select(it).copy(view = EditView.Jeongganbo)
+    } ?: this
 
     /** '임시저장': 빈 정간이 있어도 된다. 경고 창에서 눌러도 같다. */
     fun saveDraft(): SheetEditUiState = copy(emptyWarning = false, completionWarning = false, message = SheetEditMessage.Draft)

@@ -17,6 +17,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
+import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
@@ -36,25 +37,33 @@ import eolssu.shared.generated.resources.sheetedit_msg_saved
 import eolssu.shared.generated.resources.sheetedit_msg_saved_for_practice
 import eolssu.shared.generated.resources.sheetedit_msg_saved_needs_review
 import eolssu.shared.generated.resources.sheet_save_unfilled
+import eolssu.shared.generated.resources.sheet_editor_correction_title
+import eolssu.shared.generated.resources.sheet_editor_correct_cell
+import eolssu.shared.generated.resources.sheet_editor_correction_location
+import eolssu.shared.generated.resources.sheet_review_checked
+import eolssu.shared.generated.resources.sheet_review_missing_pitch
+import eolssu.shared.generated.resources.sheet_review_pitch_label
+import eolssu.shared.generated.resources.sheet_review_range
+import eolssu.shared.generated.resources.sheet_review_uncertain
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * EDIT-02 · 03 연결. [viewModel]은 편집 화면 경로에 묶인 것을 받아 미리보기(EDIT-04)와 같은 악보를 쓴다.
- * 저장은 제목·빠르기 대화상자에서 바로 처리한다. 별도의 미리듣기는 [onPreview]로 연다.
+ * 저장 시에만 수정할 정간과 해결 방법을 표시한다. 제목은 저장 창, 빠르기·장단은 편집 창에서 바꾼다.
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun SheetEditRoute(
     viewModel: SheetEditViewModel,
     onClose: () -> Unit,
-    onPreview: () -> Unit,
     onOpenChecks: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var detailsOpen by rememberSaveable { mutableStateOf(false) }
     var saveOpen by rememberSaveable { mutableStateOf(false) }
+    var correctionOpen by rememberSaveable { mutableStateOf(false) }
+    var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
-    BackHandler(enabled = state.draft.original != null && !state.closeWarning && !detailsOpen && !saveOpen && !state.confirming) { viewModel.closeEditor(onClose) }
+    BackHandler(enabled = state.draft.original != null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && !state.confirming) { viewModel.closeEditor(onClose) }
     if (state.documentLoading || state.documentFailed) {
         SheetDocumentNotice(state.documentLoading, onClose, viewModel::loadDocument)
         return
@@ -89,17 +98,18 @@ fun SheetEditRoute(
     SheetEditScreen(
         state = state,
         snackbarHostState = snackbarHostState,
+        focusRequestKey = focusRequestKey,
         actions = SheetEditActions(
             onClose = { viewModel.closeEditor(onClose) },
-            onPreview = onPreview,
-            onSave = { saveError = null; saveOpen = true },
+            onSave = {
+                saveError = null
+                if (state.completionValidation.correctionCellIndices.isNotEmpty()) {
+                    viewModel.openCompletionIssue()
+                    focusRequestKey++
+                    correctionOpen = true
+                } else saveOpen = true
+            },
             onOpenDetails = { detailsOpen = true },
-            onOpenChecks = onOpenChecks,
-            onOpenReviewCell = viewModel::openNextReviewCell,
-            onCheckReviewIssue = viewModel::checkReviewIssue,
-            onFixCompletionIssue = viewModel::openCompletionIssue,
-            onClearJangdan = viewModel::clearJangdan,
-            onRetryCompletionCatalog = viewModel::retryCompletionCatalog,
             onSelectCell = viewModel::selectCell,
             onSelectUnit = viewModel::selectUnit,
             input = EditInputActions(
@@ -137,11 +147,12 @@ fun SheetEditRoute(
         notice = {
             SheetCompletionNotice(
                 state,
-                onFixCells = { saveOpen = false; viewModel.openCompletionIssue() },
-                onChangeJangdan = { saveOpen = false; viewModel.changeJangdan() },
+                onFixCells = { saveOpen = false; viewModel.openCompletionIssue(); focusRequestKey++ },
+                onChangeJangdan = { saveOpen = false; detailsOpen = true },
                 onClearJangdan = viewModel::clearJangdan,
                 onRetryCatalog = viewModel::retryCompletionCatalog,
             )
+            SheetConversionNotes(state.reviewNotices)
             val error = saveError ?: when {
                 state.saveConflict -> messages[SheetEditMessage.SaveConflict]
                 state.emptyWarning -> stringResource(Res.string.sheet_save_unfilled)
@@ -150,16 +161,52 @@ fun SheetEditRoute(
             if (error != null) Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         },
     )
-    if (detailsOpen && state.canEditDetails) SheetEditDetailsDialog(
-        initialTitle = state.draft.title,
-        initialBpm = state.draft.bpm,
-        onApply = { title, bpm ->
-            viewModel.updateDetails(title, bpm)
+    if (correctionOpen) EolssuDialog(
+        title = stringResource(Res.string.sheet_editor_correction_title),
+        message = stringResource(Res.string.sheet_editor_correction_location, state.draft.columnOf(state.selected) + 1, state.draft.rowOf(state.selected) + 1),
+        onDismissRequest = { correctionOpen = false },
+    ) {
+        SheetCompletionNotice(
+            state,
+            onFixCells = { correctionOpen = false; focusRequestKey++ },
+            onChangeJangdan = { correctionOpen = false; detailsOpen = true },
+            onClearJangdan = viewModel::clearJangdan,
+            onRetryCatalog = viewModel::retryCompletionCatalog,
+            showCellAction = false,
+        )
+        state.selectedReviewIssue?.let { issue ->
+            val reason = when (issue.kind) {
+                "UNREGISTERED_PITCH" -> issue.pitch?.let { (name, octave) -> stringResource(Res.string.sheet_review_pitch_label, name, octave) }
+                    ?: stringResource(Res.string.sheet_review_missing_pitch)
+                "OUT_OF_RANGE" -> stringResource(Res.string.sheet_review_range)
+                else -> stringResource(Res.string.sheet_review_uncertain)
+            }
+            Text(reason, style = MaterialTheme.typography.bodySmall)
+            EolssuButton(stringResource(Res.string.sheet_review_checked), {
+                viewModel.checkSelectedReviewIssue()
+                if (viewModel.uiState.value.completionValidation.correctionCellIndices.isNotEmpty()) {
+                    viewModel.openCompletionIssue()
+                    focusRequestKey++
+                } else {
+                    correctionOpen = false
+                    saveOpen = true
+                }
+            }, enabled = state.canCheckSelectedReviewIssue)
+        }
+        EolssuButton(stringResource(Res.string.sheet_editor_correct_cell), { correctionOpen = false; focusRequestKey++ }, style = EolssuButtonStyle.Secondary)
+    }
+    if (detailsOpen && state.canEditDetails) SheetEditSettingsDialog(
+        draft = state.draft,
+        picker = state.jangdanPicker,
+        saving = state.saving,
+        onLoadJangdans = viewModel::changeJangdan,
+        onApply = { bpm, jangdanId ->
+            viewModel.updateSettings(bpm, jangdanId)
             detailsOpen = false
         },
-        onDismiss = { detailsOpen = false },
+        onDismiss = { detailsOpen = false; viewModel.closeJangdanPicker() },
     )
-    state.jangdanPicker?.let { picker ->
+    state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
             onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)
     }

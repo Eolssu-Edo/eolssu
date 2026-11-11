@@ -242,7 +242,7 @@ internal fun EditorTopBar(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
+                if (subtitle.isNotBlank()) Text(
                     subtitle,
                     modifier = Modifier.padding(top = 2.dp),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
