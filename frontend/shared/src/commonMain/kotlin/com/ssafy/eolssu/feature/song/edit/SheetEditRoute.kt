@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
+import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetPitchCorrectionDialog
 import eolssu.shared.generated.resources.Res
@@ -66,7 +67,7 @@ fun SheetEditRoute(
     var pitchCorrection by remember { mutableStateOf<SheetPitchCorrection?>(null) }
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
-    BackHandler(enabled = state.draft.original != null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
+    BackHandler(enabled = state.draft.original != null && state.adaptation == null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
     if (state.documentLoading || state.documentFailed) {
         SheetDocumentNotice(state.documentLoading, onClose, viewModel::loadDocument)
         return
@@ -230,7 +231,16 @@ fun SheetEditRoute(
             detailsOpen = false
         },
         onDismiss = { detailsOpen = false; viewModel.closeJangdanPicker() },
+        onAdapt = { detailsOpen = false; viewModel.closeJangdanPicker(); viewModel.openAdaptation() },
     )
+    state.adaptation?.let { panel -> SheetAdaptationDialog(panel,
+        onInstrument = viewModel::selectAdaptationInstrument, onTranspose = viewModel::selectAdaptationTranspose,
+        onApply = viewModel::applyAdaptation, onDismiss = viewModel::closeAdaptation, onRetry = viewModel::openAdaptation,
+        onLocate = { cellId ->
+            val index = state.draft.sourceCellIds?.indexOf(cellId) ?: -1
+            viewModel.applyAdaptation()
+            if (index >= 0) { viewModel.selectCell(index); focusRequestKey++ }
+        }) }
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
             onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)

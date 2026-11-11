@@ -9,6 +9,24 @@ import kotlinx.serialization.json.*
 import kotlin.test.*
 
 class SheetDocumentRepositoryTest {
+    @Test fun largeSourceSnapshotIsNotEchoedInAutosaveBody() = runTest {
+        var bytes = 0
+        val repository = ApiSheetDocumentRepository(createHttpClient(MockEngine { request ->
+            val text = (request.body as io.ktor.http.content.TextContent).text
+            bytes = text.encodeToByteArray().size
+            val source = Json.parseToJsonElement(text).jsonObject.getValue("authoring").jsonObject.getValue("source").jsonObject
+            assertEquals(setOf("scoreSha256"), source.keys)
+            respond("""{"isSuccess":true,"code":200,"result":{"sheetId":"31","draftRevision":1}}""",
+                HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production))
+        val source = buildJsonObject { put("schema", "sheet-authoring/v1"); put("source", buildJsonObject {
+            put("scoreSha256", "0".repeat(64)); put("score", "x".repeat(600_000))
+        }) }
+        assertEquals(SheetWrite.Saved("1", 1), repository.save("31", SheetWorkingCopy("x", null, 60,
+            smallScoreData(), "1", 0, authoring = source), true))
+        assertTrue(bytes < 10_000)
+    }
+
     @Test fun keepsWholeScoreNoticesSeparateFromCellIssues() = runTest {
         val score = Json.encodeToJsonElement(smallScoreData())
         val repository = ApiSheetDocumentRepository(createHttpClient(MockEngine {

@@ -44,6 +44,7 @@ import eolssu.shared.generated.resources.sheet_settings_title
 import eolssu.shared.generated.resources.sheetedit_jangdan_load_failed
 import eolssu.shared.generated.resources.sheetedit_jangdan_same_unit
 import eolssu.shared.generated.resources.sheet_upload_reload
+import eolssu.shared.generated.resources.sheet_adapt_title
 import org.jetbrains.compose.resources.stringResource
 
 /** 빠르기와 장단은 대화상자 안에서만 고르고 적용할 때 한 번에 전달한다. */
@@ -55,6 +56,7 @@ internal fun SheetEditSettingsDialog(
     onLoadJangdans: () -> Unit,
     onApply: (Int, String?) -> Unit,
     onDismiss: () -> Unit,
+    onAdapt: () -> Unit,
     saving: Boolean = false,
 ) {
     var bpm by rememberSaveable { mutableStateOf(draft.bpm.toString()) }
@@ -72,6 +74,8 @@ internal fun SheetEditSettingsDialog(
         modifier = Modifier.verticalScroll(rememberScrollState()),
         onDismissRequest = { if (!saving) onDismiss() },
     ) {
+        EolssuButton(stringResource(Res.string.sheet_adapt_title), onAdapt,
+            style = EolssuButtonStyle.Secondary, enabled = !saving)
         EolssuTextField(
             value = bpm,
             onValueChange = { if (!saving) bpm = it },

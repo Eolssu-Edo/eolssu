@@ -23,6 +23,7 @@ data class SaveSheetScoreCommand(
     /** 공통 악보 v1 문서 전체(JSON). */
     val scoreJson: String,
     val resolvedIssueIds: List<String>,
+    val authoringJson: String? = null,
 )
 
 sealed interface SaveSheetScoreResult {
@@ -44,6 +45,7 @@ data class SaveSheetDraftCommand(
     val jangdanId: Long?,
     val bpm: Int,
     val scoreJson: String,
+    val authoringJson: String? = null,
 )
 
 sealed interface SaveSheetDraftResult {
@@ -68,6 +70,8 @@ class EditUserSheet(
         if (title != null && !titleIsValid(title) || command.bpm !in BPM_RANGE) return SaveSheetScoreResult.InvalidRequest
         val sheet = repository.find(command.sheetId, command.userId) ?: return SaveSheetScoreResult.NotFound
         if (sheet.scoreVersion != command.baseScoreVersion) return SaveSheetScoreResult.StateConflict
+        val authoringMetadata = try { SheetAuthoring(json).merge(sheet, command.authoringJson) }
+            catch (_: IllegalArgumentException) { return SaveSheetScoreResult.InvalidRequest }
         if(sheet.imported!=null && sheet.imported.conversionStatus!=com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportStatus.DONE) return SaveSheetScoreResult.StateConflict
         val details=sheet.imported?.resultJson?.let { json.readTree(it) as ObjectNode }
         val issues=details?.path("issues")?.toList() ?: emptyList()
@@ -108,6 +112,7 @@ class EditUserSheet(
                 updatedAt = now(),
                 pendingCellCount = pending,
                 conversionResultJson = details?.let(json::writeValueAsString),
+                authoringJson = authoringMetadata,
             ),
         )
         // 읽은 뒤 다른 기기가 먼저 저장했다. 지웠으면 없는 악보다.
@@ -125,10 +130,13 @@ class EditUserSheet(
         val sheet = repository.find(command.sheetId, command.userId) ?: return SaveSheetDraftResult.NotFound
         if(sheet.imported!=null && sheet.imported.conversionStatus!=com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportStatus.DONE) return SaveSheetDraftResult.StateConflict
         if (sheet.scoreVersion != command.baseScoreVersion || sheet.draftRevision != command.draftRevision) return SaveSheetDraftResult.StateConflict
+        val authoring = try { SheetAuthoring(json).merge(sheet, command.authoringJson) }
+            catch (_: IllegalArgumentException) { return SaveSheetDraftResult.InvalidRequest }
 
         val savedAt = now()
         val draft = """{"title":${quote(title ?: sheet.title)},"jangdanId":${command.jangdanId?.let { quote(it.toString()) } ?: "null"},""" +
-            """"bpm":${command.bpm},"score":${command.scoreJson}}"""
+            """"bpm":${command.bpm},"score":${command.scoreJson}""" +
+            (authoring?.let { ",\"authoring\":$it" } ?: "") + "}"
         val updated = repository.updateDraft(SheetDraftUpdate(sheet.id, command.userId, command.baseScoreVersion, command.draftRevision, draft, savedAt))
         if (!updated) return repository.find(command.sheetId, command.userId)?.let { SaveSheetDraftResult.StateConflict } ?: SaveSheetDraftResult.NotFound
         return SaveSheetDraftResult.Saved(command.draftRevision + 1, unfilled, savedAt)
