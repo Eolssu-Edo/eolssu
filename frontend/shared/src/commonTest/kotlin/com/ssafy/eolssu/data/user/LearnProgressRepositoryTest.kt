@@ -108,6 +108,31 @@ class LearnProgressRepositoryTest {
     }
 
     @Test
+    fun recentProgressFollowsInstrumentOfLatestCompletion() = runTest {
+        api.completed["me"] = mutableSetOf(api.id("danso", 1), api.id("danso", 2), api.id("sogeum", 1))
+        api.completedAt[api.id("danso", 1)] = "2026-11-01T00:00:00Z"
+        api.completedAt[api.id("danso", 2)] = "2026-11-05T10:00:00Z"
+        // 문자열로 비교하면 '.'이 'Z'보다 앞이라 단소가 이긴다. 시각으로 비교해 0.5초 뒤인 소금을 고른다.
+        api.completedAt[api.id("sogeum", 1)] = "2026-11-05T10:00:00.500Z"
+
+        val recent = repository().recentProgress(fallback = Instrument.Danso)
+
+        assertEquals(RecentLearning(Instrument.Sogeum, setOf(1)), recent)
+    }
+
+    @Test
+    fun recentProgressUsesFallbackInstrumentWithoutAnyCompletion() = runTest {
+        assertEquals(RecentLearning(Instrument.DaegeumJeongak, emptySet()), repository().recentProgress(Instrument.DaegeumJeongak))
+    }
+
+    @Test
+    fun recentProgressIsNullWhenTracksCannotBeLoaded() = runTest {
+        api.online = false
+
+        assertNull(repository().recentProgress(Instrument.Danso))
+    }
+
+    @Test
     fun onlySavedChangesTellOtherScreensToCountAgain() = runTest {
         val repository = repository()
         val before = repository.saves.value

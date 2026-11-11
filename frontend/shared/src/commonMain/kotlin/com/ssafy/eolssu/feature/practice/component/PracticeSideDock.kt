@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreNote
@@ -164,11 +165,14 @@ private fun QuickRow(label: String, status: String, on: Boolean, locked: Boolean
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+        // 이름은 줄바꿈하지 않고, 긴 상태 문구가 남은 폭 안에서 줄을 바꾼다.
+        Text(label, softWrap = false, maxLines = 1, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
         Text(
             status,
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal),
             color = if (on) colors.text else colors.textMuted,
+            textAlign = TextAlign.End,
         )
         Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.lineStrong)
     }

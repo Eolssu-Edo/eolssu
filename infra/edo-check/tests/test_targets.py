@@ -49,12 +49,14 @@ class TargetTests(unittest.TestCase):
             return [] if path.startswith('/containers/json') else {}
         with patch.object(collector, 'docker', side_effect=docker):
             self.assertEqual(collector.snapshot(target='edo2')[3], [])
-            self.assertEqual(len(collector.snapshot(target='edo1')[3]), 7)
+            issues = collector.snapshot(target='edo1')[3]
+            self.assertEqual(len(issues), 8)
+            self.assertIn('eolssu-replication-proxy-579 필수 컨테이너 누락', issues)
 
     def test_empty_container_report_identifies_edo2_without_fabricating_measurements(self):
         report = {'target':'edo2','mode':'containers','columns':[str(i) for i in range(11)],'rows':[], 'facts':[]}
         text = relay.build_report(report, 'req')
-        self.assertIn('edo2 컨테이너 점검', text)
+        self.assertEqual(text.splitlines()[0], '### edo2 컨테이너')
         self.assertIn('등록된 컨테이너 0개', text)
         self.assertNotIn('/edo1-', text)
 
@@ -67,7 +69,7 @@ class TargetTests(unittest.TestCase):
                                        mount,'1시간/0회','0/아니오','1/없음','1B/1B · IO 1B/1B','image']],
                               'facts':[{'name':'demo','ram_bytes':100,'host_ram':1000,'ram_limit':0,'cpu_percent':0.1}]}
                     text = relay.build_report(report, 'req')
-                    self.assertTrue(text.startswith(f'### {target} 컨테이너 점검'))
+                    self.assertEqual(text.splitlines()[0], f'### {target} 컨테이너')
                     self.assertIn(f'/{target}-health', text)
 
     def test_edo2_https_checks_relay_json_and_not_application_api(self):
