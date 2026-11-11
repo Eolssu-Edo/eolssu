@@ -96,6 +96,17 @@ class HttpPracticeSessionTest {
         assertEquals(SessionStart.Unreachable, repo(HttpStatusCode.Created).create("2", 60, "k"))
     }
 
+    @Test fun recordedVersionIsSentForWholeAndSectionCreation() = runTest {
+        val repo = HttpPracticeSessionRepository(client { HttpStatusCode.Created to created }, member)
+        repo.create("2", 60, "whole-v1", expectedScoreVersion = 1)
+        repo.create("2", 60, "section-v1", expectedScoreVersion = 1, section = SessionSection(12, 27, "30"))
+        assertEquals("""{"songId":"2","bpm":60,"expectedScoreVersion":1}""", bodies[0])
+        assertContains(bodies[1], "\"expectedScoreVersion\":1")
+        assertContains(bodies[1], "\"parentSessionId\":\"30\"")
+        assertEquals(SessionStart.Rejected, repo.create("2", 60, "invalid", expectedScoreVersion = 0))
+        assertEquals(2, requests.size)
+    }
+
     @Test
     fun createKeepsTheOwnerUntilItsResponseIsBoundToTheSession() = runTest {
         val entered = CompletableDeferred<Unit>()

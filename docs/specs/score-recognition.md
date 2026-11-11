@@ -151,7 +151,7 @@ POST /v1/recognitions
 - 2중주 이상(열 위 '단소1'·'단소Ⅱ'·'1단소' 같은 표시)은 1 성부 열만 읽고 `VOICE_GUESSED`(`detail` `{"voices": 성부 수, "kept": 1}`, `bbox` 쪽 전체)를 남긴다. 표시로 열을 모두 가르지 못하면 그 쪽은 격자를 못 읽은 쪽과 같다.
 - 정간 하나의 박 = 장단 한 번의 박(`bpmUnit` 기준) ÷ 각 하나의 정간 수. 한 각을 장단 한 번으로 본다. 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박(검수 정답 8곡과 같음). 결과가 1·1/2·1/3박이 아니면 고른 장단이 악보와 다를 수 있어 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)를 남긴다. 점4분음표 칸을 쓰는 세령산 10정간 각의 정간당 3/2박만 추가로 허용한다.
 - 읽지 않은 글자(시김새 글자 등)는 `UNREADABLE` issue로, `detail.text`에 글자, `bbox`에 쪽 그림 위치(글자 크기의 정사각형), `cellId`에 그 글자를 덮는 정간을 둔다(`eventId`는 비운다).
-- `engine` `jeongganbo-text`, `engineVersion` `2`, `provenance.converter` `jeongganbo-text/standard_score_text@2`. 버전 2는 장단 패턴 칸의 음가를 `bpmUnit` 박으로 환산한다. `score.title`·`sourceId`는 `conversionId`다(곡 제목은 backend가 저장할 때 정한다).
+- `engine` `jeongganbo-text`, `engineVersion` `3`, `provenance.converter` `jeongganbo-text/standard_score_text@3`. 버전 2의 장단 패턴 음가 환산을 유지하며, 버전 3은 PDF의 벡터 삼각 쉼표와 명시적 각 경계 이음을 보존한다. 우물사이 전용 옥타브 점 인식은 제외하며, 글자 위아래의 점으로 음역을 추정하지 않는다. PDF 가져오기의 명시적 `-`만 앞 각의 음에 이어 붙이며 새 각 첫 빈칸은 기존대로 쉼이다. 기존 검수 JGB·오선보 경로는 각 경계 규칙을 유지한다. `score.title`·`sourceId`는 `conversionId`다(곡 제목은 backend가 저장할 때 정한다).
 - 요청 `jangdan`은 `data/reference/jangdans.json`의 `name`이어야 한다(아니면 422). 정간보는 꼭 보내고, 오선보는 생략할 수 있다.
 
 ## 오선보 → 정간보 기본값

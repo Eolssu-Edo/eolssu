@@ -20,6 +20,8 @@ import eolssu.shared.generated.resources.weak_loop_no_notes
 import eolssu.shared.generated.resources.weak_loop_no_recorder
 import eolssu.shared.generated.resources.weak_loop_open_settings
 import eolssu.shared.generated.resources.weak_loop_record_failed
+import eolssu.shared.generated.resources.weak_score_changed
+import eolssu.shared.generated.resources.weak_score_unavailable
 import org.jetbrains.compose.resources.getString
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -58,6 +60,8 @@ fun SectionLoopRoute(
         snackbarHostState.currentSnackbarData?.dismiss()
         val message = getString(
             when (notice) {
+                SectionLoopNotice.ScoreChanged -> Res.string.weak_score_changed
+                SectionLoopNotice.ScoreUnavailable -> Res.string.weak_score_unavailable
                 SectionLoopNotice.NoRecorder -> Res.string.weak_loop_no_recorder
                 SectionLoopNotice.NoNotes -> Res.string.weak_loop_no_notes
                 SectionLoopNotice.MicDenied -> Res.string.weak_loop_mic_denied

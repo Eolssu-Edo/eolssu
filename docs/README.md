@@ -1,10 +1,16 @@
 # 프로젝트 문서
 
 - [마이페이지 화면을 테두리 없는 카드의 깔끔한 디자인으로 개선 (731)](plans/S15P31E102-731.md)
+- [내 악보 음역 선택과 변환 오류 수정 안내 (741)](plans/S15P31E102-741.md) · [스펙](specs/sheet-pitch-correction.md) · [PDF 오류 원인과 전후 대조](knowledge/frontend/sheet-pitch-conversion-corrections.md)
+- [공개곡 판본 보관·조회와 안전 게시 (745)](plans/S15P31E102-745.md) · [계약](specs/published-score-history.md) · [판본 보존 근거](knowledge/backend/published-score-history.md)
+
+- [정간보 쉽게 읽기 QA 반영: 한 화면 쪽 카드 크기 통일과 불필요한 안내 정리 (742)](plans/S15P31E102-742.md)
+- [연주 평가 시작 시 서비스 마이크 안내 창 없이 기기 권한 요청만 표시 (733)](plans/S15P31E102-733.md)
 - [내 악보 편집 도구와 오류 정간 표시 정리 (736)](plans/S15P31E102-736.md) · [초기 오류 표시와 정간 이동 근거](knowledge/frontend/sheet-editor-save-validation.md#초기-오류-표시와-실제-정간으로-이동-736)
 
 - [기존 정간보 장단·빠르기 전수 조사와 교정 (728)](knowledge/data/common/rhythm-metronome/README.md) · [스펙](specs/score-tempo-correction.md) · [전체 근거표](knowledge/data/common/rhythm-metronome/score-tempo-audit.csv)
 - [정간보 단모리 변환 시간 교정 (732)](specs/danmori-conversion-timing.md) · [오류 원인과 기존 데이터 영향](knowledge/ai/jeongganbo-beat-timing.md)
+- [비행기 네 악기 악보·CAT 음원·단모리 연결 (707)](specs/airplane-four-instruments.md) · [분리 계획·검증](plans/S15P31E102-707.md) · [악보·생성 근거](knowledge/data/airplane-beginner-score.md)
 
 - [iOS 연습 장단 소리 재생 연결 (714)](plans/S15P31E102-714.md) · [장단 재생 스펙](specs/jangdan-practice-playback.md#ios-연습-장단-재생-s15p31e102-714)
 - [한 음씩 연습 안내 문구 삭제·현재 정간 칸 정렬과 예시음 재생 수정 (717)](plans/S15P31E102-717.md)
@@ -29,6 +35,7 @@
 - [iOS Jenkins Mac 이관·Ad Hoc 자동 배포 (444)](plans/S15P31E102-444.md) · [운영 절차](../infra/ios-qa/README.md)
 - [운영 iOS 간편 로그인 복귀 주소와 Apple 로그인 설정 (563)](plans/S15P31E102-563.md)
 - [이전 연주 결과·녹음 기록 통합 (553)](plans/S15P31E102-553.md)
+- [기록 상세 독립화와 당시 판본 조회 (454)](plans/S15P31E102-454.md) · [스펙](specs/record-detail-independence.md)
 - [홈 평가 시작 화살표·정간보 카드 배경 정리 (554)](plans/S15P31E102-554.md)
 - [iOS App Store Connect 등록과 첫 심사 제출 준비 (564)](plans/S15P31E102-564.md)
 - [기록 평가 변환·오류 표시·녹음 재생의 경계와 실행 관찰](knowledge/frontend/history-result-playback.md)
@@ -108,6 +115,7 @@
 - [내 악보 연습 화면에서 음원 다운로드 연결 (702)](plans/S15P31E102-702.md)
 - [내 악보 생성 음원의 실제 연주 위치 (675)](plans/S15P31E102-675.md)
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
+- [녹음 판본과 신규 연습 세션 보호 (453)](specs/recorded-score-version.md) · [계획·검증](plans/S15P31E102-453.md)
 - [내 악보 연습에서 음원 받기 화면으로 이동 (690)](plans/S15P31E102-690.md)
 
 - [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)

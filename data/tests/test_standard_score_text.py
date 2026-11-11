@@ -96,6 +96,46 @@ class CellTextTests(unittest.TestCase):
 
 
 class LayoutTests(unittest.TestCase):
+    def test_vector_rest_only_gak_is_preserved(self):
+        with tempfile.TemporaryDirectory() as d:
+            pdf = Path(d) / "vector.pdf"
+            score_pdf(pdf, [[["大", "林", "-"], ["", "", ""], ["仲", "林", "-"]]])
+            with pymupdf.open(pdf) as doc:
+                page = doc[0]
+                for row in range(3):
+                    x, y = 500 - (COL_W + 16) - COL_W / 2, 40 + row * JG_H + JG_H / 2
+                    page.draw_polyline([(x, y - 4), (x + 5, y + 4), (x - 5, y + 4), (x, y - 4)])
+                gaks, _, report = sst.read_page(page)
+            self.assertEqual(gaks, [":0 대 | :0 임 | :0 -", ":0 쉼표 | :0 쉼표 | :0 쉼표",
+                                    ":0 중 | :0 임 | :0 -"])
+            self.assertEqual(report["ignored_at"], [])
+
+    def test_vector_dots_do_not_change_written_pitch_register(self):
+        for hanja, expected, offsets in (("大", "대", (-5, -8)), ("夷", "이", (5, 8))):
+            with self.subTest(hanja=hanja), tempfile.TemporaryDirectory() as d:
+                pdf = Path(d) / "dots.pdf"
+                score_pdf(pdf, [[[hanja, "林", "-"], ["仲", "林", "-"]]])
+                with pymupdf.open(pdf) as doc:
+                    page = doc[0]
+                    note = next(g for g in sst.glyphs(page) if g["c"] == hanja)
+                    for dy in offsets:
+                        page.draw_circle((note["x"], note["y"] + dy), 0.9, color=None, fill=(0, 0, 0))
+                    gaks, _, _ = sst.read_page(page)
+                self.assertEqual(gaks, [f":0 {expected} | :0 임 | :0 -", ":0 중 | :0 임 | :0 -"])
+
+    def test_single_above_dot_is_not_an_octave_and_open_triangle_is_not_a_rest(self):
+        with tempfile.TemporaryDirectory() as d:
+            pdf = Path(d) / "marks.pdf"
+            score_pdf(pdf, [[["大", "林", "-"], ["仲", "", "-"]]])
+            with pymupdf.open(pdf) as doc:
+                page = doc[0]
+                dae = next(g for g in sst.glyphs(page) if g["c"] == "大")
+                page.draw_circle((dae["x"], dae["y"] - 6), 0.9, color=None, fill=(0, 0, 0))
+                x, y = 430, 107
+                page.draw_polyline([(x - 4, y + 4), (x, y - 4), (x + 4, y + 4)])
+                gaks, _, _ = sst.read_page(page)
+            self.assertEqual(gaks, [":0 대 | :0 임 | :0 -", ":0 중 |  | :0 -"])
+
     def test_full_height_columns_read_right_to_left(self):
         gaks, report = read([[["林", "南", "-"], ["潢", "", "汰"]]])
         self.assertEqual(gaks, [":0 임 | :0 남 | :0 -", ":0 청황 |  | :0 청태"])

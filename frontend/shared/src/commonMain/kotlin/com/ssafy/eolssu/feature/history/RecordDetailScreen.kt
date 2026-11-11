@@ -59,7 +59,7 @@ fun RecordDetailScreen(
                 right = { if (state.record != null) RecordDeleteButton(state.delete == RecordDeleteState.Deleting, actions.onAskDelete) },
             )
         },
-        bottomBar = if (state.record != null && state.song != null) {
+        bottomBar = if (state.record != null) {
             { PlaybackBarContent(state, actions, gap = 8.dp) }
         } else null,
     ) {
@@ -104,13 +104,13 @@ internal fun RecordResultContent(
                 Text(stringResource(Res.string.records_memo, record.memo), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
             }
             if (record.section == null) CompareEntry(state.previous, actions.onCompare, Modifier.padding(bottom = 8.dp))
-            if (evaluation != null) {
+            if (evaluation != null && song != null) {
                 ErrorFilterChips(evaluation, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 8.dp), hideEmptyMissed = true)
             }
             Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(if (state.canPlay) Res.string.record_result_seek_hint else Res.string.record_play_unavailable),
                     modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = EolssuTheme.colors.textMuted)
-                if (state.canPlay) {
+                if (state.canPlay && song != null) {
                     val label = stringResource(Res.string.record_detail_follow)
                     Text(label, style = MaterialTheme.typography.labelSmall)
                     EolssuSwitch(state.follow, actions.onToggleFollow, label, width = 32.dp, height = 20.dp)

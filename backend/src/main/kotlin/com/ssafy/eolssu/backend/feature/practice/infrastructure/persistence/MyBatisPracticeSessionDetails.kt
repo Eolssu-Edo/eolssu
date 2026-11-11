@@ -10,7 +10,7 @@ class MyBatisPracticeSessionDetails(
     override fun findOwned(sessionId: Long, userId: Long) = mapper.findDetail(sessionId, userId)?.run {
         PracticeSessionDetail(
             sessionId, userId, songId, bpm, bpmUnit, startNoteIdx, endNoteIdx, status, evaluationId, failReason,
-            recordingAvailable, startedAt, endedAt, analysisStartedAt, savedAt, memo, viewedAt,
+            recordingAvailable, startedAt, endedAt, analysisStartedAt, savedAt, memo, viewedAt, scoreVersion, songTitle,
         )
     }
 

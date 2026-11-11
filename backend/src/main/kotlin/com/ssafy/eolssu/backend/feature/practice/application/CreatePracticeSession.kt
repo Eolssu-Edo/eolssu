@@ -19,6 +19,7 @@ data class CreatePracticeSessionCommand(
     val endNoteIdx: Int? = null,
     val parentSessionId: Long? = null,
     val jangdanSoundOn: Boolean? = null,
+    val expectedScoreVersion: Int? = null,
 )
 
 sealed interface CreatePracticeSessionResult {
@@ -39,10 +40,15 @@ class CreatePracticeSession(
         repository.findByIdempotencyKey(command.userId, command.idempotencyKey)?.let { return replay(it, hash) }
 
         val song = repository.findPlayableSong(command.songId) ?: return CreatePracticeSessionResult.NotFound
+        val expectedVersion = command.expectedScoreVersion
+        if (expectedVersion != null && expectedVersion <= 0) return CreatePracticeSessionResult.InvalidRequest
+        if ((expectedVersion == null && song.hasArchivedScore) ||
+            (expectedVersion != null && expectedVersion != song.scoreVersion)) return CreatePracticeSessionResult.StateConflict
         command.parentSessionId?.let { parentId ->
             val parent = repository.findSession(parentId)
             if (parent == null || parent.userId != command.userId) return CreatePracticeSessionResult.NotFound
             if (parent.songId != song.id) return CreatePracticeSessionResult.InvalidRequest
+            if (parent.scoreVersion != song.scoreVersion) return CreatePracticeSessionResult.StateConflict
             if (parent.status != "DONE") return CreatePracticeSessionResult.StateConflict
         }
         val start = command.startNoteIdx ?: 0
@@ -63,8 +69,9 @@ class CreatePracticeSession(
             startedAt = clock.instant().truncatedTo(ChronoUnit.MICROS),
         )
         val id = repository.insert(session)
-            // 같은 키의 동시 요청이 먼저 저장했다. 그 결과로 같은 판정을 한다.
-            ?: return replay(checkNotNull(repository.findByIdempotencyKey(command.userId, command.idempotencyKey)), hash)
+            // 멱등 경합이면 저장된 결과를 재생하고, 곡 판본 교체로 삽입하지 못했으면 다시 연주하도록 알린다.
+            ?: return repository.findByIdempotencyKey(command.userId, command.idempotencyKey)
+                ?.let { replay(it, hash) } ?: CreatePracticeSessionResult.StateConflict
         return CreatePracticeSessionResult.Created(
             PracticeSession(id, session.songId, "RECORDING", session.bpm, session.bpmUnit, start, end, session.startedAt, hash),
         )
@@ -88,7 +95,7 @@ class CreatePracticeSession(
                 // 미션을 받던 자리다. 저장된 해시와 같게 유지해야 기존 세션의 재전송이 409가 되지 않는다.
                 "-",
                 command.jangdanSoundOn ?: false,
-            ).joinToString("|")
+            ).joinToString("|") + (command.expectedScoreVersion?.let { "|expectedScoreVersion=$it" } ?: "")
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical.toByteArray()))
         }
     }

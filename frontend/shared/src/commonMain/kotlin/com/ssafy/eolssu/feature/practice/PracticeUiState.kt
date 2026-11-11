@@ -29,7 +29,7 @@ enum class PracticePanel { Settings, Notation, Fingering, Jangdan, Tempo }
  * [RecordFailed]는 녹음을 시작·저장하지 못함, [TooLarge]는 녹음 파일이 보낼 수 있는 크기(20MiB)를 넘음.
  * [PermDenied]는 OS 권한 창에서 허용하지 않음, [PermBlocked]는 ‘다시 묻지 않음’이라 기기 설정에서만 허용할 수 있음(보드 Dialog-PermDenied·PermBlocked).
  */
-enum class PracticePopup { Permission, Abort, SettingsPaused, End, EndAtLimit, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge, PermDenied, PermBlocked }
+enum class PracticePopup { Permission, Abort, SettingsPaused, End, EndAtLimit, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge, PermDenied, PermBlocked, ScoreChanged, ScoreUnavailable }
 
 /** 연주 중 입력이 이 시간(ms)보다 오래 없으면 마이크를 확인하라고 안내한다(와이어프레임 `noInputMs > 1500`). */
 const val NO_INPUT_HINT_MS = 1500.0
@@ -89,7 +89,8 @@ data class PracticeUiState(
     val mine: Boolean = false,
     val learn: Boolean = false,
     /**
-     * 곡 정보의 '연주 평가 시작'으로 들어와 대기 상태 없이 바로 평가 녹음을 시작하는 연주 평가(S15P31E102-705). 준비 화면의 플레이어를 두지 않는다.
+     * 연습 준비의 플레이어 없이 평가만 하는 연주 평가. 곡 정보의 '연주 평가 시작'(S15P31E102-705)과 혼자 연습에서 바꾼 평가(S15P31E102-739)가 쓴다.
+     * 준비 상태는 연주 중 하단 바에 '평가 시작'을 둔 대기 상태([awaitingStart])이고, 평가는 그 버튼을 눌러야 시작한다(S15P31E102-747).
      * 녹음을 지원하지 않는 환경(Web)은 지금처럼 준비 화면에서 녹음 미지원 안내를 보이도록 false로 둔다.
      */
     val direct: Boolean = false,
@@ -195,19 +196,21 @@ data class PracticeUiState(
     /** 이어서 연주하려고 카운트다운하는 중. 하단은 연주 중 모습을 유지한다. */
     val resuming: Boolean get() = mode == PracticeMode.Countdown && resume
 
+    /** 평가 연주를 처음 시작하려는 카운트다운. 연주 중 배치를 그대로 두고 하단 막대 가운데에 ‘준비’만 보인다. */
+    val preparing: Boolean get() = mode == PracticeMode.Countdown && !resume
+
     /**
-     * 평가 연주를 처음 시작하려는 중. 연주 중 배치를 그대로 두고 하단 막대 가운데에 ‘준비’만 보인다.
-     * 곡 정보에서 바로 시작한 평가([direct])는 곡을 불러온 직후 카운트다운 전의 준비 상태도 포함해,
-     * 연습 준비 배치가 한 번 그려졌다가 카운트다운 배치로 줄어드는 움직임이 없게 한다.
+     * 연주 평가([direct])의 시작 전 대기. 하단은 연주 중 막대(0:00 · 빈 진행 막대)를 그대로 보이고,
+     * ‘처음부터’는 잠그고 ‘연주 중단’ 자리에 ‘평가 시작’을 둔다(S15P31E102-747). 그래서 시작해도 악보 배치가 바뀌지 않는다.
      */
-    val preparing: Boolean get() = (mode == PracticeMode.Countdown && !resume) || (direct && mode == PracticeMode.Ready)
+    val awaitingStart: Boolean get() = direct && mode == PracticeMode.Ready
 
     /**
      * 하단을 연주 중 막대로 두는 상태(평가 준비·카운트다운·연주·중단). 카운트다운 뒤에 비치는 악보가 연주를 시작한 뒤와
      * 같은 높이·배치가 되도록 카운트다운에도 같은 막대 자리를 둔다.
      */
     val recordingLayout: Boolean
-        get() = preparing || mode == PracticeMode.Countdown || mode == PracticeMode.Recording || mode == PracticeMode.Interrupted
+        get() = awaitingStart || mode == PracticeMode.Countdown || mode == PracticeMode.Recording || mode == PracticeMode.Interrupted
 
     /** 연주 중 입력이 [NO_INPUT_HINT_MS]보다 오래 없어 마이크를 확인하라고 안내하는 상태. */
     val noInputHint: Boolean
@@ -315,14 +318,17 @@ fun PracticeUiState.stopModel(): PracticeUiState = copy(
     eventStartedAt = null, eventElapsedMs = 0.0, pausedFraction = 0f,
 )
 
-/** 연주 평가 시작. 모범 연주 중이면 멈추고, 마이크 권한이 없으면 안내 창을 띄운다. */
+/**
+ * 연주 평가 시작. 모범 연주 중이면 멈추고, 마이크 권한이 있으면 카운트다운을 시작한다.
+ * 권한이 없으면 서비스 안내 창 없이 준비 상태로 두고, ViewModel이 기기 권한 창을 바로 띄운다(S15P31E102-733).
+ */
 fun PracticeUiState.requestEvaluation(micGranted: Boolean): PracticeUiState {
     val base = if (mode == PracticeMode.Model || mode == PracticeMode.Rhythm) {
         copy(mode = PracticeMode.Ready, playing = false, position = 0, elapsedMs = 0.0, eventStartedAt = null, eventElapsedMs = 0.0, pausedFraction = 0f)
     } else {
         this
     }
-    return if (micGranted) base.beginCountdown() else base.copy(panel = null, popup = PracticePopup.Permission)
+    return if (micGranted) base.beginCountdown() else base.copy(panel = null, popup = null)
 }
 
 /** 3·2·1 카운트다운. [resume]이면 멈춘 자리부터 이어서 연주한다. */
@@ -455,9 +461,13 @@ fun PracticeUiState.fingeringNoteAt(index: Int): ScoreNote {
     return ScoreNote.Rest
 }
 
-/** OS 권한 창에서 허용하지 않음. 화면에 머물며 [PracticePopup.PermDenied]·[PracticePopup.PermBlocked]를 띄운다. */
+/**
+ * 평가 시작 중 마이크 권한을 얻지 못함. 평가를 시작하지 않고 준비 상태로 돌아간다.
+ * 기기가 다시 묻지 못하는 차단([blocked])일 때만 설정 안내([PracticePopup.PermBlocked])를 띄우고,
+ * 다시 물을 수 있는 거부는 서비스 안내 창 없이 둔다(다시 누르면 기기 권한 창이 뜬다). [direct] 평가는 평가 대기 상태로 남는다.
+ */
 fun PracticeUiState.denyMic(blocked: Boolean): PracticeUiState =
-    toReady().copy(panel = null, popup = if (blocked) PracticePopup.PermBlocked else PracticePopup.PermDenied)
+    toReady().copy(panel = null, popup = if (blocked) PracticePopup.PermBlocked else null)
 
 /**
  * 준비 상태의 플레이어 −5초·+5초: 고른 음을 그 시간만큼 앞뒤의 음으로 옮긴다. 모범 연주 중에는 음원 위치를 옮긴다(ViewModel).

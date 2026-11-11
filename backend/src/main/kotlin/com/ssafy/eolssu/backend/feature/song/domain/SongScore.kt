@@ -20,6 +20,8 @@ data class UnregisteredScorePitch(val eventId: String, val cellId: String, val y
 
 interface SongScoreRepository {
     fun findPublished(songId: Long): PublishedSongScore?
+    fun findPublishedRevision(songId: Long, scoreVersion: Int): PublishedSongScore? =
+        findPublished(songId)?.takeIf { it.scoreVersion == scoreVersion }
     fun pitches(): List<ScorePitch>
 }
 

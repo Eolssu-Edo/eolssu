@@ -6,9 +6,9 @@ import java.time.Instant
 enum class BpmUnit { QUARTER, DOTTED_QUARTER, JEONGGAN, JANGDAN_BEAT }
 
 // 연습할 수 있는 곡(PUBLISHED·채점 가능·삭제 안 됨)의 세션 생성에 필요한 값
-data class PracticeSong(val id: Long, val bpmUnit: BpmUnit, val noteCount: Int, val scoreVersion: Int)
+data class PracticeSong(val id: Long, val bpmUnit: BpmUnit, val noteCount: Int, val scoreVersion: Int, val hasArchivedScore: Boolean = false)
 
-data class ParentSessionCandidate(val id: Long, val userId: Long, val songId: Long, val status: String)
+data class ParentSessionCandidate(val id: Long, val userId: Long, val songId: Long, val status: String, val scoreVersion: Int = 1)
 
 data class NewPracticeSession(
     val userId: Long,
@@ -41,6 +41,6 @@ interface PracticeSessionCreationRepository {
     fun findPlayableSong(songId: Long): PracticeSong?
     fun findSession(sessionId: Long): ParentSessionCandidate?
 
-    /** 저장한 세션 ID. 같은 회원·키의 세션이 이미 있으면(유일 제약) null. */
+    /** 저장한 세션 ID. 같은 회원·키가 이미 있거나 현재 게시 판본이 바뀌어 저장하지 못하면 null. */
     fun insert(session: NewPracticeSession): Long?
 }
