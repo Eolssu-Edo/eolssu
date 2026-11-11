@@ -124,7 +124,7 @@ fun SectionLoopScreen(
             }
             Column(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PageHeading(song.title, Modifier.weight(1f))
+                    PageHeading(song.title, Modifier.weight(1f), singleLine = true)
                     LoopStatusLabel(state, Modifier.widthIn(max = 168.dp))
                 }
                 Spacer(Modifier.height(8.dp))

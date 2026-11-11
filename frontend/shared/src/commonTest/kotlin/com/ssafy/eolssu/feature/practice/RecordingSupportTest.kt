@@ -29,6 +29,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RecordingSupportTest {
@@ -114,9 +117,12 @@ class RecordingSupportTest {
         val slowSong = song.copy(baseBpm = 1, score = song.score.copy(
             timing = requireNotNull(song.score.timing).copy(ticksPerBeat = 1),
         ))
-        return recordingTest(FakePracticeRecorder(), song = slowSong) { vm, _ ->
+        // 가상 시간 10분을 흘리면 진행·입력 크기 갱신이 수만 번 돌아 브라우저 테스트 제한(2초)을 넘는다(S15P31E102-737).
+        // 한도 동작은 짧은 한도로 확인하고, 실제 한도가 10분인지는 따로 본다.
+        assertEquals(10.minutes, RecordingSpec.MaxDuration)
+        return recordingTest(FakePracticeRecorder(), song = slowSong, maxRecording = 5.seconds) { vm, _ ->
             vm.grantMicAndStart()
-            advanceTimeBy(3_000 + 599_999)
+            advanceTimeBy(3_000 + 4_999)
             runCurrent()
             assertFalse(vm.uiState.value.finished)
             assertNull(vm.takeForEvaluation())
@@ -198,6 +204,7 @@ class RecordingSupportTest {
         permission: MicPermission? = null,
         solo: Boolean = false,
         song: Song = smallScoreSong(),
+        maxRecording: Duration = RecordingSpec.MaxDuration,
         block: suspend TestScope.(PracticeViewModel, PracticeSettingsStore) -> Unit,
     ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -210,7 +217,7 @@ class RecordingSupportTest {
             }
             val vm = PracticeViewModel(song.id, solo, songs, settings, PracticeTimeMeter({ 0L }, testScheduler.timeSource),
                 PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope), recorder, permission,
-                playbackTimeSource = testScheduler.timeSource, newKey = { "take-key" })
+                playbackTimeSource = testScheduler.timeSource, newKey = { "take-key" }, maxRecording = maxRecording)
             models.put("practice", vm)
             runCurrent()
             block(vm, settings)

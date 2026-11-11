@@ -1,6 +1,11 @@
 # 프로젝트 문서
 
 - [마이페이지 화면을 테두리 없는 카드의 깔끔한 디자인으로 개선 (731)](plans/S15P31E102-731.md)
+- [내 악보 편집 도구와 오류 정간 표시 정리 (736)](plans/S15P31E102-736.md) · [초기 오류 표시와 정간 이동 근거](knowledge/frontend/sheet-editor-save-validation.md#초기-오류-표시와-실제-정간으로-이동-736)
+
+- [기존 정간보 장단·빠르기 전수 조사와 교정 (728)](knowledge/data/common/rhythm-metronome/README.md) · [스펙](specs/score-tempo-correction.md) · [전체 근거표](knowledge/data/common/rhythm-metronome/score-tempo-audit.csv)
+- [정간보 단모리 변환 시간 교정 (732)](specs/danmori-conversion-timing.md) · [오류 원인과 기존 데이터 영향](knowledge/ai/jeongganbo-beat-timing.md)
+
 - [iOS 연습 장단 소리 재생 연결 (714)](plans/S15P31E102-714.md) · [장단 재생 스펙](specs/jangdan-practice-playback.md#ios-연습-장단-재생-s15p31e102-714)
 - [한 음씩 연습 안내 문구 삭제·현재 정간 칸 정렬과 예시음 재생 수정 (717)](plans/S15P31E102-717.md)
 - [연습 화면 계이름 표시·장단 안내 문구 삭제와 평가 화면 표기 스위치 이동 (716)](plans/S15P31E102-716.md)
@@ -59,6 +64,8 @@
 - [서비스 장단 카탈로그 확장 스펙](specs/jangdan-catalog-extension.md) · [추가 근거·시작 빠르기·검증](knowledge/backend/jangdan-catalog-extension.md)
 - [장단 음원·곡별 검수 자료 전달과 재생 공통 스펙 (160·340)](specs/jangdan-practice-playback.md)
 - [장단 음원 생성·출처·빠르기 조사 (160)](knowledge/data/jangdan-preview-audio.md) · [107개 곡별 검수 결과 (160)](knowledge/data/jangdan-song-review.md)
+
+- [내 악보 편집 진입과 저장 오류 처리 (725)](plans/S15P31E102-725.md) · [저장 검증·빠르기 입력 근거](knowledge/frontend/sheet-editor-save-validation.md)
 
 ## 문서 위치
 

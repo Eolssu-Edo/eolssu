@@ -26,9 +26,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
@@ -50,6 +52,7 @@ import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_abort
+import eolssu.shared.generated.resources.practice_countdown_ready
 import eolssu.shared.generated.resources.practice_mic_off
 import eolssu.shared.generated.resources.practice_mic_on
 import eolssu.shared.generated.resources.practice_no_input_hint
@@ -94,9 +97,27 @@ class PracticeBottomActions(
  * 6dp 붉은 진행 막대 · 입력 없음 안내 · ‘처음부터 다시’ + ‘연주 중단’. 중단됨·이어 연주 카운트다운에서는 두 버튼이 회색으로 잠긴다.
  * 박 표시는 진행 막대 위에 두고, 시간·마이크 줄과 박 표시가 진행 막대에 붙지 않게 사이를 띄운다.
  * [stacked]이면 두 버튼을 위아래로 쌓는다(태블릿 가로 상태 패널).
+ * 평가 시작 카운트다운([PracticeUiState.preparing])에는 같은 내용을 보이지 않게 그려 높이를 지키고, 가운데에 ‘준비’만 둔다.
+ * 그래서 카운트다운 뒤에 비치는 악보가 연주를 시작한 뒤와 같은 배치가 된다.
  */
 @Composable
 fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBottomActions, stacked: Boolean = false) {
+    if (!state.preparing) {
+        RecordingBarContent(state, actions, stacked)
+        return
+    }
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(Modifier.alpha(0f).clearAndSetSemantics {}) { RecordingBarContent(state, actions, stacked) }
+        Text(
+            stringResource(Res.string.practice_countdown_ready),
+            style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
+            color = EolssuTheme.colors.textSub,
+        )
+    }
+}
+
+@Composable
+private fun RecordingBarContent(state: PracticeUiState, actions: PracticeBottomActions, stacked: Boolean) {
     val song = state.song ?: return
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         val colors = EolssuTheme.colors
@@ -144,7 +165,7 @@ fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBo
  */
 @Composable
 fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeBottomActions, stacked: Boolean = false) {
-    if (state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming) {
+    if (state.recordingLayout) {
         PracticeRecordingBar(state, actions, stacked)
     } else if (!state.direct) {
         if (state.stepUi) PracticeStepPanels(state, actions) else PracticePlayerCard(state, actions)

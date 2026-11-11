@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
@@ -87,6 +88,8 @@ class PracticeViewModel(
     private val perf: PerformanceVisit? = null,
     private val personalAudio: SheetPracticeRepository? = null,
     direct: Boolean = false,
+    /** 평가 녹음 최대 길이. 테스트만 짧게 바꾼다(S15P31E102-737). */
+    private val maxRecording: Duration = RecordingSpec.MaxDuration,
 ) : ViewModel() {
     private var stepJudge: StepNoteJudge = stepJudge
 
@@ -1110,7 +1113,7 @@ class PracticeViewModel(
             var measuredAt = recordingClock.elapsed()
             while (isActive) {
                 val elapsed = recordingClock.elapsed()
-                if (elapsed >= RecordingSpec.MaxDuration) {
+                if (elapsed >= maxRecording) {
                     captureStepProgress()
                     stepJob?.cancel()
                     _uiState.update { it.endRecording(atLimit = true) }
