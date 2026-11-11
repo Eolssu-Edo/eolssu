@@ -175,3 +175,11 @@ S15P31E102-166 / MR !87의 `f86fe0f`에서 단소 공식 자료, 고정 우물�
 변경 전58d391b에서 준비 JGB46개와 표현·빠르기·반복 결합 입력1개의 score·source-map·MIDI 기준값을 캡처했다. 변경 후47개 모두 score/대응표 내용과 MIDI SHA256이 같다. 실제 CAT로 강원도 아리랑 MIDI/WAV/M4A와 결합 입력 MIDI/M4A를 다시 생성했고 위 기존 해시와 모두 같았다. 원본 설정·표현 수치·재생 알고리즘을 바꾸는 작업이 아니며 manifest의 구현 파일명·코드 해시는 변경된다.
 
 수동 검증 결과는 주 작업 폴더 `data/processed/playback/166-listen/mr87-module-refactor-check/verification.json`에 보존한다. 테스트·문서의 현재 책임표는 [CLI README](../../../data/src/playback/README.md)와 [테스트별 설명](../../../data/src/playback/tests/README.md)을 따른다. 기존 원보 교정과 미지원 표현의 검수 상태는 이 구조 변경으로 달라지지 않는다.
+
+## Blue Valentine 단소 합성 확인 (S15P31E102-746)
+
+2026-11-11 사용자 후속 요청으로 같은118각·490음의 단소 버전을 생성했다. 코드 기준은 `d5d437ec`이며, 기존 JGB 가져오기 → 공통 악보 → MIDI → CAT 경로와 서비스의 `synthesis_extension=True`를 사용했다. 원본 음높이 MIDI57–88·선율·각 경계 지속11곳과 정악대금 생성본의 명시 빠르기 계획을 보존했다. 단소의 현재 기본 범위66–92 밖인21음(MIDI57·64)은 인접 CAT 샘플의 재생 속도를 바꿔 원음으로 합성했다. 이는 실연용 옥타브 편곡이나 운지 가능성의 검증이 아니다. 단소 기본 추가 떨림 설정도 유지했다.
+
+저음이 든63–66각24음으로 먼저 실제 CAT/AAC 생성을 확인했다. 이후 전곡 생성은 약7.52초, 결과는182.645805초·44.1kHz·mono·AAC-LC·3,215,167바이트다. 원본 JGB를 별도로 읽어 대조한 MIDI490음의 음고 차이는0, 시작·note-off 최대 오차는 약0.013ms였다. 실제 AAC490음의 안정창에서 최대 음정 오차10.91cent, 쉼43창의 최대 RMS `1.28e-6`, 피크0.84976, 디코딩 패딩0샘플로 검사를 통과했다. 전통 주법·청감·원보 전음표 재전사·실기기 검수의 완료를 뜻하지 않는다.
+
+M4A SHA-256은 `dc6c676755954695962bf7083face24f25d36a83891c2fb7741858f88862b2cb`다. 로컬 `C:/Users/SSAFY/.codex/worktrees/blue-valentine-cat-746/data/processed/blue-valentine-danso/`에 준비 입력·연주 계획·공통 악보·수행 시간표·MIDI·음원과 `verification.json`을 보존했다. 원본 자료·이전 정악대금 생성본·운영 데이터는 변경하지 않았다. 가속 근사는 [같은 작업의 정악대금 생성 기록](jeongak-playback.md#제공-jgb의-cat-합성-확인-s15p31e102-746)과 같다.
