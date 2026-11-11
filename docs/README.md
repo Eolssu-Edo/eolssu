@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [DB 백업 정렬 메모리 부족 복구 (751)](plans/S15P31E102-751.md) · [계약](specs/backup-dump-sort-memory.md)
 - [내 악보 음역 선택과 변환 오류 수정 안내 (741)](plans/S15P31E102-741.md) · [스펙](specs/sheet-pitch-correction.md) · [PDF 오류 원인과 전후 대조](knowledge/frontend/sheet-pitch-conversion-corrections.md)
 - [공개곡 판본 보관·조회와 안전 게시 (745)](plans/S15P31E102-745.md) · [계약](specs/published-score-history.md) · [판본 보존 근거](knowledge/backend/published-score-history.md)
 
