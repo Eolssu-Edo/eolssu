@@ -14,6 +14,7 @@ import com.ssafy.eolssu.feature.profile.MyPageRoute
 import com.ssafy.eolssu.feature.profile.MyPageTarget
 import com.ssafy.eolssu.feature.profile.NicknameEditRoute
 import com.ssafy.eolssu.feature.profile.PasswordChangeRoute
+import com.ssafy.eolssu.feature.profile.ProfileImageRoute
 import com.ssafy.eolssu.feature.profile.SocialLinkRoute
 import com.ssafy.eolssu.feature.profile.WithdrawRoute
 
@@ -21,6 +22,7 @@ import com.ssafy.eolssu.feature.profile.WithdrawRoute
 object ProfileDestination {
     const val MY_PAGE = "my"
     const val NICKNAME = "my/nickname"
+    const val PROFILE_IMAGE = "my/profile-image"
     const val PASSWORD = "my/password"
     const val WITHDRAW = "my/withdraw"
     const val SOURCES = "my/sources"
@@ -49,6 +51,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
                 navController.navigate(
                     when (target) {
                         MyPageTarget.Nickname -> ProfileDestination.NICKNAME
+                        MyPageTarget.ProfileImage -> ProfileDestination.PROFILE_IMAGE
                         MyPageTarget.Password -> ProfileDestination.PASSWORD
                         MyPageTarget.Withdraw -> ProfileDestination.WITHDRAW
                         MyPageTarget.Sources -> ProfileDestination.SOURCES
@@ -69,6 +72,12 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
         NicknameEditRoute(
             onBack = { navController.popBackStackFrom(entry) },
             onSaved = { navController.popWithNotice(StartNotice.NicknameChanged) },
+        )
+    }
+    composable(ProfileDestination.PROFILE_IMAGE) { entry ->
+        ProfileImageRoute(
+            onBack = { navController.popBackStackFrom(entry) },
+            onSaved = { navController.popWithNotice(StartNotice.ProfileImageChanged) },
         )
     }
     composable(ProfileDestination.PASSWORD) { entry ->

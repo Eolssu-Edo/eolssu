@@ -87,6 +87,7 @@ import com.ssafy.eolssu.feature.auth.PasswordSetupViewModel
 import com.ssafy.eolssu.feature.auth.ProfileSetupViewModel
 import com.ssafy.eolssu.feature.profile.MyPageViewModel
 import com.ssafy.eolssu.feature.profile.NicknameEditViewModel
+import com.ssafy.eolssu.feature.profile.ProfileImageViewModel
 import com.ssafy.eolssu.feature.profile.PasswordChangeViewModel
 import com.ssafy.eolssu.feature.profile.SocialLinkViewModel
 import com.ssafy.eolssu.feature.profile.WithdrawViewModel
@@ -215,6 +216,7 @@ val appModule = module {
     single<UserRepository> { ApiUserRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
     viewModelOf(::MyPageViewModel)
     viewModelOf(::NicknameEditViewModel)
+    viewModelOf(::ProfileImageViewModel)
     viewModelOf(::PasswordChangeViewModel)
     viewModel { WithdrawViewModel(get(), get(), get(), getOrNull(), getOrNull(), get()) }
     viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull(), get()) }

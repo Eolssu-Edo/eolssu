@@ -67,7 +67,7 @@ import eolssu.shared.generated.resources.my_withdraw
 import org.jetbrains.compose.resources.stringResource
 
 /** MY-01에서 여는 화면. */
-enum class MyPageTarget { Nickname, Password, Withdraw, Sources, Records }
+enum class MyPageTarget { Nickname, ProfileImage, Password, Withdraw, Sources, Records }
 
 /**
  * MY-01 마이페이지. 프로필(닉네임 · 기초부터 배우기 진도 뱃지) · 최근 연주 돌아보기 · 간편 로그인 · 의견/문의 · 계정 ·
@@ -104,7 +104,12 @@ fun MyPageScreen(
         topPadding = 8.dp,
         containerColor = EolssuTheme.colors.groupedBackground,
     ) {
-        ProfileCard(profile, learningProgress, onEdit = { onOpen(MyPageTarget.Nickname) })
+        ProfileCard(
+            profile,
+            learningProgress,
+            onEdit = { onOpen(MyPageTarget.Nickname) },
+            onEditImage = { onOpen(MyPageTarget.ProfileImage) },
+        )
         MyRecentPracticeCard(recentPractice, recentStatus, today, onOpenRecords = { onOpen(MyPageTarget.Records) })
         // 이 플랫폼에서 연결할 수 있는 제공자와, 다른 기기에서 연결해 둔 제공자(해제만 가능)를 함께 보여 준다.
         val shownProviders = providers + profile.linkedProviders.filter { it !in providers }
@@ -159,13 +164,13 @@ fun MyPageScreen(
  * 이메일은 보이지 않는다. 진도를 받지 못하면 뱃지를 비워 둔다.
  */
 @Composable
-private fun ProfileCard(profile: UserProfile, progress: MyLearningProgress?, onEdit: () -> Unit) {
+private fun ProfileCard(profile: UserProfile, progress: MyLearningProgress?, onEdit: () -> Unit, onEditImage: () -> Unit) {
     val colors = EolssuTheme.colors
     Column(
         Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        MyPageAvatar()
+        MyPageAvatar(profile.profileImage, onEditImage)
         Row(
             Modifier.padding(top = 12.dp, start = 48.dp),
             verticalAlignment = Alignment.CenterVertically,

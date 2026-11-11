@@ -2,12 +2,12 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserMapper">
     <select id="findById" resultType="com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserRow">
-        SELECT id, email, password_hash, nickname, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at
+        SELECT id, email, password_hash, nickname, instrument_id, notation_mode, profile_image, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at
         FROM users
         WHERE id = #{id}
     </select>
     <select id="findByIdForUpdate" resultType="com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserRow">
-        SELECT id, email, password_hash, nickname, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at
+        SELECT id, email, password_hash, nickname, instrument_id, notation_mode, profile_image, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at
         FROM users
         WHERE id = #{id} FOR UPDATE
     </select>
@@ -22,6 +22,9 @@
         UPDATE users
         SET instrument_id = COALESCE(#{instrumentId}, instrument_id), notation_mode = COALESCE(#{notationMode}, notation_mode)
         WHERE id = #{id} AND status = 'ACTIVE'
+    </update>
+    <update id="updateProfileImage">
+        UPDATE users SET profile_image = #{profileImage} WHERE id = #{id} AND status = 'ACTIVE'
     </update>
     <select id="findActivePasswordHash" resultType="string">
         SELECT password_hash FROM users WHERE id = #{id} AND status = 'ACTIVE'
@@ -47,12 +50,12 @@
         SELECT HEX(WEIGHT_STRING(CONVERT(#{email} USING utf8mb4) COLLATE utf8mb4_0900_ai_ci))
     </select>
     <select id="findSignInMember" resultType="com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserRow">
-        SELECT id, email, password_hash, nickname, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at
+        SELECT id, email, password_hash, nickname, instrument_id, notation_mode, profile_image, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at
         FROM users
         WHERE email = #{email} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING')
     </select>
     <select id="findSignInMemberForUpdate" resultType="com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserRow">
-        SELECT id, email, password_hash, nickname, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at
+        SELECT id, email, password_hash, nickname, instrument_id, notation_mode, profile_image, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at
         FROM users
         WHERE email = #{email} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING')
         FOR UPDATE
