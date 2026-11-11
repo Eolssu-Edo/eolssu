@@ -45,6 +45,7 @@ internal fun SheetCompletionNotice(
     onRetryCatalog: () -> Unit,
     modifier: Modifier = Modifier,
     showReviewSummary: Boolean = true,
+    showCellAction: Boolean = true,
 ) {
     val validation = state.completionValidation
     val showCells = showReviewSummary && (validation.hasEmptyCells || validation.pendingReviewCount > 0)
@@ -75,7 +76,7 @@ internal fun SheetCompletionNotice(
         if (validation.hasInvalidStructure) {
             Text(stringResource(Res.string.sheet_completion_structure), style = MaterialTheme.typography.bodySmall)
         }
-        if (showCells || validation.invalidPitchCount > 0 || validation.hasInvalidStructure) {
+        if (showCellAction && (showCells || validation.invalidPitchCount > 0 || validation.hasInvalidStructure)) {
             EolssuButton(stringResource(Res.string.sheet_completion_fix), onFixCells, style = EolssuButtonStyle.Secondary, compact = true)
         }
         if (validation.hasJangdanMismatch) {
