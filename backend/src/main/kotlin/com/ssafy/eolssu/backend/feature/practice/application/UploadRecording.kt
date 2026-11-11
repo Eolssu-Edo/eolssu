@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.practice.application
 
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingCheck
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingFileValidator
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
@@ -22,7 +23,9 @@ class UploadRecording(
     private val clock: Clock,
     private val newObjectId: () -> UUID = UUID::randomUUID,
 ) {
-    fun upload(userId: Long, sessionId: Long, file: Path, sizeBytes: Long): RecordingUploadResult {
+    fun upload(
+        userId: Long, sessionId: Long, file: Path, sizeBytes: Long, timingId: EvaluationTimingId? = null,
+    ): RecordingUploadResult {
         // 만료 판정의 "지금"은 요청을 받은 시각이다.
         val target = repository.findOwned(sessionId, userId) ?: return RecordingUploadResult.SESSION_NOT_FOUND
         if (target.isExpired(now())) return RecordingUploadResult.SESSION_EXPIRED
@@ -45,7 +48,7 @@ class UploadRecording(
         }
 
         val updated = try {
-            repository.markUploaded(sessionId, userId, UploadedRecording(key, metadata, now()))
+            repository.markUploaded(sessionId, userId, UploadedRecording(key, metadata, now(), timingId))
         } catch (e: RuntimeException) {
             deleteOwnObject(sessionId, key)
             throw e

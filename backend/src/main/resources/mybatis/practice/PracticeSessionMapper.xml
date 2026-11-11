@@ -68,7 +68,8 @@
                e.id AS evaluation_id, ps.fail_reason,
                (ps.recording_url IS NOT NULL AND ps.record_deleted_at IS NULL) AS recording_available,
                ps.started_at, ps.ended_at, ps.analysis_started_at, ps.saved_at, ps.memo, ps.viewed_at,
-               COALESCE(v.title, s.title) AS song_title
+               COALESCE(v.title, s.title) AS song_title,
+               CASE WHEN ps.analysis_timing_attempt = ps.analysis_attempt THEN ps.analysis_timing_id END AS analysis_timing_id
         FROM practice_sessions ps
         JOIN songs s ON s.id = ps.song_id
         LEFT JOIN song_score_versions v ON v.song_id = ps.song_id AND v.score_version = ps.score_version
@@ -95,7 +96,8 @@
         UPDATE practice_sessions
         SET recording_url = #{recordingUrl}, recording_bytes = #{bytes}, recording_duration_ms = #{durationMs},
             recording_sample_rate = #{sampleRate}, recording_channels = #{channels}, ended_at = #{uploadedAt},
-            status = 'PENDING', analysis_attempt = analysis_attempt + 1, analysis_started_at = #{uploadedAt}
+            status = 'PENDING', analysis_timing_attempt = analysis_attempt + 1, analysis_attempt = analysis_attempt + 1,
+            analysis_started_at = #{uploadedAt}, analysis_timing_id = #{timingId,jdbcType=VARCHAR}
         WHERE id = #{sessionId} AND user_id = #{userId} AND status = 'RECORDING'
     </update>
 </mapper>

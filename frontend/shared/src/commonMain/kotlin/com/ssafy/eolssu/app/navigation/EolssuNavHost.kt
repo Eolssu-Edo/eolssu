@@ -572,7 +572,11 @@ fun EolssuNavHost(
         SnackbarHost(appSnackbar, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars))
         PendingRecordingNotice(
             routeId = navController.currentBackStackEntryAsState().value?.id,
-            onSend = { navController.navigate(EolssuDestination.analysis(it.songId, it.bpm, pendingSessionId = it.sessionId)) },
+            onSend = {
+                performance.move(null, PerfTarget.ANALYSIS) {
+                    navController.navigate(EolssuDestination.analysis(it.songId, it.bpm, pendingSessionId = it.sessionId))
+                }
+            },
         )
     }
     OAuthReturnEffect(navController)

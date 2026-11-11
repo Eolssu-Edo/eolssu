@@ -3,8 +3,9 @@
 - [홈 기능 카드 그림을 서로 다른 모양으로 바꾸고 카드 제목 키우기 (779)](plans/S15P31E102-779.md)
 - [기초 배우기·운지법 보기·정간보 읽기 화면을 마이페이지 스타일로 맞추고 홈·연습 기록·악보 추가 제목 정리 (768)](plans/S15P31E102-768.md)
 - [마이페이지 진도 뱃지에 최근 기초 악기를 표시하고 간편 로그인·최근 연주·하단 문서 줄 정리 (759)](plans/S15P31E102-759.md)
-- [연습 기록 목록의 악기 정보와 페이지 조회 개선 (761)](plans/S15P31E102-761.md)
+- [평가 제출부터 점수 표시까지 단계별 시간 계측 (763)](plans/S15P31E102-763.md)
 - [기초부터 배우기 3~7단계 연습 안내 간소화와 마이크 표시를 연주 평가와 통일 (749)](plans/S15P31E102-749.md)
+- [연습 기록 목록의 악기 정보와 페이지 조회 개선 (761)](plans/S15P31E102-761.md)
 - [Blue Valentine 소금 제공 곡과 4박 반주 (746)](specs/blue-valentine-provided-song.md) · [계획·검증](plans/S15P31E102-746.md) · [생성·게시 근거](knowledge/data/sogeum-playback.md)
 - [DB 백업 정렬 메모리 부족 복구 (751)](plans/S15P31E102-751.md) · [계약](specs/backup-dump-sort-memory.md)
 - [마이페이지 프로필 그림을 절쑤 12종에서 골라 서버에 저장 (738)](plans/S15P31E102-738.md)
@@ -20,6 +21,7 @@
 - [정간보 단모리 변환 시간 교정 (732)](specs/danmori-conversion-timing.md) · [오류 원인과 기존 데이터 영향](knowledge/ai/jeongganbo-beat-timing.md)
 - [비행기 네 악기 악보·CAT 음원·4박 기본 반주 연결 (707)](specs/airplane-four-instruments.md) · [계획·검증](plans/S15P31E102-707.md) · [악보·생성 근거](knowledge/data/airplane-beginner-score.md)
 
+- [iOS 녹음 입력과 실시간 음높이 분석 (562)](plans/S15P31E102-562.md)
 - [iOS 연습 장단 소리 재생 연결 (714)](plans/S15P31E102-714.md) · [장단 재생 스펙](specs/jangdan-practice-playback.md#ios-연습-장단-재생-s15p31e102-714)
 - [한 음씩 연습 안내 문구 삭제·현재 정간 칸 정렬과 예시음 재생 수정 (717)](plans/S15P31E102-717.md)
 - [연습 화면 계이름 표시·장단 안내 문구 삭제와 평가 화면 표기 스위치 이동 (716)](plans/S15P31E102-716.md)
@@ -232,6 +234,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [모범 연주 메타데이터와 시간표의 방문 간 재사용 (764)](plans/S15P31E102-764.md)
 - [Android QA APK 화면 재조회·데이터 재사용 계측 설계 (678)](plans/S15P31E102-678.md)
 - [Android 채점모드 실시간 음높이 표시 설계](knowledge/frontend/realtime-pitch-prototype-design.md)
 - [Android 런처 아이콘 크기·잘림 보정 (522)](plans/S15P31E102-522.md)

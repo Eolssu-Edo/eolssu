@@ -19,7 +19,11 @@ interface PracticeAnalysisMapper {
     ): Int
 
     /** 마감을 넘긴(시작 시각이 startedAfter보다 이른) `PENDING`을 `TIMEOUT`으로 바꾼다. */
-    fun expireOverdue(@Param("sessionId") sessionId: Long, @Param("startedAfter") startedAfter: LocalDateTime): Int
+    fun expireOverdue(
+        @Param("sessionId") sessionId: Long,
+        @Param("startedAfter") startedAfter: LocalDateTime,
+        @Param("expectedAttempt") expectedAttempt: Int?,
+    ): Int
 
     fun insertEvaluation(evaluation: NewEvaluation): Int
 
@@ -41,6 +45,7 @@ interface PracticeAnalysisMapper {
         @Param("userId") userId: Long,
         @Param("attempt") attempt: Int,
         @Param("startedAt") startedAt: LocalDateTime,
+        @Param("timingId") timingId: String?,
     ): Int
 }
 
@@ -60,6 +65,7 @@ data class AnalysisStateRow(
     val status: String,
     val failReason: String?,
     val attempt: Int,
+    val analysisTimingId: String?,
 )
 
 data class PendingAnalysisRow(
