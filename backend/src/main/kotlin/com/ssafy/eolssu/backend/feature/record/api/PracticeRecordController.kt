@@ -148,12 +148,13 @@ data class PracticeRecordItem(
     val recordingAvailable: Boolean,
     val memo: String?,
     @get:JsonProperty("isNew") val isNew: Boolean,
+    val scoreVersion: Int,
 ) {
     companion object {
         fun of(record: RecordSession, columns: ColumnRange?) = with(record) {
             PracticeRecordItem(
                 sessionId.toString(), songId.toString(), songTitle, isFullSong, columns?.start, columns?.end, recordingDurationMs, bpm, bpmUnit,
-                requireNotNull(totalScore), startNoteIdx, endNoteIdx, startedAt.toInstant(ZoneOffset.UTC), recordingAvailable, memo, viewedAt == null,
+                requireNotNull(totalScore), startNoteIdx, endNoteIdx, startedAt.toInstant(ZoneOffset.UTC), recordingAvailable, memo, viewedAt == null, scoreVersion,
             )
         }
     }
@@ -173,12 +174,13 @@ data class SavedPracticeRecord(
     val bpm: Int,
     val bpmUnit: String,
     val totalScore: Int,
+    val scoreVersion: Int,
 ) {
     companion object {
         fun of(record: RecordSession, columns: ColumnRange?) = with(record) {
             SavedPracticeRecord(
                 sessionId.toString(), requireNotNull(savedAt).utc(), memo, songId.toString(), songTitle, columns?.start, columns?.end,
-                isFullSong, startedAt.utc(), recordingDurationMs, bpm, bpmUnit, requireNotNull(totalScore),
+                isFullSong, startedAt.utc(), recordingDurationMs, bpm, bpmUnit, requireNotNull(totalScore), scoreVersion,
             )
         }
 

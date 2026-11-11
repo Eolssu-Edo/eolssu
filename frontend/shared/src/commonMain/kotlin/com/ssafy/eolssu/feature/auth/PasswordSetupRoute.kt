@@ -11,7 +11,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * AUTH-08·AUTH-11 연결. [email]은 앞 단계에서 인증한 이메일이다.
- * 가입이면 [onDone]으로 프로필 설정(3/3), 비밀번호 찾기면 [onDone]으로 로그인 화면에 간다(자동 로그인하지 않음).
+ * 가입이면 [onDone]으로 프로필 설정(4/4), 비밀번호 찾기면 [onDone]으로 로그인 화면에 간다(자동 로그인하지 않음).
  */
 @Composable
 fun PasswordSetupRoute(

@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -51,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -58,6 +61,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
@@ -93,12 +97,11 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /**
- * 율명 옆에 작게 붙이는 보조 표기. 율명은 항상 가장 크게 그린다.
- *
- * @property showSolfege 곡에 계이름 데이터([Song.solfege])가 있을 때만 표시된다.
+ * 율명 옆에 작게 붙이는 보조 표기(한글 읽는 법). 율명은 항상 가장 크게 그린다.
+ * 계이름 표시는 쓰지 않아 없앴다(S15P31E102-716).
  */
 @Immutable
-data class ScoreNotation(val showHangul: Boolean = false, val showSolfege: Boolean = false)
+data class ScoreNotation(val showHangul: Boolean = false)
 
 /** 현재 위치 강조 색. 평소·모범 연주는 [Position](노랑·파랑), 녹음 중은 [Recording](빨강)이다. */
 enum class ScoreHighlight { Position, Recording }
@@ -150,6 +153,8 @@ fun rememberScoreCursor(playback: ScorePlayback?): ScoreCursorState {
  * @property ring 안쪽 테두리 색. null이면 긋지 않는다.
  * @property dashed 테두리를 점선으로 정간 안쪽 3dp에 긋는다(빈 정간·확인할 정간).
  * @property tag 오른쪽 위에 붙이는 작은 글자(예: 확인할 정간 '?', 고친 정간 '✓').
+ * @property description 색·태그로 표시한 상태를 화면 읽기 프로그램에도 알린다. 율명 설명은 보존한다.
+ * @property selected 명시적인 편집 선택 상태. null이면 기존 이벤트·표시 정간 선택을 따른다.
  */
 @Immutable
 data class ScoreCellMark(
@@ -158,6 +163,8 @@ data class ScoreCellMark(
     val ringWidth: Dp = 2.dp,
     val dashed: Boolean = false,
     val tag: String? = null,
+    val description: String? = null,
+    val selected: Boolean? = null,
 )
 
 /**
@@ -186,6 +193,10 @@ data class ScoreCellMark(
  * @param sectionColumns 이 범위의 각을 취약 구간으로 표시한다(2차): 연두 테두리 · 옅은 바깥 띠(`#EFF2D6` 3dp) · 크림 머리.
  * @param fadedColumns 이 각들은 머리까지 흐리게(35%) 그린다(구간 반복의 앞뒤 각).
  * @param cellMarks (각, 정간) → 덧그릴 표시([ScoreCellMark]). 악보 편집에서 고른 정간·빈 정간을 표시한다.
+ * @param focusCell 실제 표시 정간(각, 정간)을 가로·세로 스크롤 안에 보이게 한다. 줄을 나눈 각도 원본 좌표로 지정한다.
+ * @param focusRequestKey 같은 정간으로 다시 이동할 때 증가시킨다. 사용자가 다른 곳으로 스크롤한 뒤에도 다시 보이게 한다.
+ * @param unitMarksAfterPass 재생·연주 중에는 [unitMarks]를 진행이 그 표시 자리를 다 지난 뒤에만 칠한다.
+ *   연주 중인 자리의 진행 채움을 덮지 않게 한다(연주 평가의 실시간 판정). 진행 모습([playback])이 없으면 모두 칠한다.
  */
 @Composable
 fun JeongganboView(
@@ -228,6 +239,9 @@ fun JeongganboView(
     cellMarks: Map<Pair<Int, Int>, ScoreCellMark> = emptyMap(),
     /** 나눈 정간의 소박 하나만 칠하는 표시(편집기에서 고른 소박). 정간 전체 표시([cellMarks]) 위에 그린다. */
     unitMarks: Map<ScoreUnitKey, ScoreCellMark> = emptyMap(),
+    unitMarksAfterPass: Boolean = false,
+    focusCell: Pair<Int, Int>? = null,
+    focusRequestKey: Int = 0,
 ) {
     // sp만 커져 분할 음·각 머리글이 잘리지 않도록 해당 악보의 기하도 함께 늘린다.
     // 화면 전체를 확대하지 않으며 기존 가로/세로 스크롤과 원본 줄바꿈을 유지한다.
@@ -245,7 +259,6 @@ fun JeongganboView(
         look.daegangWhenFits && song.score.columns[column].size == song.jangdan?.gak -> patternStarts
         else -> emptyList()
     }
-    val solfege = song.solfege.takeIf { notation.showSolfege }
     // 위아래로 붙은 두 정간이 모두 테두리를 그리면 맞닿은 변을 반씩만 그려 다른 변과 두께를 맞춘다.
     fun unitMode(cell: Pair<Int, Int>): Boolean =
         unitErrors.isNotEmpty() && decorations[cell] == null && (unitsByCell[cell]?.size ?: 0) > 1
@@ -317,7 +330,6 @@ fun JeongganboView(
                 drawTopLine = !(strip.strip > 0 && row == strip.rows.first),
                 isDaegangStart = row in starts,
                 notation = notation,
-                solfege = solfege,
                 currentIndex = shownIndex,
                 currentEvent = shownIndex?.let { song.timeline.getOrNull(it) },
                 highlight = highlight,
@@ -341,7 +353,9 @@ fun JeongganboView(
                 annotations = annotations,
                 cellMark = cellMarks[strip.column to row],
                 pickedUnits = unitMarks,
+                pickedAfterPass = unitMarksAfterPass,
                 playingKey = playingKey,
+                focusRequestKey = focusRequestKey.takeIf { focusCell == (strip.column to row) },
             )
         }
     }
@@ -575,7 +589,6 @@ private fun ScoreCellBox(
     drawTopLine: Boolean,
     isDaegangStart: Boolean,
     notation: ScoreNotation,
-    solfege: Map<Yul, String>?,
     currentIndex: Int?,
     currentEvent: ScoreEvent?,
     highlight: ScoreHighlight,
@@ -594,7 +607,9 @@ private fun ScoreCellBox(
     annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
     cellMark: ScoreCellMark? = null,
     pickedUnits: Map<ScoreUnitKey, ScoreCellMark> = emptyMap(),
+    pickedAfterPass: Boolean = false,
     playingKey: ScoreUnitKey? = null,
+    focusRequestKey: Int? = null,
 ) {
     val colors = EolssuTheme.colors
     val board = look.board
@@ -608,6 +623,14 @@ private fun ScoreCellBox(
         derivedStateOf {
             val position = currentEvent?.let { it.unitStart + if (live) it.unitDuration * currentFraction() else 0.0 }
             cellProgressAt(cellStart, position)
+        }
+    }
+    // 진행이 다 지난 표시 자리. null이면 [pickedUnits]를 모두 칠한다. 자리가 지날 때만 바뀌어 매 프레임 다시 그리지 않는다.
+    val passedUnits by remember(units, currentEvent, live, pickedAfterPass) {
+        derivedStateOf {
+            if (!pickedAfterPass || !live) return@derivedStateOf null
+            val position = currentEvent?.let { it.unitStart + it.unitDuration * currentFraction() }
+            units.filter { unitPassed(it, position) }.mapTo(HashSet()) { it.key }
         }
     }
     val (fill, ring) = when (highlight) {
@@ -627,6 +650,21 @@ private fun ScoreCellBox(
     val mutedGlyph = board && progress == CellProgress.Past && !isSelected
 
     var cellModifier = Modifier.fillMaxWidth().height(metrics.cellHeight)
+    if (focusRequestKey != null) {
+        // 렌더링한 정간의 실제 위치를 사용한다. 긴 각의 줄바꿈·가변 높이·양방향 스크롤도 같은 요청으로 처리한다.
+        val requester = remember { BringIntoViewRequester() }
+        var placed by remember { mutableStateOf(false) }
+        LaunchedEffect(focusRequestKey, placed) {
+            if (placed) requester.bringIntoView()
+        }
+        cellModifier = cellModifier.bringIntoViewRequester(requester).onGloballyPositioned { placed = true }
+    }
+    if (units.isEmpty() && (cellMark?.description != null || cellMark?.selected != null)) {
+        cellModifier = cellModifier.semantics {
+            cellMark?.description?.let { stateDescription = it }
+            cellMark?.selected?.let { selected = it }
+        }
+    }
     if (dimmed && !isSelected) cellModifier = cellModifier.alpha(0.55f)
     if (mark != null && mark.alpha < 1f && !isSelected) cellModifier = cellModifier.alpha(mark.alpha)
     // 재생·연주 중에는 모양과 관계없이 지나간 정간에 옅은 바탕을 깔아 어디까지 왔는지 보이게 한다.
@@ -754,7 +792,7 @@ private fun ScoreCellBox(
                                     }
                                 }
                             }
-                            val pick = pickedUnits[unit.key]
+                            val pick = pickedUnits[unit.key]?.takeIf { passedUnits?.contains(unit.key) != false }
                             val pickModifier = if (pick == null) Modifier else Modifier
                                 .background(pick.fill ?: Color.Transparent)
                                 .drawWithContent {
@@ -788,11 +826,12 @@ private fun ScoreCellBox(
                                 showDivider = r > 0,
                                 isCurrentInSplit = !live && units.size > 1 && unit.event.index == currentIndex,
                                 notation = notation,
-                                solfege = solfege,
                                 mutedGlyph = mutedGlyph,
                                 playing = playingKey != null && unit.key == playingKey,
                                 onClick = onUnitClick?.let { { it(unit) } } ?: onEventClick?.let { { it(unit.event) } },
-                                isSelected = selectedCell ?: (unit.event.index == selectedIndex),
+                                isSelected = pick?.selected ?: cellMark?.selected ?: selectedCell ?: (unit.event.index == selectedIndex),
+                                markDescription = listOfNotNull(cellMark?.description, pick?.description).distinct()
+                                    .joinToString(" · ").takeIf { it.isNotEmpty() },
                                 modifier = Modifier.fillMaxSize(),
                                 sigimsae = annotations[unit.key].orEmpty(),
                             )
@@ -954,7 +993,6 @@ private fun ScoreNoteBox(
     showDivider: Boolean,
     isCurrentInSplit: Boolean,
     notation: ScoreNotation,
-    solfege: Map<Yul, String>?,
     mutedGlyph: Boolean,
     onClick: (() -> Unit)?,
     isSelected: Boolean,
@@ -963,6 +1001,7 @@ private fun ScoreNoteBox(
     playing: Boolean = false,
     reserveTopEnd: DpSize? = null,
     reserveBottomStart: DpSize? = null,
+    markDescription: String? = null,
 ) {
     val colors = EolssuTheme.colors
     val note = unit.note
@@ -988,7 +1027,6 @@ private fun ScoreNoteBox(
         note == ScoreNote.Rest -> stringResource(Res.string.score_rest_hangul)
         else -> null
     }
-    val solfegeText = note.fingeringYul?.let { solfege?.get(it) }
 
     var noteModifier = modifier.fillMaxWidth()
     if (isCurrentInSplit) noteModifier = noteModifier.background(Color.White.copy(alpha = 0.55f))
@@ -1007,6 +1045,7 @@ private fun ScoreNoteBox(
     if (onClick != null) noteModifier = noteModifier.clickable(role = Role.Button, onClick = onClick)
     noteModifier = noteModifier.semantics(mergeDescendants = true) {
         contentDescription = (listOf(label) + sigimsae.map(::scoreSigimsaeName)).joinToString(" · ")
+        markDescription?.let { stateDescription = it }
         if (onClick != null) selected = isSelected
     }
 
@@ -1046,17 +1085,14 @@ private fun ScoreNoteBox(
                 glyphs.forEach { ScoreSigimsaeGlyph(it, yulSize * look.sigimsaeScale) }
             }
         }
-        if (hangul != null || solfegeText != null) {
+        if (hangul != null) {
             val auxStyle = MaterialTheme.typography.labelSmall.copy(fontSize = auxSize, lineHeight = auxSize * 1.1f)
             val auxColor = when {
                 playing -> colors.rec
                 mutedGlyph -> colors.textDisabled
                 else -> colors.textMuted
             }
-            Column(Modifier.clearAndSetSemantics {}) {
-                if (hangul != null) Text(hangul, style = auxStyle, color = auxColor)
-                if (solfegeText != null) Text(solfegeText, style = auxStyle, color = if (look.board) auxColor else colors.playText)
-            }
+            Text(hangul, style = auxStyle, color = auxColor, modifier = Modifier.clearAndSetSemantics {})
         }
       }
       sigimsae.filter { scoreSigimsaeImage(it) == null }.forEach {

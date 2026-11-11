@@ -11,6 +11,12 @@
     <select id="findScore" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.SongScoreRow">
         SELECT score_json, score_version FROM songs WHERE id = #{songId}
     </select>
+    <select id="findScoreRevision" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.SongScoreRow">
+        SELECT score_json, score_version FROM songs WHERE id = #{songId} AND score_version = #{scoreVersion}
+        UNION ALL
+        SELECT v.score_json, v.score_version FROM song_score_versions v JOIN songs s ON s.id = v.song_id
+        WHERE v.song_id = #{songId} AND v.score_version = #{scoreVersion} AND s.score_version &lt;&gt; v.score_version
+    </select>
 
     <select id="findPitches" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.ScorePitchRow">
         SELECT id, yul, octave, semitone FROM pitches

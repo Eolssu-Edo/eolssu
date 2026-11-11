@@ -3,15 +3,16 @@ package com.ssafy.eolssu.feature.guide.learn
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.learn_done_go_finish
 import eolssu.shared.generated.resources.learn_tour_done_body_beat
 import eolssu.shared.generated.resources.learn_tour_done_body_notes
 import eolssu.shared.generated.resources.learn_tour_done_body_patterns
 import eolssu.shared.generated.resources.learn_tour_done_body_range
-import eolssu.shared.generated.resources.learn_tour_done_body_song
+import eolssu.shared.generated.resources.learn_tour_done_next
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** 4~8단계 따라 배우기(S15P31E102-626)의 칸 수와 그림·완료 문구 짝. */
+/** 4~7단계 따라 배우기(S15P31E102-626)의 칸 수와 완료 문구 짝. */
 class LearnStageTourTest {
     private val danso = GuideInstrument.Danso
     private fun detail(
@@ -26,13 +27,14 @@ class LearnStageTourTest {
     )
 
     /**
-     * 4단계 첫 음은 3단계 첫 소리와 같아 칸을 두지 않는다(S15P31E102-655). 두 번째 음의 운지가 있어야
-     * 할 일 2칸(옮겨 가기 · 남은 음), 없으면 따라 배우기를 두지 않는다.
+     * 4단계는 율명을 처음 보는 사람도 따라 하도록 음마다 운지 박스를 하나씩 둔다(S15P31E102-688).
+     * 운지표에 없는 음은 빼고, 짚을 음이 없으면 따라 배우기를 두지 않는다.
      */
-    @Test fun stageFourSkipsTheFirstSoundAndHasTwoSteps() {
-        assertEquals(2, stageTourCount(4, detail(listOf("汰", "潢", "無", "林", "仲")), danso))
-        assertEquals(0, stageTourCount(4, detail(listOf("汰")), danso))
-        assertEquals(0, stageTourCount(4, detail(listOf("汰", "없는음")), danso))
+    @Test fun stageFourHasOneFingeringStepPerNote() {
+        assertEquals(5, stageTourCount(4, detail(listOf("汰", "潢", "無", "林", "仲")), danso))
+        assertEquals(listOf("汰", "林"), stageFourNotes(detail(listOf("汰", "없는음", "林")), danso).map { it.hanja })
+        assertEquals(0, stageTourCount(4, detail(listOf("없는음")), danso))
+        assertEquals(0, stageTourCount(4, detail(), danso))
     }
 
     /** 5단계는 기본 5음이 있으면 올라가기·내려가기 2칸, 모자라면 없다(건너뛰기·세 음 동요는 같은 음의 반복이라 뺐다). */
@@ -51,16 +53,26 @@ class LearnStageTourTest {
         assertEquals(0, stageTourCount(6, detail(), danso))
     }
 
-    /** 7·8단계는 서버 할 일 수 그대로다. */
-    @Test fun stagesSevenAndEightFollowServerTasks() {
-        assertEquals(3, stageTourCount(7, detail(tasks = 3), danso))
-        assertEquals(3, stageTourCount(8, detail(tasks = 3), danso))
-        assertEquals(0, stageTourCount(8, detail(), danso))
+    /** 7단계(혀치기)는 서버 할 일 수 그대로다. */
+    @Test fun stageSevenFollowsServerTasks() {
+        assertEquals(1, stageTourCount(7, detail(tasks = 1), danso))
+        assertEquals(0, stageTourCount(7, detail(), danso))
     }
 
-    /** 7단계 서버 할 일 순서(혀치기 · 1정간을 2로 · 3으로)와 박 나누기 그림 짝. */
-    @Test fun stageSevenSplitsFollowServerTaskOrder() {
-        assertEquals(listOf(null, 2, 3, null), (0..3).map(::beatSplitOf))
+    /** 단계마다 할 일 박스 수(S15P31E102-688): 1단계는 짚는 곳, 2·3단계는 서버 할 일, 4~7단계는 따라 배우기 칸, 그 밖은 없다. */
+    @Test fun stepCountPerStage() {
+        assertEquals(danso.tourSpots.size, learnStepCount(1, detail(), danso))
+        assertEquals(3, learnStepCount(2, detail(tasks = 3), danso))
+        assertEquals(4, learnStepCount(3, detail(tasks = 4), danso))
+        assertEquals(2, learnStepCount(5, detail(listOf("仲", "林", "無", "潢", "汰")), danso))
+        assertEquals(1, learnStepCount(7, detail(tasks = 1), danso))
+        assertEquals(0, learnStepCount(8, detail(tasks = 3), danso))
+    }
+
+    /** 마지막 단계(7단계)를 마치면 '완료했어요!' 버튼이 다음 단계 대신 단계 목록 결승선으로 돌아간다(S15P31E102-688). */
+    @Test fun lastStageDoneLeadsBackToFinishLine() {
+        assertEquals(Res.string.learn_done_go_finish, learnDoneAction(last = true))
+        assertEquals(Res.string.learn_tour_done_next, learnDoneAction(last = false))
     }
 
     @Test fun doneBodyPerStage() {
@@ -70,9 +82,8 @@ class LearnStageTourTest {
                 Res.string.learn_tour_done_body_patterns,
                 Res.string.learn_tour_done_body_range,
                 Res.string.learn_tour_done_body_beat,
-                Res.string.learn_tour_done_body_song,
             ),
-            (4..8).map(::learnDoneBody),
+            (4..7).map(::learnDoneBody),
         )
     }
 }

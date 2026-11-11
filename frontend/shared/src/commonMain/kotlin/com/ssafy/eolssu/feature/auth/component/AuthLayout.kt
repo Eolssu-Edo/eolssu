@@ -8,14 +8,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -25,22 +22,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_step
-import eolssu.shared.generated.resources.auth_step_description
 import org.jetbrains.compose.resources.stringResource
 
 /** 상단 바가 없는 화면의 본문 위 여백. 와이어프레임 64px에서 상태 표시줄 자리 44px를 뺀 값. */
@@ -126,27 +118,6 @@ fun AuthStepLabel(step: Int, total: Int) {
         style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
         color = EolssuTheme.colors.textMuted,
     )
-}
-
-/** 상단 바 아래 단계 막대(`.au-progress`): 높이 4dp, 좌우 20dp, [step]/[total]만큼 채운다. 태블릿은 입력 칸 너비(560dp)다. */
-@Composable
-fun AuthStepProgress(step: Int, total: Int) {
-    val description = stringResource(Res.string.auth_step_description, step, total)
-    val frame = LocalAuthFrame.current
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-        Box(
-            Modifier
-                .widthIn(max = if (frame.isTablet) AuthTabletColumnWidth + 40.dp else CompactContentMaxWidth)
-                .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, bottom = 4.dp)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(EolssuTheme.colors.surfaceStrong)
-                .semantics { contentDescription = description },
-        ) {
-            Box(Modifier.fillMaxHeight().fillMaxWidth(step.toFloat() / total).background(EolssuTheme.colors.primary))
-        }
-    }
 }
 
 /** 22dp 체크 상자(`.au-box`). 누르기는 감싼 행이 맡는다. */

@@ -124,7 +124,7 @@ fun SectionLoopScreen(
             }
             Column(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PageHeading(song.title, Modifier.weight(1f))
+                    PageHeading(song.title, Modifier.weight(1f), singleLine = true)
                     LoopStatusLabel(state, Modifier.widthIn(max = 168.dp))
                 }
                 Spacer(Modifier.height(8.dp))
@@ -187,7 +187,7 @@ private fun SectionBoardScore(state: SectionLoopUiState, song: Song, modifier: M
                 song = song,
                 modifier = Modifier.fillMaxSize().clipToBounds(),
                 metrics = packing.metrics,
-                notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege),
+                notation = ScoreNotation(state.settings.showHangul),
                 scrollState = rememberScrollState(),
                 currentIndex = current?.let { c -> song.timeline.firstOrNull { it.column == c.column && it.row == c.row }?.index },
                 highlight = if (state.recording) ScoreHighlight.Recording else ScoreHighlight.Position,

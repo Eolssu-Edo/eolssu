@@ -70,11 +70,13 @@ class SheetEditViewModel(
 
     /** 서버 문서나 제공 곡 원본을 읽어 와야 여는 경로. 읽기 전에는 예시 악보를 보이지 않는다. */
     private val loadsRemote = (documents != null && source is EditSource.Mine) || (songs != null && source is EditSource.CopySong)
+    private val requiresCompletionCatalog = pitchCatalog != null && loadAudioInstruments != null && loadsRemote
     private val _uiState = MutableStateFlow(
         SheetEditUiState.initial(source,
             if (loadsRemote) SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1))
             else SheetEditSamples.draftFor(source, mySheetRepository.sheets.value), startView)
             .copy(documentLoading = loadsRemote,
+                completionCatalogState = if (requiresCompletionCatalog) SheetCompletionCatalogState.Loading else SheetCompletionCatalogState.NotRequired,
                 audioInstruments = if (showsAudioExport && source is EditSource.Mine && loadAudioInstruments != null)
                     SheetAudioInstruments() else null),
     )
@@ -90,6 +92,7 @@ class SheetEditViewModel(
     private var autoSaveJob: Job? = null
     private var loadJob: Job? = null
     private var jangdanJob: Job? = null
+    private var completionCatalogJob: Job? = null
     private var closeJob: Job? = null
     private var persistedDraft: SheetDraft? = null
     private var savedJangdanId: String? = null
@@ -107,9 +110,10 @@ class SheetEditViewModel(
         version = ""
         _uiState.update { it.copy(draft = SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1)),
             documentLoading = false, documentFailed = true, practiceVersionChanged = false,
-            saving = false, message = null, audio = SheetAudioUi.None,
+            saving = false, confirming = false, message = null, audio = SheetAudioUi.None,
             deviceAudio = null, audioDownloading = false,
-            reviewNotices = emptyList(),
+            reviewNotices = emptyList(), instrumentPitches = null, availableJangdans = null, completionWarning = false,
+            completionCatalogState = SheetCompletionCatalogState.NotRequired,
             past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet(),
             jangdanPicker = null, audioInstruments = null) }
     }
@@ -117,22 +121,64 @@ class SheetEditViewModel(
     init {
         if (loadsRemote) loadDocument()
         else if (_uiState.value.serverSheetId != null) refreshAudio(announce = false)
-        loadPitches()
+        if (!requiresCompletionCatalog) loadPitches()
     }
 
     /** 등록 음 목록. 받지 못하면 null로 두고 저장 때 서버가 확인한다. */
     private fun loadPitches() {
         val catalog = pitchCatalog ?: return
-        viewModelScope.launch {
+        accountScope.launch {
             val pitches = try { catalog.allPitches() } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { return@launch }
             _uiState.update { it.copy(availablePitches = pitches.map { pitch -> pitch.yul to pitch.octave }.toSet()) }
         }
     }
 
+    /** 저장 검증의 악기 음역은 음원 내보내기 UI 표시 여부와 무관하게 읽는다. */
+    private fun loadCompletionCatalog() {
+        val catalog = pitchCatalog ?: return
+        val state = _uiState.value
+        if (!accountScope.isActive || state.documentLoading || state.documentFailed || completionCatalogJob?.isActive == true) return
+        val instrumentCode = state.draft.original?.score?.instrument ?: return
+        if (requiresCompletionCatalog) _uiState.update { it.copy(completionCatalogState = SheetCompletionCatalogState.Loading) }
+        completionCatalogJob = accountScope.launch {
+            if (requiresCompletionCatalog) {
+                try {
+                    val registered = catalog.allPitches().map { it.yul to it.octave }.toSet()
+                    val instruments = requireNotNull(loadAudioInstruments).invoke()
+                    val instrumentId = requireNotNull(instruments.singleOrNull { it.code == instrumentCode }?.instrumentId)
+                    val pitches = catalog.pitches(instrumentId).map { it.yul to it.octave }.toSet()
+                    require(registered.isNotEmpty() && pitches.isNotEmpty() && registered.containsAll(pitches))
+                    ensureAccountSession()
+                    _uiState.update { it.copy(availablePitches = registered, instrumentPitches = pitches,
+                        completionCatalogState = SheetCompletionCatalogState.Ready) }
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) {
+                    ensureAccountSession()
+                    _uiState.update { it.copy(completionCatalogState = SheetCompletionCatalogState.Failed) }
+                }
+            }
+            if (state.draft.jangdanId != null && state.reviewNotices.any { it.type == "JANGDAN_MISMATCH" }) {
+                try {
+                    val jangdans = catalog.jangdans()
+                    ensureAccountSession()
+                    _uiState.update { it.copy(availableJangdans = jangdans) }
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { /* 장단 정보가 없으면 장단 해제 또는 다시 선택으로 해결한다. */ }
+            }
+        }
+    }
+
+    fun retryCompletionCatalog() = loadCompletionCatalog()
+
     private fun change(transform: (SheetEditUiState) -> SheetEditUiState) {
         if (!accountScope.isActive || _uiState.value.documentLoading || _uiState.value.documentFailed) return
         val before = _uiState.value.draft
-        _uiState.update(transform)
+        _uiState.update { current ->
+            val next = transform(current)
+            // 최종 저장 응답은 보낸 악보의 확인 결과다. 초안 자동 저장 중에는 계속 편집한다.
+            if (current.confirming && (next.draft != current.draft || next.checkedIssueIds != current.checkedIssueIds ||
+                next.reviewIssues != current.reviewIssues)) current else next
+        }
         if (before != _uiState.value.draft && loaded != null && !_uiState.value.saveConflict) {
             autoSaveJob?.cancel()
             autoSaveJob = accountScope.launch { delay(1_000); persist(draft = true, announce = false) }
@@ -179,6 +225,7 @@ class SheetEditViewModel(
                     reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet(),
                     reviewNotices = document.editorReviewNotices(),
                     deviceAudio = deviceAudio) }
+                loadCompletionCatalog()
                 loadAudioInstrumentOptions()
                 refreshAudio(announce = false)
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -200,6 +247,7 @@ class SheetEditViewModel(
                 baseline = draft
                 _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
                     documentLoading = false, documentFailed = false, view = EditView.Jeongganbo) }
+                loadCompletionCatalog()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { _uiState.update { it.copy(documentLoading = false, documentFailed = true) } }
         }
@@ -207,19 +255,24 @@ class SheetEditViewModel(
 
     private fun persist(draft: Boolean, announce: Boolean = true): Job? {
         val repository = documents ?: return null
-        val snapshot = _uiState.value
-        val id = snapshot.serverSheetId ?: return null
-        if (!accountScope.isActive || snapshot.documentLoading || snapshot.documentFailed || loaded == null) return null
-        if (snapshot.saveConflict) { _uiState.update { it.copy(message = SheetEditMessage.SaveConflict) }; return null }
+        val requested = _uiState.value
+        val id = requested.serverSheetId ?: return null
+        if (!accountScope.isActive || requested.documentLoading || requested.documentFailed || loaded == null) return null
+        if (!draft && requested.confirming) return null
+        if (requested.saveConflict) { _uiState.update { it.copy(message = SheetEditMessage.SaveConflict) }; return null }
+        if (!draft && blockInvalidCompletion(requested)) return null
         return accountScope.launch {
             writeLock.withLock {
                 if (_uiState.value.saveConflict) return@withLock
-                _uiState.update { it.copy(saving = true, emptyWarning = false) }
+                // 앞선 초안 저장을 기다리는 동안 바뀐 내용도 완료 직전에 다시 검사한다.
+                val snapshot = if (draft) requested else _uiState.value
+                if (!draft && blockInvalidCompletion(snapshot)) return@withLock
+                _uiState.update { it.copy(saving = true, confirming = !draft, emptyWarning = false, completionWarning = false) }
                 try {
                     val score = snapshot.draft.toCommonScore()
                     if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
-                    val resolvedIds = if (draft) emptyList() else _uiState.value.reviewIssues
-                        .map(SheetReviewIssue::id).filter { it in snapshot.checkedIssueIds }
+                    val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
+                        .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
                     val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
                         snapshot.draft.bpm, score, version, revision, resolvedIds)
                     when (val result = repository.save(id, copy, draft)) {
@@ -257,7 +310,7 @@ class SheetEditViewModel(
                     }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { _uiState.update { it.copy(message = SheetEditMessage.SaveFailed) } }
-                finally { if (accountScope.isActive) _uiState.update { it.copy(saving = false) } }
+                finally { if (accountScope.isActive) _uiState.update { it.copy(saving = false, confirming = false) } }
             }
         }
     }
@@ -298,7 +351,18 @@ class SheetEditViewModel(
     fun checkReviewIssue() = change { state ->
         val issue = state.nextReviewIssue ?: return@change state
         if (state.nextReviewCellIndex?.let { it != state.selected } == true) return@change state
+        if (!state.canCheckNextReviewIssue) return@change state.copy(completionWarning = true)
         state.copy(checkedIssueIds = state.checkedIssueIds + issue.id)
+    }
+
+    fun checkSelectedReviewIssue() = change { state ->
+        val issue = state.selectedReviewIssue ?: return@change state
+        if (!state.canCheckSelectedReviewIssue) return@change state.copy(completionWarning = true)
+        state.copy(checkedIssueIds = state.checkedIssueIds + issue.id)
+    }
+
+    fun openCompletionIssue() = change { state ->
+        state.focusCompletionIssue().copy(completionWarning = false)
     }
 
     fun selectCell(index: Int) = change { it.select(index) }
@@ -306,8 +370,8 @@ class SheetEditViewModel(
     fun put(note: ScoreNote) = change { it.put(note) }
     fun erase() = change { it.erase() }
     fun putYul(base: Yul) = change { it.putYul(base) }
-    fun raiseRegister() = change { it.raiseRegister() }
-    fun lowerRegister() = change { it.lowerRegister() }
+    fun applyPitchCorrection(target: SheetPitchCorrection, pitch: Pair<Yul, Int>) = change { it.applyPitchCorrection(target, pitch) }
+    fun selectRegister(register: YulRegister) = change { it.selectRegister(register) }
     fun toggleSigimsae(value: Sigimsae) = change { it.toggleSigimsae(value) }
     fun removeSigimsae(position: Int) = change { it.removeSigimsae(position) }
     fun split() = change { it.split() }
@@ -317,6 +381,10 @@ class SheetEditViewModel(
     fun undo() = change { it.undo() }
     fun redo() = change { it.redo() }
     fun updateDetails(title: String, bpm: Int) = change { it.updateDetails(title, bpm) }
+    fun updateSettings(bpm: Int, jangdanId: String?) {
+        jangdanJob?.cancel()
+        change { it.updateSettings(bpm, jangdanId) }
+    }
     fun selectTab(tab: EditTab) = change { it.copy(tab = tab) }
     fun selectView(view: EditView) = change { state ->
         if (state.view == view || state.draft.original == null) return@change state.copy(view = view)
@@ -344,11 +412,13 @@ class SheetEditViewModel(
             } catch (_: Exception) {
                 SheetEditJangdanPicker.Failed
             }
-            change { it.copy(jangdanPicker = picker) }
+            change { it.copy(jangdanPicker = picker,
+                availableJangdans = (picker as? SheetEditJangdanPicker.Ready)?.options ?: it.availableJangdans) }
         }
     }
 
     fun selectJangdan(id: String) = change { it.selectJangdan(id) }
+    fun clearJangdan() = change { it.clearJangdan() }
 
     fun closeJangdanPicker() {
         jangdanJob?.cancel()
@@ -389,7 +459,7 @@ class SheetEditViewModel(
     fun requestSave() {
         if (documents == null) { change { it.requestSave() }; return }
         if (_uiState.value.serverSheetId == null) { change { it.copy(message = SheetEditMessage.ComingSoon) }; return }
-        if (_uiState.value.draft.unfilledCells.isNotEmpty()) { change { it.copy(emptyWarning = true) }; return }
+        if (blockInvalidCompletion(_uiState.value)) return
         autoSaveJob?.cancel()
         persist(draft = false)
     }
@@ -400,8 +470,16 @@ class SheetEditViewModel(
         persist(draft = true)
     }
     fun closeWarning() = change { it.copy(emptyWarning = false) }
+    fun closeCompletionWarning() = change { it.copy(completionWarning = false) }
     fun fillEmpty() = change { it.fillEmpty() }
     fun consumeMessage() = change { it.copy(message = null) }
+
+    private fun blockInvalidCompletion(state: SheetEditUiState): Boolean {
+        val validation = state.completionValidation
+        if (validation.canComplete) return false
+        _uiState.update { it.focusCompletionIssue().copy(emptyWarning = validation.hasEmptyCells, completionWarning = !validation.hasEmptyCells) }
+        return true
+    }
 
     /** '음원 만들기'·'다시 만들기'·'다시 시도'. 저장된 서버 악보가 있을 때만 SHT-12를 부르고, 접수되면 끝날 때까지 상태를 묻는다. */
     fun requestAudio() {

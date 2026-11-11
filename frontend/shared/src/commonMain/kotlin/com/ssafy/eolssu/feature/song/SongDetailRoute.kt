@@ -16,8 +16,8 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 /**
- * SONG-02 연결. '이 곡 연습하기'를 누르면 [onStartPractice]로 연습 화면에 간다.
- * 연습 화면이 연결되지 않았으면(null) '준비 중' 안내를 띄운다.
+ * SONG-02 연결. '연주 평가 시작'을 누르면 [onStartPractice]로 연주 평가 화면의 대기 상태로 간다.
+ * 연주 평가 화면이 연결되지 않았으면(null) '준비 중' 안내를 띄운다.
  */
 @Composable
 fun SongDetailRoute(

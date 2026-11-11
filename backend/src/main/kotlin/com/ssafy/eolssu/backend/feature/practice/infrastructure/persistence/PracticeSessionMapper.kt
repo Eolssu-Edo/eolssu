@@ -84,4 +84,6 @@ data class PracticeSessionDetailRow(
     val savedAt: LocalDateTime?,
     val memo: String?,
     val viewedAt: LocalDateTime?,
+    val scoreVersion: Int,
+    val songTitle: String,
 )

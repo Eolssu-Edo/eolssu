@@ -3,7 +3,6 @@ package com.ssafy.eolssu.testing
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
-import com.ssafy.eolssu.data.song.SampleSongRepository
 import com.ssafy.eolssu.data.user.LearnProgressRepository
 import com.ssafy.eolssu.data.user.SampleUserRepository
 import com.ssafy.eolssu.data.user.UserRepository
@@ -41,7 +40,7 @@ internal class AccountStateIsolationTest : CatalogViewModelTest() {
     fun previousLearningScreenCannotWriteIntoNextAccount() = runTest {
         val api = FakeLessonApi(owner = { member.id })
         val progress = LearnProgressRepository(api, store, member)
-        val model = keep(LearnViewModel(SampleSongRepository(), progress, member))
+        val model = keep(LearnViewModel(progress, member))
         runCurrent()
         model.toggleDone(1)
         runCurrent()

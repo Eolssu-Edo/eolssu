@@ -159,7 +159,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         val reply = CompletableDeferred<SheetWrite>()
         val writes = mutableListOf<SheetWorkingCopy>()
         val repository = object : SheetDocumentRepository {
-            override suspend fun get(sheetId: String) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), null, "NEEDS_REVIEW", "DONE", listOf(kotlinx.serialization.json.Json.parseToJsonElement("""{"issueId":"i1","cellId":"c0-j1","type":"OUT_OF_RANGE"}""") as kotlinx.serialization.json.JsonObject))
+            override suspend fun get(sheetId: String) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), null, "NEEDS_REVIEW", "DONE", listOf(kotlinx.serialization.json.Json.parseToJsonElement("""{"issueId":"i1","cellId":"c0-j1","type":"LOW_CONFIDENCE"}""") as kotlinx.serialization.json.JsonObject))
             override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
                 writes += copy
                 assertFalse(draft)

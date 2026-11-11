@@ -21,16 +21,21 @@ import org.jetbrains.compose.resources.stringResource
 /** 이전 연주 결과의 '기록 삭제' 동작. */
 class RecordDeleteActions(val onAsk: () -> Unit, val onConfirm: () -> Unit, val onCancel: () -> Unit)
 
-/** 상단 바 오른쪽 끝 '기록 삭제'(붉은 글자). 지우는 중에는 누를 수 없다. */
+/** 상단 바 오른쪽 끝 휴지통 + ‘기록 삭제’(둘 다 붉은색 #C8402F). 지우는 중에는 누를 수 없다. */
 @Composable
 internal fun RecordDeleteButton(busy: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
-    Surface(onClick = onClick, enabled = !busy, shape = RoundedCornerShape(10.dp), color = Color.Transparent) {
-        Box(Modifier.heightIn(min = 44.dp).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
+    val tint = if (busy) colors.textDisabled else colors.rec
+    Surface(onClick = onClick, enabled = !busy, shape = RoundedCornerShape(10.dp), color = Color.Transparent, contentColor = tint) {
+        Row(
+            Modifier.heightIn(min = 44.dp).padding(start = 8.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(EolssuIcons.Trash, contentDescription = null, modifier = Modifier.size(18.dp))
             Text(
                 stringResource(Res.string.record_delete),
                 style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
-                color = if (busy) colors.textDisabled else colors.recText,
                 maxLines = 1,
             )
         }

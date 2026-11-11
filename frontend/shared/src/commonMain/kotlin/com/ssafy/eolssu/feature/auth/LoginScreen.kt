@@ -39,6 +39,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuLogo
 import com.ssafy.eolssu.core.ui.component.EolssuTextField
+import com.ssafy.eolssu.core.ui.component.mountainRidges
 import com.ssafy.eolssu.core.ui.component.ProviderGlyph
 import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthBody
@@ -47,7 +48,6 @@ import com.ssafy.eolssu.feature.auth.component.AuthFrame
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.authBodyTopWithoutBar
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
-import com.ssafy.eolssu.feature.auth.component.loginMountains
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_confirm
 import eolssu.shared.generated.resources.auth_email
@@ -93,7 +93,7 @@ fun LoginScreen(
     AuthScaffold(frame, modifier = Modifier.imePadding(), snackbarHostState = snackbarHostState) {
         AuthBody(
             topPadding = authBodyTopWithoutBar(),
-            modifier = if (frame == AuthFrame.Compact) Modifier.loginMountains(EolssuTheme.colors.radical) else Modifier,
+            modifier = if (frame == AuthFrame.Compact) Modifier.mountainRidges(EolssuTheme.colors.radical) else Modifier,
             gap = 20.dp,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalAlignment = if (frame.isTablet) Alignment.CenterVertically else Alignment.Top,

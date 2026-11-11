@@ -374,7 +374,7 @@ class AnalysisSessionTest {
     private val take = RecordedTake(path = "rec/practice-1.m4a", key = "take-1")
 
     private fun startWithTake() {
-        scope.launch { takeSession.start(SampleSongs.first(), bpm = 60, take = take) }
+        scope.launch { takeSession.start(SampleSongs.first().copy(scoreVersion = 1), bpm = 60, take = take) }
     }
 
     @Test
@@ -390,7 +390,7 @@ class AnalysisSessionTest {
     fun sectionTakeCreatesSectionSessionWithParentAndResendsTheSameSection() {
         val section = SessionSection(startNoteIdx = 12, endNoteIdx = 27, parentSessionId = "30")
         sessions.results += SessionStart.Unreachable
-        scope.launch { takeSession.start(SampleSongs.first(), bpm = 48, take = take, section = section) }
+        scope.launch { takeSession.start(SampleSongs.first().copy(scoreVersion = 1), bpm = 48, take = take, section = section) }
         assertEquals(UploadProblem.CanResend, takeSession.state.value.upload)
 
         takeSession.resend()

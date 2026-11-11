@@ -97,7 +97,7 @@
 
     <!-- EDIT-02 정간보 편집 · EDIT-03 오선보로 보기 -->
     <string name="sheetedit_close">편집 닫기</string>
-    <string name="sheetedit_preview">편집 내용 확인</string>
+    <string name="sheetedit_preview">저장하기</string>
     <string name="sheetedit_subtitle_editing">편집 중 · %1$s · %2$d BPM</string>
     <string name="sheetedit_subtitle_staff">오선보로 보기 · 황 = %1$s 기준</string>
     <string name="sheetedit_undo">실행 취소</string>
@@ -125,8 +125,8 @@
     <string name="sheetedit_cell_jangdan">장단 · %1$s</string>
     <string name="sheetedit_cell_jangdan_desc">%1$d박 · 박마다 %2$d정간 · %3$d BPM</string>
     <string name="sheetedit_cell_jangdan_change">장단 바꾸기</string>
-    <string name="sheetedit_jangdan_same_unit">악보의 빠르기와 음 길이를 유지하려면 박자 단위가 같은 장단을 골라야 해요.</string>
-    <string name="sheetedit_jangdan_none_compatible">현재 악보와 박자 단위가 같은 장단이 없어요.</string>
+    <string name="sheetedit_jangdan_same_unit">현재 악보의 박자 단위와 한 각의 길이에 맞는 장단만 선택할 수 있어요. 음표와 길이는 바뀌지 않아요.</string>
+    <string name="sheetedit_jangdan_none_compatible">현재 악보에 맞는 장단이 없어요. 돌아가서 ‘장단 사용 안 함’을 선택해 주세요.</string>
     <string name="sheetedit_jangdan_load_failed">장단 목록을 불러오지 못했어요.</string>
     <string name="sheetedit_staff_hint">한쪽을 고치면 다른 쪽도 바로 바뀌어요</string>
     <string name="sheetedit_staff_system">정간보 %1$d–%2$d각</string>
@@ -149,7 +149,7 @@
     <string name="sheetedit_duration_other">%1$s정간</string>
 
     <!-- EDIT-04 편집 내용 확인 및 저장 -->
-    <string name="sheetedit_preview_title">편집 내용 확인</string>
+    <string name="sheetedit_preview_title">악보 미리듣기</string>
     <string name="sheetedit_preview_beat">%1$s · %2$d BPM</string>
     <string name="sheetedit_preview_beat_sub">한 각 %1$d정간 · %2$d박 · %3$d각</string>
     <string name="sheetedit_preview_hint">오른쪽 각부터 위→아래로 읽어요</string>
@@ -221,7 +221,7 @@
     <string name="sheetedit_register_cheong">청</string>
     <string name="sheetedit_register_baetak_short">배탁</string>
     <string name="sheetedit_register_jungcheong_short">중청</string>
-    <string name="sheetedit_key_unavailable">%1$s · 등록되지 않은 음</string>
+    <string name="sheetedit_key_unavailable">%1$s · 현재 악보의 지원 목록에 없는 음</string>
     <string name="sheetedit_sig_none">이 정간에 붙인 시김새가 없어요</string>
     <string name="sheetedit_sig_need_pitch">율명에만 시김새를 붙일 수 있어요</string>
     <string name="sheetedit_sig_limit">한 정간에 %1$d개까지 붙일 수 있어요</string>

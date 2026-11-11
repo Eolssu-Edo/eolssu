@@ -26,9 +26,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
@@ -51,16 +53,17 @@ import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_echo_off
 import eolssu.shared.generated.resources.practice_abort
+import eolssu.shared.generated.resources.practice_countdown_ready
 import eolssu.shared.generated.resources.practice_mic_off
 import eolssu.shared.generated.resources.practice_mic_on
 import eolssu.shared.generated.resources.practice_no_input_hint
-import eolssu.shared.generated.resources.practice_rec_time_detail
+import eolssu.shared.generated.resources.practice_rec_time_total
+import eolssu.shared.generated.resources.practice_start_eval_short
 import eolssu.shared.generated.resources.practice_restart
 import eolssu.shared.generated.resources.practice_beat_janggu
 import eolssu.shared.generated.resources.practice_jangdan_beat
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import kotlin.math.roundToInt
 
 /** 연습 화면 하단·플레이어에서 부르는 동작. */
 class PracticeBottomActions(
@@ -91,23 +94,46 @@ class PracticeBottomActions(
 )
 
 /**
- * 연주 중 하단(`.bottombar`, 상태 D·소리 입력 없음·중단): 경과 시간 ‘0:20 / 0:48 · 42%’ · 마이크 뱃지 · 현재 박 장구 ·
+ * 연주 중 하단(`.bottombar`, 상태 D·소리 입력 없음·중단): 경과 시간 ‘0:20 / 0:48’ · 마이크 뱃지 · 현재 박 장구 ·
  * 6dp 붉은 진행 막대 · 입력 없음 안내 · ‘처음부터 다시’ + ‘연주 중단’. 중단됨·이어 연주 카운트다운에서는 두 버튼이 회색으로 잠긴다.
+ * 연주 평가([PracticeUiState.direct])는 ‘처음부터’ 없이 한 버튼만 너비를 채워 둔다. 시작 전 대기([PracticeUiState.awaitingStart])는
+ * 0:00 · 빈 진행 막대에 ‘평가 시작’, 연주 중에는 ‘연주 중단’이다.
  * 박 표시는 진행 막대 위에 두고, 시간·마이크 줄과 박 표시가 진행 막대에 붙지 않게 사이를 띄운다.
  * [stacked]이면 두 버튼을 위아래로 쌓는다(태블릿 가로 상태 패널).
+ * 평가 시작 카운트다운([PracticeUiState.preparing])에는 같은 내용을 보이지 않게 그려 높이를 지키고, 가운데에 ‘준비’만 둔다.
+ * 그래서 카운트다운 뒤에 비치는 악보가 연주를 시작한 뒤와 같은 배치가 된다.
  */
 @Composable
 fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBottomActions, stacked: Boolean = false) {
+    if (!state.preparing) {
+        RecordingBarContent(state, actions, stacked)
+        return
+    }
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(Modifier.alpha(0f).clearAndSetSemantics {}) { RecordingBarContent(state, actions, stacked) }
+        Text(
+            stringResource(Res.string.practice_countdown_ready),
+            style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
+            color = EolssuTheme.colors.textSub,
+        )
+    }
+}
+
+@Composable
+private fun RecordingBarContent(state: PracticeUiState, actions: PracticeBottomActions, stacked: Boolean) {
     val song = state.song ?: return
+    // 평가 시작 전 대기에는 고른 음과 관계없이 처음 자리(0:00 · 빈 막대 · 박 표시 없음)를 보인다.
+    val awaiting = state.awaitingStart
+    val progress = if (awaiting) 0f else state.progressPercent
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         val colors = EolssuTheme.colors
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 buildAnnotatedString {
-                    append(formatClock(state.elapsedMs / 1000))
+                    append(formatClock(if (awaiting) 0.0 else state.elapsedMs / 1000))
                     append(" ")
                     withStyle(SpanStyle(fontSize = 13.sp, color = colors.textMuted, fontWeight = FontWeight.Normal)) {
-                        append(stringResource(Res.string.practice_rec_time_detail, formatClock(state.totalSeconds.toDouble()), "${state.progressPercent.roundToInt()}%"))
+                        append(stringResource(Res.string.practice_rec_time_total, formatClock(state.totalSeconds.toDouble())))
                     }
                 },
                 style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
@@ -115,15 +141,28 @@ fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBo
             )
             MicBadge(state.micLevel)
         }
-        if (state.settings.beatVisual) song.displayJangdan?.let { JangguBeats(it.daegang.size, if (state.finished) -1 else state.beatIndex) }
+        if (state.settings.beatVisual) song.displayJangdan?.let { JangguBeats(it.daegang.size, if (state.finished || awaiting) -1 else state.beatIndex) }
         Box(Modifier.fillMaxWidth().height(6.dp).background(colors.surfaceStrong, RoundedCornerShape(3.dp))) {
-            Box(Modifier.fillMaxWidth((state.progressPercent / 100f).coerceIn(0f, 1f)).fillMaxHeight().background(colors.rec, RoundedCornerShape(3.dp)))
+            Box(Modifier.fillMaxWidth((progress / 100f).coerceIn(0f, 1f)).fillMaxHeight().background(colors.rec, RoundedCornerShape(3.dp)))
         }
         if (state.echoCorrectionOff) Text(stringResource(Res.string.practice_echo_off),
             style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
         if (state.noInputHint) NoInputBanner()
         val locked = state.mode != PracticeMode.Recording
-        if (locked) {
+        if (state.direct) {
+            // 연주 평가는 ‘처음부터’ 없이 한 버튼만 둔다(S15P31E102-750). 중단하면 확인 창에서 이 대기 상태로 돌아온다.
+            when {
+                awaiting -> EolssuButton(
+                    stringResource(Res.string.practice_start_eval_short), actions.onStartEval, Modifier.fillMaxWidth(), compact = true, small = true,
+                    icon = EolssuIcons.Mic, enabled = state.recordingSupported,
+                )
+                locked -> OffButton(stringResource(Res.string.practice_abort), Modifier.fillMaxWidth())
+                else -> EolssuButton(
+                    stringResource(Res.string.practice_abort), actions.onAskAbort, Modifier.fillMaxWidth(), compact = true, small = true,
+                    style = EolssuButtonStyle.Danger, icon = EolssuIcons.Stop,
+                )
+            }
+        } else if (locked) {
             PairedButtons(stacked, first = { OffButton(stringResource(Res.string.practice_restart), it) }, second = { OffButton(stringResource(Res.string.practice_abort), it) })
         } else {
             PairedButtons(
@@ -141,14 +180,15 @@ fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBo
 
 /**
  * 태블릿 배치가 쓰는 상태별 하단 내용: 연주 중이면 [PracticeRecordingBar], 아니면 플레이어 카드와 행동 버튼.
+ * 연주 평가([PracticeUiState.direct])는 준비 상태의 플레이어·행동 버튼 없이 평가 대기 막대를 둔다.
  * 한 음씩이 켜지면 플레이어 카드 대신 두 칸([PracticeStepPanels])을 둔다.
  * 휴대폰은 플레이어를 본문 안에 두므로 이 함수를 쓰지 않는다.
  */
 @Composable
 fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeBottomActions, stacked: Boolean = false) {
-    if (state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming) {
+    if (state.recordingLayout) {
         PracticeRecordingBar(state, actions, stacked)
-    } else {
+    } else if (!state.direct) {
         if (state.stepUi) PracticeStepPanels(state, actions) else PracticePlayerCard(state, actions)
         PracticeCallToAction(state, actions)
     }

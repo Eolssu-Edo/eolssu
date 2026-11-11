@@ -1,0 +1,14 @@
+<resources>
+    <string name="sheet_pitch_correction_title">대체음 고르기</string>
+    <string name="sheet_pitch_correction_unregistered">%1$s 음은 현재 앱의 등록 음 목록에 없어요. 악기에서 낼 수 없는 음이라는 뜻은 아니에요.</string>
+    <string name="sheet_pitch_correction_range">%1$s 음은 이 악보 악기의 현재 지원 음역에 없어요.</string>
+    <string name="sheet_pitch_correction_hold">이 칸은 앞 음을 이어가는 지속이에요. %1$d각 %2$d정간의 시작 음을 바꾸면 이어진 칸도 함께 바뀌어요.</string>
+    <string name="sheet_pitch_correction_choices">가까운 지원 음이에요. 고르면 원곡의 음높이가 달라져요.</string>
+    <string name="sheet_pitch_correction_up">%1$d반음 높게</string>
+    <string name="sheet_pitch_correction_down">%1$d반음 낮게</string>
+    <string name="sheet_pitch_correction_same_yul">같은 율명 · %1$s</string>
+    <string name="sheet_pitch_correction_choice">%1$s · %2$s</string>
+    <string name="sheet_pitch_correction_no_choices">확인된 대체음이 없어요. 음 목록을 다시 불러온 뒤 확인해 주세요.</string>
+    <string name="sheet_pitch_correction_show">추천 대체음 보기</string>
+    <string name="sheet_pitch_corrected_review">현재 음은 지원 목록에 있어요. 원본과 비교한 뒤 확인해 주세요.</string>
+</resources>

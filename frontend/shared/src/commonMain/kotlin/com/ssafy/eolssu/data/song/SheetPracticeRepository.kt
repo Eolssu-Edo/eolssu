@@ -50,7 +50,6 @@ class SheetPracticeRepository(
             baseBpm = document.bpm,
             description = "",
             evaluable = false,
-            solfege = null,
             score = score,
             instrumentId = instrument?.instrumentId,
             scoreVersion = version,

@@ -102,7 +102,7 @@ POST /v1/recognitions
 | `VOICE_GUESSED` | 여러 성부 중 하나를 골랐음 | 오선보 파트·성부가 2개 이상, 또는 정간보 글자 층의 2중주 이상 쪽 |
 | `ORNAMENT_DROPPED` | 꾸밈음을 버림 | 오선보 꾸밈음 |
 | `JANGDAN_GUESSED` | 요청에 장단이 없어 정했음 | 오선보. `detail` `{"source": "timeSignature"(9/8·12/8) \| "rhythm"(박자표를 못 읽어 리듬으로) \| "default"(굿거리), "jangdan"}` |
-| `JANGDAN_MISMATCH` | 고른 장단과 각의 정간 수가 맞지 않음 | 정간보 글자 층: 정간당 박이 1·1/2·1/3이 아님. 오선보: 한 각(한 마디) 길이가 장단 한 번과 다름 |
+| `JANGDAN_MISMATCH` | 고른 장단과 각의 정간 수가 맞지 않음 | 정간보 글자 층: 정간당 박이 1·1/2·1/3이 아님(세령산의 3/2박은 예외). 오선보: 한 각(한 마디) 길이가 장단 한 번과 다름 |
 
 ### 실패 코드
 
@@ -149,9 +149,9 @@ POST /v1/recognitions
 - 정간 수가 대부분의 각과 다른 열(옆 쪽 장식음 표 등)은 빼고 `UNREADABLE`(`detail.reason` `NOT_SCORE_COLUMN`, `bbox` 그 열)로 알린다. 곡 끝 각은 짧을 수 있어, 같은 단에서 바로 앞 열 옆에 붙어 있거나 다른 각과 같은 x 열이면 둔다.
 - 각마다 정간 수가 다른 악보(예: 끝 각만 짧은 소금 취타)는 각별 정간 수(`gakBeats`)로 그 각만 짧게 읽는다(S15P31E102-404의 `score_data`). 정간 하나의 박은 기본 각의 정간 수(`controls.beats`)로 정한다. `score_data`가 받지 않는 기호(율명 없는 독립 시김새 등)가 있으면 `ENGINE_ERROR`다(원인은 로그에 남김).
 - 2중주 이상(열 위 '단소1'·'단소Ⅱ'·'1단소' 같은 표시)은 1 성부 열만 읽고 `VOICE_GUESSED`(`detail` `{"voices": 성부 수, "kept": 1}`, `bbox` 쪽 전체)를 남긴다. 표시로 열을 모두 가르지 못하면 그 쪽은 격자를 못 읽은 쪽과 같다.
-- 정간 하나의 박 = 장단 한 번의 박(`bpmUnit` 기준) ÷ 각 하나의 정간 수. 한 각을 장단 한 번으로 본다. 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박(검수 정답 8곡과 같음). 결과가 1·1/2·1/3박이 아니면 고른 장단이 악보와 다를 수 있어 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)를 남긴다.
+- 정간 하나의 박 = 장단 한 번의 박(`bpmUnit` 기준) ÷ 각 하나의 정간 수. 한 각을 장단 한 번으로 본다. 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박(검수 정답 8곡과 같음). 결과가 1·1/2·1/3박이 아니면 고른 장단이 악보와 다를 수 있어 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)를 남긴다. 점4분음표 칸을 쓰는 세령산 10정간 각의 정간당 3/2박만 추가로 허용한다.
 - 읽지 않은 글자(시김새 글자 등)는 `UNREADABLE` issue로, `detail.text`에 글자, `bbox`에 쪽 그림 위치(글자 크기의 정사각형), `cellId`에 그 글자를 덮는 정간을 둔다(`eventId`는 비운다).
-- `engine` `jeongganbo-text`, `provenance.converter` `jeongganbo-text/standard_score_text`. `score.title`·`sourceId`는 `conversionId`다(곡 제목은 backend가 저장할 때 정한다).
+- `engine` `jeongganbo-text`, `engineVersion` `3`, `provenance.converter` `jeongganbo-text/standard_score_text@3`. 버전 2의 장단 패턴 음가 환산을 유지하며, 버전 3은 PDF의 벡터 삼각 쉼표와 명시적 각 경계 이음을 보존한다. 우물사이 전용 옥타브 점 인식은 제외하며, 글자 위아래의 점으로 음역을 추정하지 않는다. PDF 가져오기의 명시적 `-`만 앞 각의 음에 이어 붙이며 새 각 첫 빈칸은 기존대로 쉼이다. 기존 검수 JGB·오선보 경로는 각 경계 규칙을 유지한다. `score.title`·`sourceId`는 `conversionId`다(곡 제목은 backend가 저장할 때 정한다).
 - 요청 `jangdan`은 `data/reference/jangdans.json`의 `name`이어야 한다(아니면 422). 정간보는 꼭 보내고, 오선보는 생략할 수 있다.
 
 ## 오선보 → 정간보 기본값

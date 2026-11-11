@@ -10,6 +10,9 @@ import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.network.createHttpClient
 import com.ssafy.eolssu.testing.CatalogEvaluations
 import com.ssafy.eolssu.testing.CatalogSongs
+import com.ssafy.eolssu.data.song.SampleSongRepository
+import com.ssafy.eolssu.data.song.SampleSongs
+import com.ssafy.eolssu.data.song.SongRepository
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.HttpRequestData
@@ -26,6 +29,33 @@ import kotlin.test.assertNull
 
 /** 취약 구간·비교 API(EVA-03·04)와 기록·평가 저장소를 묶는 저장소. 서버는 MockEngine으로 대신한다. */
 class ApiWeakSectionRepositoryTest {
+    @Test fun historicalErrorsSectionResultAndComparisonUseTheSavedRevision() = runTest {
+        val old = SampleSongs.first().copy(scoreVersion = 1)
+        val current = old.copy(scoreVersion = 2)
+        val asked = mutableListOf<Int?>()
+        val songs = object : SongRepository by SampleSongRepository() {
+            override suspend fun getSong(songId: String) = current.also { asked += null }
+            override suspend fun getSong(songId: String, scoreVersion: Int) = old.also { asked += scoreVersion }
+        }
+        val evaluations = CatalogEvaluations().apply { cached = cached!!.copy(songId = old.id, scoreVersion = 1) }
+        val originalRecords = records
+        val historicalRecords = object : PracticeRecordRepository by originalRecords {
+            override suspend fun detail(recordId: String) = originalRecords.detail(recordId)?.copy(scoreVersion = 1)
+        }
+        val client = createHttpClient(MockEngine {
+            respond(comparison.second, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val repo = ApiWeakSectionRepository(client, evaluations, songs, historicalRecords)
+            val source = checkNotNull(repo.source("50"))
+            assertEquals(1, source.song.scoreVersion)
+            assertEquals(1, repo.sectionResult("50")?.song?.scoreVersion)
+            assertEquals(1, repo.comparison("now")?.song?.scoreVersion)
+            assertEquals(listOf<Int?>(1, 1, 1), asked)
+        } finally { client.close() }
+    }
+
+
     private val requests = mutableListOf<HttpRequestData>()
     private var reply: (path: String) -> Pair<HttpStatusCode, String>? = { null }
 
@@ -54,7 +84,7 @@ class ApiWeakSectionRepositoryTest {
             ),
         )
         override val records: StateFlow<List<PracticeRecord>> = list
-        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String) = error("unused")
+        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String) = error("unused")
         override suspend fun updateMemo(recordId: String, memo: String) = Unit
         override suspend fun detail(recordId: String): PracticeRecord? =
             list.value.firstOrNull { it.id == recordId }?.copy(errors = listOf(ScoreError(2, 1, EvaluationMetric.Rhythm)))
@@ -153,9 +183,10 @@ class ApiWeakSectionRepositoryTest {
     }
 
     @Test
-    fun comparisonListsEarlierWholeSongRecordsOfLastTwoWeeks() = runTest {
+    fun comparisonListsAllEarlierWholeSongRecordsWithoutPeriodLimit() = runTest {
         val comparison = checkNotNull(repository.comparison("now"))
-        assertEquals(listOf("same-minute", "same-day", "two-weeks"), comparison.previous.map { it.id })
+        // 2주 제한 없이 이번 기록 이전의 같은 곡 전체 연주를 모두 담는다. 이후 기록·구간·다른 곡은 뺀다(S15P31E102-753).
+        assertEquals(listOf("same-minute", "same-day", "two-weeks", "too-old"), comparison.previous.map { it.id })
         assertEquals(KoreanDateTime(2026, 11, 20, 15, 0), comparison.today)
         assertEquals(listOf(ScoreError(2, 1, EvaluationMetric.Rhythm)), comparison.current.errors)
     }

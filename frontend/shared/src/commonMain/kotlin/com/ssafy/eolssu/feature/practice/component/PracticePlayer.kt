@@ -51,6 +51,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.formatClock
+import com.ssafy.eolssu.core.ui.component.PlaybackLoadingOverlay
 import com.ssafy.eolssu.feature.practice.ModelAudioStatus
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
@@ -67,7 +68,7 @@ import eolssu.shared.generated.resources.model_audio_interrupted
 import eolssu.shared.generated.resources.model_audio_loading
 import eolssu.shared.generated.resources.model_audio_unavailable
 import eolssu.shared.generated.resources.model_audio_unsupported
-import eolssu.shared.generated.resources.practice_hint_solo_only
+import eolssu.shared.generated.resources.practice_solo_only
 import eolssu.shared.generated.resources.practice_listen_model
 import eolssu.shared.generated.resources.practice_listen_model_resume
 import eolssu.shared.generated.resources.practice_pause
@@ -199,40 +200,7 @@ private val PracticePlayerNotice.inCard: Boolean
 fun PracticePlaybackLoadingOverlay(state: PracticeUiState, modifier: Modifier = Modifier) {
     val visible = state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm) &&
         !state.stepUi && state.playerNotice == PracticePlayerNotice.Loading
-    if (!visible) return
-    val colors = EolssuTheme.colors
-    val message = stringResource(Res.string.practice_player_loading)
-    Column(
-        modifier.fillMaxSize().background(colors.background.copy(alpha = 0.74f)),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-    ) {
-        Column(
-            Modifier.semantics(mergeDescendants = true) {
-                liveRegion = LiveRegionMode.Polite
-                contentDescription = message
-            },
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            // 3·2·1 북과 같은 150dp 원·그림자 안에 그림을 둔다(그림의 흰 바탕이 네모로 보이지 않게).
-            Box(
-                Modifier.size(150.dp)
-                    .shadow(14.dp, CircleShape, ambientColor = colors.text.copy(alpha = 0.14f), spotColor = colors.text.copy(alpha = 0.14f))
-                    .background(colors.surface, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                PracticeLoadingMascot(Modifier.size(124.dp))
-            }
-            Text(
-                message,
-                modifier = Modifier.padding(horizontal = 24.dp).clearAndSetSemantics {},
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
-                color = colors.text,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
+    if (visible) PlaybackLoadingOverlay(modifier)
 }
 
 /** 상태가 바뀌어도 이 칸의 너비·높이는 바뀌지 않는다. 불러오는 중은 비워 둔다. */
@@ -318,7 +286,7 @@ private fun PlayerTrack(fraction: Float, modifier: Modifier = Modifier) {
  * 플레이어 아래 행동(보드 `.btn.primary`):
  * - 평가 준비: ‘연주 평가 시작’.
  * - 일반 연습·평가 가능 곡: ‘연주 평가 시작’으로 평가를 바로 시작한다.
- * - 연습 모드·평가 불가 곡: 꺼진 ‘연주 평가 시작’과 그 아래 회색 글자 ‘이 곡은 연습만 가능해요’.
+ * - 연습 모드·평가 불가 곡: 꺼진 버튼에 ‘연습만 가능해요’를 적는다.
  * - 내 악보 연습·기초부터 배우기 곡 연습: 평가 버튼도 안내도 없다(Practice-Mine).
  * 녹음을 지원하지 않는 환경은 버튼을 끄고 그 아래 회색 글자로 이유를 적는다.
  */
@@ -332,17 +300,22 @@ fun PracticeCallToAction(state: PracticeUiState, actions: PracticeBottomActions,
             state.mine || state.learn -> Unit
             !state.solo -> PracticeEvalButton(actions.onStartEval, enabled = state.recordingSupported, caption = unsupported)
             song.evaluable -> PracticeEvalButton(actions.onSwitchToEval, enabled = state.recordingSupported, caption = unsupported)
-            // 평가 가능 곡과 같은 자리에 꺼진 버튼을 두고, 바로 아래에 이유를 적는다.
-            else -> PracticeEvalButton({}, enabled = false, caption = stringResource(Res.string.practice_hint_solo_only))
+            // 평가 가능 곡과 같은 자리에 꺼진 버튼을 두고, 버튼 글자로 이유를 적는다.
+            else -> PracticeEvalButton({}, enabled = false, caption = null, label = stringResource(Res.string.practice_solo_only))
         }
     }
 }
 
 /** ‘연주 평가 시작’ 버튼. [caption]이 있으면 버튼 바로 아래 가운데에 작은 회색 글자로 적는다. */
 @Composable
-private fun PracticeEvalButton(onClick: () -> Unit, enabled: Boolean, caption: String?) {
+private fun PracticeEvalButton(
+    onClick: () -> Unit,
+    enabled: Boolean,
+    caption: String?,
+    label: String = stringResource(Res.string.practice_start_eval),
+) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        EolssuButton(stringResource(Res.string.practice_start_eval), onClick, icon = EolssuIcons.Mic, enabled = enabled)
+        EolssuButton(label, onClick, icon = EolssuIcons.Mic, enabled = enabled)
         if (caption != null) {
             Text(
                 caption,

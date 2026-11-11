@@ -19,7 +19,9 @@ from omr_service.api import app, get_fetcher
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "data/tests"))
+sys.path.insert(0, str(ROOT / "data/src"))
 from test_standard_score_text import score_pdf  # noqa: E402  data와 같은 합성 정간보를 쓴다
+from playback.common_score import convert_common_score  # noqa: E402
 
 needs_generator = pytest.mark.skipif(not os.environ.get("JGB_GENERATOR_DIR"),
                                      reason="JGB_GENERATOR_DIR(jeongganbo-generator 클론)가 없다")
@@ -56,11 +58,42 @@ def post(data, **override):
         app.dependency_overrides.clear()
 
 
-@pytest.mark.parametrize("jangdan, per_gak, beats", [("세마치", 3, Fraction(1)), ("굿거리", 12, Fraction(1, 3)),
-                                                      ("중모리", 12, Fraction(1))])
+@pytest.mark.parametrize("jangdan, per_gak, beats", [
+    ("세마치", 3, Fraction(1)), ("굿거리", 12, Fraction(1, 3)), ("중모리", 12, Fraction(1)),
+    ("자진모리", 4, Fraction(1)), ("중중모리", 4, Fraction(1)), ("자진타령", 4, Fraction(1)),
+    ("엇모리", 10, Fraction(1, 2)), ("단모리", 4, Fraction(1)), ("타령", 12, Fraction(1, 2)),
+    ("계면가락도드리", 12, Fraction(1, 2)), ("세령산", 10, Fraction(3, 2)),
+])
 def test_beats_per_jeonggan_follows_jangdan(jangdan, per_gak, beats):
-    # 정답 검토 기록의 값: 소금 아리랑(세마치) 1박, 늴리리야(굿거리) 1/3박
+    # catalog 설명의 소박 음가: 8분음표, 중모리는 4분음표, 세령산은 점4분음표.
     assert jeongganbo_text.beats_per_jeonggan(jangdan, per_gak) == beats
+
+
+@needs_generator
+@pytest.mark.parametrize("jangdan, per_gak, mismatch", [("세마치", 2, True), ("세령산", 10, False)])
+def test_dotted_quarter_cell_exception_is_limited_to_seryeongsan(jangdan, per_gak, mismatch, monkeypatch):
+    # 두 장단 모두 정간당 3/2박이지만, 점4분 칸인 세령산만 정상 배치다.
+    if per_gak == 2:
+        monkeypatch.setattr("test_standard_score_text.JG_H", 60)  # 두 칸 열도 격자 검출 최소 높이를 채운다.
+    out = post(pdf_bytes([[["林"] * per_gak, ["林"] * per_gak]]), jangdan=jangdan).json()
+    assert out["status"] == "DONE"
+    assert any(n["kind"] == "JANGDAN_MISMATCH" for n in out["notices"]) is mismatch
+
+
+@needs_generator
+def test_danmori_pdf_keeps_four_quarter_beats_per_measure_in_synthesized_timeline():
+    # 격자 검출의 최소 두 열: 4박 두 마디가 각각 2초여야 한다.
+    out = post(pdf_bytes([[["林", "南", "潢", "汰"], ["林", "南", "潢", "汰"]]]), jangdan="단모리").json()
+    assert out["status"] == "DONE"
+    rendered, timing = convert_common_score(out["score"], bpm=120, instrument="sogeum", input_sha256="0" * 64)
+    assert timing["events"][4]["start_seconds"] == 2
+    assert timing["score_seconds"] == 4
+    assert [e["start_seconds"] for e in timing["events"]] == [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5]
+    assert [e["duration_seconds"] for e in timing["events"]] == [0.5] * 8
+    assert rendered["quarter_bpm"] == 120
+    assert out["notices"] == []
+    assert out["engineVersion"] == "3"
+    assert out["score"]["provenance"]["converter"] == "jeongganbo-text/standard_score_text@3"
 
 
 @needs_generator
@@ -69,7 +102,7 @@ def test_text_layer_pdf_becomes_common_score():
     assert out["status"] == "DONE" and out["engine"] == "jeongganbo-text"
     score = out["score"]
     assert score["provenance"] | {"jgbSha256": None} == {"sourceId": "c-7", "jgbSha256": None, "review": "inferred",
-                                                          "converter": "jeongganbo-text/standard_score_text"}
+                                                          "converter": "jeongganbo-text/standard_score_text@3"}
     assert score["music"]["jangdan"] == "세마치" and score["music"]["bpmUnit"] == "DOTTED_QUARTER"
     tpb = score["music"]["ticksPerBeat"]
     assert score["music"]["ticksPerJeonggan"] == tpb  # 세마치 3정간 각이라 정간 하나 = 1박
@@ -77,6 +110,21 @@ def test_text_layer_pdf_becomes_common_score():
     # 임 1박, 남 2박(이음), 청황 2박(빈 정간이 이어짐), 청태 1박
     assert notes == [("NOTE", "임", 0, 0, 1), ("NOTE", "남", 0, 1, 2), ("NOTE", "황", 1, 3, 2), ("NOTE", "태", 1, 5, 1)]
     assert out["issues"] == [] == out["notices"] and out["jgb"]["controls"]["beats"] == "3"
+
+
+@needs_generator
+def test_pdf_explicit_ties_cross_gak_and_rest_only_gak_keeps_its_place():
+    out = post(pdf_bytes([[["林", "-", "-", "-"], ["-", "-", "-", "-"],
+                          ["△", "△", "△", "△"], ["仲", "林", "南", "潢"]]]), jangdan="단모리").json()
+    assert out["status"] == "DONE"
+    score = out["score"]
+    assert len(score["columns"]) == 4
+    tpb = score["music"]["ticksPerBeat"]
+    first = score["events"][0]
+    assert (first["kind"], first["yul"], first["durationTick"]) == ("NOTE", "임", 8 * tpb)
+    assert all(u["eventId"] == first["id"] for c in score["columns"][1]["cells"] for u in c["units"])
+    assert [(e["kind"], e["startTick"] // tpb) for e in score["events"][1:5]] == [("REST", x) for x in range(8, 12)]
+    assert score["events"][5]["startTick"] == 12 * tpb
 
 
 @needs_generator
