@@ -32,7 +32,7 @@ import kotlin.time.Instant
  *
  * - 목록(REC-02)은 곡별로 나눠 주므로, 곡마다 받아 최신순 한 목록으로 합친다. 목록에는 항목 점수·오류 위치가 없다.
  * - 상세는 PRA-03(메모·다시 듣기 여부, 처음 열면 서버가 NEW를 끈다)과 평가(EVA-01·02, [evaluations])를 합친다.
- * - 저장(REC-01)은 본문 `{}`로 저장만 하고, 메모는 같은 요청에 `memo`를 실어 고친다(앞뒤 공백은 서버가 자르고 빈 값은 지운다).
+ * - 저장(REC-01)은 연주 결과 화면에서 적은 메모를 같은 요청에 실어 한 번에 저장한다(메모가 없으면 본문 `{}`). 기록 상세의 메모 수정도 같은 요청에 `memo`를 싣는다(앞뒤 공백은 서버가 자르고 빈 값은 지운다).
  */
 class HttpPracticeRecordRepository(
     private val client: HttpClient,
@@ -81,8 +81,8 @@ class HttpPracticeRecordRepository(
         return response.apiResponse<RecordList>()?.result
     }
 
-    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord = member.inSession {
-        val saved = putRecord(result.id, MemoBody())
+    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String): PracticeRecord = member.inSession {
+        val saved = putRecord(result.id, MemoBody(memo.ifBlank { null }))
         val record = saved.toRecord(songTitle).copy(
             metrics = result.metrics,
             errors = result.errors,

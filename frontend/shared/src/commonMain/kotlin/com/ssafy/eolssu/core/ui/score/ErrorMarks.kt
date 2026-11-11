@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,7 +64,7 @@ internal fun errorStyle(kind: ScoreErrorKind): ErrorStyle {
         ScoreErrorKind.Pitch -> ErrorStyle(c.pitchErrorLine, c.pitchErrorFaint, c.pitchError, dashed = false)
         ScoreErrorKind.Rhythm -> ErrorStyle(c.rhythmErrorLine, c.rhythmErrorFaint, c.rhythmError, dashed = false)
         ScoreErrorKind.Length -> ErrorStyle(c.lengthErrorLine, c.lengthErrorFaint, c.lengthError, dashed = true)
-        // 음 미검출은 2차 시안에 없다. 다른 종류와 섞이지 않게 회색으로 둔다.
+        // 음 미검출: 회색 상자에 흰 ×(S15P31E102-753 결정 문서).
         ScoreErrorKind.Missed -> ErrorStyle(c.missedErrorLine, c.missedErrorFaint, c.textMuted, dashed = false)
     }
 }
@@ -116,12 +115,12 @@ fun errorKindLabel(kind: ScoreErrorKind): String = stringResource(
     },
 )
 
-/** 틀린 종류 아이콘(12×12): 음정 = 음표, 박자 = 시계, 음 길이 = 양쪽 화살표. 미검출은 아이콘이 없다. */
-fun errorKindIcon(kind: ScoreErrorKind): ImageVector? = when (kind) {
+/** 틀린 종류 아이콘(12×12): 음정 = 음표, 박자 = 시계, 음 길이 = 양쪽 화살표, 미검출 = ×. */
+fun errorKindIcon(kind: ScoreErrorKind): ImageVector = when (kind) {
     ScoreErrorKind.Pitch -> ErrorIcons.Pitch
     ScoreErrorKind.Rhythm -> ErrorIcons.Rhythm
     ScoreErrorKind.Length -> ErrorIcons.Length
-    ScoreErrorKind.Missed -> null
+    ScoreErrorKind.Missed -> ErrorIcons.Missed
 }
 
 /**
@@ -147,15 +146,7 @@ fun ErrorKindTag(
             .then(if (describe) Modifier.semantics { contentDescription = label } else Modifier.clearAndSetSemantics {}),
         contentAlignment = Alignment.Center,
     ) {
-        if (icon != null) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize), tint = Color.White)
-        } else {
-            Text(
-                errorTag(kind),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold),
-                color = Color.White,
-            )
-        }
+        Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize), tint = Color.White)
     }
 }
 
@@ -227,6 +218,7 @@ private object ErrorIcons {
     val Pitch = icon("ErrorPitch", 1.5f, listOf("M7.6 8.6V1.6c.9 1.2 2.6 1.6 2.6 3.6"), filled = listOf("M3.1 8.9a2.3 1.8 0 1 0 4.6 0a2.3 1.8 0 1 0 -4.6 0z"))
     val Rhythm = icon("ErrorRhythm", 1.6f, listOf("M1.4 6a4.6 4.6 0 1 0 9.2 0a4.6 4.6 0 1 0 -9.2 0z", "M6 3.4V6l1.9 1.3"))
     val Length = icon("ErrorLength", 1.7f, listOf("M1.6 6h8.8", "M3.8 3.6L1.4 6l2.4 2.4", "M8.2 3.6L10.6 6L8.2 8.4"))
+    val Missed = icon("ErrorMissed", 1.7f, listOf("M3.2 3.2l5.6 5.6M8.8 3.2L3.2 8.8"))
 
     private fun icon(name: String, width: Float, strokes: List<String>, filled: List<String> = emptyList()): ImageVector {
         val builder = ImageVector.Builder(name, 12.dp, 12.dp, 12f, 12f)

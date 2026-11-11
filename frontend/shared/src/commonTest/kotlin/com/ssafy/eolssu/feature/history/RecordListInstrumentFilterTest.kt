@@ -32,7 +32,7 @@ internal class RecordListInstrumentFilterTest : CatalogViewModelTest() {
 
     private class Records(list: List<PracticeRecord>) : PracticeRecordRepository {
         override val records: StateFlow<List<PracticeRecord>> = MutableStateFlow(list)
-        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String) = error("쓰지 않음")
+        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String) = error("쓰지 않음")
         override suspend fun updateMemo(recordId: String, memo: String) = Unit
         override suspend fun refresh(): Boolean = true
     }

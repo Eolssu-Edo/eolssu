@@ -84,7 +84,7 @@ class ApiWeakSectionRepositoryTest {
             ),
         )
         override val records: StateFlow<List<PracticeRecord>> = list
-        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String) = error("unused")
+        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String) = error("unused")
         override suspend fun updateMemo(recordId: String, memo: String) = Unit
         override suspend fun detail(recordId: String): PracticeRecord? =
             list.value.firstOrNull { it.id == recordId }?.copy(errors = listOf(ScoreError(2, 1, EvaluationMetric.Rhythm)))
@@ -183,9 +183,10 @@ class ApiWeakSectionRepositoryTest {
     }
 
     @Test
-    fun comparisonListsEarlierWholeSongRecordsOfLastTwoWeeks() = runTest {
+    fun comparisonListsAllEarlierWholeSongRecordsWithoutPeriodLimit() = runTest {
         val comparison = checkNotNull(repository.comparison("now"))
-        assertEquals(listOf("same-minute", "same-day", "two-weeks"), comparison.previous.map { it.id })
+        // 2주 제한 없이 이번 기록 이전의 같은 곡 전체 연주를 모두 담는다. 이후 기록·구간·다른 곡은 뺀다(S15P31E102-753).
+        assertEquals(listOf("same-minute", "same-day", "two-weeks", "too-old"), comparison.previous.map { it.id })
         assertEquals(KoreanDateTime(2026, 11, 20, 15, 0), comparison.today)
         assertEquals(listOf(ScoreError(2, 1, EvaluationMetric.Rhythm)), comparison.current.errors)
     }
