@@ -84,7 +84,7 @@ class PracticeAnalysisConfig {
         }
         val client = HttpAnalysisClient(RestClient.builder().baseUrl(properties.aiBaseUrl).requestFactory(requestFactory).build(), jsonMapper)
         val analysis = AnalyzePracticeSession(repository, client, notes, urls, Clock.systemUTC(), properties.timeLimit)
-        return AnalysisOnUpload({ analysis.analyze(it) }, analysisExecutor(properties))
+        return AnalysisOnUpload({ sessionId, attempt, timing -> analysis.analyze(sessionId, attempt, timing) }, analysisExecutor(properties))
     }
 
     // Executor Bean으로 등록하면 Spring Boot 기본 작업 실행기가 만들어지지 않으므로, 분석 연결 안에서만 만들고 함께 닫는다.

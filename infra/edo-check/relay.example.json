@@ -1,11 +1,7 @@
 {
   "tokens": {
-    "/edo1-server": "REPLACE_WITH_SERVER_COMMAND_TOKEN",
-    "/edo1-containers": "REPLACE_WITH_CONTAINERS_COMMAND_TOKEN",
-    "/edo1-health": "REPLACE_WITH_HEALTH_COMMAND_TOKEN",
-    "/edo2-server": "REPLACE_WITH_EDO2_SERVER_COMMAND_TOKEN",
-    "/edo2-containers": "REPLACE_WITH_EDO2_CONTAINERS_COMMAND_TOKEN",
-    "/edo2-health": "REPLACE_WITH_EDO2_HEALTH_COMMAND_TOKEN"
+    "/edo1": "REPLACE_WITH_EDO1_COMMAND_TOKEN",
+    "/edo2": "REPLACE_WITH_EDO2_COMMAND_TOKEN"
   },
   "channel_ids": ["7pqaof6zkt8rdbqbdjjsfpfscw"],
   "mattermost_origin": "https://meeting.ssafy.com",

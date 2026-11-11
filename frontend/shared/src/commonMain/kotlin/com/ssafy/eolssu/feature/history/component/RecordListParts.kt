@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
+import com.ssafy.eolssu.core.ui.component.EolssuMenuShape
 import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import androidx.compose.material3.CircularProgressIndicator
@@ -9,7 +11,6 @@ import eolssu.shared.generated.resources.records_load_failed
 import eolssu.shared.generated.resources.growth_retry
 import eolssu.shared.generated.resources.records_section
 import eolssu.shared.generated.resources.records_row_today
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -63,7 +65,9 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
-import com.ssafy.eolssu.feature.history.RecordGroup
+import com.ssafy.eolssu.data.practice.RecordSongSummary
+import com.ssafy.eolssu.feature.history.RecordPages
+import eolssu.shared.generated.resources.records_load_more
 import com.ssafy.eolssu.feature.history.RecordListUiState
 import com.ssafy.eolssu.feature.history.RecordSort
 import eolssu.shared.generated.resources.Res
@@ -121,18 +125,22 @@ internal data class RecordListSpacing(
 internal fun WeekCard(state: RecordListUiState, spacing: RecordListSpacing, onOpenGrowth: () -> Unit) {
     val week = state.thisWeek
     // 보드: 흰 바탕 · `#E8E4DA` 테두리 · 반지름 16.
-    Surface(onClick = onOpenGrowth, shape = RoundedCornerShape(16.dp), color = EolssuTheme.colors.surface, border = BorderStroke(1.dp, EolssuTheme.colors.lineSoft)) {
+    Surface(onClick = onOpenGrowth, shape = RoundedCornerShape(16.dp), color = EolssuTheme.colors.surface) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = spacing.weekPaddingH, vertical = spacing.weekPaddingV),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(Res.string.records_this_week), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = EolssuTheme.colors.textMuted)
-                Text(
-                    if (week != null) stringResource(Res.string.records_this_week_summary, week.first, week.second) else stringResource(Res.string.records_this_week_none),
-                    modifier = Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = spacing.weekSummarySize, fontWeight = FontWeight.Bold),
-                )
+            if (state.week != null || state.totalRecordCount == 0) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(Res.string.records_this_week), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = EolssuTheme.colors.textMuted)
+                    Text(
+                        if (week != null) stringResource(Res.string.records_this_week_summary, week.first, week.second) else stringResource(Res.string.records_this_week_none),
+                        modifier = Modifier.padding(top = 2.dp),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = spacing.weekSummarySize, fontWeight = FontWeight.Bold),
+                    )
+                }
+            } else {
+                Spacer(Modifier.weight(1f))
             }
             Text(stringResource(Res.string.records_growth_link), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
             Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.padding(start = 2.dp).size(14.dp))
@@ -199,7 +207,6 @@ private fun <T> SelectBox(value: T, options: List<T>, label: @Composable (T) -> 
                 .width(108.dp)
                 .height(38.dp)
                 .background(EolssuTheme.colors.surface, RoundedCornerShape(10.dp))
-                .border(1.dp, EolssuTheme.colors.lineSoft, RoundedCornerShape(10.dp))
                 .clickable(role = Role.DropdownList) { expanded = true }
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -207,9 +214,16 @@ private fun <T> SelectBox(value: T, options: List<T>, label: @Composable (T) -> 
             Text(label(value), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp), maxLines = 1)
             Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = EolssuTheme.colors.surface) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = EolssuMenuShape,
+            containerColor = EolssuTheme.colors.surface,
+            shadowElevation = 8.dp,
+            modifier = Modifier.width(160.dp).padding(horizontal = 6.dp),
+        ) {
             options.forEach { option ->
-                DropdownMenuItem(text = { Text(label(option)) }, onClick = {
+                EolssuMenuItem(label(option), option == value, onClick = {
                     expanded = false
                     onPick(option)
                 })
@@ -229,24 +243,26 @@ internal fun RecordGroups(
     spacing: RecordListSpacing,
     onToggle: (String) -> Unit,
     onOpenRecord: (String) -> Unit,
+    onLoadMore: (String) -> Unit,
     selectedId: String? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         state.groups.forEach { group ->
-            SongGroupCard(group, state.isOpen(group.songId), state, spacing, selectedId, onToggle, onOpenRecord)
+            SongGroupCard(group, state.isOpen(group.songId), state, spacing, selectedId, onToggle, onOpenRecord, onLoadMore)
         }
     }
 }
 
 @Composable
 private fun SongGroupCard(
-    group: RecordGroup,
+    group: RecordSongSummary,
     open: Boolean,
     state: RecordListUiState,
     spacing: RecordListSpacing,
     selectedId: String?,
     onToggle: (String) -> Unit,
     onOpenRecord: (String) -> Unit,
+    onLoadMore: (String) -> Unit,
 ) {
     val colors = EolssuTheme.colors
     val expandedLabel = stringResource(Res.string.records_expanded)
@@ -254,7 +270,7 @@ private fun SongGroupCard(
     // 보드: 흰 묶음 카드(테두리 `#E8E4DA`, 반지름 16), 펼친 머리는 `#EFF2D6`.
     Surface(
         modifier = Modifier.observeFirstDraw(PerfPhase.RECORD_DRAWN),
-        shape = RoundedCornerShape(16.dp), color = colors.surface, border = BorderStroke(1.dp, colors.lineSoft),
+        shape = RoundedCornerShape(16.dp), color = colors.surface,
     ) {
         Column {
             Row(
@@ -268,9 +284,9 @@ private fun SongGroupCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(group.songTitle, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold))
+                    Text(group.title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold))
                     Text(
-                        stringResource(Res.string.records_group_meta, group.records.size, dayLabel(group.latest, state.today)),
+                        stringResource(Res.string.records_group_meta, group.recordCount, dayLabel(group.lastStartedAt, state.today)),
                         modifier = Modifier.padding(top = 2.dp),
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = colors.textMuted,
@@ -279,7 +295,7 @@ private fun SongGroupCard(
                 Text(
                     buildAnnotatedString {
                         append(stringResource(Res.string.records_best) + " ")
-                        withStyle(SpanStyle(fontSize = 15.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.best}") }
+                        withStyle(SpanStyle(fontSize = 15.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.bestScore}") }
                         append(stringResource(Res.string.records_score_unit))
                     },
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
@@ -289,7 +305,8 @@ private fun SongGroupCard(
             }
             if (open) {
                 HorizontalDivider(color = colors.lineSoft)
-                group.records.forEachIndexed { k, record ->
+                val page = state.pages[group.songId] ?: RecordPages(loading = state.loading)
+                page.records.forEachIndexed { k, record ->
                     if (k > 0) HorizontalDivider(color = colors.background)
                     RecordRow(
                         record = record,
@@ -298,6 +315,14 @@ private fun SongGroupCard(
                         spacing = spacing,
                         selected = selectedId?.let { it == record.id },
                     ) { onOpenRecord(record.id) }
+                }
+                when {
+                    page.loading -> RecordsLoadStatus(failed = false, onRetry = {})
+                    page.failed -> RecordsLoadStatus(failed = true, onRetry = { onLoadMore(group.songId) })
+                    page.nextPage != null -> EolssuButton(
+                        stringResource(Res.string.records_load_more), { onLoadMore(group.songId) },
+                        modifier = Modifier.padding(8.dp), style = EolssuButtonStyle.Secondary, small = true,
+                    )
                 }
             }
         }

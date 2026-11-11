@@ -66,25 +66,31 @@
 | sort | `NEWEST`(기본) 또는 `OLDEST` |
 | page | 0 이상, 기본 0 |
 | size | 1~100, 기본 20 |
+| groupOrder | 선택. 기본 `LAST_SAVED`(기존 동작). `LAST_STARTED`는 곡별 최신 연주 시작 시각 내림차순, 동률이면 곡 ID 내림차순이며 `songId`를 생략하면 그 첫 곡을 읽는다 |
+| weekOf | 선택. `YYYY-MM-DD`(1001~9998년). 해당 날짜가 속한 KST 월~일의 저장 기록 요약을 함께 요청 |
 
 형식·범위를 벗어나면 400이다.
 
 | result 필드 | 값 |
 | --- | --- |
 | totalRecordCount | 본인 기록 수 |
-| songs[] | 기록이 있는 모든 곡(페이지 없음). `lastSavedAt` 내림차순, 같으면 `songId` 내림차순 |
+| songs[] | 기록이 있는 모든 곡(페이지 없음). 순서는 `groupOrder`를 따른다 |
 | songs[].songId·title | 곡 ID(STRING)·제목 |
 | songs[].recordCount | 그 곡의 기록 수 |
 | songs[].lastSavedAt | 그 곡 기록 중 가장 최근 `saved_at` |
+| songs[].lastStartedAt | 그 곡 기록 중 가장 최근 `started_at` |
+| songs[].instrumentCode | 선택. 그 곡에 연결된 카탈로그 악기 코드. 곡이 비공개여도 본인의 저장 기록에는 제공하며 코드가 없으면 생략한다 |
+| week | `weekOf`를 보냈을 때만 `{recordCount, bestScore}`. 같은 회원의 삭제되지 않은 저장 기록을 연주 시작 시각으로 집계하고 악기 필터와 무관하다. 없으면 `0`·`null` |
 | songs[].bestScore | 그 곡 기록 중 최고 총점 |
 | songId | items의 곡. 생략하면 `songs[0]`의 곡, 기록이 하나도 없으면 null. 지정한 곡에 기록이 없으면 그 값 그대로 두고 items는 `[]` |
 | items[] | 그 곡의 기록. `NEWEST`는 `startedAt`·`sessionId` 내림차순, `OLDEST`는 오름차순. 페이지 밖이면 `[]` |
-| items[] 필드 | `sessionId`, `songId`, `title`, `isFullSong`, `startColumnIdx`, `endColumnIdx`, `recordingDurationMs`, `bpm`, `bpmUnit`, `totalScore`, `startNoteIdx`, `endNoteIdx`, `startedAt`, `recordingAvailable`, `memo`, `isNew` |
+| items[] 필드 | `sessionId`, `songId`, `title`, `isFullSong`, `startColumnIdx`, `endColumnIdx`, `recordingDurationMs`, `bpm`, `bpmUnit`, `totalScore`, `startNoteIdx`, `endNoteIdx`, `startedAt`, `recordingAvailable`, `memo`, `isNew`, `scoreVersion` |
 | items[].isNew | `viewed_at`이 비어 있음. 기록 상세(PRA-03)를 처음 조회하면 false가 된다 |
+| items[].scoreVersion | 해당 연주가 사용한 악보 판본의 정수 버전 |
 | page·size | 요청 값 |
 | totalElements·totalPages | 그 곡의 기록 수와 `ceil(totalElements / size)`. 기록이 없으면 0·0 |
 
-목록 조회는 `viewed_at`을 바꾸지 않는다. 목록 머리의 주간 연습 횟수·최고점은 GRO-01이 맡는다.
+목록 조회는 `viewed_at`을 바꾸지 않는다. 기록 화면의 주간 저장 기록 집계는 `week`를 사용한다. 저장 여부를 따지지 않는 성장 화면의 집계는 GRO-01을 유지한다.
 
 ## REC-03 `GET /api/practice-sessions/{sessionId}/recording`
 

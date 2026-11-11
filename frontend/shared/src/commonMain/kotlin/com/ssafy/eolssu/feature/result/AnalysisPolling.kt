@@ -15,7 +15,7 @@ internal const val NoResponseTimeoutMillis = 70_000L
 internal sealed interface PollStep {
     data class Wait(val millis: Long) : PollStep
 
-    data class Done(val evaluationId: String) : PollStep
+    data class Done(val evaluationId: String, val timingId: String? = null) : PollStep
 
     data class Failed(val reason: AnalysisFailure) : PollStep
 }
@@ -50,7 +50,7 @@ internal class AnalysisPolling(private val clock: () -> Long) {
                 val fastRemaining = fastUntil - lastResponseAt
                 PollStep.Wait(if (fastRemaining > 0) minOf(FastStatusPollMillis, fastRemaining) else StatusPollMillis)
             }
-            is AnalysisStatus.Done -> PollStep.Done(status.evaluationId)
+            is AnalysisStatus.Done -> PollStep.Done(status.evaluationId, status.timingId)
             is AnalysisStatus.Failed -> PollStep.Failed(status.reason)
         }
     }

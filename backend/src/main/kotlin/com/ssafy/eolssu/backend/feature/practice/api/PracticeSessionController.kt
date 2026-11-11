@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.feature.practice.api
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.feature.practice.application.CreatePracticeSession
@@ -87,7 +88,9 @@ class PracticeSessionController(
     fun get(@AuthenticationPrincipal jwt: Jwt, @PathVariable @Positive sessionId: Long): ResponseEntity<*> {
         val detail = getPracticeSession.execute(requireNotNull(jwt.subject).toLong(), sessionId)
             ?: return error(ErrorCode.RESOURCE_NOT_FOUND)
-        return ResponseEntity.ok(PracticeSessionResponse(result = PracticeSessionResult.of(detail)))
+        return ResponseEntity.ok()
+            .apply { detail.analysisTimingId?.let { header(EvaluationTimingId.HEADER, it.value) } }
+            .body(PracticeSessionResponse(result = PracticeSessionResult.of(detail)))
     }
 
     private fun error(code: ErrorCode) = ResponseEntity.status(code.status).body(ErrorResponse.of(code))

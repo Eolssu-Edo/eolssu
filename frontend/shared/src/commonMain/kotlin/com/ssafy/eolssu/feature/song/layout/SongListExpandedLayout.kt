@@ -56,6 +56,7 @@ internal fun SongListExpandedLayout(
         title = stringResource(Res.string.song_list_title),
         onBack = actions.onBack,
         pageTopBar = true,
+        containerColor = EolssuTheme.colors.groupedBackground,
         snackbarHostState = snackbarHostState,
         topBarRight = { instrumentPicker() },
     ) { gutter ->

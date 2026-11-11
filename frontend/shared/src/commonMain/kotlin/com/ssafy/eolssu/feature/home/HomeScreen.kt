@@ -7,6 +7,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.ssafy.eolssu.core.model.ProfileImage
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -50,6 +51,7 @@ internal const val HomeFeatureColumns = 2
 @Composable
 fun HomeScreen(
     widthClass: WindowWidthClass,
+    profileImage: ProfileImage,
     snackbarHostState: SnackbarHostState,
     onOpenMyPage: () -> Unit,
     onStartEvaluation: () -> Unit,
@@ -57,9 +59,9 @@ fun HomeScreen(
 ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = EolssuTheme.colors.background,
+        containerColor = EolssuTheme.colors.groupedBackground,
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)
-        HomeScrollLayout(widthClass, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
+        HomeScrollLayout(widthClass, profileImage, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
     }
 }

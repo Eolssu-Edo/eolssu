@@ -4,6 +4,7 @@ import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.testing.FakeLessonApi
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -105,6 +106,67 @@ class LearnProgressRepositoryTest {
         assertEquals(setOf(1, 7), repository.doneStages(Instrument.Danso))
         assertEquals(setOf(3), repository.doneStages(Instrument.DaegeumSanjo))
         assertEquals(emptySet(), repository.doneStages(Instrument.DaegeumJeongak))
+    }
+
+    @Test
+    fun recentProgressFollowsInstrumentOfLatestCompletion() = runTest {
+        api.completed["me"] = mutableSetOf(api.id("danso", 1), api.id("danso", 2), api.id("sogeum", 1))
+        api.completedAt[api.id("danso", 1)] = "2026-11-01T00:00:00Z"
+        api.completedAt[api.id("danso", 2)] = "2026-11-05T10:00:00Z"
+        // 문자열로 비교하면 '.'이 'Z'보다 앞이라 단소가 이긴다. 시각으로 비교해 0.5초 뒤인 소금을 고른다.
+        api.completedAt[api.id("sogeum", 1)] = "2026-11-05T10:00:00.500Z"
+
+        val recent = repository().recentProgress(fallback = Instrument.Danso)
+
+        assertEquals(RecentLearning(Instrument.Sogeum, setOf(1)), recent)
+    }
+
+    @Test
+    fun recentProgressUsesFallbackInstrumentWithoutAnyCompletion() = runTest {
+        assertEquals(RecentLearning(Instrument.DaegeumJeongak, emptySet()), repository().recentProgress(Instrument.DaegeumJeongak))
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun recentProgressLoadsAllTracksAtOnce() = runTest {
+        api.trackDelayMs = 300
+
+        repository().recentProgress(Instrument.Danso)
+
+        // 다섯 트랙(단소·소금·대금 정악·산조…)을 차례로 받으면 300ms의 몇 배가 걸린다. 한꺼번에 받아 한 번만 기다린다.
+        assertEquals(300, testScheduler.currentTime)
+    }
+
+    @Test
+    fun recentProgressAsksFallbackOnlyWithoutAnyCompletion() = runTest {
+        api.completed["me"] = mutableSetOf(api.id("sogeum", 1))
+        api.completedAt[api.id("sogeum", 1)] = "2026-11-05T10:00:00Z"
+        var asked = 0
+
+        val recent = repository().recentProgress { asked++; Instrument.Danso }
+
+        assertEquals(RecentLearning(Instrument.Sogeum, setOf(1)), recent)
+        assertEquals(0, asked, "완료 기록이 있으면 연습 악기(내 정보)를 기다리지 않는다")
+    }
+
+    @Test
+    fun lastRecentProgressStaysOnDeviceForNextVisit() = runTest {
+        api.completed["me"] = mutableSetOf(api.id("sogeum", 1), api.id("sogeum", 2))
+        api.completedAt[api.id("sogeum", 2)] = "2026-11-05T10:00:00Z"
+        assertNull(repository().cachedRecent(), "받은 적이 없으면 남긴 진도가 없다")
+
+        repository().recentProgress(Instrument.Danso)
+        api.online = false
+
+        // 서버에 닿지 않아도 새로 만든 저장소가 마지막 진도를 바로 돌려준다(마이페이지 뱃지가 늦게 뜨지 않게).
+        assertEquals(RecentLearning(Instrument.Sogeum, setOf(1, 2)), repository().cachedRecent())
+    }
+
+    @Test
+    fun recentProgressIsNullWhenTracksCannotBeLoaded() = runTest {
+        api.online = false
+
+        assertNull(repository().recentProgress(Instrument.Danso))
     }
 
     @Test

@@ -45,6 +45,8 @@ import com.ssafy.eolssu.core.ui.score.scoreSectionLabel
 import com.ssafy.eolssu.data.practice.SectionEvaluation
 import com.ssafy.eolssu.data.practice.CheckLoad
 import com.ssafy.eolssu.data.practice.SessionCheck
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import com.ssafy.eolssu.core.model.MetricScore
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.result_save
@@ -171,6 +173,7 @@ private fun ScoreHeader(total: Int) {
                     append(stringResource(Res.string.result_score_unit))
                 }
             },
+            modifier = Modifier.observeFirstDraw(PerfPhase.SCORE_DRAWN),
             style = EolssuTheme.serif.brand.copy(fontSize = 60.sp, lineHeight = 60.sp),
         )
         Text(

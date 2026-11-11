@@ -24,6 +24,9 @@ import eolssu.shared.generated.resources.my_feedback_open_failed
 import eolssu.shared.generated.resources.my_password_none
 import eolssu.shared.generated.resources.my_unlink_last
 import eolssu.shared.generated.resources.my_unlinked
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.koin.compose.viewmodel.koinViewModel
@@ -51,12 +54,16 @@ fun MyPageRoute(
     val instrument by viewModel.instrument.collectAsStateWithLifecycle()
     val progressRepository = koinInject<LearnProgressRepository>()
     val progressRevision by progressRepository.saves.collectAsStateWithLifecycle()
-    // 학습 진도는 서버에서 받는다. 악기·완료 표시가 바뀌면 다시 받고, 받지 못하면 진도 칸을 비워 둔다.
-    // 다른 화면에서 돌아와 다시 받는 동안에는 같은 악기의 마지막 진도를 그대로 보여 화면이 흔들리지 않게 한다.
-    // 돌아올 때 내 정보를 다시 읽으며 악기가 잠깐 비는데, 그동안 뱃지를 비우면 본문이 짧아져 스크롤 위치가 당겨지므로 그대로 둔다.
-    val learningProgress by produceState(viewModel.lastLearningProgress(instrument), instrument, progressRepository, progressRevision) {
-        val current = instrument ?: return@produceState
-        value = myLearningProgress(current, progressRepository).also { viewModel.rememberLearningProgress(current, it) }
+    // 학습 진도는 서버에서 받는다. 완료 표시가 바뀌면 다시 받고, 받지 못하면 진도 칸을 비워 둔다.
+    // 내 정보(연습 악기)를 기다리지 않고 바로 받는다. 연습 악기는 완료 기록이 하나도 없을 때만 기다려 쓴다(S15P31E102-768).
+    // 다른 화면에서 돌아와 다시 받는 동안에는 마지막 진도를 그대로 보여 화면이 흔들리지 않게 한다.
+    // 처음 들어올 때도 이 기기에 남긴 마지막 진도부터 바로 보이고, 서버 응답이 오면 바꾼다(S15P31E102-768).
+    val initialProgress = remember(progressRepository) {
+        viewModel.lastLearningProgress() ?: progressRepository.cachedRecent()?.let { MyLearningProgress(it.stages, it.instrument) }
+    }
+    val learningProgress by produceState(initialProgress, progressRepository, progressRevision) {
+        value = myLearningProgress({ snapshotFlow { instrument }.filterNotNull().first() }, progressRepository)
+            .also(viewModel::rememberLearningProgress)
     }
     // 최근 연주는 연습 기록 화면과 같은 저장소(REC-02)에서 받는다. 이미 받은 기록이 있으면 받는 동안·실패해도 그대로 보인다.
     val recordRepository = koinInject<PracticeRecordRepository>()

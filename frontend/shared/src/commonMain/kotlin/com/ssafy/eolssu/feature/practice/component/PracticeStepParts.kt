@@ -1,8 +1,6 @@
 package com.ssafy.eolssu.feature.practice.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +23,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -82,7 +79,7 @@ fun PracticeStepToggle(state: PracticeUiState, onToggle: () -> Unit, modifier: M
 }
 
 /**
- * 작은 알약 스위치: 32dp 높이 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두). 누르는 영역은 44dp 이상이다.
+ * 작은 알약 스위치: 32dp 높이 테두리 없는 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두). 누르는 영역은 44dp 이상이다.
  * ‘한 음씩’ 토글과 연주 평가 제목 옆 ‘운지법 보기’·‘쉬운 표기’(S15P31E102-716)가 함께 쓴다.
  */
 @Composable
@@ -106,7 +103,6 @@ fun PracticeMiniToggle(
             Modifier
                 .height(32.dp)
                 .background(colors.surface, RoundedCornerShape(16.dp))
-                .border(1.dp, colors.lineSoft, RoundedCornerShape(16.dp))
                 .padding(start = 10.dp, end = 5.dp)
                 .clearAndSetSemantics {},
             verticalAlignment = Alignment.CenterVertically,
@@ -118,12 +114,12 @@ fun PracticeMiniToggle(
                 color = if (enabled) colors.text else colors.textDisabled,
                 maxLines = 1,
             )
-            Box(Modifier.width(30.dp).height(18.dp).background(if (on) colors.accent else colors.line, RoundedCornerShape(9.dp))) {
+            // 다른 스위치([com.ssafy.eolssu.core.ui.component.EolssuSwitch])와 같은 색·그림자 없는 손잡이(S15P31E102-768).
+            Box(Modifier.width(30.dp).height(18.dp).background(if (on) colors.primary else colors.line, RoundedCornerShape(9.dp))) {
                 Box(
                     Modifier
                         .offset(x = if (on) 14.dp else 2.dp, y = 2.dp)
                         .size(14.dp)
-                        .shadow(1.dp, CircleShape)
                         .background(colors.surface, CircleShape),
                 )
             }
@@ -234,17 +230,18 @@ private fun StepPanel(
     content: @Composable () -> Unit,
 ) {
     val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(16.dp)
     Surface(
         onClick = onClick,
         modifier = modifier.heightIn(min = 80.dp).clearAndSetSemantics { contentDescription = description; role = Role.Button },
         shape = shape,
-        color = if (recording) colors.recSoft.copy(alpha = 0.5f) else colors.surface,
-        border = BorderStroke(1.dp, if (recording) colors.rec.copy(alpha = 0.3f) else colors.lineSoft),
+        // 플레이어 카드처럼 회색 바탕 위 테두리 없는 흰 카드(녹음 중엔 옅은 빨강)(S15P31E102-768).
+        color = if (recording) colors.recSoft else colors.surface,
         contentColor = colors.text,
     ) {
         Row(
-            Modifier.padding(start = 20.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
+            // 두 칸 모두 안쪽 여백을 16dp로 같게 해 이름·내용·아이콘 자리를 맞춘다.
+            Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {

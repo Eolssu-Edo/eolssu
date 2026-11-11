@@ -1,5 +1,12 @@
 package com.ssafy.eolssu.feature.profile
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import com.ssafy.eolssu.core.ui.component.drawable
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,9 +36,9 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.data.user.ProfileImage
+import com.ssafy.eolssu.core.model.ProfileImage
 import com.ssafy.eolssu.feature.profile.component.MyPageCard
-import com.ssafy.eolssu.feature.profile.component.ProfileImageCircle
+import com.ssafy.eolssu.core.ui.component.ProfileImageCircle
 import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
 import com.ssafy.eolssu.feature.profile.component.label
 import eolssu.shared.generated.resources.Res
@@ -116,7 +123,10 @@ fun ProfileImageScreen(
     }
 }
 
-/** 그림 하나: 원 그림만 보이고 이름은 화면 낭독으로만 읽는다. 고르면 원에 테두리를 두른다. 누르는 영역은 칸 전체다. */
+/**
+ * 그림 하나: 원으로 자르지 않은 그림만 보이고 이름은 화면 낭독으로만 읽는다. 누르는 영역은 칸 전체다.
+ * 고른 그림은 누를 때와 같은 회색 칸(모서리 16dp)으로 표시한다. 동그란 얼굴 원은 마이페이지에만 둔다(S15P31E102-768).
+ */
 @Composable
 private fun ProfileImageOption(image: ProfileImage, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val colors = EolssuTheme.colors
@@ -124,11 +134,12 @@ private fun ProfileImageOption(image: ProfileImage, selected: Boolean, onClick: 
     Box(
         modifier
             .clip(RoundedCornerShape(16.dp))
+            .background(if (selected) colors.groupedBackground else Color.Transparent)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .semantics { contentDescription = label }
             .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-        ProfileImageCircle(image, size = 84.dp, ring = if (selected) colors.cardInk else null)
+        Image(painterResource(image.drawable), contentDescription = null, modifier = Modifier.requiredSize(84.dp), contentScale = ContentScale.Fit)
     }
 }
