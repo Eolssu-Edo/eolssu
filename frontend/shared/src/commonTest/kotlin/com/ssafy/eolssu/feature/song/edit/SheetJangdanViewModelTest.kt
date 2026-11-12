@@ -13,6 +13,48 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
     private val compatible = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 3, 1, 1)
     private val incompatible = CatalogJangdanSummary("5", "중모리", 90, "QUARTER", 12, 4, 2)
 
+    @Test fun recognizedJangdanCorrectionSurvivesAutosaveReloadAndFinalSave() = runTest {
+        val original = SheetJangdanCorrectionTest.recognized("QUARTER", 12, 36, "중모리")
+        val metadata = SheetJangdanCorrectionTest.sourceMetadata(original)
+        val gutgeori = CatalogJangdanSummary("2", "굿거리", 80, "DOTTED_QUARTER", 12, 4, 1)
+        val danmori = CatalogJangdanSummary("7", "단모리", 120, "QUARTER", 8, 4, 1)
+        val repository = RecordingDocuments(original, jangdanId = "3").also {
+            it.document = it.document.copy(authoring = metadata, conversionStatus = "DONE")
+        }
+        val catalog = JangdanCatalog(listOf(gutgeori, danmori))
+        fun open() = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
+            SampleMySheetRepository(), documents = repository, pitchCatalog = catalog))
+        val model = open()
+        runCurrent()
+        model.changeJangdan()
+        runCurrent()
+        model.updateSettings(100, gutgeori.jangdanId)
+        assertEquals("2", model.uiState.value.draft.jangdanId)
+        advanceTimeBy(1_100)
+        runCurrent()
+        val copy = repository.writes.single().second
+        assertEquals(original.columns, copy.score.columns)
+        assertEquals(original.events, copy.score.events)
+        assertEquals("DOTTED_QUARTER", copy.score.music.bpmUnit)
+        assertEquals(copy.score.music.ticksPerJeonggan, copy.score.music.ticksPerBeat)
+        assertEquals(metadata, copy.authoring)
+
+        val restored = open()
+        runCurrent()
+        restored.changeJangdan()
+        runCurrent()
+        restored.selectJangdan(danmori.jangdanId)
+        restored.requestSave()
+        runCurrent()
+        assertFalse(repository.writes.last().first)
+        assertEquals("7", repository.document.jangdanId)
+        assertEquals("QUARTER", repository.document.score!!.music.bpmUnit)
+        assertEquals(original.columns, repository.document.score!!.columns)
+        assertEquals(original.events, repository.document.score!!.events)
+        assertEquals(metadata, repository.document.authoring)
+        assertEquals(100, restored.uiState.value.draft.bpm)
+    }
+
     @Test fun changingJangdanLoadsChoicesAndPreservesTimingThroughDraftAndFinalSave() = runTest {
         val original = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
         val repository = RecordingDocuments(original)

@@ -45,13 +45,39 @@ internal fun recommendedAdaptations(plans: List<PitchAdaptationPlan>): List<Pitc
         .thenBy { abs(it.transpose) }.thenBy { it.octaveChanges }.thenBy { it.octaveDistance }.thenBy { it.transpose }))
         .distinctBy { it.transpose }
 
+internal fun SheetDraft.originalPitchLayoutMatches(): Boolean {
+    val source = authoring?.get("source")?.jsonObject
+    val saved = source?.get("notes")?.jsonArray.orEmpty()
+        .associate { it.jsonObject.getValue("eventId").jsonPrimitive.content to it.jsonObject }
+    // IDs encode positions. Inserting/deleting cells can reuse an old ID for a different note.
+    val score = toCommonScore()
+    val cell = score.music.ticksPerJeonggan.toLong()
+    val sourceCell = (source?.get("score") as? JsonObject)?.get("music")?.jsonObject
+        ?.get("ticksPerJeonggan")?.jsonPrimitive?.intOrNull?.toLong() ?: cell
+    if (sourceCell <= 0 || cell <= 0) return false
+    val notes = score.events.filter { it.kind == "NOTE" }
+    return saved.isNotEmpty() && notes.size == saved.size && notes.all { event -> saved[event.id]?.let { old ->
+        old["cellId"]?.jsonPrimitive?.content == event.cellId &&
+            old["startTick"]?.jsonPrimitive?.longOrNull?.let { sameGridTime(it, sourceCell, event.startTick, cell) } == true &&
+            old["durationTick"]?.jsonPrimitive?.longOrNull?.let { sameGridTime(it, sourceCell, event.durationTick, cell) } == true
+    } == true }
+}
+
+/** tick 배율이 달라도 원본의 같은 음을 찾는다. 긴 곡의 곱셈 넘침을 피하려고 정수부와 나머지를 비교한다. */
+private fun sameGridTime(before: Long, beforeCell: Long, after: Long, afterCell: Long): Boolean =
+    before / beforeCell == after / afterCell && before % beforeCell * afterCell == after % afterCell * beforeCell
+
 internal fun SheetDraft.sourcePitchNotes(): List<SourcePitchNote> {
-    val saved = authoring?.get("source")?.jsonObject?.get("notes")?.jsonArray.orEmpty()
+    val metadataSource = authoring?.get("source")?.jsonObject
+    val saved = metadataSource?.get("notes")?.jsonArray.orEmpty()
         .associate { it.jsonObject.getValue("eventId").jsonPrimitive.content to it.jsonObject }
     val score = toCommonScore()
     val hwang = (69 + 12 * log2(score.music.hwangHz / 440.0)).roundToInt()
     val originalEvents = original?.events.orEmpty().associateBy { it.id }
     val originalHwang = (69 + 12 * log2(requireNotNull(original).music.hwangHz / 440.0)).roundToInt()
+    val originalCellTicks = original.music.ticksPerJeonggan.toLong()
+    val sourceCellTicks = (metadataSource?.get("score") as? JsonObject)?.get("music")?.jsonObject
+        ?.get("ticksPerJeonggan")?.jsonPrimitive?.intOrNull?.toLong() ?: originalCellTicks
     val baselines = buildMap<String, Int> {
         score.columns.flatMap { it.cells }.forEachIndexed { index, cell ->
             val oldCell = originalCell(index) ?: return@forEachIndexed
@@ -63,8 +89,9 @@ internal fun SheetDraft.sourcePitchNotes(): List<SourcePitchNote> {
                     ?: return@units
                 val source = saved[old.id]?.takeIf {
                     it["cellId"]?.jsonPrimitive?.content == old.cellId &&
-                        it["startTick"]?.jsonPrimitive?.long == old.startTick &&
-                        it["durationTick"]?.jsonPrimitive?.long == old.durationTick
+                        sourceCellTicks > 0 && originalCellTicks > 0 &&
+                        it["startTick"]?.jsonPrimitive?.longOrNull?.let { tick -> sameGridTime(tick, sourceCellTicks, old.startTick, originalCellTicks) } == true &&
+                        it["durationTick"]?.jsonPrimitive?.longOrNull?.let { tick -> sameGridTime(tick, sourceCellTicks, old.durationTick, originalCellTicks) } == true
                 }
                 if (unit.eventId == "${cell.id}-r${unit.row}-u${unit.col}") put(unit.eventId,
                     adaptationBaseline[old.id] ?: source?.get("midi")?.jsonPrimitive?.int

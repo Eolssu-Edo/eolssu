@@ -1,0 +1,11 @@
+# Python 3.12 Linux x86_64 CPU wheels; no secondary index.
+# Scanner-only runtime; the scoring service and default uv groups stay separate.
+torch @ https://download-r2.pytorch.org/whl/cpu/torch-2.15.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl#sha256=0955c7e3446326293f48af18fad67872fa31dee5a36a87690eb9e5be8b465be3
+torchvision @ https://download-r2.pytorch.org/whl/cpu/torchvision-0.29.2%2Bcpu-py3-none-manylinux_2_28_x86_64.whl#sha256=87631236a47be98ab21301e8cb4fc1cbb9325fe0aa7a022e18d2f894087b68c3
+x-transformers==1.30.20
+opencv-python-headless==5.0.0.93
+pdfplumber==0.11.10
+omegaconf==2.4.0
+pandas==3.1.1
+matplotlib==3.11.2
+tqdm==4.70.1

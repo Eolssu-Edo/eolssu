@@ -26,6 +26,20 @@ class SheetPitchAdaptationTest {
         assertEquals(listOf(0), recommendedAdaptations(planPitchAdaptation(source(70), sogeum)).map { it.transpose })
     }
 
+    @Test fun jangdanRetimingKeepsThePitchBaselineOfANewlyInsertedNote() {
+        val score = SheetJangdanCorrectionTest.recognized("QUARTER", 5, 2, "단모리", grid = 10)
+        val draft = SheetJangdanCorrectionTest().state(score).draft
+            .putAt(9, 0, com.ssafy.eolssu.core.model.ScoreNote.SourcePitch("황", 0))
+        val sources = draft.sourcePitchNotes()
+        val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
+            AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
+        val adapted = draft.applyAdaptation(planPitchAdaptation(sources, emptyList()).first { it.transpose == 1 }, capability)
+        val retimed = requireNotNull(adapted.withJangdan(CatalogJangdanSummary("10", "세령산", 63, "QUARTER", 10, 4, 3), false))
+        assertEquals(63, retimed.sourcePitchNotes().first { it.cellId == "c0-j9" }.midi)
+        assertEquals(sources, retimed.sourcePitchNotes())
+        assertEquals(6, retimed.toCommonScore().music.ticksPerJeonggan)
+    }
+
     @Test fun resetsManualPitchesButPreservesSplitsSignsMetadataAndTiming() {
         val draft = smallScoreData().editingDraft("수정 제목", 123, null).copy(editedJangdanName = "수정 장단", jangdanId = "9")
         val originalNotes = draft.sourcePitchNotes()

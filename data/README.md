@@ -419,3 +419,9 @@ python -m unittest data.tests.test_repair_scoring data.tests.test_rebind_perform
 ```
 
 동일 명령에 `--check`를 더하면 생성 파일을 읽기 전용으로 대조한다. `rebind_performance()`는 확인한 이벤트 대응표와 실제 파일 SHA를 받아 기존 음원의 구간별 시간을 새 악보에 연결한다. 다른 길이·일반 음높이·숨표가 바뀌면 재사용을 거절한다. 따라서 104·109는 교정·숨표를 반영한 음원을 별도로 생성했다. 운영 적용과 보류 중인 오나라의 조건은 [실행 기록](../docs/plans/S15P31E102-699.md#2026-11-10-운영-적용-결과), [catalog 명령](../infra/catalog/README.md#교정-9곡의-악보음원-동시-적용-699)에 있다.
+
+### 서비스 스캔 입력
+
+`jeongganbo_omr.py`는 `--image`로 이미 렌더링한 PNG를 받을 수 있습니다. 이때 쪽 번호는 0이고, PDF 재렌더링 옵션(`--read-dpi`, `--octave-check`)은 함께 쓰지 않습니다. 서비스는 `--model-cache-dir`로 요청별 쓰기 경로를 지정하고, `--batch-size 16`으로 추론 배치를 제한합니다. `--beats 0`은 검출한 각의 정간 수 중 최빈값을 사용합니다. 한 인쇄 열에 장단이 여러 번 들어간 경우 실제 장단별 각 구분은 검수해야 합니다.
+
+`--fill-grid`는 옆 열의 칸 위치를 참고해 놓친 칸을 보완하고, `--keep-empty-columns`는 율명을 못 읽은 열도 보존합니다. 읽지 못한 열을 없애 뒤 칸을 당기지 않도록 서비스에서 두 옵션을 사용합니다. `cells.json`에는 원문·신뢰도·상자·보완 여부와 중앙 먹 비율(`ink`)을 남깁니다. 격자를 못 찾으면 종료 코드 4입니다. 순수 토큰 변환은 `jeongganbo_tokens.py`로 공유합니다. [모델 설치와 서비스 검사](../ai/README.md#스캔-모델-실행-458)를 따릅니다.

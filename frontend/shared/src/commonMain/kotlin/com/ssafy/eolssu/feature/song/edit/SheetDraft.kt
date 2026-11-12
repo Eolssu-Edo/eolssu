@@ -109,6 +109,9 @@ data class SheetDraft(
 
     val jangdanName: String get() = editedJangdanName ?: original?.music?.jangdan ?: jangdan?.name.orEmpty()
 
+    /** 요청 장단으로 시간을 추정한 정간보만 인식 원본의 격자로 다시 판단한다. */
+    internal val inferredJeongganSizes: List<Int>? by lazy { inferredJeongganColumnSizes() }
+
     internal val originalCells: Map<String, CommonScoreData.Cell> by lazy {
         original?.columns?.flatMap { it.cells }?.associateBy { it.id }.orEmpty()
     }
