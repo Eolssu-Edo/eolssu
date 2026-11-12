@@ -1,9 +1,0 @@
-<!-- Decorative steps with a flag for the basics course (S15P31E102-779). -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="150dp" android:height="92dp" android:viewportWidth="150" android:viewportHeight="92">
-    <path android:fillColor="#EFF2D6" android:pathData="M34,62 H56 Q60,62 60,66 V78 Q60,82 56,82 H34 Q30,82 30,78 V66 Q30,62 34,62Z" />
-    <path android:fillColor="#CED883" android:pathData="M64,46 H86 Q90,46 90,50 V78 Q90,82 86,82 H64 Q60,82 60,78 V50 Q60,46 64,46Z" />
-    <path android:fillColor="#ADBE31" android:pathData="M94,30 H116 Q120,30 120,34 V78 Q120,82 116,82 H94 Q90,82 90,78 V34 Q90,30 94,30Z" />
-    <path android:fillColor="#2E3E32" android:pathData="M105.3,6 H105.3 Q106.6,6 106.6,7.3 V30.7 Q106.6,32 105.3,32 H105.3 Q104,32 104,30.7 V7.3 Q104,6 105.3,6Z" />
-    <path android:fillColor="#C8402F" android:pathData="M106.6,7 L124,12.5 L106.6,18Z" />
-    <path android:fillColor="#FFFFFF" android:fillAlpha="0.9" android:pathData="M42,72 A3,3 0,1 1,48,72 A3,3 0,1 1,42,72ZM72,64 A3,3 0,1 1,78,64 A3,3 0,1 1,72,64ZM102,56 A3,3 0,1 1,108,56 A3,3 0,1 1,102,56Z" />
-</vector>
