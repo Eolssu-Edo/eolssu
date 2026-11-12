@@ -264,7 +264,8 @@ fun SheetEditRoute(
         }) }
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
-            onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)
+            onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker,
+            hasTempoPlan = state.hasTempoPlan)
     }
     if (state.closeWarning) EolssuDialog(
         title = stringResource(Res.string.sheet_close_unsaved),
