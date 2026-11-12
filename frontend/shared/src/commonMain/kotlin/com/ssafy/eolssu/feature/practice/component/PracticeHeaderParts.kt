@@ -28,6 +28,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuPageTopBar
 import com.ssafy.eolssu.core.ui.component.PageHeading
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import com.ssafy.eolssu.feature.practice.sectionEvaluation
 import eolssu.shared.generated.resources.jangdan_practice_label
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_eval_title
@@ -38,13 +39,15 @@ import eolssu.shared.generated.resources.practice_subtitle_mine
 import eolssu.shared.generated.resources.practice_subtitle_solo
 import eolssu.shared.generated.resources.practice_title
 import eolssu.shared.generated.resources.practice_title_fingering
+import eolssu.shared.generated.resources.weak_loop_evaluate
 import eolssu.shared.generated.resources.weak_loop_title
 import org.jetbrains.compose.resources.stringResource
 
-/** 상단 제목: 혼자 연습·내 악보 연습은 ‘연습’, 평가 연습은 ‘연주 평가’. */
+/** 상단 제목: 혼자 연습·내 악보 연습은 ‘연습’, 평가 연습은 ‘연주 평가’, 구간 연습은 ‘구간 연습’, 구간 재평가는 ‘구간 재평가’. */
 @Composable
 fun practicePageTitle(state: PracticeUiState): String = stringResource(
     when {
+        state.sectionEvaluation -> Res.string.weak_loop_evaluate
         state.sectionPractice != null -> Res.string.weak_loop_title
         state.solo || state.mine -> Res.string.practice_title
         else -> Res.string.practice_eval_title

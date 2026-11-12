@@ -34,7 +34,8 @@ import com.ssafy.eolssu.feature.song.edit.SheetEditJangdanPicker
 import com.ssafy.eolssu.feature.song.edit.SheetJangdanTimingText
 import com.ssafy.eolssu.feature.song.edit.SheetJangdanOptionLabel
 import com.ssafy.eolssu.feature.song.edit.SheetJangdanNoMatchHelp
-import com.ssafy.eolssu.feature.song.edit.isCompatibleWith
+import com.ssafy.eolssu.feature.song.edit.canSelectJangdan
+import com.ssafy.eolssu.feature.song.edit.requiresJangdanRetiming
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.sheet_details_apply
@@ -48,6 +49,7 @@ import eolssu.shared.generated.resources.sheet_settings_jangdan_none
 import eolssu.shared.generated.resources.sheet_settings_title
 import eolssu.shared.generated.resources.sheetedit_jangdan_load_failed
 import eolssu.shared.generated.resources.sheetedit_jangdan_same_unit
+import eolssu.shared.generated.resources.sheet_jangdan_correction_help
 import eolssu.shared.generated.resources.sheet_upload_reload
 import eolssu.shared.generated.resources.sheet_adapt_title
 import org.jetbrains.compose.resources.stringResource
@@ -67,10 +69,14 @@ internal fun SheetEditSettingsDialog(
 ) {
     var bpm by rememberSaveable { mutableStateOf(draft.bpm.toString()) }
     var selectedId by rememberSaveable { mutableStateOf(draft.jangdanId) }
+    var confirmingTiming by rememberSaveable { mutableStateOf(false) }
     val validBpm = bpm.toIntOrNull()?.takeIf { it in SheetBpmRange }
     val options = (picker as? SheetEditJangdanPicker.Ready)?.options.orEmpty()
+    val selectedOption = options.firstOrNull { it.jangdanId == selectedId }
+    val willRetime = selectedId != draft.jangdanId && !hasTempoPlan && selectedOption?.let { draft.requiresJangdanRetiming(it) } == true
+    val bpmLabel = if (willRetime) { if (selectedOption.bpmUnit == "DOTTED_QUARTER") "♩." else "♩" } else draft.tempoUnitLabel
     val validSelection = selectedId == null || selectedId == draft.jangdanId ||
-        options.any { it.jangdanId == selectedId && draft.isCompatibleWith(it) }
+        options.any { it.jangdanId == selectedId && draft.canSelectJangdan(it, hasTempoPlan) }
     LaunchedEffect(Unit) {
         if (picker == null) onLoadJangdans()
     }
@@ -87,7 +93,7 @@ internal fun SheetEditSettingsDialog(
             EolssuTextField(
                 value = bpm,
                 onValueChange = { if (!saving) bpm = it },
-                label = stringResource(Res.string.sheet_details_bpm) + " · " + draft.tempoUnitLabel,
+                label = stringResource(Res.string.sheet_details_bpm) + " · " + bpmLabel,
                 placeholder = "",
                 type = TextFieldType.Number,
                 imeAction = ImeAction.Done,
@@ -98,7 +104,8 @@ internal fun SheetEditSettingsDialog(
             if (hasTempoPlan) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(Res.string.sheet_settings_jangdan), style = MaterialTheme.typography.labelLarge)
             SheetJangdanTimingText(draft)
-            Text(stringResource(Res.string.sheetedit_jangdan_same_unit), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(if (draft.inferredJeongganSizes != null && !hasTempoPlan)
+                Res.string.sheet_jangdan_correction_help else Res.string.sheetedit_jangdan_same_unit), style = MaterialTheme.typography.bodySmall)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = selectedId == null,
@@ -119,7 +126,7 @@ internal fun SheetEditSettingsDialog(
                 options.forEach { option ->
                     FilterChip(
                         selected = selectedId == option.jangdanId,
-                        enabled = !saving && draft.isCompatibleWith(option),
+                        enabled = !saving && draft.canSelectJangdan(option, hasTempoPlan),
                         onClick = { selectedId = option.jangdanId },
                         label = { SheetJangdanOptionLabel(option) },
                     )
@@ -137,7 +144,7 @@ internal fun SheetEditSettingsDialog(
             containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
                 }
                 is SheetEditJangdanPicker.Ready -> {
-                    if (options.none { draft.isCompatibleWith(it) }) {
+                    if (options.none { draft.canSelectJangdan(it, hasTempoPlan) }) {
                         SheetJangdanNoMatchHelp()
                     }
                 }
@@ -145,11 +152,18 @@ internal fun SheetEditSettingsDialog(
         }
         EolssuButton(
             text = stringResource(Res.string.sheet_details_apply),
-            onClick = { if (validBpm != null && validSelection) onApply(validBpm, selectedId) },
+            onClick = { if (validBpm != null && validSelection) {
+                if (willRetime) confirmingTiming = true else onApply(validBpm, selectedId)
+            } },
             enabled = validBpm != null && validSelection && !saving,
         )
         EolssuButton(stringResource(Res.string.common_cancel), onDismiss,
             style = EolssuButtonStyle.Secondary, enabled = !saving,
             containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
     }
+    if (confirmingTiming && selectedOption != null) SheetJangdanCorrectionDialog(selectedOption,
+        onApply = {
+            confirmingTiming = false
+            if (!saving && validBpm != null && validSelection) onApply(validBpm, selectedId)
+        }, onDismiss = { confirmingTiming = false })
 }

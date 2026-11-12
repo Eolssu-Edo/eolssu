@@ -16,6 +16,54 @@ import kotlinx.serialization.json.*
 internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
     private fun document(draft: SheetWorkingCopy? = null) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), draft, "EVALUABLE", null, emptyList())
 
+    @Test fun adaptationCannotOverwriteTheDraftWithoutConfirmation() = runTest {
+        val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
+            AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
+        val catalog = object : ReferenceCatalogRepository {
+            override suspend fun authoringCapabilities(instrumentId: String) = capability
+            override suspend fun pitches(instrumentId: String): List<CatalogPitch> = emptyList()
+            override suspend fun allPitches(): List<CatalogPitch> = emptyList()
+            override suspend fun fingerings(instrumentId: String, pitchId: String?): CatalogFingerings = error("unused")
+            override suspend fun jangdans(): List<CatalogJangdanSummary> = emptyList()
+            override suspend fun jangdan(jangdanId: String): CatalogJangdanDetail? = null
+            override suspend fun symbols(): List<CatalogNotationSymbol> = emptyList()
+        }
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document()
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) = SheetWrite.Failed
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(),
+            documents = repository, pitchCatalog = catalog, loadAudioInstruments = { listOf(CatalogInstrument("1", "DANSO", "단소")) }))
+        runCurrent()
+        assertEquals(EditTab.Adaptation, model.uiState.value.tab, "처음에는 음역 맞추기 입력판을 연다")
+        assertNotNull(model.uiState.value.adaptation)
+        model.selectTab(EditTab.Adaptation); runCurrent(); model.selectAdaptationTranspose(4)
+        assertEquals(EditTab.Adaptation, model.uiState.value.tab)
+        val before = model.uiState.value.draft
+        model.applyAdaptation()
+        assertEquals(before, model.uiState.value.draft)
+        model.requestApplyAdaptation()
+        assertTrue(model.uiState.value.adaptation!!.confirmationRequested)
+        model.cancelApplyAdaptation()
+        assertEquals(before, model.uiState.value.draft)
+        assertEquals(4, model.uiState.value.adaptation!!.selectedTranspose)
+        assertFalse(model.uiState.value.adaptation!!.confirmationRequested)
+        model.requestApplyAdaptation(); model.applyAdaptation()
+        val applied = model.uiState.value.draft
+        assertNotEquals(before, applied)
+        assertNull(model.uiState.value.adaptation)
+        assertEquals(EditTab.Yul, model.uiState.value.tab)
+        model.undo()
+        assertEquals(before, model.uiState.value.draft)
+        model.redo()
+        assertEquals(applied, model.uiState.value.draft)
+        model.openAdaptation(); runCurrent(); model.requestApplyAdaptation()
+        model.updateDetails("다른 편집", 100)
+        model.applyAdaptation()
+        assertEquals("다른 편집", model.uiState.value.draft.title)
+        assertNull(model.uiState.value.adaptation, "다른 편집 뒤에 이전 제안을 적용할 수 없다")
+    }
+
     @Test fun closedAdaptationReplyCannotReplaceAReopenedPanel() = runTest {
         var delayed = false
         val pending = mutableListOf<CompletableDeferred<CatalogAuthoringCapabilities>>()

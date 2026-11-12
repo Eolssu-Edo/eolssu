@@ -28,8 +28,9 @@ enum class PracticePanel { Settings, Notation, Fingering, Jangdan, Tempo }
  * [EndAtLimit]은 10분 한도로 멈춘 녹음을 평가할 수 있음을 안내하고, [EndNoInput]은 마이크 입력이 없어 평가하지 않음,
  * [RecordFailed]는 녹음을 시작·저장하지 못함, [TooLarge]는 녹음 파일이 보낼 수 있는 크기(20MiB)를 넘음.
  * [PermDenied]는 OS 권한 창에서 허용하지 않음, [PermBlocked]는 ‘다시 묻지 않음’이라 기기 설정에서만 허용할 수 있음(보드 Dialog-PermDenied·PermBlocked).
+ * [NoSectionNotes]는 구간 재평가의 구간에 연주할 율명 음이 없어(쉼표만) 평가를 시작하지 않음.
  */
-enum class PracticePopup { Permission, Abort, SettingsPaused, End, EndAtLimit, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge, PermDenied, PermBlocked, ScoreChanged, ScoreUnavailable }
+enum class PracticePopup { Permission, Abort, SettingsPaused, End, EndAtLimit, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge, PermDenied, PermBlocked, ScoreChanged, ScoreUnavailable, NoSectionNotes }
 
 /** 연주 중 입력이 이 시간(ms)보다 오래 없으면 마이크를 확인하라고 안내한다(와이어프레임 `noInputMs > 1500`). */
 const val NO_INPUT_HINT_MS = 1500.0
@@ -340,10 +341,13 @@ fun PracticeUiState.requestEvaluation(micGranted: Boolean): PracticeUiState {
 /** 3·2·1 카운트다운. [resume]이면 멈춘 자리부터 이어서 연주한다. */
 fun PracticeUiState.beginCountdown(resume: Boolean = false): PracticeUiState = copy(
     mode = PracticeMode.Countdown, resume = resume, popup = null, panel = null, count = 3, playing = false, eventStartedAt = null,
+    // 구간 재평가는 3·2·1 동안 악보를 구간 처음으로 되돌려 둔다(곡 전체 평가는 악보를 곡 처음으로 되돌린다).
+    follow = follow || (!resume && sectionEvaluation),
 )
 
+/** 평가 연주를 시작한다. 구간 재평가([sectionEvaluation])는 구간 첫 음에서, 곡 처음 기준으로 그 음이 시작하는 시간부터 간다. */
 fun PracticeUiState.beginRecording(): PracticeUiState = copy(
-    mode = PracticeMode.Recording, position = 0, elapsedMs = 0.0, micLevel = 0f, finished = false, popup = null, follow = true,
+    mode = PracticeMode.Recording, position = recordingStartIndex, elapsedMs = recordingStartMs, micLevel = 0f, finished = false, popup = null, follow = true,
     followHeldGak = null, resume = false, pausedFraction = 0f, eventElapsedMs = 0.0, hadInput = false, noInputMs = 0.0,
 )
 
@@ -375,17 +379,19 @@ fun PracticeUiState.resumeFollowOnNextGak(): PracticeUiState {
 
 /**
  * 현재 음을 마치고 다음 음으로. 곡 끝이면 모범 연주는 멈추고, 연주는 '연주를 마쳤어요' 창을 띄운다.
+ * 구간 재평가([sectionEvaluation])의 연주는 구간 마지막 음에서 끝난다.
  * [doneMs]는 현재 음에서 실제로 흐른 시간, [micLevel]은 연주 중 다음 마이크 입력 크기.
  */
 fun PracticeUiState.advance(doneMs: Double, micLevel: Float): PracticeUiState {
     val next = position + 1
     val elapsed = elapsedMs + doneMs
-    if (next < eventCount) {
+    val last = if (mode == PracticeMode.Recording) recordingEndIndex else eventCount - 1
+    if (next <= last) {
         return copy(position = next, elapsedMs = elapsed, eventElapsedMs = 0.0, micLevel = if (mode == PracticeMode.Recording) micLevel else this.micLevel, pausedFraction = 0f)
     }
     return when (mode) {
         PracticeMode.Model, PracticeMode.Rhythm -> copy(playing = false, position = eventCount - 1, elapsedMs = elapsed, eventElapsedMs = eventDurationMs(), pausedFraction = 1f, eventStartedAt = null)
-        PracticeMode.Recording -> copy(position = eventCount, elapsedMs = elapsed).endRecording()
+        PracticeMode.Recording -> copy(position = next, elapsedMs = elapsed).endRecording()
         else -> this
     }
 }

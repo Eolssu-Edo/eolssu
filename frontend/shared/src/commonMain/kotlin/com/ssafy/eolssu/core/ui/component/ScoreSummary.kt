@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -31,13 +32,16 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,7 +80,7 @@ fun ScoreRing(score: Int, modifier: Modifier = Modifier) {
     val total = score.coerceIn(0, 100)
     val unit = stringResource(Res.string.result_score_of)
     EnsoRing(
-        88.dp,
+        ScoreRingSize,
         modifier.observeFirstDraw(PerfPhase.SCORE_DRAWN).semantics(mergeDescendants = true) { contentDescription = "$total$unit" },
     ) {
         Text(
@@ -133,6 +137,9 @@ fun MetricBars(metrics: List<MetricScore>, modifier: Modifier = Modifier, rowSpa
     }
 }
 
+/** 총점 일원상 지름. */
+private val ScoreRingSize = 88.dp
+
 /** 회색 바탕(#EEEBE3) 위에 [fraction]만큼 [color]로 칠한 둥근 막대. 높이는 [modifier]로 준다. */
 @Composable
 fun Bar(fraction: Float, color: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
@@ -186,6 +193,8 @@ fun TintPillButton(
  * [filled]이면 테두리 대신 흰 바탕 카드다(회색 바탕 화면, S15P31E102-768).
  * [title](곡 제목)이 있으면 상자 왼쪽 위에 두 줄까지 둔다(이전 연주 결과, S15P31E102-810). 없으면 지금과 같다.
  * [compact]이면 요소 크기는 그대로 두고 안쪽 여백·간격만 줄인다(이전 연주 결과, S15P31E102-819). 기본값은 지금과 같다.
+ * [compact]에 [title]이 있으면 제목을 일원상 바로 위(왼쪽 칸)에 두고 항목 막대를 제목 줄 높이에서 시작해 상자 높이를 줄인다
+ * (S15P31E102-825). 제목이 왼쪽 칸에 두 줄로 들어가지 않으면 잘라 내지 않고 상자 위 전체 너비에 둔다.
  */
 @Composable
 fun ScoreSummaryCard(
@@ -203,35 +212,13 @@ fun ScoreSummaryCard(
     val shape = RoundedCornerShape(16.dp)
     val gap = if (compact) CompactSummaryGap else RegularSummaryGap
     Column(modifier.fillMaxWidth().then(if (filled) Modifier.background(colors.surface, shape) else Modifier.border(1.dp, colors.lineSoft, shape))) {
-        if (!title.isNullOrBlank()) {
-            Text(
-                title,
-                modifier = Modifier.fillMaxWidth().padding(start = gap.titleStart, top = gap.titleTop, end = gap.end + 2.dp).semantics { heading() },
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold),
-                color = colors.text,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Row(
-            Modifier.fillMaxWidth().padding(
-                start = gap.start,
-                top = if (title.isNullOrBlank()) gap.top else gap.topBelowTitle,
-                end = gap.end,
-                bottom = gap.bottom,
-            ),
-            horizontalArrangement = Arrangement.spacedBy(gap.ringToBars),
-        ) {
-            ScoreRing(total, Modifier.align(Alignment.CenterVertically))
-            Column(Modifier.weight(1f).align(Alignment.CenterVertically), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                MetricBars(metrics, Modifier.padding(top = gap.barsTop), rowSpacing = gap.barRows)
-                if (action != null || extra != null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1f)) { extra?.invoke() }
-                        action?.invoke()
-                    }
-                }
+        if (compact && !title.isNullOrBlank()) {
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val side = sideTitleWidth(title, maxWidth - gap.start - gap.end - gap.ringToBars - SideBarsMinWidth)
+                Column { SummaryBody(total, metrics, title, side, gap, action, extra) }
             }
+        } else {
+            SummaryBody(total, metrics, title, null, gap, action, extra)
         }
         if (!memo.isNullOrBlank()) {
             Text(
@@ -246,6 +233,101 @@ fun ScoreSummaryCard(
         }
     }
 }
+
+/**
+ * 제목 · 일원상 · 항목 막대 · 버튼 줄. [sideTitleWidth]가 있으면 제목을 그 너비까지의 왼쪽 칸에서 일원상 바로 위에 두고
+ * 오른쪽 칸을 위로 맞춰 첫 막대가 제목 첫 줄과 같은 높이에 오게 한다. 없으면 제목을 위 전체 너비에 두고 일원상과 막대를 가운데로 맞춘다.
+ */
+@Composable
+private fun SummaryBody(
+    total: Int,
+    metrics: List<MetricScore>,
+    title: String?,
+    sideTitleWidth: Dp?,
+    gap: SummaryGap,
+    action: (@Composable () -> Unit)?,
+    extra: (@Composable () -> Unit)?,
+) {
+    val beside = sideTitleWidth != null && !title.isNullOrBlank()
+    if (!title.isNullOrBlank() && !beside) {
+        SummaryTitle(title, Modifier.fillMaxWidth().padding(start = gap.titleStart, top = gap.titleTop, end = gap.end + 2.dp))
+    }
+    Row(
+        Modifier.fillMaxWidth().padding(
+            start = gap.start,
+            top = if (title.isNullOrBlank() || beside) gap.top else gap.topBelowTitle,
+            end = gap.end,
+            bottom = gap.bottom,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(gap.ringToBars),
+    ) {
+        if (sideTitleWidth != null && !title.isNullOrBlank()) {
+            Column(Modifier.widthIn(max = sideTitleWidth)) {
+                SummaryTitle(title, Modifier.padding(start = SideTitleStart))
+                ScoreRing(total)
+            }
+        } else {
+            ScoreRing(total, Modifier.align(Alignment.CenterVertically))
+        }
+        Column(
+            Modifier.weight(1f).align(if (beside) Alignment.Top else Alignment.CenterVertically),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            MetricBars(metrics, Modifier.padding(top = gap.barsTop), rowSpacing = gap.barRows)
+            if (action != null || extra != null) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f)) { extra?.invoke() }
+                    action?.invoke()
+                }
+            }
+        }
+    }
+}
+
+/** 상자 안 곡 제목(16sp 굵게, 두 줄까지). */
+@Composable
+private fun SummaryTitle(title: String, modifier: Modifier = Modifier) {
+    Text(
+        title,
+        modifier = modifier.semantics { heading() },
+        style = summaryTitleStyle(),
+        color = EolssuTheme.colors.text,
+        maxLines = SummaryTitleLines,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
+private fun summaryTitleStyle() =
+    MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
+
+/**
+ * 제목을 일원상 위 왼쪽 칸에 둘 때의 칸 너비. 막대 칸에 [SideBarsMinWidth]를 남긴 [available](일원상보다 좁으면 일원상 너비)에
+ * 제목이 [SummaryTitleLines]줄 안에 다 들어갈 때만 값을 주고, 잘리면 null(위 전체 너비에 둔다)이다.
+ */
+@Composable
+private fun sideTitleWidth(title: String, available: Dp): Dp? {
+    val width = maxOf(available, ScoreRingSize)
+    val style = summaryTitleStyle()
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val fits = remember(title, style, width, density) {
+        val maxWidth = with(density) { (width - SideTitleStart).roundToPx() }
+        !measurer.measure(
+            title, style, overflow = TextOverflow.Ellipsis, maxLines = SummaryTitleLines,
+            constraints = Constraints(maxWidth = maxWidth),
+        ).hasVisualOverflow
+    }
+    return width.takeIf { fits }
+}
+
+private const val SummaryTitleLines = 2
+
+/** 왼쪽 칸 제목의 왼쪽 여백. 일원상 붓 자국의 왼쪽 끝과 글자 시작을 맞춘다. */
+private val SideTitleStart = 2.dp
+
+/** 제목을 왼쪽 칸에 둘 때 막대 칸에 남기는 최소 너비. ‘메모’ · ‘지난 연주와 비교’ 버튼 두 개가 한 줄에 들어간다. */
+private val SideBarsMinWidth = 212.dp
 
 /** 점수 상자 안쪽 여백·간격. 일원상·막대·글자 크기는 바꾸지 않는다. */
 private class SummaryGap(
