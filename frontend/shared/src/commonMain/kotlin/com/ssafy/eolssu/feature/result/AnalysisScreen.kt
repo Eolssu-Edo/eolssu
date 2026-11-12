@@ -171,7 +171,7 @@ fun AnalysisScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
             ) {
-                if (stopped) AnalysisFailedFigure(recordingProblem) else AnalyzingFigure()
+                if (stopped) AnalysisFailedFigure(recordingProblem) else AnalyzingFigure(uploadProgress = state.uploadProgress, done = state.evaluationId != null)
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(if (stopped) 8.dp else 14.dp),
