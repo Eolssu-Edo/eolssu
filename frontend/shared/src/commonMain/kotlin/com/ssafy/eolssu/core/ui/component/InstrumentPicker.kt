@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,6 +44,7 @@ fun InstrumentPicker(
     label: String? = null,
     instruments: List<Instrument> = Instrument.entries,
     enabled: Boolean = true,
+    unselectedColor: Color = EolssuTheme.colors.groupedBackground,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(14.dp)
@@ -64,7 +66,7 @@ fun InstrumentPicker(
                         .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton, onClick = { onSelect(instrument) }),
                     shape = shape,
                     // 테두리 없이 고른 칸은 연두, 나머지는 회색 채움(S15P31E102-768).
-                    color = if (isSelected) colors.primary else colors.groupedBackground,
+                    color = if (isSelected) colors.primary else unselectedColor,
                     contentColor = if (isSelected) colors.onPrimary else colors.text,
                 ) {
                     Box(Modifier.padding(horizontal = 6.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {

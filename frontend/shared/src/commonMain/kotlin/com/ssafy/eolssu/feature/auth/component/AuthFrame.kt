@@ -111,11 +111,14 @@ fun AuthScaffold(
                 bottomBar = if (bottomBar != null && frame.isTablet) tabletBottomBar(bottomBar) else bottomBar,
                 snackbarHostState = snackbarHostState,
                 contentMaxWidth = frame.contentMaxWidth,
+                // 마이페이지처럼 회색 바탕 위 테두리 없는 흰 입력칸·카드, 하단 버튼 위 구분선 없음(S15P31E102-798).
+                containerColor = EolssuTheme.colors.groupedBackground,
+                bottomDivider = false,
                 content = content,
             )
         }
         if (frame == AuthFrame.Split) {
-            BoxWithConstraints(modifier.fillMaxSize().background(EolssuTheme.colors.background)) {
+            BoxWithConstraints(modifier.fillMaxSize().background(EolssuTheme.colors.groupedBackground)) {
                 val brandWidth = (maxWidth * BrandPaneRatio).coerceAtMost(560.dp)
                 Row(Modifier.fillMaxSize()) {
                     AuthBrandPane(Modifier.width(brandWidth).fillMaxHeight())
