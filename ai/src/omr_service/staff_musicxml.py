@@ -8,7 +8,7 @@
   첫 마디가 짧으면(못갖춘마디) 앞을, 끝 각은 뒤를 쉼표로 채운다. 각을 넘는 음은 다음 각 처음에 다시 적는다.
 - 첫 파트에서 곡 길이 절반 이상을 덮는 성부 중 평균 음이 가장 높은 성부를 쓰고, 화음은 맨 위 음을 쓴다.
   성부 안의 빈 시간은 쉼표다. 꾸밈음·가사는 버린다. 반복·volta는 펼친다.
-- hwang_pitch(황으로 둘 MIDI 번호)가 없으면 악기 5율과 음역에 가장 많이 들어가게 조를 옮긴다.
+- 원음 MIDI를 보존한다. 악기에 맞추는 이조·옥타브 이동은 앱에서 지원 목록과 전후 결과를 확인한 뒤 적용한다.
 
 입력은 우리 Audiveris 출력이다. 사용자가 올린 MusicXML(S15P31E102-349)에 쓰려면 defusedxml·압축 크기 상한이 더 필요하다.
 """
@@ -26,10 +26,7 @@ from omr_service.jeongganbo_text import score_data  # data/src/scores의 율명�
 YUL = re.search(r"\[(.+)\]", score_data.YUL).group(1)  # 황대태협고중유임이남무응
 OCTAVE = {number: prefix for prefix, number in score_data.OCTAVE.items()}  # -3 하하배 ~ 2 중청
 STEP = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
-# 악기 기본 5율(황 = 0인 반음 번호의 12 나머지). 단소 황·태·중·임·무, 소금 임·남·황·태·고(소금 서비스 곡도 고·남을 씀)
-FIVE_YUL = {"DANSO": {0, 2, 5, 7, 10}, "SOGEUM": {0, 2, 4, 7, 9}}
 # 악기 음역(황 = 0인 반음 번호). 단소: data/reference pitches 중~중청중, 소금: 임~중청남(sogeum-service-scores.md)
-RANGES = {"DANSO": (5, 29), "SOGEUM": (7, 33)}
 DEFAULT_HWANG = 63  # E♭4, 공통 악보의 황
 # 정간 안 자리. 행 수별 [행][왼·통째·오른]. standard_score_text.py POS와 같다(그 파일은 pymupdf를 불러 들이지 않는다)
 POS = {3: [(1, 2, 3), (4, 5, 6), (7, 8, 9)], 2: [(12, 10, 13), (14, 11, 15)]}
@@ -47,6 +44,7 @@ class Conversion:
     shift: int = 0  # 자동 조 옮김 반음(hwang_pitch가 있으면 0)
     beat: Fraction = Fraction(1)  # 정간 하나(1박)의 4분음표 수. 점4분 3/2, 4분 1, 8분 1/2
     meter_guessed: bool = False  # 박자표를 못 읽어 리듬으로 박 구성을 골랐다
+    source_pitches: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -67,18 +65,12 @@ def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Convers
     notes, beats_per_gak, compound, beat, meter_guessed = _read_part(part, issues)
     if not any(n.midi is not None for n in notes):
         raise ValueError("음표가 없음")
-    if hwang_pitch is None:
-        shift, candidates = _best_shift([n.midi for n in notes if n.midi is not None], instrument)
-        detail = {"semitones": shift, "candidates": candidates}
-        if instrument not in FIVE_YUL:
-            detail["scaleOf"] = "DANSO"  # 5율을 모르는 악기는 단소 5율로 맞췄다
-        issues.append(_issue("TRANSPOSED", detail))
-        hwang = DEFAULT_HWANG - shift
-    else:
-        shift, hwang = 0, hwang_pitch
+    shift, hwang = 0, DEFAULT_HWANG if hwang_pitch is None else hwang_pitch
     jangdan = {(True, 3): "세마치", (True, 4): "굿거리"}.get((compound, beats_per_gak))
-    return Conversion(_layout(notes, beats_per_gak, hwang, instrument, issues), jangdan, beats_per_gak, issues, shift,
-                      beat, meter_guessed)
+    lines = _layout(notes, beats_per_gak, hwang, instrument, issues)
+    originals = [item['detail'] for item in issues if item['kind'] == '_SOURCE_PITCH']
+    issues = [item for item in issues if item['kind'] != '_SOURCE_PITCH']
+    return Conversion(lines, jangdan, beats_per_gak, issues, shift, beat, meter_guessed, originals)
 
 
 def _xml_bytes(data: bytes) -> bytes:
@@ -309,17 +301,6 @@ def _midi(note, transpose=0):
     return written + transpose  # 이조 파트는 실음으로
 
 
-def _best_shift(midis, instrument):
-    """황 = E♭4로 본 반음 번호를 k만큼 옮겨 악기 5율·음역에 가장 많이 들어가는 k. 동률이면 작은 |k| 순 후보."""
-    low, high = RANGES.get(instrument, (-36, 35))
-    five = FIVE_YUL.get(instrument, FIVE_YUL["DANSO"])
-    score = {k: sum(1 for m in midis if (m - DEFAULT_HWANG + k) % 12 in five
-                    and low <= m - DEFAULT_HWANG + k <= high) for k in range(-24, 25)}
-    best = max(score.values())
-    candidates = sorted((k for k, v in score.items() if v == best), key=lambda k: (abs(k), k))
-    return candidates[0], candidates[:2]
-
-
 def _layout(notes, beats_per_gak, hwang, instrument, issues):
     end = max(n.start + n.length for n in notes)
     gak_count = int(-(-end // beats_per_gak))  # 올림
@@ -337,17 +318,16 @@ def _layout(notes, beats_per_gak, hwang, instrument, issues):
     for n in notes:  # 음에 붙은 issue는 그 음이 시작하는 칸에(정간 하나 = 1박)
         g, j = divmod(int(n.start), beats_per_gak)
         issues += [_issue(kind, detail, f"c{g}-j{j}") for kind, detail in n.flags]
-    low, high = RANGES.get(instrument, (None, None))
     flagged = set()  # OUT_OF_RANGE는 음마다 한 번
     lines = []
     for g in range(gak_count):
-        row = [_cell(sorted(cells.get(g * beats_per_gak + j, []), key=lambda c: c[0]), hwang, low, high, issues, flagged,
+        row = [_cell(sorted(cells.get(g * beats_per_gak + j, []), key=lambda c: c[0]), hwang, issues, flagged,
                      f"c{g}-j{j}") for j in range(beats_per_gak)]
         lines.append(" | ".join(row))
     return lines
 
 
-def _cell(inside, hwang, low, high, issues, flagged, cell_id):
+def _cell(inside, hwang, issues, flagged, cell_id):
     """정간 하나(1박) 안의 음 시작들 → ':위치 율명 …'. 칸을 나눌 수 없는 자리는 가까운 칸으로 옮긴다."""
     if not inside:
         return ""
@@ -366,7 +346,7 @@ def _cell(inside, hwang, low, high, issues, flagged, cell_id):
             issues.append(_issue("LOW_CONFIDENCE", {"measure": n.measure, "reason": "COLLIDED"}, cell_id))
         slots[k] = n  # 같은 칸이면 나중 음
     if rows == 1:
-        return f":0 {_yul(slots[0], hwang, low, high, issues, flagged, cell_id)}"
+        return f":0 {_yul(slots[0], hwang, issues, flagged, cell_id)}"
     per_row = round(1 / grid) // rows  # 1(행 통째) 또는 2(좌우)
     toks = []
     for r in range(rows):
@@ -374,10 +354,10 @@ def _cell(inside, hwang, low, high, issues, flagged, cell_id):
         here = [slots.get(r * per_row + h) for h in range(per_row)]
         if per_row == 1 or here[1] is None:
             if here[0] is not None:
-                toks.append(f":{whole} {_yul(here[0], hwang, low, high, issues, flagged, cell_id)}")
+                toks.append(f":{whole} {_yul(here[0], hwang, issues, flagged, cell_id, r, 0)}")
         else:
-            first = _yul(here[0], hwang, low, high, issues, flagged, cell_id) if here[0] is not None else "-"
-            toks += [f":{left} {first}", f":{right} {_yul(here[1], hwang, low, high, issues, flagged, cell_id)}"]
+            first = _yul(here[0], hwang, issues, flagged, cell_id, r, 0) if here[0] is not None else "-"
+            toks += [f":{left} {first}", f":{right} {_yul(here[1], hwang, issues, flagged, cell_id, r, 1)}"]
     return " ".join(toks)
 
 
@@ -385,14 +365,18 @@ def _nearest(f, grid):
     return int(f / grid + Fraction(1, 2))  # 반올림(0.5는 위로). round()는 짝수 쪽으로 가서 칸이 겹친다
 
 
-def _yul(note, hwang, low, high, issues, flagged, cell_id):
+def _yul(note, hwang, issues, flagged, cell_id, row=0, col=0):
     if note.midi is None:
         return "쉼표"
     s = note.midi - hwang
+    issues.append(_issue('_SOURCE_PITCH', {'eventId': f'{cell_id}-r{row}-u{col}', 'cellId': cell_id,
+                                         'midi': note.midi, 'semitone': s}, cell_id))
     octave = s // 12
-    outside = (low is not None and not low <= s <= high) or octave not in OCTAVE
+    outside = octave not in OCTAVE
     if outside and id(note) not in flagged:
         flagged.add(id(note))
-        issues.append(_issue("OUT_OF_RANGE", {"measure": note.measure, "semitone": s}, cell_id))
-    octave = max(min(OCTAVE), min(max(OCTAVE), octave))  # 율명이 있는 옥타브(하하배~중청)로 옮긴다
+        issues.append(_issue("UNREGISTERED_PITCH", {"measure": note.measure, "semitone": s, "reason": "NOTATION_UNSUPPORTED"}, cell_id))
+    # JGB is only a structural intermediate. staff_engine restores exact pitch below;
+    # unrepresentable notes become unresolved draft slots, never this placeholder pitch.
+    octave = max(-2, min(2, octave))
     return OCTAVE[octave] + YUL[s % 12]
