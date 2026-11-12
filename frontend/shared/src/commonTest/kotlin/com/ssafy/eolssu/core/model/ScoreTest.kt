@@ -7,6 +7,15 @@ import kotlin.test.assertNull
 
 class ScoreTest {
 
+    @Test fun supplementaryRegistersHaveRealHanjaAndKeepTheirPitchIdentity() {
+        listOf(Triple("이", -2, "𢓡"), Triple("유", -1, "𠐭"), Triple("대", 2, "𣴘")).forEach { (name, octave, symbol) ->
+            val pitch = ScoreNote.SourcePitch(name, octave)
+            assertEquals(symbol, pitch.symbol)
+            assertEquals(name, pitch.yul)
+            assertEquals(octave, pitch.octave)
+        }
+    }
+
     private val hwang = ScoreNote.Pitch(Yul.Hwangjong)
     private val tae = ScoreNote.Pitch(Yul.Taeju)
     private val jung = ScoreNote.Pitch(Yul.Jungnyeo)

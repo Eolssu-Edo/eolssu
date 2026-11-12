@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
@@ -61,6 +62,7 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
     val draft = state.draft
     val song = remember(draft) { draft.toSong() }
     val corrections = state.completionValidation.correctionCellIndices
+    val correctionUnits = state.completionValidation.correctionUnitKeys
     EolssuScaffold(
         containerColor = EolssuTheme.colors.surface,
         snackbarHostState = snackbarHostState,
@@ -82,12 +84,11 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 }
                 if (state.canEditDetails) PillButton(stringResource(Res.string.sheet_editor_edit), actions.onOpenDetails, enabled = !state.saving, secondary = true)
             }
-            SheetSaveFeedback(state, actions.onRetryDraft)
             EditScoreBoard(
                 song = song,
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp),
-                marks = editorMarks(draft, state.selected, state.selectedSub, corrections),
-                unitMarks = editorUnitMarks(draft, state.selected, state.selectedSub, corrections),
+                marks = editorMarks(draft, state.selected, state.selectedSub, corrections, correctionUnits),
+                unitMarks = editorUnitMarks(draft, state.selected, state.selectedSub, correctionUnits),
                 annotations = remember(draft) { draft.annotations() },
                 focusCell = draft.columnOf(state.selected) to draft.rowOf(state.selected),
                 focusRequestKey = focusRequestKey,
@@ -96,13 +97,13 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                     actions.onSelectUnit(index, draft.subIndexOf(index, unitRow, unitCol))
                 },
             )
-            EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.supportedInputPitches, state.canUndo, state.canRedo, actions.input)
+            EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.supportedInputPitches, state.canUndo, state.canRedo, actions.input,
+                saveFeedback = { SheetSaveFeedback(state, actions.onRetryDraft) })
         }
     }
 }
 
 @Composable
-@OptIn(ExperimentalLayoutApi::class)
 private fun SheetSaveFeedback(state: SheetEditUiState, onRetryDraft: () -> Unit) {
     val label = when {
         state.saveConflict -> Res.string.sheet_save_conflict
@@ -116,15 +117,16 @@ private fun SheetSaveFeedback(state: SheetEditUiState, onRetryDraft: () -> Unit)
             null -> return
         }
     }
-    FlowRow(
-        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        itemVerticalAlignment = Alignment.CenterVertically,
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             stringResource(label),
-            Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            Modifier.weight(1f, fill = false).semantics { liveRegion = LiveRegionMode.Polite },
             style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             color = when (label) {
                 Res.string.sheet_save_conflict, Res.string.sheet_save_auto_failed,
                 Res.string.sheet_save_failed, Res.string.sheet_save_too_large -> MaterialTheme.colorScheme.error

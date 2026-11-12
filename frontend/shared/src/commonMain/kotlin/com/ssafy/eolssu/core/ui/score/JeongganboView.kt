@@ -839,13 +839,15 @@ private fun ScoreCellBox(
                                         ring,
                                         topLeft = Offset(stroke / 2, stroke / 2),
                                         size = Size(size.width - stroke, size.height - stroke),
-                                        style = androidx.compose.ui.graphics.drawscope.Stroke(stroke),
+                                        style = androidx.compose.ui.graphics.drawscope.Stroke(stroke,
+                                            pathEffect = if (pick.dashed) PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx())) else null),
                                     )
                                 }
                             // 이 소박 오른쪽 위를 덮는 아이콘 자리: 정간 아이콘은 맨 오른쪽 소박 가운데 아이콘 높이에 걸친 줄만, 소박 아이콘은 그 소박.
                             val unitTop = metrics.cellHeight * r / rows.size
                             val subTagSize = (metrics.cellHeight / rows.size - 3.dp).coerceIn(9.dp, 14.dp)
                             val reserve = when {
+                                pick?.tag != null -> DpSize(12.dp, 12.dp)
                                 subKinds.isNotEmpty() -> DpSize(subTagSize * subKinds.size + 1.dp * (subKinds.size - 1), subTagSize + 2.dp)
                                 c == row.lastIndex && tagBottom > unitTop -> DpSize(tagSize, tagBottom - unitTop + 1.dp)
                                 else -> null
@@ -871,6 +873,14 @@ private fun ScoreCellBox(
                                 modifier = Modifier.fillMaxSize(),
                                 sigimsae = annotations[unit.key].orEmpty(),
                             )
+                            pick?.tag?.let { tag ->
+                                Text(tag,
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 3.dp).clearAndSetSemantics {},
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 10.sp, fontWeight = FontWeight.Bold),
+                                    color = colors.text,
+                                    maxLines = 1,
+                                )
+                            }
                             if (subKinds.isNotEmpty()) {
                                 // 틀린 소박의 오른쪽 위에 종류 아이콘. 나뉜 줄 높이에 맞춰 줄인다(최대 14dp, 최소 9dp).
                                 val size = (metrics.cellHeight / rows.size - 3.dp).coerceIn(9.dp, 14.dp)
