@@ -36,6 +36,7 @@ data class ModelAudioState(
     val mediaPositionMs: Long = 0,
     val anchor: MediaAnchor? = null,
     val playbackAnchor: MediaAnchor? = null,
+    val playbackClockReady: Boolean = true,
 )
 
 /**
@@ -79,6 +80,9 @@ internal class ModelAudioSession(
     private val _state = MutableStateFlow(ModelAudioState())
     val state = _state.asStateFlow()
     internal val playbackAnchor: MediaAnchor? get() = state.value.takeIf { it.status == ModelAudioStatus.Playing }?.playbackAnchor
+    internal val playbackClockReady: Boolean get() = state.value.let {
+        it.status != ModelAudioStatus.Playing || it.playbackClockReady
+    }
     private var loadJob: Job? = null
     private var requestId = 0L
     private var sourceId: String? = null
@@ -118,9 +122,9 @@ internal class ModelAudioSession(
                         .follow(media.positionMs.toDouble(), nativeRate, timeSource.markNow())
                 val soundAnchor = if (checked != ModelAudioStatus.Playing) null else MediaAnchor(
                     media.positionMs.toDouble(), media.positionSampledAt ?: timeSource.markNow(),
-                    nativeRate,
+                    media.positionClockRate?.toDouble() ?: if (media.positionMs == 0L) 0.0 else speed(audio).toDouble(),
                 )
-                _state.value = ModelAudioState(checked, audio, media.positionMs, anchor, soundAnchor)
+                _state.value = ModelAudioState(checked, audio, media.positionMs, anchor, soundAnchor, media.positionClockRate != 0f)
             }
         }
     }

@@ -102,7 +102,7 @@ Android host 전체는 1,485건 중 실패 0건·조건부 제외 4건이다. An
 ### 유지한 구현
 
 - Android는 준비할 때 검증된 AAC를 PCM으로 읽고 단일 AudioTrack 스트림에서 타격을 혼합한다. 128프레임 블록 경계에서도 잔향과 겹침을 보존하며 합산값이 int16 범위를 넘으면 포화시킨다.
-- 기기의 native 출력률과 두 hardware burst의 활성 버퍼를 사용한다. Sonic의 출력률 변환은 준비 중에만 하며 속도·음높이는 바꾸지 않는다. 실제 기기 로그는 48,000Hz, 저지연 모드1, capacity3,840/활성384프레임이었다. [Android AudioTrack API](https://developer.android.com/reference/android/media/AudioTrack)의 활성 버퍼와 capacity 구분을 따른다.
+- 기기의 native 출력률을 사용한다. Sonic의 출력률 변환은 준비 중에만 하며 속도·음높이는 바꾸지 않는다. 최초 저지연 실험은48,000Hz, 저지연 모드1, capacity3,840/활성384프레임이었다. 이후 음질 회귀를 확인하여 두 hardware burst로 줄이는 설정은 제거하고 플랫폼 기본 버퍼를 유지한다. [Android AudioTrack API](https://developer.android.com/reference/android/media/AudioTrack)의 활성 버퍼와 capacity 구분을 따른다.
 - 첫 블록을 먼저 쓴 뒤 출력하고, 정지·후방 탐색 때는 큐와 native 버퍼를 비운다. 이전 쓰기 작업은 generation으로 차단한다. 준비 작업을 직렬화하고 해제 중 만들어진 자원은 publish하지 않는다. 쓰기 실패는 별도 실패 신호로 다음 타격 전에도 종료한다. native underrun 뒤에는 지난 PCM 구간을 건너뛰어 이후 타격까지 계속 늦추지 않는다.
 - 모범 반주는 회색 표시의 0.9–1.1배 보정 시계를 사용하지 않는다. `native-combined-1`의 실제 타격 요청에도 첫507ms/이후379ms대 보정이 나타나 이 경로를 확인했다. 음원 위치를 측정한 TimeMark를 전달하고 정속 반주 anchor를 별도로 둔다. 작은 후행 보고는 같은 반주 세션에서 음원 위치를 되감지 않으며, 명시 탐색은 새 세션으로 시작한다.
 - 120ms 미래 tick을 일괄 환산하는 안은 채택하지 않았다. 구간 빠르기와 반복을 새로 가정하는 공통 예약 API 없이 기존 실제 음원 시계를 유지한다. `positionSampledAt`과 비동기 `failed`는 기본값을 둬 다른 플랫폼 구현과 호환한다. iOS 실행은 여전히 미검증이다.
@@ -123,7 +123,7 @@ PCM 혼합·분할 쓰기·초기화·출력 공백 후 시간표 보존, native
 
 5쌍 비교 계획 중 USB가 반복 단절되어 일부는 완료하지 못했다. 준비 중 사용자 앱 전환, 종료 시 잘못된 foreground 관찰자, USB 단절로 실패한 실행을 성공 비교에 넣지 않았다. 초기 모범 재생 시도는 장단이 꺼진 녹음이므로 동시 재생 확인에서 제외했다. 검증 도구는 매 프로세스 시작 후 실제 설정 UI에서 장단을 켜고 ‘소리 켜짐’을 확인하도록 고쳤다. 설정·계정 상태를 직접 주입하지 않았다.
 
-최종 음원용 시계 분리 이후의 실기기 동시 재생·탐색·변속·배경 전환 재확인은 ADB 기기 부재로 대기 중이다. 최종 코드의 자동 검사와 앞선 PCM 출력 측정을 구분한다. 관련 파일은 `output/jangdan-sync-791/{capture_run.py,jitter_summary.py,analyze_combined.py,*-hits.txt,*-analysis.json}`에 보관했다. 임시 공개곡·기준음원 진입점과 타격 로그는 제품 소스에서 제거했다.
+음원용 시계 분리 직후에는 ADB 기기 부재로 실기기 동시 재생·탐색·변속·배경 전환 재확인을 완료하지 못했다. 이후 결과는 아래 버퍼 회귀 절에 구분한다. 관련 파일은 `output/jangdan-sync-791/{capture_run.py,jitter_summary.py,analyze_combined.py,*-hits.txt,*-analysis.json}`에 보관했다. 임시 공개곡·기준음원 진입점과 타격 로그는 제품 소스에서 제거했다.
 
 최종 제품 소스로 host 1,494건(실패0·제외4)과 Android APK를 확인하고 XML·빌드 로그를 `final-host-tests/`, `final-host-summary.json`, `final-product-check.log`에 보관했다. 그 전 전체 실행에서 변경하지 않은 `SheetAudioDeviceStoreTest.performanceSurvivesRestartOnlyWithItsVerifiedAudioAndVersion`이 한 번 실패했으며, 뒤의 전체 실행·해당 클래스4건·최종 전체 실행은 통과했다. 최초 실패의 상세 예외는 후속 보고서에 덮여 정확한 원인을 확정하지 못했다. 관련 구현이나 검사를 변경·제외하지 않았다.
 
@@ -137,4 +137,19 @@ USB 기기 부재가 지속되어 기존 `Medium_Phone` API37.1 x86_64 에뮬레
 
 보완한 에뮬레이터의 첫 타격 요청 간격은386.8ms, 다음은388.0ms였고 `덩–덕–궁–덕`이 이어졌다. 실제 UI를 통해 모범+장단 재생·일시정지 뒤 추가 타격 없음·재생 중 후방 탐색·정지 중 전방 탐색·재개·홈 이동 후 타격 중단·복귀 후 자원 재생성·속도 슬라이더80%(123 BPM) 선택 후 재생을 확인했다. `lifecycle-emulator-5580.json`과 로그가 증거다. 첫 도구 실행의 속도 실패는 화면을 문자 선택 버튼으로 오해한 것으로, 실제 Slider의 새 관찰 범위에서 조작하고123 BPM을 재확인했다. 접근성 null-root일 때 낡은 XML을 재사용하지 않도록 도구도 수정했다.
 
-제품 소스의 host1,495건(실패0·제외4), Android APK, JS·Wasm 컴파일 통과. `decoder-host-summary.json`, `decoder-host-tests/`, `decoder-product.apk`에 보관했다. `build_probe.py`는 검증 APK를 만든 뒤 진입점과 로그 소스를 반드시 원복한다. 원래 QA 앱 서명과 개인 악보 원본 제약은 여전히 적용된다. 최종 Galaxy 재확인은 USB 재연결 대기이며, 에뮬레이터 결과로 대신 완료했다고 보고하지 않는다.
+제품 소스의 host1,495건(실패0·제외4), Android APK, JS·Wasm 컴파일 통과. `decoder-host-summary.json`, `decoder-host-tests/`, `decoder-product.apk`에 보관했다. `build_probe.py`는 검증 APK를 만든 뒤 진입점과 로그 소스를 반드시 원복한다. 원래 QA 앱 서명과 개인 악보 원본 제약은 여전히 적용된다. 이 단계의 Galaxy 재확인은 USB 재연결 대기였으며 에뮬레이터 결과로 대신 완료했다고 보고하지 않았다.
+
+### 두 burst 버퍼의 음질 회귀와 복구
+
+2026-11-12 USB 재연결 뒤 Galaxy S24+의 `s24-final-rhythm`에서 약8초 동안 native underrun423회를 기록했다. 사용자가 장단 소리 이상을 보고했으며, 같은 녹음에서 원본 타격 파형 상관0.95를 넘는 검출은0건이었다. 활성384프레임(48kHz에서8ms)으로 줄인 설정이 해당 실행 조건에서 출력을 유지하지 못했다. 앱을 정지하고 `setBufferSizeInFrames(twoBursts)` 호출만 제거한 뒤 동일 경로로 다시 측정했다. 캡처 라우팅과 Java 스케줄링 중 어느 쪽이 부족을 촉발했는지는 이 비교로 분리하지 않았다.
+
+- 장단 단독 `s24-safe-buffer-rhythm`: 활성1,924프레임(약40.1ms),8초, underrun1회, 고신뢰 타격16건. 앞0.8초·끝0.5초를 제외한 검출 간격385.375–394.209ms,154 BPM 대비 최대오차4.599ms·95백분위4.344ms였다. 타격 파형의 연속 잘림은 재현되지 않았다. 1회의 underrun이 있으므로 버퍼 부족을 완전히 없앴다는 결과로 쓰지 않는다.
+- 모범+장단 `s24-safe-buffer-model`:15초, underrun0회, 구음 순서가 맞는 고신뢰29타의 최소 상관0.9983. 출력 간격과 대응 요청 간격 차이는 최대0.672ms였다. 모범 음원 전체의 상관은0.636으로 낮아 절대 위상 오차는 확정하지 않는다. 출력 간격 차이를 음악과의 동기화 오차로 보고하지 않는다.
+
+독립 코드 검토에서 nullable 준비 신호를 제공하지 않는 플랫폼의 최초0 반주 시계가 흐르도록 바뀐 회귀도 발견했다. `playbackClockReady`를 반주 anchor의 속도와 분리하고, 기존0 시계는 멈춘 채 초기 타격 허용을 유지했다. `aLegacyZeroReportKeepsItsExistingAccompanimentClock`은 수정 전400ms/수정 후0ms로 실패·통과했다. Android의 명시적인0 준비 신호에 대한 대기 회귀도 유지한다.
+
+이 복구 소스에서 host1,496건(실패0·제외4), Android APK, JS·Wasm 컴파일을 통과했다. `safe-host-tests/`, `safe-host-summary.json`, `safe-product-check.log`, `safe-product.apk`와 위 이름의 녹음·분석 자료를 로컬 출력 폴더에 보관했다. 자동 검사는 native 버퍼의 음질 회귀를 포착하지 못했으며 실기기 파형·underrun 대조가 해당 실패 신호다.
+
+Galaxy의 실제 화면 조작도 `lifecycle-R3CX20N6L2Z.json`에서 통과했다. 일시정지 중 추가 타격 없음, 재생 중5초 후방 탐색과 반주 재개, 정지 중5초 전방 탐색, 홈 이동 뒤 타격 중단, 복귀 뒤 자원 재생성·재개, 속도80%(123 BPM) 선택·재생·정지를 확인했다. 속도 변경 직후의 요청 간격에는 과도 구간이 남아 있으므로 이 기능 검사를 모든 배율의 타격 간격 보증으로 쓰지 않는다. 기존 QA 앱은 변경하지 않았고 독립 검증 앱에만 복구 APK를 설치했다.
+
+추가30초 실행 `s24-safe-buffer-rhythm-long`은 종료 확인 전에 USB가 끊겼고 녹음이 불완전하여 성공 횟수·간격 비교에서 제외했다. 재연결 직후 검증 앱을 정지했다. 장시간 안정성, 모든 배율의 시작 과도 구간, 개인 악보 원본과 음악 대비 절대 위상은 이 복구 검증의 미확인 범위다.

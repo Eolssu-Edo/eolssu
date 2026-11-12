@@ -108,9 +108,7 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         if (Build.VERSION.SDK_INT >= 26) builder.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
         return builder.build().also {
             if (it.state != AudioTrack.STATE_INITIALIZED) { it.release(); error("Jangdan output unavailable") }
-            val burst = manager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)?.toIntOrNull()
-                ?.takeIf { frames -> frames > 0 } ?: minimum / 4
-            it.setBufferSizeInFrames(maxOf(BLOCK_FRAMES * 2, burst * 2))
+            // Keep the native buffer: two hardware bursts can starve with Java scheduling or playback capture.
             if (Build.VERSION.SDK_INT >= 31) it.setStartThresholdInFrames(BLOCK_FRAMES)
         }
     }

@@ -25,6 +25,18 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ModelAudioSessionTest {
+    @Test fun aLegacyZeroReportKeepsItsExistingAccompanimentClock() = runTest {
+        val player = FakeAudioPlayer()
+        val session = ModelAudioSession(modelRepository { audioFixture() }, player, backgroundScope, testScheduler.timeSource)
+        session.play(song, song.baseBpm)
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 0)
+        runCurrent()
+        advanceTimeBy(400)
+        assertEquals(0.0, session.playbackAnchor!!.positionNow(), .001)
+        assertTrue(session.playbackClockReady, "An unsupported readiness signal keeps the existing session behavior")
+    }
+
     @Test fun accompanimentUsesTheSampleTimeRatherThanUiDeliveryTime() = runTest {
         val player = FakeAudioPlayer()
         val session = ModelAudioSession(modelRepository { audioFixture() }, player, backgroundScope, testScheduler.timeSource)
