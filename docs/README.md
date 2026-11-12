@@ -244,6 +244,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [Android 장단 타격·악보 진행 지연 수정 (805)](knowledge/frontend/android-jangdan-timing.md) · [수정 스펙](specs/practice-playback-timing.md) · [계획·검증](plans/S15P31E102-805.md)
 - [모범 연주 메타데이터와 시간표의 방문 간 재사용 (764)](plans/S15P31E102-764.md)
 - [Android QA APK 화면 재조회·데이터 재사용 계측 설계 (678)](plans/S15P31E102-678.md)
 - [Android 채점모드 실시간 음높이 표시 설계](knowledge/frontend/realtime-pitch-prototype-design.md)

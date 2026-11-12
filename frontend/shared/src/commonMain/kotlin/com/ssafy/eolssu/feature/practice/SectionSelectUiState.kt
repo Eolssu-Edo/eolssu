@@ -58,7 +58,7 @@ fun SectionSelectUiState.tap(position: ScorePosition): SectionSelectUiState {
     }
 }
 
-/** ‘취약 구간으로’: 서버 추천 구간으로 되돌리고 안내도 처음 문구로 돌린다. */
+/** ‘취약 구간 보기’: 서버 추천 구간으로 되돌리고 안내도 처음 문구로 돌린다. */
 fun SectionSelectUiState.resetToRecommended(): SectionSelectUiState =
     copy(section = recommended, picking = false, picked = false)
 

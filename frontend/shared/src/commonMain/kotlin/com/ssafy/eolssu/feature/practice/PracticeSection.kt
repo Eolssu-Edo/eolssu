@@ -45,7 +45,7 @@ fun PracticeUiState.openSectionPractice(section: ScoreSection): PracticeUiState 
     )
 }
 
-/** 재생이 구간 끝을 지났는지. */
+/** 재생이 구간 끝을 지났는지. 구간 시작 직전의 native seek 보고는 종료가 아니다. */
 val PracticeUiState.passedSectionEnd: Boolean
     get() {
         val range = sectionEvents ?: return false

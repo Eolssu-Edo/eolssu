@@ -20,8 +20,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScorePosition
@@ -67,8 +69,8 @@ class SectionSelectActions(
 
 /**
  * 구간 고르기(S15P31E102-767 와이어프레임 ①). 연습 기록의 ‘구간 연습’·‘구간 재평가’가 함께 쓴다(S15P31E102-794).
- * 연주 결과와 같은 왼쪽 정렬 머리 ‘곡 · 악기 · 난이도 / 구간 연습(또는 구간 재평가)’ ·
- * 5칸 틀린 종류 필터 · 연두 견본과 단계별 안내(시작 정간 → 끝 정간 → 연습) · 추천 구간이 있으면 ‘취약 구간으로’ ·
+ * 왼쪽 정렬 머리 ‘곡 · 악기 · 난이도’ · 페이지 제목 ‘구간 연습-구간 선택’(S15P31E102-808) ·
+ * 5칸 틀린 종류 필터 · 연두 견본과 단계별 안내(시작 정간 → 끝 정간 → 연습) · 추천 구간이 있으면 ‘취약 구간 보기’ ·
  * 곡 전체 정간보(틀린 정간은 종류별 색·아이콘, 구간 밖은 흐리게, 구간 각은 연두 테두리, 시작·끝 표시) ·
  * 아래는 나란한 ‘구간 연습 시작’(연습 화면의 구간 연습)과 ‘구간 재평가 시작’. 속도는 각 화면의 설정에서 정한다.
  */
@@ -85,7 +87,6 @@ fun SectionSelectScreen(state: SectionSelectUiState, actions: SectionSelectActio
                 title = song?.let { stringResource(Res.string.result_subtitle, it.title, songInstrumentLabel(it), songLevelLabel(it.level)) }
                     ?: mode,
                 onBack = actions.onBack,
-                subtitle = mode.takeIf { song != null },
             )
         },
         bottomBar = if (song != null && result != null) {
@@ -102,7 +103,13 @@ fun SectionSelectScreen(state: SectionSelectUiState, actions: SectionSelectActio
         }
         val format = rememberReadingScoreFormat(song)
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            ErrorKindSegments(result, state.filter, actions.onFilter, Modifier.padding(top = 2.dp, bottom = 8.dp))
+            Text(
+                mode,
+                modifier = Modifier.padding(start = 2.dp, top = 2.dp, bottom = 12.dp).semantics { heading() },
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold),
+                color = colors.text,
+            )
+            ErrorKindSegments(result, state.filter, actions.onFilter, Modifier.padding(bottom = 8.dp))
             SelectHintRow(state, actions.onReset)
             val section = state.section
             val kind = state.filter.kind
@@ -116,14 +123,14 @@ fun SectionSelectScreen(state: SectionSelectUiState, actions: SectionSelectActio
                 decorations = sectionDecorations(
                     song.score, result.errors.filter { kind == null || it.kind == kind }, section, outsideAlpha = OutsideAlpha, edgeRing = true,
                 ),
-                sectionColumns = section?.fullColumns(song.score),
+                section = section,
             )
         }
     }
 }
 
 /**
- * 연두 견본(연주 결과의 취약 구간 줄과 같은 14dp) · 안내 문구 · 오른쪽 ‘취약 구간으로’.
+ * 연두 견본(연주 결과의 취약 구간 줄과 같은 14dp) · 안내 문구 · 오른쪽 ‘취약 구간 보기’.
  * 판본이 바뀌었거나 확인하지 못했으면 안내 대신 그 사유를 보인다.
  */
 @Composable

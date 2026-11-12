@@ -22,6 +22,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuStartTopBar
@@ -48,6 +50,7 @@ import com.ssafy.eolssu.data.practice.CheckLoad
 import com.ssafy.eolssu.data.practice.SectionEvaluation
 import com.ssafy.eolssu.data.practice.SessionCheck
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.result_home
 import eolssu.shared.generated.resources.weak_load_missing
 import eolssu.shared.generated.resources.weak_result_compare_failed
 import eolssu.shared.generated.resources.weak_result_compare_rejected
@@ -70,13 +73,16 @@ import org.jetbrains.compose.resources.stringResource
 /** 구간 재평가 결과에서 부르는 동작. */
 class SectionResultActions(
     val onBack: () -> Unit,
+    /** 오른쪽 위 홈(연주 결과와 같은 자리). */
+    val onHome: () -> Unit = {},
     val onOtherSection: () -> Unit,
     val onWholeSong: () -> Unit,
     val onSelectFilter: (ErrorFilter) -> Unit = {},
 )
 
 /**
- * RESULT-04 구간 재평가 결과(S15P31E102-776, 와이어프레임 ⑤ · 연주 결과 틀). 왼쪽 정렬 머리 ‘곡 · 2–3각 · 58 BPM / 구간 재평가 결과’ ·
+ * RESULT-04 구간 재평가 결과(S15P31E102-776, 와이어프레임 ⑤ · 연주 결과 틀). 왼쪽 정렬 머리 ‘곡 · 2–3각 · 58 BPM / 구간 재평가 결과’와 오른쪽 위 홈 ·
+ * 머리는 연주 결과처럼 뒤로 가기 없이 왼쪽 끝에서 시작한다(S15P31E102-808). 결과를 불러오는 중이거나 없으면 뒤로 가기를 둔다 ·
  * 연주 결과와 같은 점수 상자(일원상 구간 점수 · 항목 막대 · ‘이 구간 다시 연습’) · 회색 칸의 틀린 음 비교(EVA-04) ·
  * 5칸 틀린 종류 필터 · 구간 정간보(보기 전용) · 다음 단계 한 줄 · ‘다른 구간 고르기 ›’, 아래 ‘곡 전체 다시 평가’.
  * 점수는 서버 값만 쓰고 화면에서 계산하지 않는다. 구간 재평가는 연습 기록으로 저장하지 않아(S15P31E102-343) 저장 버튼은 두지 않는다.
@@ -98,8 +104,13 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
                         stringResource(Res.string.weak_result_subtitle_plain, it.song.title, it.bpm)
                     }
                 } ?: stringResource(Res.string.weak_result_title),
-                onBack = actions.onBack,
+                onBack = actions.onBack.takeIf { evaluation == null },
                 subtitle = stringResource(Res.string.weak_result_title).takeIf { evaluation != null },
+                right = {
+                    if (evaluation != null) {
+                        EolssuIconButton(EolssuIcons.House, stringResource(Res.string.result_home), actions.onHome, bordered = false)
+                    }
+                },
             )
         },
         bottomBar = if (evaluation != null) {
@@ -150,25 +161,27 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
 }
 
 /**
- * 재평가한 구간의 정간보(보기 전용, 연주 결과와 같은 읽기 형식). 틀린 정간은 [filter] 종류만 색·아이콘으로 칠하고, 구간 각은 연두 테두리다.
- * 평가 결과가 없으면(EVA-01을 받지 못함) 틀린 표시 없이 악보만 그린다.
+ * 재평가한 구간의 정간보(보기 전용, 연주 결과와 같은 읽기 형식). 틀린 정간은 [filter] 종류만 색·아이콘으로 칠한다.
+ * [section]의 각을 그리고, 연두 하이라이트는 실제로 평가된 정간([playedSection])에만 둔다. 각 표시는 전체가 평가된 각에만 둔다.
+ * 평가 결과가 없으면(EVA-01을 받지 못함) 틀린 표시 없이 악보만 그리고 [section] 전체를 하이라이트한다.
  */
 @Composable
 private fun SectionScore(evaluation: SectionEvaluation, section: ScoreSection, filter: ErrorFilter) {
     val song = evaluation.song
     val result = evaluation.result
     val format = rememberReadingScoreFormat(song, lyrics = false)
+    val played = remember(evaluation) { evaluation.playedSection() } ?: section
     JeongganboView(
         song = song,
         modifier = Modifier.fillMaxWidth(),
         metrics = format.metrics,
         look = format.look,
         cellHeights = format.cellHeights,
-        columns = section.columns,
+        columns = minOf(section.start.column, played.start.column)..maxOf(section.end.column, played.end.column),
         errors = result?.visibleErrors(filter).orEmpty(),
         errorKinds = result?.visibleErrorKinds(filter).orEmpty(),
         unitErrors = result?.visibleUnitErrors(song, filter).orEmpty(),
-        sectionColumns = section.fullColumns(song.score),
+        section = played,
     )
 }
 

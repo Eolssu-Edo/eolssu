@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -74,6 +75,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
+import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.model.key
 import com.ssafy.eolssu.core.model.ScoreNote
@@ -190,7 +192,9 @@ data class ScoreCellMark(
  * @param onUnitClick 표시 자리를 선택할 때 쓴다. 이음과 빈 자리가 원본 이벤트를 공유해도 표시 좌표는 다르다.
  * @param look 모양([JeongganboLook]). 기본은 옛 와이어프레임, 연습 화면은 연두 보드 `.ms`.
  * @param decorations 정간(각, 정간)마다의 꾸밈([ScoreCellDecoration]). 같은 정간의 [errors] 표시보다 먼저 쓴다(이전 연주 비교·구간 처음/끝 등).
- * @param sectionColumns 이 범위의 각을 취약 구간으로 표시한다(2차): 연두 테두리 · 옅은 바깥 띠(`#EFF2D6` 3dp) · 크림 머리.
+ * @param section 고른·연주한 구간([ScoreSection]). 처음부터 끝까지 모든 정간에 연두 바탕(`accentTint` `#EFF2D6`)을 깐다.
+ *   각 표시(연두 테두리 · 옅은 바깥 띠 `#EFF2D6` 3dp · 크림 머리)는 각 전체가 구간에 든 각([ScoreSection.fullColumns])에만 둔다.
+ * @param sectionColumns 정간은 칠하지 않고 이 범위의 각에만 각 표시를 둔다(연주 결과의 각 단위 취약 구간).
  * @param fadedColumns 이 각들은 머리까지 흐리게(35%) 그린다(구간 반복의 앞뒤 각).
  * @param cellMarks (각, 정간) → 덧그릴 표시([ScoreCellMark]). 악보 편집에서 고른 정간·빈 정간을 표시한다.
  * @param focusCell 실제 표시 정간(각, 정간)을 가로·세로 스크롤 안에 보이게 한다. 줄을 나눈 각도 원본 좌표로 지정한다.
@@ -234,6 +238,7 @@ fun JeongganboView(
     /** 묶음 전체가 공유하는 가로줄 높이. 각 머리글의 시작점을 수평으로 맞춘다. */
     stackRowHeights: List<Dp> = emptyList(),
     decorations: Map<Pair<Int, Int>, ScoreCellDecoration> = emptyMap(),
+    section: ScoreSection? = null,
     sectionColumns: IntRange? = null,
     fadedColumns: Set<Int> = emptySet(),
     cellMarks: Map<Pair<Int, Int>, ScoreCellMark> = emptyMap(),
@@ -242,6 +247,8 @@ fun JeongganboView(
     unitMarksAfterPass: Boolean = false,
     focusCell: Pair<Int, Int>? = null,
     focusRequestKey: Int = 0,
+    /** 연습 보드는 보이는 묶음과 양쪽 이웃만 구성하며 나머지는 같은 너비의 빈 공간으로 보존한다. */
+    windowed: Boolean = false,
 ) {
     // sp만 커져 분할 음·각 머리글이 잘리지 않도록 해당 악보의 기하도 함께 늘린다.
     // 화면 전체를 확대하지 않으며 기존 가로/세로 스크롤과 원본 줄바꿈을 유지한다.
@@ -252,6 +259,7 @@ fun JeongganboView(
         scoreStrips(song.score, song.jangdan, maxColumns, maxRows, columns, splitColumns)
     }
     val unitsByCell = remember(song) { song.displayUnits.groupBy { it.column to it.row } }
+    val fullSectionColumns = remember(song, section) { section?.fullColumns(song.score) }
     // 원본에는 대강 경계가 없다. 예전 장단의 고정 분할을 새 악보에 덧씌우지 않되, 보드처럼 각 길이가 장단 정간 수와 같으면 선만 긋는다.
     val patternStarts = song.jangdan?.daegangStarts.orEmpty()
     fun daegangStarts(column: Int): List<Int> = when {
@@ -316,7 +324,7 @@ fun JeongganboView(
         ScoreStripColumn(
             strip, renderMetrics, readingIndex, look,
             highlighted = highlightColumns != null && strip.column in highlightColumns,
-            section = sectionColumns != null && strip.column in sectionColumns,
+            section = sectionColumns?.contains(strip.column) == true || fullSectionColumns?.contains(strip.column) == true,
             faded = strip.column in fadedColumns,
             upcoming = upcomingColumn == strip.column,
             leftDivider = look.joined && readingIndex != strips.lastIndex,
@@ -339,6 +347,7 @@ fun JeongganboView(
                 errorKinds = errorKinds[strip.column to row].orEmpty(),
                 unitErrors = if (unitMode(strip.column to row)) unitErrors else emptyMap(),
                 decoration = decorations[strip.column to row],
+                inSection = section?.contains(strip.column, row) == true,
                 ringEdges = RingEdges(
                     sharedTop = row - 1 in strip.rows && ringAtEdge(strip.column to row - 1, bottom = true),
                     sharedBottom = row + 1 in strip.rows && ringAtEdge(strip.column to row + 1, bottom = false),
@@ -359,7 +368,20 @@ fun JeongganboView(
             )
         }
     }
-    Box(modifier.fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopEnd) {
+    val groups = remember(strips, stackSize) { strips.withIndex().toList().chunked(stackSize) }
+    val density = LocalDensity.current
+    val columnPx = with(density) { renderMetrics.columnWidth.roundToPx() }
+    val gapPx = with(density) { metrics.columnGap.roundToPx() }
+    val stridePx = (columnPx + gapPx).toFloat()
+    val drawRow: @Composable (Int) -> Unit = { viewportPx ->
+        val window by remember(groups, windowed, scrollState, focusCell, stridePx, viewportPx) {
+            derivedStateOf {
+                if (windowed && scrollState != null && focusCell == null)
+                    visibleScoreStacks(groups.size, scrollState.value, viewportPx, stridePx)
+                else groups.indices
+            }
+        }
+        fun omittedWidth(count: Int): Dp = with(density) { scoreStackSpanPx(count, columnPx, gapPx).toDp() }
         Row(
             modifier = rowModifier.semantics { isTraversalGroup = true }
                 .then(
@@ -372,10 +394,13 @@ fun JeongganboView(
             horizontalArrangement = Arrangement.spacedBy(metrics.columnGap),
             verticalAlignment = Alignment.Top,
         ) {
+            val omittedLeft = if (window.isEmpty()) 0 else groups.lastIndex - window.last
+            if (omittedLeft > 0) Spacer(Modifier.width(omittedWidth(omittedLeft)))
             if (stackSize == 1) {
-                for ((readingIndex, strip) in strips.withIndex().reversed()) drawStrip(readingIndex, strip)
+                for (readingIndex in window.reversed()) drawStrip(readingIndex, strips[readingIndex])
             } else {
-                for ((groupIndex, group) in strips.withIndex().toList().chunked(stackSize).withIndex().reversed()) {
+                for (groupIndex in window.reversed()) {
+                    val group = groups[groupIndex]
                     Column(
                         Modifier.semantics { isTraversalGroup = true; traversalIndex = groupIndex.toFloat() },
                         verticalArrangement = Arrangement.spacedBy(stackGap),
@@ -389,7 +414,15 @@ fun JeongganboView(
                     }
                 }
             }
+            if (!window.isEmpty() && window.first > 0) Spacer(Modifier.width(omittedWidth(window.first)))
         }
+    }
+    if (windowed && scrollState != null && focusCell == null) {
+        BoxWithConstraints(modifier.fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopEnd) {
+            drawRow(constraints.maxWidth)
+        }
+    } else {
+        Box(modifier.fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopEnd) { drawRow(Int.MAX_VALUE) }
     }
 }
 
@@ -598,6 +631,7 @@ private fun ScoreCellBox(
     errorKinds: List<ScoreErrorKind> = emptyList(),
     unitErrors: Map<ScoreUnitKey, List<ScoreErrorKind>> = emptyMap(),
     decoration: ScoreCellDecoration?,
+    inSection: Boolean = false,
     ringEdges: RingEdges = RingEdges(),
     selectedIndex: Int?,
     selectedCell: Boolean?,
@@ -667,6 +701,8 @@ private fun ScoreCellBox(
     }
     if (dimmed && !isSelected) cellModifier = cellModifier.alpha(0.55f)
     if (mark != null && mark.alpha < 1f && !isSelected) cellModifier = cellModifier.alpha(mark.alpha)
+    // 구간 정간 바탕은 맨 아래에 깔아 진행 채움·현재 표시·틀린 종류 바탕이 그 위에 보이게 한다.
+    if (inSection) cellModifier = cellModifier.background(colors.accentTint)
     // 재생·연주 중에는 모양과 관계없이 지나간 정간에 옅은 바탕을 깔아 어디까지 왔는지 보이게 한다.
     cellModifier = when {
         live && progress == CellProgress.Past -> cellModifier.background(colors.doneSoft)

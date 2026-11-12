@@ -9,6 +9,5 @@
     <string name="catalog_consumer_record_missing">연습 기록을 찾을 수 없어요. 기록 목록으로 돌아가 주세요.</string>
     <string name="catalog_consumer_retry">곡 정보 다시 불러오기</string>
     <string name="catalog_consumer_back">이전 화면으로</string>
-    <string name="catalog_consumer_record_loading">연습 기록을 불러오고 있어요.</string>
     <string name="catalog_consumer_record_failed">연습 기록을 불러오지 못했어요. 다시 시도해 주세요.</string>
 </resources>
