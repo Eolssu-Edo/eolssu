@@ -17,6 +17,20 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeJangdanTest {
+    @Test fun asynchronousOutputFailureStopsBetweenAttacks() = runTest {
+        val samples = Samples()
+        val session = JangdanSession(samples, backgroundScope)
+        session.start(planJangdan(mapping, 60, 4), false, { testScheduler.currentTime / 250.0 })
+        runCurrent()
+        advanceTimeBy(75)
+        samples.failed = true
+        advanceTimeBy(10)
+        runCurrent()
+        assertEquals(JangdanStatus.Failed, session.status.value)
+        assertEquals(1, samples.hits.size)
+        assertEquals(1, samples.releases)
+    }
+
     @Test fun audioTicksContinueWhileTheUiDispatcherIsNotRunningAndStopCancelsThem() = runTest {
         val audioScheduler = TestCoroutineScheduler()
         val player = Samples(StandardTestDispatcher(audioScheduler) + audioScheduler)
@@ -380,6 +394,7 @@ private val mapping = JangdanPlayback("3", "세마치", 0, 4, listOf("덩", "쿵
 
 private class Samples(override val timingContext: kotlin.coroutines.CoroutineContext = kotlin.coroutines.EmptyCoroutineContext) : JangdanSamplePlayer {
     override val available = true
+    override var failed = false
     override var interrupted = false
     var pending: CompletableDeferred<Boolean>? = null
     var begins = 0

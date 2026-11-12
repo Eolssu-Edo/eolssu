@@ -26,12 +26,16 @@ import kotlin.time.TimeSource
 
 enum class ModelAudioStatus { Idle, Loading, Playing, Paused, Completed, Interrupted, Unavailable, Unsupported, Failed }
 
-/** @property anchor 재생 중일 때만 있다. 진행 선은 보고된 [mediaPositionMs] 대신 이 기준점에서 이어 그린다. */
+/**
+ * @property anchor 회색 표시를 부드럽게 보정하는 시계. 반주 속도에는 사용하지 않는다.
+ * @property playbackAnchor 음원 위치를 측정한 시각과 실제 재생 속도로 흐르는 반주용 시계.
+ */
 data class ModelAudioState(
     val status: ModelAudioStatus = ModelAudioStatus.Idle,
     val audio: ModelAudio? = null,
     val mediaPositionMs: Long = 0,
     val anchor: MediaAnchor? = null,
+    val playbackAnchor: MediaAnchor? = null,
 )
 
 /**
@@ -74,6 +78,7 @@ internal class ModelAudioSession(
 ) {
     private val _state = MutableStateFlow(ModelAudioState())
     val state = _state.asStateFlow()
+    internal val playbackAnchor: MediaAnchor? get() = state.value.takeIf { it.status == ModelAudioStatus.Playing }?.playbackAnchor
     private var loadJob: Job? = null
     private var requestId = 0L
     private var sourceId: String? = null
@@ -110,7 +115,11 @@ internal class ModelAudioSession(
                 val anchor = if (checked != ModelAudioStatus.Playing) null else
                     previous.anchor.takeIf { previous.status == ModelAudioStatus.Playing }
                         .follow(media.positionMs.toDouble(), speed(audio).toDouble(), timeSource.markNow())
-                _state.value = ModelAudioState(checked, audio, media.positionMs, anchor)
+                val soundAnchor = if (checked != ModelAudioStatus.Playing) null else MediaAnchor(
+                    media.positionMs.toDouble(), media.positionSampledAt ?: timeSource.markNow(),
+                    if (media.positionMs == 0L) 0.0 else speed(audio).toDouble(),
+                )
+                _state.value = ModelAudioState(checked, audio, media.positionMs, anchor, soundAnchor)
             }
         }
     }

@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.FileInputStream
 import java.net.URI
+import kotlin.time.TimeSource
 
 /** Foreground-only player. All MediaPlayer operations/callbacks use one worker looper. */
 class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boolean = false) : ReferenceAudioPlayer {
@@ -58,7 +59,10 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
         override fun run() {
             val current = player ?: return
             if (_state.value.status != AudioPlaybackStatus.Playing || !prepared) return
-            runCatching { _state.value = _state.value.copy(positionMs = current.currentPosition.toLong()) }
+            runCatching {
+                val position = current.currentPosition.toLong()
+                _state.value = _state.value.copy(positionMs = position, positionSampledAt = TimeSource.Monotonic.markNow())
+            }
                 .onFailure { fail() }
             if (_state.value.status == AudioPlaybackStatus.Playing) handler.postDelayed(this, 50L)
         }
@@ -201,7 +205,8 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
             current.start()
             handler.removeCallbacks(prepareTimeout)
             registerNoisyReceiver()
-            _state.value = _state.value.copy(status = AudioPlaybackStatus.Playing, positionMs = current.currentPosition.toLong())
+            _state.value = _state.value.copy(status = AudioPlaybackStatus.Playing, positionMs = current.currentPosition.toLong(),
+                positionSampledAt = TimeSource.Monotonic.markNow())
             handler.removeCallbacks(updatePosition)
             handler.post(updatePosition)
         }.onFailure { fail() }

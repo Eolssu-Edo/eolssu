@@ -70,6 +70,7 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
                 // Preparation, focus and status stay with the owner. Only timing/output leave the UI.
                 val result = withContext(player.timingContext) {
                     while (isActive) {
+                        if (player.failed) return@withContext JangdanStatus.Failed
                         if (player.interrupted) return@withContext JangdanStatus.Interrupted
                         val now = tick() ?: break
                         val strikes = cursor.due(now)

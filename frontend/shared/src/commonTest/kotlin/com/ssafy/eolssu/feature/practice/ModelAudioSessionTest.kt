@@ -25,6 +25,35 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ModelAudioSessionTest {
+    @Test fun accompanimentUsesTheSampleTimeRatherThanUiDeliveryTime() = runTest {
+        val player = FakeAudioPlayer()
+        val session = ModelAudioSession(modelRepository { audioFixture() }, player, backgroundScope, testScheduler.timeSource)
+        session.play(song, song.baseBpm)
+        runCurrent()
+        advanceTimeBy(100)
+        val sampledAt = testScheduler.timeSource.markNow()
+        advanceTimeBy(200)
+        player.state.value = player.state.value.copy(status = AudioPlaybackStatus.Playing, positionMs = 100, positionSampledAt = sampledAt)
+        runCurrent()
+        assertEquals(300.0, session.playbackAnchor!!.positionNow(), .001)
+        assertEquals(100.0, session.state.value.anchor!!.positionNow(), .001, "The visual startup correction is independent")
+    }
+
+    @Test fun accompanimentDoesNotUseTheVisualCatchUpRate() = runTest {
+        val player = FakeAudioPlayer()
+        val session = ModelAudioSession(modelRepository { audioFixture() }, player, backgroundScope, testScheduler.timeSource)
+        session.play(song, song.baseBpm)
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 500)
+        runCurrent()
+        advanceTimeBy(100)
+        player.emit(AudioPlaybackStatus.Playing, 550)
+        runCurrent()
+        advanceTimeBy(100)
+        assertEquals(650.0, session.playbackAnchor!!.positionNow(), .001)
+        assertTrue(session.state.value.anchor!!.positionNow() > 650.0)
+    }
+
     private val song = smallScoreSong().copy(id = "42", scoreVersion = 1)
 
     @Test fun firstPlaybackDoesNotAdvanceTheScoreBeforeTheDecoderReportsMovement() = runTest {

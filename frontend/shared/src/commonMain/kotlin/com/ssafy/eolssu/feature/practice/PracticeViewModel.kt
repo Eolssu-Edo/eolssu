@@ -219,18 +219,21 @@ class PracticeViewModel(
         val resumeAfter = modelResumeAfterTick
         modelResumeAfterTick = null
         val startAt = modelTickAtReportedPosition()
+        var lastMediaMs: Double? = null
         jangdanAudio.start(currentPlan(), accompanyingModel = true, resumeAfterTick = resumeAfter, startAtTick = startAt, tick = {
             val now = _uiState.value
             val song = now.song
-            val clock = now.modelClock
-            if (now.mode != PracticeMode.Model || !now.playing || song == null || clock == null) null
+            val audio = modelAudio.state.value.audio
+            val anchor = modelAudio.playbackAnchor
+            if (now.mode != PracticeMode.Model || !now.playing || song == null || audio == null || anchor == null) null
             else {
-                val mediaMs = clock.anchor.positionNow()
-                val endMs = clock.audio.startOffsetMs + song.modelScoreDurationMs(clock.audio)
+                // Decoder reports may jitter slightly backward. An explicit seek creates a new session.
+                val mediaMs = maxOf(anchor.positionNow(), lastMediaMs ?: 0.0).also { lastMediaMs = it }
+                val endMs = audio.startOffsetMs + song.modelScoreDurationMs(audio)
                 when {
-                    mediaMs < clock.audio.startOffsetMs -> -1.0
+                    mediaMs < audio.startOffsetMs -> -1.0
                     mediaMs >= endMs -> null
-                    else -> song.modelJangdanTickAt(clock.audio, mediaMs)
+                    else -> song.modelJangdanTickAt(audio, mediaMs)
                 }
             }
         })

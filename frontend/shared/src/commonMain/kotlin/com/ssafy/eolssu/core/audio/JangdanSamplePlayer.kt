@@ -7,6 +7,8 @@ import kotlin.coroutines.EmptyCoroutineContext
 interface JangdanSamplePlayer {
     val available: Boolean
     val interrupted: Boolean
+    /** 연속 출력 쓰기의 비동기 실패. 다음 타격까지 기다리지 않고 세션을 종료한다. */
+    val failed: Boolean get() = false
     /** 타격 조회·출력의 실행 문맥. 지정한 구현은 play/silence/interrupted의 동시 접근을 보호한다. */
     val timingContext: CoroutineContext get() = EmptyCoroutineContext
     suspend fun prepare(clips: Set<JangdanClip>): Boolean

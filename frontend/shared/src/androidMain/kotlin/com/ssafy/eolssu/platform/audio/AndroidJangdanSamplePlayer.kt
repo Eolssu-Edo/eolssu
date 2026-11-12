@@ -6,44 +6,52 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
+import android.media.AudioFormat
 import android.media.AudioManager
-import android.media.SoundPool
+import android.media.AudioTrack
 import android.os.Build
+import com.ssafy.eolssu.core.audio.JANGDAN_SAMPLE_RATE
 import com.ssafy.eolssu.core.audio.JangdanClip
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
-import java.io.File
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlinx.coroutines.CompletableDeferred
+import java.util.concurrent.ThreadFactory
+import java.util.concurrent.locks.LockSupport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.CoroutineContext
+import kotlin.math.roundToLong
 
-/** Samples are prepared by the UI owner; the timing loop uses a dedicated audio-priority thread. */
+/** One continuous PCM output avoids the per-attack start latency of separate SoundPool streams. */
 internal class AndroidJangdanSamplePlayer(context: Context, private val cache: JangdanSampleCache) : JangdanSamplePlayer {
     private val context = context.applicationContext
     private val manager = this.context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private val outputRate = manager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)?.toIntOrNull()
+        ?.takeIf { it in 8_000..192_000 } ?: JANGDAN_SAMPLE_RATE
     private val attributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
-    private var pool: SoundPool? = null
-    private var adjustedClip: JangdanClip? = null
-    private val samples = mutableMapOf<JangdanClip, Int>()
-    private val loaded = mutableMapOf<Int, CompletableDeferred<Boolean>>()
-    private val streams = ArrayDeque<Int>()
+    private val samples = mutableMapOf<JangdanClip, ShortArray>()
+    private val queue = JangdanPcmQueue()
+    private var track: AudioTrack? = null
     private var focus: AudioFocusRequest? = null
     private var ownsFocus = false
     private var registered = false
     private var acceptingHits = false
+    @Volatile override var failed = false
+        private set
+    private val prepareMutex = Mutex()
+    private var epoch = 0
+    private var outputGeneration = 0
+    private var originNs: Long? = null
     private var timingDispatcher: ExecutorCoroutineDispatcher? = null
+    private var outputExecutor: ExecutorService? = null
     override val timingContext: CoroutineContext
-        @Synchronized get() = timingDispatcher ?: Executors.newSingleThreadExecutor { action ->
-            Thread({
-                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO)
-                action.run()
-            }, "eolssu-jangdan")
-        }.asCoroutineDispatcher().also { timingDispatcher = it }
+        @Synchronized get() = timingDispatcher ?: Executors.newSingleThreadExecutor(audioThread("eolssu-jangdan"))
+            .asCoroutineDispatcher().also { timingDispatcher = it }
     override val available = true
     @Volatile override var interrupted = false
         private set
@@ -57,60 +65,60 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
     }
 
     override suspend fun prepare(clips: Set<JangdanClip>): Boolean {
-        val current = synchronized(this) {
-            pool ?: SoundPool.Builder().setMaxStreams(8).setAudioAttributes(attributes).build().also {
-                pool = it
-                it.setOnLoadCompleteListener { owner, id, status ->
-                    synchronized(this) { if (owner === pool) loaded[id]?.complete(status == 0) }
-                }
-            }
-        }
-        val adjusted = clips.filter { it.targetFrames != null }
-        if (adjusted.size > 1) return false
-        val next = adjusted.firstOrNull()
-        synchronized(this) {
-            adjustedClip?.takeIf { it != next }?.let { old ->
-                samples.remove(old)?.let { id ->
-                    current.unload(id)
-                    loaded.remove(id)
-                }
-            }
-            adjustedClip = next
-        }
+        return prepareMutex.withLock { prepareSamples(clips) }
+    }
+
+    private suspend fun prepareSamples(clips: Set<JangdanClip>): Boolean {
+        val request = synchronized(this) { epoch }
         for (clip in clips) {
-            var temporary: File? = null
-            try {
-                val id = synchronized(this) { samples[clip] } ?: run {
-                    val cached = cache.fileFor(clip.sample)
-                    val file = clip.targetFrames?.let { frames ->
-                        withContext(Dispatchers.IO) {
-                            val audio = stretchJangdanRoll(cached, frames)
-                            File.createTempFile("jangdan-roll-", ".wav", context.cacheDir).also {
-                                temporary = it
-                                it.writeBytes(audio)
-                            }
-                        }
-                    } ?: cached.file
-                    synchronized(this) {
-                        if (current !== pool) return false
-                        val result = current.load(file.absolutePath, 1)
-                        if (result == 0) return false
-                        samples[clip] = result
-                        result
-                    }
-                }
-                val ready = synchronized(this) { loaded.getOrPut(id) { CompletableDeferred() } }
-                if (withTimeoutOrNull(10_000) { ready.await() } != true) return false
-            } finally {
-                temporary?.delete()
+            if (synchronized(this) { clip in samples }) continue
+            val pcm = withContext(Dispatchers.IO) {
+                val cached = cache.fileFor(clip.sample)
+                val data = clip.targetFrames?.let { stretchJangdanRoll(cached, it).copyOfRange(44, 44 + it * 2) }
+                    ?: decodeJangdanPcm(cached)
+                jangdanOutputPcm(data, outputRate)
+            }
+            synchronized(this) {
+                if (request != epoch) return false
+                samples[clip] = pcm
             }
         }
-        return true
+        val needsTrack = synchronized(this) {
+            samples.keys.removeAll { it.targetFrames != null && it !in clips }
+            track == null
+        }
+        if (needsTrack) {
+            withContext(Dispatchers.IO) {
+                val created = createTrack()
+                synchronized(this@AndroidJangdanSamplePlayer) {
+                    if (request != epoch || track != null) created.release() else track = created
+                }
+            }
+        }
+        return synchronized(this) { request == epoch && track != null }
+    }
+
+    private fun createTrack(): AudioTrack {
+        val minimum = AudioTrack.getMinBufferSize(outputRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        check(minimum > 0)
+        val builder = AudioTrack.Builder().setAudioAttributes(attributes)
+            .setAudioFormat(AudioFormat.Builder().setSampleRate(outputRate)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
+            .setBufferSizeInBytes(minimum).setTransferMode(AudioTrack.MODE_STREAM)
+        if (Build.VERSION.SDK_INT >= 26) builder.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+        return builder.build().also {
+            if (it.state != AudioTrack.STATE_INITIALIZED) { it.release(); error("Jangdan output unavailable") }
+            val burst = manager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)?.toIntOrNull()
+                ?.takeIf { frames -> frames > 0 } ?: minimum / 4
+            it.setBufferSizeInFrames(maxOf(BLOCK_FRAMES * 2, burst * 2))
+            if (Build.VERSION.SDK_INT >= 31) it.setStartThresholdInFrames(BLOCK_FRAMES)
+        }
     }
 
     @Synchronized override fun begin(accompanyingModel: Boolean): Boolean {
+        if (track == null) return false
         interrupted = false
-        // The model player already owns focus. Requesting it again would interrupt that same media.
+        failed = false
         if (!accompanyingModel) {
             val granted = if (Build.VERSION.SDK_INT >= 26) {
                 val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
@@ -134,21 +142,69 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
     }
 
     @Synchronized override fun play(clip: JangdanClip, gain: Float): Boolean {
-        if (interrupted || !acceptingHits) return false
-        val volume = gain.coerceIn(0f, 1f) * 0.65f
-        val current = pool ?: return false
-        val id = samples[clip] ?: return false
-        val stream = current.play(id, volume, volume, 1, 0, 1f)
-        if (stream == 0) return false
-        streams.addLast(stream)
-        // Finished stream IDs are safe to stop; bound bookkeeping for arbitrarily long practice.
-        if (streams.size > 32) current.stop(streams.removeFirst())
+        if (interrupted || failed || !acceptingHits) return false
+        val current = track ?: return false
+        val pcm = samples[clip] ?: return false
+        val now = System.nanoTime()
+        val first = originNs == null
+        val origin = originNs ?: now.also { originNs = it }
+        val frame = ((now - origin) * (outputRate / 1_000_000_000.0)).roundToLong() + current.bufferSizeInFrames + BLOCK_FRAMES
+        queue.add(pcm, gain.coerceIn(0f, 1f) * 0.65f, frame)
+        if (first) {
+            val token = ++outputGeneration
+            val executor = outputExecutor ?: Executors.newSingleThreadExecutor(audioThread("eolssu-jangdan-pcm"))
+                .also { outputExecutor = it }
+            executor.execute { writePcm(current, token) }
+        }
         return true
     }
 
+    private fun writePcm(current: AudioTrack, token: Int) {
+        var block = ShortArray(0)
+        var offset = 0
+        var started = false
+        var underruns = 0
+        while (true) {
+            val active = synchronized(this) {
+                if (token != outputGeneration || !acceptingHits || interrupted || current !== track) return@synchronized false
+                val latestUnderruns = current.underrunCount
+                if (!started) underruns = latestUnderruns
+                else if (latestUnderruns > underruns) {
+                    val elapsedFrames = ((System.nanoTime() - checkNotNull(originNs)) * (outputRate / 1_000_000_000.0)).roundToLong()
+                    if (elapsedFrames > queue.nextFrame) {
+                        // A starved native track must not shift every later attack or replay a missed onset.
+                        queue.discardBefore(elapsedFrames)
+                        block = ShortArray(0)
+                        offset = 0
+                    }
+                    underruns = latestUnderruns
+                }
+                if (offset == block.size) { block = queue.read(BLOCK_FRAMES); offset = 0 }
+                val written = try {
+                    current.write(block, offset, block.size - offset, AudioTrack.WRITE_NON_BLOCKING)
+                } catch (_: IllegalStateException) { AudioTrack.ERROR_INVALID_OPERATION }
+                if (written < 0) {
+                    failed = true
+                    silence()
+                    return@synchronized false
+                }
+                offset += written
+                if (!started && offset == block.size) {
+                    current.play()
+                    started = true
+                }
+                true
+            }
+            if (!active) return
+            LockSupport.parkNanos(1_000_000)
+        }
+    }
+
     @Synchronized override fun silence() {
-        streams.forEach { pool?.stop(it) }
-        streams.clear()
+        ++outputGeneration
+        originNs = null
+        queue.clear()
+        track?.let { it.pause(); it.flush() }
     }
 
     @Synchronized override fun stop() {
@@ -165,13 +221,22 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
 
     @Synchronized override fun release() {
         stop()
-        pool?.release()
-        pool = null
-        loaded.values.forEach { it.complete(false) }
-        loaded.clear()
+        ++epoch
+        track?.release()
+        track = null
         samples.clear()
-        adjustedClip = null
         timingDispatcher?.close()
         timingDispatcher = null
+        outputExecutor?.shutdownNow()
+        outputExecutor = null
+    }
+
+    private fun audioThread(name: String) = ThreadFactory { action ->
+        Thread({
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO)
+            action.run()
+        }, name)
     }
 }
+
+private const val BLOCK_FRAMES = 128
