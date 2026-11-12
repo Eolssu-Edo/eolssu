@@ -56,7 +56,6 @@
     <string name="song_count">%1$d곡</string>
     <string name="song_count_instrument">%1$d곡 · %2$s</string>
     <string name="song_empty">찾는 곡이 없어요.</string>
-    <string name="song_empty_body">다른 제목이나 난이도로 찾아보세요.</string>
     <string name="song_reset_filters">검색 조건 초기화</string>
 
     <string name="song_detail_title">곡 정보</string>
@@ -248,13 +247,13 @@
     <string name="result_practice_again">같은 곡 다시 연습</string>
     <string name="result_home">홈으로 가기</string>
     <string name="result_saved_title">연습 기록에 저장했어요</string>
+    <string name="result_saved_open_record">기록으로 이동</string>
     <string name="result_saved_button">저장됨</string>
     <string name="result_save_confirm">저장</string>
     <string name="result_other_song_more">다른 곡 고르기 ›</string>
     <string name="result_weak_line">취약 구간 %1$s · 틀린 정간 %2$d개</string>
     <string name="score_metric_description">%1$s %2$d점</string>
     <string name="top_bar_full_title">전체 제목 보기</string>
-    <string name="result_saved_meta">%1$s · 녹음 %2$s · %3$d BPM</string>
     <string name="result_memo_label">메모 (선택)</string>
     <string name="result_memo_placeholder">예: 3~4각에서 박자가 밀렸어요</string>
 
@@ -643,11 +642,7 @@
     <string name="mysongs_tab_songs">제공 곡</string>
     <string name="mysongs_tab_sheets">내 악보</string>
     <string name="mysongs_no_jangdan">장단 없음</string>
-    <string name="mysongs_empty_body">다른 단계를 선택하거나 전체 곡을 확인해 보세요.</string>
     <string name="mysongs_reset_filter">전체 곡 보기</string>
-    <string name="mysongs_sheet_empty">찾는 악보가 없어요.</string>
-    <string name="mysongs_sheet_empty_body">다른 제목으로 찾아보세요.</string>
-    <string name="mysongs_clear_query">검색어 지우기</string>
     <string name="mysongs_add">악보 추가</string>
     <string name="mysongs_sheet_count">내 악보 %1$d개</string>
     <string name="mysongs_origin_copied">제공 곡에서 고침</string>
@@ -684,6 +679,7 @@
     <string name="practice_dock_info">%1$s · %2$d BPM · %3$s</string>
     <string name="practice_dock_hint">악보의 음을 누르면 그 음의 운지법이 이 자리에 열려요.</string>
     <string name="practice_dock_locked">연주 중에는 장단과 속도를 바꿀 수 없어요.</string>
+    <string name="error_segment_title">틀린 부분</string>
     <string name="error_segment_all">전체</string>
     <string name="error_segment_pitch">음정</string>
     <string name="error_segment_rhythm">박자</string>

@@ -17,7 +17,7 @@
     <string name="weak_select_hint">시작 정간을 선택하세요</string>
     <string name="weak_select_hint_end">끝 정간을 선택하세요</string>
     <string name="weak_select_hint_ready">선택한 구간을 연습해요</string>
-    <string name="weak_select_reset">취약 구간으로</string>
+    <string name="weak_select_reset">취약 구간 보기</string>
     <string name="weak_select_practice">구간 연습</string>
     <string name="weak_select_title">구간 연습-구간 선택</string>
     <string name="weak_select_start">구간 연습 시작</string>
@@ -85,7 +85,7 @@
     <!-- RECORD-02 2차: 기록 상세의 비교 진입 -->
     <string name="weak_record_compare">지난 연주와 비교</string>
     <string name="record_result_title">이전 연주 결과</string>
-    <string name="record_title_line">%1$s · %2$s %3$s</string>
+    <string name="record_title_line">%1$s %2$s</string>
     <string name="record_follow_now">지금 위치로</string>
     <string name="record_memo_button">메모</string>
 </resources>

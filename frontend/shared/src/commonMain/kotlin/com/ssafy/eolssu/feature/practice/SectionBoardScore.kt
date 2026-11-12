@@ -128,7 +128,7 @@ internal fun SectionBoardScore(state: SectionLoopUiState, song: Song, modifier: 
                     song.score, emptyList(), section, outsideAlpha = OutsideAlpha, edgeRing = false, edgeLabels = false,
                     columns = shown, markColumns = section.columns, current = current,
                 ),
-                sectionColumns = section.fullColumns(song.score),
+                section = section,
                 fadedColumns = state.contextColumns,
             )
         }

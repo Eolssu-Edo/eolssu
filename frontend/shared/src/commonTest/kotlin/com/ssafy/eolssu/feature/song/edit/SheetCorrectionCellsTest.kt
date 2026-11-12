@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.data.song.*
 import com.ssafy.eolssu.testing.CatalogViewModelTest
 import kotlinx.coroutines.CompletableDeferred
@@ -15,6 +16,49 @@ import kotlin.test.*
 internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
     private val allowed = setOf("황" to 0, "태" to 0)
     private fun state() = SheetEditUiState(EditSource.Mine("31"), smallScoreData().editingDraft("검사", 60, null))
+
+    @Test fun invalidSplitPitchHighlightsOnlyItsUnitsIncludingContinuationsAndUndoRestoresThem() {
+        val initial = state().copy(availablePitches = allowed)
+        val expected = setOf(ScoreUnitKey("c0-j0", 0, 1), ScoreUnitKey("c0-j0", 1, 0), ScoreUnitKey("c0-j1", 0, 0))
+        assertEquals(expected, initial.completionValidation.correctionUnitKeys)
+        val fixed = initial.selectUnit(0, 1).putYul(Yul.Taeju)
+        assertTrue(fixed.completionValidation.correctionUnitKeys.isEmpty())
+        assertEquals(expected, fixed.undo().completionValidation.correctionUnitKeys)
+    }
+
+    @Test fun partiallyFilledSplitHighlightsOnlyTheMissingPart() {
+        val partial = state().select(2).split().selectUnit(2, 0).putYul(Yul.Hwangjong)
+        assertEquals(setOf(2), partial.completionValidation.correctionCellIndices)
+        assertEquals(setOf(ScoreUnitKey("c1-j0", 1, 0)), partial.completionValidation.correctionUnitKeys)
+    }
+
+    @Test fun brokenSplitEventDoesNotHighlightItsHealthyNeighbour() {
+        val score = smallScoreData().let { it.copy(events = it.events.map { event ->
+            if (event.id == "c0-j0-r0-u1") event.copy(durationTick = 6) else event
+        }) }
+        val broken = SheetEditUiState(EditSource.Mine("31"), score.editingDraft("분할 검사", 60, null))
+        assertEquals(setOf(ScoreUnitKey("c0-j0", 0, 1), ScoreUnitKey("c0-j0", 1, 0), ScoreUnitKey("c0-j1", 0, 0)),
+            broken.completionValidation.correctionUnitKeys)
+    }
+
+    @Test fun serverPitchRejectionUsesItsEventInsteadOfEveryPitchInTheCell() {
+        val rejected = state().copy(availablePitches = allowed + ("중" to 1),
+            serverPitchIssues = listOf(AuthoringPitchIssue("c0-j0-r0-u1", "c0-j0", "중", 1, listOf("PITCH_UNREGISTERED"))))
+        assertEquals(setOf(ScoreUnitKey("c0-j0", 0, 1), ScoreUnitKey("c0-j0", 1, 0), ScoreUnitKey("c0-j1", 0, 0)),
+            rejected.completionValidation.correctionUnitKeys)
+    }
+
+    @Test fun reviewEventLocationIsPreservedAndCellOnlyReviewsStillMarkTheWholeCell() {
+        val doc = SheetDocument("31", "검사", null, 60, "1", smallScoreData(), null, "NEEDS_REVIEW", "DONE",
+            listOf(Json.parseToJsonElement("""{"issueId":"review","cellId":"c0-j0","eventId":"c0-j0-r0-u0","type":"LOW_CONFIDENCE"}""") as JsonObject))
+        val review = doc.editorReviewIssues(requireNotNull(doc.score))
+        val initial = state().copy(reviewIssues = review)
+        assertEquals(setOf(ScoreUnitKey("c0-j0", 0, 0)), initial.completionValidation.correctionUnitKeys)
+        assertTrue(initial.copy(checkedIssueIds = setOf("review")).completionValidation.correctionUnitKeys.isEmpty())
+        val whole = initial.copy(reviewIssues = listOf(SheetReviewIssue("cell", "c0-j0", "LOW_CONFIDENCE")))
+        assertEquals(setOf(ScoreUnitKey("c0-j0", 0, 0), ScoreUnitKey("c0-j0", 0, 1), ScoreUnitKey("c0-j0", 1, 0)),
+            whole.completionValidation.correctionUnitKeys)
+    }
 
     @Test fun numericTempoLocationsStayFixedWhilePitchAndBaseTempoRemainEditable() {
         val timed = state().copy(hasTempoPlan = true)

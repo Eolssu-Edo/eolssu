@@ -75,7 +75,6 @@ import com.ssafy.eolssu.feature.song.edit.isPitch
 import com.ssafy.eolssu.feature.song.edit.pitchKey
 import com.ssafy.eolssu.feature.song.edit.pitchNote
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.sheetedit_autosaved
 import eolssu.shared.generated.resources.sheetedit_cell_add_column
 import eolssu.shared.generated.resources.sheetedit_cell_delete_column
 import eolssu.shared.generated.resources.sheetedit_cell_jangdan
@@ -124,7 +123,7 @@ class EditInputActions(
 )
 
 /**
- * EDIT-02 아래 입력판(위 모서리 20): 실행 취소·다시 실행 · '자동 임시저장됨', 탭 율명·기호 / 시김새 / 정간·장단.
+ * EDIT-02 아래 입력판: 실행 취소·다시 실행과 실제 저장 상태, 탭 율명·기호 / 시김새 / 정간·장단.
  *
  * @param register 다음 율명에 붙일 음역 단계.
  * @param availablePitches 서버에 등록된 (율명, 옥타브). null이면 모두 누를 수 있고 서버 저장 때 확인한다.
@@ -141,6 +140,7 @@ internal fun EditInputPanel(
     canRedo: Boolean,
     actions: EditInputActions,
     modifier: Modifier = Modifier,
+    saveFeedback: @Composable () -> Unit = {},
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
@@ -153,16 +153,10 @@ internal fun EditInputPanel(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // 버튼은 48dp 터치 영역 가운데에 40dp로 그려진다. 보이는 왼쪽 끝을 아래 탭과 맞추려고 줄을 4dp 당긴다.
-        Row(Modifier.fillMaxWidth().offset(x = (-4).dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().height(48.dp).offset(x = (-4).dp), verticalAlignment = Alignment.CenterVertically) {
             SquareIconButton(SheetEditIcons.Undo, stringResource(Res.string.sheetedit_undo), actions.onUndo, enabled = canUndo)
             SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.onRedo, enabled = canRedo)
-            Box(Modifier.weight(1f))
-            Text(
-                stringResource(Res.string.sheetedit_autosaved),
-                modifier = Modifier.offset(x = 4.dp),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = colors.textMuted,
-            )
+            Box(Modifier.weight(1f).offset(x = 4.dp), contentAlignment = Alignment.CenterEnd) { saveFeedback() }
         }
         SegmentTabs(
             labels = listOf(stringResource(Res.string.sheetedit_tab_yul), stringResource(Res.string.sheetedit_tab_sigimsae), stringResource(Res.string.sheetedit_tab_cell)),
@@ -334,7 +328,7 @@ private fun YulKey(note: ScoreNote, enabled: Boolean, selected: Boolean, onClick
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(vertical = 4.dp)) {
             Box(Modifier.height(24.dp), contentAlignment = Alignment.Center) {
-                // 정간보 한자가 없는 음(중청대 등)은 렌더러처럼 한글로 적되, 자판 칸에 들어가게 작게 쓴다.
+                // 한글 대체가 필요한 표기는 작게, 보조 폰트의 세 율명은 공통 렌더러에서 한자로 그린다.
                 if (source != null && source.symbol == source.hangul) {
                     Text(hangul, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
                 } else {

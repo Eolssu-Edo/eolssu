@@ -8,6 +8,7 @@
 import io
 import os
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,65 @@ from omr_service import api, staff_engine
 from omr_service.api import app, get_fetcher
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures/omr"
+
+
+def test_tempo_note_inside_numeric_direction_is_masked_but_ledger_note_is_not():
+    import zipfile
+    from omr_service.staff_engine import tempo_regions
+    doc = b'''<sheet><system><sig><inters>
+      <sentence role="Direction"><bounds x="100" y="50" w="180" h="20"/></sentence>
+      <word value="Moderato"><bounds x="100" y="50" w="70" h="20"/></word>
+      <word value="="><bounds x="220" y="50" w="10" h="20"/></word>
+      <word value="100"><bounds x="240" y="50" w="40" h="20"/></word>
+      <head><bounds x="190" y="55" w="20" h="16"/></head>
+      <head><bounds x="310" y="55" w="20" h="16"/></head>
+    </inters></sig></system></sheet>'''
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w") as z:
+        z.writestr("sheet#1/sheet#1.xml", doc)
+    assert tempo_regions(stream.getvalue()) == [(100, 20, 280, 75)]
+
+
+def test_numeric_fingering_does_not_mask_notes():
+    import zipfile
+    from omr_service.staff_engine import tempo_regions
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w") as z:
+        z.writestr("sheet#1/sheet#1.xml", '<sheet><sentence role="Direction"><bounds x="1" y="1" w="20" h="20"/></sentence></sheet>')
+    assert tempo_regions(stream.getvalue()) == []
+
+
+def test_rhythm_check_detects_extra_eighth_but_allows_pickup_and_meter_change():
+    from omr_service.staff_engine import rhythm_quality
+    def m(beats, duration):
+        return (f'<measure><attributes><divisions>4</divisions><time><beats>{beats}</beats>'
+                f'<beat-type>8</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave>'
+                f'</pitch><duration>{duration}</duration></note></measure>')
+    def doc(*ms):
+        return ('<score-partwise><part>' + ''.join(ms) + '</part></score-partwise>').encode()
+    assert rhythm_quality([doc(m(9, 6), m(9, 18), m(6, 12))]) == (0, 0, 3)
+    count, excess, notes = rhythm_quality([doc(m(9, 19))])
+    assert (count, excess, notes) == (1, Fraction(1, 18), 1)
+
+
+def test_rhythm_refinement_preserves_graces_and_repairs_only_an_overfull_bar():
+    from omr_service.staff_engine import refine_rhythm
+    def note(step, duration, grace=False):
+        return f'<note>{"<grace/>" if grace else ""}<pitch><step>{step}</step><octave>4</octave></pitch><duration>{duration}</duration></note>'
+    def doc(notes):
+        return ('<score-partwise><part><measure><attributes><divisions>4</divisions><time><beats>9</beats>'
+                '<beat-type>8</beat-type></time></attributes>'+notes+'</measure></part></score-partwise>').encode()
+    original=doc(note('A',0,True)+note('E',12)+note('G',3)+note('F',2)+note('E',2))
+    candidate=doc(note('A',4)+note('E',12)+note('G',3)+note('F',1)+note('E',2))
+    fixed=refine_rhythm(original,candidate)
+    assert staff_engine.rhythm_quality([fixed]) == (0,0,4)
+    import xml.etree.ElementTree as ET
+    ns=ET.fromstring(fixed).findall('.//note')
+    assert ns[0].find('grace') is not None
+    assert [n.findtext('duration') for n in ns[1:]] == ['12','3','1','2']
+    # Different pitches and already valid bars are never rewritten.
+    assert refine_rhythm(original,candidate.replace(b'<step>F</step>',b'<step>D</step>')) == original
+    assert refine_rhythm(fixed,original) == fixed
 needs_generator = pytest.mark.skipif(not os.environ.get("JGB_GENERATOR_DIR"),
                                      reason="JGB_GENERATOR_DIR(jeongganbo-generator 클론)가 없다")
 # 실제 Audiveris 5.11은 오선이 없는 쪽에서 .mxl 없이 종료 코드 1로 끝나고, 원인을 표준 출력에만 쓴다(U5 리뷰 실측)

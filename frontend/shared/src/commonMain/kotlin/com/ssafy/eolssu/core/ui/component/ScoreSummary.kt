@@ -184,6 +184,7 @@ fun TintPillButton(
  * 점수 상자(테두리 #E8E4DA · 반지름 16): 왼쪽 총점 일원상, 오른쪽 항목 막대와 그 아래 오른쪽 [action] 버튼,
  * 맨 아래 [memo](있을 때만, 큰따옴표로 감싼다). [extra]는 버튼 줄 왼쪽(예시 결과 표시 등)에 둔다.
  * [filled]이면 테두리 대신 흰 바탕 카드다(회색 바탕 화면, S15P31E102-768).
+ * [title](곡 제목)이 있으면 상자 왼쪽 위에 두 줄까지 둔다(이전 연주 결과, S15P31E102-810). 없으면 지금과 같다.
  */
 @Composable
 fun ScoreSummaryCard(
@@ -194,11 +195,25 @@ fun ScoreSummaryCard(
     action: (@Composable () -> Unit)? = null,
     extra: (@Composable () -> Unit)? = null,
     filled: Boolean = false,
+    title: String? = null,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(16.dp)
     Column(modifier.fillMaxWidth().then(if (filled) Modifier.background(colors.surface, shape) else Modifier.border(1.dp, colors.lineSoft, shape))) {
-        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 10.dp, end = 10.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (!title.isNullOrBlank()) {
+            Text(
+                title,
+                modifier = Modifier.fillMaxWidth().padding(start = 14.dp, top = 12.dp, end = 12.dp).semantics { heading() },
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold),
+                color = colors.text,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(start = 12.dp, top = if (title.isNullOrBlank()) 10.dp else 4.dp, end = 10.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             ScoreRing(total, Modifier.align(Alignment.CenterVertically))
             Column(Modifier.weight(1f).align(Alignment.CenterVertically), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 MetricBars(metrics, Modifier.padding(top = 4.dp))

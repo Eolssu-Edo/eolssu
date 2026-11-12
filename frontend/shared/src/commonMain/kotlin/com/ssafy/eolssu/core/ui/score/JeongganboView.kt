@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
+import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.model.key
 import com.ssafy.eolssu.core.model.ScoreNote
@@ -191,7 +192,9 @@ data class ScoreCellMark(
  * @param onUnitClick 표시 자리를 선택할 때 쓴다. 이음과 빈 자리가 원본 이벤트를 공유해도 표시 좌표는 다르다.
  * @param look 모양([JeongganboLook]). 기본은 옛 와이어프레임, 연습 화면은 연두 보드 `.ms`.
  * @param decorations 정간(각, 정간)마다의 꾸밈([ScoreCellDecoration]). 같은 정간의 [errors] 표시보다 먼저 쓴다(이전 연주 비교·구간 처음/끝 등).
- * @param sectionColumns 이 범위의 각을 취약 구간으로 표시한다(2차): 연두 테두리 · 옅은 바깥 띠(`#EFF2D6` 3dp) · 크림 머리.
+ * @param section 고른·연주한 구간([ScoreSection]). 처음부터 끝까지 모든 정간에 연두 바탕(`accentTint` `#EFF2D6`)을 깐다.
+ *   각 표시(연두 테두리 · 옅은 바깥 띠 `#EFF2D6` 3dp · 크림 머리)는 각 전체가 구간에 든 각([ScoreSection.fullColumns])에만 둔다.
+ * @param sectionColumns 정간은 칠하지 않고 이 범위의 각에만 각 표시를 둔다(연주 결과의 각 단위 취약 구간).
  * @param fadedColumns 이 각들은 머리까지 흐리게(35%) 그린다(구간 반복의 앞뒤 각).
  * @param cellMarks (각, 정간) → 덧그릴 표시([ScoreCellMark]). 악보 편집에서 고른 정간·빈 정간을 표시한다.
  * @param focusCell 실제 표시 정간(각, 정간)을 가로·세로 스크롤 안에 보이게 한다. 줄을 나눈 각도 원본 좌표로 지정한다.
@@ -235,6 +238,7 @@ fun JeongganboView(
     /** 묶음 전체가 공유하는 가로줄 높이. 각 머리글의 시작점을 수평으로 맞춘다. */
     stackRowHeights: List<Dp> = emptyList(),
     decorations: Map<Pair<Int, Int>, ScoreCellDecoration> = emptyMap(),
+    section: ScoreSection? = null,
     sectionColumns: IntRange? = null,
     fadedColumns: Set<Int> = emptySet(),
     cellMarks: Map<Pair<Int, Int>, ScoreCellMark> = emptyMap(),
@@ -255,6 +259,7 @@ fun JeongganboView(
         scoreStrips(song.score, song.jangdan, maxColumns, maxRows, columns, splitColumns)
     }
     val unitsByCell = remember(song) { song.displayUnits.groupBy { it.column to it.row } }
+    val fullSectionColumns = remember(song, section) { section?.fullColumns(song.score) }
     // 원본에는 대강 경계가 없다. 예전 장단의 고정 분할을 새 악보에 덧씌우지 않되, 보드처럼 각 길이가 장단 정간 수와 같으면 선만 긋는다.
     val patternStarts = song.jangdan?.daegangStarts.orEmpty()
     fun daegangStarts(column: Int): List<Int> = when {
@@ -316,10 +321,15 @@ fun JeongganboView(
     }
     val drawStrip: @Composable (Int, ScoreStrip) -> Unit = { readingIndex, strip ->
         val starts = daegangStarts(strip.column)
+        val highlightedColumn = highlightColumns != null && strip.column in highlightColumns
+        val sectionColumn = sectionColumns?.contains(strip.column) == true || fullSectionColumns?.contains(strip.column) == true
+        // 각 테두리가 이미 연두로 둘러싼 각은 정간 테두리를 겹쳐 긋지 않는다.
+        val columnOutlined = !look.joined && (highlightedColumn || sectionColumn)
+        fun inSection(row: Int) = section?.contains(strip.column, row) == true
         ScoreStripColumn(
             strip, renderMetrics, readingIndex, look,
-            highlighted = highlightColumns != null && strip.column in highlightColumns,
-            section = sectionColumns != null && strip.column in sectionColumns,
+            highlighted = highlightedColumn,
+            section = sectionColumn,
             faded = strip.column in fadedColumns,
             upcoming = upcomingColumn == strip.column,
             leftDivider = look.joined && readingIndex != strips.lastIndex,
@@ -342,6 +352,17 @@ fun JeongganboView(
                 errorKinds = errorKinds[strip.column to row].orEmpty(),
                 unitErrors = if (unitMode(strip.column to row)) unitErrors else emptyMap(),
                 decoration = decorations[strip.column to row],
+                inSection = inSection(row),
+                sectionEdges = if (inSection(row) && !columnOutlined) {
+                    RingEdges(
+                        sharedTop = row - 1 in strip.rows && inSection(row - 1),
+                        sharedBottom = row + 1 in strip.rows && inSection(row + 1),
+                        coveredTop = strip.strip > 0 && row == strip.rows.first,
+                        coveredBottom = row == strip.rows.last,
+                    )
+                } else {
+                    null
+                },
                 ringEdges = RingEdges(
                     sharedTop = row - 1 in strip.rows && ringAtEdge(strip.column to row - 1, bottom = true),
                     sharedBottom = row + 1 in strip.rows && ringAtEdge(strip.column to row + 1, bottom = false),
@@ -625,6 +646,8 @@ private fun ScoreCellBox(
     errorKinds: List<ScoreErrorKind> = emptyList(),
     unitErrors: Map<ScoreUnitKey, List<ScoreErrorKind>> = emptyMap(),
     decoration: ScoreCellDecoration?,
+    inSection: Boolean = false,
+    sectionEdges: RingEdges? = null,
     ringEdges: RingEdges = RingEdges(),
     selectedIndex: Int?,
     selectedCell: Boolean?,
@@ -694,6 +717,8 @@ private fun ScoreCellBox(
     }
     if (dimmed && !isSelected) cellModifier = cellModifier.alpha(0.55f)
     if (mark != null && mark.alpha < 1f && !isSelected) cellModifier = cellModifier.alpha(mark.alpha)
+    // 구간 정간 바탕은 맨 아래에 깔아 진행 채움·현재 표시·틀린 종류 바탕이 그 위에 보이게 한다.
+    if (inSection) cellModifier = cellModifier.background(colors.accentTint)
     // 재생·연주 중에는 모양과 관계없이 지나간 정간에 옅은 바탕을 깔아 어디까지 왔는지 보이게 한다.
     cellModifier = when {
         live && progress == CellProgress.Past -> cellModifier.background(colors.doneSoft)
@@ -770,6 +795,13 @@ private fun ScoreCellBox(
             }
         }
     }
+    // 구간 정간은 연두 바탕과 어울리는 테두리로 구간 바깥 둘레만 긋는다. 틀린 정간·현재 정간 테두리 아래에 깔리도록 그 뒤에 붙인다.
+    if (sectionEdges != null) {
+        cellModifier = cellModifier.drawWithContent {
+            drawContent()
+            drawSectionOutline(colors.accentTintLine, 2.dp.toPx(), sectionEdges, 1.dp.toPx())
+        }
+    }
 
     // 오른쪽 위 종류 아이콘(정간 하나에 하나 또는 세로로 쌓은 여러 개)이 차지하는 높이. 율명은 이 자리를 피해 놓는다.
     val cellTag = mark?.tag
@@ -830,13 +862,15 @@ private fun ScoreCellBox(
                                         ring,
                                         topLeft = Offset(stroke / 2, stroke / 2),
                                         size = Size(size.width - stroke, size.height - stroke),
-                                        style = androidx.compose.ui.graphics.drawscope.Stroke(stroke),
+                                        style = androidx.compose.ui.graphics.drawscope.Stroke(stroke,
+                                            pathEffect = if (pick.dashed) PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx())) else null),
                                     )
                                 }
                             // 이 소박 오른쪽 위를 덮는 아이콘 자리: 정간 아이콘은 맨 오른쪽 소박 가운데 아이콘 높이에 걸친 줄만, 소박 아이콘은 그 소박.
                             val unitTop = metrics.cellHeight * r / rows.size
                             val subTagSize = (metrics.cellHeight / rows.size - 3.dp).coerceIn(9.dp, 14.dp)
                             val reserve = when {
+                                pick?.tag != null -> DpSize(12.dp, 12.dp)
                                 subKinds.isNotEmpty() -> DpSize(subTagSize * subKinds.size + 1.dp * (subKinds.size - 1), subTagSize + 2.dp)
                                 c == row.lastIndex && tagBottom > unitTop -> DpSize(tagSize, tagBottom - unitTop + 1.dp)
                                 else -> null
@@ -862,6 +896,14 @@ private fun ScoreCellBox(
                                 modifier = Modifier.fillMaxSize(),
                                 sigimsae = annotations[unit.key].orEmpty(),
                             )
+                            pick?.tag?.let { tag ->
+                                Text(tag,
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 3.dp).clearAndSetSemantics {},
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 10.sp, fontWeight = FontWeight.Bold),
+                                    color = colors.text,
+                                    maxLines = 1,
+                                )
+                            }
                             if (subKinds.isNotEmpty()) {
                                 // 틀린 소박의 오른쪽 위에 종류 아이콘. 나뉜 줄 높이에 맞춰 줄인다(최대 14dp, 최소 9dp).
                                 val size = (metrics.cellHeight / rows.size - 3.dp).coerceIn(9.dp, 14.dp)
@@ -971,6 +1013,21 @@ private fun DrawScope.drawCellRing(color: Color, width: Float, dash: PathEffect?
     // 세로 변
     drawLine(color, Offset(left + leftWidth / 2, top), Offset(left + leftWidth / 2, bottom), leftWidth, pathEffect = dash)
     drawLine(color, Offset(right - rightWidth / 2, top), Offset(right - rightWidth / 2, bottom), rightWidth, pathEffect = dash)
+}
+
+/**
+ * 구간 정간 테두리. 이어지는 구간 정간 사이([RingEdges.sharedTop]·[RingEdges.sharedBottom])에는 선을 긋지 않아
+ * 한 각 안의 구간이 하나의 상자로 보인다. 왼쪽·오른쪽은 각 경계선에 가리지 않게 [cover]만큼 들인다.
+ */
+private fun DrawScope.drawSectionOutline(color: Color, width: Float, edges: RingEdges, cover: Float) {
+    val top = if (edges.coveredTop) cover else 0f
+    val bottom = size.height - if (edges.coveredBottom) cover else 0f
+    val left = cover
+    val right = size.width - cover
+    if (!edges.sharedTop) drawLine(color, Offset(left, top + width / 2), Offset(right, top + width / 2), width)
+    if (!edges.sharedBottom) drawLine(color, Offset(left, bottom - width / 2), Offset(right, bottom - width / 2), width)
+    drawLine(color, Offset(left + width / 2, top), Offset(left + width / 2, bottom), width)
+    drawLine(color, Offset(right - width / 2, top), Offset(right - width / 2, bottom), width)
 }
 
 /** 곁줄(`.ms-lyr`) 한 칸. 왼쪽 선과 위 선(대강이면 굵게)을 긋는다. */

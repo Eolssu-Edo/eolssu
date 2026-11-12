@@ -25,7 +25,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,7 +61,6 @@ import com.ssafy.eolssu.core.model.SongSortOrder
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_clear
 import eolssu.shared.generated.resources.song_empty
-import eolssu.shared.generated.resources.song_empty_body
 import eolssu.shared.generated.resources.song_level_all
 import eolssu.shared.generated.resources.song_list_heading
 import eolssu.shared.generated.resources.song_reset_filters
@@ -153,13 +151,12 @@ internal fun SongLevelChips(
 private fun songLevelFilterLabel(filter: SongLevelFilter): String =
     filter.level?.let { songLevelLabel(it) } ?: stringResource(Res.string.song_level_all)
 
-/** 검색·필터 결과가 없을 때(`.empty`): 井 · '찾는 곡이 없어요.' · 안내 · 너비를 채운 '검색 조건 초기화'. */
+/** 검색·필터 결과가 없을 때(`.empty`): 井 · '찾는 곡이 없어요.' · '검색 조건 초기화'. 보조 안내 문구는 두지 않는다(S15P31E102-812). */
 @Composable
 internal fun SongEmptyResult(
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
     title: String = stringResource(Res.string.song_empty),
-    body: String = stringResource(Res.string.song_empty_body),
     resetLabel: String = stringResource(Res.string.song_reset_filters),
 ) {
     Column(
@@ -177,16 +174,9 @@ internal fun SongEmptyResult(
         )
         Text(
             title,
-            modifier = Modifier.padding(top = 14.dp, bottom = 8.dp).semantics { heading() },
+            modifier = Modifier.padding(top = 14.dp, bottom = 16.dp).semantics { heading() },
             style = EolssuTheme.serif.songTitle.copy(fontSize = 20.sp),
             color = EolssuTheme.colors.text,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            body,
-            modifier = Modifier.padding(bottom = 16.dp),
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-            color = EolssuTheme.colors.textMuted,
             textAlign = TextAlign.Center,
         )
         EolssuButton(resetLabel, onReset, style = EolssuButtonStyle.Secondary)
