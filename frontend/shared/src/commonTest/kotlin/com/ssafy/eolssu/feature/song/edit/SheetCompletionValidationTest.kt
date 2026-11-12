@@ -15,6 +15,40 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class SheetCompletionValidationTest : CatalogViewModelTest() {
+    @Test fun supportedPitchWithADifferentWrittenGlyphIsReportedAtItsEvent() = runTest {
+        val capability = CompletionCatalog().authoringCapabilities("11")
+        val score = smallScoreData().let { original -> original.copy(events = original.events.mapIndexed { i, event ->
+            if (i == 0) event.copy(yul = "태", octave = 0) else event
+        }) }
+        val issue = capability.issues(score).single()
+        assertEquals(score.events.first().id, issue.eventId)
+        assertEquals(listOf("NOTATION_PITCH_MISMATCH"), issue.reasonCodes)
+    }
+    @Test fun changingAudioInstrumentRevalidatesTheSavedNotesBeforeRequestingAudio() = runTest {
+        val base = CompletionCatalog()
+        val catalog = object : ReferenceCatalogRepository by base {
+            override suspend fun authoringCapabilities(instrumentId: String): CatalogAuthoringCapabilities {
+                val source = base.authoringCapabilities(instrumentId)
+                return if (instrumentId == "11") source else source.copy(instrumentCode = "SOGEUM",
+                    items = source.items.map { it.copy(fingering = "UNKNOWN", selectable = false, reasonCodes = listOf("FINGERING_UNKNOWN")) })
+            }
+        }
+        var requests = 0
+        val audio = object : SheetAudioRepository {
+            override suspend fun status(sheetId: String) = SheetAudioLookup.None
+            override suspend fun request(sheetId: String, settings: SheetAudioSettings): SheetAudioRequest { requests++; return SheetAudioRequest.Unavailable }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
+            SampleMySheetRepository(), sheetAudio = audio, documents = RecordingDocuments(document()), pitchCatalog = catalog,
+            loadAudioInstruments = { listOf(CatalogInstrument("11", "DANSO", "단소"), CatalogInstrument("22", "SOGEUM", "소금")) }))
+        runCurrent()
+        assertTrue(model.uiState.value.audioInstruments!!.unsupported.isEmpty())
+        model.selectAudioInstrument("22"); runCurrent()
+        assertTrue(model.uiState.value.audioInstruments!!.unsupported.isNotEmpty())
+        model.requestAudio(); runCurrent()
+        assertEquals(0, requests)
+        assertEquals(SheetEditMessage.AudioUnsupportedPitches, model.uiState.value.message)
+    }
     @Test fun invalidPitchCannotBeConfirmedAndUndoRechecksTheCurrentScoreEvenAfterSaving() = runTest {
         val repository = RecordingDocuments(document(issues = listOf(issue("UNREGISTERED_PITCH"))))
         val model = open(repository, CompletionCatalog(registered = listOf(pitch("황", 0), pitch("태", 0))))
@@ -56,7 +90,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
             SampleMySheetRepository(), documents = repository, pitchCatalog = catalog,
             loadAudioInstruments = { listOf(CatalogInstrument("22", "DAEGEUM", "대금"), CatalogInstrument("11", "DANSO", "단소")) }))
         runCurrent()
-        assertEquals(listOf("11"), catalog.instrumentReads)
+        assertEquals(setOf("11"), catalog.instrumentReads.toSet())
         assertTrue(("중" to 1) in model.uiState.value.availablePitches.orEmpty())
         model.openNextReviewCell(); model.checkReviewIssue(); model.requestSave(); runCurrent()
         assertTrue(model.uiState.value.checkedIssueIds.isEmpty())
@@ -271,10 +305,10 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         var rangeReads = 0
         val base = CompletionCatalog()
         val catalog = object : ReferenceCatalogRepository by base {
-            override suspend fun pitches(instrumentId: String): List<CatalogPitch> {
+            override suspend fun authoringCapabilities(instrumentId: String): com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities {
                 rangeReads++
                 if (fail) error("catalog unavailable")
-                return base.pitches(instrumentId)
+                return base.authoringCapabilities(instrumentId)
             }
         }
         val repository = RecordingDocuments(document(jangdanId = "3", notices = listOf(notice("JANGDAN_MISMATCH"))))
@@ -288,17 +322,18 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         assertFalse(model.uiState.value.completionValidation.canComplete)
         model.requestSave(); runCurrent()
         assertTrue(repository.writes.isEmpty())
+        val readsBeforeRetry = rangeReads
         fail = false
         model.retryCompletionCatalog()
         assertTrue(model.uiState.value.completionValidation.catalogLoading)
         runCurrent()
-        assertEquals(2, rangeReads)
+        assertEquals(readsBeforeRetry + 1, rangeReads)
         assertTrue(model.uiState.value.completionValidation.canComplete)
         model.requestSave(); runCurrent()
         assertFalse(repository.writes.single().first)
     }
 
-    @Test fun missingInstrumentMappingOrEmptyRangeIsAFailedCatalogRatherThanAnEmptyAllowedSet() = runTest {
+    @Test fun missingMappingFailsButAnEmptyAuthoringIntersectionRemainsAnExplicitUnsupportedSet() = runTest {
         for (missingMapping in listOf(true, false)) {
             val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
                 SampleMySheetRepository(), documents = RecordingDocuments(document()),
@@ -307,7 +342,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
                     if (missingMapping) emptyList() else listOf(CatalogInstrument("11", "DANSO", "단소"))
                 }))
             runCurrent()
-            assertTrue(model.uiState.value.completionValidation.catalogFailed)
+            assertEquals(missingMapping, model.uiState.value.completionValidation.catalogFailed)
             assertFalse(model.uiState.value.completionValidation.canComplete)
         }
     }
@@ -345,6 +380,17 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         private val instrument: List<CatalogPitch> = registered,
     ) : ReferenceCatalogRepository {
         val instrumentReads = mutableListOf<String>()
+        override suspend fun authoringCapabilities(instrumentId: String): com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities {
+            instrumentReads += instrumentId
+            return com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities(instrumentId, "DANSO", "registered-guidance-cat/v1", 63,
+                com.ssafy.eolssu.data.song.AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), registered.map { pitch ->
+                    val supported = pitch in instrument
+                    com.ssafy.eolssu.data.song.AuthoringPitchCapability(pitch.pitchId, pitch.yul, pitch.octave, pitch.hanja, pitch.hangul,
+                        pitch.semitone, 63 + pitch.semitone, "UNKNOWN", fingering = if (supported) "REGISTERED" else "UNKNOWN",
+                        notation = "SUPPORTED", synthesis = "SUPPORTED", selectable = supported,
+                        reasonCodes = if (supported) emptyList() else listOf("FINGERING_UNKNOWN"))
+                })
+        }
         override suspend fun allPitches() = registered
         override suspend fun pitches(instrumentId: String): List<CatalogPitch> { instrumentReads += instrumentId; return instrument }
         override suspend fun jangdans() = emptyList<CatalogJangdanSummary>()
@@ -354,6 +400,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
     }
 
     private companion object {
-        fun pitch(yul: String, octave: Int) = CatalogPitch("$yul-$octave", yul, octave, yul, yul, 0)
+        fun pitch(yul: String, octave: Int) = CatalogPitch("$yul-$octave", yul, octave, yul,
+            ScoreNote.SourcePitch(yul, octave).hangul, "황대태협고중유임이남무응".indexOf(yul) + 12 * octave)
     }
 }

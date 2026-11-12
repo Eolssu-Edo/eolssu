@@ -15,6 +15,8 @@
 !data/reference/
 !data/reference/jangdans.json
 !data/src/
+!data/src/scores/
+!data/src/scores/score_data.schema.json
 !data/src/playback/
 !data/src/playback/profiles/
 !data/src/playback/profiles/*.json

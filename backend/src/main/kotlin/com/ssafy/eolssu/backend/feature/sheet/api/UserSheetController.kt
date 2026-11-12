@@ -92,12 +92,14 @@ class UserSheetController(
             bpm = request.bpm!!,
             scoreJson = json.writeValueAsString(score),
             resolvedIssueIds = resolved?.toList()?.map { it.stringValue() }.orEmpty(),
+            authoringJson = request.authoring?.takeUnless { it.isNull }?.toString(),
         )
         return when (val result = editUserSheet.save(command)) {
             is SaveSheetScoreResult.Saved ->
                 ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "정간보 편집 저장 성공", SavedSheetScore.of(result.sheet, result.events)))
             is SaveSheetScoreResult.UnfilledCells -> ResponseEntity.status(ErrorCode.UNFILLED_CELLS.status)
                 .body(ErrorResponse.of(ErrorCode.UNFILLED_CELLS, mapOf("cellIds" to result.cellIds)))
+            is SaveSheetScoreResult.UnsupportedPitches -> ResponseEntity.badRequest().body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, result.details))
             SaveSheetScoreResult.NotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
             SaveSheetScoreResult.InvalidRequest -> error(ErrorCode.INVALID_REQUEST)
             SaveSheetScoreResult.StateConflict -> error(ErrorCode.STATE_CONFLICT)
@@ -123,6 +125,7 @@ class UserSheetController(
             jangdanId = request.jangdanId?.toLong(),
             bpm = request.bpm!!,
             scoreJson = json.writeValueAsString(score),
+            authoringJson = request.authoring?.takeUnless { it.isNull }?.toString(),
         )
         return when (val result = editUserSheet.saveDraft(command)) {
             is SaveSheetDraftResult.Saved -> ResponseEntity.ok(
@@ -200,6 +203,7 @@ data class SaveSheetScoreRequest(
     // 공통 악보 문서와 확인한 항목 목록의 모양은 컨트롤러·응용에서 검사한다.
     @field:NotNull val score: JsonNode? = null,
     val resolvedIssueIds: JsonNode? = null,
+    val authoring: JsonNode? = null,
 )
 
 data class SaveSheetDraftRequest(
@@ -210,6 +214,7 @@ data class SaveSheetDraftRequest(
     @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val jangdanId: String? = null,
     @field:NotNull @param:JsonDeserialize(using = StrictIntDeserializer::class) val bpm: Int? = null,
     @field:NotNull val score: JsonNode? = null,
+    val authoring: JsonNode? = null,
 )
 
 data class SavedSheetScore(
@@ -256,6 +261,7 @@ data class SheetScore(
     /** 확정 저장 전 자동 저장 초안. 없으면 null. */
     val draft: SheetDraftView?,
     val updatedAt: Instant,
+    val authoring: JsonNode? = null,
 ) {
     companion object {
         fun of(sheet: UserSheet, events: List<ScoreTimelineEvent>, json: JsonMapper): SheetScore {
@@ -267,6 +273,7 @@ data class SheetScore(
             sheet.scoreVersion.toString(), sheet.status.name, sheet.scoreJson?.let(json::readTree), events,
             sheet.imported?.let { SheetSourceView(sheet.source, it.fileName, it.hwangPitch,emptyList(),null) }, sheet.imported?.conversionStatus?.name,
             details?.path("issues")?.toList() ?: emptyList(), details?.path("notices")?.toList() ?: emptyList(), sheet.draft?.let { SheetDraftView.of(it, sheet.draftRevision, json) }, sheet.updatedAt,
+            com.ssafy.eolssu.backend.feature.sheet.application.SheetAuthoring(json).current(sheet),
         )
         }
     }
@@ -291,6 +298,7 @@ data class SheetDraftView(
     val baseScoreVersion: String,
     val draftRevision: Int,
     val savedAt: Instant,
+    val authoring: JsonNode? = null,
 ) {
     companion object {
         fun of(draft: SheetDraft, revision: Int, json: JsonMapper): SheetDraftView {
@@ -298,6 +306,7 @@ data class SheetDraftView(
             return SheetDraftView(
                 document.path("title").stringValue(), document.path("jangdanId").takeIf { it.isString }?.stringValue(),
                 document.path("bpm").intValue(), document.path("score"), draft.baseScoreVersion.toString(), revision, draft.savedAt,
+                document.path("authoring").takeUnless { it.isMissingNode || it.isNull },
             )
         }
     }

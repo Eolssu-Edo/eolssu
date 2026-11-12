@@ -23,7 +23,7 @@ class MyBatisUserSheetRepository(private val mapper: UserSheetMapper,manager: or
         val changed=mapper.updateScore(
         SheetScoreUpdateRow(
             update.sheetId, update.userId, update.baseScoreVersion, update.title, if(update.pendingCellCount==0) SheetStatus.EVALUABLE.name else SheetStatus.NEEDS_REVIEW.name, update.jangdanId, update.bpm,
-            update.bpmUnit, update.columnCount, update.scoreJson, update.noteCount, LocalDateTime.ofInstant(update.updatedAt, ZoneOffset.UTC),update.pendingCellCount,
+            update.bpmUnit, update.columnCount, update.scoreJson, update.noteCount, LocalDateTime.ofInstant(update.updatedAt, ZoneOffset.UTC),update.pendingCellCount, update.authoringJson,
         ),
         ) == 1
         if(changed && update.conversionResultJson!=null) mapper.updateConversionResult(update.sheetId,update.conversionResultJson)
@@ -44,5 +44,6 @@ class MyBatisUserSheetRepository(private val mapper: UserSheetMapper,manager: or
         scoreJson, noteCount, pendingCellCount, updatedAt.toInstant(ZoneOffset.UTC),
         draftJson?.let { SheetDraft(it, checkNotNull(draftBaseVersion), checkNotNull(draftSavedAt).toInstant(ZoneOffset.UTC)) }, draftRevision,
         conversionStatus?.let { SheetImportSource(SheetImportStatus.valueOf(it), checkNotNull(sourcePageCount), sourceFileName, hwangPitch,conversionResultJson) },
+        authoringJson,
     )
 }

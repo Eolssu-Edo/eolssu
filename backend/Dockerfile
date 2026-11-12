@@ -7,6 +7,7 @@ COPY backend/src/main/ src/main/
 # Canonical catalogs are shared with DATA/AI and bundled by processResources.
 COPY data/reference/jangdans.json /workspace/data/reference/jangdans.json
 COPY data/src/playback/profiles/ /workspace/data/src/playback/profiles/
+COPY data/src/scores/score_data.schema.json /workspace/data/src/scores/score_data.schema.json
 RUN --mount=type=cache,target=/root/.gradle ./gradlew --no-daemon bootJar
 
 FROM eclipse-temurin:21-jre AS runtime

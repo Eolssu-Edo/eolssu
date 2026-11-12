@@ -454,6 +454,57 @@ class UserSheetApiDatabaseTests {
     }
 
     // 만들기 API(SHT-03)는 S15P31E102-462에서 지웠다. 그 API가 만들던 MANUAL 행과 같은 값으로 바로 넣는다.
+    @Test
+    fun `source snapshot survives draft and older clients and cannot be rewritten`() {
+        val id = insertSongCopy(OWNER, "원본 보존")
+        fun document() = json.readTree(get(OWNER, "/api/users/me/sheets/$id/score").body()).path("result")
+        val initial = document()
+        val metadata = initial.path("authoring").deepCopy() as ObjectNode
+        assertEquals(initial.path("scoreData"), metadata.path("source").path("score"))
+        assertTrue(metadata.path("source").path("notes").size() > 0)
+        metadata.putObject("adaptation").put("instrument", "DANSO").put("transpose", 0).putArray("changes")
+        val draft = json.readTree(draftBody("1", 0, initial.path("scoreData"))) as ObjectNode
+        draft.set("authoring", metadata)
+        val drafted = send(OWNER, "PUT", "/api/users/me/sheets/$id/score/draft", draft.toString())
+        assertEquals(200, drafted.statusCode(), drafted.body())
+        assertEquals(metadata, document().path("draft").path("authoring"))
+        val forged = metadata.deepCopy()
+        (forged.path("source").path("notes").get(0) as ObjectNode).put("midi", 0)
+        val save = json.readTree(scoreBody("1", initial.path("scoreData"))) as ObjectNode
+        save.set("authoring", forged)
+        assertEquals(400, send(OWNER, "PUT", "/api/users/me/sheets/$id/score", save.toString()).statusCode())
+        save.remove("authoring") // Older clients preserve the server snapshot.
+        val result = send(OWNER, "PUT", "/api/users/me/sheets/$id/score", save.toString())
+        assertEquals(200, result.statusCode(), result.body())
+        assertEquals(metadata.path("source"), document().path("authoring").path("source"))
+        assertTrue(document().path("draft").isNull)
+        val reference = json.createObjectNode().put("schema", "sheet-authoring/v1")
+        reference.putObject("source").put("scoreSha256", metadata.path("source").path("scoreSha256").asString())
+        val next = json.readTree(scoreBody("2", document().path("scoreData"))) as ObjectNode
+        next.set("authoring", reference)
+        val savedReference = send(OWNER, "PUT", "/api/users/me/sheets/$id/score", next.toString())
+        assertEquals(200, savedReference.statusCode(), savedReference.body())
+        assertEquals(metadata.path("source"), document().path("authoring").path("source"))
+    }
+
+    @Test
+    fun `legacy blank draft captures source when it first becomes readable`() {
+        val id = insertBlank(OWNER, "이전 빈 초안")
+        val score = json.readTree(get(OWNER, "/api/songs/1/score").body()).path("result").path("score")
+        fun document() = json.readTree(get(OWNER, "/api/users/me/sheets/$id/score").body()).path("result")
+        assertTrue(document().path("authoring").isNull)
+        val first = send(OWNER, "PUT", "/api/users/me/sheets/$id/score/draft", draftBody("1", 0, score))
+        assertEquals(200, first.statusCode(), first.body())
+        val readable = document()
+        assertTrue(readable.path("draft").path("authoring").isNull)
+        assertEquals(score, readable.path("authoring").path("source").path("score"))
+        val second = send(OWNER, "PUT", "/api/users/me/sheets/$id/score/draft", draftBody("1", 1, score))
+        assertEquals(200, second.statusCode(), second.body())
+        val captured = document()
+        assertEquals(readable.path("authoring"), captured.path("draft").path("authoring"))
+        assertEquals(2, captured.path("draft").path("draftRevision").intValue())
+    }
+
     private fun insertBlank(user: Long, title: String, columnCount: Int = 4): String {
         val key = "blank-${keys++}"
         jdbc.update(

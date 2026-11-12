@@ -1,5 +1,13 @@
 # 내 악보 조회·목록·편집 저장·삭제·불러오기 API (SHT-01·02·04·07·08·10·11)
 
+## 작성 원본과 변환 기록 (2026-11-11, S15P31E102-771)
+
+SHT-08·초안은 공통 v1 밖의 선택적 `authoring`을 반환한다. `schema=sheet-authoring/v1`, `source={kind,instrument,scoreVersion,scoreSha256,score,notes}`이며 notes는 eventId·cellId·startTick·durationTick·원래 실음 MIDI다. `RECOGNIZED`는 인식 결과 원본, `EXISTING_SCORE`는 과거 원본이 없는 현재 판본 기준이다. 인식 결과 JSON과 V42 `user_sheets.authoring_json`에 보존하고 기존 행은 일괄 변환하지 않는다. 원본 PDF 비보관 정책은 유지한다.
+
+SHT-04·11 요청은 `authoring={schema,source:{scoreSha256},adaptation?}`만 보내 원본 전체 중복으로 1MiB 본문 제한을 넘기지 않는다. 전체 source를 보낼 때도 서버 보존본과 동일해야 하며 클라이언트가 원본을 교체할 수 없다. 생략하는 기존 클라이언트는 원본을 보존한다. `adaptation`은 instrument·전곡 transpose(-6..6)·변경 event의 fromMidi/toMidi/octaveShift를 남긴다. 음 선택·확정 여부는 이 기록을 신뢰하지 않고 실제 공통 악보와 작성 카탈로그로 다시 검사한다.
+
+변환 순위·원본 옥타브 유지·미해결 초안·취소/실행 취소 UX는 [작성 일관성](score-authoring-consistency.md)을 따른다. 위치·길이가 달라진 새 입력은 현 입력을 기준으로 변환하고, 기존 원본 snapshot은 바꾸지 않는다.
+
 - Jira: [S15P31E102-390](https://ssafy.atlassian.net/browse/S15P31E102-390), Story [S15P31E102-319](https://ssafy.atlassian.net/browse/S15P31E102-319). 진행: [390 계획](../plans/S15P31E102-390.md). 편집 저장·자동 저장·삭제: [S15P31E102-413](https://ssafy.atlassian.net/browse/S15P31E102-413), [413 계획](../plans/S15P31E102-413.md). SHT-03 제거: [S15P31E102-462](https://ssafy.atlassian.net/browse/S15P31E102-462), [462 계획](../plans/S15P31E102-462.md). 불러오기 접수·변환 상태: [S15P31E102-471](https://ssafy.atlassian.net/browse/S15P31E102-471), [471 계획](../plans/S15P31E102-471.md).
 - 근거: [Notion API 명세](https://app.notion.com/p/API-3fea0252aa45804cb9f0f896ec0310ad)의 SHT-01·03·08(2026-11-02 디자인 보정 반영본). 2026-11-02 회의 안건(PDF 방향, 초안 연습 진입, 삭제 시 연습 기록, 확인 필요 칸 복사)은 이 범위에서 정하지 않는다. 그중 PDF 방향·삭제 시 연습 기록은 2026-11-03 결정으로 정리됐다([2차 결정](#2차-결정-2026-11-03-미구현)).
 - 상태: 백엔드 결정 초안. 아래 '노션 초안과 다른 점'은 FE(351)와 공유해야 한다.

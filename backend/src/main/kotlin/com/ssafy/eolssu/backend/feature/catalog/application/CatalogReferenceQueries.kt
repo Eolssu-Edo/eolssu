@@ -3,6 +3,9 @@ package com.ssafy.eolssu.backend.feature.catalog.application
 import com.ssafy.eolssu.backend.feature.catalog.domain.CatalogReferenceRepository
 
 class CatalogReferenceQueries(private val repository: CatalogReferenceRepository) {
+    private val authoring = AuthoringCapabilities(repository)
+    fun authoringCapabilities(id: Long) = authoring.get(id)
+
     fun instruments() = repository.activeInstruments()
 
     /** Null means the requested instrument is unavailable; an empty list is valid content. */
