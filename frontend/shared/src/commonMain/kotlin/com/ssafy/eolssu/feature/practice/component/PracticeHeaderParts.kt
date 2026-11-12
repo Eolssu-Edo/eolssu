@@ -65,7 +65,7 @@ fun PracticeTopBar(
     maxWidth: Dp = CompactContentMaxWidth,
     showSettings: Boolean = true,
     onToggleStep: () -> Unit = {},
-    /** false면 머리에 ‘한 음씩’을 두지 않는다. 휴대폰 구간 연습은 제목이 잘리지 않게 설정 버튼 아래 제목 줄에 둔다(S15P31E102-794). */
+    /** false면 머리에 ‘한 음씩’을 두지 않는다. 휴대폰은 연습·구간 연습 모두 설정 버튼 아래 제목 줄에 둔다(S15P31E102-794·816). */
     showStepToggle: Boolean = true,
 ) {
     EolssuPageTopBar(
@@ -101,7 +101,7 @@ fun PracticeTitleRow(
     modifier: Modifier = Modifier,
     showPill: Boolean = true,
     toggles: PracticeTitleToggles? = null,
-    /** 알약 대신 제목 오른쪽에 둘 내용(휴대폰 구간 연습의 ‘한 음씩’). */
+    /** 알약 대신 제목 오른쪽에 둘 내용(휴대폰 연습·구간 연습의 ‘한 음씩’). */
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val song = state.song ?: return
