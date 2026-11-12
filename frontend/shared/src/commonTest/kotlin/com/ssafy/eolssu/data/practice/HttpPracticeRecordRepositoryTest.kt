@@ -9,17 +9,31 @@ import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
+import com.ssafy.eolssu.core.network.inSession
+import com.ssafy.eolssu.core.network.sendOrNull
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import com.ssafy.eolssu.data.user.ApiAuthRepository
+import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.MockEngineConfig
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.request.get
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -44,16 +58,31 @@ class HttpPracticeRecordRepositoryTest {
         member: SignedInMember? = null,
         timeSource: TimeSource = TimeSource.Monotonic,
         reply: suspend (Sent) -> Pair<HttpStatusCode, String>?,
-    ) = HttpPracticeRecordRepository(
-        createHttpClient(
-            MockEngine { request ->
+    ) = repository(client(reply = reply), evaluation, member, timeSource)
+
+    private fun client(
+        dispatcher: CoroutineDispatcher? = null,
+        reply: suspend (Sent) -> Pair<HttpStatusCode, String>?,
+    ) = createHttpClient(
+        MockEngine(MockEngineConfig().apply {
+            this.dispatcher = dispatcher
+            addHandler { request ->
                 val call = Sent(request.method, request.url.encodedPath, request.url.encodedQuery, (request.body as? TextContent)?.text)
                 sent += call
                 val (status, body) = reply(call) ?: error("연결 실패")
                 respond(body, status, headersOf(HttpHeaders.ContentType, "application/json"))
-            },
-            ServerAddress.Production,
-        ),
+            }
+        }),
+        ServerAddress.Production,
+    )
+
+    private fun repository(
+        client: HttpClient,
+        evaluation: EvaluationResult? = null,
+        member: SignedInMember? = null,
+        timeSource: TimeSource = TimeSource.Monotonic,
+    ) = HttpPracticeRecordRepository(
+        client,
         object : EvaluationRepository {
             override suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int) = error("쓰지 않음")
             override suspend fun analysisStatus(analysisId: String) = error("쓰지 않음")
@@ -272,11 +301,13 @@ class HttpPracticeRecordRepositoryTest {
         val requested = CompletableDeferred<Unit>()
         val reply = CompletableDeferred<Unit>()
         val time = TestTimeSource()
-        val repo = repository(timeSource = time) {
+        val member = SignedInMember(FakeKeyValueStore()).also { it.set("member") }
+        val client = client(StandardTestDispatcher(testScheduler)) {
             requested.complete(Unit)
             reply.await()
             recentResponse()
         }
+        val repo = repository(client, member = member, timeSource = time)
         val prefetch = async { repo.prefetchRecentPractice(recentDay) }
         requested.await()
         val myPage = async(start = CoroutineStart.UNDISPATCHED) { repo.loadRecentPractice(recentDay) }
@@ -296,11 +327,113 @@ class HttpPracticeRecordRepositoryTest {
 
     @Test
     fun homePrefetchDoesNotLoadLegacyPages() = runTest {
-        val repo = repository { HttpStatusCode.NotFound to "{}" }
+        val client = client(StandardTestDispatcher(testScheduler)) { HttpStatusCode.NotFound to "{}" }
+        val repo = repository(client)
 
         repo.prefetchRecentPractice(recentDay)
 
         assertEquals(RECENT_PATH, sent.single().path)
+        assertNull(repo.cachedRecentPractice(recentDay))
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun homePrefetchReleasesTheAuthenticationLockAt300msIncludingItsQueueWait() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).also { it.set("member") }
+        val client = client(StandardTestDispatcher(testScheduler)) { call ->
+            when (call.path) {
+                RECENT_PATH -> awaitCancellation()
+                PROFILE_PATH -> ok("{}")
+                else -> error("예상하지 않은 요청")
+            }
+        }
+        val repo = repository(client, member = member)
+        launch { member.changing { delay(200) } }
+        runCurrent()
+        val prefetch = launch { repo.prefetchRecentPractice(recentDay) }
+        runCurrent()
+
+        advanceTimeBy(199)
+        runCurrent()
+        assertTrue(sent.isEmpty())
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals(listOf(RECENT_PATH), sent.map { it.path })
+
+        val profile = async { member.inSession { client.sendOrNull { get(PROFILE_PATH) }?.status } }
+        advanceTimeBy(99)
+        runCurrent()
+        assertFalse(profile.isCompleted)
+
+        advanceTimeBy(1)
+        runCurrent()
+        assertTrue(prefetch.isCompleted, "인증 잠금 대기를 포함해 300ms에 선조회가 끝나야 한다")
+        assertTrue(profile.isCompleted)
+        assertEquals(HttpStatusCode.OK, profile.await())
+        assertEquals(listOf(RECENT_PATH, PROFILE_PATH), sent.map { it.path })
+        assertNull(repo.cachedRecentPractice(recentDay))
+    }
+
+    @Test
+    fun homePrefetch401LeavesAuthenticationRefreshToMyPage() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).also { it.set("member") }
+        var refreshed = false
+        val client = client(StandardTestDispatcher(testScheduler)) { call ->
+            when (call.path) {
+                RECENT_PATH -> if (refreshed) recentResponse() else HttpStatusCode.Unauthorized to "{}"
+                PROFILE_PATH -> ok("{}")
+                REFRESH_PATH -> {
+                    refreshed = true
+                    HttpStatusCode.NoContent to ""
+                }
+                else -> error("예상하지 않은 요청")
+            }
+        }
+        val repo = repository(client, member = member)
+
+        repo.prefetchRecentPractice(recentDay)
+
+        assertEquals(listOf(RECENT_PATH), sent.map { it.path })
+        assertNull(repo.cachedRecentPractice(recentDay))
+        assertEquals(HttpStatusCode.OK, member.inSession { client.sendOrNull { get(PROFILE_PATH) }?.status })
+        assertEquals("41", repo.loadRecentPractice(recentDay)?.latest?.id)
+        assertEquals(listOf(RECENT_PATH, PROFILE_PATH, RECENT_PATH, REFRESH_PATH, RECENT_PATH), sent.map { it.path })
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun logoutCancelsPrefetchAndPreventsMyPageFromStartingAnotherRequest() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).also { it.set("member") }
+        val client = client(StandardTestDispatcher(testScheduler)) { call ->
+            when (call.path) {
+                RECENT_PATH -> awaitCancellation()
+                "/api/auth/sign-out" -> HttpStatusCode.NoContent to ""
+                else -> error("예상하지 않은 요청")
+            }
+        }
+        val repo = repository(client, member = member)
+        val auth = ApiAuthRepository(client, cookies = null, member = member, scope = this)
+        var signingOut = false
+        val prefetch = launch { repo.prefetchRecentPractice(recentDay) }
+        runCurrent()
+        val myPage = launch { repo.loadRecentPractice(recentDay) { !signingOut } }
+        runCurrent()
+        assertEquals(listOf(RECENT_PATH), sent.map { it.path })
+        assertFalse(myPage.isCompleted)
+
+        signingOut = true
+        prefetch.cancel()
+        runCurrent()
+        assertTrue(myPage.isCompleted)
+        assertEquals(listOf(RECENT_PATH), sent.map { it.path })
+
+        auth.logOut()
+        runCurrent()
+
+        assertTrue(prefetch.isCompleted)
+        assertEquals(0L, testScheduler.currentTime)
+        assertNull(member.id)
+        assertEquals(listOf(RECENT_PATH, "/api/auth/sign-out"), sent.map { it.path })
         assertNull(repo.cachedRecentPractice(recentDay))
     }
 
@@ -446,5 +579,7 @@ class HttpPracticeRecordRepositoryTest {
 
     private companion object {
         const val RECENT_PATH = "/api/users/me/practice-records/recent"
+        const val PROFILE_PATH = "/api/users/me"
+        const val REFRESH_PATH = "/api/auth/refresh"
     }
 }

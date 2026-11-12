@@ -7,6 +7,7 @@ import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
+import com.ssafy.eolssu.core.network.skipAuthRefresh
 import com.ssafy.eolssu.core.network.AccountSession
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.inSession
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
@@ -91,22 +93,29 @@ class HttpPracticeRecordRepository(
         recentPracticeCache.value.snapshot
             ?.takeIf { it.session == member?.session?.value && it.day.isSameWeek(weekOf) }
 
-    override suspend fun loadRecentPractice(weekOf: KoreanDateTime): RecentPracticeSummary? =
-        refreshRecentPractice(weekOf, allowLegacy = true)
+    override suspend fun loadRecentPractice(weekOf: KoreanDateTime, canStart: () -> Boolean): RecentPracticeSummary? =
+        refreshRecentPractice(weekOf, prefetch = false, canStart = canStart)
 
     override suspend fun prefetchRecentPractice(weekOf: KoreanDateTime) {
-        refreshRecentPractice(weekOf, allowLegacy = false)
+        withTimeoutOrNull(RECENT_PREFETCH_TIMEOUT_MILLIS) {
+            refreshRecentPractice(weekOf, prefetch = true)
+        }
     }
 
-    private suspend fun refreshRecentPractice(weekOf: KoreanDateTime, allowLegacy: Boolean): RecentPracticeSummary? = member.inSession {
+    private suspend fun refreshRecentPractice(
+        weekOf: KoreanDateTime,
+        prefetch: Boolean,
+        canStart: () -> Boolean = { true },
+    ): RecentPracticeSummary? = member.inSession {
         recentPracticeLoad.withLock {
             ensureAccountSession()
             val cached = cachedRecentSnapshot(weekOf)
             if (cached != null && cached.loadedAt.elapsedNow() < RECENT_FRESHNESS) return@withLock cached.summary
+            if (!canStart()) return@withLock null
 
             val revision = recentPracticeCache.value.revision
             val session = member?.session?.value
-            val summary = fetchRecentPractice(weekOf, allowLegacy) ?: return@withLock null
+            val summary = fetchRecentPractice(weekOf, prefetch) ?: return@withLock null
             ensureAccountSession()
             val snapshot = CachedRecentPractice(session, weekOf, summary, timeSource.markNow())
             val cache = recentPracticeCache.updateAndGet {
@@ -116,22 +125,25 @@ class HttpPracticeRecordRepository(
         }
     }
 
-    private suspend fun fetchRecentPractice(weekOf: KoreanDateTime, allowLegacy: Boolean): RecentPracticeSummary? {
+    private suspend fun fetchRecentPractice(weekOf: KoreanDateTime, prefetch: Boolean): RecentPracticeSummary? {
         val response = client.sendOrNull {
-            get("/api/users/me/practice-records/recent") { parameter("weekOf", weekOf.dateParameter()) }
+            get("/api/users/me/practice-records/recent") {
+                parameter("weekOf", weekOf.dateParameter())
+                if (prefetch) skipAuthRefresh()
+            }
         } ?: return null
         return when {
             response.status == HttpStatusCode.OK -> response.apiResponse<RecentRecord>()?.result?.let {
                 RecentPracticeSummary(it.latest?.toRecord(), it.week.toRecordWeek())
             }
-            response.status == HttpStatusCode.NotFound && allowLegacy -> loadRecentFromList(weekOf)
+            response.status == HttpStatusCode.NotFound && !prefetch -> loadRecentFromList(weekOf)
             else -> null
         }
     }
 
     private suspend fun loadRecentFromList(weekOf: KoreanDateTime): RecentPracticeSummary? {
         val result = list(songId = null, page = 0, size = 1, weekOf = weekOf) ?: return null
-        val week = result.week ?: return super.loadRecentPractice(weekOf)
+        val week = result.week ?: return super.loadRecentPractice(weekOf) { true }
         return RecentPracticeSummary(result.items.firstOrNull()?.toRecord(), week.toRecordWeek())
     }
 
@@ -367,6 +379,7 @@ class HttpPracticeRecordRepository(
 
     private companion object {
         const val PAGE_SIZE = 100
+        const val RECENT_PREFETCH_TIMEOUT_MILLIS = 300L
         val RECENT_FRESHNESS = 30.seconds
 
         fun KoreanDateTime.dateParameter() = "$year-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}"

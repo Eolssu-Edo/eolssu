@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import com.ssafy.eolssu.data.user.MemberResult
 import eolssu.shared.generated.resources.member_api_unavailable
 import androidx.compose.runtime.produceState
@@ -45,6 +46,7 @@ fun MyPageRoute(
     onBack: () -> Unit,
     onOpen: (MyPageTarget) -> Unit,
     onLink: (SocialProvider) -> Unit,
+    onLogOutStarted: () -> Unit,
     onLoggedOut: () -> Unit,
     onSessionExpired: () -> Unit,
     onOpenLegal: (PublishedLegalDocument) -> Unit,
@@ -73,14 +75,18 @@ fun MyPageRoute(
     val session = member.session.collectAsStateWithLifecycle().value
     val now = koinInject<() -> Long>()
     val today = remember(now) { KoreanDateTime.fromEpochMillis(now()) }
+    val signingOut = remember { mutableStateOf(false) }
     val recent by key(session, today) {
         val initial = remember(recordRepository) { RecentPracticeLoad(recordRepository.cachedRecentPractice(today), RecordsLoad.Loading) }
         produceState(initial, recordRepository) {
-            if (!recordRepository.available || member.session.value != session) return@produceState
-            val summary = recordRepository.loadRecentPractice(today)
-            if (member.session.value != session) return@produceState
-            value = if (summary != null) RecentPracticeLoad(summary, RecordsLoad.Done)
-            else RecentPracticeLoad(recordRepository.cachedRecentPractice(today), RecordsLoad.Failed)
+            if (signingOut.value || !recordRepository.available || member.session.value != session) return@produceState
+            val summary = recordRepository.loadRecentPractice(today) { !signingOut.value }
+            if (signingOut.value || member.session.value != session) return@produceState
+            value = if (summary != null) {
+                RecentPracticeLoad(summary, RecordsLoad.Done)
+            } else {
+                RecentPracticeLoad(recordRepository.cachedRecentPractice(today), RecordsLoad.Failed)
+            }
         }
     }
     val recentStatus = myRecentPracticeStatus(
@@ -138,6 +144,9 @@ fun MyPageRoute(
         },
         onLogOut = viewModel::askLogOut,
         onConfirmLogOut = {
+            // 선조회 뒤에 대기하던 마이페이지 조회는 새로 시작하지 않는다.
+            signingOut.value = true
+            onLogOutStarted()
             scope.launch {
                 viewModel.confirmLogOut().join()
                 onLoggedOut()

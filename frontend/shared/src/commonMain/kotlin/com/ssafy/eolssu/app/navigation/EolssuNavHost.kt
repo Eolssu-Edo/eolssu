@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import com.ssafy.eolssu.core.ui.component.EolssuSnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -174,6 +175,18 @@ fun EolssuNavHost(
         startDestination(firstRunCompleted, qaSkipConsent, sessionExpired, signedInAtStart)
     }
     val performance = remember(navController) { PerformanceNavigation(navController) }
+    val scope = rememberCoroutineScope()
+    val recentPrefetch = remember(scope) { RecentPracticePrefetch(scope) }
+    DisposableEffect(navController, recentPrefetch) {
+        val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
+            recentPrefetch.onDestinationChanged(destination.route)
+        }
+        navController.addOnDestinationChangedListener(listener)
+        onDispose {
+            navController.removeOnDestinationChangedListener(listener)
+            recentPrefetch.cancel()
+        }
+    }
     LaunchedEffect(navController) {
         navController.currentBackStackEntryFlow.collect { entry ->
             if (entry.destination.route !in measuredDestinations) performance.leave()
@@ -181,10 +194,11 @@ fun EolssuNavHost(
     }
     // 녹음 키로 분석에 넘기고 세션 ID로 결과에 넘기는 같은 화면 흐름의 곡 스냅샷.
     var evaluationSong by remember { mutableStateOf<Pair<String, Song>?>(null) }
-    LaunchedEffect(member, navController) {
+    LaunchedEffect(member, navController, recentPrefetch) {
         var previous = member.session.value
         member.session.collect { current ->
             if (current != previous) {
+                recentPrefetch.cancel()
                 evaluationSong = null
                 performance.reset()
             }
@@ -199,7 +213,6 @@ fun EolssuNavHost(
     }
     // 화면을 옮긴 뒤에도 남아야 하는 안내(예: 마이크를 허용하지 않아 연습 화면을 나옴). 각 화면의 안내 위에 겹쳐 띄운다.
     val appSnackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     Box(Modifier.fillMaxSize()) {
         // 화면 전환 모션을 쓰지 않는다. 기본 전환(0.7초 페이드)이 도는 동안 나가는 화면이 남아 그 위의 확인 창도 늦게 사라졌고,
         // Android 제스처 뒤로 가기(predictive)는 따로 정한 줌아웃(scaleOut 0.7)을 써서 그것도 함께 끈다.
@@ -221,9 +234,10 @@ fun EolssuNavHost(
                 val now = koinInject<() -> Long>()
                 val session = member.session.collectAsStateWithLifecycle().value
                 LaunchedEffect(entry, session, records) {
-                    if (session.memberId == null || !records.available) return@LaunchedEffect
-                    // 홈에서 다른 화면으로 이동해도 마이페이지가 이 요청의 결과를 쓸 수 있다.
-                    scope.launch {
+                    if (session.memberId == null || !records.available || navController.currentDestination?.route != EolssuDestination.HOME) {
+                        return@LaunchedEffect
+                    }
+                    recentPrefetch.start {
                         member.inSession {
                             if (member.session.value == session) {
                                 records.prefetchRecentPractice(KoreanDateTime.fromEpochMillis(now()))
@@ -583,7 +597,7 @@ fun EolssuNavHost(
                     }
                 }
             }
-            profileGraph(navController)
+            profileGraph(navController, onLogOutStarted = recentPrefetch::cancel)
             weakSectionGraph(navController, performance)
             sheetEditGraph(navController)
             authGraph(

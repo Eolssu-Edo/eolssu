@@ -69,7 +69,7 @@ val ApiJson = Json {
     explicitNulls = false
 }
 
-private val publicGet = AttributeKey<Unit>("PublicGet")
+private val authRefreshSkipped = AttributeKey<Unit>("AuthRefreshSkipped")
 
 /**
  * 앱 전체가 쓰는 HTTP 클라이언트. 응답 코드는 부르는 쪽이 판단한다(`expectSuccess = false`).
@@ -99,7 +99,7 @@ fun createHttpClient(engine: HttpClientEngine, server: ServerAddress, cookies: C
         val method = request.method
         val call = observedAttempt(path, method) { execute(request) }
         if (call.response.status != HttpStatusCode.Unauthorized ||
-            request.attributes.contains(publicGet) || skipsRefresh(method, path)
+            request.attributes.contains(authRefreshSkipped) || skipsRefresh(method, path)
         ) return@intercept call
         val refreshed = refresher.refresh(seen) { client.post(REFRESH_PATH).status.isSuccess() }
         if (refreshed) observedAttempt(path, method, PerfReason.REPLAY) { execute(request) } else call
@@ -222,13 +222,18 @@ private suspend fun HttpClient.sendCatching(
 suspend fun HttpClient.sendOrNull(request: suspend HttpClient.() -> HttpResponse): HttpResponse? =
     (sendCatching(request) as? NetworkResult.Received)?.response
 
+/** 취소될 수 있는 선조회 등은 401을 바로 처리한다. 요청의 계정 결속은 호출 방식이 정한다. */
+internal fun HttpRequestBuilder.skipAuthRefresh() {
+    attributes.put(authRefreshSkipped, Unit)
+}
+
 /** 공개 GET은 인증 변경과 독립적으로 실행하고, 응답을 사용할 때는 호출자의 로그인 세대를 확인한다. */
 internal suspend fun HttpClient.getPublicOrNull(
     path: String,
     configure: HttpRequestBuilder.() -> Unit = {},
 ): HttpResponse? = (sendCatching(accountBound = false) {
     get(path) {
-        attributes.put(publicGet, Unit)
+        skipAuthRefresh()
         configure()
     }
 } as? NetworkResult.Received)?.response

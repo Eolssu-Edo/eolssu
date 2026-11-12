@@ -36,9 +36,12 @@ interface PracticeRecordRepository {
     fun cachedRecentPractice(weekOf: KoreanDateTime): RecentPracticeSummary? =
         records.value.takeIf { it.isNotEmpty() }?.recentPracticeSummary(weekOf)
 
-    /** 최신 연주와 해당 KST 주의 저장 기록 요약. 받지 못하면 null이다. */
-    suspend fun loadRecentPractice(weekOf: KoreanDateTime): RecentPracticeSummary? =
-        if (refresh()) records.value.recentPracticeSummary(weekOf) else null
+    /** 최신 연주와 KST 주간 요약. [canStart]로 대기 뒤 새 조회를 시작할지 확인한다. */
+    suspend fun loadRecentPractice(
+        weekOf: KoreanDateTime,
+        canStart: () -> Boolean = { true },
+    ): RecentPracticeSummary? =
+        if (canStart() && refresh()) records.value.recentPracticeSummary(weekOf) else null
 
     /** 홈에서 최근 연주 전용 응답을 미리 준비한다. */
     suspend fun prefetchRecentPractice(weekOf: KoreanDateTime) {}
