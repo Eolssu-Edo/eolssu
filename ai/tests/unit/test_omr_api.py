@@ -122,7 +122,7 @@ def test_pdf_is_rendered_per_page_and_engine_result_is_returned(serve, clock):
     response = client.post("/v1/recognitions", json=body())
     assert response.status_code == 200
     out = response.json()
-    assert set(out) == DONE_KEYS
+    assert set(out) == DONE_KEYS | {'sourcePitches'}
     assert out["conversionId"] == "c-1" and out["status"] == "DONE" and out["failReason"] is None
     assert out["engine"] == "fake" and out["issues"][0]["kind"] == "LOW_CONFIDENCE"
     # 300dpi: A4 595×842pt → 2479.2×3508.3px, pdfium은 올림한다

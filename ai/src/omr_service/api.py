@@ -8,7 +8,7 @@
 import logging
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from time import monotonic
 from typing import Annotated, Literal
@@ -22,7 +22,7 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
-from omr_service import jeongganbo_text, staff_engine
+from omr_service import jeongganbo_text, jeongganbo_scan, staff_engine
 from omr_service.temporary_sources import temporary_sources
 
 MAX_TOTAL_BYTES = 20 * 1024 * 1024  # 파일·합계 20MiB(382)
@@ -162,12 +162,13 @@ def get_engines() -> dict[str, Engine]:
 
 def recognize_jeongganbo(job: Job) -> dict:
     """글자 층이 있는 PDF는 글자로 읽는다. 그 밖(스캔 PDF·사진)은 정간보 OMR 경로다."""
+    began = monotonic()
     if job.kind == "PDF":
         try:
             return jeongganbo_text.recognize(job)
         except jeongganbo_text.NoTextLayer:
             pass
-    raise RuntimeError("jeongganbo OMR is not connected yet")  # U3에서 연결한다. 그 전에는 ENGINE_ERROR
+    return jeongganbo_scan.recognize(replace(job, time_budget_s=max(0, job.time_budget_s - (monotonic() - began))))
 
 
 @app.get("/health")
