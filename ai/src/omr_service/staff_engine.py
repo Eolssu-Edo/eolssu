@@ -26,7 +26,9 @@ from omr_service.jeongganbo_text import JANGDANS, _clean, _run, beats_per_jeongg
 AUDIVERIS = os.environ.get("AUDIVERIS_CMD", "audiveris").split()  # 컨테이너에는 /opt/audiveris/bin/Audiveris
 AUDIVERIS_VERSION = os.environ.get("AUDIVERIS_VERSION", "5.11.0")  # 컨테이너 빌드가 넣는다(omr.Dockerfile)
 AUDIVERIS_OPTIONS = ["-constant", "org.audiveris.omr.sheet.ProcessingSwitches.smallHeads=true",
-                     "-constant", "org.audiveris.omr.sheet.ProcessingSwitches.smallBeams=true"]
+                     "-constant", "org.audiveris.omr.sheet.ProcessingSwitches.smallBeams=true",
+                     # 30 간격보다 짧은 마지막 악단도 인식한다(AuClair 15~16마디).
+                     "-constant", "org.audiveris.omr.sheet.grid.LinesRetriever.minStaffLength=20"]
 # Audiveris(JVM)는 한 번에 0.7~1GB를 쓰고 홈 폴더 캐시를 함께 쓴다. 겹친 요청은 남은 시간 안에서 기다린다(동시 1건)
 AUDIVERIS_LOCK = threading.Lock()
 AUDIVERIS_LOGS = Path.home() / ".cache/AudiverisLtd/audiveris/log"  # 실행마다 쌓이는 Audiveris 로그

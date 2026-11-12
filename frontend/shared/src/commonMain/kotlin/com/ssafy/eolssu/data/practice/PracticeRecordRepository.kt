@@ -32,6 +32,20 @@ interface PracticeRecordRepository {
     /** 서버에서 기록 목록을 다시 받는다. 받지 못하면 false이고 [records]는 그대로다. */
     suspend fun refresh(): Boolean = true
 
+    /** 마이페이지에서 갱신 전에 바로 표시할 수 있는 최근 연주와 주간 요약. */
+    fun cachedRecentPractice(weekOf: KoreanDateTime): RecentPracticeSummary? =
+        records.value.takeIf { it.isNotEmpty() }?.recentPracticeSummary(weekOf)
+
+    /** 최신 연주와 KST 주간 요약. [canStart]로 대기 뒤 새 조회를 시작할지 확인한다. */
+    suspend fun loadRecentPractice(
+        weekOf: KoreanDateTime,
+        canStart: () -> Boolean = { true },
+    ): RecentPracticeSummary? =
+        if (canStart() && refresh()) records.value.recentPracticeSummary(weekOf) else null
+
+    /** 홈에서 최근 연주 전용 응답을 미리 준비한다. */
+    suspend fun prefetchRecentPractice(weekOf: KoreanDateTime) {}
+
     /** 기록 화면이 읽는 곡 묶음과 한 페이지. 기본 구현은 격리된 로컬 기록용이다. */
     suspend fun loadListPage(
         songId: String? = null,
@@ -47,10 +61,7 @@ interface PracticeRecordRepository {
         }
         val selected = songId ?: groups.firstOrNull()?.songId
         val rows = selected?.let(grouped::get).orEmpty().let { if (oldest) it.asReversed() else it }
-        val week = weekOf?.let { day ->
-            val matching = all.filter { it.recordedAt.isSameWeek(day) }
-            RecordWeek(matching.size, matching.maxOfOrNull { it.score })
-        }
+        val week = weekOf?.let(all::recordWeek)
         return RecordListPage(all.size, groups, selected, rows.drop(page * RECORD_LIST_PAGE_SIZE).take(RECORD_LIST_PAGE_SIZE),
             (rows.size + RECORD_LIST_PAGE_SIZE - 1) / RECORD_LIST_PAGE_SIZE, week)
     }
@@ -91,6 +102,16 @@ data class RecordSongSummary(
 )
 
 data class RecordWeek(val recordCount: Int, val bestScore: Int?)
+
+data class RecentPracticeSummary(val latest: PracticeRecord?, val week: RecordWeek)
+
+internal fun List<PracticeRecord>.recentPracticeSummary(weekOf: KoreanDateTime): RecentPracticeSummary =
+    RecentPracticeSummary(maxByOrNull { it.recordedAtMillis }, recordWeek(weekOf))
+
+private fun List<PracticeRecord>.recordWeek(weekOf: KoreanDateTime): RecordWeek {
+    val week = filter { it.recordedAt.isSameWeek(weekOf) }
+    return RecordWeek(week.size, week.maxOfOrNull { it.score })
+}
 
 data class RecordListPage(
     val totalRecordCount: Int,

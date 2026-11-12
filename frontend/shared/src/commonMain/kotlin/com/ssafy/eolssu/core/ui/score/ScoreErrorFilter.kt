@@ -109,7 +109,7 @@ fun EvaluationResult.visibleErrors(filter: ErrorFilter): Map<Pair<Int, Int>, Sco
 
 /**
  * 오류 종류 5칸 탭 바(전체 · 음정 · 박자 · 길이 · 미검출). 연주 결과 · 이전 연주 결과 · 구간 고르기 · 구간 재평가 결과가 함께 쓴다.
- * '틀린 부분' 제목(14sp 굵게, S15P31E102-808)과 탭 바를 폴더 탭 모양의 흰 상자 하나로 묶는다(S15P31E102-818).
+ * '틀린 부분' 제목(고른 칸 이름과 같은 13sp 굵게, S15P31E102-808·825)과 탭 바를 폴더 탭 모양의 흰 상자 하나로 묶는다(S15P31E102-818).
  * 제목만 감싸는 머리가 탭 바 왼쪽 위에 붙고, 머리 오른쪽 아래는 오목하게 탭 바 윗변으로 이어진다. 오른쪽 위는 비워 상자가 제목 줄 전체로 늘지 않는다.
  * 흰 바탕 화면에서도 상자가 보이도록 윤곽에 흰 카드의 옅은 테두리(lineSoft)를 그린다.
  * 탭 바(높이 52, 안쪽 5dp) 안에서 고른 칸만 연한 연두(accentTintStrong) 알약으로 넓게 펼쳐 '아이콘 · 이름 · 개수'를 보이고,
@@ -137,7 +137,7 @@ fun ErrorKindSegments(
             modifier = Modifier.onSizeChanged { titleSize = it }
                 .padding(start = 16.dp, end = 14.dp, top = 9.dp, bottom = 3.dp)
                 .semantics { heading() },
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = SegmentNameSize, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
             color = colors.text,
         )
         ErrorKindTabs(result, selected, onSelect)
@@ -221,7 +221,7 @@ private fun ErrorKindTabs(result: EvaluationResult, selected: ErrorFilter, onSel
                         Text(
                             name,
                             Modifier.padding(start = 6.dp),
-                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = SegmentNameSize, lineHeight = 16.sp, fontWeight = FontWeight.Bold),
                             maxLines = 1,
                             softWrap = false,
                         )
@@ -242,6 +242,9 @@ private fun ErrorKindTabs(result: EvaluationResult, selected: ErrorFilter, onSel
         }
     }
 }
+
+/** 고른 칸에 나타나는 종류 이름의 글자 크기. '틀린 부분' 제목도 이 크기로 맞춘다(S15P31E102-825). */
+private val SegmentNameSize = 13.sp
 
 /** 고른 칸이 다른 칸보다 넓어지는 비율. 폰 너비에서 '미검출 12'가 한 줄에 들어가는 값이다. */
 private const val SelectedTabWeight = 2.2f

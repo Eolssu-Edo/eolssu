@@ -38,6 +38,21 @@ class GridBoxesTests(unittest.TestCase):
         self.assertEqual([round(b[0][0]) for b in block], [220, 160])
         self.assertEqual([len(p) for p in block], [6, 6])
 
+    def test_strict_scan_mode_does_not_treat_a_duet_voice_as_lyrics(self):
+        blocks = find_blocks(sheet(parts=2), allow_alternating_lyrics=False)
+        self.assertFalse(any(part for block in blocks for part in block))
+
+    def test_two_tiers_with_thin_lines_keep_each_tier_before_the_next(self):
+        first = sheet()
+        page = np.full((740, first.shape[1]), 255, np.uint8)
+        page[:340] = first
+        page[400:] = first
+        (block,) = find_blocks(page)
+        (boxes,) = block
+        self.assertEqual([(round(x), round(y)) for x, y, w, h in boxes],
+                         [(100, 20), (100, 120), (100, 220), (20, 20), (20, 120), (20, 220),
+                          (100, 420), (100, 520), (100, 620), (20, 420), (20, 520), (20, 620)])
+
 
 if __name__ == "__main__":
     unittest.main()

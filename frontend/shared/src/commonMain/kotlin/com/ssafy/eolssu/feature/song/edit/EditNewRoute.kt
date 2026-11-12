@@ -26,9 +26,8 @@ fun EditNewRoute(
         state = state,
         onBack = onBack,
         onSelectKind = viewModel::selectKind,
-        onSelectHwang = viewModel::selectHwang,
         onLoadExisting = onLoadExisting,
-        onOpenDevicePick = { onImport(state.kind, state.hwang) },
+        onOpenDevicePick = { onImport(state.kind, HwangPitch.Default) },
         onDismissProblem = viewModel::dismissProblem,
     )
 }

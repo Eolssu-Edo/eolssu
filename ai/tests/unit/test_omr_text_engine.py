@@ -144,7 +144,7 @@ def test_glyph_that_is_not_a_note_becomes_issue_at_its_place():
 
 
 def test_pdf_without_text_layer_is_left_to_omr(monkeypatch, tmp_path):
-    """율명 글자가 없는 PDF(스캔)는 글자로 읽지 않고 정간보 OMR 경로로 넘긴다. OMR(U3) 전이라 응답은 ENGINE_ERROR다."""
+    """율명 글자가 없는 PDF는 실제 모델을 단위 검사에서 실행하지 않고 스캔 엔진에 위임한다."""
     monkeypatch.setenv("JGB_GENERATOR_DIR", "unused")
     path = tmp_path / "scan.pdf"
     path.write_bytes(pdf_bytes(SEMACHI, no_text=True))
@@ -153,7 +153,13 @@ def test_pdf_without_text_layer_is_left_to_omr(monkeypatch, tmp_path):
     job = api.Job(request, "PDF", [path], [api.Page(path, 1, 1)], 30)
     with pytest.raises(jeongganbo_text.NoTextLayer):
         jeongganbo_text.recognize(job)
-    assert post(path.read_bytes()).json()["failReason"] == "ENGINE_ERROR"
+    seen = []
+    def no_grid(job):
+        seen.append(job)
+        raise api.RecognitionFailed("NO_GRID_FOUND")
+    monkeypatch.setattr(api.jeongganbo_scan, "recognize", no_grid)
+    assert post(path.read_bytes()).json()["failReason"] == "NO_GRID_FOUND"
+    assert len(seen) == 1 and seen[0].kind == "PDF" and len(seen[0].pages) == 1
 
 
 def test_text_without_grid_is_no_grid_found(monkeypatch):

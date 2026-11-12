@@ -32,6 +32,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.data.practice.RecentPracticeSummary
 import com.ssafy.eolssu.data.user.UserProfile
 import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
@@ -78,7 +79,7 @@ fun MyPageScreen(
     profile: UserProfile,
     providers: List<SocialProvider>,
     learningProgress: MyLearningProgress?,
-    recentPractice: MyRecentPractice,
+    recentPractice: RecentPracticeSummary?,
     recentStatus: MyRecentPracticeStatus,
     today: KoreanDateTime,
     dialog: MyPageDialog?,

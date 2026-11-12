@@ -44,6 +44,35 @@ class JangdanFrameScheduleTest {
         assertEquals(412364L, slow.recordingStartFrame - 100)
     }
 
+    @Test fun sectionStartsAtItsOriginalPhaseWithoutReplayingEarlierScoreStrikes() {
+        val current = plan().copy(recordingStartTick = 9.5)
+        val schedule = JangdanFrameSchedule(current, 10000, 3, 4, 9)
+        val descriptor = schedule.describe(2_000_000_000)
+        descriptor.preparationEvents.forEach { schedule.takeAt(it.frame) }
+        assertEquals(12, descriptor.preparationEvents.size)
+        assertEquals(422364L, descriptor.recordingStartFrame)
+        // Score tick 10 is the next attack, half a beat after the section begins at 9.5.
+        assertEquals(10000 + (12.5 * 60 * 44100 / 77).roundToLong(), schedule.nextFrame)
+        assertEquals("kung", schedule.takeAt(schedule.nextFrame!!).single().clip.sample.file.substringBefore('.'))
+        assertEquals(10000 + (13.5 * 60 * 44100 / 77).roundToLong(), schedule.nextFrame)
+        assertFalse(schedule.adopt(current.copy(recordingStartTick = 0.0), 9))
+        assertTrue(schedule.adopt(current, 9))
+    }
+
+    @Test fun sectionBeforePickupWaitsOnlyForTheRemainingPickupTicks() {
+        val schedule = JangdanFrameSchedule(plan(startTick = 2).copy(recordingStartTick = 1.0), 0, 3, 1, 1)
+        schedule.describe(1).preparationEvents.forEach { schedule.takeAt(it.frame) }
+        assertEquals((13 * 60.0 * 44100 / 77).roundToLong(), schedule.nextFrame)
+    }
+
+    @Test fun sectionExactlyOnAnAttackStartsThatAttackAtTheRecordingBoundary() {
+        val schedule = JangdanFrameSchedule(plan().copy(recordingStartTick = 9.0), 0, 3, 1, 1)
+        val descriptor = schedule.describe(1)
+        descriptor.preparationEvents.forEach { schedule.takeAt(it.frame) }
+        assertEquals(descriptor.recordingStartFrame, schedule.nextFrame)
+        assertEquals("deok", schedule.takeAt(schedule.nextFrame!!).single().clip.sample.file.substringBefore('.'))
+    }
+
     @Test fun blocksSplitAtTheAttackAndShortWritesPublishOnlyAcceptedStarts() {
         val schedule = JangdanFrameSchedule(plan(), 5, 3, 1, 1)
         val mixer = JangdanPcmMixer()

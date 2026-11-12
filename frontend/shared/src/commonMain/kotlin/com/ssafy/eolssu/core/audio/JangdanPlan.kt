@@ -7,7 +7,13 @@ import kotlin.math.ln
 import kotlin.math.roundToInt
 
 data class JangdanStrike(val tick: Double, val clip: JangdanClip, val gain: Float = 1f)
-data class JangdanPlan(val mapping: JangdanPlayback, val msPerTick: Double, val strikes: List<JangdanStrike>)
+data class JangdanPlan(
+    val mapping: JangdanPlayback,
+    val msPerTick: Double,
+    val strikes: List<JangdanStrike>,
+    /** Absolute score tick at the prepared recording boundary; the score mapping stays unchanged. */
+    val recordingStartTick: Double = 0.0,
+)
 
 /** 두 소박의 시간에 맞춰 실제 굴림 클립과 음높이 보존 재생 속도를 정한다. */
 fun planJangdan(mapping: JangdanPlayback, bpm: Int, ticksPerBeat: Int): JangdanPlan? {

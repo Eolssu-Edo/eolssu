@@ -2,6 +2,7 @@ package com.ssafy.eolssu.platform.audio
 
 import com.ssafy.eolssu.core.audio.JANGDAN_SAMPLE_RATE
 import com.ssafy.eolssu.core.audio.JangdanPlan
+import kotlin.math.floor
 import kotlin.math.roundToLong
 
 /** Planned frames. Only JangdanOutputSnapshot.events proves that AudioTrack accepted a strike. */
@@ -27,6 +28,7 @@ internal class JangdanFrameSchedule(
     private val strikes = this.plan.strikes.sortedBy { it.tick }
     private val framesPerTick = plan.msPerTick * JANGDAN_SAMPLE_RATE / 1000.0
     private val preparationCount = Math.multiplyExact(cycles, strikes.size)
+    private val scoreFirstOrdinal: Long
     private var ordinal = 0L
     private var cancelled = false
     private var adopted = false
@@ -36,6 +38,13 @@ internal class JangdanFrameSchedule(
         require(framesPerTick.isFinite() && framesPerTick > 0)
         require(plan.mapping.cycleTicks * framesPerTick >= 1)
         require(strikes.all { it.tick.isFinite() && it.tick >= 0 && it.tick < plan.mapping.cycleTicks && it.gain.isFinite() })
+        require(plan.recordingStartTick.isFinite() && plan.recordingStartTick >= 0)
+        val firstCycle = floor((plan.recordingStartTick - plan.mapping.startTick) / plan.mapping.cycleTicks)
+            .coerceAtLeast(0.0).toLong()
+        val cycleStart = plan.mapping.startTick + firstCycle * plan.mapping.cycleTicks.toDouble()
+        val firstStrike = strikes.indexOfFirst { cycleStart + it.tick >= plan.recordingStartTick - 0.000001 }
+        scoreFirstOrdinal = Math.addExact(Math.multiplyExact(firstCycle, strikes.size.toLong()),
+            if (firstStrike < 0) strikes.size.toLong() else firstStrike.toLong())
     }
 
     val recordingStartFrame: Long get() = frameAt(cycles * plan.mapping.cycleTicks.toDouble())
@@ -76,13 +85,14 @@ internal class JangdanFrameSchedule(
     }
 
     private fun event(index: Long): RenderedJangdanEvent {
-        val cycle = index / strikes.size
-        val strike = strikes[(index % strikes.size).toInt()]
+        val scoreIndex = if (index < preparationCount) index else Math.addExact(index - preparationCount, scoreFirstOrdinal)
+        val cycle = scoreIndex / strikes.size
+        val strike = strikes[(scoreIndex % strikes.size).toInt()]
         val tick = if (index < preparationCount) {
             cycle * plan.mapping.cycleTicks.toDouble() + strike.tick
         } else {
             cycles * plan.mapping.cycleTicks.toDouble() + plan.mapping.startTick +
-                (cycle - cycles) * plan.mapping.cycleTicks.toDouble() + strike.tick
+                cycle * plan.mapping.cycleTicks.toDouble() + strike.tick - plan.recordingStartTick
         }
         return RenderedJangdanEvent(strike.clip, strike.gain.coerceIn(0f, 1f) * .65f, frameAt(tick))
     }

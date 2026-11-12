@@ -28,6 +28,8 @@ class MyBatisPracticeRecords(private val mapper: PracticeRecordMapper) : Practic
             SongRecordSummary(it.songId, it.title, it.recordCount, it.lastSavedAt, it.bestScore, it.instrumentCode, it.lastStartedAt)
         }
 
+    override fun latestSavedRecord(userId: Long) = mapper.latestSavedRecord(userId)?.toRecord()
+
     override fun savedRecordWeek(userId: Long, from: LocalDateTime, until: LocalDateTime) =
         mapper.savedRecordWeek(userId, from, until).let { SavedRecordWeek(it.recordCount, it.bestScore) }
 

@@ -29,7 +29,9 @@ import json
 import os
 import re
 import sys
+import shutil
 from pathlib import Path
+from jeongganbo_tokens import jg_like
 
 import cv2
 import numpy as np
@@ -44,6 +46,11 @@ parser.add_argument("--omr-dir", type=Path, required=True, help="MALerLab/jeongg
 parser.add_argument("--dpi", type=int, default=300)
 parser.add_argument("--beats", type=int, required=True, help="한 각의 정간 수")
 parser.add_argument("--title", default=None, help="출력 파일 이름. 기본은 PDF 이름")
+parser.add_argument("--image", action="store_true", help="렌더링된 쪽 그림을 입력한다. page는 0이다")
+parser.add_argument("--model-cache-dir", type=Path, help="변환한 체크포인트의 요청별 쓰기 경로")
+parser.add_argument("--batch-size", type=int, help="CPU 추론 배치 상한")
+parser.add_argument("--keep-empty-columns", action="store_true", help="율명을 못 읽은 격자 열도 보존한다")
+parser.add_argument("--grid-boxes", action="store_true", help="얇은 선과 여러 단은 기존 기하 격자 검출기로 읽는다")
 parser.add_argument("--gap-fill", type=int, default=0, help="칸 찾기 전에 세로로 메울 선 틈(px). 0이면 보정 없음")
 parser.add_argument("--line-threshold", type=int, default=240, help="이보다 어두운 픽셀을 선으로 본다. 리더 기본 240")
 parser.add_argument("--fill-grid", action="store_true", help="옆 열의 줄 위치로 놓친 정간을 채운다")
@@ -54,6 +61,7 @@ parser.add_argument("--octave-check", type=Path, default=None, help="청성·중
 args = parser.parse_args()
 
 pdf, out, omr_dir = args.pdf.resolve(), args.out.resolve(), args.omr_dir.resolve()
+model_cache = args.model_cache_dir.resolve() if args.model_cache_dir else None
 out.mkdir(parents=True, exist_ok=True)
 if args.octave_check:
     sys.path.insert(0, str(Path(__file__).resolve().parent))  # 아래 chdir 전에 같은 폴더의 octave_check를 찾게
@@ -66,9 +74,10 @@ from jngbomr import JeongganboReader, INFERENCER_DEFAULT_KWARGS
 # 공개 체크포인트는 옛 x-transformers의 LayerNorm 이름(gamma·beta)으로 저장돼 있다.
 # beta는 모두 0이라 gamma를 weight로 바꾸고 beta를 버리면 같은 계산이 된다.
 ckpt = Path("checkpoints/best/model.pt")
-converted = ckpt.with_name("model_weight-names.pt")
+converted = (model_cache / "model_weight-names.pt" if model_cache
+             else ckpt.with_name("model_weight-names.pt"))
 if not converted.exists():
-    saved = torch.load(ckpt, map_location="cpu")
+    saved = torch.load(ckpt, map_location="cpu", weights_only=True)
     state = saved["model"]
     assert all(state[k].abs().max() == 0 for k in state if k.endswith(".beta")), "beta가 0이 아님"
     saved["model"] = {(k[:-6] + ".weight" if k.endswith(".gamma") else k): v
@@ -76,11 +85,36 @@ if not converted.exists():
     torch.save(saved, converted)
 
 png = out / "page.png"
-with pdfplumber.open(pdf) as doc:
-    doc.pages[args.page].to_image(resolution=args.dpi).save(str(png))
+if args.image:
+    if args.read_dpi or args.octave_check:
+        parser.error("--image는 PDF 재렌더링 옵션과 함께 쓸 수 없다")
+    shutil.copyfile(pdf, png)
+else:
+    with pdfplumber.open(pdf) as doc:
+        doc.pages[args.page].to_image(resolution=args.dpi).save(str(png))
 
 reader = JeongganboReader(run_omr=True, inferencer_kwargs=dict(
     INFERENCER_DEFAULT_KWARGS, device="cpu", model_weights=str(converted)))
+if args.batch_size:
+    if args.batch_size < 1:
+        parser.error("--batch-size는 양수여야 한다")
+    inferencer = reader.omr
+
+    class BoundedBatches:
+        def __getattr__(self, name):
+            return getattr(inferencer, name)
+
+        def __call__(self, images):
+            if not isinstance(images, list):
+                return inferencer(images)
+            predictions, confidences = [], []
+            for offset in range(0, len(images), args.batch_size):
+                p, c = inferencer(images[offset:offset + args.batch_size])
+                predictions.extend(p)
+                confidences.append(c)
+            return predictions, torch.cat(confidences)
+
+    reader.omr = BoundedBatches()
 if args.gap_fill or args.line_threshold != 240:
     # 리더는 _process_img의 흑백 그림으로만 선·칸을 찾고, 정간 그림은 원래 그림에서 자른다.
     # 그래서 이 함수만 바꾸면 보정이 칸 찾기에만 쓰인다. 리더는 160px보다 짧은 세로 조각을 지우므로
@@ -134,11 +168,50 @@ if args.yul:
         return (dec, conf) if return_confidence else dec
     model.inference = constrained_inference
 
+if args.grid_boxes:
+    # 기존 검토 도구의 검출기는 칸 너비 제한 없이 얇은 선·단의 순서를 보존한다.
+    # 나란한 여러 악보를 임의 선택하지 않고, 단일 악보로 확인되는 경우만 읽는다.
+    from collections import Counter
+    from grid_boxes import find_blocks
+    image = cv2.imread(str(png))
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blocks = find_blocks(gray, allow_alternating_lyrics=False)
+    if len(blocks) != 1 or len(blocks[0]) != 1 or not blocks[0][0]:
+        sys.exit(4)
+    boxes = [tuple(round(v) for v in box) for box in blocks[0][0]]
+    groups = []
+    for box in boxes:
+        if not groups or abs(groups[-1][-1][0] - box[0]) >= box[2] / 2 or box[1] <= groups[-1][-1][1]:
+            groups.append([])
+        groups[-1].append(box)
+    beats = args.beats or Counter(map(len, groups)).most_common(1)[0][0]
+    crops = [image[y:y + h, x:x + w] for x, y, w, h in boxes]
+    predictions, confidences = reader.omr(crops)
+    cells = []
+    for i, ((x, y, w, h), text, confidence) in enumerate(zip(boxes, predictions, confidences)):
+        inner = gray[y + h * 15 // 100:y + h * 85 // 100, x + w * 15 // 100:x + w * 85 // 100]
+        cells.append(dict(text=text, jg=jg_like(text), conf=round(float(confidence), 3),
+                          x=x, y=y, w=w, h=h, gak=i // beats,
+                          ink=round(float((inner < 160).mean()), 4) if inner.size else 0))
+    title = args.title or pdf.stem
+    (out / 'cells.json').write_text(json.dumps(dict(title=title, image='page.png', beats=beats, cells=cells),
+                                              ensure_ascii=False, indent=1), encoding='utf-8')
+    lines = [' | '.join(c['jg'] for c in cells[i:i + beats]) for i in range(0, len(cells), beats)]
+    (out / f'{title}.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    sys.exit(0)
+
 result = reader(str(png))
 # 정간을 못 찾으면 (빈 쪽, False), 제목 칸 오른쪽에도 정간이 있으면 (왼쪽, 오른쪽)을 돌려준다.
 if isinstance(result, tuple) and isinstance(result[1], bool):
-    sys.exit(f"정간을 찾지 못함. --dpi를 바꿔 정간 너비를 85~110px에 맞춘다(지금 {args.dpi}).")
+    print(f"정간을 찾지 못함. --dpi를 바꿔 정간 너비를 85~110px에 맞춘다(지금 {args.dpi}).", file=sys.stderr)
+    sys.exit(4)
 parts = [(result[0], 0), (result[1], result[0].img.shape[1])] if isinstance(result, tuple) else [(result, 0)]
+if args.beats == 0:
+    from collections import Counter
+    sizes = [len(gak) for part, _ in parts for gak in part.gaks if not gak.is_jangdan]
+    if not sizes:
+        sys.exit(4)
+    args.beats = Counter(sizes).most_common(1)[0][0]
 cells = [dict(text=jg.omr_text, conf=round(jg.omr_confidence, 3), x=int(jg.x + dx), y=int(jg.y), w=int(jg.w), h=int(jg.h))
          for page, dx in parts for gak in page.gaks if not gak.is_jangdan for jg in gak.jeonggans]  # 장단 열은 음이 아니다
 
@@ -155,7 +228,8 @@ for c in cells:
 PITCH = re.compile(r"^(하하배|하배|중청|배|청)?[황대태협고중유임이남무응]$")
 def has_pitch(c):
     return any(PITCH.match(t.rsplit(":", 1)[0].split("_")[0]) for t in c["text"].split())
-columns = [col for col in columns if any(has_pitch(c) for c in col)]
+if not args.keep_empty_columns:
+    columns = [col for col in columns if any(has_pitch(c) for c in col)]
 
 if args.fill_grid:
     # 정간보 격자는 규칙적이라 한 열에서 정간이 잡힌 줄은 옆 열에서도 정간이 있는 줄이다.
@@ -207,16 +281,6 @@ if args.read_dpi:
 
 ordered = [c for col in columns for c in sorted(col, key=lambda c: c["y"])]
 
-def jg_like(text):
-    """OMR 원문 '율명:위치 …'를 데이터셋 표기 ':위치 율명 …'로 바꾼다.
-    정간 가운데 음 하나(:5)는 데이터셋에서 정간 전체(:0)로 적는다.
-    모델은 시김새를 '청무_흘림표'처럼 율명에 밑줄로 붙여 낸다. 데이터셋처럼 '청무 흘림표'로 나눠야
-    변환 도구가 율명을 알아보고 시김새는 기호로 붙인다(붙인 채로 두면 율명까지 모르는 기호가 된다)."""
-    toks = [t.rsplit(":", 1) for t in text.split()]
-    if len(toks) == 1 and toks[0][1] == "5":
-        toks = [[toks[0][0], "0"]]
-    return " ".join(f":{pos} {name.replace('_', ' ')}" for name, pos in toks)
-
 for i, c in enumerate(ordered):
     c["jg"], c["gak"] = jg_like(c["text"]), i // args.beats
 if args.octave_check:
@@ -230,6 +294,11 @@ lines = [" | ".join(c["jg"] for c in ordered[i:i + args.beats]) for i in range(0
 title = args.title or pdf.stem
 (out / f"{title}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 # 검토 화면(review_page.py)이 읽는 형식. standard_score_text.py와 같다.
+source_image = cv2.imread(str(png), cv2.IMREAD_GRAYSCALE)
+for cell in ordered:
+    x, y, w, h = (cell[k] for k in ('x', 'y', 'w', 'h'))
+    inner = source_image[y + h * 15 // 100:y + h * 85 // 100, x + w * 15 // 100:x + w * 85 // 100]
+    cell['ink'] = round(float((inner < 160).mean()), 4) if inner.size else 0
 (out / "cells.json").write_text(json.dumps(dict(title=title, image="page.png", beats=args.beats, cells=ordered),
                                            ensure_ascii=False, indent=1), encoding="utf-8")
 

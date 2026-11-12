@@ -32,7 +32,9 @@ import com.ssafy.eolssu.feature.song.edit.component.editorUnitMarks
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheetedit_close
 import eolssu.shared.generated.resources.sheetedit_preview
-import eolssu.shared.generated.resources.sheet_editor_tempo
+import com.ssafy.eolssu.core.ui.component.formatClock
+import eolssu.shared.generated.resources.sheet_save_estimated_duration
+import eolssu.shared.generated.resources.sheet_editor_duration_unavailable
 import eolssu.shared.generated.resources.sheet_editor_edit
 import eolssu.shared.generated.resources.sheet_completion_saving
 import eolssu.shared.generated.resources.sheet_save_conflict
@@ -55,10 +57,11 @@ class SheetEditActions(
     val input: EditInputActions,
 )
 
-/** 빠르기·장단과 오른쪽 편집 버튼, 오류 정간 표시를 제공하는 편집 화면. */
+/** 빠르기·예상 음원 길이와 오른쪽 편집 버튼, 오류 정간 표시를 제공하는 편집 화면. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostState, actions: SheetEditActions, focusRequestKey: Int = 0) {
+fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostState, actions: SheetEditActions,
+    focusRequestKey: Int = 0, adaptationContent: @Composable () -> Unit = {}) {
     val draft = state.draft
     val song = remember(draft) { draft.toSong() }
     val corrections = state.completionValidation.correctionCellIndices
@@ -80,7 +83,9 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
             ) {
                 FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text("${draft.tempoUnitLabel} = ${draft.bpm}", style = MaterialTheme.typography.bodyMedium)
-                    Text(draft.jangdanName, style = MaterialTheme.typography.bodyMedium)
+                    val estimate = if (state.hasTempoPlan) null else draft.estimatedDurationSeconds(draft.bpm)
+                    Text(if (estimate != null) stringResource(Res.string.sheet_save_estimated_duration, formatClock(estimate))
+                        else stringResource(Res.string.sheet_editor_duration_unavailable), style = MaterialTheme.typography.bodySmall)
                 }
                 if (state.canEditDetails) PillButton(stringResource(Res.string.sheet_editor_edit), actions.onOpenDetails, enabled = !state.saving, secondary = true)
             }
@@ -98,7 +103,7 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 },
             )
             EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.supportedInputPitches, state.canUndo, state.canRedo, actions.input,
-                saveFeedback = { SheetSaveFeedback(state, actions.onRetryDraft) })
+                saveFeedback = { SheetSaveFeedback(state, actions.onRetryDraft) }, adaptationContent = adaptationContent)
         }
     }
 }

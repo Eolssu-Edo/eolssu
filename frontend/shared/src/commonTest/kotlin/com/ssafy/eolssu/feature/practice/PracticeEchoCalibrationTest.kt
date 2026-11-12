@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModelStore
 import com.ssafy.eolssu.core.audio.*
 import com.ssafy.eolssu.core.model.JangdanPlayback
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
@@ -22,6 +23,27 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeEchoCalibrationTest {
+    @Test fun sectionPreparationKeepsTheScoreOffsetAndCaptureLatency() = practice(sectionStart = true) { vm, recorder, _, _, _ ->
+        recorder.captureBoundary = CaptureBoundary(1, 1, 0, 44_100, 1_000_000_000, true,
+            observedNanos = 1_150_000_000)
+        val initial = vm.uiState.value
+        val startMs = initial.recordingStartMs
+        assertTrue(startMs > 0)
+        vm.requestEvaluation(); runCurrent()
+        assertTrue(vm.uiState.value.echoMeasuring)
+        val plan = assertNotNull(recorder.plan)
+        assertEquals(8.0, plan.recordingStartTick, 0.000001)
+        assertEquals(initial.song!!.jangdanPlayback, plan.mapping)
+        recorder.pending.complete(true); runCurrent()
+        val started = vm.uiState.value
+        assertEquals(initial.recordingStartIndex, started.position)
+        assertEquals(startMs + 150, started.elapsedMs, 0.001)
+        assertEquals(150.0, started.eventElapsedMs, 0.001)
+        assertEquals(.15, started.recordingElapsedSeconds, 0.001)
+        assertEquals(1, recorder.starts)
+        assertEquals(RecordingEchoStatus.Active, started.echoStatus)
+    }
+
     @Test fun failedHandoffCancelsTheAlreadyRunningPreparedPlaybackAndCapture() = practice { vm, recorder, player, _, _ ->
         recorder.failStart = true
         vm.requestEvaluation(); runCurrent()
@@ -285,12 +307,18 @@ class PracticeEchoCalibrationTest {
     }
 
     private fun practice(
+        sectionStart: Boolean = false,
         block: suspend TestScope.(PracticeViewModel, EchoRecorder, EchoPlayer, PracticeSettingsStore, SignedInMember) -> Unit,
     ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val views = ViewModelStore()
         try {
-            val song = smallScoreSong().copy(jangdanPlayback = JangdanPlayback("2", "굿거리", 0, 4, listOf("더러러러", "쿵"), listOf(1, 1)))
+            val base = smallScoreSong()
+            val song = base.copy(
+                score = if (sectionStart) base.score.copy(events = base.timeline.map {
+                    if (it.index == base.timeline.lastIndex) it.copy(note = base.timeline.first().note, noteIndex = it.index) else it
+                }) else base.score,
+                jangdanPlayback = JangdanPlayback("2", "굿거리", 0, 4, listOf("더러러러", "쿵"), listOf(1, 1)))
             val repository = object : SongRepository by SampleSongRepository() {
                 override suspend fun getSong(songId: String): Song = song
             }
@@ -304,7 +332,8 @@ class PracticeEchoCalibrationTest {
             val member = SignedInMember(storage)
             val vm = PracticeViewModel(song.id, false, repository, settings, PracticeTimeMeter({ 0L }, testScheduler.timeSource),
                 PracticeTimeQueue(storage, null, member, backgroundScope), recorder,
-                playbackTimeSource = testScheduler.timeSource, jangdanPlayer = player, member = member)
+                playbackTimeSource = testScheduler.timeSource, jangdanPlayer = player, member = member,
+                direct = sectionStart, initialSection = if (sectionStart) ScoreSection.ofColumns(song.score, 1, 1) else null)
             views.put("practice", vm)
             runCurrent()
             block(vm, recorder, player, settings, member)

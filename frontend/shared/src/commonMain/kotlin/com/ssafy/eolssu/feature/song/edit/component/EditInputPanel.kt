@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song.edit.component
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.offset
 import eolssu.shared.generated.resources.sheetedit_redo
+import eolssu.shared.generated.resources.sheet_adapt_tab
 import eolssu.shared.generated.resources.sheetedit_undo
 import eolssu.shared.generated.resources.sheetedit_register_jungcheong_short
 import eolssu.shared.generated.resources.sheetedit_register_baetak_short
@@ -36,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -141,9 +143,12 @@ internal fun EditInputPanel(
     actions: EditInputActions,
     modifier: Modifier = Modifier,
     saveFeedback: @Composable () -> Unit = {},
+    adaptationContent: @Composable () -> Unit = {},
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    val tabsScroll = rememberScrollState()
+    LaunchedEffect(tab) { if (tab == EditTab.Adaptation) tabsScroll.animateScrollTo(0) }
     Column(
         modifier
             .fillMaxWidth()
@@ -158,13 +163,18 @@ internal fun EditInputPanel(
             SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.onRedo, enabled = canRedo)
             Box(Modifier.weight(1f).offset(x = 4.dp), contentAlignment = Alignment.CenterEnd) { saveFeedback() }
         }
-        SegmentTabs(
-            labels = listOf(stringResource(Res.string.sheetedit_tab_yul), stringResource(Res.string.sheetedit_tab_sigimsae), stringResource(Res.string.sheetedit_tab_cell)),
-            selected = tab.ordinal,
-            onSelect = { actions.onSelectTab(EditTab.entries[it]) },
-            fill = true,
-        )
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Row(Modifier.horizontalScroll(tabsScroll)) {
+                SegmentTabs(
+                    labels = listOf(stringResource(Res.string.sheet_adapt_tab), stringResource(Res.string.sheetedit_tab_yul), stringResource(Res.string.sheetedit_tab_sigimsae), stringResource(Res.string.sheetedit_tab_cell)),
+                    selected = tab.ordinal,
+                    onSelect = { actions.onSelectTab(EditTab.entries[it]) },
+                    fill = false,
+                )
+            }
+        }
         when (tab) {
+            EditTab.Adaptation -> adaptationContent()
             EditTab.Yul -> YulKeys(draft, selected, selectedSub, register, availablePitches, actions)
             EditTab.Sigimsae -> SigimsaeKeys(draft, selected, draft.sigimsaeSub(selected, selectedSub), actions)
             EditTab.Cell -> CellTools(draft, actions)

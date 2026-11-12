@@ -77,12 +77,13 @@ fun PracticeRoute(
     viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn-$direct-$initialSection") {
         parametersOf(songId, solo, mine, learn, perf, direct, listOfNotNull(initialSection))
     },
+    /** 화면 밖에서 안내를 띄울 때 넘긴다(구간 재평가의 녹음 미지원 안내). */
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 평가 연주에서 음마다 모은 실시간 음높이 안내(S15P31E102-597). 관측이 없는 플랫폼은 집계가 비어 아무것도 칠하지 않는다.
     val pitchTally by viewModel.livePitch.collectAsStateWithLifecycle()
     val livePitch = remember(state.song, state.solo, pitchTally) { livePitchMarks(state, pitchTally) }
-    val snackbarHostState = remember { SnackbarHostState() }
     // 한 음씩은 혼자 연습에만 있어 그때만 예시음 목록을 받는다.
     val playStepNote: (FingeringNote) -> Unit = if (state.solo) stepNoteAudio(state.instrument) else { _ -> }
     val scope = rememberCoroutineScope()

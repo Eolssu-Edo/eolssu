@@ -60,7 +60,7 @@ def rows(seps, top, bottom):
     return [(a, b) for a, b in spans if b - a > typical * 0.5]
 
 
-def find_blocks(gray, parts=1):
+def find_blocks(gray, parts=1, *, allow_alternating_lyrics=True):
     """쪽 그림(흑백 numpy 배열) → 악보 덩어리 목록. 덩어리는 성부별 상자 목록이고 상자는 (x, y, w, h)다.
     한 단에 악보가 나란히 여럿(예: 소금보·단소보)이면 왼쪽부터 덩어리가 나뉜다. 여러 단은 한 덩어리로 잇는다."""
     dark = gray < DARK
@@ -104,7 +104,7 @@ def find_blocks(gray, parts=1):
             lyric = right and abs(right[0] - run[0][1]) < 3 and right[1] - right[0] <= (run[0][1] - run[0][0]) * 1.05
             if len(run) == parts and lyric:
                 chains = [run]
-            elif parts == 1 and len(run) % 2 == 0:
+            elif allow_alternating_lyrics and parts == 1 and len(run) % 2 == 0:
                 chains = [[c] for c in max(run[0::2], run[1::2], key=ink)]
             else:
                 continue
