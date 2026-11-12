@@ -37,9 +37,9 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_edit_art
 import eolssu.shared.generated.resources.home_fingering_art
 import eolssu.shared.generated.resources.home_learn_art
+import eolssu.shared.generated.resources.home_practice_tiger
 import eolssu.shared.generated.resources.home_records_art
 import eolssu.shared.generated.resources.home_score_art
-import eolssu.shared.generated.resources.tiger_play
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -83,7 +83,7 @@ internal fun FeatureSection(
 
 /**
  * 기능 칸: 마이페이지 카드와 같은 테두리 없는 흰 바탕 · 모서리 20dp의 상자(칸 너비 전체, 높이 [boxMinHeight]) 안에
- * 높이 96dp 그림과 그 아래 가운데 정렬 제목을 함께 둔다. 상자 전체가 누르는 영역이다.
+ * 높이 112dp 그림과 그 아래 가운데 정렬 제목을 함께 둔다. 상자 전체가 누르는 영역이다.
  */
 @Composable
 private fun FeatureTile(feature: HomeFeature, onClick: () -> Unit, boxMinHeight: Dp, large: Boolean, modifier: Modifier = Modifier) {
@@ -101,7 +101,7 @@ private fun FeatureTile(feature: HomeFeature, onClick: () -> Unit, boxMinHeight:
         Image(
             painterResource(feature.illustration),
             contentDescription = null,
-            modifier = Modifier.padding(horizontal = 8.dp).fillMaxWidth().height(96.dp),
+            modifier = Modifier.padding(horizontal = 8.dp).fillMaxWidth().height(112.dp),
         )
         Text(
             stringResource(feature.label),
@@ -120,7 +120,7 @@ private fun FeatureTile(feature: HomeFeature, onClick: () -> Unit, boxMinHeight:
 
 private val HomeFeature.illustration: DrawableResource
     get() = when (this) {
-        HomeFeature.SongSelect -> Res.drawable.tiger_play
+        HomeFeature.SongSelect -> Res.drawable.home_practice_tiger
         HomeFeature.Records -> Res.drawable.home_records_art
         HomeFeature.Reading -> Res.drawable.home_score_art
         HomeFeature.Fingering -> Res.drawable.home_fingering_art

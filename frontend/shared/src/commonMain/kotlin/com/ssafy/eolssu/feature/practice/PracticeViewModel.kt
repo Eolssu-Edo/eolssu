@@ -212,18 +212,27 @@ class PracticeViewModel(
         val resumeAfter = modelResumeAfterTick
         modelResumeAfterTick = null
         val startAt = modelTickAtReportedPosition()
-        jangdanAudio.start(currentPlan(), accompanyingModel = true, resumeAfterTick = resumeAfter, startAtTick = startAt, tick = {
+        val sectionEndMs = state.sectionTicks?.let { ticks ->
+            val playback = modelAudio.state.value
+            val audio = playback.audio
+            if (audio == null) null else state.song?.modelSectionEndMediaPosition(audio, ticks, playback.mediaPositionMs.toDouble())
+        }
+        var lastMediaMs: Double? = null
+        jangdanAudio.start(currentPlan(), accompanyingModel = true, resumeAfterTick = resumeAfter, startAtTick = startAt,
+            clockReady = { modelAudio.playbackClockReady }, tick = {
             val now = _uiState.value
             val song = now.song
-            val clock = now.modelClock
-            if (now.mode != PracticeMode.Model || !now.playing || song == null || clock == null) null
+            val audio = modelAudio.state.value.audio
+            val anchor = modelAudio.playbackAnchor
+            if (now.mode != PracticeMode.Model || !now.playing || song == null || audio == null || anchor == null) null
             else {
-                val mediaMs = clock.anchor.positionNow()
-                val endMs = clock.audio.startOffsetMs + song.modelScoreDurationMs(clock.audio)
+                // Decoder reports may jitter slightly backward. An explicit seek creates a new session.
+                val mediaMs = maxOf(anchor.positionNow(), lastMediaMs ?: 0.0).also { lastMediaMs = it }
+                val endMs = audio.startOffsetMs + song.modelScoreDurationMs(audio)
                 when {
-                    mediaMs < clock.audio.startOffsetMs -> -1.0
-                    mediaMs >= endMs -> null
-                    else -> song.modelJangdanTickAt(clock.audio, mediaMs)
+                    mediaMs < audio.startOffsetMs -> -1.0
+                    mediaMs >= endMs || sectionEndMs != null && mediaMs >= sectionEndMs -> null
+                    else -> song.modelJangdanTickAt(audio, mediaMs)
                 }
             }
         })
@@ -244,7 +253,7 @@ class PracticeViewModel(
         jangdanAudio.start(plan, accompanyingModel = true, startAtTick = start, tick = {
             val now = _uiState.value
             if (now.mode != PracticeMode.Recording || now.finished || now.popup != null || !now.settings.jangdanSound) null
-            else (stepClock?.sample()?.elapsedMs ?: now.elapsedMs) / plan.msPerTick
+            else (stepClock?.elapsedMs() ?: now.elapsedMs) / plan.msPerTick
         })
     }
 
@@ -301,10 +310,11 @@ class PracticeViewModel(
         _uiState.update { it.copy(follow = true) }
         soundPurpose = SoundPurpose.Rhythm
         val resumeAfter = if (rhythmStartsAtAttack) null else _uiState.value.elapsedMs / plan.msPerTick
+        val endTick = _uiState.value.sectionTicks?.endInclusive
+            ?: song.timeline.last().let { (it.startTick!! + it.durationTick!!).toDouble() }
         jangdanAudio.start(plan, accompanyingModel = false, resumeAfterTick = resumeAfter, tick = {
-            val end = song.timeline.last().let { it.startTick!! + it.durationTick!! }
             if (_uiState.value.mode == PracticeMode.Rhythm && _uiState.value.playing)
-                stepClock?.sample()?.elapsedMs?.div(plan.msPerTick)?.takeIf { it < end } else null
+                stepClock?.elapsedMs()?.div(plan.msPerTick)?.takeIf { it < endTick } else null
         }, onStarted = {
             rhythmStartsAtAttack = false
             _uiState.update { it.copy(playing = true) }
@@ -516,7 +526,14 @@ class PracticeViewModel(
             if (!state.passedSectionEnd && status != ModelAudioStatus.Completed) sectionSeekPending = false
             return
         }
-        val ended = status == ModelAudioStatus.Completed || (state.playing && state.passedSectionEnd)
+        val range = state.sectionEvents ?: return
+        val playback = modelAudio.state.value
+        val ticks = state.sectionTicks
+        val audio = playback.audio
+        val repeatedOutside = state.position < range.first && ticks != null && audio != null &&
+            audio.performance?.segments?.firstOrNull { ticks.start >= it.startTick && ticks.start < it.endTick }
+                ?.let { playback.mediaPositionMs >= audio.startOffsetMs + it.mediaMsAt(ticks.start) } == true
+        val ended = status == ModelAudioStatus.Completed || (state.playing && (state.passedSectionEnd || repeatedOutside))
         if (!ended) return
         val song = state.song ?: return
         val first = state.sectionEvents?.first ?: return
@@ -524,8 +541,7 @@ class PracticeViewModel(
         sectionSeekPending = true
         stopJangdan()
         _uiState.value = state.stopAtSectionStart()
-        modelAudio.pause()
-        modelAudio.seekToTick(tick)
+        modelAudio.pauseAtTick(tick)
         modelStartsAtAttack = true
     }
 
@@ -700,8 +716,8 @@ class PracticeViewModel(
         if (tick >= ticks.endInclusive) {
             when (state.mode) {
                 PracticeMode.Model -> {
-                    modelAudio.pause()
-                    song.timeline.getOrNull(state.sectionStartIndex)?.startTick?.let { modelAudio.seekToTick(it.toDouble()) }
+                    val start = song.timeline.getOrNull(state.sectionStartIndex)?.startTick
+                    if (start != null) modelAudio.pauseAtTick(start.toDouble()) else modelAudio.pause()
                     modelStartsAtAttack = true
                 }
                 PracticeMode.Rhythm -> pauseRhythm()
@@ -859,7 +875,8 @@ class PracticeViewModel(
 
     fun toggleModel() {
         if (!accountScope.isActive) return
-        if (_uiState.value.playing) modelAudio.pause() else startModel()
+        // 재생 중 −5초·+5초로 새 자리를 불러오는 동안에도 재생 중으로 보고 멈춘다(S15P31E102-807).
+        if (_uiState.value.playing || _uiState.value.modelSeekBuffering) modelAudio.pause() else startModel()
     }
 
     fun restartModel() {

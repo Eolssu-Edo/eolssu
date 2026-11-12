@@ -324,6 +324,7 @@ fun PracticeBoardScore(
                     section = state.sectionPractice?.section,
                     annotations = state.scoreAnnotations,
                     columnsPerStack = packing.columnsPerStack,
+                    windowed = true,
                     splitColumns = packing.splitColumns,
                     stackGap = PracticeStackGap,
                     cellHeights = packing.cellHeights,

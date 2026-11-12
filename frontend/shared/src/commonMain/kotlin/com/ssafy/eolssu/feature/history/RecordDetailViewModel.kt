@@ -65,6 +65,13 @@ data class RecordDetailUiState(
 
     val canPractice: Boolean get() = song != null && detailLoaded && delete != RecordDeleteState.Deleted
 
+    /**
+     * 기록·악보를 불러오는 중이라 ‘로딩 중’ 막을 보일 때(S15P31E102-810). 목록에서 가져온 기록만 있고
+     * 상세를 받는 동안(악보 없음 · 아직 실패 아님)도 불러오는 중으로 본다.
+     */
+    val lookupLoading: Boolean get() = songLookup == RecordSongLookup.Loading ||
+        (record != null && song == null && songLookup == RecordSongLookup.Ready)
+
     /** ‘지난 연주와 비교’는 곡 전체 연주 기록에만 있다. */
     val canCompare: Boolean get() = record?.section == null && record != null && delete != RecordDeleteState.Deleted
 
