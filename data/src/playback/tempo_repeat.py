@@ -17,6 +17,97 @@ from .expressions import fit_breath_to_duration
 TEMPO_CUES = {"본래속도로", "점점느리게", "점점속하게", "조금느리게", "조금속하게"}
 
 
+class MidiResolutionError(ValueError):
+    def __init__(self, note_id, locations):
+        super().__init__(f"{note_id}: 빠르기 변경 후 음을 보존할 MIDI 시간 해상도가 부족합니다")
+        self.locations = deepcopy(locations)
+        self.event_ids = []
+
+
+class PerformanceClock:
+    """One written-position clock for melody, accompaniment and repeated occurrences.
+
+    Tempo is linear in written position; elapsed time is its reciprocal integral.
+    ``spans`` also retain explicitly lengthened/shortened written units.
+    """
+    def __init__(self, spans, segments, base):
+        self.spans, self.segments, self.base = spans, segments, base
+        self.tempo_starts = [segment[0] for segment in segments]
+        self.tempo_prefix = [0.]
+        for segment in segments:
+            self.tempo_prefix.append(self.tempo_prefix[-1] + self.integral(segment, segment[1]))
+        self.span_starts = [span[0] for span in spans]
+        self.written_starts = [span[2] for span in spans]
+        self.span_prefix = [0.]
+        for a, b, wa, wb in spans:
+            self.span_prefix.append(self.span_prefix[-1] + (self.written_integral(wb) - self.written_integral(wa)) * (b - a) / (wb - wa))
+
+    def integral(self, segment, stop):
+        a, b, left, right = segment
+        width = min(stop, b) - a
+        if width <= 0:
+            return 0.
+        if abs(right - left) < 1e-12 * max(left, right):
+            return self.base * width / left
+        slope = (right - left) / (b - a)
+        target = left + width * slope
+        return self.base * (math.log(target) - math.log(left)) / slope
+
+    def written_integral(self, q):
+        index = max(0, bisect_right(self.tempo_starts, q) - 1)
+        return self.tempo_prefix[index] + self.integral(self.segments[index], q)
+
+    def source_position(self, written):
+        index = max(0, bisect_right(self.written_starts, written) - 1)
+        a, b, wa, wb = self.spans[index]
+        return a + (written - wa) * (b - a) / (wb - wa)
+
+    def written_position(self, source):
+        index = max(0, bisect_right(self.span_starts, source) - 1)
+        a, b, wa, wb = self.spans[index]
+        return wa + (source - a) * (wb - wa) / (b - a)
+
+    def written_at_time_fraction(self, source_start, source_end, fraction):
+        start, end = self.written_position(source_start), self.written_position(source_end)
+        if fraction <= 0:
+            return start
+        if fraction >= 1:
+            return end
+        ratio = self.tempo_ratio(start, end)
+        position = fraction if abs(ratio - 1) < 1e-9 else math.expm1(math.log(ratio) * fraction) / (ratio - 1)
+        return start + (end - start) * position
+
+    def tempo_ratio(self, start, end):
+        """A display slot cannot cross a numeric tempo boundary (located at cells)."""
+        index = max(0, bisect_right(self.tempo_starts, start) - 1)
+        a, b, left, right = self.segments[index]
+        require(a <= start < end <= b + 1e-9, '표시 시간 구간 안에 빠르기 경계가 있습니다')
+        slope = (right - left) / (b - a)
+        ratio = (left + (end - a) * slope) / (left + (start - a) * slope)
+        require(math.isfinite(ratio) and ratio > 0, '표시 빠르기 비율을 표현할 수 없습니다')
+        return ratio
+
+    def warp(self, q):
+        q = min(max(float(q), 0.), self.spans[-1][1])
+        index = max(0, bisect_right(self.span_starts, q) - 1)
+        a, b, wa, wb = self.spans[index]
+        wstop = wa + (q - a) * (wb - wa) / (b - a)
+        value = self.span_prefix[index] + (self.written_integral(wstop) - self.written_integral(wa)) * (b - a) / (wb - wa)
+        require(math.isfinite(value), "빠르기 계획의 재생시간을 표현할 수 없습니다")
+        return value
+
+
+def performed_points(timing, points):
+    """Map (written quarter, payload) through the exact melody clock and repeat passes."""
+    clock = PerformanceClock(timing['spans'], timing['tempos'], timing['baseBpm'])
+    positioned = [(clock.source_position(float(q)), payload) for q, payload in points]
+    for occurrence in timing['passes']:
+        for q, payload in positioned:
+            if occurrence['start'] <= q < occurrence['end']:
+                tick = round((occurrence['offset'] + clock.warp(q)) * PPQN)
+                yield tick * timing['quarterSeconds'] / PPQN, payload
+
+
 def _positive_int(value, label, high):
     require(type(value) is int and 1 <= value <= high, f"{label}: 1..{high} 정수가 필요합니다")
     return value
@@ -121,40 +212,8 @@ def apply_tempo_repeat(score, mapping, plan, input_sha256, *, instrument="danso"
     if written < written_cursor:
         tempo_segments.append((float(written), float(written_cursor), current, current))
 
-    def segment_integral(segment, stop):
-        a, b, left, right = segment
-        width = min(stop, b) - a
-        if width <= 0:
-            return 0.
-        if abs(right - left) < 1e-12 * max(left, right):
-            return base * width / left
-        slope = (right - left) / (b - a)
-        proportion = width / (b - a)
-        target = left * (1 - proportion) + right * proportion
-        return base * (math.log(target) - math.log(left)) / slope
-
-    tempo_starts = [segment[0] for segment in tempo_segments]
-    tempo_prefix = [0.]
-    for segment in tempo_segments:
-        tempo_prefix.append(tempo_prefix[-1] + segment_integral(segment, segment[1]))
-
-    def written_integral(q):
-        index = max(0, bisect_right(tempo_starts, q) - 1)
-        return tempo_prefix[index] + segment_integral(tempo_segments[index], q)
-
-    span_starts = [span[0] for span in spans]
-    span_prefix = [0.]
-    for a, b, wa, wb in spans:
-        span_prefix.append(span_prefix[-1] + (written_integral(wb) - written_integral(wa)) * (b - a) / (wb - wa))
-
-    def warp(q):
-        q = min(max(float(q), 0.), float(cursor))
-        index = max(0, bisect_right(span_starts, q) - 1)
-        a, b, wa, wb = spans[index]
-        wstop = wa + (q - a) * (wb - wa) / (b - a)
-        value = span_prefix[index] + (written_integral(wstop) - written_integral(wa)) * (b - a) / (wb - wa)
-        require(math.isfinite(value), "빠르기 계획의 재생시간을 표현할 수 없습니다")
-        return value
+    clock = PerformanceClock(spans, tempo_segments, base)
+    warp = clock.warp
 
     source_notes, note_cursor = [], Fraction()
     for note in score["notes"]:
@@ -200,10 +259,11 @@ def apply_tempo_repeat(score, mapping, plan, input_sha256, *, instrument="danso"
     count = sum(boundaries[b] - boundaries[a] for a, b, _, _ in passes)
     require(count <= 10000, "반복 후 음표가 10000개를 초과합니다")
 
-    notes, locations, note_times, pass_trace = [], {}, [], []
+    notes, locations, note_times, pass_trace, clock_passes = [], {}, [], [], []
     exact_cursor, tick_cursor = 0., 0
     for start, end, number, repeat in passes:
         offset = exact_cursor - warp(start)
+        clock_passes.append({'start': float(start), 'end': float(end), 'offset': offset})
         pass_trace.append({"source_start_quarters": str(start), "source_end_quarters": str(end),
                            "pass": number, "repeat": repeat, "start_tick": tick_cursor})
         for a, b, source_note in source_notes[boundaries[start]:boundaries[end]]:
@@ -214,7 +274,8 @@ def apply_tempo_repeat(score, mapping, plan, input_sha256, *, instrument="danso"
                 if note.get("slur"):
                     note["slur"] += f".repeat{number}"
             finish_tick = round((offset + warp(b)) * PPQN)
-            require(finish_tick > tick_cursor, f"{original_id}: 빠르기 변경 후 음을 보존할 MIDI 시간 해상도가 부족합니다")
+            if finish_tick <= tick_cursor:
+                raise MidiResolutionError(original_id, mapping["notes"][original_id])
             note["duration"] = str(Fraction(finish_tick - tick_cursor, PPQN))
             old_seconds = float(b - a) * quarter_seconds
             new_seconds = (finish_tick - tick_cursor) / PPQN * quarter_seconds
@@ -257,6 +318,8 @@ def apply_tempo_repeat(score, mapping, plan, input_sha256, *, instrument="danso"
     result_map["notes"] = locations
     result_map["source_total_quarters"] = mapping["total_quarters"]
     result_map["total_quarters"] = str(Fraction(tick_cursor, PPQN))
+    result_map['timingMap'] = {'spans': spans, 'tempos': tempo_segments, 'baseBpm': base,
+                               'quarterSeconds': mapping['midi_tempo_us'] / 1e6, 'passes': clock_passes}
     result_map["performance"] = {
         "schema": plan["schema"], "input_sha256": input_sha256, "plan": deepcopy(plan),
         "status": "explicit-playback-choice-not-performance-standard",
