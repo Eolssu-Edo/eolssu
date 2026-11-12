@@ -13,7 +13,7 @@ from .preview import EXTRA_MARKS, canonical
 from .common_compile import compile_slots
 from .common_score import ANCHOR_OFFSETS, YUL_NAMES
 from .score import reject_unknown, require
-from .tempo_repeat import TEMPO_CUES, apply_tempo_repeat
+from .tempo_repeat import TEMPO_CUES, MidiResolutionError, PerformanceClock, apply_tempo_repeat
 from .import_slots import source_slots, expand_locations
 
 POLICY = "educational-preview/v1"
@@ -280,7 +280,12 @@ def convert_preview(source, base_score, base_map, config):
                 'repeats': [{'start_gak': c, 'end_gak': c, 'times': 2} for c in sorted(repeat_columns)]}
         if tempo_entries or repeat_columns:
             approximations.append({'basis': '교육용 기본 계획: 반복 기호가 있는 각 총2회; 느림0.8/빠름1.2; 점진 변화는 다음 정간까지', 'plan': deepcopy(plan)})
-    score, mapping = apply_tempo_repeat(score, mapping, plan, input_hash, instrument=instrument)
+    try:
+        score, mapping = apply_tempo_repeat(score, mapping, plan, input_hash, instrument=instrument)
+    except MidiResolutionError as error:
+        error.event_ids = sorted({by_location[(loc['gak'], loc['cell'], loc['row'], loc['unit'])]['eventId']
+                                 for loc in error.locations})
+        raise
     if imported_slots is not None:
         expand_locations(score, mapping, rendered_slots, source, base_map)
     ordinals = {event['id']: event['noteIdx'] for event in base_map['events']}
@@ -325,7 +330,10 @@ def convert_preview(source, base_score, base_map, config):
             note.setdefault('gate_fraction', 1)
     segments = []
     seconds_per_quarter = mapping['midi_tempo_us'] / 1e6
-    for index, (start, end, location, _) in enumerate(_spans(mapping)):
+    timing = mapping['timingMap']
+    clock = PerformanceClock(timing['spans'], timing['tempos'], timing['baseBpm'])
+    quarters_per_tick = Fraction(base_map['quarter_ratio']) / source['music']['ticksPerBeat']
+    for index, (start, end, location, loc) in enumerate(_spans(mapping)):
         unit = by_location[location]
         segments.append({'occurrenceId': f'unit-{index}', 'eventId': unit['eventId'], 'cellId': unit['cellId'],
                          'row': unit['row'], 'col': unit['col'],
@@ -333,6 +341,14 @@ def convert_preview(source, base_score, base_map, config):
                          'startMs': float(start) * seconds_per_quarter * 1000,
                          'endMs': float(end) * seconds_per_quarter * 1000,
                          'sigimsae': list(marks[_key(unit)])})
+        written_start = loc.get('accompaniment_start_quarters', float(unit['startTick'] * quarters_per_tick))
+        written_end = loc.get('accompaniment_end_quarters', float(unit['endTick'] * quarters_per_tick))
+        ratio = clock.tempo_ratio(written_start, written_end)
+        if imported_slots is not None:
+            segments[-1].update(accompanimentStartTick=written_start / float(quarters_per_tick),
+                                accompanimentEndTick=written_end / float(quarters_per_tick))
+        if abs(ratio - 1) > 1e-12:
+            segments[-1]['tempoRatio'] = ratio
     require({_key(unit) for unit in units} == {(s['cellId'], s['row'], s['col']) for s in segments},
             '수행 표시 시간표에서 원본 표시 자리가 사라졌습니다')
     require(segments and segments[0]['startMs'] == 0, '수행 표시 시간표 시작 오류')
@@ -344,6 +360,7 @@ def convert_preview(source, base_score, base_map, config):
                 'durationMs': total_ms, 'segments': segments}
     result = deepcopy(base_map)
     result.update(notation_policy=mapping['notation_policy'], placement_policy=placement_policy,
+                  timingMap=mapping['timingMap'],
                   placement_assumptions=approximations, performanceTimeline=timeline,
                   expression_source_map=mapping, performed_score_seconds=total_ms / 1000,
                   written_score_seconds=base_map['score_seconds'])

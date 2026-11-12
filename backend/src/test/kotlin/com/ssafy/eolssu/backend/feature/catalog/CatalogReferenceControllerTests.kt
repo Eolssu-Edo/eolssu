@@ -12,12 +12,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import kotlin.test.*
 
 class CatalogReferenceControllerTests {
-    @Test fun `list and detail expose the same catalog pattern cell duration`() {
-        mvc.perform(get("/api/jangdans")).andExpect(status().isOk)
-            .andExpect(jsonPath("$.result.items[0].patternCellEighths").value(1))
-        mvc.perform(get("/api/jangdans/1")).andExpect(status().isOk)
-            .andExpect(jsonPath("$.result.patternCellEighths").value(1))
-    }
     @Test fun `authoring exposes unsupported notes without treating absent fingering as physical impossibility`() {
         mvc.perform(get("/api/instruments/9007199254740993/authoring-capabilities"))
             .andExpect(status().isOk)
@@ -26,6 +20,12 @@ class CatalogReferenceControllerTests {
             .andExpect(jsonPath("$.result.items[1].fingering").value("UNKNOWN"))
             .andExpect(jsonPath("$.result.items[1].selectable").value(false))
             .andExpect(jsonPath("$.result.physicalRange.verificationStatus").value("REFERENCE_ONLY"))
+    }
+    @Test fun `list and detail expose the same catalog pattern cell duration`() {
+        mvc.perform(get("/api/jangdans")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.items[0].patternCellEighths").value(1))
+        mvc.perform(get("/api/jangdans/1")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.patternCellEighths").value(1))
     }
     private val repository = ReferenceFixture()
     private val queries = CatalogReferenceQueries(repository)

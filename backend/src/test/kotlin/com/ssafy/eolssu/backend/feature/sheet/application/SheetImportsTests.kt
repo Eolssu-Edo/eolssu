@@ -137,16 +137,16 @@ class SheetImportsTests {
         assertEquals(SheetImportFailure.INVALID, accept(metadata(jangdanId = null)).failure())
         assertEquals(SheetImportFailure.INVALID, accept(metadata(hwang = "Eb4")).failure())
         assertEquals(SheetImportFailure.INVALID, accept(metadata(SheetNotation.STAFF, hwang = "H4")).failure())
-        assertEquals(SheetImportFailure.INVALID, accept(metadata(bpm = 161)).failure())
+        assertEquals(SheetImportFailure.INVALID, accept(metadata(bpm = 0)).failure())
         assertEquals(SheetImportFailure.INVALID, accept(metadata(title = "   ")).failure())
         assertEquals(SheetImportFailure.INVALID, accept(metadata(title = "가".repeat(51))).failure())
         assertEquals(SheetImportFailure.NOT_FOUND, accept(metadata(jangdanId = 99)).failure())
         assertEquals(SheetImportFailure.NOT_FOUND, accept(metadata().copy(instrumentId = 2)).failure())
         assertEquals(0, repository.saved.size)
 
-        val staff = accept(metadata(SheetNotation.STAFF, jangdanId = null, bpm = 160, hwang = "F#3")) as SheetImportResult.Accepted
+        val staff = accept(metadata(SheetNotation.STAFF, jangdanId = null, bpm = 480, hwang = "F#3")) as SheetImportResult.Accepted
         assertEquals(SheetNotation.STAFF, staff.conversion.notation)
-        assertEquals(160, repository.saved.single().sheetBpm)
+        assertEquals(480, repository.saved.single().sheetBpm)
         assertEquals("QUARTER", repository.saved.single().sheetBpmUnit)
     }
 

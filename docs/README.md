@@ -320,6 +320,9 @@
 
 ## COCO 산출물
 
+- [빠르기 생성 사전검사와 수행 시간표 분할 계획](plans/S15P31E102-773.md)
+- [빠르기·수행 시계와 실제 CAT 검증 근거](knowledge/data/score-authoring-tempo.md)
+
 - [장단 패턴·박 단위·시작 주기 계약 분할 계획](plans/S15P31E102-789.md)
 - [장단 선택·저장·재생의 이전 통합 검증 근거](knowledge/frontend/sheet-jangdan-consistency.md)
 
@@ -463,3 +466,4 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [악보 작성 결과 재분할과 의존 관계](plans/score-authoring-partition.md)
 - [악보 작성 일관성 스펙](specs/score-authoring-consistency.md) · [조사 근거](knowledge/frontend/score-authoring-consistency.md)
 - [S15P31E102-788 원본 음고 전달·불변 보존](plans/S15P31E102-788.md)
+- [S15P31E102-790 구간 빠르기 보존·생성 사전검사 API](plans/S15P31E102-790.md)

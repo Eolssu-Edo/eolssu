@@ -56,5 +56,6 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     CONVERSION_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "지금은 악보를 불러올 수 없어요. 잠시 후 다시 시도해 주세요"),
     AUDIO_IN_PROGRESS(HttpStatus.CONFLICT, "음원을 만들고 있어요. 끝난 뒤 다시 요청해 주세요"),
     AUDIO_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "지금은 음원을 사용할 수 없어요. 잠시 후 다시 시도해 주세요"),
+    TEMPO_UNRENDERABLE(HttpStatus.BAD_REQUEST, "이 빠르기에서는 음표 길이를 생성할 수 없어요. 안내 범위로 조절해 주세요"),
     EXPORT_TOO_LONG(HttpStatus.BAD_REQUEST, "음원은 10분까지 만들 수 있어요"),
 }
