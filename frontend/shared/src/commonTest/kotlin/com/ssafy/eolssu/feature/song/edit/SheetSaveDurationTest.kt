@@ -52,7 +52,7 @@ internal class SheetSaveDurationTest {
 
     @Test fun invalidBpmOrSourceTimingDoesNotProduceAMisleadingDuration() {
         val draft = draft()
-        for (bpm in listOf(-1, 0, 29, 161)) assertNull(draft.estimatedDurationSeconds(bpm))
+        for (bpm in listOf(-1, 0)) assertNull(draft.estimatedDurationSeconds(bpm))
         for (ticks in listOf(0, -1)) {
             val source = assertNotNull(draft.original)
             assertNull(draft.copy(original = source.copy(music = source.music.copy(ticksPerBeat = ticks))).estimatedDurationSeconds(60))

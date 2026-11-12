@@ -2,10 +2,10 @@ package com.ssafy.eolssu.feature.song.edit.component
 
 import androidx.compose.ui.graphics.Color
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,6 +28,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.feature.song.edit.SheetBpmRange
+import com.ssafy.eolssu.feature.song.edit.tempoUnitLabel
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.SheetEditJangdanPicker
 import com.ssafy.eolssu.feature.song.edit.SheetJangdanTimingText
@@ -39,6 +40,7 @@ import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.sheet_details_apply
 import eolssu.shared.generated.resources.sheet_details_bpm
 import eolssu.shared.generated.resources.sheet_details_bpm_error
+import eolssu.shared.generated.resources.sheet_tempo_profile_note
 import eolssu.shared.generated.resources.sheet_settings_current_jangdan
 import eolssu.shared.generated.resources.sheet_settings_jangdan
 import eolssu.shared.generated.resources.sheet_settings_jangdan_loading
@@ -61,6 +63,7 @@ internal fun SheetEditSettingsDialog(
     onDismiss: () -> Unit,
     onAdapt: () -> Unit,
     saving: Boolean = false,
+    hasTempoPlan: Boolean = false,
 ) {
     var bpm by rememberSaveable { mutableStateOf(draft.bpm.toString()) }
     var selectedId by rememberSaveable { mutableStateOf(draft.jangdanId) }
@@ -79,11 +82,12 @@ internal fun SheetEditSettingsDialog(
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             EolssuButton(stringResource(Res.string.sheet_adapt_title), onAdapt,
-                style = EolssuButtonStyle.Secondary, enabled = !saving)
+                style = EolssuButtonStyle.Secondary, enabled = !saving,
+            containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
             EolssuTextField(
                 value = bpm,
                 onValueChange = { if (!saving) bpm = it },
-                label = stringResource(Res.string.sheet_details_bpm),
+                label = stringResource(Res.string.sheet_details_bpm) + " · " + draft.tempoUnitLabel,
                 placeholder = "",
                 type = TextFieldType.Number,
                 imeAction = ImeAction.Done,
@@ -91,6 +95,7 @@ internal fun SheetEditSettingsDialog(
                 bordered = false,
                 containerColor = EolssuTheme.colors.groupedBackground,
             )
+            if (hasTempoPlan) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(Res.string.sheet_settings_jangdan), style = MaterialTheme.typography.labelLarge)
             SheetJangdanTimingText(draft)
             Text(stringResource(Res.string.sheetedit_jangdan_same_unit), style = MaterialTheme.typography.bodySmall)
@@ -128,7 +133,8 @@ internal fun SheetEditSettingsDialog(
                 SheetEditJangdanPicker.Failed -> {
                     Text(stringResource(Res.string.sheetedit_jangdan_load_failed))
                     EolssuButton(stringResource(Res.string.sheet_upload_reload), onLoadJangdans,
-                        style = EolssuButtonStyle.Secondary, enabled = !saving)
+                        style = EolssuButtonStyle.Secondary, enabled = !saving,
+            containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
                 }
                 is SheetEditJangdanPicker.Ready -> {
                     if (options.none { draft.isCompatibleWith(it) }) {

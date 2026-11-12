@@ -2,8 +2,9 @@ package com.ssafy.eolssu.feature.song.edit.component
 
 import androidx.compose.ui.graphics.Color
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -13,7 +14,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -29,6 +29,7 @@ import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.sheet_details_apply
 import eolssu.shared.generated.resources.sheet_details_bpm
 import eolssu.shared.generated.resources.sheet_details_bpm_error
+import eolssu.shared.generated.resources.sheet_tempo_profile_note
 import eolssu.shared.generated.resources.sheet_details_edit
 import eolssu.shared.generated.resources.sheet_details_title
 import eolssu.shared.generated.resources.sheet_details_title_error
@@ -44,8 +45,11 @@ internal fun SheetEditDetailsDialog(
     initialBpm: Int,
     onApply: (String, Int) -> Unit,
     onDismiss: () -> Unit,
+    bpmUnitLabel: String = "♩",
+    tempoIssue: com.ssafy.eolssu.data.song.SheetTempoIssue? = null,
     saveMode: Boolean = false,
     saving: Boolean = false,
+    hasTempoPlan: Boolean = false,
     canApply: Boolean = true,
     durationSeconds: ((Int) -> Double?)? = null,
     notice: @Composable () -> Unit = {},
@@ -73,7 +77,7 @@ internal fun SheetEditDetailsDialog(
             EolssuTextField(
                 value = bpm,
                 onValueChange = { if (!saving) bpm = it },
-                label = stringResource(Res.string.sheet_details_bpm),
+                label = stringResource(Res.string.sheet_details_bpm) + " · " + bpmUnitLabel,
                 placeholder = "",
                 type = TextFieldType.Number,
                 imeAction = ImeAction.Done,
@@ -81,6 +85,8 @@ internal fun SheetEditDetailsDialog(
                 bordered = false,
                 containerColor = EolssuTheme.colors.groupedBackground,
             )
+            if (tempoIssue != null) Text(tempoIssue.guidance(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            if (hasTempoPlan) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall)
             val estimate = validBpm?.let { durationSeconds?.invoke(it) }
             if (estimate != null) {
                 Text(
