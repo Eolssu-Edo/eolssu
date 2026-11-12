@@ -12,12 +12,16 @@ import android.os.Build
 import com.ssafy.eolssu.core.audio.JangdanClip
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
 import java.io.File
+import java.util.concurrent.Executors
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExecutorCoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.CoroutineContext
 
-/** Plays cached samples at their original pitch on the UI dispatcher. */
+/** Samples are prepared by the UI owner; the timing loop uses a dedicated audio-priority thread. */
 internal class AndroidJangdanSamplePlayer(context: Context, private val cache: JangdanSampleCache) : JangdanSamplePlayer {
     private val context = context.applicationContext
     private val manager = this.context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -31,8 +35,17 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
     private var focus: AudioFocusRequest? = null
     private var ownsFocus = false
     private var registered = false
+    private var acceptingHits = false
+    private var timingDispatcher: ExecutorCoroutineDispatcher? = null
+    override val timingContext: CoroutineContext
+        @Synchronized get() = timingDispatcher ?: Executors.newSingleThreadExecutor { action ->
+            Thread({
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO)
+                action.run()
+            }, "eolssu-jangdan")
+        }.asCoroutineDispatcher().also { timingDispatcher = it }
     override val available = true
-    override var interrupted = false
+    @Volatile override var interrupted = false
         private set
     private val listener = AudioManager.OnAudioFocusChangeListener { change ->
         if (ownsFocus && change != AudioManager.AUDIOFOCUS_GAIN) { interrupted = true; silence() }
@@ -44,26 +57,30 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
     }
 
     override suspend fun prepare(clips: Set<JangdanClip>): Boolean {
-        val current = pool ?: SoundPool.Builder().setMaxStreams(8).setAudioAttributes(attributes).build().also {
-            pool = it
-            it.setOnLoadCompleteListener { owner, id, status ->
-                if (owner === pool) loaded[id]?.complete(status == 0)
+        val current = synchronized(this) {
+            pool ?: SoundPool.Builder().setMaxStreams(8).setAudioAttributes(attributes).build().also {
+                pool = it
+                it.setOnLoadCompleteListener { owner, id, status ->
+                    synchronized(this) { if (owner === pool) loaded[id]?.complete(status == 0) }
+                }
             }
         }
         val adjusted = clips.filter { it.targetFrames != null }
         if (adjusted.size > 1) return false
         val next = adjusted.firstOrNull()
-        adjustedClip?.takeIf { it != next }?.let { old ->
-            samples.remove(old)?.let { id ->
-                current.unload(id)
-                loaded.remove(id)
+        synchronized(this) {
+            adjustedClip?.takeIf { it != next }?.let { old ->
+                samples.remove(old)?.let { id ->
+                    current.unload(id)
+                    loaded.remove(id)
+                }
             }
+            adjustedClip = next
         }
-        adjustedClip = next
         for (clip in clips) {
             var temporary: File? = null
             try {
-                val id = samples[clip] ?: run {
+                val id = synchronized(this) { samples[clip] } ?: run {
                     val cached = cache.fileFor(clip.sample)
                     val file = clip.targetFrames?.let { frames ->
                         withContext(Dispatchers.IO) {
@@ -74,13 +91,15 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
                             }
                         }
                     } ?: cached.file
-                    if (current !== pool) return false
-                    val result = current.load(file.absolutePath, 1)
-                    if (result == 0) return false
-                    samples[clip] = result
-                    result
+                    synchronized(this) {
+                        if (current !== pool) return false
+                        val result = current.load(file.absolutePath, 1)
+                        if (result == 0) return false
+                        samples[clip] = result
+                        result
+                    }
                 }
-                val ready = loaded.getOrPut(id) { CompletableDeferred() }
+                val ready = synchronized(this) { loaded.getOrPut(id) { CompletableDeferred() } }
                 if (withTimeoutOrNull(10_000) { ready.await() } != true) return false
             } finally {
                 temporary?.delete()
@@ -89,7 +108,7 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         return true
     }
 
-    override fun begin(accompanyingModel: Boolean): Boolean {
+    @Synchronized override fun begin(accompanyingModel: Boolean): Boolean {
         interrupted = false
         // The model player already owns focus. Requesting it again would interrupt that same media.
         if (!accompanyingModel) {
@@ -110,11 +129,12 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
             else context.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
             registered = true
         }
+        acceptingHits = true
         return true
     }
 
-    override fun play(clip: JangdanClip, gain: Float): Boolean {
-        if (interrupted) return false
+    @Synchronized override fun play(clip: JangdanClip, gain: Float): Boolean {
+        if (interrupted || !acceptingHits) return false
         val volume = gain.coerceIn(0f, 1f) * 0.65f
         val current = pool ?: return false
         val id = samples[clip] ?: return false
@@ -126,12 +146,13 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         return true
     }
 
-    override fun silence() {
+    @Synchronized override fun silence() {
         streams.forEach { pool?.stop(it) }
         streams.clear()
     }
 
-    override fun stop() {
+    @Synchronized override fun stop() {
+        acceptingHits = false
         silence()
         if (registered) { context.unregisterReceiver(noisy); registered = false }
         if (ownsFocus) {
@@ -142,7 +163,7 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         focus = null
     }
 
-    override fun release() {
+    @Synchronized override fun release() {
         stop()
         pool?.release()
         pool = null
@@ -150,5 +171,7 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         loaded.clear()
         samples.clear()
         adjustedClip = null
+        timingDispatcher?.close()
+        timingDispatcher = null
     }
 }

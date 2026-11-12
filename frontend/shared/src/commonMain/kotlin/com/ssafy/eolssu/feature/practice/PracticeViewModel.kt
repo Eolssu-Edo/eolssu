@@ -251,7 +251,7 @@ class PracticeViewModel(
         jangdanAudio.start(plan, accompanyingModel = true, startAtTick = start, tick = {
             val now = _uiState.value
             if (now.mode != PracticeMode.Recording || now.finished || now.popup != null || !now.settings.jangdanSound) null
-            else (stepClock?.sample()?.elapsedMs ?: now.elapsedMs) / plan.msPerTick
+            else (stepClock?.elapsedMs() ?: now.elapsedMs) / plan.msPerTick
         })
     }
 
@@ -311,7 +311,7 @@ class PracticeViewModel(
         jangdanAudio.start(plan, accompanyingModel = false, resumeAfterTick = resumeAfter, tick = {
             val end = song.timeline.last().let { it.startTick!! + it.durationTick!! }
             if (_uiState.value.mode == PracticeMode.Rhythm && _uiState.value.playing)
-                stepClock?.sample()?.elapsedMs?.div(plan.msPerTick)?.takeIf { it < end } else null
+                stepClock?.elapsedMs()?.div(plan.msPerTick)?.takeIf { it < end } else null
         }, onStarted = {
             rhythmStartsAtAttack = false
             _uiState.update { it.copy(playing = true) }

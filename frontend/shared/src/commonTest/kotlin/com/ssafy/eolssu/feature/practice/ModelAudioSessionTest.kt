@@ -16,6 +16,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -25,6 +26,44 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class ModelAudioSessionTest {
     private val song = smallScoreSong().copy(id = "42", scoreVersion = 1)
+
+    @Test fun firstPlaybackDoesNotAdvanceTheScoreBeforeTheDecoderReportsMovement() = runTest {
+        val player = FakeAudioPlayer()
+        val session = ModelAudioSession(modelRepository { audioFixture() }, player, backgroundScope, testScheduler.timeSource)
+        session.play(song, song.baseBpm)
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 0)
+        runCurrent()
+        advanceTimeBy(400)
+        assertEquals(0.0, session.state.value.anchor!!.positionNow(), "Zero startup reports must not paint future cells")
+        player.emit(AudioPlaybackStatus.Playing, 50)
+        runCurrent()
+        assertEquals(50.0, session.state.value.anchor!!.positionNow())
+        advanceTimeBy(100)
+        assertEquals(150.0, session.state.value.anchor!!.positionNow(), .001)
+    }
+
+    @Test fun latePositionReportsCannotRewindContinuousPlaybackButExplicitSeekCan() = runTest {
+        val player = FakeAudioPlayer()
+        val session = ModelAudioSession(modelRepository { audioFixture() }, player, backgroundScope, testScheduler.timeSource)
+        session.play(song, song.baseBpm)
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 100)
+        runCurrent()
+        advanceTimeBy(400)
+        val painted = session.state.value.anchor!!.positionNow()
+        player.emit(AudioPlaybackStatus.Playing, 110)
+        runCurrent()
+        assertTrue(session.state.value.anchor!!.positionNow() >= painted, "A clock correction is not a user seek")
+        player.emit(AudioPlaybackStatus.Playing, 600)
+        runCurrent()
+        assertEquals(600.0, session.state.value.anchor!!.positionNow(), .001)
+        session.seekBy(-1000)
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 0)
+        runCurrent()
+        assertEquals(0.0, session.state.value.anchor!!.positionNow(), "A requested seek is allowed to move backward")
+    }
 
     @Test fun loadingAndMissingAudioNeverPretendToPlayAndRetryUsesNewResponse() = runTest {
         val response = CompletableDeferred<ModelAudio?>()

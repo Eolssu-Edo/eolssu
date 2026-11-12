@@ -43,12 +43,19 @@ data class MediaAnchor(val positionMs: Double, val mark: TimeMark, val rate: Dou
 }
 
 /**
- * 새로 보고된 위치로 기준점을 옮긴다. 크게 어긋나면(시작·이동·끊김 뒤) 그 자리로 바로 옮기고, 작은 어긋남은
- * 지금 그리는 위치에서 끊지 않고 흐르는 빠르기만 조금 바꿔 약 1초에 걸쳐 따라잡는다. 그래서 진행 선이 뒤로 가지 않는다.
+ * 최초 0 위치에서는 디코더의 진행 보고를 기다린다. 이후 작은 오차는 약 1초에 걸쳐 빠르기를 보정하고,
+ * 큰 후행 보고에는 표시 위치를 멈춰 기다린다. 탐색·재시작은 소유자가 기준점을 지운 뒤 새 위치에서 시작한다.
  */
 internal fun MediaAnchor?.follow(reportedMs: Double, speed: Double, now: TimeMark): MediaAnchor {
-    val predicted = this?.positionNow() ?: return MediaAnchor(reportedMs, now, speed)
+    // MediaPlayer may report Playing at zero before its decoder clock starts moving.
+    // Advancing from that notification paints future cells, then snaps them back on the first real report.
+    if (this == null) return MediaAnchor(reportedMs, now, if (reportedMs == 0.0) 0.0 else speed)
+    val predicted = positionNow()
+    if (rate == 0.0) return MediaAnchor(maxOf(predicted, reportedMs), now, if (reportedMs > predicted) speed else 0.0)
     val drift = reportedMs - predicted
+    // A large stale report is not a seek: hold the painted position until the media clock catches up.
+    // Explicit seek/loading clears the anchor in ModelAudioSession before follow is called again.
+    if (drift < -ANCHOR_SNAP_MS) return MediaAnchor(predicted, now, 0.0)
     if (abs(drift) > ANCHOR_SNAP_MS) return MediaAnchor(reportedMs, now, speed)
     return MediaAnchor(predicted, now, speed * (1 + drift / ANCHOR_CATCH_UP_MS).coerceIn(0.9, 1.1))
 }

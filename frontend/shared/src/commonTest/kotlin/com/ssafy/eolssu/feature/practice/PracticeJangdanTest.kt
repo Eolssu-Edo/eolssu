@@ -17,6 +17,23 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeJangdanTest {
+    @Test fun audioTicksContinueWhileTheUiDispatcherIsNotRunningAndStopCancelsThem() = runTest {
+        val audioScheduler = TestCoroutineScheduler()
+        val player = Samples(StandardTestDispatcher(audioScheduler) + audioScheduler)
+        val session = JangdanSession(player, backgroundScope)
+        session.start(planJangdan(mapping, 60, 4), false, { audioScheduler.currentTime / 250.0 })
+        runCurrent() // Prepare and begin on the owner; subsequently leave this UI scheduler idle.
+        audioScheduler.runCurrent()
+        assertEquals(JangdanStatus.Playing, session.status.value)
+        audioScheduler.advanceTimeBy(1501)
+        assertEquals(listOf(JangdanSample.Deong, JangdanSample.Kung, JangdanSample.Deong, JangdanSample.Kung), player.hits)
+        session.stop()
+        audioScheduler.advanceTimeBy(1000)
+        runCurrent()
+        assertEquals(4, player.hits.size, "Stopped audio must not emit another attack")
+        assertEquals(JangdanStatus.Idle, session.status.value)
+    }
+
     @Test fun timelineSeekingPreservesRhythmPlaybackAndEndRestartsFromZero() = practice { vm, _, _, _ ->
         vm.selectRhythm()
         vm.seekToFraction(0.5f)
@@ -361,7 +378,7 @@ class PracticeJangdanTest {
 
 private val mapping = JangdanPlayback("3", "세마치", 0, 4, listOf("덩", "쿵"), listOf(1, 1))
 
-private class Samples : JangdanSamplePlayer {
+private class Samples(override val timingContext: kotlin.coroutines.CoroutineContext = kotlin.coroutines.EmptyCoroutineContext) : JangdanSamplePlayer {
     override val available = true
     override var interrupted = false
     var pending: CompletableDeferred<Boolean>? = null

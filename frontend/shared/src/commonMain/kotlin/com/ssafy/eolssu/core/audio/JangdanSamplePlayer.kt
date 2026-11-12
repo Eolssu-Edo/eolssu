@@ -1,9 +1,14 @@
 package com.ssafy.eolssu.core.audio
 
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
+
 /** 미리 읽은 짧은 타격/굴림을 원래 음높이로 겹쳐 재생한다. 화면마다 하나를 소유한다. */
 interface JangdanSamplePlayer {
     val available: Boolean
     val interrupted: Boolean
+    /** 타격 조회·출력의 실행 문맥. 지정한 구현은 play/silence/interrupted의 동시 접근을 보호한다. */
+    val timingContext: CoroutineContext get() = EmptyCoroutineContext
     suspend fun prepare(clips: Set<JangdanClip>): Boolean
     /** 모범 음원과 함께 틀 때는 그 플레이어가 오디오 포커스를 소유한다. */
     fun begin(accompanyingModel: Boolean): Boolean
