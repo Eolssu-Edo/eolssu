@@ -94,6 +94,8 @@ data class SheetDraft(
     val jangdanId: String? = null,
     internal val editedJangdanName: String? = null,
     val authoring: kotlinx.serialization.json.JsonObject? = null,
+    /** Original-event IDs in [original] to pre-adaptation pitches for repeated edits in this session. */
+    internal val adaptationBaseline: Map<String, Int> = emptyMap(),
 ) {
     init {
         require(cells.isNotEmpty() && (columnSizes?.let { it.all { n -> n > 0 } && it.sum() == cells.size } ?: (cells.size % requireNotNull(jangdan).gak == 0)))

@@ -36,7 +36,8 @@ internal fun SheetDraft.withJangdan(option: CatalogJangdanSummary, preserveTimin
         music = score.music.copy(jangdan = option.name, bpmUnit = option.bpmUnit, ticksPerBeat = target.beat, ticksPerJeonggan = target.cell),
         events = score.events.map { it.copy(startTick = it.startTick * target.factor, durationTick = it.durationTick * target.factor) },
     )
-    return corrected.editingDraft(title, bpm, jangdan).copy(jangdanId = option.jangdanId, editedJangdanName = option.name, authoring = authoring)
+    return corrected.editingDraft(title, bpm, jangdan).copy(jangdanId = option.jangdanId, editedJangdanName = option.name, authoring = authoring,
+        adaptationBaseline = sourcePitchNotes().associate { it.eventId to it.midi })
 }
 
 private data class JangdanRetiming(val beat: Int, val cell: Int, val factor: Long)

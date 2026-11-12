@@ -9,7 +9,7 @@ import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import com.ssafy.eolssu.data.song.validCatalogId
 
 /** EDIT-02 아래 입력판의 탭. */
-enum class EditTab { Yul, Sigimsae, Cell }
+enum class EditTab { Adaptation, Yul, Sigimsae, Cell }
 
 /** 편집기 보기: 정간보(EDIT-02) / 오선보로 보기(EDIT-03). 한쪽을 고치면 다른 쪽도 같은 악보를 보인다. */
 enum class EditView { Jeongganbo, Staff }
