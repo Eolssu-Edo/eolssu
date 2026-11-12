@@ -379,6 +379,36 @@ class PracticeRecordApiDatabaseTests {
         assertNull(jdbc.queryForObject("SELECT memo FROM practice_sessions WHERE id=991345", String::class.java))
     }
 
+    @Test
+    fun recentSummaryUsesStartedTimeAndWeeklySavedRecords() {
+        val empty = result(recent(OTHER, "?weekOf=2026-11-01"))
+        assertTrue(empty.path("latest").isNull)
+        assertEquals(0, empty.path("week").path("recordCount").asInt())
+        assertTrue(empty.path("week").path("bestScore").isNull)
+
+        session(991347, OWNER, 16, 19, "DONE", 1, songId = 2)
+        session(991348, OWNER, 16, 19, "DONE", 1, songId = 2)
+        session(991349, OWNER, 16, 19, "DONE", 1)
+        session(991350, OWNER, 16, 19, "DONE", 1, startedAt = "2026-10-25 14:59:59")
+        session(991351, OWNER, 16, 19, "DONE", 1, startedAt = "2026-10-25 15:00:00")
+        for ((id, total) in listOf(991347L to 67, 991348L to 81, 991349L to 93, 991350L to 99, 991351L to 75)) evaluation(id, total)
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 11:05:00' WHERE id BETWEEN 991347 AND 991351")
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 11:10:00' WHERE id=991349")
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 12:00:00', started_at='2026-11-01 10:00:29' WHERE id=991344")
+        jdbc.update("UPDATE practice_sessions SET started_at='2026-11-01 10:00:25' WHERE id IN (991345,991346)")
+
+        val summary = result(recent(OWNER, "?weekOf=2026-11-01"))
+        assertEquals("991348", summary.path("latest").path("sessionId").asString())
+        assertEquals(4, summary.path("week").path("recordCount").asInt())
+        assertEquals(93, summary.path("week").path("bestScore").asInt())
+        assertEquals(result(list(OWNER, "?weekOf=2026-11-01&groupOrder=LAST_STARTED&size=1")).path("items").path(0), summary.path("latest"))
+        assertNull(jdbc.queryForObject("SELECT viewed_at FROM practice_sessions WHERE id=991348", LocalDateTime::class.java))
+        assertEquals(401, recent(null, "?weekOf=2026-11-01").statusCode())
+        assertEquals(400, recent(OWNER, "").statusCode())
+        assertEquals(400, recent(OWNER, "?weekOf=1000-01-01").statusCode())
+        assertEquals(400, recent(OWNER, "?weekOf=2026-02-30").statusCode())
+    }
+
     private fun session(
         id: Long, userId: Long, start: Int, end: Int, status: String, scoreVersion: Int,
         songId: Long = 1, startedAt: String = "2026-11-01 10:00:00",
@@ -452,6 +482,9 @@ class PracticeRecordApiDatabaseTests {
 
     private fun list(user: Long?, query: String): HttpResponse<String> =
         client.send(authorized(URI("http://localhost:$port/api/users/me/practice-records$query"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
+
+    private fun recent(user: Long?, query: String): HttpResponse<String> =
+        client.send(authorized(URI("http://localhost:$port/api/users/me/practice-records/recent$query"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
 
     private fun authorized(uri: URI, user: Long?): HttpRequest.Builder {
         val request = HttpRequest.newBuilder(uri)

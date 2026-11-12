@@ -38,7 +38,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import tools.jackson.databind.JsonNode
 
-/** 연습 기록 API(REC-01·02·04). 녹음 다시 듣기(REC-03)는 [RecordingPlaybackController]. 계약은 `docs/specs/practice-records.md`를 따른다. */
+/** 연습 기록 API(REC-01·02·04·05). 녹음 다시 듣기(REC-03)는 [RecordingPlaybackController]. 계약은 `docs/specs/practice-records.md`를 따른다. */
 @RestController
 @Profile("db | ops")
 class PracticeRecordController(
@@ -95,6 +95,20 @@ class PracticeRecordController(
         return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "저장한 이전 연주 목록 조회 성공", PracticeRecordList.of(list, page, size)))
     }
 
+    @GetMapping("/api/users/me/practice-records/recent")
+    fun recent(
+        @AuthenticationPrincipal jwt: Jwt,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) weekOf: LocalDate,
+    ): ResponseEntity<*> {
+        if (weekOf.year !in 1001..9998) return error(ErrorCode.INVALID_REQUEST)
+        val summary = getRecords.recent(requireNotNull(jwt.subject).toLong(), weekOf)
+        val response = RecentPracticeRecordResponse(
+            summary.latest?.let { PracticeRecordItem.of(it.record, it.columns) },
+            summary.week,
+        )
+        return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "최근 연주와 주간 기록 조회 성공", response))
+    }
+
     // 생략과 null을 구분해야 하므로 DTO 대신 JSON 노드를 읽는다. JSON 객체가 아니거나 memo가 문자열·null이 아니면 null(400).
     private fun memoChange(body: JsonNode?): MemoChange? {
         if (body == null || body.isMissingNode) return MemoChange.Keep
@@ -116,6 +130,8 @@ class PracticeRecordController(
 }
 
 data class DeletedPracticeRecord(val sessionId: String, val deleted: Boolean, val recordingDeleted: Boolean, val deletedAt: Instant)
+
+data class RecentPracticeRecordResponse(val latest: PracticeRecordItem?, val week: SavedRecordWeek)
 
 data class PracticeRecordList(
     val totalRecordCount: Int,

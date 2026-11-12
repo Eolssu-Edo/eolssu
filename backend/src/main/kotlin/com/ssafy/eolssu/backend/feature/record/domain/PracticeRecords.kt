@@ -82,6 +82,9 @@ interface PracticeRecords {
     /** 기록이 있는 곡들. 최근에 저장한 곡이 앞이고, 같으면 곡 ID가 큰 곡이 앞이다. */
     fun songSummaries(userId: Long): List<SongRecordSummary>
 
+    /** 본인의 최신 저장 기록. 연주 시작 시각, 곡 ID, 세션 ID 내림차순이다. */
+    fun latestSavedRecord(userId: Long): RecordSession?
+
     /** 같은 회원의 저장 기록을 연주 시작 시각 [from, until)으로 집계한다. */
     fun savedRecordWeek(userId: Long, from: LocalDateTime, until: LocalDateTime): SavedRecordWeek
 

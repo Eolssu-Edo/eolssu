@@ -51,8 +51,8 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
+import com.ssafy.eolssu.data.practice.RecentPracticeSummary
 import com.ssafy.eolssu.feature.profile.MyLearningProgress
-import com.ssafy.eolssu.feature.profile.MyRecentPractice
 import com.ssafy.eolssu.feature.profile.MyRecentPracticeStatus
 import eolssu.shared.generated.resources.*
 import com.ssafy.eolssu.core.model.ProfileImage
@@ -171,9 +171,10 @@ internal fun LearningBadge(progress: MyLearningProgress) {
  * 기록이 없거나 받지 못하면 제목 아래에 그 상태를 한 줄로 적는다.
  */
 @Composable
-internal fun MyRecentPracticeCard(recent: MyRecentPractice, status: MyRecentPracticeStatus, today: KoreanDateTime, onOpenRecords: () -> Unit) {
+internal fun MyRecentPracticeCard(recent: RecentPracticeSummary?, status: MyRecentPracticeStatus, today: KoreanDateTime, onOpenRecords: () -> Unit) {
     val colors = EolssuTheme.colors
-    val latest = recent.latest
+    val latest = recent?.latest
+    val weekCount = recent?.week?.recordCount ?: 0
     val shown = status == MyRecentPracticeStatus.Shown && latest != null
     MyPageCard(onClick = onOpenRecords, enabled = status != MyRecentPracticeStatus.Unavailable) {
         Column(Modifier.padding(horizontal = MyPageCardInset, vertical = 20.dp)) {
@@ -206,7 +207,7 @@ internal fun MyRecentPracticeCard(recent: MyRecentPractice, status: MyRecentPrac
                         )
                         val day = if (latest.recordedAt.isSameDay(today)) stringResource(Res.string.records_today) else monthDayLabel(latest.recordedAt)
                         val kind = latest.section?.let { stringResource(Res.string.records_section, it) } ?: stringResource(Res.string.records_whole)
-                        val week = if (recent.weekCount > 0) stringResource(Res.string.my_recent_meta, recent.weekCount) else null
+                        val week = if (weekCount > 0) stringResource(Res.string.my_recent_meta, weekCount) else null
                         Text(
                             listOfNotNull(day, kind, week).joinToString(" · "),
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),

@@ -3,7 +3,9 @@ package com.ssafy.eolssu.feature.profile
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import com.ssafy.eolssu.data.user.MemberResult
 import eolssu.shared.generated.resources.member_api_unavailable
 import androidx.compose.runtime.produceState
@@ -14,7 +16,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.model.KoreanDateTime
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.data.practice.PracticeRecordRepository
+import com.ssafy.eolssu.data.practice.RecentPracticeSummary
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
@@ -42,6 +46,7 @@ fun MyPageRoute(
     onBack: () -> Unit,
     onOpen: (MyPageTarget) -> Unit,
     onLink: (SocialProvider) -> Unit,
+    onLogOutStarted: () -> Unit,
     onLoggedOut: () -> Unit,
     onSessionExpired: () -> Unit,
     onOpenLegal: (PublishedLegalDocument) -> Unit,
@@ -65,20 +70,30 @@ fun MyPageRoute(
         value = myLearningProgress({ snapshotFlow { instrument }.filterNotNull().first() }, progressRepository)
             .also(viewModel::rememberLearningProgress)
     }
-    // 최근 연주는 연습 기록 화면과 같은 저장소(REC-02)에서 받는다. 이미 받은 기록이 있으면 받는 동안·실패해도 그대로 보인다.
     val recordRepository = koinInject<PracticeRecordRepository>()
+    val member = koinInject<SignedInMember>()
+    val session = member.session.collectAsStateWithLifecycle().value
     val now = koinInject<() -> Long>()
-    val records by recordRepository.records.collectAsStateWithLifecycle()
     val today = remember(now) { KoreanDateTime.fromEpochMillis(now()) }
-    val recordsLoad by produceState(if (recordRepository.available) RecordsLoad.Loading else RecordsLoad.Done, recordRepository) {
-        if (recordRepository.available) value = if (recordRepository.refresh()) RecordsLoad.Done else RecordsLoad.Failed
+    val signingOut = remember { mutableStateOf(false) }
+    val recent by key(session, today) {
+        val initial = remember(recordRepository) { RecentPracticeLoad(recordRepository.cachedRecentPractice(today), RecordsLoad.Loading) }
+        produceState(initial, recordRepository) {
+            if (signingOut.value || !recordRepository.available || member.session.value != session) return@produceState
+            val summary = recordRepository.loadRecentPractice(today) { !signingOut.value }
+            if (signingOut.value || member.session.value != session) return@produceState
+            value = if (summary != null) {
+                RecentPracticeLoad(summary, RecordsLoad.Done)
+            } else {
+                RecentPracticeLoad(recordRepository.cachedRecentPractice(today), RecordsLoad.Failed)
+            }
+        }
     }
-    val recentPractice = remember(records, today) { MyRecentPractice.from(records, today) }
     val recentStatus = myRecentPracticeStatus(
         available = recordRepository.available,
-        hasRecords = records.isNotEmpty(),
-        loading = recordsLoad == RecordsLoad.Loading,
-        failed = recordsLoad == RecordsLoad.Failed,
+        hasRecords = recent.summary?.latest != null,
+        loading = recent.load == RecordsLoad.Loading,
+        failed = recent.load == RecordsLoad.Failed,
     )
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -104,7 +119,7 @@ fun MyPageRoute(
         profile = profile,
         providers = providers,
         learningProgress = learningProgress,
-        recentPractice = recentPractice,
+        recentPractice = recent.summary,
         recentStatus = recentStatus,
         today = today,
         dialog = dialog,
@@ -129,6 +144,9 @@ fun MyPageRoute(
         },
         onLogOut = viewModel::askLogOut,
         onConfirmLogOut = {
+            // 선조회 뒤에 대기하던 마이페이지 조회는 새로 시작하지 않는다.
+            signingOut.value = true
+            onLogOutStarted()
             scope.launch {
                 viewModel.confirmLogOut().join()
                 onLoggedOut()
@@ -145,3 +163,5 @@ fun MyPageRoute(
 }
 
 private enum class RecordsLoad { Loading, Done, Failed }
+
+private data class RecentPracticeLoad(val summary: RecentPracticeSummary?, val load: RecordsLoad)

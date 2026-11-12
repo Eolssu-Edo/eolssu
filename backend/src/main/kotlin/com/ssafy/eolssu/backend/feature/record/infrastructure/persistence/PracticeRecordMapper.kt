@@ -4,7 +4,7 @@ import java.time.LocalDateTime
 import org.apache.ibatis.annotations.Mapper
 import org.apache.ibatis.annotations.Param
 
-/** `practice_sessions`의 기록 칸(`saved_at`·`memo`·`viewed_at`·`record_deleted_at`)을 읽고 고친다(REC-01~04). */
+/** `practice_sessions`의 기록 칸(`saved_at`·`memo`·`viewed_at`·`record_deleted_at`)을 읽고 고친다(REC-01~05). */
 @Mapper
 interface PracticeRecordMapper {
     /** 본인의 지우지 않은 세션 상태를 잠그고 읽는다. 없거나 다른 회원의 세션, 기록을 지운 세션이면 null. */
@@ -24,6 +24,8 @@ interface PracticeRecordMapper {
 
     /** 기록이 있는 곡 묶음. 최근 저장 시각 내림차순, 같으면 곡 ID 내림차순. */
     fun songSummaries(@Param("userId") userId: Long): List<SongRecordSummaryRow>
+
+    fun latestSavedRecord(@Param("userId") userId: Long): RecordSessionRow?
 
     fun savedRecordWeek(
         @Param("userId") userId: Long,
