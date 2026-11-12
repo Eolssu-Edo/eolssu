@@ -9,6 +9,20 @@ import kotlinx.serialization.json.*
 import kotlin.test.*
 
 class SheetDocumentRepositoryTest {
+    @Test fun keepsServerPitchLocationsAndDoesNotLoseOtherInvalidRequestReasons() = runTest {
+        val copy = SheetWorkingCopy("검사", null, 60, smallScoreData(), "1", 0)
+        var error = """{"errorCode":"INVALID_REQUEST","details":{"reason":"UNSUPPORTED_PITCHES","instrumentCode":"SOGEUM","issues":[{"eventId":"c0-j0-r0-u0","cellId":"c0-j0","yul":"이","octave":1,"reasonCodes":["FINGERING_UNKNOWN"]}]}}"""
+        val client = createHttpClient(MockEngine { respond("""{"isSuccess":false,"code":400,"result":$error}""",
+            HttpStatusCode.BadRequest, headersOf(HttpHeaders.ContentType, "application/json")) }, ServerAddress.Production)
+        try {
+            val repository = ApiSheetDocumentRepository(client)
+            val rejected = assertIs<SheetWrite.UnsupportedPitches>(repository.save("31", copy, false))
+            assertEquals("c0-j0", rejected.details.issues.single().cellId)
+            assertEquals(listOf("FINGERING_UNKNOWN"), rejected.details.issues.single().reasonCodes)
+            error = """{"errorCode":"UNFILLED_CELLS","details":{"cellIds":["c1-j0"]}}"""
+            assertEquals(SheetWrite.Unfilled, repository.save("31", copy, false))
+        } finally { client.close() }
+    }
     @Test fun keepsWholeScoreNoticesSeparateFromCellIssues() = runTest {
         val score = Json.encodeToJsonElement(smallScoreData())
         val repository = ApiSheetDocumentRepository(createHttpClient(MockEngine {
