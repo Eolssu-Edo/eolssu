@@ -159,10 +159,14 @@ val appModule = module {
     viewModel { parameters ->
         val (songId: String, solo: Boolean, mine: Boolean, learn: Boolean, perf: PerformanceVisit?) = parameters
         val direct: Boolean = parameters[5]
+        // 일곱째·여덟째 인자: 구간 연습으로 들어온 바탕 연주와 고를 구간(S15P31E102-776). 없으면 빈 문자열·null.
+        val weakSource = parameters.values.getOrNull(6) as? String ?: ""
+        val initialSection = (parameters.values.getOrNull(7) as? List<*>)?.firstOrNull() as? ScoreSection
         val personalPractice = if (mine) get<SheetPracticeRepository>() else null
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
             modelAudioRepository = personalPractice ?: get<ModelAudioRepository>(), audioPlayer = get(), mine = mine, learn = learn, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
-            notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf, personalAudio = personalPractice, direct = direct)
+            notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf, personalAudio = personalPractice, direct = direct,
+            weakSource = weakSource.ifEmpty { null }, initialSection = initialSection, weakSections = get())
     }
     viewModel { parameters ->
         val (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) = parameters
@@ -236,7 +240,7 @@ val appModule = module {
     single<WeakSectionRepository> { ApiWeakSectionRepository(get(), get(), get(), get(), get()) }
     viewModel { (sourceId: String, perf: PerformanceVisit?) -> SectionSelectViewModel(sourceId, get(), perf) }
     viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int, perf: PerformanceVisit?) ->
-        SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull(), settingsStore = get(), perf = perf)
+        SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull(), settingsStore = get(), perf = perf, autoStart = false, jangdanPlayer = getOrNull())
     }
     viewModel { (sessionId: String, perf: PerformanceVisit?) -> SectionResultViewModel(sessionId, get(), perf) }
     viewModel { (recordId: String, previousId: String?) -> CompareViewModel(recordId, get(), previousId) }

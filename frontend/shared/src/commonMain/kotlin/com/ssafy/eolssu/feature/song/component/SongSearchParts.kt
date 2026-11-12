@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.component
 
+import com.ssafy.eolssu.core.ui.component.SongSearchField
+import com.ssafy.eolssu.core.ui.component.SongSortButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -56,7 +58,7 @@ import com.ssafy.eolssu.feature.song.SongLevelFilter
 import com.ssafy.eolssu.feature.song.SongListActions
 import com.ssafy.eolssu.feature.song.SongListUiState
 import com.ssafy.eolssu.feature.song.SongLoadState
-import com.ssafy.eolssu.feature.song.SongSortOrder
+import com.ssafy.eolssu.core.model.SongSortOrder
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_clear
 import eolssu.shared.generated.resources.song_empty
@@ -121,62 +123,6 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
     }
 }
 
-/** SONG-01 곡 제목 검색칸(`.search-box`): 높이 46dp, 흰 바탕 · 옅은 테두리 · 모서리 10dp, 13sp. 앱 안에서 제목으로 거른다. */
-@Composable
-internal fun SongSearchField(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onClear: () -> Unit,
-    modifier: Modifier = Modifier,
-    bordered: Boolean = true,
-) {
-    val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(10.dp)
-    val label = stringResource(Res.string.song_search_label)
-    val focusManager = LocalFocusManager.current
-    Row(
-        modifier
-            .fillMaxWidth()
-            .height(46.dp)
-            .background(colors.surface, shape)
-            .then(if (bordered) Modifier.border(1.dp, colors.lineSoft, shape) else Modifier)
-            .padding(horizontal = 13.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Icon(EolssuIcons.Search, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textMuted)
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            val textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, color = colors.text)
-            if (query.isEmpty()) {
-                Text(
-                    stringResource(Res.string.song_search_placeholder),
-                    modifier = Modifier.clearAndSetSemantics {},
-                    style = textStyle,
-                    color = colors.textMuted,
-                )
-            }
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                textStyle = textStyle,
-                cursorBrush = SolidColor(colors.text),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                // 입력할 때마다 거르므로 검색 키는 키보드만 닫는다.
-                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
-            )
-        }
-        if (query.isNotEmpty()) {
-            Surface(onClick = onClear, shape = CircleShape, color = colors.surfaceStrong, modifier = Modifier.size(24.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(EolssuIcons.Close, stringResource(Res.string.common_clear), Modifier.size(12.dp), tint = colors.text)
-                }
-            }
-        }
-    }
-}
-
 /** 난이도 필터 칩 줄(전체 · 입문 · 초급 · 중급). '전체'는 고르면 연두 바탕이고, 난이도 칩은 배지 그림과 색을 따른다. */
 @Composable
 internal fun SongLevelChips(
@@ -200,41 +146,6 @@ internal fun SongLevelChips(
         ) { chips() }
     } else {
         ChipRow(modifier) { chips() }
-    }
-}
-
-/**
- * 곡 이름 정렬 버튼: 정렬 아이콘과 지금 순서('ㄱ→ㅎ'·'ㅎ→ㄱ')를 보이고, 누르면 반대 순서로 바꾼다.
- * 화면 읽기에는 화살표 표기 대신 '가나다순'·'가나다 역순'으로 읽힌다.
- * 고르기 칩과 같은 36dp(15sp) 흰 알약이고, [small]이면 목록 위 안내 줄에 맞춘 28dp(13sp)다.
- */
-@Composable
-internal fun SongSortButton(order: SongSortOrder, onToggle: () -> Unit, modifier: Modifier = Modifier, small: Boolean = false, bordered: Boolean = true) {
-    val colors = EolssuTheme.colors
-    val ascending = order == SongSortOrder.Ascending
-    val description = stringResource(if (ascending) Res.string.song_sort_ascending_description else Res.string.song_sort_descending_description)
-    Surface(
-        onClick = onToggle,
-        modifier = modifier.heightIn(min = if (small) 28.dp else 36.dp),
-        shape = CircleShape,
-        color = colors.surface,
-        contentColor = colors.textSub,
-        border = if (bordered) BorderStroke(1.dp, colors.lineSoft) else null,
-    ) {
-        Row(
-            Modifier.padding(horizontal = if (small) 10.dp else 12.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Icon(EolssuIcons.Sort, contentDescription = null, modifier = Modifier.size(if (small) 14.dp else 16.dp))
-            Text(
-                stringResource(if (ascending) Res.string.song_sort_ascending else Res.string.song_sort_descending),
-                modifier = Modifier.clearAndSetSemantics { contentDescription = description },
-                // 낱자(ㄱ·ㅎ)는 글꼴에서 작게 그려져 아이콘보다 1sp 크게 둔다.
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = if (small) 13.sp else 15.sp, fontWeight = FontWeight.Medium),
-                maxLines = 1,
-            )
-        }
     }
 }
 

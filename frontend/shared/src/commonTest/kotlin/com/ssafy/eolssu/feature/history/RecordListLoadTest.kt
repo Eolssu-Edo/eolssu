@@ -52,7 +52,7 @@ internal class RecordListLoadTest : CatalogViewModelTest() {
         runCurrent()
         val failed = model.uiState.value
         assertTrue(failed.showLoadStatus)
-        assertEquals(listOf(sample.last().songId), failed.groups.map { it.songId })
+        assertEquals(listOf(sample.last().songId), failed.groups.map { it.newestSongId })
         assertEquals(1, failed.totalRecordCount)
 
         repo.ok = true

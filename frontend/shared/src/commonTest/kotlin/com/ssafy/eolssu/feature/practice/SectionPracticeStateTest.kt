@@ -31,13 +31,34 @@ class SectionPracticeStateTest {
     @Test
     fun repeatsAndSpeed() {
         val state = SectionSelectUiState(loading = false)
-        assertEquals(5, state.repeats)
-        assertNull(state.copy(repeat = SectionRepeat.Endless).repeats)
-        assertEquals(1, state.copy(loop = false, repeat = SectionRepeat.Endless).repeats)
+        assertEquals(5, SectionRepeat.Five.count)
+        assertNull(SectionRepeat.Endless.count)
         assertEquals(48, TempoStep.Slow.bpm(60))
         assertEquals(36, TempoStep.Slowest.bpm(60))
         assertEquals(72, TempoStep.Fastest.bpm(60))
         assertEquals(TempoStep.Slow, state.speed)
+    }
+
+    @Test
+    fun hintMovesFromStartToEndToReadyAndResetReturnsToTheRecommendedSection() {
+        val start = SectionSelectUiState(loading = false, section = recommended, recommended = recommended)
+        // 추천 구간이 잡혀 있어도 직접 고르기 전에는 시작 정간부터 안내한다.
+        assertEquals(SectionSelectStep.Start, start.step)
+        assertTrue(start.canStart)
+
+        val picking = start.tap(ScorePosition(4, 3))
+        assertEquals(SectionSelectStep.End, picking.step)
+        val ready = picking.tap(ScorePosition(5, 1))
+        assertEquals(SectionSelectStep.Ready, ready.step)
+
+        // 다시 누르면 끝 정간을 기다리는 단계로 돌아간다.
+        assertEquals(SectionSelectStep.End, ready.tap(ScorePosition(0, 0)).step)
+
+        val reset = picking.resetToRecommended()
+        assertEquals(recommended, reset.section)
+        assertFalse(reset.picking)
+        assertEquals(SectionSelectStep.Start, reset.step)
+        assertTrue(reset.canStart)
     }
 
     private val cells = listOf(ScorePosition(2, 7), ScorePosition(2, 8), ScorePosition(3, 0))
