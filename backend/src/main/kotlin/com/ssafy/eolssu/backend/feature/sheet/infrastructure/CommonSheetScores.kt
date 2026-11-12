@@ -26,8 +26,8 @@ class CommonSheetScores(
 ) : SheetScores {
     override fun timeline(scoreJson: String, scoreVersion: Int, noteCount: Int, bpm: Int, bpmUnit: String): List<ScoreTimelineEvent>? =
         try {
-            // 디코더는 곡 ID를 쓰지 않는다. 내 악보의 BPM을 곡 기본 BPM 자리에 넣어 같은 범위 검사를 받는다.
-            decoder.decode(PublishedSongScore(0, scoreVersion, noteCount, bpm, bpmUnit, scoreJson), pitches()).events
+            // 내 악보는 양의 BPM을 받고 실제 생성 preflight에서 단위·음표별 한계를 검사한다.
+            decoder.decodeAuthoring(PublishedSongScore(0, scoreVersion, noteCount, bpm, bpmUnit, scoreJson), pitches()).events
         } catch (_: InvalidStoredScore) {
             null
         }
@@ -36,7 +36,7 @@ class CommonSheetScores(
         scoreJson: String, scoreVersion: Int, noteCount: Int, bpm: Int, bpmUnit: String,
     ): List<UnregisteredScorePitch>? =
         try {
-            decoder.unregisteredPitches(PublishedSongScore(0, scoreVersion, noteCount, bpm, bpmUnit, scoreJson), pitches())
+            decoder.unregisteredPitches(PublishedSongScore(0, scoreVersion, noteCount, bpm, bpmUnit, scoreJson), pitches(), authoring = true)
         } catch (_: InvalidStoredScore) {
             null
         }

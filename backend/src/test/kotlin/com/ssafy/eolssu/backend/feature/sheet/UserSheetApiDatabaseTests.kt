@@ -40,6 +40,19 @@ private const val OTHER = 991391L
 @ActiveProfiles("db")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class UserSheetApiDatabaseTests {
+    // This suite isolates persistence/ownership. SheetAuthoringCatDatabaseTests exercises the actual preflight/render path.
+    @org.springframework.boot.test.context.TestConfiguration
+    class PreflightConfig {
+        @org.springframework.context.annotation.Bean
+        @org.springframework.context.annotation.Primary
+        fun playback(): com.ssafy.eolssu.backend.feature.sheet.infrastructure.PlaybackClient =
+            object : com.ssafy.eolssu.backend.feature.sheet.infrastructure.PlaybackClient {
+                override fun estimate(requestJson: String) = 1000L
+                override fun generate(requestJson: String): com.ssafy.eolssu.backend.feature.sheet.infrastructure.GeneratedSheetAudio =
+                    error("This persistence suite does not generate audio")
+            }
+    }
+
     @Autowired private lateinit var jdbc: JdbcTemplate
     @Autowired private lateinit var copyPublishedSheet: CopyPublishedSheet
     @Value("\${local.server.port}") private var port = 0
@@ -205,10 +218,9 @@ class UserSheetApiDatabaseTests {
         )
         assertEquals(404, copySong(OWNER, "unpublished", """"993902"""").statusCode())
         jdbc.update("UPDATE songs SET status='PUBLISHED' WHERE id=993902")
-        val tooFast = copySong(OWNER, "too-fast", """"993902"""")
-        assertEquals(409, tooFast.statusCode(), tooFast.body())
-        assertEquals("STATE_CONFLICT", json.readTree(tooFast.body()).path("result").path("errorCode").asString())
-        repeat(10) { insertBlank(OWNER, "기존 악보 $it") }
+        val faster = copySong(OWNER, "positive-bpm", """"993902"""")
+        assertEquals(201, faster.statusCode(), faster.body())
+        repeat(9) { insertBlank(OWNER, "기존 악보 $it") }
         val full = copySong(OWNER, "full")
         assertEquals(409, full.statusCode(), full.body())
         assertEquals("SHEET_LIMIT_EXCEEDED", json.readTree(full.body()).path("result").path("errorCode").asString())
