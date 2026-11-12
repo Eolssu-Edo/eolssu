@@ -108,6 +108,7 @@ internal fun rememberLearnStagePractice(
             },
             passed = passed,
             // 5·6단계 할 일 박스의 체크를 풀면 그 박스의 첫 음부터 다시 판정한다.
+            start = { if (!judgesInTasks(number) || segmentJudging) viewModel.startListening() },
             onUndo = { box -> if (judgesInTasks(number)) viewModel.rewindTo(segmentNotes(number, box, state.pitch?.notes?.size ?: 0).first) },
             overlay = {
                 if (celebrating) {

@@ -182,7 +182,16 @@ internal fun SheetDraft.renderEditingScore(): Score {
     return Score(sizes.mapIndexed { c, count -> List(count) { j ->
         val index = indexOf(c, j)
         val units = layout(index)
-        ScoreCell(cells[index].ifEmpty { listOf(ScoreNote.Blank) }, "c$c-j$j",
+        // 표기할 수 없던 원본 NOTE도 실제 빈칸과 구분한다. 표시만 복원하고 초안·원본 JSON은 바꾸지 않는다.
+        val displayNotes = cells[index].mapIndexed { sub, note ->
+            val unit = units.getOrNull(sub)
+            val event = original?.events?.firstOrNull { it.id == unit?.eventId && it.kind == "NOTE" &&
+                it.id == "c$c-j$j-r${unit.row}-u${unit.col}" }
+            if (note == ScoreNote.Blank && event != null) runCatching {
+                ScoreNote.SourcePitch(requireNotNull(event.yul), requireNotNull(event.octave))
+            }.getOrDefault(note) else note
+        }
+        ScoreCell(displayNotes.ifEmpty { listOf(ScoreNote.Blank) }, "c$c-j$j",
             units.map { ScoreUnit(it.row, it.col, it.symbol, it.eventId) }, originalCell(index)?.lyric)
     } })
 }
