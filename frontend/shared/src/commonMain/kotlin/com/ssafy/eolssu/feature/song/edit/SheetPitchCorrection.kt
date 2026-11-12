@@ -57,7 +57,7 @@ internal fun SheetDraft.correctPitch(target: SheetPitchCorrection, pitch: Pair<Y
             })
         }) })
     return corrected.editingDraft(title, bpm, jangdan).copy(jangdanId = jangdanId,
-        editedJangdanName = editedJangdanName)
+        editedJangdanName = editedJangdanName, authoring = authoring)
 }
 
 internal fun SheetEditUiState.pitchAlternatives(pitch: Pair<Yul, Int>): List<Pair<Yul, Int>> {

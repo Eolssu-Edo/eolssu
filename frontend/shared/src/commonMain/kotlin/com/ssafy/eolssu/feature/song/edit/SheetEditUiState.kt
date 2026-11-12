@@ -143,6 +143,7 @@ data class SheetEditUiState(
     val reviewNotices: List<SheetReviewNotice> = emptyList(),
     val checkedIssueIds: Set<String> = emptySet(),
     val jangdanPicker: SheetEditJangdanPicker? = null,
+    val adaptation: SheetAdaptationUi? = null,
 ) {
     val completionValidation: SheetCompletionValidation by lazy { validateCompletion() }
     internal val validatedCheckedIssueIds: Set<String>

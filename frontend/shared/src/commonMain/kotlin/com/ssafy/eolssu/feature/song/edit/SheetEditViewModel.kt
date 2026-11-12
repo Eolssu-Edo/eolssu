@@ -17,6 +17,7 @@ import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SheetDocument
 import com.ssafy.eolssu.data.song.SheetDocumentRepository
+import com.ssafy.eolssu.data.song.matchesDraftAcknowledgement
 import com.ssafy.eolssu.data.song.SheetWorkingCopy
 import com.ssafy.eolssu.data.song.SheetWrite
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -122,7 +123,7 @@ class SheetEditViewModel(
             reviewNotices = emptyList(), instrumentPitches = null, availableJangdans = null, completionWarning = false,
             completionCatalogState = SheetCompletionCatalogState.NotRequired,
             past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet(),
-            jangdanPicker = null, audioInstruments = null) }
+            jangdanPicker = null, audioInstruments = null, adaptation = null) }
     }
 
     init {
@@ -178,6 +179,68 @@ class SheetEditViewModel(
 
     fun retryCompletionCatalog() = loadCompletionCatalog()
 
+    private var adaptationRequest = 0L
+
+    fun openAdaptation() {
+        val before = _uiState.value
+        if (before.confirming || before.documentLoading || before.draft.original == null) return
+        val request = ++adaptationRequest
+        _uiState.update { it.copy(adaptation = SheetAdaptationUi(baseline = before.draft)) }
+        accountScope.launch {
+            try {
+                val options = requireNotNull(loadAudioInstruments).invoke()
+                ensureAccountSession()
+                if (request != adaptationRequest) return@launch
+                _uiState.update { current -> if (current.adaptation == null) current else current.copy(
+                    adaptation = current.adaptation.copy(instruments = options)) }
+                val selected = options.firstOrNull { it.code == before.draft.original.score.instrument } ?: options.firstOrNull()
+                selectAdaptationInstrument(requireNotNull(selected).instrumentId)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { if (request == adaptationRequest) _uiState.update { it.copy(adaptation = it.adaptation?.copy(loading = false, failed = true)) } }
+        }
+    }
+
+    fun selectAdaptationInstrument(id: String) {
+        val catalog = pitchCatalog ?: return
+        val panel = _uiState.value.adaptation ?: return
+        if (panel.instruments.none { it.instrumentId == id }) return
+        val request = ++adaptationRequest
+        _uiState.update { it.copy(adaptation = it.adaptation?.copy(selectedId = id, loading = true, failed = false)) }
+        accountScope.launch {
+            try {
+                val capabilities = catalog.authoringCapabilities(id)
+                val pitches = capabilities.items.filter { it.selectable }.map { AdaptationPitch(it.midi, it.yul, it.octave) }
+                val plans = planPitchAdaptation(panel.baseline.sourcePitchNotes(), pitches)
+                ensureAccountSession()
+                if (request != adaptationRequest) return@launch
+                _uiState.update { state -> if (state.adaptation?.selectedId != id) state else state.copy(
+                    adaptation = state.adaptation.copy(capabilities = capabilities, plans = plans,
+                        selectedTranspose = plans.firstOrNull()?.transpose, loading = false)) }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { if (request == adaptationRequest) _uiState.update { state -> if (state.adaptation?.selectedId != id) state else
+                state.copy(adaptation = state.adaptation.copy(loading = false, failed = true)) } }
+        }
+    }
+
+    fun selectAdaptationTranspose(value: Int) = _uiState.update { state ->
+        if (state.adaptation?.plans?.any { it.transpose == value } != true) state
+        else state.copy(adaptation = state.adaptation.copy(selectedTranspose = value))
+    }
+
+    fun closeAdaptation() { ++adaptationRequest; _uiState.update { it.copy(adaptation = null) } }
+
+    fun applyAdaptation() {
+        val panel = _uiState.value.adaptation ?: return
+        val plan = panel.selected ?: return
+        val capability = panel.capabilities ?: return
+        if (panel.loading || panel.baseline != _uiState.value.draft) return
+        change { state -> state.copy(draft = state.draft.applyAdaptation(plan, capability), adaptation = null,
+            past = (state.past + state.draft).takeLast(50), future = emptyList(), instrumentPitches = capability.selectablePitches) }
+        completionCatalogJob?.cancel()
+        completionCatalogJob = null
+        loadCompletionCatalog()
+    }
+
     private fun change(transform: (SheetEditUiState) -> SheetEditUiState) {
         if (!accountScope.isActive || _uiState.value.documentLoading || _uiState.value.documentFailed) return
         val before = _uiState.value.draft
@@ -232,7 +295,7 @@ class SheetEditViewModel(
                 val score = copy?.score ?: document.score ?: error("변환 완료 악보 없음")
                 val jangdanId = if (copy == null) document.jangdanId else copy.jangdanId
                 val draft = score.editingDraft(copy?.title ?: document.title, copy?.bpm ?: document.bpm, jangdan = null)
-                    .copy(jangdanId = jangdanId)
+                    .copy(jangdanId = jangdanId, authoring = copy?.authoring ?: document.authoring)
                 savedJangdanId = document.jangdanId
                 val deviceAudio = member?.id?.let { accountId ->
                     try { deviceAudioStore?.find(accountId, id, document.scoreVersion) }
@@ -341,7 +404,7 @@ class SheetEditViewModel(
                         val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
                             .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
                         val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
-                            snapshot.draft.bpm, score, version, revision, resolvedIds)
+                            snapshot.draft.bpm, score, version, revision, resolvedIds, snapshot.draft.authoring)
                         val attempt = if (draft) DraftSave(snapshot.draft, copy) else null
                         val result = try {
                             repository.save(id, copy, draft).also { ensureAccountSession() }
@@ -423,7 +486,7 @@ class SheetEditViewModel(
                 reportSaveConflict()
                 return false
             }
-            remote == request.copy(revision = nextRevision) -> {
+            remote?.matchesDraftAcknowledgement(request.copy(revision = nextRevision)) == true -> {
                 revision = nextRevision
                 persistedDraft = attempt.draft
                 persistedStatus = SheetSaveStatus.DraftSaved

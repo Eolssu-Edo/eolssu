@@ -28,6 +28,7 @@ internal fun SheetPitchCorrectionDialog(
     target: SheetPitchCorrection,
     onSelect: (Pair<Yul, Int>) -> Unit,
     onDismiss: () -> Unit,
+    onAdapt: () -> Unit,
 ) {
     val (base, octave) = target.pitch
     val name = if (octave in -2..2) ScoreNote.SourcePitch(base.hangul, octave).fullName
@@ -49,6 +50,7 @@ internal fun SheetPitchCorrectionDialog(
         }, name),
         onDismissRequest = onDismiss,
     ) {
+        EolssuButton(stringResource(Res.string.sheet_adapt_title), onAdapt, enabled = !state.confirming)
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (target.isContinuation) Text(
