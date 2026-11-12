@@ -27,7 +27,8 @@ import kotlin.time.TimeSource
 enum class ModelAudioStatus { Idle, Loading, Playing, Paused, Completed, Interrupted, Unavailable, Unsupported, Failed }
 
 /**
- * @property anchor 재생 중일 때만 있다. 진행 선은 보고된 [mediaPositionMs] 대신 이 기준점에서 이어 그린다.
+ * @property anchor 회색 표시를 부드럽게 보정하는 시계. 반주 속도에는 사용하지 않는다.
+ * @property playbackAnchor 음원 위치를 측정한 시각과 실제 재생 속도로 흐르는 반주용 시계.
  * @property seeking 재생 중 −5초·+5초·타임라인 이동으로 새 자리를 불러오는 중이다([ModelAudioStatus.Loading]일 때만 true).
  *   처음 재생을 시작할 때의 불러오기와 달리 로딩 표시를 띄우지 않는다(S15P31E102-807).
  */
@@ -37,6 +38,8 @@ data class ModelAudioState(
     val mediaPositionMs: Long = 0,
     val anchor: MediaAnchor? = null,
     val seeking: Boolean = false,
+    val playbackAnchor: MediaAnchor? = null,
+    val playbackClockReady: Boolean = true,
 )
 
 /**
@@ -48,12 +51,19 @@ data class MediaAnchor(val positionMs: Double, val mark: TimeMark, val rate: Dou
 }
 
 /**
- * 새로 보고된 위치로 기준점을 옮긴다. 크게 어긋나면(시작·이동·끊김 뒤) 그 자리로 바로 옮기고, 작은 어긋남은
- * 지금 그리는 위치에서 끊지 않고 흐르는 빠르기만 조금 바꿔 약 1초에 걸쳐 따라잡는다. 그래서 진행 선이 뒤로 가지 않는다.
+ * 최초 0 위치에서는 디코더의 진행 보고를 기다린다. 이후 작은 오차는 약 1초에 걸쳐 빠르기를 보정하고,
+ * 큰 후행 보고에는 표시 위치를 멈춰 기다린다. 탐색·재시작은 소유자가 기준점을 지운 뒤 새 위치에서 시작한다.
  */
 internal fun MediaAnchor?.follow(reportedMs: Double, speed: Double, now: TimeMark): MediaAnchor {
-    val predicted = this?.positionNow() ?: return MediaAnchor(reportedMs, now, speed)
+    // MediaPlayer may report Playing at zero before its decoder clock starts moving.
+    // Advancing from that notification paints future cells, then snaps them back on the first real report.
+    if (this == null) return MediaAnchor(reportedMs, now, if (reportedMs == 0.0) 0.0 else speed)
+    val predicted = positionNow()
+    if (rate == 0.0) return MediaAnchor(maxOf(predicted, reportedMs), now, if (reportedMs > predicted) speed else 0.0)
     val drift = reportedMs - predicted
+    // A large stale report is not a seek: hold the painted position until the media clock catches up.
+    // Explicit seek/loading clears the anchor in ModelAudioSession before follow is called again.
+    if (drift < -ANCHOR_SNAP_MS) return MediaAnchor(predicted, now, 0.0)
     if (abs(drift) > ANCHOR_SNAP_MS) return MediaAnchor(reportedMs, now, speed)
     return MediaAnchor(predicted, now, speed * (1 + drift / ANCHOR_CATCH_UP_MS).coerceIn(0.9, 1.1))
 }
@@ -72,6 +82,10 @@ internal class ModelAudioSession(
 ) {
     private val _state = MutableStateFlow(ModelAudioState())
     val state = _state.asStateFlow()
+    internal val playbackAnchor: MediaAnchor? get() = state.value.takeIf { it.status == ModelAudioStatus.Playing }?.playbackAnchor
+    internal val playbackClockReady: Boolean get() = state.value.let {
+        it.status != ModelAudioStatus.Playing || it.playbackClockReady
+    }
     private var loadJob: Job? = null
     private var requestId = 0L
     private var sourceId: String? = null
@@ -105,11 +119,17 @@ internal class ModelAudioSession(
                 val checked = if (media.status == AudioPlaybackStatus.Completed && media.positionMs + 1.0 < minimumEnd)
                     ModelAudioStatus.Failed else status
                 val previous = _state.value
+                val nativeRate = media.positionClockRate?.toDouble() ?: speed(audio).toDouble()
                 val anchor = if (checked != ModelAudioStatus.Playing) null else
                     previous.anchor.takeIf { previous.status == ModelAudioStatus.Playing }
-                        .follow(media.positionMs.toDouble(), speed(audio).toDouble(), timeSource.markNow())
+                        .follow(media.positionMs.toDouble(), nativeRate, timeSource.markNow())
+                val soundAnchor = if (checked != ModelAudioStatus.Playing) null else MediaAnchor(
+                    media.positionMs.toDouble(), media.positionSampledAt ?: timeSource.markNow(),
+                    media.positionClockRate?.toDouble() ?: if (media.positionMs == 0L) 0.0 else speed(audio).toDouble(),
+                )
                 val seeking = checked == ModelAudioStatus.Loading && previous.seeking
-                _state.value = ModelAudioState(checked, audio, media.positionMs, anchor, seeking)
+                _state.value = ModelAudioState(checked, audio, media.positionMs, anchor, seeking = seeking,
+                    playbackAnchor = soundAnchor, playbackClockReady = media.positionClockRate != 0f)
             }
         }
     }
@@ -241,7 +261,8 @@ internal class ModelAudioSession(
         active = false
         player.stop()
         sourceId = null
-        _state.value = current.copy(status = ModelAudioStatus.Paused, mediaPositionMs = positionMs, anchor = null, seeking = false)
+        _state.value = current.copy(status = ModelAudioStatus.Paused, mediaPositionMs = positionMs, anchor = null, seeking = false,
+            playbackAnchor = null, playbackClockReady = true)
     }
 
     /** A hidden screen retains score selection/position but releases audio focus and native media. */
@@ -373,6 +394,26 @@ internal fun Song.modelJangdanTickAt(audio: ModelAudio, mediaPositionMs: Double)
     val point = modelPointAt(audio, mediaPositionMs)
     val event = timeline[point.position]
     return requireNotNull(event.startTick) + requireNotNull(event.durationTick) * point.fraction
+}
+
+/** 현재 수행부터 선택 구간을 처음 벗어나는 시각. 구간 안에서만 도는 반복은 보존한다. */
+internal fun Song.modelSectionEndMediaPosition(audio: ModelAudio, ticks: ClosedFloatingPointRange<Double>, mediaPositionMs: Double): Double {
+    val performance = audio.performance ?: return modelMediaPosition(audio, ticks.endInclusive).toDouble()
+    val elapsed = (mediaPositionMs - audio.startOffsetMs).coerceAtLeast(0.0)
+    var entered = false
+    for (segment in performance.segments) {
+        if (segment.endMs <= elapsed) continue
+        val entryMs = maxOf(elapsed, segment.startMs)
+        val entryTick = segment.sourceTickAt(entryMs)
+        if (entryTick < ticks.start || entryTick >= ticks.endInclusive) {
+            if (entered) return audio.startOffsetMs + entryMs
+            // Native seek uses integer milliseconds and may land just before the selected slot.
+            continue
+        }
+        entered = true
+        if (segment.endTick > ticks.endInclusive) return audio.startOffsetMs + segment.mediaMsAt(ticks.endInclusive)
+    }
+    return audio.startOffsetMs + performance.durationMs
 }
 
 /** 원본 악보 tick을 모범 음원의 위치로 바꾼다. 꾸밈음의 연주 시간과 앞 여백을 보존한다. */
