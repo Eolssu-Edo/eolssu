@@ -25,15 +25,25 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.EvaluationResult
@@ -99,8 +109,10 @@ fun EvaluationResult.visibleErrors(filter: ErrorFilter): Map<Pair<Int, Int>, Sco
 
 /**
  * 오류 종류 5칸 탭 바(전체 · 음정 · 박자 · 길이 · 미검출). 연주 결과 · 이전 연주 결과 · 구간 고르기 · 구간 재평가 결과가 함께 쓴다.
- * 탭 바 왼쪽 위에 '틀린 부분' 제목(14sp 굵게)을 둔다(S15P31E102-808).
- * 흰 알약 틀(높이 52, 안쪽 5dp) 안에서 고른 칸만 연한 연두(accentTintStrong) 알약으로 넓게 펼쳐 '아이콘 · 이름 · 개수'를 보이고,
+ * '틀린 부분' 제목(14sp 굵게, S15P31E102-808)과 탭 바를 폴더 탭 모양의 흰 상자 하나로 묶는다(S15P31E102-818).
+ * 제목만 감싸는 머리가 탭 바 왼쪽 위에 붙고, 머리 오른쪽 아래는 오목하게 탭 바 윗변으로 이어진다. 오른쪽 위는 비워 상자가 제목 줄 전체로 늘지 않는다.
+ * 흰 바탕 화면에서도 상자가 보이도록 윤곽에 흰 카드의 옅은 테두리(lineSoft)를 그린다.
+ * 탭 바(높이 52, 안쪽 5dp) 안에서 고른 칸만 연한 연두(accentTintStrong) 알약으로 넓게 펼쳐 '아이콘 · 이름 · 개수'를 보이고,
  * 나머지 칸은 '아이콘 · 개수'만 둔다. 고른 칸이 바뀌면 너비·바탕·이름이 함께 부드럽게 바뀐다(S15P31E102-786).
  */
 @Composable
@@ -110,22 +122,71 @@ fun ErrorKindSegments(
     onSelect: (ErrorFilter) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier.fillMaxWidth()) {
+    val colors = EolssuTheme.colors
+    // 머리 크기는 그리기 단계에서만 읽어 첫 프레임부터 재구성 없이 상자 모양에 반영한다.
+    var titleSize by remember { mutableStateOf(IntSize.Zero) }
+    Column(
+        modifier.fillMaxWidth().drawBehind {
+            val outline = folderTabOutline(titleSize.width.toFloat(), titleSize.height.toFloat())
+            drawPath(outline, colors.surface)
+            drawPath(outline, colors.lineSoft, style = Stroke(width = 1.dp.toPx()))
+        },
+    ) {
         Text(
             stringResource(Res.string.error_segment_title),
-            modifier = Modifier.padding(start = 2.dp, bottom = 6.dp).semantics { heading() },
+            modifier = Modifier.onSizeChanged { titleSize = it }
+                .padding(start = 16.dp, end = 14.dp, top = 9.dp, bottom = 3.dp)
+                .semantics { heading() },
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold),
-            color = EolssuTheme.colors.text,
+            color = colors.text,
         )
         ErrorKindTabs(result, selected, onSelect)
     }
 }
 
+/**
+ * 폴더 탭 모양 윤곽. 왼쪽 위 [titleWidth]×[titleHeight] 머리(위 모서리 [TitleCorner])가 아래 탭 바(모서리 [BarCorner])에 붙고,
+ * 머리 오른쪽 아래는 [JoinCorner] 반지름으로 오목하게 이어진다. 왼쪽 변은 머리부터 탭 바까지 한 직선이다.
+ */
+private fun DrawScope.folderTabOutline(titleWidth: Float, titleHeight: Float): Path {
+    val w = size.width
+    val h = size.height
+    val th = titleHeight.coerceIn(0f, h)
+    val bar = (BarCorner.toPx()).coerceAtMost((h - th) / 2f)
+    val top = TitleCorner.toPx().coerceAtMost(minOf(titleWidth, th) / 2f)
+    val join = JoinCorner.toPx().coerceAtMost(minOf(th - top, w - titleWidth - bar)).coerceAtLeast(0f)
+    val tw = titleWidth.coerceAtMost(w - bar - join)
+    return Path().apply {
+        moveTo(0f, top)
+        arcTo(Rect(0f, 0f, 2 * top, 2 * top), 180f, 90f, false)
+        lineTo(tw - top, 0f)
+        arcTo(Rect(tw - 2 * top, 0f, tw, 2 * top), 270f, 90f, false)
+        lineTo(tw, th - join)
+        arcTo(Rect(tw, th - 2 * join, tw + 2 * join, th), 180f, -90f, false)
+        lineTo(w - bar, th)
+        arcTo(Rect(w - 2 * bar, th, w, th + 2 * bar), 270f, 90f, false)
+        lineTo(w, h - bar)
+        arcTo(Rect(w - 2 * bar, h - 2 * bar, w, h), 0f, 90f, false)
+        lineTo(bar, h)
+        arcTo(Rect(0f, h - 2 * bar, 2 * bar, h), 90f, 90f, false)
+        close()
+    }
+}
+
+/** 제목 머리의 위 모서리. */
+private val TitleCorner = 14.dp
+
+/** 제목 머리와 탭 바 윗변이 만나는 오목한 모서리. */
+private val JoinCorner = 10.dp
+
+/** 탭 바 모서리. 안쪽 알약(높이 42)과 같은 중심을 갖도록 26dp(= 21 + 안쪽 5)로 둔다. */
+private val BarCorner = 26.dp
+
 @Composable
 private fun ErrorKindTabs(result: EvaluationResult, selected: ErrorFilter, onSelect: (ErrorFilter) -> Unit) {
     val colors = EolssuTheme.colors
     Row(
-        Modifier.fillMaxWidth().height(52.dp).background(colors.surface, CircleShape).padding(5.dp),
+        Modifier.fillMaxWidth().height(52.dp).padding(5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ErrorFilter.entries.forEach { filter ->
