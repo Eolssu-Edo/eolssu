@@ -16,6 +16,18 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
     private val allowed = setOf("황" to 0, "태" to 0)
     private fun state() = SheetEditUiState(EditSource.Mine("31"), smallScoreData().editingDraft("검사", 60, null))
 
+    @Test fun numericTempoLocationsStayFixedWhilePitchAndBaseTempoRemainEditable() {
+        val timed = state().copy(hasTempoPlan = true)
+        listOf(timed.split(), timed.merge(), timed.addColumn(), timed.deleteColumn()).forEach { changed ->
+            assertEquals(timed.draft, changed.draft, "구간 빠르기 위치를 보존한다")
+            assertNotNull(changed.message)
+            assertFalse(changed.canUndo)
+        }
+        assertNotEquals(timed.draft, timed.selectUnit(0, 1).putYul(Yul.Taeju).draft)
+        assertEquals(120, timed.updateDetails("검사", 120).draft.bpm)
+        assertNotEquals(timed.draft, timed.copy(hasTempoPlan = false).addColumn().draft)
+    }
+
     @Test fun allEmptyInvalidPitchAndPendingCellsAreHighlightedInScoreOrder() {
         val state = state().copy(availablePitches = allowed,
             reviewIssues = listOf(SheetReviewIssue("a", "c0-j1", "LOW_CONFIDENCE"), SheetReviewIssue("b", "c0-j1", "ORNAMENT_DROPPED")))
@@ -141,7 +153,7 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
         val initial = state().let { it.copy(draft = it.draft.copy(jangdanId = "3")) }
         assertEquals(120, initial.updateSettings(120, "3").draft.bpm)
         assertEquals(initial, initial.updateSettings(120, "unknown"))
-        assertEquals(initial, initial.updateSettings(29, null))
+        assertEquals(initial, initial.updateSettings(0, null))
     }
 
     @Test fun applyingSettingsCancelsPendingJangdanLoadSoALateResultCannotReopenThePicker() = runTest {

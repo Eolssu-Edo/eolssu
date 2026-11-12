@@ -77,7 +77,7 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(stringResource(Res.string.sheet_editor_tempo, draft.bpm), style = MaterialTheme.typography.bodyMedium)
+                    Text("${draft.tempoUnitLabel} = ${draft.bpm}", style = MaterialTheme.typography.bodyMedium)
                     Text(draft.jangdanName, style = MaterialTheme.typography.bodyMedium)
                 }
                 if (state.canEditDetails) PillButton(stringResource(Res.string.sheet_editor_edit), actions.onOpenDetails, enabled = !state.saving, secondary = true)
@@ -143,6 +143,6 @@ private val EditorMessages = setOf(
     SheetEditMessage.SaveUnsupportedPitches, SheetEditMessage.AudioUnsupportedPitches,
     SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge,
     SheetEditMessage.Saved, SheetEditMessage.SavedForPractice, SheetEditMessage.SavedNeedsReview, SheetEditMessage.Draft,
-    SheetEditMessage.ReviewBeforeReshape, SheetEditMessage.ComingSoon,
+    SheetEditMessage.ReviewBeforeReshape, SheetEditMessage.TempoPlanBeforeReshape, SheetEditMessage.ComingSoon,
     SheetEditMessage.AudioReady, SheetEditMessage.AudioFailed, SheetEditMessage.AudioStatusUnknown,
 )

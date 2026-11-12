@@ -84,6 +84,7 @@ class SheetEditViewModel(
     )
 
     /** 서버에 저장할 수 없는 악보(예시·제공 곡 복사본)의 처음 상태. 고친 뒤 닫으면 버릴지 묻는다. */
+    private var expressions: kotlinx.serialization.json.JsonObject? = null
     private var baseline: SheetDraft? = if (loadsRemote) null else _uiState.value.draft
     val uiState: StateFlow<SheetEditUiState> = _uiState.asStateFlow()
 
@@ -115,6 +116,7 @@ class SheetEditViewModel(
         lastFinishedDraftSave = null
         savedJangdanId = null
         confirmedDraft = null
+        expressions = null
         version = ""
         _uiState.update { it.copy(draft = SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1)),
             documentLoading = false, documentFailed = true, practiceVersionChanged = false,
@@ -159,7 +161,8 @@ class SheetEditViewModel(
                     val jangdans = catalog.jangdans()
                     require(registered.isNotEmpty() && registered.containsAll(pitches))
                     ensureAccountSession()
-                    _uiState.update { if (it.draft.original?.score?.instrument != instrumentCode) it else it.copy(availablePitches = registered, instrumentPitches = pitches, authoringCapabilities = capabilities, availableJangdans = jangdans,
+                    _uiState.update { if (it.draft.original?.score?.instrument != instrumentCode) it else it.copy(availablePitches = registered,
+                        instrumentPitches = pitches, authoringCapabilities = capabilities, availableJangdans = jangdans,
                         completionCatalogState = SheetCompletionCatalogState.Ready) }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) {
@@ -304,6 +307,7 @@ class SheetEditViewModel(
                     catch (_: Exception) { null }
                 }
                 ensureAccountSession()
+                expressions = copy?.expressions ?: document.expressions
                 loaded = document
                 version = document.scoreVersion
                 revision = copy?.revision ?: 0
@@ -312,6 +316,7 @@ class SheetEditViewModel(
                     ?.copy(jangdanId = document.jangdanId)
                 _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,
+                    hasTempoPlan = expressions?.containsKey("performancePlan") == true,
                     withJangdan = draft.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
                     reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet(),
                     reviewNotices = document.editorReviewNotices(),
@@ -405,7 +410,7 @@ class SheetEditViewModel(
                         val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
                             .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
                         val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
-                            snapshot.draft.bpm, score, version, revision, resolvedIds, snapshot.draft.authoring)
+                            snapshot.draft.bpm, score, version, revision, resolvedIds, authoring = snapshot.draft.authoring, expressions = expressions)
                         val attempt = if (draft) DraftSave(snapshot.draft, copy) else null
                         val result = try {
                             repository.save(id, copy, draft).also { ensureAccountSession() }
@@ -415,6 +420,7 @@ class SheetEditViewModel(
                         if (result != SheetWrite.Failed) attempt?.unconfirmedRequest = null
                         when (result) {
                             is SheetWrite.Saved -> {
+                                if (!draft) expressions = result.expressions
                                 persistedDraft = snapshot.draft
                                 persistedStatus = if (draft) SheetSaveStatus.DraftSaved else SheetSaveStatus.Confirmed
                                 if (!draft) confirmedDraft = snapshot.draft
@@ -440,7 +446,7 @@ class SheetEditViewModel(
                                     savedJangdanId = snapshot.draft.jangdanId
                                     accountScope.launch { mySheetRepository.refresh() }
                                     if (_uiState.value.audioInstruments?.options?.isEmpty() == true) loadAudioInstrumentOptions()
-                        else validateAudioInstrument()
+                                    else validateAudioInstrument()
                                     refreshAudio(announce = false)
                                 }
                             }
@@ -449,6 +455,7 @@ class SheetEditViewModel(
                                     message = SheetEditMessage.SaveUnsupportedPitches).focusCompletionIssue() }
                                 loadCompletionCatalog()
                             }
+                            is SheetWrite.TempoRejected -> _uiState.update { it.copy(tempoIssue = result.issue) }
                             SheetWrite.Conflict -> reportSaveConflict()
                             SheetWrite.Unfilled -> _uiState.update { it.copy(emptyWarning = true) }
                             SheetWrite.TooLarge -> recordSaveFailure(snapshot.draft, draft, announce, SheetEditMessage.SaveTooLarge)
@@ -777,6 +784,10 @@ class SheetEditViewModel(
                 is SheetAudioRequest.UnsupportedPitches -> {
                     change { it.copy(audioInstruments = it.audioInstruments?.copy(unsupported = result.details.issues)) }
                     failRequest(SheetEditMessage.AudioUnsupportedPitches)
+                }
+                is SheetAudioRequest.TempoRejected -> {
+                    failRequest(SheetEditMessage.AudioInvalid)
+                    _uiState.update { it.copy(tempoIssue = result.issue) }
                 }
                 SheetAudioRequest.TooLong -> failRequest(SheetEditMessage.AudioTooLong)
                 SheetAudioRequest.InvalidRequest -> failRequest(SheetEditMessage.AudioInvalid)

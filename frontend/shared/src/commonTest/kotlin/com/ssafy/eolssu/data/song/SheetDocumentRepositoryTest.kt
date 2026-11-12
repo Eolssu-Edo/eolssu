@@ -9,6 +9,20 @@ import kotlinx.serialization.json.*
 import kotlin.test.*
 
 class SheetDocumentRepositoryTest {
+    @Test fun keepsServerPitchLocationsAndDoesNotLoseOtherInvalidRequestReasons() = runTest {
+        val copy = SheetWorkingCopy("검사", null, 60, smallScoreData(), "1", 0)
+        var error = """{"errorCode":"INVALID_REQUEST","details":{"reason":"UNSUPPORTED_PITCHES","instrumentCode":"SOGEUM","issues":[{"eventId":"c0-j0-r0-u0","cellId":"c0-j0","yul":"이","octave":1,"reasonCodes":["FINGERING_UNKNOWN"]}]}}"""
+        val client = createHttpClient(MockEngine { respond("""{"isSuccess":false,"code":400,"result":$error}""",
+            HttpStatusCode.BadRequest, headersOf(HttpHeaders.ContentType, "application/json")) }, ServerAddress.Production)
+        try {
+            val repository = ApiSheetDocumentRepository(client)
+            val rejected = assertIs<SheetWrite.UnsupportedPitches>(repository.save("31", copy, false))
+            assertEquals("c0-j0", rejected.details.issues.single().cellId)
+            assertEquals(listOf("FINGERING_UNKNOWN"), rejected.details.issues.single().reasonCodes)
+            error = """{"errorCode":"UNFILLED_CELLS","details":{"cellIds":["c1-j0"]}}"""
+            assertEquals(SheetWrite.Unfilled, repository.save("31", copy, false))
+        } finally { client.close() }
+    }
     @Test fun largeSourceSnapshotIsNotEchoedInAutosaveBody() = runTest {
         var bytes = 0
         val repository = ApiSheetDocumentRepository(createHttpClient(MockEngine { request ->
@@ -27,19 +41,25 @@ class SheetDocumentRepositoryTest {
         assertTrue(bytes < 10_000)
     }
 
-    @Test fun keepsServerPitchLocationsAndDoesNotLoseOtherInvalidRequestReasons() = runTest {
-        val copy = SheetWorkingCopy("검사", null, 60, smallScoreData(), "1", 0)
-        var error = """{"errorCode":"INVALID_REQUEST","details":{"reason":"UNSUPPORTED_PITCHES","instrumentCode":"SOGEUM","issues":[{"eventId":"c0-j0-r0-u0","cellId":"c0-j0","yul":"이","octave":1,"reasonCodes":["FINGERING_UNKNOWN"]}]}}"""
-        val client = createHttpClient(MockEngine { respond("""{"isSuccess":false,"code":400,"result":$error}""",
-            HttpStatusCode.BadRequest, headersOf(HttpHeaders.ContentType, "application/json")) }, ServerAddress.Production)
-        try {
-            val repository = ApiSheetDocumentRepository(client)
-            val rejected = assertIs<SheetWrite.UnsupportedPitches>(repository.save("31", copy, false))
-            assertEquals("c0-j0", rejected.details.issues.single().cellId)
-            assertEquals(listOf("FINGERING_UNKNOWN"), rejected.details.issues.single().reasonCodes)
-            error = """{"errorCode":"UNFILLED_CELLS","details":{"cellIds":["c1-j0"]}}"""
-            assertEquals(SheetWrite.Unfilled, repository.save("31", copy, false))
-        } finally { client.close() }
+    @Test fun carriesNumericExpressionsThroughReadDraftAndSave() = runTest {
+        val score = Json.encodeToJsonElement(smallScoreData())
+        val expressions = Json.parseToJsonElement("""{"schema":"common-score-expressions/v1","sourceSha256":"bound","placements":[],"performancePlan":{"tempos":[{"gak":1,"cell":2,"bpm":80}]}}""").jsonObject
+        var sent: JsonObject? = null
+        val repository = ApiSheetDocumentRepository(createHttpClient(MockEngine { request ->
+            val result = if (request.method == HttpMethod.Get) {
+                """{"sheetId":"31","title":"곡","bpm":100,"scoreVersion":"1","reviewStatus":"EVALUABLE","scoreData":$score,"expressions":$expressions}"""
+            } else {
+                sent = Json.parseToJsonElement((request.body as io.ktor.http.content.TextContent).text).jsonObject
+                """{"sheetId":"31","scoreVersion":"2","expressions":$expressions}"""
+            }
+            respond("""{"isSuccess":true,"code":200,"result":$result}""", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType,"application/json"))
+        }, ServerAddress.Production))
+        val document = assertNotNull(repository.get("31"))
+        assertEquals(expressions, document.expressions)
+        val copy = SheetWorkingCopy(document.title, null, 120, assertNotNull(document.score), "1", 0, expressions = document.expressions)
+        val saved = assertIs<SheetWrite.Saved>(repository.save("31", copy, false))
+        assertEquals(expressions, sent?.get("expressions"))
+        assertEquals(expressions, saved.expressions)
     }
     @Test fun keepsWholeScoreNoticesSeparateFromCellIssues() = runTest {
         val score = Json.encodeToJsonElement(smallScoreData())
