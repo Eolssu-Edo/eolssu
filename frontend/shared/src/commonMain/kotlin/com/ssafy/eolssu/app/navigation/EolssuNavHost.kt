@@ -418,6 +418,12 @@ fun EolssuNavHost(
                     },
                     onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
                     onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
+                    // 저장 완료 시트의 ‘기록으로 이동’: 방금 저장한 기록 상세. 뒤로 가면 이 결과 화면으로 돌아온다.
+                    onOpenRecord = { id ->
+                        if (navController.currentBackStackEntry?.id == entry.id) {
+                            performance.move(perf, PerfTarget.RECORD_DETAIL) { navController.navigate(EolssuDestination.recordResult(id)) }
+                        }
+                    },
                 )
             }
             composable(
