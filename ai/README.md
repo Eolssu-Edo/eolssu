@@ -103,7 +103,7 @@ uv run python -c "import json; from ai_service.api import app; print(json.dumps(
 
 ## 악보 인식 API
 
-backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. 지금은 정간보 글자 층 PDF와 오선보(PDF·이미지)를 읽습니다. 스캔 PDF·사진 정간보는 연결 전이라 `ENGINE_ERROR`로 끝납니다(별도 Task [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)).
+backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. `runtime` 단계는 정간보 글자 층 PDF와 오선보(PDF·이미지), 기본 빌드의 `scanner` 단계는 정간보 스캔·이미지 초안 변환까지 포함합니다([S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)).
 
 오선보는 `smallHeads`·`smallBeams`를 켜서 꾸밈음을 구분합니다. Docker 이미지에는 Tesseract legacy 영어 데이터(`tessdata/4.1.0`)와 `TESSDATA_PREFIX`가 필요합니다. LSTM 전용 `tessdata_fast`로 대체하면 Audiveris의 OCR이 동작하지 않습니다. 빠르기 표시 혼입·성부 선택·초과 마디 재인식과 실제 PDF/PNG 대조 결과는 [806 검증 기록](../docs/knowledge/ai/score-recognition-corrections.md)을 참고합니다.
 
@@ -229,3 +229,13 @@ uv run --locked python -m evaluation.dtw_u4_table ../data/processed/dtw-286/u4-r
 ## 정상·오류 녹음 평가
 
 [오류 검출 평가 실행과 결과 해석](../docs/knowledge/ai/scoring-error-evaluation.md)을 따라 합성 묶음 생성, 허용값 16개 조합 평가, 같은 녹음의 전후 비교를 실행합니다. PowerShell 명령과 검출률·오탐률, 윌슨 구간, 맥니마 검정의 뜻과 한계가 있습니다. 단소 단음의 조율 결과는 [김 세기·취법별 측정](../docs/knowledge/ai/danso-tuning-variation.md)에 있습니다. 합성 결과로 실제 입문자 허용값을 확정하지 않습니다.
+
+### 스캔 모델 실행 (458)
+
+기본 Docker 빌드는 마지막 `scanner` 단계까지 실행합니다. `JEONGGANBO_OMR_DIR=/opt/jeongganbo-omr`의 코드·체크포인트를 이미지에 포함하고 CPU 배치 16개, 스레드 2개로 추론합니다. 원본과 모델 경로는 읽기 전용이며 변환한 체크포인트는 요청별 `/tmp` 안에만 씁니다. 추론은 Audiveris와 같은 잠금으로 동시 1건이고 기존 쪽당 60초·CPU 2개·메모리 2GiB를 유지합니다. 런타임 모델 다운로드는 없습니다.
+
+스캔 전용 의존성은 `omr-scan-requirements.in`과 SHA-256을 포함한 `omr-scan-requirements.txt`로 고정해 기존 채점 서비스의 `uv.lock`과 분리했습니다. Python 3.12·Linux x86_64 CPU 휠을 사용합니다. 같은 uv 버전에서 `uv pip compile --python .venv/bin/python --generate-hashes omr-scan-requirements.in -o omr-scan-requirements.txt`로 다시 고정할 수 있습니다. 모델 소스·가중치의 획득 URL과 체크섬은 `omr.Dockerfile`에 있습니다.
+
+`docker build -f ai/omr.Dockerfile -t eolssu-omr .`로 전체를 빌드합니다. 이미 검증한 기본 런타임을 재사용하는 로컬 검사는 `--build-arg OMR_SCANNER_BASE=<검증한 기본 이미지>`로 스캔 확장만 빌드하며, AI/DATA 소스·참조 데이터는 현재 작업본으로 복사합니다. `--target runtime`은 확장을 제외한 기본 단계입니다. 스캔 확장 없는 실행에는 `JEONGGANBO_OMR_DIR`가 없어 스캔 요청이 `ENGINE_ERROR`로 끝납니다.
+
+`uv run pytest tests/unit/test_omr_scan_engine.py tests/unit/test_omr_api.py tests/unit/test_omr_text_engine.py`는 실제 모델 없이 연결·식별자·검수 표시·실패와 시간 예산을 검사합니다. 실제 추론과 편집 저장 결과, 사진 및 장단 한계, 독립 롤백은 [실행 기록](../docs/knowledge/ai/jeongganbo-scan-runtime.md)에 구분했습니다.

@@ -3,6 +3,7 @@
 !ai/.python-version
 !ai/pyproject.toml
 !ai/uv.lock
+!ai/omr-scan-requirements.txt
 !ai/src/
 !data/src/scores/
 !data/reference/
