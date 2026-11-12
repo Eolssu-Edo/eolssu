@@ -667,7 +667,10 @@ class SheetEditViewModel(
     }
 
     fun selectJangdan(id: String) = change { it.selectJangdan(id) }
-    fun clearJangdan() = change { it.clearJangdan() }
+    fun clearJangdan() {
+        jangdanJob?.cancel()
+        change { it.clearJangdan() }
+    }
 
     fun closeJangdanPicker() {
         jangdanJob?.cancel()

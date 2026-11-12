@@ -200,8 +200,8 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
         assertEquals(initial, initial.updateSettings(0, null))
     }
 
-    @Test fun applyingSettingsCancelsPendingJangdanLoadSoALateResultCannotReopenThePicker() = runTest {
-        for (selectedId in listOf(null, "3")) for (fails in listOf(false, true)) {
+    @Test fun applyingOrClearingJangdanCancelsPendingLoadSoALateResultCannotReopenThePicker() = runTest {
+        for ((bpm, selectedId) in listOf(120 to null, 120 to "3", null to null)) for (fails in listOf(false, true)) {
             val result = CompletableDeferred<List<CatalogJangdanSummary>>()
             val catalog = object : ReferenceCatalogRepository {
                 override suspend fun allPitches() = (allowed + ("중" to 1)).map { (yul, octave) ->
@@ -219,10 +219,10 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
             model.changeJangdan(); runCurrent()
             assertIs<SheetEditJangdanPicker.Loading>(model.uiState.value.jangdanPicker)
 
-            model.updateSettings(120, selectedId)
+            if (bpm == null) model.clearJangdan() else model.updateSettings(bpm, selectedId)
             val applied = model.uiState.value.draft
-            assertEquals(120 to selectedId, applied.bpm to applied.jangdanId)
-            assertEquals(1, model.uiState.value.past.size, "빠르기·장단을 한 번에 적용한다")
+            assertEquals((bpm ?: 60) to selectedId, applied.bpm to applied.jangdanId)
+            assertEquals(1, model.uiState.value.past.size, "한 번의 변경으로 실행 취소할 수 있다")
             assertNull(model.uiState.value.jangdanPicker)
             if (fails) result.completeExceptionally(IllegalStateException("late catalog failure"))
             else result.complete(listOf(CatalogJangdanSummary("3", "세마치", 80, "DOTTED_QUARTER", 3, 1, 1)))
