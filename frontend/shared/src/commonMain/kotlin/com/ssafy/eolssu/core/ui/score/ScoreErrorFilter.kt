@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +49,7 @@ import eolssu.shared.generated.resources.error_segment_length
 import eolssu.shared.generated.resources.error_segment_missed
 import eolssu.shared.generated.resources.error_segment_pitch
 import eolssu.shared.generated.resources.error_segment_rhythm
+import eolssu.shared.generated.resources.error_segment_title
 import org.jetbrains.compose.resources.stringResource
 
 /*
@@ -96,7 +98,8 @@ fun EvaluationResult.visibleErrors(filter: ErrorFilter): Map<Pair<Int, Int>, Sco
     visibleErrorKinds(filter).mapValues { it.value.first() }
 
 /**
- * 오류 종류 5칸 탭 바(전체 · 음정 · 박자 · 길이 · 미검출). 이전 연주 결과와 연주 결과가 함께 쓴다.
+ * 오류 종류 5칸 탭 바(전체 · 음정 · 박자 · 길이 · 미검출). 연주 결과 · 이전 연주 결과 · 구간 고르기 · 구간 재평가 결과가 함께 쓴다.
+ * 탭 바 왼쪽 위에 '틀린 부분' 제목(14sp 굵게)을 둔다(S15P31E102-808).
  * 흰 알약 틀(높이 52, 안쪽 5dp) 안에서 고른 칸만 연한 연두(accentTintStrong) 알약으로 넓게 펼쳐 '아이콘 · 이름 · 개수'를 보이고,
  * 나머지 칸은 '아이콘 · 개수'만 둔다. 고른 칸이 바뀌면 너비·바탕·이름이 함께 부드럽게 바뀐다(S15P31E102-786).
  */
@@ -107,9 +110,22 @@ fun ErrorKindSegments(
     onSelect: (ErrorFilter) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    Column(modifier.fillMaxWidth()) {
+        Text(
+            stringResource(Res.string.error_segment_title),
+            modifier = Modifier.padding(start = 2.dp, bottom = 6.dp).semantics { heading() },
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold),
+            color = EolssuTheme.colors.text,
+        )
+        ErrorKindTabs(result, selected, onSelect)
+    }
+}
+
+@Composable
+private fun ErrorKindTabs(result: EvaluationResult, selected: ErrorFilter, onSelect: (ErrorFilter) -> Unit) {
     val colors = EolssuTheme.colors
     Row(
-        modifier.fillMaxWidth().height(52.dp).background(colors.surface, CircleShape).padding(5.dp),
+        Modifier.fillMaxWidth().height(52.dp).background(colors.surface, CircleShape).padding(5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ErrorFilter.entries.forEach { filter ->
