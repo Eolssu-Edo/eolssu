@@ -15,6 +15,15 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class SheetCompletionValidationTest : CatalogViewModelTest() {
+    @Test fun supportedPitchWithADifferentWrittenGlyphIsReportedAtItsEvent() = runTest {
+        val capability = CompletionCatalog().authoringCapabilities("11")
+        val score = smallScoreData().let { original -> original.copy(events = original.events.mapIndexed { i, event ->
+            if (i == 0) event.copy(yul = "태", octave = 0) else event
+        }) }
+        val issue = capability.issues(score).single()
+        assertEquals(score.events.first().id, issue.eventId)
+        assertEquals(listOf("NOTATION_PITCH_MISMATCH"), issue.reasonCodes)
+    }
     @Test fun changingAudioInstrumentRevalidatesTheSavedNotesBeforeRequestingAudio() = runTest {
         val base = CompletionCatalog()
         val catalog = object : ReferenceCatalogRepository by base {
@@ -391,6 +400,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
     }
 
     private companion object {
-        fun pitch(yul: String, octave: Int) = CatalogPitch("$yul-$octave", yul, octave, yul, yul, 0)
+        fun pitch(yul: String, octave: Int) = CatalogPitch("$yul-$octave", yul, octave, yul,
+            ScoreNote.SourcePitch(yul, octave).hangul, "황대태협고중유임이남무응".indexOf(yul) + 12 * octave)
     }
 }

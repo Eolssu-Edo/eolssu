@@ -15,6 +15,11 @@ class SheetAuthoringValidation(private val capabilities: AuthoringCapabilities, 
         val code = score.path("score").path("instrument").asString()
         val catalog = (instrumentId ?: capabilities.instrumentId(code))?.let(capabilities::get)
         val pitches = catalog?.items?.associateBy { it.yul to it.octave }.orEmpty()
+        val originSymbols = score.path("columns").flatMap { it.path("cells").toList() }.flatMap { cell ->
+            cell.path("units").filter { unit ->
+                "${cell.path("id").asString()}-r${unit.path("row").asInt()}-u${unit.path("col").asInt()}" == unit.path("eventId").asString()
+            }.map { it.path("eventId").asString() to it.path("symbol").asString() }
+        }.toMap()
         val hwang = score.path("music").path("hwangHz").asDouble(Double.NaN)
         val hwangMidi = if (hwang.isFinite() && hwang > 0) (69 + 12 * log2(hwang / 440)).roundToInt() else null
         val issues = score.path("events").filter { it.path("kind").asString() == "NOTE" }.mapNotNull { note ->
@@ -25,6 +30,7 @@ class SheetAuthoringValidation(private val capabilities: AuthoringCapabilities, 
                 if (catalog == null) add("INSTRUMENT_UNSUPPORTED")
                 else {
                     addAll(pitch?.reasonCodes ?: listOf("PITCH_UNREGISTERED"))
+                    if (pitch != null && originSymbols[note.path("id").asString()] != pitch.hangul) add("NOTATION_PITCH_MISMATCH")
                     if (hwangMidi != catalog.nominalHwangMidi) add("REFERENCE_TUNING_MISMATCH")
                 }
             }

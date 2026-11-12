@@ -10,6 +10,7 @@ import io.swagger.v3.oas.models.media.ObjectSchema
 import io.swagger.v3.oas.models.parameters.RequestBody
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlin.test.assertNull
 import org.junit.jupiter.api.Test
 
@@ -31,6 +32,21 @@ class OpenApiRequestExampleTests {
         for (example in media.examples.values) {
             @Suppress("UNCHECKED_CAST")
             assertNull((example.value as Map<String, Any>)["missionId"])
+        }
+    }
+
+    @Test
+    fun `sheet authoring documents score instrument default and actionable rejection examples`() {
+        val api = documentedApi()
+        OpenApiConfig().businessApiDocumentation().customise(api)
+        val audio = api.paths["/api/users/me/sheets/{sheetId}/audio"]!!.post
+        val properties = audio.requestBody.content["application/json"]!!.schema.properties
+        assertTrue("악보 악기" in properties["instrumentId"]!!.description)
+        for (operation in listOf(audio, api.paths["/api/users/me/sheets/{sheetId}/score"]!!.put)) {
+            val unsupported = operation.responses["400"]!!.content["application/json"]!!.examples["UNSUPPORTED_PITCHES"]!!.value as Map<*, *>
+            val result = unsupported["result"] as Map<*, *>
+            assertEquals("INVALID_REQUEST", result["errorCode"])
+            assertEquals("UNSUPPORTED_PITCHES", (result["details"] as Map<*, *>)["reason"])
         }
     }
 

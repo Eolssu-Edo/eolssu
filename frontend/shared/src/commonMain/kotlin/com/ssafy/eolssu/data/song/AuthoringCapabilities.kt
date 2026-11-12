@@ -13,9 +13,13 @@ import kotlin.math.roundToInt
         (69 + 12 * log2(hwangHz / 440)).roundToInt() == nominalHwangMidi
     fun issues(score: CommonScoreData): List<AuthoringPitchIssue> {
         val byPitch = items.associateBy { it.yul to it.octave }
+        val originSymbols = score.columns.flatMap { it.cells }.flatMap { cell ->
+            cell.units.filter { "${cell.id}-r${it.row}-u${it.col}" == it.eventId }.map { it.eventId to it.symbol }
+        }.toMap()
         val issues = score.events.filter { it.kind == "NOTE" }.mapNotNull { note ->
             val reasons = buildList {
                 addAll(byPitch[note.yul to note.octave]?.reasonCodes ?: listOf("PITCH_UNREGISTERED"))
+                byPitch[note.yul to note.octave]?.let { if (originSymbols[note.id] != it.hangul) add("NOTATION_PITCH_MISMATCH") }
                 if (!matchesTuning(score.music.hwangHz)) add("REFERENCE_TUNING_MISMATCH")
             }
             if (reasons.isEmpty()) null else AuthoringPitchIssue(note.id, note.cellId, note.yul.orEmpty(), note.octave ?: 0, reasons)

@@ -88,10 +88,11 @@ class EditUserSheet(
             // 장단을 바꾸면 앱이 그 장단으로 칸과 tick을 다시 만든다. 악보가 다른 장단이면 정간 수가 맞지 않는다.
             if (prepared.jangdanName != jangdan.name || prepared.bpmUnit != jangdan.bpmUnit) return SaveSheetScoreResult.InvalidRequest
         }
+        try { authoring?.validate(prepared.json)?.let { return SaveSheetScoreResult.UnsupportedPitches(it) } }
+        catch (_: tools.jackson.core.JacksonException) { return SaveSheetScoreResult.InvalidRequest }
         val events = scores.timeline(prepared.json, version, prepared.noteCount, command.bpm, prepared.bpmUnit)
             ?: return SaveSheetScoreResult.InvalidRequest
 
-        authoring?.validate(prepared.json)?.let { return SaveSheetScoreResult.UnsupportedPitches(it) }
 
         val updated = repository.updateScore(
             SheetScoreUpdate(

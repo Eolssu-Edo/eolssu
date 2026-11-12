@@ -286,7 +286,7 @@ data class SheetEditUiState(
     /** 후보를 보는 동안 입력이 바뀌었으면 적용하지 않는다. 시작 음만 교체해 지속·분할·원본 이벤트를 보존한다. */
     internal fun applyPitchCorrection(target: SheetPitchCorrection, pitch: Pair<Yul, Int>): SheetEditUiState {
         if (confirming || target !in pitchCorrectionsAt(target.cell, target.sub) || pitch !in pitchAlternatives(target.pitch)) return this
-        val next = draft.putAt(target.originCell, target.originSub, draft.pitchNote(pitch.first, pitch.second))
+        val next = draft.correctPitch(target, pitch)
         return commit(next, target.originCell, target.originSub)
     }
 

@@ -48,5 +48,13 @@ class AuthoringCapabilitiesTests {
         assertEquals(listOf("INSTRUMENT_UNSUPPORTED"), validation.validate(score("중", 0).replace("DANSO", "UNKNOWN"))!!.issues.single().reasonCodes)
     }
 
-    private fun score(yul: String, octave: Int) = """{"score":{"instrument":"DANSO"},"music":{"hwangHz":311.127},"events":[{"id":"c0-j0-r0-u0","cellId":"c0-j0","kind":"NOTE","yul":"$yul","octave":$octave}]}"""
+    @Test fun `a written glyph must represent the note that will be synthesized`() {
+        val mismatch = score("중", 0).replace("\"symbol\":\"중\"", "\"symbol\":\"황\"")
+        assertEquals(listOf("NOTATION_PITCH_MISMATCH"), validation.validate(mismatch)!!.issues.single().reasonCodes)
+    }
+
+    private fun score(yul: String, octave: Int): String {
+        val symbol = (if (octave == 1) "청" else "") + yul
+        return """{"score":{"instrument":"DANSO"},"music":{"hwangHz":311.127},"columns":[{"cells":[{"id":"c0-j0","units":[{"row":0,"col":0,"eventId":"c0-j0-r0-u0","symbol":"$symbol"}]}]}],"events":[{"id":"c0-j0-r0-u0","cellId":"c0-j0","kind":"NOTE","yul":"$yul","octave":$octave}]}"""
+    }
 }

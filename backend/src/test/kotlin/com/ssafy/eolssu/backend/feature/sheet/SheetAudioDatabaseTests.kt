@@ -88,6 +88,12 @@ class SheetAudioDatabaseTests {
         score.path("events").filter { it.path("kind").asString() == "NOTE" }.forEach {
             (it as tools.jackson.databind.node.ObjectNode).put("yul", "응").put("octave", 0)
         }
+        val noteIds = score.path("events").filter { it.path("kind").asString() == "NOTE" }.map { it.path("id").asString() }.toSet()
+        score.path("columns").flatMap { it.path("cells").toList() }.forEach { cell -> cell.path("units").forEach { unit ->
+            if (unit.path("eventId").asString() in noteIds && unit.path("eventId").asString() ==
+                "${cell.path("id").asString()}-r${unit.path("row").asInt()}-u${unit.path("col").asInt()}")
+                (unit as tools.jackson.databind.node.ObjectNode).put("symbol", "응")
+        } }
         fun body(version: Int, draft: Boolean = false) = json.writeValueAsString(mapOf(
             "baseScoreVersion" to version.toString(), "title" to "지원음 검사", "bpm" to sheet.bpm,
             "jangdanId" to null, "score" to score, "draftRevision" to if (draft) 0 else null))
@@ -110,6 +116,15 @@ class SheetAudioDatabaseTests {
         val issue = json.readTree(rejectedSave.body()).path("result").path("details").path("issues")[0]
         assertEquals(note.path("id"), issue.path("eventId"))
         assertEquals("FINGERING_UNKNOWN", issue.path("reasonCodes")[0].asString())
+        note.put("octave", 3)
+        val outsideNotation = send(994481, body(nextVersion), "PUT", "/api/users/me/sheets/994481/score")
+        assertEquals(400, outsideNotation.statusCode(), outsideNotation.body())
+        val outsideIssue = json.readTree(outsideNotation.body()).path("result").path("details").path("issues")[0]
+        assertEquals(note.path("id"), outsideIssue.path("eventId"))
+        assertEquals("PITCH_UNREGISTERED", outsideIssue.path("reasonCodes")[0].asString())
+        note.put("octave", "3")
+        assertEquals(400, send(994481, body(nextVersion), "PUT", "/api/users/me/sheets/994481/score").statusCode())
+        note.put("octave", 1)
         assertEquals(current, jdbc.queryForObject("SELECT score_json FROM user_sheets WHERE id=994481", String::class.java))
         val draft = send(994481, body(nextVersion, true), "PUT", "/api/users/me/sheets/994481/score/draft")
         assertEquals(200, draft.statusCode(), draft.body())
