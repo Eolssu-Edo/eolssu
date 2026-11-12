@@ -2,7 +2,7 @@ package com.ssafy.eolssu.feature.auth
 
 import eolssu.shared.generated.resources.auth_withdrawn_title
 import eolssu.shared.generated.resources.auth_withdrawn_message
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,9 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -27,6 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -63,7 +64,8 @@ import eolssu.shared.generated.resources.auth_login
 import eolssu.shared.generated.resources.auth_password
 import eolssu.shared.generated.resources.auth_password_placeholder
 import eolssu.shared.generated.resources.auth_remember_email
-import eolssu.shared.generated.resources.auth_signup_with_email
+import eolssu.shared.generated.resources.auth_signup_link
+import eolssu.shared.generated.resources.auth_social_divider
 import eolssu.shared.generated.resources.auth_social_login
 import eolssu.shared.generated.resources.auth_tagline
 import eolssu.shared.generated.resources.auth_withdrawal_cancelled_message
@@ -102,20 +104,18 @@ fun LoginScreen(
         ) {
             val formWidth = Modifier.widthIn(max = FormMaxWidth).fillMaxWidth()
             if (frame != AuthFrame.Split) Brand(formWidth)
-            Column(formWidth, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                providers.forEach { provider ->
-                    SocialButton(provider, enabled = !state.loggingIn, onClick = { onSocialLogIn(provider) })
-                }
-            }
-            Column(formWidth.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // 이메일 로그인을 먼저, 간편 로그인은 아래 동그란 버튼 줄로 둔다(S15P31E102-798).
+            Column(formWidth.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 EolssuTextField(
                     value = state.email,
                     onValueChange = onEmailChange,
                     label = stringResource(Res.string.auth_email),
                     placeholder = stringResource(Res.string.auth_email_placeholder),
                     type = TextFieldType.Email,
+                    bordered = false,
+                    labelInside = true,
+                    fieldHeight = 48.dp,
                     error = state.emailError?.let { stringResource(it.message) },
-                    fieldHeight = FieldHeight,
                 )
                 EolssuTextField(
                     value = state.password,
@@ -123,20 +123,29 @@ fun LoginScreen(
                     label = stringResource(Res.string.auth_password),
                     placeholder = stringResource(Res.string.auth_password_placeholder),
                     type = TextFieldType.Password,
+                    bordered = false,
+                    labelInside = true,
+                    fieldHeight = 48.dp,
                     error = (state.passwordError ?: state.error)?.let { stringResource(it.message) },
                     imeAction = ImeAction.Done,
                     onImeAction = onLogIn,
-                    fieldHeight = FieldHeight,
                 )
                 LoginOptions(state, onRememberEmailChange, onKeepSignedInChange)
                 EolssuButton(
                     stringResource(Res.string.auth_login),
                     onClick = onLogIn,
                     busy = state.loggingIn,
-                    minHeight = FieldHeight,
                 )
             }
             Links(onFindPassword, onSignUp, formWidth)
+            if (providers.isNotEmpty()) {
+                SocialDivider(formWidth.padding(top = 8.dp))
+                Row(formWidth, horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)) {
+                    providers.forEach { provider ->
+                        SocialButton(provider, enabled = !state.loggingIn, onClick = { onSocialLogIn(provider) })
+                    }
+                }
+            }
         }
     }
     when (state.notice) {
@@ -171,9 +180,6 @@ fun LoginScreen(
 /** 로그인 내용의 최대 너비. 넓은 화면에서도 입력칸·버튼이 길게 늘어나지 않게 한다. */
 private val FormMaxWidth = 400.dp
 
-/** 입력칸·로그인 버튼·간편 로그인 버튼의 높이. 48dp 터치 영역을 지키면서 기본(52dp)보다 낮춘다. */
-private val FieldHeight = 48.dp
-
 /** 앱 이름과 한 줄 소개(`.au-brand`). */
 @Composable
 private fun Brand(modifier: Modifier) {
@@ -192,52 +198,57 @@ private fun Brand(modifier: Modifier) {
 }
 
 /**
- * 간편 로그인 버튼(`.au-social-btn`): 왼쪽 48dp 칸 가운데에 제공사 공식 심볼(20dp), 가운데 문구.
- * 카카오는 노랑, 네이버는 초록, Google은 흰 바탕·옅은 테두리, Apple은 검정 바탕이다(각 제공사 로그인 버튼 가이드).
+ * 간편 로그인 버튼: 지름 [SocialSize] 동그라미 가운데 제공사 공식 심볼.
+ * 카카오는 노랑, 네이버는 초록, Google은 흰 바탕, Apple은 검정 바탕이다(각 제공사 로그인 버튼 가이드의 심볼형 버튼).
+ * 화면 읽기는 'OO로 로그인'을 읽는다(S15P31E102-798).
  */
 @Composable
 private fun SocialButton(provider: SocialProvider, enabled: Boolean, onClick: () -> Unit) {
     val look = socialLook(provider)
+    val description = stringResource(Res.string.auth_social_login, stringResource(provider.displayName))
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth().height(FieldHeight),
+        modifier = Modifier.size(SocialSize).semantics { contentDescription = description },
         shape = CircleShape,
         color = look.background,
         contentColor = look.content,
-        border = BorderStroke(1.dp, look.border),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(SymbolSlot), contentAlignment = Alignment.Center) {
-                ProviderGlyph(provider, size = if (provider == SocialProvider.Naver) 14.dp else 20.dp, appleColor = look.content)
-            }
-            Text(
-                stringResource(Res.string.auth_social_login, stringResource(provider.displayName)),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-            )
-            Box(Modifier.width(SymbolSlot))
+        Box(contentAlignment = Alignment.Center) {
+            ProviderGlyph(provider, size = if (provider == SocialProvider.Naver) 20.dp else 26.dp, appleColor = look.content)
         }
     }
 }
 
-/** 심볼 칸 너비. 문구가 버튼 가운데에 오도록 오른쪽에도 같은 너비를 비운다. */
-private val SymbolSlot = 48.dp
+/** 간편 로그인 동그라미 지름. */
+private val SocialSize = 56.dp
+
+/** 이메일 로그인과 간편 로그인 사이의 '── 간편 로그인 ──' 구분 줄. */
+@Composable
+private fun SocialDivider(modifier: Modifier) {
+    val colors = EolssuTheme.colors
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f).height(1.dp).background(colors.lineSoft))
+        Text(
+            stringResource(Res.string.auth_social_divider),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+            color = colors.textMuted,
+        )
+        Box(Modifier.weight(1f).height(1.dp).background(colors.lineSoft))
+    }
+}
 
 /** 간편 로그인 버튼 색. */
-private class SocialLook(val background: Color, val content: Color, val border: Color)
+private class SocialLook(val background: Color, val content: Color)
 
 @Composable
 private fun socialLook(provider: SocialProvider): SocialLook {
-    val colors = EolssuTheme.colors
     return when (provider) {
-        SocialProvider.Kakao -> SocialLook(KakaoYellow, KakaoInk, KakaoYellow)
-        SocialProvider.Naver -> SocialLook(NaverGreen, Color.White, NaverGreen)
-        SocialProvider.Google -> SocialLook(Color.White, GoogleInk, colors.line)
+        SocialProvider.Kakao -> SocialLook(KakaoYellow, KakaoInk)
+        SocialProvider.Naver -> SocialLook(NaverGreen, Color.White)
+        SocialProvider.Google -> SocialLook(Color.White, GoogleInk)
         // Apple 로그인 버튼 지침: 검정 바탕·흰 글자·흰 로고("Apple로 로그인").
-        SocialProvider.Apple -> SocialLook(Color.Black, Color.White, Color.Black)
+        SocialProvider.Apple -> SocialLook(Color.Black, Color.White)
     }
 }
 
@@ -258,33 +269,35 @@ private fun LoginOptions(state: LoginUiState, onRememberEmailChange: (Boolean) -
 @Composable
 private fun LoginOption(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier
-            .heightIn(min = 44.dp)
-            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onChange),
+        Modifier.heightIn(min = 44.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AuthCheckBox(checked, Modifier.size(20.dp))
-        Text(label, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), color = EolssuTheme.colors.textSub)
+        AuthCheckBox(checked, label, onChange, Modifier.size(20.dp))
+        // 글자는 누르지 않는다. 화면 읽기는 체크 상자에서 이름을 읽는다(S15P31E102-798).
+        Text(label, Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), color = EolssuTheme.colors.textSub)
     }
 }
 
-/** 비밀번호 찾기 | 이메일로 회원가입(`.au-links`). 두 링크는 같은 글자 크기·굵기·색이다. */
+/**
+ * 비밀번호 찾기 | 회원가입(`.au-links`). 두 링크는 같은 글자 크기·굵기·색이다.
+ * 글자 길이가 달라도 '|'가 화면 가운데(간편 로그인 줄·가운데 버튼과 같은 축)에 오도록 양쪽을 같은 너비로 나눠 안쪽으로 붙인다(S15P31E102-798).
+ */
 @Composable
 private fun Links(onFindPassword: () -> Unit, onSignUp: () -> Unit, modifier: Modifier) {
     val colors = EolssuTheme.colors
     val style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium)
-    Row(
-        modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        LinkButton(stringResource(Res.string.auth_find_password), onFindPassword) {
-            Text(it, style = style, color = colors.textMuted)
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            LinkButton(stringResource(Res.string.auth_find_password), onFindPassword) {
+                Text(it, style = style, color = colors.textMuted)
+            }
         }
         Text("|", style = style, color = colors.lineSoft)
-        LinkButton(stringResource(Res.string.auth_signup_with_email), onSignUp) {
-            Text(it, style = style, color = colors.textMuted)
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            LinkButton(stringResource(Res.string.auth_signup_link), onSignUp) {
+                Text(it, style = style, color = colors.textMuted)
+            }
         }
     }
 }

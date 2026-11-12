@@ -79,6 +79,8 @@ fun PasswordSetupScreen(
                     // 규칙 미충족은 문장 대신 체크리스트로 보이므로, 입력칸 오류 문장은 그 밖의 오류(미입력·128자 초과·재인증)만 쓴다.
                     val ruleError = state.passwordError == FieldError.PasswordRule
                     EolssuTextField(
+                        bordered = false,
+                        labelInside = true,
                         value = state.password,
                         onValueChange = onPasswordChange,
                         label = stringResource(if (signUp) Res.string.auth_password else Res.string.auth_new_password),
@@ -89,6 +91,8 @@ fun PasswordSetupScreen(
                     PasswordChecklist(state.password, highlightUnmet = ruleError)
                 }
                 EolssuTextField(
+                    bordered = false,
+                    labelInside = true,
                     value = state.passwordConfirm,
                     onValueChange = onPasswordConfirmChange,
                     label = stringResource(Res.string.auth_password_confirm),

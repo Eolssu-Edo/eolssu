@@ -543,7 +543,8 @@
     <string name="auth_password_placeholder">비밀번호</string>
     <string name="auth_login">로그인</string>
     <string name="auth_find_password">비밀번호 찾기</string>
-    <string name="auth_signup_with_email">이메일로 회원가입</string>
+    <string name="auth_signup_link">회원가입</string>
+    <string name="auth_social_divider">간편 로그인</string>
     <string name="auth_remember_email">아이디 기억하기</string>
     <string name="auth_keep_signed_in">자동 로그인</string>
     <string name="auth_oauth_title">%1$s로 로그인</string>
