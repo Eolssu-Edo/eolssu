@@ -12,6 +12,21 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import kotlin.test.*
 
 class CatalogReferenceControllerTests {
+    @Test fun `list and detail expose the same catalog pattern cell duration`() {
+        mvc.perform(get("/api/jangdans")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.items[0].patternCellEighths").value(1))
+        mvc.perform(get("/api/jangdans/1")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.patternCellEighths").value(1))
+    }
+    @Test fun `authoring exposes unsupported notes without treating absent fingering as physical impossibility`() {
+        mvc.perform(get("/api/instruments/9007199254740993/authoring-capabilities"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.items.length()").value(3))
+            .andExpect(jsonPath("$.result.items[0].selectable").value(true))
+            .andExpect(jsonPath("$.result.items[1].fingering").value("UNKNOWN"))
+            .andExpect(jsonPath("$.result.items[1].selectable").value(false))
+            .andExpect(jsonPath("$.result.physicalRange.verificationStatus").value("REFERENCE_ONLY"))
+    }
     private val repository = ReferenceFixture()
     private val queries = CatalogReferenceQueries(repository)
     private val previewHash = "a".repeat(64)
@@ -136,7 +151,7 @@ class CatalogReferenceControllerTests {
     }
 }
 
-private class ReferenceFixture : CatalogReferenceRepository {
+internal class ReferenceFixture : CatalogReferenceRepository {
     var empty = false
     var reversedRange = false
     var lastPitchRange: Pair<Int?, Int?>? = null
@@ -156,7 +171,7 @@ private class ReferenceFixture : CatalogReferenceRepository {
     override fun fingerings(instrumentId: Long, pitchId: Long?) =
         listOf(CatalogFingering(8, instrumentId, 91, "https://example.test/chart.png", null)).filter { pitchId == null || it.pitchId == pitchId }
     override fun jangdans() = if (empty) emptyList() else listOf(CatalogJangdan(1, "세마치", 96, "DOTTED_QUARTER",
-        CatalogJangdanPattern(listOf("떵", "", "덕"), listOf(3)), null))
+        CatalogJangdanPattern(listOf("떵", "", "덕"), listOf(3)), null, 1))
     override fun jangdan(id: Long) = jangdans().find { it.id == id }
     override fun notationSymbols() = if (empty) emptyList() else listOf(CatalogNotationSymbol(3, "－", "연장", "검증된 설명", null))
 }

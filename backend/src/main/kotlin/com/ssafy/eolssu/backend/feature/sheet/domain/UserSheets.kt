@@ -38,7 +38,7 @@ data class SheetImportSource(val conversionStatus: SheetImportStatus, val pageCo
 /** 확정 저장 전 편집 내용. [json]은 title·jangdanId·bpm·score를 담은 초안 문서다. */
 data class SheetDraft(val json: String, val baseScoreVersion: Int, val savedAt: Instant)
 
-data class SheetJangdan(val id: Long, val bpmUnit: String, val name: String)
+data class SheetJangdan(val id: Long, val bpmUnit: String, val name: String, val pattern: String? = null)
 
 data class SheetPage(val items: List<UserSheet>, val totalElements: Long)
 
