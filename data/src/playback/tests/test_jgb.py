@@ -422,7 +422,7 @@ class JgbTests(unittest.TestCase):
 
     def test_jeonggan_tempo_is_not_rejected_by_quarter_conversion(self):
         for unit, bpm, expected in (("eighth", 19, 9.5), ("dotted", 270, 405),
-                                    ("dotted", 800, 4800)):
+                                    ("dotted", 800, 4800), ("plain", 1600, 1600)):
             speed = 4 if bpm == 800 else 1
             with self.subTest(unit=unit, bpm=bpm):
                 value, mapping = converted(document(staffUnit=unit, tempoBpm=bpm), speed=speed)
