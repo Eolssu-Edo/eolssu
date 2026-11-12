@@ -49,7 +49,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -90,38 +89,11 @@ import kotlin.math.roundToInt
  * 손가락으로 밀거나 화살표 · 위 달리기 지도 · 키보드 ←→로 넘기고, 시작 버튼이나 카드를 누르면 그 단계 상세를 연다.
  */
 
-/** 단계 그림 원본(1536 × 1024)의 크기. */
-internal const val LearnArtWidth = 1536
-internal const val LearnArtHeight = 1024
-
-/** 단계 그림에서 보일 정사각형 부분(원본 픽셀). 와이어프레임 `THUMB`의 [x, y, 한 변]이다. */
-internal data class LearnArtCrop(val left: Int, val top: Int, val size: Int)
-
-/** 1~7단계 그림의 자르기 값(단계 상세 머리·과제 안내). 8·9단계는 서버가 숨겨 그림도 뺐다(S15P31E102-658). */
-internal val LearnArtCrops: List<LearnArtCrop> = listOf(
-    LearnArtCrop(209, 43, 960),
-    LearnArtCrop(294, 56, 940),
-    LearnArtCrop(224, 0, 1016),
-    LearnArtCrop(184, 0, 1024),
-    LearnArtCrop(200, 0, 1024),
-    LearnArtCrop(245, 0, 1010),
-    LearnArtCrop(176, 0, 1024),
-)
-
 /**
- * 기초 배우기 목록 단계 카드의 자르기 값. 캐릭터·음표가 잘리지 않도록 그림 바탕(회색)이 아닌 부분 전체를 가운데에 두고
- * 둘레에 한 변의 약 6%씩 여백을 둔다. 원본(1536×1024)보다 넓으면 원본 밖은 [LearnArtBackground]로 채운다(S15P31E102-768).
+ * 1~7단계 그림(S15P31E102-749). 원본(1536 × 1024, 회색 바탕)에서 바탕을 걷어 내 투명하게 하고, 호랑이·음표·바람이 있는 곳을 가운데 둔
+ * 720 × 720 정사각형으로 미리 잘라 두었다. 흰 카드에서 사라지는 흰 바람·빛줄기는 옅은 회청색으로 바꿨다.
+ * 미리 잘라 작게 둔 덕에 넘길 때 읽는 그림이 원본의 1/3 크기다. 8·9단계는 서버가 숨겨 그림도 뺐다(S15P31E102-658).
  */
-internal val LearnCardArtCrops: List<LearnArtCrop> = listOf(
-    LearnArtCrop(274, 76, 897),
-    LearnArtCrop(304, 64, 923),
-    LearnArtCrop(223, -9, 1027),
-    LearnArtCrop(152, -38, 1091),
-    LearnArtCrop(46, -113, 1244),
-    LearnArtCrop(240, -14, 1023),
-    LearnArtCrop(40, -155, 1301),
-)
-
 private val LearnArts: List<DrawableResource> = listOf(
     Res.drawable.learn_stage_1,
     Res.drawable.learn_stage_2,
@@ -138,8 +110,11 @@ private val CarouselMaxWidth = 480.dp
 /** 단계 카드 한 변의 최대 크기. 카드를 조금 줄여 목록이 한눈에 들어오게 한다. */
 private val CardMaxSize = 240.dp
 
-/** 단계 그림 바탕(원본 그림의 회색, RGB 224). 자르기 영역 중 원본 밖을 같은 색으로 채워 경계가 보이지 않게 한다. */
-private val LearnArtBackground = Color(0xFFE0E0E0)
+/** 공개 단계 수만큼 그림이 있는지 테스트에서 확인한다. */
+internal val LearnArtCount: Int get() = LearnArts.size
+
+/** 단계 카드에서 그림이 차지하는 비율. 그림 둘레 여백에 더해 카드 테두리·귀퉁이 표시와 겹치지 않게 조금 띄운다. */
+private const val LearnCardArtInset = 0.94f
 
 /**
  * 단계 카드 넘기기.
@@ -201,7 +176,8 @@ internal fun LearnStageCarousel(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CarouselArrow(next = false, enabled = shownPage > 1) { go(shownPage - 1) }
-            HorizontalPager(pager, Modifier.weight(1f), pageSpacing = 16.dp) { page ->
+            // 옆 카드를 미리 그려 두어 넘기는 순간 그림을 읽느라 멈칫하지 않게 한다.
+            HorizontalPager(pager, Modifier.weight(1f), pageSpacing = 16.dp, beyondViewportPageCount = 1) { page ->
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     StageCard(stages[page], state.isDone(stages[page].number), onOpen, cardMaxSize, onCardHeight)
                 }
@@ -275,18 +251,24 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, m
             .aspectRatio(1f)
             .onSizeChanged { onHeight(it.height) }
             .clip(shape)
-            .background(colors.surface)
-            .clickable(role = Role.Button) { onOpen(stage.number) }
-            .semantics { contentDescription = description },
+            .background(colors.surface),
     ) {
-        LearnStageArt(stage.number, Modifier.fillMaxSize(), LearnCardArtCrops)
-        // 테두리는 그림 위에 그린다. 완료는 1dp 테두리 + 안쪽 2dp 그림자(`box-shadow: inset`)라 3dp다
+        LearnStageArt(stage.number, Modifier.fillMaxSize(), inset = LearnCardArtInset)
+        // 테두리와 누름 표시는 그림 위에 그린다. 둥근 카드 모양으로 잘라 누르면 카드 자체만 눌린 것으로 보이게 한다(S15P31E102-749).
+        // 완료는 1dp 테두리 + 안쪽 2dp 그림자(`box-shadow: inset`)라 3dp다
         val border = when {
             done -> Modifier.border(3.dp, colors.primary, shape)
             stage.optional -> Modifier.dashedRoundBorder(GuideFaint, 20.dp)
             else -> Modifier
         }
-        Box(Modifier.fillMaxSize().then(border))
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clip(shape)
+                .clickable(role = Role.Button) { onOpen(stage.number) }
+                .semantics { contentDescription = description }
+                .then(border),
+        )
         if (done) {
             CardBadge(Modifier.align(Alignment.TopEnd), check = true, text = stringResource(Res.string.learn_done))
         } else if (stage.optional) {
@@ -296,28 +278,16 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, m
 }
 
 /**
- * 단계 그림에서 [crops]의 정사각형 부분을 영역 크기로 그린다. 단계 카드는 [LearnCardArtCrops], 상세 머리·과제 안내는 [LearnArtCrops]를 쓴다.
- * 자르기 영역이 원본 밖으로 나가면 원본과 겹치는 부분만 그리고 나머지는 그림 바탕색으로 채운다.
+ * 단계 그림을 [inset] 비율로 줄여 가운데에 그린다(1이면 꽉 채운다). 단계 카드·상세 머리·과제 안내에 쓴다. 바탕은 투명이라 놓인 곳의 색이 비친다.
  */
 @Composable
-internal fun LearnStageArt(stage: Int, modifier: Modifier, crops: List<LearnArtCrop> = LearnArtCrops) {
+internal fun LearnStageArt(stage: Int, modifier: Modifier, inset: Float = 1f) {
     val bitmap = imageResource(LearnArts[stage - 1])
-    val crop = crops[stage - 1]
     Canvas(modifier.clearAndSetSemantics {}) {
-        drawRect(LearnArtBackground)
-        // 기기 밀도에 따라 원본과 다른 크기로 읽혀도 같은 부분을 자른다
-        val k = bitmap.width.toFloat() / LearnArtWidth
-        val scale = size.width / crop.size
-        val left = maxOf(crop.left, 0)
-        val top = maxOf(crop.top, 0)
-        val right = minOf(crop.left + crop.size, LearnArtWidth)
-        val bottom = minOf(crop.top + crop.size, LearnArtHeight)
         drawImage(
             bitmap,
-            srcOffset = IntOffset((left * k).roundToInt(), (top * k).roundToInt()),
-            srcSize = IntSize(((right - left) * k).roundToInt(), ((bottom - top) * k).roundToInt()),
-            dstOffset = IntOffset(((left - crop.left) * scale).roundToInt(), ((top - crop.top) * scale).roundToInt()),
-            dstSize = IntSize(((right - left) * scale).roundToInt(), ((bottom - top) * scale).roundToInt()),
+            dstOffset = IntOffset((size.width * (1 - inset) / 2).roundToInt(), (size.height * (1 - inset) / 2).roundToInt()),
+            dstSize = IntSize((size.width * inset).roundToInt(), (size.height * inset).roundToInt()),
             filterQuality = FilterQuality.Medium,
         )
     }

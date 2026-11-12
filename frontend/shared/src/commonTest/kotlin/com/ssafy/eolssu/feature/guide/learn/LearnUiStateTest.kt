@@ -195,22 +195,8 @@ class LearnUiStateTest {
     }
 
     @Test
-    fun stageArtCropsAreSquaresInsideTheArtwork() {
-        assertEquals(LearnProgressRepository.STAGE_COUNT, LearnArtCrops.size, "공개 단계마다 그림이 하나씩이다")
-        LearnArtCrops.forEach { crop ->
-            assertTrue(crop.left >= 0 && crop.left + crop.size <= LearnArtWidth, "$crop")
-            assertTrue(crop.top >= 0 && crop.top + crop.size <= LearnArtHeight, "$crop")
-        }
-    }
-
-    @Test
-    fun stageCardCropsStayInsideTheArtworkWidthAndOverlapItsHeight() {
-        assertEquals(LearnProgressRepository.STAGE_COUNT, LearnCardArtCrops.size, "공개 단계마다 카드 그림이 하나씩이다")
-        LearnCardArtCrops.forEach { crop ->
-            assertTrue(crop.left >= 0 && crop.left + crop.size <= LearnArtWidth, "가로는 원본 안: $crop")
-            // 세로는 원본보다 넓을 수 있지만(바깥은 바탕색) 원본과 반드시 겹친다
-            assertTrue(crop.top < LearnArtHeight && crop.top + crop.size > 0, "세로로 원본과 겹친다: $crop")
-        }
+    fun everyPublicStageHasArt() {
+        assertEquals(LearnProgressRepository.STAGE_COUNT, LearnArtCount, "공개 단계마다 그림이 하나씩이다")
     }
 
     @Test
