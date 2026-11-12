@@ -157,6 +157,16 @@ class HttpPracticeSessionTest {
     }
 
     @Test
+    fun uploadReportsProgressFromZeroToWhole() = runTest {
+        val reported = mutableListOf<Float>()
+        assertEquals(UploadOutcome.Uploaded, uploader(HttpStatusCode.Accepted).upload("41", "p") { reported += it })
+
+        assertEquals(0f, reported.first())
+        assertEquals(1f, reported.last())
+        assertTrue(reported.all { it in 0f..1f })
+    }
+
+    @Test
     fun uploadSortsResponsesAsSpecified() = runTest {
         val expected = mapOf(
             HttpStatusCode.Accepted to UploadOutcome.Uploaded,
