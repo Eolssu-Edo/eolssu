@@ -2,7 +2,7 @@
 
 ## 작성 원본과 변환 기록 (2026-11-11, S15P31E102-771)
 
-SHT-08·초안은 공통 v1 밖의 선택적 `authoring`을 반환한다. `schema=sheet-authoring/v1`, `source={kind,instrument,scoreVersion,scoreSha256,score,notes}`이며 notes는 eventId·cellId·startTick·durationTick·원래 실음 MIDI다. `RECOGNIZED`는 인식 결과 원본, `EXISTING_SCORE`는 과거 원본이 없는 현재 판본 기준이다. 인식 결과 JSON과 V41 `user_sheets.authoring_json`에 보존하고 기존 행은 일괄 변환하지 않는다. 원본 PDF 비보관 정책은 유지한다.
+SHT-08·초안은 공통 v1 밖의 선택적 `authoring`을 반환한다. `schema=sheet-authoring/v1`, `source={kind,instrument,scoreVersion,scoreSha256,score,notes}`이며 notes는 eventId·cellId·startTick·durationTick·원래 실음 MIDI다. `RECOGNIZED`는 인식 결과 원본, `EXISTING_SCORE`는 과거 원본이 없는 현재 판본 기준이다. 인식 결과 JSON과 V42 `user_sheets.authoring_json`에 보존하고 기존 행은 일괄 변환하지 않는다. 원본 PDF 비보관 정책은 유지한다.
 
 SHT-04·11 요청은 `authoring={schema,source:{scoreSha256},adaptation?}`만 보내 원본 전체 중복으로 1MiB 본문 제한을 넘기지 않는다. 전체 source를 보낼 때도 서버 보존본과 동일해야 하며 클라이언트가 원본을 교체할 수 없다. 생략하는 기존 클라이언트는 원본을 보존한다. `adaptation`은 instrument·전곡 transpose(-6..6)·변경 event의 fromMidi/toMidi/octaveShift를 남긴다. 음 선택·확정 여부는 이 기록을 신뢰하지 않고 실제 공통 악보와 작성 카탈로그로 다시 검사한다.
 

@@ -716,6 +716,7 @@ class PracticeViewModel(
                 ) return@update current
                 when (result) {
                     SheetPracticeDownload.Saved -> current.copy(personalAudio = PracticePersonalAudio.Ready, modelAudioStatus = ModelAudioStatus.Idle)
+                    SheetPracticeDownload.UnsupportedPitches -> current.copy(personalAudio = PracticePersonalAudio.UnsupportedPitches)
                     SheetPracticeDownload.Failed -> current.copy(personalAudio = PracticePersonalAudio.Failed)
                     SheetPracticeDownload.VersionChanged -> current.copy(personalAudio = PracticePersonalAudio.VersionChanged)
                 }

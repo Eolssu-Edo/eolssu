@@ -32,7 +32,13 @@ class ApiReferenceCatalogRepository(private val client: HttpClient) : ReferenceC
         checkIds(result.items.map { it.pitchId })
         if (result.instrumentId != instrumentId || result.policyVersion != "registered-guidance-cat/v1" ||
             result.nominalHwangMidi !in 0..127 || result.items.any {
-                it.midi != result.nominalHwangMidi + it.semitone ||
+                it.midi != result.nominalHwangMidi + it.semitone || it.fingering !in setOf("REGISTERED", "UNKNOWN") ||
+                    it.notation !in setOf("SUPPORTED", "UNSUPPORTED") || it.synthesis !in setOf("SUPPORTED", "UNSUPPORTED", "UNKNOWN") ||
+                    it.reasonCodes != buildList {
+                        if (it.fingering != "REGISTERED") add("FINGERING_UNKNOWN")
+                        if (it.notation != "SUPPORTED") add("NOTATION_UNSUPPORTED")
+                        if (it.synthesis != "SUPPORTED") add("SYNTHESIS_UNSUPPORTED")
+                    } ||
                     it.selectable != (it.fingering == "REGISTERED" && it.notation == "SUPPORTED" && it.synthesis == "SUPPORTED")
             }) throw CatalogUnavailable()
         return result

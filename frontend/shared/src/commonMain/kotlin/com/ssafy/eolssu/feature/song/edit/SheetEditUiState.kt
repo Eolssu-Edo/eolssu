@@ -24,6 +24,9 @@ data class SheetAudioInstruments(
     val options: List<CatalogInstrument> = emptyList(),
     val selectedId: String? = null,
     val loading: Boolean = true,
+    val supportLoading: Boolean = false,
+    val supportFailed: Boolean = false,
+    val unsupported: List<com.ssafy.eolssu.data.song.AuthoringPitchIssue> = emptyList(),
 )
 
 enum class SheetCompletionCatalogState { NotRequired, Loading, Ready, Failed }
@@ -32,7 +35,7 @@ enum class SheetCompletionCatalogState { NotRequired, Loading, Ready, Failed }
 enum class SheetSaveStatus { DraftSaved, Confirmed, DraftFailed, ConfirmationFailed, TooLarge }
 
 enum class SheetEditMessage {
-    SaveFailed, SaveConflict, SaveTooLarge,
+    SaveFailed, SaveConflict, SaveTooLarge, SaveUnsupportedPitches,
     /** 임시저장(SHT-11 초안). 빈 정간이 있어도 된다. */
     Draft,
 
@@ -58,7 +61,7 @@ enum class SheetEditMessage {
 
     /** 요청 설정이 맞지 않다(400 INVALID_REQUEST: 장단 없는 악보에 장단 소리, bpm 범위 밖). */
     AudioInvalid,
-    AudioInstrumentRequired,
+    AudioInstrumentRequired, AudioUnsupportedPitches,
 
     /** 이 회원의 다른 음원을 만드는 중이다(409 AUDIO_IN_PROGRESS). */
     AudioInProgress,
@@ -114,6 +117,8 @@ data class SheetEditUiState(
     val staffKey: StaffNoteKey? = null,
     val yulRegister: YulRegister = YulRegister.Base,
     val availablePitches: Set<Pair<String, Int>>? = null,
+    val authoringCapabilities: com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities? = null,
+    val serverPitchIssues: List<com.ssafy.eolssu.data.song.AuthoringPitchIssue> = emptyList(),
     val instrumentPitches: Set<Pair<String, Int>>? = null,
     val completionCatalogState: SheetCompletionCatalogState = SheetCompletionCatalogState.NotRequired,
     val availableJangdans: List<CatalogJangdanSummary>? = null,
@@ -282,7 +287,7 @@ data class SheetEditUiState(
     /** 후보를 보는 동안 입력이 바뀌었으면 적용하지 않는다. 시작 음만 교체해 지속·분할·원본 이벤트를 보존한다. */
     internal fun applyPitchCorrection(target: SheetPitchCorrection, pitch: Pair<Yul, Int>): SheetEditUiState {
         if (confirming || target !in pitchCorrectionsAt(target.cell, target.sub) || pitch !in pitchAlternatives(target.pitch)) return this
-        val next = draft.putAt(target.originCell, target.originSub, draft.pitchNote(pitch.first, pitch.second))
+        val next = draft.correctPitch(target, pitch)
         return commit(next, target.originCell, target.originSub)
     }
 
@@ -351,7 +356,7 @@ data class SheetEditUiState(
         while (target in 0 until count * 5 && hwang + target - 2 * count in 0..127) {
             val pitch = BaseYuls[target % count]
             val register = target / count - 2
-            if (isAvailablePitch(availablePitches, pitch, register)) return draft.pitchNote(pitch, register)
+            if (isAvailablePitch(supportedInputPitches, pitch, register)) return draft.pitchNote(pitch, register)
             target += direction
         }
         return null

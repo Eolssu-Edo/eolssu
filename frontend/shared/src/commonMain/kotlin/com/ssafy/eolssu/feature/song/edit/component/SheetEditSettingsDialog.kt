@@ -76,7 +76,8 @@ internal fun SheetEditSettingsDialog(
         title = stringResource(Res.string.sheet_settings_title),
         onDismissRequest = { if (!saving) onDismiss() },
     ) {
-        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
             EolssuButton(stringResource(Res.string.sheet_adapt_title), onAdapt,
                 style = EolssuButtonStyle.Secondary, enabled = !saving)
             EolssuTextField(

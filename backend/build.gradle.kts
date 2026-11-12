@@ -86,4 +86,5 @@ tasks.register<Test>("databaseTest") {
 // Bundle DATA-owned profiles, not independently maintained backend note ranges.
 tasks.processResources {
     from("../data/src/playback/profiles") { into("catalog/playback-profiles") }
+    from("../data/src/scores/score_data.schema.json") { into("catalog") }
 }

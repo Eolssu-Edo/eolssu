@@ -33,6 +33,8 @@ class BuiltinFingeringApiDatabaseTests {
             for ((code, count) in mapOf("DANSO" to 17, "SOGEUM" to 20, "JEONGAK_DAEGEUM" to 30, "SANJO_DAEGEUM" to 31)) {
                 val id = jdbc.queryForObject("SELECT id FROM instruments WHERE code=?", Long::class.java, code)!!
                 val capability = body(client, "/api/instruments/$id/authoring-capabilities")
+                // Reuse the real response for local app verification without maintaining another pitch table.
+                java.nio.file.Files.writeString(Path.of("build/authoring-capabilities-${code.lowercase()}.json"), json.writeValueAsString(capability))
                 val notes = capability.path("items").toList()
                 val fingerings = body(client, "/api/instruments/$id/fingerings").path("items").toList().map { it.path("pitchId").asString() }.toSet()
                 assertEquals(count, notes.count { it.path("selectable").asBoolean() }, code)

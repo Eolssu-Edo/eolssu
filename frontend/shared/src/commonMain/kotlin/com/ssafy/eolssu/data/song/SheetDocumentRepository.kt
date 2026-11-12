@@ -32,6 +32,7 @@ internal fun SheetWorkingCopy.matchesDraftAcknowledgement(request: SheetWorkingC
 
 sealed interface SheetWrite {
     data class Saved(val scoreVersion: String, val revision: Int = 0, val reviewStatus: String? = null) : SheetWrite
+    data class UnsupportedPitches(val details: AuthoringPitchRejection) : SheetWrite
     data object Conflict : SheetWrite
     data object Unfilled : SheetWrite
     data object TooLarge : SheetWrite
@@ -82,7 +83,14 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
             }
             409 -> SheetWrite.Conflict
             413 -> SheetWrite.TooLarge
-            400 -> if (response.apiResponse<ApiError>()?.result?.errorCode == "UNFILLED_CELLS") SheetWrite.Unfilled else SheetWrite.Failed
+            400 -> {
+                val error = response.apiResponse<AuthoringError>()?.result
+                when {
+                    error?.authoringRejection != null -> SheetWrite.UnsupportedPitches(requireNotNull(error.authoringRejection))
+                    error?.errorCode == "UNFILLED_CELLS" -> SheetWrite.Unfilled
+                    else -> SheetWrite.Failed
+                }
+            }
             else -> SheetWrite.Failed
         }
     }
@@ -106,3 +114,9 @@ private fun JsonObject.writeReference(): JsonObject = kotlinx.serialization.json
     val bpm: Int, val score: JsonObject, val draftRevision: Int? = null, val resolvedIssueIds: List<String>? = null, val authoring: JsonObject? = null)
 @Serializable private class WrittenDto(val sheetId: String, val scoreVersion: String? = null,
     val draftRevision: Int? = null, val reviewStatus: String? = null)
+
+@Serializable internal data class AuthoringError(val errorCode: String? = null, val details: JsonObject? = null) {
+    val authoringRejection: AuthoringPitchRejection? get() = details?.let {
+        runCatching { com.ssafy.eolssu.core.network.ApiJson.decodeFromString<AuthoringPitchRejection>(it.toString()) }.getOrNull()
+    }?.takeIf { it.reason == "UNSUPPORTED_PITCHES" }
+}

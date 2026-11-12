@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.song.edit.component
 
 import androidx.compose.ui.graphics.Color
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -12,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -57,7 +59,8 @@ internal fun SheetEditDetailsDialog(
         title = stringResource(if (saveMode) Res.string.sheet_save_dialog_title else Res.string.sheet_details_edit),
         onDismissRequest = { if (!saving) onDismiss() },
     ) {
-        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
             EolssuTextField(
                 value = title,
                 onValueChange = { if (!saving) title = it },

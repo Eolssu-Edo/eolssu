@@ -21,6 +21,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.sheet_completion_tuning
 import eolssu.shared.generated.resources.sheet_completion_title
 import eolssu.shared.generated.resources.sheet_completion_empty
 import eolssu.shared.generated.resources.sheet_completion_review
@@ -49,7 +50,7 @@ internal fun SheetCompletionNotice(
 ) {
     val validation = state.completionValidation
     val showCells = showReviewSummary && (validation.hasEmptyCells || validation.pendingReviewCount > 0)
-    if (!showCells && validation.invalidPitchCount == 0 && !validation.hasInvalidStructure && !validation.hasJangdanMismatch && !validation.catalogLoading && !validation.catalogFailed) return
+    if (!showCells && validation.invalidPitchCount == 0 && !validation.hasInvalidStructure && !validation.hasJangdanMismatch && !validation.hasTuningMismatch && !validation.catalogLoading && !validation.catalogFailed) return
     Column(
         modifier.fillMaxWidth().heightIn(max = 232.dp)
             .background(EolssuTheme.colors.accentTint, RoundedCornerShape(10.dp))
@@ -66,6 +67,9 @@ internal fun SheetCompletionNotice(
         }
         if (showReviewSummary && validation.hasEmptyCells) {
             Text(stringResource(Res.string.sheet_completion_empty, validation.emptyCellCount), style = MaterialTheme.typography.bodySmall)
+        }
+        if (validation.hasTuningMismatch) {
+            Text(stringResource(Res.string.sheet_completion_tuning), style = MaterialTheme.typography.bodySmall)
         }
         if (validation.invalidPitchCount > 0) {
             Text(stringResource(Res.string.sheet_completion_pitch, validation.invalidPitchCount), style = MaterialTheme.typography.bodySmall)

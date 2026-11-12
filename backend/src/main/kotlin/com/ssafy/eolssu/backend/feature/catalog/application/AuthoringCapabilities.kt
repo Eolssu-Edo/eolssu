@@ -19,6 +19,9 @@ data class InstrumentAuthoringCapabilities(
 /** CAT-06 stays a browsing range. Authoring uses registered guidance, notation and the actual CAT service policy. */
 class AuthoringCapabilities(private val repository: CatalogReferenceRepository, private val json: JsonMapper = JsonMapper.builder().build()) {
     private val policy = resource("authoring-policy")
+    private val notation = ClassPathResource("catalog/score_data.schema.json").inputStream.use(json::readTree)
+        .path("properties").path("events").path("items")
+    private val notationYuls: Set<String> = notation.path("then").path("properties").path("yul").path("enum").toList().map { it.asString() }.toSet()
     private val profiles = listOf("DANSO", "SOGEUM", "JEONGAK_DAEGEUM", "SANJO_DAEGEUM")
         .associateWith { resource(it.lowercase().replace('_', '-')) }
 
@@ -31,12 +34,14 @@ class AuthoringCapabilities(private val repository: CatalogReferenceRepository, 
         val range = profile.path("technical_range").takeIf { it.isArray && it.size() == 2 }
         val low = range?.get(0)?.intValue()
         val high = range?.get(1)?.intValue()
-        val fingerings = repository.fingerings(instrumentId, null).map { it.pitchId }.toSet()
-        val notationRange = policy.path("notation_octave_range")
+        val fingerings = repository.fingerings(instrumentId, null)
+            .filter { it.pattern != null || !it.imageUrl.isNullOrBlank() || !it.description.isNullOrBlank() }
+            .map { it.pitchId }.toSet()
+        val notationOctave = notation.path("properties").path("octave")
         val midiRange = policy.path("midi_range")
         val pitches = repository.pitches(null, null).map { pitch ->
             val midi = nominal + pitch.semitone
-            val notation = pitch.octave in notationRange[0].intValue()..notationRange[1].intValue() && pitch.yul.isNotBlank()
+            val notation = pitch.octave in notationOctave.path("minimum").intValue()..notationOctave.path("maximum").intValue() && pitch.yul in notationYuls
             val synthesis = policy.path("synthesis_extension").booleanValue() && midi in midiRange[0].intValue()..midiRange[1].intValue()
             val registered = pitch.id in fingerings
             val reasons = buildList {
