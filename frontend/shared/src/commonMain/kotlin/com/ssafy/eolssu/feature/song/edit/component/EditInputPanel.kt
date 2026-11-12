@@ -163,12 +163,16 @@ internal fun EditInputPanel(
             SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.onRedo, enabled = canRedo)
             Box(Modifier.weight(1f).offset(x = 4.dp), contentAlignment = Alignment.CenterEnd) { saveFeedback() }
         }
-        Row(Modifier.fillMaxWidth().horizontalScroll(tabsScroll)) { SegmentTabs(
-            labels = listOf(stringResource(Res.string.sheet_adapt_tab), stringResource(Res.string.sheetedit_tab_yul), stringResource(Res.string.sheetedit_tab_sigimsae), stringResource(Res.string.sheetedit_tab_cell)),
-            selected = tab.ordinal,
-            onSelect = { actions.onSelectTab(EditTab.entries[it]) },
-            fill = false,
-        ) }
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Row(Modifier.horizontalScroll(tabsScroll)) {
+                SegmentTabs(
+                    labels = listOf(stringResource(Res.string.sheet_adapt_tab), stringResource(Res.string.sheetedit_tab_yul), stringResource(Res.string.sheetedit_tab_sigimsae), stringResource(Res.string.sheetedit_tab_cell)),
+                    selected = tab.ordinal,
+                    onSelect = { actions.onSelectTab(EditTab.entries[it]) },
+                    fill = false,
+                )
+            }
+        }
         when (tab) {
             EditTab.Adaptation -> adaptationContent()
             EditTab.Yul -> YulKeys(draft, selected, selectedSub, register, availablePitches, actions)

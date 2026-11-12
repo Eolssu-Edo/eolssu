@@ -21,6 +21,8 @@ import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationPanel
 import eolssu.shared.generated.resources.sheet_adapt_confirm_title
 import eolssu.shared.generated.resources.sheet_adapt_confirm_message
+import eolssu.shared.generated.resources.sheet_adapt_confirm_overwrite
+import androidx.compose.ui.text.font.FontWeight
 import eolssu.shared.generated.resources.sheet_adapt_confirm_apply
 import eolssu.shared.generated.resources.common_cancel
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
@@ -58,7 +60,7 @@ import eolssu.shared.generated.resources.sheet_pitch_corrected_review
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 저장 시에만 수정할 정간과 해결 방법을 표시한다. 제목은 저장 창, 빠르기·장단은 편집 창에서 바꾼다.
+ * 저장 시에만 수정할 정간과 해결 방법을 표시한다. 제목은 저장 창, 빠르기는 상단 편집 창, 장단은 정간 도구에서 바꾼다.
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -253,27 +255,27 @@ fun SheetEditRoute(
     }
     if (detailsOpen && state.canEditDetails) SheetEditSettingsDialog(
         draft = state.draft,
-        picker = state.jangdanPicker,
         hasTempoPlan = state.hasTempoPlan,
         saving = state.saving,
-        onLoadJangdans = viewModel::changeJangdan,
-        onApply = { bpm, jangdanId ->
-            viewModel.updateSettings(bpm, jangdanId)
+        onApply = { bpm ->
+            viewModel.updateDetails(state.draft.title, bpm)
             detailsOpen = false
         },
         onDismiss = { detailsOpen = false; viewModel.closeJangdanPicker() },
-        onAdapt = { detailsOpen = false; viewModel.closeJangdanPicker(); viewModel.openAdaptation() },
     )
     if (state.adaptation?.confirmationRequested == true) EolssuDialog(
         title = stringResource(Res.string.sheet_adapt_confirm_title),
-        message = stringResource(Res.string.sheet_adapt_confirm_message), onDismissRequest = viewModel::cancelApplyAdaptation,
+        onDismissRequest = viewModel::cancelApplyAdaptation,
     ) {
+        Text(stringResource(Res.string.sheet_adapt_confirm_overwrite),
+            style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.sheet_adapt_confirm_message), style = MaterialTheme.typography.bodyMedium)
         EolssuButton(stringResource(Res.string.sheet_adapt_confirm_apply), viewModel::applyAdaptation)
         EolssuButton(stringResource(Res.string.common_cancel), viewModel::cancelApplyAdaptation, style = EolssuButtonStyle.Secondary)
     }
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
-            onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker,
+            onSelect = viewModel::selectJangdan, onClear = viewModel::clearJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker,
             hasTempoPlan = state.hasTempoPlan)
     }
     if (state.closeWarning) EolssuDialog(

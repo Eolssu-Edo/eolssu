@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="sheet_settings_title">악보 설정</string>
+    <string name="sheet_settings_title">빠르기 편집</string>
     <string name="sheet_settings_jangdan">장단</string>
     <string name="sheet_settings_jangdan_none">장단 사용 안 함</string>
     <string name="sheet_settings_current_jangdan">현재 장단</string>
