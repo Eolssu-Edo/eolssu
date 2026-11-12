@@ -23,8 +23,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -56,6 +56,7 @@ fun SongSearchField(
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(10.dp)
     val label = stringResource(Res.string.song_search_label)
+    val hideKeyboard = rememberHideKeyboard()
     val focusManager = LocalFocusManager.current
     Row(
         modifier
@@ -85,8 +86,11 @@ fun SongSearchField(
                 textStyle = textStyle,
                 cursorBrush = SolidColor(colors.text),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                // 입력할 때마다 거르므로 검색 키는 키보드만 닫는다.
-                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                // 입력할 때마다 거르므로 검색 키는 키보드만 닫는다. 초점만 풀면 키보드가 남는 기기가 있어 함께 내린다(S15P31E102-800).
+                keyboardActions = KeyboardActions(onAny = {
+                    hideKeyboard()
+                    focusManager.clearFocus()
+                }),
                 modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
             )
         }

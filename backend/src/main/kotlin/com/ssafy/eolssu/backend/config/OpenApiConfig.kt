@@ -7,6 +7,7 @@ import com.ssafy.eolssu.backend.feature.auth.api.ResendDetails
 import com.ssafy.eolssu.backend.feature.auth.api.AttemptDetails
 import com.ssafy.eolssu.backend.feature.auth.api.SocialSignUpDetails
 import com.ssafy.eolssu.backend.feature.auth.api.MergeDetails
+import com.ssafy.eolssu.backend.feature.sheet.application.UnsupportedAuthoringPitches
 import com.ssafy.eolssu.backend.feature.growth.api.RejectionDetails
 import io.swagger.v3.core.converter.AnnotatedType
 import io.swagger.v3.core.converter.ModelConverters
@@ -37,9 +38,19 @@ class OpenApiConfig {
         val components = api.components ?: Components().also { api.components = it }
         components.addSecuritySchemes("accessCookie", cookie("access_token"))
         components.addSecuritySchemes("refreshCookie", cookie("refresh_token"))
+        val tempoDetails = ObjectSchema()
+            .addProperty("reason", StringSchema()._enum(listOf("MIDI_TEMPO_RANGE", "MIDI_NOTE_TOO_SHORT", "PCM_NOTE_TOO_SHORT", "DURATION_LIMIT", "PLAN_POSITIONS_CHANGED")))
+            .addProperty("bpmUnit", StringSchema()._enum(listOf("QUARTER", "DOTTED_QUARTER")))
+            .addProperty("minimumBpm", NumberSchema()).addProperty("maximumBpm", NumberSchema())
+            .addProperty("eventIds", ArraySchema().items(StringSchema()))
+            .addProperty("minimumNoteFrames", IntegerSchema()).addProperty("sampleRate", IntegerSchema())
+            .addProperty("minimumNoteTicks", IntegerSchema()).addProperty("ticksPerQuarter", IntegerSchema())
+            .addProperty("adjustmentTarget", StringSchema()._enum(listOf("TEMPO_PLAN")))
+            .addProperty("maximumDurationMs", IntegerSchema()).required(listOf("reason"))
+        components.addSchemas("SheetTempoRejectionDetails", tempoDetails)
         components.addSchemas("ApiErrorResult", ObjectSchema()
             .addProperty("errorCode", StringSchema().description("클라이언트 분기용 코드")._enum(ErrorCode.entries.map { it.name }))
-            .addProperty("details", ComposedSchema().oneOf(listOf(RetryDetails::class.java,ResendDetails::class.java,AttemptDetails::class.java,RejectionDetails::class.java,MergeDetails::class.java,SocialSignUpDetails::class.java).map { model(components,it) }).description("있을 때만 포함. 가입 signupTicket·계정 연결 mergeTicket은 인증 증명값이므로 로그·공유에 남기지 않습니다."))
+            .addProperty("details", ComposedSchema().oneOf(listOf(RetryDetails::class.java,ResendDetails::class.java,AttemptDetails::class.java,RejectionDetails::class.java,MergeDetails::class.java,SocialSignUpDetails::class.java,UnsupportedAuthoringPitches::class.java).map { model(components,it) } + schemaRef("SheetTempoRejectionDetails")).description("있을 때만 포함. 가입 signupTicket·계정 연결 mergeTicket은 인증 증명값이므로 로그·공유에 남기지 않습니다."))
             .required(listOf("errorCode")))
         components.addSchemas("ApiError", envelope(schemaRef("ApiErrorResult"), false))
         for (doc in apiContracts) {
@@ -69,9 +80,9 @@ class OpenApiConfig {
             }
             if(doc.id=="createSheetAudio") {
                 operation.requestBody=RequestBody().required(false).content(jsonContent(ObjectSchema()
-                    .addProperty("instrumentId",StringSchema().pattern("[1-9][0-9]{0,17}").description("생략하면 단소"))
+                    .addProperty("instrumentId",StringSchema().pattern("[1-9][0-9]{0,17}").description("생략하면 악보 악기. 선택 악기의 지원음을 다시 검사합니다."))
                     .addProperty("withJangdan",BooleanSchema()._default(false))
-                    .addProperty("bpm",IntegerSchema().minimum(java.math.BigDecimal(30)).maximum(java.math.BigDecimal(160)).description("생략하면 악보 BPM"))))
+                    .addProperty("bpm",IntegerSchema().format("int32").minimum(java.math.BigDecimal.ONE).description("양의 정수. 생략하면 악보 BPM. QUARTER·DOTTED_QUARTER 단위와 구간·음표 길이에 따른 생성 가능 범위는 사전 검사하며, 거절 details에서 조정 범위를 안내합니다."))))
             }
             // 본문 없는 POST도 기존 보안 필터가 application/json을 요구한다.
             // 선택적인 {}를 제공해 UI의 Try it out이 Content-Type을 설정하도록 한다. 서버는 이 본문을 읽지 않는다.
@@ -140,6 +151,19 @@ class OpenApiConfig {
                 )))
                 operation.responses.addApiResponse(status.toString(),ApiResponse().description(codes.joinToString { "${it.name}: ${it.message}" })
                     .content(Content().addMediaType("application/json",media)))
+            }
+            if (doc.id in setOf("saveSheetScore", "createSheetAudio")) {
+                val errors = operation.responses["400"]?.content?.get("application/json")
+                errors?.addExamples("UNSUPPORTED_PITCHES", Example().summary("지원음 확인이 필요한 위치")
+                    .value(mapOf("httpStatus" to "BAD_REQUEST", "isSuccess" to false, "message" to INVALID_REQUEST.message, "code" to 400,
+                        "result" to mapOf("errorCode" to INVALID_REQUEST.name, "details" to mapOf(
+                            "reason" to "UNSUPPORTED_PITCHES", "instrumentCode" to "SOGEUM", "issues" to listOf(mapOf(
+                                "eventId" to "c0-j0-r0-u0", "cellId" to "c0-j0", "yul" to "이", "octave" to 1,
+                                "reasonCodes" to listOf("FINGERING_UNKNOWN"))))))))
+                errors?.addExamples("TEMPO_UNRENDERABLE", Example().summary("BPM 단위의 MIDI 표현 범위 초과")
+                    .value(mapOf("httpStatus" to "BAD_REQUEST", "isSuccess" to false, "message" to TEMPO_UNRENDERABLE.message, "code" to 400,
+                        "result" to mapOf("errorCode" to TEMPO_UNRENDERABLE.name, "details" to mapOf(
+                            "reason" to "MIDI_TEMPO_RANGE", "bpmUnit" to "QUARTER", "minimumBpm" to 4, "maximumBpm" to 60000000)))))
             }
             // 모르는 제공자는 공통 오류 envelope 없이 본문 없는 404다.
             if (doc.id == "relayIosSocialLogin") operation.responses.addApiResponse("404", ApiResponse().description("모르는 제공자, 응답 본문 없음"))

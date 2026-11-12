@@ -120,7 +120,7 @@ fun SignupStepIndicator(
         janggu = colors.rec,
         doneNode = colors.play,
         upcomingNode = colors.line,
-        nodeFill = colors.background,
+        nodeFill = colors.surface,
     )
     Box(modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Column(

@@ -192,7 +192,8 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
         require(type(document["tempoBpmUserSet"]) is bool, "JGB 최상위 tempoBpmUserSet은 true/false여야 합니다")
     require(bpm is not None or document.get("tempoBpmUserSet") is True,
             "재생 빠르기 선택이 확인되지 않았습니다. 최상위 tempoBpmUserSet:true 또는 명시적인 --bpm이 필요합니다; 장단명·기본60·--speed만으로 확정하지 않습니다")
-    base_bpm = number(controls.get("tempoBpm") if bpm is None else bpm, "정간 BPM (--bpm)", 1, 800)
+    base_bpm = number(controls.get("tempoBpm") if bpm is None else bpm, "정간 BPM (--bpm)", 0, float("inf"))
+    require(base_bpm > 0, "정간 BPM은 양수여야 합니다")
     speed = number(speed, "speed", .25, 4)
     hwang = integer(controls.get("hwangPitch") if hwang_midi is None else hwang_midi,
                     "황종 MIDI (--hwang-midi)", 0, 127)

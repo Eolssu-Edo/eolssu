@@ -7,7 +7,5 @@
     <string name="sheet_jangdan_other_lengths">그 밖의 각 길이도 있어요</string>
     <string name="sheet_jangdan_option_beats">%1$s박 · %2$s 기준</string>
     <string name="sheet_jangdan_timing_unavailable">악보의 박 단위를 확인할 수 없어 장단을 비교할 수 없어요.</string>
-    <string name="sheet_jangdan_no_match_help">현재 악보에 연결할 수 있는 장단이 없어요. 편집에서 ‘장단 사용 안 함’을 선택하면 장단 없이 저장할 수 있어요. 음의 길이와 빠르기는 유지돼요.</string>
-    <string name="sheet_jangdan_cell_length_help">현재 1정간이 %1$s박으로 저장돼 있어 장단을 연결할 수 없어요. 한 각의 총 박수만 같아도 연결되지 않아요.</string>
-    <string name="sheet_jangdan_reimport_help">이 박 구성이 원본과 다르면 원본에 맞는 설정으로 다시 변환해 주세요. 장단 사용을 해제해도 잘못 변환된 음의 길이가 자동으로 고쳐지지는 않아요.</string>
+    <string name="sheet_jangdan_no_match_help">각 길이에 맞는 장단이 없어요. ‘장단 없음’으로 저장할 수 있어요.</string>
 </resources>

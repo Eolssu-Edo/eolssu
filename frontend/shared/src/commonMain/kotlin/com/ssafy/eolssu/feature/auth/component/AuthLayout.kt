@@ -2,7 +2,6 @@ package com.ssafy.eolssu.feature.auth.component
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,7 +20,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -107,9 +111,6 @@ fun AuthHelp(text: String, modifier: Modifier = Modifier, textAlign: TextAlign =
     )
 }
 
-/** 보드의 옅은 회색 선(`--faint`, #B9B3A6): 체크 상자·빈 자리 점선. 테마에 없어 로그인·가입 화면에서만 쓴다. */
-internal val AuthFaint = Color(0xFFB9B3A6)
-
 /** 상단 바 오른쪽 단계 표시(`.au-step`, 예: 1 / 2). */
 @Composable
 fun AuthStepLabel(step: Int, total: Int) {
@@ -120,16 +121,27 @@ fun AuthStepLabel(step: Int, total: Int) {
     )
 }
 
-/** 22dp 체크 상자(`.au-box`). 누르기는 감싼 행이 맡는다. */
+/**
+ * 22dp 체크 상자(`.au-box`). 테두리 없이 고르면 연두, 안 고르면 [uncheckedColor] 채움이다. 흰 카드 안에서는 회색을 넘긴다.
+ * 옆 글자가 아니라 이 상자만 눌린다(S15P31E102-798). 누르는 영역은 Compose가 최소 48dp로 넓혀 주고, 화면 읽기는 [label]을 읽는다.
+ */
 @Composable
-fun AuthCheckBox(checked: Boolean, modifier: Modifier = Modifier) {
+fun AuthCheckBox(
+    checked: Boolean,
+    label: String,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    uncheckedColor: Color = EolssuTheme.colors.surface,
+) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(6.dp)
     Box(
         modifier
             .size(22.dp)
-            .background(if (checked) colors.primary else colors.surface, shape)
-            .border(1.5.dp, if (checked) colors.primary else AuthFaint, shape),
+            .clip(shape)
+            .background(if (checked) colors.primary else uncheckedColor)
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onCheckedChange)
+            .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
         if (checked) {

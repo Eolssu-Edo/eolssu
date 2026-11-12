@@ -65,6 +65,8 @@ import com.ssafy.eolssu.feature.practice.personalAudioControl
 import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.*
 import com.ssafy.eolssu.feature.practice.JangdanStatus
+import eolssu.shared.generated.resources.practice_sheet_audio_support
+import eolssu.shared.generated.resources.practice_sheet_audio_support_edit
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.model_audio_failed
 import eolssu.shared.generated.resources.model_audio_interrupted
@@ -127,6 +129,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
                 PracticePersonalAudio.Preparing -> Res.string.practice_sheet_audio_preparing
                 PracticePersonalAudio.Downloading -> Res.string.practice_sheet_audio_downloading
                 PracticePersonalAudio.Unsupported -> Res.string.practice_player_unsupported
+                PracticePersonalAudio.UnsupportedPitches -> Res.string.practice_sheet_audio_support
                 PracticePersonalAudio.Failed -> Res.string.practice_sheet_audio_retry
                 PracticePersonalAudio.VersionChanged -> Res.string.practice_sheet_audio_version_changed
                 else -> Res.string.practice_sheet_audio_download
@@ -240,6 +243,7 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         PracticePlayerNotice.Unavailable -> stringResource(Res.string.practice_player_unavailable)
         PracticePlayerNotice.PersonalAudioUnavailable -> stringResource(Res.string.practice_sheet_audio_unavailable)
         PracticePlayerNotice.PersonalDownloadFailed -> stringResource(Res.string.practice_sheet_audio_download_failed)
+        PracticePlayerNotice.PersonalUnsupportedPitches -> stringResource(Res.string.practice_sheet_audio_support_edit)
         PracticePlayerNotice.PersonalScoreChanged -> stringResource(Res.string.practice_sheet_audio_reopen)
         PracticePlayerNotice.PersonalAudioReady -> stringResource(Res.string.practice_sheet_audio_ready)
         PracticePlayerNotice.EmbeddedJangdan -> stringResource(Res.string.practice_sheet_audio_with_jangdan)

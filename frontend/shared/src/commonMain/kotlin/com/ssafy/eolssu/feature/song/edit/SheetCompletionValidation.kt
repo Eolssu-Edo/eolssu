@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song.edit
 import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import com.ssafy.eolssu.data.song.CommonScoreData
 import com.ssafy.eolssu.data.song.ScoreDataException
+import com.ssafy.eolssu.data.song.jangdanCycleTicks
 import com.ssafy.eolssu.core.model.ScoreNote
 import kotlin.math.abs
 
@@ -13,6 +14,7 @@ data class SheetCompletionValidation(
     val invalidPitchCount: Int = 0,
     val hasInvalidStructure: Boolean = false,
     val hasJangdanMismatch: Boolean = false,
+    val hasTuningMismatch: Boolean = false,
     val catalogLoading: Boolean = false,
     val catalogFailed: Boolean = false,
     val firstCellIndex: Int? = null,
@@ -21,7 +23,7 @@ data class SheetCompletionValidation(
 ) {
     val hasEmptyCells: Boolean get() = emptyCellCount > 0
     val canComplete: Boolean get() = !hasEmptyCells && pendingReviewCount == 0 && invalidPitchCount == 0 &&
-        !hasInvalidStructure && !hasJangdanMismatch && !catalogLoading && !catalogFailed
+        !hasInvalidStructure && !hasJangdanMismatch && !hasTuningMismatch && !catalogLoading && !catalogFailed
 }
 
 internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
@@ -40,14 +42,16 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
             }
         } ?: draft.cells[index].mapNotNull { it.pitchKey()?.let { (yul, octave) -> yul.hangul to octave } }
     }
-    val invalidPitches = pitchesByCell.indices.filter { index -> pitchesByCell[index].any { pitch ->
-        availablePitches?.let { pitch !in it } == true || instrumentPitches?.let { pitch !in it } == true
+    val catalogPending = completionCatalogState in setOf(SheetCompletionCatalogState.Loading, SheetCompletionCatalogState.Failed)
+    val invalidPitches = pitchesByCell.indices.filter { index -> !catalogPending && pitchesByCell[index].any { pitch ->
+        supportedInputPitches?.let { pitch !in it } == true ||
+            serverPitchIssues.any { it.cellId == cells?.getOrNull(index)?.id }
     } }
     val checkable = reviewIssues.filter { issue ->
         val index = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 }
         when (issue.kind) {
             "UNREGISTERED_PITCH", "OUT_OF_RANGE" -> {
-                val allowed = if (issue.kind == "UNREGISTERED_PITCH") availablePitches else instrumentPitches
+                val allowed = supportedInputPitches
                 index != null && validStructure && pitchesByCell[index].all { pitch -> allowed?.contains(pitch) == true }
             }
             else -> index != null
@@ -55,9 +59,9 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     }.mapTo(mutableSetOf(), SheetReviewIssue::id)
     val pending = reviewIssues.filter { it.id !in checkedIssueIds || it.id !in checkable }
     val jangdan = availableJangdans?.firstOrNull { it.jangdanId == draft.jangdanId }
-    val mismatch = draft.jangdanId != null && when {
-        jangdan != null -> !draft.isCompatibleWith(jangdan)
-        else -> reviewNotices.any { it.type == "JANGDAN_MISMATCH" }
+    val mismatch = if (draft.jangdanId == null) completionCatalogState == SheetCompletionCatalogState.Ready && draft.jangdanName.isNotEmpty() else when {
+        jangdan != null -> jangdan.name != draft.jangdanName || !draft.isCompatibleWith(jangdan)
+        else -> completionCatalogState == SheetCompletionCatalogState.Ready || reviewNotices.any { it.type == "JANGDAN_MISMATCH" }
     }
     val structureCell = (structureError as? ScoreDataException)?.location?.let { location ->
         cells?.indexOfFirst { it.id == location || location.startsWith("${it.id}-") }?.takeIf { it >= 0 }
@@ -79,6 +83,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
         invalidPitchCount = invalidPitches.size,
         hasInvalidStructure = empty.isEmpty() && structureError != null,
         hasJangdanMismatch = mismatch,
+        hasTuningMismatch = score?.music?.hwangHz?.let { authoringCapabilities?.matchesTuning(it) } == false,
         catalogLoading = completionCatalogState == SheetCompletionCatalogState.Loading,
         catalogFailed = completionCatalogState == SheetCompletionCatalogState.Failed,
         firstCellIndex = corrections.firstOrNull(),
@@ -158,20 +163,9 @@ internal fun SheetDraft.isCompatibleWith(jangdan: CatalogJangdanSummary): Boolea
     val music = original?.music ?: return false
     if (jangdan.bpmUnit != music.bpmUnit || jangdan.beatCount <= 0) return false
     val ticks = music.ticksPerJeonggan.toLong()
-    val beat = music.ticksPerBeat.toLong()
-    val seryeongsanCell = jangdan.name == "세령산" && ticks * 2 == beat * 3
-    if (ticks <= 0 || beat <= 0 || (ticks != beat && ticks * 2 != beat && ticks * 3 != beat && !seryeongsanCell)) return false
-    // data/reference/jangdans.json과 OMR 엔진의 칸 음가. 8분음표 단위로 정수 비교한다.
-    val cellEighths = jangdan.patternCellEighths() ?: return false
-    val beatEighths = when (jangdan.bpmUnit) {
-        "QUARTER" -> 2
-        "DOTTED_QUARTER" -> 3
-        else -> return false
-    }
-    val expected = jangdan.beatCount.toLong() * beat * cellEighths
-    // 마지막의 짧은 각은 끝마침·못갖춘마디일 수 있으므로 새 오류로 만들지 않는다.
-    return sizes.withIndex().all { (index, count) ->
-        val actual = count.toLong() * ticks * beatEighths
-        actual == expected || (index == sizes.lastIndex && actual < expected)
-    }
+    if (ticks !in 1..1_000_000_000L) return false
+    val cycle = jangdanCycleTicks(jangdan.beatCount, jangdan.patternCellEighths, music.bpmUnit, music.ticksPerBeat.toLong()) ?: return false
+    val first = original.events.firstOrNull() ?: return false
+    if (first.cellId != "c0-j0" || first.startTick != 0L) return false
+    return sizes.isNotEmpty() && sizes.all { it > 0 && it.toLong() * ticks % cycle == 0L }
 }

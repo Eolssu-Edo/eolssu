@@ -822,6 +822,7 @@ class PracticeViewModel(
                 ) return@update current
                 when (result) {
                     SheetPracticeDownload.Saved -> current.copy(personalAudio = PracticePersonalAudio.Ready, modelAudioStatus = ModelAudioStatus.Idle)
+                    SheetPracticeDownload.UnsupportedPitches -> current.copy(personalAudio = PracticePersonalAudio.UnsupportedPitches)
                     SheetPracticeDownload.Failed -> current.copy(personalAudio = PracticePersonalAudio.Failed)
                     SheetPracticeDownload.VersionChanged -> current.copy(personalAudio = PracticePersonalAudio.VersionChanged)
                 }
@@ -868,7 +869,7 @@ class PracticeViewModel(
         stopJangdan()
         val song = _uiState.value.song ?: return
         _uiState.update { it.restartModel().copy(playing = false, eventStartedAt = null) }
-        modelAudio.restart(song, _uiState.value.bpm)
+        modelAudio.restart(song, _uiState.value.bpm, _uiState.value.currentTick)
     }
 
     fun stopModel() {

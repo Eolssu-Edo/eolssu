@@ -75,9 +75,11 @@ class SheetPracticeRepository(
             instruments.load().firstOrNull { it.code == code }?.instrumentId ?: return@inSession SheetPracticeDownload.Failed
         }
         val settings = SheetAudioSettings(instrumentId = instrumentId, bpm = song.baseBpm)
+        var unsupportedPitches = false
         val audio = withTimeoutOrNull(AUDIO_GENERATION_LIMIT_MS) {
             var audio = when (val request = sheetAudio.request(song.id, settings)) {
                 is SheetAudioRequest.Accepted -> request.audio
+                is SheetAudioRequest.UnsupportedPitches -> { unsupportedPitches = true; null }
                 SheetAudioRequest.InProgress -> (sheetAudio.status(song.id) as? SheetAudioLookup.Found)?.audio
                 else -> null
             } ?: return@withTimeoutOrNull null
@@ -94,7 +96,7 @@ class SheetPracticeRepository(
                 }
             }
             audio
-        } ?: return@inSession SheetPracticeDownload.Failed
+        } ?: return@inSession if (unsupportedPitches) SheetPracticeDownload.UnsupportedPitches else SheetPracticeDownload.Failed
         if (audio.sheetId == song.id && audio.currentScoreVersion != version) return@inSession SheetPracticeDownload.VersionChanged
         if (audio.status != SheetAudioStatus.Done || !audio.matches(song.id, version, settings)) return@inSession SheetPracticeDownload.Failed
         val file = audio.audio ?: return@inSession SheetPracticeDownload.Failed
@@ -137,7 +139,7 @@ class SheetPracticeRepository(
 
 class SheetPracticeNeedsReview : Exception()
 
-enum class SheetPracticeDownload { Saved, Failed, VersionChanged }
+enum class SheetPracticeDownload { Saved, Failed, VersionChanged, UnsupportedPitches }
 
 private const val AUDIO_GENERATION_LIMIT_MS = 12 * 60 * 1000L
 
@@ -145,16 +147,9 @@ private fun SheetAudio.matches(sheetId: String, version: String, settings: Sheet
     this.sheetId == sheetId && scoreVersion == version && currentScoreVersion == version && !outdated &&
         instrumentId == settings.instrumentId && bpm == settings.bpm && withJangdan == settings.withJangdan
 
-/** 악보와 장단의 BPM 단위가 다르면 한 주기를 악보의 tick 단위로 바꾼다. */
-private fun CatalogJangdanDetail.playbackFor(timing: ScoreTiming): JangdanPlayback? {
-    val units = mapOf("QUARTER" to 2, "DOTTED_QUARTER" to 3)
-    val referenceUnit = units[bpmUnit] ?: return null
-    val scoreUnit = units[timing.bpmUnit.name] ?: return null
-    if (name != timing.jangdan || pattern.beats.size !in 1..64) return null
-    val subdivision = if (referenceUnit == 3) 3 else 1
-    if (pattern.beats.size % subdivision != 0) return null
-    val cycleNumerator = pattern.beats.size.toLong() / subdivision * referenceUnit * timing.ticksPerBeat
-    val cycle = cycleNumerator / scoreUnit
-    if (cycleNumerator % scoreUnit != 0L || cycle !in 1..1_000_000_000L) return null
+/** 확인된 패턴 칸 음가로 한 주기를 악보의 tick 단위로 바꾼다. */
+internal fun CatalogJangdanDetail.playbackFor(timing: ScoreTiming): JangdanPlayback? {
+    if (name != timing.jangdan || bpmUnit != timing.bpmUnit.name) return null
+    val cycle = jangdanCycleTicks(pattern.beats.size, patternCellEighths, timing.bpmUnit.name, timing.ticksPerBeat.toLong()) ?: return null
     return JangdanPlayback(jangdanId, name, 0, cycle, pattern.beats, pattern.group)
 }

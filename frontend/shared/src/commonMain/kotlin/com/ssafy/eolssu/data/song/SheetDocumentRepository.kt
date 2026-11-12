@@ -19,17 +19,26 @@ data class SheetDocument(
     val scoreVersion: String, val score: CommonScoreData?, val draft: SheetWorkingCopy?,
     val reviewStatus: String, val conversionStatus: String?, val issues: List<JsonObject>,
     val notices: List<JsonObject> = emptyList(),
+    val authoring: JsonObject? = null,
+    val expressions: JsonObject? = null,
 )
 data class SheetWorkingCopy(val title: String, val jangdanId: String?, val bpm: Int,
     val score: CommonScoreData, val baseScoreVersion: String, val revision: Int,
-    val resolvedIssueIds: List<String> = emptyList())
+    val resolvedIssueIds: List<String> = emptyList(), val authoring: JsonObject? = null, val expressions: JsonObject? = null)
+
+/** The server may capture a legacy source while storing the draft; only requested metadata is an edit. */
+internal fun SheetWorkingCopy.matchesDraftAcknowledgement(request: SheetWorkingCopy): Boolean =
+    this.copy(authoring = request.authoring) == request &&
+        (request.authoring == null || authoring?.writeReference() == request.authoring.writeReference())
 
 sealed interface SheetWrite {
-    data class Saved(val scoreVersion: String, val revision: Int = 0, val reviewStatus: String? = null) : SheetWrite
+    data class Saved(val scoreVersion: String, val revision: Int = 0, val reviewStatus: String? = null, val expressions: JsonObject? = null) : SheetWrite
+    data class UnsupportedPitches(val details: AuthoringPitchRejection) : SheetWrite
     data object Conflict : SheetWrite
     data object Unfilled : SheetWrite
     data object TooLarge : SheetWrite
     data object Failed : SheetWrite
+    data class TempoRejected(val issue: SheetTempoIssue) : SheetWrite
 }
 interface SheetDocumentRepository {
     suspend fun get(sheetId: String): SheetDocument?
@@ -48,10 +57,11 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
         val copy = dto.draft?.let {
             val data = runCatching { CommonScoreData.decode(it.score.toString()) }.getOrNull() ?: return@inSession null
             if (it.baseScoreVersion != dto.scoreVersion || it.draftRevision < 0 || it.bpm <= 0) return@inSession null
-            SheetWorkingCopy(it.title, it.jangdanId, it.bpm, data, it.baseScoreVersion, it.draftRevision)
+            SheetWorkingCopy(it.title, it.jangdanId, it.bpm, data, it.baseScoreVersion, it.draftRevision,
+                authoring = it.authoring, expressions = it.expressions ?: dto.expressions)
         }
         SheetDocument(dto.sheetId, dto.title, dto.jangdanId, dto.bpm, dto.scoreVersion, original, copy,
-            dto.reviewStatus, dto.conversionStatus, dto.issues, dto.notices)
+            dto.reviewStatus, dto.conversionStatus, dto.issues, dto.notices, authoring = dto.authoring, expressions = dto.expressions)
     }
 
     override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite = member.inSession {
@@ -61,7 +71,7 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
                 contentType(ContentType.Application.Json)
                 setBody(WriteBody(copy.baseScoreVersion, copy.title, copy.jangdanId, copy.bpm,
                     Json.encodeToJsonElement(copy.score) as JsonObject, copy.revision.takeIf { draft },
-                    copy.resolvedIssueIds.takeIf { !draft && it.isNotEmpty() }))
+                    copy.resolvedIssueIds.takeIf { !draft && it.isNotEmpty() }, authoring = copy.authoring?.writeReference(), expressions = copy.expressions))
             }
         } ?: return@inSession SheetWrite.Failed
         when (response.status.value) {
@@ -70,25 +80,49 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
                 if (result?.sheetId != sheetId) SheetWrite.Failed
                 else if (draft && result.draftRevision == copy.revision + 1) SheetWrite.Saved(copy.baseScoreVersion, requireNotNull(result.draftRevision))
                 else if (!draft && result.scoreVersion?.toIntOrNull() == copy.baseScoreVersion.toInt() + 1) {
-                    SheetWrite.Saved(requireNotNull(result.scoreVersion), reviewStatus = result.reviewStatus)
+                    SheetWrite.Saved(requireNotNull(result.scoreVersion), reviewStatus = result.reviewStatus, expressions = result.expressions)
                 }
                 else SheetWrite.Failed
             }
             409 -> SheetWrite.Conflict
             413 -> SheetWrite.TooLarge
-            400 -> if (response.apiResponse<ApiError>()?.result?.errorCode == "UNFILLED_CELLS") SheetWrite.Unfilled else SheetWrite.Failed
+            400 -> {
+                val error = response.apiResponse<ApiError>()?.result
+                val rejection = error?.let { AuthoringError(it.errorCode, it.details).authoringRejection }
+                when {
+                    rejection != null -> SheetWrite.UnsupportedPitches(rejection)
+                    error?.errorCode == "UNFILLED_CELLS" -> SheetWrite.Unfilled
+                    error?.errorCode in setOf("TEMPO_UNRENDERABLE", "EXPORT_TOO_LONG") -> SheetWrite.TempoRejected(SheetTempoIssue.from(requireNotNull(error)))
+                    else -> SheetWrite.Failed
+                }
+            }
             else -> SheetWrite.Failed
         }
     }
 }
 
+/** The server owns the immutable snapshot; echo only its identity so autosaves do not double score size. */
+private fun JsonObject.writeReference(): JsonObject = kotlinx.serialization.json.buildJsonObject {
+    this@writeReference["schema"]?.let { put("schema", it) }
+    val source = this@writeReference["source"] as? JsonObject
+    put("source", kotlinx.serialization.json.buildJsonObject { source?.get("scoreSha256")?.let { put("scoreSha256", it) } })
+    this@writeReference["adaptation"]?.let { put("adaptation", it) }
+}
+
 @Serializable private class DocumentDto(val sheetId: String, val title: String, val jangdanId: String? = null,
     val bpm: Int, val scoreVersion: String, val scoreData: JsonObject? = null, val draft: DraftDto? = null,
     val reviewStatus: String, val conversionStatus: String? = null, val issues: List<JsonObject> = emptyList(),
-    val notices: List<JsonObject> = emptyList())
+    val notices: List<JsonObject> = emptyList(), val authoring: JsonObject? = null, val expressions: JsonObject? = null)
 @Serializable private class DraftDto(val title: String, val jangdanId: String? = null, val bpm: Int,
-    val score: JsonObject, val baseScoreVersion: String, val draftRevision: Int)
+    val score: JsonObject, val baseScoreVersion: String, val draftRevision: Int, val authoring: JsonObject? = null, val expressions: JsonObject? = null)
 @Serializable private class WriteBody(val baseScoreVersion: String, val title: String, val jangdanId: String?,
-    val bpm: Int, val score: JsonObject, val draftRevision: Int? = null, val resolvedIssueIds: List<String>? = null)
+    val bpm: Int, val score: JsonObject, val draftRevision: Int? = null, val resolvedIssueIds: List<String>? = null,
+    val authoring: JsonObject? = null, val expressions: JsonObject? = null)
 @Serializable private class WrittenDto(val sheetId: String, val scoreVersion: String? = null,
-    val draftRevision: Int? = null, val reviewStatus: String? = null)
+    val draftRevision: Int? = null, val reviewStatus: String? = null, val expressions: JsonObject? = null)
+
+@Serializable internal data class AuthoringError(val errorCode: String? = null, val details: JsonObject? = null) {
+    val authoringRejection: AuthoringPitchRejection? get() = details?.let {
+        runCatching { com.ssafy.eolssu.core.network.ApiJson.decodeFromString<AuthoringPitchRejection>(it.toString()) }.getOrNull()
+    }?.takeIf { it.reason == "UNSUPPORTED_PITCHES" }
+}

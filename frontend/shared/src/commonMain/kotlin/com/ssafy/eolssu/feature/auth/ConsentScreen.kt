@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.feature.auth
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,7 +22,6 @@ import eolssu.shared.generated.resources.member_api_terms_loading
 import eolssu.shared.generated.resources.member_api_retry
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -101,11 +98,18 @@ fun ConsentScreen(
             Spacer(Modifier.height(20.dp))
             // 휴대폰은 동의 목록을 아래쪽에 붙이고, 태블릿은 제목 바로 아래 12dp에 둔다(`.tabapp.auth .au-agree`).
             if (frame.isTablet) Spacer(Modifier.height(12.dp)) else Spacer(Modifier.weight(1f))
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                if (state.loading) Text(stringResource(Res.string.member_api_terms_loading))
+            // 마이페이지처럼 동의 목록 전체를 테두리 없는 흰 카드 하나에 담는다(S15P31E102-798).
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(EolssuTheme.colors.surface, RoundedCornerShape(20.dp))
+                    .padding(vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                if (state.loading) Text(stringResource(Res.string.member_api_terms_loading), Modifier.padding(16.dp))
                 else if (state.failed) {
-                    Text(stringResource(Res.string.member_api_terms_unavailable))
-                    EolssuButton(stringResource(Res.string.member_api_retry), onRetry)
+                    Text(stringResource(Res.string.member_api_terms_unavailable), Modifier.padding(16.dp))
+                    EolssuButton(stringResource(Res.string.member_api_retry), onRetry, modifier = Modifier.padding(horizontal = 16.dp))
                 } else {
                     AgreeAllRow(state.allChecked, onToggleAll)
                     state.terms.forEach { term ->
@@ -123,17 +127,15 @@ private fun AgreeAllRow(checked: Boolean, onToggle: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(EolssuTheme.colors.surface)
-            .border(1.dp, EolssuTheme.colors.lineSoft, RoundedCornerShape(14.dp))
-            .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() })
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        AuthCheckBox(checked)
+        val label = stringResource(Res.string.auth_agree_all)
+        AuthCheckBox(checked, label, { onToggle() }, uncheckedColor = EolssuTheme.colors.cardLine)
         Text(
-            stringResource(Res.string.auth_agree_all),
+            label,
+            modifier = Modifier.clearAndSetSemantics {},
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
             color = EolssuTheme.colors.text,
         )
@@ -154,14 +156,14 @@ private fun AgreementRow(agreement: AccountTerm, checked: Boolean, onToggle: () 
             Modifier
                 .weight(1f)
                 .heightIn(min = 48.dp)
-                .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() })
                 .padding(vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AuthCheckBox(checked)
+            AuthCheckBox(checked, "$prefix $label", { onToggle() }, uncheckedColor = EolssuTheme.colors.cardLine)
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    buildAnnotatedString {
+                    modifier = Modifier.clearAndSetSemantics {},
+                    text = buildAnnotatedString {
                         withStyle(
                             if (agreement.required) SpanStyle(fontWeight = FontWeight.Bold)
                             else SpanStyle(fontWeight = FontWeight.Medium, color = colors.textMuted),

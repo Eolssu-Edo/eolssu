@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.InstrumentPicture
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -61,25 +62,17 @@ import eolssu.shared.generated.resources.learn_stage_position
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import eolssu.shared.generated.resources.learn_confirm_next
+import eolssu.shared.generated.resources.learn_card_stage
 import eolssu.shared.generated.resources.learn_detail_failed
 import eolssu.shared.generated.resources.learn_listen_model
-import eolssu.shared.generated.resources.learn_mark_done
 import eolssu.shared.generated.resources.learn_more_fingering
 import eolssu.shared.generated.resources.learn_more_fingering_blow
 import eolssu.shared.generated.resources.learn_more_fingering_detail
 import eolssu.shared.generated.resources.learn_pattern_ascending
 import eolssu.shared.generated.resources.learn_pattern_descending
-import eolssu.shared.generated.resources.learn_section_inspect
-import eolssu.shared.generated.resources.learn_section_new_notes
-import eolssu.shared.generated.resources.learn_section_order
-import eolssu.shared.generated.resources.learn_section_patterns
-import eolssu.shared.generated.resources.learn_section_range
-import eolssu.shared.generated.resources.learn_section_tasks
 import eolssu.shared.generated.resources.learn_stage_subtitle_optional
-import eolssu.shared.generated.resources.learn_stage_title
 import eolssu.shared.generated.resources.learn_start_practice
 import eolssu.shared.generated.resources.learn_tour_done_body_posture
-import eolssu.shared.generated.resources.learn_unmark_done
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import com.ssafy.eolssu.core.model.fingering.label
@@ -99,7 +92,6 @@ import eolssu.shared.generated.resources.learn_stage_nav_prev
 class LearnStageActions(
     val onBack: () -> Unit,
     val onOpenStage: (Int) -> Unit,
-    val onToggleDone: (Int) -> Unit,
     val onConfirm: (Int) -> Unit,
     val onListenModel: () -> Unit,
     val onOpenFingering: (Blow) -> Unit,
@@ -146,7 +138,7 @@ fun LearnStageScreen(
     val tour = rememberLearnTour(stage.number, state.instrument, { actions.stepsDone(stage.number) }) { actions.onStepsDone(stage.number, it) }
     EolssuScaffold(
         topBar = {
-            GuideTopBar(learnStageTitle(stage), onBack = actions.onBack, widthClass = widthClass, subtitle = learnStageSubtitle(state, stage))
+            GuideTopBar(learnStageTitle(stage), onBack = actions.onBack, widthClass = widthClass, subtitle = learnStageSubtitle(stage))
         },
         bottomBar = {
             if (tablet) GuideTabletBottomContent { LearnStageBottomBar(state, stage, actions, tour, practice) }
@@ -170,16 +162,17 @@ fun LearnStageScreen(
     }
 }
 
-/** 상단 바 제목(예: 4단계 · 기본음). */
+/** 상단 바 제목(예: 4단계). 단계 이름은 단계 그림 옆([StageHero])에 굵게 보인다(S15P31E102-793). */
 @Composable
-internal fun learnStageTitle(stage: LearnStage): String = stringResource(Res.string.learn_stage_title, stage.number, stage.title)
+internal fun learnStageTitle(stage: LearnStage): String = stringResource(Res.string.learn_card_stage, stage.number)
 
-/** 상단 바 보조 문구: 악기 이름(선택 단계면 '· 선택 단계'를 붙인다). */
+/**
+ * 상단 바 보조 문구: 선택 단계면 '선택 단계', 아니면 없다. 지금 악기는 단계 위치 줄 오른쪽([StageInstrument])에 보여
+ * 제목 아래 악기 이름은 뺐다(S15P31E102-793).
+ */
 @Composable
-internal fun learnStageSubtitle(state: LearnUiState, stage: LearnStage): String {
-    val instrumentName = stringResource(state.instrument.label)
-    return if (stage.optional) stringResource(Res.string.learn_stage_subtitle_optional, instrumentName) else instrumentName
-}
+internal fun learnStageSubtitle(stage: LearnStage): String? =
+    if (stage.optional) stringResource(Res.string.learn_stage_subtitle_optional) else null
 
 /** 단계 상세 본문. 세로로 스크롤하며, [scrollState]를 단계마다 새로 주면 단계를 바꿀 때 맨 위에서 시작한다. */
 @Composable
@@ -207,7 +200,7 @@ internal fun LearnStageContent(
         when (val load = state.detail(stage.number)) {
             is LearnDetailLoad.Loaded -> {
                 val detail = load.detail
-                StagePosition(state, stage.number) { DoneToggleButton(state.isDone(stage.number), onClick = { actions.onToggleDone(stage.number) }) }
+                StagePosition(state, stage.number) { StageInstrument(state.instrument) }
                 StageHero(stage, detail)
                 StageBody(state, stage, detail, actions, columns, noteAudioContent, tour, practice)
             }
@@ -227,7 +220,6 @@ internal fun LearnStageContent(
 @Composable
 private fun StageHero(stage: LearnStage, detail: LearnStageDetail) {
     val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(16.dp)
     Row(
         Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -240,17 +232,16 @@ private fun StageHero(stage: LearnStage, detail: LearnStageDetail) {
             animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
             label = "heroFloatValue",
         )
-        LearnStageArt(
+        LearnStageArtCard(
             stage.number,
             Modifier
                 .graphicsLayer { translationY = float * 3.dp.toPx() }
-                .size(StageHeroArtSize)
-                .clip(shape)
-                .background(colors.background)
-                .border(1.dp, colors.lineSoft, shape),
+                .size(StageHeroArtSize),
+            corner = 16.dp,
         )
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(detail.goal, style = MaterialTheme.typography.titleSmall.copy(fontSize = 17.sp, lineHeight = 23.sp, fontWeight = FontWeight.Bold))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stage.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold))
+            Text(detail.goal, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp), color = colors.textMuted)
         }
     }
 }
@@ -259,7 +250,7 @@ private val StageHeroArtSize = 88.dp
 
 /**
  * 단계 안에서도 지금 몇 단계인지 보이는 작은 줄. 단계마다 점 하나를 두고 완료는 연두, 지금 단계는 길쭉한 진한 점, 나머지는 옅게 칠하며
- * 'n / 전체'를 적는다. 화면 읽기에는 '전체 n단계 중 m단계'로 한 번에 읽힌다. 맨 오른쪽에 [trailing](완료 표시 버튼)을 둔다.
+ * 'n / 전체'를 적는다. 화면 읽기에는 '전체 n단계 중 m단계'로 한 번에 읽힌다. 맨 오른쪽에 [trailing](지금 악기)을 둔다.
  */
 @Composable
 private fun StagePosition(state: LearnUiState, current: Int, trailing: @Composable () -> Unit) {
@@ -313,7 +304,6 @@ private fun StageBody(
 ) {
     val instrument = state.instrument
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
-    val tasksTitle = stringResource(Res.string.learn_section_tasks)
     val fingeringMore: @Composable (StringResource, Blow) -> Unit = { label, blow ->
         MoreLink(stringResource(label), onClick = { actions.onOpenFingering(blow) })
     }
@@ -323,38 +313,38 @@ private fun StageBody(
     val onAllDone = { if (stage.primaryAction == LearnStageAction.Confirm) tour.finish() }
     // 4~7단계는 처음부터 1번 박스가 펼쳐진 할 일 박스와 마지막 연습 박스만 둔다.
     if (stage.number >= 4 && hasTaskTour(stage.number) && stageTourCount(stage.number, detail, instrument) > 0) {
-        LearnSection(tasksTitle) { LearnStageTour(instrument, stage.number, detail, tour, noteAudioContent, onAllDone, practice) }
+        LearnSection { LearnStageTour(instrument, stage.number, detail, tour, noteAudioContent, onAllDone, practice) }
         return
     }
 
     when (stage.number) {
         1 -> {
-            LearnSection(stringResource(Res.string.learn_section_inspect), more = { fingeringMore(Res.string.learn_more_fingering, Blow.Mid) }) {
+            LearnSection {
                 LearnFirstTourFigure(instrument, tour, imageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified, onAllDone = onAllDone)
             }
         }
         // 2단계 '악기 잡기' 설명은 서버가 악기별로 채워 준다. 2·3단계 할 일도 박스 하나씩 펼쳐 따라 한다(3단계 첫 음 운지는 마지막 박스에 나온다).
         2, 3 -> {
-            val tasks = detail.tasks.plain()
+            val tasks = detail.tasks.plain().let { if (stage.number == 2) stageTwoTasks(it) else it }
             val first = if (stage.number == 3) detail.pitchNames.firstOrNull()?.let(noteOf) else null
-            LearnSection(tasksTitle) {
+            LearnSection {
                 LearnTaskTour(instrument, stage.number, tasks, tour, first, noteAudioContent, imageMaxWidth = taskImageMaxWidth, onAllDone = onAllDone, practice = practice)
             }
         }
         4 -> {
             val first = detail.pitchNames.getOrNull(0)?.let(noteOf)
             val second = detail.pitchNames.getOrNull(1)?.let(noteOf)
-            LearnSection(stringResource(Res.string.learn_section_new_notes), more = { fingeringMore(Res.string.learn_more_fingering_detail, Blow.Mid) }) {
+            LearnSection(more = { fingeringMore(Res.string.learn_more_fingering_detail, Blow.Mid) }) {
                 GuideGrid(listOfNotNull(first, second), grid, horizontalGap = 12.dp, verticalGap = 10.dp, stretch = false) { _, note, cell ->
                     NoteCard(instrument, note, noteAudioContent, cell)
                 }
             }
             // 두 번째 음의 운지가 있으면 따라 배우기로 보이므로, 여기는 할 일을 칸으로 만들 수 없을 때만 그린다.
-            LearnSection(stringResource(Res.string.learn_section_order)) {
+            LearnSection {
                 LearnPatternBox { NoteChips(detail.pitchNames.mapNotNull(noteOf)) }
             }
         }
-        5 -> LearnSection(stringResource(Res.string.learn_section_patterns), more = { fingeringMore(Res.string.learn_more_fingering, Blow.Mid) }) {
+        5 -> LearnSection(more = { fingeringMore(Res.string.learn_more_fingering, Blow.Mid) }) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LearnPattern.entries.forEach { pattern ->
                     LearnPatternBox {
@@ -365,7 +355,7 @@ private fun StageBody(
             }
         }
         6 -> {
-            LearnSection(stringResource(Res.string.learn_section_range)) {
+            LearnSection {
                 GuideGrid(detail.ranges, grid, horizontalGap = 12.dp, verticalGap = 10.dp, stretch = false) { _, range, cell ->
                     val first = noteOf(range.first)
                     LearnPatternBox(cell) {
@@ -379,10 +369,10 @@ private fun StageBody(
                 }
             }
             if (detail.ranges.isNotEmpty()) {
-                LearnSection(tasksTitle) { LearnTaskList(listOf(rangeTask(detail.ranges)), grid, collapsible = true) }
+                LearnSection { LearnTaskList(listOf(rangeTask(detail.ranges)), grid, collapsible = true) }
             }
         }
-        else -> LearnSection(tasksTitle) { LearnTaskList(detail.tasks.plain(), grid, collapsible = true) }
+        else -> LearnSection { LearnTaskList(detail.tasks.plain(), grid, collapsible = true) }
     }
     // 할 일을 박스로 만들 수 없는 4~7단계도 연습 박스 하나는 둔다(5·6단계는 할 일 박스가 없으니 연습 박스로 듣는다).
     if (stage.number >= 4 && practice != null) {
@@ -426,7 +416,7 @@ private val CitationPattern = Regex("""\s*\((?:[^()]*(?:차시|교실|지도서)
 /**
  * 하단 고정 영역(S15P31E102-688): 양옆에 이전·다음 단계로 가는 동그란 버튼, 가운데 판정 방식별 주 버튼
  * (설명 단계 '확인하고 다음 단계', 연습 단계 '연습 시작', 듣기 단계 '모범 연주 듣기').
- * 연습 단계의 '연습 시작'은 화면을 옮기지 않고 듣는 박스를 펼치며, 박스가 펼쳐지면 바로 듣기 시작한다(S15P31E102-749).
+ * 연습 단계의 '연습 시작'은 화면을 옮기지 않고 듣는 박스를 펼치며, 누르면 듣기도 함께 시작한다(S15P31E102-793).
  * 3·4·7단계는 마지막 연습 박스, 할 일 박스 안에서 듣는 5·6단계는 아직 마치지 않은 첫 박스다.
  * 할 일 박스를 모두 마치면 주 버튼이 살짝 커졌다 작아지며 다음 할 일을 알린다(연습 박스가 펼쳐져 있으면 쉰다).
  */
@@ -445,7 +435,10 @@ internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions
             LearnStageAction.Practice -> {
                 val control = practice?.primary?.takeIf { practice.passed || listeningBoxOpen(stage.number, stepCount, tour.open, tour.doneCount) }
                 if (control != null) control(Modifier.weight(1f))
-                else EolssuButton(stringResource(Res.string.learn_start_practice), { tour.jumpTo(practiceBoxIndex(stage.number, stepCount, tour.doneCount)) }, primary, icon = EolssuIcons.Mic)
+                else EolssuButton(stringResource(Res.string.learn_start_practice), {
+                    tour.jumpTo(practiceBoxIndex(stage.number, stepCount, tour.doneCount))
+                    practice?.start?.invoke()
+                }, primary, icon = EolssuIcons.Mic)
             }
         }
         StageNavButton(next, forward = true, onOpen = actions.onOpenStage)
@@ -510,25 +503,34 @@ private fun Modifier.attention(on: Boolean): Modifier {
 }
 
 /**
- * '완료로 표시'·'완료 취소' 작은 버튼. 아래 막대를 이전·다음 단계 버튼에 내주고 단계 위치 줄 오른쪽으로 옮겼다(S15P31E102-688).
- * 완료면 옅은 연두 바탕으로 눌린 상태를 보인다.
+ * 단계 위치 줄 오른쪽의 지금 악기(S15P31E102-793). 단계 목록의 악기 칩과 같은 그림·이름이지만, 단계 안에서는 악기를 바꾸지 않아 펼침 표시 없이 보여 주기만 한다.
+ * 예전 '완료로 표시'·'완료 취소' 버튼 자리다. 단계 완료는 '확인했어요'·연습 통과로, 되돌리기는 목록의 '초기화하기'로 한다.
  */
 @Composable
-private fun DoneToggleButton(done: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun StageInstrument(instrument: GuideInstrument, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(32.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = if (done) colors.accentTint else colors.surface,
-        border = BorderStroke(1.dp, if (done) colors.accentTintLine else colors.line),
-    ) {
-        Box(Modifier.padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+    Surface(modifier = modifier.height(32.dp), shape = RoundedCornerShape(16.dp), color = colors.surface) {
+        Row(
+            Modifier.padding(start = 6.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            InstrumentPicture(instrument, size = 22.dp)
             Text(
-                stringResource(if (done) Res.string.learn_unmark_done else Res.string.learn_mark_done),
+                stringResource(instrument.label),
                 style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                 maxLines = 1,
             )
         }
     }
 }
+
+/**
+ * 2단계 할 일. '악기 잡기'(2번째)는 손 그림이 손가락 자리를 보여 주므로 설명의 첫 문장(잡는 방향)만 남긴다(S15P31E102-793).
+ */
+internal fun stageTwoTasks(tasks: List<LearnTask>): List<LearnTask> =
+    tasks.mapIndexed { i, task -> if (i == 1) task.copy(detail = task.detail?.let(::firstSentence)) else task }
+
+/** 첫 문장(마침표·물음표·느낌표까지). 문장 끝이 없으면 그대로 둔다. */
+internal fun firstSentence(text: String): String =
+    Regex("""^.*?[.?!](?=\s|$)""").find(text.trim())?.value ?: text.trim()

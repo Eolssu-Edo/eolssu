@@ -27,7 +27,6 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.learn_pattern_ascending_detail
 import eolssu.shared.generated.resources.learn_pattern_descending_detail
-import eolssu.shared.generated.resources.learn_task_note_detail
 import eolssu.shared.generated.resources.learn_task_range_both
 import eolssu.shared.generated.resources.learn_task_range_high
 import eolssu.shared.generated.resources.learn_task_range_high_detail
@@ -116,8 +115,8 @@ internal fun LearnStageTour(
 internal fun stageTourTasks(instrument: GuideInstrument, stage: Int, detail: LearnStageDetail): List<LearnTask> {
     if (stageTourCount(stage, detail, instrument) == 0) return emptyList()
     return when (stage) {
-        // 율명만 제목으로 두고 설명은 운지 그림 읽는 법 한 줄만 둔다(S15P31E102-749).
-        4 -> stageFourNotes(detail, instrument).map { note -> LearnTask(note.name, stringResource(Res.string.learn_task_note_detail)) }
+        // 율명만 제목으로 둔다. 박스마다 같던 운지 그림 읽는 법 한 줄은 뺐다(S15P31E102-793).
+        4 -> stageFourNotes(detail, instrument).map { note -> LearnTask(note.name) }
         5 -> LearnPattern.entries.map { LearnTask(stringResource(it.label), stringResource(it.detail)) }
         6 -> listOf(rangeTask(detail.ranges))
         else -> detail.tasks.map { LearnTask(it.title.plain(), it.detail?.plain()) }

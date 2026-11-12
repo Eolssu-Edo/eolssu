@@ -161,9 +161,7 @@ private fun TaskFigure(
 
 @Composable
 internal fun StageArtFigure(stage: Int) {
-    val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(16.dp)
-    LearnStageArt(stage, Modifier.size(180.dp).clip(shape).background(colors.background).border(1.dp, colors.lineSoft, shape))
+    LearnStageArtCard(stage, Modifier.size(180.dp))
 }
 
 @Composable

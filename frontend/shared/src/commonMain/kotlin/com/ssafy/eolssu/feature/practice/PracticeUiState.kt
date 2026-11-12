@@ -265,8 +265,8 @@ data class PracticeUiState(
             val song = song ?: return 0
             val jangdan = song.displayJangdan ?: return -1
             song.jangdanPlayback?.let { mapping ->
-                val performedTick = sheetPerformanceBpm?.takeIf { mode == PracticeMode.Model && modelPerformance != null }
-                    ?.let { sheetPerformanceTick(modelPerformancePositionMs, it, requireNotNull(song.score.timing).ticksPerBeat) }
+                val performedTick = modelPerformance?.takeIf { mode == PracticeMode.Model }
+                    ?.at(modelPerformancePositionMs)?.accompanimentTick
                 val cell = mapping.cellAt(performedTick ?: currentTick ?: return -1)
                 return if (cell < 0) -1 else jangdan.daegangIndexOfRow(cell)
             }
@@ -532,10 +532,10 @@ fun PracticeSettings.applyTempo(draft: PracticeDraft, song: Song, mine: Boolean 
 
 /** 플레이어의 고정 안내 칸에만 표시한다. 정상 재생에는 문구가 없다. */
 internal enum class PracticePlayerNotice {
-    None, Loading, Failed, Unavailable, PersonalAudioUnavailable, PersonalDownloadFailed, PersonalScoreChanged, PersonalAudioReady, EmbeddedJangdan, Unsupported, Interrupted,
+    None, Loading, Failed, Unavailable, PersonalAudioUnavailable, PersonalDownloadFailed, PersonalScoreChanged, PersonalUnsupportedPitches, PersonalAudioReady, EmbeddedJangdan, Unsupported, Interrupted,
 }
 
-enum class PracticePersonalAudio { Checking, Missing, Preparing, Downloading, Failed, VersionChanged, Unsupported, Ready }
+enum class PracticePersonalAudio { Checking, Missing, Preparing, Downloading, Failed, VersionChanged, UnsupportedPitches, Unsupported, Ready }
 
 internal val PracticeUiState.personalAudioControl: PracticePersonalAudio?
     get() = personalAudio?.takeUnless { !mine || mode == PracticeMode.Rhythm || it == PracticePersonalAudio.Ready }
@@ -546,6 +546,7 @@ internal val PracticeUiState.playerNotice: PracticePlayerNotice
         val accompaniment = rhythm || settings.jangdanSound
         personalAudioControl?.let {
             return when (it) {
+                PracticePersonalAudio.UnsupportedPitches -> PracticePlayerNotice.PersonalUnsupportedPitches
                 PracticePersonalAudio.Failed -> PracticePlayerNotice.PersonalDownloadFailed
                 PracticePersonalAudio.VersionChanged -> PracticePlayerNotice.PersonalScoreChanged
                 else -> PracticePlayerNotice.None
