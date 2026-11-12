@@ -6,7 +6,7 @@
 - 정간 하나 = 1박. 겹박자(6/8·9/8·12/8)는 점4분음표, 마디가 4분음표로 나뉘면 4분음표, 그 밖(5/8·7/8)은 8분음표다.
   한 각 = 첫 박자표 한 마디의 박 수. 마디선이 빠진 인식 결과도 있어 마디가 아니라 시간 순서대로 각을 자른다.
   첫 마디가 짧으면(못갖춘마디) 앞을, 끝 각은 뒤를 쉼표로 채운다. 각을 넘는 음은 다음 각 처음에 다시 적는다.
-- 첫 파트에서 곡 길이 절반 이상을 덮는 성부 중 평균 음이 가장 높은 성부를 쓰고, 화음은 맨 위 음을 쓴다.
+- 첫 파트에서 곡 길이 절반 이상을 덮는 성부 중 높은 성부를 쓰되, 본음 시작이 두 배 이상 많은 하성부가 있으면 고른다.
   성부 안의 빈 시간은 쉼표다. 꾸밈음·가사는 버린다. 반복·volta는 펼친다.
 - 원음 MIDI를 보존한다. 악기에 맞추는 이조·옥타브 이동은 앱에서 지원 목록과 전후 결과를 확인한 뒤 적용한다.
 
@@ -108,7 +108,8 @@ def _meter(time):
 def _read_part(part, issues):
     """반복을 펼친 시간 순서의 선율 음표(박 단위)와 각의 박 수·겹박자 여부를 돌려준다."""
     measures = part.findall("measure")
-    divisions, transpose, meter = [], [], None
+    divisions, transpose, meter, measure_meters = [], [], None, []
+    current_meter = None
     div, shift = Fraction(1), 0
     for i, m in enumerate(measures):  # 마디 시작 시점의 divisions·이조 값(반복으로 돌아가도 같은 값)
         divisions.append(div)
@@ -118,16 +119,21 @@ def _read_part(part, issues):
             time = attrs.find("time")
             if time is not None:
                 read = _meter(time)
+                current_meter = read
                 if meter is None:
                     meter = read or False
                 elif read and read != meter:
                     issues.append(_issue("LOW_CONFIDENCE", {"measure": i + 1, "reason": "TIME_SIGNATURE_CHANGED"}))
+        measure_meters.append(current_meter)
 
     voices = defaultdict(list)  # 성부 → [시작, 길이, [(MIDI, 이어받음)], 마디, flags] 묶음(화음은 한 묶음)
     graces = defaultdict(list)  # 성부 → 다음 음에 붙일 버린 꾸밈음
     cursor, last = Fraction(0), None
     for index in _play_order(measures, issues):
         m, number, d, shift = measures[index], index + 1, divisions[index], transpose[index]
+        local_meter = measure_meters[index]
+        overfull = local_meter and _measure_length(m, d) > local_meter[1] * local_meter[2]
+        rhythm_flags = [("LOW_CONFIDENCE", {"measure": number, "reason": "OVERFULL_MEASURE"})] if overfull else []
         t, longest = Fraction(0), Fraction(0)
         for el in m:
             if el.tag == "attributes":
@@ -149,7 +155,7 @@ def _read_part(part, issues):
                 if dur <= 0:
                     last = None  # 길이 없는 음에 붙은 화음은 버린다
                     continue
-                last = [cursor + t, dur, [(pitch, tie_stop)], number, graces.pop(voice, [])]
+                last = [cursor + t, dur, [(pitch, tie_stop)], number, graces.pop(voice, []) + rhythm_flags]
                 voices[voice].append(last)
                 t += dur
             longest = max(longest, t)
@@ -189,7 +195,7 @@ def _attributes(attrs, divisions, transpose):
 
 
 def _pick_voice(voices, total):
-    """곡 길이 절반 이상을 소리로 덮는 성부 중 평균 음이 가장 높은 성부. 그런 성부가 없으면 가장 많이 덮는 성부."""
+    """지속음 반주보다 움직이는 선율을 우선한다. 붙임줄·화음은 시작 한 번으로 센다."""
     def cover(v):
         return sum(g[1] for g in voices[v] if any(p is not None for p, _ in g[2]))
 
@@ -197,8 +203,17 @@ def _pick_voice(voices, total):
         tops = [max(p for p, _ in g[2] if p is not None) for g in voices[v] if any(p is not None for p, _ in g[2])]
         return sum(tops) / len(tops) if tops else float("-inf")
 
+    def attacks(v):
+        return sum(n.midi is not None for n in _melody(voices[v]))
+
     candidates = [v for v in voices if total and cover(v) >= total * MIN_COVER]
-    return max(candidates, key=mean) if candidates else max(voices, key=cover)
+    if not candidates:
+        return max(voices, key=cover)
+    upper = max(candidates, key=mean)
+    active = max(candidates, key=lambda v: (attacks(v), mean(v)))
+    # 음 수가 비슷한 두 선율은 높은 쪽을 유지한다. 지속음 반주처럼 활동량이
+    # 절반 이하인 성부만 제외해 빠른 반주를 무조건 선율로 고르는 일을 막는다.
+    return active if attacks(active) >= 2 * attacks(upper) else upper
 
 
 def _melody(groups):
