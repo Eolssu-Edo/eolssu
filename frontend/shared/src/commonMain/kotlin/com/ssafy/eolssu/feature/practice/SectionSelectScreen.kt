@@ -20,10 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScorePosition
@@ -31,18 +29,15 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.EolssuPageTopBar
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuStartTopBar
 import com.ssafy.eolssu.core.ui.component.TintPillButton
-import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
-import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.core.ui.score.ErrorFilter
 import com.ssafy.eolssu.core.ui.score.ErrorKindSegments
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.rememberReadingScoreFormat
 import com.ssafy.eolssu.feature.practice.component.sectionDecorations
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.result_subtitle
 import eolssu.shared.generated.resources.weak_load_missing
 import eolssu.shared.generated.resources.weak_score_changed
 import eolssu.shared.generated.resources.weak_score_unavailable
@@ -69,7 +64,7 @@ class SectionSelectActions(
 
 /**
  * 구간 고르기(S15P31E102-767 와이어프레임 ①). 연습 기록의 ‘구간 연습’·‘구간 재평가’가 함께 쓴다(S15P31E102-794).
- * 왼쪽 정렬 머리 ‘곡 · 악기 · 난이도’ · 페이지 제목 ‘구간 연습-구간 선택’(S15P31E102-808) ·
+ * 회색 베이스(`groupedBackground`) 위에 앱 바 제목 ‘구간 연습-구간 선택’(구간 재평가와 같은 페이지형 상단 바, S15P31E102-821) ·
  * 5칸 틀린 종류 필터 · 연두 견본과 단계별 안내(시작 정간 → 끝 정간 → 연습) · 추천 구간이 있으면 ‘취약 구간 보기’ ·
  * 곡 전체 정간보(틀린 정간은 종류별 색·아이콘, 구간 밖은 흐리게, 구간 각은 연두 테두리, 시작·끝 표시) ·
  * 아래는 나란한 ‘구간 연습 시작’(연습 화면의 구간 연습)과 ‘구간 재평가 시작’. 속도는 각 화면의 설정에서 정한다.
@@ -79,15 +74,11 @@ fun SectionSelectScreen(state: SectionSelectUiState, actions: SectionSelectActio
     val colors = EolssuTheme.colors
     val song = state.song
     val result = state.result
-    val mode = stringResource(Res.string.weak_select_title)
     EolssuScaffold(
-        containerColor = colors.surface,
+        // 다른 화면과 같은 회색 베이스. 틀린 종류 탭 바·정간보 각·아래 버튼은 각자 흰 바탕(`surface`)이나 채움색이라 그대로 구분된다.
+        containerColor = colors.groupedBackground,
         topBar = {
-            EolssuStartTopBar(
-                title = song?.let { stringResource(Res.string.result_subtitle, it.title, songInstrumentLabel(it), songLevelLabel(it.level)) }
-                    ?: mode,
-                onBack = actions.onBack,
-            )
+            EolssuPageTopBar(title = stringResource(Res.string.weak_select_title), onBack = actions.onBack)
         },
         bottomBar = if (song != null && result != null) {
             { SectionSettings(state, actions) }
@@ -102,13 +93,7 @@ fun SectionSelectScreen(state: SectionSelectUiState, actions: SectionSelectActio
             return@EolssuScaffold
         }
         val format = rememberReadingScoreFormat(song)
-        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            Text(
-                mode,
-                modifier = Modifier.padding(start = 2.dp, top = 2.dp, bottom = 12.dp).semantics { heading() },
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold),
-                color = colors.text,
-            )
+        Column(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
             ErrorKindSegments(result, state.filter, actions.onFilter, Modifier.padding(bottom = 8.dp))
             SelectHintRow(state, actions.onReset)
             val section = state.section
