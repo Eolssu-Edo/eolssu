@@ -18,7 +18,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
-import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationDialog
+import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationPanel
+import eolssu.shared.generated.resources.sheet_adapt_confirm_title
+import eolssu.shared.generated.resources.sheet_adapt_confirm_message
+import eolssu.shared.generated.resources.sheet_adapt_confirm_apply
+import eolssu.shared.generated.resources.common_cancel
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetPitchCorrectionDialog
 import eolssu.shared.generated.resources.Res
@@ -72,6 +76,7 @@ fun SheetEditRoute(
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
     BackHandler(enabled = state.draft.original != null && state.adaptation == null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
+    BackHandler(enabled = state.adaptation != null && state.adaptation?.confirmationRequested != true) { viewModel.closeAdaptation() }
     if (state.documentLoading || state.documentFailed) {
         SheetDocumentNotice(state.documentLoading, onClose, viewModel::loadDocument)
         return
@@ -117,6 +122,11 @@ fun SheetEditRoute(
         state = state,
         snackbarHostState = snackbarHostState,
         focusRequestKey = focusRequestKey,
+        adaptationContent = {
+            state.adaptation?.let { panel -> SheetAdaptationPanel(panel,
+                onInstrument = viewModel::selectAdaptationInstrument, onTranspose = viewModel::selectAdaptationTranspose,
+                onApply = viewModel::requestApplyAdaptation, onRetry = viewModel::openAdaptation) }
+        },
         actions = SheetEditActions(
             onClose = { viewModel.closeEditor(onClose) },
             onRetryDraft = viewModel::retryDraftSave,
@@ -254,17 +264,17 @@ fun SheetEditRoute(
         onDismiss = { detailsOpen = false; viewModel.closeJangdanPicker() },
         onAdapt = { detailsOpen = false; viewModel.closeJangdanPicker(); viewModel.openAdaptation() },
     )
-    state.adaptation?.let { panel -> SheetAdaptationDialog(panel,
-        onInstrument = viewModel::selectAdaptationInstrument, onTranspose = viewModel::selectAdaptationTranspose,
-        onApply = viewModel::applyAdaptation, onDismiss = viewModel::closeAdaptation, onRetry = viewModel::openAdaptation,
-        onLocate = { cellId ->
-            val index = state.draft.sourceCellIds?.indexOf(cellId) ?: -1
-            viewModel.applyAdaptation()
-            if (index >= 0) { viewModel.selectCell(index); focusRequestKey++ }
-        }) }
+    if (state.adaptation?.confirmationRequested == true) EolssuDialog(
+        title = stringResource(Res.string.sheet_adapt_confirm_title),
+        message = stringResource(Res.string.sheet_adapt_confirm_message), onDismissRequest = viewModel::cancelApplyAdaptation,
+    ) {
+        EolssuButton(stringResource(Res.string.sheet_adapt_confirm_apply), viewModel::applyAdaptation)
+        EolssuButton(stringResource(Res.string.common_cancel), viewModel::cancelApplyAdaptation, style = EolssuButtonStyle.Secondary)
+    }
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
-            onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)
+            onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker,
+            hasTempoPlan = state.hasTempoPlan)
     }
     if (state.closeWarning) EolssuDialog(
         title = stringResource(Res.string.sheet_close_unsaved),

@@ -58,7 +58,8 @@ class SheetEditActions(
 /** 빠르기·장단과 오른쪽 편집 버튼, 오류 정간 표시를 제공하는 편집 화면. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostState, actions: SheetEditActions, focusRequestKey: Int = 0) {
+fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostState, actions: SheetEditActions,
+    focusRequestKey: Int = 0, adaptationContent: @Composable () -> Unit = {}) {
     val draft = state.draft
     val song = remember(draft) { draft.toSong() }
     val corrections = state.completionValidation.correctionCellIndices
@@ -98,7 +99,7 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 },
             )
             EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.supportedInputPitches, state.canUndo, state.canRedo, actions.input,
-                saveFeedback = { SheetSaveFeedback(state, actions.onRetryDraft) })
+                saveFeedback = { SheetSaveFeedback(state, actions.onRetryDraft) }, adaptationContent = adaptationContent)
         }
     }
 }

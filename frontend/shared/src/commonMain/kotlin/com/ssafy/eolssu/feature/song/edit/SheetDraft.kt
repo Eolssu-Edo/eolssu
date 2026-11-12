@@ -94,6 +94,8 @@ data class SheetDraft(
     val jangdanId: String? = null,
     internal val editedJangdanName: String? = null,
     val authoring: kotlinx.serialization.json.JsonObject? = null,
+    /** Original-event IDs in [original] to pre-adaptation pitches for repeated edits in this session. */
+    internal val adaptationBaseline: Map<String, Int> = emptyMap(),
 ) {
     init {
         require(cells.isNotEmpty() && (columnSizes?.let { it.all { n -> n > 0 } && it.sum() == cells.size } ?: (cells.size % requireNotNull(jangdan).gak == 0)))
@@ -106,6 +108,9 @@ data class SheetDraft(
     val sizes: List<Int> get() = columnSizes ?: List(cells.size / gak) { gak }
 
     val jangdanName: String get() = editedJangdanName ?: original?.music?.jangdan ?: jangdan?.name.orEmpty()
+
+    /** 요청 장단으로 시간을 추정한 정간보만 인식 원본의 격자로 다시 판단한다. */
+    internal val inferredJeongganSizes: List<Int>? by lazy { inferredJeongganColumnSizes() }
 
     internal val originalCells: Map<String, CommonScoreData.Cell> by lazy {
         original?.columns?.flatMap { it.cells }?.associateBy { it.id }.orEmpty()

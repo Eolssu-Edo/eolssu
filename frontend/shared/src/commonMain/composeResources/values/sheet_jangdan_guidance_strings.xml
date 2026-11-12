@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="sheet_jangdan_correction_help">인식한 원본의 칸 구성에 맞는 장단을 고를 수 있어요. 박 길이가 달라지면 적용 전에 알려드려요.</string>
+    <string name="sheet_jangdan_correction_title">장단에 맞춰 박 길이를 바꿀까요?</string>
+    <string name="sheet_jangdan_correction_message">원본의 정간 수와 음표 위치는 유지해요. 한 정간의 박 길이와 빠르기 단위를 선택한 장단에 맞춰 바꾸므로 연주 길이가 달라질 수 있어요. 실행 취소로 되돌릴 수 있어요.</string>
     <string name="sheet_jangdan_beat_quarter">4분음표</string>
     <string name="sheet_jangdan_beat_dotted_quarter">점4분음표</string>
     <string name="sheet_jangdan_current_timing">현재 악보 · %1$s 1박 기준\n각 길이: %2$s</string>

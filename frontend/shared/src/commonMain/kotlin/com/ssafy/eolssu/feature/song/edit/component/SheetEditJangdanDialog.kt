@@ -10,6 +10,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -20,11 +24,13 @@ import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.SheetJangdanTimingText
 import com.ssafy.eolssu.feature.song.edit.SheetJangdanOptionLabel
 import com.ssafy.eolssu.feature.song.edit.SheetJangdanNoMatchHelp
-import com.ssafy.eolssu.feature.song.edit.isCompatibleWith
+import com.ssafy.eolssu.feature.song.edit.canSelectJangdan
+import com.ssafy.eolssu.feature.song.edit.requiresJangdanRetiming
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.sheetedit_cell_jangdan_change
 import eolssu.shared.generated.resources.sheetedit_jangdan_same_unit
+import eolssu.shared.generated.resources.sheet_jangdan_correction_help
 import eolssu.shared.generated.resources.sheetedit_jangdan_load_failed
 import eolssu.shared.generated.resources.sheet_upload_reload
 import org.jetbrains.compose.resources.stringResource
@@ -38,11 +44,14 @@ internal fun SheetEditJangdanDialog(
     onSelect: (String) -> Unit,
     onReload: () -> Unit,
     onDismiss: () -> Unit,
+    hasTempoPlan: Boolean = false,
 ) {
+    var pendingId by rememberSaveable { mutableStateOf<String?>(null) }
     EolssuDialog(
         title = stringResource(Res.string.sheetedit_cell_jangdan_change),
         modifier = Modifier.verticalScroll(rememberScrollState()),
-        message = stringResource(Res.string.sheetedit_jangdan_same_unit),
+        message = stringResource(if (draft.inferredJeongganSizes != null && !hasTempoPlan)
+            Res.string.sheet_jangdan_correction_help else Res.string.sheetedit_jangdan_same_unit),
         onDismissRequest = onDismiss,
     ) {
         SheetJangdanTimingText(draft)
@@ -53,18 +62,25 @@ internal fun SheetEditJangdanDialog(
                 EolssuButton(stringResource(Res.string.sheet_upload_reload), onReload, style = EolssuButtonStyle.Secondary)
             }
             is SheetEditJangdanPicker.Ready -> {
-                if (picker.options.none { draft.isCompatibleWith(it) }) SheetJangdanNoMatchHelp()
+                if (picker.options.none { draft.canSelectJangdan(it, hasTempoPlan) }) SheetJangdanNoMatchHelp()
                 FlowRow(
                     modifier = Modifier.heightIn(max = 230.dp).verticalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     picker.options.forEach { option ->
-                        FilterChip(selected = option.jangdanId == selectedId, enabled = draft.isCompatibleWith(option),
-                            onClick = { onSelect(option.jangdanId) }, label = { SheetJangdanOptionLabel(option) })
+                        FilterChip(selected = option.jangdanId == selectedId, enabled = draft.canSelectJangdan(option, hasTempoPlan),
+                            onClick = {
+                                if (!hasTempoPlan && draft.requiresJangdanRetiming(option)) pendingId = option.jangdanId
+                                else onSelect(option.jangdanId)
+                            }, label = { SheetJangdanOptionLabel(option) })
                     }
                 }
             }
         }
         EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary)
+    }
+    (picker as? SheetEditJangdanPicker.Ready)?.options?.firstOrNull { it.jangdanId == pendingId }?.let { option ->
+        SheetJangdanCorrectionDialog(option, onApply = { pendingId = null; onSelect(option.jangdanId) },
+            onDismiss = { pendingId = null })
     }
 }

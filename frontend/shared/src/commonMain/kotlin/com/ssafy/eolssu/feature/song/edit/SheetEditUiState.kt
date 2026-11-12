@@ -9,7 +9,7 @@ import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import com.ssafy.eolssu.data.song.validCatalogId
 
 /** EDIT-02 아래 입력판의 탭. */
-enum class EditTab { Yul, Sigimsae, Cell }
+enum class EditTab { Adaptation, Yul, Sigimsae, Cell }
 
 /** 편집기 보기: 정간보(EDIT-02) / 오선보로 보기(EDIT-03). 한쪽을 고치면 다른 쪽도 같은 악보를 보인다. */
 enum class EditView { Jeongganbo, Staff }
@@ -172,8 +172,8 @@ data class SheetEditUiState(
             jangdanId == draft.jangdanId -> draft.copy(bpm = bpm)
             else -> {
                 val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: availableJangdans.orEmpty()
-                val option = options.firstOrNull { it.jangdanId == jangdanId && draft.isCompatibleWith(it) } ?: return this
-                draft.copy(bpm = bpm, jangdanId = jangdanId, editedJangdanName = option.name)
+                val option = options.firstOrNull { it.jangdanId == jangdanId } ?: return this
+                draft.withJangdan(option, preserveTiming = hasTempoPlan)?.copy(bpm = bpm) ?: return this
             }
         }
         return commit(next).copy(jangdanPicker = null, withJangdan = if (jangdanId == null) false else withJangdanFor(next))
@@ -181,9 +181,9 @@ data class SheetEditUiState(
 
     fun selectJangdan(id: String): SheetEditUiState {
         val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: return this
-        val option = options.firstOrNull { it.jangdanId == id && draft.isCompatibleWith(it) } ?: return this
+        val option = options.firstOrNull { it.jangdanId == id && draft.canSelectJangdan(it, hasTempoPlan) } ?: return this
         if (option.jangdanId == draft.jangdanId && option.name == draft.jangdanName) return copy(jangdanPicker = null)
-        val next = draft.copy(jangdanId = option.jangdanId, editedJangdanName = option.name)
+        val next = draft.withJangdan(option, preserveTiming = hasTempoPlan) ?: return this
         return commit(next).copy(jangdanPicker = null)
     }
 

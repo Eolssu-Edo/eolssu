@@ -124,8 +124,9 @@ data class RecordDetailUiState(
 
 /**
  * 메모 창. 메모를 읽다가 연필 버튼으로 고치고 저장한다(REC-01 `PUT /practice-sessions/{sessionId}/record`).
+ * 메모가 없는 기록도 읽기(빈 메모 안내)로 열고, 연필 버튼을 눌러야 고친다(S15P31E102-825).
  *
- * @property editing 입력칸으로 고치는 중. 메모가 없는 기록은 처음부터 고친다.
+ * @property editing 입력칸으로 고치는 중. 연필 버튼([RecordDetailViewModel.editMemo])으로만 들어간다.
  * @property saving 저장 요청 중. 이때는 입력·취소·창 닫기를 막는다.
  * @property failed 바로 전 저장이 실패함. 적던 내용은 그대로 둔다.
  */
@@ -531,13 +532,13 @@ class RecordDetailViewModel(
         _uiState.update { it.copy(comparePickOpen = false) }
     }
 
-    /** ‘메모’: 메모 창을 연다. 메모가 없으면 바로 고치기로 연다. */
+    /** ‘메모’: 메모 창을 읽기로 연다. 메모가 없어도 읽기로 열며, 고칠 수 없는 기록의 빈 메모는 열지 않는다. */
     fun openMemo() {
         val state = _uiState.value
         val record = state.record ?: return
         if (!accountScope.isActive || state.memo != null) return
         if (record.memo.isBlank() && !state.canEditMemo) return
-        _uiState.update { it.copy(memo = RecordMemoState(editing = record.memo.isBlank() && state.canEditMemo)) }
+        _uiState.update { it.copy(memo = RecordMemoState()) }
     }
 
     /** 메모 창을 닫는다. 저장 중에는 닫지 않는다. */
@@ -549,14 +550,10 @@ class RecordDetailViewModel(
         _uiState.update { state -> state.memo?.let { state.copy(memo = it.copy(editing = true, failed = false)) } ?: state }
     }
 
-    /** ‘취소’: 고치기를 그만둔다. 메모가 없던 기록이면 창을 닫는다. 저장 중에는 무시한다. */
+    /** ‘취소’: 고치기를 그만두고 읽기로 돌아간다. 메모가 없던 기록도 같다. 저장 중에는 무시한다. */
     fun cancelMemoEdit() = _uiState.update { state ->
         val memo = state.memo ?: return@update state
-        when {
-            memo.saving -> state
-            state.record?.memo.isNullOrBlank() -> state.copy(memo = null)
-            else -> state.copy(memo = RecordMemoState())
-        }
+        if (memo.saving) state else state.copy(memo = RecordMemoState())
     }
 
     /**
