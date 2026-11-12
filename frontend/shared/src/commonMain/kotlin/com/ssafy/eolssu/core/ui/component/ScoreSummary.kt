@@ -99,9 +99,9 @@ fun ScoreRing(score: Int, modifier: Modifier = Modifier) {
  * 점수 칸은 ‘100’이 잘리지 않게 세 자리 너비를 잡고 줄바꿈하지 않는다.
  */
 @Composable
-fun MetricBars(metrics: List<MetricScore>, modifier: Modifier = Modifier) {
+fun MetricBars(metrics: List<MetricScore>, modifier: Modifier = Modifier, rowSpacing: Dp = 8.dp) {
     val colors = EolssuTheme.colors
-    Column(modifier.padding(end = 2.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier.padding(end = 2.dp), verticalArrangement = Arrangement.spacedBy(rowSpacing)) {
         metrics.forEach { metric ->
             val label = metricLabel(metric.metric)
             val description = stringResource(Res.string.score_metric_description, label, metric.score)
@@ -185,6 +185,7 @@ fun TintPillButton(
  * 맨 아래 [memo](있을 때만, 큰따옴표로 감싼다). [extra]는 버튼 줄 왼쪽(예시 결과 표시 등)에 둔다.
  * [filled]이면 테두리 대신 흰 바탕 카드다(회색 바탕 화면, S15P31E102-768).
  * [title](곡 제목)이 있으면 상자 왼쪽 위에 두 줄까지 둔다(이전 연주 결과, S15P31E102-810). 없으면 지금과 같다.
+ * [compact]이면 요소 크기는 그대로 두고 안쪽 여백·간격만 줄인다(이전 연주 결과, S15P31E102-819). 기본값은 지금과 같다.
  */
 @Composable
 fun ScoreSummaryCard(
@@ -196,14 +197,16 @@ fun ScoreSummaryCard(
     extra: (@Composable () -> Unit)? = null,
     filled: Boolean = false,
     title: String? = null,
+    compact: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(16.dp)
+    val gap = if (compact) CompactSummaryGap else RegularSummaryGap
     Column(modifier.fillMaxWidth().then(if (filled) Modifier.background(colors.surface, shape) else Modifier.border(1.dp, colors.lineSoft, shape))) {
         if (!title.isNullOrBlank()) {
             Text(
                 title,
-                modifier = Modifier.fillMaxWidth().padding(start = 14.dp, top = 12.dp, end = 12.dp).semantics { heading() },
+                modifier = Modifier.fillMaxWidth().padding(start = gap.titleStart, top = gap.titleTop, end = gap.end + 2.dp).semantics { heading() },
                 style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold),
                 color = colors.text,
                 maxLines = 2,
@@ -211,12 +214,17 @@ fun ScoreSummaryCard(
             )
         }
         Row(
-            Modifier.fillMaxWidth().padding(start = 12.dp, top = if (title.isNullOrBlank()) 10.dp else 4.dp, end = 10.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.fillMaxWidth().padding(
+                start = gap.start,
+                top = if (title.isNullOrBlank()) gap.top else gap.topBelowTitle,
+                end = gap.end,
+                bottom = gap.bottom,
+            ),
+            horizontalArrangement = Arrangement.spacedBy(gap.ringToBars),
         ) {
             ScoreRing(total, Modifier.align(Alignment.CenterVertically))
             Column(Modifier.weight(1f).align(Alignment.CenterVertically), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                MetricBars(metrics, Modifier.padding(top = 4.dp))
+                MetricBars(metrics, Modifier.padding(top = gap.barsTop), rowSpacing = gap.barRows)
                 if (action != null || extra != null) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.weight(1f)) { extra?.invoke() }
@@ -238,6 +246,30 @@ fun ScoreSummaryCard(
         }
     }
 }
+
+/** 점수 상자 안쪽 여백·간격. 일원상·막대·글자 크기는 바꾸지 않는다. */
+private class SummaryGap(
+    val titleStart: Dp,
+    val titleTop: Dp,
+    val start: Dp,
+    val top: Dp,
+    val topBelowTitle: Dp,
+    val end: Dp,
+    val bottom: Dp,
+    val ringToBars: Dp,
+    val barsTop: Dp,
+    val barRows: Dp,
+)
+
+private val RegularSummaryGap = SummaryGap(
+    titleStart = 14.dp, titleTop = 12.dp, start = 12.dp, top = 10.dp, topBelowTitle = 4.dp,
+    end = 10.dp, bottom = 8.dp, ringToBars = 12.dp, barsTop = 4.dp, barRows = 8.dp,
+)
+
+private val CompactSummaryGap = SummaryGap(
+    titleStart = 12.dp, titleTop = 10.dp, start = 10.dp, top = 8.dp, topBelowTitle = 2.dp,
+    end = 8.dp, bottom = 4.dp, ringToBars = 10.dp, barsTop = 2.dp, barRows = 6.dp,
+)
 
 /**
  * 왼쪽 정렬 상단 바(높이 56 · 위 8): 뒤로 가기(있을 때) · 제목(16sp 굵게, 한 줄) · 보조 문구(12sp) · 오른쪽 [right].

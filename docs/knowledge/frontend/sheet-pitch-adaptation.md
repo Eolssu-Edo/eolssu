@@ -12,6 +12,6 @@ S15P31E102-820. 사용자가 2026-11-12에 확정한 추천 기준과 편집 보
 
 검증은 `SheetPitchAdaptationTest`, `SheetDocumentViewModelTest`의 작은 고정 악보와 실제 공유 Route·ViewModel에 가짜 저장소를 연결한 로컬 Wasm 화면을 사용한다. 테스트 fixture는 배포 코드에 포함하지 않는다. 최종 실행 결과와 미검증 플랫폼은 해당 작업 계획에 기록한다.
 
-2026-11-12 검증 결과: Android host 테스트1531개 중 실패·오류0, 기존 제외4개. Android debug APK 및 공유 Wasm 컴파일 성공. 실제 로컬 화면320·360·800px에서 추천·슬라이더·악기 변경·실패 복구·확인·취소·되돌리기를 확인했다. iOS 빌드와 실제 기기의 시스템 뒤로 가기·스크린리더·큰 글자 설정은 미검증이다.
+2026-11-12 검증 결과: Android host 테스트1537개 중 실패·오류0, 기존 제외4개. Android debug APK 및 공유 Wasm 컴파일 성공. 실제 로컬 화면320·360·800px에서 추천·슬라이더·악기 변경·실패 복구·확인·취소·되돌리기를 확인했다. 후속 수정에서 초기 탭 자동 선택과 ±6 경계, 별도 버튼 제거,360·800px 추천 표식 정렬을 추가 확인했다. iOS 빌드와 실제 기기의 시스템 뒤로 가기·스크린리더·큰 글자 설정은 미검증이다.
 
 추천 위치는 단순히 슬라이더 폭을12등분하지 않는다. Material3의 불연속 슬라이더는 중간 눈금을 트랙 양끝 모서리 반경만큼 안쪽으로 배치한다. 실제 Thumb 너비와 Track 높이를 측정하고, 양끝 값은 전체 트랙 끝, 중간 값은 모서리 반경을 뺀 구간으로 대응해 추천 표시를 정렬한다. 기준 구현은 [AndroidX Slider 배치 코드](https://android.googlesource.com/platform/frameworks/support/+/a11f6c4fca8aa90d8ceea375185b85add16fa9fa/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/Slider.kt#1349)다. 라이브러리 업데이트 시 좁은 폭과 넓은 폭 모두에서 손잡이·눈금·표시를 다시 확인한다.

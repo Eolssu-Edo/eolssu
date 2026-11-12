@@ -18,7 +18,7 @@ from omr_service.api import DownloadError, RecognitionFailed, app, get_engines, 
 SIGNED_URL = "https://r2.example/sheets/1.pdf?X-Amz-Signature=secret-token"
 A4 = (595, 842)  # pt
 DONE_KEYS = {"conversionId", "status", "failReason", "engine", "engineVersion", "pages", "jgb", "score", "issues",
-             "notices"}
+             "notices", "sourcePitches"}
 
 
 def pdf(pages=1, size=A4):

@@ -117,6 +117,14 @@ def test_grace_notes_are_dropped_with_issue():
     assert [(i["kind"], i["detail"]) for i in out.issues] == [("ORNAMENT_DROPPED", {"measure": 1})]
 
 
+def test_overfull_recognition_is_pointed_to_notes_for_review():
+    out = convert(xml(measure(note("C4", 16), note("D4", 1), time=(4, 4))),
+                  instrument="ANY", hwang_pitch=60)
+    flagged = [i for i in out.issues if i["kind"] == "LOW_CONFIDENCE"
+               and i["detail"]["reason"] == "OVERFULL_MEASURE"]
+    assert flagged and all(i["cellId"] for i in flagged)
+
+
 def test_highest_voice_and_top_of_chord_are_kept():
     upper = note("E4", 8, voice=1) + note("G4", 4, voice=1) + note("C5", 4, "<chord/>", voice=1)
     lower = "<backup><duration>16</duration></backup>" + note("C4", 16, voice=2)
@@ -131,6 +139,22 @@ def test_higher_voice_wins_even_when_numbered_second():
     upper = "<backup><duration>16</duration></backup>" + note("G4", 16, voice=2)
     out = convert(xml(measure(lower, upper, time=(4, 4))), instrument="ANY", hwang_pitch=60)
     assert out.lines == [":0 임 |  |  | "]
+
+
+def test_active_lower_melody_wins_over_sustained_upper_accompaniment():
+    upper = note("E4", 16, voice=1)
+    lower = "<backup><duration>16</duration></backup>" + "".join(
+        note(p, 4, voice=5) for p in ("C3", "D3", "E3", "C3"))
+    out = convert(xml(measure(upper, lower, time=(4, 4))), instrument="ANY", hwang_pitch=60)
+    assert [n["midi"] for n in out.source_pitches] == [48, 50, 52, 48]
+
+
+def test_tied_upper_pedal_does_not_outvote_moving_lower_melody():
+    upper = "".join(note("E4", 4, '<tie type="stop"/>' if i else '<tie type="start"/>', voice=1)
+                    for i in range(4))
+    lower = "<backup><duration>16</duration></backup>" + note("C3", 8, voice=2) + note("D3", 8, voice=2)
+    out = convert(xml(measure(upper, lower, time=(4, 4))), instrument="ANY", hwang_pitch=60)
+    assert [n["midi"] for n in out.source_pitches] == [48, 50]
 
 
 def test_note_over_gak_line_is_written_again_at_next_gak():

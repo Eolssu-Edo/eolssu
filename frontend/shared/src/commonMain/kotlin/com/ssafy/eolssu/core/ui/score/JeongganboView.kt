@@ -321,10 +321,15 @@ fun JeongganboView(
     }
     val drawStrip: @Composable (Int, ScoreStrip) -> Unit = { readingIndex, strip ->
         val starts = daegangStarts(strip.column)
+        val highlightedColumn = highlightColumns != null && strip.column in highlightColumns
+        val sectionColumn = sectionColumns?.contains(strip.column) == true || fullSectionColumns?.contains(strip.column) == true
+        // 각 테두리가 이미 연두로 둘러싼 각은 정간 테두리를 겹쳐 긋지 않는다.
+        val columnOutlined = !look.joined && (highlightedColumn || sectionColumn)
+        fun inSection(row: Int) = section?.contains(strip.column, row) == true
         ScoreStripColumn(
             strip, renderMetrics, readingIndex, look,
-            highlighted = highlightColumns != null && strip.column in highlightColumns,
-            section = sectionColumns?.contains(strip.column) == true || fullSectionColumns?.contains(strip.column) == true,
+            highlighted = highlightedColumn,
+            section = sectionColumn,
             faded = strip.column in fadedColumns,
             upcoming = upcomingColumn == strip.column,
             leftDivider = look.joined && readingIndex != strips.lastIndex,
@@ -347,7 +352,17 @@ fun JeongganboView(
                 errorKinds = errorKinds[strip.column to row].orEmpty(),
                 unitErrors = if (unitMode(strip.column to row)) unitErrors else emptyMap(),
                 decoration = decorations[strip.column to row],
-                inSection = section?.contains(strip.column, row) == true,
+                inSection = inSection(row),
+                sectionEdges = if (inSection(row) && !columnOutlined) {
+                    RingEdges(
+                        sharedTop = row - 1 in strip.rows && inSection(row - 1),
+                        sharedBottom = row + 1 in strip.rows && inSection(row + 1),
+                        coveredTop = strip.strip > 0 && row == strip.rows.first,
+                        coveredBottom = row == strip.rows.last,
+                    )
+                } else {
+                    null
+                },
                 ringEdges = RingEdges(
                     sharedTop = row - 1 in strip.rows && ringAtEdge(strip.column to row - 1, bottom = true),
                     sharedBottom = row + 1 in strip.rows && ringAtEdge(strip.column to row + 1, bottom = false),
@@ -632,6 +647,7 @@ private fun ScoreCellBox(
     unitErrors: Map<ScoreUnitKey, List<ScoreErrorKind>> = emptyMap(),
     decoration: ScoreCellDecoration?,
     inSection: Boolean = false,
+    sectionEdges: RingEdges? = null,
     ringEdges: RingEdges = RingEdges(),
     selectedIndex: Int?,
     selectedCell: Boolean?,
@@ -777,6 +793,13 @@ private fun ScoreCellBox(
             if (outline != null) {
                 drawCellRing(outline, 2.dp.toPx(), null, RingEdges(coveredTop = ringEdges.coveredTop, coveredBottom = ringEdges.coveredBottom), cover)
             }
+        }
+    }
+    // 구간 정간은 연두 바탕과 어울리는 테두리로 구간 바깥 둘레만 긋는다. 틀린 정간·현재 정간 테두리 아래에 깔리도록 그 뒤에 붙인다.
+    if (sectionEdges != null) {
+        cellModifier = cellModifier.drawWithContent {
+            drawContent()
+            drawSectionOutline(colors.accentTintLine, 2.dp.toPx(), sectionEdges, 1.dp.toPx())
         }
     }
 
@@ -990,6 +1013,21 @@ private fun DrawScope.drawCellRing(color: Color, width: Float, dash: PathEffect?
     // 세로 변
     drawLine(color, Offset(left + leftWidth / 2, top), Offset(left + leftWidth / 2, bottom), leftWidth, pathEffect = dash)
     drawLine(color, Offset(right - rightWidth / 2, top), Offset(right - rightWidth / 2, bottom), rightWidth, pathEffect = dash)
+}
+
+/**
+ * 구간 정간 테두리. 이어지는 구간 정간 사이([RingEdges.sharedTop]·[RingEdges.sharedBottom])에는 선을 긋지 않아
+ * 한 각 안의 구간이 하나의 상자로 보인다. 왼쪽·오른쪽은 각 경계선에 가리지 않게 [cover]만큼 들인다.
+ */
+private fun DrawScope.drawSectionOutline(color: Color, width: Float, edges: RingEdges, cover: Float) {
+    val top = if (edges.coveredTop) cover else 0f
+    val bottom = size.height - if (edges.coveredBottom) cover else 0f
+    val left = cover
+    val right = size.width - cover
+    if (!edges.sharedTop) drawLine(color, Offset(left, top + width / 2), Offset(right, top + width / 2), width)
+    if (!edges.sharedBottom) drawLine(color, Offset(left, bottom - width / 2), Offset(right, bottom - width / 2), width)
+    drawLine(color, Offset(left + width / 2, top), Offset(left + width / 2, bottom), width)
+    drawLine(color, Offset(right - width / 2, top), Offset(right - width / 2, bottom), width)
 }
 
 /** 곁줄(`.ms-lyr`) 한 칸. 왼쪽 선과 위 선(대강이면 굵게)을 긋는다. */
