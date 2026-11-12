@@ -451,3 +451,9 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)
 
 - [이전 연주 기록의 단독 평가·악기명 연결 (530)](plans/S15P31E102-530.md)
+
+## 악보 작성 결과별 작업 계획
+
+- [S15P31E102-787 지원음 API·확정 저장 검증](plans/S15P31E102-787.md)
+- [악보 작성 결과 재분할과 의존 관계](plans/score-authoring-partition.md)
+- [악보 작성 일관성 스펙](specs/score-authoring-consistency.md) · [조사 근거](knowledge/frontend/score-authoring-consistency.md)

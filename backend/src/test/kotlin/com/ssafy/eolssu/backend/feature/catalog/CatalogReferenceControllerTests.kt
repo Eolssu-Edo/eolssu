@@ -18,6 +18,15 @@ class CatalogReferenceControllerTests {
         mvc.perform(get("/api/jangdans/1")).andExpect(status().isOk)
             .andExpect(jsonPath("$.result.patternCellEighths").value(1))
     }
+    @Test fun `authoring exposes unsupported notes without treating absent fingering as physical impossibility`() {
+        mvc.perform(get("/api/instruments/9007199254740993/authoring-capabilities"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.items.length()").value(3))
+            .andExpect(jsonPath("$.result.items[0].selectable").value(true))
+            .andExpect(jsonPath("$.result.items[1].fingering").value("UNKNOWN"))
+            .andExpect(jsonPath("$.result.items[1].selectable").value(false))
+            .andExpect(jsonPath("$.result.physicalRange.verificationStatus").value("REFERENCE_ONLY"))
+    }
     private val repository = ReferenceFixture()
     private val queries = CatalogReferenceQueries(repository)
     private val previewHash = "a".repeat(64)
@@ -142,7 +151,7 @@ class CatalogReferenceControllerTests {
     }
 }
 
-private class ReferenceFixture : CatalogReferenceRepository {
+internal class ReferenceFixture : CatalogReferenceRepository {
     var empty = false
     var reversedRange = false
     var lastPitchRange: Pair<Int?, Int?>? = null

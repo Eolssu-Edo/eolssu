@@ -92,3 +92,11 @@ V21은 기존 ID1~3을 보존하며 자진모리4·중중모리5와 함께 엇�
 `patternCellEighths`는 패턴 한 칸의 길이를 8분음표 개수로 표현한 nullable 정수다. `data/reference/jangdans.json`의 `pattern_cell_eighths`를 원본 그대로 번들하고, DB 이름·BPM 단위·패턴이 모두 같은 행에만 제공한다. 미확인 패턴은 null이며 새 악보 선택·확정 저장에는 사용할 수 없다. DB 스키마와 기존 게시 판본은 바꾸지 않는다.
 
 주기 tick은 `beatCount × patternCellEighths × ticksPerBeat / BPM박의8분음표수`다. 분모는 QUARTER=2, DOTTED_QUARTER=3이며 결과는 정확한 정수여야 한다. ID7 단모리는 8분음표8칸, ID12 4박 기본 반주는 4분음표4칸이다. 길이는 모두 4분음표4박이지만 구음·묶음은 다르므로 치환하지 않는다. FE의 선택 안내·연습과 OMR·생성기는 명칭별 칸 길이 목록을 따로 두지 않는다.
+
+### 악보 작성용 지원음 (S15P31E102-787)
+
+`GET /api/instruments/{instrumentId}/authoring-capabilities`는 등록 운지·화면 표기·CAT 합성의 교집합 `selectable`과 제외 이유를 반환한다. CAT-06의 명목 음역 탐색과 구분한다. MIDI 최저·최고 사이 모든 반음을 지원한다고 간주하지 않는다.
+
+응답은 instrumentId·instrumentCode·policyVersion·nominalHwangMidi, 물리 참고 범위 `physicalRange`, 음별 `items`를 포함한다. 각 음은 pitchId·yul·octave·hangul·hanja·semitone·midi와 physical·physicalVerification·fingering·notation·synthesis·selectable·reasonCodes를 제공한다. 물리 범위는 REFERENCE_ONLY 또는 UNKNOWN이며 실물 검수는 UNKNOWN이다. 등록 운지가 없으면 FINGERING_UNKNOWN이며 연주 불가라는 뜻이 아니다.
+
+새 확정 저장과 음원 생성은 같은 정책을 적용하고, 임시저장과 기존 읽기는 보존한다. 정책 원본은 기존 카탈로그와 DATA profile·authoring-policy·공통 악보 schema다. [구현·분할 검증](../plans/S15P31E102-787.md).

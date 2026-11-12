@@ -32,6 +32,13 @@ class CatalogReferenceController(
             it.rangeLowPitchId.toString(), it.rangeHighPitchId.toString()) },
     ))
 
+    @GetMapping("/instruments/{instrumentId}/authoring-capabilities")
+    fun authoringCapabilities(@PathVariable instrumentId: String): ResponseEntity<*> {
+        val id = positiveId(instrumentId) ?: return invalidRequest()
+        val capabilities = queries.authoringCapabilities(id) ?: return notFound()
+        return success("악보 작성 지원음 조회 성공", capabilities)
+    }
+
     @GetMapping("/pitches")
     fun pitches(@RequestParam(required = false) instrumentId: String?): ResponseEntity<*> {
         val id = instrumentId?.let { positiveId(it) ?: return invalidRequest() }

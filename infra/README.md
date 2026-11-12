@@ -64,7 +64,7 @@ test -e .env.prod || (umask 077; cp .env.prod.example .env.prod)
 ```sh
 docker compose --env-file .env.dev.example -f docker-compose.dev.yml config --quiet
 docker compose --env-file .env.prod.example -f docker-compose.prod.yml config --quiet
-docker build --tag eolsu-backend:check backend
+docker build -f backend/Dockerfile --tag eolsu-backend:check .
 docker run --rm --network none \
   --mount "type=bind,src=$(pwd)/infra/nginx/default.conf,dst=/etc/nginx/conf.d/default.conf,readonly" \
   nginx:1.30.6-alpine nginx -t
