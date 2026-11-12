@@ -140,6 +140,7 @@ private fun SheetSaveFeedback(state: SheetEditUiState, onRetryDraft: () -> Unit)
 internal fun SheetEditMessage.shownInEditor(): Boolean = this in EditorMessages
 
 private val EditorMessages = setOf(
+    SheetEditMessage.SaveUnsupportedPitches, SheetEditMessage.AudioUnsupportedPitches,
     SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge,
     SheetEditMessage.Saved, SheetEditMessage.SavedForPractice, SheetEditMessage.SavedNeedsReview, SheetEditMessage.Draft,
     SheetEditMessage.ReviewBeforeReshape, SheetEditMessage.ComingSoon,

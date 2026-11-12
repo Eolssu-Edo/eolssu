@@ -14,6 +14,7 @@ data class SheetCompletionValidation(
     val invalidPitchCount: Int = 0,
     val hasInvalidStructure: Boolean = false,
     val hasJangdanMismatch: Boolean = false,
+    val hasTuningMismatch: Boolean = false,
     val catalogLoading: Boolean = false,
     val catalogFailed: Boolean = false,
     val firstCellIndex: Int? = null,
@@ -22,7 +23,7 @@ data class SheetCompletionValidation(
 ) {
     val hasEmptyCells: Boolean get() = emptyCellCount > 0
     val canComplete: Boolean get() = !hasEmptyCells && pendingReviewCount == 0 && invalidPitchCount == 0 &&
-        !hasInvalidStructure && !hasJangdanMismatch && !catalogLoading && !catalogFailed
+        !hasInvalidStructure && !hasJangdanMismatch && !hasTuningMismatch && !catalogLoading && !catalogFailed
 }
 
 internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
@@ -41,14 +42,16 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
             }
         } ?: draft.cells[index].mapNotNull { it.pitchKey()?.let { (yul, octave) -> yul.hangul to octave } }
     }
-    val invalidPitches = pitchesByCell.indices.filter { index -> pitchesByCell[index].any { pitch ->
-        availablePitches?.let { pitch !in it } == true || instrumentPitches?.let { pitch !in it } == true
+    val catalogPending = completionCatalogState in setOf(SheetCompletionCatalogState.Loading, SheetCompletionCatalogState.Failed)
+    val invalidPitches = pitchesByCell.indices.filter { index -> !catalogPending && pitchesByCell[index].any { pitch ->
+        supportedInputPitches?.let { pitch !in it } == true ||
+            serverPitchIssues.any { it.cellId == cells?.getOrNull(index)?.id }
     } }
     val checkable = reviewIssues.filter { issue ->
         val index = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 }
         when (issue.kind) {
             "UNREGISTERED_PITCH", "OUT_OF_RANGE" -> {
-                val allowed = if (issue.kind == "UNREGISTERED_PITCH") availablePitches else instrumentPitches
+                val allowed = supportedInputPitches
                 index != null && validStructure && pitchesByCell[index].all { pitch -> allowed?.contains(pitch) == true }
             }
             else -> index != null
@@ -80,6 +83,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
         invalidPitchCount = invalidPitches.size,
         hasInvalidStructure = empty.isEmpty() && structureError != null,
         hasJangdanMismatch = mismatch,
+        hasTuningMismatch = score?.music?.hwangHz?.let { authoringCapabilities?.matchesTuning(it) } == false,
         catalogLoading = completionCatalogState == SheetCompletionCatalogState.Loading,
         catalogFailed = completionCatalogState == SheetCompletionCatalogState.Failed,
         firstCellIndex = corrections.firstOrNull(),
