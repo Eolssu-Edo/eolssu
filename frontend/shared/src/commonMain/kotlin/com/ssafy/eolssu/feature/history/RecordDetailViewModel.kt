@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
  * @property compareCandidates 이 기록보다 먼저 같은 곡을 처음부터 끝까지 연주한 기록(최신순). 기록 목록에서 찾는다.
  * @property comparePickOpen ‘지난 연주와 비교’로 연 기록 고르기 시트가 열려 있는지.
  * @property playbackLoading 녹음 주소를 받아 처음 재생을 준비하는 중(‘로딩 중’ 막).
+ * @property memo 메모 창 상태. 창이 닫혀 있으면 null.
  */
 data class RecordDetailUiState(
     val record: PracticeRecord? = null,
@@ -57,6 +58,7 @@ data class RecordDetailUiState(
     val comparePickOpen: Boolean = false,
     val compareLoad: RecordCompareLoad = RecordCompareLoad.Ready,
     val playbackLoading: Boolean = false,
+    val memo: RecordMemoState? = null,
 ) {
     val eventCount: Int get() = song?.timeline?.size ?: 0
 
@@ -71,6 +73,9 @@ data class RecordDetailUiState(
      */
     val lookupLoading: Boolean get() = songLookup == RecordSongLookup.Loading ||
         (record != null && song == null && songLookup == RecordSongLookup.Ready)
+
+    /** 메모는 지우지 않은 기록에서만 고친다. 메모가 없는 기록도 새로 적을 수 있다. */
+    val canEditMemo: Boolean get() = record != null && delete != RecordDeleteState.Deleted && delete != RecordDeleteState.Deleting
 
     /** ‘지난 연주와 비교’는 곡 전체 연주 기록에만 있다. */
     val canCompare: Boolean get() = record?.section == null && record != null && delete != RecordDeleteState.Deleted
@@ -117,6 +122,18 @@ data class RecordDetailUiState(
     }
 }
 
+/**
+ * 메모 창. 메모를 읽다가 연필 버튼으로 고치고 저장한다(REC-01 `PUT /practice-sessions/{sessionId}/record`).
+ *
+ * @property editing 입력칸으로 고치는 중. 메모가 없는 기록은 처음부터 고친다.
+ * @property saving 저장 요청 중. 이때는 입력·취소·창 닫기를 막는다.
+ * @property failed 바로 전 저장이 실패함. 적던 내용은 그대로 둔다.
+ */
+data class RecordMemoState(val editing: Boolean = false, val saving: Boolean = false, val failed: Boolean = false)
+
+/** 서버가 받는 메모 최대 길이(REC-01, 넘으면 400). 입력칸도 이 길이까지만 받는다. */
+const val RECORD_MEMO_MAX_LENGTH = 500
+
 enum class RecordCompareLoad { Loading, Ready, Failed }
 
 enum class RecordSongLookup { Loading, Ready, Missing, Failed }
@@ -159,6 +176,7 @@ class RecordDetailViewModel(
     private var playJob: Job? = null
     private var instrumentJob: Job? = null
     private var compareJob: Job? = null
+    private var memoJob: Job? = null
     private var songRequest = 0L
     private var source: Pair<AudioSource, Long>? = null
     private var sourceRequest = 0
@@ -192,6 +210,7 @@ class RecordDetailViewModel(
         detailJob?.cancel()
         instrumentJob?.cancel()
         compareJob?.cancel()
+        memoJob?.cancel()
         songRequest++
         if (recordId.isEmpty()) {
             _uiState.value = RecordDetailUiState()
@@ -203,7 +222,7 @@ class RecordDetailViewModel(
                 record = record, song = state.song?.takeIf { it.id == record?.songId && it.scoreVersion == record.scoreVersion }, position = 0, playing = false,
                 playbackPositionMs = 0L, audioDurationMs = null,
                 compareCandidates = record?.compareCandidates(recordRepository.records.value).orEmpty(),
-                comparePickOpen = false, compareLoad = RecordCompareLoad.Ready, playbackLoading = false, follow = true,
+                comparePickOpen = false, compareLoad = RecordCompareLoad.Ready, playbackLoading = false, follow = true, memo = null,
                 detailLoaded = false, instrumentName = null, delete = RecordDeleteState.Idle, notice = null,
                 songLookup = if (record == null) RecordSongLookup.Loading else RecordSongLookup.Ready,
             )
@@ -512,6 +531,78 @@ class RecordDetailViewModel(
         _uiState.update { it.copy(comparePickOpen = false) }
     }
 
+    /** ‘메모’: 메모 창을 연다. 메모가 없으면 바로 고치기로 연다. */
+    fun openMemo() {
+        val state = _uiState.value
+        val record = state.record ?: return
+        if (!accountScope.isActive || state.memo != null) return
+        if (record.memo.isBlank() && !state.canEditMemo) return
+        _uiState.update { it.copy(memo = RecordMemoState(editing = record.memo.isBlank() && state.canEditMemo)) }
+    }
+
+    /** 메모 창을 닫는다. 저장 중에는 닫지 않는다. */
+    fun closeMemo() = _uiState.update { if (it.memo?.saving == true) it else it.copy(memo = null) }
+
+    /** 연필 버튼: 메모를 고치기 시작한다. */
+    fun editMemo() {
+        if (!accountScope.isActive || !_uiState.value.canEditMemo) return
+        _uiState.update { state -> state.memo?.let { state.copy(memo = it.copy(editing = true, failed = false)) } ?: state }
+    }
+
+    /** ‘취소’: 고치기를 그만둔다. 메모가 없던 기록이면 창을 닫는다. 저장 중에는 무시한다. */
+    fun cancelMemoEdit() = _uiState.update { state ->
+        val memo = state.memo ?: return@update state
+        when {
+            memo.saving -> state
+            state.record?.memo.isNullOrBlank() -> state.copy(memo = null)
+            else -> state.copy(memo = RecordMemoState())
+        }
+    }
+
+    /**
+     * [memo]를 저장한다. 앞뒤 공백은 서버처럼 잘라 비교하고, 바뀌지 않았으면 요청 없이 고치기를 끝낸다.
+     * 빈 값은 메모를 지운다. 성공하면 상세의 메모를 바꾸고(목록은 저장소가 알린다) 읽기로 돌아가며, 메모를 지웠으면 창을 닫는다.
+     * 실패하면 적던 내용을 둔 채 실패를 보인다.
+     */
+    fun saveMemo(memo: String) {
+        val state = _uiState.value
+        val record = state.record ?: return
+        val dialog = state.memo?.takeIf { it.editing } ?: return
+        if (!accountScope.isActive || dialog.saving || !state.canEditMemo) return
+        val text = memo.trim()
+        if (text.length > RECORD_MEMO_MAX_LENGTH) {
+            _uiState.update { it.copy(memo = dialog.copy(failed = true)) }
+            return
+        }
+        if (text == record.memo.trim()) {
+            _uiState.update { it.copy(memo = if (text.isEmpty()) null else RecordMemoState()) }
+            return
+        }
+        val request = selection
+        _uiState.update { it.copy(memo = dialog.copy(saving = true, failed = false)) }
+        memoJob = accountScope.launch {
+            val saved = try {
+                recordRepository.updateMemo(record.id, text)
+                true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+            currentCoroutineContext().ensureActive()
+            if (request != selection || currentId != record.id) return@launch
+            // 서버가 돌려준 값으로 저장소 목록을 바꿨으면 그 값을 쓴다.
+            val stored = recordRepository.records.value.firstOrNull { it.id == record.id }?.memo ?: text
+            _uiState.update {
+                if (!saved) it.copy(memo = it.memo?.copy(saving = false, failed = true))
+                else it.copy(
+                    memo = if (stored.isBlank()) null else RecordMemoState(),
+                    record = it.record?.copy(memo = stored),
+                )
+            }
+        }
+    }
+
     fun consumeNotice() = _uiState.update { it.copy(notice = null) }
 
     override fun onCleared() {
@@ -519,6 +610,7 @@ class RecordDetailViewModel(
         songJob?.cancel()
         detailJob?.cancel()
         instrumentJob?.cancel()
+        memoJob?.cancel()
         player.release()
     }
 
