@@ -11,6 +11,7 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
 import eolssu.shared.generated.resources.common_confirm
 import eolssu.shared.generated.resources.practice_score_check_title
+import eolssu.shared.generated.resources.weak_loop_no_notes
 import eolssu.shared.generated.resources.weak_score_changed
 import eolssu.shared.generated.resources.weak_score_unavailable
 import eolssu.shared.generated.resources.practice_popup_abort_body
@@ -88,6 +89,12 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
         PracticePopup.ScoreChanged, PracticePopup.ScoreUnavailable -> EolssuDialog(
             title = stringResource(Res.string.practice_score_check_title),
             message = stringResource(if (popup == PracticePopup.ScoreChanged) Res.string.weak_score_changed else Res.string.weak_score_unavailable),
+        ) {
+            EolssuButton(stringResource(Res.string.common_confirm), actions.onClose)
+        }
+        PracticePopup.NoSectionNotes -> EolssuDialog(
+            title = stringResource(Res.string.practice_score_check_title),
+            message = stringResource(Res.string.weak_loop_no_notes),
         ) {
             EolssuButton(stringResource(Res.string.common_confirm), actions.onClose)
         }

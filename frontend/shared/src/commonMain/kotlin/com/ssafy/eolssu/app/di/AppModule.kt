@@ -113,7 +113,7 @@ import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.data.practice.ApiWeakSectionRepository
 import com.ssafy.eolssu.data.practice.WeakSectionRepository
 import com.ssafy.eolssu.feature.history.CompareViewModel
-import com.ssafy.eolssu.feature.practice.SectionLoopViewModel
+import com.ssafy.eolssu.feature.practice.SectionEvaluationSource
 import com.ssafy.eolssu.feature.practice.SectionSelectViewModel
 import com.ssafy.eolssu.feature.result.SectionResultViewModel
 import org.koin.core.module.dsl.viewModel
@@ -161,11 +161,13 @@ val appModule = module {
         val direct: Boolean = parameters[5]
         // 일곱째 인자: 구간 연습의 구간(S15P31E102-794). 없으면 빈 목록.
         val initialSection = (parameters.values.getOrNull(6) as? List<*>)?.firstOrNull() as? ScoreSection
+        // 여덟째 인자: 구간 재평가의 바탕 세션(S15P31E102-824). 있으면 곡 대신 그 세션의 악보로 구간만 평가한다.
+        val sectionSource = (parameters.values.getOrNull(7) as? String)?.let { SectionEvaluationSource(it, get()) }
         val personalPractice = if (mine) get<SheetPracticeRepository>() else null
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
             modelAudioRepository = personalPractice ?: get<ModelAudioRepository>(), audioPlayer = get(), mine = mine, learn = learn, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
             notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf, personalAudio = personalPractice, direct = direct,
-            initialSection = initialSection)
+            initialSection = initialSection, sectionSource = sectionSource)
     }
     viewModel { parameters ->
         val (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) = parameters
@@ -238,10 +240,6 @@ val appModule = module {
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
     single<WeakSectionRepository> { ApiWeakSectionRepository(get(), get(), get(), get(), get()) }
     viewModel { (sourceId: String, perf: PerformanceVisit?) -> SectionSelectViewModel(sourceId, get(), perf) }
-    viewModel { (sourceId: String, section: ScoreSection, repeats: Int, perf: PerformanceVisit?) ->
-        // 속도는 연습 화면과 같은 곡 속도 설정을 따른다(설정에서 바꾼다, S15P31E102-794).
-        SectionLoopViewModel(sourceId, section, null, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull(), settingsStore = get(), perf = perf, autoStart = false, jangdanPlayer = getOrNull())
-    }
     viewModel { (sessionId: String, perf: PerformanceVisit?) -> SectionResultViewModel(sessionId, get(), perf) }
     viewModel { (recordId: String, previousId: String?) -> CompareViewModel(recordId, get(), previousId) }
     // 악보 추가·편집(2차). 인식·저장 API를 붙이기 전이라 예시 악보로 화면 흐름만 다룬다.

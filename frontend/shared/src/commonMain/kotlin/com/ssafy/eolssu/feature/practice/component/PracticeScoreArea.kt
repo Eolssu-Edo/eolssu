@@ -53,6 +53,8 @@ import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.stepCurrentIndex
 import com.ssafy.eolssu.feature.practice.sectionReadyStart
+import com.ssafy.eolssu.feature.practice.sectionEvaluation
+import com.ssafy.eolssu.feature.practice.recordingEndIndex
 import com.ssafy.eolssu.feature.practice.cellForEvent
 import com.ssafy.eolssu.feature.practice.modelPointAt
 import androidx.compose.foundation.background
@@ -125,7 +127,7 @@ fun PracticeScoreArea(
         val playback = state.scorePlayback()
         val notation = ScoreNotation(state.settings.showHangul)
         // 한 음씩 따라 불기는 진행 모습(playback) 없이 지금 음의 정간에만 연두 테두리를 둔다(곁줄에는 표시하지 않는다).
-        val currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex ?: state.sectionReadyStart
+        val currentIndex = if (state.live) state.position.coerceAtMost(state.recordingEndIndex) else state.stepCurrentIndex ?: state.sectionReadyStart
         val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
         val selectedCell = state.scoreSelection?.takeIf { state.sectionPractice == null }?.let { it.column to it.row }
         val onUnitClick = onSelectUnit.takeIf { state.canSelectUnit }
@@ -208,7 +210,8 @@ internal fun PracticeUiState.scorePlayback(): ScorePlayback? {
             ScoreCursor(point.position, point.fraction.toFloat())
         }
     }
-    val index = position.coerceAtMost(eventCount - 1)
+    // 연주를 마치면 마지막으로 연주한 음에 머문다. 구간 재평가는 구간 마지막 음이다.
+    val index = position.coerceAtMost(recordingEndIndex)
     val started = eventStartedAt
     if (started == null) {
         val paused = ScoreCursor(index, pausedFraction)
@@ -220,20 +223,24 @@ internal fun PracticeUiState.scorePlayback(): ScorePlayback? {
     }
 }
 
-/** 처음 들어오거나 크기를 바꾸면 시작 위치(오른쪽 끝)로, 카운트다운이 시작되면 처음으로 되돌린다. */
+/**
+ * 처음 들어오거나 크기를 바꾸면 시작 위치(오른쪽 끝)로, 카운트다운이 시작되면 처음으로 되돌린다.
+ * 구간 재평가는 구간 처음에서 연주를 시작하므로 곡 처음으로 되돌리지 않고 구간 처음을 따라간다.
+ */
 @Composable
 private fun rememberHorizontalScoreScroll(state: PracticeUiState): ScrollState {
     val scrollState = rememberScrollState()
     LaunchedEffect(state.settings.bigScore) { scrollState.scrollTo(0) }
-    LaunchedEffect(state.mode == PracticeMode.Countdown && !state.resume) {
-        if (state.mode == PracticeMode.Countdown && !state.resume) scrollState.animateScrollTo(0)
+    val toStart = state.mode == PracticeMode.Countdown && !state.resume && !state.sectionEvaluation
+    LaunchedEffect(toStart) {
+        if (toStart) scrollState.animateScrollTo(0)
     }
     return scrollState
 }
 
 /**
  * 두 단 악보의 세로 스크롤. 현재 위치가 든 단이 화면 밖이면 그 단으로 옮기고, 사용자가 끌면 따라가기를 멈추도록 알린다.
- * 카운트다운이 시작되면 첫 단으로 되돌린다.
+ * 카운트다운이 시작되면 첫 단으로 되돌린다. 구간 재평가는 평가 대기·카운트다운에도 구간 처음이 든 단을 보인다.
  */
 @Composable
 private fun rememberBandScroll(
@@ -249,16 +256,18 @@ private fun rememberBandScroll(
     LaunchedEffect(scrollState) {
         scrollState.interactionSource.interactions.collect { if (it is DragInteraction.Start) latestOnUserScroll() }
     }
-    LaunchedEffect(state.mode == PracticeMode.Countdown && !state.resume) {
-        if (state.mode == PracticeMode.Countdown && !state.resume) scrollState.animateScrollTo(0)
+    val toStart = state.mode == PracticeMode.Countdown && !state.resume && !state.sectionEvaluation
+    LaunchedEffect(toStart) {
+        if (toStart) scrollState.animateScrollTo(0)
     }
     val song = state.song
     val live = playback != null
     val cursor = rememberScoreCursor(playback)
-    val currentBand by remember(song, live, bandColumns) {
+    val readyBand = if (state.sectionEvaluation) state.sectionReadyStart?.let { state.cellForEvent(it)?.column?.div(bandColumns) } else null
+    val currentBand by remember(song, live, bandColumns, readyBand) {
         derivedStateOf {
             val index = cursor.index
-            if (!live || song == null || index == null) null else song.displayUnitAt(index, cursor.fraction)?.column?.div(bandColumns)
+            if (!live || song == null || index == null) readyBand else song.displayUnitAt(index, cursor.fraction)?.column?.div(bandColumns)
         }
     }
     LaunchedEffect(currentBand, state.follow, scrollState.viewportSize, bandHeight) {
@@ -312,7 +321,7 @@ fun PracticeBoardScore(
                     metrics = packing.metrics,
                     notation = ScoreNotation(state.settings.showHangul),
                     scrollState = rememberHorizontalScoreScroll(state),
-                    currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex ?: state.sectionReadyStart,
+                    currentIndex = if (state.live) state.position.coerceAtMost(state.recordingEndIndex) else state.stepCurrentIndex ?: state.sectionReadyStart,
                     highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position,
                     playback = playback,
                     follow = state.follow,
