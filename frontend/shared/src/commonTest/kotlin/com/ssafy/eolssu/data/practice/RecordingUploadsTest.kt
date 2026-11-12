@@ -37,6 +37,17 @@ class RecordingUploadsTest {
     }
 
     @Test
+    fun sendAndResendPassUploadProgressThrough() = immediate {
+        val uploads = uploads()
+        val reported = mutableListOf<Float>()
+        uploader.progress = listOf(0f, 0.5f, 1f)
+        uploader.outcomes += UploadOutcome.Unreachable
+        assertEquals(SendResult.CanResend, uploads.send(recording) { reported += it })
+        assertEquals(SendResult.Sent, uploads.resend(recording) { reported += it })
+        assertEquals(listOf(0f, 0.5f, 1f, 0f, 0.5f, 1f), reported)
+    }
+
+    @Test
     fun unreachableServerKeepsRecordingForResend() = immediate {
         uploader.outcomes += UploadOutcome.Unreachable
         val uploads = uploads()
@@ -468,16 +479,21 @@ internal class FakeRecordingFiles(vararg recorded: String) : RecordingFiles {
     }
 }
 
-/** 차례대로 [outcomes]를 돌려주고, 다 쓰면 성공이다. [fail]이면 예외를 던지고, [gate]가 있으면 열릴 때까지 기다린다. */
+/**
+ * 차례대로 [outcomes]를 돌려주고, 다 쓰면 성공이다. [fail]이면 예외를 던지고, [gate]가 있으면 열릴 때까지 기다린다.
+ * [progress]의 비율은 기다리기 전에 차례로 알린다.
+ */
 internal class FakeUploader : RecordingUploader {
     val outcomes = ArrayDeque<UploadOutcome>()
     val calls = mutableListOf<Pair<String, String>>()
     var fail = false
     var gate: CompletableDeferred<Unit>? = null
+    var progress = listOf<Float>()
 
-    override suspend fun upload(sessionId: String, path: String): UploadOutcome {
+    override suspend fun upload(sessionId: String, path: String, onProgress: (Float) -> Unit): UploadOutcome {
         calls += sessionId to path
         val outcome = outcomes.removeFirstOrNull() ?: UploadOutcome.Uploaded
+        progress.forEach(onProgress)
         gate?.await()
         if (fail) error("no network")
         return outcome

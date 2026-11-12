@@ -141,7 +141,7 @@ internal class AnalysisSession(
         when {
             recording != null && uploads != null -> {
                 this.recording = recording
-                sendRecording(PerfReason.INITIAL) { uploads.send(recording) }
+                sendRecording(PerfReason.INITIAL) { uploads.send(recording, it) }
             }
             take != null && uploads != null && sessions != null -> {
                 this.take = take
@@ -181,7 +181,7 @@ internal class AnalysisSession(
             is SessionStart.Created -> {
                 val pending = PendingRecording(created.sessionId, take.path, created.startedAtMillis, request.songId, request.bpm, created.memberId)
                 recording = pending
-                sendRecording(reason) { uploads.send(pending) }
+                sendRecording(reason) { uploads.send(pending, it) }
             }
             SessionStart.Unreachable -> _state.update { it.copy(upload = UploadProblem.CanResend, resending = false) }
             SessionStart.Rejected -> _state.update { it.copy(upload = UploadProblem.Rejected, resending = false) }
@@ -201,20 +201,29 @@ internal class AnalysisSession(
         if (recording == null && take == null) return
         _state.update { it.copy(resending = true) }
         scope.launch {
-            if (recording != null) sendRecording(PerfReason.RETRY) { uploads.resend(recording) }
+            if (recording != null) sendRecording(PerfReason.RETRY) { uploads.resend(recording, it) }
             else if (take != null) createAndSend(take, PerfReason.RETRY)
         }
     }
 
-    private suspend fun sendRecording(reason: PerfReason, send: suspend () -> SendResult) {
+    /** 전송 비율을 0부터 보이고, 그 뒤 받은 비율로 바꾸는 함수를 돌려준다. */
+    private fun sending(): (Float) -> Unit {
+        _state.update { it.copy(uploadProgress = 0f) }
+        return { progress -> _state.update { it.copy(uploadProgress = progress) } }
+    }
+
+    /** [send]에 전송 비율을 받을 함수를 넘겨 녹음을 보내고, 결과에 따라 분석을 기다리거나 다시 보내기를 안내한다. */
+    private suspend fun sendRecording(reason: PerfReason, send: suspend (onProgress: (Float) -> Unit) -> SendResult) {
+        val onProgress = sending()
         val result = measureStage(
             PerfPhase.RECORDING_UPLOAD, reason, uploadTiming,
             classify = { if (it == SendResult.Sent) PerfReason.READY else PerfReason.FAILED },
-            operation = send,
+            operation = { send(onProgress) },
         )
+        if (result != SendResult.Sent) _state.update { it.copy(uploadProgress = null) }
         when (result) {
             SendResult.Sent -> {
-                _state.update { it.copy(upload = null, resending = false) }
+                _state.update { it.copy(upload = null, resending = false, uploadProgress = 1f) }
                 analysisId = recording?.sessionId
                 polling.start()
                 startPolling()
