@@ -195,22 +195,8 @@ class LearnUiStateTest {
     }
 
     @Test
-    fun stageArtCropsAreSquaresInsideTheArtwork() {
-        assertEquals(LearnProgressRepository.STAGE_COUNT, LearnArtCrops.size, "공개 단계마다 그림이 하나씩이다")
-        LearnArtCrops.forEach { crop ->
-            assertTrue(crop.left >= 0 && crop.left + crop.size <= LearnArtWidth, "$crop")
-            assertTrue(crop.top >= 0 && crop.top + crop.size <= LearnArtHeight, "$crop")
-        }
-    }
-
-    @Test
-    fun stageCardCropsStayInsideTheArtworkWidthAndOverlapItsHeight() {
-        assertEquals(LearnProgressRepository.STAGE_COUNT, LearnCardArtCrops.size, "공개 단계마다 카드 그림이 하나씩이다")
-        LearnCardArtCrops.forEach { crop ->
-            assertTrue(crop.left >= 0 && crop.left + crop.size <= LearnArtWidth, "가로는 원본 안: $crop")
-            // 세로는 원본보다 넓을 수 있지만(바깥은 바탕색) 원본과 반드시 겹친다
-            assertTrue(crop.top < LearnArtHeight && crop.top + crop.size > 0, "세로로 원본과 겹친다: $crop")
-        }
+    fun everyPublicStageHasArt() {
+        assertEquals(LearnProgressRepository.STAGE_COUNT, LearnArtCount, "공개 단계마다 그림이 하나씩이다")
     }
 
     @Test
@@ -225,5 +211,19 @@ class LearnUiStateTest {
             ),
             stages.map { it.primaryAction },
         )
+    }
+
+    @Test
+    fun stageTwoGripKeepsOnlyFirstSentence() {
+        val tasks = listOf(
+            LearnTask("앉은 자세", "허리를 펴고 어깨 힘을 빼요. 발은 바닥에 둬요."),
+            LearnTask("악기 잡기", "세로로 세워 잡아요. 뒷구멍은 왼손 엄지로 막아요."),
+            LearnTask("복식호흡", null),
+        )
+        val shown = stageTwoTasks(tasks)
+        assertEquals("세로로 세워 잡아요.", shown[1].detail)
+        assertEquals(tasks[0], shown[0])
+        assertEquals(tasks[2], shown[2])
+        assertEquals("문장 끝이 없는 설명", firstSentence("문장 끝이 없는 설명"))
     }
 }

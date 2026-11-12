@@ -107,23 +107,19 @@ internal fun Modifier.dashedRoundBorder(color: Color, radius: Dp, width: Dp = 1.
     )
 }
 
-/** 단계 상세의 한 묶음(`.lp-sec`). 제목 오른쪽에 '더 보기' 링크를 둘 수 있다. */
+/**
+ * 단계 상세의 한 묶음. 묶음마다 붙던 이름표('악기 살펴보기'·'이 단계에서 할 일' 등)는 내용과 겹쳐 뺐다(S15P31E102-793).
+ * [more]가 있으면 묶음 위 오른쪽에 '운지법 보기' 같은 글자 링크를 둔다.
+ */
 @Composable
 internal fun LearnSection(
-    title: String,
     modifier: Modifier = Modifier,
     more: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                title,
-                Modifier.weight(1f),
-                style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                color = EolssuTheme.colors.textMuted,
-            )
-            more?.invoke()
+        if (more != null) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.End) { more() }
         }
         content()
     }
