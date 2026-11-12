@@ -17,6 +17,7 @@ import org.koin.core.parameter.parametersOf
  *
  * @param onHome 오른쪽 위 홈 → 홈 화면.
  * @param onOtherSection ‘다른 구간 고르기’ → 취약 구간 선택.
+ * @param onRetry ‘구간 재평가 다시하기’ → 같은 구간의 구간 재평가. 평가한 구간([SectionResultUiState.retrySection])을 넘긴다.
  * @param onWholeSong ‘곡 전체 다시 평가’ → 이 곡의 연습 화면(평가). 곡 ID를 넘긴다.
  */
 @Composable
@@ -25,6 +26,7 @@ fun SectionResultRoute(
     onBack: () -> Unit,
     onHome: () -> Unit,
     onOtherSection: () -> Unit,
+    onRetry: (section: ScoreSection?) -> Unit,
     onWholeSong: (songId: String) -> Unit,
     perf: PerformanceVisit? = null,
     viewModel: SectionResultViewModel = koinViewModel(key = "section-result-$sessionId") { parametersOf(sessionId, perf) },
@@ -39,6 +41,7 @@ fun SectionResultRoute(
                 onBack = onBack,
                 onHome = onHome,
                 onOtherSection = onOtherSection,
+                onRetry = { onRetry(state.retrySection) },
                 onWholeSong = { state.evaluation?.let { onWholeSong(it.song.id) } },
                 onSelectFilter = viewModel::selectFilter,
             ),
