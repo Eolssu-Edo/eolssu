@@ -254,26 +254,46 @@ private const val HoldMillis = 900L
 private const val FadeMillis = 400
 private const val FadeGapMillis = 50L
 
+/** 진행률을 따라가는 속도: 남은 거리의 6배/초, 최대 0.6/초(웹 시안 값). */
+private const val ChaseRate = 6f
+private const val ChaseMaxPerSecond = 0.6f
+
 /**
- * 붓 일원상을 그려 가는 애니메이션. 0.9초 동안 그리고, 잠시 멈췄다가 흐려진 뒤 다시 그린다.
+ * 화면에 보이는 진행률 [shown]을 [dt]초 동안 [target] 쪽으로 옮긴 값. 넘어서지 않고 따라가며,
+ * 목표가 줄면(재시도로 0부터) 바로 맞추고, 다 보냈으면 끝 무렵에서 1로 맞춘다.
+ */
+internal fun chaseProgress(shown: Float, target: Float, dt: Float): Float {
+    var next = shown
+    if (next < target) next = min(target, next + min((target - next) * dt * ChaseRate, dt * ChaseMaxPerSecond) + 1e-4f)
+    if (target < next) next = target
+    if (target >= 1f && next > 0.995f) next = 1f
+    return next
+}
+
+/**
+ * 붓 일원상을 그려 가는 애니메이션. [progress]가 null이면 0.9초 동안 그리고, 잠시 멈췄다가 흐려진 뒤 다시 그린다.
+ * [progress]가 있으면 획을 그 지점(0~1)까지만 그리고 흐려지지 않는다. 값이 줄면 빈 종이에서 다시 그린다.
  * 그린 부분은 비트맵에 쌓아 두고 프레임마다 새로 지나간 부분만 더 그린다.
  */
 @Composable
-internal fun BrushEnso(color: Color, modifier: Modifier = Modifier) {
+internal fun BrushEnso(color: Color, progress: Float? = null, modifier: Modifier = Modifier) {
     val brush = remember { EnsoBrush() }
     val trail = remember { EnsoBrush.Trail(brush.bristles.size) }
     val layer = remember { EnsoLayer() }
-    var progress by remember { mutableFloatStateOf(0f) }
+    var looped by remember { mutableFloatStateOf(0f) }
     val fade = remember { Animatable(1f) }
-    LaunchedEffect(Unit) {
+    val looping = progress == null
+    LaunchedEffect(looping) {
+        fade.snapTo(1f)
+        if (!looping) return@LaunchedEffect
         while (isActive) {
             fade.snapTo(1f)
-            progress = 0f
+            looped = 0f
             val start = withFrameNanos { it }
             var elapsed = 0.0
             while (elapsed < DrawMillis) {
                 elapsed = withFrameNanos { (it - start) / 1_000_000.0 }
-                progress = EnsoBrush.ease(elapsed / DrawMillis).toFloat()
+                looped = EnsoBrush.ease(elapsed / DrawMillis).toFloat()
             }
             delay(HoldMillis)
             fade.animateTo(0f, tween(FadeMillis))
@@ -283,8 +303,8 @@ internal fun BrushEnso(color: Color, modifier: Modifier = Modifier) {
     Canvas(modifier) {
         val side = min(size.width, size.height).roundToInt()
         if (side <= 0) return@Canvas
-        val target = progress.toDouble()
-        // 새 바퀴(진행이 줄어듦)이거나 크기가 바뀌면 빈 비트맵에서 다시 그린다.
+        val target = (progress ?: looped).toDouble().coerceIn(0.0, 1.0)
+        // 새 바퀴·재전송(진행이 줄어듦)이거나 크기가 바뀌면 빈 비트맵에서 다시 그린다.
         if (layer.side != side || target < layer.drawn) {
             layer.reset(side)
             trail.reset()
@@ -294,7 +314,8 @@ internal fun BrushEnso(color: Color, modifier: Modifier = Modifier) {
             brush.trace(target, side.toDouble(), trail, layer.sink)
             layer.drawn = target
         }
-        drawImage(layer.image, topLeft = Offset((size.width - side) / 2, (size.height - side) / 2), alpha = fade.value)
+        val alpha = if (progress != null) 1f else fade.value
+        drawImage(layer.image, topLeft = Offset((size.width - side) / 2, (size.height - side) / 2), alpha = alpha)
     }
 }
 
