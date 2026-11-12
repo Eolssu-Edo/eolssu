@@ -22,14 +22,14 @@ import com.ssafy.eolssu.feature.result.SectionResultRoute
  */
 object WeakSectionDestination {
     const val SELECT = "weak/{source}/sections"
-    const val LOOP = "weak/{source}/loop?sc={sc}&sr={sr}&ec={ec}&er={er}&bpm={bpm}&repeats={repeats}"
+    const val EVALUATE = "weak/{source}/evaluate?sc={sc}&sr={sr}&ec={ec}&er={er}&bpm={bpm}"
     const val RESULT = "weak/{source}/result/{sessionId}"
     const val COMPARE = "compare/{recordId}?previous={previousId}"
 
     fun select(source: String) = "weak/$source/sections"
 
-    fun loop(source: String, section: ScoreSection, bpm: Int, repeats: Int?) =
-        "weak/$source/loop?${section.query()}&bpm=$bpm&repeats=${repeats ?: 0}"
+    /** 구간 고르기의 ‘구간 재평가 시작’ → 고른 구간·속도의 구간 재평가(S15P31E102-776). */
+    fun evaluate(source: String, section: ScoreSection, bpm: Int) = "weak/$source/evaluate?${section.query()}&bpm=$bpm"
 
     fun sectionResult(source: String, sessionId: String) = "weak/$source/result/$sessionId"
 
@@ -40,7 +40,7 @@ object WeakSectionDestination {
 }
 
 /**
- * 화면 이동: 평가 결과 ‘취약 구간 연습’ → 구간 고르기 → 구간 반복 → 재평가,
+ * 화면 이동: 연습 기록 ‘구간 재평가’ → 구간 고르기 → 구간 재평가 → 분석 → 구간 재평가 결과(S15P31E102-776),
  * 기록 상세 ‘지난 연주와 비교’ → 기록 고르기 시트 → 이전 연주 비교. 재평가의 ‘곡 전체 다시 평가’는 그 곡의 연습 화면으로 간다.
  */
 internal fun NavGraphBuilder.weakSectionGraph(navController: NavController, performance: PerformanceNavigation) {
@@ -55,15 +55,10 @@ internal fun NavGraphBuilder.weakSectionGraph(navController: NavController, perf
             perf = perf,
             sourceId = source,
             onBack = { navController.popBackStackFrom(entry) },
-            onStart = { section, bpm, repeats ->
-                performance.move(perf, PerfTarget.WEAK_LOOP) { navController.navigate(WeakSectionDestination.loop(source, section, bpm, repeats)) }
-            },
+            onEvaluate = { section, bpm -> navController.navigate(WeakSectionDestination.evaluate(source, section, bpm)) },
         )
     }
-    composable(
-        WeakSectionDestination.LOOP,
-        arguments = listOf(sourceArg) + sectionArgs + bpmArg + navArgument("repeats") { type = NavType.IntType; defaultValue = 0 },
-    ) { entry ->
+    composable(WeakSectionDestination.EVALUATE, arguments = listOf(sourceArg) + sectionArgs + bpmArg) { entry ->
         val source = entry.source()
         val section = entry.section()
         val bpm = entry.savedStateHandle.get<Int>("bpm") ?: 60
@@ -73,7 +68,6 @@ internal fun NavGraphBuilder.weakSectionGraph(navController: NavController, perf
             sourceId = source,
             section = section,
             bpm = bpm,
-            repeats = entry.savedStateHandle.get<Int>("repeats")?.takeIf { it > 0 },
             onBack = { navController.popBackStackFrom(entry) },
             // 구간만 녹음한 연주를 분석에 맡긴다. 분석이 끝나면 구간 재평가 결과로 간다.
             onEvaluate = { songId, take, sessionSection ->
@@ -88,7 +82,8 @@ internal fun NavGraphBuilder.weakSectionGraph(navController: NavController, perf
             perf = perf,
             sessionId = entry.savedStateHandle.get<String>("sessionId").orEmpty(),
             onBack = { navController.popBackStackFrom(entry) },
-            onPracticeAgain = { navController.popBackStackFrom(entry) },
+            // ‘이 구간 다시 연습’은 그 곡 연습 화면의 구간 연습을 이 구간으로 연다(S15P31E102-776).
+            onPracticeAgain = { songId, section -> navController.navigate(EolssuDestination.sectionPractice(songId, source, section)) },
             onOtherSection = {
                 if (!navController.popBackStack(WeakSectionDestination.SELECT, inclusive = false)) {
                     navController.navigate(WeakSectionDestination.select(source))
