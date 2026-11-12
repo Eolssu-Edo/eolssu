@@ -16,7 +16,12 @@ data class SheetPitchCorrection(
 }
 
 internal val SheetEditUiState.supportedInputPitches: Set<Pair<String, Int>>?
-    get() = availablePitches?.let { registered -> instrumentPitches?.let(registered::intersect) ?: registered }
+    get() = when (completionCatalogState) {
+        SheetCompletionCatalogState.Loading, SheetCompletionCatalogState.Failed -> emptySet()
+        else -> authoringCapabilities?.let { capabilities ->
+            if (draft.original?.music?.hwangHz?.let(capabilities::matchesTuning) == false) emptySet() else capabilities.selectablePitches
+        } ?: availablePitches?.let { registered -> instrumentPitches?.let(registered::intersect) ?: registered }
+    }
 
 internal fun SheetEditUiState.pitchCorrectionsAt(cell: Int, sub: Int? = null): List<SheetPitchCorrection> {
     val supported = supportedInputPitches ?: return emptyList()

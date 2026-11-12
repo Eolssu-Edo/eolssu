@@ -6,6 +6,19 @@ import com.ssafy.eolssu.data.song.CommonScoreData
 import kotlin.test.*
 
 class SheetPitchCorrectionTest {
+    @Test fun staffShiftSkipsGloballyRegisteredNotesWithoutInstrumentSupport() {
+        val selected = state().copy(availablePitches = setOf("황" to 0, "대" to 0, "태" to 0),
+            instrumentPitches = setOf("황" to 0, "태" to 0)).selectStaffNote(StaffNoteKey(0, 0))
+        val shifted = selected.shiftStaffNote(1)
+        assertEquals("태" to 0, shifted.draft.cells[0][0].pitchKey()?.let { it.first.hangul to it.second })
+    }
+
+    @Test fun requiredCatalogFailureDisablesNewInputWithoutDiscardingTheDraft() {
+        val initial = state().copy(completionCatalogState = SheetCompletionCatalogState.Failed)
+        assertEquals(emptySet(), initial.supportedInputPitches)
+        assertEquals(initial, initial.putYul(Yul.Hwangjong, 0))
+        assertEquals(initial.draft, initial.copy(completionCatalogState = SheetCompletionCatalogState.Loading).draft)
+    }
     private val registered = setOf("황" to 0, "중" to 1, "황" to 2, "태" to 2, "중" to 2, "대" to 1)
     private fun state() = SheetEditUiState(EditSource.Mine("31"), smallScoreData().editingDraft("검사", 60, null))
         .copy(availablePitches = registered, instrumentPitches = registered - ("중" to 1))
