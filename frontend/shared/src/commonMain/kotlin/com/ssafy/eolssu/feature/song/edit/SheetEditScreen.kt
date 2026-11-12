@@ -21,7 +21,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.EditInputPanel
 import com.ssafy.eolssu.feature.song.edit.component.EditScoreBoard
@@ -78,8 +77,8 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(stringResource(Res.string.sheet_editor_tempo, draft.bpm), style = MaterialTheme.typography.bodyMedium)
-                    Text(jangdanLabel(draft.jangdanName), style = MaterialTheme.typography.bodyMedium)
+                    Text("${draft.tempoUnitLabel} = ${draft.bpm}", style = MaterialTheme.typography.bodyMedium)
+                    Text(draft.jangdanName, style = MaterialTheme.typography.bodyMedium)
                 }
                 if (state.canEditDetails) PillButton(stringResource(Res.string.sheet_editor_edit), actions.onOpenDetails, enabled = !state.saving, secondary = true)
             }
@@ -144,6 +143,6 @@ private val EditorMessages = setOf(
     SheetEditMessage.SaveUnsupportedPitches, SheetEditMessage.AudioUnsupportedPitches,
     SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge,
     SheetEditMessage.Saved, SheetEditMessage.SavedForPractice, SheetEditMessage.SavedNeedsReview, SheetEditMessage.Draft,
-    SheetEditMessage.ReviewBeforeReshape, SheetEditMessage.ComingSoon,
+    SheetEditMessage.ReviewBeforeReshape, SheetEditMessage.TempoPlanBeforeReshape, SheetEditMessage.ComingSoon,
     SheetEditMessage.AudioReady, SheetEditMessage.AudioFailed, SheetEditMessage.AudioStatusUnknown,
 )

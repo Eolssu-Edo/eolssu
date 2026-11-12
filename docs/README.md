@@ -1,6 +1,9 @@
 # 프로젝트 문서
 
+- [악보 빠르기 설정과 기기 반주 시간표 동기화 (791)](plans/S15P31E102-791.md)
+- [악보 장단 선택과 시작 위치 안내 개선 (772)](plans/S15P31E102-772.md)
 - [원본 기준 이조와 옥타브 조정 확인 화면 구현 (771)](plans/S15P31E102-771.md)
+- [기초 배우기 단계 카드 그림을 흰 바탕용으로 다시 만들고 단계 화면·연습 듣기 흐름 정리 (793)](plans/S15P31E102-793.md)
 - [연주 분석 대기 화면의 붓 일원상·퍼센트 진행률 (777)](plans/S15P31E102-777.md)
 - [연습 기록 상세 미리보기 회귀 테스트 복구 (780)](plans/S15P31E102-780.md)
 - [홈 기능 카드 그림을 서로 다른 모양으로 바꾸고 카드 제목 키우기 (779)](plans/S15P31E102-779.md)
@@ -318,6 +321,9 @@
 
 ## COCO 산출물
 
+- [빠르기 생성 사전검사와 수행 시간표 분할 계획](plans/S15P31E102-773.md)
+- [빠르기·수행 시계와 실제 CAT 검증 근거](knowledge/data/score-authoring-tempo.md)
+
 - [장단 패턴·박 단위·시작 주기 계약 분할 계획](plans/S15P31E102-789.md)
 - [장단 선택·저장·재생의 이전 통합 검증 근거](knowledge/frontend/sheet-jangdan-consistency.md)
 
@@ -461,3 +467,4 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [악보 작성 결과 재분할과 의존 관계](plans/score-authoring-partition.md)
 - [악보 작성 일관성 스펙](specs/score-authoring-consistency.md) · [조사 근거](knowledge/frontend/score-authoring-consistency.md)
 - [S15P31E102-788 원본 음고 전달·불변 보존](plans/S15P31E102-788.md)
+- [S15P31E102-790 구간 빠르기 보존·생성 사전검사 API](plans/S15P31E102-790.md)

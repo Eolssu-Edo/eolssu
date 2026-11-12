@@ -29,6 +29,8 @@ $env:PLAYBACK_JANGGU_SAMPLES = "C:\path\janggu"
 
 - 시작할 때 네 악기의 CAT ZIP, 장구 샘플, FFmpeg를 확인하고, 하나라도 없으면 요청을 받기 전에 종료합니다.
 - `GET /health`는 준비 상태, `POST /v1/estimate`는 길이 계산, `POST /v1/render`는 M4A·MIDI·길이 ZIP을 돌려줍니다.
+- `expressions` 형제로 기존 숫자 구간 빠르기 companion을 전달할 수 있습니다. estimate/render는 같은 최종 MIDI·PCM 해상도와600초 조건을 검사하며, 오류의 `details`에 이유와 이 악보의 조정 경계를 반환합니다. BPM 단위·원본 SHA 결합·구간 비례 조정은 [작성 빠르기 계약](../../../docs/knowledge/data/score-authoring-tempo.md)을 따릅니다.
+- 장단 요청의 `patternCellEighths`가 구음 칸 길이입니다. 타점은 선율과 같은 구간 변속·반복 시계에 놓으며0tick 원점과 완전한 주기를 검사합니다.
 - 생성은 전역 1건입니다. 이미 생성 중이면 `/v1/render`가 409를 돌려주고, 백엔드는 작업을 대기열에 되돌립니다.
 - 요청 처리 로그에는 오류 코드와 생성기 종료 상태만 남깁니다. 악보 내용, 요청 경로, 자산 위치는 남기지 않습니다. 시작 실패는 예외 전체가 표준 오류에 남습니다.
 

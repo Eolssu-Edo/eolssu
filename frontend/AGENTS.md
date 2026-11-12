@@ -43,6 +43,7 @@
 
 ## 검증과 기록
 
+- Android 에뮬레이터로 실행·검증할 때는 [README](README.md)의 `처음 빌드하기`에 명시한 기기 프로필 기준을 따른다.
 - 상태·표시 변환은 `shared` 테스트 같은 작은 자동 검사로 검증한다. 마이크·재생·타이밍 변경은 실제 기기에서 확인하고 기기·OS·관찰 결과를 남긴다. 에뮬레이터 결과를 실기기 검증으로 보고하지 않는다.
 - Windows에서는 iOS 코드(`iosMain`, `iosApp`)를 컴파일할 수 없다. Windows 빌드 성공을 iOS 확인으로 보고하지 않고, Mac에서 확인하지 않은 iOS 변경은 미검증으로 보고한다.
 - 웹 빌드로 생기는 `kotlin-js-store/`의 lock 파일은 커밋한다. `gradlew`를 교체하면 `git update-index --chmod=+x frontend/gradlew`로 실행 권한을 유지한다.

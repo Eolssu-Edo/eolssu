@@ -26,7 +26,7 @@ private const val MAX_PERFORMANCE_BYTES = 2 * 1024 * 1024
 data class GeneratedSheetAudio(val m4a: ByteArray, val midi: ByteArray, val durationMs: Long, val performance: JsonNode? = null)
 
 internal fun ByteArray.sheetAudioSha256(): String = MessageDigest.getInstance("SHA-256").digest(this).toHexString()
-class PlaybackFailure(val reason: String): RuntimeException(reason)
+class PlaybackFailure(val reason: String, val details: JsonNode? = null): RuntimeException(reason)
 fun interface PlaybackClient {
     fun generate(requestJson: String): GeneratedSheetAudio
     fun estimate(requestJson: String): Long = throw PlaybackFailure("SERVER_ERROR")
@@ -44,12 +44,14 @@ class HttpPlaybackClient(private val baseUrl: String, private val timeout: Durat
     override fun estimate(requestJson: String): Long {
         if(!configured) throw PlaybackFailure("SERVER_ERROR")
         try {
+            val snapshot = json.readTree(requestJson)
+            val sourceHash = sourceHash(snapshot)
             val request=HttpRequest.newBuilder(URI(baseUrl.trimEnd('/')+"/v1/estimate")).timeout(Duration.ofSeconds(15))
-                .header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(requestJson)).build()
+                .header("Content-Type","application/json").header(PERFORMANCE_SOURCE_HEADER, sourceHash).POST(HttpRequest.BodyPublishers.ofString(requestJson)).build()
             val future=client.sendAsync(request,HttpResponse.BodyHandler { LimitedBody(4096) })
             val response=try { future.get(15,TimeUnit.SECONDS) } finally { if(!future.isDone) future.cancel(true) }
             val result=json.readTree(response.body())
-            if(response.statusCode()!=200) throw PlaybackFailure(result.path("errorCode").asString().takeIf { it in setOf("EXPORT_TOO_LONG","INVALID_REQUEST") } ?: "SERVER_ERROR")
+            if(response.statusCode()!=200) throw PlaybackFailure(result.path("errorCode").asString().takeIf { it in setOf("EXPORT_TOO_LONG","INVALID_REQUEST","TEMPO_UNRENDERABLE") } ?: "SERVER_ERROR", result.get("details"))
             val duration=result.path("durationMs")
             if(!duration.isIntegralNumber || duration.longValue() !in 1..600000) throw PlaybackFailure("SERVER_ERROR")
             return duration.longValue()
@@ -61,11 +63,10 @@ class HttpPlaybackClient(private val baseUrl: String, private val timeout: Durat
         if(!configured) throw PlaybackFailure("SERVER_ERROR")
         try {
             val snapshot = json.readTree(requestJson)
-            val sourceHash = snapshot.path("score").takeIf(JsonNode::isObject)
-                ?.let { json.writeValueAsBytes(it).sheetAudioSha256() }
+            val sourceHash = sourceHash(snapshot)
             val request=HttpRequest.newBuilder(URI(baseUrl.trimEnd('/')+"/v1/render")).timeout(timeout)
                 .header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(requestJson))
-            sourceHash?.let { request.header(PERFORMANCE_SOURCE_HEADER, it) }
+            request.header(PERFORMANCE_SOURCE_HEADER, sourceHash)
             val future=client.sendAsync(request.build(),HttpResponse.BodyHandler { LimitedBody(17*1024*1024 + MAX_PERFORMANCE_BYTES) })
             val response=try { future.get(timeout.toMillis(),TimeUnit.MILLISECONDS) } finally { if(!future.isDone) future.cancel(true) }
             if(response.statusCode()==409) throw PlaybackFailure("BUSY")
@@ -82,6 +83,11 @@ class HttpPlaybackClient(private val baseUrl: String, private val timeout: Durat
         } catch(_: InterruptedException) { Thread.currentThread().interrupt(); throw PlaybackFailure("SERVER_ERROR")
         } catch(_: Exception) { throw PlaybackFailure("SERVER_ERROR") }
     }
+
+    private fun sourceHash(snapshot: JsonNode): String =
+        if (snapshot.path("expressions").isObject)
+            com.ssafy.eolssu.backend.feature.sheet.application.SheetExpressions(json).hash(json.writeValueAsString(snapshot.path("score")))
+        else json.writeValueAsBytes(snapshot.path("score")).sheetAudioSha256()
 
     internal fun decode(bytes: ByteArray, snapshot: JsonNode? = null, sourceHash: String? = null): GeneratedSheetAudio {
         val files=mutableMapOf<String,ByteArray>()

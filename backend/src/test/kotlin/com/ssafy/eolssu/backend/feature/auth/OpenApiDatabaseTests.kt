@@ -214,7 +214,7 @@ open class OpenApiDatabaseTests {
         assertEquals("binary",multipart.path("properties").path("audio").path("format").asString())
         val details=doc.path("components").path("schemas").path("ApiErrorResult")
         assertTrue(details.path("properties").has("details"))
-        assertEquals(7,details.path("properties").path("details").path("oneOf").size())
+        assertEquals(8,details.path("properties").path("details").path("oneOf").size())
         assertFalse(details.path("required").any { it.asString() == "details" })
         val session=doc.path("components").path("schemas").path("PracticeSessionResult")
         assertTrue(session.path("properties").path("evaluationId").path("nullable").asBoolean(),session.toString())

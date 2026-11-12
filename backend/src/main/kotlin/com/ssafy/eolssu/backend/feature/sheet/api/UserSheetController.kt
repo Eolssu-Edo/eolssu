@@ -80,6 +80,8 @@ class UserSheetController(
     ): ResponseEntity<*> {
         val id = sheetId.takeIf(ID::matches)?.toLong() ?: return error(ErrorCode.INVALID_REQUEST)
         val score = request.score?.takeIf { it.isObject } ?: return error(ErrorCode.INVALID_REQUEST)
+        val expressions = request.expressions?.takeUnless { it.isNull }
+        if (expressions != null && !expressions.isObject) return error(ErrorCode.INVALID_REQUEST)
         // JsonNode 속성의 JSON null은 NullNode로 온다. 선택 필드이므로 생략과 같게 본다.
         val resolved = request.resolvedIssueIds?.takeUnless { it.isNull }
         if (resolved != null && !(resolved.isArray && resolved.all { it.isString })) return error(ErrorCode.INVALID_REQUEST)
@@ -91,6 +93,7 @@ class UserSheetController(
             jangdanId = request.jangdanId?.toLong(),
             bpm = request.bpm!!,
             scoreJson = json.writeValueAsString(score),
+            expressionsJson = expressions?.let(json::writeValueAsString),
             resolvedIssueIds = resolved?.toList()?.map { it.stringValue() }.orEmpty(),
             authoringJson = request.authoring?.takeUnless { it.isNull }?.toString(),
         )
@@ -100,6 +103,7 @@ class UserSheetController(
             is SaveSheetScoreResult.UnfilledCells -> ResponseEntity.status(ErrorCode.UNFILLED_CELLS.status)
                 .body(ErrorResponse.of(ErrorCode.UNFILLED_CELLS, mapOf("cellIds" to result.cellIds)))
             is SaveSheetScoreResult.UnsupportedPitches -> ResponseEntity.badRequest().body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, result.details))
+            is SaveSheetScoreResult.Rejected -> ResponseEntity.status(result.code.status).body(ErrorResponse.of(result.code, result.details))
             SaveSheetScoreResult.NotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
             SaveSheetScoreResult.InvalidRequest -> error(ErrorCode.INVALID_REQUEST)
             SaveSheetScoreResult.StateConflict -> error(ErrorCode.STATE_CONFLICT)
@@ -116,6 +120,8 @@ class UserSheetController(
     ): ResponseEntity<*> {
         val id = sheetId.takeIf(ID::matches)?.toLong() ?: return error(ErrorCode.INVALID_REQUEST)
         val score = request.score?.takeIf { it.isObject } ?: return error(ErrorCode.INVALID_REQUEST)
+        val expressions = request.expressions?.takeUnless { it.isNull }
+        if (expressions != null && !expressions.isObject) return error(ErrorCode.INVALID_REQUEST)
         val command = SaveSheetDraftCommand(
             userId = requireNotNull(jwt.subject).toLong(),
             sheetId = id,
@@ -126,6 +132,7 @@ class UserSheetController(
             bpm = request.bpm!!,
             scoreJson = json.writeValueAsString(score),
             authoringJson = request.authoring?.takeUnless { it.isNull }?.toString(),
+            expressionsJson = expressions?.let(json::writeValueAsString),
         )
         return when (val result = editUserSheet.saveDraft(command)) {
             is SaveSheetDraftResult.Saved -> ResponseEntity.ok(
@@ -204,6 +211,7 @@ data class SaveSheetScoreRequest(
     @field:NotNull val score: JsonNode? = null,
     val resolvedIssueIds: JsonNode? = null,
     val authoring: JsonNode? = null,
+    val expressions: JsonNode? = null,
 )
 
 data class SaveSheetDraftRequest(
@@ -215,6 +223,7 @@ data class SaveSheetDraftRequest(
     @field:NotNull @param:JsonDeserialize(using = StrictIntDeserializer::class) val bpm: Int? = null,
     @field:NotNull val score: JsonNode? = null,
     val authoring: JsonNode? = null,
+    val expressions: JsonNode? = null,
 )
 
 data class SavedSheetScore(
@@ -226,11 +235,12 @@ data class SavedSheetScore(
     val pendingIssueCount: Int,
     val events: List<ScoreTimelineEvent>,
     val updatedAt: Instant,
+    val expressions: JsonNode? = null,
 ) {
     companion object {
         fun of(sheet: UserSheet, events: List<ScoreTimelineEvent>) = SavedSheetScore(
             sheet.id.toString(), sheet.scoreVersion.toString(), sheet.status.name, sheet.noteCount, sheet.columnCount, sheet.pendingCellCount,
-            events, sheet.updatedAt,
+            events, sheet.updatedAt, sheet.expressionsJson?.let { JsonMapper.builder().build().readTree(it) },
         )
     }
 }
@@ -262,6 +272,7 @@ data class SheetScore(
     val draft: SheetDraftView?,
     val updatedAt: Instant,
     val authoring: JsonNode? = null,
+    val expressions: JsonNode? = null,
 ) {
     companion object {
         fun of(sheet: UserSheet, events: List<ScoreTimelineEvent>, json: JsonMapper): SheetScore {
@@ -273,7 +284,7 @@ data class SheetScore(
             sheet.scoreVersion.toString(), sheet.status.name, sheet.scoreJson?.let(json::readTree), events,
             sheet.imported?.let { SheetSourceView(sheet.source, it.fileName, it.hwangPitch,emptyList(),null) }, sheet.imported?.conversionStatus?.name,
             details?.path("issues")?.toList() ?: emptyList(), details?.path("notices")?.toList() ?: emptyList(), sheet.draft?.let { SheetDraftView.of(it, sheet.draftRevision, json) }, sheet.updatedAt,
-            com.ssafy.eolssu.backend.feature.sheet.application.SheetAuthoring(json).current(sheet),
+            com.ssafy.eolssu.backend.feature.sheet.application.SheetAuthoring(json).current(sheet), sheet.expressionsJson?.let(json::readTree),
         )
         }
     }
@@ -299,6 +310,7 @@ data class SheetDraftView(
     val draftRevision: Int,
     val savedAt: Instant,
     val authoring: JsonNode? = null,
+    val expressions: JsonNode? = null,
 ) {
     companion object {
         fun of(draft: SheetDraft, revision: Int, json: JsonMapper): SheetDraftView {
@@ -306,7 +318,7 @@ data class SheetDraftView(
             return SheetDraftView(
                 document.path("title").stringValue(), document.path("jangdanId").takeIf { it.isString }?.stringValue(),
                 document.path("bpm").intValue(), document.path("score"), draft.baseScoreVersion.toString(), revision, draft.savedAt,
-                document.path("authoring").takeUnless { it.isMissingNode || it.isNull },
+                document.path("authoring").takeUnless { it.isMissingNode || it.isNull }, document.get("expressions"),
             )
         }
     }

@@ -50,7 +50,7 @@ class NewPublishedSheetCopyRow(
     var id: Long? = null
 }
 
-data class UserSheetRow(
+data class UserSheetRow @org.apache.ibatis.annotations.AutomapConstructor constructor(
     val id: Long,
     val userId: Long,
     val title: String,
@@ -77,6 +77,7 @@ data class UserSheetRow(
     val sourceFileName: String?,
     val conversionResultJson: String?,
     val authoringJson: String?,
+    val expressionsJson: String? = null,
 )
 
 data class SheetJangdanRow(val id: Long, val bpmUnit: String, val name: String, val pattern: String)
@@ -96,6 +97,7 @@ data class SheetScoreUpdateRow(
     val updatedAt: LocalDateTime,
     val pendingCellCount: Int = 0,
     val authoringJson: String? = null,
+    val expressionsJson: String? = null,
 )
 
 data class SheetDraftUpdateRow(

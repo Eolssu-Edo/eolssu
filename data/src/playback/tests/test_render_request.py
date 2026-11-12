@@ -82,7 +82,7 @@ class RenderRequestTests(unittest.TestCase):
                 return json.loads((path/'result.json').read_text())
             self.assertEqual(call(2),{'durationMs':2550})
             self.assertEqual(call(599),{'durationMs':599550})
-            self.assertEqual(call(600),{'errorCode':'EXPORT_TOO_LONG'})
+            self.assertEqual(call(600)['errorCode'],'EXPORT_TOO_LONG')
 
     def test_estimate_of_longest_score_stays_inside_service_deadline(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -141,8 +141,7 @@ class RenderRequestTests(unittest.TestCase):
 
     def test_jangdan_repeats_at_score_cycle_not_catalog_default_bpm(self):
         request = {'score': common_notes(), 'bpm': 60, 'jangdan': {
-            'name': '중모리', 'bpmUnit':'QUARTER',
-            'patternCellEighths': 2,
+            'name': '중모리', 'bpmUnit':'QUARTER', 'patternCellEighths': 2,
             'pattern': {'beats': ['덩', '덕'], 'group': [2]}}}
         events = jangdan_events(request, 5)
         self.assertEqual([(round(at, 3), stroke) for at, stroke, _ in events],

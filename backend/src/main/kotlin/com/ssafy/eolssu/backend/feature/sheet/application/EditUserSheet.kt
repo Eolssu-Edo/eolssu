@@ -5,6 +5,9 @@ import com.ssafy.eolssu.backend.feature.sheet.domain.SheetScoreUpdate
 import com.ssafy.eolssu.backend.feature.sheet.domain.UserSheet
 import com.ssafy.eolssu.backend.feature.sheet.domain.UserSheetRepository
 import com.ssafy.eolssu.backend.feature.song.domain.ScoreTimelineEvent
+import com.ssafy.eolssu.backend.common.error.ErrorCode
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.PlaybackClient
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.PlaybackFailure
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -24,6 +27,7 @@ data class SaveSheetScoreCommand(
     val scoreJson: String,
     val resolvedIssueIds: List<String>,
     val authoringJson: String? = null,
+    val expressionsJson: String? = null,
 )
 
 sealed interface SaveSheetScoreResult {
@@ -34,6 +38,7 @@ sealed interface SaveSheetScoreResult {
     data class UnfilledCells(val cellIds: List<String>) : SaveSheetScoreResult
     data object StateConflict : SaveSheetScoreResult
     data object TooLarge : SaveSheetScoreResult
+    data class Rejected(val code: ErrorCode, val details: Any? = null) : SaveSheetScoreResult
 }
 
 data class SaveSheetDraftCommand(
@@ -46,6 +51,7 @@ data class SaveSheetDraftCommand(
     val bpm: Int,
     val scoreJson: String,
     val authoringJson: String? = null,
+    val expressionsJson: String? = null,
 )
 
 sealed interface SaveSheetDraftResult {
@@ -62,9 +68,9 @@ class EditUserSheet(
     private val scores: SheetScores,
     private val clock: Clock,
     private val json: JsonMapper = JsonMapper.builder().build(),
-    private val jangdanValidation: SheetJangdanValidation? = SheetJangdanValidation(json),
-
     private val authoring: SheetAuthoringValidation? = null,
+    private val jangdanValidation: SheetJangdanValidation? = SheetJangdanValidation(json),
+    private val playback: PlaybackClient? = null,
 ) {
     fun save(command: SaveSheetScoreCommand): SaveSheetScoreResult {
         if (command.scoreJson.toByteArray().size > MAX_SCORE_BYTES) return SaveSheetScoreResult.TooLarge
@@ -94,13 +100,31 @@ class EditUserSheet(
             if (prepared.jangdanName != jangdan.name || prepared.bpmUnit != jangdan.bpmUnit) return SaveSheetScoreResult.InvalidRequest
         }
         if (jangdanValidation?.valid(prepared.json, jangdan) == false) return SaveSheetScoreResult.InvalidRequest
-
         try { authoring?.validate(prepared.json)?.let { return SaveSheetScoreResult.UnsupportedPitches(it) } }
         catch (_: tools.jackson.core.JacksonException) { return SaveSheetScoreResult.InvalidRequest }
         val events = scores.timeline(prepared.json, version, prepared.noteCount, command.bpm, prepared.bpmUnit)
             ?: return SaveSheetScoreResult.InvalidRequest
 
-
+        val expressions = try {
+            SheetExpressions(json).prepare(command.expressionsJson ?: SheetExpressions(json).current(sheet),
+                sheet.scoreJson ?: command.scoreJson, prepared.json, sheet.bpm, command.bpm)
+        } catch (_: SheetExpressionPositionChanged) {
+            return SaveSheetScoreResult.Rejected(ErrorCode.TEMPO_UNRENDERABLE, mapOf("reason" to "PLAN_POSITIONS_CHANGED"))
+        } catch (_: Exception) { return SaveSheetScoreResult.InvalidRequest }
+        if (playback != null) {
+            val score = json.readTree(prepared.json)
+            val request = json.writeValueAsString(mapOf("score" to score,
+                "instrument" to score.path("score").path("instrument").asString().lowercase().replace('_', '-'),
+                "bpm" to command.bpm, "withJangdan" to false, "expressions" to expressions?.let(json::readTree)))
+            try { playback.estimate(request) } catch (error: PlaybackFailure) {
+                return SaveSheetScoreResult.Rejected(when (error.reason) {
+                    "TEMPO_UNRENDERABLE" -> ErrorCode.TEMPO_UNRENDERABLE
+                    "EXPORT_TOO_LONG" -> ErrorCode.EXPORT_TOO_LONG
+                    "INVALID_REQUEST" -> ErrorCode.INVALID_REQUEST
+                    else -> ErrorCode.AUDIO_UNAVAILABLE
+                }, error.details)
+            }
+        }
         val updated = repository.updateScore(
             SheetScoreUpdate(
                 sheetId = sheet.id,
@@ -117,6 +141,7 @@ class EditUserSheet(
                 pendingCellCount = pending,
                 conversionResultJson = details?.let(json::writeValueAsString),
                 authoringJson = authoringMetadata,
+                expressionsJson = expressions,
             ),
         )
         // 읽은 뒤 다른 기기가 먼저 저장했다. 지웠으면 없는 악보다.
@@ -139,7 +164,7 @@ class EditUserSheet(
 
         val savedAt = now()
         val draft = """{"title":${quote(title ?: sheet.title)},"jangdanId":${command.jangdanId?.let { quote(it.toString()) } ?: "null"},""" +
-            """"bpm":${command.bpm},"score":${command.scoreJson}""" +
+            """"bpm":${command.bpm},"score":${command.scoreJson},"expressions":${command.expressionsJson ?: SheetExpressions(json).current(sheet) ?: "null"}""" +
             (authoring?.let { ",\"authoring\":$it" } ?: "") + "}"
         val updated = repository.updateDraft(SheetDraftUpdate(sheet.id, command.userId, command.baseScoreVersion, command.draftRevision, draft, savedAt))
         if (!updated) return repository.find(command.sheetId, command.userId)?.let { SaveSheetDraftResult.StateConflict } ?: SaveSheetDraftResult.NotFound
@@ -159,6 +184,6 @@ class EditUserSheet(
         const val MAX_SCORE_BYTES = 1024 * 1024
         /** 제목 상한(앞뒤 공백을 자른 코드 포인트 수). */
         const val MAX_TITLE_LENGTH = 50
-        internal val BPM_RANGE = 30..160
+        internal val BPM_RANGE = 1..Int.MAX_VALUE
     }
 }

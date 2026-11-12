@@ -51,7 +51,7 @@ class SheetAudios(
         val accepted=first.reusable?.let { it to true } ?: run {
             if(!client.available || !storage.available) reject(ErrorCode.AUDIO_UNAVAILABLE)
             try { client.estimate(first.requestJson) } catch(e: PlaybackFailure) {
-                reject(when(e.reason) { "EXPORT_TOO_LONG" -> ErrorCode.EXPORT_TOO_LONG; "INVALID_REQUEST" -> ErrorCode.STATE_CONFLICT; else -> ErrorCode.AUDIO_UNAVAILABLE })
+                reject(when(e.reason) { "EXPORT_TOO_LONG" -> ErrorCode.EXPORT_TOO_LONG; "TEMPO_UNRENDERABLE" -> ErrorCode.TEMPO_UNRENDERABLE; "INVALID_REQUEST" -> ErrorCode.STATE_CONFLICT; else -> ErrorCode.AUDIO_UNAVAILABLE }, e.details)
             }
             checkNotNull(transaction.execute {
                 val current=prepare(userId,sheetId,instrumentId,withJangdan,bpm)
@@ -78,7 +78,7 @@ class SheetAudios(
         val instrument=mapper.instrument(selectedId) ?: reject(ErrorCode.RESOURCE_NOT_FOUND)
         if(instrument.code !in setOf("DANSO","SOGEUM","JEONGAK_DAEGEUM","SANJO_DAEGEUM")) reject(ErrorCode.RESOURCE_NOT_FOUND)
         val speed=bpm ?: sheet.bpm
-        if(speed !in 30..160 || withJangdan && sheet.jangdanId==null) reject(ErrorCode.INVALID_REQUEST)
+        if(speed <= 0 || withJangdan && sheet.jangdanId==null) reject(ErrorCode.INVALID_REQUEST)
         if(sheet.status!=SheetStatus.EVALUABLE || sheet.pendingCellCount!=0 || sheet.scoreJson==null ||
             sheet.imported?.conversionStatus?.let { it!=SheetImportStatus.DONE }==true) reject(ErrorCode.STATE_CONFLICT)
         scores.timeline(sheet.scoreJson,sheet.scoreVersion,sheet.noteCount,speed,sheet.bpmUnit) ?: reject(ErrorCode.STATE_CONFLICT)
@@ -91,7 +91,8 @@ class SheetAudios(
         if(mapper.active(userId)>0) reject(ErrorCode.AUDIO_IN_PROGRESS)
         val jangdan=if(withJangdan) jangdans.resolve(sheet) ?: reject(ErrorCode.INVALID_REQUEST) else null
         val request=json.writeValueAsString(mapOf("score" to json.readTree(sheet.scoreJson),"instrument" to instrument.code.lowercase().replace('_','-'),
-            "bpm" to speed,"withJangdan" to withJangdan,"jangdan" to jangdan))
+            "bpm" to speed,"withJangdan" to withJangdan,"jangdan" to jangdan,
+            "expressions" to SheetExpressions(json).prepare(sheet.expressionsJson, sheet.scoreJson, sheet.scoreJson, sheet.bpm, speed)?.let(json::readTree)))
         return AudioSnapshot(sheet.scoreVersion,instrument.id,speed,request,null)
     }
 
@@ -255,7 +256,7 @@ class SheetAudios(
             }
         }
     }
-    private fun reject(code: ErrorCode): Nothing=throw SheetAudioRejection(code)
+    private fun reject(code: ErrorCode, details: Any? = null): Nothing=throw SheetAudioRejection(code, details)
     private fun Instant.utc()=LocalDateTime.ofInstant(this,ZoneOffset.UTC)
     private companion object {
         val DOWNLOAD_WINDOW=Duration.ofMinutes(10)

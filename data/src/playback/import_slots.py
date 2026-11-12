@@ -5,6 +5,7 @@ from fractions import Fraction
 from .expressions import symbols_for, LENGTH_MARKS
 from .common_score import ANCHOR_OFFSETS, YUL_NAMES
 from .score import reject_unknown, require
+from .tempo_repeat import PerformanceClock
 
 
 def source_slots(source, config, units, marks, symbol_name):
@@ -77,6 +78,8 @@ def source_slots(source, config, units, marks, symbol_name):
 def expand_locations(score, mapping, groups, source, base_map):
     """Map original slot spans to display units, respecting concrete-note durations."""
     by_event = {e['id']: e for e in source['events']}
+    timing = mapping['timingMap']
+    clock = PerformanceClock(timing['spans'], timing['tempos'], timing['baseBpm'])
     intervals, cursor = {}, Fraction()
     for note in score['notes']:
         start, end = cursor, cursor + Fraction(note['duration'])
@@ -116,6 +119,16 @@ def expand_locations(score, mapping, groups, source, base_map):
                         item['source_slot'] = {k: loc[k] for k in ('gak', 'cell', 'row', 'unit')}
                         item.update(row=unit['row'] + 1, unit=unit['col'] + 1,
                                     start_quarters=str(a + (b-a)*j/len(chunk)), duration_quarters=str((b-a)/len(chunk)))
+                        source_start = float(Fraction(loc['source_start_quarters']))
+                        source_end = source_start + float(Fraction(loc['source_duration_quarters']))
+                        chunk_start = Fraction(item['start_quarters'])
+                        chunk_end = chunk_start + Fraction(item['duration_quarters'])
+                        # Display chunks are split after tempo. Project their actual time fractions
+                        # back to the weighted written clock, not to the equally spaced grid units.
+                        item['accompaniment_start_quarters'] = clock.written_at_time_fraction(
+                            source_start, source_end, float((chunk_start - start) / width))
+                        item['accompaniment_end_quarters'] = clock.written_at_time_fraction(
+                            source_start, source_end, float((chunk_end - start) / width))
                         expanded.append((owner, item))
                 require(Fraction(expanded[0][1]['start_quarters']) == start and
                         sum(Fraction(v['duration_quarters']) for _, v in expanded) == width,

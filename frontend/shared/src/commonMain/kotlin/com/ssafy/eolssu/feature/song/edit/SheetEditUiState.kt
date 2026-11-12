@@ -85,6 +85,7 @@ enum class SheetEditMessage {
     PreviewNeedsAudio,
 
     ReviewBeforeReshape,
+    TempoPlanBeforeReshape,
 
     /** 서버 문서가 없는 경로 등에서 제공하지 않는 기능. */
     ComingSoon,
@@ -131,6 +132,8 @@ data class SheetEditUiState(
     val deviceAudio: DeviceSheetAudio? = null,
     val audioDownloading: Boolean = false,
     val message: SheetEditMessage? = null,
+    val tempoIssue: com.ssafy.eolssu.data.song.SheetTempoIssue? = null,
+    val hasTempoPlan: Boolean = false,
     val documentLoading: Boolean = false,
     val documentFailed: Boolean = false,
     val practiceVersionChanged: Boolean = false,
@@ -158,7 +161,7 @@ data class SheetEditUiState(
     internal fun updateDetails(title: String, bpm: Int): SheetEditUiState {
         if (!canEditDetails || bpm !in SheetBpmRange) return this
         val normalizedTitle = normalizedSheetTitle(title) ?: return this
-        return commit(draft.copy(title = normalizedTitle, bpm = bpm))
+        return commit(draft.copy(title = normalizedTitle, bpm = bpm)).copy(tempoIssue = null)
     }
 
     /** 편집 설정의 빠르기·장단을 한 번에 적용한다. 제목은 저장 창에서만 바꾼다. */
@@ -303,12 +306,15 @@ data class SheetEditUiState(
     fun removeSigimsae(position: Int): SheetEditUiState = commit(draft.removeSigimsae(selected, position, sigimsaeSub))
 
 
-    fun split(): SheetEditUiState = commit(draft.split(selected), sub = null)
+    fun split(): SheetEditUiState = if (hasTempoPlan) copy(message = SheetEditMessage.TempoPlanBeforeReshape)
+        else commit(draft.split(selected), sub = null)
 
-    fun merge(): SheetEditUiState = commit(draft.merge(selected), sub = null)
+    fun merge(): SheetEditUiState = if (hasTempoPlan) copy(message = SheetEditMessage.TempoPlanBeforeReshape)
+        else commit(draft.merge(selected), sub = null)
 
     /** 고른 정간의 각 왼쪽에 빈 각을 넣고 새 각의 첫 정간을 고른다. */
     fun addColumn(): SheetEditUiState {
+        if (hasTempoPlan) return copy(message = SheetEditMessage.TempoPlanBeforeReshape)
         val column = draft.columnOf(selected)
         val next = draft.addColumnAfter(column)
         return commit(next, next.indexOf(column + 1, 0))
@@ -316,6 +322,7 @@ data class SheetEditUiState(
 
     /** 고른 정간의 각을 지운다. 선택은 같은 자리(마지막 각이었으면 새 마지막 각)로 둔다. */
     fun deleteColumn(): SheetEditUiState {
+        if (hasTempoPlan) return copy(message = SheetEditMessage.TempoPlanBeforeReshape)
         val column = draft.columnOf(selected)
         val next = draft.deleteColumn(column)
         if (next == draft) return this
@@ -427,7 +434,7 @@ data class SheetEditUiState(
     }
 }
 
-internal val SheetBpmRange = 30..160
+internal val SheetBpmRange = 1..Int.MAX_VALUE
 
 /** SHT-04·11 count Unicode code points after trimming, including a surrogate pair as one. */
 internal fun normalizedSheetTitle(value: String): String? {
