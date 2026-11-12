@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice.layout
 
+import com.ssafy.eolssu.feature.practice.component.PracticeSectionBar
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +43,7 @@ internal fun PracticeMediumLayout(
             PracticeTopBar(
                 state, actions.onBack, actions.onOpenSettings, Modifier.padding(horizontal = 12.dp), maxWidth = WindowBreakpoints.ContentMaxWidth,
                 onToggleStep = actions.bottom.onToggleStep,
+                onToggleSection = actions.bottom.onToggleSection,
             )
         },
         bottomBar = {
@@ -53,10 +56,14 @@ internal fun PracticeMediumLayout(
         },
     ) {
         if (state.song != null) {
-            PracticeScoreArea(
-                state, PracticeScoreStyle.TabletPortrait, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
-                livePitch = livePitch,
-            )
+            Column(Modifier.fillMaxSize()) {
+                // 구간 연습(S15P31E102-776): 악보 위에 안내·‘취약 구간으로’·반복 횟수.
+                PracticeSectionBar(state, actions.bottom, Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+                PracticeScoreArea(
+                    state, PracticeScoreStyle.TabletPortrait, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
+                    Modifier.weight(1f), livePitch = livePitch,
+                )
+            }
         }
     }
 }

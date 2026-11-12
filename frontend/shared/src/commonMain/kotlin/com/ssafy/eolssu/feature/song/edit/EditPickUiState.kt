@@ -4,8 +4,8 @@ import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongLevel
 import com.ssafy.eolssu.data.song.PublishedSheetCopyProblem
-import com.ssafy.eolssu.feature.song.SongSortOrder
-import com.ssafy.eolssu.feature.song.sortedByTitle
+import com.ssafy.eolssu.core.model.SongSortOrder
+import com.ssafy.eolssu.core.model.sortedByTitle
 
 /** 불러올 악보 목록의 탭. 화면에 이 순서(제공 곡 → 내 악보)로 놓는다. */
 enum class EditPickTab { Songs, Mine }

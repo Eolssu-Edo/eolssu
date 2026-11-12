@@ -55,10 +55,6 @@ interface PracticeRecordRepository {
             (rows.size + RECORD_LIST_PAGE_SIZE - 1) / RECORD_LIST_PAGE_SIZE, week)
     }
 
-    /** 오래된순 화면에서 첫 페이지에 없는 곡의 최신 기록을 선택한다. */
-    suspend fun newestRecord(songId: String): PracticeRecord? =
-        records.value.filter { it.songId == songId }.maxByOrNull { it.recordedAtMillis }
-
     /** 페이지에서 상세로 이동할 때 선택한 한 행을 넘긴다. */
     fun rememberDetailPreview(record: PracticeRecord, session: AccountSession?) {}
 
