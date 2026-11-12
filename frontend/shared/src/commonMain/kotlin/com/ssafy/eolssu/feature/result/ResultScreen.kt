@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.result
 
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import com.ssafy.eolssu.core.ui.component.rememberHideKeyboard
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -387,6 +391,7 @@ private fun SaveFormSheet(state: ResultUiState, result: EvaluationResult, song: 
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, color = colors.text)
+                    val hideKeyboard = rememberHideKeyboard()
                     if (state.memo.isEmpty()) Text(stringResource(Res.string.result_memo_placeholder), style = textStyle, color = colors.textDisabled)
                     BasicTextField(
                         value = state.memo,
@@ -395,6 +400,9 @@ private fun SaveFormSheet(state: ResultUiState, result: EvaluationResult, song: 
                         enabled = !state.savingRecord,
                         textStyle = textStyle,
                         cursorBrush = SolidColor(colors.text),
+                        // 키보드 확인을 누르면 키보드를 내린다(S15P31E102-800).
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onAny = { hideKeyboard() }),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

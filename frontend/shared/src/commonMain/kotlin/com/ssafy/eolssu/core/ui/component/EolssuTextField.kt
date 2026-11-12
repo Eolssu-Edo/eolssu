@@ -21,7 +21,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
@@ -68,6 +70,8 @@ fun EolssuTextField(
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
+    val focusManager = LocalFocusManager.current
+    val hideKeyboard = rememberHideKeyboard()
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (!labelInside) Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
         val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, color = colors.text)
@@ -90,7 +94,17 @@ fun EolssuTextField(
                 imeAction = imeAction,
             ),
             keyboardActions = KeyboardActions(onAny = {
-                if (onImeAction != null) onImeAction() else defaultKeyboardAction(imeAction)
+                // '다음'은 다음 칸으로 옮기고, 옮길 칸이 없으면 키보드를 내린다.
+                // 확인·완료 등은 키보드를 먼저 내린 뒤 [onImeAction](로그인·저장 등)을 한다(S15P31E102-800).
+                when {
+                    imeAction == ImeAction.Next && onImeAction != null -> onImeAction()
+                    imeAction == ImeAction.Next -> if (!focusManager.moveFocus(FocusDirection.Next)) hideKeyboard()
+                    imeAction == ImeAction.Previous -> if (onImeAction != null) onImeAction() else focusManager.moveFocus(FocusDirection.Previous)
+                    else -> {
+                        hideKeyboard()
+                        onImeAction?.invoke()
+                    }
+                }
             }),
             modifier = Modifier
                 .fillMaxWidth()
