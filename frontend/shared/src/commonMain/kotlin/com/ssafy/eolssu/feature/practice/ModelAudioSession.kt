@@ -364,6 +364,20 @@ internal fun Song.modelJangdanTickAt(audio: ModelAudio, mediaPositionMs: Double)
     return requireNotNull(event.startTick) + requireNotNull(event.durationTick) * point.fraction
 }
 
+/** 현재 수행부터 선택 구간을 처음 벗어나는 시각. 구간 안에서만 도는 반복은 보존한다. */
+internal fun Song.modelSectionEndMediaPosition(audio: ModelAudio, ticks: ClosedFloatingPointRange<Double>, mediaPositionMs: Double): Double {
+    val performance = audio.performance ?: return modelMediaPosition(audio, ticks.endInclusive).toDouble()
+    val elapsed = (mediaPositionMs - audio.startOffsetMs).coerceAtLeast(0.0)
+    for (segment in performance.segments) {
+        if (segment.endMs <= elapsed) continue
+        val entryMs = maxOf(elapsed, segment.startMs)
+        val entryTick = segment.sourceTickAt(entryMs)
+        if (entryTick < ticks.start || entryTick >= ticks.endInclusive) return audio.startOffsetMs + entryMs
+        if (segment.endTick > ticks.endInclusive) return audio.startOffsetMs + segment.mediaMsAt(ticks.endInclusive)
+    }
+    return audio.startOffsetMs + performance.durationMs
+}
+
 /** 원본 악보 tick을 모범 음원의 위치로 바꾼다. 꾸밈음의 연주 시간과 앞 여백을 보존한다. */
 internal fun Song.modelMediaPosition(audio: ModelAudio, tick: Double): Long {
     val performance = audio.performance

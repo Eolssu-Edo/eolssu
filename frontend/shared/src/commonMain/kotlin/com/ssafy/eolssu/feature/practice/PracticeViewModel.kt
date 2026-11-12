@@ -212,6 +212,11 @@ class PracticeViewModel(
         val resumeAfter = modelResumeAfterTick
         modelResumeAfterTick = null
         val startAt = modelTickAtReportedPosition()
+        val sectionEndMs = state.sectionTicks?.let { ticks ->
+            val playback = modelAudio.state.value
+            val audio = playback.audio
+            if (audio == null) null else state.song?.modelSectionEndMediaPosition(audio, ticks, playback.mediaPositionMs.toDouble())
+        }
         var lastMediaMs: Double? = null
         jangdanAudio.start(currentPlan(), accompanyingModel = true, resumeAfterTick = resumeAfter, startAtTick = startAt,
             clockReady = { modelAudio.playbackClockReady }, tick = {
@@ -226,7 +231,7 @@ class PracticeViewModel(
                 val endMs = audio.startOffsetMs + song.modelScoreDurationMs(audio)
                 when {
                     mediaMs < audio.startOffsetMs -> -1.0
-                    mediaMs >= endMs -> null
+                    mediaMs >= endMs || sectionEndMs != null && mediaMs >= sectionEndMs -> null
                     else -> song.modelJangdanTickAt(audio, mediaMs)
                 }
             }
@@ -305,10 +310,11 @@ class PracticeViewModel(
         _uiState.update { it.copy(follow = true) }
         soundPurpose = SoundPurpose.Rhythm
         val resumeAfter = if (rhythmStartsAtAttack) null else _uiState.value.elapsedMs / plan.msPerTick
+        val endTick = _uiState.value.sectionTicks?.endInclusive
+            ?: song.timeline.last().let { (it.startTick!! + it.durationTick!!).toDouble() }
         jangdanAudio.start(plan, accompanyingModel = false, resumeAfterTick = resumeAfter, tick = {
-            val end = song.timeline.last().let { it.startTick!! + it.durationTick!! }
             if (_uiState.value.mode == PracticeMode.Rhythm && _uiState.value.playing)
-                stepClock?.elapsedMs()?.div(plan.msPerTick)?.takeIf { it < end } else null
+                stepClock?.elapsedMs()?.div(plan.msPerTick)?.takeIf { it < endTick } else null
         }, onStarted = {
             rhythmStartsAtAttack = false
             _uiState.update { it.copy(playing = true) }

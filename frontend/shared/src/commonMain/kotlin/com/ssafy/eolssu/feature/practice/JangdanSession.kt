@@ -73,7 +73,12 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
                         if (player.failed) return@withContext JangdanStatus.Failed
                         if (player.interrupted) return@withContext JangdanStatus.Interrupted
                         if (!clockReady()) { delay(5); continue }
-                        val now = tick() ?: break
+                        val now = tick()
+                        if (now == null) {
+                            // The owner/UI may still be stalled when a playback boundary is reached.
+                            player.silence()
+                            break
+                        }
                         val strikes = cursor.due(now)
                         if (cursor.movedBackward) player.silence()
                         if (strikes.any { !player.play(it.clip, it.gain) }) return@withContext JangdanStatus.Failed

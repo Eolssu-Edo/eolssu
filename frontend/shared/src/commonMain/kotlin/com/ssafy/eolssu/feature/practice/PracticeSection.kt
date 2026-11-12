@@ -45,11 +45,11 @@ fun PracticeUiState.openSectionPractice(section: ScoreSection): PracticeUiState 
     )
 }
 
-/** 재생이 구간 끝을 지났는지. */
+/** 재생이 구간 밖으로 나갔는지. 반복으로 구간 앞에 돌아간 경우도 끝이다. */
 val PracticeUiState.passedSectionEnd: Boolean
     get() {
         val range = sectionEvents ?: return false
-        return position > range.last
+        return position !in range
     }
 
 /** 구간 끝에 닿았다: 구간 처음으로 돌아가 멈춘다. 다시 누르면 또 한 번 연습한다. */

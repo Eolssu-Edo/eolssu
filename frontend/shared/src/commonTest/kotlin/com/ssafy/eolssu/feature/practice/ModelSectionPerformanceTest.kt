@@ -19,6 +19,23 @@ import kotlin.test.assertFalse
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ModelSectionPerformanceTest {
+    @Test fun sectionStopsWhenThePerformanceRepeatsBackOutsideTheSelection() = practice { vm, player ->
+        vm.startModel(); runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 2250); runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 3250); runCurrent()
+        assertFalse(vm.uiState.value.playing)
+        assertEquals(2250L, player.requestedPosition)
+    }
+
+    @Test fun sectionEndFollowsTheCurrentOccurrenceAndPreservesRepeatsInsideTheSection() {
+        val song = previewSong()
+        val audio = previewAudio().withPerformance(previewJson(), song, SourceHash)
+        assertEquals(3250.0, song.modelSectionEndMediaPosition(audio, 8.0..12.0, 2250.0))
+        assertEquals(6500.0, song.modelSectionEndMediaPosition(audio, 8.0..12.0, 5500.0))
+        assertEquals(6500.0, song.modelSectionEndMediaPosition(audio, 0.0..12.0, 0.0))
+        assertEquals(1250.0, song.modelSectionEndMediaPosition(audio, 0.0..4.0, 0.0))
+    }
+
     @Test fun sectionRestartUsesPerformedTimeAndWholeScoreRestartStillUsesZero() = practice { vm, player ->
         vm.startModel()
         runCurrent()

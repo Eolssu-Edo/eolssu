@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [연습 장단 타격 간격과 악보 진행 지연 수정 (805)](plans/S15P31E102-805.md) · [계약](specs/practice-playback-timing.md) · [실기기 측정](knowledge/frontend/android-jangdan-timing.md)
+
 - [악보 빠르기 설정과 기기 반주 시간표 동기화 (791)](plans/S15P31E102-791.md)
 - [악보 장단 선택과 시작 위치 안내 개선 (772)](plans/S15P31E102-772.md)
 - [원본 기준 이조와 옥타브 조정 확인 화면 구현 (771)](plans/S15P31E102-771.md)
