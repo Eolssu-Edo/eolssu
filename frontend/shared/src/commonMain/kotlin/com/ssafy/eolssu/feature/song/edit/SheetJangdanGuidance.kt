@@ -3,27 +3,13 @@ package com.ssafy.eolssu.feature.song.edit
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheet_jangdan_beat_quarter
 import eolssu.shared.generated.resources.sheet_jangdan_beat_dotted_quarter
-import eolssu.shared.generated.resources.sheet_jangdan_current_timing
-import eolssu.shared.generated.resources.sheet_jangdan_gak_calculation
-import eolssu.shared.generated.resources.sheet_jangdan_other_lengths
 import eolssu.shared.generated.resources.sheet_jangdan_option_beats
-import eolssu.shared.generated.resources.sheet_jangdan_timing_unavailable
 import eolssu.shared.generated.resources.sheet_jangdan_no_match_help
-import eolssu.shared.generated.resources.sheet_jangdan_origin
-import eolssu.shared.generated.resources.sheet_jangdan_melody_entry
-import eolssu.shared.generated.resources.sheet_jangdan_no_pickup
-import eolssu.shared.generated.resources.sheet_jangdan_timing_details
-import eolssu.shared.generated.resources.sheet_jangdan_timing_close
 import org.jetbrains.compose.resources.stringResource
 
 internal data class SheetGakBeats(val cells: Int, val beats: String)
@@ -61,33 +47,6 @@ private fun beatFraction(numerator: Long, denominator: Long): String {
     val divisor = gcd(numerator, denominator)
     val bottom = denominator / divisor
     return if (bottom == 1L) (numerator / divisor).toString() else "${numerator / divisor}/$bottom"
-}
-
-@Composable
-internal fun SheetJangdanTimingText(draft: SheetDraft) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    TextButton(onClick = { expanded = !expanded }) {
-        Text(stringResource(if (expanded) Res.string.sheet_jangdan_timing_close else Res.string.sheet_jangdan_timing_details))
-    }
-    if (!expanded) return
-    val timing = draft.jangdanTiming()
-    if (timing == null) {
-        Text(stringResource(Res.string.sheet_jangdan_timing_unavailable), style = MaterialTheme.typography.bodySmall)
-        return
-    }
-    val parts = timing.gakLengths.take(4).map {
-        stringResource(Res.string.sheet_jangdan_gak_calculation, it.cells, timing.beatsPerCell, it.beats)
-    }.toMutableList()
-    if (timing.gakLengths.size > 4) parts += stringResource(Res.string.sheet_jangdan_other_lengths)
-    Text(stringResource(Res.string.sheet_jangdan_current_timing, beatUnitName(timing.bpmUnit), parts.joinToString(" / ")),
-        style = MaterialTheme.typography.bodySmall)
-    Text(stringResource(Res.string.sheet_jangdan_origin), style = MaterialTheme.typography.bodySmall)
-    Text(stringResource(Res.string.sheet_jangdan_no_pickup), style = MaterialTheme.typography.bodySmall)
-    runCatching { draft.toCommonScore() }.getOrNull()?.events?.firstOrNull { it.kind == "NOTE" }?.let { first ->
-        Text(stringResource(Res.string.sheet_jangdan_melody_entry,
-            beatFraction(first.startTick, requireNotNull(draft.original).music.ticksPerBeat.toLong())),
-            style = MaterialTheme.typography.bodySmall)
-    }
 }
 
 @Composable

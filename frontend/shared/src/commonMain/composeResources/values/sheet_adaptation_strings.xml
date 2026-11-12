@@ -13,6 +13,7 @@
     <string name="sheet_adapt_unresolved_count">직접 고쳐야 할 음 %1$d개</string>
     <string name="sheet_adapt_empty">맞출 수 있는 음이 없어요.</string>
     <string name="sheet_adapt_confirm_title">음높이를 다시 맞출까요?</string>
-    <string name="sheet_adapt_confirm_message">직접 바꾼 음높이·옥타브는 덮어씁니다. 기존 음은 원본 기준으로 다시 맞추고, 새로 넣은 음은 현재 음높이를 기준으로 맞춥니다.\n\n제목·빠르기·장단·시김새·가사·정간 나눔은 유지됩니다. 적용 후 되돌리기로 취소할 수 있어요.</string>
+    <string name="sheet_adapt_confirm_overwrite">직접 바꾼 음높이·옥타브는 덮어씁니다.</string>
+    <string name="sheet_adapt_confirm_message">기존 음은 원본 기준으로 다시 맞추고, 새로 넣은 음은 현재 음높이를 기준으로 맞춥니다. 적용 후 되돌리기로 취소할 수 있어요.</string>
     <string name="sheet_adapt_confirm_apply">다시 맞추기</string>
 </resources>
