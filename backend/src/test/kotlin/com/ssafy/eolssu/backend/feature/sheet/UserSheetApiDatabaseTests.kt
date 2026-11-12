@@ -40,6 +40,19 @@ private const val OTHER = 991391L
 @ActiveProfiles("db")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class UserSheetApiDatabaseTests {
+    // This suite isolates persistence/ownership. SheetAuthoringCatDatabaseTests exercises the actual preflight/render path.
+    @org.springframework.boot.test.context.TestConfiguration
+    class PreflightConfig {
+        @org.springframework.context.annotation.Bean
+        @org.springframework.context.annotation.Primary
+        fun playback(): com.ssafy.eolssu.backend.feature.sheet.infrastructure.PlaybackClient =
+            object : com.ssafy.eolssu.backend.feature.sheet.infrastructure.PlaybackClient {
+                override fun estimate(requestJson: String) = 1000L
+                override fun generate(requestJson: String): com.ssafy.eolssu.backend.feature.sheet.infrastructure.GeneratedSheetAudio =
+                    error("This persistence suite does not generate audio")
+            }
+    }
+
     @Autowired private lateinit var jdbc: JdbcTemplate
     @Autowired private lateinit var copyPublishedSheet: CopyPublishedSheet
     @Value("\${local.server.port}") private var port = 0
@@ -126,8 +139,9 @@ class UserSheetApiDatabaseTests {
 
     @Test
     fun `list pages only the owner's sheets newest first`() {
-        for (index in 1..3) insertBlank(OWNER, "악보 $index")
-        insertBlank(OTHER, "남의 악보")
+        insertSongCopy(OWNER, "악보 1")
+        for (index in 2..3) insertBlank(OWNER, "악보 $index")
+        insertSongCopy(OTHER, "남의 악보")
         jdbc.update("UPDATE user_sheets SET updated_at='2026-11-01 00:00:00' WHERE user_id=$OWNER")
         jdbc.update("UPDATE user_sheets SET updated_at='2026-11-02 00:00:00' WHERE user_id=$OWNER AND title='악보 1'")
 
@@ -139,12 +153,16 @@ class UserSheetApiDatabaseTests {
         val jangdanName = jdbc.queryForObject("SELECT name FROM jangdans WHERE id=?", String::class.java, jangdanId)
         assertEquals(jangdanName, item.path("jangdanName").asString())
         assertEquals("MANUAL", item.path("source").asString())
+        assertEquals("DANSO", item.path("instrumentCode").asString())
+        assertTrue(first.path("items").get(1).path("instrumentCode").isNull)
         assertEquals("2026-11-02T00:00:00Z", item.path("updatedAt").asString())
         assertTrue(item.has("sourcePageCount") && item.path("sourcePageCount").isNull)
         val second = json.readTree(get(OWNER, "/api/users/me/sheets?page=1&size=2").body()).path("result")
         assertEquals(listOf("악보 2"), second.path("items").titles())
         assertEquals(0, json.readTree(get(OWNER, "/api/users/me/sheets?kind=MIDI").body()).path("result").path("items").size())
         assertEquals(400, get(OWNER, "/api/users/me/sheets?size=101").statusCode())
+        assertEquals(listOf("남의 악보"), json.readTree(get(OTHER, "/api/users/me/sheets").body()).path("result").path("items").titles())
+        assertEquals(401, get(null, "/api/users/me/sheets").statusCode())
     }
 
     @Test
@@ -200,10 +218,9 @@ class UserSheetApiDatabaseTests {
         )
         assertEquals(404, copySong(OWNER, "unpublished", """"993902"""").statusCode())
         jdbc.update("UPDATE songs SET status='PUBLISHED' WHERE id=993902")
-        val tooFast = copySong(OWNER, "too-fast", """"993902"""")
-        assertEquals(409, tooFast.statusCode(), tooFast.body())
-        assertEquals("STATE_CONFLICT", json.readTree(tooFast.body()).path("result").path("errorCode").asString())
-        repeat(10) { insertBlank(OWNER, "기존 악보 $it") }
+        val faster = copySong(OWNER, "positive-bpm", """"993902"""")
+        assertEquals(201, faster.statusCode(), faster.body())
+        repeat(9) { insertBlank(OWNER, "기존 악보 $it") }
         val full = copySong(OWNER, "full")
         assertEquals(409, full.statusCode(), full.body())
         assertEquals("SHEET_LIMIT_EXCEEDED", json.readTree(full.body()).path("result").path("errorCode").asString())
@@ -247,6 +264,7 @@ class UserSheetApiDatabaseTests {
         val scoreData = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result").path("scoreData") as ObjectNode
         val updatedAt = jdbc.queryForObject("SELECT updated_at FROM user_sheets WHERE id=$sheetId", String::class.java)
         val partial = scoreData.deepCopy()
+        (partial.path("score") as ObjectNode).put("instrument", "SOGEUM")
         val emptied = partial.path("columns").path(0).path("cells").path(0) as ObjectNode
         emptied.putArray("units")
 
@@ -258,6 +276,7 @@ class UserSheetApiDatabaseTests {
         assertEquals(updatedAt, jdbc.queryForObject("SELECT updated_at FROM user_sheets WHERE id=$sheetId", String::class.java))
         val listed = json.readTree(get(OWNER, "/api/users/me/sheets").body()).path("result").path("items").path(0)
         assertTrue(listed.path("hasDraft").booleanValue())
+        assertEquals("SOGEUM", listed.path("instrumentCode").asString())
         val reopened = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result").path("draft")
         assertEquals(partial, reopened.path("score"))
         assertEquals("고치는 중", reopened.path("title").asString())
@@ -291,6 +310,28 @@ class UserSheetApiDatabaseTests {
     }
 
     @Test
+    fun `already saved unreadable drafts do not advertise an instrument`() {
+        val sheetId = insertSongCopy(OWNER, "아리랑 연습")
+        val detailPath = "/api/users/me/sheets/$sheetId/score"
+        val original = json.readTree(get(OWNER, detailPath).body()).path("result").path("scoreData") as ObjectNode
+        val missingPart = original.deepCopy().also { (it.path("score") as ObjectNode).remove("part") }
+        val unknownField = original.deepCopy().also { (it.path("music") as ObjectNode).put("unknown", true) }
+
+        listOf(missingPart, unknownField).forEachIndexed { revision, unreadable ->
+            val saved = send(OWNER, "PUT", "$detailPath/draft", draftBody("1", revision, unreadable))
+            assertEquals(200, saved.statusCode(), saved.body())
+
+            val response = get(OWNER, "/api/users/me/sheets")
+            assertEquals(200, response.statusCode(), response.body())
+            val item = json.readTree(response.body()).path("result").path("items").path(0)
+            assertEquals(sheetId, item.path("sheetId").asString())
+            assertTrue(item.path("hasDraft").booleanValue())
+            assertTrue(item.path("instrumentCode").isNull, response.body())
+            assertEquals(unreadable, json.readTree(get(OWNER, detailPath).body()).path("result").path("draft").path("score"))
+        }
+    }
+
+    @Test
     fun `a score whose jangdan or ticks do not match is rejected and nothing changes`() {
         val sheetId = insertSongCopy(OWNER, "아리랑 연습")
         val scoreData = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result").path("scoreData") as ObjectNode
@@ -301,6 +342,44 @@ class UserSheetApiDatabaseTests {
         assertEquals(400, wrongJangdan.statusCode(), wrongJangdan.body())
         assertEquals(400, send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score", scoreBody("1", brokenTicks)).statusCode())
         assertEquals(1, count("SELECT score_version FROM user_sheets WHERE id=$sheetId"))
+    }
+
+    @Test
+    fun `new saves allow first rest but reject name-only and incomplete final jangdan cycles`() {
+        val id = insertBlank(OWNER, "장단 시작 검사")
+        val four = json.readTree(requireNotNull(javaClass.getResourceAsStream("/jangdan-playback/authoring-772.json"))) as ObjectNode
+        val notes = four.path("events").filter { it.path("kind").asString() == "NOTE" }
+        notes.forEach { (it as ObjectNode).put("yul", "황").put("octave", 1) }
+        val noteIds = notes.map { it.path("id").asString() }.toSet()
+        four.path("columns").flatMap { it.path("cells").toList() }.forEach { cell -> cell.path("units").forEach { unit ->
+            if (unit.path("eventId").asString() in noteIds && unit.path("eventId").asString() ==
+                "${cell.path("id").asString()}-r${unit.path("row").asInt()}-u${unit.path("col").asInt()}") (unit as ObjectNode).put("symbol", "청황")
+        } }
+        val fourId = jdbc.queryForObject("SELECT id FROM jangdans WHERE name='4박 기본 반주'", Long::class.java)!!
+        val nameOnly = json.readTree(scoreBody("1", four, jangdan = fourId)) as ObjectNode
+        nameOnly.putNull("jangdanId")
+        assertEquals(400, send(OWNER, "PUT", "/api/users/me/sheets/$id/score", json.writeValueAsString(nameOnly)).statusCode())
+        val short = four.deepCopy()
+        val last = short.path("columns").path(1).path("cells") as tools.jackson.databind.node.ArrayNode
+        last.remove(3)
+        val shortEvents = short.path("events") as tools.jackson.databind.node.ArrayNode
+        shortEvents.remove(shortEvents.size() - 1)
+        assertEquals(400, send(OWNER, "PUT", "/api/users/me/sheets/$id/score", scoreBody("1", short, jangdan = fourId)).statusCode())
+        assertEquals(1, count("SELECT score_version FROM user_sheets WHERE id=$id"))
+
+        val saved = send(OWNER, "PUT", "/api/users/me/sheets/$id/score", scoreBody("1", four, jangdan = fourId))
+        assertEquals(200, saved.statusCode(), saved.body())
+        val timeline = json.readTree(saved.body()).path("result").path("events")
+        assertEquals("REST", timeline.path(0).path("kind").asString())
+        assertEquals(1.5, timeline.first { it.path("kind").asString() == "NOTE" }.path("onsetBeat").doubleValue())
+        val stored = json.readTree(get(OWNER, "/api/users/me/sheets/$id/score").body()).path("result").path("scoreData")
+        assertEquals(four.path("events"), stored.path("events"))
+        assertEquals(four.path("columns"), stored.path("columns"))
+        val none = four.deepCopy().also { (it.path("music") as ObjectNode).put("jangdan", "") }
+        val without = json.readTree(scoreBody("2", none, jangdan = fourId)) as ObjectNode
+        without.putNull("jangdanId")
+        assertEquals(200, send(OWNER, "PUT", "/api/users/me/sheets/$id/score", json.writeValueAsString(without)).statusCode())
+        assertEquals(3, count("SELECT score_version FROM user_sheets WHERE id=$id"))
     }
 
     @Test
@@ -387,6 +466,57 @@ class UserSheetApiDatabaseTests {
     }
 
     // 만들기 API(SHT-03)는 S15P31E102-462에서 지웠다. 그 API가 만들던 MANUAL 행과 같은 값으로 바로 넣는다.
+    @Test
+    fun `source snapshot survives draft and older clients and cannot be rewritten`() {
+        val id = insertSongCopy(OWNER, "원본 보존")
+        fun document() = json.readTree(get(OWNER, "/api/users/me/sheets/$id/score").body()).path("result")
+        val initial = document()
+        val metadata = initial.path("authoring").deepCopy() as ObjectNode
+        assertEquals(initial.path("scoreData"), metadata.path("source").path("score"))
+        assertTrue(metadata.path("source").path("notes").size() > 0)
+        metadata.putObject("adaptation").put("instrument", "DANSO").put("transpose", 0).putArray("changes")
+        val draft = json.readTree(draftBody("1", 0, initial.path("scoreData"))) as ObjectNode
+        draft.set("authoring", metadata)
+        val drafted = send(OWNER, "PUT", "/api/users/me/sheets/$id/score/draft", draft.toString())
+        assertEquals(200, drafted.statusCode(), drafted.body())
+        assertEquals(metadata, document().path("draft").path("authoring"))
+        val forged = metadata.deepCopy()
+        (forged.path("source").path("notes").get(0) as ObjectNode).put("midi", 0)
+        val save = json.readTree(scoreBody("1", initial.path("scoreData"))) as ObjectNode
+        save.set("authoring", forged)
+        assertEquals(400, send(OWNER, "PUT", "/api/users/me/sheets/$id/score", save.toString()).statusCode())
+        save.remove("authoring") // Older clients preserve the server snapshot.
+        val result = send(OWNER, "PUT", "/api/users/me/sheets/$id/score", save.toString())
+        assertEquals(200, result.statusCode(), result.body())
+        assertEquals(metadata.path("source"), document().path("authoring").path("source"))
+        assertTrue(document().path("draft").isNull)
+        val reference = json.createObjectNode().put("schema", "sheet-authoring/v1")
+        reference.putObject("source").put("scoreSha256", metadata.path("source").path("scoreSha256").asString())
+        val next = json.readTree(scoreBody("2", document().path("scoreData"))) as ObjectNode
+        next.set("authoring", reference)
+        val savedReference = send(OWNER, "PUT", "/api/users/me/sheets/$id/score", next.toString())
+        assertEquals(200, savedReference.statusCode(), savedReference.body())
+        assertEquals(metadata.path("source"), document().path("authoring").path("source"))
+    }
+
+    @Test
+    fun `legacy blank draft captures source when it first becomes readable`() {
+        val id = insertBlank(OWNER, "이전 빈 초안")
+        val score = json.readTree(get(OWNER, "/api/songs/1/score").body()).path("result").path("score")
+        fun document() = json.readTree(get(OWNER, "/api/users/me/sheets/$id/score").body()).path("result")
+        assertTrue(document().path("authoring").isNull)
+        val first = send(OWNER, "PUT", "/api/users/me/sheets/$id/score/draft", draftBody("1", 0, score))
+        assertEquals(200, first.statusCode(), first.body())
+        val readable = document()
+        assertTrue(readable.path("draft").path("authoring").isNull)
+        assertEquals(score, readable.path("authoring").path("source").path("score"))
+        val second = send(OWNER, "PUT", "/api/users/me/sheets/$id/score/draft", draftBody("1", 1, score))
+        assertEquals(200, second.statusCode(), second.body())
+        val captured = document()
+        assertEquals(readable.path("authoring"), captured.path("draft").path("authoring"))
+        assertEquals(2, captured.path("draft").path("draftRevision").intValue())
+    }
+
     private fun insertBlank(user: Long, title: String, columnCount: Int = 4): String {
         val key = "blank-${keys++}"
         jdbc.update(

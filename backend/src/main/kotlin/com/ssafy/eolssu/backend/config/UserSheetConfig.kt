@@ -54,7 +54,15 @@ class UserSheetConfig {
     fun getUserSheets(repository: UserSheetRepository, scores: SheetScores) = GetUserSheets(repository, scores)
 
     @Bean
-    fun editUserSheet(repository: UserSheetRepository, scores: SheetScores, clock: Clock) = EditUserSheet(repository, scores, clock)
+    fun sheetAuthoringValidation(capabilities: com.ssafy.eolssu.backend.feature.catalog.application.AuthoringCapabilities, json: JsonMapper) =
+        com.ssafy.eolssu.backend.feature.sheet.application.SheetAuthoringValidation(capabilities, json)
+
+    @Bean
+    fun editUserSheet(repository: UserSheetRepository, scores: SheetScores, clock: Clock, json: JsonMapper,
+        authoring: com.ssafy.eolssu.backend.feature.sheet.application.SheetAuthoringValidation,
+        playback: com.ssafy.eolssu.backend.feature.sheet.infrastructure.PlaybackClient) =
+        EditUserSheet(repository, scores, clock, json, authoring = authoring, playback = playback,
+            jangdanValidation = com.ssafy.eolssu.backend.feature.sheet.application.SheetJangdanValidation(json))
 
     @Bean
     fun copyPublishedSheet(songs: SongScoreMapper, sheets: UserSheetMapper, imports: SheetImportMapper,

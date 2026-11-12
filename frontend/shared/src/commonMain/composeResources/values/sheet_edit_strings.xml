@@ -6,7 +6,6 @@
 
     <!-- EDIT-01 악보 추가 -->
     <string name="sheetedit_new_title">악보 추가</string>
-    <string name="sheetedit_new_subtitle">정간보로 만들어 내 악보에 저장해요</string>
     <string name="sheetedit_new_question">어떻게 추가할까요?</string>
     <string name="sheetedit_new_jg_title">정간보 가져오기</string>
     <string name="sheetedit_new_staff_title">오선보 가져오기</string>
@@ -82,14 +81,10 @@
     <string name="sheetedit_pick_confirm">선택</string>
     <string name="sheetedit_pick_copy">내 악보로 복사</string>
     <string name="sheetedit_pick_copying">복사 중</string>
-    <string name="sheetedit_pick_hint_copy">%1$s을(를) 내 악보로 복사해 편집해요.</string>
     <string name="sheetedit_pick_copy_failed">악보를 복사하지 못했어요. 다시 시도해 주세요.</string>
     <string name="sheetedit_pick_copy_limit">내 악보가 10개예요. 악보를 지운 뒤 복사해 주세요.</string>
     <string name="sheetedit_pick_copy_conversion_in_progress">변환 중인 악보가 끝난 뒤 복사해 주세요.</string>
     <string name="sheetedit_pick_copy_not_found">제공 곡을 찾지 못했어요.</string>
-    <string name="sheetedit_pick_hint_mine">고르고 ‘선택’을 누르면 바로 편집해요</string>
-    <string name="sheetedit_pick_hint_songs">제공 곡은 복사본으로 고쳐요</string>
-    <string name="sheetedit_pick_hint_picked">고른 악보 · %1$s</string>
     <string name="sheetedit_pick_kind_jeongganbo">정간보</string>
     <string name="sheetedit_pick_meta">%1$s · %2$s</string>
     <string name="sheetedit_pick_meta_updated">%1$s 수정</string>
@@ -185,7 +180,7 @@
     <string name="sheetedit_warn_message">%1$s이 비어 있어요. 빈 정간이 있어도 임시저장은 되고, 나중에 이어서 고칠 수 있어요.</string>
     <string name="sheetedit_warn_more">%1$s 외 %2$d곳</string>
     <string name="sheetedit_warn_fill">빈 정간 채우기</string>
-    <string name="sheetedit_msg_draft">임시저장했어요 · 내 악보에서 이어서 고칠 수 있어요</string>
+    <string name="sheetedit_msg_draft">임시저장했어요. 내 악보에서 이어서 고칠 수 있어요.</string>
     <string name="sheetedit_msg_saved">악보를 저장했어요</string>
     <string name="sheetedit_msg_saved_for_practice">저장했어요 · 내 악보에서 연습할 수 있어요</string>
     <string name="sheetedit_msg_saved_needs_review">저장했어요 · 남은 정간을 확인하고 저장하면 연습할 수 있어요</string>
@@ -198,15 +193,15 @@
     <string name="sheetedit_preview_needs_practice_audio">연습 화면에서 음원을 받은 뒤 미리 들을 수 있어요</string>
     <string name="sheetedit_msg_audio_needs_save">편집한 내용을 저장한 뒤 다시 시도해 주세요</string>
     <string name="sheetedit_msg_audio_requested">음원을 만들고 있어요 · 다 되면 알려 드릴게요</string>
-    <string name="sheetedit_msg_audio_ready">음원이 준비됐어요 · ‘편집 내용 확인’ 화면에서 재생하거나 저장할 수 있어요</string>
-    <string name="sheetedit_msg_audio_failed">음원을 만들지 못했어요 · ‘편집 내용 확인’ 화면에서 다시 시도할 수 있어요</string>
+    <string name="sheetedit_msg_audio_ready">음원이 준비됐어요. ‘편집 내용 확인’에서 재생·저장할 수 있어요.</string>
+    <string name="sheetedit_msg_audio_failed">음원을 만들지 못했어요. ‘편집 내용 확인’에서 다시 시도할 수 있어요.</string>
     <string name="sheetedit_msg_audio_too_long">연주 길이가 10분을 넘어요 · 빠르기나 각 수를 줄여 주세요</string>
     <string name="sheetedit_msg_audio_invalid">장단 소리나 빠르기 설정이 맞지 않아요 · 장단이 없는 악보는 장단 소리를 끄고 만들어요</string>
     <string name="sheetedit_msg_audio_in_progress">만들고 있는 음원이 끝난 뒤 다시 눌러 주세요</string>
     <string name="sheetedit_msg_audio_not_ready">빈 정간 없이 저장한 악보만 음원을 만들 수 있어요</string>
     <string name="sheetedit_msg_audio_not_found">악보를 찾지 못했어요 · 내 악보 목록을 확인해 주세요</string>
     <string name="sheetedit_msg_audio_busy">음원 서버에 연결하지 못했어요 · 잠시 후 다시 해 주세요</string>
-    <string name="sheetedit_msg_audio_unknown">음원 상태를 확인하지 못했어요 · ‘편집 내용 확인’ 화면에서 다시 확인해 주세요</string>
+    <string name="sheetedit_msg_audio_unknown">음원 상태를 확인하지 못했어요. ‘편집 내용 확인’에서 다시 확인해 주세요.</string>
     <string name="sheetedit_msg_audio_link_failed">음원을 내려받지 못했어요</string>
     <string name="sheetedit_pick_step_instrument">1. 편집할 악기</string>
     <string name="sheetedit_pick_step_sheet">2. 편집할 악보</string>

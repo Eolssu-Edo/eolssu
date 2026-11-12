@@ -39,14 +39,14 @@ class SheetAudioDeviceStoreTest {
             respond(bytes, headers = audioHeaders)
         }
         try {
-            val stored = assertNotNull(store(directory, engine).save("5", "27", "2", download(bytes)))
+            val stored = assertNotNull(store(directory, engine).save("5", "27", "2", download(bytes).copy(bpm = 480)))
             assertContentEquals(bytes, File(stored.localFile.path).readBytes())
             val offlineEngine = MockEngine { error("기기에 저장한 음원은 서버 조회 없이 재생할 수 있다") }
             val reopened = store(directory, offlineEngine)
             val found = assertNotNull(reopened.find("5", "27", "2"))
             assertEquals(stored.localFile.path, found.localFile.path)
             assertEquals(stored.sha256, found.sha256)
-            assertEquals(72, found.bpm)
+            assertEquals(480, found.bpm)
             assertNull(reopened.find("5", "27", "1"))
             assertNull(reopened.find("5", "28", "2"))
             assertNull(reopened.find("6", "27", "2"))

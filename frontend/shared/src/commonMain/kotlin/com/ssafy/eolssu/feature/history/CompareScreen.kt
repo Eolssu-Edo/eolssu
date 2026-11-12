@@ -100,7 +100,7 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
     val colors = EolssuTheme.colors
     val comparison = state.comparison
     EolssuScaffold(
-        containerColor = colors.surface,
+        containerColor = colors.groupedBackground,
         topBar = {
             EolssuStartTopBar(
                 stringResource(Res.string.weak_compare_title),
@@ -176,7 +176,7 @@ private fun CompareCheckNote(check: CheckLoad?) {
 private val DownChipLine = Color(0xFFEBC3BC)
 
 /**
- * 점수 비교 카드(테두리 · 반지름 16): 왼쪽 ‘이전’ + 이전 점수(회색 명조 30), 가운데 변화 칩 + 점선 화살표,
+ * 점수 비교 카드(회색 바탕 위 테두리 없는 흰 카드 · 반지름 16): 왼쪽 ‘이전’ + 이전 점수(회색 명조 30), 가운데 변화 칩 + 점선 화살표,
  * 오른쪽 연두 일원상(84) 안에 ‘이번’ + 이번 점수. 오르면 연두 ‘▲ n점’, 내리면 칩·화살표만 붉은 ‘▼ n점’,
  * 같으면 ‘= 같아요’. 서버가 총점 차이를 주지 않으면 두 기록의 총점 차이를 쓴다. 아래 ‘항목별 점수 보기’로 항목 막대를 펼친다.
  */
@@ -186,7 +186,7 @@ private fun ScoreCompareCard(before: Int, after: Int, state: CompareUiState, onT
     val shape = RoundedCornerShape(16.dp)
     val change = state.scoreChange
     val cardLabel = stringResource(Res.string.weak_compare_card_label, before, after)
-    Column(Modifier.fillMaxWidth().border(1.dp, colors.lineSoft, shape).padding(start = 12.dp, end = 12.dp, top = 8.dp)) {
+    Column(Modifier.fillMaxWidth().background(colors.surface, shape).padding(start = 12.dp, end = 12.dp, top = 8.dp)) {
         Row(
             Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = cardLabel },
             verticalAlignment = Alignment.CenterVertically,
@@ -282,7 +282,10 @@ private fun ChangeArrow(down: Boolean, muted: Boolean) {
     }
 }
 
-/** 펼친 항목별 점수: 범례(이전 회색 · 이번 연두)와 항목마다 나란한 두 막대 + 차이 칩. */
+/**
+ * 펼친 항목별 점수: 범례(이전 회색 · 이번 연두)와 항목마다 나란한 두 막대 + 차이 칩.
+ * 이번 점수가 내린 항목은 이번 막대도 차이 칩과 같은 붉은색으로 그린다.
+ */
 @Composable
 private fun MetricCompare(rows: List<MetricChange>) {
     val colors = EolssuTheme.colors
@@ -306,7 +309,8 @@ private fun MetricCompare(rows: List<MetricChange>) {
                 Text(label, modifier = Modifier.width(44.dp).clearAndSetSemantics {}, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textSub, maxLines = 1)
                 Column(Modifier.weight(1f).clearAndSetSemantics {}, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Bar(row.before / 100f, colors.missedErrorLine, Modifier.fillMaxWidth().height(6.dp))
-                    Bar(row.after / 100f, colors.primary, Modifier.fillMaxWidth().height(6.dp))
+                    val nowBar = if (metricTone(row.delta) == MetricTone.Down) colors.rec else colors.primary
+                    Bar(row.after / 100f, nowBar, Modifier.fillMaxWidth().height(6.dp))
                 }
                 DeltaChip(row.delta)
             }
@@ -320,10 +324,10 @@ private fun DeltaChip(delta: Int) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(11.dp)
     val base = Modifier.width(44.dp).height(22.dp)
-    val (background, foreground, border) = when {
-        delta > 0 -> Triple(colors.accentTint, colors.accentText, null)
-        delta < 0 -> Triple(colors.recFaint, colors.rec, DownChipLine)
-        else -> Triple(colors.background, colors.textSub, null)
+    val (background, foreground, border) = when (metricTone(delta)) {
+        MetricTone.Up -> Triple(colors.accentTint, colors.accentText, null)
+        MetricTone.Down -> Triple(colors.recFaint, colors.rec, DownChipLine)
+        MetricTone.Same -> Triple(colors.background, colors.textSub, null)
     }
     Box(
         base.background(background, shape).then(if (border != null) Modifier.border(1.dp, border, shape) else Modifier),
@@ -331,6 +335,15 @@ private fun DeltaChip(delta: Int) {
     ) {
         Text(metricDeltaLabel(delta), style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold), color = foreground)
     }
+}
+
+/** 항목 하나의 오름·내림·같음. 이번 막대 색과 차이 칩 색이 같이 쓴다. */
+internal enum class MetricTone { Up, Down, Same }
+
+internal fun metricTone(delta: Int): MetricTone = when {
+    delta > 0 -> MetricTone.Up
+    delta < 0 -> MetricTone.Down
+    else -> MetricTone.Same
 }
 
 /** 항목 차이 표시: ‘+12’ · ‘−4’ · ‘0’. */

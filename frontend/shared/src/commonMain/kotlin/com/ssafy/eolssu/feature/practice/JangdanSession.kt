@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.withContext
 
 enum class JangdanStatus { Idle, Loading, Playing, Unsupported, Failed, Interrupted }
 
@@ -20,6 +22,7 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
     private val mutableStatus = MutableStateFlow(JangdanStatus.Idle)
     val status = mutableStatus.asStateFlow()
     private var job: Job? = null
+    private val stoppingJobs = mutableListOf<Job>()
     private var generation = 0
     private var preparedClips: Set<JangdanClip> = emptySet()
 
@@ -45,10 +48,11 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
         return player.prepare(clips).also { if (it) preparedClips = clips }
     }
 
-    fun start(plan: JangdanPlan?, accompanyingModel: Boolean, tick: () -> Double?, resumeAfterTick: Double? = null, startAtTick: Double? = null, allowPreparedPlayback: Boolean = false, onStarted: () -> Unit = {}) {
+    fun start(plan: JangdanPlan?, accompanyingModel: Boolean, tick: () -> Double?, resumeAfterTick: Double? = null, startAtTick: Double? = null, onStarted: () -> Unit = {}, clockReady: () -> Boolean = { true }, allowPreparedPlayback: Boolean = false) {
         val adopted = allowPreparedPlayback && plan != null && player.available && player.adoptPreparedPlayback(plan)
         generation++
-        job?.cancel()
+        job?.let { it.cancel(); stoppingJobs += it }
+        stoppingJobs.removeAll { it.isCompleted }
         job = null
         if (!adopted) player.stop()
         mutableStatus.value = JangdanStatus.Idle
@@ -57,9 +61,11 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
             return
         }
         val token = generation
+        val previous = stoppingJobs.toList()
         mutableStatus.value = JangdanStatus.Loading
         job = scope.launch {
             try {
+                previous.joinAll()
                 if (!adopted && (!prepare(plan) || !player.begin(accompanyingModel))) {
                     mutableStatus.value = JangdanStatus.Failed
                     return@launch
@@ -67,26 +73,32 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
                 onStarted()
                 mutableStatus.value = JangdanStatus.Playing
                 val cursor = JangdanCursor(plan, resumeAfterTick = resumeAfterTick, startAtTick = startAtTick)
-                while (isActive) {
-                    if (player.interrupted) {
-                        mutableStatus.value = JangdanStatus.Interrupted
-                        break
-                    }
-                    val now = tick() ?: break
-                    if (!adopted) {
-                        val strikes = cursor.due(now)
-                        if (cursor.movedBackward) player.silence()
-                        if (strikes.any { !player.play(it.clip, it.gain) }) {
-                            mutableStatus.value = JangdanStatus.Failed
+                // Preparation, focus and status stay with the owner. Only timing/output leave the UI.
+                val result = withContext(player.timingContext) {
+                    while (isActive) {
+                        if (player.failed) return@withContext JangdanStatus.Failed
+                        if (player.interrupted) return@withContext JangdanStatus.Interrupted
+                        if (!clockReady()) { delay(5); continue }
+                        val now = tick()
+                        if (now == null) {
+                            // The owner/UI may still be stalled when a playback boundary is reached.
+                            player.silence()
                             break
                         }
+                        if (!adopted) {
+                            val strikes = cursor.due(now)
+                            if (cursor.movedBackward) player.silence()
+                            if (strikes.any { !player.play(it.clip, it.gain) }) return@withContext JangdanStatus.Failed
+                        }
+                        delay(5)
                     }
-                    delay(5)
+                    null
                 }
+                if (token == generation && result != null) mutableStatus.value = result
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                mutableStatus.value = JangdanStatus.Failed
+                if (token == generation) mutableStatus.value = JangdanStatus.Failed
             } finally {
                 if (token == generation) {
                     if (mutableStatus.value == JangdanStatus.Failed) {
@@ -101,7 +113,8 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
 
     fun stop() {
         generation++
-        job?.cancel()
+        job?.let { it.cancel(); stoppingJobs += it }
+        stoppingJobs.removeAll { it.isCompleted }
         job = null
         player.stop()
         mutableStatus.value = JangdanStatus.Idle

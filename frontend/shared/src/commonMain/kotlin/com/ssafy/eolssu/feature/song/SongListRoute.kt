@@ -86,7 +86,7 @@ fun SongListRoute(
         snackbarHostState = snackbarHostState,
         // 페이지형 상단 바는 오른쪽 여백이 6dp라, 왼쪽 뒤로 가기 원처럼 화면 끝에서 20dp에 오도록 14dp를 더 띄운다.
         instrumentPicker = {
-            SongInstrumentPicker(viewModel.instrumentSelection, snackbarHostState, onSessionExpired, Modifier.padding(end = 14.dp))
+            SongInstrumentPicker(viewModel.instrumentSelection, snackbarHostState, onSessionExpired, Modifier.padding(end = 14.dp), bordered = false)
         },
     )
 }

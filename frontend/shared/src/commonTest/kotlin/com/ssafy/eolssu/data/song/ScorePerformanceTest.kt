@@ -18,6 +18,49 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class ScorePerformanceTest {
+    @Test fun accompanimentBoundsAreAnOptionalFinitePairAndLeaveDisplayTicksUntouched() {
+        fun withBounds(values: Map<String, kotlinx.serialization.json.JsonElement>) = editPreview { root ->
+            root["segments"] = JsonArray(root.getValue("segments").jsonArray.mapIndexed { index, segment ->
+                if (index == 0) JsonObject(segment.jsonObject + values) else segment
+            })
+        }
+        val valid = mapOf("accompanimentStartTick" to JsonPrimitive(0), "accompanimentEndTick" to JsonPrimitive(1.5))
+        val position = previewAudio().withPerformance(withBounds(valid), previewSong(), SourceHash).performance!!.at(250.0)
+        assertEquals(0.5, position.sourceTick)
+        assertEquals(0.75, position.accompanimentTick)
+        for (invalid in listOf(valid - "accompanimentStartTick", valid - "accompanimentEndTick",
+            valid + ("accompanimentStartTick" to JsonPrimitive(-1)),
+            valid + ("accompanimentEndTick" to JsonPrimitive(0)),
+            valid + ("accompanimentEndTick" to JsonPrimitive(13)),
+            valid + ("accompanimentEndTick" to JsonPrimitive("1.5")))) {
+            assertFailsWith<IllegalArgumentException> {
+                previewAudio().withPerformance(withBounds(invalid), previewSong(), SourceHash)
+            }
+        }
+    }
+
+    @Test fun optionalRampRatioIsPositiveNumericAndItsInverseKeepsExactEndpoints() {
+        fun withRatio(value: kotlinx.serialization.json.JsonElement) = editPreview { root ->
+            root["segments"] = JsonArray(root.getValue("segments").jsonArray.mapIndexed { index, segment ->
+                if (index == 0) JsonObject(segment.jsonObject + ("tempoRatio" to value)) else segment
+            })
+        }
+        for (ratio in listOf(0.5, 1.0, 1.25, 1e-12)) {
+            val segment = previewAudio().withPerformance(withRatio(JsonPrimitive(ratio)), previewSong(), SourceHash)
+                .performance!!.segments.first()
+            assertEquals(segment.startTick, segment.sourceTickAt(segment.startMs))
+            assertEquals(segment.endTick, segment.sourceTickAt(segment.endMs))
+            assertEquals(segment.startMs, segment.mediaMsAt(segment.startTick))
+            assertEquals(segment.endMs, segment.mediaMsAt(segment.endTick))
+            assertEquals(0.5, segment.sourceTickAt(segment.mediaMsAt(0.5)), 1e-9)
+        }
+        for (invalid in listOf(JsonPrimitive(0), JsonPrimitive(-1), JsonPrimitive("1"), kotlinx.serialization.json.JsonNull)) {
+            assertFailsWith<IllegalArgumentException> {
+                previewAudio().withPerformance(withRatio(invalid), previewSong(), SourceHash)
+            }
+        }
+    }
+
     @Test fun attachesExactSourceAndAudioAndKeepsWrittenTicksAcrossStretchAndRepeat() {
         val song = previewSong()
         val audio = previewAudio().withPerformance(previewJson(), song, SourceHash)

@@ -38,6 +38,7 @@ import com.ssafy.eolssu.core.ui.score.BandGap
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
+import com.ssafy.eolssu.core.ui.score.ScoreCellDecoration
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.ui.score.ScoreCellMark
 import com.ssafy.eolssu.core.ui.score.ScoreCursor
@@ -51,6 +52,8 @@ import com.ssafy.eolssu.feature.practice.LivePitchMark
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.stepCurrentIndex
+import com.ssafy.eolssu.feature.practice.sectionReadyStart
+import com.ssafy.eolssu.feature.practice.cellForEvent
 import com.ssafy.eolssu.feature.practice.modelPointAt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -122,11 +125,13 @@ fun PracticeScoreArea(
         val playback = state.scorePlayback()
         val notation = ScoreNotation(state.settings.showHangul)
         // 한 음씩 따라 불기는 진행 모습(playback) 없이 지금 음의 정간에만 연두 테두리를 둔다(곁줄에는 표시하지 않는다).
-        val currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex
+        val currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex ?: state.sectionReadyStart
         val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
-        val selectedCell = state.scoreSelection?.let { it.column to it.row }
+        val selectedCell = state.scoreSelection?.takeIf { state.sectionPractice == null }?.let { it.column to it.row }
         val onUnitClick = onSelectUnit.takeIf { state.canSelectUnit }
         val annotations = state.scoreAnnotations
+        val sectionMarks = practiceSectionMarks(state)
+        val sectionColumns = state.sectionPractice?.section?.fullColumns(song.score)
         if (bandColumns == null) {
             val scrollState = rememberHorizontalScoreScroll(state)
             JeongganboView(
@@ -145,6 +150,8 @@ fun PracticeScoreArea(
                 annotations = annotations,
                 unitMarks = pitchMarks,
                 unitMarksAfterPass = true,
+                decorations = sectionMarks,
+                sectionColumns = sectionColumns,
             )
         } else {
             val bandHeight = (maxHeight - BandGap) / 2
@@ -168,6 +175,8 @@ fun PracticeScoreArea(
                         annotations = annotations,
                         unitMarks = pitchMarks,
                         unitMarksAfterPass = true,
+                        decorations = sectionMarks,
+                        sectionColumns = sectionColumns,
                     )
                 }
             }
@@ -303,16 +312,19 @@ fun PracticeBoardScore(
                     metrics = packing.metrics,
                     notation = ScoreNotation(state.settings.showHangul),
                     scrollState = rememberHorizontalScoreScroll(state),
-                    currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex,
+                    currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex ?: state.sectionReadyStart,
                     highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position,
                     playback = playback,
                     follow = state.follow,
                     onUserScroll = onUserScroll,
-                    selectedCell = state.scoreSelection?.let { it.column to it.row },
+                    selectedCell = state.scoreSelection?.takeIf { state.sectionPractice == null }?.let { it.column to it.row },
                     onUnitClick = onSelectUnit.takeIf { state.canSelectUnit },
                     look = JeongganboLook.practice(big),
+                    decorations = practiceSectionMarks(state),
+                    sectionColumns = state.sectionPractice?.section?.fullColumns(song.score),
                     annotations = state.scoreAnnotations,
                     columnsPerStack = packing.columnsPerStack,
+                    windowed = true,
                     splitColumns = packing.splitColumns,
                     stackGap = PracticeStackGap,
                     cellHeights = packing.cellHeights,
@@ -357,4 +369,18 @@ private fun livePitchCellMarks(marks: Map<ScoreUnitKey, LivePitchMark>): Map<Sco
             LivePitchMark.Listening -> ScoreCellMark(ring = colors.textDisabled, ringWidth = 1.5.dp)
         }
     }
+}
+
+/**
+ * 구간 연습(S15P31E102-776)의 악보 꾸밈: 구간 밖 정간은 흐리게, 구간을 고르는 동안에는 시작·끝 정간에 ‘시작’·‘끝’ 표와 먹색 테두리를 둔다.
+ * 재생 중에는 지금 위치 표시와 겹치지 않게 표와 테두리를 뺀다. 구간 연습이 꺼져 있으면 꾸밈이 없다.
+ */
+@Composable
+internal fun practiceSectionMarks(state: PracticeUiState): Map<Pair<Int, Int>, ScoreCellDecoration> {
+    val song = state.song ?: return emptyMap()
+    val section = state.sectionPractice?.section ?: return emptyMap()
+    val marking = !state.live && state.stepCurrentIndex == null
+    // 준비 상태에서는 구간 처음을 지금 자리로 칠해 그 자리로 악보를 넘긴다. 그 정간에는 먹색 테두리를 겹치지 않는다.
+    val current = state.sectionReadyStart?.let { state.cellForEvent(it) }
+    return sectionDecorations(song.score, emptyList(), section, outsideAlpha = 0.5f, edgeRing = marking, edgeLabels = marking, current = current)
 }

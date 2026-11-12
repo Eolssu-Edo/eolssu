@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.ssafy.eolssu.core.ui.component.EolssuSnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -33,7 +33,6 @@ import com.ssafy.eolssu.feature.guide.component.GuideTabletBottomContent
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
 import com.ssafy.eolssu.feature.guide.learn.LearnListActions
 import com.ssafy.eolssu.feature.guide.learn.LearnListContent
-import com.ssafy.eolssu.feature.guide.learn.LearnTitleFontSize
 import com.ssafy.eolssu.feature.guide.learn.LearnStage
 import com.ssafy.eolssu.feature.guide.learn.LearnStageActions
 import com.ssafy.eolssu.feature.guide.learn.LearnStageBottomBar
@@ -72,8 +71,8 @@ internal fun LearnExpandedLayout(
 ) {
     val colors = EolssuTheme.colors
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = colors.background,
+        snackbarHost = { EolssuSnackbarHost(snackbarHostState) },
+        containerColor = colors.groupedBackground,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.TopCenter) {
@@ -89,7 +88,6 @@ internal fun LearnExpandedLayout(
                         onBack = onBack,
                         modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = outer - 20.dp, end = 4.dp),
                         maxWidth = Dp.Infinity,
-                        titleFontSize = LearnTitleFontSize,
                     )
                     LearnListContent(
                         state,
@@ -108,7 +106,7 @@ internal fun LearnExpandedLayout(
                         learnStageTitle(stage),
                         onBack = null,
                         modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 20.dp, end = outer - 20.dp),
-                        subtitle = learnStageSubtitle(state, stage),
+                        subtitle = learnStageSubtitle(stage),
                         maxWidth = Dp.Infinity,
                     )
                     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {

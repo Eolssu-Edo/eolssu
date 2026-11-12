@@ -7,6 +7,8 @@ import com.ssafy.eolssu.core.audio.planJangdan
 import com.ssafy.eolssu.core.model.JangdanPlayback
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -16,6 +18,27 @@ import kotlin.test.assertEquals
 class JangdanPreparedPlaybackTest {
     private val plan = planJangdan(JangdanPlayback("12", "4박", 0, 4,
         listOf("덩", "덕", "궁", "덕"), listOf(4)), 77, 1)!!
+
+    @Test fun adoptedPlaybackSilencesAtItsEndWhileTheUiIsBlocked() = runTest {
+        val audioScheduler = TestCoroutineScheduler()
+        val player = PreparedPlayer(plan, StandardTestDispatcher(audioScheduler) + audioScheduler)
+        val session = JangdanSession(player, backgroundScope)
+        var tick: Double? = .02
+        session.start(plan, true, { tick }, allowPreparedPlayback = true)
+        runCurrent()
+        audioScheduler.runCurrent()
+        assertEquals(1, player.adoptions)
+        assertEquals(0, player.stops)
+        assertEquals(0, player.begins)
+        tick = null
+        audioScheduler.advanceTimeBy(6)
+        assertEquals(1, player.silences, "The audio observer must silence without waiting for the UI")
+        assertEquals(0, player.hits, "Prepared output must not receive duplicate attacks")
+        assertEquals(JangdanStatus.Playing, session.status.value, "Owner cleanup is still queued on the blocked UI")
+        runCurrent()
+        assertEquals(JangdanStatus.Idle, session.status.value)
+        assertEquals(1, player.stops)
+    }
 
     @Test fun recordingAdoptsWithoutStoppingOrRepeatingNativeAttacks() = runTest {
         val player = PreparedPlayer(plan)
@@ -69,13 +92,17 @@ class JangdanPreparedPlaybackTest {
     }
 }
 
-private class PreparedPlayer(private var prepared: JangdanPlan?) : JangdanSamplePlayer {
+private class PreparedPlayer(
+    private var prepared: JangdanPlan?,
+    override val timingContext: kotlin.coroutines.CoroutineContext = kotlin.coroutines.EmptyCoroutineContext,
+) : JangdanSamplePlayer {
     override val available = true
     override var interrupted = false
     var adoptions = 0
     var stops = 0
     var begins = 0
     var hits = 0
+    var silences = 0
     override suspend fun prepare(clips: Set<JangdanClip>) = true
     override fun begin(accompanyingModel: Boolean): Boolean { begins++; return true }
     override fun play(clip: JangdanClip, gain: Float): Boolean { hits++; return true }
@@ -85,7 +112,7 @@ private class PreparedPlayer(private var prepared: JangdanPlan?) : JangdanSample
         adoptions++
         return true
     }
-    override fun silence() { prepared = null }
+    override fun silence() { silences++; prepared = null }
     override fun stop() { stops++; silence() }
     override fun release() = stop()
 }

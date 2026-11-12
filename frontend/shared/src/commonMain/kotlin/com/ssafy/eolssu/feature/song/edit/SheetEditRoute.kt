@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
+import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetPitchCorrectionDialog
 import eolssu.shared.generated.resources.Res
@@ -25,6 +26,8 @@ import eolssu.shared.generated.resources.common_coming_soon
 import eolssu.shared.generated.resources.sheetedit_msg_audio_failed
 import eolssu.shared.generated.resources.sheetedit_msg_audio_ready
 import eolssu.shared.generated.resources.sheetedit_msg_audio_unknown
+import eolssu.shared.generated.resources.sheet_support_save_error
+import eolssu.shared.generated.resources.sheet_support_audio_error
 import eolssu.shared.generated.resources.sheet_save_failed
 import eolssu.shared.generated.resources.sheet_save_conflict
 import eolssu.shared.generated.resources.sheet_save_too_large
@@ -33,6 +36,7 @@ import eolssu.shared.generated.resources.sheet_close_message
 import eolssu.shared.generated.resources.sheet_discard_close
 import eolssu.shared.generated.resources.sheet_keep_editing
 import eolssu.shared.generated.resources.sheet_review_before_reshape
+import eolssu.shared.generated.resources.sheet_tempo_before_reshape
 import eolssu.shared.generated.resources.sheetedit_msg_draft
 import eolssu.shared.generated.resources.sheetedit_msg_saved
 import eolssu.shared.generated.resources.sheetedit_msg_saved_for_practice
@@ -58,6 +62,7 @@ fun SheetEditRoute(
     viewModel: SheetEditViewModel,
     onClose: () -> Unit,
     onOpenChecks: () -> Unit,
+    onSaved: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var detailsOpen by rememberSaveable { mutableStateOf(false) }
@@ -66,13 +71,15 @@ fun SheetEditRoute(
     var pitchCorrection by remember { mutableStateOf<SheetPitchCorrection?>(null) }
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
-    BackHandler(enabled = state.draft.original != null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
+    BackHandler(enabled = state.draft.original != null && state.adaptation == null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
     if (state.documentLoading || state.documentFailed) {
         SheetDocumentNotice(state.documentLoading, onClose, viewModel::loadDocument)
         return
     }
     val snackbarHostState = remember { SnackbarHostState() }
     val messages = mapOf(
+        SheetEditMessage.SaveUnsupportedPitches to stringResource(Res.string.sheet_support_save_error),
+        SheetEditMessage.AudioUnsupportedPitches to stringResource(Res.string.sheet_support_audio_error),
         SheetEditMessage.SaveFailed to stringResource(Res.string.sheet_save_failed),
         SheetEditMessage.SaveConflict to stringResource(Res.string.sheet_save_conflict),
         SheetEditMessage.SaveTooLarge to stringResource(Res.string.sheet_save_too_large),
@@ -82,6 +89,7 @@ fun SheetEditRoute(
         SheetEditMessage.SavedNeedsReview to stringResource(Res.string.sheetedit_msg_saved_needs_review),
         SheetEditMessage.ComingSoon to stringResource(Res.string.common_coming_soon),
         SheetEditMessage.ReviewBeforeReshape to stringResource(Res.string.sheet_review_before_reshape),
+        SheetEditMessage.TempoPlanBeforeReshape to stringResource(Res.string.sheet_tempo_before_reshape),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),
@@ -89,14 +97,21 @@ fun SheetEditRoute(
     LaunchedEffect(state.message) {
         val message = state.message?.takeIf { it.shownInEditor() } ?: return@LaunchedEffect
         val text = messages[message] ?: return@LaunchedEffect
-        if (message in setOf(SheetEditMessage.Saved, SheetEditMessage.SavedForPractice, SheetEditMessage.SavedNeedsReview)) saveOpen = false
-        viewModel.consumeMessage()
-        if (saveOpen && message in setOf(SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge)) {
+        // 저장하기가 끝나면 편집기를 닫고 연습곡 고르기 '내 악보' 목록으로 간다(S15P31E102-768).
+        if (message in setOf(SheetEditMessage.Saved, SheetEditMessage.SavedForPractice, SheetEditMessage.SavedNeedsReview)) {
+            viewModel.consumeMessage()
+            saveOpen = false
+            onSaved()
+            return@LaunchedEffect
+        }
+        if (saveOpen && message in setOf(SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge, SheetEditMessage.SaveUnsupportedPitches)) {
             saveError = text
+            viewModel.consumeMessage()
             return@LaunchedEffect
         }
         snackbarHostState.currentSnackbarData?.dismiss()
         snackbarHostState.showSnackbar(text)
+        viewModel.consumeMessage()
     }
     SheetEditScreen(
         state = state,
@@ -104,6 +119,7 @@ fun SheetEditRoute(
         focusRequestKey = focusRequestKey,
         actions = SheetEditActions(
             onClose = { viewModel.closeEditor(onClose) },
+            onRetryDraft = viewModel::retryDraftSave,
             onSave = {
                 saveError = null
                 if (state.completionValidation.correctionCellIndices.isNotEmpty()) {
@@ -152,15 +168,20 @@ fun SheetEditRoute(
                 focusRequestKey++
             },
             onDismiss = { pitchCorrection = null },
+            onAdapt = { pitchCorrection = null; correctionOpen = false; viewModel.openAdaptation() },
         ) else LaunchedEffect(target) { pitchCorrection = null }
     }
+    LaunchedEffect(state.tempoIssue) { if (state.tempoIssue != null) saveOpen = true }
     if (saveOpen) SheetEditDetailsDialog(
         initialTitle = state.draft.title,
         initialBpm = state.draft.bpm,
+        bpmUnitLabel = state.draft.tempoUnitLabel,
+        tempoIssue = state.tempoIssue,
+        hasTempoPlan = state.hasTempoPlan,
         saveMode = true,
         saving = state.confirming,
         canApply = !state.saving && !state.saveConflict && state.completionValidation.canComplete,
-        durationSeconds = state.draft::estimatedDurationSeconds,
+        durationSeconds = if (state.hasTempoPlan) null else state.draft::estimatedDurationSeconds,
         onApply = { title, bpm ->
             saveError = null
             viewModel.updateDetails(title, bpm)
@@ -223,6 +244,7 @@ fun SheetEditRoute(
     if (detailsOpen && state.canEditDetails) SheetEditSettingsDialog(
         draft = state.draft,
         picker = state.jangdanPicker,
+        hasTempoPlan = state.hasTempoPlan,
         saving = state.saving,
         onLoadJangdans = viewModel::changeJangdan,
         onApply = { bpm, jangdanId ->
@@ -230,7 +252,16 @@ fun SheetEditRoute(
             detailsOpen = false
         },
         onDismiss = { detailsOpen = false; viewModel.closeJangdanPicker() },
+        onAdapt = { detailsOpen = false; viewModel.closeJangdanPicker(); viewModel.openAdaptation() },
     )
+    state.adaptation?.let { panel -> SheetAdaptationDialog(panel,
+        onInstrument = viewModel::selectAdaptationInstrument, onTranspose = viewModel::selectAdaptationTranspose,
+        onApply = viewModel::applyAdaptation, onDismiss = viewModel::closeAdaptation, onRetry = viewModel::openAdaptation,
+        onLocate = { cellId ->
+            val index = state.draft.sourceCellIds?.indexOf(cellId) ?: -1
+            viewModel.applyAdaptation()
+            if (index >= 0) { viewModel.selectCell(index); focusRequestKey++ }
+        }) }
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
             onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)

@@ -16,6 +16,18 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
     private val allowed = setOf("황" to 0, "태" to 0)
     private fun state() = SheetEditUiState(EditSource.Mine("31"), smallScoreData().editingDraft("검사", 60, null))
 
+    @Test fun numericTempoLocationsStayFixedWhilePitchAndBaseTempoRemainEditable() {
+        val timed = state().copy(hasTempoPlan = true)
+        listOf(timed.split(), timed.merge(), timed.addColumn(), timed.deleteColumn()).forEach { changed ->
+            assertEquals(timed.draft, changed.draft, "구간 빠르기 위치를 보존한다")
+            assertNotNull(changed.message)
+            assertFalse(changed.canUndo)
+        }
+        assertNotEquals(timed.draft, timed.selectUnit(0, 1).putYul(Yul.Taeju).draft)
+        assertEquals(120, timed.updateDetails("검사", 120).draft.bpm)
+        assertNotEquals(timed.draft, timed.copy(hasTempoPlan = false).addColumn().draft)
+    }
+
     @Test fun allEmptyInvalidPitchAndPendingCellsAreHighlightedInScoreOrder() {
         val state = state().copy(availablePitches = allowed,
             reviewIssues = listOf(SheetReviewIssue("a", "c0-j1", "LOW_CONFIDENCE"), SheetReviewIssue("b", "c0-j1", "ORNAMENT_DROPPED")))
@@ -122,7 +134,7 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
     }
 
     @Test fun tempoAndJangdanApplyAsOneUndoStepWithoutChangingTitleOrTiming() {
-        val option = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 6, 2)
+        val option = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 3, 1, 1)
         val initial = state().let { it.copy(draft = it.draft.copy(jangdanId = "3"), availableJangdans = listOf(option)) }
         val changed = initial.updateSettings(120, "4")
         assertEquals(1, changed.past.size)
@@ -141,7 +153,7 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
         val initial = state().let { it.copy(draft = it.draft.copy(jangdanId = "3")) }
         assertEquals(120, initial.updateSettings(120, "3").draft.bpm)
         assertEquals(initial, initial.updateSettings(120, "unknown"))
-        assertEquals(initial, initial.updateSettings(29, null))
+        assertEquals(initial, initial.updateSettings(0, null))
     }
 
     @Test fun applyingSettingsCancelsPendingJangdanLoadSoALateResultCannotReopenThePicker() = runTest {
@@ -169,7 +181,7 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
             assertEquals(1, model.uiState.value.past.size, "빠르기·장단을 한 번에 적용한다")
             assertNull(model.uiState.value.jangdanPicker)
             if (fails) result.completeExceptionally(IllegalStateException("late catalog failure"))
-            else result.complete(listOf(CatalogJangdanSummary("3", "세마치", 80, "DOTTED_QUARTER", 6, 2)))
+            else result.complete(listOf(CatalogJangdanSummary("3", "세마치", 80, "DOTTED_QUARTER", 3, 1, 1)))
             runCurrent()
 
             assertNull(model.uiState.value.jangdanPicker, "적용 후 늦은 조회 결과가 선택 창을 다시 열면 안 된다")

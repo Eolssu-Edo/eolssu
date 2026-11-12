@@ -13,9 +13,9 @@
 | CAT-05 | `/songs/{songId}/model-audio` | 현재 악보 버전·곡 BPM·기준 bpmUnit과 일치하는 게시 음원 메타데이터. 미등록/초안/버전 불일치는 404. |
 | CAT-06 | `/pitches?instrumentId=...` | 생략 시 등록 율명, 지정 시 활성 악기의 음역. 음역은 양 끝 pitch의 semitone으로 비교하며 DB ID 순서를 높낮이로 해석하지 않는다. |
 | CAT-07 | `/instruments/{instrumentId}/fingerings?pitchId=...` | 해당 활성 악기의 등록 운지, 선택한 음의 운지. 없는 콘텐츠는 빈 목록이다. |
-| CAT-08 | `/jangdans/{jangdanId}` | 장단 이름·defaultBpm·bpmUnit·원본 pattern(beats/group)·source·soundUrl. 미리듣기가 있으면 같은 API 원점의 `/api/jangdans/{jangdanId}/audio`를 반환한다. |
+| CAT-08 | `/jangdans/{jangdanId}` | 장단 이름·defaultBpm·bpmUnit·원본 pattern(beats/group)·patternCellEighths·source·soundUrl. 미리듣기가 있으면 같은 API 원점의 `/api/jangdans/{jangdanId}/audio`를 반환한다. |
 | CAT-09 | `/notation-symbols` | symbolId/symbol/name/description/imageUrl 및 nullable source/descriptionStatus/imageLicense. [기존 FE 사전 연결](notation-symbol-catalog.md). 학습용 설명이며 악보 이벤트의 의미를 재정의하지 않는다. |
-| CAT-10 | `/jangdans` | jangdanId/name/defaultBpm/bpmUnit/beatCount/groupCount. 소박·묶음 수는 저장 pattern에서 구한다. |
+| CAT-10 | `/jangdans` | jangdanId/name/defaultBpm/bpmUnit/beatCount/groupCount/patternCellEighths. 소박·묶음 수는 저장 pattern에서 구한다. |
 
 ## 내장 운지 자료
 
@@ -60,9 +60,11 @@ V8 `song_model_audios`는 `(song_id,score_version)`마다 기준 음원 한 개�
 
 S15P31E102-339는 장단 연결을 선택값으로 확장한다. 장단이 연결돼 있으면 기존 장단의 `bpmUnit`과 공통 악보의 일치 검증을 유지한다. 연결이 없으면 공통 악보 `music.bpmUnit`을 기준으로 사용하며 허용된 대문자 단위만 받는다. 원본 장단명만으로 장단 pattern을 추정하지 않는다. [검수대기 적재 계약](model-audio-catalog-load.md)은 기존 공개 곡과 새 DRAFT 자료를 구분한다.
 
-응답은 `songId`, 정수 `scoreVersion`, `audioUrl`, `bpm`, `bpmUnit`, `durationMs`, `startOffsetMs`, `contentType`, `sha256`과 선택적 `performanceUrl`, `sourceCommonSha256`이다. `durationMs`는 실제 인코딩된 파일 길이이며 잔향이 포함될 수 있다. 악보 총길이로 줄이거나 늘리지 않는다. `startOffsetMs`는 파일에서 악보 0박이 시작하는 위치이며 적재자가 측정해 명시한다. 기본값으로 추정하지 않는다. BPM은 songs 저장 계약(30~400)을 따르며 연습 녹음 세션의 별도 20~240 제한으로 축소하지 않는다.
+응답은 `songId`, 정수 `scoreVersion`, `audioUrl`, `bpm`, `bpmUnit`, `durationMs`, `startOffsetMs`, `contentType`, `sha256`, 불리언 `playbackRevisionSupported`와 nullable 필드 `performanceUrl`, `sourceCommonSha256`을 포함한다. `durationMs`는 실제 인코딩된 파일 길이이며 잔향이 포함될 수 있다. 악보 총길이로 줄이거나 늘리지 않는다. `startOffsetMs`는 파일에서 악보 0박이 시작하는 위치이며 적재자가 측정해 명시한다. 기본값으로 추정하지 않는다. BPM은 songs 저장 계약(30~400)을 따르며 연습 녹음 세션의 별도 20~240 제한으로 축소하지 않는다.
 
 S15P31E102-339에서 DB의 위치 식별자는 `object_key`다. `audioUrl`은 같은 서버의 `/api/songs/{songId}/model-audio/play` 경로이며 앱은 설정된 API 서버 주소를 기준으로 해석한다. 이 경로는 게시 상태·판본을 다시 확인하고 비공개 객체에 대한 짧은 GET 서명 URL로302 이동한다. `Cache-Control: no-store`이며 DB나 장기 캐시에 만료 URL을 저장하지 않는다. 새 요청은 DRAFT/HIDDEN 또는 버전 불일치에서404, 저장소 준비/읽기 실패에서503이다.
+
+`playbackRevisionSupported`가 `true`이면 앱은 확인한 `scoreVersion`을 `expectedScoreVersion`(앞자리 0 없는 1~2,147,483,647), `sha256`을 `expectedAudioSha256`(소문자 16진수 64자)으로 함께 전달한다. 두 값 중 하나만 전달하거나 형식이 잘못되면 400 `INVALID_REQUEST`다. 현재 게시 음원이 있고 한 값이라도 다르면 서명 발급 전에 409 `STATE_CONFLICT`로 응답한다. 두 오류 응답에는 `Cache-Control: no-store`를 적용한다. 두 값을 모두 생략한 기존 앱의 요청은 현재 게시 음원으로 이동한다. 이 필드가 빠진 서버에 연결한 앱은 방문마다 시간표를 조회한다.
 
 수행 시간표가 있는 경우 `/api/songs/{songId}/model-audio/performance`는 같은 서버에서 크기·시간 제한 아래 원본 JSON을 제공한다. `sourceCommonSha256`은 그 수행 시간표의 정본 공통 JSON 원문 바이트 해시다. CAT-04 응답을 다시 직렬화한 해시로 대체하지 않는다. FE는 곡·판본·공통 원문 해시·음원 해시·길이·시작 위치를 대조해 연결한다. 제공된 수행 자료가 잘못됐을 때 정본 시간표로 조용히 대체하지 않는다. 수행 자료가 아예 없는 기존 계약에서는 정본 시간표를 사용할 수 있다.
 
@@ -83,3 +85,18 @@ S15P31E102-339에서 DB의 위치 식별자는 `object_key`다. `audioUrl`은 �
 S15P31E102-511의 V28은 단소 경복궁타령의 자진타령 기본형을 장단 ID 11로 추가한다. 3소박 4박이며 단소 교재의 12칸 구음을 쓴다. 경복궁타령 1판에는 현재 악보의 박 단위와 틱으로 계산한 `supplementalJangdanPlayback`을 제공한다. 장단 상세의 미리듣기 URL은 해당 자산이 생길 때까지 null이다.
 
 V21은 기존 ID1~3을 보존하며 자진모리4·중중모리5와 함께 엇모리6·단모리7·타령8·계면가락도드리9·세령산10을 추가한다. 후속5종은 기존 QUARTER 단위를 쓴다. 6~9의 구음 칸은8분음표,10은점4분음표 길이이며 group은 원본의 칸 묶음이다. 목록 beatCount는 각각10·8·12·12·10, groupCount는 모두4다. 엇모리 BPM90은8분음표180/2, 단모리120은 공식4/4 교재 하한이다. 정악3종48·48·63은 사용자가 재사용을 승인한 서비스 시작값이며 원전 확정 빠르기는 아니다. 응답 모양·곡 FK·BPM·공통 tick·음원은 그대로다. [후속 근거](../knowledge/backend/jangdan-catalog-extension.md#v20-보류5종의-근거-확보와-등록)를 따른다.
+
+
+### 악보 작성용 패턴 칸 음가 (S15P31E102-789)
+
+`patternCellEighths`는 패턴 한 칸의 길이를 8분음표 개수로 표현한 nullable 정수다. `data/reference/jangdans.json`의 `pattern_cell_eighths`를 원본 그대로 번들하고, DB 이름·BPM 단위·패턴이 모두 같은 행에만 제공한다. 미확인 패턴은 null이며 새 악보 선택·확정 저장에는 사용할 수 없다. DB 스키마와 기존 게시 판본은 바꾸지 않는다.
+
+주기 tick은 `beatCount × patternCellEighths × ticksPerBeat / BPM박의8분음표수`다. 분모는 QUARTER=2, DOTTED_QUARTER=3이며 결과는 정확한 정수여야 한다. ID7 단모리는 8분음표8칸, ID12 4박 기본 반주는 4분음표4칸이다. 길이는 모두 4분음표4박이지만 구음·묶음은 다르므로 치환하지 않는다. FE의 선택 안내·연습과 OMR·생성기는 명칭별 칸 길이 목록을 따로 두지 않는다.
+
+### 악보 작성용 지원음 (S15P31E102-787)
+
+`GET /api/instruments/{instrumentId}/authoring-capabilities`는 등록 운지·화면 표기·CAT 합성의 교집합 `selectable`과 제외 이유를 반환한다. CAT-06의 명목 음역 탐색과 구분한다. MIDI 최저·최고 사이 모든 반음을 지원한다고 간주하지 않는다.
+
+응답은 instrumentId·instrumentCode·policyVersion·nominalHwangMidi, 물리 참고 범위 `physicalRange`, 음별 `items`를 포함한다. 각 음은 pitchId·yul·octave·hangul·hanja·semitone·midi와 physical·physicalVerification·fingering·notation·synthesis·selectable·reasonCodes를 제공한다. 물리 범위는 REFERENCE_ONLY 또는 UNKNOWN이며 실물 검수는 UNKNOWN이다. 등록 운지가 없으면 FINGERING_UNKNOWN이며 연주 불가라는 뜻이 아니다.
+
+새 확정 저장과 음원 생성은 같은 정책을 적용하고, 임시저장과 기존 읽기는 보존한다. 정책 원본은 기존 카탈로그와 DATA profile·authoring-policy·공통 악보 schema다. [구현·분할 검증](../plans/S15P31E102-787.md).

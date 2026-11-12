@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.practice
 import androidx.compose.runtime.CompositionLocalProvider
 import com.ssafy.eolssu.core.diagnostics.LocalPerformanceVisit
 import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.Song
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -68,8 +69,14 @@ fun PracticeRoute(
     sheetTitle: String? = null,
     learn: Boolean = false,
     direct: Boolean = false,
+    /** 구간 연습(S15P31E102-794)의 구간. 있으면 이 구간만 연습하고, 평가 버튼은 구간 재평가가 된다. */
+    initialSection: ScoreSection? = null,
+    /** 구간 연습의 ‘구간 재평가 시작’: 같은 구간으로 구간 재평가 화면에 간다. */
+    onSectionEvaluate: (section: ScoreSection) -> Unit = {},
     perf: PerformanceVisit? = null,
-    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn-$direct") { parametersOf(songId, solo, mine, learn, perf, direct) },
+    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn-$direct-$initialSection") {
+        parametersOf(songId, solo, mine, learn, perf, direct, listOfNotNull(initialSection))
+    },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 평가 연주에서 음마다 모은 실시간 음높이 안내(S15P31E102-597). 관측이 없는 플랫폼은 집계가 비어 아무것도 칠하지 않는다.
@@ -144,6 +151,13 @@ fun PracticeRoute(
                     onSeek = viewModel::seekModel,
                     onSeekToFraction = viewModel::seekToFraction,
                     onToggleStep = viewModel::toggleStep,
+                    onStartSectionEval = {
+                        val section = state.sectionPractice?.section
+                        if (section != null) {
+                            viewModel.stopAll()
+                            onSectionEvaluate(section)
+                        }
+                    },
                     onTapStepPlaying = viewModel::tapStepPlaying,
                     onListenStepNote = {
                         viewModel.uiState.value.stepNoteToPlay?.let(playStepNote)

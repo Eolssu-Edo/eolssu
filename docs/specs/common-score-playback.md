@@ -32,6 +32,14 @@
 
 내부 IR 음표 ID는 공통 cell/row/unit에 기반한다. `expression_source_map`은 `common-expression-map/v1`로 바꾸고 생성하지 않는 JGB 문서의 문자 offset·version 필드는 제거한다. 이 내부 진단 정보 변경과 서비스 v1 원본 ID·NOTE idx·tick 및 `common-score-performance/v1`의 보존은 구분한다.
 
+### 작성 악보의 로컬 반주 시계 (773)
+
+새 `common-score-performance/v1` segment는 선택적 양수 `tempoRatio`(구간 끝 BPM/시작 BPM)를 전달한다. 한 표시 구간 안에 빠르기 경계가 없어야 하며 생성기가 확인한다. 빠르기가 기보 위치에 선형으로 변하는 구간에서 시간 비율 t에 대한 기보 비율은 `expm1(log(r)·t)/(r−1)`이다. 탐색은 역함수를 사용한다. 필드가 없거나 r=1이면 기존 선형 보간을 유지한다.
+
+가져온 `sourceSlots`의 균형 길이표는 같은 정간의 표시 칸과 반주 박 위치를 다르게 만들 수 있다. 해당 segment는 선택적 숫자 쌍 `accompanimentStartTick`/`accompanimentEndTick`으로 실제 반주 축을 전달한다. 원본 `startTick`/`endTick`은 표시·탐색에 그대로 사용하고 로컬 장구와 현재 박 표시만 반주 축을 사용한다. 구간 BPM 적용 후 나눈 표시 chunk의 시간 비율을 원래 slot의 역적분 역함수로 투영한다. 단순히 원본 slot 전체의 비율을 각 chunk에 복사하지 않는다. 쌍이 없으면 원본 tick 축을 쓴다. 두 값은 유한수이고 `0 ≤ start < end ≤ 악보 전체 tick`이어야 한다.
+
+BE는 수행 JSON을 보존한다. 기존 원본·음원·판본·sidecar는 재작성하지 않는다. 새 필드가 있는 산출물에는 이를 읽는 FE가 필요하므로 생성기와 FE를 함께 배포한다. 구버전의 엄격한 JSON decoder까지 호환된다고 가정하지 않는다. 기존 필드가 없는 수행표의 구간 내부 선형 보간은 유지한다.
+
 ## 완료 조건
 
 - JGB 해석 모듈을 차단한 상태에서도 공통 악보의 기본음·시김새 음원 생성이 성공한다. JGB 문서/문자열 조립 및 공통 생성 경로의 JGB import가 없어야 한다.

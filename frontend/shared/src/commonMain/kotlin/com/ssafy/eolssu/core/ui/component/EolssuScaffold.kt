@@ -28,7 +28,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -74,6 +73,7 @@ fun EolssuScaffold(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     contentMaxWidth: Dp = CompactContentMaxWidth,
     containerColor: Color? = null,
+    bottomDivider: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     Scaffold(
@@ -83,10 +83,10 @@ fun EolssuScaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = { Box(Modifier.windowInsetsPadding(WindowInsets.statusBars)) { topBar() } },
         bottomBar = {
-            if (bottomBar != null) EolssuBottomBar(maxWidth = contentMaxWidth, content = bottomBar)
+            if (bottomBar != null) EolssuBottomBar(maxWidth = contentMaxWidth, divider = bottomDivider, content = bottomBar)
             else Spacer(Modifier.windowInsetsPadding(WindowInsets.navigationBars))
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { EolssuSnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
             Box(Modifier.widthIn(max = contentMaxWidth).fillMaxWidth()) { content() }
@@ -217,10 +217,11 @@ fun EolssuIconButton(
 fun EolssuBottomBar(
     modifier: Modifier = Modifier,
     maxWidth: Dp = CompactContentMaxWidth,
+    divider: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(modifier.fillMaxWidth()) {
-        HorizontalDivider(color = EolssuTheme.colors.surfaceStrong)
+        if (divider) HorizontalDivider(color = EolssuTheme.colors.surfaceStrong)
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             Column(
                 Modifier

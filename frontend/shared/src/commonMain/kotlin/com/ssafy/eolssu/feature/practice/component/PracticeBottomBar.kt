@@ -90,6 +90,8 @@ class PracticeBottomActions(
     val onStartRhythm: () -> Unit = {},
     val onToggleRhythm: () -> Unit = {},
     val onDownloadSheetAudio: () -> Unit = {},
+    /** 구간 연습의 ‘구간 재평가 시작’(S15P31E102-794). */
+    val onStartSectionEval: () -> Unit = {},
 )
 
 /**
@@ -245,7 +247,7 @@ private fun NoInputBanner() {
 
 /** 사진 기반 장구. 고정된 칸 안에서 현재 박만 강조해 박이 바뀌어도 배치가 움직이지 않는다. */
 @Composable
-private fun JangguBeats(count: Int, current: Int) {
+internal fun JangguBeats(count: Int, current: Int) {
     if (count <= 0) return
     val colors = EolssuTheme.colors
     val description = stringResource(Res.string.practice_jangdan_beat)

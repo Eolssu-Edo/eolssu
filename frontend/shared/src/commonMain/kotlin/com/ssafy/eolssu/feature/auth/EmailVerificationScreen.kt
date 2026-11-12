@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.auth
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -98,6 +97,8 @@ fun EmailVerificationScreen(
             AuthHeading(stringResource(if (signUp) Res.string.auth_signup_verify_heading else Res.string.auth_reset_verify_heading))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 EolssuTextField(
+                    bordered = false,
+                    labelInside = true,
                     value = state.email,
                     onValueChange = onEmailChange,
                     label = stringResource(Res.string.auth_email),
@@ -114,6 +115,8 @@ fun EmailVerificationScreen(
                 )
                 if (state.codeSent) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     EolssuTextField(
+                        bordered = false,
+                        labelInside = true,
                         value = state.code,
                         onValueChange = onCodeChange,
                         label = stringResource(Res.string.auth_code),
@@ -165,9 +168,9 @@ private fun ResendRow(label: String, enabled: Boolean, onClick: () -> Unit) {
             onClick = onClick,
             enabled = enabled,
             shape = CircleShape,
-            color = if (enabled) colors.background else colors.surface,
+            // 회색 바탕 위 테두리 없는 흰 알약, 막히면 회색 채움(S15P31E102-798).
+            color = if (enabled) colors.surface else colors.surfaceStrong,
             contentColor = if (enabled) colors.text else colors.textMuted,
-            border = BorderStroke(1.dp, colors.line),
         ) {
             Text(
                 label,

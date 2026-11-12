@@ -1,8 +1,6 @@
 package com.ssafy.eolssu.feature.history.component
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,7 +20,8 @@ import org.jetbrains.compose.resources.stringResource
 /** 태블릿 가로 오른쪽 칸. 단독 화면과 같은 결과·재생 상태를 사용한다. */
 @Composable
 internal fun RecordDetailPane(state: RecordDetailUiState, actions: RecordDetailActions, modifier: Modifier = Modifier) {
-    Box(modifier.border(1.dp, EolssuTheme.colors.line, RoundedCornerShape(20.dp)).padding(16.dp)) {
+    // 회색 바탕 위에 휴대폰 상세와 같은 흰 카드들을 바로 놓는다(테두리 상자 없음, S15P31E102-768).
+    Box(modifier.padding(vertical = 4.dp)) {
         if (state.record == null || state.delete == RecordDeleteState.Deleted) {
             Text(stringResource(Res.string.records_pane_empty), Modifier.align(Alignment.Center).padding(24.dp),
                 textAlign = TextAlign.Center, color = EolssuTheme.colors.textMuted)

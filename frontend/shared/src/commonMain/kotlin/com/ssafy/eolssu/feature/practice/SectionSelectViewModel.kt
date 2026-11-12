@@ -6,6 +6,7 @@ import kotlinx.coroutines.async
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.ScorePosition
+import com.ssafy.eolssu.core.ui.score.ErrorFilter
 import com.ssafy.eolssu.data.practice.WeakSectionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,9 +37,9 @@ class SectionSelectViewModel(
 
     fun tap(position: ScorePosition) = _uiState.update { it.tap(position) }
 
-    fun toggleLoop() = _uiState.update { it.copy(loop = !it.loop) }
+    fun resetToRecommended() = _uiState.update { it.resetToRecommended() }
 
-    fun selectRepeat(repeat: SectionRepeat) = _uiState.update { it.copy(repeat = repeat) }
+    fun selectFilter(filter: ErrorFilter) = _uiState.update { it.copy(filter = filter) }
 
-    fun selectSpeed(speed: TempoStep) = _uiState.update { it.copy(speed = speed) }
+
 }

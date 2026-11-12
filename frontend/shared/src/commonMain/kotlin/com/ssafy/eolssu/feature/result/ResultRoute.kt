@@ -22,9 +22,7 @@ import org.koin.core.parameter.parametersOf
 import com.ssafy.eolssu.core.model.Song
 
 /**
- * 연주 결과(RESULT-02·03) 연결.
- *
- * @param onWeakSection ‘취약 구간 연습’ → PRACTICE-02 취약 구간 선택(2차). null이면 '준비 중' 안내를 띄운다.
+ * 연주 결과(RESULT-02·03) 연결. 취약 구간 연습은 연습 기록의 ‘구간 연습’에서만 들어간다(S15P31E102-794).
  */
 @Composable
 fun ResultRoute(
@@ -33,7 +31,6 @@ fun ResultRoute(
     onPracticeAgain: (songId: String) -> Unit,
     onOtherSong: () -> Unit,
     onHome: () -> Unit,
-    onWeakSection: (() -> Unit)? = null,
     initialSong: Song? = null,
     perf: PerformanceVisit? = null,
     viewModel: ResultViewModel = koinViewModel(key = evaluationId) { parametersOf(evaluationId, initialSong, perf) },
@@ -69,7 +66,6 @@ fun ResultRoute(
                 onBack = onBack,
                 onSave = viewModel::save,
                 onConfirmSave = viewModel::confirmSave,
-                onWeakSection = onWeakSection ?: showComingSoon,
                 onPracticeAgain = { (state.result?.songId ?: state.scorePreview?.songId)?.let(onPracticeAgain) },
                 onOtherSong = onOtherSong,
                 onHome = onHome,

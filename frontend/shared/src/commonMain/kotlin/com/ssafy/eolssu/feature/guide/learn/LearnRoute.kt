@@ -120,7 +120,6 @@ fun LearnListRoute(
                 onBack = {},
                 onOpenStage = viewModel::selectStage,
                 onConfirmed = viewModel::selectStage,
-                onToggleDone = viewModel::toggleShownDone,
                 navigation = navigation,
             ),
             noteAudioContent = { note ->
@@ -192,7 +191,6 @@ fun LearnStageRoute(
             onBack = onBack,
             onOpenStage = onOpenStage,
             onConfirmed = { next -> next?.let(onOpenStage) ?: onBack() },
-            onToggleDone = viewModel::toggleDone,
             navigation = navigation,
         ),
         noteAudioContent = { note ->
@@ -212,12 +210,10 @@ private fun learnStageActions(
     onBack: () -> Unit,
     onOpenStage: (Int) -> Unit,
     onConfirmed: (Int?) -> Unit,
-    onToggleDone: (Int) -> Unit,
     navigation: LearnNavigation,
 ) = LearnStageActions(
     onBack = onBack,
     onOpenStage = onOpenStage,
-    onToggleDone = onToggleDone,
     onConfirm = { n ->
         viewModel.confirm(n)
         onConfirmed(state.stageAfterConfirm(n))

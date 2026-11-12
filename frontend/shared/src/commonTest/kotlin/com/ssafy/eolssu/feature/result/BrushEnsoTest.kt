@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.result
 
 import com.ssafy.eolssu.feature.result.component.EnsoBrush
 import com.ssafy.eolssu.feature.result.component.Mulberry32
+import com.ssafy.eolssu.feature.result.component.chaseProgress
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -63,8 +64,63 @@ class BrushEnsoTest {
                 finished++
             }
         }
-        brush.trace(0.0, 0.3, size, trail, sink)
+        brush.trace(0.3, size, trail, sink)
         assertEquals(brush.bristles.size, finished)
+    }
+
+    @Test
+    fun leadingEdgeIsRaggedBrushNotFlatCut() {
+        val count = brush.bristles.size
+        val reach = List(count) { brush.reach(it, 0.5, size) }
+        // 그리는 도중에는 털마다 뒤처지는 거리가 달라 앞끝이 들쭉날쭉하고, 앞지르는 털은 없다.
+        assertTrue(reach.all { it <= 0.5 })
+        assertTrue(reach.max() - reach.min() > 0.005)
+        // 거친 앞끝은 가장자리에서 가운데로 갈수록 고르게 앞서는 반원이 아니다.
+        val byEdge = brush.bristles.indices.sortedBy { abs(brush.bristles[it].u) }.map { reach[it] }
+        assertTrue(byEdge.zipWithNext().any { (inner, outer) -> outer > inner })
+
+        val trail = EnsoBrush.Trail(count)
+        val noop = object : EnsoBrush.Sink {
+            override fun line(x0: Float, y0: Float, x1: Float, y1: Float) = Unit
+            override fun finish(alpha: Float, width: Float) = Unit
+        }
+        brush.trace(0.5, size, trail, noop)
+        assertTrue(trail.next.toSet().size > count / 2)
+
+        // 다 그리면 모든 털이 끝까지 닿는다.
+        brush.trace(1.0, size, trail, noop)
+        assertEquals(1, trail.next.toSet().size)
+        assertEquals(1.0, brush.reach(0, 1.0, size))
+    }
+
+    @Test
+    fun uploadProgressChasesTargetWithoutPassingIt() {
+        // 한 프레임(1/60초)에 최대 0.6/초만큼만 따라가고, 목표를 넘지 않는다.
+        val dt = 1f / 60
+        val first = chaseProgress(0f, 0.5f, dt)
+        assertTrue(first > 0f)
+        assertTrue(first <= 0.6f * dt + 1e-4f + 1e-6f)
+
+        var shown = 0f
+        repeat(600) {
+            shown = chaseProgress(shown, 0.5f, dt)
+            assertTrue(shown <= 0.5f)
+        }
+        assertEquals(0.5f, shown)
+    }
+
+    @Test
+    fun uploadProgressSnapsToFullWhenSent() {
+        assertEquals(1f, chaseProgress(0.996f, 1f, 0f))
+        // 아직 다 보내지 않았으면 끝 무렵이어도 1로 맞추지 않는다.
+        assertTrue(chaseProgress(0.996f, 0.999f, 0f) < 1f)
+    }
+
+    @Test
+    fun uploadProgressResetsWhenTargetDrops() {
+        // 재전송은 0부터 다시 보고하므로 보이는 값도 바로 내려간다.
+        assertEquals(0f, chaseProgress(0.7f, 0f, 1f / 60))
+        assertEquals(0.3f, chaseProgress(0.7f, 0.3f, 1f / 60))
     }
 
     private fun hypot(x: Double, y: Double) = kotlin.math.sqrt(x * x + y * y)

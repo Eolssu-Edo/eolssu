@@ -38,12 +38,18 @@ import eolssu.shared.generated.resources.practice_subtitle_mine
 import eolssu.shared.generated.resources.practice_subtitle_solo
 import eolssu.shared.generated.resources.practice_title
 import eolssu.shared.generated.resources.practice_title_fingering
+import eolssu.shared.generated.resources.weak_loop_title
 import org.jetbrains.compose.resources.stringResource
 
 /** 상단 제목: 혼자 연습·내 악보 연습은 ‘연습’, 평가 연습은 ‘연주 평가’. */
 @Composable
-fun practicePageTitle(state: PracticeUiState): String =
-    stringResource(if (state.solo || state.mine) Res.string.practice_title else Res.string.practice_eval_title)
+fun practicePageTitle(state: PracticeUiState): String = stringResource(
+    when {
+        state.sectionPractice != null -> Res.string.weak_loop_title
+        state.solo || state.mine -> Res.string.practice_title
+        else -> Res.string.practice_eval_title
+    },
+)
 
 /**
  * PRACTICE-01 상단(`.page-head`): 원형 뒤로 가기 · 제목([practicePageTitle]) · 오른쪽 연습 설정 톱니. 평가 연주 중에도 열린다(속도·장단만 설정 안에서 잠긴다).
@@ -59,20 +65,24 @@ fun PracticeTopBar(
     maxWidth: Dp = CompactContentMaxWidth,
     showSettings: Boolean = true,
     onToggleStep: () -> Unit = {},
+    /** false면 머리에 ‘한 음씩’을 두지 않는다. 휴대폰 구간 연습은 제목이 잘리지 않게 설정 버튼 아래 제목 줄에 둔다(S15P31E102-794). */
+    showStepToggle: Boolean = true,
 ) {
     EolssuPageTopBar(
         title = practicePageTitle(state),
         onBack = onBack,
         modifier = modifier,
         maxWidth = maxWidth,
+        // 회색 바탕 화면(S15P31E102-768)이라 구분선 없이 흰 버튼만 띄운다.
+        divider = false,
         right = {
             // 서버에 이 악기의 한 음씩 판정 기준이 없으면 토글을 숨긴다(PRA-06 404).
-            if (state.solo && state.step.available) {
+            if (showStepToggle && state.solo && state.step.available) {
                 PracticeStepToggle(state, onToggleStep)
                 if (showSettings) Spacer(Modifier.width(2.dp))
             }
             if (showSettings) {
-                EolssuPageIconButton(EolssuIcons.Cog, stringResource(Res.string.practice_settings), onOpenSettings)
+                EolssuPageIconButton(EolssuIcons.Cog, stringResource(Res.string.practice_settings), onOpenSettings, bordered = false)
             }
         },
     )
@@ -91,6 +101,8 @@ fun PracticeTitleRow(
     modifier: Modifier = Modifier,
     showPill: Boolean = true,
     toggles: PracticeTitleToggles? = null,
+    /** 알약 대신 제목 오른쪽에 둘 내용(휴대폰 구간 연습의 ‘한 음씩’). */
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val song = state.song ?: return
     val instrument = stringResource(state.instrument.label)
@@ -112,7 +124,7 @@ fun PracticeTitleRow(
     }
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         PageHeading(state.title, Modifier.weight(1f), compact = state.fingeringView, singleLine = true)
-        if (showPill) PracticePill(pill)
+        if (trailing != null) trailing() else if (showPill) PracticePill(pill)
     }
 }
 

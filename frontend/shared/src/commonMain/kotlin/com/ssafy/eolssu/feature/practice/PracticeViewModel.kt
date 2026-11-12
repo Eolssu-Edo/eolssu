@@ -44,6 +44,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import com.ssafy.eolssu.core.model.ScoreSection
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -72,6 +75,9 @@ import kotlin.uuid.Uuid
  * 판정은 기기 안에서만 하고 녹음을 보내거나 분석하지 않는다. 곡을 불러오면 [notePractice]로 그 악기의 판정 기준을 받아
  * 마이크로 듣는 판정기([PitchStepNoteJudge])로 바꾼다. 혼자 연습 화면은 평가 녹음을 하지 않으므로 마이크 권한·녹음 실패 안내는
  * 한 음씩 것이다. [mine]은 내 악보 연습(평가 버튼 없음)이다.
+ *
+ * 구간 연습(S15P31E102-794)은 연습 기록 → 구간 고르기에서 [initialSection]으로 연다. 모범 연주·장단 연습·한 음씩이
+ * 그 구간만 한 번 연습하고 구간 처음에 멈춘다. 타임라인도 구간 안에서만 움직인다.
  */
 class PracticeViewModel(
     private val songId: String,
@@ -95,9 +101,11 @@ class PracticeViewModel(
     private val loadPersonalSheet: (suspend (String) -> Song?)? = null,
     private val perf: PerformanceVisit? = null,
     private val personalAudio: SheetPracticeRepository? = null,
-    direct: Boolean = false,
+    private val direct: Boolean = false,
     /** 평가 녹음 최대 길이. 테스트만 짧게 바꾼다(S15P31E102-737). */
     private val maxRecording: Duration = RecordingSpec.MaxDuration,
+    /** 구간 연습의 구간. 있으면 이 구간만 연습한다. */
+    private val initialSection: ScoreSection? = null,
 ) : ViewModel() {
     private var stepJudge: StepNoteJudge = stepJudge
 
@@ -118,6 +126,8 @@ class PracticeViewModel(
     private var songJob: Job? = null
     private var evaluationCheckJob: Job? = null
     private var personalAudioJob: Job? = null
+    /** 구간 끝에서 모범 연주를 구간 처음으로 옮긴 뒤, 음원 위치가 구간 안으로 돌아오기 전까지는 다시 되풀이하지 않는다. */
+    private var sectionSeekPending = false
     private var screenShown = false
     private val recordingClock = RecordingClock(playbackTimeSource)
     private var takeKey = ""
@@ -208,18 +218,27 @@ class PracticeViewModel(
         val resumeAfter = modelResumeAfterTick
         modelResumeAfterTick = null
         val startAt = modelTickAtReportedPosition()
-        jangdanAudio.start(currentPlan(), accompanyingModel = true, resumeAfterTick = resumeAfter, startAtTick = startAt, tick = {
+        val sectionEndMs = state.sectionTicks?.let { ticks ->
+            val playback = modelAudio.state.value
+            val audio = playback.audio
+            if (audio == null) null else state.song?.modelSectionEndMediaPosition(audio, ticks, playback.mediaPositionMs.toDouble())
+        }
+        var lastMediaMs: Double? = null
+        jangdanAudio.start(currentPlan(), accompanyingModel = true, resumeAfterTick = resumeAfter, startAtTick = startAt,
+            clockReady = { modelAudio.playbackClockReady }, tick = {
             val now = _uiState.value
             val song = now.song
-            val clock = now.modelClock
-            if (now.mode != PracticeMode.Model || !now.playing || song == null || clock == null) null
+            val audio = modelAudio.state.value.audio
+            val anchor = modelAudio.playbackAnchor
+            if (now.mode != PracticeMode.Model || !now.playing || song == null || audio == null || anchor == null) null
             else {
-                val mediaMs = clock.anchor.positionNow()
-                val endMs = clock.audio.startOffsetMs + song.modelScoreDurationMs(clock.audio)
+                // Decoder reports may jitter slightly backward. An explicit seek creates a new session.
+                val mediaMs = maxOf(anchor.positionNow(), lastMediaMs ?: 0.0).also { lastMediaMs = it }
+                val endMs = audio.startOffsetMs + song.modelScoreDurationMs(audio)
                 when {
-                    mediaMs < clock.audio.startOffsetMs -> -1.0
-                    mediaMs >= endMs -> null
-                    else -> song.modelJangdanTickAt(clock.audio, mediaMs)
+                    mediaMs < audio.startOffsetMs -> -1.0
+                    mediaMs >= endMs || sectionEndMs != null && mediaMs >= sectionEndMs -> null
+                    else -> song.modelJangdanTickAt(audio, mediaMs)
                 }
             }
         })
@@ -240,7 +259,7 @@ class PracticeViewModel(
         jangdanAudio.start(plan, accompanyingModel = true, startAtTick = start, allowPreparedPlayback = true, tick = {
             val now = _uiState.value
             if (now.mode != PracticeMode.Recording || now.finished || now.popup != null || !now.settings.jangdanSound) null
-            else (stepClock?.sample()?.elapsedMs ?: now.elapsedMs) / plan.msPerTick
+            else (stepClock?.elapsedMs() ?: now.elapsedMs) / plan.msPerTick
         })
     }
 
@@ -297,10 +316,11 @@ class PracticeViewModel(
         _uiState.update { it.copy(follow = true) }
         soundPurpose = SoundPurpose.Rhythm
         val resumeAfter = if (rhythmStartsAtAttack) null else _uiState.value.elapsedMs / plan.msPerTick
+        val endTick = _uiState.value.sectionTicks?.endInclusive
+            ?: song.timeline.last().let { (it.startTick!! + it.durationTick!!).toDouble() }
         jangdanAudio.start(plan, accompanyingModel = false, resumeAfterTick = resumeAfter, tick = {
-            val end = song.timeline.last().let { it.startTick!! + it.durationTick!! }
             if (_uiState.value.mode == PracticeMode.Rhythm && _uiState.value.playing)
-                stepClock?.sample()?.elapsedMs?.div(plan.msPerTick)?.takeIf { it < end } else null
+                stepClock?.elapsedMs()?.div(plan.msPerTick)?.takeIf { it < endTick } else null
         }, onStarted = {
             rhythmStartsAtAttack = false
             _uiState.update { it.copy(playing = true) }
@@ -357,6 +377,7 @@ class PracticeViewModel(
                 .collect { newTake -> if (newTake) pitchTally.value = LivePitchTally() }
         }
         retryLoadSong()
+        if (initialSection != null) openSectionEntry(initialSection)
         accountScope.launch {
             modelAudio.state.collect { playback ->
                 _uiState.update { state ->
@@ -366,6 +387,7 @@ class PracticeViewModel(
                         next.copy(personalAudio = PracticePersonalAudio.Missing)
                     } else next
                 }
+                loopModelSection(playback.status)
                 syncModelJangdan()
             }
         }
@@ -406,14 +428,23 @@ class PracticeViewModel(
         _uiState.update { it.copy(isSongLoading = true, songError = null) }
         songJob = accountScope.launch(perf.context(if (songJob == null) PerfReason.INITIAL else PerfReason.RETRY)) {
             try {
-                val song = if (mine) loadPersonalSheet?.invoke(songId) else songRepository.getSong(songId)
+                val song = when {
+                    mine -> loadPersonalSheet?.invoke(songId)
+                    direct -> songRepository.retainedSong(songId) ?: songRepository.getSong(songId)
+                    else -> songRepository.getSong(songId)
+                }
                 when {
                     song == null -> _uiState.update { it.copy(songError = PracticeSongError.NotFound) }
                     song.timeline.isEmpty() -> _uiState.update { it.copy(songError = PracticeSongError.Failed) }
                     else -> {
                         perf?.milestone(PerfPhase.PRACTICE_READY)
                         _uiState.update {
-                            it.copy(song = song, personalAudio = PracticePersonalAudio.Checking.takeIf { supportsPersonalAudio })
+                            val audio = when {
+                                supportsPersonalAudio -> PracticePersonalAudio.Checking
+                                mine && personalAudio != null -> PracticePersonalAudio.Unsupported
+                                else -> null
+                            }
+                            it.copy(song = song, personalAudio = audio)
                         }
                         if (supportsPersonalAudio) checkPersonalAudio(song)
                         _uiState.update { it.copy(jangdanSupported = jangdanPlayer.available && currentPlan() != null) }
@@ -462,7 +493,9 @@ class PracticeViewModel(
         screenShown = false
         personalAudioJob?.cancel()
         _uiState.update {
-            if (it.personalAudio == PracticePersonalAudio.Downloading) it.copy(personalAudio = PracticePersonalAudio.Checking) else it
+            if (it.personalAudio == PracticePersonalAudio.Preparing || it.personalAudio == PracticePersonalAudio.Downloading) {
+                it.copy(personalAudio = PracticePersonalAudio.Checking)
+            } else it
         }
         pauseRhythm()
         stopPreview()
@@ -480,7 +513,51 @@ class PracticeViewModel(
 
     // 악보·패널
 
-    fun selectUnit(unit: ScoreDisplayUnit) = _uiState.update { it.selectUnit(unit) }
+    /** 정간을 누름: 그 음을 고르고 운지법을 연다. 구간 연습은 구간이 정해져 있어 고르지 않는다. */
+    fun selectUnit(unit: ScoreDisplayUnit) {
+        if (_uiState.value.sectionPractice != null) return
+        _uiState.update { it.selectUnit(unit) }
+    }
+
+    // 구간 연습
+
+    /** 연습 기록 → 구간 고르기에서 들어옴: 곡을 받은 뒤 구간을 정해 구간 연습으로 둔다. */
+    private fun openSectionEntry(section: ScoreSection) {
+        accountScope.launch {
+            _uiState.map { it.song }.filterNotNull().first()
+            _uiState.update { it.openSectionPractice(section) }
+        }
+    }
+
+    /** 모범 연주가 구간 끝을 지나면 구간 처음으로 돌아가 멈춘다. 다시 누르면 또 한 번 듣는다. */
+    private fun loopModelSection(status: ModelAudioStatus) {
+        val state = _uiState.value
+        if (state.mode != PracticeMode.Model || state.sectionEvents == null) {
+            sectionSeekPending = false
+            return
+        }
+        if (sectionSeekPending) {
+            if (!state.passedSectionEnd && status != ModelAudioStatus.Completed) sectionSeekPending = false
+            return
+        }
+        val range = state.sectionEvents ?: return
+        val playback = modelAudio.state.value
+        val ticks = state.sectionTicks
+        val audio = playback.audio
+        val repeatedOutside = state.position < range.first && ticks != null && audio != null &&
+            audio.performance?.segments?.firstOrNull { ticks.start >= it.startTick && ticks.start < it.endTick }
+                ?.let { playback.mediaPositionMs >= audio.startOffsetMs + it.mediaMsAt(ticks.start) } == true
+        val ended = status == ModelAudioStatus.Completed || (state.playing && (state.passedSectionEnd || repeatedOutside))
+        if (!ended) return
+        val song = state.song ?: return
+        val first = state.sectionEvents?.first ?: return
+        val tick = song.timeline.getOrNull(first)?.startTick?.toDouble() ?: return
+        sectionSeekPending = true
+        stopJangdan()
+        _uiState.value = state.stopAtSectionStart()
+        modelAudio.pauseAtTick(tick)
+        modelStartsAtAttack = true
+    }
 
     fun reportFingeringAudio(playing: Boolean) {
         _uiState.update { it.copy(fingeringAudioPlaying = playing && it.panel == PracticePanel.Fingering) }
@@ -583,7 +660,14 @@ class PracticeViewModel(
 
     /** 플레이어의 −5초·+5초. 모범 연주 중에는 음원 위치를, 준비 상태에서는 고른 음을 옮긴다. */
     fun seekModel(deltaMs: Long) {
-        when (_uiState.value.mode) {
+        val state = _uiState.value
+        // 구간 연습은 구간 안에서만 옮긴다(S15P31E102-794).
+        val sectionTick = state.sectionTickBy(deltaMs)
+        if (sectionTick != null) {
+            seekSection(sectionTick)
+            return
+        }
+        when (state.mode) {
             PracticeMode.Model -> {
                 modelStartsAtAttack = true
                 modelResumeAfterTick = null
@@ -604,6 +688,12 @@ class PracticeViewModel(
         if (state.mode !in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm) ||
             song.timeline.isEmpty() || state.playerNotice == PracticePlayerNotice.Loading) return
         val progress = fraction.coerceIn(0f, 1f)
+        // 구간 연습의 막대는 구간 처음 ~ 끝이다.
+        val sectionTick = state.sectionTickAt(progress)
+        if (sectionTick != null) {
+            seekSection(sectionTick)
+            return
+        }
         if (state.mode == PracticeMode.Model && modelAudio.state.value.audio != null) {
             modelStartsAtAttack = true
             modelResumeAfterTick = null
@@ -626,6 +716,49 @@ class PracticeViewModel(
         modelStartsAtAttack = true
         rhythmStartsAtAttack = true
         if (wasPlaying && progress < 1f) startRhythm()
+    }
+
+    /**
+     * 구간 연습의 타임라인 이동: 모범 연주는 음원을 그 tick으로, 장단 연습·준비는 악보 자리를 그 tick으로 옮긴다.
+     * 구간 끝에 닿으면 구간 처음에 멈춘다.
+     */
+    private fun seekSection(tick: Double) {
+        val state = _uiState.value
+        val song = state.song ?: return
+        val timing = song.score.timing ?: return
+        val ticks = state.sectionTicks ?: return
+        if (tick >= ticks.endInclusive) {
+            when (state.mode) {
+                PracticeMode.Model -> {
+                    val start = song.timeline.getOrNull(state.sectionStartIndex)?.startTick
+                    if (start != null) modelAudio.pauseAtTick(start.toDouble()) else modelAudio.pause()
+                    modelStartsAtAttack = true
+                }
+                PracticeMode.Rhythm -> pauseRhythm()
+                else -> Unit
+            }
+            stopJangdan()
+            _uiState.update { it.stopAtSectionStart() }
+            return
+        }
+        if (state.mode == PracticeMode.Model && modelAudio.state.value.audio != null) {
+            modelStartsAtAttack = true
+            modelResumeAfterTick = null
+            stopJangdan()
+            modelAudio.seekToTick(tick)
+            return
+        }
+        val wasPlaying = state.mode == PracticeMode.Rhythm && state.playing
+        pauseRhythm()
+        val position = song.timeline.indexOfLast { (it.startTick ?: 0) <= tick }.coerceAtLeast(0)
+        val msPerTick = 60_000.0 / state.bpm / timing.ticksPerBeat
+        _uiState.update { it.copy(mode = if (it.mode == PracticeMode.Ready) PracticeMode.Model else it.mode,
+            position = position, selected = position, selectedCell = state.cellForEvent(position), playing = false, follow = true,
+            eventElapsedMs = (tick - (song.timeline[position].startTick ?: 0)) * msPerTick,
+            elapsedMs = tick * msPerTick, eventStartedAt = null, modelClock = null) }
+        modelStartsAtAttack = true
+        rhythmStartsAtAttack = true
+        if (wasPlaying) startRhythm()
     }
 
     /** Preview uses the reviewed score tick scale and the selected practice BPM. */
@@ -673,6 +806,9 @@ class PracticeViewModel(
     private fun checkPersonalAudio(song: Song) {
         val repository = personalAudio ?: return
         if (personalAudioJob?.isActive == true) return
+        val missing = if (_uiState.value.personalAudio == PracticePersonalAudio.Failed) {
+            PracticePersonalAudio.Failed
+        } else PracticePersonalAudio.Missing
         _uiState.update { it.copy(personalAudio = PracticePersonalAudio.Checking) }
         personalAudioJob = accountScope.launch {
             val available = try {
@@ -684,7 +820,7 @@ class PracticeViewModel(
             }
             _uiState.update {
                 if (it.song != song) it
-                else it.copy(personalAudio = if (available) PracticePersonalAudio.Ready else PracticePersonalAudio.Missing)
+                else it.copy(personalAudio = if (available) PracticePersonalAudio.Ready else missing)
             }
         }
     }
@@ -695,19 +831,28 @@ class PracticeViewModel(
         val state = _uiState.value
         val song = state.song ?: return
         if (state.personalAudioControl !in setOf(PracticePersonalAudio.Missing, PracticePersonalAudio.Failed)) return
-        _uiState.update { it.copy(personalAudio = PracticePersonalAudio.Downloading) }
+        _uiState.update { it.copy(personalAudio = PracticePersonalAudio.Preparing) }
         personalAudioJob = accountScope.launch {
             val result = try {
-                repository.download(song)
+                repository.download(song) {
+                    _uiState.update { current ->
+                        if (current.song == song && current.personalAudio == PracticePersonalAudio.Preparing) {
+                            current.copy(personalAudio = PracticePersonalAudio.Downloading)
+                        } else current
+                    }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 SheetPracticeDownload.Failed
             }
             _uiState.update { current ->
-                if (current.song != song || current.personalAudio != PracticePersonalAudio.Downloading) return@update current
+                if (current.song != song ||
+                    current.personalAudio !in setOf(PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading)
+                ) return@update current
                 when (result) {
                     SheetPracticeDownload.Saved -> current.copy(personalAudio = PracticePersonalAudio.Ready, modelAudioStatus = ModelAudioStatus.Idle)
+                    SheetPracticeDownload.UnsupportedPitches -> current.copy(personalAudio = PracticePersonalAudio.UnsupportedPitches)
                     SheetPracticeDownload.Failed -> current.copy(personalAudio = PracticePersonalAudio.Failed)
                     SheetPracticeDownload.VersionChanged -> current.copy(personalAudio = PracticePersonalAudio.VersionChanged)
                 }
@@ -744,7 +889,8 @@ class PracticeViewModel(
 
     fun toggleModel() {
         if (!accountScope.isActive) return
-        if (_uiState.value.playing) modelAudio.pause() else startModel()
+        // 재생 중 −5초·+5초로 새 자리를 불러오는 동안에도 재생 중으로 보고 멈춘다(S15P31E102-807).
+        if (_uiState.value.playing || _uiState.value.modelSeekBuffering) modelAudio.pause() else startModel()
     }
 
     fun restartModel() {
@@ -754,7 +900,7 @@ class PracticeViewModel(
         stopJangdan()
         val song = _uiState.value.song ?: return
         _uiState.update { it.restartModel().copy(playing = false, eventStartedAt = null) }
-        modelAudio.restart(song, _uiState.value.bpm)
+        modelAudio.restart(song, _uiState.value.bpm, _uiState.value.currentTick)
     }
 
     fun stopModel() {
@@ -1314,7 +1460,7 @@ class PracticeViewModel(
     /** 원본 이벤트는 끝에서만 옮기고, 박/정간/진행 시간은 긴 이벤트 안에서도 경과 시각으로 갱신한다. */
     private fun startStepping(carryMs: Double = 0.0) {
         stepJob?.cancel()
-        val clock = PracticeTimelineClock(playbackTimeSource, carryMs, _uiState.value.elapsedMs)
+        var clock = PracticeTimelineClock(playbackTimeSource, carryMs, _uiState.value.elapsedMs)
         stepClock = clock
         stepJob = accountScope.launch {
             try {
@@ -1332,6 +1478,18 @@ class PracticeViewModel(
                                 .resumeFollowOnNextGak()
                         }
                         clock.completeEvent(duration)
+                        if (_uiState.value.mode == PracticeMode.Rhythm && (_uiState.value.passedSectionEnd ||
+                                _uiState.value.sectionEvents != null && !_uiState.value.playing)) {
+                            // 구간 연습: 구간 끝에서 구간 처음으로 돌아가 멈춘다.
+                            val stopped = _uiState.value.stopAtSectionStart()
+                            val song = stopped.song
+                            val startTick = song?.timeline?.getOrNull(stopped.position)?.startTick?.toDouble()
+                            val timing = song?.score?.timing
+                            val startMs = if (startTick != null && timing != null) startTick * 60_000.0 / stopped.bpm / timing.ticksPerBeat else stopped.elapsedMs
+                            _uiState.value = stopped.copy(elapsedMs = startMs)
+                            stopJangdan()
+                            break
+                        }
                         val next = _uiState.value
                         if (next.mode == PracticeMode.Recording && next.finished) finishRecorder()
                         val running = (next.mode in setOf(PracticeMode.Model, PracticeMode.Rhythm) && next.playing) || (next.mode == PracticeMode.Recording && !next.finished)

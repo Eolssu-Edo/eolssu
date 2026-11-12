@@ -1,0 +1,9 @@
+{
+  "policy_version": "registered-guidance-cat/v1",
+  "synthesis_extension": true,
+  "midi_range": [
+    0,
+    127
+  ],
+  "synthesis_note": "Internal playback preserves requested MIDI using nearest sample pitch shift. It does not certify physical playability or sample quality."
+}

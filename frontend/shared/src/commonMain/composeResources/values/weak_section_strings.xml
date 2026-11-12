@@ -9,55 +9,35 @@
     <string name="weak_section_columns">%1$d–%2$d각</string>
     <string name="weak_section_column">%1$d각</string>
     <string name="weak_section_cells">%1$d각 %2$d정간 – %3$d각 %4$d정간</string>
-    <string name="weak_edge_start">처음</string>
+    <string name="weak_edge_start">시작</string>
     <string name="weak_edge_end">끝</string>
-    <string name="weak_legend_wrong">틀린 곳</string>
     <string name="weak_load_missing">연주 결과를 찾지 못했어요. 이전 화면으로 돌아가 주세요.</string>
 
     <!-- PRACTICE-02 취약 구간 선택 -->
-    <string name="weak_select_title">취약 구간 선택</string>
-    <string name="weak_select_hint">처음 정간과 끝 정간을 차례로 눌러 구간을 골라요.</string>
-    <string name="weak_select_hint_end">끝 정간을 눌러 구간을 마무리하세요.</string>
-    <string name="weak_select_loop">구간 반복</string>
-    <string name="weak_select_times">%1$d회</string>
-    <string name="weak_select_endless">계속</string>
-    <string name="weak_select_speed">연습 속도</string>
-    <string name="weak_select_bpm">%1$d BPM · 기준 %2$d BPM의 %3$d%</string>
-    <string name="weak_select_bpm_short">%1$d BPM</string>
-    <string name="weak_select_bpm_show">BPM 보기</string>
+    <string name="weak_select_hint">시작 정간을 선택하세요</string>
+    <string name="weak_select_hint_end">끝 정간을 선택하세요</string>
+    <string name="weak_select_hint_ready">선택한 구간을 연습해요</string>
+    <string name="weak_select_reset">취약 구간으로</string>
+    <string name="weak_select_practice">구간 연습</string>
+    <string name="weak_select_title">구간 연습-구간 선택</string>
     <string name="weak_select_start">구간 연습 시작</string>
     <string name="weak_cell_in_section">%1$s, 선택한 구간</string>
 
     <!-- PRACTICE-03 구간 반복 -->
     <string name="weak_loop_title">구간 연습</string>
-    <string name="weak_loop_badge_running">구간 반복 중 · %1$d/%2$d회</string>
-    <string name="weak_loop_badge_paused">반복 멈춤 · %1$d/%2$d회</string>
-    <string name="weak_loop_badge_running_endless">구간 반복 중 · %1$d회째</string>
-    <string name="weak_loop_badge_paused_endless">반복 멈춤 · %1$d회째</string>
-    <string name="weak_loop_badge_done">반복 끝 · %1$d/%2$d회</string>
-    <string name="weak_loop_pause">반복 멈춤</string>
-    <string name="weak_loop_resume">반복 계속</string>
-    <string name="weak_loop_restart">다시 연습</string>
+    <string name="weak_loop_evaluate_start">구간 재평가 시작</string>
     <string name="weak_loop_evaluate">구간 재평가</string>
-    <string name="weak_loop_badge_recording">재평가 녹음 중</string>
-    <string name="weak_loop_stop_recording">녹음 그만하기</string>
-    <string name="weak_loop_count_record">%1$d박 센 뒤 %2$d각 %3$d정간부터 한 번 녹음해요</string>
-    <string name="weak_loop_record_hint">끝까지 연주하면 바로 분석해요</string>
     <string name="weak_loop_no_recorder">이 기기에서는 녹음할 수 없어요. 앱에서 재평가해 주세요.</string>
-    <string name="weak_loop_no_notes">이 구간에는 연주할 음이 없어 재평가할 수 없어요. 다른 구간을 골라 주세요.</string>
+    <string name="weak_loop_no_notes">이 구간에는 연주할 음이 없어요. 다른 구간을 골라 주세요.</string>
     <string name="weak_loop_mic_denied">마이크를 허용해야 재평가할 수 있어요.</string>
-    <string name="weak_loop_mic_blocked">설정에서 마이크를 허용해야 재평가할 수 있어요.</string>
+    <string name="weak_loop_mic_blocked">마이크 권한이 꺼져 있어요. 설정에서 허용해 주세요.</string>
     <string name="weak_loop_open_settings">설정 열기</string>
     <string name="weak_loop_record_failed">녹음을 저장하지 못했어요. 다시 재평가해 주세요.</string>
-    <string name="weak_loop_count_start">%1$d박 센 뒤 %2$d각 %3$d정간부터 구간 반복을 시작해요</string>
-    <string name="weak_loop_count_resume">%1$d박 센 뒤 %2$d각 %3$d정간부터 반복을 이어 가요</string>
 
     <!-- RESULT-04 구간 재평가 결과 -->
     <string name="weak_result_title">구간 재평가 결과</string>
     <string name="weak_result_subtitle">%1$s · %2$s · %3$d BPM</string>
     <string name="weak_result_subtitle_plain">%1$s · %2$d BPM</string>
-    <string name="weak_result_score_note">이번 구간 연주의 점수예요. 이전 점수와의 비교는 아직 제공하지 않아요.</string>
-    <string name="weak_result_errors_title">틀린 음 비교</string>
     <string name="weak_result_errors_change">이전 %1$d개 → 이번 %2$d개</string>
     <string name="weak_result_errors_now">이번 %1$d개</string>
     <string name="weak_result_fewer">%1$d개 줄었어요</string>
@@ -67,12 +47,10 @@
     <string name="weak_result_not_comparable">%1$s 그래서 틀린 음 수를 견주지 않아요.</string>
     <string name="weak_result_compare_rejected">바탕이 된 연주와 비교할 수 없는 연주예요.</string>
     <string name="weak_result_compare_failed">이전 연주와 비교하지 못했어요.</string>
-    <string name="weak_result_next_title">다음 단계</string>
     <string name="weak_result_next_slow">속도를 기준(%1$d BPM)에 가깝게 올려서 한 번 더 해보세요. %2$d점을 넘기면 곡 전체를 다시 평가해보세요.</string>
     <string name="weak_result_next_ready">이 구간을 기준 속도로 연주했어요. 곡 전체를 다시 평가해보세요.</string>
-    <string name="weak_result_again">다시 연습</string>
-    <string name="weak_result_other">다른 구간 고르기</string>
     <string name="weak_result_whole">곡 전체 다시 평가</string>
+    <string name="weak_result_other_more">다른 구간 고르기 ›</string>
 
     <!-- COMPARE-01 이전 연주와 비교 -->
     <string name="weak_compare_rejected">이 두 연주는 서버에서 비교할 수 없는 연주예요. 틀린 정간은 참고로만 봐 주세요.</string>
@@ -110,5 +88,4 @@
     <string name="record_title_line">%1$s · %2$s %3$s</string>
     <string name="record_follow_now">지금 위치로</string>
     <string name="record_memo_button">메모</string>
-    <string name="record_result_practice">취약 구간 연습</string>
 </resources>

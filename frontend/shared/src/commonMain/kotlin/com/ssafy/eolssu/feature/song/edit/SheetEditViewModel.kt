@@ -17,6 +17,7 @@ import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SheetDocument
 import com.ssafy.eolssu.data.song.SheetDocumentRepository
+import com.ssafy.eolssu.data.song.matchesDraftAcknowledgement
 import com.ssafy.eolssu.data.song.SheetWorkingCopy
 import com.ssafy.eolssu.data.song.SheetWrite
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -40,6 +41,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 
 /**
@@ -82,12 +84,14 @@ class SheetEditViewModel(
     )
 
     /** 서버에 저장할 수 없는 악보(예시·제공 곡 복사본)의 처음 상태. 고친 뒤 닫으면 버릴지 묻는다. */
+    private var expressions: kotlinx.serialization.json.JsonObject? = null
     private var baseline: SheetDraft? = if (loadsRemote) null else _uiState.value.draft
     val uiState: StateFlow<SheetEditUiState> = _uiState.asStateFlow()
 
     /** 음원 요청·상태 조회 작업. 한 번에 하나만 돈다. */
     private var audioJob: Job? = null
     private var audioInstrumentsJob: Job? = null
+    private var audioSupportJob: Job? = null
     private var audioDownloadJob: Job? = null
     private var autoSaveJob: Job? = null
     private var loadJob: Job? = null
@@ -95,9 +99,12 @@ class SheetEditViewModel(
     private var completionCatalogJob: Job? = null
     private var closeJob: Job? = null
     private var persistedDraft: SheetDraft? = null
+    private var persistedStatus: SheetSaveStatus? = null
+    private var lastFinishedDraftSave: DraftSave? = null
     private var savedJangdanId: String? = null
     private var confirmedDraft: SheetDraft? = null
     private val writeLock = Mutex()
+    private var confirmationPending = false
     private var loaded: SheetDocument? = null
     private var version = ""
     private var revision = 0
@@ -105,17 +112,20 @@ class SheetEditViewModel(
         loaded = null
         baseline = null
         persistedDraft = null
+        persistedStatus = null
+        lastFinishedDraftSave = null
         savedJangdanId = null
         confirmedDraft = null
+        expressions = null
         version = ""
         _uiState.update { it.copy(draft = SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1)),
             documentLoading = false, documentFailed = true, practiceVersionChanged = false,
-            saving = false, confirming = false, message = null, audio = SheetAudioUi.None,
+            saving = false, confirming = false, saveStatus = null, message = null, audio = SheetAudioUi.None,
             deviceAudio = null, audioDownloading = false,
             reviewNotices = emptyList(), instrumentPitches = null, availableJangdans = null, completionWarning = false,
             completionCatalogState = SheetCompletionCatalogState.NotRequired,
             past = emptyList(), future = emptyList(), savedOnce = false, reviewIssues = emptyList(), checkedIssueIds = emptySet(),
-            jangdanPicker = null, audioInstruments = null) }
+            jangdanPicker = null, audioInstruments = null, adaptation = null) }
     }
 
     init {
@@ -146,10 +156,13 @@ class SheetEditViewModel(
                     val registered = catalog.allPitches().map { it.yul to it.octave }.toSet()
                     val instruments = requireNotNull(loadAudioInstruments).invoke()
                     val instrumentId = requireNotNull(instruments.singleOrNull { it.code == instrumentCode }?.instrumentId)
-                    val pitches = catalog.pitches(instrumentId).map { it.yul to it.octave }.toSet()
-                    require(registered.isNotEmpty() && pitches.isNotEmpty() && registered.containsAll(pitches))
+                    val capabilities = catalog.authoringCapabilities(instrumentId)
+                    val pitches = capabilities.selectablePitches
+                    val jangdans = catalog.jangdans()
+                    require(registered.isNotEmpty() && registered.containsAll(pitches))
                     ensureAccountSession()
-                    _uiState.update { it.copy(availablePitches = registered, instrumentPitches = pitches,
+                    _uiState.update { if (it.draft.original?.score?.instrument != instrumentCode) it else it.copy(availablePitches = registered, instrumentPitches = pitches, authoringCapabilities = capabilities,
+                        availableJangdans = jangdans,
                         completionCatalogState = SheetCompletionCatalogState.Ready) }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) {
@@ -157,7 +170,7 @@ class SheetEditViewModel(
                     _uiState.update { it.copy(completionCatalogState = SheetCompletionCatalogState.Failed) }
                 }
             }
-            if (state.draft.jangdanId != null && state.reviewNotices.any { it.type == "JANGDAN_MISMATCH" }) {
+            if (!requiresCompletionCatalog && state.draft.jangdanId != null) {
                 try {
                     val jangdans = catalog.jangdans()
                     ensureAccountSession()
@@ -170,6 +183,68 @@ class SheetEditViewModel(
 
     fun retryCompletionCatalog() = loadCompletionCatalog()
 
+    private var adaptationRequest = 0L
+
+    fun openAdaptation() {
+        val before = _uiState.value
+        if (before.confirming || before.documentLoading || before.draft.original == null) return
+        val request = ++adaptationRequest
+        _uiState.update { it.copy(adaptation = SheetAdaptationUi(baseline = before.draft)) }
+        accountScope.launch {
+            try {
+                val options = requireNotNull(loadAudioInstruments).invoke()
+                ensureAccountSession()
+                if (request != adaptationRequest) return@launch
+                _uiState.update { current -> if (current.adaptation == null) current else current.copy(
+                    adaptation = current.adaptation.copy(instruments = options)) }
+                val selected = options.firstOrNull { it.code == before.draft.original.score.instrument } ?: options.firstOrNull()
+                selectAdaptationInstrument(requireNotNull(selected).instrumentId)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { if (request == adaptationRequest) _uiState.update { it.copy(adaptation = it.adaptation?.copy(loading = false, failed = true)) } }
+        }
+    }
+
+    fun selectAdaptationInstrument(id: String) {
+        val catalog = pitchCatalog ?: return
+        val panel = _uiState.value.adaptation ?: return
+        if (panel.instruments.none { it.instrumentId == id }) return
+        val request = ++adaptationRequest
+        _uiState.update { it.copy(adaptation = it.adaptation?.copy(selectedId = id, loading = true, failed = false)) }
+        accountScope.launch {
+            try {
+                val capabilities = catalog.authoringCapabilities(id)
+                val pitches = capabilities.items.filter { it.selectable }.map { AdaptationPitch(it.midi, it.yul, it.octave) }
+                val plans = planPitchAdaptation(panel.baseline.sourcePitchNotes(), pitches)
+                ensureAccountSession()
+                if (request != adaptationRequest) return@launch
+                _uiState.update { state -> if (state.adaptation?.selectedId != id) state else state.copy(
+                    adaptation = state.adaptation.copy(capabilities = capabilities, plans = plans,
+                        selectedTranspose = plans.firstOrNull()?.transpose, loading = false)) }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { if (request == adaptationRequest) _uiState.update { state -> if (state.adaptation?.selectedId != id) state else
+                state.copy(adaptation = state.adaptation.copy(loading = false, failed = true)) } }
+        }
+    }
+
+    fun selectAdaptationTranspose(value: Int) = _uiState.update { state ->
+        if (state.adaptation?.plans?.any { it.transpose == value } != true) state
+        else state.copy(adaptation = state.adaptation.copy(selectedTranspose = value))
+    }
+
+    fun closeAdaptation() { ++adaptationRequest; _uiState.update { it.copy(adaptation = null) } }
+
+    fun applyAdaptation() {
+        val panel = _uiState.value.adaptation ?: return
+        val plan = panel.selected ?: return
+        val capability = panel.capabilities ?: return
+        if (panel.loading || panel.baseline != _uiState.value.draft) return
+        change { state -> state.copy(draft = state.draft.applyAdaptation(plan, capability), adaptation = null,
+            past = (state.past + state.draft).takeLast(50), future = emptyList(), instrumentPitches = capability.selectablePitches) }
+        completionCatalogJob?.cancel()
+        completionCatalogJob = null
+        loadCompletionCatalog()
+    }
+
     private fun change(transform: (SheetEditUiState) -> SheetEditUiState) {
         if (!accountScope.isActive || _uiState.value.documentLoading || _uiState.value.documentFailed) return
         val before = _uiState.value.draft
@@ -177,11 +252,30 @@ class SheetEditViewModel(
             val next = transform(current)
             // 최종 저장 응답은 보낸 악보의 확인 결과다. 초안 자동 저장 중에는 계속 편집한다.
             if (current.confirming && (next.draft != current.draft || next.checkedIssueIds != current.checkedIssueIds ||
-                next.reviewIssues != current.reviewIssues)) current else next
+                next.reviewIssues != current.reviewIssues)) current
+            else if (next.draft != current.draft) next.copy(saveStatus = null)
+            else next
+        }
+        if (before != _uiState.value.draft) _uiState.update { it.copy(serverPitchIssues = emptyList()) }
+        if (before.original?.score?.instrument != _uiState.value.draft.original?.score?.instrument) {
+            completionCatalogJob?.cancel()
+            completionCatalogJob = null
+            _uiState.update { it.copy(authoringCapabilities = null, instrumentPitches = null,
+                completionCatalogState = if (requiresCompletionCatalog) SheetCompletionCatalogState.Loading else it.completionCatalogState) }
+            loadCompletionCatalog()
         }
         if (before != _uiState.value.draft && loaded != null && !_uiState.value.saveConflict) {
-            autoSaveJob?.cancel()
-            autoSaveJob = accountScope.launch { delay(1_000); persist(draft = true, announce = false) }
+            scheduleAutoSave()
+        }
+    }
+
+    private fun scheduleAutoSave() {
+        autoSaveJob?.cancel()
+        if (closeJob?.isActive == true || _uiState.value.closeWarning) return
+        autoSaveJob = accountScope.launch {
+            delay(1_000)
+            // 대기 중인 저장을 무효화할 수 있게 하되, 시작한 PUT은 응답까지 기다린다.
+            persist(draft = true, announce = false, autoSave = coroutineContext.job)?.join()
         }
     }
 
@@ -205,7 +299,7 @@ class SheetEditViewModel(
                 val score = copy?.score ?: document.score ?: error("변환 완료 악보 없음")
                 val jangdanId = if (copy == null) document.jangdanId else copy.jangdanId
                 val draft = score.editingDraft(copy?.title ?: document.title, copy?.bpm ?: document.bpm, jangdan = null)
-                    .copy(jangdanId = jangdanId)
+                    .copy(jangdanId = jangdanId, authoring = copy?.authoring ?: document.authoring)
                 savedJangdanId = document.jangdanId
                 val deviceAudio = member?.id?.let { accountId ->
                     try { deviceAudioStore?.find(accountId, id, document.scoreVersion) }
@@ -213,6 +307,7 @@ class SheetEditViewModel(
                     catch (_: Exception) { null }
                 }
                 ensureAccountSession()
+                expressions = copy?.expressions ?: document.expressions
                 loaded = document
                 version = document.scoreVersion
                 revision = copy?.revision ?: 0
@@ -221,6 +316,7 @@ class SheetEditViewModel(
                     ?.copy(jangdanId = document.jangdanId)
                 _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,
+                    hasTempoPlan = expressions?.containsKey("performancePlan") == true,
                     withJangdan = draft.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
                     reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet(),
                     reviewNotices = document.editorReviewNotices(),
@@ -253,65 +349,184 @@ class SheetEditViewModel(
         }
     }
 
-    private fun persist(draft: Boolean, announce: Boolean = true): Job? {
+    private class DraftSave(val draft: SheetDraft, var unconfirmedRequest: SheetWorkingCopy?)
+
+    private fun persist(
+        draft: Boolean,
+        announce: Boolean = true,
+        closing: Boolean = false,
+        autoSave: Job? = null,
+    ): Job? {
         val repository = documents ?: return null
         val requested = _uiState.value
         val id = requested.serverSheetId ?: return null
         if (!accountScope.isActive || requested.documentLoading || requested.documentFailed || loaded == null) return null
-        if (!draft && requested.confirming) return null
+        if (!draft && confirmationPending) return null
         if (requested.saveConflict) { _uiState.update { it.copy(message = SheetEditMessage.SaveConflict) }; return null }
-        if (!draft && blockInvalidCompletion(requested)) return null
+        if (!draft) {
+            if (blockInvalidCompletion(requested)) return null
+            // 쓰기 잠금을 기다리는 동안에도 확정 저장의 중복 입력을 막는다.
+            confirmationPending = true
+        }
+        val draftBeforeClose = lastFinishedDraftSave
         return accountScope.launch {
-            writeLock.withLock {
-                if (_uiState.value.saveConflict) return@withLock
-                // 앞선 초안 저장을 기다리는 동안 바뀐 내용도 완료 직전에 다시 검사한다.
-                val snapshot = if (draft) requested else _uiState.value
-                if (!draft && blockInvalidCompletion(snapshot)) return@withLock
-                _uiState.update { it.copy(saving = true, confirming = !draft, emptyWarning = false, completionWarning = false) }
-                try {
-                    val score = snapshot.draft.toCommonScore()
-                    if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
-                    val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
-                        .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
-                    val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
-                        snapshot.draft.bpm, score, version, revision, resolvedIds)
-                    when (val result = repository.save(id, copy, draft)) {
-                        is SheetWrite.Saved -> {
-                            persistedDraft = snapshot.draft
-                            if (!draft) confirmedDraft = snapshot.draft
-                            val versionChanged = result.scoreVersion != version
-                            version = result.scoreVersion
-                            revision = result.revision
-                            if (versionChanged) audioDownloadJob?.cancel()
-                            val saveMessage = when {
-                                draft -> SheetEditMessage.Draft
-                                result.reviewStatus == "EVALUABLE" -> SheetEditMessage.SavedForPractice
-                                result.reviewStatus == "NEEDS_REVIEW" -> SheetEditMessage.SavedNeedsReview
-                                else -> SheetEditMessage.Saved
-                            }
-                            _uiState.update { it.copy(savedOnce = it.savedOnce || !draft,
-                                audio = if (!draft && it.audio.latest != null) SheetAudioUi.None else it.audio,
-                                deviceAudio = if (versionChanged) null else it.deviceAudio,
-                                audioDownloading = !versionChanged && it.audioDownloading,
-                                reviewIssues = it.reviewIssues.filterNot { issue -> issue.id in resolvedIds },
-                                checkedIssueIds = it.checkedIssueIds - resolvedIds.toSet(),
-                                message = if (announce) saveMessage else it.message) }
-                            if (!draft) {
-                                savedJangdanId = snapshot.draft.jangdanId
-                                mySheetRepository.refresh()
-                                if (_uiState.value.audioInstruments?.options?.isEmpty() == true) loadAudioInstrumentOptions()
-                                refreshAudio(announce = false)
+            try {
+                writeLock.withLock {
+                    if (autoSave?.isActive == false || _uiState.value.saveConflict) return@withLock
+                    val precedingDraft = lastFinishedDraftSave
+                    val finishedDuringClose = precedingDraft?.takeIf { closing && it !== draftBeforeClose }
+                    var writing: SheetDraft? = null
+                    try {
+                        if (precedingDraft?.unconfirmedRequest != null && finishedDuringClose?.draft != _uiState.value.draft) {
+                            _uiState.update { it.copy(saving = true, saveStatus = null) }
+                            val reconciled = reconcileDraftSave(repository, id, precedingDraft)
+                            if (autoSave?.isActive == false) return@withLock
+                            if (!reconciled) {
+                                if (!_uiState.value.saveConflict) recordSaveFailure(_uiState.value.draft, draft, announce)
+                                return@withLock
                             }
                         }
-                        SheetWrite.Conflict -> _uiState.update { it.copy(saveConflict = true, message = SheetEditMessage.SaveConflict) }
-                        SheetWrite.Unfilled -> _uiState.update { it.copy(emptyWarning = true) }
-                        SheetWrite.TooLarge -> _uiState.update { it.copy(message = SheetEditMessage.SaveTooLarge) }
-                        SheetWrite.Failed -> _uiState.update { it.copy(message = SheetEditMessage.SaveFailed) }
+                        val snapshot = _uiState.value
+                        // 서버 재조회 중 편집이 돌아온 경우도 먼저 끝난 같은 초안 요청의 결과를 사용한다.
+                        if (finishedDuringClose?.draft == snapshot.draft) {
+                            if (snapshot.saveStatus == null && !isDraftPersisted(snapshot.draft)) {
+                                recordSaveFailure(snapshot.draft, draft, announce)
+                            }
+                            return@withLock
+                        }
+                        if (draft && isDraftPersisted(snapshot.draft) && (!announce || persistedStatus == SheetSaveStatus.DraftSaved)) {
+                            _uiState.update {
+                                it.copy(saveStatus = if (announce || it.saveStatus == null) persistedStatus else it.saveStatus,
+                                    message = if (announce) SheetEditMessage.Draft else it.message)
+                            }
+                            return@withLock
+                        }
+                        if (!draft && blockInvalidCompletion(snapshot)) return@withLock
+                        writing = snapshot.draft
+                        _uiState.update { it.copy(saving = true, confirming = !draft, saveStatus = null,
+                            emptyWarning = false, completionWarning = false) }
+                        val score = snapshot.draft.toCommonScore()
+                        if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
+                        val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
+                            .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
+                        val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
+                            snapshot.draft.bpm, score, version, revision, resolvedIds, authoring = snapshot.draft.authoring, expressions = expressions)
+                        val attempt = if (draft) DraftSave(snapshot.draft, copy) else null
+                        val result = try {
+                            repository.save(id, copy, draft).also { ensureAccountSession() }
+                        } finally {
+                            if (attempt != null && accountScope.isActive) lastFinishedDraftSave = attempt
+                        }
+                        if (result != SheetWrite.Failed) attempt?.unconfirmedRequest = null
+                        when (result) {
+                            is SheetWrite.Saved -> {
+                                if (!draft) expressions = result.expressions
+                                persistedDraft = snapshot.draft
+                                persistedStatus = if (draft) SheetSaveStatus.DraftSaved else SheetSaveStatus.Confirmed
+                                if (!draft) confirmedDraft = snapshot.draft
+                                val versionChanged = result.scoreVersion != version
+                                version = result.scoreVersion
+                                revision = result.revision
+                                if (versionChanged) audioDownloadJob?.cancel()
+                                val saveMessage = when {
+                                    draft -> SheetEditMessage.Draft
+                                    result.reviewStatus == "EVALUABLE" -> SheetEditMessage.SavedForPractice
+                                    result.reviewStatus == "NEEDS_REVIEW" -> SheetEditMessage.SavedNeedsReview
+                                    else -> SheetEditMessage.Saved
+                                }
+                                _uiState.update { it.copy(savedOnce = it.savedOnce || !draft,
+                                    saveStatus = if (it.draft == snapshot.draft) persistedStatus else it.saveStatus,
+                                    audio = if (!draft && it.audio.latest != null) SheetAudioUi.None else it.audio,
+                                    deviceAudio = if (versionChanged) null else it.deviceAudio,
+                                    audioDownloading = !versionChanged && it.audioDownloading,
+                                    reviewIssues = it.reviewIssues.filterNot { issue -> issue.id in resolvedIds },
+                                    checkedIssueIds = it.checkedIssueIds - resolvedIds.toSet(),
+                                    message = if (announce) saveMessage else it.message) }
+                                if (!draft) {
+                                    savedJangdanId = snapshot.draft.jangdanId
+                                    accountScope.launch { mySheetRepository.refresh() }
+                                    if (_uiState.value.audioInstruments?.options?.isEmpty() == true) loadAudioInstrumentOptions()
+                                    else validateAudioInstrument()
+                                    refreshAudio(announce = false)
+                                }
+                            }
+                            is SheetWrite.UnsupportedPitches -> {
+                                _uiState.update { it.copy(serverPitchIssues = result.details.issues, completionWarning = true,
+                                    message = SheetEditMessage.SaveUnsupportedPitches).focusCompletionIssue() }
+                                loadCompletionCatalog()
+                            }
+                            is SheetWrite.TempoRejected -> _uiState.update { it.copy(tempoIssue = result.issue) }
+                            SheetWrite.Conflict -> reportSaveConflict()
+                            SheetWrite.Unfilled -> _uiState.update { it.copy(emptyWarning = true) }
+                            SheetWrite.TooLarge -> recordSaveFailure(snapshot.draft, draft, announce, SheetEditMessage.SaveTooLarge)
+                            SheetWrite.Failed -> recordSaveFailure(snapshot.draft, draft, announce)
+                        }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        if (writing != null || autoSave?.isActive != false) {
+                            recordSaveFailure(writing ?: _uiState.value.draft, draft, announce)
+                        }
+                    } finally {
+                        if (accountScope.isActive) _uiState.update { it.copy(saving = false, confirming = false) }
                     }
-                } catch (cancelled: CancellationException) { throw cancelled }
-                catch (_: Exception) { _uiState.update { it.copy(message = SheetEditMessage.SaveFailed) } }
-                finally { if (accountScope.isActive) _uiState.update { it.copy(saving = false, confirming = false) } }
+                }
+            } finally {
+                if (!draft) confirmationPending = false
             }
+        }
+    }
+
+    private fun isDraftPersisted(draft: SheetDraft): Boolean =
+        lastFinishedDraftSave?.unconfirmedRequest == null && persistedDraft == draft
+
+    private fun reportSaveConflict() =
+        _uiState.update { it.copy(saveConflict = true, message = SheetEditMessage.SaveConflict) }
+
+    private suspend fun reconcileDraftSave(repository: SheetDocumentRepository, id: String, attempt: DraftSave): Boolean {
+        val request = requireNotNull(attempt.unconfirmedRequest)
+        val document = repository.get(id) ?: return false
+        ensureAccountSession()
+        val remote = document.draft
+        val nextRevision = request.revision + 1
+        when {
+            document.scoreVersion != request.baseScoreVersion -> {
+                reportSaveConflict()
+                return false
+            }
+            remote?.matchesDraftAcknowledgement(request.copy(revision = nextRevision)) == true -> {
+                revision = nextRevision
+                persistedDraft = attempt.draft
+                persistedStatus = SheetSaveStatus.DraftSaved
+            }
+            (remote?.revision ?: 0) == request.revision -> {
+                // 아직 처리 중인 요청도 같은 리비전을 쓸 수 있으므로 현재 초안은 PUT의 성공을 확인한다.
+                persistedDraft = null
+                persistedStatus = null
+            }
+            else -> {
+                reportSaveConflict()
+                return false
+            }
+        }
+        attempt.unconfirmedRequest = null
+        return true
+    }
+
+    private fun recordSaveFailure(
+        snapshot: SheetDraft,
+        draft: Boolean,
+        announce: Boolean,
+        message: SheetEditMessage = SheetEditMessage.SaveFailed,
+    ) {
+        val status = when {
+            message == SheetEditMessage.SaveTooLarge -> SheetSaveStatus.TooLarge
+            draft -> SheetSaveStatus.DraftFailed
+            else -> SheetSaveStatus.ConfirmationFailed
+        }
+        _uiState.update {
+            if (it.draft != snapshot) it
+            else it.copy(saveStatus = status, message = if (announce) message else it.message)
         }
     }
 
@@ -325,17 +540,29 @@ class SheetEditViewModel(
             else onClose()
             return
         }
-        if ((persistedDraft == _uiState.value.draft && !_uiState.value.saving && !_uiState.value.saveConflict)) { onClose(); return }
+        val state = _uiState.value
+        if (isDraftPersisted(state.draft) && !state.saving && !confirmationPending && !state.saveConflict) {
+            onClose()
+            return
+        }
         autoSaveJob?.cancel()
-        val write = persist(draft = true, announce = false)
+        val write = persist(draft = true, announce = false, closing = true)
         closeJob = accountScope.launch {
             write?.join()
-            if (persistedDraft == _uiState.value.draft && !_uiState.value.saveConflict) onClose()
+            if (isDraftPersisted(_uiState.value.draft) && !_uiState.value.saveConflict) onClose()
             else _uiState.update { it.copy(closeWarning = true) }
         }
     }
 
-    fun continueEditing() = _uiState.update { it.copy(closeWarning = false) }
+    fun continueEditing() {
+        val state = _uiState.value
+        _uiState.update { it.copy(closeWarning = false) }
+        // 닫기 저장이 처리한 초안은 실패 안내를 유지하고, 그 뒤에 편집한 초안은 자동저장을 재개한다.
+        if (state.closeWarning && loaded != null && !state.saveConflict &&
+            lastFinishedDraftSave?.draft != state.draft && !isDraftPersisted(state.draft)) {
+            scheduleAutoSave()
+        }
+    }
 
     fun discardChangesAndClose(onClose: () -> Unit) {
         if (!accountScope.isActive) return
@@ -442,6 +669,7 @@ class SheetEditViewModel(
                 ensureAccountSession()
                 val selectedId = options.firstOrNull { it.code == instrumentCode }?.instrumentId
                 change { it.copy(audioInstruments = SheetAudioInstruments(options, selectedId, loading = false)) }
+                validateAudioInstrument()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -451,10 +679,29 @@ class SheetEditViewModel(
         }
     }
 
-    fun selectAudioInstrument(id: String) = change { state ->
-        val instruments = state.audioInstruments ?: return@change state
-        if (state.audio.busy || state.audioDownloading || instruments.options.none { it.instrumentId == id }) return@change state
-        state.copy(audioInstruments = instruments.copy(selectedId = id))
+    fun selectAudioInstrument(id: String) {
+        change { state ->
+            val instruments = state.audioInstruments ?: return@change state
+            if (state.audio.busy || state.audioDownloading || instruments.options.none { it.instrumentId == id }) return@change state
+            state.copy(audioInstruments = instruments.copy(selectedId = id))
+        }
+        validateAudioInstrument()
+    }
+
+    private fun validateAudioInstrument() {
+        val catalog = pitchCatalog ?: return
+        val selected = _uiState.value.audioInstruments?.selectedId ?: return
+        val score = confirmedDraft?.toCommonScore() ?: return
+        audioSupportJob?.cancel()
+        _uiState.update { it.copy(audioInstruments = it.audioInstruments?.copy(supportLoading = true, supportFailed = false, unsupported = emptyList())) }
+        audioSupportJob = accountScope.launch {
+            try {
+                val issues = catalog.authoringCapabilities(selected).issues(score)
+                ensureAccountSession()
+                _uiState.update { if (it.audioInstruments?.selectedId != selected) it else it.copy(audioInstruments = it.audioInstruments.copy(supportLoading = false, unsupported = issues)) }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { _uiState.update { it.copy(audioInstruments = it.audioInstruments?.copy(supportLoading = false, supportFailed = true)) } }
+        }
     }
     fun requestSave() {
         if (documents == null) { change { it.requestSave() }; return }
@@ -469,6 +716,13 @@ class SheetEditViewModel(
         autoSaveJob?.cancel()
         persist(draft = true)
     }
+    fun retryDraftSave() {
+        val state = _uiState.value
+        if (state.saveStatus != SheetSaveStatus.DraftFailed || state.saving || state.confirming || state.saveConflict) return
+        _uiState.update { it.copy(saveStatus = null) }
+        persist(draft = true, announce = false)
+    }
+
     fun closeWarning() = change { it.copy(emptyWarning = false) }
     fun closeCompletionWarning() = change { it.copy(completionWarning = false) }
     fun fillEmpty() = change { it.fillEmpty() }
@@ -499,6 +753,10 @@ class SheetEditViewModel(
             change { it.copy(message = SheetEditMessage.AudioInstrumentRequired) }
             return
         }
+        if (current.audioInstruments?.let { it.supportLoading || it.supportFailed || it.unsupported.isNotEmpty() } == true) {
+            change { it.copy(message = SheetEditMessage.AudioUnsupportedPitches) }
+            return
+        }
         var started = false
         (_uiState.value.audio as? SheetAudioUi.Ready)?.audio?.audio
             ?.takeIf { it.expiresWithin(now(), 0) }?.let(::expireAudioDownload)
@@ -510,9 +768,27 @@ class SheetEditViewModel(
         val sheetId = next.serverSheetId
         if (!started || sheetId == null) return
         startAudioJob {
+            if (pitchCatalog != null && next.audioInstruments?.selectedId != null) {
+                val issues = try { pitchCatalog.authoringCapabilities(next.audioInstruments.selectedId).issues(requireNotNull(confirmedDraft).toCommonScore()) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { failRequest(SheetEditMessage.AudioBusy); return@startAudioJob }
+                if (issues.isNotEmpty()) {
+                    change { it.copy(audioInstruments = it.audioInstruments?.copy(unsupported = issues)) }
+                    failRequest(SheetEditMessage.AudioUnsupportedPitches)
+                    return@startAudioJob
+                }
+            }
             val settings = SheetAudioSettings(instrumentId = next.audioInstruments?.selectedId, withJangdan = next.withJangdan, bpm = next.draft.bpm)
             when (val result = repository.request(sheetId, settings)) {
                 is SheetAudioRequest.Accepted -> receive(sheetId, result.audio, announce = true)
+                is SheetAudioRequest.UnsupportedPitches -> {
+                    change { it.copy(audioInstruments = it.audioInstruments?.copy(unsupported = result.details.issues)) }
+                    failRequest(SheetEditMessage.AudioUnsupportedPitches)
+                }
+                is SheetAudioRequest.TempoRejected -> {
+                    failRequest(SheetEditMessage.AudioInvalid)
+                    _uiState.update { it.copy(tempoIssue = result.issue) }
+                }
                 SheetAudioRequest.TooLong -> failRequest(SheetEditMessage.AudioTooLong)
                 SheetAudioRequest.InvalidRequest -> failRequest(SheetEditMessage.AudioInvalid)
                 SheetAudioRequest.NotFound -> failRequest(SheetEditMessage.AudioNotFound)

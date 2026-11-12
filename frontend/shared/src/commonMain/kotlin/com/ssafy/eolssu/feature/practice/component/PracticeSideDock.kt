@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +28,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreNote
@@ -67,6 +69,17 @@ fun PracticeSideDock(
     bottomActions: PracticeBottomActions,
     modifier: Modifier = Modifier,
 ) {
+    PracticeSideDock(state, panelActions, modifier) { PracticeBottomContent(state, bottomActions, stacked = true) }
+}
+
+/** 상태 패널 틀. 아래 고정 자리 [bottom]에 상태별 행동을 둔다. 구간 재평가는 제 평가 막대를 넘긴다(S15P31E102-776). */
+@Composable
+fun PracticeSideDock(
+    state: PracticeUiState,
+    panelActions: PracticePanelActions,
+    modifier: Modifier = Modifier,
+    bottom: @Composable ColumnScope.() -> Unit,
+) {
     val song = state.song ?: return
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(20.dp)
@@ -79,9 +92,7 @@ fun PracticeSideDock(
                 SongInfo(state, song)
                 QuickSettings(state, song, panelActions)
             }
-            Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                PracticeBottomContent(state, bottomActions, stacked = true)
-            }
+            Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = bottom)
         }
     }
 }
@@ -126,7 +137,7 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
         QuickRow(
             stringResource(Res.string.practice_menu_jangdan),
             if (state.jangdanProblem) jangdanHint(state) else if (settings.jangdanSound) stringResource(Res.string.practice_jangdan_sound_on, song.jangdanName) else jangdanLabel(song.jangdanName),
-            !state.jangdanProblem && settings.jangdanSound, locked = false,
+            !state.jangdanProblem && settings.jangdanSound, locked = song.jangdanPlayback == null,
         ) { actions.onOpen(PracticePanel.Jangdan) }
         QuickRow(
             stringResource(Res.string.practice_menu_tempo),
@@ -141,7 +152,12 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
             EolssuSwitch(settings.bigScore, actions.onToggleBigScore, bigLabel)
         }
         Text(
-            stringResource(if (locked) Res.string.practice_dock_locked else Res.string.practice_dock_hint),
+            stringResource(
+                when {
+                    state.playbackSettingsLocked -> Res.string.practice_dock_locked
+                    else -> Res.string.practice_dock_hint
+                },
+            ),
             modifier = Modifier.padding(top = 6.dp),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
             color = colors.textMuted,
@@ -164,11 +180,14 @@ private fun QuickRow(label: String, status: String, on: Boolean, locked: Boolean
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+        // 이름은 줄바꿈하지 않고, 긴 상태 문구가 남은 폭 안에서 줄을 바꾼다.
+        Text(label, softWrap = false, maxLines = 1, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
         Text(
             status,
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal),
             color = if (on) colors.text else colors.textMuted,
+            textAlign = TextAlign.End,
         )
         Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.lineStrong)
     }

@@ -40,8 +40,10 @@ class PracticeDirectEvaluationTest {
             val settings = PracticeSettingsStore(storage).apply { grantMic() }
             val old = smallScoreSong().copy(id = "42", scoreVersion = 1)
             var current = old
+            var currentLookups = 0
             val songs = object : SongRepository by SampleSongRepository() {
-                override suspend fun getSong(songId: String) = current
+                override suspend fun retainedSong(songId: String, scoreVersion: Int?) = old
+                override suspend fun getSong(songId: String) = current.also { currentLookups++ }
             }
             val recorder = FakePracticeRecorder()
             val vm = PracticeViewModel(old.id, false, songs, settings, PracticeTimeMeter({ 0L }, testScheduler.timeSource),
@@ -50,12 +52,15 @@ class PracticeDirectEvaluationTest {
             models.put("stale", vm)
             runCurrent()
             assertTrue(vm.uiState.value.awaitingStart)
+            assertEquals(old, vm.uiState.value.song)
+            assertEquals(0, currentLookups)
             assertEquals(0, recorder.starts)
             current = old.copy(scoreVersion = 2)
             vm.requestEvaluation()
             runCurrent()
             assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
             assertEquals(PracticePopup.ScoreChanged, vm.uiState.value.popup)
+            assertEquals(1, currentLookups)
             assertFalse(vm.leavesDirectOnReturn())
             assertEquals(0, recorder.starts)
         } finally { models.clear(); Dispatchers.resetMain() }

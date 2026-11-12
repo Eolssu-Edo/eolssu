@@ -84,6 +84,7 @@ data class PracticeDraft(
  * @property fingeringOverride 저장한 설정 대신 이 화면에서만 쓰는 '운지법과 함께 보기'. 기초부터 배우기 곡 연습은 켠 채로 시작한다.
  * @property sheetTitle 내 악보 제목(예: ‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다.
  * @property step 2차 '한 음씩 따라 불기' 상태(`PracticeStep.kt`).
+ * @property sectionPractice 구간 연습(`PracticeSection.kt`, S15P31E102-794). null이면 곡 전체를 연습한다.
  */
 data class PracticeUiState(
     val song: Song? = null,
@@ -99,10 +100,13 @@ data class PracticeUiState(
     val fingeringOverride: Boolean? = null,
     val sheetTitle: String? = null,
     val step: PracticeStep = PracticeStep(),
+    val sectionPractice: PracticeSectionState? = null,
     val settings: PracticeSettings = PracticeSettings(),
     val mode: PracticeMode = PracticeMode.Ready,
     val playing: Boolean = false,
     val modelAudioStatus: ModelAudioStatus = ModelAudioStatus.Idle,
+    /** 모범 연주를 재생하다 −5초·+5초·타임라인 이동으로 새 자리를 불러오는 중이다([ModelAudioState.seeking]). */
+    val modelSeeking: Boolean = false,
     val jangdanStatus: JangdanStatus = JangdanStatus.Idle,
     val jangdanSupported: Boolean = false,
     val position: Int = 0,
@@ -179,7 +183,8 @@ data class PracticeUiState(
             else -> GuideInstrument.DaegeumJeongak
         }
 
-    val canSelectUnit: Boolean get() = mode == PracticeMode.Ready && !stepBusy
+    /** 악보를 눌러 음을 고를 수 있는지. 구간 연습은 구간이 정해져 있어 고르지 않는다. */
+    val canSelectUnit: Boolean get() = mode == PracticeMode.Ready && !stepBusy && sectionPractice == null
 
     val scoreSelection: ScorePosition?
         get() = selectedCell.takeIf { mode == PracticeMode.Ready && stepCurrentIndex == null }
@@ -272,8 +277,8 @@ data class PracticeUiState(
             val song = song ?: return 0
             val jangdan = song.displayJangdan ?: return -1
             song.jangdanPlayback?.let { mapping ->
-                val performedTick = sheetPerformanceBpm?.takeIf { mode == PracticeMode.Model && modelPerformance != null }
-                    ?.let { sheetPerformanceTick(modelPerformancePositionMs, it, requireNotNull(song.score.timing).ticksPerBeat) }
+                val performedTick = modelPerformance?.takeIf { mode == PracticeMode.Model }
+                    ?.at(modelPerformancePositionMs)?.accompanimentTick
                 val cell = mapping.cellAt(performedTick ?: currentTick ?: return -1)
                 return if (cell < 0) -1 else jangdan.daegangIndexOfRow(cell)
             }
@@ -306,20 +311,21 @@ fun PracticeUiState.selectPlaybackMode(target: PracticeMode): PracticeUiState {
         pausedFraction = currentEventFraction.toFloat(), follow = true)
 }
 
-/** 모범 연주 시작. 준비 상태면 처음부터, 이미 모범 연주 중이면 그 자리부터. */
+/** 모범 연주 시작. 준비 상태면 처음부터(구간 연습이면 구간 처음부터), 이미 모범 연주 중이면 그 자리부터. */
 fun PracticeUiState.startModel(): PracticeUiState {
-    val base = if (mode == PracticeMode.Ready) copy(mode = PracticeMode.Model, position = 0, elapsedMs = 0.0, eventElapsedMs = 0.0, pausedFraction = 0f) else this
+    val base = if (mode == PracticeMode.Ready) copy(mode = PracticeMode.Model, position = sectionStartIndex, elapsedMs = 0.0, eventElapsedMs = 0.0, pausedFraction = 0f) else this
     return base.copy(panel = null, playing = true, follow = true)
 }
 
 /** 모범 연주 일시정지·다시 재생. 끝까지 들은 뒤 재생하면 처음부터. */
 fun PracticeUiState.toggleModel(): PracticeUiState = when {
     playing -> copy(playing = false, eventStartedAt = null, pausedFraction = currentEventFraction.toFloat())
-    position >= eventCount - 1 && currentEventFraction >= 1.0 -> copy(playing = true, position = 0, elapsedMs = 0.0, eventElapsedMs = 0.0, pausedFraction = 0f)
+    position >= eventCount - 1 && currentEventFraction >= 1.0 -> copy(playing = true, position = sectionStartIndex, elapsedMs = 0.0, eventElapsedMs = 0.0, pausedFraction = 0f)
     else -> copy(playing = true)
 }
 
-fun PracticeUiState.restartModel(): PracticeUiState = copy(position = 0, elapsedMs = 0.0, eventElapsedMs = 0.0, eventStartedAt = null, follow = true, pausedFraction = 0f)
+fun PracticeUiState.restartModel(): PracticeUiState =
+    copy(position = sectionStartIndex, elapsedMs = 0.0, eventElapsedMs = 0.0, eventStartedAt = null, follow = true, pausedFraction = 0f)
 
 /** 듣기 종료: 준비 상태로 돌아가고 듣던 자리의 음을 골라 둔다. */
 fun PracticeUiState.stopModel(): PracticeUiState = copy(
@@ -540,13 +546,17 @@ fun PracticeSettings.applyTempo(draft: PracticeDraft, song: Song, mine: Boolean 
 
 /** 플레이어의 고정 안내 칸에만 표시한다. 정상 재생에는 문구가 없다. */
 internal enum class PracticePlayerNotice {
-    None, Loading, Failed, Unavailable, PersonalAudioUnavailable, PersonalDownloadFailed, PersonalScoreChanged, EmbeddedJangdan, Unsupported, Interrupted,
+    None, Loading, Failed, Unavailable, PersonalAudioUnavailable, PersonalDownloadFailed, PersonalScoreChanged, PersonalUnsupportedPitches, PersonalAudioReady, EmbeddedJangdan, Unsupported, Interrupted,
 }
 
-enum class PracticePersonalAudio { Checking, Missing, Downloading, Failed, VersionChanged, Ready }
+enum class PracticePersonalAudio { Checking, Missing, Preparing, Downloading, Failed, VersionChanged, UnsupportedPitches, Unsupported, Ready }
 
 internal val PracticeUiState.personalAudioControl: PracticePersonalAudio?
     get() = personalAudio?.takeUnless { !mine || mode == PracticeMode.Rhythm || it == PracticePersonalAudio.Ready }
+
+/** 모범 연주를 재생하다 이동해 새 자리를 불러오는 중. 화면은 재생 중처럼 두고 로딩 표시를 띄우지 않는다. */
+internal val PracticeUiState.modelSeekBuffering: Boolean
+    get() = mode == PracticeMode.Model && modelAudioStatus == ModelAudioStatus.Loading && modelSeeking
 
 internal val PracticeUiState.playerNotice: PracticePlayerNotice
     get() {
@@ -554,12 +564,14 @@ internal val PracticeUiState.playerNotice: PracticePlayerNotice
         val accompaniment = rhythm || settings.jangdanSound
         personalAudioControl?.let {
             return when (it) {
+                PracticePersonalAudio.UnsupportedPitches -> PracticePlayerNotice.PersonalUnsupportedPitches
                 PracticePersonalAudio.Failed -> PracticePlayerNotice.PersonalDownloadFailed
                 PracticePersonalAudio.VersionChanged -> PracticePlayerNotice.PersonalScoreChanged
                 else -> PracticePlayerNotice.None
             }
         }
-        if ((!rhythm && modelAudioStatus == ModelAudioStatus.Loading) ||
+        // 재생 중 이동으로 다시 불러오는 동안은 로딩 표시를 띄우지 않는다. 처음 재생을 시작할 때만 띄운다(S15P31E102-807).
+        if ((!rhythm && modelAudioStatus == ModelAudioStatus.Loading && !modelSeekBuffering) ||
             (accompaniment && jangdanStatus == JangdanStatus.Loading)) return PracticePlayerNotice.Loading
         if (!rhythm) when (modelAudioStatus) {
             ModelAudioStatus.Failed -> return PracticePlayerNotice.Failed
@@ -570,14 +582,17 @@ internal val PracticeUiState.playerNotice: PracticePlayerNotice
         }
         if (!rhythm && modelClock?.audio?.sheetPlayback?.withJangdan == true) return PracticePlayerNotice.EmbeddedJangdan
         // 곡에 장단 반주가 없으면 장단 연습만 재생할 소리가 없다. 모범 연주는 저장된 장단 소리 설정과 관계없이 음원만 재생하므로 안내하지 않는다.
-        if (!jangdanSupported) return if (rhythm) PracticePlayerNotice.Unavailable else PracticePlayerNotice.None
-        if (accompaniment) {
+        if (!jangdanSupported && rhythm) return PracticePlayerNotice.Unavailable
+        if (jangdanSupported && accompaniment) {
             when (jangdanStatus) {
                 JangdanStatus.Failed -> return PracticePlayerNotice.Failed
                 JangdanStatus.Unsupported -> return PracticePlayerNotice.Unsupported
                 JangdanStatus.Interrupted -> return PracticePlayerNotice.Interrupted
                 else -> Unit
             }
+        }
+        if (!rhythm && personalAudio == PracticePersonalAudio.Ready && modelAudioStatus == ModelAudioStatus.Idle) {
+            return PracticePlayerNotice.PersonalAudioReady
         }
         return PracticePlayerNotice.None
     }

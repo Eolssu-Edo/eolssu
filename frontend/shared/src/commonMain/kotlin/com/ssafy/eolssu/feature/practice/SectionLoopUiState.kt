@@ -21,6 +21,8 @@ import com.ssafy.eolssu.core.model.Song
  * @property take 마친 재평가 녹음. 화면이 분석으로 넘긴 뒤 지운다.
  * @property notice 재평가를 시작하지 못했거나 녹음을 버린 이유. 화면이 안내한 뒤 지운다.
  * @property settings 연습 화면과 함께 쓰는 악보 설정(크게 보기·한글·계이름). 구간 반복 악보도 같은 모양으로 그린다.
+ * @property micLevel 재평가 녹음 중 마이크 입력 크기(0~1). 연주 평가 하단의 입력 표시에 쓴다.
+ * @property panel·draft 연습 화면과 같은 설정 시트(PANEL-00~05)와 그 안에서 고치는 값(S15P31E102-776).
  */
 data class SectionLoopUiState(
     val loading: Boolean = true,
@@ -36,9 +38,16 @@ data class SectionLoopUiState(
     val resumed: Boolean = false,
     val finished: Boolean = false,
     val recording: Boolean = false,
+    /** 재평가 녹음 중 ‘연주 중단’을 눌러 녹음·진행을 멈추고 ‘연주를 마칠까요?’를 묻는 중. */
+    val abortAsked: Boolean = false,
     val take: SectionTake? = null,
     val notice: SectionLoopNotice? = null,
     val settings: PracticeSettings = PracticeSettings(),
+    val micLevel: Float = 0f,
+    val panel: PracticePanel? = null,
+    val draft: PracticeDraft = PracticeDraft(),
+    val jangdanStatus: JangdanStatus = JangdanStatus.Idle,
+    val jangdanSupported: Boolean = false,
 ) {
     val current: ScorePosition? get() = cells.getOrNull(step)
 
@@ -70,6 +79,52 @@ data class SectionLoopUiState(
                 }
             }
         }
+
+    /** 지금 정간의 연주 순서(첫 음). 구간 밖이거나 없으면 null. */
+    val currentIndex: Int?
+        get() {
+            val c = current ?: return null
+            return song?.timeline?.firstOrNull { it.column == c.column && it.row == c.row }?.index
+        }
+
+    /** 지금 정간이 속한 대강 번호(장구 박 표시). 장단이 없거나 연주 중이 아니면 -1. */
+    val beatIndex: Int
+        get() {
+            val jangdan = song?.displayJangdan ?: return -1
+            val c = current ?: return -1
+            if (!(running || recording) || countdown != null || jangdan.gak <= 0) return -1
+            return jangdan.daegangIndexOfRow(c.row % jangdan.gak)
+        }
+
+    /**
+     * 연습 화면 부품(설정 시트·운지법 페이지)에 넘길 연습 상태. 속도는 설정의 ‘속도’로 바꾸고 녹음 중에는 잠긴다.
+     * [evaluation]이면 연주 평가처럼 쉬운 표기·운지법을 제목 옆 스위치로 두고 시트에서는 뺀다.
+     */
+    fun asPracticeState(evaluation: Boolean): PracticeUiState {
+        val index = currentIndex ?: song?.timeline?.firstOrNull { section?.contains(it.column, it.row) == true }?.index ?: 0
+        // 설정 시트·상태 패널이 지금 속도를 보이도록 곡 속도에 [bpm]을 둔다.
+        val sectionSettings = song?.let { settings.copy(bpmBySong = settings.bpmBySong + (it.id to bpm)) } ?: settings
+        return PracticeUiState(
+            song = song,
+            solo = !evaluation,
+            direct = evaluation,
+            settings = sectionSettings,
+            mode = if (recording) PracticeMode.Recording else PracticeMode.Ready,
+            panel = panel,
+            draft = draft,
+            jangdanStatus = jangdanStatus,
+            jangdanSupported = jangdanSupported,
+            position = index,
+            selected = index,
+            micLevel = micLevel,
+        )
+    }
+
+    /** 운지법 페이지용 연습 상태: 지금 정간을 고른 음으로 두어 그 음이 든 페이지를 보인다. */
+    fun asFingeringState(): PracticeUiState {
+        val index = currentIndex ?: 0
+        return asPracticeState(evaluation = false).copy(mode = PracticeMode.Ready, selectedCell = current, selected = index, position = index)
+    }
 
     /** 앞뒤 각(흐리게 보일 맥락). */
     val contextColumns: Set<Int>
@@ -104,11 +159,17 @@ fun SectionLoopUiState.advance(): SectionLoopUiState {
 
 /** 재평가 녹음을 시작한다: 구간 처음부터 3·2·1을 센 뒤 한 번 따라간다. */
 fun SectionLoopUiState.beginRecording(): SectionLoopUiState =
-    copy(recording = true, running = false, countdown = CountdownBeats, resumed = false, finished = false, round = 1, step = 0, take = null, notice = null)
+    copy(recording = true, abortAsked = false, running = false, countdown = CountdownBeats, resumed = false, finished = false, round = 1, step = 0, take = null, notice = null)
 
 /** 재평가 녹음을 그만두거나 버렸다. 반복은 멈춘 채로 처음부터 다시 할 수 있다. [notice]가 있으면 안내한다. */
 fun SectionLoopUiState.endRecording(notice: SectionLoopNotice? = null): SectionLoopUiState =
-    copy(recording = false, running = false, countdown = null, finished = false, round = 1, step = 0, notice = notice)
+    copy(recording = false, abortAsked = false, running = false, countdown = null, finished = false, round = 1, step = 0, notice = notice)
+
+/** 재평가 녹음 중 ‘연주 중단’: 그 자리에서 멈추고 확인 창을 띄운다. */
+fun SectionLoopUiState.askAbort(): SectionLoopUiState = copy(running = false, abortAsked = true, micLevel = 0f)
+
+/** ‘계속 연주’: 3·2·1 뒤 멈춘 자리부터 녹음을 잇는다. */
+fun SectionLoopUiState.keepRecording(): SectionLoopUiState = copy(abortAsked = false, countdown = CountdownBeats, resumed = true)
 
 /**
  * [song]에서 [section] 안의 율명 음 번호 범위(양 끝 포함, 구간 재평가 세션 PRA-01의 `startNoteIdx`·`endNoteIdx`).

@@ -1,5 +1,10 @@
 package com.ssafy.eolssu.core.model
 
+import kotlin.math.abs
+import kotlin.math.expm1
+import kotlin.math.ln
+import kotlin.math.ln1p
+
 /** A written display slot, including holds belonging to an earlier event. */
 data class ScoreUnitKey(val cellId: String, val row: Int, val col: Int)
 
@@ -14,9 +19,36 @@ class ScorePerformanceSegment internal constructor(
     val startMs: Double,
     val endMs: Double,
     val sigimsae: List<String>,
-)
+    /** End/start BPM for a linear tempo ramp in this written slot; old sidecars are linear in time. */
+    val tempoRatio: Double = 1.0,
+    val accompanimentStartTick: Double = startTick,
+    val accompanimentEndTick: Double = endTick,
+) {
+    fun sourceTickAt(mediaMs: Double): Double {
+        val timeFraction = ((mediaMs - startMs) / (endMs - startMs)).coerceIn(0.0, 1.0)
+        if (timeFraction == 0.0) return startTick
+        if (timeFraction == 1.0) return endTick
+        val fraction = if (abs(tempoRatio - 1) < 1e-9) timeFraction
+            else expm1(ln(tempoRatio) * timeFraction) / (tempoRatio - 1)
+        return startTick + (endTick - startTick) * fraction.coerceIn(0.0, 1.0)
+    }
 
-data class ScorePerformancePosition(val segment: ScorePerformanceSegment, val sourceTick: Double)
+    fun mediaMsAt(sourceTick: Double): Double {
+        val fraction = ((sourceTick - startTick) / (endTick - startTick)).coerceIn(0.0, 1.0)
+        if (fraction == 0.0) return startMs
+        if (fraction == 1.0) return endMs
+        val timeFraction = if (abs(tempoRatio - 1) < 1e-9) fraction
+            else ln1p((tempoRatio - 1) * fraction) / ln(tempoRatio)
+        return startMs + (endMs - startMs) * timeFraction.coerceIn(0.0, 1.0)
+    }
+}
+
+data class ScorePerformancePosition(val segment: ScorePerformanceSegment, val sourceTick: Double) {
+    /** Imported balanced length marks can move the beat clock inside an unchanged display cell. */
+    val accompanimentTick: Double
+        get() = segment.accompanimentStartTick + (segment.accompanimentEndTick - segment.accompanimentStartTick) *
+            ((sourceTick - segment.startTick) / (segment.endTick - segment.startTick))
+}
 
 /** Validated local preview sidecar. Written score events and scoring time remain unchanged. */
 class ScorePerformance internal constructor(
@@ -45,7 +77,6 @@ class ScorePerformance internal constructor(
             if (time >= segments[middle].endMs) low = middle + 1 else high = middle
         }
         val segment = segments[low]
-        val fraction = ((time - segment.startMs) / (segment.endMs - segment.startMs)).coerceIn(0.0, 1.0)
-        return ScorePerformancePosition(segment, segment.startTick + (segment.endTick - segment.startTick) * fraction)
+        return ScorePerformancePosition(segment, segment.sourceTickAt(time))
     }
 }

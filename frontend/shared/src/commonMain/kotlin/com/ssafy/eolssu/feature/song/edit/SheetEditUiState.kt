@@ -24,13 +24,18 @@ data class SheetAudioInstruments(
     val options: List<CatalogInstrument> = emptyList(),
     val selectedId: String? = null,
     val loading: Boolean = true,
+    val supportLoading: Boolean = false,
+    val supportFailed: Boolean = false,
+    val unsupported: List<com.ssafy.eolssu.data.song.AuthoringPitchIssue> = emptyList(),
 )
 
 enum class SheetCompletionCatalogState { NotRequired, Loading, Ready, Failed }
 
 /** 화면 아래에 잠깐 띄우는 안내. */
+enum class SheetSaveStatus { DraftSaved, Confirmed, DraftFailed, ConfirmationFailed, TooLarge }
+
 enum class SheetEditMessage {
-    SaveFailed, SaveConflict, SaveTooLarge,
+    SaveFailed, SaveConflict, SaveTooLarge, SaveUnsupportedPitches,
     /** 임시저장(SHT-11 초안). 빈 정간이 있어도 된다. */
     Draft,
 
@@ -56,7 +61,7 @@ enum class SheetEditMessage {
 
     /** 요청 설정이 맞지 않다(400 INVALID_REQUEST: 장단 없는 악보에 장단 소리, bpm 범위 밖). */
     AudioInvalid,
-    AudioInstrumentRequired,
+    AudioInstrumentRequired, AudioUnsupportedPitches,
 
     /** 이 회원의 다른 음원을 만드는 중이다(409 AUDIO_IN_PROGRESS). */
     AudioInProgress,
@@ -80,6 +85,7 @@ enum class SheetEditMessage {
     PreviewNeedsAudio,
 
     ReviewBeforeReshape,
+    TempoPlanBeforeReshape,
 
     /** 서버 문서가 없는 경로 등에서 제공하지 않는 기능. */
     ComingSoon,
@@ -112,6 +118,8 @@ data class SheetEditUiState(
     val staffKey: StaffNoteKey? = null,
     val yulRegister: YulRegister = YulRegister.Base,
     val availablePitches: Set<Pair<String, Int>>? = null,
+    val authoringCapabilities: com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities? = null,
+    val serverPitchIssues: List<com.ssafy.eolssu.data.song.AuthoringPitchIssue> = emptyList(),
     val instrumentPitches: Set<Pair<String, Int>>? = null,
     val completionCatalogState: SheetCompletionCatalogState = SheetCompletionCatalogState.NotRequired,
     val availableJangdans: List<CatalogJangdanSummary>? = null,
@@ -124,9 +132,12 @@ data class SheetEditUiState(
     val deviceAudio: DeviceSheetAudio? = null,
     val audioDownloading: Boolean = false,
     val message: SheetEditMessage? = null,
+    val tempoIssue: com.ssafy.eolssu.data.song.SheetTempoIssue? = null,
+    val hasTempoPlan: Boolean = false,
     val documentLoading: Boolean = false,
     val documentFailed: Boolean = false,
     val practiceVersionChanged: Boolean = false,
+    val saveStatus: SheetSaveStatus? = null,
     val saving: Boolean = false,
     val confirming: Boolean = false,
     val saveConflict: Boolean = false,
@@ -135,6 +146,7 @@ data class SheetEditUiState(
     val reviewNotices: List<SheetReviewNotice> = emptyList(),
     val checkedIssueIds: Set<String> = emptySet(),
     val jangdanPicker: SheetEditJangdanPicker? = null,
+    val adaptation: SheetAdaptationUi? = null,
 ) {
     val completionValidation: SheetCompletionValidation by lazy { validateCompletion() }
     internal val validatedCheckedIssueIds: Set<String>
@@ -149,7 +161,7 @@ data class SheetEditUiState(
     internal fun updateDetails(title: String, bpm: Int): SheetEditUiState {
         if (!canEditDetails || bpm !in SheetBpmRange) return this
         val normalizedTitle = normalizedSheetTitle(title) ?: return this
-        return commit(draft.copy(title = normalizedTitle, bpm = bpm))
+        return commit(draft.copy(title = normalizedTitle, bpm = bpm)).copy(tempoIssue = null)
     }
 
     /** 편집 설정의 빠르기·장단을 한 번에 적용한다. 제목은 저장 창에서만 바꾼다. */
@@ -278,7 +290,7 @@ data class SheetEditUiState(
     /** 후보를 보는 동안 입력이 바뀌었으면 적용하지 않는다. 시작 음만 교체해 지속·분할·원본 이벤트를 보존한다. */
     internal fun applyPitchCorrection(target: SheetPitchCorrection, pitch: Pair<Yul, Int>): SheetEditUiState {
         if (confirming || target !in pitchCorrectionsAt(target.cell, target.sub) || pitch !in pitchAlternatives(target.pitch)) return this
-        val next = draft.putAt(target.originCell, target.originSub, draft.pitchNote(pitch.first, pitch.second))
+        val next = draft.correctPitch(target, pitch)
         return commit(next, target.originCell, target.originSub)
     }
 
@@ -294,12 +306,15 @@ data class SheetEditUiState(
     fun removeSigimsae(position: Int): SheetEditUiState = commit(draft.removeSigimsae(selected, position, sigimsaeSub))
 
 
-    fun split(): SheetEditUiState = commit(draft.split(selected), sub = null)
+    fun split(): SheetEditUiState = if (hasTempoPlan) copy(message = SheetEditMessage.TempoPlanBeforeReshape)
+        else commit(draft.split(selected), sub = null)
 
-    fun merge(): SheetEditUiState = commit(draft.merge(selected), sub = null)
+    fun merge(): SheetEditUiState = if (hasTempoPlan) copy(message = SheetEditMessage.TempoPlanBeforeReshape)
+        else commit(draft.merge(selected), sub = null)
 
     /** 고른 정간의 각 왼쪽에 빈 각을 넣고 새 각의 첫 정간을 고른다. */
     fun addColumn(): SheetEditUiState {
+        if (hasTempoPlan) return copy(message = SheetEditMessage.TempoPlanBeforeReshape)
         val column = draft.columnOf(selected)
         val next = draft.addColumnAfter(column)
         return commit(next, next.indexOf(column + 1, 0))
@@ -307,6 +322,7 @@ data class SheetEditUiState(
 
     /** 고른 정간의 각을 지운다. 선택은 같은 자리(마지막 각이었으면 새 마지막 각)로 둔다. */
     fun deleteColumn(): SheetEditUiState {
+        if (hasTempoPlan) return copy(message = SheetEditMessage.TempoPlanBeforeReshape)
         val column = draft.columnOf(selected)
         val next = draft.deleteColumn(column)
         if (next == draft) return this
@@ -347,7 +363,7 @@ data class SheetEditUiState(
         while (target in 0 until count * 5 && hwang + target - 2 * count in 0..127) {
             val pitch = BaseYuls[target % count]
             val register = target / count - 2
-            if (isAvailablePitch(availablePitches, pitch, register)) return draft.pitchNote(pitch, register)
+            if (isAvailablePitch(supportedInputPitches, pitch, register)) return draft.pitchNote(pitch, register)
             target += direction
         }
         return null
@@ -418,7 +434,7 @@ data class SheetEditUiState(
     }
 }
 
-internal val SheetBpmRange = 30..160
+internal val SheetBpmRange = 1..Int.MAX_VALUE
 
 /** SHT-04·11 count Unicode code points after trimming, including a surrogate pair as one. */
 internal fun normalizedSheetTitle(value: String): String? {

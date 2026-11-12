@@ -232,6 +232,14 @@ class SheetImportApiDatabaseTests {
         assertEquals(1, conversion("STAFF", null, "Eb4", status = "DONE"))
     }
 
+    @Test fun `a positive authoring BPM outside the old band survives import storage`() {
+        val response = import(OWNER, "tempo-773", jeongganbo().replace("\"bpm\":60", "\"bpm\":480"), listOf("a.png" to png))
+        assertEquals(202, response.statusCode(), response.body())
+        val id = sheetId(response)
+        assertEquals(480, jdbc.queryForObject("SELECT bpm FROM sheet_conversions WHERE sheet_id=?", Int::class.java, id))
+        assertEquals(480, jdbc.queryForObject("SELECT bpm FROM user_sheets WHERE id=?", Int::class.java, id))
+    }
+
     private fun staff() = """{"title":"아리랑 (오선보)","notation":"STAFF","instrumentId":"1","hwangPitch":"Eb4"}"""
 
     private fun jeongganbo(jangdan: String = jangdanId.toString()) =

@@ -5,6 +5,8 @@ import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSession
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSort
 import com.ssafy.eolssu.backend.feature.record.domain.ScoreColumns
+import com.ssafy.eolssu.backend.feature.record.domain.SavedRecordWeek
+import java.time.LocalDate
 import com.ssafy.eolssu.backend.feature.record.domain.SongRecordSummary
 import com.ssafy.eolssu.backend.feature.record.domain.rangeOf
 import org.springframework.transaction.annotation.Transactional
@@ -19,7 +21,10 @@ open class GetPracticeRecords(
 ) {
     @Transactional(readOnly = true)
     open fun execute(userId: Long, query: RecordListQuery): RecordList {
-        val songs = records.songSummaries(userId)
+        val summaries = records.songSummaries(userId)
+        val songs = if (query.groupOrder == RecordGroupOrder.LAST_STARTED) {
+            summaries.sortedWith(compareByDescending<SongRecordSummary> { it.lastStartedAt }.thenByDescending { it.songId })
+        } else summaries
         val songId = query.songId ?: songs.firstOrNull()?.songId
         val total = songs.firstOrNull { it.songId == songId }?.recordCount ?: 0
         // 큰 page에서도 넘치지 않게 Long으로 센다. 끝을 지난 페이지는 조회하지 않는다.
@@ -38,11 +43,25 @@ open class GetPracticeRecords(
             items = page.map { RecordListItem(it, cached.rangeOf(it)) },
             totalElements = total,
             totalPages = if (total == 0) 0 else (total + query.size - 1) / query.size,
+            week = query.weekOf?.let { day ->
+                val monday = day.minusDays((day.dayOfWeek.value - 1).toLong())
+                val from = monday.atStartOfDay().minusHours(9) // KST 자정을 DB의 UTC 시각으로 변환한다.
+                records.savedRecordWeek(userId, from, from.plusWeeks(1))
+            },
         )
     }
 }
 
-data class RecordListQuery(val songId: Long?, val sort: RecordSort, val page: Int, val size: Int)
+enum class RecordGroupOrder { LAST_SAVED, LAST_STARTED }
+
+data class RecordListQuery(
+    val songId: Long?,
+    val sort: RecordSort,
+    val page: Int,
+    val size: Int,
+    val groupOrder: RecordGroupOrder = RecordGroupOrder.LAST_SAVED,
+    val weekOf: LocalDate? = null,
+)
 
 data class RecordListItem(val record: RecordSession, val columns: ColumnRange?)
 
@@ -55,4 +74,5 @@ data class RecordList(
     /** 펼친 곡의 기록 수. */
     val totalElements: Int,
     val totalPages: Int,
+    val week: SavedRecordWeek? = null,
 )

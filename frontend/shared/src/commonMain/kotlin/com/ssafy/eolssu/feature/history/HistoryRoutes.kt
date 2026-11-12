@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.Job
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -31,12 +32,6 @@ import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.data.practice.GrowthRepository
-import com.ssafy.eolssu.data.practice.TrendScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import com.ssafy.eolssu.data.song.SongRepository
-import kotlinx.coroutines.CancellationException
 import eolssu.shared.generated.resources.Res
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,6 +55,8 @@ fun RecordListRoute(
     onOpenRecord: (String) -> Unit,
     initialRecordId: String? = null,
     onSelectSection: (recordId: String) -> Unit = {},
+    /** ‘구간 연습’ → 구간 고르기(반복 횟수·속도) → 구간 연습(S15P31E102-794). */
+    onPracticeSection: (recordId: String, songId: String) -> Unit = { _, _ -> },
     onCompare: (recordId: String, previousId: String) -> Unit = { _, _ -> },
     perf: PerformanceVisit? = null,
     viewModel: RecordListViewModel = koinViewModel(key = "records-$justSavedId") { parametersOf(justSavedId, perf) },
@@ -76,9 +73,19 @@ fun RecordListRoute(
     CompositionLocalProvider(LocalPerformanceVisit provides perf) {
         val widthClass = currentWindowLayout().widthClass
         if (widthClass == WindowWidthClass.Expanded) {
-            RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection)
+            RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection, onPracticeSection)
         } else {
-            RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry, onInstrument = viewModel::changeInstrument)
+            RecordListScreen(
+                state, widthClass, onBack, onOpenGrowth, viewModel::toggle,
+                onOpenRecord = { id ->
+                    viewModel.rememberDetailPreview(id)
+                    onOpenRecord(id)
+                },
+                onRetry = viewModel::retry, onLoadMore = viewModel::loadMoreGroup, onInstrument = viewModel::changeInstrument,
+                onToggleDay = viewModel::toggleDay,
+                onToggleName = viewModel::toggleNameOrder,
+                onSearch = viewModel::search,
+            )
         }
     }
 }
@@ -96,16 +103,21 @@ private fun RecordsTwoPaneRoute(
     viewModel: RecordListViewModel,
     onCompare: (recordId: String, previousId: String) -> Unit,
     onSelectSection: (String) -> Unit,
+    onPracticeSection: (recordId: String, songId: String) -> Unit,
 ) {
     val selectedId = state.selectedRecordId
-    val detailViewModel: RecordDetailViewModel = koinViewModel(key = "records-pane-$justSavedId") { parametersOf(selectedId.orEmpty()) }
+    val detailViewModel: RecordDetailViewModel = koinViewModel(key = "records-pane-$justSavedId") { parametersOf("") }
     LaunchedEffect(detailViewModel, selectedId) {
-        if (selectedId != null) detailViewModel.show(selectedId)
+        selectedId?.let(viewModel::rememberDetailPreview)
+        detailViewModel.show(selectedId.orEmpty())
     }
     DisposableEffect(detailViewModel) {
         onDispose { detailViewModel.pause() }
     }
     val detail by detailViewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(detail.record?.id, detail.detailLoaded) {
+        if (detail.detailLoaded) detail.record?.let(viewModel::revealLinkedRecord)
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     RecordNoticeEffect(detail.notice, snackbarHostState, detailViewModel::consumeNotice)
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { detailViewModel.pause() }
@@ -116,12 +128,15 @@ private fun RecordsTwoPaneRoute(
         onBack = onBack,
         onOpenGrowth = onOpenGrowth,
         onToggle = viewModel::toggle,
-        onSort = viewModel::changeSort,
         onOpenRecord = viewModel::select,
         onRetry = viewModel::retry,
+        onLoadMore = viewModel::loadMoreGroup,
         onInstrument = viewModel::changeInstrument,
+        onToggleDay = viewModel::toggleDay,
+        onToggleName = viewModel::toggleNameOrder,
+        onSearch = viewModel::search,
         detail = detail,
-        detailActions = rememberRecordDetailActions(detailViewModel, onBack, onCompare, onSelectSection),
+        detailActions = rememberRecordDetailActions(detailViewModel, onBack, onCompare, onSelectSection, onPracticeSection),
         snackbarHostState = snackbarHostState,
     )
 }
@@ -137,6 +152,8 @@ fun RecordDetailRoute(
     onBack: () -> Unit,
     onCompare: (recordId: String, previousId: String) -> Unit = { _, _ -> },
     onSelectSection: (recordId: String) -> Unit = {},
+    /** ‘구간 연습’ → 구간 고르기(반복 횟수·속도) → 구간 연습(S15P31E102-794). */
+    onPracticeSection: (recordId: String, songId: String) -> Unit = { _, _ -> },
     onDeleted: () -> Unit = onBack,
     viewModel: RecordDetailViewModel = koinViewModel(key = recordId) { parametersOf(recordId) },
 ) {
@@ -151,7 +168,7 @@ fun RecordDetailRoute(
         state = state,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
-        actions = rememberRecordDetailActions(viewModel, onBack, onCompare, onSelectSection),
+        actions = rememberRecordDetailActions(viewModel, onBack, onCompare, onSelectSection, onPracticeSection),
     )
 }
 
@@ -207,10 +224,12 @@ private fun rememberRecordDetailActions(
     onBack: () -> Unit,
     onCompare: (recordId: String, previousId: String) -> Unit,
     onSelectSection: (recordId: String) -> Unit,
+    onPracticeSection: (recordId: String, songId: String) -> Unit,
 ): RecordDetailActions {
     val latestOnBack by rememberUpdatedState(onBack)
     val latestOnCompare by rememberUpdatedState(onCompare)
     val latestOnSelectSection by rememberUpdatedState(onSelectSection)
+    val latestOnPracticeSection by rememberUpdatedState(onPracticeSection)
     return remember(viewModel) {
         RecordDetailActions(
             onBack = {
@@ -227,6 +246,15 @@ private fun rememberRecordDetailActions(
             onConfirmDelete = viewModel::confirmDelete,
             onCancelDelete = viewModel::cancelDelete,
             onPractice = {
+                val state = viewModel.uiState.value.takeIf { it.canPractice }
+                val id = state?.record?.id
+                val songId = state?.song?.id
+                if (id != null && songId != null) {
+                    viewModel.pause()
+                    latestOnPracticeSection(id, songId)
+                }
+            },
+            onReevaluate = {
                 viewModel.uiState.value.takeIf { it.canPractice }?.record?.id?.let { id ->
                     viewModel.pause()
                     latestOnSelectSection(id)
@@ -247,15 +275,13 @@ private fun rememberRecordDetailActions(
         )
     }
 }
-
 /**
- * GROWTH-01 상태. 처음에 이번 주를 받고, 다른 기간은 탭을 처음 고를 때 받는다. 받지 못한 기간은 탭을 다시 고르거나 '다시 시도'로 받는다.
- * '점수 변화'(GRO-03)는 기간과 따로 처음에 가장 최근에 연주한 곡의 기본 평가를 받고, 악기·곡을 고를 때마다 다시 받는다.
- * 악기 고르기용 곡 → 악기 대응은 곡 목록(CAT-01·02)에서 한 번 받고, 곡 목록에 없는 곡(지우거나 비공개로 바꾼 곡)은 고르지 않는다.
+ * GROWTH-01 상태(S15P31E102-795). 처음에 오늘까지 1년(GRO-02 최대 366일)의 날짜별 기록을 한 번 받아 기간 그래프와 연습량 달력을 모두 그린다.
+ * 그 1년 안에 기록이 있으면 더 이전 1년씩 이어서 받아 첫 기록 날을 찾는다(기록이 없는 1년을 만나거나 받지 못하면 멈춘다).
+ * 기간·단위·날짜를 바꿔도 다시 받지 않는다.
  */
 class GrowthViewModel(
     private val repository: GrowthRepository,
-    private val songs: SongRepository,
     now: () -> Long,
     member: SignedInMember? = null,
 ) : ViewModel() {
@@ -266,82 +292,69 @@ class GrowthViewModel(
         _uiState.value = GrowthUiState(today = _uiState.value.today)
     }
 
-    private var trendJob: Job? = null
-
-    /** 악기 고르기용 곡 → 악기 대응. 한 번만 받고, 받지 못하면 null이라 악기 없이 곡만 고른다. */
-    private val trendCatalog: Deferred<TrendCatalog?> = accountScope.async {
-        try {
-            TrendCatalog.of(songs.getInstruments(), songs.getSongs())
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            null
-        }
-    }
-
     init {
-        load(GrowthRange.Week)
-        loadTrend(songId = null)
+        load()
     }
 
-    fun changeRange(range: GrowthRange) {
+    fun retry() = load()
+
+    fun changeRange(range: GrowthRange) = _uiState.update { it.copy(range = range) }
+
+    fun changeMetric(metric: GrowthMetric) = _uiState.update { it.copy(metric = metric) }
+
+    /** 돋보기: 작게 보기(주별 8주 · 월별 12개월) ↔ 크게 보기(주별 4주 · 월별 6개월). */
+    fun toggleDense() = _uiState.update { it.copy(dense = !it.dense) }
+
+    /** 기간 시트에서 고른 날. 그 날이 든 주·달이 그래프의 마지막 막대가 되고, 연습량 달력도 그 달·그 날로 옮긴다. */
+    fun pickAnchor(day: Long) = _uiState.update {
+        if (it.history == null || !it.canPickAnchor(day)) it
+        else it.copy(anchorDay = day, heatMonth = GrowthDays.monthStart(day), heatDay = day)
+    }
+
+    /** 연습량 달력의 달을 [months]만큼 넘긴다. 첫 기록이 든 달 ~ 이번 달 밖으로는 넘기지 않는다. */
+    fun moveHeatMonth(months: Int) = _uiState.update {
+        val next = GrowthDays.addMonths(it.heatMonth, months)
+        if (it.history == null || !it.canShowMonth(next)) it else it.copy(heatMonth = next)
+    }
+
+    /** 연습량 달력에서 고른 날. 오늘 뒤 날은 고를 수 없다. */
+    fun pickHeatDay(day: Long) = _uiState.update { if (it.history == null || day > it.todayDay) it else it.copy(heatDay = day) }
+
+    private fun load() {
         if (!accountScope.isActive) return
-        _uiState.update { it.copy(range = range) }
-        if (_uiState.value.loads[range] !is GrowthLoad.Loaded) load(range)
-    }
-
-    fun retry() = load(_uiState.value.range)
-
-    /** 점수 변화 악기를 바꾼다. 그 악기에서 가장 최근에 연주한 기본 평가 곡을 보인다. */
-    fun selectTrendInstrument(instrumentId: String) {
-        val trend = _uiState.value.scoreTrend
-        if (trend.selectedInstrument?.instrumentId == instrumentId && !trend.failed) return
-        val song = trend.songFor(instrumentId) ?: return
-        loadTrend(song.songId)
-    }
-
-    /** 점수 변화 곡을 바꾼다. 기본 평가가 없는 곡은 고를 수 없다. */
-    fun selectTrendSong(songId: String) {
-        val trend = _uiState.value.scoreTrend
-        if (trend.basicSongs.none { it.songId == songId }) return
-        if (songId == trend.songId && !trend.failed) return
-        loadTrend(songId)
-    }
-
-    fun retryTrend() = loadTrend(_uiState.value.scoreTrend.songId)
-
-    /**
-     * 늘 기본 평가(`FULL`)만 받는다. 서버가 기본 평가만 골라 최근 5개를 오래된 순으로 주므로 재평가가 5개 안에 끼지 않는다.
-     * 앞선 요청은 취소한다(빠르게 곡을 바꾸면 마지막에 고른 곡만 보인다). 곡 → 악기 대응을 받은 뒤에 결과를 보여,
-     * 서버가 고른 곡을 고를 수 없으면(기본 평가가 없거나 곡 목록에 없는 곡) 그 곡을 그리지 않고 가장 최근에 연주한 고를 수 있는 곡을 다시 받는다.
-     */
-    private fun loadTrend(songId: String?) {
-        if (!accountScope.isActive) return
-        trendJob?.cancel()
-        _uiState.update { it.copy(scoreTrend = it.scoreTrend.requesting(songId)) }
-        trendJob = accountScope.launch {
-            val trend = repository.scoreTrend(songId, TrendScope.Full)
-            val catalog = trendCatalog.await()
-            val received = { state: ScoreTrendState -> state.copy(catalog = catalog).received(trend) }
-            val next = received(_uiState.value.scoreTrend)
-            val fallback = next.fallbackSongId?.takeIf { trend != null && it != songId }
-            if (fallback != null) {
-                _uiState.update { it.copy(scoreTrend = it.scoreTrend.copy(catalog = catalog)) }
-                loadTrend(fallback)
-            } else {
-                _uiState.update { it.copy(scoreTrend = received(it.scoreTrend)) }
+        if (loadJob?.isActive == true) return
+        _uiState.update { it.copy(load = GrowthLoad.Loading) }
+        loadJob = accountScope.launch {
+            val to = _uiState.value.todayDay
+            val from = to - (GrowthRepository.MAX_CALENDAR_DAYS - 1)
+            val days = repository.calendar(from, to)
+            if (days == null) {
+                _uiState.update { it.copy(load = GrowthLoad.Failed) }
+                return@launch
             }
+            var history = PracticeHistory.of(days, from, searchingOlder = days.any { it.hasRecord })
+            _uiState.update { it.copy(load = GrowthLoad.Loaded(history)) }
+            var olderTo = from - 1
+            var found = history.searchingOlder
+            repeat(MAX_OLDER_YEARS) {
+                if (!found) return@repeat
+                val olderFrom = olderTo - (GrowthRepository.MAX_CALENDAR_DAYS - 1)
+                val older = repository.calendar(olderFrom, olderTo)
+                found = older != null && older.any { it.hasRecord }
+                if (older != null) history = history.merged(older, olderFrom)
+                _uiState.update { it.copy(load = GrowthLoad.Loaded(history.copy(searchingOlder = found))) }
+                olderTo = olderFrom - 1
+            }
+            history = history.copy(searchingOlder = false)
+            _uiState.update { it.copy(load = GrowthLoad.Loaded(history)) }
         }
     }
 
-    private fun load(range: GrowthRange) {
-        if (!accountScope.isActive) return
-        if (_uiState.value.loads[range] == GrowthLoad.Loading) return
-        _uiState.update { it.copy(loads = it.loads + (range to GrowthLoad.Loading)) }
-        accountScope.launch {
-            val load = loadGrowth(repository, GrowthPeriod.of(range, _uiState.value.today))
-            _uiState.update { it.copy(loads = it.loads + (range to load)) }
-        }
+    private var loadJob: Job? = null
+
+    private companion object {
+        /** 첫 기록을 찾아 더 받는 최대 해 수(처음 1년 제외). */
+        const val MAX_OLDER_YEARS = 4
     }
 }
 
@@ -355,9 +368,15 @@ fun GrowthRoute(
     GrowthScreen(
         state = state,
         widthClass = currentWindowLayout().widthClass,
-        onBack = onBack,
-        onRange = viewModel::changeRange,
-        onRetry = viewModel::retry,
-        trendActions = ScoreTrendActions(viewModel::selectTrendInstrument, viewModel::selectTrendSong, viewModel::retryTrend),
+        actions = GrowthActions(
+            onBack = onBack,
+            onRange = viewModel::changeRange,
+            onMetric = viewModel::changeMetric,
+            onToggleDense = viewModel::toggleDense,
+            onPickAnchor = viewModel::pickAnchor,
+            onMoveHeatMonth = viewModel::moveHeatMonth,
+            onPickHeatDay = viewModel::pickHeatDay,
+            onRetry = viewModel::retry,
+        ),
     )
 }

@@ -18,9 +18,14 @@ import com.ssafy.eolssu.core.audio.JANGDAN_SAMPLE_RATE
 import com.ssafy.eolssu.core.audio.JangdanClip
 import com.ssafy.eolssu.core.audio.JangdanPlan
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
+import java.util.concurrent.Executors
+import java.util.concurrent.ThreadFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExecutorCoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.CoroutineContext
 import kotlin.math.roundToLong
 
 /** One continuous PCM timeline, shared with the recorder's acoustic echo reference. */
@@ -61,7 +66,15 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
     private var scheduled: JangdanFrameSchedule? = null
     private var scheduledCountIn: ScheduledJangdanCountIn? = null
     private var writtenFramesSnapshot = 0L
+    private var timingDispatcher: ExecutorCoroutineDispatcher? = null
+    override val timingContext: CoroutineContext
+        get() = synchronized(lock) {
+            timingDispatcher ?: Executors.newSingleThreadExecutor(audioThread("eolssu-jangdan"))
+                .asCoroutineDispatcher().also { timingDispatcher = it }
+        }
     override val available = true
+    @Volatile override var failed = false
+        private set
     @Volatile override var interrupted = false
         private set
     private val listener = AudioManager.OnAudioFocusChangeListener { change ->
@@ -128,6 +141,7 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         var closing: Pair<Thread?, AudioTrack>? = null
         val started = synchronized(lock) {
             interrupted = false
+            failed = false
             // The model player already owns focus. Requesting it again would interrupt that same media.
             if (!accompanyingModel && !ownsFocus) {
                 val granted = if (Build.VERSION.SDK_INT >= 26) {
@@ -153,6 +167,7 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
                 true
             } catch (failure: Exception) {
                 Log.w("JangdanPcm", "Unable to begin PCM playback", failure)
+                failed = true
                 interrupted = true
                 stopLogicalPlayback()
                 closing = detachOutput()
@@ -228,6 +243,8 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
             stopLogicalPlayback()
             retainClock = false
             samples.clear()
+            timingDispatcher?.close()
+            timingDispatcher = null
             detachOutput()
         }
         closeOutput(closing)
@@ -273,6 +290,8 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         val output = builder.build()
         try {
             check(output.state == AudioTrack.STATE_INITIALIZED)
+            // Keep the native buffer; reducing it to a few bursts starves Java output workers.
+            if (Build.VERSION.SDK_INT >= 31) output.setStartThresholdInFrames(BLOCK_FRAMES)
             output.play()
         } catch (failure: Exception) {
             output.release()
@@ -395,7 +414,12 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
             }
         } catch (failure: Exception) {
             Log.w("JangdanPcm", "PCM playback stopped", failure)
-            synchronized(lock) { if (track === output && token == generation) interrupted = true }
+            synchronized(lock) {
+                if (track === output && token == generation) {
+                    failed = true
+                    interrupted = true
+                }
+            }
         } finally {
             runCatching { output.pause() }
             runCatching { output.flush() }
@@ -414,6 +438,13 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
                 }
             }
         }
+    }
+
+    private fun audioThread(name: String) = ThreadFactory { action ->
+        Thread({
+            Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
+            action.run()
+        }, name)
     }
 
     private companion object {

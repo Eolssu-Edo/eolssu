@@ -6,6 +6,7 @@ import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetSourceCleaner
 import com.ssafy.eolssu.backend.feature.sheet.application.PreparedScore
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraft
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraftUpdate
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetScoreUpdate
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetJangdan
@@ -55,7 +56,7 @@ class UserSheetControllerTests {
     private val mvc = MockMvcBuilders.standaloneSetup(
         UserSheetController(
             GetUserSheets(repository, scores),
-            EditUserSheet(repository, scores, Clock.fixed(updatedAt, ZoneOffset.UTC)),
+            EditUserSheet(repository, scores, Clock.fixed(updatedAt, ZoneOffset.UTC), jangdanValidation = null),
             JsonMapper.builder().build(),
             // 원본 파일이 없는 MANUAL 악보만 다룬다. 원본 삭제는 SheetImportsTests·DB 테스트가 본다.
             SheetSourceCleaner { _, _ -> true },
@@ -101,6 +102,64 @@ class UserSheetControllerTests {
         }
         for (id in listOf("0", "-1", "07", "abc", "9999999999999999999")) {
             mvc.perform(get("/api/users/me/sheets/$id/score")).andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `list returns the owner's effective score instrument and keeps blank sheets`() {
+        val danso = commonScore("DANSO")
+        stored[702] = sheet(702, "단소 악보", danso)
+        stored[703] = sheet(703, "소금 초안", danso).copy(
+            draft = draft(commonScore("SOGEUM")),
+        )
+        stored[704] = sheet(704, "빈 악보", null)
+        stored[705] = sheet(705, "남의 단소 악보", danso, userId = 2)
+        stored[706] = sheet(706, "악기 없는 초안", danso).copy(
+            draft = draft(commonScore("")),
+        )
+
+        mvc.perform(get("/api/users/me/sheets")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.items.length()").value(4))
+            .andExpect(jsonPath("$.result.items[0].instrumentCode").value("DANSO"))
+            .andExpect(jsonPath("$.result.items[1].instrumentCode").value("SOGEUM"))
+            .andExpect(jsonPath("$.result.items[1].hasDraft").value(true))
+            .andExpect(jsonPath("$.result.items[2].instrumentCode").doesNotExist())
+            .andExpect(jsonPath("$.result.items[3].instrumentCode").doesNotExist())
+    }
+
+    @Test
+    fun `list withholds instrument codes for already stored unreadable drafts`() {
+        val missingPart = commonScore("SOGEUM").replace(",\"part\":0", "")
+        stored[707] = sheet(707, "열 수 없는 초안", commonScore("DANSO")).copy(draft = draft(missingPart))
+
+        mvc.perform(get("/api/users/me/sheets")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.items[0].sheetId").value("707"))
+            .andExpect(jsonPath("$.result.items[0].hasDraft").value(true))
+            .andExpect(jsonPath("$.result.items[0].instrumentCode").doesNotExist())
+    }
+
+    private fun commonScore(instrument: String): String = """
+        {
+          "schemaVersion":1,
+          "score":{"title":"악보","instrument":"$instrument","part":0,"sourceId":"test","scoreVersion":1},
+          "music":{"hwangHz":311.13,"jangdan":"","bpmUnit":"JEONGGAN","ticksPerBeat":4,"ticksPerJeonggan":4},
+          "columns":[],
+          "events":[],
+          "provenance":{"sourceId":"test","jgbSha256":"test","review":"inferred","converter":"test"}
+        }
+    """.trimIndent()
+
+    private fun draft(score: String) = SheetDraft("""{"title":"초안","bpm":72,"score":$score}""", 1, updatedAt)
+
+    @Test
+    fun `legacy incomplete pitch drafts remain readable without a fabricated source snapshot`() {
+        val json = JsonMapper.builder().build()
+        for (pitch in listOf("\"octave\":null,\"durationTick\":240", "\"octave\":\"1\",\"durationTick\":240", "\"octave\":1")) {
+            val draft = """{"title":"입력 중","jangdanId":null,"bpm":60,"score":{"schemaVersion":1,"score":{"instrument":"DANSO","scoreVersion":1},"music":{"hwangHz":311.1269837220809},"events":[{"id":"c0-j0-r0-u0","cellId":"c0-j0","kind":"NOTE","yul":"황","startTick":0,$pitch}]}}"""
+            stored[702] = sheet(702, "입력 중", null).copy(draft = SheetDraft(draft, 1, updatedAt), draftRevision = 1)
+            val response = mvc.perform(get("/api/users/me/sheets/702/score")).andExpect(status().isOk)
+                .andExpect(jsonPath("$.result.authoring").doesNotExist()).andReturn().response.contentAsString
+            assertEquals(json.readTree(draft).path("score"), json.readTree(response).path("result").path("draft").path("score"))
         }
     }
 
