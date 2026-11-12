@@ -85,7 +85,7 @@
     <!-- RECORD-02 2차: 기록 상세의 비교 진입 -->
     <string name="weak_record_compare">지난 연주와 비교</string>
     <string name="record_result_title">이전 연주 결과</string>
-    <string name="record_title_line">%1$s · %2$s %3$s</string>
+    <string name="record_title_line">%1$s %2$s</string>
     <string name="record_follow_now">지금 위치로</string>
     <string name="record_memo_button">메모</string>
 </resources>

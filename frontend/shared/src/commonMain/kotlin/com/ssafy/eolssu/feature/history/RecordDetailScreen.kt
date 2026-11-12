@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.history
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -59,6 +60,7 @@ class RecordDetailActions(
 /**
  * RECORD-02 이전 연주 결과(S15P31E102-753, 시안 D안): 제목 ‘곡 · 날짜 시간’과 오른쪽 위 ‘기록 삭제’ · 점수 상자
  * (일원상 총점 · 항목 막대 · ‘지난 연주와 비교’ · 메모) · 5칸 종류 필터 · 정간보 · 아래 재생 묶음과 ‘취약 구간 연습’.
+ * 상단 제목은 ‘날짜 시간’만 두고, 곡 제목은 점수 상자 왼쪽 위로 옮겼다(S15P31E102-810).
  */
 @Composable
 fun RecordDetailScreen(
@@ -95,10 +97,10 @@ fun RecordDetailScreen(
     RecordComparePick(state, actions)
 }
 
-/** 제목 한 줄: ‘아리랑 · 11월 9일 오후 8:14’. 기록이 없으면 null. */
+/** 상단 제목 한 줄: ‘11월 9일 오후 8:14’(곡 제목은 점수 상자에 둔다, S15P31E102-810). 기록이 없으면 null. */
 @Composable
 internal fun recordTitleLine(state: RecordDetailUiState): String? = state.record?.let {
-    stringResource(Res.string.record_title_line, state.song?.title ?: it.songTitle, monthDayLabel(it.recordedAt), timeLabel(it.recordedAt))
+    stringResource(Res.string.record_title_line, monthDayLabel(it.recordedAt), timeLabel(it.recordedAt))
 }
 
 /** ‘지난 연주와 비교’로 연 기록 고르기 시트. */
@@ -134,6 +136,7 @@ internal fun RecordResultContent(
                 total = record.score,
                 metrics = record.metrics,
                 modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+                title = song?.title ?: record.songTitle,
                 filled = true,
                 action = if (state.canCompare || hasMemo) {
                     {
@@ -198,8 +201,9 @@ internal fun RecordResultContent(
 }
 
 /**
- * 메모 창: 제목 ‘메모’ · 회색 칸 안의 적은 메모 · ‘닫기’. 바깥을 눌러도 닫힌다.
- * 마이페이지처럼 테두리 없이 회색 채움으로 나눈다(S15P31E102-768).
+ * 메모 창: 제목 ‘메모’ · 적은 메모 칸 · ‘닫기’. 바깥을 눌러도 닫힌다.
+ * 메모 칸은 메모를 적은 저장 시트 입력칸과 같은 모양(옅은 바탕 · 1dp 테두리 · 모서리 12 · 15sp)이고,
+ * 긴 메모는 칸 안에서 스크롤한다(S15P31E102-810).
  */
 @Composable
 private fun RecordMemoDialog(memo: String, onDismiss: () -> Unit) {
@@ -209,11 +213,14 @@ private fun RecordMemoDialog(memo: String, onDismiss: () -> Unit) {
         icon = EolssuIcons.Chat,
         onDismissRequest = onDismiss,
     ) {
+        val fieldShape = RoundedCornerShape(12.dp)
         Text(
             memo,
-            Modifier.fillMaxWidth().padding(bottom = 6.dp).background(colors.groupedBackground, RoundedCornerShape(14.dp)).padding(horizontal = 16.dp, vertical = 14.dp),
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
-            color = colors.textSub,
+            Modifier.fillMaxWidth().padding(bottom = 6.dp).heightIn(min = 52.dp, max = 240.dp)
+                .background(colors.background, fieldShape).border(1.dp, colors.line, fieldShape)
+                .verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 14.dp),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 22.sp),
+            color = colors.text,
         )
         EolssuButton(
             stringResource(Res.string.common_close),

@@ -22,6 +22,11 @@ import org.jetbrains.compose.resources.stringResource
 internal fun RecordDetailPane(state: RecordDetailUiState, actions: RecordDetailActions, modifier: Modifier = Modifier) {
     // 회색 바탕 위에 휴대폰 상세와 같은 흰 카드들을 바로 놓는다(테두리 상자 없음, S15P31E102-768).
     Box(modifier.padding(vertical = 4.dp)) {
+        // 목록에 없는 기록을 처음 불러오는 동안은 빈 칸 안내 대신 ‘로딩 중’ 막을 보인다(S15P31E102-810).
+        if (state.record == null && state.lookupLoading) {
+            PlaybackLoadingOverlay()
+            return@Box
+        }
         if (state.record == null || state.delete == RecordDeleteState.Deleted) {
             Text(stringResource(Res.string.records_pane_empty), Modifier.align(Alignment.Center).padding(24.dp),
                 textAlign = TextAlign.Center, color = EolssuTheme.colors.textMuted)
