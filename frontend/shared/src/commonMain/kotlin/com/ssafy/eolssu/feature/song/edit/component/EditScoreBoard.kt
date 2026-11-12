@@ -104,13 +104,15 @@ internal fun EditScoreBoard(
  * 정상 정간·소박의 선택은 기존 연두 표시를 쓴다.
  */
 @Composable
-internal fun editorMarks(draft: SheetDraft, selected: Int, sub: Int? = null, correctionCells: Set<Int> = emptySet()): Map<Pair<Int, Int>, ScoreCellMark> {
+internal fun editorMarks(draft: SheetDraft, selected: Int, sub: Int? = null, correctionCells: Set<Int> = emptySet(),
+    correctionUnits: Set<ScoreUnitKey> = emptySet()): Map<Pair<Int, Int>, ScoreCellMark> {
     val colors = EolssuTheme.colors
     val correctionDescription = stringResource(Res.string.sheet_editor_correction_description)
     val empty = ScoreCellMark(fill = colors.background, ring = colors.line, ringWidth = 1.dp, dashed = true)
     return buildMap {
         draft.emptyCells.forEach { put(draft.columnOf(it) to draft.rowOf(it), empty) }
-        correctionCells.filter { it in draft.cells.indices }.forEach {
+        correctionCells.filter { it in draft.cells.indices &&
+            (draft.cells[it].size <= 1 || draft.cells[it].indices.none { sub -> draft.unitKeyOf(it, sub) in correctionUnits }) }.forEach {
             put(draft.columnOf(it) to draft.rowOf(it), ScoreCellMark(
                 fill = colors.recSoft, ring = colors.rec, ringWidth = 1.5.dp, dashed = true, tag = "!",
                 description = correctionDescription, selected = it == selected && sub == null,
@@ -126,14 +128,19 @@ internal fun editorMarks(draft: SheetDraft, selected: Int, sub: Int? = null, cor
     }
 }
 
-/** 고른 소박만 연두 바탕과 먹색 테두리(1.5)로 칠한다. */
+/** 오류가 있는 소박의 붉은 바탕·점선·!를 유지하고 고른 소박의 선택 테두리를 덧그린다. */
 @Composable
-internal fun editorUnitMarks(draft: SheetDraft, selected: Int, sub: Int?, correctionCells: Set<Int> = emptySet()): Map<ScoreUnitKey, ScoreCellMark> {
-    if (sub == null || selected !in draft.cells.indices) return emptyMap()
-    val key = draft.unitKeyOf(selected, sub) ?: return emptyMap()
+internal fun editorUnitMarks(draft: SheetDraft, selected: Int, sub: Int?, correctionUnits: Set<ScoreUnitKey> = emptySet()): Map<ScoreUnitKey, ScoreCellMark> {
     val colors = EolssuTheme.colors
-    return mapOf(key to ScoreCellMark(fill = if (selected in correctionCells) colors.recSoft else colors.primary,
-        ring = colors.text, ringWidth = 1.5.dp, selected = true))
+    val correctionDescription = stringResource(Res.string.sheet_editor_correction_description)
+    return buildMap {
+        correctionUnits.forEach { key -> put(key, ScoreCellMark(fill = colors.recSoft,
+            ring = colors.rec, ringWidth = 1.5.dp, dashed = true, tag = "!", description = correctionDescription)) }
+        if (sub != null && selected in draft.cells.indices) draft.unitKeyOf(selected, sub)?.let { key ->
+            put(key, this[key]?.copy(ring = colors.text, dashed = false, selected = true)
+                ?: ScoreCellMark(fill = colors.primary, ring = colors.text, ringWidth = 1.5.dp, selected = true))
+        }
+    }
 }
 
 /** EDIT-06 표시: 확인할 정간은 먹색 점선과 '?', 고친 정간은 연두 바탕과 '✓', 보고 있는 정간은 연두 안쪽 테두리. */

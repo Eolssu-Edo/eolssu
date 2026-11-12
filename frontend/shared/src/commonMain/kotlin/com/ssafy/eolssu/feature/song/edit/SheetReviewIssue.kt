@@ -8,7 +8,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 
 /** 변환 결과에서 편집기 정간에 연결할 수 있는 확인 항목. */
-data class SheetReviewIssue(val id: String, val cellId: String, val kind: String, val pitch: Pair<String, Int>? = null)
+data class SheetReviewIssue(val id: String, val cellId: String, val kind: String, val pitch: Pair<String, Int>? = null, val eventId: String? = null)
 
 internal fun SheetDocument.editorReviewIssues(score: CommonScoreData): List<SheetReviewIssue> {
     val eventCells = score.events.associate { it.id to it.cellId }
@@ -19,7 +19,7 @@ internal fun SheetDocument.editorReviewIssues(score: CommonScoreData): List<Shee
         val kind = if (detail?.text("reason") == "UNREGISTERED_PITCH") "UNREGISTERED_PITCH" else issue.text("type").orEmpty()
         val yul = detail?.text("yul")
         val octave = (detail?.get("octave") as? JsonPrimitive)?.intOrNull
-        SheetReviewIssue(id, cellId, kind, if (yul != null && octave != null) yul to octave else null)
+        SheetReviewIssue(id, cellId, kind, if (yul != null && octave != null) yul to octave else null, issue.text("eventId"))
     }.distinctBy(SheetReviewIssue::id)
 }
 
