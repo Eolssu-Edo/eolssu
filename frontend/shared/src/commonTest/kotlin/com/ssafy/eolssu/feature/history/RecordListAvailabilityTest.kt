@@ -24,7 +24,7 @@ internal class RecordListAvailabilityTest : CatalogViewModelTest() {
         assertTrue(empty.uiState.value.recordsAvailable)
         assertEquals(empty.uiState.value.summaries, unavailable.uiState.value.summaries)
         runCurrent()
-        unavailable.changeSort(RecordSort.Oldest)
+        unavailable.toggleNameOrder()
         assertFalse(unavailable.uiState.value.recordsAvailable)
         assertTrue(empty.uiState.value.recordsAvailable)
         assertEquals(empty.uiState.value.groups, unavailable.uiState.value.groups)

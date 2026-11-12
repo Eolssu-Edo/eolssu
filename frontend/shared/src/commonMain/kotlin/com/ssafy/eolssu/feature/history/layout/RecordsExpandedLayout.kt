@@ -19,7 +19,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.history.RecordDetailActions
 import com.ssafy.eolssu.feature.history.RecordDetailUiState
 import com.ssafy.eolssu.feature.history.RecordListUiState
-import com.ssafy.eolssu.feature.history.RecordSort
 import com.ssafy.eolssu.feature.history.component.HistoryFrame
 import com.ssafy.eolssu.feature.history.component.HistoryTopBar
 import com.ssafy.eolssu.feature.history.component.RecordDetailPane
@@ -30,7 +29,7 @@ import com.ssafy.eolssu.feature.history.component.RecordsInstrumentEmpty
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.feature.history.component.RecordsEmpty
 import com.ssafy.eolssu.feature.history.component.RecordsLoadStatus
-import com.ssafy.eolssu.feature.history.component.WeekCard
+import com.ssafy.eolssu.feature.history.component.GrowthLinkButton
 
 /**
  * 태블릿 가로·넓은 웹 창의 연습 기록(`Tab-Records-Land`): 왼쪽 400dp 목록(묶음만 스크롤) · 오른쪽 고른 녹음의 기록 상세.
@@ -45,12 +44,13 @@ internal fun RecordsExpandedLayout(
     onBack: () -> Unit,
     onOpenGrowth: () -> Unit,
     onToggle: (String) -> Unit,
-    onSort: (RecordSort) -> Unit,
     onInstrument: (Instrument?) -> Unit,
+    onToggleDay: (String, Long) -> Unit,
+    onToggleName: () -> Unit,
+    onSearch: (String) -> Unit,
     onSelect: (String) -> Unit,
     onRetry: () -> Unit,
     onLoadMore: (String) -> Unit,
-    onRetryNewest: () -> Unit,
     detail: RecordDetailUiState,
     detailActions: RecordDetailActions,
     snackbarHostState: SnackbarHostState,
@@ -60,37 +60,26 @@ internal fun RecordsExpandedLayout(
         containerColor = EolssuTheme.colors.groupedBackground,
         snackbarHostState = snackbarHostState,
         contentMaxWidth = frame.contentMaxWidth,
-        topBar = { HistoryTopBar(frame, title, subtitle, onBack) },
+        topBar = { HistoryTopBar(frame, title, subtitle, onBack) { if (state.recordsAvailable) GrowthLinkButton(onOpenGrowth) } },
     ) {
         BoxWithConstraints(Modifier.fillMaxSize().padding(start = frame.gutter, end = frame.gutter, top = 4.dp, bottom = 24.dp)) {
             val listWidth = (maxWidth * 0.36f).coerceIn(320.dp, 400.dp)
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 Column(Modifier.width(listWidth).fillMaxHeight()) {
-                    if (state.recordsAvailable && (!state.showLoadStatus || state.summaries.isNotEmpty())) {
-                        WeekCard(state, spacing, onOpenGrowth)
-                    }
                     if (state.showLoadStatus) {
                         RecordsLoadStatus(failed = state.loadFailed, onRetry = onRetry)
                     }
                     if (state.summaries.isNotEmpty()) {
-                        RecordListToolbar(state.instrument, state.sort, spacing, onInstrument, onSort)
+                        RecordListToolbar(state.instrument, state.nameOrder, state.query, spacing, onInstrument, onToggleName, onSearch)
                         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                            if (state.groups.isEmpty()) RecordsInstrumentEmpty()
-                            else RecordGroups(state, spacing, onToggle, onSelect, onLoadMore, selectedId = state.selectedRecordId)
+                            if (state.groups.isEmpty()) RecordsInstrumentEmpty(searching = state.query.isNotBlank())
+                            else RecordGroups(state, spacing, onToggle, onSelect, onLoadMore, onToggleDay, selectedId = state.selectedRecordId)
                         }
                     } else if (!state.showLoadStatus) {
                         RecordsEmpty(available = state.recordsAvailable)
                     }
                 }
-                if (state.newestLookupSongId != null) {
-                    RecordsLoadStatus(
-                        failed = state.newestLoadFailed,
-                        onRetry = onRetryNewest,
-                        modifier = Modifier.weight(1f),
-                    )
-                } else {
-                    RecordDetailPane(detail, detailActions, Modifier.weight(1f).fillMaxHeight())
-                }
+                RecordDetailPane(detail, detailActions, Modifier.weight(1f).fillMaxHeight())
             }
         }
     }
