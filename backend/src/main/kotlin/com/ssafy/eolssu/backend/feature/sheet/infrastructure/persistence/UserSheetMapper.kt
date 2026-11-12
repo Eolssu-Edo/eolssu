@@ -78,7 +78,7 @@ data class UserSheetRow(
     val conversionResultJson: String?,
 )
 
-data class SheetJangdanRow(val id: Long, val bpmUnit: String, val name: String)
+data class SheetJangdanRow(val id: Long, val bpmUnit: String, val name: String, val pattern: String)
 
 data class SheetScoreUpdateRow(
     val sheetId: Long,

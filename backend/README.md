@@ -369,7 +369,7 @@ Mapper는 기본적으로 PK 조회 `findById`를 제공하고, 기능 구현에
 
 Mapper는 `@Mapper`로 검색하고 XML namespace는 인터페이스 전체 이름, statement ID는 메서드 이름과 맞춥니다. Kotlin 생성자 매핑을 위해 `javaParameters`, `arg-name-based-constructor-auto-mapping`, `map-underscore-to-camel-case`를 사용합니다. XML은 조회 열을 명시합니다. JSON 열은 원문 `String`, 상태 열은 `String`, nullable 열은 Kotlin nullable로 보존하며 도메인 정책은 추가하지 않습니다.
 
-Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실행 방법은 [인프라 실행 문서](../infra/README.md)를 따릅니다. Docker 빌드는 `docker build --tag eolsu-backend:check backend`를 저장소 루트에서 실행합니다. 실제 Jenkins 잡 등록·서버 배포는 별도 작업입니다.
+Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실행 방법은 [인프라 실행 문서](../infra/README.md)를 따릅니다. Docker 빌드는 `docker build -f backend/Dockerfile --tag eolsu-backend:check .`를 저장소 루트에서 실행합니다. 실제 Jenkins 잡 등록·서버 배포는 별도 작업입니다.
 
 인증은 토큰 검증·약관 목록·이메일 인증까지 포함하고, 가입·로그인 등 나머지 회원 API(S15P31E102-207~211)와 업무 API·운영 DB 적용은 아직 포함하지 않습니다. AI 호출은 클라이언트만 있고 앱에 연결하지 않았습니다. 실행·검증 방법은 이 README, 조사 결과는 루트 `docs/knowledge/backend/`, 공통 계약은 `docs/contracts/`, 기술 결정은 `docs/decisions/`에 기록합니다.
 
@@ -458,3 +458,11 @@ S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V11의 nu
 ### 소셜 신규 가입·재인증 탈퇴
 
 [OAuth 가입 계약](../docs/specs/social-sign-up.md)을 따릅니다. V12 적용이 필요하며 운영 마이그레이션은 배포 전에 별도 절차로 수행합니다. 신규 인증은409 SOCIAL_SIGN_UP_REQUIRED의10분·1회 signupTicket을 반환하며 POST /api/auth/oauth/sign-up에서 현재 약관·닉네임으로 가입을 완료합니다. 비밀번호는 저장하지 않고 확인되지 않은 이메일은NULL입니다. GET /api/users/me.email도nullable입니다. 소셜 탈퇴는 연결 제공자 WITHDRAW 재인증 증명으로 기존 DELETE /api/users/me를 호출하며, 기존 비밀번호 방식도 유지합니다. FE는 신규 약관 화면·nullable 이메일·탈퇴 복귀 흐름을 연결해야 합니다. 원문 티켓·코드·쿠키를 로그에 기록하거나 자동 재전송하지 마세요.
+
+### 악보 작성 지원음
+
+`GET /api/instruments/{instrumentId}/authoring-capabilities`는 등록 운지·화면 표기·CAT 합성의 교집합과 제외 사유를 반환합니다. 문헌상 물리 음역과 실물 연주 검수 상태는 별도이며 운지 미등록은 `UNKNOWN`입니다. 기존 CAT-06 음역 조회와 과거 악보 읽기는 유지합니다. 최종 저장(SHT-04)과 생성(SHT-12)에 같은 정책을 적용하고 초안(SHT-11)은 미지원 음도 보존합니다. `INVALID_REQUEST.details`의 `UNSUPPORTED_PITCHES`에는 악기 코드, eventId, cellId와 reasonCodes가 있습니다. 음원 악기를 생략하면 저장 악기의 코드를 사용합니다.
+
+정책 원본은 `data/src/playback/profiles/authoring-policy.json`·악기 profile과 표기 계약 `data/src/scores/score_data.schema.json`이며 `processResources`가 직접 묶습니다. [지원음 API·검증 계획](../docs/plans/S15P31E102-787.md)을 따릅니다. 검증은 `BuiltinFingeringApiDatabaseTests`의 실제 98운지 카탈로그 HTTP, `SheetAudioDatabaseTests`의 저장·초안·음원 HTTP를 사용합니다.
+
+S15P31E102-789의 장단 칸 음가는 `data/reference/jangdans.json`을 같은 방식으로 `catalog/jangdans.json`에 묶습니다. 저장소 루트 Docker context의 allowlist도 이 원본을 포함합니다. `SheetJangdanValidationTests`, `UserSheetApiDatabaseTests`, `CatalogReferenceApiDatabaseTests`가0tick·첫 쉼·완전 주기와 카탈로그 응답을 검증합니다. [장단 분할 검증 기록](../docs/plans/S15P31E102-789.md).

@@ -22,6 +22,8 @@ from .common_score import convert_common_score
 from .midi import export_seconds
 from data.src.audio.jangdan_audio import rhythm_plan
 
+SERVICE_POLICY = json.loads((Path(__file__).parent / 'profiles' / 'authoring-policy.json').read_text(encoding='utf-8'))
+
 # Stable channel-10 note IDs distinguish the six recorded janggu strokes.
 # They identify export events; a generic GM soundfont is not a janggu library.
 DRUM_NOTES = {'덩': 35, '기': 37, '쿵': 36, '덕': 38, '다': 39, '더': 40}
@@ -40,11 +42,10 @@ def jangdan_events(request, seconds):
     units={'QUARTER':Fraction(1),'DOTTED_QUARTER':Fraction(3,2)}
     require(music['bpmUnit'] in units and jangdan['bpmUnit'] in units, 'Unsupported beat unit')
     catalog_bpm=Fraction(request['bpm'])*units[music['bpmUnit']]/units[jangdan['bpmUnit']]
-    from data.src.audio.jangdan_audio import CELLS
-    name = '자진모리' if jangdan['name']=='자진타령' else jangdan['name']
-    require(name in CELLS, 'Unsupported jangdan')
-    duration, events = rhythm_plan({'name': name, 'default_bpm': catalog_bpm,
-                                  'bpm_unit': CELLS[name][0], 'pattern': jangdan['pattern']})
+    duration, events = rhythm_plan({'name': jangdan['name'], 'default_bpm': catalog_bpm,
+                                  'bpm_unit': jangdan['bpmUnit'], 'pattern': jangdan['pattern'],
+                                  **({'pattern_cell_eighths': jangdan['patternCellEighths']}
+                                     if 'patternCellEighths' in jangdan else {})})
     cycle_seconds=float(duration)
     output = []
     for repeat in range(max(0, math.ceil(seconds / cycle_seconds))):
@@ -106,7 +107,7 @@ def render(directory):
     instrument = request['instrument']
     out = root / 'rendered'
     manifest=run(path, os.environ['PLAYBACK_ASSETS_JSON'], out, [instrument], common_bpm=request['bpm'],
-        audio_format='wav', notation_policy='educational-preview/v1',synthesis_extension=True)
+        audio_format='wav', notation_policy='educational-preview/v1',synthesis_extension=SERVICE_POLICY['synthesis_extension'])
     audio, rate = sf.read(out / f'{instrument}.wav', dtype='float32')
     require(rate == FS and audio.ndim == 1 and 0 < len(audio) <= 600 * FS, 'Export duration exceeds limit')
     shutil.copyfile(out / f'{instrument}.mid', root / 'score.mid')
@@ -143,7 +144,7 @@ def estimate(directory):
         if float(length)+tail>600:
             result={'errorCode':'EXPORT_TOO_LONG'}
         else:
-            perf=compile_score(score,request['instrument'],max_duration_seconds=600,synthesis_extension=True)
+            perf=compile_score(score,request['instrument'],max_duration_seconds=600,synthesis_extension=SERVICE_POLICY['synthesis_extension'])
             result={'durationMs':math.ceil(export_seconds(perf)*1000)}
     except (ValueError,KeyError,TypeError):
         result={'errorCode':'INVALID_REQUEST'}

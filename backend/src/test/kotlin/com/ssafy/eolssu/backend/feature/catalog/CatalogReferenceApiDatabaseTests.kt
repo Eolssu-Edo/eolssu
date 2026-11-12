@@ -151,6 +151,9 @@ class CatalogReferenceApiDatabaseTests {
             assertEquals(stored.path("group").size(), item.path("groupCount").asInt())
             assertEquals(item.path("defaultBpm"), detail.path("defaultBpm"))
             assertEquals(item.path("bpmUnit"), detail.path("bpmUnit"))
+            val expectedCellEighths = when (id) { "3", "12" -> 2; "10" -> 3; else -> 1 }
+            assertEquals(expectedCellEighths, item.path("patternCellEighths").intValue())
+            assertEquals(item.path("patternCellEighths"), detail.path("patternCellEighths"))
             if (id == "11") {
                 assertTrue(detail.path("soundUrl").isNull)
                 assertError("/api/jangdans/$id/audio", 404, "RESOURCE_NOT_FOUND")
