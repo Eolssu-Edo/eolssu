@@ -3,9 +3,9 @@ package com.ssafy.eolssu.feature.song.edit.component
 import androidx.compose.ui.graphics.Color
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -132,7 +132,7 @@ internal fun SheetEditSettingsDialog(
                 }
                 is SheetEditJangdanPicker.Ready -> {
                     if (options.none { draft.isCompatibleWith(it) }) {
-                        SheetJangdanNoMatchHelp(draft)
+                        SheetJangdanNoMatchHelp()
                     }
                 }
             }

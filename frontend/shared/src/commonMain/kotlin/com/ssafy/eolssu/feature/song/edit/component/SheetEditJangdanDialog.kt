@@ -53,7 +53,7 @@ internal fun SheetEditJangdanDialog(
                 EolssuButton(stringResource(Res.string.sheet_upload_reload), onReload, style = EolssuButtonStyle.Secondary)
             }
             is SheetEditJangdanPicker.Ready -> {
-                if (picker.options.none { draft.isCompatibleWith(it) }) SheetJangdanNoMatchHelp(draft)
+                if (picker.options.none { draft.isCompatibleWith(it) }) SheetJangdanNoMatchHelp()
                 FlowRow(
                     modifier = Modifier.heightIn(max = 230.dp).verticalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
