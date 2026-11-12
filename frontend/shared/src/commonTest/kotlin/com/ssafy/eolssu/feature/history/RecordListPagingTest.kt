@@ -76,14 +76,14 @@ internal class RecordListPagingTest : CatalogViewModelTest() {
             model.uiState.first { it.pages["1"]?.records?.size == 20 }
             val afterLoad = after.elapsedNow()
             assertEquals(listOf(Call(null, 0, "NEWEST", 20)), calls)
-            assertEquals(listOf("1", "2", "3", "4", "5"), model.uiState.value.groups.map { it.songId })
+            assertEquals(listOf("1", "2", "3", "4", "5"), model.uiState.value.groups.map { it.newestSongId })
             assertEquals(29 to 94, model.uiState.value.thisWeek)
             assertEquals(20, model.uiState.value.pages.getValue("1").records.size)
             assertEquals(0, catalog.listCalls)
             assertEquals(0, catalog.songCalls)
 
             val afterOpen = TimeSource.Monotonic.markNow()
-            model.toggle("2")
+            model.toggle("곡 2")
             model.uiState.first { it.pages["2"]?.records?.isNotEmpty() == true }
             val afterOpenLoad = afterOpen.elapsedNow()
             assertEquals(Call("2", 0, "NEWEST", 20), calls.last())
@@ -91,8 +91,8 @@ internal class RecordListPagingTest : CatalogViewModelTest() {
             println("REC02 fixture: list ${beforeCalls.size} requests / $beforeLoad -> 1 request / $afterLoad, " +
                 "expand 0 requests / $beforeOpenLoad -> 1 request / $afterOpenLoad")
 
-            model.toggle("2")
-            model.toggle("2")
+            model.toggle("곡 2")
+            model.toggle("곡 2")
             assertEquals(2, calls.size)
 
             failNext = true
@@ -104,28 +104,20 @@ internal class RecordListPagingTest : CatalogViewModelTest() {
             assertEquals(listOf(1, 1), calls.takeLast(2).map { it.page })
             assertEquals((125 downTo 101).map(Int::toString), model.uiState.value.pages.getValue("1").records.map { it.id })
 
-            model.changeSort(RecordSort.Oldest)
-            model.uiState.first { it.pages["1"]?.records?.isNotEmpty() == true && it.pages["2"]?.records?.isNotEmpty() == true }
-            assertEquals(setOf("1", "2"), calls.takeLast(2).map { it.song }.toSet())
-            assertTrue(calls.takeLast(2).all { it.sort == "OLDEST" && it.page == 0 })
-            assertEquals("101", model.uiState.value.pages.getValue("1").records.first().id)
+            // 기록은 늘 최신순으로만 받는다.
+            assertTrue(calls.all { it.sort == "NEWEST" })
 
             model.changeInstrument(Instrument.DaegeumSanjo)
             assertTrue(model.uiState.value.groups.isEmpty())
             model.changeInstrument(Instrument.Sogeum)
-            assertEquals(listOf("2"), model.uiState.value.groups.map { it.songId })
-            assertTrue(model.uiState.value.isOpen("2"))
+            assertEquals(listOf("2"), model.uiState.value.groups.map { it.newestSongId })
+            assertTrue(model.uiState.value.isOpen("곡 2"))
 
+            // 악기를 바꾸면 고른 기록을 비우고, 이미 받은 첫 페이지의 최신 기록을 바로 보인다(따로 요청하지 않는다).
+            val callsBefore = calls.size
             model.changeInstrument(Instrument.Danso)
-            assertEquals(null, model.uiState.value.selectedRecordId)
-            failNext = true
-            model.loadNewestSelection()
-            model.uiState.first { it.newestLoadFailed }
-            assertEquals(null, model.uiState.value.selectedRecordId)
-            model.loadNewestSelection()
-            model.uiState.first { it.selectedRecordId == "125" }
-            assertEquals(listOf(Call("1", 0, "NEWEST", 1), Call("1", 0, "NEWEST", 1)), calls.takeLast(2))
-            assertEquals("101", model.uiState.value.pages.getValue("1").records.first().id)
+            assertEquals("125", model.uiState.value.selectedRecordId)
+            assertEquals(callsBefore, calls.size)
             model.show("401")
             assertEquals("401", model.uiState.value.selectedRecordId)
 
