@@ -17,6 +17,9 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,7 +28,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import kotlin.time.TestTimeSource
+import kotlin.time.TimeSource
 
 /** 연습 기록 API(REC-01~04, `docs/specs/practice-records.md`)를 앱 기록으로 바꾸는지. 서버는 MockEngine으로 대신한다. */
 class HttpPracticeRecordRepositoryTest {
@@ -36,7 +42,8 @@ class HttpPracticeRecordRepositoryTest {
     private fun repository(
         evaluation: EvaluationResult? = null,
         member: SignedInMember? = null,
-        reply: (Sent) -> Pair<HttpStatusCode, String>?,
+        timeSource: TimeSource = TimeSource.Monotonic,
+        reply: suspend (Sent) -> Pair<HttpStatusCode, String>?,
     ) = HttpPracticeRecordRepository(
         createHttpClient(
             MockEngine { request ->
@@ -54,6 +61,7 @@ class HttpPracticeRecordRepositoryTest {
             override suspend fun result(evaluationId: String) = evaluation
         },
         member,
+        timeSource,
     )
 
     private fun ok(result: String) = HttpStatusCode.OK to """{"isSuccess":true,"code":200,"result":$result}"""
@@ -142,6 +150,202 @@ class HttpPracticeRecordRepositoryTest {
         fail = true
         assertFalse(repo.refresh())
         assertEquals(listOf("11"), repo.records.value.map { it.id })
+    }
+
+    @Test
+    fun recentPracticeUsesOneSmallListPageWhenDedicatedEndpointIsUnavailable() = runTest {
+        val latest = item("9000", "2", "도라지타령", "2026-11-12T01:00:00Z", full = false)
+        val groups = """[{"songId":"1","recordCount":101},{"songId":"2","recordCount":1}]"""
+        val repo = repository { call ->
+            when {
+                call.path == RECENT_PATH -> HttpStatusCode.NotFound to "{}"
+                "weekOf=2026-11-12" in call.query ->
+                    ok("""{"songs":[{"songId":"2","recordCount":1},{"songId":"1","recordCount":101}],
+                        "songId":"2","items":[$latest],"totalPages":1,"week":{"recordCount":4,"bestScore":84}}""")
+                "songId=2" in call.query ->
+                    ok("""{"songs":$groups,"songId":"2","items":[$latest],"totalPages":1}""")
+                "page=1" in call.query ->
+                    ok("""{"songs":$groups,"songId":"1","items":[${item("100", "1", "아리랑", "2026-11-08T14:58:00Z")}],"totalPages":2}""")
+                else -> {
+                    val older = (0 until 100).joinToString(",") { index ->
+                        val startedAt = if (index < 3) "2026-11-08T15:00:00Z" else "2026-11-08T14:59:00Z"
+                        item((1000 - index).toString(), "1", "아리랑", startedAt)
+                    }
+                    ok("""{"songs":$groups,"songId":"1","items":[$older],"totalPages":2}""")
+                }
+            }
+        }
+
+        val recent = checkNotNull(repo.loadRecentPractice(KoreanDateTime(2026, 11, 12, 10, 0)))
+
+        assertEquals(2, sent.size)
+        assertEquals(RECENT_PATH, sent.first().path)
+        val call = sent.last()
+        assertEquals(HttpMethod.Get, call.method)
+        assertEquals("/api/users/me/practice-records", call.path)
+        assertEquals(setOf("sort=NEWEST", "page=0", "size=1", "groupOrder=LAST_STARTED", "weekOf=2026-11-12"), call.query.split('&').toSet())
+        assertEquals("9000", recent.latest?.id)
+        assertEquals("도라지타령", recent.latest?.songTitle)
+        assertEquals("3–4각", recent.latest?.section)
+        assertEquals(84, recent.latest?.score)
+        assertEquals(RecordWeek(4, 84), recent.week)
+        assertTrue(repo.records.value.isEmpty())
+    }
+
+    private val recentDay = KoreanDateTime(2026, 11, 12, 10, 0)
+
+    private fun recentResponse() = ok("""{"latest":${item("41", "1", "아리랑", "2026-11-12T01:00:00Z")},
+        "week":{"recordCount":1,"bestScore":84}}""")
+
+    @Test
+    fun recentPracticeUsesOnlyTheDedicatedEndpoint() = runTest {
+        val repo = repository { recentResponse() }
+
+        val recent = checkNotNull(repo.loadRecentPractice(recentDay))
+
+        val call = sent.single()
+        assertEquals(HttpMethod.Get, call.method)
+        assertEquals(RECENT_PATH, call.path)
+        assertEquals("weekOf=2026-11-12", call.query)
+        assertEquals("41", recent.latest?.id)
+        assertEquals("아리랑", recent.latest?.songTitle)
+        assertEquals(RecordWeek(1, 84), recent.week)
+        assertTrue(repo.records.value.isEmpty())
+    }
+
+    @Test
+    fun recentPracticeUsesAllRecordsWhenOldServerOmitsWeek() = runTest {
+        val repo = repository { call ->
+            if (call.path == RECENT_PATH) {
+                HttpStatusCode.NotFound to "{}"
+            } else if ("songId=2" in call.query) {
+                ok("""{"songs":[{"songId":"1"},{"songId":"2"}],"songId":"2",
+                    "items":[${item("42", "2", "도라지타령", "2026-11-12T01:00:00Z")}],"totalPages":1}""")
+            } else {
+                ok("""{"songs":[{"songId":"1"},{"songId":"2"}],"songId":"1",
+                    "items":[${item("41", "1", "아리랑", "2026-11-11T01:00:00Z")}],"totalPages":1}""")
+            }
+        }
+
+        val recent = checkNotNull(repo.loadRecentPractice(recentDay))
+
+        assertEquals("42", recent.latest?.id)
+        assertEquals(RecordWeek(2, 84), recent.week)
+        assertEquals(4, sent.size)
+        assertTrue("size=1" in sent[1].query.split('&'))
+        assertTrue(sent.drop(2).all { "size=100" in it.query.split('&') })
+    }
+
+    @Test
+    fun recentPracticeHandlesAnEmptyWeekResponseInOneRequest() = runTest {
+        val repo = repository {
+            ok("""{"latest":null,"week":{"recordCount":0,"bestScore":null}}""")
+        }
+
+        assertEquals(RecentPracticeSummary(null, RecordWeek(0, null)), repo.loadRecentPractice(recentDay))
+        assertEquals(1, sent.size)
+    }
+
+    @Test
+    fun recentPracticeKeepsCachedSummaryAfterFailedRefreshOnlyForTheSameWeekAndLogin() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).also { it.set("first") }
+        val time = TestTimeSource()
+        var fail = false
+        val repo = repository(member = member, timeSource = time) {
+            if (fail) HttpStatusCode.ServiceUnavailable to "{}" else recentResponse()
+        }
+        val original = checkNotNull(repo.loadRecentPractice(recentDay))
+        fail = true
+        time += 30.seconds
+
+        assertNull(repo.loadRecentPractice(recentDay))
+        assertEquals(2, sent.size)
+        assertEquals(original, repo.cachedRecentPractice(KoreanDateTime(2026, 11, 15, 23, 59)))
+        assertNull(repo.cachedRecentPractice(KoreanDateTime(2026, 11, 16, 0, 0)))
+
+        member.set("first")
+        assertNull(repo.cachedRecentPractice(recentDay))
+    }
+
+    @Test
+    fun homePrefetchAndMyPageShareOneRequestAndReuseTheFreshResponse() = runTest {
+        val requested = CompletableDeferred<Unit>()
+        val reply = CompletableDeferred<Unit>()
+        val time = TestTimeSource()
+        val repo = repository(timeSource = time) {
+            requested.complete(Unit)
+            reply.await()
+            recentResponse()
+        }
+        val prefetch = async { repo.prefetchRecentPractice(recentDay) }
+        requested.await()
+        val myPage = async(start = CoroutineStart.UNDISPATCHED) { repo.loadRecentPractice(recentDay) }
+        reply.complete(Unit)
+        prefetch.await()
+        val summary = checkNotNull(myPage.await())
+        assertEquals(listOf(RECENT_PATH), sent.map { it.path })
+
+        time += 29.seconds
+        assertEquals(summary, repo.loadRecentPractice(recentDay))
+        assertEquals(1, sent.size)
+
+        time += 1.seconds
+        assertEquals(summary, repo.loadRecentPractice(recentDay))
+        assertEquals(2, sent.size)
+    }
+
+    @Test
+    fun homePrefetchDoesNotLoadLegacyPages() = runTest {
+        val repo = repository { HttpStatusCode.NotFound to "{}" }
+
+        repo.prefetchRecentPractice(recentDay)
+
+        assertEquals(RECENT_PATH, sent.single().path)
+        assertNull(repo.cachedRecentPractice(recentDay))
+    }
+
+    @Test
+    fun saveAndDeleteInvalidateTheRecentPracticeSummary() = runTest {
+        val repo = repository { call ->
+            when (call.method) {
+                HttpMethod.Get -> recentResponse()
+                HttpMethod.Put -> ok(saved)
+                HttpMethod.Delete -> ok("""{"sessionId":"41","deleted":true}""")
+                else -> error("예상하지 않은 요청")
+            }
+        }
+        checkNotNull(repo.loadRecentPractice(recentDay))
+        repo.saveEvaluation(result, "아리랑")
+        assertNull(repo.cachedRecentPractice(recentDay))
+
+        checkNotNull(repo.loadRecentPractice(recentDay))
+        assertEquals(RecordDeleteOutcome.Deleted, repo.delete("41"))
+        assertNull(repo.cachedRecentPractice(recentDay))
+    }
+
+    @Test
+    fun recentPracticeDoesNotRestoreAResponseStartedBeforeDelete() = runTest {
+        val requested = CompletableDeferred<Unit>()
+        val reply = CompletableDeferred<Unit>()
+        val repo = repository { call ->
+            if (call.method == HttpMethod.Delete) {
+                ok("""{"sessionId":"41","deleted":true}""")
+            } else {
+                requested.complete(Unit)
+                reply.await()
+                recentResponse()
+            }
+        }
+        val pending = async { repo.loadRecentPractice(recentDay) }
+        requested.await()
+        try {
+            assertEquals(RecordDeleteOutcome.Deleted, repo.delete("41"))
+        } finally {
+            reply.complete(Unit)
+        }
+
+        assertNull(pending.await())
+        assertNull(repo.cachedRecentPractice(recentDay))
     }
 
     private val result = EvaluationResult(
@@ -238,5 +442,9 @@ class HttpPracticeRecordRepositoryTest {
         assertEquals(RecordDeleteOutcome.Failed, repository { null }.delete("41"))
         assertEquals(HttpMethod.Delete, sent.first().method)
         assertEquals("/api/practice-sessions/41/record", sent.first().path)
+    }
+
+    private companion object {
+        const val RECENT_PATH = "/api/users/me/practice-records/recent"
     }
 }

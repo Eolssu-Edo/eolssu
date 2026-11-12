@@ -427,9 +427,11 @@ Nginx의 기존 `/api/` 프록시 안에서 UI·JS·CSS·JSON을 모두 제공�
 
 S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V11의 nullable 컬럼에 저장하고 평가 조회에 그대로 반환합니다. 기존 행과 두 필드가 없는 이전 AI 응답은 null입니다. 범위 초과 편차도 원래 값을 보존하며 점수를 다시 계산하지 않습니다. [계약](../docs/specs/practice-evaluation-api.md)을 따릅니다. 운영은 Flyway가 꺼져 있으므로 새 백엔드 배포 전에 V11을 적용해야 합니다.
 
-### 연습 기록(REC-01~04)
+### 연습 기록(REC-01~05)
 
 `record`는 기록 저장·메모 수정(`PUT /api/practice-sessions/{sessionId}/record`), 곡별 목록(`GET /api/users/me/practice-records`), 녹음 다시 듣기 주소(`GET /api/practice-sessions/{sessionId}/recording`), 기록 삭제(`DELETE /api/practice-sessions/{sessionId}/record`)를 제공합니다(`db`·`ops` 프로필). 새 Flyway 버전 없이 V2의 기록 칸을 씁니다. 녹음 저장소(PRA-02)의 15분 서명 URL과 삭제는 `PracticeRecordConfig`가 함수로 연결합니다. 저장소를 쓸 수 없으면 다시 듣기와 녹음이 있는 기록의 삭제가 503입니다. 로컬 저장소(`RECORDING_STORAGE_TYPE=local`)의 읽기 주소는 AI용 내부 주소라 다시 듣기는 항상 503입니다. 삭제는 녹음 파일을 먼저 지우고 DB를 조건부로 갱신하며, 평가 점수는 남아 성장 집계는 바뀌지 않습니다. 저장한 녹음을 계속 보관하는 정책 전환(처리방침·R2 수명 주기)은 S15P31E102-375에서 합니다. [계약](../docs/specs/practice-records.md), [결정·검증](../docs/plans/S15P31E102-342.md).
+
+마이페이지는 `GET /api/users/me/practice-records/recent?weekOf=YYYY-MM-DD`로 본인의 최신 저장 기록 한 건과 해당 KST 주의 집계를 받습니다. [REC-05 계약](../docs/specs/practice-records.md#rec-05-get-apiusersmepractice-recordsrecent).
 
 ### 공개 곡 조회
 

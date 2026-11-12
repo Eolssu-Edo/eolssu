@@ -30,7 +30,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.inSession
+import com.ssafy.eolssu.data.practice.PracticeRecordRepository
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
@@ -214,6 +217,20 @@ fun EolssuNavHost(
                 // 홈 아래에 쌓인 화면이 없을 때만 Android 뒤로 가기 두 번으로 앱을 닫는다. 홈으로 가는 이동은 모두 쌓인 화면을 비운다.
                 val homeIsRoot = remember(entry) { navController.previousBackStackEntry == null }
                 val profile by users.profile.collectAsStateWithLifecycle()
+                val records = koinInject<PracticeRecordRepository>()
+                val now = koinInject<() -> Long>()
+                val session = member.session.collectAsStateWithLifecycle().value
+                LaunchedEffect(entry, session, records) {
+                    if (session.memberId == null || !records.available) return@LaunchedEffect
+                    // 홈에서 다른 화면으로 이동해도 마이페이지가 이 요청의 결과를 쓸 수 있다.
+                    scope.launch {
+                        member.inSession {
+                            if (member.session.value == session) {
+                                records.prefetchRecentPractice(KoreanDateTime.fromEpochMillis(now()))
+                            }
+                        }
+                    }
+                }
                 HomeRoute(
                     onStartEvaluation = { navController.navigate(EolssuDestination.SONG_LIST) },
                     onOpenFeature = { feature ->

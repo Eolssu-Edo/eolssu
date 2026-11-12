@@ -20,6 +20,8 @@ open class UnusedPracticeRecords : PracticeRecords {
 
     override fun songSummaries(userId: Long): List<SongRecordSummary> = error("not used")
 
+    override fun latestSavedRecord(userId: Long): RecordSession? = error("not used")
+
     override fun songRecords(userId: Long, songId: Long, sort: RecordSort, offset: Long, limit: Int): List<RecordSession> = error("not used")
 
     override fun findRecording(sessionId: Long, userId: Long): RecordingFile? = error("not used")

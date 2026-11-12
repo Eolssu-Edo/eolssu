@@ -112,7 +112,7 @@ private val sessionEndpoint = Regex("/api/practice-sessions/([1-9][0-9]{0,18})(/
 
 private fun observedTarget(path: String): Pair<PerfTarget, String?>? = when (path) {
     "/api/auth/refresh" -> PerfTarget.AUTH_REFRESH to null
-    "/api/users/me/practice-records" -> PerfTarget.RECORD_PAGE to null
+    "/api/users/me/practice-records", "/api/users/me/practice-records/recent" -> PerfTarget.RECORD_PAGE to null
     "/api/instruments" -> PerfTarget.INSTRUMENTS to null
     "/api/songs" -> PerfTarget.SONG_LIST to null
     else -> songEndpoint.matchEntire(path)?.let {

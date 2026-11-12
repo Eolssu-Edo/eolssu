@@ -26,14 +26,20 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
- * 서버 연습 기록 API(REC-01~04, `docs/specs/practice-records.md`). 기록 ID는 연습 세션 ID다.
+ * 서버 연습 기록 API(REC-01~05, `docs/specs/practice-records.md`). 기록 ID는 연습 세션 ID다.
  *
- * - 기록 화면은 REC-02의 묶음과 필요한 페이지만 읽는다. 비교·프로필은 기존 전체 목록을 사용한다.
+ * - 기록 화면은 REC-02의 묶음과 필요한 페이지만 읽는다. 마이페이지는 최근 한 건과 주간 집계를 요청한다.
  * - 상세는 PRA-03(메모·다시 듣기 여부, 처음 열면 서버가 NEW를 끈다)과 평가(EVA-01·02, [evaluations])를 합친다.
  * - 저장(REC-01)은 연주 결과 화면에서 적은 메모를 같은 요청에 실어 한 번에 저장한다(메모가 없으면 본문 `{}`). 기록 상세의 메모 수정도 같은 요청에 `memo`를 싣는다(앞뒤 공백은 서버가 자르고 빈 값은 지운다).
  */
@@ -41,8 +47,19 @@ class HttpPracticeRecordRepository(
     private val client: HttpClient,
     private val evaluations: EvaluationRepository,
     private val member: SignedInMember? = null,
+    private val timeSource: TimeSource = TimeSource.Monotonic,
 ) : PracticeRecordRepository {
     private data class DetailPreview(val session: AccountSession?, val record: PracticeRecord)
+    private data class CachedRecentPractice(
+        val session: AccountSession?,
+        val day: KoreanDateTime,
+        val summary: RecentPracticeSummary,
+        val loadedAt: TimeMark,
+    )
+
+    private data class RecentPracticeCache(val revision: Long = 0, val snapshot: CachedRecentPractice? = null)
+    private val recentPracticeCache = MutableStateFlow(RecentPracticeCache())
+    private val recentPracticeLoad = Mutex()
 
     private val detailPreview = MutableStateFlow<DetailPreview?>(null)
     private val _records = MutableStateFlow<List<PracticeRecord>>(emptyList())
@@ -55,6 +72,7 @@ class HttpPracticeRecordRepository(
         member?.onChange {
             _records.value = emptyList()
             detailPreview.value = null
+            invalidateRecentPractice()
         }
     }
 
@@ -66,6 +84,62 @@ class HttpPracticeRecordRepository(
         detailPreview.value?.takeIf { it.session == member?.session?.value && it.record.id == recordId }?.record
             ?: super.detailPreview(recordId)
 
+    override fun cachedRecentPractice(weekOf: KoreanDateTime): RecentPracticeSummary? =
+        cachedRecentSnapshot(weekOf)?.summary
+
+    private fun cachedRecentSnapshot(weekOf: KoreanDateTime): CachedRecentPractice? =
+        recentPracticeCache.value.snapshot
+            ?.takeIf { it.session == member?.session?.value && it.day.isSameWeek(weekOf) }
+
+    override suspend fun loadRecentPractice(weekOf: KoreanDateTime): RecentPracticeSummary? =
+        refreshRecentPractice(weekOf, allowLegacy = true)
+
+    override suspend fun prefetchRecentPractice(weekOf: KoreanDateTime) {
+        refreshRecentPractice(weekOf, allowLegacy = false)
+    }
+
+    private suspend fun refreshRecentPractice(weekOf: KoreanDateTime, allowLegacy: Boolean): RecentPracticeSummary? = member.inSession {
+        recentPracticeLoad.withLock {
+            ensureAccountSession()
+            val cached = cachedRecentSnapshot(weekOf)
+            if (cached != null && cached.loadedAt.elapsedNow() < RECENT_FRESHNESS) return@withLock cached.summary
+
+            val revision = recentPracticeCache.value.revision
+            val session = member?.session?.value
+            val summary = fetchRecentPractice(weekOf, allowLegacy) ?: return@withLock null
+            ensureAccountSession()
+            val snapshot = CachedRecentPractice(session, weekOf, summary, timeSource.markNow())
+            val cache = recentPracticeCache.updateAndGet {
+                if (it.revision == revision) it.copy(snapshot = snapshot) else it
+            }
+            if (cache.revision == revision) summary else cachedRecentPractice(weekOf)
+        }
+    }
+
+    private suspend fun fetchRecentPractice(weekOf: KoreanDateTime, allowLegacy: Boolean): RecentPracticeSummary? {
+        val response = client.sendOrNull {
+            get("/api/users/me/practice-records/recent") { parameter("weekOf", weekOf.dateParameter()) }
+        } ?: return null
+        return when {
+            response.status == HttpStatusCode.OK -> response.apiResponse<RecentRecord>()?.result?.let {
+                RecentPracticeSummary(it.latest?.toRecord(), it.week.toRecordWeek())
+            }
+            response.status == HttpStatusCode.NotFound && allowLegacy -> loadRecentFromList(weekOf)
+            else -> null
+        }
+    }
+
+    private suspend fun loadRecentFromList(weekOf: KoreanDateTime): RecentPracticeSummary? {
+        val result = list(songId = null, page = 0, size = 1, weekOf = weekOf) ?: return null
+        val week = result.week ?: return super.loadRecentPractice(weekOf)
+        return RecentPracticeSummary(result.items.firstOrNull()?.toRecord(), week.toRecordWeek())
+    }
+
+    // 저장·삭제 전에 시작한 조회가 지운 캐시를 다시 채우지 못하게 한다.
+    private fun invalidateRecentPractice() {
+        recentPracticeCache.update { RecentPracticeCache(revision = it.revision + 1) }
+    }
+
     override suspend fun loadListPage(songId: String?, oldest: Boolean, page: Int, weekOf: KoreanDateTime?): RecordListPage? =
         member.inSession {
             val result = list(songId, page, oldest, RECORD_LIST_PAGE_SIZE, weekOf) ?: return@inSession null
@@ -76,7 +150,7 @@ class HttpPracticeRecordRepository(
                 result.songId,
                 result.items.map { it.toRecord() },
                 result.totalPages,
-                result.week?.let { RecordWeek(it.recordCount, it.bestScore) },
+                result.week?.toRecordWeek(),
             )
         }
 
@@ -131,7 +205,7 @@ class HttpPracticeRecordRepository(
                 parameter("size", size)
                 weekOf?.let { day ->
                     parameter("groupOrder", "LAST_STARTED")
-                    parameter("weekOf", "${day.year}-${day.month.toString().padStart(2, '0')}-${day.day.toString().padStart(2, '0')}")
+                    parameter("weekOf", day.dateParameter())
                 }
             }
         } ?: return null
@@ -153,6 +227,7 @@ class HttpPracticeRecordRepository(
         )
         ensureAccountSession()
         _records.update { list -> listOf(record) + list.filterNot { it.id == record.id } }
+        invalidateRecentPractice()
         _listChanges.emit(RecordListChange.Reload())
         return@inSession record
     }
@@ -185,6 +260,7 @@ class HttpPracticeRecordRepository(
             ensureAccountSession()
             _records.update { list -> list.filterNot { it.id == recordId } }
             detailPreview.update { it?.takeUnless { preview -> preview.record.id == recordId } }
+            invalidateRecentPractice()
             return@inSession null
         }
         if (response.status != HttpStatusCode.OK) error("기록 상세 응답: ${response.status}")
@@ -238,6 +314,7 @@ class HttpPracticeRecordRepository(
                 ensureAccountSession()
                 _records.update { list -> list.filterNot { it.id == recordId } }
                 detailPreview.update { it?.takeUnless { preview -> preview.record.id == recordId } }
+                invalidateRecentPractice()
                 _listChanges.emit(RecordListChange.Reload(deletedId = recordId))
                 RecordDeleteOutcome.Deleted
             }
@@ -290,6 +367,9 @@ class HttpPracticeRecordRepository(
 
     private companion object {
         const val PAGE_SIZE = 100
+        val RECENT_FRESHNESS = 30.seconds
+
+        fun KoreanDateTime.dateParameter() = "$year-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}"
 
         /** 구간 이름: 전체 곡이면 null, 각 번호(0부터)가 있으면 ‘3–4각’, 악보 버전이 달라 각을 모르면 ‘일부’. */
         fun section(isFullSong: Boolean, start: Int?, end: Int?): String? = when {
@@ -349,7 +429,12 @@ class HttpPracticeRecordRepository(
     }
 
     @Serializable
-    private class Week(val recordCount: Int, val bestScore: Int? = null)
+    private class Week(val recordCount: Int, val bestScore: Int? = null) {
+        fun toRecordWeek() = RecordWeek(recordCount, bestScore)
+    }
+
+    @Serializable
+    private class RecentRecord(val latest: RecordItem? = null, val week: Week)
 
     @Serializable
     private class RecordItem(
