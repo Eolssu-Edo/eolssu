@@ -156,9 +156,11 @@ class SheetEditViewModel(
                     val instrumentId = requireNotNull(instruments.singleOrNull { it.code == instrumentCode }?.instrumentId)
                     val capabilities = catalog.authoringCapabilities(instrumentId)
                     val pitches = capabilities.selectablePitches
+                    val jangdans = catalog.jangdans()
                     require(registered.isNotEmpty() && registered.containsAll(pitches))
                     ensureAccountSession()
                     _uiState.update { if (it.draft.original?.score?.instrument != instrumentCode) it else it.copy(availablePitches = registered, instrumentPitches = pitches, authoringCapabilities = capabilities,
+                        availableJangdans = jangdans,
                         completionCatalogState = SheetCompletionCatalogState.Ready) }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) {
@@ -166,7 +168,7 @@ class SheetEditViewModel(
                     _uiState.update { it.copy(completionCatalogState = SheetCompletionCatalogState.Failed) }
                 }
             }
-            if (state.draft.jangdanId != null && state.reviewNotices.any { it.type == "JANGDAN_MISMATCH" }) {
+            if (!requiresCompletionCatalog && state.draft.jangdanId != null) {
                 try {
                     val jangdans = catalog.jangdans()
                     ensureAccountSession()

@@ -132,7 +132,7 @@ internal fun SheetEditSettingsDialog(
                 }
                 is SheetEditJangdanPicker.Ready -> {
                     if (options.none { draft.isCompatibleWith(it) }) {
-                        SheetJangdanNoMatchHelp(draft)
+                        SheetJangdanNoMatchHelp()
                     }
                 }
             }
