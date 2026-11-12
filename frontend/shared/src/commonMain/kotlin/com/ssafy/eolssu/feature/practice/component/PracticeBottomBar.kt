@@ -89,6 +89,12 @@ class PracticeBottomActions(
     val onStartRhythm: () -> Unit = {},
     val onToggleRhythm: () -> Unit = {},
     val onDownloadSheetAudio: () -> Unit = {},
+    /** ‘구간 연습’ 켜고 끄기(S15P31E102-776). */
+    val onToggleSection: () -> Unit = {},
+    /** 구간 연습의 ‘취약 구간으로’. */
+    val onResetSection: () -> Unit = {},
+    /** 구간 연습의 ‘반복 횟수’. */
+    val onSectionRepeat: (com.ssafy.eolssu.feature.practice.SectionRepeat) -> Unit = {},
 )
 
 /**
@@ -242,7 +248,7 @@ private fun NoInputBanner() {
 
 /** 사진 기반 장구. 고정된 칸 안에서 현재 박만 강조해 박이 바뀌어도 배치가 움직이지 않는다. */
 @Composable
-private fun JangguBeats(count: Int, current: Int) {
+internal fun JangguBeats(count: Int, current: Int) {
     if (count <= 0) return
     val colors = EolssuTheme.colors
     val description = stringResource(Res.string.practice_jangdan_beat)

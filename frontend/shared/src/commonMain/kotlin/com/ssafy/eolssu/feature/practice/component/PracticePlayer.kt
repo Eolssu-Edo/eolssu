@@ -264,8 +264,9 @@ private fun SeekablePlayerTrack(fraction: Float, onSeek: (Float) -> Unit, enable
     )
 }
 
+/** 연습 플레이어 트랙. 구간 연습 플레이어(S15P31E102-776)도 같은 모양을 쓴다. */
 @Composable
-private fun PlayerTrack(fraction: Float, modifier: Modifier = Modifier) {
+internal fun PlayerTrack(fraction: Float, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     val pct = fraction.coerceIn(0f, 1f)
     BoxWithConstraints(modifier.fillMaxWidth().height(16.dp), contentAlignment = Alignment.CenterStart) {

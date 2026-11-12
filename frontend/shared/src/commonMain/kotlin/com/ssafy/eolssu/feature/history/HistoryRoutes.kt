@@ -60,6 +60,8 @@ fun RecordListRoute(
     onOpenRecord: (String) -> Unit,
     initialRecordId: String? = null,
     onSelectSection: (recordId: String) -> Unit = {},
+    /** ‘구간 연습’ → 이 곡 연습 화면의 구간 연습(S15P31E102-776). */
+    onPracticeSection: (recordId: String, songId: String) -> Unit = { _, _ -> },
     onCompare: (recordId: String, previousId: String) -> Unit = { _, _ -> },
     perf: PerformanceVisit? = null,
     viewModel: RecordListViewModel = koinViewModel(key = "records-$justSavedId") { parametersOf(justSavedId, perf) },
@@ -76,7 +78,7 @@ fun RecordListRoute(
     CompositionLocalProvider(LocalPerformanceVisit provides perf) {
         val widthClass = currentWindowLayout().widthClass
         if (widthClass == WindowWidthClass.Expanded) {
-            RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection)
+            RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection, onPracticeSection)
         } else {
             RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry, onInstrument = viewModel::changeInstrument)
         }
@@ -96,6 +98,7 @@ private fun RecordsTwoPaneRoute(
     viewModel: RecordListViewModel,
     onCompare: (recordId: String, previousId: String) -> Unit,
     onSelectSection: (String) -> Unit,
+    onPracticeSection: (recordId: String, songId: String) -> Unit,
 ) {
     val selectedId = state.selectedRecordId
     val detailViewModel: RecordDetailViewModel = koinViewModel(key = "records-pane-$justSavedId") { parametersOf(selectedId.orEmpty()) }
@@ -121,7 +124,7 @@ private fun RecordsTwoPaneRoute(
         onRetry = viewModel::retry,
         onInstrument = viewModel::changeInstrument,
         detail = detail,
-        detailActions = rememberRecordDetailActions(detailViewModel, onBack, onCompare, onSelectSection),
+        detailActions = rememberRecordDetailActions(detailViewModel, onBack, onCompare, onSelectSection, onPracticeSection),
         snackbarHostState = snackbarHostState,
     )
 }
@@ -137,6 +140,8 @@ fun RecordDetailRoute(
     onBack: () -> Unit,
     onCompare: (recordId: String, previousId: String) -> Unit = { _, _ -> },
     onSelectSection: (recordId: String) -> Unit = {},
+    /** ‘구간 연습’ → 이 곡 연습 화면의 구간 연습(S15P31E102-776). */
+    onPracticeSection: (recordId: String, songId: String) -> Unit = { _, _ -> },
     onDeleted: () -> Unit = onBack,
     viewModel: RecordDetailViewModel = koinViewModel(key = recordId) { parametersOf(recordId) },
 ) {
@@ -151,7 +156,7 @@ fun RecordDetailRoute(
         state = state,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
-        actions = rememberRecordDetailActions(viewModel, onBack, onCompare, onSelectSection),
+        actions = rememberRecordDetailActions(viewModel, onBack, onCompare, onSelectSection, onPracticeSection),
     )
 }
 
@@ -207,10 +212,12 @@ private fun rememberRecordDetailActions(
     onBack: () -> Unit,
     onCompare: (recordId: String, previousId: String) -> Unit,
     onSelectSection: (recordId: String) -> Unit,
+    onPracticeSection: (recordId: String, songId: String) -> Unit,
 ): RecordDetailActions {
     val latestOnBack by rememberUpdatedState(onBack)
     val latestOnCompare by rememberUpdatedState(onCompare)
     val latestOnSelectSection by rememberUpdatedState(onSelectSection)
+    val latestOnPracticeSection by rememberUpdatedState(onPracticeSection)
     return remember(viewModel) {
         RecordDetailActions(
             onBack = {
@@ -227,6 +234,15 @@ private fun rememberRecordDetailActions(
             onConfirmDelete = viewModel::confirmDelete,
             onCancelDelete = viewModel::cancelDelete,
             onPractice = {
+                val state = viewModel.uiState.value.takeIf { it.canPractice }
+                val id = state?.record?.id
+                val songId = state?.song?.id
+                if (id != null && songId != null) {
+                    viewModel.pause()
+                    latestOnPracticeSection(id, songId)
+                }
+            },
+            onReevaluate = {
                 viewModel.uiState.value.takeIf { it.canPractice }?.record?.id?.let { id ->
                     viewModel.pause()
                     latestOnSelectSection(id)

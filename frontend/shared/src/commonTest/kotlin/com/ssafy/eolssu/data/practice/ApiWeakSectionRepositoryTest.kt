@@ -134,6 +134,8 @@ class ApiWeakSectionRepositoryTest {
         assertEquals(81, result.total)
         assertEquals(48, result.bpm)
         assertEquals(3, result.metrics.size)
+        // 구간 정간보·필터를 그리도록 이번 세션의 평가 결과 전체를 함께 넘긴다(S15P31E102-776).
+        assertEquals(81, result.result?.total)
         val check = assertIs<CheckLoad.Loaded>(result.check).check
         assertEquals(SessionCheck(true, null, 9, 4, -5, 6, 2, 3, scoreComparable = true, bpmChanged = true), check)
         val request = requests.single()

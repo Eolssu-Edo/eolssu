@@ -56,6 +56,8 @@ import com.ssafy.eolssu.feature.practice.PracticeRoute
 import com.ssafy.eolssu.feature.result.AnalysisExit
 import com.ssafy.eolssu.feature.result.AnalysisRoute
 import com.ssafy.eolssu.feature.result.ResultRoute
+import com.ssafy.eolssu.core.model.ScorePosition
+import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.feature.song.MySongsRoute
 import com.ssafy.eolssu.feature.song.SongDetailRoute
@@ -74,7 +76,8 @@ object EolssuDestination {
     const val SONG_DETAIL = "songs/{songId}"
 
     /** [title]은 내 악보 연습에서 곡 제목 대신 보일 악보 제목(비우면 곡 제목). */
-    const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}&mine={mine}&learn={learn}&direct={direct}&title={title}"
+    const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}&mine={mine}&learn={learn}&direct={direct}&title={title}" +
+        "&weak={weak}&sc={sc}&sr={sr}&ec={ec}&er={er}"
 
     /**
      * [recording]·[key]는 연습 화면에서 마친 녹음, [session]은 앱을 다시 켜고 보내는 기기에 남은 녹음의 세션이다.
@@ -106,8 +109,15 @@ object EolssuDestination {
      * [direct]: 대기 상태 없이 바로 평가를 시작하고, 준비로 돌아갈 일이 생기면 들어온 화면으로 돌아간다.
      * 곡 정보의 '연주 평가 시작'(S15P31E102-705)과 혼자 연습에서 바꾼 평가([switched]와 함께, S15P31E102-739)가 쓴다.
      */
-    fun practice(songId: String, solo: Boolean = false, switched: Boolean = false, mine: Boolean = false, title: String? = null, learn: Boolean = false, direct: Boolean = false) =
-        "practice/$songId?solo=${solo || mine || learn}&switched=$switched&mine=$mine&learn=$learn&direct=$direct&title=${title.orEmpty().encodeURLParameter()}"
+    fun practice(
+        songId: String, solo: Boolean = false, switched: Boolean = false, mine: Boolean = false, title: String? = null, learn: Boolean = false, direct: Boolean = false,
+        weak: String? = null, section: ScoreSection? = null,
+    ) =
+        "practice/$songId?solo=${solo || mine || learn}&switched=$switched&mine=$mine&learn=$learn&direct=$direct&title=${title.orEmpty().encodeURLParameter()}" +
+            "&weak=${weak.orEmpty()}" + (section?.let { "&sc=${it.start.column}&sr=${it.start.row}&ec=${it.end.column}&er=${it.end.row}" } ?: "")
+
+    /** 연주 결과·연습 기록·구간 재평가 결과에서 연습 화면의 ‘구간 연습’으로 들어간다(S15P31E102-776). [weak]는 바탕 연주(연습 세션 ID). */
+    fun sectionPractice(songId: String, weak: String, section: ScoreSection? = null) = practice(songId, solo = true, weak = weak, section = section)
     // 운지법 보기·정간보 쉽게 읽기·기초부터 배우기. 운지법 보기는 기초부터 배우기에서 악기·취법을, 정간보 쉽게 읽기는 펼칠 쪽을 넘겨받는다.
     const val GUIDE_FINGERING = "guide/fingering?instrument={instrument}&blow={blow}"
     const val GUIDE_READING = "guide/reading?page={page}"
@@ -268,9 +278,16 @@ fun EolssuNavHost(
                     navArgument("learn") { type = NavType.BoolType; defaultValue = false },
                     navArgument("direct") { type = NavType.BoolType; defaultValue = false },
                     navArgument("title") { type = NavType.StringType; defaultValue = "" },
-                ),
+                    navArgument("weak") { type = NavType.StringType; defaultValue = "" },
+                ) + listOf("sc", "sr", "ec", "er").map { name -> navArgument(name) { type = NavType.IntType; defaultValue = -1 } },
             ) { entry ->
                 val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
+                val weakSource = entry.savedStateHandle.get<String>("weak").orEmpty().ifEmpty { null }
+                val initialSection = run {
+                    fun arg(name: String) = entry.savedStateHandle.get<Int>(name) ?: -1
+                    if (arg("sc") < 0 || arg("ec") < 0) null
+                    else ScoreSection.between(ScorePosition(arg("sc"), arg("sr").coerceAtLeast(0)), ScorePosition(arg("ec"), arg("er").coerceAtLeast(0)))
+                }
                 val mine = entry.savedStateHandle.get<Boolean>("mine") ?: false
                 val perf = performance.visit(entry, PerfTarget.PRACTICE)
                 PracticeRoute(
@@ -300,6 +317,8 @@ fun EolssuNavHost(
                     learn = entry.savedStateHandle.get<Boolean>("learn") ?: false,
                     sheetTitle = entry.savedStateHandle.get<String>("title"),
                     direct = entry.savedStateHandle.get<Boolean>("direct") ?: false,
+                    weakSource = weakSource,
+                    initialSection = initialSection,
                 )
             }
             composable(
@@ -389,7 +408,8 @@ fun EolssuNavHost(
                     },
                     onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
                     onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
-                    onWeakSection = { performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(evaluationId)) } },
+                    // ‘취약 구간 연습’은 연습 화면의 구간 연습으로 연다(S15P31E102-776). 구간 재평가는 연습 기록에서만 한다.
+                    onWeakSection = { songId -> performance.move(perf, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.sectionPractice(songId, evaluationId)) } },
                 )
             }
             composable(
@@ -411,6 +431,7 @@ fun EolssuNavHost(
                     onOpenRecord = { id -> performance.move(perf, PerfTarget.RECORD_DETAIL) { navController.navigate(EolssuDestination.recordResult(id)) } },
                     onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                     onSelectSection = { id -> performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(id)) } },
+                    onPracticeSection = { id, songId -> navController.navigate(EolssuDestination.sectionPractice(songId, id)) },
                 )
             }
             composable(
@@ -430,6 +451,7 @@ fun EolssuNavHost(
                         initialRecordId = recordId,
                         onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                         onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
+                        onPracticeSection = { id, songId -> navController.navigate(EolssuDestination.sectionPractice(songId, id)) },
                     )
                 } else {
                     RecordDetailRoute(
@@ -438,6 +460,7 @@ fun EolssuNavHost(
                         onBack = { navController.popBackStackFrom(entry) },
                         onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                         onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
+                        onPracticeSection = { id, songId -> navController.navigate(EolssuDestination.sectionPractice(songId, id)) },
                     )
                 }
             }
@@ -594,7 +617,7 @@ fun EolssuNavHost(
 private val measuredDestinations = setOf(
     EolssuDestination.SONG_DETAIL, EolssuDestination.PRACTICE, EolssuDestination.ANALYSIS,
     EolssuDestination.RESULT, EolssuDestination.RECORDS, EolssuDestination.RECORD_RESULT,
-    WeakSectionDestination.SELECT, WeakSectionDestination.LOOP, WeakSectionDestination.RESULT,
+    WeakSectionDestination.SELECT, WeakSectionDestination.EVALUATE, WeakSectionDestination.RESULT,
 )
 
 internal fun NavController.popBackStackFrom(entry: NavBackStackEntry, pastDirectPractice: Boolean = false) {

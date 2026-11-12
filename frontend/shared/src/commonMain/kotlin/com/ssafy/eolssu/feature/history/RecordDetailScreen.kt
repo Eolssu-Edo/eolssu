@@ -44,7 +44,10 @@ class RecordDetailActions(
     /** 시트에서 고른 이전 기록과 비교 화면으로 간다. */
     val onPickCompare: (String) -> Unit = {},
     val onSelectFilter: (ErrorFilter) -> Unit = {},
+    /** ‘구간 연습’: 이 곡 연습 화면의 구간 연습(S15P31E102-776). */
     val onPractice: () -> Unit = {},
+    /** ‘구간 재평가’: 구간 고르기 → 구간 재평가. */
+    val onReevaluate: () -> Unit = {},
     val onAskDelete: () -> Unit = {},
     val onConfirmDelete: () -> Unit = {},
     val onCancelDelete: () -> Unit = {},

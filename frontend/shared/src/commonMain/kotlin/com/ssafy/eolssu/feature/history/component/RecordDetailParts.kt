@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -19,7 +21,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.ssafy.eolssu.core.ui.component.EolssuButton
-import eolssu.shared.generated.resources.record_result_practice
+import eolssu.shared.generated.resources.weak_loop_evaluate
+import eolssu.shared.generated.resources.weak_select_practice
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -162,7 +165,7 @@ internal fun PlaybackButtons(state: RecordDetailUiState, actions: RecordDetailAc
 }
 
 /**
- * 하단 재생 영역 내용(시간 · 막대 · 재생 묶음과 ‘취약 구간 연습’). 휴대폰·태블릿이 같은 구성이다.
+ * 하단 재생 영역 내용(시간 · 막대 · 재생 묶음과 그 오른쪽에 작게 쌓은 ‘구간 연습’ · ‘구간 재평가’, S15P31E102-776). 휴대폰·태블릿이 같은 구성이다.
  */
 @Composable
 internal fun PlaybackBarContent(state: RecordDetailUiState, actions: RecordDetailActions) {
@@ -170,7 +173,16 @@ internal fun PlaybackBarContent(state: RecordDetailUiState, actions: RecordDetai
     PlaybackSlider(state, actions)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         PlaybackButtons(state, actions)
-        EolssuButton(stringResource(Res.string.record_result_practice), actions.onPractice, modifier = Modifier.weight(1f), enabled = state.canPractice)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            EolssuButton(
+                stringResource(Res.string.weak_select_practice), actions.onPractice,
+                enabled = state.canPractice, compact = true, minHeight = 28.dp,
+            )
+            EolssuButton(
+                stringResource(Res.string.weak_loop_evaluate), actions.onReevaluate,
+                enabled = state.canPractice, compact = true, minHeight = 28.dp, style = EolssuButtonStyle.Secondary,
+            )
+        }
     }
 }
 

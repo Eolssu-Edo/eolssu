@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -55,6 +56,7 @@ import eolssu.shared.generated.resources.practice_menu_tempo
 import eolssu.shared.generated.resources.practice_off
 import eolssu.shared.generated.resources.practice_on
 import eolssu.shared.generated.resources.practice_settings
+import eolssu.shared.generated.resources.weak_evaluate_dock_tempo
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -68,6 +70,17 @@ fun PracticeSideDock(
     bottomActions: PracticeBottomActions,
     modifier: Modifier = Modifier,
 ) {
+    PracticeSideDock(state, panelActions, modifier) { PracticeBottomContent(state, bottomActions, stacked = true) }
+}
+
+/** 상태 패널 틀. 아래 고정 자리 [bottom]에 상태별 행동을 둔다. 구간 재평가는 제 평가 막대를 넘긴다(S15P31E102-776). */
+@Composable
+fun PracticeSideDock(
+    state: PracticeUiState,
+    panelActions: PracticePanelActions,
+    modifier: Modifier = Modifier,
+    bottom: @Composable ColumnScope.() -> Unit,
+) {
     val song = state.song ?: return
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(20.dp)
@@ -80,9 +93,7 @@ fun PracticeSideDock(
                 SongInfo(state, song)
                 QuickSettings(state, song, panelActions)
             }
-            Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                PracticeBottomContent(state, bottomActions, stacked = true)
-            }
+            Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = bottom)
         }
     }
 }
@@ -106,7 +117,7 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
     val colors = EolssuTheme.colors
     val settings = state.settings
     // 평가 중 속도만 고정한다. 장단과 보기 설정은 바꿀 수 있다.
-    val locked = state.playbackSettingsLocked
+    val locked = state.tempoLocked
     val notationOn = settings.showHangul
     val noteLabel = when (val note = state.draft.note) {
         is ScoreNote.Pitch -> if (note.yul.drawnAs == null) "${note.symbol} ${note.yul.fullName}" else note.yul.fullName
@@ -142,7 +153,13 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
             EolssuSwitch(settings.bigScore, actions.onToggleBigScore, bigLabel)
         }
         Text(
-            stringResource(if (locked) Res.string.practice_dock_locked else Res.string.practice_dock_hint),
+            stringResource(
+                when {
+                    state.playbackSettingsLocked -> Res.string.practice_dock_locked
+                    state.tempoFixed -> Res.string.weak_evaluate_dock_tempo
+                    else -> Res.string.practice_dock_hint
+                },
+            ),
             modifier = Modifier.padding(top = 6.dp),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
             color = colors.textMuted,
