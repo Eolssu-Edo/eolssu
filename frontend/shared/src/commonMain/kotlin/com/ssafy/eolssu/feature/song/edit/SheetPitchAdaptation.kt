@@ -7,12 +7,14 @@ import kotlin.math.roundToInt
 import kotlinx.serialization.json.*
 import com.ssafy.eolssu.data.song.CatalogInstrument
 import com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities
+import com.ssafy.eolssu.core.model.ScoreNote
 
 data class SheetAdaptationUi(
     val instruments: List<CatalogInstrument> = emptyList(), val selectedId: String? = null,
     val capabilities: CatalogAuthoringCapabilities? = null, val plans: List<PitchAdaptationPlan> = emptyList(),
     val selectedTranspose: Int? = null, val loading: Boolean = true, val failed: Boolean = false,
     val baseline: SheetDraft,
+    val confirmationRequested: Boolean = false,
 ) { val selected: PitchAdaptationPlan? get() = plans.firstOrNull { it.transpose == selectedTranspose } }
 
 /** Immutable pitches captured before any adaptation. MIDI is sounding pitch, not a yul index. */
@@ -34,30 +36,45 @@ fun planPitchAdaptation(source: List<SourcePitchNote>, supported: List<Adaptatio
                 .minWithOrNull(compareBy<AdaptationPitch> { abs(it.midi - transposed) }.thenBy { it.midi })
             AdaptedPitch(note, target, target?.let { (it.midi - transposed) / 12 })
         })
-    }.sortedWith(compareBy<PitchAdaptationPlan> { it.unresolved }.thenBy { abs(it.transpose) }
-        .thenBy { it.octaveChanges }.thenBy { it.octaveDistance }.thenBy { it.transpose })
+    }.sortedWith(compareBy<PitchAdaptationPlan> { it.unresolved }.thenBy { it.octaveChanges }
+        .thenBy { it.octaveDistance }.thenBy { abs(it.transpose) }.thenBy { it.transpose })
 
-internal fun SheetDraft.originalPitchLayoutMatches(): Boolean {
-    val saved = authoring?.get("source")?.jsonObject?.get("notes")?.jsonArray.orEmpty()
-        .associate { it.jsonObject.getValue("eventId").jsonPrimitive.content to it.jsonObject }
-    // IDs encode positions. Inserting/deleting cells can reuse an old ID for a different note.
-    val notes = toCommonScore().events.filter { it.kind == "NOTE" }
-    return saved.isNotEmpty() && notes.size == saved.size && notes.all { event -> saved[event.id]?.let { old ->
-        old["cellId"]?.jsonPrimitive?.content == event.cellId && old["startTick"]?.jsonPrimitive?.long == event.startTick &&
-            old["durationTick"]?.jsonPrimitive?.long == event.durationTick
-    } == true }
-}
+/** The default minimizes octave moves; the alternative preserves the key as closely as possible. */
+internal fun recommendedAdaptations(plans: List<PitchAdaptationPlan>): List<PitchAdaptationPlan> =
+    listOfNotNull(plans.firstOrNull(), plans.minWithOrNull(compareBy<PitchAdaptationPlan> { it.unresolved }
+        .thenBy { abs(it.transpose) }.thenBy { it.octaveChanges }.thenBy { it.octaveDistance }.thenBy { it.transpose }))
+        .distinctBy { it.transpose }
 
 internal fun SheetDraft.sourcePitchNotes(): List<SourcePitchNote> {
     val saved = authoring?.get("source")?.jsonObject?.get("notes")?.jsonArray.orEmpty()
         .associate { it.jsonObject.getValue("eventId").jsonPrimitive.content to it.jsonObject }
     val score = toCommonScore()
-    val sameLayout = originalPitchLayoutMatches()
     val hwang = (69 + 12 * log2(score.music.hwangHz / 440.0)).roundToInt()
-    return score.events.filter { it.kind == "NOTE" }.map {
-        val source = saved[it.id]?.takeIf { sameLayout }
-        SourcePitchNote(it.id, it.cellId, source?.get("midi")?.jsonPrimitive?.int
-            ?: (hwang + "황대태협고중유임이남무응".indexOf(it.yul.orEmpty()) + 12 * (it.octave ?: 0)))
+    val originalEvents = original?.events.orEmpty().associateBy { it.id }
+    val originalHwang = (69 + 12 * log2(requireNotNull(original).music.hwangHz / 440.0)).roundToInt()
+    val baselines = buildMap<String, Int> {
+        score.columns.flatMap { it.cells }.forEachIndexed { index, cell ->
+            val oldCell = originalCell(index) ?: return@forEachIndexed
+            cell.units.forEachIndexed units@ { sub, unit ->
+                // Splitting appends slots. Only a former NOTE start can supply an original pitch.
+                val oldUnit = oldCell.units.getOrNull(sub) ?: return@units
+                val old = originalEvents[oldUnit.eventId]?.takeIf { it.kind == "NOTE" &&
+                    it.cellId == oldCell.id && it.id == "${oldCell.id}-r${oldUnit.row}-u${oldUnit.col}" }
+                    ?: return@units
+                val source = saved[old.id]?.takeIf {
+                    it["cellId"]?.jsonPrimitive?.content == old.cellId &&
+                        it["startTick"]?.jsonPrimitive?.long == old.startTick &&
+                        it["durationTick"]?.jsonPrimitive?.long == old.durationTick
+                }
+                if (unit.eventId == "${cell.id}-r${unit.row}-u${unit.col}") put(unit.eventId,
+                    adaptationBaseline[old.id] ?: source?.get("midi")?.jsonPrimitive?.int
+                    ?: (originalHwang + "황대태협고중유임이남무응".indexOf(old.yul.orEmpty()) + 12 * (old.octave ?: 0)))
+            }
+        }
+    }
+    return score.events.filter { it.kind == "NOTE" }.map { event ->
+        SourcePitchNote(event.id, event.cellId, baselines[event.id]
+            ?: (hwang + "황대태협고중유임이남무응".indexOf(event.yul.orEmpty()) + 12 * (event.octave ?: 0)))
     }
 }
 
@@ -76,7 +93,8 @@ internal fun SheetDraft.applyAdaptation(plan: PitchAdaptationPlan, capability: C
         cell.copy(units = cell.units.map { unit ->
             val pitch = targets[unit.eventId]
             if (pitch != null && unit.eventId == "${cell.id}-r${unit.row}-u${unit.col}")
-                unit.copy(symbol = symbols[pitch.yul to pitch.octave].orEmpty()) else unit
+                unit.copy(symbol = symbols[pitch.yul to pitch.octave]
+                    ?: ScoreNote.SourcePitch(pitch.yul, pitch.octave).hangul) else unit
         })
     }) }
     val adapted = current.copy(score = current.score.copy(instrument = capability.instrumentCode),
@@ -90,5 +108,6 @@ internal fun SheetDraft.applyAdaptation(plan: PitchAdaptationPlan, capability: C
         } })
     })) }
     return adapted.editingDraft(title, bpm, jangdan).copy(jangdanId = jangdanId,
-        editedJangdanName = editedJangdanName, authoring = metadata)
+        editedJangdanName = editedJangdanName, authoring = metadata,
+        adaptationBaseline = plan.notes.associate { it.source.eventId to it.source.midi })
 }

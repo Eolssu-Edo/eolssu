@@ -189,7 +189,8 @@ class SheetEditViewModel(
         val before = _uiState.value
         if (before.confirming || before.documentLoading || before.draft.original == null) return
         val request = ++adaptationRequest
-        _uiState.update { it.copy(adaptation = SheetAdaptationUi(baseline = before.draft)) }
+        _uiState.update { it.copy(tab = EditTab.Adaptation, view = EditView.Jeongganbo,
+            adaptation = SheetAdaptationUi(baseline = before.draft)) }
         accountScope.launch {
             try {
                 val options = requireNotNull(loadAudioInstruments).invoke()
@@ -209,7 +210,7 @@ class SheetEditViewModel(
         val panel = _uiState.value.adaptation ?: return
         if (panel.instruments.none { it.instrumentId == id }) return
         val request = ++adaptationRequest
-        _uiState.update { it.copy(adaptation = it.adaptation?.copy(selectedId = id, loading = true, failed = false)) }
+        _uiState.update { it.copy(adaptation = it.adaptation?.copy(selectedId = id, loading = true, failed = false, confirmationRequested = false)) }
         accountScope.launch {
             try {
                 val capabilities = catalog.authoringCapabilities(id)
@@ -228,17 +229,28 @@ class SheetEditViewModel(
 
     fun selectAdaptationTranspose(value: Int) = _uiState.update { state ->
         if (state.adaptation?.plans?.any { it.transpose == value } != true) state
-        else state.copy(adaptation = state.adaptation.copy(selectedTranspose = value))
+        else state.copy(adaptation = state.adaptation.copy(selectedTranspose = value, confirmationRequested = false))
     }
 
-    fun closeAdaptation() { ++adaptationRequest; _uiState.update { it.copy(adaptation = null) } }
+    fun closeAdaptation() {
+        ++adaptationRequest
+        _uiState.update { it.copy(adaptation = null, tab = if (it.tab == EditTab.Adaptation) EditTab.Yul else it.tab) }
+    }
+
+    fun requestApplyAdaptation() = _uiState.update { state ->
+        val panel = state.adaptation
+        if (panel == null || panel.loading || panel.failed || panel.selected == null || panel.baseline != state.draft) state
+        else state.copy(adaptation = panel.copy(confirmationRequested = true))
+    }
+
+    fun cancelApplyAdaptation() = _uiState.update { it.copy(adaptation = it.adaptation?.copy(confirmationRequested = false)) }
 
     fun applyAdaptation() {
         val panel = _uiState.value.adaptation ?: return
         val plan = panel.selected ?: return
         val capability = panel.capabilities ?: return
-        if (panel.loading || panel.baseline != _uiState.value.draft) return
-        change { state -> state.copy(draft = state.draft.applyAdaptation(plan, capability), adaptation = null,
+        if (!panel.confirmationRequested || panel.loading || panel.failed || panel.baseline != _uiState.value.draft) return
+        change { state -> state.copy(draft = state.draft.applyAdaptation(plan, capability), adaptation = null, tab = EditTab.Yul,
             past = (state.past + state.draft).takeLast(50), future = emptyList(), instrumentPitches = capability.selectablePitches) }
         completionCatalogJob?.cancel()
         completionCatalogJob = null
@@ -253,10 +265,14 @@ class SheetEditViewModel(
             // 최종 저장 응답은 보낸 악보의 확인 결과다. 초안 자동 저장 중에는 계속 편집한다.
             if (current.confirming && (next.draft != current.draft || next.checkedIssueIds != current.checkedIssueIds ||
                 next.reviewIssues != current.reviewIssues)) current
-            else if (next.draft != current.draft) next.copy(saveStatus = null)
+            else if (next.draft != current.draft) next.copy(saveStatus = null,
+                adaptation = null, tab = if (next.tab == EditTab.Adaptation) EditTab.Yul else next.tab)
             else next
         }
-        if (before != _uiState.value.draft) _uiState.update { it.copy(serverPitchIssues = emptyList()) }
+        if (before != _uiState.value.draft) {
+            ++adaptationRequest
+            _uiState.update { it.copy(serverPitchIssues = emptyList()) }
+        }
         if (before.original?.score?.instrument != _uiState.value.draft.original?.score?.instrument) {
             completionCatalogJob?.cancel()
             completionCatalogJob = null
@@ -612,7 +628,10 @@ class SheetEditViewModel(
         jangdanJob?.cancel()
         change { it.updateSettings(bpm, jangdanId) }
     }
-    fun selectTab(tab: EditTab) = change { it.copy(tab = tab) }
+    fun selectTab(tab: EditTab) {
+        if (tab == EditTab.Adaptation) openAdaptation()
+        else { closeAdaptation(); change { it.copy(tab = tab) } }
+    }
     fun selectView(view: EditView) = change { state ->
         if (state.view == view || state.draft.original == null) return@change state.copy(view = view)
         when (view) {

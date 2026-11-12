@@ -1,0 +1,21 @@
+<resources>
+    <string name="sheet_adapt_tab">음역 맞추기</string>
+    <string name="sheet_adapt_instrument">악기: %1$s · 변경</string>
+    <string name="sheet_adapt_choose_instrument">선택</string>
+    <string name="sheet_adapt_criteria">추천 기준</string>
+    <string name="sheet_adapt_criteria_title">추천 이조 기준</string>
+    <string name="sheet_adapt_criteria_message">먼저 악기 음역에 맞지 않는 음을 가장 적게 남기는 안을 찾습니다.\n\n기본 추천은 옥타브를 옮기는 음 수 → 옮기는 옥타브 거리 → 이조 폭 순서로 비교합니다.\n\n이조 폭이 가장 작은 안이 다르면 대안으로 함께 보여 줍니다. 음역에 맞지 않는 음 수가 같을 때, 원곡 조성을 덜 바꾸고 싶다면 이 안을 고르세요.</string>
+    <string name="sheet_adapt_octave_minimum">추천 · 옥타브 최소</string>
+    <string name="sheet_adapt_key_minimum">이조 폭 최소</string>
+    <string name="sheet_adapt_both_minimum">추천 · 옥타브·이조 최소</string>
+    <string name="sheet_adapt_choice">%1$s · %2$s</string>
+    <string name="sheet_adapt_slider">이조 조절, 마이너스 6부터 플러스 6반음</string>
+    <string name="sheet_adapt_decrease">이조 한 반음 내리기</string>
+    <string name="sheet_adapt_increase">이조 한 반음 올리기</string>
+    <string name="sheet_adapt_octave_count">옥타브 옮길 음 %1$d개</string>
+    <string name="sheet_adapt_unresolved_count">직접 고쳐야 할 음 %1$d개</string>
+    <string name="sheet_adapt_empty">맞출 수 있는 음이 없어요.</string>
+    <string name="sheet_adapt_confirm_title">음높이를 다시 맞출까요?</string>
+    <string name="sheet_adapt_confirm_message">직접 바꾼 음높이·옥타브는 덮어씁니다. 기존 음은 원본 기준으로 다시 맞추고, 새로 넣은 음은 현재 음높이를 기준으로 맞춥니다.\n\n제목·빠르기·장단·시김새·가사·정간 나눔은 유지됩니다. 적용 후 되돌리기로 취소할 수 있어요.</string>
+    <string name="sheet_adapt_confirm_apply">다시 맞추기</string>
+</resources>
