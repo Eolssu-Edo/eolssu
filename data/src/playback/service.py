@@ -25,9 +25,9 @@ INSTRUMENTS = {'danso', 'sogeum', 'jeongak-daegeum', 'sanjo-daegeum'}
 
 
 class GenerationError(Exception):
-    def __init__(self, code, status=500):
+    def __init__(self, code, status=500, details=None):
         super().__init__(code)
-        self.code, self.status = code, status
+        self.code, self.status, self.details = code, status, details
 
 
 class PlaybackService:
@@ -42,16 +42,17 @@ class PlaybackService:
     def generate(self, request, performance_source_sha256=None):
         return self._run(request, estimate=False, performance_source_sha256=performance_source_sha256)
 
-    def estimate(self, request):
-        return self._run(request, estimate=True)
+    def estimate(self, request, performance_source_sha256=None):
+        return self._run(request, estimate=True, performance_source_sha256=performance_source_sha256)
 
     def _run(self, request, *, estimate, performance_source_sha256=None):
         if performance_source_sha256 is not None and not re.fullmatch(r'[a-f0-9]{64}', performance_source_sha256):
             raise GenerationError('INVALID_REQUEST', 400)
-        if (not isinstance(request, dict) or set(request) - {'score', 'instrument', 'bpm', 'withJangdan', 'jangdan'}
+        if (not isinstance(request, dict) or set(request) - {'score', 'instrument', 'bpm', 'withJangdan', 'jangdan', 'expressions'}
                 or not isinstance(request.get('score'), dict)
                 or not isinstance(request.get('instrument'), str) or request['instrument'] not in INSTRUMENTS
-                or type(request.get('bpm')) is not int or not 30 <= request['bpm'] <= 160
+                or type(request.get('bpm')) is not int or request['bpm'] <= 0
+                or request.get('expressions') is not None and not isinstance(request['expressions'], dict)
                 or type(request.get('withJangdan')) is not bool
                 or request['withJangdan'] and not isinstance(request.get('jangdan'), dict)):
             raise GenerationError('INVALID_REQUEST', 400)
@@ -93,6 +94,11 @@ class PlaybackService:
                     raise GenerationError('TIMEOUT', 504) from None
                 except (OSError, subprocess.CalledProcessError):
                     raise GenerationError('SERVER_ERROR') from None
+                result_path = root / 'result.json'
+                if result_path.is_file() and not result_path.is_symlink() and result_path.stat().st_size <= 4096:
+                    preliminary = json.loads(result_path.read_text(encoding='utf-8'))
+                    if preliminary.get('errorCode') in ('EXPORT_TOO_LONG', 'INVALID_REQUEST', 'TEMPO_UNRENDERABLE'):
+                        raise GenerationError(preliminary['errorCode'], 400, preliminary.get('details'))
                 artifacts = [('result.json',4096)] if estimate else [('audio.m4a', MAX_AUDIO), ('score.mid', MAX_MIDI), ('result.json', 4096)]
                 for name, limit in artifacts:
                     path = root / name
@@ -102,8 +108,8 @@ class PlaybackService:
                         raise GenerationError('TOO_LARGE', 422)
                 try:
                     result = json.loads((root / 'result.json').read_text(encoding='utf-8'))
-                    if estimate and result.get('errorCode') in ('EXPORT_TOO_LONG','INVALID_REQUEST'):
-                        raise GenerationError(result['errorCode'],400)
+                    if estimate and result.get('errorCode') in ('EXPORT_TOO_LONG','INVALID_REQUEST','TEMPO_UNRENDERABLE'):
+                        raise GenerationError(result['errorCode'],400,result.get('details'))
                     if (set(result) != {'durationMs'} or type(result['durationMs']) is not int
                             or not 0 < result['durationMs'] <= 600000):
                         raise ValueError()
@@ -148,7 +154,7 @@ def handler(service):
                     raise GenerationError('INVALID_REQUEST', 400)
                 request = json.loads(raw, parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
                 if self.path == '/v1/estimate':
-                    self.reply(200,service.estimate(request))
+                    self.reply(200,service.estimate(request, self.headers.get(PERFORMANCE_SOURCE_HEADER)))
                     return
                 payload = service.generate(request, self.headers.get(PERFORMANCE_SOURCE_HEADER))
                 self.send_response(200)
@@ -160,7 +166,7 @@ def handler(service):
             except GenerationError as error:
                 # Codes only: scores, request paths and asset locations stay out of logs.
                 LOG.warning('request failed: %s (%s)', error.code, error.status)
-                self.reply(error.status, {'errorCode': error.code})
+                self.reply(error.status, {'errorCode': error.code, **({'details': error.details} if error.details else {})})
             except (ValueError, UnicodeError):
                 self.reply(400, {'errorCode': 'INVALID_REQUEST'})
             except (OSError, TimeoutError):

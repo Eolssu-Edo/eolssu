@@ -320,6 +320,9 @@
 
 ## COCO 산출물
 
+- [빠르기 생성 사전검사와 수행 시간표 분할 계획](plans/S15P31E102-773.md)
+- [빠르기·수행 시계와 실제 CAT 검증 근거](knowledge/data/score-authoring-tempo.md)
+
 - [장단 패턴·박 단위·시작 주기 계약 분할 계획](plans/S15P31E102-789.md)
 - [장단 선택·저장·재생의 이전 통합 검증 근거](knowledge/frontend/sheet-jangdan-consistency.md)
 
