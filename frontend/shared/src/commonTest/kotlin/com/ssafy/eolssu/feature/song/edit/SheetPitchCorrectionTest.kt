@@ -6,6 +6,38 @@ import com.ssafy.eolssu.data.song.CommonScoreData
 import kotlin.test.*
 
 class SheetPitchCorrectionTest {
+    @Test fun correctingMissingGlyphKeepsRawNoteDurationTiesAndBreath() {
+        val raw = smallScoreData().let { score -> score.copy(events = score.events.mapIndexed { index, event ->
+            if (index == 1) event.copy(octave = 3) else event
+        }, columns = score.columns.map { column -> column.copy(cells = column.cells.map { cell ->
+            cell.copy(units = cell.units.map { unit ->
+                if (unit.eventId == score.events[1].id && "${cell.id}-r${unit.row}-u${unit.col}" == unit.eventId)
+                    unit.copy(symbol = "") else unit
+            })
+        }) }) }
+        val initial = state().copy(draft = raw.editingDraft("raw", 60, null))
+        val target = initial.pitchCorrectionsAt(1).single()
+        assertEquals(Yul.Jungnyeo to 3, target.pitch)
+        val changed = initial.applyPitchCorrection(target, initial.pitchAlternatives(target.pitch).first())
+        val after = changed.draft.toCommonScore()
+        assertEquals(raw.events.map { Triple(it.id, it.startTick, it.durationTick) }, after.events.map { Triple(it.id, it.startTick, it.durationTick) })
+        assertEquals(raw.events.map { it.breathAfter to it.sigimsae }, after.events.map { it.breathAfter to it.sigimsae })
+        assertEquals(raw.columns[0].cells[1], after.columns[0].cells[1])
+        assertEquals(initial.draft, changed.undo().draft)
+    }
+    @Test fun staffShiftSkipsGloballyRegisteredNotesWithoutInstrumentSupport() {
+        val selected = state().copy(availablePitches = setOf("황" to 0, "대" to 0, "태" to 0),
+            instrumentPitches = setOf("황" to 0, "태" to 0)).selectStaffNote(StaffNoteKey(0, 0))
+        val shifted = selected.shiftStaffNote(1)
+        assertEquals("태" to 0, shifted.draft.cells[0][0].pitchKey()?.let { it.first.hangul to it.second })
+    }
+
+    @Test fun requiredCatalogFailureDisablesNewInputWithoutDiscardingTheDraft() {
+        val initial = state().copy(completionCatalogState = SheetCompletionCatalogState.Failed)
+        assertEquals(emptySet(), initial.supportedInputPitches)
+        assertEquals(initial, initial.putYul(Yul.Hwangjong, 0))
+        assertEquals(initial.draft, initial.copy(completionCatalogState = SheetCompletionCatalogState.Loading).draft)
+    }
     private val registered = setOf("황" to 0, "중" to 1, "황" to 2, "태" to 2, "중" to 2, "대" to 1)
     private fun state() = SheetEditUiState(EditSource.Mine("31"), smallScoreData().editingDraft("검사", 60, null))
         .copy(availablePitches = registered, instrumentPitches = registered - ("중" to 1))

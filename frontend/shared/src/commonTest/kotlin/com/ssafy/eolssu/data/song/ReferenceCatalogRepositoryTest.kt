@@ -18,6 +18,19 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ReferenceCatalogRepositoryTest {
+    @Test fun authoringPreservesUnknownFingeringAndUsesServerIntersection() = runTest {
+        val result = """{"instrumentId":"42","instrumentCode":"SOGEUM","policyVersion":"registered-guidance-cat/v1","nominalHwangMidi":63,"physicalRange":{"minMidi":70,"maxMidi":96,"verificationStatus":"REFERENCE_ONLY"},"items":[{"pitchId":"83","yul":"이","octave":1,"hanja":"洟","hangul":"청이","semitone":20,"midi":83,"physical":"WITHIN_REFERENCE_RANGE","physicalVerification":"UNKNOWN","fingering":"UNKNOWN","notation":"SUPPORTED","synthesis":"SUPPORTED","selectable":false,"reasonCodes":["FINGERING_UNKNOWN"]}]}"""
+        val client = client(result)
+        try {
+            val capabilities = ApiReferenceCatalogRepository(client).authoringCapabilities("42")
+            assertTrue(capabilities.selectablePitches.isEmpty())
+            assertEquals("UNKNOWN", capabilities.items.single().physicalVerification)
+            assertEquals(listOf("FINGERING_UNKNOWN"), capabilities.items.single().reasonCodes)
+        } finally { client.close() }
+        val inconsistent = client(result.replace("\"selectable\":false", "\"selectable\":true"))
+        try { assertFailsWith<CatalogUnavailable> { ApiReferenceCatalogRepository(inconsistent).authoringCapabilities("42") } }
+        finally { inconsistent.close() }
+    }
     @Test fun builtinPatternSurvivesTheWireWithoutReplacingTheInstrumentDrawing() = runTest {
         val pattern = """{"blow":"HIGH","hanja":"㶃","name":"중청태주","reading":"청태","holes":["CLOSED","OPEN","CLOSED","OPEN","OPEN"],"basic":true,"source":"출처를 보존","instrumentNote":"높은 태는 낮은 태와 달라요.","nominalHwangPitchClass":3,"verificationStatus":"BUILTIN_REFERENCE"}"""
         val client = client("""{"items":[{"fingeringId":"2","instrumentId":"42","pitchId":"83","imageUrl":null,"description":null,"pattern":$pattern}]}""")

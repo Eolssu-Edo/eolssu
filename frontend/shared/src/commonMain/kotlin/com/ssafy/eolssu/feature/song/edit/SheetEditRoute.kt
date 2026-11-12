@@ -25,6 +25,8 @@ import eolssu.shared.generated.resources.common_coming_soon
 import eolssu.shared.generated.resources.sheetedit_msg_audio_failed
 import eolssu.shared.generated.resources.sheetedit_msg_audio_ready
 import eolssu.shared.generated.resources.sheetedit_msg_audio_unknown
+import eolssu.shared.generated.resources.sheet_support_save_error
+import eolssu.shared.generated.resources.sheet_support_audio_error
 import eolssu.shared.generated.resources.sheet_save_failed
 import eolssu.shared.generated.resources.sheet_save_conflict
 import eolssu.shared.generated.resources.sheet_save_too_large
@@ -74,6 +76,8 @@ fun SheetEditRoute(
     }
     val snackbarHostState = remember { SnackbarHostState() }
     val messages = mapOf(
+        SheetEditMessage.SaveUnsupportedPitches to stringResource(Res.string.sheet_support_save_error),
+        SheetEditMessage.AudioUnsupportedPitches to stringResource(Res.string.sheet_support_audio_error),
         SheetEditMessage.SaveFailed to stringResource(Res.string.sheet_save_failed),
         SheetEditMessage.SaveConflict to stringResource(Res.string.sheet_save_conflict),
         SheetEditMessage.SaveTooLarge to stringResource(Res.string.sheet_save_too_large),
@@ -97,7 +101,7 @@ fun SheetEditRoute(
             onSaved()
             return@LaunchedEffect
         }
-        if (saveOpen && message in setOf(SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge)) {
+        if (saveOpen && message in setOf(SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge, SheetEditMessage.SaveUnsupportedPitches)) {
             saveError = text
             return@LaunchedEffect
         }
