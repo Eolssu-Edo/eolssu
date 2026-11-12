@@ -14,7 +14,7 @@
 | jangdan-ui / 772 FE | 장단 선택과 시작 위치 안내 | 명시적 반주 없음, 호환 패턴 선택·짧은 오류 안내·첫 쉼·마지막 주기 회귀 | jangdan-contract |
 | tempo-generator / 773 DATA | 기술적 빠르기 제한과 수행 시간표 | BPM 단위·구간 변화·반복·가중 음가의 MIDI/PCM 해상도·600초 사전검사, 실제 CAT 음원/장구 타점 대조 | support-api, jangdan-contract |
 | tempo-api / 790 BE | 구간 빠르기 보존과 생성 사전검사 API | 기본100/구간80→120/96, 악보·계획 SHA 연결, 생략/null 초안 보존, 실제 저장→생성 경로 검증 | source-contract, tempo-generator |
-| tempo-ui / 791 FE | 빠르기 설정과 기기 반주 동기화 | 비율 유지·BPM 단위/범위 안내·수정 후 재시도, 로컬 반주·seek·실제 CAT 수행표 고정 데이터 대조 | jangdan-ui, tempo-api |
+| tempo-ui / 791 FE | 빠르기 설정과 기기 반주 동기화 | 비율 유지·BPM 단위/범위 안내·수정 후 재시도, 로컬 반주·seek·실제 CAT 수행표 고정 데이터 대조 | adaptation-ui의 authoring 응답·고정 설정틀, jangdan-ui, tempo-api |
 
 주 담당자는 기존과 같이 박찬형이다. 기존 Story S15P31E102-319에 관련됨으로 연결하고, 작업 시작 절차로 실제 활성 스프린트·진행 중 상태를 확인한다. 신규 Task는 표의 식별자에 `score-authoring-20261112/`를 붙인 상관값으로 중복 생성을 방지한다. 기존 770~773은 결과를 좁히고 완료된 746·766·768 및 다른 담당자 업무는 편입하지 않는다.
 

@@ -156,9 +156,9 @@ internal class ModelAudioSession(
         } else player.pause()
     }
 
-    fun restart(song: Song, bpm: Int) {
+    fun restart(song: Song, bpm: Int, startTick: Double? = null) {
         stop()
-        play(song, bpm)
+        play(song, bpm, startTick)
     }
 
     fun setBpm(value: Int) {
