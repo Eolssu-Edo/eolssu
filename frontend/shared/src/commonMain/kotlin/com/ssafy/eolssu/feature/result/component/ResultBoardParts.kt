@@ -31,7 +31,10 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -43,14 +46,17 @@ import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.feature.practice.component.practiceScorePacking
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.analysis_progress
 import eolssu.shared.generated.resources.tiger_analysis_failed
 import eolssu.shared.generated.resources.tiger_confused_atlas
 import eolssu.shared.generated.resources.tiger_play
+import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 /*
  * 연두 보드 ANALYSIS-01 부품과 연주 결과 정간보 높이. 크기·색은 보드 CSS(`.topbar` · `.badge.lite`)를 dp로 옮겼다.
@@ -85,19 +91,50 @@ fun BoardTopBar(title: String, modifier: Modifier = Modifier, subtitle: String? 
     }
 }
 
-/** 보드 분석 대기 그림(220dp): 붓 일원상이 7시에서 시계 방향으로 그려지고([BrushEnso]) 가운데에 연주하는 호랑이(128dp). */
+/**
+ * 보드 분석 대기 그림(220dp): 붓 일원상이 7시에서 시계 방향으로 그려지고([BrushEnso]) 가운데에 연주하는 호랑이(128dp).
+ * 녹음 전송 비율([uploadProgress] 0~1)과 분석 대기를 합친 진행률([rememberAnalysisProgress])만큼 획을 그리고,
+ * 호랑이 발과 고리 사이에 같은 값의 퍼센트를 적는다. 100%는 분석이 끝났을 때([done])만 보인다.
+ * [uploadProgress]가 null이면 진행률을 모르므로 획을 되풀이해 그린다.
+ */
 @Composable
-fun AnalyzingFigure(modifier: Modifier = Modifier) {
-    Box(modifier.size(220.dp).clearAndSetSemantics {}) {
-        BrushEnso(color = EolssuTheme.colors.text, modifier = Modifier.fillMaxSize())
-        // 보드 `translate(-50%, -52%)`: 호랑이 높이(약 104dp)의 2%만큼 위로.
+fun AnalyzingFigure(uploadProgress: Float? = null, done: Boolean = false, modifier: Modifier = Modifier) {
+    // 붓 획과 숫자가 같은 값을 쓰도록 부드럽게 따라가는 값을 여기서 한 번만 계산한다.
+    val shown = rememberAnalysisProgress(uploadProgress, done)
+    val percent = shown?.let { floor(it * 100).toInt().coerceIn(0, 100) }
+    val description = percent?.let { stringResource(Res.string.analysis_progress, it) }
+    Box(
+        modifier.size(220.dp).clearAndSetSemantics {
+            if (description != null) contentDescription = description
+        },
+    ) {
+        BrushEnso(color = EolssuTheme.colors.text, progress = shown, modifier = Modifier.fillMaxSize())
+        // 보드 `translate(-50%, -52%)`에서 퍼센트 자리를 내려고 6dp 더 위로.
         Image(
             painterResource(Res.drawable.tiger_play),
             contentDescription = null,
-            modifier = Modifier.align(Alignment.Center).offset(y = (-2).dp).width(128.dp),
+            modifier = Modifier.align(Alignment.Center).offset(y = (-8).dp).width(128.dp),
             contentScale = ContentScale.FillWidth,
         )
+        if (percent != null) {
+            ProgressPercent(percent, Modifier.align(Alignment.TopCenter).offset(y = 167.dp))
+        }
     }
+}
+
+/** 진행 퍼센트: 숫자는 Song Myung 18sp, 뒤의 `%`는 작고 옅게. 숫자 폭이 바뀌어도 흔들리지 않게 고정폭 숫자를 쓴다. */
+@Composable
+private fun ProgressPercent(percent: Int, modifier: Modifier = Modifier) {
+    val muted = EolssuTheme.colors.textMuted
+    Text(
+        buildAnnotatedString {
+            append(percent.toString())
+            withStyle(SpanStyle(fontSize = (18 * 0.62).sp, color = muted)) { append("%") }
+        },
+        modifier = modifier,
+        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 20.sp, fontFeatureSettings = "tnum"),
+        color = EolssuTheme.colors.text,
+    )
 }
 
 // 사용자 제공 ‘머리 긁는 호랑이’ GIF의 9프레임(각 160ms)을 배경만 투명하게 뺀 240px 세로 atlas.

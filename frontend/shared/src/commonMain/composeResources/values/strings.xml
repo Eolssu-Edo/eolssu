@@ -215,6 +215,7 @@
     <string name="analysis_retry_busy">지금은 분석을 다시 시작하지 못했어요. 잠시 후 다시 시도해 주세요.</string>
     <string name="analysis_back_to_practice">연습으로 돌아가기</string>
     <string name="analysis_play_again">다시 연주하기</string>
+    <string name="analysis_progress">연주 확인 %1$d퍼센트</string>
     <string name="analysis_upload_failed_title">녹음을 보내지 못했어요.</string>
     <string name="analysis_upload_timed_out">녹음을 보내는 데 시간이 너무 오래 걸렸어요.</string>
     <string name="analysis_upload_connection_failed">서버 연결에 문제가 생겼어요.</string>
@@ -261,17 +262,13 @@
     <string name="time_am">오전 %1$d:%2$s</string>
     <string name="time_pm">오후 %1$d:%2$s</string>
     <string name="records_title">연습 기록</string>
-    <string name="records_this_week">이번 주</string>
-    <string name="records_this_week_summary">%1$d회 연습 · 최고 %2$d점</string>
-    <string name="records_this_week_none">아직 이번 주 연습 기록이 없어요</string>
     <string name="records_growth_link">연습 기록지</string>
-    <string name="records_by_song">곡별 기록</string>
     <string name="records_instrument_all">악기 전체</string>
     <string name="records_instrument_empty">이 악기로 저장한 연주가 없어요.</string>
-    <string name="records_sort_new">최신순</string>
-    <string name="records_sort_old">오래된 순</string>
+    <string name="records_search_empty">찾는 곡의 연주가 없어요.</string>
     <string name="records_load_more">더 보기</string>
-    <string name="records_group_meta">녹음 %1$d개 · 최근 %2$s</string>
+    <string name="records_group_recent">최근 %1$s</string>
+    <string name="records_day_meta">%1$d회 · 최고 %2$d점</string>
     <string name="records_best">최고</string>
     <string name="records_score_unit">점</string>
     <string name="records_whole">전체 연주</string>
@@ -279,8 +276,6 @@
     <string name="records_row_today">오늘 · %1$s</string>
     <string name="records_just_saved">방금 저장</string>
     <string name="records_today">오늘</string>
-    <string name="records_meta_whole">녹음 %1$s · %2$d BPM</string>
-    <string name="records_meta_section">구간 %1$s × %2$d회 · %3$d BPM</string>
     <string name="records_memo">“%1$s”</string>
     <string name="records_expanded">펼침</string>
     <string name="records_collapsed">접힘</string>
