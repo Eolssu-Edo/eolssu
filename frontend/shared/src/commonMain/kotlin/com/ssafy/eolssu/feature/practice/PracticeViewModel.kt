@@ -524,8 +524,7 @@ class PracticeViewModel(
         sectionSeekPending = true
         stopJangdan()
         _uiState.value = state.stopAtSectionStart()
-        modelAudio.pause()
-        modelAudio.seekToTick(tick)
+        modelAudio.pauseAtTick(tick)
         modelStartsAtAttack = true
     }
 
@@ -700,8 +699,8 @@ class PracticeViewModel(
         if (tick >= ticks.endInclusive) {
             when (state.mode) {
                 PracticeMode.Model -> {
-                    modelAudio.pause()
-                    song.timeline.getOrNull(state.sectionStartIndex)?.startTick?.let { modelAudio.seekToTick(it.toDouble()) }
+                    val start = song.timeline.getOrNull(state.sectionStartIndex)?.startTick
+                    if (start != null) modelAudio.pauseAtTick(start.toDouble()) else modelAudio.pause()
                     modelStartsAtAttack = true
                 }
                 PracticeMode.Rhythm -> pauseRhythm()
@@ -859,7 +858,8 @@ class PracticeViewModel(
 
     fun toggleModel() {
         if (!accountScope.isActive) return
-        if (_uiState.value.playing) modelAudio.pause() else startModel()
+        // 재생 중 −5초·+5초로 새 자리를 불러오는 동안에도 재생 중으로 보고 멈춘다(S15P31E102-807).
+        if (_uiState.value.playing || _uiState.value.modelSeekBuffering) modelAudio.pause() else startModel()
     }
 
     fun restartModel() {
