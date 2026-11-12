@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [오선보 황 기준 선택 제거·원음 가져오기 (827)](plans/S15P31E102-827.md) · [확정 정책](specs/score-authoring-consistency.md#오선보-원음-가져오기-s15p31e102-827)
 - [마이페이지 최근 연주 조회 요청을 한 번으로 줄이기 (823)](plans/S15P31E102-823.md) · [카드 조회 스펙](specs/practice-records.md#마이페이지-최근-연주-카드)
 - [악보 음역 맞추기 입력판·추천 기준과 원본 음고 보존 (820)](knowledge/frontend/sheet-pitch-adaptation.md)
 - [인식 정간보의 장단 정정](specs/sheet-jangdan-correction.md) · [원인·검증 근거](knowledge/frontend/sheet-jangdan-correction.md) · [822 계획·검증](plans/S15P31E102-822.md)
