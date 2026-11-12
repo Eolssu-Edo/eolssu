@@ -84,7 +84,7 @@ internal fun learnStepCount(stage: Int, detail: LearnStageDetail, instrument: Gu
 }
 
 /**
- * 단계 화면 안에서 하는 연습(S15P31E102-688). 3·4·7단계는 할 일 박스 뒤에 연습 박스를 하나 더 두고, 펼치면 바로 듣기 시작해 판정한다.
+ * 단계 화면 안에서 하는 연습(S15P31E102-688). 3·4·7단계는 할 일 박스 뒤에 연습 박스를 하나 더 두고, '연습 시작'을 누르면 듣기 시작해 판정한다.
  * 5·6단계는 연습 박스 없이 할 일 박스 안에서 바로 판정한다([segment], S15P31E102-749).
  *
  * @property title 연습 박스 이름.
@@ -95,6 +95,7 @@ internal fun learnStepCount(stage: Int, detail: LearnStageDetail, instrument: Gu
  * @property primary 듣는 박스가 펼쳐졌거나 통과했을 때 아래 가운데 버튼('그만하기'·'다시 시작'·'다음 단계로' 등). null이면 '연습 시작'을 둔다.
  * @property passed 연습을 통과했다. 아래 가운데 버튼이 박스와 상관없이 [primary]가 된다.
  * @property onUndo 할 일 박스([Int]번)의 체크를 풀었을 때 판정도 그 박스 처음으로 되돌린다(5·6단계).
+ * @property start 박스가 접힌 채 '연습 시작'을 누르면 박스를 펼치면서 함께 듣기를 시작한다(판정할 수 없으면 아무것도 하지 않는다).
  */
 class StepPractice(
     val title: String,
@@ -104,6 +105,7 @@ class StepPractice(
     val primary: (@Composable (Modifier) -> Unit)? = null,
     val passed: Boolean = false,
     val onUndo: (Int) -> Unit = {},
+    val start: () -> Unit = {},
     val content: @Composable () -> Unit,
 )
 

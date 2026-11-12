@@ -278,6 +278,16 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, m
 }
 
 /**
+ * 단계 그림 카드: 목록 카드와 같은 흰 바탕·둥근 모서리에 그림을 [LearnCardArtInset]만큼 줄여 놓는다.
+ * 단계 상세 머리·과제 안내도 이 카드를 써서 목록 카드와 같은 모습으로 보인다(S15P31E102-793).
+ */
+@Composable
+internal fun LearnStageArtCard(stage: Int, modifier: Modifier, corner: Dp = 20.dp) {
+    val shape = RoundedCornerShape(corner)
+    LearnStageArt(stage, modifier.clip(shape).background(EolssuTheme.colors.surface), inset = LearnCardArtInset)
+}
+
+/**
  * 단계 그림을 [inset] 비율로 줄여 가운데에 그린다(1이면 꽉 채운다). 단계 카드·상세 머리·과제 안내에 쓴다. 바탕은 투명이라 놓인 곳의 색이 비친다.
  */
 @Composable

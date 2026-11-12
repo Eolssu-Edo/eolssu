@@ -212,4 +212,18 @@ class LearnUiStateTest {
             stages.map { it.primaryAction },
         )
     }
+
+    @Test
+    fun stageTwoGripKeepsOnlyFirstSentence() {
+        val tasks = listOf(
+            LearnTask("앉은 자세", "허리를 펴고 어깨 힘을 빼요. 발은 바닥에 둬요."),
+            LearnTask("악기 잡기", "세로로 세워 잡아요. 뒷구멍은 왼손 엄지로 막아요."),
+            LearnTask("복식호흡", null),
+        )
+        val shown = stageTwoTasks(tasks)
+        assertEquals("세로로 세워 잡아요.", shown[1].detail)
+        assertEquals(tasks[0], shown[0])
+        assertEquals(tasks[2], shown[2])
+        assertEquals("문장 끝이 없는 설명", firstSentence("문장 끝이 없는 설명"))
+    }
 }

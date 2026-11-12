@@ -106,7 +106,7 @@ internal fun LearnExpandedLayout(
                         learnStageTitle(stage),
                         onBack = null,
                         modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 20.dp, end = outer - 20.dp),
-                        subtitle = learnStageSubtitle(state, stage),
+                        subtitle = learnStageSubtitle(stage),
                         maxWidth = Dp.Infinity,
                     )
                     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
