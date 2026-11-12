@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [원본 기준 이조와 옥타브 조정 확인 화면 구현 (771)](plans/S15P31E102-771.md)
 - [연주 분석 대기 화면의 붓 일원상·퍼센트 진행률 (777)](plans/S15P31E102-777.md)
 - [연습 기록 상세 미리보기 회귀 테스트 복구 (780)](plans/S15P31E102-780.md)
 - [홈 기능 카드 그림을 서로 다른 모양으로 바꾸고 카드 제목 키우기 (779)](plans/S15P31E102-779.md)
@@ -456,3 +457,4 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [S15P31E102-787 지원음 API·확정 저장 검증](plans/S15P31E102-787.md)
 - [악보 작성 결과 재분할과 의존 관계](plans/score-authoring-partition.md)
 - [악보 작성 일관성 스펙](specs/score-authoring-consistency.md) · [조사 근거](knowledge/frontend/score-authoring-consistency.md)
+- [S15P31E102-788 원본 음고 전달·불변 보존](plans/S15P31E102-788.md)

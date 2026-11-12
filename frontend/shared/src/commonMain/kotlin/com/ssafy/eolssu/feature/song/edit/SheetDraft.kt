@@ -93,6 +93,7 @@ data class SheetDraft(
     val original: CommonScoreData? = null,
     val jangdanId: String? = null,
     internal val editedJangdanName: String? = null,
+    val authoring: kotlinx.serialization.json.JsonObject? = null,
 ) {
     init {
         require(cells.isNotEmpty() && (columnSizes?.let { it.all { n -> n > 0 } && it.sum() == cells.size } ?: (cells.size % requireNotNull(jangdan).gak == 0)))

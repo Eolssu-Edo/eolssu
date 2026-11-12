@@ -61,6 +61,17 @@ def page_png(mode):
     return buf.getvalue() + mode.ljust(12).encode("ascii")
 
 
+@pytest.fixture(autouse=True)
+def capture_omr_logs(caplog):
+    # The service intentionally does not propagate to the root logger.
+    # Capture its real handler path without changing production logging behavior.
+    staff_engine.log.addHandler(caplog.handler)
+    try:
+        yield
+    finally:
+        staff_engine.log.removeHandler(caplog.handler)
+
+
 @pytest.fixture
 def fake_audiveris(tmp_path, monkeypatch):
     script = tmp_path / "audiveris.py"
@@ -94,10 +105,14 @@ def test_staff_page_becomes_common_score(fake_audiveris):
     assert out["status"] == "DONE" and out["engine"] == "audiveris"
     assert out["score"]["provenance"]["converter"] == f"staff-omr/audiveris-{staff_engine.AUDIVERIS_VERSION}"
     assert out["score"]["provenance"]["review"] == "inferred"
-    # 오나라는 박자표가 없어 굿거리(12/8)로 추정했고, 단소 5율에 맞춰 6반음 옮겼다
+    # 박자 추정은 유지하지만 사용자가 검토하기 전 음고는 바꾸지 않는다.
     assert out["score"]["music"]["jangdan"] == "굿거리"
     kinds = {i["kind"] for i in out["notices"]}
-    assert "TRANSPOSED" in kinds
+    assert "TRANSPOSED" not in kinds
+    originals = {p['eventId']: p['midi'] for p in out['sourcePitches']}
+    for event in out['score']['events']:
+        if event['kind'] == 'NOTE':
+            assert 63 + staff_engine.staff_musicxml.YUL.index(event['yul']) + 12 * event['octave'] == originals[event['id']]
     assert guessed(out) == [{"source": "rhythm", "jangdan": "굿거리"}]
     assert sum(e["kind"] == "NOTE" for e in out["score"]["events"]) == 66
 

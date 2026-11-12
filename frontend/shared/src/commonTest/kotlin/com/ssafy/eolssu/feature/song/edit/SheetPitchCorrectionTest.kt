@@ -141,4 +141,21 @@ class SheetPitchCorrectionTest {
         assertEquals(source.events.map { Triple(it.id, it.kind, it.durationTick) }, edited.events.map { Triple(it.id, it.kind, it.durationTick) })
         assertEquals(rest, edited.columns[1].cells.single().units.single().eventId)
     }
+    @Test fun missingNotationRendersOriginalPitchWithoutRewritingDraft() {
+        for (octave in listOf(2, 3)) {
+            val source = smallScoreData().let { original -> original.copy(
+                columns = original.columns.map { column -> column.copy(cells = column.cells.map { cell ->
+                    cell.copy(units = cell.units.map { it.copy(symbol = "") })
+                }) },
+                events = original.events.map { it.copy(kind = "NOTE", yul = "대", octave = octave) },
+            ) }
+            val draft = source.editingDraft("표시 확인", 60, null)
+            val before = draft.toCommonScore()
+            val shown = draft.renderEditingScore().columns.first().first().notes.first()
+            assertEquals(com.ssafy.eolssu.core.model.ScoreNote.SourcePitch("대", octave), shown)
+            assertTrue(shown.symbol.isNotBlank())
+            assertEquals(before, draft.toCommonScore())
+        }
+    }
+
 }
