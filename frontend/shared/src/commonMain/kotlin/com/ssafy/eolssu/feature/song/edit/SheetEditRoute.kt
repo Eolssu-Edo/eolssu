@@ -204,7 +204,7 @@ fun SheetEditRoute(
             SheetCompletionNotice(
                 state,
                 onFixCells = { saveOpen = false; viewModel.openCompletionIssue(); focusRequestKey++ },
-                onChangeJangdan = { saveOpen = false; detailsOpen = true },
+                onChangeJangdan = { saveOpen = false; viewModel.changeJangdan() },
                 onClearJangdan = viewModel::clearJangdan,
                 onRetryCatalog = viewModel::retryCompletionCatalog,
             )
@@ -225,7 +225,7 @@ fun SheetEditRoute(
         SheetCompletionNotice(
             state,
             onFixCells = { correctionOpen = false; focusRequestKey++ },
-            onChangeJangdan = { correctionOpen = false; detailsOpen = true },
+            onChangeJangdan = { correctionOpen = false; viewModel.changeJangdan() },
             onClearJangdan = viewModel::clearJangdan,
             onRetryCatalog = viewModel::retryCompletionCatalog,
             showCellAction = false,

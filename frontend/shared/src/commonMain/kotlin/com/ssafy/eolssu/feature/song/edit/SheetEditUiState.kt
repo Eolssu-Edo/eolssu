@@ -7,6 +7,8 @@ import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.song.CatalogInstrument
 import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import com.ssafy.eolssu.data.song.validCatalogId
+import kotlin.math.log2
+import kotlin.math.roundToInt
 
 /** EDIT-02 아래 입력판의 탭. */
 enum class EditTab { Adaptation, Yul, Sigimsae, Cell }
@@ -224,7 +226,11 @@ data class SheetEditUiState(
     val canCheckSelectedReviewIssue: Boolean
         get() = !confirming && selectedReviewIssue?.id in completionValidation.checkableIssueIds
 
-    /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. */
+    internal fun applyAdaptation(plan: PitchAdaptationPlan, capability: com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities): SheetEditUiState =
+        commit(draft.applyAdaptation(plan, capability)).copy(
+            adaptation = null, tab = EditTab.Yul, instrumentPitches = capability.selectablePitches,
+        )
+
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. 고른 소박은 그 정간이 여전히 나뉘어 있을 때만 남긴다. */
     private fun commit(next: SheetDraft, selected: Int = this.selected, sub: Int? = if (selected == this.selected) selectedSub else null): SheetEditUiState {
         val index = selected.coerceIn(0, next.cells.lastIndex)
@@ -242,13 +248,18 @@ data class SheetEditUiState(
     }
 
     /** 한 번 확인한 칸도 내용이나 시김새를 바꾸거나 실행 취소하면 다시 확인한다. */
-    private fun checkedIssuesAfter(next: SheetDraft): Set<String> = checkedIssueIds.filterTo(mutableSetOf()) { id ->
-        val issue = reviewIssues.firstOrNull { it.id == id } ?: return@filterTo false
-        val before = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
-        val after = next.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
-        draft.cells[before] == next.cells[after] &&
-            draft.sigimsae.filterKeys { it.cell == before }.mapKeys { it.key.sub } ==
-            next.sigimsae.filterKeys { it.cell == after }.mapKeys { it.key.sub }
+    private fun checkedIssuesAfter(next: SheetDraft): Set<String> {
+        if (checkedIssueIds.isEmpty()) return emptySet()
+        val beforePitches = draft.reviewSoundingPitches() ?: return emptySet()
+        val afterPitches = next.reviewSoundingPitches() ?: return emptySet()
+        return checkedIssueIds.filterTo(mutableSetOf()) { id ->
+            val issue = reviewIssues.firstOrNull { it.id == id } ?: return@filterTo false
+            val before = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
+            val after = next.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
+            draft.cells[before] == next.cells[after] && beforePitches[before] == afterPitches[after] &&
+                draft.sigimsae.filterKeys { it.cell == before }.mapKeys { it.key.sub } ==
+                next.sigimsae.filterKeys { it.cell == after }.mapKeys { it.key.sub }
+        }
     }
 
     fun select(index: Int): SheetEditUiState = copy(selected = index.coerceIn(0, draft.cells.lastIndex), selectedSub = null)
@@ -433,6 +444,20 @@ data class SheetEditUiState(
         }
     }
 }
+
+/** 이음 자리와 악기 기준음 변경도 검토한 실제 음고에 반영한다. */
+private fun SheetDraft.reviewSoundingPitches(): List<List<Int?>>? = runCatching {
+    val score = toCommonScore()
+    val hwangMidi = (69 + 12 * log2(score.music.hwangHz / 440.0)).roundToInt()
+    val events = score.events.associateBy { it.id }
+    score.columns.flatMap { it.cells }.map { cell ->
+        cell.units.map { unit ->
+            events[unit.eventId]?.takeIf { it.kind == "NOTE" }?.let { note ->
+                hwangMidi + "황대태협고중유임이남무응".indexOf(requireNotNull(note.yul)) + 12 * requireNotNull(note.octave)
+            }
+        }
+    }
+}.getOrNull()
 
 internal val SheetBpmRange = 1..Int.MAX_VALUE
 
