@@ -279,22 +279,25 @@ private fun LoginOption(label: String, checked: Boolean, onChange: (Boolean) -> 
     }
 }
 
-/** 비밀번호 찾기 | 회원가입(`.au-links`). 두 링크는 같은 글자 크기·굵기·색이다. */
+/**
+ * 비밀번호 찾기 | 회원가입(`.au-links`). 두 링크는 같은 글자 크기·굵기·색이다.
+ * 글자 길이가 달라도 '|'가 화면 가운데(간편 로그인 줄·가운데 버튼과 같은 축)에 오도록 양쪽을 같은 너비로 나눠 안쪽으로 붙인다(S15P31E102-798).
+ */
 @Composable
 private fun Links(onFindPassword: () -> Unit, onSignUp: () -> Unit, modifier: Modifier) {
     val colors = EolssuTheme.colors
     val style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium)
-    Row(
-        modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        LinkButton(stringResource(Res.string.auth_find_password), onFindPassword) {
-            Text(it, style = style, color = colors.textMuted)
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            LinkButton(stringResource(Res.string.auth_find_password), onFindPassword) {
+                Text(it, style = style, color = colors.textMuted)
+            }
         }
         Text("|", style = style, color = colors.lineSoft)
-        LinkButton(stringResource(Res.string.auth_signup_link), onSignUp) {
-            Text(it, style = style, color = colors.textMuted)
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            LinkButton(stringResource(Res.string.auth_signup_link), onSignUp) {
+                Text(it, style = style, color = colors.textMuted)
+            }
         }
     }
 }
