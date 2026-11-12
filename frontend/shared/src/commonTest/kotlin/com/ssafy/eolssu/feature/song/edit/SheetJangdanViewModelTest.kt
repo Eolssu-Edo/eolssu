@@ -10,8 +10,8 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
-    private val compatible = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 6, 2)
-    private val incompatible = CatalogJangdanSummary("5", "중모리", 90, "QUARTER", 12, 4)
+    private val compatible = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 3, 1, 1)
+    private val incompatible = CatalogJangdanSummary("5", "중모리", 90, "QUARTER", 12, 4, 2)
 
     @Test fun changingJangdanLoadsChoicesAndPreservesTimingThroughDraftAndFinalSave() = runTest {
         val original = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
@@ -74,7 +74,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
 
     @Test fun choosingTheCurrentJangdanDoesNotWriteAndUndoRestoresBothIdAndName() = runTest {
         val repository = RecordingDocuments(smallScoreData(), jangdanId = "3")
-        val initial = CatalogJangdanSummary("3", "세마치", 80, "DOTTED_QUARTER", 6, 2)
+        val initial = CatalogJangdanSummary("3", "세마치", 80, "DOTTED_QUARTER", 3, 1, 1)
         val catalog = JangdanCatalog(listOf(initial, compatible))
         val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
             SampleMySheetRepository(), documents = repository, pitchCatalog = catalog))

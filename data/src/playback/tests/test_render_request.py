@@ -19,6 +19,20 @@ from data.src.playback.tests._helpers import score, synthetic_sampler
 
 
 class RenderRequestTests(unittest.TestCase):
+    def test_jajintaryeong_keeps_catalog_pattern_and_explicit_cell_duration(self):
+        catalog = json.loads((Path(__file__).resolve().parents[3] / 'reference' / 'jangdans.json').read_text(encoding='utf-8'))
+        row = next(row for row in catalog['rows'] if row['name'] == '자진타령')
+        source = common_small_score()
+        source['music']['bpmUnit'] = 'DOTTED_QUARTER'
+        request = {'score': source, 'bpm': 60, 'jangdan': {
+            'name': row['name'], 'bpmUnit': row['bpm_unit'], 'pattern': row['pattern'],
+            'patternCellEighths': row['pattern_cell_eighths']}}
+        events = jangdan_events(request, 8)
+        self.assertEqual(events[0][:2], (0, '덩'))
+        self.assertEqual(events[len(events) // 2][0], 4)
+        self.assertEqual([(round(at + 4, 9), stroke) for at, stroke, _ in events[:len(events) // 2]],
+                         [(round(at, 9), stroke) for at, stroke, _ in events[len(events) // 2:]])
+
     def test_four_quarter_accompaniment_uses_score_tempo_and_preserves_each_stroke(self):
         request = {'score': common_small_score(), 'bpm': 160,
                    'jangdan': {'name': '4박 기본 반주', 'bpmUnit': 'QUARTER',
@@ -128,6 +142,7 @@ class RenderRequestTests(unittest.TestCase):
     def test_jangdan_repeats_at_score_cycle_not_catalog_default_bpm(self):
         request = {'score': common_notes(), 'bpm': 60, 'jangdan': {
             'name': '중모리', 'bpmUnit':'QUARTER',
+            'patternCellEighths': 2,
             'pattern': {'beats': ['덩', '덕'], 'group': [2]}}}
         events = jangdan_events(request, 5)
         self.assertEqual([(round(at, 3), stroke) for at, stroke, _ in events],

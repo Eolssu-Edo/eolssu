@@ -40,11 +40,10 @@ def jangdan_events(request, seconds):
     units={'QUARTER':Fraction(1),'DOTTED_QUARTER':Fraction(3,2)}
     require(music['bpmUnit'] in units and jangdan['bpmUnit'] in units, 'Unsupported beat unit')
     catalog_bpm=Fraction(request['bpm'])*units[music['bpmUnit']]/units[jangdan['bpmUnit']]
-    from data.src.audio.jangdan_audio import CELLS
-    name = '자진모리' if jangdan['name']=='자진타령' else jangdan['name']
-    require(name in CELLS, 'Unsupported jangdan')
-    duration, events = rhythm_plan({'name': name, 'default_bpm': catalog_bpm,
-                                  'bpm_unit': CELLS[name][0], 'pattern': jangdan['pattern']})
+    duration, events = rhythm_plan({'name': jangdan['name'], 'default_bpm': catalog_bpm,
+                                  'bpm_unit': jangdan['bpmUnit'], 'pattern': jangdan['pattern'],
+                                  **({'pattern_cell_eighths': jangdan['patternCellEighths']}
+                                     if 'patternCellEighths' in jangdan else {})})
     cycle_seconds=float(duration)
     output = []
     for repeat in range(max(0, math.ceil(seconds / cycle_seconds))):

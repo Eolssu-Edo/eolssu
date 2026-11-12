@@ -109,16 +109,18 @@ class JangdanTableTests(unittest.TestCase):
                 "중모리": (88, "QUARTER", 12), "자진모리": (96, "DOTTED_QUARTER", 12),
                 "중중모리": (80, "DOTTED_QUARTER", 12), "엇모리": (90, "QUARTER", 10),
                 "단모리": (120, "QUARTER", 8), "타령": (48, "QUARTER", 12),
-                "계면가락도드리": (48, "QUARTER", 12), "세령산": (63, "QUARTER", 10)}
+                "계면가락도드리": (48, "QUARTER", 12), "세령산": (63, "QUARTER", 10),
+                "자진타령": (60, "DOTTED_QUARTER", 12), "4박 기본 반주": (160, "QUARTER", 4)}
 
     def test_jangdans_match_planning_tempo_and_unit(self):
         rows = {r["name"]: r for r in load("jangdans.json")["rows"]}
         self.assertEqual(set(rows), set(self.EXPECTED))
         for name, (bpm, unit, _) in self.EXPECTED.items():
             row = rows[name]
-            self.assertEqual(set(row), {"name", "pattern", "default_bpm", "bpm_unit", "source"})
+            self.assertEqual(set(row), {"name", "pattern", "default_bpm", "bpm_unit", "source", "pattern_cell_eighths"})
             self.assertEqual((row["default_bpm"], row["bpm_unit"]), (bpm, unit), name)
             self.assertTrue(row["source"], name)
+            self.assertEqual(row["pattern_cell_eighths"], 3 if name == "세령산" else 2 if name in ("중모리", "4박 기본 반주") else 1)
 
     def test_pattern_length_and_groups_cover_one_cycle(self):
         for row in load("jangdans.json")["rows"]:

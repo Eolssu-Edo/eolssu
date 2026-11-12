@@ -59,6 +59,7 @@ class EditUserSheet(
     private val scores: SheetScores,
     private val clock: Clock,
     private val json: JsonMapper = JsonMapper.builder().build(),
+    private val jangdanValidation: SheetJangdanValidation? = SheetJangdanValidation(json),
 ) {
     fun save(command: SaveSheetScoreCommand): SaveSheetScoreResult {
         if (command.scoreJson.toByteArray().size > MAX_SCORE_BYTES) return SaveSheetScoreResult.TooLarge
@@ -81,11 +82,11 @@ class EditUserSheet(
             is PreparedScore.Unfilled -> return SaveSheetScoreResult.UnfilledCells(result.cellIds)
             PreparedScore.Malformed -> return SaveSheetScoreResult.InvalidRequest
         }
-        if (command.jangdanId != null) {
-            val jangdan = repository.findJangdan(command.jangdanId) ?: return SaveSheetScoreResult.NotFound
-            // 장단을 바꾸면 앱이 그 장단으로 칸과 tick을 다시 만든다. 악보가 다른 장단이면 정간 수가 맞지 않는다.
+        val jangdan = command.jangdanId?.let { repository.findJangdan(it) ?: return SaveSheetScoreResult.NotFound }
+        if (jangdan != null) {
             if (prepared.jangdanName != jangdan.name || prepared.bpmUnit != jangdan.bpmUnit) return SaveSheetScoreResult.InvalidRequest
         }
+        if (jangdanValidation?.valid(prepared.json, jangdan) == false) return SaveSheetScoreResult.InvalidRequest
         val events = scores.timeline(prepared.json, version, prepared.noteCount, command.bpm, prepared.bpmUnit)
             ?: return SaveSheetScoreResult.InvalidRequest
 

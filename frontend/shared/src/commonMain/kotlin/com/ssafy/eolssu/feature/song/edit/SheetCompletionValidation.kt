@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song.edit
 import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import com.ssafy.eolssu.data.song.CommonScoreData
 import com.ssafy.eolssu.data.song.ScoreDataException
+import com.ssafy.eolssu.data.song.jangdanCycleTicks
 import com.ssafy.eolssu.core.model.ScoreNote
 import kotlin.math.abs
 
@@ -55,9 +56,9 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     }.mapTo(mutableSetOf(), SheetReviewIssue::id)
     val pending = reviewIssues.filter { it.id !in checkedIssueIds || it.id !in checkable }
     val jangdan = availableJangdans?.firstOrNull { it.jangdanId == draft.jangdanId }
-    val mismatch = draft.jangdanId != null && when {
-        jangdan != null -> !draft.isCompatibleWith(jangdan)
-        else -> reviewNotices.any { it.type == "JANGDAN_MISMATCH" }
+    val mismatch = if (draft.jangdanId == null) completionCatalogState == SheetCompletionCatalogState.Ready && draft.jangdanName.isNotEmpty() else when {
+        jangdan != null -> jangdan.name != draft.jangdanName || !draft.isCompatibleWith(jangdan)
+        else -> completionCatalogState == SheetCompletionCatalogState.Ready || reviewNotices.any { it.type == "JANGDAN_MISMATCH" }
     }
     val structureCell = (structureError as? ScoreDataException)?.location?.let { location ->
         cells?.indexOfFirst { it.id == location || location.startsWith("${it.id}-") }?.takeIf { it >= 0 }
@@ -158,20 +159,9 @@ internal fun SheetDraft.isCompatibleWith(jangdan: CatalogJangdanSummary): Boolea
     val music = original?.music ?: return false
     if (jangdan.bpmUnit != music.bpmUnit || jangdan.beatCount <= 0) return false
     val ticks = music.ticksPerJeonggan.toLong()
-    val beat = music.ticksPerBeat.toLong()
-    val seryeongsanCell = jangdan.name == "세령산" && ticks * 2 == beat * 3
-    if (ticks <= 0 || beat <= 0 || (ticks != beat && ticks * 2 != beat && ticks * 3 != beat && !seryeongsanCell)) return false
-    // data/reference/jangdans.json과 OMR 엔진의 칸 음가. 8분음표 단위로 정수 비교한다.
-    val cellEighths = jangdan.patternCellEighths() ?: return false
-    val beatEighths = when (jangdan.bpmUnit) {
-        "QUARTER" -> 2
-        "DOTTED_QUARTER" -> 3
-        else -> return false
-    }
-    val expected = jangdan.beatCount.toLong() * beat * cellEighths
-    // 마지막의 짧은 각은 끝마침·못갖춘마디일 수 있으므로 새 오류로 만들지 않는다.
-    return sizes.withIndex().all { (index, count) ->
-        val actual = count.toLong() * ticks * beatEighths
-        actual == expected || (index == sizes.lastIndex && actual < expected)
-    }
+    if (ticks !in 1..1_000_000_000L) return false
+    val cycle = jangdanCycleTicks(jangdan.beatCount, jangdan.patternCellEighths, music.bpmUnit, music.ticksPerBeat.toLong()) ?: return false
+    val first = original.events.firstOrNull() ?: return false
+    if (first.cellId != "c0-j0" || first.startTick != 0L) return false
+    return sizes.isNotEmpty() && sizes.all { it > 0 && it.toLong() * ticks % cycle == 0L }
 }

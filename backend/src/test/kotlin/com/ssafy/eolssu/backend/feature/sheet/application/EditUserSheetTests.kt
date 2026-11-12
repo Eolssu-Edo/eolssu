@@ -25,7 +25,7 @@ class EditUserSheetTests {
     private val now = Instant.parse("2026-11-03T03:10:00.123456789Z")
     private val repository = Sheets()
     private val scores = Scores()
-    private val service = EditUserSheet(repository, scores, Clock.fixed(now, ZoneOffset.UTC))
+    private val service = EditUserSheet(repository, scores, Clock.fixed(now, ZoneOffset.UTC), jangdanValidation = null)
 
     private fun save(
         sheetId: Long = 701,

@@ -125,12 +125,12 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         assertEquals(original.score?.events, confirmed.uiState.value.draft.toCommonScore().events)
     }
 
-    @Test fun compatibleJangdanUsesDottedQuarterPatternLengthAndAllowsAShortLastColumn() {
+    @Test fun partialFinalColumnIsNotACompleteJangdanCycle() {
         val draft = smallScoreData().editingDraft("검사", 60, null).copy(jangdanId = "3")
-        val compatible = CatalogJangdanSummary("3", "세마치", 60, "DOTTED_QUARTER", 6, 2)
+        val compatible = CatalogJangdanSummary("3", "세마치", 60, "DOTTED_QUARTER", 6, 2, 1)
         val state = SheetEditUiState(EditSource.Mine("31"), draft,
             availableJangdans = listOf(compatible), reviewNotices = listOf(SheetReviewNotice("JANGDAN_MISMATCH", null, null, null, null)))
-        assertTrue(state.completionValidation.canComplete, "2박 각과 마지막 1박 각은 6개 패턴의 점4분음표 장단과 맞는다")
+        assertFalse(state.completionValidation.canComplete, "마지막 1박 각은 2박 장단의 완전한 주기가 아니다")
         assertFalse(draft.isCompatibleWith(compatible.copy(beatCount = 12)))
         val unsupportedRatio = draft.copy(original = draft.original?.let { it.copy(music = it.music.copy(ticksPerBeat = 6)) })
         assertFalse(unsupportedRatio.isCompatibleWith(compatible.copy(beatCount = 4)), "각 길이만 맞아도 정간 2/3박은 허용하지 않는다")
@@ -317,7 +317,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
             SampleMySheetRepository(), documents = repository, pitchCatalog = catalog))
 
     private fun document(jangdanId: String? = null, issues: List<JsonObject> = emptyList(), notices: List<JsonObject> = emptyList()) =
-        SheetDocument("31", "검사 악보", jangdanId, 60, "1", smallScoreData(), null, "NEEDS_REVIEW", "DONE", issues, notices)
+        SheetDocument("31", "검사 악보", jangdanId, 60, "1", smallScoreData().let { if (jangdanId == null) it.copy(music = it.music.copy(jangdan = "")) else it }, null, "NEEDS_REVIEW", "DONE", issues, notices)
 
     private fun issue(kind: String) = json("""{"issueId":"i1","cellId":"c0-j0","type":"$kind"}""")
     private fun notice(kind: String) = json("""{"type":"$kind"}""")

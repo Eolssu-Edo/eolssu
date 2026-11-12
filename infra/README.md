@@ -33,7 +33,7 @@ Mattermost 명령 3개와 HTTPS 인증서·중계 서비스·edo1 전용 SSH 수
 | --- | --- |
 | `docker-compose.dev.yml` / `docker-compose.prod.yml` | 개발·운영의 백엔드와 Nginx 구성 |
 | `.env.dev.example` / `.env.prod.example` | Compose 치환용 환경변수 예시 |
-| `backend/Dockerfile` / `backend/.dockerignore` | JDK 21 빌드, JRE 21 실행(녹음 검사용 ffmpeg 버전 고정 설치), 소스·Wrapper만 포함하는 빌드 컨텍스트. 서버의 `/opt/eolssu/config/backend.Dockerfile`과 맞춘다 |
+| `backend/Dockerfile` / `backend/Dockerfile.dockerignore` | JDK 21 빌드, JRE 21 실행(녹음 검사용 ffmpeg 버전 고정 설치), 소스·Wrapper·공통 카탈로그만 포함하는 저장소 루트 빌드 컨텍스트. 서버의 `/opt/eolssu/config/backend.Dockerfile`과 맞춘다 |
 | `ai/Dockerfile` / `ai/.dockerignore` | AI 분석 API 실행 이미지(백엔드와 같은 Ubuntu 26.04·ffmpeg 버전 고정, 사용자 10001, 포트 8000 미공개). Compose에는 아직 없다. [실행 방법](../ai/README.md#실행-이미지) |
 | `infra/nginx/default.conf` | URI를 유지해 `backend:8080`으로 전달하는 HTTP 프록시 |
 | `backend/Jenkinsfile` | 백엔드 검증·이미지 빌드·JAR 보관 |
@@ -64,7 +64,7 @@ test -e .env.prod || (umask 077; cp .env.prod.example .env.prod)
 ```sh
 docker compose --env-file .env.dev.example -f docker-compose.dev.yml config --quiet
 docker compose --env-file .env.prod.example -f docker-compose.prod.yml config --quiet
-docker build --tag eolsu-backend:check backend
+docker build --file backend/Dockerfile --tag eolsu-backend:check .
 docker run --rm --network none \
   --mount "type=bind,src=$(pwd)/infra/nginx/default.conf,dst=/etc/nginx/conf.d/default.conf,readonly" \
   nginx:1.30.6-alpine nginx -t

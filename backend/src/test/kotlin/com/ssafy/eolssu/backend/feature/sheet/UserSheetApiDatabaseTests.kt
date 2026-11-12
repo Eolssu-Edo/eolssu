@@ -333,6 +333,44 @@ class UserSheetApiDatabaseTests {
     }
 
     @Test
+    fun `new saves allow first rest but reject name-only and incomplete final jangdan cycles`() {
+        val id = insertBlank(OWNER, "장단 시작 검사")
+        val four = json.readTree(requireNotNull(javaClass.getResourceAsStream("/jangdan-playback/authoring-772.json"))) as ObjectNode
+        val notes = four.path("events").filter { it.path("kind").asString() == "NOTE" }
+        notes.forEach { (it as ObjectNode).put("yul", "황").put("octave", 1) }
+        val noteIds = notes.map { it.path("id").asString() }.toSet()
+        four.path("columns").flatMap { it.path("cells").toList() }.forEach { cell -> cell.path("units").forEach { unit ->
+            if (unit.path("eventId").asString() in noteIds && unit.path("eventId").asString() ==
+                "${cell.path("id").asString()}-r${unit.path("row").asInt()}-u${unit.path("col").asInt()}") (unit as ObjectNode).put("symbol", "청황")
+        } }
+        val fourId = jdbc.queryForObject("SELECT id FROM jangdans WHERE name='4박 기본 반주'", Long::class.java)!!
+        val nameOnly = json.readTree(scoreBody("1", four, jangdan = fourId)) as ObjectNode
+        nameOnly.putNull("jangdanId")
+        assertEquals(400, send(OWNER, "PUT", "/api/users/me/sheets/$id/score", json.writeValueAsString(nameOnly)).statusCode())
+        val short = four.deepCopy()
+        val last = short.path("columns").path(1).path("cells") as tools.jackson.databind.node.ArrayNode
+        last.remove(3)
+        val shortEvents = short.path("events") as tools.jackson.databind.node.ArrayNode
+        shortEvents.remove(shortEvents.size() - 1)
+        assertEquals(400, send(OWNER, "PUT", "/api/users/me/sheets/$id/score", scoreBody("1", short, jangdan = fourId)).statusCode())
+        assertEquals(1, count("SELECT score_version FROM user_sheets WHERE id=$id"))
+
+        val saved = send(OWNER, "PUT", "/api/users/me/sheets/$id/score", scoreBody("1", four, jangdan = fourId))
+        assertEquals(200, saved.statusCode(), saved.body())
+        val timeline = json.readTree(saved.body()).path("result").path("events")
+        assertEquals("REST", timeline.path(0).path("kind").asString())
+        assertEquals(1.5, timeline.first { it.path("kind").asString() == "NOTE" }.path("onsetBeat").doubleValue())
+        val stored = json.readTree(get(OWNER, "/api/users/me/sheets/$id/score").body()).path("result").path("scoreData")
+        assertEquals(four.path("events"), stored.path("events"))
+        assertEquals(four.path("columns"), stored.path("columns"))
+        val none = four.deepCopy().also { (it.path("music") as ObjectNode).put("jangdan", "") }
+        val without = json.readTree(scoreBody("2", none, jangdan = fourId)) as ObjectNode
+        without.putNull("jangdanId")
+        assertEquals(200, send(OWNER, "PUT", "/api/users/me/sheets/$id/score", json.writeValueAsString(without)).statusCode())
+        assertEquals(3, count("SELECT score_version FROM user_sheets WHERE id=$id"))
+    }
+
+    @Test
     fun `the draft columns cannot hold a draft without its base version`() {
         val sheetId = insertSongCopy(OWNER, "아리랑 연습")
 

@@ -30,7 +30,11 @@ class SheetAudioConfig {
     @Bean fun sheetAudioJangdans(jangdans: JangdanMapper,json: JsonMapper)=SheetAudioJangdanResolver { sheet ->
         val row=sheet.jangdanId?.let(jangdans::findById) ?: return@SheetAudioJangdanResolver null
         val pattern=json.readTree(row.pattern)
-        SheetAudioJangdan(row.name,row.bpmUnit,JangdanPlaybackPattern(pattern.path("beats").toList().map { it.asString() },pattern.path("group").toList().map { it.intValue() }))
+        if (!SheetJangdanValidation(json).valid(sheet.scoreJson ?: return@SheetAudioJangdanResolver null,
+            SheetJangdan(row.id,row.bpmUnit,row.name,row.pattern))) return@SheetAudioJangdanResolver null
+        val cell = com.ssafy.eolssu.backend.feature.catalog.domain.JangdanTimingCatalog.cellEighths(row.name,row.bpmUnit,pattern)
+            ?: return@SheetAudioJangdanResolver null
+        SheetAudioJangdan(row.name,row.bpmUnit,JangdanPlaybackPattern(pattern.path("beats").toList().map { it.asString() },pattern.path("group").toList().map { it.intValue() }), cell)
     }
     @Bean fun sheetAudios(mapper: SheetAudioMapper,sheets: UserSheetRepository,scores: SheetScores,jangdans: SheetAudioJangdanResolver,storage: SheetSourceStorage,
         client: PlaybackClient,json: JsonMapper,clock: Clock,manager: PlatformTransactionManager,
