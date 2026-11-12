@@ -35,6 +35,8 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(),
             documents = repository, pitchCatalog = catalog, loadAudioInstruments = { listOf(CatalogInstrument("1", "DANSO", "단소")) }))
         runCurrent()
+        assertEquals(EditTab.Adaptation, model.uiState.value.tab, "처음에는 음역 맞추기 입력판을 연다")
+        assertNotNull(model.uiState.value.adaptation)
         model.selectTab(EditTab.Adaptation); runCurrent(); model.selectAdaptationTranspose(4)
         assertEquals(EditTab.Adaptation, model.uiState.value.tab)
         val before = model.uiState.value.draft
