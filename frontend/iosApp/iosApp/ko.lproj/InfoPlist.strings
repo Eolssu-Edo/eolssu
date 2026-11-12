@@ -1,0 +1,2 @@
+/* 한국어 지역화. App Store 언어 표시는 번들의 .lproj로 정해진다(S15P31E102-814). 표시 이름은 Info.plist 값을 쓴다(개발 빌드가 바꿈). */
+"NSMicrophoneUsageDescription" = "연주를 녹음해 음정과 박자를 평가하는 데 마이크를 사용해요.";
