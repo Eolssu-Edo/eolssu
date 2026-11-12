@@ -81,12 +81,15 @@ fun RecordListRoute(
             RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection, onPracticeSection)
         } else {
             RecordListScreen(
-                state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort,
+                state, widthClass, onBack, onOpenGrowth, viewModel::toggle,
                 onOpenRecord = { id ->
                     viewModel.rememberDetailPreview(id)
                     onOpenRecord(id)
                 },
-                onRetry = viewModel::retry, onLoadMore = viewModel::loadMore, onInstrument = viewModel::changeInstrument,
+                onRetry = viewModel::retry, onLoadMore = viewModel::loadMoreGroup, onInstrument = viewModel::changeInstrument,
+                onToggleDay = viewModel::toggleDay,
+                onToggleName = viewModel::toggleNameOrder,
+                onSearch = viewModel::search,
             )
         }
     }
@@ -109,9 +112,6 @@ private fun RecordsTwoPaneRoute(
 ) {
     val selectedId = state.selectedRecordId
     val detailViewModel: RecordDetailViewModel = koinViewModel(key = "records-pane-$justSavedId") { parametersOf("") }
-    LaunchedEffect(state.newestLookupSongId, state.loading) {
-        viewModel.loadNewestSelection()
-    }
     LaunchedEffect(detailViewModel, selectedId) {
         selectedId?.let(viewModel::rememberDetailPreview)
         detailViewModel.show(selectedId.orEmpty())
@@ -133,12 +133,13 @@ private fun RecordsTwoPaneRoute(
         onBack = onBack,
         onOpenGrowth = onOpenGrowth,
         onToggle = viewModel::toggle,
-        onSort = viewModel::changeSort,
         onOpenRecord = viewModel::select,
         onRetry = viewModel::retry,
-        onLoadMore = viewModel::loadMore,
-        onRetryNewest = viewModel::loadNewestSelection,
+        onLoadMore = viewModel::loadMoreGroup,
         onInstrument = viewModel::changeInstrument,
+        onToggleDay = viewModel::toggleDay,
+        onToggleName = viewModel::toggleNameOrder,
+        onSearch = viewModel::search,
         detail = detail,
         detailActions = rememberRecordDetailActions(detailViewModel, onBack, onCompare, onSelectSection, onPracticeSection),
         snackbarHostState = snackbarHostState,
