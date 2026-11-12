@@ -49,6 +49,40 @@ def test_tiny_image_without_grid_is_not_an_engine_error(tmp_path,monkeypatch):
 
 
 @pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
+@pytest.mark.parametrize('width,accepted,expected', [
+    (1907, (2200, 2300), [84, 168, 84, 84]),
+    (3000, (1950, 2050), [150, 300, 150, 150]),
+])
+def test_image_grid_size_retry_keeps_boxes_in_original_coordinates(tmp_path,monkeypatch,width,accepted,expected):
+    from omr_service import jeongganbo_scan as scan
+    script=tmp_path/'reader.py'
+    script.write_text(f'''import json,sys
+from pathlib import Path
+from PIL import Image
+with Image.open(sys.argv[1]) as image:
+    if not {accepted[0]} <= image.width <= {accepted[1]}:
+        sys.exit(4)
+    if {width} == 3000 and '--grid-boxes' not in sys.argv:
+        sys.exit(4)
+out=Path(sys.argv[3]);out.mkdir(parents=True,exist_ok=True)
+cells=[dict(text='청태:5',conf=.2,ink=.1,x=100,y=200,w=100,h=100) for _ in range(8)]
+(out/'cells.json').write_text(json.dumps(dict(beats=4,cells=cells)))
+''',encoding='utf-8')
+    monkeypatch.setattr(scan,'READER',[sys.executable,str(script)])
+    monkeypatch.setenv('JEONGGANBO_OMR_DIR',str(tmp_path))
+    buf=io.BytesIO();Image.new('RGB',(width,2600),'white').save(buf,'PNG')
+    api.app.dependency_overrides[api.get_fetcher]=lambda:lambda url,p,limit,deadline:p.write_bytes(buf.getvalue())
+    try:
+        out=TestClient(api.app).post('/v1/recognitions',json=dict(conversionId='resized-grid',notation='JEONGGANBO',jangdan='4박 기본 반주',instrument='SOGEUM',files=[dict(url='https://local.invalid/page.png',contentType='image/png')])).json()
+    finally:
+        api.app.dependency_overrides.clear()
+    assert out['status']=='DONE',out
+    assert len(out['score']['events'])==8
+    assert out['issues'][0]['bbox']==expected
+    assert out['issues'][0]['cellId']=='c0-j0'
+
+
+@pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
 def test_image_scan_reaches_default_engine_and_preserves_issue_ids(tmp_path,monkeypatch):
     from omr_service import jeongganbo_scan as scan
     script=tmp_path/'reader.py'

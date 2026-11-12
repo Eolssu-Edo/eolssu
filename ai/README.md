@@ -107,6 +107,8 @@ backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/a
 
 오선보는 `smallHeads`·`smallBeams`를 켜서 꾸밈음을 구분합니다. Docker 이미지에는 Tesseract legacy 영어 데이터(`tessdata/4.1.0`)와 `TESSDATA_PREFIX`가 필요합니다. LSTM 전용 `tessdata_fast`로 대체하면 Audiveris의 OCR이 동작하지 않습니다. 빠르기 표시 혼입·성부 선택·초과 마디 재인식과 실제 PDF/PNG 대조 결과는 [806 검증 기록](../docs/knowledge/ai/score-recognition-corrections.md)을 참고합니다.
 
+S15P31E102-784는 짧은 마지막 악단, 긴 반주 아래의 주선율, 2600px 정간보 이미지와 얇은 선·여러 단의 격자 재시도를 보완합니다. 원래 크기에서 성공하면 이전 경로를 유지하며, 실패한 경우에만 같은 쪽당 60초 안에서 추가 크기를 시도합니다. [제공 ZIP 검증 기록](../docs/knowledge/ai/score-archive-regression.md)에 변환 성공과 음표 정확도를 나눠 기록했습니다. 중청 율명의 PNG/JPEG 정확도는 글자층 PDF와 같지 않습니다.
+
 ```bash
 uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
 ```

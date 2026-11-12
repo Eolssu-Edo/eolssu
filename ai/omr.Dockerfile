@@ -23,7 +23,7 @@ RUN dpkg-deb -R /tmp/audiveris.deb /tmp/a && rm -f /tmp/a/DEBIAN/postinst /tmp/a
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libgtk-3-0t64=3.24.41-4ubuntu1.3 nodejs=18.19.1+dfsg-6ubuntu5 \
-        ca-certificates=20260816ubuntu0.24.04.1 git /tmp/aud.deb \
+        ca-certificates=20260816ubuntu0.24.04.2 git /tmp/aud.deb \
     && git clone --quiet https://github.com/danbinaerinHan/jeongganbo-generator.git /opt/jeongganbo-generator \
     && git -C /opt/jeongganbo-generator checkout --quiet ${JGB_GENERATOR_COMMIT} \
     && rm -rf /opt/jeongganbo-generator/.git \

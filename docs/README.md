@@ -471,6 +471,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 ## 악보 작성 결과별 작업 계획
 
+- [S15P31E102-784 제공 악보 ZIP 추가·편집 검증과 인식 오류 수정](plans/S15P31E102-784.md) · [검증 근거와 한계](knowledge/ai/score-archive-regression.md)
 - [S15P31E102-770 지원음 선택·미확인 음 교정 화면](plans/S15P31E102-770.md)
 - [S15P31E102-787 지원음 API·확정 저장 검증](plans/S15P31E102-787.md)
 - [악보 작성 결과 재분할과 의존 관계](plans/score-authoring-partition.md)
