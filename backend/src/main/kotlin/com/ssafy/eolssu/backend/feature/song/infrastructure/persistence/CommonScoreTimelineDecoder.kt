@@ -77,7 +77,8 @@ class CommonScoreTimelineDecoder(private val json: JsonMapper) : SongScoreDecode
                 if (pitch != null) {
                     usedPitches += pitch
                 } else {
-                    if (unregistered == null || yul !in registeredYuls || octave !in -2..2) throw InvalidStoredScore()
+                    // Recognition drafts preserve the original MIDI octave; final decoding still requires a registered pitch.
+                    if (unregistered == null || yul !in registeredYuls || octave !in -6..5) throw InvalidStoredScore()
                     unregistered += UnregisteredScorePitch(id, cellId, yul, octave)
                 }
                 ScoreTimelineEvent(id, kind, noteIndex++, pitch?.id?.toString(), column, cell, position.subIdx,

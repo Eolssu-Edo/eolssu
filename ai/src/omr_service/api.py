@@ -245,6 +245,7 @@ def _done(request: RecognitionIn, result: dict, pages: list[Page]) -> dict:
         "pages": [{"index": i, "width": p.width, "height": p.height} for i, p in enumerate(pages)],
         "jgb": result["jgb"],
         "score": result["score"],
+        "sourcePitches": result.get("sourcePitches", []),
         **_split_issues(result["issues"], result["score"]),
     }
 

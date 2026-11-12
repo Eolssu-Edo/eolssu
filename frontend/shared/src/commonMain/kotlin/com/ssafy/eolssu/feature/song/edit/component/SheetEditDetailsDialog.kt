@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.song.edit.component
 
 import androidx.compose.ui.graphics.Color
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -54,37 +55,38 @@ internal fun SheetEditDetailsDialog(
 
     EolssuDialog(
         title = stringResource(if (saveMode) Res.string.sheet_save_dialog_title else Res.string.sheet_details_edit),
-        modifier = Modifier.verticalScroll(rememberScrollState()),
         onDismissRequest = { if (!saving) onDismiss() },
     ) {
-        EolssuTextField(
-            value = title,
-            onValueChange = { if (!saving) title = it },
-            label = stringResource(Res.string.sheet_details_title),
-            placeholder = "",
-            error = if (validTitle == null) stringResource(Res.string.sheet_details_title_error) else null,
-            bordered = false,
-            containerColor = EolssuTheme.colors.groupedBackground,
-        )
-        EolssuTextField(
-            value = bpm,
-            onValueChange = { if (!saving) bpm = it },
-            label = stringResource(Res.string.sheet_details_bpm),
-            placeholder = "",
-            type = TextFieldType.Number,
-            imeAction = ImeAction.Done,
-            error = if (validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
-            bordered = false,
-            containerColor = EolssuTheme.colors.groupedBackground,
-        )
-        val estimate = validBpm?.let { durationSeconds?.invoke(it) }
-        if (estimate != null) {
-            Text(
-                stringResource(Res.string.sheet_save_estimated_duration, formatClock(estimate)),
-                style = MaterialTheme.typography.bodyMedium,
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+            EolssuTextField(
+                value = title,
+                onValueChange = { if (!saving) title = it },
+                label = stringResource(Res.string.sheet_details_title),
+                placeholder = "",
+                error = if (validTitle == null) stringResource(Res.string.sheet_details_title_error) else null,
+                bordered = false,
+                containerColor = EolssuTheme.colors.groupedBackground,
             )
+            EolssuTextField(
+                value = bpm,
+                onValueChange = { if (!saving) bpm = it },
+                label = stringResource(Res.string.sheet_details_bpm),
+                placeholder = "",
+                type = TextFieldType.Number,
+                imeAction = ImeAction.Done,
+                error = if (validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
+                bordered = false,
+                containerColor = EolssuTheme.colors.groupedBackground,
+            )
+            val estimate = validBpm?.let { durationSeconds?.invoke(it) }
+            if (estimate != null) {
+                Text(
+                    stringResource(Res.string.sheet_save_estimated_duration, formatClock(estimate)),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            notice()
         }
-        notice()
         EolssuButton(
             text = stringResource(when {
                 saving -> Res.string.sheet_completion_saving

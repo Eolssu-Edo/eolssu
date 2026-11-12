@@ -30,6 +30,7 @@ data class UserSheet(
     val draftRevision: Int = 0,
     /** 불러오기(SHT-07)로 만든 악보의 변환·원본 정보. MANUAL은 null. */
     val imported: SheetImportSource? = null,
+    val authoringJson: String? = null,
 )
 
 /** [fileName]은 첫 원본 파일 이름, [hwangPitch]는 오선보 요청 황종 음(없으면 null). */
@@ -75,6 +76,7 @@ data class SheetScoreUpdate(
     val updatedAt: Instant,
     val pendingCellCount: Int = 0,
     val conversionResultJson: String? = null,
+    val authoringJson: String? = null,
 )
 
 data class SheetDraftUpdate(

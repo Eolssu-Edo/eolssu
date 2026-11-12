@@ -63,7 +63,29 @@ def recognize(job) -> dict:
                        "detail": {"jangdan": jangdan, "jeongganPerGak": conv.beats_per_gak}})
     doc, score = lines_to_score(conv.lines, request, jangdan, lambda _: bpj, deadline,
                                 f"staff-omr/audiveris-{AUDIVERIS_VERSION}")
-    return {"engine": ENGINE, "engineVersion": AUDIVERIS_VERSION, "jgb": doc, "score": score, "issues": issues}
+    restore_source_pitches(score, conv.source_pitches, request.hwang_pitch)
+    return {"engine": ENGINE, "engineVersion": AUDIVERIS_VERSION, "jgb": doc, "score": score, "issues": issues,
+            "sourcePitches": conv.source_pitches}
+
+
+def restore_source_pitches(score, originals, hwang_pitch):
+    """Common-score drafts retain original pitches, even when their glyph is unavailable."""
+    hwang = staff_musicxml.DEFAULT_HWANG if hwang_pitch is None else hwang_pitch
+    score['music']['hwangHz'] = 440 * 2 ** ((hwang - 69) / 12)
+    by_id = {item['eventId']: item for item in originals}
+    unresolved = set()
+    for event in score['events']:
+        if event['kind'] != 'NOTE' or event['id'] not in by_id:
+            continue
+        semitone = by_id[event['id']]['midi'] - hwang
+        event['yul'], event['octave'] = staff_musicxml.YUL[semitone % 12], semitone // 12
+        if not -2 <= event['octave'] <= 2:
+            unresolved.add(event['id'])
+    for column in score['columns']:
+        for cell in column['cells']:
+            for unit in cell['units']:
+                if unit['eventId'] in unresolved and unit['symbol'] != '-':
+                    unit['symbol'] = ''  # editable unresolved slot, not an octave-clamped note
 
 
 def _read_pages(job, deadline, page_time_s):

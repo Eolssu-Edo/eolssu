@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
+import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetPitchCorrectionDialog
 import eolssu.shared.generated.resources.Res
@@ -67,7 +68,7 @@ fun SheetEditRoute(
     var pitchCorrection by remember { mutableStateOf<SheetPitchCorrection?>(null) }
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
-    BackHandler(enabled = state.draft.original != null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
+    BackHandler(enabled = state.draft.original != null && state.adaptation == null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
     if (state.documentLoading || state.documentFailed) {
         SheetDocumentNotice(state.documentLoading, onClose, viewModel::loadDocument)
         return
@@ -90,19 +91,21 @@ fun SheetEditRoute(
     LaunchedEffect(state.message) {
         val message = state.message?.takeIf { it.shownInEditor() } ?: return@LaunchedEffect
         val text = messages[message] ?: return@LaunchedEffect
-        viewModel.consumeMessage()
         // 저장하기가 끝나면 편집기를 닫고 연습곡 고르기 '내 악보' 목록으로 간다(S15P31E102-768).
         if (message in setOf(SheetEditMessage.Saved, SheetEditMessage.SavedForPractice, SheetEditMessage.SavedNeedsReview)) {
+            viewModel.consumeMessage()
             saveOpen = false
             onSaved()
             return@LaunchedEffect
         }
         if (saveOpen && message in setOf(SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge)) {
             saveError = text
+            viewModel.consumeMessage()
             return@LaunchedEffect
         }
         snackbarHostState.currentSnackbarData?.dismiss()
         snackbarHostState.showSnackbar(text)
+        viewModel.consumeMessage()
     }
     SheetEditScreen(
         state = state,
@@ -237,7 +240,16 @@ fun SheetEditRoute(
             detailsOpen = false
         },
         onDismiss = { detailsOpen = false; viewModel.closeJangdanPicker() },
+        onAdapt = { detailsOpen = false; viewModel.closeJangdanPicker(); viewModel.openAdaptation() },
     )
+    state.adaptation?.let { panel -> SheetAdaptationDialog(panel,
+        onInstrument = viewModel::selectAdaptationInstrument, onTranspose = viewModel::selectAdaptationTranspose,
+        onApply = viewModel::applyAdaptation, onDismiss = viewModel::closeAdaptation, onRetry = viewModel::openAdaptation,
+        onLocate = { cellId ->
+            val index = state.draft.sourceCellIds?.indexOf(cellId) ?: -1
+            viewModel.applyAdaptation()
+            if (index >= 0) { viewModel.selectCell(index); focusRequestKey++ }
+        }) }
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
             onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)
