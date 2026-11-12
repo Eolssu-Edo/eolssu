@@ -8,7 +8,8 @@ from pathlib import Path
 PPQN = 14400
 MIDI_TEMPO_MAX = 0xFFFFFF
 PROFILES = {path.stem: json.loads(path.read_text(encoding="utf-8"))
-            for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))}
+            for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))
+            if path.name != "authoring-policy.json"}
 YUL = dict(zip("黃大太夾姑仲蕤林夷南無應", range(12)))
 
 

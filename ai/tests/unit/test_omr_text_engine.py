@@ -63,6 +63,7 @@ def post(data, **override):
     ("자진모리", 4, Fraction(1)), ("중중모리", 4, Fraction(1)), ("자진타령", 4, Fraction(1)),
     ("엇모리", 10, Fraction(1, 2)), ("단모리", 4, Fraction(1)), ("타령", 12, Fraction(1, 2)),
     ("계면가락도드리", 12, Fraction(1, 2)), ("세령산", 10, Fraction(3, 2)),
+    ("4박 기본 반주", 4, Fraction(1)),
 ])
 def test_beats_per_jeonggan_follows_jangdan(jangdan, per_gak, beats):
     # catalog 설명의 소박 음가: 8분음표, 중모리는 4분음표, 세령산은 점4분음표.

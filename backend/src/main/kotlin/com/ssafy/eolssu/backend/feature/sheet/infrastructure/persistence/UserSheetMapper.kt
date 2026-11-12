@@ -76,9 +76,10 @@ data class UserSheetRow(
     val hwangPitch: String?,
     val sourceFileName: String?,
     val conversionResultJson: String?,
+    val authoringJson: String?,
 )
 
-data class SheetJangdanRow(val id: Long, val bpmUnit: String, val name: String)
+data class SheetJangdanRow(val id: Long, val bpmUnit: String, val name: String, val pattern: String)
 
 data class SheetScoreUpdateRow(
     val sheetId: Long,
@@ -94,6 +95,7 @@ data class SheetScoreUpdateRow(
     val noteCount: Int,
     val updatedAt: LocalDateTime,
     val pendingCellCount: Int = 0,
+    val authoringJson: String? = null,
 )
 
 data class SheetDraftUpdateRow(

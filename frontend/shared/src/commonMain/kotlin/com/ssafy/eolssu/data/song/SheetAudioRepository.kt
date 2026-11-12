@@ -92,7 +92,7 @@ data class SheetAudio(
     val audio: SheetAudioFile? = null,
 )
 
-/** SHT-12 요청 본문. null인 칸은 보내지 않아 서버 기본값(단소, 악보 bpm)을 쓴다. [withJangdan]은 장단 없는 악보에 true면 400이다. */
+/** SHT-12 요청 본문. null인 칸은 보내지 않아 서버 기본값(악보 악기, 악보 bpm)을 쓴다. [withJangdan]은 장단 없는 악보에 true면 400이다. */
 data class SheetAudioSettings(val instrumentId: String? = null, val withJangdan: Boolean = false, val bpm: Int? = null)
 
 /**
@@ -106,6 +106,7 @@ sealed interface SheetAudioRequest {
     data object TooLong : SheetAudioRequest
 
     /** 400 `INVALID_REQUEST`: 장단 없는 악보에 장단 소리, bpm 범위 밖(30~160) 등. */
+    data class UnsupportedPitches(val details: AuthoringPitchRejection) : SheetAudioRequest
     data object InvalidRequest : SheetAudioRequest
 
     /** 404: 악보가 없거나 남의 것, 없는 악기. */
@@ -160,7 +161,14 @@ class ApiSheetAudioRepository(
         } ?: return@inSession SheetAudioRequest.Unavailable
         when (response.status.value) {
             200, 202 -> response.audio(sheetId)?.let { SheetAudioRequest.Accepted(it) } ?: SheetAudioRequest.Unavailable
-            400 -> if (response.errorCode() == "EXPORT_TOO_LONG") SheetAudioRequest.TooLong else SheetAudioRequest.InvalidRequest
+            400 -> {
+                val error = response.apiResponse<AuthoringError>()?.result
+                when {
+                    error?.authoringRejection != null -> SheetAudioRequest.UnsupportedPitches(requireNotNull(error.authoringRejection))
+                    error?.errorCode == "EXPORT_TOO_LONG" -> SheetAudioRequest.TooLong
+                    else -> SheetAudioRequest.InvalidRequest
+                }
+            }
             404 -> SheetAudioRequest.NotFound
             409 -> when (response.errorCode()) {
                 "AUDIO_IN_PROGRESS" -> SheetAudioRequest.InProgress

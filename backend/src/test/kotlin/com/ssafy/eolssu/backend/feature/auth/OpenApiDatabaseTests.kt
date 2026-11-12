@@ -98,13 +98,13 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(79,expected.size)
+        assertEquals(80,expected.size)
         assertTrue(expected.containsAll(setOf("get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score",
             "put /api/users/me/sheets/{sheetId}/score", "put /api/users/me/sheets/{sheetId}/score/draft", "delete /api/users/me/sheets/{sheetId}",
             "post /api/users/me/sheets/copies", "post /api/users/me/sheets/imports", "get /api/users/me/sheets/{sheetId}/conversion", "post /api/users/me/sheets/{sheetId}/conversion/retry",
             "post /api/users/me/sheets/{sheetId}/audio", "get /api/users/me/sheets/{sheetId}/audio")))
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
-            "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/jangdans/{jangdanId}",
+            "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/instruments/{instrumentId}/authoring-capabilities", "/api/jangdans/{jangdanId}",
             "/api/notation-symbols", "/api/jangdans", "/api/reference-audios", "/api/reference-audios/{assetId}")
         assertTrue(expected.containsAll(catalogPaths.map { "get $it" }))
         assertEquals(expected,actual)
@@ -214,7 +214,7 @@ open class OpenApiDatabaseTests {
         assertEquals("binary",multipart.path("properties").path("audio").path("format").asString())
         val details=doc.path("components").path("schemas").path("ApiErrorResult")
         assertTrue(details.path("properties").has("details"))
-        assertEquals(6,details.path("properties").path("details").path("oneOf").size())
+        assertEquals(7,details.path("properties").path("details").path("oneOf").size())
         assertFalse(details.path("required").any { it.asString() == "details" })
         val session=doc.path("components").path("schemas").path("PracticeSessionResult")
         assertTrue(session.path("properties").path("evaluationId").path("nullable").asBoolean(),session.toString())
