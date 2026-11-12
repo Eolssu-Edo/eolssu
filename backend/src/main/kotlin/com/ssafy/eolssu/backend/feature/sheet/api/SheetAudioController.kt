@@ -35,7 +35,7 @@ class SheetAudioController(private val audio: SheetAudios) {
         val message=if(status==HttpStatus.ACCEPTED) "음원 생성 요청 접수" else "음원 상태 조회 성공"
         ResponseEntity.status(status).cacheControl(CacheControl.noStore()).body(SuccessResponse.of(status,message,body))
     } catch(error: SheetAudioRejection) {
-        ResponseEntity.status(error.code.status).cacheControl(CacheControl.noStore()).body(ErrorResponse.of(error.code))
+        ResponseEntity.status(error.code.status).cacheControl(CacheControl.noStore()).body(ErrorResponse.of(error.code, error.details))
     }
     private fun id(value: String): Long=value.takeIf { it.matches(Regex("[1-9][0-9]{0,17}")) }?.toLong() ?: invalid()
     private fun invalid(): Nothing=throw SheetAudioRejection(ErrorCode.INVALID_REQUEST)
