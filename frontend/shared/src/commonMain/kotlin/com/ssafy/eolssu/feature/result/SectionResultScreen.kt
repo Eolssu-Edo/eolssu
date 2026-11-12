@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuStartTopBar
@@ -48,6 +49,7 @@ import com.ssafy.eolssu.data.practice.CheckLoad
 import com.ssafy.eolssu.data.practice.SectionEvaluation
 import com.ssafy.eolssu.data.practice.SessionCheck
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.result_home
 import eolssu.shared.generated.resources.weak_load_missing
 import eolssu.shared.generated.resources.weak_result_compare_failed
 import eolssu.shared.generated.resources.weak_result_compare_rejected
@@ -70,13 +72,16 @@ import org.jetbrains.compose.resources.stringResource
 /** 구간 재평가 결과에서 부르는 동작. */
 class SectionResultActions(
     val onBack: () -> Unit,
+    /** 오른쪽 위 홈(연주 결과와 같은 자리). */
+    val onHome: () -> Unit = {},
     val onOtherSection: () -> Unit,
     val onWholeSong: () -> Unit,
     val onSelectFilter: (ErrorFilter) -> Unit = {},
 )
 
 /**
- * RESULT-04 구간 재평가 결과(S15P31E102-776, 와이어프레임 ⑤ · 연주 결과 틀). 왼쪽 정렬 머리 ‘곡 · 2–3각 · 58 BPM / 구간 재평가 결과’ ·
+ * RESULT-04 구간 재평가 결과(S15P31E102-776, 와이어프레임 ⑤ · 연주 결과 틀). 왼쪽 정렬 머리 ‘곡 · 2–3각 · 58 BPM / 구간 재평가 결과’와 오른쪽 위 홈 ·
+ * 머리는 연주 결과처럼 뒤로 가기 없이 왼쪽 끝에서 시작한다(S15P31E102-808). 결과를 불러오는 중이거나 없으면 뒤로 가기를 둔다 ·
  * 연주 결과와 같은 점수 상자(일원상 구간 점수 · 항목 막대 · ‘이 구간 다시 연습’) · 회색 칸의 틀린 음 비교(EVA-04) ·
  * 5칸 틀린 종류 필터 · 구간 정간보(보기 전용) · 다음 단계 한 줄 · ‘다른 구간 고르기 ›’, 아래 ‘곡 전체 다시 평가’.
  * 점수는 서버 값만 쓰고 화면에서 계산하지 않는다. 구간 재평가는 연습 기록으로 저장하지 않아(S15P31E102-343) 저장 버튼은 두지 않는다.
@@ -98,8 +103,13 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
                         stringResource(Res.string.weak_result_subtitle_plain, it.song.title, it.bpm)
                     }
                 } ?: stringResource(Res.string.weak_result_title),
-                onBack = actions.onBack,
+                onBack = actions.onBack.takeIf { evaluation == null },
                 subtitle = stringResource(Res.string.weak_result_title).takeIf { evaluation != null },
+                right = {
+                    if (evaluation != null) {
+                        EolssuIconButton(EolssuIcons.House, stringResource(Res.string.result_home), actions.onHome, bordered = false)
+                    }
+                },
             )
         },
         bottomBar = if (evaluation != null) {

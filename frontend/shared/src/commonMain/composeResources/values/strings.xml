@@ -679,6 +679,7 @@
     <string name="practice_dock_info">%1$s · %2$d BPM · %3$s</string>
     <string name="practice_dock_hint">악보의 음을 누르면 그 음의 운지법이 이 자리에 열려요.</string>
     <string name="practice_dock_locked">연주 중에는 장단과 속도를 바꿀 수 없어요.</string>
+    <string name="error_segment_title">틀린 부분</string>
     <string name="error_segment_all">전체</string>
     <string name="error_segment_pitch">음정</string>
     <string name="error_segment_rhythm">박자</string>
