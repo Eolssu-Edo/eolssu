@@ -82,6 +82,7 @@ data class PracticeDraft(
  * @property fingeringOverride 저장한 설정 대신 이 화면에서만 쓰는 '운지법과 함께 보기'. 기초부터 배우기 곡 연습은 켠 채로 시작한다.
  * @property sheetTitle 내 악보 제목(예: ‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다.
  * @property step 2차 '한 음씩 따라 불기' 상태(`PracticeStep.kt`).
+ * @property sectionPractice ‘구간 연습’(`PracticeSection.kt`, S15P31E102-776). null이면 곡 전체를 연습한다.
  */
 data class PracticeUiState(
     val song: Song? = null,
@@ -97,6 +98,7 @@ data class PracticeUiState(
     val fingeringOverride: Boolean? = null,
     val sheetTitle: String? = null,
     val step: PracticeStep = PracticeStep(),
+    val sectionPractice: PracticeSectionState? = null,
     val settings: PracticeSettings = PracticeSettings(),
     val mode: PracticeMode = PracticeMode.Ready,
     val playing: Boolean = false,
@@ -136,6 +138,11 @@ data class PracticeUiState(
     val modelClock: ModelClock? = null,
     /** 기기 음원 저장을 지원하는 내 악보 연습에만 표시한다. */
     val personalAudio: PracticePersonalAudio? = null,
+    /**
+     * 속도를 앞 화면에서 정해 이 화면에서는 바꾸지 않는다(구간 재평가는 구간 고르기에서 정한다, S15P31E102-776).
+     * 설정 시트·태블릿 상태 패널이 속도 줄을 잠그고 그 까닭을 연주 중 잠금과 다르게 쓴다.
+     */
+    val tempoFixed: Boolean = false,
 ) {
     val jangdanProblem: Boolean get() = !jangdanSupported || jangdanStatus in setOf(JangdanStatus.Failed, JangdanStatus.Unsupported, JangdanStatus.Interrupted)
 
@@ -169,7 +176,10 @@ data class PracticeUiState(
             else -> GuideInstrument.DaegeumJeongak
         }
 
-    val canSelectUnit: Boolean get() = mode == PracticeMode.Ready && !stepBusy
+    /** 악보를 눌러 음을 고를 수 있는지. 구간 연습 중에는 모범 연주·장단 연습을 멈춘 동안에도 구간을 고를 수 있다. */
+    val canSelectUnit: Boolean
+        get() = !stepBusy && (mode == PracticeMode.Ready ||
+            sectionPractice != null && !playing && (mode == PracticeMode.Model || mode == PracticeMode.Rhythm))
 
     val scoreSelection: ScorePosition?
         get() = selectedCell.takeIf { mode == PracticeMode.Ready && stepCurrentIndex == null }
@@ -192,6 +202,9 @@ data class PracticeUiState(
      */
     val playbackSettingsLocked: Boolean
         get() = mode == PracticeMode.Recording || mode == PracticeMode.Countdown || mode == PracticeMode.Interrupted
+
+    /** 속도 줄을 잠그는지: 평가 연주 중이거나 [tempoFixed]. */
+    val tempoLocked: Boolean get() = playbackSettingsLocked || tempoFixed
 
     /** 이어서 연주하려고 카운트다운하는 중. 하단은 연주 중 모습을 유지한다. */
     val resuming: Boolean get() = mode == PracticeMode.Countdown && resume
@@ -296,20 +309,21 @@ fun PracticeUiState.selectPlaybackMode(target: PracticeMode): PracticeUiState {
         pausedFraction = currentEventFraction.toFloat(), follow = true)
 }
 
-/** 모범 연주 시작. 준비 상태면 처음부터, 이미 모범 연주 중이면 그 자리부터. */
+/** 모범 연주 시작. 준비 상태면 처음부터(구간 연습이면 구간 처음부터), 이미 모범 연주 중이면 그 자리부터. */
 fun PracticeUiState.startModel(): PracticeUiState {
-    val base = if (mode == PracticeMode.Ready) copy(mode = PracticeMode.Model, position = 0, elapsedMs = 0.0, eventElapsedMs = 0.0, pausedFraction = 0f) else this
+    val base = if (mode == PracticeMode.Ready) copy(mode = PracticeMode.Model, position = sectionStartIndex, elapsedMs = 0.0, eventElapsedMs = 0.0, pausedFraction = 0f) else this
     return base.copy(panel = null, playing = true, follow = true)
 }
 
 /** 모범 연주 일시정지·다시 재생. 끝까지 들은 뒤 재생하면 처음부터. */
 fun PracticeUiState.toggleModel(): PracticeUiState = when {
     playing -> copy(playing = false, eventStartedAt = null, pausedFraction = currentEventFraction.toFloat())
-    position >= eventCount - 1 && currentEventFraction >= 1.0 -> copy(playing = true, position = 0, elapsedMs = 0.0, eventElapsedMs = 0.0, pausedFraction = 0f)
+    position >= eventCount - 1 && currentEventFraction >= 1.0 -> copy(playing = true, position = sectionStartIndex, elapsedMs = 0.0, eventElapsedMs = 0.0, pausedFraction = 0f)
     else -> copy(playing = true)
 }
 
-fun PracticeUiState.restartModel(): PracticeUiState = copy(position = 0, elapsedMs = 0.0, eventElapsedMs = 0.0, eventStartedAt = null, follow = true, pausedFraction = 0f)
+fun PracticeUiState.restartModel(): PracticeUiState =
+    copy(position = sectionStartIndex, elapsedMs = 0.0, eventElapsedMs = 0.0, eventStartedAt = null, follow = true, pausedFraction = 0f).restartSectionRounds()
 
 /** 듣기 종료: 준비 상태로 돌아가고 듣던 자리의 음을 골라 둔다. */
 fun PracticeUiState.stopModel(): PracticeUiState = copy(
@@ -484,7 +498,7 @@ fun PracticeUiState.seekSelection(deltaMs: Long): PracticeUiState {
 
 /** 패널 열기. 평가 중 속도 패널만 제한하고 저장된 값을 표시한다. */
 fun PracticeUiState.openPanel(panel: PracticePanel): PracticeUiState {
-    if (playbackSettingsLocked && panel == PracticePanel.Tempo) return this
+    if (tempoLocked && panel == PracticePanel.Tempo) return this
     val song = song
     val draft = when (panel) {
         PracticePanel.Notation -> draft.copy(showHangul = settings.showHangul)

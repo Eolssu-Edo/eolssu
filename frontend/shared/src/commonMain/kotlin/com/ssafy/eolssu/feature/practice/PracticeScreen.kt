@@ -44,6 +44,8 @@ import com.ssafy.eolssu.feature.practice.component.PracticeRecordingBar
 import com.ssafy.eolssu.feature.practice.component.PracticePlaybackLoadingOverlay
 import com.ssafy.eolssu.feature.practice.component.PracticeStepPanels
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
+import com.ssafy.eolssu.feature.practice.component.PracticeSectionBar
+import com.ssafy.eolssu.feature.practice.component.PracticeSectionToggle
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleToggles
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.component.reportUserActivity
@@ -165,7 +167,9 @@ private fun PracticeCompactLayout(
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
         containerColor = EolssuTheme.colors.groupedBackground,
-        topBar = { PracticeTopBar(state, actions.onBack, actions.onOpenSettings, onToggleStep = actions.bottom.onToggleStep) },
+        topBar = {
+            PracticeTopBar(state, actions.onBack, actions.onOpenSettings, onToggleStep = actions.bottom.onToggleStep, showSectionToggle = false)
+        },
         bottomBar = if (recordingBar) { { PracticeRecordingBar(state, actions.bottom) } } else null,
     ) {
         Box(Modifier.fillMaxSize()) {
@@ -178,7 +182,10 @@ private fun PracticeCompactLayout(
                     state,
                     showPill = false,
                     toggles = if (state.showsTitleToggles) PracticeTitleToggles(actions.panel.onToggleFingeringView, actions.onToggleHangul) else null,
+                    trailing = if (state.solo && !state.learn) { { PracticeSectionToggle(state, actions.bottom.onToggleSection) } } else null,
                 )
+                // 구간 연습(S15P31E102-776): 제목 아래 안내·‘취약 구간으로’·반복 횟수.
+                PracticeSectionBar(state, actions.bottom, Modifier.padding(top = 8.dp))
                 Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
                 if (fingering) {
                     PracticeFingeringPage(state, actions.onSelectUnit, modifier = Modifier.weight(1f))

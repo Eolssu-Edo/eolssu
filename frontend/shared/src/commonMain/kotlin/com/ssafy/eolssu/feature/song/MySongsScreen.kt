@@ -35,8 +35,8 @@ import com.ssafy.eolssu.feature.song.component.providedSongMeta
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
-import com.ssafy.eolssu.feature.song.component.SongSearchField
-import com.ssafy.eolssu.feature.song.component.SongSortButton
+import com.ssafy.eolssu.core.ui.component.SongSearchField
+import com.ssafy.eolssu.core.ui.component.SongSortButton
 import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel

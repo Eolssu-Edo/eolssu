@@ -11,13 +11,13 @@ import org.koin.core.parameter.parametersOf
 /**
  * PRACTICE-02 취약 구간 선택 연결. [sourceId]는 평가·기록의 연습 세션 ID다.
  *
- * @param onStart ‘구간 연습 시작’ → PRACTICE-03 구간 반복. 반복 횟수 null은 ‘계속’이다.
+ * @param onEvaluate ‘구간 재평가’ → 같은 구간·속도의 구간 재평가.
  */
 @Composable
 fun SectionSelectRoute(
     sourceId: String,
     onBack: () -> Unit,
-    onStart: (section: ScoreSection, bpm: Int, repeats: Int?) -> Unit,
+    onEvaluate: (section: ScoreSection, bpm: Int) -> Unit,
     perf: PerformanceVisit? = null,
     viewModel: SectionSelectViewModel = koinViewModel(key = "section-select-$sourceId") { parametersOf(sourceId, perf) },
 ) {
@@ -27,13 +27,13 @@ fun SectionSelectRoute(
         actions = SectionSelectActions(
             onBack = onBack,
             onTap = viewModel::tap,
-            onToggleLoop = viewModel::toggleLoop,
-            onRepeat = viewModel::selectRepeat,
+            onReset = viewModel::resetToRecommended,
+            onFilter = viewModel::selectFilter,
             onSpeed = viewModel::selectSpeed,
-            onStart = {
+            onEvaluate = {
                 val section = state.section
                 val bpm = state.bpm
-                if (state.canStart && section != null && bpm != null) onStart(section, bpm, state.repeats)
+                if (state.canStart && section != null && bpm != null) onEvaluate(section, bpm)
             },
         ),
     )
