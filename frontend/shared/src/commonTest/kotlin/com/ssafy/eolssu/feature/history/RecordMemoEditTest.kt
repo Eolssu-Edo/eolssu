@@ -13,7 +13,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
-/** 기록 상세 메모 창의 읽기 → 고치기 → 저장·취소·실패(S15P31E102-819). */
+/** 기록 상세 메모 창의 읽기 → 고치기 → 저장·취소·실패(S15P31E102-819), 빈 메모도 읽기로 열기(S15P31E102-825). */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class RecordMemoEditTest : CatalogViewModelTest() {
     private val song = SampleSongs.first()
@@ -101,17 +101,27 @@ internal class RecordMemoEditTest : CatalogViewModelTest() {
         assertEquals(RecordMemoState(), model.uiState.value.memo)
     }
 
-    @Test fun recordWithoutMemoOpensEditingAndClearingClosesWindow() = runTest {
+    @Test fun recordWithoutMemoOpensReadingAndEditsOnlyAfterPencil() = runTest {
         val repo = Records(record.copy(memo = ""))
         val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository()))
         runCurrent()
-        // 메모가 없는 기록은 바로 고치기로 열고, 취소하면 창을 닫는다.
+        // 메모가 없는 기록도 읽기로 열고, 연필 버튼을 누르기 전에는 저장을 받지 않는다.
         model.openMemo()
+        assertEquals(RecordMemoState(), model.uiState.value.memo)
+        model.saveMemo("첫 메모")
+        runCurrent()
+        assertTrue(repo.sent.isEmpty())
+        assertEquals(RecordMemoState(), model.uiState.value.memo)
+        // 연필 버튼으로 고치기에 들어가고, 취소하면 읽기로 돌아간다.
+        model.editMemo()
         assertEquals(RecordMemoState(editing = true), model.uiState.value.memo)
         model.cancelMemoEdit()
+        assertEquals(RecordMemoState(), model.uiState.value.memo)
+        model.closeMemo()
         assertNull(model.uiState.value.memo)
 
         model.openMemo()
+        model.editMemo()
         model.saveMemo("첫 메모")
         runCurrent()
         assertEquals("첫 메모", model.uiState.value.record?.memo)

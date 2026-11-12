@@ -43,12 +43,20 @@ open class GetPracticeRecords(
             items = page.map { RecordListItem(it, cached.rangeOf(it)) },
             totalElements = total,
             totalPages = if (total == 0) 0 else (total + query.size - 1) / query.size,
-            week = query.weekOf?.let { day ->
-                val monday = day.minusDays((day.dayOfWeek.value - 1).toLong())
-                val from = monday.atStartOfDay().minusHours(9) // KST 자정을 DB의 UTC 시각으로 변환한다.
-                records.savedRecordWeek(userId, from, from.plusWeeks(1))
-            },
+            week = query.weekOf?.let { savedWeek(userId, it) },
         )
+    }
+
+    @Transactional(readOnly = true)
+    open fun recent(userId: Long, weekOf: LocalDate): RecentRecordSummary {
+        val latest = records.latestSavedRecord(userId)?.let { RecordListItem(it, columns.rangeOf(it)) }
+        return RecentRecordSummary(latest, savedWeek(userId, weekOf))
+    }
+
+    private fun savedWeek(userId: Long, day: LocalDate): SavedRecordWeek {
+        val monday = day.minusDays((day.dayOfWeek.value - 1).toLong())
+        val from = monday.atStartOfDay().minusHours(9) // KST 자정을 DB의 UTC 시각으로 변환한다.
+        return records.savedRecordWeek(userId, from, from.plusWeeks(1))
     }
 }
 
@@ -64,6 +72,8 @@ data class RecordListQuery(
 )
 
 data class RecordListItem(val record: RecordSession, val columns: ColumnRange?)
+
+data class RecentRecordSummary(val latest: RecordListItem?, val week: SavedRecordWeek)
 
 data class RecordList(
     val totalRecordCount: Int,

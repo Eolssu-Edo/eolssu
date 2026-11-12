@@ -38,7 +38,7 @@ object ProfileDestination {
  * 로그아웃·탈퇴 신청은 쌓인 화면을 모두 비우고 로그인 화면(AUTH-04)으로 간다.
  * 첫 실행을 마친 기기는 앱을 다시 켜면 홈에서 시작하며, 회원 요청은 서버 쿠키로 인증한다.
  */
-fun NavGraphBuilder.profileGraph(navController: NavController) {
+fun NavGraphBuilder.profileGraph(navController: NavController, onLogOutStarted: () -> Unit) {
     val toLogin: (StartNotice) -> Unit = { notice ->
         navController.navigateWithNotice(AuthDestination.LOGIN, notice) {
             popUpTo(navController.graph.id) { inclusive = true }
@@ -61,6 +61,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
             },
             onLink = { navController.navigate(ProfileDestination.link(it)) },
             onOpenLegal = { navController.navigate(ProfileDestination.legal(it)) },
+            onLogOutStarted = onLogOutStarted,
             onLoggedOut = { toLogin(StartNotice.LoggedOut) },
             onSessionExpired = { toLogin(StartNotice.SessionExpired) },
             startMessage = entry.startNotice(),

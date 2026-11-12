@@ -38,6 +38,26 @@
         ORDER BY last_saved_at DESC, ps.song_id DESC
     </select>
 
+    <!-- (user_id, started_at)으로 최근 시각을 찾고, 그 시각의 행에서만 곡·세션 동률을 푼다. -->
+    <select id="latestSavedRecord" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.RecordSessionRow">
+        SELECT <include refid="recordColumns"/>
+        FROM practice_sessions ps
+        JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN song_score_versions v ON v.song_id = ps.song_id AND v.score_version = ps.score_version AND s.score_version &lt;&gt; ps.score_version
+        JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.user_id = #{userId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
+          AND ps.started_at = (
+              SELECT candidate.started_at
+              FROM practice_sessions candidate
+              JOIN evaluations candidate_eval ON candidate_eval.session_id = candidate.id
+              WHERE candidate.user_id = #{userId} AND candidate.saved_at IS NOT NULL AND candidate.record_deleted_at IS NULL
+              ORDER BY candidate.started_at DESC
+              LIMIT 1
+          )
+        ORDER BY ps.song_id DESC, ps.id DESC
+        LIMIT 1
+    </select>
+
     <select id="savedRecordWeek" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.SavedRecordWeekRow">
         SELECT COUNT(*) AS record_count, MAX(e.total_score) AS best_score
         FROM practice_sessions ps

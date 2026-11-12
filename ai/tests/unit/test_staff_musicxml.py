@@ -157,6 +157,23 @@ def test_tied_upper_pedal_does_not_outvote_moving_lower_melody():
     assert [n["midi"] for n in out.source_pitches] == [48, 50]
 
 
+def test_lower_quarter_note_melody_wins_when_a_few_half_notes_reduce_attack_ratio():
+    # Au clair의 상성부는 23회, 하성부는 44회라 시작 수만 보면 두 배에 못 미친다.
+    upper = note("E4", 8, voice=1) + note("G4", 8, voice=1)
+    lower = "<backup><duration>16</duration></backup>" + "".join(
+        note(p, d, voice=5) for p, d in (("C3", 4), ("D3", 4), ("E3", 8)))
+    out = convert(xml(measure(upper, lower, time=(4, 4))), instrument="ANY", hwang_pitch=60)
+    assert [n["midi"] for n in out.source_pitches] == [48, 50, 52]
+
+
+def test_more_lower_attacks_with_similar_note_lengths_keep_the_upper_voice():
+    upper = note("E4", 4, voice=1) + note("G4", 4, voice=1) + note("C5", 8, voice=1)
+    lower = "<backup><duration>16</duration></backup>" + "".join(
+        note(p, 4, voice=5) for p in ("C3", "D3", "E3", "C3"))
+    out = convert(xml(measure(upper, lower, time=(4, 4))), instrument="ANY", hwang_pitch=60)
+    assert [n["midi"] for n in out.source_pitches] == [64, 67, 72]
+
+
 def test_note_over_gak_line_is_written_again_at_next_gak():
     # 우물사이는 각을 넘어 잇지 않아(넘으면 쉼이 된다) 다음 각 처음에 같은 음을 다시 적는다
     doc = xml(measure(note("C4", 8), note("D4", 8, '<tie type="start"/>'), time=(4, 4)),

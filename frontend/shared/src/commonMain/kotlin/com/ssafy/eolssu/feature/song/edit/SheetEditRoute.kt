@@ -18,7 +18,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
-import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationDialog
+import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationPanel
+import eolssu.shared.generated.resources.sheet_adapt_confirm_title
+import eolssu.shared.generated.resources.sheet_adapt_confirm_message
+import eolssu.shared.generated.resources.sheet_adapt_confirm_overwrite
+import androidx.compose.ui.text.font.FontWeight
+import eolssu.shared.generated.resources.sheet_adapt_confirm_apply
+import eolssu.shared.generated.resources.common_cancel
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetPitchCorrectionDialog
 import eolssu.shared.generated.resources.Res
@@ -54,7 +60,7 @@ import eolssu.shared.generated.resources.sheet_pitch_corrected_review
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 저장 시에만 수정할 정간과 해결 방법을 표시한다. 제목은 저장 창, 빠르기·장단은 편집 창에서 바꾼다.
+ * 저장 시에만 수정할 정간과 해결 방법을 표시한다. 제목은 저장 창, 빠르기는 상단 편집 창, 장단은 정간 도구에서 바꾼다.
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -72,6 +78,7 @@ fun SheetEditRoute(
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
     BackHandler(enabled = state.draft.original != null && state.adaptation == null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
+    BackHandler(enabled = state.adaptation != null && state.adaptation?.confirmationRequested != true) { viewModel.closeAdaptation() }
     if (state.documentLoading || state.documentFailed) {
         SheetDocumentNotice(state.documentLoading, onClose, viewModel::loadDocument)
         return
@@ -117,6 +124,11 @@ fun SheetEditRoute(
         state = state,
         snackbarHostState = snackbarHostState,
         focusRequestKey = focusRequestKey,
+        adaptationContent = {
+            state.adaptation?.let { panel -> SheetAdaptationPanel(panel,
+                onInstrument = viewModel::selectAdaptationInstrument, onTranspose = viewModel::selectAdaptationTranspose,
+                onApply = viewModel::requestApplyAdaptation, onRetry = viewModel::openAdaptation) }
+        },
         actions = SheetEditActions(
             onClose = { viewModel.closeEditor(onClose) },
             onRetryDraft = viewModel::retryDraftSave,
@@ -243,28 +255,28 @@ fun SheetEditRoute(
     }
     if (detailsOpen && state.canEditDetails) SheetEditSettingsDialog(
         draft = state.draft,
-        picker = state.jangdanPicker,
         hasTempoPlan = state.hasTempoPlan,
         saving = state.saving,
-        onLoadJangdans = viewModel::changeJangdan,
-        onApply = { bpm, jangdanId ->
-            viewModel.updateSettings(bpm, jangdanId)
+        onApply = { bpm ->
+            viewModel.updateDetails(state.draft.title, bpm)
             detailsOpen = false
         },
         onDismiss = { detailsOpen = false; viewModel.closeJangdanPicker() },
-        onAdapt = { detailsOpen = false; viewModel.closeJangdanPicker(); viewModel.openAdaptation() },
     )
-    state.adaptation?.let { panel -> SheetAdaptationDialog(panel,
-        onInstrument = viewModel::selectAdaptationInstrument, onTranspose = viewModel::selectAdaptationTranspose,
-        onApply = viewModel::applyAdaptation, onDismiss = viewModel::closeAdaptation, onRetry = viewModel::openAdaptation,
-        onLocate = { cellId ->
-            val index = state.draft.sourceCellIds?.indexOf(cellId) ?: -1
-            viewModel.applyAdaptation()
-            if (index >= 0) { viewModel.selectCell(index); focusRequestKey++ }
-        }) }
+    if (state.adaptation?.confirmationRequested == true) EolssuDialog(
+        title = stringResource(Res.string.sheet_adapt_confirm_title),
+        onDismissRequest = viewModel::cancelApplyAdaptation,
+    ) {
+        Text(stringResource(Res.string.sheet_adapt_confirm_overwrite),
+            style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.sheet_adapt_confirm_message), style = MaterialTheme.typography.bodyMedium)
+        EolssuButton(stringResource(Res.string.sheet_adapt_confirm_apply), viewModel::applyAdaptation)
+        EolssuButton(stringResource(Res.string.common_cancel), viewModel::cancelApplyAdaptation, style = EolssuButtonStyle.Secondary)
+    }
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
-            onSelect = viewModel::selectJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)
+            onSelect = viewModel::selectJangdan, onClear = viewModel::clearJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker,
+            hasTempoPlan = state.hasTempoPlan)
     }
     if (state.closeWarning) EolssuDialog(
         title = stringResource(Res.string.sheet_close_unsaved),
