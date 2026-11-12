@@ -177,7 +177,7 @@ class UserSheetController(
             SuccessResponse.of(
                 HttpStatus.OK, "내 악보 목록 조회 성공",
                 SheetList(
-                    items = result.items.map(SheetItem::of),
+                    items = result.items.map { SheetItem.of(it, json) },
                     page = page,
                     size = size,
                     totalElements = result.totalElements,
@@ -326,12 +326,14 @@ data class SheetItem(
     /** 불러오기 악보의 변환 상태. MANUAL은 null. */
     val conversionStatus: String?,
     val updatedAt: Instant,
+    /** 편집기에 불러올 공통 악보의 악기 코드. 초안이 있으면 그 초안의 값이다. */
+    val instrumentCode: String?,
 ) {
     companion object {
-        fun of(sheet: UserSheet) = SheetItem(
+        fun of(sheet: UserSheet, json: JsonMapper) = SheetItem(
             sheet.id.toString(), sheet.kind, sheet.title, sheet.status.name, sheet.jangdanId?.toString(), sheet.jangdanName,
             sheet.source, sheet.pendingCellCount, sheet.imported?.pageCount, sheet.draft != null, sheet.imported?.conversionStatus?.name,
-            sheet.updatedAt,
+            sheet.updatedAt, sheet.editorInstrumentCode(json),
         )
     }
 }

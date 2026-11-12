@@ -74,6 +74,7 @@ fun EolssuScaffold(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     contentMaxWidth: Dp = CompactContentMaxWidth,
     containerColor: Color? = null,
+    bottomDivider: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     Scaffold(
@@ -83,7 +84,7 @@ fun EolssuScaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = { Box(Modifier.windowInsetsPadding(WindowInsets.statusBars)) { topBar() } },
         bottomBar = {
-            if (bottomBar != null) EolssuBottomBar(maxWidth = contentMaxWidth, content = bottomBar)
+            if (bottomBar != null) EolssuBottomBar(maxWidth = contentMaxWidth, divider = bottomDivider, content = bottomBar)
             else Spacer(Modifier.windowInsetsPadding(WindowInsets.navigationBars))
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -217,10 +218,11 @@ fun EolssuIconButton(
 fun EolssuBottomBar(
     modifier: Modifier = Modifier,
     maxWidth: Dp = CompactContentMaxWidth,
+    divider: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(modifier.fillMaxWidth()) {
-        HorizontalDivider(color = EolssuTheme.colors.surfaceStrong)
+        if (divider) HorizontalDivider(color = EolssuTheme.colors.surfaceStrong)
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             Column(
                 Modifier

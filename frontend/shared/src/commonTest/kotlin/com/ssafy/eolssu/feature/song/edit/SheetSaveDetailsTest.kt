@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class SheetSaveDetailsTest : CatalogViewModelTest() {
@@ -23,6 +24,7 @@ internal class SheetSaveDetailsTest : CatalogViewModelTest() {
         runCurrent()
 
         model.updateDetails("  저장할 제목  ", 120)
+        model.requestSave()
         model.requestSave()
         runCurrent()
         advanceTimeBy(1_000); runCurrent()
@@ -34,6 +36,12 @@ internal class SheetSaveDetailsTest : CatalogViewModelTest() {
         assertEquals(120, copy.bpm)
         assertEquals(SheetEditMessage.SavedForPractice, model.uiState.value.message)
         assertFalse(model.uiState.value.saving)
+        assertEquals(SheetSaveStatus.Confirmed, model.uiState.value.saveStatus)
+        val reopened = open(repository)
+        runCurrent()
+        assertEquals("저장할 제목", reopened.uiState.value.draft.title)
+        assertEquals(120, reopened.uiState.value.draft.bpm)
+        assertNull(reopened.uiState.value.saveStatus, "조회만으로 확정 저장 완료를 표시하지 않는다")
     }
 
     @Test fun failedSaveKeepsTheEnteredDetailsAndRetriesTheSameMetadata() = runTest {
@@ -45,6 +53,7 @@ internal class SheetSaveDetailsTest : CatalogViewModelTest() {
         model.requestSave()
         runCurrent()
         assertEquals(SheetEditMessage.SaveFailed, model.uiState.value.message)
+        assertEquals(SheetSaveStatus.ConfirmationFailed, model.uiState.value.saveStatus)
         assertEquals("다시 저장할 제목", model.uiState.value.draft.title)
         assertEquals(120, model.uiState.value.draft.bpm)
         assertFalse(model.uiState.value.confirming)
@@ -66,14 +75,16 @@ internal class SheetSaveDetailsTest : CatalogViewModelTest() {
 
     private class RecordingDocuments(private val failFirst: Boolean = false) : SheetDocumentRepository {
         val writes = mutableListOf<Pair<Boolean, SheetWorkingCopy>>()
-        override suspend fun get(sheetId: String) = SheetDocument(
+        private var document = SheetDocument(
             "31", "원래 제목", null, 60, "1", smallScoreData(), null, "EVALUABLE", null, emptyList(),
         )
+        override suspend fun get(sheetId: String) = document
 
         override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
             writes += draft to copy
-            return if (failFirst && writes.size == 1) SheetWrite.Failed
-            else SheetWrite.Saved("2", reviewStatus = "EVALUABLE")
+            if (failFirst && writes.size == 1) return SheetWrite.Failed
+            document = document.copy(title = copy.title, bpm = copy.bpm, scoreVersion = "2", score = copy.score)
+            return SheetWrite.Saved("2", reviewStatus = "EVALUABLE")
         }
     }
 }

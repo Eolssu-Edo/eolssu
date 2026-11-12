@@ -69,6 +69,8 @@ fun PracticeTopBar(
         onBack = onBack,
         modifier = modifier,
         maxWidth = maxWidth,
+        // 회색 바탕 화면(S15P31E102-768)이라 구분선 없이 흰 버튼만 띄운다.
+        divider = false,
         right = {
             // 혼자 연습의 ‘구간 연습’(S15P31E102-776): 켜면 악보에서 구간을 골라 그 구간만 되풀이한다.
             if (showSectionToggle && state.solo && !state.learn) {
@@ -81,7 +83,7 @@ fun PracticeTopBar(
                 if (showSettings) Spacer(Modifier.width(2.dp))
             }
             if (showSettings) {
-                EolssuPageIconButton(EolssuIcons.Cog, stringResource(Res.string.practice_settings), onOpenSettings)
+                EolssuPageIconButton(EolssuIcons.Cog, stringResource(Res.string.practice_settings), onOpenSettings, bordered = false)
             }
         },
     )

@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.core.ui.component
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -145,7 +143,7 @@ fun Bar(fraction: Float, color: androidx.compose.ui.graphics.Color, modifier: Mo
     }
 }
 
-/** 연두 옅은 알약 버튼(높이 30 · 테두리 #CED883 · 바탕 #F6F8E3 · 12sp). 누르는 영역은 40dp를 둔다. */
+/** 연두 옅은 알약 버튼(높이 30 · 마이페이지 '연결'과 같은 연한 연두 바탕·짙은 연두 글자, 테두리 없음 · 12sp). 누르는 영역은 40dp를 둔다. */
 @Composable
 fun TintPillButton(
     text: String,
@@ -162,9 +160,8 @@ fun TintPillButton(
             enabled = enabled,
             modifier = Modifier.height(30.dp),
             shape = RoundedCornerShape(16.dp),
-            color = colors.accentSoft,
-            contentColor = if (enabled) colors.text else colors.textDisabled,
-            border = BorderStroke(1.dp, colors.accentTintLine),
+            color = colors.accentTint,
+            contentColor = if (enabled) colors.accentText else colors.textDisabled,
         ) {
             Row(
                 Modifier.padding(start = 10.dp, end = if (trailing != null) 8.dp else 10.dp),
@@ -186,6 +183,7 @@ fun TintPillButton(
 /**
  * 점수 상자(테두리 #E8E4DA · 반지름 16): 왼쪽 총점 일원상, 오른쪽 항목 막대와 그 아래 오른쪽 [action] 버튼,
  * 맨 아래 [memo](있을 때만, 큰따옴표로 감싼다). [extra]는 버튼 줄 왼쪽(예시 결과 표시 등)에 둔다.
+ * [filled]이면 테두리 대신 흰 바탕 카드다(회색 바탕 화면, S15P31E102-768).
  */
 @Composable
 fun ScoreSummaryCard(
@@ -195,10 +193,11 @@ fun ScoreSummaryCard(
     memo: String? = null,
     action: (@Composable () -> Unit)? = null,
     extra: (@Composable () -> Unit)? = null,
+    filled: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(16.dp)
-    Column(modifier.fillMaxWidth().border(1.dp, colors.lineSoft, shape)) {
+    Column(modifier.fillMaxWidth().then(if (filled) Modifier.background(colors.surface, shape) else Modifier.border(1.dp, colors.lineSoft, shape))) {
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 10.dp, end = 10.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ScoreRing(total, Modifier.align(Alignment.CenterVertically))
             Column(Modifier.weight(1f).align(Alignment.CenterVertically), verticalArrangement = Arrangement.spacedBy(2.dp)) {

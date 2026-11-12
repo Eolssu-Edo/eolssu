@@ -131,6 +131,7 @@ private fun SectionEvaluateCompact(state: SectionLoopUiState, actions: SectionEv
     val section = state.section
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
+        containerColor = EolssuTheme.colors.groupedBackground,
         topBar = {
             EolssuPageTopBar(
                 title = stringResource(Res.string.weak_loop_evaluate),
@@ -176,6 +177,7 @@ private fun SectionEvaluateMedium(state: SectionLoopUiState, actions: SectionEva
     val ready = song != null && state.section != null
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
+        containerColor = EolssuTheme.colors.groupedBackground,
         contentMaxWidth = WindowBreakpoints.ContentMaxWidth,
         topBar = {
             EolssuPageTopBar(
@@ -216,6 +218,7 @@ private fun SectionEvaluateExpanded(state: SectionLoopUiState, actions: SectionE
     val song = state.song
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
+        containerColor = EolssuTheme.colors.groupedBackground,
         contentMaxWidth = WindowBreakpoints.ContentMaxWidth + SideGutter * 2,
         topBar = {
             EolssuPageTopBar(

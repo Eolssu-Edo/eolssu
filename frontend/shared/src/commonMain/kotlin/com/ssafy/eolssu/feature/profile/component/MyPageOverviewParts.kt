@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.InstrumentPicture
+import com.ssafy.eolssu.core.ui.component.ProfileImageCircle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import com.ssafy.eolssu.core.model.KoreanDateTime
@@ -53,7 +55,7 @@ import com.ssafy.eolssu.feature.profile.MyLearningProgress
 import com.ssafy.eolssu.feature.profile.MyRecentPractice
 import com.ssafy.eolssu.feature.profile.MyRecentPracticeStatus
 import eolssu.shared.generated.resources.*
-import com.ssafy.eolssu.data.user.ProfileImage
+import com.ssafy.eolssu.core.model.ProfileImage
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -91,23 +93,6 @@ internal fun MyPageCardTitle(title: String, modifier: Modifier = Modifier, trail
     }
 }
 
-/** 절쑤 그림 12종의 그림(S15P31E102-738). 얼굴과 갓이 원 가운데 오도록 자른 정사각형이다. */
-internal val ProfileImage.drawable: DrawableResource
-    get() = when (this) {
-        ProfileImage.Hello -> Res.drawable.profile_tiger_hello
-        ProfileImage.Danso -> Res.drawable.profile_tiger_danso
-        ProfileImage.Study -> Res.drawable.profile_tiger_study
-        ProfileImage.Look -> Res.drawable.profile_tiger_look
-        ProfileImage.Great -> Res.drawable.profile_tiger_great
-        ProfileImage.Jangdan -> Res.drawable.profile_tiger_jangdan
-        ProfileImage.Again -> Res.drawable.profile_tiger_again
-        ProfileImage.Surprise -> Res.drawable.profile_tiger_surprise
-        ProfileImage.Proud -> Res.drawable.profile_tiger_proud
-        ProfileImage.Okay -> Res.drawable.profile_tiger_okay
-        ProfileImage.Rest -> Res.drawable.profile_tiger_rest
-        ProfileImage.Done -> Res.drawable.profile_tiger_done
-    }
-
 /** 절쑤 그림 12종의 이름(고르기 화면·화면 낭독). */
 internal val ProfileImage.label: StringResource
     get() = when (this) {
@@ -125,22 +110,6 @@ internal val ProfileImage.label: StringResource
         ProfileImage.Done -> Res.string.my_profile_image_done
     }
 
-/** 흰 원 안의 절쑤 그림. [ring]을 주면 원 바깥에 3dp 테두리를 두른다(고른 그림). */
-@Composable
-internal fun ProfileImageCircle(image: ProfileImage, size: Dp, ring: Color? = null) {
-    val colors = EolssuTheme.colors
-    Box(
-        Modifier
-            .size(size)
-            .then(if (ring != null) Modifier.border(3.dp, ring, CircleShape) else Modifier)
-            .padding(if (ring != null) 5.dp else 0.dp)
-            .clip(CircleShape)
-            .background(colors.surface),
-    ) {
-        Image(painterResource(image.drawable), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-    }
-}
-
 /**
  * 마이페이지 얼굴 원(84dp): 고른 절쑤 그림 오른쪽 아래에 작은 연필 뱃지를 두고, 원 전체를 누르면 [onEdit]으로 그림 고르기를 연다.
  * 뱃지는 바탕색 테두리로 원과 떨어져 보이게 한다.
@@ -149,7 +118,8 @@ internal fun ProfileImageCircle(image: ProfileImage, size: Dp, ring: Color? = nu
 internal fun MyPageAvatar(image: ProfileImage, onEdit: () -> Unit) {
     val colors = EolssuTheme.colors
     val description = stringResource(Res.string.my_profile_image_edit)
-    Box(Modifier.size(84.dp).clearAndSetSemantics { contentDescription = description; role = Role.Button }) {
+    // 부모 칸이 좁아도 타원이 되지 않게 정사각형을 강제한다(S15P31E102-768).
+    Box(Modifier.requiredSize(84.dp).clearAndSetSemantics { contentDescription = description; role = Role.Button }) {
         Box(Modifier.matchParentSize().clip(CircleShape).clickable(onClick = onEdit)) {
             ProfileImageCircle(image, 84.dp)
         }
@@ -170,7 +140,7 @@ internal fun MyPageAvatar(image: ProfileImage, onEdit: () -> Unit) {
     }
 }
 
-/** 닉네임 아래 '기초부터 배우기' 진도 뱃지: 흰 알약에 가장 최근에 배운 악기 모양과 먹초록 글자로 다음에 배울 단계(모두 마치면 완료)를 적는다. */
+/** 닉네임 아래 '기초부터 배우기' 진도 뱃지: 흰 알약에 가장 최근에 배운 악기 그림(기초부터 배우기와 같은 그림, S15P31E102-768)과 먹초록 글자로 다음에 배울 단계(모두 마치면 완료)를 적는다. */
 @Composable
 internal fun LearningBadge(progress: MyLearningProgress) {
     val colors = EolssuTheme.colors
@@ -185,7 +155,7 @@ internal fun LearningBadge(progress: MyLearningProgress) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        InstrumentGlyph(progress.instrument)
+        InstrumentPicture(progress.instrument, size = 22.dp)
         Text(
             text,
             style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
@@ -194,44 +164,6 @@ internal fun LearningBadge(progress: MyLearningProgress) {
         )
     }
 }
-
-/**
- * 작은 악기 모양: 홈 '운지법 보기' 그림과 같은 대나무 색 관에 짙은 취구·지공을 찍는다.
- * 관 길이와 지공 수로 악기를 나눈다: 단소는 짧은 관에 지공 4개, 소금은 조금 긴 관에 5개, 대금은 가장 긴 관에 5개와 청공(테두리 원).
- * 작은 크기에서 지공이 붙어 보이지 않도록 실제 지공 수보다 줄여 그린다. 악기 이름은 화면 낭독으로 읽는다.
- */
-@Composable
-private fun InstrumentGlyph(instrument: Instrument) {
-    val daegeum = instrument == Instrument.DaegeumJeongak || instrument == Instrument.DaegeumSanjo
-    val width = when {
-        daegeum -> 44.dp
-        instrument == Instrument.Sogeum -> 36.dp
-        else -> 30.dp
-    }
-    val holes = if (instrument == Instrument.Danso) 4 else 5
-    Canvas(Modifier.size(width = width, height = 10.dp)) {
-        val h = size.height
-        val body = h * 0.6f
-        val top = (h - body) / 2
-        val cy = h / 2
-        drawRoundRect(GlyphBamboo, topLeft = Offset(0f, top), size = Size(size.width, body), cornerRadius = CornerRadius(body / 2))
-        val band = 1.dp.toPx()
-        drawRect(GlyphBand, topLeft = Offset(2.dp.toPx(), top), size = Size(band, body))
-        drawRect(GlyphBand, topLeft = Offset(size.width - 2.dp.toPx() - band, top), size = Size(band, body))
-        val r = 1.dp.toPx()
-        // 취구
-        drawCircle(GlyphHole, radius = r * 1.1f, center = Offset(5.5.dp.toPx(), cy))
-        if (daegeum) drawCircle(GlyphHole, radius = r * 1.3f, center = Offset(11.dp.toPx(), cy), style = Stroke(width = 0.8.dp.toPx()))
-        val start = if (daegeum) 17.dp.toPx() else 12.dp.toPx()
-        val end = size.width - 6.dp.toPx()
-        val step = (end - start) / (holes - 1)
-        repeat(holes) { drawCircle(GlyphHole, radius = r, center = Offset(start + step * it, cy)) }
-    }
-}
-
-private val GlyphBamboo = Color(0xFFBDA578)
-private val GlyphBand = Color(0xFF6C654F)
-private val GlyphHole = Color(0xFF3C4338)
 
 /**
  * '최근 연주 돌아보기' 카드([MyPageCard]). 굵은 제목 오른쪽에 마지막 연주 날짜를 두고, 그 아래 왼쪽에 곡 이름과

@@ -38,7 +38,11 @@ data class SongRecordSummary(
     /** 그 곡 기록 중 가장 최근 저장 시각. */
     val lastSavedAt: LocalDateTime,
     val bestScore: Int,
+    val instrumentCode: String? = null,
+    val lastStartedAt: LocalDateTime = lastSavedAt,
 )
+
+data class SavedRecordWeek(val recordCount: Int, val bestScore: Int?)
 
 /** 곡 안 기록 정렬. 같은 시각이면 세션 ID 순이다. */
 enum class RecordSort { NEWEST, OLDEST }
@@ -77,6 +81,9 @@ interface PracticeRecords {
 
     /** 기록이 있는 곡들. 최근에 저장한 곡이 앞이고, 같으면 곡 ID가 큰 곡이 앞이다. */
     fun songSummaries(userId: Long): List<SongRecordSummary>
+
+    /** 같은 회원의 저장 기록을 연주 시작 시각 [from, until)으로 집계한다. */
+    fun savedRecordWeek(userId: Long, from: LocalDateTime, until: LocalDateTime): SavedRecordWeek
 
     /** 한 곡의 기록을 [sort] 순으로 [offset]부터 [limit]개. */
     fun songRecords(userId: Long, songId: Long, sort: RecordSort, offset: Long, limit: Int): List<RecordSession>

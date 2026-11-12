@@ -1,8 +1,6 @@
 package com.ssafy.eolssu.feature.song.component
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,7 +47,6 @@ internal fun MySongsTabSwitch(
         modifier
             .fillMaxWidth()
             .background(colors.surface, frame)
-            .border(1.dp, colors.lineSoft, frame)
             .padding(4.dp),
     ) {
         MySongsTab.entries.forEach { entry ->
@@ -62,26 +59,29 @@ internal fun MySongsTabSwitch(
                 onClick = { onSelect(entry) },
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 40.dp)
+                    // 보이는 높이를 누르는 최소 높이(48dp)와 같게 해 위아래 간격이 양옆 4dp와 같아진다.
+                    .heightIn(min = 48.dp)
                     .semantics {
                         role = Role.Tab
                         this.selected = selected
                     },
-                shape = RoundedCornerShape(11.dp),
+                // 틀 모서리(14dp)에서 안쪽 여백(4dp)을 뺀 값이라 두 모서리가 나란히 휜다.
+                shape = RoundedCornerShape(10.dp),
                 color = if (selected) colors.primary else Color.Transparent,
                 contentColor = if (selected) colors.onPrimary else colors.textSub,
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                     val style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp)
                     Text(label, style = style.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium))
-                    Text("$count", style = style.copy(fontWeight = FontWeight.Medium), color = colors.textMuted)
+                    // 고른 탭의 연두 바탕 위에서는 회색 숫자가 탁해 보여 이름과 같은 글자색을 쓴다(S15P31E102-768).
+                    Text("$count", style = style.copy(fontWeight = FontWeight.Medium), color = if (selected) colors.onPrimary else colors.textMuted)
                 }
             }
         }
     }
 }
 
-/** '악보 추가'(`.btn.outline`, 2차: 누르면 바로 악보 추가 화면): 52dp, 흰 바탕에 테두리, 모서리 14dp, 더하기 20dp. */
+/** '악보 추가'(`.btn.outline`, 2차: 누르면 바로 악보 추가 화면): 52dp, 회색 바탕 위 테두리 없는 흰 단추, 모서리 14dp, 더하기 20dp. */
 @Composable
 internal fun AddSheetButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
@@ -91,7 +91,6 @@ internal fun AddSheetButton(onClick: () -> Unit, modifier: Modifier = Modifier) 
         shape = RoundedCornerShape(14.dp),
         color = colors.surface,
         contentColor = colors.text,
-        border = BorderStroke(1.dp, colors.line),
     ) {
         Row(
             Modifier.padding(horizontal = 16.dp),

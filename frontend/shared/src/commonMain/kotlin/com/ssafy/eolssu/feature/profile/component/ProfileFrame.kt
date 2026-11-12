@@ -52,6 +52,7 @@ internal fun ProfileScaffold(
     gap: Dp = 20.dp,
     topPadding: Dp = 12.dp,
     containerColor: Color? = null,
+    bottomDivider: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tablet = widthClass != WindowWidthClass.Compact
@@ -67,6 +68,7 @@ internal fun ProfileScaffold(
         bottomBar = if (bottomBar != null && tablet) tabletBottomBar(bottomBar) else bottomBar,
         snackbarHostState = snackbarHostState,
         containerColor = containerColor,
+        bottomDivider = bottomDivider,
         contentMaxWidth = when (widthClass) {
             WindowWidthClass.Compact -> CompactContentMaxWidth
             WindowWidthClass.Medium -> TabletPortraitBodyWidth + 40.dp

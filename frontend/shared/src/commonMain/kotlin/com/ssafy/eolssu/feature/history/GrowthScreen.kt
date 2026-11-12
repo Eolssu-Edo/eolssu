@@ -51,7 +51,8 @@ fun GrowthScreen(
     }
     val stats = (state.load as? GrowthLoad.Loaded)?.stats
     EolssuScaffold(
-        containerColor = EolssuTheme.colors.surface,
+        // 마이페이지처럼 회색 바탕 위 테두리 없는 흰 카드(S15P31E102-768).
+        containerColor = EolssuTheme.colors.groupedBackground,
         contentMaxWidth = frame.contentMaxWidth,
         topBar = { HistoryTopBar(frame, stringResource(Res.string.growth_title), periodLabel, onBack, bottom = 10.dp) },
     ) {

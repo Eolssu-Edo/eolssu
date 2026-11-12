@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.PracticeRecordRepository
 import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
@@ -13,6 +14,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class HistoricalRecordTest : CatalogViewModelTest() {
@@ -70,9 +72,11 @@ internal class HistoricalRecordTest : CatalogViewModelTest() {
     @Test fun cachedRecordRetriesFailedDetailBeforeLoadingItsScore() = runTest {
         var attempts = 0
         val detail = sample.records.value.first().copy(songId = original.id, scoreVersion = 1, memo = "서버 상세")
+        val preview = detail.copy(memo = "목록 캐시")
         val records = object : PracticeRecordRepository by sample {
-            override val records = MutableStateFlow(listOf(detail.copy(memo = "목록 캐시")))
-            override suspend fun detail(recordId: String): com.ssafy.eolssu.core.model.PracticeRecord {
+            override val records = MutableStateFlow(emptyList<PracticeRecord>())
+            override fun detailPreview(recordId: String): PracticeRecord? = preview.takeIf { it.id == recordId }
+            override suspend fun detail(recordId: String): PracticeRecord {
                 attempts++
                 if (attempts == 1) error("일시 상세 실패")
                 return detail
@@ -82,12 +86,15 @@ internal class HistoricalRecordTest : CatalogViewModelTest() {
         runCurrent()
         kotlin.test.assertFalse(model.uiState.value.detailLoaded)
         assertEquals("목록 캐시", model.uiState.value.record?.memo)
+        assertEquals(1, attempts)
+        assertTrue(requested.isEmpty())
         model.retrySong()
         runCurrent()
         assertEquals(2, attempts)
         kotlin.test.assertTrue(model.uiState.value.detailLoaded)
         assertEquals("서버 상세", model.uiState.value.record?.memo)
         assertEquals(original, model.uiState.value.song)
+        assertEquals(listOf<Int?>(1), requested)
     }
 
     @Test fun retainedSongDoesNotHideDetailRetryAfterSwitchingRecords() = runTest {

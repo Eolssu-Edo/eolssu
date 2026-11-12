@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.practice.domain
 
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import java.nio.file.Path
 import java.time.Duration
 import java.time.LocalDateTime
@@ -27,6 +28,7 @@ data class UploadedRecording(
     val key: String,
     val metadata: RecordingMetadata,
     val uploadedAt: LocalDateTime,
+    val timingId: EvaluationTimingId? = null,
 )
 
 interface RecordingUploadRepository {

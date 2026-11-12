@@ -7,12 +7,17 @@ import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.model.ScoreError
 import com.ssafy.eolssu.core.network.ServerAddress
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
-import com.ssafy.eolssu.testing.CatalogEvaluations
-import com.ssafy.eolssu.testing.CatalogSongs
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import com.ssafy.eolssu.data.song.ApiSongRepository
 import com.ssafy.eolssu.data.song.SampleSongRepository
 import com.ssafy.eolssu.data.song.SampleSongs
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.data.song.revisionScoreResponse
+import com.ssafy.eolssu.data.song.revisionSongResponse
+import com.ssafy.eolssu.testing.CatalogEvaluations
+import com.ssafy.eolssu.testing.CatalogSongs
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.HttpRequestData
@@ -26,9 +31,108 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 
 /** 취약 구간·비교 API(EVA-03·04)와 기록·평가 저장소를 묶는 저장소. 서버는 MockEngine으로 대신한다. */
 class ApiWeakSectionRepositoryTest {
+    @Test
+    fun coldSelectionChecksPublicationWithoutDownloadingAnotherScore() = runTest {
+        for (publishedVersion in listOf(1, 2)) {
+            val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+            val catalog = mutableListOf<Pair<String, String?>>()
+            val client = createHttpClient(MockEngine { request ->
+                val path = request.url.encodedPath
+                val requestedVersion = request.url.parameters["scoreVersion"]
+                val version = requestedVersion?.toInt() ?: publishedVersion
+                if (path.startsWith("/api/songs/")) catalog += path to requestedVersion
+                val result = when (path) {
+                    "/api/practice-sessions/50/evaluation" -> evaluationResponse("50", 1)
+                    "/api/songs/42" -> revisionSongResponse(version)
+                    "/api/songs/42/score" -> revisionScoreResponse(version)
+                    else -> error(path)
+                }
+                respond(ok(result).second, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+            }, ServerAddress.Production)
+            try {
+                val songs = ApiSongRepository(client, member)
+                val evaluations = ApiEvaluationRepository(client, songs, member = member)
+                val repository = ApiWeakSectionRepository(client, evaluations, songs, records, member)
+                val source = checkNotNull(repository.source("50"))
+                assertEquals(publishedVersion == 1, repository.isCurrent(source))
+                assertEquals(listOf("/api/songs/42" to "1", "/api/songs/42/score" to "1", "/api/songs/42" to null), catalog)
+            } finally { client.close() }
+        }
+    }
+
+    @Test
+    fun sourceLoadsItsEvaluationAndScoreBundleOnce() = runTest {
+        val paths = mutableListOf<String>()
+        val client = createHttpClient(MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val result = when (path) {
+                "/api/practice-sessions/50/evaluation" -> evaluationResponse("50", 1)
+                "/api/songs/42" -> revisionSongResponse(1)
+                "/api/songs/42/score" -> revisionScoreResponse(1)
+                else -> error(path)
+            }
+            respond(ok(result).second, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val songs = ApiSongRepository(client)
+            val repo = ApiWeakSectionRepository(client, ApiEvaluationRepository(client, songs), songs, records)
+            val source = checkNotNull(repo.source("50"))
+            assertEquals(1, source.song.scoreVersion)
+            assertEquals(1, source.evaluation.errors.size)
+            assertEquals(listOf("/api/practice-sessions/50/evaluation", "/api/songs/42", "/api/songs/42/score"), paths)
+        } finally { client.close() }
+    }
+
+    @Test
+    fun selectionAndLoopReuseOnlyTheScoreAndLookUpEachEvaluation() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+        val paths = mutableListOf<String>()
+        val client = createHttpClient(MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val version = request.url.parameters["scoreVersion"]?.toInt() ?: 1
+            val result = when (path) {
+                "/api/practice-sessions/50/evaluation" -> {
+                    if (member.id != "A") return@MockEngine respond("{}", HttpStatusCode.NotFound)
+                    evaluationResponse("50", 1)
+                }
+                "/api/practice-sessions/51/evaluation" -> evaluationResponse("51", 2)
+                "/api/songs/42" -> revisionSongResponse(version)
+                "/api/songs/42/score" -> revisionScoreResponse(version)
+                else -> error(path)
+            }
+            respond(ok(result).second, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val songs = ApiSongRepository(client, member)
+            val evaluations = ApiEvaluationRepository(client, songs, member = member)
+            val weak = ApiWeakSectionRepository(client, evaluations, songs, records, member)
+            val detail = checkNotNull(songs.getSong("42"))
+            assertSame(detail, songs.retainedSong("42"))
+            assertSame(detail, checkNotNull(weak.source("50")).song)
+            assertSame(detail, checkNotNull(weak.source("50")).song)
+            assertEquals(listOf("/api/songs/42", "/api/songs/42/score",
+                "/api/practice-sessions/50/evaluation", "/api/practice-sessions/50/evaluation"), paths)
+
+            val otherSession = checkNotNull(weak.source("51"))
+            assertEquals("51", otherSession.evaluation.id)
+            assertEquals(2, otherSession.song.scoreVersion)
+            assertNull(songs.retainedSong("42"), "과거 판본 조회는 게시 판본 확인이 아니다")
+            assertEquals(listOf("/api/practice-sessions/51/evaluation", "/api/songs/42", "/api/songs/42/score"), paths.takeLast(3))
+
+            member.set("B")
+            assertNull(weak.source("50"))
+            assertEquals("/api/practice-sessions/50/evaluation", paths.last())
+            assertEquals(2, checkNotNull(weak.source("51")).song.scoreVersion)
+            assertEquals(listOf("/api/practice-sessions/51/evaluation", "/api/songs/42", "/api/songs/42/score"), paths.takeLast(3))
+        } finally { client.close() }
+    }
+
     @Test fun historicalErrorsSectionResultAndComparisonUseTheSavedRevision() = runTest {
         val old = SampleSongs.first().copy(scoreVersion = 1)
         val current = old.copy(scoreVersion = 2)
@@ -204,3 +308,6 @@ class ApiWeakSectionRepositoryTest {
         assertEquals("same-day", requests.single().url.parameters["baselineSessionId"])
     }
 }
+
+private fun evaluationResponse(session: String, version: Int) =
+    """{"sessionId":"$session","songId":"42","scoreVersion":$version,"bpm":60,"startedAt":"2026-10-29T00:00:00Z","totalScore":80,"pitchScore":80,"timingScore":80,"durationScore":80,"notes":[{"noteIdx":1,"verdict":"PITCH"}]}"""

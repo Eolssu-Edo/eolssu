@@ -36,22 +36,25 @@ class ScreenEvaluation(
     val loadDetails: suspend () -> Pair<EvaluationResult, Song?>?,
 )
 
-/** 분석 다시 시도(PRA-03 `POST /api/practice-sessions/{sessionId}/retry`)의 응답. */
-enum class RetryOutcome {
-    /** 새 시도를 시작했거나 이미 분석 중이다(202). 상태 조회를 이어 간다. */
-    Started,
+/** 분석 다시 시도(PRA-04 `POST /api/practice-sessions/{sessionId}/retry`)의 응답. */
+sealed interface RetryOutcome {
+    /** 시도 구분 헤더가 없는 이전 서버의 202 응답이다. */
+    data object Started : RetryOutcome
+
+    /** 서버가 응답에 명시한 시도다. [timingId]는 실제로 접수된 작업의 진단 ID다. */
+    data class Accepted(val started: Boolean, val timingId: String?) : RetryOutcome
 
     /** 다시 시도할 수 없는 상태다(409: 재녹음이 필요한 실패·완료·업로드 전). 상태를 다시 물어 그 상태의 화면을 보인다. */
-    Conflict,
+    data object Conflict : RetryOutcome
 
     /** 서버가 지금 받지 못한다(503). 버튼을 그대로 두고 잠시 후 다시 시도하게 한다. */
-    Busy,
+    data object Busy : RetryOutcome
 
     /** 세션이 없다(404). */
-    NotFound,
+    data object NotFound : RetryOutcome
 
     /** 토큰을 갱신해도 401이다. 다시 로그인해야 한다. */
-    Unauthorized,
+    data object Unauthorized : RetryOutcome
 }
 
 /** 서버의 분석 상태(`PENDING`·`DONE`·`FAILED`). */
@@ -59,7 +62,7 @@ sealed interface AnalysisStatus {
     data object Pending : AnalysisStatus
 
     /** [evaluationId]는 결과 화면이 [EvaluationRepository.result]로 찾는 키다. 서버 결과는 세션 ID로 찾는다. */
-    data class Done(val evaluationId: String) : AnalysisStatus
+    data class Done(val evaluationId: String, val timingId: String? = null) : AnalysisStatus
 
     /** [reason]은 서버 `fail_reason` 코드에 맞는 사유다. */
     data class Failed(val reason: AnalysisFailure) : AnalysisStatus

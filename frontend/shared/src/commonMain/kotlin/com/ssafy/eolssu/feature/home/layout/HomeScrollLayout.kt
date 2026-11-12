@@ -55,6 +55,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.model.ProfileImage
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -85,6 +86,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun HomeScrollLayout(
     widthClass: WindowWidthClass,
+    profileImage: ProfileImage,
     onOpenMyPage: () -> Unit,
     onStartEvaluation: () -> Unit,
     onFeatureClick: (HomeFeature) -> Unit,
@@ -95,6 +97,7 @@ internal fun HomeScrollLayout(
     val dragged by scroll.interactionSource.collectIsDraggedAsState()
     val scope = rememberCoroutineScope()
     val environment = rememberHomeEnvironment()
+    val homeGround = EolssuTheme.colors.groupedBackground
     val reduceMotion = environment.reduceMotion || scope.coroutineContext[MotionDurationScale]?.scaleFactor == 0f
     var wasOpen by remember { mutableStateOf(false) }
     var snapping by remember { mutableStateOf(false) }
@@ -125,7 +128,7 @@ internal fun HomeScrollLayout(
         if (reduceMotion) bounce.snapTo(0f)
         else bounce.animateTo(6f, infiniteRepeatable(tween(1000), RepeatMode.Reverse))
     }
-    BoxWithConstraints(modifier.fillMaxSize().clipToBounds().background(HomeGround)) {
+    BoxWithConstraints(modifier.fillMaxSize().clipToBounds().background(homeGround)) {
         val w = maxWidth.value
         val h = maxHeight.value
         val expanded = widthClass == WindowWidthClass.Expanded
@@ -166,7 +169,7 @@ internal fun HomeScrollLayout(
                     HomeArt(
                         artWidth, artLeft, frame.artScale,
                         if (expanded) mix(-200f * w / 390f, (frame.bandHeight - finalHeroW * 1448f / 1086f) * .62f, frame.eased) else frame.artY,
-                        mix(.18f, .5f, frame.eased), frame.groundTop, frame.eased,
+                        mix(.18f, .5f, frame.eased), frame.groundTop, frame.eased, homeGround,
                         Modifier.fillMaxSize().clickable(
                             interactionSource = remember { MutableInteractionSource() }, indication = null,
                             enabled = frame.progress < .6f, onClick = open,
@@ -176,7 +179,7 @@ internal fun HomeScrollLayout(
                         // 넓은 창의 끝 배치: 왼쪽 그림·CTA와 오른쪽 2×3 카드.
                         Box(Modifier.offset(x = (contentLeft + finalHeroW + 24f).dp)
                             .width((contentW - finalHeroW).dp).height((h + overflow).dp)
-                            .graphicsLayer { alpha = frame.eased }.background(HomeGround))
+                            .graphicsLayer { alpha = frame.eased }.background(homeGround))
                     }
                     if (featureAlpha > 0f) {
                         // 카드 뒤 화면 아래의 산 능선. 무대가 멈춘 뒤 더 스크롤한 만큼 내려 늘 화면 바닥에 붙인다.
@@ -242,7 +245,7 @@ internal fun HomeScrollLayout(
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(EolssuIcons.ChevronDown, stringResource(Res.string.home_scroll_to_features),
-                                Modifier.offset(y = bounce.value.dp).size(28.dp), tint = HomeGround)
+                                Modifier.offset(y = bounce.value.dp).size(28.dp), tint = homeGround)
                         }
                     }
                 }
@@ -256,7 +259,7 @@ internal fun HomeScrollLayout(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End,
             ) {
-                MyPagePlate(onOpenMyPage)
+                MyPagePlate(profileImage, onOpenMyPage)
             }
         }
     }
@@ -264,12 +267,12 @@ internal fun HomeScrollLayout(
 
 /** 원본 그림의 비율·잘림을 직접 그린다. CSS mask 대신 아래에서 올라오는 흰 그라데이션을 겹친다. */
 @Composable
-private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, x: Float, ground: Float, progress: Float, modifier: Modifier) {
+private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, x: Float, ground: Float, progress: Float, groundColor: Color, modifier: Modifier) {
     val painter = painterResource(Res.drawable.home_illustration)
     val density = LocalDensity.current.density
     Canvas(modifier) {
         val d = density
-        drawRect(lerp(HomeNight, HomeGround, progress))
+        drawRect(lerp(HomeNight, groundColor, progress))
         val imageW = width * scale * d
         val imageH = imageW * 1448f / 1086f
         val imageTop = artY * d
@@ -288,7 +291,7 @@ private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, x: Flo
             ), size = androidx.compose.ui.geometry.Size(size.width, ground * d))
         }
         drawRect(Brush.verticalGradient(
-            0f to Color.Transparent, 1f to HomeGround,
+            0f to Color.Transparent, 1f to groundColor,
             startY = (ground - 60f) * d, endY = (ground + 30f) * d,
         ))
     }
@@ -302,4 +305,3 @@ private val HomeHeaderTop = 12.dp
 // 흰색 RGB는 그대로 두고 반투명한 붓 획의 불투명도만 높인다.
 private val HomeHeroLogoColor = ColorFilter.colorMatrix(ColorMatrix().apply { this[3, 3] = 2.2f })
 private val HomeNight = Color(0xFF1B2233)
-private val HomeGround = Color(0xFFF9FAF9)

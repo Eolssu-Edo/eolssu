@@ -100,7 +100,7 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
     val colors = EolssuTheme.colors
     val comparison = state.comparison
     EolssuScaffold(
-        containerColor = colors.surface,
+        containerColor = colors.groupedBackground,
         topBar = {
             EolssuStartTopBar(
                 stringResource(Res.string.weak_compare_title),
@@ -176,7 +176,7 @@ private fun CompareCheckNote(check: CheckLoad?) {
 private val DownChipLine = Color(0xFFEBC3BC)
 
 /**
- * 점수 비교 카드(테두리 · 반지름 16): 왼쪽 ‘이전’ + 이전 점수(회색 명조 30), 가운데 변화 칩 + 점선 화살표,
+ * 점수 비교 카드(회색 바탕 위 테두리 없는 흰 카드 · 반지름 16): 왼쪽 ‘이전’ + 이전 점수(회색 명조 30), 가운데 변화 칩 + 점선 화살표,
  * 오른쪽 연두 일원상(84) 안에 ‘이번’ + 이번 점수. 오르면 연두 ‘▲ n점’, 내리면 칩·화살표만 붉은 ‘▼ n점’,
  * 같으면 ‘= 같아요’. 서버가 총점 차이를 주지 않으면 두 기록의 총점 차이를 쓴다. 아래 ‘항목별 점수 보기’로 항목 막대를 펼친다.
  */
@@ -186,7 +186,7 @@ private fun ScoreCompareCard(before: Int, after: Int, state: CompareUiState, onT
     val shape = RoundedCornerShape(16.dp)
     val change = state.scoreChange
     val cardLabel = stringResource(Res.string.weak_compare_card_label, before, after)
-    Column(Modifier.fillMaxWidth().border(1.dp, colors.lineSoft, shape).padding(start = 12.dp, end = 12.dp, top = 8.dp)) {
+    Column(Modifier.fillMaxWidth().background(colors.surface, shape).padding(start = 12.dp, end = 12.dp, top = 8.dp)) {
         Row(
             Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = cardLabel },
             verticalAlignment = Alignment.CenterVertically,

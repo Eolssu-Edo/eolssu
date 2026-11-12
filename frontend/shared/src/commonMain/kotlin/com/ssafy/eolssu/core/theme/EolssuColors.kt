@@ -88,7 +88,7 @@ data class EolssuColors(
     val sectionLine: Color,
     /** 홈·마이페이지 흰 카드의 제목 글자(초록빛 먹색). */
     val cardInk: Color,
-    /** 테두리 없는 흰 카드를 묶어 올리는 옅은 회색 바탕(마이페이지). 흰 카드와 바탕의 명도 차이로만 구분한다. */
+    /** 테두리 없는 흰 카드를 묶어 올리는 옅은 회색 바탕(홈·마이페이지·학습 화면·연습 기록 목록·악보 추가). 흰 카드와 바탕의 명도 차이로만 구분한다. */
     val groupedBackground: Color,
 )
 
@@ -144,5 +144,5 @@ val LightEolssuColors = EolssuColors(
     cardLine = Color(0xFFE3E9E3),
     sectionLine = Color(0xFFE5EAE5),
     cardInk = Color(0xFF2E3E32),
-    groupedBackground = Color(0xFFF2F3F1),
+    groupedBackground = Color(0xFFF5F6F4),
 )

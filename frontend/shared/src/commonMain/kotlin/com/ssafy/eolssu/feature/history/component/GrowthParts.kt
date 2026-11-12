@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.history.component
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.geometry.Offset
@@ -9,6 +11,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
+import com.ssafy.eolssu.core.ui.component.EolssuMenuShape
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.feature.history.ScoreTrendPoint
 import com.ssafy.eolssu.feature.history.TrendGridLines
@@ -22,7 +26,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,7 +48,6 @@ import eolssu.shared.generated.resources.growth_score_trend_desc
 import eolssu.shared.generated.resources.growth_score_trend_range
 import eolssu.shared.generated.resources.growth_score_trend_today
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -144,7 +146,7 @@ private fun GrowthOutlinedCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        modifier.fillMaxWidth().border(1.dp, EolssuTheme.colors.lineSoft, RoundedCornerShape(16.dp)).padding(spacing.cardPadding),
+        modifier.fillMaxWidth().background(EolssuTheme.colors.surface, RoundedCornerShape(20.dp)).padding(spacing.cardPadding),
         verticalArrangement = Arrangement.spacedBy(gap),
         content = content,
     )
@@ -154,19 +156,19 @@ private fun GrowthOutlinedCard(
 internal fun RangeTabs(range: GrowthRange, onRange: (GrowthRange) -> Unit) {
     val colors = EolssuTheme.colors
     Row(
-        // 보드: 흰 바탕 · `#E8E4DA` 테두리 · 반지름 12, 고른 탭은 연두 바탕.
-        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(12.dp)).border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp)).padding(4.dp),
+        // 연습곡 고르기 탭과 같은 모양: 회색 바탕 위 흰 틀(모서리 14, 안쪽 4) 안 연두 알약(모서리 10)(S15P31E102-768).
+        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(14.dp)).padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         listOf(GrowthRange.Week to Res.string.growth_week, GrowthRange.Month to Res.string.growth_month).forEach { (r, label) ->
             val on = r == range
             Surface(
                 onClick = { onRange(r) },
-                modifier = Modifier.weight(1f).height(36.dp).semantics {
+                modifier = Modifier.weight(1f).height(40.dp).semantics {
                     role = Role.Tab
                     selected = on
                 },
-                shape = RoundedCornerShape(9.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = if (on) colors.primary else Color.Transparent,
                 contentColor = if (on) colors.onPrimary else colors.textMuted,
             ) {
@@ -206,8 +208,7 @@ internal fun GrowthTiles(stats: GrowthStats, spacing: GrowthSpacing) {
             Column(
                 Modifier
                     .weight(1f)
-                    .background(colors.surface, RoundedCornerShape(14.dp))
-                    .border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
+                    .background(colors.surface, RoundedCornerShape(16.dp))
                     .padding(horizontal = spacing.tilePaddingH, vertical = spacing.tilePaddingV),
             ) {
                 Text(label, style = MaterialTheme.typography.labelSmall.copy(fontSize = spacing.tileLabelSize), color = colors.textMuted)
@@ -432,7 +433,9 @@ private fun ScoreTrendControls(trend: ScoreTrendState, actions: ScoreTrendAction
                         instrument.instrument?.let { stringResource(it.label) } ?: instrument.name,
                         selected = trend.selectedInstrument?.instrumentId == instrument.instrumentId,
                         onClick = { actions.onInstrument(instrument.instrumentId) },
-                        small = true,
+                        // 곡 고르기 칸과 같은 36dp 높이 · 테두리 없는 회색 채움(S15P31E102-768).
+                        bordered = false,
+                        containerColor = colors.groupedBackground,
                     )
                 }
             }
@@ -445,10 +448,10 @@ private fun ScoreTrendControls(trend: ScoreTrendState, actions: ScoreTrendAction
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 36.dp)
-                    .background(colors.surface, RoundedCornerShape(10.dp))
-                    .border(1.dp, colors.lineSoft, RoundedCornerShape(10.dp))
+                    .clip(CircleShape)
+                    .background(colors.groupedBackground)
                     .clickable(role = Role.DropdownList, onClickLabel = songLabel) { expanded = true }
-                    .padding(horizontal = 10.dp),
+                    .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -463,16 +466,19 @@ private fun ScoreTrendControls(trend: ScoreTrendState, actions: ScoreTrendAction
                 }
                 Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp))
             }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = colors.surface) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                shape = EolssuMenuShape,
+                containerColor = colors.surface,
+                shadowElevation = 8.dp,
+                modifier = Modifier.padding(horizontal = 6.dp),
+            ) {
                 trend.instrumentSongs.forEach { item ->
-                    val current = item.songId == song?.songId
-                    DropdownMenuItem(
-                        text = { Text(item.title, fontWeight = if (current) FontWeight.Bold else FontWeight.Normal) },
-                        onClick = {
-                            expanded = false
-                            actions.onSong(item.songId)
-                        },
-                    )
+                    EolssuMenuItem(item.title, item.songId == song?.songId, onClick = {
+                        expanded = false
+                        actions.onSong(item.songId)
+                    })
                 }
             }
         }

@@ -235,6 +235,33 @@ class ApiEvaluationRepositoryTest {
     }
 
     @Test
+    fun retryAndDoneUseServerAttemptTimingHeader() = runTest {
+        val timingId = "b23ba41a-7e5e-4938-8b3b-93ce5ac25c95"
+        val repo = ApiEvaluationRepository(
+            createHttpClient(
+                MockEngine { request ->
+                    if (request.url.encodedPath.endsWith("/retry")) {
+                        respond("{}", HttpStatusCode.Accepted, headersOf(
+                            "X-Evaluation-Retry-Status" to listOf("already-pending"),
+                            "X-Evaluation-Timing-Id" to listOf(timingId),
+                        ))
+                    } else {
+                        val (status, body) = session("DONE")
+                        respond(body, status, headersOf(
+                            HttpHeaders.ContentType to listOf("application/json"),
+                            "X-Evaluation-Timing-Id" to listOf(timingId),
+                        ))
+                    }
+                },
+                ServerAddress.Production,
+            ),
+            songs,
+        )
+        assertEquals(RetryOutcome.Accepted(started = false, timingId = timingId), repo.retryAnalysis("41"))
+        assertEquals(AnalysisStatus.Done("41", timingId), repo.analysisStatus("41"))
+    }
+
+    @Test
     fun resultNotReadyIsNull() = runTest {
         assertNull(repository { HttpStatusCode.Conflict to "{}" }.result("41"))
         assertNull(repository { null }.result("41"))

@@ -126,8 +126,9 @@ class UserSheetApiDatabaseTests {
 
     @Test
     fun `list pages only the owner's sheets newest first`() {
-        for (index in 1..3) insertBlank(OWNER, "악보 $index")
-        insertBlank(OTHER, "남의 악보")
+        insertSongCopy(OWNER, "악보 1")
+        for (index in 2..3) insertBlank(OWNER, "악보 $index")
+        insertSongCopy(OTHER, "남의 악보")
         jdbc.update("UPDATE user_sheets SET updated_at='2026-11-01 00:00:00' WHERE user_id=$OWNER")
         jdbc.update("UPDATE user_sheets SET updated_at='2026-11-02 00:00:00' WHERE user_id=$OWNER AND title='악보 1'")
 
@@ -139,12 +140,16 @@ class UserSheetApiDatabaseTests {
         val jangdanName = jdbc.queryForObject("SELECT name FROM jangdans WHERE id=?", String::class.java, jangdanId)
         assertEquals(jangdanName, item.path("jangdanName").asString())
         assertEquals("MANUAL", item.path("source").asString())
+        assertEquals("DANSO", item.path("instrumentCode").asString())
+        assertTrue(first.path("items").get(1).path("instrumentCode").isNull)
         assertEquals("2026-11-02T00:00:00Z", item.path("updatedAt").asString())
         assertTrue(item.has("sourcePageCount") && item.path("sourcePageCount").isNull)
         val second = json.readTree(get(OWNER, "/api/users/me/sheets?page=1&size=2").body()).path("result")
         assertEquals(listOf("악보 2"), second.path("items").titles())
         assertEquals(0, json.readTree(get(OWNER, "/api/users/me/sheets?kind=MIDI").body()).path("result").path("items").size())
         assertEquals(400, get(OWNER, "/api/users/me/sheets?size=101").statusCode())
+        assertEquals(listOf("남의 악보"), json.readTree(get(OTHER, "/api/users/me/sheets").body()).path("result").path("items").titles())
+        assertEquals(401, get(null, "/api/users/me/sheets").statusCode())
     }
 
     @Test
@@ -247,6 +252,7 @@ class UserSheetApiDatabaseTests {
         val scoreData = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result").path("scoreData") as ObjectNode
         val updatedAt = jdbc.queryForObject("SELECT updated_at FROM user_sheets WHERE id=$sheetId", String::class.java)
         val partial = scoreData.deepCopy()
+        (partial.path("score") as ObjectNode).put("instrument", "SOGEUM")
         val emptied = partial.path("columns").path(0).path("cells").path(0) as ObjectNode
         emptied.putArray("units")
 
@@ -258,6 +264,7 @@ class UserSheetApiDatabaseTests {
         assertEquals(updatedAt, jdbc.queryForObject("SELECT updated_at FROM user_sheets WHERE id=$sheetId", String::class.java))
         val listed = json.readTree(get(OWNER, "/api/users/me/sheets").body()).path("result").path("items").path(0)
         assertTrue(listed.path("hasDraft").booleanValue())
+        assertEquals("SOGEUM", listed.path("instrumentCode").asString())
         val reopened = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result").path("draft")
         assertEquals(partial, reopened.path("score"))
         assertEquals("고치는 중", reopened.path("title").asString())
@@ -288,6 +295,28 @@ class UserSheetApiDatabaseTests {
         assertEquals(409, send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score", scoreBody("1", scoreData)).statusCode())
         assertEquals(404, send(OTHER, "PUT", "/api/users/me/sheets/$sheetId/score", scoreBody("2", scoreData)).statusCode())
         assertEquals(404, send(OTHER, "PUT", "/api/users/me/sheets/$sheetId/score/draft", draftBody("2", 0, scoreData)).statusCode())
+    }
+
+    @Test
+    fun `already saved unreadable drafts do not advertise an instrument`() {
+        val sheetId = insertSongCopy(OWNER, "아리랑 연습")
+        val detailPath = "/api/users/me/sheets/$sheetId/score"
+        val original = json.readTree(get(OWNER, detailPath).body()).path("result").path("scoreData") as ObjectNode
+        val missingPart = original.deepCopy().also { (it.path("score") as ObjectNode).remove("part") }
+        val unknownField = original.deepCopy().also { (it.path("music") as ObjectNode).put("unknown", true) }
+
+        listOf(missingPart, unknownField).forEachIndexed { revision, unreadable ->
+            val saved = send(OWNER, "PUT", "$detailPath/draft", draftBody("1", revision, unreadable))
+            assertEquals(200, saved.statusCode(), saved.body())
+
+            val response = get(OWNER, "/api/users/me/sheets")
+            assertEquals(200, response.statusCode(), response.body())
+            val item = json.readTree(response.body()).path("result").path("items").path(0)
+            assertEquals(sheetId, item.path("sheetId").asString())
+            assertTrue(item.path("hasDraft").booleanValue())
+            assertTrue(item.path("instrumentCode").isNull, response.body())
+            assertEquals(unreadable, json.readTree(get(OWNER, detailPath).body()).path("result").path("draft").path("score"))
+        }
     }
 
     @Test
