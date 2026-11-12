@@ -180,7 +180,7 @@ val appModule = module {
     }
     viewModel { (justSavedId: String?, perf: PerformanceVisit?) -> RecordListViewModel(justSavedId, get(), get(), get(), songs = get(), perf = perf) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
-    viewModel { GrowthViewModel(get(), get(), get(), get()) }
+    viewModel { GrowthViewModel(get(), get(), get()) }
 
     // 운지법 보기·기초부터 배우기
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
