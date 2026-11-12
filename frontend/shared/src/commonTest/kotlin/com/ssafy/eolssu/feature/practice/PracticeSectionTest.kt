@@ -104,14 +104,57 @@ class PracticeSectionTest {
     }
 
     @Test fun sectionEvaluationTempoIsChangedInSettingsUntilRecording() {
-        // 구간 재평가 설정 시트·태블릿 상태 패널: 녹음 전에는 속도를 설정에서 바꾸고, 지금 속도를 보인다(S15P31E102-794).
-        val waiting = SectionLoopUiState(loading = false, song = song, section = secondGak, bpm = 40).asPracticeState(evaluation = true)
-        assertEquals(40, waiting.bpm)
+        // 구간 재평가는 연주 평가 화면이라 녹음 전에는 속도를 설정에서 바꾼다(S15P31E102-794·824).
+        val waiting = PracticeUiState(song = song, direct = true).openSectionPractice(secondGak)
+        assertTrue(waiting.sectionEvaluation)
+        assertTrue(waiting.awaitingStart)
         assertFalse(waiting.playbackSettingsLocked)
         assertEquals(PracticePanel.Tempo, waiting.openPanel(PracticePanel.Tempo).panel)
-        // 녹음 중에는 연주 평가처럼 속도가 잠긴다.
-        val recording = SectionLoopUiState(loading = false, song = song, section = secondGak, bpm = 40, recording = true).asPracticeState(evaluation = true)
+        // 3·2·1과 녹음 중에는 연주 평가처럼 속도가 잠긴다.
+        val recording = waiting.beginCountdown().beginRecording()
         assertTrue(recording.playbackSettingsLocked)
         assertNull(recording.openPanel(PracticePanel.Tempo).panel)
+    }
+
+    @Test fun sectionEvaluationRecordsFromTheSectionStartToItsEnd() {
+        val waiting = PracticeUiState(song = song, direct = true).openSectionPractice(secondGak)
+        // 3·2·1 동안에도 구간 처음을 보인다.
+        assertEquals(3, waiting.beginCountdown().sectionReadyStart)
+        var state = waiting.beginCountdown().beginRecording()
+        assertEquals(3, state.position)
+        // 시계는 곡 처음 기준이다: 1각(정간 3개)을 지난 시간에서 시작한다.
+        val cellMs = song.cellDurationMs(state.bpm)
+        assertEquals(3 * cellMs, state.elapsedMs)
+        assertEquals(0.0, state.recordingElapsedSeconds)
+        assertEquals(3 * cellMs / 1000, state.recordingTotalSeconds)
+        assertEquals(0f, state.recordingProgress)
+        // 구간의 음(3·4·5·6)을 차례로 지나 마지막 음에서 끝난다.
+        repeat(3) {
+            state = state.advance(state.eventDurationMs(), 0f)
+            assertFalse(state.finished)
+        }
+        assertEquals(6, state.position)
+        state = state.advance(state.eventDurationMs(), 0f)
+        assertTrue(state.finished)
+        assertEquals(PracticePopup.End, state.popup)
+        assertEquals(7, state.position)
+        assertEquals(1f, state.recordingProgress)
+    }
+
+    @Test fun wholeSongEvaluationStillRunsFromTheFirstNoteToTheLast() {
+        // 구간이 없는 연주 평가는 그대로 곡 처음부터 끝까지 간다.
+        var state = PracticeUiState(song = song, direct = true).beginCountdown().beginRecording()
+        assertFalse(state.sectionEvaluation)
+        assertEquals(0, state.position)
+        assertEquals(0.0, state.elapsedMs)
+        repeat(song.timeline.size - 1) { state = state.advance(state.eventDurationMs(), 0f) }
+        assertFalse(state.finished)
+        state = state.advance(state.eventDurationMs(), 0f)
+        assertTrue(state.finished)
+        assertEquals(song.timeline.size, state.position)
+        assertEquals(state.totalSeconds.toDouble(), state.recordingTotalSeconds)
+        assertEquals(state.progressPercent / 100f, state.recordingProgress)
+        // 구간 연습(혼자 연습)은 평가 연주가 아니다.
+        assertFalse(solo.openSectionPractice(secondGak).sectionEvaluation)
     }
 }
