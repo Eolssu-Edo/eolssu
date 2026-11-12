@@ -28,8 +28,10 @@ class ModelSectionPerformanceTest {
         vm.restartModel()
         runCurrent()
         assertEquals(2250L, player.requestedPosition, "Restart must keep the selected section")
+    }
 
-        vm.toggleSectionPractice()
+    @Test fun wholeScoreRestartStillUsesZero() = practice(section = null) { vm, player ->
+        // 구간 연습이 아닌 곡 전체 연습은 처음(0ms)부터 다시 시작한다(S15P31E102-794: 구간 연습은 연습 기록에서만 고정 구간으로 연다).
         vm.startModel()
         runCurrent()
         player.emit(AudioPlaybackStatus.Playing, 2500)
@@ -39,24 +41,24 @@ class ModelSectionPerformanceTest {
         assertEquals(0L, player.requestedPosition, "Whole-score restart keeps its original beginning")
     }
 
-    @Test fun completedSectionRoundsCanPlayAgainFromPerformedBeginning() = practice { vm, player ->
-        vm.selectSectionRepeat(SectionRepeat.Three)
+    @Test fun completedSectionCanPlayAgainFromPerformedBeginning() = practice { vm, player ->
+        // 구간 연습은 구간을 한 번 듣고 구간 처음에 멈춘다(S15P31E102-794). 다시 누르면 수행표의 구간 시작부터 듣는다.
         vm.startModel()
         runCurrent()
-        repeat(3) {
-            player.emit(AudioPlaybackStatus.Playing, 2250)
-            runCurrent()
-            player.emit(AudioPlaybackStatus.Completed, 7050)
-            runCurrent()
-        }
+        player.emit(AudioPlaybackStatus.Playing, 2250)
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Completed, 7050)
+        runCurrent()
         assertFalse(vm.uiState.value.playing)
-        assertEquals(3, vm.uiState.value.sectionPractice?.round)
         vm.startModel()
         runCurrent()
         assertEquals(2250L, player.requestedPosition)
     }
 
-    private fun practice(block: suspend TestScope.(PracticeViewModel, FakeAudioPlayer) -> Unit) = runTest {
+    private fun practice(
+        section: ScoreSection? = ScoreSection(ScorePosition(1, 0), ScorePosition(1, 0)),
+        block: suspend TestScope.(PracticeViewModel, FakeAudioPlayer) -> Unit,
+    ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val views = ViewModelStore()
         try {
@@ -70,7 +72,7 @@ class ModelSectionPerformanceTest {
             val model = PracticeViewModel(song.id, true, repository, PracticeSettingsStore(storage),
                 PracticeTimeMeter({ 0L }), PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope),
                 playbackTimeSource = testScheduler.timeSource, modelAudioRepository = modelRepository { audio },
-                audioPlayer = player, initialSection = ScoreSection(ScorePosition(1, 0), ScorePosition(1, 0)))
+                audioPlayer = player, initialSection = section)
             views.put("practice", model)
             runCurrent()
             block(model, player)
