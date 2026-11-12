@@ -50,6 +50,9 @@ import com.ssafy.eolssu.core.ui.component.MicLevelBadge
 import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import com.ssafy.eolssu.feature.practice.recordingElapsedSeconds
+import com.ssafy.eolssu.feature.practice.recordingProgress
+import com.ssafy.eolssu.feature.practice.recordingTotalSeconds
 import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_abort
@@ -97,7 +100,7 @@ class PracticeBottomActions(
  * 연주 중 하단(`.bottombar`, 상태 D·소리 입력 없음·중단): 경과 시간 ‘0:20 / 0:48’ · 마이크 뱃지 · 현재 박 장구 ·
  * 6dp 붉은 진행 막대 · 입력 없음 안내 · ‘처음부터 다시’ + ‘연주 중단’. 중단됨·이어 연주 카운트다운에서는 두 버튼이 회색으로 잠긴다.
  * 연주 평가([PracticeUiState.direct])는 ‘처음부터’ 없이 한 버튼만 너비를 채워 둔다. 시작 전 대기([PracticeUiState.awaitingStart])는
- * 0:00 · 빈 진행 막대에 ‘평가 시작’, 연주 중에는 ‘연주 중단’이다.
+ * 0:00 · 빈 진행 막대에 ‘평가 시작’, 연주 중에는 ‘연주 중단’이다. 구간 재평가는 시간과 진행 막대를 구간 안에서 잰다(S15P31E102-824).
  * 박 표시는 진행 막대 위에 두고, 시간·마이크 줄과 박 표시가 진행 막대에 붙지 않게 사이를 띄운다.
  * [stacked]이면 두 버튼을 위아래로 쌓는다(태블릿 가로 상태 패널).
  * 평가 시작 카운트다운([PracticeUiState.preparing])에는 같은 내용을 보이지 않게 그려 높이를 지키고, 가운데에 ‘준비’만 둔다.
@@ -124,16 +127,16 @@ private fun RecordingBarContent(state: PracticeUiState, actions: PracticeBottomA
     val song = state.song ?: return
     // 평가 시작 전 대기에는 고른 음과 관계없이 처음 자리(0:00 · 빈 막대 · 박 표시 없음)를 보인다.
     val awaiting = state.awaitingStart
-    val progress = if (awaiting) 0f else state.progressPercent
+    val progress = if (awaiting) 0f else state.recordingProgress
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         val colors = EolssuTheme.colors
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 buildAnnotatedString {
-                    append(formatClock(if (awaiting) 0.0 else state.elapsedMs / 1000))
+                    append(formatClock(if (awaiting) 0.0 else state.recordingElapsedSeconds))
                     append(" ")
                     withStyle(SpanStyle(fontSize = 13.sp, color = colors.textMuted, fontWeight = FontWeight.Normal)) {
-                        append(stringResource(Res.string.practice_rec_time_total, formatClock(state.totalSeconds.toDouble())))
+                        append(stringResource(Res.string.practice_rec_time_total, formatClock(state.recordingTotalSeconds)))
                     }
                 },
                 style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
@@ -143,7 +146,7 @@ private fun RecordingBarContent(state: PracticeUiState, actions: PracticeBottomA
         }
         if (state.settings.beatVisual) song.displayJangdan?.let { JangguBeats(it.daegang.size, if (state.finished || awaiting) -1 else state.beatIndex) }
         Box(Modifier.fillMaxWidth().height(6.dp).background(colors.surfaceStrong, RoundedCornerShape(3.dp))) {
-            Box(Modifier.fillMaxWidth((progress / 100f).coerceIn(0f, 1f)).fillMaxHeight().background(colors.rec, RoundedCornerShape(3.dp)))
+            Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).fillMaxHeight().background(colors.rec, RoundedCornerShape(3.dp)))
         }
         if (state.noInputHint) NoInputBanner()
         val locked = state.mode != PracticeMode.Recording

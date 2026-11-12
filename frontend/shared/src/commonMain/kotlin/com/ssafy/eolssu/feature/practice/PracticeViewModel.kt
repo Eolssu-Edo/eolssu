@@ -26,6 +26,7 @@ import com.ssafy.eolssu.data.practice.NotePracticeCriteriaLoad
 import com.ssafy.eolssu.data.practice.NotePracticeCriteriaRepository
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
+import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.data.song.SheetPracticeDownload
 import com.ssafy.eolssu.data.song.SheetPracticeNeedsReview
 import com.ssafy.eolssu.data.song.SheetPracticeRepository
@@ -74,6 +75,9 @@ import kotlin.uuid.Uuid
  *
  * 구간 연습(S15P31E102-794)은 연습 기록 → 구간 고르기에서 [initialSection]으로 연다. 모범 연주·장단 연습·한 음씩이
  * 그 구간만 한 번 연습하고 구간 처음에 멈춘다. 타임라인도 구간 안에서만 움직인다.
+ *
+ * 구간 재평가(S15P31E102-824)는 연주 평가([direct])에 [initialSection]과 [sectionSource]를 함께 준 것이다. 화면·진행·확인 창은
+ * 연주 평가와 같고, 바탕 세션의 악보를 불러와 그 구간만 녹음한다. 마친 녹음은 [sectionForEvaluation]의 구간과 함께 분석에 넘긴다.
  */
 class PracticeViewModel(
     private val songId: String,
@@ -102,12 +106,16 @@ class PracticeViewModel(
     private val maxRecording: Duration = RecordingSpec.MaxDuration,
     /** 구간 연습의 구간. 있으면 이 구간만 연습한다. */
     private val initialSection: ScoreSection? = null,
+    /** 구간 재평가의 바탕 세션. 있으면 곡 대신 그 세션의 악보를 불러오고, 녹음 전에 그 악보의 판본을 확인한다. */
+    private val sectionSource: SectionEvaluationSource? = null,
 ) : ViewModel() {
     private var stepJudge: StepNoteJudge = stepJudge
 
     private val _uiState = MutableStateFlow(
-        PracticeUiState(solo = solo || mine, mine = mine, learn = learn, direct = direct && !solo && !mine && !learn && recorder != null, fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
-            inputMeasured = recorder?.measuresLevel == true, isSongLoading = true),
+        PracticeUiState(solo = solo || mine, mine = mine, learn = learn, direct = direct && !solo && !mine && !learn && (recorder != null || sectionSource != null), fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
+            inputMeasured = recorder?.measuresLevel == true, isSongLoading = true,
+            // 구간 재평가는 악보를 받기 전에도 제목이 ‘구간 재평가’로 보이게 구간을 먼저 둔다.
+            sectionPractice = initialSection?.takeIf { sectionSource != null }?.let(::PracticeSectionState)),
     )
     val uiState: StateFlow<PracticeUiState> = _uiState.asStateFlow()
 
@@ -417,6 +425,7 @@ class PracticeViewModel(
             try {
                 val song = when {
                     mine -> loadPersonalSheet?.invoke(songId)
+                    sectionSource != null -> sectionSource.song()
                     direct -> songRepository.retainedSong(songId) ?: songRepository.getSong(songId)
                     else -> songRepository.getSong(songId)
                 }
@@ -464,7 +473,8 @@ class PracticeViewModel(
 
     private fun startTimeTracking() {
         if (mine || !accountScope.isActive) return
-        timeMeter.show(songId)
+        // 구간 재평가는 바탕 세션에서 받은 곡의 연습 시간으로 잰다.
+        timeMeter.show(if (sectionSource != null) _uiState.value.song?.id ?: return else songId)
         snapshotJob?.cancel()
         snapshotJob = accountScope.launch {
             while (true) {
@@ -906,10 +916,11 @@ class PracticeViewModel(
     /**
      * 연주 평가([PracticeUiState.direct])의 녹음을 분석에 넘긴 뒤 이 화면으로 돌아왔는지. 분석·결과에서 기기 뒤로 가기로 돌아와도
      * 평가 대기 상태를 다시 보이지 않고 들어온 화면으로 돌아갈지 판단한다. 기기 권한 창이 닫힐 때의 화면 복귀는 해당하지 않는다.
+     * 구간 재평가는 결과에서 돌아오면 같은 구간을 다시 평가할 수 있게 평가 대기 상태로 남는다.
      */
     fun leavesDirectOnReturn(): Boolean {
         val state = _uiState.value
-        return state.direct && handedToAnalysis && state.mode == PracticeMode.Ready && state.popup == null
+        return state.direct && sectionSource == null && handedToAnalysis && state.mode == PracticeMode.Ready && state.popup == null
     }
 
     /** 기기 권한 창의 응답을 기다리는 평가 시작. 응답 전에는 다시 눌러도 권한 요청·카운트다운을 겹쳐 시작하지 않는다. */
@@ -922,6 +933,11 @@ class PracticeViewModel(
      */
     fun requestEvaluation() {
         if (mine || !accountScope.isActive || recorder == null) return
+        // 구간에 연주할 율명 음이 없으면(쉼표만) 평가할 것이 없다.
+        if (sectionSource != null && sectionForEvaluation() == null) {
+            _uiState.update { it.copy(popup = PracticePopup.NoSectionNotes) }
+            return
+        }
         whenCurrentScore { requestCurrentEvaluation() }
     }
 
@@ -969,6 +985,7 @@ class PracticeViewModel(
     /** 녹음 화면의 악보와 현재 공개 판본을 비교한다. 개인 악보·혼자 연습은 기존 흐름을 유지한다. */
     private suspend fun currentScoreForEvaluation(): Boolean {
         val song = _uiState.value.song ?: return false
+        if (sectionSource != null) return currentSectionScore(sectionSource, song)
         val version = song.scoreVersion ?: return true
         if (mine || _uiState.value.solo) return true
         val current = try { songRepository.getSong(song.id) }
@@ -984,6 +1001,34 @@ class PracticeViewModel(
         if (_uiState.value.mode == PracticeMode.Recording || _uiState.value.resume) cancelRecorder()
         _uiState.update { it.toReady().copy(popup = popup) }
         return false
+    }
+
+    /** 구간 재평가: 바탕 세션의 악보가 지금도 공개 판본인지 확인한다. 바뀌었거나 확인하지 못하면 녹음하지 않고 알린다. */
+    private suspend fun currentSectionScore(source: SectionEvaluationSource, song: Song): Boolean {
+        val current = try { source.isCurrent() }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { null }
+        currentCoroutineContext().ensureActive()
+        if (!accountScope.isActive || _uiState.value.song !== song) return false
+        val popup = when (current) {
+            true -> return true
+            false -> PracticePopup.ScoreChanged
+            null -> PracticePopup.ScoreUnavailable
+        }
+        if (_uiState.value.mode == PracticeMode.Recording || _uiState.value.resume) cancelRecorder()
+        _uiState.update { it.toReady().copy(popup = popup) }
+        return false
+    }
+
+    /**
+     * 구간 재평가의 녹음과 함께 분석에 넘길 구간: 구간 안 율명 음의 번호 범위와 바탕 세션. 구간 재평가가 아니거나 구간에 율명 음이 없으면 null.
+     */
+    fun sectionForEvaluation(): SessionSection? {
+        val source = sectionSource ?: return null
+        val state = _uiState.value
+        val song = state.song ?: return null
+        val section = state.sectionPractice?.section ?: return null
+        return noteRange(song, section)?.let { SessionSection(it.first, it.last, source.sourceId) }
     }
 
     /** 혼자 연습 마이크 안내에서 '계속'을 누르면 OS 권한을 묻는다. 허용하면 true. */
