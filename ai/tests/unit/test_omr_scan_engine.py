@@ -62,6 +62,8 @@ from PIL import Image
 with Image.open(sys.argv[1]) as image:
     if not {accepted[0]} <= image.width <= {accepted[1]}:
         sys.exit(4)
+    if {width} == 3000 and '--grid-boxes' not in sys.argv:
+        sys.exit(4)
 out=Path(sys.argv[3]);out.mkdir(parents=True,exist_ok=True)
 cells=[dict(text='청태:5',conf=.2,ink=.1,x=100,y=200,w=100,h=100) for _ in range(8)]
 (out/'cells.json').write_text(json.dumps(dict(beats=4,cells=cells)))

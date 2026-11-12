@@ -18,7 +18,7 @@ from omr_service.staff_engine import AUDIVERIS_LOCK
 from jeongganbo_tokens import jg_like
 
 READER = [sys.executable, '-X', 'utf8', str(SCORES / 'jeongganbo_omr.py')]
-ENGINE_VERSION = 'e95045f-v1.0.0-r2'
+ENGINE_VERSION = 'e95045f-v1.0.0-r3'
 MIN_CONFIDENCE = .8  # 검수 기준이며, 보정된 정확도 확률이 아니다.
 log = logging.getLogger('omr_service.api')
 TOKEN = re.compile(rf'(?:{score_data.YUL}(?:_[^:\s]+)?|-|쉼표|쉼):(?:[0-9]|1[0-5])\Z')
@@ -62,10 +62,11 @@ def recognize(job):
                         image = work / f'scaled-{i}.png'
                         with Image.open(page.path) as source:
                             source.resize(size, Image.Resampling.LANCZOS).save(image)
+                    grid_options = ['--grid-boxes'] if scale == 2 / 3 else []
                     run = _run(READER + [str(image), '0', str(out), '--image', '--omr-dir', model_dir,
                                         '--model-cache-dir', str(work), '--batch-size', '16',
                                         '--beats', '0', '--fill-grid', '--keep-empty-columns',
-                                        '--title', 'page'], page_deadline)
+                                        '--title', 'page', *grid_options], page_deadline)
                     if run.returncode == 4:
                         continue
                     if run.returncode:
