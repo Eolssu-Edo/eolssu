@@ -55,6 +55,7 @@ data class RecordDetailUiState(
     val notice: RecordNotice? = null,
     val compareCandidates: List<PracticeRecord> = emptyList(),
     val comparePickOpen: Boolean = false,
+    val compareLoad: RecordCompareLoad = RecordCompareLoad.Ready,
     val playbackLoading: Boolean = false,
 ) {
     val eventCount: Int get() = song?.timeline?.size ?: 0
@@ -109,6 +110,8 @@ data class RecordDetailUiState(
     }
 }
 
+enum class RecordCompareLoad { Loading, Ready, Failed }
+
 enum class RecordSongLookup { Loading, Ready, Missing, Failed }
 
 enum class RecordDeleteState { Idle, Confirm, Deleting, Deleted, Busy, Failed }
@@ -148,6 +151,7 @@ class RecordDetailViewModel(
     private var detailJob: Job? = null
     private var playJob: Job? = null
     private var instrumentJob: Job? = null
+    private var compareJob: Job? = null
     private var songRequest = 0L
     private var source: Pair<AudioSource, Long>? = null
     private var sourceRequest = 0
@@ -172,7 +176,7 @@ class RecordDetailViewModel(
      */
     fun show(recordId: String) {
         if (!accountScope.isActive) return
-        if (recordId.isEmpty() || _uiState.value.record?.id == recordId) return
+        if (currentId == recordId) return
         currentId = recordId
         selection++
         stopPlayback()
@@ -180,14 +184,19 @@ class RecordDetailViewModel(
         songJob?.cancel()
         detailJob?.cancel()
         instrumentJob?.cancel()
+        compareJob?.cancel()
         songRequest++
-        val record = recordRepository.records.value.firstOrNull { it.id == recordId }
+        if (recordId.isEmpty()) {
+            _uiState.value = RecordDetailUiState()
+            return
+        }
+        val record = recordRepository.detailPreview(recordId)
         _uiState.update { state ->
             state.copy(
                 record = record, song = state.song?.takeIf { it.id == record?.songId && it.scoreVersion == record.scoreVersion }, position = 0, playing = false,
                 playbackPositionMs = 0L, audioDurationMs = null,
                 compareCandidates = record?.compareCandidates(recordRepository.records.value).orEmpty(),
-                comparePickOpen = false, playbackLoading = false, follow = true,
+                comparePickOpen = false, compareLoad = RecordCompareLoad.Ready, playbackLoading = false, follow = true,
                 detailLoaded = false, instrumentName = null, delete = RecordDeleteState.Idle, notice = null,
                 songLookup = if (record == null) RecordSongLookup.Loading else RecordSongLookup.Ready,
             )
@@ -470,12 +479,31 @@ class RecordDetailViewModel(
 
     /** ‘지난 연주와 비교’: 비교할 기록 고르기 시트를 연다. 재생은 멈춘다. */
     fun openComparePick() {
-        if (!accountScope.isActive || !_uiState.value.canCompare) return
+        val state = _uiState.value
+        val record = state.record ?: return
+        if (!accountScope.isActive || !state.canCompare || compareJob?.isActive == true) return
         pause()
-        _uiState.update { it.copy(comparePickOpen = true) }
+        _uiState.update { it.copy(comparePickOpen = true, compareLoad = RecordCompareLoad.Loading) }
+        compareJob = accountScope.launch {
+            val candidates = try {
+                recordRepository.recordsForSong(record.songId)?.let(record::compareCandidates)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            currentCoroutineContext().ensureActive()
+            _uiState.update {
+                if (candidates == null) it.copy(compareLoad = RecordCompareLoad.Failed)
+                else it.copy(compareCandidates = candidates, compareLoad = RecordCompareLoad.Ready)
+            }
+        }
     }
 
-    fun closeComparePick() = _uiState.update { it.copy(comparePickOpen = false) }
+    fun closeComparePick() {
+        compareJob?.cancel()
+        _uiState.update { it.copy(comparePickOpen = false) }
+    }
 
     fun consumeNotice() = _uiState.update { it.copy(notice = null) }
 

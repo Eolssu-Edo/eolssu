@@ -65,7 +65,7 @@ class SheetPracticeRepository(
     }
 
     /** 사용자가 요청한 확정 악보의 M4A만 내려받는다. 장단은 연습 플레이어에서 별도로 켠다. */
-    suspend fun download(song: Song): SheetPracticeDownload = member.inSession {
+    suspend fun download(song: Song, onDownloading: () -> Unit = {}): SheetPracticeDownload = member.inSession {
         if (!deviceAudio.available) return@inSession SheetPracticeDownload.Failed
         val accountId = member.id ?: return@inSession SheetPracticeDownload.Failed
         val version = song.scoreVersion?.takeIf { it > 0 }?.toString() ?: return@inSession SheetPracticeDownload.Failed
@@ -102,6 +102,7 @@ class SheetPracticeRepository(
         val sha256 = file.sha256 ?: return@inSession SheetPracticeDownload.Failed
         val durationMs = file.durationMs ?: return@inSession SheetPracticeDownload.Failed
         ensureAccountSession()
+        onDownloading()
         val saved = deviceAudio.save(accountId, song.id, version, SheetAudioDownload(
             file.url, file.byteSize, sha256, durationMs, instrumentId, song.baseBpm, settings.withJangdan, file.performance,
         ))

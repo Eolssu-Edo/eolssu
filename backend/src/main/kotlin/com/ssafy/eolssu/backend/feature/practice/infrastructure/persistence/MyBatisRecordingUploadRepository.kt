@@ -19,10 +19,10 @@ class MyBatisRecordingUploadRepository(
     override fun markUploaded(sessionId: Long, userId: Long, recording: UploadedRecording): Boolean = transactions.execute {
         val updated = with(recording) {
             mapper.markRecordingUploaded(
-                sessionId, userId, key, metadata.bytes, metadata.durationMs, metadata.sampleRate, metadata.channels, uploadedAt,
+                sessionId, userId, key, metadata.bytes, metadata.durationMs, metadata.sampleRate, metadata.channels, uploadedAt, timingId?.value,
             ) == 1
         }
-        if (updated) events.publishEvent(RecordingUploaded(sessionId))
+        if (updated) events.publishEvent(RecordingUploaded(sessionId, recording.timingId))
         updated
     } == true
 }

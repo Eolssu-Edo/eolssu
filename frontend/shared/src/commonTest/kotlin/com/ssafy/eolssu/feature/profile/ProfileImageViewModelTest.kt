@@ -1,7 +1,7 @@
 package com.ssafy.eolssu.feature.profile
 
 import com.ssafy.eolssu.data.user.MemberResult
-import com.ssafy.eolssu.data.user.ProfileImage
+import com.ssafy.eolssu.core.model.ProfileImage
 import com.ssafy.eolssu.data.user.SampleUserRepository
 import com.ssafy.eolssu.data.user.UserRepository
 import kotlinx.coroutines.test.runTest

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.practice
 
+import com.ssafy.eolssu.core.diagnostics.EvaluationTiming
 import com.ssafy.eolssu.core.network.NetworkResult
 import com.ssafy.eolssu.core.network.sendCatching
 import io.ktor.client.HttpClient
@@ -7,8 +8,10 @@ import io.ktor.client.plugins.timeout
 import io.ktor.client.request.forms.InputProvider
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
+import io.ktor.client.request.header
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.io.Buffer
@@ -46,6 +49,7 @@ class HttpRecordingUploader(
     private suspend fun uploadOnce(sessionId: String, path: String, onProgress: (Float) -> Unit): UploadOutcome {
         val size = fileSize(path)
         onProgress(0f)
+        val timing = currentCoroutineContext()[EvaluationTiming]
         val sent = client.sendCatching {
             submitFormWithBinaryData(
                 url = "/api/practice-sessions/$sessionId/recording",
@@ -60,6 +64,7 @@ class HttpRecordingUploader(
                     )
                 },
             ) {
+                timing?.let { header(EvaluationTiming.HEADER, it.id) }
                 timeout { requestTimeoutMillis = UPLOAD_TIMEOUT_MILLIS }
             }
         }

@@ -8,6 +8,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.feature.song.MySongsActions
 import com.ssafy.eolssu.feature.song.MySongsBody
 import com.ssafy.eolssu.feature.song.MySongsUiState
@@ -33,6 +34,7 @@ internal fun MySongsTabletLayout(
         onBack = actions.onBack,
         snackbarHostState = snackbarHostState,
         topBarRight = { instrumentPicker() },
+        containerColor = EolssuTheme.colors.groupedBackground,
     ) { gutter ->
         MySongsBody(
             state,

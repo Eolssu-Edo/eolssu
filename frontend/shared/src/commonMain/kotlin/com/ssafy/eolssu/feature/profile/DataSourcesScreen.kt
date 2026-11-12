@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.feature.profile
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,16 +17,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.browser.rememberInAppLinkOpener
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
@@ -47,7 +47,8 @@ import org.jetbrains.compose.resources.stringResource
 /** MY-01 푸터에서 여는 '자료 및 데이터 출처'. 외부 링크는 누를 때만 열고, 열지 못하면 안내를 띄운다. */
 @Composable
 fun DataSourcesRoute(onBack: () -> Unit) {
-    val uriHandler = LocalUriHandler.current
+    // 브라우저에서 뒤로 가면 앱으로 돌아오도록 앱 위에 겹쳐 연다(S15P31E102-768).
+    val openLink = rememberInAppLinkOpener()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     DataSourcesScreen(
@@ -56,7 +57,7 @@ fun DataSourcesRoute(onBack: () -> Unit) {
         snackbarHostState = snackbarHostState,
         onBack = onBack,
         onOpenLink = { url ->
-            if (runCatching { uriHandler.openUri(url) }.isFailure) {
+            if (runCatching { openLink(url) }.isFailure) {
                 scope.launch {
                     snackbarHostState.currentSnackbarData?.dismiss()
                     snackbarHostState.showSnackbar(getString(Res.string.sources_link_failed))
@@ -75,10 +76,13 @@ fun DataSourcesScreen(
     onBack: () -> Unit,
     onOpenLink: (String) -> Unit,
 ) {
-    ProfileScaffold(widthClass, stringResource(Res.string.sources_title), onBack, snackbarHostState, gap = 12.dp, topPadding = 8.dp) {
+    ProfileScaffold(
+        widthClass, stringResource(Res.string.sources_title), onBack, snackbarHostState, gap = 12.dp, topPadding = 8.dp,
+        containerColor = EolssuTheme.colors.groupedBackground,
+    ) {
         Text(
             stringResource(Res.string.sources_intro),
-            Modifier.padding(bottom = 4.dp),
+            Modifier.padding(start = 4.dp, end = 4.dp, bottom = 4.dp),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 19.sp),
             color = EolssuTheme.colors.textMuted,
         )
@@ -86,32 +90,46 @@ fun DataSourcesScreen(
     }
 }
 
-/** 출처 한 칸: 자료명 · 자료 종류 · 쓰는 곳 · 이용 조건·가공 · 링크. 본문보다 작은 글씨와 차분한 색을 쓴다. */
+/**
+ * 출처 한 칸(마이페이지 카드 모양, S15P31E102-768): 회색 바탕 위 테두리 없는 흰 카드(모서리 20dp).
+ * 위에 자료 종류 연두 꼬리표, 자료명, 쓰는 곳, 이용 조건·가공(회색), 아래에 회색 채움 링크 칸들을 둔다.
+ */
 @Composable
 private fun DataSourceCard(source: DataSource, onOpenLink: (String) -> Unit) {
     val colors = EolssuTheme.colors
-    val small = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp, lineHeight = 18.sp)
+    val small = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 19.sp)
     Column(
         Modifier
             .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(14.dp))
-            .border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .background(colors.surface, RoundedCornerShape(20.dp))
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(stringResource(source.kind), style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = colors.textMuted)
-        Text(stringResource(source.name), style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold), color = colors.text)
+        Text(
+            stringResource(source.kind),
+            Modifier.background(colors.accentTint, RoundedCornerShape(50)).padding(horizontal = 9.dp, vertical = 3.dp),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+            color = colors.accentText,
+        )
+        Text(
+            stringResource(source.name),
+            Modifier.padding(top = 2.dp),
+            style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
+            color = colors.text,
+        )
         Text(stringResource(Res.string.sources_usage, stringResource(source.usage)), style = small, color = colors.text)
-        source.note?.let { Text(stringResource(it), style = small, color = colors.textMuted) }
+        source.note?.let { Text(stringResource(it), style = small.copy(fontSize = 12.sp, lineHeight = 18.sp), color = colors.textMuted) }
         if (source.links.isEmpty()) {
-            Text(stringResource(Res.string.sources_no_link), style = small.copy(fontSize = 11.5.sp), color = colors.textMuted)
+            Text(stringResource(Res.string.sources_no_link), Modifier.padding(top = 4.dp), style = small.copy(fontSize = 12.sp), color = colors.textMuted)
         } else {
-            source.links.forEach { link -> SourceLinkRow(stringResource(link.label), link.url, onOpenLink) }
+            Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                source.links.forEach { link -> SourceLinkRow(stringResource(link.label), link.url, onOpenLink) }
+            }
         }
     }
 }
 
-/** 링크 한 줄. 누르는 영역은 44dp 이상이고, 화면 읽기에는 '원본 페이지 열기'처럼 동작을 읽힌다. */
+/** 링크 한 칸(회색 채움 · 모서리 12dp). 누르는 영역은 52dp 이상이고, 화면 읽기에는 '원본 페이지 열기'처럼 동작을 읽힌다. */
 @Composable
 private fun SourceLinkRow(label: String, url: String, onOpenLink: (String) -> Unit) {
     val colors = EolssuTheme.colors
@@ -119,9 +137,12 @@ private fun SourceLinkRow(label: String, url: String, onOpenLink: (String) -> Un
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 44.dp)
+            .heightIn(min = 52.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.groupedBackground)
             .clickable(role = Role.Button, onClick = { onOpenLink(url) })
-            .semantics { contentDescription = description },
+            .semantics { contentDescription = description }
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -129,9 +150,10 @@ private fun SourceLinkRow(label: String, url: String, onOpenLink: (String) -> Un
             Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.accentText)
             Text(
                 url,
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, textDecoration = TextDecoration.Underline),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
                 color = colors.textMuted,
-                maxLines = 2,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textMuted)
