@@ -60,6 +60,7 @@ import com.ssafy.eolssu.feature.practice.playerFraction
 import com.ssafy.eolssu.feature.practice.playerTotalSeconds
 import com.ssafy.eolssu.feature.practice.PracticePlayerNotice
 import com.ssafy.eolssu.feature.practice.playerNotice
+import com.ssafy.eolssu.feature.practice.modelSeekBuffering
 import com.ssafy.eolssu.feature.practice.PracticePersonalAudio
 import com.ssafy.eolssu.feature.practice.personalAudioControl
 import com.ssafy.eolssu.feature.practice.stepUi
@@ -104,7 +105,8 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
     val rhythm = state.mode == PracticeMode.Rhythm
-    val playing = state.mode in setOf(PracticeMode.Model, PracticeMode.Rhythm) && state.playing
+    // 재생 중 −5초·+5초로 새 자리를 불러오는 동안에도 ‘멈춤’ 버튼을 그대로 둔다(S15P31E102-807).
+    val playing = state.mode in setOf(PracticeMode.Model, PracticeMode.Rhythm) && state.playing || state.modelSeekBuffering
     val resumable = state.mode == PracticeMode.Model && !state.playing && state.modelAudioStatus in setOf(ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)
     val time = stringResource(Res.string.practice_time, formatClock(state.playerElapsedSeconds), formatClock(state.playerTotalSeconds))
     val playLabel = stringResource(
@@ -116,7 +118,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
         },
     )
     val canPlay = if (rhythm) state.jangdanSupported && state.jangdanStatus != JangdanStatus.Loading
-        else state.modelAudioStatus != ModelAudioStatus.Loading && state.modelAudioStatus != ModelAudioStatus.Unsupported
+        else (state.modelAudioStatus != ModelAudioStatus.Loading || state.modelSeekBuffering) && state.modelAudioStatus != ModelAudioStatus.Unsupported
     val personalAudio = state.personalAudioControl
     val canSeek = personalAudio == null && state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading
     // 음원 받기 버튼도 재생 버튼 줄과 같은 높이에 넣는다. 카드 높이가 모범 연주·장단 연습에서 같아야

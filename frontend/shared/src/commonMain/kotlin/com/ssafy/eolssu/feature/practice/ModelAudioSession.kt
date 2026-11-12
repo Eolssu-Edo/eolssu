@@ -29,12 +29,15 @@ enum class ModelAudioStatus { Idle, Loading, Playing, Paused, Completed, Interru
 /**
  * @property anchor 회색 표시를 부드럽게 보정하는 시계. 반주 속도에는 사용하지 않는다.
  * @property playbackAnchor 음원 위치를 측정한 시각과 실제 재생 속도로 흐르는 반주용 시계.
+ * @property seeking 재생 중 −5초·+5초·타임라인 이동으로 새 자리를 불러오는 중이다([ModelAudioStatus.Loading]일 때만 true).
+ *   처음 재생을 시작할 때의 불러오기와 달리 로딩 표시를 띄우지 않는다(S15P31E102-807).
  */
 data class ModelAudioState(
     val status: ModelAudioStatus = ModelAudioStatus.Idle,
     val audio: ModelAudio? = null,
     val mediaPositionMs: Long = 0,
     val anchor: MediaAnchor? = null,
+    val seeking: Boolean = false,
     val playbackAnchor: MediaAnchor? = null,
     val playbackClockReady: Boolean = true,
 )
@@ -124,7 +127,9 @@ internal class ModelAudioSession(
                     media.positionMs.toDouble(), media.positionSampledAt ?: timeSource.markNow(),
                     media.positionClockRate?.toDouble() ?: if (media.positionMs == 0L) 0.0 else speed(audio).toDouble(),
                 )
-                _state.value = ModelAudioState(checked, audio, media.positionMs, anchor, soundAnchor, media.positionClockRate != 0f)
+                val seeking = checked == ModelAudioStatus.Loading && previous.seeking
+                _state.value = ModelAudioState(checked, audio, media.positionMs, anchor, seeking = seeking,
+                    playbackAnchor = soundAnchor, playbackClockReady = media.positionClockRate != 0f)
             }
         }
     }
@@ -213,26 +218,51 @@ internal class ModelAudioSession(
         seekTo(song.modelMediaPosition(audio, tick))
     }
 
+    /**
+     * 모범 연주를 멈추고 악보 [tick] 자리에 둔다. 다음 재생은 그 자리에서 시작한다(구간 연습의 구간 끝, S15P31E102-807).
+     * 플레이어의 멈춤은 비동기로 보고되므로 [pause] 뒤 [seekToTick]을 부르면 아직 ‘재생 중’으로 보여 그 자리부터 다시 튼다.
+     * 그래서 보고를 기다리지 않고 바로 멈춘 상태로 둔다.
+     */
+    fun pauseAtTick(tick: Double) {
+        val current = _state.value
+        val audio = current.audio
+        val song = currentSong
+        if (audio == null || song == null) return pause()
+        park(current, scoreClamp(song, audio, song.modelMediaPosition(audio, tick)))
+    }
+
     private fun seekTo(positionMs: Long) {
         val current = _state.value
         val audio = current.audio ?: return
         val song = currentSong ?: return
-        if (current.status !in setOf(ModelAudioStatus.Playing, ModelAudioStatus.Paused, ModelAudioStatus.Completed, ModelAudioStatus.Interrupted)) return
-        val start = audio.startOffsetMs
-        val end = start + song.modelScoreDurationMs(audio).toLong()
-        val target = positionMs.coerceIn(start, end)
-        if (current.status == ModelAudioStatus.Playing) {
+        // 이동으로 불러오는 중에 또 누르면 그 자리에서 다시 옮긴다(로딩 표시 없이 −5초·+5초를 이어 누를 수 있다).
+        val reloading = current.status == ModelAudioStatus.Loading && current.seeking
+        if (!reloading && current.status !in setOf(ModelAudioStatus.Playing, ModelAudioStatus.Paused, ModelAudioStatus.Completed, ModelAudioStatus.Interrupted)) return
+        val target = scoreClamp(song, audio, positionMs)
+        if (current.status == ModelAudioStatus.Playing || reloading) {
             sourceId = null
             player.stop()
-            prepareExisting(song, audio, target, resume = false)
+            prepareExisting(song, audio, target, resume = false, seeking = true)
         } else {
-            ++requestId
-            loadJob?.cancel()
-            active = false
-            player.stop()
-            sourceId = null
-            _state.value = current.copy(status = ModelAudioStatus.Paused, mediaPositionMs = target)
+            park(current, target)
         }
+    }
+
+    /** 악보 구간(앞 여백 뒤 ~ 곡 끝) 안으로 맞춘다. */
+    private fun scoreClamp(song: Song, audio: ModelAudio, positionMs: Long): Long {
+        val start = audio.startOffsetMs
+        return positionMs.coerceIn(start, start + song.modelScoreDurationMs(audio).toLong())
+    }
+
+    /** 불러오기·재생을 그만두고 [positionMs]에 멈춘 상태로 둔다. 다음 재생은 그 자리에서 새로 불러 시작한다. */
+    private fun park(current: ModelAudioState, positionMs: Long) {
+        ++requestId
+        loadJob?.cancel()
+        active = false
+        player.stop()
+        sourceId = null
+        _state.value = current.copy(status = ModelAudioStatus.Paused, mediaPositionMs = positionMs, anchor = null, seeking = false,
+            playbackAnchor = null, playbackClockReady = true)
     }
 
     /** A hidden screen retains score selection/position but releases audio focus and native media. */
@@ -259,12 +289,12 @@ internal class ModelAudioSession(
 
     fun release() { stop(); player.release() }
 
-    private fun prepareExisting(song: Song, audio: ModelAudio, positionMs: Long, resume: Boolean) {
+    private fun prepareExisting(song: Song, audio: ModelAudio, positionMs: Long, resume: Boolean, seeking: Boolean = false) {
         active = true
         val request = ++requestId
-        _state.value = ModelAudioState(ModelAudioStatus.Loading, audio, positionMs)
+        _state.value = ModelAudioState(ModelAudioStatus.Loading, audio, positionMs, seeking = seeking)
         launchPreparation(request, CoroutineStart.UNDISPATCHED) {
-            startWhenReady(request, song, audio, positionMs, resume)
+            startWhenReady(request, song, audio, positionMs, resume, seeking)
         }
     }
 
@@ -280,7 +310,9 @@ internal class ModelAudioSession(
         }
     }
 
-    private suspend fun startWhenReady(request: Long, song: Song, audio: ModelAudio, positionMs: Long, resume: Boolean = false) {
+    private suspend fun startWhenReady(
+        request: Long, song: Song, audio: ModelAudio, positionMs: Long, resume: Boolean = false, seeking: Boolean = false,
+    ) {
         var ready: Boolean
         do {
             val preparingBpm = bpm
@@ -296,7 +328,7 @@ internal class ModelAudioSession(
         } else {
             val id = "model-$request"
             sourceId = id
-            _state.value = ModelAudioState(ModelAudioStatus.Loading, audio, positionMs)
+            _state.value = ModelAudioState(ModelAudioStatus.Loading, audio, positionMs, seeking = seeking)
             startedAt?.let { perf?.milestone(PerfPhase.PLAYER_LOAD, once = false, startedAt = it) }
             player.load(AudioSource(id, audio.audioUrl, localFile = audio.sheetPlayback?.localFile), positionMs, speed(audio))
         }
@@ -332,7 +364,7 @@ internal fun Song.modelPointAt(audio: ModelAudio, mediaPositionMs: Double): Mode
 
 internal fun PracticeUiState.withModelAudio(playback: ModelAudioState): PracticeUiState {
     if (mode != PracticeMode.Model) return this
-    val base = copy(modelAudioStatus = playback.status, playing = playback.status == ModelAudioStatus.Playing,
+    val base = copy(modelAudioStatus = playback.status, modelSeeking = playback.seeking, playing = playback.status == ModelAudioStatus.Playing,
         eventStartedAt = null, modelPerformance = playback.audio?.performance, modelPerformancePositionMs = 0.0,
         sheetPerformanceBpm = playback.audio?.takeIf { it.sheetPlayback != null && it.performance != null }?.bpm,
         modelClock = null)

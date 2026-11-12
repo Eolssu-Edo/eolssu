@@ -103,6 +103,8 @@ data class PracticeUiState(
     val mode: PracticeMode = PracticeMode.Ready,
     val playing: Boolean = false,
     val modelAudioStatus: ModelAudioStatus = ModelAudioStatus.Idle,
+    /** 모범 연주를 재생하다 −5초·+5초·타임라인 이동으로 새 자리를 불러오는 중이다([ModelAudioState.seeking]). */
+    val modelSeeking: Boolean = false,
     val jangdanStatus: JangdanStatus = JangdanStatus.Idle,
     val jangdanSupported: Boolean = false,
     val position: Int = 0,
@@ -540,6 +542,10 @@ enum class PracticePersonalAudio { Checking, Missing, Preparing, Downloading, Fa
 internal val PracticeUiState.personalAudioControl: PracticePersonalAudio?
     get() = personalAudio?.takeUnless { !mine || mode == PracticeMode.Rhythm || it == PracticePersonalAudio.Ready }
 
+/** 모범 연주를 재생하다 이동해 새 자리를 불러오는 중. 화면은 재생 중처럼 두고 로딩 표시를 띄우지 않는다. */
+internal val PracticeUiState.modelSeekBuffering: Boolean
+    get() = mode == PracticeMode.Model && modelAudioStatus == ModelAudioStatus.Loading && modelSeeking
+
 internal val PracticeUiState.playerNotice: PracticePlayerNotice
     get() {
         val rhythm = mode == PracticeMode.Rhythm
@@ -552,7 +558,8 @@ internal val PracticeUiState.playerNotice: PracticePlayerNotice
                 else -> PracticePlayerNotice.None
             }
         }
-        if ((!rhythm && modelAudioStatus == ModelAudioStatus.Loading) ||
+        // 재생 중 이동으로 다시 불러오는 동안은 로딩 표시를 띄우지 않는다. 처음 재생을 시작할 때만 띄운다(S15P31E102-807).
+        if ((!rhythm && modelAudioStatus == ModelAudioStatus.Loading && !modelSeekBuffering) ||
             (accompaniment && jangdanStatus == JangdanStatus.Loading)) return PracticePlayerNotice.Loading
         if (!rhythm) when (modelAudioStatus) {
             ModelAudioStatus.Failed -> return PracticePlayerNotice.Failed
