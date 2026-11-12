@@ -5,6 +5,7 @@ import com.ssafy.eolssu.data.song.CommonScoreData
 import com.ssafy.eolssu.data.song.ScoreDataException
 import com.ssafy.eolssu.data.song.jangdanCycleTicks
 import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.ScoreUnitKey
 import kotlin.math.abs
 
 /** 현재 편집 내용으로 다시 계산한 편집 완료 조건. 초안 저장에는 적용하지 않는다. */
@@ -19,6 +20,7 @@ data class SheetCompletionValidation(
     val catalogFailed: Boolean = false,
     val firstCellIndex: Int? = null,
     val correctionCellIndices: Set<Int> = emptySet(),
+    val correctionUnitKeys: Set<ScoreUnitKey> = emptySet(),
     internal val checkableIssueIds: Set<String> = emptySet(),
 ) {
     val hasEmptyCells: Boolean get() = emptyCellCount > 0
@@ -35,18 +37,29 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val events = score?.events?.associateBy { it.id }.orEmpty()
     val cells = score?.columns?.flatMap { it.cells }
     // 이음 칸도 실제로 가리키는 이벤트의 음높이를 검사한다.
-    val pitchesByCell = draft.cells.indices.map { index ->
-        cells?.getOrNull(index)?.units?.mapNotNull { unit ->
+    val pitchesByUnit = draft.cells.indices.map { index ->
+        cells?.getOrNull(index)?.units?.map { unit ->
             events[unit.eventId]?.takeIf { it.kind == "NOTE" }?.let { event ->
                 event.yul?.let { yul -> event.octave?.let { yul to it } }
             }
-        } ?: draft.cells[index].mapNotNull { it.pitchKey()?.let { (yul, octave) -> yul.hangul to octave } }
+        } ?: draft.cells[index].map { it.pitchKey()?.let { (yul, octave) -> yul.hangul to octave } }
     }
+    val pitchesByCell = pitchesByUnit.map { it.filterNotNull() }
     val catalogPending = completionCatalogState in setOf(SheetCompletionCatalogState.Loading, SheetCompletionCatalogState.Failed)
-    val invalidPitches = pitchesByCell.indices.filter { index -> !catalogPending && pitchesByCell[index].any { pitch ->
-        supportedInputPitches?.let { pitch !in it } == true ||
-            serverPitchIssues.any { it.cellId == cells?.getOrNull(index)?.id }
-    } }
+    val invalidUnits = buildSet {
+        if (!catalogPending) pitchesByUnit.forEachIndexed { index, pitches ->
+            pitches.forEachIndexed { sub, pitch ->
+                val unit = cells?.getOrNull(index)?.units?.getOrNull(sub)
+                val rejected = pitch != null && (supportedInputPitches?.let { pitch !in it } == true ||
+                    serverPitchIssues.any { issue ->
+                        if (issue.eventId.isNotEmpty()) issue.eventId == unit?.eventId
+                        else issue.cellId == cells?.getOrNull(index)?.id && pitch == (issue.yul to issue.octave)
+                    })
+                if (rejected) draft.unitKeyOf(index, sub)?.let(::add)
+            }
+        }
+    }
+    val invalidPitches = draft.cells.indices.filter { index -> draft.cells[index].indices.any { sub -> draft.unitKeyOf(index, sub) in invalidUnits } }
     val checkable = reviewIssues.filter { issue ->
         val index = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 }
         when (issue.kind) {
@@ -66,12 +79,36 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val structureCell = (structureError as? ScoreDataException)?.location?.let { location ->
         cells?.indexOfFirst { it.id == location || location.startsWith("${it.id}-") }?.takeIf { it >= 0 }
     }
+    val structuralUnits = if (structureError != null) score?.structuralUnitKeys().orEmpty() else emptySet()
+    val correctionUnits = buildSet {
+        addAll(invalidUnits)
+        empty.forEach { index ->
+            draft.cells[index].forEachIndexed { sub, note ->
+                if (note == ScoreNote.Blank) draft.unitKeyOf(index, sub)?.let(::add)
+            }
+        }
+        pending.forEach { issue ->
+            val index = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@forEach
+            val sourceUnits = draft.originalCell(index)?.units.orEmpty()
+            val matched = draft.cells[index].indices.filter { sub ->
+                when {
+                    issue.eventId != null -> sourceUnits.getOrNull(sub)?.eventId == issue.eventId
+                    issue.pitch != null -> pitchesByUnit[index].getOrNull(sub) == issue.pitch
+                    else -> true
+                }
+            }.ifEmpty { draft.cells[index].indices.toList() }
+            matched.forEach { draft.unitKeyOf(index, it)?.let(::add) }
+        }
+        addAll(structuralUnits)
+    }
     val corrections = buildSet {
         addAll(empty)
         addAll(invalidPitches)
         pending.forEach { issue -> draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 }?.let(::add) }
         if (structureError != null) {
-            val structuralCells = score?.structuralCellIndices().orEmpty()
+            val structuralCells = cells.orEmpty().mapIndexedNotNull { index, cell ->
+                index.takeIf { cell.units.any { ScoreUnitKey(cell.id, it.row, it.col) in structuralUnits } }
+            }
             addAll(structuralCells)
             // 앞의 빈 칸 때문에 다음 정상 이벤트에서 시간 검증이 실패할 수 있다.
             if (structuralCells.isEmpty() && empty.isEmpty()) structureCell?.let(::add)
@@ -88,22 +125,25 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
         catalogFailed = completionCatalogState == SheetCompletionCatalogState.Failed,
         firstCellIndex = corrections.firstOrNull(),
         correctionCellIndices = corrections,
+        correctionUnitKeys = correctionUnits,
         checkableIssueIds = checkable,
     )
 }
 
 /** 저장 검증은 첫 오류에서 멈추므로, 편집 가능한 자리의 끊어진 연결·배치를 모두 찾아 표시한다. */
-private fun CommonScoreData.structuralCellIndices(): Set<Int> {
+private fun CommonScoreData.structuralUnitKeys(): Set<ScoreUnitKey> {
     val cells = columns.flatMap { it.cells }
     val cellsById = cells.associateBy { it.id }
     val byId = events.associateBy { it.id }
     val duplicates = events.groupingBy { it.id }.eachCount().filterValues { it > 1 }.keys
     data class Coverage(val cell: Int, val unit: CommonScoreData.Unit, val start: Double, val end: Double)
-    val invalidCells = mutableSetOf<Int>()
+    val invalidUnits = mutableSetOf<ScoreUnitKey>()
     val coverage = cells.flatMapIndexed { index, cell ->
         val rows = cell.units.groupBy { it.row }
         if (rows.keys.toList() != (0 until rows.size).toList() ||
-            rows.values.any { row -> row.map { it.col } != row.indices.toList() }) invalidCells += index
+            rows.values.any { row -> row.map { it.col } != row.indices.toList() }) {
+            cell.units.forEach { invalidUnits += ScoreUnitKey(cell.id, it.row, it.col) }
+        }
         cell.units.map { unit ->
             val rowSize = rows.getValue(unit.row).size
             val start = index.toDouble() * music.ticksPerJeonggan +
@@ -134,8 +174,9 @@ private fun CommonScoreData.structuralCellIndices(): Set<Int> {
         invalidEvents += before.id
         invalidEvents += after.id
     }
-    cells.forEachIndexed { index, cell ->
-        if (events.any { it.id in invalidEvents && it.cellId == cell.id }) invalidCells += index
+    cells.forEach { cell ->
+        cell.units.filter { unit -> events.any { it.id in invalidEvents && it.id == "${cell.id}-r${unit.row}-u${unit.col}" } }
+            .forEach { invalidUnits += ScoreUnitKey(cell.id, it.row, it.col) }
     }
     coverage.forEach { span ->
         val unit = span.unit
@@ -153,9 +194,9 @@ private fun CommonScoreData.structuralCellIndices(): Set<Int> {
             }
             invalidSymbol || (startsHere && !startsTogether)
         }
-        if (invalid) invalidCells += span.cell
+        if (invalid) invalidUnits += ScoreUnitKey(cells[span.cell].id, unit.row, unit.col)
     }
-    return invalidCells
+    return invalidUnits
 }
 
 /** beatCount는 장구 패턴 칸 수다. 각 칸의 음가를 BPM 박으로 환산해 원본 tick과 비교한다. */

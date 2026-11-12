@@ -131,7 +131,7 @@ fun PracticeScoreArea(
         val onUnitClick = onSelectUnit.takeIf { state.canSelectUnit }
         val annotations = state.scoreAnnotations
         val sectionMarks = practiceSectionMarks(state)
-        val sectionColumns = state.sectionPractice?.section?.fullColumns(song.score)
+        val section = state.sectionPractice?.section
         if (bandColumns == null) {
             val scrollState = rememberHorizontalScoreScroll(state)
             JeongganboView(
@@ -151,7 +151,7 @@ fun PracticeScoreArea(
                 unitMarks = pitchMarks,
                 unitMarksAfterPass = true,
                 decorations = sectionMarks,
-                sectionColumns = sectionColumns,
+                section = section,
             )
         } else {
             val bandHeight = (maxHeight - BandGap) / 2
@@ -176,7 +176,7 @@ fun PracticeScoreArea(
                         unitMarks = pitchMarks,
                         unitMarksAfterPass = true,
                         decorations = sectionMarks,
-                        sectionColumns = sectionColumns,
+                        section = section,
                     )
                 }
             }
@@ -321,7 +321,7 @@ fun PracticeBoardScore(
                     onUnitClick = onSelectUnit.takeIf { state.canSelectUnit },
                     look = JeongganboLook.practice(big),
                     decorations = practiceSectionMarks(state),
-                    sectionColumns = state.sectionPractice?.section?.fullColumns(song.score),
+                    section = state.sectionPractice?.section,
                     annotations = state.scoreAnnotations,
                     columnsPerStack = packing.columnsPerStack,
                     windowed = true,

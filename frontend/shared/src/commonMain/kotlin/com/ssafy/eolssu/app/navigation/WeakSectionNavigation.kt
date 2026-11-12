@@ -86,6 +86,7 @@ internal fun NavGraphBuilder.weakSectionGraph(navController: NavController, perf
             perf = perf,
             sessionId = entry.savedStateHandle.get<String>("sessionId").orEmpty(),
             onBack = { navController.popBackStackFrom(entry) },
+            onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
             onOtherSection = {
                 if (!navController.popBackStack(WeakSectionDestination.SELECT, inclusive = false)) {
                     navController.navigate(WeakSectionDestination.select(source))
