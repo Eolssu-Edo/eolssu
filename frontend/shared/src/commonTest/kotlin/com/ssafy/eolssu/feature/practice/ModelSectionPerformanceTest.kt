@@ -16,9 +16,27 @@ import kotlinx.coroutines.test.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ModelSectionPerformanceTest {
+    @Test fun roundedSeekBeforeFractionalSectionStartIsNotASectionExit() = practice(fractional = true) { vm, player ->
+        vm.startModel(); runCurrent()
+        assertEquals(2250L, player.requestedPosition)
+        player.emit(AudioPlaybackStatus.Playing, 2250); runCurrent()
+        assertTrue(vm.uiState.value.playing, "The rounded landing is just before 2250.5ms, before entering the section")
+        player.emit(AudioPlaybackStatus.Playing, 2251); runCurrent()
+        assertTrue(vm.uiState.value.playing)
+        player.emit(AudioPlaybackStatus.Playing, 3250); runCurrent()
+        assertFalse(vm.uiState.value.playing, "Returning outside an entered section must still stop")
+    }
+
+    @Test fun fractionalSectionEntryKeepsItsFuturePerformedEnd() {
+        val song = previewSong()
+        val audio = previewAudio().withPerformance(previewJson().replace("2250", "2250.5"), song, SourceHash)
+        assertEquals(3250.0, song.modelSectionEndMediaPosition(audio, 8.0..12.0, 2250.0))
+    }
+
     @Test fun sectionStopsWhenThePerformanceRepeatsBackOutsideTheSelection() = practice { vm, player ->
         vm.startModel(); runCurrent()
         player.emit(AudioPlaybackStatus.Playing, 2250); runCurrent()
@@ -74,13 +92,14 @@ class ModelSectionPerformanceTest {
 
     private fun practice(
         section: ScoreSection? = ScoreSection(ScorePosition(1, 0), ScorePosition(1, 0)),
+        fractional: Boolean = false,
         block: suspend TestScope.(PracticeViewModel, FakeAudioPlayer) -> Unit,
     ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val views = ViewModelStore()
         try {
             val song = previewSong()
-            val audio = previewAudio().withPerformance(previewJson(), song, SourceHash)
+            val audio = previewAudio().withPerformance(if (fractional) previewJson().replace("2250", "2250.5") else previewJson(), song, SourceHash)
             val repository = object : SongRepository by SampleSongRepository() {
                 override suspend fun getSong(songId: String): Song = song
             }

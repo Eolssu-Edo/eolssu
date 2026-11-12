@@ -368,11 +368,17 @@ internal fun Song.modelJangdanTickAt(audio: ModelAudio, mediaPositionMs: Double)
 internal fun Song.modelSectionEndMediaPosition(audio: ModelAudio, ticks: ClosedFloatingPointRange<Double>, mediaPositionMs: Double): Double {
     val performance = audio.performance ?: return modelMediaPosition(audio, ticks.endInclusive).toDouble()
     val elapsed = (mediaPositionMs - audio.startOffsetMs).coerceAtLeast(0.0)
+    var entered = false
     for (segment in performance.segments) {
         if (segment.endMs <= elapsed) continue
         val entryMs = maxOf(elapsed, segment.startMs)
         val entryTick = segment.sourceTickAt(entryMs)
-        if (entryTick < ticks.start || entryTick >= ticks.endInclusive) return audio.startOffsetMs + entryMs
+        if (entryTick < ticks.start || entryTick >= ticks.endInclusive) {
+            if (entered) return audio.startOffsetMs + entryMs
+            // Native seek uses integer milliseconds and may land just before the selected slot.
+            continue
+        }
+        entered = true
         if (segment.endTick > ticks.endInclusive) return audio.startOffsetMs + segment.mediaMsAt(ticks.endInclusive)
     }
     return audio.startOffsetMs + performance.durationMs

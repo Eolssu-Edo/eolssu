@@ -526,7 +526,14 @@ class PracticeViewModel(
             if (!state.passedSectionEnd && status != ModelAudioStatus.Completed) sectionSeekPending = false
             return
         }
-        val ended = status == ModelAudioStatus.Completed || (state.playing && state.passedSectionEnd)
+        val range = state.sectionEvents ?: return
+        val playback = modelAudio.state.value
+        val ticks = state.sectionTicks
+        val audio = playback.audio
+        val repeatedOutside = state.position < range.first && ticks != null && audio != null &&
+            audio.performance?.segments?.firstOrNull { ticks.start >= it.startTick && ticks.start < it.endTick }
+                ?.let { playback.mediaPositionMs >= audio.startOffsetMs + it.mediaMsAt(ticks.start) } == true
+        val ended = status == ModelAudioStatus.Completed || (state.playing && (state.passedSectionEnd || repeatedOutside))
         if (!ended) return
         val song = state.song ?: return
         val first = state.sectionEvents?.first ?: return
