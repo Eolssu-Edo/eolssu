@@ -60,7 +60,6 @@ import eolssu.shared.generated.resources.weak_result_next_ready
 import eolssu.shared.generated.resources.weak_result_next_slow
 import eolssu.shared.generated.resources.weak_result_not_comparable
 import eolssu.shared.generated.resources.weak_result_other_more
-import eolssu.shared.generated.resources.weak_result_practice_again
 import eolssu.shared.generated.resources.weak_result_same
 import eolssu.shared.generated.resources.weak_result_subtitle
 import eolssu.shared.generated.resources.weak_result_subtitle_plain
@@ -71,7 +70,6 @@ import org.jetbrains.compose.resources.stringResource
 /** 구간 재평가 결과에서 부르는 동작. */
 class SectionResultActions(
     val onBack: () -> Unit,
-    val onPracticeAgain: () -> Unit,
     val onOtherSection: () -> Unit,
     val onWholeSong: () -> Unit,
     val onSelectFilter: (ErrorFilter) -> Unit = {},
@@ -121,7 +119,6 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
                 total = evaluation.total,
                 metrics = evaluation.metrics,
                 modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
-                action = { TintPillButton(stringResource(Res.string.weak_result_practice_again), actions.onPracticeAgain, icon = EolssuIcons.Restart) },
             )
             ErrorCompareBox(evaluation.check, Modifier.padding(bottom = 8.dp))
             val result = evaluation.result

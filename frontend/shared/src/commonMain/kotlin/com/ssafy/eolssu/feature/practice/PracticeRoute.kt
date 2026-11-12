@@ -70,13 +70,13 @@ fun PracticeRoute(
     sheetTitle: String? = null,
     learn: Boolean = false,
     direct: Boolean = false,
-    /** 구간 연습으로 들어온 바탕 연주(연습 세션 ID, S15P31E102-776). 있으면 구간 연습을 켠 채 시작한다. */
-    weakSource: String? = null,
-    /** 구간 연습으로 들어올 때 고를 구간. 없으면 [weakSource]의 추천 구간. */
+    /** 구간 연습(S15P31E102-794)의 구간. 있으면 이 구간만 연습하고, 평가 버튼은 구간 재평가가 된다. */
     initialSection: ScoreSection? = null,
+    /** 구간 연습의 ‘구간 재평가 시작’: 같은 구간으로 구간 재평가 화면에 간다. */
+    onSectionEvaluate: (section: ScoreSection) -> Unit = {},
     perf: PerformanceVisit? = null,
-    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn-$direct-$weakSource-$initialSection") {
-        parametersOf(songId, solo, mine, learn, perf, direct, weakSource.orEmpty(), listOfNotNull(initialSection))
+    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn-$direct-$initialSection") {
+        parametersOf(songId, solo, mine, learn, perf, direct, listOfNotNull(initialSection))
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -152,9 +152,13 @@ fun PracticeRoute(
                     onSeek = viewModel::seekModel,
                     onSeekToFraction = viewModel::seekToFraction,
                     onToggleStep = viewModel::toggleStep,
-                    onToggleSection = viewModel::toggleSectionPractice,
-                    onResetSection = viewModel::resetSectionToRecommended,
-                    onSectionRepeat = viewModel::selectSectionRepeat,
+                    onStartSectionEval = {
+                        val section = state.sectionPractice?.section
+                        if (section != null) {
+                            viewModel.stopAll()
+                            onSectionEvaluate(section)
+                        }
+                    },
                     onTapStepPlaying = viewModel::tapStepPlaying,
                     onListenStepNote = {
                         viewModel.uiState.value.stepNoteToPlay?.let(playStepNote)

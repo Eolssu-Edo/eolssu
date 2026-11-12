@@ -68,15 +68,7 @@ import eolssu.shared.generated.resources.practice_countdown_cancel
 import eolssu.shared.generated.resources.practice_follow_now
 import eolssu.shared.generated.resources.practice_time
 import eolssu.shared.generated.resources.weak_load_missing
-import eolssu.shared.generated.resources.weak_loop_count_resume
-import eolssu.shared.generated.resources.weak_loop_count_start
 import eolssu.shared.generated.resources.weak_loop_evaluate_start
-import eolssu.shared.generated.resources.weak_loop_pause
-import eolssu.shared.generated.resources.weak_loop_restart
-import eolssu.shared.generated.resources.weak_loop_resume
-import eolssu.shared.generated.resources.weak_loop_round
-import eolssu.shared.generated.resources.weak_loop_round_endless
-import eolssu.shared.generated.resources.weak_loop_start
 import eolssu.shared.generated.resources.weak_loop_title
 import org.jetbrains.compose.resources.stringResource
 

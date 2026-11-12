@@ -55,7 +55,7 @@ fun RecordListRoute(
     onOpenRecord: (String) -> Unit,
     initialRecordId: String? = null,
     onSelectSection: (recordId: String) -> Unit = {},
-    /** ‘구간 연습’ → 이 곡 연습 화면의 구간 연습(S15P31E102-776). */
+    /** ‘구간 연습’ → 구간 고르기(반복 횟수·속도) → 구간 연습(S15P31E102-794). */
     onPracticeSection: (recordId: String, songId: String) -> Unit = { _, _ -> },
     onCompare: (recordId: String, previousId: String) -> Unit = { _, _ -> },
     perf: PerformanceVisit? = null,
@@ -152,7 +152,7 @@ fun RecordDetailRoute(
     onBack: () -> Unit,
     onCompare: (recordId: String, previousId: String) -> Unit = { _, _ -> },
     onSelectSection: (recordId: String) -> Unit = {},
-    /** ‘구간 연습’ → 이 곡 연습 화면의 구간 연습(S15P31E102-776). */
+    /** ‘구간 연습’ → 구간 고르기(반복 횟수·속도) → 구간 연습(S15P31E102-794). */
     onPracticeSection: (recordId: String, songId: String) -> Unit = { _, _ -> },
     onDeleted: () -> Unit = onBack,
     viewModel: RecordDetailViewModel = koinViewModel(key = recordId) { parametersOf(recordId) },

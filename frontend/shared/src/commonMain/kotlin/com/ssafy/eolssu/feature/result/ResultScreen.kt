@@ -103,7 +103,6 @@ import eolssu.shared.generated.resources.result_score_unit
 import eolssu.shared.generated.resources.result_subtitle
 import eolssu.shared.generated.resources.result_title
 import eolssu.shared.generated.resources.result_weak_line
-import eolssu.shared.generated.resources.result_weak_section
 import org.jetbrains.compose.resources.stringResource
 
 /** 결과 화면에서 부르는 동작. */
@@ -111,7 +110,6 @@ class ResultActions(
     val onBack: () -> Unit,
     val onSave: () -> Unit,
     val onConfirmSave: () -> Unit,
-    val onWeakSection: () -> Unit,
     val onPracticeAgain: () -> Unit,
     val onOtherSong: () -> Unit,
     val onHome: () -> Unit,
@@ -170,17 +168,12 @@ fun ResultScreen(
             )
         },
         bottomBar = {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                EolssuButton(
-                    stringResource(if (state.savedRecord != null) Res.string.result_saved_button else Res.string.result_save),
-                    actions.onSave, Modifier.weight(1f),
-                    icon = if (state.savedRecord != null) EolssuIcons.Check else EolssuIcons.Save, compact = true,
-                )
-                EolssuButton(
-                    stringResource(Res.string.result_weak_section), actions.onWeakSection, Modifier.weight(1f),
-                    style = EolssuButtonStyle.Secondary, compact = true,
-                )
-            }
+            // 취약 구간 연습은 연습 기록의 ‘구간 연습’에서만 들어간다(S15P31E102-794).
+            EolssuButton(
+                stringResource(if (state.savedRecord != null) Res.string.result_saved_button else Res.string.result_save),
+                actions.onSave, Modifier.fillMaxWidth(),
+                icon = if (state.savedRecord != null) EolssuIcons.Check else EolssuIcons.Save, compact = true,
+            )
         },
     ) {
         ResultContent(state, result, song, actions)

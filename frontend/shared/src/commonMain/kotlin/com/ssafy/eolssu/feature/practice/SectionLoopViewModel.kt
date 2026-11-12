@@ -45,7 +45,8 @@ import kotlin.uuid.Uuid
 class SectionLoopViewModel(
     private val sourceId: String,
     private val section: ScoreSection,
-    private val bpm: Int,
+    /** 정한 속도. null이면 연습 화면과 같은 곡 속도 설정을 따르고 설정의 ‘속도’로 바꾼다(S15P31E102-794). */
+    private val bpm: Int?,
     private val repeats: Int?,
     private val repository: WeakSectionRepository,
     private val recorder: AudioRecorder? = null,
@@ -56,7 +57,7 @@ class SectionLoopViewModel(
     private val autoStart: Boolean = true,
     jangdanPlayer: JangdanSamplePlayer? = null,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(SectionLoopUiState(section = section, bpm = bpm, repeats = repeats))
+    private val _uiState = MutableStateFlow(SectionLoopUiState(section = section, bpm = bpm ?: 60, repeats = repeats))
     val uiState: StateFlow<SectionLoopUiState> = _uiState.asStateFlow()
     private var job: Job? = null
     private var loadedSource: WeakSectionSource? = null
@@ -74,7 +75,7 @@ class SectionLoopViewModel(
 
     init {
         settingsStore?.let { store ->
-            viewModelScope.launch { store.settings.collect { settings -> _uiState.update { it.copy(settings = settings) } } }
+            viewModelScope.launch { store.settings.collect { settings -> _uiState.update { it.copy(settings = settings).withSavedTempo() } } }
         }
         jangdan?.let { session ->
             viewModelScope.launch { session.status.collect { status -> _uiState.update { it.copy(jangdanStatus = status) } } }
@@ -88,7 +89,7 @@ class SectionLoopViewModel(
                     loading = false,
                     song = source?.song,
                     cells = source?.let { s -> section.positions(s.song.score) }.orEmpty(),
-                )
+                ).withSavedTempo()
             }
             if (source != null && autoStart) startCountdown()
         }
@@ -300,11 +301,15 @@ class SectionLoopViewModel(
         _uiState.update { it.copy(panel = null) }
     }
 
-    /** 설정 시트에서 고친 값을 바로 저장한다. 속도는 구간 고르기에서 정하므로 바꾸지 않는다. */
+    /** 설정 시트에서 고친 값을 바로 저장한다. 속도는 연습 화면과 같은 곡 속도 설정에 저장하고, 녹음 중에는 바꾸지 않는다. */
     fun updateDraft(transform: (PracticeDraft) -> PracticeDraft) {
         _uiState.update { it.copy(draft = transform(it.draft)) }
         val state = _uiState.value
         when (state.panel) {
+            PracticePanel.Tempo -> {
+                val song = state.song
+                if (song != null && !state.recording) settingsStore?.update { it.applyTempo(state.draft, song) }
+            }
             PracticePanel.Notation -> settingsStore?.update { it.applyNotation(state.draft) }
             PracticePanel.Jangdan -> {
                 settingsStore?.update { it.applyJangdan(state.draft) }
@@ -370,7 +375,7 @@ class SectionLoopViewModel(
     private fun plan(): JangdanPlan? {
         val song = _uiState.value.song ?: return null
         val timing = song.score.timing ?: return null
-        return song.jangdanPlayback?.let { planJangdan(it, bpm, timing.ticksPerBeat) }
+        return song.jangdanPlayback?.let { planJangdan(it, _uiState.value.bpm, timing.ticksPerBeat) }
     }
 
     /** 구간 첫 음의 tick부터 친다. 지금 정간까지 지난 정간 수와 정간 안에서 흐른 시간으로 지금 tick을 잰다. */
@@ -393,6 +398,13 @@ class SectionLoopViewModel(
 
     private fun stopJangdan() {
         if (!previewing) jangdan?.stop()
+    }
+
+    /** 곡 속도 설정을 따른다. 정한 속도가 있거나 녹음 중이면 그대로 둔다. */
+    private fun SectionLoopUiState.withSavedTempo(): SectionLoopUiState {
+        if (this@SectionLoopViewModel.bpm != null || recording) return this
+        val song = song ?: return this
+        return copy(bpm = settings.bpmBySong[song.id] ?: song.baseBpm)
     }
 
     override fun onCleared() {

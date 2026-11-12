@@ -29,17 +29,6 @@ class SectionPracticeStateTest {
     }
 
     @Test
-    fun repeatsAndSpeed() {
-        val state = SectionSelectUiState(loading = false)
-        assertEquals(5, SectionRepeat.Five.count)
-        assertNull(SectionRepeat.Endless.count)
-        assertEquals(48, TempoStep.Slow.bpm(60))
-        assertEquals(36, TempoStep.Slowest.bpm(60))
-        assertEquals(72, TempoStep.Fastest.bpm(60))
-        assertEquals(TempoStep.Slow, state.speed)
-    }
-
-    @Test
     fun hintMovesFromStartToEndToReadyAndResetReturnsToTheRecommendedSection() {
         val start = SectionSelectUiState(loading = false, section = recommended, recommended = recommended)
         // 추천 구간이 잡혀 있어도 직접 고르기 전에는 시작 정간부터 안내한다.

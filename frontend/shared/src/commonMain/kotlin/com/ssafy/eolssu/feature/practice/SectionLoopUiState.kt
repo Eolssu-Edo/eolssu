@@ -97,12 +97,12 @@ data class SectionLoopUiState(
         }
 
     /**
-     * 연습 화면 부품(설정 시트·운지법 페이지)에 넘길 연습 상태. 구간 속도는 구간 고르기에서 정했으므로 속도 설정은 잠근다.
+     * 연습 화면 부품(설정 시트·운지법 페이지)에 넘길 연습 상태. 속도는 설정의 ‘속도’로 바꾸고 녹음 중에는 잠긴다.
      * [evaluation]이면 연주 평가처럼 쉬운 표기·운지법을 제목 옆 스위치로 두고 시트에서는 뺀다.
      */
     fun asPracticeState(evaluation: Boolean): PracticeUiState {
         val index = currentIndex ?: song?.timeline?.firstOrNull { section?.contains(it.column, it.row) == true }?.index ?: 0
-        // 속도는 구간 고르기에서 정한 [bpm]이다. 설정 시트·상태 패널이 그 속도를 보이고 잠근다([PracticeUiState.tempoFixed]).
+        // 설정 시트·상태 패널이 지금 속도를 보이도록 곡 속도에 [bpm]을 둔다.
         val sectionSettings = song?.let { settings.copy(bpmBySong = settings.bpmBySong + (it.id to bpm)) } ?: settings
         return PracticeUiState(
             song = song,
@@ -110,7 +110,6 @@ data class SectionLoopUiState(
             direct = evaluation,
             settings = sectionSettings,
             mode = if (recording) PracticeMode.Recording else PracticeMode.Ready,
-            tempoFixed = true,
             panel = panel,
             draft = draft,
             jangdanStatus = jangdanStatus,

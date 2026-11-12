@@ -117,8 +117,12 @@ object EolssuDestination {
         "practice/$songId?solo=${solo || mine || learn}&switched=$switched&mine=$mine&learn=$learn&direct=$direct&title=${title.orEmpty().encodeURLParameter()}" +
             "&weak=${weak.orEmpty()}" + (section?.let { "&sc=${it.start.column}&sr=${it.start.row}&ec=${it.end.column}&er=${it.end.row}" } ?: "")
 
-    /** 연주 결과·연습 기록·구간 재평가 결과에서 연습 화면의 ‘구간 연습’으로 들어간다(S15P31E102-776). [weak]는 바탕 연주(연습 세션 ID). */
-    fun sectionPractice(songId: String, weak: String, section: ScoreSection? = null) = practice(songId, solo = true, weak = weak, section = section)
+    /**
+     * 구간 고르기의 ‘구간 연습 시작’ → 연습 화면을 고른 구간의 구간 연습으로 연다(S15P31E102-794).
+     * [weak]는 바탕 연주(연습 세션 ID)로, 구간 연습의 ‘구간 재평가 시작’이 쓴다.
+     */
+    fun sectionPractice(songId: String, weak: String, section: ScoreSection) =
+        practice(songId, solo = true, weak = weak, section = section)
     // 운지법 보기·정간보 쉽게 읽기·기초부터 배우기. 운지법 보기는 기초부터 배우기에서 악기·취법을, 정간보 쉽게 읽기는 펼칠 쪽을 넘겨받는다.
     const val GUIDE_FINGERING = "guide/fingering?instrument={instrument}&blow={blow}"
     const val GUIDE_READING = "guide/reading?page={page}"
@@ -321,8 +325,10 @@ fun EolssuNavHost(
                     learn = entry.savedStateHandle.get<Boolean>("learn") ?: false,
                     sheetTitle = entry.savedStateHandle.get<String>("title"),
                     direct = entry.savedStateHandle.get<Boolean>("direct") ?: false,
-                    weakSource = weakSource,
                     initialSection = initialSection,
+                    onSectionEvaluate = { section ->
+                        weakSource?.let { navController.navigate(WeakSectionDestination.evaluate(it, section)) }
+                    },
                 )
             }
             composable(
@@ -412,8 +418,6 @@ fun EolssuNavHost(
                     },
                     onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
                     onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
-                    // ‘취약 구간 연습’은 연습 화면의 구간 연습으로 연다(S15P31E102-776). 구간 재평가는 연습 기록에서만 한다.
-                    onWeakSection = { songId -> performance.move(perf, PerfTarget.PRACTICE) { navController.navigate(EolssuDestination.sectionPractice(songId, evaluationId)) } },
                 )
             }
             composable(
@@ -435,7 +439,7 @@ fun EolssuNavHost(
                     onOpenRecord = { id -> performance.move(perf, PerfTarget.RECORD_DETAIL) { navController.navigate(EolssuDestination.recordResult(id)) } },
                     onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                     onSelectSection = { id -> performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(id)) } },
-                    onPracticeSection = { id, songId -> navController.navigate(EolssuDestination.sectionPractice(songId, id)) },
+                    onPracticeSection = { id, _ -> performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(id)) } },
                 )
             }
             composable(
@@ -455,7 +459,7 @@ fun EolssuNavHost(
                         initialRecordId = recordId,
                         onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                         onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
-                        onPracticeSection = { id, songId -> navController.navigate(EolssuDestination.sectionPractice(songId, id)) },
+                        onPracticeSection = { id, _ -> navController.navigate(WeakSectionDestination.select(id)) },
                     )
                 } else {
                     RecordDetailRoute(
@@ -464,7 +468,7 @@ fun EolssuNavHost(
                         onBack = { navController.popBackStackFrom(entry) },
                         onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                         onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
-                        onPracticeSection = { id, songId -> navController.navigate(EolssuDestination.sectionPractice(songId, id)) },
+                        onPracticeSection = { id, _ -> navController.navigate(WeakSectionDestination.select(id)) },
                     )
                 }
             }

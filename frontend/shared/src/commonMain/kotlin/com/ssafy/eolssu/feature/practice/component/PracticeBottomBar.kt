@@ -89,12 +89,8 @@ class PracticeBottomActions(
     val onStartRhythm: () -> Unit = {},
     val onToggleRhythm: () -> Unit = {},
     val onDownloadSheetAudio: () -> Unit = {},
-    /** ‘구간 연습’ 켜고 끄기(S15P31E102-776). */
-    val onToggleSection: () -> Unit = {},
-    /** 구간 연습의 ‘취약 구간으로’. */
-    val onResetSection: () -> Unit = {},
-    /** 구간 연습의 ‘반복 횟수’. */
-    val onSectionRepeat: (com.ssafy.eolssu.feature.practice.SectionRepeat) -> Unit = {},
+    /** 구간 연습의 ‘구간 재평가 시작’(S15P31E102-794). */
+    val onStartSectionEval: () -> Unit = {},
 )
 
 /**

@@ -39,12 +39,11 @@ import kotlinx.coroutines.launch
 fun SectionLoopRoute(
     sourceId: String,
     section: ScoreSection,
-    bpm: Int,
     onBack: () -> Unit,
-    onEvaluate: (songId: String, take: RecordedTake, section: SessionSection) -> Unit,
+    onEvaluate: (songId: String, bpm: Int, take: RecordedTake, section: SessionSection) -> Unit,
     perf: PerformanceVisit? = null,
-    viewModel: SectionLoopViewModel = koinViewModel(key = "section-evaluate-$sourceId-$section-$bpm") {
-        parametersOf(sourceId, section, bpm, 1, perf)
+    viewModel: SectionLoopViewModel = koinViewModel(key = "section-evaluate-$sourceId-$section") {
+        parametersOf(sourceId, section, 1, perf)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -54,7 +53,7 @@ fun SectionLoopRoute(
         val take = state.take ?: return@LaunchedEffect
         val songId = state.song?.id ?: return@LaunchedEffect
         viewModel.takeConsumed()
-        onEvaluate(songId, take.take, take.section)
+        onEvaluate(songId, state.bpm, take.take, take.section)
     }
     val scope = rememberCoroutineScope()
     LaunchedEffect(state.notice) {

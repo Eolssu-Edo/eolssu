@@ -8,14 +8,11 @@ import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.ui.score.ErrorFilter
 
-/** 구간 연습의 반복 횟수(3회 · 5회 · 계속). [count]가 null이면 멈출 때까지 계속한다. */
-enum class SectionRepeat(val count: Int?) { Three(3), Five(5), Endless(null) }
-
 /** 구간 고르기 안내 문구 단계: 시작 정간 고르기 → 끝 정간 고르기 → 고른 구간 연습. */
 enum class SectionSelectStep { Start, End, Ready }
 
 /**
- * 구간 재평가의 구간 고르기 상태(S15P31E102-776).
+ * 구간 고르기 상태. 고른 구간으로 구간 연습(연습 화면)과 구간 재평가를 시작한다. 속도는 각 화면의 설정에서 정한다(S15P31E102-794).
  *
  * @property section 고른 구간. 처음에는 추천 구간이고, 틀린 정간이 없으면 null.
  * @property picking 시작 정간을 누른 뒤 끝 정간을 기다리는 중.
@@ -29,15 +26,12 @@ data class SectionSelectUiState(
     val section: ScoreSection? = null,
     val picking: Boolean = false,
     val picked: Boolean = false,
-    /** 연습 속도. 연습 화면 속도 설정과 같은 5단계([TempoStep])이고 처음에는 약간 느리게(80%)다. */
-    val speed: TempoStep = TempoStep.Slow,
     val filter: ErrorFilter = ErrorFilter.All,
     /** 서버가 추천한 취약 구간(EVA-03, 각 전체). 추천할 구간이 없거나 받지 못하면 null이고 정간을 눌러 직접 고른다. */
     val recommended: ScoreSection? = null,
     /** null은 현재 판본 조회 실패, false는 이전 판본이다. */
     val currentScore: Boolean? = true,
 ) {
-    val bpm: Int? get() = song?.let { speed.bpm(it.baseBpm) }
 
     /** 구간을 골라 연습을 시작할 수 있는지. 끝 정간을 기다리는 중에는 한 정간 구간으로 시작하지 않는다. */
     val canStart: Boolean get() = section != null && !picking && currentScore == true
