@@ -67,6 +67,27 @@ internal class RecordResultStateTest : CatalogViewModelTest() {
         assertFalse(state.record!!.isNew)
     }
 
+    @Test fun entryShowsLoadingUntilScoreArrivesAndNotAfterFailure() = runTest {
+        val pending = CompletableDeferred<PracticeRecord?>()
+        val repo = Records(record).apply { read = { pending.await() } }
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository()))
+        runCurrent()
+        // 목록에서 가져온 기록만 있고 상세를 받는 중이면 실패 안내 대신 ‘로딩 중’ 막을 보인다.
+        assertNotNull(model.uiState.value.record)
+        assertTrue(model.uiState.value.lookupLoading)
+        pending.complete(record.copy(isNew = false))
+        runCurrent()
+        assertNotNull(model.uiState.value.song)
+        assertFalse(model.uiState.value.lookupLoading)
+
+        val failed = keep(RecordDetailViewModel("41", Records(record).apply { read = { error("offline") } }, SampleSongRepository()))
+        runCurrent()
+        assertEquals(RecordSongLookup.Failed, failed.uiState.value.songLookup)
+        assertFalse(failed.uiState.value.lookupLoading)
+        assertTrue(RecordDetailUiState(songLookup = RecordSongLookup.Loading).lookupLoading)
+        assertFalse(RecordDetailUiState().lookupLoading)
+    }
+
     @Test fun failedDetailKeepsListScoreWithoutFiltersOrPractice() = runTest {
         val repo = Records(record).apply { read = { error("offline") } }
         val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository()))
