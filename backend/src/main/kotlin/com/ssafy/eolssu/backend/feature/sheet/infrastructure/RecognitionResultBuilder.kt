@@ -37,6 +37,8 @@ class RecognitionResultBuilder(private val json: JsonMapper,private val scores: 
         val cells=root.path("columns").flatMap { it.path("cells").toList().map { c -> c.path("id").asString() } }.toSet()
         val events=root.path("events").toList().map { it.path("eventId").takeIf(JsonNode::isString)?.asString() ?: it.path("id").asString() }.toSet()
         val details=json.createObjectNode()
+        details.set("authoring", com.ssafy.eolssu.backend.feature.sheet.application.SheetAuthoring(json)
+            .capture(root, "RECOGNIZED", response.path("sourcePitches")))
         val issues=details.putArray("issues")
         val notices=details.putArray("notices")
         val pending=mutableSetOf<String>()
