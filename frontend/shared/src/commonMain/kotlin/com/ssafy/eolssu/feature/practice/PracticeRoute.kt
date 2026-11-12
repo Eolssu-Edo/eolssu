@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.practice
 import androidx.compose.runtime.CompositionLocalProvider
 import com.ssafy.eolssu.core.diagnostics.LocalPerformanceVisit
 import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.Song
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -69,8 +70,14 @@ fun PracticeRoute(
     sheetTitle: String? = null,
     learn: Boolean = false,
     direct: Boolean = false,
+    /** 구간 연습으로 들어온 바탕 연주(연습 세션 ID, S15P31E102-776). 있으면 구간 연습을 켠 채 시작한다. */
+    weakSource: String? = null,
+    /** 구간 연습으로 들어올 때 고를 구간. 없으면 [weakSource]의 추천 구간. */
+    initialSection: ScoreSection? = null,
     perf: PerformanceVisit? = null,
-    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn-$direct") { parametersOf(songId, solo, mine, learn, perf, direct) },
+    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine-$learn-$direct-$weakSource-$initialSection") {
+        parametersOf(songId, solo, mine, learn, perf, direct, weakSource.orEmpty(), listOfNotNull(initialSection))
+    },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 평가 연주에서 음마다 모은 실시간 음높이 안내(S15P31E102-597). 관측이 없는 플랫폼은 집계가 비어 아무것도 칠하지 않는다.
@@ -145,6 +152,9 @@ fun PracticeRoute(
                     onSeek = viewModel::seekModel,
                     onSeekToFraction = viewModel::seekToFraction,
                     onToggleStep = viewModel::toggleStep,
+                    onToggleSection = viewModel::toggleSectionPractice,
+                    onResetSection = viewModel::resetSectionToRecommended,
+                    onSectionRepeat = viewModel::selectSectionRepeat,
                     onTapStepPlaying = viewModel::tapStepPlaying,
                     onListenStepNote = {
                         viewModel.uiState.value.stepNoteToPlay?.let(playStepNote)
