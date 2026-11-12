@@ -12,6 +12,8 @@
 !backend/src/main/**
 
 !data/
+!data/reference/
+!data/reference/jangdans.json
 !data/src/
 !data/src/scores/
 !data/src/scores/score_data.schema.json

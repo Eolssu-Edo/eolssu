@@ -72,6 +72,7 @@ class MyBatisCatalogReferenceRepository(
         return CatalogJangdan(
             row.id, row.name, row.defaultBpm.toInt(), row.bpmUnit,
             CatalogJangdanPattern(beats.toList().map { it.asString() }, group.toList().map { it.asInt() }), row.source,
+            com.ssafy.eolssu.backend.feature.catalog.domain.JangdanTimingCatalog.cellEighths(row.name, row.bpmUnit, pattern),
         )
     }
 }
