@@ -466,3 +466,9 @@ S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V11의 nu
 정책 원본은 `data/src/playback/profiles/authoring-policy.json`·악기 profile과 표기 계약 `data/src/scores/score_data.schema.json`이며 `processResources`가 직접 묶습니다. [지원음 API·검증 계획](../docs/plans/S15P31E102-787.md)을 따릅니다. 검증은 `BuiltinFingeringApiDatabaseTests`의 실제 98운지 카탈로그 HTTP, `SheetAudioDatabaseTests`의 저장·초안·음원 HTTP를 사용합니다.
 
 S15P31E102-789의 장단 칸 음가는 `data/reference/jangdans.json`을 같은 방식으로 `catalog/jangdans.json`에 묶습니다. 저장소 루트 Docker context의 allowlist도 이 원본을 포함합니다. `SheetJangdanValidationTests`, `UserSheetApiDatabaseTests`, `CatalogReferenceApiDatabaseTests`가0tick·첫 쉼·완전 주기와 카탈로그 응답을 검증합니다. [장단 분할 검증 기록](../docs/plans/S15P31E102-789.md).
+
+### 구간 빠르기 보존과 생성 사전검사
+
+S15P31E102-790은 SHT-04/08/11의 선택적 `expressions`와 V43 저장을 연결합니다. 생략/null은 현재 초안 계획 우선으로 보존하고 기본 BPM 변경은 구간 비율을 한 번만 적용합니다. 새 확정 저장은 `SHEET_AUDIO_BASE_URL`의 실제 생성기 사전검사를 사용하며, 미설정/장애는 503으로 판본을 보존합니다. 숫자 계획의 구조 위치 변경은 `TEMPO_UNRENDERABLE/PLAN_POSITIONS_CHANGED`, 짧은 음은 실제 MIDI/PCM 조건으로 거절합니다. 기존 읽기와 초안은 일괄 변경하지 않습니다.
+
+폐기 DB의 `TEST_DB_*`와 실제 생성기 `TEST_PLAYBACK_URL`을 지정하여 `databaseTest --tests '*SheetTempoApiDatabaseTests' --tests '*SheetAuthoringCatDatabaseTests'`를 실행합니다. 단소 CAT 자산·장구6샘플·FFmpeg가 필요하며 객체 저장소만 대역입니다. [790 계획·실제 검증](../docs/plans/S15P31E102-790.md).

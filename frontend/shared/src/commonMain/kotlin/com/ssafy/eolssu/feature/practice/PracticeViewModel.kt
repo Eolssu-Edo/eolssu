@@ -873,7 +873,7 @@ class PracticeViewModel(
         stopJangdan()
         val song = _uiState.value.song ?: return
         _uiState.update { it.restartModel().copy(playing = false, eventStartedAt = null) }
-        modelAudio.restart(song, _uiState.value.bpm)
+        modelAudio.restart(song, _uiState.value.bpm, _uiState.value.currentTick)
     }
 
     fun stopModel() {

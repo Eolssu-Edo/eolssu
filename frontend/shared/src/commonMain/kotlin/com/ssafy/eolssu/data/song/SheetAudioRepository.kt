@@ -105,9 +105,10 @@ sealed interface SheetAudioRequest {
     /** 400 `EXPORT_TOO_LONG`: 악보와 bpm으로 계산한 연주 길이가 600초를 넘는다. */
     data object TooLong : SheetAudioRequest
 
-    /** 400 `INVALID_REQUEST`: 장단 없는 악보에 장단 소리, bpm 범위 밖(30~160) 등. */
     data class UnsupportedPitches(val details: AuthoringPitchRejection) : SheetAudioRequest
+    /** 400 INVALID_REQUEST: incompatible rhythm or unsupported rendering request. */
     data object InvalidRequest : SheetAudioRequest
+    data class TempoRejected(val issue: SheetTempoIssue) : SheetAudioRequest
 
     /** 404: 악보가 없거나 남의 것, 없는 악기. */
     data object NotFound : SheetAudioRequest
@@ -162,9 +163,11 @@ class ApiSheetAudioRepository(
         when (response.status.value) {
             200, 202 -> response.audio(sheetId)?.let { SheetAudioRequest.Accepted(it) } ?: SheetAudioRequest.Unavailable
             400 -> {
-                val error = response.apiResponse<AuthoringError>()?.result
+                val error = response.apiResponse<ApiError>()?.result
+                val rejection = error?.let { AuthoringError(it.errorCode, it.details).authoringRejection }
                 when {
-                    error?.authoringRejection != null -> SheetAudioRequest.UnsupportedPitches(requireNotNull(error.authoringRejection))
+                    rejection != null -> SheetAudioRequest.UnsupportedPitches(rejection)
+                    error?.errorCode == "TEMPO_UNRENDERABLE" -> SheetAudioRequest.TempoRejected(SheetTempoIssue.from(error))
                     error?.errorCode == "EXPORT_TOO_LONG" -> SheetAudioRequest.TooLong
                     else -> SheetAudioRequest.InvalidRequest
                 }

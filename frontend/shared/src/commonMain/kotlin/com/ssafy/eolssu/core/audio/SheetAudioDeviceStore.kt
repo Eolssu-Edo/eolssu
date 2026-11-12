@@ -225,7 +225,7 @@ internal class FileSheetAudioDeviceStore(
         val performance: SheetAudioPerformance? = null,
     ) {
         fun valid(): Boolean = ID.matches(scoreVersion) && scoreVersion.toIntOrNull() != null && ID.matches(instrumentId) &&
-            bpm in 30..160 && SHA256.matches(sha256) && durationMs in 1..600_000 && byteSize in 12..15L * 1024 * 1024
+            bpm > 0 && SHA256.matches(sha256) && durationMs in 1..600_000 && byteSize in 12..15L * 1024 * 1024
 
         fun audioPath(directory: Path): Path = Path(directory, "$sha256.m4a")
     }

@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [악보 빠르기 설정과 기기 반주 시간표 동기화 (791)](plans/S15P31E102-791.md)
 - [악보 장단 선택과 시작 위치 안내 개선 (772)](plans/S15P31E102-772.md)
 - [원본 기준 이조와 옥타브 조정 확인 화면 구현 (771)](plans/S15P31E102-771.md)
 - [키보드 확인·엔터를 누르면 키보드가 내려가도록 입력칸 수정 (800)](plans/S15P31E102-800.md)
@@ -468,3 +469,4 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [악보 작성 결과 재분할과 의존 관계](plans/score-authoring-partition.md)
 - [악보 작성 일관성 스펙](specs/score-authoring-consistency.md) · [조사 근거](knowledge/frontend/score-authoring-consistency.md)
 - [S15P31E102-788 원본 음고 전달·불변 보존](plans/S15P31E102-788.md)
+- [S15P31E102-790 구간 빠르기 보존·생성 사전검사 API](plans/S15P31E102-790.md)

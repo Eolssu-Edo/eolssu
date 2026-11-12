@@ -1,0 +1,132 @@
+{
+  "sourceJson": "{\"columns\":[{\"cells\":[{\"id\":\"c0-j0\",\"index\":0,\"units\":[{\"col\":0,\"eventId\":\"c0-j0-r0-u0\",\"row\":0,\"symbol\":\"쉼\"}]},{\"id\":\"c0-j1\",\"index\":1,\"units\":[{\"col\":0,\"eventId\":\"c0-j1-r0-u0\",\"row\":0,\"symbol\":\"청황\"}]},{\"id\":\"c0-j2\",\"index\":2,\"units\":[{\"col\":0,\"eventId\":\"c0-j2-r0-u0\",\"row\":0,\"symbol\":\"청태\"}]},{\"id\":\"c0-j3\",\"index\":3,\"units\":[{\"col\":0,\"eventId\":\"c0-j3-r0-u0\",\"row\":0,\"symbol\":\"청황\"}]}],\"index\":0}],\"events\":[{\"breathAfter\":false,\"cellId\":\"c0-j0\",\"durationTick\":1,\"id\":\"c0-j0-r0-u0\",\"kind\":\"REST\",\"octave\":null,\"sigimsae\":[],\"startTick\":0,\"yul\":null},{\"breathAfter\":false,\"cellId\":\"c0-j1\",\"durationTick\":1,\"id\":\"c0-j1-r0-u0\",\"kind\":\"NOTE\",\"octave\":1,\"sigimsae\":[],\"startTick\":1,\"yul\":\"황\"},{\"breathAfter\":false,\"cellId\":\"c0-j2\",\"durationTick\":1,\"id\":\"c0-j2-r0-u0\",\"kind\":\"NOTE\",\"octave\":1,\"sigimsae\":[],\"startTick\":2,\"yul\":\"태\"},{\"breathAfter\":false,\"cellId\":\"c0-j3\",\"durationTick\":1,\"id\":\"c0-j3-r0-u0\",\"kind\":\"NOTE\",\"octave\":1,\"sigimsae\":[],\"startTick\":3,\"yul\":\"황\"}],\"music\":{\"bpmUnit\":\"DOTTED_QUARTER\",\"hwangHz\":311.13,\"jangdan\":\"자진타령\",\"ticksPerBeat\":1,\"ticksPerJeonggan\":1},\"provenance\":{\"converter\":\"score_data@1\",\"jgbSha256\":\"b3e9d743df9cb5b1b64149378dcf14ba30e54387334080c5d9a5262db67a048d\",\"review\":\"reviewed\",\"sourceId\":\"tempo773-dotted\"},\"schemaVersion\":1,\"score\":{\"instrument\":\"DANSO\",\"part\":0,\"scoreVersion\":1,\"sourceId\":\"tempo773-dotted\",\"title\":\"로컬 장단 시간표 dotted\"}}",
+  "sourceSha256": "390cde45f518a6fa13b3f7b8dc8a3e0cdab1b4bc921da66cc585bef7ae22ff64",
+  "jangdanId": "11",
+  "jangdan": {
+    "name": "자진타령",
+    "bpmUnit": "DOTTED_QUARTER",
+    "pattern": {
+      "beats": [
+        "덩",
+        "",
+        "",
+        "덩",
+        "",
+        "",
+        "덩",
+        "",
+        "덕",
+        "",
+        "",
+        ""
+      ],
+      "group": [
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    "patternCellEighths": 1
+  },
+  "expressions": {
+    "schema": "common-score-expressions/v1",
+    "sourceSha256": "390cde45f518a6fa13b3f7b8dc8a3e0cdab1b4bc921da66cc585bef7ae22ff64",
+    "placements": [],
+    "performancePlan": {
+      "schema": "danso-performance/v1",
+      "input_sha256": "390cde45f518a6fa13b3f7b8dc8a3e0cdab1b4bc921da66cc585bef7ae22ff64",
+      "tempos": [
+        {
+          "gak": 1,
+          "cell": 3,
+          "bpm": 30
+        }
+      ],
+      "repeats": []
+    }
+  },
+  "performance": {
+    "schema": "common-score-performance/v1",
+    "policy": "educational-preview/v1",
+    "sourceSha256": "390cde45f518a6fa13b3f7b8dc8a3e0cdab1b4bc921da66cc585bef7ae22ff64",
+    "scoreVersion": 1,
+    "sourceId": "tempo773-dotted",
+    "instrument": "DANSO",
+    "bpm": 60.0,
+    "bpmUnit": "DOTTED_QUARTER",
+    "durationMs": 6000.003000000001,
+    "segments": [
+      {
+        "occurrenceId": "unit-0",
+        "eventId": "c0-j0-r0-u0",
+        "cellId": "c0-j0",
+        "row": 0,
+        "col": 0,
+        "startTick": 0.0,
+        "endTick": 1.0,
+        "startMs": 0.0,
+        "endMs": 1000.0005000000001,
+        "sigimsae": []
+      },
+      {
+        "occurrenceId": "unit-1",
+        "eventId": "c0-j1-r0-u0",
+        "cellId": "c0-j1",
+        "row": 0,
+        "col": 0,
+        "startTick": 1.0,
+        "endTick": 2.0,
+        "startMs": 1000.0005000000001,
+        "endMs": 2000.0010000000002,
+        "sigimsae": []
+      },
+      {
+        "occurrenceId": "unit-2",
+        "eventId": "c0-j2-r0-u0",
+        "cellId": "c0-j2",
+        "row": 0,
+        "col": 0,
+        "startTick": 2.0,
+        "endTick": 3.0,
+        "startMs": 2000.0010000000002,
+        "endMs": 4000.0020000000004,
+        "sigimsae": []
+      },
+      {
+        "occurrenceId": "unit-3",
+        "eventId": "c0-j3-r0-u0",
+        "cellId": "c0-j3",
+        "row": 0,
+        "col": 0,
+        "startTick": 3.0,
+        "endTick": 4.0,
+        "startMs": 4000.0020000000004,
+        "endMs": 6000.003000000001,
+        "sigimsae": []
+      }
+    ],
+    "audioSha256": "e53e5b400f7ac156cc2c9d38dc8ededd4802b2c06c5a973659b537784b47a927"
+  },
+  "audioDurationMs": 6550,
+  "audioBytes": 118284,
+  "expectedStrikes": [
+    {
+      "ms": 0.0,
+      "note": 35
+    },
+    {
+      "ms": 1000.0005,
+      "note": 35
+    },
+    {
+      "ms": 2000.001,
+      "note": 35
+    },
+    {
+      "ms": 3333.335,
+      "note": 38
+    }
+  ],
+  "accompaniedAudioSha256": "14c7e8d8659458497e3dc612f9681ba22d3b8e1667547ff7cfdeb86e5fd52840"
+}

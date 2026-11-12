@@ -62,7 +62,7 @@ class ApiResponse<T>(
 
 /** 실패 응답의 `result`. */
 @Serializable
-class ApiError(val errorCode: String? = null)
+class ApiError(val errorCode: String? = null, val details: kotlinx.serialization.json.JsonObject? = null)
 
 val ApiJson = Json {
     ignoreUnknownKeys = true

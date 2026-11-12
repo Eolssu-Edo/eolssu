@@ -36,6 +36,7 @@ import eolssu.shared.generated.resources.sheet_close_message
 import eolssu.shared.generated.resources.sheet_discard_close
 import eolssu.shared.generated.resources.sheet_keep_editing
 import eolssu.shared.generated.resources.sheet_review_before_reshape
+import eolssu.shared.generated.resources.sheet_tempo_before_reshape
 import eolssu.shared.generated.resources.sheetedit_msg_draft
 import eolssu.shared.generated.resources.sheetedit_msg_saved
 import eolssu.shared.generated.resources.sheetedit_msg_saved_for_practice
@@ -88,6 +89,7 @@ fun SheetEditRoute(
         SheetEditMessage.SavedNeedsReview to stringResource(Res.string.sheetedit_msg_saved_needs_review),
         SheetEditMessage.ComingSoon to stringResource(Res.string.common_coming_soon),
         SheetEditMessage.ReviewBeforeReshape to stringResource(Res.string.sheet_review_before_reshape),
+        SheetEditMessage.TempoPlanBeforeReshape to stringResource(Res.string.sheet_tempo_before_reshape),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),
@@ -169,13 +171,17 @@ fun SheetEditRoute(
             onAdapt = { pitchCorrection = null; correctionOpen = false; viewModel.openAdaptation() },
         ) else LaunchedEffect(target) { pitchCorrection = null }
     }
+    LaunchedEffect(state.tempoIssue) { if (state.tempoIssue != null) saveOpen = true }
     if (saveOpen) SheetEditDetailsDialog(
         initialTitle = state.draft.title,
         initialBpm = state.draft.bpm,
+        bpmUnitLabel = state.draft.tempoUnitLabel,
+        tempoIssue = state.tempoIssue,
+        hasTempoPlan = state.hasTempoPlan,
         saveMode = true,
         saving = state.confirming,
         canApply = !state.saving && !state.saveConflict && state.completionValidation.canComplete,
-        durationSeconds = state.draft::estimatedDurationSeconds,
+        durationSeconds = if (state.hasTempoPlan) null else state.draft::estimatedDurationSeconds,
         onApply = { title, bpm ->
             saveError = null
             viewModel.updateDetails(title, bpm)
@@ -238,6 +244,7 @@ fun SheetEditRoute(
     if (detailsOpen && state.canEditDetails) SheetEditSettingsDialog(
         draft = state.draft,
         picker = state.jangdanPicker,
+        hasTempoPlan = state.hasTempoPlan,
         saving = state.saving,
         onLoadJangdans = viewModel::changeJangdan,
         onApply = { bpm, jangdanId ->
