@@ -18,7 +18,7 @@ from omr_service.staff_engine import AUDIVERIS_LOCK
 from jeongganbo_tokens import jg_like
 
 READER = [sys.executable, '-X', 'utf8', str(SCORES / 'jeongganbo_omr.py')]
-ENGINE_VERSION = 'e95045f-v1.0.0'
+ENGINE_VERSION = 'e95045f-v1.0.0-r2'
 MIN_CONFIDENCE = .8  # 검수 기준이며, 보정된 정확도 확률이 아니다.
 log = logging.getLogger('omr_service.api')
 TOKEN = re.compile(rf'(?:{score_data.YUL}(?:_[^:\s]+)?|-|쉼표|쉼):(?:[0-9]|1[0-5])\Z')
@@ -49,14 +49,19 @@ def recognize(job):
             for i, page in enumerate(job.pages):
                 page_deadline = min(deadline, monotonic() + api.PAGE_TIME_S)
                 report, scale = None, 1
-                for scale in (1, .5):
+                # 리더의 고정 칸 너비는 85~110px, 기준 쪽 높이는 3091px다.
+                # 2600px 그림과 넓은 전자 정간도 같은 시간 예산 안에서 시도한다.
+                scales = dict.fromkeys((1, .5, 3091 / page.height, 2 / 3))
+                for scale in scales:
+                    size = (max(1, round(page.width * scale)), max(1, round(page.height * scale)))
+                    if size[0] * size[1] > api.MAX_PIXELS:
+                        continue
                     out = work / f'page-{i}-{scale}'
                     image = page.path
                     if scale != 1:
                         image = work / f'scaled-{i}.png'
                         with Image.open(page.path) as source:
-                            source.resize((max(1, round(source.width * scale)), max(1, round(source.height * scale))),
-                                          Image.Resampling.LANCZOS).save(image)
+                            source.resize(size, Image.Resampling.LANCZOS).save(image)
                     run = _run(READER + [str(image), '0', str(out), '--image', '--omr-dir', model_dir,
                                         '--model-cache-dir', str(work), '--batch-size', '16',
                                         '--beats', '0', '--fill-grid', '--keep-empty-columns',

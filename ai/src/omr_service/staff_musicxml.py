@@ -20,6 +20,7 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass, field
 from fractions import Fraction
+from statistics import median
 
 from omr_service.jeongganbo_text import score_data  # data/src/scores의 율명·옥타브 표를 함께 쓴다
 
@@ -213,7 +214,15 @@ def _pick_voice(voices, total):
     active = max(candidates, key=lambda v: (attacks(v), mean(v)))
     # 음 수가 비슷한 두 선율은 높은 쪽을 유지한다. 지속음 반주처럼 활동량이
     # 절반 이하인 성부만 제외해 빠른 반주를 무조건 선율로 고르는 일을 막는다.
-    return active if attacks(active) >= 2 * attacks(upper) else upper
+    if attacks(active) >= 2 * attacks(upper):
+        return active
+    # 몇 개의 2박 선율음 때문에 시작 수 비율이 2에 조금 못 미쳐도,
+    # 대표 음 길이가 절반인 선율은 긴 음 위주의 반주보다 우선한다.
+    def typical_length(v):
+        return median(n.length for n in _melody(voices[v]) if n.midi is not None)
+    if attacks(active) > attacks(upper) and typical_length(active) * 2 <= typical_length(upper):
+        return active
+    return upper
 
 
 def _melody(groups):
