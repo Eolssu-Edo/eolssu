@@ -31,6 +31,7 @@ fun ResultRoute(
     onPracticeAgain: (songId: String) -> Unit,
     onOtherSong: () -> Unit,
     onHome: () -> Unit,
+    onOpenRecord: (recordId: String) -> Unit = {},
     initialSong: Song? = null,
     perf: PerformanceVisit? = null,
     viewModel: ResultViewModel = koinViewModel(key = evaluationId) { parametersOf(evaluationId, initialSong, perf) },
@@ -74,6 +75,13 @@ fun ResultRoute(
                 onSelectFilter = viewModel::selectFilter,
                 onRetrySong = viewModel::retrySong,
                 onRetryResult = viewModel::retryResult,
+                // ‘기록으로 이동’: 시트를 닫고 방금 저장한 기록 상세로 간다(S15P31E102-815).
+                onOpenRecord = {
+                    state.savedRecord?.id?.let { id ->
+                        viewModel.closeSheet()
+                        onOpenRecord(id)
+                    }
+                },
             ),
         )
     }

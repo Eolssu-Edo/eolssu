@@ -10,6 +10,9 @@ FROM ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce
 ARG AUDIVERIS_VERSION=5.11.0
 # jeongganbo-generator(MIT) tools/import-ngc-omr.mjs. 저장소 문서(jeongganbo-omr.md)의 9d4a24e
 ARG JGB_GENERATOR_COMMIT=9d4a24e54bf36093d4d264d0271d214500d36db7
+# Audiveris uses Tesseract's legacy engine; tessdata_fast contains LSTM weights only.
+ADD --checksum=sha256:daa0c97d651c19fba3b25e81317cd697e9908c8208090c94c3905381c23fc047 \
+    https://raw.githubusercontent.com/tesseract-ocr/tessdata/4.1.0/eng.traineddata /opt/tessdata/eng.traineddata
 # 받은 파일이 바뀌면 빌드가 멈추게 체크섬을 고정한다(2026-11-04 내려받아 잰 값)
 ADD --checksum=sha256:f20113aaa33b3149ec8d6a09b2a7963360e65fafd92d69389987a85bbc3ec7a3 \
     https://github.com/Audiveris/audiveris/releases/download/${AUDIVERIS_VERSION}/Audiveris-${AUDIVERIS_VERSION}-ubuntu24.04-x86_64.deb /tmp/audiveris.deb
@@ -43,6 +46,7 @@ ENV PATH=/app/ai/.venv/bin:$PATH \
     JGB_GENERATOR_DIR=/opt/jeongganbo-generator \
     AUDIVERIS_CMD=/opt/audiveris/bin/Audiveris \
     AUDIVERIS_VERSION=${AUDIVERIS_VERSION} \
+    TESSDATA_PREFIX=/opt/tessdata \
     HOME=/tmp/home
 # Audiveris는 홈 폴더에 설정을 쓴다. 실행 사용자는 /app에 쓸 수 없어 /tmp 아래로 둔다.
 USER 10001:10001

@@ -105,6 +105,8 @@ uv run python -c "import json; from ai_service.api import app; print(json.dumps(
 
 backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. 지금은 정간보 글자 층 PDF와 오선보(PDF·이미지)를 읽습니다. 스캔 PDF·사진 정간보는 연결 전이라 `ENGINE_ERROR`로 끝납니다(별도 Task [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)).
 
+오선보는 `smallHeads`·`smallBeams`를 켜서 꾸밈음을 구분합니다. Docker 이미지에는 Tesseract legacy 영어 데이터(`tessdata/4.1.0`)와 `TESSDATA_PREFIX`가 필요합니다. LSTM 전용 `tessdata_fast`로 대체하면 Audiveris의 OCR이 동작하지 않습니다. 빠르기 표시 혼입·성부 선택·초과 마디 재인식과 실제 PDF/PNG 대조 결과는 [806 검증 기록](../docs/knowledge/ai/score-recognition-corrections.md)을 참고합니다.
+
 ```bash
 uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
 ```
