@@ -4,7 +4,8 @@ services:
   backend:
     image: ${BACKEND_IMAGE:-eolsu-backend:dev}
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     environment:
       SERVER_PORT: "8080"
 

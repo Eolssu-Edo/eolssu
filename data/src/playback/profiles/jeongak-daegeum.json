@@ -22,5 +22,6 @@
     "simple_key_range": [58, 89],
     "audit_date": "2026-10-28",
     "scope": "Local acquired Live Sampler v1.3 only; not all CAT versions or formats."
-  }
+  },
+  "nominal_hwang_midi": 63
 }
