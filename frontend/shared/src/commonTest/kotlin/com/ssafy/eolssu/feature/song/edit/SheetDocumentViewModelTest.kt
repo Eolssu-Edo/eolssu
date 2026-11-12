@@ -578,8 +578,8 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         runCurrent()
         model.updateDetails("   ", 90)
         model.updateDetails("가".repeat(51), 90)
-        model.updateDetails("잘못된 빠르기", 29)
-        model.updateDetails("잘못된 빠르기", 161)
+        model.updateDetails("잘못된 빠르기", 0)
+        model.updateDetails("잘못된 빠르기", -1)
         assertFalse(model.uiState.value.canUndo)
 
         val title = "가".repeat(49) + "🎵"

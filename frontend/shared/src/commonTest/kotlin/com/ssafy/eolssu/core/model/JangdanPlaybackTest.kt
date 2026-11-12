@@ -55,6 +55,17 @@ class JangdanPlaybackTest {
         assertEquals(listOf(JangdanSample.Kung), cursor.due(2.0).map { it.clip.sample })
     }
 
+    @Test fun roundedPerformedTimeDoesNotStrikeTheSameBoundaryTwice() {
+        val mapping = JangdanPlayback("12", "4박 기본 반주", 0, 4,
+            listOf("덩", "덕", "궁", "덕"), listOf(1, 1, 1, 1))
+        val cursor = JangdanCursor(planJangdan(mapping, 60, 1)!!)
+        assertEquals(listOf(0.0), cursor.due(0.0).map { it.tick })
+        assertEquals(listOf(1.0), cursor.due(0.9999995).map { it.tick })
+        assertEquals(emptyList(), cursor.due(1.001))
+        assertEquals(listOf(2.0), cursor.due(2.0).map { it.tick })
+        assertEquals(listOf(0.0), cursor.due(0.0).map { it.tick })
+    }
+
     @Test fun fiveActualIntegerTemposSelectDistinctRecordedRollsWithoutPitchChange() {
         for ((bpm, roll) in listOf(59 to JangdanSample.Gutgeori59, 79 to JangdanSample.Gutgeori79,
             99 to JangdanSample.Gutgeori99, 109 to JangdanSample.Gutgeori109, 119 to JangdanSample.Gutgeori119)) {

@@ -27,6 +27,10 @@ fun ModelAudio.withPerformance(json: String, song: Song, expectedSourceSha256: S
             val segment = raw as? JsonObject ?: throw IllegalArgumentException("Segment must be an object")
             requireTypes(segment, listOf("occurrenceId", "eventId", "cellId"),
                 listOf("row", "col", "startTick", "endTick", "startMs", "endMs"))
+            if ("tempoRatio" in segment) requireTypes(segment, emptyList(), listOf("tempoRatio"))
+            if ("accompanimentStartTick" in segment || "accompanimentEndTick" in segment) {
+                requireTypes(segment, emptyList(), listOf("accompanimentStartTick", "accompanimentEndTick"))
+            }
             require((segment["sigimsae"] as? JsonArray)?.all { (it as? JsonPrimitive)?.isString == true } == true) { "Symbols must be strings" }
         }
         PerformanceJson.decodeFromJsonElement<PerformanceData>(root)
@@ -49,6 +53,7 @@ fun ModelAudio.withPerformance(json: String, song: Song, expectedSourceSha256: S
     val occurrences = mutableSetOf<String>()
     val annotations = mutableMapOf<ScoreUnitKey, List<String>>()
     var end = 0.0
+    val totalTicks = song.timeline.maxOf { requireNotNull(it.startTick) + requireNotNull(it.durationTick) }.toDouble()
     val segments = data.segments.map { segment ->
         require(segment.occurrenceId.isNotBlank() && occurrences.add(segment.occurrenceId)) { "Duplicate/blank performance occurrence" }
         val key = ScoreUnitKey(segment.cellId, segment.row, segment.col)
@@ -60,12 +65,18 @@ fun ModelAudio.withPerformance(json: String, song: Song, expectedSourceSha256: S
             near(segment.startTick, startTick) && near(segment.endTick, endTick)) { "Performance changed written ticks: $key" }
         require(segment.startMs.isFinite() && segment.endMs.isFinite() && segment.startMs >= 0 &&
             segment.endMs > segment.startMs && near(segment.startMs, end)) { "Performance time must be continuous and ordered" }
+        require(segment.tempoRatio.isFinite() && segment.tempoRatio > 0) { "Performance tempo ratio must be positive" }
+        val accompanimentStart = segment.accompanimentStartTick ?: startTick
+        val accompanimentEnd = segment.accompanimentEndTick ?: endTick
+        require(accompanimentStart.isFinite() && accompanimentEnd.isFinite() && accompanimentStart >= 0 &&
+            accompanimentEnd > accompanimentStart && accompanimentEnd <= totalTicks + 0.000001) { "Invalid accompaniment clock range" }
         require(segment.sigimsae.all { it.isNotBlank() && it.none(Char::isISOControl) }) { "Invalid performance symbol" }
         val previous = annotations.put(key, segment.sigimsae.toList())
         require(previous == null || previous == segment.sigimsae) { "Repeated slot changed its notation: $key" }
         end = segment.endMs
         ScorePerformanceSegment(segment.occurrenceId, unit, startTick, endTick,
-            segment.startMs, segment.endMs, segment.sigimsae.toList())
+            segment.startMs, segment.endMs, segment.sigimsae.toList(), segment.tempoRatio,
+            accompanimentStart, accompanimentEnd)
     }
     require(near(end, data.durationMs)) { "Performance duration does not match its final segment" }
     require(annotations.keys == units.keys) { "Performance omitted written display slots" }
@@ -99,4 +110,7 @@ private data class PerformanceSegmentData(
     val occurrenceId: String, val eventId: String, val cellId: String, val row: Int, val col: Int,
     val startTick: Double, val endTick: Double, val startMs: Double, val endMs: Double,
     val sigimsae: List<String>,
+    val tempoRatio: Double = 1.0,
+    val accompanimentStartTick: Double? = null,
+    val accompanimentEndTick: Double? = null,
 )

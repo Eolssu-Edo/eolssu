@@ -20,6 +20,12 @@ class ModelPerformanceTest {
     private val song = previewSong()
     private val audio = previewAudio().withPerformance(previewJson(), song, SourceHash)
 
+    @Test fun personalAudioJangdanUsesTheSameRepeatedSourcePositionAsTheMelody() {
+        val local = audio.copy(sheetPlayback = com.ssafy.eolssu.data.song.SheetPlayback(false,
+            com.ssafy.eolssu.core.audio.LocalAudioFile("/fixture/model.m4a")))
+        assertEquals(0.5, song.modelJangdanTickAt(local, 3500.0))
+    }
+
     @Test fun writtenOrnamentsAreVisibleWithoutModelAudioAndOnlyAtTheEventStart() {
         val initial = PracticeUiState(song = song)
         val written = mapOf(
