@@ -4,7 +4,21 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -51,6 +65,14 @@ class RecordDetailActions(
     val onPractice: () -> Unit = {},
     /** ‘구간 재평가’: 구간 고르기 → 구간 재평가. */
     val onReevaluate: () -> Unit = {},
+    /** ‘메모’: 메모 창을 연다. */
+    val onOpenMemo: () -> Unit = {},
+    val onCloseMemo: () -> Unit = {},
+    /** 메모 창의 연필 버튼: 메모를 고치기 시작한다. */
+    val onEditMemo: () -> Unit = {},
+    val onCancelMemo: () -> Unit = {},
+    /** 고친 메모 저장(REC-01). */
+    val onSaveMemo: (String) -> Unit = {},
     val onAskDelete: () -> Unit = {},
     val onConfirmDelete: () -> Unit = {},
     val onCancelDelete: () -> Unit = {},
@@ -130,19 +152,20 @@ internal fun RecordResultContent(
         val scrollPage = maxHeight < 360.dp
         Column(Modifier.fillMaxSize().then(if (scrollPage) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
             // 메모는 상자 안에 펼치지 않고 ‘메모’ 버튼(‘지난 연주와 비교’와 같은 줄)을 누르면 창으로 보인다.
-            var memoOpen by rememberSaveable(record.id) { mutableStateOf(false) }
-            val hasMemo = record.memo.isNotBlank()
+            // 메모가 없는 기록도 버튼을 두어 새로 적게 한다(S15P31E102-819).
+            val showMemo = record.memo.isNotBlank() || state.canEditMemo
             ScoreSummaryCard(
                 total = record.score,
                 metrics = record.metrics,
                 modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
                 title = song?.title ?: record.songTitle,
                 filled = true,
-                action = if (state.canCompare || hasMemo) {
+                compact = true,
+                action = if (state.canCompare || showMemo) {
                     {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (hasMemo) {
-                                TintPillButton(stringResource(Res.string.record_memo_button), { memoOpen = true }, icon = EolssuIcons.Chat)
+                            if (showMemo) {
+                                TintPillButton(stringResource(Res.string.record_memo_button), actions.onOpenMemo, icon = EolssuIcons.Chat)
                             }
                             if (state.canCompare) {
                                 TintPillButton(
@@ -154,7 +177,7 @@ internal fun RecordResultContent(
                     }
                 } else null,
             )
-            if (memoOpen && hasMemo) RecordMemoDialog(record.memo) { memoOpen = false }
+            state.memo?.let { memo -> RecordMemoDialog(record.id, record.memo, memo, actions) }
             val evaluation = state.evaluation
             if (evaluation != null && song != null) {
                 ErrorKindSegments(evaluation, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 6.dp))
@@ -201,36 +224,127 @@ internal fun RecordResultContent(
 }
 
 /**
- * 메모 창: 제목 ‘메모’ · 적은 메모 칸 · ‘닫기’. 바깥을 눌러도 닫힌다.
- * 메모 칸은 메모를 적은 저장 시트 입력칸과 같은 모양(옅은 바탕 · 1dp 테두리 · 모서리 12 · 15sp)이고,
- * 긴 메모는 칸 안에서 스크롤한다(S15P31E102-810).
+ * 메모 창(S15P31E102-819). 읽을 때는 옅은 바탕 상자에 메모를 보이고, 상자 오른쪽 위 연필 버튼으로 고치기에 들어간다.
+ * 고칠 때는 같은 자리의 상자가 저장 시트 메모 입력칸 모양(흰 바탕 · 1dp 테두리 · 모서리 12)의 여러 줄 입력칸이 되고,
+ * 그 아래에 실패 안내와 ‘n/500’, 맨 아래에 ‘취소’ · ‘저장’을 둔다. 저장 중에는 입력·취소·창 닫기를 막는다.
  */
 @Composable
-private fun RecordMemoDialog(memo: String, onDismiss: () -> Unit) {
+private fun RecordMemoDialog(recordId: String, memo: String, dialog: RecordMemoState, actions: RecordDetailActions) {
     val colors = EolssuTheme.colors
     EolssuDialog(
         title = stringResource(Res.string.record_memo_button),
         icon = EolssuIcons.Chat,
-        onDismissRequest = onDismiss,
+        onDismissRequest = actions.onCloseMemo,
     ) {
-        val fieldShape = RoundedCornerShape(12.dp)
-        Text(
-            memo,
-            Modifier.fillMaxWidth().padding(bottom = 6.dp).heightIn(min = 52.dp, max = 240.dp)
-                .background(colors.background, fieldShape).border(1.dp, colors.line, fieldShape)
-                .verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 14.dp),
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 22.sp),
-            color = colors.text,
-        )
+        if (dialog.editing) {
+            RecordMemoEditor(recordId, memo, dialog, actions)
+            return@EolssuDialog
+        }
+        val editLabel = stringResource(Res.string.record_memo_edit)
+        Box(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+            Text(
+                memo,
+                Modifier.fillMaxWidth().heightIn(min = 52.dp, max = 240.dp)
+                    .background(colors.background, MemoFieldShape)
+                    .verticalScroll(rememberScrollState())
+                    // 오른쪽 위 연필 버튼과 첫 줄이 겹치지 않게 오른쪽을 비운다.
+                    .padding(start = 14.dp, top = 14.dp, end = 40.dp, bottom = 14.dp),
+                style = memoTextStyle(),
+                color = colors.text,
+            )
+            Box(
+                Modifier.align(Alignment.TopEnd).size(44.dp)
+                    .clickable(role = Role.Button, onClick = actions.onEditMemo)
+                    .semantics { contentDescription = editLabel },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.accentText)
+            }
+        }
         EolssuButton(
             stringResource(Res.string.common_close),
-            onDismiss,
+            actions.onCloseMemo,
             style = EolssuButtonStyle.Secondary,
             containerColor = colors.groupedBackground,
             borderColor = Color.Transparent,
         )
     }
 }
+
+/** 메모 고치기: 여러 줄 입력칸(500자까지) · 실패 안내 · 글자 수 · ‘취소’ · ‘저장’. */
+@Composable
+private fun RecordMemoEditor(recordId: String, memo: String, dialog: RecordMemoState, actions: RecordDetailActions) {
+    val colors = EolssuTheme.colors
+    // 고치기를 새로 시작할 때마다 지금 메모로 채운다. 저장에 실패하면 적던 내용을 그대로 둔다.
+    var draft by rememberSaveable(recordId, memo, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(memo, TextRange(memo.length)))
+    }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    val textStyle = memoTextStyle().copy(color = colors.text)
+    val small = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp)
+    Column(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(
+            Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 240.dp)
+                .background(colors.surface, MemoFieldShape)
+                .border(1.dp, if (dialog.failed) colors.rec else colors.line, MemoFieldShape)
+                .padding(14.dp),
+        ) {
+            if (draft.text.isEmpty()) {
+                Text(stringResource(Res.string.result_memo_placeholder), style = textStyle, color = colors.textDisabled)
+            }
+            BasicTextField(
+                value = draft,
+                // 서버는 500자를 넘는 메모를 받지 않으므로(400) 그 이상은 입력하지 않는다.
+                onValueChange = { if (it.text.length <= RECORD_MEMO_MAX_LENGTH) draft = it },
+                enabled = !dialog.saving,
+                textStyle = textStyle,
+                cursorBrush = SolidColor(colors.text),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            )
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Box(Modifier.weight(1f)) {
+                if (dialog.failed) {
+                    Text(
+                        stringResource(Res.string.record_memo_save_failed),
+                        Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        style = small,
+                        color = colors.recText,
+                    )
+                }
+            }
+            Text(
+                stringResource(Res.string.record_memo_count, draft.text.length, RECORD_MEMO_MAX_LENGTH),
+                Modifier.padding(start = 8.dp),
+                style = small,
+                color = if (draft.text.length >= RECORD_MEMO_MAX_LENGTH) colors.recText else colors.textMuted,
+            )
+        }
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        EolssuButton(
+            stringResource(Res.string.common_cancel),
+            actions.onCancelMemo,
+            Modifier.weight(1f),
+            style = EolssuButtonStyle.Secondary,
+            enabled = !dialog.saving,
+            containerColor = colors.groupedBackground,
+            borderColor = Color.Transparent,
+        )
+        EolssuButton(
+            stringResource(Res.string.record_memo_save),
+            { actions.onSaveMemo(draft.text) },
+            Modifier.weight(1f),
+            busy = dialog.saving,
+        )
+    }
+}
+
+private val MemoFieldShape = RoundedCornerShape(12.dp)
+
+@Composable
+private fun memoTextStyle() = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 22.sp)
 
 /** ‘지금 위치로’(먹색 알약 36dp · 흰 글자 13sp): 사용자가 악보를 넘긴 뒤 다시 재생 위치를 따라가게 한다. */
 @Composable
