@@ -464,3 +464,5 @@ S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V11의 nu
 `GET /api/instruments/{instrumentId}/authoring-capabilities`는 등록 운지·화면 표기·CAT 합성의 교집합과 제외 사유를 반환합니다. 문헌상 물리 음역과 실물 연주 검수 상태는 별도이며 운지 미등록은 `UNKNOWN`입니다. 기존 CAT-06 음역 조회와 과거 악보 읽기는 유지합니다. 최종 저장(SHT-04)과 생성(SHT-12)에 같은 정책을 적용하고 초안(SHT-11)은 미지원 음도 보존합니다. `INVALID_REQUEST.details`의 `UNSUPPORTED_PITCHES`에는 악기 코드, eventId, cellId와 reasonCodes가 있습니다. 음원 악기를 생략하면 저장 악기의 코드를 사용합니다.
 
 정책 원본은 `data/src/playback/profiles/authoring-policy.json`·악기 profile과 표기 계약 `data/src/scores/score_data.schema.json`이며 `processResources`가 직접 묶습니다. [지원음 API·검증 계획](../docs/plans/S15P31E102-787.md)을 따릅니다. 검증은 `BuiltinFingeringApiDatabaseTests`의 실제 98운지 카탈로그 HTTP, `SheetAudioDatabaseTests`의 저장·초안·음원 HTTP를 사용합니다.
+
+S15P31E102-789의 장단 칸 음가는 `data/reference/jangdans.json`을 같은 방식으로 `catalog/jangdans.json`에 묶습니다. 저장소 루트 Docker context의 allowlist도 이 원본을 포함합니다. `SheetJangdanValidationTests`, `UserSheetApiDatabaseTests`, `CatalogReferenceApiDatabaseTests`가0tick·첫 쉼·완전 주기와 카탈로그 응답을 검증합니다. [장단 분할 검증 기록](../docs/plans/S15P31E102-789.md).

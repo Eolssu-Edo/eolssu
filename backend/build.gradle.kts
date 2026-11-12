@@ -65,6 +65,10 @@ tasks.test {
     useJUnitPlatform { excludeTags("database", "media") }
 }
 
+tasks.processResources {
+    from("../data/reference/jangdans.json") { into("catalog") }
+}
+
 tasks.register<Test>("mediaTest") {
     description = "Verifies recording file checks with real ffmpeg/ffprobe on PATH."
     group = "verification"
