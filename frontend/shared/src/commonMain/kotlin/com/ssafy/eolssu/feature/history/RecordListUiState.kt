@@ -26,7 +26,6 @@ data class RecordSongGroup(val key: String, val title: String, val songs: List<R
     val songIds: List<String> get() = songs.map { it.songId }
     val recordCount: Int get() = songs.sumOf { it.recordCount }
     val bestScore: Int get() = songs.maxOf { it.bestScore }
-    val lastStartedAt: KoreanDateTime get() = songs.first().lastStartedAt
     val newestSongId: String get() = songs.first().songId
 }
 
@@ -41,8 +40,8 @@ data class RecordListUiState(
     val nameOrder: SongSortOrder = SongSortOrder.Ascending,
     /** 곡 제목 검색어. 앞뒤 공백은 무시한다. */
     val query: String = "",
-    /** 펼친 곡 묶음의 [RecordSongGroup.key]. null이면 [recentGroup]만 펼친다. */
-    val opened: Set<String>? = null,
+    /** 펼친 곡 묶음의 [RecordSongGroup.key]. 처음에는 모두 접혀 있다. */
+    val opened: Set<String> = emptySet(),
     /** 곡 묶음별로 직접 접은 날짜([RecordDay.epochDay]). 나머지 날짜는 모두 펼쳐져 있다. */
     val closedDays: Map<String, Set<Long>> = emptyMap(),
     val justSavedId: String? = null,
@@ -71,15 +70,10 @@ data class RecordListUiState(
 
     val showLoadStatus: Boolean get() = recordsAvailable && (loadFailed || summaries.isEmpty() && loading)
 
-    /** 가장 최근에 연습한 곡 묶음. 처음 펼치는 묶음이고, 두 칸 배치는 이 묶음의 최근 기록을 먼저 보여 준다. */
-    val recentGroup: RecordSongGroup? get() = groups.maxByOrNull { it.lastStartedAt.minuteKey }
+    val openGroups: Set<String> get() = opened
 
-    val openGroups: Set<String>
-        get() = opened ?: recentGroup?.let { setOf(it.key) }.orEmpty()
-
-    /** 두 칸 배치에서 오른쪽에 보일 기록: 고른 기록, 상세에서 연 기록, 없으면 가장 최근에 연습한 곡의 최신 기록. */
-    val selectedRecordId: String?
-        get() = selectedId ?: linkedId ?: recentGroup?.let { pages[it.newestSongId]?.records?.firstOrNull()?.id }
+    /** 두 칸 배치에서 오른쪽에 보일 기록: 고른 기록, 없으면 방금 저장했거나 상세에서 연 기록. 처음에는 고른 기록이 없다. */
+    val selectedRecordId: String? get() = selectedId ?: linkedId
 
     fun recordForDetail(recordId: String): PracticeRecord? =
         pages.values.firstNotNullOfOrNull { page -> page.records.firstOrNull { it.id == recordId } }

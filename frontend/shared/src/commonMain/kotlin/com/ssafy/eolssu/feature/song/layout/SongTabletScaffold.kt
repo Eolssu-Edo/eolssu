@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.ssafy.eolssu.core.ui.component.EolssuSnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -97,7 +97,7 @@ internal fun SongTabletScaffold(
                     Spacer(Modifier.windowInsetsPadding(WindowInsets.navigationBars))
                 }
             },
-            snackbarHost = { SnackbarHost(snackbarHostState) },
+            snackbarHost = { EolssuSnackbarHost(snackbarHostState) },
         ) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) { content(gutter) }
         }

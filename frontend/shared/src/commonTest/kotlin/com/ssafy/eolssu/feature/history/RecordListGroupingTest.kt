@@ -39,16 +39,17 @@ internal class RecordListGroupingTest : CatalogViewModelTest() {
         )
         assertEquals(listOf("도라지타령", "비행기"), state.groups.map { it.key })
         val airplane = state.groups.last()
-        // 묶음 안의 곡은 최근에 연습한 곡이 앞이고, 개수·최고 점수·최근 날짜는 곡들을 합친 값이다.
+        // 묶음 안의 곡은 최근에 연습한 곡이 앞이고, 개수·최고 점수는 곡들을 합친 값이다.
         assertEquals(listOf("sogeum-airplane", "danso-airplane"), airplane.songIds)
         assertEquals(5, airplane.recordCount)
         assertEquals(91, airplane.bestScore)
-        assertEquals(at(12, 9), airplane.lastStartedAt)
-        // 목록 순서와 관계없이 가장 최근에 연습한 묶음이 처음 펼쳐진다.
-        assertEquals("비행기", state.recentGroup?.key)
-        assertTrue(state.isOpen("비행기"))
-        assertTrue(state.isSongOpen("danso-airplane"))
-        assertFalse(state.isSongOpen("doraji"))
+        // 처음에는 모든 묶음이 접혀 있다.
+        assertTrue(state.openGroups.isEmpty())
+        assertFalse(state.isSongOpen("danso-airplane"))
+        val opened = state.copy(opened = setOf("비행기"))
+        assertTrue(opened.isSongOpen("danso-airplane"))
+        assertTrue(opened.isSongOpen("sogeum-airplane"))
+        assertFalse(opened.isSongOpen("doraji"))
     }
 
     @Test
@@ -64,10 +65,10 @@ internal class RecordListGroupingTest : CatalogViewModelTest() {
         assertEquals(listOf("도라지타령", "비행기", "아리랑", "진도 아리랑"), state.groups.map { it.key })
         assertEquals(listOf("진도 아리랑", "아리랑", "비행기", "도라지타령"), state.copy(nameOrder = SongSortOrder.Descending).groups.map { it.key })
 
-        // 검색은 제목에 검색어가 든 곡만 남기고 앞뒤 공백을 무시한다. 처음 펼치는 묶음도 남은 곡 중 최근 곡이다.
+        // 검색은 제목에 검색어가 든 곡만 남기고 앞뒤 공백을 무시한다. 검색해도 묶음을 펼치지 않는다.
         val searched = state.copy(query = " 아리랑 ")
         assertEquals(listOf("아리랑", "진도 아리랑"), searched.groups.map { it.key })
-        assertEquals(setOf("아리랑"), searched.openGroups)
+        assertTrue(searched.openGroups.isEmpty())
         assertTrue(state.copy(query = "산조").groups.isEmpty())
     }
 
@@ -126,15 +127,21 @@ internal class RecordListGroupingTest : CatalogViewModelTest() {
         runCurrent()
         val first = model.uiState.value
         assertEquals(listOf("도라지타령", "아리랑"), first.groups.map { it.key })
-        // 처음 펼친(가장 최근에 연습한) '아리랑' 묶음은 두 악기의 곡을 모두 받아 합친다.
-        assertEquals(setOf("danso-arirang", "sogeum-arirang"), first.pages.keys)
-        val arirang = first.groups.first { it.key == "아리랑" }
-        assertEquals(listOf("a2", "a1"), first.records(arirang).map { it.id })
+        // 처음에는 모든 묶음이 접혀 있다.
+        assertTrue(first.openGroups.isEmpty())
+
+        // '아리랑' 묶음을 펼치면 두 악기의 곡을 모두 받아 합친다.
+        model.toggle("아리랑")
+        runCurrent()
+        val opened = model.uiState.value
+        assertEquals(setOf("danso-arirang", "sogeum-arirang"), opened.pages.keys)
+        val arirang = opened.groups.first { it.key == "아리랑" }
+        assertEquals(listOf("a2", "a1"), opened.records(arirang).map { it.id })
 
         // 날짜는 모두 펼쳐진 채로 시작하고, 누른 날짜만 접었다 다시 편다.
         val day11 = at(11, 0).epochDay
         val day12 = at(12, 0).epochDay
-        assertTrue(first.isDayOpen(arirang, day11))
+        assertTrue(opened.isDayOpen(arirang, day11))
         model.toggleDay("아리랑", day11)
         assertFalse(model.uiState.value.isDayOpen(arirang, day11))
         assertTrue(model.uiState.value.isDayOpen(arirang, day12))
