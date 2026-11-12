@@ -6,11 +6,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.TextUnit
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import kotlin.math.roundToInt
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.eolssu_yul_supplement
+import org.jetbrains.compose.resources.Font
+
+private val SupplementaryYulSymbols = setOf("𢓡", "𠐭", "𣴘")
 
 /** 글꼴의 15자 밖인 청·배성도 옥타브를 빼지 않는다. 기존 guide의 부수 조합 방식과 같은 표시다. */
 @Composable
@@ -32,6 +38,11 @@ fun ScoreNoteGlyph(
     }
     val pitch = note as? ScoreNote.SourcePitch
     val style = EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size, fontWeight = fontWeight)
+    if (pitch?.symbol in SupplementaryYulSymbols) {
+        Text(note.symbol, modifier, color = color,
+            style = style.copy(fontFamily = FontFamily(Font(Res.font.eolssu_yul_supplement))))
+        return
+    }
     if (pitch == null || pitch.fingeringYul != null || pitch.symbol == pitch.hangul) {
         Text(note.symbol, modifier, color = color, style = style)
         return

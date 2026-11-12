@@ -46,13 +46,13 @@ sealed interface ScoreNote {
 private val BaseYulNames = listOf("황", "대", "태", "협", "고", "중", "유", "임", "이", "남", "무", "응")
 private fun octavePrefix(octave: Int): String = when (octave) { -2 -> "하배"; -1 -> "배"; 1 -> "청"; 2 -> "중청"; else -> "" }
 
-// data/src/scores/review_page.html HANJA. 빈 항목은 잘못된 음으로 바꾸지 않고 한글 율명을 쓴다.
+// data/src/scores/review_page.html HANJA + 보충 평면의 하배이·배유·중청대. 표시는 음고를 바꾸지 않는다.
 private val SourceHanja = mapOf(
     0 to "黃大太夾姑仲蕤林夷南無應".map(Char::toString),
     1 to listOf("潢", "汏", "汰", "浹", "㴌", "㳞", "㶋", "淋", "洟", "湳", "潕", "㶐"),
-    2 to listOf("㶂", "", "㳲", "㴺", "㵈", "㴢", "㶙", "㵉", "㴣", "㵜", "㶃", "㶝"),
-    -1 to listOf("僙", "㐲", "㑀", "俠", "㑬", "㑖", "", "㑣", "侇", "㑲", "㒇", "㒣"),
-    -2 to listOf("㣴", "㣕", "㣖", "㣣", "㣨", "㣡", "㣸", "㣩", "", "㣮", "㣳", "㣹"),
+    2 to listOf("㶂", "𣴘", "㳲", "㴺", "㵈", "㴢", "㶙", "㵉", "㴣", "㵜", "㶃", "㶝"),
+    -1 to listOf("僙", "㐲", "㑀", "俠", "㑬", "㑖", "𠐭", "㑣", "侇", "㑲", "㒇", "㒣"),
+    -2 to listOf("㣴", "㣕", "㣖", "㣣", "㣨", "㣡", "㣸", "㣩", "𢓡", "㣮", "㣳", "㣹"),
 )
 
 /** 기존 운지/계이름 데이터가 정확히 같은 옥타브를 지원할 때만 연결한다. */

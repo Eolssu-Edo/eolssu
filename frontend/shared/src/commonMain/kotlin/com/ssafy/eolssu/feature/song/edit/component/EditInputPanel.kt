@@ -328,7 +328,7 @@ private fun YulKey(note: ScoreNote, enabled: Boolean, selected: Boolean, onClick
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(vertical = 4.dp)) {
             Box(Modifier.height(24.dp), contentAlignment = Alignment.Center) {
-                // 정간보 한자가 없는 음(중청대 등)은 렌더러처럼 한글로 적되, 자판 칸에 들어가게 작게 쓴다.
+                // 한글 대체가 필요한 표기는 작게, 보조 폰트의 세 율명은 공통 렌더러에서 한자로 그린다.
                 if (source != null && source.symbol == source.hangul) {
                     Text(hangul, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
                 } else {

@@ -232,13 +232,14 @@ Web은 기기 글꼴로 한글·한자를 그리지 않기 때문에 글꼴 파�
 | `ibm_plex_sans_kr_regular·semibold·bold.ttf` | 제목·본문·버튼·사용자가 입력한 글자 | Google Fonts 공식 IBM Plex Sans KR 원본 |
 | `song_myung_regular.ttf` | 미사용(제목은 S15P31E102-768부터 IBM Plex Sans KR SemiBold) | Google Fonts 공식 Song Myung 원본 |
 | `noto_serif_kr_semibold·bold.otf` | 율명·곡 제목 | 기존 Noto Serif KR 서브셋, 한글 2,350자·율명 한자·영숫자 |
+| `eolssu_yul_supplement.ttf` | 하배이·배유·중청대 | Jigmo2 20250912에서 실제 세 글자만 남긴 보조 폰트, 3,808바이트(CC0 1.0) |
 | `seal_brush.ttf` | 연습곡 표지의 붉은 '얼쑤' 도장 | 나눔손글씨 붓(Google Fonts `ofl/nanumbrushscript`)에서 `얼쑤` 2자만 남긴 서브셋(약 4.5KB). OFL 예약 글꼴 이름 때문에 글꼴 이름을 `Eolssu Seal Brush`로 바꿨고 라이선스 원문은 `files/licenses/nanum_brush_script_ofl.txt` |
 | `pretendard_regular·semibold·bold.otf` | 기존 리소스 보존, 기본 본문에서는 미사용 | Pretendard 1.3.9 원본 |
 
 - 기존 Noto Serif KR 서브셋에는 한글이 2,350자만 있으므로 **사용자가 입력한 글자는 본문 글꼴로 씁니다.** 율명은 기존 Noto Serif KR와 글리프 처리를 유지합니다.
-- 율명 한자는 [`tools/fonts/build_fonts.py`](tools/fonts/build_fonts.py)의 `SERIF_HANJA`에 있는 글자만 들어 있습니다. 새 율명 표기를 쓰려면 여기에 추가하고 다시 만듭니다. Noto Serif KR에 없는 글자(탁황 `僙` 등)는 넣을 수 없습니다.
+- 기본 율명 폰트는 [`tools/fonts/build_fonts.py`](tools/fonts/build_fonts.py)의 `SERIF_HANJA`에 있는 글자를 담습니다. Noto Serif KR 원본에 없는 글자는 이 스크립트로 추가할 수 없어 부수 조합 또는 별도 보조 폰트를 사용합니다. 하배이·배유·중청대는 보조 폰트의 실제 한자로 표시합니다.
 - 운지표의 청성·탁성·중청 글자 21자(`㑣㑥㑲㒇㒣㴌㳞㶋潕㶐㶂㶃㶄㴩㶌㶍㶝`는 Noto Serif KR(Windows 가변 글꼴로 확인)에 없고, `汏浹洟湳`은 원본에만 있음)는 글꼴에 넣지 않고 `feature/guide`의 `HanjaGlyph`가 변(氵·亻) + 율명으로 나눠 그립니다. 두 글꼴 모두 `♭`가 없어 계이름의 내림표는 그림으로 넣습니다.
-- 글꼴 라이선스는 SIL Open Font License 1.1이며 기존 원문은 [`tools/fonts/licenses/`](tools/fonts/licenses/), 앱에 포함하는 원문은 `shared/src/commonMain/composeResources/files/licenses/`에 있습니다.
+- 기존 글꼴은 SIL Open Font License 1.1, 율명 보조 폰트는 CC0 1.0입니다. 원문은 [`tools/fonts/licenses/`](tools/fonts/licenses/), 앱에 포함하는 원문은 `shared/src/commonMain/composeResources/files/licenses/`에 있습니다.
 
 기존 Pretendard·Noto 서브셋을 다시 만들 때(`frontend/`에서, Python 3.11 이상; IBM Plex Sans KR·Song Myung에는 적용하지 않음):
 
@@ -251,6 +252,8 @@ PYTHONUTF8=1 python -P tools/fonts/build_fonts.py "$SRC"
 ```
 
 스크립트는 원본 파일의 SHA-256을 확인한 뒤 만들고, 같은 원본이면 항상 같은 파일을 만듭니다. 원본 폴더(`$SRC`)는 저장소 밖 임시 폴더라 커밋되지 않습니다. Noto CJK 원본이 바뀌어 해시가 다르면 스크립트가 멈추니, 새 원본을 확인한 뒤 해시를 갱신합니다.
+
+하배이·배유·중청대 보조 폰트는 [Jigmo 공식 배포](https://kamichikoichi.github.io/jigmo/)의 `Jigmo-20250912.zip`에서 `Jigmo2.ttf`를 꺼내 `python -P tools/fonts/build_supplementary_yul.py <Jigmo2.ttf>`로 만듭니다(fonttools 4.60.1). 원본 해시·세 코드포인트·실제 윤곽을 검사하고 이름을 `Eolssu Yul Supplement`로 바꿉니다. CC0 원문은 `tools/fonts/licenses/Jigmo-CC0.txt`와 앱의 `files/licenses/jigmo_cc0.txt`에 보존합니다. [출처·검증 기록](../docs/knowledge/frontend/web-korean-fonts.md#보충-평면-율명-세-글자-s15p31e102-813)을 참고합니다.
 
 ### 시김새 소리
 
