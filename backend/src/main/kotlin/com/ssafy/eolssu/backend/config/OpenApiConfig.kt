@@ -7,6 +7,7 @@ import com.ssafy.eolssu.backend.feature.auth.api.ResendDetails
 import com.ssafy.eolssu.backend.feature.auth.api.AttemptDetails
 import com.ssafy.eolssu.backend.feature.auth.api.SocialSignUpDetails
 import com.ssafy.eolssu.backend.feature.auth.api.MergeDetails
+import com.ssafy.eolssu.backend.feature.sheet.application.UnsupportedAuthoringPitches
 import com.ssafy.eolssu.backend.feature.growth.api.RejectionDetails
 import io.swagger.v3.core.converter.AnnotatedType
 import io.swagger.v3.core.converter.ModelConverters
@@ -39,7 +40,7 @@ class OpenApiConfig {
         components.addSecuritySchemes("refreshCookie", cookie("refresh_token"))
         components.addSchemas("ApiErrorResult", ObjectSchema()
             .addProperty("errorCode", StringSchema().description("클라이언트 분기용 코드")._enum(ErrorCode.entries.map { it.name }))
-            .addProperty("details", ComposedSchema().oneOf(listOf(RetryDetails::class.java,ResendDetails::class.java,AttemptDetails::class.java,RejectionDetails::class.java,MergeDetails::class.java,SocialSignUpDetails::class.java).map { model(components,it) }).description("있을 때만 포함. 가입 signupTicket·계정 연결 mergeTicket은 인증 증명값이므로 로그·공유에 남기지 않습니다."))
+            .addProperty("details", ComposedSchema().oneOf(listOf(RetryDetails::class.java,ResendDetails::class.java,AttemptDetails::class.java,RejectionDetails::class.java,MergeDetails::class.java,SocialSignUpDetails::class.java,UnsupportedAuthoringPitches::class.java).map { model(components,it) }).description("있을 때만 포함. 가입 signupTicket·계정 연결 mergeTicket은 인증 증명값이므로 로그·공유에 남기지 않습니다."))
             .required(listOf("errorCode")))
         components.addSchemas("ApiError", envelope(schemaRef("ApiErrorResult"), false))
         for (doc in apiContracts) {
@@ -69,7 +70,7 @@ class OpenApiConfig {
             }
             if(doc.id=="createSheetAudio") {
                 operation.requestBody=RequestBody().required(false).content(jsonContent(ObjectSchema()
-                    .addProperty("instrumentId",StringSchema().pattern("[1-9][0-9]{0,17}").description("생략하면 단소"))
+                    .addProperty("instrumentId",StringSchema().pattern("[1-9][0-9]{0,17}").description("생략하면 악보 악기. 선택 악기의 지원음을 다시 검사합니다."))
                     .addProperty("withJangdan",BooleanSchema()._default(false))
                     .addProperty("bpm",IntegerSchema().minimum(java.math.BigDecimal(30)).maximum(java.math.BigDecimal(160)).description("생략하면 악보 BPM"))))
             }
@@ -140,6 +141,15 @@ class OpenApiConfig {
                 )))
                 operation.responses.addApiResponse(status.toString(),ApiResponse().description(codes.joinToString { "${it.name}: ${it.message}" })
                     .content(Content().addMediaType("application/json",media)))
+            }
+            if (doc.id in setOf("saveSheetScore", "createSheetAudio")) {
+                val errors = operation.responses["400"]?.content?.get("application/json")
+                errors?.addExamples("UNSUPPORTED_PITCHES", Example().summary("지원음 확인이 필요한 위치")
+                    .value(mapOf("httpStatus" to "BAD_REQUEST", "isSuccess" to false, "message" to INVALID_REQUEST.message, "code" to 400,
+                        "result" to mapOf("errorCode" to INVALID_REQUEST.name, "details" to mapOf(
+                            "reason" to "UNSUPPORTED_PITCHES", "instrumentCode" to "SOGEUM", "issues" to listOf(mapOf(
+                                "eventId" to "c0-j0-r0-u0", "cellId" to "c0-j0", "yul" to "이", "octave" to 1,
+                                "reasonCodes" to listOf("FINGERING_UNKNOWN"))))))))
             }
             // 모르는 제공자는 공통 오류 envelope 없이 본문 없는 404다.
             if (doc.id == "relayIosSocialLogin") operation.responses.addApiResponse("404", ApiResponse().description("모르는 제공자, 응답 본문 없음"))

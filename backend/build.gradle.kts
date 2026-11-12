@@ -65,6 +65,10 @@ tasks.test {
     useJUnitPlatform { excludeTags("database", "media") }
 }
 
+tasks.processResources {
+    from("../data/reference/jangdans.json") { into("catalog") }
+}
+
 tasks.register<Test>("mediaTest") {
     description = "Verifies recording file checks with real ffmpeg/ffprobe on PATH."
     group = "verification"
@@ -81,4 +85,10 @@ tasks.register<Test>("databaseTest") {
     classpath = sourceSets.test.get().runtimeClasspath
     useJUnitPlatform { includeTags("database") }
     outputs.upToDateWhen { false }
+}
+
+// Bundle DATA-owned profiles, not independently maintained backend note ranges.
+tasks.processResources {
+    from("../data/src/playback/profiles") { into("catalog/playback-profiles") }
+    from("../data/src/scores/score_data.schema.json") { into("catalog") }
 }

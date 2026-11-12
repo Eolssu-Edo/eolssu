@@ -316,6 +316,9 @@
 
 ## COCO 산출물
 
+- [장단 패턴·박 단위·시작 주기 계약 분할 계획](plans/S15P31E102-789.md)
+- [장단 선택·저장·재생의 이전 통합 검증 근거](knowledge/frontend/sheet-jangdan-consistency.md)
+
 - [S15P31E102-766 개인 악보 저장과 미리듣기 상태](plans/S15P31E102-766.md)
 - [S15P31E102-518 연습 모드 선택·평가 장단·악보 공간](plans/S15P31E102-518.md)
 
@@ -449,6 +452,9 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 - [이전 연주 기록의 단독 평가·악기명 연결 (530)](plans/S15P31E102-530.md)
 
-## 악보 원본 보존 작업 계획
+## 악보 작성 결과별 작업 계획
 
+- [S15P31E102-787 지원음 API·확정 저장 검증](plans/S15P31E102-787.md)
+- [악보 작성 결과 재분할과 의존 관계](plans/score-authoring-partition.md)
+- [악보 작성 일관성 스펙](specs/score-authoring-consistency.md) · [조사 근거](knowledge/frontend/score-authoring-consistency.md)
 - [S15P31E102-788 원본 음고 전달·불변 보존](plans/S15P31E102-788.md)

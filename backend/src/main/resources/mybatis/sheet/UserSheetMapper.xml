@@ -10,7 +10,7 @@
     </sql>
 
     <select id="findJangdan" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SheetJangdanRow">
-        SELECT id, bpm_unit, name FROM jangdans WHERE id = #{jangdanId}
+        SELECT id, bpm_unit, name, pattern FROM jangdans WHERE id = #{jangdanId}
     </select>
 
     <select id="find" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetRow">

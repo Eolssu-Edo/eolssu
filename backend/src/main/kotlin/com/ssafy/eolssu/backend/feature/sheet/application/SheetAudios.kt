@@ -18,7 +18,7 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import tools.jackson.databind.json.JsonMapper
 
-class SheetAudioRejection(val code: ErrorCode): RuntimeException(code.name)
+class SheetAudioRejection(val code: ErrorCode, val details: Any? = null): RuntimeException(code.name)
 data class AcceptedSheetAudio(val reused: Boolean,val body: SheetAudioView)
 private class AudioSnapshot(val scoreVersion: Int,val instrumentId: Long,val bpm: Int,val requestJson: String,val reusable: SheetAudioRow?)
 
@@ -28,6 +28,7 @@ class SheetAudios(
     private val jangdans: SheetAudioJangdanResolver,private val storage: SheetSourceStorage,
     private val client: PlaybackClient,private val json: JsonMapper,private val clock: Clock,manager: PlatformTransactionManager,
     private val staleRunningAfter: Duration=Duration.ofMinutes(10),
+    private val authoring: SheetAuthoringValidation? = null,
 ) {
     private val transaction=TransactionTemplate(manager)
     /** Touched only by the sequential worker. A restart simply starts the wait again. */
@@ -71,13 +72,17 @@ class SheetAudios(
         if(mapper.lockUser(userId)==null || mapper.lockSheet(sheetId,userId)==null) reject(ErrorCode.RESOURCE_NOT_FOUND)
         if(sheetId in deletions) reject(ErrorCode.STATE_CONFLICT)
         val sheet=sheets.find(sheetId,userId) ?: reject(ErrorCode.RESOURCE_NOT_FOUND)
-        val instrument=mapper.instrument(instrumentId ?: 1) ?: reject(ErrorCode.RESOURCE_NOT_FOUND)
+        val selectedId = instrumentId ?: sheet.scoreJson?.let {
+            mapper.instrumentByCode(json.readTree(it).path("score").path("instrument").asString())?.id
+        } ?: reject(ErrorCode.INVALID_REQUEST)
+        val instrument=mapper.instrument(selectedId) ?: reject(ErrorCode.RESOURCE_NOT_FOUND)
         if(instrument.code !in setOf("DANSO","SOGEUM","JEONGAK_DAEGEUM","SANJO_DAEGEUM")) reject(ErrorCode.RESOURCE_NOT_FOUND)
         val speed=bpm ?: sheet.bpm
         if(speed !in 30..160 || withJangdan && sheet.jangdanId==null) reject(ErrorCode.INVALID_REQUEST)
         if(sheet.status!=SheetStatus.EVALUABLE || sheet.pendingCellCount!=0 || sheet.scoreJson==null ||
             sheet.imported?.conversionStatus?.let { it!=SheetImportStatus.DONE }==true) reject(ErrorCode.STATE_CONFLICT)
         scores.timeline(sheet.scoreJson,sheet.scoreVersion,sheet.noteCount,speed,sheet.bpmUnit) ?: reject(ErrorCode.STATE_CONFLICT)
+        authoring?.validate(sheet.scoreJson, instrument.id)?.let { throw SheetAudioRejection(ErrorCode.INVALID_REQUEST, it) }
         val old=mapper.find(sheetId,userId)
         if(old?.deleting==true) reject(ErrorCode.STATE_CONFLICT)
         if(old?.status=="DONE" && old.resultJson!=null && downloadDeadline(old)!=null &&

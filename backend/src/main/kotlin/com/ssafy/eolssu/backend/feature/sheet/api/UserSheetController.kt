@@ -99,6 +99,7 @@ class UserSheetController(
                 ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "정간보 편집 저장 성공", SavedSheetScore.of(result.sheet, result.events)))
             is SaveSheetScoreResult.UnfilledCells -> ResponseEntity.status(ErrorCode.UNFILLED_CELLS.status)
                 .body(ErrorResponse.of(ErrorCode.UNFILLED_CELLS, mapOf("cellIds" to result.cellIds)))
+            is SaveSheetScoreResult.UnsupportedPitches -> ResponseEntity.badRequest().body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, result.details))
             SaveSheetScoreResult.NotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
             SaveSheetScoreResult.InvalidRequest -> error(ErrorCode.INVALID_REQUEST)
             SaveSheetScoreResult.StateConflict -> error(ErrorCode.STATE_CONFLICT)

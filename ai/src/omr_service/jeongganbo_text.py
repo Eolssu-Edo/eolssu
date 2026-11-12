@@ -30,12 +30,6 @@ USUAL_BEATS = {Fraction(1), Fraction(1, 2), Fraction(1, 3)}
 log = logging.getLogger("omr_service.api")  # api의 로그 설정을 함께 쓴다
 JANGDANS = {r["name"]: r for r in json.loads((ROOT / "data/reference/jangdans.json").read_text(encoding="utf-8"))["rows"]}
 # pattern.beats는 BPM 박이 아닌 구음 칸이다. jangdans.json 설명의 각 칸 음가를 4분음표로 환산한다.
-PATTERN_CELL_QUARTERS = {
-    "세마치": Fraction(1, 2), "굿거리": Fraction(1, 2), "중모리": Fraction(1),
-    "자진모리": Fraction(1, 2), "중중모리": Fraction(1, 2), "엇모리": Fraction(1, 2),
-    "단모리": Fraction(1, 2), "타령": Fraction(1, 2), "계면가락도드리": Fraction(1, 2),
-    "세령산": Fraction(3, 2), "자진타령": Fraction(1, 2),
-}
 BPM_UNIT_QUARTERS = {"QUARTER": Fraction(1), "DOTTED_QUARTER": Fraction(3, 2)}
 
 
@@ -47,7 +41,7 @@ def beats_per_jeonggan(jangdan: str, jeonggans_per_gak: int) -> Fraction:
     """한 각을 장단 한 번으로 보고 정간 하나의 박(bpm_unit 기준)을 정한다. 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박."""
     row = JANGDANS[jangdan]
     cells = len(row["pattern"]["beats"])
-    beats = cells * PATTERN_CELL_QUARTERS[jangdan] / BPM_UNIT_QUARTERS[row["bpm_unit"]]
+    beats = cells * Fraction(row["pattern_cell_eighths"], 2) / BPM_UNIT_QUARTERS[row["bpm_unit"]]
     return beats / jeonggans_per_gak
 
 

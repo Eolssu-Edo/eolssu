@@ -6,7 +6,7 @@ import java.time.ZoneOffset
 
 class MyBatisUserSheetRepository(private val mapper: UserSheetMapper,manager: org.springframework.transaction.PlatformTransactionManager) : UserSheetRepository {
     private val transaction=org.springframework.transaction.support.TransactionTemplate(manager)
-    override fun findJangdan(jangdanId: Long) = mapper.findJangdan(jangdanId)?.let { SheetJangdan(it.id, it.bpmUnit, it.name) }
+    override fun findJangdan(jangdanId: Long) = mapper.findJangdan(jangdanId)?.let { SheetJangdan(it.id, it.bpmUnit, it.name, it.pattern) }
 
     override fun find(sheetId: Long, userId: Long) = mapper.find(sheetId, userId)?.toSheet()
 
