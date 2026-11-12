@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice.layout
 
+import com.ssafy.eolssu.feature.practice.component.PracticeSectionBar
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -43,6 +45,7 @@ internal fun PracticeExpandedLayout(
             PracticeTopBar(
                 state, actions.onBack, actions.onOpenSettings, Modifier.padding(horizontal = SideGutter / 2),
                 maxWidth = WindowBreakpoints.ContentMaxWidth + SideGutter, showSettings = false, onToggleStep = actions.bottom.onToggleStep,
+                onToggleSection = actions.bottom.onToggleSection,
             )
         },
     ) {
@@ -51,10 +54,14 @@ internal fun PracticeExpandedLayout(
             Modifier.fillMaxSize().padding(start = SideGutter, end = SideGutter, top = 4.dp, bottom = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            PracticeScoreArea(
-                state, PracticeScoreStyle.TabletLandscape, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
-                Modifier.weight(1f), livePitch = livePitch,
-            )
+            Column(Modifier.weight(1f)) {
+                // 구간 연습(S15P31E102-776): 악보 위에 안내·‘취약 구간으로’·반복 횟수.
+                PracticeSectionBar(state, actions.bottom, Modifier.padding(bottom = 6.dp))
+                PracticeScoreArea(
+                    state, PracticeScoreStyle.TabletLandscape, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
+                    Modifier.weight(1f), livePitch = livePitch,
+                )
+            }
             PracticeSideDock(state, actions.panel, actions.bottom, Modifier.width(DockWidth).fillMaxHeight())
         }
     }
