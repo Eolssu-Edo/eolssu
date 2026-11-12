@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.diagnostics.context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.ScoreSection
+import com.ssafy.eolssu.core.model.notesSection
 import com.ssafy.eolssu.data.practice.CheckLoad
 import com.ssafy.eolssu.data.practice.SectionEvaluation
 import com.ssafy.eolssu.data.practice.WeakSectionRepository
@@ -33,6 +34,16 @@ data class SectionResultUiState(
             val end = check.endColumn ?: return null
             return WeakSectionPick(start, end, 0).toSection(evaluation.song.score)
         }
+}
+
+/**
+ * 실제로 평가된 정간: 이번 평가의 음 판정(EVA-01, 세션 음 범위 전체)이 걸친 첫 음부터 마지막 음(이음 포함)까지.
+ * 고른 구간 앞뒤의 쉼·빈 정간과 [SectionResultUiState.section]의 나머지 각 정간은 넣지 않는다. 음 판정이 없으면 null.
+ */
+internal fun SectionEvaluation.playedSection(): ScoreSection? {
+    val notes = result?.notes.orEmpty().map { it.noteIndex }
+    if (notes.isEmpty()) return null
+    return song.notesSection(notes.min()..notes.max())
 }
 
 /** 구간만 녹음한 재평가 세션 [sessionId]의 결과(EVA-01)와 바탕 세션과의 비교(EVA-04)를 받는다. */

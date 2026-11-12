@@ -22,6 +22,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -160,25 +161,27 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
 }
 
 /**
- * 재평가한 구간의 정간보(보기 전용, 연주 결과와 같은 읽기 형식). 틀린 정간은 [filter] 종류만 색·아이콘으로 칠하고, 구간 각은 연두 테두리다.
- * 평가 결과가 없으면(EVA-01을 받지 못함) 틀린 표시 없이 악보만 그린다.
+ * 재평가한 구간의 정간보(보기 전용, 연주 결과와 같은 읽기 형식). 틀린 정간은 [filter] 종류만 색·아이콘으로 칠한다.
+ * [section]의 각을 그리고, 연두 하이라이트는 실제로 평가된 정간([playedSection])에만 둔다. 각 표시는 전체가 평가된 각에만 둔다.
+ * 평가 결과가 없으면(EVA-01을 받지 못함) 틀린 표시 없이 악보만 그리고 [section] 전체를 하이라이트한다.
  */
 @Composable
 private fun SectionScore(evaluation: SectionEvaluation, section: ScoreSection, filter: ErrorFilter) {
     val song = evaluation.song
     val result = evaluation.result
     val format = rememberReadingScoreFormat(song, lyrics = false)
+    val played = remember(evaluation) { evaluation.playedSection() } ?: section
     JeongganboView(
         song = song,
         modifier = Modifier.fillMaxWidth(),
         metrics = format.metrics,
         look = format.look,
         cellHeights = format.cellHeights,
-        columns = section.columns,
+        columns = minOf(section.start.column, played.start.column)..maxOf(section.end.column, played.end.column),
         errors = result?.visibleErrors(filter).orEmpty(),
         errorKinds = result?.visibleErrorKinds(filter).orEmpty(),
         unitErrors = result?.visibleUnitErrors(song, filter).orEmpty(),
-        sectionColumns = section.fullColumns(song.score),
+        section = played,
     )
 }
 

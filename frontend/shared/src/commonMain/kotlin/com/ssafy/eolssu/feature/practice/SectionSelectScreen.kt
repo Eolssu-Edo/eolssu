@@ -123,7 +123,7 @@ fun SectionSelectScreen(state: SectionSelectUiState, actions: SectionSelectActio
                 decorations = sectionDecorations(
                     song.score, result.errors.filter { kind == null || it.kind == kind }, section, outsideAlpha = OutsideAlpha, edgeRing = true,
                 ),
-                sectionColumns = section?.fullColumns(song.score),
+                section = section,
             )
         }
     }
