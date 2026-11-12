@@ -66,11 +66,6 @@ class HttpPracticeRecordRepository(
         detailPreview.value?.takeIf { it.session == member?.session?.value && it.record.id == recordId }?.record
             ?: super.detailPreview(recordId)
 
-    override suspend fun newestRecord(songId: String): PracticeRecord? = member.inSession {
-        list(songId, page = 0, size = 1)?.takeIf { it.songId == songId }
-            ?.items?.firstOrNull()?.toRecord()?.takeIf { it.songId == songId }
-    }
-
     override suspend fun loadListPage(songId: String?, oldest: Boolean, page: Int, weekOf: KoreanDateTime?): RecordListPage? =
         member.inSession {
             val result = list(songId, page, oldest, RECORD_LIST_PAGE_SIZE, weekOf) ?: return@inSession null

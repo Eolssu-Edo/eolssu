@@ -182,6 +182,16 @@ internal class ModelAudioSession(
         seekTo(audio.startOffsetMs + (duration * fraction.coerceIn(0f, 1f)).toLong())
     }
 
+    /**
+     * 모범 연주 위치를 악보 [tick]으로 옮긴다(구간 연습의 되풀이, S15P31E102-776). 재생 중이면 그 자리부터 이어 틀고,
+     * 멈춰 있거나 끝났으면 다음 재생이 그 자리에서 시작한다.
+     */
+    fun seekToTick(tick: Double) {
+        val audio = _state.value.audio ?: return
+        val song = currentSong ?: return
+        seekTo(song.modelMediaPosition(audio, tick))
+    }
+
     private fun seekTo(positionMs: Long) {
         val current = _state.value
         val audio = current.audio ?: return
