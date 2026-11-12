@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [오선보 음높이·성부·꾸밈음 교정 (806)](specs/score-recognition-corrections.md) · [실제 PDF·이미지 대조와 한계](knowledge/ai/score-recognition-corrections.md) · [계획·검증](plans/S15P31E102-806.md)
+
 - [악보 빠르기 설정과 기기 반주 시간표 동기화 (791)](plans/S15P31E102-791.md)
 - [악보 장단 선택과 시작 위치 안내 개선 (772)](plans/S15P31E102-772.md)
 - [원본 기준 이조와 옥타브 조정 확인 화면 구현 (771)](plans/S15P31E102-771.md)
