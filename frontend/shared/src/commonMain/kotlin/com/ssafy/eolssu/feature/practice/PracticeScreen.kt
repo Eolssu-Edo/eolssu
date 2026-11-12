@@ -168,7 +168,7 @@ private fun PracticeCompactLayout(
         topBar = {
             PracticeTopBar(
                 state, actions.onBack, actions.onOpenSettings, onToggleStep = actions.bottom.onToggleStep,
-                showStepToggle = state.sectionPractice == null,
+                showStepToggle = false,
             )
         },
         bottomBar = if (recordingBar) { { PracticeRecordingBar(state, actions.bottom) } } else null,
@@ -183,8 +183,8 @@ private fun PracticeCompactLayout(
                     state,
                     showPill = false,
                     toggles = if (state.showsTitleToggles) PracticeTitleToggles(actions.panel.onToggleFingeringView, actions.onToggleHangul) else null,
-                    // 휴대폰 구간 연습은 ‘구간 연습’ 제목이 잘리지 않게 ‘한 음씩’을 설정 버튼 아래(제목 줄 오른쪽)에 둔다.
-                    trailing = if (state.sectionPractice != null && state.solo && state.step.available) {
+                    // 휴대폰은 머리 제목이 잘리지 않게 ‘한 음씩’을 설정 버튼 아래(제목 줄 오른쪽)에 둔다. 연습·구간 연습이 같은 자리다(S15P31E102-816).
+                    trailing = if (state.solo && state.step.available) {
                         { PracticeStepToggle(state, actions.bottom.onToggleStep) }
                     } else {
                         null

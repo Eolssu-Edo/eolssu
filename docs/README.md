@@ -1,6 +1,7 @@
 # 프로젝트 문서
 
 - [Android 평가 녹음의 스피커 장단 유입 완화 (695)](plans/S15P31E102-695.md) · [구현 스펙](specs/android-recording-echo.md) · [Galaxy 실측과 재생 참조 실험](knowledge/frontend/android-jangdan-recording-echo.md)
+- [오선보 음높이·성부·꾸밈음 교정 (806)](specs/score-recognition-corrections.md) · [실제 PDF·이미지 대조와 한계](knowledge/ai/score-recognition-corrections.md) · [계획·검증](plans/S15P31E102-806.md)
 - [홈 기능 카드 그림을 단소 그림 느낌으로 통일 (797)](plans/S15P31E102-797.md)
 - [악보 빠르기 설정과 기기 반주 시간표 동기화 (791)](plans/S15P31E102-791.md)
 - [악보 장단 선택과 시작 위치 안내 개선 (772)](plans/S15P31E102-772.md)
