@@ -8,7 +8,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -255,7 +254,7 @@ private const val HoldMillis = 900L
 private const val FadeMillis = 400
 private const val FadeGapMillis = 50L
 
-/** 전송 진행률을 따라가는 속도: 남은 거리의 6배/초, 최대 0.6/초(웹 시안 값). */
+/** 진행률을 따라가는 속도: 남은 거리의 6배/초, 최대 0.6/초(웹 시안 값). */
 private const val ChaseRate = 6f
 private const val ChaseMaxPerSecond = 0.6f
 
@@ -269,29 +268,6 @@ internal fun chaseProgress(shown: Float, target: Float, dt: Float): Float {
     if (target < next) next = target
     if (target >= 1f && next > 0.995f) next = 1f
     return next
-}
-
-/** 전송 진행률 [target](0~1)을 프레임마다 [chaseProgress]로 부드럽게 따라가는 표시 값. [target]이 null이면 null이다. */
-@Composable
-internal fun rememberShownProgress(target: Float?): Float? {
-    var shown by remember { mutableFloatStateOf(0f) }
-    val latest by rememberUpdatedState(target)
-    val active = target != null
-    LaunchedEffect(active) {
-        if (!active) {
-            shown = 0f
-            return@LaunchedEffect
-        }
-        var last = withFrameNanos { it }
-        while (isActive) {
-            withFrameNanos { now ->
-                val dt = (now - last) / 1_000_000_000f
-                last = now
-                latest?.let { shown = chaseProgress(shown, it, dt) }
-            }
-        }
-    }
-    return if (active) shown else null
 }
 
 /**

@@ -215,7 +215,7 @@
     <string name="analysis_retry_busy">지금은 분석을 다시 시작하지 못했어요. 잠시 후 다시 시도해 주세요.</string>
     <string name="analysis_back_to_practice">연습으로 돌아가기</string>
     <string name="analysis_play_again">다시 연주하기</string>
-    <string name="analysis_upload_progress">녹음 전송 %1$d퍼센트</string>
+    <string name="analysis_progress">연주 확인 %1$d퍼센트</string>
     <string name="analysis_upload_failed_title">녹음을 보내지 못했어요.</string>
     <string name="analysis_upload_timed_out">녹음을 보내는 데 시간이 너무 오래 걸렸어요.</string>
     <string name="analysis_upload_connection_failed">서버 연결에 문제가 생겼어요.</string>

@@ -46,7 +46,7 @@ import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.feature.practice.component.practiceScorePacking
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.analysis_upload_progress
+import eolssu.shared.generated.resources.analysis_progress
 import eolssu.shared.generated.resources.tiger_analysis_failed
 import eolssu.shared.generated.resources.tiger_confused_atlas
 import eolssu.shared.generated.resources.tiger_play
@@ -93,15 +93,16 @@ fun BoardTopBar(title: String, modifier: Modifier = Modifier, subtitle: String? 
 
 /**
  * 보드 분석 대기 그림(220dp): 붓 일원상이 7시에서 시계 방향으로 그려지고([BrushEnso]) 가운데에 연주하는 호랑이(128dp).
- * 녹음을 보내는 동안([progress] 0~1)은 획을 전송한 만큼만 그리고, 호랑이 발과 고리 사이에 같은 값의 퍼센트를 적는다.
- * [progress]가 null이면 진행률을 모르므로 획을 되풀이해 그린다.
+ * 녹음 전송 비율([uploadProgress] 0~1)과 분석 대기를 합친 진행률([rememberAnalysisProgress])만큼 획을 그리고,
+ * 호랑이 발과 고리 사이에 같은 값의 퍼센트를 적는다. 100%는 분석이 끝났을 때([done])만 보인다.
+ * [uploadProgress]가 null이면 진행률을 모르므로 획을 되풀이해 그린다.
  */
 @Composable
-fun AnalyzingFigure(progress: Float? = null, modifier: Modifier = Modifier) {
+fun AnalyzingFigure(uploadProgress: Float? = null, done: Boolean = false, modifier: Modifier = Modifier) {
     // 붓 획과 숫자가 같은 값을 쓰도록 부드럽게 따라가는 값을 여기서 한 번만 계산한다.
-    val shown = rememberShownProgress(progress)
+    val shown = rememberAnalysisProgress(uploadProgress, done)
     val percent = shown?.let { floor(it * 100).toInt().coerceIn(0, 100) }
-    val description = percent?.let { stringResource(Res.string.analysis_upload_progress, it) }
+    val description = percent?.let { stringResource(Res.string.analysis_progress, it) }
     Box(
         modifier.size(220.dp).clearAndSetSemantics {
             if (description != null) contentDescription = description
@@ -116,14 +117,14 @@ fun AnalyzingFigure(progress: Float? = null, modifier: Modifier = Modifier) {
             contentScale = ContentScale.FillWidth,
         )
         if (percent != null) {
-            UploadPercent(percent, Modifier.align(Alignment.TopCenter).offset(y = 167.dp))
+            ProgressPercent(percent, Modifier.align(Alignment.TopCenter).offset(y = 167.dp))
         }
     }
 }
 
-/** 전송 퍼센트: 숫자는 Song Myung 18sp, 뒤의 `%`는 작고 옅게. 숫자 폭이 바뀌어도 흔들리지 않게 고정폭 숫자를 쓴다. */
+/** 진행 퍼센트: 숫자는 Song Myung 18sp, 뒤의 `%`는 작고 옅게. 숫자 폭이 바뀌어도 흔들리지 않게 고정폭 숫자를 쓴다. */
 @Composable
-private fun UploadPercent(percent: Int, modifier: Modifier = Modifier) {
+private fun ProgressPercent(percent: Int, modifier: Modifier = Modifier) {
     val muted = EolssuTheme.colors.textMuted
     Text(
         buildAnnotatedString {
