@@ -10,10 +10,43 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
 import kotlin.test.*
+import kotlinx.serialization.json.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
     private fun document(draft: SheetWorkingCopy? = null) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), draft, "EVALUABLE", null, emptyList())
+
+    @Test fun closedAdaptationReplyCannotReplaceAReopenedPanel() = runTest {
+        var delayed = false
+        val pending = mutableListOf<CompletableDeferred<CatalogAuthoringCapabilities>>()
+        fun capability(version: String) = CatalogAuthoringCapabilities("1", "DANSO", version, 63,
+            AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
+        val catalog = object : ReferenceCatalogRepository {
+            override suspend fun authoringCapabilities(instrumentId: String): CatalogAuthoringCapabilities =
+                if (!delayed) capability("initial") else CompletableDeferred<CatalogAuthoringCapabilities>().also { pending += it }.await()
+            override suspend fun pitches(instrumentId: String): List<CatalogPitch> = emptyList()
+            override suspend fun allPitches(): List<CatalogPitch> = emptyList()
+            override suspend fun fingerings(instrumentId: String, pitchId: String?): CatalogFingerings = error("unused")
+            override suspend fun jangdans(): List<CatalogJangdanSummary> = emptyList()
+            override suspend fun jangdan(jangdanId: String): CatalogJangdanDetail? = null
+            override suspend fun symbols(): List<CatalogNotationSymbol> = emptyList()
+        }
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document()
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) = SheetWrite.Failed
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(),
+            documents = repository, pitchCatalog = catalog, loadAudioInstruments = { listOf(CatalogInstrument("1", "DANSO", "단소")) }))
+        runCurrent(); delayed = true
+        model.openAdaptation(); runCurrent()
+        model.closeAdaptation(); model.updateDetails("다른 편집본", 60)
+        model.openAdaptation(); runCurrent()
+        assertEquals(2, pending.size)
+        pending[1].complete(capability("new")); runCurrent()
+        pending[0].complete(capability("old")); runCurrent()
+        assertEquals("new", model.uiState.value.adaptation?.capabilities?.policyVersion)
+        assertEquals("다른 편집본", model.uiState.value.adaptation?.baseline?.title)
+    }
 
     @Test fun practiceAudioOpensTheConfirmedScoreAndIgnoresAnEditorDraft() = runTest {
         val draft = SheetWorkingCopy("이어 쓰기", null, 55, smallScoreData(), "1", 3)
@@ -324,6 +357,46 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         val reopened = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
         runCurrent()
         assertEquals("먼저 저장한 초안", reopened.uiState.value.draft.title)
+    }
+
+    @Test fun lostDraftAcknowledgementAcceptsServerCapturedSourceMetadata() = runTest {
+        verifyMetadataAcknowledgement(requestHasSource = false)
+    }
+
+    @Test fun lostDraftAcknowledgementRejectsDifferentRequestedSource() = runTest {
+        verifyMetadataAcknowledgement(requestHasSource = true)
+    }
+
+    private suspend fun TestScope.verifyMetadataAcknowledgement(requestHasSource: Boolean) {
+        fun metadata(hash: String) = buildJsonObject {
+            put("schema", "sheet-authoring/v1")
+            put("source", buildJsonObject { put("scoreSha256", hash) })
+        }
+        val requested = metadata("a".repeat(64)).takeIf { requestHasSource }
+        val captured = metadata("b".repeat(64))
+        val writes = mutableListOf<SheetWorkingCopy>()
+        var stored: SheetWorkingCopy? = null
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document(stored).copy(authoring = requested)
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                writes += copy
+                if (copy.revision != (stored?.revision ?: 0)) return SheetWrite.Conflict
+                stored = copy.copy(revision = copy.revision + 1, authoring = captured)
+                return if (writes.size == 2) SheetWrite.Failed else SheetWrite.Saved("1", copy.revision + 1)
+            }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
+            SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        model.updateDetails("첫 초안", 60)
+        advanceTimeBy(1_000); runCurrent()
+        model.updateDetails("응답 유실", 60)
+        advanceTimeBy(1_000); runCurrent()
+        model.undo()
+        advanceTimeBy(1_000); runCurrent()
+        assertEquals(requestHasSource, model.uiState.value.saveConflict)
+        assertEquals(if (requestHasSource) listOf(0, 1) else listOf(0, 1, 2), writes.map { it.revision })
+        if (!requestHasSource) assertEquals(SheetSaveStatus.DraftSaved, model.uiState.value.saveStatus)
     }
 
     @Test fun failedExitSaveKeepsScreenAndAsksBeforeDiscardingEdits() = runTest {

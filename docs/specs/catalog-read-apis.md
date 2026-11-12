@@ -85,3 +85,12 @@ S15P31E102-339에서 DB의 위치 식별자는 `object_key`다. `audioUrl`은 �
 S15P31E102-511의 V28은 단소 경복궁타령의 자진타령 기본형을 장단 ID 11로 추가한다. 3소박 4박이며 단소 교재의 12칸 구음을 쓴다. 경복궁타령 1판에는 현재 악보의 박 단위와 틱으로 계산한 `supplementalJangdanPlayback`을 제공한다. 장단 상세의 미리듣기 URL은 해당 자산이 생길 때까지 null이다.
 
 V21은 기존 ID1~3을 보존하며 자진모리4·중중모리5와 함께 엇모리6·단모리7·타령8·계면가락도드리9·세령산10을 추가한다. 후속5종은 기존 QUARTER 단위를 쓴다. 6~9의 구음 칸은8분음표,10은점4분음표 길이이며 group은 원본의 칸 묶음이다. 목록 beatCount는 각각10·8·12·12·10, groupCount는 모두4다. 엇모리 BPM90은8분음표180/2, 단모리120은 공식4/4 교재 하한이다. 정악3종48·48·63은 사용자가 재사용을 승인한 서비스 시작값이며 원전 확정 빠르기는 아니다. 응답 모양·곡 FK·BPM·공통 tick·음원은 그대로다. [후속 근거](../knowledge/backend/jangdan-catalog-extension.md#v20-보류5종의-근거-확보와-등록)를 따른다.
+
+
+### 악보 작성용 지원음 (S15P31E102-787)
+
+`GET /api/instruments/{instrumentId}/authoring-capabilities`는 등록 운지·화면 표기·CAT 합성의 교집합 `selectable`과 제외 이유를 반환한다. CAT-06의 명목 음역 탐색과 구분한다. MIDI 최저·최고 사이 모든 반음을 지원한다고 간주하지 않는다.
+
+응답은 instrumentId·instrumentCode·policyVersion·nominalHwangMidi, 물리 참고 범위 `physicalRange`, 음별 `items`를 포함한다. 각 음은 pitchId·yul·octave·hangul·hanja·semitone·midi와 physical·physicalVerification·fingering·notation·synthesis·selectable·reasonCodes를 제공한다. 물리 범위는 REFERENCE_ONLY 또는 UNKNOWN이며 실물 검수는 UNKNOWN이다. 등록 운지가 없으면 FINGERING_UNKNOWN이며 연주 불가라는 뜻이 아니다.
+
+새 확정 저장과 음원 생성은 같은 정책을 적용하고, 임시저장과 기존 읽기는 보존한다. 정책 원본은 기존 카탈로그와 DATA profile·authoring-policy·공통 악보 schema다. [구현·분할 검증](../plans/S15P31E102-787.md).

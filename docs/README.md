@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [원본 기준 이조와 옥타브 조정 확인 화면 구현 (771)](plans/S15P31E102-771.md)
 - [연습 기록 상세 미리보기 회귀 테스트 복구 (780)](plans/S15P31E102-780.md)
 - [홈 기능 카드 그림을 서로 다른 모양으로 바꾸고 카드 제목 키우기 (779)](plans/S15P31E102-779.md)
 - [기초 배우기·운지법 보기·정간보 읽기 화면을 마이페이지 스타일로 맞추고 홈·연습 기록·악보 추가 제목 정리 (768)](plans/S15P31E102-768.md)
@@ -448,3 +449,10 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)
 
 - [이전 연주 기록의 단독 평가·악기명 연결 (530)](plans/S15P31E102-530.md)
+
+## 악보 작성 결과별 작업 계획
+
+- [S15P31E102-770 지원음 선택·미확인 음 교정 화면](plans/S15P31E102-770.md)
+- [S15P31E102-787 지원음 API·확정 저장 검증](plans/S15P31E102-787.md)
+- [악보 작성 결과 재분할과 의존 관계](plans/score-authoring-partition.md)
+- [악보 작성 일관성 스펙](specs/score-authoring-consistency.md) · [조사 근거](knowledge/frontend/score-authoring-consistency.md)

@@ -29,6 +29,10 @@ class CatalogReferenceConfig {
     ): CatalogReferenceRepository = MyBatisCatalogReferenceRepository(instruments, pitches, fingerings, jangdans, symbols, json)
 
     @Bean
+    fun authoringCapabilities(repository: CatalogReferenceRepository, json: JsonMapper) =
+        com.ssafy.eolssu.backend.feature.catalog.application.AuthoringCapabilities(repository, json)
+
+    @Bean
     fun catalogReferenceQueries(repository: CatalogReferenceRepository) = CatalogReferenceQueries(repository)
 
     @Bean

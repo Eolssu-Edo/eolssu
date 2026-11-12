@@ -26,6 +26,8 @@ interface SheetAudioMapper {
     fun find(@Param("sheetId") sheetId: Long, @Param("userId") userId: Long): SheetAudioRow?
     @Select("SELECT id,code FROM instruments WHERE id=#{id} AND is_active=TRUE")
     fun instrument(id: Long): AudioInstrument?
+    @Select("SELECT id,code FROM instruments WHERE code=#{code} AND is_active=TRUE")
+    fun instrumentByCode(code: String): AudioInstrument?
     @Select("SELECT COUNT(*) FROM sheet_audios WHERE user_id=#{userId} AND status IN ('QUEUED','RUNNING')")
     fun active(userId: Long): Int
     @Select("SELECT window_at,request_count FROM sheet_audio_requests WHERE user_id=#{userId}")

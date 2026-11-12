@@ -43,5 +43,6 @@
     "shared_sample_bank": "CAT DaeGeum-DEMO",
     "independent_sanjo_timbre_verified": false,
     "limitation": "정악대금 ZIP과 WAV 67개의 파일명·SHA-256이 모두 같음. 공통 MIDI 60~89의 simple 샘플·root·detune·volume·trim·loop도 같아 고유 산조 음색을 구분한 결과가 아님. CAT 키존은 실제 관종의 실연 음역이 아님."
-  }
+  },
+  "nominal_hwang_midi": 65
 }
