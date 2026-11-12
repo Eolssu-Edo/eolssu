@@ -36,8 +36,8 @@ import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
-import com.ssafy.eolssu.feature.song.component.SongSearchField
-import com.ssafy.eolssu.feature.song.component.SongSortButton
+import com.ssafy.eolssu.core.ui.component.SongSearchField
+import com.ssafy.eolssu.core.ui.component.SongSortButton
 import com.ssafy.eolssu.feature.song.component.songTitleMarquee
 import com.ssafy.eolssu.feature.song.edit.component.HintText
 import com.ssafy.eolssu.feature.song.edit.component.PillChip

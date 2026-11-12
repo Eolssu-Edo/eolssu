@@ -24,7 +24,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-/** RECORD-01. 곡 머리는 한 번 받고, 펼친 곡의 페이지는 현재 화면에서만 보관한다. */
+/**
+ * RECORD-01. 곡 머리는 한 번 받고, 펼친 곡의 페이지는 현재 화면에서만 보관한다.
+ * 화면은 제목이 같은 곡을 한 묶음([RecordSongGroup])으로 보이고, 페이지는 서버 곡 ID마다 받는다.
+ */
 class RecordListViewModel(
     justSavedId: String?,
     private val recordRepository: PracticeRecordRepository,
@@ -47,8 +50,6 @@ class RecordListViewModel(
     }
     private val pageJobs = mutableMapOf<String, Job>()
     private val accountSession = member?.session?.value
-    private var newestSelectionJob: Job? = null
-    private var newestSelectionSongId: String? = null
     private val triedInstruments = mutableSetOf<String>()
     private var catalogInstruments: Map<String, Instrument>? = null
     private var catalogSongs: Map<String, Instrument>? = null
@@ -75,12 +76,11 @@ class RecordListViewModel(
         if (!accountScope.isActive || _uiState.value.loading) return
         cancelPages()
         val current = _uiState.value
-        val target = current.groups.firstOrNull { current.isOpen(it.songId) }?.songId
-        val sort = current.sort
+        val target = current.groups.firstOrNull { current.isOpen(it.key) }?.newestSongId
         _uiState.update { it.copy(loading = true, loadFailed = false) }
         accountScope.launch(perf.context(if (perfRequested) PerfReason.RETRY else PerfReason.INITIAL)) {
             perfRequested = true
-            val first = pageOrNull { recordRepository.loadListPage(target, sort == RecordSort.Oldest, weekOf = current.today) }
+            val first = pageOrNull { recordRepository.loadListPage(target, weekOf = current.today) }
             ensureAccountSession()
             if (reloadPending) {
                 reloadPending = false
@@ -95,15 +95,12 @@ class RecordListViewModel(
                     Instrument.entries.firstOrNull { it.serverCode == song.instrumentCode }?.let { song.songId to it }
                 }.toMap()
                 _uiState.update { state ->
-                    val pages = if (sort == state.sort) first.songId?.let { mapOf(it to first.pagesAfter(0)) }.orEmpty() else emptyMap()
                     state.copy(
                         summaries = first.songs,
                         totalRecordCount = first.totalRecordCount,
                         week = first.week,
                         songInstruments = state.songInstruments.filterKeys { id -> first.songs.any { it.songId == id } } + known,
-                        pages = pages,
-                        newestRecord = null,
-                        newestLoadFailed = false,
+                        pages = first.songId?.let { mapOf(it to first.pagesAfter(0)) }.orEmpty(),
                         loading = false,
                     )
                 }
@@ -113,29 +110,48 @@ class RecordListViewModel(
         }
     }
 
-    fun toggle(songId: String) {
-        if (!accountScope.isActive || _uiState.value.groups.none { it.songId == songId }) return
+    /** 곡 묶음([RecordSongGroup.key])을 펼치거나 접는다. */
+    fun toggle(groupKey: String) {
+        if (!accountScope.isActive || _uiState.value.groups.none { it.key == groupKey }) return
         _uiState.update { state ->
-            val open = state.openSongs
-            state.copy(opened = if (songId in open) open - songId else open + songId)
+            val open = state.openGroups
+            state.copy(opened = if (groupKey in open) open - groupKey else open + groupKey)
         }
         loadOpenedSongs()
     }
 
-    fun changeSort(sort: RecordSort) {
-        if (!accountScope.isActive || _uiState.value.sort == sort) return
-        cancelPages()
-        _uiState.update {
-            it.copy(sort = sort, pages = emptyMap(), selectedId = it.selectedRecordId, newestRecord = null, newestLoadFailed = false)
+    /** 곡 묶음 안의 날짜([RecordDay.epochDay])를 펼치거나 접는다. */
+    fun toggleDay(groupKey: String, epochDay: Long) {
+        if (!accountScope.isActive) return
+        _uiState.update { state ->
+            val closed = state.closedDays[groupKey].orEmpty()
+            state.copy(closedDays = state.closedDays + (groupKey to if (epochDay in closed) closed - epochDay else closed + epochDay))
         }
+    }
+
+    /** 곡 묶음의 다음 페이지: 다음 페이지가 남았거나 받기에 실패한 곡을 모두 이어 받는다. */
+    fun loadMoreGroup(groupKey: String) {
+        val state = _uiState.value
+        val group = state.groups.firstOrNull { it.key == groupKey } ?: return
+        group.songIds.filter { id -> state.pages[id]?.let { it.nextPage != null || it.failed } ?: true }.forEach(::loadMore)
+    }
+
+    /** 이름 토글: 곡 묶음을 ㄱ→ㅎ과 ㅎ→ㄱ으로 오간다. 펼침·선택은 그대로 둔다. */
+    fun toggleNameOrder() {
+        if (accountScope.isActive) _uiState.update { it.copy(nameOrder = it.nameOrder.toggled()) }
+    }
+
+    /** 곡 제목 검색. 처음 펼치는 묶음이 바뀔 수 있어 펼친 곡의 페이지를 이어 받는다. */
+    fun search(query: String) {
+        if (!accountScope.isActive || _uiState.value.query == query) return
+        _uiState.update { it.copy(query = query) }
         loadOpenedSongs()
     }
 
     fun changeInstrument(instrument: Instrument?) {
         if (!accountScope.isActive || _uiState.value.instrument == instrument) return
-        newestSelectionJob?.cancel()
         _uiState.update {
-            it.copy(instrument = instrument, opened = null, selectedId = null, linkedId = null, newestRecord = null, newestLoadFailed = false)
+            it.copy(instrument = instrument, opened = null, closedDays = emptyMap(), selectedId = null, linkedId = null)
         }
         loadOpenedSongs()
     }
@@ -149,25 +165,6 @@ class RecordListViewModel(
         _uiState.value.recordForDetail(recordId)?.let { recordRepository.rememberDetailPreview(it, accountSession) }
     }
 
-    fun loadNewestSelection() {
-        val state = _uiState.value
-        if (!accountScope.isActive || state.loading) return
-        val songId = state.newestLookupSongId ?: return
-        if (newestSelectionSongId == songId && newestSelectionJob?.isActive == true) return
-        newestSelectionJob?.cancel()
-        newestSelectionSongId = songId
-        _uiState.update { it.copy(newestLoadFailed = false) }
-        newestSelectionJob = accountScope.launch(perf.context()) {
-            val newest = pageOrNull { recordRepository.newestRecord(songId) }
-            ensureAccountSession()
-            _uiState.update { latest ->
-                if (latest.newestLookupSongId == songId) {
-                    latest.copy(newestRecord = newest, newestLoadFailed = newest == null)
-                } else latest
-            }
-        }
-    }
-
     /** 상세 경로의 기록은 아직 목록 페이지에 없어도 직접 연다. */
     fun show(recordId: String) {
         if (accountScope.isActive) _uiState.update { it.copy(linkedId = recordId, selectedId = null) }
@@ -175,20 +172,21 @@ class RecordListViewModel(
 
     fun revealLinkedRecord(record: PracticeRecord) {
         val state = _uiState.value
-        if (!accountScope.isActive || record.id != state.linkedId || state.isOpen(record.songId)) return
-        _uiState.update { it.copy(opened = it.openSongs + record.songId) }
+        if (!accountScope.isActive || record.id != state.linkedId || state.isSongOpen(record.songId)) return
+        val key = state.groupOf(record.songId)?.key ?: return
+        _uiState.update { it.copy(opened = it.openGroups + key) }
         loadOpenedSongs()
     }
 
     fun loadMore(songId: String) {
         val state = _uiState.value
-        if (!accountScope.isActive || state.loading || !state.isOpen(songId) || state.groups.none { it.songId == songId }) return
+        if (!accountScope.isActive || state.loading || !state.isSongOpen(songId)) return
         val existing = state.pages[songId] ?: RecordPages()
         val page = existing.nextPage ?: return
         if (existing.loading) return
         _uiState.update { it.copy(pages = it.pages + (songId to existing.copy(loading = true, failed = false))) }
         pageJobs[songId] = accountScope.launch(perf.context()) {
-            val result = pageOrNull { recordRepository.loadListPage(songId, state.sort == RecordSort.Oldest, page) }
+            val result = pageOrNull { recordRepository.loadListPage(songId, page = page) }
             ensureAccountSession()
             _uiState.update { latest ->
                 val current = latest.pages[songId] ?: return@update latest
@@ -200,11 +198,10 @@ class RecordListViewModel(
 
     private fun loadOpenedSongs() {
         val state = _uiState.value
-        state.groups.filter { state.isOpen(it.songId) && it.songId !in state.pages }.forEach { loadMore(it.songId) }
+        state.groups.filter { state.isOpen(it.key) }.flatMap { it.songIds }.filter { it !in state.pages }.forEach(::loadMore)
     }
 
     private fun cancelPages() {
-        newestSelectionJob?.cancel()
         pageJobs.values.forEach { it.cancel() }
         pageJobs.clear()
         _uiState.update { state -> state.copy(pages = state.pages.mapValues { (_, pages) -> pages.copy(loading = false) }) }
@@ -217,10 +214,7 @@ class RecordListViewModel(
         _uiState.update { state ->
             fun updated(row: PracticeRecord): PracticeRecord =
                 if (row.id == change.id) row.copy(memo = change.memo, isNew = row.isNew && !change.viewed) else row
-            state.copy(
-                pages = state.pages.mapValues { (_, page) -> page.copy(records = page.records.map(::updated)) },
-                newestRecord = state.newestRecord?.let(::updated),
-            )
+            state.copy(pages = state.pages.mapValues { (_, page) -> page.copy(records = page.records.map(::updated)) })
         }
     }
 
@@ -240,7 +234,6 @@ class RecordListViewModel(
                 },
                 totalRecordCount = if (summary == null) state.totalRecordCount else (state.totalRecordCount - 1).coerceAtLeast(0),
                 week = null,
-                newestRecord = state.newestRecord?.takeUnless { it.id == recordId },
                 pages = state.pages.mapValues { (_, page) -> page.copy(records = page.records.filterNot { it.id == recordId }) },
             )
         }

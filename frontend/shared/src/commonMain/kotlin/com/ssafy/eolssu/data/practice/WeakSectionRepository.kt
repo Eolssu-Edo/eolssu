@@ -86,6 +86,7 @@ sealed interface CheckLoad {
  * 구간 재평가 결과(RESULT-04). 점수는 서버 값을 그대로 쓰고 화면에서 다시 계산하지 않는다.
  *
  * @property check 바탕 세션과의 오류 수 비교.
+ * @property result 이번 구간 연주의 평가 결과 전체(EVA-01). 틀린 정간·필터 개수를 그린다(S15P31E102-776).
  */
 data class SectionEvaluation(
     val song: Song,
@@ -94,6 +95,7 @@ data class SectionEvaluation(
     val total: Int,
     val metrics: List<MetricScore>,
     val check: CheckLoad,
+    val result: EvaluationResult? = null,
 )
 
 /**
@@ -134,7 +136,7 @@ class ApiWeakSectionRepository(
 
     override suspend fun sectionResult(sessionId: String): SectionEvaluation? = guarded {
         val (song, evaluation) = loadSource(sessionId) ?: return@guarded null
-        SectionEvaluation(song, sessionId, evaluation.bpm, evaluation.total, evaluation.metrics, check(sessionId, baseline = null))
+        SectionEvaluation(song, sessionId, evaluation.bpm, evaluation.total, evaluation.metrics, check(sessionId, baseline = null), result = evaluation)
     }
 
     private suspend fun loadSource(sessionId: String): WeakSectionSource? {

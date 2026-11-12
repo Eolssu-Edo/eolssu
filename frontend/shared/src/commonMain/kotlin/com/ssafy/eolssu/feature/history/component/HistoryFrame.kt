@@ -3,9 +3,9 @@ package com.ssafy.eolssu.feature.history.component
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
@@ -56,31 +56,46 @@ internal fun historyFrame(widthClass: WindowWidthClass): HistoryFrame = when (wi
 
 /**
  * 창 너비에 맞춘 상단 바. 태블릿 세로는 창 가장자리에서 32dp, 가로는 본문 왼쪽 끝에 뒤로 가기 버튼을 둔다.
- * (상단 바 안쪽 여백 20dp에 바깥 여백을 더한다.)
+ * (상단 바 안쪽 여백 20dp에 바깥 여백을 더한다.) [right]는 오른쪽 끝에 두는 작은 버튼 자리다.
  */
 @Composable
-internal fun HistoryTopBar(frame: HistoryFrame, title: String, subtitle: String?, onBack: () -> Unit, bottom: Dp = 12.dp) {
+internal fun HistoryTopBar(
+    frame: HistoryFrame,
+    title: String,
+    subtitle: String?,
+    onBack: () -> Unit,
+    bottom: Dp = 12.dp,
+    right: @Composable RowScope.() -> Unit = {},
+) {
     when (frame.widthClass) {
-        WindowWidthClass.Compact -> HistoryBoardTopBar(title, subtitle, onBack, bottom = bottom)
+        WindowWidthClass.Compact -> HistoryBoardTopBar(title, subtitle, onBack, bottom = bottom, right = right)
         WindowWidthClass.Medium -> EolssuTopBar(
             title, onBack = onBack, subtitle = subtitle,
             modifier = Modifier.padding(horizontal = 12.dp),
             maxWidth = WindowBreakpoints.ContentMaxWidth,
+            right = right,
         )
         WindowWidthClass.Expanded -> EolssuTopBar(
             title, onBack = onBack, subtitle = subtitle,
             modifier = Modifier.padding(horizontal = 20.dp),
             maxWidth = WindowBreakpoints.ContentMaxWidth + 40.dp,
+            right = right,
         )
     }
 }
 
 /**
- * 보드 기록·성장 화면의 상단 바: 40dp 뒤로 가기 꺽쇠([EolssuBackButton]) · 가운데 제목(16sp 굵게)과 보조 문구(12sp) · 오른쪽 빈 칸.
+ * 보드 기록·성장 화면의 상단 바: 40dp 뒤로 가기 꺽쇠([EolssuBackButton]) · 가운데 제목(16sp 굵게)과 보조 문구(12sp) · 오른쪽 [right](없으면 빈 칸).
  * 아래 여백은 화면마다 다르다(목록 12 · 상세 8 · 기록지 10).
  */
 @Composable
-internal fun HistoryBoardTopBar(title: String, subtitle: String?, onBack: () -> Unit, bottom: Dp = 12.dp) {
+internal fun HistoryBoardTopBar(
+    title: String,
+    subtitle: String?,
+    onBack: () -> Unit,
+    bottom: Dp = 12.dp,
+    right: @Composable RowScope.() -> Unit = {},
+) {
     val colors = EolssuTheme.colors
     Row(
         Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = bottom),
@@ -108,6 +123,6 @@ internal fun HistoryBoardTopBar(title: String, subtitle: String?, onBack: () -> 
                 )
             }
         }
-        Spacer(Modifier.width(40.dp))
+        Row(Modifier.widthIn(min = 40.dp), horizontalArrangement = Arrangement.End, content = right)
     }
 }

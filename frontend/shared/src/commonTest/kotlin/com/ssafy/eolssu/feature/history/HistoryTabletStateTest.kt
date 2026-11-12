@@ -29,21 +29,6 @@ class HistoryTabletStateTest {
     }
 
     @Test
-    fun twoPaneDoesNotSelectAnOlderRecordFromAnIncompleteOldestPage() {
-        val arirang = records.filter { it.songId == "arirang" }
-        val newest = arirang.first()
-        val group = RecordSongSummary("arirang", "아리랑", arirang.size, newest.recordedAt, 79, null)
-        val partial = RecordListUiState(
-            sort = RecordSort.Oldest,
-            summaries = listOf(group),
-            pages = mapOf("arirang" to RecordPages(arirang.drop(1).asReversed(), nextPage = 1)),
-        )
-        assertNull(partial.selectedRecordId)
-        assertEquals(arirang.last().id, partial.copy(selectedId = arirang.last().id).selectedRecordId)
-        assertEquals(newest.id, partial.copy(pages = mapOf("arirang" to RecordPages(arirang.asReversed(), nextPage = null))).selectedRecordId)
-    }
-
-    @Test
     fun wrapsColumnsByStripCountInReadingOrder() {
         assertEquals(listOf(0..7, 8..15), wrapColumns(List(16) { 1 }, slots = 8))
         assertEquals(listOf(0..2, 3..3), wrapColumns(listOf(2, 1, 1, 2), slots = 4))

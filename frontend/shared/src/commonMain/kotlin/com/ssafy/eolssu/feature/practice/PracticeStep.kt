@@ -105,7 +105,7 @@ val PracticeUiState.stepNoteToPlay: FingeringNote?
 /** '현재 정간' 칸에 보일 음. 시작 전이면 첫 음. */
 val PracticeUiState.stepShownIndex: Int?
     get() {
-        val targets = stepTargets(song?.timeline.orEmpty())
+        val targets = stepTargetsInSection()
         if (targets.isEmpty()) return null
         return if (step.phase == StepPhase.Idle) targets.first() else step.target
     }
@@ -113,7 +113,7 @@ val PracticeUiState.stepShownIndex: Int?
 /** 지금 음이 몇 번째인지(1부터)와 전체 음 수. */
 val PracticeUiState.stepProgress: Pair<Int, Int>
     get() {
-        val targets = stepTargets(song?.timeline.orEmpty())
+        val targets = stepTargetsInSection()
         val shown = stepShownIndex ?: return 0 to 0
         val k = targets.indexOfFirst { it >= shown }.let { if (it < 0) targets.lastIndex else it }
         return (k + 1) to targets.size
@@ -131,7 +131,7 @@ fun PracticeUiState.toggleStep(): PracticeUiState {
         return copy(step = step.copy(on = false, phase = phase))
     }
     if (mode == PracticeMode.Model) {
-        val targets = stepTargets(song?.timeline.orEmpty())
+        val targets = stepTargetsInSection()
         val target = targets.firstOrNull { it >= position } ?: targets.lastOrNull() ?: 0
         return stopModel().copy(modelAudioStatus = ModelAudioStatus.Idle, step = step.copy(on = true, phase = StepPhase.Paused, target = target))
     }
@@ -144,7 +144,7 @@ fun PracticeUiState.toggleStep(): PracticeUiState {
  */
 fun PracticeUiState.tapStepPlaying(): PracticeUiState {
     if (!stepUi || mode != PracticeMode.Ready) return this
-    val targets = stepTargets(song?.timeline.orEmpty())
+    val targets = stepTargetsInSection()
     if (targets.isEmpty()) return this
     return when (step.phase) {
         StepPhase.Listening -> copy(step = step.copy(phase = StepPhase.Paused))
@@ -160,9 +160,14 @@ fun PracticeUiState.tapStepPlaying(): PracticeUiState {
  */
 fun PracticeUiState.matchStepNote(index: Int): PracticeUiState {
     if (!stepUi || step.phase != StepPhase.Listening || index != step.target) return this
-    val next = stepTargets(song?.timeline.orEmpty()).firstOrNull { it > index }
-        ?: return copy(step = step.copy(phase = StepPhase.Finished))
-    return copy(follow = true, step = step.copy(target = next))
+    val targets = stepTargetsInSection()
+    val next = targets.firstOrNull { it > index }
+    if (next != null) return copy(follow = true, step = step.copy(target = next))
+    // 구간 연습은 구간 끝에서 정한 횟수만큼 구간 처음으로 돌아간다.
+    if (sectionEvents == null) return copy(step = step.copy(phase = StepPhase.Finished))
+    val (looped, again) = loopSection()
+    return if (again) looped.copy(step = step.copy(target = targets.first()))
+    else looped.copy(step = step.copy(phase = StepPhase.Finished))
 }
 
 /** 화면을 벗어나거나 다른 동작으로 멈춤. 듣는 중이면 그 자리에서 멈춘다. */
