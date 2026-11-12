@@ -16,6 +16,9 @@ internal class PracticeTimelineClock(
 
     val eventStartedAt: TimeMark get() = startedAt + (completedEventMs - carriedEventMs).milliseconds
 
+    /** 타격 스레드는 UI가 변경하는 이벤트별 누계 대신 불변 시작점만 읽는다. */
+    fun elapsedMs(): Double = carriedElapsedMs + startedAt.elapsedNow().inWholeNanoseconds / 1_000_000.0
+
     fun sample(): TimelineSample {
         val activeMs = startedAt.elapsedNow().inWholeNanoseconds / 1_000_000.0
         return TimelineSample(carriedEventMs + activeMs - completedEventMs, carriedElapsedMs + activeMs)

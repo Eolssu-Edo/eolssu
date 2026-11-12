@@ -18,6 +18,8 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** 기록 목록(RECORD-01)의 악기 필터: 곡 정보로 악기를 찾아, 고른 악기의 곡 묶음만 보인다(S15P31E102-631). */
@@ -73,8 +75,9 @@ internal class RecordListInstrumentFilterTest : CatalogViewModelTest() {
         model.changeInstrument(Instrument.Sogeum)
         runCurrent()
         assertEquals(listOf(listOf("sogeum-arirang")), model.uiState.value.groups.map { it.songIds })
-        assertTrue(model.uiState.value.isOpen("아리랑"))
-        assertEquals("r2", model.uiState.value.selectedRecordId)
+        // 악기를 바꾸면 묶음을 모두 접고 기록을 고르지 않는다.
+        assertFalse(model.uiState.value.isOpen("아리랑"))
+        assertNull(model.uiState.value.selectedRecordId)
 
         model.changeInstrument(Instrument.DaegeumJeongak)
         assertEquals(listOf(listOf("hidden-arirang")), model.uiState.value.groups.map { it.songIds })

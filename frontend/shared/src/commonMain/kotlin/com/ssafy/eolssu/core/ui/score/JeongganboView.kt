@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -242,6 +243,8 @@ fun JeongganboView(
     unitMarksAfterPass: Boolean = false,
     focusCell: Pair<Int, Int>? = null,
     focusRequestKey: Int = 0,
+    /** 연습 보드는 보이는 묶음과 양쪽 이웃만 구성하며 나머지는 같은 너비의 빈 공간으로 보존한다. */
+    windowed: Boolean = false,
 ) {
     // sp만 커져 분할 음·각 머리글이 잘리지 않도록 해당 악보의 기하도 함께 늘린다.
     // 화면 전체를 확대하지 않으며 기존 가로/세로 스크롤과 원본 줄바꿈을 유지한다.
@@ -359,7 +362,20 @@ fun JeongganboView(
             )
         }
     }
-    Box(modifier.fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopEnd) {
+    val groups = remember(strips, stackSize) { strips.withIndex().toList().chunked(stackSize) }
+    val density = LocalDensity.current
+    val columnPx = with(density) { renderMetrics.columnWidth.roundToPx() }
+    val gapPx = with(density) { metrics.columnGap.roundToPx() }
+    val stridePx = (columnPx + gapPx).toFloat()
+    val drawRow: @Composable (Int) -> Unit = { viewportPx ->
+        val window by remember(groups, windowed, scrollState, focusCell, stridePx, viewportPx) {
+            derivedStateOf {
+                if (windowed && scrollState != null && focusCell == null)
+                    visibleScoreStacks(groups.size, scrollState.value, viewportPx, stridePx)
+                else groups.indices
+            }
+        }
+        fun omittedWidth(count: Int): Dp = with(density) { scoreStackSpanPx(count, columnPx, gapPx).toDp() }
         Row(
             modifier = rowModifier.semantics { isTraversalGroup = true }
                 .then(
@@ -372,10 +388,13 @@ fun JeongganboView(
             horizontalArrangement = Arrangement.spacedBy(metrics.columnGap),
             verticalAlignment = Alignment.Top,
         ) {
+            val omittedLeft = if (window.isEmpty()) 0 else groups.lastIndex - window.last
+            if (omittedLeft > 0) Spacer(Modifier.width(omittedWidth(omittedLeft)))
             if (stackSize == 1) {
-                for ((readingIndex, strip) in strips.withIndex().reversed()) drawStrip(readingIndex, strip)
+                for (readingIndex in window.reversed()) drawStrip(readingIndex, strips[readingIndex])
             } else {
-                for ((groupIndex, group) in strips.withIndex().toList().chunked(stackSize).withIndex().reversed()) {
+                for (groupIndex in window.reversed()) {
+                    val group = groups[groupIndex]
                     Column(
                         Modifier.semantics { isTraversalGroup = true; traversalIndex = groupIndex.toFloat() },
                         verticalArrangement = Arrangement.spacedBy(stackGap),
@@ -389,7 +408,15 @@ fun JeongganboView(
                     }
                 }
             }
+            if (!window.isEmpty() && window.first > 0) Spacer(Modifier.width(omittedWidth(window.first)))
         }
+    }
+    if (windowed && scrollState != null && focusCell == null) {
+        BoxWithConstraints(modifier.fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopEnd) {
+            drawRow(constraints.maxWidth)
+        }
+    } else {
+        Box(modifier.fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopEnd) { drawRow(Int.MAX_VALUE) }
     }
 }
 

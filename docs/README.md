@@ -1,7 +1,7 @@
 # 프로젝트 문서
 
 - [오선보 음높이·성부·꾸밈음 교정 (806)](specs/score-recognition-corrections.md) · [실제 PDF·이미지 대조와 한계](knowledge/ai/score-recognition-corrections.md) · [계획·검증](plans/S15P31E102-806.md)
-
+- [홈 기능 카드 그림을 단소 그림 느낌으로 통일 (797)](plans/S15P31E102-797.md)
 - [악보 빠르기 설정과 기기 반주 시간표 동기화 (791)](plans/S15P31E102-791.md)
 - [악보 장단 선택과 시작 위치 안내 개선 (772)](plans/S15P31E102-772.md)
 - [원본 기준 이조와 옥타브 조정 확인 화면 구현 (771)](plans/S15P31E102-771.md)
@@ -245,6 +245,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [Android 장단 타격·악보 진행 지연 수정 (805)](knowledge/frontend/android-jangdan-timing.md) · [수정 스펙](specs/practice-playback-timing.md) · [계획·검증](plans/S15P31E102-805.md)
 - [모범 연주 메타데이터와 시간표의 방문 간 재사용 (764)](plans/S15P31E102-764.md)
 - [Android QA APK 화면 재조회·데이터 재사용 계측 설계 (678)](plans/S15P31E102-678.md)
 - [Android 채점모드 실시간 음높이 표시 설계](knowledge/frontend/realtime-pitch-prototype-design.md)

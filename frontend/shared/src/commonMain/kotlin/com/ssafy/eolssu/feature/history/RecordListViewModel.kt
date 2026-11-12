@@ -141,19 +141,16 @@ class RecordListViewModel(
         if (accountScope.isActive) _uiState.update { it.copy(nameOrder = it.nameOrder.toggled()) }
     }
 
-    /** 곡 제목 검색. 처음 펼치는 묶음이 바뀔 수 있어 펼친 곡의 페이지를 이어 받는다. */
+    /** 곡 제목 검색. 펼침·선택은 그대로 둔다. */
     fun search(query: String) {
-        if (!accountScope.isActive || _uiState.value.query == query) return
-        _uiState.update { it.copy(query = query) }
-        loadOpenedSongs()
+        if (accountScope.isActive && _uiState.value.query != query) _uiState.update { it.copy(query = query) }
     }
 
     fun changeInstrument(instrument: Instrument?) {
         if (!accountScope.isActive || _uiState.value.instrument == instrument) return
         _uiState.update {
-            it.copy(instrument = instrument, opened = null, closedDays = emptyMap(), selectedId = null, linkedId = null)
+            it.copy(instrument = instrument, opened = emptySet(), closedDays = emptyMap(), selectedId = null, linkedId = null)
         }
-        loadOpenedSongs()
     }
 
     fun select(recordId: String) {

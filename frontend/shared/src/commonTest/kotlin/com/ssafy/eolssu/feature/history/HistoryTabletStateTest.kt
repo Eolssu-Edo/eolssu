@@ -22,7 +22,8 @@ class HistoryTabletStateTest {
         val arirang = records.filter { it.songId == "arirang" }
         val group = RecordSongSummary("arirang", "아리랑", arirang.size, arirang.first().recordedAt, 79, null)
         val state = RecordListUiState(summaries = listOf(group), pages = mapOf("arirang" to RecordPages(arirang, nextPage = null)))
-        assertEquals(arirang.first().id, state.selectedRecordId)
+        // 처음에는 최근 기록도 고르지 않는다.
+        assertNull(state.selectedRecordId)
         assertEquals("linked", state.copy(linkedId = "linked").selectedRecordId)
         assertEquals("picked", state.copy(linkedId = "linked", selectedId = "picked").selectedRecordId)
         assertNull(RecordListUiState().selectedRecordId)

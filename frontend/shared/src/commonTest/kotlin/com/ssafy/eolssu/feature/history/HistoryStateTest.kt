@@ -28,11 +28,11 @@ class HistoryStateTest {
         val repo = SamplePracticeRecordRepository()
         val first = checkNotNull(repo.loadListPage(weekOf = oct18))
         val state = RecordListUiState(summaries = first.songs, week = first.week)
-        // 곡 묶음은 가나다순이고, 처음에는 가장 최근에 연습한 '아리랑'이 펼쳐진다.
+        // 곡 묶음은 가나다순이고, 처음에는 모두 접혀 있다.
         assertEquals(listOf("도라지타령", "아리랑"), state.groups.map { it.title })
         assertEquals(3, state.groups.last().recordCount)
         assertEquals(79, state.groups.last().bestScore)
-        assertTrue(state.isOpen("아리랑"))
+        assertFalse(state.isOpen("아리랑"))
         assertFalse(state.isOpen("도라지타령"))
         assertEquals(4 to 79, state.thisWeek)
         val oldest = checkNotNull(repo.loadListPage("arirang", oldest = true))
