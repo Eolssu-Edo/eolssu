@@ -5,6 +5,8 @@ import com.ssafy.eolssu.core.audio.RecordedAudio
 import com.ssafy.eolssu.core.audio.RecordingSpec
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.ScoreSection
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.PreviousRecord
 import com.ssafy.eolssu.data.practice.RecordComparison
 import com.ssafy.eolssu.data.practice.SectionEvaluation
@@ -90,6 +92,19 @@ internal class SectionLoopRecordingTest : CatalogViewModelTest() {
         assertEquals(SectionLoopNotice.ScoreUnavailable, loop.uiState.value.notice)
         assertEquals(0, mic.requests)
         assertEquals(0, recorder.starts)
+    }
+
+    @Test fun evaluationTempoFollowsTheSavedSongTempoAndTheSettingsSheet() = runTest {
+        // 구간 재평가 속도는 연습 화면과 같은 곡 속도 설정을 따르고, 설정의 ‘속도’로 바꾼다(S15P31E102-794).
+        val settings = PracticeSettingsStore(FakeKeyValueStore())
+        settings.update { it.copy(bpmBySong = it.bpmBySong + (song.id to 42)) }
+        val model = keep(SectionLoopViewModel("30", section, null, 1, source, FakePracticeRecorder(), Mic(granted = true), settingsStore = settings, autoStart = false))
+        advanceUntilIdle()
+        assertEquals(42, model.uiState.value.bpm)
+        model.openPanel(PracticePanel.Tempo)
+        model.updateDraft { it.copy(step = TempoStep.Slowest) }
+        advanceUntilIdle()
+        assertEquals(TempoStep.Slowest.bpm(song.baseBpm), model.uiState.value.bpm)
     }
 
     @Test fun sectionScreensWaitForAPressInsteadOfStartingTheLoop() = runTest {

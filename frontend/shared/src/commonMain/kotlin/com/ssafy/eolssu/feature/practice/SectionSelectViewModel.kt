@@ -42,5 +42,4 @@ class SectionSelectViewModel(
     fun selectFilter(filter: ErrorFilter) = _uiState.update { it.copy(filter = filter) }
 
 
-    fun selectSpeed(speed: TempoStep) = _uiState.update { it.copy(speed = speed) }
 }

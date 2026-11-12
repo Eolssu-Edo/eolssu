@@ -113,7 +113,6 @@ import eolssu.shared.generated.resources.practice_off
 import eolssu.shared.generated.resources.practice_on
 import eolssu.shared.generated.resources.practice_settings
 import eolssu.shared.generated.resources.practice_settings_locked
-import eolssu.shared.generated.resources.weak_evaluate_tempo_fixed
 import eolssu.shared.generated.resources.practice_tempo_note
 import eolssu.shared.generated.resources.practice_tempo_sub
 import eolssu.shared.generated.resources.practice_tempo_title
@@ -225,8 +224,8 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     val step = TempoStep.nearest(song.baseBpm, state.bpm)
     val instrumentName = stringResource(state.instrument.label)
     // 평가 중에는 속도만 고정하고 장단 소리는 바꿀 수 있다.
-    val locked = state.tempoLocked
-    val lockedStatus = stringResource(if (state.tempoFixed && !state.playbackSettingsLocked) Res.string.weak_evaluate_tempo_fixed else Res.string.practice_settings_locked)
+    val locked = state.playbackSettingsLocked
+    val lockedStatus = stringResource(Res.string.practice_settings_locked)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (state.solo && !state.learn) SettingsCard { InstrumentSelect(state.instrument, actions.onSetInstrument) }
         SettingsCard {
