@@ -112,12 +112,13 @@ internal class ModelAudioSession(
                 val checked = if (media.status == AudioPlaybackStatus.Completed && media.positionMs + 1.0 < minimumEnd)
                     ModelAudioStatus.Failed else status
                 val previous = _state.value
+                val nativeRate = media.positionClockRate?.toDouble() ?: speed(audio).toDouble()
                 val anchor = if (checked != ModelAudioStatus.Playing) null else
                     previous.anchor.takeIf { previous.status == ModelAudioStatus.Playing }
-                        .follow(media.positionMs.toDouble(), speed(audio).toDouble(), timeSource.markNow())
+                        .follow(media.positionMs.toDouble(), nativeRate, timeSource.markNow())
                 val soundAnchor = if (checked != ModelAudioStatus.Playing) null else MediaAnchor(
                     media.positionMs.toDouble(), media.positionSampledAt ?: timeSource.markNow(),
-                    if (media.positionMs == 0L) 0.0 else speed(audio).toDouble(),
+                    nativeRate,
                 )
                 _state.value = ModelAudioState(checked, audio, media.positionMs, anchor, soundAnchor)
             }

@@ -17,6 +17,20 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeJangdanTest {
+    @Test fun nativeModelWaitsForDecoderProgressBeforeItsFirstAttack() = practice { vm, samples, media, settings ->
+        settings.update { it.copy(jangdanSound = true) }; runCurrent()
+        vm.startModel(); runCurrent()
+        media.state.value = media.state.value.copy(status = AudioPlaybackStatus.Playing, positionMs = 0,
+            positionSampledAt = testScheduler.timeSource.markNow(), positionClockRate = 0f)
+        runCurrent()
+        advanceTimeBy(100); runCurrent()
+        assertTrue(samples.hits.isEmpty(), "A started decoder that is still at zero must not emit an early downbeat")
+        media.state.value = media.state.value.copy(positionMs = 1,
+            positionSampledAt = testScheduler.timeSource.markNow(), positionClockRate = 1f)
+        advanceTimeBy(6); runCurrent()
+        assertEquals(listOf(JangdanSample.Deong), samples.hits)
+    }
+
     @Test fun asynchronousOutputFailureStopsBetweenAttacks() = runTest {
         val samples = Samples()
         val session = JangdanSession(samples, backgroundScope)

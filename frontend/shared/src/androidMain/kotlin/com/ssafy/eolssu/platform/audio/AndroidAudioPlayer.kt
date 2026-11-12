@@ -38,6 +38,7 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
     private var player: MediaPlayer? = null
     private var prepared = false
     private var speed = 1f
+    private var waitingForClock: Long? = null
     private var focusGranted = false
     private var focusRequest: AudioFocusRequest? = null
     private var noisyRegistered = false
@@ -61,10 +62,15 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
             if (_state.value.status != AudioPlaybackStatus.Playing || !prepared) return
             runCatching {
                 val position = current.currentPosition.toLong()
-                _state.value = _state.value.copy(positionMs = position, positionSampledAt = TimeSource.Monotonic.markNow())
+                if (waitingForClock?.let { position > it } == true) waitingForClock = null
+                val advancing = waitingForClock == null
+                if (advancing || position != _state.value.positionMs) {
+                    _state.value = _state.value.copy(positionMs = position, positionSampledAt = TimeSource.Monotonic.markNow(),
+                        positionClockRate = if (advancing) speed else 0f)
+                }
             }
                 .onFailure { fail() }
-            if (_state.value.status == AudioPlaybackStatus.Playing) handler.postDelayed(this, 50L)
+            if (_state.value.status == AudioPlaybackStatus.Playing) handler.postDelayed(this, if (waitingForClock == null) 50L else 5L)
         }
     }
 
@@ -200,13 +206,15 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
         val current = player ?: return
         if (!prepared || !requestFocus()) return interrupt()
         runCatching {
+            val position = current.currentPosition.toLong()
+            waitingForClock = position
             // Setting PlaybackParams can start prepared media, so acquire focus first.
             current.playbackParams = PlaybackParams().allowDefaults().setSpeed(speed).setPitch(1f)
             current.start()
             handler.removeCallbacks(prepareTimeout)
             registerNoisyReceiver()
-            _state.value = _state.value.copy(status = AudioPlaybackStatus.Playing, positionMs = current.currentPosition.toLong(),
-                positionSampledAt = TimeSource.Monotonic.markNow())
+            _state.value = _state.value.copy(status = AudioPlaybackStatus.Playing, positionMs = position,
+                positionSampledAt = TimeSource.Monotonic.markNow(), positionClockRate = 0f)
             handler.removeCallbacks(updatePosition)
             handler.post(updatePosition)
         }.onFailure { fail() }
@@ -269,6 +277,7 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
         val previous = player
         player = null
         prepared = false
+        waitingForClock = null
         previous?.let {
             it.setOnPreparedListener(null)
             it.setOnCompletionListener(null)

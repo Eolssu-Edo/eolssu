@@ -20,6 +20,8 @@ data class AudioPlaybackState(
     val durationMs: Long = 0,
     /** 위치를 읽은 시각. UI 전달 지연을 재생 경과 시간으로 오인하지 않도록 함께 보낸다. */
     val positionSampledAt: TimeMark? = null,
+    /** 실제 위치 시계의 배율. 디코더가 아직 진행하지 않으면 0, 미지원 구현은 null이다. */
+    val positionClockRate: Float? = null,
 )
 
 /** Each screen owns a player. Calls return immediately; preparation and position updates are asynchronous. */

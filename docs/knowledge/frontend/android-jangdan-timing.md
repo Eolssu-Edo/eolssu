@@ -126,3 +126,15 @@ PCM 혼합·분할 쓰기·초기화·출력 공백 후 시간표 보존, native
 최종 음원용 시계 분리 이후의 실기기 동시 재생·탐색·변속·배경 전환 재확인은 ADB 기기 부재로 대기 중이다. 최종 코드의 자동 검사와 앞선 PCM 출력 측정을 구분한다. 관련 파일은 `output/jangdan-sync-791/{capture_run.py,jitter_summary.py,analyze_combined.py,*-hits.txt,*-analysis.json}`에 보관했다. 임시 공개곡·기준음원 진입점과 타격 로그는 제품 소스에서 제거했다.
 
 최종 제품 소스로 host 1,494건(실패0·제외4)과 Android APK를 확인하고 XML·빌드 로그를 `final-host-tests/`, `final-host-summary.json`, `final-product-check.log`에 보관했다. 그 전 전체 실행에서 변경하지 않은 `SheetAudioDeviceStoreTest.performanceSurvivesRestartOnlyWithItsVerifiedAudioAndVersion`이 한 번 실패했으며, 뒤의 전체 실행·해당 클래스4건·최종 전체 실행은 통과했다. 최초 실패의 상세 예외는 후속 보고서에 덮여 정확한 원인을 확정하지 못했다. 관련 구현이나 검사를 변경·제외하지 않았다.
+
+### 디코더 시작과 첫 타격 보완
+
+USB 기기 부재가 지속되어 기존 `Medium_Phone` API37.1 x86_64 에뮬레이터를 read-only·headless·포트5580으로 실행했다. 같은 실제 `PracticeRoute`와 Android 플레이어를 사용했다. virtual HAL의 underrun이 발생한 실행에서도 작업이 죽지 않고 논리 프레임을 건너뛰어 정지·재시작했다. 이 환경의 프레임·타격 지표를 Galaxy 성능으로 쓰지 않는다.
+
+음원용 시계를 분리한 실행에서도 최초 Deong과 다음 Deok의 요청 사이가 1.28초인 경우가 있었다. `MediaPlayer.start()` 성공 직후의 `Playing` 알림을 실제 디코더 시계 진행으로 오인해 첫 타격을 먼저 냈기 때문이다. Android는 시작·재개 전 위치를 기준점으로 잡고 실제 위치가 증가하기 전까지 `positionClockRate=0`을 보낸다. 대기 중에는5ms로 위치만 확인하며 같은0 상태를 UI에 반복 발행하지 않는다. 진행 후에는 재생 배율과50ms 조회 주기로 돌아간다.
+
+장단 세션의 `clockReady`는 이 대기 중 타격 커서를 건드리지 않는다. 실제 진행 후 첫 타격을 내므로 startAt·재개 중복 방지 기준도 보존한다. clockRate를 제공하지 않는 구현은 기존 동작을 유지한다. ‘100ms 동안 시계가0이면 타격0건, 실제 진행 후 다음5ms 조회 안에 Deong1건’ 회귀를 실패 전·성공 후로 확인했다. 양성 검사에서 다음 폴링까지 시간을 진행시키지 않은 테스트 설정1회는6ms 진행으로 바로잡았다.
+
+보완한 에뮬레이터의 첫 타격 요청 간격은386.8ms, 다음은388.0ms였고 `덩–덕–궁–덕`이 이어졌다. 실제 UI를 통해 모범+장단 재생·일시정지 뒤 추가 타격 없음·재생 중 후방 탐색·정지 중 전방 탐색·재개·홈 이동 후 타격 중단·복귀 후 자원 재생성·속도 슬라이더80%(123 BPM) 선택 후 재생을 확인했다. `lifecycle-emulator-5580.json`과 로그가 증거다. 첫 도구 실행의 속도 실패는 화면을 문자 선택 버튼으로 오해한 것으로, 실제 Slider의 새 관찰 범위에서 조작하고123 BPM을 재확인했다. 접근성 null-root일 때 낡은 XML을 재사용하지 않도록 도구도 수정했다.
+
+제품 소스의 host1,495건(실패0·제외4), Android APK, JS·Wasm 컴파일 통과. `decoder-host-summary.json`, `decoder-host-tests/`, `decoder-product.apk`에 보관했다. `build_probe.py`는 검증 APK를 만든 뒤 진입점과 로그 소스를 반드시 원복한다. 원래 QA 앱 서명과 개인 악보 원본 제약은 여전히 적용된다. 최종 Galaxy 재확인은 USB 재연결 대기이며, 에뮬레이터 결과로 대신 완료했다고 보고하지 않는다.

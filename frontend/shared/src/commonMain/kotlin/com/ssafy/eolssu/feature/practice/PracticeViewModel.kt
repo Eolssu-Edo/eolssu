@@ -220,7 +220,8 @@ class PracticeViewModel(
         modelResumeAfterTick = null
         val startAt = modelTickAtReportedPosition()
         var lastMediaMs: Double? = null
-        jangdanAudio.start(currentPlan(), accompanyingModel = true, resumeAfterTick = resumeAfter, startAtTick = startAt, tick = {
+        jangdanAudio.start(currentPlan(), accompanyingModel = true, resumeAfterTick = resumeAfter, startAtTick = startAt,
+            clockReady = { modelAudio.playbackAnchor?.rate != 0.0 }, tick = {
             val now = _uiState.value
             val song = now.song
             val audio = modelAudio.state.value.audio

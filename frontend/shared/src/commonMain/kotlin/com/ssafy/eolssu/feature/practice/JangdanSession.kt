@@ -48,7 +48,7 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
         return player.prepare(clips).also { if (it) preparedClips = clips }
     }
 
-    fun start(plan: JangdanPlan?, accompanyingModel: Boolean, tick: () -> Double?, resumeAfterTick: Double? = null, startAtTick: Double? = null, onStarted: () -> Unit = {}) {
+    fun start(plan: JangdanPlan?, accompanyingModel: Boolean, tick: () -> Double?, resumeAfterTick: Double? = null, startAtTick: Double? = null, onStarted: () -> Unit = {}, clockReady: () -> Boolean = { true }) {
         stop()
         if (!player.available || plan == null) {
             mutableStatus.value = JangdanStatus.Unsupported
@@ -72,6 +72,7 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
                     while (isActive) {
                         if (player.failed) return@withContext JangdanStatus.Failed
                         if (player.interrupted) return@withContext JangdanStatus.Interrupted
+                        if (!clockReady()) { delay(5); continue }
                         val now = tick() ?: break
                         val strikes = cursor.due(now)
                         if (cursor.movedBackward) player.silence()
