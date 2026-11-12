@@ -152,7 +152,7 @@ internal fun RecordResultContent(
         val scrollPage = maxHeight < 360.dp
         Column(Modifier.fillMaxSize().then(if (scrollPage) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
             // 메모는 상자 안에 펼치지 않고 ‘메모’ 버튼(‘지난 연주와 비교’와 같은 줄)을 누르면 창으로 보인다.
-            // 메모가 없는 기록도 버튼을 두어 새로 적게 한다(S15P31E102-819).
+            // 메모가 없는 기록도 버튼을 두어 창에서 연필 버튼으로 새로 적게 한다(S15P31E102-819·825).
             val showMemo = record.memo.isNotBlank() || state.canEditMemo
             ScoreSummaryCard(
                 total = record.score,
@@ -225,6 +225,7 @@ internal fun RecordResultContent(
 
 /**
  * 메모 창(S15P31E102-819). 읽을 때는 옅은 바탕 상자에 메모를 보이고, 상자 오른쪽 위 연필 버튼으로 고치기에 들어간다.
+ * 메모가 없으면 같은 상자에 ‘아직 메모가 없어요’ 안내를 보인다.
  * 고칠 때는 같은 자리의 상자가 저장 시트 메모 입력칸 모양(흰 바탕 · 1dp 테두리 · 모서리 12)의 여러 줄 입력칸이 되고,
  * 그 아래에 실패 안내와 ‘n/500’, 맨 아래에 ‘취소’ · ‘저장’을 둔다. 저장 중에는 입력·취소·창 닫기를 막는다.
  */
@@ -241,16 +242,18 @@ private fun RecordMemoDialog(recordId: String, memo: String, dialog: RecordMemoS
             return@EolssuDialog
         }
         val editLabel = stringResource(Res.string.record_memo_edit)
+        // 메모가 없는 기록도 같은 상자에 안내를 옅게 보이고, 연필 버튼을 눌러야 입력칸으로 바뀐다(S15P31E102-825).
+        val empty = memo.isBlank()
         Box(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
             Text(
-                memo,
+                if (empty) stringResource(Res.string.record_memo_empty) else memo,
                 Modifier.fillMaxWidth().heightIn(min = 52.dp, max = 240.dp)
                     .background(colors.background, MemoFieldShape)
                     .verticalScroll(rememberScrollState())
                     // 오른쪽 위 연필 버튼과 첫 줄이 겹치지 않게 오른쪽을 비운다.
                     .padding(start = 14.dp, top = 14.dp, end = 40.dp, bottom = 14.dp),
                 style = memoTextStyle(),
-                color = colors.text,
+                color = if (empty) colors.textMuted else colors.text,
             )
             Box(
                 Modifier.align(Alignment.TopEnd).size(44.dp)
