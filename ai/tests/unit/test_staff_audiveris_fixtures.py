@@ -79,14 +79,14 @@ def answer(name):
 def test_converted_melody_matches_answer_at_least_as_before(name):
     instrument, shift, interval_floor, duration_floor, note_ceiling = CASES[name]
     out = convert((FIXTURES / f"{name}.audiveris.mxl").read_bytes(), instrument=instrument, hwang_pitch=None)
-    assert out.shift == shift
+    assert out.shift == 0  # Instrument adaptation is now explicit, after import.
     got, want = read_lines(out.lines), answer(name)
     assert len(got) <= note_ceiling  # 반복을 두 번 펼치는 것처럼 음이 늘면 실패한다
     gi, wi = [b[0] - a[0] for a, b in zip(got, got[1:])], [b[0] - a[0] for a, b in zip(want, want[1:])]
     blocks = [b for b in difflib.SequenceMatcher(a=wi, b=gi, autojunk=False).get_matching_blocks() if b.size]
     assert sum(b.size for b in blocks) >= interval_floor
     pairs = [(want[b.a + k], got[b.b + k]) for b in blocks for k in range(b.size + 1)]
-    assert all(w[0] == g[0] for w, g in pairs)  # 맞은 구간은 율명·옥타브까지 같다(조 옮김이 맞다)
+    assert all(w[0] == g[0] + shift for w, g in pairs)  # Same intervals; raw sounding pitches stay in the original key.
     ratio = statistics.median(g[1] / w[1] for w, g in pairs)  # 정간 하나의 박이 정답과 다를 수 있다
     assert sum(g[1] == w[1] * ratio for w, g in pairs) >= duration_floor
 
@@ -103,6 +103,13 @@ def test_cell_issues_point_to_cells_of_the_converted_score(name):
     out = convert((FIXTURES / f"{name}.audiveris.mxl").read_bytes(), instrument=CASES[name][0], hwang_pitch=None)
     request = SimpleNamespace(conversion_id="c-1", instrument=CASES[name][0])
     _, score = lines_to_score(out.lines, request, "굿거리", lambda doc: Fraction(1), monotonic() + 30, "test")
+    from omr_service.staff_engine import restore_source_pitches
+    restore_source_pitches(score, out.source_pitches, None)
+    originals = {p['eventId']: p['midi'] for p in out.source_pitches}
+    notes = [e for e in score['events'] if e['kind'] == 'NOTE']
+    assert len(originals) == len(notes)
+    for event in notes:
+        assert 63 + YUL.index(event['yul']) + 12 * event['octave'] == originals[event['id']]
     ids = {c["id"] for col in score["columns"] for c in col["cells"]}
     placed = [i["cellId"] for i in out.issues if i["cellId"]]
     assert set(placed) <= ids
