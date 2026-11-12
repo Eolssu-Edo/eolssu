@@ -27,6 +27,78 @@ class EditUserSheetTests {
     private val scores = Scores()
     private val service = EditUserSheet(repository, scores, Clock.fixed(now, ZoneOffset.UTC), jangdanValidation = null)
 
+    @Test fun `an unavailable preflight HTTP callback leaves the score and draft untouched`() {
+        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        var calls = 0
+        server.createContext("/v1/estimate") { exchange ->
+            calls++
+            exchange.requestBody.readAllBytes()
+            val body = """{"errorCode":"TIMEOUT"}""".toByteArray()
+            exchange.sendResponseHeaders(504, body.size.toLong())
+            exchange.responseBody.use { it.write(body) }
+        }
+        server.start()
+        try {
+            val prepared = object : SheetScores by scores {
+                override fun prepare(scoreJson: String, scoreVersion: Int) =
+                    PreparedScore.Ready("""{"score":{"instrument":"DANSO"}}""", 1, 1, "", "QUARTER")
+            }
+            val client = com.ssafy.eolssu.backend.feature.sheet.infrastructure.HttpPlaybackClient(
+                "http://127.0.0.1:${server.address.port}", java.time.Duration.ofSeconds(2), tools.jackson.databind.json.JsonMapper.builder().build())
+            val edits = EditUserSheet(repository, prepared, Clock.fixed(now, ZoneOffset.UTC), playback = client, jangdanValidation = null)
+            val result = assertIs<SaveSheetScoreResult.Rejected>(edits.save(save(jangdanId = null)))
+            assertEquals(com.ssafy.eolssu.backend.common.error.ErrorCode.AUDIO_UNAVAILABLE, result.code)
+            assertEquals(1, calls)
+            assertTrue(repository.scoreUpdates.isEmpty())
+            assertTrue(repository.draftUpdates.isEmpty())
+        } finally { server.stop(0) }
+    }
+
+    @Test fun `omitted expressions retain draft-only tempo through resave and confirmation`() {
+        retainDraftTempo(confirmedTempo = null)
+    }
+
+    @Test fun `omitted expressions prefer the new draft tempo over the confirmed plan`() {
+        retainDraftTempo(confirmedTempo = 60)
+    }
+
+    @Test fun `null and missing draft companion still fall back to the confirmed plan`() {
+        for (field in listOf("", ",\"expressions\":null")) retainDraftTempo(confirmedTempo = 80, initialDraftField = field)
+    }
+
+    private fun retainDraftTempo(confirmedTempo: Int?, initialDraftField: String? = null) {
+        val json = tools.jackson.databind.json.JsonMapper.builder().build()
+        val original = checkNotNull(javaClass.getResource("/tempo-authoring/four-notes.json")).readText()
+        val expressions = SheetExpressions(json)
+        val hash = expressions.hash(original)
+        fun companion(bpm: Int) = """{"schema":"common-score-expressions/v1","sourceSha256":"$hash","placements":[],"performancePlan":{"schema":"danso-performance/v1","input_sha256":"$hash","tempos":[{"gak":1,"cell":3,"bpm":$bpm}]}}"""
+        repository.scoreUpdates.clear()
+        repository.draftUpdates.clear()
+        repository.sheets[701] = sheet(701, OWNER).copy(scoreJson = original, bpm = 100,
+            expressionsJson = confirmedTempo?.let(::companion),
+            draft = initialDraftField?.let { SheetDraft("""{"score":$original$it}""", 1, now) })
+        val actualScores = object : SheetScores by scores {
+            override fun unfilledCellCount(scoreJson: String) = 0
+            override fun prepare(scoreJson: String, scoreVersion: Int): PreparedScore {
+                val prepared = json.readTree(scoreJson)
+                (prepared.path("score") as tools.jackson.databind.node.ObjectNode).put("scoreVersion", scoreVersion)
+                return PreparedScore.Ready(prepared.toString(), 1, 4, "", "QUARTER")
+            }
+        }
+        val edits = EditUserSheet(repository, actualScores, Clock.fixed(now, ZoneOffset.UTC), jangdanValidation = null)
+        assertIs<SaveSheetDraftResult.Saved>(edits.saveDraft(draft(score = original).copy(bpm = 120, expressionsJson = companion(80).takeIf { initialDraftField == null })))
+        assertIs<SaveSheetDraftResult.Saved>(edits.saveDraft(draft(revision = 1, score = original).copy(bpm = 120)))
+        val resumed = json.readTree(repository.draftUpdates.last().draftJson).path("expressions")
+        assertTrue(resumed.isObject, "Omitted companion must retain the draft plan")
+        assertEquals(80.0, resumed.path("performancePlan").path("tempos")[0].path("bpm").asDouble())
+        assertIs<SaveSheetScoreResult.Saved>(edits.save(save(score = original, jangdanId = null).copy(bpm = 120)))
+        val saved = repository.scoreUpdates.single()
+        val result = json.readTree(saved.expressionsJson)
+        assertEquals(96.0, result.path("performancePlan").path("tempos")[0].path("bpm").asDouble())
+        assertEquals(expressions.hash(saved.scoreJson), result.path("sourceSha256").asString())
+        assertEquals(expressions.hash(saved.scoreJson), result.path("performancePlan").path("input_sha256").asString())
+    }
+
     private fun save(
         sheetId: Long = 701,
         base: Int = 1,
@@ -124,10 +196,10 @@ class EditUserSheetTests {
     }
 
     @Test
-    fun `a title outside 1 to 50 characters or a bpm outside 30 to 160 is invalid`() {
+    fun `a title outside 1 to 50 characters or a nonpositive bpm is invalid`() {
         assertEquals(SaveSheetScoreResult.InvalidRequest, service.save(save(title = "   ")))
         assertEquals(SaveSheetScoreResult.InvalidRequest, service.save(save(title = "가".repeat(51))))
-        assertEquals(SaveSheetScoreResult.InvalidRequest, service.save(save().copy(bpm = 29)))
+        assertEquals(SaveSheetScoreResult.InvalidRequest, service.save(save().copy(bpm = 0)))
     }
 
     @Test
@@ -143,7 +215,7 @@ class EditUserSheetTests {
         assertEquals(SaveSheetDraftResult.Saved(1, 1, Instant.parse("2026-11-03T03:10:00.123456Z")), saved)
         val update = repository.draftUpdates.single()
         assertEquals(Triple(1, 0, Instant.parse("2026-11-03T03:10:00.123456Z")), Triple(update.baseScoreVersion, update.draftRevision, update.savedAt))
-        assertEquals("""{"title":"고치는 중","jangdanId":"3","bpm":66,"score":partial}""", update.draftJson)
+        assertEquals("""{"title":"고치는 중","jangdanId":"3","bpm":66,"score":partial,"expressions":null}""", update.draftJson)
         assertEquals(1, repository.sheets.getValue(701).scoreVersion)
     }
 

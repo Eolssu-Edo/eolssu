@@ -12,6 +12,12 @@ SHT-04·11 요청은 `authoring={schema,source:{scoreSha256},adaptation?}`만 �
 - 근거: [Notion API 명세](https://app.notion.com/p/API-3fea0252aa45804cb9f0f896ec0310ad)의 SHT-01·03·08(2026-11-02 디자인 보정 반영본). 2026-11-02 회의 안건(PDF 방향, 초안 연습 진입, 삭제 시 연습 기록, 확인 필요 칸 복사)은 이 범위에서 정하지 않는다. 그중 PDF 방향·삭제 시 연습 기록은 2026-11-03 결정으로 정리됐다([2차 결정](#2차-결정-2026-11-03-미구현)).
 - 상태: 백엔드 결정 초안. 아래 '노션 초안과 다른 점'은 FE(351)와 공유해야 한다.
 
+## 작성 빠르기와 수행 계획 (2026-11-12, S15P31E102-790)
+
+SHT-04·08·11은 선택적 `expressions` 형제를 전달한다. V43 `expressions_json`에 기존 `common-score-expressions/v1`을 보존하고, 생략/null은 현재 초안의 non-null 계획을 우선 유지하고, 없으면 확정본 계획을 사용한다. 새 요청 계획이 있으면 그 값이 우선한다. 숫자 구간이 있는 기본 BPM 변경은 전체 비율을 한 번 적용한다. 초안은 기준 계획을 유지하며 확정 응답의 계획을 다음 편집 기준으로 사용한다. 점진 변속·반복을 포함한 선율과 장단은 같은 수행 시계로 생성한다.
+
+가져오기·작성 BPM은 양의 정수이며 임의30~160 상한을 두지 않는다. 확정 저장 전에 실제 생성기로 MIDI 표현·최종 음의 PCM2프레임·600초를 검사한다. `TEMPO_UNRENDERABLE`/`EXPORT_TOO_LONG`은 사유·위치·가능한 조정 경계를 제공하고, 생성기 불가면503으로 기존 판본을 유지한다. 숫자 구간 위치를 바꾸는 구조 편집은 `PLAN_POSITIONS_CHANGED`로 거절한다. 지원음·표기·장단 검증도 함께 통과해야 저장된다. 기존 초안·읽기·게시 판본은 자동 변경하지 않는다.
+
 ## 범위
 
 - 포함: `user_sheets` 저장 모델(V16), SHT-03 빈 악보·복사 생성(2026-11-03 결정으로 작업 취소, S15P31E102-462에서 API와 전용 코드 제거), SHT-08 본인 악보 조회, SHT-01 본인 악보 목록, 회원 탈퇴 일괄 삭제에 내 악보 추가.
@@ -69,7 +75,7 @@ SHT-04·11 요청은 `authoring={schema,source:{scoreSha256},adaptation?}`만 �
 
 요청·응답 필드는 Notion SHT-02·04·08·11을 따른다. 구현에서 정한 점과 Notion과 다른 점:
 
-- SHT-04 `PUT /api/users/me/sheets/{sheetId}/score`: `baseScoreVersion`(문자열)이 현재 버전과 같을 때만 저장하고 버전을 1 올린다(DB `WHERE score_version = ?`로도 막는다). 미입력 칸은 400 `UNFILLED_CELLS`(`details.cellIds`, ID 없는 빈 칸은 400 `INVALID_REQUEST`). 요청 본문이 1MiB를 넘으면 JSON을 읽기 전에 413 `PAYLOAD_TOO_LARGE`(SHT-11도 같다, 받은 바이트 수 기준, Content-Length 없는 본문·인코딩한 경로 포함). `resolvedIssueIds: null`은 생략과 같다. `jangdanId`를 주면 `score.music.jangdan`(장단 이름)·`bpmUnit`이 그 장단과 같아야 한다. 검증·타임라인은 CAT-04 디코더를 쓴다. 성공하면 초안을 지우고 `draft_revision`을 0으로 되돌린다.
+- SHT-04 `PUT /api/users/me/sheets/{sheetId}/score`: `baseScoreVersion`(문자열)이 현재 버전과 같을 때만 저장하고 버전을 1 올린다(DB `WHERE score_version = ?`로도 막는다). 미입력 칸은 400 `UNFILLED_CELLS`(`details.cellIds`, ID 없는 빈 칸은 400 `INVALID_REQUEST`). 요청 본문이 1MiB를 넘으면 JSON을 읽기 전에 413 `PAYLOAD_TOO_LARGE`(SHT-11도 같다, 받은 바이트 수 기준, Content-Length 없는 본문·인코딩한 경로 포함). `resolvedIssueIds: null`은 생략과 같다. `jangdanId`를 주면 `score.music.jangdan`(장단 이름)·`bpmUnit`이 그 장단과 같아야 한다. 작성 검증·타임라인은 `decodeAuthoring`을 쓰고 제공 곡의 CAT-04 읽기 계약은 유지한다. 성공하면 초안을 지우고 `draft_revision`을 0으로 되돌린다.
 - 서버는 `score.scoreVersion`을 새 버전으로 바꾸고 `provenance`를 서버 값으로 덮어쓴다(S15P31E102-447). DATA `score_data.schema.json`·`validate_common`(SHT-12 합성)이 요구하는 형식이다: `sourceId`는 `score.sourceId`(비어 있지 않은 문자열이어야 하며 아니면 400), `jgbSha256`은 provenance를 뺀 저장 문서의 SHA-256(편집기 악보에는 .jgb.json이 없다), `review`는 `inferred`, `converter`는 `app-editor-1`. 클라이언트가 보낸 provenance는 쓰지 않는다. 초안(SHT-11)은 받은 그대로 둔다.
 - 472에서 확인 필요 칸을 연결한다. `resolvedIssueIds`는 현재 악보의 issue ID만 허용한다. 확인한 항목을 제거한 뒤 cellId(없으면 eventId)를 중복 제거해 센다. 남은 칸이 있으면 NEEDS_REVIEW, 없으면 EVALUABLE이다. 악보·변환 결과 갱신은 하나의 트랜잭션이다. 변환이 DONE이 되기 전 확정 저장·초안 저장은 409다.
 - SHT-11 `PUT .../score/draft`: 버전과 `draftRevision`이 서버와 같을 때만 덮어쓰고 순번을 1 올린다. 칸 안은 검증하지 않고 최상위 모양만 본다. `updated_at`(목록 정렬)은 바꾸지 않는다.
@@ -160,7 +166,7 @@ FE 접수 흐름(S15P31E102-539, 사용자 2026-11-06 결정): 정간보의 장�
 | --- | --- |
 | 요청 | `POST /api/users/me/sheets/copies`, JSON `{"songId":"1"}`. 로그인 access 쿠키와 공백 없는 가시 ASCII 1~100자의 `Idempotency-Key`가 필수다. `songId`는 양의 정수를 나타내는 1~18자리 문자열이다. |
 | 성공 | `201`, `result.sheetId`는 새 개인 악보 ID 문자열이다. 사본이 남아 있을 때 같은 회원이 같은 키와 곡으로 재전송하면 기존 개인 ID를 반환한다. |
-| 오류 | 잘못된 요청 400, 미인증 401, 없거나 게시되지 않은 곡 404, 본문 1MiB 초과 413, 공통 악보를 읽을 수 없거나 원본의 각이 비었거나 편집 속도 30~160 BPM 밖이면 409 `STATE_CONFLICT`, 같은 키의 다른 요청 409 `IDEMPOTENCY_CONFLICT`, 변환 중 409 `CONVERSION_IN_PROGRESS`, 내 악보 10개 409 `SHEET_LIMIT_EXCEEDED`. |
+| 오류 | 잘못된 요청 400, 미인증 401, 없거나 게시되지 않은 곡 404, 본문 1MiB 초과 413, 공통 악보를 읽을 수 없거나 원본의 각이 비었거나 편집 속도가 양의 정수가 아니면 409 `STATE_CONFLICT`, 같은 키의 다른 요청 409 `IDEMPOTENCY_CONFLICT`, 변환 중 409 `CONVERSION_IN_PROGRESS`, 내 악보 10개 409 `SHEET_LIMIT_EXCEEDED`. |
 | 저장 | 제공 곡의 게시 악보와 설정을 읽어 버전 1의 개인 정간보를 만든다. 제목 뒤에 ` (사본)`을 붙여 50자 이내로 제한한다. 서버가 작성 근거를 채우며, 음표·정간 ID·tick·악기·빠르기·장단을 보존한다. 장단 없는 곡의 `jangdanId`는 null이다. |
 | 동시성 | 파일 불러오기와 같은 회원 행을 잠근 뒤 재전송과 한도를 검사한다. 인증 후 탈퇴가 먼저 처리됐다면 활성 상태를 잃은 회원의 새 사본은 404로 거절한다. 재전송은 현재 한도보다 먼저 처리한다. |
 

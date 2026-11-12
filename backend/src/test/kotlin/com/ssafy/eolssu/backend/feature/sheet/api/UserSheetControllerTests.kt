@@ -152,6 +152,18 @@ class UserSheetControllerTests {
     private fun draft(score: String) = SheetDraft("""{"title":"초안","bpm":72,"score":$score}""", 1, updatedAt)
 
     @Test
+    fun `legacy incomplete pitch drafts remain readable without a fabricated source snapshot`() {
+        val json = JsonMapper.builder().build()
+        for (pitch in listOf("\"octave\":null,\"durationTick\":240", "\"octave\":\"1\",\"durationTick\":240", "\"octave\":1")) {
+            val draft = """{"title":"입력 중","jangdanId":null,"bpm":60,"score":{"schemaVersion":1,"score":{"instrument":"DANSO","scoreVersion":1},"music":{"hwangHz":311.1269837220809},"events":[{"id":"c0-j0-r0-u0","cellId":"c0-j0","kind":"NOTE","yul":"황","startTick":0,$pitch}]}}"""
+            stored[702] = sheet(702, "입력 중", null).copy(draft = SheetDraft(draft, 1, updatedAt), draftRevision = 1)
+            val response = mvc.perform(get("/api/users/me/sheets/702/score")).andExpect(status().isOk)
+                .andExpect(jsonPath("$.result.authoring").doesNotExist()).andReturn().response.contentAsString
+            assertEquals(json.readTree(draft).path("score"), json.readTree(response).path("result").path("draft").path("score"))
+        }
+    }
+
+    @Test
     fun `list pages the owner's sheets and validates its query`() {
         stored[702] = sheet(702, "아리랑 연습", null)
 
