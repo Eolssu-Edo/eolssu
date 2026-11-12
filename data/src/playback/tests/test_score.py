@@ -6,6 +6,10 @@ from data.src.playback.tests._helpers import converted, document, score
 
 
 class ScoreTests(unittest.TestCase):
+    def test_authoring_policy_is_not_an_instrument_profile(self):
+        with self.assertRaisesRegex(ValueError, "Unknown instrument"):
+            compile_score(score(), "authoring-policy")
+
     def test_jeongak_range_and_explicit_yoseong_mode_keep_bank_limit_distinct(self):
         value = score()
         for pitch in (58, 87, 88, 89, 90, 92):

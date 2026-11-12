@@ -1,0 +1,308 @@
+{
+  "sourceJson": "{\"columns\":[{\"cells\":[{\"id\":\"c0-j0\",\"index\":0,\"units\":[{\"col\":0,\"eventId\":\"c0-j0-r0-u0\",\"row\":0,\"symbol\":\"청황\"},{\"col\":0,\"eventId\":\"c0-j0-r1-u0\",\"row\":1,\"symbol\":\"청태\"}]},{\"id\":\"c0-j1\",\"index\":1,\"units\":[{\"col\":0,\"eventId\":\"c0-j1-r0-u0\",\"row\":0,\"symbol\":\"청황\"},{\"col\":0,\"eventId\":\"c0-j1-r1-u0\",\"row\":1,\"symbol\":\"청태\"}]},{\"id\":\"c0-j2\",\"index\":2,\"units\":[{\"col\":0,\"eventId\":\"c0-j2-r0-u0\",\"row\":0,\"symbol\":\"청태\"}]},{\"id\":\"c0-j3\",\"index\":3,\"units\":[{\"col\":0,\"eventId\":\"c0-j3-r0-u0\",\"row\":0,\"symbol\":\"청황\"}]}],\"index\":0}],\"events\":[{\"breathAfter\":false,\"cellId\":\"c0-j0\",\"durationTick\":1,\"id\":\"c0-j0-r0-u0\",\"kind\":\"NOTE\",\"octave\":1,\"sigimsae\":[\"덧길이표\"],\"startTick\":0,\"yul\":\"황\"},{\"breathAfter\":false,\"cellId\":\"c0-j0\",\"durationTick\":1,\"id\":\"c0-j0-r1-u0\",\"kind\":\"NOTE\",\"octave\":1,\"sigimsae\":[\"반길이표\"],\"startTick\":1,\"yul\":\"태\"},{\"breathAfter\":false,\"cellId\":\"c0-j1\",\"durationTick\":1,\"id\":\"c0-j1-r0-u0\",\"kind\":\"NOTE\",\"octave\":1,\"sigimsae\":[\"덧길이표\"],\"startTick\":2,\"yul\":\"황\"},{\"breathAfter\":false,\"cellId\":\"c0-j1\",\"durationTick\":1,\"id\":\"c0-j1-r1-u0\",\"kind\":\"NOTE\",\"octave\":1,\"sigimsae\":[\"반길이표\"],\"startTick\":3,\"yul\":\"태\"},{\"breathAfter\":false,\"cellId\":\"c0-j2\",\"durationTick\":2,\"id\":\"c0-j2-r0-u0\",\"kind\":\"NOTE\",\"octave\":1,\"sigimsae\":[],\"startTick\":4,\"yul\":\"태\"},{\"breathAfter\":false,\"cellId\":\"c0-j3\",\"durationTick\":2,\"id\":\"c0-j3-r0-u0\",\"kind\":\"NOTE\",\"octave\":1,\"sigimsae\":[],\"startTick\":6,\"yul\":\"황\"}],\"music\":{\"bpmUnit\":\"QUARTER\",\"hwangHz\":311.1269837220809,\"jangdan\":\"단모리\",\"ticksPerBeat\":2,\"ticksPerJeonggan\":2},\"provenance\":{\"converter\":\"jgb-playback-import/v1\",\"jgbSha256\":\"79cfcab1a1d424c3afe52832cb180bb20cc9b0be11036db3c78825eb6e4805ac\",\"review\":\"inferred\",\"sourceId\":\"tempo773-weighted-ramp\"},\"schemaVersion\":1,\"score\":{\"instrument\":\"DANSO\",\"part\":0,\"scoreVersion\":1,\"sourceId\":\"tempo773-weighted-ramp\",\"title\":\"로컬 장단 시간표 weighted-ramp\"}}",
+  "sourceSha256": "e4884e772d22dc83372b7ea140a78ece5267a1a134cc1c46d4411ceb3fdee679",
+  "jangdanId": "7",
+  "jangdan": {
+    "name": "단모리",
+    "bpmUnit": "QUARTER",
+    "pattern": {
+      "beats": [
+        "덩",
+        "",
+        "따",
+        "따",
+        "궁",
+        "따",
+        "궁",
+        ""
+      ],
+      "group": [
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    "patternCellEighths": 1
+  },
+  "expressions": {
+    "schema": "common-score-expressions/v1",
+    "sourceSha256": "e4884e772d22dc83372b7ea140a78ece5267a1a134cc1c46d4411ceb3fdee679",
+    "placements": [
+      {
+        "eventId": "c0-j0-r0-u0",
+        "cellId": "c0-j0",
+        "row": 0,
+        "col": 0,
+        "symbols": [
+          "덧길이표"
+        ]
+      },
+      {
+        "eventId": "c0-j0-r1-u0",
+        "cellId": "c0-j0",
+        "row": 1,
+        "col": 0,
+        "symbols": [
+          "반길이표"
+        ]
+      },
+      {
+        "eventId": "c0-j1-r0-u0",
+        "cellId": "c0-j1",
+        "row": 0,
+        "col": 0,
+        "symbols": [
+          "덧길이표"
+        ]
+      },
+      {
+        "eventId": "c0-j1-r1-u0",
+        "cellId": "c0-j1",
+        "row": 1,
+        "col": 0,
+        "symbols": [
+          "반길이표"
+        ]
+      }
+    ],
+    "performancePlan": {
+      "schema": "danso-performance/v1",
+      "input_sha256": "e4884e772d22dc83372b7ea140a78ece5267a1a134cc1c46d4411ceb3fdee679",
+      "tempos": [
+        {
+          "gak": 1,
+          "cell": 1,
+          "bpm": 120,
+          "end_gak": 2,
+          "end_cell": 1
+        }
+      ],
+      "repeats": []
+    },
+    "jo": "jung-pyeong",
+    "sourceSlots": [
+      {
+        "cellId": "c0-j0",
+        "row": 0,
+        "cols": [
+          0
+        ],
+        "kind": "note",
+        "anchorSymbol": "청황",
+        "symbols": [
+          "덧길이표"
+        ],
+        "lengthMode": "written",
+        "basis": "JGB test.jgb.json: 성부 1, 1각 1정간 1분박 1자리"
+      },
+      {
+        "cellId": "c0-j0",
+        "row": 1,
+        "cols": [
+          0
+        ],
+        "kind": "note",
+        "anchorSymbol": "청태",
+        "symbols": [
+          "반길이표"
+        ],
+        "lengthMode": "written",
+        "basis": "JGB test.jgb.json: 성부 1, 1각 1정간 2분박 1자리"
+      },
+      {
+        "cellId": "c0-j1",
+        "row": 0,
+        "cols": [
+          0
+        ],
+        "kind": "note",
+        "anchorSymbol": "청황",
+        "symbols": [
+          "덧길이표"
+        ],
+        "lengthMode": "written",
+        "basis": "JGB test.jgb.json: 성부 1, 1각 2정간 1분박 1자리"
+      },
+      {
+        "cellId": "c0-j1",
+        "row": 1,
+        "cols": [
+          0
+        ],
+        "kind": "note",
+        "anchorSymbol": "청태",
+        "symbols": [
+          "반길이표"
+        ],
+        "lengthMode": "written",
+        "basis": "JGB test.jgb.json: 성부 1, 1각 2정간 2분박 1자리"
+      },
+      {
+        "cellId": "c0-j2",
+        "row": 0,
+        "cols": [
+          0
+        ],
+        "kind": "note",
+        "anchorSymbol": "청태",
+        "symbols": [],
+        "lengthMode": "written",
+        "basis": "JGB test.jgb.json: 성부 1, 1각 3정간 1분박 1자리"
+      },
+      {
+        "cellId": "c0-j3",
+        "row": 0,
+        "cols": [
+          0
+        ],
+        "kind": "note",
+        "anchorSymbol": "청황",
+        "symbols": [],
+        "lengthMode": "written",
+        "basis": "JGB test.jgb.json: 성부 1, 1각 4정간 1분박 1자리"
+      }
+    ]
+  },
+  "performance": {
+    "schema": "common-score-performance/v1",
+    "policy": "educational-preview/v1",
+    "sourceSha256": "e4884e772d22dc83372b7ea140a78ece5267a1a134cc1c46d4411ceb3fdee679",
+    "scoreVersion": 1,
+    "sourceId": "tempo773-weighted-ramp",
+    "instrument": "DANSO",
+    "bpm": 60.0,
+    "bpmUnit": "QUARTER",
+    "durationMs": 2772.569444444445,
+    "segments": [
+      {
+        "occurrenceId": "unit-0",
+        "eventId": "c0-j0-r0-u0",
+        "cellId": "c0-j0",
+        "row": 0,
+        "col": 0,
+        "startTick": 0.0,
+        "endTick": 1.0,
+        "startMs": 0.0,
+        "endMs": 687.4305555555555,
+        "sigimsae": [
+          "덧길이표"
+        ],
+        "accompanimentStartTick": 0.0,
+        "accompanimentEndTick": 1.5,
+        "tempoRatio": 1.1875
+      },
+      {
+        "occurrenceId": "unit-1",
+        "eventId": "c0-j0-r1-u0",
+        "cellId": "c0-j0",
+        "row": 1,
+        "col": 0,
+        "startTick": 1.0,
+        "endTick": 2.0,
+        "startMs": 687.4305555555555,
+        "endMs": 892.5694444444445,
+        "sigimsae": [
+          "반길이표"
+        ],
+        "accompanimentStartTick": 1.5,
+        "accompanimentEndTick": 2.0,
+        "tempoRatio": 1.0526315789473684
+      },
+      {
+        "occurrenceId": "unit-2",
+        "eventId": "c0-j1-r0-u0",
+        "cellId": "c0-j1",
+        "row": 0,
+        "col": 0,
+        "startTick": 2.0,
+        "endTick": 3.0,
+        "startMs": 892.5694444444445,
+        "endMs": 1451.5972222222222,
+        "sigimsae": [
+          "덧길이표"
+        ],
+        "accompanimentStartTick": 2.0,
+        "accompanimentEndTick": 3.5,
+        "tempoRatio": 1.15
+      },
+      {
+        "occurrenceId": "unit-3",
+        "eventId": "c0-j1-r1-u0",
+        "cellId": "c0-j1",
+        "row": 1,
+        "col": 0,
+        "startTick": 3.0,
+        "endTick": 4.0,
+        "startMs": 1451.5972222222222,
+        "endMs": 1621.875,
+        "sigimsae": [
+          "반길이표"
+        ],
+        "accompanimentStartTick": 3.5,
+        "accompanimentEndTick": 4.0,
+        "tempoRatio": 1.0434782608695652
+      },
+      {
+        "occurrenceId": "unit-4",
+        "eventId": "c0-j2-r0-u0",
+        "cellId": "c0-j2",
+        "row": 0,
+        "col": 0,
+        "startTick": 4.0,
+        "endTick": 6.0,
+        "startMs": 1621.875,
+        "endMs": 2238.472222222222,
+        "sigimsae": [],
+        "accompanimentStartTick": 4.0,
+        "accompanimentEndTick": 6.0,
+        "tempoRatio": 1.1666666666666667
+      },
+      {
+        "occurrenceId": "unit-5",
+        "eventId": "c0-j3-r0-u0",
+        "cellId": "c0-j3",
+        "row": 0,
+        "col": 0,
+        "startTick": 6.0,
+        "endTick": 8.0,
+        "startMs": 2238.472222222222,
+        "endMs": 2772.569444444445,
+        "sigimsae": [],
+        "accompanimentStartTick": 6.0,
+        "accompanimentEndTick": 8.0,
+        "tempoRatio": 1.1428571428571428
+      }
+    ],
+    "audioSha256": "6f97809fcd6bb9c7d1addf419bd156a6c60d5f1c10286b82488669ef91dc4414"
+  },
+  "audioDurationMs": 3323,
+  "audioBytes": 69729,
+  "expectedStrikes": [
+    {
+      "ms": 0.0,
+      "note": 35
+    },
+    {
+      "ms": 892.569444,
+      "note": 38
+    },
+    {
+      "ms": 1273.819444,
+      "note": 38
+    },
+    {
+      "ms": 1621.875,
+      "note": 36
+    },
+    {
+      "ms": 1942.013889,
+      "note": 38
+    },
+    {
+      "ms": 2238.472222,
+      "note": 36
+    }
+  ],
+  "accompaniedAudioSha256": "08f63052cdde18912400b420a3ca31060107d79ff2ec15ed4999583ac4bb8863"
+}

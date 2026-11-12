@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.ssafy.eolssu.core.ui.component.EolssuSnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -71,7 +71,7 @@ internal fun LearnExpandedLayout(
 ) {
     val colors = EolssuTheme.colors
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { EolssuSnackbarHost(snackbarHostState) },
         containerColor = colors.groupedBackground,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
@@ -106,7 +106,7 @@ internal fun LearnExpandedLayout(
                         learnStageTitle(stage),
                         onBack = null,
                         modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 20.dp, end = outer - 20.dp),
-                        subtitle = learnStageSubtitle(state, stage),
+                        subtitle = learnStageSubtitle(stage),
                         maxWidth = Dp.Infinity,
                     )
                     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {

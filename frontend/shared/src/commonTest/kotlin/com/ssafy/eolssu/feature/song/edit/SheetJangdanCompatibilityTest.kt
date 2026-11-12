@@ -8,14 +8,18 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 internal class SheetJangdanCompatibilityTest {
-    @Test fun danmoriAcceptsFourQuarterBeatsAndAShortEndingButRejectsTheOldDoubleLength() {
-        val jangdan = CatalogJangdanSummary("7", "단모리", 120, "QUARTER", 8, 4)
-        assertTrue(draft("QUARTER", 12, 12, listOf(4, 2)).isCompatibleWith(jangdan))
-        assertFalse(draft("QUARTER", 12, 24, listOf(4, 4)).isCompatibleWith(jangdan))
-        assertFalse(draft("QUARTER", 12, 12, listOf(8, 8)).isCompatibleWith(jangdan))
+    @Test fun fourBeatAccompanimentIsSelectableWithoutChangingTheScore() {
+        val source = draft("QUARTER", 12, 12, listOf(4, 4))
+        assertTrue(source.isCompatibleWith(CatalogJangdanSummary("12", "4박 기본 반주", 160, "QUARTER", 4, 4, 2)))
+    }
+    @Test fun danmoriRequiresCompleteCyclesIncludingTheLastColumn() {
+        val jangdan = CatalogJangdanSummary("7", "단모리", 120, "QUARTER", 8, 4, 1)
+        assertFalse(draft("QUARTER", 12, 12, listOf(4, 2)).isCompatibleWith(jangdan))
+        assertTrue(draft("QUARTER", 12, 24, listOf(4, 4)).isCompatibleWith(jangdan))
+        assertTrue(draft("QUARTER", 12, 12, listOf(8, 8)).isCompatibleWith(jangdan))
         assertFalse(draft("QUARTER", 12, 12, listOf(2, 4)).isCompatibleWith(jangdan), "중간의 짧은 각은 허용하지 않는다")
         assertFalse(draft("QUARTER", 12, 12, listOf(4, 4))
-            .isCompatibleWith(jangdan.copy(name = "미등록 장단", beatCount = 4)), "모르는 장단의 칸 음가를 추정하지 않는다")
+            .isCompatibleWith(jangdan.copy(name = "미등록 장단", beatCount = 4, patternCellEighths = null)), "모르는 장단의 칸 음가를 추정하지 않는다")
     }
 
     @Test fun catalogJangdansUseTheirPatternCellNoteValues() {
@@ -34,17 +38,17 @@ internal class SheetJangdanCompatibilityTest {
             Case("세령산", "QUARTER", 10, 10, 18),
         )
         for (case in cases) {
-            val jangdan = CatalogJangdanSummary(case.name, case.name, 120, case.bpmUnit, case.patternCells, 1)
+            val jangdan = CatalogJangdanSummary(case.name, case.name, 120, case.bpmUnit, case.patternCells, 1, when (case.name) { "중모리" -> 2; "세령산" -> 3; else -> 1 })
             assertTrue(draft(case.bpmUnit, 12, case.cellTicks, listOf(case.perGak, case.perGak))
                 .isCompatibleWith(jangdan), case.name)
         }
     }
 
-    @Test fun threeHalfBeatCellsAreAllowedOnlyForSeryeongsan() {
-        val seryeongsan = CatalogJangdanSummary("10", "세령산", 63, "QUARTER", 10, 4)
-        assertTrue(draft("QUARTER", 12, 18, listOf(10, 5)).isCompatibleWith(seryeongsan))
-        val semachi = CatalogJangdanSummary("1", "세마치", 96, "DOTTED_QUARTER", 9, 3)
-        assertFalse(draft("DOTTED_QUARTER", 12, 18, listOf(2, 2)).isCompatibleWith(semachi))
+    @Test fun completeCyclesUseCatalogDurationRegardlessOfGridCellSize() {
+        val seryeongsan = CatalogJangdanSummary("10", "세령산", 63, "QUARTER", 10, 4, 3)
+        assertTrue(draft("QUARTER", 12, 18, listOf(10, 10)).isCompatibleWith(seryeongsan))
+        val semachi = CatalogJangdanSummary("1", "세마치", 96, "DOTTED_QUARTER", 9, 3, 1)
+        assertTrue(draft("DOTTED_QUARTER", 12, 18, listOf(2, 2)).isCompatibleWith(semachi))
     }
 
     private data class Case(val name: String, val bpmUnit: String, val patternCells: Int, val perGak: Int, val cellTicks: Int)

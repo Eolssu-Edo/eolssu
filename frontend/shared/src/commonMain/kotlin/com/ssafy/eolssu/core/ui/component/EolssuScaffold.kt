@@ -28,7 +28,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -87,7 +86,7 @@ fun EolssuScaffold(
             if (bottomBar != null) EolssuBottomBar(maxWidth = contentMaxWidth, divider = bottomDivider, content = bottomBar)
             else Spacer(Modifier.windowInsetsPadding(WindowInsets.navigationBars))
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { EolssuSnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
             Box(Modifier.widthIn(max = contentMaxWidth).fillMaxWidth()) { content() }

@@ -41,6 +41,19 @@ import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticePersonalAudioTest {
+    @Test fun unsupportedGuidanceReturnsToEditingInsteadOfRetryingGeneration() = practiceTest { vm, fixture, _ ->
+        fixture.request = SheetAudioRequest.UnsupportedPitches(com.ssafy.eolssu.data.song.AuthoringPitchRejection("SOGEUM",
+            listOf(com.ssafy.eolssu.data.song.AuthoringPitchIssue("c0-j0-r0-u0", "c0-j0", "이", 1, listOf("FINGERING_UNKNOWN"))),
+            "UNSUPPORTED_PITCHES"))
+        vm.downloadPersonalAudio()
+        runCurrent()
+        assertEquals(PracticePersonalAudio.UnsupportedPitches, vm.uiState.value.personalAudio)
+        assertEquals(PracticePlayerNotice.PersonalUnsupportedPitches, vm.uiState.value.playerNotice)
+        assertEquals(0, fixture.saves)
+        vm.downloadPersonalAudio()
+        runCurrent()
+        assertEquals(1, fixture.requests.size)
+    }
     @Test fun downloadAppearsBeforePlayAndEnablesLocalPlaybackOnlyAfterSaving() = practiceTest { vm, fixture, player ->
         assertEquals(PracticePersonalAudio.Missing, vm.uiState.value.personalAudioControl)
         assertEquals(emptyList(), fixture.requests)

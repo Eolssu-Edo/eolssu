@@ -9,15 +9,16 @@ sealed interface ScoreNote {
         override val symbol: String get() = yul.symbol
     }
 
-    /** 공통 악보의 기본 12율명과 옥타브. 기존 운지표의 15음으로 축소하지 않는다. */
+    /** 원본 음고의 표시 모델. 선택·확정 저장 가능 여부는 악기별 지원음 계약에서 별도로 검증한다. */
     data class SourcePitch(val yul: String, val octave: Int) : ScoreNote {
         init {
-            require(yul in BaseYulNames && octave in -2..2) { "지원하지 않는 율명·옥타브: $yul/$octave" }
+            require(yul in BaseYulNames && octave in -6..5) { "지원하지 않는 율명·옥타브: $yul/$octave" }
         }
         val baseYul: Yul get() = Yul.entries[BaseYulNames.indexOf(yul)]
         val hangul: String get() = octavePrefix(octave) + yul
-        val fullName: String get() = octavePrefix(octave) + baseYul.fullName
-        override val symbol: String get() = SourceHanja.getValue(octave)[BaseYulNames.indexOf(yul)].ifEmpty { hangul }
+        val fullName: String get() = if (octave in -2..2) octavePrefix(octave) + baseYul.fullName
+            else "${baseYul.fullName} · 옥타브 ${if (octave > 0) "+" else ""}$octave"
+        override val symbol: String get() = SourceHanja[octave]?.get(BaseYulNames.indexOf(yul))?.ifEmpty { hangul } ?: "?"
     }
 
     /** 앞 음을 끊지 않고 이어서 소리 낸다. */

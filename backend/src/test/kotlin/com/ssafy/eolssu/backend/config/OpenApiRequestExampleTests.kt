@@ -10,6 +10,7 @@ import io.swagger.v3.oas.models.media.ObjectSchema
 import io.swagger.v3.oas.models.parameters.RequestBody
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlin.test.assertNull
 import org.junit.jupiter.api.Test
 
@@ -32,6 +33,29 @@ class OpenApiRequestExampleTests {
             @Suppress("UNCHECKED_CAST")
             assertNull((example.value as Map<String, Any>)["missionId"])
         }
+    }
+
+    @Test
+    fun `sheet authoring documents current tempo policy and actionable rejection examples`() {
+        val api = documentedApi()
+        OpenApiConfig().businessApiDocumentation().customise(api)
+        val audio = api.paths["/api/users/me/sheets/{sheetId}/audio"]!!.post
+        val properties = audio.requestBody.content["application/json"]!!.schema.properties
+        assertEquals(java.math.BigDecimal.ONE, properties["bpm"]!!.minimum)
+        assertNull(properties["bpm"]!!.maximum)
+        assertTrue("악보 악기" in properties["instrumentId"]!!.description)
+        for (operation in listOf(audio, api.paths["/api/users/me/sheets/{sheetId}/score"]!!.put)) {
+            val errors = operation.responses["400"]!!.content["application/json"]!!.examples
+            assertTrue("TEMPO_UNRENDERABLE" in errors)
+            assertTrue("EXPORT_TOO_LONG" in errors)
+            val unsupported = errors["UNSUPPORTED_PITCHES"]!!.value as Map<*, *>
+            val result = unsupported["result"] as Map<*, *>
+            assertEquals("INVALID_REQUEST", result["errorCode"])
+            assertEquals("UNSUPPORTED_PITCHES", (result["details"] as Map<*, *>)["reason"])
+            assertTrue(operation.responses["503"]!!.description.contains("AUDIO_UNAVAILABLE"))
+        }
+        assertTrue("30~160" !in api.paths["/api/users/me/sheets/imports"]!!.post.description)
+        assertTrue("30~160" !in api.paths["/api/users/me/sheets/copies"]!!.post.description)
     }
 
     // springdoc이 만드는 것처럼 문서 계약의 모든 경로와 JSON 요청 본문을 갖춘 최소 문서.

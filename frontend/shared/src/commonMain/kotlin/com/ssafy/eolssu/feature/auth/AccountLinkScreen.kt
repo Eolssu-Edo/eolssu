@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.auth
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -91,6 +90,8 @@ fun AccountLinkScreen(
             if (state.needsPassword) {
                 Column {
                     EolssuTextField(
+                        bordered = false,
+                        labelInside = true,
                         value = state.password,
                         onValueChange = onPasswordChange,
                         label = stringResource(Res.string.auth_link_password),
@@ -132,9 +133,9 @@ private fun AccountCard(provider: SocialProvider, email: String) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        color = colors.background,
+        // 회색 바탕 위 테두리 없는 흰 카드(S15P31E102-798).
+        color = colors.surface,
         contentColor = colors.text,
-        border = BorderStroke(1.dp, colors.line),
     ) {
         Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(24.dp).background(colors.surfaceStrong, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {

@@ -86,6 +86,8 @@ object EolssuIcons {
     val Bookmark = lineIcon("Bookmark", "M6 3h12v18l-6 -4 -6 4z")
     val Target = lineIcon("Target", circle(12f, 12f, 9f), circle(12f, 12f, 5f), circle(12f, 12f, 1f))
     val Zoom = lineIcon("Zoom", circle(11f, 11f, 7f), "M20 20l-3.5 -3.5M11 8v6M8 11h6")
+    /** 작게 보기 돋보기(빼기). */
+    val ZoomOut = lineIcon("ZoomOut", circle(11f, 11f, 7f), "M20 20l-3.5 -3.5M8 11h6")
 
     // 내 악보
     val Plus = lineIcon("Plus", "M12 5v14M5 12h14")

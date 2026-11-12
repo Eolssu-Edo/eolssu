@@ -56,6 +56,7 @@ import eolssu.shared.generated.resources.learn_practice_self_done
 import eolssu.shared.generated.resources.learn_practice_stop
 import eolssu.shared.generated.resources.learn_practice_unsupported
 import eolssu.shared.generated.resources.learn_section_pass
+import eolssu.shared.generated.resources.learn_start_practice
 import eolssu.shared.generated.resources.learn_step_try
 import eolssu.shared.generated.resources.learn_tongue_pass
 import eolssu.shared.generated.resources.learn_tour_tongue
@@ -74,8 +75,8 @@ class LearnPracticeActions(
 
 /*
  * 기초부터 배우기 3~7단계의 소리 듣기(S15P31E102-688, 정리 S15P31E102-749).
- * 박스를 펼치면 바로 듣기를 시작해 '연습 시작' 한 번으로 연습이 된다. 마이크 입력은 연주 평가와 같은 뱃지([MicLevelBadge])를
- * 듣기 판 오른쪽 위에 두고, 듣는 동안 안내 문장을 바꿔 띄우지 않는다. 진행은 소리 막대·낼 음·'투' 동그라미·정간보가 채워지는 것으로만 보인다.
+ * 박스를 펼친 뒤 아래 가운데 '연습 시작'을 누르면 듣는다(S15P31E102-793). 5단계 정간보만 마이크 입력 뱃지([MicLevelBadge])를 두고,
+ * 듣는 동안 안내 문장을 바꿔 띄우지 않는다. 진행은 소리 막대·낼 음·'투' 동그라미·정간보가 채워지는 것으로만 보인다.
  * 그만하기·다시 시작·다음 단계로 같은 주 동작은 단계 화면 아래 가운데 버튼([LearnPracticePrimary])이 맡고, 박스 안에는 보조 버튼만 둔다.
  */
 
@@ -170,14 +171,13 @@ private fun MicRow(state: LearnPracticeUiState) {
     }
 }
 
-/** 이 칸이 처음 보일 때 듣기를 바로 시작한다. 이미 통과했거나 마이크를 쓸 수 없으면(거부·미지원) 기다린다. [stopOnLeave]면 사라질 때 멈춘다. */
+/**
+ * 듣기는 아래 가운데 '연습 시작'을 눌러야 시작한다(S15P31E102-793, 전에는 박스를 펼치면 바로 들었다).
+ * [stopOnLeave]면 이 칸이 사라질 때 듣기를 멈춘다.
+ */
 @Composable
 private fun AutoListen(state: LearnPracticeUiState, actions: LearnPracticeActions, stopOnLeave: Boolean = true) {
-    val start by rememberUpdatedState(actions.onStart)
     val stop by rememberUpdatedState(actions.onStop)
-    LaunchedEffect(Unit) {
-        if (state.phase == LearnPracticePhase.Ready && state.mic == LearnMicStatus.Available) start()
-    }
     DisposableEffect(Unit) { onDispose { if (stopOnLeave) stop() } }
 }
 
@@ -211,18 +211,17 @@ private fun PassLine(rule: String) {
 }
 
 /**
- * 소리 듣기 판. 오른쪽 위에 마이크 뱃지, 아래에 판정 그림(3단계 소리 길이 막대·낼 음 동그라미·'투' 동그라미).
- * 통과하면 같은 자리에 통과 표시를, 마이크를 쓸 수 없으면 까닭 한 줄을 보인다.
+ * 소리 듣기 판: 판정 그림(3단계 소리 길이 막대·낼 음 동그라미·'투' 동그라미)만 할 일 박스 안에 바로 놓는다.
+ * 통과하면 같은 자리에 통과 표시를, 마이크를 쓸 수 없으면 까닭 한 줄을 보인다. 그릴 것이 없으면(판정하지 않는 6단계 등) 아무것도 두지 않는다.
+ * 따로 테두리 친 판과 마이크 입력 뱃지는 두지 않는다(S15P31E102-793). 듣는 중인지는 아래 '그만하기' 버튼으로 안다.
  */
 @Composable
 private fun ListenPanel(state: LearnPracticeUiState, instrument: GuideInstrument, notes: IntRange) {
-    val colors = EolssuTheme.colors
+    val empty = state.phase != LearnPracticePhase.Passed && micMessage(state) == null &&
+        state.pitch == null && !state.judgesBySound && !state.judgesByTongue
+    if (empty) return
     Column(
-        Modifier
-            .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(16.dp))
-            .border(1.dp, if (state.listening) colors.accentTintLine else colors.lineSoft, RoundedCornerShape(16.dp))
-            .padding(16.dp),
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (state.phase == LearnPracticePhase.Passed) {
@@ -234,11 +233,11 @@ private fun ListenPanel(state: LearnPracticeUiState, instrument: GuideInstrument
             LearnNote(micMessage)
             return@Column
         }
-        MicRow(state)
         val pitch = state.pitch
         when {
             pitch != null -> {
-                PitchNotes(pitch, instrument, notes)
+                // 낼 음이 하나뿐이면(6단계) 위 운지 카드와 이름이 겹치므로 동그라미 없이 이어 분 길이 막대만 둔다(S15P31E102-793).
+                if (notes.count { it in pitch.notes.indices } > 1) PitchNotes(pitch, instrument, notes)
                 HoldBar(pitch.holdProgress)
             }
             state.judgesBySound -> HoldBar(state.holdProgress, height = 12.dp)
@@ -408,8 +407,8 @@ private fun LearnPracticeSideButtons(state: LearnPracticeUiState, actions: Learn
 }
 
 /**
- * 듣는 박스가 펼쳐졌을 때 단계 화면 아래 가운데 버튼(S15P31E102-749). 박스를 펼치면 듣기가 바로 시작되므로
- * '연습 시작' 대신 그 순간 할 일을 맡는다: 듣는 중 '그만하기', 멈춘 뒤 '다시 시작', 통과 뒤 '다음 단계로'(마지막 단계는 끝내기 문구).
+ * 듣는 박스가 펼쳐졌을 때 단계 화면 아래 가운데 버튼(S15P31E102-749). 그 순간 할 일을 맡는다: 듣기 전 '연습 시작',
+ * 듣는 중 '그만하기', 멈춘 뒤 '다시 시작', 통과 뒤 '다음 단계로'(마지막 단계는 끝내기 문구).
  * 권한이 꺼져 다시 묻지 못하면 '설정에서 허용하기', 마이크가 없는 기기는 '스스로 확인했어요'다.
  */
 @Composable
@@ -427,6 +426,12 @@ internal fun LearnPracticePrimary(
         state.mic == LearnMicStatus.Blocked ->
             EolssuButton(stringResource(Res.string.learn_practice_open_settings), actions.onOpenSettings, modifier, icon = EolssuIcons.Settings)
         state.mic == LearnMicStatus.Unsupported -> EolssuButton(stringResource(Res.string.learn_practice_self_done), onSelfDone, modifier)
-        else -> EolssuButton(stringResource(Res.string.learn_practice_again), actions.onStart, modifier, icon = EolssuIcons.Mic)
+        // 아직 듣지 않았으면 '연습 시작', 멈춘 뒤면 '다시 시작'(S15P31E102-793).
+        else -> EolssuButton(
+            stringResource(if (state.listenedMs > 0.0) Res.string.learn_practice_again else Res.string.learn_start_practice),
+            actions.onStart,
+            modifier,
+            icon = EolssuIcons.Mic,
+        )
     }
 }

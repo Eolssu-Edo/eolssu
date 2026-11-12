@@ -177,9 +177,9 @@ internal class ModelAudioSession(
         } else player.pause()
     }
 
-    fun restart(song: Song, bpm: Int) {
+    fun restart(song: Song, bpm: Int, startTick: Double? = null) {
         stop()
-        play(song, bpm)
+        play(song, bpm, startTick)
     }
 
     fun setBpm(value: Int) {
@@ -356,19 +356,13 @@ internal fun Song.modelScoreDurationMs(audio: ModelAudio): Double {
         else minOf(written, (audio.durationMs - audio.startOffsetMs).toDouble())
 }
 
-/** 내 악보 렌더러의 장구는 반복 후에도 연주 경과 시간과 시작 BPM에 맞춰 이어진다. */
+/** 장구는 선율과 같은 수행표의 원본 위치를 따른다. 반복 때는 원래 장단 위치로 돌아간다. */
 internal fun Song.modelJangdanTickAt(audio: ModelAudio, mediaPositionMs: Double): Double {
-    if (audio.sheetPlayback != null && audio.performance != null) {
-        val elapsed = (mediaPositionMs - audio.startOffsetMs).coerceIn(0.0, audio.performance.durationMs)
-        return sheetPerformanceTick(elapsed, audio.bpm, requireNotNull(score.timing).ticksPerBeat)
-    }
+    audio.performance?.let { return it.at((mediaPositionMs - audio.startOffsetMs).coerceAtLeast(0.0)).accompanimentTick }
     val point = modelPointAt(audio, mediaPositionMs)
     val event = timeline[point.position]
     return requireNotNull(event.startTick) + requireNotNull(event.durationTick) * point.fraction
 }
-
-internal fun sheetPerformanceTick(elapsedMs: Double, renderBpm: Int, ticksPerBeat: Int): Double =
-    elapsedMs * renderBpm * ticksPerBeat / 60_000.0
 
 /** 원본 악보 tick을 모범 음원의 위치로 바꾼다. 꾸밈음의 연주 시간과 앞 여백을 보존한다. */
 internal fun Song.modelMediaPosition(audio: ModelAudio, tick: Double): Long {
@@ -376,8 +370,7 @@ internal fun Song.modelMediaPosition(audio: ModelAudio, tick: Double): Long {
     val scoreMs = if (performance == null) tick * 60_000.0 / audio.bpm / requireNotNull(score.timing).ticksPerBeat else {
         val segment = performance.segments.firstOrNull { tick >= it.startTick && tick < it.endTick }
             ?: if (tick <= performance.segments.first().startTick) performance.segments.first() else performance.segments.last()
-        val fraction = ((tick - segment.startTick) / (segment.endTick - segment.startTick)).coerceIn(0.0, 1.0)
-        segment.startMs + (segment.endMs - segment.startMs) * fraction
+        segment.mediaMsAt(tick)
     }
     return (audio.startOffsetMs + scoreMs).toLong().coerceIn(0, audio.durationMs)
 }

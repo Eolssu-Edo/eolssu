@@ -55,6 +55,9 @@ import com.ssafy.eolssu.core.ui.component.PlaybackLoadingOverlay
 import com.ssafy.eolssu.feature.practice.ModelAudioStatus
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import com.ssafy.eolssu.feature.practice.playerElapsedSeconds
+import com.ssafy.eolssu.feature.practice.playerFraction
+import com.ssafy.eolssu.feature.practice.playerTotalSeconds
 import com.ssafy.eolssu.feature.practice.PracticePlayerNotice
 import com.ssafy.eolssu.feature.practice.playerNotice
 import com.ssafy.eolssu.feature.practice.PracticePersonalAudio
@@ -62,6 +65,8 @@ import com.ssafy.eolssu.feature.practice.personalAudioControl
 import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.*
 import com.ssafy.eolssu.feature.practice.JangdanStatus
+import eolssu.shared.generated.resources.practice_sheet_audio_support
+import eolssu.shared.generated.resources.practice_sheet_audio_support_edit
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.model_audio_failed
 import eolssu.shared.generated.resources.model_audio_interrupted
@@ -79,6 +84,7 @@ import eolssu.shared.generated.resources.practice_seek_back_desc
 import eolssu.shared.generated.resources.practice_seek_forward
 import eolssu.shared.generated.resources.practice_seek_forward_desc
 import eolssu.shared.generated.resources.practice_start_eval
+import eolssu.shared.generated.resources.weak_loop_evaluate_start
 import eolssu.shared.generated.resources.practice_switch_to_eval
 import eolssu.shared.generated.resources.practice_time
 import org.jetbrains.compose.resources.stringResource
@@ -100,7 +106,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     val rhythm = state.mode == PracticeMode.Rhythm
     val playing = state.mode in setOf(PracticeMode.Model, PracticeMode.Rhythm) && state.playing
     val resumable = state.mode == PracticeMode.Model && !state.playing && state.modelAudioStatus in setOf(ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)
-    val time = stringResource(Res.string.practice_time, formatClock(state.elapsedMs / 1000), formatClock(state.totalSeconds.toDouble()))
+    val time = stringResource(Res.string.practice_time, formatClock(state.playerElapsedSeconds), formatClock(state.playerTotalSeconds))
     val playLabel = stringResource(
         when {
             playing -> Res.string.practice_pause
@@ -123,6 +129,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
                 PracticePersonalAudio.Preparing -> Res.string.practice_sheet_audio_preparing
                 PracticePersonalAudio.Downloading -> Res.string.practice_sheet_audio_downloading
                 PracticePersonalAudio.Unsupported -> Res.string.practice_player_unsupported
+                PracticePersonalAudio.UnsupportedPitches -> Res.string.practice_sheet_audio_support
                 PracticePersonalAudio.Failed -> Res.string.practice_sheet_audio_retry
                 PracticePersonalAudio.VersionChanged -> Res.string.practice_sheet_audio_version_changed
                 else -> Res.string.practice_sheet_audio_download
@@ -178,14 +185,14 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
                 .padding(horizontal = 12.dp, vertical = 4.dp),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(formatClock(state.elapsedMs / 1000), modifier = Modifier.semantics { contentDescription = time },
+                Text(formatClock(state.playerElapsedSeconds), modifier = Modifier.semantics { contentDescription = time },
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                     color = colors.text)
                 controls(Modifier.weight(1f))
-                Text(formatClock(state.totalSeconds.toDouble()),
+                Text(formatClock(state.playerTotalSeconds),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
             }
-            SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
+            SeekablePlayerTrack(state.playerFraction, actions.onSeekToFraction,
                 enabled = canSeek, height = 24.dp)
             // 로딩은 화면 가운데에 띄우므로 트랙 아래 칸은 실패·중단 사유가 있을 때만 둔다.
             if (state.playerNotice.inCard) PlayerNoticeArea(state.playerNotice, Modifier.fillMaxWidth().height(20.dp))
@@ -198,14 +205,14 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     ) {
         Row(Modifier.fillMaxWidth().semantics { contentDescription = time },
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(formatClock(state.elapsedMs / 1000),
+            Text(formatClock(state.playerElapsedSeconds),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                 color = colors.text)
             PlayerNoticeArea(state.playerNotice, Modifier.weight(1f).height(32.dp))
-            Text(formatClock(state.totalSeconds.toDouble()),
+            Text(formatClock(state.playerTotalSeconds),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         }
-        SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
+        SeekablePlayerTrack(state.playerFraction, actions.onSeekToFraction,
             enabled = canSeek)
         controls(Modifier.fillMaxWidth())
     }
@@ -236,6 +243,7 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         PracticePlayerNotice.Unavailable -> stringResource(Res.string.practice_player_unavailable)
         PracticePlayerNotice.PersonalAudioUnavailable -> stringResource(Res.string.practice_sheet_audio_unavailable)
         PracticePlayerNotice.PersonalDownloadFailed -> stringResource(Res.string.practice_sheet_audio_download_failed)
+        PracticePlayerNotice.PersonalUnsupportedPitches -> stringResource(Res.string.practice_sheet_audio_support_edit)
         PracticePlayerNotice.PersonalScoreChanged -> stringResource(Res.string.practice_sheet_audio_reopen)
         PracticePlayerNotice.PersonalAudioReady -> stringResource(Res.string.practice_sheet_audio_ready)
         PracticePlayerNotice.EmbeddedJangdan -> stringResource(Res.string.practice_sheet_audio_with_jangdan)
@@ -312,6 +320,7 @@ internal fun PlayerTrack(fraction: Float, modifier: Modifier = Modifier) {
  * 플레이어 아래 행동(보드 `.btn.primary`):
  * - 평가 준비: ‘연주 평가 시작’.
  * - 일반 연습·평가 가능 곡: ‘연주 평가 시작’으로 평가를 바로 시작한다.
+ * - 구간 연습: ‘구간 재평가 시작’으로 같은 구간·속도의 구간 재평가에 간다.
  * - 연습 모드·평가 불가 곡: 꺼진 버튼에 ‘연습만 가능해요’를 적는다.
  * - 내 악보 연습·기초부터 배우기 곡 연습: 평가 버튼도 안내도 없다(Practice-Mine).
  * 녹음을 지원하지 않는 환경은 버튼을 끄고 그 아래 회색 글자로 이유를 적는다.
@@ -325,6 +334,11 @@ fun PracticeCallToAction(state: PracticeUiState, actions: PracticeBottomActions,
         if (!state.stepUi) PracticeModeSwitch(state, actions)
         when {
             state.mine || state.learn -> Unit
+            // 구간 연습은 곡 전체 평가 대신 같은 구간·속도의 구간 재평가로 간다(S15P31E102-794).
+            state.sectionPractice != null -> PracticeEvalButton(
+                actions.onStartSectionEval, enabled = state.recordingSupported, caption = unsupported,
+                label = stringResource(Res.string.weak_loop_evaluate_start),
+            )
             !state.solo -> PracticeEvalButton(actions.onStartEval, enabled = state.recordingSupported, caption = unsupported)
             song.evaluable -> PracticeEvalButton(actions.onSwitchToEval, enabled = state.recordingSupported, caption = unsupported)
             // 평가 가능 곡과 같은 자리에 꺼진 버튼을 두고, 버튼 글자로 이유를 적는다.

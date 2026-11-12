@@ -163,11 +163,8 @@ fun PracticeUiState.matchStepNote(index: Int): PracticeUiState {
     val targets = stepTargetsInSection()
     val next = targets.firstOrNull { it > index }
     if (next != null) return copy(follow = true, step = step.copy(target = next))
-    // 구간 연습은 구간 끝에서 정한 횟수만큼 구간 처음으로 돌아간다.
-    if (sectionEvents == null) return copy(step = step.copy(phase = StepPhase.Finished))
-    val (looped, again) = loopSection()
-    return if (again) looped.copy(step = step.copy(target = targets.first()))
-    else looped.copy(step = step.copy(phase = StepPhase.Finished))
+    // 구간 연습도 구간 마지막 음을 불면 끝낸다(S15P31E102-794).
+    return copy(step = step.copy(phase = StepPhase.Finished))
 }
 
 /** 화면을 벗어나거나 다른 동작으로 멈춤. 듣는 중이면 그 자리에서 멈춘다. */

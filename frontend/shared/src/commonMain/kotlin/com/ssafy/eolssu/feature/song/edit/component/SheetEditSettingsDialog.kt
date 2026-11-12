@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.song.edit.component
 
 import androidx.compose.ui.graphics.Color
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -27,6 +28,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.feature.song.edit.SheetBpmRange
+import com.ssafy.eolssu.feature.song.edit.tempoUnitLabel
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.SheetEditJangdanPicker
 import com.ssafy.eolssu.feature.song.edit.SheetJangdanTimingText
@@ -38,6 +40,7 @@ import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.sheet_details_apply
 import eolssu.shared.generated.resources.sheet_details_bpm
 import eolssu.shared.generated.resources.sheet_details_bpm_error
+import eolssu.shared.generated.resources.sheet_tempo_profile_note
 import eolssu.shared.generated.resources.sheet_settings_current_jangdan
 import eolssu.shared.generated.resources.sheet_settings_jangdan
 import eolssu.shared.generated.resources.sheet_settings_jangdan_loading
@@ -46,6 +49,7 @@ import eolssu.shared.generated.resources.sheet_settings_title
 import eolssu.shared.generated.resources.sheetedit_jangdan_load_failed
 import eolssu.shared.generated.resources.sheetedit_jangdan_same_unit
 import eolssu.shared.generated.resources.sheet_upload_reload
+import eolssu.shared.generated.resources.sheet_adapt_title
 import org.jetbrains.compose.resources.stringResource
 
 /** 빠르기와 장단은 대화상자 안에서만 고르고 적용할 때 한 번에 전달한다. */
@@ -57,7 +61,9 @@ internal fun SheetEditSettingsDialog(
     onLoadJangdans: () -> Unit,
     onApply: (Int, String?) -> Unit,
     onDismiss: () -> Unit,
+    onAdapt: () -> Unit,
     saving: Boolean = false,
+    hasTempoPlan: Boolean = false,
 ) {
     var bpm by rememberSaveable { mutableStateOf(draft.bpm.toString()) }
     var selectedId by rememberSaveable { mutableStateOf(draft.jangdanId) }
@@ -71,62 +77,69 @@ internal fun SheetEditSettingsDialog(
 
     EolssuDialog(
         title = stringResource(Res.string.sheet_settings_title),
-        modifier = Modifier.verticalScroll(rememberScrollState()),
         onDismissRequest = { if (!saving) onDismiss() },
     ) {
-        EolssuTextField(
-            value = bpm,
-            onValueChange = { if (!saving) bpm = it },
-            label = stringResource(Res.string.sheet_details_bpm),
-            placeholder = "",
-            type = TextFieldType.Number,
-            imeAction = ImeAction.Done,
-            error = if (validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
-            bordered = false,
-            containerColor = EolssuTheme.colors.groupedBackground,
-        )
-        Text(stringResource(Res.string.sheet_settings_jangdan), style = MaterialTheme.typography.labelLarge)
-        SheetJangdanTimingText(draft)
-        Text(stringResource(Res.string.sheetedit_jangdan_same_unit), style = MaterialTheme.typography.bodySmall)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = selectedId == null,
-                enabled = !saving,
-                onClick = { selectedId = null },
-                label = { Text(stringResource(Res.string.sheet_settings_jangdan_none)) },
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            EolssuButton(stringResource(Res.string.sheet_adapt_title), onAdapt,
+                style = EolssuButtonStyle.Secondary, enabled = !saving,
+            containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
+            EolssuTextField(
+                value = bpm,
+                onValueChange = { if (!saving) bpm = it },
+                label = stringResource(Res.string.sheet_details_bpm) + " · " + draft.tempoUnitLabel,
+                placeholder = "",
+                type = TextFieldType.Number,
+                imeAction = ImeAction.Done,
+                error = if (validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
+                bordered = false,
+                containerColor = EolssuTheme.colors.groupedBackground,
             )
-            if (draft.jangdanId != null && options.none { it.jangdanId == draft.jangdanId }) {
-                val currentName = if (draft.jangdanName.isBlank()) stringResource(Res.string.sheet_settings_current_jangdan)
-                    else jangdanLabel(draft.jangdanName)
+            if (hasTempoPlan) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(Res.string.sheet_settings_jangdan), style = MaterialTheme.typography.labelLarge)
+            SheetJangdanTimingText(draft)
+            Text(stringResource(Res.string.sheetedit_jangdan_same_unit), style = MaterialTheme.typography.bodySmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
-                    selected = selectedId == draft.jangdanId,
+                    selected = selectedId == null,
                     enabled = !saving,
-                    onClick = { selectedId = draft.jangdanId },
-                    label = { Text(currentName) },
+                    onClick = { selectedId = null },
+                    label = { Text(stringResource(Res.string.sheet_settings_jangdan_none)) },
                 )
+                if (draft.jangdanId != null && options.none { it.jangdanId == draft.jangdanId }) {
+                    val currentName = if (draft.jangdanName.isBlank()) stringResource(Res.string.sheet_settings_current_jangdan)
+                        else jangdanLabel(draft.jangdanName)
+                    FilterChip(
+                        selected = selectedId == draft.jangdanId,
+                        enabled = !saving,
+                        onClick = { selectedId = draft.jangdanId },
+                        label = { Text(currentName) },
+                    )
+                }
+                options.forEach { option ->
+                    FilterChip(
+                        selected = selectedId == option.jangdanId,
+                        enabled = !saving && draft.isCompatibleWith(option),
+                        onClick = { selectedId = option.jangdanId },
+                        label = { SheetJangdanOptionLabel(option) },
+                    )
+                }
             }
-            options.forEach { option ->
-                FilterChip(
-                    selected = selectedId == option.jangdanId,
-                    enabled = !saving && draft.isCompatibleWith(option),
-                    onClick = { selectedId = option.jangdanId },
-                    label = { SheetJangdanOptionLabel(option) },
-                )
-            }
-        }
-        when (picker) {
-            null, SheetEditJangdanPicker.Loading -> {
-                CircularProgressIndicator()
-                Text(stringResource(Res.string.sheet_settings_jangdan_loading), style = MaterialTheme.typography.bodySmall)
-            }
-            SheetEditJangdanPicker.Failed -> {
-                Text(stringResource(Res.string.sheetedit_jangdan_load_failed))
-                EolssuButton(stringResource(Res.string.sheet_upload_reload), onLoadJangdans,
-                    style = EolssuButtonStyle.Secondary, enabled = !saving)
-            }
-            is SheetEditJangdanPicker.Ready -> {
-                if (options.none { draft.isCompatibleWith(it) }) {
-                    SheetJangdanNoMatchHelp(draft)
+            when (picker) {
+                null, SheetEditJangdanPicker.Loading -> {
+                    CircularProgressIndicator()
+                    Text(stringResource(Res.string.sheet_settings_jangdan_loading), style = MaterialTheme.typography.bodySmall)
+                }
+                SheetEditJangdanPicker.Failed -> {
+                    Text(stringResource(Res.string.sheetedit_jangdan_load_failed))
+                    EolssuButton(stringResource(Res.string.sheet_upload_reload), onLoadJangdans,
+                        style = EolssuButtonStyle.Secondary, enabled = !saving,
+            containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
+                }
+                is SheetEditJangdanPicker.Ready -> {
+                    if (options.none { draft.isCompatibleWith(it) }) {
+                        SheetJangdanNoMatchHelp()
+                    }
                 }
             }
         }

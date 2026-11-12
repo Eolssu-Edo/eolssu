@@ -2,7 +2,7 @@ package com.ssafy.eolssu.feature.home
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.ssafy.eolssu.core.ui.component.EolssuSnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -58,7 +58,7 @@ fun HomeScreen(
     onFeatureClick: (HomeFeature) -> Unit,
 ) {
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { EolssuSnackbarHost(snackbarHostState) },
         containerColor = EolssuTheme.colors.groupedBackground,
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)

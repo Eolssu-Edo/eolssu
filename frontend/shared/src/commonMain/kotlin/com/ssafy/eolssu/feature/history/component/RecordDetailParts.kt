@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.ssafy.eolssu.core.ui.component.EolssuButton
-import eolssu.shared.generated.resources.weak_loop_evaluate
 import eolssu.shared.generated.resources.weak_select_practice
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -163,7 +162,7 @@ internal fun PlaybackButtons(state: RecordDetailUiState, actions: RecordDetailAc
 }
 
 /**
- * 하단 재생 영역 내용(시간 · 막대 · 재생 묶음과 그 오른쪽에 작게 쌓은 ‘구간 연습’ · ‘구간 재평가’, S15P31E102-776). 휴대폰·태블릿이 같은 구성이다.
+ * 하단 재생 영역 내용(시간 · 막대 · 재생 묶음과 그 오른쪽 ‘구간 연습’, S15P31E102-794). 휴대폰·태블릿이 같은 구성이다.
  */
 @Composable
 internal fun PlaybackBarContent(state: RecordDetailUiState, actions: RecordDetailActions) {
@@ -174,18 +173,16 @@ internal fun PlaybackBarContent(state: RecordDetailUiState, actions: RecordDetai
     }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         PlaybackButtons(state, actions)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            EolssuButton(
-                stringResource(Res.string.weak_select_practice), actions.onPractice,
-                enabled = state.canPractice, compact = true, minHeight = 28.dp,
-            )
-            EolssuButton(
-                stringResource(Res.string.weak_loop_evaluate), actions.onReevaluate,
-                enabled = state.canPractice, compact = true, minHeight = 28.dp, style = EolssuButtonStyle.Secondary,
-            )
-        }
+        // ‘구간 연습’ 하나, 높이는 옆 5초 이동 버튼과 같은 44dp. 구간 재평가는 구간 고르기에서 함께 시작한다(S15P31E102-794).
+        EolssuButton(
+            stringResource(Res.string.weak_select_practice), actions.onPractice, Modifier.weight(1f).height(SectionButtonHeight),
+            enabled = state.canPractice, compact = true, small = true, minHeight = SectionButtonHeight,
+        )
     }
 }
+
+/** ‘구간 연습’ 높이. 5초 이동 버튼과 같다. */
+private val SectionButtonHeight = 44.dp
 
 /** 5초 이동(44dp, 바탕 없음): 둥근 화살표 가운데에 ‘5’. */
 @Composable

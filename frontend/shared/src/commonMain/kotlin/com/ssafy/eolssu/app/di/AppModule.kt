@@ -159,14 +159,13 @@ val appModule = module {
     viewModel { parameters ->
         val (songId: String, solo: Boolean, mine: Boolean, learn: Boolean, perf: PerformanceVisit?) = parameters
         val direct: Boolean = parameters[5]
-        // 일곱째·여덟째 인자: 구간 연습으로 들어온 바탕 연주와 고를 구간(S15P31E102-776). 없으면 빈 문자열·null.
-        val weakSource = parameters.values.getOrNull(6) as? String ?: ""
-        val initialSection = (parameters.values.getOrNull(7) as? List<*>)?.firstOrNull() as? ScoreSection
+        // 일곱째 인자: 구간 연습의 구간(S15P31E102-794). 없으면 빈 목록.
+        val initialSection = (parameters.values.getOrNull(6) as? List<*>)?.firstOrNull() as? ScoreSection
         val personalPractice = if (mine) get<SheetPracticeRepository>() else null
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
             modelAudioRepository = personalPractice ?: get<ModelAudioRepository>(), audioPlayer = get(), mine = mine, learn = learn, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
             notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf, personalAudio = personalPractice, direct = direct,
-            weakSource = weakSource.ifEmpty { null }, initialSection = initialSection, weakSections = get())
+            initialSection = initialSection)
     }
     viewModel { parameters ->
         val (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) = parameters
@@ -180,7 +179,7 @@ val appModule = module {
     }
     viewModel { (justSavedId: String?, perf: PerformanceVisit?) -> RecordListViewModel(justSavedId, get(), get(), get(), songs = get(), perf = perf) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
-    viewModel { GrowthViewModel(get(), get(), get(), get()) }
+    viewModel { GrowthViewModel(get(), get(), get()) }
 
     // 운지법 보기·기초부터 배우기
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
@@ -239,8 +238,9 @@ val appModule = module {
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
     single<WeakSectionRepository> { ApiWeakSectionRepository(get(), get(), get(), get(), get()) }
     viewModel { (sourceId: String, perf: PerformanceVisit?) -> SectionSelectViewModel(sourceId, get(), perf) }
-    viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int, perf: PerformanceVisit?) ->
-        SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull(), settingsStore = get(), perf = perf, autoStart = false, jangdanPlayer = getOrNull())
+    viewModel { (sourceId: String, section: ScoreSection, repeats: Int, perf: PerformanceVisit?) ->
+        // 속도는 연습 화면과 같은 곡 속도 설정을 따른다(설정에서 바꾼다, S15P31E102-794).
+        SectionLoopViewModel(sourceId, section, null, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull(), settingsStore = get(), perf = perf, autoStart = false, jangdanPlayer = getOrNull())
     }
     viewModel { (sessionId: String, perf: PerformanceVisit?) -> SectionResultViewModel(sessionId, get(), perf) }
     viewModel { (recordId: String, previousId: String?) -> CompareViewModel(recordId, get(), previousId) }
