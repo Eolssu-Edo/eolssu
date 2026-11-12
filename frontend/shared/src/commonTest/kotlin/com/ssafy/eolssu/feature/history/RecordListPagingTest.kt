@@ -95,6 +95,9 @@ internal class RecordListPagingTest : CatalogViewModelTest() {
             model.toggle("곡 2")
             assertEquals(2, calls.size)
 
+            // 처음 받은 곡 1의 첫 페이지는 펼칠 때 다시 요청하지 않는다.
+            model.toggle("곡 1")
+            assertEquals(2, calls.size)
             failNext = true
             model.loadMore("1")
             model.uiState.first { it.pages["1"]?.failed == true }
@@ -111,12 +114,12 @@ internal class RecordListPagingTest : CatalogViewModelTest() {
             assertTrue(model.uiState.value.groups.isEmpty())
             model.changeInstrument(Instrument.Sogeum)
             assertEquals(listOf("2"), model.uiState.value.groups.map { it.newestSongId })
-            assertTrue(model.uiState.value.isOpen("곡 2"))
+            assertFalse(model.uiState.value.isOpen("곡 2"))
 
-            // 악기를 바꾸면 고른 기록을 비우고, 이미 받은 첫 페이지의 최신 기록을 바로 보인다(따로 요청하지 않는다).
+            // 악기를 바꾸면 묶음을 모두 접고 고른 기록을 비운다(따로 요청하지 않는다).
             val callsBefore = calls.size
             model.changeInstrument(Instrument.Danso)
-            assertEquals("125", model.uiState.value.selectedRecordId)
+            assertEquals(null, model.uiState.value.selectedRecordId)
             assertEquals(callsBefore, calls.size)
             model.show("401")
             assertEquals("401", model.uiState.value.selectedRecordId)

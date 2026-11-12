@@ -79,7 +79,6 @@ import eolssu.shared.generated.resources.records_day_meta
 import eolssu.shared.generated.resources.records_empty
 import eolssu.shared.generated.resources.records_unavailable
 import eolssu.shared.generated.resources.records_expanded
-import eolssu.shared.generated.resources.records_group_recent
 import eolssu.shared.generated.resources.records_growth_link
 import eolssu.shared.generated.resources.records_just_saved
 import eolssu.shared.generated.resources.records_memo
@@ -87,7 +86,6 @@ import eolssu.shared.generated.resources.records_score_unit
 import eolssu.shared.generated.resources.records_instrument_all
 import eolssu.shared.generated.resources.records_instrument_empty
 import eolssu.shared.generated.resources.records_search_empty
-import eolssu.shared.generated.resources.records_today
 import eolssu.shared.generated.resources.records_whole
 import org.jetbrains.compose.resources.stringResource
 
@@ -285,15 +283,11 @@ private fun SongGroupCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text(group.title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold))
-                    Text(
-                        stringResource(Res.string.records_group_recent, dayLabel(group.lastStartedAt, state.today)),
-                        modifier = Modifier.padding(top = 2.dp),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = colors.textMuted,
-                    )
-                }
+                Text(
+                    group.title,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                )
                 Text(
                     buildAnnotatedString {
                         append(stringResource(Res.string.records_best) + " ")
@@ -367,14 +361,10 @@ private fun DayHeader(day: RecordDay, open: Boolean, today: KoreanDateTime, spac
     }
 }
 
-/** 날짜 머리의 날짜: 오늘이면 ‘오늘 · 10월 20일’(보드), 아니면 ‘10월 18일’. 곡 묶음 머리는 [dayLabel]의 ‘오늘 10월 20일’을 쓴다. */
+/** 날짜 머리의 날짜: 오늘이면 ‘오늘 · 10월 20일’(보드), 아니면 ‘10월 18일’. */
 @Composable
 private fun rowDayLabel(dateTime: KoreanDateTime, today: KoreanDateTime): String =
     if (dateTime.isSameDay(today)) stringResource(Res.string.records_row_today, monthDayLabel(dateTime)) else monthDayLabel(dateTime)
-
-@Composable
-private fun dayLabel(dateTime: KoreanDateTime, today: KoreanDateTime): String =
-    if (dateTime.isSameDay(today)) stringResource(Res.string.records_today) + " " + monthDayLabel(dateTime) else monthDayLabel(dateTime)
 
 /** 기록 줄의 악기: 기초부터 배우기와 같은 악기 그림과 악기 이름. 같은 곡을 여러 악기로 연습해도 줄마다 구분된다. */
 @Composable

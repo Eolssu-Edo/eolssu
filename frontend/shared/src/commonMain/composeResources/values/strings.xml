@@ -267,7 +267,6 @@
     <string name="records_instrument_empty">이 악기로 저장한 연주가 없어요.</string>
     <string name="records_search_empty">찾는 곡의 연주가 없어요.</string>
     <string name="records_load_more">더 보기</string>
-    <string name="records_group_recent">최근 %1$s</string>
     <string name="records_day_meta">%1$d회 · 최고 %2$d점</string>
     <string name="records_best">최고</string>
     <string name="records_score_unit">점</string>
