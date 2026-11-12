@@ -153,9 +153,10 @@ class SheetEditViewModel(
                     val instruments = requireNotNull(loadAudioInstruments).invoke()
                     val instrumentId = requireNotNull(instruments.singleOrNull { it.code == instrumentCode }?.instrumentId)
                     val pitches = catalog.pitches(instrumentId).map { it.yul to it.octave }.toSet()
+                    val jangdans = catalog.jangdans()
                     require(registered.isNotEmpty() && pitches.isNotEmpty() && registered.containsAll(pitches))
                     ensureAccountSession()
-                    _uiState.update { it.copy(availablePitches = registered, instrumentPitches = pitches,
+                    _uiState.update { it.copy(availablePitches = registered, instrumentPitches = pitches, availableJangdans = jangdans,
                         completionCatalogState = SheetCompletionCatalogState.Ready) }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) {
@@ -163,7 +164,7 @@ class SheetEditViewModel(
                     _uiState.update { it.copy(completionCatalogState = SheetCompletionCatalogState.Failed) }
                 }
             }
-            if (state.draft.jangdanId != null && state.reviewNotices.any { it.type == "JANGDAN_MISMATCH" }) {
+            if (!requiresCompletionCatalog && state.draft.jangdanId != null) {
                 try {
                     val jangdans = catalog.jangdans()
                     ensureAccountSession()

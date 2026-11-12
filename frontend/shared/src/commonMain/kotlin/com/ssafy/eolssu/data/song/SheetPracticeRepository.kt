@@ -145,16 +145,9 @@ private fun SheetAudio.matches(sheetId: String, version: String, settings: Sheet
     this.sheetId == sheetId && scoreVersion == version && currentScoreVersion == version && !outdated &&
         instrumentId == settings.instrumentId && bpm == settings.bpm && withJangdan == settings.withJangdan
 
-/** 악보와 장단의 BPM 단위가 다르면 한 주기를 악보의 tick 단위로 바꾼다. */
-private fun CatalogJangdanDetail.playbackFor(timing: ScoreTiming): JangdanPlayback? {
-    val units = mapOf("QUARTER" to 2, "DOTTED_QUARTER" to 3)
-    val referenceUnit = units[bpmUnit] ?: return null
-    val scoreUnit = units[timing.bpmUnit.name] ?: return null
-    if (name != timing.jangdan || pattern.beats.size !in 1..64) return null
-    val subdivision = if (referenceUnit == 3) 3 else 1
-    if (pattern.beats.size % subdivision != 0) return null
-    val cycleNumerator = pattern.beats.size.toLong() / subdivision * referenceUnit * timing.ticksPerBeat
-    val cycle = cycleNumerator / scoreUnit
-    if (cycleNumerator % scoreUnit != 0L || cycle !in 1..1_000_000_000L) return null
+/** 확인된 패턴 칸 음가로 한 주기를 악보의 tick 단위로 바꾼다. */
+internal fun CatalogJangdanDetail.playbackFor(timing: ScoreTiming): JangdanPlayback? {
+    if (name != timing.jangdan || bpmUnit != timing.bpmUnit.name) return null
+    val cycle = jangdanCycleTicks(pattern.beats.size, patternCellEighths, timing.bpmUnit.name, timing.ticksPerBeat.toLong()) ?: return null
     return JangdanPlayback(jangdanId, name, 0, cycle, pattern.beats, pattern.group)
 }

@@ -49,7 +49,7 @@ class SheetPracticeRepositoryTest {
             val result = when (path) {
                 "/api/users/me/sheets/42/score" -> """{"sheetId":"42","title":"내 악보","jangdanId":"9","bpm":60,"scoreVersion":"1","reviewStatus":"EVALUABLE","conversionStatus":"DONE","scoreData":$score,"draft":{"title":"미확정","bpm":100,"score":$score,"baseScoreVersion":"1","draftRevision":4}}"""
                 "/api/instruments" -> """{"items":[{"instrumentId":"2","code":"DANSO","name":"단소"}]}"""
-                "/api/jangdans/9" -> """{"jangdanId":"9","name":"세마치","defaultBpm":60,"bpmUnit":"DOTTED_QUARTER","pattern":{"beats":["덩","","","쿵","","","덕","",""],"group":[3,3,3]}}"""
+                "/api/jangdans/9" -> """{"jangdanId":"9","patternCellEighths":1,"name":"세마치","defaultBpm":60,"bpmUnit":"DOTTED_QUARTER","pattern":{"beats":["덩","","","쿵","","","덕","",""],"group":[3,3,3]}}"""
                 else -> error("Unexpected request $path")
             }
             respond("""{"isSuccess":true,"code":200,"result":$result}""",
