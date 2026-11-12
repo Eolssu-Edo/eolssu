@@ -325,6 +325,54 @@ class AnalysisSessionTest {
     }
 
     @Test
+    fun uploadProgressShowsWhileSendingAndStaysWholeWhileAnalyzing() {
+        uploader.progress = listOf(0.5f)
+        uploader.gate = CompletableDeferred()
+        startWithRecording()
+        assertEquals(0.5f, uploadState.uploadProgress)
+
+        uploader.gate?.complete(Unit)
+        assertEquals(1f, uploadState.uploadProgress)
+        assertEquals(1, repository.queries)
+        time.advanceBy(1_000)
+        assertEquals(1f, uploadState.uploadProgress)
+    }
+
+    @Test
+    fun analysisCompletionHandsOverEvaluationOnTheFirstDoneWithoutWaiting() {
+        // 전송을 마친 뒤 분석 중(PENDING)에는 평가 ID가 없어 완료(100%)로 보이지 않고, 첫 DONE 조회에서 바로 넘긴다.
+        startWithRecording()
+        assertEquals(1f, uploadState.uploadProgress)
+        assertNull(uploadState.evaluationId)
+        time.advanceBy(999)
+        assertNull(uploadState.evaluationId)
+
+        repository.status = { AnalysisStatus.Done("41") }
+        time.advanceBy(1)
+        assertEquals("41", uploadState.evaluationId)
+        assertNull(uploadState.failure)
+    }
+
+    @Test
+    fun failedUploadClearsProgressAndResendStartsFromZero() {
+        uploader.outcomes += UploadOutcome.ConnectionFailed
+        uploader.progress = listOf(0.5f)
+        startWithRecording()
+        assertNull(uploadState.uploadProgress)
+
+        uploader.progress = emptyList()
+        uploader.gate = CompletableDeferred()
+        uploadSession.resend()
+        assertEquals(0f, uploadState.uploadProgress)
+    }
+
+    @Test
+    fun analysisWithoutUploadHasNoProgress() {
+        start()
+        assertNull(state.uploadProgress)
+    }
+
+    @Test
     fun sentRecordingGoesStraightToAnalysis() {
         startWithRecording()
         assertNull(uploadState.upload)
@@ -397,7 +445,7 @@ class AnalysisSessionTest {
         val visit = PerformanceVisit(PerformanceFlow(), PerfTarget.ANALYSIS)
         val uploadIds = mutableListOf<String>()
         val sender = object : RecordingUploader {
-            override suspend fun upload(sessionId: String, path: String): UploadOutcome {
+            override suspend fun upload(sessionId: String, path: String, onProgress: (Float) -> Unit): UploadOutcome {
                 uploadIds += checkNotNull(currentCoroutineContext()[EvaluationTiming]).id
                 time.advanceBy(125)
                 return if (uploadIds.size == 1) UploadOutcome.Unreachable else UploadOutcome.Uploaded
