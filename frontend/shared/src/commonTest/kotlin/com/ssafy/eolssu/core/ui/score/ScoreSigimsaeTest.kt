@@ -4,10 +4,22 @@ import com.ssafy.eolssu.feature.guide.BasicSigimsae
 import com.ssafy.eolssu.feature.guide.MoreSigimsae
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class ScoreSigimsaeTest {
+    @Test fun everySanjoJindoArirangMarkUsesAGlyphInsteadOfItsKoreanName() {
+        // CAT-04 song 85 (SANJO_DAEGEUM v1), 2026-11-13: 49 marks, 31 previously fell back to text.
+        val sourceMarks = listOf("농음표@100,10,10", "혀치기@100,10,0", "반음올림표@100,10,0",
+            "풀어내림표@100,10,10", "꺾는음", "꺾는음@100,10,0", "끊는표@100,10,0", "니레@100,10,0", "반음올림표")
+        sourceMarks.forEach { raw -> assertNotNull(scoreSigimsaeImage(raw), raw) }
+        for (name in listOf("혀치기", "반음올림표", "꺾는음")) {
+            assertEquals(name, scoreSigimsaeName("$name@100,10,0"))
+            assertFalse(name in RegisteredSigimsaeNames) // Preserve the existing editor insertion palette.
+        }
+    }
+
     @Test fun reusesEveryExistingGuideGlyphWithoutReinterpretingItsShape() {
         val basic = BasicSigimsae.flatMap { it.items }.flatMap { it.images }
         val more = MoreSigimsae.flatMap { it.symbols }
