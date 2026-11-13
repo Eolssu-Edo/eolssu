@@ -132,6 +132,8 @@ S15P31E102-880: 요청 장단이 없는4분음표4박 오선보는 기존 `4박 
 
 ### 악보 인식 이미지
 
+S15P31E102-883: 오선보의 각간 붙임줄은 한 NOTE로 유지하고 변박·불완전마디는 실제 길이와 마디 경계로 배치합니다. 자동 연결 대상이 아닌 박자에는 굿거리 기본값을 넣지 않고 장단 빈 이름을 반환합니다. 낮은 박자표 신뢰도·반복 불완전마디는 검수 대상으로 남깁니다. 정간보 글자층은 장구 예시 열을 제외하고, 스캔은 알려진 격자 높이 검출 실패에서 다음 배율을 시도합니다. `uv run pytest tests/unit/test_staff_rhythm_preservation.py tests/unit/test_omr_scan_engine.py`와 [실제 악보 비교](../docs/knowledge/data/common/rhythm-metronome/meter-import-validation.md)를 참고하세요. 이전의 글자층만 명시적 이음을 켠다는 설명은 오선보에도 확대됐습니다.
+
 `omr.Dockerfile`은 Ubuntu 24.04에 Audiveris 5.11(데스크톱 등록 스크립트를 뺀 deb와 `libgtk-3-0`), Node, jeongganbo-generator `9d4a24e`, 서비스·`omr` 그룹 의존성, `data/src/scores`·`data/reference`를 넣고 사용자 10001로 실행합니다. 빌드 맥락은 저장소 루트이고 보낼 파일은 `omr.Dockerfile.dockerignore`가 정합니다. 저장소 루트에서 실행합니다.
 
 ```bash

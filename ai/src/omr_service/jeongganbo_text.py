@@ -118,10 +118,11 @@ def recognize(job) -> dict:
             "issues": issues + tempo_issues, **extra}
 
 
-def lines_to_score(lines, request, jangdan_name, bpj_of, deadline, converter, *, continue_explicit_ties=False):
+def lines_to_score(lines, request, jangdan_name, bpj_of, deadline, converter, *, continue_explicit_ties=False,
+                   gak_beats=None, bpm_unit=None):
     """JG-like 줄 → (.jgb.json 문서, 공통 악보). 글자 층·오선보 경로가 같이 쓴다.
 
-    jeongganbo-generator import-ngc-omr.mjs로 문서를 만들고 score_data.convert로 바꾼다. bpj_of(문서)가 정간 하나의 박이다.
+    bpj_of(문서)가 정간 하나의 박이다. gak_beats는 가변 각의 셀 수이며, 장단 없는 오선은 bpm_unit을 명시한다.
     """
     generator = os.environ.get("JGB_GENERATOR_DIR")
     if not generator:
@@ -137,11 +138,19 @@ def lines_to_score(lines, request, jangdan_name, bpj_of, deadline, converter, *,
             raise RuntimeError("import-ngc-omr failed")
         jgb_bytes = (work / "jgb/score.jgb.json").read_bytes()
     doc = json.loads(jgb_bytes)
-    jangdan = JANGDANS[jangdan_name]
+    if gak_beats:
+        doc['controls']['beats'] = gak_beats[0]
+        doc['controls']['gakBeats'] = ','.join(f'{i + 1}:{width}' for i, width in enumerate(gak_beats)
+                                             if width != gak_beats[0])
+        jgb_bytes = json.dumps(doc, ensure_ascii=False, separators=(',', ':')).encode()
+    jangdan = JANGDANS[jangdan_name] if jangdan_name else None
+    unit = jangdan['bpm_unit'] if jangdan else bpm_unit
+    if unit not in BPM_UNIT_QUARTERS:
+        raise ValueError('장단 없는 악보의 BPM 단위가 필요하다')
     try:
         score = score_data.convert(
             doc, beats_per_jeonggan=bpj_of(doc), title=request.conversion_id, instrument=request.instrument,
-            source_id=request.conversion_id, jangdan=jangdan["name"], bpm_unit=jangdan["bpm_unit"],
+            source_id=request.conversion_id, jangdan=jangdan_name, bpm_unit=unit,
             review="inferred", jgb_sha256=hashlib.sha256(jgb_bytes).hexdigest(),
             continue_explicit_ties=continue_explicit_ties)
     except ValueError as e:  # 예: 율명 없는 독립 시김새는 score_data가 아직 받지 않는다

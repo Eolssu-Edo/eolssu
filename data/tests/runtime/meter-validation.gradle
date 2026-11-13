@@ -1,0 +1,19 @@
+// Invoke with -I from frontend or backend; test files remain owned by DATA.
+allprojects {
+    afterEvaluate { project ->
+        if (project.name == 'shared') {
+            project.kotlin.sourceSets.getByName('androidHostTest').kotlin.srcDir(
+                new File(project.rootDir.parentFile, 'data/tests/runtime/frontend'))
+        }
+        if (project == project.rootProject && project.rootDir.name == 'backend') {
+            project.kotlin.sourceSets.getByName('test').kotlin.srcDir(
+                new File(project.rootDir.parentFile, 'data/tests/runtime/backend'))
+        }
+    }
+    tasks.withType(Test).configureEach {
+        systemProperty 'java.io.tmpdir', new File(System.getenv('METER_AUDIT_ROOT'), 'jvm-tmp').absolutePath
+        inputs.files(project.fileTree(System.getenv('METER_AUDIT_ROOT')) {
+            include 'contracts/*.score.json', 'actual/**/engine.json', 'catalog-list.json'
+        })
+    }
+}

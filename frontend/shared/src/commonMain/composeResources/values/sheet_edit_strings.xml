@@ -114,9 +114,9 @@
     <string name="sheetedit_cell_merge">정간 합치기</string>
     <string name="sheetedit_cell_add_column">왼쪽에 각 추가</string>
     <string name="sheetedit_cell_delete_column">이 각 삭제</string>
-    <string name="sheetedit_cell_jangdan">장단 · %1$s</string>
+    <string name="sheetedit_cell_jangdan">반주 · %1$s</string>
     <string name="sheetedit_cell_jangdan_desc">%1$d박 · 박마다 %2$d정간 · %3$d BPM</string>
-    <string name="sheetedit_cell_jangdan_change">장단 바꾸기</string>
+    <string name="sheetedit_cell_jangdan_change">반주 선택</string>
     <string name="sheetedit_jangdan_same_unit">현재 악보의 박자 단위와 한 각의 길이에 맞는 장단만 선택할 수 있어요. 음표와 길이는 바뀌지 않아요.</string>
     <string name="sheetedit_jangdan_none_compatible">현재 악보에 맞는 장단이 없어요. 돌아가서 ‘장단 사용 안 함’을 선택해 주세요.</string>
     <string name="sheetedit_jangdan_load_failed">장단 목록을 불러오지 못했어요.</string>

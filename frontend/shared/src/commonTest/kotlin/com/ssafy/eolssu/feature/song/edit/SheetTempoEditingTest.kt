@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
 import com.ssafy.eolssu.core.model.HanbaeMark
+import com.ssafy.eolssu.core.model.BasicAccompanimentPreset
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.data.song.commonSourceSha256
 import com.ssafy.eolssu.data.song.smallScoreData
@@ -162,6 +163,42 @@ class SheetTempoEditingTest {
         assertEquals(120.0, reopened.tempoChanges.single().targetBpm)
         val afterServerConfirmation = requireNotNull(reopened.exportExpressions(draftExpression, hash(initial), 90))
         assertEquals(120.0, afterServerConfirmation.plan().entries("tempos").single()["bpm"]!!.jsonPrimitive.double)
+    }
+
+    @Test fun tempoAndBasicAccompanimentEditsPreserveBothPlansAndUndoIndependently() {
+        val source = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
+        val initial = source.editingDraft(source.score.title, 80, null)
+        val expression = buildJsonObject {
+            put("schema", "common-score-expressions/v1"); put("sourceSha256", hash(initial))
+            put("placements", JsonArray(emptyList()))
+            put("performancePlan", buildJsonObject {
+                put("schema", "danso-performance/v1"); put("input_sha256", hash(initial))
+                put("repeats", buildJsonArray { add(buildJsonObject { put("start_gak", 1); put("end_gak", 1); put("times", 2) }) })
+                put("tempos", buildJsonArray { add(buildJsonObject {
+                    put("gak", 1); put("cell", 1); put("bpm", 160); put("start_bpm", 80); put("end_gak", 2); put("end_cell", 1)
+                }) })
+            })
+        }
+        val metadata = buildJsonObject {
+            put("schema", "sheet-authoring/v1")
+            put("source", buildJsonObject { put("scoreSha256", hash(initial)) })
+        }
+        val before = SheetEditUiState(EditSource.Mine("31"), initial.copy(authoring = metadata).withTempoExpressions(expression))
+            .selectBasicAccompaniment(BasicAccompanimentPreset.TwoQuarter, 1)
+        assertEquals(4L, assertNotNull(before.draft.basicAccompaniment).startTick)
+        val edited = before.updateTempoSettings(before.draft.withTempoChange(SheetTempoChange(2, HanbaeMark.Slower, 60.0)).copy(bpm = 120))
+        assertEquals(before.draft.authoring, edited.draft.authoring)
+        assertEquals(90.0, edited.draft.tempoChanges.last().targetBpm)
+        val exported = requireNotNull(edited.draft.exportExpressions(expression, hash(initial), 80))
+        assertEquals(expression.plan()["repeats"], exported.plan()["repeats"])
+        assertEquals(80.0, exported.plan().entries("tempos").first().getValue("start_bpm").jsonPrimitive.double)
+        assertEquals(160.0, exported.plan().entries("tempos").first().getValue("bpm").jsonPrimitive.double)
+        assertEquals(before.draft, edited.undo().draft)
+        assertEquals(edited.draft, edited.undo().redo().draft)
+        val moved = edited.selectBasicAccompaniment(BasicAccompanimentPreset.TwoQuarter, 2)
+        assertEquals(8L, assertNotNull(moved.draft.basicAccompaniment).startTick)
+        assertEquals(edited.draft.tempoExpressions, moved.draft.tempoExpressions)
+        assertEquals(edited.draft, moved.undo().draft)
     }
 
     @Test fun changesUndoRedoAndResolveOnlyAfterAMeaningfulTarget() {

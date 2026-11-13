@@ -742,6 +742,10 @@ class SheetEditViewModel(
     }
 
     fun selectJangdan(id: String) = change { it.selectJangdan(id) }
+    fun selectBasicAccompaniment(preset: com.ssafy.eolssu.core.model.BasicAccompanimentPreset, startCell: Int) {
+        jangdanJob?.cancel()
+        change { it.selectBasicAccompaniment(preset, startCell) }
+    }
     fun clearJangdan() {
         jangdanJob?.cancel()
         change { it.clearJangdan() }

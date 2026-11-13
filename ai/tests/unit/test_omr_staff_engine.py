@@ -174,7 +174,7 @@ def test_staff_page_becomes_common_score(fake_audiveris):
         if event['kind'] == 'NOTE':
             assert 63 + staff_engine.staff_musicxml.YUL.index(event['yul']) + 12 * event['octave'] == originals[event['id']]
     assert guessed(out) == [{"source": "rhythm", "jangdan": "굿거리"}]
-    assert sum(e["kind"] == "NOTE" for e in out["score"]["events"]) == 66
+    assert sum(e["kind"] == "NOTE" for e in out["score"]["events"]) == 63  # 각 경계 지속 3개는 재발음하지 않는다.
 
 
 @needs_generator

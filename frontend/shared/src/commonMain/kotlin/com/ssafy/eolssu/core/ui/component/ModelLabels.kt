@@ -40,6 +40,7 @@ fun jangdanLabel(jangdan: Jangdan): String =
 fun jangdanLabel(name: String): String =
     when {
         name.isBlank() -> stringResource(Res.string.jangdan_unassigned)
+        name.startsWith("기본 박 반주") -> name
         name.endsWith("박") -> name
         else -> stringResource(Res.string.jangdan_label, name)
     }

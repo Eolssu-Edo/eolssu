@@ -78,8 +78,9 @@ class EditUserSheet(
         if (title != null && !titleIsValid(title) || command.bpm !in BPM_RANGE) return SaveSheetScoreResult.InvalidRequest
         val sheet = repository.find(command.sheetId, command.userId) ?: return SaveSheetScoreResult.NotFound
         if (sheet.scoreVersion != command.baseScoreVersion) return SaveSheetScoreResult.StateConflict
-        val authoringMetadata = try { SheetAuthoring(json).merge(sheet, command.authoringJson) }
+        val authoringMetadata = try { SheetAuthoring(json).merge(sheet, command.authoringJson, command.scoreJson, command.jangdanId) }
             catch (_: IllegalArgumentException) { return SaveSheetScoreResult.InvalidRequest }
+            catch (_: tools.jackson.core.JacksonException) { return SaveSheetScoreResult.InvalidRequest }
         if(sheet.imported!=null && sheet.imported.conversionStatus!=com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportStatus.DONE) return SaveSheetScoreResult.StateConflict
         val details=sheet.imported?.resultJson?.let { json.readTree(it) as ObjectNode }
         val issues=details?.path("issues")?.toList() ?: emptyList()
@@ -160,8 +161,9 @@ class EditUserSheet(
         val sheet = repository.find(command.sheetId, command.userId) ?: return SaveSheetDraftResult.NotFound
         if(sheet.imported!=null && sheet.imported.conversionStatus!=com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportStatus.DONE) return SaveSheetDraftResult.StateConflict
         if (sheet.scoreVersion != command.baseScoreVersion || sheet.draftRevision != command.draftRevision) return SaveSheetDraftResult.StateConflict
-        val authoring = try { SheetAuthoring(json).merge(sheet, command.authoringJson) }
+        val authoring = try { SheetAuthoring(json).merge(sheet, command.authoringJson, command.scoreJson, command.jangdanId) }
             catch (_: IllegalArgumentException) { return SaveSheetDraftResult.InvalidRequest }
+            catch (_: tools.jackson.core.JacksonException) { return SaveSheetDraftResult.InvalidRequest }
 
         val savedAt = now()
         val draft = """{"title":${quote(title ?: sheet.title)},"jangdanId":${command.jangdanId?.let { quote(it.toString()) } ?: "null"},""" +

@@ -56,6 +56,7 @@ import eolssu.shared.generated.resources.sheet_review_missing_pitch
 import eolssu.shared.generated.resources.sheet_review_pitch_label
 import eolssu.shared.generated.resources.sheet_review_range
 import eolssu.shared.generated.resources.sheet_review_uncertain
+import eolssu.shared.generated.resources.basic_accompaniment_cleared_after_reshape
 import eolssu.shared.generated.resources.sheet_pitch_corrected_review
 import org.jetbrains.compose.resources.stringResource
 
@@ -98,6 +99,7 @@ fun SheetEditRoute(
         SheetEditMessage.ComingSoon to stringResource(Res.string.common_coming_soon),
         SheetEditMessage.ReviewBeforeReshape to stringResource(Res.string.sheet_review_before_reshape),
         SheetEditMessage.TempoPlanBeforeReshape to stringResource(Res.string.sheet_tempo_before_reshape),
+        SheetEditMessage.BasicAccompanimentCleared to stringResource(Res.string.basic_accompaniment_cleared_after_reshape),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),
@@ -232,7 +234,8 @@ fun SheetEditRoute(
             showCellAction = false,
         )
         state.selectedReviewIssue?.let { issue ->
-            val reason = if (state.canCheckSelectedReviewIssue && issue.kind in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE")) {
+            val reason = if (issue.rhythmReview != null) issue.rhythmReview.label()
+            else if (state.canCheckSelectedReviewIssue && issue.kind in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE")) {
                 stringResource(Res.string.sheet_pitch_corrected_review)
             } else when (issue.kind) {
                 "UNREGISTERED_PITCH" -> issue.pitch?.let { (name, octave) -> stringResource(Res.string.sheet_review_pitch_label, name, octave) }
@@ -278,7 +281,7 @@ fun SheetEditRoute(
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
             onSelect = viewModel::selectJangdan, onClear = viewModel::clearJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker,
-            hasTempoPlan = state.hasTempoPlan)
+            hasTempoPlan = state.hasTempoPlan, selectedCell = state.selected, onBasic = viewModel::selectBasicAccompaniment)
     }
     if (state.closeWarning) EolssuDialog(
         title = stringResource(Res.string.sheet_close_unsaved),
