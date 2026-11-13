@@ -48,7 +48,15 @@ def test_quarter_notes_in_four_four_become_one_gak_of_four_jeonggan():
     doc = xml(measure(note("C4", 4), note("D4", 4), note("E4", 4), note("F4", 4), time=(4, 4)))
     out = convert(doc, instrument="ANY", hwang_pitch=60)  # C4 = 황
     assert out.lines == [":0 황 | :0 태 | :0 고 | :0 중"]
-    assert out.jangdan is None and out.beats_per_gak == 4 and out.issues == []
+    assert out.jangdan == "4박 기본 반주" and out.beats_per_gak == 4 and out.issues == []
+
+
+def test_inferred_four_quarter_meter_uses_four_beat_accompaniment():
+    doc = xml(*[measure(note(pitch, 16)) for pitch in ("C4", "D4", "E4", "F4")])
+    out = convert(doc, instrument="ANY", hwang_pitch=60)
+    assert out.meter_guessed is True
+    assert out.beat == 1 and out.beats_per_gak == 4
+    assert out.jangdan == "4박 기본 반주"
 
 
 @pytest.mark.parametrize("time, jangdan, per_gak", [((12, 8), "굿거리", 4), ((9, 8), "세마치", 3)])
