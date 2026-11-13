@@ -126,6 +126,8 @@ uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
 
 오선보는 `src/omr_service/staff_engine.py`가 쪽마다 Audiveris를 별도 프로세스로 돌리고(쪽당 60초와 남은 요청 시간 중 짧은 쪽, 넘으면 끝냄), 쪽들의 MusicXML을 이어 `staff_musicxml.py`로 정간보 줄을 만든 뒤 글자 층과 같은 변환을 거칩니다. 명령은 `AUDIVERIS_CMD`(기본 `audiveris`)이고, 테스트(`tests/unit/test_omr_staff_engine.py`)는 가짜 Audiveris를 씁니다.
 
+S15P31E102-880: 요청 장단이 없는4분음표4박 오선보는 기존 `4박 기본 반주`를 후보로 잡습니다.4/4를 굿거리의 점4분박으로 저장해 편집 후보가 모두 사라지던 문제를 고쳤습니다. `JANGDAN_GUESSED`와 명시 요청 장단은 유지합니다. 서버의 기존 장단 기본 BPM 계약에 따라 시작 기본값160을 쓰며, PDF의 숫자 템포·가속 구간을 자동 인식한 값은 아닙니다. `uv run pytest tests/unit/test_staff_musicxml.py tests/unit/test_omr_staff_engine.py tests/unit/test_staff_audiveris_fixtures.py tests/unit/test_staff_source_pitches.py`로 회귀를 확인합니다. [기존 초안의 보존 복구 범위](../docs/specs/staff-four-beat-import.md)를 참고하세요.
+
 ### 악보 인식 이미지
 
 `omr.Dockerfile`은 Ubuntu 24.04에 Audiveris 5.11(데스크톱 등록 스크립트를 뺀 deb와 `libgtk-3-0`), Node, jeongganbo-generator `9d4a24e`, 서비스·`omr` 그룹 의존성, `data/src/scores`·`data/reference`를 넣고 사용자 10001로 실행합니다. 빌드 맥락은 저장소 루트이고 보낼 파일은 `omr.Dockerfile.dockerignore`가 정합니다. 저장소 루트에서 실행합니다.
