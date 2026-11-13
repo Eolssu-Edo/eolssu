@@ -22,8 +22,8 @@ SCORES = ROOT / "data/src/scores"
 sys.path.insert(0, str(SCORES))
 import score_data  # noqa: E402  data/와 같은 변환을 쓴다(중복 구현하지 않음)
 
-ENGINE, ENGINE_VERSION = "jeongganbo-text", "3"  # 읽기·변환 규칙을 바꾸면 올린다
-CONVERTER = "jeongganbo-text/standard_score_text@3"
+ENGINE, ENGINE_VERSION = "jeongganbo-text", "4"  # 읽기·변환 규칙을 바꾸면 올린다
+CONVERTER = "jeongganbo-text/standard_score_text@4"
 NO_YUL_EXIT, NO_GRID_EXIT = 3, 4  # standard_score_text.py: 율명 글자가 없는 쪽, 정간 격자를 못 읽은 쪽
 # 장단과 각의 정간 수가 맞을 때 나오는 정간당 박. 그 밖이면 고른 장단이 악보와 다를 수 있다(JANGDAN_MISMATCH)
 USUAL_BEATS = {Fraction(1), Fraction(1, 2), Fraction(1, 3)}
@@ -60,7 +60,7 @@ def recognize(job) -> dict:
     request = job.request
     with tempfile.TemporaryDirectory(prefix="jeongganbo-text-") as work:
         work = Path(work)
-        lines, issues, no_yul = [], [], []
+        lines, issues, no_yul, tempo_cues = [], [], [], []
         scale = DPI / 72  # PDF 좌표(pt) → 쪽 그림 픽셀
         for i, page in enumerate(job.pages):
             out = work / f"page-{i}"
@@ -80,6 +80,10 @@ def recognize(job) -> dict:
             first_gak = len(lines)  # 쪽을 이어 붙이므로 결과 악보의 각 번호는 앞 쪽 각 수만큼 밀린다
             lines += (out / "page.txt").read_text(encoding="utf-8").splitlines()
             report = json.loads((out / "report.json").read_text(encoding="utf-8"))
+            tempo_cues += [cue | {'gak': first_gak + cue['gak'], 'page': i,
+                                  'bbox': [round(v * scale) for v in cue['bbox']]}
+                           if 'gak' in cue else cue | {'page': i, 'bbox': [round(v * scale) for v in cue['bbox']]}
+                           for cue in report.get('tempo_marks', [])]
             issues += [{"kind": "UNREADABLE", "eventId": None, "page": i,
                         "cellId": f"c{first_gak + g['gak']}-j{g['jeonggan']}",
                         "bbox": [round((g["x"] - g["size"] / 2) * scale), round((g["y"] - g["size"] / 2) * scale),
@@ -108,7 +112,10 @@ def recognize(job) -> dict:
 
     doc, score = lines_to_score(lines, request, request.jangdan, bpj_of, deadline, CONVERTER,
                                continue_explicit_ties=True)
-    return {"engine": ENGINE, "engineVersion": ENGINE_VERSION, "jgb": doc, "score": score, "issues": issues}
+    from omr_service.jeongganbo_tempo import attach_marks
+    extra, tempo_issues = attach_marks(score, tempo_cues)
+    return {"engine": ENGINE, "engineVersion": ENGINE_VERSION, "jgb": doc, "score": score,
+            "issues": issues + tempo_issues, **extra}
 
 
 def lines_to_score(lines, request, jangdan_name, bpj_of, deadline, converter, *, continue_explicit_ties=False):

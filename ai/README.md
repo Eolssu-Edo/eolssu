@@ -242,6 +242,8 @@ uv run --locked python -m evaluation.dtw_u4_table ../data/processed/dtw-286/u4-r
 
 스캔 엔진 `e95045f-v1.0.0-r4`는 모델 어휘에 없는 중청 음을 두 물수변의 실제 획으로 복원합니다. 청 음의 점 두 쌍과 아래 획이 모두 확인될 때만 올리고, 위치·시김새·confidence를 보존합니다. 글자층 PDF·오선보·모델 가중치는 바꾸지 않습니다. 같은 PNG·JPEG 24/24 대조와 기존 스캔 5종 전후 보존 결과는 [중청 음역 교정 기록](../docs/knowledge/ai/jeongganbo-double-water-register.md)에 있습니다.
 
+S15P31E102-882 후속: 글자층 엔진4·스캔 r5는 정간 오른쪽 한배 기호 `ㅈㄴ/ㅈㅅ/ㅈㅈㄴ/ㅈㅈㅅ/ㅂㅅ`를 별도로 읽습니다. 스캔 검출은 똑바로 인쇄된 연결 자모와 구분점·이어지는 점선이 확인되는 경우에 한정하며, 모델 어휘나 가중치를 바꾸지 않습니다. 숫자 없는 기호는 기존 기호 배치와 명시적 빈 빠르기 계획으로 보존하여 임의 배율을 적용하지 않고 `TEMPO_CUE_UNRESOLVED`로 목표 입력을 요청합니다. 기호는 보이지만 해당 선율 열을 기존 격자 리더가 놓친 경우에는 `TEMPO_CUE_POSITION_UNRESOLVED`와 원본 위치만 남기며 다른 정간에 옮겨 붙이지 않습니다. 같은 정간의 상충 기호는 `TEMPO_CUE_CONFLICT`로 남깁니다. `uv run pytest tests/unit/test_jeongganbo_tempo.py tests/unit/test_omr_text_engine.py tests/unit/test_omr_scan_engine.py`로 작은 고정 입력을 검사합니다. 그림 검출 검사는 스캔 런타임의 OpenCV가 필요합니다.
+
 스캔 전용 의존성은 `omr-scan-requirements.in`과 SHA-256을 포함한 `omr-scan-requirements.txt`로 고정해 기존 채점 서비스의 `uv.lock`과 분리했습니다. Python 3.12·Linux x86_64 CPU 휠을 사용합니다. 같은 uv 버전에서 `uv pip compile --python .venv/bin/python --generate-hashes omr-scan-requirements.in -o omr-scan-requirements.txt`로 다시 고정할 수 있습니다. 모델 소스·가중치의 획득 URL과 체크섬은 `omr.Dockerfile`에 있습니다.
 
 `docker build -f ai/omr.Dockerfile -t eolssu-omr .`로 전체를 빌드합니다. 이미 검증한 기본 런타임을 재사용하는 로컬 검사는 `--build-arg OMR_SCANNER_BASE=<검증한 기본 이미지>`로 스캔 확장만 빌드하며, AI/DATA 소스·참조 데이터는 현재 작업본으로 복사합니다. `--target runtime`은 확장을 제외한 기본 단계입니다. 스캔 확장 없는 실행에는 `JEONGGANBO_OMR_DIR`가 없어 스캔 요청이 `ENGINE_ERROR`로 끝납니다.

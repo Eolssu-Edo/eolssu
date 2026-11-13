@@ -22,6 +22,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import pymupdf
+from hanbae_marks import text_marks
 
 # 율명 한자 → 한글. 우물사이(jeongganbo-generator js/app.js OCT_HANJA)와 같은 표.
 BASE = dict(황="黃", 대="大", 태="太", 협="夾", 고="姑", 중="仲", 유="蕤", 임="林", 이="夷", 남="南", 무="無", 응="應")
@@ -351,6 +352,7 @@ def read_page(page):
     read_notes = sum(1 for n in notes if any(c[0] < n["x"] < c[1] for _, _, c, _ in pieces))
     if read_notes <= len(report["ignored"]):
         raise ValueError(f"악보 쪽이 아님(율명 {read_notes}, 읽지 않은 글자 {len(report['ignored'])})")
+    report['tempo_marks'] = text_marks(g, boxes)
     return gaks, boxes, report
 
 if __name__ == "__main__":
