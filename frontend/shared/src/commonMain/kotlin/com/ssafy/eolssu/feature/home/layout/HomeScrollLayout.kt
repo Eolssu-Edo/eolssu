@@ -4,10 +4,12 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -63,6 +65,7 @@ import com.ssafy.eolssu.core.ui.component.mountainRidges
 import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.feature.home.HomeFeatureColumns
 import com.ssafy.eolssu.feature.home.HomeScrollRange
+import com.ssafy.eolssu.feature.home.HomeStageFlingBehavior
 import com.ssafy.eolssu.feature.home.homeScrollFrame
 import com.ssafy.eolssu.feature.home.homeSnapTarget
 import com.ssafy.eolssu.feature.home.mix
@@ -110,6 +113,12 @@ internal fun HomeScrollLayout(
             wasOpen = target >= rangePx
         } finally { snapping = false }
     }
+    // 끌기를 마치면 손을 뗀 속도를 이어받아 관성과 스냅을 한 번에 처리한다.
+    val decay = rememberSplineBasedDecay<Float>()
+    val freeFling = ScrollableDefaults.flingBehavior()
+    val fling = remember(decay, freeFling, density, reduceMotion) {
+        HomeStageFlingBehavior({ scroll.value.toFloat() }, density.density, { wasOpen }, reduceMotion, decay, freeFling)
+    }
     LaunchedEffect(scroll, density, reduceMotion) {
         var dragGesture = false
         snapshotFlow { Triple(scroll.value, scroll.isScrollInProgress, dragged) }.collectLatest { (value, busy, touching) ->
@@ -117,10 +126,14 @@ internal fun HomeScrollLayout(
             if (value >= rangePx) wasOpen = true
             if (value == 0) wasOpen = false
             if (busy || touching || snapping) return@collectLatest
-            // 드래그·관성 종료는 이미 확인됐으므로 바로 이어 간다. 휠 이벤트 사이는 기다린다.
-            if (!dragGesture) delay(160)
+            // 끌기는 fling이 스냅까지 맡는다. 손을 뗀 뒤 fling이 시작되기 전의 빈틈에 따로 스냅을 띄우면 두 번 움직인다.
+            if (dragGesture) {
+                dragGesture = false
+                return@collectLatest
+            }
+            // 휠·키보드처럼 관성이 없는 스크롤만 이벤트 사이를 기다린 뒤 가까운 쪽으로 맞춘다.
+            delay(160)
             val target = with(density) { homeSnapTarget(value / density.density, wasOpen).dp.roundToPx() }
-            dragGesture = false
             if (target != value) scope.launch { goTo(target) }
         }
     }
@@ -160,7 +173,7 @@ internal fun HomeScrollLayout(
                 if (scroll.value < scroll.maxValue) goTo(scroll.maxValue)
             }
         }
-        Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+        Column(Modifier.fillMaxSize().verticalScroll(scroll, flingBehavior = fling)) {
             Box(Modifier.fillMaxWidth().height((h + HomeScrollRange + overflow).dp)) {
                 Box(
                     Modifier.offset { IntOffset(0, minOf(scroll.value, rangePx)) }
@@ -225,18 +238,19 @@ internal fun HomeScrollLayout(
                             .heightIn(min = (buttonW * 50f / 310f).dp)
                             .onSizeChanged { buttonH = it.height / density.density },
                     )
-                    if (openFeatures) {
-                        FeatureSection(onFeatureClick,
-                            columns = HomeFeatureColumns, cardMinHeight = 132.dp,
-                            large = medium || expanded,
-                            modifier = Modifier.offset(
-                                x = (if (expanded) contentLeft + finalHeroW + 40f else contentLeft).dp,
-                                y = featureTop.dp,
-                            ).width((if (expanded) contentW - finalHeroW - 40f else contentW).dp)
-                                .onSizeChanged { featureH = it.height / density.density }
-                                .graphicsLayer { alpha = featureAlpha },
-                        )
-                    }
+                    // 카드는 처음부터 구성해 두고 숨긴다. 펼치는 도중 진행률 .6에서 처음 구성하면 그 프레임이 길어져 스크롤이 건너뛴다.
+                    FeatureSection(onFeatureClick,
+                        columns = HomeFeatureColumns, cardMinHeight = 132.dp,
+                        large = medium || expanded,
+                        enabled = openFeatures,
+                        modifier = Modifier.offset(
+                            x = (if (expanded) contentLeft + finalHeroW + 40f else contentLeft).dp,
+                            y = featureTop.dp,
+                        ).width((if (expanded) contentW - finalHeroW - 40f else contentW).dp)
+                            .onSizeChanged { featureH = it.height / density.density }
+                            .then(if (openFeatures) Modifier else Modifier.clearAndSetSemantics {})
+                            .graphicsLayer { alpha = featureAlpha },
+                    )
                     if (frame.arrowAlpha > 0f) {
                         Box(
                             Modifier.offset(x = ((w - 48f) / 2f).dp, y = (h - 82f).dp).size(48.dp)
