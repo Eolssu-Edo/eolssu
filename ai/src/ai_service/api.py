@@ -29,12 +29,16 @@ from ai_service.pipelines.scoring import (
     Note,
     ScoreResult,
     frame_rms,
+    lift_below_range,
     pyin_f0,
     score,
 )
 
-# evaluations.model_version(30자 이하). 음높이 추정·채점 방식을 바꾸면 올린다. 2: 쉼(startBeat)·곡별 조율 보정 상한
-MODEL_VERSION = "pyin-5"
+# evaluations.model_version(30자 이하). 음높이 추정·채점 방식을 바꾸면 올린다. 2: 쉼(startBeat)·곡별 조율 보정 상한,
+# 6: 대금의 곡 음역 아래 값 두 배 보정(S15P31E102-848)
+MODEL_VERSION = "pyin-6"
+# 곡 음역 아래 값을 두 배로 고치는 악기(instruments.code). 낮은 음역으로 부는 초보가 많은 대금만 고친다.
+LIFT_BELOW_RANGE = frozenset({"JEONGAK_DAEGEUM", "SANJO_DAEGEUM"})
 MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024  # PRA-02 원본 상한 20MiB, Nginx·multipart 한도 25MiB
 DOWNLOAD_TIMEOUT_S = 30.0  # 연결부터 다 받을 때까지 전체 시간
 # DTW는 정답 프레임 수 × 녹음 프레임 수만큼 메모리를 쓴다(칸당 실측 20바이트에 여유를 둔 24바이트,
@@ -89,6 +93,9 @@ class AnalysisIn(_Camel):
         description="백엔드 계약상 받는 단위. 채점은 beats·bpm만 쓴다"
     )
     notes: list[NoteIn] = Field(min_length=1, description="채점 구간의 음표. startBeat 순서")
+    instrument: str | None = Field(
+        default=None, description="instruments.code. 정악대금·산조대금이면 곡 음역 아래 값을 두 배로 고친다. 없으면 고치지 않는다"
+    )
 
     @field_validator("notes")
     @classmethod
@@ -244,6 +251,8 @@ def _score_recording(path: Path, request: AnalysisIn) -> ScoreResult:
     if expected_frames * (len(audio) / SAMPLE_RATE / HOP_S) * DTW_BYTES_PER_CELL > MAX_DTW_BYTES:
         raise RecordingTooLong()
     f0 = pyin_f0(audio, SAMPLE_RATE)
+    if request.instrument in LIFT_BELOW_RANGE:
+        f0 = lift_below_range(f0, min(n.semitone for n in notes))
     return score(f0, notes, request.bpm, HWANG_HZ, rms=frame_rms(audio, SAMPLE_RATE))
 
 

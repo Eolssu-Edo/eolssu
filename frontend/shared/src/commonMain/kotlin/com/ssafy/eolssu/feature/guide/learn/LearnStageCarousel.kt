@@ -77,8 +77,6 @@ import eolssu.shared.generated.resources.learn_stage_4
 import eolssu.shared.generated.resources.learn_stage_5
 import eolssu.shared.generated.resources.learn_stage_6
 import eolssu.shared.generated.resources.learn_stage_7
-import eolssu.shared.generated.resources.learn_stage_8
-import eolssu.shared.generated.resources.learn_stage_9
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
@@ -88,29 +86,14 @@ import kotlin.math.roundToInt
 
 /*
  * LEARN-02 단계 목록의 그림 카드 넘기기(`.lc`): 이전 · 정사각형 카드 · 다음, 카드 아래 단계 이름과 시작 버튼.
- * 손가락으로 밀거나 화살표 · 위 산길 지도 · 키보드 ←→로 넘기고, 시작 버튼이나 카드를 누르면 그 단계 상세를 연다.
+ * 손가락으로 밀거나 화살표 · 위 달리기 지도 · 키보드 ←→로 넘기고, 시작 버튼이나 카드를 누르면 그 단계 상세를 연다.
  */
 
-/** 단계 그림 원본(1536 × 1024)의 크기. */
-internal const val LearnArtWidth = 1536
-internal const val LearnArtHeight = 1024
-
-/** 단계 그림에서 카드에 보일 정사각형 부분(원본 픽셀). 와이어프레임 `THUMB`의 [x, y, 한 변]이다. */
-internal data class LearnArtCrop(val left: Int, val top: Int, val size: Int)
-
-/** 1~9단계 그림의 자르기 값. */
-internal val LearnArtCrops: List<LearnArtCrop> = listOf(
-    LearnArtCrop(209, 43, 960),
-    LearnArtCrop(294, 56, 940),
-    LearnArtCrop(224, 0, 1016),
-    LearnArtCrop(184, 0, 1024),
-    LearnArtCrop(200, 0, 1024),
-    LearnArtCrop(245, 0, 1010),
-    LearnArtCrop(176, 0, 1024),
-    LearnArtCrop(225, 0, 1024),
-    LearnArtCrop(240, 0, 1024),
-)
-
+/**
+ * 1~7단계 그림(S15P31E102-749). 원본(1536 × 1024, 회색 바탕)에서 바탕을 걷어 내 투명하게 하고, 호랑이·음표·바람이 있는 곳을 가운데 둔
+ * 720 × 720 정사각형으로 미리 잘라 두었다. 흰 카드에서 사라지는 흰 바람·빛줄기는 옅은 회청색으로 바꿨다.
+ * 미리 잘라 작게 둔 덕에 넘길 때 읽는 그림이 원본의 1/3 크기다. 8·9단계는 서버가 숨겨 그림도 뺐다(S15P31E102-658).
+ */
 private val LearnArts: List<DrawableResource> = listOf(
     Res.drawable.learn_stage_1,
     Res.drawable.learn_stage_2,
@@ -119,12 +102,19 @@ private val LearnArts: List<DrawableResource> = listOf(
     Res.drawable.learn_stage_5,
     Res.drawable.learn_stage_6,
     Res.drawable.learn_stage_7,
-    Res.drawable.learn_stage_8,
-    Res.drawable.learn_stage_9,
 )
 
 /** 카드 넘기기의 최대 너비(`.lc`). 태블릿 세로에서도 이 너비로 가운데에 둔다. */
 private val CarouselMaxWidth = 480.dp
+
+/** 단계 카드 한 변의 최대 크기. 카드를 조금 줄여 목록이 한눈에 들어오게 한다. */
+private val CardMaxSize = 240.dp
+
+/** 공개 단계 수만큼 그림이 있는지 테스트에서 확인한다. */
+internal val LearnArtCount: Int get() = LearnArts.size
+
+/** 단계 카드에서 그림이 차지하는 비율. 그림 둘레 여백에 더해 카드 테두리·귀퉁이 표시와 겹치지 않게 조금 띄운다. */
+private const val LearnCardArtInset = 0.94f
 
 /**
  * 단계 카드 넘기기.
@@ -186,7 +176,8 @@ internal fun LearnStageCarousel(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CarouselArrow(next = false, enabled = shownPage > 1) { go(shownPage - 1) }
-            HorizontalPager(pager, Modifier.weight(1f), pageSpacing = 16.dp) { page ->
+            // 옆 카드를 미리 그려 두어 넘기는 순간 그림을 읽느라 멈칫하지 않게 한다.
+            HorizontalPager(pager, Modifier.weight(1f), pageSpacing = 16.dp, beyondViewportPageCount = 1) { page ->
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     StageCard(stages[page], state.isDone(stages[page].number), onOpen, cardMaxSize, onCardHeight)
                 }
@@ -233,7 +224,6 @@ private fun CarouselArrow(next: Boolean, enabled: Boolean, onClick: () -> Unit) 
             .size(40.dp)
             .clip(CircleShape)
             .background(colors.surface)
-            .border(1.dp, colors.lineSoft, CircleShape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
@@ -256,23 +246,29 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, m
     )
     Box(
         Modifier
-            .widthIn(max = maxSize)
+            .widthIn(max = if (maxSize == Dp.Unspecified) CardMaxSize else minOf(maxSize, CardMaxSize))
             .fillMaxWidth()
             .aspectRatio(1f)
             .onSizeChanged { onHeight(it.height) }
             .clip(shape)
-            .background(colors.surface)
-            .clickable(role = Role.Button) { onOpen(stage.number) }
-            .semantics { contentDescription = description },
+            .background(colors.surface),
     ) {
-        LearnStageArt(stage.number, Modifier.fillMaxSize().background(colors.background))
-        // 테두리는 그림 위에 그린다. 완료는 1dp 테두리 + 안쪽 2dp 그림자(`box-shadow: inset`)라 3dp다
+        LearnStageArt(stage.number, Modifier.fillMaxSize(), inset = LearnCardArtInset)
+        // 테두리와 누름 표시는 그림 위에 그린다. 둥근 카드 모양으로 잘라 누르면 카드 자체만 눌린 것으로 보이게 한다(S15P31E102-749).
+        // 완료는 1dp 테두리 + 안쪽 2dp 그림자(`box-shadow: inset`)라 3dp다
         val border = when {
             done -> Modifier.border(3.dp, colors.primary, shape)
             stage.optional -> Modifier.dashedRoundBorder(GuideFaint, 20.dp)
-            else -> Modifier.border(1.dp, colors.lineSoft, shape)
+            else -> Modifier
         }
-        Box(Modifier.fillMaxSize().then(border))
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clip(shape)
+                .clickable(role = Role.Button) { onOpen(stage.number) }
+                .semantics { contentDescription = description }
+                .then(border),
+        )
         if (done) {
             CardBadge(Modifier.align(Alignment.TopEnd), check = true, text = stringResource(Res.string.learn_done))
         } else if (stage.optional) {
@@ -281,20 +277,27 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, m
     }
 }
 
-/** 단계 그림에서 [LearnArtCrops]의 정사각형 부분을 카드 크기로 그린다. 단계 상세 머리에도 쓴다. */
+/**
+ * 단계 그림 카드: 목록 카드와 같은 흰 바탕·둥근 모서리에 그림을 [LearnCardArtInset]만큼 줄여 놓는다.
+ * 단계 상세 머리·과제 안내도 이 카드를 써서 목록 카드와 같은 모습으로 보인다(S15P31E102-793).
+ */
 @Composable
-internal fun LearnStageArt(stage: Int, modifier: Modifier) {
+internal fun LearnStageArtCard(stage: Int, modifier: Modifier, corner: Dp = 20.dp) {
+    val shape = RoundedCornerShape(corner)
+    LearnStageArt(stage, modifier.clip(shape).background(EolssuTheme.colors.surface), inset = LearnCardArtInset)
+}
+
+/**
+ * 단계 그림을 [inset] 비율로 줄여 가운데에 그린다(1이면 꽉 채운다). 단계 카드·상세 머리·과제 안내에 쓴다. 바탕은 투명이라 놓인 곳의 색이 비친다.
+ */
+@Composable
+internal fun LearnStageArt(stage: Int, modifier: Modifier, inset: Float = 1f) {
     val bitmap = imageResource(LearnArts[stage - 1])
-    val crop = LearnArtCrops[stage - 1]
     Canvas(modifier.clearAndSetSemantics {}) {
-        // 기기 밀도에 따라 원본과 다른 크기로 읽혀도 같은 부분을 자른다
-        val k = bitmap.width.toFloat() / LearnArtWidth
-        val src = (crop.size * k).roundToInt()
         drawImage(
             bitmap,
-            srcOffset = IntOffset((crop.left * k).roundToInt(), (crop.top * k).roundToInt()),
-            srcSize = IntSize(src, src),
-            dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+            dstOffset = IntOffset((size.width * (1 - inset) / 2).roundToInt(), (size.height * (1 - inset) / 2).roundToInt()),
+            dstSize = IntSize((size.width * inset).roundToInt(), (size.height * inset).roundToInt()),
             filterQuality = FilterQuality.Medium,
         )
     }

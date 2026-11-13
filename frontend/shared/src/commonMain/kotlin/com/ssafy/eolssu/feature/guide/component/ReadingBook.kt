@@ -3,7 +3,6 @@ package com.ssafy.eolssu.feature.guide.component
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,8 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -37,14 +33,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.guide.ReadingPage
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.guide_reading_next
+import eolssu.shared.generated.resources.guide_reading_nav_next
 import eolssu.shared.generated.resources.guide_reading_page_dot
 import eolssu.shared.generated.resources.guide_reading_page_intro
-import eolssu.shared.generated.resources.guide_reading_prev
+import eolssu.shared.generated.resources.guide_reading_nav_prev
 import eolssu.shared.generated.resources.guide_reading_toc_closed
 import eolssu.shared.generated.resources.guide_reading_toc_open
 import eolssu.shared.generated.resources.guide_reading_length
@@ -84,7 +82,6 @@ internal fun ReadingTocButton(page: ReadingPage, open: Boolean, onClick: () -> U
             .height(48.dp)
             .clip(shape)
             .background(colors.surface)
-            .border(1.dp, colors.lineSoft, shape)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { stateDescription = state }
             .padding(start = 10.dp, end = 12.dp),
@@ -103,80 +100,40 @@ internal fun ReadingTocButton(page: ReadingPage, open: Boolean, onClick: () -> U
     }
 }
 
-/** 펼친 쪽 목차(`.rb-menu`). 지금 쪽은 연두 바탕 · 굵게. */
+/** 펼친 쪽 목차. 앱 공통 메뉴 모양([EolssuMenuPanel])이고 지금 쪽은 연한 연두 바탕 · 확인 표시다(S15P31E102-768). */
 @Composable
 internal fun ReadingTocMenu(current: ReadingPage, onSelect: (ReadingPage) -> Unit, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(14.dp)
-    Column(
-        modifier
-            .fillMaxWidth()
-            .shadow(16.dp, shape, ambientColor = Color.Black.copy(alpha = 0.18f), spotColor = Color.Black.copy(alpha = 0.18f))
-            .background(colors.surface, shape)
-            .border(1.dp, colors.lineSoft, shape)
-            .padding(6.dp),
-    ) {
+    EolssuMenuPanel(modifier = modifier) {
         ReadingPage.entries.forEach { page ->
-            val on = page == current
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 44.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (on) colors.primary else Color.Transparent)
-                    .clickable(role = Role.Button, onClick = { onSelect(page) })
-                    .semantics { selected = on }
-                    .padding(horizontal = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                PageMark(page.mark)
-                Text(page.title(), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal))
-            }
+            EolssuMenuItem(page.title(), page == current, onClick = { onSelect(page) }, leading = { PageMark(page.mark) })
         }
     }
 }
 
-/** 아래 이전 · 점 · 다음. 첫 쪽에는 이전, 마지막 쪽에는 다음이 없고, 빈자리를 남겨 점은 가운데에 그대로 둔다. 다음은 녹색. */
+/**
+ * 아래 넘김 줄: 이전 · 쪽 점 · 다음([GuidePageNav], 기초 배우기 단계 상세와 같은 모양, S15P31E102-877).
+ * 첫 쪽의 이전과 마지막 쪽의 다음은 옅게 둔다. 구분선과 여백은 기초 배우기 아래 영역과 같다.
+ */
 @Composable
 internal fun ReadingBookNav(current: ReadingPage, onGo: (ReadingPage) -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
-    val pages = ReadingPage.entries
+    val previous = current.previous
+    val next = current.next
+    val previousLabel = previous?.let { stringResource(Res.string.guide_reading_nav_prev, it.ordinal + 1, it.title()) }
+    val nextLabel = next?.let { stringResource(Res.string.guide_reading_nav_next, it.ordinal + 1, it.title()) }
     Column(modifier.fillMaxWidth()) {
-        HorizontalDivider(color = colors.lineSoft)
-        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 28.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                current.previous?.let { prev -> PageButton(stringResource(Res.string.guide_reading_prev), next = false) { onGo(prev) } }
-            }
-            Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                pages.forEach { page -> PageDot(page, on = page == current) { onGo(page) } }
-            }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                current.next?.let { next -> PageButton(stringResource(Res.string.guide_reading_next), next = true) { onGo(next) } }
+        HorizontalDivider(color = colors.surfaceStrong)
+        GuidePageNav(
+            previousLabel = previousLabel,
+            nextLabel = nextLabel,
+            onPrevious = { previous?.let(onGo) },
+            onNext = { next?.let(onGo) },
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 18.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                ReadingPage.entries.forEach { page -> PageDot(page, on = page == current) { onGo(page) } }
             }
         }
-    }
-}
-
-@Composable
-private fun PageButton(label: String, next: Boolean, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(22.dp)
-    val fg = if (next) colors.onPrimary else colors.text
-    Row(
-        Modifier
-            .height(44.dp)
-            .clip(shape)
-            .background(if (next) colors.green else colors.surface)
-            .border(1.dp, if (next) colors.green else colors.lineSoft, shape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        if (!next) Icon(EolssuIcons.Back, contentDescription = null, modifier = Modifier.size(16.dp), tint = fg)
-        Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold), color = fg, maxLines = 1)
-        if (next) Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = fg)
     }
 }
 

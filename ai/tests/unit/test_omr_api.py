@@ -18,7 +18,7 @@ from omr_service.api import DownloadError, RecognitionFailed, app, get_engines, 
 SIGNED_URL = "https://r2.example/sheets/1.pdf?X-Amz-Signature=secret-token"
 A4 = (595, 842)  # pt
 DONE_KEYS = {"conversionId", "status", "failReason", "engine", "engineVersion", "pages", "jgb", "score", "issues",
-             "notices"}
+             "notices", "sourcePitches"}
 
 
 def pdf(pages=1, size=A4):
@@ -122,7 +122,7 @@ def test_pdf_is_rendered_per_page_and_engine_result_is_returned(serve, clock):
     response = client.post("/v1/recognitions", json=body())
     assert response.status_code == 200
     out = response.json()
-    assert set(out) == DONE_KEYS
+    assert set(out) == DONE_KEYS | {'sourcePitches'}
     assert out["conversionId"] == "c-1" and out["status"] == "DONE" and out["failReason"] is None
     assert out["engine"] == "fake" and out["issues"][0]["kind"] == "LOW_CONFIDENCE"
     # 300dpi: A4 595×842pt → 2479.2×3508.3px, pdfium은 올림한다

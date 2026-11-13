@@ -2,14 +2,23 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.PracticeAnalysisMapper">
     <select id="findPending" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.PendingAnalysisRow">
-        SELECT id AS session_id, analysis_attempt AS attempt, song_id, score_version, start_note_idx, end_note_idx, bpm, bpm_unit, recording_url
-        FROM practice_sessions
-        WHERE id = #{sessionId} AND status = 'PENDING' AND analysis_attempt &gt; 0 AND recording_url IS NOT NULL
-          AND analysis_started_at &gt;= #{startedAfter}
+        SELECT p.id AS session_id, p.analysis_attempt AS attempt, p.song_id, p.score_version, p.start_note_idx, p.end_note_idx,
+               p.bpm, p.bpm_unit, p.recording_url, i.code AS instrument
+        FROM practice_sessions p
+        LEFT JOIN songs s ON s.id = p.song_id
+        LEFT JOIN instruments i ON i.id = s.instrument_id
+        WHERE p.id = #{sessionId} AND p.status = 'PENDING' AND p.analysis_attempt &gt; 0 AND p.recording_url IS NOT NULL
+          AND p.analysis_started_at &gt;= #{startedAfter}
     </select>
 
     <select id="findScore" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.SongScoreRow">
         SELECT score_json, score_version FROM songs WHERE id = #{songId}
+    </select>
+    <select id="findScoreRevision" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.SongScoreRow">
+        SELECT score_json, score_version FROM songs WHERE id = #{songId} AND score_version = #{scoreVersion}
+        UNION ALL
+        SELECT v.score_json, v.score_version FROM song_score_versions v JOIN songs s ON s.id = v.song_id
+        WHERE v.song_id = #{songId} AND v.score_version = #{scoreVersion} AND s.score_version &lt;&gt; v.score_version
     </select>
 
     <select id="findPitches" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.ScorePitchRow">
@@ -33,6 +42,7 @@
         UPDATE practice_sessions
         SET status = 'FAILED', fail_reason = 'TIMEOUT'
         WHERE id = #{sessionId} AND status = 'PENDING' AND analysis_started_at &lt; #{startedAfter}
+        <if test="expectedAttempt != null">AND analysis_attempt = #{expectedAttempt}</if>
     </update>
 
     <insert id="insertEvaluation" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
@@ -54,7 +64,8 @@
     </insert>
 
     <select id="findState" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.AnalysisStateRow">
-        SELECT status, fail_reason, analysis_attempt AS attempt
+        SELECT status, fail_reason, analysis_attempt AS attempt,
+               CASE WHEN analysis_timing_attempt = analysis_attempt THEN analysis_timing_id END AS analysis_timing_id
         FROM practice_sessions
         WHERE id = #{sessionId} AND user_id = #{userId}
     </select>
@@ -63,7 +74,7 @@
          읽은 시도 번호를 조건에 넣어 그 사이 다른 시도가 시작·실패했으면 바꾸지 않는다. 조건부라 동시 요청 중 하나만 바뀐다 -->
     <update id="startRetry">
         UPDATE practice_sessions
-        SET status = 'PENDING', fail_reason = NULL, analysis_attempt = analysis_attempt + 1, analysis_started_at = #{startedAt}
+        SET status = 'PENDING', fail_reason = NULL, analysis_attempt = analysis_attempt + 1, analysis_started_at = #{startedAt}, analysis_timing_id = #{timingId,jdbcType=VARCHAR}, analysis_timing_attempt = #{attempt} + 1
         WHERE id = #{sessionId} AND user_id = #{userId} AND analysis_attempt = #{attempt}
           AND status = 'FAILED' AND fail_reason IN ('TIMEOUT', 'SERVER_ERROR') AND recording_url IS NOT NULL
     </update>

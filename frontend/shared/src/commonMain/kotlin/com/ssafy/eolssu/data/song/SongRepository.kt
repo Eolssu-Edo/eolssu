@@ -17,6 +17,18 @@ interface SongRepository {
 
     suspend fun getSong(songId: String): Song?
 
+    /** 서버에서 현재 게시 판본을 확인한다. */
+    suspend fun getPublishedScoreVersion(songId: String): Int? = getSong(songId)?.scoreVersion
+
+    /** 같은 로그인에서 확인한 곡. 판본을 생략하면 직전에 확인한 게시 판본만 반환한다. */
+    suspend fun retainedSong(songId: String, scoreVersion: Int? = null): Song? = null
+
+    /** 기록을 만든 정확한 판본. 과거 판본을 현재 악보로 대체하지 않는다. */
+    suspend fun getSong(songId: String, scoreVersion: Int): Song? {
+        require(scoreVersion > 0)
+        return getSong(songId)?.takeIf { it.scoreVersion == scoreVersion }
+    }
+
     /** 편집기로 복사할 제공 곡과 공통 악보 원본(CAT-04). 원본을 주지 않는 저장소는 null이다. */
     suspend fun getEditableSong(songId: String): EditableSong? = null
 }

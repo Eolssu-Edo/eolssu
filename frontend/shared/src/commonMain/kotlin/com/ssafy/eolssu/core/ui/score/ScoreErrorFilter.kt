@@ -1,27 +1,49 @@
 package com.ssafy.eolssu.core.ui.score
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.EvaluationResult
@@ -31,11 +53,13 @@ import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.key
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.result_filter_all
-import eolssu.shared.generated.resources.result_filter_length
-import eolssu.shared.generated.resources.result_filter_missed
-import eolssu.shared.generated.resources.result_filter_pitch
-import eolssu.shared.generated.resources.result_filter_rhythm
+import eolssu.shared.generated.resources.error_segment_all
+import eolssu.shared.generated.resources.error_segment_description
+import eolssu.shared.generated.resources.error_segment_length
+import eolssu.shared.generated.resources.error_segment_missed
+import eolssu.shared.generated.resources.error_segment_pitch
+import eolssu.shared.generated.resources.error_segment_rhythm
+import eolssu.shared.generated.resources.error_segment_title
 import org.jetbrains.compose.resources.stringResource
 
 /*
@@ -84,80 +108,178 @@ fun EvaluationResult.visibleErrors(filter: ErrorFilter): Map<Pair<Int, Int>, Sco
     visibleErrorKinds(filter).mapValues { it.value.first() }
 
 /**
- * 오류 종류 필터(전체·음정·박자·길이·미검출). 고른 종류의 틀린 정간만 정간보에 색칠한다.
- * [hideEmptyMissed]이면 미검출이 없을 때 그 칩을 뺀다(2차 틀린 부분 RESULT-03은 네 칩).
- * 작은 칩(28dp)을 한 줄에 나눠 놓고, 좁으면 글자를 9sp까지 줄여 줄이 넘어가지 않게 한다(이전 연주 결과·틀린 부분).
+ * 오류 종류 5칸 탭 바(전체 · 음정 · 박자 · 길이 · 미검출). 연주 결과 · 이전 연주 결과 · 구간 고르기 · 구간 재평가 결과가 함께 쓴다.
+ * '틀린 부분' 제목(고른 칸 이름과 같은 13sp 굵게, S15P31E102-808·825)과 탭 바를 폴더 탭 모양의 흰 상자 하나로 묶는다(S15P31E102-818).
+ * 제목만 감싸는 머리가 탭 바 왼쪽 위에 붙고, 머리 오른쪽 아래는 오목하게 탭 바 윗변으로 이어진다. 오른쪽 위는 비워 상자가 제목 줄 전체로 늘지 않는다.
+ * 흰 바탕 화면에서도 상자가 보이도록 윤곽에 흰 카드의 옅은 테두리(lineSoft)를 그린다.
+ * 탭 바(높이 52, 안쪽 5dp) 안에서 고른 칸만 연한 연두(accentTintStrong) 알약으로 넓게 펼쳐 '아이콘 · 이름 · 개수'를 보이고,
+ * 나머지 칸은 '아이콘 · 개수'만 둔다. 고른 칸이 바뀌면 너비·바탕·이름이 함께 부드럽게 바뀐다(S15P31E102-786).
  */
 @Composable
-fun ErrorFilterChips(
+fun ErrorKindSegments(
     result: EvaluationResult,
     selected: ErrorFilter,
     onSelect: (ErrorFilter) -> Unit,
     modifier: Modifier = Modifier,
-    hideEmptyMissed: Boolean = false,
 ) {
-    val filters = ErrorFilter.entries.filterNot { hideEmptyMissed && it == ErrorFilter.Missed && result.errorCount(it) == 0 }
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        filters.forEach { filter ->
-            val count = result.errorCount(filter)
-            val label = filterLabel(filter, count)
-            // 글자 수(견본·여백 몫 2자 포함)만큼 나눠, 좁아질 때 모든 칩의 글자가 비슷한 크기로 줄게 한다.
-            CompactFilterChip(filter, label, on = filter == selected, Modifier.weight(label.length + 2f)) { onSelect(filter) }
-        }
-    }
-}
-
-/** 한 줄 필터의 작은 칩: 28dp 높이 · 8dp 견본 · 12sp(좁으면 9sp까지 줄임). */
-@Composable
-private fun CompactFilterChip(filter: ErrorFilter, label: String, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(28.dp).semantics { selected = on },
-        shape = CircleShape,
-        color = if (on) colors.primary else colors.background,
-        contentColor = if (on) colors.onPrimary else colors.text,
-        border = BorderStroke(1.dp, if (on) colors.accentText else colors.line),
+    // 머리 크기는 그리기 단계에서만 읽어 첫 프레임부터 재구성 없이 상자 모양에 반영한다.
+    var titleSize by remember { mutableStateOf(IntSize.Zero) }
+    Column(
+        modifier.fillMaxWidth().drawBehind {
+            val outline = folderTabOutline(titleSize.width.toFloat(), titleSize.height.toFloat())
+            drawPath(outline, colors.surface)
+            drawPath(outline, colors.lineSoft, style = Stroke(width = 1.dp.toPx()))
+        },
     ) {
-        Row(
-            Modifier.padding(horizontal = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
-        ) {
-            FilterSwatch(filter, on, 8.dp)
-            BasicText(
-                label,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (on) colors.onPrimary else colors.text,
-                ),
-                maxLines = 1,
-                softWrap = false,
-                autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 12.sp, stepSize = 0.5.sp),
-            )
+        Text(
+            stringResource(Res.string.error_segment_title),
+            modifier = Modifier.onSizeChanged { titleSize = it }
+                .padding(start = 16.dp, end = 14.dp, top = 9.dp, bottom = 3.dp)
+                .semantics { heading() },
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = SegmentNameSize, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
+            color = colors.text,
+        )
+        ErrorKindTabs(result, selected, onSelect)
+    }
+}
+
+/**
+ * 폴더 탭 모양 윤곽. 왼쪽 위 [titleWidth]×[titleHeight] 머리(위 모서리 [TitleCorner])가 아래 탭 바(모서리 [BarCorner])에 붙고,
+ * 머리 오른쪽 아래는 [JoinCorner] 반지름으로 오목하게 이어진다. 왼쪽 변은 머리부터 탭 바까지 한 직선이다.
+ */
+private fun DrawScope.folderTabOutline(titleWidth: Float, titleHeight: Float): Path {
+    val w = size.width
+    val h = size.height
+    val th = titleHeight.coerceIn(0f, h)
+    val bar = (BarCorner.toPx()).coerceAtMost((h - th) / 2f)
+    val top = TitleCorner.toPx().coerceAtMost(minOf(titleWidth, th) / 2f)
+    val join = JoinCorner.toPx().coerceAtMost(minOf(th - top, w - titleWidth - bar)).coerceAtLeast(0f)
+    val tw = titleWidth.coerceAtMost(w - bar - join)
+    return Path().apply {
+        moveTo(0f, top)
+        arcTo(Rect(0f, 0f, 2 * top, 2 * top), 180f, 90f, false)
+        lineTo(tw - top, 0f)
+        arcTo(Rect(tw - 2 * top, 0f, tw, 2 * top), 270f, 90f, false)
+        lineTo(tw, th - join)
+        arcTo(Rect(tw, th - 2 * join, tw + 2 * join, th), 180f, -90f, false)
+        lineTo(w - bar, th)
+        arcTo(Rect(w - 2 * bar, th, w, th + 2 * bar), 270f, 90f, false)
+        lineTo(w, h - bar)
+        arcTo(Rect(w - 2 * bar, h - 2 * bar, w, h), 0f, 90f, false)
+        lineTo(bar, h)
+        arcTo(Rect(0f, h - 2 * bar, 2 * bar, h), 90f, 90f, false)
+        close()
+    }
+}
+
+/** 제목 머리의 위 모서리. */
+private val TitleCorner = 14.dp
+
+/** 제목 머리와 탭 바 윗변이 만나는 오목한 모서리. */
+private val JoinCorner = 10.dp
+
+/** 탭 바 모서리. 안쪽 알약(높이 42)과 같은 중심을 갖도록 26dp(= 21 + 안쪽 5)로 둔다. */
+private val BarCorner = 26.dp
+
+@Composable
+private fun ErrorKindTabs(result: EvaluationResult, selected: ErrorFilter, onSelect: (ErrorFilter) -> Unit) {
+    val colors = EolssuTheme.colors
+    Row(
+        Modifier.fillMaxWidth().height(52.dp).padding(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ErrorFilter.entries.forEach { filter ->
+            val on = filter == selected
+            val count = result.errorCount(filter)
+            val name = segmentLabel(filter)
+            val description = stringResource(Res.string.error_segment_description, name, count)
+            val weight by animateFloatAsState(if (on) SelectedTabWeight else 1f, tween(TabMotionMillis), label = "errorTabWeight")
+            val fill by animateColorAsState(if (on) colors.accentTintStrong else Color.Transparent, tween(TabMotionMillis), label = "errorTabFill")
+            Surface(
+                onClick = { onSelect(filter) },
+                modifier = Modifier.weight(weight).fillMaxHeight()
+                    .semantics(mergeDescendants = true) {
+                        this.selected = on
+                        contentDescription = description
+                    },
+                shape = CircleShape,
+                color = fill,
+                contentColor = if (on) colors.text else colors.textSub,
+            ) {
+                Row(
+                    Modifier.clearAndSetSemantics {}.padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SegmentTag(filter)
+                    AnimatedVisibility(
+                        visible = on,
+                        enter = fadeIn(tween(TabMotionMillis)) + expandHorizontally(tween(TabMotionMillis)),
+                        exit = fadeOut(tween(TabMotionMillis / 2)) + shrinkHorizontally(tween(TabMotionMillis)),
+                    ) {
+                        Text(
+                            name,
+                            Modifier.padding(start = 6.dp),
+                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = SegmentNameSize, lineHeight = 16.sp, fontWeight = FontWeight.Bold),
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
+                    Text(
+                        "$count",
+                        Modifier.padding(start = if (on) 4.dp else 3.dp),
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = 13.sp,
+                            lineHeight = 16.sp,
+                            fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                        ),
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+            }
         }
     }
 }
 
-/** 칩 앞의 색 견본. 전체는 연두 상자, 종류는 그 종류의 칸 색이다. */
+/** 고른 칸에 나타나는 종류 이름의 글자 크기. '틀린 부분' 제목도 이 크기로 맞춘다(S15P31E102-825). */
+private val SegmentNameSize = 13.sp
+
+/** 고른 칸이 다른 칸보다 넓어지는 비율. 폰 너비에서 '미검출 12'가 한 줄에 들어가는 값이다. */
+private const val SelectedTabWeight = 2.2f
+
+/** 고른 칸이 바뀔 때 너비·바탕·이름이 바뀌는 시간(ms). */
+private const val TabMotionMillis = 240
+
+/**
+ * 칸 왼쪽의 16dp 아이콘. 종류는 [ErrorKindTag]와 같고,
+ * 전체는 네 종류(음정·박자·음 길이·미검출) 색의 7dp 칸 네 개를 2×2로 놓아 '모든 종류'를 뜻한다(간격 1dp·모서리 2dp).
+ */
 @Composable
-private fun FilterSwatch(filter: ErrorFilter, on: Boolean, size: Dp) {
-    val colors = EolssuTheme.colors
+private fun SegmentTag(filter: ErrorFilter) {
     val kind = filter.kind
-    if (kind == null) {
-        Box(Modifier.size(size).background(if (on) colors.onPrimary else colors.primary, RoundedCornerShape(3.dp)))
-    } else {
-        ErrorMarkBox(kind, Modifier.size(size))
+    if (kind != null) {
+        ErrorKindTag(kind, size = 16.dp, corner = 4.dp)
+        return
+    }
+    val kinds = ScoreErrorKind.entries
+    Column(Modifier.size(16.dp).padding(0.5.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+        kinds.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+                pair.forEach { Box(Modifier.size(7.dp).background(errorStyle(it).tag, RoundedCornerShape(2.dp))) }
+            }
+        }
     }
 }
 
 @Composable
-private fun filterLabel(filter: ErrorFilter, count: Int): String = stringResource(
+private fun segmentLabel(filter: ErrorFilter): String = stringResource(
     when (filter) {
-        ErrorFilter.All -> Res.string.result_filter_all
-        ErrorFilter.Pitch -> Res.string.result_filter_pitch
-        ErrorFilter.Rhythm -> Res.string.result_filter_rhythm
-        ErrorFilter.Length -> Res.string.result_filter_length
-        ErrorFilter.Missed -> Res.string.result_filter_missed
+        ErrorFilter.All -> Res.string.error_segment_all
+        ErrorFilter.Pitch -> Res.string.error_segment_pitch
+        ErrorFilter.Rhythm -> Res.string.error_segment_rhythm
+        ErrorFilter.Length -> Res.string.error_segment_length
+        ErrorFilter.Missed -> Res.string.error_segment_missed
     },
-    count,
 )

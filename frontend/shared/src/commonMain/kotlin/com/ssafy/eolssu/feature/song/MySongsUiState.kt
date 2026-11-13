@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song
 
+import com.ssafy.eolssu.core.model.SongSortOrder
+import com.ssafy.eolssu.core.model.sortedByTitle
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.data.song.SheetConversion
@@ -43,6 +45,12 @@ data class MySongsUiState(
     /** 아직 변환 중이라 상태를 다시 물어야 하는 악보. */
     val convertingIds: List<String>
         get() = sheets.orEmpty().filter { conversionOf(it)?.status?.inProgress == true }.map { it.id }
+
+    /** 목록에서 이미 실패한 악보도 원인별 안내를 위해 상세를 한 번 받는다. */
+    val failedConversionIdsWithoutDetails: List<String>
+        get() = sheets.orEmpty().filter {
+            it.id !in conversions && SheetConversionStatus.fromCode(it.conversionStatus) == SheetConversionStatus.Failed
+        }.map { it.id }
 
     /** 선택한 단계에서 제목에 [query]가 든 제공 곡을 [sort] 순서로. 평가 가능 여부로 제외하지 않는다. */
     val visibleSongs: List<SongSummary>

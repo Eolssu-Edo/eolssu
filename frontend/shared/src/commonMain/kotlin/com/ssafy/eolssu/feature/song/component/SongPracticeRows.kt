@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.song.component
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,11 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,13 +26,11 @@ import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.MySheet
@@ -67,7 +64,6 @@ import eolssu.shared.generated.resources.mysongs_delete_label
 import eolssu.shared.generated.resources.mysongs_edit
 import eolssu.shared.generated.resources.mysongs_meta_updated
 import eolssu.shared.generated.resources.mysongs_origin_copied
-import eolssu.shared.generated.resources.mysongs_origin_imported
 import eolssu.shared.generated.resources.mysongs_status_practice
 import eolssu.shared.generated.resources.mysongs_status_review
 import eolssu.shared.generated.resources.song_difficulty_number
@@ -80,10 +76,16 @@ internal fun providedSongMeta(song: SongSummary): String =
 
 /**
  * SONG-03 줄 틀(`.srow`): 흰 바탕, 옅은 테두리, 모서리 14dp, 최소 64dp. [onClick]이 있으면 줄 전체를 누른다.
- * [selected]면 옅은 연두 바탕·연두 테두리다(평가할 곡 고르기 태블릿 가로에서 오른쪽에 정보를 보이는 곡).
+ * [selected]면 테두리 없는 연한 연두 바탕이다(평가할 곡 고르기 태블릿 가로에서 오른쪽에 정보를 보이는 곡).
  */
 @Composable
-private fun PracticeRowFrame(modifier: Modifier, onClick: (() -> Unit)? = null, selected: Boolean = false, content: @Composable () -> Unit) {
+private fun PracticeRowFrame(
+    modifier: Modifier,
+    onClick: (() -> Unit)? = null,
+    selected: Boolean = false,
+    bordered: Boolean = true,
+    content: @Composable () -> Unit,
+) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(14.dp)
     Box(
@@ -91,8 +93,8 @@ private fun PracticeRowFrame(modifier: Modifier, onClick: (() -> Unit)? = null, 
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .clip(shape)
-            .background(if (selected) colors.accentSoft else colors.surface)
-            .border(1.dp, if (selected) colors.accent else colors.lineSoft, shape)
+            .background(if (selected) colors.accentTint else colors.surface)
+            .then(if (bordered && !selected) Modifier.border(1.dp, colors.lineSoft, shape) else Modifier)
             .then(if (selected) Modifier.semantics { this.selected = true } else Modifier)
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
         contentAlignment = Alignment.CenterStart,
@@ -133,9 +135,16 @@ private fun RowScope.RowText(
  * 연습곡 고르기에서는 누르면 평가 없는 연습 모드에, 평가할 곡 고르기에서는 곡 상세(태블릿 가로는 오른쪽 칸)로 간다.
  */
 @Composable
-internal fun ProvidedSongRow(song: SongSummary, meta: String, onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean = false) {
+internal fun ProvidedSongRow(
+    song: SongSummary,
+    meta: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    bordered: Boolean = true,
+) {
     val colors = EolssuTheme.colors
-    PracticeRowFrame(modifier, onClick, selected) {
+    PracticeRowFrame(modifier, onClick, selected, bordered) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -174,12 +183,14 @@ internal fun MySheetRow(
     retrying: Boolean = false,
     onRetryConversion: () -> Unit = {},
     onReimport: () -> Unit = {},
+    bordered: Boolean = true,
 ) {
     val status = conversion?.status
     val usable = status == null || status == SheetConversionStatus.Done
-    PracticeRowFrame(modifier) {
+    PracticeRowFrame(modifier, bordered = bordered) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // 제목 줄 오른쪽에 편집(연두 채움)과 휴지통을 나란히 두고, 아래 줄에는 상태 배지만 둔다(S15P31E102-768).
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     Modifier.weight(1f).clickable(enabled = usable, role = Role.Button, onClick = onOpen),
                     verticalAlignment = Alignment.CenterVertically,
@@ -192,12 +203,9 @@ internal fun MySheetRow(
                         EditChip(stringResource(Res.string.mysongs_conversion_retry), onRetryConversion, enabled = !retrying)
                     status == SheetConversionStatus.Failed -> EditChip(stringResource(Res.string.mysongs_conversion_reimport), onReimport)
                 }
+                DeleteButton(stringResource(Res.string.mysongs_delete_label, sheet.title), onDelete)
             }
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     when {
                         usable -> {
@@ -222,7 +230,6 @@ internal fun MySheetRow(
                         else -> EolssuBadge(conversionProgressText(conversion ?: SheetConversion(sheet.id, SheetConversionStatus.Queued)), style = EolssuBadgeStyle.Soft, small = true)
                     }
                 }
-                DeleteButton(stringResource(Res.string.mysongs_delete_label, sheet.title), onDelete)
             }
         }
     }
@@ -247,58 +254,51 @@ private fun conversionFailureText(failure: SheetConversionFailure?): String = st
     },
 )
 
-/**
- * 휴지통(`.ibtn` 40dp, 아이콘 20dp). 와이어프레임처럼 위아래 9dp · 오른쪽 8dp를 줄 밖으로 내밀어
- * 배지 줄 높이는 그대로 두고 누를 자리만 넓힌다.
- */
+/** 휴지통: 편집 칩과 같은 높이(34dp)의 회색 네모 버튼(모서리 10), 아이콘 18dp. */
 @Composable
 private fun DeleteButton(label: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Box(
         Modifier
-            .layout { measurable, constraints ->
-                val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
-                val height = placeable.height - 18.dp.roundToPx()
-                layout(placeable.width - 8.dp.roundToPx(), height) { placeable.place(0, -9.dp.roundToPx()) }
-            }
-            .size(40.dp)
-            .clip(CircleShape)
+            .size(34.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(colors.groupedBackground)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(EolssuIcons.Trash, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textMuted)
+        Icon(EolssuIcons.Trash, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textSub)
     }
 }
 
-/** 편집 칩(`.chip.sm`): 28dp, 12sp, 흰 바탕에 옅은 테두리. */
+/** 편집 칩: 34dp · 모서리 10 · 연한 연두 채움에 짙은 연두 글자(13sp 600)로 눈에 띄게 한다(S15P31E102-768). */
 @Composable
 private fun EditChip(text: String, onClick: () -> Unit, enabled: Boolean = true) {
     val colors = EolssuTheme.colors
-    Surface(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.heightIn(min = 28.dp),
-        shape = CircleShape,
-        color = colors.surface,
-        contentColor = colors.textSub,
-        border = BorderStroke(1.dp, colors.lineSoft),
+    Box(
+        Modifier
+            .height(34.dp)
+            .alpha(if (enabled) 1f else 0.45f)
+            .clip(RoundedCornerShape(10.dp))
+            .background(colors.accentTint)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.padding(horizontal = 10.dp, vertical = 2.dp), contentAlignment = Alignment.Center) {
-            Text(text, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium))
-        }
+        Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.accentText, maxLines = 1)
     }
 }
 
-/** '제공 곡에서 고침 · 세마치장단 · 10월 19일 수정' · '정간보 가져옴 · 영산회상 · 10월 17일 수정'. 장단이 없으면 곡 묶음을 쓴다. */
+/**
+ * '제공 곡에서 고침 · 세마치장단 · 10월 19일 수정' · '영산회상 · 10월 17일 수정'. 장단이 없으면 곡 묶음을 쓴다.
+ * 가져온 정간보는 모든 줄이 같은 '정간보 가져옴'이라 출처를 적지 않는다(S15P31E102-768).
+ */
 @Composable
 private fun sheetMeta(sheet: MySheet): String {
-    val origin = stringResource(
-        when (sheet.origin) {
-            MySheetOrigin.CopiedSong -> Res.string.mysongs_origin_copied
-            MySheetOrigin.Imported -> Res.string.mysongs_origin_imported
-        },
-    )
+    val origin = when (sheet.origin) {
+        MySheetOrigin.CopiedSong -> stringResource(Res.string.mysongs_origin_copied)
+        MySheetOrigin.Imported -> null
+    }
     val group = sheet.jangdanName?.let { stringResource(Res.string.jangdan_label, it) } ?: sheet.suiteName
     return listOfNotNull(origin, group, stringResource(Res.string.mysongs_meta_updated, monthDayLabel(sheet.updatedAt))).joinToString(" · ")
 }

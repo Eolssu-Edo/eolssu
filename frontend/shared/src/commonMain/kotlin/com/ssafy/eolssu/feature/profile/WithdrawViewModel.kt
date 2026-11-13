@@ -70,6 +70,33 @@ class WithdrawViewModel(
 
     fun changePassword(value: String) = _uiState.update { it.copy(password = value, error = null) }
 
+    /**
+     * 비밀번호 '탈퇴하기'. 비밀번호를 비웠으면 창 없이 바로 칸 오류를 보이고, 입력했으면 확인 창을 띄운다.
+     * 신청·재인증이 진행 중이면 무시한다.
+     */
+    fun requestWithdraw() {
+        if (submitting || _uiState.value.reauth?.busy == true) return
+        if (_uiState.value.password.isEmpty()) return _uiState.update { it.copy(error = ProfileFieldError.PasswordEmpty) }
+        _uiState.update { it.copy(confirm = WithdrawConfirm.Password) }
+    }
+
+    /** '[provider]로 확인하고 탈퇴하기'. 제공자 화면으로 가기 전에 확인 창을 띄운다. */
+    fun requestReauth(provider: SocialProvider) {
+        if (submitting || _uiState.value.reauth?.busy == true) return
+        _uiState.update { it.copy(confirm = WithdrawConfirm.Reauth(provider)) }
+    }
+
+    /** 확인 창의 '취소'·바깥 누르기. 아무것도 신청하지 않는다. */
+    fun dismissConfirm() = _uiState.update { it.copy(confirm = null) }
+
+    /** 확인 창의 '탈퇴하기'. 창을 닫고 고른 방법을 돌려준다. 재인증은 여기서 바로 시작하고, 비밀번호 신청은 Route가 [submit]으로 이어 간다. */
+    fun confirm(): WithdrawConfirm? {
+        val confirm = _uiState.value.confirm ?: return null
+        _uiState.update { it.copy(confirm = null) }
+        if (confirm is WithdrawConfirm.Reauth) startReauth(confirm.provider)
+        return confirm
+    }
+
     /** 신청했으면 true. */
     suspend fun submit(): Boolean = accountScope.inAccount {
         if (submitting || _uiState.value.reauth?.busy == true) return@inAccount false

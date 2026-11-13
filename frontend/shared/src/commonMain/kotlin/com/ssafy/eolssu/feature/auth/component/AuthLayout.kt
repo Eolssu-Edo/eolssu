@@ -2,20 +2,16 @@ package com.ssafy.eolssu.feature.auth.component
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -24,23 +20,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_step
-import eolssu.shared.generated.resources.auth_step_description
 import org.jetbrains.compose.resources.stringResource
 
 /** 상단 바가 없는 화면의 본문 위 여백. 와이어프레임 64px에서 상태 표시줄 자리 44px를 뺀 값. */
@@ -115,9 +111,6 @@ fun AuthHelp(text: String, modifier: Modifier = Modifier, textAlign: TextAlign =
     )
 }
 
-/** 보드의 옅은 회색 선(`--faint`, #B9B3A6): 체크 상자·빈 자리 점선. 테마에 없어 로그인·가입 화면에서만 쓴다. */
-internal val AuthFaint = Color(0xFFB9B3A6)
-
 /** 상단 바 오른쪽 단계 표시(`.au-step`, 예: 1 / 2). */
 @Composable
 fun AuthStepLabel(step: Int, total: Int) {
@@ -128,37 +121,27 @@ fun AuthStepLabel(step: Int, total: Int) {
     )
 }
 
-/** 상단 바 아래 단계 막대(`.au-progress`): 높이 4dp, 좌우 20dp, [step]/[total]만큼 채운다. 태블릿은 입력 칸 너비(560dp)다. */
+/**
+ * 22dp 체크 상자(`.au-box`). 테두리 없이 고르면 연두, 안 고르면 [uncheckedColor] 채움이다. 흰 카드 안에서는 회색을 넘긴다.
+ * 옆 글자가 아니라 이 상자만 눌린다(S15P31E102-798). 누르는 영역은 Compose가 최소 48dp로 넓혀 주고, 화면 읽기는 [label]을 읽는다.
+ */
 @Composable
-fun AuthStepProgress(step: Int, total: Int) {
-    val description = stringResource(Res.string.auth_step_description, step, total)
-    val frame = LocalAuthFrame.current
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-        Box(
-            Modifier
-                .widthIn(max = if (frame.isTablet) AuthTabletColumnWidth + 40.dp else CompactContentMaxWidth)
-                .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, bottom = 4.dp)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(EolssuTheme.colors.surfaceStrong)
-                .semantics { contentDescription = description },
-        ) {
-            Box(Modifier.fillMaxHeight().fillMaxWidth(step.toFloat() / total).background(EolssuTheme.colors.primary))
-        }
-    }
-}
-
-/** 22dp 체크 상자(`.au-box`). 누르기는 감싼 행이 맡는다. */
-@Composable
-fun AuthCheckBox(checked: Boolean, modifier: Modifier = Modifier) {
+fun AuthCheckBox(
+    checked: Boolean,
+    label: String,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    uncheckedColor: Color = EolssuTheme.colors.surface,
+) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(6.dp)
     Box(
         modifier
             .size(22.dp)
-            .background(if (checked) colors.primary else colors.surface, shape)
-            .border(1.5.dp, if (checked) colors.primary else AuthFaint, shape),
+            .clip(shape)
+            .background(if (checked) colors.primary else uncheckedColor)
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onCheckedChange)
+            .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
         if (checked) {

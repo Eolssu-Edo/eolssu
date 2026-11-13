@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.practice
 
 import com.ssafy.eolssu.core.audio.PitchConfirmation
 import com.ssafy.eolssu.core.audio.PitchReading
+import com.ssafy.eolssu.core.audio.StepLeniency
 import com.ssafy.eolssu.core.audio.YinPitchEstimator
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.data.practice.NotePracticeCriteria
@@ -47,8 +48,15 @@ class PracticeStepReplayTest {
      * [notes]를 [noteSec]초씩, 사이에 [gapSec]초 숨을 두고 분다. 음마다 그 음 시작부터 판정이 통과하기까지 걸린 초, 끝까지
      * 통과하지 못하면 null이다. 앞 음이 통과하지 못하면 판정기는 그 음을 계속 기다리므로 뒤 음도 null이 된다.
      * [dropEvery]가 있으면 그 수의 창마다 하나를 분석 불가로 바꾼다(녹음기 분석 대기열이 넘칠 때와 같은 관측).
+     * [leniency]는 악기별 완화이고, 완화할 때는 [notes]의 악보 높이를 곡의 이웃 음으로 넘긴다.
      */
-    private fun replay(notes: List<Blown>, noteSec: Double = 0.8, gapSec: Double = 0.15, dropEvery: Int? = null): List<Double?> {
+    private fun replay(
+        notes: List<Blown>,
+        noteSec: Double = 0.8,
+        gapSec: Double = 0.15,
+        dropEvery: Int? = null,
+        leniency: StepLeniency = StepLeniency.Strict,
+    ): List<Double?> {
         val noise = Random(653)
         val starts = notes.indices.map { (it * (noteSec + gapSec) * RATE).roundToInt() }
         val length = (notes.size * (noteSec + gapSec) * RATE).roundToInt()
@@ -61,7 +69,7 @@ class PracticeStepReplayTest {
                     0.1 * sin(6 * PI * note.hz * t) + 0.02 * (noise.nextDouble() * 2 - 1)).toFloat()
             }
         }
-        val matcher = StepPitchMatcher(criteria, hwang)
+        val matcher = StepPitchMatcher(criteria, hwang, leniency, notes.map { it.target() })
         val confirmation = PitchConfirmation()
         val passed = MutableList<Double?>(notes.size) { null }
         var waiting = 0
@@ -102,17 +110,35 @@ class PracticeStepReplayTest {
         assertEquals(List(sogeumMedium.size) { null }, replay(sogeumMedium))
     }
 
-    @Test fun wholeInstrumentOffsetHasACliffAt50Cents() {
-        // 같은 단소를 통째로 올려 분다. +45센트까지는 첫 음 조율이 흡수해 모두 통과하고, +60센트면 하나도 통과하지 못한다.
+    // 재생 한 번이 브라우저(Wasm·JS) 테스트 제한 2초의 상당 부분을 쓰므로 테스트 하나에 재생을 한 번만 둔다(S15P31E102-735).
+
+    // 같은 단소를 통째로 올려 분다. +45센트까지는 첫 음 조율이 흡수해 모두 통과하고, ±60센트면 하나도 통과하지 못한다.
+    @Test fun wholeInstrumentOffsetOf45CentsStillPassesEveryNote() {
         assertTrue(replay(dansoMedium.map { it.shifted(45.0) }).all { it != null })
+    }
+
+    @Test fun wholeInstrumentOffsetOf60CentsHighPassesNoNote() {
         assertTrue(replay(dansoMedium.map { it.shifted(60.0) }).all { it == null })
+    }
+
+    @Test fun wholeInstrumentOffsetOf60CentsLowPassesNoNote() {
         assertTrue(replay(dansoMedium.map { it.shifted(-60.0) }).all { it == null })
     }
 
-    @Test fun analysisGapsShorterThanTheHoldBlockEveryNote() {
-        // 300ms 유지에는 끊김 없는 확인 창 약 17개(약 0.34초)가 필요하다. 분석 불가 창이 그보다 자주 끼면 맞게 불어도 넘어가지 않는다.
+    // 300ms 유지에는 끊김 없는 확인 창 약 17개(약 0.34초)가 필요하다. 분석 불가 창이 그보다 자주 끼면 맞게 불어도 넘어가지 않는다.
+    @Test fun analysisGapEvery25WindowsStillPassesEveryNote() {
         assertTrue(replay(dansoMedium, dropEvery = 25).all { it != null })
+    }
+
+    @Test fun analysisGapEvery15WindowsBlocksEveryNote() {
         assertTrue(replay(dansoMedium, dropEvery = 15).all { it == null })
+    }
+
+    // 대금은 악보보다 한 옥타브 낮게 나는 연주가 있다(S15P31E102-848). 대금 완화는 그 소리를 목표 옥타브로 옮겨 잰다(S15P31E102-866).
+    // 낮게 분 경우 완화가 없으면 넘어가지 않는 것은 PracticeStepLeniencyTest가 본다.
+    @Test fun daegeumBlownAnOctaveLowPassesEveryNote() {
+        val low = dansoMedium.map { it.copy(hz = it.hz / 2) }
+        assertTrue(replay(low, leniency = StepLeniency.Daegeum).all { it != null })
     }
 
     private companion object {

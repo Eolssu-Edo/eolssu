@@ -51,6 +51,23 @@ class MyPageViewModelTest {
     private val users = SampleUserRepository()
     private val timeQueue = PracticeTimeQueue(store, api = null, SignedInMember(store), CoroutineScope(Dispatchers.Unconfined))
 
+    /**
+     * 다른 화면에서 돌아와 진도를 다시 받는 동안에도 마지막 뱃지를 그대로 보여 화면이 흔들리지 않는다(S15P31E102-731).
+     * 뱃지 악기는 연습 악기가 아니라 최근 기초 배우기 악기라(S15P31E102-759) 연습 악기와 상관없이 남긴다(S15P31E102-768).
+     */
+    @Test
+    fun keepsLastLearningProgressWhileRefetching() {
+        val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
+        assertNull(viewModel.lastLearningProgress())
+
+        viewModel.rememberLearningProgress(MyLearningProgress(setOf(1, 2), Instrument.Sogeum))
+        assertEquals(MyLearningProgress(setOf(1, 2), Instrument.Sogeum), viewModel.lastLearningProgress())
+
+        // 받지 못하면 화면도 뱃지를 비우므로 다음에 돌아올 때도 비운 채로 시작한다.
+        viewModel.rememberLearningProgress(null)
+        assertNull(viewModel.lastLearningProgress())
+    }
+
     @Test
     fun instrumentChangeDoesNotClaimSuccessWithoutServerMapping() = runTest {
         val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
@@ -108,7 +125,7 @@ class MyPageViewModelTest {
 
         viewModel.changeNickname("가".repeat(11))
         assertFalse(viewModel.save())
-        assertEquals(ProfileFieldError.InvalidInput, viewModel.uiState.value.error)
+        assertEquals(ProfileFieldError.NicknameTooLong, viewModel.uiState.value.error)
         assertEquals("얼쑤연주자", users.profile.value.nickname)
 
         viewModel.changeNickname(" ${"가".repeat(10)} ")

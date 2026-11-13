@@ -1,5 +1,18 @@
 # 데이터 수집·정제
 
+## 기존 악보 장단·빠르기 교정 (728)
+
+묶음 생성은 현재 악보·빠르기와 표현 companion SHA가 렌더 당시 manifest와 일치해야 합니다. 표현 파일을 고쳤다면 `--render`로 다시 생성한 뒤 포장합니다. 숫자 폴더 대신 기존 운영 `cases/<악기>-<번호>-p<쪽>/` 형식으로 묶습니다.
+
+[곡별 근거표와 판단](../docs/knowledge/data/common/rhythm-metronome/README.md)을 먼저 확인합니다. `prepare_tempo_corrections.py`는 현재 운영 스냅샷의 정확한 sourceId·판본을 확인하고 장단명·빠르기·근거 있는 박 표기만 수정합니다. 비행기 56·132·133·134번은 제외합니다. 음표·가사·시김새·정간 tick은 유지하며 다음 판본의 모범 음원과 수행 시간표를 만듭니다.
+
+```sh
+python -m data.src.scores.prepare_tempo_corrections --snapshot data/processed/tempo-728/db-baseline.json --decisions data/reference/score-tempo-corrections.json --expressions data/processed/tempo-728/expression-inputs.json --assets PATH_TO_BATCH_ASSETS_JSON --out data/processed/tempo-728/prepared --song-id 54 --render
+python -m data.src.scores.prepare_tempo_corrections --snapshot data/processed/tempo-728/db-baseline.json --decisions data/reference/score-tempo-corrections.json --expressions data/processed/tempo-728/expression-inputs.json --assets PATH_TO_BATCH_ASSETS_JSON --out data/processed/tempo-728/prepared --render --bundle data/processed/tempo-728/release
+```
+
+`expression-inputs.json`은 곡 ID 문자열과 **현재 판본에 대응하는** 표현 companion 경로의 JSON 맵입니다. 이전 판본의 companion을 그대로 재사용하지 않습니다. 자산 맵은 기존 playback의 악기별 CAT ZIP 형식이며 실제 보유 경로로 지정합니다. 필요 라이브러리와 FFmpeg/FFprobe 설정은 기존 playback 안내를 따릅니다. `--render` 없이 준비·검증만 가능하고 `--bundle` 대상은 새 디렉터리여야 합니다. 서버 게시·백업·충돌 검사·복구는 [운영 도구](../infra/catalog/README.md#장단빠르기와-모범-음원-동시-교정-728)를 사용합니다.
+
 등록 장단 미리듣기 M4A를 만들 때는 [원본 출처와 생성 명령](../docs/knowledge/data/jangdan-preview-audio.md)을 참고합니다.
 
 연습 반주의 굿거리 굴림5개와 공통 타격6개는 같은 문서의 [연습용 PCM 생성](../docs/knowledge/data/jangdan-preview-audio.md#연습용-pcm-생성)을 따릅니다. 공식 실제 굴림 원본을 사용하며 생성·길이 검사와 음악적 청음 상태를 구분합니다.
@@ -406,3 +419,9 @@ python -m unittest data.tests.test_repair_scoring data.tests.test_rebind_perform
 ```
 
 동일 명령에 `--check`를 더하면 생성 파일을 읽기 전용으로 대조한다. `rebind_performance()`는 확인한 이벤트 대응표와 실제 파일 SHA를 받아 기존 음원의 구간별 시간을 새 악보에 연결한다. 다른 길이·일반 음높이·숨표가 바뀌면 재사용을 거절한다. 따라서 104·109는 교정·숨표를 반영한 음원을 별도로 생성했다. 운영 적용과 보류 중인 오나라의 조건은 [실행 기록](../docs/plans/S15P31E102-699.md#2026-11-10-운영-적용-결과), [catalog 명령](../infra/catalog/README.md#교정-9곡의-악보음원-동시-적용-699)에 있다.
+
+### 서비스 스캔 입력
+
+`jeongganbo_omr.py`는 `--image`로 이미 렌더링한 PNG를 받을 수 있습니다. 이때 쪽 번호는 0이고, PDF 재렌더링 옵션(`--read-dpi`, `--octave-check`)은 함께 쓰지 않습니다. 서비스는 `--model-cache-dir`로 요청별 쓰기 경로를 지정하고, `--batch-size 16`으로 추론 배치를 제한합니다. `--beats 0`은 검출한 각의 정간 수 중 최빈값을 사용합니다. 한 인쇄 열에 장단이 여러 번 들어간 경우 실제 장단별 각 구분은 검수해야 합니다.
+
+`--fill-grid`는 옆 열의 칸 위치를 참고해 놓친 칸을 보완하고, `--keep-empty-columns`는 율명을 못 읽은 열도 보존합니다. 읽지 못한 열을 없애 뒤 칸을 당기지 않도록 서비스에서 두 옵션을 사용합니다. `cells.json`에는 원문·신뢰도·상자·보완 여부와 중앙 먹 비율(`ink`)을 남깁니다. 격자를 못 찾으면 종료 코드 4입니다. 순수 토큰 변환은 `jeongganbo_tokens.py`로 공유합니다. [모델 설치와 서비스 검사](../ai/README.md#스캔-모델-실행-458)를 따릅니다.

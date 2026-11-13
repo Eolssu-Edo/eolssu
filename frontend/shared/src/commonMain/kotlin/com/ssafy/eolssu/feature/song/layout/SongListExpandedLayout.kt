@@ -56,6 +56,7 @@ internal fun SongListExpandedLayout(
         title = stringResource(Res.string.song_list_title),
         onBack = actions.onBack,
         pageTopBar = true,
+        containerColor = EolssuTheme.colors.groupedBackground,
         snackbarHostState = snackbarHostState,
         topBarRight = { instrumentPicker() },
     ) { gutter ->
@@ -72,7 +73,6 @@ internal fun SongListExpandedLayout(
                 SongDetailPane(
                     detail,
                     actions.onStartPractice,
-                    actions.onOpenSettings,
                     actions.onRetryDetail,
                     Modifier.weight(1f).fillMaxHeight().padding(top = 22.dp, bottom = 24.dp),
                 )
@@ -83,7 +83,7 @@ internal fun SongListExpandedLayout(
 
 /** 오른쪽 곡 정보 칸. [detail]이 null이면 곡을 고르라는 안내, 곡을 불러오는 중·실패면 [SongLoadNotice]다. */
 @Composable
-private fun SongDetailPane(detail: SongDetailUiState?, onStartPractice: () -> Unit, onOpenSettings: () -> Unit, onRetry: () -> Unit, modifier: Modifier) {
+private fun SongDetailPane(detail: SongDetailUiState?, onStartPractice: () -> Unit, onRetry: () -> Unit, modifier: Modifier) {
     val colors = EolssuTheme.colors
     Column(modifier.border(1.dp, colors.lineSoft, RoundedCornerShape(20.dp))) {
         val song = detail?.song
@@ -93,7 +93,6 @@ private fun SongDetailPane(detail: SongDetailUiState?, onStartPractice: () -> Un
             else -> SongDetailBody(
                 song,
                 onStartPractice,
-                onOpenSettings,
                 Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
                 coverColumns = 6,
                 coverRows = 5,

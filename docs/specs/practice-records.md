@@ -33,8 +33,9 @@
 
 | 필드 | 값 |
 | --- | --- |
-| isFullSong | `start_note_idx` = 0이고 `end_note_idx` = 곡 `note_count` − 1. 성장 집계의 전체 곡 연주와 같은 정의다 |
-| startColumnIdx·endColumnIdx | 구간 첫·끝 음표의 각(0부터, 화면은 +1). EVA-03·04와 같은 규칙(`songs.score_json` NOTE 순서의 cellId)으로 읽는다. 세션 악보 버전이 지금 곡 악보 버전과 다르면 null이다 |
+| scoreVersion | 세션에 저장한 악보 판본. 현재 판본과 같다고 가정하지 않는다 |
+| isFullSong | `start_note_idx` = 0이고 `end_note_idx` = 보관 판본의 `note_count`(없으면 현재 곡) − 1. 성장 집계의 전체 곡 연주와 같은 정의다 |
+| startColumnIdx·endColumnIdx | 구간 첫·끝 음표의 각(0부터, 화면은 +1). EVA-03·04와 같은 규칙으로 세션 판본의 현재 또는 보관 악보 NOTE 순서의 cellId를 읽는다. 해당 판본을 구할 수 없으면 null이다 |
 | recordingDurationMs | 업로드 때 저장한 녹음 길이(ms). 업로드하지 않은 세션이면 null이다. 녹음 파일이 정리돼 다시 들을 수 없어도 길이는 남는다(다시 들을 수 있는지는 `recordingAvailable`) |
 | bpm·bpmUnit | 세션 값. bpm은 bpmUnit 단위로 센 값 |
 | totalScore | 저장된 평가 총점(0~100) |
@@ -65,25 +66,38 @@
 | sort | `NEWEST`(기본) 또는 `OLDEST` |
 | page | 0 이상, 기본 0 |
 | size | 1~100, 기본 20 |
+| groupOrder | 선택. 기본 `LAST_SAVED`(기존 동작). `LAST_STARTED`는 곡별 최신 연주 시작 시각 내림차순, 동률이면 곡 ID 내림차순이며 `songId`를 생략하면 그 첫 곡을 읽는다 |
+| weekOf | 선택. `YYYY-MM-DD`(1001~9998년). 해당 날짜가 속한 KST 월~일의 저장 기록 요약을 함께 요청 |
 
 형식·범위를 벗어나면 400이다.
 
 | result 필드 | 값 |
 | --- | --- |
 | totalRecordCount | 본인 기록 수 |
-| songs[] | 기록이 있는 모든 곡(페이지 없음). `lastSavedAt` 내림차순, 같으면 `songId` 내림차순 |
+| songs[] | 기록이 있는 모든 곡(페이지 없음). 순서는 `groupOrder`를 따른다 |
 | songs[].songId·title | 곡 ID(STRING)·제목 |
 | songs[].recordCount | 그 곡의 기록 수 |
 | songs[].lastSavedAt | 그 곡 기록 중 가장 최근 `saved_at` |
+| songs[].lastStartedAt | 그 곡 기록 중 가장 최근 `started_at` |
+| songs[].instrumentCode | 선택. 그 곡에 연결된 카탈로그 악기 코드. 곡이 비공개여도 본인의 저장 기록에는 제공하며 코드가 없으면 생략한다 |
+| week | `weekOf`를 보냈을 때만 `{recordCount, bestScore}`. 같은 회원의 삭제되지 않은 저장 기록을 연주 시작 시각으로 집계하고 악기 필터와 무관하다. 없으면 `0`·`null` |
 | songs[].bestScore | 그 곡 기록 중 최고 총점 |
 | songId | items의 곡. 생략하면 `songs[0]`의 곡, 기록이 하나도 없으면 null. 지정한 곡에 기록이 없으면 그 값 그대로 두고 items는 `[]` |
 | items[] | 그 곡의 기록. `NEWEST`는 `startedAt`·`sessionId` 내림차순, `OLDEST`는 오름차순. 페이지 밖이면 `[]` |
-| items[] 필드 | `sessionId`, `songId`, `title`, `isFullSong`, `startColumnIdx`, `endColumnIdx`, `recordingDurationMs`, `bpm`, `bpmUnit`, `totalScore`, `startNoteIdx`, `endNoteIdx`, `startedAt`, `recordingAvailable`, `memo`, `isNew` |
+| items[] 필드 | `sessionId`, `songId`, `title`, `isFullSong`, `startColumnIdx`, `endColumnIdx`, `recordingDurationMs`, `bpm`, `bpmUnit`, `totalScore`, `startNoteIdx`, `endNoteIdx`, `startedAt`, `recordingAvailable`, `memo`, `isNew`, `scoreVersion` |
 | items[].isNew | `viewed_at`이 비어 있음. 기록 상세(PRA-03)를 처음 조회하면 false가 된다 |
+| items[].scoreVersion | 해당 연주가 사용한 악보 판본의 정수 버전 |
 | page·size | 요청 값 |
 | totalElements·totalPages | 그 곡의 기록 수와 `ceil(totalElements / size)`. 기록이 없으면 0·0 |
 
-목록 조회는 `viewed_at`을 바꾸지 않는다. 목록 머리의 주간 연습 횟수·최고점은 GRO-01이 맡는다.
+목록 조회는 `viewed_at`을 바꾸지 않는다. 기록 화면의 주간 저장 기록 집계는 `week`를 사용한다. 저장 여부를 따지지 않는 성장 화면의 집계는 GRO-01을 유지한다.
+
+### 마이페이지 최근 연주 카드
+
+- [REC-05](#rec-05-get-apiusersmepractice-recordsrecent)의 `latest`에서 곡·연주 시작 시각·연주 범위·점수를, `week.recordCount`에서 이번 주 횟수를 표시한다. 기록이 없으면 빈 기록을 표시한다.
+- 로그인한 회원이 홈을 열면 REC-05를 백그라운드에서 시작한다. 잠금 대기와 HTTP 응답을 포함해 300ms가 지나거나 홈·마이페이지 외 화면으로 이동하면 취소한다. 마이페이지로 이동할 때는 남은 시간 안에서 진행 중인 선조회를 공유한다. 로그아웃을 확인할 때는 즉시 취소하고 선조회 뒤에 대기하던 마이페이지 조회도 시작하지 않는다.
+- 홈 선조회에 401이 오면 종료한다. 마이페이지의 정식 조회에서 토큰 갱신과 재시도를 처리한다. 선조회 성공 후 같은 로그인·같은 KST 주의 30초 안에는 요약을 재사용한다. 이후에는 다시 조회하며, 최신 연주 캐시가 있으면 갱신 중과 실패 시에도 표시한다. 앱에서 기록을 저장·삭제하거나 로그인 세션이 바뀌면 요약을 지운다.
+- REC-05가 404인 서버에서는 마이페이지 진입 시 REC-02에 `groupOrder=LAST_STARTED&sort=NEWEST&page=0&size=1&weekOf=<오늘의 KST 날짜>`를 보내고 첫 행을 사용한다. 해당 응답에 주간 집계가 없으면 전체 기록을 받아 최신 연주와 횟수를 구한다. 홈 선조회는 REC-05만 호출한다.
 
 ## REC-03 `GET /api/practice-sessions/{sessionId}/recording`
 
@@ -109,10 +123,16 @@
 - 응답 200 `result`: `sessionId`, `deleted`(true), `recordingDeleted`(녹음 경로가 있어 지웠으면 true, 없었으면 false), `deletedAt`(저장한 `record_deleted_at`과 같은 값, 초 단위).
 - 지운 뒤에는 PRA-03, EVA-01~04, REC-01~04가 모두 404다. 성장 집계(GRO-01~03)는 점수를 그대로 센다.
 
+## REC-05 `GET /api/users/me/practice-records/recent`
+
+- 액세스 쿠키로 인증한 회원의 저장 기록을 조회한다. `weekOf`는 해당 KST 주에 속하는 날짜(`YYYY-MM-DD`, 연도 1001~9998)이며 필수다. 생략하거나 잘못된 날짜면 400, 인증이 없으면 401이다.
+- 응답 200 `result`의 `latest`는 REC-02 `items[]`와 같은 형식의 최신 기록 한 건이다. 삭제되지 않은 본인 저장 기록 중 연주 시작 시각이 가장 늦은 행을 고르고, 동률이면 곡 ID와 세션 ID가 큰 순서를 적용한다. 기록이 없으면 `latest`는 null이다.
+- `week`는 REC-02와 같은 KST 월요일~일요일 저장 기록 집계 `{recordCount, bestScore}`다. 해당 주에 기록이 없으면 `0`·`null`이다. 조회는 `viewed_at`을 갱신하지 않는다.
+
 ## PRA-03 변경 (`GET /api/practice-sessions/{sessionId}`)
 
 - 지운 기록은 404다(지금은 200이고 `recordingAvailable`만 false).
-- 기록이고 `viewed_at`이 비어 있으면, 응답 전에 `viewed_at`을 서버 시각으로 한 번 기록한다(조건부 갱신). 응답 필드는 바뀌지 않는다. 기록 상세가 아닌 화면이 PRA-03을 불러도 기록되며, 이는 받아들였다.
+- 기록이고 `viewed_at`이 비어 있으면, 응답 전에 `viewed_at`을 서버 시각으로 한 번 기록한다(조건부 갱신). 745에서 `scoreVersion`·`songTitle`을 추가한다. 제목은 보관 판본 제목(없으면 현재 곡 제목)이고 숨김·삭제된 곡이어도 본인 기록 접근은 유지한다. [판본 계약](published-score-history.md)을 따른다. 기록 상세가 아닌 화면이 PRA-03을 불러도 기록되며, 이는 받아들였다.
 - `recordingAvailable`의 정의, 분석 대기 조회·시간 초과 처리는 그대로다.
 
 ## 녹음 보관 정책과의 관계 (S15P31E102-375)

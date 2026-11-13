@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.core.ui.component
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +21,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
@@ -41,9 +44,10 @@ enum class TextFieldType { Text, Email, Password, Number }
 
 /**
  * 이름표가 붙은 입력칸(`.au-field`): 이름표 13sp · 칸 높이 48dp · 아래 도움말 또는 오류.
- * [error]가 있으면 테두리를 굵은 검정으로 바꾸고 도움말 대신 오류를 보인다. [trailing]은 칸 오른쪽 끝 글자(인증번호 남은 시간)다.
+ * [error]가 있으면 도움말 대신 오류를 보이고, 테두리 있는 칸([bordered])은 빨간 테두리를 두른다. [trailing]은 칸 오른쪽 끝 글자(인증번호 남은 시간)다.
  * 로그인·가입과 마이페이지가 함께 쓴다. 칸 높이는 [fieldHeight](기본 52dp)로 줄일 수 있고, 글꼴을 키우면 내용에 맞게 높아진다.
  * [counter](예: `4/10`)가 있으면 도움말·오류 줄 오른쪽 끝에 함께 보인다. 길이 제한 자체는 값을 가진 쪽이 [onValueChange]에서 지킨다.
+ * [labelInside]면 칸 위 이름표 없이 이름을 자리 글자로만 두고, 입력하면 사라진다(로그인·가입, S15P31E102-798). 화면 읽기는 그대로 이름을 읽는다.
  */
 @Composable
 fun EolssuTextField(
@@ -60,11 +64,16 @@ fun EolssuTextField(
     trailing: String? = null,
     fieldHeight: Dp = 52.dp,
     counter: String? = null,
+    bordered: Boolean = true,
+    containerColor: Color? = null,
+    labelInside: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
+    val focusManager = LocalFocusManager.current
+    val hideKeyboard = rememberHideKeyboard()
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
+        if (!labelInside) Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
         val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, color = colors.text)
         BasicTextField(
             value = value,
@@ -78,13 +87,24 @@ fun EolssuTextField(
                     TextFieldType.Text -> KeyboardType.Text
                     TextFieldType.Email -> KeyboardType.Email
                     TextFieldType.Password -> KeyboardType.Password
-                    TextFieldType.Number -> KeyboardType.NumberPassword
+                    // BPM·인증번호 등 일반 숫자를 자격 증명으로 분류하지 않는다.
+                    TextFieldType.Number -> KeyboardType.Number
                 },
                 autoCorrectEnabled = type == TextFieldType.Text,
                 imeAction = imeAction,
             ),
             keyboardActions = KeyboardActions(onAny = {
-                if (onImeAction != null) onImeAction() else defaultKeyboardAction(imeAction)
+                // '다음'은 다음 칸으로 옮기고, 옮길 칸이 없으면 키보드를 내린다.
+                // 확인·완료 등은 키보드를 먼저 내린 뒤 [onImeAction](로그인·저장 등)을 한다(S15P31E102-800).
+                when {
+                    imeAction == ImeAction.Next && onImeAction != null -> onImeAction()
+                    imeAction == ImeAction.Next -> if (!focusManager.moveFocus(FocusDirection.Next)) hideKeyboard()
+                    imeAction == ImeAction.Previous -> if (onImeAction != null) onImeAction() else focusManager.moveFocus(FocusDirection.Previous)
+                    else -> {
+                        hideKeyboard()
+                        onImeAction?.invoke()
+                    }
+                }
             }),
             modifier = Modifier
                 .fillMaxWidth()
@@ -98,14 +118,22 @@ fun EolssuTextField(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = fieldHeight)
-                        .background(colors.surface, shape)
-                        .border(if (error != null) 1.5.dp else 1.dp, if (error != null) colors.rec else colors.line, shape)
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .background(containerColor ?: colors.surface, shape)
+                        // [bordered]가 false면 오류일 때도 테두리 없이 같은 바탕색 칸을 두고, 오류는 아래 문장으로만 알린다(S15P31E102-798).
+                        // 테두리 있는 칸은 오류일 때 빨간 테두리를 두른다.
+                        .then(
+                            when {
+                                !bordered -> Modifier
+                                error != null -> Modifier.border(1.5.dp, colors.rec, shape)
+                                else -> Modifier.border(1.dp, colors.line, shape)
+                            },
+                        )
+                        .padding(horizontal = if (labelInside) 16.dp else 14.dp, vertical = 12.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     Box(Modifier.padding(end = if (trailing != null) 48.dp else 0.dp)) {
                         // 자리 글자는 대비 기준(4.5:1)을 지키도록 회색 글자색을 쓴다(와이어프레임은 더 옅은 회색).
-                        if (value.isEmpty()) Text(placeholder, style = textStyle, color = colors.textMuted)
+                        if (value.isEmpty()) Text(if (labelInside) label else placeholder, style = textStyle, color = colors.textMuted)
                         innerTextField()
                     }
                     if (trailing != null) {

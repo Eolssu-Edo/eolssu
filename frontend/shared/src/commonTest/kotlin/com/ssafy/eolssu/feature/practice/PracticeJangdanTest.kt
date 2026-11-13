@@ -17,6 +17,102 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeJangdanTest {
+    @Test fun rhythmSectionSilencesAtItsEndWhileTheUiIsBlocked() = blockedSection(model = false)
+    @Test fun modelSectionSilencesAtItsEndWhileTheUiIsBlocked() = blockedSection(model = true)
+    @Test fun repeatedModelSectionSilencesBeforeItReturnsOutsideTheSelection() = blockedSection(model = true, performed = true)
+
+    private fun blockedSection(model: Boolean, performed: Boolean = false) = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val audioScheduler = TestCoroutineScheduler()
+        val views = ViewModelStore()
+        try {
+            val song = (if (performed) previewSong() else smallScoreSong()).copy(id = "42", scoreVersion = 1, jangdanPlayback = mapping)
+            val audio = if (performed) previewAudio().withPerformance(previewJson(), song, SourceHash) else audioFixture()
+            val repository = object : SongRepository by SampleSongRepository() {
+                override suspend fun getSong(songId: String): Song = song
+            }
+            val storage = FakeKeyValueStore()
+            val settings = PracticeSettingsStore(storage).apply { update { it.copy(jangdanSound = true) } }
+            val samples = Samples(StandardTestDispatcher(audioScheduler) + audioScheduler)
+            val media = FakeAudioPlayer()
+            val column = if (performed) 1 else 0
+            val section = com.ssafy.eolssu.core.model.ScoreSection(
+                com.ssafy.eolssu.core.model.ScorePosition(column, 0), com.ssafy.eolssu.core.model.ScorePosition(column, 0))
+            val vm = PracticeViewModel(song.id, true, repository, settings, PracticeTimeMeter({ 0L }),
+                PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope),
+                playbackTimeSource = audioScheduler.timeSource, jangdanPlayer = samples,
+                modelAudioRepository = modelRepository { audio }, audioPlayer = media, initialSection = section)
+            views.put("practice", vm)
+            runCurrent()
+            if (model) {
+                vm.startModel(); runCurrent()
+                media.state.value = media.state.value.copy(status = AudioPlaybackStatus.Playing, positionMs = media.requestedPosition,
+                    positionSampledAt = audioScheduler.timeSource.markNow(), positionClockRate = 0f)
+                runCurrent()
+                audioScheduler.runCurrent()
+                media.state.value = media.state.value.copy(positionMs = media.requestedPosition + 1,
+                    positionSampledAt = audioScheduler.timeSource.markNow(), positionClockRate = 1f)
+                runCurrent()
+                audioScheduler.advanceTimeBy(6)
+            } else { vm.startRhythm(); runCurrent() }
+            audioScheduler.runCurrent()
+            assertTrue(samples.hits.isNotEmpty(), "The independent audio observer must see the first attack")
+            val beforeSilence = samples.silences
+            audioScheduler.advanceTimeBy(3001)
+            assertEquals(if (performed) 2 else 4, samples.hits.size, "Only attacks in this performed occurrence of the selected section may sound")
+            assertTrue(samples.silences > beforeSilence, "The section must clear queued audio without waiting for UI cleanup")
+            val atEnd = samples.hits.size
+            audioScheduler.advanceTimeBy(1000)
+            assertEquals(atEnd, samples.hits.size)
+            assertTrue(vm.uiState.value.playing, "The test leaves the owner/UI scheduler blocked")
+        } finally { views.clear(); Dispatchers.resetMain() }
+    }
+
+    @Test fun nativeModelWaitsForDecoderProgressBeforeItsFirstAttack() = practice { vm, samples, media, settings ->
+        settings.update { it.copy(jangdanSound = true) }; runCurrent()
+        vm.startModel(); runCurrent()
+        media.state.value = media.state.value.copy(status = AudioPlaybackStatus.Playing, positionMs = 0,
+            positionSampledAt = testScheduler.timeSource.markNow(), positionClockRate = 0f)
+        runCurrent()
+        advanceTimeBy(100); runCurrent()
+        assertTrue(samples.hits.isEmpty(), "A started decoder that is still at zero must not emit an early downbeat")
+        media.state.value = media.state.value.copy(positionMs = 1,
+            positionSampledAt = testScheduler.timeSource.markNow(), positionClockRate = 1f)
+        advanceTimeBy(6); runCurrent()
+        assertEquals(listOf(JangdanSample.Deong), samples.hits)
+    }
+
+    @Test fun asynchronousOutputFailureStopsBetweenAttacks() = runTest {
+        val samples = Samples()
+        val session = JangdanSession(samples, backgroundScope)
+        session.start(planJangdan(mapping, 60, 4), false, { testScheduler.currentTime / 250.0 })
+        runCurrent()
+        advanceTimeBy(75)
+        samples.failed = true
+        advanceTimeBy(10)
+        runCurrent()
+        assertEquals(JangdanStatus.Failed, session.status.value)
+        assertEquals(1, samples.hits.size)
+        assertEquals(1, samples.releases)
+    }
+
+    @Test fun audioTicksContinueWhileTheUiDispatcherIsNotRunningAndStopCancelsThem() = runTest {
+        val audioScheduler = TestCoroutineScheduler()
+        val player = Samples(StandardTestDispatcher(audioScheduler) + audioScheduler)
+        val session = JangdanSession(player, backgroundScope)
+        session.start(planJangdan(mapping, 60, 4), false, { audioScheduler.currentTime / 250.0 })
+        runCurrent() // Prepare and begin on the owner; subsequently leave this UI scheduler idle.
+        audioScheduler.runCurrent()
+        assertEquals(JangdanStatus.Playing, session.status.value)
+        audioScheduler.advanceTimeBy(1501)
+        assertEquals(listOf(JangdanSample.Deong, JangdanSample.Kung, JangdanSample.Deong, JangdanSample.Kung), player.hits)
+        session.stop()
+        audioScheduler.advanceTimeBy(1000)
+        runCurrent()
+        assertEquals(4, player.hits.size, "Stopped audio must not emit another attack")
+        assertEquals(JangdanStatus.Idle, session.status.value)
+    }
+
     @Test fun timelineSeekingPreservesRhythmPlaybackAndEndRestartsFromZero() = practice { vm, _, _, _ ->
         vm.selectRhythm()
         vm.seekToFraction(0.5f)
@@ -93,12 +189,12 @@ class PracticeJangdanTest {
         assertEquals(4.0, vm.uiState.value.currentTick!!, 0.001)
     }
 
-    @Test fun evaluationEntryStartsCountdownOnceAndDoesNotRestartAfterCancel() = practice { vm, _, _, _ ->
-        vm.startEvaluationOnEntry(); runCurrent()
+    @Test fun cancelledEvaluationCountdownDoesNotRestartByItself() = practice { vm, _, _, _ ->
+        vm.requestEvaluation(); runCurrent()
         assertEquals(PracticeMode.Countdown, vm.uiState.value.mode)
         vm.cancelCountdown(); runCurrent()
         assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
-        vm.startEvaluationOnEntry(); runCurrent()
+        advanceTimeBy(5_000); runCurrent()
         assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
     }
 
@@ -361,8 +457,9 @@ class PracticeJangdanTest {
 
 private val mapping = JangdanPlayback("3", "세마치", 0, 4, listOf("덩", "쿵"), listOf(1, 1))
 
-private class Samples : JangdanSamplePlayer {
+private class Samples(override val timingContext: kotlin.coroutines.CoroutineContext = kotlin.coroutines.EmptyCoroutineContext) : JangdanSamplePlayer {
     override val available = true
+    override var failed = false
     override var interrupted = false
     var pending: CompletableDeferred<Boolean>? = null
     var begins = 0

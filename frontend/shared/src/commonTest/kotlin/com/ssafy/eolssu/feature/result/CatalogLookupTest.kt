@@ -72,7 +72,7 @@ internal class CatalogLookupTest : CatalogViewModelTest() {
         val songs = CatalogSongs().apply { song = { SampleSongs.first().copy(scoreVersion = 2) } }
         val model = keep(ResultViewModel("41", evaluations, songs, SamplePracticeRecordRepository()))
         runCurrent()
-        assertEquals(SongLookup.Failed, model.uiState.value.songLookup)
+        assertEquals(SongLookup.Missing, model.uiState.value.songLookup, "요청한 판본이 없는 저장소는 현재 판본으로 대체하지 않는다")
         assertNull(model.uiState.value.song)
         songs.song = { SampleSongs.first().copy(scoreVersion = 1) }
         model.retrySong()

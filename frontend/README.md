@@ -46,8 +46,9 @@ Gradle 프로젝트명은 `eolssu`, Android 앱 표시명은 `얼쑤`입니다. 
 4. **동기화(Sync) 기다리기**: 처음에는 Gradle, JDK, 라이브러리를 내려받아 **7~8분** 정도 걸립니다. 화면 아래 진행 표시줄이 끝날 때까지 기다립니다.
    - `local.properties`(내 PC의 Android SDK 경로)가 자동으로 생깁니다. 커밋하지 않습니다.
    - `Failed to find target android-37` 오류가 나면 **Tools → SDK Manager**에서 **Android API 37**을 설치하고 다시 동기화합니다.
-5. **에뮬레이터 만들기**: 오른쪽 **Device Manager → +(Create Virtual Device)** → 폰 기기(예: Medium Phone) → API 37 시스템 이미지 → **Finish**.
-6. **실행**: 상단 실행 목록에서 `androidApp`과 에뮬레이터를 고르고 ▶ **Run**(`Shift+F10`)을 누릅니다. 첫 빌드는 몇 분 걸립니다.
+5. **에뮬레이터 준비**: Android 에뮬레이터는 **Galaxy S10(S10) 하드웨어 프로필**을 사용합니다. 오른쪽 **Device Manager**에서 S10 가상 기기를 선택합니다. 새로 만들 때도 S10 프로필과 API 37 시스템 이미지를 사용합니다.
+   - S10 프로필이 목록에 없으면 사용할 프로필의 설정을 확인한 뒤 등록합니다.
+6. **실행**: 상단 실행 목록에서 `androidApp`과 **S10 에뮬레이터**를 고르고 ▶ **Run**(`Shift+F10`)을 누릅니다. 첫 빌드는 몇 분 걸립니다.
    - 에뮬레이터만 켜지고 앱이 뜨지 않으면 Run이 실행되지 않은 것입니다. 하단 **Build** 창에서 진행 상황과 오류를 확인합니다.
 7. **성공 확인**: 신규 설치에서는 동의 화면이 먼저 열립니다. 실제 약관·인증을 거쳐 홈으로 이동합니다. 약관 API가 비어 있으면 오류와 재시도 화면이 보이며 로그인 성공으로 간주하지 않습니다.
 
@@ -228,15 +229,17 @@ Web은 기기 글꼴로 한글·한자를 그리지 않기 때문에 글꼴 파�
 
 | 파일 | 용도 | 글자 범위 |
 | --- | --- | --- |
-| `ibm_plex_sans_kr_regular·semibold·bold.ttf` | 본문·버튼·사용자가 입력한 글자 | Google Fonts 공식 IBM Plex Sans KR 원본 |
-| `song_myung_regular.ttf` | 고정 제목 | Google Fonts 공식 Song Myung 원본 |
+| `ibm_plex_sans_kr_regular·semibold·bold.ttf` | 제목·본문·버튼·사용자가 입력한 글자 | Google Fonts 공식 IBM Plex Sans KR 원본 |
+| `song_myung_regular.ttf` | 미사용(제목은 S15P31E102-768부터 IBM Plex Sans KR SemiBold) | Google Fonts 공식 Song Myung 원본 |
 | `noto_serif_kr_semibold·bold.otf` | 율명·곡 제목 | 기존 Noto Serif KR 서브셋, 한글 2,350자·율명 한자·영숫자 |
+| `eolssu_yul_supplement.ttf` | 하배이·배유·중청대 | Jigmo2 20250912에서 실제 세 글자만 남긴 보조 폰트, 3,808바이트(CC0 1.0) |
+| `seal_brush.ttf` | 연습곡 표지의 붉은 '얼쑤' 도장 | 나눔손글씨 붓(Google Fonts `ofl/nanumbrushscript`)에서 `얼쑤` 2자만 남긴 서브셋(약 4.5KB). OFL 예약 글꼴 이름 때문에 글꼴 이름을 `Eolssu Seal Brush`로 바꿨고 라이선스 원문은 `files/licenses/nanum_brush_script_ofl.txt` |
 | `pretendard_regular·semibold·bold.otf` | 기존 리소스 보존, 기본 본문에서는 미사용 | Pretendard 1.3.9 원본 |
 
 - 기존 Noto Serif KR 서브셋에는 한글이 2,350자만 있으므로 **사용자가 입력한 글자는 본문 글꼴로 씁니다.** 율명은 기존 Noto Serif KR와 글리프 처리를 유지합니다.
-- 율명 한자는 [`tools/fonts/build_fonts.py`](tools/fonts/build_fonts.py)의 `SERIF_HANJA`에 있는 글자만 들어 있습니다. 새 율명 표기를 쓰려면 여기에 추가하고 다시 만듭니다. Noto Serif KR에 없는 글자(탁황 `僙` 등)는 넣을 수 없습니다.
+- 기본 율명 폰트는 [`tools/fonts/build_fonts.py`](tools/fonts/build_fonts.py)의 `SERIF_HANJA`에 있는 글자를 담습니다. Noto Serif KR 원본에 없는 글자는 이 스크립트로 추가할 수 없어 부수 조합 또는 별도 보조 폰트를 사용합니다. 하배이·배유·중청대는 보조 폰트의 실제 한자로 표시합니다.
 - 운지표의 청성·탁성·중청 글자 21자(`㑣㑥㑲㒇㒣㴌㳞㶋潕㶐㶂㶃㶄㴩㶌㶍㶝`는 Noto Serif KR(Windows 가변 글꼴로 확인)에 없고, `汏浹洟湳`은 원본에만 있음)는 글꼴에 넣지 않고 `feature/guide`의 `HanjaGlyph`가 변(氵·亻) + 율명으로 나눠 그립니다. 두 글꼴 모두 `♭`가 없어 계이름의 내림표는 그림으로 넣습니다.
-- 글꼴 라이선스는 SIL Open Font License 1.1이며 기존 원문은 [`tools/fonts/licenses/`](tools/fonts/licenses/), 앱에 포함하는 원문은 `shared/src/commonMain/composeResources/files/licenses/`에 있습니다.
+- 기존 글꼴은 SIL Open Font License 1.1, 율명 보조 폰트는 CC0 1.0입니다. 원문은 [`tools/fonts/licenses/`](tools/fonts/licenses/), 앱에 포함하는 원문은 `shared/src/commonMain/composeResources/files/licenses/`에 있습니다.
 
 기존 Pretendard·Noto 서브셋을 다시 만들 때(`frontend/`에서, Python 3.11 이상; IBM Plex Sans KR·Song Myung에는 적용하지 않음):
 
@@ -249,6 +252,8 @@ PYTHONUTF8=1 python -P tools/fonts/build_fonts.py "$SRC"
 ```
 
 스크립트는 원본 파일의 SHA-256을 확인한 뒤 만들고, 같은 원본이면 항상 같은 파일을 만듭니다. 원본 폴더(`$SRC`)는 저장소 밖 임시 폴더라 커밋되지 않습니다. Noto CJK 원본이 바뀌어 해시가 다르면 스크립트가 멈추니, 새 원본을 확인한 뒤 해시를 갱신합니다.
+
+하배이·배유·중청대 보조 폰트는 [Jigmo 공식 배포](https://kamichikoichi.github.io/jigmo/)의 `Jigmo-20250912.zip`에서 `Jigmo2.ttf`를 꺼내 `python -P tools/fonts/build_supplementary_yul.py <Jigmo2.ttf>`로 만듭니다(fonttools 4.60.1). 원본 해시·세 코드포인트·실제 윤곽을 검사하고 이름을 `Eolssu Yul Supplement`로 바꿉니다. CC0 원문은 `tools/fonts/licenses/Jigmo-CC0.txt`와 앱의 `files/licenses/jigmo_cc0.txt`에 보존합니다. [출처·검증 기록](../docs/knowledge/frontend/web-korean-fonts.md#보충-평면-율명-세-글자-s15p31e102-813)을 참고합니다.
 
 ### 시김새 소리
 
@@ -332,3 +337,7 @@ release 키가 없으면 이 스크립트는 중단하며 debug 키로 대체하
 기존 테스트 계정으로 후속 API를 검증할 때만 `./gradlew :androidApp:assembleDebug -Peolssu.qaSkipConsent=true`로 빌드합니다. 첫 실행은 다른 빌드와 같이 로그인 화면에서 시작하고(약관 동의는 회원가입 흐름, 마이크 권한은 첫 녹음 때) 실제 로그인은 유지합니다. 약관 동의 기록은 만들지 않으며 신규 가입은 우회하지 않습니다. 기본 debug·release·Web·iOS에는 적용하지 않습니다. release는 이 속성을 주어도 우회가 꺼집니다.
 
 해제는 위 속성을 빼고 재빌드합니다. 이미 실제 로그인으로 첫 실행을 마친 기기는 기존 동작대로 홈에서 시작하므로 정상 첫 실행 비교에는 새 설치 상태의 별도 테스트 기기를 사용합니다. [제거 위치·조건과 검증 결과](../docs/plans/S15P31E102-309.md)를 따릅니다.
+
+### 악보 작성 지원음
+
+편집기의 율명 입력·오선 이동·수정 후보는 `ReferenceCatalogRepository.authoringCapabilities`의 동일한 선택 목록을 사용합니다. 운지 미등록을 연주 불가로 표시하지 않으며, 최종 저장 오류의 위치를 보이고 초안은 보존합니다. 악기 변경과 음원 악기 재선택 시 다시 검증합니다. 실제 연습 음원 다운로드가 지원음 오류로 거절되면 반복 생성 대신 악보 편집을 안내합니다. [작성 일관성 스펙](../docs/specs/score-authoring-consistency.md)을 따릅니다.

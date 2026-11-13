@@ -22,9 +22,9 @@ internal class RecordListAvailabilityTest : CatalogViewModelTest() {
         // Initial composition occurs before flow collection; it must already distinguish these states.
         assertFalse(unavailable.uiState.value.recordsAvailable)
         assertTrue(empty.uiState.value.recordsAvailable)
-        assertEquals(empty.uiState.value.records, unavailable.uiState.value.records)
+        assertEquals(empty.uiState.value.summaries, unavailable.uiState.value.summaries)
         runCurrent()
-        unavailable.changeSort(RecordSort.Oldest)
+        unavailable.toggleNameOrder()
         assertFalse(unavailable.uiState.value.recordsAvailable)
         assertTrue(empty.uiState.value.recordsAvailable)
         assertEquals(empty.uiState.value.groups, unavailable.uiState.value.groups)
@@ -33,6 +33,6 @@ internal class RecordListAvailabilityTest : CatalogViewModelTest() {
 
 private class EmptyAvailableRecords : PracticeRecordRepository {
     override val records = MutableStateFlow(emptyList<PracticeRecord>())
-    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord = error("Not used")
+    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String): PracticeRecord = error("Not used")
     override suspend fun updateMemo(recordId: String, memo: String) = error("Not used")
 }

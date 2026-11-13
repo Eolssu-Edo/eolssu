@@ -22,6 +22,8 @@ import io.ktor.client.plugins.cookies.CookiesStorage
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.plugin
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpMethod
@@ -29,6 +31,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.encodedPath
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.util.AttributeKey
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -59,12 +62,14 @@ class ApiResponse<T>(
 
 /** 실패 응답의 `result`. */
 @Serializable
-class ApiError(val errorCode: String? = null)
+class ApiError(val errorCode: String? = null, val details: kotlinx.serialization.json.JsonObject? = null)
 
 val ApiJson = Json {
     ignoreUnknownKeys = true
     explicitNulls = false
 }
+
+private val authRefreshSkipped = AttributeKey<Unit>("AuthRefreshSkipped")
 
 /**
  * 앱 전체가 쓰는 HTTP 클라이언트. 응답 코드는 부르는 쪽이 판단한다(`expectSuccess = false`).
@@ -93,7 +98,9 @@ fun createHttpClient(engine: HttpClientEngine, server: ServerAddress, cookies: C
         val path = request.url.encodedPath
         val method = request.method
         val call = observedAttempt(path, method) { execute(request) }
-        if (call.response.status != HttpStatusCode.Unauthorized || skipsRefresh(request.method, request.url.encodedPath)) return@intercept call
+        if (call.response.status != HttpStatusCode.Unauthorized ||
+            request.attributes.contains(authRefreshSkipped) || skipsRefresh(method, path)
+        ) return@intercept call
         val refreshed = refresher.refresh(seen) { client.post(REFRESH_PATH).status.isSuccess() }
         if (refreshed) observedAttempt(path, method, PerfReason.REPLAY) { execute(request) } else call
     }
@@ -105,7 +112,7 @@ private val sessionEndpoint = Regex("/api/practice-sessions/([1-9][0-9]{0,18})(/
 
 private fun observedTarget(path: String): Pair<PerfTarget, String?>? = when (path) {
     "/api/auth/refresh" -> PerfTarget.AUTH_REFRESH to null
-    "/api/users/me/practice-records" -> PerfTarget.RECORD_PAGE to null
+    "/api/users/me/practice-records", "/api/users/me/practice-records/recent" -> PerfTarget.RECORD_PAGE to null
     "/api/instruments" -> PerfTarget.INSTRUMENTS to null
     "/api/songs" -> PerfTarget.SONG_LIST to null
     else -> songEndpoint.matchEntire(path)?.let {
@@ -187,8 +194,15 @@ sealed interface NetworkResult {
 }
 
 /** 요청을 보내고 결과를 [NetworkResult]로 돌려준다. 코루틴 취소는 그대로 전한다. */
-suspend fun HttpClient.sendCatching(request: suspend HttpClient.() -> HttpResponse): NetworkResult = try {
-    val work = kotlinx.coroutines.currentCoroutineContext()[AccountWork]
+suspend fun HttpClient.sendCatching(request: suspend HttpClient.() -> HttpResponse): NetworkResult =
+    sendCatching(accountBound = true, request)
+
+private suspend fun HttpClient.sendCatching(
+    accountBound: Boolean,
+    request: suspend HttpClient.() -> HttpResponse,
+): NetworkResult = try {
+    ensureAccountSession()
+    val work = if (accountBound) currentCoroutineContext()[AccountWork] else null
     val response = if (work == null) request() else work.member.request { request() }
     ensureAccountSession()
     NetworkResult.Received(response)
@@ -207,6 +221,22 @@ suspend fun HttpClient.sendCatching(request: suspend HttpClient.() -> HttpRespon
 /** 요청을 보내고 응답을 받는다. 연결 실패와 시간 초과를 나눌 필요가 없을 때 쓴다. 응답을 받지 못하면 null. */
 suspend fun HttpClient.sendOrNull(request: suspend HttpClient.() -> HttpResponse): HttpResponse? =
     (sendCatching(request) as? NetworkResult.Received)?.response
+
+/** 취소될 수 있는 선조회 등은 401을 바로 처리한다. 요청의 계정 결속은 호출 방식이 정한다. */
+internal fun HttpRequestBuilder.skipAuthRefresh() {
+    attributes.put(authRefreshSkipped, Unit)
+}
+
+/** 공개 GET은 인증 변경과 독립적으로 실행하고, 응답을 사용할 때는 호출자의 로그인 세대를 확인한다. */
+internal suspend fun HttpClient.getPublicOrNull(
+    path: String,
+    configure: HttpRequestBuilder.() -> Unit = {},
+): HttpResponse? = (sendCatching(accountBound = false) {
+    get(path) {
+        skipAuthRefresh()
+        configure()
+    }
+} as? NetworkResult.Received)?.response
 
 /** 본문을 공통 형식으로 읽는다. 형식이 아니면(프록시 오류 페이지 등) null. */
 suspend inline fun <reified T> HttpResponse.apiResponse(): ApiResponse<T>? = try {

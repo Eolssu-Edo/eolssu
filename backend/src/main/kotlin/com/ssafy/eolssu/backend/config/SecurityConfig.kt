@@ -137,7 +137,7 @@ class SecurityConfig(
             "/api/swagger-ui.html", "/api/swagger-ui/**", "/api/v3/api-docs", "/api/v3/api-docs/**",
             "/api/terms", "/api/songs", "/api/songs/{songId}", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/songs/{songId}/model-audio/play", "/api/songs/{songId}/model-audio/performance",
-            "/api/instruments", "/api/instruments/{instrumentId}/fingerings", "/api/pitches",
+            "/api/instruments", "/api/instruments/{instrumentId}/fingerings", "/api/instruments/{instrumentId}/authoring-capabilities", "/api/pitches",
             "/api/reference-audios", "/api/reference-audios/{assetId}", "/api/reference-audios/{assetId}/play",
             "/api/jangdans", "/api/jangdans/{jangdanId}", "/api/jangdans/{jangdanId}/audio", "/api/jangdan-samples/{sample}/{sha256}",
             "/api/notation-symbols", "/api/notation-symbols/{symbolId}/image",

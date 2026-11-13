@@ -6,6 +6,7 @@ import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSession
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSort
 import com.ssafy.eolssu.backend.feature.record.domain.RecordingFile
+import com.ssafy.eolssu.backend.feature.record.domain.SavedRecordWeek
 import com.ssafy.eolssu.backend.feature.record.domain.SongRecordSummary
 import java.time.LocalDateTime
 
@@ -23,7 +24,14 @@ class MyBatisPracticeRecords(private val mapper: PracticeRecordMapper) : Practic
     }
 
     override fun songSummaries(userId: Long) =
-        mapper.songSummaries(userId).map { SongRecordSummary(it.songId, it.title, it.recordCount, it.lastSavedAt, it.bestScore) }
+        mapper.songSummaries(userId).map {
+            SongRecordSummary(it.songId, it.title, it.recordCount, it.lastSavedAt, it.bestScore, it.instrumentCode, it.lastStartedAt)
+        }
+
+    override fun latestSavedRecord(userId: Long) = mapper.latestSavedRecord(userId)?.toRecord()
+
+    override fun savedRecordWeek(userId: Long, from: LocalDateTime, until: LocalDateTime) =
+        mapper.savedRecordWeek(userId, from, until).let { SavedRecordWeek(it.recordCount, it.bestScore) }
 
     override fun songRecords(userId: Long, songId: Long, sort: RecordSort, offset: Long, limit: Int) =
         mapper.songRecords(userId, songId, sort == RecordSort.NEWEST, offset, limit).map { it.toRecord() }

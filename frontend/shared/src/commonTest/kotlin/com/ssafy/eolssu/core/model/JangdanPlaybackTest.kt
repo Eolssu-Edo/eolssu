@@ -13,6 +13,28 @@ class JangdanPlaybackTest {
     private val gutgeori = JangdanPlayback("2", "굿거리", 0, 24,
         listOf("떵", "", "기덕", "쿵", "더러러러", "", "쿵", "", "기덕", "쿵", "더러러러", ""), listOf(3, 3, 3, 3))
 
+    @Test fun danmoriSchedulesEightSubbeatsInFourQuarterBeatsAt77Bpm() {
+        val mapping = JangdanPlayback("7", "단모리", 0, 4,
+            listOf("덩", "", "따", "따", "궁", "따", "궁", ""), listOf(2, 2, 2, 2))
+        val plan = assertNotNull(planJangdan(mapping, 77, 1))
+        assertEquals(0.5, mapping.cellTicks)
+        assertEquals(listOf(0.0, 1.0, 1.5, 2.0, 2.5, 3.0), plan.strikes.map { it.tick })
+        assertEquals(listOf(JangdanSample.Deong, JangdanSample.Deok, JangdanSample.Deok,
+            JangdanSample.Kung, JangdanSample.Deok, JangdanSample.Kung), plan.strikes.map { it.clip.sample })
+        assertEquals(3116.883117, plan.msPerTick * mapping.cycleTicks, 0.000001)
+        val cursor = JangdanCursor(plan)
+        val strikes = (0..63).flatMap { cursor.due(it / 2.0) }
+        assertEquals(48, strikes.size)
+        assertEquals(listOf(0.0, 1.0, 1.5, 2.0, 2.5, 3.0), strikes.take(6).map { it.tick })
+        assertEquals(listOf(28.0, 29.0, 29.5, 30.0, 30.5, 31.0), strikes.takeLast(6).map { it.tick })
+        assertEquals(3, mapping.cellAt(1.5))
+        val jeongak = assertNotNull(planJangdan(mapping.copy(cycleTicks = 24), 77, 6))
+        assertEquals(listOf(0.0, 6.0, 9.0, 12.0, 15.0, 18.0), jeongak.strikes.map { it.tick })
+        for ((beginnerStrike, jeongakStrike) in plan.strikes.zip(jeongak.strikes)) {
+            assertEquals(beginnerStrike.tick * plan.msPerTick, jeongakStrike.tick * jeongak.msPerTick, 0.000001)
+        }
+    }
+
     @Test fun jajinTaryeongLeavesTheFourthBeatEmpty() {
         val mapping = JangdanPlayback("11", "자진타령", 0, 12,
             listOf("덩", "", "", "덩", "", "", "덩", "", "덕", "", "", ""), listOf(3, 3, 3, 3))
@@ -31,6 +53,17 @@ class JangdanPlaybackTest {
         assertEquals(emptyList(), cursor.due(2.01))
         assertEquals(listOf(JangdanSample.Deong), cursor.due(4.0).map { it.clip.sample })
         assertEquals(listOf(JangdanSample.Kung), cursor.due(2.0).map { it.clip.sample })
+    }
+
+    @Test fun roundedPerformedTimeDoesNotStrikeTheSameBoundaryTwice() {
+        val mapping = JangdanPlayback("12", "4박 기본 반주", 0, 4,
+            listOf("덩", "덕", "궁", "덕"), listOf(1, 1, 1, 1))
+        val cursor = JangdanCursor(planJangdan(mapping, 60, 1)!!)
+        assertEquals(listOf(0.0), cursor.due(0.0).map { it.tick })
+        assertEquals(listOf(1.0), cursor.due(0.9999995).map { it.tick })
+        assertEquals(emptyList(), cursor.due(1.001))
+        assertEquals(listOf(2.0), cursor.due(2.0).map { it.tick })
+        assertEquals(listOf(0.0), cursor.due(0.0).map { it.tick })
     }
 
     @Test fun fiveActualIntegerTemposSelectDistinctRecordedRollsWithoutPitchChange() {

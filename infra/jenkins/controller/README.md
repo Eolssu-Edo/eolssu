@@ -11,6 +11,8 @@
 | 호스트 빌드 에이전트·workspace·연결 secret | `/var/lib/jenkins-agent` |
 | 같은 컨트롤러에서 받은 remoting JAR | `/usr/local/lib/eolssu-jenkins/agent.jar` |
 | 호스트 에이전트 서비스 | `/etc/systemd/system/eolssu-jenkins-agent.service` |
+| 웹 수동 배포 전용 에이전트·workspace·secret | `/var/lib/jenkins-web-agent` |
+| 웹 수동 배포 전용 에이전트 서비스 | `/etc/systemd/system/eolssu-jenkins-web-agent.service` |
 | 전환 전 백업 | `/opt/backups/eolssu-jenkins76-<시각>/` |
 
 Jenkins는 기존 2.580.1과 Java 21을 사용한다. 공식 이미지 digest를 고정하고 호스트의 기존 `jenkins` UID/GID 111:113으로 실행한다. 다른 서버에서는 이 값을 먼저 확인한다. 홈 전체를 mount하므로 잡·사용자·Credentials 암호화 키·플러그인·빌드 이력을 그대로 사용한다. `COPY_REFERENCE_FILE_LOG`도 새 홈으로 지정해야 기본 이미지의 `/var/jenkins_home` 권한 오류를 피할 수 있다. 신규 홈을 자동 생성하지 않으며 기존 홈 소유권을 재귀 변경하지 않는다.
@@ -46,6 +48,22 @@ sudo journalctl -u eolssu-jenkins-agent --since today --no-pager
 ```
 
 원시 빌드 로그·systemd 환경·Jenkins XML에는 비밀값이 포함될 수 있다. 공유 영수증에는 잡 이름·버전·해시 일치 여부·테스트 결과·배포 SHA만 남긴다. 서버 재부팅 시 Docker restart policy로 컨트롤러가 시작하고 에이전트 서비스는 연결을 재시도한다. 버전 업그레이드 시 remoting JAR도 같은 컨트롤러에서 갱신한다.
+
+## 웹 수동 배포 전용 슬롯
+
+작업: [S15P31E102-755](../../../docs/plans/S15P31E102-755.md). `eolssu-frontend-web-수동배포용`은 전용 노드 `edo1-web`에서 실행한다. 노드는 executor 1개, EXCLUSIVE 모드, 노드 이름과 같은 라벨만 받으므로 `agent any` 잡은 이 노드를 쓰지 않는다. 백엔드 잡이 `edo1-host`를 쓰는 동안에도 웹 잡이 대기열에서 기다리지 않는다. 실제 운영 배포는 기존 공유 lock과 백엔드 journal 상태 검사로 계속 한 번에 하나만 진행한다.
+
+같은 서버의 `jenkins` 계정·Docker 그룹·sudoers·`~/.gradle` 캐시를 공유하고 작업 공간만 `/var/lib/jenkins-web-agent/workspace`로 분리한다. 전환 후 첫 웹 빌드는 새 작업 공간이라 Gradle 프로젝트 캐시·`wasm-opt` 결과가 없어 평소보다 오래 걸린다. 두 잡이 동시에 돌면 같은 CPU를 나눠 쓰므로 각 빌드 시간이 늘 수 있다.
+
+적용 순서는 다음과 같다. secret 값은 터미널·로그·명령 인자에 출력하지 않는다.
+
+1. 실행 중인 웹 빌드가 없는지 확인한다. [등록 파일](register-web-agent.groovy)을 기존 관리자 CLI의 `groovy =`에 입력한다. 같은 설정의 노드는 재사용하고, 다르면 덮어쓰지 않고 중단한다.
+2. `/var/lib/jenkins-web-agent`를 `jenkins:jenkins` 소유 0750으로 만든다. `Jenkins.get().getComputer('edo1-web').getJnlpMac()` 결과를 CLI 출력에서 바로 `secret` 파일로 받아 jenkins 소유 0600으로 둔다.
+3. [서비스 파일](eolssu-jenkins-web-agent.service)을 `/etc/systemd/system/`에 설치하고 `daemon-reload`, `enable --now eolssu-jenkins-web-agent`를 실행한다. `edo1-web`과 `edo1-host`가 모두 온라인인지 확인한다.
+4. 웹 잡 설정의 Pipeline을 [frontend.Jenkinsfile](../frontend.Jenkinsfile)과 같게 고친다(`agent { label 'edo1-web' }`). Jenkins linter를 통과한 정의만 저장한다.
+5. 현재 운영 SHA로 웹 잡을 실행해 `edo1-web`에서 checkout·브라우저 테스트·이미지·배포 결과(`already_deployed` 포함)를 확인한다.
+
+되돌릴 때는 실행·예약 중인 웹 빌드가 없을 때 웹 잡의 Pipeline을 `agent any`로 되돌리고 `eolssu-jenkins-web-agent`를 중지한다. 노드 설정과 작업 공간은 보존한다.
 
 ## 복구
 

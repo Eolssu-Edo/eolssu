@@ -3,18 +3,22 @@ package com.ssafy.eolssu.feature.profile
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import com.ssafy.eolssu.data.user.MemberResult
 import eolssu.shared.generated.resources.member_api_unavailable
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
-import eolssu.shared.generated.resources.legal_open_failed
+import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.model.KoreanDateTime
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.data.practice.PracticeRecordRepository
+import com.ssafy.eolssu.data.practice.RecentPracticeSummary
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
@@ -24,6 +28,9 @@ import eolssu.shared.generated.resources.my_feedback_open_failed
 import eolssu.shared.generated.resources.my_password_none
 import eolssu.shared.generated.resources.my_unlink_last
 import eolssu.shared.generated.resources.my_unlinked
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.koin.compose.viewmodel.koinViewModel
@@ -31,6 +38,7 @@ import org.koin.compose.koinInject
 
 /**
  * MY-01 연결. 닉네임 수정·비밀번호 변경·탈퇴는 [onOpen], 간편 로그인 연결은 [onLink], 로그아웃 확인 뒤에는 [onLoggedOut]으로 간다.
+ * 하단 법적 문서는 [onOpenLegal]로 앱 안 문서 화면을 연다.
  * [startMessage]는 닉네임 수정·연결처럼 다녀온 화면이 남긴 안내다.
  */
 @Composable
@@ -38,8 +46,10 @@ fun MyPageRoute(
     onBack: () -> Unit,
     onOpen: (MyPageTarget) -> Unit,
     onLink: (SocialProvider) -> Unit,
+    onLogOutStarted: () -> Unit,
     onLoggedOut: () -> Unit,
     onSessionExpired: () -> Unit,
+    onOpenLegal: (PublishedLegalDocument) -> Unit,
     startMessage: StartMessage? = null,
     onStartMessageShown: () -> Unit = {},
     providers: List<SocialProvider> = SocialProvider.entries - SocialProvider.Apple,
@@ -49,24 +59,41 @@ fun MyPageRoute(
     val instrument by viewModel.instrument.collectAsStateWithLifecycle()
     val progressRepository = koinInject<LearnProgressRepository>()
     val progressRevision by progressRepository.saves.collectAsStateWithLifecycle()
-    // 학습 진도는 서버에서 받는다. 악기·완료 표시가 바뀌면 다시 받고, 받는 동안·받지 못하면 진도 칸을 비워 둔다.
-    val learningProgress by produceState<MyLearningProgress?>(null, instrument, progressRepository, progressRevision) {
-        value = instrument?.let { myLearningProgress(it, progressRepository) }
+    // 학습 진도는 서버에서 받는다. 완료 표시가 바뀌면 다시 받고, 받지 못하면 진도 칸을 비워 둔다.
+    // 내 정보(연습 악기)를 기다리지 않고 바로 받는다. 연습 악기는 완료 기록이 하나도 없을 때만 기다려 쓴다(S15P31E102-768).
+    // 다른 화면에서 돌아와 다시 받는 동안에는 마지막 진도를 그대로 보여 화면이 흔들리지 않게 한다.
+    // 처음 들어올 때도 이 기기에 남긴 마지막 진도부터 바로 보이고, 서버 응답이 오면 바꾼다(S15P31E102-768).
+    val initialProgress = remember(progressRepository) {
+        viewModel.lastLearningProgress() ?: progressRepository.cachedRecent()?.let { MyLearningProgress(it.stages, it.instrument) }
     }
-    // 최근 연주는 연습 기록 화면과 같은 저장소(REC-02)에서 받는다. 이미 받은 기록이 있으면 받는 동안·실패해도 그대로 보인다.
+    val learningProgress by produceState(initialProgress, progressRepository, progressRevision) {
+        value = myLearningProgress({ snapshotFlow { instrument }.filterNotNull().first() }, progressRepository)
+            .also(viewModel::rememberLearningProgress)
+    }
     val recordRepository = koinInject<PracticeRecordRepository>()
+    val member = koinInject<SignedInMember>()
+    val session = member.session.collectAsStateWithLifecycle().value
     val now = koinInject<() -> Long>()
-    val records by recordRepository.records.collectAsStateWithLifecycle()
     val today = remember(now) { KoreanDateTime.fromEpochMillis(now()) }
-    val recordsLoad by produceState(if (recordRepository.available) RecordsLoad.Loading else RecordsLoad.Done, recordRepository) {
-        if (recordRepository.available) value = if (recordRepository.refresh()) RecordsLoad.Done else RecordsLoad.Failed
+    val signingOut = remember { mutableStateOf(false) }
+    val recent by key(session, today) {
+        val initial = remember(recordRepository) { RecentPracticeLoad(recordRepository.cachedRecentPractice(today), RecordsLoad.Loading) }
+        produceState(initial, recordRepository) {
+            if (signingOut.value || !recordRepository.available || member.session.value != session) return@produceState
+            val summary = recordRepository.loadRecentPractice(today) { !signingOut.value }
+            if (signingOut.value || member.session.value != session) return@produceState
+            value = if (summary != null) {
+                RecentPracticeLoad(summary, RecordsLoad.Done)
+            } else {
+                RecentPracticeLoad(recordRepository.cachedRecentPractice(today), RecordsLoad.Failed)
+            }
+        }
     }
-    val recentPractice = remember(records, today) { MyRecentPractice.from(records, today) }
     val recentStatus = myRecentPracticeStatus(
         available = recordRepository.available,
-        hasRecords = records.isNotEmpty(),
-        loading = recordsLoad == RecordsLoad.Loading,
-        failed = recordsLoad == RecordsLoad.Failed,
+        hasRecords = recent.summary?.latest != null,
+        loading = recent.load == RecordsLoad.Loading,
+        failed = recent.load == RecordsLoad.Failed,
     )
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -92,7 +119,7 @@ fun MyPageRoute(
         profile = profile,
         providers = providers,
         learningProgress = learningProgress,
-        recentPractice = recentPractice,
+        recentPractice = recent.summary,
         recentStatus = recentStatus,
         today = today,
         dialog = dialog,
@@ -117,17 +144,16 @@ fun MyPageRoute(
         },
         onLogOut = viewModel::askLogOut,
         onConfirmLogOut = {
+            // 선조회 뒤에 대기하던 마이페이지 조회는 새로 시작하지 않는다.
+            signingOut.value = true
+            onLogOutStarted()
             scope.launch {
                 viewModel.confirmLogOut().join()
                 onLoggedOut()
             }
         },
         onDismissDialog = viewModel::dismissDialog,
-        onOpenLegal = { document ->
-            if (runCatching { uriHandler.openUri(document.url) }.isFailure) {
-                show { getString(Res.string.legal_open_failed) }
-            }
-        },
+        onOpenLegal = onOpenLegal,
         onOpenFeedback = {
             if (runCatching { uriHandler.openUri(FEEDBACK_FORM_URL) }.isFailure) {
                 show { getString(Res.string.my_feedback_open_failed) }
@@ -137,3 +163,5 @@ fun MyPageRoute(
 }
 
 private enum class RecordsLoad { Loading, Done, Failed }
+
+private data class RecentPracticeLoad(val summary: RecentPracticeSummary?, val load: RecordsLoad)

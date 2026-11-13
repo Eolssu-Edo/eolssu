@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.auth
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,10 +26,7 @@ import com.ssafy.eolssu.feature.auth.component.AuthBody
 import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
-import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
-import com.ssafy.eolssu.feature.auth.component.AuthStepProgress
 import com.ssafy.eolssu.core.ui.component.EolssuTextField
-import com.ssafy.eolssu.feature.auth.component.AuthTopBar
 import com.ssafy.eolssu.feature.auth.component.SignupTopBar
 import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
@@ -54,13 +50,9 @@ import eolssu.shared.generated.resources.auth_code_sent
 import eolssu.shared.generated.resources.auth_code_sent_reset
 import eolssu.shared.generated.resources.auth_email
 import eolssu.shared.generated.resources.auth_email_placeholder
-import eolssu.shared.generated.resources.auth_reset_title
 import eolssu.shared.generated.resources.auth_reset_verify_heading
 import eolssu.shared.generated.resources.auth_signup_verify_heading
 import org.jetbrains.compose.resources.stringResource
-
-/** 비밀번호 찾기 단계 수: 1 이메일 인증 · 2 새 비밀번호. 가입 단계는 [SignupPath]가 정한다. */
-internal const val PasswordResetStepCount = 2
 
 /** 남은 초를 `m:ss`로 쓴다. */
 internal fun formatMinutesSeconds(seconds: Long): String = "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
@@ -90,18 +82,8 @@ fun EmailVerificationScreen(
         modifier = Modifier.imePadding(),
         snackbarHostState = snackbarHostState,
         topBar = {
-            if (signUp) {
-                SignupTopBar(SignupProgress(SignupPath.Email, SignupStep.EmailVerification), onBack = onBack)
-            } else {
-                Column {
-                    AuthTopBar(
-                        stringResource(Res.string.auth_reset_title),
-                        onBack = onBack,
-                        right = { AuthStepLabel(1, PasswordResetStepCount) },
-                    )
-                    AuthStepProgress(1, PasswordResetStepCount)
-                }
-            }
+            val path = if (signUp) SignupPath.Email else SignupPath.PasswordReset
+            SignupTopBar(SignupProgress(path, SignupStep.EmailVerification), onBack = onBack)
         },
         bottomBar = {
             if (state.codeSent) {
@@ -115,6 +97,8 @@ fun EmailVerificationScreen(
             AuthHeading(stringResource(if (signUp) Res.string.auth_signup_verify_heading else Res.string.auth_reset_verify_heading))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 EolssuTextField(
+                    bordered = false,
+                    labelInside = true,
                     value = state.email,
                     onValueChange = onEmailChange,
                     label = stringResource(Res.string.auth_email),
@@ -131,6 +115,8 @@ fun EmailVerificationScreen(
                 )
                 if (state.codeSent) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     EolssuTextField(
+                        bordered = false,
+                        labelInside = true,
                         value = state.code,
                         onValueChange = onCodeChange,
                         label = stringResource(Res.string.auth_code),
@@ -182,9 +168,9 @@ private fun ResendRow(label: String, enabled: Boolean, onClick: () -> Unit) {
             onClick = onClick,
             enabled = enabled,
             shape = CircleShape,
-            color = if (enabled) colors.background else colors.surface,
+            // 회색 바탕 위 테두리 없는 흰 알약, 막히면 회색 채움(S15P31E102-798).
+            color = if (enabled) colors.surface else colors.surfaceStrong,
             contentColor = if (enabled) colors.text else colors.textMuted,
-            border = BorderStroke(1.dp, colors.line),
         ) {
             Text(
                 label,

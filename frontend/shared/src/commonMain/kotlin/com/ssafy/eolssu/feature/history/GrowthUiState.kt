@@ -1,131 +1,155 @@
 package com.ssafy.eolssu.feature.history
 
-import com.ssafy.eolssu.core.model.Instrument
-import com.ssafy.eolssu.core.model.instrumentDisplayRank
 import com.ssafy.eolssu.core.model.KoreanDateTime
-import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.data.practice.DailyPractice
-import com.ssafy.eolssu.data.practice.GrowthRepository
-import com.ssafy.eolssu.data.practice.GrowthSummary
-import com.ssafy.eolssu.data.practice.MetricGrowth
-import com.ssafy.eolssu.data.practice.ScoreTrend
-import com.ssafy.eolssu.data.practice.SongBestScore
-import com.ssafy.eolssu.data.practice.TrendSong
-import com.ssafy.eolssu.data.song.CatalogInstrument
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 
-/** 연습 기록지 기간. */
-enum class GrowthRange { Week, Month }
+/** 기간 그래프 단위: 주별 · 월별. */
+enum class GrowthRange {
+    Week,
+    Month;
 
-/** 막대 하나(요일·주 단위 연습 시간, 분). */
-data class GrowthBar(val label: String, val minutes: Long)
+    /** 그래프 막대 수. 작게 보기([dense])는 주별 8주 · 월별 12개월, 크게 보기는 주별 4주 · 월별 6개월이다. */
+    fun barCount(dense: Boolean): Int = when (this) {
+        Week -> if (dense) 8 else 4
+        Month -> if (dense) 12 else 6
+    }
+}
+
+/** 기간 그래프가 보이는 값: 연습 시간(분) · 연습 횟수. */
+enum class GrowthMetric { Time, Count }
+
+/** KST 날 수로 하는 날짜 계산. 주는 월~일이다. */
+internal object GrowthDays {
+    fun dayOfWeek(day: Long): Int = KoreanDateTime.ofEpochDay(day).dayOfWeek
+
+    fun weekStart(day: Long): Long = day - dayOfWeek(day)
+
+    fun monthStart(day: Long): Long = KoreanDateTime.ofEpochDay(day).run { KoreanDateTime(year, month, 1, 0, 0).epochDay }
+
+    /** [monthStart] 달에서 [months]만큼 옮긴 달의 1일. */
+    fun addMonths(monthStart: Long, months: Int): Long = KoreanDateTime.ofEpochDay(monthStart).run {
+        val index = year * 12 + (month - 1) + months
+        KoreanDateTime(index.floorDiv(12), index.mod(12) + 1, 1, 0, 0).epochDay
+    }
+
+    fun monthEnd(monthStart: Long): Long = addMonths(monthStart, 1) - 1
+
+    /** [monthStart] 달을 덮는 주(월요일)들. 달력 줄 하나가 주 하나다(4~6줄). */
+    fun monthWeeks(monthStart: Long): List<Long> {
+        val end = monthEnd(monthStart)
+        return generateSequence(weekStart(monthStart)) { it + 7 }.takeWhile { it <= end }.toList()
+    }
+}
 
 /**
- * 고른 기간(KST, 양 끝 포함). 주는 오늘이 든 월~일, 월은 오늘이 든 달력 월이다(`docs/specs/practice-time.md` '앱의 주·월 탭').
+ * 받은 날짜별 연습 기록(GRO-02). 기록이 있는 날(연습 시간이나 횟수가 0보다 큰 날)만 [days]에 둔다.
  *
- * @property month 기간 이름의 월. 주 보기는 오늘의 월이다.
- * @property weekOfMonth 주 보기에서 [month]의 몇째 주인지(1일이 든 주가 1주차). 월 보기는 0.
- * @property barDays 막대마다 더할 날. 주는 요일별 7개, 월은 그 달 날짜를 월~일로 묶은 4~6개(앞뒤 달 날짜는 뺀다).
- * @property todayBar 오늘이 든 막대.
+ * @property loadedFrom 받은 가장 이른 날. 그 전은 받지 않았거나, 더 찾아봐도 기록이 없었다.
+ * @property searchingOlder [loadedFrom] 전 기록을 더 찾는 중. 찾으면 [firstDay]가 앞당겨진다.
  */
-data class GrowthPeriod(
-    val range: GrowthRange,
-    val fromDay: Long,
-    val toDay: Long,
-    val month: Int,
-    val weekOfMonth: Int,
-    val barDays: List<LongRange>,
-    val barLabels: List<String>,
-    val todayBar: Int,
+data class PracticeHistory(
+    val days: Map<Long, DailyPractice>,
+    val loadedFrom: Long,
+    val searchingOlder: Boolean = false,
 ) {
-    companion object {
-        private val Weekdays = listOf("월", "화", "수", "목", "금", "토", "일")
+    /** 첫 기록 날. 기록이 없으면 null. */
+    val firstDay: Long? = days.keys.minOrNull()
 
-        fun of(range: GrowthRange, today: KoreanDateTime): GrowthPeriod {
-            val day = today.epochDay
-            val firstOfMonth = KoreanDateTime(today.year, today.month, 1, 0, 0).epochDay
-            val firstWeekMonday = firstOfMonth - dayOfWeek(firstOfMonth)
-            return when (range) {
-                GrowthRange.Week -> {
-                    val monday = day - today.dayOfWeek
-                    GrowthPeriod(
-                        range, monday, monday + 6, today.month, ((monday - firstWeekMonday) / 7 + 1).toInt(),
-                        barDays = (0 until 7).map { monday + it..monday + it },
-                        barLabels = Weekdays,
-                        todayBar = today.dayOfWeek,
-                    )
-                }
-                GrowthRange.Month -> {
-                    val next = if (today.month == 12) KoreanDateTime(today.year + 1, 1, 1, 0, 0) else KoreanDateTime(today.year, today.month + 1, 1, 0, 0)
-                    val lastOfMonth = next.epochDay - 1
-                    val weeks = generateSequence(firstOfMonth) { start -> (start + 7 - dayOfWeek(start)).takeIf { it <= lastOfMonth } }
-                        .map { start -> start..minOf(start + 6 - dayOfWeek(start), lastOfMonth) }
-                        .toList()
-                    GrowthPeriod(
-                        range, firstOfMonth, lastOfMonth, today.month, 0,
-                        barDays = weeks,
-                        barLabels = weeks.indices.map { "${it + 1}주" },
-                        todayBar = weeks.indexOfFirst { day in it },
-                    )
-                }
+    operator fun get(day: Long): DailyPractice? = days[day]
+
+    /** [fromDay]~[toDay](양 끝 포함)의 연습 시간(초)·횟수 합. */
+    fun sum(fromDay: Long, toDay: Long): Pair<Long, Long> {
+        var seconds = 0L
+        var count = 0L
+        days.forEach { (day, value) ->
+            if (day in fromDay..toDay) {
+                seconds += value.practiceSeconds
+                count += value.practiceCount
             }
         }
+        return seconds to count
+    }
 
-        private fun dayOfWeek(epochDay: Long): Int = KoreanDateTime.ofEpochDay(epochDay).dayOfWeek
+    /** 새로 받은 날짜별 값을 더한다. [from]은 이번에 받은 범위의 첫날이다. */
+    fun merged(received: List<DailyPractice>, from: Long): PracticeHistory = copy(
+        days = days + received.filter { it.hasRecord }.associateBy { it.epochDay },
+        loadedFrom = minOf(loadedFrom, from),
+    )
+
+    companion object {
+        fun of(received: List<DailyPractice>, from: Long, searchingOlder: Boolean = false) =
+            PracticeHistory(received.filter { it.hasRecord }.associateBy { it.epochDay }, from, searchingOlder)
+    }
+}
+
+/** 연습 시간이나 횟수가 있는 날. */
+internal val DailyPractice.hasRecord: Boolean get() = practiceSeconds > 0 || practiceCount > 0
+
+/** 연습 시간(분, 초를 내림). */
+internal val DailyPractice.minutes: Long get() = practiceSeconds / 60
+
+/** 그래프 막대 하나: [fromDay]~[toDay] 기간(주 또는 달)의 합계. */
+data class PeriodBar(val fromDay: Long, val toDay: Long, val seconds: Long, val count: Long) {
+    val minutes: Long get() = seconds / 60
+
+    fun value(metric: GrowthMetric): Long = if (metric == GrowthMetric.Time) minutes else count
+}
+
+/**
+ * 기간 그래프. 마지막 막대가 고른 날짜가 든 주·달이다.
+ * 합계 분은 초를 모두 더한 뒤 내림하고 막대는 막대마다 내림하므로, 막대 합과 1~2분 다를 수 있다(`docs/specs/practice-time.md` '분 표시').
+ */
+data class PeriodChart(val range: GrowthRange, val bars: List<PeriodBar>) {
+    val totalSeconds: Long get() = bars.sumOf { it.seconds }
+    val totalMinutes: Long get() = totalSeconds / 60
+    val totalCount: Long get() = bars.sumOf { it.count }
+
+    val fromDay: Long get() = bars.first().fromDay
+    val toDay: Long get() = bars.last().toDay
+
+    /** 위 점선(최댓값) 눈금. 모두 0이면 1이다. */
+    fun max(metric: GrowthMetric): Long = maxOf(1L, bars.maxOf { it.value(metric) })
+
+    /** 가운데 점선(절반) 눈금. 반올림한다. */
+    fun half(metric: GrowthMetric): Long = (max(metric) + 1) / 2
+
+    companion object {
+        fun of(history: PracticeHistory, range: GrowthRange, dense: Boolean, anchorDay: Long): PeriodChart {
+            val n = range.barCount(dense)
+            val bars = (n - 1 downTo 0).map { back ->
+                val (from, to) = when (range) {
+                    GrowthRange.Week -> GrowthDays.weekStart(anchorDay).let { start -> (start - back * 7).let { it to it + 6 } }
+                    GrowthRange.Month -> GrowthDays.addMonths(GrowthDays.monthStart(anchorDay), -back).let { it to GrowthDays.monthEnd(it) }
+                }
+                val (seconds, count) = history.sum(from, to)
+                PeriodBar(from, to, seconds, count)
+            }
+            return PeriodChart(range, bars)
+        }
     }
 }
 
 /**
- * 기간 통계. 연습 시간은 초를 분으로 내림한다. 요약 칸은 합계를, 막대는 막대마다 내림하므로 둘이 1~2분 다를 수 있다.
- *
- * @property minutesChange 지난 기간(지난주·지난달)보다 늘어난 분. 두 쪽을 각각 내림한 값의 차이다.
- * @property averageChange 평균 점수 변화. 두 기간 평균이 모두 있을 때만 있다.
- * @property metricGrowth 같은 조건 연주끼리 비교한 항목 성장. 비교할 항목이 없으면 null.
+ * 주별 막대 이름: 주의 월요일 날짜. 앞 막대와 달이 바뀌는 막대(첫 막대 포함)는 `M/d`, 나머지는 `d`(보드 '9/21 · 28 · 10/5').
  */
-data class GrowthStats(
-    val range: GrowthRange,
-    val practiceMinutes: Long,
-    val minutesChange: Long,
-    val practiceCount: Long,
-    val practiceDays: Int,
-    val streakDays: Int,
-    val averageScore: Int?,
-    val averageChange: Int?,
-    val bars: List<GrowthBar>,
-    val highlightBar: Int,
-    val bestBySong: List<SongBestScore>,
-    val metricGrowth: MetricGrowth?,
-) {
-    /** 월 보기의 주 평균 연습 횟수(보드 ‘주 3.5회’): 그 달 연습 횟수를 막대(주) 수로 나눈다. */
-    val perWeek: Double get() = if (bars.isEmpty()) 0.0 else practiceCount.toDouble() / bars.size
-
-    companion object {
-        fun of(period: GrowthPeriod, summary: GrowthSummary, days: List<DailyPractice>): GrowthStats {
-            val current = summary.current
-            val previous = summary.previous
-            val minutes = current.practiceSeconds / 60
-            val average = current.averageTotalScore
-            val previousAverage = previous.averageTotalScore
-            return GrowthStats(
-                range = period.range,
-                practiceMinutes = minutes,
-                minutesChange = minutes - previous.practiceSeconds / 60,
-                practiceCount = current.practiceCount,
-                practiceDays = summary.practiceDays,
-                streakDays = summary.currentStreakDays,
-                averageScore = average,
-                averageChange = if (average != null && previousAverage != null) average - previousAverage else null,
-                bars = period.barDays.mapIndexed { i, range ->
-                    GrowthBar(period.barLabels[i], days.filter { it.epochDay in range }.sumOf { it.practiceSeconds } / 60)
-                },
-                highlightBar = period.todayBar,
-                bestBySong = summary.bestBySong,
-                metricGrowth = summary.metricGrowth?.takeIf { it.changes.isNotEmpty() },
-            )
-        }
+fun weekBarLabels(bars: List<PeriodBar>): List<String> {
+    var previousMonth = -1
+    return bars.map { bar ->
+        val date = KoreanDateTime.ofEpochDay(bar.fromDay)
+        val label = if (date.month != previousMonth) "${date.month}/${date.day}" else "${date.day}"
+        previousMonth = date.month
+        label
     }
 }
+
+/**
+ * 연습량 달력의 진하기 단계(0 없음 · 1~4). 그날 연습 시간(분)이 [HeatThresholds]의 몇 번째 경계 이상인지다.
+ * 1분이 안 되는 날은 '연습한 날'이 아니므로(`docs/specs/practice-time.md`) 0이다.
+ */
+fun heatLevel(minutes: Long): Int = HeatThresholds.count { minutes >= it }
+
+/** 진하기 경계(분): 1~14분 · 15~29분 · 30~44분 · 45분 이상(2026-11-12 사용자 확정, S15P31E102-795). */
+val HeatThresholds: List<Long> = listOf(1, 15, 30, 45)
 
 /** 기간 하나의 불러오기 상태. */
 sealed interface GrowthLoad {
@@ -133,183 +157,44 @@ sealed interface GrowthLoad {
 
     data object Failed : GrowthLoad
 
-    data class Loaded(val stats: GrowthStats) : GrowthLoad
+    data class Loaded(val history: PracticeHistory) : GrowthLoad
 }
 
 /**
- * GROWTH-01 상태. 주·월 통계를 서버(GRO-01·02)에서 받아 기간마다 따로 들고 있어, 탭을 바꿔도 받은 값을 다시 받지 않는다.
+ * GROWTH-01 상태(연습 기록지 A안 2차, S15P31E102-795). 점수는 다루지 않고 연습 시간 · 연습 횟수만 보인다.
  *
- * @property today 화면을 연 때의 KST 날짜. 기간은 이 날을 기준으로 정한다.
- * @property scoreTrend ‘점수 변화 · 최근 5회’ 카드(GRO-03). 주·월 기간과 관계없이 곡의 최근 기본 평가로 그린다.
+ * @property today 화면을 연 때의 KST 날짜.
+ * @property dense 작게 보기(막대가 많은 쪽). 처음은 주별 8주 · 월별 12개월이다.
+ * @property anchorDay 기간 그래프의 기준 날짜. 이 날이 든 주·달이 마지막 막대다.
+ * @property heatMonth 연습량 달력의 달(1일).
+ * @property heatDay 연습량 달력에서 고른 날. 달을 넘겨도 그대로 두고 아래에 그날 기록을 보인다.
  */
 data class GrowthUiState(
     val today: KoreanDateTime,
     val range: GrowthRange = GrowthRange.Week,
-    val loads: Map<GrowthRange, GrowthLoad> = emptyMap(),
-    val scoreTrend: ScoreTrendState = ScoreTrendState(),
+    val metric: GrowthMetric = GrowthMetric.Time,
+    val dense: Boolean = true,
+    val anchorDay: Long = today.epochDay,
+    val heatMonth: Long = GrowthDays.monthStart(today.epochDay),
+    val heatDay: Long = today.epochDay,
+    val load: GrowthLoad = GrowthLoad.Loading,
 ) {
-    val period: GrowthPeriod get() = GrowthPeriod.of(range, today)
+    val todayDay: Long get() = today.epochDay
 
-    val load: GrowthLoad get() = loads[range] ?: GrowthLoad.Loading
-}
+    val history: PracticeHistory? get() = (load as? GrowthLoad.Loaded)?.history
 
-/** [period]의 요약과 날짜별 값을 함께 받아 통계로 만든다. 둘 중 하나라도 받지 못하면 [GrowthLoad.Failed]. */
-suspend fun loadGrowth(repository: GrowthRepository, period: GrowthPeriod): GrowthLoad = coroutineScope {
-    val summary = async { repository.summary(period.fromDay, period.toDay) }
-    val days = async { repository.calendar(period.fromDay, period.toDay) }
-    val s = summary.await()
-    val d = days.await()
-    if (s == null || d == null) GrowthLoad.Failed else GrowthLoad.Loaded(GrowthStats.of(period, s, d))
-}
+    val chart: PeriodChart? get() = history?.let { PeriodChart.of(it, range, dense, anchorDay) }
 
-/** 점수 변화 그래프의 점 하나(오래된 순). */
-data class ScoreTrendPoint(val total: Int, val playedAt: KoreanDateTime)
+    /** 고를 수 있는 가장 이른 날: 첫 기록 날. 기록이 없으면 오늘이다. */
+    val earliestDay: Long get() = minOf(history?.firstDay ?: todayDay, todayDay)
 
-/** 점수 변화 곡의 악기. [instrument]는 앱 악기와 code가 맞을 때만 있고, 없으면 화면은 [name]을 보인다. */
-data class TrendInstrument(val instrumentId: String, val name: String, val instrument: Instrument?)
+    val earliestMonth: Long get() = GrowthDays.monthStart(earliestDay)
 
-/**
- * 악기 고르기에 쓰는 곡 → 악기 대응(CAT-01 악기 목록·CAT-02 곡 목록). GRO-03 응답에 악기가 없어 앱이 곡 ID로 맞춘다.
- * 곡 목록은 게시 중인 곡만 주므로, 지우거나 비공개로 바꾼 곡은 여기에 없다.
- *
- * @property instruments 악기 목록. 화면 표시 순서(단소 · 소금 · 산조대금 · 정악대금)로 둔다.
- * @property songInstrument 곡 ID → 악기 ID.
- */
-data class TrendCatalog(val instruments: List<TrendInstrument>, val songInstrument: Map<String, String>) {
-    /** [songId] 곡의 악기. 곡 목록에 없거나 악기 목록에 없는 악기면 null. */
-    fun instrumentOf(songId: String): TrendInstrument? = songInstrument[songId]?.let { id -> instruments.firstOrNull { it.instrumentId == id } }
+    val latestMonth: Long get() = GrowthDays.monthStart(todayDay)
 
-    companion object {
-        fun of(instruments: List<CatalogInstrument>, songs: List<SongSummary>) = TrendCatalog(
-            instruments = instruments.sortedBy { instrumentDisplayRank(it.code) }.map { c -> TrendInstrument(c.instrumentId, c.name, Instrument.entries.firstOrNull { it.serverCode == c.code }) },
-            songInstrument = songs.mapNotNull { s -> s.instrumentId?.let { s.id to it } }.toMap(),
-        )
-    }
-}
+    /** 기간 시트에서 고를 수 있는 날: 첫 기록 날 ~ 오늘. */
+    fun canPickAnchor(day: Long): Boolean = day in earliestDay..todayDay
 
-/**
- * ‘점수 변화’ 카드 상태. 곡을 바꿔 다시 받는 동안에도 앞서 받은 [view]를 두어 악기·곡 고르기가 사라지지 않는다.
- * 늘 기본 평가(GRO-03 `FULL`, 곡 전체를 연주한 평가)만 받는다. 취약 구간 재평가는 구간 세션이라 들어오지 않는다.
- *
- * @property songId 요청할 곡. null이면 서버가 가장 최근에 연주한 곡을 고른다. 받은 뒤에는 서버가 고른 곡이다.
- * @property loading 받는 중. [view]가 없으면 카드에 진행 표시만 보인다.
- * @property failed 마지막 요청이 실패했다. 카드에 안내와 '다시 시도'가 보인다.
- * @property catalog 악기 고르기용 곡 → 악기 대응. 받지 못하면 null이고, 그때는 악기 없이 곡만 고른다.
- */
-data class ScoreTrendState(
-    val songId: String? = null,
-    val loading: Boolean = true,
-    val failed: Boolean = false,
-    val view: ScoreTrendView? = null,
-    val catalog: TrendCatalog? = null,
-) {
-    /** 요청을 보낼 때의 상태. 앞서 받은 [view]는 그대로 둔다. */
-    fun requesting(songId: String?) = copy(songId = songId, loading = true, failed = false)
-
-    /** 받은 결과. [trend]가 null이면 실패다. */
-    fun received(trend: ScoreTrend?): ScoreTrendState =
-        if (trend == null) copy(loading = false, failed = true)
-        else copy(songId = trend.songId, loading = false, failed = false, view = ScoreTrendView.of(trend))
-
-    /**
-     * 고를 수 있는 곡(최근 연주 순): 기본 평가가 하나라도 있고 악기를 아는 곡.
-     * 재평가만 있는 곡은 기본 평가가 없는 곡으로 보고 뺀다. 곡 목록에 없는 곡(지우거나 비공개로 바꾼 곡)은 악기를 몰라 뺀다.
-     * 대응을 받지 못했으면 악기와 관계없이 기본 평가 곡을 모두 둔다.
-     */
-    val basicSongs: List<TrendSong>
-        get() {
-            val songs = view?.songs.orEmpty().filter { it.fullPlayCount > 0 }
-            val catalog = catalog ?: return songs
-            return songs.filter { catalog.instrumentOf(it.songId) != null }
-        }
-
-    /** 고를 수 있는 곡의 악기(악기 목록 순). 기록이 없는 악기는 없다. 대응을 받지 못했으면 비어 있다. */
-    val instruments: List<TrendInstrument>
-        get() {
-            val catalog = catalog ?: return emptyList()
-            val ids = basicSongs.mapNotNull { catalog.instrumentOf(it.songId)?.instrumentId }.toSet()
-            return catalog.instruments.filter { it.instrumentId in ids }
-        }
-
-    /** 지금 고른 곡의 악기. 대응이 없으면 null. */
-    val selectedInstrument: TrendInstrument? get() = songId?.let { catalog?.instrumentOf(it) }
-
-    /** 곡 고르기에 보일 곡: 고른 악기의 곡. 악기를 모르면 고를 수 있는 곡 전부다. */
-    val instrumentSongs: List<TrendSong>
-        get() {
-            val catalog = catalog ?: return basicSongs
-            val instrument = selectedInstrument ?: return basicSongs
-            return basicSongs.filter { catalog.instrumentOf(it.songId) == instrument }
-        }
-
-    /** [instrumentId] 악기에서 볼 곡: 그 악기에서 가장 최근에 연주한 기본 평가 곡. */
-    fun songFor(instrumentId: String): TrendSong? {
-        val catalog = catalog ?: return null
-        return basicSongs.firstOrNull { catalog.instrumentOf(it.songId)?.instrumentId == instrumentId }
-    }
-
-    /**
-     * 지금 곡을 고를 수 없을 때(기본 평가가 없거나 곡 목록에 없는 곡) 대신 볼 곡: 고를 수 있는 곡 중 가장 최근에 연주한 곡.
-     * 지금 곡을 고를 수 있거나 고를 곡이 하나도 없으면 null.
-     */
-    val fallbackSongId: String?
-        get() {
-            val songs = basicSongs
-            if (songs.isEmpty() || songs.any { it.songId == songId }) return null
-            return songs.first().songId
-        }
-}
-
-/**
- * 받은 점수 변화를 카드에 그릴 값.
- *
- * @property song 보여 준 곡. 연주 기록이 하나도 없으면 null.
- * @property songs 연주 기록이 있는 곡(최근 연주 순, 재평가만 있는 곡 포함). 고르기에는 [ScoreTrendState.basicSongs]를 쓴다.
- * @property points 고른 곡의 최근 기본 평가(서버가 기본 평가만 골라 최근 5개를 오래된 순으로 준다).
- * @property mixedConditions 점이 2개 이상인데 속도·악보 판본·채점 모델이 섞였다(`comparable=false`).
- */
-data class ScoreTrendView(
-    val song: TrendSong?,
-    val songs: List<TrendSong>,
-    val points: List<ScoreTrendPoint>,
-    val mixedConditions: Boolean,
-) {
-    companion object {
-        fun of(trend: ScoreTrend) = ScoreTrendView(
-            song = trend.songs.firstOrNull { it.songId == trend.songId },
-            songs = trend.songs,
-            points = trend.plays.map { ScoreTrendPoint(it.totalScore, KoreanDateTime.fromEpochMillis(it.startedAtMillis)) },
-            mixedConditions = trend.plays.size >= 2 && !trend.comparable,
-        )
-    }
-}
-
-/** ‘점수 변화’ 카드의 악기 고르기·곡 고르기·다시 시도. */
-data class ScoreTrendActions(val onInstrument: (String) -> Unit, val onSong: (String) -> Unit, val onRetry: () -> Unit) {
-    companion object {
-        val None = ScoreTrendActions({}, {}, {})
-    }
-}
-
-/** 보드 그래프 좌표계(viewBox 310×104)와 가로선(y 18 · 48 · 78). */
-const val TrendWidth: Float = 310f
-const val TrendHeight: Float = 104f
-val TrendGridLines: List<Float> = listOf(18f, 48f, 78f)
-
-/** 점 위치(보드 좌표). */
-data class TrendDot(val x: Float, val y: Float)
-
-/**
- * 보드 꺾은선 배치: x는 14~294를 같은 간격으로 나누고(점 하나면 가운데), y는 가장 낮은 점수 72 · 가장 높은 점수 24로 맞춘다
- * (보드 68→72 · 84→24). 점수가 모두 같으면 가운데 48에 둔다.
- */
-fun scoreTrendDots(scores: List<Int>): List<TrendDot> {
-    if (scores.isEmpty()) return emptyList()
-    val min = scores.min()
-    val max = scores.max()
-    return scores.mapIndexed { i, s ->
-        val x = if (scores.size == 1) TrendWidth / 2 else 14f + i * (280f / (scores.size - 1))
-        val y = if (max == min) 48f else 72f - (s - min) * 48f / (max - min)
-        TrendDot(x, y)
-    }
+    /** 달을 넘길 수 있는지(첫 기록이 든 달 ~ 이번 달). */
+    fun canShowMonth(monthStart: Long): Boolean = monthStart in earliestMonth..latestMonth
 }

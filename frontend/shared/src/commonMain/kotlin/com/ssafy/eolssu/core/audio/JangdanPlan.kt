@@ -80,7 +80,7 @@ class JangdanCursor(
         val from = when {
             last == null -> maxOf(lateFloor, startAtTick ?: Double.NEGATIVE_INFINITY) - 0.000001
             movedBackward -> lateFloor - 0.000001
-            else -> maxOf(last, lateFloor)
+            else -> maxOf(last + 0.000001, lateFloor)
         }
         previous = tick
         val mapping = plan.mapping

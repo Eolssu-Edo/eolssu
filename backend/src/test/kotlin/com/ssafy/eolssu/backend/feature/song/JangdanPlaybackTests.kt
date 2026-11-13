@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.feature.song
 
 import com.ssafy.eolssu.backend.feature.song.domain.*
 import com.ssafy.eolssu.backend.feature.song.infrastructure.catalog.ScoreGridJangdanPlayback
+import com.ssafy.eolssu.backend.feature.song.infrastructure.catalog.scoreJangdanName
 import com.ssafy.eolssu.backend.feature.jangdan.infrastructure.persistence.JangdanRow
 import java.time.LocalDateTime
 import org.junit.jupiter.api.Test
@@ -18,11 +19,165 @@ class JangdanPlaybackTests {
     private val examples = (scales.keys + setOf(63L, 7L)).associateWith(::fixture)
     private val stored = examples.getValue(6)
     private val score = stored.scoreJson
-    private fun catalog(name: String): JangdanRow? = production.path("patterns").firstOrNull { it.path("name").asString() == name }?.let {
+    private fun catalog(name: String): JangdanRow? = if (name == "4박 기본 반주")
+        JangdanRow(12, name, """{"beats":["덩","덕","궁","덕"],"group":[1,1,1,1]}""", 160,
+            "QUARTER", null, LocalDateTime.MIN, LocalDateTime.MIN)
+    else production.path("patterns").firstOrNull { it.path("name").asString() == name }?.let {
         JangdanRow(it.path("jangdanId").asString().toLong(), name, it.path("pattern").toString(), 66,
             it.path("bpmUnit").asString(), null, LocalDateTime.MIN, LocalDateTime.MIN)
     }
     private val resolver = ScoreGridJangdanPlayback(json, ::catalog)
+
+    private val fourBeatName = "4박 기본 반주"
+    private val blueValentineHash = "971be444d01a313ce5bdfd3f03915ea9b01b314430743d5d4172ab1241e818a4"
+    private val fourBeatResolver = ScoreGridJangdanPlayback(json) { name ->
+        if (name == fourBeatName) JangdanRow(12, name,
+            """{"beats":["덩","덕","궁","덕"],"group":[1,1,1,1]}""", 160, "QUARTER", null,
+            LocalDateTime.MIN, LocalDateTime.MIN) else catalog(name)
+    }
+    private fun blueValentine(): PublishedSongScore = PublishedSongScore(135, 3, 1, 160, "QUARTER", """{
+        "schemaVersion":1,"score":{"sourceId":"user-blue-valentine-20261111-sogeum","instrument":"SOGEUM","scoreVersion":3},
+        "music":{"jangdan":"$fourBeatName","ticksPerBeat":4,"ticksPerJeonggan":4,"bpmUnit":"QUARTER"},
+        "provenance":{"jgbSha256":"$blueValentineHash"},"columns":[{"index":0,"cells":[
+          {"id":"c0-j0","index":0,"units":[{"row":0,"col":0,"symbol":"쉼","eventId":"rest"}]},
+          {"id":"c0-j1","index":1,"units":[{"row":0,"col":0,"symbol":"쉼","eventId":"rest"},{"row":1,"col":0,"symbol":"청대","eventId":"note"}]},
+          {"id":"c0-j2","index":2,"units":[{"row":0,"col":0,"symbol":"-","eventId":"note"}]},
+          {"id":"c0-j3","index":3,"units":[{"row":0,"col":0,"symbol":"-","eventId":"note"}]}]}],
+        "events":[{"id":"rest","cellId":"c0-j0","kind":"REST","startTick":0,"durationTick":6},
+          {"id":"note","cellId":"c0-j1","kind":"NOTE","yul":"대","octave":1,"startTick":6,"durationTick":10}]}""")
+
+    @Test fun `reviewed Blue Valentine starts four beat accompaniment on its opening rest`() {
+        val playback = assertNotNull(fourBeatResolver.resolve(blueValentine()))
+        assertEquals("12", playback.jangdanId)
+        assertEquals(0L, playback.startTick)
+        assertEquals(16L, playback.cycleTicks)
+        assertEquals(listOf("덩", "덕", "궁", "덕"), playback.pattern.beats)
+        assertEquals(listOf(1, 1, 1, 1), playback.pattern.group)
+    }
+
+    @Test fun `transposed Blue Valentine fourth edition retains first beat accompaniment`() {
+        val previous = blueValentine()
+        val transposed = previous.copy(scoreVersion = 4, scoreJson = previous.scoreJson
+            .replace("\"scoreVersion\":3", "\"scoreVersion\":4")
+            .replace("\"symbol\":\"청대\"", "\"symbol\":\"청황\"")
+            .replace("\"yul\":\"대\"", "\"yul\":\"황\""))
+        val playback = assertNotNull(fourBeatResolver.resolve(transposed))
+        assertEquals("12", playback.jangdanId)
+        assertEquals(0L, playback.startTick)
+        assertEquals(16L, playback.cycleTicks)
+        assertEquals(listOf("덩", "덕", "궁", "덕"), playback.pattern.beats)
+        assertNotNull(fourBeatResolver.resolve(previous))
+        assertNotNull(fourBeatResolver.resolve(transposed.copy(scoreVersion = 5)))
+        assertNotNull(fourBeatResolver.resolve(transposed.copy(scoreJson = transposed.scoreJson
+            .replace(blueValentineHash, "0".repeat(64)))))
+    }
+
+    @Test fun `declared full bars allow opening rests without a reviewed source identity`() {
+        val source = blueValentine()
+        for (changed in listOf(source.scoreJson.replace(blueValentineHash, "0".repeat(64)),
+            source.scoreJson.replace("user-blue-valentine-20261111-sogeum", "another-song"),
+            source.scoreJson.replace("SOGEUM", "DANSO"))) {
+            val playback = assertNotNull(fourBeatResolver.resolve(source.copy(scoreJson = changed)))
+            assertEquals(0L, playback.startTick)
+            assertEquals(16L, playback.cycleTicks)
+        }
+    }
+
+    @Test fun `opening rests still require an origin and complete cycles`() {
+        val source = blueValentine()
+        val partial = json.readTree(source.scoreJson) as ObjectNode
+        (partial.path("columns").path(0) as ObjectNode).withArray("cells").remove(3)
+        assertNull(fourBeatResolver.resolve(source.copy(scoreJson = partial.toString())))
+        assertNull(fourBeatResolver.resolve(source.copy(scoreJson = source.scoreJson
+            .replace("\"startTick\":0", "\"startTick\":1"))))
+        assertNull(fourBeatResolver.resolve(source.copy(scoreJson = source.scoreJson
+            .replace(fourBeatName, "unknown-pattern"))))
+    }
+
+    private val airplaneSources = listOf(
+        Triple("danso", "DANSO", "893185e48fc87c300d591f5e4f0774291f21da17828fdaea5f0f865705ae4b18"),
+        Triple("sogeum", "SOGEUM", "b6dd52ce1fe0a3349ceb7453975f88db84c9bfb7192b9bdb4bd22bf2ab41a972"),
+        Triple("sanjo-daegeum", "SANJO_DAEGEUM", "b6dd52ce1fe0a3349ceb7453975f88db84c9bfb7192b9bdb4bd22bf2ab41a972"),
+    )
+
+    private fun airplane(source: String, instrument: String, hash: String, version: Int = 1, ticks: Int = 1,
+        sourceId: String = "airplane-beginner-$source-v1"): PublishedSongScore {
+        val cells = (0..3).joinToString { """{"id":"c0-j$it","index":$it,"units":[{"row":0,"col":0,"symbol":"-","eventId":"c0-j0-r0-u0"}]}""" }
+        return PublishedSongScore(132, version, 1, 77, "QUARTER", """{"schemaVersion":1,
+            "score":{"sourceId":"$sourceId","instrument":"$instrument","scoreVersion":$version},
+            "music":{"jangdan":"","ticksPerBeat":$ticks,"ticksPerJeonggan":$ticks,"bpmUnit":"QUARTER"},
+            "provenance":{"jgbSha256":"$hash"},"columns":[{"index":0,"cells":[$cells]}],
+            "events":[{"id":"c0-j0-r0-u0","cellId":"c0-j0","kind":"NOTE","startTick":0,"durationTick":${4 * ticks}}]}""")
+    }
+
+    @Test fun `Danmori eighth note cells can fall between integer score ticks`() {
+        val source = airplaneSources.first().let { (source, instrument, hash) -> airplane(source, instrument, hash) }
+        val declared = source.scoreJson.replace("\"jangdan\":\"\"", "\"jangdan\":\"단모리\"")
+        val playback = assertNotNull(resolver.resolve(source.copy(scoreJson = declared)))
+        assertEquals("7", playback.jangdanId)
+        assertEquals(4L, playback.cycleTicks)
+        assertEquals(listOf("덩", "", "따", "따", "궁", "따", "궁", ""), playback.pattern.beats)
+        assertEquals(0.5, playback.cycleTicks.toDouble() / playback.pattern.beats.size)
+        assertEquals(240_000.0 / 77, playback.cycleTicks * 60_000.0 / source.defaultBpm, 0.000001)
+    }
+
+    @Test fun `only reviewed airplane source instrument hash and version receive four beat accompaniment`() {
+        for ((slug, instrument, hash) in airplaneSources) {
+            val source = airplane(slug, instrument, hash)
+            val playback = assertNotNull(resolver.resolve(source))
+            assertEquals("12", playback.jangdanId)
+            assertEquals("4박 기본 반주", playback.name)
+            assertEquals(4L, playback.cycleTicks)
+            assertEquals(listOf("덩", "덕", "궁", "덕"), playback.pattern.beats)
+            assertEquals(listOf(1, 1, 1, 1), playback.pattern.group)
+            assertEquals(3_116.883116883, playback.cycleTicks * 60_000.0 / source.defaultBpm, 0.000001)
+            assertNull(resolver.resolve(source.copy(scoreVersion = 2)))
+            for (changed in listOf(source.scoreJson.replace(hash, "0".repeat(64)),
+                source.scoreJson.replace("\"instrument\":\"$instrument\"", "\"instrument\":\"JEONGAK_DAEGEUM\""),
+                source.scoreJson.replace("airplane-beginner-$slug-v1", "unreviewed-airplane-$slug"))) {
+                assertNull(resolver.resolve(source.copy(scoreJson = changed)))
+            }
+            val partial = json.readTree(source.scoreJson) as ObjectNode
+            (partial.path("columns").path(0) as ObjectNode).withArray("cells").remove(3)
+            assertNull(resolver.resolve(source.copy(scoreJson = partial.toString())))
+        }
+    }
+
+    @Test fun `Jeongak airplane preview uses only its corrected second revision at six ticks per quarter`() {
+        val hash = "b8960383360b471a20214c05b2a37b3f511911aaa38f8db358e5e03a28a77e02"
+        val source = airplane("jeongak-daegeum", "JEONGAK_DAEGEUM", hash, version = 2, ticks = 6,
+            sourceId = "mr203-fixed-jeongak-daegeum-006-p1").copy(songId = 56)
+        val playback = assertNotNull(resolver.resolve(source))
+        assertEquals("12", playback.jangdanId)
+        assertEquals(24L, playback.cycleTicks)
+        assertEquals(listOf("덩", "덕", "궁", "덕"), playback.pattern.beats)
+        assertEquals(listOf(1, 1, 1, 1), playback.pattern.group)
+        assertEquals(6.0, playback.cycleTicks.toDouble() / playback.pattern.beats.size)
+        assertEquals(3_116.883116883, playback.cycleTicks * 60_000.0 / 77 / 6, 0.000001)
+        assertNull(resolver.resolve(source.copy(scoreVersion = 1)))
+        assertNull(resolver.resolve(source.copy(scoreVersion = 3)))
+        assertNull(resolver.resolve(source.copy(scoreJson = source.scoreJson.replace(hash, "0".repeat(64)))))
+        assertNull(resolver.resolve(source.copy(scoreJson = source.scoreJson.replace("JEONGAK_DAEGEUM", "SANJO_DAEGEUM"))))
+    }
+
+    @Test fun `four beat accompaniment follows quarter notes rather than the jeonggan scale`() {
+        val source = airplaneSources.first().let { (slug, instrument, hash) -> airplane(slug, instrument, hash) }
+        val changed = source.scoreJson.replace("\"ticksPerJeonggan\":1", "\"ticksPerJeonggan\":2")
+        assertEquals(4L, assertNotNull(resolver.resolve(source.copy(scoreJson = changed))).cycleTicks)
+        assertNull(resolver.resolve(source.copy(bpmUnit = "DOTTED_QUARTER")))
+    }
+
+    @Test fun `existing separately reviewed sources keep first revision matching`() {
+        val revisions = listOf(
+            Triple("mr203-fixed-danso-003-p1", "e0a5b4f02b9378865d2a6fbc59be65d8883276dfdb97e0f6444ce19a179063bc", "자진타령"),
+            Triple("mr203-fixed-danso-030-p1", "46620fa702b0d5f52264841ac0d28493bf17920b0cfbdbbe885ca3aa7976ce77", "자진모리"),
+        )
+        for ((sourceId, hash, name) in revisions) {
+            val source = json.readTree(airplane("danso", "DANSO", hash, sourceId = sourceId).scoreJson)
+            assertEquals(name, scoreJangdanName(source, 1, requirePlayback = true))
+            assertNull(scoreJangdanName(source, 2, requirePlayback = true))
+        }
+    }
 
     private fun review(id: Long) = production.path("scores").first { it.path("songId").asString() == id.toString() }
     private fun fixture(id: Long): PublishedSongScore {
@@ -70,10 +225,10 @@ class JangdanPlaybackTests {
         assertEquals(12L, assertNotNull(resolver.resolve(stored.copy(bpmUnit = "DOTTED_QUARTER", scoreJson = changed.toString()))).cycleTicks)
     }
 
-    @Test fun `an ambiguous downbeat or partial column does not attach accompaniment`() {
+    @Test fun `opening rest keeps the grid downbeat while partial columns remain unsupported`() {
         val pickup = json.readTree(score) as ObjectNode
         (pickup.path("events").get(0) as ObjectNode).put("kind", "REST")
-        assertNull(resolver.resolve(stored.copy(scoreJson = pickup.toString())))
+        assertEquals(resolver.resolve(stored), resolver.resolve(stored.copy(scoreJson = pickup.toString())))
 
         val partial = json.readTree(score) as ObjectNode
         val cells = (partial.path("columns").get(0) as ObjectNode).withArray("cells")
@@ -92,6 +247,7 @@ class JangdanPlaybackTests {
         assertEquals("쿵", assertNotNull(ScoreGridJangdanPlayback(json) { changed }.resolve(stored)).pattern.beats.first())
         val invalid = row.copy(pattern = """{"beats":["쿵"],"group":[2]}""")
         assertNull(ScoreGridJangdanPlayback(json) { invalid }.resolve(stored))
+        assertNull(ScoreGridJangdanPlayback(json) { row.copy(pattern = "{") }.resolve(stored))
     }
 
     @Test fun `unreviewed Seryeongsan and unspecified rhythm remain disabled with reasons in inventory`() {

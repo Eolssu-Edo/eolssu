@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
+import com.ssafy.eolssu.core.ui.component.EolssuMenuShape
 import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import androidx.compose.material3.CircularProgressIndicator
@@ -9,16 +11,16 @@ import eolssu.shared.generated.resources.records_load_failed
 import eolssu.shared.generated.resources.growth_retry
 import eolssu.shared.generated.resources.records_section
 import eolssu.shared.generated.resources.records_row_today
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -52,7 +54,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.Instrument
@@ -60,82 +61,73 @@ import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
-import com.ssafy.eolssu.feature.history.RecordGroup
+import com.ssafy.eolssu.core.ui.component.InstrumentPicture
+import com.ssafy.eolssu.core.ui.component.SongSearchField
+import com.ssafy.eolssu.core.ui.component.SongSortButton
+import com.ssafy.eolssu.core.model.SongSortOrder
+import com.ssafy.eolssu.feature.history.RecordDay
+import com.ssafy.eolssu.feature.history.RecordSongGroup
+import eolssu.shared.generated.resources.records_load_more
 import com.ssafy.eolssu.feature.history.RecordListUiState
-import com.ssafy.eolssu.feature.history.RecordSort
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.records_best
 import eolssu.shared.generated.resources.records_collapsed
+import eolssu.shared.generated.resources.records_day_meta
 import eolssu.shared.generated.resources.records_empty
 import eolssu.shared.generated.resources.records_unavailable
 import eolssu.shared.generated.resources.records_expanded
-import eolssu.shared.generated.resources.records_group_meta
 import eolssu.shared.generated.resources.records_growth_link
 import eolssu.shared.generated.resources.records_just_saved
 import eolssu.shared.generated.resources.records_memo
-import eolssu.shared.generated.resources.records_meta_section
-import eolssu.shared.generated.resources.records_meta_whole
 import eolssu.shared.generated.resources.records_score_unit
-import eolssu.shared.generated.resources.records_by_song
 import eolssu.shared.generated.resources.records_instrument_all
 import eolssu.shared.generated.resources.records_instrument_empty
-import eolssu.shared.generated.resources.records_sort_new
-import eolssu.shared.generated.resources.records_sort_old
-import eolssu.shared.generated.resources.records_this_week
-import eolssu.shared.generated.resources.records_this_week_none
-import eolssu.shared.generated.resources.records_this_week_summary
-import eolssu.shared.generated.resources.records_today
+import eolssu.shared.generated.resources.records_search_empty
 import eolssu.shared.generated.resources.records_whole
 import org.jetbrains.compose.resources.stringResource
 
 /** 기록 목록의 여백·크기. 배치마다 와이어프레임 값이 조금씩 다르다. */
 internal data class RecordListSpacing(
-    val weekPaddingH: Dp,
-    val weekPaddingV: Dp,
-    val weekSummarySize: TextUnit,
     val toolbarTop: Dp,
     val toolbarBottom: Dp,
     val groupPaddingH: Dp,
     val groupPaddingV: Dp,
     val rowPaddingH: Dp,
     val rowPaddingV: Dp,
-    val rowIcon: Dp,
 ) {
     companion object {
         /** 휴대폰(RECORD-01). */
-        val Compact = RecordListSpacing(16.dp, 14.dp, 15.sp, 16.dp, 8.dp, 16.dp, 14.dp, 16.dp, 12.dp, 36.dp)
+        val Compact = RecordListSpacing(4.dp, 12.dp, 16.dp, 14.dp, 16.dp, 12.dp)
 
         /** 태블릿 세로(`Tab-RecordList-Port`). */
-        val Portrait = RecordListSpacing(20.dp, 18.dp, 17.sp, 20.dp, 10.dp, 20.dp, 16.dp, 20.dp, 14.dp, 40.dp)
+        val Portrait = RecordListSpacing(4.dp, 14.dp, 20.dp, 16.dp, 20.dp, 14.dp)
 
         /** 태블릿 가로 왼쪽 목록(`Tab-Records-Land`). */
-        val Pane = Compact.copy(toolbarTop = 14.dp)
+        val Pane = Compact
     }
 }
 
-/** '이번 주' 요약 카드. 누르면 연습 기록지로 간다. */
+/**
+ * 상단 바 오른쪽의 작은 ‘연습 기록지 >’ 버튼.
+ * 이번 주 횟수·최고 점수는 저장한 연주만 세어 연습 기록지(끝낸 연주 모두)와 달라 이 화면에서 보이지 않는다.
+ */
 @Composable
-internal fun WeekCard(state: RecordListUiState, spacing: RecordListSpacing, onOpenGrowth: () -> Unit) {
-    val week = state.thisWeek
-    // 보드: 흰 바탕 · `#E8E4DA` 테두리 · 반지름 16.
-    Surface(onClick = onOpenGrowth, shape = RoundedCornerShape(16.dp), color = EolssuTheme.colors.surface, border = BorderStroke(1.dp, EolssuTheme.colors.lineSoft)) {
+internal fun GrowthLinkButton(onOpenGrowth: () -> Unit) {
+    val colors = EolssuTheme.colors
+    Surface(onClick = onOpenGrowth, modifier = Modifier.heightIn(min = 32.dp), shape = CircleShape, color = colors.surface, contentColor = colors.textSub) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = spacing.weekPaddingH, vertical = spacing.weekPaddingV),
+            Modifier.padding(start = 12.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(Res.string.records_this_week), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = EolssuTheme.colors.textMuted)
-                Text(
-                    if (week != null) stringResource(Res.string.records_this_week_summary, week.first, week.second) else stringResource(Res.string.records_this_week_none),
-                    modifier = Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = spacing.weekSummarySize, fontWeight = FontWeight.Bold),
-                )
-            }
-            Text(stringResource(Res.string.records_growth_link), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
-            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.padding(start = 2.dp).size(14.dp))
+            Text(
+                stringResource(Res.string.records_growth_link),
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+            )
+            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(14.dp))
         }
     }
 }
@@ -151,11 +143,11 @@ internal fun RecordsEmpty(available: Boolean, modifier: Modifier = Modifier) {
     )
 }
 
-/** 기록은 있지만 고른 악기의 기록이 없을 때. 위의 악기 선택은 그대로 둔다. */
+/** 기록은 있지만 고른 악기나 검색어([searching])에 맞는 곡이 없을 때. 위의 악기 선택·검색칸은 그대로 둔다. */
 @Composable
-internal fun RecordsInstrumentEmpty(modifier: Modifier = Modifier) {
+internal fun RecordsInstrumentEmpty(searching: Boolean = false, modifier: Modifier = Modifier) {
     Text(
-        stringResource(Res.string.records_instrument_empty),
+        stringResource(if (searching) Res.string.records_search_empty else Res.string.records_instrument_empty),
         modifier = modifier.fillMaxWidth().padding(vertical = 40.dp),
         style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
         color = EolssuTheme.colors.textMuted,
@@ -163,64 +155,82 @@ internal fun RecordsInstrumentEmpty(modifier: Modifier = Modifier) {
     )
 }
 
-/** ‘곡별 기록’ 제목 · 악기 선택 · 정렬 선택 줄. */
+/**
+ * 곡 묶음 위의 도구 두 줄: 곡 제목 검색칸, 그 아래 악기 선택 · 이름 토글(곡 묶음 순서).
+ * 묶음 안 날짜·연주는 늘 최신순이다.
+ */
 @Composable
 internal fun RecordListToolbar(
     instrument: Instrument?,
-    sort: RecordSort,
+    nameOrder: SongSortOrder,
+    query: String,
     spacing: RecordListSpacing,
     onInstrument: (Instrument?) -> Unit,
-    onSort: (RecordSort) -> Unit,
+    onToggleName: () -> Unit,
+    onSearch: (String) -> Unit,
 ) {
-    Row(
-        Modifier.padding(top = spacing.toolbarTop, bottom = spacing.toolbarBottom),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            stringResource(Res.string.records_by_song),
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-            color = EolssuTheme.colors.textMuted,
-        )
-        val all = stringResource(Res.string.records_instrument_all)
-        SelectBox(instrument, listOf(null) + Instrument.entries, { it?.let { i -> stringResource(i.label) } ?: all }, onInstrument)
-        SelectBox(sort, RecordSort.entries, { stringResource(if (it == RecordSort.Newest) Res.string.records_sort_new else Res.string.records_sort_old) }, onSort)
+    Column(Modifier.padding(top = spacing.toolbarTop, bottom = spacing.toolbarBottom), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SongSearchField(query, onSearch, onClear = { onSearch("") }, bordered = false)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            InstrumentSelectBox(instrument, onInstrument)
+            Spacer(Modifier.weight(1f))
+            SongSortButton(nameOrder, onToggleName, bordered = false)
+        }
     }
 }
 
-/** 흰 바탕 · 연한 테두리의 드롭다운 선택 상자. */
+/** 악기 선택 상자: 고른 악기의 그림과 이름(‘악기 전체’는 그림 없이)을 보이고, 목록에도 악기마다 그림을 둔다. */
 @Composable
-private fun <T> SelectBox(value: T, options: List<T>, label: @Composable (T) -> String, onPick: (T) -> Unit) {
+private fun InstrumentSelectBox(value: Instrument?, onPick: (Instrument?) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
+    val all = stringResource(Res.string.records_instrument_all)
     Box {
         Row(
             Modifier
-                .width(108.dp)
-                .height(38.dp)
-                .background(EolssuTheme.colors.surface, RoundedCornerShape(10.dp))
-                .border(1.dp, EolssuTheme.colors.lineSoft, RoundedCornerShape(10.dp))
+                .height(36.dp)
+                .background(EolssuTheme.colors.surface, CircleShape)
                 .clickable(role = Role.DropdownList) { expanded = true }
-                .padding(horizontal = 10.dp),
+                .padding(start = if (value == null) 14.dp else 6.dp, end = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(label(value), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp), maxLines = 1)
+            value?.let { InstrumentPicture(it, size = 24.dp) }
+            Text(
+                value?.let { stringResource(it.label) } ?: all,
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
+                maxLines = 1,
+            )
             Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = EolssuTheme.colors.surface) {
-            options.forEach { option ->
-                DropdownMenuItem(text = { Text(label(option)) }, onClick = {
-                    expanded = false
-                    onPick(option)
-                })
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = EolssuMenuShape,
+            containerColor = EolssuTheme.colors.surface,
+            shadowElevation = 8.dp,
+            modifier = Modifier.width(180.dp).padding(horizontal = 6.dp),
+        ) {
+            (listOf(null) + Instrument.entries).forEach { option ->
+                EolssuMenuItem(
+                    option?.let { stringResource(it.label) } ?: all,
+                    option == value,
+                    onClick = {
+                        expanded = false
+                        onPick(option)
+                    },
+                    leading = option?.let { { InstrumentPicture(it) } },
+                )
             }
         }
     }
 }
 
 /**
- * 곡별 녹음 묶음들(사이 8dp).
+ * 곡 묶음들(사이 8dp). 곡 하나는 악기와 관계없이 묶음 하나이고, 펼치면 연습한 날짜별 드롭다운이 나온다.
  *
+ * @param onToggle 곡 묶음([RecordSongGroup.key])을 펼치거나 접는다.
+ * @param onLoadMore 곡 묶음의 다음 기록을 받거나 실패한 받기를 다시 한다.
+ * @param onToggleDay 곡 묶음 안의 날짜([RecordDay.epochDay])를 펼치거나 접는다.
  * @param selectedId 두 칸 배치에서 오른쪽에 보이는 기록. null이면 고르기 표시 없이 누르면 [onOpenRecord]로 상세 화면에 간다.
  */
 @Composable
@@ -229,24 +239,28 @@ internal fun RecordGroups(
     spacing: RecordListSpacing,
     onToggle: (String) -> Unit,
     onOpenRecord: (String) -> Unit,
+    onLoadMore: (String) -> Unit,
+    onToggleDay: (String, Long) -> Unit,
     selectedId: String? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         state.groups.forEach { group ->
-            SongGroupCard(group, state.isOpen(group.songId), state, spacing, selectedId, onToggle, onOpenRecord)
+            SongGroupCard(group, state.isOpen(group.key), state, spacing, selectedId, onToggle, onOpenRecord, onLoadMore, onToggleDay)
         }
     }
 }
 
 @Composable
 private fun SongGroupCard(
-    group: RecordGroup,
+    group: RecordSongGroup,
     open: Boolean,
     state: RecordListUiState,
     spacing: RecordListSpacing,
     selectedId: String?,
     onToggle: (String) -> Unit,
     onOpenRecord: (String) -> Unit,
+    onLoadMore: (String) -> Unit,
+    onToggleDay: (String, Long) -> Unit,
 ) {
     val colors = EolssuTheme.colors
     val expandedLabel = stringResource(Res.string.records_expanded)
@@ -254,32 +268,28 @@ private fun SongGroupCard(
     // 보드: 흰 묶음 카드(테두리 `#E8E4DA`, 반지름 16), 펼친 머리는 `#EFF2D6`.
     Surface(
         modifier = Modifier.observeFirstDraw(PerfPhase.RECORD_DRAWN),
-        shape = RoundedCornerShape(16.dp), color = colors.surface, border = BorderStroke(1.dp, colors.lineSoft),
+        shape = RoundedCornerShape(16.dp), color = colors.surface,
     ) {
         Column {
             Row(
                 Modifier
                     .fillMaxWidth()
                     .background(if (open) colors.accentTint else colors.surface)
-                    .clickable(role = Role.Button) { onToggle(group.songId) }
+                    .clickable(role = Role.Button) { onToggle(group.key) }
                     .semantics { stateDescription = if (open) expandedLabel else collapsedLabel }
                     .padding(horizontal = spacing.groupPaddingH, vertical = spacing.groupPaddingV),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text(group.songTitle, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold))
-                    Text(
-                        stringResource(Res.string.records_group_meta, group.records.size, dayLabel(group.latest, state.today)),
-                        modifier = Modifier.padding(top = 2.dp),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = colors.textMuted,
-                    )
-                }
+                Text(
+                    group.title,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                )
                 Text(
                     buildAnnotatedString {
                         append(stringResource(Res.string.records_best) + " ")
-                        withStyle(SpanStyle(fontSize = 15.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.best}") }
+                        withStyle(SpanStyle(fontSize = 15.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.bestScore}") }
                         append(stringResource(Res.string.records_score_unit))
                     },
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
@@ -288,40 +298,99 @@ private fun SongGroupCard(
                 Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(18.dp).rotate(if (open) 180f else 0f))
             }
             if (open) {
-                HorizontalDivider(color = colors.lineSoft)
-                group.records.forEachIndexed { k, record ->
-                    if (k > 0) HorizontalDivider(color = colors.background)
-                    RecordRow(
-                        record = record,
-                        justSaved = record.id == state.justSavedId,
-                        today = state.today,
-                        spacing = spacing,
-                        selected = selectedId?.let { it == record.id },
-                    ) { onOpenRecord(record.id) }
+                state.days(group).forEach { day ->
+                    val dayOpen = state.isDayOpen(group, day.epochDay)
+                    HorizontalDivider(color = colors.lineSoft)
+                    DayHeader(day, dayOpen, state.today, spacing) { onToggleDay(group.key, day.epochDay) }
+                    if (dayOpen) {
+                        day.records.forEach { record ->
+                            HorizontalDivider(color = colors.background)
+                            RecordRow(
+                                record = record,
+                                instrument = state.songInstruments[record.songId],
+                                justSaved = record.id == state.justSavedId,
+                                spacing = spacing,
+                                selected = selectedId?.let { it == record.id },
+                            ) { onOpenRecord(record.id) }
+                        }
+                    }
+                }
+                val pages = group.songIds.map { state.pages[it] }
+                when {
+                    pages.any { it == null || it.loading } -> RecordsLoadStatus(failed = false, onRetry = {})
+                    pages.any { it?.failed == true } -> RecordsLoadStatus(failed = true, onRetry = { onLoadMore(group.key) })
+                    pages.any { it?.nextPage != null } -> EolssuButton(
+                        stringResource(Res.string.records_load_more), { onLoadMore(group.key) },
+                        modifier = Modifier.padding(8.dp), style = EolssuButtonStyle.Secondary, small = true,
+                    )
                 }
             }
         }
     }
 }
 
-/** 녹음 줄의 날짜: 오늘이면 ‘오늘 · 10월 20일’(보드), 아니면 ‘10월 18일’. 묶음 머리는 [dayLabel]의 ‘오늘 10월 20일’을 쓴다. */
+/** 곡 묶음 안의 날짜 드롭다운 머리: ‘오늘 · 11월 12일’ · 연주 수와 그날 최고 점수 · 펼침 표시. */
+@Composable
+private fun DayHeader(day: RecordDay, open: Boolean, today: KoreanDateTime, spacing: RecordListSpacing, onToggle: () -> Unit) {
+    val colors = EolssuTheme.colors
+    val expandedLabel = stringResource(Res.string.records_expanded)
+    val collapsedLabel = stringResource(Res.string.records_collapsed)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(colors.groupedBackground)
+            .clickable(role = Role.Button, onClick = onToggle)
+            .semantics { stateDescription = if (open) expandedLabel else collapsedLabel }
+            .padding(horizontal = spacing.rowPaddingH, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            rowDayLabel(day.date, today),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+        )
+        Text(
+            stringResource(Res.string.records_day_meta, day.records.size, day.records.maxOf { it.score }),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+            color = colors.textMuted,
+        )
+        Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(16.dp).rotate(if (open) 180f else 0f))
+    }
+}
+
+/** 날짜 머리의 날짜: 오늘이면 ‘오늘 · 10월 20일’(보드), 아니면 ‘10월 18일’. */
 @Composable
 private fun rowDayLabel(dateTime: KoreanDateTime, today: KoreanDateTime): String =
     if (dateTime.isSameDay(today)) stringResource(Res.string.records_row_today, monthDayLabel(dateTime)) else monthDayLabel(dateTime)
 
+/** 기록 줄의 악기: 기초부터 배우기와 같은 악기 그림과 악기 이름. 같은 곡을 여러 악기로 연습해도 줄마다 구분된다. */
 @Composable
-private fun dayLabel(dateTime: KoreanDateTime, today: KoreanDateTime): String =
-    if (dateTime.isSameDay(today)) stringResource(Res.string.records_today) + " " + monthDayLabel(dateTime) else monthDayLabel(dateTime)
+private fun InstrumentTag(instrument: Instrument) {
+    Row(
+        Modifier.background(EolssuTheme.colors.groupedBackground, CircleShape).padding(start = 2.dp, end = 8.dp, top = 1.dp, bottom = 1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        InstrumentPicture(instrument, size = 18.dp)
+        Text(
+            stringResource(instrument.label),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+            color = EolssuTheme.colors.textSub,
+        )
+    }
+}
 
 /**
- * 녹음 한 줄. [selected]가 null이 아니면 두 칸 배치의 고르기 줄이라, 고른 줄은 회색 바탕 · 왼쪽 검은 띠 ·
- * 검은 재생 아이콘으로 표시한다(`Tab-Records-Land`).
+ * 녹음 한 줄: 구간 · 시각 · 메모, 오른쪽에 악기와 점수, 끝에 상세로 가는 ›. 날짜는 위 날짜 머리에 있어 시각만 쓴다.
+ * 줄 자체는 재생하지 않으므로 재생 표시를 두지 않는다(S15P31E102-874). [selected]가 null이 아니면 두 칸 배치의 고르기 줄이라,
+ * 고른 줄은 회색 바탕 · 왼쪽 검은 띠 · 검은 ›로 표시한다(`Tab-Records-Land`).
  */
 @Composable
 private fun RecordRow(
     record: PracticeRecord,
+    instrument: Instrument?,
     justSaved: Boolean,
-    today: KoreanDateTime,
     spacing: RecordListSpacing,
     selected: Boolean?,
     onClick: () -> Unit,
@@ -347,16 +416,6 @@ private fun RecordRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 보드: 36dp 흰 원(테두리 `#E8E4DA`) 안 14dp 재생 표시. 두 칸 배치에서 고른 줄은 검은 원.
-        Box(
-            Modifier
-                .size(spacing.rowIcon)
-                .background(if (on) colors.text else colors.surface, CircleShape)
-                .then(if (on) Modifier else Modifier.border(1.dp, colors.lineSoft, CircleShape)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(EolssuIcons.Play, contentDescription = null, modifier = Modifier.size(14.dp), tint = if (on) colors.background else colors.text)
-        }
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(record.section?.let { stringResource(Res.string.records_section, it) } ?: stringResource(Res.string.records_whole), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
@@ -370,17 +429,7 @@ private fun RecordRow(
                 }
             }
             val small = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
-            Text("${rowDayLabel(record.recordedAt, today)} · ${timeLabel(record.recordedAt)}", modifier = Modifier.padding(top = 2.dp), style = small, color = colors.textMuted)
-            Text(
-                if (record.section != null && record.repeats != null) {
-                    stringResource(Res.string.records_meta_section, formatClock(record.recordedSeconds.toDouble()), record.repeats, record.bpm)
-                } else {
-                    stringResource(Res.string.records_meta_whole, formatClock(record.recordedSeconds.toDouble()), record.bpm)
-                },
-                modifier = Modifier.padding(top = 1.dp),
-                style = small,
-                color = colors.textMuted,
-            )
+            Text(timeLabel(record.recordedAt), modifier = Modifier.padding(top = 2.dp), style = small, color = colors.textMuted)
             if (record.memo.isNotEmpty()) {
                 Text(
                     stringResource(Res.string.records_memo, record.memo),
@@ -391,12 +440,16 @@ private fun RecordRow(
                 )
             }
         }
+        // 악기 표시는 점수 바로 왼쪽에 둔다.
+        instrument?.let { InstrumentTag(it) }
         Text(
             buildAnnotatedString {
                 withStyle(SpanStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold)) { append("${record.score}") }
                 withStyle(SpanStyle(fontSize = 11.sp, color = colors.textMuted)) { append(stringResource(Res.string.records_score_unit)) }
             },
         )
+        // 줄 전체가 기록 상세로 가는 버튼임을 보이는 ›. 두 칸 배치에서 고른 줄은 검게.
+        Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (on) colors.text else colors.textMuted)
     }
 }
 

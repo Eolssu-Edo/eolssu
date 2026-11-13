@@ -21,7 +21,7 @@ data class ScoreSection(val start: ScorePosition, val end: ScorePosition) {
     /** 구간이 걸친 각. */
     val columns: IntRange get() = start.column..end.column
 
-    /** 처음부터 끝까지 정간을 모두 덮는 각. 이 각만 취약 구간 테두리를 두른다. 없으면 null. */
+    /** 처음부터 끝까지 정간을 모두 덮는 각. 이 각만 각 표시(각 머리·테두리)를 강조한다. 없으면 null. */
     fun fullColumns(score: Score): IntRange? {
         val full = columns.filter { c ->
             c in score.columns.indices && ScorePosition(c, 0) in this && ScorePosition(c, score.columns[c].lastIndex) in this
@@ -42,4 +42,17 @@ data class ScoreSection(val start: ScorePosition, val end: ScorePosition) {
         fun ofColumns(score: Score, first: Int, last: Int): ScoreSection =
             ScoreSection(ScorePosition(first, 0), ScorePosition(last, score.columns[last].lastIndex))
     }
+}
+
+/**
+ * 율명 음 번호 [notes](양 끝 포함, 서버 `noteIdx`)를 연주한 정간 구간. 첫 음의 정간부터 마지막 음이 이음으로 이어지는 마지막 정간까지다.
+ * 구간 앞뒤의 쉼·빈 정간은 넣지 않는다. 악보에 그 음이 없으면 null.
+ */
+fun Song.notesSection(notes: IntRange): ScoreSection? {
+    val events = timeline.filter { it.noteIndex != null && it.noteIndex in notes }
+    if (events.isEmpty()) return null
+    val first = events.minBy { it.noteIndex!! }
+    val last = events.maxBy { it.noteIndex!! }
+    val end = displayUnits.filter { it.event.index == last.index }.maxOfOrNull { ScorePosition(it.column, it.row) }
+    return ScoreSection.between(ScorePosition(first.column, first.row), end ?: ScorePosition(last.column, last.row))
 }

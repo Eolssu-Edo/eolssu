@@ -2,6 +2,8 @@ package com.ssafy.eolssu.feature.practice
 
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
+import com.ssafy.eolssu.feature.practice.component.fingeringFor
 
 /*
  * 2차 PRACTICE-01 '한 음씩 따라 불기'(와이어프레임 Practice-Ext의 STEP_JS·STEP_UI).
@@ -91,10 +93,19 @@ val PracticeUiState.stepBusy: Boolean get() = stepUi && step.phase == StepPhase.
 val PracticeUiState.stepCurrentIndex: Int?
     get() = if (stepUi && (step.phase == StepPhase.Listening || step.phase == StepPhase.Paused)) step.target else null
 
-/** '지금 음' 칸에 보일 음. 시작 전이면 첫 음. */
+/** '현재 정간' 칸을 누르면 낼 운지 예시음(S15P31E102-717). 한 음씩이 꺼져 있거나 운지표에 없는 음이면 없다. */
+val PracticeUiState.stepNoteToPlay: FingeringNote?
+    get() {
+        if (!stepUi) return null
+        // 운지법 팝업과 같은 규칙으로, 공통 악보의 율명·옥타브까지 운지표의 같은 음을 찾는다.
+        val note = stepShownIndex?.let { song?.timeline?.getOrNull(it) }?.note ?: return null
+        return instrument.fingeringFor(note)
+    }
+
+/** '현재 정간' 칸에 보일 음. 시작 전이면 첫 음. */
 val PracticeUiState.stepShownIndex: Int?
     get() {
-        val targets = stepTargets(song?.timeline.orEmpty())
+        val targets = stepTargetsInSection()
         if (targets.isEmpty()) return null
         return if (step.phase == StepPhase.Idle) targets.first() else step.target
     }
@@ -102,7 +113,7 @@ val PracticeUiState.stepShownIndex: Int?
 /** 지금 음이 몇 번째인지(1부터)와 전체 음 수. */
 val PracticeUiState.stepProgress: Pair<Int, Int>
     get() {
-        val targets = stepTargets(song?.timeline.orEmpty())
+        val targets = stepTargetsInSection()
         val shown = stepShownIndex ?: return 0 to 0
         val k = targets.indexOfFirst { it >= shown }.let { if (it < 0) targets.lastIndex else it }
         return (k + 1) to targets.size
@@ -120,7 +131,7 @@ fun PracticeUiState.toggleStep(): PracticeUiState {
         return copy(step = step.copy(on = false, phase = phase))
     }
     if (mode == PracticeMode.Model) {
-        val targets = stepTargets(song?.timeline.orEmpty())
+        val targets = stepTargetsInSection()
         val target = targets.firstOrNull { it >= position } ?: targets.lastOrNull() ?: 0
         return stopModel().copy(modelAudioStatus = ModelAudioStatus.Idle, step = step.copy(on = true, phase = StepPhase.Paused, target = target))
     }
@@ -133,7 +144,7 @@ fun PracticeUiState.toggleStep(): PracticeUiState {
  */
 fun PracticeUiState.tapStepPlaying(): PracticeUiState {
     if (!stepUi || mode != PracticeMode.Ready) return this
-    val targets = stepTargets(song?.timeline.orEmpty())
+    val targets = stepTargetsInSection()
     if (targets.isEmpty()) return this
     return when (step.phase) {
         StepPhase.Listening -> copy(step = step.copy(phase = StepPhase.Paused))
@@ -149,9 +160,11 @@ fun PracticeUiState.tapStepPlaying(): PracticeUiState {
  */
 fun PracticeUiState.matchStepNote(index: Int): PracticeUiState {
     if (!stepUi || step.phase != StepPhase.Listening || index != step.target) return this
-    val next = stepTargets(song?.timeline.orEmpty()).firstOrNull { it > index }
-        ?: return copy(step = step.copy(phase = StepPhase.Finished))
-    return copy(follow = true, step = step.copy(target = next))
+    val targets = stepTargetsInSection()
+    val next = targets.firstOrNull { it > index }
+    if (next != null) return copy(follow = true, step = step.copy(target = next))
+    // 구간 연습도 구간 마지막 음을 불면 끝낸다(S15P31E102-794).
+    return copy(step = step.copy(phase = StepPhase.Finished))
 }
 
 /** 화면을 벗어나거나 다른 동작으로 멈춤. 듣는 중이면 그 자리에서 멈춘다. */

@@ -11,7 +11,17 @@ data class WithdrawUiState(
     val error: ProfileFieldError? = null,
     val reauth: WithdrawReauth? = null,
     val withdrawn: Boolean = false,
+    val confirm: WithdrawConfirm? = null,
 )
+
+/** '탈퇴하기'를 누른 뒤 확인 창에서 고를 신청 방법. 창에서 '탈퇴하기'를 눌러야 실제로 신청하거나 재인증을 시작한다. */
+sealed interface WithdrawConfirm {
+    /** 입력한 현재 비밀번호로 신청한다. */
+    data object Password : WithdrawConfirm
+
+    /** [provider] 재인증을 시작하고, 확인되면 바로 신청한다. */
+    data class Reauth(val provider: SocialProvider) : WithdrawConfirm
+}
 
 /** 간편 로그인 재인증 진행. 멈추면 [problem]에 이유가 있고, 다시 누르면 처음부터 한다. */
 data class WithdrawReauth(val provider: SocialProvider, val step: Step, val problem: SocialLinkProblem? = null) {
