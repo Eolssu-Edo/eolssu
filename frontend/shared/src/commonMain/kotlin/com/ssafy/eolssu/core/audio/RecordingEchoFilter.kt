@@ -44,14 +44,30 @@ sealed interface EchoCalibrationResult {
     ) : EchoCalibrationResult
 }
 
-class RecordingEchoModel internal constructor(
+internal sealed interface RecordingEchoReference {
+    data class Strikes(val preFrames: Int, val templates: Map<JangdanClip, FloatArray>) : RecordingEchoReference
+    data class Cycle(val response: CycleEchoResponse) : RecordingEchoReference
+}
+
+class RecordingEchoModel private constructor(
     val sampleRate: Int,
-    internal val preFrames: Int,
-    internal val templates: Map<JangdanClip, FloatArray>,
+    internal val reference: RecordingEchoReference,
     /** Lowest accepted repeat match; useful for local replay diagnostics. */
     val minimumSimilarity: Float,
     internal val maximumResponseResidual: Float,
-)
+) {
+    internal constructor(sampleRate: Int, preFrames: Int, templates: Map<JangdanClip, FloatArray>,
+        minimumSimilarity: Float, maximumResponseResidual: Float) : this(sampleRate,
+        RecordingEchoReference.Strikes(preFrames, templates), minimumSimilarity, maximumResponseResidual)
+
+    internal constructor(sampleRate: Int, response: CycleEchoResponse, minimumSimilarity: Float,
+        maximumResponseResidual: Float) : this(sampleRate, RecordingEchoReference.Cycle(response),
+        minimumSimilarity, maximumResponseResidual)
+
+    internal val preFrames: Int get() = (reference as? RecordingEchoReference.Strikes)?.preFrames ?: 0
+    internal val templates: Map<JangdanClip, FloatArray>
+        get() = (reference as? RecordingEchoReference.Strikes)?.templates ?: emptyMap()
+}
 
 object RecordingEchoCalibrator {
     /**
@@ -217,7 +233,7 @@ object RecordingEchoCalibrator {
     private fun unreliable(diagnostic: EchoCalibrationDiagnostic) =
         EchoCalibrationResult.Rejected(RecordingEchoStatus.Unreliable, diagnostic)
 
-    private fun quietPower(signal: FloatArray, windows: List<EchoQuietWindow>): Float = median(windows.map {
+    internal fun quietPower(signal: FloatArray, windows: List<EchoQuietWindow>): Float = median(windows.map {
         (energy(signal, it.startFrame.toInt(), it.endFrame.toInt()) / (it.endFrame - it.startFrame)).toFloat()
     })
 
@@ -251,7 +267,7 @@ object RecordingEchoCalibrator {
         })
     }
 
-    private fun quietDiagnostic(capture: FloatArray, window: EchoQuietWindow): EchoCalibrationDiagnostic? {
+    internal fun quietDiagnostic(capture: FloatArray, window: EchoQuietWindow): EchoCalibrationDiagnostic? {
         // A 93 ms decimated window still contains several periods of a low wind note.
         val size = 1024
         var tonalRun = 0
@@ -293,9 +309,9 @@ object RecordingEchoCalibrator {
         return null
     }
 
-    private data class Match(val lag: Int, val score: Float)
+    internal data class Match(val lag: Int, val score: Float)
 
-    private fun bestMatch(signal: FloatArray, reference: Int, target: Int, size: Int, pad: Int): Match {
+    internal fun bestMatch(signal: FloatArray, reference: Int, target: Int, size: Int, pad: Int): Match {
         var best = Match(0, -1f)
         for (lag in -pad..pad step 4) {
             val score = correlation(signal, reference, signal, target + lag, size, 4)
@@ -328,14 +344,19 @@ class RecordingEchoFilter(private val model: RecordingEchoModel) {
         val rawEnergy = energy(input, 0, count)
         if (rawEnergy / count < 1e-6) return false
         val predictedStart = firstFrame - lagFrames
-        for (event in events) {
-            if (!event.gain.isFinite() || event.gain !in .01f..1f || event.startFrame < 0 ||
-                event.startFrame > Long.MAX_VALUE - model.sampleRate * 5) return false
-            val template = model.templates[event.clip] ?: return false
-            val start = event.startFrame - model.preFrames
-            val begin = max(0L, start - predictedStart).coerceAtMost(predictedSize.toLong()).toInt()
-            val end = min(predictedSize.toLong(), start + template.size - predictedStart).coerceAtLeast(0).toInt()
-            for (i in begin until end) predicted[i] += template[(predictedStart + i - start).toInt()] * event.gain
+        when (val reference = model.reference) {
+            is RecordingEchoReference.Strikes -> for (event in events) {
+                if (!event.gain.isFinite() || event.gain !in .01f..1f || event.startFrame < 0 ||
+                    event.startFrame > Long.MAX_VALUE - model.sampleRate * 5) return false
+                val template = reference.templates[event.clip] ?: return false
+                val start = event.startFrame - reference.preFrames
+                val begin = max(0L, start - predictedStart).coerceAtMost(predictedSize.toLong()).toInt()
+                val end = min(predictedSize.toLong(), start + template.size - predictedStart).coerceAtLeast(0).toInt()
+                for (i in begin until end) predicted[i] += template[(predictedStart + i - start).toInt()] * event.gain
+            }
+            is RecordingEchoReference.Cycle -> if (!reference.response.predict(
+                predictedStart, predictedSize, events, predicted, lagFrames,
+            )) return false
         }
         var bestLag = lagFrames
         var bestScore = 0f
@@ -370,13 +391,13 @@ class RecordingEchoFilter(private val model: RecordingEchoModel) {
     }
 }
 
-private fun energy(signal: FloatArray, start: Int = 0, end: Int = signal.size): Double {
+internal fun energy(signal: FloatArray, start: Int = 0, end: Int = signal.size): Double {
     var result = 0.0
     for (i in start until end) result += signal[i].toDouble() * signal[i]
     return result
 }
 
-private fun correlation(a: FloatArray, ai: Int, b: FloatArray, bi: Int, size: Int, step: Int): Float {
+internal fun correlation(a: FloatArray, ai: Int, b: FloatArray, bi: Int, size: Int, step: Int): Float {
     var dot = 0.0
     var aa = 0.0
     var bb = 0.0
@@ -390,14 +411,14 @@ private fun correlation(a: FloatArray, ai: Int, b: FloatArray, bi: Int, size: In
     return if (aa * bb > 1e-20) (dot / sqrt(aa * bb)).toFloat() else 0f
 }
 
-private fun median(values: List<Float>): Float {
+internal fun median(values: List<Float>): Float {
     val sorted = values.sorted()
     val middle = sorted.size / 2
     return if (sorted.size % 2 == 0) (sorted[middle - 1] + sorted[middle]) * .5f else sorted[middle]
 }
 
 /** Zero-phase Butterworth sections are used only while preparing a model, never on live PCM. */
-private fun bandLimited(input: FloatArray, count: Int, low: Double, high: Double, sampleRate: Int): FloatArray {
+internal fun bandLimited(input: FloatArray, count: Int, low: Double, high: Double, sampleRate: Int): FloatArray {
     val output = input.copyOf(count)
     fun section(cutoff: Double, highPass: Boolean) {
         val angle = 2 * PI * cutoff / sampleRate
