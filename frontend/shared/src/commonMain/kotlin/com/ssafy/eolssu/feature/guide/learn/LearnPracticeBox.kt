@@ -77,13 +77,13 @@ class LearnPracticeActions(
 
 /*
  * 기초부터 배우기 3~7단계의 소리 듣기(S15P31E102-688, 정리 S15P31E102-749).
- * 박스를 펼친 뒤 아래 가운데 '연습 시작'을 누르면 듣는다(S15P31E102-793). 5단계 정간보만 마이크 입력 뱃지([MicLevelBadge])를 두고,
+ * 박스를 펼친 뒤 박스 안 '연습 시작'을 누르면 듣는다. 5단계 정간보만 마이크 입력 뱃지([MicLevelBadge])를 두고,
  * 듣는 동안 안내 문장을 바꿔 띄우지 않는다. 진행은 소리 막대·낼 음·'투' 동그라미·정간보가 채워지는 것으로만 보인다.
- * 연습 시작·그만하기·다음 단계로 같은 주 동작은 단계 화면 아래 가운데 버튼([LearnPracticePrimary])이 맡고, 박스 안에는 보조 버튼만 둔다.
+ * 연습 시작·그만하기·다음 단계로 같은 주 동작([LearnPracticePrimary])도 듣는 박스 안, 듣기 판 아래에 둔다(S15P31E102-877).
  */
 
 /**
- * 3·4·7단계의 마지막 연습 박스 내용: 통과 기준 한 줄 · 소리 듣기 판 · 보조 버튼. 3단계는 0.3초 소리 한 번, 4단계는 낼 음,
+ * 3·4·7단계의 마지막 연습 박스 내용: 통과 기준 한 줄 · 소리 듣기 판 · 주 버튼([primary]) · 보조 버튼. 3단계는 0.3초 소리 한 번, 4단계는 낼 음,
  * 7단계는 '투' 횟수를 센다. 판정하지 않는 경우(음높이 관측이 없는 기기)는 마이크 뱃지만 보이고 '스스로 확인했어요'로 마친다.
  * 박스를 접거나 화면을 벗어나면 듣기를 멈춘다.
  */
@@ -95,6 +95,7 @@ internal fun LearnPracticeBox(
     instrument: GuideInstrument,
     actions: LearnPracticeActions,
     onSelfDone: () -> Unit = actions.onComplete,
+    primary: @Composable (Modifier) -> Unit = {},
 ) {
     AutoListen(state, actions)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -110,6 +111,7 @@ internal fun LearnPracticeBox(
         }
         if (rule != null) PassLine(rule)
         ListenPanel(state, instrument, 0 until (state.pitch?.notes?.size ?: 0))
+        primary(Modifier.fillMaxWidth())
         LearnPracticeSideButtons(state, actions, onSelfDone)
     }
 }
@@ -179,7 +181,7 @@ private fun MicRow(state: LearnPracticeUiState) {
 }
 
 /**
- * 듣기는 아래 가운데 '연습 시작'을 눌러야 시작한다(S15P31E102-793, 전에는 박스를 펼치면 바로 들었다).
+ * 듣기는 박스 안 '연습 시작'을 눌러야 시작한다(전에는 박스를 펼치면 바로 들었다).
  * [stopOnLeave]면 이 칸이 사라질 때 듣기를 멈춘다.
  */
 @Composable
@@ -400,7 +402,7 @@ private fun PassedMark() {
 
 /**
  * 연습 박스 안 보조 버튼. 통과하면 '처음부터', 앱이 판정하지 않으면(음높이 관측이 없는 4단계, 권한이 꺼진 경우) '스스로 확인했어요'.
- * 주 동작은 단계 화면 아래 가운데 버튼([LearnPracticePrimary])이 맡는다.
+ * 주 동작은 바로 위 주 버튼([LearnPracticePrimary])이 맡는다.
  */
 @Composable
 private fun LearnPracticeSideButtons(state: LearnPracticeUiState, actions: LearnPracticeActions, onSelfDone: () -> Unit) {
@@ -414,7 +416,7 @@ private fun LearnPracticeSideButtons(state: LearnPracticeUiState, actions: Learn
 }
 
 /**
- * 듣는 박스가 펼쳐졌을 때 단계 화면 아래 가운데 버튼(S15P31E102-749). 그 순간 할 일을 맡는다: 듣기 전 '연습 시작',
+ * 듣는 박스 안의 주 버튼(S15P31E102-877). 그 순간 할 일을 맡는다: 듣기 전 '연습 시작',
  * 듣는 중 '그만하기', 멈춘 뒤·'처음부터' 뒤에도 '연습 시작'(S15P31E102-845), 통과 뒤 '다음 단계로'(마지막 단계는 끝내기 문구).
  * 권한이 꺼져 다시 묻지 못하면 '설정에서 허용하기', 마이크가 없는 기기는 '스스로 확인했어요'다.
  */

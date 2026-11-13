@@ -39,10 +39,10 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.guide.ReadingPage
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.guide_reading_next
+import eolssu.shared.generated.resources.guide_reading_nav_next
 import eolssu.shared.generated.resources.guide_reading_page_dot
 import eolssu.shared.generated.resources.guide_reading_page_intro
-import eolssu.shared.generated.resources.guide_reading_prev
+import eolssu.shared.generated.resources.guide_reading_nav_prev
 import eolssu.shared.generated.resources.guide_reading_toc_closed
 import eolssu.shared.generated.resources.guide_reading_toc_open
 import eolssu.shared.generated.resources.guide_reading_length
@@ -110,46 +110,30 @@ internal fun ReadingTocMenu(current: ReadingPage, onSelect: (ReadingPage) -> Uni
     }
 }
 
-/** 아래 이전 · 점 · 다음. 첫 쪽에는 이전, 마지막 쪽에는 다음이 없고, 빈자리를 남겨 점은 가운데에 그대로 둔다. 다음은 녹색. */
+/**
+ * 아래 넘김 줄: 이전 · 쪽 점 · 다음([GuidePageNav], 기초 배우기 단계 상세와 같은 모양, S15P31E102-877).
+ * 첫 쪽의 이전과 마지막 쪽의 다음은 옅게 둔다. 구분선과 여백은 기초 배우기 아래 영역과 같다.
+ */
 @Composable
 internal fun ReadingBookNav(current: ReadingPage, onGo: (ReadingPage) -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
-    val pages = ReadingPage.entries
+    val previous = current.previous
+    val next = current.next
+    val previousLabel = previous?.let { stringResource(Res.string.guide_reading_nav_prev, it.ordinal + 1, it.title()) }
+    val nextLabel = next?.let { stringResource(Res.string.guide_reading_nav_next, it.ordinal + 1, it.title()) }
     Column(modifier.fillMaxWidth()) {
-        HorizontalDivider(color = colors.lineSoft)
-        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 28.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                current.previous?.let { prev -> PageButton(stringResource(Res.string.guide_reading_prev), next = false) { onGo(prev) } }
-            }
-            Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                pages.forEach { page -> PageDot(page, on = page == current) { onGo(page) } }
-            }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                current.next?.let { next -> PageButton(stringResource(Res.string.guide_reading_next), next = true) { onGo(next) } }
+        HorizontalDivider(color = colors.surfaceStrong)
+        GuidePageNav(
+            previousLabel = previousLabel,
+            nextLabel = nextLabel,
+            onPrevious = { previous?.let(onGo) },
+            onNext = { next?.let(onGo) },
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 18.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                ReadingPage.entries.forEach { page -> PageDot(page, on = page == current) { onGo(page) } }
             }
         }
-    }
-}
-
-@Composable
-private fun PageButton(label: String, next: Boolean, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    // 다른 버튼([com.ssafy.eolssu.core.ui.component.EolssuButton] 작은 크기)과 같은 모서리 12dp 사각 버튼(S15P31E102-768).
-    val shape = RoundedCornerShape(12.dp)
-    val fg = if (next) colors.onPrimary else colors.text
-    Row(
-        Modifier
-            .height(44.dp)
-            .clip(shape)
-            .background(if (next) colors.green else colors.surface)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        if (!next) Icon(EolssuIcons.Back, contentDescription = null, modifier = Modifier.size(16.dp), tint = fg)
-        Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold), color = fg, maxLines = 1)
-        if (next) Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = fg)
     }
 }
 
