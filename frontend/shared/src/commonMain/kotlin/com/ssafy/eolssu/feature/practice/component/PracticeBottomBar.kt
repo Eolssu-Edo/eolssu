@@ -180,9 +180,8 @@ private fun RecordingBarContent(state: PracticeUiState, actions: PracticeBottomA
 }
 
 /**
- * 태블릿 배치가 쓰는 상태별 하단 내용: 연주 중이면 [PracticeRecordingBar], 아니면 플레이어 카드와 행동 버튼.
+ * 태블릿 배치가 쓰는 상태별 하단 내용: 연주 중이면 [PracticeRecordingBar], 아니면 플레이어([PracticePlayer]).
  * 연주 평가([PracticeUiState.direct])는 준비 상태의 플레이어·행동 버튼 없이 평가 대기 막대를 둔다.
- * 한 음씩이 켜지면 플레이어 카드 대신 두 칸([PracticeStepPanels])을 둔다.
  * 휴대폰은 플레이어를 본문 안에 두므로 이 함수를 쓰지 않는다.
  */
 @Composable
@@ -190,8 +189,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
     if (state.recordingLayout) {
         PracticeRecordingBar(state, actions, stacked)
     } else if (!state.direct) {
-        if (state.stepUi) PracticeStepPanels(state, actions) else PracticePlayerCard(state, actions)
-        PracticeCallToAction(state, actions)
+        PracticePlayer(state, actions)
     }
 }
 
