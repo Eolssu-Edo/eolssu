@@ -1,6 +1,6 @@
 # 프로젝트 문서
 
-- [쉼표 인식 검수의 정간 클릭 안내 (890)](specs/score-authoring-consistency.md#인식-검수-이유의-정간-클릭-안내-s15p31e102-890) · [계획·검증](plans/S15P31E102-890.md)
+- [선택 위치 검수 안내 (890)](specs/score-authoring-consistency.md#인식-검수-이유의-정간-클릭-안내-s15p31e102-890) · [원인·OMR 운영 배포](knowledge/frontend/sheet-pitch-adaptation.md#사용자-승인-후-omr-배포-890) · [검증·인수인계](plans/S15P31E102-890.md)
 
 - [분석 완료 후 음역·이조 즉시 사용 (879)](specs/sheet-adaptation-readiness.md) · [중복 조회 원인과 실제 검증](knowledge/frontend/sheet-adaptation-readiness.md) · [계획·검증](plans/S15P31E102-879.md)
 
@@ -231,6 +231,7 @@
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
 - [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
+- [소리 나는 버튼의 눌림 효과(elastic squash)](decisions/frontend-sound-button-press.md) (확정)
 
 - [S15P31E102-256 곡·악보 조회](plans/S15P31E102-256.md)
 - [S15P31E102-345 곡 목록 서버 검색·페이지 보류와 재개 조건](plans/S15P31E102-345.md)
@@ -346,6 +347,9 @@
 - [S15P31E102-472 인식 작업자·결과 저장·재시도](plans/S15P31E102-472.md) · [시간 제한·사진 방향·재시도 근거](knowledge/backend/sheet-conversion-worker.md)
 
 ## COCO 산출물
+
+- [불러올 악보 고르기 목록 개선](specs/edit-pick-list.md): 제공 곡·내 악보 조회 분리와 선택 화면의 범위·완료 조건.
+- [불러오기 목록 대기 분리와 검증](knowledge/frontend/edit-pick-list.md): 지연 원인·탭별 조회와 실행 검증 범위.
 
 - [빠르기 생성 사전검사와 수행 시간표 분할 계획](plans/S15P31E102-773.md)
 - [빠르기·수행 시계와 실제 CAT 검증 근거](knowledge/data/score-authoring-tempo.md)
