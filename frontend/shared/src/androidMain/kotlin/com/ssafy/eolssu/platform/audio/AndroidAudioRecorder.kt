@@ -50,6 +50,11 @@ import kotlinx.coroutines.flow.asSharedFlow
 class AndroidAudioRecorder(context: Context) : AudioRecorder {
     private val debugBuild = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     private val directory = File(context.applicationContext.cacheDir, "recordings")
+    private val pairDirectory = File(context.applicationContext.cacheDir, "echo-pairs")
+    private val diagnosticApp = runCatching {
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        "${context.packageName}/${info.versionName}"
+    }.getOrDefault(context.packageName)
     private val readings = MutableSharedFlow<PitchReading>(extraBufferCapacity = 16)
     private val echoState = MutableStateFlow(RecordingEchoStatus.Off)
     private val ids = AtomicLong()
@@ -99,6 +104,22 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             // The encoder exists before the downbeat; capture splits the read crossing this boundary.
             next.command(Action.ArmRecording, recordNanos)
             val initialShift = inputFrameAtNanos(scheduled.frameZeroNanos, initialInput.zeroNanos)
+            next.pairSummary = mapOf(
+                "app" to diagnosticApp,
+                "msPerTick" to plan.msPerTick.toString(),
+                "cycleTicks" to plan.mapping.cycleTicks.toString(),
+                "scoreStartTick" to plan.mapping.startTick.toString(),
+                "recordingStartTick" to plan.recordingStartTick.toString(),
+                "inputShift" to initialShift.toString(),
+                "recordingStartFrame" to (scheduled.recordingStartFrame + initialShift).toString(),
+                "cycleStartFrames" to scheduled.cycleStartFrames.joinToString(",") { (it + initialShift).toString() },
+                "preparationEvents" to scheduled.preparationEvents.joinToString(";") {
+                    "${it.frame + initialShift}:${it.clip}:${it.gain}"
+                },
+                "clipFrames" to lengths.entries.joinToString(";") { "${it.key}:${it.value}" },
+                "outputVolume" to baseline.volume.toString(),
+                "outputDeviceType" to baseline.deviceType.toString(),
+            )
             val geometry = jangdanEchoPreparation(scheduled.preparationEvents, lengths, initialShift,
                 initialInput.frames, scheduled.recordingStartFrame + initialShift)
                 ?.takeIf { it.trainingEnd < RATE * 55L }
@@ -312,6 +333,9 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
         private var lastTimestampNanos = 0L
         private var correctedBlocks = 0L
         private var examinedBlocks = 0L
+        @Volatile var pairSummary: Map<String, String> = emptyMap()
+        private var pairCapture: EchoPairCapture? = null
+        private var pairAccepting = true
         @Volatile var timestampValid = false
             private set
         private var fill = 0
@@ -374,6 +398,9 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 check(previous == null || previous.done.await(3, TimeUnit.SECONDS)) { "Previous microphone still active" }
                 check(!cancelled)
                 check(directory.isDirectory || directory.mkdirs())
+                if (debugBuild && Log.isLoggable("EolssuEchoPair", Log.DEBUG)) {
+                    pairCapture = EchoPairCapture(pairDirectory, id)
+                }
                 completed?.delete()
                 completed = null
                 val minimum = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
@@ -445,6 +472,9 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                         val planned = armedStartNanos?.let { inputFrameAtNanos(it, physicalZeroNanos) }
                         val prefix = planned?.let { preparationPrefixFrames(physicalFrames, count, it.coerceAtLeast(0)) } ?: count
                         if (prefix > 0) {
+                            if (pairAccepting && pairCapture?.appendPreparation(pcm, 0, prefix, physicalFrames) == false) {
+                                pairAccepting = false
+                            }
                             probe.append(pcm, prefix, timestampValid.takeIf { it }?.let { physicalZeroNanos }, input.routedDevice,
                                 retain = retainProbe)
                             physicalFrames += prefix
@@ -468,7 +498,9 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                         pcm.copyInto(pcm, 0, prefix, count)
                         count -= prefix
                     }
-                    processEcho(pcm, count, input)
+                    if (!processCapturedEcho(pcm, count, physicalFrames, pairCapture.takeIf { pairAccepting }) {
+                            processEcho(pcm, count, input)
+                        }) pairAccepting = false
                     checkNotNull(writer).write(pcm, count)
                     physicalFrames += count
                     var peak = 0
@@ -506,6 +538,18 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 runCatching { input?.stop() }
                 runCatching { input?.release() }
                 writer?.close()
+                pairCapture?.finish(cancelled = cancelled || failed || !keep, summary = pairSummary + mapOf(
+                    "app" to diagnosticApp,
+                    "appliedBlocks" to correctedBlocks.toString(),
+                    "examinedBlocks" to examinedBlocks.toString(),
+                    "writerFrames" to fileSamples.toString(),
+                    "echoStatus" to echoState.value.toString(),
+                    "physicalZeroNanos" to physicalZeroNanos.toString(),
+                ))?.whenComplete { pair, failure ->
+                    if (debugBuild) Log.d("EolssuEchoPair",
+                        "recording=$id complete=${pair?.complete == true && failure == null} " +
+                            "frames=${pair?.performanceFrames} directory=${pair?.directory?.name} reason=${pair?.failure}")
+                }
                 probe.clearSamples()
                 if (debugBuild && writer != null) Log.d("EolssuEcho", "recording=$id applied=$correctedBlocks examined=$examinedBlocks frames=$fileSamples state=${echoState.value}")
                 synchronized(stateLock) {
@@ -592,6 +636,19 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
         const val WINDOW = 2048
         const val HOP = 882
     }
+}
+
+/** The optional before snapshot and after samples share the exact AAC/pitch boundary. */
+internal inline fun processCapturedEcho(
+    pcm: ShortArray,
+    count: Int,
+    physicalFirstFrame: Long,
+    pair: EchoPairCapture?,
+    process: () -> Unit,
+): Boolean {
+    val original = if (pair != null) pcm.copyOf(count) else null
+    process()
+    return original == null || checkNotNull(pair).appendPair(original, pcm, count, physicalFirstFrame)
 }
 
 private data class PreparedEcho(
