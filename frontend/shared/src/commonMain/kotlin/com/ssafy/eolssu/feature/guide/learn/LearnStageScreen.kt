@@ -45,6 +45,7 @@ import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
 import com.ssafy.eolssu.feature.guide.component.GuideGrid
 import com.ssafy.eolssu.feature.guide.component.GuideIcons
+import com.ssafy.eolssu.feature.guide.component.GuidePageNav
 import com.ssafy.eolssu.feature.guide.component.GuideTabletBottomContent
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.LearnPatternBox
@@ -141,8 +142,8 @@ fun LearnStageScreen(
             GuideTopBar(learnStageTitle(stage), onBack = actions.onBack, widthClass = widthClass, subtitle = learnStageSubtitle(stage))
         },
         bottomBar = {
-            if (tablet) GuideTabletBottomContent { LearnStageBottomBar(state, stage, actions, tour, practice) }
-            else LearnStageBottomBar(state, stage, actions, tour, practice)
+            if (tablet) GuideTabletBottomContent { LearnStageBottomBar(state, stage, actions) }
+            else LearnStageBottomBar(state, stage, actions)
         },
         snackbarHostState = snackbarHostState,
         contentMaxWidth = widthClass.guidePageMaxWidth,
@@ -200,9 +201,11 @@ internal fun LearnStageContent(
         when (val load = state.detail(stage.number)) {
             is LearnDetailLoad.Loaded -> {
                 val detail = load.detail
-                StagePosition(state, stage.number) { StageInstrument(state.instrument) }
+                // 단계 위치(점 · n / 전체)는 아래 넘김 줄 가운데로 옮기고 위에는 지금 악기만 둔다(S15P31E102-877).
+                Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.End) { StageInstrument(state.instrument) }
                 StageHero(stage, detail)
                 StageBody(state, stage, detail, actions, columns, noteAudioContent, tour, practice)
+                StagePrimary(stage, learnStepCount(stage.number, detail, state.instrument), actions, tour)
             }
             else -> LearnLoadStatus(
                 failed = load == LearnDetailLoad.Failed,
@@ -249,45 +252,42 @@ private fun StageHero(stage: LearnStage, detail: LearnStageDetail) {
 private val StageHeroArtSize = 88.dp
 
 /**
- * 단계 안에서도 지금 몇 단계인지 보이는 작은 줄. 단계마다 점 하나를 두고 완료는 연두, 지금 단계는 길쭉한 진한 점, 나머지는 옅게 칠하며
- * 'n / 전체'를 적는다. 화면 읽기에는 '전체 n단계 중 m단계'로 한 번에 읽힌다. 맨 오른쪽에 [trailing](지금 악기)을 둔다.
+ * 지금 몇 단계인지 보이는 작은 줄(아래 넘김 줄 가운데). 단계마다 점 하나를 두고 완료는 연두, 지금 단계는 길쭉한 진한 점, 나머지는 옅게 칠하며
+ * 'n / 전체'를 적는다. 화면 읽기에는 '전체 n단계 중 m단계'로 한 번에 읽힌다.
  */
 @Composable
-private fun StagePosition(state: LearnUiState, current: Int, trailing: @Composable () -> Unit) {
+private fun StageDots(state: LearnUiState, current: Int) {
     val stages = state.stages
     val index = stages.indexOfFirst { it.number == current }
     if (index < 0) return
     val colors = EolssuTheme.colors
     val description = stringResource(Res.string.learn_stage_position_description, stages.size, index + 1)
-    Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Row(
-            Modifier.weight(1f).clearAndSetSemantics { contentDescription = description },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            stages.forEach { s ->
-                val isCurrent = s.number == current
-                Box(
-                    Modifier
-                        .size(width = if (isCurrent) 18.dp else 6.dp, height = 6.dp)
-                        .background(
-                            when {
-                                isCurrent -> colors.primary
-                                state.isDone(s.number) -> colors.accent
-                                else -> colors.line
-                            },
-                            CircleShape,
-                        ),
-                )
-            }
-            Text(
-                stringResource(Res.string.learn_stage_position, index + 1, stages.size),
-                Modifier.padding(start = 4.dp),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-                color = colors.textMuted,
+    Row(
+        Modifier.clearAndSetSemantics { contentDescription = description },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        stages.forEach { s ->
+            val isCurrent = s.number == current
+            Box(
+                Modifier
+                    .size(width = if (isCurrent) 18.dp else 6.dp, height = 6.dp)
+                    .background(
+                        when {
+                            isCurrent -> colors.primary
+                            state.isDone(s.number) -> colors.accent
+                            else -> colors.line
+                        },
+                        CircleShape,
+                    ),
             )
         }
-        trailing()
+        Text(
+            stringResource(Res.string.learn_stage_position, index + 1, stages.size),
+            Modifier.padding(start = 4.dp),
+            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+            color = colors.textMuted,
+        )
     }
 }
 
@@ -414,75 +414,37 @@ internal fun List<LearnTask>.titles() = map { LearnTask(it.title.plain(), null) 
 private val CitationPattern = Regex("""\s*\((?:[^()]*(?:차시|교실|지도서)[^()]*|예시)\)""")
 
 /**
- * 하단 고정 영역(S15P31E102-688): 양옆에 이전·다음 단계로 가는 동그란 버튼, 가운데 판정 방식별 주 버튼
- * (설명 단계 '확인하고 다음 단계', 연습 단계 '연습 시작', 듣기 단계 '모범 연주 듣기').
- * 연습 단계의 '연습 시작'은 화면을 옮기지 않고 듣는 박스를 펼치며, 누르면 듣기도 함께 시작한다(S15P31E102-793).
- * 3·4·7단계는 마지막 연습 박스, 할 일 박스 안에서 듣는 5·6단계는 아직 마치지 않은 첫 박스다.
- * 할 일 박스를 모두 마치면 주 버튼이 살짝 커졌다 작아지며 다음 할 일을 알린다(연습 박스가 펼쳐져 있으면 쉰다).
+ * 하단 고정 영역: 이전 · 단계 점 · 다음 넘김 줄([GuidePageNav], 정간보 읽기와 같은 모양, S15P31E102-877).
+ * 갈 단계가 없으면(1단계의 이전, 마지막 단계의 다음) 화살표를 옅게 둔다.
+ * 판정 방식별 주 버튼은 이 줄에 두지 않고 본문으로 옮겼다(연습 단계는 연습 박스 안, 그 밖은 본문 끝의 [StagePrimary]).
  */
 @Composable
-internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions: LearnStageActions, tour: LearnTour, practice: StepPractice? = null) {
-    val stepCount = (state.detail(stage.number) as? LearnDetailLoad.Loaded)?.detail?.let { learnStepCount(stage.number, it, state.instrument) } ?: 0
+internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions: LearnStageActions) {
     val index = state.stages.indexOfFirst { it.number == stage.number }
     val previous = state.stages.getOrNull(index - 1)?.takeIf { index > 0 }
     val next = state.stages.getOrNull(index + 1)?.takeIf { index >= 0 }
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        StageNavButton(previous, forward = false, onOpen = actions.onOpenStage)
-        val primary = Modifier.weight(1f).attention(tour.allDone(stepCount) && tour.open != stepCount)
-        when (stage.primaryAction) {
-            LearnStageAction.Confirm -> EolssuButton(stringResource(Res.string.learn_confirm_next), { actions.onConfirm(stage.number) }, primary)
-            LearnStageAction.ListenModel -> EolssuButton(stringResource(Res.string.learn_listen_model), actions.onListenModel, primary, icon = GuideIcons.Speaker)
-            LearnStageAction.Practice -> {
-                val control = practice?.primary?.takeIf { practice.passed || listeningBoxOpen(stage.number, stepCount, tour.open, tour.doneCount) }
-                if (control != null) control(Modifier.weight(1f))
-                else EolssuButton(stringResource(Res.string.learn_start_practice), {
-                    tour.jumpTo(practiceBoxIndex(stage.number, stepCount, tour.doneCount))
-                    practice?.start?.invoke()
-                }, primary, icon = EolssuIcons.Mic)
-            }
-        }
-        StageNavButton(next, forward = true, onOpen = actions.onOpenStage)
+    GuidePageNav(
+        previousLabel = previous?.let { stringResource(Res.string.learn_stage_nav_prev, it.number, it.title) },
+        nextLabel = next?.let { stringResource(Res.string.learn_stage_nav_next, it.number, it.title) },
+        onPrevious = { previous?.let { actions.onOpenStage(it.number) } },
+        onNext = { next?.let { actions.onOpenStage(it.number) } },
+    ) {
+        StageDots(state, stage.number)
     }
 }
 
 /**
- * '연습 시작'이 펼칠 박스. 3·4·7단계는 할 일 뒤의 연습 박스([stepCount]번), 할 일 박스 안에서 듣는 5·6단계는
- * 아직 마치지 않은 첫 박스(다 마쳤으면 마지막 박스)다. 할 일 박스가 없으면 연습 박스(0번)다.
+ * 본문 끝의 주 버튼(S15P31E102-877): 설명 단계 '확인하고 다음 단계', 듣기 단계 '모범 연주 듣기'.
+ * 연습 단계의 주 버튼('연습 시작'·'그만하기'·'다음 단계로')은 듣는 박스 안([TourPanel])에 있어 여기 두지 않는다.
+ * 할 일 박스를 모두 마치면 살짝 커졌다 작아지기를 되풀이해 다음 할 일을 알린다.
  */
-internal fun practiceBoxIndex(stage: Int, stepCount: Int, doneCount: Int): Int =
-    if (judgesInTasks(stage) && stepCount > 0) doneCount.coerceIn(0, stepCount - 1) else stepCount
-
-/**
- * 듣는 박스가 펼쳐져 있는지(S15P31E102-749). 그동안 아래 가운데 버튼은 '연습 시작' 대신 듣기 조작('그만하기' 등)이 된다.
- * 3·4·7단계는 연습 박스([stepCount]번), 5·6단계는 아직 마치지 않은 할 일 박스다.
- */
-internal fun listeningBoxOpen(stage: Int, stepCount: Int, open: Int?, doneCount: Int): Boolean = when {
-    open == null -> false
-    judgesInTasks(stage) && stepCount > 0 -> open in 0 until stepCount && open >= doneCount
-    else -> open == stepCount
-}
-
-/** 이전·다음 단계로 가는 동그란 버튼. 갈 단계가 없으면(1단계의 이전, 마지막 단계의 다음) 옅게 두고 누를 수 없다. */
 @Composable
-private fun StageNavButton(target: LearnStage?, forward: Boolean, onOpen: (Int) -> Unit) {
-    val colors = EolssuTheme.colors
-    val label = target?.let {
-        stringResource(if (forward) Res.string.learn_stage_nav_next else Res.string.learn_stage_nav_prev, it.number, it.title)
-    }.orEmpty()
-    Surface(
-        onClick = { target?.let { onOpen(it.number) } },
-        enabled = target != null,
-        modifier = Modifier
-            .size(52.dp)
-            .graphicsLayer { alpha = if (target != null) 1f else 0.35f }
-            .semantics { contentDescription = label },
-        shape = CircleShape,
-        color = colors.surface,
-        border = BorderStroke(1.dp, colors.line),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(if (forward) EolssuIcons.Chevron else EolssuIcons.Back, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.text)
-        }
+private fun StagePrimary(stage: LearnStage, stepCount: Int, actions: LearnStageActions, tour: LearnTour) {
+    val modifier = Modifier.fillMaxWidth().padding(top = 20.dp).attention(tour.allDone(stepCount))
+    when (stage.primaryAction) {
+        LearnStageAction.Confirm -> EolssuButton(stringResource(Res.string.learn_confirm_next), { actions.onConfirm(stage.number) }, modifier)
+        LearnStageAction.ListenModel -> EolssuButton(stringResource(Res.string.learn_listen_model), actions.onListenModel, modifier, icon = GuideIcons.Speaker)
+        LearnStageAction.Practice -> Unit
     }
 }
 
