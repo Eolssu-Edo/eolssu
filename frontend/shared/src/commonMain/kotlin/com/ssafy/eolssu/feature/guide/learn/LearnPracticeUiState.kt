@@ -3,7 +3,8 @@ package com.ssafy.eolssu.feature.guide.learn
 /*
  * 기초부터 배우기 3~7단계의 단계 연습(S15P31E102-391). 와이어프레임·연두 시안에 보드가 없어 단계 상세와 같은 조각으로 그린다.
  * 3단계 '첫 소리'는 소리 크기로, 4~6단계는 기기 음높이 관측으로 판정한다(S15P31E102-611, [LearnPitchTracker]).
- * 7단계 혀치기는 소리가 끊겼다 다시 나는 횟수('투')를 센다(S15P31E102-749).
+ * 7단계 혀치기는 소리가 끊겼다 다시 나는 횟수('투')를 센다(S15P31E102-749). 음높이 관측이 있으면 첫 '투'와 같은 음만 센다
+ * (S15P31E102-845, [LearnTongueTracker]).
  * 음높이 관측이 없는 기기(iOS·Web)·판정 기준을 받지 못했을 때는 소리 크기만 보여 주고 스스로 확인해 완료로 표시한다.
  * 판정 수치는 단계 상세의 통과 기준과 같은 예시이며 팀 확정 사항이 아니다.
  */
@@ -11,8 +12,8 @@ package com.ssafy.eolssu.feature.guide.learn
 /** 이 크기(0~1, -35dBFS쯤) 이상이면 소리가 난 것으로 본다. 숨소리·주변 소음보다 크고 관악기 소리보다 작게 잡은 예시. */
 const val LEARN_SOUND_LEVEL = 0.3f
 
-/** 3단계: 한 소리를 이만큼 끊김 없이 이어야 한 번으로 센다. */
-const val FIRST_SOUND_HOLD_MS = 1_000.0
+/** 3단계: 한 소리를 이만큼 끊김 없이 이어야 한 번으로 센다. 4~6단계 음 유지 시간과 같은 기초 배우기 공통 값이다. */
+const val FIRST_SOUND_HOLD_MS = LEARN_PITCH_HOLD_MS.toDouble()
 
 /** 3단계: 통과에 필요한 횟수. */
 const val FIRST_SOUND_TARGET = 1
@@ -76,6 +77,7 @@ data class LearnPitchProgress(
  * @property listenedMs 이번 듣기를 시작한 뒤 지난 시간.
  * @property tongues 7단계에서 센 '투' 횟수. 소리가 한 번이라도 기준 아래로 내려갔다가 다시 나면 하나로 센다.
  * @property quiet 마지막 측정이 기준 아래였는지(다음 소리를 새 '투'로 셀 수 있음).
+ * @property tonguesByPitch 7단계에서 '투'를 바로 세지 않고 높이를 재어 첫 '투'와 같은 음만 센다([recordTongue]). 음높이 관측이 있을 때다.
  */
 data class LearnPracticeUiState(
     val stage: Int,
@@ -91,6 +93,7 @@ data class LearnPracticeUiState(
     val pitch: LearnPitchProgress? = null,
     val tongues: Int = 0,
     val quiet: Boolean = true,
+    val tonguesByPitch: Boolean = false,
 ) {
     /** 소리 크기로 통과를 판정하는 단계(3단계). */
     val judgesBySound: Boolean get() = stage == 3
@@ -166,6 +169,8 @@ internal fun LearnPracticeUiState.recordLevel(level: Float, sinceMs: Double): Le
     if (judgesByTongue) {
         if (level < LEARN_SOUND_LEVEL) return copy(level = level, quiet = true, listenedMs = listened)
         if (!quiet) return copy(level = level, listenedMs = listened)
+        // 높이로 같은 음인지 볼 때는 새 '투'가 시작됐다고만 남기고, 높이가 정해지면 [recordTongue]로 센다.
+        if (tonguesByPitch) return copy(level = level, quiet = false, listenedMs = listened)
         val total = tongues + 1
         val passed = total >= TONGUE_TARGET
         return copy(
@@ -203,6 +208,16 @@ internal fun LearnPracticeUiState.recordLevel(level: Float, sinceMs: Double): Le
         listenedMs = listened,
         cue = if (tooShort) LearnPracticeCue.TooShort else cue,
     )
+}
+
+/**
+ * 7단계에서 높이로 센 '투' 횟수([LearnTongueTracker.count])를 반영한다. 다른 음으로 새로 세면 줄어들 수 있다.
+ * [TONGUE_TARGET]번이 되면 통과한다. 듣는 중이 아니면 그대로다.
+ */
+internal fun LearnPracticeUiState.recordTongue(count: Int): LearnPracticeUiState {
+    if (!listening || !judgesByTongue) return this
+    val passed = count >= TONGUE_TARGET
+    return copy(tongues = count, level = if (passed) 0f else level, phase = if (passed) LearnPracticePhase.Passed else phase)
 }
 
 /** 음높이 판정을 켠다. 듣는 중이 아닐 때만 바꾼다(듣는 도중 판정 방식이 바뀌지 않게). */

@@ -21,7 +21,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,13 +38,19 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.common_cancel
+import eolssu.shared.generated.resources.common_confirm
 import eolssu.shared.generated.resources.learn_reset
+import eolssu.shared.generated.resources.learn_reset_confirm_title
 import eolssu.shared.generated.resources.learn_title
 import eolssu.shared.generated.resources.learn_track_failed
 import eolssu.shared.generated.resources.learn_trail_count
@@ -112,6 +120,9 @@ internal fun LearnListContent(
 ) {
     var contentHeight by remember { mutableIntStateOf(0) }
     var cardHeight by remember { mutableIntStateOf(0) }
+    // '초기화하기'는 진도를 모두 지우므로 바로 지우지 않고 한 번 묻는다(S15P31E102-845).
+    var confirmingReset by rememberSaveable { mutableStateOf(false) }
+    if (confirmingReset) LearnResetDialog(onConfirm = { confirmingReset = false; actions.onResetDone() }, onCancel = { confirmingReset = false })
     BoxWithConstraints(modifier) {
         val density = LocalDensity.current
         val cardMaxSize = if (constraints.hasBoundedHeight && contentHeight > 0 && cardHeight > 0) {
@@ -156,7 +167,7 @@ internal fun LearnListContent(
                     .align(Alignment.End)
                     .padding(bottom = 10.dp)
                     .clip(RoundedCornerShape(50))
-                    .clickable(role = Role.Button, onClick = actions.onResetDone)
+                    .clickable(role = Role.Button, onClick = { confirmingReset = true })
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -178,6 +189,15 @@ internal fun LearnListContent(
                 onCardHeight = { cardHeight = it },
             )
         }
+    }
+}
+
+/** '초기화하기' 확인 창: '진행 과정을 초기화할까요?'와 확인·취소. 바깥을 누르거나 뒤로 가면 취소다. */
+@Composable
+private fun LearnResetDialog(onConfirm: () -> Unit, onCancel: () -> Unit) {
+    EolssuDialog(title = stringResource(Res.string.learn_reset_confirm_title), icon = EolssuIcons.Restart, onDismissRequest = onCancel) {
+        EolssuButton(stringResource(Res.string.common_confirm), onConfirm, Modifier.fillMaxWidth())
+        EolssuButton(stringResource(Res.string.common_cancel), onCancel, Modifier.fillMaxWidth(), style = EolssuButtonStyle.Secondary)
     }
 }
 

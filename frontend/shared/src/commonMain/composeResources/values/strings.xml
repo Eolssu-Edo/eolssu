@@ -406,6 +406,7 @@
     <string name="learn_trail_count">%1$d / %2$d 완료</string>
     <string name="learn_trail_done">%1$d단계 %2$s, 완료</string>
     <string name="learn_reset">초기화하기</string>
+    <string name="learn_reset_confirm_title">진행 과정을 초기화할까요?</string>
     <string name="learn_track_failed">학습 단계를 불러오지 못했어요. 연결을 확인하고 다시 시도해 주세요.</string>
     <string name="learn_detail_failed">단계 내용을 불러오지 못했어요. 연결을 확인하고 다시 시도해 주세요.</string>
     <string name="learn_retry">다시 시도</string>
@@ -486,13 +487,13 @@
     <string name="learn_start_practice">연습 시작</string>
     <string name="learn_practice_passed_title">통과했어요!</string>
     <string name="learn_practice_unsupported">이 기기에서는 마이크로 소리를 들을 수 없어요. 연습한 뒤 '스스로 확인했어요'를 눌러요.</string>
-    <string name="learn_practice_denied">마이크 권한이 없어 소리를 들을 수 없어요. ‘다시 시작’을 누르면 다시 물어요.</string>
+    <string name="learn_practice_denied">마이크 권한이 없어 소리를 들을 수 없어요. ‘연습 시작’을 누르면 다시 물어요.</string>
     <string name="learn_practice_blocked">마이크 권한이 꺼져 있어요. 기기 설정에서 마이크를 허용해 주세요.</string>
     <string name="learn_practice_failed">마이크를 켜지 못했어요. 다른 앱이 마이크를 쓰고 있는지 확인하고 다시 시도해 주세요.</string>
     <string name="learn_practice_settings_failed">설정을 열 수 없어요. 기기 설정에서 마이크를 허용해 주세요.</string>
     <string name="learn_practice_box_title">직접 불어 보고 확인받기</string>
-    <string name="learn_practice_again">다시 시작</string>
     <string name="learn_first_sound_pass">한 소리를 1초 넘게 끊김 없이 내요</string>
+    <string name="learn_pitch_hold_pass">음마다 1초 넘게 이어 불어요</string>
     <string name="learn_tongue_pass">같은 음을 ‘투’ 하고 네 번 끊어 불어요</string>
     <string name="learn_practice_stop">그만하기</string>
     <string name="learn_practice_restart">처음부터</string>
