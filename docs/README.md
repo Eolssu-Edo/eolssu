@@ -257,6 +257,7 @@
 
 - [Android 장단 타격·악보 진행 지연 수정 (805)](knowledge/frontend/android-jangdan-timing.md) · [수정 스펙](specs/practice-playback-timing.md) · [계획·검증](plans/S15P31E102-805.md)
 - [모범 연주 메타데이터와 시간표의 방문 간 재사용 (764)](plans/S15P31E102-764.md)
+- [모범 연주 음원 파일 캐시 (859)](specs/model-audio-file-cache.md) · [설계·검증 기록](knowledge/frontend/model-audio-playback.md#s15p31e102-859-모범-음원-파일-캐시)
 - [Android QA APK 화면 재조회·데이터 재사용 계측 설계 (678)](plans/S15P31E102-678.md)
 - [Android 채점모드 실시간 음높이 표시 설계](knowledge/frontend/realtime-pitch-prototype-design.md)
 - [Android 런처 아이콘 크기·잘림 보정 (522)](plans/S15P31E102-522.md)
