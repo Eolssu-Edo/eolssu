@@ -245,7 +245,7 @@ val appModule = module {
     }
     viewModel { (recordId: String, previousId: String?) -> CompareViewModel(recordId, get(), previousId) }
     // 악보 추가·편집(2차). 인식·저장 API를 붙이기 전이라 예시 악보로 화면 흐름만 다룬다.
-    viewModelOf(::EditNewViewModel)
+    viewModel { EditNewViewModel(get(), get(), member = get()) }
     viewModel { EditPickViewModel(get(), get(), documents = get(), copies = get(), member = get()) }
     viewModel { (kind: ImportKind, hwang: HwangPitch) -> ImportResultViewModel(kind, hwang) }
     // 내 악보 음원(SHT-12·13)은 서버 계약대로 부른다. 서버 ID가 없는 예시 악보는 저장소가 서버에 묻지 않는다.

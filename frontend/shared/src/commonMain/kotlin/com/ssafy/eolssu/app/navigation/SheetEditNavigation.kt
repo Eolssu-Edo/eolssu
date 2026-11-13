@@ -58,7 +58,7 @@ object SheetEditDestination {
 
 /**
  * 악보 추가·편집 화면 이동. 내 악보 '악보 추가' → 악보 추가(EDIT-01) →
- * 정간보·오선보: 파일·악기·장단 선택 → 실제 업로드 접수 → 내 악보 목록. 변환 진행·실패는 목록에서 보이고(SHT-10·14), 인식 결과 확인 화면 연결은 후속 작업이다.
+ * 정간보·오선보: 파일·악기·장단 선택 → 실제 업로드 접수 → 내 악보 목록 또는 악보 추가. 변환 진행·실패는 두 화면의 내 악보 줄에서 보이고(SHT-10·14), 인식 결과 확인 화면 연결은 후속 작업이다.
  * 기존 예시 결과·복사 편집 경로는 이 접수 흐름에서 사용하지 않는다.
  * 편집과 저장은 편집 경로 안에서 처리한다. 편집 닫기는 내 악보(SONG-03)로 돌아간다.
  */
@@ -72,6 +72,14 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
             onImport = { kind, hwang -> navController.navigate(SheetEditDestination.import(kind, hwang, pick = true)) },
             onLoadExisting = { navController.navigate(SheetEditDestination.PICK) },
             reimportProblem = entry.reimportProblem(),
+            // 내 악보 탭과 같게: 연습할 수 있으면 연습, 아니면 편집기로 연다.
+            onOpenSheet = { sheet ->
+                navController.navigate(
+                    if (sheet.practiceReady) EolssuDestination.practice(sheet.id, mine = true)
+                    else SheetEditDestination.editMine(sheet.id),
+                )
+            },
+            onEditSheet = { sheet -> navController.navigate(SheetEditDestination.editMine(sheet.id)) },
         )
     }
     composable(SheetEditDestination.PICK) { entry ->
@@ -95,10 +103,13 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
             hwang = hwang,
             pickOnStart = entry.savedStateHandle.get<Boolean>("pick") == true,
             onBack = { navController.popBackStackFrom(entry) },
+            // 접수 뒤: 연습곡 고르기에서 왔으면 그 '내 악보' 탭으로, 홈에서 악보 추가로 바로 왔으면 진행 상황이 보이는 악보 추가로 돌아간다.
             onList = {
                 if (navController.currentBackStackEntry?.id == entry.id) {
-                    if (!navController.popBackStack(EolssuDestination.MY_SONGS, inclusive = false)) navController.navigate(EolssuDestination.mySongs(sheets = true)) {
-                        popUpTo(SheetEditDestination.NEW) { inclusive = true }
+                    val returned = navController.popBackStack(EolssuDestination.MY_SONGS, inclusive = false) ||
+                        navController.popBackStack(SheetEditDestination.NEW, inclusive = false)
+                    if (!returned) navController.navigate(EolssuDestination.mySongs(sheets = true)) {
+                        popUpTo(entry.destination.id) { inclusive = true }
                         launchSingleTop = true
                     }
                 }
@@ -186,13 +197,10 @@ private fun NavBackStackEntry.importKind(): ImportKind = ImportKind.fromRouteId(
 
 private fun NavBackStackEntry.hwang(): HwangPitch = HwangPitch.fromRouteId(savedStateHandle.get<String>("hwang"))
 
-/** 내 악보 '다시 불러오기'로 넘긴 변환 실패 원인을 안내 창 종류로 바꾼다. 정간·오선을 못 찾았으면 인식 실패, 인식기가 못 읽은 파일이면 읽기 실패다. */
-private fun NavBackStackEntry.reimportProblem(): SheetFileProblem? =
-    when (savedStateHandle.get<String>("failure")?.let { name -> SheetConversionFailure.entries.firstOrNull { it.name == name } }) {
-        SheetConversionFailure.NoScoreFound -> SheetFileProblem.Unrecognized
-        SheetConversionFailure.UnsupportedFile -> SheetFileProblem.Unreadable
-        else -> null
-    }
+/** 내 악보 '다시 불러오기'로 넘긴 변환 실패 원인을 안내 창 종류로 바꾼다([SheetFileProblem.ofConversionFailure]). */
+private fun NavBackStackEntry.reimportProblem(): SheetFileProblem? = SheetFileProblem.ofConversionFailure(
+    savedStateHandle.get<String>("failure")?.let { name -> SheetConversionFailure.entries.firstOrNull { it.name == name } },
+)
 
 /** 편집 경로 인자를 [EditSource]로 되돌린다. */
 private fun NavBackStackEntry.editSource(): EditSource {

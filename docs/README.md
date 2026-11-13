@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [악보 추가 화면의 내 악보 목록·변환 진행 표시 (881)](plans/S15P31E102-881.md)
 - [제공 악보 추가·편집·저장 실행 검증 (876)](knowledge/frontend/sheet-add-edit-runtime-verification.md) · [계획](plans/S15P31E102-876.md)
 - [PNG·JPEG 중청 음역 인식 교정과 같은 자료 재검증 (876)](knowledge/ai/jeongganbo-double-water-register.md)
 - [이조 후 해결된 음역 오류 표시와 실제 PDF 검증 (871)](plans/S15P31E102-871.md) · [자동 해제 정책](specs/score-authoring-consistency.md#해결된-음역-검수의-자동-해제-s15p31e102-871)

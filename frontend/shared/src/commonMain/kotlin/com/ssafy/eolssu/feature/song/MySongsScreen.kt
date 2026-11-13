@@ -19,15 +19,12 @@ import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
-import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
-import com.ssafy.eolssu.core.ui.component.EolssuDialog
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.feature.song.component.AddSheetButton
 import com.ssafy.eolssu.feature.song.component.CardGrid
+import com.ssafy.eolssu.feature.song.component.DeleteSheetDialog
 import com.ssafy.eolssu.feature.song.component.MySheetRow
 import com.ssafy.eolssu.feature.song.component.MySongsTabSwitch
 import com.ssafy.eolssu.feature.song.component.ProvidedSongRow
@@ -39,10 +36,6 @@ import com.ssafy.eolssu.core.ui.component.SongSearchField
 import com.ssafy.eolssu.core.ui.component.SongSortButton
 import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.common_cancel
-import eolssu.shared.generated.resources.mysongs_delete
-import eolssu.shared.generated.resources.mysongs_delete_message
-import eolssu.shared.generated.resources.mysongs_delete_title
 import eolssu.shared.generated.resources.mysongs_reset_filter
 import eolssu.shared.generated.resources.mysongs_sheet_count
 import eolssu.shared.generated.resources.mysongs_title
@@ -89,24 +82,7 @@ fun MySongsScreen(
     } else {
         MySongsTabletLayout(state, expanded = widthClass == WindowWidthClass.Expanded, snackbarHostState, actions, instrumentPicker)
     }
-    state.deleting?.let { DeleteSheetDialog(it, actions) }
-}
-
-/** 내 악보 삭제 확인(`Song-Practice-Delete`): 붉은 휴지통 고리 · '삭제' · '취소'. 가림막·뒤로 가기도 취소다. */
-@Composable
-private fun DeleteSheetDialog(sheet: MySheet, actions: MySongsActions) {
-    val colors = EolssuTheme.colors
-    EolssuDialog(
-        title = stringResource(Res.string.mysongs_delete_title, sheet.title),
-        message = stringResource(Res.string.mysongs_delete_message),
-        icon = EolssuIcons.Trash,
-        iconBackground = colors.recSoft,
-        iconTint = colors.recText,
-        onDismissRequest = actions.onCancelDelete,
-    ) {
-        EolssuButton(stringResource(Res.string.mysongs_delete), actions.onConfirmDelete, style = EolssuButtonStyle.Danger)
-        EolssuButton(stringResource(Res.string.common_cancel), actions.onCancelDelete, style = EolssuButtonStyle.Secondary)
-    }
+    state.deleting?.let { DeleteSheetDialog(it, actions.onConfirmDelete, actions.onCancelDelete) }
 }
 
 @Composable
