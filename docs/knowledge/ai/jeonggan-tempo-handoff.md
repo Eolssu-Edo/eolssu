@@ -1,6 +1,6 @@
 # 정간보 한배 지원 인수인계 (S15P31E102-882)
 
-2026-11-13 사용자 지시로 기능 추가를 중단하고 현재 구현을 Draft MR로 넘긴다. **구현 완료·병합 가능 상태가 아니다.** [지원 스펙](../../specs/jeonggan-tempo-edit.md), [숫자 빠르기 기존 구현](score-recognition-corrections.md), [재생 계약과 근거](../data/score-authoring-tempo.md).
+2026-11-13 사용자 지시로 중단했던 Draft MR !736을 같은 날 재개했다. 아래 중단 시점 기록은 과거 증거이며, **현재 상태와 검증은 [재개 계획](../../plans/S15P31E102-882.md)이 기준이다.** [지원 스펙](../../specs/jeonggan-tempo-edit.md), [숫자 빠르기 기존 구현](score-recognition-corrections.md), [재생 계약과 근거](../data/score-authoring-tempo.md).
 
 ## 합의한 동작
 
@@ -13,7 +13,7 @@
 - FE: 기존 빠르기 창 안 구간 추가·수정·삭제, 목표/끝 위치 입력, Draft·undo/redo·저장 연결, 악보의 세로 자모 표시. **아래 실패와 미검증이 남아 있다.**
 - DATA: 기존 sourceSlots가 있는 편집본의 converter가 app-editor-1로 바뀌어 차단되던 연결을 보완했다. inferred 조건·음높이/anchor/기호/전체 위치/길이 검사는 유지한다.
 
-## 확인된 검증
+## 중단 시점 검증
 
 - AI 관련249검사 및 subtest2 통과. 실제 원본 PDF의48쪽 별곡 돌장 `ㅈㄴ`→c0-j3,134쪽 수제천4장 `ㅈㅅ`→c6-j9. FastAPI HTTP 각각5.69/7.84초 DONE. 동일 입력의 이전 코드와 비교해 JGB·음표·정간·ID·tick 보존(한배 기호와 converter 버전만 추가).
 - DATA 전체269검사(인코더 조건부3제외) 통과는 sourceSlots 보완 **이전** 스냅샷이다. 그 보완 후 common preview+JGB import49검사는 통과했다. 최종 전체 회귀는 다시 실행해야 한다.
@@ -21,7 +21,9 @@
 - BE 빠르기7검사 통과. 실제 수제천 인식 결과를 JVM RecognitionResultBuilder에 넣어 서버 식별자 변경 뒤 SHA·기호/위치·미정 문제 보존을 확인했다. 고정 등록 음 목록을 사용한 코드 경계 검사이며 운영 DB 검증이 아니다.
 - FE 최신 `:shared:testAndroidHostTest --tests '*SheetTempoEditingTest'`: 컴파일 성공, **9개 중8통과·1실패**. git diff --cached --check는 각 구현 커밋에서 통과.
 
-## 이어서 할 일
+## 중단 시점 미완료 기록
+
+아래 목록은 재개 전 상태다. 알려진 반복·숫자 비교 실패의 수정과 추가 발견 사항은 재개 계획에 기록한다.
 
 1. **반복 보존 보완 우선:** `SheetTempoEditing.kt:120`에서 기존 명시 계획이 없는 악보에 최초 추가하면 repeats=[]를 만든다. 원본의 반복표/도돌이표가 기존 교육용 자동 반복으로 재생되던 경우를 보존하도록 고치고 검사해야 한다. 기존 명시 repeats 보존 검사는 통과했다.
 2. **FE 실패 확인:** `frontend/shared/src/commonTest/kotlin/com/ssafy/eolssu/feature/song/edit/SheetTempoEditingTest.kt`의 `existingNumericRampRetainsExplicitStartAndDoesNotInventAMark`(79행). 작업자가 XML에서 int160/80과 double160.0/80.0의 JSON 문자열 비교 실패를 확인했다(수치는 동일). 중단 지시로 수정하지 않았다. 실제 start_bpm/목표/끝과 기호 부재가 보존되는지 검증하고 테스트를 정리한다.
@@ -31,7 +33,7 @@
 5. 실제 PDF HTTP 응답의 전체곡 생성 사전검사와 인식 품질을 확인한다. 앞선150dpi 중간 JSON은 기존 음가1/27의 MIDI 해상도 한계로 실패했다. 정식300dpi HTTP 결과의 전체 생성은 확인하지 않았다. 한배 인식 성공을 전곡 채보·재생 정확도로 확대하지 않는다.
 6. 실제 곡의 `ㅈㅈㄴ/ㅈㅈㅅ/ㅂㅅ` 사용 입력과 사진·다른 인쇄체는 미검증이다. 150dpi PNG48의 기존 격자 누락에서는 위치 미정 notice로 남긴다.
 
-## 작업 위치·자료
+## 중단 시점 작업 위치·자료
 
 주 worktree는 `staff-tempo-882`, FE 원본 작업은 `hanbae-fe-882`, BE/DATA 검사는 `hanbae-be-882`다(모두 로컬 Codex worktrees 아래). 부모 합본에 소유 커밋을 모았다. 원본 스캔·모델·runtime JSON은 Git에 넣지 않았다.
 
@@ -40,3 +42,9 @@
 실제 FE 요청 export는 FE worktree `.scratch/882/hanbae-fe-request.json`에 original/score/expressions/oldBpm/newBpm으로 있다. 다음 BE→DATA 검사에 사용한다.
 
 Jira는 Story319 Relates·스프린트59321·진행 중으로 유지한다. 사용자 원본·계정 악보·운영 DB·배포를 바꾸지 않았으며 병합은 사람이 판단한다.
+
+## 재개 후 결과
+
+반복 보존·숫자 비교 실패를 수정했고, 독립 리뷰가 찾은 지속 이벤트 기호 순서·본래속도로 numeric 누락·삭제 후 방향 오류와 FE 전체 실행에서 발견한 기기 미리듣기 스냅샷 회귀도 해결했다. FE 빠르기13, 전체1680(외부 카탈로그5제외), DATA300, BE10, 실제 DB·DATA·CAT4검사가 실패 없이 끝났다. FE에서 내보낸 완전 sourceSlots 요청의 실제 인증 초안 저장/GET/확정 저장/GET→DATA preflight도 통과했다. 전체60→90의 배율은 한 번 적용됐고 반복·상대 음열·ID·tick을 보존했다.
+
+현재 전용 worktree는 `C:\higher\projects\S15P31E102-worktrees\mr-736-tempo-882`다. 새 증거와 남은 Android UI·환경 한계는 [재개 계획](../../plans/S15P31E102-882.md)을 따른다. 위 중단 시점 미완료 목록을 현재 실패로 해석하지 않는다.

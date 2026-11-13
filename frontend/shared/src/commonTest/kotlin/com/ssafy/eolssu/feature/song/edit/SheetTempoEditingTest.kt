@@ -76,8 +76,79 @@ class SheetTempoEditingTest {
         assertNull(loaded.tempoChanges.single().mark)
         assertTrue(loaded.tempoAnnotations().isEmpty())
         val output = requireNotNull(loaded.exportExpressions(expression, hash(initial), 80))
-        assertEquals(expression.plan()["tempos"], output.plan()["tempos"])
+        val cue = output.plan().entries("tempos").single()
+        assertEquals(160.0, cue.getValue("bpm").jsonPrimitive.double)
+        assertEquals(80.0, cue.getValue("start_bpm").jsonPrimitive.double)
+        assertEquals(expression.plan().entries("tempos").single().filterKeys { it !in setOf("bpm", "start_bpm") },
+            cue.filterKeys { it !in setOf("bpm", "start_bpm") })
+        assertTrue(output.entries("placements").flatMap { it.getValue("symbols").jsonArray }
+            .none { HanbaeMark.fromSymbol(it.jsonPrimitive.content) != null })
         assertEquals(initial.toCommonScore(), loaded.toCommonScore())
+    }
+
+    @Test fun firstManualTempoChangePreservesInferredRepeatsAndDeletionKeepsThem() {
+        for (mark in listOf("반복표", "도돌이표")) {
+            val source = smallScoreData().let { score -> score.copy(events = score.events.mapIndexed { i, event ->
+                if (i == 0) event.copy(sigimsae = event.sigimsae + mark) else event
+            }) }
+            val initial = source.editingDraft(source.score.title, 80, null)
+            val edited = initial.withTempoChange(SheetTempoChange(1, HanbaeMark.Slower, 60.0))
+            val expected = buildJsonArray { add(buildJsonObject { put("start_gak", 1); put("end_gak", 1); put("times", 2) }) }
+            assertEquals(expected, requireNotNull(edited.exportExpressions(null, hash(initial), 80)).plan()["repeats"], mark)
+            assertEquals(expected, requireNotNull(edited.withoutTempoChange(1).exportExpressions(null, hash(initial), 80)).plan()["repeats"], mark)
+        }
+    }
+
+    @Test fun tempoBeforeHeldOrnamentKeepsEventAndPlacementOrderConsistent() {
+        val source = smallScoreData().let { score ->
+            val id = score.events.first().id
+            score.copy(columns = score.columns.mapIndexed { i, column -> if (i != 0) column else column.copy(cells =
+                column.cells.map { it.copy(units = listOf(com.ssafy.eolssu.data.song.CommonScoreData.Unit(0, 0,
+                    if (it.index == 0) "황" else "", id))) }) },
+                events = listOf(score.events.first().copy(durationTick = 8, sigimsae = listOf("니레")), score.events.last()))
+        }
+        val initial = source.editingDraft(source.score.title, 80, null)
+        val expression = buildJsonObject {
+            put("schema", "common-score-expressions/v1")
+            put("placements", buildJsonArray { add(buildJsonObject {
+                put("eventId", source.events.first().id); put("cellId", "c0-j1"); put("row", 0); put("col", 0)
+                put("symbols", buildJsonArray { add("니레") })
+            }) })
+        }
+        val edited = initial.withTempoExpressions(expression).withTempoChange(SheetTempoChange(0, HanbaeMark.Slower, 60.0))
+        val output = requireNotNull(edited.exportExpressions(expression, hash(initial), 80))
+        val signs = output.entries("placements").filter { it.getValue("eventId").jsonPrimitive.content == source.events.first().id }
+            .flatMap { it.getValue("symbols").jsonArray.map { raw -> raw.jsonPrimitive.content } }
+        assertEquals(listOf("조금느리게", "니레"), signs)
+        assertEquals(signs, edited.toCommonScore().events.first().sigimsae)
+        assertEquals("c0-j1", output.entries("placements").first { "니레" in it.getValue("symbols").jsonArray.map { raw -> raw.jsonPrimitive.content } }
+            .getValue("cellId").jsonPrimitive.content)
+    }
+
+    @Test fun inferredOriginalTempoIsExportedAtTheKnownBaseline() {
+        val initial = draft()
+        val expression = buildJsonObject {
+            put("schema", "common-score-expressions/v1")
+            put("placements", buildJsonArray { add(buildJsonObject {
+                put("eventId", "c0-j0-r0-u1"); put("cellId", "c0-j1"); put("row", 0); put("col", 0)
+                put("symbols", buildJsonArray { add("본래속도로") })
+            }) })
+        }
+        val edited = initial.withTempoExpressions(expression).withTempoChange(SheetTempoChange(0, HanbaeMark.Slower, 60.0))
+        assertEquals(80.0, edited.tempoChanges.last().targetBpm)
+        val output = requireNotNull(edited.exportExpressions(expression, hash(initial), 80))
+        val original = output.plan().entries("tempos").single { it.getValue("cell").jsonPrimitive.int == 2 }
+        assertEquals(80.0, original.getValue("bpm").jsonPrimitive.double)
+    }
+
+    @Test fun deletionCannotTurnASlowerCueIntoAnAcceleration() {
+        val initial = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.Faster, 120.0))
+            .withTempoChange(SheetTempoChange(1, HanbaeMark.Slower, 100.0))
+        assertEquals(2, initial.tempoChanges.size)
+        assertNotNull(initial.tempoDeletionError(0))
+        assertEquals(initial, initial.withoutTempoChange(0))
+        assertNull(initial.tempoDeletionError(1))
+        assertEquals(1, initial.withoutTempoChange(1).tempoChanges.size)
     }
 
     @Test fun globalTempoAndDraftReopenApplyTheRatioOnlyOnce() {

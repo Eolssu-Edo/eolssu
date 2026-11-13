@@ -395,7 +395,8 @@ class SheetEditViewModel(
                 revision = copy?.revision ?: 0
                 persistedDraft = draft
                 confirmedDraft = document.score?.editingDraft(document.title, document.bpm, jangdan = null)
-                    ?.copy(jangdanId = document.jangdanId)
+                    ?.copy(jangdanId = document.jangdanId, authoring = document.authoring)
+                    ?.withTempoExpressions(document.expressions, document.bpm)
                 val adaptation = if (startsWithAdaptation) initialAdaptation(draft) else null
                 _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,

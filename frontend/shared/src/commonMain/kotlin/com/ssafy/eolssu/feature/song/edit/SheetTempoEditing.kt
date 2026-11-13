@@ -49,6 +49,23 @@ private fun SheetDraft.editingExpressions(): JsonObject = tempoExpressions ?: bu
     put("placements", JsonArray(original?.let(::inferredPlacements).orEmpty()))
 }
 
+/** DATA common_preview의 교육용 자동 반복과 같은 각 단위 2회 재생을 명시화한다. */
+private fun initialPerformancePlan(score: CommonScoreData, expression: JsonObject): JsonObject {
+    val repeatedCells = expression.objects("placements").filter { placement ->
+        (placement["symbols"] as? JsonArray).orEmpty().any {
+            (it as? JsonPrimitive)?.content?.substringBefore('@') in setOf("반복표", "도돌이표")
+        }
+    }.mapNotNull { it.string("cellId") }.toSet()
+    return buildJsonObject {
+        put("schema", "${score.score.instrument.lowercase().replace('_', '-')}-performance/v1")
+        put("repeats", buildJsonArray {
+            score.columns.filter { column -> column.cells.any { it.id in repeatedCells } }.forEach {
+                add(buildJsonObject { put("start_gak", it.index + 1); put("end_gak", it.index + 1); put("times", 2) })
+            }
+        })
+    }
+}
+
 internal val SheetDraft.tempoChanges: List<SheetTempoChange> get() {
     val expression = editingExpressions()
     val marks = expression.objects("placements").mapNotNull { placement ->
@@ -76,10 +93,13 @@ internal fun SheetDraft.tempoChangeError(change: SheetTempoChange, replacing: In
         return "점점 바꿀 때는 시작 뒤의 끝 위치를 지정해 주세요."
     if (!gradual && change.endCell != null) return "바로 바꾸는 빠르기에는 끝 위치를 지정하지 않습니다."
     if (tempoChanges.any { it.cell == change.cell && it.cell != replacing }) return "같은 정간의 빠르기는 기존 항목에서 수정해 주세요."
-    val all = (tempoChanges.filterNot { it.cell == replacing } + change).sortedBy { it.cell }
+    return tempoSequenceError(tempoChanges.filterNot { it.cell == replacing } + change)
+}
+
+private fun SheetDraft.tempoSequenceError(changes: List<SheetTempoChange>): String? {
     var previous = bpm.toDouble()
     var finish = -1
-    for (cue in all) {
+    for (cue in changes.sortedBy { it.cell }) {
         if (cue.cell < finish) return "점점 바뀌는 구간 안에 다른 빠르기를 넣을 수 없습니다."
         if (!cue.resolved) continue
         val target = requireNotNull(cue.targetBpm)
@@ -115,10 +135,7 @@ internal fun SheetDraft.withTempoChange(change: SheetTempoChange, replacing: Int
         else placements += buildJsonObject { put("eventId", unit.eventId); put("cellId", cell.id); put("row", unit.row); put("col", unit.col)
             put("symbols", JsonArray(listOf(mark))) }
     }
-    val plan = expression["performancePlan"] as? JsonObject ?: buildJsonObject {
-        put("schema", "${score.score.instrument.lowercase().replace('_', '-')}-performance/v1")
-        put("repeats", JsonArray(emptyList()))
-    }
+    val plan = expression["performancePlan"] as? JsonObject ?: initialPerformancePlan(score, expression)
     val entries = plan.objects("tempos").filterNot {
         flatPosition(it.integer("gak"), it.integer("cell")) in setOf(index, change.cell)
     }.toMutableList()
@@ -136,7 +153,10 @@ internal fun SheetDraft.withTempoChange(change: SheetTempoChange, replacing: Int
         tempoReferenceBpm = referenceBpm)
 }
 
+internal fun SheetDraft.tempoDeletionError(cell: Int): String? = tempoSequenceError(tempoChanges.filterNot { it.cell == cell })
+
 internal fun SheetDraft.withoutTempoChange(cell: Int): SheetDraft {
+    if (tempoDeletionError(cell) != null) return this
     val expression = editingExpressions()
     val placements = expression.objects("placements").mapNotNull { placement ->
         if (placement.string("cellId") != sourceCellIds?.getOrNull(cell)) placement else {
@@ -144,10 +164,7 @@ internal fun SheetDraft.withoutTempoChange(cell: Int): SheetDraft {
             if (symbols.isEmpty()) null else placement.changed("symbols" to JsonArray(symbols))
         }
     }
-    val plan = expression["performancePlan"] as? JsonObject ?: buildJsonObject {
-        put("schema", "${original?.score?.instrument?.lowercase()?.replace('_', '-')}-performance/v1")
-        put("tempos", JsonArray(emptyList())); put("repeats", JsonArray(emptyList()))
-    }
+    val plan = expression["performancePlan"] as? JsonObject ?: initialPerformancePlan(toCommonScoreWithoutTempo(), expression)
     return copy(tempoExpressions = expression.changed("placements" to JsonArray(placements), "performancePlan" to plan.changed(
         "tempos" to JsonArray(plan.objects("tempos").filterNot { flatPosition(it.integer("gak"), it.integer("cell")) == cell }))))
 }
@@ -163,15 +180,13 @@ internal fun SheetDraft.tempoAnnotations(): Map<ScoreUnitKey, List<String>> = ed
 /** 음·길이를 보존하고 위치별 빠르기 기호만 기존 이벤트에 다시 모은다. */
 internal fun SheetDraft.scoreWithTempo(source: CommonScoreData): CommonScoreData {
     if (tempoExpressions == null) return source
-    val byCell = source.columns.flatMap { it.cells }.associateBy { it.id }
-    val markers = tempoAnnotations().entries.groupBy { (key, _) -> byCell[key.cellId]?.units?.firstOrNull { it.row == key.row && it.col == key.col }?.eventId }
-    return source.copy(events = source.events.map { event -> event.copy(sigimsae =
-        event.sigimsae.filter { HanbaeMark.fromSymbol(it) == null } + markers[event.id].orEmpty().flatMap { it.value }) })
+    val byEvent = orderedPlacements(source).groupBy { it.string("eventId") }
+    return source.copy(events = source.events.map { event -> event.copy(sigimsae = byEvent[event.id].orEmpty()
+        .flatMap { (it["symbols"] as? JsonArray).orEmpty() }.map { it.jsonPrimitive.content }) })
 }
 
-internal fun SheetDraft.exportExpressions(template: JsonObject?, sourceSha256: String, serverBpm: Int): JsonObject? {
-    if (tempoExpressions == null) return template
-    val score = toCommonScore()
+/** 이벤트 기호와 companion은 동일한 기보 위치 순서로 합쳐야 DATA 검증을 통과한다. */
+private fun SheetDraft.orderedPlacements(score: CommonScoreData): List<JsonObject> {
     val expression = editingExpressions()
     val desiredTempo = tempoAnnotations()
     val existing = expression.objects("placements")
@@ -191,14 +206,27 @@ internal fun SheetDraft.exportExpressions(template: JsonObject?, sourceSha256: S
             else ordinary[ScoreUnitKey(cell.id, unit.row, unit.col)] = signs
         }
     } } }
-    val placements = score.columns.flatMap { column -> column.cells.flatMap { cell -> cell.units.mapNotNull { unit ->
+    return score.columns.flatMap { column -> column.cells.flatMap { cell -> cell.units.mapNotNull { unit ->
         val key = ScoreUnitKey(cell.id, unit.row, unit.col)
         val symbols = ordinary[key].orEmpty() + desiredTempo[key].orEmpty()
         if (symbols.isEmpty()) null else buildJsonObject { put("eventId", unit.eventId); put("cellId", cell.id); put("row", unit.row); put("col", unit.col)
             put("symbols", JsonArray(symbols.map(::JsonPrimitive))) }
     } } }
+}
+
+internal fun SheetDraft.exportExpressions(template: JsonObject?, sourceSha256: String, serverBpm: Int): JsonObject? {
+    if (tempoExpressions == null) return template
+    val score = toCommonScore()
+    val expression = editingExpressions()
+    val placements = orderedPlacements(score)
     val plan = expression["performancePlan"] as? JsonObject ?: return template
-    val tempos = plan.objects("tempos").map { entry -> JsonObject(entry.mapValues { (key, value) ->
+    val entries = plan.objects("tempos")
+    val originals = tempoChanges.filter { cue -> cue.mark == HanbaeMark.Original && entries.none {
+        flatPosition(it.integer("gak"), it.integer("cell")) == cue.cell
+    } }.map { cue -> buildJsonObject {
+        val (gak, cell) = position(cue.cell); put("gak", gak); put("cell", cell); put("bpm", nativeBpm(bpm.toDouble()))
+    } }
+    val tempos = (entries + originals).sortedBy { flatPosition(it.integer("gak"), it.integer("cell")) }.map { entry -> JsonObject(entry.mapValues { (key, value) ->
         if (key in setOf("bpm", "start_bpm")) JsonPrimitive((value as JsonPrimitive).double * serverBpm / referenceBpm) else value
     }) }
     val result = (expression + (template?.filterKeys { it !in setOf("placements", "performancePlan") }.orEmpty())).toMutableMap()
