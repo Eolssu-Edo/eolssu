@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.analysis.infrastructure.ai
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisClient
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisFailReason
@@ -43,7 +44,7 @@ class HttpAnalysisClient(
     }
 
     private fun AnalysisRequest.toBody() =
-        RequestBody(sessionId, attempt, audioUrl, bpm, bpmUnit, notes.map { RequestNote(it.idx, it.semitone, it.startBeat, it.beats, it.sigimsae) })
+        RequestBody(sessionId, attempt, audioUrl, bpm, bpmUnit, notes.map { RequestNote(it.idx, it.semitone, it.startBeat, it.beats, it.sigimsae) }, instrument)
 
     private fun ResponseBody.toResult(requested: List<ScoreNote>): AnalysisResult = when (status) {
         "DONE" -> {
@@ -117,6 +118,8 @@ class HttpAnalysisClient(
         val bpm: Int,
         val bpmUnit: String,
         val notes: List<RequestNote>,
+        // 악기를 모르면 보내지 않는다. AI는 없으면 보정하지 않는다.
+        @get:JsonInclude(JsonInclude.Include.NON_NULL) val instrument: String?,
     )
 
     internal data class RequestNote(val idx: Int, val semitone: Int, val startBeat: Double, val beats: Double, val sigimsae: Boolean)
