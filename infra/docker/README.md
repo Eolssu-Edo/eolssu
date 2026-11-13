@@ -117,6 +117,36 @@ sudo docker compose -f "$compose_file" config --quiet &&
 - **복제 확인 실패** · 볼륨과 네트워크가 일치하고 비활성 터널이나 타이머가 원인이면 Docker 상태와 기존 유닛 구성을 확인한 뒤 해당 유닛을 복구한다. 새 기준 시각으로 감시 2회와 GTID를 재검증한다. 수신·적용 오류, 지연, 감시 미통과 또는 GTID 불일치가 해소되지 않으면 복제 장애로 전환하고 볼륨과 상태를 보존한다.
 - 단계별 중단 시간, 다른 컨테이너 ID 유지 여부, 복제 재접속·GTID 확인 시간, 새 로그 옵션을 기록한다. edo2 결과를 검토한 뒤 edo1 적용 여부를 결정한다.
 
+## edo1 복제 프록시 전환과 복구
+
+이 절차는 `eolssu-replication-proxy-579`의 로그 회전만 전환할 때 사용한다. 프록시가 바뀌는 동안 edo2의 기존 복제 수신 연결은 끊겼다가 다시 붙는다. 원본·복제 MySQL, SSH 터널, 감시 타이머는 각자 계속 실행한다.
+
+### 적용 전 확인
+
+- edo1의 원본 프록시 ID와 이미지 ID, `/opt/eolssu-replication-579/source-stream.conf`의 파일 해시, 컨테이너에 마운트된 설정 해시를 기록한다. `127.0.0.1:13306` 수신, `eolssu-runtime_default` 네트워크와 `mysql:3306` 대상, 기존 웹·API·원본 MySQL 상태를 확인한다. 배포·백업·승격이 진행 중이면 전환을 보류한다.
+- edo2에서 터널 서비스와 감시 타이머를 각각 확인하고 기존 `check-replication.py`를 실행한다. 원본 `server_id=1`, 복제본 `server_id=57902`, `read_only=1`, `super_read_only=1`, 양쪽 GTID 모드 `ON`을 확인한다. 복제 MySQL ID·볼륨·네트워크 주소와 원본 및 복제본의 실행 GTID를 기록한다. 비밀번호와 원시 GTID는 화면이나 공유 기록에 출력하지 않는다. [기존 복제 점검 명령](#복제-mysql-전후-확인)
+
+### 후보 준비와 전환
+
+작업 창을 잡기 전에 저장소 루트에서 아래 명령으로 중지 후보를 검증한다. 실행기는 원본의 이미지 ID와 설정으로 Docker Engine의 `containers/create`를 호출하고 `AttachStdout`·`AttachStderr`를 둘 다 `false`로 지정한다. 검증 명령은 일회용 후보를 `created` 상태에서 비교하고 ID를 확인해 삭제한다. [Docker Engine API](https://docs.docker.com/reference/api/engine/version/v1.56/#tag/Container/operation/ContainerCreate)
+
+```bash
+python3 -B infra/docker/rotate-replication-proxy-20261113.py --check-candidate
+```
+
+승인된 작업 창의 실행기에서도 같은 후보 생성과 비교를 수행한다. 증거는 호스트의 root 전용 경로에 보관한다.
+
+1. 원본이 실행 중이며 후보가 시작 이력 없이 `created`인지 확인한다. 두 ID로 이미지, 실행 명령·사용자·라벨, 표준 출력·오류 연결, 포트, 네트워크 모드, 마운트·설정 해시, 읽기 전용 루트, `/tmp` tmpfs, CPU·메모리·스왑 제한, 재시작 정책을 대조한다. 예상 변경은 로그 옵션이다. 자동 생성 호스트명은 ID에 따라 달라진다. cgroup v2에서 `OomKillDisable`의 `null`과 `false`는 기본값 표기 차이로 기록한다. 다른 차이가 있거나 기존 컨테이너 ID·롤백 이름을 확보하지 못하면 전환을 보류한다. [Docker cgroup v2](https://docs.docker.com/engine/containers/runmetrics/#running-docker-on-cgroup-v2)
+2. 긴 복제 연결을 기다리는 이미지 기본 `SIGQUIT` 대신 전환 시에만 `sudo docker stop --signal SIGTERM --timeout 10 "$old"`를 쓴다. 원본이 `exited`이고 종료 코드가 `0`인지 확인한 뒤 이름을 `"$proxy-before-713-$stamp"`로 바꾼다. 후보를 원래 이름으로 바꾸고 후보 ID로 시작한다. 기존 포트와 연결된 네트워크, `json-file`의 `10m`·`3`을 확인한다. 원본은 중지 상태로 보관한다. [Nginx 종료 신호](https://nginx.org/en/docs/control.html) · [Docker 종료 옵션](https://docs.docker.com/reference/cli/docker/container/stop/)
+3. 새 프록시 시작 뒤 10초 안에 `127.0.0.1:13306` 수신을 확인한다. 원본·복제 MySQL의 ID와 볼륨, 프록시 외 컨테이너 ID를 직전 기록과 대조하고 웹·약관 API HTTP 200과 준비 상태 `UP`을 확인한다.
+
+### edo2 검증과 롤백 판단
+
+- **복제 회복** · 로컬 수신이 확인되면 edo2에서 기준 시각을 잡고 터널과 감시 타이머를 개별 확인한다. 60초 이내에 감시가 연속 2회 시작·정상 완료됐는지 확인한다. 수신·적용 `Yes`, 양쪽 오류 번호 `0`, 원본 `172.30.79.1:13306` 및 ID `1`, GTID 자동 위치 `1`, 지연 0–10초가 기준이다. 운영 설정의 수신 타임아웃은 15초, 원본 재접속 간격은 3초, 감시 주기는 20초다. 연결 교체 구간의 일시적인 수신 재접속은 이 시간 내 회복 여부로 판정한다.
+- **GTID** · 전환 후 원본의 실행 GTID를 읽어 `WAIT_FOR_EXECUTED_GTID_SET(기준점, 30)`이 `0`을 반환하는지 확인한다. 전환 전 복제본 GTID는 `GTID_SUBSET(이전 복제본 GTID, 현재 복제본 GTID) = 1`로 확인한다. 원본의 전후 차집합이 비어 있으면 기존 기준점 도달로 기록한다. 새로운 원본 거래가 관찰됐으면 복제본 도달 여부도 기록한다. [GTID 함수](https://dev.mysql.com/doc/refman/8.4/en/gtid-functions.html)
+- **복구 개시** · 후보 기동·로컬 수신·실행 설정 검증 실패, 다른 컨테이너 상태 변화, 운영 웹·API 악화, 잘못된 원본·적용 오류, 시간 내 복제 감시·GTID 기준 미달이면 프록시만 되돌린다. 후보를 ID로 확인해 실행 중일 때만 `SIGTERM`으로 정지하고 보관 이름으로 바꾼다. 원본 ID의 기존 컨테이너에 원래 이름을 돌려주고 시작한다. 원본이 계속 실행 중이면 그 상태에서 후보 교체를 보류한다. 포트 소유자나 원본 ID가 예상과 다르면 강제로 정지하거나 삭제하기 전에 상태를 보존한다.
+- **복구 완료** · 기존 프록시 ID·포트·로그 옵션과 웹·API·원본 MySQL을 확인한 뒤 복제 감시 2회와 GTID를 다시 확인한다. 회복되지 않으면 복제 장애 대응으로 전환해 양쪽 DB와 기존 채널·볼륨을 보존한다. 프록시 복구에는 복제 채널 재구성, 데이터 초기화나 승격이 포함되지 않는다.
+
 ## 호스트 기본값 적용 절차
 
 1. 변경 창 전에 현재 `/etc/docker/daemon.json`의 유무, 데몬 실행 인자, 컨테이너별 드라이버·옵션을 확인한다. 기존 파일이 생겼으면 다른 설정과 기존 로깅 선택을 검토한 뒤 호환되는 경우에만 키를 병합한다. 파일을 통째로 교체하기 전에 원본을 백업하고, 원래 파일이 없었다면 그 상태를 기록한다.

@@ -55,8 +55,55 @@ sudo journalctl -u eolssu-jenkins-agent --since today --no-pager
 - 신규 빌드가 생겼다면 최신 홈을 유지하고 `edo1-host` 노드를 제거한 뒤 executor를 원래 1개로 되돌리는 방식을 우선 검토한다. 기존 apt와 같은 Jenkins 버전이므로 전체 백업 복원으로 신규 이력을 잃을 필요가 없다.
 - 기존 `jenkins.service`를 `enable --now`하고 관리자 인증·잡·트리거·빌드 가능 여부를 다시 확인한 뒤 quiet down을 해제한다. 앱·DB·모니터링 Compose와 볼륨은 내리지 않는다.
 
+## 로그 회전 구성 비교
+
+이 절차는 기존 Docker 컨트롤러의 로그 옵션만 바꾸는 S15P31E102-713에 사용한다. Jenkins 홈은 `/var/lib/jenkins`의 기존 bind mount를 계속 사용한다. 롤백은 직전 Compose로 컨트롤러만 복원하고 같은 홈으로 검증한다. 위의 apt 전환 복구와 작업 범위가 다르다.
+
+1. 교체 전에 root 전용 증거 디렉터리에 설치된 Compose와 후보를 보관한다. 기존 경로를 프로젝트 디렉터리로 지정해 양쪽 설정을 렌더링한다. 비교 결과에는 달라진 Compose 경로만 기록한다. 렌더링한 환경 변수 값은 파일이나 보고서에 남기지 않는다. 적용·롤백 명령과 `--dry-run`의 대상은 모두 `controller` 한 개여야 한다.
+
+   ```bash
+   # edo1의 root 셸에서 경로를 실제 값으로 지정한다.
+   set -e -o pipefail
+   umask 077
+   project=/opt/eolssu/jenkins
+   verify=/path/to/infra/jenkins/controller/verify-rotation.py
+   evidence=$(mktemp -d /var/backups/edo-docker-713/jenkins.XXXXXX)
+   cp -p "$project/compose.yml" "$evidence/compose.before.yml"
+   # 작성한 후보 파일을 "$evidence/compose.candidate.yml"에 보관한다.
+   docker compose --project-directory "$project" -f "$evidence/compose.candidate.yml" config --quiet
+   python3 -B "$verify" compose \
+     <(docker compose --project-directory "$project" -f "$evidence/compose.before.yml" config --format json) \
+     <(docker compose --project-directory "$project" -f "$evidence/compose.candidate.yml" config --format json) \
+     > "$evidence/compose.diff.json"
+   ```
+
+2. 교체 직전 컨트롤러가 실행 중일 때 기준값을 남긴다. 같은 방식으로 새 컨트롤러가 실행 중일 때 후보의 실제 값을 남긴다. 전체 `docker inspect`는 파이프로만 전달한다. 기록에는 비교 대상인 이미지·마운트·포트·네트워크·종료 유예·보안·로그 설정이 들어간다. 환경은 `JENKINS_HOME` 경로 일치 여부만 기록한다.
+
+   ```bash
+   capture_controller() {
+     local security
+     security=$(docker info --format '{{json .SecurityOptions}}') || return
+     docker inspect --type container eolssu-jenkins-controller-1 |
+       python3 -B "$verify" capture --security-options "$security" > "$evidence/$1.runtime.json"
+   }
+   capture_controller before
+   ```
+
+   실제 교체와 준비 확인 뒤 후보를 캡처한다.
+
+   ```bash
+   capture_controller candidate
+   python3 -B "$verify" compare apply "$evidence/before.runtime.json" "$evidence/candidate.runtime.json" \
+     > "$evidence/apply.diff.json"
+   ```
+
+3. `observed`에 기준·후보 값, `unexpected`에 기대와 다른 필드·값이 기록된다. 종료 코드 `0`은 통과, `1`은 구성 차이, `2`는 입력 오류다. 적용에서 새 ID와 `json-file`의 `10m`·`3`이 필요하다. SELinux가 비활성이고 실제 Jenkins 홈과 같은 익명 로컬 볼륨이 유지됐을 때 `/var/jenkins_home`의 `Mode`가 빈 값에서 `z`로 바뀌는 경우만 허용한다. 이 차이도 `observed`에 남는다. 다른 필드 차이 또는 입력 오류가 있으면 빌드 시작 차단을 유지하고 Jenkins만 직전 설정으로 복원한다. 복구 후 `capture_controller rollback`을 실행하고 같은 기준 파일에 `compare rollback`으로 비교한 결과를 `rollback.diff.json`에 기록한다.
+
+4. 적용과 롤백 모두 빌드·대기열, 기존 잡 설정과 빌드 이력, 연결돼 있던 에이전트 복귀 및 다른 운영 컨테이너의 ID를 별도로 확인한다. `quiet-down`은 재기동 뒤 다시 설정한다. 재기동을 넘겨 빌드 시작을 막으려면 대기열과 실행 중 빌드가 모두 비었을 때 기존 활성 잡만 잠시 비활성화하고, 검증을 마친 뒤 원래 활성 상태를 복원하고 `quiet-down`을 해제한다.
+
 ## 근거
 
 - [Jenkins 공식 Docker 이미지와 홈·UID 설정](https://github.com/jenkinsci/docker/blob/master/README.md)
 - [Jenkins 컨트롤러 executor와 에이전트](https://www.jenkins.io/doc/book/using/using-agents/)
 - [Remoting inbound agent와 secret 파일 인자](https://github.com/jenkinsci/remoting/blob/master/docs/inbound-agent.md)
+- [Compose 5.6.1의 익명 볼륨 상속](https://github.com/docker/compose/blob/v5.6.1/pkg/compose/create.go#L1053-L1077)
