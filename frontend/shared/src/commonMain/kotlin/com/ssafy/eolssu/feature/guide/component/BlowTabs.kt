@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,7 +35,7 @@ import org.jetbrains.compose.resources.stringResource
 private val UnavailableBlowText = Color(0xFFB9B3A6)
 
 /**
- * 취법 탭(`.blow`). 고른 탭은 연두 바탕이고, 이 악기에 없는 취법(단소·소금의 저취)은 누를 수 없다.
+ * 취법 탭(`.blow`). 가로 배치는 회색 틀 안에서 고른 탭만 흰 칸으로 띄우고(다른 두 칸 탭과 같은 모양, S15P31E102-849), 이 악기에 없는 취법(단소·소금의 저취)은 누를 수 없다.
  *
  * @param large 태블릿 탭(높이 44dp · 모서리 12dp · 14sp).
  * @param vertical 태블릿 가로 배치의 왼쪽 칸처럼 탭을 세로로 쌓는다.
@@ -48,17 +50,20 @@ internal fun BlowTabs(
 ) {
     if (vertical) {
         Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            tabs.forEach { tab -> BlowTabButton(tab, onSelect, large, Modifier.fillMaxWidth()) }
+            tabs.forEach { tab -> BlowTabButton(tab, onSelect, large, inTrack = false, Modifier.fillMaxWidth()) }
         }
     } else {
-        Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            tabs.forEach { tab -> BlowTabButton(tab, onSelect, large, Modifier.weight(1f)) }
+        Row(
+            modifier.background(EolssuTheme.colors.surfaceStrong, RoundedCornerShape(if (large) 16.dp else 14.dp)).padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            tabs.forEach { tab -> BlowTabButton(tab, onSelect, large, inTrack = true, Modifier.weight(1f)) }
         }
     }
 }
 
 @Composable
-private fun BlowTabButton(tab: BlowTab, onSelect: (Blow) -> Unit, large: Boolean, modifier: Modifier) {
+private fun BlowTabButton(tab: BlowTab, onSelect: (Blow) -> Unit, large: Boolean, inTrack: Boolean, modifier: Modifier) {
     val colors = EolssuTheme.colors
     val unavailable = stringResource(Res.string.guide_blow_unavailable)
     Surface(
@@ -72,10 +77,14 @@ private fun BlowTabButton(tab: BlowTab, onSelect: (Blow) -> Unit, large: Boolean
                 if (!tab.enabled) stateDescription = unavailable
             },
         shape = RoundedCornerShape(if (large) 12.dp else 10.dp),
-        color = if (tab.selected) colors.primary else colors.surface,
+        // 세로로 쌓는 태블릿 탭은 틀이 없어 고른 탭을 예전처럼 연두로 칠한다.
+        color = when {
+            inTrack -> if (tab.selected) colors.surface else Color.Transparent
+            else -> if (tab.selected) colors.primary else colors.surface
+        },
         contentColor = when {
-            tab.selected -> colors.onPrimary
-            tab.enabled -> colors.text
+            tab.selected -> if (inTrack) colors.text else colors.onPrimary
+            tab.enabled -> if (inTrack) colors.textSub else colors.text
             else -> UnavailableBlowText
         },
     ) {

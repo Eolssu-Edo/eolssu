@@ -58,7 +58,7 @@ internal fun SegmentTabs(
     large: Boolean = false,
     counts: List<Int>? = null,
     fill: Boolean = large,
-    frameColor: Color = EolssuTheme.colors.surface,
+    frameColor: Color = EolssuTheme.colors.surfaceStrong,
 ) {
     val colors = EolssuTheme.colors
     val frame = RoundedCornerShape(14.dp)
@@ -77,7 +77,7 @@ internal fun SegmentTabs(
                 (if (fill) Modifier.weight(1f) else Modifier)
                     .height(if (large) 48.dp else 40.dp)
                     .clip(pill)
-                    .background(if (on) colors.primary else Color.Transparent)
+                    .background(if (on) colors.surface else Color.Transparent)
                     .clickable(role = Role.Tab) { onSelect(index) }
                     .semantics { this.selected = on }
                     .padding(horizontal = 12.dp),
@@ -86,8 +86,8 @@ internal fun SegmentTabs(
             ) {
                 val style = MaterialTheme.typography.bodyLarge.copy(fontSize = if (large) 15.sp else 14.sp)
                 Text(label, style = style.copy(fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium), maxLines = 1,
-                    color = if (on) colors.onPrimary else colors.textSub)
-                counts?.getOrNull(index)?.let { Text("$it", style = style.copy(fontWeight = FontWeight.Medium), color = if (on) colors.onPrimary.copy(alpha = 0.7f) else colors.textMuted) }
+                    color = if (on) colors.text else colors.textSub)
+                counts?.getOrNull(index)?.let { Text("$it", style = style.copy(fontWeight = FontWeight.Medium), color = colors.textMuted) }
             }
         }
     }
