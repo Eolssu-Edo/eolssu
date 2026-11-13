@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.model.instrumentDisplayRank
 import com.ssafy.eolssu.core.network.screenScope
+import com.ssafy.eolssu.core.network.ensureAccountSession
 import com.ssafy.eolssu.core.storage.*
 import com.ssafy.eolssu.data.song.*
 import kotlinx.coroutines.CancellationException
@@ -20,6 +21,7 @@ class SheetImportViewModel(
     private val loadInstruments: suspend () -> List<CatalogInstrument>,
     private val loadJangdans: suspend () -> List<CatalogJangdanSummary>,
     member: SignedInMember? = null,
+    private val authoringCatalog: SheetAuthoringCatalog? = null,
 ) : ViewModel() {
     private val state = MutableStateFlow(SheetImportUiState())
     val uiState = state.asStateFlow()
@@ -36,10 +38,12 @@ class SheetImportViewModel(
         state.value = state.value.copy(loading = true, catalogFailed = false, error = null)
         scope.launch {
             try {
-                val instruments = loadInstruments().sortedBy { instrumentDisplayRank(it.code) }
-                val jangdans = if (kind == ImportKind.Jeongganbo) loadJangdans() else emptyList()
+                val instruments = (authoringCatalog?.instruments() ?: loadInstruments()).sortedBy { instrumentDisplayRank(it.code) }
+                val jangdans = if (kind == ImportKind.Jeongganbo) (authoringCatalog?.references?.jangdans() ?: loadJangdans()) else emptyList()
                 check(instruments.isNotEmpty() && (kind != ImportKind.Jeongganbo || jangdans.isNotEmpty()))
+                ensureAccountSession()
                 state.value = state.value.copy(instruments = instruments, jangdans = jangdans, loading = false)
+                authoringCatalog?.warmUp()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { state.value = state.value.copy(loading = false, catalogFailed = true) }
         }
