@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.analysis.domain
 
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -14,6 +15,8 @@ data class PendingAnalysis(
     val bpm: Int,
     val bpmUnit: String,
     val recordingUrl: String,
+    /** `instruments.code`. AI가 대금의 낮은 옥타브 연주를 보정하는 데 쓴다(S15P31E102-848). */
+    val instrument: String? = null,
 )
 
 /**
@@ -37,6 +40,7 @@ data class AnalysisRequest(
     val bpm: Int,
     val bpmUnit: String,
     val notes: List<ScoreNote>,
+    val instrument: String? = null,
 ) {
     override fun toString() = "AnalysisRequest(sessionId=$sessionId, attempt=$attempt, notes=${notes.size})"
 }
@@ -121,11 +125,11 @@ interface PracticeAnalysisRepository {
     fun saveFailed(analysis: PendingAnalysis, failReason: String, startedAfter: LocalDateTime): Boolean
 
     /** 시도가 `startedAfter`보다 먼저 시작한 `PENDING`이면 `FAILED`·`TIMEOUT`으로 바꾼다. 바꿨으면 true. */
-    fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime): Boolean
+    fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime, expectedAttempt: Int? = null): Boolean
 }
 
 /** 연습 세션의 분석 상태. `failReason`은 `FAILED`일 때만 있고 `attempt`는 현재 분석 시도 번호다(0은 시작 전). */
-data class AnalysisState(val status: String, val failReason: String?, val attempt: Int)
+data class AnalysisState(val status: String, val failReason: String?, val attempt: Int, val timingId: EvaluationTimingId? = null)
 
 /** 같은 녹음으로 다시 분석할 수 있는 실패 코드(PRA-03 '분석 다시 시도'). 나머지는 새로 녹음해야 하거나 이미 끝났다. */
 val RETRYABLE_FAIL_REASONS = setOf(TIMEOUT, SERVER_ERROR)
@@ -138,7 +142,7 @@ interface AnalysisRetryRepository {
      * 본인 세션이 아직 `attempt`번째 시도이고 녹음이 있는 `FAILED`이며 실패 코드가 [RETRYABLE_FAIL_REASONS]이면
      * 시도 번호를 `attempt + 1`로 올리고 `startedAt`에 시작한 `PENDING`으로 바꾼다. 조건부 갱신이라 동시 요청 중 하나만 true다.
      */
-    fun startRetry(sessionId: Long, userId: Long, attempt: Int, startedAt: LocalDateTime): Boolean
+    fun startRetry(sessionId: Long, userId: Long, attempt: Int, startedAt: LocalDateTime, timingId: EvaluationTimingId? = null): Boolean
 
     /** 방금 시작한 `attempt`번째 시도(`startedAt`)를 분석에 넘기지 못했을 때 `SERVER_ERROR`로 끝낸다. 이미 끝났으면 false. */
     fun failStart(sessionId: Long, attempt: Int, startedAt: LocalDateTime): Boolean

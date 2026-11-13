@@ -121,7 +121,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("36", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("43", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -134,7 +134,7 @@ class DatabaseIntegrationTests {
                 "user_song_settings", "score_views", "oauth_proofs", "song_model_audios", "reference_audio_assets", "flyway_schema_history",
                 "kakao_unlink_subjects", "kakao_event_receipts", "reference_audio_pitch_relations", "user_sheets",
                 "sheet_conversions", "sheet_source_files", "sheet_source_pages",
-                "sheet_audios", "sheet_audio_objects", "sheet_audio_requests",
+                "sheet_audios", "sheet_audio_objects", "sheet_audio_requests", "song_score_versions",
             ),
             tables,
         )
@@ -179,15 +179,15 @@ class DatabaseIntegrationTests {
         )
         assertEquals("-", assertNotNull(mapper<NotationSymbolMapper>().findById(2)).symbol)
         assertEquals(
-            UserRow(1, "test@example.test", "test-fixture-hash", "연습자", 1, "HANGUL", "ACTIVE", null, null, null, time, time, null),
+            UserRow(1, "test@example.test", "test-fixture-hash", "연습자", 1, "HANGUL", "HELLO", "ACTIVE", null, null, null, time, time, null),
             mapper<UserMapper>().findById(1),
         )
         assertEquals(
-            UserRow(2, null, null, null, 1, "HANJA", "DELETED", time, null, null, time, time, time),
+            UserRow(2, null, null, null, 1, "HANJA", "HELLO", "DELETED", time, null, null, time, time, time),
             mapper<UserMapper>().findById(2),
         )
         assertEquals(
-            UserRow(3, "pending@example.test", "test-fixture-hash-3", "대기 회원", 1, "HANJA", "WITHDRAWAL_PENDING", null, time, time.plusDays(30), time, time, null),
+            UserRow(3, "pending@example.test", "test-fixture-hash-3", "대기 회원", 1, "HANJA", "HELLO", "WITHDRAWAL_PENDING", null, time, time.plusDays(30), time, time, null),
             mapper<UserMapper>().findById(3),
         )
         assertEquals(
@@ -861,7 +861,7 @@ class DatabaseIntegrationTests {
         val inTime = startedAt // 마감 기준이 시작 시각과 같으면 아직 제한 시간 안이다
         val overdue = startedAt.plusNanos(1_000) // 시작 시각이 마감 기준보다 1마이크로초 이르면 넘겼다
         val pending = assertNotNull(repository.findPending(21, inTime))
-        assertEquals(PendingAnalysis(21, 2, 1, 1, 3, 4, 60, "JEONGGAN", "recordings/21/a.m4a"), pending)
+        assertEquals(PendingAnalysis(21, 2, 1, 1, 3, 4, 60, "JEONGGAN", "recordings/21/a.m4a", "DANSO"), pending)
         assertNull(repository.findPending(21, overdue))
         assertNull(repository.findPending(1, inTime.minusYears(1))) // 고정 데이터의 DONE 세션
 

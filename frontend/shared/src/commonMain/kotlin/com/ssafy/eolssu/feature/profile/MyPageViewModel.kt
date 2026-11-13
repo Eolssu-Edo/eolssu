@@ -43,6 +43,7 @@ class MyPageViewModel(
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
     private fun clearAccount() {
         _dialog.value = null
+        lastProgress = null
         _loadingProfile.value = false
         _savingInstrument.value = false
     }
@@ -51,6 +52,19 @@ class MyPageViewModel(
         _loadingProfile.value = true
         return@inAccount try { handleSession(userRepository.refresh()) }
         finally { _loadingProfile.value = false }
+    }
+
+    /**
+     * 마지막으로 받은 학습 진도와 그 악기. 다른 화면에서 돌아와 진도를 다시 받는 동안 같은 악기면 이 뱃지를 그대로 보여,
+     * 뱃지가 잠깐 사라졌다 나타나며 화면이 흔들리지 않게 한다(S15P31E102-731).
+     */
+    private var lastProgress: MyLearningProgress? = null
+
+    /** 마지막으로 받은 진도 뱃지. 다른 화면에서 돌아와 다시 받는 동안 그대로 보인다. */
+    fun lastLearningProgress(): MyLearningProgress? = lastProgress
+
+    fun rememberLearningProgress(progress: MyLearningProgress?) {
+        lastProgress = progress
     }
 
     private val _loadingProfile = MutableStateFlow(true)

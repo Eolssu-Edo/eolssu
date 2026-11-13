@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.feature.practice.api
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.feature.practice.application.CreatePracticeSession
@@ -63,6 +64,7 @@ class PracticeSessionController(
             endNoteIdx = request.endNoteIdx,
             parentSessionId = request.parentSessionId?.toLong(),
             jangdanSoundOn = request.jangdanSoundOn,
+            expectedScoreVersion = request.expectedScoreVersion,
         )
         return when (val result = createPracticeSession.execute(command)) {
             is CreatePracticeSessionResult.Created -> ResponseEntity.status(HttpStatus.CREATED).body(
@@ -86,7 +88,9 @@ class PracticeSessionController(
     fun get(@AuthenticationPrincipal jwt: Jwt, @PathVariable @Positive sessionId: Long): ResponseEntity<*> {
         val detail = getPracticeSession.execute(requireNotNull(jwt.subject).toLong(), sessionId)
             ?: return error(ErrorCode.RESOURCE_NOT_FOUND)
-        return ResponseEntity.ok(PracticeSessionResponse(result = PracticeSessionResult.of(detail)))
+        return ResponseEntity.ok()
+            .apply { detail.analysisTimingId?.let { header(EvaluationTimingId.HEADER, it.value) } }
+            .body(PracticeSessionResponse(result = PracticeSessionResult.of(detail)))
     }
 
     private fun error(code: ErrorCode) = ResponseEntity.status(code.status).body(ErrorResponse.of(code))
@@ -110,6 +114,8 @@ data class CreatePracticeSessionRequest(
     @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val parentSessionId: String? = null,
     @field:Schema(description = "장단 소리를 켜고 연주했는지. 지금은 저장하지 않고 같은 키 재전송 비교에만 쓴다. 생략하면 false", example = "false")
     @param:JsonDeserialize(using = StrictBooleanDeserializer::class) val jangdanSoundOn: Boolean? = null,
+    @field:Schema(description = "녹음한 악보 판본. 양의 정수이며 현재 판본과 다르면 409. 생략·null은 과거 판본이 보관된 곡의 신규 요청에서 409", example = "2")
+    @field:Positive @param:JsonDeserialize(using = StrictIntDeserializer::class) val expectedScoreVersion: Int? = null,
 )
 
 data class CreatedPracticeSessionResponse(
@@ -156,12 +162,14 @@ data class PracticeSessionResult(
     val retryable: Boolean,
     val savedAt: Instant?,
     val memo: String?,
+    val scoreVersion: Int,
+    val songTitle: String,
 ) {
     companion object {
         fun of(detail: PracticeSessionDetail) = with(detail) {
             PracticeSessionResult(
                 sessionId.toString(), songId.toString(), bpm, bpmUnit, startNoteIdx, endNoteIdx, status, evaluationId?.toString(),
-                failReason, recordingAvailable, startedAt.utc(), endedAt?.utc(), retryable, savedAt?.utc(), memo,
+                failReason, recordingAvailable, startedAt.utc(), endedAt?.utc(), retryable, savedAt?.utc(), memo, scoreVersion, songTitle,
             )
         }
 

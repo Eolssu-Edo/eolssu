@@ -17,7 +17,7 @@ class MyBatisPracticeAnalysisRepository(
     private val transactions: TransactionOperations,
 ) : PracticeAnalysisRepository {
     override fun findPending(sessionId: Long, startedAfter: LocalDateTime) = mapper.findPending(sessionId, startedAfter)?.run {
-        PendingAnalysis(sessionId, attempt, songId, scoreVersion, startNoteIdx, endNoteIdx, bpm, bpmUnit, recordingUrl)
+        PendingAnalysis(sessionId, attempt, songId, scoreVersion, startNoteIdx, endNoteIdx, bpm, bpmUnit, recordingUrl, instrument)
     }
 
     override fun saveDone(analysis: PendingAnalysis, result: AnalysisResult.Done, notes: List<ScoreNote>, startedAfter: LocalDateTime): Boolean {
@@ -60,5 +60,6 @@ class MyBatisPracticeAnalysisRepository(
     override fun saveFailed(analysis: PendingAnalysis, failReason: String, startedAfter: LocalDateTime) =
         mapper.markFailed(analysis.sessionId, analysis.attempt, failReason, startedAfter) == 1
 
-    override fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime) = mapper.expireOverdue(sessionId, startedAfter) == 1
+    override fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime, expectedAttempt: Int?) =
+        mapper.expireOverdue(sessionId, startedAfter, expectedAttempt) == 1
 }

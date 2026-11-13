@@ -77,7 +77,7 @@ uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 
 1. `audioUrl`(서명 URL)에서 원본을 임시 폴더로 내려받습니다. 연결부터 전체 30초, 25MiB까지 받고 응답을 마치면 지웁니다.
 2. 위 '녹음 디코딩'으로 16kHz 모노로 바꾸고, pYIN으로 음높이를 추정해 '채점 방식'대로 채점합니다.
-3. `DONE`(`modelVersion` `pyin-5`, `scoringVersion` `note-mean-1`, 점수 4개, 조율 보정, 음표별 판정·부분 점수) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
+3. `DONE`(`modelVersion` `pyin-6`, `scoringVersion` `note-mean-1`, 점수 4개, 조율 보정, 음표별 판정·부분 점수) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
 
 | 상황 | 응답 | 백엔드 처리 |
 | --- | --- | --- |
@@ -103,7 +103,11 @@ uv run python -c "import json; from ai_service.api import app; print(json.dumps(
 
 ## 악보 인식 API
 
-backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. 지금은 정간보 글자 층 PDF와 오선보(PDF·이미지)를 읽습니다. 스캔 PDF·사진 정간보는 연결 전이라 `ENGINE_ERROR`로 끝납니다(별도 Task [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)).
+backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. `runtime` 단계는 정간보 글자 층 PDF와 오선보(PDF·이미지), 기본 빌드의 `scanner` 단계는 정간보 스캔·이미지 초안 변환까지 포함합니다([S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)).
+
+오선보는 `smallHeads`·`smallBeams`를 켜서 꾸밈음을 구분합니다. Docker 이미지에는 Tesseract legacy 영어 데이터(`tessdata/4.1.0`)와 `TESSDATA_PREFIX`가 필요합니다. LSTM 전용 `tessdata_fast`로 대체하면 Audiveris의 OCR이 동작하지 않습니다. 빠르기 표시 혼입·성부 선택·초과 마디 재인식과 실제 PDF/PNG 대조 결과는 [806 검증 기록](../docs/knowledge/ai/score-recognition-corrections.md)을 참고합니다.
+
+S15P31E102-784는 짧은 마지막 악단, 긴 반주 아래의 주선율, 2600px 정간보 이미지와 얇은 선·여러 단의 격자 재시도를 보완합니다. 원래 크기에서 성공하면 이전 경로를 유지하며, 실패한 경우에만 같은 쪽당 60초 안에서 추가 크기를 시도합니다. [제공 ZIP 검증 기록](../docs/knowledge/ai/score-archive-regression.md)에 변환 성공과 음표 정확도를 나눠 기록했습니다. 중청 율명의 PNG/JPEG 정확도는 글자층 PDF와 같지 않습니다.
 
 ```bash
 uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
@@ -115,6 +119,10 @@ uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
 4. 형식 오류(422) 말고는 예상하지 못한 오류도 200 `ENGINE_ERROR`로 돌려줍니다.
 
 정간보 글자 층 PDF는 `src/omr_service/jeongganbo_text.py`가 `data/src/scores/standard_score_text.py`(pymupdf, 별도 프로세스)와 [jeongganbo-generator](https://github.com/danbinaerinHan/jeongganbo-generator) `9d4a24e`의 `tools/import-ngc-omr.mjs`(Node)로 읽습니다. 클론 위치를 `JGB_GENERATOR_DIR`에 넣고 실행합니다(클론 방법은 [데이터 README](../data/README.md#정간보-omr)). 없으면 정간보 요청은 `ENGINE_ERROR`이고, 변환까지 가는 테스트(`tests/unit/test_omr_text_engine.py`)는 건너뜁니다.
+
+정간보 글자 층 엔진 2(`jeongganbo-text/standard_score_text@2`)는 장단 패턴의 칸 음가를 BPM 박으로 환산합니다. 단모리의 8분 소박 8칸은 4분 박 4개여서 4정간 각이 120 BPM에서 2초입니다. 엇모리·타령·계면가락도드리의 8분 칸과 세령산의 점4분 칸도 구분합니다. `uv run pytest tests/unit/test_omr_text_engine.py tests/unit/test_omr_staff_engine.py`로 장단별 단위와 PDF→공통 악보→합성 시간축을 검사합니다. 기존 저장 악보와 내려받은 음원은 이 코드 변경으로 자동 교정되지 않습니다.
+
+엔진 3(S15P31E102-741)은 이 시간 환산을 유지하고, PDF의 도형 삼각 쉼표·각 경계의 명시적 이음을 복구합니다. 우물사이 전용 옥타브 점 인식은 포함하지 않으며, 점으로 한자의 음역을 추정하지 않습니다. `score_data`의 기존 검수 JGB·오선보 기본 동작은 유지하고 글자 층 PDF만 `continue_explicit_ties=True`로 변환합니다. [실제 PDF 전후 근거와 편집 안내](../docs/knowledge/frontend/sheet-pitch-conversion-corrections.md)를 참고하세요.
 
 오선보는 `src/omr_service/staff_engine.py`가 쪽마다 Audiveris를 별도 프로세스로 돌리고(쪽당 60초와 남은 요청 시간 중 짧은 쪽, 넘으면 끝냄), 쪽들의 MusicXML을 이어 `staff_musicxml.py`로 정간보 줄을 만든 뒤 글자 층과 같은 변환을 거칩니다. 명령은 `AUDIVERIS_CMD`(기본 `audiveris`)이고, 테스트(`tests/unit/test_omr_staff_engine.py`)는 가짜 Audiveris를 씁니다.
 
@@ -223,3 +231,15 @@ uv run --locked python -m evaluation.dtw_u4_table ../data/processed/dtw-286/u4-r
 ## 정상·오류 녹음 평가
 
 [오류 검출 평가 실행과 결과 해석](../docs/knowledge/ai/scoring-error-evaluation.md)을 따라 합성 묶음 생성, 허용값 16개 조합 평가, 같은 녹음의 전후 비교를 실행합니다. PowerShell 명령과 검출률·오탐률, 윌슨 구간, 맥니마 검정의 뜻과 한계가 있습니다. 단소 단음의 조율 결과는 [김 세기·취법별 측정](../docs/knowledge/ai/danso-tuning-variation.md)에 있습니다. 합성 결과로 실제 입문자 허용값을 확정하지 않습니다.
+
+### 스캔 모델 실행 (458)
+
+기본 Docker 빌드는 마지막 `scanner` 단계까지 실행합니다. `JEONGGANBO_OMR_DIR=/opt/jeongganbo-omr`의 코드·체크포인트를 이미지에 포함하고 CPU 배치 16개, 스레드 2개로 추론합니다. 원본과 모델 경로는 읽기 전용이며 변환한 체크포인트는 요청별 `/tmp` 안에만 씁니다. 추론은 Audiveris와 같은 잠금으로 동시 1건이고 기존 쪽당 60초·CPU 2개·메모리 2GiB를 유지합니다. 런타임 모델 다운로드는 없습니다.
+
+스캔 엔진 `e95045f-v1.0.0-r4`는 모델 어휘에 없는 중청 음을 두 물수변의 실제 획으로 복원합니다. 청 음의 점 두 쌍과 아래 획이 모두 확인될 때만 올리고, 위치·시김새·confidence를 보존합니다. 글자층 PDF·오선보·모델 가중치는 바꾸지 않습니다. 같은 PNG·JPEG 24/24 대조와 기존 스캔 5종 전후 보존 결과는 [중청 음역 교정 기록](../docs/knowledge/ai/jeongganbo-double-water-register.md)에 있습니다.
+
+스캔 전용 의존성은 `omr-scan-requirements.in`과 SHA-256을 포함한 `omr-scan-requirements.txt`로 고정해 기존 채점 서비스의 `uv.lock`과 분리했습니다. Python 3.12·Linux x86_64 CPU 휠을 사용합니다. 같은 uv 버전에서 `uv pip compile --python .venv/bin/python --generate-hashes omr-scan-requirements.in -o omr-scan-requirements.txt`로 다시 고정할 수 있습니다. 모델 소스·가중치의 획득 URL과 체크섬은 `omr.Dockerfile`에 있습니다.
+
+`docker build -f ai/omr.Dockerfile -t eolssu-omr .`로 전체를 빌드합니다. 이미 검증한 기본 런타임을 재사용하는 로컬 검사는 `--build-arg OMR_SCANNER_BASE=<검증한 기본 이미지>`로 스캔 확장만 빌드하며, AI/DATA 소스·참조 데이터는 현재 작업본으로 복사합니다. `--target runtime`은 확장을 제외한 기본 단계입니다. 스캔 확장 없는 실행에는 `JEONGGANBO_OMR_DIR`가 없어 스캔 요청이 `ENGINE_ERROR`로 끝납니다.
+
+`uv run pytest tests/unit/test_omr_scan_engine.py tests/unit/test_omr_api.py tests/unit/test_omr_text_engine.py`는 실제 모델 없이 연결·식별자·검수 표시·실패와 시간 예산을 검사합니다. 실제 추론과 편집 저장 결과, 사진 및 장단 한계, 독립 롤백은 [실행 기록](../docs/knowledge/ai/jeongganbo-scan-runtime.md)에 구분했습니다.

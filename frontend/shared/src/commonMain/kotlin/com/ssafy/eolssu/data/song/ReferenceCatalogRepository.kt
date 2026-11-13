@@ -12,9 +12,10 @@ import kotlinx.serialization.Serializable
 
 /** CAT-06~10. 서버의 등록 자료만 반환한다. 학습 순서·운지 구멍 위치를 추정하지 않는다. */
 interface ReferenceCatalogRepository {
+    suspend fun authoringCapabilities(instrumentId: String): CatalogAuthoringCapabilities = throw CatalogUnavailable()
     suspend fun pitches(instrumentId: String): List<CatalogPitch>
 
-    /** 악기를 가리지 않은 등록 음 전체(CAT-06 `instrumentId` 생략). 내 악보 저장은 이 목록의 율명·옥타브만 받는다. */
+    /** 악기를 가리지 않은 등록 음 전체(CAT-06 `instrumentId` 생략). 작성 지원 여부는 authoringCapabilities에서 따로 확인한다. */
     suspend fun allPitches(): List<CatalogPitch> = throw CatalogUnavailable()
     suspend fun fingerings(instrumentId: String, pitchId: String? = null): CatalogFingerings
     suspend fun jangdans(): List<CatalogJangdanSummary>
@@ -23,6 +24,26 @@ interface ReferenceCatalogRepository {
 }
 
 class ApiReferenceCatalogRepository(private val client: HttpClient) : ReferenceCatalogRepository {
+    override suspend fun authoringCapabilities(instrumentId: String): CatalogAuthoringCapabilities {
+        requireCatalogId(instrumentId)
+        val response = client.sendOrNull { get("/api/instruments/$instrumentId/authoring-capabilities") } ?: throw CatalogUnavailable()
+        val result = response.takeIf { it.status.value == 200 }?.apiResponse<CatalogAuthoringCapabilities>()
+            ?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
+        checkIds(result.items.map { it.pitchId })
+        if (result.instrumentId != instrumentId || result.policyVersion != "registered-guidance-cat/v1" ||
+            result.nominalHwangMidi !in 0..127 || result.items.any {
+                it.midi != result.nominalHwangMidi + it.semitone || it.fingering !in setOf("REGISTERED", "UNKNOWN") ||
+                    it.notation !in setOf("SUPPORTED", "UNSUPPORTED") || it.synthesis !in setOf("SUPPORTED", "UNSUPPORTED", "UNKNOWN") ||
+                    it.reasonCodes != buildList {
+                        if (it.fingering != "REGISTERED") add("FINGERING_UNKNOWN")
+                        if (it.notation != "SUPPORTED") add("NOTATION_UNSUPPORTED")
+                        if (it.synthesis != "SUPPORTED") add("SYNTHESIS_UNSUPPORTED")
+                    } ||
+                    it.selectable != (it.fingering == "REGISTERED" && it.notation == "SUPPORTED" && it.synthesis == "SUPPORTED")
+            }) throw CatalogUnavailable()
+        return result
+    }
+
     override suspend fun pitches(instrumentId: String): List<CatalogPitch> {
         requireCatalogId(instrumentId)
         return loadPitches(instrumentId)
@@ -151,9 +172,10 @@ internal fun safeCatalogLink(value: String?): Boolean = value == null || runCatc
         nominalHwangPitchClass in 0..11 && verificationStatus == "BUILTIN_REFERENCE"
 }
 @Serializable data class CatalogJangdanSummary(val jangdanId: String, val name: String, val defaultBpm: Int,
-    val bpmUnit: String, val beatCount: Int, val groupCount: Int)
+    val bpmUnit: String, val beatCount: Int, val groupCount: Int, val patternCellEighths: Int? = null)
 @Serializable data class CatalogJangdanDetail(val jangdanId: String, val name: String, val defaultBpm: Int,
-    val bpmUnit: String, val pattern: CatalogJangdanPattern, val source: String? = null, val soundUrl: String? = null)
+    val bpmUnit: String, val pattern: CatalogJangdanPattern, val source: String? = null, val soundUrl: String? = null,
+    val patternCellEighths: Int? = null)
 @Serializable data class CatalogJangdanPattern(val beats: List<String>, val group: List<Int>)
 @Serializable data class CatalogNotationSymbol(val symbolId: String, val symbol: String, val name: String,
     val description: String, val imageUrl: String? = null, val source: String? = null,

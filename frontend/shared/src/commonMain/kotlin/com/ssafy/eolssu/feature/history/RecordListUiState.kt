@@ -3,87 +3,113 @@ package com.ssafy.eolssu.feature.history
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.PracticeRecord
+import com.ssafy.eolssu.core.model.SongSortOrder
+import com.ssafy.eolssu.core.model.sortedByTitle
+import com.ssafy.eolssu.data.practice.RecordSongSummary
+import com.ssafy.eolssu.data.practice.RecordWeek
 
-/** 기록 목록 정렬. */
-enum class RecordSort { Newest, Oldest }
-
-/** 곡 하나의 녹음 묶음(아코디언). */
-data class RecordGroup(
-    val songId: String,
-    val songTitle: String,
-    val records: List<PracticeRecord>,
-    val latest: KoreanDateTime,
-    val best: Int,
-)
+data class RecordPages(
+    val records: List<PracticeRecord> = emptyList(),
+    val nextPage: Int? = 0,
+    val loading: Boolean = false,
+    val failed: Boolean = false,
+) {
+    /** 첫 페이지를 받았다. 받기 전 자리는 기록이 없고 다음 페이지가 0이다. */
+    val loaded: Boolean get() = records.isNotEmpty() || nextPage == null
+}
 
 /**
- * RECORD-01 상태.
- *
- * @property records 최신순 기록.
- * @property opened 펼친 곡. null이면 처음 상태로, 가장 최근에 연습한 곡만 펼친다.
- * @property justSavedId 이번에 결과 화면에서 저장해 '방금 저장'을 붙일 기록.
- * @property selectedId 두 칸 배치(태블릿 가로)에서 사용자가 고른 기록. 고르기 전에는 null.
- * @property loading 서버에서 목록을 받는 중.
- * @property loadFailed 목록을 받지 못함. 이미 받은 기록이 있으면 그대로 보인다.
- * @property instrument 고른 악기. null이면 모든 악기의 기록을 보인다.
- * @property songInstruments 곡 ID별 악기. 기록 목록 API에 악기가 없어 곡 정보에서 채운다. 모르는 곡은 '전체'에서만 보인다.
+ * 화면의 곡 묶음. 서버는 악기마다 다른 곡 ID로 묶어 주므로, 제목이 같은 곡을 악기와 관계없이 하나로 모은다.
+ * [songs]는 최근에 연습한 곡이 앞이다.
  */
+data class RecordSongGroup(val key: String, val title: String, val songs: List<RecordSongSummary>) {
+    val songIds: List<String> get() = songs.map { it.songId }
+    val recordCount: Int get() = songs.sumOf { it.recordCount }
+    val bestScore: Int get() = songs.maxOf { it.bestScore }
+    val newestSongId: String get() = songs.first().songId
+}
+
+/** 곡 묶음 안에서 같은 날 연주한 기록. [records]는 정렬 순서를 따른다. */
+data class RecordDay(val date: KoreanDateTime, val records: List<PracticeRecord>) {
+    val epochDay: Long get() = date.epochDay
+}
+
 data class RecordListUiState(
-    val records: List<PracticeRecord> = emptyList(),
     val today: KoreanDateTime = KoreanDateTime(1970, 1, 1, 0, 0),
-    val sort: RecordSort = RecordSort.Newest,
-    val opened: Set<String>? = null,
+    /** 곡 묶음의 이름 순서. 묶음 안의 날짜·연주는 늘 최신순이다. */
+    val nameOrder: SongSortOrder = SongSortOrder.Ascending,
+    /** 곡 제목 검색어. 앞뒤 공백은 무시한다. */
+    val query: String = "",
+    /** 펼친 곡 묶음의 [RecordSongGroup.key]. 처음에는 모두 접혀 있다. */
+    val opened: Set<String> = emptySet(),
+    /** 곡 묶음별로 직접 접은 날짜([RecordDay.epochDay]). 나머지 날짜는 모두 펼쳐져 있다. */
+    val closedDays: Map<String, Set<Long>> = emptyMap(),
     val justSavedId: String? = null,
     val selectedId: String? = null,
+    val linkedId: String? = null,
     val recordsAvailable: Boolean = true,
     val loading: Boolean = false,
     val loadFailed: Boolean = false,
     val instrument: Instrument? = null,
     val songInstruments: Map<String, Instrument> = emptyMap(),
+    val summaries: List<RecordSongSummary> = emptyList(),
+    val pages: Map<String, RecordPages> = emptyMap(),
+    val totalRecordCount: Int = 0,
+    val week: RecordWeek? = null,
 ) {
-    /** 고른 악기의 기록(최신순). 악기를 고르지 않았으면 모든 기록. */
-    val visibleRecords: List<PracticeRecord>
-        get() = instrument?.let { selected -> records.filter { songInstruments[it.songId] == selected } } ?: records
-
-    /** 받은 기록이 없는데 받는 중이거나 받지 못해, 빈 목록 대신 그 상태를 보일 때. */
-    val showLoadStatus: Boolean get() = recordsAvailable && records.isEmpty() && (loading || loadFailed)
-
-    /**
-     * 두 칸 배치에서 오른쪽에 상세를 보여 줄 기록. 고른 기록 → 방금 저장한 기록 → 가장 최근 기록 순으로,
-     * 지금 목록에 있는 것을 쓴다. 기록이 없으면 null.
-     */
-    val selectedRecordId: String?
-        get() = listOfNotNull(selectedId, justSavedId).firstOrNull { id -> visibleRecords.any { it.id == id } } ?: visibleRecords.firstOrNull()?.id
-
-    fun select(recordId: String): RecordListUiState = copy(selectedId = recordId)
-
-    /** 기록 상세 경로로 바로 들어왔을 때: 그 기록을 고르고 그 곡 묶음을 펼친다. 기록을 아직 받지 않았으면 고르기만 한다. */
-    fun show(recordId: String): RecordListUiState {
-        val songId = records.firstOrNull { it.id == recordId }?.songId ?: return select(recordId)
-        val selected = select(recordId)
-        return if (selected.isOpen(songId)) selected else selected.toggle(songId)
-    }
-
-    /** 고른 악기의 곡마다 한 묶음. 곡 순서는 최근에 연습한 곡이 위, 묶음 안은 [sort]를 따른다. */
-    val groups: List<RecordGroup>
-        get() = visibleRecords.groupBy { it.songId }.map { (songId, list) ->
-            RecordGroup(
-                songId = songId,
-                songTitle = list.first().songTitle,
-                records = if (sort == RecordSort.Newest) list else list.reversed(),
-                latest = list.first().recordedAt,
-                best = list.maxOf { it.score },
-            )
+    /** 악기 필터를 곡 ID마다 적용한 뒤 제목이 같은 곡을 합치고, 검색어가 든 곡만 [nameOrder]로 늘어놓는다. */
+    val groups: List<RecordSongGroup>
+        get() {
+            val visible = instrument?.let { selected -> summaries.filter { songInstruments[it.songId] == selected } } ?: summaries
+            val q = query.trim()
+            return visible.groupBy(::groupKey)
+                .map { (key, songs) -> RecordSongGroup(key, songs.first().title, songs.sortedByDescending { it.lastStartedAt.minuteKey }) }
+                .filter { q.isEmpty() || it.title.contains(q) }
+                .sortedByTitle(nameOrder) { it.title }
         }
 
-    fun isOpen(songId: String): Boolean = opened?.contains(songId) ?: (groups.firstOrNull()?.songId == songId)
+    val showLoadStatus: Boolean get() = recordsAvailable && (loadFailed || summaries.isEmpty() && loading)
 
-    /** 이번 주(월~일) 기록 수와 최고 점수. 기록이 없으면 null. */
-    val thisWeek: Pair<Int, Int>?
-        get() = records.filter { it.recordedAt.isSameWeek(today) }.takeIf { it.isNotEmpty() }?.let { it.size to it.maxOf { r -> r.score } }
+    val openGroups: Set<String> get() = opened
 
-    fun toggle(songId: String): RecordListUiState {
-        val current = opened ?: groups.firstOrNull()?.let { setOf(it.songId) } ?: emptySet()
-        return copy(opened = if (songId in current) current - songId else current + songId)
+    /** 두 칸 배치에서 오른쪽에 보일 기록: 고른 기록, 없으면 방금 저장했거나 상세에서 연 기록. 처음에는 고른 기록이 없다. */
+    val selectedRecordId: String? get() = selectedId ?: linkedId
+
+    fun recordForDetail(recordId: String): PracticeRecord? =
+        pages.values.firstNotNullOfOrNull { page -> page.records.firstOrNull { it.id == recordId } }
+
+    fun isOpen(groupKey: String): Boolean = groupKey in openGroups
+
+    fun groupOf(songId: String): RecordSongGroup? = groups.firstOrNull { songId in it.songIds }
+
+    /** [songId]가 든 곡 묶음이 펼쳐져 있다. */
+    fun isSongOpen(songId: String): Boolean = groupOf(songId)?.let { isOpen(it.key) } == true
+
+    /**
+     * 곡 묶음의 기록을 최신순으로 합친다. 곡마다 페이지를 따로 받으므로, 다음 페이지가 남은 곡의 마지막 기록보다
+     * 오래된 기록은 그 사이 기록이 빠질 수 있어 더 받은 뒤에 보인다. 첫 페이지를 받지 못한 곡이 있으면 비어 있다.
+     */
+    fun records(group: RecordSongGroup): List<PracticeRecord> {
+        val loaded = group.songIds.mapNotNull { id -> pages[id]?.takeIf { it.loaded } }
+        if (loaded.size < group.songIds.size) return emptyList()
+        val ordered = loaded.flatMap { it.records }.distinctBy { it.id }
+            .sortedWith(compareByDescending<PracticeRecord> { it.recordedAtMillis }.thenByDescending { it.id })
+        val edge = loaded.filter { it.nextPage != null }.maxOfOrNull { it.records.last().recordedAtMillis } ?: return ordered
+        return ordered.filter { it.recordedAtMillis >= edge }
     }
+
+    fun days(group: RecordSongGroup): List<RecordDay> =
+        records(group).groupBy { it.recordedAt.epochDay }.map { (_, records) -> RecordDay(records.first().recordedAt, records) }
+
+    /** 직접 펼친 날짜가 없으면 맨 위 날짜와 방금 저장·상세에서 연 기록의 날짜를 펼친다. */
+    /** 곡 묶음을 펼치면 날짜도 모두 펼쳐져 있고, 직접 접은 날짜만 닫힌다. 더 받아 새로 생긴 날짜도 펼쳐진다. */
+    fun isDayOpen(group: RecordSongGroup, epochDay: Long): Boolean = epochDay !in closedDays[group.key].orEmpty()
+
+    val thisWeek: Pair<Int, Int>?
+        get() = week?.let { summary -> summary.bestScore?.let { summary.recordCount to it } }
 }
+
+/** 제목 앞뒤 공백만 정리한다. 제목이 비어 있으면 곡 ID로 따로 둔다. */
+private fun groupKey(song: RecordSongSummary): String = song.title.trim().ifEmpty { "#${song.songId}" }
+
+private val KoreanDateTime.minuteKey: Long get() = (epochDay * 24 + hour) * 60 + minute

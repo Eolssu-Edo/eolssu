@@ -10,7 +10,8 @@
 
     <!-- 재생 가능은 PRA-03과 같은 정의다. 기록을 지운 세션은 어느 조회에도 나오지 않는다 -->
     <sql id="recordColumns">
-        ps.id AS session_id, ps.song_id, s.title AS song_title, s.note_count, ps.score_version, ps.start_note_idx, ps.end_note_idx,
+        ps.id AS session_id, ps.song_id, COALESCE(v.title,s.title) AS song_title, COALESCE(v.note_count,s.note_count) AS note_count,
+        ps.score_version, ps.start_note_idx, ps.end_note_idx,
         ps.bpm, ps.bpm_unit, ps.status, ps.started_at, ps.recording_duration_ms, e.total_score, ps.saved_at, ps.memo,
         (ps.recording_url IS NOT NULL) AS recording_available, ps.viewed_at
     </sql>
@@ -19,25 +20,57 @@
         SELECT <include refid="recordColumns"/>
         FROM practice_sessions ps
         JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN song_score_versions v ON v.song_id = ps.song_id AND v.score_version = ps.score_version AND s.score_version &lt;&gt; ps.score_version
         LEFT JOIN evaluations e ON e.session_id = ps.id
         WHERE ps.id = #{sessionId} AND ps.user_id = #{userId} AND ps.record_deleted_at IS NULL
     </select>
 
     <!-- 저장은 DONE에서만 되므로 기록에는 평가가 있다 -->
     <select id="songSummaries" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.SongRecordSummaryRow">
-        SELECT ps.song_id, s.title, COUNT(*) AS record_count, MAX(ps.saved_at) AS last_saved_at, MAX(e.total_score) AS best_score
+        SELECT ps.song_id, s.title, COUNT(*) AS record_count, MAX(ps.saved_at) AS last_saved_at,
+               MAX(e.total_score) AS best_score, i.code AS instrument_code, MAX(ps.started_at) AS last_started_at
         FROM practice_sessions ps
         JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN instruments i ON i.id = s.instrument_id
         JOIN evaluations e ON e.session_id = ps.id
         WHERE ps.user_id = #{userId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
-        GROUP BY ps.song_id, s.title
+        GROUP BY ps.song_id, s.title, i.code
         ORDER BY last_saved_at DESC, ps.song_id DESC
+    </select>
+
+    <!-- (user_id, started_at)으로 최근 시각을 찾고, 그 시각의 행에서만 곡·세션 동률을 푼다. -->
+    <select id="latestSavedRecord" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.RecordSessionRow">
+        SELECT <include refid="recordColumns"/>
+        FROM practice_sessions ps
+        JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN song_score_versions v ON v.song_id = ps.song_id AND v.score_version = ps.score_version AND s.score_version &lt;&gt; ps.score_version
+        JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.user_id = #{userId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
+          AND ps.started_at = (
+              SELECT candidate.started_at
+              FROM practice_sessions candidate
+              JOIN evaluations candidate_eval ON candidate_eval.session_id = candidate.id
+              WHERE candidate.user_id = #{userId} AND candidate.saved_at IS NOT NULL AND candidate.record_deleted_at IS NULL
+              ORDER BY candidate.started_at DESC
+              LIMIT 1
+          )
+        ORDER BY ps.song_id DESC, ps.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="savedRecordWeek" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.SavedRecordWeekRow">
+        SELECT COUNT(*) AS record_count, MAX(e.total_score) AS best_score
+        FROM practice_sessions ps
+        JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.user_id = #{userId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
+          AND ps.started_at &gt;= #{from} AND ps.started_at &lt; #{until}
     </select>
 
     <select id="songRecords" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.RecordSessionRow">
         SELECT <include refid="recordColumns"/>
         FROM practice_sessions ps
         JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN song_score_versions v ON v.song_id = ps.song_id AND v.score_version = ps.score_version AND s.score_version &lt;&gt; ps.score_version
         JOIN evaluations e ON e.session_id = ps.id
         WHERE ps.user_id = #{userId} AND ps.song_id = #{songId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
         <choose>

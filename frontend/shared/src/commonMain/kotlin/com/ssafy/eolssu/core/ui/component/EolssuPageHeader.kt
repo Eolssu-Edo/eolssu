@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.core.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +50,7 @@ fun EolssuPageTopBar(
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
     maxWidth: Dp = CompactContentMaxWidth,
+    divider: Boolean = true,
     right: @Composable RowScope.() -> Unit = {},
 ) {
     Column(modifier.fillMaxWidth()) {
@@ -74,7 +76,7 @@ fun EolssuPageTopBar(
                 )
             }
         }
-        HorizontalDivider(color = EolssuTheme.colors.surfaceStrong)
+        if (divider) HorizontalDivider(color = EolssuTheme.colors.surfaceStrong)
     }
 }
 
@@ -114,7 +116,7 @@ private val PageButtonInset: Dp = 6.dp
 
 /**
  * [EolssuPageTopBar]의 원형 버튼(`.back-btn`): 흰 바탕 · 옅은 테두리 36dp 원, 누르는 영역 48dp.
- * [enabled]가 false면 바탕 회색 · 흐린 아이콘(연주 중 잠긴 설정)이다.
+ * [enabled]가 false면 바탕 회색 · 흐린 아이콘(연주 중 잠긴 설정)이다. [bordered]가 false면 테두리 없는 흰 원이다.
  */
 @Composable
 fun EolssuPageIconButton(
@@ -123,6 +125,7 @@ fun EolssuPageIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    bordered: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
     Box(
@@ -136,7 +139,7 @@ fun EolssuPageIconButton(
             Modifier
                 .size(36.dp)
                 .background(if (enabled) colors.surface else colors.background, CircleShape)
-                .border(1.dp, colors.lineSoft, CircleShape),
+                .then(if (bordered) Modifier.border(1.dp, colors.lineSoft, CircleShape) else Modifier),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription, Modifier.size(18.dp), tint = if (enabled) colors.text else colors.textDisabled)
@@ -156,12 +159,20 @@ fun PageHeading(
     intro: String? = null,
     /** 연습 화면의 ‘운지법과 함께 보기’처럼 자리를 아끼는 22sp 제목(보드 `.paged-fingering .page-title`). */
     compact: Boolean = false,
+    /**
+     * 곡 제목처럼 줄바꿈하면 안 되는 제목(S15P31E102-730): 한 줄로 고정하고, 다 들어가지 않을 때만 왼쪽으로 흘려 끝까지 보인다.
+     * 끝에 닿으면 처음부터 다시 흘리고, 다 들어가면 움직이지 않는다.
+     */
+    singleLine: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     Column(modifier) {
         Text(
             title,
-            modifier = Modifier.semantics { heading() },
+            modifier = Modifier.semantics { heading() }
+                .then(if (singleLine) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier),
+            maxLines = if (singleLine) 1 else Int.MAX_VALUE,
+            softWrap = !singleLine,
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontSize = if (compact) 22.sp else 25.sp,
                 lineHeight = if (compact) 33.sp else 37.5.sp,

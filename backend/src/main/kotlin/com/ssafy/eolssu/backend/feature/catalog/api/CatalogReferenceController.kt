@@ -32,6 +32,13 @@ class CatalogReferenceController(
             it.rangeLowPitchId.toString(), it.rangeHighPitchId.toString()) },
     ))
 
+    @GetMapping("/instruments/{instrumentId}/authoring-capabilities")
+    fun authoringCapabilities(@PathVariable instrumentId: String): ResponseEntity<*> {
+        val id = positiveId(instrumentId) ?: return invalidRequest()
+        val capabilities = queries.authoringCapabilities(id) ?: return notFound()
+        return success("악보 작성 지원음 조회 성공", capabilities)
+    }
+
     @GetMapping("/pitches")
     fun pitches(@RequestParam(required = false) instrumentId: String?): ResponseEntity<*> {
         val id = instrumentId?.let { positiveId(it) ?: return invalidRequest() }
@@ -53,7 +60,7 @@ class CatalogReferenceController(
 
     @GetMapping("/jangdans")
     fun jangdans() = SuccessResponse.of(HttpStatus.OK, "장단 목록 조회 성공", JangdanListResult(queries.jangdans().map {
-        JangdanItem(it.id.toString(), it.name, it.defaultBpm, it.bpmUnit, it.pattern.beats.size, it.pattern.group.size)
+        JangdanItem(it.id.toString(), it.name, it.defaultBpm, it.bpmUnit, it.pattern.beats.size, it.pattern.group.size, it.patternCellEighths)
     }))
 
     @GetMapping("/jangdans/{jangdanId}")
@@ -112,7 +119,7 @@ class CatalogReferenceController(
             source, "음원: 국립국악원 국악기 디지털 음원 장구 단음(공공누리 제1유형)을 편집한 미리듣기",
         ).joinToString("\n")
         return JangdanDetailResult(
-            id.toString(), name, defaultBpm, bpmUnit, JangdanPatternResult(pattern.beats, pattern.group), attributedSource, soundUrl,
+            id.toString(), name, defaultBpm, bpmUnit, JangdanPatternResult(pattern.beats, pattern.group), attributedSource, soundUrl, patternCellEighths,
         )
     }
 }
@@ -128,9 +135,9 @@ data class FingeringItem(val fingeringId: String, val instrumentId: String, val 
     val imageUrl: String?, val description: String?, val pattern: FingeringPattern?)
 data class JangdanListResult(val items: List<JangdanItem>)
 data class JangdanItem(val jangdanId: String, val name: String, val defaultBpm: Int, val bpmUnit: String,
-    val beatCount: Int, val groupCount: Int)
+    val beatCount: Int, val groupCount: Int, val patternCellEighths: Int?)
 data class JangdanDetailResult(val jangdanId: String, val name: String, val defaultBpm: Int, val bpmUnit: String,
-    val pattern: JangdanPatternResult, val source: String?, val soundUrl: String?)
+    val pattern: JangdanPatternResult, val source: String?, val soundUrl: String?, val patternCellEighths: Int?)
 data class JangdanPatternResult(val beats: List<String>, val group: List<Int>)
 data class NotationSymbolListResult(val items: List<NotationSymbolItem>)
 data class NotationSymbolItem(val symbolId: String, val symbol: String, val name: String, val description: String,

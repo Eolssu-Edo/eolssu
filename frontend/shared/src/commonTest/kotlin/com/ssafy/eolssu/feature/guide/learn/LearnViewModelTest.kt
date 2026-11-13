@@ -3,7 +3,6 @@ package com.ssafy.eolssu.feature.guide.learn
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.user.LearnProgressRepository
-import com.ssafy.eolssu.testing.CatalogSongs
 import com.ssafy.eolssu.testing.CatalogViewModelTest
 import com.ssafy.eolssu.testing.FakeLessonApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,7 +21,7 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
     private val api = FakeLessonApi()
     private val store = FakeKeyValueStore()
 
-    private fun model() = keep(LearnViewModel(CatalogSongs(), LearnProgressRepository(api, store)))
+    private fun model() = keep(LearnViewModel(LearnProgressRepository(api, store)))
 
     @Test
     fun loadsServerStagesAndDoneMarksForStartingInstrument() = runTest {
@@ -32,8 +31,8 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
         runCurrent()
 
         val state = model.uiState.value
-        assertEquals((1..9).toList(), state.stages.map { it.number })
-        assertEquals(listOf(9), state.stages.filter { it.optional }.map { it.number })
+        assertEquals((1..7).toList(), state.stages.map { it.number })
+        assertTrue(state.stages.none { it.optional })
         assertEquals(setOf(1), state.doneStages)
         assertEquals(2, state.nextStage?.number)
     }
@@ -95,6 +94,23 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
         assertEquals(calls, api.completionCalls.size)
     }
 
+    /** 마지막 단계를 마치면 완료로 남기고 그 단계 카드를 펼친 채 결승 축하를 한 번 보인다(S15P31E102-688). */
+    @Test
+    fun finishingTrackMarksLastStageAndCelebratesOnce() = runTest {
+        val model = model()
+        runCurrent()
+        model.finishTrack(7)
+        val state = model.uiState.value
+        assertTrue(state.isDone(7))
+        assertEquals(7, state.cardStage)
+        assertTrue(state.finishCelebration)
+        runCurrent()
+        assertEquals(setOf(7), api.doneSeqs("danso"))
+
+        model.endFinishCelebration()
+        assertFalse(model.uiState.value.finishCelebration)
+    }
+
     @Test
     fun failedMarkIsRevertedAndReported() = runTest {
         val model = model()
@@ -125,6 +141,18 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
         assertEquals(setOf(2), model.uiState.value.doneStages)
         assertEquals(setOf(2), api.doneSeqs("danso"))
         assertEquals(LearnSaveError.Reset, model.uiState.value.saveError)
+    }
+
+    /** 단계 안 할 일 진행은 다시 열어도 남고, '처음부터 다시 하기'로 함께 지운다(S15P31E102-749). */
+    @Test
+    fun stepsDoneSurviveReopeningAndResetClearsThem() = runTest {
+        val model = model()
+        runCurrent()
+        model.saveStepsDone(3, 2)
+        assertEquals(2, model().stepsDone(3))
+
+        model.resetDone()
+        assertEquals(0, model.stepsDone(3))
     }
 
     @Test
@@ -159,19 +187,19 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
         assertEquals(LearnDetailLoad.Loading, model.uiState.value.detail(42))
     }
 
-    /** 연주 결과 화면이 8단계를 완료로 남기면(S15P31E102-611) 뒤에 남아 있던 학습 화면도 로딩 표시 없이 완료를 보인다. */
+    /** 다른 화면이 완료를 남기면 뒤에 남아 있던 학습 화면도 로딩 표시 없이 완료를 보인다. */
     @Test
     fun completionSavedElsewhereIsShownWithoutReloadingUi() = runTest {
         val repository = LearnProgressRepository(api, store)
-        val model = keep(LearnViewModel(CatalogSongs(), repository))
+        val model = keep(LearnViewModel(repository))
         runCurrent()
-        assertFalse(8 in model.uiState.value.doneStages)
+        assertFalse(7 in model.uiState.value.doneStages)
 
-        repository.setCompleted(api.id("danso", 8), true)
+        repository.setCompleted(api.id("danso", 7), true)
         assertIs<LearnTrackLoad.Loaded>(model.uiState.value.track)
         runCurrent()
 
-        assertTrue(8 in model.uiState.value.doneStages)
+        assertTrue(7 in model.uiState.value.doneStages)
         assertIs<LearnTrackLoad.Loaded>(model.uiState.value.track)
     }
 
@@ -179,7 +207,7 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
     @Test
     fun ownMarkStaysAfterRefresh() = runTest {
         val repository = LearnProgressRepository(api, store)
-        val model = keep(LearnViewModel(CatalogSongs(), repository))
+        val model = keep(LearnViewModel(repository))
         runCurrent()
         model.toggleDone(3)
         runCurrent()

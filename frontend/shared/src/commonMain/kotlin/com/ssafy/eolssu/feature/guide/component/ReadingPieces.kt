@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -86,7 +87,6 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.score.ComposedGlyph
 import com.ssafy.eolssu.feature.guide.BasicSigimsae
-import com.ssafy.eolssu.feature.guide.BasicSigimsaeCount
 import com.ssafy.eolssu.feature.guide.MoreSigimsae
 import com.ssafy.eolssu.feature.guide.SigimsaeItem
 import com.ssafy.eolssu.feature.guide.SigimsaeSymbol
@@ -110,7 +110,6 @@ import eolssu.shared.generated.resources.guide_reading_length_cap_split
 import eolssu.shared.generated.resources.guide_reading_length_key
 import eolssu.shared.generated.resources.guide_reading_length_lead
 import eolssu.shared.generated.resources.reading_length_listen_hint
-import eolssu.shared.generated.resources.reading_pitch_listen_hint
 import eolssu.shared.generated.resources.guide_reading_pitch_axis_high
 import eolssu.shared.generated.resources.guide_reading_pitch_axis_low
 import eolssu.shared.generated.resources.guide_reading_pitch_base
@@ -125,8 +124,6 @@ import eolssu.shared.generated.resources.guide_reading_pitch_low
 import eolssu.shared.generated.resources.guide_reading_pitch_low_gloss
 import eolssu.shared.generated.resources.guide_reading_pitch_low_term
 import eolssu.shared.generated.resources.guide_sigimsae_basic
-import eolssu.shared.generated.resources.guide_sigimsae_tap_basic
-import eolssu.shared.generated.resources.guide_sigimsae_tap_more
 import eolssu.shared.generated.resources.guide_sigimsae_tip_closed
 import eolssu.shared.generated.resources.guide_sigimsae_tip_open
 import org.jetbrains.compose.resources.DrawableResource
@@ -144,7 +141,7 @@ internal val GuideFaint = Color(0xFFB9B3A6)
 
 /**
  * 설명 카드(`.gcard`): 흰 바탕에 옅은 테두리. [mark]가 있으면 연두 원 표시와 [title]을,
- * [small]이 있으면 그 옆에 작은 회색 글을 단다.
+ * [small]이 있으면 그 옆에 작은 회색 글을 단다. 카드가 내용보다 높으면 [verticalArrangement]대로 내용을 놓는다.
  */
 @Composable
 internal fun GuideCard(
@@ -152,6 +149,7 @@ internal fun GuideCard(
     mark: String? = null,
     title: String? = null,
     small: String? = null,
+    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = EolssuTheme.colors
@@ -161,8 +159,8 @@ internal fun GuideCard(
             .fillMaxWidth()
             .clip(shape)
             .background(colors.surface)
-            .border(1.dp, colors.lineSoft, shape)
             .padding(horizontal = 14.dp, vertical = 16.dp),
+        verticalArrangement = verticalArrangement,
     ) {
         if (title != null) {
             Row(Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -302,16 +300,19 @@ private class FigurePolicy(private val maxWidth: Dp, private val ratio: Float) :
 
 /* ───────── 정간보란 ───────── */
 
-/** 정간보란: 큰 井의 네 획을 3×3 칸 선 위에 겹쳐, 井 가운데 연두 네모가 곧 한 칸(정간)임을 보여 준다. 아래에 범례. */
+/**
+ * 정간보란: 큰 井의 네 획을 3×3 칸 선 위에 겹쳐, 井 가운데 연두 네모가 곧 한 칸(정간)임을 보여 준다. 아래에 범례.
+ * [figureMaxWidth]는 井 그림의 최대 너비다. 휴대폰 책은 카드 높이를 맞춰 남는 자리에 그림을 키운다.
+ */
 @Composable
-internal fun ReadIntro() {
+internal fun ReadIntro(figureMaxWidth: Dp = 170.dp) {
     val colors = EolssuTheme.colors
     val serif = EolssuTheme.serif.yul
     PageLead(stringResource(Res.string.guide_reading_intro_lead))
     Figure(
         width = 152f,
         height = 144f,
-        maxWidth = 170.dp,
+        maxWidth = figureMaxWidth,
         description = stringResource(Res.string.guide_reading_intro_figure),
         modifier = Modifier.padding(bottom = 14.dp),
     ) {
@@ -648,13 +649,6 @@ internal fun PitchSteps(audio: ReadingAudioState, onPlayAudio: (ReadingAudioClip
         color = colors.textMuted,
         textAlign = TextAlign.Center,
     )
-    Text(
-        stringResource(Res.string.reading_pitch_listen_hint),
-        Modifier.fillMaxWidth().padding(top = 6.dp),
-        style = MaterialTheme.typography.bodySmall,
-        color = colors.textMuted,
-        textAlign = TextAlign.Center,
-    )
     ReadingAudioError(audio, ReadingPitchClips)
 }
 
@@ -732,8 +726,7 @@ internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier, columns: Int = 1,
     var refocus by remember { mutableStateOf<Int?>(null) }
     val rows = remember { List(BasicSigimsaeEntries.size) { FocusRequester() } }
     Column(modifier.fillMaxWidth()) {
-        CountTitle(stringResource(Res.string.guide_sigimsae_basic), BasicSigimsaeCount, 15.sp)
-        TapHint(stringResource(Res.string.guide_sigimsae_tap_basic), Modifier.padding(top = 4.dp))
+        SectionTitle(stringResource(Res.string.guide_sigimsae_basic), 15.sp)
         var start = 0
         BasicSigimsae.forEach { group ->
             val first = start
@@ -767,26 +760,15 @@ internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier, columns: Int = 1,
     }
 }
 
-/** 개수를 단 제목. 처음 배우는 시김새(`.sig-head`)는 검은 글자, 더 많은 시김새의 무리(`.sig-sub`)는 회색 글자다. */
+/** 묶음 제목. 처음 배우는 시김새(`.sig-head`)는 검은 글자, 더 많은 시김새의 무리(`.sig-sub`)는 회색 글자다. 기호 개수는 달지 않는다(QA). */
 @Composable
-private fun CountTitle(title: String, count: Int, fontSize: TextUnit, modifier: Modifier = Modifier, color: Color = EolssuTheme.colors.text) {
-    val muted = EolssuTheme.colors.textMuted
+private fun SectionTitle(title: String, fontSize: TextUnit, modifier: Modifier = Modifier, color: Color = EolssuTheme.colors.text) {
     Text(
-        buildAnnotatedString {
-            append(title)
-            append(' ')
-            withStyle(SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = muted)) { append("$count") }
-        },
+        title,
         modifier,
         color = color,
         style = MaterialTheme.typography.titleSmall.copy(fontSize = fontSize, fontWeight = FontWeight.Bold),
     )
-}
-
-/** 누르는 법 안내(`.sig-tap`). */
-@Composable
-private fun TapHint(text: String, modifier: Modifier = Modifier) {
-    Text(text, modifier, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp), color = EolssuTheme.colors.textMuted)
 }
 
 /**
@@ -843,12 +825,11 @@ private fun SigimsaeRow(
 @Composable
 internal fun SigimsaeMorePage(selected: Int?, onSelect: (Int?) -> Unit, columns: Int, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Column(modifier.fillMaxWidth()) {
-        TapHint(stringResource(Res.string.guide_sigimsae_tap_more))
         var start = 0
         MoreSigimsae.forEachIndexed { g, group ->
             val first = start
             start += group.symbols.size
-            CountTitle(group.title, group.symbols.size, 13.sp, Modifier.padding(top = if (g == 0) 12.dp else 16.dp), color = EolssuTheme.colors.textMuted)
+            SectionTitle(group.title, 13.sp, Modifier.padding(top = if (g == 0) 0.dp else 16.dp), color = EolssuTheme.colors.textMuted)
             Column(Modifier.padding(top = 8.dp)) {
                 group.symbols.chunked(columns).forEachIndexed { r, row ->
                     if (r > 0) Spacer(Modifier.height(12.dp))
@@ -874,7 +855,14 @@ private fun SigimsaeTile(symbol: SigimsaeSymbol, on: Boolean, enabled: Boolean, 
     val shape = RoundedCornerShape(12.dp)
     Column(
         modifier
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            // 고른 칸은 녹색 테두리로만 보인다. 누르는 동안의 회색 반응 박스는 그리지 않는다(QA)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            )
             .semantics { stateDescription = state },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),

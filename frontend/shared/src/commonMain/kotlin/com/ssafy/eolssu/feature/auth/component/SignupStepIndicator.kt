@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.feature.auth.SignupPath
 import com.ssafy.eolssu.feature.auth.SignupProgress
 import com.ssafy.eolssu.feature.auth.SignupStep
 import com.ssafy.eolssu.feature.auth.SignupStepEntry
@@ -52,8 +53,6 @@ import com.ssafy.eolssu.feature.auth.SignupStepStatus
 import com.ssafy.eolssu.feature.auth.SignupStepTransitions
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_signup_step_next
-import eolssu.shared.generated.resources.auth_signup_step_progress_description
-import eolssu.shared.generated.resources.auth_signup_title
 import eolssu.shared.generated.resources.practice_beat_janggu
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -62,14 +61,15 @@ import kotlin.math.abs
 import kotlin.math.sin
 
 /**
- * 회원가입 각 단계 화면의 공통 머리: 상단 바(제목 '회원가입', 오른쪽 `n / N`)와 그 아래 [SignupStepIndicator].
- * 단계는 화면이 넘기는 [progress]로만 정하므로, 앞뒤로 이동하거나 다시 방문해도 떠 있는 화면과 표시가 같다.
+ * 회원가입·비밀번호 찾기 각 단계 화면의 공통 머리: 상단 바(제목은 경로의 [SignupPath.title], 오른쪽 `n / N`)와
+ * 그 아래 [SignupStepIndicator]. 단계는 화면이 넘기는 [progress]로만 정하므로, 앞뒤로 이동하거나 다시 방문해도
+ * 떠 있는 화면과 표시가 같다.
  */
 @Composable
 fun SignupTopBar(progress: SignupProgress, onBack: () -> Unit) {
     Column {
         AuthTopBar(
-            stringResource(Res.string.auth_signup_title),
+            stringResource(progress.path.title),
             onBack = onBack,
             right = { AuthStepLabel(progress.number, progress.total) },
         )
@@ -84,7 +84,7 @@ fun SignupTopBar(progress: SignupProgress, onBack: () -> Unit) {
  * - 다음 단계로 가면 장구가 앞 점에서 새 점으로 미끄러지며 선을 채우고(뒤로 가기는 반대로), 도착하면 붉은 고리가 퍼진다.
  *   출발점은 [transitions]가 기억한 직전 단계다. 직전 단계를 모르면(가입 시작·앱 재시작·새로고침) 움직이지 않고 도착 표시만 한다.
  * 점 아래 단계명은 휴대폰에서 지금 단계와 다음 단계만, 태블릿에서 점마다 보인다. 한 줄로 두고 넘치면 말줄임한다.
- * 화면 읽기 프로그램은 '회원가입 4단계 중 2단계, 이메일 인증'처럼 한 번에 읽는다.
+ * 화면 읽기 프로그램은 '회원가입 4단계 중 2단계, 이메일 인증'처럼 경로의 [SignupPath.progressDescription]으로 한 번에 읽는다.
  */
 @Composable
 fun SignupStepIndicator(
@@ -95,7 +95,7 @@ fun SignupStepIndicator(
     val frame = LocalAuthFrame.current
     val colors = EolssuTheme.colors
     val description = stringResource(
-        Res.string.auth_signup_step_progress_description,
+        progress.path.progressDescription,
         progress.number,
         progress.total,
         stringResource(progress.current.label),
@@ -120,7 +120,7 @@ fun SignupStepIndicator(
         janggu = colors.rec,
         doneNode = colors.play,
         upcomingNode = colors.line,
-        nodeFill = colors.background,
+        nodeFill = colors.surface,
     )
     Box(modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Column(

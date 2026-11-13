@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.feature.practice.LivePitchMark
@@ -35,6 +36,7 @@ internal fun PracticeExpandedLayout(
 ) {
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
+        containerColor = EolssuTheme.colors.groupedBackground,
         contentMaxWidth = WindowBreakpoints.ContentMaxWidth + SideGutter * 2,
         topBar = {
             // 상단 바 안쪽 여백(20dp)과 합쳐 내용 양옆이 40dp 이상, 내용 너비는 최대 1120dp가 되게 한다.

@@ -1,5 +1,10 @@
 package com.ssafy.eolssu.feature.song.component
 
+import org.jetbrains.compose.resources.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +33,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.seal_brush
 import eolssu.shared.generated.resources.song_cover_seal
 import eolssu.shared.generated.resources.song_preview_label
 import org.jetbrains.compose.resources.stringResource
@@ -37,14 +43,13 @@ private const val TitleFitChars = 5
 
 private val CoverColumnGap: Dp = 4.dp
 
-private const val SealLineRatio = 1.2f
 
 /** 표지 각 너비 상한(보드 태블릿 연습 악보 `.ms-col` 96px). */
 private val CoverMaxColumnWidth: Dp = 96.dp
 
 /**
  * SONG-02 악보 표지(`.score-cover`): 흰 카드 왼쪽에 앞 [columns]각 · 각마다 [rows]정간의 미니 정간보,
- * 오른쪽 위에 Song Myung 세로 제목, 오른쪽 아래에 붉은 '얼쑤' 도장.
+ * 오른쪽 위에 세로 제목, 그 바로 아래에 붉은 바탕 · 흰 붓글씨 '얼쑤' 도장(S15P31E102-768, 제목과 겹치지 않게 제목 아래에 붙인다).
  * 정간보는 카드 안쪽 너비의 [scoreFraction]만 쓰고 각 너비를 그에 맞춘다. 정간 그리기는 `core/ui/score`를 그대로 쓴다.
  * [large]는 태블릿(제목 36sp, 정간 46dp)이다.
  */
@@ -62,11 +67,11 @@ internal fun SongScoreCover(
     val previewLabel = stringResource(Res.string.song_preview_label)
     val titleChars = song.title.filterNot { it.isWhitespace() }
     val titleSize = fittedTitleSize(titleChars.length, if (large) 36.sp else 30.sp)
-    val sealSize = if (large) 13.sp else 11.sp
-    // 악보가 짧아도 세로 제목(위 25dp)과 도장(아래 22dp)이 겹치지 않도록 표지 높이의 하한을 둔다.
+    val sealSize = if (large) 20.sp else 17.sp
+    // 악보가 짧아도 세로 제목(위 25dp)과 그 아래 도장이 표지 안에 들어오도록 높이의 하한을 둔다.
     val minHeight = with(LocalDensity.current) {
         25.dp + titleSize.toDp() * titleChars.length + 7.dp * (titleChars.length - 1).coerceAtLeast(0) +
-            12.dp + (sealSize * SealLineRatio).toDp() + 8.dp + 22.dp
+            14.dp + sealSize.toDp() + 10.dp + 22.dp
     }
     Box(
         modifier
@@ -99,21 +104,33 @@ internal fun SongScoreCover(
                 maxRows = rows,
             )
         }
-        VerticalTitle(
-            titleChars,
-            titleSize,
-            Modifier.align(Alignment.TopEnd).padding(top = 25.dp, end = 24.dp),
-        )
+        Column(
+            Modifier.align(Alignment.TopEnd).padding(top = 25.dp, end = 24.dp, bottom = 22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            VerticalTitle(titleChars, titleSize, Modifier)
+            CoverSeal(sealSize)
+        }
+    }
+}
+
+/** 붉은 낙관: 붉은 바탕(모서리 3dp)에 앱 붓글씨 로고 '얼쑤'를 흰색으로 새긴다. 장식이라 읽지 않는다. */
+@Composable
+private fun CoverSeal(size: TextUnit) {
+    // 나눔손글씨 붓(OFL)에서 '얼쑤' 두 글자만 남긴 4.5KB 글꼴이라 불러오기 부담이 없다(S15P31E102-768).
+    val brush = FontFamily(Font(Res.font.seal_brush))
+    Box(
+        Modifier
+            .rotate(-4f)
+            .background(EolssuTheme.colors.rec, RoundedCornerShape(3.dp))
+            .padding(horizontal = 5.dp, vertical = 5.dp)
+            .clearAndSetSemantics {},
+    ) {
         Text(
             stringResource(Res.string.song_cover_seal),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 29.dp, bottom = 22.dp)
-                .border(1.dp, colors.rec)
-                .padding(horizontal = 4.dp, vertical = 3.dp)
-                .clearAndSetSemantics {},
-            style = EolssuTheme.serif.songTitle.copy(fontSize = sealSize, lineHeight = sealSize * SealLineRatio),
-            color = colors.rec,
+            style = TextStyle(fontFamily = brush, fontSize = size, lineHeight = size, color = Color.White),
+            maxLines = 1,
         )
     }
 }

@@ -28,6 +28,7 @@ data class CatalogFingering(
 data class CatalogJangdan(
     val id: Long, val name: String, val defaultBpm: Int, val bpmUnit: String,
     val pattern: CatalogJangdanPattern, val source: String?,
+    val patternCellEighths: Int? = null,
 )
 
 data class CatalogJangdanPattern(val beats: List<String>, val group: List<Int>) {

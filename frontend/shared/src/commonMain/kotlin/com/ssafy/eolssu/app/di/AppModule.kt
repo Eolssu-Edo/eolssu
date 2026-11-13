@@ -64,7 +64,6 @@ import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.HttpLessonApi
 import com.ssafy.eolssu.data.user.LearnProgressRepository
-import com.ssafy.eolssu.data.user.LearnSongStage
 import com.ssafy.eolssu.data.user.LessonApi
 import com.ssafy.eolssu.data.user.OAuthAttempts
 import com.ssafy.eolssu.data.user.LoginPreferences
@@ -80,12 +79,15 @@ import com.ssafy.eolssu.feature.auth.AccountLinkViewModel
 import com.ssafy.eolssu.feature.auth.ConsentViewModel
 import com.ssafy.eolssu.feature.auth.OAuthViewModel
 import com.ssafy.eolssu.feature.auth.TermsViewModel
+import com.ssafy.eolssu.data.user.PublishedLegalDocument
+import com.ssafy.eolssu.feature.profile.LegalDocumentViewModel
 import com.ssafy.eolssu.feature.auth.EmailVerificationViewModel
 import com.ssafy.eolssu.feature.auth.LoginViewModel
 import com.ssafy.eolssu.feature.auth.PasswordSetupViewModel
 import com.ssafy.eolssu.feature.auth.ProfileSetupViewModel
 import com.ssafy.eolssu.feature.profile.MyPageViewModel
 import com.ssafy.eolssu.feature.profile.NicknameEditViewModel
+import com.ssafy.eolssu.feature.profile.ProfileImageViewModel
 import com.ssafy.eolssu.feature.profile.PasswordChangeViewModel
 import com.ssafy.eolssu.feature.profile.SocialLinkViewModel
 import com.ssafy.eolssu.feature.profile.WithdrawViewModel
@@ -111,9 +113,8 @@ import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.data.practice.ApiWeakSectionRepository
 import com.ssafy.eolssu.data.practice.WeakSectionRepository
 import com.ssafy.eolssu.feature.history.CompareViewModel
-import com.ssafy.eolssu.feature.practice.SectionLoopViewModel
+import com.ssafy.eolssu.feature.practice.SectionEvaluationSource
 import com.ssafy.eolssu.feature.practice.SectionSelectViewModel
-import com.ssafy.eolssu.feature.result.ResultErrorsViewModel
 import com.ssafy.eolssu.feature.result.SectionResultViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -129,8 +130,8 @@ val appModule = module {
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>()) }
     single { SignedInMember(get()) }
-    single<SongRepository> { ApiSongRepository(get()) }
-    single<ModelAudioRepository> { ApiModelAudioRepository(get()) }
+    single<SongRepository> { ApiSongRepository(get(), get()) }
+    single<ModelAudioRepository> { ApiModelAudioRepository(get(), getOrNull()) }
     single { SheetPracticeRepository(get(), get(), get(), get(), get(), get(), get()) }
     single { InstrumentCatalog(get()) }
     single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
@@ -158,10 +159,15 @@ val appModule = module {
     viewModel { parameters ->
         val (songId: String, solo: Boolean, mine: Boolean, learn: Boolean, perf: PerformanceVisit?) = parameters
         val direct: Boolean = parameters[5]
+        // 일곱째 인자: 구간 연습의 구간(S15P31E102-794). 없으면 빈 목록.
+        val initialSection = (parameters.values.getOrNull(6) as? List<*>)?.firstOrNull() as? ScoreSection
+        // 여덟째 인자: 구간 재평가의 바탕 세션(S15P31E102-824). 있으면 곡 대신 그 세션의 악보로 구간만 평가한다.
+        val sectionSource = (parameters.values.getOrNull(7) as? String)?.let { SectionEvaluationSource(it, get()) }
         val personalPractice = if (mine) get<SheetPracticeRepository>() else null
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
             modelAudioRepository = personalPractice ?: get<ModelAudioRepository>(), audioPlayer = get(), mine = mine, learn = learn, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
-            notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf, personalAudio = personalPractice, direct = direct)
+            notePractice = get(), loadPersonalSheet = personalPractice?.let { it::load }, perf = perf, personalAudio = personalPractice, direct = direct,
+            initialSection = initialSection, sectionSource = sectionSource)
     }
     viewModel { parameters ->
         val (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) = parameters
@@ -170,23 +176,16 @@ val appModule = module {
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
         AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get(), get(), section, initialSong, perf)
     }
-    // 곡 전체 결과로 기초부터 배우기 8단계 통과를 판정한다(S15P31E102-611). 곡의 서버 악기 ID는 악기 목록에서 code로 바꾼다.
-    single {
-        val catalog = get<InstrumentCatalog>()
-        LearnSongStage(get()) { id -> catalog.load().firstOrNull { it.instrumentId == id }?.code }
-    }
     viewModel { (evaluationId: String, initialSong: Song?, perf: PerformanceVisit?) ->
-        ResultViewModel(evaluationId, get(), get(), get(), get(), judgeLearnSong = get<LearnSongStage>()::judge,
-            learnTrackOf = get<LearnSongStage>()::trackOf, initialSong = initialSong, perf = perf)
+        ResultViewModel(evaluationId, get(), get(), get(), get(), initialSong = initialSong, perf = perf, weakSections = get())
     }
     viewModel { (justSavedId: String?, perf: PerformanceVisit?) -> RecordListViewModel(justSavedId, get(), get(), get(), songs = get(), perf = perf) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
-    viewModel { GrowthViewModel(get(), get(), get(), get()) }
+    viewModel { GrowthViewModel(get(), get(), get()) }
 
     // 운지법 보기·기초부터 배우기
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
-    // 8단계 곡은 배우는 악기의 악보로 고른다. 곡의 서버 악기 ID는 악기 목록에서 code로 바꾼다.
-    viewModel { LearnViewModel(get(), get(), get(), instrumentCodes = { get<InstrumentCatalog>().load().associate { it.instrumentId to it.code } }) }
+    viewModel { LearnViewModel(get(), get()) }
     // 단계 연습은 녹음기로 소리 크기만 잰다. 녹음기·마이크 권한이 없는 플랫폼은 스스로 확인만 한다.
     viewModel { (stage: Int) ->
         val catalog = get<InstrumentCatalog>()
@@ -203,6 +202,7 @@ val appModule = module {
     single { TermsRepository(get()) }
     viewModelOf(::ConsentViewModel)
     viewModel { (termId: String) -> TermsViewModel(termId, get()) }
+    viewModel { (document: PublishedLegalDocument) -> LegalDocumentViewModel(document, get()) }
     // 아이디 기억하기·자동 로그인 선택. 회원이 바뀌면 자동 로그인 표시를 지우므로 앱 시작 때 만든다(App).
     single { LoginPreferences(get(), getOrNull(), get()) }
     viewModel { LoginViewModel(get(), get(), get(), get()) }
@@ -220,6 +220,7 @@ val appModule = module {
     single<UserRepository> { ApiUserRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
     viewModelOf(::MyPageViewModel)
     viewModelOf(::NicknameEditViewModel)
+    viewModelOf(::ProfileImageViewModel)
     viewModelOf(::PasswordChangeViewModel)
     viewModel { WithdrawViewModel(get(), get(), get(), getOrNull(), getOrNull(), get()) }
     viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull(), get()) }
@@ -238,15 +239,11 @@ val appModule = module {
 
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
     single<WeakSectionRepository> { ApiWeakSectionRepository(get(), get(), get(), get(), get()) }
-    viewModel { (sourceId: String, perf: PerformanceVisit?) ->
-        ResultErrorsViewModel(sourceId, get(), loadInstruments = get<InstrumentCatalog>()::load, member = get(), perf = perf)
-    }
     viewModel { (sourceId: String, perf: PerformanceVisit?) -> SectionSelectViewModel(sourceId, get(), perf) }
-    viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int, perf: PerformanceVisit?) ->
-        SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull(), settingsStore = get(), perf = perf)
+    viewModel { (sessionId: String, perf: PerformanceVisit?) ->
+        SectionResultViewModel(sessionId, get(), perf, recordRepository = get(), member = get())
     }
-    viewModel { (sessionId: String, perf: PerformanceVisit?) -> SectionResultViewModel(sessionId, get(), perf) }
-    viewModel { (recordId: String) -> CompareViewModel(recordId, get()) }
+    viewModel { (recordId: String, previousId: String?) -> CompareViewModel(recordId, get(), previousId) }
     // 악보 추가·편집(2차). 인식·저장 API를 붙이기 전이라 예시 악보로 화면 흐름만 다룬다.
     viewModelOf(::EditNewViewModel)
     viewModel { EditPickViewModel(get(), get(), documents = get(), copies = get(), member = get()) }

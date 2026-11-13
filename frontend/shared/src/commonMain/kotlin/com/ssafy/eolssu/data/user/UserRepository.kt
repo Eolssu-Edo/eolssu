@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.user
 
+import com.ssafy.eolssu.core.model.ProfileImage
 import com.ssafy.eolssu.core.model.SocialProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +18,7 @@ data class UserProfile(
     val instrumentId: String? = null,
     val notationMode: String? = null,
     val hasPassword: Boolean? = null,
+    val profileImage: ProfileImage = ProfileImage.Hello,
 )
 
 /**
@@ -49,6 +51,9 @@ interface UserRepository {
     suspend fun changeNickname(nickname: String): MemberResult
 
     suspend fun changeInstrument(instrumentId: String): MemberResult = MemberResult.Unavailable
+
+    /** 프로필 그림을 바꾼다. 서버가 받아들인 그림만 [profile]에 반영한다. */
+    suspend fun changeProfileImage(image: ProfileImage): MemberResult = MemberResult.Unavailable
 
     /** 마이페이지 연결 start. 받은 제공자 주소를 외부 브라우저로 연다. */
     suspend fun startLink(provider: SocialProvider): OAuthStartResult = OAuthStartResult.Unavailable
@@ -89,6 +94,8 @@ class SampleUserRepository : UserRepository {
     override val profile: StateFlow<UserProfile> = _profile.asStateFlow()
 
     override suspend fun changeNickname(nickname: String): MemberResult { _profile.update { it.copy(nickname = nickname) }; return MemberResult.Done }
+
+    override suspend fun changeProfileImage(image: ProfileImage): MemberResult { _profile.update { it.copy(profileImage = image) }; return MemberResult.Done }
 
     override suspend fun link(callback: OAuthCallback): LinkResult {
         _profile.update { it.copy(linkedProviders = it.linkedProviders + callback.provider) }

@@ -13,7 +13,6 @@ import eolssu.shared.generated.resources.noto_serif_kr_semibold
 import eolssu.shared.generated.resources.ibm_plex_sans_kr_bold
 import eolssu.shared.generated.resources.ibm_plex_sans_kr_regular
 import eolssu.shared.generated.resources.ibm_plex_sans_kr_semibold
-import eolssu.shared.generated.resources.song_myung_regular
 import org.jetbrains.compose.resources.Font
 
 /**
@@ -42,26 +41,26 @@ internal fun ibmPlexSansKrFamily() = FontFamily(
 )
 
 @Composable
-internal fun songMyungFamily() = FontFamily(Font(Res.font.song_myung_regular, FontWeight.Normal))
-
-@Composable
 internal fun notoSerifKrFamily() = FontFamily(
     Font(Res.font.noto_serif_kr_semibold, FontWeight.SemiBold),
     Font(Res.font.noto_serif_kr_bold, FontWeight.Bold),
 )
 
-/** 본문 IBM Plex Sans KR, 제목 Song Myung. 율명은 별도 Noto Serif KR를 유지한다. */
+/**
+ * 본문·제목 모두 IBM Plex Sans KR. 제목([heading]) 스타일은 버튼 글자처럼 SemiBold로 둔다(S15P31E102-768, 이전 제목 글꼴 Song Myung 대체).
+ * 율명은 별도 Noto Serif KR를 유지한다.
+ */
 internal fun eolssuTypography(sans: FontFamily, heading: FontFamily = sans): Typography {
     val base = Typography()
     return Typography(
         displayLarge = base.displayLarge.copy(fontFamily = sans),
         displayMedium = base.displayMedium.copy(fontFamily = sans),
         displaySmall = base.displaySmall.copy(fontFamily = sans),
-        headlineLarge = base.headlineLarge.copy(fontFamily = heading),
-        headlineMedium = base.headlineMedium.copy(fontFamily = heading),
-        headlineSmall = base.headlineSmall.copy(fontFamily = heading),
-        titleLarge = base.titleLarge.copy(fontFamily = heading),
-        titleMedium = base.titleMedium.copy(fontFamily = heading, fontWeight = FontWeight.Normal),
+        headlineLarge = base.headlineLarge.copy(fontFamily = heading, fontWeight = HeadingWeight),
+        headlineMedium = base.headlineMedium.copy(fontFamily = heading, fontWeight = HeadingWeight),
+        headlineSmall = base.headlineSmall.copy(fontFamily = heading, fontWeight = HeadingWeight),
+        titleLarge = base.titleLarge.copy(fontFamily = heading, fontWeight = HeadingWeight),
+        titleMedium = base.titleMedium.copy(fontFamily = heading, fontWeight = HeadingWeight),
         titleSmall = base.titleSmall.copy(fontFamily = sans),
         bodyLarge = base.bodyLarge.copy(fontFamily = sans),
         bodyMedium = base.bodyMedium.copy(fontFamily = sans),
@@ -72,9 +71,12 @@ internal fun eolssuTypography(sans: FontFamily, heading: FontFamily = sans): Typ
     )
 }
 
+/** 제목 굵기. 버튼 글자(labelLarge SemiBold)와 같은 굵기다. */
+private val HeadingWeight = FontWeight.SemiBold
+
 internal fun eolssuSerifTypography(serif: FontFamily, heading: FontFamily = serif) = EolssuSerifTypography(
-    brand = TextStyle(fontFamily = heading, fontWeight = FontWeight.Normal, fontSize = 34.sp, letterSpacing = (-0.5).sp),
-    songTitle = TextStyle(fontFamily = heading, fontWeight = FontWeight.Normal, fontSize = 30.sp),
-    headline = TextStyle(fontFamily = heading, fontWeight = FontWeight.Normal, fontSize = 28.sp, lineHeight = 36.sp),
+    brand = TextStyle(fontFamily = heading, fontWeight = HeadingWeight, fontSize = 34.sp, letterSpacing = (-0.5).sp),
+    songTitle = TextStyle(fontFamily = heading, fontWeight = HeadingWeight, fontSize = 30.sp),
+    headline = TextStyle(fontFamily = heading, fontWeight = HeadingWeight, fontSize = 28.sp, lineHeight = 36.sp),
     yul = TextStyle(fontFamily = serif, fontWeight = FontWeight.SemiBold, fontSize = 19.sp),
 )

@@ -10,20 +10,6 @@ import com.ssafy.eolssu.core.model.Yul
 enum class YulRegister(val octave: Int) {
     BaeTak(-2), Tak(-1), Base(0), Cheong(1), JungCheong(2);
 
-    /** '청': 탁 쪽이나 기본이면 청성, 청성이면 중청성, 중청성이면 기본으로 돌아간다. 탁·청이 함께 걸리지 않는다. */
-    fun higher(): YulRegister = when (this) {
-        Cheong -> JungCheong
-        JungCheong -> Base
-        else -> Cheong
-    }
-
-    /** '탁': 청 쪽이나 기본이면 탁성, 탁성이면 배탁성, 배탁성이면 기본으로 돌아간다. */
-    fun lower(): YulRegister = when (this) {
-        Tak -> BaeTak
-        BaeTak -> Base
-        else -> Tak
-    }
-
     companion object {
         fun of(octave: Int): YulRegister = entries.first { it.octave == octave }
     }

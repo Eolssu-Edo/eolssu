@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.profile
 
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.PracticeRecord
+import com.ssafy.eolssu.data.practice.recentPracticeSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -22,10 +23,10 @@ class MyRecentPracticeTest {
             record("b", KoreanDateTime(2026, 11, 9, 9, 0), 84),
             record("a", KoreanDateTime(2026, 11, 8, 22, 0), 95),
         )
-        val recent = MyRecentPractice.from(records, today)
+        val recent = records.recentPracticeSummary(today)
         assertEquals("c", recent.latest?.id)
-        assertEquals(2, recent.weekCount, "일요일(11/8) 기록은 지난주다")
-        assertEquals(84, recent.weekBest, "지난주 95점은 이번 주 최고에 넣지 않는다")
+        assertEquals(2, recent.week.recordCount, "일요일(11/8) 기록은 지난주다")
+        assertEquals(84, recent.week.bestScore, "지난주 95점은 이번 주 최고에 넣지 않는다")
     }
 
     @Test
@@ -34,23 +35,23 @@ class MyRecentPracticeTest {
             record("old", KoreanDateTime(2026, 11, 1, 10, 0), 60),
             record("new", KoreanDateTime(2026, 11, 10, 10, 0), 70),
         )
-        assertEquals("new", MyRecentPractice.from(records, today).latest?.id)
+        assertEquals("new", records.recentPracticeSummary(today).latest?.id)
     }
 
     @Test
     fun noRecordsThisWeekLeavesBestEmpty() {
-        val recent = MyRecentPractice.from(listOf(record("a", KoreanDateTime(2026, 11, 2, 10, 0), 90)), today)
+        val recent = listOf(record("a", KoreanDateTime(2026, 11, 2, 10, 0), 90)).recentPracticeSummary(today)
         assertEquals("a", recent.latest?.id)
-        assertEquals(0, recent.weekCount)
-        assertNull(recent.weekBest)
+        assertEquals(0, recent.week.recordCount)
+        assertNull(recent.week.bestScore)
     }
 
     @Test
     fun noRecordsAtAll() {
-        val recent = MyRecentPractice.from(emptyList(), today)
+        val recent = emptyList<PracticeRecord>().recentPracticeSummary(today)
         assertNull(recent.latest)
-        assertEquals(0, recent.weekCount)
-        assertNull(recent.weekBest)
+        assertEquals(0, recent.week.recordCount)
+        assertNull(recent.week.bestScore)
     }
 
     @Test

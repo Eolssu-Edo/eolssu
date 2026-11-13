@@ -231,8 +231,8 @@ class SheetImports(
 
     companion object {
         const val MAX_TITLE_LENGTH = 50
-        const val MIN_BPM = 30
-        const val MAX_BPM = 160
+        const val MIN_BPM = 1
+        const val MAX_BPM = Int.MAX_VALUE
         private const val MAX_FILE_NAME = 255
         private const val PLACEHOLDER_BPM = 60
         private const val PLACEHOLDER_BPM_UNIT = "QUARTER"

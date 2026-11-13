@@ -22,25 +22,27 @@ SAMPLES = {
     "다": ("Janggu_5_3.wav", 2296, 213, 200),
     "더": ("Janggu_6_2.wav", 2298, 206, 180),
 }
-CELLS = {
-    "세마치": ("DOTTED_QUARTER", Fraction(1, 3)),
-    "굿거리": ("DOTTED_QUARTER", Fraction(1, 3)),
-    "중모리": ("QUARTER", Fraction(1)),
-    "자진모리": ("DOTTED_QUARTER", Fraction(1, 3)),
-    "중중모리": ("DOTTED_QUARTER", Fraction(1, 3)),
-    "엇모리": ("QUARTER", Fraction(1, 2)),
-    "단모리": ("QUARTER", Fraction(1, 2)),
-    "타령": ("QUARTER", Fraction(1, 2)),
-    "계면가락도드리": ("QUARTER", Fraction(1, 2)),
-    "세령산": ("QUARTER", Fraction(3, 2)),
-}
+# Compatibility export is derived from the same catalog used by OMR and the API.
+_REFERENCE = json.loads((Path(__file__).resolve().parents[2] / "reference/jangdans.json").read_text(encoding="utf-8"))["rows"]
+_UNIT_EIGHTHS = {"QUARTER": 2, "DOTTED_QUARTER": 3}
+CELLS = {r["name"]: (r["bpm_unit"], Fraction(r["pattern_cell_eighths"], _UNIT_EIGHTHS[r["bpm_unit"]])) for r in _REFERENCE}
+PREVIEW_CATALOG_NAMES = tuple(r["name"] for r in _REFERENCE)
 SINGLE = {"떵": "덩", "덩": "덩", "쿵": "쿵", "궁": "쿵", "덕": "덕", "따": "덕", "다": "다"}
 
 
 def rhythm_plan(row):
-    unit, cell_ratio = CELLS[row["name"]]
+    unit = row["bpm_unit"]
+    eighths = row.get("pattern_cell_eighths")
+    if eighths is None:
+        reference = next((r for r in _REFERENCE if r["name"] == row["name"] and r["bpm_unit"] == unit and r["pattern"] == row["pattern"]), None)
+        if reference is None:
+            raise ValueError("Unknown catalog pattern duration")
+        eighths = reference["pattern_cell_eighths"]
+    if type(eighths) is not int or eighths <= 0 or unit not in _UNIT_EIGHTHS:
+        raise ValueError("Invalid pattern cell duration")
+    cell_ratio = Fraction(eighths, _UNIT_EIGHTHS[unit])
     beats, groups = row["pattern"]["beats"], row["pattern"]["group"]
-    if row["bpm_unit"] != unit or row["default_bpm"] <= 0 or not beats or sum(groups) != len(beats):
+    if row["default_bpm"] <= 0 or not beats or sum(groups) != len(beats):
         raise ValueError(f"Invalid catalog timing: {row['name']}")
     cell = Fraction(60, row["default_bpm"]) * cell_ratio
     events = []
@@ -111,8 +113,8 @@ def main():
     args = parser.parse_args()
 
     rows = json.loads(args.reference.read_text(encoding="utf-8"))["rows"]
-    if [row["name"] for row in rows] != list(CELLS):
-        raise ValueError("Catalog row order no longer matches the ten V21 IDs")
+    if [row["name"] for row in rows] != list(PREVIEW_CATALOG_NAMES):
+        raise ValueError("Catalog row order no longer matches the canonical catalog IDs")
     samples = {}
     sources = {}
     for stroke, (file, identifier, onset, tail) in SAMPLES.items():

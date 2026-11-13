@@ -46,3 +46,39 @@ SHT-03(빈 악보·복사본 만들기)은 작업 취소됐다. 제공 곡 복�
 ## 검증과 미확인
 
 `YulInputTest`, `SheetDraftTest`, `SheetDocumentEditingTest`, `EditPickViewModelTest`, `SheetEditStateTest`로 한글 해석·음역 단계·저장 형식 왕복·여러 시김새·악기별 목록을 확인한다. 가짜 저장소 검증은 실제 서버 저장 성공이 아니다. 실서버 저장, Android·iOS 실기기 표시, 등록 시김새 전체의 정간 안 배치는 확인하지 않았다.
+
+## 시김새의 한글 대체 출력 (847)
+
+2026-11-13, [S15P31E102-847](https://ssafy.atlassian.net/browse/S15P31E102-847). 대상은 사용자가 정정한 산조대금 진도아리랑(songId 85, scoreVersion 1)이다. CAT-04 응답의 시김새는 49개이고, 혀치기 10·반음올림표 16·꺾는음 5개가 앱의 그림 조회에 등록되지 않아 31개가 한글로 출력됐다.
+
+악보 문자열이 서버에 있다는 것과 화면용 그림이 연결됐다는 것은 다르다. 연습 화면은 `CommonScoreData` → `Song.writtenScoreAnnotations` → `PracticeUiState.scoreAnnotations` → `JeongganboView` → `scoreSigimsaeImage` 순서로 읽는다. 이 경로는 CAT 기호 사전을 조회하지 않는다. 그림 조회 결과가 null이면 `JeongganboView`가 원본 이름을 `Text`로 그린다. `@` 뒤의 위치 값은 기존 이름 추출에서 이미 제외되어 이번 누락의 원인이 아니다.
+
+| 원본 이름 | 표시 | 근거·보존 조건 |
+| --- | --- | --- |
+| 혀치기 | 원과 윗획으로 된 기호 | 국립국악원 『창작을 위한 국악기 이해와 활용』 대금 p164 표4를 로컬 원본에서 렌더·확인. 자체 벡터로 그렸다. 격음·특강표로 치환하지 않는다. |
+| 반음올림표 | 올림표(♯) | [산조 판본의 의미 검수](../data/sanjo-playback.md)를 따라 기존 +1반음 의미와 원본 이름을 보존하고 표준 올림표를 자체 벡터로 그렸다. |
+| 꺾는음 | 닫는 괄호 모양 | [산조 판본 검수](../data/sanjo-playback.md)와 공식 대금 교재 p158의 모양 설명. 기존 `sig_flow` 그림을 재사용하되 연주 의미를 흘림표로 바꾸지 않는다. |
+| 원문점 | 점 | 전체 점검에서 추가한 단소 몽금포타령의 표시 전용 주석. [기존 검수](../data/danso-expanded-auditions.md)는 반길이표 대응을 미확정으로 두므로 점 모양만 복원한다. |
+
+새 대응은 표시 함수에만 두어 편집 입력 목록·채점·재생을 확장하지 않는다. 원본 이름·변형·ID·tick과 기존 47개 기호 그림을 유지한다. [표시 스펙](../../specs/score-sigimsae-display.md)을 따른다.
+
+### 공개 악보 전체 점검
+
+같은 날 사용자의 후속 요청으로 CAT-01의 공개 **108곡**을 전수 조회했다. 시김새는 **396개·29종**, 조회 실패는 0건이고 시작·종료의 곡 ID·판본 목록이 동일했다. 진도아리랑 수정 이후의 추가 누락은 **단소 몽금포타령 19(v2)의 원문점 1개**뿐이다. 기존 31곳을 포함하면 최초 누락은 두 곡의 32곳이었다. 개인·비공개 악보는 이 집계에 포함하지 않는다.
+
+[곡별 점검 결과](sigimsae-catalog-audit.json)에 제목·악기·판본·기호 수·누락 수·응답 SHA-256을 보존한다. 원본 악보 응답은 커밋하지 않는다. 가사의 `{세로표}`는 기존 `scoreLyricSlots`가 이미 화면 문자열에서 제거하며, 이번 시김새 그림 조회 경로와 구분했다.
+
+`ScoreSigimsaeTest`는 실제 진도아리랑 문자열과 원문점의 기호 해석·입력 목록 보존을 검사한다. 원문점을 반길이표나 끊는표 그림으로 치환하지 않는 것도 확인한다. `CapturedCatalogSigimsaeTest`는 Git 제외 CAT-01 목록의 **모든 곡**에 대해 각 CAT-04 캡처의 ID·판본을 확인하고 공통 악보 어댑터와 6개 연습 모드로 표시를 검사한다. 시김새 개수와 원본 이벤트·tick을 보존하며 곡 파일 누락·중복 ID·빈 목록을 허용하지 않는다. 네트워크 없이 재생하며 캡처가 없는 일반 실행에서는 이 검사 하나만 명시적으로 생략한다.
+
+`frontend/`에서 재현한다. 원본 악보 응답은 `build/`에만 두고 커밋하지 않는다.
+
+```powershell
+New-Item -ItemType Directory -Force build/sigimsae-847/catalog-all
+Invoke-WebRequest 'https://k15e102.p.ssafy.io/api/songs' -OutFile build/sigimsae-847/catalog-all/catalog.json
+$catalog = Get-Content build/sigimsae-847/catalog-all/catalog.json -Raw | ConvertFrom-Json
+$catalog.result.items | ForEach-Object { Invoke-WebRequest "https://k15e102.p.ssafy.io/api/songs/$($_.songId)/score" -OutFile "build/sigimsae-847/catalog-all/song-$($_.songId).json" }
+$env:EOLSSU_SIGIMSAE_FIXTURE_DIR = (Resolve-Path build/sigimsae-847/catalog-all).Path
+.\gradlew.bat :shared:testAndroidHostTest --tests '*ScoreSigimsaeTest' --tests '*CapturedCatalogSigimsaeTest'
+```
+
+전체 점검의 회귀 검사는 수정 전 원문점에서 두 검사 실패, 수정 후 집중 검사 4개 통과를 확인했다. 108곡의 396개 표기를 6개 모드로 재생한 결과 미등록 기호는 0개다. 곡별 메타데이터의 해시·판본·기호 수도 실제 캡처 108개와 모두 일치했다. 전체 `:shared:testAndroidHostTest`는 1,597개 중 1,593개 통과·기존 조건부 검사 4개 생략·실패 0개다. `:androidApp:assembleDebug`, `:shared:compileKotlinJs`, `:shared:compileKotlinWasmJs`도 성공했다. 이는 기호 해석·데이터 경로·컴파일과 자체 벡터 확인 결과이며 앱 화면·실기기·iOS 검증은 아니다.

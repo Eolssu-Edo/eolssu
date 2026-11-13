@@ -145,6 +145,12 @@ class PracticeRecordApiDatabaseTests {
     // 지운 991345, 다른 회원 991344(가장 늦게 저장), 저장 안 한 991349(최고점 99), 분석 중 991343은 나오면 안 된다.
     @Test
     fun `lists only saved records grouped by song with order, paging and the first view mark`() {
+        val empty = result(list(OTHER, "?weekOf=2026-11-01"))
+        assertEquals(0, empty.path("totalRecordCount").asInt())
+        assertTrue(empty.path("songs").isEmpty && empty.path("items").isEmpty)
+        assertTrue(empty.path("songId").isNull)
+        assertEquals(0, empty.path("week").path("recordCount").asInt())
+
         session(991347, OWNER, 16, 17, "DONE", scoreVersion = 1, startedAt = "2026-11-01 09:00:00")
         session(991348, OWNER, 0, 90, "DONE", scoreVersion = 1, songId = 2, startedAt = "2026-10-31 08:00:00")
         session(991349, OWNER, 0, 90, "DONE", scoreVersion = 1, songId = 2, startedAt = "2026-10-31 09:00:00")
@@ -167,13 +173,28 @@ class PracticeRecordApiDatabaseTests {
         assertEquals("끝까지 숨이 부족함", latest.path("items").path(0).path("memo").asString())
         assertEquals(listOf(0, 20, 1, 1), listOf("page", "size", "totalElements", "totalPages").map { latest.path(it).asInt() })
 
+        assertEquals("DANSO", latest.path("songs").path(0).path("instrumentCode").asString())
+        assertTrue(latest.path("week").isMissingNode)
+
+        val started = result(list(OWNER, "?groupOrder=LAST_STARTED&weekOf=2026-11-01&size=1"))
+        assertEquals(listOf("1", "2", "3"), started.path("songs").values().map { it.path("songId").asString() })
+        assertEquals("2026-11-01T10:00:00Z", started.path("songs").path(0).path("lastStartedAt").asString())
+        assertEquals(listOf("991346"), ids(started))
+        assertEquals(5, started.path("week").path("recordCount").asInt())
+        assertEquals(90, started.path("week").path("bestScore").asInt())
+        val emptyWeek = result(list(OTHER, "?songId=3&weekOf=2026-11-02"))
+        assertEquals(listOf("1"), emptyWeek.path("songs").values().map { it.path("songId").asString() })
+        assertTrue(ids(emptyWeek).isEmpty())
+        assertEquals(0, emptyWeek.path("week").path("recordCount").asInt())
+        assertTrue(emptyWeek.path("week").path("bestScore").isNull)
+
         val newest = result(list(OWNER, "?songId=1"))
         assertEquals(listOf("991346", "991342", "991347"), ids(newest))
         assertEquals(
             json.readTree(
                 """{"sessionId":"991346","songId":"1","title":"아리랑","isFullSong":true,"startColumnIdx":null,"endColumnIdx":null,
                    "recordingDurationMs":2876,"bpm":96,"bpmUnit":"DOTTED_QUARTER","totalScore":90,"startNoteIdx":0,"endNoteIdx":60,
-                   "startedAt":"2026-11-01T10:00:00Z","recordingAvailable":false,"memo":null,"isNew":false}""",
+                   "startedAt":"2026-11-01T10:00:00Z","recordingAvailable":false,"memo":null,"isNew":false,"scoreVersion":2}""",
             ),
             newest.path("items").path(0),
         )
@@ -181,7 +202,7 @@ class PracticeRecordApiDatabaseTests {
             json.readTree(
                 """{"sessionId":"991342","songId":"1","title":"아리랑","isFullSong":false,"startColumnIdx":0,"endColumnIdx":1,
                    "recordingDurationMs":2876,"bpm":96,"bpmUnit":"DOTTED_QUARTER","totalScore":77,"startNoteIdx":16,"endNoteIdx":19,
-                   "startedAt":"2026-11-01T10:00:00Z","recordingAvailable":true,"memo":null,"isNew":true}""",
+                   "startedAt":"2026-11-01T10:00:00Z","recordingAvailable":true,"memo":null,"isNew":true,"scoreVersion":1}""",
             ),
             newest.path("items").path(1),
         )
@@ -206,10 +227,28 @@ class PracticeRecordApiDatabaseTests {
         val other = result(list(OTHER, ""))
         assertEquals(listOf("1", "991344"), listOf(other.path("totalRecordCount").asString()) + ids(other))
         assertEquals(401, list(null, "").statusCode())
-        for (query in listOf("?size=101", "?page=-1", "?songId=0", "?songId=abc", "?sort=newest")) {
+        for (query in listOf("?size=101", "?page=-1", "?songId=0", "?songId=abc", "?sort=newest",
+            "?groupOrder=STARTED", "?weekOf=2026-02-30", "?weekOf=1000-01-01",
+        )) {
             val response = list(OWNER, query)
             assertEquals(400, response.statusCode(), query)
             assertEquals("INVALID_REQUEST", json.readTree(response.body()).path("result").path("errorCode").asString(), query)
+        }
+    }
+
+    @Test
+    fun `hidden catalog songs still include their instrument only in the owner's saved records`() {
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 10:05:00' WHERE id=991342")
+        val previous = jdbc.queryForObject("SELECT status FROM songs WHERE id=1", String::class.java)
+        jdbc.update("UPDATE songs SET status='HIDDEN' WHERE id=1")
+        try {
+            val owner = result(list(OWNER, ""))
+            assertEquals("DANSO", owner.path("songs").path(0).path("instrumentCode").asString())
+            assertEquals(listOf("991342"), ids(owner))
+            val other = result(list(OTHER, "?songId=1"))
+            assertTrue(other.path("songs").isEmpty && other.path("items").isEmpty)
+        } finally {
+            jdbc.update("UPDATE songs SET status=? WHERE id=1", previous)
         }
     }
 
@@ -340,6 +379,36 @@ class PracticeRecordApiDatabaseTests {
         assertNull(jdbc.queryForObject("SELECT memo FROM practice_sessions WHERE id=991345", String::class.java))
     }
 
+    @Test
+    fun recentSummaryUsesStartedTimeAndWeeklySavedRecords() {
+        val empty = result(recent(OTHER, "?weekOf=2026-11-01"))
+        assertTrue(empty.path("latest").isNull)
+        assertEquals(0, empty.path("week").path("recordCount").asInt())
+        assertTrue(empty.path("week").path("bestScore").isNull)
+
+        session(991347, OWNER, 16, 19, "DONE", 1, songId = 2)
+        session(991348, OWNER, 16, 19, "DONE", 1, songId = 2)
+        session(991349, OWNER, 16, 19, "DONE", 1)
+        session(991350, OWNER, 16, 19, "DONE", 1, startedAt = "2026-10-25 14:59:59")
+        session(991351, OWNER, 16, 19, "DONE", 1, startedAt = "2026-10-25 15:00:00")
+        for ((id, total) in listOf(991347L to 67, 991348L to 81, 991349L to 93, 991350L to 99, 991351L to 75)) evaluation(id, total)
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 11:05:00' WHERE id BETWEEN 991347 AND 991351")
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 11:10:00' WHERE id=991349")
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 12:00:00', started_at='2026-11-01 10:00:29' WHERE id=991344")
+        jdbc.update("UPDATE practice_sessions SET started_at='2026-11-01 10:00:25' WHERE id IN (991345,991346)")
+
+        val summary = result(recent(OWNER, "?weekOf=2026-11-01"))
+        assertEquals("991348", summary.path("latest").path("sessionId").asString())
+        assertEquals(4, summary.path("week").path("recordCount").asInt())
+        assertEquals(93, summary.path("week").path("bestScore").asInt())
+        assertEquals(result(list(OWNER, "?weekOf=2026-11-01&groupOrder=LAST_STARTED&size=1")).path("items").path(0), summary.path("latest"))
+        assertNull(jdbc.queryForObject("SELECT viewed_at FROM practice_sessions WHERE id=991348", LocalDateTime::class.java))
+        assertEquals(401, recent(null, "?weekOf=2026-11-01").statusCode())
+        assertEquals(400, recent(OWNER, "").statusCode())
+        assertEquals(400, recent(OWNER, "?weekOf=1000-01-01").statusCode())
+        assertEquals(400, recent(OWNER, "?weekOf=2026-02-30").statusCode())
+    }
+
     private fun session(
         id: Long, userId: Long, start: Int, end: Int, status: String, scoreVersion: Int,
         songId: Long = 1, startedAt: String = "2026-11-01 10:00:00",
@@ -413,6 +482,9 @@ class PracticeRecordApiDatabaseTests {
 
     private fun list(user: Long?, query: String): HttpResponse<String> =
         client.send(authorized(URI("http://localhost:$port/api/users/me/practice-records$query"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
+
+    private fun recent(user: Long?, query: String): HttpResponse<String> =
+        client.send(authorized(URI("http://localhost:$port/api/users/me/practice-records/recent$query"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
 
     private fun authorized(uri: URI, user: Long?): HttpRequest.Builder {
         val request = HttpRequest.newBuilder(uri)

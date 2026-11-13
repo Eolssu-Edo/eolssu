@@ -7,7 +7,15 @@ import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.model.ScoreError
 import com.ssafy.eolssu.core.network.ServerAddress
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import com.ssafy.eolssu.data.song.ApiSongRepository
+import com.ssafy.eolssu.data.song.SampleSongRepository
+import com.ssafy.eolssu.data.song.SampleSongs
+import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.data.song.revisionScoreResponse
+import com.ssafy.eolssu.data.song.revisionSongResponse
 import com.ssafy.eolssu.testing.CatalogEvaluations
 import com.ssafy.eolssu.testing.CatalogSongs
 import io.ktor.client.engine.mock.MockEngine
@@ -23,9 +31,135 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 
 /** 취약 구간·비교 API(EVA-03·04)와 기록·평가 저장소를 묶는 저장소. 서버는 MockEngine으로 대신한다. */
 class ApiWeakSectionRepositoryTest {
+    @Test
+    fun coldSelectionChecksPublicationWithoutDownloadingAnotherScore() = runTest {
+        for (publishedVersion in listOf(1, 2)) {
+            val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+            val catalog = mutableListOf<Pair<String, String?>>()
+            val client = createHttpClient(MockEngine { request ->
+                val path = request.url.encodedPath
+                val requestedVersion = request.url.parameters["scoreVersion"]
+                val version = requestedVersion?.toInt() ?: publishedVersion
+                if (path.startsWith("/api/songs/")) catalog += path to requestedVersion
+                val result = when (path) {
+                    "/api/practice-sessions/50/evaluation" -> evaluationResponse("50", 1)
+                    "/api/songs/42" -> revisionSongResponse(version)
+                    "/api/songs/42/score" -> revisionScoreResponse(version)
+                    else -> error(path)
+                }
+                respond(ok(result).second, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+            }, ServerAddress.Production)
+            try {
+                val songs = ApiSongRepository(client, member)
+                val evaluations = ApiEvaluationRepository(client, songs, member = member)
+                val repository = ApiWeakSectionRepository(client, evaluations, songs, records, member)
+                val source = checkNotNull(repository.source("50"))
+                assertEquals(publishedVersion == 1, repository.isCurrent(source))
+                assertEquals(listOf("/api/songs/42" to "1", "/api/songs/42/score" to "1", "/api/songs/42" to null), catalog)
+            } finally { client.close() }
+        }
+    }
+
+    @Test
+    fun sourceLoadsItsEvaluationAndScoreBundleOnce() = runTest {
+        val paths = mutableListOf<String>()
+        val client = createHttpClient(MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val result = when (path) {
+                "/api/practice-sessions/50/evaluation" -> evaluationResponse("50", 1)
+                "/api/songs/42" -> revisionSongResponse(1)
+                "/api/songs/42/score" -> revisionScoreResponse(1)
+                else -> error(path)
+            }
+            respond(ok(result).second, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val songs = ApiSongRepository(client)
+            val repo = ApiWeakSectionRepository(client, ApiEvaluationRepository(client, songs), songs, records)
+            val source = checkNotNull(repo.source("50"))
+            assertEquals(1, source.song.scoreVersion)
+            assertEquals(1, source.evaluation.errors.size)
+            assertEquals(listOf("/api/practice-sessions/50/evaluation", "/api/songs/42", "/api/songs/42/score"), paths)
+        } finally { client.close() }
+    }
+
+    @Test
+    fun selectionAndLoopReuseOnlyTheScoreAndLookUpEachEvaluation() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+        val paths = mutableListOf<String>()
+        val client = createHttpClient(MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val version = request.url.parameters["scoreVersion"]?.toInt() ?: 1
+            val result = when (path) {
+                "/api/practice-sessions/50/evaluation" -> {
+                    if (member.id != "A") return@MockEngine respond("{}", HttpStatusCode.NotFound)
+                    evaluationResponse("50", 1)
+                }
+                "/api/practice-sessions/51/evaluation" -> evaluationResponse("51", 2)
+                "/api/songs/42" -> revisionSongResponse(version)
+                "/api/songs/42/score" -> revisionScoreResponse(version)
+                else -> error(path)
+            }
+            respond(ok(result).second, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val songs = ApiSongRepository(client, member)
+            val evaluations = ApiEvaluationRepository(client, songs, member = member)
+            val weak = ApiWeakSectionRepository(client, evaluations, songs, records, member)
+            val detail = checkNotNull(songs.getSong("42"))
+            assertSame(detail, songs.retainedSong("42"))
+            assertSame(detail, checkNotNull(weak.source("50")).song)
+            assertSame(detail, checkNotNull(weak.source("50")).song)
+            assertEquals(listOf("/api/songs/42", "/api/songs/42/score",
+                "/api/practice-sessions/50/evaluation", "/api/practice-sessions/50/evaluation"), paths)
+
+            val otherSession = checkNotNull(weak.source("51"))
+            assertEquals("51", otherSession.evaluation.id)
+            assertEquals(2, otherSession.song.scoreVersion)
+            assertNull(songs.retainedSong("42"), "과거 판본 조회는 게시 판본 확인이 아니다")
+            assertEquals(listOf("/api/practice-sessions/51/evaluation", "/api/songs/42", "/api/songs/42/score"), paths.takeLast(3))
+
+            member.set("B")
+            assertNull(weak.source("50"))
+            assertEquals("/api/practice-sessions/50/evaluation", paths.last())
+            assertEquals(2, checkNotNull(weak.source("51")).song.scoreVersion)
+            assertEquals(listOf("/api/practice-sessions/51/evaluation", "/api/songs/42", "/api/songs/42/score"), paths.takeLast(3))
+        } finally { client.close() }
+    }
+
+    @Test fun historicalErrorsSectionResultAndComparisonUseTheSavedRevision() = runTest {
+        val old = SampleSongs.first().copy(scoreVersion = 1)
+        val current = old.copy(scoreVersion = 2)
+        val asked = mutableListOf<Int?>()
+        val songs = object : SongRepository by SampleSongRepository() {
+            override suspend fun getSong(songId: String) = current.also { asked += null }
+            override suspend fun getSong(songId: String, scoreVersion: Int) = old.also { asked += scoreVersion }
+        }
+        val evaluations = CatalogEvaluations().apply { cached = cached!!.copy(songId = old.id, scoreVersion = 1) }
+        val originalRecords = records
+        val historicalRecords = object : PracticeRecordRepository by originalRecords {
+            override suspend fun detail(recordId: String) = originalRecords.detail(recordId)?.copy(scoreVersion = 1)
+        }
+        val client = createHttpClient(MockEngine {
+            respond(comparison.second, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val repo = ApiWeakSectionRepository(client, evaluations, songs, historicalRecords)
+            val source = checkNotNull(repo.source("50"))
+            assertEquals(1, source.song.scoreVersion)
+            assertEquals(1, repo.sectionResult("50")?.song?.scoreVersion)
+            assertEquals(1, repo.comparison("now")?.song?.scoreVersion)
+            assertEquals(listOf<Int?>(1, 1, 1), asked)
+        } finally { client.close() }
+    }
+
+
     private val requests = mutableListOf<HttpRequestData>()
     private var reply: (path: String) -> Pair<HttpStatusCode, String>? = { null }
 
@@ -54,7 +188,7 @@ class ApiWeakSectionRepositoryTest {
             ),
         )
         override val records: StateFlow<List<PracticeRecord>> = list
-        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String) = error("unused")
+        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String) = error("unused")
         override suspend fun updateMemo(recordId: String, memo: String) = Unit
         override suspend fun detail(recordId: String): PracticeRecord? =
             list.value.firstOrNull { it.id == recordId }?.copy(errors = listOf(ScoreError(2, 1, EvaluationMetric.Rhythm)))
@@ -104,6 +238,8 @@ class ApiWeakSectionRepositoryTest {
         assertEquals(81, result.total)
         assertEquals(48, result.bpm)
         assertEquals(3, result.metrics.size)
+        // 구간 정간보·필터를 그리도록 이번 세션의 평가 결과 전체를 함께 넘긴다(S15P31E102-776).
+        assertEquals(81, result.result?.total)
         val check = assertIs<CheckLoad.Loaded>(result.check).check
         assertEquals(SessionCheck(true, null, 9, 4, -5, 6, 2, 3, scoreComparable = true, bpmChanged = true), check)
         val request = requests.single()
@@ -153,9 +289,10 @@ class ApiWeakSectionRepositoryTest {
     }
 
     @Test
-    fun comparisonListsEarlierWholeSongRecordsOfLastTwoWeeks() = runTest {
+    fun comparisonListsAllEarlierWholeSongRecordsWithoutPeriodLimit() = runTest {
         val comparison = checkNotNull(repository.comparison("now"))
-        assertEquals(listOf("same-minute", "same-day", "two-weeks"), comparison.previous.map { it.id })
+        // 2주 제한 없이 이번 기록 이전의 같은 곡 전체 연주를 모두 담는다. 이후 기록·구간·다른 곡은 뺀다(S15P31E102-753).
+        assertEquals(listOf("same-minute", "same-day", "two-weeks", "too-old"), comparison.previous.map { it.id })
         assertEquals(KoreanDateTime(2026, 11, 20, 15, 0), comparison.today)
         assertEquals(listOf(ScoreError(2, 1, EvaluationMetric.Rhythm)), comparison.current.errors)
     }
@@ -171,3 +308,6 @@ class ApiWeakSectionRepositoryTest {
         assertEquals("same-day", requests.single().url.parameters["baselineSessionId"])
     }
 }
+
+private fun evaluationResponse(session: String, version: Int) =
+    """{"sessionId":"$session","songId":"42","scoreVersion":$version,"bpm":60,"startedAt":"2026-10-29T00:00:00Z","totalScore":80,"pitchScore":80,"timingScore":80,"durationScore":80,"notes":[{"noteIdx":1,"verdict":"PITCH"}]}"""

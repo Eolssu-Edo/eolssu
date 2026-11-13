@@ -1,25 +1,18 @@
 package com.ssafy.eolssu.feature.guide.learn
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
@@ -42,7 +35,6 @@ import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.HolePoint
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.feature.guide.component.LearnTaskList
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.learn_tour_breath_in
 import eolssu.shared.generated.resources.learn_tour_breath_out
@@ -56,8 +48,8 @@ import kotlin.math.PI
 import kotlin.math.cos
 
 /*
- * 2단계 '자세·호흡'·3단계 '첫 소리' 따라 배우기. 1단계처럼 '학습 시작'을 누르면 서버가 준 할 일을 한 칸씩 넘기며
- * 칸마다 그림(단계 그림·손 위치·숨쉬기·취구·첫 음 운지)과 한 줄 설명을 보인다. 할 일 문구는 서버 그대로 쓴다.
+ * 2단계 '자세·호흡'·3단계 '첫 소리' 할 일 박스. 1단계처럼 서버가 준 할 일을 박스 하나씩 펼치며
+ * 박스마다 그림(단계 그림·손 위치·숨쉬기·취구·첫 음 운지)과 한 줄 설명을 보인다. 할 일 문구는 서버 그대로 쓴다.
  */
 
 /** 할 일 한 칸에 보일 그림. */
@@ -81,8 +73,8 @@ internal enum class TaskVisual {
     FirstNote,
 }
 
-/** 할 일 따라 배우기가 있는 단계. 4~8단계는 [LearnStageTour]가 칸을 만든다. */
-internal fun hasTaskTour(stage: Int): Boolean = stage in 2..8
+/** 할 일 따라 배우기가 있는 단계. 4~7단계는 [LearnStageTour]가 칸을 만든다. */
+internal fun hasTaskTour(stage: Int): Boolean = stage in 2..7
 
 /**
  * [stage]의 [index]번째 할 일에 보일 그림. 서버 할 일 순서(2단계 앉은 자세·악기 잡기·복식호흡,
@@ -111,7 +103,7 @@ internal fun breathInhaling(phase: Float): Boolean = phase < 0.5f
 internal fun breathSize(phase: Float): Float = ((1f - cos(2f * PI.toFloat() * phase)) / 2f)
 
 /**
- * 2·3단계 할 일. 시작 전에는 기존 할 일 목록을, 시작하면 할 일 이름 칩(지나온 곳 체크)과 지금 할 일의 그림·설명을 보인다.
+ * 2·3단계 할 일 박스. 펼친 박스에 그 할 일의 그림(단계 그림·손 위치·숨쉬기·취구·첫 음 운지)과 한 줄 설명을 보인다.
  *
  * @param firstNote 3단계 '한 소리 길게 내기'에 보일 첫 음. 없으면 단계 그림을 보인다.
  */
@@ -121,45 +113,14 @@ internal fun LearnTaskTour(
     stage: Int,
     tasks: List<LearnTask>,
     tour: LearnTour,
-    columns: Int,
     firstNote: FingeringNote?,
     noteAudioContent: @Composable (FingeringNote) -> Unit,
     imageMaxWidth: Dp = Dp.Unspecified,
+    onAllDone: () -> Unit = {},
+    practice: StepPractice? = null,
 ) {
-    val step = tour.step?.coerceIn(0, tasks.lastIndex)
-    if (step == null || tasks.isEmpty()) {
-        LearnTaskList(tasks.titles(), columns)
-        return
-    }
-    TourPanel(tasks, step) { s ->
+    TourPanel(tasks, tour, onAllDone, practice) { s ->
         TaskFigure(taskVisual(stage, s), instrument, stage, firstNote, noteAudioContent, imageMaxWidth)
-    }
-}
-
-/**
- * 따라 배우기 진행 중 판: 위에 할 일 이름 칩(지나온 칸 체크, 지금 칸 진한 테두리, 남은 칸 옅게), 가운데 [figure], 아래 'n / 전체 · 이름 · 한 줄 설명'.
- */
-@Composable
-internal fun TourPanel(tasks: List<LearnTask>, step: Int, figure: @Composable (Int) -> Unit) {
-    val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(14.dp)
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(colors.surface, shape)
-            .border(1.dp, colors.accentTintLine, shape)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            tasks.forEachIndexed { i, task -> SpotChip(task.title, done = i < step, current = i == step, muted = true) }
-        }
-        AnimatedContent(step, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(120)) }, label = "taskTour") { s ->
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { figure(s) }
-                TourCaption(tasks[s].title, tasks[s].detail)
-            }
-        }
     }
 }
 
@@ -200,9 +161,7 @@ private fun TaskFigure(
 
 @Composable
 internal fun StageArtFigure(stage: Int) {
-    val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(16.dp)
-    LearnStageArt(stage, Modifier.size(180.dp).clip(shape).background(colors.background).border(1.dp, colors.lineSoft, shape))
+    LearnStageArtCard(stage, Modifier.size(180.dp))
 }
 
 @Composable

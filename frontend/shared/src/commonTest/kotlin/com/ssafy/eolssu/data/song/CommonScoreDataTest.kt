@@ -197,7 +197,7 @@ class CommonScoreDataTest {
 
 internal fun smallScoreSong(data: CommonScoreData = smallScoreData()): Song = Song(
     "db-42", "작은 검사 악보", SongLevel.Intro,
-    Jangdan("세마치", listOf(3, 3, 3), 3, 3), 60, "", false, null, data.toScore(),
+    Jangdan("세마치", listOf(3, 3, 3), 3, 3), 60, "", false, data.toScore(),
 )
 
 private fun crossColumnScoreData(symbol: String = ""): CommonScoreData {

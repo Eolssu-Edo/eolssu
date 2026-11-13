@@ -1,23 +1,52 @@
 package com.ssafy.eolssu.data.song
 
+import com.ssafy.eolssu.core.diagnostics.PerfSource
 import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.diagnostics.measureLoad
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.JangdanPlayback
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.SongLevel
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.timeline
+import com.ssafy.eolssu.core.network.AccountSession
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.apiResponse
+import com.ssafy.eolssu.core.network.ensureAccountSession
+import com.ssafy.eolssu.core.network.getPublicOrNull
+import com.ssafy.eolssu.core.network.inSession
 import com.ssafy.eolssu.core.network.sendOrNull
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /** CAT01/02 메타데이터와 CAT04 정본 악보. 식별자·버전·정수 tick을 보존한다. */
-class ApiSongRepository(private val client: HttpClient) : SongRepository {
+class ApiSongRepository(
+    private val client: HttpClient,
+    private val member: SignedInMember? = null,
+) : SongRepository {
+    private data class RetainedSong(
+        val account: AccountSession,
+        val song: Song,
+        val detail: CatalogSong,
+        val published: Boolean,
+    )
+
+    private data class Cache(val request: Any? = null, val entry: RetainedSong? = null)
+
+    private val cache = MutableStateFlow(Cache())
+
+    init {
+        member?.onChange { cache.value = Cache() }
+    }
+
     override suspend fun getInstruments() = InstrumentCatalog(client).load()
 
     override suspend fun getSongs(instrumentId: String?): List<SongSummary> {
@@ -36,22 +65,108 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
 
     override suspend fun getSong(songId: String): Song? = load(songId)?.song
 
+    override suspend fun getPublishedScoreVersion(songId: String): Int? = member.inSession {
+        val account = member?.session?.value?.takeIf { it.memberId != null }
+        ensureAccountSession()
+        val request = beginLoad(account, songId, published = true)
+        val current = loadCatalogSong(songId)
+        ensureAccountSession()
+        if (current != null) {
+            updateRetainedDetail(request, account, current, confirmPublished = true)
+        }
+        current?.scoreVersion
+    }
+
+    override suspend fun getSong(songId: String, scoreVersion: Int): Song? {
+        if (scoreVersion <= 0) throw CatalogUnavailable()
+        return load(songId, scoreVersion)?.song
+    }
+
     override suspend fun getEditableSong(songId: String): EditableSong? = load(songId)
 
-    /** CAT-01·04를 함께 검증한다. 편집기는 화면 모델과 함께 원본 공통 악보도 받는다. */
-    private suspend fun load(songId: String): EditableSong? =
-        measureLoad(PerfTarget.SONG_BUNDLE, songId, { it.song.scoreVersion }) { loadVerified(songId) }
+    override suspend fun retainedSong(songId: String, scoreVersion: Int?): Song? = member.inSession {
+        val entry = cache.value.entry ?: return@inSession null
+        val song = entry.song
+        val matchesVersion = if (scoreVersion == null) entry.published else song.scoreVersion == scoreVersion
+        if (entry.account != member?.session?.value || song.id != songId || !matchesVersion) return@inSession null
+        currentCoroutineContext()[PerformanceVisit]?.reuse(PerfTarget.SONG_BUNDLE, song.id, PerfSource.RETAINED, song.scoreVersion)
+        song
+    }
 
-    private suspend fun loadVerified(songId: String): EditableSong? {
+    /** 곡 상세와 정본 악보를 함께 검증한다. 편집기는 화면 모델과 함께 원본 공통 악보도 받는다. */
+    private suspend fun load(songId: String, scoreVersion: Int? = null): EditableSong? = member.inSession {
+        val account = member?.session?.value?.takeIf { it.memberId != null }
+        ensureAccountSession()
+        val request = beginLoad(account, songId, published = scoreVersion == null)
+        measureLoad(PerfTarget.SONG_BUNDLE, songId, { it.song.scoreVersion }) {
+            val detail = loadCatalogSong(songId, scoreVersion) ?: return@measureLoad null
+            val level = detail.summary().level ?: throw CatalogUnavailable()
+            ensureAccountSession()
+            updateRetainedDetail(request, account, detail, confirmPublished = false)
+            val bundle = loadVerified(detail, scoreVersion, level) ?: return@measureLoad null
+            ensureAccountSession()
+            if (account != null && request != null) {
+                val entry = RetainedSong(account, bundle.song, detail, published = scoreVersion == null)
+                cache.update { state ->
+                    if (state.request === request) state.copy(entry = entry) else state
+                }
+            }
+            bundle
+        }
+    }
+
+    private fun updateRetainedDetail(
+        request: Any?,
+        account: AccountSession?,
+        detail: CatalogSong,
+        confirmPublished: Boolean,
+    ) {
+        if (request == null) return
+        cache.update { state ->
+            val entry = state.entry
+            if (state.request !== request || entry == null || entry.account != account ||
+                entry.detail.songId != detail.songId || entry.detail.scoreVersion != detail.scoreVersion
+            ) return@update state
+            // 곡 제목이나 채점 가능 여부는 악보 판본을 유지한 채 바뀔 수 있다.
+            when {
+                entry.detail != detail -> state.copy(entry = null)
+                confirmPublished -> state.copy(entry = entry.copy(published = true))
+                else -> state
+            }
+        }
+    }
+
+    /** 새 조회가 시작되면 늦게 끝난 이전 조회는 공유 캐시를 덮어쓸 수 없다. */
+    private fun beginLoad(account: AccountSession?, songId: String, published: Boolean): Any? {
+        if (account == null) return null
+        val request = Any()
+        cache.update { state ->
+            if (member?.session?.value != account) return@update state
+            val entry = state.entry
+            // 확인이 실패하거나 취소되면 기존 악보는 정확한 기록 판본으로만 재사용한다.
+            if (published && entry != null && entry.account == account && entry.song.id == songId) {
+                Cache(request, entry.copy(published = false))
+            } else Cache(request, entry)
+        }
+        return request
+    }
+
+    private suspend fun loadCatalogSong(songId: String, scoreVersion: Int? = null): CatalogSong? {
         if (!validCatalogId(songId)) return null
-        val response = client.sendOrNull { get("/api/songs/$songId") } ?: throw CatalogUnavailable()
+        val response = client.getPublicOrNull("/api/songs/$songId") { scoreVersion?.let { parameter("scoreVersion", it) } }
+            ?: throw CatalogUnavailable()
         if (response.status.value == 404) return null
         if (response.status.value != 200) throw CatalogUnavailable()
         val item = response.apiResponse<CatalogSong>()?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
-        val summary = item.summary()
-        if (summary.id != songId) throw CatalogUnavailable()
-        val level = summary.level ?: throw CatalogUnavailable()
-        val scoreResponse = client.sendOrNull { get("/api/songs/$songId/score") } ?: throw CatalogUnavailable()
+        if (item.songId != songId || item.scoreVersion <= 0 || (scoreVersion != null && item.scoreVersion != scoreVersion)) throw CatalogUnavailable()
+        return item
+    }
+
+    private suspend fun loadVerified(item: CatalogSong, scoreVersion: Int?, level: SongLevel): EditableSong? {
+        val songId = item.songId
+        val scoreResponse = client.getPublicOrNull("/api/songs/$songId/score") { scoreVersion?.let { parameter("scoreVersion", it) } }
+            ?: throw CatalogUnavailable()
+        if (scoreResponse.status.value == 404) return null
         if (scoreResponse.status.value != 200) throw CatalogUnavailable()
         val scoreItem = scoreResponse.apiResponse<CatalogScore>()?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
         if (scoreItem.songId != songId || scoreItem.scoreVersion != item.scoreVersion ||
@@ -86,7 +201,6 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
             baseBpm = item.defaultBpm,
             description = item.description.orEmpty(),
             evaluable = item.isScorable,
-            solfege = null,
             score = score,
             instrumentId = item.instrumentId,
             scoreVersion = item.scoreVersion,
@@ -136,7 +250,7 @@ internal fun validCatalogId(id: String): Boolean = id.matches(Regex("[1-9][0-9]{
 private class SongListResponse(val items: List<CatalogSong>)
 
 @Serializable
-private class CatalogSong(
+private data class CatalogSong(
     val songId: String,
     val title: String,
     val instrumentId: String,
@@ -174,7 +288,7 @@ private class CatalogSong(
 }
 
 @Serializable
-private class CatalogJangdan(val jangdanId: String, val name: String, val bpmUnit: String, val pattern: Pattern) {
+private data class CatalogJangdan(val jangdanId: String, val name: String, val bpmUnit: String, val pattern: Pattern) {
     fun model(): Jangdan {
         if (!validCatalogId(jangdanId) || name.isBlank() || pattern.group.isEmpty() || pattern.group.any { it <= 0 } ||
             pattern.group.sumOf { it.toLong() } != pattern.beats.size.toLong()
@@ -191,4 +305,4 @@ private class CatalogJangdan(val jangdanId: String, val name: String, val bpmUni
 }
 
 @Serializable
-private class Pattern(val beats: List<String>, val group: List<Int>)
+private data class Pattern(val beats: List<String>, val group: List<Int>)

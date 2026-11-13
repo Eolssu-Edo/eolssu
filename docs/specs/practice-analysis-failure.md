@@ -81,7 +81,8 @@
 ```text
 POST {AI}/v1/analyses
 { "sessionId": 1, "attempt": 1, "audioUrl": "<15분 읽기 전용 서명 URL>", "bpm": 60, "bpmUnit": "JEONGGAN",
-  "notes": [{ "idx": 0, "semitone": 5, "startBeat": 0.0, "beats": 1.0, "sigimsae": false }] }
+  "notes": [{ "idx": 0, "semitone": 5, "startBeat": 0.0, "beats": 1.0, "sigimsae": false }],
+  "instrument": "JEONGAK_DAEGEUM" }
 
 200 { "status": "DONE", "modelVersion": "pyin-2", "total": 87, "pitch": 90, "timing": 85, "duration": 86,
       "tuningOffsetCent": -12.5, "tuningOutOfRange": false,
@@ -108,6 +109,10 @@ POST {AI}/v1/analyses
   - `MISSED` 음표는 두 값을 null로 보낸다. 값을 보내도 백엔드는 저장하지 않는다.
   - 기준 시각: AI는 ffmpeg로 디코딩한 PCM 시각을 그대로 쓰고 따로 보정하지 않는다. ffmpeg는 m4a에 edit list가 있으면 AAC 앞 여백(encoder delay)을 잘라 디코딩하므로 원본 재생 기준과 같다. edit list가 없는 파일이면 앞 여백(수십 ms)만큼 늦게 나올 수 있으며, 앱 녹음 파일에 edit list가 있는지는 확인하지 않았다. 백엔드·앱은 값을 다시 보정하지 않는다. 앱 플레이어가 같은 파일을 다른 기준으로 재생하는지는 FE 연동 때 실기기로 확인한다.
   - 한계: 같은 높이로 이어 분 음은 소리가 끊기지 않으면 시작을 따로 찾지 못한다. 시김새 음의 인식 음은 꾸밈이 섞인 소리의 중앙값이다. 시작 시각은 음높이 도구가 그 음을 잡은 첫 프레임이라 실제 소리보다 수십 ms 늦을 수 있다(`onsetErrorMs`와 같은 기준).
+- **악기 코드 (S15P31E102-848).** 요청의 `instrument`는 선택 필드로, 세션 곡의 `instruments.code`(`DANSO`·`SOGEUM`·`JEONGAK_DAEGEUM`·`SANJO_DAEGEUM`)다. 백엔드는 악기를 모르면 필드를 보내지 않는다. AI는 모르는 필드를 무시하므로 백엔드가 먼저 배포돼도 되고, 필드가 없으면 이전과 같이 채점한다.
+  - `JEONGAK_DAEGEUM`·`SANJO_DAEGEUM`이면 AI는 음높이를 잰 직후, 요청 `notes`의 가장 낮은 `semitone`보다 200센트 넘게 낮은 값을 두 배로 고친다. 두 배로도 그보다 낮으면 무음으로 본다. 대금을 악보보다 한 옥타브 낮게 분 연주가 모두 `PITCH`(0점)가 되는 것을 막는다. 단소·소금은 고치지 않는다.
+  - 기준은 곡 전체가 아니라 요청한 연습 구간의 최저음이다. 구간에서 그보다 한 옥타브 낮게 낸 음도 맞음이 될 수 있다.
+  - 이 변경으로 `modelVersion`은 `pyin-6`이다. 단소·소금 점수는 바뀌지 않는다. 근거·측정은 [대금 낮은 옥타브 채점 보정](../knowledge/ai/daegeum-low-octave.md)에 있다.
 - 응답 형식이 맞지 않거나 연결이 실패하면 `SERVER_ERROR`, 제한 시간을 넘으면 `TIMEOUT`이다(S15P31E102-174). AI 오류 응답의 본문은 요청을 되돌려 줄 수 있어 예외·로그에 남기지 않고 상태 코드만 남긴다.
 - 결과·실패 코드 저장은 같은 시도이고 마감 전(`analysis_started_at` ≥ 지금 − 제한 시간)일 때만 한다. 마감을 넘겨 거절되면 그 시도를 `TIMEOUT`으로 바꾼다. 분석을 시작할 때 이미 마감을 넘겼으면 AI를 부르지 않고 `TIMEOUT`이다. 마감과 같은 시각은 아직 제한 시간 안이다.
 - 악보 음표를 만들지 못하거나 결과 저장이 실패해도(예: 칸 범위를 넘는 값) `SERVER_ERROR`다. 시도마다 결과 코드와 처리 시간(ms)을 로그에 남기고, 예외 메시지는 남기지 않는다. `TIMEOUT`으로 바꿀 때는 분석 중이든 상태 조회 때든 따로 한 줄 남겨 시간 초과 횟수를 센다.
@@ -117,7 +122,7 @@ POST {AI}/v1/analyses
 
 - `result`: `sessionId`·`songId`(문자열), `bpm`·`bpmUnit`, `startNoteIdx`·`endNoteIdx`, `status`, `evaluationId`(문자열, 없으면 null), `failReason`, `recordingAvailable`(녹음 원본이 있고 기록을 지우지 않음), `startedAt`·`endedAt`(UTC ISO8601), `retryable`(`FAILED`이고 `TIMEOUT`·`SERVER_ERROR`), `savedAt`, `memo`.
 - 없거나 다른 회원의 세션은 404 `RESOURCE_NOT_FOUND`(공통 오류 형식). 다른 회원의 세션은 상태도 바꾸지 않는다.
-- (S15P31E102-342에서 구현) 기록을 지운 세션(REC-04)도 404다. 저장했고 지우지 않은 세션을 처음 조회하면 응답 전에 `viewed_at`을 한 번 기록한다(REC-02 `isNew`). 응답 필드는 같다. 자세한 계약은 [연습 기록 API](practice-records.md)를 따른다.
+- (S15P31E102-342에서 구현) 기록을 지운 세션(REC-04)도 404다. 저장했고 지우지 않은 세션을 처음 조회하면 응답 전에 `viewed_at`을 한 번 기록한다(REC-02 `isNew`). 745에서 `scoreVersion`·`songTitle`을 추가했다([판본 계약](published-score-history.md)). 자세한 계약은 [연습 기록 API](practice-records.md)를 따른다.
 - 점수·음표별 결과는 `DONE`일 때 결과 조회 API(`GET /api/practice-sessions/{sessionId}/evaluation`)로 받는다.
 
 **구현 상태(2026-10-29).** S15P31E102-186은 분석 실행 흐름, AI HTTP 클라이언트, 결과 저장까지, S15P31E102-174는 시간 초과·`SERVER_ERROR`·늦은 결과 무시와 저장소의 시간 초과 전환(`expireOverdue`)까지 구현했다. 상태 조회 API는 인증(S15P31E102-143)이 들어온 뒤 S15P31E102-186에서 붙였고, 조회한 시도가 마감을 넘겼을 때만 `GetPracticeSession`이 `expireOverdue`를 부른다. 업로드 뒤 분석 시작은 S15P31E102-186이 연결했고, 업로드(S15P31E102-181)가 이벤트 발행과 녹음 서명 URL을 구현했다.
@@ -250,3 +255,4 @@ S15P31E102-222가 다시 시도 API와 Bean 연결을 붙였다. 응답은 노�
 | 2026-10-28 | 업로드 잘림으로 짧아진 녹음은 `TOO_SHORT` | 끝이 잘리거나 중간이 손상된 파일은 `DECODE_ERROR`. `TOO_SHORT`는 끝까지 읽히는 짧은 녹음만 | 사용자 결정(S15P31E102-183 리뷰). ffmpeg는 손상 구간을 건너뛰고 정상 종료해 뒤의 소리가 앞당겨지므로 디코딩 오류가 하나라도 나면 실패로 본다. 두 경우 모두 '다시 연주하기'라 사용자 행동은 같다 |
 | 2026-10-28 | 분석 요청 음표는 `idx`·`semitone`·`beats`·`sigimsae` | 음표마다 `startBeat` 추가 | 쉼을 빼고 `beats`만 보내면 쉼 뒤 음이 앞당겨진다(아리랑 61음 중 45음, 최대 약 1초). 데이터 담당 지적. 백엔드(S15P31E102-186)·AI 엔드포인트(S15P31E102-212)·채점(S15P31E102-157)이 함께 바꾼다 |
 | 2026-11-02 | 기록을 지운 세션도 상태 조회는 200(상세·메모를 주고 `recordingAvailable`만 false) | 404. 저장 기록을 처음 조회할 때 `viewed_at`을 기록한다 | 사용자 결정(S15P31E102-342). EVA-01~04와 같이 지운 기록을 회원 조회에서 모두 뺀다. 기록 상세가 PRA-03에서 시작하므로 NEW 표시도 여기서 끈다 |
+| 2026-11-13 | 분석 요청에 악기 정보 없음. 한 옥타브 낮게 분 대금 연주는 모든 음 `PITCH` | 선택 필드 `instrument` 추가. 대금이면 구간 최저음 200센트 아래 음높이를 두 배로 고친다. `modelVersion` `pyin-6` | 사용자 결정(S15P31E102-848). 운영 정악대금 평가 113·114·116이 0·0·54점에서 75·46·70점이 된다. 백엔드·AI 순서와 무관하게 배포할 수 있다 |

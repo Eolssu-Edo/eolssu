@@ -32,19 +32,19 @@ import com.ssafy.eolssu.core.ui.component.EolssuPageTopBar
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.practice.component.PracticeBoardScore
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
-import com.ssafy.eolssu.feature.practice.component.PracticeCallToAction
 import com.ssafy.eolssu.core.ui.component.BeatCountdownOverlay
 import com.ssafy.eolssu.feature.practice.component.PracticeDialog
 import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
 import com.ssafy.eolssu.feature.practice.component.PracticeFingeringPage
 import com.ssafy.eolssu.feature.practice.component.PracticePanelActions
 import com.ssafy.eolssu.feature.practice.component.PracticePanelSheet
-import com.ssafy.eolssu.feature.practice.component.PracticePlayerCard
+import com.ssafy.eolssu.feature.practice.component.PracticePlayer
 import com.ssafy.eolssu.feature.practice.component.PracticeRecordingBar
 import com.ssafy.eolssu.feature.practice.component.PracticePlaybackLoadingOverlay
-import com.ssafy.eolssu.feature.practice.component.PracticeStepPanels
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
+import com.ssafy.eolssu.feature.practice.component.PracticeTitleToggles
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
+import com.ssafy.eolssu.feature.practice.component.PracticeStepToggle
 import com.ssafy.eolssu.feature.practice.component.reportUserActivity
 import com.ssafy.eolssu.feature.practice.layout.PracticeExpandedLayout
 import com.ssafy.eolssu.feature.practice.layout.PracticeMediumLayout
@@ -72,6 +72,8 @@ class PracticeScreenActions(
     val panel: PracticePanelActions,
     val dialog: PracticeDialogActions,
     val onRetrySong: () -> Unit = {},
+    /** 연주 평가 제목 옆 ‘쉬운 표기’(S15P31E102-716). */
+    val onToggleHangul: () -> Unit = {},
 )
 
 /**
@@ -111,10 +113,11 @@ fun PracticeScreen(
             actions.panel,
             tablet = widthClass != WindowWidthClass.Compact,
             modifier = Modifier.reportUserActivity(actions.onUserActivity),
+            titleToggles = widthClass == WindowWidthClass.Compact && state.showsTitleToggles,
         )
     }
     state.popup?.takeUnless { it == PracticePopup.SettingsPaused && state.panel != null }
-        ?.let { PracticeDialog(it, actions.dialog, forStep = state.solo, toSongInfo = state.direct) }
+        ?.let { PracticeDialog(it, actions.dialog, forStep = state.solo, evaluation = state.direct) }
 }
 
 /** 곡 상세를 거치지 않고 연습으로 들어와도 로딩·404·통신 실패에서 빠져나오고 재시도할 수 있다. */
@@ -122,7 +125,8 @@ fun PracticeScreen(
 private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScreenActions, snackbarHostState: SnackbarHostState) {
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
-        topBar = { EolssuPageTopBar(title = practicePageTitle(state), onBack = actions.onBack) },
+        containerColor = EolssuTheme.colors.groupedBackground,
+        topBar = { EolssuPageTopBar(title = practicePageTitle(state), onBack = actions.onBack, divider = false) },
     ) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)) {
@@ -141,8 +145,8 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
 }
 
 /**
- * 휴대폰 배치(보드 PRACTICE-01): 페이지 머리 ‘연습’ → 본문(곡 제목·오른쪽 상태 문구, 악보 또는 운지법과 함께 보기, 플레이어 카드,
- * 행동 버튼·안내)을 세로 스크롤 없이 한 화면에 두고, 연주 중에만 하단 바가 고정된다.
+ * 휴대폰 배치(보드 PRACTICE-01): 페이지 머리 ‘연습’ → 본문(곡 제목·오른쪽 상태 문구, 악보 또는 운지법과 함께 보기,
+ * 플레이어([PracticePlayer]))를 세로 스크롤 없이 한 화면에 두고, 연주 중에만 하단 바가 고정된다.
  * 연주 중에는 손으로 스크롤하기 어려우므로 악보는 플레이어·버튼을 뺀 남은 높이를 쓴다. 운지법을 끈 악보는 좌우로만 넘기고,
  * 운지법과 함께 보기는 남은 높이에 들어가는 운지만 한 페이지에 담아 넘긴다.
  */
@@ -153,13 +157,19 @@ private fun PracticeCompactLayout(
     actions: PracticeScreenActions,
     livePitch: Map<ScoreUnitKey, LivePitchMark>,
 ) {
-    val recordingBar = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
-    // 곡 정보에서 바로 시작한 평가는 준비 상태의 플레이어·행동 버튼을 두지 않는다(모범 연주 듣기 없이 바로 평가).
+    val recordingBar = state.recordingLayout
+    // 연주 평가는 준비 상태의 플레이어·행동 버튼 없이 하단의 평가 대기 막대(‘평가 시작’)를 둔다.
     val showPlayer = !state.direct && state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)
     val fingering = state.fingeringView
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
-        topBar = { PracticeTopBar(state, actions.onBack, actions.onOpenSettings, onToggleStep = actions.bottom.onToggleStep) },
+        containerColor = EolssuTheme.colors.groupedBackground,
+        topBar = {
+            PracticeTopBar(
+                state, actions.onBack, actions.onOpenSettings, onToggleStep = actions.bottom.onToggleStep,
+                showStepToggle = false,
+            )
+        },
         bottomBar = if (recordingBar) { { PracticeRecordingBar(state, actions.bottom) } } else null,
     ) {
         Box(Modifier.fillMaxSize()) {
@@ -168,7 +178,17 @@ private fun PracticeCompactLayout(
                     .fillMaxSize()
                     .padding(start = 20.dp, end = 20.dp, top = if (fingering || recordingBar) 8.dp else 18.dp, bottom = 12.dp),
             ) {
-                PracticeTitleRow(state, statusAtEnd = true)
+                PracticeTitleRow(
+                    state,
+                    showPill = false,
+                    toggles = if (state.showsTitleToggles) PracticeTitleToggles(actions.panel.onToggleFingeringView, actions.onToggleHangul) else null,
+                    // 휴대폰은 머리 제목이 잘리지 않게 ‘한 음씩’을 설정 버튼 아래(제목 줄 오른쪽)에 둔다. 연습·구간 연습이 같은 자리다(S15P31E102-816).
+                    trailing = if (state.solo && state.step.available) {
+                        { PracticeStepToggle(state, actions.bottom.onToggleStep) }
+                    } else {
+                        null
+                    },
+                )
                 Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
                 if (fingering) {
                     PracticeFingeringPage(state, actions.onSelectUnit, modifier = Modifier.weight(1f))
@@ -178,14 +198,7 @@ private fun PracticeCompactLayout(
                         modifier = Modifier.weight(1f), livePitch = livePitch,
                     )
                 }
-                if (showPlayer) {
-                    if (state.stepUi) {
-                        PracticeStepPanels(state, actions.bottom, Modifier.padding(top = 8.dp, bottom = 14.dp))
-                    } else {
-                        PracticePlayerCard(state, actions.bottom, Modifier.padding(top = 8.dp, bottom = 8.dp), compact = true)
-                    }
-                    PracticeCallToAction(state, actions.bottom, hideNotice = fingering)
-                }
+                if (showPlayer) PracticePlayer(state, actions.bottom, Modifier.padding(top = 8.dp))
                 Spacer(Modifier.height(8.dp))
             }
         }

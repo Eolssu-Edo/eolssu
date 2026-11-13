@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.NicknameRule
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
@@ -55,6 +56,8 @@ fun ProfileSetupScreen(
             AuthHeading(stringResource(Res.string.auth_profile_heading))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 EolssuTextField(
+                    bordered = false,
+                    labelInside = true,
                     value = state.nickname,
                     onValueChange = onNicknameChange,
                     label = stringResource(Res.string.auth_nickname),
@@ -70,6 +73,8 @@ fun ProfileSetupScreen(
                     label = stringResource(Res.string.auth_instrument),
                     help = stringResource(Res.string.auth_instrument_help),
                     instruments = state.instruments,
+                    // 회색 바탕 화면이라 고르지 않은 칸은 흰 채움(S15P31E102-798).
+                    unselectedColor = EolssuTheme.colors.surface,
                 )
             }
         }

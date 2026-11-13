@@ -18,6 +18,8 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** 기록 목록(RECORD-01)의 악기 필터: 곡 정보로 악기를 찾아, 고른 악기의 곡 묶음만 보인다(S15P31E102-631). */
@@ -32,7 +34,7 @@ internal class RecordListInstrumentFilterTest : CatalogViewModelTest() {
 
     private class Records(list: List<PracticeRecord>) : PracticeRecordRepository {
         override val records: StateFlow<List<PracticeRecord>> = MutableStateFlow(list)
-        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String) = error("쓰지 않음")
+        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String) = error("쓰지 않음")
         override suspend fun updateMemo(recordId: String, memo: String) = Unit
         override suspend fun refresh(): Boolean = true
     }
@@ -66,20 +68,24 @@ internal class RecordListInstrumentFilterTest : CatalogViewModelTest() {
         )
         // 공개 목록에 없는 곡만 상세로 한 번씩 찾는다.
         assertEquals(listOf("hidden-arirang", "mine"), songs.details.sorted())
-        assertEquals(4, state.groups.size)
+        // 전체 보기에서는 제목이 같은 '아리랑' 네 곡이 악기와 관계없이 한 묶음이다.
+        assertEquals(listOf("아리랑"), state.groups.map { it.key })
 
+        // 악기를 고르면 그 악기의 곡만 묶음에 남는다.
         model.changeInstrument(Instrument.Sogeum)
-        assertEquals(listOf("sogeum-arirang"), model.uiState.value.groups.map { it.songId })
-        assertTrue(model.uiState.value.isOpen("sogeum-arirang"))
-        assertEquals("r2", model.uiState.value.selectedRecordId)
+        runCurrent()
+        assertEquals(listOf(listOf("sogeum-arirang")), model.uiState.value.groups.map { it.songIds })
+        // 악기를 바꾸면 묶음을 모두 접고 기록을 고르지 않는다.
+        assertFalse(model.uiState.value.isOpen("아리랑"))
+        assertNull(model.uiState.value.selectedRecordId)
 
         model.changeInstrument(Instrument.DaegeumJeongak)
-        assertEquals(listOf("hidden-arirang"), model.uiState.value.groups.map { it.songId })
+        assertEquals(listOf(listOf("hidden-arirang")), model.uiState.value.groups.map { it.songIds })
 
-        // 기록이 없는 악기는 빈 묶음, 전체로 돌아오면 악기를 모르는 곡까지 모두 보인다.
+        // 기록이 없는 악기는 빈 묶음, 전체로 돌아오면 악기를 모르는 곡까지 최근 연습순으로 한 묶음에 모인다.
         model.changeInstrument(Instrument.DaegeumSanjo)
         assertTrue(model.uiState.value.groups.isEmpty())
         model.changeInstrument(null)
-        assertEquals(listOf("danso-arirang", "sogeum-arirang", "hidden-arirang", "mine"), model.uiState.value.groups.map { it.songId })
+        assertEquals(listOf(listOf("danso-arirang", "sogeum-arirang", "hidden-arirang", "mine")), model.uiState.value.groups.map { it.songIds })
     }
 }

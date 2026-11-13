@@ -4,7 +4,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.Score
+import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.ScoreEvent
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  * 화면에 그리는 세로 줄 하나. 한 각이 [Jangdan.strips]에 따라 여러 줄로 나뉠 수 있다.
@@ -13,6 +16,19 @@ import com.ssafy.eolssu.core.model.ScoreEvent
  * @property rows 이 줄에 그리는 정간 번호 범위.
  */
 internal data class ScoreStrip(val column: Int, val strip: Int, val rows: IntRange)
+
+/** 오른쪽 시작점에서 센 스크롤 위치에 필요한 세로 묶음. 양쪽 한 묶음을 미리 구성한다. */
+internal fun visibleScoreStacks(stackCount: Int, scrollPx: Int, viewportPx: Int, stridePx: Float): IntRange {
+    if (stackCount == 0) return IntRange.EMPTY
+    require(stridePx > 0 && stridePx.isFinite())
+    val first = floor(scrollPx.coerceAtLeast(0) / stridePx).toInt() - 1
+    val last = ceil((scrollPx.toDouble().coerceAtLeast(0.0) + viewportPx.coerceAtLeast(0)) / stridePx).toInt()
+    return first.coerceIn(0, stackCount - 1)..last.coerceIn(0, stackCount - 1)
+}
+
+/** 칸 너비와 간격을 각각 반올림한 실제 배치와 화면 밖 빈 공간의 폭을 일치시킨다. */
+internal fun scoreStackSpanPx(count: Int, columnPx: Int, gapPx: Int): Int =
+    if (count <= 0) 0 else count * columnPx + (count - 1) * gapPx
 
 /**
  * 연주 순서(각 0의 첫 줄부터)로 나열한 줄 목록. 화면에는 이 목록을 오른쪽에서 왼쪽으로 놓는다.
@@ -121,3 +137,12 @@ internal fun cellProgressAt(cellStart: Double, position: Double?): CellProgress 
     position >= cellStart + 1 -> CellProgress.Past
     else -> CellProgress.Current
 }
+
+/**
+ * 진행 위치([position], 곡 처음부터의 정간 수)가 표시 자리 [unit]의 끝까지 지났는지. 위치가 없으면 지나지 않았다.
+ * 나눈 정간의 소박 경계는 분수 합이라 끝 값이 아주 조금 어긋날 수 있어 [PassedEpsilon]만큼 봐준다.
+ */
+internal fun unitPassed(unit: ScoreDisplayUnit, position: Double?): Boolean =
+    position != null && position >= unit.unitStart + unit.unitDuration - PassedEpsilon
+
+private const val PassedEpsilon = 1e-6

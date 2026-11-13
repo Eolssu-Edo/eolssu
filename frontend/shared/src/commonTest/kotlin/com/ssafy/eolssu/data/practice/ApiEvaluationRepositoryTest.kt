@@ -78,6 +78,19 @@ class ApiEvaluationRepositoryTest {
         assertEquals(1, songReads)
     }
 
+    @Test fun unsupportedNoteVerdictDoesNotHideScoresBeforeScoreMapping() = runTest {
+        val repo = repository {
+            HttpStatusCode.OK to """{"isSuccess":true,"result":{"sessionId":"41","songId":"2","scoreVersion":1,
+                "bpm":60,"startedAt":"2026-10-29T00:00:00Z","totalScore":80,"pitchScore":90,"timingScore":70,
+                "durationScore":80,"notes":[{"noteIdx":0,"verdict":"UNSUPPORTED"}]}}"""
+        }
+        val prepared = checkNotNull(repo.resultForScreen("41", song))
+        assertEquals(80, prepared.scores.total)
+        assertEquals(0, songReads)
+        assertFailsWith<IllegalArgumentException> { prepared.loadDetails() }
+        assertEquals(80, prepared.scores.total)
+    }
+
     @Test fun preparedDetailsCannotBeLoadedAfterSigningInAgain() = runTest {
         val member = SignedInMember(object : KeyValueStore {
             private val values = mutableMapOf<String, String>()
@@ -219,6 +232,33 @@ class ApiEvaluationRepositoryTest {
         assertFailsWith<IllegalStateException> { repository(null).retryAnalysis("41") }
         assertEquals("/api/practice-sessions/41/retry", paths.first())
         assertEquals(listOf("retry-0", "retry-1", "retry-2", "retry-3"), keys.take(4))
+    }
+
+    @Test
+    fun retryAndDoneUseServerAttemptTimingHeader() = runTest {
+        val timingId = "b23ba41a-7e5e-4938-8b3b-93ce5ac25c95"
+        val repo = ApiEvaluationRepository(
+            createHttpClient(
+                MockEngine { request ->
+                    if (request.url.encodedPath.endsWith("/retry")) {
+                        respond("{}", HttpStatusCode.Accepted, headersOf(
+                            "X-Evaluation-Retry-Status" to listOf("already-pending"),
+                            "X-Evaluation-Timing-Id" to listOf(timingId),
+                        ))
+                    } else {
+                        val (status, body) = session("DONE")
+                        respond(body, status, headersOf(
+                            HttpHeaders.ContentType to listOf("application/json"),
+                            "X-Evaluation-Timing-Id" to listOf(timingId),
+                        ))
+                    }
+                },
+                ServerAddress.Production,
+            ),
+            songs,
+        )
+        assertEquals(RetryOutcome.Accepted(started = false, timingId = timingId), repo.retryAnalysis("41"))
+        assertEquals(AnalysisStatus.Done("41", timingId), repo.analysisStatus("41"))
     }
 
     @Test

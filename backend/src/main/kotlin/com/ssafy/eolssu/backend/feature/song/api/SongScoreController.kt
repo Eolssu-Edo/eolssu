@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.RequestParam
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
@@ -23,10 +24,11 @@ import tools.jackson.databind.json.JsonMapper
 @Profile("db | ops")
 class SongScoreController(private val service: GetSongScore, private val json: JsonMapper) {
     @GetMapping("/api/songs/{songId}/score")
-    fun get(@PathVariable songId: String): ResponseEntity<*> {
+    fun get(@PathVariable songId: String, @RequestParam(required = false) scoreVersion: String? = null): ResponseEntity<*> {
         val id = songId.takeIf { it.matches(Regex("[1-9][0-9]*")) }?.toLongOrNull()
             ?: return error(ErrorCode.INVALID_REQUEST)
-        return when (val result = service.get(id)) {
+        val revision = scoreVersion?.let { requestedScoreVersion(it) ?: return error(ErrorCode.INVALID_REQUEST) }
+        return when (val result = service.get(id, revision)) {
             SongScoreLookup.NotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
             SongScoreLookup.Conflict -> error(ErrorCode.STATE_CONFLICT)
             is SongScoreLookup.Found -> {

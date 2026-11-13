@@ -19,7 +19,11 @@ interface PracticeAnalysisMapper {
     ): Int
 
     /** 마감을 넘긴(시작 시각이 startedAfter보다 이른) `PENDING`을 `TIMEOUT`으로 바꾼다. */
-    fun expireOverdue(@Param("sessionId") sessionId: Long, @Param("startedAfter") startedAfter: LocalDateTime): Int
+    fun expireOverdue(
+        @Param("sessionId") sessionId: Long,
+        @Param("startedAfter") startedAfter: LocalDateTime,
+        @Param("expectedAttempt") expectedAttempt: Int?,
+    ): Int
 
     fun insertEvaluation(evaluation: NewEvaluation): Int
 
@@ -27,6 +31,7 @@ interface PracticeAnalysisMapper {
 
     /** 분석 음표를 만들 곡 악보. 곡이 없으면 null. */
     fun findScore(@Param("songId") songId: Long): SongScoreRow?
+    fun findScoreRevision(@Param("songId") songId: Long, @Param("scoreVersion") scoreVersion: Int): SongScoreRow?
 
     /** 율명·옥타브를 반음·음 ID로 바꾸는 기준 데이터(V5 시드). */
     fun findPitches(): List<ScorePitchRow>
@@ -40,6 +45,7 @@ interface PracticeAnalysisMapper {
         @Param("userId") userId: Long,
         @Param("attempt") attempt: Int,
         @Param("startedAt") startedAt: LocalDateTime,
+        @Param("timingId") timingId: String?,
     ): Int
 }
 
@@ -59,6 +65,7 @@ data class AnalysisStateRow(
     val status: String,
     val failReason: String?,
     val attempt: Int,
+    val analysisTimingId: String?,
 )
 
 data class PendingAnalysisRow(
@@ -71,6 +78,7 @@ data class PendingAnalysisRow(
     val bpm: Int,
     val bpmUnit: String,
     val recordingUrl: String,
+    val instrument: String?,
 )
 
 /** 저장 뒤 MyBatis가 자동 증가 `id`를 채운다. */

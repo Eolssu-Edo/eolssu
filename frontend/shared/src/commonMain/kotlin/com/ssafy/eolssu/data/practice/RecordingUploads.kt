@@ -47,8 +47,11 @@ sealed interface UploadOutcome {
 
 /** 녹음 업로드. HTTP 구현은 [HttpRecordingUploader]다. */
 interface RecordingUploader {
-    /** [path]의 녹음을 세션 [sessionId]에 올린다. 연결 오류는 [UploadOutcome.ConnectionFailed]로 돌려주거나 예외로 던진다. */
-    suspend fun upload(sessionId: String, path: String): UploadOutcome
+    /**
+     * [path]의 녹음을 세션 [sessionId]에 올린다. 연결 오류는 [UploadOutcome.ConnectionFailed]로 돌려주거나 예외로 던진다.
+     * [onProgress]는 보낸 비율(0..1)이며, 자동 재시도를 포함해 보낼 때마다 0부터 알린다.
+     */
+    suspend fun upload(sessionId: String, path: String, onProgress: (Float) -> Unit = {}): UploadOutcome
 }
 
 /** [NotOwner]는 로그인한 회원이 세션 소유자와 달라 파일을 건드리지 않은 경우다. */
@@ -74,26 +77,26 @@ class RecordingUploads(
 ) {
     /**
      * 녹음을 보관 위치에 옮긴 뒤 보낸다. 옮기지 못하면 원래 자리에서 보낸다(그 파일은 다음 녹음 때 지워질 수 있다).
-     * 파일이 없으면 보내지 않는다.
+     * 파일이 없으면 보내지 않는다. [onProgress]는 전송 비율(0..1)이다.
      */
-    suspend fun send(recording: PendingRecording): SendResult = member.whileSignedIn { memberId ->
+    suspend fun send(recording: PendingRecording, onProgress: (Float) -> Unit = {}): SendResult = member.whileSignedIn { memberId ->
         if (!recording.belongsTo(memberId)) return@whileSignedIn SendResult.NotOwner
         val path = files.keep(recording.path) ?: recording.path.takeIf(files::exists) ?: return@whileSignedIn SendResult.Missing
         val pending = recording.copy(path = path)
         load(memberId)?.let { old -> if (old.path != path) files.delete(old.path) }
         save(pending)
-        upload(pending)
+        upload(pending, onProgress)
     }
 
     /**
      * [recording]과 같은 세션의 기다리는 녹음을 다시 보낸다. 다른 세션의 녹음은 보내지 않는다.
      * 그 세션의 녹음이 없을 때 업로드 시간이 지났으면 [SendResult.Expired], 아니면(새 녹음으로 바뀜, 파일 사라짐) [SendResult.Missing]이다.
      */
-    suspend fun resend(recording: PendingRecording): SendResult = member.whileSignedIn { memberId ->
+    suspend fun resend(recording: PendingRecording, onProgress: (Float) -> Unit = {}): SendResult = member.whileSignedIn { memberId ->
         if (!recording.belongsTo(memberId)) return@whileSignedIn SendResult.NotOwner
         val pending = current(memberId)?.takeIf { it.sessionId == recording.sessionId }
             ?: return@whileSignedIn if (age(recording) > RecordingSpec.UploadWindow.inWholeMilliseconds) SendResult.Expired else SendResult.Missing
-        upload(pending)
+        upload(pending, onProgress)
     }
 
     /** 다시 보내기를 권할 녹음. 업로드 시간이 지난 녹음은 숨기고, 지울 때가 지난 녹음은 지운다. */
@@ -116,14 +119,14 @@ class RecordingUploads(
         return pending
     }
 
-    private suspend fun upload(pending: PendingRecording): SendResult {
+    private suspend fun upload(pending: PendingRecording, onProgress: (Float) -> Unit): SendResult {
         val path = files.locate(pending.path)
         if (path == null) {
             discard(pending)
             return SendResult.Missing
         }
         val outcome = try {
-            uploader.upload(pending.sessionId, path)
+            uploader.upload(pending.sessionId, path, onProgress)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

@@ -10,16 +10,21 @@ class CommonScoreTimelineDecoder(private val json: JsonMapper) : SongScoreDecode
     override fun decode(score: PublishedSongScore, pitches: List<ScorePitch>): DecodedSongScore =
         decode(score, pitches, null)
 
+    /** Authoring uses the renderer preflight rather than the published catalog's legacy BPM band. */
+    fun decodeAuthoring(score: PublishedSongScore, pitches: List<ScorePitch>): DecodedSongScore =
+        decode(score, pitches, null, authoring = true)
+
     /** 시간축을 검증하면서 초안에서만 편집할 수 있는 미등록 율명을 찾는다. */
-    fun unregisteredPitches(score: PublishedSongScore, pitches: List<ScorePitch>): List<UnregisteredScorePitch> =
-        buildList { decode(score, pitches, this) }
+    fun unregisteredPitches(score: PublishedSongScore, pitches: List<ScorePitch>, authoring: Boolean = false): List<UnregisteredScorePitch> =
+        buildList { decode(score, pitches, this, authoring) }
 
     private fun decode(
         score: PublishedSongScore,
         pitches: List<ScorePitch>,
         unregistered: MutableList<UnregisteredScorePitch>?,
+        authoring: Boolean = false,
     ): DecodedSongScore = try {
-        decodeValidated(score, pitches, unregistered)
+        decodeValidated(score, pitches, unregistered, authoring)
     } catch (_: JacksonException) {
         throw InvalidStoredScore()
     }
@@ -28,6 +33,7 @@ class CommonScoreTimelineDecoder(private val json: JsonMapper) : SongScoreDecode
         stored: PublishedSongScore,
         pitches: List<ScorePitch>,
         unregistered: MutableList<UnregisteredScorePitch>?,
+        authoring: Boolean = false,
     ): DecodedSongScore {
         val score = json.readTree(stored.scoreJson)
         val schemaVersion = score.int("schemaVersion")
@@ -37,7 +43,7 @@ class CommonScoreTimelineDecoder(private val json: JsonMapper) : SongScoreDecode
         val ticksPerBeat = music.int("ticksPerBeat")
         val ticksPerJeonggan = music.int("ticksPerJeonggan")
         ensure(ticksPerBeat > 0 && ticksPerJeonggan > 0)
-        ensure(stored.defaultBpm in 30..400 && stored.bpmUnit in BPM_UNITS)
+        ensure((if (authoring) stored.defaultBpm > 0 else stored.defaultBpm in 30..400) && stored.bpmUnit in BPM_UNITS)
         ensure(music.text("bpmUnit") == stored.bpmUnit)
 
         val events = score.array("events").toList()
@@ -77,7 +83,8 @@ class CommonScoreTimelineDecoder(private val json: JsonMapper) : SongScoreDecode
                 if (pitch != null) {
                     usedPitches += pitch
                 } else {
-                    if (unregistered == null || yul !in registeredYuls || octave !in -2..2) throw InvalidStoredScore()
+                    // Recognition drafts preserve the original MIDI octave; final decoding still requires a registered pitch.
+                    if (unregistered == null || yul !in registeredYuls || octave !in -6..5) throw InvalidStoredScore()
                     unregistered += UnregisteredScorePitch(id, cellId, yul, octave)
                 }
                 ScoreTimelineEvent(id, kind, noteIndex++, pitch?.id?.toString(), column, cell, position.subIdx,

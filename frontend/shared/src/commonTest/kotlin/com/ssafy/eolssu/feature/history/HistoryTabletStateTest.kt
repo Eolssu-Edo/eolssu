@@ -9,7 +9,7 @@ import com.ssafy.eolssu.feature.history.component.stripSlots
 import com.ssafy.eolssu.feature.history.component.wrapColumns
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import com.ssafy.eolssu.data.practice.RecordSongSummary
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -18,31 +18,15 @@ class HistoryTabletStateTest {
     private val records = SamplePracticeRecordRepository().records.value
 
     @Test
-    fun twoPaneSelectsJustSavedThenLatestUntilPicked() {
-        val latest = records.first().id
-        val older = records.last().id
-        assertEquals(latest, RecordListUiState(records = records).selectedRecordId)
-        assertEquals(older, RecordListUiState(records = records, justSavedId = older).selectedRecordId)
-        assertEquals(latest, RecordListUiState(records = records, justSavedId = older).select(latest).selectedRecordId)
-    }
-
-    @Test
-    fun twoPaneFallsBackWhenSelectionIsMissing() {
-        assertEquals(records.first().id, RecordListUiState(records = records, justSavedId = "gone").select("gone-too").selectedRecordId)
-        assertNull(RecordListUiState().select("anything").selectedRecordId)
-    }
-
-    @Test
-    fun showingRecordFromDetailRouteSelectsItAndOpensItsSong() {
-        val doraji = records.first { it.songId == "doraji" }
-        val state = RecordListUiState(records = records)
-        assertFalse(state.isOpen("doraji"))
-
-        val shown = state.show(doraji.id)
-        assertEquals(doraji.id, shown.selectedRecordId)
-        assertTrue(shown.isOpen("doraji") && shown.isOpen("arirang"))
-        // 기록을 받기 전이면 고르기만 해 두고, 받으면 그 기록이 오른쪽에 보인다.
-        assertEquals(doraji.id, RecordListUiState().show(doraji.id).copy(records = records).selectedRecordId)
+    fun twoPaneSelectsLinkedRecordEvenBeforeItsPageIsLoaded() {
+        val arirang = records.filter { it.songId == "arirang" }
+        val group = RecordSongSummary("arirang", "아리랑", arirang.size, arirang.first().recordedAt, 79, null)
+        val state = RecordListUiState(summaries = listOf(group), pages = mapOf("arirang" to RecordPages(arirang, nextPage = null)))
+        // 처음에는 최근 기록도 고르지 않는다.
+        assertNull(state.selectedRecordId)
+        assertEquals("linked", state.copy(linkedId = "linked").selectedRecordId)
+        assertEquals("picked", state.copy(linkedId = "linked", selectedId = "picked").selectedRecordId)
+        assertNull(RecordListUiState().selectedRecordId)
     }
 
     @Test

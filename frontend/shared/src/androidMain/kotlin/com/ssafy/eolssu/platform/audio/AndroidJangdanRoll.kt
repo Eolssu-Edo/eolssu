@@ -21,7 +21,7 @@ private const val PCM_FRAME_BYTES = 2
 
 @OptIn(UnstableApi::class)
 internal suspend fun stretchJangdanRoll(source: CachedJangdanSample, targetFrames: Int): ByteArray {
-    val pcm = decodeRoll(source)
+    val pcm = decodeJangdanPcm(source)
     val sonic = SonicAudioProcessor().apply {
         setSpeed(source.frames.toFloat() / targetFrames)
         configure(AudioProcessor.AudioFormat(JANGDAN_SAMPLE_RATE, 1, C.ENCODING_PCM_16BIT))
@@ -52,7 +52,7 @@ internal suspend fun stretchJangdanRoll(source: CachedJangdanSample, targetFrame
     return wave.array()
 }
 
-private suspend fun decodeRoll(source: CachedJangdanSample): ByteArray {
+internal suspend fun decodeJangdanPcm(source: CachedJangdanSample): ByteArray {
     val extractor = MediaExtractor()
     try {
         extractor.setDataSource(source.file.absolutePath)

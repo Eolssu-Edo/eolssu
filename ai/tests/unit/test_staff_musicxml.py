@@ -9,6 +9,14 @@ import pytest
 
 from omr_service.staff_musicxml import convert
 
+
+def test_original_pitches_are_preserved_before_instrument_adaptation():
+    doc = xml(measure(note("E6", 4), note("B3", 4), note("Eb7", 4), note("B4", 4), time=(4, 4)))
+    out = convert(doc, instrument="SOGEUM", hwang_pitch=None)
+    assert out.shift == 0
+    assert [n["midi"] for n in out.source_pitches] == [88, 59, 99, 71]
+    assert [n["eventId"] for n in out.source_pitches] == [f"c0-j{i}-r0-u0" for i in range(4)]
+
 STEP = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 
 
@@ -109,6 +117,14 @@ def test_grace_notes_are_dropped_with_issue():
     assert [(i["kind"], i["detail"]) for i in out.issues] == [("ORNAMENT_DROPPED", {"measure": 1})]
 
 
+def test_overfull_recognition_is_pointed_to_notes_for_review():
+    out = convert(xml(measure(note("C4", 16), note("D4", 1), time=(4, 4))),
+                  instrument="ANY", hwang_pitch=60)
+    flagged = [i for i in out.issues if i["kind"] == "LOW_CONFIDENCE"
+               and i["detail"]["reason"] == "OVERFULL_MEASURE"]
+    assert flagged and all(i["cellId"] for i in flagged)
+
+
 def test_highest_voice_and_top_of_chord_are_kept():
     upper = note("E4", 8, voice=1) + note("G4", 4, voice=1) + note("C5", 4, "<chord/>", voice=1)
     lower = "<backup><duration>16</duration></backup>" + note("C4", 16, voice=2)
@@ -125,6 +141,39 @@ def test_higher_voice_wins_even_when_numbered_second():
     assert out.lines == [":0 임 |  |  | "]
 
 
+def test_active_lower_melody_wins_over_sustained_upper_accompaniment():
+    upper = note("E4", 16, voice=1)
+    lower = "<backup><duration>16</duration></backup>" + "".join(
+        note(p, 4, voice=5) for p in ("C3", "D3", "E3", "C3"))
+    out = convert(xml(measure(upper, lower, time=(4, 4))), instrument="ANY", hwang_pitch=60)
+    assert [n["midi"] for n in out.source_pitches] == [48, 50, 52, 48]
+
+
+def test_tied_upper_pedal_does_not_outvote_moving_lower_melody():
+    upper = "".join(note("E4", 4, '<tie type="stop"/>' if i else '<tie type="start"/>', voice=1)
+                    for i in range(4))
+    lower = "<backup><duration>16</duration></backup>" + note("C3", 8, voice=2) + note("D3", 8, voice=2)
+    out = convert(xml(measure(upper, lower, time=(4, 4))), instrument="ANY", hwang_pitch=60)
+    assert [n["midi"] for n in out.source_pitches] == [48, 50]
+
+
+def test_lower_quarter_note_melody_wins_when_a_few_half_notes_reduce_attack_ratio():
+    # Au clair의 상성부는 23회, 하성부는 44회라 시작 수만 보면 두 배에 못 미친다.
+    upper = note("E4", 8, voice=1) + note("G4", 8, voice=1)
+    lower = "<backup><duration>16</duration></backup>" + "".join(
+        note(p, d, voice=5) for p, d in (("C3", 4), ("D3", 4), ("E3", 8)))
+    out = convert(xml(measure(upper, lower, time=(4, 4))), instrument="ANY", hwang_pitch=60)
+    assert [n["midi"] for n in out.source_pitches] == [48, 50, 52]
+
+
+def test_more_lower_attacks_with_similar_note_lengths_keep_the_upper_voice():
+    upper = note("E4", 4, voice=1) + note("G4", 4, voice=1) + note("C5", 8, voice=1)
+    lower = "<backup><duration>16</duration></backup>" + "".join(
+        note(p, 4, voice=5) for p in ("C3", "D3", "E3", "C3"))
+    out = convert(xml(measure(upper, lower, time=(4, 4))), instrument="ANY", hwang_pitch=60)
+    assert [n["midi"] for n in out.source_pitches] == [64, 67, 72]
+
+
 def test_note_over_gak_line_is_written_again_at_next_gak():
     # 우물사이는 각을 넘어 잇지 않아(넘으면 쉼이 된다) 다음 각 처음에 같은 음을 다시 적는다
     doc = xml(measure(note("C4", 8), note("D4", 8, '<tie type="start"/>'), time=(4, 4)),
@@ -132,15 +181,12 @@ def test_note_over_gak_line_is_written_again_at_next_gak():
     assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 황 |  | :0 태 | ", ":0 태 |  | :0 고 | "]
 
 
-def test_key_is_moved_to_fit_the_instrument_scale_when_hwang_is_not_given():
-    # A단조 5음(A C D E G)으로 쓴 선율. 단소 5율(중·임·무·황·태)에 맞추려면 반음 몇 칸을 옮겨야 한다
+def test_no_transposition_occurs_before_user_reviews_capability_based_candidates():
     pitches = ["A4", "C5", "D5", "E5", "G5", "E5", "D5", "C5"]
     doc = xml(measure(*[note(p, 2) for p in pitches], time=(4, 4)))
     out = convert(doc, instrument="DANSO", hwang_pitch=None)
-    (issue,) = out.issues
-    assert issue["kind"] == "TRANSPOSED"
-    yuls = {tok for l in out.lines for tok in l.replace("|", " ").split() if not tok.startswith(":")}
-    assert yuls <= {"중", "임", "무", "황", "태", "청중", "청임", "청무", "청황", "청태", "중청중"}
+    assert out.shift == 0 and not any(i['kind'] == 'TRANSPOSED' for i in out.issues)
+    assert [n['midi'] for n in out.source_pitches] == [69, 72, 74, 76, 79, 76, 74, 72]
     assert convert(doc, instrument="DANSO", hwang_pitch=63).issues == []
 
 
@@ -157,18 +203,16 @@ def test_missing_time_signature_ties_prefer_gutgeori():
     assert (out.jangdan, out.beats_per_gak) == ("굿거리", 4)
 
 
-def test_note_outside_instrument_range_is_flagged():
-    # 단소 음역은 중(반음 5)~중청중(29). 황(0)은 음역 아래다
+def test_import_does_not_infer_physical_playability_from_an_instrument_range():
     out = convert(xml(measure(note("C4", 16), time=(4, 4))), instrument="DANSO", hwang_pitch=60)
     assert out.lines == [":0 황 |  |  | "]
-    assert [(i["kind"], i["detail"]) for i in out.issues] == [("OUT_OF_RANGE", {"measure": 1, "semitone": 0})]
+    assert out.issues == []
 
 
-def test_note_beyond_named_octaves_is_moved_into_them_and_flagged():
-    # 율명은 하하배(−3)~중청(+2) 옥타브만 있다. C0은 하하배보다 한 옥타브 아래라 하하배로 올린다
+def test_note_beyond_notation_keeps_original_midi_and_reports_missing_notation():
     out = convert(xml(measure(note("C0", 16), time=(4, 4))), instrument="ANY", hwang_pitch=60)
-    assert out.lines == [":0 하하배황 |  |  | "]
-    assert [i["kind"] for i in out.issues] == ["OUT_OF_RANGE"]
+    assert out.source_pitches[0]['midi'] == 12
+    assert [i["kind"] for i in out.issues] == ["UNREGISTERED_PITCH"]
 
 
 def test_mxl_zip_is_read():
@@ -299,16 +343,16 @@ def test_colliding_onsets_keep_the_later_and_flag():
     assert any(i["detail"].get("reason") == "COLLIDED" for i in out.issues)
 
 
-def test_out_of_range_is_reported_once_per_note():
-    doc = xml(measure(note("C4", 8), note("C4", 8, '<tie type="start"/>'), time=(4, 4)),
-              measure(note("C4", 8, '<tie type="stop"/>'), note("C4", 8)))
+def test_missing_notation_is_reported_once_per_note():
+    doc = xml(measure(note("C0", 8), note("C0", 8, '<tie type="start"/>'), time=(4, 4)),
+              measure(note("C0", 8, '<tie type="stop"/>'), note("C0", 8)))
     out = convert(doc, instrument="DANSO", hwang_pitch=60)
-    assert sum(i["kind"] == "OUT_OF_RANGE" for i in out.issues) == 3
+    assert sum(i["kind"] == "UNREGISTERED_PITCH" for i in out.issues) == 3
 
 
-def test_three_octaves_below_uses_hahabae():
+def test_three_octaves_below_keeps_original_midi():
     out = convert(xml(measure(note("C1", 16), time=(4, 4))), instrument="ANY", hwang_pitch=60)
-    assert out.lines == [":0 하하배황 |  |  | "] and out.issues == []
+    assert out.source_pitches[0]['midi'] == 24
 
 
 def test_transposing_part_is_read_at_sounding_pitch():
@@ -399,7 +443,7 @@ def test_grace_note_in_a_repeated_measure_points_to_each_played_cell():
 def test_out_of_range_and_rhythm_issues_point_to_their_cell():
     out = convert(xml(measure(note("D4", 16), time=(4, 4)), measure(note("F4", 4), note("C4", 12))),
                   instrument="DANSO", hwang_pitch=60)
-    assert cells(out, "OUT_OF_RANGE") == ["c0-j0", "c1-j1"]  # 태(2)·황(0)은 단소 음역(중 5~) 아래
+    assert cells(out, "OUT_OF_RANGE") == []  # Physical support belongs to the capability catalog.
     doc = xml(measure(note("C4", 1), note("D4", 1), note("E4", 1), note("F4", 1), note("C4", 12), time=(4, 4))
               .replace("<divisions>4</divisions>", "<divisions>8</divisions>"))
     out = convert(doc, instrument="ANY", hwang_pitch=60)
@@ -417,7 +461,7 @@ def test_whole_score_issues_have_no_cell():
     doc = xml(measure(note("C4", 16), time=(4, 4)), measure(note("D4", 6), note("D4", 6), time=(6, 8)))
     out = convert(doc, instrument="DANSO", hwang_pitch=None)
     by_kind = {i["kind"]: i["cellId"] for i in out.issues if i["kind"] in ("TRANSPOSED", "LOW_CONFIDENCE")}
-    assert by_kind == {"TRANSPOSED": None, "LOW_CONFIDENCE": None}  # 박자표 바뀜은 마디 전체
+    assert by_kind == {"LOW_CONFIDENCE": None}  # No transposition before explicit review.
 
 
 def test_grace_note_survives_when_its_note_is_replaced_by_one_starting_at_the_same_time():

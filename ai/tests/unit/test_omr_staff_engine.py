@@ -8,6 +8,7 @@
 import io
 import os
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,65 @@ from omr_service import api, staff_engine
 from omr_service.api import app, get_fetcher
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures/omr"
+
+
+def test_tempo_note_inside_numeric_direction_is_masked_but_ledger_note_is_not():
+    import zipfile
+    from omr_service.staff_engine import tempo_regions
+    doc = b'''<sheet><system><sig><inters>
+      <sentence role="Direction"><bounds x="100" y="50" w="180" h="20"/></sentence>
+      <word value="Moderato"><bounds x="100" y="50" w="70" h="20"/></word>
+      <word value="="><bounds x="220" y="50" w="10" h="20"/></word>
+      <word value="100"><bounds x="240" y="50" w="40" h="20"/></word>
+      <head><bounds x="190" y="55" w="20" h="16"/></head>
+      <head><bounds x="310" y="55" w="20" h="16"/></head>
+    </inters></sig></system></sheet>'''
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w") as z:
+        z.writestr("sheet#1/sheet#1.xml", doc)
+    assert tempo_regions(stream.getvalue()) == [(100, 20, 280, 75)]
+
+
+def test_numeric_fingering_does_not_mask_notes():
+    import zipfile
+    from omr_service.staff_engine import tempo_regions
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w") as z:
+        z.writestr("sheet#1/sheet#1.xml", '<sheet><sentence role="Direction"><bounds x="1" y="1" w="20" h="20"/></sentence></sheet>')
+    assert tempo_regions(stream.getvalue()) == []
+
+
+def test_rhythm_check_detects_extra_eighth_but_allows_pickup_and_meter_change():
+    from omr_service.staff_engine import rhythm_quality
+    def m(beats, duration):
+        return (f'<measure><attributes><divisions>4</divisions><time><beats>{beats}</beats>'
+                f'<beat-type>8</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave>'
+                f'</pitch><duration>{duration}</duration></note></measure>')
+    def doc(*ms):
+        return ('<score-partwise><part>' + ''.join(ms) + '</part></score-partwise>').encode()
+    assert rhythm_quality([doc(m(9, 6), m(9, 18), m(6, 12))]) == (0, 0, 3)
+    count, excess, notes = rhythm_quality([doc(m(9, 19))])
+    assert (count, excess, notes) == (1, Fraction(1, 18), 1)
+
+
+def test_rhythm_refinement_preserves_graces_and_repairs_only_an_overfull_bar():
+    from omr_service.staff_engine import refine_rhythm
+    def note(step, duration, grace=False):
+        return f'<note>{"<grace/>" if grace else ""}<pitch><step>{step}</step><octave>4</octave></pitch><duration>{duration}</duration></note>'
+    def doc(notes):
+        return ('<score-partwise><part><measure><attributes><divisions>4</divisions><time><beats>9</beats>'
+                '<beat-type>8</beat-type></time></attributes>'+notes+'</measure></part></score-partwise>').encode()
+    original=doc(note('A',0,True)+note('E',12)+note('G',3)+note('F',2)+note('E',2))
+    candidate=doc(note('A',4)+note('E',12)+note('G',3)+note('F',1)+note('E',2))
+    fixed=refine_rhythm(original,candidate)
+    assert staff_engine.rhythm_quality([fixed]) == (0,0,4)
+    import xml.etree.ElementTree as ET
+    ns=ET.fromstring(fixed).findall('.//note')
+    assert ns[0].find('grace') is not None
+    assert [n.findtext('duration') for n in ns[1:]] == ['12','3','1','2']
+    # Different pitches and already valid bars are never rewritten.
+    assert refine_rhythm(original,candidate.replace(b'<step>F</step>',b'<step>D</step>')) == original
+    assert refine_rhythm(fixed,original) == fixed
 needs_generator = pytest.mark.skipif(not os.environ.get("JGB_GENERATOR_DIR"),
                                      reason="JGB_GENERATOR_DIR(jeongganbo-generator 클론)가 없다")
 # 실제 Audiveris 5.11은 오선이 없는 쪽에서 .mxl 없이 종료 코드 1로 끝나고, 원인을 표준 출력에만 쓴다(U5 리뷰 실측)
@@ -48,6 +108,10 @@ GUTGEORI = (b'<?xml version="1.0"?><score-partwise><part id="P1"><measure><attri
             b'<time><beats>12</beats><beat-type>8</beat-type></time></attributes>'
             + b"".join(b"<note><pitch><step>%s</step><octave>4</octave></pitch><duration>3</duration><voice>1</voice></note>"
                        % s for s in [b"E", b"G", b"A", b"G"]) + b"</measure></part></score-partwise>")
+FOUR_QUARTERS = (b'<?xml version="1.0"?><score-partwise><part id="P1"><measure><attributes><divisions>1</divisions>'
+                 b'<time><beats>4</beats><beat-type>4</beat-type></time></attributes>'
+                 + b"".join(b"<note><pitch><step>%s</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice></note>"
+                            % s for s in [b"E", b"G", b"A", b"G"]) + b"</measure></part></score-partwise>")
 
 
 def page_png(mode):
@@ -57,12 +121,24 @@ def page_png(mode):
     return buf.getvalue() + mode.ljust(12).encode("ascii")
 
 
+@pytest.fixture(autouse=True)
+def capture_omr_logs(caplog):
+    # The service intentionally does not propagate to the root logger.
+    # Capture its real handler path without changing production logging behavior.
+    staff_engine.log.addHandler(caplog.handler)
+    try:
+        yield
+    finally:
+        staff_engine.log.removeHandler(caplog.handler)
+
+
 @pytest.fixture
 def fake_audiveris(tmp_path, monkeypatch):
     script = tmp_path / "audiveris.py"
     (tmp_path / "gutgeori.musicxml").write_bytes(GUTGEORI)
+    (tmp_path / "four-quarters.musicxml").write_bytes(FOUR_QUARTERS)
     fixtures = {"score": str(FIXTURES / "danso_onara.audiveris.mxl"), "s44": str(FIXTURES / "danso_bukcheon.audiveris.mxl"),
-                "s128": str(tmp_path / "gutgeori.musicxml")}
+                "s128": str(tmp_path / "gutgeori.musicxml"), "quarters": str(tmp_path / "four-quarters.musicxml")}
     script.write_text(FAKE.format(fixtures=fixtures), encoding="utf-8")
     monkeypatch.setattr(staff_engine, "AUDIVERIS_LOGS", tmp_path / "audiveris-logs")  # 개발 PC의 로그를 지우지 않게
     monkeypatch.setattr(staff_engine, "AUDIVERIS", [sys.executable, str(script)])
@@ -89,10 +165,14 @@ def test_staff_page_becomes_common_score(fake_audiveris):
     assert out["status"] == "DONE" and out["engine"] == "audiveris"
     assert out["score"]["provenance"]["converter"] == f"staff-omr/audiveris-{staff_engine.AUDIVERIS_VERSION}"
     assert out["score"]["provenance"]["review"] == "inferred"
-    # 오나라는 박자표가 없어 굿거리(12/8)로 추정했고, 단소 5율에 맞춰 6반음 옮겼다
+    # 박자 추정은 유지하지만 사용자가 검토하기 전 음고는 바꾸지 않는다.
     assert out["score"]["music"]["jangdan"] == "굿거리"
     kinds = {i["kind"] for i in out["notices"]}
-    assert "TRANSPOSED" in kinds
+    assert "TRANSPOSED" not in kinds
+    originals = {p['eventId']: p['midi'] for p in out['sourcePitches']}
+    for event in out['score']['events']:
+        if event['kind'] == 'NOTE':
+            assert 63 + staff_engine.staff_musicxml.YUL.index(event['yul']) + 12 * event['octave'] == originals[event['id']]
     assert guessed(out) == [{"source": "rhythm", "jangdan": "굿거리"}]
     assert sum(e["kind"] == "NOTE" for e in out["score"]["events"]) == 66
 
@@ -104,6 +184,19 @@ def test_requested_jangdan_wins_and_mismatch_is_flagged(fake_audiveris):
     assert out["status"] == "DONE" and out["score"]["music"]["jangdan"] == "세마치"
     assert {"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
             "detail": {"jangdan": "세마치", "jeongganPerGak": 4}} in out["notices"]
+
+
+@needs_generator
+def test_four_quarter_staff_measure_matches_danmori_without_stretching(fake_audiveris):
+    out = post("quarters", jangdan="단모리").json()
+    assert out["status"] == "DONE"
+    score = out["score"]
+    ticks = score["music"]["ticksPerBeat"]
+    assert score["music"]["ticksPerJeonggan"] == ticks
+    assert [(e["startTick"] / ticks, e["durationTick"] / ticks) for e in score["events"]] == [
+        (0, 1), (1, 1), (2, 1), (3, 1),
+    ]
+    assert not any(n["kind"] == "JANGDAN_MISMATCH" for n in out["notices"])
 
 
 @needs_generator

@@ -13,13 +13,11 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
-import com.ssafy.eolssu.feature.guide.component.GuideText
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.layout.FingeringCompactLayout
@@ -65,6 +63,7 @@ fun FingeringScreen(
     EolssuScaffold(
         topBar = { GuideTopBar(stringResource(Res.string.guide_fingering_title), onBack = onBack, widthClass = widthClass) },
         snackbarHostState = snackbarHostState,
+        containerColor = EolssuTheme.colors.groupedBackground,
         contentMaxWidth = widthClass.guidePageMaxWidth,
     ) {
         if (!state.hasSelectedInstrument) {
@@ -86,15 +85,4 @@ fun FingeringScreen(
             WindowWidthClass.Expanded -> FingeringExpandedLayout(state, actions, noteAudioContent)
         }
     }
-}
-
-/** 악기별 안내 문구(`.fg-note`, 13sp · 줄 간격 1.45). */
-@Composable
-internal fun FingeringInstrumentNote(instrument: GuideInstrument, modifier: Modifier = Modifier) {
-    GuideText(
-        instrument.note,
-        modifier,
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.85.sp),
-        color = EolssuTheme.colors.textMuted,
-    )
 }
