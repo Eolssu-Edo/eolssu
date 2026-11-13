@@ -7,7 +7,7 @@ categories: ["frontend"]
 tags: ["Compose Multiplatform", "VectorDrawable", "fontTools", "Pillow", "이미지 처리"]
 description: "Compose Multiplatform 홈 카드 일러스트를 VectorDrawable로 다시 그리고, 출처가 다른 래스터 그림의 외곽선 두께와 색온도를 거리 기반 마스크와 채널별 보정으로 맞춘 과정을 정리했습니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-11-card-illustration-vector-raster-pipeline.webp"
-draft: true
+draft: false
 ---
 
 얼쑤 홈 화면에는 6개 기능 카드가 2열 그리드로 놓이고, 카드마다 일러스트가 하나씩 들어갑니다. 이 일러스트를 두 단계로 교체했습니다.
