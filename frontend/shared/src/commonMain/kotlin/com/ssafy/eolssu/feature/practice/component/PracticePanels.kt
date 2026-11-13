@@ -559,6 +559,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
         // 흰 카드 안이라 테두리 대신 회색 채움으로 누르는 자리를 보인다.
         containerColor = colors.groupedBackground,
         borderColor = if (draft.previewing) colors.play else Color.Transparent,
+        squash = true,
     )
     }
     PanelCard(padding = 0.dp) {
