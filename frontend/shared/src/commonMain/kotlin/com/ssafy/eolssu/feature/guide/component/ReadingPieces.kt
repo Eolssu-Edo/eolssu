@@ -656,7 +656,7 @@ internal fun PitchSteps(audio: ReadingAudioState, onPlayAudio: (ReadingAudioClip
 @Composable
 private fun PitchAxis(modifier: Modifier) {
     val colors = EolssuTheme.colors
-    val style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.sp)
+    val style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.sp)
     Column(modifier.padding(top = 4.dp).offset(y = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(stringResource(Res.string.guide_reading_pitch_axis_high), style = style, color = colors.textMuted)
         Box(Modifier.weight(1f).width(1.5.dp).background(Brush.verticalGradient(listOf(colors.textMuted, colors.lineSoft))))

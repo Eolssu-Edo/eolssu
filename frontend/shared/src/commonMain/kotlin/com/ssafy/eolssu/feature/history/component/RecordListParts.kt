@@ -423,7 +423,7 @@ private fun RecordRow(
                     Text(
                         stringResource(Res.string.records_just_saved),
                         modifier = Modifier.background(colors.primary, CircleShape).padding(horizontal = 8.dp, vertical = 3.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
                         color = colors.onPrimary,
                     )
                 }

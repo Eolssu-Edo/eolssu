@@ -92,7 +92,7 @@ fun ScoreRing(score: Int, modifier: Modifier = Modifier) {
         Text(
             unit,
             modifier = Modifier.padding(top = 2.dp).clearAndSetSemantics {},
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp),
             color = colors.textMuted,
         )
     }
