@@ -79,6 +79,16 @@ def test_last_partial_bar_is_preserved_without_added_rest(monkeypatch):
     assert [len(c['cells']) for c in result['score']['columns']] == [8, 1]
 
 
+@pytest.mark.parametrize('requested,expected', [(None, ''), ('4박 기본 반주', '4박 기본 반주')])
+def test_empty_source_bar_requires_review_without_inventing_a_rest(monkeypatch, requested, expected):
+    result = recognize(monkeypatch, xml(
+        measure(note('C4', 16), time=(4, 4)), measure(), measure(note('D4', 16))), jangdan=requested)
+    assert quarter_events(result['score']) == [('NOTE', 0, 4), ('NOTE', 4, 4)]
+    assert result['score']['music']['jangdan'] == expected
+    reviews = [i for i in result['issues'] if i['detail'].get('reason') == 'EMPTY_MEASURE_REVIEW_REQUIRED']
+    assert len(reviews) == 1 and reviews[0]['detail']['measure'] == 2
+
+
 @pytest.mark.parametrize('beats,unit,duration,width,bpm_unit', [
     (2, 4, 8, 2, 'QUARTER'), (3, 4, 12, 3, 'QUARTER'),
     (6, 8, 12, 2, 'DOTTED_QUARTER'), (5, 8, 10, 5, 'QUARTER'),

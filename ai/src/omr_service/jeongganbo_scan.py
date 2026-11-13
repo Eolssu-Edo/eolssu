@@ -18,7 +18,7 @@ from omr_service.staff_engine import AUDIVERIS_LOCK
 from jeongganbo_tokens import jg_like
 
 READER = [sys.executable, '-X', 'utf8', str(SCORES / 'jeongganbo_omr.py')]
-ENGINE_VERSION = 'e95045f-v1.0.0-r4'
+ENGINE_VERSION = 'e95045f-v1.0.0-r5'
 MIN_CONFIDENCE = .8  # 검수 기준이며, 보정된 정확도 확률이 아니다.
 log = logging.getLogger('omr_service.api')
 TOKEN = re.compile(rf'(?:{score_data.YUL}(?:_[^:\s]+)?|-|쉼표|쉼):(?:[0-9]|1[0-5])\Z')

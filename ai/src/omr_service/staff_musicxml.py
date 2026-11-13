@@ -148,6 +148,9 @@ def _read_part(part, issues):
         source_meters.append(current_text)
 
     written_lengths = [_measure_length(m, d) for m, d in zip(measures, divisions)]
+    for index, length in enumerate(written_lengths):
+        if length == 0:
+            issues.append(_issue('LOW_CONFIDENCE', {'measure': index + 1, 'reason': 'EMPTY_MEASURE_REVIEW_REQUIRED'}))
     underfull = {i for i in range(1, len(measures) - 1) if measure_meters[i]
                  and 0 < written_lengths[i] < measure_meters[i][1] * measure_meters[i][2]}
     if len(underfull) < 2:
@@ -229,7 +232,7 @@ def _read_part(part, issues):
         beat = Fraction(numerator, denominator)
         widths = [int(length / beat) for length in lengths if length]
         beats_per_gak = widths[0]
-        if all(m == meter for m in measure_meters) and not underfull and not any(
+        if all(written_lengths) and all(m == meter for m in measure_meters) and not underfull and not any(
                 length > m[1] * m[2] for length, m in zip(written_lengths, measure_meters) if m):
             source_meter = meter
     else:  # 박자표를 못 읽었으면 각 경계를 넘는 음이 가장 적은 박 구성을 고른다

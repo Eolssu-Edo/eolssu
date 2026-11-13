@@ -22,8 +22,8 @@ SCORES = ROOT / "data/src/scores"
 sys.path.insert(0, str(SCORES))
 import score_data  # noqa: E402  data/와 같은 변환을 쓴다(중복 구현하지 않음)
 
-ENGINE, ENGINE_VERSION = "jeongganbo-text", "3"  # 읽기·변환 규칙을 바꾸면 올린다
-CONVERTER = "jeongganbo-text/standard_score_text@3"
+ENGINE, ENGINE_VERSION = "jeongganbo-text", "4"  # 읽기·변환 규칙을 바꾸면 올린다
+CONVERTER = "jeongganbo-text/standard_score_text@4"
 NO_YUL_EXIT, NO_GRID_EXIT = 3, 4  # standard_score_text.py: 율명 글자가 없는 쪽, 정간 격자를 못 읽은 쪽
 # 장단과 각의 정간 수가 맞을 때 나오는 정간당 박. 그 밖이면 고른 장단이 악보와 다를 수 있다(JANGDAN_MISMATCH)
 USUAL_BEATS = {Fraction(1), Fraction(1, 2), Fraction(1, 3)}
