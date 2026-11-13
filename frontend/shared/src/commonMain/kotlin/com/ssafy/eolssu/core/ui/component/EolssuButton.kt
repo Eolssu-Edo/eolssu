@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.core.ui.component
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -39,6 +41,7 @@ enum class EolssuButtonStyle { Primary, Secondary, Text, Danger, Ghost }
  * 연두 디자인 버튼. 최소 48dp 터치 영역을 유지하고 글꼴 확대 시 내용에 맞게 높아진다.
  * [containerColor]·[borderColor]·[contentColor]를 주면 모양별 기본 색 대신 쓴다.
  * [busy]이면 글자 대신 도는 표시를 보이고 누를 수 없다. [minHeight]를 주면 모양별 기본 높이 대신 쓴다. 좁은 칸에 두 개를 나란히 둘 때는 [compact]로 옆 여백을 줄인다.
+ * [squash]는 누르면 바로 소리가 나는 버튼에만 켠다([elasticSquash], S15P31E102-891).
  */
 @Composable
 fun EolssuButton(
@@ -55,8 +58,10 @@ fun EolssuButton(
     borderColor: Color? = null,
     minHeight: Dp? = null,
     containerColor: Color? = null,
+    squash: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
+    val press = remember { MutableInteractionSource() }
     val (container, content, border) = when (style) {
         EolssuButtonStyle.Primary -> Triple(colors.primary, colors.onPrimary, colors.primary)
         // 보드 `.btn.secondary`는 흰 바탕(`#fff`)에 옅은 테두리다.
@@ -74,6 +79,7 @@ fun EolssuButton(
         onClick = onClick,
         enabled = enabled && !busy,
         modifier = modifier
+            .then(if (squash) Modifier.elasticSquash(press, widthFactor = ElasticSquashTextWidth) else Modifier)
             .then(if (small) Modifier else Modifier.fillMaxWidth())
             .heightIn(min = height)
             .alpha(if (enabled) 1f else 0.45f),
@@ -81,6 +87,7 @@ fun EolssuButton(
         color = containerColor ?: container,
         contentColor = contentColor ?: content,
         border = BorderStroke(1.dp, borderColor ?: border),
+        interactionSource = press,
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(PaddingValues(horizontal = if (small) 14.dp else if (compact) 10.dp else 20.dp, vertical = 12.dp))) {
             if (busy) {

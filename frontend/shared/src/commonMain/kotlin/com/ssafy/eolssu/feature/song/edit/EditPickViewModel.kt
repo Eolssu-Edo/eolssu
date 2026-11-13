@@ -3,18 +3,17 @@ package com.ssafy.eolssu.feature.song.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.Instrument
-import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
 import com.ssafy.eolssu.data.song.PublishedSheetCopyProblem
 import com.ssafy.eolssu.data.song.PublishedSheetCopyRepository
 import com.ssafy.eolssu.data.song.PublishedSheetCopyResult
 import com.ssafy.eolssu.data.song.MySheetRepository
-import com.ssafy.eolssu.data.song.SheetDocumentRepository
 import com.ssafy.eolssu.data.song.SongRepository
-import com.ssafy.eolssu.feature.song.SongLevelFilter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,79 +24,97 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 /**
- * 불러올 악보 고르기. 악기를 고르면 그 악기의 제공 곡(CAT-01 `instrumentId`)과 내 악보를 받는다.
- * 내 악보는 목록(SHT-01)의 악기 코드로 거르고, 코드가 없으면 공통 악보(SHT-08)를 조회한다.
- * 악보를 읽지 못한 내 악보는 어느 악기 목록에도 넣지 않고 수만 알린다.
+ * 악기를 고르면 제공 곡(CAT-01 `instrumentId`)과 내 악보를 각각 받아 탭별로 표시한다.
+ * 내 악보는 목록(SHT-01)의 초안 우선 악기 코드로만 거른다. 본문은 편집기에 들어가서 받는다.
+ * 악기를 확인하지 못한 내 악보는 어느 악기 목록에도 넣지 않고 수만 알린다.
  */
 class EditPickViewModel(
     private val mySheetRepository: MySheetRepository,
     private val songRepository: SongRepository,
-    private val documents: SheetDocumentRepository? = null,
     private val copies: PublishedSheetCopyRepository? = null,
     member: SignedInMember? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(EditPickUiState())
     val uiState: StateFlow<EditPickUiState> = _uiState.asStateFlow()
 
-    private var loadJob: Job? = null
+    private var songsJob: Job? = null
+    private var sheetsJob: Job? = null
     private val copyKeys = mutableMapOf<String, String>()
-
-    /** 초안이 없는 내 악보 ID·수정 시각 → 공통 악보의 악기 코드. 빈 악보의 코드는 null이다. */
-    private val sheetInstruments = mutableMapOf<Pair<String, Any>, String?>()
 
     private val accountScope = member.screenScope(viewModelScope) {
         copyKeys.clear()
-        sheetInstruments.clear()
         _uiState.value = EditPickUiState()
     }
 
     fun selectInstrument(instrument: Instrument) {
         val state = _uiState.value
         if (!accountScope.isActive || state.copying) return
-        if (state.instrument == instrument && state.load != EditPickLoad.Failed) return
+        if (state.instrument == instrument) {
+            retry()
+            return
+        }
+        songsJob?.cancel()
+        sheetsJob?.cancel()
         _uiState.update { it.chooseInstrument(instrument) }
-        loadJob?.cancel()
-        loadJob = accountScope.launch { load(instrument) }
+        loadSongs(instrument)
+        loadSheets(instrument)
     }
 
     fun retry() {
-        val instrument = _uiState.value.instrument ?: return
-        selectInstrument(instrument)
-    }
-
-    private suspend fun load(instrument: Instrument) {
-        try {
-            val instrumentId = songRepository.getInstruments().firstOrNull { it.code == instrument.serverCode }?.instrumentId
-            val songs = if (instrumentId == null) emptyList() else songRepository.getSongs(instrumentId).filter { it.level != null }
-            val listRefreshed = mySheetRepository.refresh()
-            val all = mySheetRepository.sheets.value
-            val codes = all.associate { it.id to instrumentCodeOf(it, listRefreshed) }
-            _uiState.update {
-                if (it.instrument != instrument) it else it.copy(
-                    load = EditPickLoad.Ready,
-                    songs = songs,
-                    sheets = all.filter { sheet -> codes[sheet.id] == instrument.serverCode },
-                    uncheckedSheets = codes.values.count { code -> code == null },
-                )
-            }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            _uiState.update { if (it.instrument != instrument) it else it.copy(load = EditPickLoad.Failed) }
+        val state = _uiState.value
+        val instrument = state.instrument ?: return
+        if (!accountScope.isActive || state.copying || state.load != EditPickLoad.Failed) return
+        when (state.tab) {
+            EditPickTab.Songs -> loadSongs(instrument)
+            EditPickTab.Mine -> loadSheets(instrument)
         }
     }
 
-    private suspend fun instrumentCodeOf(sheet: MySheet, listRefreshed: Boolean): String? {
-        if (listRefreshed && !sheet.instrumentCode.isNullOrBlank()) return sheet.instrumentCode
+    private fun loadSongs(instrument: Instrument) {
+        _uiState.update { it.copy(songsLoad = EditPickLoad.Loading) }
+        songsJob = accountScope.launch {
+            try {
+                val instrumentId = songRepository.getInstruments().firstOrNull { it.code == instrument.serverCode }?.instrumentId
+                currentCoroutineContext().ensureActive()
+                val songs = if (instrumentId == null) emptyList() else songRepository.getSongs(instrumentId).mapNotNull { song ->
+                    song.level?.let { EditPickSong(song.id, song.title, it, song.jangdanName) }
+                }
+                currentCoroutineContext().ensureActive()
+                _uiState.update { it.copy(songsLoad = EditPickLoad.Ready, songs = songs) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                currentCoroutineContext().ensureActive()
+                _uiState.update { it.copy(songsLoad = EditPickLoad.Failed) }
+            }
+        }
+    }
 
-        val repository = documents ?: return null
-        // 갱신에 실패하면 최신 초안 여부를 알 수 없고, 자동 저장은 수정 시각을 유지한다.
-        val key = if (listRefreshed && !sheet.hasDraft) sheet.id to sheet.updatedAt else null
-        if (key != null && key in sheetInstruments) return sheetInstruments[key]
-        val document = try { repository.get(sheet.id) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
-        val code = (document?.draft?.score ?: document?.score)?.score?.instrument?.takeIf { it.isNotBlank() }
-        if (key != null && document != null) sheetInstruments[key] = code
-        return code
+    private fun loadSheets(instrument: Instrument) {
+        _uiState.update { it.copy(sheetsLoad = EditPickLoad.Loading) }
+        sheetsJob = accountScope.launch {
+            try {
+                val listRefreshed = mySheetRepository.refresh()
+                currentCoroutineContext().ensureActive()
+                if (!listRefreshed) {
+                    _uiState.update { it.copy(sheetsLoad = EditPickLoad.Failed) }
+                    return@launch
+                }
+                val all = mySheetRepository.sheets.value
+                _uiState.update {
+                    it.copy(
+                        sheetsLoad = EditPickLoad.Ready,
+                        sheets = all.filter { sheet -> sheet.instrumentCode == instrument.serverCode },
+                        uncheckedSheets = all.count { sheet -> sheet.instrumentCode.isNullOrBlank() },
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                currentCoroutineContext().ensureActive()
+                _uiState.update { it.copy(sheetsLoad = EditPickLoad.Failed) }
+            }
+        }
     }
 
     fun selectTab(tab: EditPickTab) = _uiState.update {
@@ -105,13 +122,6 @@ class EditPickViewModel(
     }
 
     fun search(query: String) = _uiState.update { it.copy(query = query) }
-
-    /** 제공 곡 단계 필터. 고른 곡이 걸러져 안 보이면 고름을 푼다. */
-    fun selectFilter(filter: SongLevelFilter) = _uiState.update { state ->
-        val next = state.copy(filter = filter)
-        val picked = next.picked
-        if (picked is EditPickTarget.Song && next.visibleSongs.none { it.id == picked.songId }) next.copy(picked = null) else next
-    }
 
     /** 제공 곡 이름 오름차순·내림차순을 바꾼다. */
     fun toggleSort() = _uiState.update { it.copy(sort = it.sort.toggled()) }

@@ -21,7 +21,6 @@ fun EditPickRoute(
         onSelectTab = viewModel::selectTab,
         onSearch = viewModel::search,
         onToggleSort = viewModel::toggleSort,
-        onSelectFilter = viewModel::selectFilter,
         onToggle = viewModel::toggle,
         onConfirm = { viewModel.confirmSelection(onOpenSheet) },
     )

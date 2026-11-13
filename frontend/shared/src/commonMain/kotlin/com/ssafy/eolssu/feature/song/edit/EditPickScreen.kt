@@ -1,66 +1,35 @@
 package com.ssafy.eolssu.feature.song.edit
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import com.ssafy.eolssu.feature.song.MySongsTab
-import com.ssafy.eolssu.feature.song.SongLevelFilter
-import com.ssafy.eolssu.feature.song.component.MySheetPickRow
-import com.ssafy.eolssu.feature.song.component.MySongsTabSwitch
-import com.ssafy.eolssu.feature.song.component.ProvidedSongRow
-import com.ssafy.eolssu.feature.song.component.SongEmptyResult
-import com.ssafy.eolssu.feature.song.component.SongLevelChips
-import com.ssafy.eolssu.feature.song.component.providedSongMeta
-import eolssu.shared.generated.resources.mysongs_sheet_count
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.SongLevel
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuTopBar
-import com.ssafy.eolssu.core.ui.component.SongSearchField
-import com.ssafy.eolssu.core.ui.component.SongSortButton
-import com.ssafy.eolssu.feature.song.edit.component.HintText
-import com.ssafy.eolssu.feature.song.edit.component.PillChip
-import com.ssafy.eolssu.feature.song.edit.component.PillButton
-import eolssu.shared.generated.resources.Res
+import com.ssafy.eolssu.core.ui.component.*
 import com.ssafy.eolssu.data.song.PublishedSheetCopyProblem
-import eolssu.shared.generated.resources.sheetedit_pick_copy
-import eolssu.shared.generated.resources.sheetedit_pick_copying
-import eolssu.shared.generated.resources.sheetedit_pick_copy_failed
-import eolssu.shared.generated.resources.sheetedit_pick_copy_limit
-import eolssu.shared.generated.resources.sheetedit_pick_copy_conversion_in_progress
-import eolssu.shared.generated.resources.sheetedit_pick_copy_not_found
-import eolssu.shared.generated.resources.sheetedit_pick_confirm
-import eolssu.shared.generated.resources.sheetedit_pick_empty_mine
-import eolssu.shared.generated.resources.sheetedit_pick_empty_songs
-import eolssu.shared.generated.resources.sheetedit_pick_failed
-import eolssu.shared.generated.resources.sheetedit_pick_loading
-import eolssu.shared.generated.resources.sheetedit_pick_need_instrument
-import eolssu.shared.generated.resources.sheetedit_pick_retry
-import eolssu.shared.generated.resources.sheetedit_pick_step_instrument
-import eolssu.shared.generated.resources.sheetedit_pick_step_sheet
-import eolssu.shared.generated.resources.sheetedit_pick_unchecked
-import eolssu.shared.generated.resources.sheetedit_pick_title
+import com.ssafy.eolssu.feature.song.MySongsTab
+import com.ssafy.eolssu.feature.song.component.MySongsTabSwitch
+import com.ssafy.eolssu.feature.song.component.songTitleMarquee
+import com.ssafy.eolssu.feature.song.edit.component.HintText
+import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
-/**
- * 불러올 악보 고르기(EditPick): 1) 편집할 악기 → 2) 그 악기의 제공 곡 / 내 악보 탭, 제공 곡 검색, 고를 수 있는 줄 목록.
- * 악기를 고르기 전에는 악보를 보이지 않는다. 줄을 누르면 고르기만 하고 오른쪽 위 '선택'으로 편집에 간다(고르기 전에는 흐린 '선택').
- */
+/** 연습곡 고르기의 탭·검색·목록을 따르며, 고른 악보는 하단 버튼으로 복사하거나 연다. */
 @Composable
 fun EditPickScreen(
     state: EditPickUiState,
@@ -72,161 +41,157 @@ fun EditPickScreen(
     onToggleSort: () -> Unit,
     onToggle: (EditPickTarget) -> Unit,
     onConfirm: () -> Unit,
-    onSelectFilter: (SongLevelFilter) -> Unit = {},
 ) {
-    // 연습곡 고르기처럼 회색 바탕 · 테두리 없는 흰 칸(S15P31E102-768).
+    val colors = EolssuTheme.colors
     EolssuScaffold(
-        containerColor = EolssuTheme.colors.groupedBackground,
+        containerColor = colors.groupedBackground,
         bottomDivider = false,
-        topBar = {
-            EolssuTopBar(
-                stringResource(Res.string.sheetedit_pick_title),
-                onBack = onBack,
-            ) {
-                val action = when {
-                    state.copying -> Res.string.sheetedit_pick_copying
-                    state.tab == EditPickTab.Songs -> Res.string.sheetedit_pick_copy
-                    else -> Res.string.sheetedit_pick_confirm
+        topBar = { EolssuTopBar(stringResource(Res.string.sheetedit_pick_title), onBack = onBack) },
+        bottomBar = {
+            state.copyProblem?.let { problem ->
+                val message = when (problem) {
+                    PublishedSheetCopyProblem.Limit -> Res.string.sheetedit_pick_copy_limit
+                    PublishedSheetCopyProblem.ConversionInProgress -> Res.string.sheetedit_pick_copy_conversion_in_progress
+                    PublishedSheetCopyProblem.NotFound -> Res.string.sheetedit_pick_copy_not_found
+                    PublishedSheetCopyProblem.Failed -> Res.string.sheetedit_pick_copy_failed
                 }
-                PillButton(stringResource(action), onConfirm, enabled = state.canSelect, square = true)
+                Text(stringResource(message), color = colors.recText, style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             }
+            val action = stringResource(when {
+                state.copying -> Res.string.sheetedit_pick_copying
+                state.tab == EditPickTab.Songs -> Res.string.sheetedit_pick_copy
+                else -> Res.string.sheetedit_pick_confirm
+            })
+            EolssuButton(action, onConfirm, enabled = state.canSelect, busy = state.copying,
+                modifier = Modifier.semantics { stateDescription = action; liveRegion = LiveRegionMode.Polite })
         },
     ) {
         Column(Modifier.fillMaxSize()) {
-            Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                StepLabel(stringResource(Res.string.sheetedit_pick_step_instrument))
-                // 악기 이름이 길어도 잘리지 않게 가로로 민다. 연습 악기 설정은 바꾸지 않는다.
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Instrument.entries.forEach { instrument ->
-                        PillChip(stringResource(instrument.label), selected = instrument == state.instrument, onClick = { onSelectInstrument(instrument) },
-                            containerColor = EolssuTheme.colors.surface)
+            Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (state.instrument == null) {
+                    Text(stringResource(Res.string.sheetedit_pick_step_instrument), style = MaterialTheme.typography.labelLarge)
+                    Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Instrument.entries.forEach { instrument ->
+                            Surface(onClick = { onSelectInstrument(instrument) }, shape = RoundedCornerShape(14.dp), color = colors.surface,
+                                modifier = Modifier.weight(1f).heightIn(min = 76.dp).semantics { role = Role.RadioButton; selected = false }) {
+                                Column(Modifier.padding(horizontal = 4.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    InstrumentPicture(instrument)
+                                    Text(stringResource(instrument.label), style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(Res.string.sheetedit_pick_step_instrument), style = MaterialTheme.typography.labelLarge)
+                        PracticeInstrumentDropdown(state.instrument, enabled = !state.copying, onSelect = onSelectInstrument, bordered = false)
                     }
                 }
-                StepLabel(stringResource(Res.string.sheetedit_pick_step_sheet))
+                // 로딩·오류 중에도 다른 탭으로 이동할 수 있다.
+                MySongsTabSwitch(
+                    tab = if (state.tab == EditPickTab.Songs) MySongsTab.Songs else MySongsTab.Sheets,
+                    songCount = state.songs.size,
+                    sheetCount = state.sheets.size,
+                    onSelect = { onSelectTab(if (it == MySongsTab.Songs) EditPickTab.Songs else EditPickTab.Mine) },
+                )
+                if (state.instrument != null && state.tab == EditPickTab.Songs) {
+                    SongSearchField(state.query, onSearch, onClear = { onSearch("") }, bordered = false)
+                    if (state.load == EditPickLoad.Ready && state.songs.isNotEmpty()) {
+                        SongSortButton(state.sort, onToggleSort, Modifier.align(Alignment.End), small = true, bordered = false)
+                    }
+                }
             }
             if (state.load != EditPickLoad.Ready) {
                 PickStatus(state.load, onRetry, Modifier.weight(1f))
-            } else {
-                PickLists(state, onSelectTab, onSearch, onSelectFilter, onToggleSort, onToggle, Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-/**
- * 연습곡 고르기 목록(SONG-03 본문)과 같은 모양: 탭 · 두 탭이 함께 쓰는 검색칸 · 제공 곡(단계 칩 · 오른쪽 정렬 버튼 · 곡 줄)
- * 또는 내 악보('n개' · 악보 줄). 줄을 누르면 고르기만 하고 고른 줄은 연한 연두 바탕이다(S15P31E102-889).
- */
-@Composable
-private fun PickLists(
-    state: EditPickUiState,
-    onSelectTab: (EditPickTab) -> Unit,
-    onSearch: (String) -> Unit,
-    onSelectFilter: (SongLevelFilter) -> Unit,
-    onToggleSort: () -> Unit,
-    onToggle: (EditPickTarget) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        MySongsTabSwitch(
-            tab = if (state.tab == EditPickTab.Songs) MySongsTab.Songs else MySongsTab.Sheets,
-            songCount = state.songs.size,
-            sheetCount = state.sheets.size,
-            onSelect = { onSelectTab(if (it == MySongsTab.Songs) EditPickTab.Songs else EditPickTab.Mine) },
-        )
-        SongSearchField(state.query, onSearch, onClear = { onSearch("") }, bordered = false)
-        state.copyProblem?.let { problem ->
-            val message = when (problem) {
-                PublishedSheetCopyProblem.Limit -> Res.string.sheetedit_pick_copy_limit
-                PublishedSheetCopyProblem.ConversionInProgress -> Res.string.sheetedit_pick_copy_conversion_in_progress
-                PublishedSheetCopyProblem.NotFound -> Res.string.sheetedit_pick_copy_not_found
-                PublishedSheetCopyProblem.Failed -> Res.string.sheetedit_pick_copy_failed
-            }
-            HintText(stringResource(message), size = 12)
-        }
-        when (state.tab) {
-            EditPickTab.Songs -> {
-                SongLevelChips(state.filter, onSelectFilter, singleLine = true, bordered = false)
-                val songs = state.visibleSongs
-                when {
-                    state.songs.isEmpty() -> EmptyRow(stringResource(Res.string.sheetedit_pick_empty_songs))
-                    songs.isEmpty() -> SongEmptyResult(onReset = { onSearch(""); onSelectFilter(SongLevelFilter.All) })
-                    else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SongSortButton(state.sort, onToggleSort, Modifier.align(Alignment.End), small = true, bordered = false)
-                        songs.forEach { song ->
-                            val target = EditPickTarget.Song(song.id)
-                            ProvidedSongRow(song, providedSongMeta(song), onClick = { onToggle(target) },
-                                selected = state.picked == target, bordered = false)
+            } else key(state.instrument, state.tab) {
+                LazyColumn(
+                    Modifier.weight(1f).fillMaxWidth().selectableGroup(),
+                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    when (state.tab) {
+                        EditPickTab.Mine -> {
+                            if (state.uncheckedSheets > 0) item { HintText(stringResource(Res.string.sheetedit_pick_unchecked, state.uncheckedSheets), size = 12) }
+                            if (state.sheets.isEmpty()) item { EmptyRow(stringResource(Res.string.sheetedit_pick_empty_mine)) }
+                            items(state.sheets, key = { it.id }) { sheet ->
+                                val target = EditPickTarget.Sheet(sheet.id)
+                                val meta = listOfNotNull(
+                                    sheet.jangdanName?.let { jangdanLabel(it) },
+                                    stringResource(Res.string.sheetedit_pick_meta_updated, monthDayLabel(sheet.updatedAt)),
+                                ).joinToString(" · ")
+                                PickRow(sheet.title, meta, state.picked == target, enabled = !state.copying, onClick = { onToggle(target) })
+                            }
                         }
-                    }
-                }
-            }
-            EditPickTab.Mine -> {
-                if (state.uncheckedSheets > 0) HintText(stringResource(Res.string.sheetedit_pick_unchecked, state.uncheckedSheets), size = 12)
-                val sheets = state.visibleSheets
-                when {
-                    state.sheets.isEmpty() -> EmptyRow(stringResource(Res.string.sheetedit_pick_empty_mine))
-                    sheets.isEmpty() -> SongEmptyResult(onReset = { onSearch("") })
-                    else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ListNote(stringResource(Res.string.mysongs_sheet_count, sheets.size))
-                        sheets.forEach { sheet ->
-                            val target = EditPickTarget.Sheet(sheet.id)
-                            MySheetPickRow(sheet, onClick = { onToggle(target) }, selected = state.picked == target, bordered = false)
+                        EditPickTab.Songs -> {
+                            items(state.visibleSongs, key = { it.id }) { song ->
+                                val target = EditPickTarget.Song(song.id)
+                                PickRow(song.title, jangdanLabel(song.jangdanName), state.picked == target,
+                                    level = song.level, enabled = !state.copying, onClick = { onToggle(target) })
+                            }
+                            if (state.songs.isEmpty()) item { EmptyRow(stringResource(Res.string.sheetedit_pick_empty_songs)) }
+                            else if (state.visibleSongs.isEmpty()) item { EmptyRow(stringResource(Res.string.sheetedit_pick_empty, state.query.trim())) }
                         }
                     }
                 }
             }
         }
     }
-}
-
-/** 목록 위 작은 회색 문구(내 악보 목록의 'n개'와 같음). */
-@Composable
-private fun ListNote(text: String) {
-    Text(
-        text,
-        modifier = Modifier.padding(start = 4.dp),
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
-        color = EolssuTheme.colors.textMuted,
-    )
-}
-
-@Composable
-private fun StepLabel(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = EolssuTheme.colors.text)
 }
 
 @Composable
 private fun EmptyRow(text: String) {
-    Text(
-        text,
-        modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
-        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-        color = EolssuTheme.colors.textMuted,
-        textAlign = TextAlign.Center,
-    )
+    Text(text, modifier = Modifier.fillMaxWidth().padding(top = 24.dp), style = MaterialTheme.typography.bodyMedium,
+        color = EolssuTheme.colors.textMuted, textAlign = TextAlign.Center)
 }
 
-/** 악기를 고르기 전·불러오는 중·실패 안내. 실패하면 '다시 시도'를 둔다. 예시 악보로 대신하지 않는다. */
+/** 탭마다 진행 표시·실패 안내·재시도를 제공한다. */
 @Composable
 private fun PickStatus(load: EditPickLoad, onRetry: () -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
+        modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp).semantics { liveRegion = LiveRegionMode.Polite },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        EmptyRow(
-            stringResource(
-                when (load) {
-                    EditPickLoad.Loading -> Res.string.sheetedit_pick_loading
-                    EditPickLoad.Failed -> Res.string.sheetedit_pick_failed
-                    else -> Res.string.sheetedit_pick_need_instrument
-                },
-            ),
-        )
-        if (load == EditPickLoad.Failed) PillChip(stringResource(Res.string.sheetedit_pick_retry), selected = false, onClick = onRetry, containerColor = EolssuTheme.colors.surface)
+        if (load == EditPickLoad.Loading) CircularProgressIndicator(Modifier.size(28.dp), color = EolssuTheme.colors.text, strokeWidth = 2.dp)
+        EmptyRow(stringResource(when (load) {
+            EditPickLoad.Loading -> Res.string.sheetedit_pick_loading
+            EditPickLoad.Failed -> Res.string.sheetedit_pick_failed
+            else -> Res.string.sheetedit_pick_need_instrument
+        }))
+        if (load == EditPickLoad.Failed) EolssuButton(stringResource(Res.string.sheetedit_pick_retry), onRetry,
+            style = EolssuButtonStyle.Secondary, small = true)
+    }
+}
+
+/** 연습곡 줄과 같은 제목·장단·난이도 배치. 선택은 체크와 연두 바탕으로 함께 알린다. */
+@Composable
+private fun PickRow(title: String, meta: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit, level: SongLevel? = null) {
+    val colors = EolssuTheme.colors
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { role = Role.RadioButton },
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) colors.accentTint else colors.surface,
+        contentColor = colors.text,
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, modifier = Modifier.songTitleMarquee(),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                    maxLines = 1)
+                Text(meta, modifier = Modifier.padding(top = 2.dp), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textSub)
+            }
+            if (level != null) EolssuLevelBadge(level, small = true)
+            Surface(shape = CircleShape, color = if (selected) colors.primary else colors.surface,
+                border = if (selected) null else BorderStroke(1.5.dp, colors.lineStrong)) {
+                Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                    if (selected) Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.onPrimary)
+                }
+            }
+        }
     }
 }

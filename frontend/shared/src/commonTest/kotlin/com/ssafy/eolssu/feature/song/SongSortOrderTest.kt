@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.song
 
 import com.ssafy.eolssu.core.model.SongSortOrder
 import com.ssafy.eolssu.core.model.SongSummary
+import com.ssafy.eolssu.feature.song.edit.EditPickSong
 import com.ssafy.eolssu.feature.song.edit.EditPickUiState
 import com.ssafy.eolssu.core.model.SongLevel
 import kotlin.test.Test
@@ -42,9 +43,9 @@ class SongSortOrderTest {
     @Test
     fun editPickSongsSortAfterSearch() {
         val picks = listOf(
-            SongSummary("a", "아리랑", 1, "세마치", 60, true),
-            SongSummary("b", "밀양아리랑", 1, "세마치", 60, true),
-            SongSummary("c", "도라지타령", 1, "세마치", 60, true),
+            EditPickSong("a", "아리랑", SongLevel.Intro, "세마치"),
+            EditPickSong("b", "밀양아리랑", SongLevel.Intro, "세마치"),
+            EditPickSong("c", "도라지타령", SongLevel.Intro, "세마치"),
         )
         val state = EditPickUiState(songs = picks, query = "아리랑")
         assertEquals(listOf("b", "a"), state.visibleSongs.map { it.id })
