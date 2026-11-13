@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.platform.audio
 
 import java.io.Closeable
-import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -24,6 +23,8 @@ import kotlinx.serialization.json.put
  * Append/finish never perform file I/O or wait for the writer. Only a published
  * metadata.json with complete=true represents a usable before/after comparison.
  * An absent/partial manifest, cancellation or dropped block is not a valid pair.
+ * The IO worker limits the entire trace directory to 128 MiB and leaves 64 MiB
+ * free by default. Old traces are never removed; a full cache disables capture.
  */
 internal class EchoPairCapture(
     private val parentDirectory: File,
@@ -32,6 +33,9 @@ internal class EchoPairCapture(
     private val maxFrames: Long = 44_100 * 180L,
     private val queueCapacity: Int = 64,
     workerExecutor: Executor = Executor { task -> Thread(task, "echo-pair-$sessionId").apply { isDaemon = true }.start() },
+    private val maxCacheBytes: Long = 128L * 1024 * 1024,
+    private val minFreeBytes: Long = 64L * 1024 * 1024,
+    private val availableBytes: (File) -> Long = { it.usableSpace },
 ) : Closeable {
     data class Result(
         val directory: File,
@@ -66,6 +70,7 @@ internal class EchoPairCapture(
         require(sampleRate == 44_100)
         require(maxFrames in 1..44_100 * 180L)
         require(queueCapacity in 1..64)
+        require(maxCacheBytes > 0 && minFreeBytes >= 0)
         try {
             workerExecutor.execute { drain() }
         } catch (_: Exception) {
@@ -144,23 +149,34 @@ internal class EchoPairCapture(
         var preparation: WaveWriter? = null
         var original: WaveWriter? = null
         var corrected: WaveWriter? = null
+        var budget: CacheBudget? = null
         try {
             if (!parentDirectory.isDirectory && !parentDirectory.mkdirs() && !parentDirectory.isDirectory) {
                 throw IOException("Diagnostic parent directory unavailable")
             }
-            // Never reuse an existing directory or truncate another recording.
-            if (!directory.mkdir()) throw IOException("Diagnostic session directory unavailable")
-            preparation = WaveWriter(File(directory, "preparation.wav"), sampleRate)
-            original = WaveWriter(File(directory, "original.wav"), sampleRate)
-            corrected = WaveWriter(File(directory, "corrected.wav"), sampleRate)
+            val storage = CacheBudgets.acquire(parentDirectory, maxCacheBytes)
+            budget = storage
+            storage.write(3 * 44L, maxCacheBytes, minFreeBytes, availableBytes) {
+                // Never reuse an existing directory or truncate another recording.
+                if (!directory.mkdir()) throw IOException("Diagnostic session directory unavailable")
+                preparation = WaveWriter(File(directory, "preparation.wav"), sampleRate)
+                original = WaveWriter(File(directory, "original.wav"), sampleRate)
+                corrected = WaveWriter(File(directory, "corrected.wav"), sampleRate)
+            }
             while (true) {
                 wake.acquire()
                 while (true) {
                     when (val block = queue.poll() ?: break) {
-                        is Block.Preparation -> preparation.write(block.samples)
+                        is Block.Preparation -> storage.write(block.samples.size * 2L,
+                            maxCacheBytes, minFreeBytes, availableBytes) {
+                            checkNotNull(preparation).write(block.samples)
+                        }
                         is Block.Pair -> {
-                            original.write(block.original)
-                            corrected.write(block.corrected)
+                            // Reserve the whole pair before either stream is changed.
+                            storage.write(block.original.size * 4L, maxCacheBytes, minFreeBytes, availableBytes) {
+                                checkNotNull(original).write(block.original)
+                                checkNotNull(corrected).write(block.corrected)
+                            }
                         }
                     }
                 }
@@ -169,6 +185,7 @@ internal class EchoPairCapture(
         } catch (error: Exception) {
             synchronized(lock) {
                 if (failure == null) failure = when (error) {
+                    is StorageLimit -> error.reason
                     is IOException -> "io"
                     is InterruptedException -> "worker_interrupted"
                     else -> "worker"
@@ -218,19 +235,30 @@ internal class EchoPairCapture(
                 }.toString()
             }
             try {
-                // Publish only once all three WAV headers and lengths have been finalized.
-                val temporary = File(directory, "metadata.json.tmp")
-                temporary.writeText(manifest)
-                if (!temporary.renameTo(File(directory, "metadata.json"))) throw IOException("Cannot publish diagnostic manifest")
-            } catch (_: Exception) {
-                result = result.copy(complete = false, failure = result.failure ?: "io_metadata")
+                if (directory.isDirectory && budget != null) {
+                    // Publish only once all three WAV headers and lengths have been finalized.
+                    val bytes = manifest.toByteArray(Charsets.UTF_8)
+                    if (bytes.size > 64 * 1024) throw StorageLimit("metadata_limit")
+                    budget.write(bytes.size.toLong(), maxCacheBytes, minFreeBytes, availableBytes) {
+                        val temporary = File(directory, "metadata.json.tmp")
+                        temporary.writeBytes(bytes)
+                        if (!temporary.renameTo(File(directory, "metadata.json"))) throw IOException("Cannot publish diagnostic manifest")
+                    }
+                }
+            } catch (error: Exception) {
+                result = result.copy(complete = false,
+                    failure = result.failure ?: (error as? StorageLimit)?.reason ?: "io_metadata")
+            } finally {
+                budget?.let { CacheBudgets.release(it) }
             }
             completion.complete(result)
         }
     }
 
     private class WaveWriter(private val file: File, private val rate: Int) : Closeable {
-        private val output = BufferedOutputStream(FileOutputStream(file), 64 * 1024)
+        // No pending user-space buffer may escape the shared check-and-write scope.
+        // An audio block is at most one second: 88,200 bytes per stream.
+        private val output = FileOutputStream(file)
         private val digest = MessageDigest.getInstance("SHA-256")
         var frames = 0L
             private set
@@ -238,7 +266,12 @@ internal class EchoPairCapture(
             private set
         private var closed = false
 
-        init { output.write(header(0)) }
+        init {
+            try { output.write(header(0)) } catch (error: Exception) {
+                output.close()
+                throw error
+            }
+        }
 
         fun write(samples: ShortArray) {
             val bytes = ByteArray(samples.size * 2)
@@ -266,5 +299,60 @@ internal class EchoPairCapture(
             putShort(1); putShort(1); putInt(rate); putInt(rate * 2)
             putShort(2); putShort(16); put("data".toByteArray(Charsets.US_ASCII)); putInt(dataBytes)
         }.array()
+    }
+
+    private class StorageLimit(val reason: String) : IOException(reason)
+
+    /** Only IO workers enter these locks; recording/finish never wait for disk or another writer. */
+    private class CacheBudget(val parent: File, var users: Int, private var usedBytes: Long) {
+        @Synchronized fun write(bytes: Long, limit: Long, reserve: Long, available: (File) -> Long, action: () -> Unit) {
+            if (usedBytes > limit || bytes > limit - usedBytes) throw StorageLimit("cache_budget")
+            val free = available(parent)
+            if (free < reserve || bytes > free - reserve) throw StorageLimit("storage_reserve")
+            // Keep the reservation even after a partial IO failure. The next idle-to-active
+            // transition rescans actual sizes, so uncertain writes can never undercount.
+            usedBytes += bytes
+            action()
+        }
+    }
+
+    private object CacheBudgets {
+        private val active = mutableMapOf<String, CacheBudget>()
+
+        @Synchronized fun acquire(parent: File, limit: Long): CacheBudget {
+            val canonical = parent.canonicalFile
+            active[canonical.path]?.let { it.users++; return it }
+            val budget = CacheBudget(canonical, 1, footprint(canonical, limit))
+            active[canonical.path] = budget
+            return budget
+        }
+
+        @Synchronized fun release(budget: CacheBudget) {
+            if (--budget.users == 0) active.remove(budget.parent.path)
+        }
+
+        /** Scan once per group of overlapping sessions, stopping early at the byte/entry/depth cap. */
+        private fun footprint(parent: File, limit: Long): Long {
+            var bytes = 0L
+            var entries = 0
+            fun visit(directory: File, depth: Int) {
+                if (depth > 8) throw StorageLimit("cache_scan_limit")
+                val children = directory.listFiles() ?: throw IOException("Cannot inspect diagnostic cache")
+                if (children.size > 4096 - entries) throw StorageLimit("cache_scan_limit")
+                entries += children.size
+                for (child in children) {
+                    if (child.isDirectory) {
+                        if (child.canonicalFile != child.absoluteFile) throw StorageLimit("cache_scan_limit")
+                        visit(child, depth + 1)
+                    } else {
+                        val size = child.length()
+                        if (size >= limit - bytes) throw StorageLimit("cache_budget")
+                        bytes += size
+                    }
+                }
+            }
+            visit(parent, 0)
+            return bytes
+        }
     }
 }

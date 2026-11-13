@@ -6,6 +6,8 @@ import java.nio.ByteOrder
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.util.concurrent.Executor
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -150,6 +152,109 @@ class EchoPairCaptureTest {
         assertTrue(firstResult.directory != secondResult.directory)
         assertContentEquals(shortArrayOf(1), readWave(File(firstResult.directory, "original.wav")))
         assertContentEquals(shortArrayOf(2), readWave(File(secondResult.directory, "original.wav")))
+    }
+
+    @Test fun insufficientSpaceAtStartRefusesOnlyDiagnosticFilesOnTheWorker() = withDirectory { directory ->
+        val previous = File(directory, "previous.wav").apply { writeText("keep") }
+        val worker = DeferredWorker()
+        var probes = 0
+        val capture = EchoPairCapture(directory, 20, workerExecutor = worker,
+            minFreeBytes = 1024, availableBytes = { probes++; 1024 })
+        assertTrue(capture.appendPair(shortArrayOf(1), shortArrayOf(2), 1, 0))
+        val completion = capture.finish()
+        assertEquals(0, probes)
+        worker.run()
+        val result = completion.get(5, TimeUnit.SECONDS)
+        assertFalse(result.complete)
+        assertEquals("storage_reserve", result.failure)
+        assertFalse(capture.directory.exists())
+        assertEquals("keep", previous.readText())
+    }
+
+    @Test fun spaceLostDuringCaptureStopsBeforeTheNextPairAndCannotPublishComplete() = withDirectory { directory ->
+        val worker = DeferredWorker()
+        lateinit var capture: EchoPairCapture
+        capture = EchoPairCapture(directory, 21, workerExecutor = worker,
+            minFreeBytes = 1024, availableBytes = {
+                // Simulate other app data consuming disk after the first paired block.
+                if (File(capture.directory, "original.wav").length() > 44) 1024 else Long.MAX_VALUE
+            })
+        assertTrue(capture.appendPair(shortArrayOf(1, 2), shortArrayOf(3, 4), 2, 0))
+        assertTrue(capture.appendPair(shortArrayOf(5, 6), shortArrayOf(7, 8), 2, 2))
+        val completion = capture.finish()
+        worker.run()
+        val result = completion.get(5, TimeUnit.SECONDS)
+        assertFalse(result.complete)
+        assertEquals("storage_reserve", result.failure)
+        assertEquals(2, result.performanceFrames)
+        assertContentEquals(shortArrayOf(1, 2), readWave(File(capture.directory, "original.wav")))
+        assertContentEquals(shortArrayOf(3, 4), readWave(File(capture.directory, "corrected.wav")))
+        assertFalse(File(capture.directory, "metadata.json").exists())
+    }
+
+    @Test fun accumulatedTraceBytesAreCountedWithoutDeletingPreviousSessions() = withDirectory { directory ->
+        val previous = File(directory, "old-session").apply { mkdir() }
+        val oldWave = File(previous, "original.wav").apply { writeBytes(ByteArray(1000) { 7 }) }
+        val worker = DeferredWorker()
+        val capture = EchoPairCapture(directory, 22, workerExecutor = worker,
+            maxCacheBytes = 1100, minFreeBytes = 0, availableBytes = { Long.MAX_VALUE })
+        capture.appendPair(shortArrayOf(1), shortArrayOf(2), 1, 0)
+        val completion = capture.finish()
+        worker.run()
+        assertEquals("cache_budget", completion.get(5, TimeUnit.SECONDS).failure)
+        assertFalse(capture.directory.exists())
+        assertContentEquals(ByteArray(1000) { 7 }, oldWave.readBytes())
+    }
+
+    @Test fun pairedBlockCannotCrossCacheBudgetEvenWhenEachWaveWouldFit() = withDirectory { directory ->
+        val worker = DeferredWorker()
+        val capture = EchoPairCapture(directory, 23, workerExecutor = worker,
+            maxCacheBytes = 140, minFreeBytes = 0, availableBytes = { Long.MAX_VALUE })
+        capture.appendPair(shortArrayOf(1, 2), shortArrayOf(3, 4), 2, 0)
+        capture.appendPair(shortArrayOf(5), shortArrayOf(6), 1, 2)
+        val completion = capture.finish()
+        worker.run()
+        val result = completion.get(5, TimeUnit.SECONDS)
+        assertFalse(result.complete)
+        assertEquals("cache_budget", result.failure)
+        assertEquals(2, result.performanceFrames)
+        assertEquals(140, capture.directory.walkTopDown().filter { it.isFile }.sumOf { it.length() })
+    }
+
+    @Test fun simultaneousSessionsShareAByteBudgetWhileTheFirstWaitsForInput() = withDirectory { directory ->
+        val executor = Executors.newFixedThreadPool(2)
+        val firstWrotePair = CountDownLatch(1)
+        val permitFirstToFinishWrite = CountDownLatch(1)
+        lateinit var first: EchoPairCapture
+        val firstWorker = DeferredWorker()
+        first = EchoPairCapture(directory, 24, workerExecutor = firstWorker,
+            maxCacheBytes = 300, minFreeBytes = 0, availableBytes = {
+                if (File(first.directory, "original.wav").length() > 44) {
+                    firstWrotePair.countDown()
+                    check(permitFirstToFinishWrite.await(5, TimeUnit.SECONDS))
+                }
+                Long.MAX_VALUE
+            })
+        try {
+            first.appendPair(ShortArray(5) { 1 }, ShortArray(5) { 2 }, 5, 0)
+            first.appendPair(shortArrayOf(3), shortArrayOf(4), 1, 5)
+            executor.execute { firstWorker.run() }
+            assertTrue(firstWrotePair.await(5, TimeUnit.SECONDS))
+            val second = EchoPairCapture(directory, 25, workerExecutor = executor,
+                maxCacheBytes = 300, minFreeBytes = 0, availableBytes = { Long.MAX_VALUE })
+            second.appendPair(ShortArray(5) { 5 }, ShortArray(5) { 6 }, 5, 0)
+            val secondCompletion = second.finish()
+            permitFirstToFinishWrite.countDown()
+            val result = secondCompletion.get(5, TimeUnit.SECONDS)
+            assertFalse(result.complete)
+            assertEquals("cache_budget", result.failure)
+            assertTrue(directory.walkTopDown().filter { it.isFile }.sumOf { it.length() } <= 300)
+        } finally {
+            permitFirstToFinishWrite.countDown()
+            first.close()
+            first.finish().get(5, TimeUnit.SECONDS)
+            executor.shutdownNow()
+        }
     }
 
     private fun readWave(file: File): ShortArray {
