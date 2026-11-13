@@ -6,7 +6,7 @@ author: "권영민"
 categories: ["frontend"]
 tags: ["Kotlin Multiplatform", "Android", "MediaPlayer", "미디어 재생", "Compose"]
 description: "구간 끝에서 멈춘 모범 연주가 다시 재생되던 문제와 악보 진행 표시가 흔들리던 문제를, 플레이어가 늦게·띄엄띄엄 알려 주는 상태 대신 재생 세션이 직접 상태와 위치를 쥐도록 바꿔 고친 과정입니다."
-draft: true
+draft: false
 ---
 
 얼쑤의 연습 화면에는 모범 연주가 있습니다. 서버에서 받은 음원을 틀고, 정간보 위에서 지금 연주하는 칸을 칠해 따라가게 합니다. 화면과 Android `MediaPlayer` 사이에는 `ModelAudioSession`이라는 공통 코드가 있습니다. 플랫폼 플레이어가 알려 주는 상태와 위치를 받아 화면이 쓸 상태로 바꾸는 계층입니다.
