@@ -8,6 +8,7 @@ import java.io.IOException
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
@@ -204,6 +205,9 @@ internal class EchoPairCapture(
                     put("preparationFrames", preparationWritten)
                     put("originalFrames", originalWritten)
                     put("correctedFrames", correctedWritten)
+                    put("preparationPcmSha256", preparation?.pcmSha256?.let { JsonPrimitive(it) } ?: JsonNull)
+                    put("originalPcmSha256", original?.pcmSha256?.let { JsonPrimitive(it) } ?: JsonNull)
+                    put("correctedPcmSha256", corrected?.pcmSha256?.let { JsonPrimitive(it) } ?: JsonNull)
                     put("offeredPreparationFrames", preparationFrames)
                     put("offeredPerformanceFrames", performanceFrames)
                     put("preparationFirstPhysicalFrame", preparationFirstFrame?.let { JsonPrimitive(it) } ?: JsonNull)
@@ -227,7 +231,10 @@ internal class EchoPairCapture(
 
     private class WaveWriter(private val file: File, private val rate: Int) : Closeable {
         private val output = BufferedOutputStream(FileOutputStream(file), 64 * 1024)
+        private val digest = MessageDigest.getInstance("SHA-256")
         var frames = 0L
+            private set
+        var pcmSha256: String? = null
             private set
         private var closed = false
 
@@ -241,6 +248,7 @@ internal class EchoPairCapture(
                 bytes[i * 2 + 1] = (sample ushr 8).toByte()
             }
             output.write(bytes)
+            digest.update(bytes)
             frames += samples.size
         }
 
@@ -249,6 +257,7 @@ internal class EchoPairCapture(
             closed = true
             output.close()
             RandomAccessFile(file, "rw").use { it.write(header((frames * 2).toInt())) }
+            pcmSha256 = digest.digest().joinToString("") { (it.toInt() and 255).toString(16).padStart(2, '0') }
         }
 
         private fun header(dataBytes: Int): ByteArray = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN).apply {

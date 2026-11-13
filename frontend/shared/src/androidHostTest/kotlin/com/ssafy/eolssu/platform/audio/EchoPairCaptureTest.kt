@@ -4,6 +4,7 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
+import java.security.MessageDigest
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
@@ -57,6 +58,12 @@ class EchoPairCaptureTest {
         assertEquals("true", metadata.getValue("complete").jsonPrimitive.content)
         assertEquals("14", metadata.getValue("performanceFirstPhysicalFrame").jsonPrimitive.content)
         assertEquals("18", metadata.getValue("performanceEndPhysicalFrame").jsonPrimitive.content)
+        for (name in listOf("preparation", "original", "corrected")) {
+            val payload = File(result.directory, "$name.wav").readBytes().drop(44).toByteArray()
+            val expected = MessageDigest.getInstance("SHA-256").digest(payload)
+                .joinToString("") { (it.toInt() and 255).toString(16).padStart(2, '0') }
+            assertEquals(expected, metadata.getValue("${name}PcmSha256").jsonPrimitive.content)
+        }
         assertEquals("a\"b\nc", metadata.getValue("summary").jsonObject.getValue("quoted").jsonPrimitive.content)
     }
 
