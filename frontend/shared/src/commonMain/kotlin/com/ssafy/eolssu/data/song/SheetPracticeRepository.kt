@@ -34,6 +34,9 @@ class SheetPracticeRepository(
         val source = score.source ?: throw CatalogUnavailable()
         if (source.scoreVersion != version) throw CatalogUnavailable()
         val timing = requireNotNull(score.timing)
+        val basic = try { document.authoring?.basicAccompaniment(requireNotNull(document.score)) }
+            catch (_: IllegalArgumentException) { throw CatalogUnavailable() }
+        if (basic != null && (document.jangdanId != null || timing.jangdan.isNotBlank())) throw CatalogUnavailable()
         val instrument = try {
             instruments.load().firstOrNull { it.code == source.instrument }
         } catch (_: CatalogUnavailable) {
@@ -54,6 +57,7 @@ class SheetPracticeRepository(
             instrumentId = instrument?.instrumentId,
             scoreVersion = version,
             jangdanPlayback = accompaniment,
+            basicAccompaniment = basic,
         )
     }
 

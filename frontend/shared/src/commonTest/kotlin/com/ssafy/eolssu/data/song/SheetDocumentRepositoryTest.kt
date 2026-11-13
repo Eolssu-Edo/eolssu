@@ -9,6 +9,21 @@ import kotlinx.serialization.json.*
 import kotlin.test.*
 
 class SheetDocumentRepositoryTest {
+    @Test fun writesSavedBasicAccompanimentAndExplicitClearAlongsideTheSourceReference() = runTest {
+        val sent = mutableListOf<JsonObject>()
+        val repository = ApiSheetDocumentRepository(createHttpClient(MockEngine { request ->
+            sent += Json.parseToJsonElement((request.body as io.ktor.http.content.TextContent).text).jsonObject
+            respond("""{"isSuccess":true,"code":200,"result":{"sheetId":"31","draftRevision":1}}""",
+                HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production))
+        val metadata = Json.parseToJsonElement("""{"schema":"sheet-authoring/v1","source":{"scoreSha256":"${"0".repeat(64)}","score":"large source"},"accompaniment":{"schema":"basic-accompaniment/v1","groups":[2,3],"pulseUnit":"EIGHTH","startTick":4}}""").jsonObject
+        val copy = SheetWorkingCopy("곡", null, 60, smallScoreData(), "1", 0, authoring = metadata)
+        repository.save("31", copy, true)
+        assertEquals(metadata["accompaniment"], sent.last().getValue("authoring").jsonObject["accompaniment"])
+        assertEquals(setOf("scoreSha256"), sent.last().getValue("authoring").jsonObject.getValue("source").jsonObject.keys)
+        repository.save("31", copy.copy(authoring = JsonObject(metadata + ("accompaniment" to JsonNull))), true)
+        assertEquals(JsonNull, sent.last().getValue("authoring").jsonObject["accompaniment"])
+    }
     @Test fun keepsServerPitchLocationsAndDoesNotLoseOtherInvalidRequestReasons() = runTest {
         val copy = SheetWorkingCopy("검사", null, 60, smallScoreData(), "1", 0)
         var error = """{"errorCode":"INVALID_REQUEST","details":{"reason":"UNSUPPORTED_PITCHES","instrumentCode":"SOGEUM","issues":[{"eventId":"c0-j0-r0-u0","cellId":"c0-j0","yul":"이","octave":1,"reasonCodes":["FINGERING_UNKNOWN"]}]}}"""
