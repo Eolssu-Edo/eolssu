@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -134,7 +135,7 @@ fun PlaybackControlRow(
 }
 
 /**
- * 재생 묶음: 흰 사각 묶음(52dp, 모서리 14, 안쪽 4) 안에 ↺5 · 재생 · ↻5. 재생 버튼은 연두 사각(52×44, 모서리 10)이고,
+ * 재생 묶음: 흰 사각 묶음(52dp, 모서리 14, 안쪽 4) 안에 ↺5 · 재생 · ↻5. 재생 버튼은 먹색 원(44dp)에 흰 재생 표시이고(S15P31E102-891),
  * 5초 버튼은 바탕 없는 44dp다. 쓸 수 없으면 회색으로 흐리게 그린다.
  */
 @Composable
@@ -157,13 +158,17 @@ fun PlaybackSkipGroup(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         SkipButton(EolssuIcons.ReplayBack, backLabel, skipEnabled, digitOffset = 0.2.dp, onClick = onBack)
+        val playPress = remember { MutableInteractionSource() }
         Surface(
             onClick = onTogglePlay,
             enabled = playEnabled,
-            modifier = Modifier.size(width = 52.dp, height = 44.dp),
-            shape = RoundedCornerShape(10.dp),
-            color = if (playEnabled) colors.text else colors.surfaceStrong, // 재생은 먹색, 연두는 옆 주 행동 버튼에만(S15P31E102-849).
+            // 누르면 출렁인다(S15P31E102-891). 44dp 원은 늘어나도 흰 묶음 안쪽 여백(4dp) 안에 든다.
+            modifier = Modifier.elasticSquash(playPress).size(44.dp),
+            shape = CircleShape,
+            // 먹색 원에 흰 재생 표시(S15P31E102-891). 연두는 옆 주 행동 버튼에만 둔다.
+            color = if (playEnabled) colors.text else colors.surfaceStrong,
             contentColor = if (playEnabled) colors.onInk else colors.textDisabled,
+            interactionSource = playPress,
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(if (playing) EolssuIcons.Pause else EolssuIcons.Play, contentDescription = playLabel, modifier = Modifier.size(22.dp))
