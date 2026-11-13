@@ -46,7 +46,7 @@ class PracticeLiveProgressTest {
         advanceTimeBy(2000)
         runCurrent()
         assertEquals(625.0, vm.uiState.value.elapsedMs, 0.0001)
-        vm.openPanel(PracticePanel.Notation)
+        vm.openPanel(PracticePanel.Jangdan)
         vm.closePanel()
         assertEquals(PracticePanel.Settings, vm.uiState.value.panel)
         vm.dismissPanels()

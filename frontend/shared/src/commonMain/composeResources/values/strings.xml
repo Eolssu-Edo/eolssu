@@ -95,17 +95,13 @@
     <string name="practice_countdown_ready">준비</string>
     <string name="practice_switched_to_eval">평가 모드로 바꿨어요. ‘연주 평가 시작’을 누르면 평가해요.</string>
 
-    <string name="practice_menu_notation">쉬운 표기</string>
     <string name="practice_title_fingering">운지법 보기</string>
     <string name="practice_menu_jangdan">장단</string>
     <string name="practice_menu_tempo">속도</string>
-    <string name="practice_on">켜짐</string>
-    <string name="practice_off">꺼짐</string>
     <string name="practice_jangdan_sound_on">%1$s · 소리 켜짐</string>
     <string name="practice_big_score">크게 보기</string>
     <string name="practice_apply">적용</string>
 
-    <string name="practice_notation_title">악보 표시 설정</string>
     <string name="practice_notation_hangul">한글 읽는 법 표시</string>
 
     <string name="practice_fingering_title">운지법</string>
@@ -176,7 +172,7 @@
     <string name="practice_instrument">연습 악기</string>
     <string name="practice_jangdan_sound_off">%1$s · 소리 꺼짐</string>
     <string name="practice_fingering_view">운지법과 함께 보기</string>
-    <string name="practice_fingering_view_desc">각 정간마다 가로 %1$s 그림과 율명을 함께 봐요</string>
+    <string name="practice_fingering_view_desc">%1$s 운지 그림을 함께 봐요</string>
     <string name="practice_fingering_rest">쉼 · 숨을 고르세요</string>
     <string name="practice_fingering_desc">막는 구멍 %1$s</string>
     <string name="practice_fingering_none">없음</string>

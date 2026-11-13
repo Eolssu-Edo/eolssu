@@ -70,10 +70,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuSwitch
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.core.ui.score.FingeringFigure
 import com.ssafy.eolssu.core.ui.score.HoleLegend
-import com.ssafy.eolssu.core.ui.score.JeongganboLook
-import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
-import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.core.ui.score.ScoreNotation
 import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
 import com.ssafy.eolssu.feature.practice.PracticeDraft
 import com.ssafy.eolssu.feature.practice.PracticePanel
@@ -106,12 +102,8 @@ import eolssu.shared.generated.resources.practice_jangdan_sub
 import eolssu.shared.generated.resources.practice_jangdan_title
 import eolssu.shared.generated.resources.practice_listen_note
 import eolssu.shared.generated.resources.practice_menu_jangdan
-import eolssu.shared.generated.resources.practice_menu_notation
 import eolssu.shared.generated.resources.practice_menu_tempo
 import eolssu.shared.generated.resources.practice_notation_hangul
-import eolssu.shared.generated.resources.practice_notation_title
-import eolssu.shared.generated.resources.practice_off
-import eolssu.shared.generated.resources.practice_on
 import eolssu.shared.generated.resources.practice_settings
 import eolssu.shared.generated.resources.practice_settings_locked
 import eolssu.shared.generated.resources.practice_tempo_note
@@ -133,6 +125,8 @@ class PracticePanelActions(
     val onSetInstrument: (String) -> Unit = {},
     /** 연습 설정의 ‘운지법과 함께 보기’. 바로 반영된다. */
     val onToggleFingeringView: () -> Unit = {},
+    /** 연습 설정의 ‘한글 읽는 법 표시’. 바로 반영된다(S15P31E102-875). */
+    val onToggleHangul: () -> Unit = {},
 )
 
 /**
@@ -163,7 +157,7 @@ fun PracticePanelSheet(
                 modifier = modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).fillMaxWidth()
                     .heightIn(max = maxSheetHeight),
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                // 연습 설정과 하위 화면(쉬운 표기·장단·속도·운지법) 모두 회색 시트 위 흰 카드다(S15P31E102-768).
+                // 연습 설정과 하위 화면(장단·속도·운지법) 모두 회색 시트 위 흰 카드다(S15P31E102-768).
                 color = EolssuTheme.colors.groupedBackground,
             ) {
                 Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 24.dp)) {
@@ -183,7 +177,6 @@ fun PracticePanelSheet(
 fun PanelHeader(panel: PracticePanel, state: PracticeUiState, onClose: () -> Unit) {
     val title = stringResource(when (panel) {
         PracticePanel.Settings -> Res.string.practice_settings
-        PracticePanel.Notation -> Res.string.practice_notation_title
         PracticePanel.Fingering -> Res.string.practice_fingering_title
         PracticePanel.Jangdan -> Res.string.practice_jangdan_title
         PracticePanel.Tempo -> Res.string.practice_tempo_title
@@ -206,7 +199,6 @@ fun PanelHeader(panel: PracticePanel, state: PracticeUiState, onClose: () -> Uni
 fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: Song, actions: PracticePanelActions, titleToggles: Boolean = false) {
     when (panel) {
         PracticePanel.Settings -> SettingsMenu(state, song, actions, titleToggles)
-        PracticePanel.Notation -> NotationPanel(state.draft, song, actions)
         PracticePanel.Fingering -> FingeringPanel(state, actions)
         PracticePanel.Jangdan -> JangdanPanel(state, song, actions)
         PracticePanel.Tempo -> TempoPanel(state.draft, song, actions)
@@ -214,14 +206,14 @@ fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: So
 }
 
 /**
- * PANEL-00 연습 설정: ‘연습 악기’ 고르기 → 쉬운 표기 · 장단 · 속도 메뉴 줄(`.menu-row`) → ‘운지법과 함께 보기’ 스위치(`.trow`).
+ * PANEL-00 연습 설정: ‘연습 악기’ 고르기 → 장단 · 속도 메뉴 줄(`.menu-row`) → ‘한글 읽는 법 표시’·‘운지법과 함께 보기’ 스위치(`.trow`).
+ * 한글 읽는 법은 하위 화면 없이 이 시트에서 바로 켜고 끈다. 연주 평가 중에도 바꿀 수 있다(S15P31E102-875).
  * AI 연주 평가로 들어온 연습([PracticeUiState.solo]가 아님)은 고른 곡의 악기로 평가하므로 ‘연습 악기’를 두지 않는다(S15P31E102-561).
- * [titleToggles]이면 쉬운 표기·운지법이 곡 제목 옆 스위치에 있으므로 여기서 뺀다(S15P31E102-716).
+ * [titleToggles]이면 운지법이 곡 제목 옆 스위치에 있으므로 여기서 뺀다(S15P31E102-716).
  */
 @Composable
 private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePanelActions, titleToggles: Boolean) {
     val settings = state.settings
-    val notationOn = settings.showHangul
     val step = TempoStep.nearest(song.baseBpm, state.bpm)
     val instrumentName = stringResource(state.instrument.label)
     // 평가 중에는 속도만 고정하고 장단 소리는 바꿀 수 있다.
@@ -230,10 +222,6 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (state.solo && !state.learn) SettingsCard { InstrumentSelect(state.instrument, actions.onSetInstrument) }
         SettingsCard {
-        if (!titleToggles) MenuRow(
-            EolssuIcons.NotationMark, stringResource(Res.string.practice_menu_notation),
-            stringResource(if (notationOn) Res.string.practice_on else Res.string.practice_off),
-        ) { actions.onOpen(PracticePanel.Notation) }
         MenuRow(
             EolssuIcons.JangdanMark, stringResource(Res.string.practice_menu_jangdan),
             when {
@@ -247,16 +235,23 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
             actions.onOpen(PracticePanel.Tempo)
         }
         }
-        if (!titleToggles) SettingsCard {
-            SettingRow(
-                stringResource(Res.string.practice_fingering_view),
-                stringResource(Res.string.practice_fingering_view_desc, instrumentName),
-                checked = state.fingeringView,
-                onToggle = actions.onToggleFingeringView,
-                topLine = false,
-                horizontal = SettingsCardInset,
-                topPadding = 12.dp,
-            )
+        // 두 스위치 사이 구분선이 카드 안쪽 여백에서 시작하도록 줄 전체를 안쪽 여백 안에 둔다.
+        SettingsCard {
+            Column(Modifier.padding(horizontal = SettingsCardInset)) {
+                SettingRow(
+                    stringResource(Res.string.practice_notation_hangul), null,
+                    checked = settings.showHangul,
+                    onToggle = actions.onToggleHangul,
+                    topLine = false,
+                    topPadding = 12.dp,
+                )
+                if (!titleToggles) SettingRow(
+                    stringResource(Res.string.practice_fingering_view),
+                    stringResource(Res.string.practice_fingering_view_desc, instrumentName),
+                    checked = state.fingeringView,
+                    onToggle = actions.onToggleFingeringView,
+                )
+            }
         }
     }
 }
@@ -398,38 +393,6 @@ private fun TinyNote(text: String, modifier: Modifier = Modifier) {
 @Composable
 private fun PanelCard(modifier: Modifier = Modifier, padding: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
     Column(modifier.fillMaxWidth().background(EolssuTheme.colors.surface, RoundedCornerShape(20.dp)).padding(padding), content = content)
-}
-
-/**
- * PANEL-01 악보 표시 설정: 한글 읽는 법 스위치 줄과, 고른 설정을 보여 주는 미니 정간보 카드.
- * 스위치 설명과 예시 설명 문장은 두지 않는다. 계이름 표시는 쓰지 않아 없앴다(S15P31E102-716).
- */
-@Composable
-private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePanelActions) {
-    val colors = EolssuTheme.colors
-    PanelCard(padding = 0.dp) {
-        SettingRow(
-            stringResource(Res.string.practice_notation_hangul), null,
-            draft.showHangul, { actions.onDraft { it.copy(showHangul = !it.showHangul) } },
-            topLine = false, vertical = 14.dp, horizontal = SettingsCardInset, topPadding = 14.dp,
-        )
-    }
-    Row(
-        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(20.dp)).padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        JeongganboView(
-            song = song,
-            modifier = Modifier.width(90.dp),
-            metrics = JeongganboMetrics(columnWidth = 86.dp, cellHeight = 44.dp, yulSize = 17.sp, auxSize = 9.sp, headHeight = 22.dp, columnGap = 0.dp, splitScaleTwo = 11f / 17f),
-            notation = ScoreNotation(draft.showHangul),
-            scrollState = null,
-            maxColumns = 1,
-            maxRows = 3,
-            look = JeongganboLook(style = JeongganboLook.Style.Board, lyricLane = 19.dp, headCompact = true, daegangWhenFits = true),
-        )
-    }
 }
 
 /**

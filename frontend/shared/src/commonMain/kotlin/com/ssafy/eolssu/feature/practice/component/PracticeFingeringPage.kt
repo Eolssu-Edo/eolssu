@@ -198,7 +198,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectUnit: (ScoreDisplayUni
                             scroll.animateScrollTo(with(density) { top.roundToPx() }.coerceIn(0, scroll.maxValue))
                         }
                     }
-                    Column(Modifier.fillMaxWidth().verticalScroll(scroll)) {
+                    Column(Modifier.fillMaxWidth().verticalScroll(scroll, enabled = !state.scoreFollowLocked)) {
                         angle.forEach { cell ->
                             FingerRow(
                                 cell = cell, instrument = instrument,

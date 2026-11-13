@@ -21,7 +21,7 @@ enum class PracticeMode { Ready, Model, Rhythm, Countdown, Recording, Interrupte
 enum class PracticeSongError { NotFound, NeedsReview, Failed }
 
 /** 아래에서 올라오는 보조 패널. */
-enum class PracticePanel { Settings, Notation, Fingering, Jangdan, Tempo }
+enum class PracticePanel { Settings, Fingering, Jangdan, Tempo }
 
 /**
  * 연습 화면 위에 뜨는 확인 창.
@@ -54,7 +54,6 @@ enum class TempoStep(val ratio: Double) {
  * @property note 운지법 패널이 보여 주는 율명. 고른 정간이 이음이면 앞 음을 표시한다.
  */
 data class PracticeDraft(
-    val showHangul: Boolean = false,
     val jangdanSound: Boolean = false,
     val beatVisual: Boolean = true,
     val step: TempoStep = TempoStep.Normal,
@@ -75,9 +74,7 @@ data class PracticeDraft(
  *   서버 `NO_SOUND` 판정에 맡긴다.
  * @property hadInput 이번 연주에서 입력이 한 번이라도 있었는지.
  * @property noInputMs 마지막 입력 뒤로 입력 없이 녹음한 시간(ms). 일시정지한 동안은 세지 않는다.
- * @property follow 재생·연주 중 악보가 현재 위치를 따라가는지. 사용자가 악보를 끌면 꺼진다.
- * @property followHeldGak 평가 연주 중 사용자가 악보를 끌어 따라가기를 멈춘 각. 현재 위치가 다른 각으로 넘어가면
- *   다시 따라간다([resumeFollowOnNextGak]). 연주 중에는 손이 악기에 있어 '현재 위치로'를 누르기 어렵기 때문이다.
+ * @property follow 재생 중 악보가 현재 위치를 따라가는지. 사용자가 악보를 끌면 꺼진다. 평가 연주 중에는 끌 수 없어 늘 따라간다([scoreFollowLocked]).
  * @property mine 내 악보 연습(Practice-Mine). 혼자 연습과 같되 평가로 넘어가는 버튼이 없다.
  * @property learn 기초부터 배우기 8단계의 곡 연습. 혼자 연습과 같되 평가로 넘어가는 버튼이 없다.
  * @property fingeringOverride 저장한 설정 대신 이 화면에서만 쓰는 '운지법과 함께 보기'. 기초부터 배우기 곡 연습은 켠 채로 시작한다.
@@ -126,7 +123,6 @@ data class PracticeUiState(
     val noInputMs: Double = 0.0,
     val finished: Boolean = false,
     val follow: Boolean = true,
-    val followHeldGak: Int? = null,
     val listening: Yul? = null,
     val fingeringAudioPlaying: Boolean = false,
     val isSongLoading: Boolean = false,
@@ -150,8 +146,8 @@ data class PracticeUiState(
     } ?: 0
 
     /**
-     * 연주 평가(혼자 연습·내 악보 연습이 아님)는 곡 제목 옆에 ‘운지법 보기’·‘쉬운 표기’ 스위치를 두고 톱니 설정에서는 뺀다(S15P31E102-716).
-     * 제목 줄이 있는 휴대폰 배치에서만 쓴다.
+     * 연주 평가(혼자 연습·내 악보 연습이 아님)는 곡 제목 옆에 ‘운지법 보기’ 스위치를 두고 톱니 설정에서는 뺀다(S15P31E102-716).
+     * ‘한글 읽는 법 표시’는 모든 연습 설정에 두므로 제목 옆에 두지 않는다(S15P31E102-875). 제목 줄이 있는 휴대폰 배치에서만 쓴다.
      */
     val showsTitleToggles: Boolean get() = !solo && !mine
 
@@ -198,6 +194,12 @@ data class PracticeUiState(
      */
     val playbackSettingsLocked: Boolean
         get() = mode == PracticeMode.Recording || mode == PracticeMode.Countdown || mode == PracticeMode.Interrupted
+
+    /**
+     * 평가 연주(카운트다운·녹음·중단) 중에는 악보를 손으로 넘길 수 없고 늘 현재 위치를 따라간다. 그래서 ‘현재 위치로’도 두지 않는다(S15P31E102-875).
+     * 모범 연주·장단 재생은 그대로 끌어서 볼 수 있다.
+     */
+    val scoreFollowLocked: Boolean get() = playbackSettingsLocked
 
     /** 이어서 연주하려고 카운트다운하는 중. 하단은 연주 중 모습을 유지한다. */
     val resuming: Boolean get() = mode == PracticeMode.Countdown && resume
@@ -348,10 +350,10 @@ fun PracticeUiState.beginCountdown(resume: Boolean = false): PracticeUiState = c
 /** 평가 연주를 시작한다. 구간 재평가([sectionEvaluation])는 구간 첫 음에서, 곡 처음 기준으로 그 음이 시작하는 시간부터 간다. */
 fun PracticeUiState.beginRecording(): PracticeUiState = copy(
     mode = PracticeMode.Recording, position = recordingStartIndex, elapsedMs = recordingStartMs, micLevel = 0f, finished = false, popup = null, follow = true,
-    followHeldGak = null, resume = false, pausedFraction = 0f, eventElapsedMs = 0.0, hadInput = false, noInputMs = 0.0,
+    resume = false, pausedFraction = 0f, eventElapsedMs = 0.0, hadInput = false, noInputMs = 0.0,
 )
 
-fun PracticeUiState.resumeRecording(): PracticeUiState = copy(mode = PracticeMode.Recording, popup = null, resume = false, follow = true, followHeldGak = null)
+fun PracticeUiState.resumeRecording(): PracticeUiState = copy(mode = PracticeMode.Recording, popup = null, resume = false, follow = true)
 
 /** 카운트다운 취소. 이어서 연주하려던 중이면 '연주 중단' 창으로 되돌린다. */
 fun PracticeUiState.cancelCountdown(): PracticeUiState =
@@ -362,20 +364,11 @@ fun PracticeUiState.toReady(): PracticeUiState = copy(
     eventStartedAt = null, pausedFraction = 0f, eventElapsedMs = 0.0, resume = false, hadInput = false, noInputMs = 0.0,
 )
 
-/** 사용자가 악보를 끌어 따라가기를 멈춘다. 평가 연주 중이면 지금 각을 기억해 다음 각부터 다시 따라가게 한다. */
-fun PracticeUiState.stopFollowing(): PracticeUiState =
-    copy(follow = false, followHeldGak = if (mode == PracticeMode.Recording) currentScoreUnit?.column else null)
+/** 사용자가 악보를 끌어 따라가기를 멈춘다. 평가 연주 중에는 악보를 넘길 수 없으므로 그대로 따라간다([PracticeUiState.scoreFollowLocked]). */
+fun PracticeUiState.stopFollowing(): PracticeUiState = if (scoreFollowLocked) this else copy(follow = false)
 
 /** '현재 위치로': 바로 다시 따라간다. */
-fun PracticeUiState.followNow(): PracticeUiState = copy(follow = true, followHeldGak = null)
-
-/** 평가 연주 중 따라가기를 멈춘 뒤 현재 위치가 다른 각으로 넘어가면 다시 따라간다. 그 밖에는 그대로다. */
-fun PracticeUiState.resumeFollowOnNextGak(): PracticeUiState {
-    val held = followHeldGak ?: return this
-    if (follow || mode != PracticeMode.Recording) return this
-    val column = currentScoreUnit?.column ?: return this
-    return if (column != held) followNow() else this
-}
+fun PracticeUiState.followNow(): PracticeUiState = copy(follow = true)
 
 /**
  * 현재 음을 마치고 다음 음으로. 곡 끝이면 모범 연주는 멈추고, 연주는 '연주를 마쳤어요' 창을 띄운다.
@@ -499,7 +492,6 @@ fun PracticeUiState.openPanel(panel: PracticePanel): PracticeUiState {
     if (playbackSettingsLocked && panel == PracticePanel.Tempo) return this
     val song = song
     val draft = when (panel) {
-        PracticePanel.Notation -> draft.copy(showHangul = settings.showHangul)
         PracticePanel.Jangdan -> draft.copy(jangdanSound = settings.jangdanSound, beatVisual = settings.beatVisual, previewing = false, previewBeat = 0)
         PracticePanel.Tempo -> draft.copy(step = if (song != null) TempoStep.nearest(song.baseBpm, bpm) else TempoStep.Normal)
         else -> draft
@@ -509,7 +501,7 @@ fun PracticeUiState.openPanel(panel: PracticePanel): PracticeUiState {
 
 /** 하위 설정의 뒤로가기. 변경값은 이미 저장됐으며 상위 설정으로 돌아간다. */
 fun PracticeUiState.closePanel(): PracticeUiState = copy(
-    panel = if (panel == PracticePanel.Notation || panel == PracticePanel.Jangdan || panel == PracticePanel.Tempo || panel == PracticePanel.Fingering) PracticePanel.Settings else null,
+    panel = if (panel == PracticePanel.Jangdan || panel == PracticePanel.Tempo || panel == PracticePanel.Fingering) PracticePanel.Settings else null,
     listening = null,
     draft = draft.copy(previewing = false, previewBeat = 0),
 )
@@ -525,10 +517,6 @@ fun PracticeUiState.moveFingering(delta: Int): PracticeUiState {
     if (next == selected) return this
     return copy(selected = next, selectedCell = cellForEvent(next), listening = null, draft = draft.copy(note = fingeringNoteAt(next)))
 }
-
-/** 표기 패널 적용: 한글 읽는 법 표시. */
-fun PracticeSettings.applyNotation(draft: PracticeDraft): PracticeSettings =
-    copy(showHangul = draft.showHangul)
 
 fun PracticeSettings.applyJangdan(draft: PracticeDraft): PracticeSettings =
     copy(jangdanSound = draft.jangdanSound, beatVisual = draft.beatVisual)

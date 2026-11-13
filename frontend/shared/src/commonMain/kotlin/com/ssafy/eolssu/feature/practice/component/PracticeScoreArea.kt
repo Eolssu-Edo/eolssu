@@ -139,11 +139,13 @@ fun PracticeScoreArea(
         val annotations = state.scoreAnnotations
         val sectionMarks = practiceSectionMarks(state)
         val section = state.sectionPractice?.section
+        // 평가 연주 중에는 악보를 끌어 넘기지 않고 늘 현재 위치를 따라간다(S15P31E102-875).
+        val locked = state.scoreFollowLocked
         if (bandColumns == null) {
             val scrollState = rememberHorizontalScoreScroll(state)
             JeongganboView(
                 song = song,
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState(), enabled = !locked),
                 metrics = JeongganboMetrics.practice(song.jangdan, maxHeight, big = big, tablet = tablet, longestStrip = longestStrip).withLane(),
                 notation = notation,
                 look = look,
@@ -153,6 +155,7 @@ fun PracticeScoreArea(
                 playback = playback,
                 follow = state.follow,
                 onUserScroll = onUserScroll,
+                userScrollEnabled = !locked,
                 selectedCell = selectedCell,
                 onUnitClick = onUnitClick,
                 annotations = annotations,
@@ -166,7 +169,7 @@ fun PracticeScoreArea(
             val metrics = JeongganboMetrics.practice(song.jangdan, bandHeight, big = big, tablet = true, longestStrip = longestStrip).withLane()
             val columnCount = song.score.columns.size
             val scrollState = rememberBandScroll(state, playback, bandColumns, bandHeight, onUserScroll)
-            Column(Modifier.fillMaxSize().verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(BandGap)) {
+            Column(Modifier.fillMaxSize().verticalScroll(scrollState, enabled = !locked), verticalArrangement = Arrangement.spacedBy(BandGap)) {
                 for (first in 0 until columnCount step bandColumns) {
                     JeongganboView(
                         song = song,
@@ -190,7 +193,7 @@ fun PracticeScoreArea(
                 }
             }
         }
-        if (state.live && !state.follow) {
+        if (state.live && !state.follow && !locked) {
             EolssuButton(
                 stringResource(Res.string.practice_follow_now),
                 onFollowNow,
@@ -291,7 +294,7 @@ private fun rememberBandScroll(
 /**
  * 휴대폰 보드의 악보 영역. 각의 실제 높이로 위→아래 들어가는 수를 정하고 다음 묶음은 왼쪽에 둔다.
  * 3줄 이상의 소박 표기 정간은 높이를 늘린다. 공간이 부족하면 정간과 글자를 함께 줄여 세로 스크롤 없이 좌우로만 넘긴다.
- * 아래에는 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다.
+ * 아래에는 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다. 평가 연주 중에는 악보를 끌 수 없어 버튼도 없다.
  */
 @Composable
 fun PracticeBoardScore(
@@ -333,6 +336,8 @@ fun PracticeBoardScore(
                     playback = playback,
                     follow = state.follow,
                     onUserScroll = onUserScroll,
+                    // 평가 연주 중에는 악보를 끌어 넘기지 않고 늘 현재 위치를 따라간다(S15P31E102-875).
+                    userScrollEnabled = !state.scoreFollowLocked,
                     selectedCell = state.scoreSelection?.takeIf { state.sectionPractice == null }?.let { it.column to it.row },
                     onUnitClick = onSelectUnit.takeIf { state.canSelectUnit },
                     look = JeongganboLook.practice(big),
@@ -349,7 +354,7 @@ fun PracticeBoardScore(
                     unitMarksAfterPass = true,
                 )
             }
-            if (state.live && !state.follow) {
+            if (state.live && !state.follow && !state.scoreFollowLocked) {
                 // 보드 `.score-follow`: 오른쪽 정렬 작은 버튼.
                 val shape = RoundedCornerShape(8.dp)
                 Text(
