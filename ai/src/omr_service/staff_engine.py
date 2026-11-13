@@ -6,6 +6,8 @@ JG-like 줄을 만든 뒤 글자 층 경로와 같은 lines_to_score로 .jgb.jso
 
 import logging
 import io
+import hashlib
+import json
 from copy import deepcopy
 from functools import lru_cache
 import os
@@ -20,7 +22,7 @@ from time import monotonic
 
 from PIL import Image, ImageDraw
 
-from omr_service import staff_musicxml
+from omr_service import staff_musicxml, staff_pdf_tempo
 from omr_service.jeongganbo_text import JANGDANS, _clean, _run, beats_per_jeonggan, lines_to_score
 
 AUDIVERIS = os.environ.get("AUDIVERIS_CMD", "audiveris").split()  # 컨테이너에는 /opt/audiveris/bin/Audiveris
@@ -74,8 +76,20 @@ def recognize(job) -> dict:
     doc, score = lines_to_score(conv.lines, request, jangdan, lambda _: bpj, deadline,
                                 f"staff-omr/audiveris-{AUDIVERIS_VERSION}")
     restore_source_pitches(score, conv.source_pitches, request.hwang_pitch)
+    tempo = {}
+    if conv.tempos:
+        digest = hashlib.sha256(json.dumps(score, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        tempo['expressions'] = {'schema': 'common-score-expressions/v1', 'sourceSha256': digest, 'placements': [],
+            'performancePlan': {'schema': f"{request.instrument.lower().replace('_', '-')}-performance/v1",
+                                'input_sha256': digest, 'tempos': conv.tempos, 'repeats': []}}
+        if conv.quarter_bpm is not None:
+            bpm = conv.quarter_bpm / UNIT_QUARTERS[score['music']['bpmUnit']]
+            if bpm.denominator == 1 and 0 < bpm <= 2147483647:
+                tempo['bpm'] = int(bpm)
+            else:
+                issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {'reason': 'TEMPO_BASE_NOT_INTEGER'}))
     return {"engine": ENGINE, "engineVersion": AUDIVERIS_VERSION, "jgb": doc, "score": score, "issues": issues,
-            "sourcePitches": conv.source_pitches}
+            "sourcePitches": conv.source_pitches, **tempo}
 
 
 def restore_source_pitches(score, originals, hwang_pitch):
@@ -106,6 +120,7 @@ def _read_pages(job, deadline, page_time_s):
     신호로 죽음)는 엔진 오류다. 악보를 냈으면 종료 코드가 0이 아니어도 쓴다.
     """
     pages, issues = [], []
+    pdf_marks = staff_pdf_tempo.read_marks(job)
     with tempfile.TemporaryDirectory(prefix="audiveris-") as work:
         for i, page in enumerate(job.pages):
             out = Path(work) / f"page-{i}"
@@ -114,7 +129,8 @@ def _read_pages(job, deadline, page_time_s):
             command = AUDIVERIS + ["-batch", *AUDIVERIS_OPTIONS, "-transcribe", "-export", "-output"]
             run = _run(command + [str(out), "--", str(page.path)], page_deadline)
             input_path = page.path
-            regions = [box for p in out.rglob("*.omr") for box in tempo_regions(p.read_bytes())]
+            archives = [p.read_bytes() for p in out.rglob('*.omr')]
+            regions = [box for archive in archives for box in tempo_regions(archive)]
             if regions:
                 # 빠르기 표시의 음표가 성부 음으로 붙은 경우만, OCR로 확인한 영역을
                 # 별도 쪽 그림에서 지우고 다시 읽는다. 원본과 진짜 덧줄 음은 보존한다.
@@ -174,7 +190,12 @@ def _read_pages(job, deadline, page_time_s):
                 continue
             if run.returncode != 0:
                 log.info("audiveris page=%d exit=%d with score: %s", i, run.returncode, _reason(run))
-            pages += [p.read_bytes() for p in sheets]
+            data = [p.read_bytes() for p in sheets]
+            if i < len(pdf_marks) and pdf_marks[i] and len(data) == len(archives) == 1:
+                data[0], count = staff_pdf_tempo.supplement(data[0], archives[0], pdf_marks[i])
+                if count:
+                    issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {'reason': 'TEMPO_PDF_TEXT', 'count': count}))
+            pages += data
     return pages, issues
 
 

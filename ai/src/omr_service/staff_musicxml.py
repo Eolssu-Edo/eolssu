@@ -46,6 +46,8 @@ class Conversion:
     beat: Fraction = Fraction(1)  # 정간 하나(1박)의 4분음표 수. 점4분 3/2, 4분 1, 8분 1/2
     meter_guessed: bool = False  # 박자표를 못 읽어 리듬으로 박 구성을 골랐다
     source_pitches: list[dict] = field(default_factory=list)
+    quarter_bpm: Fraction | None = None
+    tempos: list[dict] = field(default_factory=list)  # existing performancePlan, BPM in jeonggan/minute
 
 
 @dataclass
@@ -63,7 +65,7 @@ def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Convers
     if part is None:
         raise ValueError("MusicXML에 파트가 없음")
     issues = []
-    notes, beats_per_gak, compound, beat, meter_guessed = _read_part(part, issues)
+    notes, beats_per_gak, compound, beat, meter_guessed, raw_tempos, pad = _read_part(part, issues)
     if not any(n.midi is not None for n in notes):
         raise ValueError("음표가 없음")
     shift, hwang = 0, DEFAULT_HWANG if hwang_pitch is None else hwang_pitch
@@ -73,7 +75,8 @@ def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Convers
     lines = _layout(notes, beats_per_gak, hwang, instrument, issues)
     originals = [item['detail'] for item in issues if item['kind'] == '_SOURCE_PITCH']
     issues = [item for item in issues if item['kind'] != '_SOURCE_PITCH']
-    return Conversion(lines, jangdan, beats_per_gak, issues, shift, beat, meter_guessed, originals)
+    quarter_bpm, tempos = _tempo_plan(raw_tempos, beat, beats_per_gak, pad, len(lines), issues)
+    return Conversion(lines, jangdan, beats_per_gak, issues, shift, beat, meter_guessed, originals, quarter_bpm, tempos)
 
 
 def _xml_bytes(data: bytes) -> bytes:
@@ -131,7 +134,7 @@ def _read_part(part, issues):
 
     voices = defaultdict(list)  # 성부 → [시작, 길이, [(MIDI, 이어받음)], 마디, flags] 묶음(화음은 한 묶음)
     graces = defaultdict(list)  # 성부 → 다음 음에 붙일 버린 꾸밈음
-    cursor, last = Fraction(0), None
+    cursor, last, tempos = Fraction(0), None, []
     for index in _play_order(measures, issues):
         m, number, d, shift = measures[index], index + 1, divisions[index], transpose[index]
         local_meter = measure_meters[index]
@@ -143,6 +146,11 @@ def _read_part(part, issues):
                 d, shift = _attributes(el, d, shift)
             elif el.tag in ("backup", "forward"):
                 t += (-1 if el.tag == "backup" else 1) * Fraction(int(el.findtext("duration"))) / d
+            elif el.tag in ("direction", "sound"):
+                cue = _tempo_direction(el)
+                if cue is not None:
+                    offset = Fraction(el.findtext('offset') or 0) / d
+                    tempos.append({**cue, 'position': cursor + t + offset, 'measure': number})
             elif el.tag == "note":
                 voice = el.findtext("voice") or "1"
                 if el.find("grace") is not None:  # 꾸밈음은 뒤따르는 음의 칸에 알린다
@@ -184,7 +192,89 @@ def _read_part(part, issues):
     if pad:
         notes = [_Note(Fraction(0), pad, None, 1)] + [_Note(n.start + pad, n.length, n.midi, n.measure, n.flags)
                                                       for n in notes]
-    return notes, beats_per_gak, compound, beat, not meter
+    return notes, beats_per_gak, compound, beat, not meter, tempos, pad
+
+
+def _tempo_direction(el):
+    """MusicXML metronome units differ from sound's quarter-notes/minute."""
+    bpm = None
+    units = {'whole': 4, 'half': 2, 'quarter': 1, 'eighth': Fraction(1, 2), '16th': Fraction(1, 4)}
+    text = ' '.join(el.itertext())
+    accel = bool(re.search(r'\baccel(?:erando)?\b', text, re.I))
+    for mark in el.findall('direction-type/metronome'):
+        value = (mark.findtext('per-minute') or '').strip()
+        # Audiveris sometimes includes the following instruction in per-minute.
+        match = re.fullmatch(r'(\d+(?:\.\d+)?)\s*(?:(?:molto\s+)?accel(?:erando)?\.?\s*[_-]*)?', value, re.I)
+        unit = units.get(mark.findtext('beat-unit'))
+        if match and unit and len(mark.findall('beat-unit')) == 1:
+            dots = len(mark.findall('beat-unit-dot'))
+            bpm = Fraction(match[1]) * unit * (2 - Fraction(1, 2 ** dots))
+    sound = el if el.tag == 'sound' else el.find('sound')
+    if bpm is None and sound is not None:
+        try:
+            bpm = Fraction(sound.get('tempo', ''))
+        except (ValueError, ZeroDivisionError):
+            pass
+    if bpm is not None and bpm <= 0:
+        bpm = None
+    return {'bpm': bpm, 'accel': accel} if bpm is not None or accel else None
+
+
+def _tempo_plan(raw, beat, width, pad, columns, issues):
+    """Map through the same repeat/pickup clock; never snap a cue to another cell."""
+    positioned = {}
+    unbound = []
+    initial = None
+    raw = [dict(cue) for cue in raw]
+    for i, cue in enumerate(raw):
+        if cue['bpm'] is None and cue['accel']:
+            previous = next((r for r in raw if r['bpm'] is not None and r['measure'] == cue['measure']
+                             and r['position'] == cue['position']), None) or next(
+                (r for r in reversed(raw[:i]) if r['bpm'] is not None
+                 and r['measure'] == cue['measure'] and r['position'] <= cue['position']), None)
+            if previous is not None:
+                previous['accel'] = True
+                cue['accel'] = False
+    for cue in raw:
+        if cue['bpm'] is None and not cue['accel']:
+            continue
+        written = cue['position'] / beat
+        position = written + pad if written else Fraction(0)
+        if position.denominator != 1 or not 0 <= position < columns * width:
+            issues.append(_issue('LOW_CONFIDENCE', {'reason': 'TEMPO_OFF_GRID', 'measure': cue['measure']}))
+            if cue['bpm'] is not None:
+                unbound.append(position)
+            continue
+        if cue['bpm'] is None:
+            issues.append(_issue('LOW_CONFIDENCE', {'reason': 'TEMPO_RAMP_UNRESOLVED', 'measure': cue['measure']}))
+            continue
+        if position in positioned and positioned[position]['bpm'] != cue['bpm']:
+            issues.append(_issue('LOW_CONFIDENCE', {'reason': 'TEMPO_CONFLICT', 'measure': cue['measure']}))
+            positioned[position]['conflict'] = True
+        else:
+            old = positioned.get(position, {})
+            positioned[position] = {**cue, 'accel': cue['accel'] or old.get('accel', False),
+                                    'conflict': old.get('conflict', False)}
+    tempos = []
+    ordered = sorted(positioned.items())
+    for i, (position, cue) in enumerate(ordered):
+        if cue['conflict']:
+            continue
+        gak, cell = divmod(int(position), width)
+        entry = {'gak': gak + 1, 'cell': cell + 1, 'bpm': float(cue['bpm'] / beat)}
+        tempos.append(entry)
+        if position == 0:
+            initial = cue['bpm']
+        if cue['accel']:
+            target = ordered[i + 1] if i + 1 < len(ordered) else None
+            if (target and not target[1]['conflict'] and target[1]['bpm'] > cue['bpm']
+                    and not any(position < p <= target[0] for p in unbound)):
+                end_gak, end_cell = divmod(int(target[0]), width)
+                entry.update(start_bpm=entry['bpm'], bpm=float(target[1]['bpm'] / beat),
+                             end_gak=end_gak + 1, end_cell=end_cell + 1)
+            else:
+                issues.append(_issue('LOW_CONFIDENCE', {'reason': 'TEMPO_RAMP_UNRESOLVED', 'measure': cue['measure']}))
+    return initial, tempos
 
 
 def _attributes(attrs, divisions, transpose):

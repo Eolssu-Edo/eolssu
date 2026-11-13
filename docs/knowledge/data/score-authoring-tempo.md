@@ -14,6 +14,10 @@
 
 `sourceSha256`와 `performancePlan.input_sha256`는 현재 악보와 결합한다. 서버가 scoreVersion/provenance를 준비한 뒤 두 해시를 다시 결합한다. MySQL JSON의 키 순서 정규화에도 결합을 유지하도록 서버 companion 해시는 객체 키를 재귀 정렬한 UTF-8 JSON을 기준으로 한다. 내부 HTTP는 같은 source header를 estimate와 render에 보낸다. DATA는 입력 결합을 확인한 후 합성용 악기 사본/실제 입력 파일 해시에 재결합한다. CLI의 원본 바이트 SHA 계약과 기존 companion 없는 HTTP 결과는 유지한다.
 
+## 오선보 숫자 가져오기 연결 (882)
+
+2026-11-13 사용자 선택으로 기존 tempo 항목에 선택적 양수 `start_bpm`을 추가한다. 숫자로80을 명시한 위치에서 바로80→160 가속을 시작할 수 있다. 생략 시 앞 BPM을 쓰는 기존 동작은 유지하며 기본 BPM 변경은 시작/목표 모두 비례 조정한다. 출력 수행표의 `tempoRatio`와 반주 시계 계약은 바꾸지 않는다. 원문 악보의 위치를 모르면 임의 계획을 만들지 않는다. [스펙](../../specs/staff-tempo-import.md), [실제 PDF·서버·생성 사전검사 근거](../ai/score-recognition-corrections.md#숫자-빠르기와-가속-가져오기-882).
+
 ## 제한 근거
 
 UI·서버·HTTP의30~160, JGB 어댑터의1~800에는 음악적 근거가 없었다. 작성 UI·DB는 양의 정수 표현 범위를 받고 저장과 생성 전에 실제 수행 계획을 컴파일한다. `music.bpmUnit`을 따른다. 같은160이라도 DOTTED_QUARTER는 QUARTER240과 같다.

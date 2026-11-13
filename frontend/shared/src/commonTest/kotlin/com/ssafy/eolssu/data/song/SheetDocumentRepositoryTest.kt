@@ -43,7 +43,7 @@ class SheetDocumentRepositoryTest {
 
     @Test fun carriesNumericExpressionsThroughReadDraftAndSave() = runTest {
         val score = Json.encodeToJsonElement(smallScoreData())
-        val expressions = Json.parseToJsonElement("""{"schema":"common-score-expressions/v1","sourceSha256":"bound","placements":[],"performancePlan":{"tempos":[{"gak":1,"cell":2,"bpm":80}]}}""").jsonObject
+        val expressions = Json.parseToJsonElement("""{"schema":"common-score-expressions/v1","sourceSha256":"bound","placements":[],"performancePlan":{"tempos":[{"gak":1,"cell":2,"start_bpm":80,"bpm":160,"end_gak":2,"end_cell":1}]}}""").jsonObject
         var sent: JsonObject? = null
         val repository = ApiSheetDocumentRepository(createHttpClient(MockEngine { request ->
             val result = if (request.method == HttpMethod.Get) {

@@ -201,6 +201,21 @@ def test_four_quarter_staff_measure_uses_four_beat_accompaniment(fake_audiveris)
 
 
 @needs_generator
+def test_recognized_numeric_tempo_and_existing_companion_reach_http(fake_audiveris, tmp_path):
+    import json, hashlib
+    path = tmp_path / 'four-quarters.musicxml'
+    path.write_bytes(FOUR_QUARTERS.replace(b'</attributes>', b'</attributes><direction><direction-type>'
+        b'<metronome><beat-unit>quarter</beat-unit><per-minute>80</per-minute></metronome>'
+        b'</direction-type><sound tempo="80"/></direction>'))
+    out = post('quarters').json()
+    assert out['status'] == 'DONE' and out['bpm'] == 80
+    digest = hashlib.sha256(json.dumps(out['score'], ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    assert out['expressions'] == {'schema':'common-score-expressions/v1', 'sourceSha256':digest,
+        'placements':[], 'performancePlan':{'schema':'danso-performance/v1','input_sha256':digest,
+        'tempos':[{'gak':1,'cell':1,'bpm':80}], 'repeats':[]}}
+
+
+@needs_generator
 def test_four_quarter_staff_measure_matches_danmori_without_stretching(fake_audiveris):
     out = post("quarters", jangdan="단모리").json()
     assert out["status"] == "DONE"
