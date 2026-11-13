@@ -12,8 +12,15 @@ package com.ssafy.eolssu.feature.guide.learn
 /** 이 크기(0~1, -35dBFS쯤) 이상이면 소리가 난 것으로 본다. 숨소리·주변 소음보다 크고 관악기 소리보다 작게 잡은 예시. */
 const val LEARN_SOUND_LEVEL = 0.3f
 
-/** 3단계: 한 소리를 이만큼 끊김 없이 이어야 한 번으로 센다. 4~6단계 음 유지 시간과 같은 기초 배우기 공통 값이다. */
-const val FIRST_SOUND_HOLD_MS = LEARN_PITCH_HOLD_MS.toDouble()
+/** 3단계: 한 소리를 이만큼 끊김 없이 이어야 한 번으로 센다. 연습 화면 한 음씩의 유지 시간(서버 초안 0.3초)과 같게 둔다(S15P31E102-857). */
+const val FIRST_SOUND_HOLD_MS = 300.0
+
+/** 통과 기준 문구에 넣을 초. 300ms는 "0.3", 1,000ms는 "1"처럼 끝의 0을 뺀다(1ms 단위까지). */
+internal fun holdSecondsLabel(ms: Double): String {
+    val whole = ms.toLong().coerceAtLeast(0)
+    val fraction = (whole % 1_000).toString().padStart(3, '0').trimEnd('0')
+    return if (fraction.isEmpty()) "${whole / 1_000}" else "${whole / 1_000}.$fraction"
+}
 
 /** 3단계: 통과에 필요한 횟수. */
 const val FIRST_SOUND_TARGET = 1
@@ -37,7 +44,7 @@ enum class LearnPracticePhase { Ready, Listening, Passed }
 enum class LearnMicStatus { Available, Unsupported, Denied, Blocked, Failed }
 
 /**
- * 듣는 동안 한 줄 안내. [Counted]는 한 번을 셌음, [TooShort]는 1초가 되기 전에 끊김.
+ * 듣는 동안 한 줄 안내. [Counted]는 한 번을 셌음, [TooShort]는 [FIRST_SOUND_HOLD_MS]가 되기 전에 끊김.
  * 음높이 판정: [NoteHit] 맞는 음, [NoteMiss] 다른 음을 세고 넘어감, [NotPassed] 모든 음을 냈지만(또는 더 맞혀도) 통과 수에 못 미침.
  */
 enum class LearnPracticeCue { Counted, TooShort, NoteHit, NoteMiss, NotPassed }
@@ -115,7 +122,7 @@ data class LearnPracticeUiState(
     /** 지금 소리가 들리는지. */
     val sounding: Boolean get() = listening && level >= LEARN_SOUND_LEVEL
 
-    /** 이번 소리의 1초 진행(0~1). 이미 센 소리는 가득 찬 채로 둔다. */
+    /** 이번 소리의 [FIRST_SOUND_HOLD_MS] 진행(0~1). 이미 센 소리는 가득 찬 채로 둔다. */
     val holdProgress: Float get() = if (counted) 1f else (holdMs / FIRST_SOUND_HOLD_MS).toFloat().coerceIn(0f, 1f)
 }
 
