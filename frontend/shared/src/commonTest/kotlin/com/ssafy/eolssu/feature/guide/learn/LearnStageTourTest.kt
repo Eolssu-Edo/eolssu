@@ -70,29 +70,6 @@ class LearnStageTourTest {
         assertEquals(0, learnStepCount(8, detail(tasks = 3), danso))
     }
 
-    /** '연습 시작'은 3·4·7단계에서 연습 박스를, 할 일 박스 안에서 듣는 5·6단계에서 아직 마치지 않은 첫 박스를 펼친다(S15P31E102-749). */
-    @Test fun practiceButtonOpensTheListeningBox() {
-        assertEquals(3, practiceBoxIndex(stage = 3, stepCount = 3, doneCount = 0))
-        assertEquals(1, practiceBoxIndex(stage = 7, stepCount = 1, doneCount = 1))
-        assertEquals(0, practiceBoxIndex(stage = 5, stepCount = 2, doneCount = 0))
-        assertEquals(1, practiceBoxIndex(stage = 5, stepCount = 2, doneCount = 1))
-        assertEquals(1, practiceBoxIndex(stage = 5, stepCount = 2, doneCount = 2))
-        assertEquals(0, practiceBoxIndex(stage = 6, stepCount = 1, doneCount = 0))
-        assertEquals(0, practiceBoxIndex(stage = 6, stepCount = 0, doneCount = 0))
-    }
-
-    /** 듣는 박스가 펼쳐진 동안에만 아래 가운데 버튼이 듣기 조작으로 바뀐다(S15P31E102-749). */
-    @Test fun bottomButtonControlsListeningOnlyWhileTheListeningBoxIsOpen() {
-        // 3·4·7단계: 할 일 박스가 펼쳐졌거나 모두 접혔으면 '연습 시작', 연습 박스가 펼쳐지면 듣기 조작
-        assertEquals(false, listeningBoxOpen(stage = 3, stepCount = 3, open = 1, doneCount = 1))
-        assertEquals(false, listeningBoxOpen(stage = 3, stepCount = 3, open = null, doneCount = 3))
-        assertEquals(true, listeningBoxOpen(stage = 3, stepCount = 3, open = 3, doneCount = 0))
-        // 5·6단계: 아직 마치지 않은 할 일 박스가 펼쳐지면 듣기 조작, 마친 박스를 다시 펼치면 '연습 시작'
-        assertEquals(true, listeningBoxOpen(stage = 5, stepCount = 2, open = 1, doneCount = 1))
-        assertEquals(false, listeningBoxOpen(stage = 5, stepCount = 2, open = 0, doneCount = 1))
-        assertEquals(true, listeningBoxOpen(stage = 6, stepCount = 1, open = 0, doneCount = 0))
-    }
-
     /** 마지막 단계(7단계)를 마치면 '완료했어요!' 버튼이 다음 단계 대신 단계 목록 결승선으로 돌아간다(S15P31E102-688). */
     @Test fun lastStageDoneLeadsBackToFinishLine() {
         assertEquals(Res.string.learn_done_go_finish, learnDoneAction(last = true))

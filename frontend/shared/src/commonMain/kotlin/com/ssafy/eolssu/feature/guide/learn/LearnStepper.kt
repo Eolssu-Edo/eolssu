@@ -92,10 +92,10 @@ internal fun learnStepCount(stage: Int, detail: LearnStageDetail, instrument: Gu
  * @property segment 할 일 박스([Int]번) 안의 듣기. 맡은 음을 다 내면 두 번째 인자(박스 마침)를 부른다. 있으면 '해 봤어요'와 연습 박스를 두지 않는다.
  * @property segmentReplacesFigure 박스 안 듣기가 그림까지 대신 그린다(5단계 정간보가 진행을 따라 칠해진다). 마친 박스를 다시 펼치면 그림을 보인다.
  * @property overlay 단계를 마쳤을 때 띄우는 '완료했어요!' 창.
- * @property primary 듣는 박스가 펼쳐졌거나 통과했을 때 아래 가운데 버튼('연습 시작'·'그만하기'·'다음 단계로' 등). null이면 '연습 시작'을 둔다.
- * @property passed 연습을 통과했다. 아래 가운데 버튼이 박스와 상관없이 [primary]가 된다.
+ * @property primary 듣기 주 버튼('연습 시작'·'그만하기'·'다음 단계로' 등, S15P31E102-877). 5·6단계는 아직 마치지 않은 할 일 박스 안 듣기 아래에 둔다.
+ *   3·4·7단계 연습 박스는 [content]가 직접 그린다. null이면 박스의 '해 봤어요'로 마친다.
+ * @property passed 연습을 통과했다. 듣는 박스가 접혀 있어도 박스 묶음 아래에 [primary]('다음 단계로')를 둔다.
  * @property onUndo 할 일 박스([Int]번)의 체크를 풀었을 때 판정도 그 박스 처음으로 되돌린다(5·6단계).
- * @property start 박스가 접힌 채 '연습 시작'을 누르면 박스를 펼치면서 함께 듣기를 시작한다(판정할 수 없으면 아무것도 하지 않는다).
  */
 class StepPractice(
     val title: String,
@@ -105,7 +105,6 @@ class StepPractice(
     val primary: (@Composable (Modifier) -> Unit)? = null,
     val passed: Boolean = false,
     val onUndo: (Int) -> Unit = {},
-    val start: () -> Unit = {},
     val content: @Composable () -> Unit,
 )
 
@@ -138,7 +137,12 @@ internal fun TourPanel(
                 onToggle = { tour.toggle(i) },
                 onTry = { if (tour.complete(i, total)) onAllDone() },
                 onUndo = { if (tour.undo(i)) practice?.onUndo?.invoke(i) },
-                inline = segment?.let { { done -> it(i, done) } },
+                inline = segment?.let { listen ->
+                    { done ->
+                        listen(i, done)
+                        if (practice?.passed != true) practice?.primary?.invoke(Modifier.fillMaxWidth())
+                    }
+                },
                 inlineReplacesFigure = practice?.segmentReplacesFigure == true,
             ) { figure(i) }
         }
@@ -155,6 +159,9 @@ internal fun TourPanel(
                 practice = practiceBox.content,
             ) {}
         }
+        // 통과한 뒤 듣는 박스가 접혀 있으면 '다음 단계로'가 보이도록 박스 묶음 아래에 둔다.
+        val listeningBoxClosed = segment != null || tour.open != tasks.size
+        if (practice != null && practice.passed && listeningBoxClosed) practice.primary?.invoke(Modifier.fillMaxWidth())
     }
 }
 
