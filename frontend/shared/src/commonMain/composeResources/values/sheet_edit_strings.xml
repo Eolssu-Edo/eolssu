@@ -200,7 +200,7 @@
     <string name="sheetedit_msg_audio_busy">음원 서버에 연결하지 못했어요 · 잠시 후 다시 해 주세요</string>
     <string name="sheetedit_msg_audio_unknown">음원 상태를 확인하지 못했어요. ‘편집 내용 확인’에서 다시 확인해 주세요.</string>
     <string name="sheetedit_msg_audio_link_failed">음원을 내려받지 못했어요</string>
-    <string name="sheetedit_pick_step_instrument">1. 편집할 악기</string>
+    <string name="sheetedit_pick_step_instrument">편집할 악기</string>
     <string name="sheetedit_pick_step_sheet">2. 편집할 악보</string>
     <string name="sheetedit_pick_need_instrument">악기를 고르면 그 악기의 악보만 보여요</string>
     <string name="sheetedit_pick_loading">악보 목록을 불러오는 중이에요</string>

@@ -66,7 +66,7 @@ SHT-04·08·11은 선택적 `expressions` 형제를 전달한다. V43 `expressio
 
 - 쿼리: `kind`(`JEONGGANBO`/`MIDI`/`PDF`, 그 외 400), `page`(0 이상, 기본 0), `size`(1~100, 기본 20).
 - `result.items[]`: `sheetId`, `kind`, `title`, `status`, `jangdanId`·`jangdanName`(장단 없는 곡 복사본은 둘 다 null), `source`, `pendingCellCount`, `sourcePageCount`(null), `updatedAt`, `instrumentCode`(문자열 또는 null). `page`, `size`, `totalElements`, `totalPages`도 반환한다.
-- 모든 목록 항목에 `instrumentCode`를 포함한다. 초안이 있으면 초안 공통 악보의 `score.instrument`, 그 외에는 확정 공통 악보의 `score.instrument`를 반환한다. 코드가 비어 있거나 확정본·초안의 JSON을 편집기가 읽을 수 없으면 null이다. 항목에 코드를 받은 편집기는 해당 항목을 목록에서 바로 거른다. null 또는 필드가 없는 응답은 이전 상세 조회 경로를 사용한다. [S15P31E102-765 작업 기록](../plans/S15P31E102-765.md)
+- 모든 목록 항목에 `instrumentCode`를 포함한다. 초안이 있으면 초안 공통 악보의 `score.instrument`, 그 외에는 확정 공통 악보의 `score.instrument`를 반환한다. 코드가 비어 있거나 확정본·초안의 JSON을 편집기가 읽을 수 없으면 null이다. 항목에 코드를 받은 편집기는 해당 항목을 목록에서 바로 거른다. 불러올 악보 고르기는 null·누락·공백 항목을 미확인 수에 포함하고 목록에서 제외하며 본문을 추가 조회하지 않는다(S15P31E102-886 후속 사용자 지시). 이 화면의 기존 상세 보충 조회 규칙을 대체한다. [목록 개선 스펙](edit-pick-list.md) · [S15P31E102-765 작업 기록](../plans/S15P31E102-765.md)
 - 본인 악보만, `updatedAt` 내림차순·`sheetId` 내림차순. 없으면 빈 배열.
 
 ## 노션 초안과 다른 점
