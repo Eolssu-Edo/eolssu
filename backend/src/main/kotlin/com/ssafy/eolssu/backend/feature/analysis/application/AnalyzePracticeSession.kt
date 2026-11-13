@@ -44,7 +44,7 @@ class AnalyzePracticeSession(
 
         val requested = try {
             val notes = scoreNotes.notesFor(pending)
-            Requested(notes, client.analyze(AnalysisRequest(pending.sessionId, pending.attempt, readUrls.readUrlFor(pending), pending.bpm, pending.bpmUnit, notes)))
+            Requested(notes, client.analyze(AnalysisRequest(pending.sessionId, pending.attempt, readUrls.readUrlFor(pending), pending.bpm, pending.bpmUnit, notes, pending.instrument)))
         } catch (e: Exception) {
             // 예외 메시지는 남기지 않는다. 외부 응답이나 서명 URL이 섞일 수 있다.
             log.warn("Analysis request failed session={} attempt={} error={}", pending.sessionId, pending.attempt, e.javaClass.simpleName)

@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import org.springframework.test.web.client.match.MockRestRequestMatchers.content
+import org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath
 import org.springframework.test.web.client.match.MockRestRequestMatchers.method
 import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
@@ -59,6 +60,26 @@ class HttpAnalysisClientTests {
                     true,
                 ),
             )
+            .andRespond(withSuccess(doneBody, MediaType.APPLICATION_JSON))
+
+        client.analyze(request)
+        server.verify()
+    }
+
+    @Test
+    fun `sends the instrument code so the AI can correct low daegeum playing`() {
+        server.expect(requestTo("http://ai.test/v1/analyses")).andExpect(method(HttpMethod.POST))
+            .andExpect(jsonPath("$.instrument").value("JEONGAK_DAEGEUM"))
+            .andRespond(withSuccess(doneBody, MediaType.APPLICATION_JSON))
+
+        client.analyze(request.copy(instrument = "JEONGAK_DAEGEUM"))
+        server.verify()
+    }
+
+    @Test
+    fun `omits the instrument when the song instrument is unknown`() {
+        server.expect(requestTo("http://ai.test/v1/analyses")).andExpect(method(HttpMethod.POST))
+            .andExpect(jsonPath("$.instrument").doesNotExist())
             .andRespond(withSuccess(doneBody, MediaType.APPLICATION_JSON))
 
         client.analyze(request)

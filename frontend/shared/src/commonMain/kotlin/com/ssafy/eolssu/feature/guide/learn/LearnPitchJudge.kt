@@ -15,9 +15,13 @@ import kotlin.math.pow
  * 기초부터 배우기 4~6단계의 기기 안 음높이 판정(S15P31E102-611, 결정은 docs/plans/S15P31E102-611.md).
  * 녹음기의 음높이 관측([com.ssafy.eolssu.core.audio.AudioRecorder.pitchReadings], 341의 YIN + 연속 두 창 확인)을 읽는다.
  * 허용 오차·유지 시간·신뢰도·첫 음 조율은 연습 화면 한 음씩과 같은 서버 기준(PRA-06)을, 끊김 허용·높이 문턱·첫 음 넓게 받기는
- * 한 음씩과 같은 악기별 완화([StepLeniency])를 그대로 쓴다(S15P31E102-857). 기초 배우기만의 차이는 4·5단계가 옥타브를 따지지 않는 것이다.
+ * 한 음씩과 같은 악기별 완화([StepLeniency])를 그대로 쓴다(S15P31E102-857). 기초 배우기만의 차이는 4·5단계가 옥타브를 따지지 않는 것과
+ * 4단계 직접 불기가 음마다 [LEARN_STAGE_FOUR_HOLD_MS] 동안 이어 불어야 하는 것이다(S15P31E102-860).
  * 7단계 혀치기의 같은 음 판정([LearnTongueTracker])은 아래 공통 허용 오차를 따로 쓴다(S15P31E102-845).
  */
+
+/** 4단계 직접 불기에서 한 음을 맞음으로 볼 유지 시간: 1초. 처음 익히는 음을 충분히 이어 불게 하려고 서버 한 음씩 유지 시간 대신 쓴다(S15P31E102-860). */
+const val LEARN_STAGE_FOUR_HOLD_MS = 1_000
 
 /** 7단계 혀치기 같은 음의 허용 오차: ±50센트. 서버 한 음씩 연습 기준이 더 넓으면(단소 ±70) 그 값을 쓴다. */
 const val LEARN_PITCH_TOLERANCE_CENT = 50.0
@@ -67,11 +71,12 @@ data class LearnPitchPlan(val notes: List<String>, val targetsHz: List<Double>, 
  */
 internal fun learnPitchPlan(stage: Int, detail: LearnStageDetail, instrument: GuideInstrument, criteria: NotePracticeCriteria): LearnPitchPlan? {
     // 기준은 한 음씩 연습과 같고(S15P31E102-857), 6단계만 새 음역을 내야 하므로 옥타브까지 맞춘다.
+    // 4단계만 유지 시간을 1초로 둔다(S15P31E102-860).
     val leniency = StepLeniency.forInstrument(instrument.criteriaCode)
-    fun rule(octave: Boolean) = LearnPitchRule(criteria.pitchToleranceCent, criteria.holdMs, criteria.minConfidence, octave,
+    fun rule(octave: Boolean, holdMs: Int = criteria.holdMs) = LearnPitchRule(criteria.pitchToleranceCent, holdMs, criteria.minConfidence, octave,
         criteria.firstNoteTuning, criteria.maxTuningOffsetCent, leniency)
     val (notes, rule) = when (stage) {
-        4 -> detail.pitchNames to rule(octave = false)
+        4 -> detail.pitchNames to rule(octave = false, holdMs = LEARN_STAGE_FOUR_HOLD_MS)
         // 5단계는 올라가기·내려오기 박스에서 한 음씩 맞을 때까지 기다리고 다섯 음을 다 내면 박스를 마친다(S15P31E102-749).
         5 -> (LearnPattern.Ascending.notes(detail.pitchNames) + LearnPattern.Descending.notes(detail.pitchNames)) to rule(octave = false)
         6 -> detail.ranges.map { it.first } to rule(octave = true)

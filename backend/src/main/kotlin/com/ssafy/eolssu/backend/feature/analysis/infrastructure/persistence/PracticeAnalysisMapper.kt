@@ -78,6 +78,7 @@ data class PendingAnalysisRow(
     val bpm: Int,
     val bpmUnit: String,
     val recordingUrl: String,
+    val instrument: String?,
 )
 
 /** 저장 뒤 MyBatis가 자동 증가 `id`를 채운다. */

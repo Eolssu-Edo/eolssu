@@ -14,8 +14,6 @@ Android `cacheDir/model-audio-v1`, iOS `NSCachesDirectory/model-audio-v1`에 최
 
 `frontend`에서 `:shared:testAndroidHostTest :androidApp:assembleDebug :androidApp:lintDebug :shared:compileKotlinJs :shared:compileKotlinWasmJs --max-workers=2`가 통과했다. 전체 Android host 검사는 1,629개 중 1,624개 통과·환경 조건부 5개 생략이며 실패는 0개다. Windows에서 iOS DI·AVPlayer는 빌드/실기기 미확인이다. Android 실기기 관찰 결과는 아래에 별도로 기록한다.
 
-### Android 실기기 관찰
-
 ### 게시 전 리뷰 보완
 
 `070c21cf` 검토에서 P2: 앱이 숨겨진 동안 OS가 캐시를 제거했을 때 이어 듣기가 삭제된 경로를 그대로 여는 문제를 확인했다. `ModelAudioSession.play`의 일시정지 상태 재사용이 Repository의 파일 검증을 건너뛰는 것이 원인이었다. 파일 삭제 후 같은 Session에서 재생하는 통합 검사는 보완 전에 추가 다운로드 0회로 실패했다. 네이티브 플레이어가 해제된 캐시 음원은 Repository를 다시 거쳐 복구하도록 바꾸고, 원래 미디어 위치 보존·게시 음원 교체 시 악보 위치 대응·일반 일시정지의 추가 조회 없음까지 검사했다. 보완 후 관련 테스트는 통과했다. 이 복귀 경계는 격리 테스트 결과이며 아래 실기기 재진입 관찰과 구분한다. 검토는 변경 작성과 같은 컨텍스트에서 수행했으며 독립 리뷰로 표기하지 않는다.
