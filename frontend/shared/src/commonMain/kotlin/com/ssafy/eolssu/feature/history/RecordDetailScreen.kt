@@ -194,8 +194,8 @@ internal fun RecordResultContent(
                 Box(if (scrollPage) Modifier.height(240.dp) else Modifier.weight(1f)) { RecordSongLookupContent(state, actions) }
                 return@Column
             }
-            // 다른 화면과 같은 공통 정간보 형식. 좁은 기록 화면이라 곁줄(가사 칸)만 두지 않는다.
-            val format = rememberReadingScoreFormat(song, lyrics = false)
+            // 다른 화면과 같은 공통 정간보 형식(가사가 있으면 곁줄까지).
+            val format = rememberReadingScoreFormat(song)
             val errors = evaluation?.visibleErrors(state.filter).orEmpty()
             val kinds = evaluation?.visibleErrorKinds(state.filter).orEmpty()
             val units = evaluation?.visibleUnitErrors(song, state.filter).orEmpty()

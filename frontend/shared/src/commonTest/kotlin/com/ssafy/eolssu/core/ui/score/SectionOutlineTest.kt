@@ -38,11 +38,12 @@ class SectionOutlineTest {
     }
 
     @Test
-    fun lyricLaneSideHasNoColumnLineToStepOver() {
-        // 곁줄이 있으면 오른쪽 선은 곁줄 칸에 있어, 율명 칸 오른쪽 가장자리부터 테두리다.
-        val reach = sectionOutlineReach(RingEdges(coveredRight = false), width, cover, topLine = 1f)
-        assertEquals(2f, reach.right)
-        assertEquals(3f, reach.left)
+    fun outlineAroundCellWithLyricLaneEndsUnderTheColumnLine() {
+        // 곁줄이 있어도 구간 테두리는 율명 칸과 곁줄을 한 칸으로 감싸므로, 오른쪽 끝은 곁줄 오른쪽의 각 경계선(1) 안쪽이다.
+        val withLane = Size(cell.width + 25f, cell.height)
+        val shape = sectionOutlineShape(withLane, RingEdges(), width, cover, topLine = 1f, corner = corner)
+        assertEquals(withLane.width - 3f, shape.inner.right)
+        assertEquals(3f, shape.inner.left)
     }
 
     @Test
@@ -63,10 +64,33 @@ class SectionOutlineTest {
         assertEquals(CornerRadius(3f), shape.inner.bottomLeftCornerRadius)
         assertEquals(CornerRadius(3f), shape.inner.bottomRightCornerRadius)
         assertEquals(CornerRadius.Zero, shape.inner.topLeftCornerRadius)
-        // 곁줄이 있으면 각의 오른쪽 아래 모서리는 곁줄 칸에 있다.
-        val withLane = shape(RingEdges(coveredBottom = true, coveredRight = false))
-        assertEquals(CornerRadius(3f), withLane.inner.bottomLeftCornerRadius)
-        assertEquals(CornerRadius.Zero, withLane.inner.bottomRightCornerRadius)
+    }
+
+    @Test
+    fun splitRingContinuesIntoTheLyricLaneWithoutAMiddleLine() {
+        // 줄의 맨 오른쪽 소박 테두리는 오른쪽을 열어 가장자리까지 긋고, 곁줄 쪽 조각은 왼쪽을 열어 가장자리부터 긋는다.
+        val unit = cellRingInsets(RingEdges(coveredLeft = false, openRight = true), cover)
+        val lane = cellRingInsets(RingEdges(openLeft = true), cover)
+        assertEquals(0f, unit.right)
+        assertEquals(0f, lane.left)
+        // 곁줄의 바깥 오른쪽은 각 경계선(1)만큼 들인다.
+        assertEquals(1f, lane.right)
+        // 구간 테두리가 오른쪽에 있어도 열린 변은 들이지 않는다.
+        assertEquals(0f, cellRingInsets(RingEdges(openRight = true), cover, CellInsets(right = 3f)).right)
+    }
+
+    @Test
+    fun laneSegmentsFollowOnlyTheRightmostWrongUnitOfEachLine() {
+        // 위아래 세 줄 중 1·2번째 줄의 맨 오른쪽 소박이 틀렸다: 그 두 줄만 곁줄까지 잇고, 맞닿은 변은 반 두께로 나눈다.
+        val cell = RingEdges(coveredBottom = true)
+        val edges = laneSegmentEdges(listOf(true, true, false), cell)
+        assertEquals(RingEdges(sharedBottom = true, openLeft = true), edges[0])
+        assertEquals(RingEdges(sharedTop = true, openLeft = true), edges[1])
+        assertEquals(null, edges[2])
+        // 마지막 줄은 정간의 아래 변(줄 끝의 각 경계선)을 따른다.
+        assertEquals(RingEdges(sharedTop = true, coveredBottom = true, openLeft = true), laneSegmentEdges(listOf(true, true), cell)[1])
+        // 첫 줄은 위 정간과 맞닿는지를 정간 테두리에서 받는다.
+        assertEquals(true, laneSegmentEdges(listOf(true), RingEdges(sharedTop = true)).single()?.sharedTop)
     }
 
     @Test

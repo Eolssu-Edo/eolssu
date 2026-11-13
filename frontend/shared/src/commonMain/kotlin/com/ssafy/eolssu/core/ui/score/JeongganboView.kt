@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.inset
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -183,7 +184,8 @@ data class ScoreCellMark(
  * @param currentIndex 현재 위치의 연주 순서([ScoreEvent.index]). 그 정간을 강조하고 앞의 정간을 흐리게 한다.
  * @param playback 재생·연주 중이면 진행 모습([ScorePlayback])으로 그린다. 이때 현재 음은 [currentIndex] 대신 진행 위치에서 읽는다.
  * @param follow 현재 위치가 화면 밖으로 나가면 가로로 따라간다. 사용자가 악보를 끌면 [onUserScroll]을 부른다.
- * @param errors 틀린 정간(각, 정간) → 틀린 항목. 종류별 색·아이콘으로 칠한다.
+ * @param errors 틀린 정간(각, 정간) → 틀린 항목. 종류별 색·아이콘으로 칠한다. 곁줄(가사 칸)이 있으면 바탕·테두리는 가사 칸까지 덮는다
+ *   ([decorations]·[section]도 같다). 종류 아이콘은 율명 칸 오른쪽 위에 둔다.
  * @param errorKinds 틀린 정간(각, 정간) → 그 정간의 틀린 종류 전부. 있으면 종류마다 아이콘 상자를 오른쪽 끝에 세로로 쌓는다(한 정간의 복합 오류).
  *   바탕·테두리는 [errors]의 대표 종류로 칠한다.
  * @param unitErrors 소박(표시 자리)마다의 틀린 종류. 비어 있지 않으면 나뉜 정간은 정간 전체 대신 틀린 소박만 칠한다.
@@ -368,8 +370,7 @@ fun JeongganboView(
                         sharedBottom = row + 1 in strip.rows && inSection(row + 1),
                         coveredTop = strip.strip > 0 && row == strip.rows.first,
                         coveredBottom = row == strip.rows.last,
-                        // 곁줄이 있으면 율명 칸의 오른쪽 선은 곁줄 쪽에 그려져 율명 칸을 덮지 않는다.
-                        coveredRight = look.lyricLane == null,
+                        // 곁줄이 있으면 구간 테두리는 곁줄까지 감싸므로 오른쪽 끝은 늘 각 경계선 아래다.
                     )
                 } else {
                     null
@@ -712,10 +713,19 @@ private fun ScoreCellBox(
     // 구간 테두리가 정간 가장자리에서 차지하는 깊이(dp). 틀린·고른·현재 정간 테두리는 그 안쪽에 그리고,
     // 테두리에 붙여 두는 종류 아이콘·구간 알약도 테두리가 들어간 만큼([ringShift]) 함께 들인다.
     val topLine = if (drawTopLine) lineWidth else 0.dp
-    val sectionReach = sectionEdges?.let { sectionOutlineReach(it, SectionOutlineWidth.value, LineCover.value, topLine.value) } ?: CellInsets.None
+    // 곁줄(가사 칸)이 있으면 구간 표시와 틀린 바탕·테두리는 율명 칸과 곁줄을 한 칸으로 감싼다([frame]).
+    // 진행 채움·현재·고른 정간 테두리·편집 표시는 율명 칸에만 그린다([cellModifier]).
+    val lane = look.lyricLane
+    val frameReach = sectionEdges?.let { sectionOutlineReach(it, SectionOutlineWidth.value, LineCover.value, topLine.value) } ?: CellInsets.None
+    // 율명 칸 안의 표시가 피할 구간 테두리. 곁줄이 있으면 오른쪽 테두리는 곁줄 끝에 있어 율명 칸에는 닿지 않는다.
+    val sectionReach = if (lane == null) frameReach else frameReach.copy(right = 0f)
     val ringShift = cellRingInsets(ringEdges, LineCover.value, sectionReach) - cellRingInsets(ringEdges, LineCover.value)
 
     var cellModifier = Modifier.fillMaxWidth().height(metrics.cellHeight)
+    var frame: Modifier = Modifier
+    fun onWhole(m: Modifier) {
+        if (lane == null) cellModifier = cellModifier.then(m) else frame = frame.then(m)
+    }
     if (focusRequestKey != null) {
         // 렌더링한 정간의 실제 위치를 사용한다. 긴 각의 줄바꿈·가변 높이·양방향 스크롤도 같은 요청으로 처리한다.
         val requester = remember { BringIntoViewRequester() }
@@ -731,10 +741,10 @@ private fun ScoreCellBox(
             cellMark?.selected?.let { selected = it }
         }
     }
-    if (dimmed && !isSelected) cellModifier = cellModifier.alpha(0.55f)
-    if (mark != null && mark.alpha < 1f && !isSelected) cellModifier = cellModifier.alpha(mark.alpha)
+    if (dimmed && !isSelected) onWhole(Modifier.alpha(0.55f))
+    if (mark != null && mark.alpha < 1f && !isSelected) onWhole(Modifier.alpha(mark.alpha))
     // 구간 정간 바탕은 맨 아래에 깔아 진행 채움·현재 표시·틀린 종류 바탕이 그 위에 보이게 한다.
-    if (inSection) cellModifier = cellModifier.background(colors.accentTint)
+    if (inSection) onWhole(Modifier.background(colors.accentTint))
     // 재생·연주 중에는 모양과 관계없이 지나간 정간에 옅은 바탕을 깔아 어디까지 왔는지 보이게 한다.
     cellModifier = when {
         live && progress == CellProgress.Past -> cellModifier.background(colors.doneSoft)
@@ -760,7 +770,7 @@ private fun ScoreCellBox(
             }
         }
     }
-    mark?.fill?.let { cellModifier = cellModifier.background(it) }
+    mark?.fill?.let { onWhole(Modifier.background(it)) }
     cellMark?.fill?.let { cellModifier = cellModifier.background(it) }
     if (drawTopLine) {
         cellModifier = cellModifier.drawBehind {
@@ -795,26 +805,29 @@ private fun ScoreCellBox(
     // 각 모서리의 둥근 안쪽 선이 가려지지 않게 맨 위에 그린다(먼저 붙인 그리기가 나중에 그려진다).
     if (sectionEdges != null) {
         val outlineColor = colors.accentTintLine
-        cellModifier = cellModifier.drawWithCache {
-            val shape = sectionOutlineShape(size, sectionEdges, SectionOutlineWidth.toPx(), LineCover.toPx(), topLine.toPx(), ColumnCorner.toPx())
-            val band = Path().apply {
-                fillType = PathFillType.EvenOdd
-                addRect(shape.outer)
-                addRoundRect(shape.inner)
-            }
-            onDrawWithContent {
-                drawContent()
-                clipRect(shape.outer.left, shape.outer.top, shape.outer.right, shape.outer.bottom) { drawPath(band, outlineColor) }
-            }
-        }
+        onWhole(
+            Modifier.drawWithCache {
+                val shape = sectionOutlineShape(size, sectionEdges, SectionOutlineWidth.toPx(), LineCover.toPx(), topLine.toPx(), ColumnCorner.toPx())
+                val band = Path().apply {
+                    fillType = PathFillType.EvenOdd
+                    addRect(shape.outer)
+                    addRoundRect(shape.inner)
+                }
+                onDrawWithContent {
+                    drawContent()
+                    clipRect(shape.outer.left, shape.outer.top, shape.outer.right, shape.outer.bottom) { drawPath(band, outlineColor) }
+                }
+            },
+        )
     }
     val markRing = mark?.ring
     if (markRing != null || outline != null) {
         // 틀린 정간 테두리 위에 고른·현재 정간 테두리를 그린다. 둘 다 각 경계선에 가리지 않게, 구간 테두리가 있으면 그 안쪽에 들여 그린다.
-        cellModifier = cellModifier.drawWithContent {
+        // 틀린 테두리는 곁줄까지 감싸고, 고른·현재 정간 테두리는 그 위에 율명 칸만 감싼다.
+        val whole = lane != null && markRing != null
+        val rings = Modifier.drawWithContent {
             drawContent()
             val cover = LineCover.toPx()
-            val clear = sectionReach * density
             if (mark != null && markRing != null) {
                 drawCellRing(
                     color = markRing,
@@ -822,13 +835,16 @@ private fun ScoreCellBox(
                     dash = if (mark.dashed) PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx())) else null,
                     edges = ringEdges,
                     cover = cover,
-                    clear = clear,
+                    clear = frameReach * density,
                 )
             }
             if (outline != null) {
-                drawCellRing(outline, 2.dp.toPx(), null, RingEdges(coveredTop = ringEdges.coveredTop, coveredBottom = ringEdges.coveredBottom), cover, clear)
+                inset(0f, 0f, if (whole && lane != null) lane.toPx() else 0f, 0f) {
+                    drawCellRing(outline, 2.dp.toPx(), null, RingEdges(coveredTop = ringEdges.coveredTop, coveredBottom = ringEdges.coveredBottom), cover, sectionReach * density)
+                }
             }
         }
+        if (whole) frame = frame.then(rings) else cellModifier = cellModifier.then(rings)
     }
 
     // 오른쪽 위 종류 아이콘(정간 하나에 하나 또는 세로로 쌓은 여러 개)이 차지하는 높이. 율명은 이 자리를 피해 놓는다.
@@ -883,6 +899,8 @@ private fun ScoreCellBox(
                                     sharedRight = marked(row.getOrNull(c + 1)),
                                     coveredLeft = c == 0,
                                     coveredRight = c == row.lastIndex,
+                                    // 줄의 맨 오른쪽 소박은 테두리를 곁줄까지 잇는다([LyricLane]이 나머지를 그린다).
+                                    openRight = lane != null && c == row.lastIndex,
                                 )
                                 val subRing = subMark.ring
                                 Modifier.unitFill(subMark.fill, unitFillTop).drawWithContent {
@@ -999,12 +1017,30 @@ private fun ScoreCellBox(
             }
         }
     }
-    val lane = look.lyricLane
     if (lane == null) {
         notes(cellModifier)
     } else {
+        // 소박마다 칠한 정간은 줄의 맨 오른쪽 소박이 틀렸으면 그 줄의 곁줄까지 같은 바탕·테두리로 잇는다.
+        val laneKinds = if (unitMarks) rows.map { row -> unitErrors[row.last().key]?.firstOrNull() } else emptyList()
+        val laneEdges = laneSegmentEdges(laneKinds.map { it != null }, ringEdges)
+        val segments = laneKinds.mapIndexed { r, kind ->
+            val edges = laneEdges[r]
+            if (kind == null || edges == null) {
+                null
+            } else {
+                LaneSegment(
+                    mark = errorDecoration(kind),
+                    edges = edges,
+                    clear = CellInsets(
+                        top = if (r == 0) frameReach.top else 0f,
+                        right = frameReach.right,
+                        bottom = if (r == laneKinds.lastIndex) frameReach.bottom else 0f,
+                    ),
+                )
+            }
+        }
         // 보드 `.ms-grid`: 율명 칸 오른쪽에 곁줄(가사 칸). 가사 데이터가 없으면 빈 칸이다.
-        Row(Modifier.fillMaxWidth().height(metrics.cellHeight)) {
+        Row(Modifier.fillMaxWidth().height(metrics.cellHeight).then(frame)) {
             notes(cellModifier.then(Modifier.weight(1f)))
             LyricLane(
                 width = lane,
@@ -1013,8 +1049,31 @@ private fun ScoreCellBox(
                 drawTopLine = drawTopLine,
                 lineColor = lineColor,
                 lineWidth = lineWidth,
+                segments = segments,
             )
         }
+    }
+}
+
+/** 곁줄 한 줄에 이어 그리는 소박의 틀린 표시. [clear]는 dp 단위로 구간 테두리가 차지한 깊이다. */
+@Immutable
+private data class LaneSegment(val mark: ScoreCellDecoration, val edges: RingEdges, val clear: CellInsets)
+
+/**
+ * 곁줄의 가사 줄마다 소박 테두리를 이어 그릴 변. [marked]는 줄(위→아래)마다 맨 오른쪽 소박이 틀렸는지, [cell]은 이 정간 테두리의 위아래 변이다.
+ * 왼쪽은 소박 쪽으로 열고, 위아래는 옆 줄도 이어 그리면 반 두께로 맞붙인다. 이을 표시가 없는 줄은 null이다.
+ */
+internal fun laneSegmentEdges(marked: List<Boolean>, cell: RingEdges): List<RingEdges?> = marked.mapIndexed { r, on ->
+    if (!on) {
+        null
+    } else {
+        RingEdges(
+            sharedTop = if (r == 0) cell.sharedTop else marked[r - 1],
+            sharedBottom = if (r == marked.lastIndex) cell.sharedBottom else marked[r + 1],
+            coveredTop = r == 0 && cell.coveredTop,
+            coveredBottom = r == marked.lastIndex && cell.coveredBottom,
+            openLeft = true,
+        )
     }
 }
 
@@ -1026,6 +1085,8 @@ private fun ScoreCellBox(
  * @property coveredBottom 각 바깥 테두리가 아래 가장자리를 덮는다(줄의 마지막 정간).
  * @property sharedLeft 가로로 나뉜 소박에서 왼쪽 소박도 테두리를 그린다. [sharedRight]도 같다.
  * @property coveredLeft 각 경계선이 왼쪽 가장자리를 덮는다. 정간은 양쪽 모두, 가로로 나뉜 소박은 바깥쪽만이다. [coveredRight]도 같다.
+ * @property openLeft 왼쪽 변을 긋지 않고 위아래 변을 가장자리까지 잇는다. 옆 칸에 그린 같은 테두리와 한 상자로 보인다
+ *   (소박 테두리를 곁줄까지 이을 때 곁줄 쪽). [openRight]도 같다(소박 쪽).
  */
 @Immutable
 internal data class RingEdges(
@@ -1037,6 +1098,8 @@ internal data class RingEdges(
     val sharedRight: Boolean = false,
     val coveredLeft: Boolean = true,
     val coveredRight: Boolean = true,
+    val openLeft: Boolean = false,
+    val openRight: Boolean = false,
 )
 
 /** 소박 바탕. [top]만큼 위를 비워 그 자리의 정간 윗선이 보이게 한다. [color]가 없으면 칠하지 않는다. */
@@ -1063,9 +1126,9 @@ internal data class CellInsets(val left: Float = 0f, val top: Float = 0f, val ri
  * 구간 테두리가 있는 변은 그 안쪽([clear], [sectionOutlineReach])까지 들인다.
  */
 internal fun cellRingInsets(edges: RingEdges, cover: Float, clear: CellInsets = CellInsets.None): CellInsets = CellInsets(
-    left = maxOf(if (edges.coveredLeft && !edges.sharedLeft) cover else 0f, clear.left),
+    left = if (edges.openLeft) 0f else maxOf(if (edges.coveredLeft && !edges.sharedLeft) cover else 0f, clear.left),
     top = maxOf(if (edges.coveredTop) cover else 0f, clear.top),
-    right = maxOf(if (edges.coveredRight && !edges.sharedRight) cover else 0f, clear.right),
+    right = if (edges.openRight) 0f else maxOf(if (edges.coveredRight && !edges.sharedRight) cover else 0f, clear.right),
     bottom = maxOf(if (edges.coveredBottom && !edges.sharedBottom) cover else 0f, clear.bottom),
 )
 
@@ -1087,9 +1150,9 @@ private fun DrawScope.drawCellRing(color: Color, width: Float, dash: PathEffect?
     // 가로 변
     drawLine(color, Offset(left, top + topWidth / 2), Offset(right, top + topWidth / 2), topWidth, pathEffect = dash)
     drawLine(color, Offset(left, bottom - bottomWidth / 2), Offset(right, bottom - bottomWidth / 2), bottomWidth, pathEffect = dash)
-    // 세로 변
-    drawLine(color, Offset(left + leftWidth / 2, top), Offset(left + leftWidth / 2, bottom), leftWidth, pathEffect = dash)
-    drawLine(color, Offset(right - rightWidth / 2, top), Offset(right - rightWidth / 2, bottom), rightWidth, pathEffect = dash)
+    // 세로 변. 열린 변([RingEdges.openLeft]·[RingEdges.openRight])은 옆 칸의 테두리로 이어진다.
+    if (!edges.openLeft) drawLine(color, Offset(left + leftWidth / 2, top), Offset(left + leftWidth / 2, bottom), leftWidth, pathEffect = dash)
+    if (!edges.openRight) drawLine(color, Offset(right - rightWidth / 2, top), Offset(right - rightWidth / 2, bottom), rightWidth, pathEffect = dash)
 }
 
 /**
@@ -1136,26 +1199,52 @@ internal fun sectionOutlineShape(size: Size, edges: RingEdges, width: Float, cov
     )
 }
 
-/** 곁줄(`.ms-lyr`) 한 칸. 왼쪽 선과 위 선(대강이면 굵게)을 긋는다. */
+/**
+ * 곁줄(`.ms-lyr`) 한 칸. 왼쪽 선과 위 선(대강이면 굵게)을 긋는다.
+ * 정간 전체의 틀린 바탕·테두리는 부모가 율명 칸과 함께 그리고, 소박마다의 틀린 표시는 [segments](가사 줄마다, 없으면 빈 목록)로 받아 이어 그린다.
+ */
 @Composable
-private fun LyricLane(width: androidx.compose.ui.unit.Dp, lyric: String?, units: List<ScoreDisplayUnit>, drawTopLine: Boolean, lineColor: Color, lineWidth: androidx.compose.ui.unit.Dp) {
+private fun LyricLane(
+    width: Dp,
+    lyric: String?,
+    units: List<ScoreDisplayUnit>,
+    drawTopLine: Boolean,
+    lineColor: Color,
+    lineWidth: Dp,
+    segments: List<LaneSegment?> = emptyList(),
+) {
     val colors = EolssuTheme.colors
+    val lines = remember(lyric, units) {
+        val slots = scoreLyricSlots(lyric, units.size)
+        units.withIndex().groupBy { it.value.unitRow }.entries.sortedBy { it.key }.map { (_, row) ->
+            row.sortedBy { it.value.unitCol }.joinToString("") { slots[it.index] }
+        }
+    }
     Box(
         Modifier
             .width(width)
             .fillMaxHeight()
-            .drawBehind {
+            .drawWithContent {
+                val rowHeight = if (lines.isEmpty()) size.height else size.height / lines.size
+                segments.forEachIndexed { r, segment ->
+                    segment?.mark?.fill?.let { drawRect(it, topLeft = Offset(0f, rowHeight * r), size = Size(size.width, rowHeight)) }
+                }
                 drawRect(colors.line, size = Size(1.dp.toPx(), size.height))
                 if (drawTopLine) drawRect(lineColor, size = Size(size.width, lineWidth.toPx()))
+                drawContent()
+                segments.forEachIndexed { r, segment ->
+                    val ring = segment?.mark?.ring ?: return@forEachIndexed
+                    inset(0f, rowHeight * r, 0f, size.height - rowHeight * (r + 1)) {
+                        drawCellRing(
+                            ring, segment.mark.ringWidth.toPx(),
+                            if (segment.mark.dashed) PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx())) else null,
+                            segment.edges, LineCover.toPx(), segment.clear * density,
+                        )
+                    }
+                }
             },
         contentAlignment = Alignment.Center,
     ) {
-        val lines = remember(lyric, units) {
-            val slots = scoreLyricSlots(lyric, units.size)
-            units.withIndex().groupBy { it.value.unitRow }.entries.sortedBy { it.key }.map { (_, row) ->
-                row.sortedBy { it.value.unitCol }.joinToString("") { slots[it.index] }
-            }
-        }
         Column(Modifier.fillMaxSize()) {
             lines.forEach { line ->
                 BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {

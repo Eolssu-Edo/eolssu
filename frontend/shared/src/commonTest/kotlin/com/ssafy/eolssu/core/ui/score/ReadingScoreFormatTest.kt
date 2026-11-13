@@ -79,7 +79,8 @@ class ReadingScoreFormatTest {
 
         assertNull(readingScoreFormat(plain).look.lyricLane)
         assertEquals(25.dp, readingScoreFormat(sung).look.lyricLane)
-        assertNull(readingScoreFormat(sung, lyrics = false).look.lyricLane)
+        // 곁줄은 각 너비 안에 들어가므로 가사가 있어도 각 너비는 같다.
+        assertEquals(readingScoreFormat(plain).metrics.columnWidth, readingScoreFormat(sung).metrics.columnWidth)
         assertEquals(JeongganboLook.Reading.copy(lyricLane = null), readingScoreFormat(plain).look)
     }
 }

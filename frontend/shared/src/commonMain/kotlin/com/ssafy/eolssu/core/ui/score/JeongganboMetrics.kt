@@ -43,9 +43,12 @@ data class JeongganboLook(
     companion object {
         val Classic = JeongganboLook()
 
+        /** 연습 화면 악보의 곁줄(가사 칸) 너비. 보드 25dp, 크게 보기 34dp. */
+        fun practiceLyricLane(big: Boolean): Dp = if (big) 34.dp else 25.dp
+
         /** 연습 화면 PRACTICE-01의 악보(`.practice-score .ms`). */
         fun practice(big: Boolean) = JeongganboLook(
-            style = Style.Board, lyricLane = if (big) 34.dp else 25.dp, headCompact = true, daegangWhenFits = true, upcomingMark = true,
+            style = Style.Board, lyricLane = practiceLyricLane(big), headCompact = true, daegangWhenFits = true, upcomingMark = true,
         )
 
         /**
