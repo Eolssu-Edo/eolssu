@@ -42,7 +42,6 @@ import androidx.compose.ui.window.PopupProperties
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.guide_instrument_label
 import eolssu.shared.generated.resources.guide_instrument_select
 import org.jetbrains.compose.resources.stringResource
 
@@ -50,7 +49,9 @@ import org.jetbrains.compose.resources.stringResource
 val PracticeInstruments: List<Instrument> = listOf(Instrument.Danso, Instrument.Sogeum, Instrument.DaegeumSanjo, Instrument.DaegeumJeongak)
 
 /**
- * 상단 바 오른쪽 '악기 단소 ⌄' 알약(평가할 곡 고르기 · 연습곡 고르기). 누르면 알약 오른쪽 끝에 맞춘 메뉴가 아래로 열리고,
+ * 상단 바 오른쪽 '(악기 그림) 단소 ⌄' 알약(평가할 곡 고르기 · 연습곡 고르기). 선택값과 목록 모두 악기 그림을 함께 둔다(S15P31E102-831).
+ * 그림이 '악기' 글자를 대신해 알약 폭을 전과 비슷하게 두고(가운데 제목이 잘리지 않게), 읽기 도구에는 '악기 선택'으로 읽힌다.
+ * 누르면 알약 오른쪽 끝에 맞춘 메뉴가 아래로 열리고,
  * 고르면 [onSelect]로 전달한 뒤 닫힌다. 저장 중([enabled]=false)에는 열리지 않는다. 누르는 높이는 48dp를 유지한다.
  * [bordered]가 false면 테두리 없는 흰 알약이다(연습곡 고르기의 회색 바탕).
  */
@@ -81,13 +82,17 @@ fun PracticeInstrumentDropdown(
             border = if (bordered) BorderStroke(1.dp, colors.lineSoft) else null,
         ) {
             Row(
-                Modifier.padding(start = 12.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
+                Modifier.padding(start = 8.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                val style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp)
-                Text(stringResource(Res.string.guide_instrument_label), style = style.copy(fontWeight = FontWeight.Medium), color = colors.textMuted, maxLines = 1)
-                Text(selectedLabel, style = style.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                InstrumentPicture(shown, size = InstrumentPictureCompactSize)
+                Text(
+                    selectedLabel,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Icon(
                     EolssuIcons.ChevronDown,
                     contentDescription = null,
@@ -105,7 +110,7 @@ fun PracticeInstrumentDropdown(
             ) {
                 EolssuMenuPanel(width = 168.dp) {
                     PracticeInstruments.forEach { option ->
-                        EolssuMenuItem(stringResource(option.label), option == shown, onClick = {
+                        InstrumentMenuItem(option, option == shown, onClick = {
                             open = false
                             onSelect(option)
                         })
