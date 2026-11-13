@@ -18,8 +18,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.core.theme.EolssuColors
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * 악기 고르기에 그릴 대나무 악기 모양(S15P31E102-749). 한자 낙관 대신 사진처럼 대나무 몸통·감은 띠·검은 지공으로 그리고, 몸통 색·띠 색·길이·굵기로 악기를 구별한다.
@@ -69,7 +71,7 @@ private fun GuideInstrument.sealColor(colors: EolssuColors): Color = when (this)
 
 /**
  * 악기 그림: 색 칸 없이 대나무 악기를 왼쪽 아래에서 오른쪽 위로 비스듬히 그린다. 위 끝이 부는 쪽이다.
- * 그림은 꾸밈이라 읽지 않고, 옆의 악기 이름이 읽힌다. 기초부터 배우기·운지법 보기·마이페이지 진도 뱃지가 함께 쓴다(S15P31E102-768).
+ * 그림은 꾸밈이라 읽지 않고, 옆의 악기 이름이 읽힌다. 기초부터 배우기·운지법 보기·마이페이지 진도 뱃지와 모든 악기 선택 드롭다운이 함께 쓴다(S15P31E102-768·831).
  */
 @Composable
 fun InstrumentPicture(instrument: GuideInstrument, size: Dp = 28.dp) {
@@ -110,3 +112,19 @@ fun InstrumentPicture(instrument: GuideInstrument, size: Dp = 28.dp) {
 /** 연습 악기([Instrument])의 악기 그림. 두 악기 목록은 이름이 같다. */
 @Composable
 fun InstrumentPicture(instrument: Instrument, size: Dp = 28.dp) = InstrumentPicture(GuideInstrument.valueOf(instrument.name), size)
+
+/**
+ * 드롭다운 닫힌 칸의 악기 그림 크기. 높이 38dp 이상 칸(운지법 보기·기초부터 배우기·연습 설정)은 기본 28dp,
+ * 그보다 낮은 알약(연습곡 고르기 '악기', 연습 기록 악기 거르기)은 이 크기를 쓴다(S15P31E102-831).
+ */
+val InstrumentPictureCompactSize: Dp = 24.dp
+
+/** 악기 드롭다운 목록의 한 줄: 이름 앞에 악기 그림(28dp)을 둔다. 모든 악기 선택 드롭다운이 같은 줄을 쓴다(S15P31E102-831). */
+@Composable
+fun InstrumentMenuItem(instrument: GuideInstrument, selected: Boolean, onClick: () -> Unit, label: String = stringResource(instrument.label)) =
+    EolssuMenuItem(label, selected, onClick, leading = { InstrumentPicture(instrument) })
+
+/** 연습 악기([Instrument])의 악기 드롭다운 목록 한 줄. */
+@Composable
+fun InstrumentMenuItem(instrument: Instrument, selected: Boolean, onClick: () -> Unit) =
+    EolssuMenuItem(stringResource(instrument.label), selected, onClick, leading = { InstrumentPicture(instrument) })

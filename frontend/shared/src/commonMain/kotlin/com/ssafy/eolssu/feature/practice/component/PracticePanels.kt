@@ -52,7 +52,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
+import com.ssafy.eolssu.core.ui.component.InstrumentMenuItem
+import com.ssafy.eolssu.core.ui.component.InstrumentPicture
 import com.ssafy.eolssu.core.ui.component.EolssuMenuShape
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.ScoreNote
@@ -269,7 +270,7 @@ private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth().background(EolssuTheme.colors.surface, RoundedCornerShape(20.dp)).padding(vertical = 4.dp), content = content)
 }
 
-/** ‘연습 악기’: 15sp 600 라벨과 오른쪽 고르기 알약(38dp, 테두리 없는 회색 바탕, 13sp 500). */
+/** ‘연습 악기’: 15sp 600 라벨과 오른쪽 고르기 알약(38dp, 테두리 없는 회색 바탕, 악기 그림 28dp + 13sp 500). 목록에도 악기 그림을 둔다(S15P31E102-831). */
 @Composable
 private fun InstrumentSelect(selected: GuideInstrument, onSelect: (String) -> Unit) {
     val colors = EolssuTheme.colors
@@ -288,10 +289,11 @@ private fun InstrumentSelect(selected: GuideInstrument, onSelect: (String) -> Un
                     .clip(RoundedCornerShape(50))
                     .background(colors.groupedBackground)
                     .clickable(role = Role.DropdownList) { open = true }
-                    .padding(start = 14.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+                    .padding(start = 6.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                InstrumentPicture(selected)
                 Text(stringResource(selected.label), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), color = colors.text)
                 Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textMuted)
             }
@@ -304,7 +306,7 @@ private fun InstrumentSelect(selected: GuideInstrument, onSelect: (String) -> Un
                 modifier = Modifier.width(168.dp).padding(horizontal = 6.dp),
             ) {
                 GuideInstrument.entries.forEach { instrument ->
-                    EolssuMenuItem(stringResource(instrument.label), instrument == selected, onClick = {
+                    InstrumentMenuItem(instrument, instrument == selected, onClick = {
                         open = false
                         onSelect(instrument.id)
                     })

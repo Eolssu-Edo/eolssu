@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import com.ssafy.eolssu.core.model.instrumentOfServerCode
 import com.ssafy.eolssu.core.ui.component.*
 import com.ssafy.eolssu.feature.song.edit.SheetAdaptationUi
 import com.ssafy.eolssu.feature.song.edit.PitchAdaptationPlan
@@ -41,16 +42,22 @@ internal fun SheetAdaptationPanel(
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) {
+                val chosen = state.instruments.firstOrNull { it.instrumentId == state.selectedId }
                 TextButton(onClick = { instrumentsOpen = true }, enabled = state.instruments.isNotEmpty(), colors = textButtonColors) {
+                    // 다른 악기 드롭다운처럼 고른 악기 그림을 이름 앞에 둔다(S15P31E102-831). 모르는 악기 코드는 그림 없이 이름만 둔다.
+                    instrumentOfServerCode(chosen?.code)?.let {
+                        InstrumentPicture(it, size = InstrumentPictureCompactSize)
+                        Spacer(Modifier.width(6.dp))
+                    }
                     Text(stringResource(Res.string.sheet_adapt_instrument,
-                        state.instruments.firstOrNull { it.instrumentId == state.selectedId }?.name
-                            ?: stringResource(Res.string.sheet_adapt_choose_instrument)))
+                        chosen?.name ?: stringResource(Res.string.sheet_adapt_choose_instrument)))
                 }
                 DropdownMenu(expanded = instrumentsOpen, onDismissRequest = { instrumentsOpen = false }) {
                     state.instruments.forEach { instrument ->
+                        val known = instrumentOfServerCode(instrument.code)
                         DropdownMenuItem(text = { Text(instrument.name) }, onClick = {
                             instrumentsOpen = false; onInstrument(instrument.instrumentId)
-                        })
+                        }, leadingIcon = known?.let { { InstrumentPicture(it) } })
                     }
                 }
             }
