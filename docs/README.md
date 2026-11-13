@@ -1,6 +1,6 @@
 # 프로젝트 문서
 
-- [분석 완료 후 음역 맞추기 즉시 사용 (879)](specs/sheet-adaptation-readiness.md) · [계획·검증](plans/S15P31E102-879.md)
+- [분석 완료 후 음역·이조 즉시 사용 (879)](specs/sheet-adaptation-readiness.md) · [중복 조회 원인과 실제 검증](knowledge/frontend/sheet-adaptation-readiness.md) · [계획·검증](plans/S15P31E102-879.md)
 
 - [제공 악보 추가·편집·저장 실행 검증 (876)](knowledge/frontend/sheet-add-edit-runtime-verification.md) · [계획](plans/S15P31E102-876.md)
 - [PNG·JPEG 중청 음역 인식 교정과 같은 자료 재검증 (876)](knowledge/ai/jeongganbo-double-water-register.md)
