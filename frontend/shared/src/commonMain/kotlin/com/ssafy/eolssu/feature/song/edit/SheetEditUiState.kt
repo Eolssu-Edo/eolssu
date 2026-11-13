@@ -229,7 +229,7 @@ data class SheetEditUiState(
 
     internal fun applyAdaptation(plan: PitchAdaptationPlan, capability: com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities): SheetEditUiState =
         commit(draft.applyAdaptation(plan, capability)).copy(
-            adaptation = null, tab = EditTab.Yul, instrumentPitches = capability.selectablePitches,
+            adaptation = null, tab = EditTab.Adaptation, instrumentPitches = capability.selectablePitches,
         )
 
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. 고른 소박은 그 정간이 여전히 나뉘어 있을 때만 남긴다. */
