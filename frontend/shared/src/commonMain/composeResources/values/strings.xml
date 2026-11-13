@@ -305,6 +305,7 @@
     <string name="growth_range_years">%1$d년 %2$d월 – %3$d년 %4$d월</string>
     <string name="growth_range_pick">날짜 고르기</string>
     <string name="growth_axis_minutes">(분)</string>
+    <string name="growth_axis_hours">(시간)</string>
     <string name="growth_axis_count">(회)</string>
     <string name="growth_bar_month">%1$d월</string>
     <string name="growth_chart_desc">%1$s %2$s %3$s</string>

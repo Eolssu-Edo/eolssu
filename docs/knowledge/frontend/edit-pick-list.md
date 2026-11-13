@@ -33,3 +33,9 @@ SHT-01 instrumentCode는 이미 초안 우선의 실효 악기다. 서버의 Edi
 - 새 검사 2건은 상세 조회가 남아 있는 코드에서 실패했다. 기존 상세 보충 조회를 기대하던 검사 3건은 사용자 지시로 대체된 동작을 검사하도록 교체했다. 제공 곡 격리·계정 변경·복사 멱등성과 편집기 동작 검사는 유지한다.
 - 이번 수정은 표시 배치를 바꾸지 않아 기존 화면 캡처를 재사용한다. API 목록·실패 처리 변경에 대해서는 위 HTTP 경계 검사와 변경 후 빌드를 수행한다.
 - 후속 검증: EditPickViewModelTest 11건 통과. 전체 Android host 검사 1,654건 실패 0·환경 검사 5건 skipped, :androidApp:assembleDebug와 :webApp:compileKotlinWasmJs 통과. 명령은 frontend에서 .\gradlew.bat :shared:testAndroidHostTest :androidApp:assembleDebug :webApp:compileKotlinWasmJs --max-workers=2 --console=plain. 실기기·iOS·정식 독립 리뷰의 미검증 상태는 그대로다.
+
+## MR 준비 시 develop 통합 검증
+
+origin/develop 8897d7fb를 충돌 없이 통합했다. 공통 MySongsTabSwitch의 최신 회색 틀·흰 선택 탭과 상단 바 배치를 그대로 재사용하며, 하단 복사 버튼은 초록색을 유지한다. DI에는 장단 볼륨 기능과 선택 화면의 본문 의존 제거가 모두 반영됐다.
+
+통합 상태에서 위 전체 검사·Android debug 빌드·Wasm 컴파일을 다시 실행했다. 1,667건 실패 0·환경 검사 5건 skipped다. 고정 Repository를 연결한 실제 Compose 화면에서 390×844 배치·곡 선택·하단 복사 버튼의 개인 ID 998886 전달을 재확인했다. 최신 캡처는 mr-sync-selected-phone.png이며 임시 웹 진입점은 원래 파일로 복원했다.

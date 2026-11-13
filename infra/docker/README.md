@@ -2,6 +2,67 @@
 
 `daemon-log-rotation.json`은 edo1·edo2의 신규 `json-file` 컨테이너에 파일당 10 MiB, 최대 3개 파일의 기본값을 제공한다. 이 값은 크기 기준이며, 기존 rsyslog의 앱 일반 로그 최대 14일 정책은 계속 별도로 적용한다. `syslog`와 `local`을 명시한 서비스에는 각 드라이버의 설정을 사용한다. [Docker 로깅 설정](https://docs.docker.com/engine/logging/configure/) · [json-file 옵션](https://docs.docker.com/engine/logging/drivers/json-file/)
 
+## 합성 로그 회전 시험 재현
+
+edo2에 `nginx:1.30.6-alpine` 이미지와 Python 3가 준비돼 있을 때 아래 명령을 실행한다. 2026-11-10 시험은 Docker 29.1.3에서 이 태그를 로컬 이미지 ID로 해석해 사용했다. 재현 실행은 Docker 버전과 실제 사용한 이미지 ID도 출력한다. 시험 컨테이너는 네트워크·포트·볼륨 연결 없이 실행하고 정리한다.
+
+입력은 `00001 `부터 `04600 `까지의 번호, `X` 8,192개, 개행으로 구성한 4,600줄이다. 파일 3개, 파일당 10 MiB에 한 레코드 여유 10,000바이트를 더한 크기 미만, 오래된 첫 줄 제거와 마지막 줄 `04600` 조회를 검사한다. JSON 메타데이터에 따라 전체 바이트와 남은 첫 줄 번호는 달라질 수 있다.
+
+```bash
+ssh -T -o ClearAllForwardings=yes -o BatchMode=yes -o ConnectTimeout=7 edo2 \
+  'sudo -n nice -n 15 python3 -B -' <<'PY'
+import json
+from pathlib import Path
+import subprocess
+import uuid
+
+
+def docker(*args):
+    result = subprocess.run(["docker", *args], check=True, capture_output=True, text=True)
+    return result.stdout.strip()
+
+
+name = "edo-log-rotation-713-" + uuid.uuid4().hex[:8]
+image = docker("image", "inspect", "--format", "{{.Id}}", "nginx:1.30.6-alpine")
+print("docker_version", docker("version", "--format", "{{.Server.Version}}"), "image_id", image, flush=True)
+created = False
+try:
+    docker("create", "--name", name, "--pull=never", "--network=none", "--read-only",
+           "--cap-drop=ALL", "--pids-limit=32", "--memory=32m", "--cpus=0.25",
+           "--log-driver=json-file", "--log-opt=max-size=10m", "--log-opt=max-file=3",
+           "--entrypoint", "/bin/sh", image, "-c",
+           r'''awk 'BEGIN {
+               for (j=0; j<8192; j++) payload=payload "X";
+               for (i=1; i<=4600; i++) printf "%05d %s\n", i, payload
+           }' ''')
+    created = True
+    docker("start", "--attach", name)
+    assert docker("inspect", "--format", "{{.State.Status}}:{{.State.ExitCode}}", name) == "exited:0"
+    logging = json.loads(docker("inspect", "--format", "{{json .HostConfig.LogConfig}}", name))
+    log = Path(docker("inspect", "--format", "{{.LogPath}}", name))
+    sizes = [path.stat().st_size for path in log.parent.glob(log.name + "*")]
+    first = last = None
+    with subprocess.Popen(["docker", "logs", name], stdout=subprocess.PIPE) as process:
+        for line in process.stdout:
+            if first is None:
+                first = int(line[:5])
+            last = int(line[:5])
+    assert process.returncode == 0
+    assert logging == {"Type": "json-file", "Config": {"max-size": "10m", "max-file": "3"}}
+    assert len(sizes) == 3 and max(sizes) < 10 * 1024 * 1024 + 10000
+    assert first is not None and first > 1 and last == 4600
+    print("rotation_verified", "file_count", len(sizes), "total_bytes", sum(sizes),
+          "oldest_fixture_line", first, "latest_fixture_line", last, flush=True)
+finally:
+    if created:
+        docker("rm", "-f", name)
+        assert not docker("ps", "--all", "--quiet", "--filter", f"name=^/{name}$")
+        print("fixture_removed", flush=True)
+PY
+```
+
+종료 코드 `0`과 `rotation_verified file_count 3 … latest_fixture_line 4600`, `fixture_removed`를 확인한다. 기존 시험의 전체 크기와 첫 줄 번호는 [713 검증 기록](../../docs/plans/S15P31E102-713.md#검증과-적용-상태)에 있다.
+
 ## edo2 단계별 적용
 
 edo2의 기존 Compose 서비스에 아래 옵션을 하나씩 추가한다. Docker 데몬은 그대로 실행하므로 각 단계에서 지정한 컨테이너의 재생성만 필요하다. 이 경로의 회전 설정은 Compose에 지정한 서비스에 적용된다. 호스트 기본값을 바꾸는 작업은 별도 변경 창에서 판단한다. [Compose 재생성과 볼륨 보존](https://docs.docker.com/reference/cli/docker/compose/up/)

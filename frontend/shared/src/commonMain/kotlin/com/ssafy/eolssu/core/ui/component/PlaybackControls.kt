@@ -162,8 +162,8 @@ fun PlaybackSkipGroup(
             enabled = playEnabled,
             modifier = Modifier.size(width = 52.dp, height = 44.dp),
             shape = RoundedCornerShape(10.dp),
-            color = if (playEnabled) colors.primary else colors.surfaceStrong,
-            contentColor = if (playEnabled) colors.onPrimary else colors.textDisabled,
+            color = if (playEnabled) colors.text else colors.surfaceStrong, // 재생은 먹색, 연두는 옆 주 행동 버튼에만(S15P31E102-849).
+            contentColor = if (playEnabled) colors.onInk else colors.textDisabled,
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(if (playing) EolssuIcons.Pause else EolssuIcons.Play, contentDescription = playLabel, modifier = Modifier.size(22.dp))

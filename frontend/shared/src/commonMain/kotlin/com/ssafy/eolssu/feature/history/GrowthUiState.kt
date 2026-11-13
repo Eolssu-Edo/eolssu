@@ -95,6 +95,21 @@ data class PeriodBar(val fromDay: Long, val toDay: Long, val seconds: Long, val 
     fun value(metric: GrowthMetric): Long = if (metric == GrowthMetric.Time) minutes else count
 }
 
+/** 그래프 눈금. [top]·[half]는 막대 값과 같은 단위(분·회)이고, 표시할 때는 [unit](시간이면 60)으로 나눈다. */
+data class ChartAxis(val top: Long, val half: Long, val unit: Long) {
+    val hours: Boolean get() = unit == 60L
+}
+
+private val NiceSteps = listOf(1.0, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0)
+
+/** [x] 이상인 1·2·2.5·3·4·5·6·8×10ⁿ 정수 중 가장 작은 수. 1보다 작으면 1이다. */
+internal fun niceCeil(x: Double): Long {
+    if (x <= 1.0) return 1L
+    var p = 1L
+    while (p * 10 < x) p *= 10
+    return NiceSteps.map { it * p }.first { it >= x && it == kotlin.math.floor(it) }.toLong()
+}
+
 /**
  * 기간 그래프. 마지막 막대가 고른 날짜가 든 주·달이다.
  * 합계 분은 초를 모두 더한 뒤 내림하고 막대는 막대마다 내림하므로, 막대 합과 1~2분 다를 수 있다(`docs/specs/practice-time.md` '분 표시').
@@ -112,6 +127,17 @@ data class PeriodChart(val range: GrowthRange, val bars: List<PeriodBar>) {
 
     /** 가운데 점선(절반) 눈금. 반올림한다. */
     fun half(metric: GrowthMetric): Long = (max(metric) + 1) / 2
+
+    /**
+     * 그래프 눈금(S15P31E102-849). 가운데 눈금을 1·2·2.5·3·4·5·6·8×10ⁿ 중 최댓값 절반 이상인 가장 작은 수로 올리고, 위 눈금은 그 두 배다.
+     * 연습 시간이 2시간 이상이면 큰 숫자('N시간 M분')와 맞춰 시간 단위로 센다.
+     */
+    fun axis(metric: GrowthMetric): ChartAxis {
+        val max = max(metric)
+        val unit = if (metric == GrowthMetric.Time && max >= 120) 60L else 1L
+        val half = niceCeil(max.toDouble() / unit / 2) * unit
+        return ChartAxis(top = half * 2, half = half, unit = unit)
+    }
 
     companion object {
         fun of(history: PracticeHistory, range: GrowthRange, dense: Boolean, anchorDay: Long): PeriodChart {
