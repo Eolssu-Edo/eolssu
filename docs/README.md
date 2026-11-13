@@ -346,6 +346,9 @@
 
 ## COCO 산출물
 
+- [불러올 악보 고르기 목록 개선](specs/edit-pick-list.md): 제공 곡·내 악보 조회 분리와 선택 화면의 범위·완료 조건.
+- [불러오기 목록 대기 분리와 검증](knowledge/frontend/edit-pick-list.md): 지연 원인·탭별 조회와 실행 검증 범위.
+
 - [빠르기 생성 사전검사와 수행 시간표 분할 계획](plans/S15P31E102-773.md)
 - [빠르기·수행 시계와 실제 CAT 검증 근거](knowledge/data/score-authoring-tempo.md)
 
