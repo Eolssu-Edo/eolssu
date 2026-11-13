@@ -160,6 +160,8 @@ data class SheetEditUiState(
     val canRedo: Boolean get() = future.isNotEmpty()
     val canIncludeJangdan: Boolean get() = draft.original == null || serverSheetId == null || draft.jangdanId != null
     val canEditDetails: Boolean get() = draft.original != null && serverSheetId != null
+    /** 서버의 내 악보를 불러와 임시저장할 수 있는 편집인지. 닫기 확인에서 '임시저장하고 닫기'를 보일지 정한다. */
+    val canSaveDraft: Boolean get() = serverSheetId != null && !documentFailed && !documentLoading && !saveConflict
 
     internal fun updateDetails(title: String, bpm: Int): SheetEditUiState {
         if (!canEditDetails || bpm !in SheetBpmRange) return this

@@ -13,7 +13,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
     private val compatible = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 3, 1, 1)
     private val incompatible = CatalogJangdanSummary("5", "중모리", 90, "QUARTER", 12, 4, 2)
 
-    @Test fun recognizedJangdanCorrectionSurvivesAutosaveReloadAndFinalSave() = runTest {
+    @Test fun recognizedJangdanCorrectionSurvivesDraftReloadAndFinalSave() = runTest {
         val original = SheetJangdanCorrectionTest.recognized("QUARTER", 12, 36, "중모리")
         val metadata = SheetJangdanCorrectionTest.sourceMetadata(original)
         val gutgeori = CatalogJangdanSummary("2", "굿거리", 80, "DOTTED_QUARTER", 12, 4, 1)
@@ -30,7 +30,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         runCurrent()
         model.updateSettings(100, gutgeori.jangdanId)
         assertEquals("2", model.uiState.value.draft.jangdanId)
-        advanceTimeBy(1_100)
+        model.saveDraft()
         runCurrent()
         val copy = repository.writes.single().second
         assertEquals(original.columns, copy.score.columns)
@@ -84,7 +84,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         assertEquals(SheetEditMessage.AudioNeedsSave, model.uiState.value.message)
         assertTrue(audio.requests.isEmpty())
 
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
         val autoSaved = repository.writes.single()
         assertTrue(autoSaved.first)

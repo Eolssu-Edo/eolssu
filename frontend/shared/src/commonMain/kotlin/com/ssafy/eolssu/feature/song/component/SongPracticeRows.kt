@@ -235,6 +235,33 @@ internal fun MySheetRow(
     }
 }
 
+/**
+ * 불러올 악보 고르기의 내 악보 줄: [ProvidedSongRow]와 같은 틀에 제목 · 보조 문구 · 상태 배지 · 화살표를 둔다.
+ * 편집·삭제는 내 악보 목록에서만 하므로 두지 않는다(S15P31E102-889).
+ */
+@Composable
+internal fun MySheetPickRow(
+    sheet: MySheet,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    bordered: Boolean = true,
+) {
+    val colors = EolssuTheme.colors
+    PracticeRowFrame(modifier, onClick, selected, bordered) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            RowText(sheet.title, sheetMeta(sheet))
+            if (sheet.practiceReady) EolssuBadge(stringResource(Res.string.mysongs_status_practice), style = EolssuBadgeStyle.Play, small = true)
+            else EolssuBadge(stringResource(Res.string.mysongs_status_review), small = true)
+            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
+        }
+    }
+}
+
 /** '변환 대기 중' · '악보 읽는 중 1/3쪽' · '악보 만드는 중'. 쪽 수를 모르면 쪽 수 없이 쓴다. */
 @Composable
 private fun conversionProgressText(conversion: SheetConversion): String = when {

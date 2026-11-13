@@ -1,13 +1,24 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,15 +40,30 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.sheetedit_cell_jangdan_change
 import eolssu.shared.generated.resources.sheet_settings_jangdan_none
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Text
 import eolssu.shared.generated.resources.sheetedit_jangdan_same_unit
 import eolssu.shared.generated.resources.sheet_jangdan_correction_help
 import eolssu.shared.generated.resources.sheetedit_jangdan_load_failed
 import eolssu.shared.generated.resources.sheet_upload_reload
 import org.jetbrains.compose.resources.stringResource
 
-@OptIn(ExperimentalLayoutApi::class)
+/** 장단 하나를 고르는 네모 버튼(최소 52dp · 모서리 14). 고른 장단은 연두 채움, 나머지는 회색 바탕이다. */
+@Composable
+private fun JangdanOptionButton(selected: Boolean, onClick: () -> Unit, label: @Composable () -> Unit) {
+    val colors = EolssuTheme.colors
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics { this.selected = selected },
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) colors.primary else colors.groupedBackground,
+        contentColor = if (selected) colors.onPrimary else colors.text,
+    ) {
+        Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = Alignment.CenterStart) {
+            ProvideTextStyle(MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)) { label() }
+        }
+    }
+}
+
 @Composable
 internal fun SheetEditJangdanDialog(
     picker: SheetEditJangdanPicker,
@@ -67,19 +93,19 @@ internal fun SheetEditJangdanDialog(
             }
             is SheetEditJangdanPicker.Ready -> if (selectable.isEmpty()) SheetJangdanNoMatchHelp()
         }
-        FlowRow(
-            modifier = Modifier.heightIn(max = 230.dp).verticalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        // 아래 버튼들과 같은 네모 버튼을 한 줄에 하나씩 같은 너비로 쌓는다(S15P31E102-889).
+        Column(
+            modifier = Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            FilterChip(selected = selectedId == null, onClick = onClear,
-                modifier = Modifier.height(56.dp),
-                label = { Text(stringResource(Res.string.sheet_settings_jangdan_none)) })
+            JangdanOptionButton(selected = selectedId == null, onClick = onClear) {
+                Text(stringResource(Res.string.sheet_settings_jangdan_none))
+            }
             selectable.forEach { option ->
-                FilterChip(selected = option.jangdanId == selectedId, modifier = Modifier.height(56.dp),
-                    onClick = {
-                        if (!hasTempoPlan && draft.requiresJangdanRetiming(option)) pendingId = option.jangdanId
-                        else onSelect(option.jangdanId)
-                    }, label = { SheetJangdanOptionLabel(option) })
+                JangdanOptionButton(selected = option.jangdanId == selectedId, onClick = {
+                    if (!hasTempoPlan && draft.requiresJangdanRetiming(option)) pendingId = option.jangdanId
+                    else onSelect(option.jangdanId)
+                }) { SheetJangdanOptionLabel(option) }
             }
         }
         EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary)

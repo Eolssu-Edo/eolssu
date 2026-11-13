@@ -12,6 +12,7 @@ import com.ssafy.eolssu.data.song.PublishedSheetCopyResult
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SheetDocumentRepository
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.feature.song.SongLevelFilter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -67,9 +68,7 @@ class EditPickViewModel(
     private suspend fun load(instrument: Instrument) {
         try {
             val instrumentId = songRepository.getInstruments().firstOrNull { it.code == instrument.serverCode }?.instrumentId
-            val songs = if (instrumentId == null) emptyList() else songRepository.getSongs(instrumentId).mapNotNull { song ->
-                song.level?.let { EditPickSong(song.id, song.title, it, song.jangdanName) }
-            }
+            val songs = if (instrumentId == null) emptyList() else songRepository.getSongs(instrumentId).filter { it.level != null }
             val listRefreshed = mySheetRepository.refresh()
             val all = mySheetRepository.sheets.value
             val codes = all.associate { it.id to instrumentCodeOf(it, listRefreshed) }
@@ -106,6 +105,13 @@ class EditPickViewModel(
     }
 
     fun search(query: String) = _uiState.update { it.copy(query = query) }
+
+    /** 제공 곡 단계 필터. 고른 곡이 걸러져 안 보이면 고름을 푼다. */
+    fun selectFilter(filter: SongLevelFilter) = _uiState.update { state ->
+        val next = state.copy(filter = filter)
+        val picked = next.picked
+        if (picked is EditPickTarget.Song && next.visibleSongs.none { it.id == picked.songId }) next.copy(picked = null) else next
+    }
 
     /** 제공 곡 이름 오름차순·내림차순을 바꾼다. */
     fun toggleSort() = _uiState.update { it.copy(sort = it.sort.toggled()) }

@@ -101,7 +101,6 @@ class SheetEditViewModel(
     private var audioInstrumentsJob: Job? = null
     private var audioSupportJob: Job? = null
     private var audioDownloadJob: Job? = null
-    private var autoSaveJob: Job? = null
     private var loadJob: Job? = null
     private var jangdanJob: Job? = null
     private var completionCatalogJob: Job? = null
@@ -337,19 +336,7 @@ class SheetEditViewModel(
                 completionCatalogState = if (requiresCompletionCatalog) SheetCompletionCatalogState.Loading else it.completionCatalogState) }
             loadCompletionCatalog()
         }
-        if (before != _uiState.value.draft && loaded != null && !_uiState.value.saveConflict) {
-            scheduleAutoSave()
-        }
-    }
-
-    private fun scheduleAutoSave() {
-        autoSaveJob?.cancel()
-        if (closeJob?.isActive == true || _uiState.value.closeWarning) return
-        autoSaveJob = accountScope.launch {
-            delay(1_000)
-            // 대기 중인 저장을 무효화할 수 있게 하되, 시작한 PUT은 응답까지 기다린다.
-            persist(draft = true, announce = false, autoSave = coroutineContext.job)?.join()
-        }
+        // 편집은 자동저장하지 않는다. 저장·임시저장을 누르거나 닫을 때 임시저장을 고른 경우에만 서버에 쓴다(S15P31E102-889).
     }
 
     fun loadDocument() {
@@ -429,8 +416,6 @@ class SheetEditViewModel(
     private fun persist(
         draft: Boolean,
         announce: Boolean = true,
-        closing: Boolean = false,
-        autoSave: Job? = null,
     ): Job? {
         val repository = documents ?: return null
         val requested = _uiState.value
@@ -443,32 +428,22 @@ class SheetEditViewModel(
             // 쓰기 잠금을 기다리는 동안에도 확정 저장의 중복 입력을 막는다.
             confirmationPending = true
         }
-        val draftBeforeClose = lastFinishedDraftSave
         return accountScope.launch {
             try {
                 writeLock.withLock {
-                    if (autoSave?.isActive == false || _uiState.value.saveConflict) return@withLock
+                    if (_uiState.value.saveConflict) return@withLock
                     val precedingDraft = lastFinishedDraftSave
-                    val finishedDuringClose = precedingDraft?.takeIf { closing && it !== draftBeforeClose }
                     var writing: SheetDraft? = null
                     try {
-                        if (precedingDraft?.unconfirmedRequest != null && finishedDuringClose?.draft != _uiState.value.draft) {
+                        if (precedingDraft?.unconfirmedRequest != null) {
                             _uiState.update { it.copy(saving = true, saveStatus = null) }
                             val reconciled = reconcileDraftSave(repository, id, precedingDraft)
-                            if (autoSave?.isActive == false) return@withLock
                             if (!reconciled) {
                                 if (!_uiState.value.saveConflict) recordSaveFailure(_uiState.value.draft, draft, announce)
                                 return@withLock
                             }
                         }
                         val snapshot = _uiState.value
-                        // 서버 재조회 중 편집이 돌아온 경우도 먼저 끝난 같은 초안 요청의 결과를 사용한다.
-                        if (finishedDuringClose?.draft == snapshot.draft) {
-                            if (snapshot.saveStatus == null && !isDraftPersisted(snapshot.draft)) {
-                                recordSaveFailure(snapshot.draft, draft, announce)
-                            }
-                            return@withLock
-                        }
                         if (draft && isDraftPersisted(snapshot.draft) && (!announce || persistedStatus == SheetSaveStatus.DraftSaved)) {
                             _uiState.update {
                                 it.copy(saveStatus = if (announce || it.saveStatus == null) persistedStatus else it.saveStatus,
@@ -539,9 +514,7 @@ class SheetEditViewModel(
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (_: Exception) {
-                        if (writing != null || autoSave?.isActive != false) {
-                            recordSaveFailure(writing ?: _uiState.value.draft, draft, announce)
-                        }
+                        recordSaveFailure(writing ?: _uiState.value.draft, draft, announce)
                     } finally {
                         if (accountScope.isActive) _uiState.update { it.copy(saving = false, confirming = false) }
                     }
@@ -605,7 +578,10 @@ class SheetEditViewModel(
         }
     }
 
-    /** 자동 저장 대기 중 닫아도 현재 편집을 먼저 저장하고, 실패하면 화면을 유지한다. */
+    /**
+     * 저장한 내용과 같으면 바로 닫는다. 저장하지 않은 변경이 있으면 저절로 저장하지 않고 임시저장·계속 편집·버리기를 묻는다.
+     * 누른 저장이 아직 진행 중이면 결과를 기다린 뒤 판단한다.
+     */
     fun closeEditor(onClose: () -> Unit) {
         if (!accountScope.isActive || closeJob?.isActive == true) return
         if (loaded == null) {
@@ -620,8 +596,22 @@ class SheetEditViewModel(
             onClose()
             return
         }
-        autoSaveJob?.cancel()
-        val write = persist(draft = true, announce = false, closing = true)
+        if (!state.saving && !confirmationPending) {
+            _uiState.update { it.copy(closeWarning = true) }
+            return
+        }
+        closeJob = accountScope.launch {
+            writeLock.withLock { }
+            if (isDraftPersisted(_uiState.value.draft) && !_uiState.value.saveConflict) onClose()
+            else _uiState.update { it.copy(closeWarning = true) }
+        }
+    }
+
+    /** 닫기 확인에서 '임시저장하고 닫기': 지금 편집을 임시저장하고 성공하면 닫는다. 실패하면 화면과 확인 창을 유지한다. */
+    fun saveDraftAndClose(onClose: () -> Unit) {
+        if (!accountScope.isActive || closeJob?.isActive == true) return
+        _uiState.update { it.copy(closeWarning = false) }
+        val write = persist(draft = true, announce = false)
         closeJob = accountScope.launch {
             write?.join()
             if (isDraftPersisted(_uiState.value.draft) && !_uiState.value.saveConflict) onClose()
@@ -629,19 +619,10 @@ class SheetEditViewModel(
         }
     }
 
-    fun continueEditing() {
-        val state = _uiState.value
-        _uiState.update { it.copy(closeWarning = false) }
-        // 닫기 저장이 처리한 초안은 실패 안내를 유지하고, 그 뒤에 편집한 초안은 자동저장을 재개한다.
-        if (state.closeWarning && loaded != null && !state.saveConflict &&
-            lastFinishedDraftSave?.draft != state.draft && !isDraftPersisted(state.draft)) {
-            scheduleAutoSave()
-        }
-    }
+    fun continueEditing() = _uiState.update { it.copy(closeWarning = false) }
 
     fun discardChangesAndClose(onClose: () -> Unit) {
         if (!accountScope.isActive) return
-        autoSaveJob?.cancel()
         _uiState.update { it.copy(closeWarning = false) }
         onClose()
     }
@@ -788,13 +769,11 @@ class SheetEditViewModel(
         if (documents == null) { change { it.requestSave() }; return }
         if (_uiState.value.serverSheetId == null) { change { it.copy(message = SheetEditMessage.ComingSoon) }; return }
         if (blockInvalidCompletion(_uiState.value)) return
-        autoSaveJob?.cancel()
         persist(draft = false)
     }
     fun saveDraft() {
         if (documents == null) { change { it.saveDraft() }; return }
         if (_uiState.value.serverSheetId == null) { change { it.copy(message = SheetEditMessage.ComingSoon) }; return }
-        autoSaveJob?.cancel()
         persist(draft = true)
     }
     fun retryDraftSave() {
