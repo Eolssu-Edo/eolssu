@@ -1222,7 +1222,7 @@ class PracticeViewModel(
             _uiState.update { if (resume) it.resumeRecording() else it.beginRecording() }
             startStepping(if (resume) carry else 0.0)
             val state = _uiState.value
-            state.song?.let { pitchSession.start(it, state.bpm, state.elapsedMs) }
+            state.song?.let { pitchSession.start(it, state.bpm, state.elapsedMs, state.sectionEvents) }
         }
     }
 

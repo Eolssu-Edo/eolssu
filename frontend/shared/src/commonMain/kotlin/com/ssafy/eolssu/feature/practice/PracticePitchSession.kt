@@ -30,7 +30,8 @@ internal class PracticePitchSession(
     private var initial: CaptureBoundary? = null
     private var scoreStartMs = 0.0
 
-    fun start(song: Song, bpm: Int, elapsedMs: Double) {
+    /** [section]은 평가 구간의 연주 순서 범위다. 대금 낮은 옥타브 보정의 하한을 그 구간 최저음으로 정한다(S15P31E102-892). */
+    fun start(song: Song, bpm: Int, elapsedMs: Double, section: IntRange? = null) {
         stop()
         val source = recorder?.pitchReadings ?: return
         val timing = song.score.timing ?: return
@@ -38,7 +39,8 @@ internal class PracticePitchSession(
         if (bpm <= 0 || timing.ticksPerBeat <= 0 || !timing.hwangHz.isFinite() || timing.hwangHz <= 0) return
         initial = boundary
         scoreStartMs = elapsedMs
-        val next = PracticePitchTracker(song.timeline, timing.hwangHz, 60_000.0 / bpm / timing.ticksPerBeat)
+        val next = PracticePitchTracker(song.timeline, timing.hwangHz, 60_000.0 / bpm / timing.ticksPerBeat,
+            evaluationLowOctaveFloorHz(song, section))
         tracker = next
         next.anchor(boundary, elapsedMs)
         collector = scope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -90,4 +92,11 @@ internal class PracticePitchSession(
         initial = null
         output.value = PracticePitchFeedback()
     }
+}
+
+/** 평가 구간([section], null이면 곡 전체)의 음과 곡 악기로 정한 대금 낮은 옥타브 하한. 대금이 아니면 null이다. */
+internal fun evaluationLowOctaveFloorHz(song: Song, section: IntRange?): Double? {
+    val hwangHz = song.score.timing?.hwangHz ?: return null
+    val events = section?.let { range -> song.timeline.filter { it.index in range } } ?: song.timeline
+    return lowOctaveFloorHz(events, hwangHz, song.score.source?.instrument)
 }

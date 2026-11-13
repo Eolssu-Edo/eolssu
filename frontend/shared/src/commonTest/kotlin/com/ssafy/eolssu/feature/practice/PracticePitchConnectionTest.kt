@@ -121,13 +121,42 @@ class PracticePitchConnectionTest {
         assertEquals(emptyMap(), vm.livePitch.value.marks(vm.uiState.value.song!!))
     }
 
-    private fun exercise(block: suspend TestScope.(PracticeViewModel, PitchRecorder) -> Unit) = runTest {
+    // 대금 낮은 옥타브(S15P31E102-892): 첫 음 황(311.13Hz)을 한 옥타브 낮게 분 값.
+    @Test fun daegeumBlownAnOctaveLowIsDoubledLikeTheServer() = exercise(daegeum(smallScoreSong())) { vm, recorder ->
+        vm.grantMicAndStart(); advanceTimeBy(3080); runCurrent()
+        recorder.send(20, 66, 311.13 / 2); runCurrent()
+        assertEquals(true, vm.pitchFeedback.value.current?.correct)
+        assertEquals(311.13, vm.pitchFeedback.value.current?.heardHz!!, 0.001)
+    }
+
+    @Test fun otherInstrumentsStillHoldTheLowValue() = exercise { vm, recorder ->
+        vm.grantMicAndStart(); advanceTimeBy(3080); runCurrent()
+        recorder.send(20, 66, 311.13 / 2); runCurrent()
+        assertNull(vm.pitchFeedback.value.current?.correct)
+    }
+
+    @Test fun theFloorFollowsTheEvaluatedSectionsLowestNote() {
+        // 작은 악보: 황(0번) · 청중(1번) · 쉼. 청중만 평가하면 하한은 청중 기준, 곡 전체면 황 기준이다.
+        val song = daegeum(smallScoreSong())
+        val hwang = song.score.timing!!.hwangHz
+        assertEquals(lowOctaveFloorHz(song.timeline.subList(1, 2), hwang, "JEONGAK_DAEGEUM"), evaluationLowOctaveFloorHz(song, 1..1))
+        assertEquals(lowOctaveFloorHz(song.timeline, hwang, "JEONGAK_DAEGEUM"), evaluationLowOctaveFloorHz(song, null))
+        assertTrue(evaluationLowOctaveFloorHz(song, 1..1)!! > evaluationLowOctaveFloorHz(song, null)!!)
+        assertNull(evaluationLowOctaveFloorHz(smallScoreSong(), null))
+    }
+
+    private fun daegeum(song: com.ssafy.eolssu.core.model.Song) =
+        song.copy(score = song.score.copy(source = song.score.source?.copy(instrument = "JEONGAK_DAEGEUM")))
+
+    private fun exercise(
+        song: com.ssafy.eolssu.core.model.Song = smallScoreSong(),
+        block: suspend TestScope.(PracticeViewModel, PitchRecorder) -> Unit,
+    ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val models = ViewModelStore()
         try {
             val storage = FakeKeyValueStore()
             val settings = PracticeSettingsStore(storage)
-            val song = smallScoreSong()
             val songs = object : SongRepository by SampleSongRepository() {
                 override suspend fun getSong(songId: String) = song
             }
