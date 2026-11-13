@@ -32,6 +32,7 @@ import sys
 import shutil
 from pathlib import Path
 from jeongganbo_tokens import jg_like
+from octave_check import recover_water_register
 
 import cv2
 import numpy as np
@@ -189,6 +190,7 @@ if args.grid_boxes:
     predictions, confidences = reader.omr(crops)
     cells = []
     for i, ((x, y, w, h), text, confidence) in enumerate(zip(boxes, predictions, confidences)):
+        text = recover_water_register(text, gray[y:y + h, x:x + w])
         inner = gray[y + h * 15 // 100:y + h * 85 // 100, x + w * 15 // 100:x + w * 85 // 100]
         cells.append(dict(text=text, jg=jg_like(text), conf=round(float(confidence), 3),
                           x=x, y=y, w=w, h=h, gak=i // beats,
@@ -281,7 +283,10 @@ if args.read_dpi:
 
 ordered = [c for col in columns for c in sorted(col, key=lambda c: c["y"])]
 
+source_image = cv2.imread(str(png), cv2.IMREAD_GRAYSCALE)
 for i, c in enumerate(ordered):
+    x, y, w, h = (c[k] for k in ('x', 'y', 'w', 'h'))
+    c['text'] = recover_water_register(c['text'], source_image[y:y + h, x:x + w])
     c["jg"], c["gak"] = jg_like(c["text"]), i // args.beats
 if args.octave_check:
     oct_png = out / "page-read.png"
@@ -294,7 +299,6 @@ lines = [" | ".join(c["jg"] for c in ordered[i:i + args.beats]) for i in range(0
 title = args.title or pdf.stem
 (out / f"{title}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 # 검토 화면(review_page.py)이 읽는 형식. standard_score_text.py와 같다.
-source_image = cv2.imread(str(png), cv2.IMREAD_GRAYSCALE)
 for cell in ordered:
     x, y, w, h = (cell[k] for k in ('x', 'y', 'w', 'h'))
     inner = source_image[y + h * 15 // 100:y + h * 85 // 100, x + w * 15 // 100:x + w * 85 // 100]

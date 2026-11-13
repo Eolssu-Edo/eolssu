@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import com.ssafy.eolssu.core.model.instrumentOfServerCode
@@ -26,7 +27,7 @@ import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToInt
 
-/** Fixed input-panel footprint; expanded text and narrow screens scroll inside it. */
+/** Keep the controls together; narrow screens put the slider below the actions. */
 @Composable
 internal fun SheetAdaptationPanel(
     state: SheetAdaptationUi, onInstrument: (String) -> Unit, onTranspose: (Int) -> Unit,
@@ -38,10 +39,10 @@ internal fun SheetAdaptationPanel(
     var thumbInset by remember { mutableStateOf(10.dp) }
     var trackCorner by remember { mutableStateOf(8.dp) }
     val textButtonColors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
-    Column(Modifier.fillMaxWidth().height(200.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f)) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val singleRow = maxWidth >= 500.dp * density.fontScale
+        val instrumentPicker: @Composable () -> Unit = {
+            Box {
                 val chosen = state.instruments.firstOrNull { it.instrumentId == state.selectedId }
                 TextButton(onClick = { instrumentsOpen = true }, enabled = state.instruments.isNotEmpty(), colors = textButtonColors) {
                     // 다른 악기 드롭다운처럼 고른 악기 그림을 이름 앞에 둔다(S15P31E102-831). 모르는 악기 코드는 그림 없이 이름만 둔다.
@@ -50,7 +51,8 @@ internal fun SheetAdaptationPanel(
                         Spacer(Modifier.width(6.dp))
                     }
                     Text(stringResource(Res.string.sheet_adapt_instrument,
-                        chosen?.name ?: stringResource(Res.string.sheet_adapt_choose_instrument)))
+                        chosen?.name ?: stringResource(Res.string.sheet_adapt_choose_instrument)),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 DropdownMenu(expanded = instrumentsOpen, onDismissRequest = { instrumentsOpen = false }) {
                     state.instruments.forEach { instrument ->
@@ -62,56 +64,68 @@ internal fun SheetAdaptationPanel(
                 }
             }
         }
-        when {
-            state.loading -> CircularProgressIndicator(Modifier.size(24.dp))
-            state.failed -> {
-                Text(stringResource(Res.string.sheet_adapt_failed), style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = onRetry, colors = textButtonColors) { Text(stringResource(Res.string.sheet_upload_reload)) }
-            }
-            state.selected == null -> Text(stringResource(Res.string.sheet_adapt_empty))
-            else -> state.selected?.let { selected ->
-                val recommendations = recommendedAdaptations(state.plans)
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(transposeLabel(selected.transpose), style = MaterialTheme.typography.labelLarge, modifier = Modifier.widthIn(min = 64.dp))
-                    val decreaseLabel = stringResource(Res.string.sheet_adapt_decrease)
-                    IconButton(onClick = { onTranspose(selected.transpose - 1) }, enabled = selected.transpose > -6,
-                        modifier = Modifier.semantics { contentDescription = decreaseLabel }) { Text("−") }
-                    val sliderLabel = stringResource(Res.string.sheet_adapt_slider)
-                    Column(Modifier.weight(1f)) {
-                        Box(Modifier.fillMaxWidth().height(56.dp)) {
-                            Slider(value = selected.transpose.toFloat(), onValueChange = { onTranspose(it.roundToInt()) },
-                                valueRange = -6f..6f, steps = 11,
-                                interactionSource = sliderInteractions,
-                                thumb = { SliderDefaults.Thumb(sliderInteractions, modifier = Modifier.onSizeChanged {
-                                    thumbInset = with(density) { (it.width / 2f).toDp() }
-                                }) },
-                                track = { SliderDefaults.Track(it, modifier = Modifier.onSizeChanged { size ->
-                                    trackCorner = with(density) { (size.height / 2f).toDp() }
-                                }) },
-                                modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).semantics { contentDescription = sliderLabel })
-                            RecommendationMarks(recommendations, thumbInset, trackCorner, Modifier.fillMaxWidth().align(Alignment.TopCenter))
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("−6", style = MaterialTheme.typography.labelSmall)
-                            Text("0", style = MaterialTheme.typography.labelSmall)
-                            Text("+6", style = MaterialTheme.typography.labelSmall)
+        Column(Modifier.fillMaxWidth().heightIn(max = 160.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            when {
+                state.loading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    instrumentPicker()
+                    CircularProgressIndicator(Modifier.size(24.dp))
+                }
+                state.failed -> {
+                    instrumentPicker()
+                    Text(stringResource(Res.string.sheet_adapt_failed), style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = onRetry, colors = textButtonColors) { Text(stringResource(Res.string.sheet_upload_reload)) }
+                }
+                state.selected == null -> {
+                    instrumentPicker()
+                    Text(stringResource(Res.string.sheet_adapt_empty))
+                }
+                else -> state.selected?.let { selected ->
+                    val recommendations = recommendedAdaptations(state.plans)
+                    val transposeControl: @Composable (Modifier) -> Unit = { modifier ->
+                        Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+                            val decreaseLabel = stringResource(Res.string.sheet_adapt_decrease)
+                            IconButton(onClick = { onTranspose(selected.transpose - 1) }, enabled = selected.transpose > -6,
+                                modifier = Modifier.semantics { contentDescription = decreaseLabel }) { Text("−") }
+                            val sliderLabel = stringResource(Res.string.sheet_adapt_slider)
+                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(transposeLabel(selected.transpose), style = MaterialTheme.typography.labelLarge)
+                                Box(Modifier.fillMaxWidth().height(56.dp)) {
+                                    Slider(value = selected.transpose.toFloat(), onValueChange = { onTranspose(it.roundToInt()) },
+                                        valueRange = -6f..6f, steps = 11,
+                                        interactionSource = sliderInteractions,
+                                        thumb = { SliderDefaults.Thumb(sliderInteractions, modifier = Modifier.onSizeChanged {
+                                            thumbInset = with(density) { (it.width / 2f).toDp() }
+                                        }) },
+                                        track = { SliderDefaults.Track(it, modifier = Modifier.onSizeChanged { size ->
+                                            trackCorner = with(density) { (size.height / 2f).toDp() }
+                                        }) },
+                                        modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).semantics { contentDescription = sliderLabel })
+                                    RecommendationMarks(recommendations, thumbInset, trackCorner, Modifier.fillMaxWidth().align(Alignment.TopCenter))
+                                }
+                                Text(stringResource(if (recommendations.size > 1) Res.string.sheet_adapt_marker_legend
+                                    else Res.string.sheet_adapt_marker_single), style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1)
+                            }
+                            val increaseLabel = stringResource(Res.string.sheet_adapt_increase)
+                            IconButton(onClick = { onTranspose(selected.transpose + 1) }, enabled = selected.transpose < 6,
+                                modifier = Modifier.semantics { contentDescription = increaseLabel }) { Text("+") }
                         }
                     }
-                    val increaseLabel = stringResource(Res.string.sheet_adapt_increase)
-                    IconButton(onClick = { onTranspose(selected.transpose + 1) }, enabled = selected.transpose < 6,
-                        modifier = Modifier.semantics { contentDescription = increaseLabel }) { Text("+") }
-                }
-                Text(stringResource(if (recommendations.size > 1) Res.string.sheet_adapt_marker_legend
-                    else Res.string.sheet_adapt_marker_single), style = MaterialTheme.typography.labelSmall)
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(Res.string.sheet_adapt_octave_count, selected.octaveChanges), style = MaterialTheme.typography.bodySmall)
-                        Text(stringResource(Res.string.sheet_adapt_unresolved_count, selected.unresolved), style = MaterialTheme.typography.bodySmall,
-                            color = if (selected.unresolved > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+                        instrumentPicker()
+                        if (singleRow) transposeControl(Modifier.weight(1f))
+                        else Spacer(Modifier.weight(1f))
+                        Column {
+                            Text(stringResource(Res.string.sheet_adapt_octave_count, selected.octaveChanges), style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(Res.string.sheet_adapt_unresolved_count, selected.unresolved), style = MaterialTheme.typography.labelSmall,
+                                color = if (selected.unresolved > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                        }
+                        EolssuButton(stringResource(Res.string.sheet_details_apply), onApply, small = true)
                     }
-                    EolssuButton(stringResource(Res.string.sheet_details_apply), onApply, small = true)
+                    if (!singleRow) transposeControl(Modifier.fillMaxWidth())
                 }
-                if (selected.unresolved > 0) Text(stringResource(Res.string.sheet_adapt_unresolved), style = MaterialTheme.typography.bodySmall)
             }
         }
     }
