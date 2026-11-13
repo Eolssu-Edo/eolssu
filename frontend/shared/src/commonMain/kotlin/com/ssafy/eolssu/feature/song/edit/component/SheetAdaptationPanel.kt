@@ -125,7 +125,6 @@ internal fun SheetAdaptationPanel(
                         EolssuButton(stringResource(Res.string.sheet_details_apply), onApply, small = true)
                     }
                     if (!singleRow) transposeControl(Modifier.fillMaxWidth())
-                    if (selected.unresolved > 0) Text(stringResource(Res.string.sheet_adapt_unresolved), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

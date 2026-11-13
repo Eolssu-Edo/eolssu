@@ -808,5 +808,4 @@
     <string name="sheet_adapt_failed">지원음을 불러오지 못했어요.</string>
     <string name="sheet_adapt_original_key">원조 유지</string>
     <string name="sheet_adapt_semitones">%1$s반음</string>
-    <string name="sheet_adapt_unresolved">남은 음은 지원되는 음으로 수정하거나 쉼표로 바꿔 주세요. 초안에는 그대로 남아요.</string>
 </resources>
