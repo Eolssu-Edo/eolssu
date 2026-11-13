@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.displayUnitAt
+import com.ssafy.eolssu.core.model.hasLyrics
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -108,6 +109,10 @@ fun PracticeScoreArea(
     val strips = remember(song) { scoreStrips(song.score, song.jangdan) }
     val longestStrip = strips.maxOf { it.rows.count() }
     val stripsPerColumn = strips.groupBy { it.column }.maxOf { it.value.size }
+    // 휴대폰 연습 악보처럼 가사가 있으면 곁줄(가사 칸)을 두고, 율명 칸이 좁아지지 않게 각을 곁줄만큼 넓힌다.
+    val lyricLane = remember(song, big) { JeongganboLook.practiceLyricLane(big).takeIf { song.score.hasLyrics() } }
+    val look = JeongganboLook.Classic.copy(lyricLane = lyricLane)
+    fun JeongganboMetrics.withLane(): JeongganboMetrics = if (lyricLane == null) this else copy(columnWidth = columnWidth + lyricLane)
     BoxWithConstraints(modifier.fillMaxSize().padding(padding)) {
         // 확대 글꼴에서는 고정 높이 두 단 대신 가로·세로 스크롤로 모든 정간을 열어 둔다.
         val bandColumns = if (style == PracticeScoreStyle.TabletPortrait && LocalDensity.current.fontScale <= 1f) {
@@ -117,7 +122,7 @@ fun PracticeScoreArea(
                 longestStrip = longestStrip,
                 availableWidth = maxWidth,
                 availableHeight = maxHeight,
-                metrics = JeongganboMetrics.practice(song.jangdan, maxHeight, big, tablet = true, longestStrip = longestStrip),
+                metrics = JeongganboMetrics.practice(song.jangdan, maxHeight, big, tablet = true, longestStrip = longestStrip).withLane(),
                 minCellHeight = JeongganboMetrics.practiceMinCellHeight(big),
             )
         } else {
@@ -139,8 +144,9 @@ fun PracticeScoreArea(
             JeongganboView(
                 song = song,
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                metrics = JeongganboMetrics.practice(song.jangdan, maxHeight, big = big, tablet = tablet, longestStrip = longestStrip),
+                metrics = JeongganboMetrics.practice(song.jangdan, maxHeight, big = big, tablet = tablet, longestStrip = longestStrip).withLane(),
                 notation = notation,
+                look = look,
                 scrollState = scrollState,
                 currentIndex = currentIndex,
                 highlight = highlight,
@@ -157,7 +163,7 @@ fun PracticeScoreArea(
             )
         } else {
             val bandHeight = (maxHeight - BandGap) / 2
-            val metrics = JeongganboMetrics.practice(song.jangdan, bandHeight, big = big, tablet = true, longestStrip = longestStrip)
+            val metrics = JeongganboMetrics.practice(song.jangdan, bandHeight, big = big, tablet = true, longestStrip = longestStrip).withLane()
             val columnCount = song.score.columns.size
             val scrollState = rememberBandScroll(state, playback, bandColumns, bandHeight, onUserScroll)
             Column(Modifier.fillMaxSize().verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(BandGap)) {
@@ -167,6 +173,7 @@ fun PracticeScoreArea(
                         modifier = Modifier.fillMaxWidth().height(bandHeight),
                         metrics = metrics,
                         notation = notation,
+                        look = look,
                         scrollState = null,
                         currentIndex = currentIndex,
                         highlight = highlight,

@@ -17,3 +17,6 @@ fun scoreLyricSlots(lyric: String?, slotCount: Int): List<String> {
     }
     return result
 }
+
+/** 악보에 가사가 한 정간이라도 있는지. 곁줄(가사 칸)을 둘지 정한다. */
+fun Score.hasLyrics(): Boolean = columns.any { cells -> cells.any { !it.lyric.isNullOrBlank() } }

@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.hasLyrics
 
 /**
  * 자동으로 넘어가는 연습 화면 악보를 뺀 모든 화면이 함께 쓰는 정간보 형식.
@@ -37,18 +38,18 @@ private const val ReadingSplitManySp = 15f
 private val ReadingLyricLane = 25.dp
 
 /**
- * [song]을 그릴 공통 형식. [lyrics]가 false이면 가사가 있어도 곁줄을 두지 않는다(이전 연주 결과의 좁은 기록 화면).
+ * [song]을 그릴 공통 형식. 곡에 가사가 있으면 모든 화면이 곁줄(가사 칸)을 둔다. 곁줄은 각 너비 안에 들어가 각 너비는 같다.
  */
-fun readingScoreFormat(song: Song, lyrics: Boolean = true): ReadingScoreFormat {
+fun readingScoreFormat(song: Song): ReadingScoreFormat {
     val metrics = readingScoreMetrics(song)
-    val lane = ReadingLyricLane.takeIf { lyrics && song.hasLyrics() }
+    val lane = ReadingLyricLane.takeIf { song.score.hasLyrics() }
     return ReadingScoreFormat(metrics, JeongganboLook.Reading.copy(lyricLane = lane), readingCellHeights(song, metrics))
 }
 
 /** [readingScoreFormat]을 곡이 바뀔 때만 다시 계산한다. */
 @Composable
-fun rememberReadingScoreFormat(song: Song, lyrics: Boolean = true): ReadingScoreFormat =
-    remember(song, lyrics) { readingScoreFormat(song, lyrics) }
+fun rememberReadingScoreFormat(song: Song): ReadingScoreFormat =
+    remember(song) { readingScoreFormat(song) }
 
 /** 공통 형식의 각·정간·율명 크기. 나뉜 소박 율명만 [ReadingSplitTwoSp]·[ReadingSplitManySp]로 키운다. */
 internal fun readingScoreMetrics(song: Song): JeongganboMetrics {
@@ -82,6 +83,3 @@ internal fun readingCellHeights(
         }
     }
 }
-
-/** 악보에 가사가 한 칸이라도 있는지. */
-private fun Song.hasLyrics(): Boolean = score.columns.any { cells -> cells.any { !it.lyric.isNullOrBlank() } }
