@@ -277,44 +277,18 @@ internal fun ProfileTextLink(text: String, onClick: () -> Unit, modifier: Modifi
 }
 
 /**
- * 마이페이지 맨 아래 푸터: 구분선 없이 회색 바탕 위에 '자료 및 데이터 출처' 줄(작은 회색 글씨 · 옅은 화살표)을 두고,
- * 그 아래 법적 문서 세 개를 밑줄 없는 작은 회색 글씨로 가로로 늘어놓아 옅은 세로 막대로 나눈다(막대는 화면 낭독에서 뺀다).
- * 모두 앱 안 화면으로 연다(S15P31E102-731).
+ * 마이페이지 맨 아래 푸터: 구분선 없이 회색 바탕 위에 '자료 및 데이터 출처'와 법적 문서 세 개(서비스 이용약관 ·
+ * 개인정보 처리방침 · 계정·데이터 삭제 안내)를 같은 모양의 한 줄(작은 회색 글씨 · 옅은 화살표)로 하나씩 쌓는다.
+ * 모두 앱 안 화면으로 연다(S15P31E102-731, S15P31E102-833).
  */
 @Composable
 internal fun MyPageFooter(onOpenSources: () -> Unit, onOpenLegal: (PublishedLegalDocument) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
         FooterRow(stringResource(Res.string.my_sources), onOpenSources)
-        // 위 '자료 및 데이터 출처' 줄의 글자 시작과 화살표 끝에 맞춰 양 끝을 붙이고, 사이는 같은 간격으로 나눈다.
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = MyPageCardInset),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            FooterLink(stringResource(Res.string.legal_service)) { onOpenLegal(PublishedLegalDocument.Service) }
-            FooterBar()
-            FooterLink(stringResource(Res.string.legal_privacy)) { onOpenLegal(PublishedLegalDocument.Privacy) }
-            FooterBar()
-            FooterLink(stringResource(Res.string.legal_deletion)) { onOpenLegal(PublishedLegalDocument.Deletion) }
-        }
+        FooterRow(stringResource(Res.string.legal_service)) { onOpenLegal(PublishedLegalDocument.Service) }
+        FooterRow(stringResource(Res.string.legal_privacy)) { onOpenLegal(PublishedLegalDocument.Privacy) }
+        FooterRow(stringResource(Res.string.legal_deletion)) { onOpenLegal(PublishedLegalDocument.Deletion) }
     }
-}
-
-/** 하단 가로 링크 하나: 밑줄 없는 12sp 회색 글씨. 양 끝 글자가 줄 끝에 닿도록 좌우 여백 없이 두고 높이만 48dp 이상이다. */
-@Composable
-private fun FooterLink(text: String, onClick: () -> Unit) {
-    Box(
-        Modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = EolssuTheme.colors.textMuted, maxLines = 1, softWrap = false)
-    }
-}
-
-/** 하단 링크 사이의 옅은 세로 막대. */
-@Composable
-private fun FooterBar() {
-    Box(Modifier.clearAndSetSemantics {}.size(width = 1.dp, height = 10.dp).background(EolssuTheme.colors.line))
 }
 
 /** 푸터 한 줄: 누르는 영역 48dp 이상. */
