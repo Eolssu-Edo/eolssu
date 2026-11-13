@@ -15,8 +15,24 @@ internal data class SheetReviewSelection(val cell: Int, val sub: Int? = null)
 internal fun SheetEditUiState.reviewIssuesAt(cell: Int, sub: Int? = null): List<SheetReviewIssue> {
     val cellId = draft.sourceCellIds?.getOrNull(cell) ?: return emptyList()
     if (sub != null && sub !in draft.cells.getOrNull(cell).orEmpty().indices) return emptyList()
-    val units = runCatching { draft.toCommonScore().columns.flatMap { it.cells }.getOrNull(cell)?.units }.getOrNull().orEmpty()
-    val eventIds = (if (sub == null) units else listOfNotNull(units.getOrNull(sub))).map { it.eventId }.toSet()
+    val cells = runCatching { draft.toCommonScore().columns.flatMap { it.cells } }.getOrNull().orEmpty()
+    // 현재 이음이 가리키는 시작 소박을 찾은 뒤, 재배치 전 원본 이벤트에 연결한다.
+    val sourceEvents = buildMap {
+        cells.forEachIndexed { index, current ->
+            val original = draft.originalCell(index) ?: return@forEachIndexed
+            current.units.forEachIndexed { unitIndex, unit ->
+                if (unit.eventId == "${current.id}-r${unit.row}-u${unit.col}") {
+                    val source = original.units.getOrNull(unitIndex)
+                    if (source != null && source.eventId == "${original.id}-r${source.row}-u${source.col}") {
+                        put(unit.eventId, source.eventId)
+                    }
+                }
+            }
+        }
+    }
+    val units = cells.getOrNull(cell)?.units.orEmpty()
+    val eventIds = (if (sub == null) units else listOfNotNull(units.getOrNull(sub)))
+        .mapNotNull { sourceEvents[it.eventId] }.toSet()
     return reviewIssues.filter { issue ->
         issue.id !in validatedCheckedIssueIds &&
             if (issue.eventId != null) issue.eventId in eventIds else issue.cellId == cellId
