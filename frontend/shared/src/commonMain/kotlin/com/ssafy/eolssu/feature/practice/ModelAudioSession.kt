@@ -145,15 +145,21 @@ internal class ModelAudioSession(
         if (actionStarted != null) perf?.milestone(PerfPhase.MODEL_AUDIO_PLAY, once = false, startedAt = actionStarted)
         currentSong = song
         this.bpm = bpm
-        val cached = _state.value.audio?.takeIf { it.matches(song) }
         val previous = _state.value
-        if (cached != null && previous.status in setOf(ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)) {
-            perf?.reuse(PerfTarget.MODEL_AUDIO, song.id, PerfSource.RETAINED, song.scoreVersion)
+        val cached = previous.audio?.takeIf {
+            it.matches(song) && previous.status in setOf(ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)
+        }
+        if (cached != null) {
             val resume = player.state.value.sourceId == sourceId &&
                 player.state.value.status == AudioPlaybackStatus.Paused
             val target = startTick?.let { song.modelMediaPosition(cached, it) } ?: previous.mediaPositionMs
-            prepareExisting(song, cached, target, resume && target == previous.mediaPositionMs)
-            return
+            if (cached.localFile == null || resume && target == previous.mediaPositionMs) {
+                perf?.reuse(PerfTarget.MODEL_AUDIO, song.id, PerfSource.RETAINED, song.scoreVersion)
+                prepareExisting(song, cached, target, resume && target == previous.mediaPositionMs)
+                return
+            }
+            // Released players reopen their file; the OS may have reclaimed it while the screen was hidden.
+            // Go through the repository again to verify/restore the cached file before opening it.
         }
         active = true
         val request = ++requestId
@@ -171,7 +177,20 @@ internal class ModelAudioSession(
                 audio == null -> _state.value = ModelAudioState(ModelAudioStatus.Unavailable)
                 !audio.matches(song) || audio.startOffsetMs + song.modelScoreDurationMs(audio) > audio.durationMs + 1.0 ->
                     _state.value = ModelAudioState(ModelAudioStatus.Failed)
-                else -> startWhenReady(request, song, audio, startTick?.let { song.modelMediaPosition(audio, it) } ?: 0)
+                else -> {
+                    val position = when {
+                        startTick != null -> song.modelMediaPosition(audio, startTick)
+                        cached == null -> 0L
+                        cached.sha256 == audio.sha256 -> previous.mediaPositionMs
+                        else -> {
+                            val point = song.modelPointAt(cached, previous.mediaPositionMs.toDouble())
+                            val event = song.timeline[point.position]
+                            val tick = requireNotNull(event.startTick) + requireNotNull(event.durationTick) * point.fraction
+                            song.modelMediaPosition(audio, tick)
+                        }
+                    }
+                    startWhenReady(request, song, audio, position)
+                }
             }
         }
     }
