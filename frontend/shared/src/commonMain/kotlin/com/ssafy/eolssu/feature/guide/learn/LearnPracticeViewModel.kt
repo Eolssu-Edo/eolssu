@@ -26,6 +26,7 @@ import kotlin.time.TimeSource
 /**
  * 기초부터 배우기 단계 연습(3~7단계). 녹음기로 소리 크기를 재고 녹음 파일은 남기지 않는다(멈추면 [AudioRecorder.cancel]).
  * 4~6단계는 음높이 관측([AudioRecorder.pitchReadings])이 있고 판정 기준([loadCriteria])을 받으면 음높이로 통과를 판정한다.
+ * 7단계는 음높이 관측이 있으면 첫 '투'와 같은 음만 센다([LearnTongueTracker], 기준을 받으면 그 허용 오차를 쓴다).
  * 녹음기·마이크 권한은 플랫폼 구현이 있을 때만 받는다(현재 Android·iOS). 없으면 스스로 확인해 완료로 표시하게 한다.
  */
 class LearnPracticeViewModel(
@@ -36,7 +37,11 @@ class LearnPracticeViewModel(
     private val loadCriteria: (suspend (GuideInstrument) -> NotePracticeCriteria?)? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
-        LearnPracticeUiState(stage = stage, mic = if (recorder?.measuresLevel == true) LearnMicStatus.Available else LearnMicStatus.Unsupported),
+        LearnPracticeUiState(
+            stage = stage,
+            mic = if (recorder?.measuresLevel == true) LearnMicStatus.Available else LearnMicStatus.Unsupported,
+            tonguesByPitch = stage == 7 && recorder?.pitchReadings != null,
+        ),
     )
     val uiState: StateFlow<LearnPracticeUiState> = _uiState.asStateFlow()
     private var startJob: Job? = null
@@ -46,18 +51,24 @@ class LearnPracticeViewModel(
     private var planKey: Pair<GuideInstrument, LearnStageDetail>? = null
     private var plan: LearnPitchPlan? = null
     private var tracker: LearnPitchTracker? = null
+    private val tongue: LearnTongueTracker? = if (stage == 7 && recorder?.pitchReadings != null) LearnTongueTracker() else null
 
     /**
      * 단계 내용을 받았을 때 음높이 판정을 준비한다. 4~6단계이고 음높이 관측과 판정 기준이 있을 때만 켜진다.
      * 같은 악기·내용이면 다시 준비하지 않는다. 기준을 받지 못하면 스스로 확인으로 남는다.
+     * 7단계는 기준을 받으면 혀치기 같은 음 판정의 허용 오차만 바꾼다(받지 못해도 공통 값으로 판정한다).
      */
     fun prepare(instrument: GuideInstrument, detail: LearnStageDetail) {
         val load = loadCriteria ?: return
-        if (stage !in 4..6 || recorder?.pitchReadings == null || planKey == instrument to detail) return
+        if (stage !in 4..7 || recorder?.pitchReadings == null || planKey == instrument to detail) return
         planKey = instrument to detail
         planJob?.cancel()
         planJob = viewModelScope.launch {
             val criteria = load(instrument) ?: return@launch
+            if (tongue != null) {
+                tongue.use(criteria)
+                return@launch
+            }
             val next = learnPitchPlan(stage, detail, instrument, criteria) ?: return@launch
             plan = next
             // 듣는 도중이면 판정 방식을 바꾸지 않고 다음 '듣기 시작'부터 쓴다.
@@ -85,6 +96,7 @@ class LearnPracticeViewModel(
             }
             val state = _uiState.value
             if (state.phase == LearnPracticePhase.Passed || state.pitch?.finished == true) tracker?.reset()
+            if (state.phase == LearnPracticePhase.Passed) tongue?.reset()
             _uiState.update { it.startListening() }
             // 녹음보다 먼저 구독해야 첫 관측을 놓치지 않는다(관측 흐름은 지난 값을 다시 주지 않는다).
             watchPitch(recorder)
@@ -109,6 +121,7 @@ class LearnPracticeViewModel(
     fun reset() {
         releaseRecorder()
         tracker?.reset()
+        tongue?.reset()
         _uiState.update { it.reset() }
     }
 
@@ -145,7 +158,10 @@ class LearnPracticeViewModel(
                     _uiState.update { it.stopListening() }
                     break
                 }
+                val wasQuiet = _uiState.value.quiet
                 val state = _uiState.updateAndGet { it.recordLevel(recorder.level(), sinceMs) }
+                // 7단계: 새 '투'가 시작되면 높이 판정기에 알린다. 높이가 정해지면 watchPitch가 센다.
+                if (wasQuiet && !state.quiet && state.listening) tongue?.onset()
                 // 통과했거나 너무 오래 들었으면 녹음을 버리고 멈춘다(통과 상태는 그대로 남는다).
                 if (state.phase == LearnPracticePhase.Passed || state.listenedMs >= LEARN_LISTEN_LIMIT_MS) {
                     runCatching { recorder.cancel() }
@@ -160,8 +176,15 @@ class LearnPracticeViewModel(
     /** 음높이 판정이 켜져 있으면 관측을 판정기에 넣는다. 통과하거나 통과할 수 없게 되면 녹음을 버리고 멈춘다. */
     private fun watchPitch(recorder: AudioRecorder) {
         pitchJob?.cancel()
-        val judge = tracker ?: return
         val readings = recorder.pitchReadings ?: return
+        val tongue = tongue
+        if (tongue != null) {
+            pitchJob = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                readings.collect { reading -> if (tongue.accept(reading)) _uiState.update { it.recordTongue(tongue.count) } }
+            }
+            return
+        }
+        val judge = tracker ?: return
         pitchJob = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             readings.collect { reading ->
                 val result = judge.accept(reading)

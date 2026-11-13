@@ -14,7 +14,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 기초부터 배우기 4~6단계 음높이 판정(S15P31E102-611). 관측은 1초에 1,000샘플, 20샘플(20ms)씩 이어지는 고정 입력이다.
+ * 기초부터 배우기 4~6단계 음높이 판정(S15P31E102-611)과 공통 완화 기준·7단계 같은 음 혀치기(S15P31E102-845). 관측은 1초에 1,000샘플, 20샘플(20ms)씩 이어지는 고정 입력이다.
  * 목표 높이는 단소 황종 E♭4(MIDI 63)에서 센다.
  */
 class LearnPitchJudgeTest {
@@ -67,24 +67,33 @@ class LearnPitchJudgeTest {
         assertNull(learnTargetHz("없음", GuideInstrument.Danso))
     }
 
-    @Test fun plansFollowTheStagePassRules() {
+    /** 4~6단계는 같은 완화 기준(±50센트·1초·끊김 0.15초)을 쓰고, 6단계만 옥타브를 맞춘다(S15P31E102-845). */
+    @Test fun plansShareTheRelaxedLearnRule() {
         val four = plan(4)
         assertEquals(dansoDetail.pitchNames, four.notes)
         assertEquals(5, four.required)
-        assertEquals(LearnPitchRule(25.0, 2_000, 0.8, octaveMustMatch = false, firstNoteTuning = true, maxTuningOffsetCent = 50.0,
+        assertEquals(LearnPitchRule(50.0, 1_000, 150, 0.8, octaveMustMatch = false, firstNoteTuning = true, maxTuningOffsetCent = 50.0,
             countsMisses = false), four.rule)
 
         val five = plan(5)
         assertEquals(scale + scale.reversed(), five.notes)
         assertEquals(10, five.required)
-        assertEquals(50.0, five.rule.toleranceCent)
-        assertEquals(300, five.rule.holdMs)
-        assertFalse(five.rule.countsMisses)
+        assertEquals(four.rule, five.rule)
 
         val six = plan(6)
         assertEquals(listOf("㳞"), six.notes)
-        assertEquals(2_000, six.rule.holdMs)
-        assertTrue(six.rule.octaveMustMatch)
+        assertEquals(four.rule.copy(octaveMustMatch = true), six.rule)
+    }
+
+    /** 서버 기준이 공통 허용 오차보다 넓으면(단소 ±70) 그 값을, 좁으면 공통 ±50을 쓴다. 유지 시간은 서버 값과 상관없이 1초다. */
+    @Test fun toleranceTakesTheWiderOfServerAndLearnRule() {
+        listOf(4, 5, 6).forEach { stage ->
+            val wide = plan(stage, criteria = criteria.copy(pitchToleranceCent = 70.0, holdMs = 200)).rule
+            assertEquals(70.0, wide.toleranceCent)
+            assertEquals(LEARN_PITCH_HOLD_MS, wide.holdMs)
+            assertEquals(50.0, plan(stage, criteria = criteria.copy(pitchToleranceCent = 25.0)).rule.toleranceCent)
+        }
+        assertEquals(LEARN_PITCH_HOLD_MS.toDouble(), FIRST_SOUND_HOLD_MS)
     }
 
     @Test fun noPlanForOtherStagesOrUnknownNotes() {
@@ -94,9 +103,9 @@ class LearnPitchJudgeTest {
         assertNull(learnPitchPlan(6, dansoDetail.copy(ranges = emptyList()), GuideInstrument.Danso, criteria))
     }
 
-    @Test fun stageFourPassesWhenEveryNoteIsHeldForTwoSeconds() {
+    @Test fun stageFourPassesWhenEveryNoteIsHeldForOneSecond() {
         val feed = feed(4)
-        dansoDetail.pitchNames.forEach { feed.hold(hz(it), 2_100).breath() }
+        dansoDetail.pitchNames.forEach { feed.hold(hz(it), 1_100).breath() }
         assertEquals(List(5) { LearnNoteResult.Hit }, feed.results)
         assertTrue(feed.tracker.passed)
         assertTrue(feed.tracker.finished)
@@ -104,35 +113,58 @@ class LearnPitchJudgeTest {
 
     @Test fun stageFourIgnoresShortWrongAndSilentInput() {
         val feed = feed(4)
-        // 1.9초에서 끊기면 다시 잰다. 다른 음(潢)·25센트 밖·무음은 오래 불어도 맞음이 아니다.
-        feed.hold(hz("汰"), 1_900).breath()
+        // 0.9초에서 끊기면 다시 잰다. 다른 음(潢)·50센트 밖·무음은 오래 불어도 맞음이 아니다.
+        feed.hold(hz("汰"), 900).breath()
             .hold(hz("潢"), 5_000).breath()
-            .hold(cents(hz("汰"), 30.0), 5_000).breath()
+            .hold(cents(hz("汰"), 60.0), 5_000).breath()
             .hold(null, 5_000)
         assertEquals(emptyList(), feed.results)
         assertEquals(0, feed.tracker.index)
         assertFalse(feed.tracker.passed)
 
         // 한 옥타브 낮게 불어도 4단계는 율명이 맞으면 된다
-        feed.hold(hz("汰") / 2, 2_100)
+        feed.hold(hz("汰") / 2, 1_100)
         assertEquals(listOf(LearnNoteResult.Hit), feed.results)
         assertEquals(1, feed.tracker.index)
     }
 
     @Test fun lowConfidenceFramesNeitherCountNorBreakTheHold() {
         val feed = feed(4)
-        feed.hold(hz("汰"), 1_000).hold(hz("汰"), 200, difference = 0.5).hold(hz("汰"), 900)
+        feed.hold(hz("汰"), 500).hold(hz("汰"), 200, difference = 0.5).hold(hz("汰"), 400)
         assertEquals(listOf(LearnNoteResult.Hit), feed.results)
     }
 
+    /** 0.15초 이하의 끊김(분석 누락)이나 잠깐 튄 높이는 유지 시간을 이어 가고, 그보다 길면 처음부터 다시 잰다(S15P31E102-845). */
+    @Test fun shortGapsKeepTheHoldButLongerOnesRestartIt() {
+        val dropout = feed(4)
+        dropout.hold(hz("汰"), 600).hold(null, 100).hold(hz("汰"), 400)
+        assertEquals(listOf(LearnNoteResult.Hit), dropout.results)
+
+        val glitch = feed(4)
+        glitch.hold(hz("汰"), 600).hold(hz("汰") * 1.5, 100).hold(hz("汰"), 400)
+        assertEquals(listOf(LearnNoteResult.Hit), glitch.results)
+
+        val skipped = feed(4)
+        skipped.hold(hz("汰"), 600)
+        skipped.sequence += 5 // 관측 다섯 개(0.1초)가 빠짐
+        skipped.hold(hz("汰"), 400)
+        assertEquals(listOf(LearnNoteResult.Hit), skipped.results)
+
+        val broken = feed(4)
+        broken.hold(hz("汰"), 600).hold(null, 200).hold(hz("汰"), 900)
+        assertEquals(emptyList(), broken.results)
+        broken.hold(hz("汰"), 200)
+        assertEquals(listOf(LearnNoteResult.Hit), broken.results)
+    }
+
     @Test fun firstNoteTuningShiftsLaterTargets() {
-        // 첫 음을 +20센트로 맞히면 뒤 음은 +40센트도 ±25센트 안이다. 조율을 쓰지 않으면 아니다.
+        // 첫 음을 +30센트로 맞히면 뒤 음은 +70센트도 ±50센트 안이다. 조율을 쓰지 않으면 아니다.
         val tuned = feed(4)
-        tuned.hold(cents(hz("汰"), 20.0), 2_100).breath().hold(cents(hz("潢"), 40.0), 2_100)
+        tuned.hold(cents(hz("汰"), 30.0), 1_100).breath().hold(cents(hz("潢"), 70.0), 1_100)
         assertEquals(2, tuned.results.size)
 
         val plain = feed(4, criteria.copy(firstNoteTuning = false))
-        plain.hold(cents(hz("汰"), 20.0), 2_100).breath().hold(cents(hz("潢"), 40.0), 2_100)
+        plain.hold(cents(hz("汰"), 30.0), 1_100).breath().hold(cents(hz("潢"), 70.0), 1_100)
         assertEquals(1, plain.results.size)
     }
 
@@ -143,7 +175,7 @@ class LearnPitchJudgeTest {
         feed.hold(hz("汰"), 2_000).breath()
         assertEquals(emptyList(), feed.results)
         assertEquals(0, feed.tracker.index)
-        notes.forEach { feed.hold(hz(it), 400).breath() }
+        notes.forEach { feed.hold(hz(it), 1_100).breath() }
         assertEquals(List(10) { LearnNoteResult.Hit }, feed.results)
         assertEquals(0, feed.tracker.misses)
         assertTrue(feed.tracker.passed)
@@ -152,14 +184,14 @@ class LearnPitchJudgeTest {
     /** 5단계 내려오기 박스의 체크를 풀면 판정이 그 박스의 첫 음(6번째 음)으로 돌아간다(S15P31E102-749). */
     @Test fun rewindingGoesBackToTheGivenNote() {
         val feed = feed(5)
-        (scale + scale.reversed()).forEach { feed.hold(hz(it), 400).breath() }
+        (scale + scale.reversed()).forEach { feed.hold(hz(it), 1_100).breath() }
         assertTrue(feed.tracker.finished)
 
         feed.tracker.rewind(5)
         assertEquals(5, feed.tracker.index)
         assertEquals(5, feed.tracker.hits)
         assertFalse(feed.tracker.finished)
-        feed.breath().hold(hz(scale.last()), 400)
+        feed.breath().hold(hz(scale.last()), 1_100)
         assertEquals(6, feed.tracker.index)
     }
 
@@ -173,10 +205,10 @@ class LearnPitchJudgeTest {
     @Test fun repeatedNoteNeedsABreakBeforeItCountsAgain() {
         // 올라가기 끝 음과 내려오기 첫 음은 같은 汰다. 이어 불면 한 번만 센다.
         val feed = feed(5)
-        scale.dropLast(1).forEach { feed.hold(hz(it), 400).breath() }
-        feed.hold(hz("汰"), 1_400)
+        scale.dropLast(1).forEach { feed.hold(hz(it), 1_100).breath() }
+        feed.hold(hz("汰"), 3_000)
         assertEquals(5, feed.results.size)
-        feed.breath().hold(hz("汰"), 400)
+        feed.breath().hold(hz("汰"), 1_100)
         assertEquals(6, feed.results.size)
     }
 
@@ -186,15 +218,73 @@ class LearnPitchJudgeTest {
         assertFalse(wrongOctave.tracker.passed)
 
         val right = feed(6)
-        right.hold(hz("㳞"), 2_100)
+        right.hold(hz("㳞"), 1_100)
         assertTrue(right.tracker.passed)
     }
 
     @Test fun resetStartsOver() {
         val feed = feed(4)
-        feed.hold(hz("汰"), 2_100)
+        feed.hold(hz("汰"), 1_100)
         feed.tracker.reset()
         assertEquals(0, feed.tracker.index)
         assertEquals(0, feed.tracker.hits)
+    }
+
+    /** 7단계 혀치기: '투'마다 높이를 재어 첫 '투'와 같은 음이면 하나 더 센다. */
+    private class Tongue(val tracker: LearnTongueTracker = LearnTongueTracker()) {
+        var sequence = 0L
+
+        fun frame(hz: Double?, difference: Double = 0.05) {
+            val end = sequence * 20 + 46
+            tracker.accept(PitchReading(1, 1, sequence++, end - 46, end, 1000, hz, 0, difference))
+        }
+
+        /** 숨을 끊고 [hz]로 '투'를 한 번 낸다(소리 크기로 잡은 시작 뒤 [ms]). */
+        fun tu(hz: Double, ms: Int = 200): Tongue {
+            repeat(3) { frame(null) }
+            tracker.onset()
+            repeat(ms / 20) { frame(hz) }
+            return this
+        }
+    }
+
+    @Test fun tonguesOnTheFirstNoteCountUntilAnotherNote() {
+        val tongue = Tongue()
+        tongue.tu(hz("汰")).tu(cents(hz("汰"), 40.0)).tu(cents(hz("汰"), -40.0))
+        assertEquals(3, tongue.tracker.count)
+        // 다른 음이면 그 '투'가 새 첫 음이 되어 1부터 다시 센다. 옥타브가 달라도 다른 음이다.
+        tongue.tu(hz("潢"))
+        assertEquals(1, tongue.tracker.count)
+        tongue.tu(hz("潢") * 2)
+        assertEquals(1, tongue.tracker.count)
+        tongue.tu(hz("潢") * 2).tu(hz("潢") * 2).tu(hz("潢") * 2)
+        assertEquals(TONGUE_TARGET, tongue.tracker.count)
+        tongue.tracker.reset()
+        assertEquals(0, tongue.tracker.count)
+    }
+
+    @Test fun aTongueCountsOnceAndNeedsASteadyPitch() {
+        val tongue = Tongue()
+        // 시작 없이 이어 부는 소리는 세지 않고, 한 '투'를 길게 불면 한 번만 센다
+        repeat(20) { tongue.frame(hz("汰")) }
+        assertEquals(0, tongue.tracker.count)
+        tongue.tu(hz("汰"), ms = 2_000)
+        assertEquals(1, tongue.tracker.count)
+        // 높이를 정하기 전(0.04초)에 끝난 '투'와 신뢰도가 낮은 '투'는 세지 않는다
+        tongue.tu(hz("汰"), ms = 40)
+        repeat(3) { tongue.frame(null) }
+        tongue.tracker.onset()
+        repeat(10) { tongue.frame(hz("汰"), difference = 0.5) }
+        assertEquals(1, tongue.tracker.count)
+    }
+
+    @Test fun tongueToleranceFollowsTheWiderServerRule() {
+        val narrow = Tongue()
+        narrow.tu(hz("汰")).tu(cents(hz("汰"), 60.0))
+        assertEquals(1, narrow.tracker.count)
+
+        val wide = Tongue(LearnTongueTracker(criteria.copy(pitchToleranceCent = 70.0)))
+        wide.tu(hz("汰")).tu(cents(hz("汰"), 60.0))
+        assertEquals(2, wide.tracker.count)
     }
 }

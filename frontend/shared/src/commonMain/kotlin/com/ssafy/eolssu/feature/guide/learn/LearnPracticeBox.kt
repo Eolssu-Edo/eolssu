@@ -41,7 +41,7 @@ import com.ssafy.eolssu.core.ui.component.MicLevelBadge
 import com.ssafy.eolssu.feature.guide.component.LearnNote
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.learn_first_sound_pass
-import eolssu.shared.generated.resources.learn_practice_again
+import eolssu.shared.generated.resources.learn_pitch_hold_pass
 import eolssu.shared.generated.resources.learn_practice_blocked
 import eolssu.shared.generated.resources.learn_practice_denied
 import eolssu.shared.generated.resources.learn_practice_failed
@@ -77,7 +77,7 @@ class LearnPracticeActions(
  * 기초부터 배우기 3~7단계의 소리 듣기(S15P31E102-688, 정리 S15P31E102-749).
  * 박스를 펼친 뒤 아래 가운데 '연습 시작'을 누르면 듣는다(S15P31E102-793). 5단계 정간보만 마이크 입력 뱃지([MicLevelBadge])를 두고,
  * 듣는 동안 안내 문장을 바꿔 띄우지 않는다. 진행은 소리 막대·낼 음·'투' 동그라미·정간보가 채워지는 것으로만 보인다.
- * 그만하기·다시 시작·다음 단계로 같은 주 동작은 단계 화면 아래 가운데 버튼([LearnPracticePrimary])이 맡고, 박스 안에는 보조 버튼만 둔다.
+ * 연습 시작·그만하기·다음 단계로 같은 주 동작은 단계 화면 아래 가운데 버튼([LearnPracticePrimary])이 맡고, 박스 안에는 보조 버튼만 둔다.
  */
 
 /**
@@ -98,6 +98,8 @@ internal fun LearnPracticeBox(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         val rule = when (stage.number) {
             3 -> stringResource(Res.string.learn_first_sound_pass)
+            // 서버 단계 상세의 '음마다 2초 이상 유지'는 완화 전 기준이라, 앱 판정 기준(1초)과 맞는 문구를 쓴다(S15P31E102-845).
+            4 -> stringResource(Res.string.learn_pitch_hold_pass)
             7 -> stringResource(Res.string.learn_tongue_pass)
             else -> detail?.pass?.rule?.plain()
         }
@@ -408,7 +410,7 @@ private fun LearnPracticeSideButtons(state: LearnPracticeUiState, actions: Learn
 
 /**
  * 듣는 박스가 펼쳐졌을 때 단계 화면 아래 가운데 버튼(S15P31E102-749). 그 순간 할 일을 맡는다: 듣기 전 '연습 시작',
- * 듣는 중 '그만하기', 멈춘 뒤 '다시 시작', 통과 뒤 '다음 단계로'(마지막 단계는 끝내기 문구).
+ * 듣는 중 '그만하기', 멈춘 뒤·'처음부터' 뒤에도 '연습 시작'(S15P31E102-845), 통과 뒤 '다음 단계로'(마지막 단계는 끝내기 문구).
  * 권한이 꺼져 다시 묻지 못하면 '설정에서 허용하기', 마이크가 없는 기기는 '스스로 확인했어요'다.
  */
 @Composable
@@ -426,12 +428,7 @@ internal fun LearnPracticePrimary(
         state.mic == LearnMicStatus.Blocked ->
             EolssuButton(stringResource(Res.string.learn_practice_open_settings), actions.onOpenSettings, modifier, icon = EolssuIcons.Settings)
         state.mic == LearnMicStatus.Unsupported -> EolssuButton(stringResource(Res.string.learn_practice_self_done), onSelfDone, modifier)
-        // 아직 듣지 않았으면 '연습 시작', 멈춘 뒤면 '다시 시작'(S15P31E102-793).
-        else -> EolssuButton(
-            stringResource(if (state.listenedMs > 0.0) Res.string.learn_practice_again else Res.string.learn_start_practice),
-            actions.onStart,
-            modifier,
-            icon = EolssuIcons.Mic,
-        )
+        // 듣기 전·멈춘 뒤·'처음부터' 뒤 모두 '연습 시작' 한 문구로 둔다(S15P31E102-845, 전에는 들은 적이 있으면 '다시 시작').
+        else -> EolssuButton(stringResource(Res.string.learn_start_practice), actions.onStart, modifier, icon = EolssuIcons.Mic)
     }
 }
