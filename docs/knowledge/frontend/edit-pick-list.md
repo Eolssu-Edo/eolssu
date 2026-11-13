@@ -39,3 +39,9 @@ SHT-01 instrumentCode는 이미 초안 우선의 실효 악기다. 서버의 Edi
 origin/develop 8897d7fb를 충돌 없이 통합했다. 공통 MySongsTabSwitch의 최신 회색 틀·흰 선택 탭과 상단 바 배치를 그대로 재사용하며, 하단 복사 버튼은 초록색을 유지한다. DI에는 장단 볼륨 기능과 선택 화면의 본문 의존 제거가 모두 반영됐다.
 
 통합 상태에서 위 전체 검사·Android debug 빌드·Wasm 컴파일을 다시 실행했다. 1,667건 실패 0·환경 검사 5건 skipped다. 고정 Repository를 연결한 실제 Compose 화면에서 390×844 배치·곡 선택·하단 복사 버튼의 개인 ID 998886 전달을 재확인했다. 최신 캡처는 mr-sync-selected-phone.png이며 임시 웹 진입점은 원래 파일로 복원했다.
+
+## 긴 제목의 기존 가로 흐르기 복원
+
+초기 선택 화면 수정은 기존 songTitleMarquee를 두 줄 말줄임으로 바꿔 긴 제목의 끝을 읽는 동작을 훼손했다. 사용자 지적과 같은 Task 재개 승인 후, PickRow 제목을 기존 연습곡 목록과 같은 Modifier.songTitleMarquee(), maxLines=1로 복원했다. 제공 곡과 내 악보가 모두 이 줄을 사용하며, 공통 helper의 넘칠 때만 반복 흐르기 설정을 그대로 따른다. 별도 애니메이션 설정이나 구현을 추가하지 않았다.
+
+검증 기준은 develop e236644a다. 전체 Android host 검사 1,667건 실패 0·환경 검사 5건 skipped, Android debug 빌드·Wasm 컴파일을 통과했다. 320×640의 실제 Compose 고정 데이터 화면에서 제공 곡 제목을 15초, 내 악보 제목을 14초 떨어진 두 시점에 캡처해 한 줄 안에서 이동함을 확인했다. 주변의 짧은 제목·장단·난이도·선택 표시는 같은 위치에 남았다. 캡처는 marquee-provided-a/b.png와 marquee-personal-a/b.png이며, 검증용 임시 진입점은 복원했다. 실기기·iOS 미검증은 그대로다.
