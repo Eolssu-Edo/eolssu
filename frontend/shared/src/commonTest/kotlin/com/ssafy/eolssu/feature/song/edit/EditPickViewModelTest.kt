@@ -11,7 +11,6 @@ import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
 import com.ssafy.eolssu.data.song.ApiMySheetRepository
-import com.ssafy.eolssu.data.song.ApiSheetDocumentRepository
 import com.ssafy.eolssu.data.song.PublishedSheetCopyProblem
 import com.ssafy.eolssu.data.song.PublishedSheetCopyRepository
 import com.ssafy.eolssu.data.song.PublishedSheetCopyResult
@@ -26,10 +25,6 @@ import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.ReferenceCatalogRepository
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
 import com.ssafy.eolssu.data.song.SampleSongs
-import com.ssafy.eolssu.data.song.SheetDocument
-import com.ssafy.eolssu.data.song.SheetDocumentRepository
-import com.ssafy.eolssu.data.song.SheetWorkingCopy
-import com.ssafy.eolssu.data.song.SheetWrite
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.smallScoreData
 import com.ssafy.eolssu.testing.CatalogViewModelTest
@@ -40,10 +35,9 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runCurrent
@@ -56,25 +50,12 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class EditPickViewModelTest : CatalogViewModelTest() {
-    private fun sheet(id: String) = MySheet(id, MySheetOrigin.Imported, "악보 $id", updatedAt = KoreanDateTime(2026, 11, 1, 10, 0))
+    private fun sheet(id: String) = MySheet(id, MySheetOrigin.Imported, "악보 $id", updatedAt = KoreanDateTime(2026, 11, 1, 10, 0),
+        instrumentCode = when (id) { "31" -> "DANSO"; "32" -> "SOGEUM"; else -> null })
 
     private val mySheets = object : MySheetRepository {
         override val sheets = MutableStateFlow(listOf(sheet("31"), sheet("32"), sheet("33")))
         override suspend fun delete(sheetId: String) = Unit
-    }
-
-    private fun document(id: String, code: String) = smallScoreData().let { score ->
-        SheetDocument(id, "악보 $id", null, 60, "1", score.copy(score = score.score.copy(instrument = code)), null, "EVALUABLE", null, emptyList())
-    }
-
-    /** 31은 단소, 32는 소금, 33은 읽지 못하는 악보. */
-    private val documents = object : SheetDocumentRepository {
-        override suspend fun get(sheetId: String): SheetDocument? = when (sheetId) {
-            "31" -> document(sheetId, "DANSO")
-            "32" -> document(sheetId, "SOGEUM")
-            else -> null
-        }
-        override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) = SheetWrite.Failed
     }
 
     private val songs = object : SongRepository {
@@ -88,8 +69,98 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
     }
 
     @Test
+    fun providedSongsCanBeSelectedBeforePersonalSheetsFinishLoading() = runTest {
+        val refresh = CompletableDeferred<Boolean>()
+        val slowSheets = object : MySheetRepository {
+            override val sheets = mySheets.sheets
+            override suspend fun refresh() = refresh.await()
+            override suspend fun delete(sheetId: String) = Unit
+        }
+        val model = keep(EditPickViewModel(slowSheets, songs))
+        model.selectInstrument(Instrument.Danso)
+        runCurrent()
+        assertEquals(EditPickLoad.Ready, model.uiState.value.load, "제공 곡은 내 악보 응답을 기다리지 않는다")
+        model.toggle(EditPickTarget.Song("101"))
+        assertTrue(model.uiState.value.canSelect)
+        model.selectTab(EditPickTab.Mine)
+        assertEquals(EditPickLoad.Loading, model.uiState.value.load)
+        assertFalse(model.uiState.value.canSelect)
+        refresh.complete(true)
+        runCurrent()
+        assertEquals(listOf("31"), model.uiState.value.sheets.map { it.id })
+    }
+
+    @Test
+    fun songFailureDoesNotBlockPersonalSheetsAndRetryOnlyReloadsTheFailedTab() = runTest {
+        var attempts = 0
+        var sheetRefreshes = 0
+        val failingSongs = object : SongRepository by songs {
+            override suspend fun getSongs(instrumentId: String?): List<SongSummary> {
+                attempts++
+                if (attempts == 1) error("곡 목록 오류")
+                return songs.getSongs(instrumentId)
+            }
+        }
+        val countedSheets = object : MySheetRepository by mySheets {
+            override suspend fun refresh(): Boolean { sheetRefreshes++; return true }
+        }
+        val model = keep(EditPickViewModel(countedSheets, failingSongs))
+        model.selectInstrument(Instrument.Danso)
+        runCurrent()
+        assertEquals(EditPickLoad.Failed, model.uiState.value.load)
+        model.selectTab(EditPickTab.Mine)
+        assertEquals(EditPickLoad.Ready, model.uiState.value.load, "제공 곡 실패와 관계없이 내 악보를 연다")
+        assertEquals(listOf("31"), model.uiState.value.sheets.map { it.id })
+        model.selectTab(EditPickTab.Songs)
+        model.retry()
+        runCurrent()
+        assertEquals(EditPickLoad.Ready, model.uiState.value.load)
+        assertEquals(2, attempts)
+        assertEquals(1, sheetRefreshes, "성공한 탭은 재조회하지 않는다")
+    }
+
+    @Test
+    fun lateResponseCannotReplaceTheLatestListAfterSwitchingBackToTheSameInstrument() = runTest {
+        val first = CompletableDeferred<List<SongSummary>>()
+        val latest = CompletableDeferred<List<SongSummary>>()
+        var dansoRequests = 0
+        val delayed = object : SongRepository by songs {
+            override suspend fun getSongs(instrumentId: String?): List<SongSummary> =
+                if (instrumentId != "1") songs.getSongs(instrumentId)
+                else withContext(NonCancellable) {
+                    if (++dansoRequests == 1) first.await() else latest.await()
+                }
+        }
+        val model = keep(EditPickViewModel(mySheets, delayed))
+        model.selectInstrument(Instrument.Danso); runCurrent()
+        model.selectInstrument(Instrument.Sogeum); runCurrent()
+        model.selectInstrument(Instrument.Danso); runCurrent()
+        latest.complete(listOf(SongSummary("201", "최신 곡", 1, "세마치", 60, true, "1")))
+        runCurrent()
+        first.complete(listOf(SongSummary("101", "이전 곡", 1, "세마치", 60, true, "1")))
+        runCurrent()
+        assertEquals(listOf("201"), model.uiState.value.songs.map { it.id })
+        assertEquals(EditPickLoad.Ready, model.uiState.value.load)
+    }
+
+    @Test
+    fun changingAccountWhileListsAreLoadingClearsBothTabs() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("1") }
+        val response = CompletableDeferred<Boolean>()
+        val delayed = object : MySheetRepository by mySheets {
+            override suspend fun refresh() = response.await()
+        }
+        val model = keep(EditPickViewModel(delayed, songs, member = member))
+        model.selectInstrument(Instrument.Danso); runCurrent()
+        member.set("2")
+        response.complete(true)
+        runCurrent()
+        assertEquals(EditPickUiState(), model.uiState.value)
+    }
+
+    @Test
     fun showsOnlyTheChosenInstrumentsSheetsAndSongs() = runTest {
-        val model = keep(EditPickViewModel(mySheets, songs, documents))
+        val model = keep(EditPickViewModel(mySheets, songs))
         runCurrent()
         assertEquals(EditPickLoad.NeedsInstrument, model.uiState.value.load, "악기를 고르기 전에는 악보를 받지 않는다")
         assertTrue(songs.asked.isEmpty())
@@ -99,7 +170,7 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
         assertEquals(EditPickLoad.Ready, danso.load)
         assertEquals(listOf<String?>("1"), songs.asked.toList(), "제공 곡은 서버 악기 ID로 거른다")
         assertEquals(listOf("101"), danso.songs.map { it.id })
-        assertEquals(listOf("31"), danso.sheets.map { it.id }, "내 악보는 공통 악보의 악기로 거른다")
+        assertEquals(listOf("31"), danso.sheets.map { it.id }, "내 악보는 목록의 악기로 거른다")
         assertEquals(1, danso.uncheckedSheets, "읽지 못한 악보는 어느 악기에도 넣지 않는다")
 
         model.toggle(EditPickTarget.Sheet("31"))
@@ -111,144 +182,75 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
     }
 
     @Test
-    fun filtersFromListCodesAndOnlyRequestsDetailsForRowsWithoutCodes() = runTest {
-        fun item(id: String, extra: String = "") =
-            """{"sheetId":"$id","kind":"JEONGGANBO","title":"악보 $id","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z"$extra}"""
-
-        fun score(code: String) = smallScoreData().let {
-            Json.encodeToString(it.copy(score = it.score.copy(instrument = code)))
-        }
-
-        val detailRequests = mutableListOf<String>()
+    fun usesOnlyListMetadataEvenWhenCodesAreMissingOrDraftsChange() = runTest {
+        val paths = mutableListOf<String>()
+        var draftCode = "SOGEUM"
         val client = createHttpClient(MockEngine { request ->
             val path = request.url.encodedPath
-            val result = if (path == "/api/users/me/sheets") {
-                val items = listOf(
-                    item("31", ",\"instrumentCode\":\"DANSO\""),
-                    item("32", ",\"hasDraft\":true,\"instrumentCode\":\"SOGEUM\""),
-                    item("33", ""","instrumentCode":null"""),
-                    item("34"),
-                )
-                """{"items":[${items.joinToString()}],"page":0,"totalPages":1}"""
-            } else {
-                val id = path.substringBeforeLast('/').substringAfterLast('/')
-                assertEquals("/api/users/me/sheets/$id/score", path)
-                detailRequests += id
-                val stored = when (id) {
-                    "31", "32", "34" -> score("DANSO")
-                    "33" -> "null"
-                    else -> error("Unexpected sheet ID $id")
-                }
-                val draft = if (id == "32") {
-                    ""","draft":{"title":"소금 초안","bpm":60,"baseScoreVersion":"1","draftRevision":1,"score":${score("SOGEUM")}}"""
-                } else ""
-                """{"sheetId":"$id","title":"악보 $id","bpm":60,"scoreVersion":"1","reviewStatus":"NEEDS_REVIEW","scoreData":$stored$draft}"""
-            }
+            paths += path
+            if (path != "/api/users/me/sheets") return@MockEngine respond("{}", HttpStatusCode.ServiceUnavailable)
+            val result = """{"items":[
+                {"sheetId":"31","kind":"JEONGGANBO","title":"단소","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z","instrumentCode":"DANSO"},
+                {"sheetId":"32","kind":"JEONGGANBO","title":"초안","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z","hasDraft":true,"instrumentCode":"$draftCode"},
+                {"sheetId":"33","kind":"JEONGGANBO","title":"코드 null","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z","instrumentCode":null},
+                {"sheetId":"34","kind":"JEONGGANBO","title":"코드 누락","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z"},
+                {"sheetId":"35","kind":"JEONGGANBO","title":"코드 공백","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z","instrumentCode":" "}
+            ],"page":0,"totalPages":1}"""
             respond("""{"isSuccess":true,"code":200,"result":$result}""",
                 HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
         }, ServerAddress.Production)
         try {
-            val model = keep(EditPickViewModel(ApiMySheetRepository(client), songs, ApiSheetDocumentRepository(client)))
-
+            val model = keep(EditPickViewModel(ApiMySheetRepository(client), songs))
             model.selectInstrument(Instrument.Danso)
-            val danso = model.uiState.first { it.load != EditPickLoad.Loading }
-            assertEquals(EditPickLoad.Ready, danso.load)
-            assertEquals(listOf("31", "34"), danso.sheets.map { it.id })
-            assertEquals(1, danso.uncheckedSheets)
+            val danso = model.uiState.first { it.sheetsLoad == EditPickLoad.Ready }
+            assertEquals(listOf("31"), danso.sheets.map { it.id })
+            assertEquals(3, danso.uncheckedSheets)
+            assertEquals(listOf("/api/users/me/sheets"), paths, "목록 선택에서는 악보 본문을 요청하지 않는다")
 
+            draftCode = "DANSO"
             model.selectInstrument(Instrument.Sogeum)
-            val sogeum = model.uiState.first { it.load != EditPickLoad.Loading }
-            assertEquals(EditPickLoad.Ready, sogeum.load)
-            assertEquals(listOf("32"), sogeum.sheets.map { it.id })
-            assertEquals(1, sogeum.uncheckedSheets)
-            assertEquals(listOf("33", "34"), detailRequests)
-        } finally {
-            client.close()
-        }
+            assertTrue(model.uiState.first { it.sheetsLoad == EditPickLoad.Ready }.sheets.isEmpty())
+            model.selectInstrument(Instrument.Danso)
+            assertEquals(listOf("31", "32"), model.uiState.first { it.sheetsLoad == EditPickLoad.Ready }.sheets.map { it.id },
+                "수정 시각이 같아도 현재 목록의 초안 악기를 따른다")
+            assertEquals(List(3) { "/api/users/me/sheets" }, paths)
+            model.selectTab(EditPickTab.Mine)
+            model.toggle(EditPickTarget.Sheet("32"))
+            var opened: String? = null
+            model.confirmSelection { opened = it }
+            assertEquals("32", opened, "편집할 ID만 전달하고 본문 조회는 편집기에 맡긴다")
+            assertEquals(3, paths.size)
+        } finally { client.close() }
     }
 
     @Test
-    fun dropsAnUnreadableDraftEvenWhenItsListTimestampDidNotChange() = runTest {
-        val data = smallScoreData().let { it.copy(score = it.score.copy(instrument = "DANSO")) }
-        val readable = Json.parseToJsonElement(Json.encodeToString(data)).jsonObject
-        val unreadable = JsonObject(readable + ("score" to JsonObject(readable.getValue("score").jsonObject - "part")))
-        var draft = readable
-        var revision = 1
-        var detailRequests = 0
+    fun listRefreshFailureShowsRetryWithoutLoadingScoresOrUsingCachedRows() = runTest {
+        var available = true
+        val paths = mutableListOf<String>()
         val client = createHttpClient(MockEngine { request ->
-            val result = when (request.url.encodedPath) {
-                "/api/users/me/sheets" -> """{"items":[{"sheetId":"35","kind":"JEONGGANBO","title":"초안","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z","hasDraft":true,"instrumentCode":null}],"page":0,"totalPages":1}"""
-                "/api/users/me/sheets/35/score" -> {
-                    detailRequests++
-                    """{"sheetId":"35","title":"초안","bpm":60,"scoreVersion":"1","reviewStatus":"NEEDS_REVIEW","scoreData":$readable,"draft":{"title":"초안","bpm":60,"baseScoreVersion":"1","draftRevision":$revision,"score":$draft}}"""
-                }
-                else -> error("Unexpected request ${request.url.encodedPath}")
-            }
+            val path = request.url.encodedPath
+            paths += path
+            if (!available || path != "/api/users/me/sheets") return@MockEngine respond("{}", HttpStatusCode.ServiceUnavailable)
+            val result = """{"items":[{"sheetId":"31","kind":"JEONGGANBO","title":"단소","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z","instrumentCode":"DANSO"}],"page":0,"totalPages":1}"""
             respond("""{"isSuccess":true,"code":200,"result":$result}""",
                 HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
         }, ServerAddress.Production)
         try {
-            val model = keep(EditPickViewModel(ApiMySheetRepository(client), songs, ApiSheetDocumentRepository(client)))
-            model.selectInstrument(Instrument.Danso)
-            assertEquals(listOf("35"), model.uiState.first { it.load == EditPickLoad.Ready }.sheets.map { it.id })
-
-            draft = unreadable
-            revision++
+            val model = keep(EditPickViewModel(ApiMySheetRepository(client), songs))
             model.selectInstrument(Instrument.Sogeum)
-            assertEquals(1, model.uiState.first { it.load == EditPickLoad.Ready }.uncheckedSheets)
-            assertEquals(2, detailRequests)
-
+            model.uiState.first { it.sheetsLoad == EditPickLoad.Ready }
+            available = false
             model.selectInstrument(Instrument.Danso)
-            assertTrue(model.uiState.first { it.load == EditPickLoad.Ready }.sheets.isEmpty())
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun rechecksAdvertisedAndCachedInstrumentsWhenTheListRefreshFails() = runTest {
-        fun item(id: String, extra: String = "") =
-            """{"sheetId":"$id","kind":"JEONGGANBO","title":"악보 $id","status":"NEEDS_REVIEW","source":"MANUAL","updatedAt":"2026-11-05T16:00:00Z"$extra}"""
-
-        val score = Json.encodeToString(smallScoreData().let { it.copy(score = it.score.copy(instrument = "DANSO")) })
-        val items = listOf(item("35", ",\"hasDraft\":true,\"instrumentCode\":\"DANSO\""), item("36"))
-        val detailRequests = mutableListOf<String>()
-        var listAvailable = true
-        val client = createHttpClient(MockEngine { request ->
-            val result = when (val path = request.url.encodedPath) {
-                "/api/users/me/sheets" -> {
-                    if (!listAvailable) return@MockEngine respond("{}", HttpStatusCode.ServiceUnavailable)
-                    """{"items":[${items.joinToString()}],"page":0,"totalPages":1}"""
-                }
-                "/api/users/me/sheets/35/score", "/api/users/me/sheets/36/score" -> {
-                    val id = path.substringBeforeLast('/').substringAfterLast('/')
-                    detailRequests += id
-                    val draft = if (listAvailable) "" else
-                        ""","draft":{"title":"초안","bpm":60,"baseScoreVersion":"1","draftRevision":2,"score":{"score":{"instrument":"DANSO"}}}"""
-                    """{"sheetId":"$id","title":"악보 $id","bpm":60,"scoreVersion":"1","reviewStatus":"NEEDS_REVIEW","scoreData":$score$draft}"""
-                }
-                else -> error("Unexpected request $path")
-            }
-            respond("""{"isSuccess":true,"code":200,"result":$result}""",
-                HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
-        }, ServerAddress.Production)
-        try {
-            val model = keep(EditPickViewModel(ApiMySheetRepository(client), songs, ApiSheetDocumentRepository(client)))
-            model.selectInstrument(Instrument.Danso)
-            assertEquals(listOf("35", "36"), model.uiState.first { it.load == EditPickLoad.Ready }.sheets.map { it.id })
-            assertEquals(listOf("36"), detailRequests)
-
-            listAvailable = false
-            model.selectInstrument(Instrument.Sogeum)
-            val refreshed = model.uiState.first { it.load == EditPickLoad.Ready }
-            assertEquals(2, refreshed.uncheckedSheets)
-            assertEquals(listOf("36", "35", "36"), detailRequests)
-
-            model.selectInstrument(Instrument.Danso)
-            assertTrue(model.uiState.first { it.load == EditPickLoad.Ready }.sheets.isEmpty())
-        } finally {
-            client.close()
-        }
+            model.selectTab(EditPickTab.Mine)
+            val failed = model.uiState.first { it.sheetsLoad != EditPickLoad.Loading }
+            assertEquals(EditPickLoad.Failed, failed.sheetsLoad)
+            assertTrue(failed.sheets.isEmpty(), "갱신 실패를 오래된 목록이나 본문 조회로 대신하지 않는다")
+            assertEquals(List(2) { "/api/users/me/sheets" }, paths)
+            available = true
+            model.retry()
+            assertEquals(listOf("31"), model.uiState.first { it.sheetsLoad == EditPickLoad.Ready }.sheets.map { it.id })
+            assertEquals(List(3) { "/api/users/me/sheets" }, paths)
+        } finally { client.close() }
     }
 
     @Test
@@ -259,7 +261,7 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
             calls += id to key
             if (calls.size == 1) firstResponse.await() else PublishedSheetCopyResult.Created("71")
         }
-        val model = keep(EditPickViewModel(mySheets, songs, documents, copies = repository))
+        val model = keep(EditPickViewModel(mySheets, songs, copies = repository))
         val opened = mutableListOf<String>()
         model.selectInstrument(Instrument.Danso)
         runCurrent()
@@ -294,7 +296,7 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
     fun changingAccountWhileCopyIsInProgressDoesNotOpenTheOldAccountsSheet() = runTest {
         val member = SignedInMember(FakeKeyValueStore()).apply { set("1") }
         val response = CompletableDeferred<PublishedSheetCopyResult>()
-        val model = keep(EditPickViewModel(mySheets, songs, documents,
+        val model = keep(EditPickViewModel(mySheets, songs,
             copies = PublishedSheetCopyRepository { _, _ -> response.await() }, member = member))
         var opened: String? = null
         model.selectInstrument(Instrument.Danso)
