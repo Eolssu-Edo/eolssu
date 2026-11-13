@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 
-/** 한 음씩 단소 판정 완화(S15P31E102-666). 관측은 1초에 1,000샘플, 20샘플(20ms)씩 이어지는 고정 입력이다. */
+/** 한 음씩 단소(S15P31E102-666)·대금(S15P31E102-866) 판정 완화. 관측은 1초에 1,000샘플, 20샘플(20ms)씩 이어지는 고정 입력이다. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeStepLeniencyTest {
     private val hwang = 311.13
@@ -51,13 +51,43 @@ class PracticeStepLeniencyTest {
     private fun feed(leniency: StepLeniency, target: StepTarget = hwangNote, songHz: List<Double> = emptyList()) =
         Feed(StepPitchMatcher(criteria, hwang, leniency, songHz).apply { target(target) })
 
-    @Test fun onlyDansoGetsTheLenientRules() {
+    @Test fun dansoAndDaegeumGetTheLenientRules() {
         assertEquals(StepLeniency.Danso, StepLeniency.forInstrument("DANSO"))
+        assertEquals(StepLeniency.Daegeum, StepLeniency.forInstrument("JEONGAK_DAEGEUM"))
+        assertEquals(StepLeniency.Daegeum, StepLeniency.forInstrument("SANJO_DAEGEUM"))
         assertEquals(StepLeniency.Strict, StepLeniency.forInstrument("SOGEUM"))
-        assertEquals(StepLeniency.Strict, StepLeniency.forInstrument("JEONGAK_DAEGEUM"))
         assertEquals(StepLeniency.Strict, StepLeniency.forInstrument(null))
         assertEquals(PitchGate.Default, StepLeniency.Strict.gate)
         assertEquals(0, StepLeniency.Strict.gapMs)
+        // 대금은 단소 완화에 낮은 옥타브 받기만 더한다. 단소·소금은 낮은 옥타브를 받지 않는다.
+        assertEquals(StepLeniency.Danso.copy(lowerOctave = true), StepLeniency.Daegeum)
+        assertTrue(!StepLeniency.Danso.lowerOctave && !StepLeniency.Strict.lowerOctave)
+    }
+
+    @Test fun daegeumAcceptsTheNoteAnOctaveLowerButNotHigher() {
+        // 한 옥타브 낮게(−1,200센트) 불면 대금은 맞음, 단소·소금은 다른 옥타브라 넘어가지 않는다.
+        assertEquals(0 to 16, feed(StepLeniency.Daegeum).hold(hwang / 2, 40))
+        assertEquals(null to 40, feed(StepLeniency.Danso).hold(hwang / 2, 40))
+        assertEquals(null to 40, feed(StepLeniency.Strict).hold(hwang / 2, 40))
+        // 한 옥타브 높게, 두 옥타브 낮게는 대금도 받지 않는다.
+        assertEquals(null to 40, feed(StepLeniency.Daegeum).hold(hwang * 2, 40))
+        assertEquals(null to 40, feed(StepLeniency.Daegeum).hold(hwang / 4, 40))
+        // 낮은 옥타브에서도 허용 범위 밖이면 맞지 않는다.
+        assertEquals(null to 40, feed(StepLeniency.Daegeum).hold(cents(hwang / 2, 150.0), 40))
+    }
+
+    @Test fun daegeumPlayedLowThroughoutKeepsTuningAndReleaseInTheLowOctave() {
+        val daegeum = feed(StepLeniency.Daegeum, songHz = listOf(hwang, semitones(2)))
+        // 첫 음을 한 옥타브 낮고 +30센트로 분다. 조율은 옥타브를 뺀 +30센트로 잡힌다.
+        assertEquals(0 to 16, daegeum.hold(cents(hwang / 2, 30.0), 40))
+        assertEquals(30.0, daegeum.matcher.gauge?.tuningCent ?: 0.0, 1e-6)
+        daegeum.matcher.target(taeNote)
+        // 맞은 낮은 황이 계속 들리는 동안은 다음 음을 재지 않는다.
+        assertNull(daegeum.frame(cents(hwang / 2, 30.0)))
+        assertEquals(StepPitchState.Releasing, daegeum.matcher.gauge?.state)
+        daegeum.frame(null)
+        // 다음 음도 낮은 옥타브에서 +70센트로 불면 조율(+30)을 뺀 +40센트라 ±50센트 안이다.
+        assertEquals(1 to 16, daegeum.hold(cents(semitones(2) / 2, 70.0), 40))
     }
 
     @Test fun dansoKeepsTheHoldThroughAShortGap() {
@@ -132,5 +162,16 @@ class PracticeStepLeniencyTest {
         sogeumJudge.listen(hwangNote) {}
         assertEquals(PitchGate.Default, sogeum.pitchGate)
         sogeumJudge.stop()
+
+        // 대금 곡은 대금 완화(낮은 문턱 + 낮은 옥타브 받기)를 쓴다(S15P31E102-866).
+        for (code in listOf("JEONGAK_DAEGEUM", "SANJO_DAEGEUM")) {
+            val daegeum = StepRecorder()
+            val daegeumData = smallScoreData().let { it.copy(score = it.score.copy(instrument = code)) }
+            val daegeumJudge = assertNotNull(pitchStepJudgeFor(smallScoreSong(daegeumData), criteria, daegeum, backgroundScope) {})
+            daegeumJudge.listen(hwangNote) {}
+            assertEquals(PitchGate.Lenient, daegeum.pitchGate, code)
+            daegeumJudge.stop()
+            assertEquals(PitchGate.Default, daegeum.pitchGate, code)
+        }
     }
 }

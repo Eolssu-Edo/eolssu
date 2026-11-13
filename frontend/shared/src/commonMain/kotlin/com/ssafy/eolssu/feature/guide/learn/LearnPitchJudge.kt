@@ -49,6 +49,7 @@ internal fun learnTargetHz(hanja: String, instrument: GuideInstrument): Double? 
  * 한 음을 맞게 냈는지 보는 규칙. [octaveMustMatch] 말고는 연습 화면 한 음씩의 서버 기준과 악기별 완화를 그대로 옮긴 값이다.
  *
  * @property leniency 악기별 완화. 끊김 허용([StepLeniency.gapMs])·높이 문턱([StepLeniency.gate])·첫 음 넓게 받기.
+ *   한 옥타브 낮은 소리 받기([StepLeniency.lowerOctave])는 쓰지 않는다. 옥타브를 따지는 6단계는 새 음역을 실제로 내는지 보는 단계라서다(S15P31E102-866).
  * @property countsMisses true면 다른 음을 [holdMs] 이어 낸 것을 틀림으로 세고 다음 음으로 간다. false면 맞을 때까지 기다린다(지금 단계는 모두 false).
  */
 data class LearnPitchRule(

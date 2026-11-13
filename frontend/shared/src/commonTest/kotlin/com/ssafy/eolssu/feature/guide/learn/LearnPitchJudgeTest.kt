@@ -96,10 +96,11 @@ class LearnPitchJudgeTest {
         assertEquals(listOf("㳞"), six.notes)
         assertEquals(five.rule.copy(octaveMustMatch = true), six.rule)
 
-        // 단소 말고는 한 음씩처럼 완화 없이 서버 기준 그대로다
-        listOf(GuideInstrument.Sogeum, GuideInstrument.DaegeumJeongak, GuideInstrument.DaegeumSanjo).forEach {
-            assertEquals(StepLeniency.Strict, plan(4, instrument = it).rule.leniency)
+        // 두 대금은 한 음씩처럼 대금 완화를 쓰고(S15P31E102-866), 소금은 완화 없이 서버 기준 그대로다
+        listOf(GuideInstrument.DaegeumJeongak, GuideInstrument.DaegeumSanjo).forEach {
+            assertEquals(StepLeniency.Daegeum, plan(4, instrument = it).rule.leniency)
         }
+        assertEquals(StepLeniency.Strict, plan(4, instrument = GuideInstrument.Sogeum).rule.leniency)
     }
 
     /** 허용 오차·유지 시간·조율 상한은 서버 기준을 넓히거나 좁히지 않고 그대로 쓴다. 4단계 유지 시간만 서버 기준과 상관없이 1초다. 3단계 첫 소리는 한 음씩 유지 시간 초안과 같은 0.3초다. */
@@ -177,10 +178,10 @@ class LearnPitchJudgeTest {
         assertEquals(listOf(LearnNoteResult.Hit), broken.results)
     }
 
-    /** 단소가 아닌 악기는 한 음씩처럼 끊김을 봐주지 않는다. 한 관측만 끊겨도 유지 시간을 처음부터 다시 잰다. */
+    /** 완화가 없는 악기(소금)는 한 음씩처럼 끊김을 봐주지 않는다. 한 관측만 끊겨도 유지 시간을 처음부터 다시 잰다. */
     @Test fun otherInstrumentsRestartTheHoldOnAnyGap() {
-        val tae = assertNotNull(learnTargetHz("汰", GuideInstrument.DaegeumSanjo))
-        val feed = stepFeed(instrument = GuideInstrument.DaegeumSanjo)
+        val tae = assertNotNull(learnTargetHz("汰", GuideInstrument.Sogeum))
+        val feed = stepFeed(instrument = GuideInstrument.Sogeum)
         feed.hold(tae, 200).hold(null, 20).hold(tae, 300)
         assertEquals(emptyList(), feed.results)
         feed.hold(tae, 20)
@@ -194,10 +195,10 @@ class LearnPitchJudgeTest {
         danso.hold(cents(hz("汰"), 90.0), 300)
         assertEquals(listOf(LearnNoteResult.Hit), danso.results)
 
-        val tae = assertNotNull(learnTargetHz("汰", GuideInstrument.DaegeumSanjo))
-        val sanjo = stepFeed(dansoCriteria, GuideInstrument.DaegeumSanjo)
-        sanjo.hold(cents(tae, 90.0), 3_000)
-        assertEquals(emptyList(), sanjo.results)
+        val tae = assertNotNull(learnTargetHz("汰", GuideInstrument.Sogeum))
+        val sogeum = stepFeed(dansoCriteria, GuideInstrument.Sogeum)
+        sogeum.hold(cents(tae, 90.0), 3_000)
+        assertEquals(emptyList(), sogeum.results)
     }
 
     @Test fun firstNoteTuningShiftsLaterTargets() {
@@ -262,6 +263,18 @@ class LearnPitchJudgeTest {
 
         val right = feed(6)
         right.hold(hz("㳞"), 1_100)
+        assertTrue(right.tracker.passed)
+    }
+
+    /** 대금도 6단계에서는 한 옥타브 낮은 소리를 받지 않는다. 한 음씩의 낮은 옥타브 받기는 기초 배우기에 쓰지 않는다(S15P31E102-866). */
+    @Test fun daegeumStageSixStillNeedsTheNewOctave() {
+        val high = assertNotNull(learnTargetHz("㳞", GuideInstrument.DaegeumJeongak))
+        val low = feed(6, instrument = GuideInstrument.DaegeumJeongak)
+        low.hold(high / 2, 3_000)
+        assertFalse(low.tracker.passed)
+
+        val right = feed(6, instrument = GuideInstrument.DaegeumJeongak)
+        right.hold(high, 1_100)
         assertTrue(right.tracker.passed)
     }
 

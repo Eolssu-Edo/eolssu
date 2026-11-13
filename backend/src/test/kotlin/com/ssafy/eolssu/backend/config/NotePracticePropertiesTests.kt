@@ -24,13 +24,13 @@ class NotePracticePropertiesTests {
                 "note-step-1", BigDecimal("50"), 300, BigDecimal("0.8"), BigDecimal("-45"), true,
                 NotePracticeTuning.FIRST_NOTE, BigDecimal("50"), NotePracticeSigimsaeMode.MAIN_PITCH, 8000,
             )
-            assertTrue((criteria - "DANSO").values.all { it == draft }, criteria.toString())
-            // 단소만 완화했다(S15P31E102-666): 허용 70센트, 유지 200ms, 조율 상한 100센트.
-            val danso = NotePracticeCriteria(
+            assertEquals(draft, criteria.getValue("SOGEUM"))
+            // 단소(S15P31E102-666)와 두 대금(S15P31E102-866)은 같은 값으로 완화했다: 허용 70센트, 유지 200ms, 조율 상한 100센트.
+            val relaxed = NotePracticeCriteria(
                 "note-step-2", BigDecimal("70"), 200, BigDecimal("0.8"), BigDecimal("-45"), true,
                 NotePracticeTuning.FIRST_NOTE, BigDecimal("100"), NotePracticeSigimsaeMode.MAIN_PITCH, 8000,
             )
-            assertEquals(danso, criteria.getValue("DANSO"))
+            for (code in listOf("DANSO", "JEONGAK_DAEGEUM", "SANJO_DAEGEUM")) assertEquals(relaxed, criteria.getValue(code), code)
         }
     }
 
