@@ -240,7 +240,9 @@ val appModule = module {
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
     single<WeakSectionRepository> { ApiWeakSectionRepository(get(), get(), get(), get(), get()) }
     viewModel { (sourceId: String, perf: PerformanceVisit?) -> SectionSelectViewModel(sourceId, get(), perf) }
-    viewModel { (sessionId: String, perf: PerformanceVisit?) -> SectionResultViewModel(sessionId, get(), perf) }
+    viewModel { (sessionId: String, perf: PerformanceVisit?) ->
+        SectionResultViewModel(sessionId, get(), perf, recordRepository = get(), member = get())
+    }
     viewModel { (recordId: String, previousId: String?) -> CompareViewModel(recordId, get(), previousId) }
     // 악보 추가·편집(2차). 인식·저장 API를 붙이기 전이라 예시 악보로 화면 흐름만 다룬다.
     viewModelOf(::EditNewViewModel)

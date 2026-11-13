@@ -41,31 +41,11 @@ object WeakSectionDestination {
     private fun ScoreSection.query() = "sc=${start.column}&sr=${start.row}&ec=${end.column}&er=${end.row}"
 }
 
-/** 구간 재평가 결과의 ‘구간 재평가 다시하기’가 가는 길. */
-internal sealed interface SectionRetryMove {
-    /** 결과를 닫고 바로 아래에 남아 있는 구간 재평가 화면으로 돌아간다. 그 화면의 구간·속도·바탕 연주가 그대로다. */
-    data object BackToEvaluate : SectionRetryMove
-
-    /** 결과를 닫고 그 자리에 [route]를 연다. */
-    data class Replace(val route: String) : SectionRetryMove
-}
-
-/**
- * ‘구간 재평가 다시하기’의 이동. 구간 재평가 → 분석 → 결과로 왔으면 분석은 이미 닫혀 바로 아래([previousRoute])가
- * 같은 바탕 연주([previousSource])의 구간 재평가 화면이므로 그리로 돌아간다. 결과만 열려 있으면(웹에서 주소로 연 경우 등)
- * 결과를 닫고 [section]의 구간 재평가를 새로 열며, 구간도 모르면 구간 고르기를 연다. 어느 쪽이든 결과가 뒤로 가기에 쌓이지 않는다.
- */
-internal fun sectionRetryMove(source: String, previousRoute: String?, previousSource: String?, section: ScoreSection?): SectionRetryMove = when {
-    previousRoute == WeakSectionDestination.EVALUATE && previousSource == source -> SectionRetryMove.BackToEvaluate
-    section != null -> SectionRetryMove.Replace(WeakSectionDestination.evaluate(source, section))
-    else -> SectionRetryMove.Replace(WeakSectionDestination.select(source))
-}
-
 /**
  * 화면 이동: 연습 기록 ‘구간 연습’ → 구간 고르기 → ‘구간 연습 시작’이면 연습 화면의 구간 연습(S15P31E102-794),
  * ‘구간 재평가 시작’이면 구간 재평가 → 분석 → 구간 재평가 결과(S15P31E102-776),
  * 기록 상세 ‘지난 연주와 비교’ → 기록 고르기 시트 → 이전 연주 비교. 재평가의 ‘곡 전체 다시 평가’는 그 곡의 연습 화면으로,
- * ‘구간 재평가 다시하기’는 같은 구간의 구간 재평가로 간다([sectionRetryMove]).
+ * 저장 완료 시트의 ‘기록으로 이동’은 방금 저장한 기록 상세로 간다(S15P31E102-832).
  */
 internal fun NavGraphBuilder.weakSectionGraph(navController: NavController, performance: PerformanceNavigation) {
     val sourceArg = navArgument("source") { type = NavType.StringType }
@@ -113,18 +93,13 @@ internal fun NavGraphBuilder.weakSectionGraph(navController: NavController, perf
                     navController.navigate(WeakSectionDestination.select(source))
                 }
             },
-            onRetry = { section ->
+            onWholeSong = { songId -> navController.navigate(EolssuDestination.practice(songId)) },
+            // 뒤로 가면 이 결과 화면으로 돌아온다.
+            onOpenRecord = { id ->
                 if (navController.currentBackStackEntry?.id == entry.id) {
-                    val previous = navController.previousBackStackEntry
-                    when (val move = sectionRetryMove(source, previous?.destination?.route, previous?.source(), section)) {
-                        SectionRetryMove.BackToEvaluate -> navController.popBackStack()
-                        is SectionRetryMove.Replace -> navController.navigate(move.route) {
-                            popUpTo(WeakSectionDestination.RESULT) { inclusive = true }
-                        }
-                    }
+                    performance.move(perf, PerfTarget.RECORD_DETAIL) { navController.navigate(EolssuDestination.recordResult(id)) }
                 }
             },
-            onWholeSong = { songId -> navController.navigate(EolssuDestination.practice(songId)) },
         )
     }
     composable(

@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -50,6 +52,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.EvaluationResult
+import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -65,7 +68,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuStartTopBar
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.ScoreSummaryCard
-import com.ssafy.eolssu.core.ui.component.TintPillButton
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
@@ -122,8 +124,8 @@ class ResultActions(
 
 /**
  * 연주 결과(S15P31E102-753, 시안 연주 평가 결과 · D안 바탕). 요약(RESULT-02)과 틀린 부분 상세(RESULT-03)를 한 화면에 둔다:
- * 제목 ‘곡 · 악기 · 난이도’와 오른쪽 위 홈 · 점수 상자(일원상 총점 · 항목 막대 · ‘같은 곡 다시 연습’) · 5칸 종류 필터 ·
- * 취약 구간 줄 · 곡 전체 정간보(보기 전용) · ‘다른 곡 고르기’, 아래에 ‘연습 기록 저장’ · ‘취약 구간 연습’.
+ * 제목 ‘곡 · 악기 · 난이도’와 오른쪽 위 홈 · 점수 상자(일원상 총점 · 항목 막대) · 5칸 종류 필터 ·
+ * 취약 구간 줄 · 곡 전체 정간보(보기 전용) · ‘다른 곡 고르기’, 아래 한 줄에 반씩 ‘같은 곡 다시 연습’ · ‘연습 기록 저장’.
  * 태블릿은 같은 배치를 가운데에 넓게 둔다. 바탕은 다른 화면과 같은 회색이고 점수 상자는 흰 카드다(S15P31E102-815).
  */
 @Composable
@@ -146,7 +148,7 @@ fun ResultScreen(
                 header = state.scorePreview?.let { preview ->
                     {
                         Column(Modifier.widthIn(max = CompactContentMaxWidth).fillMaxWidth()) {
-                            ResultScoreCard(preview, actions)
+                            ResultScoreCard(preview)
                         }
                     }
                 },
@@ -172,31 +174,53 @@ fun ResultScreen(
         },
         bottomBar = {
             // 취약 구간 연습은 연습 기록의 ‘구간 연습’에서만 들어간다(S15P31E102-794).
-            EolssuButton(
-                stringResource(if (state.savedRecord != null) Res.string.result_saved_button else Res.string.result_save),
-                actions.onSave, Modifier.fillMaxWidth(),
-                icon = if (state.savedRecord != null) EolssuIcons.Check else EolssuIcons.Save, compact = true,
-            )
+            // ‘같은 곡 다시 연습’(보조)과 ‘연습 기록 저장’(주)을 한 줄에 반씩 둔다(S15P31E102-832).
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                EolssuButton(
+                    stringResource(Res.string.result_practice_again), actions.onPracticeAgain, Modifier.weight(1f).fillMaxHeight(),
+                    style = EolssuButtonStyle.Secondary, compact = true,
+                )
+                RecordSaveButton(state.savedRecord != null, actions.onSave, Modifier.weight(1f).fillMaxHeight())
+            }
         },
     ) {
         ResultContent(state, result, song, actions)
     }
     when (state.saveSheet) {
-        SaveSheet.Form -> SaveFormSheet(state, result, song, actions)
+        SaveSheet.Form -> SaveFormSheet(
+            title = song.title, recordedAt = result.recordedAt, total = result.total, memo = state.memo, saving = state.savingRecord,
+            onMemoChange = actions.onMemoChange, onConfirm = actions.onConfirmSave, onDismiss = actions.onCloseSheet,
+        )
         SaveSheet.Saved -> SavedSheet(actions.onCloseSheet, actions.onOpenRecord)
         null -> Unit
     }
 }
 
-/** 점수 상자: 일원상 총점 · 항목 막대 · ‘같은 곡 다시 연습’. 예시 결과면 버튼 왼쪽에 표시한다. 회색 바탕 위 흰 카드다. */
+/**
+ * ‘연습 기록 저장’ 버튼. 저장했으면 ‘저장됨’과 체크가 된다. 연주 결과(주)와 구간 재평가 결과(보조)가 함께 쓴다.
+ */
 @Composable
-private fun ResultScoreCard(result: EvaluationResult, actions: ResultActions, modifier: Modifier = Modifier) {
+internal fun RecordSaveButton(
+    saved: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    style: EolssuButtonStyle = EolssuButtonStyle.Primary,
+) {
+    EolssuButton(
+        stringResource(if (saved) Res.string.result_saved_button else Res.string.result_save),
+        onClick, modifier,
+        style = style, icon = if (saved) EolssuIcons.Check else EolssuIcons.Save, compact = true,
+    )
+}
+
+/** 점수 상자: 일원상 총점 · 항목 막대. 예시 결과면 표시를 붙인다. 회색 바탕 위 흰 카드다. */
+@Composable
+private fun ResultScoreCard(result: EvaluationResult, modifier: Modifier = Modifier) {
     ScoreSummaryCard(
         total = result.total,
         metrics = result.metrics,
         modifier = modifier,
         filled = true,
-        action = { TintPillButton(stringResource(Res.string.result_practice_again), actions.onPracticeAgain) },
         extra = if (result.sample) {
             { LiteBadge(stringResource(Res.string.result_sample_badge)) }
         } else null,
@@ -217,7 +241,7 @@ private fun ResultContent(state: ResultUiState, result: EvaluationResult, song: 
         var headerHeight by remember { mutableStateOf<Dp?>(null) }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Column(Modifier.fillMaxWidth().onSizeChanged { headerHeight = with(density) { it.height.toDp() } }) {
-                ResultScoreCard(result, actions, Modifier.padding(top = 2.dp, bottom = 8.dp))
+                ResultScoreCard(result, Modifier.padding(top = 2.dp, bottom = 8.dp))
                 ErrorKindSegments(result, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 6.dp))
                 val pick = state.weakSection
                 if (section != null && pick != null) {
@@ -322,13 +346,22 @@ private fun ErrorDetailScore(
 
 /**
  * 저장 ①: ‘연습 기록 저장’ 제목 · 연두 카드(곡 이름 · 날짜 시간 · 점수) · 메모(선택) · ‘저장’.
- * ‘저장’을 누르면 메모와 함께 한 번에 저장한다.
+ * ‘저장’을 누르면 메모와 함께 한 번에 저장한다. 연주 결과와 구간 재평가 결과가 함께 쓴다(S15P31E102-832).
  */
 @Composable
-private fun SaveFormSheet(state: ResultUiState, result: EvaluationResult, song: Song, actions: ResultActions) {
+internal fun SaveFormSheet(
+    title: String,
+    recordedAt: KoreanDateTime,
+    total: Int,
+    memo: String,
+    saving: Boolean,
+    onMemoChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     val colors = EolssuTheme.colors
     EolssuBottomSheet(
-        onDismiss = actions.onCloseSheet,
+        onDismiss = onDismiss,
         header = {
             Text(
                 stringResource(Res.string.result_save),
@@ -338,7 +371,7 @@ private fun SaveFormSheet(state: ResultUiState, result: EvaluationResult, song: 
             )
         },
         footer = {
-            EolssuButton(stringResource(Res.string.result_save_confirm), actions.onConfirmSave, busy = state.savingRecord)
+            EolssuButton(stringResource(Res.string.result_save_confirm), onConfirm, busy = saving)
         },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -349,19 +382,19 @@ private fun SaveFormSheet(state: ResultUiState, result: EvaluationResult, song: 
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        song.title,
+                        title,
                         style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold),
                         color = colors.text,
                     )
                     Text(
-                        "${monthDayLabel(result.recordedAt)} ${timeLabel(result.recordedAt)}",
+                        "${monthDayLabel(recordedAt)} ${timeLabel(recordedAt)}",
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
                         color = colors.textMuted,
                     )
                 }
                 Text(
                     buildAnnotatedString {
-                        append("${result.total}")
+                        append("$total")
                         withStyle(SpanStyle(fontFamily = MaterialTheme.typography.bodyLarge.fontFamily, fontSize = 12.sp, color = colors.textMuted)) {
                             append(stringResource(Res.string.result_score_unit))
                         }
@@ -384,12 +417,12 @@ private fun SaveFormSheet(state: ResultUiState, result: EvaluationResult, song: 
                 ) {
                     val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, color = colors.text)
                     val hideKeyboard = rememberHideKeyboard()
-                    if (state.memo.isEmpty()) Text(stringResource(Res.string.result_memo_placeholder), style = textStyle, color = colors.textDisabled)
+                    if (memo.isEmpty()) Text(stringResource(Res.string.result_memo_placeholder), style = textStyle, color = colors.textDisabled)
                     BasicTextField(
-                        value = state.memo,
-                        onValueChange = actions.onMemoChange,
+                        value = memo,
+                        onValueChange = onMemoChange,
                         singleLine = true,
-                        enabled = !state.savingRecord,
+                        enabled = !saving,
                         textStyle = textStyle,
                         cursorBrush = SolidColor(colors.text),
                         // 키보드 확인을 누르면 키보드를 내린다(S15P31E102-800).
@@ -405,7 +438,7 @@ private fun SaveFormSheet(state: ResultUiState, result: EvaluationResult, song: 
 
 /** 저장 ②: ‘연습 기록에 저장했어요’와 그 아래 ‘기록으로 이동’(방금 저장한 기록 상세, S15P31E102-815). 바깥을 누르면 닫힌다. */
 @Composable
-private fun SavedSheet(onDismiss: () -> Unit, onOpenRecord: () -> Unit) {
+internal fun SavedSheet(onDismiss: () -> Unit, onOpenRecord: () -> Unit) {
     EolssuBottomSheet(
         onDismiss = onDismiss,
         header = {},
