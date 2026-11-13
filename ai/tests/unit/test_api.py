@@ -111,7 +111,7 @@ def test_correct_playing_is_done_with_requested_idx(serve, tmp_path):
     result = response.json()
     assert set(result) == DONE_KEYS
     assert result["status"] == "DONE"
-    assert result["modelVersion"] == "pyin-5"
+    assert result["modelVersion"] == "pyin-6"
     assert [n["idx"] for n in result["notes"]] == [FIRST_IDX + 2 * i for i in range(len(NOTES))]
     assert all(set(n) == NOTE_KEYS for n in result["notes"])
     assert [n["verdict"] for n in result["notes"]] == ["CORRECT"] * len(NOTES)
@@ -124,6 +124,18 @@ def test_correct_playing_is_done_with_requested_idx(serve, tmp_path):
     assert [n["detectedSemitone"] for n in result["notes"]] == [n.semitone for n in NOTES]
     assert serve.asked == [SIGNED_URL]
     assert_documented(response)
+
+
+@pytest.mark.parametrize(("instrument", "verdict"), [
+    (None, "PITCH"), ("DANSO", "PITCH"), ("SOGEUM", "PITCH"), ("JEONGAK_DAEGEUM", "CORRECT"), ("SANJO_DAEGEUM", "CORRECT"),
+])
+def test_only_daegeum_lifts_a_whole_octave_low_playing(serve, tmp_path, instrument, verdict):
+    # 악보는 청황(12)~청중(17)인데 한 옥타브 낮게 불었다. 대금만 곡 음역 아래 값을 두 배로 고친다(S15P31E102-848).
+    high = [Note(n.semitone + 12, n.beats) for n in NOTES]
+    request = body(high) | ({"instrument": instrument} if instrument else {})
+    result = serve(m4a(synth(NOTES), tmp_path)).post("/v1/analyses", json=request).json()
+    assert result["status"] == "DONE"
+    assert {n["verdict"] for n in result["notes"]} == {verdict}
 
 
 def test_wrong_note_is_pitch_not_failure(serve, tmp_path):
@@ -241,7 +253,7 @@ def test_rest_gap_is_scored_with_start_beats(serve, monkeypatch):
     """쉼이 있으면 startBeat가 앞 음의 beats보다 더 벌어진다. 쉼을 지켜 분 연주는 모두 맞고, idx는 요청 그대로다."""
     response = serve(decoded(monkeypatch, synth(RESTED))).post("/v1/analyses", json=with_start_beats(*REST_STARTS))
     result = response.json()
-    assert result["modelVersion"] == "pyin-5"
+    assert result["modelVersion"] == "pyin-6"
     assert [(n["idx"], n["verdict"]) for n in result["notes"]] == [(FIRST_IDX + 2 * i, "CORRECT") for i in range(4)]
 
 
@@ -337,7 +349,8 @@ def test_openapi_documents_every_route_and_status():
     assert all(r["content"]["application/json"]["schema"] for r in operation["responses"].values())
     schemas = spec["components"]["schemas"]
     request = schemas["AnalysisIn"]["properties"]
-    assert set(request) == {"sessionId", "attempt", "audioUrl", "bpm", "bpmUnit", "notes"}
+    assert set(request) == {"sessionId", "attempt", "audioUrl", "bpm", "bpmUnit", "notes", "instrument"}
+    assert "instrument" not in schemas["AnalysisIn"]["required"]  # 백엔드가 아직 안 보내도 된다
     assert set(schemas["NoteIn"]["properties"]) == {"idx", "semitone", "startBeat", "beats", "sigimsae"}
     assert set(schemas["AnalysisDone"]["required"]) == DONE_KEYS
     assert set(schemas["NoteOut"]["required"]) == NOTE_KEYS

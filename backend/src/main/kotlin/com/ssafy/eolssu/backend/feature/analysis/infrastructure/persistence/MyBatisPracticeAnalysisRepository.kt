@@ -17,7 +17,7 @@ class MyBatisPracticeAnalysisRepository(
     private val transactions: TransactionOperations,
 ) : PracticeAnalysisRepository {
     override fun findPending(sessionId: Long, startedAfter: LocalDateTime) = mapper.findPending(sessionId, startedAfter)?.run {
-        PendingAnalysis(sessionId, attempt, songId, scoreVersion, startNoteIdx, endNoteIdx, bpm, bpmUnit, recordingUrl)
+        PendingAnalysis(sessionId, attempt, songId, scoreVersion, startNoteIdx, endNoteIdx, bpm, bpmUnit, recordingUrl, instrument)
     }
 
     override fun saveDone(analysis: PendingAnalysis, result: AnalysisResult.Done, notes: List<ScoreNote>, startedAfter: LocalDateTime): Boolean {

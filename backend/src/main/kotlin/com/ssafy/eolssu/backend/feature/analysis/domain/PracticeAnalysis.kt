@@ -15,6 +15,8 @@ data class PendingAnalysis(
     val bpm: Int,
     val bpmUnit: String,
     val recordingUrl: String,
+    /** `instruments.code`. AI가 대금의 낮은 옥타브 연주를 보정하는 데 쓴다(S15P31E102-848). */
+    val instrument: String? = null,
 )
 
 /**
@@ -38,6 +40,7 @@ data class AnalysisRequest(
     val bpm: Int,
     val bpmUnit: String,
     val notes: List<ScoreNote>,
+    val instrument: String? = null,
 ) {
     override fun toString() = "AnalysisRequest(sessionId=$sessionId, attempt=$attempt, notes=${notes.size})"
 }

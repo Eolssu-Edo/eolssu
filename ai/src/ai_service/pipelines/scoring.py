@@ -150,6 +150,17 @@ def crepe_f0(
     return torchcrepe.threshold.At(periodicity)(pitch, period)[0].numpy()
 
 
+def lift_below_range(f0: np.ndarray, lowest_semitone: int) -> np.ndarray:
+    """곡 최저음보다 200센트 넘게 낮은 값을 두 배로 고친다. 두 배로도 낮으면 무음(NaN)으로 둔다.
+
+    대금을 한 옥타브 낮게 불거나 장단 소리 때문에 한 옥타브 아래로 읽힌 값을 곡 음역으로 돌린다(S15P31E102-848).
+    200센트는 앱 실시간 판정이 악기가 낼 수 없는 높이로 보는 기준과 같다(S15P31E102-556).
+    """
+    floor = HWANG_HZ * 2 ** ((lowest_semitone - 2) / 12)
+    lifted = np.where(f0 < floor, 2 * f0, f0)
+    return np.where(lifted < floor, np.nan, lifted)
+
+
 def frame_rms(audio: np.ndarray, sr: int) -> np.ndarray:
     """HOP_S 간격의 음량(RMS). 같은 높이 음의 경계를 찾는 데 쓴다. 20ms 창이라 짧게 끊은 소리도 보인다."""
     hop = round(sr * HOP_S)
