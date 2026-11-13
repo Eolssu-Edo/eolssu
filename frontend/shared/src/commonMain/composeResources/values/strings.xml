@@ -356,8 +356,8 @@
     <string name="guide_reading_title">정간보 읽기</string>
     <string name="guide_reading_toc_open">쪽 목차 펼침</string>
     <string name="guide_reading_toc_closed">쪽 목차 접힘</string>
-    <string name="guide_reading_prev">이전</string>
-    <string name="guide_reading_next">다음</string>
+    <string name="guide_reading_nav_prev">이전 쪽 %1$d쪽 %2$s</string>
+    <string name="guide_reading_nav_next">다음 쪽 %1$d쪽 %2$s</string>
     <string name="guide_reading_page_dot">%1$d쪽 %2$s</string>
     <string name="guide_reading_page_intro">정간보란</string>
     <string name="guide_reading_intro_lead">**井** 모양 칸에 율명을 적은 우리 악보</string>

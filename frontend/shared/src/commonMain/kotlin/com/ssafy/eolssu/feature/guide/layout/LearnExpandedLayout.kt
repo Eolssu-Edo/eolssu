@@ -133,7 +133,7 @@ internal fun LearnExpandedLayout(
                             .windowInsetsPadding(WindowInsets.navigationBars)
                             .padding(start = GuideTabletSidePadding, end = outer, top = 14.dp, bottom = 24.dp),
                     ) {
-                        GuideTabletBottomContent { LearnStageBottomBar(state, stage, stageActions, tour, practice) }
+                        GuideTabletBottomContent { LearnStageBottomBar(state, stage, stageActions) }
                     }
                 }
             }
