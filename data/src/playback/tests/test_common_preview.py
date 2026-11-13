@@ -68,6 +68,42 @@ class CommonPreviewTests(unittest.TestCase):
         self.assertEqual([s['startTick'] for s in timeline['segments']], [0, 1, 2, 3]*2)
         self.assertEqual((source, companion), before)
 
+    def test_editor_provenance_keeps_validated_source_slots_when_adding_hanbae(self):
+        source = small_score()
+        source['provenance'].update(review='inferred', converter='app-editor-1')
+        source['events'][0]['sigimsae'] = ['조금느리게']
+        companion = {
+            'schema': 'common-score-expressions/v1', 'sourceSha256': 'a'*64,
+            'placements': [{'eventId': source['events'][0]['id'], 'cellId': 'c0-j0',
+                            'row': 0, 'col': 0, 'symbols': ['조금느리게']}],
+            'performancePlan': {'schema': 'danso-performance/v1', 'input_sha256': 'a'*64,
+                                'tempos': [], 'repeats': []},
+            'sourceSlots': [
+                {'cellId': cell['id'], 'row': 0, 'cols': [0],
+                 'kind': 'rest' if event['kind'] == 'REST' else 'note',
+                 'anchorSymbol': cell['units'][0]['symbol'], 'symbols': list(event['sigimsae']),
+                 'lengthMode': 'written', 'basis': '고정 입력의 원문 표시 자리'}
+                for cell, event in zip(source['columns'][0]['cells'], source['events'])
+            ],
+        }
+        before = deepcopy((source, companion))
+        _, mapping = self.convert(source, expressions=companion)
+        self.assertEqual(mapping['performanceTimeline']['durationMs'], 4000)
+        self.assertEqual((source, companion), before)
+        for review, converter in [('reviewed', 'app-editor-1'), ('inferred', None), ('inferred', 'unknown')]:
+            invalid = deepcopy(source)
+            invalid['provenance']['review'] = review
+            if converter is None:
+                invalid['provenance'].pop('converter')
+            else:
+                invalid['provenance']['converter'] = converter
+            with self.subTest(review=review, converter=converter), self.assertRaisesRegex(ValueError, 'provenance' if converter is None else 'sourceSlots'):
+                self.convert(invalid, expressions=companion)
+        broken = deepcopy(companion)
+        broken['sourceSlots'][1]['anchorSymbol'] = '청태'
+        with self.assertRaisesRegex(ValueError, 'anchor'):
+            self.convert(source, expressions=broken)
+
     def test_canonical_cross_column_note_keeps_sustain_in_preview(self):
         source = from_melody('청황 남 | - | -\n | | ')
         sustained, rest = source['events'][-2:]
