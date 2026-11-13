@@ -1,6 +1,7 @@
 # 프로젝트 문서
 
-- [edo1·edo2 운영 로그 중복과 증가량 줄이기 (712)](plans/S15P31E102-712.md) · [운영 로그 집계](knowledge/infra/edo-operational-logging.md)
+- [분석 완료 후 음역·이조 즉시 사용 (879)](specs/sheet-adaptation-readiness.md) · [중복 조회 원인과 실제 검증](knowledge/frontend/sheet-adaptation-readiness.md) · [계획·검증](plans/S15P31E102-879.md)
+
 - [제공 악보 추가·편집·저장 실행 검증 (876)](knowledge/frontend/sheet-add-edit-runtime-verification.md) · [계획](plans/S15P31E102-876.md)
 - [PNG·JPEG 중청 음역 인식 교정과 같은 자료 재검증 (876)](knowledge/ai/jeongganbo-double-water-register.md)
 - [이조 후 해결된 음역 오류 표시와 실제 PDF 검증 (871)](plans/S15P31E102-871.md) · [자동 해제 정책](specs/score-authoring-consistency.md#해결된-음역-검수의-자동-해제-s15p31e102-871)
@@ -63,6 +64,7 @@
 - [기초부터 배우기 2·3단계 할 일별 따라 배우기 (619)](plans/S15P31E102-619.md)
 - [Mattermost 점검 메시지 구성](specs/mattermost-inspection-messages.md) · [701 명령 통합·표 구분](plans/S15P31E102-701.md) · [676 간결화](plans/S15P31E102-676.md) · [616 최초 구성](plans/S15P31E102-616.md)
 - [Mattermost 점검 수집과 판정](specs/mattermost-inspection-measurements.md) · [664 계획·검증](plans/S15P31E102-664.md) · [667 컨테이너 준비 검사 계획·검증](plans/S15P31E102-667.md)
+- [edo1·edo2 운영 로그 중복과 증가량 줄이기 (712)](plans/S15P31E102-712.md) · [운영 로그 집계](knowledge/infra/edo-operational-logging.md)
 - [R2·저장공간 최신성·독립 HTTPS 운영 점검 (709)](plans/S15P31E102-709.md)
 - [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
