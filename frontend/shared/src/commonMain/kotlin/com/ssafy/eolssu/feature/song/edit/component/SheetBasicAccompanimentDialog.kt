@@ -14,6 +14,7 @@ import com.ssafy.eolssu.core.model.BasicAccompanimentPreset
 import com.ssafy.eolssu.core.ui.component.*
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.basicAccompaniment
+import com.ssafy.eolssu.feature.song.edit.basicAccompanimentStartCell
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
@@ -29,7 +30,7 @@ internal fun SheetBasicAccompanimentDialog(
     val current = draft.basicAccompaniment
     var presetName by rememberSaveable { mutableStateOf(current?.preset?.name) }
     var firstCell by rememberSaveable {
-        mutableStateOf(((current?.startTick ?: 0) / (draft.original?.music?.ticksPerJeonggan ?: 1) + 1).toString())
+        mutableStateOf((draft.basicAccompanimentStartCell + 1).toString())
     }
     val preset = BasicAccompanimentPreset.entries.firstOrNull { it.name == presetName }
     val cell = firstCell.toIntOrNull()?.minus(1)?.takeIf { it in draft.cells.indices }

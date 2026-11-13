@@ -98,6 +98,23 @@ class SheetAccompanimentTests {
         assertFailsWith<IllegalArgumentException> { authoring.merge(sheet, forged.toString()) }
     }
 
+    @Test fun `draft accompaniment may start in a trailing empty cell or a wholly empty draft`() {
+        val baseline = assertNotNull(authoring.current(sheet))
+        val setting = (basic() as ObjectNode).put("startTick", 3)
+        val request = reference(baseline).apply { set("accompaniment", setting) }.toString()
+        val trailingBlank = json.readTree(score) as ObjectNode
+        val events = trailingBlank.path("events") as tools.jackson.databind.node.ArrayNode
+        events.remove(events.size() - 1)
+        val cells = trailingBlank.path("columns").flatMap { it.path("cells").toList() }
+        (cells.last() as ObjectNode).putArray("units")
+        assertEquals(setting, json.readTree(authoring.merge(sheet, request, trailingBlank.toString())).path("accompaniment"))
+        events.removeAll()
+        cells.forEach { (it as ObjectNode).putArray("units") }
+        assertEquals(setting, json.readTree(authoring.merge(sheet, request, trailingBlank.toString())).path("accompaniment"))
+        val outside = reference(baseline).apply { set("accompaniment", setting.deepCopy().put("startTick", 4)) }
+        assertFailsWith<IllegalArgumentException> { authoring.merge(sheet, outside.toString(), trailingBlank.toString()) }
+    }
+
     private fun reference(metadata: ObjectNode) = json.createObjectNode().put("schema", "sheet-authoring/v1").apply {
         putObject("source").set("scoreSha256", metadata.path("source").path("scoreSha256"))
     }

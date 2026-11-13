@@ -26,7 +26,17 @@
 
 전체 증거는 통합 작업트리 `.scratch/{actual-staff,actual-extra,actual-scan,contracts-preflight,source-full-comparison.json,omr-final.xml}` 및 `data/processed/meter-validation/`에 있다. 테스트 명령은 [DATA README](../../../../../data/README.md#박자별-원본과-리듬-보존-검증-883), [스펙](../../../../specs/score-rhythm-preservation.md#검증과-범위)을 따른다. 고정 XML은 자작 CC0이며 외부 저작권 원본·MusicXML/전체 인식 산출물을 Git에 넣지 않는다.
 
-실기기 SM_S926N/Android17/API37에서16회 타격·2+3강세·첫강박tick4 뒤 시작·백그라운드 STOP→RELEASE를 확인했다. 별도 앱은 제거했다. 실제 UI의 프리셋 선택→적용→저장→재열기 여정은 미완료이며 음향지연은 측정하지 않았다.
+실기기 SM_S926N/Android17/API37에서16회 타격·2+3강세·첫강박tick4 뒤 시작·백그라운드 STOP→RELEASE를 확인했다. 별도 앱은 제거했다. 당시 미완료였던 UI 여정은 아래 재개 검증으로 보완했으며, 음향지연은 측정하지 않았다.
+
+### MR !735 재개 검증
+
+HEAD `22698f9a` 이후 [후속 기록](meter-import-ui-followup.json)의 코드 diff를 독립 리뷰하여 두 P2를 수정했다. 분할 후 반주 설정창의 첫 강박 위치가 원본 틱 해상도로 잘못 표시되던 문제와, 빈 마지막 정간을 첫 강박으로 둔 초안이 마지막 이벤트 끝 범위 검사 때문에 저장되지 않던 문제다. 각각 수정 전 실패와 수정 후 통과를 확인했고 후속 독립 재리뷰도 통과했다.
+
+실제 편집기 UI에서5/8·2+3,첫 강박2번 정간을 적용·확정 저장한 뒤 격리 앱 데이터를 지우고 재실행했다. HTTP 재조회 version2의 설정창은2번을 유지했고 원본 score/events/ticks/source는 불변이었다. 앞 정간 분할 후 cellTick1→2/startTick1→2에서도 화면은2번을 표시했다. APK SHA-256, PNG/XML·HTTP/저장 JSON의 해시와 로컬 증거 경로는 후속 기록에 있다.
+
+이 결과는 Android17/API37의 S10 화면 설정(1440×3040/560dpi)을 사용한 **에뮬레이터**와 실제 `SheetEditRoute`/ViewModel/API Repository/Ktor에 대한 것이다. S10의 [화면 크기·해상도](https://image-us.samsung.com/SamsungUS/HHP-UNLOCKED-GALAXYS10ES10S10PLUSDSHT-MAR19T-Final-3-7-19.pdf)를 참고한 격리 설정이며 Samsung 펌웨어나 실기기는 아니다. HTTP 저장·카탈로그 응답은 대역으로, 이번 UI 결과를 인증 BE/MySQL 전체 여정 통과로 확대하지 않는다. 로그인/악보 목록 이동·iOS·음향 지연도 이번 검증 범위 밖이다. 실제 BE/SQL 기존 근거는 위 표와 별개로 유지한다.
+
+최종 FE host1681개 실패0/기존skip5와 Wasm컴파일이 통과했다. BE 전체763개는 기존skip1 외 Prometheus HTTP 검사1개가5초 시간 초과했으며, 다른 빌드 종료 뒤 동일 코드의 해당 클래스4개 재실행은 실패0/skip0이었다. 기기 앱·에뮬레이터·18835 리스너·기기 잠금은 정리했고, 자동 승인 정책이 재귀 삭제를 차단한 임시 AVD 디스크는 전용 `.scratch`에 보존했다. 사람의 MR 승인·병합과 원본 OMR 오독/검수 한계는 여전히 남는다.
 
 ## 수정 전 기준 조사
 

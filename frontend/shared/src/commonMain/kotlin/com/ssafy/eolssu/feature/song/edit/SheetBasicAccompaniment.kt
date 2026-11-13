@@ -9,6 +9,9 @@ import kotlinx.serialization.json.JsonPrimitive
 internal val SheetDraft.basicAccompaniment: BasicAccompaniment?
     get() = original?.let { runCatching { authoring?.basicAccompaniment(toCommonScore()) }.getOrNull() }
 
+internal val SheetDraft.basicAccompanimentStartCell: Int
+    get() = basicAccompaniment?.let { (it.startTick / toCommonScore().music.ticksPerJeonggan).toInt() } ?: 0
+
 internal val SheetDraft.canSelectBasicAccompaniment: Boolean
     get() = original?.music?.bpmUnit in setOf("QUARTER", "DOTTED_QUARTER") &&
         (authoring?.get("source") as? JsonObject)?.let { source ->

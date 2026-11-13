@@ -3,6 +3,7 @@
   "jira": "S15P31E102-883",
   "base": "8897d7fbb08bac0ee65d745ecb3ad77ddf1e642f",
   "tempoDependency": "72768032264ffd9d3d799910c7a5fb17dc29f650",
+  "uiAndReviewFollowup": "meter-import-ui-followup.json",
   "implementation": [
     "37a89aef",
     "fd1d282b",

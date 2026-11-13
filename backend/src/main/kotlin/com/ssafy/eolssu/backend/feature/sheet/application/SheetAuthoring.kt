@@ -95,13 +95,17 @@ class SheetAuthoring(private val json: JsonMapper) {
         require(music.path("ticksPerBeat").isInt && music.path("ticksPerBeat").intValue() > 0)
         val start = value.path("startTick")
         require((start.isInt || start.isLong) && start.longValue() >= 0)
-        val events = score.path("events")
-        require(events.isArray && !events.isEmpty)
-        val end = events.maxOf { event ->
-            val onset = event.path("startTick"); val duration = event.path("durationTick")
-            require(onset.isInt && onset.intValue() >= 0 && duration.isInt && duration.intValue() > 0)
-            onset.longValue() + duration.longValue()
+        val cellTicks = music.path("ticksPerJeonggan")
+        require(cellTicks.isInt && cellTicks.intValue() > 0)
+        val columns = score.path("columns")
+        require(columns.isArray && !columns.isEmpty)
+        val cells = columns.sumOf { column ->
+            val values = column.path("cells")
+            require(values.isArray && !values.isEmpty)
+            values.size().toLong()
         }
+        // Drafts can have empty trailing cells or no events yet; the grid owns their extent.
+        val end = Math.multiplyExact(cells, cellTicks.longValue())
         require(start.longValue() < end)
     }
 
