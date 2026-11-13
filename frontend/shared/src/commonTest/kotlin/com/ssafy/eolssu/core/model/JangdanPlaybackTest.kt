@@ -74,7 +74,7 @@ class JangdanPlaybackTest {
             assertEquals(listOf(8.0, 20.0), rolls.map { it.tick })
             assertEquals(listOf(roll, roll), rolls.map { it.clip.sample })
             assertEquals(listOf(null, null), rolls.map { it.clip.targetFrames })
-            assertEquals(360000.0 / bpm, plan.mapping.cycleTicks * plan.msPerTick, 0.0001)
+            assertEquals(360000.0 / bpm, plan.cycleTicks * plan.msPerTick, 0.0001)
         }
     }
 

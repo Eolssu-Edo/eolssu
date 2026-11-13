@@ -297,7 +297,7 @@ private fun PracticeModeSwitch(state: PracticeUiState, actions: PracticeBottomAc
 /** Also shown when a saved ON preference cannot actually produce accompaniment. */
 @Composable
 internal fun jangdanHint(state: PracticeUiState): String = stringResource(when {
-    state.song?.jangdanPlayback == null -> Res.string.jangdan_unverified
+    state.song?.hasAccompaniment != true -> Res.string.jangdan_unverified
     state.jangdanStatus == JangdanStatus.Loading -> Res.string.jangdan_loading
     state.jangdanStatus == JangdanStatus.Failed -> Res.string.jangdan_failed
     state.jangdanStatus == JangdanStatus.Interrupted -> Res.string.jangdan_interrupted

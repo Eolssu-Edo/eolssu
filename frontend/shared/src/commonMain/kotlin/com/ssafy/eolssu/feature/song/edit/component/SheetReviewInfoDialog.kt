@@ -10,6 +10,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.feature.song.edit.SheetEditUiState
 import com.ssafy.eolssu.feature.song.edit.SheetReviewIssue
 import com.ssafy.eolssu.feature.song.edit.SheetReviewSelection
+import com.ssafy.eolssu.feature.song.edit.label
 import com.ssafy.eolssu.feature.song.edit.reviewIssuesAt
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -40,7 +41,8 @@ internal fun SheetReviewInfoDialog(state: SheetEditUiState, selection: SheetRevi
 
 @Composable
 internal fun sheetReviewReason(issue: SheetReviewIssue, correctedPitch: Boolean = false): String =
-    if (correctedPitch && issue.kind in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE")) stringResource(Res.string.sheet_pitch_corrected_review)
+    if (issue.rhythmReview != null) issue.rhythmReview.label()
+    else if (correctedPitch && issue.kind in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE")) stringResource(Res.string.sheet_pitch_corrected_review)
     else when (issue.kind) {
         "UNREGISTERED_PITCH" -> issue.pitch?.let { (name, octave) -> stringResource(Res.string.sheet_review_pitch_label, name, octave) }
             ?: stringResource(Res.string.sheet_review_missing_pitch)
