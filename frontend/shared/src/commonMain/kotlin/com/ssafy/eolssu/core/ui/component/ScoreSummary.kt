@@ -167,8 +167,8 @@ fun TintPillButton(
             enabled = enabled,
             modifier = Modifier.height(30.dp),
             shape = RoundedCornerShape(16.dp),
-            color = colors.accentTint,
-            contentColor = if (enabled) colors.accentText else colors.textDisabled,
+            color = colors.surfaceStrong,
+            contentColor = if (enabled) colors.text else colors.textDisabled,
         ) {
             Row(
                 Modifier.padding(start = 10.dp, end = if (trailing != null) 8.dp else 10.dp),
