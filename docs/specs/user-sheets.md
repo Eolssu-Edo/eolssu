@@ -1,5 +1,9 @@
 # 내 악보 조회·목록·편집 저장·삭제·불러오기 API (SHT-01·02·04·07·08·10·11)
 
+## 악보별 기본 박 반주 (2026-11-13, S15P31E102-883)
+
+SHT-04·08·11의 기존 `authoring`에 선택적 `accompaniment`를 저장한다. `schema=basic-accompaniment/v1`, `groups`, `pulseUnit`, `startTick`이며 허용 패턴과 단위·시작 위치는 [리듬 보존 계약](score-rhythm-preservation.md#반주-선택)을 따른다. 생략은 현재 설정 유지, null은 해제, 객체는 교체다. 카탈로그 장단과 동시에 선택할 수 없고 잘못된 값은 `400 INVALID_REQUEST`다. 공통 악보와 원본 source snapshot은 바꾸지 않는다. 초안은 `draft.authoring`, 확정 문서는 최상위 `authoring`으로 구분한다. 연습은 확정 설정만 재생한다. 기존 authoring JSON 컬럼을 쓰며 DB 마이그레이션은 없다. 새 FE의 쓰기는 BE 지원 배포 이후에 사용한다.
+
 ## 작성 원본과 변환 기록 (2026-11-12, S15P31E102-788)
 
 SHT-08·초안은 공통 v1 밖의 선택적 `authoring`을 반환한다. `schema=sheet-authoring/v1`, `source={kind,instrument,scoreVersion,scoreSha256,score,notes}`이며 notes는 eventId·cellId·startTick·durationTick·원래 실음 MIDI다. `RECOGNIZED`는 인식 결과 원본, `EXISTING_SCORE`는 과거 원본이 없는 현재 판본 기준이다. 인식 결과 JSON과 V42 `user_sheets.authoring_json`에 보존하고 기존 행은 일괄 변환하지 않는다. 원본 PDF 비보관 정책은 유지한다.

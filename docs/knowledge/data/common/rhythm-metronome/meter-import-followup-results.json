@@ -1,0 +1,1189 @@
+{
+  "date": "2026-11-13",
+  "jira": "S15P31E102-883",
+  "base": "8897d7fbb08bac0ee65d745ecb3ad77ddf1e642f",
+  "tempoDependency": "72768032264ffd9d3d799910c7a5fb17dc29f650",
+  "implementation": [
+    "37a89aef",
+    "fd1d282b",
+    "18893822",
+    "c5c9657f",
+    "0bc11a1a",
+    "f89946a3"
+  ],
+  "fixedXml": [
+    {
+      "id": "meter-2-4",
+      "noteFidelity": "PASS",
+      "barFidelity": "NOT_SPECIFIED",
+      "columnSizes": [
+        2,
+        2
+      ],
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 2,
+        "ticksPerJeonggan": 2
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "meter-3-4",
+      "noteFidelity": "PASS",
+      "barFidelity": "NOT_SPECIFIED",
+      "columnSizes": [
+        3,
+        3
+      ],
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 2,
+        "ticksPerJeonggan": 2
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "meter-4-4",
+      "noteFidelity": "PASS",
+      "barFidelity": "NOT_SPECIFIED",
+      "columnSizes": [
+        4,
+        4
+      ],
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "4박 기본 반주",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 2,
+        "ticksPerJeonggan": 2
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "meter-6-8",
+      "noteFidelity": "PASS",
+      "barFidelity": "NOT_SPECIFIED",
+      "columnSizes": [
+        2,
+        2
+      ],
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "meter-9-8",
+      "noteFidelity": "PASS",
+      "barFidelity": "NOT_SPECIFIED",
+      "columnSizes": [
+        3,
+        3
+      ],
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "세마치",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "meter-12-8",
+      "noteFidelity": "PASS",
+      "barFidelity": "NOT_SPECIFIED",
+      "columnSizes": [
+        4,
+        4
+      ],
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "meter-5-8",
+      "noteFidelity": "PASS",
+      "barFidelity": "NOT_SPECIFIED",
+      "columnSizes": [
+        5,
+        5
+      ],
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 2,
+        "ticksPerJeonggan": 1
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "meter-7-8",
+      "noteFidelity": "PASS",
+      "barFidelity": "NOT_SPECIFIED",
+      "columnSizes": [
+        7,
+        7
+      ],
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 2,
+        "ticksPerJeonggan": 1
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "pickup-3-4",
+      "noteFidelity": "PASS",
+      "barFidelity": "NOT_SPECIFIED",
+      "columnSizes": [
+        3,
+        3
+      ],
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 1,
+        "ticksPerJeonggan": 1
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "tied-4-4",
+      "noteFidelity": "PASS",
+      "barFidelity": "NOT_SPECIFIED",
+      "columnSizes": [
+        4,
+        4
+      ],
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "4박 기본 반주",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 1,
+        "ticksPerJeonggan": 1
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "mixed-3-4-to-2-4",
+      "noteFidelity": "PASS",
+      "barFidelity": "PASS",
+      "columnSizes": [
+        3,
+        2,
+        3
+      ],
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 1,
+        "ticksPerJeonggan": 1
+      },
+      "melodyPreflight": "PASS"
+    }
+  ],
+  "actualOmr": [
+    {
+      "id": "al-lez-vamm",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 2,
+        "ticksPerJeonggan": 1
+      },
+      "columnSizes": [
+        6,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5
+      ],
+      "eventCount": 42,
+      "issues": {
+        "LOW_CONFIDENCE": 41
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "amazing-pickup",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 4,
+        "ticksPerJeonggan": 1
+      },
+      "columnSizes": [
+        18,
+        18,
+        18,
+        18,
+        18,
+        19,
+        18,
+        18,
+        18,
+        18,
+        18,
+        18,
+        18,
+        18,
+        18,
+        18,
+        12
+      ],
+      "eventCount": 48,
+      "issues": {
+        "ORNAMENT_DROPPED": 63,
+        "LOW_CONFIDENCE": 4
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "au-clair",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "4박 기본 반주",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 1,
+        "ticksPerJeonggan": 1
+      },
+      "columnSizes": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "eventCount": 44,
+      "issues": {
+        "VOICE_GUESSED": 1,
+        "JANGDAN_GUESSED": 1
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "bach-short",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 4,
+        "ticksPerJeonggan": 2
+      },
+      "columnSizes": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        2,
+        4,
+        4,
+        4,
+        4,
+        4,
+        3,
+        1,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        2,
+        4,
+        4,
+        4,
+        4,
+        4,
+        3,
+        1,
+        4,
+        4
+      ],
+      "eventCount": 240,
+      "issues": {
+        "LOW_CONFIDENCE": 9
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "ballade-variable",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 12,
+        "ticksPerJeonggan": 12
+      },
+      "columnSizes": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        6
+      ],
+      "eventCount": 38,
+      "issues": {
+        "LOW_CONFIDENCE": 4,
+        "VOICE_GUESSED": 1
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "blue-valentine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "4박 기본 반주",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 4,
+        "ticksPerJeonggan": 4
+      },
+      "columnSizes": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "eventCount": 108,
+      "issues": {
+        "VOICE_GUESSED": 1,
+        "JANGDAN_GUESSED": 1
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "butterfly",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "세마치",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "columnSizes": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "eventCount": 146,
+      "issues": {
+        "JANGDAN_GUESSED": 1
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "chopin-short",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 12,
+        "ticksPerJeonggan": 12
+      },
+      "columnSizes": [
+        4,
+        4,
+        4
+      ],
+      "eventCount": 15,
+      "issues": {
+        "VOICE_GUESSED": 1,
+        "LOW_CONFIDENCE": 10,
+        "JANGDAN_GUESSED": 1
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "greensleeves",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 2,
+        "ticksPerJeonggan": 2
+      },
+      "columnSizes": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "eventCount": 73,
+      "issues": {
+        "VOICE_GUESSED": 1
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "jeonggan-arirang",
+      "music": {
+        "hwangHz": 311.13,
+        "jangdan": "세마치",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "columnSizes": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "eventCount": 65,
+      "issues": {},
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "jeonggan-scan",
+      "music": {
+        "hwangHz": 311.13,
+        "jangdan": "세마치",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "columnSizes": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "eventCount": 64,
+      "issues": {
+        "LOW_CONFIDENCE": 17
+      },
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "kesh",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "columnSizes": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "eventCount": 170,
+      "issues": {},
+      "melodyPreflight": "PASS"
+    },
+    {
+      "id": "mileva",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 2,
+        "ticksPerJeonggan": 2
+      },
+      "columnSizes": [
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        2,
+        2,
+        3,
+        2,
+        3,
+        2,
+        2,
+        2,
+        2
+      ],
+      "eventCount": 46,
+      "issues": {
+        "LOW_CONFIDENCE": 18
+      },
+      "melodyPreflight": "PASS"
+    }
+  ],
+  "independentFullMelodyComparison": [
+    {
+      "id": "au-clair",
+      "scope": "full publisher MusicXML, melody voice 5; explicit leading pad",
+      "sourceSha256": "771bf07d242267915c0777bf4d0e2af63b3f618adf65bd3688e51a34daca374a",
+      "exactMatch": true,
+      "expectedNotes": 44,
+      "actualNotes": 44,
+      "expectedMusicQuarters": "64",
+      "importPadQuarters": "0",
+      "differences": []
+    },
+    {
+      "id": "greensleeves",
+      "scope": "full publisher MusicXML, melody voice 5; explicit leading pad",
+      "sourceSha256": "daf759b61fa9457a7fd55a363d15ec89d56a4aed9513c99e53235b58d71d87c2",
+      "exactMatch": true,
+      "expectedNotes": 72,
+      "actualNotes": 72,
+      "expectedMusicQuarters": "97",
+      "importPadQuarters": "2",
+      "differences": []
+    },
+    {
+      "id": "kesh",
+      "scope": "full published LilyPond, explicit notes and volta twice",
+      "sourceSha256": "952d0019974b866aac6c8948c9b36c11c2d8ba4fec8df62a5decd35a505f7822",
+      "exactMatch": true,
+      "expectedNotes": 170,
+      "actualNotes": 170,
+      "expectedMusicQuarters": "96",
+      "importPadQuarters": "0",
+      "differences": []
+    },
+    {
+      "id": "butterfly",
+      "scope": "full published LilyPond, explicit notes and volta twice",
+      "sourceSha256": "cca0e656f7366e1dd5ff858ab82e84bc75b39e4f79096b0c29cc684e7cc65d25",
+      "exactMatch": true,
+      "expectedNotes": 146,
+      "actualNotes": 146,
+      "expectedMusicQuarters": "108",
+      "importPadQuarters": "0",
+      "differences": []
+    }
+  ],
+  "backendMemoryRoundTrip": [
+    {
+      "case": "meter-12-8.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "catalog",
+      "candidates": "2,4,5,11"
+    },
+    {
+      "case": "meter-2-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "meter-3-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "meter-4-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "catalog",
+      "candidates": "7,12"
+    },
+    {
+      "case": "meter-5-8.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "meter-6-8.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "meter-7-8.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "meter-9-8.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "catalog",
+      "candidates": "1"
+    },
+    {
+      "case": "mixed-3-4-to-2-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "pickup-3-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "tied-4-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "catalog",
+      "candidates": "7,12"
+    },
+    {
+      "case": "al-lez-vamm",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "amazing-pickup",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "au-clair",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "catalog",
+      "candidates": "7,12"
+    },
+    {
+      "case": "bach-short",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "ballade-variable",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "blue-valentine",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "catalog",
+      "candidates": "7,12"
+    },
+    {
+      "case": "butterfly",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "catalog",
+      "candidates": "1"
+    },
+    {
+      "case": "chopin-short",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "catalog",
+      "candidates": "2,4,5,11"
+    },
+    {
+      "case": "greensleeves",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "jeonggan-arirang",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "catalog",
+      "candidates": "1"
+    },
+    {
+      "case": "jeonggan-scan",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "catalog",
+      "candidates": "1"
+    },
+    {
+      "case": "kesh",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    },
+    {
+      "case": "mileva",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "accompaniment": "none",
+      "candidates": ""
+    }
+  ],
+  "tests": {
+    "omr": {
+      "passed": 222,
+      "failed": 0
+    },
+    "textLayout": {
+      "passed": 25,
+      "failed": 0
+    },
+    "backendBuild": {
+      "tests": 761,
+      "skipped": 1,
+      "failed": 0
+    },
+    "backendDatabase": {
+      "tests": 79,
+      "skipped": 2,
+      "failed": 0
+    },
+    "newAuthenticatedHttpDatabase": {
+      "passed": 8,
+      "failed": 0
+    },
+    "backendRegressionAfterLegacyFix": {
+      "tests": 762,
+      "skipped": 1,
+      "failed": 0
+    },
+    "frontendHostBeforeReshapeFix": {
+      "tests": 1673,
+      "skipped": 5,
+      "failed": 0
+    },
+    "frontendWasmCompile": "PASS"
+  },
+  "limitations": [
+    "OMR meter misreads require source review, not automatically corrected",
+    "Scan Arirang has17 low-confidence items and note duration differences",
+    "Memory runtime test is distinct from authenticated HTTP/MySQL verification",
+    "No production data, catalog, original scores, or existing personal scores changed",
+    "Actual instrument musical validation is outside automated timing checks"
+  ],
+  "publisherVariableMeterCheck": {
+    "evidence": "publisher MusicXML first9 measures; no image OMR",
+    "sourceSha256": "89a5bdcd87850bad664af501b1ab09e33cbef80169d2f2a527429aaeba068d38",
+    "sourceMeters": [
+      "4/4",
+      "4/4",
+      "4/4",
+      "4/4",
+      "4/4",
+      "4/4",
+      "4/4",
+      "6/4",
+      "6/4"
+    ],
+    "actualBarQuarters": [
+      "4",
+      "4",
+      "4",
+      "4",
+      "4",
+      "4",
+      "4",
+      "6",
+      "6"
+    ],
+    "totalQuarters": "40",
+    "status": "PASS"
+  },
+  "frontendEditorRoundTrip": [
+    {
+      "case": "meter-12-8.score",
+      "editorRoundTrip": true,
+      "candidates": [
+        "2",
+        "4",
+        "5",
+        "11"
+      ],
+      "selectable": [
+        "2",
+        "4",
+        "5",
+        "11"
+      ]
+    },
+    {
+      "case": "meter-2-4.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "meter-3-4.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "meter-4-4.score",
+      "editorRoundTrip": true,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "selectable": [
+        "7",
+        "12"
+      ]
+    },
+    {
+      "case": "meter-5-8.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "meter-6-8.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "meter-7-8.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "meter-9-8.score",
+      "editorRoundTrip": true,
+      "candidates": [
+        "1"
+      ],
+      "selectable": [
+        "1"
+      ]
+    },
+    {
+      "case": "mixed-3-4-to-2-4.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "pickup-3-4.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "tied-4-4.score",
+      "editorRoundTrip": true,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "selectable": [
+        "7",
+        "12"
+      ]
+    },
+    {
+      "case": "al-lez-vamm",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "amazing-pickup",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "au-clair",
+      "editorRoundTrip": true,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "selectable": [
+        "7",
+        "12"
+      ]
+    },
+    {
+      "case": "bach-short",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "ballade-variable",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "blue-valentine",
+      "editorRoundTrip": true,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "selectable": [
+        "7",
+        "12"
+      ]
+    },
+    {
+      "case": "butterfly",
+      "editorRoundTrip": true,
+      "candidates": [
+        "1"
+      ],
+      "selectable": [
+        "1"
+      ]
+    },
+    {
+      "case": "chopin-short",
+      "editorRoundTrip": true,
+      "candidates": [
+        "2",
+        "4",
+        "5",
+        "11"
+      ],
+      "selectable": [
+        "2",
+        "4",
+        "5",
+        "11"
+      ]
+    },
+    {
+      "case": "greensleeves",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "jeonggan-arirang",
+      "editorRoundTrip": true,
+      "candidates": [
+        "1"
+      ],
+      "selectable": [
+        "1"
+      ]
+    },
+    {
+      "case": "jeonggan-scan",
+      "editorRoundTrip": true,
+      "candidates": [
+        "1"
+      ],
+      "selectable": [
+        "1"
+      ]
+    },
+    {
+      "case": "kesh",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "mileva",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    }
+  ],
+  "cleanup": {
+    "rootOmrContainer": "removed; identity verified",
+    "backendMysqlContainer": "removed; verified by owner"
+  }
+}
