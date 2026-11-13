@@ -29,7 +29,7 @@ class SheetPracticeRepository(
         if (document.reviewStatus != "EVALUABLE" ||
             (document.conversionStatus != null && document.conversionStatus != "DONE")
         ) throw SheetPracticeNeedsReview()
-        val score = document.score?.toScore() ?: throw CatalogUnavailable()
+        val score = document.score?.toScore(document.expressions) ?: throw CatalogUnavailable()
         val version = document.scoreVersion.toIntOrNull()?.takeIf { it > 0 } ?: throw CatalogUnavailable()
         val source = score.source ?: throw CatalogUnavailable()
         if (source.scoreVersion != version) throw CatalogUnavailable()

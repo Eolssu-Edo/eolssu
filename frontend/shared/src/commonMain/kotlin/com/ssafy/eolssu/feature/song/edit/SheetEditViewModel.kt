@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import kotlinx.serialization.json.encodeToJsonElement
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.audio.AudioSource
@@ -93,6 +95,8 @@ class SheetEditViewModel(
 
     /** 서버에 저장할 수 없는 악보(예시·제공 곡 복사본)의 처음 상태. 고친 뒤 닫으면 버릴지 묻는다. */
     private var expressions: kotlinx.serialization.json.JsonObject? = null
+    private var expressionSourceSha256: String? = null
+    private var expressionsBpm: Int = 60
     private var baseline: SheetDraft? = if (loadsRemote) null else _uiState.value.draft
     val uiState: StateFlow<SheetEditUiState> = _uiState.asStateFlow()
 
@@ -126,6 +130,8 @@ class SheetEditViewModel(
         savedJangdanId = null
         confirmedDraft = null
         expressions = null
+        expressionSourceSha256 = null
+        expressionsBpm = 60
         version = ""
         _uiState.update { it.copy(draft = SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1)),
             documentLoading = false, documentFailed = true, practiceVersionChanged = false,
@@ -373,6 +379,7 @@ class SheetEditViewModel(
                 val jangdanId = if (copy == null) document.jangdanId else copy.jangdanId
                 val draft = score.editingDraft(copy?.title ?: document.title, copy?.bpm ?: document.bpm, jangdan = null)
                     .copy(jangdanId = jangdanId, authoring = copy?.authoring ?: document.authoring)
+                    .withTempoExpressions(copy?.expressions ?: document.expressions, document.bpm)
                 savedJangdanId = document.jangdanId
                 val deviceAudio = member?.id?.let { accountId ->
                     try { deviceAudioStore?.find(accountId, id, document.scoreVersion) }
@@ -381,12 +388,15 @@ class SheetEditViewModel(
                 }
                 ensureAccountSession()
                 expressions = copy?.expressions ?: document.expressions
+                expressionSourceSha256 = document.sourceSha256
+                expressionsBpm = document.bpm
                 loaded = document
                 version = document.scoreVersion
                 revision = copy?.revision ?: 0
                 persistedDraft = draft
                 confirmedDraft = document.score?.editingDraft(document.title, document.bpm, jangdan = null)
                     ?.copy(jangdanId = document.jangdanId, authoring = document.authoring)
+                    ?.withTempoExpressions(document.expressions, document.bpm)
                 val adaptation = if (startsWithAdaptation) initialAdaptation(draft) else null
                 _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,
@@ -485,7 +495,11 @@ class SheetEditViewModel(
                         val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
                             .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
                         val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
-                            snapshot.draft.bpm, score, version, revision, resolvedIds, authoring = snapshot.draft.authoring, expressions = expressions)
+                            snapshot.draft.bpm, score, version, revision, resolvedIds, authoring = snapshot.draft.authoring, expressions = snapshot.draft.exportExpressions(expressions,
+                                (expressions?.get("sourceSha256") as? kotlinx.serialization.json.JsonPrimitive)?.content
+                                    ?: expressionSourceSha256
+                                    ?: com.ssafy.eolssu.data.song.commonSourceSha256(kotlinx.serialization.json.Json.encodeToJsonElement(requireNotNull(snapshot.draft.original))),
+                                expressionsBpm))
                         val attempt = if (draft) DraftSave(snapshot.draft, copy) else null
                         val result = try {
                             repository.save(id, copy, draft).also { ensureAccountSession() }
@@ -495,7 +509,11 @@ class SheetEditViewModel(
                         if (result != SheetWrite.Failed) attempt?.unconfirmedRequest = null
                         when (result) {
                             is SheetWrite.Saved -> {
-                                if (!draft) expressions = result.expressions
+                                if (!draft) {
+                                    expressions = result.expressions
+                                    expressionSourceSha256 = (expressions?.get("sourceSha256") as? kotlinx.serialization.json.JsonPrimitive)?.content
+                                    expressionsBpm = snapshot.draft.bpm
+                                }
                                 persistedDraft = snapshot.draft
                                 persistedStatus = if (draft) SheetSaveStatus.DraftSaved else SheetSaveStatus.Confirmed
                                 if (!draft) confirmedDraft = snapshot.draft
@@ -683,6 +701,7 @@ class SheetEditViewModel(
     fun undo() = change { it.undo() }
     fun redo() = change { it.redo() }
     fun updateDetails(title: String, bpm: Int) = change { it.updateDetails(title, bpm) }
+    fun updateTempoSettings(draft: SheetDraft) = change { it.updateTempoSettings(draft) }
     fun updateSettings(bpm: Int, jangdanId: String?) {
         jangdanJob?.cancel()
         change { it.updateSettings(bpm, jangdanId) }

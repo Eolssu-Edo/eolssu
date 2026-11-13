@@ -492,7 +492,9 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 ## 악보 작성 결과별 작업 계획
 
-- [S15P31E102-882 오선보 숫자 빠르기 인식과 구간 시간표 연결](plans/S15P31E102-882.md) · [스펙](specs/staff-tempo-import.md) · [지원 범위·실제 PDF·검증 근거](knowledge/ai/score-recognition-corrections.md#숫자-빠르기와-가속-가져오기-882)
+- [정간보 한배 지원 스펙](specs/jeonggan-tempo-edit.md) · [S15P31E102-882 재개 계획·검증](plans/S15P31E102-882.md) · [중단 시점 인수인계](knowledge/ai/jeonggan-tempo-handoff.md)
+
+- S15P31E102-882 악보 빠르기 인식과 편집 · [숫자 가져오기 스펙](specs/staff-tempo-import.md) · [지원 범위·실제 PDF·검증 근거](knowledge/ai/score-recognition-corrections.md#숫자-빠르기와-가속-가져오기-882)
 
 - [S15P31E102-784 제공 악보 ZIP 추가·편집 검증과 인식 오류 수정](plans/S15P31E102-784.md) · [검증 근거와 한계](knowledge/ai/score-archive-regression.md)
 - [S15P31E102-770 지원음 선택·미확인 음 교정 화면](plans/S15P31E102-770.md)

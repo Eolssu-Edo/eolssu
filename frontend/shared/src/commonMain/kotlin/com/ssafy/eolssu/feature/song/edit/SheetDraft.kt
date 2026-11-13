@@ -96,6 +96,8 @@ data class SheetDraft(
     val authoring: kotlinx.serialization.json.JsonObject? = null,
     /** Original-event IDs in [original] to pre-adaptation pitches for repeated edits in this session. */
     internal val adaptationBaseline: Map<String, Int> = emptyMap(),
+    val tempoExpressions: kotlinx.serialization.json.JsonObject? = null,
+    val tempoReferenceBpm: Int? = null,
 ) {
     init {
         require(cells.isNotEmpty() && (columnSizes?.let { it.all { n -> n > 0 } && it.sum() == cells.size } ?: (cells.size % requireNotNull(jangdan).gak == 0)))
@@ -161,7 +163,11 @@ data class SheetDraft(
                     if (unit.eventId == id && signs.isNotEmpty()) put(ScoreUnitKey(cell.id, unit.row, unit.col), signs)
                 } } }
             }
-        }.getOrNull()?.let { return it }
+        }.getOrNull()?.let { regular ->
+            return (regular.keys + tempoAnnotations().keys).associateWith { key ->
+                regular[key].orEmpty().filter { com.ssafy.eolssu.core.model.HanbaeMark.fromSymbol(it) == null } + tempoAnnotations()[key].orEmpty()
+            }.filterValues { it.isNotEmpty() }
+        }
         return sigimsae.entries.mapNotNull { (slot, value) -> unitKeyOf(slot.cell, slot.sub)?.let { it to value.map(Sigimsae::scoreName) } }.toMap()
     }
 

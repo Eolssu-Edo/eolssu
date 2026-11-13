@@ -57,4 +57,36 @@ class RecognitionTempoTests {
         (broken.path("expressions") as ObjectNode).put("sourceSha256","bad")
         assertFailsWith<RecognitionFailure> { builder(broken).build(job,broken,160) }
     }
+
+    @Test fun `unresolved jeonggan tempo preserves its cell and explicit empty plan through server rebinding`() {
+        val response = response()
+        response.remove("bpm")
+        val score = response.path("score") as ObjectNode
+        val event = score.path("events")[0] as ObjectNode
+        event.putArray("sigimsae").add("조금느리게")
+        val digest = binding.hash(json.writeValueAsString(score))
+        val companion = response.putObject("expressions")
+            .put("schema", "common-score-expressions/v1").put("sourceSha256", digest)
+        companion.putArray("placements").addObject()
+            .put("eventId", event.path("id").asString()).put("cellId", event.path("cellId").asString())
+            .put("row", 0).put("col", 0).putArray("symbols").add("조금느리게")
+        companion.putObject("performancePlan").put("schema", "danso-performance/v1")
+            .put("input_sha256", digest).apply { putArray("tempos"); putArray("repeats") }
+        response.putArray("issues").addObject().put("kind", "AMBIGUOUS")
+            .put("cellId", event.path("cellId").asString()).putObject("detail")
+            .put("reason", "TEMPO_CUE_UNRESOLVED").put("symbol", "조금느리게").put("rawText", "ㅈ·ㄴ")
+
+        val result = builder(response).build(job.copy(notation = "JEONGGANBO"), response, 60)
+        assertEquals(60, result.bpm)
+        assertEquals(1, result.pendingCellCount)
+        val stored = assertNotNull(result.scoreJson)
+        val restored = json.readTree(assertNotNull(result.expressionsJson))
+        assertEquals(binding.hash(stored), restored.path("sourceSha256").asString())
+        assertEquals(binding.hash(stored), restored.path("performancePlan").path("input_sha256").asString())
+        assertEquals(0, restored.path("performancePlan").path("tempos").size())
+        assertEquals("조금느리게", restored.path("placements")[0].path("symbols")[0].asString())
+        assertEquals("조금느리게", json.readTree(stored).path("events")[0].path("sigimsae")[0].asString())
+        assertEquals("TEMPO_CUE_UNRESOLVED",
+            json.readTree(result.resultJson).path("issues")[0].path("detail").path("reason").asString())
+    }
 }

@@ -60,7 +60,7 @@ def recognize(job) -> dict:
     request = job.request
     with tempfile.TemporaryDirectory(prefix="jeongganbo-text-") as work:
         work = Path(work)
-        lines, issues, no_yul = [], [], []
+        lines, issues, no_yul, tempo_cues = [], [], [], []
         scale = DPI / 72  # PDF 좌표(pt) → 쪽 그림 픽셀
         for i, page in enumerate(job.pages):
             out = work / f"page-{i}"
@@ -80,6 +80,10 @@ def recognize(job) -> dict:
             first_gak = len(lines)  # 쪽을 이어 붙이므로 결과 악보의 각 번호는 앞 쪽 각 수만큼 밀린다
             lines += (out / "page.txt").read_text(encoding="utf-8").splitlines()
             report = json.loads((out / "report.json").read_text(encoding="utf-8"))
+            tempo_cues += [cue | {'gak': first_gak + cue['gak'], 'page': i,
+                                  'bbox': [round(v * scale) for v in cue['bbox']]}
+                           if 'gak' in cue else cue | {'page': i, 'bbox': [round(v * scale) for v in cue['bbox']]}
+                           for cue in report.get('tempo_marks', [])]
             issues += [{"kind": "UNREADABLE", "eventId": None, "page": i,
                         "cellId": f"c{first_gak + g['gak']}-j{g['jeonggan']}",
                         "bbox": [round((g["x"] - g["size"] / 2) * scale), round((g["y"] - g["size"] / 2) * scale),
@@ -108,7 +112,10 @@ def recognize(job) -> dict:
 
     doc, score = lines_to_score(lines, request, request.jangdan, bpj_of, deadline, CONVERTER,
                                continue_explicit_ties=True)
-    return {"engine": ENGINE, "engineVersion": ENGINE_VERSION, "jgb": doc, "score": score, "issues": issues}
+    from omr_service.jeongganbo_tempo import attach_marks
+    extra, tempo_issues = attach_marks(score, tempo_cues)
+    return {"engine": ENGINE, "engineVersion": ENGINE_VERSION, "jgb": doc, "score": score,
+            "issues": issues + tempo_issues, **extra}
 
 
 def lines_to_score(lines, request, jangdan_name, bpj_of, deadline, converter, *, continue_explicit_ties=False,

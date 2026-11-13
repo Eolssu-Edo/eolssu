@@ -1,4 +1,4 @@
-"""Validated source-slot grouping for inferred JGB imports, never reviewed scores."""
+"""Validated source-slot grouping for inferred JGB imports and their app edits."""
 from copy import deepcopy
 from fractions import Fraction
 
@@ -13,8 +13,8 @@ def source_slots(source, config, units, marks, symbol_name):
     if entries is None:
         return None
     require(source['provenance']['review'] == 'inferred' and
-            source['provenance'].get('converter') == 'jgb-playback-import/v1',
-            'sourceSlots는 inferred JGB 재생 가져오기에만 사용할 수 있습니다')
+            source['provenance'].get('converter') in ('jgb-playback-import/v1', 'app-editor-1'),
+            'sourceSlots는 inferred JGB 재생 가져오기와 그 앱 편집본에만 사용할 수 있습니다')
     require(not config.get('slurGroups'), 'sourceSlots와 별도 slurGroups를 겹칠 수 없습니다')
     require(isinstance(entries, list) and 0 < len(entries) <= 10000, 'sourceSlots: 1..10000 슬롯이 필요합니다')
     indexed = {(u['cellId'], u['row'], u['col']): u for u in units}

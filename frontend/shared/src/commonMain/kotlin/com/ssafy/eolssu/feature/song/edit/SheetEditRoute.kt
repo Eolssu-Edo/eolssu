@@ -261,8 +261,9 @@ fun SheetEditRoute(
         draft = state.draft,
         hasTempoPlan = state.hasTempoPlan,
         saving = state.saving,
-        onApply = { bpm ->
-            viewModel.updateDetails(state.draft.title, bpm)
+        selectedCell = state.selected,
+        onApply = { edited ->
+            viewModel.updateTempoSettings(edited)
             detailsOpen = false
         },
         onDismiss = { detailsOpen = false; viewModel.closeJangdanPicker() },

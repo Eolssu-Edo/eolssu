@@ -16,6 +16,8 @@ from omr_service.jeongganbo_text import (SCORES, USUAL_BEATS, _last_line, _run,
                                         beats_per_jeonggan, lines_to_score, score_data)
 from omr_service.staff_engine import AUDIVERIS_LOCK
 from jeongganbo_tokens import jg_like
+from hanbae_marks import image_marks
+from omr_service.jeongganbo_tempo import attach_marks
 
 READER = [sys.executable, '-X', 'utf8', str(SCORES / 'jeongganbo_omr.py')]
 ENGINE_VERSION = 'e95045f-v1.0.0-r5'
@@ -50,7 +52,7 @@ def recognize(job):
     if not AUDIVERIS_LOCK.acquire(timeout=max(0, deadline - monotonic())):
         raise TimeoutError()
     try:
-        lines, issues = [], []
+        lines, issues, tempo_cues = [], [], []
         with tempfile.TemporaryDirectory(prefix='jeongganbo-scan-') as folder:
             work = Path(folder)
             for i, page in enumerate(job.pages):
@@ -88,6 +90,13 @@ def recognize(job):
                     continue
                 beats, cells = int(report['beats']), report['cells']
                 first_gak = len(lines)
+                geometry = [cell | {'gak': j // beats} for j, cell in enumerate(cells)]
+                with Image.open(image) as source_image:
+                    detected = image_marks(source_image, geometry)
+                tempo_cues += [cue | {'gak': first_gak + cue['gak'], 'page': i,
+                                      'bbox': [round(v / scale) for v in cue['bbox']]}
+                               if 'gak' in cue else cue | {'page': i, 'bbox': [round(v / scale) for v in cue['bbox']]}
+                               for cue in detected]
                 tokens = []
                 for j, cell in enumerate(cells):
                     text, reason = cell_text(cell)
@@ -120,6 +129,8 @@ def recognize(job):
                                     'jeongganbo-scan/' + ENGINE_VERSION, continue_explicit_ties=True)
         if not any(e['kind']=='NOTE' for e in score['events']):
             raise api.RecognitionFailed('NO_GRID_FOUND')
-        return dict(engine='jeongganbo-omr',engineVersion=ENGINE_VERSION,jgb=doc,score=score,issues=issues)
+        extra, tempo_issues = attach_marks(score, tempo_cues)
+        return dict(engine='jeongganbo-omr', engineVersion=ENGINE_VERSION, jgb=doc, score=score,
+                    issues=issues + tempo_issues, **extra)
     finally:
         AUDIVERIS_LOCK.release()

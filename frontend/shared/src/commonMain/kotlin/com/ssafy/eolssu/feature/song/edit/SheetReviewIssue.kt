@@ -19,7 +19,7 @@ internal fun SheetDocument.editorReviewIssues(score: CommonScoreData): List<Shee
         val id = issue.text("issueId") ?: return@mapNotNull null
         val cellId = issue.text("cellId") ?: issue.text("eventId")?.let(eventCells::get) ?: return@mapNotNull null
         val detail = issue["detail"] as? JsonObject
-        val kind = if (detail?.text("reason") == "UNREGISTERED_PITCH") "UNREGISTERED_PITCH" else issue.text("type").orEmpty()
+        val kind = detail?.text("reason")?.takeIf { it in setOf("UNREGISTERED_PITCH", "TEMPO_CUE_UNRESOLVED") } ?: issue.text("type").orEmpty()
         val yul = detail?.text("yul")
         val octave = (detail?.get("octave") as? JsonPrimitive)?.intOrNull
         SheetReviewIssue(id, cellId, kind, if (yul != null && octave != null) yul to octave else null, issue.text("eventId"), detail?.rhythmReview())
