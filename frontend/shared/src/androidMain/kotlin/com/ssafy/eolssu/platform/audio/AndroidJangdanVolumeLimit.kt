@@ -28,18 +28,26 @@ internal fun androidEvaluationGain(index: Int, max: Int, volumeDb: (Int) -> Floa
     return evaluationJangdanGain(read(index), at(KNEE_RATIO), at(CEILING_RATIO), read(max))
 }
 
-/** 미디어 볼륨과 스피커 볼륨 곡선을 타격마다 읽는다. Android 9 미만이나 읽기 실패면 제한하지 않는다. */
+/**
+ * 미디어 볼륨 단계는 타격마다 읽고, 스피커 볼륨 곡선은 최대 단계가 같으면 한 번만 읽는다(타격 시각 스레드의 시스템 호출을 줄인다).
+ * Android 9 미만이나 읽기 실패면 제한하지 않는다.
+ */
 class AndroidJangdanVolumeLimit(context: Context) : JangdanVolumeLimit {
     private val audio = context.getSystemService(AudioManager::class.java)
     private val debuggable = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     private var logged: Pair<Int, Float>? = null
+    private var curve = FloatArray(0)
 
     override fun gain(): Float {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || audio == null) return 1f
         return runCatching {
             val index = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
             val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-            val db = { step: Int -> audio.getStreamVolumeDb(AudioManager.STREAM_MUSIC, step, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) }
+            if (curve.size != max + 1) curve = FloatArray(max + 1) {
+                audio.getStreamVolumeDb(AudioManager.STREAM_MUSIC, it, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)
+            }
+            val read = curve
+            val db = { step: Int -> read[step] }
             androidEvaluationGain(index, max, db).also { gain ->
                 // 실기기 확인용(S15P31E102-878). 디버그 빌드에서 단계나 배율이 바뀔 때만 남긴다.
                 if (debuggable && logged != index to gain) {

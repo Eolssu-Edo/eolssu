@@ -42,5 +42,10 @@ class AndroidJangdanVolumeLimitTest {
         assertEquals(1f, androidEvaluationGain(10, 0, curve))
         assertEquals(1f, androidEvaluationGain(16, 15, curve))
         assertEquals(1f, androidEvaluationGain(10, 15) { 0f }) // 곡선이 평평하면 줄일 근거가 없다
+        // 단계가 3 이하면 40·60/150이 같은 단계로 반올림돼 문턱과 상한을 가를 수 없다.
+        assertEquals(1f, androidEvaluationGain(3, 3) { -10f * (3 - it) })
+        // 음소거(진폭 0 → −∞dB)는 줄일 소리가 없다.
+        val amplitude = floatArrayOf(0f, 0.01f, 0.02f, 0.05f, 0.1f, 0.2f, 0.5f, 1f)
+        assertEquals(1f, androidEvaluationGain(0, 7) { amplitude[it] })
     }
 }
