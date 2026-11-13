@@ -40,4 +40,20 @@ class SheetReviewExplanationTest {
         val document = document("""{"reason":"OTHER_REASON"}""")
         assertEquals("OTHER_REASON", document.editorReviewIssues(requireNotNull(document.score)).single().reason)
     }
+
+    @Test fun clickedUnitOnlyIncludesItsEventAndWholeCellReviews() {
+        val state = SheetEditUiState(EditSource.Mine("31"), smallScoreData().editingDraft("선택 정보", 60, null))
+            .copy(reviewIssues = listOf(
+                SheetReviewIssue("cell", "c0-j0", "LOW_CONFIDENCE"),
+                SheetReviewIssue("first", "c0-j0", "LOW_CONFIDENCE", eventId = "c0-j0-r0-u0"),
+                SheetReviewIssue("second", "c0-j0", "LOW_CONFIDENCE", eventId = "c0-j0-r0-u1"),
+                SheetReviewIssue("rest", "c1-j0", "LOW_CONFIDENCE", reason = "GAP_IN_VOICE"),
+            ))
+        assertEquals(listOf("cell", "first"), state.reviewIssuesAt(0, 0).map { it.id })
+        assertEquals(listOf("cell", "second"), state.reviewIssuesAt(0, 1).map { it.id })
+        assertEquals(listOf("second"), state.reviewIssuesAt(1, 0).map { it.id }, "이음은 실제로 가리키는 음의 검수만 보여 준다")
+        assertEquals(listOf("rest"), state.reviewIssuesAt(2, 0).map { it.id })
+        assertTrue(state.reviewIssuesAt(0, 99).isEmpty())
+        assertTrue(state.reviewIssuesAt(99, 0).isEmpty())
+    }
 }

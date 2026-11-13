@@ -10,6 +10,19 @@ import kotlinx.serialization.json.intOrNull
 /** 변환 결과에서 편집기 정간에 연결할 수 있는 확인 항목. */
 data class SheetReviewIssue(val id: String, val cellId: String, val kind: String, val pitch: Pair<String, Int>? = null, val eventId: String? = null, val reason: String? = null)
 
+internal data class SheetReviewSelection(val cell: Int, val sub: Int? = null)
+
+internal fun SheetEditUiState.reviewIssuesAt(cell: Int, sub: Int? = null): List<SheetReviewIssue> {
+    val cellId = draft.sourceCellIds?.getOrNull(cell) ?: return emptyList()
+    if (sub != null && sub !in draft.cells.getOrNull(cell).orEmpty().indices) return emptyList()
+    val units = runCatching { draft.toCommonScore().columns.flatMap { it.cells }.getOrNull(cell)?.units }.getOrNull().orEmpty()
+    val eventIds = (if (sub == null) units else listOfNotNull(units.getOrNull(sub))).map { it.eventId }.toSet()
+    return reviewIssues.filter { issue ->
+        issue.id !in validatedCheckedIssueIds &&
+            if (issue.eventId != null) issue.eventId in eventIds else issue.cellId == cellId
+    }
+}
+
 internal fun SheetDocument.editorReviewIssues(score: CommonScoreData): List<SheetReviewIssue> {
     val eventCells = score.events.associate { it.id to it.cellId }
     return issues.mapNotNull { issue ->

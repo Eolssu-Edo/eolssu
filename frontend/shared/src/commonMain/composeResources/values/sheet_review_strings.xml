@@ -8,6 +8,12 @@
     <string name="sheet_review_range">선택한 악기의 음역 밖</string>
     <string name="sheet_review_uncertain">인식 결과를 확인해 주세요</string>
     <string name="sheet_review_gap_in_voice">선율을 읽지 못해 쉼으로 채웠으니 확인 필요</string>
+    <string name="sheet_review_info_title">선택한 위치 정보</string>
+    <string name="sheet_review_info_location">%1$d각 %2$d정간</string>
+    <string name="sheet_review_info_unit">%1$d각 %2$d정간 · 소박 %3$d</string>
+    <string name="sheet_review_info_rest">쉼표 (△)</string>
+    <string name="sheet_review_info_hold">지속 (ㅡ)</string>
+    <string name="sheet_review_info_blank">빈 표기</string>
     <string name="sheet_review_save_checks">악보를 저장하면 확인한 항목이 반영돼요</string>
     <string name="sheet_review_before_reshape">확인한 항목을 먼저 저장해 주세요. 그다음 각을 추가하거나 삭제할 수 있어요.</string>
     <string name="sheet_review_notice_count">악보 전체 알림 %1$d건</string>

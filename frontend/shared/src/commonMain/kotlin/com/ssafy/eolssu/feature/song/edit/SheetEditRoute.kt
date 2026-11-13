@@ -27,6 +27,8 @@ import eolssu.shared.generated.resources.sheet_adapt_confirm_apply
 import eolssu.shared.generated.resources.common_cancel
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditJangdanDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetPitchCorrectionDialog
+import com.ssafy.eolssu.feature.song.edit.component.SheetReviewInfoDialog
+import com.ssafy.eolssu.feature.song.edit.component.sheetReviewReason
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import eolssu.shared.generated.resources.sheetedit_msg_audio_failed
@@ -52,12 +54,6 @@ import eolssu.shared.generated.resources.sheet_editor_correction_title
 import eolssu.shared.generated.resources.sheet_editor_correct_cell
 import eolssu.shared.generated.resources.sheet_editor_correction_location
 import eolssu.shared.generated.resources.sheet_review_checked
-import eolssu.shared.generated.resources.sheet_review_missing_pitch
-import eolssu.shared.generated.resources.sheet_review_pitch_label
-import eolssu.shared.generated.resources.sheet_review_range
-import eolssu.shared.generated.resources.sheet_review_uncertain
-import eolssu.shared.generated.resources.sheet_review_gap_in_voice
-import eolssu.shared.generated.resources.sheet_pitch_corrected_review
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -76,6 +72,7 @@ fun SheetEditRoute(
     var saveOpen by rememberSaveable { mutableStateOf(false) }
     var correctionOpen by rememberSaveable { mutableStateOf(false) }
     var pitchCorrection by remember { mutableStateOf<SheetPitchCorrection?>(null) }
+    var reviewSelection by remember { mutableStateOf<SheetReviewSelection?>(null) }
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
     val adaptationOpen = state.tab == EditTab.Adaptation && state.adaptation != null
@@ -149,14 +146,13 @@ fun SheetEditRoute(
                 viewModel.selectCell(index)
                 val current = viewModel.uiState.value
                 pitchCorrection = current.pitchCorrectionsAt(index).firstOrNull()
-                correctionOpen = pitchCorrection == null && current.selectedReviewIssue != null
+                reviewSelection = SheetReviewSelection(index).takeIf { pitchCorrection == null && current.reviewIssuesAt(index).isNotEmpty() }
             },
             onSelectUnit = { index, sub ->
                 viewModel.selectUnit(index, sub)
                 val current = viewModel.uiState.value
                 pitchCorrection = current.pitchCorrectionsAt(index, sub).firstOrNull()
-                correctionOpen = pitchCorrection == null && current.selectedReviewIssue != null &&
-                    current.draft.unitKeyOf(index, sub) in current.completionValidation.correctionUnitKeys
+                reviewSelection = SheetReviewSelection(index, sub).takeIf { pitchCorrection == null && current.reviewIssuesAt(index, sub).isNotEmpty() }
             },
             input = EditInputActions(
                 onUndo = viewModel::undo,
@@ -188,7 +184,15 @@ fun SheetEditRoute(
             },
             onDismiss = { pitchCorrection = null },
             onAdapt = { pitchCorrection = null; correctionOpen = false; viewModel.openAdaptation() },
+            reviewDetails = {
+                state.reviewIssuesAt(target.cell, target.sub).filter { it.kind !in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE") }
+                    .forEach { Text(sheetReviewReason(it), style = MaterialTheme.typography.bodyMedium) }
+            },
         ) else LaunchedEffect(target) { pitchCorrection = null }
+    }
+    reviewSelection?.let { selection ->
+        if (state.reviewIssuesAt(selection.cell, selection.sub).isNotEmpty()) SheetReviewInfoDialog(state, selection) { reviewSelection = null }
+        else LaunchedEffect(selection) { reviewSelection = null }
     }
     LaunchedEffect(state.tempoIssue) { if (state.tempoIssue != null) saveOpen = true }
     if (saveOpen) SheetEditDetailsDialog(
@@ -238,17 +242,7 @@ fun SheetEditRoute(
             showCellAction = false,
         )
         state.selectedReviewIssue?.let { issue ->
-            val reason = if (state.canCheckSelectedReviewIssue && issue.kind in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE")) {
-                stringResource(Res.string.sheet_pitch_corrected_review)
-            } else when (issue.kind) {
-                "UNREGISTERED_PITCH" -> issue.pitch?.let { (name, octave) -> stringResource(Res.string.sheet_review_pitch_label, name, octave) }
-                    ?: stringResource(Res.string.sheet_review_missing_pitch)
-                "OUT_OF_RANGE" -> stringResource(Res.string.sheet_review_range)
-                "LOW_CONFIDENCE" -> if (issue.reason == "GAP_IN_VOICE") stringResource(Res.string.sheet_review_gap_in_voice)
-                    else stringResource(Res.string.sheet_review_uncertain)
-                else -> stringResource(Res.string.sheet_review_uncertain)
-            }
-            Text(reason, style = MaterialTheme.typography.bodySmall)
+            Text(sheetReviewReason(issue, state.canCheckSelectedReviewIssue), style = MaterialTheme.typography.bodySmall)
             EolssuButton(stringResource(Res.string.sheet_review_checked), {
                 viewModel.checkSelectedReviewIssue()
                 if (viewModel.uiState.value.completionValidation.correctionCellIndices.isNotEmpty()) {
