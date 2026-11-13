@@ -101,6 +101,12 @@ private val TabletPortraitTopBarTop: Dp = 40.dp
 private val TabletLandscapeTopBarTop: Dp = 28.dp
 
 /**
+ * 상단 바 꺽쇠를 본문 왼쪽 끝에 맞추는 추가 이동. 48dp 칸 가운데 20dp 꺽쇠는 칸 왼쪽에서 14dp 들어가 있고
+ * [EolssuBackButton]이 이미 4dp 당기므로, 10dp를 더 당기면 꺽쇠 왼쪽이 줄 여백(20dp)과 맞는다.
+ */
+internal val BackChevronPull: Dp = (-10).dp
+
+/**
  * 상단 바(`.topbar`): 왼쪽 뒤로 가기 꺽쇠([EolssuBackButton]) · 가운데 제목(보조 문구, 그 아래 [below]) · 오른쪽 자리. [titleFontSize]를 주면 제목만 그 크기로 바꾼다.
  * 휴대폰은 상태 표시줄 아래 12dp, 태블릿은 와이어프레임처럼 화면 맨 위에서 세로 40dp · 가로 28dp에 두고 제목을 17sp로 키운다.
  * 상태 표시줄 영역은 감싸는 쪽(`EolssuScaffold` 등)이 비켜 간다.
@@ -114,6 +120,8 @@ fun EolssuTopBar(
     below: (@Composable () -> Unit)? = null,
     maxWidth: Dp = CompactContentMaxWidth,
     titleFontSize: TextUnit = TextUnit.Unspecified,
+    /** 바 아래 여백. 기록 화면처럼 바로 아래 내용이 붙는 화면만 줄인다. */
+    bottom: Dp = 12.dp,
     right: @Composable RowScope.() -> Unit = {},
 ) {
     val widthClass = currentWindowLayout().widthClass
@@ -124,20 +132,21 @@ fun EolssuTopBar(
         WindowWidthClass.Expanded -> (TabletLandscapeTopBarTop - statusBarTop).coerceAtLeast(0.dp)
     }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-        Row(
+        // 제목은 오른쪽 자리 너비와 관계없이 화면 가운데에 둔다([CenteredTitleRow], S15P31E102-849).
+        CenteredTitleRow(
             modifier
                 .widthIn(max = maxWidth)
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, top = topPadding, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Box(Modifier.size(48.dp)) {
-                if (onBack != null) {
-                    EolssuBackButton(onBack)
+                .padding(start = 20.dp, end = 20.dp, top = topPadding, bottom = bottom),
+            start = {
+                Box(Modifier.size(48.dp)) {
+                    // 꺽쇠가 본문 왼쪽 끝(20dp)과 한 줄에 서도록 누르는 칸을 왼쪽으로 더 뺀다.
+                    if (onBack != null) EolssuBackButton(onBack, Modifier.offset(x = BackChevronPull))
                 }
-            }
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            },
+            end = { Row(Modifier.widthIn(min = 48.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically, content = right) },
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     title,
                     style = MaterialTheme.typography.titleMedium.copy(fontSize = if (titleFontSize.isSpecified) titleFontSize else if (widthClass == WindowWidthClass.Compact) 16.sp else 17.sp),
@@ -156,7 +165,6 @@ fun EolssuTopBar(
                 }
                 if (below != null) Box(Modifier.padding(top = 6.dp)) { below() }
             }
-            Row(Modifier.widthIn(min = 48.dp), horizontalArrangement = Arrangement.End, content = right)
         }
     }
 }

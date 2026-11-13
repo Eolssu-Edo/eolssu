@@ -1,21 +1,6 @@
 package com.ssafy.eolssu.feature.history.component
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.theme.EolssuTheme
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -24,7 +9,6 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
-import com.ssafy.eolssu.core.ui.component.EolssuBackButton
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 
 /**
@@ -85,8 +69,8 @@ internal fun HistoryTopBar(
 }
 
 /**
- * 보드 기록·성장 화면의 상단 바: 40dp 뒤로 가기 꺽쇠([EolssuBackButton]) · 가운데 제목(16sp 굵게)과 보조 문구(12sp) · 오른쪽 [right](없으면 빈 칸).
- * 아래 여백은 화면마다 다르다(목록 12 · 상세 8 · 기록지 10).
+ * 휴대폰 기록·성장 화면의 상단 바. 다른 화면과 뒤로 가기·제목 자리가 같도록 [EolssuTopBar]를 그대로 쓴다(S15P31E102-849).
+ * 아래 여백만 화면마다 다르다(목록 12 · 상세 8 · 기록지 10).
  */
 @Composable
 internal fun HistoryBoardTopBar(
@@ -96,33 +80,5 @@ internal fun HistoryBoardTopBar(
     bottom: Dp = 12.dp,
     right: @Composable RowScope.() -> Unit = {},
 ) {
-    val colors = EolssuTheme.colors
-    Row(
-        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = bottom),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        EolssuBackButton(onBack, size = 40.dp)
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                title,
-                modifier = Modifier.semantics { heading() },
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                color = colors.text,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (subtitle != null) {
-                Text(
-                    subtitle,
-                    modifier = Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = colors.textMuted,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
-        Row(Modifier.widthIn(min = 40.dp), horizontalArrangement = Arrangement.End, content = right)
-    }
+    EolssuTopBar(title, onBack = onBack, subtitle = subtitle, bottom = bottom, right = right)
 }
