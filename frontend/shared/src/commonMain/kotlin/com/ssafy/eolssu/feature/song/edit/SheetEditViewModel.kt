@@ -251,8 +251,7 @@ class SheetEditViewModel(
         val plan = panel.selected ?: return
         val capability = panel.capabilities ?: return
         if (!panel.confirmationRequested || panel.loading || panel.failed || panel.baseline != _uiState.value.draft) return
-        change { state -> state.copy(draft = state.draft.applyAdaptation(plan, capability), adaptation = null, tab = EditTab.Yul,
-            past = (state.past + state.draft).takeLast(50), future = emptyList(), instrumentPitches = capability.selectablePitches) }
+        change { it.applyAdaptation(plan, capability) }
         completionCatalogJob?.cancel()
         completionCatalogJob = null
         loadCompletionCatalog()

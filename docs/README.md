@@ -1,6 +1,7 @@
 # 프로젝트 문서
 
 - [Android 평가 녹음의 스피커 장단 유입 완화 (695)](plans/S15P31E102-695.md) · [구현 스펙](specs/android-recording-echo.md) · [Galaxy 실측과 재생 참조 실험](knowledge/frontend/android-jangdan-recording-echo.md)
+- [악보 추가·편집 결함 점검·수정 (828)](plans/S15P31E102-828.md)
 - [악보 가져오기·편집 조작과 안내 정리 (827)](plans/S15P31E102-827.md) · [확정 정책](specs/score-authoring-consistency.md#오선보-원음-가져오기-s15p31e102-827)
 - [마이페이지 최근 연주 조회 요청을 한 번으로 줄이기 (823)](plans/S15P31E102-823.md) · [카드 조회 스펙](specs/practice-records.md#마이페이지-최근-연주-카드)
 - [악보 음역 맞추기 입력판·추천 기준과 원본 음고 보존 (820)](knowledge/frontend/sheet-pitch-adaptation.md)

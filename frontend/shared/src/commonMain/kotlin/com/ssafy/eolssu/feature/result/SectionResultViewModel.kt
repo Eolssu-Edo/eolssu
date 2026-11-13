@@ -34,6 +34,13 @@ data class SectionResultUiState(
             val end = check.endColumn ?: return null
             return WeakSectionPick(start, end, 0).toSection(evaluation.song.score)
         }
+
+    /**
+     * ‘구간 재평가 다시하기’로 다시 열 구간. 실제로 평가된 정간([playedSection])은 세션의 음 범위와 같아 같은 구간을 다시 평가한다.
+     * 음 판정이 없으면 [section](각 전체)이고, 그것도 없으면 null이다.
+     */
+    val retrySection: ScoreSection?
+        get() = evaluation?.playedSection() ?: section
 }
 
 /**

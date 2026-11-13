@@ -5,9 +5,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
@@ -63,6 +67,7 @@ import eolssu.shared.generated.resources.weak_result_next_ready
 import eolssu.shared.generated.resources.weak_result_next_slow
 import eolssu.shared.generated.resources.weak_result_not_comparable
 import eolssu.shared.generated.resources.weak_result_other_more
+import eolssu.shared.generated.resources.weak_result_retry
 import eolssu.shared.generated.resources.weak_result_same
 import eolssu.shared.generated.resources.weak_result_subtitle
 import eolssu.shared.generated.resources.weak_result_subtitle_plain
@@ -76,6 +81,8 @@ class SectionResultActions(
     /** 오른쪽 위 홈(연주 결과와 같은 자리). */
     val onHome: () -> Unit = {},
     val onOtherSection: () -> Unit,
+    /** ‘구간 재평가 다시하기’: 방금 평가한 구간·속도·바탕 연주 그대로 구간 재평가를 다시 연다. */
+    val onRetry: () -> Unit = {},
     val onWholeSong: () -> Unit,
     val onSelectFilter: (ErrorFilter) -> Unit = {},
 )
@@ -84,7 +91,8 @@ class SectionResultActions(
  * RESULT-04 구간 재평가 결과(S15P31E102-776, 와이어프레임 ⑤ · 연주 결과 틀). 왼쪽 정렬 머리 ‘곡 · 2–3각 · 58 BPM / 구간 재평가 결과’와 오른쪽 위 홈 ·
  * 머리는 연주 결과처럼 뒤로 가기 없이 왼쪽 끝에서 시작한다(S15P31E102-808). 결과를 불러오는 중이거나 없으면 뒤로 가기를 둔다 ·
  * 연주 결과와 같은 점수 상자(일원상 구간 점수 · 항목 막대 · ‘이 구간 다시 연습’) · 회색 칸의 틀린 음 비교(EVA-04) ·
- * 5칸 틀린 종류 필터 · 구간 정간보(보기 전용) · 다음 단계 한 줄 · ‘다른 구간 고르기 ›’, 아래 ‘곡 전체 다시 평가’.
+ * 5칸 틀린 종류 필터 · 구간 정간보(보기 전용) · 다음 단계 한 줄 · ‘다른 구간 고르기 ›’,
+ * 아래 나란한 ‘구간 재평가 다시하기’(보조) · ‘곡 전체 다시 평가’(주)(S15P31E102-826).
  * 점수는 서버 값만 쓰고 화면에서 계산하지 않는다. 구간 재평가는 연습 기록으로 저장하지 않아(S15P31E102-343) 저장 버튼은 두지 않는다.
  */
 @Composable
@@ -114,7 +122,7 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
             )
         },
         bottomBar = if (evaluation != null) {
-            { EolssuButton(stringResource(Res.string.weak_result_whole), actions.onWholeSong) }
+            { ResultButtons(actions) }
         } else {
             null
         },
@@ -159,6 +167,27 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
         }
     }
 }
+
+/**
+ * 아래 고정 영역: 왼쪽 보조 ‘구간 재평가 다시하기’, 오른쪽 주 ‘곡 전체 다시 평가’. 휴대폰·태블릿 모두 한 줄에 나란히 둔다.
+ * 글자가 긴 왼쪽에 폭을 조금 더 줘 휴대폰 폭(360dp)에서 두 문구가 한 줄에 들어가고, 글꼴을 키워 줄이 바뀌어도 두 버튼 높이가 같다.
+ */
+@Composable
+private fun ResultButtons(actions: SectionResultActions) {
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        EolssuButton(
+            stringResource(Res.string.weak_result_retry), actions.onRetry, Modifier.weight(RetryButtonWeight).fillMaxHeight(),
+            style = EolssuButtonStyle.Secondary, compact = true,
+        )
+        EolssuButton(
+            stringResource(Res.string.weak_result_whole), actions.onWholeSong, Modifier.weight(1f).fillMaxHeight(),
+            compact = true,
+        )
+    }
+}
+
+/** ‘구간 재평가 다시하기’(9자)와 ‘곡 전체 다시 평가’(7자)의 폭 비. */
+private const val RetryButtonWeight = 1.2f
 
 /**
  * 재평가한 구간의 정간보(보기 전용, 연주 결과와 같은 읽기 형식). 틀린 정간은 [filter] 종류만 색·아이콘으로 칠한다.

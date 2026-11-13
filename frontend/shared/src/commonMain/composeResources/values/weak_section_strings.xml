@@ -50,6 +50,7 @@
     <string name="weak_result_next_slow">속도를 기준(%1$d BPM)에 가깝게 올려서 한 번 더 해보세요. %2$d점을 넘기면 곡 전체를 다시 평가해보세요.</string>
     <string name="weak_result_next_ready">이 구간을 기준 속도로 연주했어요. 곡 전체를 다시 평가해보세요.</string>
     <string name="weak_result_whole">곡 전체 다시 평가</string>
+    <string name="weak_result_retry">구간 재평가 다시하기</string>
     <string name="weak_result_other_more">다른 구간 고르기 ›</string>
 
     <!-- COMPARE-01 이전 연주와 비교 -->

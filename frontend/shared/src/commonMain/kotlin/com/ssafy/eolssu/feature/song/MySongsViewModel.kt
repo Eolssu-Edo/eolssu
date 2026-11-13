@@ -10,6 +10,7 @@ import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SheetConversionLookup
 import com.ssafy.eolssu.data.song.SheetConversionRepository
 import com.ssafy.eolssu.data.song.SheetConversionRetry
+import com.ssafy.eolssu.data.song.SheetConversionStatus
 import kotlinx.coroutines.delay
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 
 class MySongsViewModel(
@@ -37,9 +39,11 @@ class MySongsViewModel(
     private var sheetJob: Job? = null
     private var watchJob: Job? = null
     private var watching = false
+    private val failedDetailAttempts = mutableSetOf<String>()
 
     private val accountScope = member.screenScope(viewModelScope) {
         _uiState.value = MySongsUiState()
+        failedDetailAttempts.clear()
         instrumentSelection.clear()
     }
 
@@ -61,6 +65,7 @@ class MySongsViewModel(
         accountScope.launch {
             mySheetRepository.sheets.collect { sheets ->
                 _uiState.update { it.receiveSheets(sheets) }
+                failedDetailAttempts.retainAll(_uiState.value.failedConversionIdsWithoutDetails.toSet())
                 startWatch()
             }
         }
@@ -68,9 +73,11 @@ class MySongsViewModel(
 
     /**
      * 화면이 보이는 동안 변환 중인 내 악보의 상태(SHT-10)를 `pollAfterMs`마다 다시 묻는다.
-     * 하나라도 끝나면(DONE·FAILED·404) 목록을 다시 받아 제목·장단·수정 시각을 맞춘다. 변환 중인 악보가 없으면 묻지 않는다.
+     * 하나라도 끝나면(DONE·FAILED·404) 목록을 다시 받아 제목·장단·수정 시각을 맞춘다.
+     * 이미 실패한 목록 항목은 원인을 한 번 받으며, 조회 실패는 재진입·목록 새로고침 때 다시 시도한다.
      */
     fun watchConversions() {
+        if (!watching) failedDetailAttempts.clear()
         watching = true
         startWatch()
     }
@@ -84,18 +91,24 @@ class MySongsViewModel(
 
     private fun startWatch() {
         val repository = conversionRepository ?: return
-        if (!watching || !accountScope.isActive || watchJob?.isActive == true || _uiState.value.convertingIds.isEmpty()) return
-        watchJob = accountScope.launch {
+        if (!watching || !accountScope.isActive || watchJob?.isActive == true || conversionIdsToQuery().isEmpty()) return
+        val job = accountScope.launch(start = CoroutineStart.LAZY) {
             while (isActive) {
-                val ids = _uiState.value.convertingIds
+                val ids = conversionIdsToQuery()
                 if (ids.isEmpty()) break
                 var finished = false
                 // 서버가 준 간격 중 가장 짧은 것을 따른다. 아무도 주지 않았으면(응답 없음 포함) 기본 간격이다.
                 var wait: Long? = null
                 for (id in ids) {
+                    val current = _uiState.value
+                    if (current.sheets.orEmpty().none { it.id == id }) continue
+                    val failureDetailsOnly = id in current.failedConversionIdsWithoutDetails
                     val lookup = try { repository.status(id) }
                     catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { SheetConversionLookup.Unavailable }
+                    if (!isActive) return@launch
+                    if (_uiState.value.sheets.orEmpty().none { it.id == id }) continue
+                    if (failureDetailsOnly) failedDetailAttempts += id
                     when (lookup) {
                         is SheetConversionLookup.Found -> {
                             val conversion = lookup.conversion
@@ -104,7 +117,7 @@ class MySongsViewModel(
                                 val next = conversion.pollAfterMs ?: CONVERSION_POLL_DEFAULT_MS
                                 wait = wait?.let { minOf(it, next) } ?: next
                             }
-                            else finished = true
+                            else if (!failureDetailsOnly || conversion.status != SheetConversionStatus.Failed) finished = true
                         }
                         SheetConversionLookup.NotFound -> {
                             _uiState.update { it.copy(conversions = it.conversions - id) }
@@ -114,10 +127,22 @@ class MySongsViewModel(
                     }
                 }
                 if (finished) mySheetRepository.refresh()
-                if (_uiState.value.convertingIds.isEmpty()) break
+                if (conversionIdsToQuery().isEmpty()) break
                 delay((wait ?: CONVERSION_POLL_DEFAULT_MS).coerceIn(CONVERSION_POLL_MIN_MS, CONVERSION_POLL_MAX_MS))
             }
         }
+        watchJob = job
+        job.invokeOnCompletion {
+            if (watchJob === job) {
+                watchJob = null
+                startWatch()
+            }
+        }
+        job.start()
+    }
+
+    private fun conversionIdsToQuery(): List<String> = _uiState.value.let { state ->
+        state.convertingIds + state.failedConversionIdsWithoutDetails.filterNot { it in failedDetailAttempts }
     }
 
     /**
@@ -226,10 +251,12 @@ class MySongsViewModel(
 
     fun refreshSheets() {
         if (!accountScope.isActive || sheetJob?.isActive == true) return
+        failedDetailAttempts.clear()
         sheetJob = accountScope.launch {
             _uiState.update { it.copy(sheetLoadState = SongLoadState.Loading) }
             val ok = mySheetRepository.refresh()
             _uiState.update { it.copy(sheetLoadState = if (ok) SongLoadState.Ready else SongLoadState.Failed) }
+            startWatch()
         }
     }
 
