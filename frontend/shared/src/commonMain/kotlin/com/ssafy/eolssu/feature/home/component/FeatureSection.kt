@@ -51,6 +51,7 @@ import org.jetbrains.compose.resources.stringResource
  * @param columns 한 줄의 칸 수. 왼쪽 학습 · 오른쪽 연습·관리 구분을 지키려고 2(2×3)를 쓴다.
  * @param cardMinHeight 상자의 최소 높이.
  * @param large 태블릿 배치용 제목 글자 크기.
+ * @param enabled false면 칸을 누를 수 없다. 홈이 펼쳐지기 전 숨겨 둔 카드에 쓴다.
  */
 @Composable
 internal fun FeatureSection(
@@ -59,6 +60,7 @@ internal fun FeatureSection(
     cardMinHeight: Dp,
     modifier: Modifier = Modifier,
     large: Boolean = false,
+    enabled: Boolean = true,
 ) {
     Column(modifier.padding(top = 4.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -70,6 +72,7 @@ internal fun FeatureSection(
                             onClick = { onFeatureClick(feature) },
                             boxMinHeight = cardMinHeight,
                             large = large,
+                            enabled = enabled,
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -86,14 +89,21 @@ internal fun FeatureSection(
  * 높이 112dp 그림과 그 아래 가운데 정렬 제목을 함께 둔다. 상자 전체가 누르는 영역이다.
  */
 @Composable
-private fun FeatureTile(feature: HomeFeature, onClick: () -> Unit, boxMinHeight: Dp, large: Boolean, modifier: Modifier = Modifier) {
+private fun FeatureTile(
+    feature: HomeFeature,
+    onClick: () -> Unit,
+    boxMinHeight: Dp,
+    large: Boolean,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val interaction = remember { MutableInteractionSource() }
     val shape = RoundedCornerShape(20.dp)
     Column(
         modifier.fillMaxWidth().heightIn(min = boxMinHeight)
             .clip(shape)
             .background(EolssuTheme.colors.surface)
-            .clickable(interactionSource = interaction, indication = ripple(), role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = ripple(), enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
