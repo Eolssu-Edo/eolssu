@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [공개 악보 시김새 전수 점검·한글 표시 수정 (847)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md#시김새의-한글-대체-출력-847) · [곡별 결과](knowledge/frontend/sigimsae-catalog-audit.json) · [표시 스펙](specs/score-sigimsae-display.md) · [계획·검증](plans/S15P31E102-847.md)
+
 - [악보 추가·편집 결함 점검·수정 (828)](plans/S15P31E102-828.md)
 - [악보 가져오기·편집 조작과 안내 정리 (827)](plans/S15P31E102-827.md) · [확정 정책](specs/score-authoring-consistency.md#오선보-원음-가져오기-s15p31e102-827)
 - [마이페이지 최근 연주 조회 요청을 한 번으로 줄이기 (823)](plans/S15P31E102-823.md) · [카드 조회 스펙](specs/practice-records.md#마이페이지-최근-연주-카드)
