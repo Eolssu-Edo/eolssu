@@ -46,6 +46,12 @@ class SheetExpressions(private val json: JsonMapper) {
                 val scaled = cue.path("bpm").asDouble() * newBpm / oldBpm
                 require(scaled.isFinite() && scaled > 0)
                 cue.put("bpm", scaled)
+                cue.get("start_bpm")?.let { start ->
+                    require(start.isNumber)
+                    val scaledStart = start.asDouble() * newBpm / oldBpm
+                    require(scaledStart.isFinite() && scaledStart > 0)
+                    cue.put("start_bpm", scaledStart)
+                }
             }
         }
         value.put("sourceSha256", digest)

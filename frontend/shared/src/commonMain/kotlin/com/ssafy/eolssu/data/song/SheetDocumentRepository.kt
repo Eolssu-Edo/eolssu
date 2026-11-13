@@ -29,7 +29,7 @@ data class SheetWorkingCopy(val title: String, val jangdanId: String?, val bpm: 
 /** The server may capture a legacy source while storing the draft; only requested metadata is an edit. */
 internal fun SheetWorkingCopy.matchesDraftAcknowledgement(request: SheetWorkingCopy): Boolean =
     this.copy(authoring = request.authoring) == request &&
-        (request.authoring == null || authoring?.writeReference() == request.authoring.writeReference())
+        (request.authoring == null || authoring?.acknowledgedReference() == request.authoring.acknowledgedReference())
 
 sealed interface SheetWrite {
     data class Saved(val scoreVersion: String, val revision: Int = 0, val reviewStatus: String? = null, val expressions: JsonObject? = null) : SheetWrite
@@ -107,7 +107,12 @@ private fun JsonObject.writeReference(): JsonObject = kotlinx.serialization.json
     val source = this@writeReference["source"] as? JsonObject
     put("source", kotlinx.serialization.json.buildJsonObject { source?.get("scoreSha256")?.let { put("scoreSha256", it) } })
     this@writeReference["adaptation"]?.let { put("adaptation", it) }
+    this@writeReference["accompaniment"]?.let { put("accompaniment", it) }
 }
+
+private fun JsonObject.acknowledgedReference(): JsonObject = JsonObject(writeReference().filterNot {
+    it.key == "accompaniment" && it.value == kotlinx.serialization.json.JsonNull
+})
 
 @Serializable private class DocumentDto(val sheetId: String, val title: String, val jangdanId: String? = null,
     val bpm: Int, val scoreVersion: String, val scoreData: JsonObject? = null, val draft: DraftDto? = null,

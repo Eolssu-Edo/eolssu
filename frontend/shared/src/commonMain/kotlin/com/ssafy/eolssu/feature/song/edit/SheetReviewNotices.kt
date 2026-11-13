@@ -25,6 +25,11 @@ import eolssu.shared.generated.resources.sheet_review_notice_text
 import eolssu.shared.generated.resources.sheet_review_notice_transposed
 import eolssu.shared.generated.resources.sheet_review_notice_transposed_unknown
 import eolssu.shared.generated.resources.sheet_review_notice_unreadable
+import eolssu.shared.generated.resources.sheet_review_meter_signature
+import eolssu.shared.generated.resources.sheet_review_meter_unknown
+import eolssu.shared.generated.resources.sheet_review_measure_short
+import eolssu.shared.generated.resources.sheet_review_measure_long
+import eolssu.shared.generated.resources.sheet_review_measure_empty
 import org.jetbrains.compose.resources.stringResource
 
 /** 변환 당시 참고 정보는 저장 화면에 바로 표시한다. 현재 오류는 SheetCompletionNotice에서 다룬다. */
@@ -48,7 +53,7 @@ internal fun SheetConversionNotes(notices: List<SheetReviewNotice>) {
 }
 
 @Composable
-private fun SheetReviewNotice.label(): String = when (type) {
+private fun SheetReviewNotice.label(): String = rhythmReview?.label() ?: when (type) {
     "UNREADABLE" -> stringResource(
         when (reason) {
             "NO_GRID" -> Res.string.sheet_review_notice_grid
@@ -61,5 +66,15 @@ private fun SheetReviewNotice.label(): String = when (type) {
     "JANGDAN_MISMATCH" -> stringResource(Res.string.sheet_review_notice_jangdan_mismatch)
     "TRANSPOSED" -> semitones?.let { stringResource(Res.string.sheet_review_notice_transposed, if (it > 0) "+$it" else it.toString()) }
         ?: stringResource(Res.string.sheet_review_notice_transposed_unknown)
+    else -> stringResource(Res.string.sheet_review_notice_other)
+}
+
+@Composable
+internal fun SheetRhythmReview.label(): String = when (reason) {
+    "TIME_SIGNATURE_REVIEW_REQUIRED" -> timeSignature?.let { stringResource(Res.string.sheet_review_meter_signature, it) }
+        ?: stringResource(Res.string.sheet_review_meter_unknown)
+    "REPEATED_UNDERFULL_MEASURE" -> stringResource(Res.string.sheet_review_measure_short)
+    "OVERFULL_MEASURE" -> stringResource(Res.string.sheet_review_measure_long)
+    "EMPTY_MEASURE_REVIEW_REQUIRED" -> stringResource(Res.string.sheet_review_measure_empty, measure.orEmpty())
     else -> stringResource(Res.string.sheet_review_notice_other)
 }

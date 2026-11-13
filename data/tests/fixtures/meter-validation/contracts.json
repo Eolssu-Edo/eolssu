@@ -1,0 +1,276 @@
+{
+  "license": "CC0-1.0; project-authored analytical fixtures, not OMR evidence",
+  "cases": [
+    {
+      "id": "meter-2-4",
+      "path": "meter-2-4.musicxml",
+      "expected": {
+        "meter": "2/4",
+        "notes": [
+          [
+            60,
+            "0",
+            "1/2"
+          ],
+          [
+            64,
+            "1",
+            "1.0"
+          ],
+          [
+            67,
+            "2.0",
+            "2.0"
+          ]
+        ],
+        "quarters": 4.0
+      }
+    },
+    {
+      "id": "meter-3-4",
+      "path": "meter-3-4.musicxml",
+      "expected": {
+        "meter": "3/4",
+        "notes": [
+          [
+            60,
+            "0",
+            "1/2"
+          ],
+          [
+            64,
+            "1",
+            "2.0"
+          ],
+          [
+            67,
+            "3.0",
+            "3.0"
+          ]
+        ],
+        "quarters": 6.0
+      }
+    },
+    {
+      "id": "meter-4-4",
+      "path": "meter-4-4.musicxml",
+      "expected": {
+        "meter": "4/4",
+        "notes": [
+          [
+            60,
+            "0",
+            "1/2"
+          ],
+          [
+            64,
+            "1",
+            "3.0"
+          ],
+          [
+            67,
+            "4.0",
+            "4.0"
+          ]
+        ],
+        "quarters": 8.0
+      }
+    },
+    {
+      "id": "meter-6-8",
+      "path": "meter-6-8.musicxml",
+      "expected": {
+        "meter": "6/8",
+        "notes": [
+          [
+            60,
+            "0",
+            "1/2"
+          ],
+          [
+            64,
+            "1",
+            "2.0"
+          ],
+          [
+            67,
+            "3.0",
+            "3.0"
+          ]
+        ],
+        "quarters": 6.0
+      }
+    },
+    {
+      "id": "meter-9-8",
+      "path": "meter-9-8.musicxml",
+      "expected": {
+        "meter": "9/8",
+        "notes": [
+          [
+            60,
+            "0",
+            "1/2"
+          ],
+          [
+            64,
+            "1",
+            "3.5"
+          ],
+          [
+            67,
+            "4.5",
+            "4.5"
+          ]
+        ],
+        "quarters": 9.0
+      }
+    },
+    {
+      "id": "meter-12-8",
+      "path": "meter-12-8.musicxml",
+      "expected": {
+        "meter": "12/8",
+        "notes": [
+          [
+            60,
+            "0",
+            "1/2"
+          ],
+          [
+            64,
+            "1",
+            "5.0"
+          ],
+          [
+            67,
+            "6.0",
+            "6.0"
+          ]
+        ],
+        "quarters": 12.0
+      }
+    },
+    {
+      "id": "meter-5-8",
+      "path": "meter-5-8.musicxml",
+      "expected": {
+        "meter": "5/8",
+        "notes": [
+          [
+            60,
+            "0",
+            "1/2"
+          ],
+          [
+            64,
+            "1",
+            "1.5"
+          ],
+          [
+            67,
+            "2.5",
+            "2.5"
+          ]
+        ],
+        "quarters": 5.0
+      }
+    },
+    {
+      "id": "meter-7-8",
+      "path": "meter-7-8.musicxml",
+      "expected": {
+        "meter": "7/8",
+        "notes": [
+          [
+            60,
+            "0",
+            "1/2"
+          ],
+          [
+            64,
+            "1",
+            "2.5"
+          ],
+          [
+            67,
+            "3.5",
+            "3.5"
+          ]
+        ],
+        "quarters": 7.0
+      }
+    },
+    {
+      "id": "pickup-3-4",
+      "path": "pickup-3-4.musicxml",
+      "expected": {
+        "meter": "3/4",
+        "leadingPadQuarters": 2,
+        "notes": [
+          [
+            60,
+            "2",
+            "1"
+          ],
+          [
+            62,
+            "3",
+            "3"
+          ]
+        ],
+        "quarters": 6
+      }
+    },
+    {
+      "id": "tied-4-4",
+      "path": "tied-4-4.musicxml",
+      "expected": {
+        "meter": "4/4",
+        "notes": [
+          [
+            60,
+            "0",
+            "8"
+          ]
+        ],
+        "quarters": 8,
+        "mustKeepSingleAttack": true
+      }
+    },
+    {
+      "id": "mixed-3-4-to-2-4",
+      "path": "mixed-3-4-to-2-4.musicxml",
+      "expected": {
+        "meterSequence": [
+          "3/4",
+          "2/4",
+          "3/4"
+        ],
+        "notes": [
+          [
+            60,
+            "0",
+            "3"
+          ],
+          [
+            62,
+            "3",
+            "2"
+          ],
+          [
+            64,
+            "5",
+            "3"
+          ]
+        ],
+        "quarters": 8,
+        "barQuarterLengths": [
+          3,
+          2,
+          3
+        ]
+      }
+    }
+  ]
+}

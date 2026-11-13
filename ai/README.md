@@ -1,5 +1,7 @@
 # AI: 연주 채점
 
+S15P31E102-882: 오선보 metronome/sound의 숫자 빠르기와 정확히 대응되는 구간을 기존 `expressions/performancePlan`으로 전달합니다. PDF 글자층으로 유일하게 대조된 마디 첫 빠르기는 누락·위치를 보완합니다. 사용자 선택에 따라 `accel.`은 앞 숫자에서 다음 숫자까지 선형 BPM으로 연결하며, 기존 항목의 선택적 `start_bpm`으로 즉시 감속 후 가속을 표현합니다. 이 입력을 읽는 생성기·BE·OMR이 함께 필요합니다. `uv run pytest tests/unit/test_staff_tempo.py tests/unit/test_staff_pdf_tempo.py tests/unit/test_staff_musicxml.py tests/unit/test_omr_staff_engine.py`로 검사합니다. [스펙·한계](../docs/specs/staff-tempo-import.md), [실제 PDF 실행 근거](../docs/knowledge/ai/score-recognition-corrections.md#숫자-빠르기와-가속-가져오기-882).
+
 악보 인식의 임시 원본은 S15P31E102-534부터 요청 종료 시 삭제하며 별도 watchdog이 30분에 다운로드·쪽 그림 디렉터리를 삭제합니다. 삭제 실패는 1초 뒤 재시도합니다. 운영 OMR의 `/tmp` tmpfs를 유지하고 백업·영구 볼륨에 넣지 않습니다. `uv run pytest tests/unit/test_temporary_sources.py tests/unit/test_omr_api.py`로 파일 수명·API 회귀를 검사하며 모델 인식 품질과 구분합니다.
 
 녹음의 음높이를 추정해 정답 음표와 DTW로 맞추고, 음표마다 음정·박자·길이를 판정합니다. 작업 지침은 [AGENTS.md](AGENTS.md)를 따릅니다.
@@ -129,6 +131,8 @@ uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
 S15P31E102-880: 요청 장단이 없는4분음표4박 오선보는 기존 `4박 기본 반주`를 후보로 잡습니다.4/4를 굿거리의 점4분박으로 저장해 편집 후보가 모두 사라지던 문제를 고쳤습니다. `JANGDAN_GUESSED`와 명시 요청 장단은 유지합니다. 서버의 기존 장단 기본 BPM 계약에 따라 시작 기본값160을 쓰며, PDF의 숫자 템포·가속 구간을 자동 인식한 값은 아닙니다. `uv run pytest tests/unit/test_staff_musicxml.py tests/unit/test_omr_staff_engine.py tests/unit/test_staff_audiveris_fixtures.py tests/unit/test_staff_source_pitches.py`로 회귀를 확인합니다. [기존 초안의 보존 복구 범위](../docs/specs/staff-four-beat-import.md)를 참고하세요.
 
 ### 악보 인식 이미지
+
+S15P31E102-883: 오선보의 각간 붙임줄은 한 NOTE로 유지하고 변박·불완전마디는 실제 길이와 마디 경계로 배치합니다. 자동 연결 대상이 아닌 박자에는 굿거리 기본값을 넣지 않고 장단 빈 이름을 반환합니다. 낮은 박자표 신뢰도·반복 불완전마디는 검수 대상으로 남깁니다. 정간보 글자층은 장구 예시 열을 제외하고, 스캔은 알려진 격자 높이 검출 실패에서 다음 배율을 시도합니다. `uv run pytest tests/unit/test_staff_rhythm_preservation.py tests/unit/test_omr_scan_engine.py`와 [실제 악보 비교](../docs/knowledge/data/common/rhythm-metronome/meter-import-validation.md)를 참고하세요. 이전의 글자층만 명시적 이음을 켠다는 설명은 오선보에도 확대됐습니다.
 
 `omr.Dockerfile`은 Ubuntu 24.04에 Audiveris 5.11(데스크톱 등록 스크립트를 뺀 deb와 `libgtk-3-0`), Node, jeongganbo-generator `9d4a24e`, 서비스·`omr` 그룹 의존성, `data/src/scores`·`data/reference`를 넣고 사용자 10001로 실행합니다. 빌드 맥락은 저장소 루트이고 보낼 파일은 `omr.Dockerfile.dockerignore`가 정합니다. 저장소 루트에서 실행합니다.
 

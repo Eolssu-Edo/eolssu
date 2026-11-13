@@ -1,5 +1,30 @@
 # 데이터 수집·정제
 
+## 박자별 원본과 리듬 보존 검증 (883)
+
+[원본·이용 조건·변환 전후 비교](../docs/knowledge/data/common/rhythm-metronome/meter-import-validation.md), [채택된 계약](../docs/specs/score-rhythm-preservation.md)을 참고합니다. 원본과 전체 실행 증거는 Git 제외 경로 `data/raw/meter-validation/`, `data/processed/meter-validation/`에 둡니다. 운영 데이터·원본·기존 카탈로그는 변경하지 않습니다.
+
+아래 명령은 저장소 루트에서 실행합니다. 수집은 Pillow·pypdfium2, 변환 감사는 AI OMR 의존성·jsonschema와 Node 및 `JGB_GENERATOR_DIR`의 기존 생성기가 필요합니다. 수집기는 원격 파일이 바뀌면 기존 원본을 덮어쓰지 않습니다. 고정 XML은 자작 CC0이며 이미지 OMR 성공 건수에 포함하지 않습니다.
+
+```powershell
+python data/src/scores/acquire_meter_samples.py
+python data/src/scores/audit_meter_contracts.py --out data/processed/meter-validation/contracts --actual-dir data/processed/meter-validation/actual
+python data/src/scores/compare_meter_sources.py --raw data/raw/meter-validation --actual data/processed/meter-validation/actual --out data/processed/meter-validation/source-full-comparison.json
+```
+
+실제 인식은 준비된 OMR 이미지에 AI·DATA 소스와 격리 입력을 마운트하고 `probe_meter_imports.py --inputs INPUTS.json --ids au-clair --output NEW_OUTPUT`으로 실행합니다. 입력 JSON의 각 항목은 `id`, `imagePath`, 선택적 `pdfPath`, `notation`, `jangdan`을 받습니다. 출력은 새 경로여야 하고 사례 실패는 종료1과 JSON으로 남깁니다. 그림만 넣은 실행과 PDF 글자층 실행을 구분합니다.
+
+FE/BE 왕복은 DATA 소유 테스트를 Gradle init으로 주입합니다. `METER_AUDIT_ROOT`를 결과 폴더 절대 경로로 설정하고 그 안에 `jvm-tmp/`를 만듭니다. 폴더에는 `contracts/*.score.json`, `contracts/audit.json`, `actual/*/engine.json`, `catalog-list.json`이 필요합니다. BE 이 검사의 Repository·음높이 카탈로그는 대역입니다. 실제 HTTP·MySQL 왕복은 BE의 별도 `SheetRhythmApiDatabaseTests`로 검증합니다.
+
+```powershell
+# frontend/에서
+.\gradlew.bat :shared:testAndroidHostTest --tests '*MeterImportRuntimeTest' -I ../data/tests/runtime/meter-validation.gradle --max-workers=2 --no-configuration-cache
+# backend/에서
+.\gradlew.bat test --tests '*MeterImportBackendTest' -I ../data/tests/runtime/meter-validation.gradle --max-workers=2 --no-configuration-cache
+```
+
+결과는 `frontend-runtime.json`, `backend-runtime.json`, Gradle 보고서에 남습니다. 생성·저장 성공과 원본 인식 정확도는 각각 판정합니다.
+
 ## 기존 악보 장단·빠르기 교정 (728)
 
 묶음 생성은 현재 악보·빠르기와 표현 companion SHA가 렌더 당시 manifest와 일치해야 합니다. 표현 파일을 고쳤다면 `--render`로 다시 생성한 뒤 포장합니다. 숫자 폴더 대신 기존 운영 `cases/<악기>-<번호>-p<쪽>/` 형식으로 묶습니다.

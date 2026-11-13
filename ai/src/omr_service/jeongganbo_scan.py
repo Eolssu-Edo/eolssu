@@ -18,10 +18,17 @@ from omr_service.staff_engine import AUDIVERIS_LOCK
 from jeongganbo_tokens import jg_like
 
 READER = [sys.executable, '-X', 'utf8', str(SCORES / 'jeongganbo_omr.py')]
-ENGINE_VERSION = 'e95045f-v1.0.0-r4'
+ENGINE_VERSION = 'e95045f-v1.0.0-r5'
 MIN_CONFIDENCE = .8  # 검수 기준이며, 보정된 정확도 확률이 아니다.
 log = logging.getLogger('omr_service.api')
 TOKEN = re.compile(rf'(?:{score_data.YUL}(?:_[^:\s]+)?|-|쉼표|쉼):(?:[0-9]|1[0-5])\Z')
+
+
+def recoverable_grid_failure(run):
+    """지원 리더의 크기 검출 실패만 재시도한다. 모델·환경 오류는 전파한다."""
+    return run.returncode == 4 or (run.returncode == 1 and re.fullmatch(
+        r'AssertionError: Jeonggan height is not in range: [0-9.]+, \[.*\]',
+        _last_line(run.stderr)) is not None)
 
 
 def cell_text(cell):
@@ -67,7 +74,8 @@ def recognize(job):
                                         '--model-cache-dir', str(work), '--batch-size', '16',
                                         '--beats', '0', '--fill-grid', '--keep-empty-columns',
                                         '--title', 'page', *grid_options], page_deadline)
-                    if run.returncode == 4:
+                    if recoverable_grid_failure(run):
+                        log.info('jeongganbo-scan page=%d scale=%s grid retry: %s', i, scale, _last_line(run.stderr))
                         continue
                     if run.returncode:
                         log.info('jeongganbo-scan page=%d failed: %s', i, _last_line(run.stderr))

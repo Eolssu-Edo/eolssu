@@ -4,6 +4,8 @@ import com.ssafy.eolssu.core.audio.DeviceSheetAudio
 
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.model.BasicAccompaniment
+import com.ssafy.eolssu.core.model.BasicAccompanimentPreset
 import com.ssafy.eolssu.data.song.CatalogInstrument
 import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import com.ssafy.eolssu.data.song.validCatalogId
@@ -88,6 +90,7 @@ enum class SheetEditMessage {
 
     ReviewBeforeReshape,
     TempoPlanBeforeReshape,
+    BasicAccompanimentCleared,
 
     /** 서버 문서가 없는 경로 등에서 제공하지 않는 기능. */
     ComingSoon,
@@ -171,12 +174,12 @@ data class SheetEditUiState(
     internal fun updateSettings(bpm: Int, jangdanId: String?): SheetEditUiState {
         if (!canEditDetails || bpm !in SheetBpmRange) return this
         val next = when {
-            jangdanId == null -> draft.copy(bpm = bpm, jangdanId = null, editedJangdanName = "")
+            jangdanId == null -> draft.copy(bpm = bpm, jangdanId = null, editedJangdanName = "").withBasicAccompaniment(null)
             jangdanId == draft.jangdanId -> draft.copy(bpm = bpm)
             else -> {
                 val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: availableJangdans.orEmpty()
                 val option = options.firstOrNull { it.jangdanId == jangdanId } ?: return this
-                draft.withJangdan(option, preserveTiming = hasTempoPlan)?.copy(bpm = bpm) ?: return this
+                draft.withJangdan(option, preserveTiming = hasTempoPlan)?.withBasicAccompaniment(null)?.copy(bpm = bpm) ?: return this
             }
         }
         return commit(next).copy(jangdanPicker = null, withJangdan = if (jangdanId == null) false else withJangdanFor(next))
@@ -185,14 +188,22 @@ data class SheetEditUiState(
     fun selectJangdan(id: String): SheetEditUiState {
         val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: return this
         val option = options.firstOrNull { it.jangdanId == id && draft.canSelectJangdan(it, hasTempoPlan) } ?: return this
-        if (option.jangdanId == draft.jangdanId && option.name == draft.jangdanName) return copy(jangdanPicker = null)
-        val next = draft.withJangdan(option, preserveTiming = hasTempoPlan) ?: return this
+        if (option.jangdanId == draft.jangdanId && option.name == draft.jangdanName && draft.basicAccompaniment == null) return copy(jangdanPicker = null)
+        val next = draft.withJangdan(option, preserveTiming = hasTempoPlan)?.withBasicAccompaniment(null) ?: return this
         return commit(next).copy(jangdanPicker = null)
+    }
+
+    fun selectBasicAccompaniment(preset: BasicAccompanimentPreset, startCell: Int): SheetEditUiState {
+        if (!draft.canSelectBasicAccompaniment || startCell !in draft.cells.indices) return this
+        val score = runCatching { draft.toCommonScore() }.getOrNull() ?: return this
+        val setting = BasicAccompaniment(preset.pulseUnit, preset.groups, startCell.toLong() * score.music.ticksPerJeonggan)
+        val next = draft.copy(jangdanId = null, editedJangdanName = "").withBasicAccompaniment(setting)
+        return commit(next).copy(withJangdan = false, jangdanPicker = null)
     }
 
     /** 사용자가 장단 연결을 해제한다. 정간·이벤트·tick·BPM은 그대로 두며 실행 취소할 수 있다. */
     fun clearJangdan(): SheetEditUiState =
-        commit(draft.copy(jangdanId = null, editedJangdanName = "")).copy(withJangdan = false, jangdanPicker = null)
+        commit(draft.copy(jangdanId = null, editedJangdanName = "").withBasicAccompaniment(null)).copy(withJangdan = false, jangdanPicker = null)
 
     private fun withJangdanFor(next: SheetDraft): Boolean =
         if (next.jangdanId == draft.jangdanId) withJangdan else next.jangdanId != null
@@ -233,7 +244,8 @@ data class SheetEditUiState(
         )
 
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. 고른 소박은 그 정간이 여전히 나뉘어 있을 때만 남긴다. */
-    private fun commit(next: SheetDraft, selected: Int = this.selected, sub: Int? = if (selected == this.selected) selectedSub else null): SheetEditUiState {
+    private fun commit(candidate: SheetDraft, selected: Int = this.selected, sub: Int? = if (selected == this.selected) selectedSub else null): SheetEditUiState {
+        val next = draft.remapBasicAccompaniment(candidate)
         val index = selected.coerceIn(0, next.cells.lastIndex)
         val keptSub = sub?.takeIf { next.cells[index].size > 1 && it in next.cells[index].indices }
         if (next == draft) return copy(selected = index, selectedSub = keptSub)
@@ -245,6 +257,8 @@ data class SheetEditUiState(
             selectedSub = keptSub,
             withJangdan = withJangdanFor(next),
             checkedIssueIds = checkedIssuesAfter(next),
+            message = if (candidate.authoring?.get("accompaniment") != next.authoring?.get("accompaniment") &&
+                draft.basicAccompaniment != null && next.basicAccompaniment == null) SheetEditMessage.BasicAccompanimentCleared else message,
         )
     }
 
@@ -338,7 +352,9 @@ data class SheetEditUiState(
         val column = draft.columnOf(selected)
         val next = draft.deleteColumn(column)
         if (next == draft) return this
-        return commit(next, next.indexOf(minOf(column, next.columnCount - 1), 0))
+        val changed = commit(next, next.indexOf(minOf(column, next.columnCount - 1), 0))
+        return if (draft.basicAccompaniment != null && next.basicAccompaniment == null)
+            changed.copy(message = SheetEditMessage.BasicAccompanimentCleared) else changed
     }
 
     fun undo(): SheetEditUiState {

@@ -96,6 +96,23 @@ class CellTextTests(unittest.TestCase):
 
 
 class LayoutTests(unittest.TestCase):
+    def test_percussion_example_with_ties_is_not_a_leading_rest_gak(self):
+        with tempfile.TemporaryDirectory() as d:
+            pdf = Path(d) / "percussion.pdf"
+            score_pdf(pdf, [[["", "-", "-"], ["林", "南", "-"], ["潢", "汰", "-"]]])
+            with pymupdf.open(pdf) as doc:
+                page = doc[0]
+                x, y = 500 - COL_W / 2, 40 + JG_H / 2
+                page.draw_circle((x, y), 6)
+                page.draw_line((x, y - 6), (x, y + 6))
+                gaks, _, report = sst.read_page(page)
+            self.assertEqual(gaks, [":0 임 | :0 남 | :0 -", ":0 청황 | :0 청태 | :0 -"])
+            self.assertEqual(len(report["excluded_accompaniment"]), 1)
+
+    def test_leading_rest_and_tie_only_gaks_are_preserved(self):
+        gaks, _ = read([[["△", "△", "△"], ["-", "-", "-"], ["林", "南", "-"]]])
+        self.assertEqual(gaks[:2], [":0 쉼표 | :0 쉼표 | :0 쉼표", ":0 - | :0 - | :0 -"])
+
     def test_vector_rest_only_gak_is_preserved(self):
         with tempfile.TemporaryDirectory() as d:
             pdf = Path(d) / "vector.pdf"
