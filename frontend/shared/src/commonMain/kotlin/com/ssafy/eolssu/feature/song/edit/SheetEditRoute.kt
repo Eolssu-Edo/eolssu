@@ -56,6 +56,7 @@ import eolssu.shared.generated.resources.sheet_review_missing_pitch
 import eolssu.shared.generated.resources.sheet_review_pitch_label
 import eolssu.shared.generated.resources.sheet_review_range
 import eolssu.shared.generated.resources.sheet_review_uncertain
+import eolssu.shared.generated.resources.basic_accompaniment_cleared_after_reshape
 import eolssu.shared.generated.resources.sheet_pitch_corrected_review
 import org.jetbrains.compose.resources.stringResource
 
@@ -98,6 +99,7 @@ fun SheetEditRoute(
         SheetEditMessage.ComingSoon to stringResource(Res.string.common_coming_soon),
         SheetEditMessage.ReviewBeforeReshape to stringResource(Res.string.sheet_review_before_reshape),
         SheetEditMessage.TempoPlanBeforeReshape to stringResource(Res.string.sheet_tempo_before_reshape),
+        SheetEditMessage.BasicAccompanimentCleared to stringResource(Res.string.basic_accompaniment_cleared_after_reshape),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),

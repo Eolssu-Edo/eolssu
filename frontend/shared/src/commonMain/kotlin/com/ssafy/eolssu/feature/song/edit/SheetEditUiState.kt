@@ -90,6 +90,7 @@ enum class SheetEditMessage {
 
     ReviewBeforeReshape,
     TempoPlanBeforeReshape,
+    BasicAccompanimentCleared,
 
     /** 서버 문서가 없는 경로 등에서 제공하지 않는 기능. */
     ComingSoon,
@@ -243,7 +244,8 @@ data class SheetEditUiState(
         )
 
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. 고른 소박은 그 정간이 여전히 나뉘어 있을 때만 남긴다. */
-    private fun commit(next: SheetDraft, selected: Int = this.selected, sub: Int? = if (selected == this.selected) selectedSub else null): SheetEditUiState {
+    private fun commit(candidate: SheetDraft, selected: Int = this.selected, sub: Int? = if (selected == this.selected) selectedSub else null): SheetEditUiState {
+        val next = draft.remapBasicAccompaniment(candidate)
         val index = selected.coerceIn(0, next.cells.lastIndex)
         val keptSub = sub?.takeIf { next.cells[index].size > 1 && it in next.cells[index].indices }
         if (next == draft) return copy(selected = index, selectedSub = keptSub)
@@ -255,6 +257,8 @@ data class SheetEditUiState(
             selectedSub = keptSub,
             withJangdan = withJangdanFor(next),
             checkedIssueIds = checkedIssuesAfter(next),
+            message = if (candidate.authoring?.get("accompaniment") != next.authoring?.get("accompaniment") &&
+                draft.basicAccompaniment != null && next.basicAccompaniment == null) SheetEditMessage.BasicAccompanimentCleared else message,
         )
     }
 
@@ -348,7 +352,9 @@ data class SheetEditUiState(
         val column = draft.columnOf(selected)
         val next = draft.deleteColumn(column)
         if (next == draft) return this
-        return commit(next, next.indexOf(minOf(column, next.columnCount - 1), 0))
+        val changed = commit(next, next.indexOf(minOf(column, next.columnCount - 1), 0))
+        return if (draft.basicAccompaniment != null && next.basicAccompaniment == null)
+            changed.copy(message = SheetEditMessage.BasicAccompanimentCleared) else changed
     }
 
     fun undo(): SheetEditUiState {
