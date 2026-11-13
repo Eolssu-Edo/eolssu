@@ -27,6 +27,47 @@ class CommonPreviewTests(unittest.TestCase):
         return convert_common_score(source, bpm=60, instrument=source['score']['instrument'].lower().replace('_', '-'),
                                     input_sha256='a'*64, notation_policy=preview.MODE, **kwargs)
 
+    def test_unresolved_hanbae_with_explicit_empty_plan_keeps_all_four_written_beats(self):
+        for instrument in expr.SYMBOL_TABLES:
+            for mark in ('조금느리게', '조금속하게', '점점느리게', '점점속하게', '본래속도로'):
+                with self.subTest(instrument=instrument, mark=mark):
+                    source = small_score()
+                    source['score']['instrument'] = instrument.upper().replace('-', '_')
+                    source['events'][0]['sigimsae'] = [mark]  # A cell cue may start on a rest.
+                    companion = {
+                        'schema': 'common-score-expressions/v1', 'sourceSha256': 'a'*64,
+                        'placements': [{'eventId': source['events'][0]['id'], 'cellId': 'c0-j0',
+                                        'row': 0, 'col': 0, 'symbols': [mark]}],
+                        'performancePlan': {'schema': f'{instrument}-performance/v1',
+                                            'input_sha256': 'a'*64, 'tempos': [], 'repeats': []},
+                    }
+                    before = deepcopy((source, companion))
+                    _, mapping = self.convert(source, expressions=companion)
+                    self.assertEqual(mapping['performanceTimeline']['durationMs'], 4000)
+                    self.assertEqual(mapping['performanceTimeline']['segments'][0]['sigimsae'], [mark])
+                    self.assertEqual((source, companion), before)
+
+    def test_pending_hanbae_does_not_erase_a_confirmed_numeric_change_or_repeat(self):
+        source = small_score()
+        source['events'][0]['sigimsae'] = ['점점느리게']
+        source['events'][1]['sigimsae'] = ['조금속하게']
+        companion = {
+            'schema': 'common-score-expressions/v1', 'sourceSha256': 'a'*64,
+            'placements': [
+                {'eventId': event['id'], 'cellId': event['cellId'], 'row': 0, 'col': 0,
+                 'symbols': event['sigimsae']} for event in source['events'] if event['sigimsae']
+            ],
+            'performancePlan': {'schema': 'danso-performance/v1', 'input_sha256': 'a'*64,
+                                'tempos': [{'gak': 1, 'cell': 2, 'bpm': 120}],
+                                'repeats': [{'start_gak': 1, 'end_gak': 1, 'times': 2}]},
+        }
+        before = deepcopy((source, companion))
+        _, mapping = self.convert(source, expressions=companion)
+        timeline = mapping['performanceTimeline']
+        self.assertEqual(timeline['durationMs'], 5000)
+        self.assertEqual([s['startTick'] for s in timeline['segments']], [0, 1, 2, 3]*2)
+        self.assertEqual((source, companion), before)
+
     def test_canonical_cross_column_note_keeps_sustain_in_preview(self):
         source = from_melody('청황 남 | - | -\n | | ')
         sustained, rest = source['events'][-2:]
