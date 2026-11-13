@@ -1,8 +1,11 @@
-"""OMR이 청성(청태·청황)과 중청(중청태·중청황)을 헷갈린 자리를 글자 모양으로 다시 가린다.
+"""스캔 OMR의 청·중청을 실제 글자 그림으로 구별한다.
+
+recover_water_register는 모델의 청 토큰에 두 물수변이 분명히 적힌 경우만 중청으로 복원한다.
+별도 폰트·정답 템플릿 없이 서비스의 두 격자 경로에서 사용한다. 아래 CLI는 기존 교재용 평균 모양 도구다.
 
 중청 글자(㳲·㶂)는 청성 글자(汰·潢) 왼쪽에 물수변 점 줄이 하나 더 있다. 점은 이 판형에서 몸통과 붙어
 점 줄 수를 직접 세기 어렵다. 그래서 글자 먹을 24×24로 맞춰 줄이고, 정답에서 모은 청성·중청 글자의
-평균 모양 중 더 가까운 쪽으로 정한다. 중청태는 모델 어휘에 없어 모델이 낼 수 없으므로 이 방법으로만 나온다.
+평균 모양 중 더 가까운 쪽으로 정한다. 중청태는 모델 어휘에 없어 모델의 원래 추론만으로 나오지 않는다.
 
 평균 모양 만들기:
   python data/src/scores/octave_check.py <정답 폴더> <결과 폴더> [...] --out <평균 모양.json>
@@ -11,6 +14,7 @@
 """
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -68,6 +72,78 @@ def classify(vec, templates, family):
     """'청' 또는 '중청'."""
     d = {o: np.abs(vec - np.array(templates[family][o])).sum() for o in ("청", "중청")}
     return min(d, key=d.get)
+
+
+def _double_water(gray, *, dark_core=False):
+    """Require two aligned dot pairs and the outer radical's lower stroke.
+
+    The scanner cannot emit most double-register tokens. Two written water
+    radicals can prove the missing register; note range and neighbouring notes
+    cannot. Broken/merged strokes remain unchanged rather than being guessed.
+    """
+    if gray.size == 0 or min(gray.shape[:2]) < 12:
+        return False
+    if gray.ndim == 3:
+        gray = cv2.cvtColor(gray, cv2.COLOR_BGR2GRAY)
+    threshold, ink = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    height, width = ink.shape
+    _, _, stats, _ = cv2.connectedComponentsWithStats(ink, 8)
+    # Border-connected ink is the grid, not a radical. Many isolated specks do
+    # not provide a legible character and must not make pair matching expensive.
+    parts = [s for s in stats[1:] if s[4] >= 2 and s[0] > 1 and s[1] > 1
+             and s[0] + s[2] < width - 1 and s[1] + s[3] < height - 1]
+    if not parts or len(parts) > 64:
+        return False
+    left, top = min(s[0] for s in parts), min(s[1] for s in parts)
+    gw = max(s[0] + s[2] for s in parts) - left
+    gh = max(s[1] + s[3] for s in parts) - top
+    if gh < 12 or not .65 <= gw / gh <= 1.4:
+        return False
+    dots = [(x + w / 2, y + h / 2) for x, y, w, h, _ in parts
+            if w <= .23 * gh and h <= .23 * gh and .4 <= w / h <= 2.1
+            and x + w / 2 < left + .52 * gw
+            and top + .05 * gh < y + h / 2 < top + .60 * gh]
+    pairs = [(a, b) for a in dots for b in dots
+             if .14 * gh <= b[1] - a[1] <= .40 * gh
+             and -.05 * gh <= a[0] - b[0] <= .20 * gh]
+    for outer_top, outer_mid in pairs:
+        lower_stroke = any(.22 * gh <= h <= .60 * gh and w <= .35 * gh
+                           and outer_mid[0] - .12 * gh <= x + w / 2 <= outer_mid[0] + .25 * gh
+                           and outer_mid[1] < y + h / 2 and top + .45 * gh <= y <= top + .75 * gh
+                           for x, y, w, h, _ in parts)
+        if not lower_stroke:
+            continue
+        for inner_top, inner_mid in pairs:
+            if (.12 * gh <= inner_top[0] - outer_top[0] <= .32 * gh
+                    and .12 * gh <= inner_mid[0] - outer_mid[0] <= .32 * gh
+                    and abs(inner_top[1] - outer_top[1]) <= .12 * gh
+                    and abs(inner_mid[1] - outer_mid[1]) <= .12 * gh):
+                return True
+    # At small sizes JPEG grey bridges can join the two top dots. Require the
+    # same complete radical geometry in the darker stroke cores, once only.
+    if gh < 20 and not dark_core:
+        core = cv2.threshold(gray, threshold * .8, 255, cv2.THRESH_BINARY)[1]
+        return _double_water(core, dark_core=True)
+    return False
+
+
+def recover_water_register(text, gray):
+    """Restore only an explicit double-water glyph; preserve token positions and ornaments."""
+    tokens = text.split()
+    changed = False
+    for i, token in enumerate(tokens):
+        match = re.fullmatch(r'(청[황대태협고중유임이남무응])(_[^:\s]+)?:(\d+)', token)
+        if not match or int(match[3]) > 15:
+            continue
+        position = int(match[3])
+        # A lone centre token is the whole cell, just as jg_like normalizes :5.
+        rect = slot_rect(0 if len(tokens) == 1 and position == 5 else position)
+        h, w = gray.shape[:2]
+        x0, y0, x1, y1 = rect
+        if _double_water(gray[round(h * y0):round(h * y1), round(w * x0):round(w * x1)]):
+            tokens[i] = '중' + token
+            changed = True
+    return ' '.join(tokens) if changed else text
 
 
 def fix_cells(cells, img, k, templates):

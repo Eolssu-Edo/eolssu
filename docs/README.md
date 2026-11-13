@@ -1,5 +1,8 @@
 # 프로젝트 문서
 
+- [제공 악보 추가·편집·저장 실행 검증 (876)](knowledge/frontend/sheet-add-edit-runtime-verification.md) · [계획](plans/S15P31E102-876.md)
+- [PNG·JPEG 중청 음역 인식 교정과 같은 자료 재검증 (876)](knowledge/ai/jeongganbo-double-water-register.md)
+
 - [공개 악보 시김새 전수 점검·한글 표시 수정 (847)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md#시김새의-한글-대체-출력-847) · [곡별 결과](knowledge/frontend/sigimsae-catalog-audit.json) · [표시 스펙](specs/score-sigimsae-display.md) · [계획·검증](plans/S15P31E102-847.md)
 
 - [악보 추가·편집 결함 점검·수정 (828)](plans/S15P31E102-828.md)
