@@ -56,11 +56,12 @@ import eolssu.shared.generated.resources.sheet_review_missing_pitch
 import eolssu.shared.generated.resources.sheet_review_pitch_label
 import eolssu.shared.generated.resources.sheet_review_range
 import eolssu.shared.generated.resources.sheet_review_uncertain
+import eolssu.shared.generated.resources.sheet_review_gap_in_voice
 import eolssu.shared.generated.resources.sheet_pitch_corrected_review
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 저장 시에만 수정할 정간과 해결 방법을 표시한다. 제목은 저장 창, 빠르기는 상단 편집 창, 장단은 정간 도구에서 바꾼다.
+ * 경고 정간을 누르거나 저장할 때 검수 이유와 수정 방법을 표시한다. 제목은 저장 창, 빠르기는 상단 편집 창, 장단은 정간 도구에서 바꾼다.
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -146,11 +147,16 @@ fun SheetEditRoute(
             onOpenDetails = { detailsOpen = true },
             onSelectCell = { index ->
                 viewModel.selectCell(index)
-                pitchCorrection = viewModel.uiState.value.pitchCorrectionsAt(index).firstOrNull()
+                val current = viewModel.uiState.value
+                pitchCorrection = current.pitchCorrectionsAt(index).firstOrNull()
+                correctionOpen = pitchCorrection == null && current.selectedReviewIssue != null
             },
             onSelectUnit = { index, sub ->
                 viewModel.selectUnit(index, sub)
-                pitchCorrection = viewModel.uiState.value.pitchCorrectionsAt(index, sub).firstOrNull()
+                val current = viewModel.uiState.value
+                pitchCorrection = current.pitchCorrectionsAt(index, sub).firstOrNull()
+                correctionOpen = pitchCorrection == null && current.selectedReviewIssue != null &&
+                    current.draft.unitKeyOf(index, sub) in current.completionValidation.correctionUnitKeys
             },
             input = EditInputActions(
                 onUndo = viewModel::undo,
@@ -238,6 +244,8 @@ fun SheetEditRoute(
                 "UNREGISTERED_PITCH" -> issue.pitch?.let { (name, octave) -> stringResource(Res.string.sheet_review_pitch_label, name, octave) }
                     ?: stringResource(Res.string.sheet_review_missing_pitch)
                 "OUT_OF_RANGE" -> stringResource(Res.string.sheet_review_range)
+                "LOW_CONFIDENCE" -> if (issue.reason == "GAP_IN_VOICE") stringResource(Res.string.sheet_review_gap_in_voice)
+                    else stringResource(Res.string.sheet_review_uncertain)
                 else -> stringResource(Res.string.sheet_review_uncertain)
             }
             Text(reason, style = MaterialTheme.typography.bodySmall)
