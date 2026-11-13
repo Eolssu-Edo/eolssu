@@ -91,6 +91,7 @@ data class Score(
     val timing: ScoreTiming? = null,
     val source: ScoreSource? = null,
     val events: List<ScoreEvent>? = null,
+    val tempoMarks: Map<ScoreUnitKey, List<HanbaeMark>> = emptyMap(),
 ) {
     /** 정간 수. 연주 시간 계산의 단위다. */
     val totalUnits: Int get() = columns.sumOf { it.size }

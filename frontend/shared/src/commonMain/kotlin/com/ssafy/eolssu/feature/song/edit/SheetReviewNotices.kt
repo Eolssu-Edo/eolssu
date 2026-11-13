@@ -25,6 +25,7 @@ import eolssu.shared.generated.resources.sheet_review_notice_text
 import eolssu.shared.generated.resources.sheet_review_notice_transposed
 import eolssu.shared.generated.resources.sheet_review_notice_transposed_unknown
 import eolssu.shared.generated.resources.sheet_review_notice_unreadable
+import eolssu.shared.generated.resources.sheet_tempo_position_unresolved
 import org.jetbrains.compose.resources.stringResource
 
 /** 변환 당시 참고 정보는 저장 화면에 바로 표시한다. 현재 오류는 SheetCompletionNotice에서 다룬다. */
@@ -48,7 +49,7 @@ internal fun SheetConversionNotes(notices: List<SheetReviewNotice>) {
 }
 
 @Composable
-private fun SheetReviewNotice.label(): String = when (type) {
+private fun SheetReviewNotice.label(): String = if (reason == "TEMPO_CUE_POSITION_UNRESOLVED") stringResource(Res.string.sheet_tempo_position_unresolved) else when (type) {
     "UNREADABLE" -> stringResource(
         when (reason) {
             "NO_GRID" -> Res.string.sheet_review_notice_grid

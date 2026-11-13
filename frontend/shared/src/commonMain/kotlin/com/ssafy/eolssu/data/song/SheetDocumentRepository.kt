@@ -21,6 +21,7 @@ data class SheetDocument(
     val notices: List<JsonObject> = emptyList(),
     val authoring: JsonObject? = null,
     val expressions: JsonObject? = null,
+    val sourceSha256: String? = null,
 )
 data class SheetWorkingCopy(val title: String, val jangdanId: String?, val bpm: Int,
     val score: CommonScoreData, val baseScoreVersion: String, val revision: Int,
@@ -61,7 +62,8 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
                 authoring = it.authoring, expressions = it.expressions ?: dto.expressions)
         }
         SheetDocument(dto.sheetId, dto.title, dto.jangdanId, dto.bpm, dto.scoreVersion, original, copy,
-            dto.reviewStatus, dto.conversionStatus, dto.issues, dto.notices, authoring = dto.authoring, expressions = dto.expressions)
+            dto.reviewStatus, dto.conversionStatus, dto.issues, dto.notices, authoring = dto.authoring, expressions = dto.expressions,
+            sourceSha256 = (dto.draft?.score ?: dto.scoreData)?.let(::commonSourceSha256))
     }
 
     override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite = member.inSession {

@@ -1,82 +1,141 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.model.HanbaeMark
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
-import com.ssafy.eolssu.core.ui.component.EolssuDialog
-import com.ssafy.eolssu.core.ui.component.EolssuTextField
-import com.ssafy.eolssu.core.ui.component.TextFieldType
-import com.ssafy.eolssu.core.ui.component.formatClock
-import com.ssafy.eolssu.feature.song.edit.SheetBpmRange
-import com.ssafy.eolssu.feature.song.edit.SheetDraft
-import com.ssafy.eolssu.feature.song.edit.estimatedDurationSeconds
-import com.ssafy.eolssu.feature.song.edit.tempoUnitLabel
-import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.common_cancel
-import eolssu.shared.generated.resources.sheet_details_apply
-import eolssu.shared.generated.resources.sheet_details_bpm
-import eolssu.shared.generated.resources.sheet_details_bpm_error
-import eolssu.shared.generated.resources.sheet_save_estimated_duration
-import eolssu.shared.generated.resources.sheet_editor_duration_unavailable
-import eolssu.shared.generated.resources.sheet_settings_title
-import eolssu.shared.generated.resources.sheet_tempo_profile_note
+import com.ssafy.eolssu.core.ui.component.*
+import com.ssafy.eolssu.feature.song.edit.*
+import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
+import kotlin.math.roundToInt
 
-/** 상단 편집은 빠르기만 바꾼다. 장단·음역은 각각의 입력 도구에서 고른다. */
+/** 전체와 구간 빠르기를 한 창에서 편집한다. 적용 전 변경은 이 창 안에만 둔다. */
 @Composable
 internal fun SheetEditSettingsDialog(
     draft: SheetDraft,
-    onApply: (Int) -> Unit,
+    onApply: (SheetDraft) -> Unit,
     onDismiss: () -> Unit,
     saving: Boolean = false,
     hasTempoPlan: Boolean = false,
+    selectedCell: Int = 0,
 ) {
+    var working by remember(draft) { mutableStateOf(draft) }
     var bpm by rememberSaveable { mutableStateOf(draft.bpm.toString()) }
+    var editing by rememberSaveable { mutableStateOf(false) }
+    var replacing by rememberSaveable { mutableStateOf<Int?>(null) }
+    var markName by rememberSaveable { mutableStateOf<String?>(HanbaeMark.Slower.name) }
+    var gradual by rememberSaveable { mutableStateOf(false) }
+    var startGak by rememberSaveable { mutableStateOf((draft.columnOf(selectedCell.coerceIn(draft.cells.indices)) + 1).toString()) }
+    var startCell by rememberSaveable { mutableStateOf((draft.rowOf(selectedCell.coerceIn(draft.cells.indices)) + 1).toString()) }
+    var endGak by rememberSaveable { mutableStateOf("") }
+    var endCell by rememberSaveable { mutableStateOf("") }
+    var target by rememberSaveable { mutableStateOf("") }
+    var initialBpm by remember { mutableStateOf<Double?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
     val validBpm = bpm.toIntOrNull()?.takeIf { it in SheetBpmRange }
-    val estimate = if (hasTempoPlan) null else validBpm?.let(draft::estimatedDurationSeconds)
-    EolssuDialog(
-        title = stringResource(Res.string.sheet_settings_title),
-        onDismissRequest = { if (!saving) onDismiss() },
-    ) {
-        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            EolssuTextField(
-                value = bpm,
-                onValueChange = { if (!saving) bpm = it },
-                label = stringResource(Res.string.sheet_details_bpm) + " · " + draft.tempoUnitLabel,
-                placeholder = "",
-                type = TextFieldType.Number,
-                imeAction = ImeAction.Done,
+    val current = working.copy(bpm = validBpm ?: working.bpm)
+    val changes = current.tempoChanges
+    val mark = HanbaeMark.entries.firstOrNull { it.name == markName }
+    val needsEnd = mark?.gradual ?: gradual
+    fun position(g: String, c: String, terminal: Boolean = false): Int? {
+        val gak = g.toIntOrNull() ?: return null
+        val cell = c.toIntOrNull() ?: return null
+        if (terminal && gak == current.columnCount + 1 && cell == 1) return current.cells.size
+        if (gak !in 1..current.columnCount || cell !in 1..current.sizes[gak - 1]) return null
+        return current.indexOf(gak - 1, cell - 1)
+    }
+    fun positionLabel(index: Int): String = if (index == current.cells.size) "악보 끝"
+        else "${current.columnOf(index) + 1}각 ${current.rowOf(index) + 1}정간"
+    fun edit(cue: SheetTempoChange?) {
+        replacing = cue?.cell
+        val at = cue?.cell ?: selectedCell.coerceIn(current.cells.indices)
+        startGak = (current.columnOf(at) + 1).toString(); startCell = (current.rowOf(at) + 1).toString()
+        markName = cue?.mark?.name ?: if (cue == null) HanbaeMark.Slower.name else null
+        gradual = cue?.endCell != null
+        target = cue?.targetBpm?.let { if (it == it.roundToInt().toDouble()) it.roundToInt().toString() else it.toString() }.orEmpty()
+        initialBpm = cue?.startBpm
+        val end = cue?.endCell
+        endGak = end?.let { if (it == current.cells.size) current.columnCount + 1 else current.columnOf(it) + 1 }?.toString().orEmpty()
+        endCell = end?.let { if (it == current.cells.size) 1 else current.rowOf(it) + 1 }?.toString().orEmpty()
+        editing = true; error = null
+    }
+    EolssuDialog(title = stringResource(Res.string.sheet_settings_title), onDismissRequest = { if (!saving) onDismiss() }) {
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            EolssuTextField(bpm, { if (!saving) bpm = it },
+                label = stringResource(Res.string.sheet_tempo_whole) + " · " + draft.tempoUnitLabel,
+                placeholder = "", type = TextFieldType.Number, imeAction = ImeAction.Done,
                 error = if (validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
-                bordered = false,
-                containerColor = EolssuTheme.colors.groupedBackground,
-            )
-            if (hasTempoPlan) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall)
-            Text(
-                if (estimate != null) stringResource(Res.string.sheet_save_estimated_duration, formatClock(estimate))
-                else stringResource(Res.string.sheet_editor_duration_unavailable),
-                style = MaterialTheme.typography.bodyMedium,
-            )
+                bordered = false, containerColor = EolssuTheme.colors.groupedBackground)
+            if (hasTempoPlan || changes.isNotEmpty()) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(Res.string.sheet_tempo_changes), style = MaterialTheme.typography.titleSmall)
+            if (changes.isEmpty()) Text(stringResource(Res.string.sheet_tempo_none), style = MaterialTheme.typography.bodySmall)
+            changes.forEach { cue ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(positionLabel(cue.cell) + " · " + (cue.mark?.label ?: stringResource(Res.string.sheet_tempo_numeric)), style = MaterialTheme.typography.bodyMedium)
+                    Text(if (cue.resolved) (cue.endCell?.let { "${positionLabel(it)}까지 · " }.orEmpty() + "${cue.targetBpm?.let { if (it == it.roundToInt().toDouble()) it.roundToInt() else it }} ${draft.tempoUnitLabel}/분")
+                        else stringResource(Res.string.sheet_tempo_unresolved), style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        EolssuButton(stringResource(Res.string.sheet_tempo_edit), { edit(cue) }, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, small = true, enabled = !saving)
+                        EolssuButton(stringResource(Res.string.sheet_tempo_remove), { working = current.withoutTempoChange(cue.cell); editing = false }, Modifier.weight(1f), style = EolssuButtonStyle.Text, small = true, enabled = !saving)
+                    }
+                }
+            }
+            if (!editing) EolssuButton(stringResource(Res.string.sheet_tempo_add), { edit(null) }, style = EolssuButtonStyle.Secondary, enabled = !saving && validBpm != null)
+            if (editing) {
+                Text(stringResource(Res.string.sheet_tempo_kind), style = MaterialTheme.typography.labelLarge)
+                (listOf<HanbaeMark?>(null) + HanbaeMark.entries).chunked(2).forEach { pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        pair.forEach { choice -> EolssuButton(choice?.label ?: stringResource(Res.string.sheet_tempo_numeric),
+                            { markName = choice?.name; if (choice == HanbaeMark.Original) target = bpm; error = null }, Modifier.weight(1f),
+                            style = if (mark == choice) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary, small = true, compact = true, enabled = !saving) }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    EolssuTextField(startGak, { startGak = it; error = null }, stringResource(Res.string.sheet_tempo_start_gak), "", Modifier.weight(1f), type = TextFieldType.Number)
+                    EolssuTextField(startCell, { startCell = it; error = null }, stringResource(Res.string.sheet_tempo_start_cell), "", Modifier.weight(1f), type = TextFieldType.Number)
+                }
+                if (mark == null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    EolssuButton(stringResource(Res.string.sheet_tempo_step), { gradual = false }, Modifier.weight(1f), small = true, style = if (!gradual) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary)
+                    EolssuButton(stringResource(Res.string.sheet_tempo_ramp), { gradual = true }, Modifier.weight(1f), small = true, style = if (gradual) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary)
+                }
+                if (mark != HanbaeMark.Original) EolssuTextField(target, { target = it; error = null },
+                    stringResource(Res.string.sheet_tempo_target) + " · " + draft.tempoUnitLabel, "", type = TextFieldType.Number,
+                    help = stringResource(Res.string.sheet_tempo_target_help))
+                if (needsEnd) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        EolssuTextField(endGak, { endGak = it; error = null }, stringResource(Res.string.sheet_tempo_end_gak), "", Modifier.weight(1f), type = TextFieldType.Number)
+                        EolssuTextField(endCell, { endCell = it; error = null }, stringResource(Res.string.sheet_tempo_end_cell), "", Modifier.weight(1f), type = TextFieldType.Number)
+                    }
+                    Text(stringResource(Res.string.sheet_tempo_end_help), style = MaterialTheme.typography.bodySmall)
+                }
+                error?.let { Text(it, color = EolssuTheme.colors.rec, style = MaterialTheme.typography.bodySmall) }
+                EolssuButton(stringResource(Res.string.sheet_tempo_keep_change), {
+                    val start = position(startGak, startCell)
+                    val finish = if (needsEnd) position(endGak, endCell, terminal = true) else null
+                    val value = if (mark == HanbaeMark.Original) validBpm?.toDouble() else target.takeIf { it.isNotBlank() }?.toDoubleOrNull()
+                    if (start == null || (target.isNotBlank() && value == null) || (needsEnd && value != null && finish == null)) {
+                        error = "실제 정간과 목표 빠르기, 끝 위치를 확인해 주세요."
+                    } else {
+                        val cue = SheetTempoChange(start, mark, value, finish.takeIf { needsEnd }, initialBpm)
+                        error = current.tempoChangeError(cue, replacing)
+                        if (error == null) { working = current.withTempoChange(cue, replacing); editing = false }
+                    }
+                }, enabled = !saving && validBpm != null)
+                EolssuButton(stringResource(Res.string.common_cancel), { editing = false; error = null }, style = EolssuButtonStyle.Text)
+            }
         }
-        EolssuButton(stringResource(Res.string.sheet_details_apply),
-            onClick = { validBpm?.let(onApply) }, enabled = validBpm != null && !saving)
-        EolssuButton(stringResource(Res.string.common_cancel), onDismiss,
-            style = EolssuButtonStyle.Secondary, enabled = !saving,
-            containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
+        EolssuButton(stringResource(Res.string.sheet_details_apply), { onApply(current) }, enabled = validBpm != null && !saving && !editing)
+        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary,
+            enabled = !saving, containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
     }
 }

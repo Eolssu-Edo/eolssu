@@ -64,6 +64,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val checkable = reviewIssues.filter { issue ->
         val index = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 }
         when (issue.kind) {
+            "TEMPO_CUE_UNRESOLVED" -> index != null && draft.tempoChanges.none { it.cell == index && !it.resolved }
             "UNREGISTERED_PITCH", "OUT_OF_RANGE" -> {
                 val allowed = supportedInputPitches
                 index != null && validStructure && pitchesByCell[index].all { pitch -> allowed?.contains(pitch) == true }
@@ -78,8 +79,10 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val resolvedPitchIssues = if (!verifiedInstrument) emptySet() else reviewIssues
         .filter { it.kind in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE") && it.id in checkable }
         .mapTo(mutableSetOf(), SheetReviewIssue::id)
-    val resolved = checkedIssueIds + resolvedPitchIssues
+    val resolvedTempoIssues = reviewIssues.filter { it.kind == "TEMPO_CUE_UNRESOLVED" && it.id in checkable }.map { it.id }
+    val resolved = checkedIssueIds + resolvedPitchIssues + resolvedTempoIssues
     val pending = reviewIssues.filter { it.id !in resolved || it.id !in checkable }
+    val unresolvedTempos = draft.tempoChanges.filterNot { it.resolved }.map { it.cell }.toSet()
     val jangdan = availableJangdans?.firstOrNull { it.jangdanId == draft.jangdanId }
     val mismatch = if (draft.jangdanId == null) completionCatalogState == SheetCompletionCatalogState.Ready && draft.jangdanName.isNotEmpty() else when {
         jangdan != null -> jangdan.name != draft.jangdanName || !draft.isCompatibleWith(jangdan)
@@ -113,6 +116,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val corrections = buildSet {
         addAll(empty)
         addAll(invalidPitches)
+        addAll(unresolvedTempos)
         pending.forEach { issue -> draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 }?.let(::add) }
         if (structureError != null) {
             val structuralCells = cells.orEmpty().mapIndexedNotNull { index, cell ->
@@ -125,7 +129,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     }.sorted().toSet()
     return SheetCompletionValidation(
         emptyCellCount = empty.size,
-        pendingReviewCount = pending.size,
+        pendingReviewCount = pending.size + unresolvedTempos.count { index -> pending.none { it.cellId == draft.sourceCellIds?.getOrNull(index) } },
         invalidPitchCount = invalidPitches.size,
         hasInvalidStructure = empty.isEmpty() && structureError != null,
         hasJangdanMismatch = mismatch,
@@ -136,7 +140,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
         correctionCellIndices = corrections,
         correctionUnitKeys = correctionUnits,
         checkableIssueIds = checkable,
-        resolvedPitchIssueIds = resolvedPitchIssues,
+        resolvedPitchIssueIds = resolvedPitchIssues + resolvedTempoIssues,
     )
 }
 
