@@ -77,6 +77,7 @@ import kotlin.math.sin
  * 마친 단계 돌은 이끼 낀 연두로 칠하고, 지금 아래 카드로 보는 단계 돌에는 호랑이가 서 있고 굵은 테두리다.
  * 돌을 누르면 아래 그림 카드가 그 단계로 넘어가고, 호랑이가 돌에서 돌로 한 번씩 깡충 건너가며 내려앉을 때 물결이 퍼진다.
  * 마지막 단계를 마치고 돌아오면([LearnUiState.finishCelebration]) 호랑이가 마지막 돌에서 펄쩍펄쩍 뛴 뒤 [onCelebrated]를 부른다.
+ * 뛰는 도중 다른 돌을 고르거나 화면을 떠나 끊겨도 [onCelebrated]를 불러 축하는 한 번만 하고, 호랑이는 바로 돌 위에 내려선다.
  * 호랑이는 그림 밖으로 뛰어올라도 잘리지 않는다.
  */
 @Composable
@@ -145,16 +146,25 @@ internal fun LearnTrailMap(
         val celebrating = state.finishCelebration && viewedIndex == stages.lastIndex
         val celebrated by rememberUpdatedState(onCelebrated)
         LaunchedEffect(celebrating) {
-            if (!celebrating) return@LaunchedEffect
-            delay(FinishStartDelayMillis)
-            repeat(FinishJumps) { i ->
-                jumpSide = if (i % 2 == 0) 1f else -1f
-                jump.animateTo(1f, tween(FinishUpMillis, easing = LinearOutSlowInEasing))
-                jump.animateTo(0f, tween(FinishDownMillis, easing = FastOutLinearInEasing))
-                landing.snapTo(1f)
-                landing.animateTo(0f, spring(dampingRatio = 0.4f, stiffness = 900f))
+            if (!celebrating) {
+                // 뛰는 도중 다른 돌을 골라 축하가 끊기면 공중에 뜨거나 눌린 채 남지 않도록 바로 돌 위에 내려놓는다.
+                jump.snapTo(0f)
+                landing.snapTo(0f)
+                return@LaunchedEffect
             }
-            celebrated()
+            try {
+                delay(FinishStartDelayMillis)
+                repeat(FinishJumps) { i ->
+                    jumpSide = if (i % 2 == 0) 1f else -1f
+                    jump.animateTo(1f, tween(FinishUpMillis, easing = LinearOutSlowInEasing))
+                    jump.animateTo(0f, tween(FinishDownMillis, easing = FastOutLinearInEasing))
+                    landing.snapTo(1f)
+                    landing.animateTo(0f, spring(dampingRatio = 0.4f, stiffness = 900f))
+                }
+            } finally {
+                // 다른 돌을 고르거나 화면을 떠나 끊겨도 축하는 본 것으로 남겨, 7단계 돌에 돌아오거나 화면을 다시 그릴 때 또 뛰지 않는다.
+                celebrated()
+            }
         }
         if (points.isNotEmpty()) {
             val at = trailPointAt(points, walk)
