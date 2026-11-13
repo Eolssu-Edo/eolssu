@@ -300,7 +300,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         assertTrue(model.uiState.value.draft.unfilledCells.isNotEmpty())
     }
 
-    @Test fun newEditsCannotCompleteWhileInstrumentRangeIsStillLoading() = runTest {
+    @Test fun coldDocumentWaitsForInstrumentRangeAndStillRejectsUnsupportedEdits() = runTest {
         val instruments = CompletableDeferred<List<CatalogInstrument>>()
         val repository = RecordingDocuments(document())
         val catalog = CompletionCatalog(
@@ -312,15 +312,23 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
             loadAudioInstruments = { instruments.await() }))
         runCurrent()
         assertTrue(model.uiState.value.completionValidation.catalogLoading)
+        assertTrue(model.uiState.value.documentLoading)
+        val before = model.uiState.value.draft
         model.selectCell(2); model.put(ScoreNote.SourcePitch("임", 0))
         model.requestSave(); runCurrent()
         assertTrue(repository.writes.isEmpty())
         model.saveDraft(); runCurrent()
-        assertTrue(repository.writes.single().first)
+        assertTrue(repository.writes.isEmpty(), "필수 자료가 준비되기 전의 비어 있는 문서를 저장하지 않는다")
+        assertEquals(before, model.uiState.value.draft)
         instruments.complete(listOf(CatalogInstrument("11", "DANSO", "단소"))); runCurrent()
         assertEquals(SheetCompletionCatalogState.Ready, model.uiState.value.completionCatalogState)
+        assertFalse(model.uiState.value.documentLoading)
+        model.selectCell(2); model.put(ScoreNote.SourcePitch("임", 0))
         assertEquals(1, model.uiState.value.completionValidation.invalidPitchCount)
         model.requestSave(); runCurrent()
+        assertTrue(repository.writes.isEmpty())
+        model.saveDraft(); runCurrent()
+        assertTrue(repository.writes.single().first)
         assertEquals(1, repository.writes.size)
         model.putYul(Yul.Taeju)
         model.requestSave(); runCurrent()
