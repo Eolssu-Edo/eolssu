@@ -143,7 +143,7 @@
     <string name="practice_popup_go_home">홈으로 가기</string>
     <string name="practice_popup_keep_playing">계속 연주</string>
     <string name="practice_popup_end_title">연주를 마쳤어요</string>
-    <string name="practice_popup_end_body">지금까지 연주한 내용으로 음정, 박자, 음 길이를 평가해요.</string>
+    <string name="practice_popup_end_body">연주의 음정, 박자, 음 길이로 평가해요.</string>
     <string name="practice_popup_end_limit_title">녹음 한도에 도달했어요</string>
     <string name="practice_popup_end_limit_body">녹음은 10분까지만 가능해요. 지금까지 녹음한 내용으로 평가할 수 있어요.</string>
     <string name="practice_popup_evaluate">평가하기</string>
