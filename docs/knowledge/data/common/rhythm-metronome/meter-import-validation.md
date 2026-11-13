@@ -22,9 +22,11 @@
 | 고정·실제 시간표/저장 | 자작 XML11개+실제 OMR13개 모두 DATA 선율 preflight·시간표 환산, BE 메모리 저장 왕복 통과. 검수 이슈 해결이나 원본 정확도 승인을 대신하지 않음 |
 | 실제 HTTP·SQL | 격리 MySQL8.4.13/Flyway43, 인증 GET/초안PUT/확정PUT/음원POST8개 검사 통과. 7박자 사례·반주 저장/해제·빠르기 해시·잘못된 요청400. OMR 응답·렌더러 estimate·객체 저장소는 대역 |
 
-필수 회귀는 OMR222개, 글자층25개, BE clean build761개와 기존 악보 후속 수정 뒤762개(기존1개 미실행), 관련 DB79개(실제 CAT 생성2개 미실행), FE host1673개(5개 미실행), Web Wasm 컴파일 통과다. FE·BE 편집 왕복도 같은24사례가 통과했다. 전체 AI 채점 검사 시도에서는 ffmpeg/ffprobe 미설치와 Linux에서 실행한 Windows 전용 검사41개가 환경 실패했으며 OMR 회귀와 분리한다.
+필수 회귀는 OMR222개, 글자층25개, BE clean build761개와 기존 악보 후속 수정 뒤762개(기존1개 미실행), 관련 DB79개(실제 CAT 생성2개 미실행), FE host1678개(5개 미실행), Web Wasm 컴파일 통과다. FE·BE 편집 왕복도 같은24사례가 통과했다. 전체 AI 채점 검사 시도에서는 ffmpeg/ffprobe 미설치와 Linux에서 실행한 Windows 전용 검사41개가 환경 실패했으며 OMR 회귀와 분리한다.
 
 전체 증거는 통합 작업트리 `.scratch/{actual-staff,actual-extra,actual-scan,contracts-preflight,source-full-comparison.json,omr-final.xml}` 및 `data/processed/meter-validation/`에 있다. 테스트 명령은 [DATA README](../../../../../data/README.md#박자별-원본과-리듬-보존-검증-883), [스펙](../../../../specs/score-rhythm-preservation.md#검증과-범위)을 따른다. 고정 XML은 자작 CC0이며 외부 저작권 원본·MusicXML/전체 인식 산출물을 Git에 넣지 않는다.
+
+실기기 SM_S926N/Android17/API37에서16회 타격·2+3강세·첫강박tick4 뒤 시작·백그라운드 STOP→RELEASE를 확인했다. 별도 앱은 제거했다. 실제 UI의 프리셋 선택→적용→저장→재열기 여정은 미완료이며 음향지연은 측정하지 않았다.
 
 ## 수정 전 기준 조사
 

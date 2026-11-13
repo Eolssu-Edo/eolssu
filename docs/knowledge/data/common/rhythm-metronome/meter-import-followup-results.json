@@ -9,7 +9,8 @@
     "18893822",
     "c5c9657f",
     "0bc11a1a",
-    "f89946a3"
+    "f89946a3",
+    "c3cf9687"
   ],
   "fixedXml": [
     {
@@ -939,7 +940,12 @@
       "skipped": 5,
       "failed": 0
     },
-    "frontendWasmCompile": "PASS"
+    "frontendWasmCompile": "PASS",
+    "frontendHostAfterOriginFix": {
+      "tests": 1678,
+      "skipped": 5,
+      "failed": 0
+    }
   },
   "limitations": [
     "OMR meter misreads require source review, not automatically corrected",
@@ -1185,5 +1191,25 @@
   "cleanup": {
     "rootOmrContainer": "removed; identity verified",
     "backendMysqlContainer": "removed; verified by owner"
-  }
+  },
+  "device": {
+    "model": "SM_S926N",
+    "android": 17,
+    "api": 37,
+    "feCommit": "b0c79aed",
+    "hits": 16,
+    "allPlayCallsSucceeded": true,
+    "firstTick": 4.074,
+    "originTick": 4,
+    "background": "STOP -> RELEASE",
+    "uiPresetSaveReopen": "NOT_COMPLETED",
+    "acousticLatency": "NOT_MEASURED",
+    "isolatedAppRemoved": true
+  },
+  "handoff": [
+    "UI preset/apply/save/reopen journey",
+    "post-develop-sync regression result",
+    "formal review",
+    "source OMR meter misreads require review"
+  ]
 }
