@@ -2,6 +2,9 @@ package com.ssafy.eolssu.platform.audio
 
 import com.ssafy.eolssu.core.audio.JangdanClip
 import com.ssafy.eolssu.core.audio.JangdanSample
+import com.ssafy.eolssu.core.audio.EchoCalibrationResult
+import com.ssafy.eolssu.core.audio.EchoPlaybackEvent
+import com.ssafy.eolssu.core.audio.RecordingEchoFilter
 import com.ssafy.eolssu.core.audio.planJangdan
 import com.ssafy.eolssu.core.model.JangdanPlayback
 import kotlin.test.Test
@@ -10,6 +13,10 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.math.PI
+import kotlin.math.exp
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 class JangdanEchoTrainingTest {
     private val lengths = mapOf(
@@ -104,5 +111,41 @@ class JangdanEchoTrainingTest {
         assertTrue(training.phaseStartFrame > 44_100 * .2,
             "The last 500 ms deok response extends over 200 ms into the next cycle")
         assertTrue(training.trainingEnd + 441 < scheduled.recordingStartFrame)
+    }
+
+    @Test fun actualPreparationSelectionFeedsTheCycleCalibratorAndCorrectsOnlyPerformanceSamples() {
+        val plan = arirang()
+        val schedule = JangdanFrameSchedule(plan, 44_100, 3, 0, 0)
+        val scheduled = schedule.describe(0)
+        val geometry = assertIs<JangdanEchoTraining.Cycle>(
+            selectJangdanEchoTraining(plan, scheduled, lengths, 0, 40_000))
+        val events = buildList {
+            repeat(20) { addAll(schedule.takeAt(assertNotNull(schedule.nextFrame))) }
+        }
+        val input = FloatArray(scheduled.recordingStartFrame.toInt() + 100_000)
+        for (event in events) repeat(lengths.getValue(event.clip) + 5_292) { index ->
+            val t = index / 44_100.0
+            val value = exp(-t / .09) * (.14 * sin(2 * PI * 183 * t) +
+                .12 * sin(2 * PI * (1_237 + event.clip.sample.ordinal * 173) * t + 170 * t * t) +
+                .06 * sin(2 * PI * 3_927 * t))
+            input[event.frame.toInt() + index] += (value * event.gain).toFloat()
+        }
+        val accepted = assertIs<EchoCalibrationResult.Accepted>(
+            calibrateJangdanEchoTraining(input.copyOf(geometry.trainingEnd.toInt()), geometry, plan, lengths))
+        val filter = RecordingEchoFilter(accepted.model)
+        val actual = events.map { EchoPlaybackEvent(it.clip, it.frame, it.gain) }
+        var beforeEnergy = 0.0
+        var afterEnergy = 0.0
+        var changedBlocks = 0
+        val count = 882
+        val begin = scheduled.recordingStartFrame.toInt()
+        for (first in begin until begin + 82_687 - count step count) {
+            val block = ShortArray(count) { (input[first + it] * 32768).roundToInt().toShort() }
+            beforeEnergy += block.sumOf { it.toDouble() * it }
+            if (filter.process(block, count, first.toLong(), actual)) changedBlocks++
+            afterEnergy += block.sumOf { it.toDouble() * it }
+        }
+        assertTrue(changedBlocks >= 5, "The production geometry must enable actual correction, not just select a non-null plan")
+        assertTrue(afterEnergy < beforeEnergy * .7, "A known speaker-only overlapping pattern should lose substantial energy")
     }
 }

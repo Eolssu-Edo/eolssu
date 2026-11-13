@@ -21,7 +21,6 @@ import com.ssafy.eolssu.core.audio.RecordingEchoStatus
 import com.ssafy.eolssu.core.audio.EchoCalibrationProgress
 import com.ssafy.eolssu.core.audio.EchoPlaybackEvent
 import com.ssafy.eolssu.core.audio.EchoCalibrationResult
-import com.ssafy.eolssu.core.audio.RecordingEchoCalibrator
 import com.ssafy.eolssu.core.audio.RecordingEchoFilter
 import java.io.File
 import java.util.concurrent.ArrayBlockingQueue
@@ -120,15 +119,22 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 "outputVolume" to baseline.volume.toString(),
                 "outputDeviceType" to baseline.deviceType.toString(),
             )
-            val geometry = jangdanEchoPreparation(scheduled.preparationEvents, lengths, initialShift,
-                initialInput.frames, scheduled.recordingStartFrame + initialShift)
+            val geometry = selectJangdanEchoTraining(plan, scheduled, lengths, initialShift, initialInput.frames)
                 ?.takeIf { it.trainingEnd < RATE * 55L }
             if (geometry == null) {
                 next.rejectCalibration(RecordingEchoStatus.Unreliable)
                 next.retainProbe = false
                 next.probe.clearSamples()
-                if (debugBuild) Log.d("EolssuEcho", "calibration=bypassed reason=OverlappingOrInsufficientResponses")
+                if (debugBuild) Log.d("EolssuEcho", "calibration=bypassed reason=InsufficientIndependentOrCycleResponse")
             }
+            val modelMode = when (geometry) {
+                is JangdanEchoTraining.Isolated -> "strikes"
+                is JangdanEchoTraining.Cycle -> "cycle"
+                null -> "none"
+            }
+            next.pairSummary = next.pairSummary + ("model" to modelMode)
+            if (debugBuild && geometry != null) Log.d("EolssuEcho",
+                "calibration=planned model=$modelMode trainingEnd=${geometry.trainingEnd} recordingFrame=${scheduled.recordingStartFrame + initialShift}")
             var fitting = false
             var count = 0
             fun startFitIfReady() {
@@ -139,8 +145,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 val zero = captured.zeroNanos ?: return
                 val outputZero = rendered.frameZeroNanos ?: return
                 val shift = inputFrameAtNanos(outputZero, zero)
-                val selected = jangdanEchoPreparation(scheduled.preparationEvents, lengths, shift,
-                    initialInput.frames, scheduled.recordingStartFrame + shift) ?: return
+                val selected = selectJangdanEchoTraining(plan, scheduled, lengths, shift, initialInput.frames) ?: return
                 if (captured.samples.size < selected.trainingEnd) return
                 fitting = true
                 next.retainProbe = false
@@ -153,8 +158,17 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 }
                 // A read can already straddle the start beat. Never train on its performance suffix.
                 val training = captured.samples.copyOf(selected.trainingEnd.toInt())
+                next.pairSummary = next.pairSummary + mapOf(
+                    "fittedInputShift" to shift.toString(),
+                    "trainingEndFrame" to selected.trainingEnd.toString(),
+                ) + if (selected is JangdanEchoTraining.Cycle) mapOf(
+                    "cyclePeriodFrames" to selected.periodFrames.toString(),
+                    "phaseStartFrame" to selected.phaseStartFrame.toString(),
+                    "phaseEndFrame" to selected.phaseEndFrame.toString(),
+                    "playbackCycleOriginFrame" to selected.playbackOriginFrame.toString(),
+                ) else emptyMap()
                 next.fitCalibration {
-                    val result = RecordingEchoCalibrator.calibrate(training, selected.strikes, lengths, selected.quiet, RATE)
+                    val result = calibrateJangdanEchoTraining(training, selected, plan, lengths)
                     currentCoroutineContext().ensureActive()
                     synchronized(stateLock) {
                         if (session !== next || next.cancelled || next.failed || next.closed || !next.calibrationAllowed) return@fitCalibration
@@ -168,7 +182,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                             is EchoCalibrationResult.Accepted -> {
                                 next.echo = PreparedEcho(output, baseline, captured.deviceId, RecordingEchoFilter(result.model))
                                 echoState.value = if (next.warming) RecordingEchoStatus.Ready else RecordingEchoStatus.Active
-                                if (debugBuild) Log.d("EolssuEcho", "calibration=accepted clips=${clips.size} frames=${training.size} similarity=${result.model.minimumSimilarity} afterStart=${!next.warming}")
+                                if (debugBuild) Log.d("EolssuEcho", "calibration=accepted model=$modelMode clips=${clips.size} frames=${training.size} similarity=${result.model.minimumSimilarity} afterStart=${!next.warming}")
                             }
                             is EchoCalibrationResult.Rejected -> {
                                 next.rejectCalibration(result.reason)

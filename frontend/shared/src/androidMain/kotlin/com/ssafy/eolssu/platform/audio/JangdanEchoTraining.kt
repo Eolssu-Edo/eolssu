@@ -3,6 +3,12 @@ package com.ssafy.eolssu.platform.audio
 import com.ssafy.eolssu.core.audio.EchoQuietWindow
 import com.ssafy.eolssu.core.audio.JangdanClip
 import com.ssafy.eolssu.core.audio.JangdanPlan
+import com.ssafy.eolssu.core.audio.CycleEchoCalibrationInput
+import com.ssafy.eolssu.core.audio.CycleEchoCalibrator
+import com.ssafy.eolssu.core.audio.CycleEchoPlaybackReference
+import com.ssafy.eolssu.core.audio.CycleEchoStrike
+import com.ssafy.eolssu.core.audio.EchoCalibrationResult
+import com.ssafy.eolssu.core.audio.RecordingEchoCalibrator
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -25,6 +31,30 @@ internal sealed interface JangdanEchoTraining {
         val playbackOriginFrame: Double,
         override val trainingEnd: Long,
     ) : JangdanEchoTraining
+}
+
+internal fun calibrateJangdanEchoTraining(
+    capture: FloatArray,
+    training: JangdanEchoTraining,
+    plan: JangdanPlan,
+    clipFrames: Map<JangdanClip, Int>,
+): EchoCalibrationResult = when (training) {
+    is JangdanEchoTraining.Isolated -> training.preparation.let {
+        RecordingEchoCalibrator.calibrate(capture, it.strikes, clipFrames, it.quiet)
+    }
+    is JangdanEchoTraining.Cycle -> {
+        val framesPerTick = plan.msPerTick * 44_100 / 1000.0
+        CycleEchoCalibrator.calibrate(capture, CycleEchoCalibrationInput(
+            training.cycleStartFrames, training.periodFrames, training.phaseStartFrame,
+            training.phaseEndFrame, training.quietWindows, CycleEchoPlaybackReference(
+                training.playbackOriginFrame, training.periodFrames,
+                plan.strikes.sortedBy { it.tick }.map {
+                    CycleEchoStrike(it.tick * framesPerTick, it.clip, it.gain * .65f,
+                        clipFrames.getValue(it.clip) + (44_100 * .12).roundToInt())
+                },
+            ),
+        ))
+    }
 }
 
 internal fun selectJangdanEchoTraining(
