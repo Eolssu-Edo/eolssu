@@ -330,7 +330,8 @@ internal class ModelAudioSession(
             sourceId = id
             _state.value = ModelAudioState(ModelAudioStatus.Loading, audio, positionMs, seeking = seeking)
             startedAt?.let { perf?.milestone(PerfPhase.PLAYER_LOAD, once = false, startedAt = it) }
-            player.load(AudioSource(id, audio.audioUrl, localFile = audio.sheetPlayback?.localFile), positionMs, speed(audio))
+            val file = audio.sheetPlayback?.localFile ?: audio.localFile
+            player.load(AudioSource(id, if (file == null) audio.audioUrl else "", localFile = file), positionMs, speed(audio))
         }
     }
 

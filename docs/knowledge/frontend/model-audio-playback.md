@@ -2,6 +2,26 @@
 
 CAT-05의 게시 음원 메타데이터를 기존 연습 화면의 모범 연주 조작부에 연결한다. 서버 계약은 S15P31E102-288의 `GET /api/songs/{songId}/model-audio`다. 이 구현은 운영 음원 적재·공개 사용권·실기기 음악적 품질 승인과 별개다.
 
+## S15P31E102-859 모범 음원 파일 캐시
+
+2026-11-13 사용자 요청으로 공개 모범 음원의 파일을 화면 수명과 분리했다. [스펙](../../specs/model-audio-file-cache.md)에 따라 `ApiModelAudioRepository`는 기존 게시 메타데이터·시간표 검증을 마친 뒤 `ModelAudioFileCache`에서 SHA-256이 같은 파일을 얻는다. `ModelAudio.localFile`은 직렬화하지 않으며, `ModelAudioSession`이 기존 `AudioSource.localFile`로 전달한다. 내 악보의 `SheetPlayback`과 장단 포함 여부는 그대로 구분한다.
+
+Android `cacheDir/model-audio-v1`, iOS `NSCachesDirectory/model-audio-v1`에 최대 4개/128 MiB(파일당 최대 32 MiB)를 저장한다. 파일 해시를 다운로드 뒤와 재사용 때 확인한다. 취소된/불완전한 파일은 완료 파일로 게시하지 않고 임시 파일에서 atomic move한다. 파일 삭제·손상 시 다시 받고, 캐시 다운로드 전체 10초 제한이나 저장 오류 때는 기존 원격 URL을 사용한다. 인증 쿠키·토큰 갱신을 설치하지 않은 별도 클라이언트가 최대 3회 HTTPS 리다이렉트를 검증한다. 개발 빌드의 기존 127.0.0.1 허용 조건만 계승한다.
+
+현재 게시 메타데이터 조회는 매 진입 유지한다. 따라서 게시 해제·악보/음원 교체를 파일 캐시가 우회하지 않는다. 메타데이터 조회 실패 시 캐시만으로 오프라인 재생하지 않는다. 최초 파일 준비와 로컬 디코더 초기화는 여전히 필요하며, 반복 방문의 음원 재다운로드를 없애는 변경이다. 화면 이탈 시 네이티브 플레이어·포커스를 해제하는 기존 수명 관리는 유지한다.
+
+검증에서 최초 파일 재사용 테스트의 실패를 관찰한 뒤 통과를 확인했다. 화면을 새로 만드는 재생 통합 테스트도 캐시 연결 전 로컬 파일 미전달로 실패했고 연결 후 통과했다. `ModelAudioFileCacheTest`는 저장소 재생성, 서명 URL 변경, 손상/삭제, 동시 요청, 최근 사용 순서 제거, 취소/시간 초과, 크기 제한, 잘못된 리다이렉트를 확인한다. `ModelAudioCachePlaybackTest`는 실제 Repository·Session과 파일 캐시를 함께 사용해 재진입 다운로드 1회, 메타데이터 재확인, 음원 교체, 파일 받기 실패 시 원격 경로, 게시 해제 거부를 확인한다. HTTP 엔진과 파일 작업을 같은 테스트 스케줄러에 놓아 가상 시간과 실제 실행 스레드 혼용으로 생기는 거짓 시간 초과를 제거했다([Ktor 3.6 MockEngineConfig](https://api.ktor.io/ktor-client-mock/io.ktor.client.engine.mock/-mock-engine-config/index.html)).
+
+`frontend`에서 `:shared:testAndroidHostTest :androidApp:assembleDebug :androidApp:lintDebug :shared:compileKotlinJs :shared:compileKotlinWasmJs --max-workers=2`가 통과했다. 전체 Android host 검사는 1,629개 중 1,624개 통과·환경 조건부 5개 생략이며 실패는 0개다. Windows에서 iOS DI·AVPlayer는 빌드/실기기 미확인이다. Android 실기기 관찰 결과는 아래에 별도로 기록한다.
+
+### Android 실기기 관찰
+
+Galaxy S24+ SM-S926N / Android 17에서 별도 패키지 `com.ssafy.eolssu.qa859`를 설치했다. 기존 앱 데이터와 분리한 QA 빌드, 로컬 카탈로그·가짜 로그인 응답·800,044바이트 WAV 고정 음원을 사용했다. 실제 앱에서 연습곡 선택 → 모범 연주 재생 → 뒤로 → 같은 곡 재진입 → 재생을 관찰했다. 두 재생 모두 진행 시간 0:01과 ‘일시정지’ 상태를 확인했고, 음원 메타데이터 요청은 1→2회, 재생 리다이렉트와 파일 요청은 각각 1→1회였다. 캐시 파일의 기기 `sha256sum`은 메타데이터의 `6106d603b0cff4fe1a05daacfc0e2d65f85b2a0006a09401f01e2a9998c008c2`와 같았다. 두 번째 뒤로 가기 후 곡 선택 화면 복귀도 확인했다.
+
+ADB 재연결로 reverse가 사라진 시도에서는 연결 오류가 발생했으며, reverse 복원 후 다시 확인한 결과만 위 관찰에 포함했다. 이 검사는 Android 네이티브 파일 재생·반복 방문의 음원 요청 제거를 증명한다. 운영 R2·서명 HTTPS 전체 경로, M4A 음질, 정밀한 시작 시간 단축 비율을 측정한 결과는 아니다. HTTPS 리다이렉트·서명 주소 변경·해시 검증은 별도 격리 HTTP 검사로 확인했다.
+
+로컬 근거는 해당 worktree의 `frontend/build/qa859/journey-results.json`(최초 재생), `play-reentry.xml`, `reentry-counts.json`, `after-back.xml`, `requests.json`이며 전체 빌드 로그는 `frontend/build859.log`다. 종료 후 해당 QA 앱·전용 ADB reverse·UI 임시 파일·로컬 fixture 서버를 정리했다. 공유 기기의 다른 앱과 포트는 변경하지 않았다.
+
 ## S15P31E102-380 후속 연결 범위
 
 2026-11-02 사용자는 생성 자료를 먼저 사용하고 이상한 곡을 숨김·교체하는 흐름을 선택했다. FE380은 별도 MR !222로 유지한다. 최신 develop을 통합한 뒤 장단이 없는 곡도 원본 공통 악보의 시간·장단명을 그대로 사용한다. 장단 pattern은 만들지 않고 패턴 미리듣기·장단 박 표시만 비활성화한다. 기존 연결 장단의 이름·BPM 단위 검증과 공개4곡 동작은 유지한다.

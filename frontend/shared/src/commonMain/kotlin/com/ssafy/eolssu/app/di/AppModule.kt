@@ -131,7 +131,7 @@ val appModule = module {
     single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>()) }
     single { SignedInMember(get()) }
     single<SongRepository> { ApiSongRepository(get(), get()) }
-    single<ModelAudioRepository> { ApiModelAudioRepository(get()) }
+    single<ModelAudioRepository> { ApiModelAudioRepository(get(), getOrNull()) }
     single { SheetPracticeRepository(get(), get(), get(), get(), get(), get(), get()) }
     single { InstrumentCatalog(get()) }
     single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
