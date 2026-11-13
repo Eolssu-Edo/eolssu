@@ -15,7 +15,7 @@ class SheetAuthoring(private val json: JsonMapper) {
         sheet.imported?.resultJson?.let { raw ->
             (json.readTree(raw).path("authoring") as? ObjectNode)?.let { return it.deepCopy() }
         }
-        sheet.draft?.json?.let { raw ->
+        if (sheet.scoreJson == null) sheet.draft?.json?.let { raw ->
             (json.readTree(raw).path("authoring") as? ObjectNode)?.let { return it.deepCopy() }
         }
         val raw = sheet.scoreJson ?: sheet.draft?.json?.let { json.readTree(it).path("score").toString() } ?: return null

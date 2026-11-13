@@ -48,6 +48,16 @@ class SheetAccompanimentTests {
         assertEquals(json.readTree(captured.toString()).path("source"), merged.path("source"))
     }
 
+    @Test fun `legacy confirmed sheet does not expose unconfirmed draft accompaniment`() {
+        val confirmed = assertNotNull(authoring.current(sheet))
+        val draft = confirmed.deepCopy().apply { set("accompaniment", basic()) }
+        val raw = json.createObjectNode().apply { set("score", json.readTree(score)); set("authoring", draft) }
+        val editing = sheet.copy(draft = SheetDraft(raw.toString(), 1, Instant.EPOCH))
+        assertTrue(assertNotNull(authoring.current(editing)).path("accompaniment").isMissingNode)
+        assertEquals(basic(), json.readTree(authoring.merge(editing, null)).path("accompaniment"))
+        assertEquals(confirmed.path("source"), assertNotNull(authoring.current(editing)).path("source"))
+    }
+
     @Test fun `all agreed presets allow fractional pulse ticks and an in-range pickup origin`() {
         val baseline = assertNotNull(authoring.current(sheet))
         val presets = listOf("QUARTER" to listOf(2), "QUARTER" to listOf(3), "DOTTED_QUARTER" to listOf(2),
