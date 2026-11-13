@@ -861,7 +861,7 @@ class DatabaseIntegrationTests {
         val inTime = startedAt // 마감 기준이 시작 시각과 같으면 아직 제한 시간 안이다
         val overdue = startedAt.plusNanos(1_000) // 시작 시각이 마감 기준보다 1마이크로초 이르면 넘겼다
         val pending = assertNotNull(repository.findPending(21, inTime))
-        assertEquals(PendingAnalysis(21, 2, 1, 1, 3, 4, 60, "JEONGGAN", "recordings/21/a.m4a"), pending)
+        assertEquals(PendingAnalysis(21, 2, 1, 1, 3, 4, 60, "JEONGGAN", "recordings/21/a.m4a", "DANSO"), pending)
         assertNull(repository.findPending(21, overdue))
         assertNull(repository.findPending(1, inTime.minusYears(1))) // 고정 데이터의 DONE 세션
 

@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.guide.learn
 
 import com.ssafy.eolssu.core.audio.AudioRecorder
+import com.ssafy.eolssu.core.audio.PitchGate
 import com.ssafy.eolssu.core.audio.PitchReading
 import com.ssafy.eolssu.core.audio.RecordedAudio
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
@@ -43,6 +44,7 @@ class LearnPracticePitchViewModelTest {
         private val flow = MutableSharedFlow<PitchReading>(extraBufferCapacity = 256)
         override val pitchReadings: Flow<PitchReading>? = flow.takeIf { observes }
         override val measuresLevel = true
+        override var pitchGate: PitchGate = PitchGate.Default
         var starts = 0
         var cancels = 0
         private var recording = 0L
@@ -97,6 +99,28 @@ class LearnPracticePitchViewModelTest {
         assertEquals(LearnPracticePhase.Passed, state.phase)
         assertFalse(state.listening)
         assertTrue(recorder.cancels >= 1)
+    }
+
+    /** 단소는 듣는 동안 한 음씩과 같은 낮은 높이 문턱을 쓰고 멈추면 되돌린다. 다른 악기는 기본 문턱이다(S15P31E102-857). */
+    @Test fun dansoUsesTheLenientPitchGateOnlyWhileListening() = runTest(dispatcher) {
+        val danso = Recorder()
+        val vm = viewModel(danso)
+        vm.prepare(GuideInstrument.Danso, detail)
+        runCurrent()
+        vm.startListening()
+        runCurrent()
+        assertEquals(PitchGate.Lenient, danso.pitchGate)
+        vm.stopListening()
+        assertEquals(PitchGate.Default, danso.pitchGate)
+
+        val sogeum = Recorder()
+        val other = viewModel(sogeum)
+        other.prepare(GuideInstrument.Sogeum, detail)
+        runCurrent()
+        other.startListening()
+        runCurrent()
+        assertEquals(PitchGate.Default, sogeum.pitchGate)
+        other.stopListening()
     }
 
     @Test fun wrongNotesAndSilenceDoNotPass() = runTest(dispatcher) {

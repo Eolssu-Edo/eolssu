@@ -5,7 +5,9 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, combine, frame_rms, pyin_f0, reference_hz, score, total_score
+from ai_service.pipelines.scoring import (
+    HOP_S, HWANG_HZ, Note, combine, frame_rms, lift_below_range, pyin_f0, reference_hz, score, total_score,
+)
 from evaluation.synthetic import BPM, REF_HZ, SCALE, SR, synth
 
 
@@ -324,3 +326,15 @@ def test_mixed_or_overlapping_start_beats_are_rejected():
         score(f0, [Note(0, 1, start_beat=0), Note(2, 1)], BPM, REF_HZ)
     with pytest.raises(ValueError):
         score(f0, [Note(0, 2, start_beat=0), Note(2, 1, start_beat=1)], BPM, REF_HZ)
+
+
+def test_values_far_below_the_song_are_doubled():
+    # 곡 최저음 반음 12(청황 약 622Hz)의 200센트 아래(약 554Hz)보다 낮으면 악기가 낼 수 없는 높이로 보고 두 배로 고친다.
+    floor = HWANG_HZ * 2 ** (10 / 12)
+    f0 = np.array([np.nan, 311.13, 392.0, floor * 0.99, floor * 1.01, 700.0, 150.0])
+    lifted = lift_below_range(f0, lowest_semitone=12)
+    assert np.isnan(lifted[0])
+    assert lifted[1:4] == pytest.approx([622.26, 784.0, floor * 1.98])
+    assert lifted[4:6] == pytest.approx([floor * 1.01, 700.0])  # 하한 이상은 그대로
+    assert np.isnan(lifted[6])  # 두 배(300Hz)로도 하한 아래면 무음
+    assert f0[1] == 311.13  # 입력 배열은 바꾸지 않는다

@@ -111,7 +111,7 @@ eolssu:
     # 한 음씩 연습 기준(PRA-06). 키는 악기 code이고 없는 악기는 404다. 값을 바꾸면 criteria-version을 올린다.
     # 아래 값은 AI 미확정 초안이다. 명세의 초안 한 벌을 네 악기에 그대로 넣었으며 악기별로 측정한 값이 아니다.
     # 악기별로 따로 고칠 수 있게 블록을 나눠 둔다. 앵커로 묶지 않는다. 키를 하나라도 빠뜨리면 서버가 시작되지 않는다.
-    # DANSO는 실기기 피드백(S15P31E102-666)으로 허용 센트·유지 시간·조율 상한을 완화했다. 측정으로 정한 값은 아니다.
+    # DANSO는 실기기 피드백(S15P31E102-666)으로, 두 대금은 같은 값으로(S15P31E102-866) 허용 센트·유지 시간·조율 상한을 완화했다. 측정으로 정한 값은 아니다.
     criteria:
       DANSO:
         criteria-version: note-step-2
@@ -136,25 +136,25 @@ eolssu:
         sigimsae-mode: MAIN_PITCH
         hint-after-ms: 8000
       JEONGAK_DAEGEUM:
-        criteria-version: note-step-1
-        pitch-tolerance-cent: 50
-        hold-ms: 300
+        criteria-version: note-step-2
+        pitch-tolerance-cent: 70
+        hold-ms: 200
         min-confidence: 0.8
         min-level-dbfs: -45
         octave-must-match: true
         tuning: FIRST_NOTE
-        max-tuning-offset-cent: 50
+        max-tuning-offset-cent: 100
         sigimsae-mode: MAIN_PITCH
         hint-after-ms: 8000
       SANJO_DAEGEUM:
-        criteria-version: note-step-1
-        pitch-tolerance-cent: 50
-        hold-ms: 300
+        criteria-version: note-step-2
+        pitch-tolerance-cent: 70
+        hold-ms: 200
         min-confidence: 0.8
         min-level-dbfs: -45
         octave-must-match: true
         tuning: FIRST_NOTE
-        max-tuning-offset-cent: 50
+        max-tuning-offset-cent: 100
         sigimsae-mode: MAIN_PITCH
         hint-after-ms: 8000
 
