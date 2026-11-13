@@ -374,6 +374,22 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         }
     }
 
+    @Test fun correctedRangeIsSavedWithoutManualAcknowledgement() = runTest {
+        val repository = RecordingDocuments(document(issues = listOf(issue("OUT_OF_RANGE"))))
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
+            SampleMySheetRepository(), documents = repository,
+            pitchCatalog = CompletionCatalog(instrument = listOf(pitch("황", 0), pitch("태", 0))),
+            loadAudioInstruments = { listOf(CatalogInstrument("11", "DANSO", "단소")) }))
+        runCurrent()
+        assertTrue(model.uiState.value.completionValidation.invalidPitchCount > 0)
+        model.selectUnit(0, 1); model.putYul(Yul.Taeju)
+        assertEquals(0, model.uiState.value.pendingChecks)
+        assertTrue(model.uiState.value.checkedIssueIds.isEmpty())
+        model.requestSave(); runCurrent()
+        assertEquals(listOf("i1"), repository.writes.single().second.resolvedIssueIds)
+        assertFalse(repository.writes.single().first)
+    }
+
     private fun open(repository: SheetDocumentRepository, catalog: ReferenceCatalogRepository? = null) =
         keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
             SampleMySheetRepository(), documents = repository, pitchCatalog = catalog))
