@@ -429,8 +429,25 @@ class PracticeJangdanTest {
         assertEquals(before, samples.hits.size)
     }
 
+    @Test fun recordingAccompanimentUsesTheEvaluationVolumeLimitButPracticeDoesNot() = practice(volume = { 0.25f }) { vm, samples, _, settings ->
+        settings.update { it.copy(jangdanSound = true) }; runCurrent()
+        vm.startRhythm(); runCurrent()
+        advanceTimeBy(600); runCurrent()
+        assertTrue(samples.gains.isNotEmpty())
+        assertTrue(samples.gains.all { it == 1f }, "Practice keeps the user's volume: ${samples.gains}")
+        vm.requestEvaluation(); runCurrent()
+        advanceTimeBy(3100); runCurrent()
+        assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
+        val before = samples.gains.size
+        advanceTimeBy(600); runCurrent()
+        val recorded = samples.gains.drop(before)
+        assertTrue(recorded.isNotEmpty())
+        assertTrue(recorded.all { it == 0.25f }, "Recording strikes are limited: $recorded")
+    }
+
     private fun practice(
         jangdan: JangdanPlayback = mapping,
+        volume: com.ssafy.eolssu.core.audio.JangdanVolumeLimit = com.ssafy.eolssu.core.audio.NoJangdanVolumeLimit,
         block: suspend TestScope.(PracticeViewModel, Samples, FakeAudioPlayer, PracticeSettingsStore) -> Unit,
     ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -446,7 +463,7 @@ class PracticeJangdanTest {
             val media = FakeAudioPlayer()
             val vm = PracticeViewModel(song.id, false, repository, settings, PracticeTimeMeter({ 0L }),
                 PracticeTimeQueue(kv, null, SignedInMember(kv), backgroundScope), recorder = FakePracticeRecorder(),
-                playbackTimeSource = testScheduler.timeSource, jangdanPlayer = samples,
+                playbackTimeSource = testScheduler.timeSource, jangdanPlayer = samples, jangdanVolume = volume,
                 modelAudioRepository = modelRepository { audioFixture() }, audioPlayer = media)
             views.put("practice", vm)
             runCurrent()
@@ -468,13 +485,14 @@ private class Samples(override val timingContext: kotlin.coroutines.CoroutineCon
     var accept = true
     var modelFocus = false
     val hits = mutableListOf<JangdanSample>()
+    val gains = mutableListOf<Float>()
     val prepared = mutableListOf<Set<JangdanClip>>()
     override suspend fun prepare(clips: Set<JangdanClip>): Boolean {
         prepared += clips
         return pending?.await() ?: true
     }
     override fun begin(accompanyingModel: Boolean): Boolean { begins++; modelFocus = accompanyingModel; return true }
-    override fun play(clip: JangdanClip, gain: Float): Boolean { if (accept) hits += clip.sample; return accept }
+    override fun play(clip: JangdanClip, gain: Float): Boolean { if (accept) { hits += clip.sample; gains += gain }; return accept }
     override fun silence() { silences++ }
     override fun stop() = silence()
     override fun release() { stop(); releases++ }
