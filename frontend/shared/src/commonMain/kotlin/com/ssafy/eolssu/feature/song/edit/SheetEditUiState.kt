@@ -152,7 +152,8 @@ data class SheetEditUiState(
 ) {
     val completionValidation: SheetCompletionValidation by lazy { validateCompletion() }
     internal val validatedCheckedIssueIds: Set<String>
-        get() = checkedIssueIds.intersect(completionValidation.checkableIssueIds)
+        get() = (checkedIssueIds + completionValidation.resolvedPitchIssueIds)
+            .intersect(completionValidation.checkableIssueIds)
     val canCheckNextReviewIssue: Boolean
         get() = !confirming && nextReviewIssue?.id in completionValidation.checkableIssueIds
     val canUndo: Boolean get() = past.isNotEmpty()
