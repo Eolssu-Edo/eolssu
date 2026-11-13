@@ -121,6 +121,7 @@ internal fun SheetEditSettingsDialog(
                     }
                     Text(stringResource(Res.string.sheet_tempo_end_help), style = MaterialTheme.typography.bodySmall)
                 }
+                error?.let { Text(it, color = EolssuTheme.colors.rec, style = MaterialTheme.typography.bodySmall) }
                 EolssuButton(stringResource(Res.string.sheet_tempo_keep_change), {
                     val start = position(startGak, startCell)
                     val finish = if (needsEnd) position(endGak, endCell, terminal = true) else null
@@ -135,7 +136,7 @@ internal fun SheetEditSettingsDialog(
                 }, enabled = !saving && validBpm != null)
                 EolssuButton(stringResource(Res.string.common_cancel), { editing = false; error = null }, style = EolssuButtonStyle.Text)
             }
-            error?.let { Text(it, color = EolssuTheme.colors.rec, style = MaterialTheme.typography.bodySmall) }
+            if (!editing) error?.let { Text(it, color = EolssuTheme.colors.rec, style = MaterialTheme.typography.bodySmall) }
         }
         EolssuButton(stringResource(Res.string.sheet_details_apply), { onApply(current) }, enabled = validBpm != null && !saving && !editing)
         EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary,
