@@ -101,6 +101,7 @@ private val BreakingStates = setOf(StepPitchState.Silent, StepPitchState.Quiet, 
  *   한 번 끊은(높이가 비거나 바뀐) 뒤에 새로 잰다.
  * - 악기별 완화([leniency]): 마지막으로 맞은 창부터 [StepLeniency.gapMs] 안의 끊김은 이어짐을 끊지 않는다. 첫 음 조율 전에는
  *   [StepLeniency.wideFirstNote]이면 첫 음을 곡의 이웃 음([songHz])과 헷갈리지 않는 범위에서 조율 상한까지 넓게 받는다.
+ *   [StepLeniency.lowerOctave]이면 옥타브 일치 기준에서도 한 옥타브 낮게 낸 소리를 목표 옥타브로 옮겨 잰다(대금, S15P31E102-866).
  */
 internal class StepPitchMatcher(
     private val criteria: NotePracticeCriteria,
@@ -252,10 +253,13 @@ internal class StepPitchMatcher(
             leniency.gate.minLevelDbfs, leniency != StepLeniency.Strict)
     }
 
-    /** 목표에서 몇 cent 떨어졌는지. 옥타브를 따지지 않으면 −600 이상 600 미만으로 접는다. */
+    /**
+     * 목표에서 몇 cent 떨어졌는지. 옥타브를 따지지 않으면 −600 이상 600 미만으로 접는다.
+     * 옥타브를 따질 때도 [StepLeniency.lowerOctave]이면 한 옥타브 낮은 소리는 목표 옥타브로 옮긴다.
+     */
     private fun offset(heard: Double, goal: Double): Double {
         val cents = 1200 * log2(heard / goal)
-        if (criteria.octaveMustMatch) return cents
+        if (criteria.octaveMustMatch) return leniency.foldLowerOctave(cents)
         return ((cents + 600) % 1200 + 1200) % 1200 - 600
     }
 }
