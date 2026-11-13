@@ -5,7 +5,7 @@
     <!-- 기록 상세 메모 고치기(S15P31E102-819) -->
     <string name="record_memo_edit">메모 수정</string>
     <!-- 메모가 없는 기록의 메모 창 읽기 상태(S15P31E102-825) -->
-    <string name="record_memo_empty">아직 메모가 없어요.\n연필을 눌러 메모를 적어 보세요.</string>
+    <string name="record_memo_empty">메모가 없어요.</string>
     <string name="record_memo_save">저장</string>
     <string name="record_memo_count">%1$d/%2$d</string>
     <string name="record_memo_save_failed">메모를 저장하지 못했어요.\n다시 시도해 주세요.</string>
