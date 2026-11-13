@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.history.component
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -21,23 +22,23 @@ import org.jetbrains.compose.resources.stringResource
 /** 이전 연주 결과의 '기록 삭제' 동작. */
 class RecordDeleteActions(val onAsk: () -> Unit, val onConfirm: () -> Unit, val onCancel: () -> Unit)
 
-/** 상단 바 오른쪽 끝 휴지통 + ‘기록 삭제’(둘 다 붉은색 #C8402F). 지우는 중에는 누를 수 없다. */
+/**
+ * 상단 바 오른쪽 끝 회색 휴지통(48dp 누르는 칸, 이름은 ‘기록 삭제’로 읽힌다). 지우는 중에는 누를 수 없다.
+ * 머리에서 가장 진한 색이 되지 않도록 빨강은 삭제 확인 창에만 쓴다(S15P31E102-849).
+ */
 @Composable
 internal fun RecordDeleteButton(busy: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
-    val tint = if (busy) colors.textDisabled else colors.rec
-    Surface(onClick = onClick, enabled = !busy, shape = RoundedCornerShape(10.dp), color = Color.Transparent, contentColor = tint) {
-        Row(
-            Modifier.heightIn(min = 44.dp).padding(start = 8.dp, end = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Icon(EolssuIcons.Trash, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(
-                stringResource(Res.string.record_delete),
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
-                maxLines = 1,
-            )
+    Surface(
+        onClick = onClick,
+        enabled = !busy,
+        modifier = Modifier.size(48.dp),
+        shape = CircleShape,
+        color = Color.Transparent,
+        contentColor = if (busy) colors.textDisabled else colors.textMuted,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(EolssuIcons.Trash, contentDescription = stringResource(Res.string.record_delete), modifier = Modifier.size(20.dp))
         }
     }
 }
