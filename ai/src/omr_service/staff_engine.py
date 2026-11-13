@@ -35,8 +35,9 @@ AUDIVERIS_OPTIONS = ["-constant", "org.audiveris.omr.sheet.ProcessingSwitches.sm
 AUDIVERIS_LOCK = threading.Lock()
 AUDIVERIS_LOGS = Path.home() / ".cache/AudiverisLtd/audiveris/log"  # 실행마다 쌓이는 Audiveris 로그
 ENGINE = "audiveris"
-DEFAULT_JANGDAN = "굿거리"  # 요청에도 박자표에도 장단이 없을 때(계약: 굿거리 격자로 두고 검수에서 고른다)
 UNIT_QUARTERS = {"DOTTED_QUARTER": Fraction(3, 2), "QUARTER": Fraction(1)}  # bpm 단위 한 박의 4분음표 수
+# 검증 표본의 5/8·7/8 오독을 검수로 보내는 보수적 가드다. 정확도 보증 임계값이 아니다.
+TIME_SIGNATURE_REVIEW_GRADE = 0.65
 log = logging.getLogger("omr_service.api")
 
 
@@ -64,17 +65,21 @@ def recognize(job) -> dict:
 
     if request.jangdan:
         jangdan = request.jangdan
-    else:  # 요청에 장단이 없으면 어떻게 정했든 확인하라고 알린다
-        jangdan = conv.jangdan or DEFAULT_JANGDAN
-        source = "default" if not conv.jangdan else "rhythm" if conv.meter_guessed else "timeSignature"
-        issues.append({"kind": "JANGDAN_GUESSED", "eventId": None, "cellId": None, "page": None, "bbox": None,
-                       "detail": {"source": source, "jangdan": jangdan}})
-    bpj = conv.beat / UNIT_QUARTERS[JANGDANS[jangdan]["bpm_unit"]]  # 정간 하나를 장단 bpm 단위 박으로
-    if bpj * conv.beats_per_gak != beats_per_jeonggan(jangdan, 1):  # 한 각 길이가 장단 한 번과 다르다
+    else:
+        uncertain_meter = any(i['detail'].get('reason') == 'TIME_SIGNATURE_REVIEW_REQUIRED' for i in issues)
+        jangdan = (conv.jangdan or "") if not uncertain_meter else ""
+        if jangdan:
+            source = "rhythm" if conv.meter_guessed else "timeSignature"
+            issues.append({"kind": "JANGDAN_GUESSED", "eventId": None, "cellId": None, "page": None, "bbox": None,
+                           "detail": {"source": source, "jangdan": jangdan}})
+    bpm_unit = JANGDANS[jangdan]['bpm_unit'] if jangdan else conv.bpm_unit
+    bpj = conv.beat / UNIT_QUARTERS[bpm_unit]
+    if jangdan and any(bpj * width != beats_per_jeonggan(jangdan, 1) for width in conv.gak_beats):
         issues.append({"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
                        "detail": {"jangdan": jangdan, "jeongganPerGak": conv.beats_per_gak}})
     doc, score = lines_to_score(conv.lines, request, jangdan, lambda _: bpj, deadline,
-                                f"staff-omr/audiveris-{AUDIVERIS_VERSION}")
+                                f"staff-omr/audiveris-{AUDIVERIS_VERSION}", continue_explicit_ties=True,
+                                gak_beats=conv.gak_beats, bpm_unit=bpm_unit)
     restore_source_pitches(score, conv.source_pitches, request.hwang_pitch)
     tempo = {}
     if conv.tempos:
@@ -130,6 +135,7 @@ def _read_pages(job, deadline, page_time_s):
             run = _run(command + [str(out), "--", str(page.path)], page_deadline)
             input_path = page.path
             archives = [p.read_bytes() for p in out.rglob('*.omr')]
+            issues += [issue for archive in archives for issue in time_signature_reviews(archive, page=i)]
             regions = [box for archive in archives for box in tempo_regions(archive)]
             if regions:
                 # 빠르기 표시의 음표가 성부 음으로 붙은 경우만, OCR로 확인한 영역을
@@ -197,6 +203,30 @@ def _read_pages(job, deadline, page_time_s):
                     issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {'reason': 'TEMPO_PDF_TEXT', 'count': count}))
             pages += data
     return pages, issues
+
+
+def time_signature_reviews(archive: bytes, *, page: int) -> list[dict]:
+    """Keep Audiveris's low-confidence time signature and original pixel bounds for review."""
+    issues = []
+    with zipfile.ZipFile(io.BytesIO(archive)) as z:
+        for name in z.namelist():
+            if not re.fullmatch(r'sheet#\d+/sheet#\d+\.xml', name):
+                continue
+            root = ET.fromstring(z.read(name))
+            for el in root.iter():
+                if el.tag not in ('time-whole', 'time-pair') or not el.get('time-rational'):
+                    continue
+                try:
+                    grade = float(el.get('grade', 'nan'))
+                    bounds = el.find('bounds')
+                    box = [int(bounds.get(k)) for k in ('x', 'y', 'w', 'h')]
+                except (AttributeError, TypeError, ValueError):
+                    continue
+                if 0 <= grade < TIME_SIGNATURE_REVIEW_GRADE:
+                    issues.append({**staff_musicxml._issue('LOW_CONFIDENCE', {
+                        'reason': 'TIME_SIGNATURE_REVIEW_REQUIRED', 'timeSignature': el.get('time-rational'),
+                        'grade': grade, 'staff': el.get('staff')}), 'page': page, 'bbox': box})
+    return issues
 
 
 def rhythm_quality(sheets: list[bytes]):
