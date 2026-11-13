@@ -92,7 +92,7 @@ internal fun learnStepCount(stage: Int, detail: LearnStageDetail, instrument: Gu
  * @property segment 할 일 박스([Int]번) 안의 듣기. 맡은 음을 다 내면 두 번째 인자(박스 마침)를 부른다. 있으면 '해 봤어요'와 연습 박스를 두지 않는다.
  * @property segmentReplacesFigure 박스 안 듣기가 그림까지 대신 그린다(5단계 정간보가 진행을 따라 칠해진다). 마친 박스를 다시 펼치면 그림을 보인다.
  * @property overlay 단계를 마쳤을 때 띄우는 '완료했어요!' 창.
- * @property primary 듣는 박스가 펼쳐졌거나 통과했을 때 아래 가운데 버튼('그만하기'·'다시 시작'·'다음 단계로' 등). null이면 '연습 시작'을 둔다.
+ * @property primary 듣는 박스가 펼쳐졌거나 통과했을 때 아래 가운데 버튼('연습 시작'·'그만하기'·'다음 단계로' 등). null이면 '연습 시작'을 둔다.
  * @property passed 연습을 통과했다. 아래 가운데 버튼이 박스와 상관없이 [primary]가 된다.
  * @property onUndo 할 일 박스([Int]번)의 체크를 풀었을 때 판정도 그 박스 처음으로 되돌린다(5·6단계).
  * @property start 박스가 접힌 채 '연습 시작'을 누르면 박스를 펼치면서 함께 듣기를 시작한다(판정할 수 없으면 아무것도 하지 않는다).

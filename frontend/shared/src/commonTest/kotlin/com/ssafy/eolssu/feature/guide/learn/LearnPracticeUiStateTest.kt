@@ -45,6 +45,27 @@ class LearnPracticeUiStateTest {
         assertEquals(0, passed.startListening().tongues)
     }
 
+    /** 높이로 같은 음을 볼 때는 소리 크기로 '투'를 세지 않고, 판정기가 센 횟수를 그대로 쓴다(S15P31E102-845). */
+    @Test
+    fun stageSevenByPitchTakesTheJudgedCount() {
+        val start = LearnPracticeUiState(stage = 7, tonguesByPitch = true).startListening()
+        val sounded = start.feed(loud, 200).feed(quiet, 100).feed(loud, 100)
+        assertEquals(0, sounded.tongues)
+        assertFalse(sounded.quiet)
+
+        val three = sounded.recordTongue(3)
+        assertEquals(3, three.tongues)
+        assertTrue(three.listening)
+        // 다른 음으로 새로 세면 줄어든다
+        assertEquals(1, three.recordTongue(1).tongues)
+        val passed = three.recordTongue(TONGUE_TARGET)
+        assertEquals(LearnPracticePhase.Passed, passed.phase)
+        // 듣는 중이 아니거나 7단계가 아니면 그대로다
+        assertEquals(passed, passed.recordTongue(1))
+        val four = LearnPracticeUiState(stage = 4).startListening()
+        assertEquals(four, four.recordTongue(2))
+    }
+
     @Test
     fun countsASoundHeldForOneSecondOnce() {
         val held = firstSound().feed(loud, 1_000)
