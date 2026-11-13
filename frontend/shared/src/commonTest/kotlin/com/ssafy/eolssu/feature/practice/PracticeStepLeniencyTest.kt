@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.practice
 
 import com.ssafy.eolssu.core.audio.PitchGate
 import com.ssafy.eolssu.core.audio.PitchReading
+import com.ssafy.eolssu.core.audio.StepLeniency
 import com.ssafy.eolssu.core.audio.YinPitchEstimator
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.data.practice.NotePracticeCriteria

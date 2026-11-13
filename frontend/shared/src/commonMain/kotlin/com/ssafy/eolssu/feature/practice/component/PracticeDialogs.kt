@@ -11,7 +11,6 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
 import eolssu.shared.generated.resources.common_confirm
 import eolssu.shared.generated.resources.practice_score_check_title
-import eolssu.shared.generated.resources.weak_loop_end_body
 import eolssu.shared.generated.resources.weak_loop_no_notes
 import eolssu.shared.generated.resources.weak_score_changed
 import eolssu.shared.generated.resources.weak_score_unavailable
@@ -82,7 +81,6 @@ class PracticeDialogActions(
  * [forStep]이면(혼자 연습) 마이크 권한·녹음 실패 안내를 평가 대신 한 음씩 따라 불기 문구로 보이고, 녹음 실패는 확인만 둔다.
  * [evaluation]이면(연주 평가) 연주 중단 창에서 화면을 나가는 ‘홈으로 가기’ 대신 ‘연주 대기로’를 보이고, 평가 대기 상태로 돌아간다(S15P31E102-750).
  * ‘연습 준비로’는 연주 평가에서도 평가 대기 상태로 돌아가므로 그대로 둔다(S15P31E102-747).
- * [section]이면(구간 재평가) ‘연주를 마쳤어요’ 창의 설명을 한 줄짜리 평가 기준 안내로 보인다(S15P31E102-846).
  */
 @Composable
 fun PracticeDialog(
@@ -90,7 +88,6 @@ fun PracticeDialog(
     actions: PracticeDialogActions,
     forStep: Boolean = false,
     evaluation: Boolean = false,
-    section: Boolean = false,
 ) {
     val toReady = stringResource(Res.string.practice_popup_to_ready)
     val colors = EolssuTheme.colors
@@ -133,7 +130,7 @@ fun PracticeDialog(
         }
         PracticePopup.End, PracticePopup.EndAtLimit -> EolssuDialog(
             title = stringResource(if (popup == PracticePopup.EndAtLimit) Res.string.practice_popup_end_limit_title else Res.string.practice_popup_end_title),
-            message = stringResource(endBodyRes(popup, section)),
+            message = stringResource(endBodyRes(popup)),
             icon = EolssuIcons.Check,
             iconBackground = colors.accentTintStrong,
         ) {
@@ -215,11 +212,10 @@ fun PracticeDialog(
 }
 
 /**
- * ‘연주를 마쳤어요’·녹음 한도 창의 설명. 구간 재평가([section])는 연주 완료 창에 한 줄짜리 평가 기준 안내를 보이고,
- * 녹음 한도 안내와 곡 전체 연주 평가의 설명은 그대로 둔다.
+ * ‘연주를 마쳤어요’·녹음 한도 창의 설명. 연주 완료 창은 곡 전체 연주 평가와 구간 재평가가 같은 한 줄짜리 평가 기준 안내를 쓰고
+ * (S15P31E102-846·854), 녹음 한도 창은 한도 안내를 그대로 둔다.
  */
-internal fun endBodyRes(popup: PracticePopup, section: Boolean): StringResource = when {
-    popup == PracticePopup.EndAtLimit -> Res.string.practice_popup_end_limit_body
-    section -> Res.string.weak_loop_end_body
+internal fun endBodyRes(popup: PracticePopup): StringResource = when (popup) {
+    PracticePopup.EndAtLimit -> Res.string.practice_popup_end_limit_body
     else -> Res.string.practice_popup_end_body
 }
