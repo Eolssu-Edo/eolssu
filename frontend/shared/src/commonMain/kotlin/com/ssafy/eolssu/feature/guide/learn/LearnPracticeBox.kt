@@ -42,7 +42,6 @@ import com.ssafy.eolssu.feature.guide.component.LearnNote
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.learn_first_sound_pass
 import eolssu.shared.generated.resources.learn_pitch_hold_pass
-import eolssu.shared.generated.resources.learn_pitch_hold_pass_plain
 import eolssu.shared.generated.resources.learn_practice_blocked
 import eolssu.shared.generated.resources.learn_practice_denied
 import eolssu.shared.generated.resources.learn_practice_failed
@@ -100,11 +99,11 @@ internal fun LearnPracticeBox(
     AutoListen(state, actions)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // 서버 단계 상세의 '2초 이상 유지'는 판정과 다른 초안이라, 초가 들어가는 줄은 실제 판정의 유지 시간으로 쓴다(S15P31E102-857).
-        // 판정 기준을 받지 못해 스스로 확인할 때는 초를 빼고 쓴다.
+        // 6단계는 판정 기준을 받지 못해 스스로 확인할 때 초를 빼고 쓴다. 4단계는 기준과 상관없이 1초라 늘 초를 쓴다(S15P31E102-860).
         val holdSeconds = state.pitch?.holdTargetMs?.let { holdSecondsLabel(it.toDouble()) }
         val rule = when (stage.number) {
             3 -> stringResource(Res.string.learn_first_sound_pass, holdSecondsLabel(FIRST_SOUND_HOLD_MS))
-            4 -> holdSeconds?.let { stringResource(Res.string.learn_pitch_hold_pass, it) } ?: stringResource(Res.string.learn_pitch_hold_pass_plain)
+            4 -> stringResource(Res.string.learn_pitch_hold_pass, holdSecondsLabel(LEARN_STAGE_FOUR_HOLD_MS.toDouble()))
             6 -> holdSeconds?.let { stringResource(Res.string.learn_range_hold_pass, it) } ?: stringResource(Res.string.learn_range_hold_pass_plain)
             7 -> stringResource(Res.string.learn_tongue_pass)
             else -> detail?.pass?.rule?.plain()
