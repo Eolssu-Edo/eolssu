@@ -2,7 +2,7 @@
 title: "악보 앱은 언제 ‘저장 완료’와 ‘미리듣기 준비 완료’를 표시해도 될까?"
 date: 2026-11-13T00:00:00+09:00
 slug: "sheet-save-and-preview-ready"
-author: "Team Edo"
+author: "우동균"
 categories: ["frontend"]
 tags: ["자동저장", "상태 관리", "오디오", "Android QA"]
 description: "현재 편집본의 저장과 현재 판본의 음원 준비를 확인하는 조건을 정하고, 앱 재시작과 실제 스피커 출력으로 검증한 과정을 소개합니다."

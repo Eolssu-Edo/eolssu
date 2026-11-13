@@ -2,7 +2,7 @@
 title: "평가 버튼부터 총점까지, 앱과 서버 로그를 어떻게 연결했나"
 date: 2026-11-13T00:00:00+09:00
 slug: "tracing-evaluation-from-tap-to-score"
-author: "Team Edo"
+author: "우동균"
 categories: ["backend", "frontend"]
 tags: ["성능 계측", "단조 시계", "비동기 작업"]
 description: "얼쑤의 연주 평가에서 앱과 서버가 각자의 단조 시계로 잰 시간을 진단 ID로 연결하고, 같은 조건의 실기기 표본으로 검증한 과정을 소개합니다."

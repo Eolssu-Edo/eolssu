@@ -2,7 +2,7 @@
 title: "목록을 열 때 GET을 8건에서 1건으로 줄이기"
 date: 2026-11-13T00:00:00+09:00
 slug: "practice-record-list-get"
-author: "Team Edo"
+author: "우동균"
 categories: ["backend"]
 tags: ["API 설계", "페이지네이션", "성능 측정"]
 description: "곡별 요약과 첫 페이지로 연습 기록 목록을 열고, 나머지는 펼칠 때 조회하도록 바꿨습니다. Galaxy S10에서 요청 수와 첫 카드 표시를 각각 확인했습니다."

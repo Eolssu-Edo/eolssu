@@ -2,7 +2,7 @@
 title: "악보와 음원을 재사용하면서 이전 판본이 섞이는 문제 막기"
 date: 2026-11-13T00:00:00+09:00
 slug: "reuse-scores-and-audio-safely"
-author: "Team Edo"
+author: "우동균"
 categories: ["frontend", "backend"]
 tags: ["캐시", "동시성", "판본 검증", "성능 측정"]
 description: "곡 상세와 악보를 재사용하면서 늦은 응답이 화면을 덮는 문제를 막았습니다. 평가 진입 실측과 모범 연주의 재생 직전 판본 검증을 소개합니다."
