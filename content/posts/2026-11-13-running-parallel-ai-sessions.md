@@ -6,7 +6,7 @@ author: "권영민"
 categories: ["ai-native"]
 tags: ["Claude Code", "병렬 작업", "Git worktree", "Android", "인계"]
 description: "AI 코딩 세션 여러 개를 동시에 돌리며 작업을 나누는 기준, develop에 빠진 작업을 찾는 방법, 설치와 검증의 구분, Windows 워크트리 정리, 세션 사이 인계에서 배운 것을 정리했습니다."
-draft: true
+draft: false
 ---
 
 얼쑤의 프론트엔드는 Claude Code 데스크톱 앱에서 AI 세션 여러 개를 동시에 띄워 만들었습니다. 한 세션이 요청 목록을 받아 묶음을 나누고 하위 세션을 엽니다. 하위 세션은 각자 최신 develop에서 만든 워크트리와 브랜치에서 구현·검증·MR까지 진행합니다. 저는 나누는 방식을 정하고, 결과를 확인하고, 병합을 맡았습니다.

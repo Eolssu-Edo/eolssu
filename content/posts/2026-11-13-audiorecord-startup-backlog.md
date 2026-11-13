@@ -6,7 +6,7 @@ author: "권영민"
 categories: ["frontend"]
 tags: ["Android", "AudioRecord", "오디오", "녹음", "Kotlin Multiplatform", "에뮬레이터"]
 description: "AudioRecord를 막 시작했을 때 장치 위치가 앱이 읽은 양보다 크게 앞서는 현상을 입력 유실로 오판해 평가 녹음이 끊기던 문제를 측정으로 확인하고 고친 과정입니다."
-draft: true
+draft: false
 ---
 
 얼쑤의 AI 연주 평가는 연주를 녹음해 서버로 보내 채점합니다. Android에서는 같은 마이크 입력으로 연주 중 실시간 음높이 안내도 만듭니다. 그런데 어느 날 평가 연주를 시작하자마자 '연주가 중단되었어요'가 떴습니다. 녹음이 시작되자마자 실패 처리된 것입니다.
