@@ -96,6 +96,31 @@ class GrowthStateTest {
     }
 
     @Test
+    fun axisRoundsTicksAndSwitchesToHoursFromTwoHours() {
+        val chart = PeriodChart.of(
+            history(DailyPractice(day(11, 9), 45 * 60, 3), DailyPractice(day(11, 2), 20 * 60, 1)),
+            GrowthRange.Week, dense = false, anchorDay = day(11, 12),
+        )
+        // 45분 → 절반 22.5 → 25분, 위 50분. 3회 → 절반 1.5 → 2회, 위 4회.
+        assertEquals(ChartAxis(top = 50, half = 25, unit = 1), chart.axis(GrowthMetric.Time))
+        assertEquals(ChartAxis(top = 4, half = 2, unit = 1), chart.axis(GrowthMetric.Count))
+
+        // 565분(9시간 25분) → 시간 단위, 절반 4.7 → 5시간, 위 10시간.
+        val long = PeriodChart.of(history(DailyPractice(day(11, 9), 565 * 60, 6)), GrowthRange.Week, dense = false, anchorDay = day(11, 12))
+        val axis = long.axis(GrowthMetric.Time)
+        assertEquals(ChartAxis(top = 600, half = 300, unit = 60), axis)
+        assertEquals(true, axis.hours)
+
+        val empty = PeriodChart.of(history(), GrowthRange.Week, dense = true, anchorDay = day(11, 12))
+        assertEquals(ChartAxis(top = 2, half = 1, unit = 1), empty.axis(GrowthMetric.Time))
+    }
+
+    @Test
+    fun niceCeilPicksSmallestRoundStep() {
+        assertEquals(listOf(1L, 2L, 3L, 25L, 300L, 1000L), listOf(0.4, 1.5, 2.5, 22.5, 282.5, 900.0).map { niceCeil(it) })
+    }
+
+    @Test
     fun heatLevelUsesFourMinuteBands() {
         assertEquals(listOf(0, 1, 1, 2, 2, 3, 3, 4, 4), listOf(0L, 1, 14, 15, 29, 30, 44, 45, 180).map { heatLevel(it) })
     }
