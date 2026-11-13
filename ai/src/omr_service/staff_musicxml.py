@@ -39,7 +39,7 @@ MIN_COVER = Fraction(1, 2)  # 성부 후보: 곡 길이의 절반 이상을 덮�
 @dataclass
 class Conversion:
     lines: list[str]
-    jangdan: str | None  # 박자표로 정한 장단(9/8 세마치, 12/8 굿거리). 없으면 요청·기본값을 쓴다
+    jangdan: str | None  # 박 구성에 맞는 반주(4분 4박 기본 반주, 9/8 세마치, 12/8 굿거리). 없으면 요청·기본값을 쓴다
     beats_per_gak: int
     issues: list[dict] = field(default_factory=list)
     shift: int = 0  # 자동 조 옮김 반음(hwang_pitch가 있으면 0)
@@ -68,6 +68,8 @@ def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Convers
         raise ValueError("음표가 없음")
     shift, hwang = 0, DEFAULT_HWANG if hwang_pitch is None else hwang_pitch
     jangdan = {(True, 3): "세마치", (True, 4): "굿거리"}.get((compound, beats_per_gak))
+    if not compound and beat == 1 and beats_per_gak == 4:
+        jangdan = "4박 기본 반주"
     lines = _layout(notes, beats_per_gak, hwang, instrument, issues)
     originals = [item['detail'] for item in issues if item['kind'] == '_SOURCE_PITCH']
     issues = [item for item in issues if item['kind'] != '_SOURCE_PITCH']

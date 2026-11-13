@@ -84,7 +84,32 @@ def publish(path, state):
             temporary_path.unlink(missing_ok=True)
 
 
-if __name__ == '__main__':
+def read_previous(path):
+    try:
+        previous = json.loads(path.read_text(encoding='utf-8'))
+    except (FileNotFoundError, ValueError, RecursionError):
+        return {}
+    return previous if isinstance(previous, dict) else {}
+
+
+def main():
+    previous = read_previous(STATE_FILE)
     result = collect()
     publish(STATE_FILE, result)
-    print(json.dumps(result, ensure_ascii=False))
+    for target in TARGETS:
+        old = previous.get(target)
+        was_ok = old.get('ok') if isinstance(old, dict) else None
+        current = result[target]
+        if current['ok'] and was_ok is False:
+            event, priority = 'recovered', '<5>'
+        elif not current['ok'] and was_ok is not False:
+            event, priority = 'outage_started', '<4>'
+        else:
+            continue
+        record = {'captured_at': result['captured_at'], 'target': target,
+                  'event': event, 'detail': current['detail']}
+        print(priority + json.dumps(record, ensure_ascii=False))
+
+
+if __name__ == '__main__':
+    main()

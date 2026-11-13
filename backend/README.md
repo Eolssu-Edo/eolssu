@@ -45,6 +45,8 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 ### 내 악보(SHT-01·02·04·08·11)
 
+기존4/4 오선보가 굿거리 기본값으로 저장된 S15P31E102-880 복구는 [복구 조건](../docs/specs/staff-four-beat-import.md)에 한정합니다. `python tools/prepare_staff_four_beat_repair.py SNAPSHOT.json CATALOG.json PREPARED.json --user-id 6 --sheet-id 32 --expected-revision 6`은 검토할 초안과 버전·해시 조건을 준비하며 DB에 쓰지 않습니다. 계정·악보·revision은 실제 대상에서 확인한 값으로 지정하고, 출력은 원본과 함께 Git에서 제외된 비공개 위치에 둡니다. 이미 적용했거나 빠르기·구간 계획·원본·카탈로그가 예상과 다르면 거부합니다. `python -m unittest discover -s tools/tests -p test_prepare_staff_four_beat_repair.py -v`로 보존·거부 조건을 확인합니다.
+
 S15P31E102-390·413은 내 악보 목록·조회·확정 저장·초안·삭제를, 471·472는 PDF·PNG·JPEG 불러오기와 단일 인식 작업자를 구현합니다(V16·V20·V26·V27). 534의 [원본 비보관 정책](../docs/specs/user-sheets.md#업로드-원본-비보관-정책-2026-11-06-확정-s15p31e102-534)에서 업로드 원본은 R2 대신 backend의 비공개 임시 디렉터리에만 둡니다. 성공·실패·삭제 시 즉시 지우고 최대 30분 뒤에도 지웁니다. 시작 시 남은 임시 파일을 정리하고 QUEUED·RUNNING을 FAILED(SERVER_ERROR)로 끝냅니다. 원본 쪽 미리보기는 없고 `source.pages=[]`, `pagesExpireAt=null`, `retryable=false`입니다. 기존 재시도 경로는 본인 변환에도 409이며, 실패 후 파일을 새 Idempotency-Key로 다시 올립니다. 기존 R2 원본의 일괄 삭제는 이 변경에서 실행하지 않습니다.
 
 인식 연결에는 `SHEET_CONVERSION_OMR_BASE_URL`(Compose 기본 `http://omr:8000`)을 사용하며 호출 제한은 630초입니다. OMR는 `SHEET_IMPORT_READ_BASE_URL`(기본 `http://backend:8080/api/internal/sheet-imports`)의 만료 토큰 URL로 원본을 읽습니다. 외부 Nginx는 `/api/internal/`을 404로 차단하며 이 경로의 접근 로그도 끕니다. 한 backend 인스턴스에서 실행하고, 임시 디렉터리를 영구 볼륨이나 백업 대상에 넣지 않습니다. `eolssu.scheduling.enabled=false`는 큐·시작 복구·주기 정리를 끄는 테스트 전용 설정이므로 운영에서는 쓰지 않습니다. 원본 불러오기는 R2 연결값이 없어도 동작하며, `SHEET_STORAGE_*`는 아래 생성 음원과 사용자가 삭제하는 과거 원본용입니다.

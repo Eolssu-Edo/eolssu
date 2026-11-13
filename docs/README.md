@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [분석 완료 후 음역·이조 즉시 사용 (879)](specs/sheet-adaptation-readiness.md) · [중복 조회 원인과 실제 검증](knowledge/frontend/sheet-adaptation-readiness.md) · [계획·검증](plans/S15P31E102-879.md)
+
 - [제공 악보 추가·편집·저장 실행 검증 (876)](knowledge/frontend/sheet-add-edit-runtime-verification.md) · [계획](plans/S15P31E102-876.md)
 - [PNG·JPEG 중청 음역 인식 교정과 같은 자료 재검증 (876)](knowledge/ai/jeongganbo-double-water-register.md)
 - [이조 후 해결된 음역 오류 표시와 실제 PDF 검증 (871)](plans/S15P31E102-871.md) · [자동 해제 정책](specs/score-authoring-consistency.md#해결된-음역-검수의-자동-해제-s15p31e102-871)
@@ -11,6 +13,7 @@
 - [마이페이지 최근 연주 조회 요청을 한 번으로 줄이기 (823)](plans/S15P31E102-823.md) · [카드 조회 스펙](specs/practice-records.md#마이페이지-최근-연주-카드)
 - [악보 음역 맞추기 입력판·추천 기준과 원본 음고 보존 (820)](knowledge/frontend/sheet-pitch-adaptation.md) · [패널 높이와 한 줄 배치 정리 (850)](plans/S15P31E102-850.md)
 - [인식 정간보의 장단 정정](specs/sheet-jangdan-correction.md) · [원인·검증 근거](knowledge/frontend/sheet-jangdan-correction.md) · [822 계획·검증](plans/S15P31E102-822.md)
+- [오선보4/4 장단 후보 수정과 기존 초안 복구 (880)](specs/staff-four-beat-import.md) · [원인·복구 근거](knowledge/frontend/sheet-jangdan-correction.md#오선보-44-가져오기의-장단-후보-누락-880) · [작업 기록](plans/S15P31E102-880.md)
 - [오선보 음높이·성부·꾸밈음 교정 (806)](specs/score-recognition-corrections.md) · [실제 PDF·이미지 대조와 한계](knowledge/ai/score-recognition-corrections.md) · [계획·검증](plans/S15P31E102-806.md)
 - [홈 기능 카드 그림을 단소 그림 느낌으로 통일 (797)](plans/S15P31E102-797.md)
 - [악보 빠르기 설정과 기기 반주 시간표 동기화 (791)](plans/S15P31E102-791.md)
@@ -62,7 +65,9 @@
 - [기초부터 배우기 2·3단계 할 일별 따라 배우기 (619)](plans/S15P31E102-619.md)
 - [Mattermost 점검 메시지 구성](specs/mattermost-inspection-messages.md) · [701 명령 통합·표 구분](plans/S15P31E102-701.md) · [676 간결화](plans/S15P31E102-676.md) · [616 최초 구성](plans/S15P31E102-616.md)
 - [Mattermost 점검 수집과 판정](specs/mattermost-inspection-measurements.md) · [664 계획·검증](plans/S15P31E102-664.md) · [667 컨테이너 준비 검사 계획·검증](plans/S15P31E102-667.md)
+- [edo1·edo2 운영 로그 중복과 증가량 줄이기 (712)](plans/S15P31E102-712.md) · [운영 로그 집계](knowledge/infra/edo-operational-logging.md)
 - [R2·저장공간 최신성·독립 HTTPS 운영 점검 (709)](plans/S15P31E102-709.md)
+- [edo1·edo2 Docker 기본 로그 크기 회전 제한 (713)](plans/S15P31E102-713.md) · [적용·복구 절차](../infra/docker/README.md)
 - [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
 - [연습 화면 외 정간보 공통 형식 (591)](knowledge/frontend/reading-score-format.md)

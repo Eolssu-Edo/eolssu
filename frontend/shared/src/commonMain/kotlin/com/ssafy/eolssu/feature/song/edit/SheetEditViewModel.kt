@@ -13,6 +13,7 @@ import com.ssafy.eolssu.core.model.instrumentDisplayRank
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.song.CatalogInstrument
 import com.ssafy.eolssu.data.song.ReferenceCatalogRepository
+import com.ssafy.eolssu.data.song.SheetAuthoringCatalog
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SheetDocument
@@ -63,10 +64,15 @@ class SheetEditViewModel(
     private val documents: SheetDocumentRepository? = null,
     private val member: SignedInMember? = null,
     private val songs: SongRepository? = null,
-    private val pitchCatalog: ReferenceCatalogRepository? = null,
+    pitchCatalog: ReferenceCatalogRepository? = null,
     private val deviceAudioStore: SheetAudioDeviceStore? = null,
-    private val loadAudioInstruments: (suspend () -> List<CatalogInstrument>)? = null,
+    loadAudioInstruments: (suspend () -> List<CatalogInstrument>)? = null,
+    authoringCatalog: SheetAuthoringCatalog? = null,
 ) : ViewModel() {
+    private val preparedCatalog = authoringCatalog ?: if (pitchCatalog != null && loadAudioInstruments != null)
+        SheetAuthoringCatalog(loadAudioInstruments, pitchCatalog, viewModelScope, member) else null
+    private val pitchCatalog = preparedCatalog?.references ?: pitchCatalog
+    private val loadAudioInstruments: (suspend () -> List<CatalogInstrument>)? = preparedCatalog?.let { it::instruments } ?: loadAudioInstruments
     private val practiceVersion = (source as? EditSource.Mine)?.practiceVersion
     internal val showsAudioExport: Boolean get() = !canSaveAudioOnDevice || practiceVersion != null
 
@@ -188,7 +194,27 @@ class SheetEditViewModel(
 
     fun openAdaptation() {
         val before = _uiState.value
-        if (before.confirming || before.documentLoading || before.draft.original == null) return
+        if (!accountScope.isActive || before.confirming || before.documentLoading || before.draft.original == null) return
+        val existing = before.adaptation
+        if (existing != null && existing.baseline == before.draft && !existing.loading && !existing.failed) {
+            _uiState.update { it.copy(tab = EditTab.Adaptation, view = EditView.Jeongganbo) }
+            return
+        }
+        if (existing != null && existing.baseline == before.draft && existing.failed && existing.selectedId != null) {
+            _uiState.update { it.copy(tab = EditTab.Adaptation, view = EditView.Jeongganbo) }
+            selectAdaptationInstrument(existing.selectedId)
+            return
+        }
+        val options = preparedCatalog?.cachedInstruments()
+        val selected = options?.firstOrNull { it.code == before.draft.original.score.instrument } ?: options?.firstOrNull()
+        val capabilities = selected?.let { preparedCatalog?.cachedCapabilities(it.instrumentId) }
+        if (options != null && selected != null && capabilities != null) {
+            val panel = readyAdaptation(SheetAdaptationUi(instruments = options, selectedId = selected.instrumentId,
+                baseline = before.draft), capabilities)
+            ++adaptationRequest
+            _uiState.update { it.copy(tab = EditTab.Adaptation, view = EditView.Jeongganbo, adaptation = panel) }
+            return
+        }
         val request = ++adaptationRequest
         _uiState.update { it.copy(tab = EditTab.Adaptation, view = EditView.Jeongganbo,
             adaptation = SheetAdaptationUi(baseline = before.draft)) }
@@ -209,23 +235,48 @@ class SheetEditViewModel(
     fun selectAdaptationInstrument(id: String) {
         val catalog = pitchCatalog ?: return
         val panel = _uiState.value.adaptation ?: return
-        if (panel.instruments.none { it.instrumentId == id }) return
+        if (!accountScope.isActive || panel.baseline != _uiState.value.draft || panel.instruments.none { it.instrumentId == id }) return
+        if (panel.selectedId == id && !panel.loading && !panel.failed) return
+        preparedCatalog?.cachedCapabilities(id)?.let { capabilities ->
+            ++adaptationRequest
+            val ready = readyAdaptation(panel.copy(selectedId = id), capabilities)
+            _uiState.update { it.copy(adaptation = ready) }
+            return
+        }
         val request = ++adaptationRequest
         _uiState.update { it.copy(adaptation = it.adaptation?.copy(selectedId = id, loading = true, failed = false, confirmationRequested = false)) }
         accountScope.launch {
             try {
                 val capabilities = catalog.authoringCapabilities(id)
-                val pitches = capabilities.items.filter { it.selectable }.map { AdaptationPitch(it.midi, it.yul, it.octave) }
-                val plans = planPitchAdaptation(panel.baseline.sourcePitchNotes(), pitches)
                 ensureAccountSession()
                 if (request != adaptationRequest) return@launch
                 _uiState.update { state -> if (state.adaptation?.selectedId != id) state else state.copy(
-                    adaptation = state.adaptation.copy(capabilities = capabilities, plans = plans,
-                        selectedTranspose = plans.firstOrNull()?.transpose, loading = false)) }
+                    adaptation = readyAdaptation(state.adaptation, capabilities)) }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { if (request == adaptationRequest) _uiState.update { state -> if (state.adaptation?.selectedId != id) state else
                 state.copy(adaptation = state.adaptation.copy(loading = false, failed = true)) } }
         }
+    }
+
+    private fun readyAdaptation(panel: SheetAdaptationUi, capabilities: com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities): SheetAdaptationUi {
+        val pitches = capabilities.items.filter { it.selectable }.map { AdaptationPitch(it.midi, it.yul, it.octave) }
+        val plans = planPitchAdaptation(panel.baseline.sourcePitchNotes(), pitches)
+        return panel.copy(capabilities = capabilities, plans = plans, selectedTranspose = plans.firstOrNull()?.transpose,
+            loading = false, failed = false, confirmationRequested = false)
+    }
+
+    /** 문서가 준비됐다는 화면 뒤로 추천 로딩을 따로 노출하지 않는다. */
+    private suspend fun initialAdaptation(draft: SheetDraft): SheetAdaptationUi {
+        var panel = SheetAdaptationUi(baseline = draft)
+        return try {
+            val options = requireNotNull(loadAudioInstruments).invoke()
+            val selected = options.firstOrNull { it.code == draft.original?.score?.instrument } ?: options.firstOrNull()
+            panel = panel.copy(instruments = options, selectedId = requireNotNull(selected).instrumentId)
+            val capabilities = requireNotNull(pitchCatalog).authoringCapabilities(selected.instrumentId)
+            ensureAccountSession()
+            readyAdaptation(panel, capabilities)
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { panel.copy(loading = false, failed = true) }
     }
 
     fun selectAdaptationTranspose(value: Int) = _uiState.update { state ->
@@ -251,13 +302,18 @@ class SheetEditViewModel(
         val plan = panel.selected ?: return
         val capability = panel.capabilities ?: return
         if (!panel.confirmationRequested || panel.loading || panel.failed || panel.baseline != _uiState.value.draft) return
-        change { it.applyAdaptation(plan, capability) }
+        change(preserveAdaptation = true) { state ->
+            val applied = state.applyAdaptation(plan, capability)
+            val ready = readyAdaptation(panel.copy(baseline = applied.draft), capability)
+                .copy(selectedTranspose = panel.selectedTranspose)
+            applied.copy(tab = EditTab.Adaptation, adaptation = ready)
+        }
         completionCatalogJob?.cancel()
         completionCatalogJob = null
         loadCompletionCatalog()
     }
 
-    private fun change(transform: (SheetEditUiState) -> SheetEditUiState) {
+    private fun change(preserveAdaptation: Boolean = false, transform: (SheetEditUiState) -> SheetEditUiState) {
         if (!accountScope.isActive || _uiState.value.documentLoading || _uiState.value.documentFailed) return
         val before = _uiState.value.draft
         _uiState.update { current ->
@@ -266,7 +322,8 @@ class SheetEditViewModel(
             if (current.confirming && (next.draft != current.draft || next.checkedIssueIds != current.checkedIssueIds ||
                 next.reviewIssues != current.reviewIssues)) current
             else if (next.draft != current.draft) next.copy(saveStatus = null,
-                adaptation = null, tab = if (next.tab == EditTab.Adaptation) EditTab.Yul else next.tab)
+                adaptation = if (preserveAdaptation) next.adaptation else null,
+                tab = if (!preserveAdaptation && next.tab == EditTab.Adaptation) EditTab.Yul else next.tab)
             else next
         }
         if (before != _uiState.value.draft) {
@@ -330,15 +387,15 @@ class SheetEditViewModel(
                 persistedDraft = draft
                 confirmedDraft = document.score?.editingDraft(document.title, document.bpm, jangdan = null)
                     ?.copy(jangdanId = document.jangdanId)
+                val adaptation = if (startsWithAdaptation) initialAdaptation(draft) else null
                 _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,
                     hasTempoPlan = expressions?.containsKey("performancePlan") == true,
                     withJangdan = draft.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
                     reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet(),
                     reviewNotices = document.editorReviewNotices(),
-                    deviceAudio = deviceAudio) }
+                    deviceAudio = deviceAudio, adaptation = adaptation) }
                 loadCompletionCatalog()
-                if (startsWithAdaptation && _uiState.value.tab == EditTab.Adaptation) openAdaptation()
                 loadAudioInstrumentOptions()
                 refreshAudio(announce = false)
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -358,10 +415,10 @@ class SheetEditViewModel(
                 val song = editable.song
                 val draft = editable.score.editingDraft(SheetEditSamples.copyTitle(song.title), song.baseBpm, song.jangdan)
                 baseline = draft
+                val adaptation = if (startsWithAdaptation) initialAdaptation(draft) else null
                 _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
-                    documentLoading = false, documentFailed = false, view = EditView.Jeongganbo) }
+                    documentLoading = false, documentFailed = false, view = EditView.Jeongganbo, adaptation = adaptation) }
                 loadCompletionCatalog()
-                if (startsWithAdaptation && _uiState.value.tab == EditTab.Adaptation) openAdaptation()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { _uiState.update { it.copy(documentLoading = false, documentFailed = true) } }
         }
@@ -632,7 +689,7 @@ class SheetEditViewModel(
     }
     fun selectTab(tab: EditTab) {
         if (tab == EditTab.Adaptation) openAdaptation()
-        else { closeAdaptation(); change { it.copy(tab = tab) } }
+        else change { it.copy(tab = tab) }
     }
     fun selectView(view: EditView) = change { state ->
         if (state.view == view || state.draft.original == null) return@change state.copy(view = view)
