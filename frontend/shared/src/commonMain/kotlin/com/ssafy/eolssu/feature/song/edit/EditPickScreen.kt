@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.Instrument
@@ -25,6 +24,7 @@ import com.ssafy.eolssu.core.ui.component.*
 import com.ssafy.eolssu.data.song.PublishedSheetCopyProblem
 import com.ssafy.eolssu.feature.song.MySongsTab
 import com.ssafy.eolssu.feature.song.component.MySongsTabSwitch
+import com.ssafy.eolssu.feature.song.component.songTitleMarquee
 import com.ssafy.eolssu.feature.song.edit.component.HintText
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -180,8 +180,9 @@ private fun PickRow(title: String, meta: String, selected: Boolean, enabled: Boo
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(title, modifier = Modifier.songTitleMarquee(),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                    maxLines = 1)
                 Text(meta, modifier = Modifier.padding(top = 2.dp), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textSub)
             }
             if (level != null) EolssuLevelBadge(level, small = true)
