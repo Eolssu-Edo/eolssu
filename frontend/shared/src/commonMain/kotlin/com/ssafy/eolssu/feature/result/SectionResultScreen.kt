@@ -62,7 +62,6 @@ import eolssu.shared.generated.resources.weak_result_errors_change
 import eolssu.shared.generated.resources.weak_result_errors_now
 import eolssu.shared.generated.resources.weak_result_fewer
 import eolssu.shared.generated.resources.weak_result_more
-import eolssu.shared.generated.resources.weak_result_next_slow
 import eolssu.shared.generated.resources.weak_result_not_comparable
 import eolssu.shared.generated.resources.weak_result_other_more
 import eolssu.shared.generated.resources.weak_result_same
@@ -93,7 +92,7 @@ class SectionResultActions(
  * RESULT-04 구간 재평가 결과(S15P31E102-776, 와이어프레임 ⑤ · 연주 결과 틀). 왼쪽 정렬 머리 ‘곡 · 2–3각 · 58 BPM / 구간 재평가 결과’와 오른쪽 위 홈 ·
  * 머리는 연주 결과처럼 뒤로 가기 없이 왼쪽 끝에서 시작한다(S15P31E102-808). 결과를 불러오는 중이거나 없으면 뒤로 가기를 둔다 ·
  * 연주 결과와 같은 점수 상자(일원상 구간 점수 · 항목 막대) · 회색 칸의 틀린 음 비교(EVA-04) ·
- * 5칸 틀린 종류 필터 · 구간 정간보(보기 전용) · 기준보다 느리게 연주했을 때만 다음 단계 한 줄 · ‘다른 구간 고르기 ›’,
+ * 5칸 틀린 종류 필터 · 구간 정간보(보기 전용) · ‘다른 구간 고르기 ›’,
  * 아래 반씩 나란한 ‘연습 기록 저장’(보조) · ‘곡 전체 다시 평가’(주)(S15P31E102-832).
  * 점수는 서버 값만 쓰고 화면에서 계산하지 않는다. 저장은 연주 결과와 같은 저장 시트(①·②)로 한다.
  */
@@ -145,20 +144,12 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
             val result = evaluation.result
             if (result != null) ErrorKindSegments(result, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 8.dp))
             if (section != null) SectionScore(evaluation, section, state.filter)
-            // 기준 속도로 연주했을 때의 안내는 두지 않는다(S15P31E102-832).
-            if (evaluation.bpm < evaluation.song.baseBpm) {
-                Text(
-                    stringResource(Res.string.weak_result_next_slow, evaluation.song.baseBpm, WholeSongReadyScore),
-                    modifier = Modifier.padding(top = 10.dp, start = 2.dp, end = 2.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
-                    color = colors.textSub,
-                )
-            }
+            // 다음 단계 안내 문구는 두지 않는다(S15P31E102-832).
             Text(
                 stringResource(Res.string.weak_result_other_more),
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .padding(top = 2.dp, bottom = 10.dp)
+                    .padding(top = 10.dp, bottom = 10.dp)
                     .minimumInteractiveComponentSize()
                     .clickable(role = Role.Button, onClick = actions.onOtherSection)
                     .padding(horizontal = 12.dp, vertical = 10.dp),

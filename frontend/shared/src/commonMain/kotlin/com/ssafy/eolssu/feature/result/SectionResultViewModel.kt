@@ -143,6 +143,3 @@ class SectionResultViewModel(
     /** 시트 바깥을 누르거나 닫으면 닫는다. 저장 중에는 결과가 올 때까지 둔다. */
     fun closeSheet() = _uiState.update { if (it.savingRecord) it else it.copy(saveSheet = null) }
 }
-
-/** 곡 전체 평가를 권하는 구간 점수. 기준보다 느리게 연주했을 때 다음 단계 안내가 이 점수를 넘기면 ‘곡 전체 다시 평가’를 권한다(시안 85점). */
-internal const val WholeSongReadyScore = 85
