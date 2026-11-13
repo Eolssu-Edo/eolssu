@@ -582,7 +582,7 @@
     <string name="auth_withdrawn_title">탈퇴 신청이 완료됐어요</string>
     <string name="auth_withdrawn_message">30일 안에 다시 로그인하면 탈퇴가 취소되고, 계정과 연습 기록을 그대로 쓸 수 있어요.</string>
     <string name="auth_withdrawal_cancelled_title">탈퇴 신청이 취소됐어요</string>
-    <string name="auth_withdrawal_cancelled_message">탈퇴를 신청한 계정으로 30일 안에 로그인해서 탈퇴가 취소됐어요. 계정과 연습 기록을 그대로 쓸 수 있어요.</string>
+    <string name="auth_withdrawal_cancelled_message">탈퇴를 신청한 계정으로 30일 안에 로그인해서 탈퇴가 취소됐어요.\n계정과 연습 기록을 그대로 쓸 수 있어요.</string>
     <string name="auth_oauth_result_hint">제공자 로그인 뒤 서버 결과 (예시)</string>
     <string name="auth_oauth_result_linked">연결된 계정이 있어요 · 홈으로</string>
     <string name="auth_oauth_result_link">같은 이메일로 가입한 계정이 있어요</string>
@@ -762,7 +762,6 @@
     <string name="my_password_new">새 비밀번호</string>
     <string name="my_password_confirm">새 비밀번호 확인</string>
     <string name="my_password_confirm_placeholder">새 비밀번호를 한 번 더 입력</string>
-    <string name="my_password_help">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
     <string name="my_password_change_done">비밀번호 바꾸기</string>
     <string name="my_password_changed">비밀번호를 바꿨어요.</string>
     <string name="my_password_none">간편 로그인 계정은 비밀번호가 없어요.</string>
@@ -773,7 +772,7 @@
     <string name="my_logout_confirm_message">다시 들어오려면 이메일이나 연결한 간편 로그인으로 로그인해요.</string>
     <string name="my_logged_out">로그아웃했어요.</string>
     <string name="my_withdraw">회원 탈퇴</string>
-    <string name="my_withdraw_heading">탈퇴하기 전에\n확인해 주세요</string>
+    <string name="my_withdraw_heading">탈퇴하기 전에 확인해 주세요</string>
     <string name="my_withdraw_notice_1">탈퇴를 신청하면 바로 로그아웃돼요.</string>
     <string name="my_withdraw_notice_2">30일이 지나면 계정과 연습 기록이 삭제돼요.</string>
     <string name="my_withdraw_notice_3">30일 안에 다시 로그인하면 탈퇴가 취소돼요.</string>
@@ -783,6 +782,9 @@
     <string name="my_withdraw_or">또는 간편 로그인으로 확인</string>
     <string name="my_withdraw_proof_expired">본인 확인 시간이 지났어요. 다시 확인해 주세요.</string>
     <string name="my_withdraw_done">탈퇴하기</string>
+    <string name="my_withdraw_confirm_title">정말 탈퇴할까요?</string>
+    <string name="my_withdraw_confirm_message">30일이 지나면 계정과 연습 기록이 삭제돼요.\n그 전에 다시 로그인하면 탈퇴가 취소돼요.</string>
+    <string name="my_withdraw_confirm_image">눈물을 흘리는 절쑤</string>
     <string name="my_withdrawn">탈퇴를 신청했어요. 30일 안에 로그인하면 취소돼요.</string>
     <string name="my_link_title">%1$s 계정 연결</string>
     <string name="my_link_placeholder_title">[%1$s 로그인·동의 화면]</string>
@@ -794,11 +796,13 @@
     <string name="my_link_taken_title">다른 계정에 연결된 %1$s 계정이에요</string>
     <string name="my_link_taken_message">이 %1$s 계정은 이미 다른 얼쑤 계정에 연결돼 있어요. 그 계정에서 연결을 해제한 뒤 다시 시도해 주세요.</string>
     <string name="my_error_nickname_empty">닉네임을 입력해 주세요.</string>
+    <string name="my_error_nickname_too_long">10자 이내로 작성해주세요</string>
     <string name="my_error_password_empty">비밀번호를 입력해 주세요.</string>
     <string name="my_error_password_wrong">비밀번호가 맞지 않아요.</string>
     <string name="my_error_current_password_wrong">현재 비밀번호가 맞지 않아요.</string>
     <string name="my_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
     <string name="my_error_password_mismatch">새 비밀번호가 서로 달라요.</string>
+    <string name="my_error_password_same_as_current">현재 비밀번호와 다르게 입력해주세요</string>
     <string name="sheet_adapt_title">악기·음역 맞추기</string>
     <string name="sheet_adapt_failed">지원음을 불러오지 못했어요.</string>
     <string name="sheet_adapt_original_key">원조 유지</string>

@@ -125,7 +125,7 @@ class MyPageViewModelTest {
 
         viewModel.changeNickname("가".repeat(11))
         assertFalse(viewModel.save())
-        assertEquals(ProfileFieldError.InvalidInput, viewModel.uiState.value.error)
+        assertEquals(ProfileFieldError.NicknameTooLong, viewModel.uiState.value.error)
         assertEquals("얼쑤연주자", users.profile.value.nickname)
 
         viewModel.changeNickname(" ${"가".repeat(10)} ")

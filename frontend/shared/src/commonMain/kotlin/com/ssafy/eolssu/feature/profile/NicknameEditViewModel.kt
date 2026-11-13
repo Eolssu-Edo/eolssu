@@ -25,7 +25,13 @@ class NicknameEditViewModel(private val userRepository: UserRepository, member: 
         _uiState.value = NicknameEditUiState()
     }
 
-    fun changeNickname(nickname: String) = _uiState.update { it.copy(nickname = nickname, error = null) }
+    /**
+     * 가입(AUTH)과 달리 넘치는 입력도 칸에 남겨 글자 수(n/10)와 함께 '10자 이내' 오류를 바로 보인다.
+     * 다시 10자 안으로 줄이면 오류가 사라진다.
+     */
+    fun changeNickname(nickname: String) = _uiState.update {
+        it.copy(nickname = nickname, error = if (NicknameRule.isTooLong(nickname)) ProfileFieldError.NicknameTooLong else null)
+    }
 
     /** 저장했으면 true. */
     suspend fun save(): Boolean = accountScope.inAccount {
@@ -35,7 +41,7 @@ class NicknameEditViewModel(private val userRepository: UserRepository, member: 
             _uiState.update { it.copy(error = ProfileFieldError.NicknameEmpty) }
             return@inAccount false
         }
-        if (NicknameRule.isTooLong(nickname)) { _uiState.update { it.copy(error = ProfileFieldError.InvalidInput) }; return@inAccount false }
+        if (NicknameRule.isTooLong(nickname)) { _uiState.update { it.copy(error = ProfileFieldError.NicknameTooLong) }; return@inAccount false }
         submitting = true
         val result = try { userRepository.changeNickname(nickname) } finally { submitting = false }
         if (result == MemberResult.Done) return@inAccount true
