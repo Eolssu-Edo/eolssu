@@ -28,6 +28,8 @@
     <string name="weak_loop_evaluate_start">구간 재평가 시작</string>
     <string name="weak_loop_evaluate">구간 재평가</string>
     <string name="weak_loop_no_recorder">이 기기에서는 녹음할 수 없어요. 앱에서 재평가해 주세요.</string>
+    <!-- 구간 재평가의 ‘연주를 마쳤어요’ 창 설명(한 줄) -->
+    <string name="weak_loop_end_body">연주의 음정, 박자, 음 길이로 평가해요.</string>
     <string name="weak_loop_no_notes">이 구간에는 연주할 음이 없어요. 다른 구간을 골라 주세요.</string>
     <string name="weak_loop_mic_denied">마이크를 허용해야 재평가할 수 있어요.</string>
     <string name="weak_loop_mic_blocked">마이크 권한이 꺼져 있어요. 설정에서 허용해 주세요.</string>
