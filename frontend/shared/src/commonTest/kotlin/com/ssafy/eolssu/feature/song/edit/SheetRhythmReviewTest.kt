@@ -16,6 +16,7 @@ class SheetRhythmReviewTest {
         assertEquals("6/8", signature.timeSignature)
         assertEquals(3, document.editorReviewNotices().single().page)
         assertEquals("REPEATED_UNDERFULL_MEASURE", document.editorReviewIssues(score).single().rhythmReview?.reason)
+        assertEquals("REPEATED_UNDERFULL_MEASURE", document.editorReviewIssues(score).single().reason)
         val empty = Json.parseToJsonElement("""{"type":"LOW_CONFIDENCE","detail":{"reason":"EMPTY_MEASURE_REVIEW_REQUIRED","measure":4}}""").jsonObject
         val blank = assertNotNull(document.copy(notices = listOf(empty)).editorReviewNotices().single().rhythmReview)
         assertEquals("EMPTY_MEASURE_REVIEW_REQUIRED", blank.reason)

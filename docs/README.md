@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [선택 위치 검수 안내 (890)](specs/score-authoring-consistency.md#인식-검수-이유의-정간-클릭-안내-s15p31e102-890) · [원인·OMR 운영 배포](knowledge/frontend/sheet-pitch-adaptation.md#사용자-승인-후-omr-배포-890) · [검증·인수인계](plans/S15P31E102-890.md)
 - [악보 리듬 보존·무반주 저장·악보별 기본 박 반주 (883)](specs/score-rhythm-preservation.md) · [실제 악보 전후 비교](knowledge/data/common/rhythm-metronome/meter-import-validation.md) · [작업 기록](plans/S15P31E102-883.md)
 
 - [분석 완료 후 음역·이조 즉시 사용 (879)](specs/sheet-adaptation-readiness.md) · [중복 조회 원인과 실제 검증](knowledge/frontend/sheet-adaptation-readiness.md) · [계획·검증](plans/S15P31E102-879.md)

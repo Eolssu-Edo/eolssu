@@ -9,9 +9,38 @@ import kotlinx.serialization.json.intOrNull
 
 /** 변환 결과에서 편집기 정간에 연결할 수 있는 확인 항목. */
 data class SheetReviewIssue(val id: String, val cellId: String, val kind: String, val pitch: Pair<String, Int>? = null,
-    val eventId: String? = null, val rhythmReview: SheetRhythmReview? = null)
+    val eventId: String? = null, val rhythmReview: SheetRhythmReview? = null, val reason: String? = null)
 
 data class SheetRhythmReview(val reason: String, val timeSignature: String? = null, val measure: String? = null)
+
+internal data class SheetReviewSelection(val cell: Int, val sub: Int? = null)
+
+internal fun SheetEditUiState.reviewIssuesAt(cell: Int, sub: Int? = null): List<SheetReviewIssue> {
+    val cellId = draft.sourceCellIds?.getOrNull(cell) ?: return emptyList()
+    if (sub != null && sub !in draft.cells.getOrNull(cell).orEmpty().indices) return emptyList()
+    val cells = runCatching { draft.toCommonScore().columns.flatMap { it.cells } }.getOrNull().orEmpty()
+    // 현재 이음이 가리키는 시작 소박을 찾은 뒤, 재배치 전 원본 이벤트에 연결한다.
+    val sourceEvents = buildMap {
+        cells.forEachIndexed { index, current ->
+            val original = draft.originalCell(index) ?: return@forEachIndexed
+            current.units.forEachIndexed { unitIndex, unit ->
+                if (unit.eventId == "${current.id}-r${unit.row}-u${unit.col}") {
+                    val source = original.units.getOrNull(unitIndex)
+                    if (source != null && source.eventId == "${original.id}-r${source.row}-u${source.col}") {
+                        put(unit.eventId, source.eventId)
+                    }
+                }
+            }
+        }
+    }
+    val units = cells.getOrNull(cell)?.units.orEmpty()
+    val eventIds = (if (sub == null) units else listOfNotNull(units.getOrNull(sub)))
+        .mapNotNull { sourceEvents[it.eventId] }.toSet()
+    return reviewIssues.filter { issue ->
+        issue.id !in validatedCheckedIssueIds &&
+            if (issue.eventId != null) issue.eventId in eventIds else issue.cellId == cellId
+    }
+}
 
 internal fun SheetDocument.editorReviewIssues(score: CommonScoreData): List<SheetReviewIssue> {
     val eventCells = score.events.associate { it.id to it.cellId }
@@ -22,7 +51,8 @@ internal fun SheetDocument.editorReviewIssues(score: CommonScoreData): List<Shee
         val kind = detail?.text("reason")?.takeIf { it in setOf("UNREGISTERED_PITCH", "TEMPO_CUE_UNRESOLVED") } ?: issue.text("type").orEmpty()
         val yul = detail?.text("yul")
         val octave = (detail?.get("octave") as? JsonPrimitive)?.intOrNull
-        SheetReviewIssue(id, cellId, kind, if (yul != null && octave != null) yul to octave else null, issue.text("eventId"), detail?.rhythmReview())
+        SheetReviewIssue(id, cellId, kind, if (yul != null && octave != null) yul to octave else null, issue.text("eventId"),
+            rhythmReview = detail?.rhythmReview(), reason = detail?.text("reason"))
     }.distinctBy(SheetReviewIssue::id)
 }
 
