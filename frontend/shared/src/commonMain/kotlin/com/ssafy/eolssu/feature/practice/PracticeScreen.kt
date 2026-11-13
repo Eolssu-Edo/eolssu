@@ -32,17 +32,15 @@ import com.ssafy.eolssu.core.ui.component.EolssuPageTopBar
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.practice.component.PracticeBoardScore
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
-import com.ssafy.eolssu.feature.practice.component.PracticeCallToAction
 import com.ssafy.eolssu.core.ui.component.BeatCountdownOverlay
 import com.ssafy.eolssu.feature.practice.component.PracticeDialog
 import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
 import com.ssafy.eolssu.feature.practice.component.PracticeFingeringPage
 import com.ssafy.eolssu.feature.practice.component.PracticePanelActions
 import com.ssafy.eolssu.feature.practice.component.PracticePanelSheet
-import com.ssafy.eolssu.feature.practice.component.PracticePlayerCard
+import com.ssafy.eolssu.feature.practice.component.PracticePlayer
 import com.ssafy.eolssu.feature.practice.component.PracticeRecordingBar
 import com.ssafy.eolssu.feature.practice.component.PracticePlaybackLoadingOverlay
-import com.ssafy.eolssu.feature.practice.component.PracticeStepPanels
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleToggles
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
@@ -147,8 +145,8 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
 }
 
 /**
- * 휴대폰 배치(보드 PRACTICE-01): 페이지 머리 ‘연습’ → 본문(곡 제목·오른쪽 상태 문구, 악보 또는 운지법과 함께 보기, 플레이어 카드,
- * 행동 버튼·안내)을 세로 스크롤 없이 한 화면에 두고, 연주 중에만 하단 바가 고정된다.
+ * 휴대폰 배치(보드 PRACTICE-01): 페이지 머리 ‘연습’ → 본문(곡 제목·오른쪽 상태 문구, 악보 또는 운지법과 함께 보기,
+ * 플레이어([PracticePlayer]))를 세로 스크롤 없이 한 화면에 두고, 연주 중에만 하단 바가 고정된다.
  * 연주 중에는 손으로 스크롤하기 어려우므로 악보는 플레이어·버튼을 뺀 남은 높이를 쓴다. 운지법을 끈 악보는 좌우로만 넘기고,
  * 운지법과 함께 보기는 남은 높이에 들어가는 운지만 한 페이지에 담아 넘긴다.
  */
@@ -200,14 +198,7 @@ private fun PracticeCompactLayout(
                         modifier = Modifier.weight(1f), livePitch = livePitch,
                     )
                 }
-                if (showPlayer) {
-                    if (state.stepUi) {
-                        PracticeStepPanels(state, actions.bottom, Modifier.padding(top = 8.dp, bottom = 14.dp))
-                    } else {
-                        PracticePlayerCard(state, actions.bottom, Modifier.padding(top = 8.dp, bottom = 8.dp), compact = true)
-                    }
-                    PracticeCallToAction(state, actions.bottom, hideNotice = fingering)
-                }
+                if (showPlayer) PracticePlayer(state, actions.bottom, Modifier.padding(top = 8.dp))
                 Spacer(Modifier.height(8.dp))
             }
         }
