@@ -112,7 +112,7 @@ fun EvaluationResult.visibleErrors(filter: ErrorFilter): Map<Pair<Int, Int>, Sco
  * '틀린 부분' 제목(고른 칸 이름과 같은 13sp 굵게, S15P31E102-808·825)과 탭 바를 폴더 탭 모양의 흰 상자 하나로 묶는다(S15P31E102-818).
  * 제목만 감싸는 머리가 탭 바 왼쪽 위에 붙고, 머리 오른쪽 아래는 오목하게 탭 바 윗변으로 이어진다. 오른쪽 위는 비워 상자가 제목 줄 전체로 늘지 않는다.
  * 흰 바탕 화면에서도 상자가 보이도록 윤곽에 흰 카드의 옅은 테두리(lineSoft)를 그린다.
- * 탭 바(높이 52, 안쪽 5dp) 안에서 고른 칸만 연한 연두(accentTintStrong) 알약으로 넓게 펼쳐 '아이콘 · 이름 · 개수'를 보이고,
+ * 탭 바(높이 52, 안쪽 5dp) 안에서 고른 칸만 옅은 중립색(surfaceStrong) 알약으로 넓게 펼쳐 '아이콘 · 이름 · 개수'를 보이고,
  * 나머지 칸은 '아이콘 · 개수'만 둔다. 고른 칸이 바뀌면 너비·바탕·이름이 함께 부드럽게 바뀐다(S15P31E102-786).
  */
 @Composable
@@ -195,7 +195,7 @@ private fun ErrorKindTabs(result: EvaluationResult, selected: ErrorFilter, onSel
             val name = segmentLabel(filter)
             val description = stringResource(Res.string.error_segment_description, name, count)
             val weight by animateFloatAsState(if (on) SelectedTabWeight else 1f, tween(TabMotionMillis), label = "errorTabWeight")
-            val fill by animateColorAsState(if (on) colors.accentTintStrong else Color.Transparent, tween(TabMotionMillis), label = "errorTabFill")
+            val fill by animateColorAsState(if (on) colors.surfaceStrong else Color.Transparent, tween(TabMotionMillis), label = "errorTabFill")
             Surface(
                 onClick = { onSelect(filter) },
                 modifier = Modifier.weight(weight).fillMaxHeight()

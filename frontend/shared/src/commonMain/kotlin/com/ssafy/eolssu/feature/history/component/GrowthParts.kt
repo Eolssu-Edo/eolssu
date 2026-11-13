@@ -70,6 +70,7 @@ import com.ssafy.eolssu.feature.history.PeriodChart
 import com.ssafy.eolssu.feature.history.weekBarLabels
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.growth_axis_count
+import eolssu.shared.generated.resources.growth_axis_hours
 import eolssu.shared.generated.resources.growth_axis_minutes
 import eolssu.shared.generated.resources.growth_bar_month
 import eolssu.shared.generated.resources.growth_chart_desc
@@ -291,7 +292,8 @@ private val AxisGap = 8.dp
 @Composable
 private fun PeriodBars(chart: PeriodChart, metric: GrowthMetric, dense: Boolean, modifier: Modifier) {
     val colors = EolssuTheme.colors
-    val max = chart.max(metric)
+    val axisScale = chart.axis(metric)
+    val max = axisScale.top
     val values = chart.bars.map { it.value(metric) }
     val rangeName = stringResource(if (chart.range == GrowthRange.Week) Res.string.growth_week else Res.string.growth_month)
     val metricName = stringResource(if (metric == GrowthMetric.Time) Res.string.growth_metric_time else Res.string.growth_metric_count)
@@ -334,13 +336,13 @@ private fun PeriodBars(chart: PeriodChart, metric: GrowthMetric, dense: Boolean,
         BoxWithConstraints(Modifier.width(AxisWidth).fillMaxHeight()) {
             val muted = colors.textMuted
             Text(
-                stringResource(if (metric == GrowthMetric.Time) Res.string.growth_axis_minutes else Res.string.growth_axis_count),
+                stringResource(when { metric != GrowthMetric.Time -> Res.string.growth_axis_count; axisScale.hours -> Res.string.growth_axis_hours; else -> Res.string.growth_axis_minutes }),
                 Modifier.align(Alignment.TopEnd).offset(y = (-16).dp),
                 style = axis,
                 color = muted,
             )
-            Text("$max", Modifier.align(Alignment.TopEnd).offset(y = 2.dp), style = axis, color = muted)
-            Text("${chart.half(metric)}", Modifier.align(Alignment.TopEnd).offset(y = maxHeight / 2 + 2.dp), style = axis, color = muted)
+            Text("${axisScale.top / axisScale.unit}", Modifier.align(Alignment.TopEnd).offset(y = 2.dp), style = axis, color = muted)
+            Text("${axisScale.half / axisScale.unit}", Modifier.align(Alignment.TopEnd).offset(y = maxHeight / 2 + 2.dp), style = axis, color = muted)
         }
     }
 }
