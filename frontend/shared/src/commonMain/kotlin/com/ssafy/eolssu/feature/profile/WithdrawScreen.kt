@@ -27,6 +27,8 @@ import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.data.user.UserProfile
 import com.ssafy.eolssu.data.user.signsInWithPassword
 import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
+import com.ssafy.eolssu.feature.profile.component.WithdrawConfirmDialog
+import androidx.compose.foundation.text.TextAutoSize
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.my_password_current
 import eolssu.shared.generated.resources.my_withdraw
@@ -61,9 +63,20 @@ fun WithdrawScreen(
     onSubmit: () -> Unit,
     onReauth: (SocialProvider) -> Unit,
     onReopen: () -> Unit,
+    onConfirm: () -> Unit = {},
+    onDismissConfirm: () -> Unit = {},
 ) {
     val colors = EolssuTheme.colors
     val reauth = state.reauth
+    when (val confirm = state.confirm) {
+        WithdrawConfirm.Password -> WithdrawConfirmDialog(stringResource(Res.string.my_withdraw_done), onConfirm, onDismissConfirm)
+        is WithdrawConfirm.Reauth -> WithdrawConfirmDialog(
+            stringResource(Res.string.my_withdraw_social, stringResource(confirm.provider.displayName)),
+            onConfirm,
+            onDismissConfirm,
+        )
+        null -> Unit
+    }
     val usePassword = profile.signsInWithPassword
     val providers = SocialProvider.entries.filter { it in profile.linkedProviders }
     ProfileScaffold(
@@ -108,10 +121,13 @@ fun WithdrawScreen(
             )
             return@ProfileScaffold
         }
+        // 제목은 한 줄로 둔다. 좁은 휴대폰에서 넘치면 줄 대신 글자를 줄인다.
         Text(
             stringResource(Res.string.my_withdraw_heading),
             style = EolssuTheme.serif.headline.copy(fontSize = if (widthClass == WindowWidthClass.Compact) 24.sp else 28.sp, lineHeight = 34.sp),
             color = colors.text,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 16.sp, maxFontSize = if (widthClass == WindowWidthClass.Compact) 24.sp else 28.sp),
         )
         // 안내 목록(`.my-notice`): 흰 바탕 · 옅은 테두리에 점 목록
         Column(

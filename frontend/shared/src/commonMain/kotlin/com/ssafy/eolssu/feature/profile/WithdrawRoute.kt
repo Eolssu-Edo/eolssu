@@ -9,7 +9,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import org.koin.compose.viewmodel.koinViewModel
 
-/** MY-04 연결. 비밀번호로 신청하거나 간편 로그인 재인증으로 신청하면 [onWithdrawn]으로 로그인 화면에 간다. */
+/**
+ * MY-04 연결. '탈퇴하기'를 누르면 확인 창을 띄우고, 창에서 다시 '탈퇴하기'를 누르면
+ * 비밀번호로 신청하거나 간편 로그인 재인증을 시작한다. 신청되면 [onWithdrawn]으로 로그인 화면에 간다.
+ */
 @Composable
 fun WithdrawRoute(
     onBack: () -> Unit,
@@ -26,8 +29,12 @@ fun WithdrawRoute(
         widthClass = currentWindowLayout().widthClass,
         onBack = onBack,
         onPasswordChange = viewModel::changePassword,
-        onSubmit = { scope.launch { if (viewModel.submit()) onWithdrawn() } },
-        onReauth = viewModel::startReauth,
+        onSubmit = viewModel::requestWithdraw,
+        onReauth = viewModel::requestReauth,
         onReopen = viewModel::reopen,
+        onConfirm = {
+            if (viewModel.confirm() == WithdrawConfirm.Password) scope.launch { if (viewModel.submit()) onWithdrawn() }
+        },
+        onDismissConfirm = viewModel::dismissConfirm,
     )
 }

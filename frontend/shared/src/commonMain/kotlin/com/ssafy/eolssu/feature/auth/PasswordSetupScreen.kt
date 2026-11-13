@@ -32,7 +32,7 @@ import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTextField
-import com.ssafy.eolssu.feature.auth.component.PasswordChecklist
+import com.ssafy.eolssu.core.ui.component.PasswordChecklist
 import com.ssafy.eolssu.feature.auth.component.SignupTopBar
 import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
