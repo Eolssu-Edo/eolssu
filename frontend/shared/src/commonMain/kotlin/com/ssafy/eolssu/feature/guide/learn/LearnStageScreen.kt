@@ -453,7 +453,7 @@ internal fun practiceBoxIndex(stage: Int, stepCount: Int, doneCount: Int): Int =
     if (judgesInTasks(stage) && stepCount > 0) doneCount.coerceIn(0, stepCount - 1) else stepCount
 
 /**
- * 듣는 박스가 펼쳐져 있는지(S15P31E102-749). 그동안 아래 가운데 버튼은 '연습 시작' 대신 듣기 조작(그만하기·다시 시작)이 된다.
+ * 듣는 박스가 펼쳐져 있는지(S15P31E102-749). 그동안 아래 가운데 버튼은 '연습 시작' 대신 듣기 조작('그만하기' 등)이 된다.
  * 3·4·7단계는 연습 박스([stepCount]번), 5·6단계는 아직 마치지 않은 할 일 박스다.
  */
 internal fun listeningBoxOpen(stage: Int, stepCount: Int, open: Int?, doneCount: Int): Boolean = when {

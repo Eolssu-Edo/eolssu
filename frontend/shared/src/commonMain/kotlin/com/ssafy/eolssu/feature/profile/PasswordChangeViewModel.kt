@@ -25,7 +25,10 @@ class PasswordChangeViewModel(private val userRepository: UserRepository, member
         _uiState.value = PasswordChangeUiState()
     }
 
-    fun changeCurrent(value: String) = _uiState.update { it.copy(current = value, currentError = null) }
+    /** 현재 비밀번호를 고치면 '현재와 같음'도 다시 판단해야 하므로 그 오류를 함께 지운다. */
+    fun changeCurrent(value: String) = _uiState.update {
+        it.copy(current = value, currentError = null, newError = it.newError.takeUnless { e -> e == ProfileFieldError.PasswordSameAsCurrent })
+    }
 
     /** 새 비밀번호를 고치면 확인칸 오류도 다시 판단해야 하므로 함께 지운다. */
     fun changeNew(value: String) = _uiState.update { it.copy(new = value, newError = null, confirmError = null) }
@@ -37,9 +40,12 @@ class PasswordChangeViewModel(private val userRepository: UserRepository, member
         if (submitting) return@inAccount false
         val state = _uiState.value
         val currentError = if (state.current.isEmpty()) ProfileFieldError.PasswordEmpty else null
+        // 가입(AuthValidation.passwordError)과 같은 순서로 보고, 서버가 거절하는 '현재와 같은 비밀번호'는 보내기 전에 막는다.
         val newError = when {
             state.new.isEmpty() -> ProfileFieldError.PasswordEmpty
-            !PasswordRule.isValid(state.new) -> ProfileFieldError.PasswordRule
+            !PasswordRule.meetsAllChecks(state.new) -> ProfileFieldError.PasswordRule
+            PasswordRule.isTooLong(state.new) -> ProfileFieldError.PasswordTooLong
+            state.new == state.current -> ProfileFieldError.PasswordSameAsCurrent
             else -> null
         }
         val confirmError = if (state.new.isNotEmpty() && state.new != state.confirm) ProfileFieldError.PasswordMismatch else null

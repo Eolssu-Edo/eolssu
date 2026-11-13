@@ -41,7 +41,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuStartTopBar
 import com.ssafy.eolssu.core.ui.component.ScoreSummaryCard
-import com.ssafy.eolssu.core.ui.component.TintPillButton
 import com.ssafy.eolssu.core.ui.score.ErrorFilter
 import com.ssafy.eolssu.core.ui.score.ErrorKindSegments
 import com.ssafy.eolssu.core.ui.score.JeongganboView
@@ -63,11 +62,8 @@ import eolssu.shared.generated.resources.weak_result_errors_change
 import eolssu.shared.generated.resources.weak_result_errors_now
 import eolssu.shared.generated.resources.weak_result_fewer
 import eolssu.shared.generated.resources.weak_result_more
-import eolssu.shared.generated.resources.weak_result_next_ready
-import eolssu.shared.generated.resources.weak_result_next_slow
 import eolssu.shared.generated.resources.weak_result_not_comparable
 import eolssu.shared.generated.resources.weak_result_other_more
-import eolssu.shared.generated.resources.weak_result_retry
 import eolssu.shared.generated.resources.weak_result_same
 import eolssu.shared.generated.resources.weak_result_subtitle
 import eolssu.shared.generated.resources.weak_result_subtitle_plain
@@ -81,19 +77,24 @@ class SectionResultActions(
     /** 오른쪽 위 홈(연주 결과와 같은 자리). */
     val onHome: () -> Unit = {},
     val onOtherSection: () -> Unit,
-    /** ‘구간 재평가 다시하기’: 방금 평가한 구간·속도·바탕 연주 그대로 구간 재평가를 다시 연다. */
-    val onRetry: () -> Unit = {},
+    /** ‘연습 기록 저장’: 저장 시트(①, 저장했으면 ②)를 연다. */
+    val onSave: () -> Unit = {},
+    val onConfirmSave: () -> Unit = {},
+    val onMemoChange: (String) -> Unit = {},
+    val onCloseSheet: () -> Unit = {},
     val onWholeSong: () -> Unit,
     val onSelectFilter: (ErrorFilter) -> Unit = {},
+    /** 저장 완료 시트의 ‘기록으로 이동’. */
+    val onOpenRecord: () -> Unit = {},
 )
 
 /**
  * RESULT-04 구간 재평가 결과(S15P31E102-776, 와이어프레임 ⑤ · 연주 결과 틀). 왼쪽 정렬 머리 ‘곡 · 2–3각 · 58 BPM / 구간 재평가 결과’와 오른쪽 위 홈 ·
  * 머리는 연주 결과처럼 뒤로 가기 없이 왼쪽 끝에서 시작한다(S15P31E102-808). 결과를 불러오는 중이거나 없으면 뒤로 가기를 둔다 ·
- * 연주 결과와 같은 점수 상자(일원상 구간 점수 · 항목 막대 · ‘이 구간 다시 연습’) · 회색 칸의 틀린 음 비교(EVA-04) ·
- * 5칸 틀린 종류 필터 · 구간 정간보(보기 전용) · 다음 단계 한 줄 · ‘다른 구간 고르기 ›’,
- * 아래 나란한 ‘구간 재평가 다시하기’(보조) · ‘곡 전체 다시 평가’(주)(S15P31E102-826).
- * 점수는 서버 값만 쓰고 화면에서 계산하지 않는다. 구간 재평가는 연습 기록으로 저장하지 않아(S15P31E102-343) 저장 버튼은 두지 않는다.
+ * 연주 결과와 같은 점수 상자(일원상 구간 점수 · 항목 막대) · 회색 칸의 틀린 음 비교(EVA-04) ·
+ * 5칸 틀린 종류 필터 · 구간 정간보(보기 전용) · ‘다른 구간 고르기 ›’,
+ * 아래 반씩 나란한 ‘연습 기록 저장’(보조) · ‘곡 전체 다시 평가’(주)(S15P31E102-832).
+ * 점수는 서버 값만 쓰고 화면에서 계산하지 않는다. 저장은 연주 결과와 같은 저장 시트(①·②)로 한다.
  */
 @Composable
 fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: SnackbarHostState, actions: SectionResultActions) {
@@ -122,7 +123,7 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
             )
         },
         bottomBar = if (evaluation != null) {
-            { ResultButtons(actions) }
+            { ResultButtons(state, actions) }
         } else {
             null
         },
@@ -143,21 +144,12 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
             val result = evaluation.result
             if (result != null) ErrorKindSegments(result, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 8.dp))
             if (section != null) SectionScore(evaluation, section, state.filter)
-            Text(
-                if (evaluation.bpm < evaluation.song.baseBpm) {
-                    stringResource(Res.string.weak_result_next_slow, evaluation.song.baseBpm, WholeSongReadyScore)
-                } else {
-                    stringResource(Res.string.weak_result_next_ready)
-                },
-                modifier = Modifier.padding(top = 10.dp, start = 2.dp, end = 2.dp),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
-                color = colors.textSub,
-            )
+            // 다음 단계 안내 문구는 두지 않는다(S15P31E102-832).
             Text(
                 stringResource(Res.string.weak_result_other_more),
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .padding(top = 2.dp, bottom = 10.dp)
+                    .padding(top = 10.dp, bottom = 10.dp)
                     .minimumInteractiveComponentSize()
                     .clickable(role = Role.Button, onClick = actions.onOtherSection)
                     .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -166,28 +158,41 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
             )
         }
     }
+    val recordedAt = evaluation?.result?.recordedAt
+    when {
+        evaluation == null || recordedAt == null -> Unit
+        state.saveSheet == SaveSheet.Form -> SaveFormSheet(
+            title = evaluation.song.title,
+            recordedAt = recordedAt,
+            total = evaluation.total,
+            memo = state.memo,
+            saving = state.savingRecord,
+            onMemoChange = actions.onMemoChange,
+            onConfirm = actions.onConfirmSave,
+            onDismiss = actions.onCloseSheet,
+        )
+        state.saveSheet == SaveSheet.Saved -> SavedSheet(actions.onCloseSheet, actions.onOpenRecord)
+    }
 }
 
 /**
- * 아래 고정 영역: 왼쪽 보조 ‘구간 재평가 다시하기’, 오른쪽 주 ‘곡 전체 다시 평가’. 휴대폰·태블릿 모두 한 줄에 나란히 둔다.
- * 글자가 긴 왼쪽에 폭을 조금 더 줘 휴대폰 폭(360dp)에서 두 문구가 한 줄에 들어가고, 글꼴을 키워 줄이 바뀌어도 두 버튼 높이가 같다.
+ * 아래 고정 영역: 왼쪽 보조 ‘연습 기록 저장’(저장했으면 ‘저장됨’), 오른쪽 주 ‘곡 전체 다시 평가’. 휴대폰·태블릿 모두 한 줄에 반씩 둔다.
+ * 글꼴을 키워 줄이 바뀌어도 두 버튼 높이가 같다. 평가 결과(EVA-01)를 받지 못해 저장할 수 없으면 ‘곡 전체 다시 평가’만 둔다.
  */
 @Composable
-private fun ResultButtons(actions: SectionResultActions) {
+private fun ResultButtons(state: SectionResultUiState, actions: SectionResultActions) {
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        EolssuButton(
-            stringResource(Res.string.weak_result_retry), actions.onRetry, Modifier.weight(RetryButtonWeight).fillMaxHeight(),
-            style = EolssuButtonStyle.Secondary, compact = true,
-        )
+        if (state.canSave) {
+            RecordSaveButton(
+                state.savedRecord != null, actions.onSave, Modifier.weight(1f).fillMaxHeight(), style = EolssuButtonStyle.Secondary,
+            )
+        }
         EolssuButton(
             stringResource(Res.string.weak_result_whole), actions.onWholeSong, Modifier.weight(1f).fillMaxHeight(),
             compact = true,
         )
     }
 }
-
-/** ‘구간 재평가 다시하기’(9자)와 ‘곡 전체 다시 평가’(7자)의 폭 비. */
-private const val RetryButtonWeight = 1.2f
 
 /**
  * 재평가한 구간의 정간보(보기 전용, 연주 결과와 같은 읽기 형식). 틀린 정간은 [filter] 종류만 색·아이콘으로 칠한다.
@@ -198,7 +203,7 @@ private const val RetryButtonWeight = 1.2f
 private fun SectionScore(evaluation: SectionEvaluation, section: ScoreSection, filter: ErrorFilter) {
     val song = evaluation.song
     val result = evaluation.result
-    val format = rememberReadingScoreFormat(song, lyrics = false)
+    val format = rememberReadingScoreFormat(song)
     val played = remember(evaluation) { evaluation.playedSection() } ?: section
     JeongganboView(
         song = song,

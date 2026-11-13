@@ -18,6 +18,9 @@ enum class Instrument(val label: StringResource, val serverCode: String) {
     DaegeumJeongak(Res.string.guide_instrument_daegeum_jeongak, "JEONGAK_DAEGEUM"),
 }
 
+/** 서버 악기 코드([Instrument.serverCode])에 맞는 연습 악기. 모르는 코드(피리 등)는 null이다. */
+fun instrumentOfServerCode(serverCode: String?): Instrument? = Instrument.entries.firstOrNull { it.serverCode == serverCode }
+
 /** 서버 악기 코드의 화면 표시 순서([Instrument] 선언 순서). 모르는 코드는 서버가 준 순서대로 맨 뒤에 둔다. */
 fun instrumentDisplayRank(serverCode: String?): Int =
     Instrument.entries.indexOfFirst { it.serverCode == serverCode }.let { if (it < 0) Instrument.entries.size else it }
