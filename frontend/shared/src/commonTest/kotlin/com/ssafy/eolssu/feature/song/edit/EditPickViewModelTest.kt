@@ -44,6 +44,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runCurrent
@@ -85,6 +87,96 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
             return listOf(SongSummary("10$instrumentId", "곡 $instrumentId", 1, "세마치", 60, true, instrumentId))
         }
         override suspend fun getSong(songId: String): com.ssafy.eolssu.core.model.Song? = null
+    }
+
+    @Test
+    fun providedSongsCanBeSelectedBeforePersonalSheetsFinishLoading() = runTest {
+        val refresh = CompletableDeferred<Boolean>()
+        val slowSheets = object : MySheetRepository {
+            override val sheets = mySheets.sheets
+            override suspend fun refresh() = refresh.await()
+            override suspend fun delete(sheetId: String) = Unit
+        }
+        val model = keep(EditPickViewModel(slowSheets, songs, documents))
+        model.selectInstrument(Instrument.Danso)
+        runCurrent()
+        assertEquals(EditPickLoad.Ready, model.uiState.value.load, "제공 곡은 내 악보 응답을 기다리지 않는다")
+        model.toggle(EditPickTarget.Song("101"))
+        assertTrue(model.uiState.value.canSelect)
+        model.selectTab(EditPickTab.Mine)
+        assertEquals(EditPickLoad.Loading, model.uiState.value.load)
+        assertFalse(model.uiState.value.canSelect)
+        refresh.complete(true)
+        runCurrent()
+        assertEquals(listOf("31"), model.uiState.value.sheets.map { it.id })
+    }
+
+    @Test
+    fun songFailureDoesNotBlockPersonalSheetsAndRetryOnlyReloadsTheFailedTab() = runTest {
+        var attempts = 0
+        var sheetRefreshes = 0
+        val failingSongs = object : SongRepository by songs {
+            override suspend fun getSongs(instrumentId: String?): List<SongSummary> {
+                attempts++
+                if (attempts == 1) error("곡 목록 오류")
+                return songs.getSongs(instrumentId)
+            }
+        }
+        val countedSheets = object : MySheetRepository by mySheets {
+            override suspend fun refresh(): Boolean { sheetRefreshes++; return true }
+        }
+        val model = keep(EditPickViewModel(countedSheets, failingSongs, documents))
+        model.selectInstrument(Instrument.Danso)
+        runCurrent()
+        assertEquals(EditPickLoad.Failed, model.uiState.value.load)
+        model.selectTab(EditPickTab.Mine)
+        assertEquals(EditPickLoad.Ready, model.uiState.value.load, "제공 곡 실패와 관계없이 내 악보를 연다")
+        assertEquals(listOf("31"), model.uiState.value.sheets.map { it.id })
+        model.selectTab(EditPickTab.Songs)
+        model.retry()
+        runCurrent()
+        assertEquals(EditPickLoad.Ready, model.uiState.value.load)
+        assertEquals(2, attempts)
+        assertEquals(1, sheetRefreshes, "성공한 탭은 재조회하지 않는다")
+    }
+
+    @Test
+    fun lateResponseCannotReplaceTheLatestListAfterSwitchingBackToTheSameInstrument() = runTest {
+        val first = CompletableDeferred<List<SongSummary>>()
+        val latest = CompletableDeferred<List<SongSummary>>()
+        var dansoRequests = 0
+        val delayed = object : SongRepository by songs {
+            override suspend fun getSongs(instrumentId: String?): List<SongSummary> =
+                if (instrumentId != "1") songs.getSongs(instrumentId)
+                else withContext(NonCancellable) {
+                    if (++dansoRequests == 1) first.await() else latest.await()
+                }
+        }
+        val model = keep(EditPickViewModel(mySheets, delayed, documents))
+        model.selectInstrument(Instrument.Danso); runCurrent()
+        model.selectInstrument(Instrument.Sogeum); runCurrent()
+        model.selectInstrument(Instrument.Danso); runCurrent()
+        latest.complete(listOf(SongSummary("201", "최신 곡", 1, "세마치", 60, true, "1")))
+        runCurrent()
+        first.complete(listOf(SongSummary("101", "이전 곡", 1, "세마치", 60, true, "1")))
+        runCurrent()
+        assertEquals(listOf("201"), model.uiState.value.songs.map { it.id })
+        assertEquals(EditPickLoad.Ready, model.uiState.value.load)
+    }
+
+    @Test
+    fun changingAccountWhileListsAreLoadingClearsBothTabs() = runTest {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("1") }
+        val response = CompletableDeferred<Boolean>()
+        val delayed = object : MySheetRepository by mySheets {
+            override suspend fun refresh() = response.await()
+        }
+        val model = keep(EditPickViewModel(delayed, songs, documents, member = member))
+        model.selectInstrument(Instrument.Danso); runCurrent()
+        member.set("2")
+        response.complete(true)
+        runCurrent()
+        assertEquals(EditPickUiState(), model.uiState.value)
     }
 
     @Test
@@ -151,13 +243,13 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
             val model = keep(EditPickViewModel(ApiMySheetRepository(client), songs, ApiSheetDocumentRepository(client)))
 
             model.selectInstrument(Instrument.Danso)
-            val danso = model.uiState.first { it.load != EditPickLoad.Loading }
+            val danso = model.uiState.first { it.sheetsLoad != EditPickLoad.Loading }
             assertEquals(EditPickLoad.Ready, danso.load)
             assertEquals(listOf("31", "34"), danso.sheets.map { it.id })
             assertEquals(1, danso.uncheckedSheets)
 
             model.selectInstrument(Instrument.Sogeum)
-            val sogeum = model.uiState.first { it.load != EditPickLoad.Loading }
+            val sogeum = model.uiState.first { it.sheetsLoad != EditPickLoad.Loading }
             assertEquals(EditPickLoad.Ready, sogeum.load)
             assertEquals(listOf("32"), sogeum.sheets.map { it.id })
             assertEquals(1, sogeum.uncheckedSheets)
@@ -190,16 +282,16 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
         try {
             val model = keep(EditPickViewModel(ApiMySheetRepository(client), songs, ApiSheetDocumentRepository(client)))
             model.selectInstrument(Instrument.Danso)
-            assertEquals(listOf("35"), model.uiState.first { it.load == EditPickLoad.Ready }.sheets.map { it.id })
+            assertEquals(listOf("35"), model.uiState.first { it.sheetsLoad == EditPickLoad.Ready }.sheets.map { it.id })
 
             draft = unreadable
             revision++
             model.selectInstrument(Instrument.Sogeum)
-            assertEquals(1, model.uiState.first { it.load == EditPickLoad.Ready }.uncheckedSheets)
+            assertEquals(1, model.uiState.first { it.sheetsLoad == EditPickLoad.Ready }.uncheckedSheets)
             assertEquals(2, detailRequests)
 
             model.selectInstrument(Instrument.Danso)
-            assertTrue(model.uiState.first { it.load == EditPickLoad.Ready }.sheets.isEmpty())
+            assertTrue(model.uiState.first { it.sheetsLoad == EditPickLoad.Ready }.sheets.isEmpty())
         } finally {
             client.close()
         }
@@ -235,17 +327,17 @@ internal class EditPickViewModelTest : CatalogViewModelTest() {
         try {
             val model = keep(EditPickViewModel(ApiMySheetRepository(client), songs, ApiSheetDocumentRepository(client)))
             model.selectInstrument(Instrument.Danso)
-            assertEquals(listOf("35", "36"), model.uiState.first { it.load == EditPickLoad.Ready }.sheets.map { it.id })
+            assertEquals(listOf("35", "36"), model.uiState.first { it.sheetsLoad == EditPickLoad.Ready }.sheets.map { it.id })
             assertEquals(listOf("36"), detailRequests)
 
             listAvailable = false
             model.selectInstrument(Instrument.Sogeum)
-            val refreshed = model.uiState.first { it.load == EditPickLoad.Ready }
+            val refreshed = model.uiState.first { it.sheetsLoad == EditPickLoad.Ready }
             assertEquals(2, refreshed.uncheckedSheets)
             assertEquals(listOf("36", "35", "36"), detailRequests)
 
             model.selectInstrument(Instrument.Danso)
-            assertTrue(model.uiState.first { it.load == EditPickLoad.Ready }.sheets.isEmpty())
+            assertTrue(model.uiState.first { it.sheetsLoad == EditPickLoad.Ready }.sheets.isEmpty())
         } finally {
             client.close()
         }

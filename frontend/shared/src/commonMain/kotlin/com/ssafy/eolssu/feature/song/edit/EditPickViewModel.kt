@@ -14,6 +14,8 @@ import com.ssafy.eolssu.data.song.SheetDocumentRepository
 import com.ssafy.eolssu.data.song.SongRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +26,7 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 /**
- * 불러올 악보 고르기. 악기를 고르면 그 악기의 제공 곡(CAT-01 `instrumentId`)과 내 악보를 받는다.
+ * 악기를 고르면 제공 곡(CAT-01 `instrumentId`)과 내 악보를 각각 받아 탭별로 표시한다.
  * 내 악보는 목록(SHT-01)의 악기 코드로 거르고, 코드가 없으면 공통 악보(SHT-08)를 조회한다.
  * 악보를 읽지 못한 내 악보는 어느 악기 목록에도 넣지 않고 수만 알린다.
  */
@@ -38,7 +40,8 @@ class EditPickViewModel(
     private val _uiState = MutableStateFlow(EditPickUiState())
     val uiState: StateFlow<EditPickUiState> = _uiState.asStateFlow()
 
-    private var loadJob: Job? = null
+    private var songsJob: Job? = null
+    private var sheetsJob: Job? = null
     private val copyKeys = mutableMapOf<String, String>()
 
     /** 초안이 없는 내 악보 ID·수정 시각 → 공통 악보의 악기 코드. 빈 악보의 코드는 null이다. */
@@ -53,38 +56,69 @@ class EditPickViewModel(
     fun selectInstrument(instrument: Instrument) {
         val state = _uiState.value
         if (!accountScope.isActive || state.copying) return
-        if (state.instrument == instrument && state.load != EditPickLoad.Failed) return
+        if (state.instrument == instrument) {
+            retry()
+            return
+        }
+        songsJob?.cancel()
+        sheetsJob?.cancel()
         _uiState.update { it.chooseInstrument(instrument) }
-        loadJob?.cancel()
-        loadJob = accountScope.launch { load(instrument) }
+        loadSongs(instrument)
+        loadSheets(instrument)
     }
 
     fun retry() {
-        val instrument = _uiState.value.instrument ?: return
-        selectInstrument(instrument)
+        val state = _uiState.value
+        val instrument = state.instrument ?: return
+        if (!accountScope.isActive || state.copying || state.load != EditPickLoad.Failed) return
+        when (state.tab) {
+            EditPickTab.Songs -> loadSongs(instrument)
+            EditPickTab.Mine -> loadSheets(instrument)
+        }
     }
 
-    private suspend fun load(instrument: Instrument) {
-        try {
-            val instrumentId = songRepository.getInstruments().firstOrNull { it.code == instrument.serverCode }?.instrumentId
-            val songs = if (instrumentId == null) emptyList() else songRepository.getSongs(instrumentId).mapNotNull { song ->
-                song.level?.let { EditPickSong(song.id, song.title, it, song.jangdanName) }
+    private fun loadSongs(instrument: Instrument) {
+        _uiState.update { it.copy(songsLoad = EditPickLoad.Loading) }
+        songsJob = accountScope.launch {
+            try {
+                val instrumentId = songRepository.getInstruments().firstOrNull { it.code == instrument.serverCode }?.instrumentId
+                currentCoroutineContext().ensureActive()
+                val songs = if (instrumentId == null) emptyList() else songRepository.getSongs(instrumentId).mapNotNull { song ->
+                    song.level?.let { EditPickSong(song.id, song.title, it, song.jangdanName) }
+                }
+                currentCoroutineContext().ensureActive()
+                _uiState.update { it.copy(songsLoad = EditPickLoad.Ready, songs = songs) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                currentCoroutineContext().ensureActive()
+                _uiState.update { it.copy(songsLoad = EditPickLoad.Failed) }
             }
-            val listRefreshed = mySheetRepository.refresh()
-            val all = mySheetRepository.sheets.value
-            val codes = all.associate { it.id to instrumentCodeOf(it, listRefreshed) }
-            _uiState.update {
-                if (it.instrument != instrument) it else it.copy(
-                    load = EditPickLoad.Ready,
-                    songs = songs,
-                    sheets = all.filter { sheet -> codes[sheet.id] == instrument.serverCode },
-                    uncheckedSheets = codes.values.count { code -> code == null },
-                )
+        }
+    }
+
+    private fun loadSheets(instrument: Instrument) {
+        _uiState.update { it.copy(sheetsLoad = EditPickLoad.Loading) }
+        sheetsJob = accountScope.launch {
+            try {
+                val listRefreshed = mySheetRepository.refresh()
+                currentCoroutineContext().ensureActive()
+                val all = mySheetRepository.sheets.value
+                val codes = all.associate { it.id to instrumentCodeOf(it, listRefreshed) }
+                currentCoroutineContext().ensureActive()
+                _uiState.update {
+                    it.copy(
+                        sheetsLoad = EditPickLoad.Ready,
+                        sheets = all.filter { sheet -> codes[sheet.id] == instrument.serverCode },
+                        uncheckedSheets = codes.values.count { code -> code == null },
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                currentCoroutineContext().ensureActive()
+                _uiState.update { it.copy(sheetsLoad = EditPickLoad.Failed) }
             }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            _uiState.update { if (it.instrument != instrument) it else it.copy(load = EditPickLoad.Failed) }
         }
     }
 
@@ -96,6 +130,7 @@ class EditPickViewModel(
         val key = if (listRefreshed && !sheet.hasDraft) sheet.id to sheet.updatedAt else null
         if (key != null && key in sheetInstruments) return sheetInstruments[key]
         val document = try { repository.get(sheet.id) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
+        currentCoroutineContext().ensureActive()
         val code = (document?.draft?.score ?: document?.score)?.score?.instrument?.takeIf { it.isNotBlank() }
         if (key != null && document != null) sheetInstruments[key] = code
         return code
