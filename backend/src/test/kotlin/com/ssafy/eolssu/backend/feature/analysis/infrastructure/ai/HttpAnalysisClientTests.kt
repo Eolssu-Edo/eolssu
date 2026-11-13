@@ -77,6 +77,16 @@ class HttpAnalysisClientTests {
     }
 
     @Test
+    fun `omits the instrument when the song instrument is unknown`() {
+        server.expect(requestTo("http://ai.test/v1/analyses")).andExpect(method(HttpMethod.POST))
+            .andExpect(jsonPath("$.instrument").doesNotExist())
+            .andRespond(withSuccess(doneBody, MediaType.APPLICATION_JSON))
+
+        client.analyze(request)
+        server.verify()
+    }
+
+    @Test
     fun `reads a DONE result`() {
         respond(doneBody)
 
