@@ -168,10 +168,16 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                     "playbackCycleOriginFrame" to selected.playbackOriginFrame.toString(),
                 ) else emptyMap()
                 next.fitCalibration {
+                    val fitStartedNanos = System.nanoTime()
                     val result = calibrateJangdanEchoTraining(training, selected, plan, lengths)
+                    val fitCompletedNanos = System.nanoTime()
                     currentCoroutineContext().ensureActive()
                     synchronized(stateLock) {
                         if (session !== next || next.cancelled || next.failed || next.closed || !next.calibrationAllowed) return@fitCalibration
+                        next.pairSummary = next.pairSummary + mapOf(
+                            "fitDurationNanos" to (fitCompletedNanos - fitStartedNanos).toString(),
+                            "fitCompletedRelativeToStartNanos" to (fitCompletedNanos - recordNanos).toString(),
+                        )
                         val liveOutput = output.outputSnapshot()
                         if (!sameOutput(baseline, liveOutput) || next.inputDeviceId != initialInput.deviceId ||
                             !next.timestampValid || abs(inputFrameAtNanos(checkNotNull(liveOutput.frameZeroNanos), next.physicalZeroNanos) - shift) > RATE / 200) {
@@ -182,7 +188,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                             is EchoCalibrationResult.Accepted -> {
                                 next.echo = PreparedEcho(output, baseline, captured.deviceId, RecordingEchoFilter(result.model))
                                 echoState.value = if (next.warming) RecordingEchoStatus.Ready else RecordingEchoStatus.Active
-                                if (debugBuild) Log.d("EolssuEcho", "calibration=accepted model=$modelMode clips=${clips.size} frames=${training.size} similarity=${result.model.minimumSimilarity} afterStart=${!next.warming}")
+                                if (debugBuild) Log.d("EolssuEcho", "calibration=accepted model=$modelMode clips=${clips.size} frames=${training.size} similarity=${result.model.minimumSimilarity} afterStart=${!next.warming} fitMs=${(fitCompletedNanos - fitStartedNanos) / 1e6} relativeToStartMs=${(fitCompletedNanos - recordNanos) / 1e6}")
                             }
                             is EchoCalibrationResult.Rejected -> {
                                 next.rejectCalibration(result.reason)
