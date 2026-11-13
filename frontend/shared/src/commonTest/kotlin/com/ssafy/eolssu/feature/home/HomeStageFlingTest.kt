@@ -15,12 +15,32 @@ import kotlin.test.assertTrue
 
 class HomeStageFlingTest {
     @Test fun flingTargetFollowsWhereTheFlingWouldLand() {
-        assertEquals(0f, homeFlingTarget(30f, wasOpen = false))
-        assertEquals(HomeScrollRange, homeFlingTarget(205f, wasOpen = false))
-        assertEquals(0f, homeFlingTarget(-80f, wasOpen = true))
-        assertEquals(HomeScrollRange, homeFlingTarget(360f, wasOpen = true))
-        assertNull(homeFlingTarget(HomeScrollRange, wasOpen = false))
-        assertNull(homeFlingTarget(700f, wasOpen = true))
+        assertEquals(0f, homeFlingTarget(10f, 30f, wasOpen = false))
+        assertEquals(HomeScrollRange, homeFlingTarget(38f, 205f, wasOpen = false))
+        assertEquals(0f, homeFlingTarget(HomeScrollRange, -80f, wasOpen = true))
+        assertEquals(HomeScrollRange, homeFlingTarget(HomeScrollRange, 360f, wasOpen = true))
+        // 무대 안에서 튕겨 관성이 카드 구간까지 가도 펼친 화면에서 멈춘다.
+        assertEquals(HomeScrollRange, homeFlingTarget(40f, 900f, wasOpen = false))
+        assertEquals(HomeScrollRange, homeFlingTarget(0f, HomeScrollRange, wasOpen = false))
+        assertNull(homeFlingTarget(HomeScrollRange, 700f, wasOpen = true))
+        assertNull(homeFlingTarget(600f, 500f, wasOpen = true))
+    }
+
+    @Test fun stageEasingStartsAtFingerSlopeAndNeverOvershoots() {
+        for (slope in listOf(0f, 1f, 2f, 3f)) {
+            val easing = homeStageEasing(slope)
+            assertEquals(0f, easing.transform(0f))
+            assertEquals(1f, easing.transform(1f))
+            assertEquals(slope, easing.transform(.001f) / .001f, .01f)
+            val values = (0..100).map { easing.transform(it / 100f) }
+            assertTrue(values.zipWithNext().all { (a, b) -> b >= a }, "기울기 $slope: 한 방향으로만 간다")
+        }
+    }
+
+    @Test fun stageMotionIsNeverShorterThanTheMinimum() {
+        assertEquals(.55f, homeStageSeconds(336f, 0f))
+        assertEquals(.45f, homeStageSeconds(360f, 6000f))
+        assertEquals(3f * 362f / 2200f, homeStageSeconds(362f, 2200f), .0001f)
     }
 
     @Test fun smallSlowSlideOpensInOneContinuousMotion() = runTest {
@@ -54,10 +74,22 @@ class HomeStageFlingTest {
         assertTrue(run.steps.all { it <= 0f })
     }
 
-    @Test fun strongFlickIntoTheCardsKeepsTheFreeFling() = runTest {
+    @Test fun shortStrongFlickFromTheFirstScreenShowsTheWholeExpandAndStopsOpen() = runTest {
         val velocity = 6000f
-        assertTrue(landingDp(40f, velocity) >= HomeScrollRange)
+        assertTrue(landingDp(40f, velocity) >= HomeScrollRange, "관성만으로는 무대를 지나 카드 구간까지 가는 속도")
         val run = fling(startDp = 40f, velocityDp = velocity)
+        assertEquals(px(HomeScrollRange), run.position)
+        assertTrue(run.maxPosition <= px(HomeScrollRange), "카드 구간으로 넘어가지 않는다")
+        assertEquals(0, run.freeVelocity.size)
+        assertTrue(run.steps.all { it >= 0f })
+        // 0.45초(약 28프레임) 넘게 펼쳐 과정이 보인다. 이전에는 기본 관성이 무대를 몇 프레임 만에 지나갔다.
+        assertTrue(run.steps.size >= 26, "펼치는 프레임 수 ${run.steps.size}")
+        assertTrue(run.steps.max() < px(45f), "한 프레임에 45dp 넘게 건너뛰지 않는다: ${run.steps.max() / D}dp")
+    }
+
+    @Test fun flickFromTheOpenStageIntoTheCardsKeepsTheFreeFling() = runTest {
+        val velocity = 3000f
+        val run = fling(startDp = HomeScrollRange, velocityDp = velocity, wasOpen = true)
         assertEquals(listOf(px(velocity)), run.freeVelocity)
     }
 
