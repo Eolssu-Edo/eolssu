@@ -67,6 +67,7 @@
 - [Mattermost 점검 수집과 판정](specs/mattermost-inspection-measurements.md) · [664 계획·검증](plans/S15P31E102-664.md) · [667 컨테이너 준비 검사 계획·검증](plans/S15P31E102-667.md)
 - [edo1·edo2 운영 로그 중복과 증가량 줄이기 (712)](plans/S15P31E102-712.md) · [운영 로그 집계](knowledge/infra/edo-operational-logging.md)
 - [R2·저장공간 최신성·독립 HTTPS 운영 점검 (709)](plans/S15P31E102-709.md)
+- [edo1·edo2 Docker 기본 로그 크기 회전 제한 (713)](plans/S15P31E102-713.md) · [적용·복구 절차](../infra/docker/README.md)
 - [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
 - [연습 화면 외 정간보 공통 형식 (591)](knowledge/frontend/reading-score-format.md)
