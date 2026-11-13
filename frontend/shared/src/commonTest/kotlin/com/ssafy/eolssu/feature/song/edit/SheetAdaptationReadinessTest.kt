@@ -185,6 +185,37 @@ internal class SheetAdaptationReadinessTest : CatalogViewModelTest() {
         assertEquals(listOf("1", "2", "2"), calls)
     }
 
+    @Test fun retryingThePanelKeepsAndRetriesTheInstrumentThatFailed() = runTest {
+        val base = ReadinessCatalog()
+        var unavailable = true
+        val calls = mutableListOf<String>()
+        val references = object : ReferenceCatalogRepository by base {
+            override suspend fun authoringCapabilities(instrumentId: String): CatalogAuthoringCapabilities {
+                calls += instrumentId
+                if (instrumentId == "2" && unavailable) error("offline")
+                return base.authoringCapabilities(instrumentId)
+            }
+        }
+        val prepared = SheetAuthoringCatalog({ listOf(CatalogInstrument("1", "DANSO", "단소"), CatalogInstrument("2", "SOGEUM", "소금")) },
+            references, backgroundScope)
+        val model = open(base, prepared)
+        runCurrent()
+        model.selectAdaptationInstrument("2"); runCurrent()
+        assertTrue(assertNotNull(model.uiState.value.adaptation).failed)
+        assertEquals("2", model.uiState.value.adaptation?.selectedId)
+        val requests = calls.size
+        unavailable = false
+
+        model.openAdaptation() // Route의 오류 화면 '다시 시도' 콜백.
+        runCurrent()
+
+        assertEquals("2", model.uiState.value.adaptation?.selectedId)
+        assertFalse(assertNotNull(model.uiState.value.adaptation).failed)
+        assertFalse(assertNotNull(model.uiState.value.adaptation).loading)
+        assertEquals(requests + 1, calls.size)
+        assertEquals("2", calls.last())
+    }
+
     @Test fun aLateReplyFromThePreviousLoginCannotPopulateTheNewLogin() = runTest {
         val member = SignedInMember(FakeKeyValueStore().apply { putString("auth.member_id", "1") })
         val base = ReadinessCatalog()

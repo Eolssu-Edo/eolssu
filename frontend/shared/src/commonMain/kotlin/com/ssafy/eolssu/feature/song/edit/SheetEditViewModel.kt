@@ -200,6 +200,11 @@ class SheetEditViewModel(
             _uiState.update { it.copy(tab = EditTab.Adaptation, view = EditView.Jeongganbo) }
             return
         }
+        if (existing != null && existing.baseline == before.draft && existing.failed && existing.selectedId != null) {
+            _uiState.update { it.copy(tab = EditTab.Adaptation, view = EditView.Jeongganbo) }
+            selectAdaptationInstrument(existing.selectedId)
+            return
+        }
         val options = preparedCatalog?.cachedInstruments()
         val selected = options?.firstOrNull { it.code == before.draft.original.score.instrument } ?: options?.firstOrNull()
         val capabilities = selected?.let { preparedCatalog?.cachedCapabilities(it.instrumentId) }
