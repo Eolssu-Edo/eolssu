@@ -6,6 +6,7 @@ import com.ssafy.eolssu.data.song.SheetConversion
 import com.ssafy.eolssu.data.song.SheetConversionLookup
 import com.ssafy.eolssu.data.song.SheetConversionRepository
 import com.ssafy.eolssu.data.song.SheetConversionRetry
+import com.ssafy.eolssu.data.song.SheetConversionStage
 import com.ssafy.eolssu.data.song.SheetConversionStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -62,6 +63,25 @@ data class MySheetList(
 }
 
 /** 변환 다시 시도 뒤 한 번 보일 안내. */
+/**
+ * 변환 진행 막대의 채움 비율(0~1). 서버는 퍼센트를 주지 않아 단계와 읽은 쪽 수로 어림한다(S15P31E102-881).
+ * 대기 [PROGRESS_QUEUED] → 읽는 중 [PROGRESS_READING_START]~[PROGRESS_READING_END](쪽 수 비례) → 만드는 중 [PROGRESS_BUILDING].
+ * 끝난 변환(완료·실패)은 막대가 없어 null이다.
+ */
+internal fun conversionProgress(conversion: SheetConversion): Float? = when {
+    !conversion.status.inProgress -> null
+    conversion.status == SheetConversionStatus.Queued -> PROGRESS_QUEUED
+    conversion.stage == SheetConversionStage.BuildingScore -> PROGRESS_BUILDING
+    conversion.pageCount > 0 -> PROGRESS_READING_START +
+        (PROGRESS_READING_END - PROGRESS_READING_START) * conversion.processedPageCount.coerceIn(0, conversion.pageCount) / conversion.pageCount
+    else -> PROGRESS_READING_START
+}
+
+private const val PROGRESS_QUEUED = 0.05f
+private const val PROGRESS_READING_START = 0.1f
+private const val PROGRESS_READING_END = 0.8f
+private const val PROGRESS_BUILDING = 0.9f
+
 enum class ConversionNotice {
     /** 서버가 다시 시도할 수 없다고 했다(원본 미보관). 새 파일로 다시 불러와야 한다. */
     Reimport,
