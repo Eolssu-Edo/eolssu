@@ -65,7 +65,9 @@
 - [기초부터 배우기 2·3단계 할 일별 따라 배우기 (619)](plans/S15P31E102-619.md)
 - [Mattermost 점검 메시지 구성](specs/mattermost-inspection-messages.md) · [701 명령 통합·표 구분](plans/S15P31E102-701.md) · [676 간결화](plans/S15P31E102-676.md) · [616 최초 구성](plans/S15P31E102-616.md)
 - [Mattermost 점검 수집과 판정](specs/mattermost-inspection-measurements.md) · [664 계획·검증](plans/S15P31E102-664.md) · [667 컨테이너 준비 검사 계획·검증](plans/S15P31E102-667.md)
+- [edo1·edo2 운영 로그 중복과 증가량 줄이기 (712)](plans/S15P31E102-712.md) · [운영 로그 집계](knowledge/infra/edo-operational-logging.md)
 - [R2·저장공간 최신성·독립 HTTPS 운영 점검 (709)](plans/S15P31E102-709.md)
+- [edo1·edo2 Docker 기본 로그 크기 회전 제한 (713)](plans/S15P31E102-713.md) · [적용·복구 절차](../infra/docker/README.md)
 - [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
 - [연습 화면 외 정간보 공통 형식 (591)](knowledge/frontend/reading-score-format.md)
@@ -342,6 +344,9 @@
 - [S15P31E102-472 인식 작업자·결과 저장·재시도](plans/S15P31E102-472.md) · [시간 제한·사진 방향·재시도 근거](knowledge/backend/sheet-conversion-worker.md)
 
 ## COCO 산출물
+
+- [불러올 악보 고르기 목록 개선](specs/edit-pick-list.md): 제공 곡·내 악보 조회 분리와 선택 화면의 범위·완료 조건.
+- [불러오기 목록 대기 분리와 검증](knowledge/frontend/edit-pick-list.md): 지연 원인·탭별 조회와 실행 검증 범위.
 
 - [빠르기 생성 사전검사와 수행 시간표 분할 계획](plans/S15P31E102-773.md)
 - [빠르기·수행 시계와 실제 CAT 검증 근거](knowledge/data/score-authoring-tempo.md)

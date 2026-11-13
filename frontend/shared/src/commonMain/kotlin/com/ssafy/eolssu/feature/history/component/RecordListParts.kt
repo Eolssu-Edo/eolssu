@@ -284,7 +284,7 @@ private fun SongGroupCard(
                 Text(
                     group.title,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
                 )
                 Text(
                     buildAnnotatedString {
@@ -418,12 +418,12 @@ private fun RecordRow(
     ) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(record.section?.let { stringResource(Res.string.records_section, it) } ?: stringResource(Res.string.records_whole), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                Text(record.section?.let { stringResource(Res.string.records_section, it) } ?: stringResource(Res.string.records_whole), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, fontWeight = FontWeight.Normal))
                 if (justSaved) {
                     Text(
                         stringResource(Res.string.records_just_saved),
                         modifier = Modifier.background(colors.primary, CircleShape).padding(horizontal = 8.dp, vertical = 3.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
                         color = colors.onPrimary,
                     )
                 }

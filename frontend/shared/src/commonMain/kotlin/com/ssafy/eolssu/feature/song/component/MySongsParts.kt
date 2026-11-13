@@ -46,7 +46,7 @@ internal fun MySongsTabSwitch(
     Row(
         modifier
             .fillMaxWidth()
-            .background(colors.surface, frame)
+            .background(colors.surfaceStrong, frame)
             .padding(4.dp),
     ) {
         MySongsTab.entries.forEach { entry ->
@@ -67,14 +67,13 @@ internal fun MySongsTabSwitch(
                     },
                 // 틀 모서리(14dp)에서 안쪽 여백(4dp)을 뺀 값이라 두 모서리가 나란히 휜다.
                 shape = RoundedCornerShape(10.dp),
-                color = if (selected) colors.primary else Color.Transparent,
-                contentColor = if (selected) colors.onPrimary else colors.textSub,
+                color = if (selected) colors.surface else Color.Transparent,
+                contentColor = if (selected) colors.text else colors.textSub,
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                     val style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp)
                     Text(label, style = style.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium))
-                    // 고른 탭의 연두 바탕 위에서는 회색 숫자가 탁해 보여 이름과 같은 글자색을 쓴다(S15P31E102-768).
-                    Text("$count", style = style.copy(fontWeight = FontWeight.Medium), color = if (selected) colors.onPrimary else colors.textMuted)
+                    Text("$count", style = style.copy(fontWeight = FontWeight.Medium), color = colors.textMuted)
                 }
             }
         }

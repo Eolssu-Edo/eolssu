@@ -120,7 +120,7 @@ private fun FeatureTile(
             style = MaterialTheme.typography.titleSmall.copy(
                 fontSize = if (large) 17.sp else 15.sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.4).sp,
+                letterSpacing = if (large) (-0.4).sp else 0.sp, // 16sp 미만 휴대폰 글자는 자간을 줄이지 않는다(S15P31E102-849).
             ),
             color = EolssuTheme.colors.cardInk,
             maxLines = 2,

@@ -10,6 +10,10 @@ StateDirectory=edo-check-outside
 StateDirectoryMode=0700
 ExecStart=/usr/bin/python3 -B -I /opt/edo-check/outside.py
 TimeoutStartSec=25s
+# Drop routine service-manager messages. The script tags outage and recovery lines.
+LogLevelMax=notice
+# Unhandled Python errors must still appear in the journal.
+SyslogLevel=err
 UMask=0077
 NoNewPrivileges=yes
 PrivateTmp=yes

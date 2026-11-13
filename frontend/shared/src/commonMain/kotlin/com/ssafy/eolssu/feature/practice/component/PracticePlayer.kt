@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -267,27 +268,27 @@ private fun practiceEvalAction(state: PracticeUiState, actions: PracticeBottomAc
 
 /**
  * 하나만 선택하는 두 칸. 모드 선택은 소리를 재생하지 않는다.
- * 연습곡 고르기 탭과 같은 모양이다: 테두리 없는 흰 틀(모서리 14dp, 안쪽 4dp) 안에서 고른 칸만 연두 알약(모서리 10dp)으로 칠한다.
+ * 연습곡 고르기 탭과 같은 모양이다: 회색 틀(모서리 14dp, 안쪽 4dp) 안에서 고른 칸만 흰 알약(모서리 10dp)으로 띄운다(S15P31E102-849).
  */
 @Composable
 private fun PracticeModeSwitch(state: PracticeUiState, actions: PracticeBottomActions) {
     val colors = EolssuTheme.colors
     val frame = RoundedCornerShape(14.dp)
     val pill = RoundedCornerShape(10.dp)
-    Row(Modifier.fillMaxWidth().background(colors.surface, frame).padding(4.dp).selectableGroup()) {
+    Row(Modifier.fillMaxWidth().background(colors.surfaceStrong, frame).padding(4.dp).selectableGroup()) {
         listOf(
             Triple(stringResource(Res.string.practice_player_label), state.mode != PracticeMode.Rhythm, actions.onSelectModel),
             Triple(stringResource(Res.string.jangdan_practice_start), state.mode == PracticeMode.Rhythm, actions.onSelectRhythm),
         ).forEachIndexed { index, (label, selected, select) ->
             val enabled = index == 0 || state.jangdanSupported
             Box(
-                Modifier.weight(1f).clip(pill).background(if (selected) colors.primary else colors.surface)
+                Modifier.weight(1f).clip(pill).background(if (selected) colors.surface else Color.Transparent)
                     .selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = select)
                     .heightIn(min = 40.dp).padding(horizontal = 8.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center,
-                    color = if (!enabled) colors.textDisabled else if (selected) colors.onPrimary else colors.text)
+                    color = if (!enabled) colors.textDisabled else if (selected) colors.text else colors.textSub)
             }
         }
     }
