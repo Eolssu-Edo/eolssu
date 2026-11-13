@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.MicPermission
+import com.ssafy.eolssu.core.audio.PitchGate
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.data.practice.NotePracticeCriteria
 import com.ssafy.eolssu.data.practice.NotePracticeCriteriaLoad
@@ -98,10 +99,13 @@ class LearnPracticeViewModel(
             if (state.phase == LearnPracticePhase.Passed || state.pitch?.finished == true) tracker?.reset()
             if (state.phase == LearnPracticePhase.Passed) tongue?.reset()
             _uiState.update { it.startListening() }
+            // 음높이로 판정하는 동안은 한 음씩과 같은 악기별 높이 문턱을 쓴다(단소는 완화, S15P31E102-857). 멈추면 되돌린다.
+            recorder.pitchGate = plan?.takeIf { tracker != null }?.rule?.leniency?.gate ?: PitchGate.Default
             // 녹음보다 먼저 구독해야 첫 관측을 놓치지 않는다(관측 흐름은 지난 값을 다시 주지 않는다).
             watchPitch(recorder)
             if (runCatching { recorder.start() }.isFailure) {
                 pitchJob?.cancel()
+                recorder.pitchGate = PitchGate.Default
                 _uiState.update { it.micUnavailable(LearnMicStatus.Failed) }
                 return@launch
             }
@@ -153,7 +157,7 @@ class LearnPracticeViewModel(
                 last = timeSource.markNow()
                 // 전화·Siri처럼 시스템이 녹음을 끊었으면 더 재지 않고 멈춘다. 센 횟수는 남는다.
                 if (recorder.interrupted) {
-                    runCatching { recorder.cancel() }
+                    discard(recorder)
                     pitchJob?.cancel()
                     _uiState.update { it.stopListening() }
                     break
@@ -164,7 +168,7 @@ class LearnPracticeViewModel(
                 if (wasQuiet && !state.quiet && state.listening) tongue?.onset()
                 // 통과했거나 너무 오래 들었으면 녹음을 버리고 멈춘다(통과 상태는 그대로 남는다).
                 if (state.phase == LearnPracticePhase.Passed || state.listenedMs >= LEARN_LISTEN_LIMIT_MS) {
-                    runCatching { recorder.cancel() }
+                    discard(recorder)
                     pitchJob?.cancel()
                     _uiState.update { it.stopListening() }
                     break
@@ -191,7 +195,7 @@ class LearnPracticeViewModel(
                 _uiState.update { it.recordPitch(judge.index, judge.hits, judge.holdMs, result, judge.passed, judge.finished) }
                 if (judge.finished) {
                     levelJob?.cancel()
-                    runCatching { recorder.cancel() }
+                    discard(recorder)
                     _uiState.update { it.stopListening() }
                     this@launch.cancel()
                 }
@@ -205,7 +209,13 @@ class LearnPracticeViewModel(
         levelJob = null
         pitchJob?.cancel()
         pitchJob = null
-        runCatching { recorder?.cancel() }
+        recorder?.let(::discard)
+    }
+
+    /** 녹음을 버리고 높이 문턱을 기본값으로 되돌린다. */
+    private fun discard(recorder: AudioRecorder) {
+        runCatching { recorder.cancel() }
+        recorder.pitchGate = PitchGate.Default
     }
 
     override fun onCleared() {
@@ -226,12 +236,7 @@ suspend fun loadLearnCriteria(
     instruments: suspend () -> List<CatalogInstrument>,
     repository: NotePracticeCriteriaRepository,
 ): NotePracticeCriteria? {
-    val code = when (instrument) {
-        GuideInstrument.Danso -> "DANSO"
-        GuideInstrument.Sogeum -> "SOGEUM"
-        GuideInstrument.DaegeumJeongak -> "JEONGAK_DAEGEUM"
-        GuideInstrument.DaegeumSanjo -> "SANJO_DAEGEUM"
-    }
+    val code = instrument.criteriaCode
     val id = try {
         instruments().firstOrNull { it.code == code }?.instrumentId
     } catch (cancelled: CancellationException) {
@@ -241,3 +246,12 @@ suspend fun loadLearnCriteria(
     } ?: return null
     return (repository.criteria(id) as? NotePracticeCriteriaLoad.Found)?.criteria
 }
+
+/** 한 음씩 연습 기준·악기별 완화([com.ssafy.eolssu.core.audio.StepLeniency])가 쓰는 서버 악기 code. */
+internal val GuideInstrument.criteriaCode: String
+    get() = when (this) {
+        GuideInstrument.Danso -> "DANSO"
+        GuideInstrument.Sogeum -> "SOGEUM"
+        GuideInstrument.DaegeumJeongak -> "JEONGAK_DAEGEUM"
+        GuideInstrument.DaegeumSanjo -> "SANJO_DAEGEUM"
+    }

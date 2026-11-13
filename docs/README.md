@@ -1,6 +1,8 @@
 # 프로젝트 문서
 
 - [Android 평가 녹음의 스피커 장단 유입 완화 (695)](plans/S15P31E102-695.md) · [구현 스펙](specs/android-recording-echo.md) · [Galaxy 실측과 재생 참조 실험](knowledge/frontend/android-jangdan-recording-echo.md)
+- [공개 악보 시김새 전수 점검·한글 표시 수정 (847)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md#시김새의-한글-대체-출력-847) · [곡별 결과](knowledge/frontend/sigimsae-catalog-audit.json) · [표시 스펙](specs/score-sigimsae-display.md) · [계획·검증](plans/S15P31E102-847.md)
+
 - [악보 추가·편집 결함 점검·수정 (828)](plans/S15P31E102-828.md)
 - [악보 가져오기·편집 조작과 안내 정리 (827)](plans/S15P31E102-827.md) · [확정 정책](specs/score-authoring-consistency.md#오선보-원음-가져오기-s15p31e102-827)
 - [마이페이지 최근 연주 조회 요청을 한 번으로 줄이기 (823)](plans/S15P31E102-823.md) · [카드 조회 스펙](specs/practice-records.md#마이페이지-최근-연주-카드)
@@ -316,6 +318,7 @@
 
 - [단소 채점 오류 검출 평가: 실행과 결과 해석](knowledge/ai/scoring-error-evaluation.md)
 - [짧은 옥타브 위 음 채점 오류: 원인과 수정](knowledge/ai/short-octave-error.md)
+- [대금 낮은 옥타브 채점 보정: 운영 녹음 재채점과 방식 비교 (848)](knowledge/ai/daegeum-low-octave.md) · [계획](plans/S15P31E102-848.md)
 - [입문자 정상 연주 채점: 박자 판정과 소금 정답](knowledge/ai/beginner-normal-performance.md)
 - [일부러 틀린 실제 녹음 요청서 (아리랑, 단소·소금, 보류)](knowledge/ai/real-error-recording-request.md)
 - [DTW 메모리 절감 비교: 기준 관찰과 연구용 후보](knowledge/ai/dtw-memory-comparison.md)

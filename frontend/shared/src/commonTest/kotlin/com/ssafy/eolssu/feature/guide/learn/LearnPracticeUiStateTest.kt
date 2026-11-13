@@ -67,8 +67,10 @@ class LearnPracticeUiStateTest {
     }
 
     @Test
-    fun countsASoundHeldForOneSecondOnce() {
-        val held = firstSound().feed(loud, 1_000)
+    fun countsASoundHeldForTheFirstSoundHoldOnce() {
+        // 0.3초가 되기 전에는 세지 않는다
+        assertEquals(0, firstSound().feed(loud, 200).successes)
+        val held = firstSound().feed(loud, 300)
         assertEquals(1, held.successes)
         assertEquals(LearnPracticeCue.Counted, held.cue)
         assertEquals(1f, held.holdProgress)
@@ -78,9 +80,9 @@ class LearnPracticeUiStateTest {
     }
 
     @Test
-    fun passesAfterOneSoundHeldForOneSecond() {
+    fun passesAfterOneSoundHeldForTheFirstSoundHold() {
         assertEquals(1, FIRST_SOUND_TARGET)
-        val passed = firstSound().feed(loud, 1_000)
+        val passed = firstSound().feed(loud, 300)
 
         assertEquals(LearnPracticePhase.Passed, passed.phase)
         assertEquals(1, passed.successes)
@@ -91,17 +93,26 @@ class LearnPracticeUiStateTest {
 
     @Test
     fun shortBreaksKeepTheSameSound() {
-        val state = firstSound().feed(loud, 500).feed(quiet, 200).feed(loud, 500)
+        val state = firstSound().feed(loud, 200).feed(quiet, 200).feed(loud, 100)
         assertEquals(1, state.successes)
     }
 
     @Test
-    fun soundEndingBeforeOneSecondIsTooShortAndResetsHold() {
-        val state = firstSound().feed(loud, 700).feed(quiet, 300)
+    fun soundEndingBeforeTheFirstSoundHoldIsTooShortAndResetsHold() {
+        val state = firstSound().feed(loud, 200).feed(quiet, 300)
 
         assertEquals(0, state.successes)
         assertEquals(0.0, state.holdMs)
         assertEquals(LearnPracticeCue.TooShort, state.cue)
+    }
+
+    /** 통과 기준 문구의 초는 끝의 0을 뺀다(S15P31E102-857). */
+    @Test
+    fun holdSecondsDropTrailingZeros() {
+        assertEquals("0.3", holdSecondsLabel(300.0))
+        assertEquals("0.2", holdSecondsLabel(200.0))
+        assertEquals("1", holdSecondsLabel(1_000.0))
+        assertEquals("1.25", holdSecondsLabel(1_250.0))
     }
 
     @Test
@@ -128,8 +139,8 @@ class LearnPracticeUiStateTest {
     }
 
     @Test
-    fun stoppingBeforeOneSecondKeepsReadyAndRestartingAfterPassCountsAgain() {
-        val stopped = firstSound().feed(loud, 500).stopListening()
+    fun stoppingBeforeTheFirstSoundHoldKeepsReadyAndRestartingAfterPassCountsAgain() {
+        val stopped = firstSound().feed(loud, 200).stopListening()
         assertEquals(0, stopped.successes)
         assertEquals(LearnPracticePhase.Ready, stopped.phase)
 

@@ -3,6 +3,7 @@ package com.ssafy.eolssu.core.ui.component
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -23,9 +24,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -64,7 +67,7 @@ fun SongSearchField(
             .height(46.dp)
             .background(colors.surface, shape)
             .then(if (bordered) Modifier.border(1.dp, colors.lineSoft, shape) else Modifier)
-            .padding(horizontal = 13.dp),
+            .padding(start = 13.dp, end = if (query.isEmpty()) 13.dp else 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -95,9 +98,17 @@ fun SongSearchField(
             )
         }
         if (query.isNotEmpty()) {
-            Surface(onClick = onClear, shape = CircleShape, color = colors.surfaceStrong, modifier = Modifier.size(24.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(EolssuIcons.Close, stringResource(Res.string.common_clear), Modifier.size(12.dp), tint = colors.text)
+            // 흰 칸 위에서 바로 보이도록 진한 회색 원에 흰 ×를 그린다(S15P31E102-870).
+            // 누르는 범위는 40dp로 넓히고, 오른쪽 여백을 줄여 원이 검색 아이콘과 같은 거리에서 칸 끝에 붙게 한다.
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .clickable(role = Role.Button, onClick = onClear),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(Modifier.size(22.dp).background(colors.textMuted, CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(EolssuIcons.Close, stringResource(Res.string.common_clear), Modifier.size(14.dp), tint = colors.onInk)
                 }
             }
         }

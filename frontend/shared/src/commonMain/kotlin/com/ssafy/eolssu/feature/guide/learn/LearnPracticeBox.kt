@@ -55,6 +55,8 @@ import eolssu.shared.generated.resources.learn_practice_restart
 import eolssu.shared.generated.resources.learn_practice_self_done
 import eolssu.shared.generated.resources.learn_practice_stop
 import eolssu.shared.generated.resources.learn_practice_unsupported
+import eolssu.shared.generated.resources.learn_range_hold_pass
+import eolssu.shared.generated.resources.learn_range_hold_pass_plain
 import eolssu.shared.generated.resources.learn_section_pass
 import eolssu.shared.generated.resources.learn_start_practice
 import eolssu.shared.generated.resources.learn_step_try
@@ -81,7 +83,7 @@ class LearnPracticeActions(
  */
 
 /**
- * 3·4·7단계의 마지막 연습 박스 내용: 통과 기준 한 줄 · 소리 듣기 판 · 보조 버튼. 3단계는 1초 소리 한 번, 4단계는 낼 음,
+ * 3·4·7단계의 마지막 연습 박스 내용: 통과 기준 한 줄 · 소리 듣기 판 · 보조 버튼. 3단계는 0.3초 소리 한 번, 4단계는 낼 음,
  * 7단계는 '투' 횟수를 센다. 판정하지 않는 경우(음높이 관측이 없는 기기)는 마이크 뱃지만 보이고 '스스로 확인했어요'로 마친다.
  * 박스를 접거나 화면을 벗어나면 듣기를 멈춘다.
  */
@@ -96,10 +98,13 @@ internal fun LearnPracticeBox(
 ) {
     AutoListen(state, actions)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // 서버 단계 상세의 '2초 이상 유지'는 판정과 다른 초안이라, 초가 들어가는 줄은 실제 판정의 유지 시간으로 쓴다(S15P31E102-857).
+        // 6단계는 판정 기준을 받지 못해 스스로 확인할 때 초를 빼고 쓴다. 4단계는 기준과 상관없이 1초라 늘 초를 쓴다(S15P31E102-860).
+        val holdSeconds = state.pitch?.holdTargetMs?.let { holdSecondsLabel(it.toDouble()) }
         val rule = when (stage.number) {
-            3 -> stringResource(Res.string.learn_first_sound_pass)
-            // 서버 단계 상세의 '음마다 2초 이상 유지'는 완화 전 기준이라, 앱 판정 기준(1초)과 맞는 문구를 쓴다(S15P31E102-845).
-            4 -> stringResource(Res.string.learn_pitch_hold_pass)
+            3 -> stringResource(Res.string.learn_first_sound_pass, holdSecondsLabel(FIRST_SOUND_HOLD_MS))
+            4 -> stringResource(Res.string.learn_pitch_hold_pass, holdSecondsLabel(LEARN_STAGE_FOUR_HOLD_MS.toDouble()))
+            6 -> holdSeconds?.let { stringResource(Res.string.learn_range_hold_pass, it) } ?: stringResource(Res.string.learn_range_hold_pass_plain)
             7 -> stringResource(Res.string.learn_tongue_pass)
             else -> detail?.pass?.rule?.plain()
         }
