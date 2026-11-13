@@ -1,6 +1,6 @@
 # 프로젝트 문서
 
-- [산조 진도아리랑 시김새 한글 표시 수정 (847)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md#산조-시김새의-한글-대체-출력-847) · [표시 스펙](specs/score-sigimsae-display.md)
+- [공개 악보 시김새 전수 점검·한글 표시 수정 (847)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md#시김새의-한글-대체-출력-847) · [곡별 결과](knowledge/frontend/sigimsae-catalog-audit.json) · [표시 스펙](specs/score-sigimsae-display.md) · [계획·검증](plans/S15P31E102-847.md)
 
 - [악보 추가·편집 결함 점검·수정 (828)](plans/S15P31E102-828.md)
 - [악보 가져오기·편집 조작과 안내 정리 (827)](plans/S15P31E102-827.md) · [확정 정책](specs/score-authoring-consistency.md#오선보-원음-가져오기-s15p31e102-827)

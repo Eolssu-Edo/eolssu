@@ -59,6 +59,7 @@ import eolssu.shared.generated.resources.sig_shake_rep
 import eolssu.shared.generated.resources.sig_repeat
 import eolssu.shared.generated.resources.sig_tongue
 import eolssu.shared.generated.resources.sig_sharp
+import eolssu.shared.generated.resources.sig_source_dot
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
@@ -170,6 +171,8 @@ internal fun scoreSigimsaeImage(raw: String): DrawableResource? = when (val name
     "반음올림표" -> Res.drawable.sig_sharp
     // 같은 닫는 괄호 모양이며, 흘림표와 꺾는음의 연주 의미는 원본 이름으로 구분한다.
     "꺾는음" -> Res.drawable.sig_flow
+    // 의미 미확정인 원문 주석은 점 모양만 복원한다.
+    "원문점" -> Res.drawable.sig_source_dot
     else -> ScoreSigimsaeImages[name]
 }
 

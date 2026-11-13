@@ -6,9 +6,20 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 
 class ScoreSigimsaeTest {
+    @Test fun sourceDotUsesItsOwnGlyphWithoutBecomingALengthOrArticulationMark() {
+        val raw = "원문점@100,-34,-9.5" // CAT-04 song 19 v2, c0-j5-r0-u0.
+        val dot = assertNotNull(scoreSigimsaeImage(raw))
+        assertEquals(dot, scoreSigimsaeImage("원문점"))
+        assertEquals("원문점", scoreSigimsaeName(raw))
+        assertNotEquals(scoreSigimsaeImage("반길이표"), dot)
+        assertNotEquals(scoreSigimsaeImage("끊는표"), dot)
+        assertFalse("원문점" in RegisteredSigimsaeNames)
+    }
+
     @Test fun everySanjoJindoArirangMarkUsesAGlyphInsteadOfItsKoreanName() {
         // CAT-04 song 85 (SANJO_DAEGEUM v1), 2026-11-13: 49 marks, 31 previously fell back to text.
         val sourceMarks = listOf("농음표@100,10,10", "혀치기@100,10,0", "반음올림표@100,10,0",
