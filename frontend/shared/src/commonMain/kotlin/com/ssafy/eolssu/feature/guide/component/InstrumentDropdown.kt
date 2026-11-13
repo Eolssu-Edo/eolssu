@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
-import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
+import com.ssafy.eolssu.core.ui.component.InstrumentMenuItem
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -117,7 +117,7 @@ internal fun InstrumentDropdown(
                     EolssuMenuPanel(width = width) {
                         (options?.map { it.instrument } ?: GuideInstrument.entries).forEach { instrument ->
                             val label = options?.firstOrNull { it.instrument == instrument }?.name ?: stringResource(instrument.label)
-                            EolssuMenuItem(label, instrument == selected, onClick = { onSelect(instrument) }, leading = { InstrumentPicture(instrument) })
+                            InstrumentMenuItem(instrument, instrument == selected, onClick = { onSelect(instrument) }, label = label)
                         }
                     }
                 }

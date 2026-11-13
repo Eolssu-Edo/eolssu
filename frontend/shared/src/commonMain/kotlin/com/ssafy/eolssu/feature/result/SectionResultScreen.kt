@@ -212,7 +212,7 @@ private fun ResultButtons(state: SectionResultUiState, actions: SectionResultAct
 private fun SectionScore(evaluation: SectionEvaluation, section: ScoreSection, filter: ErrorFilter) {
     val song = evaluation.song
     val result = evaluation.result
-    val format = rememberReadingScoreFormat(song, lyrics = false)
+    val format = rememberReadingScoreFormat(song)
     val played = remember(evaluation) { evaluation.playedSection() } ?: section
     JeongganboView(
         song = song,

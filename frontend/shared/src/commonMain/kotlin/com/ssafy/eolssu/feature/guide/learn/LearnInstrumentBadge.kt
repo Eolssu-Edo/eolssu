@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
-import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
+import com.ssafy.eolssu.core.ui.component.InstrumentMenuItem
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.label
@@ -88,12 +88,7 @@ internal fun LearnInstrumentChip(
             ) {
                 EolssuMenuPanel(width = 200.dp) {
                     GuideInstrument.entries.forEach { instrument ->
-                        EolssuMenuItem(
-                            stringResource(instrument.label),
-                            instrument == selected,
-                            onClick = { onSelect(instrument) },
-                            leading = { InstrumentPicture(instrument) },
-                        )
+                        InstrumentMenuItem(instrument, instrument == selected, onClick = { onSelect(instrument) })
                     }
                 }
             }

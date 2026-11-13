@@ -194,8 +194,8 @@ internal fun RecordResultContent(
                 Box(if (scrollPage) Modifier.height(240.dp) else Modifier.weight(1f)) { RecordSongLookupContent(state, actions) }
                 return@Column
             }
-            // 다른 화면과 같은 공통 정간보 형식. 좁은 기록 화면이라 곁줄(가사 칸)만 두지 않는다.
-            val format = rememberReadingScoreFormat(song, lyrics = false)
+            // 다른 화면과 같은 공통 정간보 형식(가사가 있으면 곁줄까지).
+            val format = rememberReadingScoreFormat(song)
             val errors = evaluation?.visibleErrors(state.filter).orEmpty()
             val kinds = evaluation?.visibleErrorKinds(state.filter).orEmpty()
             val units = evaluation?.visibleUnitErrors(song, state.filter).orEmpty()
@@ -225,7 +225,7 @@ internal fun RecordResultContent(
 
 /**
  * 메모 창(S15P31E102-819). 읽을 때는 옅은 바탕 상자에 메모를 보이고, 상자 오른쪽 위 연필 버튼으로 고치기에 들어간다.
- * 메모가 없으면 같은 상자에 ‘아직 메모가 없어요’ 안내를 보인다.
+ * 메모가 없으면 같은 상자에 ‘메모가 없어요.’ 안내를 보인다.
  * 고칠 때는 같은 자리의 상자가 저장 시트 메모 입력칸 모양(흰 바탕 · 1dp 테두리 · 모서리 12)의 여러 줄 입력칸이 되고,
  * 그 아래에 실패 안내와 ‘n/500’, 맨 아래에 ‘취소’ · ‘저장’을 둔다. 저장 중에는 입력·취소·창 닫기를 막는다.
  */
@@ -293,9 +293,7 @@ private fun RecordMemoEditor(recordId: String, memo: String, dialog: RecordMemoS
                 .border(1.dp, if (dialog.failed) colors.rec else colors.line, MemoFieldShape)
                 .padding(14.dp),
         ) {
-            if (draft.text.isEmpty()) {
-                Text(stringResource(Res.string.result_memo_placeholder), style = textStyle, color = colors.textDisabled)
-            }
+            // 기록 상세에서 고칠 때는 예시 문구를 두지 않고 빈 입력칸만 보인다(S15P31E102-830).
             BasicTextField(
                 value = draft,
                 // 서버는 500자를 넘는 메모를 받지 않으므로(400) 그 이상은 입력하지 않는다.
