@@ -51,8 +51,10 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         model.requestApplyAdaptation(); model.applyAdaptation()
         val applied = model.uiState.value.draft
         assertNotEquals(before, applied)
-        assertNull(model.uiState.value.adaptation)
-        assertEquals(EditTab.Yul, model.uiState.value.tab)
+        assertFalse(assertNotNull(model.uiState.value.adaptation).loading)
+        assertEquals(4, model.uiState.value.adaptation?.selectedTranspose)
+        assertEquals(applied, model.uiState.value.adaptation?.baseline)
+        assertEquals(EditTab.Adaptation, model.uiState.value.tab)
         model.undo()
         assertEquals(before, model.uiState.value.draft)
         model.redo()
@@ -67,11 +69,12 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
     @Test fun closedAdaptationReplyCannotReplaceAReopenedPanel() = runTest {
         var delayed = false
         val pending = mutableListOf<CompletableDeferred<CatalogAuthoringCapabilities>>()
-        fun capability(version: String) = CatalogAuthoringCapabilities("1", "DANSO", version, 63,
+        fun capability(version: String, id: String = "1") = CatalogAuthoringCapabilities(id, if (id == "1") "DANSO" else "SOGEUM", version, 63,
             AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
         val catalog = object : ReferenceCatalogRepository {
             override suspend fun authoringCapabilities(instrumentId: String): CatalogAuthoringCapabilities =
-                if (!delayed) capability("initial") else CompletableDeferred<CatalogAuthoringCapabilities>().also { pending += it }.await()
+                if (!delayed || instrumentId == "1") capability("initial", instrumentId)
+                else CompletableDeferred<CatalogAuthoringCapabilities>().also { pending += it }.await()
             override suspend fun pitches(instrumentId: String): List<CatalogPitch> = emptyList()
             override suspend fun allPitches(): List<CatalogPitch> = emptyList()
             override suspend fun fingerings(instrumentId: String, pitchId: String?): CatalogFingerings = error("unused")
@@ -84,15 +87,17 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
             override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) = SheetWrite.Failed
         }
         val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(),
-            documents = repository, pitchCatalog = catalog, loadAudioInstruments = { listOf(CatalogInstrument("1", "DANSO", "단소")) }))
+            documents = repository, pitchCatalog = catalog, loadAudioInstruments = {
+                listOf(CatalogInstrument("1", "DANSO", "단소"), CatalogInstrument("2", "SOGEUM", "소금")) }))
         runCurrent(); delayed = true
-        model.openAdaptation(); runCurrent()
+        model.openAdaptation(); model.selectAdaptationInstrument("2"); runCurrent()
         model.closeAdaptation(); model.updateDetails("다른 편집본", 60)
         model.openAdaptation(); runCurrent()
-        assertEquals(2, pending.size)
-        pending[1].complete(capability("new")); runCurrent()
-        pending[0].complete(capability("old")); runCurrent()
-        assertEquals("new", model.uiState.value.adaptation?.capabilities?.policyVersion)
+        assertEquals(1, pending.size, "준비된 원래 악기는 다시 요청하지 않는다")
+        pending.single().complete(capability("late", "2")); runCurrent()
+        assertEquals("1", model.uiState.value.adaptation?.selectedId)
+        assertEquals("initial", model.uiState.value.adaptation?.capabilities?.policyVersion)
+        assertFalse(assertNotNull(model.uiState.value.adaptation).loading)
         assertEquals("다른 편집본", model.uiState.value.adaptation?.baseline?.title)
     }
 

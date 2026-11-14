@@ -1,5 +1,5 @@
 <resources>
-    <string name="sheet_adapt_tab">음역 맞추기</string>
+    <string name="sheet_adapt_tab">음역·이조</string>
     <string name="sheet_adapt_instrument">%1$s ▾</string>
     <string name="sheet_adapt_choose_instrument">선택</string>
     <string name="sheet_adapt_marker_legend">◆ 추천 · ◇ 최소 이조</string>

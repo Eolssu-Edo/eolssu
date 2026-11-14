@@ -80,6 +80,8 @@ internal fun FingeringCard(
             note.holes,
             Modifier.padding(top = if (inLearn) 6.dp else 4.dp),
             description = stringResource(Res.string.guide_fingering_figure, note.name),
+            // 운지법 보기 카드는 그림 위아래 빈 여백을 잘라 카드 높이를 줄인다(S15P31E102-849).
+            cropVertical = !inLearn,
         )
         Box(Modifier.fillMaxWidth().padding(top = 10.dp)) {
             audioContent()

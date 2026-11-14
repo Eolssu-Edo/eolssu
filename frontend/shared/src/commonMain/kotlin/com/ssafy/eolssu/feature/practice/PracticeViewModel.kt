@@ -9,6 +9,9 @@ import com.ssafy.eolssu.core.network.screenScope
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
+import com.ssafy.eolssu.core.audio.JangdanVolumeLimit
+import com.ssafy.eolssu.core.audio.LimitedJangdanSamplePlayer
+import com.ssafy.eolssu.core.audio.NoJangdanVolumeLimit
 import com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer
 import com.ssafy.eolssu.core.audio.JangdanPlan
 import com.ssafy.eolssu.core.audio.planJangdan
@@ -97,6 +100,8 @@ class PracticeViewModel(
     stepJudge: StepNoteJudge = ManualStepNoteJudge(),
     member: SignedInMember? = null,
     private val jangdanPlayer: JangdanSamplePlayer = UnavailableJangdanSamplePlayer(),
+    /** 평가 녹음 중 장단 배율(S15P31E102-878). 플랫폼이 시스템 볼륨으로 계산한다. */
+    jangdanVolume: JangdanVolumeLimit = NoJangdanVolumeLimit,
     private val notePractice: NotePracticeCriteriaRepository? = null,
     private val loadPersonalSheet: (suspend (String) -> Song?)? = null,
     private val perf: PerformanceVisit? = null,
@@ -169,7 +174,8 @@ class PracticeViewModel(
      */
     val stepGauge: StateFlow<StepPitchGauge?>? = stepGaugeState?.asStateFlow()
 
-    private val jangdanAudio = JangdanSession(jangdanPlayer, accountScope)
+    private val jangdanAudio = JangdanSession(
+        LimitedJangdanSamplePlayer(jangdanPlayer, jangdanVolume) { soundPurpose == SoundPurpose.Recording }, accountScope)
     private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource, perf = perf) { song, bpm ->
         val plan = if (settingsStore.settings.value.jangdanSound && jangdanPlayer.available) song.jangdanPlanAt(bpm) else null
         plan == null || jangdanAudio.prepareAccompaniment(plan)

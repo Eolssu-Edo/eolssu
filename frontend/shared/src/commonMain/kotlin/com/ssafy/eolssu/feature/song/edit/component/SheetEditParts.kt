@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -57,7 +58,7 @@ internal fun SegmentTabs(
     large: Boolean = false,
     counts: List<Int>? = null,
     fill: Boolean = large,
-    frameColor: Color = EolssuTheme.colors.surface,
+    frameColor: Color = EolssuTheme.colors.surfaceStrong,
 ) {
     val colors = EolssuTheme.colors
     val frame = RoundedCornerShape(14.dp)
@@ -76,7 +77,7 @@ internal fun SegmentTabs(
                 (if (fill) Modifier.weight(1f) else Modifier)
                     .height(if (large) 48.dp else 40.dp)
                     .clip(pill)
-                    .background(if (on) colors.primary else Color.Transparent)
+                    .background(if (on) colors.surface else Color.Transparent)
                     .clickable(role = Role.Tab) { onSelect(index) }
                     .semantics { this.selected = on }
                     .padding(horizontal = 12.dp),
@@ -85,8 +86,8 @@ internal fun SegmentTabs(
             ) {
                 val style = MaterialTheme.typography.bodyLarge.copy(fontSize = if (large) 15.sp else 14.sp)
                 Text(label, style = style.copy(fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium), maxLines = 1,
-                    color = if (on) colors.onPrimary else colors.textSub)
-                counts?.getOrNull(index)?.let { Text("$it", style = style.copy(fontWeight = FontWeight.Medium), color = if (on) colors.onPrimary.copy(alpha = 0.7f) else colors.textMuted) }
+                    color = if (on) colors.text else colors.textSub)
+                counts?.getOrNull(index)?.let { Text("$it", style = style.copy(fontWeight = FontWeight.Medium), color = colors.textMuted) }
             }
         }
     }
@@ -95,7 +96,7 @@ internal fun SegmentTabs(
 /**
  * EDIT-01 가져오기 종류 카드(모서리 16 · 테두리 2). 두 장을 같은 줄에 같은 크기로 놓고,
  * 왼쪽 위에 아이콘 원, 아래 왼쪽에 이름과 한 줄 설명([caption])을 둔다.
- * 고르면 연두 바탕·연두 테두리, 아니면 흰 바탕·옅은 테두리라 고름 표시 없이 카드 색으로 고른 상태를 보인다.
+ * 고르면 옅은 연두 바탕·연두 테두리, 아니면 흰 바탕이라 고름 표시 없이 카드 색으로 고른 상태를 보인다.
  */
 @Composable
 internal fun KindCard(title: String, caption: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -104,14 +105,15 @@ internal fun KindCard(title: String, caption: String, icon: ImageVector, selecte
         selected = selected,
         onClick = onClick,
         modifier = modifier.semantics { role = Role.RadioButton },
-        // 회색 바탕 위 테두리 없는 흰 카드(모서리 20), 고르면 연두 채움(S15P31E102-768).
+        // 회색 바탕 위 테두리 없는 흰 카드(모서리 20). 고르면 옅은 연두 바탕에 연두 테두리(S15P31E102-849, 연두 채움은 주 행동 버튼에만).
         shape = RoundedCornerShape(20.dp),
-        color = if (selected) colors.primary else colors.surface,
+        color = if (selected) colors.accentTint else colors.surface,
+        border = if (selected) BorderStroke(2.dp, colors.primary) else null,
         contentColor = colors.text,
     ) {
         Column(Modifier.padding(16.dp)) {
             Box(
-                Modifier.size(42.dp).background(if (selected) colors.surface.copy(alpha = 0.55f) else colors.accentTint, CircleShape),
+                Modifier.size(42.dp).background(if (selected) colors.surface else colors.accentTint, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = colors.text)
@@ -122,7 +124,7 @@ internal fun KindCard(title: String, caption: String, icon: ImageVector, selecte
                 caption,
                 modifier = Modifier.padding(top = 2.dp),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = if (selected) colors.text.copy(alpha = 0.7f) else colors.textMuted,
+                color = colors.textMuted,
                 maxLines = 2,
             )
         }

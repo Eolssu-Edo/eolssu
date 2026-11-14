@@ -77,8 +77,9 @@ fun SheetEditRoute(
     var pitchCorrection by remember { mutableStateOf<SheetPitchCorrection?>(null) }
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
-    BackHandler(enabled = state.draft.original != null && state.adaptation == null && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
-    BackHandler(enabled = state.adaptation != null && state.adaptation?.confirmationRequested != true) { viewModel.closeAdaptation() }
+    val adaptationOpen = state.tab == EditTab.Adaptation && state.adaptation != null
+    BackHandler(enabled = state.draft.original != null && !adaptationOpen && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
+    BackHandler(enabled = adaptationOpen && state.adaptation?.confirmationRequested != true) { viewModel.closeAdaptation() }
     if (state.documentLoading || state.documentFailed) {
         SheetDocumentNotice(state.documentLoading, onClose, viewModel::loadDocument)
         return

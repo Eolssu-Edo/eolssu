@@ -187,6 +187,20 @@ def test_requested_jangdan_wins_and_mismatch_is_flagged(fake_audiveris):
 
 
 @needs_generator
+def test_four_quarter_staff_measure_uses_four_beat_accompaniment(fake_audiveris):
+    out = post("quarters").json()
+    assert out["status"] == "DONE"
+    music = out["score"]["music"]
+    assert music["jangdan"] == "4박 기본 반주" and music["bpmUnit"] == "QUARTER"
+    assert music["ticksPerJeonggan"] == music["ticksPerBeat"]
+    assert len(out["score"]["columns"]) == 1
+    assert len(out["score"]["columns"][0]["cells"]) == 4
+    assert max(e["startTick"] + e["durationTick"] for e in out["score"]["events"]) == 4 * music["ticksPerBeat"]
+    assert guessed(out) == [{"source": "timeSignature", "jangdan": "4박 기본 반주"}]
+    assert not any(i["kind"] == "JANGDAN_MISMATCH" for i in out["notices"])
+
+
+@needs_generator
 def test_four_quarter_staff_measure_matches_danmori_without_stretching(fake_audiveris):
     out = post("quarters", jangdan="단모리").json()
     assert out["status"] == "DONE"
@@ -257,7 +271,7 @@ def guessed(out):
 @needs_generator
 @pytest.mark.parametrize("mode, detail, mismatch", [
     ("s128", {"source": "timeSignature", "jangdan": "굿거리"}, False),
-    ("s44", {"source": "default", "jangdan": "굿거리"}, True),  # 4/4는 장단이 없어 굿거리로 두고 맞지 않음을 알린다
+    ("s44", {"source": "timeSignature", "jangdan": "4박 기본 반주"}, False),
 ])
 def test_jangdan_guess_source(fake_audiveris, mode, detail, mismatch):
     out = post(mode).json()

@@ -101,7 +101,7 @@ POST /v1/recognitions
 | `TRANSPOSED` | 조를 자동으로 옮김 | `detail`에 옮긴 반음과 후보(동률이면 2개) |
 | `VOICE_GUESSED` | 여러 성부 중 하나를 골랐음 | 오선보 파트·성부가 2개 이상, 또는 정간보 글자 층의 2중주 이상 쪽 |
 | `ORNAMENT_DROPPED` | 꾸밈음을 버림 | 오선보 꾸밈음 |
-| `JANGDAN_GUESSED` | 요청에 장단이 없어 정했음 | 오선보. `detail` `{"source": "timeSignature"(9/8·12/8) \| "rhythm"(박자표를 못 읽어 리듬으로) \| "default"(굿거리), "jangdan"}` |
+| `JANGDAN_GUESSED` | 요청에 장단이 없어 정했음 | 오선보. `detail` `{"source": "timeSignature"(4/4·9/8·12/8) \| "rhythm"(박자표를 못 읽어 리듬으로) \| "default"(굿거리), "jangdan"}` |
 | `JANGDAN_MISMATCH` | 고른 장단과 각의 정간 수가 맞지 않음 | 정간보 글자 층: 정간당 박이 1·1/2·1/3이 아님(세령산의 3/2박은 예외). 오선보: 한 각(한 마디) 길이가 장단 한 번과 다름 |
 
 ## 스캔·사진 정간보 경로 (S15P31E102-458)
@@ -145,7 +145,7 @@ POST /v1/recognitions
 
 - 쪽마다 Audiveris(`-batch -transcribe -export`)를 돌린다. 쪽당 60초와 남은 요청 시간 중 짧은 쪽을 넘으면 끝내고 `TIMEOUT`이다. Audiveris는 한 번에 하나만 돌리고(동시 1건, 기다리는 시간도 요청 시간에 든다), 신호를 받아 죽으면(메모리 부족 등) `ENGINE_ERROR`다.
 - 오선을 못 찾은 쪽(Audiveris 5.11은 종료 코드 1로 끝나고 표준 출력에 StepException을 남긴다)은 `UNREADABLE`(`detail.reason` `NO_STAFF`, `bbox` 쪽 전체)로 남기고, 모든 쪽이 그러면 `NO_STAFF_FOUND`다. 쪽들의 MusicXML은 첫 파트 뒤에 마디로 이어 붙여 한 곡으로 바꾼다.
-- 장단은 요청 `jangdan` → 박자표(9/8 세마치·12/8 굿거리) → 박자표를 못 읽었으면 리듬으로 고른 박 구성(점4분 4박 굿거리·3박 세마치) → 굿거리 순이다. 요청에 장단이 없으면 어떻게 정했든 `JANGDAN_GUESSED`를 한 번 남긴다. 정간 하나의 박은 오선보 1박(점4분·4분·8분)을 장단의 `bpmUnit` 박으로 옮긴 값이다. 한 각 길이가 장단 한 번과 다르면 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)다(예: 4/4 곡을 굿거리로 둘 때).
+- 장단은 요청 `jangdan` → 박자표(4분음표4박의 `4박 기본 반주`·9/8 세마치·12/8 굿거리) → 박자표를 못 읽었으면 리듬으로 고른 같은 박 구성 → 굿거리 순이다.4분음표4박은 기존 카탈로그 ID12의 반주를 제안하며 전통 장단명으로 단정하지 않는다(S15P31E102-880). 요청에 장단이 없으면 어떻게 정했든 `JANGDAN_GUESSED`를 한 번 남긴다. 정간 하나의 박은 오선보 1박(점4분·4분·8분)을 장단의 `bpmUnit` 박으로 옮긴 값이다. 한 각 길이가 장단 한 번과 다르면 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)다(예:4/4 곡에 굿거리를 명시 요청한 경우).
 - `engine` `audiveris`, `engineVersion`·`provenance.converter`의 버전은 컨테이너의 Audiveris 버전(`staff-omr/audiveris-5.11.0`)이다.
 
 ### 정간보 글자 층 경로 (313 U2)

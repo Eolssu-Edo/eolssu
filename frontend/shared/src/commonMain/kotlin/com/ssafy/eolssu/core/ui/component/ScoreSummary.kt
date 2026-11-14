@@ -92,7 +92,7 @@ fun ScoreRing(score: Int, modifier: Modifier = Modifier) {
         Text(
             unit,
             modifier = Modifier.padding(top = 2.dp).clearAndSetSemantics {},
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp),
             color = colors.textMuted,
         )
     }
@@ -167,8 +167,8 @@ fun TintPillButton(
             enabled = enabled,
             modifier = Modifier.height(30.dp),
             shape = RoundedCornerShape(16.dp),
-            color = colors.accentTint,
-            contentColor = if (enabled) colors.accentText else colors.textDisabled,
+            color = colors.surfaceStrong,
+            contentColor = if (enabled) colors.text else colors.textDisabled,
         ) {
             Row(
                 Modifier.padding(start = 10.dp, end = if (trailing != null) 8.dp else 10.dp),
@@ -372,7 +372,8 @@ fun EolssuStartTopBar(
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Row(
             modifier.widthIn(max = maxWidth).fillMaxWidth().padding(top = 8.dp).heightIn(min = 56.dp)
-                .padding(start = if (onBack != null) 4.dp else 16.dp, end = 4.dp),
+                // 꺽쇠(44dp 칸 안 12dp, 4dp 당김)와 오른쪽 48dp 아이콘이 다른 상단 바처럼 본문 끝(20dp)에 오게 한다(S15P31E102-849).
+                .padding(start = if (onBack != null) 12.dp else 20.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
