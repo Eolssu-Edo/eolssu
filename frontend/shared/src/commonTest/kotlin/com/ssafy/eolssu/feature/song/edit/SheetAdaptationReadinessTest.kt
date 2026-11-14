@@ -18,6 +18,22 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class SheetAdaptationReadinessTest : CatalogViewModelTest() {
+    @Test fun theFirstSelectionKeepsTheOriginalKeyEvenWhenAnotherTransposeIsRecommended() = runTest {
+        val base = ReadinessCatalog()
+        val catalog = object : ReferenceCatalogRepository by base {
+            override suspend fun authoringCapabilities(instrumentId: String) = base.authoringCapabilities(instrumentId).let { capability ->
+                // 원본 황/청중(MIDI63/80)에 +6에서 옥타브 이동 없이 모두 맞는 지원음이다.
+                capability.copy(items = capability.items.filter { it.midi == 69 || it.midi == 86 })
+            }
+        }
+        val model = open(catalog)
+        runCurrent()
+
+        val panel = assertNotNull(model.uiState.value.adaptation)
+        assertEquals(6, panel.plans.first().transpose, "비영점 추천이 있는 입력이어야 한다")
+        assertEquals(0, panel.selectedTranspose, "추천과 최초 선택은 별개다")
+    }
+
     @Test fun reopeningTheSameScoreKeepsTheChosenTransposeWithoutLoadingAgain() = runTest {
         val catalog = ReadinessCatalog()
         val model = open(catalog)
@@ -237,7 +253,7 @@ internal class SheetAdaptationReadinessTest : CatalogViewModelTest() {
         assertEquals(2, calls)
     }
 
-    private fun open(catalog: ReadinessCatalog, prepared: SheetAuthoringCatalog? = null): SheetEditViewModel {
+    private fun open(catalog: ReferenceCatalogRepository, prepared: SheetAuthoringCatalog? = null): SheetEditViewModel {
         val score = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
         val repository = object : SheetDocumentRepository {
             override suspend fun get(sheetId: String) = SheetDocument("31", "완료 악보", null, 60, "1", score,

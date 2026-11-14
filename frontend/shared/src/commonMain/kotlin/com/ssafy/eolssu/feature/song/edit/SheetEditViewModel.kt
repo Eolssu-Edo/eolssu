@@ -267,7 +267,7 @@ class SheetEditViewModel(
     private fun readyAdaptation(panel: SheetAdaptationUi, capabilities: com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities): SheetAdaptationUi {
         val pitches = capabilities.items.filter { it.selectable }.map { AdaptationPitch(it.midi, it.yul, it.octave) }
         val plans = planPitchAdaptation(panel.baseline.sourcePitchNotes(), pitches)
-        return panel.copy(capabilities = capabilities, plans = plans, selectedTranspose = plans.firstOrNull()?.transpose,
+        return panel.copy(capabilities = capabilities, plans = plans, selectedTranspose = 0,
             loading = false, failed = false, confirmationRequested = false)
     }
 
