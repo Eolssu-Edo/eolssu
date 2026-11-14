@@ -11,6 +11,8 @@ pipeline {
     stages {
         stage('Build Ad Hoc IPA on Eunseo Mac') {
             agent { label 'ios-eunseo' }
+            // S15P31E102-908: a sleeping Mac drops the agent channel mid-build; rerun once it reconnects.
+            options { retry(count: 2, conditions: [agent(), nonresumable()]) }
             environment {
                 IOS_TEAM_ID = 'WDA26H33JA'
                 IOS_DEVICE_ID = '00008140-0004446002D2801C'

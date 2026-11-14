@@ -9,6 +9,7 @@ S15P31E102-444, 2026-11-09. 목적은 develop의 최신 iOS 개발본을 원격 
 - Ad Hoc 프로파일의 등록 기기에만 설치된다. IPA는 Release archive에서 `release-testing`으로 export한다. Xcode `-help`에서 이 명칭이 구 `ad-hoc`을 대체함을 확인했다.
 - 최초 서명 때 macOS 키체인 접근 승인이 필요했다. 사용자가 직접 암호를 입력했다. 에이전트가 암호를 수집·저장하지 않는다.
 - Mac은 로그인·네트워크 연결이 가능해야 한다. 빌드 중 idle sleep만 caffeinate로 막고 전역 전원 설정은 바꾸지 않는다.
+- 2026-11-13~14 `eolssu-ios-qa` #196~#205가 연속 실패했다(S15P31E102-908). Mac이 배터리 전원(`sleep 1`)에서 잠자기·DarkWake를 반복하는 동안 잠깐 붙은 에이전트가 빌드를 받았다가 끊겼다. 서버 sshd·WebSocket idle 60초는 Mac이 응답하지 않을 때 드러나는 결과일 뿐 원인이 아니었다. 끊긴 11-13 빌드의 `build-ipa.sh`는 31시간 동안 잠자기 사이사이 진행하며 같은 workspace를 썼다. 전원 연결을 운영 조건으로 두고, Mac 단계의 에이전트 끊김 재시도와 시작 시 남은 프로세스 정리를 넣었다. 전역 전원 설정은 여전히 바꾸지 않는다.
 - 2026-11-10 Mac의 Xcode 계정 정보가 사라지자 export가 `No Accounts`로 실패했다. 로컬에 배포 인증서가 없고 Xcode 계정을 통한 클라우드 서명에 의존했기 때문이다. S15P31E102-757에서 App Store Connect API 키 인증으로 바꿔 Xcode 로그인 상태와 무관하게 했다.
 
 ## 구성과 검사

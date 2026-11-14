@@ -18,8 +18,13 @@
 - `~/Library/LaunchAgents/com.eolssu.jenkins-agent.plist`: Java 21 + WebSocket inbound agent.
 - secret은 `~/jenkins-agent/secret`, 0600. 서버 관리자 인증·개인키·secret은 저장소에 넣지 않는다.
 - Mac 사용자 로그인, 인터넷 연결, `~/jenkins-agent/asc/`의 API 키가 필요하다. 잠자기·종료·로그아웃 중에는 빌드할 수 없다.
+- 전원 어댑터에 연결해 둔다(S15P31E102-908). 이 Mac은 AC 전원에서 `sleep 0`, 배터리에서 `sleep 1`이다. 배터리로 두면 15분 남짓마다 잠들고 DarkWake로 잠깐 깬다. 그 사이 에이전트가 다시 붙어 빌드를 받았다가, Mac이 다시 잠들면 서버에 `ChannelPinger … Ping failed`가 남고 60초 뒤 Jetty `Idle timeout expired`, 이어서 `ClosedChannelException` 또는 `is offline`·45분 `Timeout has been exceeded`로 실패한다. 덮개를 닫으면 AC 전원에서도 외부 디스플레이 없이는 잠든다. `build-ipa.sh`의 `caffeinate -i`는 유휴 잠자기만 막는다.
+- Mac 단계는 에이전트 끊김으로 실패하면 재연결 뒤 최대 2회 실행한다(`retry(conditions: [agent(), nonresumable()])`).
+- 끊긴 빌드의 `build-ipa.sh`·`xcodebuild`는 Mac에 남아 같은 workspace를 계속 쓴다. executor가 1개이므로 `build-ipa.sh`는 시작할 때 다른 `build-ipa.sh`와 이 derived data·`build/ipa`를 쓰는 `xcodebuild`를 종료한다. 이 Mac에서 같은 경로를 쓰는 수동 빌드를 따로 돌리지 않는다.
 
 상태 확인: `launchctl print gui/$(id -u)/com.eolssu.jenkins-agent`, `~/jenkins-agent/com.eolssu.jenkins-agent.err.log`. secret 내용은 출력하지 않는다.
+
+끊김 확인: Mac의 `pmset -g batt`(전원), `pmset -g log | grep -E ' (Sleep|Wake|DarkWake) '`(잠자기 시각)와 서버 `docker logs eolssu-jenkins-controller-1`의 `ChannelPinger`·`WebSocketAgents` 시각(UTC)을 대조한다. 남은 빌드 프로세스는 `pgrep -fl 'build-ipa|xcodebuild'`로 본다.
 
 ## 서명: App Store Connect API 키 (S15P31E102-757)
 
