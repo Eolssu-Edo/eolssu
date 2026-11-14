@@ -1,6 +1,8 @@
 <resources>
-    <string name="sheet_close_unsaved">저장하지 못한 변경이 있어요.</string>
+    <string name="sheet_close_unsaved">저장하지 않은 변경이 있어요.</string>
     <string name="sheet_close_message">계속 편집하거나, 저장되지 않은 변경을 버리고 닫을 수 있어요.</string>
+    <string name="sheet_close_message_draft">임시저장하면 다음에 이어서 편집할 수 있어요.</string>
+    <string name="sheet_save_draft_close">임시저장하고 닫기</string>
     <string name="sheet_discard_close">변경을 버리고 닫기</string>
     <string name="sheet_keep_editing">계속 편집하기</string>
     <string name="sheet_document_title">내 악보 편집</string>

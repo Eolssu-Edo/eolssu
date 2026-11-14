@@ -277,8 +277,8 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         model.erase()
         assertNotEquals(snapshot, model.uiState.value.draft, "응답 후 편집을 다시 허용한다")
         val edited = model.uiState.value.draft
-        advanceTimeBy(1_000); runCurrent()
-        assertEquals(listOf(false, true), writes.map { it.first }, "응답 후 새 편집은 정상적으로 자동 저장한다")
+        model.saveDraft(); runCurrent()
+        assertEquals(listOf(false, true), writes.map { it.first }, "응답 후 새 편집은 정상적으로 임시저장한다")
         assertEquals(edited.toCommonScore(), writes.last().second.score)
         assertEquals("2", writes.last().second.baseScoreVersion)
     }
