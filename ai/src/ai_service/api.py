@@ -35,8 +35,8 @@ from ai_service.pipelines.scoring import (
 )
 
 # evaluations.model_version(30자 이하). 음높이 추정·채점 방식을 바꾸면 올린다. 2: 쉼(startBeat)·곡별 조율 보정 상한,
-# 6: 대금의 곡 음역 아래 값 두 배 보정(S15P31E102-848)
-MODEL_VERSION = "pyin-6"
+# 6: 대금의 곡 음역 아래 값 두 배 보정(S15P31E102-848), 7: 길이를 다음 음의 실제 시작까지의 자리와 비교(S15P31E102-910)
+MODEL_VERSION = "pyin-7"
 # 곡 음역 아래 값을 두 배로 고치는 악기(instruments.code). 낮은 음역으로 부는 초보가 많은 대금만 고친다.
 LIFT_BELOW_RANGE = frozenset({"JEONGAK_DAEGEUM", "SANJO_DAEGEUM"})
 MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024  # PRA-02 원본 상한 20MiB, Nginx·multipart 한도 25MiB
@@ -111,7 +111,10 @@ class NoteOut(_Camel):
     verdict: Literal["CORRECT", "PITCH", "TIMING", "MISSED"]
     pitch_error_cent: float | None = Field(description="음높이 오차(cent). MISSED면 null")
     onset_error_ms: float | None = Field(description="시작 시각 오차(ms). MISSED면 null")
-    duration_error_ms: float | None = Field(description="길이 오차(ms). MISSED면 null")
+    duration_error_ms: float | None = Field(
+        description="길이 오차(ms) = 울린 길이 - 자리. 자리는 다음 음이 쉼 없이 이어지면 그 음이 실제로 시작할 때까지,"
+        " 쉼 앞·마지막 음·다음 음을 놓쳤으면 악보 길이 × 연주 빠르기다. 음수면 짧게 불었다. MISSED면 null"
+    )
     detected_semitone: int | None = Field(
         description="인식한 음. pitches.semitone과 같은 눈금(0 = 황 E♭4). 채점에 적용한 조율 보정을 뺀 뒤 가장 가까운 반음이다."
         " tuningOutOfRange이면 적용한 보정은 0이다. MISSED면 null"

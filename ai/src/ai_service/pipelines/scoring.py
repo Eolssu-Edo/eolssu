@@ -52,14 +52,18 @@ class Tolerance:
 
     pitch_cent: float = 50.0
     onset_beat: float = 0.125
-    duration_ratio: float = 0.25
+    duration_ratio: float = 0.25  # 길이 허용은 자리(score 참고)의 이 비율과 duration_floor_s 중 큰 쪽이다
+    # 음높이 도구가 끊김 앞뒤를 70ms쯤 소리로 이어 잡아, 짧은 음은 비율 허용만으로는 측정 오차보다 좁다.
+    # 120ms는 아리랑 실제 연주 4개와 일부러 짧게 분 음으로 고른 값이다(S15P31E102-910).
+    duration_floor_s: float = 0.12
     max_tuning_cent: float = 100.0  # 곡에 반음 이웃이 있으면 score가 더 낮춘다
     # 박자 허용은 onset_beat 박과 (이 연주의 박자 흔들림 × onset_spread) 중 큰 쪽이다. 흔들림이 큰 연주일수록 후하다.
     onset_spread: float = 4.0
 
 
 # 점수 합산 규칙 버전(evaluations.scoring_version). 음표별 부분 점수·weight·항목 가중치의 뜻이나 합치는 공식을 바꾸면 올린다.
-SCORING_VERSION = "note-mean-1"
+# 2: 길이 부분 점수를 악보 길이 대신 자리(다음 음의 실제 시작까지)와 비교(S15P31E102-910)
+SCORING_VERSION = "note-mean-2"
 # 총점의 항목 가중치. 음표 weight는 모두 1이다(현재 채점이 음표를 균등 평균한다).
 SCORE_WEIGHTS = {"pitch": 1 / 3, "timing": 1 / 3, "duration": 1 / 3}
 
@@ -70,7 +74,7 @@ class NoteResult:
     verdict: str  # CORRECT, PITCH, TIMING, MISSED
     pitch_error_cent: float | None = None
     onset_error_ms: float | None = None
-    duration_error_ms: float | None = None
+    duration_error_ms: float | None = None  # 울린 길이 - 자리(score 참고). 음수면 짧게 불었다
     octave_suspect: bool = False  # 정답과 옥타브 단위로 어긋남. 음높이 도구 오류일 수 있다
     detected_semitone: int | None = None  # 적용한 조율 보정을 뺀 뒤 가장 가까운 반음(pitches.semitone 눈금). MISSED면 None
     recording_offset_ms: int | None = None  # 녹음 0ms 기준 실제 소리 시작(10ms 단위). MISSED면 None
@@ -257,8 +261,10 @@ def score(
     applied = 0.0 if out_of_range else offset
 
     # 놓치지 않은 음: (k, err, onset_err, dur_err, octave). evaluation/score_experiment.py가 이 모양을 읽는다.
+    # 길이 오차는 박자 판정에 쓰는 연주 빠르기를 구한 뒤에 채운다.
     played = []
     heard = {}  # k → (인식한 반음, 녹음 기준 시작 프레임)
+    last = {}  # k → 정렬 구간의 마지막 소리 프레임
     for k, (n, (frames, voiced, middle)) in enumerate(zip(notes, measured)):
         if voiced.size < 0.3 * lengths[k] / HOP_S:
             continue
@@ -283,10 +289,10 @@ def score(
                 rise = np.flatnonzero((np.arange(seg.size) > dips[0]) & (seg >= 0.5 * level))
                 onset_frame = frames[rise[0]] if rise.size else voiced[0]
         onset_err = onset_frame * HOP_S - starts[k]
-        dur_err = (voiced[-1] - onset_frame + 1) * HOP_S - lengths[k]
         octave = abs(err) > 600 and abs(err - 1200 * round(err / 1200)) <= tol.pitch_cent
-        played.append((k, err, onset_err, dur_err, octave))
+        played.append((k, err, onset_err, 0.0, octave))
         heard[k] = (round((raw - applied) / 100), int(onset_frame))
+        last[k] = int(voiced[-1])
 
     # 박자는 곡 처음 기준이 아니라 앞뒤 음 기준으로 본다. 메트로놈 없이 빨라지거나 느려지면 늦음이 쌓이지만
     # 앞뒤 음도 같이 늦는다. 연주 전체의 빠르기 차이(늦음이 1초에 늘어나는 양 drift, 이웃 음 사이 기울기의 중앙값)를 빼고,
@@ -305,6 +311,22 @@ def score(
     steps = np.diff(onsets) - drift * np.diff(times)
     spread = 1.4826 * float(np.median(np.abs(steps - np.median(steps)))) / np.sqrt(2) if len(onsets) >= _SPREAD_MIN_NOTES else 0.0
     onset_tol_s = max(tol.onset_beat * beat_s, tol.onset_spread * spread)
+
+    # 길이는 악보 BPM으로 계산한 길이가 아니라 이 음이 실제로 차지한 자리와 비교한다(S15P31E102-910).
+    # 사람은 긴 음·짧은 음의 비율을 악보와 조금 다르게 불고 빠르기도 바뀌어, 악보 길이와 비교하면 정상 연주도 60점 안팎이었다.
+    # 자리: 다음 음이 쉼 없이 이어지고 소리가 났으면 그 음의 실제 시작까지, 아니면(쉼 앞·끝 음·다음 음 놓침)
+    # 악보 길이 × 이 연주의 빠르기(1 + drift). 울린 길이는 그 안(쉼 앞·끝 음은 마지막 소리까지)에서 소리가 잡힌 프레임 수다.
+    # 중간을 비워 덜 분 만큼 줄고, 소리가 잠깐 흔들려 몇 프레임 빠져도 그만큼만 준다.
+    slots = {}
+    for i, (k, err, onset_err, _, octave) in enumerate(played):
+        start = heard[k][1]
+        nxt = heard.get(k + 1)
+        if k + 1 < len(notes) and starts[k + 1] - starts[k] - lengths[k] < 1e-6 and nxt and nxt[1] > start:
+            end, slots[k] = nxt[1], (nxt[1] - start) * HOP_S
+        else:
+            end, slots[k] = last[k] + 1, max(lengths[k] * (1.0 + drift), HOP_S)
+        sounded = np.count_nonzero(~np.isnan(detected[start:end])) * HOP_S
+        played[i] = (k, err, onset_err, sounded - slots[k], octave)
 
     results = []
     by_k = {p[0]: (p, r) for p, r in zip(played, resid)}
@@ -330,7 +352,7 @@ def score(
                                   heard_semitone, round(onset_frame * HOP_S * 1000),
                                   None if n.sigimsae else 100 * _credit(err, tol.pitch_cent),
                                   0.0 if wrong else 100 * _credit(r, onset_tol_s),
-                                  0.0 if wrong else 100 * _credit(dur_err, tol.duration_ratio * lengths[k])))
+                                  0.0 if wrong else 100 * _credit(dur_err, max(tol.duration_ratio * slots[k], tol.duration_floor_s))))
 
     # 잡음 몇 프레임만 잡히고 모든 음표가 빠졌으면 0점이 아니라 무음 실패로 본다.
     if all(r.verdict == "MISSED" for r in results):

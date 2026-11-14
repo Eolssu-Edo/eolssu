@@ -79,7 +79,7 @@ uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 
 1. `audioUrl`(서명 URL)에서 원본을 임시 폴더로 내려받습니다. 연결부터 전체 30초, 25MiB까지 받고 응답을 마치면 지웁니다.
 2. 위 '녹음 디코딩'으로 16kHz 모노로 바꾸고, pYIN으로 음높이를 추정해 '채점 방식'대로 채점합니다.
-3. `DONE`(`modelVersion` `pyin-6`, `scoringVersion` `note-mean-1`, 점수 4개, 조율 보정, 음표별 판정·부분 점수) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
+3. `DONE`(`modelVersion` `pyin-7`, `scoringVersion` `note-mean-2`, 점수 4개, 조율 보정, 음표별 판정·부분 점수) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
 
 | 상황 | 응답 | 백엔드 처리 |
 | --- | --- | --- |
@@ -228,10 +228,11 @@ uv run --locked python -m evaluation.dtw_u4_table ../data/processed/dtw-286/u4-r
 | 조율 보정 | 정렬된 음의 가운데 구간에서 잰 어긋남의 중앙값. 상한 `min(100, 가장 가까운 두 음 간격 − 50 − 10)`센트를 넘으면 보정하지 않고 `tuning_out_of_range`로 표시 |
 | 시김새 음표 | 음정 판정 제외, 박자·길이만 판정 |
 | 음 시작 | 앞 음보다 이 음의 높이에 가까워진 첫 프레임. 앞 음과 높이가 같으면 음량(`frame_rms`)이 크게 줄었다 다시 올라온 첫 프레임 |
+| 음 길이 | 울린 길이를 자리와 비교한다. 자리는 다음 음이 쉼 없이 이어지면 그 음이 실제로 시작할 때까지, 쉼 앞·마지막 음·다음 음을 놓쳤으면 악보 길이 × 연주 빠르기다. 울린 길이는 자리 안(쉼 앞·마지막 음은 마지막 소리까지)에서 소리가 잡힌 프레임 수다. 길이는 판정을 바꾸지 않고 부분 점수에만 들어간다 |
 | 판정 | `MISSED` → `PITCH` → `TIMING` → `CORRECT` 순으로 먼저 걸리는 것 |
 | 실패 | 소리가 없거나 잡음 몇 프레임만 잡혀 모든 음표가 `MISSED`면 `NO_SOUND`, 녹음이 정답 길이의 절반 미만이면 `TOO_SHORT`. 0점과 구분 |
 
-허용 범위 기본값(음정 ±50센트, 시작 박의 1/8, 길이 ±25%)과 조율 보정 상한은 녹음으로 검증하기 전의 제안 값입니다. 입력 규칙, 상한 식의 근거와 한계는 [채점 입력과 기준음·조율 보정 상한](../docs/knowledge/ai/scoring-input-and-tuning.md)에 있습니다. 1분이 넘는 녹음은 아직 다루지 않습니다.
+허용 범위 기본값(음정 ±50센트, 시작 박의 1/8, 길이는 자리의 ±25%와 120ms 중 큰 쪽)과 조율 보정 상한은 녹음으로 검증하기 전의 제안 값입니다. 길이 기준을 정한 실험은 [음 길이 점수의 자리 기준 보정](../docs/knowledge/ai/duration-score-slot.md)에 있습니다. 입력 규칙, 상한 식의 근거와 한계는 [채점 입력과 기준음·조율 보정 상한](../docs/knowledge/ai/scoring-input-and-tuning.md)에 있습니다. 1분이 넘는 녹음은 아직 다루지 않습니다.
 
 
 ## 정상·오류 녹음 평가
