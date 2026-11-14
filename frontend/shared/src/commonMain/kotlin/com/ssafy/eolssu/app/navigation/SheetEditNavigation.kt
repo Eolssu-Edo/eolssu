@@ -31,7 +31,7 @@ import org.koin.core.parameter.parametersOf
 object SheetEditDestination {
     const val NEW = "sheet-edit/new?failure={failure}"
     const val PICK = "sheet-edit/pick"
-    const val IMPORT = "sheet-edit/import/{kind}?hwang={hwang}&pick={pick}"
+    const val IMPORT = "sheet-edit/import/{kind}?hwang={hwang}"
     const val IMPORT_RESULT = "sheet-edit/import/{kind}/result?hwang={hwang}"
     const val EDIT = "sheet-edit/edit?from={from}&id={id}&pending={pending}&hwang={hwang}"
     const val VIEW = "sheet-edit/view/{id}"
@@ -39,8 +39,8 @@ object SheetEditDestination {
     /** 악보 추가. 내 악보 '다시 불러오기'면 [failure]로 변환 실패 원인을 넘겨 안내 창을 먼저 띄운다. */
     fun new(failure: SheetConversionFailure? = null) = if (failure == null) "sheet-edit/new" else "sheet-edit/new?failure=${failure.name}"
 
-    /** 파일·악기·장단 선택. [pick]이면 들어오자마자 기기 파일 선택 창을 연다. */
-    fun import(kind: ImportKind, hwang: HwangPitch, pick: Boolean = false) = "sheet-edit/import/${kind.routeId}?hwang=${hwang.name}&pick=$pick"
+    /** 파일·악기·장단 선택. 기기 파일 선택 창은 화면의 'PDF·이미지 선택'을 눌렀을 때만 연다(S15P31E102-889). */
+    fun import(kind: ImportKind, hwang: HwangPitch) = "sheet-edit/import/${kind.routeId}?hwang=${hwang.name}"
 
     fun importResult(kind: ImportKind, hwang: HwangPitch) = "sheet-edit/import/${kind.routeId}/result?hwang=${hwang.name}"
 
@@ -69,7 +69,7 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
     ) { entry ->
         EditNewRoute(
             onBack = { navController.popBackStackFrom(entry) },
-            onImport = { kind, hwang -> navController.navigate(SheetEditDestination.import(kind, hwang, pick = true)) },
+            onImport = { kind, hwang -> navController.navigate(SheetEditDestination.import(kind, hwang)) },
             onLoadExisting = { navController.navigate(SheetEditDestination.PICK) },
             reimportProblem = entry.reimportProblem(),
             // 내 악보 탭과 같게: 연습할 수 있으면 연습, 아니면 편집기로 연다.
@@ -94,14 +94,13 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
     }
     composable(
         SheetEditDestination.IMPORT,
-        arguments = listOf(kindArgument(), hwangArgument(), navArgument("pick") { type = NavType.BoolType; defaultValue = false }),
+        arguments = listOf(kindArgument(), hwangArgument()),
     ) { entry ->
         val kind = entry.importKind()
         val hwang = entry.hwang()
         SheetImportRoute(
             kind = kind,
             hwang = hwang,
-            pickOnStart = entry.savedStateHandle.get<Boolean>("pick") == true,
             onBack = { navController.popBackStackFrom(entry) },
             // 접수 뒤: 연습곡 고르기에서 왔으면 그 '내 악보' 탭으로, 홈에서 악보 추가로 바로 왔으면 진행 상황이 보이는 악보 추가로 돌아간다.
             onList = {

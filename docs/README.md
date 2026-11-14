@@ -2,6 +2,8 @@
 
 - [악보 추가 화면의 내 악보 목록·변환 진행 표시 (881)](plans/S15P31E102-881.md)
 
+- [악보 불러오기·올리기·편집 화면 배치 정리와 자동저장 중단 (889)](plans/S15P31E102-889.md)
+
 - [이조 슬라이더 최초 원조 유지·눈금 정렬·간격 (893)](specs/score-authoring-consistency.md#이조-슬라이더-최초-선택과-표식-정렬-s15p31e102-893) · [원인·좌표 실측](knowledge/frontend/sheet-pitch-adaptation.md#최초-원조-유지와-이조-눈금-끝점-정렬-893) · [계획·검증](plans/S15P31E102-893.md)
 
 - [선택 위치 검수 안내 (890)](specs/score-authoring-consistency.md#인식-검수-이유의-정간-클릭-안내-s15p31e102-890) · [원인·OMR 운영 배포](knowledge/frontend/sheet-pitch-adaptation.md#사용자-승인-후-omr-배포-890) · [검증·인수인계](plans/S15P31E102-890.md)

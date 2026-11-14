@@ -265,7 +265,10 @@ internal fun EditorTopBar(
     }
 }
 
-/** 연두 알약 버튼(높이 40 · 14sp 600). 상단 바 오른쪽 '미리보기'·'선택'에 쓴다. 48dp 터치 영역을 유지한다. */
+/**
+ * 연두 알약 버튼(높이 40 · 14sp 600). 상단 바 오른쪽 '미리보기'·'선택'에 쓴다. 48dp 터치 영역을 유지한다.
+ * [compact]면 입력판 안에 두는 작은 버튼(높이 32 · 13sp)이다.
+ */
 @Composable
 internal fun PillButton(
     label: String,
@@ -274,6 +277,7 @@ internal fun PillButton(
     enabled: Boolean = true,
     square: Boolean = true,
     secondary: Boolean = false,
+    compact: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     Surface(
@@ -285,16 +289,16 @@ internal fun PillButton(
         Box(contentAlignment = Alignment.Center) {
             Box(
                 Modifier
-                    .height(40.dp)
-                    .widthIn(min = 64.dp)
+                    .height(if (compact) 32.dp else 40.dp)
+                    .widthIn(min = if (compact) 48.dp else 64.dp)
                     // 다른 작은 버튼과 같은 모서리 12dp. [secondary]는 회색 채움(편집처럼 보조 동작)(S15P31E102-768).
                     .background(if (!enabled) colors.surfaceStrong else if (secondary) colors.groupedBackground else colors.primary, if (square) RoundedCornerShape(12.dp) else CircleShape)
-                    .padding(horizontal = 14.dp),
+                    .padding(horizontal = if (compact) 12.dp else 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     label,
-                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge.copy(fontSize = if (compact) 13.sp else 14.sp, fontWeight = FontWeight.SemiBold),
                     color = if (!enabled) colors.textDisabled else if (secondary) colors.text else colors.onPrimary,
                 )
             }
