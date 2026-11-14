@@ -14,7 +14,11 @@
 
 운영 읽기 전용 조회에서는 backend JAR이 `d84dd9b9`인 반면 OMR은 `8897d7fb`이며 `staff_pdf_tempo.py`가 없었다. playback은 `d03fd028`이며 `tempo_repeat.py`에 `start_bpm` 처리가 없었다. 두 컨테이너가 healthy여도 숫자 빠르기 지원이 반영된 상태는 아니다. 첫 숫자 보완과 별개로 운영 런타임 반영 누락이 있어, 코드 수정만으로 현재 앱의 새 인식·생성 요청이 교정됐다고 보고하지 않는다.
 
-반영 시에는 새 시작값을 읽는 playback을 먼저 준비하고 숫자 계획을 만드는 OMR을 다음 순서로 검증해야 한다. backend는 최신 버전이며 기존 사용자 악보·초안·생성 음원을 임의 갱신하지 않는다. 현재 승인은 수정·검증까지이며 운영 이미지 교체·서비스 재생성은 아직 수행하지 않았다. 로컬 근거는 `.scratch/bv1114/inspection.json`, `first-geometry.json`, `header-{red,green}.log`, `ai-regression.xml`, `pipeline-{before-,}response.json`, `pipeline-summary.json`에 있다. 앱 업데이트로 최종 stdout 수신은 중단됐지만 완료된 응답·요약 파일과 원본/악보 불변 비교를 재조회했다.
+반영 시에는 새 시작값을 읽는 playback을 먼저 준비하고 숫자 계획을 만드는 OMR을 다음 순서로 검증해야 한다. backend는 최신 버전이며 기존 사용자 악보·초안·생성 음원을 임의 갱신하지 않는다. 후속 사용자 승인으로 MR 게시와 사람의 리뷰·병합 후 운영 두 서비스 반영까지 진행한다. 운영 이미지 교체·서비스 재생성은 아직 수행하지 않았다. 로컬 근거는 `.scratch/bv1114/inspection.json`, `first-geometry.json`, `header-{red,green}.log`, `ai-regression.xml`, `pipeline-{before-,}response.json`, `pipeline-summary.json`에 있다. 앱 업데이트로 최종 stdout 수신은 중단됐지만 완료된 응답·요약 파일과 원본/악보 불변 비교를 재조회했다.
+
+MR !739 게시 후 운영 서버에서 `24273759` 소스로 두 후보 이미지를 별도 빌드했다. 기존 서비스·Compose·자산은 보존하고, 같은 리소스 제한의 내부망 임시 컨테이너에서 실제 HTTP로 검증했다. 최종 scanner 이미지의 PDFium5.15.2·torch2.15.0+cpu와 핵심 소스4파일의 Git SHA 일치를 확인했다. 제공 PDF는99.195초 DONE·기본160·5항목·518이벤트/JGB 일치, 기존 율명 음역 대조 PNG는14.418초에 독립 정답24/24였다.
+
+새 playback의 실제 CAT 생성은20.615초에 성공했다. 추정과 생성 모두182186ms이며 release tail을 뺀 수행 시간표는181635.521ms·657구간으로 일치한다. 생성 MIDI492음의 음높이·시점과 AAC-LC mono44100·음원 SHA·수행표 SHA 결합을 대조했다. 실제 청취·기기 실행·기존 사용자 저장 악보 수정은 하지 않았다. 후보 검사와 실제 운영 반영을 구분하며, 새 이미지를 운영에 연결하기 전 사람 승인·병합을 확인한다. 원본에 빠르기 계획이 저장되지 않은 예전 변환/음원은 서비스 교체만으로 자동 수정되지 않아 재인식·재생성이 필요하다. 후보 근거는 `.scratch/bv1114/candidate-results/`와 `probe-{omr,playback}.log`다.
 
 ## 숫자 빠르기와 가속 가져오기 (882)
 
