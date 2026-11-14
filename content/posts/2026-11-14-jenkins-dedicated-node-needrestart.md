@@ -7,7 +7,7 @@ categories: ["infra"]
 tags: ["Jenkins", "CI", "systemd", "Ubuntu"]
 description: "웹 배포가 백엔드 빌드를 기다리지 않도록 전용 Jenkins 노드를 두었고, 첫 실행이 끊긴 원인을 자동 보안 업데이트에서 찾았습니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-11-jenkins-dedicated-node-needrestart.webp"
-draft: true
+draft: false
 ---
 
 얼쑤의 빌드 서버에는 Jenkins 실행 자리(executor)가 하나뿐이었습니다. 백엔드 잡과 웹 수동 배포 잡이 모두 `agent any`였기 때문에, 백엔드 빌드가 도는 동안 웹 배포는 대기열에서 기다려야 했습니다. 이 대기가 빌드 시간에서 얼마나 차지했는지는 [Jenkins Wasm 최적화 956초에서 237초로](https://team-edo.github.io/posts/2026/11/jenkins-wasm-build-bottleneck/)에서 측정했습니다. 웹 배포에만 자리를 보장하려고 전용 노드를 추가했는데, 그 노드의 첫 빌드가 중간에 끊겼습니다. 이 글은 자리를 나눈 방식과, 끊긴 빌드의 원인을 찾은 과정을 정리합니다.
