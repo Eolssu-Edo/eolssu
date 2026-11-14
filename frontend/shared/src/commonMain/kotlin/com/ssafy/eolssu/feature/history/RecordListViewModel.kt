@@ -75,6 +75,11 @@ class RecordListViewModel(
     fun retry() {
         if (!accountScope.isActive || _uiState.value.loading) return
         cancelPages()
+        resolving?.cancel()
+        resolving = null
+        triedInstruments.clear()
+        catalogInstruments = null
+        catalogSongs = null
         val current = _uiState.value
         val target = current.groups.firstOrNull { current.isOpen(it.key) }?.newestSongId
         _uiState.update { it.copy(loading = true, loadFailed = false) }
@@ -243,25 +248,29 @@ class RecordListViewModel(
         val missing = state.summaries.map { it.songId }.filter { it !in state.songInstruments && it !in triedInstruments }
         if (missing.isEmpty() || resolving?.isActive == true) return
         resolving = accountScope.launch(perf.context()) {
-            val byId = catalogInstruments ?: orEmpty { repo.getInstruments() }
+            var lookupFailed = false
+            val onFailure = { lookupFailed = true }
+            val byId = catalogInstruments ?: pageOrNull(onFailure) { repo.getInstruments() }.orEmpty()
                 .mapNotNull { item -> Instrument.entries.firstOrNull { it.serverCode == item.code }?.let { item.instrumentId to it } }
                 .toMap().also { catalogInstruments = it }
             fun instrumentOf(id: String?, code: String?): Instrument? =
                 id?.let(byId::get) ?: Instrument.entries.firstOrNull { it.serverCode == code }
-            val listed = catalogSongs ?: orEmpty { repo.getSongs() }
+            val listed = catalogSongs ?: pageOrNull(onFailure) { repo.getSongs() }.orEmpty()
                 .mapNotNull { song -> instrumentOf(song.instrumentId, song.instrumentCode)?.let { song.id to it } }
                 .toMap().also { catalogSongs = it }
 
             val fallback = missing.mapNotNull { id ->
                 triedInstruments += id
-                val instrument = listed[id] ?: pageOrNull { repo.getSong(id) }
+                val instrument = listed[id] ?: pageOrNull(onFailure) { repo.getSong(id) }
                     ?.let { instrumentOf(it.instrumentId, it.score.source?.instrument) }
                 instrument?.let { id to it }
             }.toMap()
             ensureAccountSession()
             _uiState.update { latest ->
                 val activeIds = latest.summaries.map { it.songId }.toSet()
-                latest.copy(songInstruments = fallback.filterKeys { it in activeIds } + latest.songInstruments)
+                val instruments = fallback.filterKeys { it in activeIds } + latest.songInstruments
+                latest.copy(songInstruments = instruments,
+                    loadFailed = latest.loadFailed || lookupFailed && missing.any { it in activeIds && it !in instruments })
             }
             loadOpenedSongs()
             resolving = null
@@ -269,8 +278,6 @@ class RecordListViewModel(
         }
     }
 
-    private suspend fun <T> orEmpty(load: suspend () -> List<T>): List<T> = pageOrNull(load).orEmpty()
-
-    private suspend fun <T> pageOrNull(load: suspend () -> T?): T? =
-        try { load() } catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+    private suspend fun <T> pageOrNull(onFailure: () -> Unit = {}, load: suspend () -> T?): T? =
+        try { load() } catch (e: CancellationException) { throw e } catch (_: Exception) { onFailure(); null }
 }
