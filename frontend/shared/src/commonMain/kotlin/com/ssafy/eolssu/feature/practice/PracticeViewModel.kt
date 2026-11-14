@@ -1174,6 +1174,7 @@ class PracticeViewModel(
     /** 화면을 벗어남(앱 전환·전화 등). 연주 중이면 끊긴 것으로 처리하고, 모범 연주는 일시정지한다. */
     fun onLeaveScreen() {
         evaluationCheckJob?.cancel()
+        micRequestJob?.cancel()
         pauseRhythm()
         stopPreview()
         stopJangdan()
@@ -1192,6 +1193,7 @@ class PracticeViewModel(
     /** 타이머를 모두 멈추고 진행 중인 녹음을 버린다. 마친 녹음 파일은 남긴다. */
     fun stopAll() {
         evaluationCheckJob?.cancel()
+        micRequestJob?.cancel()
         pauseRhythm()
         stopPreview()
         stopJangdan()
