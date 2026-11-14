@@ -293,16 +293,19 @@ class IosAudioRecorder : AudioRecorder {
         private suspend fun analyze() {
             var gap = false
             val confirmation = PitchConfirmation()
+            val probe = if (diagnostics) IosVolumeProbe() else null
             try {
                 for (window in queue) {
                     val reading = window.reading
                     val usable = reading.analysisAvailable && window.samples.isNotEmpty()
                     val estimate = if (usable) YinPitchEstimator.estimate(window.samples, RATE, pitchGate) else null
+                    val dbfs = if (usable) YinPitchEstimator.rmsDbfs(window.samples) else null
+                    dbfs?.let { probe?.add(it) }
                     val value = confirmation.apply(reading.copy(frequencyHz = estimate?.frequencyHz,
                         rawFrequencyHz = estimate?.frequencyHz,
                         normalizedDifference = estimate?.normalizedDifference,
                         analysisAvailable = reading.analysisAvailable && !gap,
-                        inputDbfs = if (usable) YinPitchEstimator.rmsDbfs(window.samples) else null))
+                        inputDbfs = dbfs))
                     gap = !readings.tryEmit(value)
                 }
             } catch (e: CancellationException) {
