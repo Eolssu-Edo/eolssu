@@ -986,7 +986,7 @@ class SheetEditViewModel(
         audioJob = accountScope.launch { block() }
     }
 
-    /** 서버 상태를 화면에 반영하고, 만드는 중이면 끝날 때까지 묻는다. [announce]면 접수·완료·실패를 알린다. */
+    /** 서버 상태를 반영하고 만드는 중이면 조회한다. [announce]면 접수·실패를 알리며 성공 안내는 앱에서 맡는다. */
     private suspend fun receive(sheetId: String, audio: SheetAudio, announce: Boolean) {
         change { state ->
             state.copy(
@@ -994,7 +994,7 @@ class SheetEditViewModel(
                 message = when {
                     !announce -> state.message
                     audio.status.inProgress -> SheetEditMessage.AudioRequested
-                    audio.status == SheetAudioStatus.Done -> SheetEditMessage.AudioReady
+                    audio.status == SheetAudioStatus.Done -> state.message // App-wide completion owns success notices.
                     else -> SheetEditMessage.AudioFailed
                 },
             )
@@ -1002,7 +1002,7 @@ class SheetEditViewModel(
         if (audio.status.inProgress) watch(sheetId, audio)
     }
 
-    /** `pollAfterMs`마다 SHT-13을 묻는다. 끝나면 알리고, 응답을 [MAX_POLL_MISSES]번 연속 받지 못하면 멈춘다. */
+    /** `pollAfterMs`마다 SHT-13을 묻고 실패는 화면에 알린다. 연속 [MAX_POLL_MISSES]회 조회 실패 시 멈춘다. */
     private suspend fun watch(sheetId: String, first: SheetAudio) {
         val repository = sheetAudio ?: return
         var current = first
@@ -1025,7 +1025,7 @@ class SheetEditViewModel(
                 }
             }
         }
-        change { it.copy(message = if (current.status == SheetAudioStatus.Done) SheetEditMessage.AudioReady else SheetEditMessage.AudioFailed) }
+        if (current.status == SheetAudioStatus.Failed) change { it.copy(message = SheetEditMessage.AudioFailed) }
     }
 
     private fun SheetAudio.forLoadedVersion(): SheetAudio =
