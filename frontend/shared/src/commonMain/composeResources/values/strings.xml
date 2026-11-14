@@ -647,7 +647,6 @@
     <string name="mysongs_title">연습곡 고르기</string>
     <string name="mysongs_tab_songs">제공 곡</string>
     <string name="mysongs_tab_sheets">내 악보</string>
-    <string name="mysongs_no_jangdan">장단 없음</string>
     <string name="mysongs_reset_filter">전체 곡 보기</string>
     <string name="mysongs_add">악보 추가</string>
     <string name="mysongs_sheet_count">내 악보 %1$d개</string>
