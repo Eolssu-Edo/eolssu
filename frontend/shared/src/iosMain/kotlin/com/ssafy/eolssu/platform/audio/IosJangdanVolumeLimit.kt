@@ -36,8 +36,14 @@ internal fun iosEvaluationGain(volume: Float, curve: IosVolumeCurve): Float {
     return evaluationJangdanGain(curve.db(volume), curve.db(KNEE_RATIO), curve.db(CEILING_RATIO), curve.db(1f))
 }
 
+/**
+ * iPhone 16 Pro(iOS 27.2) 내장 스피커 실측(2026-11-14, 앱 녹음기로 장단 타격 peak): 볼륨 0.65~1.0에서 0.05(한 칸)마다 약 3dB로
+ * `60 × (볼륨 − 1)` dB 직선과 ±3dB 안에서 맞았다. 0.55 아래는 주변 소음에 묻혀 잴 수 없어 같은 직선을 잇는다.
+ */
+internal val IphoneSpeakerCurve = IosVolumeCurve(listOf(0f to -60f, 1f to 0f))
+
 /** 타격마다 시스템 볼륨을 읽어 배율을 준다. 읽기에 실패하면 제한하지 않는다. */
-internal class IosJangdanVolumeLimit(private val curve: IosVolumeCurve) : JangdanVolumeLimit {
+internal class IosJangdanVolumeLimit(private val curve: IosVolumeCurve = IphoneSpeakerCurve) : JangdanVolumeLimit {
     override fun gain(): Float = runCatching {
         iosEvaluationGain(AVAudioSession.sharedInstance().outputVolume, curve)
     }.getOrDefault(1f)

@@ -47,4 +47,11 @@ class IosJangdanVolumeLimitTest {
         assertEquals(1f, iosEvaluationGain(Float.NaN, curve))
         assertTrue(abs(iosEvaluationGain(1.5f, curve) - 1f) < 1e-6f)
     }
+
+    @Test
+    fun iphoneCurveHearsMaxVolumeAsVolume04() {
+        // 실측 곡선(60dB 직선)에서 최대 볼륨은 볼륨 0.4(-36dB) 크기로 들린다.
+        assertEquals(-36f, 20 * log10(iosEvaluationGain(1f, IphoneSpeakerCurve)), 0.01f)
+        assertEquals(1f, iosEvaluationGain(0.25f, IphoneSpeakerCurve))
+    }
 }
