@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [기초 배우기 돌다리 그림과 화면 UI 개선 (888)](plans/S15P31E102-888.md)
+
 - [분석 완료 후 음역·이조 즉시 사용 (879)](specs/sheet-adaptation-readiness.md) · [중복 조회 원인과 실제 검증](knowledge/frontend/sheet-adaptation-readiness.md) · [계획·검증](plans/S15P31E102-879.md)
 
 - [제공 악보 추가·편집·저장 실행 검증 (876)](knowledge/frontend/sheet-add-edit-runtime-verification.md) · [계획](plans/S15P31E102-876.md)
