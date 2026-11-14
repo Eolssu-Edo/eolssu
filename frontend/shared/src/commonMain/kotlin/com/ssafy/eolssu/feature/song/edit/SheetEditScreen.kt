@@ -1,6 +1,20 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.style.TextAlign
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -35,7 +49,7 @@ import eolssu.shared.generated.resources.sheetedit_preview
 import com.ssafy.eolssu.core.ui.component.formatClock
 import eolssu.shared.generated.resources.sheet_save_estimated_duration
 import eolssu.shared.generated.resources.sheet_editor_duration_unavailable
-import eolssu.shared.generated.resources.sheet_editor_edit
+import eolssu.shared.generated.resources.sheet_details_edit
 import eolssu.shared.generated.resources.sheet_completion_saving
 import eolssu.shared.generated.resources.sheet_save_conflict
 import eolssu.shared.generated.resources.sheet_save_failed
@@ -57,7 +71,7 @@ class SheetEditActions(
     val input: EditInputActions,
 )
 
-/** 빠르기·예상 음원 길이와 오른쪽 편집 버튼, 오류 정간 표시를 제공하는 편집 화면. */
+/** 빠르기와 옆의 연필(제목·빠르기 변경), 오른쪽 끝 예상 음원 길이, 오류 정간 표시를 제공하는 편집 화면. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostState, actions: SheetEditActions,
@@ -76,18 +90,18 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
         },
     ) {
         Column(Modifier.fillMaxSize()) {
+            // 빠르기 바로 오른쪽 연필로 제목·빠르기를 고치고, 예상 음원 길이는 오른쪽 끝에 둔다(S15P31E102-889).
             Row(
-                Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+                Modifier.fillMaxWidth().heightIn(min = 40.dp).padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("${draft.tempoUnitLabel} = ${draft.bpm}", style = MaterialTheme.typography.bodyMedium)
-                    val estimate = if (state.hasTempoPlan) null else draft.estimatedDurationSeconds(draft.bpm)
-                    Text(if (estimate != null) stringResource(Res.string.sheet_save_estimated_duration, formatClock(estimate))
-                        else stringResource(Res.string.sheet_editor_duration_unavailable), style = MaterialTheme.typography.bodySmall)
-                }
-                if (state.canEditDetails) PillButton(stringResource(Res.string.sheet_editor_edit), actions.onOpenDetails, enabled = !state.saving, secondary = true)
+                Text("${draft.tempoUnitLabel} = ${draft.bpm}", style = MaterialTheme.typography.bodyMedium)
+                if (state.canEditDetails) TempoEditButton(actions.onOpenDetails, enabled = !state.saving)
+                Spacer(Modifier.weight(1f).widthIn(min = 12.dp))
+                val estimate = if (state.hasTempoPlan) null else draft.estimatedDurationSeconds(draft.bpm)
+                Text(if (estimate != null) stringResource(Res.string.sheet_save_estimated_duration, formatClock(estimate))
+                    else stringResource(Res.string.sheet_editor_duration_unavailable), style = MaterialTheme.typography.bodySmall,
+                    color = EolssuTheme.colors.textSub, textAlign = TextAlign.End)
             }
             EditScoreBoard(
                 song = song,
@@ -105,6 +119,24 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
             EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.supportedInputPitches, state.canUndo, state.canRedo, actions.input,
                 saveFeedback = { SheetSaveFeedback(state, actions.onRetryDraft) }, adaptationContent = adaptationContent)
         }
+    }
+}
+
+/** 빠르기 옆 작은 연필(아이콘 16dp, 누르는 칸 36dp). 누르면 제목·빠르기 변경 창을 연다. */
+@Composable
+private fun TempoEditButton(onClick: () -> Unit, enabled: Boolean) {
+    val label = stringResource(Res.string.sheet_details_edit)
+    Box(
+        Modifier
+            .padding(start = 2.dp)
+            .size(36.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = label }
+            .alpha(if (enabled) 1f else 0.45f),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(16.dp), tint = EolssuTheme.colors.textSub)
     }
 }
 

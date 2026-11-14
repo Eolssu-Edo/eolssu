@@ -13,7 +13,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
     private val compatible = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 3, 1, 1)
     private val incompatible = CatalogJangdanSummary("5", "중모리", 90, "QUARTER", 12, 4, 2)
 
-    @Test fun basicPresetSurvivesAutosaveReloadAndConfirmationWithMelodyOnlyAudio() = runTest {
+    @Test fun basicPresetSurvivesDraftReloadAndConfirmationWithMelodyOnlyAudio() = runTest {
         val original = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
         val metadata = SheetJangdanCorrectionTest.sourceMetadata(original)
         val repository = RecordingDocuments(original).also { it.document = it.document.copy(authoring = metadata) }
@@ -24,7 +24,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         val model = open()
         runCurrent()
         model.selectBasicAccompaniment(com.ssafy.eolssu.core.model.BasicAccompanimentPreset.FiveTwoThree, 1)
-        advanceTimeBy(1_100); runCurrent()
+        model.saveDraft(); runCurrent()
         val savedDraft = repository.writes.single().second
         assertEquals(original.copy(score = original.score.copy(title = repository.document.title)), savedDraft.score)
         assertEquals(4L, savedDraft.authoring?.basicAccompaniment(original)?.startTick)
@@ -41,7 +41,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         assertEquals(SheetAudioSettings(withJangdan = false, bpm = 60), audio.requests.single())
     }
 
-    @Test fun recognizedJangdanCorrectionSurvivesAutosaveReloadAndFinalSave() = runTest {
+    @Test fun recognizedJangdanCorrectionSurvivesDraftReloadAndFinalSave() = runTest {
         val original = SheetJangdanCorrectionTest.recognized("QUARTER", 12, 36, "중모리")
         val metadata = SheetJangdanCorrectionTest.sourceMetadata(original)
         val gutgeori = CatalogJangdanSummary("2", "굿거리", 80, "DOTTED_QUARTER", 12, 4, 1)
@@ -58,7 +58,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         runCurrent()
         model.updateSettings(100, gutgeori.jangdanId)
         assertEquals("2", model.uiState.value.draft.jangdanId)
-        advanceTimeBy(1_100)
+        model.saveDraft()
         runCurrent()
         val copy = repository.writes.single().second
         assertEquals(original.columns, copy.score.columns)
@@ -112,7 +112,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         assertEquals(SheetEditMessage.AudioNeedsSave, model.uiState.value.message)
         assertTrue(audio.requests.isEmpty())
 
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
         val autoSaved = repository.writes.single()
         assertTrue(autoSaved.first)

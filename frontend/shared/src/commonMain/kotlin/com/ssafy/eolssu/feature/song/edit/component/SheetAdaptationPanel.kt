@@ -128,12 +128,16 @@ internal fun SheetAdaptationPanel(
                         instrumentPicker()
                         if (singleRow) transposeControl(Modifier.weight(1f))
                         else Spacer(Modifier.weight(1f))
-                        Column {
-                            Text(stringResource(Res.string.sheet_adapt_octave_count, selected.octaveChanges), style = MaterialTheme.typography.labelSmall)
-                            Text(stringResource(Res.string.sheet_adapt_unresolved_count, selected.unresolved), style = MaterialTheme.typography.labelSmall,
+                        // 두 개수를 한 줄에 나란히 두고, 적용은 작은 네모 버튼(32dp)으로 둔다(S15P31E102-889).
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(Res.string.sheet_adapt_octave_count, selected.octaveChanges), style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1)
+                            Text("·", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
+                            Text(stringResource(Res.string.sheet_adapt_unresolved_count, selected.unresolved), style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
                                 color = if (selected.unresolved > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                         }
-                        EolssuButton(stringResource(Res.string.sheet_details_apply), onApply, small = true)
+                        PillButton(stringResource(Res.string.sheet_details_apply), onApply, compact = true)
                     }
                     if (!singleRow) transposeControl(Modifier.fillMaxWidth())
                 }

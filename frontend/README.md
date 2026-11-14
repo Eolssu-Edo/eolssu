@@ -281,6 +281,7 @@ node tools/sigimsae-sound/build_sigimsae_sounds.mjs
 - **커밋하지 않는 파일**: `local.properties`, `build/`, `.gradle/`, `.kotlin/`, `.idea/`, `xcuserdata/` ([`.gitignore`](.gitignore)에 등록됨)
 - **커밋하는 파일**: 웹을 처음 빌드하면 생기는 `kotlin-js-store/`(웹 의존성 lock 파일)는 커밋합니다.
 - **iOS 번들 ID**: Android `applicationId`와 같은 `com.ssafy.eolssu`입니다. App Store에 등록한 뒤에는 바꿀 수 없습니다. Mac에서 빌드하려면 `iosApp/Configuration/Config.xcconfig`의 `TEAM_ID`에 Apple 개발팀 ID를 넣습니다(개인 값이면 커밋하지 않음).
+- **iOS 버전·언어**: 버전·빌드 번호는 `iosApp/Configuration/Config.xcconfig`의 `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION`입니다. App Store에 올릴 때마다 빌드 번호를 마지막 업로드보다 크게 올립니다. 개발 언어는 한국어(`ko`)이고, `iosApp/iosApp/ko.lproj`가 있어야 App Store에 한국어로 표시됩니다([S15P31E102-814](../docs/plans/S15P31E102-814.md)).
 - **iOS 출시 설정**: 마이크 권한 설명·표시 이름은 `iosApp/iosApp/Info.plist`, 개인정보 매니페스트는 `iosApp/iosApp/PrivacyInfo.xcprivacy`에 있습니다. 매니페스트의 수집 항목은 App Store Connect의 개인정보 라벨과 같게 맞춥니다([S15P31E102-373 계획](../docs/plans/S15P31E102-373.md)).
 
 ## Android release 검증
