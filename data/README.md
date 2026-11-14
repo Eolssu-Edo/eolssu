@@ -80,6 +80,12 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 .\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
 ```
 
+구간 빠르기의 실제 생성 시간은 아래 격리 검증기로 확인합니다. 단소 CAT 자산 맵과 FFmpeg/FFprobe가 필요하며 `--out`은 새 폴더여야 합니다. 기본60·60→30·명시적30→120가속의 로컬 HTTP, 수행표, MIDI, 디코딩 M4A 길이·음 경계를 검사합니다. 전체 악기 준비 검사나 운영·기기 검증을 대신하지 않습니다. [904 기록](../docs/plans/S15P31E102-904.md)에 실행 환경과 결과를 남깁니다.
+
+```powershell
+python -m data.tests.runtime.verify_section_tempo --assets PATH_TO_ASSETS_JSON --out NEW_OUTPUT_DIRECTORY
+```
+
 ## 서비스 기준 데이터
 
 [reference/](reference/)는 백엔드 기준 데이터 테이블에 넣을 값입니다. 파일마다 `table`(대상 테이블), `description`, `sources`(근거), `rows`가 있고, 행의 칸 이름은 `backend/src/main/resources/db/migration/`의 V1·V2와 같습니다. `id`는 백엔드가 정하므로 행끼리는 자연 키로 가리킵니다.

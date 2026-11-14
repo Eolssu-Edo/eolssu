@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.FileSheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.JangdanSampleFiles
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
+import com.ssafy.eolssu.core.audio.JangdanVolumeLimit
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.ModelAudioFileCache
 import com.ssafy.eolssu.core.audio.RecordingFiles
@@ -21,6 +22,7 @@ import com.ssafy.eolssu.data.user.OAuthRoute
 import com.ssafy.eolssu.platform.audio.IosAudioPlayer
 import com.ssafy.eolssu.platform.audio.IosAudioRecorder
 import com.ssafy.eolssu.platform.audio.IosJangdanSamplePlayer
+import com.ssafy.eolssu.platform.audio.IosJangdanVolumeLimit
 import com.ssafy.eolssu.platform.audio.IosRecordingFiles
 import com.ssafy.eolssu.platform.audio.IosSoundPlayer
 import com.ssafy.eolssu.platform.audio.applicationSupportPath
@@ -87,6 +89,8 @@ internal fun iosPlatformModule(): Module = module {
         JangdanSampleFiles(Path(caches, "jangdan-practice-v1"), get(), Dispatchers.IO)
     }
     factory<JangdanSamplePlayer> { IosJangdanSamplePlayer(get(), Dispatchers.IO) }
+    // 평가 녹음 중 장단 크기를 시스템 볼륨으로 압축한다(S15P31E102-878 규칙, iPhone 곡선은 S15P31E102-907 실측).
+    factory<JangdanVolumeLimit> { IosJangdanVolumeLimit() }
     single<RecordingFiles> { IosRecordingFiles() }
     single<SoundPlayer> { IosSoundPlayer() }
 }

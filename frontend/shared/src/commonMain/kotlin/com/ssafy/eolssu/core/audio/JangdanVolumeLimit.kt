@@ -11,7 +11,7 @@ fun interface JangdanVolumeLimit {
     fun gain(): Float
 }
 
-/** 제한하지 않는다. iOS·웹과 테스트의 기본값. */
+/** 제한하지 않는다. 웹과 테스트의 기본값. */
 val NoJangdanVolumeLimit = JangdanVolumeLimit { 1f }
 
 /**
