@@ -23,11 +23,19 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.song.MySongsTab
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.mysongs_add
+import eolssu.shared.generated.resources.mysongs_delete
+import eolssu.shared.generated.resources.mysongs_delete_message
+import eolssu.shared.generated.resources.mysongs_delete_title
 import eolssu.shared.generated.resources.mysongs_tab_sheets
 import eolssu.shared.generated.resources.mysongs_tab_songs
 import org.jetbrains.compose.resources.stringResource
@@ -77,6 +85,23 @@ internal fun MySongsTabSwitch(
                 }
             }
         }
+    }
+}
+
+/** 내 악보 삭제 확인(`Song-Practice-Delete`): 붉은 휴지통 고리 · '삭제' · '취소'. 가림막·뒤로 가기도 취소다. 내 악보 탭과 악보 추가 화면이 함께 쓴다. */
+@Composable
+internal fun DeleteSheetDialog(sheet: MySheet, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val colors = EolssuTheme.colors
+    EolssuDialog(
+        title = stringResource(Res.string.mysongs_delete_title, sheet.title),
+        message = stringResource(Res.string.mysongs_delete_message),
+        icon = EolssuIcons.Trash,
+        iconBackground = colors.recSoft,
+        iconTint = colors.recText,
+        onDismissRequest = onDismiss,
+    ) {
+        EolssuButton(stringResource(Res.string.mysongs_delete), onConfirm, style = EolssuButtonStyle.Danger)
+        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary)
     }
 }
 
