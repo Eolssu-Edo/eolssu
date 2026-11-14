@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [악보 추가·편집과 구간 선택 안내 일관성 개선 (906)](plans/S15P31E102-906.md) · [표시 스펙](specs/app-qa-consistency.md)
+
 - [음원 변환 완료 앱 내 알림 (905)](plans/S15P31E102-905.md) · [알림 규칙](specs/sheet-audio-app-flow.md#앱-전체-완료-알림-s15p31e102-905)
 
 - [구간 빠르기 적용 후 예상 음원 길이 표시 복구 (903)](plans/S15P31E102-903.md) · [계산·표시 계약](specs/jeonggan-tempo-edit.md#예상-음원-길이-s15p31e102-903)

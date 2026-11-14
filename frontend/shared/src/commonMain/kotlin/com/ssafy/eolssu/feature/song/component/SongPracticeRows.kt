@@ -27,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import eolssu.shared.generated.resources.mysongs_no_jangdan
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.clip
@@ -75,10 +74,10 @@ import eolssu.shared.generated.resources.mysongs_status_review
 import eolssu.shared.generated.resources.song_difficulty_number
 import org.jetbrains.compose.resources.stringResource
 
-/** 제공 곡 제목 밑 문구: 장단 이름. 목록 응답에 없으면 '장단 없음'이고, 줄에서 옅은 회색으로 보인다([ProvidedSongRow]). */
+/** 제공 곡 제목 밑 문구: 장단 이름. 목록 응답에 없으면 공통 '장단 미지정'을 옅은 회색으로 보인다([ProvidedSongRow]). */
 @Composable
 internal fun providedSongMeta(song: SongSummary): String =
-    if (song.jangdanName.isBlank()) stringResource(Res.string.mysongs_no_jangdan) else jangdanLabel(song.jangdanName)
+    jangdanLabel(song.jangdanName)
 
 /**
  * SONG-03 줄 틀(`.srow`): 흰 바탕, 옅은 테두리, 모서리 14dp, 최소 64dp. [onClick]이 있으면 줄 전체를 누른다.
@@ -137,7 +136,7 @@ private fun RowScope.RowText(
 }
 
 /**
- * SONG-03 제공 곡 줄: 제목 · 장단(검은 Medium, 없으면 옅은 회색 '장단 없음') · 세로 가운데의 난이도 배지 · 화살표.
+ * SONG-03 제공 곡 줄: 제목 · 장단(검은 Medium, 없으면 옅은 회색 '장단 미지정') · 세로 가운데의 난이도 배지 · 화살표.
  * 연습곡 고르기에서는 누르면 평가 없는 연습 모드에, 평가할 곡 고르기에서는 곡 상세(태블릿 가로는 오른쪽 칸)로 간다.
  */
 @Composable

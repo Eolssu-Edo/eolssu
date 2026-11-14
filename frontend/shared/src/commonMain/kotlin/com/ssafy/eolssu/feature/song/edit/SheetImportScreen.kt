@@ -9,6 +9,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.data.song.SheetImportField
 import com.ssafy.eolssu.feature.song.edit.component.PillChip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +35,13 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
     BackHandler(enabled = state.busy) { }
     val editable = !state.busy && !state.picking && !state.expired && state.acceptedId == null
     val colors = EolssuTheme.colors
+    val inputErrors = state.inputErrors(kind)
+    // 서버/파일 실패는 누락 필드로 추측하지 않고, 입력 오류는 첫 미해결 항목을 안내한다.
+    val feedback = state.error?.takeIf { it != "INPUT_REQUIRED" && fileProblem(it) == null }
+        ?.let { stringResource(importErrorText(it)) }
+        ?: SheetImportField.entries.firstOrNull { it in inputErrors }?.let { stringResource(fieldErrorText(it)) }
+        ?: state.error?.takeIf { it == "INPUT_REQUIRED" }?.let { stringResource(importErrorText(it)) }
+    val showListAction = state.error in setOf("CONVERSION_IN_PROGRESS", "SHEET_LIMIT_EXCEEDED", "IDEMPOTENCY_CONFLICT")
     // 악보 추가 화면처럼 회색 바탕 위 흰 카드로 묶는다(S15P31E102-768).
     EolssuScaffold(
         containerColor = colors.groupedBackground,
@@ -41,8 +49,13 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
         topBar = { EolssuTopBar(stringResource(Res.string.sheet_upload_title), onBack = { if (!state.busy) onBack() }) },
         bottomBar = {
             if (state.acceptedId != null) EolssuButton(stringResource(Res.string.sheet_upload_list), onList)
-            else EolssuButton(stringResource(Res.string.sheet_upload_send), onSubmit,
-                enabled = editable && !state.loading && !state.catalogFailed, busy = state.busy)
+            else {
+                feedback?.let { UploadError(it) }
+                EolssuButton(stringResource(Res.string.sheet_upload_send), onSubmit,
+                    enabled = editable && !state.loading && !state.catalogFailed, busy = state.busy)
+                if (showListAction) EolssuButton(stringResource(Res.string.sheet_upload_list), onList,
+                    style = EolssuButtonStyle.Secondary, borderColor = Color.Transparent)
+            }
         },
     ) {
         Column(
@@ -67,6 +80,7 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
                         bordered = false,
                         containerColor = colors.groupedBackground,
                         imeAction = ImeAction.Done,
+                        error = if (SheetImportField.Title in inputErrors) stringResource(fieldErrorText(SheetImportField.Title)) else null,
                     )
                 }
                 if (state.loading) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = colors.text) }
@@ -84,6 +98,7 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
                             PillChip(item.name, selected = state.instrumentId == item.instrumentId, onClick = { onInstrument(item.instrumentId) }, enabled = editable)
                         }
                     }
+                    if (SheetImportField.Instrument in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Instrument)))
                 }
                 if (kind == ImportKind.Jeongganbo && state.jangdans.isNotEmpty()) UploadCard {
                     UploadLabel(stringResource(Res.string.sheet_upload_jangdan))
@@ -93,6 +108,7 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
                             PillChip(item.name, selected = state.jangdanId == item.jangdanId, onClick = { onJangdan(item.jangdanId) }, enabled = editable)
                         }
                     }
+                    if (SheetImportField.Jangdan in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Jangdan)))
                 }
                 UploadCard {
                     UploadLabel(stringResource(Res.string.sheet_upload_files))
@@ -110,15 +126,9 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
                     EolssuButton(stringResource(if (state.picking) Res.string.sheet_upload_reading else Res.string.sheet_upload_pick), onPick,
                         style = EolssuButtonStyle.Secondary, enabled = editable, icon = EolssuIcons.Plus,
                         containerColor = colors.accentTint, contentColor = colors.accentText, borderColor = Color.Transparent)
+                    if (SheetImportField.Files in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Files)))
                 }
                 if (state.busy) Text(stringResource(Res.string.sheet_upload_sending), style = MaterialTheme.typography.bodyMedium, color = colors.textSub)
-                state.error?.takeIf { fileProblem(it) == null }?.let { error ->
-                    Text(stringResource(importErrorText(error)), color = colors.recText, style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(horizontal = 4.dp).semantics { liveRegion = LiveRegionMode.Polite })
-                }
-                if (state.error in setOf("CONVERSION_IN_PROGRESS", "SHEET_LIMIT_EXCEEDED", "IDEMPOTENCY_CONFLICT")) {
-                    EolssuButton(stringResource(Res.string.sheet_upload_list), onList, style = EolssuButtonStyle.Secondary, borderColor = Color.Transparent)
-                }
             }
         }
     }
@@ -127,7 +137,7 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
     }
 }
 
-/** 화면 안 문구 대신 안내 창으로 알릴 파일 오류. 나머지는 화면 안 문구로 둔다. */
+/** 파일 형식·읽기 실패는 안내 창, 나머지는 고정 하단 오류 요약으로 알린다. */
 private fun fileProblem(code: String): SheetFileProblem? = when (code) {
     "UNSUPPORTED_FILE_TYPE" -> SheetFileProblem.Format
     "PICK_FAILED", "UNREADABLE_FILE" -> SheetFileProblem.Unreadable
@@ -146,6 +156,24 @@ private fun importErrorText(code: String): StringResource = when (code) {
     "CONVERSION_UNAVAILABLE", "SERVICE_UNAVAILABLE" -> Res.string.sheet_upload_unavailable
     "IDEMPOTENCY_CONFLICT" -> Res.string.sheet_upload_conflict
     else -> Res.string.sheet_upload_failed
+}
+
+private fun fieldErrorText(field: SheetImportField): StringResource = when (field) {
+    SheetImportField.Title -> Res.string.sheet_details_title_error
+    SheetImportField.Instrument -> Res.string.sheet_upload_choose_instrument
+    SheetImportField.Jangdan -> Res.string.sheet_upload_choose_jangdan
+    SheetImportField.Files -> Res.string.sheet_upload_choose_files
+}
+
+/** 스크롤과 무관한 하단 요약과 필드 아래에서 같은 오류 안내를 사용한다. */
+@Composable
+private fun UploadError(message: String) {
+    val color = EolssuTheme.colors.recText
+    Row(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite; error(message) },
+        horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
+        Icon(EolssuIcons.Info, contentDescription = null, modifier = Modifier.size(16.dp), tint = color)
+        Text(message, style = MaterialTheme.typography.bodySmall, color = color)
+    }
 }
 
 /** 회색 바탕 위 테두리 없는 흰 카드(모서리 20, 안쪽 16). */
