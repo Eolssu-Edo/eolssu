@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.feature.sheet.infrastructure
 
 import com.ssafy.eolssu.backend.feature.sheet.application.PreparedScore
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetExpressions
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.ConversionJob
 import java.security.MessageDigest
 import java.util.HexFormat
@@ -12,12 +13,14 @@ import tools.jackson.databind.node.ObjectNode
 data class BuiltRecognition(
     val scoreJson: String?, val draftJson: String?, val columnCount: Int, val noteCount: Int,
     val pendingCellCount: Int, val resultJson: String, val jangdanName: String, val bpm: Int, val bpmUnit: String,
+    val expressionsJson: String? = null,
 )
 
 /** OMR 응답을 앱 계약으로 변환한다. 저장 전에 기존 공통 악보 검증기를 거친다. */
 class RecognitionResultBuilder(private val json: JsonMapper,private val scores: SheetScores) {
     fun build(job: ConversionJob,response: JsonNode,defaultBpm: Int=60): BuiltRecognition {
         if(!response.path("jgb").isObject) throw RecognitionFailure("SERVER_ERROR")
+        val original = json.writeValueAsString(response.path("score"))
         val root=response.path("score").deepCopy() as? ObjectNode ?: throw RecognitionFailure("SERVER_ERROR")
         val score=root.path("score") as? ObjectNode ?: throw RecognitionFailure("SERVER_ERROR")
         val sourceId="sheet-${job.sheetId}"
@@ -29,7 +32,16 @@ class RecognitionResultBuilder(private val json: JsonMapper,private val scores: 
         val unfilled=scores.unfilledCellCount(raw) ?: throw RecognitionFailure("SERVER_ERROR")
         val prepared=scores.prepare(raw,1)
         if(prepared is PreparedScore.Malformed) throw RecognitionFailure("SERVER_ERROR")
-        val bpm=job.bpm ?: defaultBpm
+        val recognized = response.get("bpm")?.takeUnless { it.isNull }?.let {
+            if (!it.isInt || it.asInt() <= 0) throw RecognitionFailure("SERVER_ERROR")
+            it.asInt()
+        }
+        val baseBpm = recognized ?: defaultBpm
+        val bpm=job.bpm ?: baseBpm
+        val expressions = try {
+            SheetExpressions(json).prepare(response.get("expressions")?.takeUnless { it.isNull }?.let(json::writeValueAsString),
+                original, raw, baseBpm, bpm)
+        } catch (_: IllegalArgumentException) { throw RecognitionFailure("SERVER_ERROR") }
         val unit=root.path("music").path("bpmUnit").asString()
         val notes=root.path("events").count { it.path("kind").asString()=="NOTE" }
         val unregistered = if (unfilled > 0) emptyList() else
@@ -62,8 +74,9 @@ class RecognitionResultBuilder(private val json: JsonMapper,private val scores: 
         }
         val draft=if(unfilled>0 || unregistered.isNotEmpty()) json.createObjectNode().put("title",job.title).put("bpm",bpm)
             .putNull("jangdanId").set("score",root) else null
+        if (draft != null && expressions != null) draft.set("expressions",json.readTree(expressions))
         return BuiltRecognition(if(draft==null) raw else null,draft?.let(json::writeValueAsString),root.path("columns").size(),notes,
-            pending.size,json.writeValueAsString(details),root.path("music").path("jangdan").asString(),bpm,unit)
+            pending.size,json.writeValueAsString(details),root.path("music").path("jangdan").asString(),bpm,unit,expressions)
     }
 
     private fun annotation(item: JsonNode,response: JsonNode): ObjectNode {

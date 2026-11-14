@@ -13,6 +13,34 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
     private val compatible = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 3, 1, 1)
     private val incompatible = CatalogJangdanSummary("5", "중모리", 90, "QUARTER", 12, 4, 2)
 
+    @Test fun basicPresetSurvivesAutosaveReloadAndConfirmationWithMelodyOnlyAudio() = runTest {
+        val original = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
+        val metadata = SheetJangdanCorrectionTest.sourceMetadata(original)
+        val repository = RecordingDocuments(original).also { it.document = it.document.copy(authoring = metadata) }
+        val catalog = JangdanCatalog(emptyList())
+        val audio = RecordingAudio()
+        fun open() = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
+            SampleMySheetRepository(), documents = repository, pitchCatalog = catalog, sheetAudio = audio))
+        val model = open()
+        runCurrent()
+        model.selectBasicAccompaniment(com.ssafy.eolssu.core.model.BasicAccompanimentPreset.FiveTwoThree, 1)
+        advanceTimeBy(1_100); runCurrent()
+        val savedDraft = repository.writes.single().second
+        assertEquals(original.copy(score = original.score.copy(title = repository.document.title)), savedDraft.score)
+        assertEquals(4L, savedDraft.authoring?.basicAccompaniment(original)?.startTick)
+        val restored = open()
+        runCurrent()
+        assertEquals(model.uiState.value.draft.basicAccompaniment, restored.uiState.value.draft.basicAccompaniment)
+        restored.requestSave(); runCurrent()
+        assertFalse(repository.writes.last().first)
+        assertNull(repository.document.jangdanId)
+        val confirmed = open()
+        runCurrent()
+        assertEquals(listOf(2, 3), confirmed.uiState.value.draft.basicAccompaniment?.groups)
+        confirmed.requestAudio(); runCurrent()
+        assertEquals(SheetAudioSettings(withJangdan = false, bpm = 60), audio.requests.single())
+    }
+
     @Test fun recognizedJangdanCorrectionSurvivesAutosaveReloadAndFinalSave() = runTest {
         val original = SheetJangdanCorrectionTest.recognized("QUARTER", 12, 36, "중모리")
         val metadata = SheetJangdanCorrectionTest.sourceMetadata(original)
@@ -155,7 +183,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
             }
             val version = copy.baseScoreVersion.toInt() + 1
             document = document.copy(jangdanId = copy.jangdanId, scoreVersion = version.toString(),
-                score = copy.score.copy(score = copy.score.score.copy(scoreVersion = version)), draft = null)
+                score = copy.score.copy(score = copy.score.score.copy(scoreVersion = version)), draft = null, authoring = copy.authoring)
             return SheetWrite.Saved(version.toString())
         }
     }

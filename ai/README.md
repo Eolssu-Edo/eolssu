@@ -1,5 +1,7 @@
 # AI: 연주 채점
 
+S15P31E102-882: 오선보 metronome/sound의 숫자 빠르기와 정확히 대응되는 구간을 기존 `expressions/performancePlan`으로 전달합니다. PDF 글자층으로 유일하게 대조된 마디 첫 빠르기는 누락·위치를 보완합니다. 사용자 선택에 따라 `accel.`은 앞 숫자에서 다음 숫자까지 선형 BPM으로 연결하며, 기존 항목의 선택적 `start_bpm`으로 즉시 감속 후 가속을 표현합니다. 이 입력을 읽는 생성기·BE·OMR이 함께 필요합니다. `uv run pytest tests/unit/test_staff_tempo.py tests/unit/test_staff_pdf_tempo.py tests/unit/test_staff_musicxml.py tests/unit/test_omr_staff_engine.py`로 검사합니다. [스펙·한계](../docs/specs/staff-tempo-import.md), [실제 PDF 실행 근거](../docs/knowledge/ai/score-recognition-corrections.md#숫자-빠르기와-가속-가져오기-882).
+
 악보 인식의 임시 원본은 S15P31E102-534부터 요청 종료 시 삭제하며 별도 watchdog이 30분에 다운로드·쪽 그림 디렉터리를 삭제합니다. 삭제 실패는 1초 뒤 재시도합니다. 운영 OMR의 `/tmp` tmpfs를 유지하고 백업·영구 볼륨에 넣지 않습니다. `uv run pytest tests/unit/test_temporary_sources.py tests/unit/test_omr_api.py`로 파일 수명·API 회귀를 검사하며 모델 인식 품질과 구분합니다.
 
 녹음의 음높이를 추정해 정답 음표와 DTW로 맞추고, 음표마다 음정·박자·길이를 판정합니다. 작업 지침은 [AGENTS.md](AGENTS.md)를 따릅니다.
@@ -130,6 +132,8 @@ S15P31E102-880: 요청 장단이 없는4분음표4박 오선보는 기존 `4박 
 
 ### 악보 인식 이미지
 
+S15P31E102-883: 오선보의 각간 붙임줄은 한 NOTE로 유지하고 변박·불완전마디는 실제 길이와 마디 경계로 배치합니다. 자동 연결 대상이 아닌 박자에는 굿거리 기본값을 넣지 않고 장단 빈 이름을 반환합니다. 낮은 박자표 신뢰도·반복 불완전마디는 검수 대상으로 남깁니다. 정간보 글자층은 장구 예시 열을 제외하고, 스캔은 알려진 격자 높이 검출 실패에서 다음 배율을 시도합니다. `uv run pytest tests/unit/test_staff_rhythm_preservation.py tests/unit/test_omr_scan_engine.py`와 [실제 악보 비교](../docs/knowledge/data/common/rhythm-metronome/meter-import-validation.md)를 참고하세요. 이전의 글자층만 명시적 이음을 켠다는 설명은 오선보에도 확대됐습니다.
+
 `omr.Dockerfile`은 Ubuntu 24.04에 Audiveris 5.11(데스크톱 등록 스크립트를 뺀 deb와 `libgtk-3-0`), Node, jeongganbo-generator `9d4a24e`, 서비스·`omr` 그룹 의존성, `data/src/scores`·`data/reference`를 넣고 사용자 10001로 실행합니다. 빌드 맥락은 저장소 루트이고 보낼 파일은 `omr.Dockerfile.dockerignore`가 정합니다. 저장소 루트에서 실행합니다.
 
 ```bash
@@ -239,6 +243,8 @@ uv run --locked python -m evaluation.dtw_u4_table ../data/processed/dtw-286/u4-r
 기본 Docker 빌드는 마지막 `scanner` 단계까지 실행합니다. `JEONGGANBO_OMR_DIR=/opt/jeongganbo-omr`의 코드·체크포인트를 이미지에 포함하고 CPU 배치 16개, 스레드 2개로 추론합니다. 원본과 모델 경로는 읽기 전용이며 변환한 체크포인트는 요청별 `/tmp` 안에만 씁니다. 추론은 Audiveris와 같은 잠금으로 동시 1건이고 기존 쪽당 60초·CPU 2개·메모리 2GiB를 유지합니다. 런타임 모델 다운로드는 없습니다.
 
 스캔 엔진 `e95045f-v1.0.0-r4`는 모델 어휘에 없는 중청 음을 두 물수변의 실제 획으로 복원합니다. 청 음의 점 두 쌍과 아래 획이 모두 확인될 때만 올리고, 위치·시김새·confidence를 보존합니다. 글자층 PDF·오선보·모델 가중치는 바꾸지 않습니다. 같은 PNG·JPEG 24/24 대조와 기존 스캔 5종 전후 보존 결과는 [중청 음역 교정 기록](../docs/knowledge/ai/jeongganbo-double-water-register.md)에 있습니다.
+
+S15P31E102-882 후속: 글자층 엔진4·스캔 r5는 정간 오른쪽 한배 기호 `ㅈㄴ/ㅈㅅ/ㅈㅈㄴ/ㅈㅈㅅ/ㅂㅅ`를 별도로 읽습니다. 스캔 검출은 똑바로 인쇄된 연결 자모와 구분점·이어지는 점선이 확인되는 경우에 한정하며, 모델 어휘나 가중치를 바꾸지 않습니다. 숫자 없는 기호는 기존 기호 배치와 명시적 빈 빠르기 계획으로 보존하여 임의 배율을 적용하지 않고 `TEMPO_CUE_UNRESOLVED`로 목표 입력을 요청합니다. 기호는 보이지만 해당 선율 열을 기존 격자 리더가 놓친 경우에는 `TEMPO_CUE_POSITION_UNRESOLVED`와 원본 위치만 남기며 다른 정간에 옮겨 붙이지 않습니다. 같은 정간의 상충 기호는 `TEMPO_CUE_CONFLICT`로 남깁니다. `uv run pytest tests/unit/test_jeongganbo_tempo.py tests/unit/test_omr_text_engine.py tests/unit/test_omr_scan_engine.py`로 작은 고정 입력을 검사합니다. 그림 검출 검사는 스캔 런타임의 OpenCV가 필요합니다.
 
 스캔 전용 의존성은 `omr-scan-requirements.in`과 SHA-256을 포함한 `omr-scan-requirements.txt`로 고정해 기존 채점 서비스의 `uv.lock`과 분리했습니다. Python 3.12·Linux x86_64 CPU 휠을 사용합니다. 같은 uv 버전에서 `uv pip compile --python .venv/bin/python --generate-hashes omr-scan-requirements.in -o omr-scan-requirements.txt`로 다시 고정할 수 있습니다. 모델 소스·가중치의 획득 URL과 체크섬은 `omr.Dockerfile`에 있습니다.
 

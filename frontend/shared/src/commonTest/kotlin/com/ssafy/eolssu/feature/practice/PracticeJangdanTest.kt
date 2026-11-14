@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModelStore
 import com.ssafy.eolssu.core.audio.*
 import com.ssafy.eolssu.core.model.JangdanPlayback
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.BasicAccompaniment
+import com.ssafy.eolssu.core.model.BasicPulseUnit
+import com.ssafy.eolssu.core.model.ScoreBpmUnit
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
@@ -17,6 +20,21 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeJangdanTest {
+    @Test fun basicRhythmUsesSavedPickupAndAccentsThenStopsWithoutACatalogMapping() = practice(
+        basic = BasicAccompaniment(BasicPulseUnit.EIGHTH, listOf(2, 3), 4),
+    ) { vm, samples, _, _ ->
+        assertNull(vm.uiState.value.song?.jangdanPlayback)
+        assertTrue(vm.uiState.value.jangdanSupported)
+        vm.startRhythm(); runCurrent()
+        advanceTimeBy(999); runCurrent()
+        assertTrue(samples.hits.isEmpty())
+        advanceTimeBy(1_502); runCurrent()
+        assertEquals(listOf(JangdanSample.Deong, JangdanSample.Deok, JangdanSample.Kung, JangdanSample.Deok), samples.hits)
+        assertEquals(listOf(1f, 0.65f, 1f, 0.65f), samples.gains)
+        vm.stopAll(); runCurrent()
+        advanceTimeBy(1_000); runCurrent()
+        assertEquals(4, samples.hits.size)
+    }
     @Test fun rhythmSectionSilencesAtItsEndWhileTheUiIsBlocked() = blockedSection(model = false)
     @Test fun modelSectionSilencesAtItsEndWhileTheUiIsBlocked() = blockedSection(model = true)
     @Test fun repeatedModelSectionSilencesBeforeItReturnsOutsideTheSelection() = blockedSection(model = true, performed = true)
@@ -447,13 +465,17 @@ class PracticeJangdanTest {
 
     private fun practice(
         jangdan: JangdanPlayback = mapping,
+        basic: BasicAccompaniment? = null,
         volume: com.ssafy.eolssu.core.audio.JangdanVolumeLimit = com.ssafy.eolssu.core.audio.NoJangdanVolumeLimit,
         block: suspend TestScope.(PracticeViewModel, Samples, FakeAudioPlayer, PracticeSettingsStore) -> Unit,
     ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val views = ViewModelStore()
         try {
-            val song = smallScoreSong().copy(id = "42", scoreVersion = 1, jangdanPlayback = jangdan)
+            val base = smallScoreSong()
+            val song = if (basic == null) base.copy(id = "42", scoreVersion = 1, jangdanPlayback = jangdan)
+                else base.copy(id = "42", scoreVersion = 1, jangdan = null, jangdanPlayback = null, basicAccompaniment = basic,
+                    score = base.score.copy(timing = base.score.timing!!.copy(jangdan = "", bpmUnit = ScoreBpmUnit.QUARTER)))
             val repository = object : SongRepository by SampleSongRepository() {
                 override suspend fun getSong(songId: String): Song = song
             }

@@ -174,7 +174,7 @@ def test_staff_page_becomes_common_score(fake_audiveris):
         if event['kind'] == 'NOTE':
             assert 63 + staff_engine.staff_musicxml.YUL.index(event['yul']) + 12 * event['octave'] == originals[event['id']]
     assert guessed(out) == [{"source": "rhythm", "jangdan": "굿거리"}]
-    assert sum(e["kind"] == "NOTE" for e in out["score"]["events"]) == 66
+    assert sum(e["kind"] == "NOTE" for e in out["score"]["events"]) == 63  # 각 경계 지속 3개는 재발음하지 않는다.
 
 
 @needs_generator
@@ -198,6 +198,21 @@ def test_four_quarter_staff_measure_uses_four_beat_accompaniment(fake_audiveris)
     assert max(e["startTick"] + e["durationTick"] for e in out["score"]["events"]) == 4 * music["ticksPerBeat"]
     assert guessed(out) == [{"source": "timeSignature", "jangdan": "4박 기본 반주"}]
     assert not any(i["kind"] == "JANGDAN_MISMATCH" for i in out["notices"])
+
+
+@needs_generator
+def test_recognized_numeric_tempo_and_existing_companion_reach_http(fake_audiveris, tmp_path):
+    import json, hashlib
+    path = tmp_path / 'four-quarters.musicxml'
+    path.write_bytes(FOUR_QUARTERS.replace(b'</attributes>', b'</attributes><direction><direction-type>'
+        b'<metronome><beat-unit>quarter</beat-unit><per-minute>80</per-minute></metronome>'
+        b'</direction-type><sound tempo="80"/></direction>'))
+    out = post('quarters').json()
+    assert out['status'] == 'DONE' and out['bpm'] == 80
+    digest = hashlib.sha256(json.dumps(out['score'], ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    assert out['expressions'] == {'schema':'common-score-expressions/v1', 'sourceSha256':digest,
+        'placements':[], 'performancePlan':{'schema':'danso-performance/v1','input_sha256':digest,
+        'tempos':[{'gak':1,'cell':1,'bpm':80}], 'repeats':[]}}
 
 
 @needs_generator

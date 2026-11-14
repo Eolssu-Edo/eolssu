@@ -163,6 +163,7 @@ class ConversionQueueDatabaseTests {
             assertEquals("DANSO",request.path("instrument").asString())
             val response=json.createObjectNode().put("conversionId",request.path("conversionId").asString()).put("status","DONE")
             response.set("score",json.readTree(jdbc.queryForObject("SELECT score_json FROM songs WHERE id=1",String::class.java)))
+            tempo(response,json)
             response.putObject("jgb").put("v",1); response.putArray("issues"); response.putArray("notices")
             val bytes=json.writeValueAsBytes(response)
             exchange.sendResponseHeaders(200,bytes.size.toLong()); exchange.responseBody.use { it.write(bytes) }
@@ -186,6 +187,10 @@ class ConversionQueueDatabaseTests {
         assertEquals("DONE",jdbc.queryForObject("SELECT status FROM sheet_conversions WHERE sheet_id=992472",String::class.java))
         assertEquals("NEEDS_REVIEW",jdbc.queryForObject("SELECT status FROM user_sheets WHERE id=992472",String::class.java))
         assertNotNull(jdbc.queryForObject("SELECT score_json FROM user_sheets WHERE id=992472",String::class.java))
+        assertEquals(80,jdbc.queryForObject("SELECT bpm FROM user_sheets WHERE id=992472",Int::class.java))
+        val storedScore=jdbc.queryForObject("SELECT score_json FROM user_sheets WHERE id=992472",String::class.java)!!
+        val storedExpressions=json.readTree(assertNotNull(jdbc.queryForObject("SELECT expressions_json FROM user_sheets WHERE id=992472",String::class.java)))
+        assertEquals(com.ssafy.eolssu.backend.feature.sheet.application.SheetExpressions(json).hash(storedScore),storedExpressions.path("sourceSha256").asString())
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_source_pages WHERE sheet_id=992472",Int::class.java))
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_source_files WHERE sheet_id=992472",Int::class.java))
         kotlin.test.assertFalse(java.nio.file.Files.exists(directory.resolve("objects").resolve(key)))
@@ -211,6 +216,7 @@ class ConversionQueueDatabaseTests {
             set("score", score)
             putObject("jgb").put("v", 1)
         }
+        tempo(response,json)
         val built = RecognitionResultBuilder(json, scores).build(job, response)
         assertTrue(queue.complete(job, built, now))
 
@@ -220,11 +226,14 @@ class ConversionQueueDatabaseTests {
         val draft = assertNotNull(sheet.draft)
         assertEquals("NEEDS_REVIEW", sheet.status.name)
         assertEquals("DONE", imported.conversionStatus.name)
+        assertEquals(80,sheet.bpm)
+        assertNotNull(sheet.expressionsJson)
         assertEquals(1, sheet.pendingCellCount)
         assertNull(sheet.scoreJson)
         assertTrue(found.events.isEmpty())
         val draftScore = json.readTree(draft.json).path("score")
         assertEquals(score.path("events"), draftScore.path("events"))
+        assertEquals(json.readTree(sheet.expressionsJson),json.readTree(draft.json).path("expressions"))
         val issueId = json.readTree(assertNotNull(imported.resultJson)).path("issues").first().path("issueId").asString()
         val editor = EditUserSheet(sheets, scores, Clock.fixed(now, ZoneOffset.UTC), json)
         val save = SaveSheetScoreCommand(job.userId, job.sheetId, sheet.scoreVersion, null, sheet.jangdanId, sheet.bpm,
@@ -236,10 +245,25 @@ class ConversionQueueDatabaseTests {
         val draftUnit = draftScore.path("columns").flatMap { it.path("cells").flatMap { cell -> cell.path("units").toList() } }
             .first { it.path("eventId") == note.path("id") && it.path("symbol").asString() == "배유" } as ObjectNode
         draftUnit.put("symbol", originalSymbol)
-        val saved = assertIs<SaveSheetScoreResult.Saved>(editor.save(save.copy(scoreJson = json.writeValueAsString(draftScore))))
+        val corrected=json.writeValueAsString(draftScore)
+        val draftCommand=com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetDraftCommand(
+            job.userId,job.sheetId,sheet.scoreVersion,sheet.draftRevision,null,sheet.jangdanId,120,corrected)
+        val auto=assertIs<com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetDraftResult.Saved>(editor.saveDraft(draftCommand))
+        assertIs<com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetDraftResult.Saved>(editor.saveDraft(draftCommand.copy(draftRevision=auto.draftRevision)))
+        val saved = assertIs<SaveSheetScoreResult.Saved>(editor.save(save.copy(scoreJson = corrected,bpm=120)))
         assertEquals("EVALUABLE", saved.sheet.status.name)
         assertEquals(0, saved.sheet.pendingCellCount)
         assertNull(saved.sheet.draft)
+        val rebound=json.readTree(assertNotNull(saved.sheet.expressionsJson))
+        assertEquals(com.ssafy.eolssu.backend.feature.sheet.application.SheetExpressions(json).hash(assertNotNull(saved.sheet.scoreJson)),rebound.path("sourceSha256").asString())
+        assertEquals(120.0,rebound.path("performancePlan").path("tempos")[0].path("start_bpm").asDouble())
+        assertEquals(240.0,rebound.path("performancePlan").path("tempos")[0].path("bpm").asDouble())
+    }
+
+    private fun tempo(response: ObjectNode,json: JsonMapper) {
+        val hash=com.ssafy.eolssu.backend.feature.sheet.application.SheetExpressions(json).hash(response.path("score").toString())
+        response.put("bpm",80)
+        response.set("expressions",json.readTree("""{"schema":"common-score-expressions/v1","sourceSha256":"$hash","placements":[],"performancePlan":{"schema":"danso-performance/v1","input_sha256":"$hash","tempos":[{"gak":1,"cell":1,"start_bpm":80,"bpm":160,"end_gak":2,"end_cell":1}],"repeats":[]}}"""))
     }
 
     companion object {

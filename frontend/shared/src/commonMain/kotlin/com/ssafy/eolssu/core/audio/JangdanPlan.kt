@@ -1,13 +1,39 @@
 package com.ssafy.eolssu.core.audio
 
 import com.ssafy.eolssu.core.model.JangdanPlayback
+import com.ssafy.eolssu.core.model.BasicAccompaniment
+import com.ssafy.eolssu.core.model.ScoreTiming
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.roundToInt
 
 data class JangdanStrike(val tick: Double, val clip: JangdanClip, val gain: Float = 1f)
-data class JangdanPlan(val mapping: JangdanPlayback, val msPerTick: Double, val strikes: List<JangdanStrike>)
+data class JangdanPlan(
+    val msPerTick: Double,
+    val strikes: List<JangdanStrike>,
+    val startTick: Double,
+    val cycleTicks: Double,
+    val cellTicks: Double,
+) {
+    constructor(mapping: JangdanPlayback, msPerTick: Double, strikes: List<JangdanStrike>) :
+        this(msPerTick, strikes, mapping.startTick.toDouble(), mapping.cycleTicks.toDouble(), mapping.cellTicks)
+
+    fun cellAt(tick: Double): Int = if (tick < startTick || !tick.isFinite()) -1 else
+        (((tick - startTick) % cycleTicks) / cellTicks).toInt()
+}
+
+/** 첫 강박·묶음 강세·나머지 박을 기존 장구 샘플로 재생한다. */
+fun planBasicAccompaniment(setting: BasicAccompaniment, timing: ScoreTiming, bpm: Int): JangdanPlan? {
+    if (bpm <= 0) return null
+    val pulse = setting.pulseTicks(timing) ?: return null
+    val starts = setting.groups.runningFold(0, Int::plus).dropLast(1)
+    val strikes = List(setting.groups.sum()) { index ->
+        val sample = when { index == 0 -> JangdanSample.Deong; index in starts -> JangdanSample.Kung; else -> JangdanSample.Deok }
+        JangdanStrike(index * pulse, JangdanClip(sample), if (index in starts) 1f else 0.65f)
+    }
+    return JangdanPlan(60_000.0 / bpm / timing.ticksPerBeat, strikes, setting.startTick.toDouble(), setting.groups.sum() * pulse, pulse)
+}
 
 /** 두 소박의 시간에 맞춰 실제 굴림 클립과 음높이 보존 재생 속도를 정한다. */
 fun planJangdan(mapping: JangdanPlayback, bpm: Int, ticksPerBeat: Int): JangdanPlan? {
@@ -83,13 +109,12 @@ class JangdanCursor(
             else -> maxOf(last + 0.000001, lateFloor)
         }
         previous = tick
-        val mapping = plan.mapping
-        if (tick < mapping.startTick) return emptyList()
-        val cycle = mapping.cycleTicks.toDouble()
-        val firstCycle = floor((from - mapping.startTick) / cycle).toLong().coerceAtLeast(0)
-        val lastCycle = floor((tick - mapping.startTick) / cycle).toLong().coerceAtLeast(0)
+        if (tick < plan.startTick) return emptyList()
+        val cycle = plan.cycleTicks
+        val firstCycle = floor((from - plan.startTick) / cycle).toLong().coerceAtLeast(0)
+        val lastCycle = floor((tick - plan.startTick) / cycle).toLong().coerceAtLeast(0)
         return (firstCycle..lastCycle).flatMap { number ->
-            val start = mapping.startTick + number * cycle
+            val start = plan.startTick + number * cycle
             plan.strikes.mapNotNull { strike ->
                 val absolute = start + strike.tick
                 strike.copy(tick = absolute).takeIf { absolute > from && absolute <= tick + 0.000001 }
