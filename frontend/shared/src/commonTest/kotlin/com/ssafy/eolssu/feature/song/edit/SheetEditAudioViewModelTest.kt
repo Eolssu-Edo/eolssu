@@ -27,6 +27,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -295,7 +296,7 @@ class SheetEditAudioViewModelTest {
             advanceTimeBy(1000); runCurrent()
             val ready = assertIs<SheetAudioUi.Ready>(vm.uiState.value.audio)
             assertEquals("https://r2.example/12.m4a", ready.audio.audio?.url)
-            assertEquals(SheetEditMessage.AudioReady, vm.uiState.value.message)
+            assertNotEquals(SheetEditMessage.AudioReady, vm.uiState.value.message, "성공 안내는 앱 공통 알림에서 한 번만 표시한다")
             assertEquals(2, repository.statusCalls)
         } finally { Dispatchers.resetMain() }
     }
@@ -325,7 +326,7 @@ class SheetEditAudioViewModelTest {
             assertEquals(SheetAudioStatus.Running, assertIs<SheetAudioUi.Generating>(vm.uiState.value.audio).audio.status)
             advanceTimeBy(1000); runCurrent()
             assertIs<SheetAudioUi.Ready>(vm.uiState.value.audio)
-            assertEquals(SheetEditMessage.AudioReady, vm.uiState.value.message)
+            assertNotEquals(SheetEditMessage.AudioReady, vm.uiState.value.message, "성공 안내는 앱 공통 알림에서 한 번만 표시한다")
             assertTrue(vm.uiState.value.audio.latest?.audio != null)
         } finally { Dispatchers.resetMain() }
     }
@@ -338,7 +339,7 @@ class SheetEditAudioViewModelTest {
             runCurrent()
             vm.requestAudio(); runCurrent()
             assertIs<SheetAudioUi.Ready>(vm.uiState.value.audio)
-            assertEquals(SheetEditMessage.AudioReady, vm.uiState.value.message)
+            assertNotEquals(SheetEditMessage.AudioReady, vm.uiState.value.message, "성공 안내는 앱 공통 알림에서 한 번만 표시한다")
             advanceTimeBy(10_000); runCurrent()
             assertEquals(1, repository.statusCalls)
         } finally { Dispatchers.resetMain() }
@@ -364,7 +365,7 @@ class SheetEditAudioViewModelTest {
             advanceTimeBy(1000); runCurrent()
             val regenerated = assertIs<SheetAudioUi.Ready>(vm.uiState.value.audio)
             assertEquals("https://r2.example/12-v3.m4a", regenerated.audio.audio?.url, "새 음원이 이전 파일을 대신한다")
-            assertEquals(SheetEditMessage.AudioReady, vm.uiState.value.message)
+            assertNotEquals(SheetEditMessage.AudioReady, vm.uiState.value.message, "성공 안내는 앱 공통 알림에서 한 번만 표시한다")
         } finally { Dispatchers.resetMain() }
     }
 
