@@ -1224,7 +1224,8 @@ class PracticeViewModel(
             _uiState.update { if (resume) it.resumeRecording() else it.beginRecording() }
             startStepping(if (resume) carry else 0.0)
             val state = _uiState.value
-            state.song?.let { pitchSession.start(it, state.bpm, state.elapsedMs) }
+            // 녹음 범위와 같이 구간 재평가일 때만 구간 최저음을 대금 하한 기준으로 쓴다(S15P31E102-892).
+            state.song?.let { pitchSession.start(it, state.bpm, state.elapsedMs, state.sectionEvents.takeIf { state.sectionEvaluation }) }
         }
     }
 
