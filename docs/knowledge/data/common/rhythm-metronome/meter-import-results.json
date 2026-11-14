@@ -1,0 +1,3888 @@
+{
+  "task": "S15P31E102-883",
+  "story": "S15P31E102-318",
+  "checkedOn": "2026-11-13",
+  "sourceCommit": "a89053c4a1d96bc9910a1f91dea8453024243481",
+  "deployedOmrRevision": "aa9b92ac4984059d3a3b3c84a42b37089ee82744",
+  "sources": [
+    {
+      "id": "bach-bourree",
+      "expectedMeter": "2/4",
+      "sourceUrl": "https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1528",
+      "downloadUrl": "https://www.mutopiaproject.org/ftp/BachJS/BWV1013/bwv1013/bwv1013-a4.pdf",
+      "declaredLicense": "Public Domain",
+      "checkedOn": "2026-11-13",
+      "rawPath": "data\\raw\\meter-validation\\bach-bourree.pdf",
+      "sha256": "f73c6e478af78237ebf0cf2e9842cf111937e76e6e5e018bb85e5be729a31d47",
+      "bytes": 258916,
+      "pages": 5,
+      "testedPage": 5,
+      "imagePath": "data\\processed\\meter-validation\\bach-bourree.png",
+      "imageSize": [
+        2481,
+        3508
+      ],
+      "companions": [
+        {
+          "url": "https://www.mutopiaproject.org/ftp/BachJS/BWV1013/bwv1013/bwv1013.ly",
+          "path": "data\\raw\\meter-validation\\bach-bourree.ly",
+          "sha256": "03dcdeab3ff17cb0ef331e0e96277c2c48450d68f0aad5c603870dfbf512c008"
+        }
+      ],
+      "originalRedistribution": "가능",
+      "adaptedRedistribution": "가능",
+      "conditions": "CC0 또는 판각자의 Public Domain 선언",
+      "trialUse": "게시물의 변경·재사용 허용 아래 격리된 로컬 변환 시험. 제품 배포·카탈로그 등록 없음"
+    },
+    {
+      "id": "greensleeves",
+      "expectedMeter": "3/4",
+      "sourceUrl": "https://noctavepiano.com/en/sheet-music/trad-greensleeves/",
+      "downloadUrl": "https://noctavepiano.com/partitions/trad-greensleeves/trad-greensleeves.pdf",
+      "declaredLicense": "CC0-1.0",
+      "checkedOn": "2026-11-13",
+      "rawPath": "data\\raw\\meter-validation\\greensleeves.pdf",
+      "sha256": "2f2860439f60c63daf77d022a97161333a9809b519c9880947d8bd0ae4a1bde4",
+      "bytes": 65683,
+      "pages": 1,
+      "testedPage": 1,
+      "imagePath": "data\\processed\\meter-validation\\greensleeves.png",
+      "imageSize": [
+        2479,
+        3508
+      ],
+      "companions": [
+        {
+          "url": "https://noctavepiano.com/partitions/trad-greensleeves/trad-greensleeves.mxl",
+          "path": "data\\raw\\meter-validation\\greensleeves.publisher.mxl",
+          "sha256": "daf759b61fa9457a7fd55a363d15ec89d56a4aed9513c99e53235b58d71d87c2"
+        }
+      ],
+      "originalRedistribution": "가능",
+      "adaptedRedistribution": "가능",
+      "conditions": "CC0 또는 판각자의 Public Domain 선언",
+      "trialUse": "게시물의 변경·재사용 허용 아래 격리된 로컬 변환 시험. 제품 배포·카탈로그 등록 없음"
+    },
+    {
+      "id": "au-clair",
+      "expectedMeter": "4/4",
+      "sourceUrl": "https://noctavepiano.com/en/sheet-music/trad-au-clair-de-la-lune/",
+      "downloadUrl": "https://noctavepiano.com/partitions/trad-au-clair-de-la-lune/trad-au-clair-de-la-lune.pdf",
+      "declaredLicense": "CC0-1.0",
+      "checkedOn": "2026-11-13",
+      "rawPath": "data\\raw\\meter-validation\\au-clair.pdf",
+      "sha256": "a92a876f6327e0a22941cb6ed03be141c94c400089be649079c13c17a8f5d937",
+      "bytes": 46286,
+      "pages": 1,
+      "testedPage": 1,
+      "imagePath": "data\\processed\\meter-validation\\au-clair.png",
+      "imageSize": [
+        2479,
+        3508
+      ],
+      "companions": [
+        {
+          "url": "https://noctavepiano.com/partitions/trad-au-clair-de-la-lune/trad-au-clair-de-la-lune.mxl",
+          "path": "data\\raw\\meter-validation\\au-clair.publisher.mxl",
+          "sha256": "771bf07d242267915c0777bf4d0e2af63b3f618adf65bd3688e51a34daca374a"
+        }
+      ],
+      "originalRedistribution": "가능",
+      "adaptedRedistribution": "가능",
+      "conditions": "CC0 또는 판각자의 Public Domain 선언",
+      "trialUse": "게시물의 변경·재사용 허용 아래 격리된 로컬 변환 시험. 제품 배포·카탈로그 등록 없음"
+    },
+    {
+      "id": "kesh",
+      "expectedMeter": "6/8",
+      "sourceUrl": "https://www.celticscores.com/sheet-music/794_The_Kesh",
+      "downloadUrl": "https://www.celticscores.com/file/1749_The_Kesh.pdf",
+      "declaredLicense": "CC-BY-SA",
+      "checkedOn": "2026-11-13",
+      "rawPath": "data\\raw\\meter-validation\\kesh.pdf",
+      "sha256": "ba0698697d1ef1066c2f27f688d1f9aa578b5fb4cf1892af28311f745a7548ae",
+      "bytes": 72525,
+      "pages": 1,
+      "testedPage": 1,
+      "imagePath": "data\\processed\\meter-validation\\kesh.png",
+      "imageSize": [
+        2481,
+        3508
+      ],
+      "companions": [
+        {
+          "url": "https://www.celticscores.com/file/1751_The_Kesh.ly",
+          "path": "data\\raw\\meter-validation\\kesh.ly",
+          "sha256": "952d0019974b866aac6c8948c9b36c11c2d8ba4fec8df62a5decd35a505f7822"
+        }
+      ],
+      "originalRedistribution": "가능",
+      "adaptedRedistribution": "가능",
+      "conditions": "출처·변경 표시·CC BY-SA 3.0",
+      "trialUse": "게시물의 변경·재사용 허용 아래 격리된 로컬 변환 시험. 제품 배포·카탈로그 등록 없음"
+    },
+    {
+      "id": "butterfly",
+      "expectedMeter": "9/8",
+      "sourceUrl": "https://www.celticscores.com/sheet-music/795_The_Butterfly",
+      "downloadUrl": "https://www.celticscores.com/file/1752_The_Butterfly.pdf",
+      "declaredLicense": "CC-BY-SA",
+      "checkedOn": "2026-11-13",
+      "rawPath": "data\\raw\\meter-validation\\butterfly.pdf",
+      "sha256": "3137b816799394d3e4ad705781348d11688079ac839e48282689d14174579ac6",
+      "bytes": 69684,
+      "pages": 1,
+      "testedPage": 1,
+      "imagePath": "data\\processed\\meter-validation\\butterfly.png",
+      "imageSize": [
+        2481,
+        3508
+      ],
+      "companions": [
+        {
+          "url": "https://www.celticscores.com/file/1753_The_Butterfly.ly",
+          "path": "data\\raw\\meter-validation\\butterfly.ly",
+          "sha256": "cca0e656f7366e1dd5ff858ab82e84bc75b39e4f79096b0c29cc684e7cc65d25"
+        }
+      ],
+      "originalRedistribution": "가능",
+      "adaptedRedistribution": "가능",
+      "conditions": "출처·변경 표시·CC BY-SA 3.0",
+      "trialUse": "게시물의 변경·재사용 허용 아래 격리된 로컬 변환 시험. 제품 배포·카탈로그 등록 없음"
+    },
+    {
+      "id": "circassian",
+      "expectedMeter": "12/8",
+      "sourceUrl": "https://www.celticscores.com/sheet-music/86_Circassian_circle",
+      "downloadUrl": "https://www.celticscores.com/file/170_Circassian_circle.gif",
+      "declaredLicense": "CC-BY",
+      "checkedOn": "2026-11-13",
+      "rawPath": "data\\raw\\meter-validation\\circassian.gif",
+      "sha256": "9fc8cfe56043041c101cfcc16ef5ab1e088988ee11ee5e52efae8b48e630d1b4",
+      "bytes": 13485,
+      "pages": 1,
+      "testedPage": 1,
+      "imagePath": "data\\processed\\meter-validation\\circassian.png",
+      "imageSize": [
+        577,
+        434
+      ],
+      "companions": [],
+      "originalRedistribution": "현재 불가(적용 라이선스 버전 확인 전 공유 데이터셋 편입 보류)",
+      "adaptedRedistribution": "현재 불가(적용 라이선스 버전 확인 전 공유 데이터셋 편입 보류)",
+      "conditions": "출처표시. 게시물과 이미지 CC BY; 버전 미기재",
+      "trialUse": "게시물의 변경·재사용 허용 아래 격리된 로컬 변환 시험. 제품 배포·카탈로그 등록 없음"
+    },
+    {
+      "id": "al-lez-vamm",
+      "expectedMeter": "5/8",
+      "sourceUrl": "https://www.partitions.bzh/partition/819_Al_lez_Vamm",
+      "downloadUrl": "https://www.partitions.bzh/fichier/1821_Al_lez_Vamm.pdf",
+      "declaredLicense": "CC-BY-SA",
+      "checkedOn": "2026-11-13",
+      "rawPath": "data\\raw\\meter-validation\\al-lez-vamm.pdf",
+      "sha256": "5870bc1d3cb8699a768474dfcb647073199f01dbbe188901552447592222a277",
+      "bytes": 230353,
+      "pages": 1,
+      "testedPage": 1,
+      "imagePath": "data\\processed\\meter-validation\\al-lez-vamm.png",
+      "imageSize": [
+        2480,
+        3505
+      ],
+      "companions": [],
+      "originalRedistribution": "현재 불가(적용 라이선스 버전 확인 전 공유 데이터셋 편입 보류)",
+      "adaptedRedistribution": "현재 불가(적용 라이선스 버전 확인 전 공유 데이터셋 편입 보류)",
+      "conditions": "출처·변경 표시·동일조건. 게시물 BY-SA이며 PDF에 버전 표기 없음; 외부 배포 전에 적용 버전 확인",
+      "trialUse": "게시물의 변경·재사용 허용 아래 격리된 로컬 변환 시험. 제품 배포·카탈로그 등록 없음"
+    },
+    {
+      "id": "mileva",
+      "expectedMeter": "7/8",
+      "sourceUrl": "https://www.celticscores.com/sheet-music/1730_Mileva_Rachenitza",
+      "downloadUrl": "https://www.celticscores.com/file/4515_Mileva_Rachenitza.pdf",
+      "declaredLicense": "CC-BY-SA",
+      "checkedOn": "2026-11-13",
+      "rawPath": "data\\raw\\meter-validation\\mileva.pdf",
+      "sha256": "6eee4eae37032b1481da60d7446668e377a11b4a1e62dfac4b0a09b3ecc84d2b",
+      "bytes": 172085,
+      "pages": 3,
+      "testedPage": 1,
+      "imagePath": "data\\processed\\meter-validation\\mileva.png",
+      "imageSize": [
+        2481,
+        3509
+      ],
+      "companions": [],
+      "originalRedistribution": "현재 불가(적용 라이선스 버전 확인 전 공유 데이터셋 편입 보류)",
+      "adaptedRedistribution": "현재 불가(적용 라이선스 버전 확인 전 공유 데이터셋 편입 보류)",
+      "conditions": "출처·변경 표시·동일조건. 게시물 BY-SA이며 PDF에 버전 표기 없음; 외부 배포 전에 적용 버전 확인",
+      "trialUse": "게시물의 변경·재사용 허용 아래 격리된 로컬 변환 시험. 제품 배포·카탈로그 등록 없음"
+    },
+    {
+      "id": "chopin-12-8",
+      "expectedMeter": "12/8",
+      "sourceUrl": "https://noctavepiano.com/en/sheet-music/chopin-nocturne-op9-2-facile/",
+      "downloadUrl": "https://noctavepiano.com/partitions/chopin-nocturne-op9-2-facile/chopin-nocturne-op9-2-facile.pdf",
+      "declaredLicense": "CC0-1.0",
+      "checkedOn": "2026-11-13",
+      "rawPath": "data\\raw\\meter-validation\\chopin-12-8.pdf",
+      "sha256": "cf29b90abeb1d9f2112749ff53b0e3b0c5a5a5003c69dd07e99e83ffa1122f1e",
+      "bytes": 71844,
+      "pages": 1,
+      "testedPage": 1,
+      "imagePath": "data\\processed\\meter-validation\\chopin-12-8.png",
+      "imageSize": [
+        2479,
+        3508
+      ],
+      "companions": [
+        {
+          "url": "https://noctavepiano.com/partitions/chopin-nocturne-op9-2-facile/chopin-nocturne-op9-2-facile.mxl",
+          "path": "data\\raw\\meter-validation\\chopin-12-8.publisher.mxl",
+          "sha256": "48a437bbdd68e1756540b454f295729b84f0012a4cc7f4e50788aba3490230d2"
+        }
+      ],
+      "originalRedistribution": "가능",
+      "adaptedRedistribution": "가능",
+      "conditions": "CC0 또는 판각자의 Public Domain 선언",
+      "trialUse": "게시물의 변경·재사용 허용 아래 격리된 로컬 변환 시험. 제품 배포·카탈로그 등록 없음"
+    },
+    {
+      "id": "amazing-pickup",
+      "expectedMeter": "9/8 pickup",
+      "sourceUrl": "https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1832",
+      "downloadUrl": "https://www.mutopiaproject.org/ftp/Traditional/amazing-mutopia/amazing-mutopia-a4.pdf",
+      "declaredLicense": "CC-BY-SA-3.0",
+      "checkedOn": "2026-11-13",
+      "rawPath": "data\\raw\\meter-validation\\amazing-pickup.pdf",
+      "sha256": "0425c71b0338519c38944d4ceaed5c017ae57c5094a4c994de8fe3485ea6ccbb",
+      "bytes": 58183,
+      "pages": 1,
+      "testedPage": 1,
+      "imagePath": "data\\processed\\meter-validation\\amazing-pickup.png",
+      "imageSize": [
+        2481,
+        3508
+      ],
+      "companions": [
+        {
+          "url": "https://www.mutopiaproject.org/ftp/Traditional/amazing-mutopia/amazing-mutopia.ly",
+          "path": "data\\raw\\meter-validation\\amazing-pickup.ly",
+          "sha256": "c4d950a7c5d13858801ccaa1f95bd2d3271a45e9f9559141ac4c7bb1ada169d1"
+        }
+      ],
+      "originalRedistribution": "가능",
+      "adaptedRedistribution": "가능",
+      "conditions": "출처·변경 표시·CC BY-SA 3.0",
+      "trialUse": "게시물의 변경·재사용 허용 아래 격리된 로컬 변환 시험. 제품 배포·카탈로그 등록 없음"
+    },
+    {
+      "id": "blue-valentine",
+      "rawPath": "data/raw/meter-validation/blue-valentine.pdf",
+      "sha256": "07efe4304d2e8e9a81ed9cc33343d8ccf2a499107aa9ec2e81cce926de967c54",
+      "bytes": 76418,
+      "conditions": "현재 불가(사용자 제공; 재배포 허가 미확인)",
+      "trialUse": "기존 로컬 원본 재사용, 운영 업로드 없음",
+      "originalRedistribution": "현재 불가(사용자 제공; 재배포 허가 미확인)",
+      "adaptedRedistribution": "현재 불가(허가 미확인 또는 변경금지)",
+      "sourceUrl": "user-provided"
+    },
+    {
+      "id": "jeonggan-arirang",
+      "rawPath": "data/raw/meter-validation/jeonggan-arirang.pdf",
+      "sha256": "e7c494c132c8a819a9012ac0926707e37dc12d17d4393738b854c219677da57f",
+      "bytes": 336268,
+      "conditions": "원문 가능(국립국악원·KOGL4 출처표시/비상업/무변경); 가공본 현재 불가(변경금지·허락 미확보)",
+      "trialUse": "기존 로컬 원본 재사용, 운영 업로드 없음",
+      "originalRedistribution": "가능(조건 준수)",
+      "adaptedRedistribution": "현재 불가(허가 미확인 또는 변경금지)",
+      "sourceUrl": "https://www.gugak.go.kr/site/program/board/basicboard/view?boardid=44199&boardtypeid=102&menuid=001003002011&pagesize=10"
+    },
+    {
+      "id": "ballade-variable",
+      "expectedMeter": "4/4 -> 6/4",
+      "sourceUrl": "https://noctavepiano.com/en/sheet-music/chopin-ballade-1/",
+      "downloadUrl": "https://noctavepiano.com/partitions/chopin-ballade-1/chopin-ballade-1.pdf",
+      "declaredLicense": "CC-BY-4.0",
+      "checkedOn": "2026-11-13",
+      "rawPath": "data\\raw\\meter-validation\\ballade-variable.pdf",
+      "sha256": "705b0d7416bc6c748dd6e1d18150eb2b22890778cfa13de1252bc90b79e4128b",
+      "bytes": 544105,
+      "pages": 15,
+      "testedPage": 1,
+      "testedCropPx": [
+        0,
+        0,
+        2479,
+        1550
+      ],
+      "imagePath": "data\\processed\\meter-validation\\ballade-variable.png",
+      "imageSize": [
+        2479,
+        3508
+      ],
+      "companions": [
+        {
+          "path": "data\\raw\\meter-validation\\ballade-variable.publisher.mxl",
+          "sha256": "89a5bdcd87850bad664af501b1ab09e33cbef80169d2f2a527429aaeba068d38"
+        }
+      ],
+      "originalRedistribution": "가능",
+      "adaptedRedistribution": "가능",
+      "conditions": "CC BY4.0. Noctave/Psamtik/PDMX 및 The Fryderyk Chopin Institute/chopinscores.org의 게시물 지정 출처·라이선스·변경 표시. 상위 MuseScore 페이지 재확인 TODO 보존",
+      "trialUse": "원본15쪽 보존,1쪽 상단1550px만 격리 OMR; 운영 업로드 없음"
+    }
+  ],
+  "cases": [
+    {
+      "id": "meter-2-4",
+      "evidence": "fixed MusicXML; no image OMR",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 2
+      },
+      "columnSizes": [
+        2,
+        2
+      ],
+      "eventCount": 4,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 2.4242424242424243,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "noteFidelity": "PASS",
+      "expectedBarQuarterLengths": null,
+      "issues": [],
+      "scope": "fixedMusicXml",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "meter-3-4",
+      "evidence": "fixed MusicXML; no image OMR",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 2
+      },
+      "columnSizes": [
+        3,
+        3
+      ],
+      "eventCount": 4,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 3.6363636363636362,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "noteFidelity": "PASS",
+      "expectedBarQuarterLengths": null,
+      "issues": [],
+      "scope": "fixedMusicXml",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "meter-4-4",
+      "evidence": "fixed MusicXML; no image OMR",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "4박 기본 반주",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 2,
+        "ticksPerJeonggan": 2
+      },
+      "columnSizes": [
+        4,
+        4
+      ],
+      "eventCount": 4,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 160,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 3.0,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "noteFidelity": "PASS",
+      "expectedBarQuarterLengths": null,
+      "issues": [],
+      "scope": "fixedMusicXml",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "meter-6-8",
+      "evidence": "fixed MusicXML; no image OMR",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "columnSizes": [
+        2,
+        2
+      ],
+      "eventCount": 4,
+      "sourceGridQuarters": "3/2",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 3.6363636363636362,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "noteFidelity": "PASS",
+      "expectedBarQuarterLengths": null,
+      "issues": [],
+      "scope": "fixedMusicXml",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "meter-9-8",
+      "evidence": "fixed MusicXML; no image OMR",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "세마치",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "columnSizes": [
+        3,
+        3
+      ],
+      "eventCount": 4,
+      "sourceGridQuarters": "3/2",
+      "defaultBpm": 96,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 3.75,
+      "candidates": [
+        "1"
+      ],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "noteFidelity": "PASS",
+      "expectedBarQuarterLengths": null,
+      "issues": [],
+      "scope": "fixedMusicXml",
+      "excludedCandidates": [
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "meter-12-8",
+      "evidence": "fixed MusicXML; no image OMR",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "columnSizes": [
+        4,
+        4
+      ],
+      "eventCount": 4,
+      "sourceGridQuarters": "3/2",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 7.2727272727272725,
+      "candidates": [
+        "2",
+        "4",
+        "5",
+        "11"
+      ],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "noteFidelity": "PASS",
+      "expectedBarQuarterLengths": null,
+      "issues": [],
+      "scope": "fixedMusicXml",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "meter-5-8",
+      "evidence": "fixed MusicXML; no image OMR",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 1
+      },
+      "columnSizes": [
+        5,
+        5
+      ],
+      "eventCount": 4,
+      "sourceGridQuarters": "1/2",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 3.0303030303030303,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "noteFidelity": "PASS",
+      "expectedBarQuarterLengths": null,
+      "issues": [],
+      "scope": "fixedMusicXml",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "meter-7-8",
+      "evidence": "fixed MusicXML; no image OMR",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 1
+      },
+      "columnSizes": [
+        7,
+        7
+      ],
+      "eventCount": 4,
+      "sourceGridQuarters": "1/2",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 4.242424242424242,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "noteFidelity": "PASS",
+      "expectedBarQuarterLengths": null,
+      "issues": [],
+      "scope": "fixedMusicXml",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pickup-3-4",
+      "evidence": "fixed MusicXML; no image OMR",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 2
+      },
+      "columnSizes": [
+        3,
+        3
+      ],
+      "eventCount": 3,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 3.6363636363636362,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "noteFidelity": "PASS",
+      "expectedBarQuarterLengths": null,
+      "issues": [],
+      "scope": "fixedMusicXml",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tied-4-4",
+      "evidence": "fixed MusicXML; no image OMR",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "4박 기본 반주",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 1,
+        "ticksPerJeonggan": 1
+      },
+      "columnSizes": [
+        4,
+        4
+      ],
+      "eventCount": 2,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 160,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 3.0,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "noteFidelity": "FAIL",
+      "expectedBarQuarterLengths": null,
+      "issues": [],
+      "scope": "fixedMusicXml",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mixed-3-4-to-2-4",
+      "evidence": "fixed MusicXML; no image OMR",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 2
+      },
+      "columnSizes": [
+        3,
+        3,
+        3
+      ],
+      "eventCount": 5,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 5.454545454545454,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "noteFidelity": "FAIL",
+      "expectedBarQuarterLengths": [
+        3,
+        2,
+        3
+      ],
+      "issues": [
+        {
+          "kind": "LOW_CONFIDENCE",
+          "eventId": null,
+          "cellId": null,
+          "page": null,
+          "bbox": null,
+          "detail": {
+            "measure": 2,
+            "reason": "TIME_SIGNATURE_CHANGED"
+          }
+        }
+      ],
+      "scope": "fixedMusicXml",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "al-lez-vamm",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "columnSizes": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "eventCount": 45,
+      "sourceGridQuarters": "3/2",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 20.0,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {
+        "JANGDAN_GUESSED": 1,
+        "JANGDAN_MISMATCH": 1
+      },
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "amazing-pickup",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "세마치",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 6,
+        "ticksPerJeonggan": 6
+      },
+      "columnSizes": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "eventCount": 60,
+      "sourceGridQuarters": "3/2",
+      "defaultBpm": 96,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 31.875,
+      "candidates": [
+        "1"
+      ],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {
+        "ORNAMENT_DROPPED": 63,
+        "LOW_CONFIDENCE": 4,
+        "JANGDAN_GUESSED": 1
+      },
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "au-clair",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "4박 기본 반주",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 1,
+        "ticksPerJeonggan": 1
+      },
+      "columnSizes": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "eventCount": 44,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 160,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 24.0,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {
+        "VOICE_GUESSED": 1,
+        "JANGDAN_GUESSED": 1
+      },
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bach-short",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 6,
+        "ticksPerJeonggan": 4
+      },
+      "columnSizes": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "eventCount": 241,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 50.90909090909091,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {
+        "JANGDAN_GUESSED": 1,
+        "JANGDAN_MISMATCH": 1
+      },
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ballade-variable",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "4박 기본 반주",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 12,
+        "ticksPerJeonggan": 12
+      },
+      "columnSizes": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "eventCount": 40,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 160,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 13.5,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {
+        "VOICE_GUESSED": 1,
+        "LOW_CONFIDENCE": 3,
+        "JANGDAN_GUESSED": 1
+      },
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "blue-valentine",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "4박 기본 반주",
+        "bpmUnit": "QUARTER",
+        "ticksPerBeat": 4,
+        "ticksPerJeonggan": 4
+      },
+      "columnSizes": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "eventCount": 110,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 160,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 37.5,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {
+        "VOICE_GUESSED": 1,
+        "JANGDAN_GUESSED": 1
+      },
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "butterfly",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "세마치",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "columnSizes": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "eventCount": 146,
+      "sourceGridQuarters": "3/2",
+      "defaultBpm": 96,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 45.0,
+      "candidates": [
+        "1"
+      ],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {
+        "JANGDAN_GUESSED": 1
+      },
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chopin-short",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 12,
+        "ticksPerJeonggan": 12
+      },
+      "columnSizes": [
+        4,
+        4,
+        4
+      ],
+      "eventCount": 16,
+      "sourceGridQuarters": "3/2",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 10.909090909090908,
+      "candidates": [
+        "2",
+        "4",
+        "5",
+        "11"
+      ],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {
+        "VOICE_GUESSED": 1,
+        "LOW_CONFIDENCE": 10,
+        "JANGDAN_GUESSED": 1
+      },
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "greensleeves",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 2
+      },
+      "columnSizes": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "eventCount": 73,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 60.0,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {
+        "VOICE_GUESSED": 1,
+        "JANGDAN_GUESSED": 1,
+        "JANGDAN_MISMATCH": 1
+      },
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jeonggan-arirang",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.13,
+        "jangdan": "세마치",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "columnSizes": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "eventCount": 66,
+      "sourceGridQuarters": "3/2",
+      "defaultBpm": 96,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 31.875,
+      "candidates": [
+        "1"
+      ],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {},
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kesh",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 3
+      },
+      "columnSizes": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "eventCount": 170,
+      "sourceGridQuarters": "3/2",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 58.18181818181818,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {
+        "JANGDAN_GUESSED": 1,
+        "JANGDAN_MISMATCH": 1
+      },
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mileva",
+      "evidence": "actual PDF/image engine",
+      "music": {
+        "hwangHz": 311.1269837220809,
+        "jangdan": "굿거리",
+        "bpmUnit": "DOTTED_QUARTER",
+        "ticksPerBeat": 3,
+        "ticksPerJeonggan": 2
+      },
+      "columnSizes": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "eventCount": 50,
+      "sourceGridQuarters": "1",
+      "defaultBpm": 66,
+      "bpmOrigin": "catalog default, not recognized source tempo",
+      "durationAtDefaultSeconds": 23.03030303030303,
+      "candidates": [],
+      "playbackProjection": "PASS",
+      "playbackDetail": null,
+      "localJsonRoundTrip": true,
+      "issues": {
+        "LOW_CONFIDENCE": 16,
+        "JANGDAN_GUESSED": 1,
+        "JANGDAN_MISMATCH": 1
+      },
+      "scope": "actualOmr",
+      "excludedCandidates": [
+        {
+          "id": "1",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "2",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "3",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "4",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "5",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "6",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "7",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "8",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "9",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "10",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "11",
+          "reasons": [
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        },
+        {
+          "id": "12",
+          "reasons": [
+            "BPM_UNIT",
+            "COLUMN_NOT_COMPLETE_CYCLE"
+          ]
+        }
+      ]
+    }
+  ],
+  "fullSourceComparisons": [
+    {
+      "id": "au-clair",
+      "scope": "full publisher MusicXML, melody voice 5; explicit leading pad",
+      "sourceSha256": "771bf07d242267915c0777bf4d0e2af63b3f618adf65bd3688e51a34daca374a",
+      "exactMatch": true,
+      "expectedNotes": 44,
+      "actualNotes": 44,
+      "expectedMusicQuarters": "64",
+      "importPadQuarters": "0",
+      "differences": []
+    },
+    {
+      "id": "greensleeves",
+      "scope": "full publisher MusicXML, melody voice 5; explicit leading pad",
+      "sourceSha256": "daf759b61fa9457a7fd55a363d15ec89d56a4aed9513c99e53235b58d71d87c2",
+      "exactMatch": true,
+      "expectedNotes": 72,
+      "actualNotes": 72,
+      "expectedMusicQuarters": "97",
+      "importPadQuarters": "2",
+      "differences": []
+    },
+    {
+      "id": "kesh",
+      "scope": "full published LilyPond, explicit notes and volta twice",
+      "sourceSha256": "952d0019974b866aac6c8948c9b36c11c2d8ba4fec8df62a5decd35a505f7822",
+      "exactMatch": true,
+      "expectedNotes": 170,
+      "actualNotes": 170,
+      "expectedMusicQuarters": "96",
+      "importPadQuarters": "0",
+      "differences": []
+    },
+    {
+      "id": "butterfly",
+      "scope": "full published LilyPond, explicit notes and volta twice",
+      "sourceSha256": "cca0e656f7366e1dd5ff858ab82e84bc75b39e4f79096b0c29cc684e7cc65d25",
+      "exactMatch": true,
+      "expectedNotes": 146,
+      "actualNotes": 146,
+      "expectedMusicQuarters": "108",
+      "importPadQuarters": "0",
+      "differences": []
+    }
+  ],
+  "frontend": [
+    {
+      "case": "meter-12-8.score",
+      "editorRoundTrip": true,
+      "candidates": [
+        "2",
+        "4",
+        "5",
+        "11"
+      ],
+      "selectable": [
+        "2",
+        "4",
+        "5",
+        "11"
+      ]
+    },
+    {
+      "case": "meter-2-4.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "meter-3-4.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "meter-4-4.score",
+      "editorRoundTrip": true,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "selectable": [
+        "7",
+        "12"
+      ]
+    },
+    {
+      "case": "meter-5-8.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "meter-6-8.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "meter-7-8.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "meter-9-8.score",
+      "editorRoundTrip": true,
+      "candidates": [
+        "1"
+      ],
+      "selectable": [
+        "1"
+      ]
+    },
+    {
+      "case": "mixed-3-4-to-2-4.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "pickup-3-4.score",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "tied-4-4.score",
+      "editorRoundTrip": true,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "selectable": [
+        "7",
+        "12"
+      ]
+    },
+    {
+      "case": "al-lez-vamm",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "amazing-pickup",
+      "editorRoundTrip": true,
+      "candidates": [
+        "1"
+      ],
+      "selectable": [
+        "1"
+      ]
+    },
+    {
+      "case": "au-clair",
+      "editorRoundTrip": true,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "selectable": [
+        "7",
+        "12"
+      ]
+    },
+    {
+      "case": "bach-short",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "ballade-variable",
+      "editorRoundTrip": true,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "selectable": [
+        "7",
+        "12"
+      ]
+    },
+    {
+      "case": "blue-valentine",
+      "editorRoundTrip": true,
+      "candidates": [
+        "7",
+        "12"
+      ],
+      "selectable": [
+        "7",
+        "12"
+      ]
+    },
+    {
+      "case": "butterfly",
+      "editorRoundTrip": true,
+      "candidates": [
+        "1"
+      ],
+      "selectable": [
+        "1"
+      ]
+    },
+    {
+      "case": "chopin-short",
+      "editorRoundTrip": true,
+      "candidates": [
+        "2",
+        "4",
+        "5",
+        "11"
+      ],
+      "selectable": [
+        "2",
+        "4",
+        "5",
+        "11"
+      ]
+    },
+    {
+      "case": "greensleeves",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "jeonggan-arirang",
+      "editorRoundTrip": true,
+      "candidates": [
+        "1"
+      ],
+      "selectable": [
+        "1"
+      ]
+    },
+    {
+      "case": "kesh",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    },
+    {
+      "case": "mileva",
+      "editorRoundTrip": true,
+      "candidates": [],
+      "selectable": []
+    }
+  ],
+  "backend": [
+    {
+      "case": "meter-12-8.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "candidates": "2,4,5,11"
+    },
+    {
+      "case": "meter-2-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    },
+    {
+      "case": "meter-3-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    },
+    {
+      "case": "meter-4-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "candidates": "7,12"
+    },
+    {
+      "case": "meter-5-8.score",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    },
+    {
+      "case": "meter-6-8.score",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    },
+    {
+      "case": "meter-7-8.score",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    },
+    {
+      "case": "meter-9-8.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "candidates": "1"
+    },
+    {
+      "case": "mixed-3-4-to-2-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    },
+    {
+      "case": "pickup-3-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    },
+    {
+      "case": "tied-4-4.score",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "candidates": "7,12"
+    },
+    {
+      "case": "al-lez-vamm",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    },
+    {
+      "case": "amazing-pickup",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "candidates": "1"
+    },
+    {
+      "case": "au-clair",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "candidates": "7,12"
+    },
+    {
+      "case": "bach-short",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    },
+    {
+      "case": "ballade-variable",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "candidates": "7,12"
+    },
+    {
+      "case": "blue-valentine",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "candidates": "7,12"
+    },
+    {
+      "case": "butterfly",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "candidates": "1"
+    },
+    {
+      "case": "chopin-short",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "candidates": "2,4,5,11"
+    },
+    {
+      "case": "greensleeves",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    },
+    {
+      "case": "jeonggan-arirang",
+      "draftRoundTrip": true,
+      "confirmation": "SAVED",
+      "candidates": "1"
+    },
+    {
+      "case": "kesh",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    },
+    {
+      "case": "mileva",
+      "draftRoundTrip": true,
+      "confirmation": "REJECTED_INCOMPATIBLE_JANGDAN",
+      "candidates": ""
+    }
+  ],
+  "limitations": [
+    "BE repository and pitch catalog are test stand-ins; no MySQL persistence or live UI claim",
+    "Playback adapter/event timeline executed; no device audio timing measurement",
+    "Only four public source melody streams independently checked in full; other cases have bounded visual/structural checks",
+    "Actual changing-meter Ballade PDF lost6/4 in Audiveris; fixed XML additionally proves converter bar/tie loss"
+  ],
+  "casesScope": "11 fixed MusicXML +12 completed real engine conversions; failures in attempts",
+  "attempts": [
+    {
+      "id": "bach-bourree",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "audiveris failed",
+      "seconds": 1.462,
+      "audiveris": [
+        {
+          "returncode": 1,
+          "seconds": 1.456
+        }
+      ],
+      "evidenceFolder": "setup-noexec-failure"
+    },
+    {
+      "id": "greensleeves",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "audiveris failed",
+      "seconds": 1.463,
+      "audiveris": [
+        {
+          "returncode": 1,
+          "seconds": 1.458
+        }
+      ],
+      "evidenceFolder": "setup-noexec-failure"
+    },
+    {
+      "id": "au-clair",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "audiveris failed",
+      "seconds": 1.69,
+      "audiveris": [
+        {
+          "returncode": 1,
+          "seconds": 1.687
+        }
+      ],
+      "evidenceFolder": "setup-noexec-failure"
+    },
+    {
+      "id": "kesh",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "audiveris failed",
+      "seconds": 1.879,
+      "audiveris": [
+        {
+          "returncode": 1,
+          "seconds": 1.874
+        }
+      ],
+      "evidenceFolder": "setup-noexec-failure"
+    },
+    {
+      "id": "butterfly",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "audiveris failed",
+      "seconds": 1.538,
+      "audiveris": [
+        {
+          "returncode": 1,
+          "seconds": 1.534
+        }
+      ],
+      "evidenceFolder": "setup-noexec-failure"
+    },
+    {
+      "id": "circassian",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "audiveris failed",
+      "seconds": 1.27,
+      "audiveris": [
+        {
+          "returncode": 1,
+          "seconds": 1.268
+        }
+      ],
+      "evidenceFolder": "setup-noexec-failure"
+    },
+    {
+      "id": "al-lez-vamm",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "audiveris failed",
+      "seconds": 1.274,
+      "audiveris": [
+        {
+          "returncode": 1,
+          "seconds": 1.271
+        }
+      ],
+      "evidenceFolder": "setup-noexec-failure"
+    },
+    {
+      "id": "mileva",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "audiveris failed",
+      "seconds": 1.72,
+      "audiveris": [
+        {
+          "returncode": 1,
+          "seconds": 1.715
+        }
+      ],
+      "evidenceFolder": "setup-noexec-failure"
+    },
+    {
+      "id": "amazing-pickup",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "audiveris failed",
+      "seconds": 1.406,
+      "audiveris": [
+        {
+          "returncode": 1,
+          "seconds": 1.401
+        }
+      ],
+      "evidenceFolder": "setup-noexec-failure"
+    },
+    {
+      "id": "blue-valentine",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "audiveris failed",
+      "seconds": 1.634,
+      "audiveris": [
+        {
+          "returncode": 1,
+          "seconds": 1.631
+        }
+      ],
+      "evidenceFolder": "setup-noexec-failure"
+    },
+    {
+      "id": "jeonggan-arirang",
+      "status": "DONE",
+      "seconds": 2.035,
+      "audiveris": [],
+      "evidenceFolder": "setup-noexec-failure"
+    },
+    {
+      "id": "bach-bourree",
+      "status": "FAILED",
+      "error": "TimeoutError",
+      "detail": "",
+      "seconds": 60.116,
+      "audiveris": [],
+      "evidenceFolder": "actual"
+    },
+    {
+      "id": "greensleeves",
+      "status": "DONE",
+      "seconds": 38.763,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 38.316
+        }
+      ],
+      "evidenceFolder": "actual"
+    },
+    {
+      "id": "au-clair",
+      "status": "DONE",
+      "seconds": 30.565,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 30.23
+        }
+      ],
+      "evidenceFolder": "actual"
+    },
+    {
+      "id": "kesh",
+      "status": "DONE",
+      "seconds": 32.169,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 31.783
+        }
+      ],
+      "evidenceFolder": "actual"
+    },
+    {
+      "id": "butterfly",
+      "status": "DONE",
+      "seconds": 31.179,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 30.793
+        }
+      ],
+      "evidenceFolder": "actual"
+    },
+    {
+      "id": "circassian",
+      "status": "FAILED",
+      "error": "RecognitionFailed",
+      "detail": "NO_STAFF_FOUND",
+      "seconds": 4.275,
+      "audiveris": [
+        {
+          "returncode": 1,
+          "seconds": 4.273
+        }
+      ],
+      "evidenceFolder": "actual"
+    },
+    {
+      "id": "al-lez-vamm",
+      "status": "DONE",
+      "seconds": 40.499,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 40.12
+        }
+      ],
+      "evidenceFolder": "actual"
+    },
+    {
+      "id": "mileva",
+      "status": "DONE",
+      "seconds": 40.316,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 39.861
+        }
+      ],
+      "evidenceFolder": "actual"
+    },
+    {
+      "id": "amazing-pickup",
+      "status": "DONE",
+      "seconds": 36.782,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 36.336
+        }
+      ],
+      "evidenceFolder": "actual"
+    },
+    {
+      "id": "blue-valentine",
+      "status": "DONE",
+      "seconds": 37.987,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 37.546
+        }
+      ],
+      "evidenceFolder": "actual"
+    },
+    {
+      "id": "jeonggan-arirang",
+      "status": "DONE",
+      "seconds": 1.718,
+      "audiveris": [],
+      "evidenceFolder": "actual"
+    },
+    {
+      "id": "bach-short",
+      "status": "DONE",
+      "seconds": 37.707,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 37.091
+        }
+      ],
+      "evidenceFolder": "retries"
+    },
+    {
+      "id": "circassian-up4",
+      "status": "FAILED",
+      "error": "TimeoutError",
+      "detail": "",
+      "seconds": 60.102,
+      "audiveris": [],
+      "evidenceFolder": "retries"
+    },
+    {
+      "id": "chopin-12-8",
+      "status": "FAILED",
+      "error": "TimeoutError",
+      "detail": "",
+      "seconds": 60.135,
+      "audiveris": [],
+      "evidenceFolder": "chopin-full-failure"
+    },
+    {
+      "id": "chopin-short",
+      "status": "DONE",
+      "seconds": 22.495,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 22.16
+        }
+      ],
+      "evidenceFolder": "final-probe"
+    },
+    {
+      "id": "jeonggan-scan",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "JEONGGANBO_OMR_DIR is not set",
+      "seconds": 0.007,
+      "audiveris": [],
+      "evidenceFolder": "final-probe"
+    },
+    {
+      "id": "jeonggan-scan",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "jeongganbo scan reader failed",
+      "seconds": 12.88,
+      "audiveris": [],
+      "evidenceFolder": "scan-local"
+    },
+    {
+      "id": "jeonggan-scan",
+      "status": "FAILED",
+      "error": "RuntimeError",
+      "detail": "jeongganbo scan reader failed",
+      "seconds": 12.049,
+      "audiveris": [],
+      "readers": [
+        {
+          "returncode": 4,
+          "seconds": 6.566
+        },
+        {
+          "returncode": 1,
+          "seconds": 5.12
+        }
+      ],
+      "evidenceFolder": "scan-local-diagnostic"
+    },
+    {
+      "id": "au-clair",
+      "status": "DONE",
+      "seconds": 8.166,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 7.996
+        }
+      ],
+      "readers": [],
+      "evidenceFolder": "replay-au-clair"
+    },
+    {
+      "id": "ballade-variable",
+      "status": "DONE",
+      "seconds": 20.201,
+      "audiveris": [
+        {
+          "returncode": 0,
+          "seconds": 8.791
+        },
+        {
+          "returncode": 0,
+          "seconds": 11.009
+        }
+      ],
+      "readers": [],
+      "evidenceFolder": "variable-probe"
+    }
+  ],
+  "deployedOldImageConversion": {
+    "music": {
+      "hwangHz": 311.13,
+      "jangdan": "굿거리",
+      "bpmUnit": "DOTTED_QUARTER",
+      "ticksPerBeat": 3,
+      "ticksPerJeonggan": 2
+    },
+    "conversionJangdan": null,
+    "sourceMusicxmlSha256": "01dcc7ee514c3f23d9cb05a3e8b9975ae50f84ef1e3d6a63e0bc6ca8447a17b2",
+    "moduleSha256": "86becd4a9daff1f68a5e12efec135f6415449f6c735814f5a738fb33dec63eb9"
+  },
+  "officialArirangPageIdentity": {
+    "masterSha256": "fe0c268d864568b794a462e5b1875c1c9d8742bff671260fa486e525ec760558",
+    "page": 194,
+    "renderDpi": 72,
+    "pixelEqual": true
+  },
+  "excludedReferences": [
+    {
+      "title": "LilyPond11a-TimeSignatures",
+      "sourceUrl": "https://lilypond.org/doc/v2.26/input/regression/musicxml/collated-files.html",
+      "downloadUrl": "https://lilypond.org/doc/v2.26/input/regression/musicxml/b2/lily-bf3bc260.xml",
+      "license": "MIT for MusicXML test collection; retain copyright/license on redistribution",
+      "status": "acquired only, excluded from execution/success counts"
+    }
+  ],
+  "runtimeTestSuites": {
+    "backend": [
+      {
+        "name": "com.ssafy.eolssu.backend.feature.sheet.application.EditUserSheetTests",
+        "tests": "21",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-11-13T08:13:54.637Z",
+        "hostname": "DESKTOP-MR7IIH9",
+        "time": "0.916"
+      },
+      {
+        "name": "com.ssafy.eolssu.backend.feature.sheet.application.MeterImportBackendTest",
+        "tests": "1",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-11-13T08:13:55.555Z",
+        "hostname": "DESKTOP-MR7IIH9",
+        "time": "0.271"
+      },
+      {
+        "name": "com.ssafy.eolssu.backend.feature.sheet.application.SheetJangdanValidationTests",
+        "tests": "3",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-11-13T08:13:55.827Z",
+        "hostname": "DESKTOP-MR7IIH9",
+        "time": "0.013"
+      },
+      {
+        "name": "com.ssafy.eolssu.backend.feature.sheet.infrastructure.CommonSheetScoresTests",
+        "tests": "7",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-11-13T08:13:55.840Z",
+        "hostname": "DESKTOP-MR7IIH9",
+        "time": "0.017"
+      }
+    ],
+    "frontend": [
+      {
+        "name": "com.ssafy.eolssu.feature.song.edit.MeterImportRuntimeTest",
+        "tests": "1",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-11-13T08:13:26.981Z",
+        "hostname": "DESKTOP-MR7IIH9",
+        "time": "0.315"
+      }
+    ]
+  },
+  "independentReview": "Read-only source/evidence review completed; corrected saved/rejected count and added full attempt inventory",
+  "variableLayers": {
+    "sourceFirstNineQuarterExtent": "40",
+    "sourceBarQuarterLengths": [
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      6,
+      6
+    ],
+    "directPublisherXml": {
+      "beatQuarters": "1",
+      "cellsPerColumn": 4,
+      "columnCount": 10,
+      "issues": [
+        {
+          "kind": "LOW_CONFIDENCE",
+          "eventId": null,
+          "cellId": null,
+          "page": null,
+          "bbox": null,
+          "detail": {
+            "measure": 8,
+            "reason": "TIME_SIGNATURE_CHANGED"
+          }
+        },
+        {
+          "kind": "VOICE_GUESSED",
+          "eventId": null,
+          "cellId": null,
+          "page": null,
+          "bbox": null,
+          "detail": {
+            "voices": 5
+          }
+        }
+      ]
+    },
+    "actualOmrOnly4_4": true,
+    "actualCommonColumns": [
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4
+    ]
+  }
+}

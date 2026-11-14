@@ -118,7 +118,8 @@ def apply_tempo_repeat(score, mapping, plan, input_sha256, *, instrument="danso"
 
     A tempo entry's ``bpm`` is jeonggan/minute, before the existing global speed
     multiplier. An entry with end_gak/end_cell ramps from the preceding tempo
-    to that target. Repeat times includes the first pass. Repeated sections
+    to that target. Optional start_bpm sets the instantaneous ramp start instead
+    of inheriting the preceding tempo. Repeat times includes the first pass. Repeated sections
     reuse their written-position tempo plan on every pass.
     """
     reject_unknown(plan, ["schema", "input_sha256", "tempos", "repeats"], "performance plan")
@@ -166,7 +167,7 @@ def apply_tempo_repeat(score, mapping, plan, input_sha256, *, instrument="danso"
     require(isinstance(authored, list) and len(authored) <= 10000, "tempos는 최대 10000개의 배열이어야 합니다")
     changes = {}
     for entry in authored:
-        reject_unknown(entry, ["gak", "cell", "bpm", "end_gak", "end_cell"], "tempo entry")
+        reject_unknown(entry, ["gak", "cell", "bpm", "end_gak", "end_cell", "start_bpm"], "tempo entry")
         where = (entry.get("gak"), entry.get("cell"))
         start = position(*where)[0]
         target = finite(entry.get("bpm"), "tempo BPM", 0, math.inf)
@@ -175,8 +176,13 @@ def apply_tempo_repeat(score, mapping, plan, input_sha256, *, instrument="danso"
         require(not has_end or "end_gak" in entry and "end_cell" in entry, "점진 빠르기는 end_gak과 end_cell이 모두 필요합니다")
         finish = position(entry["end_gak"], entry["end_cell"], end=True)[0] if has_end else start
         require(not has_end or finish > start, "점진 빠르기의 끝은 시작 뒤여야 합니다")
+        initial = None
+        if 'start_bpm' in entry:
+            require(has_end, 'start_bpm은 끝 위치가 있는 점진 빠르기에만 지정합니다')
+            initial = finite(entry['start_bpm'], 'start BPM', 0, math.inf)
+            require(initial > 0, 'start BPM은 양수여야 합니다')
         require(start not in changes, "같은 위치에 빠르기 계획이 중복되었습니다")
-        changes[start] = {"start": start, "end": finish, "bpm": target, "cue": None, "entry": deepcopy(entry)}
+        changes[start] = {"start": start, "end": finish, "bpm": target, "initial": initial, "cue": None, "entry": deepcopy(entry)}
 
     for cue in mapping.get("tempo_cues", []):
         name = cue["symbol"].strip("{}")
@@ -202,6 +208,8 @@ def apply_tempo_repeat(score, mapping, plan, input_sha256, *, instrument="danso"
         if start > written:
             tempo_segments.append((float(written), float(start), current, current))
         name, target, finish = change["cue"], change["bpm"], change["end"]
+        if change.get('initial') is not None:
+            current = change['initial']
         if name in ("점점느리게", "조금느리게"):
             require(target < current, f"{name}: 앞 빠르기보다 낮은 목표 BPM이 필요합니다")
         if name in ("점점속하게", "조금속하게"):

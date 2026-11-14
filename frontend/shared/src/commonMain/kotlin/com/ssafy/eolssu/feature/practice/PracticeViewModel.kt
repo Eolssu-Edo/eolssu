@@ -15,6 +15,7 @@ import com.ssafy.eolssu.core.audio.NoJangdanVolumeLimit
 import com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer
 import com.ssafy.eolssu.core.audio.JangdanPlan
 import com.ssafy.eolssu.core.audio.planJangdan
+import com.ssafy.eolssu.core.audio.planBasicAccompaniment
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
@@ -202,6 +203,7 @@ class PracticeViewModel(
 
     private fun Song.jangdanPlanAt(bpm: Int): JangdanPlan? {
         val timing = score.timing ?: return null
+        basicAccompaniment?.let { return planBasicAccompaniment(it, timing, bpm) }
         return jangdanPlayback?.let { planJangdan(it, bpm, timing.ticksPerBeat) }
     }
 
@@ -774,14 +776,14 @@ class PracticeViewModel(
         var mark: kotlin.time.TimeMark? = null
         soundPurpose = SoundPurpose.Preview
         jangdanAudio.start(plan, accompanyingModel = false, tick = {
-            if (plan == null) null else mark?.elapsedNow()?.inWholeNanoseconds?.div(1_000_000.0)?.div(plan.msPerTick)?.plus(plan.mapping.startTick)
+            if (plan == null) null else mark?.elapsedNow()?.inWholeNanoseconds?.div(1_000_000.0)?.div(plan.msPerTick)?.plus(plan.startTick)
         }, onStarted = {
             mark = playbackTimeSource.markNow()
             _uiState.update { it.copy(draft = it.draft.copy(previewing = true, previewBeat = 0)) }
             previewJob = accountScope.launch {
                 while (isActive) {
                     val elapsed = mark.elapsedNow().inWholeNanoseconds / 1_000_000.0
-                    val cell = plan!!.mapping.cellAt(plan.mapping.startTick + elapsed / plan.msPerTick)
+                    val cell = plan!!.cellAt(plan.startTick + elapsed / plan.msPerTick)
                     _uiState.update { it.copy(draft = it.draft.copy(previewBeat = cell)) }
                     delay(50)
                 }

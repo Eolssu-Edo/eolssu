@@ -33,6 +33,29 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SheetPracticeRepositoryTest {
+    @Test fun readsConfirmedBasicAccompanimentWithoutInventingACatalogLink() = runTest {
+        val original = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "", bpmUnit = "QUARTER")) }
+        val score = Json.encodeToJsonElement(original)
+        val requests = mutableListOf<String>()
+        val client = createHttpClient(MockEngine { request ->
+            requests += request.url.encodedPath
+            val result = when (request.url.encodedPath) {
+                "/api/users/me/sheets/42/score" -> """{"sheetId":"42","title":"5박 악보","bpm":60,"scoreVersion":"1","reviewStatus":"EVALUABLE","scoreData":$score,"authoring":{"schema":"sheet-authoring/v1","accompaniment":{"schema":"basic-accompaniment/v1","groups":[2,3],"pulseUnit":"EIGHTH","startTick":4}},"draft":{"title":"미확정","bpm":60,"score":$score,"baseScoreVersion":"1","draftRevision":1,"authoring":{"accompaniment":null}}}"""
+                "/api/instruments" -> """{"items":[{"instrumentId":"2","code":"DANSO","name":"단소"}]}"""
+                else -> error("Unexpected request ${request.url.encodedPath}")
+            }
+            respond("""{"isSuccess":true,"code":200,"result":$result}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val song = assertNotNull(practiceRepository(client).load("42"))
+            val setting = assertNotNull(song.basicAccompaniment)
+            assertEquals(listOf(2, 3), setting.groups)
+            assertEquals(4L, setting.startTick)
+            assertNull(song.jangdanPlayback)
+            assertEquals(original.events.map { it.id }, song.timeline.map { it.id })
+            assertTrue(requests.none { it.startsWith("/api/jangdans") })
+        } finally { client.close() }
+    }
     @Test fun playsTheSavedFileForTheCurrentAccountAndScoreVersionWithoutAnAudioRequest() = runTest {
         val original = smallScoreData()
         val score = Json.encodeToJsonElement(original)
