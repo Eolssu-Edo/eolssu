@@ -7,7 +7,7 @@ categories: ["infra"]
 tags: ["Android", "Google Play", "앱 서명", "출시"]
 description: "개인 개발자 계정으로 얼쑤를 Play에 올리면서 확인한 비공개 테스트 12명·14일 조건의 집계 방식과, 첫 업로드 전에 업로드 키를 새로 만든 이유를 정리했습니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-11-play-release-testers-and-upload-key.webp"
-draft: true
+draft: false
 ---
 
 얼쑤 Android 앱을 Google Play에 처음 올리면서 두 가지를 먼저 정해야 했습니다.
