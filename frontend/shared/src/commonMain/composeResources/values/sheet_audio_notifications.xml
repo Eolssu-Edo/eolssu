@@ -1,0 +1,4 @@
+<resources>
+    <string name="sheet_audio_completed">음원이 준비됐어요.</string>
+    <string name="sheet_audio_open">열기</string>
+</resources>
