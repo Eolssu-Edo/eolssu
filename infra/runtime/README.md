@@ -84,6 +84,8 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" \
 - 연결: `SHEET_AUDIO_BASE_URL=http://playback:8000`을 지정해야 생성 요청을 받습니다. 비어 있으면 503입니다.
 - 점검: 로그는 syslog 태그 `eolssu-playback`으로 남습니다. 요청 처리 로그는 오류 코드와 생성기 종료 상태만 담고, 시작 실패는 예외 전체를 남깁니다. 상태는 `/health` healthcheck로 봅니다.
 
+2026-11-14, 병합된 MR !739의 빠르기 지원을 운영 OMR·playback에 반영했습니다. 검증 후보 revision `24273759`의 AI/DATA 소스가 병합된 develop과 같음을 파일 SHA로 확인해 OMR `b75f30cb…`, playback `529d5859…` 이미지를 재사용했습니다. 운영 PDF의 숫자 빠르기·가속과 실제 CAT 생성 길이를 검증했습니다. [904 배포·검증·복구 기록](../../docs/plans/S15P31E102-904.md)을 참고합니다. Jenkins의 backend·frontend 배포는 이 두 런타임 이미지를 갱신하지 않으므로 기능 소스 반영과 운영 이미지 반영을 구분합니다. 기존에 빠르기가 누락된 사용자 악보는 자동 복구되지 않습니다.
+
 Windows PowerShell 5.1에서는 파이프가 바이너리를 글자로 바꿔 tar가 깨지므로 `git archive -o ai.tar "$REV" ai`로 파일을 만든 뒤 `scp`로 보내 서버에서 `tar -x -C $D -f $D/ai.tar`로 풉니다. ssh 설정에 포트 연결(LocalForward)이 있으면 열린 터널과 겹치므로 `-o ClearAllForwardings=yes`를 붙입니다. 되돌릴 때는 `sudo docker tag eolssu-ai:runtime-<이전 커밋> eolssu-ai:runtime` 뒤 같은 명령으로 `ai`만 재생성합니다. 빌드 기록: [S15P31E102-228](../../docs/plans/S15P31E102-228.md)(`88a1b05`), [S15P31E102-361](../../docs/plans/S15P31E102-361.md)(`c701c32`, pyin-4).
 
 - 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 512MiB tmpfs로 씁니다(녹음 임시 파일, numba 캐시).

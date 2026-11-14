@@ -823,7 +823,9 @@ class SheetEditViewModel(
         if (!showsAudioExport) return
         val current = _uiState.value
         if (!accountScope.isActive || current.documentLoading || current.documentFailed || current.saving || current.audioDownloading) return
-        if (loaded != null && (current.draft.jangdanId != savedJangdanId || current.draft.bpm != confirmedDraft?.bpm)) {
+        if (loaded != null && (current.draft.jangdanId != savedJangdanId || current.draft.bpm != confirmedDraft?.bpm ||
+                current.draft.tempoExpressions != confirmedDraft?.tempoExpressions ||
+                current.draft.tempoReferenceBpm != confirmedDraft?.tempoReferenceBpm)) {
             change { it.copy(message = SheetEditMessage.AudioNeedsSave) }
             return
         }
