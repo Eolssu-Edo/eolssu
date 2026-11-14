@@ -4,6 +4,7 @@ import com.ssafy.eolssu.core.audio.DeviceSheetAudio
 import com.ssafy.eolssu.core.audio.LocalAudioFile
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.SheetAudioDownload
+import com.ssafy.eolssu.core.model.HanbaeMark
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -241,6 +242,48 @@ class SheetEditAudioViewModelTest {
             vm.requestSave(); runCurrent()
             vm.requestAudio(); runCurrent()
             assertEquals(92, repository.requests.single().second.bpm)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun audioGenerationWaitsForSectionTemposToBeConfirmedEvenAfterDraftSave() = runTest {
+        val repository = FakeSheetAudioRepository().apply { statuses += SheetAudioLookup.None }
+        var confirmedCopy: SheetWorkingCopy? = null
+        val savedDocuments = object : SheetDocumentRepository by documents {
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                if (draft) return SheetWrite.Saved(copy.baseScoreVersion, copy.revision + 1)
+                confirmedCopy = copy
+                return SheetWrite.Saved("3", expressions = copy.expressions)
+            }
+        }
+        val vm = viewModel(repository, documents = savedDocuments)
+        try {
+            runCurrent()
+            val original = vm.uiState.value.draft
+            val changed = original.withTempoChange(SheetTempoChange(0, HanbaeMark.Slower, 30.0))
+                .withTempoChange(SheetTempoChange(2, HanbaeMark.Faster, 120.0))
+            assertEquals(original.bpm, changed.bpm)
+            assertEquals(listOf(30.0, 120.0), changed.tempoChanges.map { it.targetBpm })
+            vm.updateTempoSettings(changed)
+            vm.requestAudio(); runCurrent()
+            assertTrue(repository.requests.isEmpty(), "구간만 바뀌어도 이전 확정판으로 생성하지 않는다")
+            assertEquals(SheetEditMessage.AudioNeedsSave, vm.uiState.value.message)
+
+            vm.saveDraft(); runCurrent()
+            vm.requestAudio(); runCurrent()
+            assertTrue(repository.requests.isEmpty(), "임시저장은 생성에 쓰는 확정판을 바꾸지 않는다")
+            assertNull(confirmedCopy)
+
+            vm.requestSave(); runCurrent()
+            val saved = assertNotNull(confirmedCopy)
+            val restored = changed.withTempoExpressions(saved.expressions, saved.bpm)
+            assertEquals(changed.tempoChanges, restored.tempoChanges)
+            vm.requestAudio(); runCurrent()
+            assertEquals(original.bpm, repository.requests.single().second.bpm)
+
+            vm.updateTempoSettings(changed.withoutTempoChange(2))
+            vm.requestAudio(); runCurrent()
+            assertEquals(1, repository.requests.size, "구간 빠르기 삭제도 확정 저장이 필요하다")
+            assertEquals(SheetEditMessage.AudioNeedsSave, vm.uiState.value.message)
         } finally { Dispatchers.resetMain() }
     }
 
