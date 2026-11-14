@@ -138,6 +138,23 @@ class UserSheetApiDatabaseTests {
     }
 
     @Test
+    fun `a song without its own jangdan link copies the jangdan its practice accompaniment plays`() {
+        // 제공 곡 대부분은 곡 행의 장단 연결이 비어 있고 반주는 악보로만 정해진다(S15P31E102-894).
+        jdbc.update(
+            """INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
+            SELECT 993902,instrument_id,NULL,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status FROM songs WHERE id=1""",
+        )
+        val playback = json.readTree(get(OWNER, "/api/songs/993902/score").body()).path("result").path("jangdanPlayback")
+        assertEquals(jangdanId.toString(), playback.path("jangdanId").asString(), playback.toString())
+
+        val copied = copySong(OWNER, "accompaniment-jangdan", """"993902"""")
+        assertEquals(201, copied.statusCode(), copied.body())
+        val sheetId = json.readTree(copied.body()).path("result").path("sheetId").asString()
+        val stored = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result")
+        assertEquals(jangdanId.toString(), stored.path("jangdanId").asString(), stored.path("jangdanId").toString())
+    }
+
+    @Test
     fun `list pages only the owner's sheets newest first`() {
         insertSongCopy(OWNER, "악보 1")
         for (index in 2..3) insertBlank(OWNER, "악보 $index")
