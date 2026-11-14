@@ -213,6 +213,14 @@ fun EolssuNavHost(
     }
     // 화면을 옮긴 뒤에도 남아야 하는 안내(예: 마이크를 허용하지 않아 연습 화면을 나옴). 각 화면의 안내 위에 겹쳐 띄운다.
     val appSnackbar = remember { SnackbarHostState() }
+    val sheetAudio = koinInject<com.ssafy.eolssu.data.song.NotifyingSheetAudioRepository>()
+    val deviceSheetAudio = koinInject<com.ssafy.eolssu.core.audio.SheetAudioDeviceStore>()
+    SheetAudioCompletionEffect(sheetAudio, member, appSnackbar) { sheetId ->
+        navController.navigate(
+            if (deviceSheetAudio.available) EolssuDestination.practice(sheetId, mine = true)
+            else SheetEditDestination.editMine(sheetId),
+        ) { launchSingleTop = true }
+    }
     Box(Modifier.fillMaxSize()) {
         // 화면 전환 모션을 쓰지 않는다. 기본 전환(0.7초 페이드)이 도는 동안 나가는 화면이 남아 그 위의 확인 창도 늦게 사라졌고,
         // Android 제스처 뒤로 가기(predictive)는 따로 정한 줌아웃(scaleOut 0.7)을 써서 그것도 함께 끈다.

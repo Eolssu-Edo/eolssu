@@ -93,8 +93,8 @@ def test_danmori_pdf_keeps_four_quarter_beats_per_measure_in_synthesized_timelin
     assert [e["duration_seconds"] for e in timing["events"]] == [0.5] * 8
     assert rendered["quarter_bpm"] == 120
     assert out["notices"] == []
-    assert out["engineVersion"] == "3"
-    assert out["score"]["provenance"]["converter"] == "jeongganbo-text/standard_score_text@3"
+    assert out["engineVersion"] == "4"
+    assert out["score"]["provenance"]["converter"] == "jeongganbo-text/standard_score_text@4"
 
 
 @needs_generator
@@ -103,7 +103,7 @@ def test_text_layer_pdf_becomes_common_score():
     assert out["status"] == "DONE" and out["engine"] == "jeongganbo-text"
     score = out["score"]
     assert score["provenance"] | {"jgbSha256": None} == {"sourceId": "c-7", "jgbSha256": None, "review": "inferred",
-                                                          "converter": "jeongganbo-text/standard_score_text@3"}
+                                                          "converter": "jeongganbo-text/standard_score_text@4"}
     assert score["music"]["jangdan"] == "세마치" and score["music"]["bpmUnit"] == "DOTTED_QUARTER"
     tpb = score["music"]["ticksPerBeat"]
     assert score["music"]["ticksPerJeonggan"] == tpb  # 세마치 3정간 각이라 정간 하나 = 1박

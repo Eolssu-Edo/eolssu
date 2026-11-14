@@ -2,6 +2,23 @@
 
 - [기초 배우기 돌다리 그림과 화면 UI 개선 (888)](plans/S15P31E102-888.md)
 
+- [음원 변환 완료 앱 내 알림 (905)](plans/S15P31E102-905.md) · [알림 규칙](specs/sheet-audio-app-flow.md#앱-전체-완료-알림-s15p31e102-905)
+
+- [구간 빠르기 적용 후 예상 음원 길이 표시 복구 (903)](plans/S15P31E102-903.md) · [계산·표시 계약](specs/jeonggan-tempo-edit.md#예상-음원-길이-s15p31e102-903)
+
+- [홈 화면 복귀 시 맨 아래 스크롤 위치 유지 (895)](plans/S15P31E102-895.md)
+
+- [제공 곡 사본의 장단 연결 유지 (894)](plans/S15P31E102-894.md) · [복사 계약](specs/user-sheets.md#제공-곡을-개인-악보로-복사-s15p31e102-670)
+
+- [악보 추가 화면의 내 악보 목록·변환 진행 표시 (881)](plans/S15P31E102-881.md)
+
+- [악보 불러오기·올리기·편집 화면 배치 정리와 자동저장 중단 (889)](plans/S15P31E102-889.md)
+
+- [이조 슬라이더 최초 원조 유지·눈금 정렬·간격 (893)](specs/score-authoring-consistency.md#이조-슬라이더-최초-선택과-표식-정렬-s15p31e102-893) · [원인·좌표 실측](knowledge/frontend/sheet-pitch-adaptation.md#최초-원조-유지와-이조-눈금-끝점-정렬-893) · [계획·검증](plans/S15P31E102-893.md)
+
+- [선택 위치 검수 안내 (890)](specs/score-authoring-consistency.md#인식-검수-이유의-정간-클릭-안내-s15p31e102-890) · [원인·OMR 운영 배포](knowledge/frontend/sheet-pitch-adaptation.md#사용자-승인-후-omr-배포-890) · [검증·인수인계](plans/S15P31E102-890.md)
+- [악보 리듬 보존·무반주 저장·악보별 기본 박 반주 (883)](specs/score-rhythm-preservation.md) · [실제 악보 전후 비교](knowledge/data/common/rhythm-metronome/meter-import-validation.md) · [작업 기록](plans/S15P31E102-883.md)
+
 - [분석 완료 후 음역·이조 즉시 사용 (879)](specs/sheet-adaptation-readiness.md) · [중복 조회 원인과 실제 검증](knowledge/frontend/sheet-adaptation-readiness.md) · [계획·검증](plans/S15P31E102-879.md)
 
 - [제공 악보 추가·편집·저장 실행 검증 (876)](knowledge/frontend/sheet-add-edit-runtime-verification.md) · [계획](plans/S15P31E102-876.md)
@@ -231,6 +248,7 @@
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
 - [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
+- [소리 나는 버튼의 눌림 효과(elastic squash)](decisions/frontend-sound-button-press.md) (확정)
 
 - [S15P31E102-256 곡·악보 조회](plans/S15P31E102-256.md)
 - [S15P31E102-345 곡 목록 서버 검색·페이지 보류와 재개 조건](plans/S15P31E102-345.md)
@@ -346,6 +364,9 @@
 - [S15P31E102-472 인식 작업자·결과 저장·재시도](plans/S15P31E102-472.md) · [시간 제한·사진 방향·재시도 근거](knowledge/backend/sheet-conversion-worker.md)
 
 ## COCO 산출물
+
+- [불러올 악보 고르기 목록 개선](specs/edit-pick-list.md): 제공 곡·내 악보 조회 분리와 선택 화면의 범위·완료 조건.
+- [불러오기 목록 대기 분리와 검증](knowledge/frontend/edit-pick-list.md): 지연 원인·탭별 조회와 실행 검증 범위.
 
 - [빠르기 생성 사전검사와 수행 시간표 분할 계획](plans/S15P31E102-773.md)
 - [빠르기·수행 시계와 실제 CAT 검증 근거](knowledge/data/score-authoring-tempo.md)
@@ -487,6 +508,10 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [이전 연주 기록의 단독 평가·악기명 연결 (530)](plans/S15P31E102-530.md)
 
 ## 악보 작성 결과별 작업 계획
+
+- [정간보 한배 지원 스펙](specs/jeonggan-tempo-edit.md) · [S15P31E102-882 재개 계획·검증](plans/S15P31E102-882.md) · [중단 시점 인수인계](knowledge/ai/jeonggan-tempo-handoff.md)
+
+- S15P31E102-882 악보 빠르기 인식과 편집 · [숫자 가져오기 스펙](specs/staff-tempo-import.md) · [지원 범위·실제 PDF·검증 근거](knowledge/ai/score-recognition-corrections.md#숫자-빠르기와-가속-가져오기-882)
 
 - [S15P31E102-784 제공 악보 ZIP 추가·편집 검증과 인식 오류 수정](plans/S15P31E102-784.md) · [검증 근거와 한계](knowledge/ai/score-archive-regression.md)
 - [S15P31E102-770 지원음 선택·미확인 음 교정 화면](plans/S15P31E102-770.md)

@@ -22,6 +22,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import pymupdf
+from hanbae_marks import text_marks
 
 # 율명 한자 → 한글. 우물사이(jeongganbo-generator js/app.js OCT_HANJA)와 같은 표.
 BASE = dict(황="黃", 대="大", 태="太", 협="夾", 고="姑", 중="仲", 유="蕤", 임="林", 이="夷", 남="南", 무="無", 응="應")
@@ -226,6 +227,26 @@ def voices(page, cols):
     return out
 
 
+def percussion_marks(page, note_size):
+    """원 안 세로획(장구의 덩 표기)만 찾는다. 단순 원·숨표·점은 제외한다."""
+    drawings = page.get_drawings()
+    strokes = [(a, b) for drawing in drawings for kind, *points in drawing["items"]
+               if kind == "l" for a, b in [points] if abs(a.x - b.x) < 0.5]
+    out = []
+    for drawing in drawings:
+        rect, items = drawing["rect"], drawing["items"]
+        if (len(items) != 4 or any(item[0] != "c" for item in items) or
+                not note_size * 0.4 < rect.width < note_size * 1.7 or
+                not 0.85 < rect.width / max(rect.height, 0.01) < 1.15):
+            continue
+        x, y = (rect.x0 + rect.x1) / 2, (rect.y0 + rect.y1) / 2
+        if any(abs(a.x - x) < rect.width * 0.15 and
+               abs(min(a.y, b.y) - rect.y0) < rect.height * 0.15 and
+               abs(max(a.y, b.y) - rect.y1) < rect.height * 0.15 for a, b in strokes):
+            out.append(dict(x=x, y=y))
+    return out
+
+
 def read_page(page):
     g = vector_symbols(page, glyphs(page))
     hanja = [n for n in g if n["c"] in NOTE and n["c"] not in "-△"]
@@ -243,13 +264,17 @@ def read_page(page):
         return (left[0], right[0], max(left[1], right[1]), min(left[2], right[2])) if left and right else None
 
     boxes_ = {b for b in map(box_of, hanja) if b}
+    # 장단 예시에는 이음 '-'도 있어 인접 선율 격자로 편입될 수 있다.
+    # 율명이 없는 열에서 명시적인 장구 표기가 확인될 때만 제외한다.
+    note_size = sorted(n["size"] for n in hanja)[len(hanja) // 2]
+    accompaniment = {b for mark in percussion_marks(page, note_size) for b in [box_of(mark)] if b} - boxes_
     # 이음·쉼표만 든 단(곡 끝 '- - - △' 등)도 같은 x의 음 열이면 읽는다. 가사 칸의 '-'는 x가 달라 들어오지 않는다.
     xs = {(a, b) for a, b, _, _ in boxes_}
     boxes_ |= {b for n in g if n["c"] in "-－△" for b in [box_of(n)]
-               if b and (n["c"] == "△" or b[:2] in xs)}
+               if b and b not in accompaniment and (n["c"] == "△" or b[:2] in xs)}
     # 처음 나타난 x에도 이음만 있는 각이 올 수 있다. 같은 단의 이웃 악보 열과
     # 너비·위아래 경계가 맞는 격자만 이어 붙여 가사 칸의 '-'와 구분한다.
-    tie_boxes = {b for n in g if n["c"] in "-－" for b in [box_of(n)] if b} - boxes_
+    tie_boxes = {b for n in g if n["c"] in "-－" for b in [box_of(n)] if b} - boxes_ - accompaniment
     while tie_boxes:
         adjacent = {b for b in tie_boxes if any(
             abs(b[2] - a[2]) < 1 and abs(b[3] - a[3]) < 1 and
@@ -260,8 +285,6 @@ def read_page(page):
             break
         boxes_ |= adjacent
         tie_boxes -= adjacent
-    if not boxes_:
-        raise ValueError("정간 열을 찾지 못함(율명은 있지만 정간 격자가 없는 쪽)")
     if not boxes_:
         raise ValueError("정간 열을 찾지 못함(율명은 있지만 정간 격자가 없는 쪽)")
     width = sorted(b - a for a, b, _, _ in boxes_)[len(boxes_) // 2]
@@ -327,6 +350,8 @@ def read_page(page):
 
     gaks, boxes = [], []
     report = dict(columns=len(pieces), jeonggans=[], split_cells=[], ignored=[], ignored_at=[],
+                  excluded_accompaniment=[dict(x=round(a, 1), y=round(t, 1), w=round(b-a, 1), h=round(z-t, 1),
+                                               reason="PERCUSSION_SYMBOL") for a, b, t, z in sorted(accompaniment)],
                   voices=max(voice.values()) if voice else 1,
                   dropped=[dict(x=round(a, 1), y=round(bands[0][0], 1), w=round(b - a, 1),
                                 h=round(bands[-1][1] - bands[0][0], 1)) for _, _, (a, b), bands in dropped])
@@ -351,6 +376,7 @@ def read_page(page):
     read_notes = sum(1 for n in notes if any(c[0] < n["x"] < c[1] for _, _, c, _ in pieces))
     if read_notes <= len(report["ignored"]):
         raise ValueError(f"악보 쪽이 아님(율명 {read_notes}, 읽지 않은 글자 {len(report['ignored'])})")
+    report['tempo_marks'] = text_marks(g, boxes)
     return gaks, boxes, report
 
 if __name__ == "__main__":

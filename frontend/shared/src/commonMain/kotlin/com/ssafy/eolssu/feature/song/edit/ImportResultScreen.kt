@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.song.edit
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.elasticSquash
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
@@ -194,7 +196,8 @@ private fun CheckCard(state: ImportResultUiState, draft: SheetDraft, onChoose: (
 private fun ListenRow(playing: Boolean, onToggle: () -> Unit) {
     val colors = EolssuTheme.colors
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Surface(onClick = onToggle, modifier = Modifier.size(48.dp), shape = CircleShape, color = colors.surface) {
+        val press = remember { MutableInteractionSource() }
+        Surface(onClick = onToggle, modifier = Modifier.elasticSquash(press).size(48.dp), shape = CircleShape, color = colors.surface, interactionSource = press) {
             Box(contentAlignment = Alignment.Center) {
                 Box(Modifier.size(40.dp).background(colors.accentTint, CircleShape), contentAlignment = Alignment.Center) {
                     Icon(

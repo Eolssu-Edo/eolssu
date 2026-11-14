@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Path
@@ -90,6 +91,7 @@ internal fun SheetAdaptationPanel(
                             val sliderLabel = stringResource(Res.string.sheet_adapt_slider)
                             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(transposeLabel(selected.transpose), style = MaterialTheme.typography.labelLarge)
+                                Spacer(Modifier.height(8.dp))
                                 Box(Modifier.fillMaxWidth().height(56.dp)) {
                                     Slider(value = selected.transpose.toFloat(), onValueChange = { onTranspose(it.roundToInt()) },
                                         valueRange = -6f..6f, steps = 11,
@@ -99,6 +101,15 @@ internal fun SheetAdaptationPanel(
                                         }) },
                                         track = { SliderDefaults.Track(it, modifier = Modifier.onSizeChanged { size ->
                                             trackCorner = with(density) { (size.height / 2f).toDp() }
+                                        }, drawStopIndicator = null, drawTick = { offset, color ->
+                                            // The endpoint thumb and diamond sit at the track end, outside its rounded corner.
+                                            val corner = size.height / 2f
+                                            val x = when {
+                                                offset.x <= corner -> 0f
+                                                offset.x >= size.width - corner -> size.width
+                                                else -> offset.x.roundToInt().toFloat()
+                                            }
+                                            drawCircle(color, SliderDefaults.TickSize.toPx() / 2f, Offset(x, offset.y))
                                         }) },
                                         modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).semantics { contentDescription = sliderLabel })
                                     RecommendationMarks(recommendations, thumbInset, trackCorner, Modifier.fillMaxWidth().align(Alignment.TopCenter))
@@ -117,12 +128,16 @@ internal fun SheetAdaptationPanel(
                         instrumentPicker()
                         if (singleRow) transposeControl(Modifier.weight(1f))
                         else Spacer(Modifier.weight(1f))
-                        Column {
-                            Text(stringResource(Res.string.sheet_adapt_octave_count, selected.octaveChanges), style = MaterialTheme.typography.labelSmall)
-                            Text(stringResource(Res.string.sheet_adapt_unresolved_count, selected.unresolved), style = MaterialTheme.typography.labelSmall,
+                        // 두 개수를 한 줄에 나란히 두고, 적용은 작은 네모 버튼(32dp)으로 둔다(S15P31E102-889).
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(Res.string.sheet_adapt_octave_count, selected.octaveChanges), style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1)
+                            Text("·", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
+                            Text(stringResource(Res.string.sheet_adapt_unresolved_count, selected.unresolved), style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
                                 color = if (selected.unresolved > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
                         }
-                        EolssuButton(stringResource(Res.string.sheet_details_apply), onApply, small = true)
+                        PillButton(stringResource(Res.string.sheet_details_apply), onApply, compact = true)
                     }
                     if (!singleRow) transposeControl(Modifier.fillMaxWidth())
                 }

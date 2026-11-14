@@ -1,6 +1,9 @@
 package com.ssafy.eolssu.data.song
 
 import com.ssafy.eolssu.core.model.Score
+import com.ssafy.eolssu.core.model.ScoreUnitKey
+import com.ssafy.eolssu.core.model.HanbaeMark
+import kotlinx.serialization.json.*
 import com.ssafy.eolssu.core.model.ScoreBpmUnit
 import com.ssafy.eolssu.core.model.ScoreCell
 import com.ssafy.eolssu.core.model.ScoreEvent
@@ -37,7 +40,7 @@ data class CommonScoreData(
     @Serializable data class Provenance(val sourceId: String, val jgbSha256: String, val review: String, val converter: String)
 
     /** 누락/중복/잘못된 시간·참조를 샘플이나 빈 악보로 대체하지 않는다. */
-    fun toScore(): Score {
+    fun toScore(expressions: JsonObject? = null): Score {
         checkScore(schemaVersion == 1, "schemaVersion", "지원 버전은 1이다")
         checkScore(score.title.isNotEmpty() && score.part >= 0 && score.scoreVersion >= 1, "score", "제목·파트·버전을 확인해야 한다")
         checkScore(music.hwangHz.isFinite() && music.hwangHz > 0 && music.ticksPerBeat > 0 && music.ticksPerJeonggan > 0,
@@ -135,7 +138,8 @@ data class CommonScoreData(
         return Score(mappedColumns,
             ScoreTiming(music.hwangHz, music.jangdan, bpmUnit, music.ticksPerBeat, music.ticksPerJeonggan),
             ScoreSource(schemaVersion, score.title, score.instrument, score.part, score.sourceId, score.scoreVersion,
-                ScoreProvenance(provenance.sourceId, provenance.jgbSha256, provenance.review, provenance.converter)), timeline)
+                ScoreProvenance(provenance.sourceId, provenance.jgbSha256, provenance.review, provenance.converter)), timeline,
+            tempoMarks = tempoPositions(expressions))
     }
 
     companion object {
@@ -157,3 +161,21 @@ private fun checkScore(condition: Boolean, location: String, reason: String) {
     if (!condition) throw ScoreDataException(location, reason)
 }
 private fun Map<Int, *>.indices(): List<Int> = (0 until size).toList()
+
+private fun CommonScoreData.tempoPositions(expressions: JsonObject?): Map<ScoreUnitKey, List<HanbaeMark>> {
+    val placements = expressions?.get("placements") as? JsonArray
+    if (placements != null) return placements.filterIsInstance<JsonObject>().mapNotNull { entry ->
+        val cid = (entry["cellId"] as? JsonPrimitive)?.content ?: return@mapNotNull null
+        val row = (entry["row"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null
+        val col = (entry["col"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null
+        val marks = (entry["symbols"] as? JsonArray).orEmpty().filterIsInstance<JsonPrimitive>().mapNotNull { HanbaeMark.fromSymbol(it.content) }
+        if (marks.isEmpty()) null else ScoreUnitKey(cid, row, col) to marks
+    }.toMap()
+    return events.mapNotNull { event ->
+        val marks = event.sigimsae.mapNotNull(HanbaeMark::fromSymbol)
+        val unit = columns.flatMap { it.cells }.firstOrNull { it.id == event.cellId }?.units?.firstOrNull {
+            "${event.cellId}-r${it.row}-u${it.col}" == event.id
+        } ?: return@mapNotNull null
+        if (marks.isEmpty()) null else ScoreUnitKey(event.cellId, unit.row, unit.col) to marks
+    }.toMap()
+}

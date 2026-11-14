@@ -241,7 +241,7 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
                 else -> stringResource(if (settings.jangdanSound) Res.string.practice_jangdan_sound_on else Res.string.practice_jangdan_sound_off, song.jangdanName)
             },
             // 장단 연결이 검수 중인 악보는 장단 메뉴를 아예 열지 않는다(S15P31E102-768).
-            enabled = song.jangdanPlayback != null,
+            enabled = song.hasAccompaniment,
         ) { actions.onOpen(PracticePanel.Jangdan) }
         MenuRow(EolssuIcons.TempoMark, stringResource(Res.string.practice_menu_tempo), if (locked) lockedStatus else tempoLabel(step), enabled = !locked) {
             actions.onOpen(PracticePanel.Tempo)
@@ -523,7 +523,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
             color = colors.textMuted,
         )
     }
-    if (state.jangdanProblem || song.jangdanPlayback == null || state.jangdanStatus == JangdanStatus.Loading) TinyNote(jangdanHint(state), Modifier.padding(top = 8.dp))
+    if (state.jangdanProblem || !song.hasAccompaniment || state.jangdanStatus == JangdanStatus.Loading) TinyNote(jangdanHint(state), Modifier.padding(top = 8.dp))
     val perRow = minOf(jangdan.gak, 12)
     Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
         (0 until jangdan.gak).chunked(perRow).forEach { rowCells ->
@@ -559,6 +559,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
         // 흰 카드 안이라 테두리 대신 회색 채움으로 누르는 자리를 보인다.
         containerColor = colors.groupedBackground,
         borderColor = if (draft.previewing) colors.play else Color.Transparent,
+        squash = true,
     )
     }
     PanelCard(padding = 0.dp) {

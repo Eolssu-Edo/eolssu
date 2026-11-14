@@ -1,5 +1,7 @@
 # 악보 인식 서비스 계약 (omr, SHT-07 내부)
 
+2026-11-13, S15P31E102-883: 오선보의 각간 붙임줄·가변 마디 길이를 보존한다. 자동 연결 대상이 아닌 박자는 장단 빈 이름으로 내보내 기존 null ID 저장을 사용한다. 박자표 저신뢰·반복 불완전마디는 검수 사유를 남긴다. [현재 리듬 계약](score-rhythm-preservation.md)이 아래의 고정 각 너비·굿거리 기본값 설명을 대체한다. 실제 박자표 오독을 추정으로 고치지는 않는다.
+
 - Jira: [S15P31E102-313](https://ssafy.atlassian.net/browse/S15P31E102-313)(인식, 사지한). 소비자: [S15P31E102-347](https://ssafy.atlassian.net/browse/S15P31E102-347)(BE 변환 작업자·검수·저장).
 - 상태: 초안(2026-11-03, 313 설계 결정). BE(347) 검토 전이다. `hwangPitch` 생략 동작은 382 결정을 바꾸는 **제안**이다(아래 '382와 다른 점').
 - 상위 계약: [내 악보](user-sheets.md) '2차 결정(382)'의 SHT-07·08·10. 이 문서는 backend 작업자와 악보 인식 서비스 사이만 정한다. 앱이 보는 API는 382와 Notion API 명세를 따른다.
@@ -72,6 +74,7 @@ POST /v1/recognitions
 - `score`: 공통 악보 v1([score_data.schema.json](../../data/src/scores/score_data.schema.json)). 언제나 초안이라 `provenance.review`는 `inferred`다. 내 악보는 사용자가 검수해 저장한 뒤에도 `inferred`로 둔다(`reviewed`는 전문가가 검수한 채점 정답용). 저장할 때 backend가 `converter`·`jgbSha256`·`sourceId`를 다시 채운다(S15P31E102-447).
 - `provenance.converter` 값: `jeongganbo-text/standard_score_text`(글자 층), `jeongganbo-omr/malerlab`, `staff-omr/audiveris-<버전>`. `jgbSha256`·`sourceId`는 변환한 `.jgb.json`과 `conversionId` 기준으로 채운다.
 - `jgb`: 중간 결과 `.jgb.json`(382). 저장 여부는 backend가 정한다.
+- 오선보의 선택적 `bpm`은 인식된 첫 숫자를 `score.music.bpmUnit` 기준 양의 INT로 표현할 수 있을 때만 보낸다. 미인식 시 생략한다. 선택적 `expressions`는 기존 `common-score-expressions/v1`의 해시 결합 숫자 `performancePlan`이다. 공통 악보 v1에 숫자 필드를 추가하지 않는다. backend는 요청 BPM → 인식 BPM → 장단 기본값 순으로 선택하고 서버 메타데이터 변경 뒤 companion SHA를 재결합한다. [숫자·가속 스펙](staff-tempo-import.md).
 - `bbox`: `pages[index]` 그림 픽셀 좌표 `[x, y, 너비, 높이]`. 검수 화면이 원본 쪽 이미지에 표시한다.
 
 ### issues와 notices (S15P31E102-469)
@@ -89,6 +92,7 @@ POST /v1/recognitions
 | `UNREADABLE` 읽지 못한 글자(`detail.text`) | issues | 그 글자를 덮는 정간 |
 | `UNREADABLE` `NO_TEXT`·`NO_GRID`·`NO_STAFF`·`NOT_SCORE_COLUMN` | notices | 쪽·열 전체 |
 | `LOW_CONFIDENCE` `TIME_SIGNATURE_CHANGED`·`VOLTA_NUMBER` | notices | 마디 구조 |
+| `LOW_CONFIDENCE` `TEMPO_PDF_TEXT`·`TEMPO_OFF_GRID`·`TEMPO_CONFLICT`·`TEMPO_RAMP_UNRESOLVED`·`TEMPO_BASE_NOT_INTEGER` | notices | 숫자 보완·위치/가속 검토. 상세 기준은 숫자·가속 스펙 |
 | `TRANSPOSED`·`VOICE_GUESSED`·`JANGDAN_GUESSED`·`JANGDAN_MISMATCH` | notices | 악보 전체 |
 
 ### issues 종류

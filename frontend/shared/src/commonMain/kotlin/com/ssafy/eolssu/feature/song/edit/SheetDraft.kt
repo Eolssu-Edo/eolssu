@@ -96,6 +96,8 @@ data class SheetDraft(
     val authoring: kotlinx.serialization.json.JsonObject? = null,
     /** Original-event IDs in [original] to pre-adaptation pitches for repeated edits in this session. */
     internal val adaptationBaseline: Map<String, Int> = emptyMap(),
+    val tempoExpressions: kotlinx.serialization.json.JsonObject? = null,
+    val tempoReferenceBpm: Int? = null,
 ) {
     init {
         require(cells.isNotEmpty() && (columnSizes?.let { it.all { n -> n > 0 } && it.sum() == cells.size } ?: (cells.size % requireNotNull(jangdan).gak == 0)))
@@ -161,7 +163,11 @@ data class SheetDraft(
                     if (unit.eventId == id && signs.isNotEmpty()) put(ScoreUnitKey(cell.id, unit.row, unit.col), signs)
                 } } }
             }
-        }.getOrNull()?.let { return it }
+        }.getOrNull()?.let { regular ->
+            return (regular.keys + tempoAnnotations().keys).associateWith { key ->
+                regular[key].orEmpty().filter { com.ssafy.eolssu.core.model.HanbaeMark.fromSymbol(it) == null } + tempoAnnotations()[key].orEmpty()
+            }.filterValues { it.isNotEmpty() }
+        }
         return sigimsae.entries.mapNotNull { (slot, value) -> unitKeyOf(slot.cell, slot.sub)?.let { it to value.map(Sigimsae::scoreName) } }.toMap()
     }
 
@@ -267,10 +273,11 @@ data class SheetDraft(
         val count = sizes[column]
         val at = indexOf(column, 0) + count
         val inserted = cells.subList(0, at) + List(count) { emptyList() } + cells.subList(at, cells.size)
-        return copy(cells = inserted,
+        val next = copy(cells = inserted,
             columnSizes = columnSizes?.toMutableList()?.also { it.add(column + 1, count) },
             sourceCellIds = sourceCellIds?.let { it.take(at) + List(count) { null } + it.drop(at) },
             sigimsae = sigimsae.mapKeys { (slot, _) -> if (slot.cell >= at) slot.copy(cell = slot.cell + count) else slot })
+        return remapBasicAccompaniment(next, atCell = at, insertedCells = count)
     }
 
     /** [column] 각을 지운다. 각이 하나뿐이면 지우지 않는다. */
@@ -278,13 +285,14 @@ data class SheetDraft(
         if (columnCount <= 1) return this
         val from = indexOf(column, 0)
         val to = from + sizes[column]
-        return copy(
+        val next = copy(
             cells = cells.subList(0, from) + cells.subList(to, cells.size),
             columnSizes = columnSizes?.filterIndexed { i, _ -> i != column },
             sourceCellIds = sourceCellIds?.let { it.take(from) + it.drop(to) },
             sigimsae = sigimsae.filterKeys { it.cell !in from until to }
                 .mapKeys { (slot, _) -> if (slot.cell >= to) slot.copy(cell = slot.cell - (to - from)) else slot },
         )
+        return remapBasicAccompaniment(next, atCell = from, removedCells = to - from)
     }
 
     /** 오선보에서 고른 음([index] 정간의 [sub]번째)을 [StaffPitchOrder] 안에서 [steps]만큼 올리거나 내린다. */

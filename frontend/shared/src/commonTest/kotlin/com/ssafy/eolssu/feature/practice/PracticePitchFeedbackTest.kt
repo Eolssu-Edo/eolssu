@@ -151,4 +151,48 @@ class PracticePitchFeedbackTest {
         val high = feedback.accept(reading(30, 76).copy(sequence = 2, frequencyHz = 470.0), 0, 1_076_000_000)
         assertEquals(false, high.current?.correct)
     }
+
+    // 대금 낮은 옥타브(S15P31E102-892). 곡의 음이 모두 황(440Hz)이면 하한은 그 200센트 아래(약 392Hz)다.
+    private val floor = 440.0 * 2.0.pow(-2 / 12.0)
+
+    @Test fun daegeumBlownAnOctaveLowIsDoubledBeforeJudging() {
+        val feedback = PracticePitchTracker(events, 440.0, 1.0, lowOctaveFloorHz = floor)
+        feedback.anchor(boundary, 0.0)
+        val low = feedback.accept(reading(20, 66).copy(frequencyHz = 220.0), 0, 1_066_000_000).current
+        assertEquals(true, low?.correct)
+        assertEquals(440.0, low?.heardHz) // 화면 색 집계가 고친 높이로 계산하도록 고친 값을 넘긴다
+    }
+
+    @Test fun aWrongNoteBlownLowIsStillWrongAfterDoubling() {
+        val feedback = PracticePitchTracker(events, 440.0, 1.0, lowOctaveFloorHz = floor)
+        feedback.anchor(boundary, 0.0)
+        val wrong = feedback.accept(reading(20, 66).copy(frequencyHz = 247.0), 0, 1_066_000_000).current
+        assertEquals(false, wrong?.correct) // 494Hz, 황보다 200센트 높음
+        assertEquals(494.0, wrong?.heardHz)
+    }
+
+    @Test fun valuesStillBelowTheFloorAfterDoublingStayUndecidedWithTheirMeasuredHeight() {
+        val feedback = PracticePitchTracker(events, 440.0, 1.0, lowOctaveFloorHz = floor)
+        feedback.anchor(boundary, 0.0)
+        val tooLow = feedback.accept(reading(20, 66).copy(frequencyHz = 180.0), 0, 1_066_000_000).current
+        assertNull(tooLow?.correct)
+        assertEquals(180.0, tooLow?.heardHz)
+    }
+
+    @Test fun withoutAFloorLowValuesAreNotTouched() {
+        val feedback = PracticePitchTracker(events, 440.0, 1.0)
+        feedback.anchor(boundary, 0.0)
+        val low = feedback.accept(reading(20, 66).copy(frequencyHz = 220.0), 0, 1_066_000_000).current
+        assertNull(low?.correct)
+        assertEquals(220.0, low?.heardHz)
+    }
+
+    @Test fun onlyDaegeumGetsAFloorFromItsLowestNote() {
+        val notes = listOf(note("태", 1), note("황", 1), note("고", 1)).mapIndexed { i, n -> events[i].copy(note = n) }
+        assertEquals(hz(12) * 2.0.pow(-2 / 12.0), lowOctaveFloorHz(notes, hwang, "JEONGAK_DAEGEUM")!!, 0.001)
+        assertEquals(hz(12) * 2.0.pow(-2 / 12.0), lowOctaveFloorHz(notes, hwang, "SANJO_DAEGEUM")!!, 0.001)
+        assertNull(lowOctaveFloorHz(notes, hwang, "DANSO"))
+        assertNull(lowOctaveFloorHz(notes, hwang, null))
+        assertNull(lowOctaveFloorHz(emptyList(), hwang, "JEONGAK_DAEGEUM"))
+    }
 }

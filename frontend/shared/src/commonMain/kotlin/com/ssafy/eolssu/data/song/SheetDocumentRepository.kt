@@ -21,6 +21,7 @@ data class SheetDocument(
     val notices: List<JsonObject> = emptyList(),
     val authoring: JsonObject? = null,
     val expressions: JsonObject? = null,
+    val sourceSha256: String? = null,
 )
 data class SheetWorkingCopy(val title: String, val jangdanId: String?, val bpm: Int,
     val score: CommonScoreData, val baseScoreVersion: String, val revision: Int,
@@ -29,7 +30,7 @@ data class SheetWorkingCopy(val title: String, val jangdanId: String?, val bpm: 
 /** The server may capture a legacy source while storing the draft; only requested metadata is an edit. */
 internal fun SheetWorkingCopy.matchesDraftAcknowledgement(request: SheetWorkingCopy): Boolean =
     this.copy(authoring = request.authoring) == request &&
-        (request.authoring == null || authoring?.writeReference() == request.authoring.writeReference())
+        (request.authoring == null || authoring?.acknowledgedReference() == request.authoring.acknowledgedReference())
 
 sealed interface SheetWrite {
     data class Saved(val scoreVersion: String, val revision: Int = 0, val reviewStatus: String? = null, val expressions: JsonObject? = null) : SheetWrite
@@ -61,7 +62,8 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
                 authoring = it.authoring, expressions = it.expressions ?: dto.expressions)
         }
         SheetDocument(dto.sheetId, dto.title, dto.jangdanId, dto.bpm, dto.scoreVersion, original, copy,
-            dto.reviewStatus, dto.conversionStatus, dto.issues, dto.notices, authoring = dto.authoring, expressions = dto.expressions)
+            dto.reviewStatus, dto.conversionStatus, dto.issues, dto.notices, authoring = dto.authoring, expressions = dto.expressions,
+            sourceSha256 = (dto.draft?.score ?: dto.scoreData)?.let(::commonSourceSha256))
     }
 
     override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite = member.inSession {
@@ -107,7 +109,12 @@ private fun JsonObject.writeReference(): JsonObject = kotlinx.serialization.json
     val source = this@writeReference["source"] as? JsonObject
     put("source", kotlinx.serialization.json.buildJsonObject { source?.get("scoreSha256")?.let { put("scoreSha256", it) } })
     this@writeReference["adaptation"]?.let { put("adaptation", it) }
+    this@writeReference["accompaniment"]?.let { put("accompaniment", it) }
 }
+
+private fun JsonObject.acknowledgedReference(): JsonObject = JsonObject(writeReference().filterNot {
+    it.key == "accompaniment" && it.value == kotlinx.serialization.json.JsonNull
+})
 
 @Serializable private class DocumentDto(val sheetId: String, val title: String, val jangdanId: String? = null,
     val bpm: Int, val scoreVersion: String, val scoreData: JsonObject? = null, val draft: DraftDto? = null,

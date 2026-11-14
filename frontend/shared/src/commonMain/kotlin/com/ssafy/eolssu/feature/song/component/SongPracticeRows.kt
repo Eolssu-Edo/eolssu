@@ -1,6 +1,12 @@
 package com.ssafy.eolssu.feature.song.component
 
 import androidx.compose.ui.draw.alpha
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import com.ssafy.eolssu.feature.song.conversionProgress
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -231,7 +237,31 @@ internal fun MySheetRow(
                     }
                 }
             }
+            if (!usable && status != SheetConversionStatus.Failed) {
+                ConversionProgressBar(conversionProgress(conversion ?: SheetConversion(sheet.id, SheetConversionStatus.Queued)) ?: 0f)
+            }
         }
+    }
+}
+
+/**
+ * 변환 진행 막대: 옅은 선 위에 연두로 채운 6dp 막대. 서버가 퍼센트를 주지 않아 숫자는 쓰지 않고 [conversionProgress]의 어림값만 그린다.
+ * 값이 바뀌면 부드럽게 늘어난다.
+ */
+@Composable
+private fun ConversionProgressBar(progress: Float) {
+    val colors = EolssuTheme.colors
+    val shown by animateFloatAsState(progress.coerceIn(0f, 1f), animationSpec = tween(600))
+    val shape = RoundedCornerShape(3.dp)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(6.dp)
+            .clip(shape)
+            .background(colors.lineSoft)
+            .semantics { progressBarRangeInfo = ProgressBarRangeInfo(progress.coerceIn(0f, 1f), 0f..1f) },
+    ) {
+        Box(Modifier.fillMaxWidth(shown).height(6.dp).clip(shape).background(colors.primary))
     }
 }
 
