@@ -44,7 +44,20 @@ internal fun comparePitch(note: ScoreNote, hwangHz: Double, heardHz: Double?, so
     return off in -down..up
 }
 
-/** 안내는 원본 이벤트 ID와 입력 시각을 끝까지 유지한다. [correct]는 [comparePitch]의 결과로 null이면 보류다. */
+/**
+ * 대금이면 평가 구간 최저음보다 200센트 낮은 높이(Hz), 아니면 null(S15P31E102-892). 대금을 악보보다 한 옥타브 낮게 분 연주를
+ * 서버 채점(848 `lift_below_range`)처럼 두 배로 고쳐 판정하는 하한이다. [events]는 평가 구간의 음이다.
+ */
+internal fun lowOctaveFloorHz(events: List<ScoreEvent>, hwangHz: Double, instrument: String?): Double? {
+    if (instrument != "JEONGAK_DAEGEUM" && instrument != "SANJO_DAEGEUM") return null
+    val lowest = songTargetHz(events, hwangHz).firstOrNull() ?: return null
+    return lowest * 2.0.pow(-2 / 12.0)
+}
+
+/**
+ * 안내는 원본 이벤트 ID와 입력 시각을 끝까지 유지한다. [correct]는 [comparePitch]의 결과로 null이면 보류다.
+ * [heardHz]는 판정에 쓴 높이다. 대금 낮은 옥타브 보정이 걸리면 두 배로 고친 값이라 화면 색 집계도 같은 값으로 계산한다(892).
+ */
 data class PitchFeedback(
     val eventId: String,
     val targetName: String,
@@ -60,6 +73,8 @@ internal class PracticePitchTracker(
     private val events: List<ScoreEvent>,
     private val hwangHz: Double,
     private val msPerTick: Double,
+    /** [lowOctaveFloorHz]의 결과. 이보다 낮은 측정값은 두 배로 고쳐 판정하고, 그래도 낮으면 그대로 둔다. */
+    private val lowOctaveFloorHz: Double? = null,
 ) {
     private var boundary: CaptureBoundary? = null
     private var scoreStartMs = 0.0
@@ -99,8 +114,12 @@ internal class PracticePitchTracker(
         val eventEnd = ((event.startTick ?: return latest) + (event.durationTick ?: return latest)) * msPerTick
         if (end > eventEnd + 0.000001 || index !in (currentIndex - 1)..currentIndex) return latest
         val pitch = event.note as? ScoreNote.SourcePitch
-        val feedback = PitchFeedback(event.id, pitch?.hangul ?: event.note.symbol, reading.frequencyHz.takeUnless { event.note == ScoreNote.Rest },
-            if (event.sigimsae.isEmpty()) comparePitch(event.note, hwangHz, reading.frequencyHz, songHz) else null,
+        val heard = reading.frequencyHz?.let { hz ->
+            val floor = lowOctaveFloorHz
+            if (floor != null && hz < floor && hz * 2 >= floor) hz * 2 else hz
+        }
+        val feedback = PitchFeedback(event.id, pitch?.hangul ?: event.note.symbol, heard.takeUnless { event.note == ScoreNote.Rest },
+            if (event.sigimsae.isEmpty()) comparePitch(event.note, hwangHz, heard, songHz) else null,
             reading.capturedEndNanos, event.note == ScoreNote.Rest)
         latest = if (index == currentIndex) latest.copy(current = feedback) else latest.copy(previous = feedback)
         return latest

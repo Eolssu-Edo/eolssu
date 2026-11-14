@@ -83,6 +83,7 @@ import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.ScoreSection
+import com.ssafy.eolssu.core.model.HanbaeMark
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.model.key
 import com.ssafy.eolssu.core.model.ScoreNote
@@ -387,6 +388,7 @@ fun JeongganboView(
                 onEventClick = onEventClick,
                 onUnitClick = onUnitClick,
                 annotations = annotations,
+                tempoMarks = song.score.tempoMarks.filterKeys { it.cellId == song.score.columns[strip.column][row].id }.values.flatten(),
                 cellMark = cellMarks[strip.column to row],
                 pickedUnits = unitMarks,
                 pickedAfterPass = unitMarksAfterPass,
@@ -667,6 +669,7 @@ private fun ScoreCellBox(
     onUnitClick: ((ScoreDisplayUnit) -> Unit)?,
     dimmed: Boolean = false,
     annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
+    tempoMarks: List<HanbaeMark> = emptyList(),
     cellMark: ScoreCellMark? = null,
     pickedUnits: Map<ScoreUnitKey, ScoreCellMark> = emptyMap(),
     pickedAfterPass: Boolean = false,
@@ -871,7 +874,7 @@ private fun ScoreCellBox(
 
     val notes: @Composable (Modifier) -> Unit = { m ->
         Box(m) {
-            Column(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().padding(end = if (tempoMarks.isEmpty()) 0.dp else 14.dp)) {
                 rows.forEachIndexed { r, row ->
                     Row(Modifier.fillMaxWidth().weight(1f)) {
                         row.forEachIndexed { c, unit ->
@@ -958,7 +961,7 @@ private fun ScoreCellBox(
                                 markDescription = listOfNotNull(cellMark?.description, pick?.description).distinct()
                                     .joinToString(" · ").takeIf { it.isNotEmpty() },
                                 modifier = Modifier.fillMaxSize(),
-                                sigimsae = annotations[unit.key].orEmpty(),
+                                sigimsae = annotations[unit.key].orEmpty().filter { HanbaeMark.fromSymbol(it) == null },
                             )
                             pick?.tag?.let { tag ->
                                 Text(tag,
@@ -1005,6 +1008,12 @@ private fun ScoreCellBox(
                     color = colors.onPrimary,
                     maxLines = 1,
                 )
+            }
+            tempoMarks.firstOrNull()?.let { tempo ->
+                Text(tempo.glyph,
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 2.dp).semantics { contentDescription = tempo.label },
+                    color = colors.text, fontSize = 9.sp, lineHeight = 9.sp,
+                    style = MaterialTheme.typography.labelSmall)
             }
             val markTag = cellMark?.tag
             if (markTag != null) {

@@ -26,7 +26,7 @@ internal fun CommonScoreData.editingDraft(title: String, bpm: Int, jangdan: Jang
             val seen = mutableSetOf<String>()
             cell.units.mapIndexedNotNull { sub, unit ->
                 val event = byId[unit.eventId]?.takeIf { it.cellId == cell.id && seen.add(unit.eventId) }
-                event?.sigimsae?.takeIf { it.isNotEmpty() }?.let { signs -> NoteSlot(i, sub) to signs.map(::Sigimsae) }
+                event?.sigimsae?.filter { HanbaeMark.fromSymbol(it) == null }?.takeIf { it.isNotEmpty() }?.let { signs -> NoteSlot(i, sub) to signs.map(::Sigimsae) }
             }
         }.toMap(), columns.map { it.cells.size }, flat.map { it.id }, this)
 }
@@ -115,7 +115,9 @@ private fun SheetDraft.pitchOnlyScore(source: CommonScoreData, music: CommonScor
 }
 
 /** 바꾼 칸만 새 배치로 만들고, 같은 표기의 각·음 위치와 이벤트 참조를 함께 옮긴다. */
-internal fun SheetDraft.toCommonScore(): CommonScoreData {
+internal fun SheetDraft.toCommonScore(): CommonScoreData = scoreWithTempo(toCommonScoreWithoutTempo())
+
+internal fun SheetDraft.toCommonScoreWithoutTempo(): CommonScoreData {
     val source = requireNotNull(original)
     val initial = source.editingDraft(title, bpm, jangdan)
     val music = source.music.copy(jangdan = jangdanName)
@@ -196,7 +198,7 @@ internal fun SheetDraft.toCommonScore(): CommonScoreData {
 /** 유효한 악보는 원본 타임라인 그대로 표시한다. 미입력 초안도 같은 row/col과 가사를 보인다. */
 internal fun SheetDraft.renderEditingScore(): Score {
     val encoded = runCatching { toCommonScore() }.getOrNull()
-    if (unfilledCells.isEmpty() && encoded != null) runCatching { encoded.toScore() }.getOrNull()?.let { return it }
+    if (unfilledCells.isEmpty() && encoded != null) runCatching { encoded.toScore(tempoExpressions) }.getOrNull()?.let { return it }
     return Score(sizes.mapIndexed { c, count -> List(count) { j ->
         val index = indexOf(c, j)
         val units = layout(index)

@@ -1,5 +1,7 @@
 # 기존 정간보 장단·빠르기 조사
 
+[다양한 박자 원본 확보·변환·저장과 수정 전후 검증 (883)](meter-import-validation.md), [구조화 원본·기준 결과](meter-import-results.json), [채택된 리듬 보존·반주 계약](../../../../specs/score-rhythm-preservation.md).
+
 S15P31E102-728 · 2026-11-11. [스펙](../../../../specs/score-tempo-correction.md), [교정 결정 데이터](../../../../../data/reference/score-tempo-corrections.json).
 
 ## 조사표와 범위

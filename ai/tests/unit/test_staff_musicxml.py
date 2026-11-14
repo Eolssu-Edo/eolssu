@@ -100,10 +100,10 @@ def test_rests_start_a_rest_and_repeat_rests_merge():
     assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 황 | :0 쉼표 |  | :0 태"]
 
 
-def test_pickup_is_padded_at_start_and_last_gak_with_rest_at_end():
+def test_pickup_is_padded_at_start_and_last_partial_bar_keeps_actual_length():
     doc = xml(measure(note("C4", 4), time=(4, 4)), measure(note("D4", 16)), measure(note("E4", 8)))
     out = convert(doc, instrument="ANY", hwang_pitch=60)
-    assert out.lines == [":0 쉼표 |  |  | :0 황", ":0 태 |  |  | ", ":0 고 |  | :0 쉼표 | "]
+    assert out.lines == [":0 쉼표 |  |  | :0 황", ":0 태 |  |  | ", ":0 고 | "]
 
 
 def test_repeat_with_first_and_second_endings_is_expanded():
@@ -182,11 +182,10 @@ def test_more_lower_attacks_with_similar_note_lengths_keep_the_upper_voice():
     assert [n["midi"] for n in out.source_pitches] == [64, 67, 72]
 
 
-def test_note_over_gak_line_is_written_again_at_next_gak():
-    # 우물사이는 각을 넘어 잇지 않아(넘으면 쉼이 된다) 다음 각 처음에 같은 음을 다시 적는다
+def test_note_over_gak_line_is_an_explicit_continuation_at_next_gak():
     doc = xml(measure(note("C4", 8), note("D4", 8, '<tie type="start"/>'), time=(4, 4)),
               measure(note("D4", 8, '<tie type="stop"/>'), note("E4", 8)))
-    assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 황 |  | :0 태 | ", ":0 태 |  | :0 고 | "]
+    assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 황 |  | :0 태 | ", ":0 - |  | :0 고 | "]
 
 
 def test_no_transposition_occurs_before_user_reviews_capability_based_candidates():
