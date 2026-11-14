@@ -521,3 +521,4 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [악보 작성 일관성 스펙](specs/score-authoring-consistency.md) · [조사 근거](knowledge/frontend/score-authoring-consistency.md)
 - [S15P31E102-788 원본 음고 전달·불변 보존](plans/S15P31E102-788.md)
 - [S15P31E102-790 구간 빠르기 보존·생성 사전검사 API](plans/S15P31E102-790.md)
+- [S15P31E102-909 악보 저장 창에서 빠르기 설정 제거](plans/S15P31E102-909.md)

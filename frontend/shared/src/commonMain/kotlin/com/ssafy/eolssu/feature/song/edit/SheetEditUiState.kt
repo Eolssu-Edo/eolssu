@@ -166,6 +166,12 @@ data class SheetEditUiState(
     /** 서버의 내 악보를 불러와 임시저장할 수 있는 편집인지. 닫기 확인에서 '임시저장하고 닫기'를 보일지 정한다. */
     val canSaveDraft: Boolean get() = serverSheetId != null && !documentFailed && !documentLoading && !saveConflict
 
+    internal fun updateTitle(title: String): SheetEditUiState {
+        if (!canEditDetails) return this
+        val normalizedTitle = normalizedSheetTitle(title) ?: return this
+        return commit(draft.copy(title = normalizedTitle))
+    }
+
     internal fun updateDetails(title: String, bpm: Int): SheetEditUiState {
         if (!canEditDetails || bpm !in SheetBpmRange) return this
         val normalizedTitle = normalizedSheetTitle(title) ?: return this
