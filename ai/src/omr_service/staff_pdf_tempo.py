@@ -75,10 +75,12 @@ def supplement(data, archive, marks):
         for i,(stack,top,spacing) in enumerate(geometry):
             slot = stack.find('slot')
             left,right = float(stack.get('left')),float(stack.get('right'))
+            first_x = left + float(slot.get('x-offset')) if slot is not None else None
             if (slot is not None and slot.get('time-offset') == '0' and left-spacing <= mark['x'] < right
                     and 0 < top-mark['bottom'] <= 8*spacing
-                    and abs(mark['x']-left-float(slot.get('x-offset'))) <= 4*spacing
-                    and all(abs(mark['x']-left-float(slot.get('x-offset'))) < abs(mark['x']-left-float(other.get('x-offset')))
+                    # Key/time signatures can leave a wide header before the zero-time attack.
+                    and (abs(mark['x']-first_x) <= 4*spacing or left <= mark['x'] <= first_x)
+                    and all(abs(mark['x']-first_x) < abs(mark['x']-left-float(other.get('x-offset')))
                             for other in stack.findall('slot')[1:])):
                 candidates.append(i)
         if len(candidates) != 1:
