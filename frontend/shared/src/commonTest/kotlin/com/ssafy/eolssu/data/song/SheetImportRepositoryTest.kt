@@ -12,6 +12,20 @@ import kotlin.test.*
 class SheetImportRepositoryTest {
     private val pdf = SheetFile("악보.pdf", "%PDF-1.7\nscore".encodeToByteArray())
 
+    @Test fun fieldValidationKeepsUnicodeTitleAndNotationRules() {
+        val input = SheetImportInput("😀".repeat(50), "STAFF", "4", null, "Eb4", listOf(pdf))
+        assertTrue(input.valid())
+        assertTrue(input.invalidFields().isEmpty())
+        assertEquals(setOf(SheetImportField.Title), input.copy(title = "😀".repeat(51)).invalidFields())
+        assertEquals(setOf(SheetImportField.Title), input.copy(title = "  ").invalidFields())
+        assertEquals(setOf(SheetImportField.Instrument), input.copy(instrumentId = "0").invalidFields())
+        assertEquals(setOf(SheetImportField.Jangdan), input.copy(notation = "JEONGGANBO", hwangPitch = null).invalidFields())
+        assertEquals(setOf(SheetImportField.Files), input.copy(files = listOf(pdf, pdf)).invalidFields())
+        assertFalse(input.copy(notation = "UNKNOWN").valid())
+        assertFalse(input.copy(hwangPitch = "not-a-pitch").valid())
+        assertFalse(input.copy(notation = "JEONGGANBO", jangdanId = "12").valid())
+    }
+
     @Test fun sendsRealFileAndMetadataWithStableKeyAndRequires202() = runTest {
         var status = HttpStatusCode.Accepted
         var requests = 0

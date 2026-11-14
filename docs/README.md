@@ -1,6 +1,6 @@
 # 프로젝트 문서
 
-- [F04·U01~U03 안내 문구 일치 (906)](plans/S15P31E102-906.md) · [표시 스펙](specs/app-qa-consistency.md)
+- [악보 추가·편집과 구간 선택 안내 일관성 개선 (906)](plans/S15P31E102-906.md) · [표시 스펙](specs/app-qa-consistency.md)
 
 - [구간 빠르기 적용 후 예상 음원 길이 표시 복구 (903)](plans/S15P31E102-903.md) · [계산·표시 계약](specs/jeonggan-tempo-edit.md#예상-음원-길이-s15p31e102-903)
 
