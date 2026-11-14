@@ -98,7 +98,7 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 Text("${draft.tempoUnitLabel} = ${draft.bpm}", style = MaterialTheme.typography.bodyMedium)
                 if (state.canEditDetails) TempoEditButton(actions.onOpenDetails, enabled = !state.saving)
                 Spacer(Modifier.weight(1f).widthIn(min = 12.dp))
-                val estimate = if (state.hasTempoPlan) null else draft.estimatedDurationSeconds(draft.bpm)
+                val estimate = draft.estimatedDurationSeconds(draft.bpm)
                 Text(if (estimate != null) stringResource(Res.string.sheet_save_estimated_duration, formatClock(estimate))
                     else stringResource(Res.string.sheet_editor_duration_unavailable), style = MaterialTheme.typography.bodySmall,
                     color = EolssuTheme.colors.textSub, textAlign = TextAlign.End)
