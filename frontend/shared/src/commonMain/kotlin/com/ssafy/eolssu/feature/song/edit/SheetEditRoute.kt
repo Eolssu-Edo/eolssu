@@ -209,7 +209,7 @@ fun SheetEditRoute(
         saveMode = true,
         saving = state.confirming,
         canApply = !state.saving && !state.saveConflict && state.completionValidation.canComplete,
-        durationSeconds = if (state.hasTempoPlan) null else state.draft::estimatedDurationSeconds,
+        durationSeconds = state.draft::estimatedDurationSeconds,
         onApply = { title, bpm ->
             saveError = null
             viewModel.updateDetails(title, bpm)

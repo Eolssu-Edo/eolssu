@@ -16,6 +16,36 @@ import kotlinx.serialization.json.*
 internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
     private fun document(draft: SheetWorkingCopy? = null) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), draft, "EVALUABLE", null, emptyList())
 
+    @Test fun tempoDurationSurvivesDraftSaveReopenAndFinalChangeDeletion() = runTest {
+        var stored: SheetWorkingCopy? = null
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document(stored)
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                assertTrue(draft)
+                stored = copy.copy(revision = copy.revision + 1)
+                return SheetWrite.Saved(copy.baseScoreVersion, copy.revision + 1)
+            }
+        }
+        fun open() = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        val model = open()
+        runCurrent()
+        model.updateTempoSettings(model.uiState.value.draft.withTempoChange(
+            SheetTempoChange(1, com.ssafy.eolssu.core.model.HanbaeMark.Faster, 120.0)).copy(bpm = 90))
+        model.saveDraft(); runCurrent()
+        assertNotNull(stored?.expressions)
+        val reopened = open()
+        runCurrent()
+        assertTrue(reopened.uiState.value.hasTempoPlan)
+        assertEquals(4.0 / 3, assertNotNull(reopened.uiState.value.draft.estimatedDurationSeconds(90)), 1e-9)
+        reopened.updateTempoSettings(reopened.uiState.value.draft.withoutTempoChange(1))
+        assertEquals(2.0, assertNotNull(reopened.uiState.value.draft.estimatedDurationSeconds(90)), 1e-9)
+        reopened.saveDraft(); runCurrent()
+        val withoutChanges = open()
+        runCurrent()
+        assertTrue(withoutChanges.uiState.value.draft.tempoChanges.isEmpty())
+        assertEquals(2.0, assertNotNull(withoutChanges.uiState.value.draft.estimatedDurationSeconds(90)), 1e-9)
+    }
+
     @Test fun adaptationCannotOverwriteTheDraftWithoutConfirmation() = runTest {
         val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
             AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
