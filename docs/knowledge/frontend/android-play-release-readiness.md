@@ -2,7 +2,7 @@
 
 - 조사·변경일: 2026-10-29. Task [S15P31E102-261](https://ssafy.atlassian.net/browse/S15P31E102-261), Story 109 관련 연결, 활성 스프린트 59139, 진행 중.
 - 최초 기록 기준: `origin/develop` `50afef0485533059c4b15e4fa68409dc77535c8c`와 당시 미커밋 변경. versionCode2/3 증거는 당시 소스의 기록으로 별도 보존한다. 사용자 후속 요청으로 커밋·Push·MR 준비를 허용받았으며, 최신 CAT API·245/285 통합 및 versionCode5 검증은 [앱 통합 기록](app-catalog-api-integration.md)을 따른다. Play 업로드·제출은 수행하지 않는다.
-- 최신 계획·기능/검증 표: [Task 계획](../../plans/S15P31E102-261.md). 로컬 결과 묶음은 작업 worktree의 `.scratch/release-catalog-20261029/README.md` (versionCode3 후속 묶음), 최초 묶음은 `.scratch/release-20261029/README.md`에 있다. 이 경로는 Git 제외 대상이며 worktree 정리 전에 별도로 보존해야 한다.
+- 최신 계획·기능/검증 표: [Task 계획](https://ssafy.atlassian.net/browse/S15P31E102-261). 로컬 결과 묶음은 작업 worktree의 `.scratch/release-catalog-20261029/README.md` (versionCode3 후속 묶음), 최초 묶음은 `.scratch/release-20261029/README.md`에 있다. 이 경로는 Git 제외 대상이며 worktree 정리 전에 별도로 보존해야 한다.
 
 ## 결론
 
