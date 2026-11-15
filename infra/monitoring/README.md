@@ -192,7 +192,7 @@ MySQL은 **Save & test**에서 `Database Connection OK`, Prometheus는 `Successf
 
 ### Grafana: 백엔드 성능
 
-[dashboards/eolssu-backend.json](dashboards/eolssu-backend.json)을 같은 순서로 가져오되, `Prometheus` 칸에서 Prometheus 데이터 소스를 고릅니다. uid는 `eolssu-backend`이고 30초마다 새로고침합니다. 수치는 Spring 기본만 씁니다.
+[dashboards/eolssu-backend.json](dashboards/eolssu-backend.json)을 같은 순서로 가져오되, `Prometheus` 칸에서 Prometheus 데이터 소스를 고릅니다. uid는 `eolssu-backend`이고 30초마다 새로고침합니다. 연주 분석 실행기 행만 백엔드가 직접 내보내는 수치(`eolssu_analysis_*`, `executor_*{name="analysis"}`)를 쓰고, 나머지는 Spring 기본 수치입니다.
 
 | 패널 | 내용 |
 | --- | --- |
@@ -200,6 +200,7 @@ MySQL은 **Save & test**에서 `Database Connection OK`, Prometheus는 `Successf
 | 상태 코드별 요청 수·5xx 오류율 | 상태 코드별 초당 요청 수와 서버 오류 비율. 요청이 없으면 0입니다 |
 | JVM | 힙 영역별 사용량과 최대, GC 멈춤 시간, 스레드 수 |
 | DB 연결 풀 | 사용 중·쉬는 중·대기 연결 수와 연결 대기 시간 p95. MySQL에 붙는 `ops` 프로필에서만 나옵니다. 대기 p95는 1ms~5s 범위라 약 0.95ms면 "1ms 미만"입니다 |
+| 연주 분석 실행기 | 업로드 뒤 분석·다시 시도의 실행 중·대기열 수와 연결 여부, 실행 시간 평균·p95(100ms~2분 범위)와 대기 시간 평균, 5분 동안의 결과 코드별 건수와 거절 건수(`queue_full`·`shutdown`). 분석 연결이 갖춰진 `ops` 프로필에서만 나옵니다. 활성 슬롯만 수집하므로 배포로 내려가는 이전 슬롯이 종료 중에 처리·거절한 분석은 보이지 않고, 그 슬롯의 로그로 확인합니다([S15P31E102-947](../../docs/plans/S15P31E102-947.md#운영-적용-절차)) |
 | 서버 | edo1 CPU 사용률, 캐시를 뺀 메모리 사용률, 루트(`/`) 디스크 사용률 |
 
 새로 생긴 주소의 요청 수와 응답 시간은 수집이 두 번 이상 된 뒤(30초 안팎)부터 보입니다.

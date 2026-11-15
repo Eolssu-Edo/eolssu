@@ -318,7 +318,7 @@ ssh -N -L 18080:127.0.0.1:8080 edo1
 
 실행 순서는 Gradle 빌드·테스트 → Compose/Nginx 검사 → 이미지 빌드·JAR 보관 → 후보 배포입니다. 격리 후보는 운영 DB 없이 liveness를 확인하고 JAR을 추출한 뒤 정리합니다. 이후 운영 DB 마이그레이션을 확인하고 비활성 슬롯을 실제 운영 설정으로 기동합니다.
 
-블루그린이 활성화되면 두 슬롯은 같은 Compose 네트워크·MySQL을 사용합니다. 새 슬롯의 readiness가 UP이면 Nginx 설정을 검사하고 리로드합니다. 실제 HTTPS에서 선택된 슬롯과 준비 상태를 확인한 뒤 활성 슬롯·JAR을 기록합니다. 전환 전에 접수된 요청·악보 변환이 남아 있는 동안 이전 슬롯이 계속 실행됩니다.
+블루그린이 활성화되면 두 슬롯은 같은 Compose 네트워크·MySQL을 사용합니다. 새 슬롯의 readiness가 UP이면 Nginx 설정을 검사하고 리로드합니다. 실제 HTTPS에서 선택된 슬롯과 준비 상태를 확인한 뒤 활성 슬롯·JAR을 기록합니다. 전환 전에 접수된 요청·악보 변환이 남아 있는 동안 이전 슬롯이 계속 실행됩니다. 이전 슬롯을 내릴 때(`compose stop`, 종료 대기 250초)는 이미 받은 연주 분석을 `eolssu.analysis.shutdown-wait`(기본 65초)까지 끝내고, 새 분석은 받지 않습니다. 종료 로그와 확인 방법은 [S15P31E102-947](../../docs/plans/S15P31E102-947.md#운영-적용-절차)을 따릅니다.
 
 배포 도구 원본은 [deploy-backend.py](../jenkins/deploy-backend.py), 서버 설치 위치는 `/opt/eolssu/bin/deploy-backend`입니다. root 소유 0755로 설치하고 Jenkins에는 아래 도구의 sudo 실행만 허용합니다. 운영 `.env`는 root 전용 0600을 유지합니다. Jenkins의 기존 Docker 접근도 서버 수준 권한이므로 잡 설정·실행은 승인된 관리자만 사용합니다.
 

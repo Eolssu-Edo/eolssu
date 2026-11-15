@@ -12,6 +12,7 @@ import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.MyBa
 import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.MyBatisPracticeAnalysisRepository
 import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.MyBatisPracticeScoreNotes
 import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.PracticeAnalysisMapper
+import io.micrometer.core.instrument.MeterRegistry
 import java.time.Clock
 import java.time.Duration
 import java.time.LocalDateTime
@@ -68,7 +69,9 @@ class PracticeAnalysisConfig {
         jsonMapper: JsonMapper,
         scoreNotes: ObjectProvider<PracticeScoreNotes>,
         readUrls: ObjectProvider<RecordingReadUrls>,
+        meterRegistry: MeterRegistry,
     ): AnalysisOnUpload {
+        val metrics = AnalysisExecutorMetrics(meterRegistry)
         val notes = scoreNotes.ifAvailable
         val urls = readUrls.ifAvailable
         val missing = listOfNotNull(
@@ -76,6 +79,7 @@ class PracticeAnalysisConfig {
             "RecordingReadUrls".takeIf { urls == null },
             "eolssu.analysis.ai-base-url".takeIf { properties.aiBaseUrl.isBlank() },
         )
+        metrics.ready(missing.isEmpty())
         if (notes == null || urls == null || missing.isNotEmpty()) return AnalysisOnUpload(null, { it.run() }, missing)
 
         val requestFactory = SimpleClientHttpRequestFactory().apply {
@@ -84,17 +88,26 @@ class PracticeAnalysisConfig {
         }
         val client = HttpAnalysisClient(RestClient.builder().baseUrl(properties.aiBaseUrl).requestFactory(requestFactory).build(), jsonMapper)
         val analysis = AnalyzePracticeSession(repository, client, notes, urls, Clock.systemUTC(), properties.timeLimit)
-        return AnalysisOnUpload({ sessionId, attempt, timing -> analysis.analyze(sessionId, attempt, timing) }, analysisExecutor(properties))
+        return AnalysisOnUpload(
+            { sessionId, attempt, timing -> metrics.finished(analysis.analyze(sessionId, attempt, timing).code) },
+            analysisExecutor(properties, metrics),
+        )
     }
 
     // Executor Bean으로 등록하면 Spring Boot 기본 작업 실행기가 만들어지지 않으므로, 분석 연결 안에서만 만들고 함께 닫는다.
-    // 종료 때 진행 중인 분석은 끝까지 기다리지 않는다. 남은 PENDING은 상태 조회가 TIMEOUT으로 끝낸다.
-    private fun analysisExecutor(properties: AnalysisProperties) = ThreadPoolTaskExecutor().apply {
+    // 종료가 시작되면(AnalysisOnUpload.onContextClosed) 새 분석은 받지 않고, 이미 받은 분석(실행 중·대기열)은 shutdownWait까지 끝낸다.
+    // 그 뒤에도 남은 PENDING은 예전처럼 상태 조회가 TIMEOUT으로 끝내고, 사용자는 다시 시도할 수 있다.
+    // 종료 중에도 녹음 URL·악보 음표 구현이 살아 있다: 이 Bean을 만들 때 ObjectProvider로 먼저 만들어져 더 늦게 닫힌다.
+    internal fun analysisExecutor(properties: AnalysisProperties, metrics: AnalysisExecutorMetrics) = ThreadPoolTaskExecutor().apply {
         corePoolSize = properties.workers
         maxPoolSize = properties.workers
         queueCapacity = properties.queueCapacity
         setThreadNamePrefix("analysis-")
-        setWaitForTasksToCompleteOnShutdown(false)
+        setTaskDecorator(metrics.decorator)
+        setRejectedExecutionHandler(metrics.rejection)
+        setWaitForTasksToCompleteOnShutdown(true)
+        setAwaitTerminationMillis(properties.shutdownWait.toMillis())
         initialize()
+        metrics.bind(threadPoolExecutor)
     }
 }

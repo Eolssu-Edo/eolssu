@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [분석 실행기 지표 노출과 배포 시 진행 중 분석 보존 (947)](plans/S15P31E102-947.md) · [블루그린 계약](specs/backend-blue-green.md)
+
 - [Jenkins ai 이미지 빌드·이미지 안 테스트·배포와 되돌리기 (244)](plans/S15P31E102-244.md) · [운영 안내·적용 절차](../infra/runtime/README.md#ai-분석-서비스)
 
 - [발표용 운영·품질 실측 근거 표와 검증 이야기 (941)](knowledge/infra/ops-quality-evidence.md) · [시스템 아키텍처](knowledge/infra/system-architecture.md) · [계획·검증](plans/S15P31E102-941.md)
