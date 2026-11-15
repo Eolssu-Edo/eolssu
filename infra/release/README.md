@@ -15,7 +15,7 @@
 | ai·omr·playback | 사람이 edo1에서 이미지를 빌드·재생성. Jenkins가 갱신하지 않음 | [runtime README](../runtime/README.md) ai·omr·playback 절 |
 | 배포 순서 검사 | backend·web 배포 도구는 **develop 이력 안의 SHA만**, **현재보다 오래된 SHA는 거부** | [deploy-backend.py](../jenkins/deploy-backend.py) `check_release_order` |
 | 버전 표기 | Android `1.0.0`(code 2), iOS `1.0.1`(build 5), backend `0.0.1-SNAPSHOT`, ai `0.1.0`로 서로 다름 | `release-candidate.py notes` 출력 |
-| edo2 대기계 | 579에서 진행 중(develop 미병합). DNS 전환 권한·절차 미확정 | [S15P31E102-579](https://ssafy.atlassian.net/browse/S15P31E102-579) |
+| edo2 대기계 | 대기계·MySQL 복제 구성은 579로 develop 반영. DNS 전환 권한·절차·운영 도메인 TLS는 930에서 미확정 | [S15P31E102-930](https://ssafy.atlassian.net/browse/S15P31E102-930) |
 
 따라서 다음 두 가지가 절차의 전제다.
 
@@ -115,7 +115,7 @@ echo | openssl s_client -connect k15e102.p.ssafy.io:443 -servername k15e102.p.ss
 | 사이트 전체 접속 불가 | 운영 담당이 `/edo1`·readiness 확인 | 즉시 녹화 영상. 발표 중 복구 작업은 하지 않음 |
 | 시연 기기 문제 | 예비 기기로 교체 | 예비 기기도 실패하면 녹화 영상 |
 
-edo2 대기계 전환은 **579가 병합되고 DNS 전환 권한·절차를 리허설로 확인한 경우에만** 선택지에 넣는다. 그 전에는 발표 중 서버 전환을 시도하지 않는다.
+edo2 대기계 전환은 **930에서 DNS 전환 권한·절차를 리허설로 확인한 경우에만** 선택지에 넣는다. 그 전에는 발표 중 서버 전환을 시도하지 않는다.
 
 ## 롤백
 

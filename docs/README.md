@@ -1,6 +1,6 @@
 # 프로젝트 문서
 
-- [저장 창 반복 검수 안내의 원인·위치별 개선 (928)](plans/S15P31E102-928.md) · [안내 스펙](specs/sheet-review-guidance.md) · [참고 안내와 실제 검수의 구분](knowledge/frontend/sheet-editor-save-validation.md#반복-참고-안내와-실제-미확인-검수의-구분-928)
+- [무음 판정과 오답·미검출 채점 분리 (291)](plans/S15P31E102-291.md) · [실패 기준](specs/practice-analysis-failure.md#실패-코드)
 
 - [가져온 악보의 악기 맞춤 후 구간 빠르기 소실 원인·수정 (882)](knowledge/frontend/imported-tempo-editor-state.md)
 
@@ -33,6 +33,7 @@
 - [이조 슬라이더 최초 원조 유지·눈금 정렬·간격 (893)](specs/score-authoring-consistency.md#이조-슬라이더-최초-선택과-표식-정렬-s15p31e102-893) · [원인·좌표 실측](knowledge/frontend/sheet-pitch-adaptation.md#최초-원조-유지와-이조-눈금-끝점-정렬-893) · [계획·검증](plans/S15P31E102-893.md)
 
 - [선택 위치 검수 안내 (890)](specs/score-authoring-consistency.md#인식-검수-이유의-정간-클릭-안내-s15p31e102-890) · [원인·OMR 운영 배포](knowledge/frontend/sheet-pitch-adaptation.md#사용자-승인-후-omr-배포-890) · [검증·인수인계](plans/S15P31E102-890.md)
+- [저장 창 반복 검수 안내의 원인·위치별 개선 (928)](plans/S15P31E102-928.md) · [안내 스펙](specs/sheet-review-guidance.md) · [참고 안내와 실제 검수의 구분](knowledge/frontend/sheet-editor-save-validation.md#반복-참고-안내와-실제-미확인-검수의-구분-928)
 - [악보 리듬 보존·무반주 저장·악보별 기본 박 반주 (883)](specs/score-rhythm-preservation.md) · [실제 악보 전후 비교](knowledge/data/common/rhythm-metronome/meter-import-validation.md) · [작업 기록](plans/S15P31E102-883.md)
 
 - [분석 완료 후 음역·이조 즉시 사용 (879)](specs/sheet-adaptation-readiness.md) · [중복 조회 원인과 실제 검증](knowledge/frontend/sheet-adaptation-readiness.md) · [계획·검증](plans/S15P31E102-879.md)
@@ -396,6 +397,9 @@
 - [장단 선택·저장·재생의 이전 통합 검증 근거](knowledge/frontend/sheet-jangdan-consistency.md)
 
 - [S15P31E102-766 개인 악보 저장과 미리듣기 상태](plans/S15P31E102-766.md)
+
+- [S15P31E102-579 edo2 운영 대기계 배포·장애 전환 계획](plans/S15P31E102-579.md) · [격리 환경 운영 안내](../infra/standby/README.md)
+
 - [S15P31E102-518 연습 모드 선택·평가 장단·악보 공간](plans/S15P31E102-518.md)
 
 - [S15P31E102-306 탈퇴 유예 만료 후 취소 차단과 녹음 삭제 경합 수정](plans/S15P31E102-306.md)
