@@ -68,35 +68,44 @@ class PlaybackService:
                     request = {**request, 'performanceSourceSha256': performance_source_sha256}
                 (root / 'request.json').write_text(json.dumps(request, ensure_ascii=False, allow_nan=False), encoding='utf-8')
                 try:
-                    # The command comes only from server configuration. Never use a shell
-                    # or expose renderer stderr (which may contain asset paths/input).
-                    with subprocess.Popen([*self.command, directory, *(['--estimate'] if estimate else [])], stdin=subprocess.DEVNULL,
-                                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                          start_new_session=os.name != 'nt') as child:
-                        try:
-                            status = child.wait(timeout=min(10,self.timeout) if estimate else self.timeout)
-                            if status != 0:
-                                LOG.warning('renderer exited with status %s', status)
-                                raise GenerationError('SERVER_ERROR')
-                        except subprocess.TimeoutExpired:
-                            if os.name == 'nt':
-                                subprocess.run(['taskkill', '/PID', str(child.pid), '/T', '/F'],
-                                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-                            else:
+                    command = [*self.command, directory, *(['--estimate'] if estimate else [])]
+                    timeout = min(10, self.timeout) if estimate else self.timeout
+                    if os.name == 'nt':
+                        from ._windows_renderer import run_renderer
+                        status = run_renderer(command, timeout)
+                    else:
+                        # Only server configuration supplies commands. Keep stderr
+                        # private: it may contain asset paths or request input.
+                        with subprocess.Popen(command, stdin=subprocess.DEVNULL,
+                                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                              start_new_session=True) as child:
+                            try:
+                                status = child.wait(timeout=timeout)
+                            except subprocess.TimeoutExpired:
+                                child.kill()
+                                child.wait()
+                                raise
+                            finally:
+                                # The encoder can outlive an already exited renderer.
                                 try:
                                     os.killpg(child.pid, signal.SIGKILL)
                                 except ProcessLookupError:
                                     pass
-                            child.kill()
-                            child.wait()
-                            raise
+                    if status != 0:
+                        LOG.warning('renderer exited with status %s', status)
+                        raise GenerationError('SERVER_ERROR')
                 except subprocess.TimeoutExpired:
                     raise GenerationError('TIMEOUT', 504) from None
                 except (OSError, subprocess.CalledProcessError):
                     raise GenerationError('SERVER_ERROR') from None
                 result_path = root / 'result.json'
                 if result_path.is_file() and not result_path.is_symlink() and result_path.stat().st_size <= 4096:
-                    preliminary = json.loads(result_path.read_text(encoding='utf-8'))
+                    try:
+                        preliminary = json.loads(result_path.read_text(encoding='utf-8'))
+                        if not isinstance(preliminary, dict):
+                            raise ValueError()
+                    except (ValueError, OSError):
+                        raise GenerationError('SERVER_ERROR') from None
                     if preliminary.get('errorCode') in ('EXPORT_TOO_LONG', 'INVALID_REQUEST', 'TEMPO_UNRENDERABLE'):
                         raise GenerationError(preliminary['errorCode'], 400, preliminary.get('details'))
                 artifacts = [('result.json',4096)] if estimate else [('audio.m4a', MAX_AUDIO), ('score.mid', MAX_MIDI), ('result.json', 4096)]

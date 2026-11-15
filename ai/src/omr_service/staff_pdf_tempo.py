@@ -8,17 +8,24 @@ import math
 import re
 import zipfile
 import xml.etree.ElementTree as ET
+from contextlib import ExitStack
 from fractions import Fraction
+from time import monotonic
 
 from omr_service import staff_musicxml
 
 
-def read_marks(job, *, with_bounds=False):
+def read_marks(job, *, with_bounds=False, deadline=None):
     if job.kind != 'PDF':
         return []
     from omr_service.api import PDFIUM_LOCK, pdfium
     pages = []
-    with PDFIUM_LOCK, pdfium.PdfDocument(job.files[0]) as doc:
+    with ExitStack() as resources:
+        remaining = -1 if deadline is None else deadline - monotonic()
+        if (deadline is not None and remaining <= 0) or not PDFIUM_LOCK.acquire(timeout=remaining):
+            raise TimeoutError()
+        resources.callback(PDFIUM_LOCK.release)
+        doc = resources.enter_context(pdfium.PdfDocument(job.files[0]))
         for page in doc:
             textpage = page.get_textpage()
             try:

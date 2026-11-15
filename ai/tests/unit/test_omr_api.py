@@ -21,6 +21,16 @@ DONE_KEYS = {"conversionId", "status", "failReason", "engine", "engineVersion", 
              "notices", "sourcePitches"}
 
 
+@pytest.fixture(autouse=True)
+def capture_omr_logs(caplog):
+    # The service logger does not propagate to pytest's root capture handler.
+    api.log.addHandler(caplog.handler)
+    try:
+        yield
+    finally:
+        api.log.removeHandler(caplog.handler)
+
+
 def pdf(pages=1, size=A4):
     doc = pdfium.PdfDocument.new()
     for _ in range(pages):

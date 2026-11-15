@@ -130,6 +130,35 @@ class SheetAudioDatabaseTests {
         assertEquals(200, draft.statusCode(), draft.body())
         assertContains(jdbc.queryForObject("SELECT draft_json FROM user_sheets WHERE id=994481", String::class.java)!!, "이")
     }
+    @Test fun `HTTP audio without an instrument conflicts while the imported score is pending`() {
+        jdbc.update("UPDATE user_sheets SET source='STAFF_OMR',status='NEEDS_REVIEW',score_json=NULL WHERE id=994481")
+        jdbc.update("""INSERT INTO sheet_conversions(sheet_id,user_id,notation,instrument_id,status,page_count,accepted_at)
+            VALUES(994481,994481,'STAFF',1,'QUEUED',1,NOW(6))""")
+        val danso = jdbc.queryForObject("SELECT id FROM instruments WHERE code='DANSO'", Long::class.java)!!
+        for (status in listOf("QUEUED", "RUNNING")) {
+            jdbc.update("UPDATE sheet_conversions SET status=? WHERE sheet_id=994481", status)
+            for (body in listOf("{}", """{"instrumentId":"$danso"}""")) {
+                val response = send(994481, body)
+                assertEquals(409, response.statusCode(), "$status: ${response.body()}")
+                assertEquals("STATE_CONFLICT", json.readTree(response.body()).path("result").path("errorCode").asString())
+            }
+            assertEquals(status, jdbc.queryForObject("SELECT status FROM sheet_conversions WHERE sheet_id=994481", String::class.java))
+        }
+        val malformed = send(994481, """{"instrumentId":"0"}""")
+        assertEquals(400, malformed.statusCode(), malformed.body())
+        assertEquals("INVALID_REQUEST", json.readTree(malformed.body()).path("result").path("errorCode").asString())
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM sheet_audios WHERE sheet_id=994481", Int::class.java))
+        assertTrue(objects.isEmpty())
+    }
+    @Test fun `HTTP audio still rejects an unknown default instrument in a saved score`() {
+        val score = json.readTree(sheets.find(994481, 994481)!!.scoreJson) as tools.jackson.databind.node.ObjectNode
+        (score.path("score") as tools.jackson.databind.node.ObjectNode).put("instrument", "UNKNOWN")
+        jdbc.update("UPDATE user_sheets SET score_json=? WHERE id=994481", json.writeValueAsString(score))
+        val response = send(994481, "{}")
+        assertEquals(400, response.statusCode(), response.body())
+        assertEquals("INVALID_REQUEST", json.readTree(response.body()).path("result").path("errorCode").asString())
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM sheet_audios WHERE sheet_id=994481", Int::class.java))
+    }
     @Test fun `a published copy can request audio with its own score version`() {
         val copy = assertIs<SheetCopyResult.Created>(copies.copy(994481, 1, "audio-copy-key"))
         try {
@@ -244,6 +273,52 @@ class SheetAudioDatabaseTests {
         assertEquals("DONE", worker.get(994481, 994481).status)
         assertEquals(90, worker.get(994481, 994481).bpm)
         assertTrue(mapper.retiredForSheet(994481).isEmpty())
+    }
+
+    @Test fun `cleanup retries a failed object without retaining other expired downloads`() {
+        val clock = MovingClock(Instant.parse("2026-11-05T00:00:00Z"))
+        val worker = audioWith(fakeClient { made() }, clock)
+        val copy = assertIs<SheetCopyResult.Created>(copies.copy(994482, 1, "audio-cleanup-copy"))
+        val targets = listOf(994481L to 994481L, 994482L to copy.sheetId)
+        try {
+            for ((userId, sheetId) in targets) {
+                worker.request(userId, sheetId, null, false, null)
+                worker.runOne()
+                assertNotNull(worker.get(userId, sheetId).audio)
+            }
+            assertEquals(2, objects.size)
+            clock.now = clock.now.plus(Duration.ofMinutes(10))
+            var failedKey: String? = null
+            failDelete = { key ->
+                if (failedKey == null) failedKey = key
+                key == failedKey
+            }
+
+            worker.cleanup()
+
+            for ((userId, sheetId) in targets) {
+                val expired = worker.get(userId, sheetId)
+                assertEquals("AUDIO_EXPIRED", expired.failureCode)
+                assertNull(expired.audio)
+            }
+            val retainedKey = assertNotNull(failedKey)
+            assertEquals(setOf(retainedKey), objects)
+            assertEquals(setOf(retainedKey), targets.flatMap { mapper.retiredForSheet(it.second) }.toSet())
+            worker.cleanup()
+            assertEquals(setOf(retainedKey), objects)
+
+            failDelete = { false }
+            worker.cleanup()
+            assertTrue(objects.isEmpty())
+            assertTrue(targets.all { mapper.retiredForSheet(it.second).isEmpty() })
+            worker.request(994481, 994481, null, false, null)
+            worker.runOne()
+            assertEquals("DONE", worker.get(994481, 994481).status)
+            assertNotNull(worker.get(994481, 994481).audio)
+        } finally {
+            failDelete = { false }
+            worker.delete(994482, copy.sheetId)
+        }
     }
 
     @Test fun `legacy files receive no new links and retire when their generation is replaced`() {

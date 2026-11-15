@@ -18,7 +18,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
@@ -128,6 +130,74 @@ class SheetAudioDeviceStoreTest {
             response = first
             assertNull(device.save("5", "27", "2", download(first)))
             assertEquals(replacement.sha256, assertNotNull(device.find("5", "27", "3")).sha256)
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun concurrentSavesOfTheSameDownloadPublishOneFileAndSendOneRequest() = runTest {
+        val directory = createTempDirectory().toFile()
+        val bytes = m4a(1)
+        val requestStarted = CompletableDeferred<Unit>()
+        val releaseResponse = CompletableDeferred<Unit>()
+        var requests = 0
+        val engine = MockEngine {
+            requests++
+            requestStarted.complete(Unit)
+            releaseResponse.await()
+            respond(bytes, headers = audioHeaders)
+        }
+        try {
+            val device = store(directory, engine)
+            val first = async { device.save("5", "27", "2", download(bytes)) }
+            requestStarted.await()
+            val second = async(start = CoroutineStart.UNDISPATCHED) {
+                device.save("5", "27", "2", download(bytes))
+            }
+            releaseResponse.complete(Unit)
+            val saved = assertNotNull(first.await())
+            val reused = assertNotNull(second.await())
+            assertEquals(saved.localFile.path, reused.localFile.path)
+            assertEquals(saved.sha256, reused.sha256)
+            assertEquals(1, requests)
+            assertContentEquals(bytes, File(saved.localFile.path).readBytes())
+            assertEquals(setOf("${saved.sha256}.m4a", "metadata.json"), File(directory, "5/27").list()!!.toSet())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun failedMetadataPublicationPreservesThePreviousFileAndAllowsTheNextSave() = runTest {
+        val directory = createTempDirectory().toFile()
+        val first = m4a(1)
+        val second = m4a(2)
+        var response = first
+        var failMetadataWrite = false
+        val engine = MockEngine { respond(response, headers = audioHeaders) }
+        val device = FileSheetAudioDeviceStore(Path(directory.absolutePath), engine, Dispatchers.IO,
+            prepareRoot = {
+                if (failMetadataWrite) check(File(directory, "5/27/metadata.part").mkdir())
+            })
+        try {
+            val initial = assertNotNull(device.save("5", "27", "2", download(first)))
+            val metadataFile = File(directory, "5/27/metadata.json")
+            val initialMetadata = metadataFile.readBytes()
+            response = second
+            failMetadataWrite = true
+            assertNull(device.save("5", "27", "3", download(second)))
+            assertContentEquals(initialMetadata, metadataFile.readBytes())
+            assertContentEquals(first, File(initial.localFile.path).readBytes())
+            assertEquals(setOf("${initial.sha256}.m4a", "metadata.json"), File(directory, "5/27").list()!!.toSet())
+            assertEquals(initial.localFile.path, assertNotNull(device.find("5", "27", "2")).localFile.path)
+            assertNull(device.find("5", "27", "3"))
+
+            failMetadataWrite = false
+            val replacement = assertNotNull(device.save("5", "27", "3", download(second)))
+            assertContentEquals(second, File(replacement.localFile.path).readBytes())
+            assertFalse(File(initial.localFile.path).exists())
+            assertEquals(replacement.localFile.path, assertNotNull(device.find("5", "27", "3")).localFile.path)
         } finally {
             directory.deleteRecursively()
         }

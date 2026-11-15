@@ -9,6 +9,7 @@ S15P31E102-940. 발표장 청중이 한꺼번에 가입·로그인·조회·녹�
 | 파일 | 역할 |
 | --- | --- |
 | `loadtest.py` | 표준 라이브러리만 쓰는 부하 스크립트. 사용자 N명을 barrier로 같은 순간에 출발시킨다(`signup`·`login`·`browse`·`practice`). |
+| `sheet_jobs.py` | 격리 서버의 실제 악보 PDF 접수 또는 제공곡 복사 → 음원 생성 → 파일 다운로드를 1~4명으로 실행한다. ID·판본·수행표 해시·다운로드 바이트를 대조한다. |
 | `fake_smtp.py` | 메일을 밖으로 보내지 않는 로컬 SMTP. 백엔드가 요구하는 STARTTLS·AUTH를 받고, 메일을 JSON 줄로 남겨 인증번호를 읽게 한다. `--delay`로 실제 발송 시간을 흉내 낸다. Python 3.11 이상. |
 | `fake_ai.py` | AI 서비스 `POST /v1/analyses` 대역. 녹음을 내려받고 `--delay`초 기다린 뒤 모든 음표를 맞음으로 답한다. 백엔드의 분석 실행기(동시 2건)와 60초 제한은 그대로 동작한다. |
 | `tests/` | 위 도구의 단위 검사. `python3 -B -m unittest discover -s infra/loadtest/tests -p 'test_*.py'` |
@@ -92,3 +93,26 @@ python3 $L --base $B practice --users 30 --accounts $R/accounts.json --audio $R/
 - 로컬 PC는 운영 edo1(4코어, AI·MySQL·Jenkins와 공유)보다 CPU가 넉넉하다. Argon2 로그인·ffprobe처럼 CPU를 쓰는 단계는 운영에서 더 느리다. 반대로 이메일 인증 잠금과 분석 동시 2건은 코드 구조로 정해져 기계와 무관하게 재현된다.
 - `fake_ai.py`는 분석 시간을 고정값으로 흉내 낸다. 실제 AI는 CPU를 쓰므로 동시 분석 수를 늘렸을 때의 효과는 이 도구로 판단하지 않는다.
 - 로컬 DB에는 마이그레이션이 넣는 4곡뿐이다. 운영 곡 목록 응답은 곡 수에 비례해 커진다.
+
+## 악보 변환·음원 생성 실제 경로 (954)
+
+[954 계획](../../docs/plans/S15P31E102-954.md)과 [실행 결과·한계](../../docs/knowledge/infra/async-resource-validation.md)를 함께 본다. `sheet_jobs.py`는 실제 OMR/CAT가 연결된 폐기 backend, 시험 계정, 다운로드 URL을 발급할 수 있는 전용 객체 저장소가 준비된 뒤 실행한다. 위 `fake_ai.py`는 OMR/CAT를 대체하지 않는다. 운영 부하 실행용 도구가 아니며 backend는 loopback 또는 `backend`, 저장소는 loopback 또는 격리 환경의 `storage`/`host.docker.internal`만 허용하고 redirect를 따르지 않는다.
+
+계정 파일은 `[{"email":"qa@example.test","password":"시험 계정 비밀번호"}]` 형식이다. Git 밖에 두고 출력·커밋하지 않는다. 실제 계정 수만큼 `--users`를 주되 1→2→4 순으로 검사한다. 매 회차 새로운 `--tag`와 증거 디렉터리를 사용한다.
+
+```powershell
+# 저장소 루트, 외부 증거 경로. 실제 OMR/CAT·서명 URL에 도달 가능한 환경에서 실행한다.
+$evidence = 'C:\higher\qa-artifacts\S15P31E102-954'
+python -B infra/loadtest/sheet_jobs.py audio --base http://127.0.0.1:18955 --accounts "$evidence\accounts.json" --users 1 --tag audio-r1 --out "$evidence\audio-r1" --cleanup
+python -B infra/loadtest/sheet_jobs.py import --base http://127.0.0.1:18955 --accounts "$evidence\accounts.json" --users 1 --tag staff-r1 --out "$evidence\staff-r1" --notation STAFF --instrument-id 1 --file 'C:\Users\kingc\Downloads\악보 추가 편집 테스트 자료\02_AuClairDeLaLune_양손피아노.pdf' --cleanup
+```
+
+- `audio`에는 PATH의 FFmpeg/ffprobe가 필요하다. Windows에서 저장소 URL의 Docker hostname을 해석할 수 없다면 동일 격리 네트워크의 FFmpeg 포함 컨테이너에서 도구를 실행하고 저장소/증거 경로를 bind한다. hostname이나 서명 URL을 임의로 바꾸지 않는다.
+- `import`는 PDF만 받는다. 정간보는 `--notation JEONGGANBO`, 실제 `--jangdan-id`와 악기 ID를 지정한다. `--hwang-pitch`는 오선보의 황종 기준을 지정할 때만 사용한다(예: `Eb4`). 사진·편집·취소/장애·Android UI는 이 두 CLI의 통과 범위에 포함하지 않는다.
+- 자동 worker가 접수 작업을 DONE/FAILED로 끝낼 때까지 기다린다. `--deadline` 기본 720초는 관찰 종료 시점이며 제품 timeout을 바꾸지 않는다. 제한에 도달하거나 응답 파싱이 실패하면 통과하지 않는다. 모호한 접수는 실행 장부·기존 키로 먼저 확인한다.
+- `audio`는 판본/수행표 해시, HTTP 200·M4A media type, 전체 크기·SHA-256, FFprobe의 AAC/container/길이와 전체 FFmpeg 디코딩을 검사한다. 길이는 메타데이터와 100ms 이내 차이를 허용한다. 청감·리듬 정확도는 별도다.
+- 인식 결과는 `scoreData` 또는 검토용 `draft.score`의 비어 있지 않은 columns/events와 셀/단위 구조 및 판본을 확인한다. 이는 인식 내용의 정답률·검토 완료 판정이 아니다.
+- `--cleanup`은 이번 실행에서 응답으로 확인한 악보만 삭제한다. 접수 응답 유실·삭제 실패로 남은 자료는 고유 tag와 DB/스토리지 장부로 확인하고 소유 범위를 정한 뒤 정리한다. 무작위 새 키 재시도로 숨기지 않는다.
+- `events.json`, M4A, 수행표는 외부 증거 폴더에 남긴다. 서명 URL·쿠키는 실행 장부에 넣지 않는다. HTTP 통과만으로 디코딩이나 큐의 FIFO/정리를 증명하지 않으며 DB 선점 기록·프로세스/메모리 관찰을 함께 남긴다.
+
+도구 회귀는 `python -B -m unittest discover -s infra/loadtest/tests -p 'test_*.py'`다. FFmpeg/ffprobe 없는 환경의 media 검사는 skip이며, 실제 도구가 있는 환경에서 실행해야 그 경계 검증을 완료한다.

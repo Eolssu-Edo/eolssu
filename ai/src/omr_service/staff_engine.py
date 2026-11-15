@@ -53,7 +53,10 @@ def recognize(job) -> dict:
     try:
         pages, issues = _read_pages(job, deadline, api.PAGE_TIME_S)
     finally:
-        AUDIVERIS_LOCK.release()
+        try:
+            _forget_logs()
+        finally:
+            AUDIVERIS_LOCK.release()
     if not pages:
         raise api.RecognitionFailed("NO_STAFF_FOUND")
     try:
@@ -125,7 +128,7 @@ def _read_pages(job, deadline, page_time_s):
     신호로 죽음)는 엔진 오류다. 악보를 냈으면 종료 코드가 0이 아니어도 쓴다.
     """
     pages, issues = [], []
-    pdf_marks = staff_pdf_tempo.read_marks(job, with_bounds=True)
+    pdf_marks = staff_pdf_tempo.read_marks(job, with_bounds=True, deadline=deadline)
     with tempfile.TemporaryDirectory(prefix="audiveris-") as work:
         for i, page in enumerate(job.pages):
             out = Path(work) / f"page-{i}"

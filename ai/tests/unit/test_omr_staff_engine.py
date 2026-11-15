@@ -8,8 +8,10 @@
 import io
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, wait
 from fractions import Fraction
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -369,6 +371,38 @@ def test_slow_page_is_killed_as_timeout(fake_audiveris, monkeypatch):
     monkeypatch.setattr(api, "PAGE_TIME_S", 1)  # 쪽당 1초. 가짜는 30초 잔다
     out = post("slow").json()
     assert out["failReason"] == "TIMEOUT"
+
+
+def test_pdf_tempo_lock_wait_expires_and_releases_the_engine_slot(tmp_path, fake_audiveris):
+    pdf = tmp_path / "blank.pdf"
+    with api.pdfium.PdfDocument.new() as document:
+        page = document.new_page(72, 72)
+        page.close()
+        document.save(pdf)
+    job = api.Job(SimpleNamespace(), "PDF", [pdf], [api.Page(pdf, 72, 72)], .05)
+    api.PDFIUM_LOCK.acquire()
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(staff_engine.recognize, job)
+        try:
+            completed, _ = wait([future], timeout=1)
+            assert future in completed, "PDFium lock waiting must consume the request budget"
+            with pytest.raises(TimeoutError):
+                future.result()
+            assert not staff_engine.AUDIVERIS_LOCK.locked()
+            assert api.PDFIUM_LOCK.locked(), "The timed-out request must not release another request's lock"
+        finally:
+            api.PDFIUM_LOCK.release()
+
+
+def test_timeout_removes_audiveris_logs_before_the_next_request(fake_audiveris, tmp_path, monkeypatch):
+    logs = tmp_path / "audiveris-logs"
+    logs.mkdir()
+    (logs / "synthetic.log").write_text("temporary diagnostic output")
+    monkeypatch.setattr(api, "PAGE_TIME_S", 1)
+    assert post("slow").json()["failReason"] == "TIMEOUT"
+    assert list(logs.glob("*.log")) == []
+    assert not staff_engine.AUDIVERIS_LOCK.locked()
+    assert post("empty").json()["failReason"] == "NO_STAFF_FOUND"
 
 
 def test_pages_are_merged_in_order():
