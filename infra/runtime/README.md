@@ -100,7 +100,7 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" \
 
 ### omr·playback 자동 배포 (S15P31E102-951)
 
-2026-11-15에 아래 '운영 설치' 1~3단계(도구·sudoers·보존 정리)를 적용했습니다. 4단계 잡 등록은 이 변경이 develop에 병합된 뒤에 합니다. 그 전까지 두 서비스는 각 절의 수동 절차로 갱신합니다. 흐름과 근거는 [951 작업 기록](../../docs/plans/S15P31E102-951.md)에 있습니다.
+2026-11-15부터 운영 중입니다(첫 배포 omr #1·playback #1 성공). `ai/`·`data/`의 해당 입력이 바뀌면 Jenkins가 반영하므로, 각 절의 수동 절차는 Jenkins를 쓸 수 없을 때만 씁니다. 흐름과 근거는 [951 작업 기록](../../docs/plans/S15P31E102-951.md)에 있습니다.
 
 Jenkins 잡 `eolssu-omr`·`eolssu-playback`이 같은 [service-image.Jenkinsfile](../jenkins/service-image.Jenkinsfile)로 ai 잡과 같은 슬롯 `edo1-ai`에서 develop을 1분마다 확인합니다([잡 등록](../jenkins/controller/README.md#omrplayback-이미지-잡)).
 
@@ -117,13 +117,13 @@ Jenkins 잡 `eolssu-omr`·`eolssu-playback`이 같은 [service-image.Jenkinsfile
 1. 이번 변경의 `deploy-ai.py`와 `deploy-service-image.py`를 함께 설치합니다(`sudo install -o root -g root -m 0755 infra/jenkins/deploy-ai.py /opt/eolssu/bin/deploy-ai`, 같은 방법으로 `/opt/eolssu/bin/deploy-service-image`). `deploy-service-image`는 `deploy-ai`를, `deploy-ai`는 `deploy-backend`를 읽습니다. 보존 정리 도구도 `/opt/eolssu/bin/eolssu-retention`에 다시 설치하고 dry-run을 봅니다.
 2. `visudo -cf`로 검사한 `/etc/sudoers.d/eolssu-service-image`(root 0440)에 `jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-service-image *`를 둡니다.
 3. 실행 중 컨테이너 이미지와 `:runtime` 태그가 같은지 확인합니다(`sudo docker inspect --format '{{.Image}}' eolssu-runtime-omr-1`, `sudo docker image inspect --format '{{.Id}}' eolssu-omr:runtime`, playback도 같음). 다르면 도구가 시작을 거부합니다.
-4. 잡을 [컨트롤러 문서](../jenkins/controller/README.md#omrplayback-이미지-잡)대로 등록하고 잡마다 **Build Now**로 한 번 실행합니다. 지금 운영 이미지에는 source 라벨이 없어 첫 실행은 빌드·배포합니다. omr 첫 빌드는 Audiveris·스캔 모델을 받아 수 분 걸립니다. 확인할 것은 `service-deployment.jsonl`의 `deployed`, `:runtime`의 revision 라벨, backend 안의 빈 요청 응답(각 절의 명령), 변환·음원 1건입니다.
+4. 잡을 [컨트롤러 문서](../jenkins/controller/README.md#omrplayback-이미지-잡)대로 등록하고 잡마다 **Build Now**로 한 번 실행합니다(2026-11-15 등록, 첫 배포 성공). 수동 빌드 이미지에는 source 라벨이 없어 첫 실행은 빌드·배포합니다. omr 첫 빌드는 Audiveris·스캔 모델을 받아 수 분 걸립니다. 확인할 것은 `service-deployment.jsonl`의 `deployed`, `:runtime`의 revision 라벨, backend 안의 빈 요청 응답(각 절의 명령), 변환·음원 1건입니다.
 
 되돌리기: 잡을 비활성화합니다. 도구가 중단돼 journal이 `deploying`·`rollback_failed`이면 `sudo /opt/eolssu/bin/deploy-service-image <서비스> --recover`로 이전 이미지를 복구합니다. 배포가 끝난 뒤 이전 판으로 돌릴 때는 대기열이 빈 것을 확인하고 `sudo docker tag eolssu-<서비스>:rollback eolssu-<서비스>:runtime` 뒤 각 절의 `up` 명령(playback은 `--profile playback`)으로 그 서비스만 재생성합니다.
 
 ### playback 내 악보 음원 생성기
 
-[내 악보 음원 스펙](../../docs/specs/sheet-audio.md)의 생성기는 `playback` 프로필로 따로 띄웁니다(S15P31E102-481). 인증이 없으므로 호스트 포트를 열지 않고, backend만 내부망 `http://playback:8000`으로 부릅니다. 지금은 사람이 빌드·생성하고, [자동 배포](#omrplayback-자동-배포-s15p31e102-951)를 운영에 설치하면 Jenkins `eolssu-playback`이 맡습니다. 운영 상태는 [S15P31E102-710 작업 기록](../../docs/plans/S15P31E102-710.md)에서 확인합니다.
+[내 악보 음원 스펙](../../docs/specs/sheet-audio.md)의 생성기는 `playback` 프로필로 따로 띄웁니다(S15P31E102-481). 인증이 없으므로 호스트 포트를 열지 않고, backend만 내부망 `http://playback:8000`으로 부릅니다. 2026-11-15부터 Jenkins `eolssu-playback`이 빌드·배포합니다([자동 배포](#omrplayback-자동-배포-s15p31e102-951)). 아래 수동 절차는 Jenkins를 쓸 수 없을 때만 씁니다. 운영 상태는 [S15P31E102-710 작업 기록](../../docs/plans/S15P31E102-710.md)에서 확인합니다.
 
 - 이미지: 저장소 루트를 맥락으로 `data/playback.Dockerfile`을 빌드해 `eolssu-playback:runtime`으로 태그합니다.
 - 자산: `PLAYBACK_ASSETS_DIRECTORY`에 악기별 CAT v1.3 ZIP과 `assets.json`(악기 code → ZIP 파일 이름), `PLAYBACK_JANGGU_DIRECTORY`에 `deong`·`gi`·`kung`·`deok`·`da`·`deo`.wav를 둡니다. 없으면 서비스가 시작을 거부합니다.
@@ -131,7 +131,7 @@ Jenkins 잡 `eolssu-omr`·`eolssu-playback`이 같은 [service-image.Jenkinsfile
 - 연결: `SHEET_AUDIO_BASE_URL=http://playback:8000`을 지정해야 생성 요청을 받습니다. 비어 있으면 503입니다.
 - 점검: 로그는 syslog 태그 `eolssu-playback`으로 남습니다. 요청 처리 로그는 오류 코드와 생성기 종료 상태만 담고, 시작 실패는 예외 전체를 남깁니다. 상태는 `/health` healthcheck로 봅니다.
 
-2026-11-14, 병합된 MR !739의 빠르기 지원을 운영 OMR·playback에 반영했습니다. 검증 후보 revision `24273759`의 AI/DATA 소스가 병합된 develop과 같음을 파일 SHA로 확인해 OMR `b75f30cb…`, playback `529d5859…` 이미지를 재사용했습니다. 운영 PDF의 숫자 빠르기·가속과 실제 CAT 생성 길이를 검증했습니다. [904 배포·검증·복구 기록](../../docs/plans/S15P31E102-904.md)을 참고합니다. Jenkins의 backend·frontend 배포는 이 두 런타임 이미지를 갱신하지 않으므로, 자동 배포를 설치하기 전까지는 기능 소스 반영과 운영 이미지 반영을 구분합니다. 기존에 빠르기가 누락된 사용자 악보는 자동 복구되지 않습니다.
+2026-11-14, 병합된 MR !739의 빠르기 지원을 운영 OMR·playback에 반영했습니다. 검증 후보 revision `24273759`의 AI/DATA 소스가 병합된 develop과 같음을 파일 SHA로 확인해 OMR `b75f30cb…`, playback `529d5859…` 이미지를 재사용했습니다. 운영 PDF의 숫자 빠르기·가속과 실제 CAT 생성 길이를 검증했습니다. [904 배포·검증·복구 기록](../../docs/plans/S15P31E102-904.md)을 참고합니다. 당시에는 Jenkins가 이 두 런타임 이미지를 갱신하지 않아 기능 소스 반영과 운영 이미지 반영을 구분했습니다. 2026-11-15부터는 `eolssu-omr`·`eolssu-playback` 잡이 갱신합니다. 기존에 빠르기가 누락된 사용자 악보는 자동 복구되지 않습니다.
 
 Windows PowerShell 5.1에서는 파이프가 바이너리를 글자로 바꿔 tar가 깨지므로 `git archive -o ai.tar "$REV" ai`로 파일을 만든 뒤 `scp`로 보내 서버에서 `tar -x -C $D -f $D/ai.tar`로 풉니다. ssh 설정에 포트 연결(LocalForward)이 있으면 열린 터널과 겹치므로 `-o ClearAllForwardings=yes`를 붙입니다. 되돌릴 때는 `sudo docker tag eolssu-ai:runtime-<이전 커밋> eolssu-ai:runtime` 뒤 같은 명령으로 `ai`만 재생성합니다. 빌드 기록: [S15P31E102-228](../../docs/plans/S15P31E102-228.md)(`88a1b05`), [S15P31E102-361](../../docs/plans/S15P31E102-361.md)(`c701c32`, pyin-4), [S15P31E102-291](../../docs/plans/S15P31E102-291.md#운영-반영-2026-11-15-사용자-승인)(`90869163`, pyin-9, 이전 이미지 `runtime-4e6aa8d`).
 
@@ -143,7 +143,7 @@ backend가 분석을 시작하지 못하면 업로드마다 경고 로그가 남
 
 ### omr 악보 인식 서비스
 
-악보 인식 API([ai README](../../ai/README.md#악보-인식-api), [계약](../../docs/specs/score-recognition.md))는 `omr` 서비스로 실행합니다. 채점 `ai`와 메모리·CPU를 나누지 않게 따로 띄우고, 인증이 없으므로 호스트 포트를 열지 않습니다. backend 변환 작업자가 내부망 `http://omr:8000`으로 부르게 되는 것은 [S15P31E102-347](https://ssafy.atlassian.net/browse/S15P31E102-347)에서 합니다. 그 전에는 띄우지 않아도 다른 서비스에 영향이 없습니다. 지금은 사람이 빌드·생성하고(2026-11-14 운영 이미지 `b75f30cb…`, [904](../../docs/plans/S15P31E102-904.md)), [자동 배포](#omrplayback-자동-배포-s15p31e102-951)를 운영에 설치하면 Jenkins `eolssu-omr`이 맡습니다.
+악보 인식 API([ai README](../../ai/README.md#악보-인식-api), [계약](../../docs/specs/score-recognition.md))는 `omr` 서비스로 실행합니다. 채점 `ai`와 메모리·CPU를 나누지 않게 따로 띄우고, 인증이 없으므로 호스트 포트를 열지 않습니다. backend 변환 작업자가 내부망 `http://omr:8000`으로 부르게 되는 것은 [S15P31E102-347](https://ssafy.atlassian.net/browse/S15P31E102-347)에서 합니다. 그 전에는 띄우지 않아도 다른 서비스에 영향이 없습니다. 2026-11-15부터 Jenkins `eolssu-omr`이 빌드·배포합니다([자동 배포](#omrplayback-자동-배포-s15p31e102-951), 이전 수동 이미지 `b75f30cb…`는 [904](../../docs/plans/S15P31E102-904.md)). 아래 수동 절차는 Jenkins를 쓸 수 없을 때만 씁니다.
 
 이미지는 저장소 `ai/omr.Dockerfile`로 edo1에서 빌드한 `eolssu-omr:runtime`입니다. 운영은 마지막 단계 `scanner`(정간보 스캔 확장 포함, 약 4.0GB)를 씁니다. 아래 명령처럼 `--target` 없이 빌드하면 이 단계가 됩니다. 빌드 맥락은 저장소 루트라서 `ai/`와 `data/src/scores`·`data/reference`를 함께 보냅니다. Audiveris deb(약 78MB)와 jeongganbo-generator는 빌드 중에 받습니다.
 
