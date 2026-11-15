@@ -111,7 +111,7 @@ def test_correct_playing_is_done_with_requested_idx(serve, tmp_path):
     result = response.json()
     assert set(result) == DONE_KEYS
     assert result["status"] == "DONE"
-    assert result["modelVersion"] == "pyin-7"
+    assert result["modelVersion"] == "pyin-8"
     assert [n["idx"] for n in result["notes"]] == [FIRST_IDX + 2 * i for i in range(len(NOTES))]
     assert all(set(n) == NOTE_KEYS for n in result["notes"])
     assert [n["verdict"] for n in result["notes"]] == ["CORRECT"] * len(NOTES)
@@ -253,7 +253,7 @@ def test_rest_gap_is_scored_with_start_beats(serve, monkeypatch):
     """쉼이 있으면 startBeat가 앞 음의 beats보다 더 벌어진다. 쉼을 지켜 분 연주는 모두 맞고, idx는 요청 그대로다."""
     response = serve(decoded(monkeypatch, synth(RESTED))).post("/v1/analyses", json=with_start_beats(*REST_STARTS))
     result = response.json()
-    assert result["modelVersion"] == "pyin-7"
+    assert result["modelVersion"] == "pyin-8"
     assert [(n["idx"], n["verdict"]) for n in result["notes"]] == [(FIRST_IDX + 2 * i, "CORRECT") for i in range(4)]
 
 

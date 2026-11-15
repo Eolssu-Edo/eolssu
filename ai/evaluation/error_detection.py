@@ -40,7 +40,7 @@ GRID = [
 # 의도한 오류가 맞게 잡혔다고 보는 판정. OCTAVE는 PITCH이면서 옥타브 의심 표시가 붙어야 한다.
 EXPECTED = {"PITCH": "PITCH", "OCTAVE": "PITCH", "TIMING": "TIMING", "MISSED": "MISSED"}
 # 음별 판정 글자. O는 옥타브 의심이 붙은 PITCH. 정답 문자열의 C는 오류를 넣지 않은 음이다.
-LETTER = {"CORRECT": "C", "PITCH": "P", "TIMING": "T", "MISSED": "M"}
+LETTER = {"CORRECT": "C", "PITCH": "P", "TIMING": "T", "LENGTH": "L", "MISSED": "M"}
 INTENDED = {"PITCH": "P", "OCTAVE": "O", "TIMING": "T", "MISSED": "M"}
 DECLARABLE = {"scoring", "environment"}  # 나머지 묶음은 정답 기록에 들어 있어 바뀌면 같은 녹음 비교가 아니다
 
@@ -166,7 +166,7 @@ def compare(before: dict, after: dict, vary: set[str]) -> dict:
                 raise CompareError("판정의 녹음 ID가 정답과 다르다")
             for rec, exp in expected.items():
                 letters = row["verdicts"][rec]
-                if len(letters) != len(exp["letters"]) or set(letters) - set("CPOTM"):
+                if len(letters) != len(exp["letters"]) or set(letters) - set("CPOTLM"):
                     raise CompareError("음별 판정 길이 또는 문자가 올바르지 않다")
     if grids[0] != grids[1]:
         raise CompareError("전후 허용값 조합이 다르다")

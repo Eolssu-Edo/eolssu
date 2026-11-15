@@ -40,13 +40,13 @@ object WeakSections {
         })
     }
 
-    /** 가장 많은 판정. 같으면 회의 D2 순서(누락 > 음높이 > 박자)를 따른다. */
+    /** 가장 많은 판정. 같으면 회의 D2 순서(누락 > 음높이 > 박자)를 따르고, 나중에 생긴 길이는 가장 뒤다. */
     private fun dominant(errors: List<PracticeEvaluationNote>): String =
         errors.groupingBy { it.verdict }.eachCount().entries
             .maxWith(compareBy({ it.value }, { PRIORITY.indexOf(it.key) }))
             .key
 
-    private val PRIORITY = listOf(Verdict.TIMING, Verdict.PITCH, Verdict.MISSED)
+    private val PRIORITY = listOf(Verdict.LENGTH, Verdict.TIMING, Verdict.PITCH, Verdict.MISSED)
 }
 
 data class WeakSectionReport(val totalErrorCellCount: Int, val sections: List<WeakSection>)
