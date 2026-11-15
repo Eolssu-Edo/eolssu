@@ -100,7 +100,7 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" \
 
 ### omr·playback 자동 배포 (S15P31E102-951)
 
-**운영 미적용**(2026-11-15 기준). 아래 '운영 설치'를 마치기 전까지 두 서비스는 각 절의 수동 절차로 갱신합니다. 흐름과 근거는 [951 작업 기록](../../docs/plans/S15P31E102-951.md)에 있습니다.
+2026-11-15에 아래 '운영 설치' 1~3단계(도구·sudoers·보존 정리)를 적용했습니다. 4단계 잡 등록은 이 변경이 develop에 병합된 뒤에 합니다. 그 전까지 두 서비스는 각 절의 수동 절차로 갱신합니다. 흐름과 근거는 [951 작업 기록](../../docs/plans/S15P31E102-951.md)에 있습니다.
 
 Jenkins 잡 `eolssu-omr`·`eolssu-playback`이 같은 [service-image.Jenkinsfile](../jenkins/service-image.Jenkinsfile)로 ai 잡과 같은 슬롯 `edo1-ai`에서 develop을 1분마다 확인합니다([잡 등록](../jenkins/controller/README.md#omrplayback-이미지-잡)).
 
@@ -112,7 +112,7 @@ Jenkins 잡 `eolssu-omr`·`eolssu-playback`이 같은 [service-image.Jenkinsfile
 
 실패 알림은 잡 이름이 `eolssu-`로 시작해 [Jenkins 실패 알림](../jenkins/notifications/README.md)이 그대로 보냅니다. `eolssu-omr:ci-*`·`eolssu-playback:ci-*`는 [보존 정리](../retention/README.md)가 최근 3개만 남깁니다.
 
-운영 설치(사용자 확인 뒤, 각 단계 전에 실행 중인 배포 잡이 없는지 확인):
+운영 설치(다시 설치할 때도 같은 순서, 각 단계 전에 실행 중인 배포 잡이 없는지 확인). 2026-11-15 설치 때 이전 판은 `deploy-ai.bak-951`·`eolssu-retention.bak-951`로 남겼습니다:
 
 1. 이번 변경의 `deploy-ai.py`와 `deploy-service-image.py`를 함께 설치합니다(`sudo install -o root -g root -m 0755 infra/jenkins/deploy-ai.py /opt/eolssu/bin/deploy-ai`, 같은 방법으로 `/opt/eolssu/bin/deploy-service-image`). `deploy-service-image`는 `deploy-ai`를, `deploy-ai`는 `deploy-backend`를 읽습니다. 보존 정리 도구도 `/opt/eolssu/bin/eolssu-retention`에 다시 설치하고 dry-run을 봅니다.
 2. `visudo -cf`로 검사한 `/etc/sudoers.d/eolssu-service-image`(root 0440)에 `jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-service-image *`를 둡니다.

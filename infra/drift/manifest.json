@@ -116,8 +116,7 @@
    },
    {
     "path": "/opt/eolssu/bin/deploy-ai",
-    "source": "infra/jenkins/deploy-ai.py",
-    "note": "S15P31E102-951의 서비스별 속성 분리(ai 동작 동일)는 951 운영 설치 때 함께 교체"
+    "source": "infra/jenkins/deploy-ai.py"
    },
    {
     "path": "/opt/eolssu/bin/deploy-backend",
@@ -129,8 +128,7 @@
    },
    {
     "path": "/opt/eolssu/bin/deploy-service-image",
-    "source": "infra/jenkins/deploy-service-image.py",
-    "note": "S15P31E102-951 운영 설치 전에는 서버 없음"
+    "source": "infra/jenkins/deploy-service-image.py"
    },
    {
     "path": "/opt/eolssu/bin/eolssu-retention",
