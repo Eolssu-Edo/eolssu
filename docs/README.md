@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [녹음·평가·기록 실제 흐름 검증 (933)](plans/S15P31E102-933.md) · [기록 메모 유니코드 문자 수](knowledge/frontend/record-memo-unicode-length.md)
+
 - [Jenkins backend 잡의 폐기용 MySQL databaseTest 단계 (946)](plans/S15P31E102-946.md)
 
 - [Jenkins omr·playback 이미지 빌드·이미지 안 테스트·배포와 되돌리기 (951)](plans/S15P31E102-951.md) · [운영 안내·적용 절차](../infra/runtime/README.md#omrplayback-자동-배포-s15p31e102-951)
