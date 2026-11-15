@@ -1,6 +1,6 @@
 # 오선보 4박 장단 선택과 기존 초안 복구
 
-2026-11-13, S15P31E102-880. 사용자 요청: 원인 확인에 이어 가져오기 오류와 이미 추가한 `VB`를 수정한다. [원인](../knowledge/frontend/sheet-jangdan-correction.md#오선보-44-가져오기의-장단-후보-누락-880), [작업 기록](../plans/S15P31E102-880.md).
+2026-11-13, S15P31E102-880. 사용자 요청: 원인 확인에 이어 가져오기 오류와 이미 추가한 `VB`를 수정한다. [원인](../knowledge/frontend/sheet-jangdan-correction.md#오선보-44-가져오기의-장단-후보-누락-880), [작업 기록](https://ssafy.atlassian.net/browse/S15P31E102-880).
 
 ## 수정 범위
 

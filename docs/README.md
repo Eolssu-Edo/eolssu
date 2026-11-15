@@ -65,8 +65,8 @@
 - [악보 가져오기·편집 조작과 안내 정리 (827)](plans/S15P31E102-827.md) · [확정 정책](specs/score-authoring-consistency.md#오선보-원음-가져오기-s15p31e102-827)
 - [마이페이지 최근 연주 조회 요청을 한 번으로 줄이기 (823)](plans/S15P31E102-823.md) · [운영 배포·전후 측정](plans/S15P31E102-823.md#배포-후-검증-결론) · [카드 조회 스펙](specs/practice-records.md#마이페이지-최근-연주-카드)
 - [악보 음역 맞추기 입력판·추천 기준과 원본 음고 보존 (820)](knowledge/frontend/sheet-pitch-adaptation.md) · [패널 높이와 한 줄 배치 정리 (850)](plans/S15P31E102-850.md)
-- [인식 정간보의 장단 정정](specs/sheet-jangdan-correction.md) · [원인·검증 근거](knowledge/frontend/sheet-jangdan-correction.md) · [822 계획·검증](plans/S15P31E102-822.md)
-- [오선보4/4 장단 후보 수정과 기존 초안 복구 (880)](specs/staff-four-beat-import.md) · [원인·복구 근거](knowledge/frontend/sheet-jangdan-correction.md#오선보-44-가져오기의-장단-후보-누락-880) · [작업 기록](plans/S15P31E102-880.md)
+- [인식 정간보의 장단 정정](specs/sheet-jangdan-correction.md) · [원인·검증 근거](knowledge/frontend/sheet-jangdan-correction.md) · [822 계획·검증](https://ssafy.atlassian.net/browse/S15P31E102-822)
+- [오선보4/4 장단 후보 수정과 기존 초안 복구 (880)](specs/staff-four-beat-import.md) · [원인·복구 근거](knowledge/frontend/sheet-jangdan-correction.md#오선보-44-가져오기의-장단-후보-누락-880) · [작업 기록](https://ssafy.atlassian.net/browse/S15P31E102-880)
 - [오선보 음높이·성부·꾸밈음 교정 (806)](specs/score-recognition-corrections.md) · [실제 PDF·이미지 대조와 한계](knowledge/ai/score-recognition-corrections.md) · [계획·검증](plans/S15P31E102-806.md)
 - [홈 기능 카드 그림을 단소 그림 느낌으로 통일 (797)](plans/S15P31E102-797.md)
 - [악보 빠르기 설정과 기기 반주 시간표 동기화 (791)](plans/S15P31E102-791.md)
@@ -422,7 +422,7 @@
 
 - [S15P31E102-306 탈퇴 유예 만료 후 취소 차단과 녹음 삭제 경합 수정](plans/S15P31E102-306.md)
 
-- [S15P31E102-261 Android 디자인·release 검증 및 제출 준비](plans/S15P31E102-261.md) (직접 구현 작업)
+- [S15P31E102-261 Android 디자인·release 검증 및 제출 준비](https://ssafy.atlassian.net/browse/S15P31E102-261) (직접 구현 작업)
 - [S15P31E102-178 서버 녹음·분석 실패 복구 검증](plans/S15P31E102-178.md)
 - [S15P31E102-60 백엔드 기본 구조 구성](plans/S15P31E102-60.md)
 - [S15P31E102-65 서버 인프라 설정 파일 관리](plans/S15P31E102-65.md)
