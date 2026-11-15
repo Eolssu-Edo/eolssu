@@ -12,7 +12,7 @@
 
 - backend: develop 병합을 Jenkins가 감지해 블루그린으로 자동 배포합니다([runtime](runtime/README.md#jenkins)).
 - 웹: Jenkins 수동 잡으로 배포합니다([runtime](runtime/README.md#프론트-웹-수동-배포)).
-- ai·omr·playback: Jenkins가 다시 만들지 않으며, 담당자가 edo1에서 이미지를 빌드해 해당 서비스만 재생성합니다([runtime](runtime/README.md#ai-분석-서비스)).
+- ai·omr·playback: develop에서 해당 이미지 입력이 바뀌면 Jenkins 잡 `eolssu-ai`·`eolssu-omr`·`eolssu-playback`이 이미지를 빌드·검사해 그 서비스만 교체합니다. 실패하면 이전 이미지로 되돌립니다([ai](runtime/README.md#자동-배포-s15p31e102-244) · [omr·playback](runtime/README.md#omrplayback-자동-배포-s15p31e102-951)).
 - 최종 발표용 RC 선정·테스트 영수증·main 반영·태그·시연 동결·장애 판단은 [릴리스 절차](release/README.md)를 따릅니다.
 
 ## 문서 안내
