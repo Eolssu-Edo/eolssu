@@ -1,17 +1,106 @@
-# S15P31E102-283 격리 앱 실시간 관찰
+# S15P31E102-283 격리 앱 실시간 관찰 실행 기록
 
-연결 Task S15P31E102-283, Story S15P31E102-38. 기존 작업의 후속 구현이며 상태는 진행 중이다.
+Task S15P31E102-283, Story S15P31E102-38의 후속 구현이며 업무 상태는 진행 중이다. 앱·HTTP 계측과 QA 입력의 구현·호스트 검사 기록은 [같은 Task의 계획](S15P31E102-283.md)에 둔다.
 
-## 범위와 완료 기준
+## 실행 위치와 필요한 파일
 
-QA 전용 앱의 곡 선택, 실제 악보 표시, 녹음 제출과 실제 AI 결과 조회를 지휘통제 화면에서 관찰한다. 앱의 요청 UUID와 백엔드 수신·응답 기록을 연결한다. 채점은 기존 평가 추적 UUID 및 세션·시도 번호로 연결하며, 저장과 앱 화면 표시는 각각의 실제 관찰 사실로 표시한다. 로컬 격리 환경에서만 실행하고 서버 채점 마감은 60초로 둔다.
+2026-11-15 Joseph의 macOS 환경에서 사용하는 도구 묶음은 다음 로컬 산출물 경로에 있다. 실행 스크립트·수집기·대시보드는 이 경로에서 관리하며, 다른 컴퓨터에서 사용하려면 이 묶음과 실행 의존성을 함께 전달해야 한다.
 
-## 실행 순서
+```sh
+QA_DEMO_DIR=/Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13
+"$QA_DEMO_DIR/tools/qa-live/open-control.sh"
+```
 
-1. QA 전용 앱에서 요청 시작·종료와 화면 표시 계측을 연결한다.
-2. 명시적으로 켠 격리 API에서 수신·응답 이벤트를 출력한다.
-3. 로컬 수집기가 ADB, API·AI 로그와 임시 DB를 읽어 지휘통제 화면에 전달한다.
-4. 앱 미러링을 직접 클릭해 곡 선택과 악보 표시를 검증한 후 녹음 제출과 결과 표시를 검증한다.
-5. 오류·연결 끊김·종료 시 상태와 임시 DB 정리를 확인한다.
+브라우저에서 [로컬 지휘통제 화면](http://127.0.0.1:18785/)을 연다. 정적 HTML 파일을 열면 보존된 기록을 볼 수 있다. 실행과 실제 앱 조작에는 위 로컬 서버를 사용한다.
 
-검증은 관련 단위 검사, 실제 QA APK 빌드, Android 에뮬레이터와 격리 API·실제 AI 실행, 브라우저 화면 관찰로 한다. 실기기 검증 결과는 실제 연결 후 구분해서 기록한다. 이벤트에는 기능 이름, 무작위 추적 UUID, 상태, 소요 시간만 남기며 인증·요청 본문·서명 주소는 포함하지 않는다.
+| 필요한 항목 | 현재 위치·조건 |
+| --- | --- |
+| 대시보드·실행 제어 | 산출물의 `index.html`, `tools/serve-control.py`, `tools/qa-live/open-control.sh` |
+| 앱·API 빌드 | `tools/qa-live/live-runtime/app.apk`, `backend.jar` |
+| 고정 입력 | `tools/qa-live/live-runtime/arirang-input.pcm`, 16kHz 모노 signed16 little-endian |
+| Android SDK | `/private/tmp/eolssu-661-android-sdk`의 platform-tools, emulator, platforms/android-37.0, build-tools/36.0.0 |
+| QA AVD | `/private/tmp/eolssu-qa-ui-283.sVN5cF/avd/eolssu-qa-flow.avd` 및 같은 폴더의 ini |
+| 기존 AI·실행 보조 파일 | `/private/tmp/eolssu-physical-283.YiLrDg`의 `source/ai/.venv`, `numba`, `smtp` |
+| Java·DB·기본 도구 | Homebrew JDK 21, MySQL 8.4, Node, Python 3, FFmpeg, curl, lsof |
+| 임시 DB 수명 관리 | `/Users/Joseph/.local/bin/temp-mysql`, [도구 지침](</Users/Joseph/.local/share/temp-mysql/README.md>) |
+
+`/private/tmp`의 파일은 이후 정리될 수 있다. 2026-11-15에는 SDK 메타데이터와 일부 실행 파일이 사라져 공식 배포 파일·체크섬으로 복구했다. API 37.0 메타데이터는 기존 AGP가 읽는 주 버전 37·부 버전 0 형식으로 맞췄다. 새 세션은 위 APK·JAR·SDK·AVD·AI 실행 파일의 존재를 먼저 확인하고 준비 실패를 화면에 남긴다. [Android 빌드 방법](../../frontend/README.md#격리-지휘통제-화면과-실제-앱-이벤트-연결)
+
+## 연결 구조
+
+| 구성 요소 | 주소·역할 |
+| --- | --- |
+| 브라우저 지휘통제 | `127.0.0.1:18785`, 앱 화면·입력·관찰 이벤트와 기존 자동 시험 제어 |
+| 앱 | Android debug `com.ssafy.eolssu.qa`, API 주소 `http://127.0.0.1:18180` |
+| 기기 연결 | 전용 ADB 서버 5053, 현재 에뮬레이터 `emulator-5594`, `adb reverse tcp:18180 tcp:18180` |
+| 요청 중계 | 호스트 18180, 앱 HTTP를 격리 API 18181로 전달하며 안전한 메타데이터만 수집 |
+| 실제 격리 API | 호스트 18181, QA 수신 필터·인증·녹음 저장·분석 예약·본인 결과 조회 |
+| 실제 AI | 18182 중계 및 독립 AI 프로세스, 요청별 녹음 읽기·분석·채점 |
+| 녹음 읽기 | 서명 검증을 사용하는 전용 루프백 18184 |
+| 임시 MySQL | 18186 및 해당 실행 폴더의 전용 소켓, 세션·시도·평가·음표 저장 대조 |
+
+
+앱의 전용 logcat과 고정 PCM 입력은 debug 앱·정확한 `com.ssafy.eolssu.qa` 패키지·명시적인 `QA_LIVE` 및 루프백 API 설정을 확인한 뒤 활성화한다. 서버 수신 필터도 격리 실행의 `eolssu.qa.live=true`에서 켜며, 허용한 API 대상과 올바른 UUID가 있는 요청만 기록한다.
+
+`live_session.py`가 관찰 환경과 기기를 소유하고 `launch-observation.sh`가 격리 API·AI·DB를 준비한다. `live_observer.py`는 앱의 `EolssuLive` logcat, 중계 요청, 실제 백엔드·AI 로그와 소유한 DB를 읽는다. 브라우저는 현재 화면과 이벤트를 주기적으로 조회한다. 앱 관찰·자동 시나리오·동시 제출 시험은 한 번에 하나만 실행한다.
+
+서버 분석 마감은 `EOLSSU_ANALYSIS_TIME_LIMIT=60`이다. 녹음 접수 후 분석 시도가 시작된 시점부터 적용하며 대기열 시간도 포함한다. 요청 업로드 시간과 결과 화면이 그려지는 시간은 별도로 표시한다. AI HTTP 응답 대기는 기존 65초다.
+
+## 화면에서 실행하는 순서
+
+1. **격리 앱 관찰 시작**을 누르고 기기·API 연결과 앱 화면을 기다린다. 이 실행은 폐기용 테스트 계정과 DB를 만들고, QA 앱 데이터를 초기화한 뒤 로그인 화면을 연다. 기존 운영 계정으로 로그인하지 않는다.
+2. 미러링 화면에서 로그인 입력칸을 선택하고 테스트 계정 이메일·비밀번호 입력 버튼으로 이번 실행의 고정 QA 계정을 넣는다. 이 버튼은 소유한 실행의 `credentials.json`에 있는 계정만 기기로 전달하며 비밀번호를 브라우저 응답에 내보내지 않는다. 다른 텍스트가 필요하면 별도 입력 기능을 사용한다. 비밀번호·쿠키·본문은 관찰 이벤트에 저장하지 않는다.
+3. 앱 화면에서 곡을 선택한다. 요청 시작·실제 API 수신·응답·앱 수신과 `song_detail_drawn`을 순서대로 확인한다. **연주 평가 시작**으로 이동한 뒤 `practice_drawn`을 확인한다.
+4. 합성 녹음을 시연할 때는 녹음을 시작하기 전에 **시연 녹음 입력 사용**을 누른다. 화면의 준비 표시를 확인한 뒤 필요하면 **다시 연주하기**로 돌아가 녹음을 시작한다.
+5. `synthetic_input`은 앱이 입력 파일을 실제로 열었을 때 발생한다. 파일 준비 표시와 앱의 입력 열기 확인을 각각 확인한다. 입력은 시작 시점에 선택되므로 실행 중인 녹음에 파일을 뒤늦게 적용하지 않는다.
+6. 정상 앱 녹음·중지·제출 버튼을 조작한다. 앱의 무음 검사, 레벨·음높이 추정, AAC 인코딩과 업로드가 실행된다. 합성 입력은 16kHz에서 기존 44.1kHz 입력 경로로 리샘플링해 실제 시간에 맞춰 공급하며, 최대 60초다. 파일이 끝난 뒤에는 무음을 공급한다.
+7. HTTP 202 접수, AI 완료, DB 평가 저장, 앱의 DONE 확인과 실제 `score_drawn`을 각각 확인한다. 첫 점수 표시는 점수 이외 모든 세부 콘텐츠의 표시와 구분한다. **최근 동작 따라가기** 또는 최근 동작 선택으로 확인 중인 요청을 바꿀 수 있다.
+8. **관찰 종료**를 누르고 종료 완료를 기다린 뒤 다른 시나리오나 부하 시험을 실행한다.
+
+합성 입력을 준비한 사실과 실제 마이크 소리를 녹음한 사실을 구분해 기록한다. 실제 마이크 검증은 연결된 실기기·권한·입력 환경을 확인한 뒤 별도로 수행한다. 관찰을 다시 시작하면 QA 앱 데이터와 테스트 환경이 새로 준비된다.
+
+## 이벤트를 연결하는 기준
+
+| 식별자 | 의미·연결 방법 |
+| --- | --- |
+| `request_id` / `X-QA-Request-Id` | 실제 HTTP 송신 시도마다 새 UUID. 앱 송신·중계·API 수신·서버 응답·앱 수신을 연결한다. 401 갱신·재전송은 다른 요청으로 기록한다. |
+| `evaluation_timing_id` / `X-Evaluation-Timing-Id` | 녹음 접수와 분석 재시도의 추적 UUID. 서버가 실제로 접수한 값을 상태 응답에서 확인해 분석 완료와 연결한다. |
+| `sessionId` + `attempt` | 서버 세션과 분석 시도 번호. 실제 AI 로그와 DB의 평가 저장을 대조한다. 재시도는 같은 세션의 다음 시도다. |
+| `evaluationId` | 저장된 평가의 ID. 본인 평가 조회 응답과 DB 평가를 대조한다. |
+| `appRun` | 수집기가 logcat의 프로세스 ID 변경을 관찰해 발급하는 실행 세대. 앱 프로세스가 바뀌면 증가한다. |
+| `flow` + `visit` + `evaluation_submission` | 앱 프로세스 안의 흐름·화면 방문·제출 별칭. 같은 `appRun` 안에서 `analysis_ready`의 평가 추적 UUID를 같은 흐름·제출 별칭의 `score_drawn`과 연결한다. |
+
+앱의 별칭 숫자는 프로세스 안에서 유효하다. 수집기는 `logcat -v brief`의 PID를 읽어 `appRun`을 붙이고, UI는 `(appRun, flow, evaluation_submission)`과 `(appRun, visit)`으로 범위를 구분한다. 시간 근접성이나 프로세스가 다른 별칭 숫자만으로 요청과 화면을 연결하지 않는다.
+
+`request_started`는 실제 HTTP 호출 직전, `request_finished`는 앱이 응답 상태·헤더를 받았거나 예외로 끝난 시점이다. 서버의 `request_received`와 `response_finished`는 QA 필터가 실제 요청을 처리하며 남긴 기록이다. `analysis_ready`는 앱이 서버 DONE을 확인한 사실이고, `score_drawn`은 Compose가 실제 첫 점수를 그린 사실이다.
+
+증거가 아직 오지 않은 단계는 확인 대기로 둔다. HTTP 성공만으로 화면 표시를 완료 처리하지 않으며, AI DONE만으로 DB 저장을 완료 처리하지 않는다. 연결이 끊겼을 때는 마지막 수신 기록과 연결 상태를 함께 표시한다. 고정 입력의 `synthetic_input`은 파일 열기 확인이고 채점·DB 저장 결과는 해당 세션에서 따로 확인한다.
+
+## 종료와 임시 DB 보존
+
+관찰 종료 시 수집기를 멈추고 이 실행이 만든 API·AI·DB 및 생성한 에뮬레이터를 종료한다. 이미 실행 중이던 에뮬레이터의 소유권은 별도로 유지한다. 임시 DB는 `temp-mysql cleanup`이 종료와 파일 사용 해제를 확인한 뒤 데이터를 정리한다. 종료 지연·조회 실패·열린 파일이 있으면 데이터를 보존하고 화면에 정리 오류를 남긴다.
+
+실행 기록은 제어 서버의 `/private/tmp/eolssu-qa-control-501/observation-*`와 `RAW_EVIDENCE`가 가리키는 `/private/tmp/esqa-observe.*`에 있다. 수동 복구도 해당 실행의 실제 경로를 확인한 뒤 같은 수명 관리 도구를 사용한다. 기본 DB나 다른 실행의 데이터 폴더를 대상으로 잡지 않는다.
+
+## 실제 관찰 기록
+
+2026-11-15 새 QA APK와 격리 서버에서 실제 앱 버튼으로 로그인, 곡 선택, 연습 악보 표시, 합성 PCM 녹음, 업로드, 실제 AI, DB 저장, 본인 결과 조회와 첫 점수 표시를 확인했다. 입력은 Android recorder에서 AAC·YIN·기존 검사를 거친 아리랑 합성 PCM이었다. 실제 마이크와 실기기 검증은 기기 연결 후 수행한다.
+
+| 확인 항목 | 관측 결과 |
+| --- | --- |
+| 곡 상세 첫 그리기 | 2,767ms |
+| 연습 악보 첫 그리기 | 565ms |
+| 서버 분석 처리 | 3,798ms |
+| 실제 AI 처리 | 3,328ms |
+| 앱 제출 동작부터 DONE 확인 | 5,338ms |
+| 앱 제출 동작부터 첫 점수 표시 | 5,506ms |
+| 서버 마감 | 60초 유지 |
+| DB 결과 | DONE, 평가 ID 1, 음표 판정 61개 |
+| 실제 앱 점수 표시 | 98점 |
+| 종료 | 관찰 상태 stopped, 오류 없음, 해당 임시 MySQL data 폴더 정리 확인 |
+
+첫 점수까지의 5,506ms는 녹음 제출 동작부터 측정했다. 결과 화면 자체의 그리기 소요 149ms는 이 전체 시간과 측정 시작점이 다르다. 이 단건은 제출부터 결과까지 5초 목표를 넘었다.
+
+검증 APK SHA-256은 `74129ec3b02a2e83a8d67089e99122ebd4bef58976e6b89906b80d3c700f174a`이며 API 기준 커밋은 `57666c0389f067a4ba084a2fd88088491f2273ee`이다. 수집한 런타임 증거와 호스트 검사는 각각의 범위로 기록했다.
+
+[확인 요약](</Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13/evidence/live-app/verified-summary.json>) · [요청·앱·AI·DB 이벤트](</Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13/evidence/live-app/end-to-end-events.json>) · [실제 앱 결과 화면](</Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13/evidence/live-app/actual-app-result.png>)
