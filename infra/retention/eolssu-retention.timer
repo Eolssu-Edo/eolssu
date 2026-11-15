@@ -1,8 +1,9 @@
 [Unit]
-Description=Daily Eolssu deployment retention
+Description=Hourly Eolssu deployment retention check (cleans below 10 GiB free)
 
 [Timer]
-OnCalendar=*-*-* 04:50:00 Asia/Seoul
+OnCalendar=*-*-* *:50:00 Asia/Seoul
+RandomizedDelaySec=120
 Persistent=true
 
 [Install]

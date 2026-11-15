@@ -175,10 +175,17 @@ def remove_release(root, sha):
 
 
 def execute(root=ROOT, apply=False, now=None, keep_count=KEEP_COUNT, keep_age=KEEP_AGE, lock=deployment_lock,
-            images_source=list_images, containers=container_facts, docker=run, free=disk_free):
+            images_source=list_images, containers=container_facts, docker=run, free=disk_free, below_free=None):
     now = now or datetime.now(timezone.utc)
     report = {'mode': 'apply' if apply else 'dry-run', 'keep_count': keep_count,
-              'keep_days': keep_age.days, 'cache_until': CACHE_UNTIL, 'free_bytes_before': free()}
+              'keep_days': keep_age.days, 'cache_until': CACHE_UNTIL, 'free_bytes_before': free(),
+              'image_failures': []}
+    if below_free is not None:
+        report['below_free_bytes'] = below_free
+        # Enough space: do not touch the deployment lock or Docker at all.
+        if report['free_bytes_before'] >= below_free:
+            report['skipped'] = 'enough free space'
+            return report
     with lock():
         in_use, mounts = containers()
         protected = protected_shas(root, mounts)
@@ -210,11 +217,15 @@ def execute(root=ROOT, apply=False, now=None, keep_count=KEEP_COUNT, keep_age=KE
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apply', action='store_true', help='remove the planned items; default prints the plan only')
+    parser.add_argument('--below-free-gib', type=float, help='do nothing unless free space on / is below this many GiB')
     args = parser.parse_args()
+    if args.below_free_gib is not None and args.below_free_gib <= 0:
+        raise RetentionError('--below-free-gib must be positive')
     os.environ.update({'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LANG': 'C.UTF-8'})
     if os.geteuid() != 0:
         raise RetentionError('run as root')
-    report = execute(apply=args.apply)
+    below = None if args.below_free_gib is None else int(args.below_free_gib * 2 ** 30)
+    report = execute(apply=args.apply, below_free=below)
     print(json.dumps(report, sort_keys=True))
     if report['image_failures']:
         sys.exit(1)

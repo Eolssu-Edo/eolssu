@@ -5,7 +5,8 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/opt/eolssu/bin/eolssu-retention --apply
+# Runs hourly but only cleans when free space on / drops below 10 GiB.
+ExecStart=/opt/eolssu/bin/eolssu-retention --apply --below-free-gib 10
 TimeoutStartSec=30min
 UMask=0077
 Nice=10

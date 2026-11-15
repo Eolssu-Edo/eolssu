@@ -162,6 +162,36 @@ class RetentionTests(unittest.TestCase):
             self.assertTrue(all(event == 'release' for event in events[1:unlock]))
             self.assertTrue(all(event == 'docker' for event in events[unlock + 1:]))
 
+    def test_skips_without_lock_or_docker_when_free_space_is_enough(self):
+        with tempfile.TemporaryDirectory() as folder:
+            fixture = Fixture(folder)
+            calls = []
+            @contextmanager
+            def forbidden():
+                raise AssertionError('lock must not be taken')
+                yield
+            report = retention.execute(fixture.root, apply=True, now=NOW, lock=forbidden,
+                                       images_source=lambda: calls.append('images') or [],
+                                       containers=lambda: calls.append('containers') or (set(), []),
+                                       docker=lambda *a, **k: calls.append(a), free=lambda: 10 * 2 ** 30,
+                                       below_free=10 * 2 ** 30)
+            self.assertEqual(report['skipped'], 'enough free space')
+            self.assertEqual(report['image_failures'], [])
+            self.assertEqual(calls, [])
+            self.assertEqual(len(list(fixture.releases.iterdir())), 30)
+
+    def test_cleans_when_free_space_is_below_threshold(self):
+        with tempfile.TemporaryDirectory() as folder:
+            fixture = Fixture(folder)
+            frees = iter([10 * 2 ** 30 - 1, 20 * 2 ** 30])
+            report = retention.execute(fixture.root, apply=True, now=NOW, lock=no_lock,
+                                       images_source=lambda: [], containers=lambda: (set(), []),
+                                       docker=lambda *a, **k: None, free=lambda: next(frees),
+                                       below_free=10 * 2 ** 30)
+            self.assertNotIn('skipped', report)
+            self.assertEqual(len(list(fixture.releases.iterdir())), 20)
+            self.assertEqual(report['free_bytes_after'], 20 * 2 ** 30)
+
     def test_remove_release_rejects_symlink_target(self):
         with tempfile.TemporaryDirectory() as folder:
             fixture = Fixture(folder, count=1)

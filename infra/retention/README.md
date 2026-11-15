@@ -19,6 +19,8 @@ sudo /opt/eolssu/bin/eolssu-retention            # 계획만 출력
 sudo /opt/eolssu/bin/eolssu-retention --apply    # 승인 후 정리
 ```
 
-자동 실행은 `eolssu-retention.service`·`.timer`(매일 04:50 KST)를 `/etc/systemd/system/`에 설치하고 `systemctl daemon-reload`한다. `enable --now`는 별도로 승인받는다. 결과는 `journalctl -u eolssu-retention`의 JSON 한 줄로 확인한다.
+`--below-free-gib N`을 주면 `/`의 여유가 N GiB 미만일 때만 정리한다. 여유가 충분하면 lock과 Docker를 건드리지 않고 `skipped`만 출력한다.
+
+edo1에는 `eolssu-retention.service`·`.timer`가 설치·활성화돼 있다. 매시 50분(KST)에 `--apply --below-free-gib 10`을 실행하며, 결과는 `journalctl -u eolssu-retention`의 JSON 한 줄로 확인한다. 끌 때는 `sudo systemctl disable --now eolssu-retention.timer`를 실행한다.
 
 테스트: `python3 -m unittest discover -s infra/retention/tests`
