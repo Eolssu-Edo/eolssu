@@ -1,0 +1,12 @@
+[Unit]
+Description=Eolssu deployment release, CI image and build cache retention
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/eolssu/bin/eolssu-retention --apply
+TimeoutStartSec=30min
+UMask=0077
+Nice=10
+IOSchedulingClass=idle
