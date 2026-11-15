@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -88,6 +87,8 @@ import com.ssafy.eolssu.feature.practice.component.practiceScorePacking
 import com.ssafy.eolssu.feature.practice.toSection
 import com.ssafy.eolssu.feature.result.component.LiteBadge
 import com.ssafy.eolssu.feature.result.component.weakSectionScoreHeight
+import com.ssafy.eolssu.feature.result.layout.ResultButtonRow
+import com.ssafy.eolssu.feature.result.layout.ResultExpandedPanes
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.result_home
 import eolssu.shared.generated.resources.result_memo_label
@@ -126,7 +127,7 @@ class ResultActions(
  * 연주 결과(S15P31E102-753, 시안 연주 평가 결과 · D안 바탕). 요약(RESULT-02)과 틀린 부분 상세(RESULT-03)를 한 화면에 둔다:
  * 제목 ‘곡 · 악기 · 난이도’와 오른쪽 위 홈 · 점수 상자(일원상 총점 · 항목 막대) · 5칸 종류 필터 ·
  * 취약 구간 줄 · 곡 전체 정간보(보기 전용) · ‘다른 곡 고르기’, 아래 한 줄에 반씩 ‘같은 곡 다시 연습’ · ‘연습 기록 저장’.
- * 태블릿은 같은 배치를 가운데에 넓게 둔다. 바탕은 다른 화면과 같은 회색이고 점수 상자는 흰 카드다(S15P31E102-815).
+ * 태블릿 세로는 같은 배치를 가운데에 넓게 두고, 태블릿 가로는 요약 왼쪽 · 악보 오른쪽 두 칸으로 둔다(S15P31E102-974). 바탕은 다른 화면과 같은 회색이고 점수 상자는 흰 카드다(S15P31E102-815).
  */
 @Composable
 fun ResultScreen(
@@ -175,7 +176,8 @@ fun ResultScreen(
         bottomBar = {
             // 취약 구간 연습은 연습 기록의 ‘구간 연습’에서만 들어간다(S15P31E102-794).
             // ‘같은 곡 다시 연습’(보조)과 ‘연습 기록 저장’(주)을 한 줄에 반씩 둔다(S15P31E102-832).
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 태블릿 가로는 줄을 최대 640dp로 묶어 버튼이 늘어나지 않게 한다(S15P31E102-974).
+            ResultButtonRow(expanded = widthClass == WindowWidthClass.Expanded) {
                 EolssuButton(
                     stringResource(Res.string.result_practice_again), actions.onPracticeAgain, Modifier.weight(1f).fillMaxHeight(),
                     style = EolssuButtonStyle.Secondary, compact = true,
@@ -184,7 +186,11 @@ fun ResultScreen(
             }
         },
     ) {
-        ResultContent(state, result, song, actions)
+        if (widthClass == WindowWidthClass.Expanded) {
+            ResultExpandedContent(state, result, song, actions)
+        } else {
+            ResultContent(state, result, song, actions)
+        }
     }
     when (state.saveSheet) {
         SaveSheet.Form -> SaveFormSheet(
@@ -233,7 +239,6 @@ private fun ResultScoreCard(result: EvaluationResult, modifier: Modifier = Modif
  */
 @Composable
 private fun ResultContent(state: ResultUiState, result: EvaluationResult, song: Song, actions: ResultActions) {
-    val colors = EolssuTheme.colors
     val section = remember(state.weakSection, song) { state.weakSection?.toSection(song.score) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val pageHeight = maxHeight
@@ -260,19 +265,62 @@ private fun ResultContent(state: ResultUiState, result: EvaluationResult, song: 
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            Text(
-                stringResource(Res.string.result_other_song_more),
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(top = 2.dp, bottom = 10.dp)
-                    .minimumInteractiveComponentSize()
-                    .clickable(role = Role.Button, onClick = actions.onOtherSong)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-                color = colors.textSub,
-            )
+            OtherSongLink(actions.onOtherSong, Modifier.align(Alignment.CenterHorizontally))
         }
     }
+}
+
+/**
+ * 태블릿 가로(Expanded) 본문(S15P31E102-974). 왼쪽 칸에 점수 상자 · 종류 필터 · 취약 구간 줄 · ‘다른 곡 고르기’를,
+ * 오른쪽 칸에 곡 전체 정간보를 남은 높이만큼 둔다. 악보가 최소 크기보다 높으면 오른쪽 칸만 세로로 스크롤된다.
+ */
+@Composable
+private fun ResultExpandedContent(state: ResultUiState, result: EvaluationResult, song: Song, actions: ResultActions) {
+    val section = remember(state.weakSection, song) { state.weakSection?.toSection(song.score) }
+    ResultExpandedPanes(
+        summary = {
+            ResultScoreCard(result, Modifier.padding(bottom = 8.dp))
+            ErrorKindSegments(result, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 6.dp))
+            val pick = state.weakSection
+            if (section != null && pick != null) {
+                WeakSectionLine(scoreSectionLabel(section, song.score), pick.errorCount)
+            }
+            OtherSongLink(actions.onOtherSong, Modifier.align(Alignment.CenterHorizontally))
+        },
+        score = {
+            val paneHeight = maxHeight
+            if (song.score.columns.isNotEmpty()) {
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    ErrorDetailScore(
+                        song = song,
+                        result = result,
+                        filter = state.filter,
+                        section = section,
+                        availableHeight = paneHeight - ExpandedScoreBottomGap,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        },
+    )
+}
+
+/** 태블릿 가로 오른쪽 악보 칸 아래 여백. */
+private val ExpandedScoreBottomGap = 12.dp
+
+/** 악보 아래(태블릿 가로는 왼쪽 칸 아래) ‘다른 곡 고르기’ 글자 버튼. */
+@Composable
+private fun OtherSongLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Text(
+        stringResource(Res.string.result_other_song_more),
+        modifier = modifier
+            .padding(top = 2.dp, bottom = 10.dp)
+            .minimumInteractiveComponentSize()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
+        color = EolssuTheme.colors.textSub,
+    )
 }
 
 /** 악보 아래 ‘다른 곡 고르기’ 줄 높이(위 2 + 48 + 아래 10). */
