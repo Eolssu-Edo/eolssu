@@ -129,6 +129,32 @@ def test_note_cut_short_loses_only_its_duration_score():
     assert all(n.duration_score == 100 for n in result.notes if n.idx != 4)
 
 
+def cut_tail(audio, k, bpm, keep=0.5):
+    """k번 음 자리의 뒤쪽을 비운다(10ms 페이드). 그 음만 keep만큼 분 연주다."""
+    beat = 60 / bpm
+    env = np.ones(audio.size)
+    env[int((k + keep) * beat * SR) : int((k + 1) * beat * SR)] = 0.0
+    return audio * np.convolve(env, np.ones(160) / 160, mode="same")
+
+
+def test_long_note_played_half_is_length_error():
+    # 자리 0.67초인 음을 절반만 불면 길이 오류다(S15P31E102-912). 박자는 맞아 TIMING이 아니다.
+    bpm = BPM * 0.75
+    audio = cut_tail(synth(SCALE, bpm=bpm), 4, bpm)
+    result = score(pyin_f0(audio, SR), SCALE, bpm, REF_HZ, rms=frame_rms(audio, SR))
+    assert verdicts(result) == {4: "LENGTH"}
+    assert result.notes[4].duration_score < 50
+
+
+def test_length_error_skips_short_and_first_notes():
+    # 자리 0.5초 음은 음높이 도구의 끊김 오차(약 70ms)에 묻혀 판정하지 않는다. 첫 음은 녹음 앞 소리로 자리가 틀어져 뺀다.
+    short = cut_tail(synth(SCALE), 4, BPM)
+    assert verdicts(run(short)) == {}
+    bpm = BPM * 0.75
+    first = cut_tail(synth(SCALE, bpm=bpm), 0, bpm)
+    assert "LENGTH" not in verdicts(score(pyin_f0(first, SR), SCALE, bpm, REF_HZ, rms=frame_rms(first, SR))).values()
+
+
 def test_late_note_is_timing_error():
     assert verdicts(run(synth(SCALE, delay={4: 0.15}))) == {4: "TIMING"}
 

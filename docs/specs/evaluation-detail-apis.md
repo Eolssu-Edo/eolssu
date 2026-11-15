@@ -32,7 +32,7 @@
 | items[].recordingOffsetMs | 업로드 원본 녹음의 재생 0ms부터 잰 음표 시작 시각(ms, 0 이상 정수). MISSED이거나 녹음 위치를 주지 않은 AI로 채점한 평가면 null |
 | errorCount | 조회 구간의 오류 음표 수. errorsOnly와 관계없다 |
 | errorCounts.pitch·timing·missed | 조회 구간의 저장 판정별 개수 |
-| errorCounts.duration | DURATION 판정이 저장 값에 없어 항상 0 |
+| errorCounts.duration | 조회 구간의 `LENGTH` 판정 개수. AI `pyin-8` 이전 평가는 0 (S15P31E102-912) |
 
 개수는 음표 단위다. 화면의 '틀린 칸'은 FE가 CAT-04 cellId로 묶어 센다.
 
@@ -110,7 +110,7 @@
 
 ## 미구현·후속
 
-- 복수 오류 유형과 DURATION 판정은 AI 응답과 `note_results` 저장 형식을 바꿔야 한다. 이 Task 범위 밖이다.
+- 복수 오류 유형은 AI 응답과 `note_results` 저장 형식을 바꿔야 한다. 이 Task 범위 밖이다. 길이 오류는 S15P31E102-912에서 판정 하나(`LENGTH`)로 더했다.
 - 인식 음·녹음 위치는 S15P31E102-480에서 저장·응답을 구현했다. 값의 기준은 [PRA-03 분석 계약](practice-analysis-failure.md#분석-요청과-상태-조회-계약-s15p31e102-186)에 있고, AI가 두 필드를 보내기 전까지는 null이다.
 - 누락(MISSED) 표시 방식은 디자인·기획 결정이 필요하다. 서버 응답은 결정과 관계없이 같다.
 - '취약 구간 연습' 버튼은 2차에서 구간 선택(PRACTICE-02)으로 이동한다(2026-11-03 확정). 구간 반복(PRACTICE-03)은 서버를 부르지 않고, '이 구간 재평가'가 PRA-01 구간 세션(`parentSessionId` 포함)을 만든다.

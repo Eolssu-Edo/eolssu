@@ -56,6 +56,10 @@ class Tolerance:
     # 음높이 도구가 끊김 앞뒤를 70ms쯤 소리로 이어 잡아, 짧은 음은 비율 허용만으로는 측정 오차보다 좁다.
     # 120ms는 아리랑 실제 연주 4개와 일부러 짧게 분 음으로 고른 값이다(S15P31E102-910).
     duration_floor_s: float = 0.12
+    # 길이 오류(LENGTH) 판정: 자리가 length_error_min_s초 이상인 음에서 길이 오차가 자리의 이 비율(과 duration_floor_s 중
+    # 큰 쪽)을 넘으면 오류다. 길이 점수가 절반 아래로 떨어지기 시작하는 지점과 비슷하다. 실제 녹음으로 고른 제안 값이다.
+    length_error_ratio: float = 0.3
+    length_error_min_s: float = 0.6
     max_tuning_cent: float = 100.0  # 곡에 반음 이웃이 있으면 score가 더 낮춘다
     # 박자 허용은 onset_beat 박과 (이 연주의 박자 흔들림 × onset_spread) 중 큰 쪽이다. 흔들림이 큰 연주일수록 후하다.
     onset_spread: float = 4.0
@@ -71,7 +75,7 @@ SCORE_WEIGHTS = {"pitch": 1 / 3, "timing": 1 / 3, "duration": 1 / 3}
 @dataclass
 class NoteResult:
     idx: int  # 요청의 음 번호(Note.idx). 없으면 정답 음표 순번
-    verdict: str  # CORRECT, PITCH, TIMING, MISSED
+    verdict: str  # CORRECT, PITCH, TIMING, LENGTH, MISSED
     pitch_error_cent: float | None = None
     onset_error_ms: float | None = None
     duration_error_ms: float | None = None  # 울린 길이 - 자리(score 참고). 음수면 짧게 불었다
@@ -328,6 +332,17 @@ def score(
         sounded = np.count_nonzero(~np.isnan(detected[start:end])) * HOP_S
         played[i] = (k, err, onset_err, sounded - slots[k], octave)
 
+    # 길이 오류(LENGTH)는 측정을 믿을 수 있는 음만 판정한다(S15P31E102-912). 음높이 도구가 끊김 앞뒤 70ms쯤을 소리로
+    # 이어 잡아 짧은 음은 덜 분 것이 보이지 않는다. 첫 음은 녹음 앞 소리 때문에 자리가 길게 잡히고, 같은 높이로 이어지는
+    # 음은 경계를 음량으로만 찾아 자리가 틀어진다. 시김새 음은 꾸밈이라 길이가 악보와 다르게 나는 것이 보통이다.
+    # 악보상 짧은 음은 다음 음이 늦게 들어와 자리만 길어져도 덜 분 것처럼 보이므로, 악보 길이(연주 빠르기 반영)도 함께 본다.
+    length_judged = {
+        k: k > 0 and not n.sigimsae and slots.get(k, 0.0) >= tol.length_error_min_s
+        and lengths[k] * (1.0 + drift) >= tol.length_error_min_s
+        and notes[k - 1].semitone != n.semitone and (k + 1 == len(notes) or notes[k + 1].semitone != n.semitone)
+        for k, n in enumerate(notes)
+    }
+
     results = []
     by_k = {p[0]: (p, r) for p, r in zip(played, resid)}
     for k, n in enumerate(notes):
@@ -343,6 +358,8 @@ def score(
             verdict = "PITCH"
         elif abs(r) > onset_tol_s:
             verdict = "TIMING"
+        elif length_judged[k] and abs(dur_err) > max(tol.length_error_ratio * slots[k], tol.duration_floor_s):
+            verdict = "LENGTH"
         else:
             verdict = "CORRECT"
         # 높이가 틀린 음은 그 음을 연주한 것이 아니므로 박자·길이 점수도 주지 않는다(놓친 음과 같다).
