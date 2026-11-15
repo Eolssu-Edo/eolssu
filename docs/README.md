@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [서버 관리 파일·Jenkins 잡 정의와 저장소 일치 점검 (943)](plans/S15P31E102-943.md) · [점검 도구](../infra/drift/README.md)
+
 - [edo2 장애 전환 런북·DNS 부탁 글·운영 도메인 TLS (930)](../infra/standby/failover-runbook.md) · [결정·점검·로컬 리허설](plans/S15P31E102-930.md)
 
 - [edo2 장애·복제·백업·디스크 상태 변화 Mattermost 자동 알림 (919)](plans/S15P31E102-919.md) · [운영 안내](../infra/edo-check/README.md#상태-변화-능동-알림)
