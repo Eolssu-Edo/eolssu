@@ -23,7 +23,7 @@ def read_marks(job):
             try:
                 text = textpage.get_text_range()
                 scale = job.pages[len(pages)].width / page.get_width()
-                marks = []
+                positioned_marks = []
                 # Explicit SMuFL metronome quarters (Leipzig Type3 in AuClair).
                 # Trust the PDF's Unicode mapping, never guess arbitrary PUA units.
                 # q is also used by engraved PDFs, but not inside prose words.
@@ -33,16 +33,30 @@ def read_marks(job):
                 ):
                     if re.match(r'[^\S\r\n]*(?:[-–—~～/,][^\S\r\n]*)?\d', text[match.end():]):
                         continue  # Ranges, fractions and adjacent numbers are not one BPM.
-                    left, bottom, _, _ = textpage.get_charbox(match.start())
-                    marks.append({'x': left * scale, 'bottom': (page.get_height()-bottom)*scale,
-                                  'bpm': match[2], 'dots': int(bool(match[1])), 'accel': False})
+                    left, bottom, _, top = textpage.get_charbox(match.start())
+                    unit_x = left * scale
+                    # In AuClair the adjacent "Moderato" starts before beat one,
+                    # while its unit glyph lies over beat two. Bind that complete
+                    # printed mark only when the actual glyph boxes are adjacent.
+                    label = re.search(r'\b(Moderato)[^\S\r\n]*$', text[:match.start()], re.I)
+                    if label:
+                        first = textpage.get_charbox(label.start(1))
+                        last = textpage.get_charbox(label.end(1) - 1)
+                        if (0 <= left - last[2] <= top - bottom
+                                and min(top, first[3], last[3]) > max(bottom, first[1], last[1])):
+                            left = first[0]
+                    # The word changes only the measure anchor; accel still
+                    # belongs to a nearby numeric unit at its original position.
+                    positioned_marks.append(({'x': left * scale, 'bottom': (page.get_height()-bottom)*scale,
+                                  'bpm': match[2], 'dots': int(bool(match[1])), 'accel': False}, unit_x))
                 for match in re.finditer(r'\b(?:molto\s+)?accel(?:erando)?\.?', text, re.I):
                     x, y, _, _ = textpage.get_charbox(match.start())
                     x, y = x * scale, (page.get_height()-y)*scale
-                    candidates = [m for m in marks if 0 <= x-m['x'] <= 300 and abs(y-m['bottom']) <= 40]
+                    candidates = [(m, unit_x) for m, unit_x in positioned_marks
+                                  if 0 <= x-unit_x <= 300 and abs(y-m['bottom']) <= 40]
                     if candidates:
-                        max(candidates,key=lambda m:m['x'])['accel'] = True
-                pages.append(marks)
+                        max(candidates, key=lambda item: item[1])[0]['accel'] = True
+                pages.append([m for m, _ in positioned_marks])
             finally:
                 textpage.close()
                 page.close()

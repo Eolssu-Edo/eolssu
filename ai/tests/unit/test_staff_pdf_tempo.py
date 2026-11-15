@@ -77,6 +77,40 @@ def test_actual_pdf_decimal_and_accel_keep_the_original_value(tmp_path):
     assert marks[0]['bpm'] == '100.5' and marks[0]['accel']
 
 
+def test_adjacent_moderato_anchors_the_whole_numeric_mark_at_the_first_slot(tmp_path):
+    marks = marks_from_pdf(tmp_path, 'Moderato\ueca5 = 100')
+    # A reduced, self-authored two-slot case: the unit at78 is near slot80,
+    # while the complete tempo label starts at30, before the first slot50.
+    source = xml(measure(note('C4',16),time=(4,4)),measure(note('D4',16)))
+    geometry = archive('''<sheet><system>
+      <stack left="10" right="150"><slot x-offset="40" time-offset="0"/>
+      <slot x-offset="70" time-offset="1/4"/></stack>
+      <stack left="150" right="250"><slot x-offset="20" time-offset="0"/></stack>
+      <part><staff><lines><line><point x="10" y="100"/></line>
+      <line><point x="10" y="110"/></line></lines></staff></part></system></sheet>''')
+    actual, count = supplement(source, geometry, marks)
+    assert marks[0]['x'] == 30 and count == 1
+    assert ET.fromstring(actual).findtext('.//per-minute') == '100'
+    assert [ET.tostring(n) for n in ET.fromstring(actual).findall('.//note')] == [
+        ET.tostring(n) for n in ET.fromstring(source).findall('.//note')]
+    # The word itself must still be nearest to the first slot.
+    assert supplement(source, geometry, [{**marks[0], 'x':80}])[1] == 0
+
+
+@pytest.mark.parametrize('text,expected_x', [('Title\ueca5 = 100',60),
+    ('NotModerato\ueca5 = 100',96), ('Moderato    \ueca5 = 100',102),
+    ('Moderato\n\ueca5 = 100',30)])
+def test_unrelated_or_separate_text_cannot_move_the_unit_anchor(tmp_path, text, expected_x):
+    marks = marks_from_pdf(tmp_path, text)
+    assert marks[0]['x'] == expected_x
+
+
+def test_moderato_alignment_preserves_accel_near_the_numeric_unit_at_render_scale(tmp_path):
+    marks = marks_from_pdf(tmp_path, 'Moderato\ueca5 = 100 accel.', width=2500)
+    assert marks[0]['x'] == pytest.approx(125)
+    assert marks[0]['bpm'] == '100' and marks[0]['accel']
+
+
 def test_supplied_auclair_pdf_opt_in():
     import os
     path = os.environ.get('AUCLAIR_TEMPO_PDF')
@@ -89,7 +123,7 @@ def test_supplied_auclair_pdf_opt_in():
         page.close()
     marks = read_marks(SimpleNamespace(kind='PDF', files=[Path(path)], pages=[SimpleNamespace(width=width)]))
     assert len(marks) == 1 and len(marks[0]) == 1
-    assert marks[0][0] == {'x': pytest.approx(148.536, abs=.01),
+    assert marks[0][0] == {'x': pytest.approx(107.36, abs=.02),
                           'bottom': pytest.approx(101.729, abs=.01),
                           'bpm': '100', 'dots': 0, 'accel': False}
 
