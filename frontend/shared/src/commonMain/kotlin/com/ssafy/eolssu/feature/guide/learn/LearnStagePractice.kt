@@ -22,6 +22,18 @@ import org.koin.core.parameter.parametersOf
 /** 할 일 박스 안에서 판정하는 단계(S15P31E102-749). 5단계는 올라가기·내려오기, 6단계는 새 음역 박스에서 바로 분다. */
 internal fun judgesInTasks(stage: Int): Boolean = stage == 5 || stage == 6
 
+/** 할 일 박스의 완료를 먼저 남기고, 마지막 수동 확인이면 단계 완료 창으로 잇는다. */
+internal fun completeLearnSegment(
+    state: LearnPracticeUiState,
+    box: Int,
+    boxes: Int,
+    onBoxDone: () -> Unit,
+    onSelfDone: () -> Unit,
+) {
+    onBoxDone()
+    if (box == boxes - 1 && (state.pitch == null || !state.canListen)) onSelfDone()
+}
+
 /**
  * 3~7단계 연습 연결(S15P31E102-688). 단계 화면을 옮기지 않고 박스에서 듣고 판정한다.
  * 3·4·7단계는 마지막 연습 박스, 5·6단계는 할 일 박스 안에서 듣는다(S15P31E102-749).
@@ -95,9 +107,7 @@ internal fun rememberLearnStagePractice(
             title = stringResource(Res.string.learn_practice_box_title),
             segment = if (judgesInTasks(number)) { box, done ->
                 LearnSegmentPractice(state, instrument, segmentNotes(number, box, state.pitch?.notes?.size ?: 0), actions, score(box)) {
-                    done()
-                    // 판정 없이 '해 봤어요'로 마지막 박스를 마쳐도 '완료했어요!'를 띄운다. 판정으로 통과하면 위에서 띄운다.
-                    if (box == boxes - 1 && state.pitch == null) selfDone()
+                    completeLearnSegment(state, box, boxes, done, selfDone)
                 }
             } else {
                 null

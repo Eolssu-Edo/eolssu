@@ -43,7 +43,9 @@
 - 최초 수정 후 `PracticeJangdanTest`, `PracticeStateTest`, `SectionPracticeStateTest`, `ModelAudioSessionTest`, `PracticeSectionTest`, `PracticePersonalAudioTest` 6개 클래스85건 통과, 실패·제외0. `:androidApp:assembleDebug` 성공 (`fix-build.log`). `--max-workers=1` 사용.
 - 독립 리뷰에서 재생 전 탐색 후 속도를 바꾸면 이전 BPM 기준 시간이 남는 경계를 발견했다. 60BPM에서1,000ms로 탐색 후48BPM으로 바꾼 회귀가 기대 tick4/실제3.4로 실패(`tempo-red.xml`)했다. 음원 로드 전 `elapsedMs`와 `eventElapsedMs`를 함께 환산해 같은 악보 위치를 보존한다. 이후+500ms와 첫 media 재생 위치도 확인했다. 최종 같은6개 클래스86건 통과, 실패·제외0 및 APK 빌드 성공(`review-fix-build.log`). 독립 재리뷰에서 지적 해소·추가 결함 없음.
 - Push 직전 최신 develop e5910c33을 통합했다. 문서 목록 충돌은 양쪽 링크를 보존했으며, 독립 검토에서 새 악보 배치·글리프 변경과 이 수정의 의미 충돌은 발견되지 않았다. 위86건에 `PracticeScorePackingTest`, `ScoreLayoutTest`, `NoteGlyphTest`, `YulNotationTest`, `YulFontCoverageTest`를 더한 11개 클래스140건 통과, 실패·오류·제외0 및 APK 빌드 성공(`integrated-build.log`). 통합 뒤 제품 코드는 추가 변경하지 않았다.
-- 마지막 동기화 base는25f7d263이다. 추가 유입은 인프라·문서뿐이며 APK를 만든15e91837과 최종 HEAD의 `frontend/`·QA init에 차이가 없다. 문서 목록 양쪽 링크를 보존했다.
+- 첫 게시 시 동기화 base는25f7d263이었다. 당시 추가 유입은 인프라·문서뿐이며 APK를 만든15e91837과 게시 HEAD의 `frontend/`·QA init에 차이가 없었다. 문서 목록 양쪽 링크를 보존했다.
+- MR 충돌 후 develop 2b34528a를 추가 통합했다. 충돌은 `docs/README.md` 문서 목록 한 곳으로 양쪽 링크를 보존했다. 새 홈 글꼴 준비·학습 수동 완료·Android 시스템 바 변경은 upstream 결과이며 이 Task의 연습 재생·탐색 소스와 회귀 테스트는 기존 검증본과 동일하다. 위 APK·140건·실기기 결과는 당시 검증 revision의 증거이고, 새 통합 HEAD의 전체 앱 재검증을 뜻하지 않는다.
+- 충돌 해결 통합본은 관련 `PracticeJangdanTest`26건·`LearnPracticePitchViewModelTest`10건, 총36건 실패·오류·제외0과 Android debug APK 빌드가 통과했다(`conflict-integration-build.log`). 문서 링크 끊김0, 독립 검토에서 의미 충돌 없음. 폰 재검증은 하지 않았다.
 
 ## 추가 경계 실기기 인계
 

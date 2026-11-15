@@ -41,7 +41,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 기본 필수 검사는 `clean build`입니다. 시작 테스트는 외부 DB·AI 서버 없이 임의 포트에 실제 HTTP 서버를 띄우고, DB 관련 Bean 미생성과 미등록 경로의 `404` 응답을 확인합니다. 결과는 `build/reports/tests/test/index.html`에 생성됩니다. 저장 모델·쿼리·마이그레이션 변경에서는 아래의 `databaseTest`, 녹음 파일 검사 변경에서는 `mediaTest`도 병합 전에 수행합니다. AI 통합과 모델 품질은 두 검사 범위에 포함하지 않습니다.
 
-마이그레이션 파일은 `V숫자__소문자_설명.sql`이고 버전은 1부터 빈 번호 없이 하나씩 씁니다. `MigrationFileTests`가 일반 `test`에서 버전 중복·공백·이름을 검사합니다. Jenkins는 `databaseTest`를 돌리지 않으므로, 다른 브랜치가 같은 번호를 먼저 병합하면 이 검사가 배포를 막습니다. 병합 직전 develop을 받아 나중 쪽 번호를 최신 다음으로 옮기고, 운영에 적용된 파일은 고치지 않습니다.
+마이그레이션 파일은 `V숫자__소문자_설명.sql`이고 버전은 1부터 빈 번호 없이 하나씩 씁니다. `MigrationFileTests`가 일반 `test`에서 버전 중복·공백·이름을 검사합니다. 다른 브랜치가 같은 번호를 먼저 병합하면 이 검사가 배포를 막습니다. 병합 직전 develop을 받아 나중 쪽 번호를 최신 다음으로 옮기고, 운영에 적용된 파일은 고치지 않습니다.
 
 ### 내 악보(SHT-01·02·04·08·11)
 
@@ -245,9 +245,11 @@ $env:TEST_DB_PASSWORD = '<테스트 DB 비밀번호>'
 .\gradlew.bat databaseTest
 ```
 
-macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다. 재설정·탈퇴 일괄 삭제 동시성 검사는 고정 지연 대신 실제 잠금 대기를 관측하므로, 테스트 계정은 `performance_schema.data_lock_waits`와 `performance_schema.data_locks`의 SELECT 권한도 필요합니다. 이 권한은 테스트 DB 계정용이며 운영 앱 계정에 추가하지 않습니다.
+macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다. 재설정·탈퇴 일괄 삭제 동시성 검사는 고정 지연 대신 실제 잠금 대기를 관측하므로, 테스트 계정은 `performance_schema.data_lock_waits`와 `performance_schema.data_locks`의 SELECT 권한도 필요합니다. 변환 대기 검사는 대기 중인 연결을 찾으려고 `performance_schema.threads`도 읽으므로 같은 SELECT 권한이 필요합니다. 이 권한들은 테스트 DB 계정용이며 운영 앱 계정에 추가하지 않습니다.
 
-검사 범위는 MySQL 8.4 V1~V14 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK와 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), V5 단소 율명 시드, V6 단소 악기·장단·4곡 시드가 연습 세션 조건(`PUBLISHED`·채점 가능)을 갖추고 4곡 악보 전체가 음표로 풀리는지, V14 학습 트랙 4개×9단계 시드와 트랙·단계 유일·트랙·판정 방식 제약, 학습 단계 API의 실제 HTTP 조회·완료 표시(본인 표시만·처음 시각 유지·동시 표시 한 행)와 목록 조회의 인덱스 사용, 곡 악보를 연습 구간 음표로 푸는 동작, 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작, 같은 트랜잭션에서 `RecordingUploaded` 발행), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회, 분석 다시 시도를 본인의 녹음이 있는 `TIMEOUT`·`SERVER_ERROR` 세션에만 시작하고 동시 요청 두 건 중 하나만 새 시도로 바꾸는 동작입니다. 되돌림·동시 요청 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
+Docker가 있으면 `python3 -B ../infra/jenkins/run-database-tests.py -- ./gradlew databaseTest`(backend 폴더에서 실행)로 폐기용 MySQL 8.4 컨테이너를 띄워 같은 검사를 돌릴 수 있습니다. 컨테이너는 임의의 loopback 포트·tmpfs 데이터로 뜨고, 실행마다 만든 비밀번호를 환경변수로만 넘기며, 검사가 실패하거나 중단돼도 지웁니다. Jenkins backend 잡도 이 방식으로 `databaseTest`를 실행합니다([S15P31E102-946](../docs/plans/S15P31E102-946.md)). 운영 잡 정의에 반영되기 전까지는 병합 전 수동 실행이 계속 필요합니다.
+
+검사 범위는 MySQL 8.4 V1~V14 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK와 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), V5 단소 율명 시드, V6 단소 악기·장단·4곡 시드가 연습 세션 조건(`PUBLISHED`·채점 가능)을 갖추고 4곡 악보 전체가 음표로 풀리는지, V14 학습 트랙 4개×9단계 시드와 트랙·단계 유일·트랙·판정 방식 제약, 학습 단계 API의 실제 HTTP 조회·완료 표시(본인 표시만·처음 시각 유지·동시 표시 한 행)와 목록 조회의 인덱스 사용, 곡 악보를 연습 구간 음표로 푸는 동작, 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작, 같은 트랜잭션에서 `RecordingUploaded` 발행), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회, 분석 다시 시도를 본인의 녹음이 있는 `TIMEOUT`·`SERVER_ERROR` 세션에만 시작하고 동시 요청 두 건 중 하나만 새 시도로 바꾸는 동작입니다. 되돌림·동시 요청 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 `clean build`에는 이 DB 검사를 포함하지 않고, Jenkins는 별도 `Backend database tests` 단계에서 실행합니다.
 
 ### 녹음 파일 검사와 ffmpeg
 
@@ -262,7 +264,7 @@ macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 
 | Windows | [FFmpeg 공식 빌드](https://ffmpeg.org/download.html)를 받아 `bin`을 `PATH`에 추가 |
 | 실행 이미지 | `Dockerfile` 실행 단계에서 `ffmpeg=7:8.0.1-3ubuntu2`(베이스 `eclipse-temurin:21-jre`의 Ubuntu 26.04 패키지)를 고정 설치 |
 
-고정 버전은 베이스 이미지의 Ubuntu 버전이 바뀌면 설치에 실패하므로 함께 갱신합니다. ffmpeg 설치로 실행 이미지가 약 410MB 커집니다. CI는 아직 `mediaTest`를 실행하지 않습니다. edo1 Jenkins 에이전트에 ffmpeg를 설치한 뒤 Jenkinsfile에 추가하고, 운영 이미지를 만드는 서버의 `/opt/eolssu/config/backend.Dockerfile`도 이 파일과 맞춥니다.
+고정 버전은 베이스 이미지의 Ubuntu 버전이 바뀌면 설치에 실패하므로 함께 갱신합니다. ffmpeg 설치로 실행 이미지가 약 410MB 커집니다. 운영 CI([infra/jenkins/backend.Jenkinsfile](../infra/jenkins/backend.Jenkinsfile))는 `mediaTest`를 실행합니다. 운영 이미지를 만드는 서버의 `/opt/eolssu/config/backend.Dockerfile`도 이 파일과 맞춥니다.
 
 ### 녹음 업로드와 원본 저장소(PRA-02)
 

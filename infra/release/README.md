@@ -15,7 +15,7 @@
 | ai·omr·playback | 사람이 edo1에서 이미지를 빌드·재생성. Jenkins가 갱신하지 않음 | [runtime README](../runtime/README.md) ai·omr·playback 절 |
 | 배포 순서 검사 | backend·web 배포 도구는 **develop 이력 안의 SHA만**, **현재보다 오래된 SHA는 거부** | [deploy-backend.py](../jenkins/deploy-backend.py) `check_release_order` |
 | 버전 표기 | Android `1.0.0`(code 2), iOS `1.0.1`(build 5), backend `0.0.1-SNAPSHOT`, ai `0.1.0`로 서로 다름 | `release-candidate.py notes` 출력 |
-| edo2 대기계 | 대기계·MySQL 복제 구성은 579로 develop 반영. DNS 전환 권한·절차·운영 도메인 TLS는 930에서 미확정 | [S15P31E102-930](https://ssafy.atlassian.net/browse/S15P31E102-930) |
+| edo2 대기계 | 대기계·MySQL 복제 구성은 579로 develop 반영. 전환 런북·운영 도메인 TLS 절차는 930에서 작성. SSAFY DNS 변경 경로는 문의 전이고 서버 리허설은 미실행 | [런북](../standby/failover-runbook.md) · [S15P31E102-930](https://ssafy.atlassian.net/browse/S15P31E102-930) |
 
 따라서 다음 두 가지가 절차의 전제다.
 
@@ -104,6 +104,18 @@ echo | openssl s_client -connect k15e102.p.ssafy.io:443 -servername k15e102.p.ss
 - 시연 기기: RC 빌드 설치, 충전, 네트워크(테더링 예비), 마이크 권한, 무음 모드 해제를 확인한다.
 - 녹화 영상: 발표 PC에 **오프라인 파일**로 두고 재생을 확인한다.
 
+### 접근 권한 점검
+
+2026-11-15 점검 결과는 [S15P31E102-939](../../docs/plans/S15P31E102-939.md)에 있다. 시연 계정(회원 1)은 운영에서 만료 없는 세션을 받고 소셜 계정이 연결돼 있었으며, QA 원격 제어 웹이 켜져 있었다. 아래는 모두 사람이 앱·PC에서 직접 하는 일이고, 서버 변경은 없다.
+
+| 시점 | 할 일 | 확인 |
+| --- | --- | --- |
+| 발표 1~2일 전 | 앱에서 시연 계정 비밀번호를 바꾼다. 곧바로 마이페이지에서 팀이 의도하지 않은 소셜 연결을 해제한다. 새 비밀번호는 시연 담당자에게만 알린다 | 이 계정의 기존 세션이 모두 끊긴다. 다시 로그인은 시연 기기에서만 한다 |
+| 11-17 저녁 ~ 발표 종료 | Windows QA PC에서 휴대폰·태블릿 중계를 끈다([QA 운영](../qa-phone/OPERATIONS.md)) | `https://15.165.144.7/qa/`와 `/qa/tablet/`이 502를 돌려준다. 꺼 둔 동안 `/applog` 수집도 멈춘다 |
+| 발표 전 | 시연 기기는 미리 로그인해 두고 '이메일 기억'을 끈다. 현장에서 새로 로그인하지 않는다 | 틀린 비밀번호를 5번 입력하면 15분 동안 잠긴다 |
+| 발표 전 | 발표 PC에서 Eolssu Updates를 종료하고 SSH 터널을 닫는다. phpMyAdmin에서 로그아웃한다 | 개발자 도구·Swagger·`/ipas/`를 화면에 띄우지 않고, 주소는 도메인만 쓴다 |
+| 시연 직전 | 시연 계정이 정상 로그인 상태인지(탈퇴 대기가 아닌지), 닉네임·악기·악보 표기가 그대로인지 본다 | 웹으로 시연했다면 끝난 뒤 앱 안의 '로그아웃'을 누른다 |
+
 ## 장애 판단과 전환
 
 시연 중 판단 시간은 짧게 정해 둔다. 기본 대체 수단은 **녹화 영상**이다.
@@ -115,7 +127,7 @@ echo | openssl s_client -connect k15e102.p.ssafy.io:443 -servername k15e102.p.ss
 | 사이트 전체 접속 불가 | 운영 담당이 `/edo1`·readiness 확인 | 즉시 녹화 영상. 발표 중 복구 작업은 하지 않음 |
 | 시연 기기 문제 | 예비 기기로 교체 | 예비 기기도 실패하면 녹화 영상 |
 
-edo2 대기계 전환은 **930에서 DNS 전환 권한·절차를 리허설로 확인한 경우에만** 선택지에 넣는다. 그 전에는 발표 중 서버 전환을 시도하지 않는다.
+발표 중에는 edo2 대기계로 전환하지 않는다. 2026-11-15 사용자 결정에 따라 장애 시 녹화 영상으로 대체하고, 서버 전환은 발표가 끝난 뒤 [장애 전환 런북](../standby/failover-runbook.md)으로 판단한다([S15P31E102-930](../../docs/plans/S15P31E102-930.md)).
 
 ## 롤백
 
