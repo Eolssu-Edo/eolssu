@@ -36,6 +36,8 @@ import com.ssafy.eolssu.core.ui.score.ErrorFilter
 import com.ssafy.eolssu.core.ui.score.ErrorKindSegments
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.rememberReadingScoreFormat
+import com.ssafy.eolssu.core.ui.score.visibleUnitErrors
+import com.ssafy.eolssu.core.ui.score.wholeCellErrors
 import com.ssafy.eolssu.feature.practice.component.sectionDecorations
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.weak_load_missing
@@ -98,7 +100,6 @@ fun SectionSelectScreen(state: SectionSelectUiState, actions: SectionSelectActio
             ErrorKindSegments(result, state.filter, actions.onFilter, Modifier.padding(bottom = 8.dp))
             SelectHintRow(state, actions.onReset)
             val section = state.section
-            val kind = state.filter.kind
             JeongganboView(
                 song = song,
                 modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
@@ -106,9 +107,11 @@ fun SectionSelectScreen(state: SectionSelectUiState, actions: SectionSelectActio
                 look = format.look,
                 cellHeights = format.cellHeights,
                 onUnitClick = { actions.onTap(ScorePosition(it.column, it.row)) },
+                // 나뉜 정간은 정간 전체 대신 틀린 소박만 칠해 '틀린 부분' 개수와 칠한 수를 맞춘다(S15P31E102-913).
                 decorations = sectionDecorations(
-                    song.score, result.errors.filter { kind == null || it.kind == kind }, section, outsideAlpha = OutsideAlpha, edgeRing = true,
+                    song.score, result.wholeCellErrors(song, state.filter), section, outsideAlpha = OutsideAlpha, edgeRing = true,
                 ),
+                unitErrors = result.visibleUnitErrors(song, state.filter),
                 section = section,
             )
         }

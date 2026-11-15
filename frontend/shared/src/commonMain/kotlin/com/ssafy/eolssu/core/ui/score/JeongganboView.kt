@@ -190,6 +190,7 @@ data class ScoreCellMark(
  * @param errorKinds 틀린 정간(각, 정간) → 그 정간의 틀린 종류 전부. 있으면 종류마다 아이콘 상자를 오른쪽 끝에 세로로 쌓는다(한 정간의 복합 오류).
  *   바탕·테두리는 [errors]의 대표 종류로 칠한다.
  * @param unitErrors 소박(표시 자리)마다의 틀린 종류. 비어 있지 않으면 나뉜 정간은 정간 전체 대신 틀린 소박만 칠한다.
+ *   그 정간에 [decorations]가 있어도 정간을 칠하지 않는 꾸밈([ScoreCellDecoration.paintsCell]이 거짓)이면 함께 그린다.
  * @param selectedIndex 사용자가 고른 음의 연주 순서. 정간에 회색 테두리를 그린다.
  * @param onEventClick 있으면 음을 누를 수 있다.
  * @param maxColumns 앞에서부터 이 수의 각만 그린다.
@@ -279,7 +280,7 @@ fun JeongganboView(
     }
     // 위아래로 붙은 두 정간이 모두 테두리를 그리면 맞닿은 변을 반씩만 그려 다른 변과 두께를 맞춘다.
     fun unitMode(cell: Pair<Int, Int>): Boolean =
-        unitErrors.isNotEmpty() && decorations[cell] == null && (unitsByCell[cell]?.size ?: 0) > 1
+        unitErrors.isNotEmpty() && decorations[cell]?.paintsCell != true && (unitsByCell[cell]?.size ?: 0) > 1
     fun hasRing(cell: Pair<Int, Int>): Boolean = decorations[cell]?.ring != null || (decorations[cell] == null && cell in errors)
     // 소박마다 칠한 정간은 맞닿는 줄(위 정간의 맨 아래 줄, 아래 정간의 맨 윗줄)의 소박이 틀렸는지로 본다.
     fun ringAtEdge(cell: Pair<Int, Int>, bottom: Boolean): Boolean {
@@ -680,7 +681,7 @@ private fun ScoreCellBox(
     val board = look.board
     // 넘겨받은 꾸밈이 먼저이고, 없으면 틀린 종류의 색·아이콘으로 칠한다.
     // 소박마다 판정이 있으면([unitErrors]) 정간 전체는 칠하지 않고 틀린 소박만 칠한다.
-    val unitMarks = decoration == null && unitErrors.isNotEmpty()
+    val unitMarks = decoration?.paintsCell != true && unitErrors.isNotEmpty()
     val mark = decoration ?: error?.takeUnless { unitMarks }?.let { errorDecoration(it) }
     val cellStart = units.minOfOrNull { it.unitStart } ?: 0.0
     val currentFraction by rememberUpdatedState(fraction)
