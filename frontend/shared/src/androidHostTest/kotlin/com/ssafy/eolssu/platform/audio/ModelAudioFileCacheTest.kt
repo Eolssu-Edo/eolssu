@@ -44,11 +44,11 @@ class ModelAudioFileCacheTest {
         try {
             val hash = hash(bytes)
             val first = assertNotNull(ModelAudioFileCache(Path(directory.path), engine, Dispatchers.IO)
-                .fileFor("https://api.test/play", hash))
+                .fileFor("https://api.test/play", hash, M4A))
             assertContentEquals(bytes, File(first.path).readBytes())
             val offline = MockEngine { error("a repeated publication must use the file") }
             val next = assertNotNull(ModelAudioFileCache(Path(directory.path), offline, Dispatchers.IO)
-                .fileFor("https://api.test/play?fresh-signature=two", hash))
+                .fileFor("https://api.test/play?fresh-signature=two", hash, M4A))
             assertEquals(first.path, next.path)
             assertEquals(2, requests, "one redirect and one file download across visits")
         } finally { directory.deleteRecursively() }
@@ -61,17 +61,17 @@ class ModelAudioFileCacheTest {
         var calls = 0
         val cache = ModelAudioFileCache(Path(directory.path), MockEngine { calls++; respond(served) }, Dispatchers.IO)
         try {
-            val first = assertNotNull(cache.fileFor("https://media.test/a", hash(bytes)))
+            val first = assertNotNull(cache.fileFor("https://media.test/a", hash(bytes), M4A))
             File(first.path).writeBytes(ByteArray(bytes.size))
-            assertNotNull(cache.fileFor("https://media.test/a", hash(bytes)))
+            assertNotNull(cache.fileFor("https://media.test/a", hash(bytes), M4A))
             assertEquals(2, calls)
             assertContentEquals(bytes, File(first.path).readBytes())
             File(first.path).delete()
             served = ByteArray(bytes.size)
-            assertNull(cache.fileFor("https://media.test/a", hash(bytes)))
-            assertFalse(directory.listFiles().orEmpty().any { it.extension in setOf("audio", "part") })
+            assertNull(cache.fileFor("https://media.test/a", hash(bytes), M4A))
+            assertFalse(directory.listFiles().orEmpty().any { it.extension in setOf("m4a", "audio", "part") })
             served = bytes
-            assertNotNull(cache.fileFor("https://media.test/a", hash(bytes)))
+            assertNotNull(cache.fileFor("https://media.test/a", hash(bytes), M4A))
             assertEquals(4, calls)
         } finally { directory.deleteRecursively() }
     }
@@ -84,7 +84,7 @@ class ModelAudioFileCacheTest {
             this.dispatcher = dispatcher
             addHandler { calls++; respond(it.url.encodedPath.encodeToByteArray()) }
         }), dispatcher, maxFiles = 2)
-        suspend fun visit(name: String) = assertNotNull(cache.fileFor("https://media.test/$name", hash("/$name".encodeToByteArray())))
+        suspend fun visit(name: String) = assertNotNull(cache.fileFor("https://media.test/$name", hash("/$name".encodeToByteArray()), M4A))
         try {
             val together = listOf(async { visit("a") }, async { visit("a") }).awaitAll()
             assertEquals(together[0].path, together[1].path)
@@ -95,7 +95,7 @@ class ModelAudioFileCacheTest {
             assertEquals(3, calls)
             assertFalse(File(b.path).exists())
             assertTrue(File(together[0].path).exists())
-            assertEquals(2, directory.listFiles().orEmpty().count { it.extension == "audio" })
+            assertEquals(2, directory.listFiles().orEmpty().count { it.extension == "m4a" })
         } finally { directory.deleteRecursively() }
     }
 
@@ -114,14 +114,14 @@ class ModelAudioFileCacheTest {
         })
         val cache = ModelAudioFileCache(Path(directory.path), engine, dispatcher, downloadTimeoutMs = 100)
         try {
-            val request = launch { cache.fileFor("https://media.test/a", hash(bytes)) }
+            val request = launch { cache.fileFor("https://media.test/a", hash(bytes), M4A) }
             entered.await()
             request.cancelAndJoin()
             assertTrue(request.isCancelled)
             assertTrue(directory.listFiles().orEmpty().isEmpty())
-            assertNull(cache.fileFor("https://media.test/a", hash(bytes)))
+            assertNull(cache.fileFor("https://media.test/a", hash(bytes), M4A))
             blocked = false
-            assertNotNull(cache.fileFor("https://media.test/a", hash(bytes)))
+            assertNotNull(cache.fileFor("https://media.test/a", hash(bytes), M4A))
         } finally { directory.deleteRecursively() }
     }
 
@@ -140,14 +140,37 @@ class ModelAudioFileCacheTest {
         val cache = ModelAudioFileCache(Path(directory.path), engine, Dispatchers.IO, maxFileBytes = 32)
         try {
             for (path in listOf("oversized", "redirect", "error")) {
-                assertNull(cache.fileFor("https://media.test/$path", hash(bytes)))
+                assertNull(cache.fileFor("https://media.test/$path", hash(bytes), M4A))
             }
-            assertNull(cache.fileFor("https://media.test/error", "../escape"))
-            assertNull(cache.fileFor("http://media.test/error", hash(bytes)))
+            assertNull(cache.fileFor("https://media.test/error", "../escape", M4A))
+            assertNull(cache.fileFor("http://media.test/error", hash(bytes), M4A))
             assertEquals(3, calls)
             assertTrue(directory.listFiles().orEmpty().isEmpty())
         } finally { directory.deleteRecursively() }
     }
 
+    @Test fun fileNameCarriesTheFormatExtensionAndReplacesAnUnplayableLegacyFile() = runTest {
+        val directory = createTempDirectory().toFile()
+        val bytes = ByteArray(48) { it.toByte() }
+        var calls = 0
+        val cache = ModelAudioFileCache(Path(directory.path), MockEngine { calls++; respond(bytes) }, Dispatchers.IO)
+        try {
+            val hash = hash(bytes)
+            // iOS AVPlayer cannot open a local `.audio` file, so an old cached file is downloaded again under a playable name.
+            File(directory, "$hash.audio").writeBytes(bytes)
+            val file = assertNotNull(cache.fileFor("https://media.test/a", hash, M4A))
+            assertEquals("$hash.m4a", File(file.path).name)
+            assertEquals(1, calls)
+            assertFalse(File(directory, "$hash.audio").exists())
+            assertEquals("mp3", File(assertNotNull(cache.fileFor("https://media.test/a", hash, "audio/mpeg")).path).extension)
+            assertNull(cache.fileFor("https://media.test/a", hash, "audio/flac"))
+            assertEquals(2, calls, "an unknown format keeps the remote playback path without downloading")
+        } finally { directory.deleteRecursively() }
+    }
+
     private fun hash(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).toHexString()
+
+    private companion object {
+        const val M4A = "audio/mp4"
+    }
 }
