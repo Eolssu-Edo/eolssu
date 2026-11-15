@@ -45,11 +45,20 @@ internal fun RecordDetailPane(state: RecordDetailUiState, actions: RecordDetailA
                 )
                 RecordDeleteButton(state.delete == RecordDeleteState.Deleting, actions.onAskDelete)
             }
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                RecordResultContent(state, actions, wrapped = false, modifier = Modifier.fillMaxSize())
-                if (state.playbackLoading) PlaybackLoadingOverlay()
+            // 넓은 칸은 요약·재생을 왼쪽, 정간보를 오른쪽에 나란히 두어 각 한 줄이 다 보이게 한다(S15P31E102-964).
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                if (recordDetailSideBySide(maxWidth)) {
+                    RecordResultSideBySide(state, actions, Modifier.fillMaxSize())
+                } else {
+                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.weight(1f).fillMaxWidth()) {
+                            RecordResultContent(state, actions, wrapped = false, modifier = Modifier.fillMaxSize())
+                            if (state.playbackLoading) PlaybackLoadingOverlay()
+                        }
+                        PlaybackBarContent(state, actions)
+                    }
+                }
             }
-            PlaybackBarContent(state, actions)
         }
     }
 }
