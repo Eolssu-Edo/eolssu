@@ -74,7 +74,7 @@ class SheetAudios(
         val sheet=sheets.find(sheetId,userId) ?: reject(ErrorCode.RESOURCE_NOT_FOUND)
         val selectedId = instrumentId ?: sheet.scoreJson?.let {
             mapper.instrumentByCode(json.readTree(it).path("score").path("instrument").asString())?.id
-        } ?: reject(ErrorCode.INVALID_REQUEST)
+        } ?: reject(if(sheet.scoreJson==null) ErrorCode.STATE_CONFLICT else ErrorCode.INVALID_REQUEST)
         val instrument=mapper.instrument(selectedId) ?: reject(ErrorCode.RESOURCE_NOT_FOUND)
         if(instrument.code !in setOf("DANSO","SOGEUM","JEONGAK_DAEGEUM","SANJO_DAEGEUM")) reject(ErrorCode.RESOURCE_NOT_FOUND)
         val speed=bpm ?: sheet.bpm

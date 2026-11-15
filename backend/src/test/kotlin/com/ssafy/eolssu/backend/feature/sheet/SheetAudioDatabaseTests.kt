@@ -130,6 +130,35 @@ class SheetAudioDatabaseTests {
         assertEquals(200, draft.statusCode(), draft.body())
         assertContains(jdbc.queryForObject("SELECT draft_json FROM user_sheets WHERE id=994481", String::class.java)!!, "이")
     }
+    @Test fun `HTTP audio without an instrument conflicts while the imported score is pending`() {
+        jdbc.update("UPDATE user_sheets SET source='STAFF_OMR',status='NEEDS_REVIEW',score_json=NULL WHERE id=994481")
+        jdbc.update("""INSERT INTO sheet_conversions(sheet_id,user_id,notation,instrument_id,status,page_count,accepted_at)
+            VALUES(994481,994481,'STAFF',1,'QUEUED',1,NOW(6))""")
+        val danso = jdbc.queryForObject("SELECT id FROM instruments WHERE code='DANSO'", Long::class.java)!!
+        for (status in listOf("QUEUED", "RUNNING")) {
+            jdbc.update("UPDATE sheet_conversions SET status=? WHERE sheet_id=994481", status)
+            for (body in listOf("{}", """{"instrumentId":"$danso"}""")) {
+                val response = send(994481, body)
+                assertEquals(409, response.statusCode(), "$status: ${response.body()}")
+                assertEquals("STATE_CONFLICT", json.readTree(response.body()).path("result").path("errorCode").asString())
+            }
+            assertEquals(status, jdbc.queryForObject("SELECT status FROM sheet_conversions WHERE sheet_id=994481", String::class.java))
+        }
+        val malformed = send(994481, """{"instrumentId":"0"}""")
+        assertEquals(400, malformed.statusCode(), malformed.body())
+        assertEquals("INVALID_REQUEST", json.readTree(malformed.body()).path("result").path("errorCode").asString())
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM sheet_audios WHERE sheet_id=994481", Int::class.java))
+        assertTrue(objects.isEmpty())
+    }
+    @Test fun `HTTP audio still rejects an unknown default instrument in a saved score`() {
+        val score = json.readTree(sheets.find(994481, 994481)!!.scoreJson) as tools.jackson.databind.node.ObjectNode
+        (score.path("score") as tools.jackson.databind.node.ObjectNode).put("instrument", "UNKNOWN")
+        jdbc.update("UPDATE user_sheets SET score_json=? WHERE id=994481", json.writeValueAsString(score))
+        val response = send(994481, "{}")
+        assertEquals(400, response.statusCode(), response.body())
+        assertEquals("INVALID_REQUEST", json.readTree(response.body()).path("result").path("errorCode").asString())
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM sheet_audios WHERE sheet_id=994481", Int::class.java))
+    }
     @Test fun `a published copy can request audio with its own score version`() {
         val copy = assertIs<SheetCopyResult.Created>(copies.copy(994481, 1, "audio-copy-key"))
         try {
