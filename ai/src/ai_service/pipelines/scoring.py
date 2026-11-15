@@ -18,6 +18,12 @@ _SUBHARMONIC_RATIO = 0.1  # A(f0)/A(2f0)가 이보다 작으면 f0를 2f0로 고
 _ONSET_WINDOW = 3  # 박자 판정에서 기준으로 삼는 앞뒤 음 수
 # 흔들림으로 허용을 넓히려면 소리 낸 음이 이만큼 있어야 한다. 음이 적으면 늦은 음 하나가 이웃 차이 여러 개를 흔들어 흔들림이 부푼다.
 _SPREAD_MIN_NOTES = 12
+# 무음 판정(S15P31E102-291). 음표를 하나도 맞히지 못한 것과 녹음에 소리가 없는 것을 나눈다. 음량(frame_rms)이
+# SILENCE_DBFS 이상인 프레임 수와 음높이가 잡힌 프레임 수 중 큰 쪽이 MIN_SOUND_S(악보 길이의 10%가 더 짧으면
+# 그 길이) 미만이면 무음이다. -50dBFS는 앱이 마이크 입력 없음으로 보는 크기(S15P31E102-206)다. 0.3초는 딸깍
+# 소리나 잡음 몇 프레임을 소리로 세지 않으려는 값이다. 둘 다 실제 녹음의 잡음 크기로 검증하기 전의 제안 값이다.
+SILENCE_DBFS = -50.0
+MIN_SOUND_S = 0.3
 
 
 def _align(expected: np.ndarray, detected: np.ndarray) -> np.ndarray:
@@ -175,6 +181,16 @@ def frame_rms(audio: np.ndarray, sr: int) -> np.ndarray:
     return librosa.feature.rms(y=audio, frame_length=2 * hop, hop_length=hop)[0]
 
 
+def has_sound(f0: np.ndarray, rms: np.ndarray | None = None, min_s: float = MIN_SOUND_S) -> bool:
+    """녹음에 소리가 있는지. 음량이 SILENCE_DBFS 이상이거나 음높이가 잡힌 프레임이 min_s초 이상이면 있다.
+
+    음높이를 못 잡은 숨소리·잡음도 음량이 크면 소리로 본다. rms가 없으면 음높이 프레임만 센다.
+    """
+    voiced = np.count_nonzero(~np.isnan(f0))
+    loud = 0 if rms is None else np.count_nonzero(rms >= 10 ** (SILENCE_DBFS / 20))
+    return max(voiced, loud) * HOP_S >= min_s
+
+
 def reference_hz(f0: np.ndarray) -> float:
     """기본음 녹음의 f0에서 기준음 주파수를 잰다."""
     voiced = f0[~np.isnan(f0)]
@@ -215,7 +231,11 @@ def score(
     tol: Tolerance = Tolerance(),
     rms: np.ndarray | None = None,
 ) -> ScoreResult:
-    """rms(frame_rms)가 없으면 같은 높이로 이어지는 음의 시작은 정렬 구간의 처음으로 본다."""
+    """rms(frame_rms)가 없으면 같은 높이로 이어지는 음의 시작은 정렬 구간의 처음으로 본다.
+
+    녹음에 소리가 없으면(has_sound) NO_SOUND 실패다. 소리가 있으면 음높이를 못 잡았거나 모든 음표를 놓쳐도
+    DONE이며 낮은 점수가 된다(S15P31E102-291).
+    """
     beat_s = 60.0 / bpm
     lengths = np.array([n.beats for n in notes]) * beat_s
     starts = np.concatenate([[0.0], np.cumsum(lengths)[:-1]])
@@ -229,7 +249,7 @@ def score(
             raise ValueError("음표가 앞 음표와 겹치거나 순서가 거꾸로다")
     expected_s = starts[-1] + lengths[-1]
 
-    if np.all(np.isnan(f0)):
+    if not has_sound(f0, rms, min(MIN_SOUND_S, 0.1 * expected_s)):
         return ScoreResult("FAILED", "NO_SOUND")
     if len(f0) * HOP_S < expected_s * 0.5:
         return ScoreResult("FAILED", "TOO_SHORT")
@@ -370,10 +390,6 @@ def score(
                                   None if n.sigimsae else 100 * _credit(err, tol.pitch_cent),
                                   0.0 if wrong else 100 * _credit(r, onset_tol_s),
                                   0.0 if wrong else 100 * _credit(dur_err, max(tol.duration_ratio * slots[k], tol.duration_floor_s))))
-
-    # 잡음 몇 프레임만 잡히고 모든 음표가 빠졌으면 0점이 아니라 무음 실패로 본다.
-    if all(r.verdict == "MISSED" for r in results):
-        return ScoreResult("FAILED", "NO_SOUND")
 
     weights = [r.weight for r in results]
     pitch = combine([r.pitch_score for r in results], weights)

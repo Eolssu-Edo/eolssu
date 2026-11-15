@@ -365,7 +365,8 @@ def prune():
                 record = json.loads(p.read_text()); age = current - datetime.fromisoformat(record['snapshot_at'].replace('Z', '+00:00'))
                 # DB 정리는 하루 한 번이므로 29일에서 정리해 최대 30일 상한을 지킨다.
                 keep = age < timedelta(days=14 if kind == 'jenkins' else 29 if kind == 'db' else 30)
-                if kind == 'db' and age >= timedelta(days=7): keep = keep and daily[p.stem[:8]] == p.stem
+                # 설정 사본은 활성·이전 릴리스를 담아 배포마다 커진다. 7일이 지나면 DB처럼 UTC 날짜별 최초본만 남긴다(Task 921).
+                if kind in ('db', 'config') and age >= timedelta(days=7): keep = keep and daily[p.stem[:8]] == p.stem
                 if not keep:
                     cipher = p.with_suffix('.cms')
                     if cipher.is_symlink(): raise ValueError('retention ownership mismatch')

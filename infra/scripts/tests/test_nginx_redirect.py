@@ -1,4 +1,5 @@
-"""격리 Nginx의 HTTP 전환·ACME·내부 상태 검사 계약. RUN_NGINX_TESTS=1로 실행한다."""
+"""격리 Nginx의 HTTP 전환·ACME·내부 상태 검사와 웹 정적 파일 압축·캐시 계약. RUN_NGINX_TESTS=1로 실행한다."""
+import gzip
 import http.client
 import json
 import os
@@ -14,6 +15,7 @@ import uuid
 @unittest.skipUnless(os.environ.get('RUN_NGINX_TESTS') == '1', 'requires Docker and OpenSSL')
 class NginxRedirectTests(unittest.TestCase):
     domain = 'redirect.example.test'
+    hashed_wasm = '0123456789abcdef0123.wasm'
 
     @classmethod
     def setUpClass(cls):
@@ -26,6 +28,16 @@ class NginxRedirectTests(unittest.TestCase):
         for directory in (conf, web, live):
             directory.mkdir(parents=True)
         (web / 'index.html').write_text('fixture index')
+        # 실제 번들처럼 해시 이름 Wasm, 고정 이름 JS, Compose 글꼴, 이미 압축된 이미지를 둔다.
+        cls.assets = {
+            '/' + cls.hashed_wasm: b'\0asm' + b'wasm fixture ' * 200,
+            '/webApp.js': b'console.log("fixture");\n' * 100,
+            '/composeResources/font/fixture.ttf': b'ttf fixture ' * 200,
+            '/composeResources/drawable/fixture.webp': b'webp fixture ' * 200,
+        }
+        for path, data in cls.assets.items():
+            (web / path[1:]).parent.mkdir(parents=True, exist_ok=True)
+            (web / path[1:]).write_bytes(data)
         challenge = web / '.well-known/acme-challenge'
         challenge.mkdir(parents=True)
         (challenge / 'fixture-token').write_text('fixture authorization')
@@ -76,6 +88,65 @@ class NginxRedirectTests(unittest.TestCase):
             return response.status, response.getheader('Location'), response.read()
         finally:
             connection.close()
+
+    # HTTP는 IP로 들어오는 기본 서버(nginx.conf), HTTPS는 도메인 서버(nginx.tls.conf)를 확인한다.
+    @classmethod
+    def fetch(cls, path, https, headers=()):
+        if https:
+            connection = http.client.HTTPSConnection('127.0.0.1', cls.https_port, timeout=2,
+                context=ssl.create_default_context(cafile=str(cls.certificate)))
+        else:
+            connection = http.client.HTTPConnection('127.0.0.1', cls.http_port, timeout=2)
+        try:
+            connection.request('GET', path, headers={'Host': cls.domain if https else '127.0.0.1', **dict(headers)})
+            response = connection.getresponse()
+            return response.status, {k.lower(): v for k, v in response.getheaders()}, response.read()
+        finally:
+            connection.close()
+
+    def test_static_assets_are_gzipped_only_for_clients_that_accept_it(self):
+        for https in (False, True):
+            for path, data in self.assets.items():
+                with self.subTest(https=https, path=path):
+                    status, headers, body = self.fetch(path, https, {'Accept-Encoding': 'gzip'})
+                    self.assertEqual(status, 200)
+                    if path.endswith('.webp'):
+                        # 이미 압축된 이미지는 다시 압축하지 않는다
+                        self.assertNotIn('content-encoding', headers)
+                        self.assertEqual(body, data)
+                    else:
+                        self.assertEqual(headers.get('content-encoding'), 'gzip')
+                        self.assertIn('Accept-Encoding', headers.get('vary', ''))
+                        self.assertEqual(gzip.decompress(body), data)
+                    status, headers, body = self.fetch(path, https, {'Accept-Encoding': 'identity'})
+                    self.assertNotIn('content-encoding', headers)
+                    self.assertEqual(body, data)
+
+    def test_static_assets_keep_browser_mime_types(self):
+        expected = {'/' + self.hashed_wasm: 'application/wasm', '/webApp.js': 'application/javascript',
+                    '/composeResources/font/fixture.ttf': 'font/ttf', '/composeResources/drawable/fixture.webp': 'image/webp'}
+        for https in (False, True):
+            for path, content_type in expected.items():
+                with self.subTest(https=https, path=path):
+                    self.assertEqual(self.fetch(path, https)[1].get('content-type'), content_type)
+
+    def test_only_content_hashed_wasm_is_cached_long_term(self):
+        for https in (False, True):
+            for path, policy in [('/' + self.hashed_wasm, 'public, max-age=31536000, immutable'),
+                                 ('/webApp.js', 'no-cache'), ('/composeResources/font/fixture.ttf', 'no-cache'),
+                                 ('/', 'no-cache'), ('/practice/1', 'no-cache'),
+                                 # 없는 해시 Wasm은 SPA 대체 문서가 되므로 오래 보관하면 안 된다
+                                 ('/ffffffffffffffffffff.wasm', 'no-cache')]:
+                with self.subTest(https=https, path=path):
+                    self.assertEqual(self.fetch(path, https)[1].get('cache-control'), policy)
+
+    def test_no_cache_assets_revalidate_with_etag(self):
+        for https in (False, True):
+            with self.subTest(https=https):
+                _, headers, _ = self.fetch('/webApp.js', https, {'Accept-Encoding': 'gzip'})
+                status, _, body = self.fetch('/webApp.js', https, {'Accept-Encoding': 'gzip',
+                                                                   'If-None-Match': headers['etag']})
+                self.assertEqual((status, body), (304, b''))
 
     def test_public_requests_keep_path_query_and_method_preserving_status(self):
         for method, path in [('GET', '/'), ('HEAD', '/nested?x=1&y=two%20words'),

@@ -1,8 +1,15 @@
+limit_req_zone $binary_remote_addr zone=blog_editor_per_ip:1m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=blog_views:1m rate=30r/m;
 log_format eolssu_safe_tls '$remote_addr [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent';
 # A container-local check can verify the TLS vhost's selected upstream.
 map $remote_addr $eolssu_tls_probe_backend {
     default "";
     127.0.0.1 $backend;
+}
+# nginx.conf와 같은 규칙이다. 두 파일이 한 http 블록에 함께 실리므로 변수 이름만 다르게 둔다.
+map $uri $eolssu_tls_static_cache_control {
+    "~^/[0-9a-f]{16,64}\.wasm$" "public, max-age=31536000, immutable";
+    default "no-cache";
 }
 server {
     access_log /dev/stdout eolssu_safe_tls;
@@ -74,6 +81,37 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location = /blog-editor/config {
+        proxy_pass http://172.18.0.1:18121/config;
+    }
+
+    location = /blog-editor/session {
+        limit_req zone=blog_editor_per_ip burst=5 nodelay;
+        limit_req_status 429;
+        client_max_body_size 8k;
+        proxy_read_timeout 40s;
+        proxy_pass http://172.18.0.1:18121/session;
+    }
+
+    location = /blog-editor/post {
+        limit_req zone=blog_editor_per_ip burst=5 nodelay;
+        limit_req_status 429;
+        client_max_body_size 270k;
+        proxy_read_timeout 40s;
+        proxy_pass http://172.18.0.1:18121/post;
+    }
+
+    location = /blog-editor/views {
+        client_max_body_size 256;
+        limit_req zone=blog_views burst=10 nodelay;
+        limit_req_status 429;
+        access_log off;
+        proxy_pass http://172.18.0.1:18121/views;
+    }
+
+    location = /blog-editor { return 404; }
+    location ^~ /blog-editor/ { return 404; }
+
     # Uploaded originals are available only to the internal recognition worker.
     location ^~ /api/internal/ {
         access_log off;
@@ -99,7 +137,36 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # iOS QA IPA OTA 설치(S15P31E102-444). 웹 릴리스 폴더와 분리된 /opt/eolssu/ipas를 고정 경로로 제공한다.
+    location ^~ /ipas/ {
+        alias /usr/share/nginx/ipas/;
+        index index.html;
+        autoindex off;
+        types {
+            text/html html;
+            application/xml plist;
+            application/octet-stream ipa;
+        }
+        add_header Cache-Control "no-store" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Robots-Tag noindex always;
+    }
+
     location / {
+        # 기본 MIME 표에 없는 글꼴을 등록해 압축 대상으로 고를 수 있게 한다.
+        include /etc/nginx/mime.types;
+        types {
+            font/ttf ttf;
+            font/otf otf;
+        }
+        # 웹 앱 정적 파일(Wasm·JS·CSS·글꼴·문자열 XML)을 압축한다. 이미 압축된 이미지·음원은 뺀다.
+        gzip on;
+        gzip_proxied any;
+        gzip_vary on;
+        gzip_comp_level 5;
+        gzip_min_length 1024;
+        gzip_types application/wasm application/javascript text/css image/svg+xml font/ttf font/otf text/xml application/json text/plain;
+        add_header Cache-Control $eolssu_tls_static_cache_control;
         try_files $uri $uri/ /index.html;
     }
 }
