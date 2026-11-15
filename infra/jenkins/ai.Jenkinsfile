@@ -1,7 +1,8 @@
 // eolssu-ai: develop의 ai 실행 입력이 바뀌면 이미지 빌드 → 이미지 안 pytest → 운영과 같은 조건의 실행 확인 → 배포(S15P31E102-244).
 // 잡 이름이 eolssu-로 시작하므로 실패는 기존 Jenkins 실패 알림(S15P31E102-509)이 Mattermost로 보낸다.
 pipeline {
-    agent any
+    // 전용 슬롯(executor 1, EXCLUSIVE). 백엔드 빌드와 서로 기다리지 않는다. 배포는 공유 lock으로 한 번에 하나다.
+    agent { label 'edo1-ai' }
 
     options {
         skipDefaultCheckout()
