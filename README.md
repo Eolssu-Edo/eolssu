@@ -49,7 +49,7 @@
 | edo1 | 운영 서비스: Nginx(웹·API·TLS) → backend(블루그린) · ai · omr · playback · MySQL. Jenkins, Prometheus·Grafana | [운영 서버 문서](infra/runtime/README.md) |
 | edo2 | DB·설정 암호화 백업과 격리 복원, MySQL 읽기 전용 복제본·대기 환경, Mattermost 점검 중계와 상태 변화 알림 | [인프라 문서 안내](infra/README.md) |
 
-- 배포: backend는 develop 병합 시 Jenkins가 블루그린으로 자동 배포하고, 웹은 수동 잡으로 배포합니다. ai·omr·playback 이미지는 담당자가 서버에서 빌드합니다.
+- 배포: backend는 develop 병합 시 Jenkins가 블루그린으로 자동 배포하고, 웹은 수동 잡으로 배포합니다. ai·omr·playback은 해당 이미지 입력이 바뀌면 Jenkins가 이미지를 빌드·검사해 자동 배포합니다.
 - 최종 발표용 main 반영·태그·시연 동결은 [릴리스 절차](infra/release/README.md)를, edo1 장애 시 edo2 전환은 [장애 전환 런북](infra/standby/failover-runbook.md)을 따릅니다.
 - 구성 요소 간 연결과 실측 수치는 [시스템 아키텍처](docs/knowledge/infra/system-architecture.md)와 [운영·품질 실측 근거](docs/knowledge/infra/ops-quality-evidence.md)에 정리돼 있습니다.
 
