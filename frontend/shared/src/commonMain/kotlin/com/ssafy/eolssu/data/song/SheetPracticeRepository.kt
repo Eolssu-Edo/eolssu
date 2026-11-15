@@ -58,6 +58,7 @@ class SheetPracticeRepository(
             scoreVersion = version,
             jangdanPlayback = accompaniment,
             basicAccompaniment = basic,
+            estimatedModelDurationMs = requireNotNull(document.score).estimatedModelDurationMs(document.expressions, document.bpm),
         )
     }
 

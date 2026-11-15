@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToLong
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
@@ -134,6 +135,19 @@ internal class ModelAudioSession(
         }
     }
 
+    /** 저장된 수행표만 연결한다. 디코더를 열거나 기존 재생·탐색 위치를 초기화하지 않는다. */
+    fun prepareMetadata(song: Song, bpm: Int, audio: ModelAudio, startTick: Double? = null) {
+        if (active || loadJob?.isActive == true || !audio.matches(song) ||
+            audio.startOffsetMs + song.modelScoreDurationMs(audio) > audio.durationMs + 1.0) return
+        this.bpm = bpm
+        if (currentSong == song && _state.value.audio?.sha256 == audio.sha256) return
+        ++requestId
+        currentSong = song
+        sourceId = null
+        _state.value = ModelAudioState(audio = audio,
+            mediaPositionMs = startTick?.let { song.modelMediaPosition(audio, it) } ?: audio.startOffsetMs)
+    }
+
     fun play(song: Song, bpm: Int, startTick: Double? = null) {
         if (loadJob?.isActive == true) return
         if (!player.available) {
@@ -147,7 +161,7 @@ internal class ModelAudioSession(
         this.bpm = bpm
         val previous = _state.value
         val cached = previous.audio?.takeIf {
-            it.matches(song) && previous.status in setOf(ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)
+            it.matches(song) && previous.status in setOf(ModelAudioStatus.Idle, ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)
         }
         if (cached != null) {
             val resume = player.state.value.sourceId == sourceId &&
@@ -165,7 +179,7 @@ internal class ModelAudioSession(
         val request = ++requestId
         sourceId = null
         player.stop()
-        _state.value = ModelAudioState(ModelAudioStatus.Loading)
+        _state.value = ModelAudioState(ModelAudioStatus.Loading, cached, previous.mediaPositionMs)
         launchPreparation(request, CoroutineStart.DEFAULT) {
             val audio = repository?.let { measureLoad(PerfTarget.MODEL_AUDIO, song.id, { song.scoreVersion }) { it.get(song) } }
             if (audio?.performance != null && actionStarted != null) {
@@ -216,7 +230,10 @@ internal class ModelAudioSession(
      * 재생 중이면 그 자리부터 이어 틀고, 멈춰 있거나 끝났으면 다음 재생이 그 자리에서 시작하도록 위치만 바꾼다.
      */
     fun seekBy(deltaMs: Long) {
-        seekTo(_state.value.mediaPositionMs + deltaMs)
+        val audio = _state.value.audio ?: return
+        // 버튼의 초는 표시되는 연습 시간이다. 느린/빠른 재생의 원본 음원 시간으로 한 번만 환산한다.
+        val mediaDelta = (deltaMs.toDouble() * bpm / audio.bpm).roundToLong()
+        seekTo(_state.value.mediaPositionMs + mediaDelta)
     }
 
     fun seekToFraction(fraction: Float) {
@@ -256,7 +273,7 @@ internal class ModelAudioSession(
         val song = currentSong ?: return
         // 이동으로 불러오는 중에 또 누르면 그 자리에서 다시 옮긴다(로딩 표시 없이 −5초·+5초를 이어 누를 수 있다).
         val reloading = current.status == ModelAudioStatus.Loading && current.seeking
-        if (!reloading && current.status !in setOf(ModelAudioStatus.Playing, ModelAudioStatus.Paused, ModelAudioStatus.Completed, ModelAudioStatus.Interrupted)) return
+        if (!reloading && current.status !in setOf(ModelAudioStatus.Idle, ModelAudioStatus.Playing, ModelAudioStatus.Paused, ModelAudioStatus.Completed, ModelAudioStatus.Interrupted)) return
         val target = scoreClamp(song, audio, positionMs)
         if (current.status == ModelAudioStatus.Playing || reloading) {
             sourceId = null
@@ -383,6 +400,10 @@ internal fun Song.modelPointAt(audio: ModelAudio, mediaPositionMs: Double): Mode
 }
 
 internal fun PracticeUiState.withModelAudio(playback: ModelAudioState): PracticeUiState {
+    if (mode == PracticeMode.Ready) return copy(
+        modelAudioStatus = playback.status, modelPerformance = playback.audio?.performance,
+        sheetPerformanceBpm = playback.audio?.takeIf { it.sheetPlayback != null && it.performance != null }?.bpm,
+    )
     if (mode != PracticeMode.Model) return this
     val base = copy(modelAudioStatus = playback.status, modelSeeking = playback.seeking, playing = playback.status == ModelAudioStatus.Playing,
         eventStartedAt = null, modelPerformance = playback.audio?.performance, modelPerformancePositionMs = 0.0,
