@@ -131,4 +131,4 @@ backend #9를 수동으로 한 번 시작하자 frontend #1이 upstream 원인�
 
 백엔드 develop 잡은 경로 필터 없이 develop의 모든 커밋을 검사·배포하고 프론트 잡을 이어 실행한다(위 '구성 선택과 적용점'). 그래서 develop의 `blog/`에 글을 머지해도 백엔드(약 1분 30초~3분)·프론트(약 3분 30초~4분) 빌드·운영 배포가 함께 일어났다. "develop에는 관리 대상 코드만 둔다"는 팀 의견에 따라 경로 필터를 넣는 대신 블로그를 develop과 기록을 공유하지 않는 `blog` 브랜치로 옮겼다. 앱 잡의 "공통 설정·문서 변경도 검사" 원칙은 그대로 유지된다.
 
-블로그 잡 `eolssu-blog`는 `blog` 브랜치를 1분 polling해 Hugo 빌드 후 GitHub Pages(`team-ido/team-ido.github.io`)에 결과물만 push한다. 글 이미지는 저장소 clone이 커지지 않도록 GitHub `team-ido/blog-images`에 둔다. 구성·결정 기록은 [S15P31E102-128](../../plans/S15P31E102-128.md), [S15P31E102-137](../../plans/S15P31E102-137.md)을 따른다.
+블로그 잡 `eolssu-blog`는 `blog` 브랜치를 1분 polling해 Hugo 빌드 후 GitHub Pages(`team-edo/team-edo.github.io`)에 결과물만 push한다. 글 이미지는 저장소 clone이 커지지 않도록 GitHub `team-edo/blog-images`에 둔다. 초기 계획 문서의 `team-ido`는 조직을 만들기 전 예시 이름이다. 구성·결정 기록은 [S15P31E102-128](../../plans/S15P31E102-128.md), [S15P31E102-137](../../plans/S15P31E102-137.md)을 따른다.

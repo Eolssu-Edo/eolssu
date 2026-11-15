@@ -182,7 +182,7 @@
 | 프론트엔드 구조·협업 규칙 | [frontend/docs/architecture.md](../frontend/docs/architecture.md) · [frontend/docs/collaboration.md](../frontend/docs/collaboration.md) |
 | 문서 작성 지침 | [docs/AGENTS.md](AGENTS.md) |
 | 데이터 담당 범위·파일 관리 | [data/README.md](../data/README.md) |
-| Docker·Compose·Nginx·백엔드 Jenkins 실행 | [infra/README.md](../infra/README.md) |
+| 인프라 운영 구성·배포·점검 문서 안내 | [infra/README.md](../infra/README.md) |
 | edo1 운영 서버·eolssu 이름·Jenkins 접속 | [infra/runtime/README.md](../infra/runtime/README.md) |
 | 내 악보 생성 음원 R2 운영 설정·검증 | [710 작업 기록](plans/S15P31E102-710.md) |
 | 운영 Compose 교체·권한 유지 | [스펙](specs/runtime-compose-install.md) · [541 원인·검증](plans/S15P31E102-541.md) |
