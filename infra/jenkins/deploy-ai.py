@@ -36,17 +36,31 @@ HEALTH_SCRIPT = ("import json, urllib.request; "
                  "print(json.dumps(json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2))))")
 
 
-def candidate_image(sha):
-    support.validate_sha(sha)
-    return f'{REPOSITORY}:ci-{sha}'
-
-
 class AiDeployer:
+    """한 Compose 서비스의 `<저장소>:runtime` 태그를 옮기는 배포 트랜잭션. omr·playback은 이 클래스를 상속한다
+    (S15P31E102-951, `deploy-service-image.py`). 아래 값은 서비스마다 바꾸고, ai는 그대로 둔다."""
+    service = 'ai'
+    container = CONTAINER
+    runtime_tag = RUNTIME_TAG
+    rollback_tag = ROLLBACK_TAG
+    source_label = SOURCE_LABEL
+    state_file = 'ai-deployment.json'
+    compose_options = ()
+    # 백엔드 컨테이너 안에서 부르는 계약 경로와 빈 JSON 요청에 대한 정상 응답 코드.
+    contract_path = '/v1/analyses'
+    contract_code = '422'
+    healthy_status = 'ok'
+    warm_up_phase = 'Check health and warm up scoring path'
+
     def __init__(self, root=Path('/opt/eolssu')):
         self.root = root
         self.env = root / '.env'
         self.compose = root / 'config/compose.yml'
-        self.state = root / 'ai-deployment.json'
+        self.state = root / self.state_file
+
+    def candidate_image(self, sha):
+        support.validate_sha(sha)
+        return self.runtime_tag.rsplit(':', 1)[0] + ':ci-' + sha
 
     def save(self, data):
         data['updated_at'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
@@ -67,9 +81,9 @@ class AiDeployer:
         return json.loads(run('docker', 'image', 'inspect', '--format', '{{json .Config.Labels}}', reference)) or {}
 
     def running_image(self):
-        details = json.loads(run('docker', 'inspect', CONTAINER))[0]
+        details = json.loads(run('docker', 'inspect', self.container))[0]
         if not details['State']['Running']:
-            raise DeployError('ai container is not running')
+            raise DeployError(self.service + ' container is not running')
         return details['Image']
 
     def tag(self, image_id, reference):
@@ -78,21 +92,22 @@ class AiDeployer:
         run('docker', 'tag', image_id, reference)
 
     def activate(self):
-        run('docker', 'compose', '--env-file', str(self.env), '-f', str(self.compose), 'up', '-d', '--no-deps',
-            '--force-recreate', '--pull', 'never', '--wait', '--wait-timeout', '120', 'ai', timeout=180)
+        run('docker', 'compose', '--env-file', str(self.env), '-f', str(self.compose), *self.compose_options, 'up', '-d',
+            '--no-deps', '--force-recreate', '--pull', 'never', '--wait', '--wait-timeout', '120', self.service,
+            timeout=180)
 
     def health(self):
-        return json.loads(run('docker', 'exec', CONTAINER, 'python', '-c', HEALTH_SCRIPT, timeout=10))
+        return json.loads(run('docker', 'exec', self.container, 'python', '-c', HEALTH_SCRIPT, timeout=10))
 
     def contract_status(self):
-        """백엔드 컨테이너 안에서 내부망 `http://ai:8000`을 부른다. 빈 요청은 계약 위반 422가 정상이다."""
+        """백엔드 컨테이너 안에서 내부망 `http://<서비스>:8000`을 부른다. 빈 요청은 계약 위반(ai·omr 422)이 정상이다."""
         backend = support.slot_name(support.Deployer(self.root).configured_slot())
         return run('docker', 'exec', backend, 'curl', '--silent', '--output', '/dev/null', '--max-time', '10',
                    '--write-out', '%{http_code}', '--request', 'POST', '--header', 'Content-Type: application/json',
-                   '--data', '{}', 'http://ai:8000/v1/analyses', timeout=15)
+                   '--data', '{}', f'http://{self.service}:8000{self.contract_path}', timeout=15)
 
     def warm_up(self):
-        report = json.loads(run('docker', 'exec', CONTAINER, 'python', '-m', 'ai_service.warmup', timeout=300)
+        report = json.loads(run('docker', 'exec', self.container, 'python', '-m', 'ai_service.warmup', timeout=300)
                             .splitlines()[-1])
         if report.get('status') != 'ok':
             raise DeployError('synthetic scoring failed in the running ai container')
@@ -110,19 +125,19 @@ class AiDeployer:
     # --- checks -----------------------------------------------------------------------------------------
     def unchanged(self, before):
         if self.protected() != before:
-            raise DeployError('backend/frontend/MySQL identity changed during ai deployment')
+            raise DeployError(f'backend/frontend/MySQL identity changed during {self.service} deployment')
 
     def verify(self, image_id, *, warm):
-        """실행 중인 ai가 고른 이미지이고 healthy이며 백엔드에서 닿는지 본다. warm이면 채점 경로도 한 번 돈다."""
-        if self.running_image() != image_id or self.image_id(RUNTIME_TAG) != image_id:
-            raise DeployError('running ai does not match the selected image')
+        """실행 중인 서비스가 고른 이미지이고 healthy이며 백엔드에서 닿는지 본다. warm이면 서비스 경로도 한 번 돈다."""
+        if self.running_image() != image_id or self.image_id(self.runtime_tag) != image_id:
+            raise DeployError(f'running {self.service} does not match the selected image')
         # 예전 수동 빌드 이미지에는 /health가 없다. 되돌릴 때는 Compose healthcheck와 계약 응답만 본다.
         if warm:
             health = self.health()
-            if health.get('status') != 'ok':
-                raise DeployError('ai /health is not ok')
-        if self.contract_status() != '422':
-            raise DeployError('backend cannot reach the ai analysis contract')
+            if health.get('status') != self.healthy_status:
+                raise DeployError(self.service + ' /health is not ok')
+        if self.contract_status() != self.contract_code:
+            raise DeployError(f'backend cannot reach the {self.service} contract')
         if warm:
             self.warm_up()
 
@@ -131,9 +146,9 @@ class AiDeployer:
         if backend.state.exists():
             journal = json.loads(backend.state.read_text())
             if journal['status'] in ('preparing', 'deploying', 'rollback_failed') or journal.get('retire_slot'):
-                raise DeployError('recover or drain the backend deployment before changing ai')
+                raise DeployError('recover or drain the backend deployment before changing ' + self.service)
         if backend.route.is_file() and not backend.route_matches(backend.current_slot()):
-            raise DeployError('recover the backend route before changing ai')
+            raise DeployError('recover the backend route before changing ' + self.service)
 
     # --- transaction ------------------------------------------------------------------------------------
     def recover(self):
@@ -142,7 +157,7 @@ class AiDeployer:
             return
         try:
             previous = saved['previous_image']
-            self.tag(previous, RUNTIME_TAG)
+            self.tag(previous, self.runtime_tag)
             self.activate()
             self.verify(previous, warm=False)
             self.unchanged(saved['protected'])
@@ -151,7 +166,7 @@ class AiDeployer:
         except Exception:
             saved['status'] = 'rollback_failed'
             self.save(saved)
-            raise DeployError('ai rollback failed; restore the previous image before retrying') from None
+            raise DeployError(self.service + ' rollback failed; restore the previous image before retrying') from None
 
     def deployed_sha(self):
         saved = self.journal()
@@ -166,32 +181,32 @@ class AiDeployer:
 
     def promote(self, sha, image_id, source, protected):
         previous = self.running_image()
-        if self.image_id(RUNTIME_TAG) != previous:
-            raise DeployError('eolssu-ai:runtime does not match the running container; recreate or retag first')
-        self.tag(previous, ROLLBACK_TAG)
+        if self.image_id(self.runtime_tag) != previous:
+            raise DeployError(self.runtime_tag + ' does not match the running container; recreate or retag first')
+        self.tag(previous, self.rollback_tag)
         saved = {'status': 'deploying', 'sha': sha, 'image_id': image_id, 'source': source,
                  'previous_image': previous, 'previous_sha': self.deployed_sha(), 'protected': protected}
         self.save(saved)
         try:
             with phase('Select candidate image'):
-                self.tag(image_id, RUNTIME_TAG)
-            with phase('Recreate ai service'):
+                self.tag(image_id, self.runtime_tag)
+            with phase(f'Recreate {self.service} service'):
                 self.activate()
             with phase('Verify running image and backend reachability'):
                 self.verify(image_id, warm=False)
-            with phase('Check health and warm up scoring path'):
+            with phase(self.warm_up_phase):
                 self.verify(image_id, warm=True)
             with phase('Verify protected services unchanged'):
                 self.unchanged(protected)
         except Exception:
             with phase('Rollback previous image'):
                 self.recover()
-            raise DeployError('ai deployment failed; previous image restored') from None
+            raise DeployError(self.service + ' deployment failed; previous image restored') from None
         saved['status'] = 'deployed'
         self.save(saved)
 
     def deploy(self, sha):
-        image = candidate_image(sha)
+        image = self.candidate_image(sha)
         self.blocked_by_other_deployments()
         with phase('Recover interrupted deployment'):
             self.recover()
@@ -200,16 +215,16 @@ class AiDeployer:
         with phase('Validate candidate image'):
             image_id = self.image_id(image)
             labels = self.image_labels(image_id)
-            if labels.get(REVISION_LABEL) != sha or not re.fullmatch('[0-9a-f]{64}', labels.get(SOURCE_LABEL, '')):
-                raise DeployError('ai image labels do not match candidate')
+            if labels.get(REVISION_LABEL) != sha or not re.fullmatch('[0-9a-f]{64}', labels.get(self.source_label, '')):
+                raise DeployError(self.service + ' image labels do not match candidate')
         with phase('Check identical release'):
-            if self.running_image() == image_id and self.image_id(RUNTIME_TAG) == image_id:
+            if self.running_image() == image_id and self.image_id(self.runtime_tag) == image_id:
                 self.verify(image_id, warm=False)
                 print(json.dumps({'status': 'already_deployed', 'sha': sha}), flush=True)
                 return
         with phase('Snapshot protected services'):
             protected = self.protected()
-        self.promote(sha, image_id, labels[SOURCE_LABEL], protected)
+        self.promote(sha, image_id, labels[self.source_label], protected)
 
 
 def main():

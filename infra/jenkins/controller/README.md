@@ -78,6 +78,22 @@ sudo journalctl -u eolssu-jenkins-agent --since today --no-pager
 
 되돌릴 때는 실행·예약 중인 ai 빌드가 없을 때 `eolssu-ai` 잡을 비활성화하고 `eolssu-jenkins-ai-agent`를 중지한다. 노드 설정과 작업 공간은 보존한다. 운영 ai 이미지 되돌리기는 [운영 안내](../../runtime/README.md#ai-분석-서비스)를 따른다.
 
+## omr·playback 이미지 잡
+
+작업: [S15P31E102-951](../../../docs/plans/S15P31E102-951.md). `eolssu-omr`·`eolssu-playback` 잡은 같은 파일([service-image.Jenkinsfile](../service-image.Jenkinsfile))을 쓰고, 잡 이름에서 서비스를 정한다. 두 잡 모두 ai와 같은 노드 `edo1-ai`에서 실행한다. 새 노드를 만들지 않은 이유는 다음과 같다.
+
+- 이미지 빌드·이미지 안 테스트는 CPU·메모리를 많이 쓴다(omr 빌드 최대 수 분, ai 실행 확인 6GiB). 4코어·15GiB 운영 서버에서 한 번에 하나만 돌려 운영 서비스 응답을 지킨다.
+- 슬롯·secret·systemd 서비스를 더 만들지 않아 운영 변경이 줄어든다. 백엔드 빌드(`edo1-host`)와는 여전히 서로 기다리지 않는다.
+- 대가: `ai/src`가 바뀐 커밋은 ai와 omr을 함께 다시 만들므로 두 잡이 차례로 돈다(나중 잡이 앞 잡의 빌드 시간만큼 늦게 반영된다).
+
+등록 순서(운영 미적용, 사용자 확인 뒤 진행). CLI 명령은 위 'ai 배포 전용 슬롯'과 같다.
+
+1. develop에 병합된 `service-image.Jenkinsfile`을 `declarative-linter`로 검사하고 `/var/lib/jenkins/eolssu-service-image.Jenkinsfile`(jenkins 소유)에 둔다.
+2. [잡 등록 파일](register-service-image-jobs.groovy)을 `check`로 확인한 뒤 `apply`로 저장한다. 기존 잡이 있으면 config.xml을 백업하고 바꾼다.
+3. 잡마다 **Build Now**로 한 번 실행한다. polling은 첫 실행 뒤에 켜진다.
+
+되돌릴 때는 실행·예약 중인 빌드가 없을 때 두 잡을 비활성화한다. `edo1-ai` 노드는 ai 잡이 계속 쓰므로 멈추지 않는다. 운영 이미지 되돌리기는 [운영 안내](../../runtime/README.md#omrplayback-자동-배포-s15p31e102-951)를 따른다.
+
 ## 복구
 
 전환 검증에 실패하면 새 빌드를 막고 실행 중인 빌드가 끝난 뒤 에이전트와 컨트롤러를 중단한다. 먼저 현재 홈의 실패 시점 복사본을 별도로 보존한다. 기존 홈을 즉시 삭제하거나 백업을 그 위에 무분별하게 덮어쓰지 않는다.
