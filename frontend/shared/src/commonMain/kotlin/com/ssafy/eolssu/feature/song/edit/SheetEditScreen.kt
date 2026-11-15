@@ -75,7 +75,7 @@ class SheetEditActions(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostState, actions: SheetEditActions,
-    focusRequestKey: Int = 0, adaptationContent: @Composable () -> Unit = {}) {
+    focusRequestKey: Int = 0, adaptationContent: @Composable () -> Unit = {}, guideContent: @Composable () -> Unit = {}) {
     val draft = state.draft
     val song = remember(draft) { draft.toSong() }
     val corrections = state.completionValidation.correctionCellIndices
@@ -103,11 +103,15 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                     else stringResource(Res.string.sheet_editor_duration_unavailable), style = MaterialTheme.typography.bodySmall,
                     color = EolssuTheme.colors.textSub, textAlign = TextAlign.End)
             }
+            // 가져온 악보 확인 안내는 악보 바로 위에 둬서 처음 열 때 보이게 한다(S15P31E102-979).
+            Box(Modifier.padding(horizontal = 20.dp)) { guideContent() }
             EditScoreBoard(
                 song = song,
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp),
-                marks = editorMarks(draft, state.selected, state.selectedSub, corrections, correctionUnits),
-                unitMarks = editorUnitMarks(draft, state.selected, state.selectedSub, correctionUnits),
+                marks = editorMarks(draft, state.selected, state.selectedSub, corrections, correctionUnits,
+                    state.completionValidation.rangeCellIndices),
+                unitMarks = editorUnitMarks(draft, state.selected, state.selectedSub, correctionUnits,
+                    state.completionValidation.rangeUnitKeys),
                 annotations = remember(draft) { draft.annotations() },
                 focusCell = draft.columnOf(state.selected) to draft.rowOf(state.selected),
                 focusRequestKey = focusRequestKey,

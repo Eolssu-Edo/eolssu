@@ -302,6 +302,26 @@ class SheetEditViewModel(
 
     fun cancelApplyAdaptation() = _uiState.update { it.copy(adaptation = it.adaptation?.copy(confirmationRequested = false)) }
 
+    /**
+     * 확인 안내의 '추천 적용'. 인식한 그대로라 덮어쓸 수정이 없으면 바로 적용하고(되돌리기로 취소),
+     * 편집했거나 임시저장본을 열었으면 슬라이더의 적용과 같은 덮어쓰기 확인을 거친다.
+     */
+    fun applyRecommendedAdaptation() {
+        val transpose = _uiState.value.importGuide?.recommendedTranspose ?: return
+        selectAdaptationTranspose(transpose)
+        requestApplyAdaptation()
+        if (_uiState.value.past.isEmpty() && loaded?.draft == null) applyAdaptation()
+    }
+
+    /** 음역 문제가 아닌 첫 인식 확인 정간으로 간다. */
+    fun openFirstRecognitionReview() {
+        val validation = _uiState.value.completionValidation
+        val index = (validation.correctionCellIndices - validation.rangeCellIndices).minOrNull() ?: return
+        selectCell(index)
+    }
+
+    fun dismissImportGuide() = _uiState.update { it.copy(importGuideDismissed = true) }
+
     fun applyAdaptation() {
         val panel = _uiState.value.adaptation ?: return
         val plan = panel.selected ?: return

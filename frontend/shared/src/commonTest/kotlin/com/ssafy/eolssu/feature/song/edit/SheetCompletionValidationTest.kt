@@ -426,6 +426,26 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         assertFalse(repository.writes.single().first)
     }
 
+    @Test fun rangeOnlyCellsAreSeparatedFromRecognitionReviews() = runTest {
+        val range = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
+            SampleMySheetRepository(), documents = RecordingDocuments(document(issues = listOf(issue("OUT_OF_RANGE")))),
+            pitchCatalog = CompletionCatalog(instrument = listOf(pitch("황", 0), pitch("태", 0))),
+            loadAudioInstruments = { listOf(CatalogInstrument("11", "DANSO", "단소")) }))
+        runCurrent()
+        val rangeCheck = range.uiState.value.completionValidation
+        assertTrue(0 in rangeCheck.correctionCellIndices)
+        assertTrue(0 in rangeCheck.rangeCellIndices, "음역·운지만 걸린 칸은 음역 표시로 구분한다")
+        assertEquals(rangeCheck.correctionCellIndices, rangeCheck.rangeCellIndices, "이 악보의 수정 필요는 모두 음역 문제다")
+        assertTrue(rangeCheck.rangeUnitKeys.isNotEmpty() && rangeCheck.rangeUnitKeys.all { it in rangeCheck.correctionUnitKeys })
+
+        val review = open(RecordingDocuments(document(issues = listOf(issue("LOW_CONFIDENCE")))))
+        runCurrent()
+        val reviewCheck = review.uiState.value.completionValidation
+        assertTrue(0 in reviewCheck.correctionCellIndices)
+        assertTrue(reviewCheck.rangeCellIndices.isEmpty(), "인식 확인 칸은 음역 표시로 바꾸지 않는다")
+        assertTrue(reviewCheck.rangeUnitKeys.isEmpty())
+    }
+
     private fun open(repository: SheetDocumentRepository, catalog: ReferenceCatalogRepository? = null) =
         keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
             SampleMySheetRepository(), documents = repository, pitchCatalog = catalog))
