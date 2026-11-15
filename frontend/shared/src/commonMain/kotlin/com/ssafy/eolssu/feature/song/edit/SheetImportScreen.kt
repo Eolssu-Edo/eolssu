@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
@@ -43,11 +45,13 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
         ?: state.error?.takeIf { it == "INPUT_REQUIRED" }?.let { stringResource(importErrorText(it)) }
     val showListAction = state.error in setOf("CONVERSION_IN_PROGRESS", "SHEET_LIMIT_EXCEEDED", "IDEMPOTENCY_CONFLICT")
     // 악보 추가 화면처럼 회색 바탕 위 흰 카드로 묶는다(S15P31E102-768).
+    val contentMaxWidth = sheetAddContentMaxWidth()
     EolssuScaffold(
+        contentMaxWidth = contentMaxWidth,
         containerColor = colors.groupedBackground,
         bottomDivider = false,
-        topBar = { EolssuTopBar(stringResource(Res.string.sheet_upload_title), onBack = { if (!state.busy) onBack() }) },
-        bottomBar = {
+        topBar = { EolssuTopBar(stringResource(Res.string.sheet_upload_title), onBack = { if (!state.busy) onBack() }, maxWidth = contentMaxWidth) },
+        bottomBar = sheetAddBottomBar(contentMaxWidth) {
             if (state.acceptedId != null) EolssuButton(stringResource(Res.string.sheet_upload_list), onList)
             else {
                 feedback?.let { UploadError(it) }
