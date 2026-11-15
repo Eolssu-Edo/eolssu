@@ -4,6 +4,11 @@ name: eolssu-monitoring
 
 services:
   grafana:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     image: grafana/grafana:11.3.0
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD를 지정하세요}
@@ -26,6 +31,11 @@ services:
     restart: unless-stopped
 
   prometheus:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     image: prom/prometheus:v3.5.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -45,6 +55,11 @@ services:
     restart: unless-stopped
 
   node-exporter: # 서버 CPU·메모리·디스크. 서버 루트를 읽기 전용으로만 보고 포트는 열지 않는다
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     image: prom/node-exporter:v1.9.1
     command:
       - --path.rootfs=/host

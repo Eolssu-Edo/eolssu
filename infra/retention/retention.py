@@ -15,7 +15,13 @@ import sys
 
 ROOT = Path('/opt/eolssu')
 LOCK = Path('/run/lock/eolssu-backend-deploy.lock')
-REPOSITORIES = ('eolssu-backend', 'eolssu-frontend')
+# eolssu-ai:ci-<SHA> is built only when the ai runtime inputs change (S15P31E102-244). Removing one of these tags
+# only untags an image that eolssu-ai:runtime or eolssu-ai:rollback still names, and in-use images are skipped.
+REPOSITORIES = ('eolssu-backend', 'eolssu-frontend', 'eolssu-ai', 'eolssu-omr', 'eolssu-playback')
+# eolssu-omr·eolssu-playback:ci-<SHA> (S15P31E102-951) are rebuilt whenever ai/src or data/ inputs change, and each omr
+# build adds about 1.5 GB of its own layers. Their rollback uses the image ID and the :rollback tag, never a ci- tag or
+# a backend release, so only the newest few tags are kept regardless of age.
+IMAGE_LIMITS = {'eolssu-omr': 3, 'eolssu-playback': 3}
 KEEP_COUNT = 20
 KEEP_AGE = timedelta(days=7)
 CACHE_UNTIL = '72h'
@@ -108,9 +114,14 @@ def plan(releases, images, protected, now, in_use=(), keep_count=KEEP_COUNT, kee
     remove_images = []
     for repository in REPOSITORIES:
         tagged = [image for image in images if image['repository'] == repository]
-        kept = keep_set([(image['sha'], image['created']) for image in tagged], protected, now, keep_count, keep_age)
-        # An image whose release is kept stays deployable by SHA; an image a container uses is never removed.
-        kept |= kept_releases
+        stamps = [(image['sha'], image['created']) for image in tagged]
+        if repository in IMAGE_LIMITS:
+            kept = keep_set(stamps, set(), now, IMAGE_LIMITS[repository], timedelta(0))
+        else:
+            kept = keep_set(stamps, protected, now, keep_count, keep_age)
+            # An image whose release is kept stays deployable by SHA.
+            kept |= kept_releases
+        # An image a container uses is never removed.
         remove_images += [image for image in tagged if image['sha'] not in kept and image['id'] not in in_use]
     return {'releases': sorted(sha for sha, _ in releases if sha not in kept_releases),
             'images': sorted(remove_images, key=lambda image: (image['repository'], image['created']))}

@@ -3,6 +3,7 @@
 - 작업: [S15P31E102-205](https://ssafy.atlassian.net/browse/S15P31E102-205). 조사일 2026-10-28.
 - 목적: 얼쑤의 채점·악보 데이터·학습 흐름이 어떤 자료를 근거로 정해졌는지 한곳에서 보여준다. 발표·심사에서 "왜 이렇게 했는가"에 답할 때 쓴다.
 - 이 문서는 근거를 모은 것이다. 표의 설계 내용 가운데 `제안`은 팀이 확정한 사항이 아니다.
+- 이 문서는 외부 자료와 설계 결정의 연결을 다룬다. 운영·품질 실측 수치와 발표용 검증 이야기는 [운영·품질 실측 근거 표](../infra/ops-quality-evidence.md), 실제 시스템 구성은 [시스템 아키텍처](../infra/system-architecture.md)에 있다(S15P31E102-941, 2026-11-15).
 
 ## 핵심 결론
 
@@ -68,6 +69,9 @@
 | 음높이 추정 3종 비교(합성 입력 30종) | 판정 일치 pYIN 299/300, torchcrepe full·tiny 310/310. 실제 대금 녹음 비교 전 | [pitch-estimator-comparison.md](../ai/pitch-estimator-comparison.md) |
 | 녹음 길이별 처리 시간·메모리 | DTW 메모리 때문에 600초 녹음은 현재 방식으로 분석 불가. 120초까지는 60초 제한 안 | [analysis-latency.md](../ai/analysis-latency.md) |
 | 정간보 OMR 정확도(단소 12곡) | 교실 악보 율명 42~82%. 율명 인식 개선으로 63% → 80%, 옥타브 오류 44 → 6개 | [jeongganbo-omr-accuracy.md](../data/jeongganbo-omr-accuracy.md) |
+| 실제 입문자 정상 연주 채점(10-29 추가) | 박자 판정 개선으로 맞은 음 단소 아리랑 2/61 → 51/61, 정상 연주 평균 54 → 83점 | [beginner-normal-performance.md](../ai/beginner-normal-performance.md) |
+
+10-28 이후 실험과 운영 실측은 [운영·품질 실측 근거 표](../infra/ops-quality-evidence.md)에 이어서 정리했다.
 
 ## 발표에서 쓰는 법
 

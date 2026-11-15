@@ -1,52 +1,57 @@
 # 얼쑤
 
-정간보 기반 AI 연주 평가로, 입문자도 혼자 국악기를 연습할 수 있는 모바일 앱입니다.
+정간보 기반 AI 연주 평가로, 입문자도 혼자 국악기를 연습할 수 있는 앱입니다.
 팀 이도(E102)가 **보기 → 듣기 → 연주 → 평가**의 학습 흐름을 하나의 앱으로 제공합니다.
 
-프로젝트 범위와 기술 선택은 [프로젝트 기획서](https://app.notion.com/p/3ffa0252aa4580a5a16cc55beadea3ba)를 기준으로 합니다. 기획서에서 미정으로 표시한 항목은 아래에서도 미정으로 유지합니다.
-
-각 영역의 구현·실행 현황은 해당 폴더의 README에서 관리합니다. 백엔드의 Docker·Compose·Nginx 실행과 Jenkins 연결 방법은 [인프라 문서](infra/README.md)를 참고합니다.
+제품 범위와 우선순위는 [프로젝트 기획서](https://app.notion.com/p/3ffa0252aa4580a5a16cc55beadea3ba)를 기준으로 합니다. 기능별 확정 동작은 [문서 목록](docs/README.md)의 스펙을, 영역별 구현·실행 방법은 각 폴더의 README를 따릅니다.
 
 ## 주요 기능
 
 | MVP 기능 | 내용 |
 | --- | --- |
-| AI 연주 평가 | 정답 악보와 음 높이·박자·음 길이를 비교해 점수와 틀린 위치 제공 |
+| AI 연주 평가 | 녹음을 정답 악보와 비교해 음 높이·박자·음 길이 점수와 틀린 위치 제공 |
 | 쉬운 정간보 | 한자 율명을 한글·계이름으로 전환하고 시김새 등 기호 설명 |
 | 운지법 안내 | 악보의 음을 선택하면 악기 운지를 그림으로 표시 |
 | 모범 연주 | 악보에 맞춰 재생하고 빠르기 조절 |
 | 장단 메트로놈 | 세마치·굿거리·자진모리 등 국악 장단과 기본 메트로놈 제공 |
 
-- 대상은 국악기 입문자이며, 악기는 대금 → 단소 → 소금 → 피리 → 현악기 순으로 확장합니다.
-- 스마트폰에서 시작해 태블릿을 고려하며, 웹은 추후 검토합니다.
-- 연습 기록, 취약 구간 반복, PDF 업로드, 정간보 편집 등은 2차 범위입니다.
-- 율명 학습·단계별 연습·시김새 학습의 필수 포함 여부는 미정입니다.
-- 커뮤니티, 악기 간 악보 변환, 악보 OCR, 교사용 반·과제 관리는 제외합니다.
+- 대상은 국악기 입문자이며, 악기 확장 순서와 2차 범위는 기획서를 따릅니다.
+- 앱은 Android·iOS와 웹(Kotlin/Wasm)으로 빌드합니다([frontend](frontend/README.md)).
+- MVP 이후 구현된 연습 기록·성장 통계, 내 악보 가져오기(PDF·이미지 인식)·편집, 내 악보 음원 생성 등은 [문서 목록](docs/README.md)의 기능 스펙에서 확인합니다.
 
 ## 연주 평가 흐름
 
-기획한 처리 흐름은 다음과 같습니다. 실제 동작과 품질은 PoC에서 검증합니다.
-
 ```text
-정답 생성: 정간보 → MusicXML → 음표 시퀀스
-실시간:   마이크 → 온디바이스 음높이 추적 → 현재 음 정답 여부 표시
-연주 후:  녹음 → 서버 음높이 추정(CREPE/pYIN) → DTW 정렬 → 음표별 채점
+정답:     공통 악보 데이터(정간보) → 음표 시퀀스
+연주 후:  앱 녹음 업로드 → backend 검사·저장(R2) → ai 분석 API(pYIN 음높이 추정 → DTW 정렬 → 음표별 채점)
+          → backend가 결과 저장 → 앱이 상태 조회 후 점수·음표별 판정 표시
 ```
 
-PoC에서는 모바일 음높이 인식의 정확도·지연, 악보 1곡의 정답 데이터 생성, 정상·오류 연주의 채점 구분, 우물사이 엔진의 앱 연동 방식을 확인합니다. 실시간 성능이 부족하면 기획서의 대응 방안에 따라 연주 후 평가 중심으로 조정합니다.
+요청·실패 코드·제한은 [분석 실패 처리 스펙](docs/specs/practice-analysis-failure.md)과 [ai README](ai/README.md)를 따릅니다.
 
 ## 기술 스택
 
-| 영역 | 기획 기준 | 미정 사항 |
+| 영역 | 사용 기술 | 자세히 |
 | --- | --- | --- |
-| Frontend | Kotlin Multiplatform 기반 모바일 앱 | 프레임워크·UI 구성 |
-| Backend | Kotlin, Spring Boot | DB·인증·AI 연동 |
-| Data | 데이터 수집·정제·메타데이터·평가 데이터셋 구축 | 구현 도구·라이브러리 |
-| AI | Python, CREPE, pYIN(librosa), music21, DTW | API 프레임워크: FastAPI / Flask |
-| DB | MySQL / PostgreSQL 후보 | 제품 선택 |
-| Infra | Docker·Compose, Nginx, 백엔드 Jenkinsfile | 서버 배포·Jenkins 잡 연결 |
-| 협업 | GitLab, Jira, Notion, Mattermost | — |
-| 기술 블로그 | Hugo, GitHub Pages, Jenkins 자동 배포 (develop과 분리된 `blog` 브랜치) | — |
+| Frontend | Kotlin Multiplatform, Compose Multiplatform, Ktor, Koin (Android·iOS·Web Wasm) | [frontend](frontend/README.md) |
+| Backend | Kotlin, Spring Boot, Spring Security(OAuth2 Resource Server), MyBatis, Flyway, springdoc | [backend](backend/README.md) |
+| AI | Python 3.12, FastAPI, librosa(pYIN), DTW 채점 / 악보 인식(OMR): Audiveris, jeongganbo-generator | [ai](ai/README.md) |
+| Data | 공통 악보·참고 음원·카탈로그 구축, 연습 집계 마트 | [data](data/README.md) |
+| DB·저장소 | MySQL 8.4, Cloudflare R2(녹음·음원·악보 원본) | [DB 스키마](docs/contracts/db-schema.md) |
+| Infra | Docker Compose, Nginx(TLS), Jenkins, Prometheus·Grafana, Mattermost 점검·알림 | [infra](infra/README.md) |
+| 협업 | GitLab, Jira, Notion, Mattermost | [AGENTS.md](AGENTS.md) |
+| 기술 블로그 | Hugo, GitHub Pages, Jenkins 자동 배포 (develop과 분리된 `blog` 브랜치) | https://team-edo.github.io |
+
+## 운영 구성 요약
+
+| 서버 | 역할 | 자세히 |
+| --- | --- | --- |
+| edo1 | 운영 서비스: Nginx(웹·API·TLS) → backend(블루그린) · ai · omr · playback · MySQL. Jenkins, Prometheus·Grafana | [운영 서버 문서](infra/runtime/README.md) |
+| edo2 | DB·설정 암호화 백업과 격리 복원, MySQL 읽기 전용 복제본·대기 환경, Mattermost 점검 중계와 상태 변화 알림 | [인프라 문서 안내](infra/README.md) |
+
+- 배포: backend는 develop 병합 시 Jenkins가 블루그린으로 자동 배포하고, 웹은 수동 잡으로 배포합니다. ai·omr·playback 이미지는 담당자가 서버에서 빌드합니다.
+- 최종 발표용 main 반영·태그·시연 동결은 [릴리스 절차](infra/release/README.md)를, edo1 장애 시 edo2 전환은 [장애 전환 런북](infra/standby/failover-runbook.md)을 따릅니다.
+- 구성 요소 간 연결과 실측 수치는 [시스템 아키텍처](docs/knowledge/infra/system-architecture.md)와 [운영·품질 실측 근거](docs/knowledge/infra/ops-quality-evidence.md)에 정리돼 있습니다.
 
 ## 저장소 구조
 
@@ -54,28 +59,27 @@ PoC에서는 모바일 음높이 인식의 정확도·지연, 악보 1곡의 정
 S15P31E102/
 ├── AGENTS.md     # AI 공통 작업 지침
 ├── CLAUDE.md     # Claude Code에서 공통 지침 불러오기
-├── frontend/     # 모바일 앱·온디바이스 처리
-├── backend/      # 곡·악보·평가 요청과 결과 등 일반 API
-├── data/         # 데이터 수집·정제·메타데이터·평가 데이터셋
-├── ai/           # 요청별 전처리·음높이 추정·정렬·채점
-├── infra/        # Docker·Jenkins·Nginx 설정
-├── docs/         # 도메인 지식·실험·결정·공통 계약
+├── frontend/     # KMP 앱(Android·iOS·Web)
+├── backend/      # 곡·악보·연습·평가·계정 API
+├── ai/           # 연주 분석 API, 악보 인식(OMR) 서비스
+├── data/         # 악보·음원 데이터 구축, 음원 생성기(playback), 집계 마트
+├── infra/        # 운영 Compose·Nginx·Jenkins·백업·점검·릴리스
+├── docs/         # 스펙·계약·지식·결정·작업 기록
 └── .gitlab/      # MR 템플릿
 ```
 
-기술 블로그(https://team-ido.github.io)는 서비스 코드가 아니어서 develop에 두지 않고, develop과 기록을 공유하지 않는 `blog` 브랜치에서 관리합니다. 글 쓰는 방법은 `blog` 브랜치의 README를 따릅니다.
+기술 블로그는 서비스 코드가 아니어서 develop과 기록을 공유하지 않는 `blog` 브랜치에서 관리합니다. 글 쓰는 방법은 `blog` 브랜치의 README를 따릅니다.
 
-각 작업 폴더에는 파트별 `AGENTS.md`와 이를 불러오는 `CLAUDE.md`가 있습니다. `data/`에는 [담당 범위 문서](data/README.md), `docs/`에는 [문서 목록과 기록 기준](docs/README.md)이 있습니다.
-
-데이터셋 구축을 위한 악보 변환·오디오 전처리는 Data, 연주 요청마다 수행하는 전처리·추론·채점은 AI가 담당합니다. `data/raw/`, `data/processed/`, `ai/data/`, `ai/models/`는 Git 제외 대상이며, 소스와 작은 검증용 샘플은 추적 가능한 별도 경로에 둡니다.
+각 작업 폴더에는 파트별 `AGENTS.md`와 이를 불러오는 `CLAUDE.md`가 있습니다. `data/raw/`, `data/processed/`, `ai/data/`, `ai/models/`는 Git 제외 대상이며, 소스와 작은 검증용 샘플은 추적 가능한 별도 경로에 둡니다.
 
 ## 실행과 검증
 
-실행·검증 명령과 필수 환경은 각 영역의 README에 기록합니다. [백엔드](backend/README.md)의 Gradle 빌드·테스트와 [인프라](infra/README.md)의 컨테이너 실행·구성 검사를 참고합니다.
+실행·검증 명령과 필수 환경은 각 영역의 README에 기록합니다.
 
 - 개발 중에는 변경 영역의 관련 테스트를 실행하고, 완료 시 영향받는 영역의 필수 검사와 회귀 검증을 수행합니다.
 - 모델 추론·실제 기기·대용량 음원 검증은 빠른 기본 검사와 실행 조건을 구분합니다. 해당 변경에 필요한 검증은 병합 전에 수행합니다.
-- 백엔드 Jenkinsfile은 빌드·검증·이미지 생성을 정의하며, 실제 잡과 배포 트리거 연결은 별도로 진행합니다.
+- 운영 Jenkins 잡이 실행하는 파이프라인 원본은 `infra/jenkins/`에 있습니다([운영 서버 문서](infra/runtime/README.md#jenkins)).
+- 문서의 상대 링크는 `python3 -B infra/scripts/check-markdown-links.py`로 검사합니다.
 
 ## 협업 규칙
 
@@ -84,20 +88,21 @@ Jira 업무·브랜치·MR 규칙은 [루트 AGENTS.md](AGENTS.md)의 `Jira·Git
 ## AI 작업 도구
 
 - Jira 작업은 연결된 MCP로 처리합니다. 팀원별 연결과 요청 예시는 [Jira MCP 사용 안내](docs/knowledge/tooling/jira-mcp.md)를 참고합니다.
-- COCO는 npm 배포본 `@thisis-joe/coco-skills@0.2.0`을 기준으로 사용합니다.
+- COCO는 [루트 AGENTS.md](AGENTS.md)의 `COCO` 절에 적힌 배포본을 기준으로 사용합니다.
 - 팀 기본은 필요한 스킬을 사용자가 선택해 명령어로 실행하는 방식입니다. 고정된 단계 순서를 강제하지 않습니다.
 - 자연어에 따른 자동 선택은 개인이 명시적으로 허용한 경우에 적용합니다.
 - Codex는 `$coco-build`, Claude Code는 `/coco-build`처럼 각 도구의 명령으로 선택합니다.
+- COCO 갱신 알림·QA 앱 다운로드·서버 연결은 [Eolssu Updates 앱](infra/tool-updates/README.md)을 사용합니다.
 - 공통 규칙은 [루트 AGENTS.md](AGENTS.md), 파트별 규칙은 각 폴더의 `AGENTS.md`를 따릅니다. `CLAUDE.md`는 같은 지침을 불러옵니다.
 - 코드 변경이 없는 조사·학습도 팀이 재사용할 결과가 생기면 [기록 기준](docs/README.md)에 따라 지식·실험·결정을 남깁니다.
 
 ## 환경 변수와 비밀 정보
 
-인증 정보, 개인 키, 실제 환경변수 값은 커밋하지 않습니다. 실행 환경이 정해지면 비밀값을 제외한 예시 파일과 설정 방법을 함께 추가합니다.
+인증 정보, 개인 키, 실제 환경변수 값은 커밋하지 않습니다. 예시 파일에는 이름과 용도만 남기고, 운영 값은 서버 환경 파일과 Jenkins Credentials에서 주입합니다([운영 서버 문서](infra/runtime/README.md)).
 
 ## 관련 문서
 
 - [저장소 문서 목록](docs/README.md)
-- [Docker·Compose·Nginx·백엔드 Jenkins 실행](infra/README.md)
+- [인프라 실행과 운영 문서 안내](infra/README.md)
 - [프로젝트 기획서](https://app.notion.com/p/3ffa0252aa4580a5a16cc55beadea3ba)
 - [팀 Jira·Git 규칙](https://app.notion.com/p/Jira-Git-af8a0252aa45823e9cbf8131a9ac7734)

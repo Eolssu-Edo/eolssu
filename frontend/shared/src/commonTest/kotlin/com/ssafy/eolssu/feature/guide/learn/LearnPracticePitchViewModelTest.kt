@@ -1,10 +1,12 @@
 package com.ssafy.eolssu.feature.guide.learn
 
 import com.ssafy.eolssu.core.audio.AudioRecorder
+import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.PitchGate
 import com.ssafy.eolssu.core.audio.PitchReading
 import com.ssafy.eolssu.core.audio.RecordedAudio
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.data.practice.NotePracticeCriteria
 import com.ssafy.eolssu.data.practice.NotePracticeCriteriaLoad
 import com.ssafy.eolssu.data.practice.NotePracticeCriteriaRepository
@@ -15,6 +17,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -179,6 +182,58 @@ class LearnPracticePitchViewModelTest {
         runCurrent()
         assertNull(stageSeven.uiState.value.pitch)
         assertTrue(stageSeven.uiState.value.judgesByTongue)
+    }
+
+    @Test fun blockedMicrophoneStillCompletesTheLastManualTaskWithAPitchPlan() = runTest(dispatcher) {
+        val permission = object : MicPermission {
+            override fun isGranted() = false
+            override suspend fun request() = false
+            override fun isPermanentlyDenied() = true
+        }
+        val lesson = detail.copy(
+            pitchNames = listOf("仲", "林", "無", "潢", "汰"),
+            ranges = listOf(LearnRange(Blow.High, "역취", "세게", "㳞")),
+        )
+        for ((stage, boxes) in listOf(5 to 2, 6 to 1)) {
+            val recorder = Recorder()
+            val vm = LearnPracticeViewModel(stage, recorder, permission, loadCriteria = { criteria })
+            vm.prepare(GuideInstrument.Danso, lesson)
+            runCurrent()
+            vm.startListening()
+            runCurrent()
+
+            val state = vm.uiState.value
+            assertEquals(LearnMicStatus.Blocked, state.mic)
+            assertNotNull(state.pitch)
+            assertFalse(state.canListen)
+            assertEquals(0, recorder.starts)
+            val events = mutableListOf<String>()
+            repeat(boxes) { box ->
+                completeLearnSegment(state, box, boxes, { events += "box $box" }, { events += "celebrate" })
+            }
+            assertEquals((0 until boxes).map { "box $it" } + "celebrate", events, "stage $stage")
+        }
+    }
+
+    @Test fun taskCompletionKeepsAutomaticJudgingAndMissingCriteriaFallbackSeparate() = runTest(dispatcher) {
+        val recorder = Recorder()
+        val vm = viewModel(recorder, stage = 5)
+        vm.prepare(GuideInstrument.Danso, detail.copy(pitchNames = listOf("仲", "林", "無", "潢", "汰")))
+        runCurrent()
+        val automatic = vm.uiState.value
+        assertNotNull(automatic.pitch)
+        val events = mutableListOf<String>()
+        completeLearnSegment(automatic, 1, 2, { events += "box" }, { events += "celebrate" })
+        assertEquals(listOf("box"), events)
+
+        val manual = viewModel(Recorder(observes = false), stage = 5)
+        manual.prepare(GuideInstrument.Danso, detail)
+        runCurrent()
+        events.clear()
+        completeLearnSegment(manual.uiState.value, 0, 2, { events += "first" }, { events += "celebrate" })
+        assertEquals(listOf("first"), events)
+        completeLearnSegment(manual.uiState.value, 1, 2, { events += "last" }, { events += "celebrate" })
+        assertEquals(listOf("first", "last", "celebrate"), events)
     }
 
     @Test fun criteriaAreLookedUpByTheServerInstrumentCode() = runTest(dispatcher) {

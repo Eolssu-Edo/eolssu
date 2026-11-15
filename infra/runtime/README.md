@@ -53,7 +53,31 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" ffp
 
 연주 분석 API([ai README](../../ai/README.md#분석-api))는 `ai` 서비스로 실행합니다. 인증이 없으므로 호스트 포트를 열지 않고, backend가 Compose 내부망의 `http://ai:8000`으로만 부릅니다(`ANALYSIS_AI_BASE_URL`). 주소는 비밀값이 아니라 Compose에 직접 적습니다. AI가 없거나 응답하지 않으면 업로드한 세션은 `SERVER_ERROR` 또는 제한 시간(60초) 뒤 `TIMEOUT`이 되고, 다른 API에는 영향이 없습니다.
 
-이미지는 저장소 `ai/Dockerfile`로 edo1에서 직접 빌드한 `eolssu-ai:runtime`을 씁니다(약 1.65GB, 빌드에 2GB 넘는 디스크 여유 필요). 배포는 `--pull never`이고 Jenkins는 이 서비스를 다시 만들지 않으므로, `ai/` 변경을 반영할 때는 같은 태그로 다시 빌드한 뒤 `ai`만 재생성합니다. 빌드한 develop 커밋을 아래 작업 기록에 남깁니다.
+이미지는 저장소 `ai/Dockerfile`로 edo1에서 빌드한 `eolssu-ai:runtime`을 씁니다(약 1.65GB, 빌드에 2GB 넘는 디스크 여유 필요). 배포는 `--pull never`입니다. 2026-11-15부터 Jenkins 잡 `eolssu-ai`(아래 '자동 배포')가 `ai/` 변경을 빌드·검사·배포합니다. 아래 수동 빌드는 Jenkins를 쓸 수 없을 때만 씁니다.
+
+#### 자동 배포 (S15P31E102-244)
+
+[ai.Jenkinsfile](../jenkins/ai.Jenkinsfile)은 전용 슬롯 `edo1-ai`([슬롯 구성](../jenkins/controller/README.md#ai-배포-전용-슬롯))에서 develop을 1분마다 확인합니다. 흐름과 각 단계의 근거는 [244 작업 기록](../../docs/plans/S15P31E102-244.md)에 있습니다.
+
+1. [build-ai-image.py](../jenkins/build-ai-image.py) `plan`: 이미지를 만드는 입력(`ai/Dockerfile`·`.dockerignore`·`.python-version`·`pyproject.toml`·`uv.lock`·`src/`)의 Git 해시를 실행 중인 ai 이미지의 `com.eolssu.ai.source` 라벨과 비교합니다. 같으면 빌드·배포를 생략합니다.
+2. `build`: `eolssu-ai:ci-<SHA>`를 커밋·입력 해시 라벨과 함께 만듭니다.
+3. `test`: 그 이미지의 Python·의존성·ffmpeg로 읽기 전용 저장소의 채점 테스트를 돌립니다. `omr_service` 테스트는 OMR 이미지 몫이라 빼고, Windows 전용 평가 실험 테스트 1건은 노드 ID로만 제외합니다.
+4. `smoke`: 운영과 같은 조건(비root, 읽기 전용, `/tmp` tmpfs, 네트워크 없음)으로 띄워 `/health`와 합성음 채점(`python -m ai_service.warmup`)을 확인합니다.
+5. [deploy-ai.py](../jenkins/deploy-ai.py) (`sudo -n /opt/eolssu/bin/deploy-ai <SHA>`): backend·frontend와 같은 lock을 쓰고, backend가 전환·drain 중이면 멈춥니다. 중단된 배포를 먼저 복구한 뒤 순서·라벨을 검사하고, `eolssu-ai:runtime` 태그를 후보로 옮겨 `ai`만 `--wait`로 재생성합니다. 이어서 실행 이미지, backend 안에서의 422 응답, `/health`, 예열 채점, backend·frontend·MySQL 동일성을 확인합니다. 하나라도 실패하면 이전 이미지로 되돌립니다. 이전 이미지는 `eolssu-ai:rollback` 태그와 `/opt/eolssu/ai-deployment.json`(root 0600)에 남습니다. ai는 DB·설정을 바꾸지 않으므로 DB 백업은 하지 않습니다.
+
+실패는 잡 이름이 `eolssu-`로 시작하므로 [Jenkins 실패 알림](../jenkins/notifications/README.md)이 그대로 보냅니다. 쌓이는 `eolssu-ai:ci-*` 태그는 [보존 정리](../retention/README.md)가 함께 정리합니다.
+
+운영 설치(2026-11-15 적용, 다시 설치할 때도 같은 순서). 각 단계 전에 실행 중인 배포 잡이 없는지 확인합니다.
+
+1. `deploy-ai.py`를 `deploy-backend` 옆에 설치합니다(`sudo install -o root -g root -m 0755 infra/jenkins/deploy-ai.py /opt/eolssu/bin/deploy-ai`). 같은 폴더의 `deploy-backend` 공통 함수를 읽으므로 두 파일을 함께 관리합니다. omr·playback 배포 도구(`deploy-service-image`)도 이 파일을 읽습니다(아래 'omr·playback 자동 배포'). 보존 정리 도구도 같은 방법으로 `/opt/eolssu/bin/eolssu-retention`에 다시 설치합니다(이전 판은 `eolssu-retention.bak-244`).
+2. `visudo -cf`로 검사한 `/etc/sudoers.d/eolssu-ai`(root 0440)에 `jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-ai *`를 둡니다.
+3. 실행 중인 ai 컨테이너의 이미지와 `eolssu-ai:runtime` 태그가 같은지 확인합니다(`sudo docker inspect --format '{{.Image}}' eolssu-runtime-ai-1`, `sudo docker image inspect --format '{{.Id}}' eolssu-ai:runtime`). 다르면 도구가 시작을 거부합니다.
+4. 슬롯과 잡은 [컨트롤러 문서](../jenkins/controller/README.md#ai-배포-전용-슬롯)대로 등록합니다(2026-11-15 등록, 첫 운영 배포 #1 성공). 잡을 처음 만들면 Jenkinsfile의 polling은 첫 실행 뒤에 켜지므로 **Build Now**로 한 번 실행합니다. 확인할 것은 `ai-deployment.jsonl`의 `deployed`, 운영 `eolssu-ai:runtime`의 revision 라벨, backend 안의 422 응답(아래 명령), 분석 1건입니다.
+5. 이후 수동 빌드 이미지는 source 라벨이 없으므로 다음 자동 실행이 다시 빌드·배포합니다.
+
+되돌리기: 잡을 비활성화합니다. 도구가 중단돼 journal이 `deploying`·`rollback_failed`이면 `sudo /opt/eolssu/bin/deploy-ai --recover`로 이전 이미지를 복구합니다. 배포가 끝난 뒤 이전 판으로 돌릴 때는 `sudo docker tag eolssu-ai:rollback eolssu-ai:runtime`을 실행한 뒤 아래 `up` 명령으로 `ai`만 재생성합니다.
+
+#### 수동 빌드
 
 ```sh
 # 로컬 저장소에서: 되돌릴 수 있게 지금 이미지에 빌드 커밋 이름표를 붙이고,
@@ -74,9 +98,32 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" \
 
 마지막 명령은 422가 정상입니다(빈 요청을 계약 위반으로 거절). 연결 거부·이름 풀이 실패는 `ai`가 없거나 내부망이 다른 것입니다.
 
+### omr·playback 자동 배포 (S15P31E102-951)
+
+2026-11-15부터 운영 중입니다(첫 배포 omr #1·playback #1 성공). `ai/`·`data/`의 해당 입력이 바뀌면 Jenkins가 반영하므로, 각 절의 수동 절차는 Jenkins를 쓸 수 없을 때만 씁니다. 흐름과 근거는 [951 작업 기록](../../docs/plans/S15P31E102-951.md)에 있습니다.
+
+Jenkins 잡 `eolssu-omr`·`eolssu-playback`이 같은 [service-image.Jenkinsfile](../jenkins/service-image.Jenkinsfile)로 ai 잡과 같은 슬롯 `edo1-ai`에서 develop을 1분마다 확인합니다([잡 등록](../jenkins/controller/README.md#omrplayback-이미지-잡)).
+
+1. [build-service-image.py](../jenkins/build-service-image.py) `<서비스> plan`: 이미지에 들어가는 입력의 Git 해시를 실행 중 컨테이너 이미지의 `com.eolssu.<서비스>.source` 라벨과 비교합니다. 같으면 빌드·배포를 생략합니다. omr 입력은 `ai/omr.Dockerfile`과 그 `.dockerignore`가 허용하는 `ai/`(소스·의존성·스캔 요구 목록)·`data/src/scores`·`data/reference`이고, playback 입력은 `data/playback.Dockerfile`과 그 `.dockerignore`가 허용하는 `data/src/playback`·`data/src/audio/jangdan_audio.py`·`data/src/scores`·`data/reference`입니다. 그래서 `ai/src`가 바뀌면 ai와 omr이 함께 다시 만들어집니다.
+2. `build`: 저장소 루트를 맥락으로 `eolssu-<서비스>:ci-<SHA>`를 만듭니다. omr은 운영과 같은 마지막 단계 `scanner`(`--target scanner`)이고 BuildKit(Docker 23+ 기본)이 필요합니다.
+3. `test`: omr은 이미지의 Python·Audiveris·정간보 변환기로 `ai/tests/unit` 중 `omr_service`를 쓰는 테스트를 돌립니다(ai 게이트가 나머지를 돌림). 이미지에 이미 있는 패키지 버전은 바꾸지 않고 dev 그룹만 더합니다. playback은 이미지의 Python·FFmpeg로 `data/src/playback/tests`와 `data/tests/test_playback_import.py`를 돌립니다.
+4. `smoke`: 운영 Compose와 같은 제한(비root, 읽기 전용, `/tmp` tmpfs, 메모리·CPU, playback은 스왑 없음)과 네트워크 없음으로 띄워 `/health`, 빈 요청 응답(omr 422, playback 400), 실행 사용자의 도구(omr: Audiveris·정간보 변환기·스캔 모델·node, playback: ffmpeg·ffprobe)를 확인합니다. playback 자산은 실행 중 컨테이너가 붙인 폴더를 읽기 전용으로 씁니다.
+5. [deploy-service-image.py](../jenkins/deploy-service-image.py) (`sudo -n /opt/eolssu/bin/deploy-service-image <서비스> <SHA>`): 먼저 omr은 `sheet_conversions`, playback은 `sheet_audios`의 QUEUED·RUNNING이 0이 될 때까지 배포 lock 밖에서 기다립니다(최대 20분, 넘으면 아무것도 바꾸지 않고 실패). backend는 연결이 끊긴 순간의 작업을 재시도 없이 `FAILED`로 끝내기 때문입니다. lock을 잡고 교체 직전에 다시 확인해 그 사이 들어온 작업이 있으면 lock을 놓고 다시 기다립니다. 이후는 ai와 같습니다. `eolssu-<서비스>:runtime` 태그를 후보로 옮겨 그 서비스만 `--wait`로 재생성하고(playback은 `--profile playback`), 실행 이미지, backend 안의 빈 요청 응답, `/health`, 도구, backend·frontend·MySQL 동일성을 확인합니다. 하나라도 실패하면 이전 이미지로 되돌립니다. 이전 이미지는 `eolssu-<서비스>:rollback`과 `/opt/eolssu/<서비스>-deployment.json`(root 0600)에 남고, 재생성 동안 연결 실패로 끝난 작업 수는 journal의 `failed_during_switch`에 남습니다.
+
+실패 알림은 잡 이름이 `eolssu-`로 시작해 [Jenkins 실패 알림](../jenkins/notifications/README.md)이 그대로 보냅니다. `eolssu-omr:ci-*`·`eolssu-playback:ci-*`는 [보존 정리](../retention/README.md)가 최근 3개만 남깁니다.
+
+운영 설치(다시 설치할 때도 같은 순서, 각 단계 전에 실행 중인 배포 잡이 없는지 확인). 2026-11-15 설치 때 이전 판은 `deploy-ai.bak-951`·`eolssu-retention.bak-951`로 남겼습니다:
+
+1. 이번 변경의 `deploy-ai.py`와 `deploy-service-image.py`를 함께 설치합니다(`sudo install -o root -g root -m 0755 infra/jenkins/deploy-ai.py /opt/eolssu/bin/deploy-ai`, 같은 방법으로 `/opt/eolssu/bin/deploy-service-image`). `deploy-service-image`는 `deploy-ai`를, `deploy-ai`는 `deploy-backend`를 읽습니다. 보존 정리 도구도 `/opt/eolssu/bin/eolssu-retention`에 다시 설치하고 dry-run을 봅니다.
+2. `visudo -cf`로 검사한 `/etc/sudoers.d/eolssu-service-image`(root 0440)에 `jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-service-image *`를 둡니다.
+3. 실행 중 컨테이너 이미지와 `:runtime` 태그가 같은지 확인합니다(`sudo docker inspect --format '{{.Image}}' eolssu-runtime-omr-1`, `sudo docker image inspect --format '{{.Id}}' eolssu-omr:runtime`, playback도 같음). 다르면 도구가 시작을 거부합니다.
+4. 잡을 [컨트롤러 문서](../jenkins/controller/README.md#omrplayback-이미지-잡)대로 등록하고 잡마다 **Build Now**로 한 번 실행합니다(2026-11-15 등록, 첫 배포 성공). 수동 빌드 이미지에는 source 라벨이 없어 첫 실행은 빌드·배포합니다. omr 첫 빌드는 Audiveris·스캔 모델을 받아 수 분 걸립니다. 확인할 것은 `service-deployment.jsonl`의 `deployed`, `:runtime`의 revision 라벨, backend 안의 빈 요청 응답(각 절의 명령), 변환·음원 1건입니다.
+
+되돌리기: 잡을 비활성화합니다. 도구가 중단돼 journal이 `deploying`·`rollback_failed`이면 `sudo /opt/eolssu/bin/deploy-service-image <서비스> --recover`로 이전 이미지를 복구합니다. 배포가 끝난 뒤 이전 판으로 돌릴 때는 대기열이 빈 것을 확인하고 `sudo docker tag eolssu-<서비스>:rollback eolssu-<서비스>:runtime` 뒤 각 절의 `up` 명령(playback은 `--profile playback`)으로 그 서비스만 재생성합니다.
+
 ### playback 내 악보 음원 생성기
 
-[내 악보 음원 스펙](../../docs/specs/sheet-audio.md)의 생성기는 `playback` 프로필로 따로 띄웁니다(S15P31E102-481). 인증이 없으므로 호스트 포트를 열지 않고, backend만 내부망 `http://playback:8000`으로 부릅니다. Jenkins 배포는 이 이미지를 만들지 않으므로 `omr`처럼 사람이 빌드·생성합니다. 운영 상태는 [S15P31E102-710 작업 기록](../../docs/plans/S15P31E102-710.md)에서 확인합니다.
+[내 악보 음원 스펙](../../docs/specs/sheet-audio.md)의 생성기는 `playback` 프로필로 따로 띄웁니다(S15P31E102-481). 인증이 없으므로 호스트 포트를 열지 않고, backend만 내부망 `http://playback:8000`으로 부릅니다. 2026-11-15부터 Jenkins `eolssu-playback`이 빌드·배포합니다([자동 배포](#omrplayback-자동-배포-s15p31e102-951)). 아래 수동 절차는 Jenkins를 쓸 수 없을 때만 씁니다. 운영 상태는 [S15P31E102-710 작업 기록](../../docs/plans/S15P31E102-710.md)에서 확인합니다.
 
 - 이미지: 저장소 루트를 맥락으로 `data/playback.Dockerfile`을 빌드해 `eolssu-playback:runtime`으로 태그합니다.
 - 자산: `PLAYBACK_ASSETS_DIRECTORY`에 악기별 CAT v1.3 ZIP과 `assets.json`(악기 code → ZIP 파일 이름), `PLAYBACK_JANGGU_DIRECTORY`에 `deong`·`gi`·`kung`·`deok`·`da`·`deo`.wav를 둡니다. 없으면 서비스가 시작을 거부합니다.
@@ -84,9 +131,9 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" \
 - 연결: `SHEET_AUDIO_BASE_URL=http://playback:8000`을 지정해야 생성 요청을 받습니다. 비어 있으면 503입니다.
 - 점검: 로그는 syslog 태그 `eolssu-playback`으로 남습니다. 요청 처리 로그는 오류 코드와 생성기 종료 상태만 담고, 시작 실패는 예외 전체를 남깁니다. 상태는 `/health` healthcheck로 봅니다.
 
-2026-11-14, 병합된 MR !739의 빠르기 지원을 운영 OMR·playback에 반영했습니다. 검증 후보 revision `24273759`의 AI/DATA 소스가 병합된 develop과 같음을 파일 SHA로 확인해 OMR `b75f30cb…`, playback `529d5859…` 이미지를 재사용했습니다. 운영 PDF의 숫자 빠르기·가속과 실제 CAT 생성 길이를 검증했습니다. [904 배포·검증·복구 기록](../../docs/plans/S15P31E102-904.md)을 참고합니다. Jenkins의 backend·frontend 배포는 이 두 런타임 이미지를 갱신하지 않으므로 기능 소스 반영과 운영 이미지 반영을 구분합니다. 기존에 빠르기가 누락된 사용자 악보는 자동 복구되지 않습니다.
+2026-11-14, 병합된 MR !739의 빠르기 지원을 운영 OMR·playback에 반영했습니다. 검증 후보 revision `24273759`의 AI/DATA 소스가 병합된 develop과 같음을 파일 SHA로 확인해 OMR `b75f30cb…`, playback `529d5859…` 이미지를 재사용했습니다. 운영 PDF의 숫자 빠르기·가속과 실제 CAT 생성 길이를 검증했습니다. [904 배포·검증·복구 기록](../../docs/plans/S15P31E102-904.md)을 참고합니다. 당시에는 Jenkins가 이 두 런타임 이미지를 갱신하지 않아 기능 소스 반영과 운영 이미지 반영을 구분했습니다. 2026-11-15부터는 `eolssu-omr`·`eolssu-playback` 잡이 갱신합니다. 기존에 빠르기가 누락된 사용자 악보는 자동 복구되지 않습니다.
 
-Windows PowerShell 5.1에서는 파이프가 바이너리를 글자로 바꿔 tar가 깨지므로 `git archive -o ai.tar "$REV" ai`로 파일을 만든 뒤 `scp`로 보내 서버에서 `tar -x -C $D -f $D/ai.tar`로 풉니다. ssh 설정에 포트 연결(LocalForward)이 있으면 열린 터널과 겹치므로 `-o ClearAllForwardings=yes`를 붙입니다. 되돌릴 때는 `sudo docker tag eolssu-ai:runtime-<이전 커밋> eolssu-ai:runtime` 뒤 같은 명령으로 `ai`만 재생성합니다. 빌드 기록: [S15P31E102-228](../../docs/plans/S15P31E102-228.md)(`88a1b05`), [S15P31E102-361](../../docs/plans/S15P31E102-361.md)(`c701c32`, pyin-4).
+Windows PowerShell 5.1에서는 파이프가 바이너리를 글자로 바꿔 tar가 깨지므로 `git archive -o ai.tar "$REV" ai`로 파일을 만든 뒤 `scp`로 보내 서버에서 `tar -x -C $D -f $D/ai.tar`로 풉니다. ssh 설정에 포트 연결(LocalForward)이 있으면 열린 터널과 겹치므로 `-o ClearAllForwardings=yes`를 붙입니다. 되돌릴 때는 `sudo docker tag eolssu-ai:runtime-<이전 커밋> eolssu-ai:runtime` 뒤 같은 명령으로 `ai`만 재생성합니다. 빌드 기록: [S15P31E102-228](../../docs/plans/S15P31E102-228.md)(`88a1b05`), [S15P31E102-361](../../docs/plans/S15P31E102-361.md)(`c701c32`, pyin-4), [S15P31E102-291](../../docs/plans/S15P31E102-291.md#운영-반영-2026-11-15-사용자-승인)(`90869163`, pyin-9, 이전 이미지 `runtime-4e6aa8d`).
 
 - 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 512MiB tmpfs로 씁니다(녹음 임시 파일, numba 캐시).
 - 메모리 한도는 6GiB입니다. AI는 채점 DTW 예상 메모리가 4GiB(120초 × 120초)를 넘는 요청을 먼저 거절하고, 120초 녹음 채점에 약 3GiB가 듭니다([측정 기록](../../docs/knowledge/ai/analysis-latency.md)). backend는 분석을 기본 2개까지 동시에 보내므로, 긴 녹음 두 개가 겹치면 한도를 넘어 `ai`가 재시작되고 두 세션이 `SERVER_ERROR`가 될 수 있습니다.
@@ -96,9 +143,9 @@ backend가 분석을 시작하지 못하면 업로드마다 경고 로그가 남
 
 ### omr 악보 인식 서비스
 
-악보 인식 API([ai README](../../ai/README.md#악보-인식-api), [계약](../../docs/specs/score-recognition.md))는 `omr` 서비스로 실행합니다. 채점 `ai`와 메모리·CPU를 나누지 않게 따로 띄우고, 인증이 없으므로 호스트 포트를 열지 않습니다. backend 변환 작업자가 내부망 `http://omr:8000`으로 부르게 되는 것은 [S15P31E102-347](https://ssafy.atlassian.net/browse/S15P31E102-347)에서 합니다. 그 전에는 띄우지 않아도 다른 서비스에 영향이 없습니다. Jenkins 배포는 backend·frontend만 다시 만들므로 `omr`은 사람이 빌드·생성합니다(2026-11-04 기준 운영 미반영).
+악보 인식 API([ai README](../../ai/README.md#악보-인식-api), [계약](../../docs/specs/score-recognition.md))는 `omr` 서비스로 실행합니다. 채점 `ai`와 메모리·CPU를 나누지 않게 따로 띄우고, 인증이 없으므로 호스트 포트를 열지 않습니다. backend 변환 작업자가 내부망 `http://omr:8000`으로 부르게 되는 것은 [S15P31E102-347](https://ssafy.atlassian.net/browse/S15P31E102-347)에서 합니다. 그 전에는 띄우지 않아도 다른 서비스에 영향이 없습니다. 2026-11-15부터 Jenkins `eolssu-omr`이 빌드·배포합니다([자동 배포](#omrplayback-자동-배포-s15p31e102-951), 이전 수동 이미지 `b75f30cb…`는 [904](../../docs/plans/S15P31E102-904.md)). 아래 수동 절차는 Jenkins를 쓸 수 없을 때만 씁니다.
 
-이미지는 저장소 `ai/omr.Dockerfile`로 edo1에서 빌드한 `eolssu-omr:runtime`입니다(약 1.94GB, 빌드에 4GB 넘는 디스크 여유 필요). 빌드 맥락은 저장소 루트라서 `ai/`와 `data/src/scores`·`data/reference`를 함께 보냅니다. Audiveris deb(약 78MB)와 jeongganbo-generator는 빌드 중에 받습니다.
+이미지는 저장소 `ai/omr.Dockerfile`로 edo1에서 빌드한 `eolssu-omr:runtime`입니다. 운영은 마지막 단계 `scanner`(정간보 스캔 확장 포함, 약 4.0GB)를 씁니다. 아래 명령처럼 `--target` 없이 빌드하면 이 단계가 됩니다. 빌드 맥락은 저장소 루트라서 `ai/`와 `data/src/scores`·`data/reference`를 함께 보냅니다. Audiveris deb(약 78MB)와 jeongganbo-generator는 빌드 중에 받습니다.
 
 ```sh
 # 로컬 저장소에서: 반영할 커밋의 필요한 폴더만 서버 임시 폴더로 보내 빌드한다.
@@ -255,7 +302,7 @@ sudo docker compose --env-file /opt/eolssu/.env \
 
 1. 실행 중인 잡을 취소하지 않고 현재 관리 파일과 실제 inline 잡 정의를 별도 백업합니다. 설치 전·후 SHA-256과 기존 stage·QA 예약·알림·트리거를 확인합니다.
 2. `infra/jenkins/backend-artifact.Dockerfile`을 root 소유 0644의 `/opt/eolssu/config/backend-artifact.Dockerfile`에 먼저 설치합니다. 조회 시 실제 파일과 저장소 원본의 SHA-256이 같아야 합니다.
-3. 관리 backend/frontend Pipeline의 변경을 운영 inline 정의와 대조해 반영합니다. 저장소에 없는 Android/iOS QA 예약이나 환경 주입을 덮어쓰지 않습니다. 병합 전 revision에는 helper·검사 파일이 없어 새 Pipeline이 실패하므로 미리 활성화하지 않습니다.
+3. 관리 backend/frontend Pipeline의 변경을 운영 inline 정의와 대조해 반영합니다. Android/iOS QA 예약은 2026-11-15부터 저장소 [backend.Jenkinsfile](../jenkins/backend.Jenkinsfile)에도 있습니다(S15P31E102-943). 그래도 운영 정의에만 있는 환경 주입이 없는지 [일치 점검](../drift/README.md)으로 먼저 확인합니다. 병합 전 revision에는 helper·검사 파일이 없어 새 Pipeline이 실패하므로 미리 활성화하지 않습니다.
 4. 실제 Jenkins linter 검사 후 정의를 저장하고 다시 읽어 해시와 기존 옵션·stage를 확인합니다. 정상 자동 실행에서 daemon 재사용, JAR 해시, 테스트·배포 상태와 대기/실행 시간을 나누어 확인합니다. 문제 시 백업 Pipeline을 복원하고 새 artifact Dockerfile은 사용하지 않습니다.
 
 빠른 회귀 검사:
@@ -294,7 +341,7 @@ ssh -N -L 18080:127.0.0.1:8080 edo1
 
 실행 순서는 Gradle 빌드·테스트 → Compose/Nginx 검사 → 이미지 빌드·JAR 보관 → 후보 배포입니다. 격리 후보는 운영 DB 없이 liveness를 확인하고 JAR을 추출한 뒤 정리합니다. 이후 운영 DB 마이그레이션을 확인하고 비활성 슬롯을 실제 운영 설정으로 기동합니다.
 
-블루그린이 활성화되면 두 슬롯은 같은 Compose 네트워크·MySQL을 사용합니다. 새 슬롯의 readiness가 UP이면 Nginx 설정을 검사하고 리로드합니다. 실제 HTTPS에서 선택된 슬롯과 준비 상태를 확인한 뒤 활성 슬롯·JAR을 기록합니다. 전환 전에 접수된 요청·악보 변환이 남아 있는 동안 이전 슬롯이 계속 실행됩니다.
+블루그린이 활성화되면 두 슬롯은 같은 Compose 네트워크·MySQL을 사용합니다. 새 슬롯의 readiness가 UP이면 Nginx 설정을 검사하고 리로드합니다. 실제 HTTPS에서 선택된 슬롯과 준비 상태를 확인한 뒤 활성 슬롯·JAR을 기록합니다. 전환 전에 접수된 요청·악보 변환이 남아 있는 동안 이전 슬롯이 계속 실행됩니다. 이전 슬롯을 내릴 때(`compose stop`, 종료 대기 250초)는 이미 받은 연주 분석을 `eolssu.analysis.shutdown-wait`(기본 65초)까지 끝내고, 새 분석은 받지 않습니다. 종료 로그와 확인 방법은 [S15P31E102-947](../../docs/plans/S15P31E102-947.md#운영-적용-절차)을 따릅니다.
 
 배포 도구 원본은 [deploy-backend.py](../jenkins/deploy-backend.py), 서버 설치 위치는 `/opt/eolssu/bin/deploy-backend`입니다. root 소유 0755로 설치하고 Jenkins에는 아래 도구의 sudo 실행만 허용합니다. 운영 `.env`는 root 전용 0600을 유지합니다. Jenkins의 기존 Docker 접근도 서버 수준 권한이므로 잡 설정·실행은 승인된 관리자만 사용합니다.
 

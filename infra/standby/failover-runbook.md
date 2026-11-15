@@ -1,6 +1,6 @@
 # edo2 장애 전환·원복 런북
 
-[S15P31E102-930 결정·검증](../../docs/plans/S15P31E102-930.md) · [대기 환경 구성](README.md) · [579 구성·리허설](../../docs/plans/S15P31E102-579.md)
+[S15P31E102-930 결정·검증](../../docs/plans/S15P31E102-930.md) · [948 서버 리허설](../../docs/plans/S15P31E102-948.md) · [대기 환경 구성](README.md) · [579 구성·리허설](../../docs/plans/S15P31E102-579.md)
 
 edo1(운영, `43.203.215.107`)이 쓰기를 받지 못할 때 edo2(`15.165.144.7`)의 운영 복제본을 승격해 같은 주소로 서비스를 잇는 절차다. 명령은 저장소 루트 기준이 아니라 각 서버의 경로를 기준으로 한다. 비밀번호·토큰·원시 GTID는 화면이나 공유 기록에 출력하지 않는다.
 
@@ -11,8 +11,10 @@ edo1(운영, `43.203.215.107`)이 쓰기를 받지 못할 때 edo2(`15.165.144.7
 | 복구 목표(RTO) | 장애 선언부터 운영 주소에서 로그인·저장이 성공할 때까지 **30분** |
 | 손실 허용(RPO) | 최근 **1분** 이내의 쓰기. 복제가 정상일 때만 지킬 수 있다. |
 | 발표 중 장애 | [릴리스 절차](../release/README.md#장애-판단과-전환)대로 **녹화 영상으로 대체**한다. 서버 전환은 발표가 끝난 뒤 판단한다. |
-| 주소(DNS) | `k15e102.p.ssafy.io` A 레코드는 SSAFY의 Route 53 `ssafy.io` 존에 있고 TTL은 300초다. 팀에는 편집 권한이 없다. 변경은 SSAFY 담당자에게 요청한다. 담당 경로는 [부탁 글](#dns-부탁-글)로 확인 중이다. |
-| 인증서 | edo1 Let's Encrypt 인증서 사본을 쓴다. 사본은 기존 config 백업으로 매일 03:20과 배포 전후에 edo2에 암호화돼 도착한다. |
+| 주소(DNS) | `k15e102.p.ssafy.io` A 레코드는 SSAFY의 Route 53 `ssafy.io` 존에 있고 TTL은 300초다. 팀에는 편집 권한이 없다. 변경은 SSAFY 담당자에게 요청한다. |
+| DNS 담당 경로 | **미확인.** [사전 문의](#사전-문의)에 2026-11-15 기준 답이 없다. 담당자·채널, 처리 시간, 연습 가능 여부가 오면 이 칸에 적는다. |
+| edo2 쪽 소요 | 2026-11-15 [사본 리허설](../../docs/plans/S15P31E102-948.md#서버-리허설-2026-11-15-08470854-utc)에서 3–7단계 명령 시간 약 35초, 운영자 진행 포함 약 2분 30초. RTO는 DNS 반영 시간이 좌우한다. |
+| 인증서 | edo1 Let's Encrypt 인증서 사본을 쓴다. 사본은 기존 config 백업으로 매일 03:20과 배포 전후에 edo2에 암호화돼 도착한다. 2026-11-15 사본(만료 2027-01-20)을 edo2에 미리 뒀다. |
 | 대기 앱 | 평소에는 테스트 DB만 쓴다. 운영 DB·운영 비밀값에는 **승격할 때만** 연결한다. |
 
 DNS 담당 경로가 확인되기 전에 edo1 서버 전체가 멈추면, 아래 절차로 edo2를 준비해도 사용자가 같은 주소로 들어오는 시점은 SSAFY의 반영에 달려 있다. 이 경우 RTO 30분은 보장하지 않는다.
@@ -30,7 +32,8 @@ DNS 담당 경로가 확인되기 전에 edo1 서버 전체가 멈추면, 아래
       # 나머지 User·IdentityFile은 기존 edo1 항목과 같게
   ```
 
-- `compose.promote.yml`, `replica.promote.compose.yml`, `edo2-domain.nginx.conf`를 저장소와 같은 해시로 edo2의 `/opt/eolssu-standby-579/`에 둔다. 장애 중에는 저장소를 받을 수 없을 수 있다.
+- 승격 파일을 저장소와 같은 해시로 edo2에 둔다. 장애 중에는 저장소를 받을 수 없을 수 있다. `compose.promote.yml`·`edo2-domain.nginx.conf`는 `/opt/eolssu-standby-579/`, `replica.promote.compose.yml`은 4-5단계를 실행하는 `/opt/eolssu-replication-579/`에 둔다. **2026-11-15에 배치했다.** 저장소에서 이 파일을 바꾸면 다시 둔다.
+- 운영 도메인 인증서를 6단계의 `/etc/eolssu-failover-tls/k15e102.p.ssafy.io/`에 미리 둔다. 가상 호스트 파일은 `/opt/eolssu-standby-579/`에만 두고 **켜지 않는다.** 켜 두면 격리된 테스트 대기 앱이 운영 도메인 이름으로 열린다. 2026-11-15에 배치했다. edo1이 인증서를 갱신하면(만료 30일 전) 최신 config 사본으로 다시 둔다.
 - 시연 녹화 영상과 [DNS 부탁 글](#dns-부탁-글)의 장애 시 양식을 발표 PC와 운영 담당 메모에 둔다.
 
 ## 1. 판정 (0–5분)
@@ -121,7 +124,7 @@ sudo grep -a -E "^(CREATE USER|GRANT .* TO) \`$U\`@" /root/failover-930/db/accou
 echo "SELECT COUNT(*) FROM mysql.user WHERE user='$U';" | rq   # 1 이상
 ```
 
-복제 수신이 장애 전에 이미 끊겨 마지막 커밋 시각이 1분보다 오래됐으면 RPO를 넘은 것이다. 3단계 db 백업의 `snapshot_at`이 그보다 최신이면 [579 백업 복원 경로](../../docs/plans/S15P31E102-579.md#2026-11-09-백업-복원장애-전환원복-리허설)로 바꿀지 판단한다.
+4-2가 `0000-00-00 00:00:00`이면 복제본이 재시작한 뒤 아직 거래를 하나도 적용하지 않은 것이다. 이때는 손실 구간을 3단계 db 백업의 `snapshot_at`과 비교해 판단한다. 복제 수신이 장애 전에 이미 끊겨 마지막 커밋 시각이 1분보다 오래됐으면 RPO를 넘은 것이다. 3단계 db 백업의 `snapshot_at`이 그보다 최신이면 [579 백업 복원 경로](../../docs/plans/S15P31E102-579.md#2026-11-09-백업-복원장애-전환원복-리허설)로 바꿀지 판단한다.
 
 ## 5. 대기 앱을 운영 모드로 기동 (edo2)
 
@@ -157,18 +160,22 @@ sudo openssl x509 -in $D/fullchain.pem -noout -subject -enddate -checkend 604800
 sudo bash -c "cmp <(openssl x509 -in $D/fullchain.pem -pubkey -noout) <(openssl pkey -in $D/privkey.pem -pubout) && echo key-matches"
 sudo install -d -m 755 /var/www/eolssu-failover-acme
 sudo install -m 644 /opt/eolssu-standby-579/edo2-domain.nginx.conf /etc/nginx/sites-enabled/eolssu-failover
-sudo nginx -t && sudo systemctl reload nginx
+sudo nginx -t && sudo systemctl reload nginx && sleep 2
 ```
+
+- 인증서는 평시에 미리 둔다. 백업에서 꺼낸 인증서와 이미 둔 인증서가 같으면 덮어써도 결과가 같다.
+- `reload`가 끝난 직후 1–2초는 기존 작업 프로세스가 IP 인증서로 응답할 수 있다(948 리허설). 7단계는 대기 뒤에 한다.
 
 ## 7. DNS 반영 전 검증 (로컬)
 
 DNS가 아직 edo1을 가리켜도 `--resolve`로 edo2를 직접 검사할 수 있다. 공개 인증서 검증을 끄지 않는다.
 
+macOS 기본 셸 zsh는 따옴표 안의 옵션을 담은 변수를 나누지 않으므로 옵션을 직접 쓴다.
+
 ```sh
-R='--resolve k15e102.p.ssafy.io:443:15.165.144.7'
-curl -fsS $R https://k15e102.p.ssafy.io/api/actuator/health/readiness        # {"status":"UP"}
-curl -sS $R -o /dev/null -w '%{http_code}\n' https://k15e102.p.ssafy.io/api/terms   # 200
-curl -sS $R -o /dev/null -w '%{http_code}\n' http://k15e102.p.ssafy.io/       # 308
+curl -fsS --resolve k15e102.p.ssafy.io:443:15.165.144.7 https://k15e102.p.ssafy.io/api/actuator/health/readiness   # {"status":"UP"}
+curl -sS --resolve k15e102.p.ssafy.io:443:15.165.144.7 -o /dev/null -w '%{http_code}\n' https://k15e102.p.ssafy.io/api/terms   # 200
+curl -sS --resolve k15e102.p.ssafy.io:80:15.165.144.7 -o /dev/null -w '%{http_code}\n' http://k15e102.p.ssafy.io/   # 308
 ```
 
 운영 점검 계정으로 로그인과 쓰기(연습 세션 생성) 한 건을 확인한다. 이 쓰기는 운영 DB에 남으므로 점검 계정만 쓴다.
@@ -229,9 +236,18 @@ Jenkins `eolssu-backend` 잡도 일시 중지한다. edo1 MySQL 볼륨은 지우
 
 ### 7. edo2를 다시 대기계로
 
-- 운영 도메인 가상 호스트와 인증서 사본을 지운다: `/etc/nginx/sites-enabled/eolssu-failover`, `/etc/eolssu-failover-tls/`. edo2에서 인증서를 새로 받았다면 `sudo certbot delete --cert-name k15e102.p.ssafy.io`도 실행한다.
+- 운영 도메인 가상 호스트 `/etc/nginx/sites-enabled/eolssu-failover`를 지우고 `nginx -t` 뒤 다시 읽는다. `/etc/eolssu-failover-tls/`의 인증서는 사전 준비로 남기고 최신 config 사본으로 바꾼다. edo2에서 인증서를 새로 받았다면 `sudo certbot delete --cert-name k15e102.p.ssafy.io`도 실행한다.
 - 대기 앱은 `promote.env` 없이 `docker compose --env-file .env -f compose.yml up -d backend frontend`로 격리 모드로 되돌리고, `promote.env`와 `releases/promote`를 지운다.
 - 승격했던 복제본 볼륨은 데이터가 edo1과 덤프 파일에 남은 것을 확인한 뒤 사용자 승인을 받아 비운다. 그다음 [README의 초기 사본 절차](README.md#운영-읽기-전용-복제본)로 복제를 다시 구성한다. 터널·감시 타이머를 켜고 원래 `replica.compose.yml`(읽기 전용)로 기동한다.
+
+## 사본으로 연습하기
+
+운영 복제본과 대기 앱을 건드리지 않고 3–7단계를 연습한다. [`rehearsal/`](rehearsal/)의 파일을 edo2의 root 전용 `/opt/eolssu-rehearsal-948`에 두고 실행한다. 절차와 결과는 [948 기록](../../docs/plans/S15P31E102-948.md)에 있다.
+
+1. `rehearsal/db.compose.yml`로 사본 DB를 띄운다. 별도 내부망이라 edo1에 붙을 수 없다. 운영 복제본에서 `mysqldump --single-transaction --set-gtid-purged=OFF --hex-blob --routines --events --triggers --no-tablespaces --databases eolssu`로 읽어 바로 사본에 넣는다.
+2. 사본에 `SET PERSIST super_read_only=ON`과 닿지 않는 원본(`192.0.2.1`)의 복제 채널을 만들어 장애 상태를 재현한다.
+3. 3–6단계를 그대로 하되 4-1은 건너뛰고, `rq`는 사본 컨테이너를 가리킨다. 4-5는 `-f db.compose.yml -f /opt/eolssu-replication-579/replica.promote.compose.yml`로 한다. 5단계는 `-p eolssu-rehearsal-948 --project-directory /opt/eolssu-rehearsal-948`과 `-f rehearsal/app.compose.yml`을 더하고 `up --no-deps`로 띄운다. `config` 결과에 `eolssu-replica-579`·`172.30.79.`·`18443`이 없어야 한다. 6단계 가상 호스트는 상류 포트를 28443으로 바꿔 켠다.
+4. 끝나면 가상 호스트를 끄고, 두 프로젝트를 `down -v`로 지운다. `/root/failover-930`과 연습 폴더도 지운다. 운영 복제 점검과 대기 앱 readiness를 다시 확인한다.
 
 ## DNS 부탁 글
 

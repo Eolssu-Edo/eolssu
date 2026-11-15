@@ -1,0 +1,361 @@
+{
+ "description": "서버에 수동 설치되는 저장소 파일과 inline Jenkins 잡 정의(S15P31E102-943). 설치기가 문자열로 만드는 백업 유닛(infra/backup/install.py)과 비밀값·상태 파일은 제외한다.",
+ "hosts": {
+  "edo1": [
+   {
+    "path": "/etc/rsyslog.d/30-eolssu-logs.conf",
+    "source": "infra/privacy/30-eolssu-logs.conf"
+   },
+   {
+    "path": "/etc/systemd/system/edo-check-outside.service",
+    "source": "infra/edo-check/edo-check-outside.service"
+   },
+   {
+    "path": "/etc/systemd/system/edo-check-outside.timer",
+    "source": "infra/edo-check/edo-check-outside.timer"
+   },
+   {
+    "path": "/etc/systemd/system/edo-check-r2-write.service",
+    "source": "infra/edo-check/edo-check-r2-write.service"
+   },
+   {
+    "path": "/etc/systemd/system/edo-check-r2-write.timer",
+    "source": "infra/edo-check/edo-check-r2-write.timer"
+   },
+   {
+    "path": "/etc/systemd/system/edo-check-storage.service",
+    "source": "infra/edo-check/edo-check-storage.service"
+   },
+   {
+    "path": "/etc/systemd/system/edo-check-storage.timer",
+    "source": "infra/edo-check/edo-check-storage.timer"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-jenkins-agent.service",
+    "source": "infra/jenkins/controller/eolssu-jenkins-agent.service"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-jenkins-ai-agent.service",
+    "source": "infra/jenkins/controller/eolssu-jenkins-ai-agent.service"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-jenkins-notify.service",
+    "source": "infra/jenkins/notifications/eolssu-jenkins-notify.service"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-jenkins-notify.timer",
+    "source": "infra/jenkins/notifications/eolssu-jenkins-notify.timer"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-jenkins-web-agent.service",
+    "source": "infra/jenkins/controller/eolssu-jenkins-web-agent.service"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-privacy-retention.service",
+    "source": "infra/privacy/eolssu-privacy-retention.service"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-privacy-retention.timer",
+    "source": "infra/privacy/eolssu-privacy-retention.timer"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-qa-mr-sync.service",
+    "source": "infra/qa-phone/eolssu-qa-mr-sync.service"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-qa-mr-sync.timer",
+    "source": "infra/qa-phone/eolssu-qa-mr-sync.timer"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-retention.service",
+    "source": "infra/retention/eolssu-retention.service"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-retention.timer",
+    "source": "infra/retention/eolssu-retention.timer"
+   },
+   {
+    "path": "/home/ubuntu/eolssu-monitoring/compose.yml",
+    "source": "infra/monitoring/compose.yml"
+   },
+   {
+    "path": "/home/ubuntu/eolssu-monitoring/prometheus.yml",
+    "source": "infra/monitoring/prometheus.yml"
+   },
+   {
+    "path": "/opt/edo-check/alert.py",
+    "source": "infra/edo-check/alert.py"
+   },
+   {
+    "path": "/opt/edo-check/collector.py",
+    "source": "infra/edo-check/collector.py"
+   },
+   {
+    "path": "/opt/edo-check/edo-check.sudoers",
+    "source": "infra/edo-check/edo-check.sudoers"
+   },
+   {
+    "path": "/opt/edo-check/outside.py",
+    "source": "infra/edo-check/outside.py"
+   },
+   {
+    "path": "/opt/edo-check/r2_probe.py",
+    "source": "infra/edo-check/r2_probe.py"
+   },
+   {
+    "path": "/opt/edo-check/ssh-dispatch.sh",
+    "source": "infra/edo-check/ssh-dispatch.sh"
+   },
+   {
+    "path": "/opt/eolssu-privacy/retention.py",
+    "source": "infra/privacy/retention.py"
+   },
+   {
+    "path": "/opt/eolssu-replication-579/source-stream.conf",
+    "source": "infra/standby/source-stream.conf"
+   },
+   {
+    "path": "/opt/eolssu/bin/deploy-ai",
+    "source": "infra/jenkins/deploy-ai.py"
+   },
+   {
+    "path": "/opt/eolssu/bin/deploy-backend",
+    "source": "infra/jenkins/deploy-backend.py"
+   },
+   {
+    "path": "/opt/eolssu/bin/deploy-frontend",
+    "source": "infra/jenkins/deploy-frontend.py"
+   },
+   {
+    "path": "/opt/eolssu/bin/deploy-service-image",
+    "source": "infra/jenkins/deploy-service-image.py"
+   },
+   {
+    "path": "/opt/eolssu/bin/eolssu-retention",
+    "source": "infra/retention/retention.py"
+   },
+   {
+    "path": "/opt/eolssu/bin/install-runtime-compose",
+    "source": "infra/scripts/install-runtime-compose.py"
+   },
+   {
+    "path": "/opt/eolssu/config/backend-artifact.Dockerfile",
+    "source": "infra/jenkins/backend-artifact.Dockerfile"
+   },
+   {
+    "path": "/opt/eolssu/config/backend-runtime.Dockerfile",
+    "source": "infra/runtime/backend-runtime.Dockerfile"
+   },
+   {
+    "path": "/opt/eolssu/config/backend.Jenkinsfile",
+    "source": "infra/jenkins/backend.Jenkinsfile"
+   },
+   {
+    "path": "/opt/eolssu/config/build-apk.sh",
+    "source": "infra/qa-phone/build-apk.sh"
+   },
+   {
+    "path": "/opt/eolssu/config/ci.env.example",
+    "source": "infra/runtime/ci.env.example"
+   },
+   {
+    "path": "/opt/eolssu/config/compose.tls.yml",
+    "source": "infra/runtime/compose.tls.yml"
+   },
+   {
+    "path": "/opt/eolssu/config/compose.yml",
+    "source": "infra/runtime/compose.yml",
+    "note": "2026-11-15 주석·순서만 다름(동작 동일). 다음 Compose 설치 때 저장소본으로 교체"
+   },
+   {
+    "path": "/opt/eolssu/config/deployment-stages.groovy",
+    "source": "infra/jenkins/deployment-stages.groovy"
+   },
+   {
+    "path": "/opt/eolssu/config/frontend.Dockerfile",
+    "source": "infra/jenkins/frontend.Dockerfile"
+   },
+   {
+    "path": "/opt/eolssu/config/nginx.conf",
+    "source": "infra/runtime/nginx.conf",
+    "note": "2026-11-15 534 주석 한 줄만 다름"
+   },
+   {
+    "path": "/opt/eolssu/config/nginx.tls.conf",
+    "source": "infra/runtime/nginx.tls.conf.template",
+    "render": {
+     "__TLS_DOMAIN__": "k15e102.p.ssafy.io"
+    },
+    "note": "2026-11-15 534 주석 한 줄만 다름"
+   },
+   {
+    "path": "/opt/eolssu/config/prepare-frontend-workspace.sh",
+    "source": "infra/jenkins/prepare-frontend-workspace.sh"
+   },
+   {
+    "path": "/opt/eolssu/config/publish-apk.py",
+    "source": "infra/qa-phone/publish-apk.py",
+    "compare": "text"
+   },
+   {
+    "path": "/opt/eolssu/config/publish-ipa.py",
+    "source": "infra/ios-qa/publish-ipa.py"
+   },
+   {
+    "path": "/opt/eolssu/config/qa-android.init.gradle",
+    "source": "infra/qa-phone/qa-android.init.gradle"
+   },
+   {
+    "path": "/opt/eolssu/config/sync-mr-details.py",
+    "source": "infra/qa-phone/sync-mr-details.py"
+   },
+   {
+    "path": "/opt/eolssu/jenkins-notify/notify.py",
+    "source": "infra/jenkins/notifications/notify.py"
+   },
+   {
+    "path": "/opt/eolssu/jenkins/compose.yml",
+    "source": "infra/jenkins/controller/compose.yml"
+   },
+   {
+    "path": "/opt/eolssu/jenkins/eolssu-jenkins-agent.service",
+    "source": "infra/jenkins/controller/eolssu-jenkins-agent.service"
+   },
+   {
+    "path": "/opt/eolssu/jenkins/register-agent.groovy",
+    "source": "infra/jenkins/controller/register-agent.groovy"
+   },
+   {
+    "path": "/opt/eolssu/mysql-admin/compose.yml",
+    "source": "infra/mysql-admin/compose.yml"
+   },
+   {
+    "path": "/opt/eolssu/mysql-admin/config.user.inc.php",
+    "source": "infra/mysql-admin/config.user.inc.php"
+   },
+   {
+    "job": "eolssu-ai",
+    "source": "infra/jenkins/ai.Jenkinsfile"
+   },
+   {
+    "job": "eolssu-android-qa",
+    "source": "infra/qa-phone/android.Jenkinsfile"
+   },
+   {
+    "job": "eolssu-backend",
+    "source": "infra/jenkins/backend.Jenkinsfile"
+   },
+   {
+    "job": "eolssu-frontend-web-수동배포용",
+    "source": "infra/jenkins/frontend.Jenkinsfile"
+   },
+   {
+    "job": "eolssu-ios-qa",
+    "source": "infra/ios-qa/ios.Jenkinsfile"
+   },
+   {
+    "job": "eolssu-omr",
+    "source": "infra/jenkins/service-image.Jenkinsfile"
+   },
+   {
+    "job": "eolssu-playback",
+    "source": "infra/jenkins/service-image.Jenkinsfile"
+   }
+  ],
+  "edo2": [
+   {
+    "path": "/etc/nginx/sites-available/default",
+    "source": "infra/edo-check/nginx.tls.conf"
+   },
+   {
+    "path": "/etc/nginx/snippets/qa-phone.conf",
+    "source": "infra/qa-phone/nginx.location.conf",
+    "compare": "text"
+   },
+   {
+    "path": "/etc/systemd/system/edo-check-alert.service",
+    "source": "infra/edo-check/edo-check-alert.service"
+   },
+   {
+    "path": "/etc/systemd/system/edo-check-alert.timer",
+    "source": "infra/edo-check/edo-check-alert.timer"
+   },
+   {
+    "path": "/etc/systemd/system/edo-check.service",
+    "source": "infra/edo-check/edo-check.service"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-replication-tunnel.service",
+    "source": "infra/standby/eolssu-replication-tunnel.service"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-replication-watch.service",
+    "source": "infra/standby/eolssu-replication-watch.service"
+   },
+   {
+    "path": "/etc/systemd/system/eolssu-replication-watch.timer",
+    "source": "infra/standby/eolssu-replication-watch.timer"
+   },
+   {
+    "path": "/opt/edo-check/alert.py",
+    "source": "infra/edo-check/alert.py"
+   },
+   {
+    "path": "/opt/edo-check/collector.py",
+    "source": "infra/edo-check/collector.py"
+   },
+   {
+    "path": "/opt/edo-check/relay.py",
+    "source": "infra/edo-check/relay.py"
+   },
+   {
+    "path": "/opt/edo-check/ssh-dispatch-edo2.sh",
+    "source": "infra/edo-check/ssh-dispatch-edo2.sh"
+   },
+   {
+    "path": "/opt/eolssu-replication-579/check-replication.py",
+    "source": "infra/standby/check-replication.py"
+   },
+   {
+    "path": "/opt/eolssu-replication-579/eolssu-replication-tunnel.service",
+    "source": "infra/standby/eolssu-replication-tunnel.service"
+   },
+   {
+    "path": "/opt/eolssu-replication-579/eolssu-replication-watch.service",
+    "source": "infra/standby/eolssu-replication-watch.service"
+   },
+   {
+    "path": "/opt/eolssu-replication-579/eolssu-replication-watch.timer",
+    "source": "infra/standby/eolssu-replication-watch.timer"
+   },
+   {
+    "path": "/opt/eolssu-replication-579/replica.compose.yml",
+    "source": "infra/standby/replica.compose.yml"
+   },
+   {
+    "path": "/opt/eolssu-replication-579/replica.promote.compose.yml",
+    "source": "infra/standby/replica.promote.compose.yml"
+   },
+   {
+    "path": "/opt/eolssu-replication-579/seed-replica.py",
+    "source": "infra/standby/seed-replica.py"
+   },
+   {
+    "path": "/opt/eolssu-standby-579/compose.promote.yml",
+    "source": "infra/standby/compose.promote.yml"
+   },
+   {
+    "path": "/opt/eolssu-standby-579/compose.yml",
+    "source": "infra/standby/compose.yml"
+   },
+   {
+    "path": "/opt/eolssu-standby-579/edo2-domain.nginx.conf",
+    "source": "infra/standby/edo2-domain.nginx.conf"
+   },
+   {
+    "path": "/opt/eolssu-standby-579/nginx.conf",
+    "source": "infra/standby/nginx.conf"
+   }
+  ]
+ }
+}
