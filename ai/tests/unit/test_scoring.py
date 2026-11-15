@@ -105,6 +105,30 @@ def test_wrong_pitch_notes_get_no_timing_or_duration_credit():
     assert result.total == round((result.pitch + result.timing + result.duration) / 3)
 
 
+def test_slower_playing_keeps_full_duration_score():
+    # 길이는 악보 BPM의 길이가 아니라 다음 음이 실제로 시작할 때까지의 자리와 비교한다. 끝 음은 연주 빠르기로 늘린 악보 길이다.
+    # 악보 길이와 비교하면 30% 느린 연주는 음마다 43% 길어 길이 점수가 30점 안팎이었다(S15P31E102-910).
+    result = run(synth(SCALE, bpm=BPM * 0.7))
+    assert verdicts(result) == {}
+    assert result.duration == 100
+    assert all(abs(n.duration_error_ms) <= 30 for n in result.notes)
+
+
+def test_note_cut_short_loses_only_its_duration_score():
+    # 4번 음 자리의 뒤 절반을 비운다. 박자는 그대로라 박자 오류가 아니고 그 음의 길이 점수만 깎인다.
+    audio = synth(SCALE)
+    beat = 60 / BPM
+    env = np.ones(audio.size)
+    env[int((4 + 0.5) * beat * SR) : int(5 * beat * SR)] = 0.0
+    audio = audio * np.convolve(env, np.ones(160) / 160, mode="same")  # 10ms 페이드
+    result = run(audio)
+    assert verdicts(result) == {}
+    cut = result.notes[4]
+    assert cut.duration_error_ms < -120
+    assert cut.duration_score < 80
+    assert all(n.duration_score == 100 for n in result.notes if n.idx != 4)
+
+
 def test_late_note_is_timing_error():
     assert verdicts(run(synth(SCALE, delay={4: 0.15}))) == {4: "TIMING"}
 
