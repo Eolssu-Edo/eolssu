@@ -537,6 +537,8 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 ## 악보 작성 결과별 작업 계획
 
+- [S15P31E102-931 배포 APK의 실제 PDF 추가부터 저장·기기 음원 재생까지 검증](plans/S15P31E102-931.md)
+
 - [S15P31E102-904 생성 음원 구간 빠르기와 운영 버전 대조](plans/S15P31E102-904.md)
 
 - [정간보 한배 지원 스펙](specs/jeonggan-tempo-edit.md) · [S15P31E102-882 재개 계획·검증](plans/S15P31E102-882.md) · [중단 시점 인수인계](knowledge/ai/jeonggan-tempo-handoff.md)
