@@ -22,6 +22,10 @@
     <string name="source_gugak_audio_usage">운지법 보기·기초부터 배우기의 기본음·요성 예시, 정간보 읽기의 음의 길이·높낮이, 연습 화면의 장단 소리</string>
     <string name="source_gugak_audio_note">공공누리 제1유형(KOGL-1, 출처표시). 기본음·요성 예시는 필요한 구간을 잘라 모노 M4A로 만들었어요. 일부는 음높이를 바꾸거나 요성에 음높이 흔들림을 더했어요. 정간보 예시는 단소 「평취 중」의 음을 잘라 음높이와 길이를 조정한 뒤 모노 M4A로 만들었어요. 음의 길이 예시에는 박 소리도 더했어요. 장단 소리는 단타 추출 및 굿거리 굴림 5속도로 가공했어요.</string>
 
+    <string name="source_cat_audio_name">서울예술과학센터 국악 가상악기 음원 라이브러리</string>
+    <string name="source_cat_audio_usage">곡의 모범 연주, 내 악보의 음원 만들기</string>
+    <string name="source_cat_audio_note">악보를 이 라이브러리의 악기 소리로 합성해 음원을 만들었어요.\n이 2차 저작물은 서울예술과학센터에서 개발한 국악 가상악기 음원 라이브러리를 사용하였습니다. (서울예술과학센터: catsnu.com, 문의: catantsnu@gmail.com)</string>
+
     <string name="source_generator_name">우물사이(umulsai.com) jeongganbo-generator</string>
     <string name="source_generator_usage">정간보 읽기·악보의 시김새 기호 그림, 예시 곡의 정간 수·대강 분절</string>
     <string name="source_generator_note">기호 그림은 MIT 라이선스(Copyright (c) 2026 Danbinaerin Han)를 따라요.</string>

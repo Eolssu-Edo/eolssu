@@ -1,6 +1,9 @@
 package com.ssafy.eolssu.feature.profile
 
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.source_cat_audio_name
+import eolssu.shared.generated.resources.source_cat_audio_note
+import eolssu.shared.generated.resources.source_cat_audio_usage
 import eolssu.shared.generated.resources.source_daegeum_book_name
 import eolssu.shared.generated.resources.source_daegeum_book_note
 import eolssu.shared.generated.resources.source_daegeum_book_usage
@@ -58,6 +61,15 @@ val DataSources: List<DataSource> = listOf(
             DataSourceLink(Res.string.source_link_original, "https://www.gugak.go.kr/digitaleum/front/monotone/list.do"),
             DataSourceLink(Res.string.source_link_kogl, "https://www.kogl.or.kr/info/license.do"),
         ),
+    ),
+    // CAT 이용 안내는 2차 저작물에 지정 문구 표시를 요구한다. 문구는 data/src/playback/sampler.py의 CREDIT과 같게 둔다.
+    DataSource(
+        id = "cat-gugak-library",
+        name = Res.string.source_cat_audio_name,
+        kind = Res.string.source_kind_audio,
+        usage = Res.string.source_cat_audio_usage,
+        note = Res.string.source_cat_audio_note,
+        links = listOf(DataSourceLink(Res.string.source_link_original, "https://www.catseoul.com/gugak-library/")),
     ),
     DataSource(
         id = "jeongganbo-generator",

@@ -23,6 +23,13 @@
 - 공공누리 제1유형은 출처와 변경 사실 표시를 요구하지만 표시 위치를 정하지 않는다고 보고, 출처 화면에 가공 내역을 함께 적었다. 팀·법무 확인은 하지 않았다.
 - 『2021 대금정악보』는 공공누리 제4유형(변경금지)이다. 안공표를 앱 운지 그림으로 다시 그린 것이 변경에 해당하는지는 이번 작업에서 판단하지 않았다.
 
+## CAT 음원 고지 추가 (938)
+
+- [S15P31E102-938](https://ssafy.atlassian.net/browse/S15P31E102-938): 곡 모범 연주와 내 악보 `음원 만들기`는 서울예술과학센터 CAT 국악 가상악기 라이브러리로 합성한다. [CAT 이용 조사](../data/fingering-reference-audio.md)는 2차 저작물에 지정 문구 표시를 요구한다고 적었지만 출처 화면에는 항목이 없었다.
+- 운영 DB의 비행기 단소 132·소금 133·산조대금 134만 곡 설명에 이 문구를 붙여 곡 정보 화면에 그대로 보였다(2026-11-15 공개 API 108곡 조회). 저장소의 시드·마이그레이션·적재 도구에는 이 설명이 없다.
+- 지정 문구는 `data/src/playback/sampler.py`의 `CREDIT`과 같게 출처 화면 비고에 넣고, 링크는 조사 문서에서 확인한 `https://www.catseoul.com/gugak-library/`를 쓴다. 음원 파일 comment 메타데이터의 고지는 그대로 둔다.
+- 세 곡 설명 정리는 56 판본 게시 뒤 [정리 SQL](../../../infra/catalog/airplane-description-cleanup.sql)로 한다. 순서는 [비행기 게시 문서](../../../infra/catalog/airplane-revision.md) 7번을 따른다.
+
 ## 함께 지운 화면 요소
 
 - 쉽게 읽기 `장단·기호 자료` 버튼·창(`ReadingCatalogDialog`)과 `ReadingCatalogViewModel`·DI·`toggleJangdanAudio`. 서버 장단·기호 조회(`ReferenceCatalogRepository.jangdans/jangdan/symbols`)와 연습 장단 재생은 다른 테스트·화면이 쓰므로 남겼다.
