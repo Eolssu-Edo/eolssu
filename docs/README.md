@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [Jenkins ai 이미지 빌드·이미지 안 테스트·배포와 되돌리기 (244)](plans/S15P31E102-244.md) · [운영 안내·적용 절차](../infra/runtime/README.md#ai-분석-서비스)
+
 - [발표용 운영·품질 실측 근거 표와 검증 이야기 (941)](knowledge/infra/ops-quality-evidence.md) · [시스템 아키텍처](knowledge/infra/system-architecture.md) · [계획·검증](plans/S15P31E102-941.md)
 
 - [발표 전 가입·주요 API 동시 접속 리허설 (940)](plans/S15P31E102-940.md) · [결과·시연 대책](knowledge/infra/demo-load-rehearsal.md) · [실행 도구](../infra/loadtest/README.md)
