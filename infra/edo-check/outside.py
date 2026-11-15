@@ -1,12 +1,15 @@
 #!/usr/bin/python3
-"""Observe public HTTPS endpoints from edo1 and record a local snapshot."""
+"""Observe public HTTPS endpoints from edo1, record a local snapshot and report edo2 outages."""
 from datetime import datetime, timezone
 import http.client
+import importlib.util
 import json
 import os
 from pathlib import Path
 import ssl
 from tempfile import NamedTemporaryFile
+import time
+import types
 
 
 STATE_FILE = Path('/var/lib/edo-check-outside/latest.json')
@@ -92,6 +95,39 @@ def read_previous(path):
     return previous if isinstance(previous, dict) else {}
 
 
+EDO2_KEY = 'edo2:outside:relay'
+EDO2_LABEL = 'edo2 중계 HTTPS(edo1에서 확인)'
+EDO2_ACTION = 'edo2 SSH 접속과 Nginx·edo-check 서비스 확인; edo2가 멈추면 edo2의 자동 알림도 함께 멈춤'
+
+
+def load_alert():
+    """Reuse the edo2 watcher's confirmation, rendering and delivery rules (alert.py beside this file)."""
+    path = Path(__file__).resolve().parent / 'alert.py'
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location('alert', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def notify_edo2(result, state_dir, webhook, now):
+    """Post a confirmed edo2 outage or recovery once. Returns the delivery state or None."""
+    alert = load_alert()
+    if alert is None:
+        return None
+    relay = result['relay']
+    signal = alert.signal(EDO2_KEY, EDO2_LABEL, 'ok' if relay['ok'] else 'crit', relay['detail'], EDO2_ACTION)
+    path = state_dir / 'alert.json'
+    state = alert.load_state(path)
+    events = alert.evaluate(state, {'edo2:outside': ([signal], True)}, now)
+    if not events:
+        alert.save(path, state)
+        return None
+    transport = types.SimpleNamespace(PublicHTTPS=http.client.HTTPSConnection)
+    return alert.deliver(state, path, events, lambda text: alert.send(transport, webhook.read_text().strip(), text))
+
+
 def main():
     previous = read_previous(STATE_FILE)
     result = collect()
@@ -109,6 +145,17 @@ def main():
         record = {'captured_at': result['captured_at'], 'target': target,
                   'event': event, 'detail': current['detail']}
         print(priority + json.dumps(record, ensure_ascii=False))
+    credentials = os.environ.get('CREDENTIALS_DIRECTORY')
+    webhook = Path(credentials) / 'webhook-url' if credentials else None
+    if webhook is None or not webhook.is_file():
+        return  # Notices are optional; the snapshot and journal lines above stay the source of truth.
+    try:
+        delivery = notify_edo2(result, STATE_FILE.parent, webhook, time.time())
+    except Exception as error:  # A notice failure must not hide the probe results.
+        print('<3>' + json.dumps({'event': 'edo2_notice_error', 'type': type(error).__name__}))
+        return
+    if delivery:
+        print('<5>' + json.dumps({'event': 'edo2_notice', 'state': delivery}))
 
 
 if __name__ == '__main__':

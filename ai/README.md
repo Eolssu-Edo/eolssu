@@ -1,5 +1,7 @@
 # AI: 연주 채점
 
+S15P31E102-935: PDF 글자층의 SMuFL 4분음표(U+ECA5/ECA6) 숫자 빠르기를 보완합니다. 작은 자체 PDF를 실제 PDFium으로 읽는 회귀는 `uv run pytest tests/unit/test_staff_pdf_tempo.py`입니다. 로컬 제공 자료를 검사하려면 `AUCLAIR_TEMPO_PDF`를 `C:/Users/kingc/Downloads/악보 추가 편집 테스트 자료/02_AuClairDeLaLune_양손피아노.pdf`로 지정하세요. `JGB_GENERATOR_DIR`가 설정된 기존 환경에서 `uv run pytest tests/unit/test_omr_staff_engine.py -k pdf_numeric_tempo`는 실제 PDF 읽기·렌더·변환·HTTP 전달을 검사하고 외부 Audiveris 출력만 고정 입력으로 대체합니다. 원본 파일은 Git에 넣지 않습니다. [실행 근거·한계](../docs/knowledge/ai/score-recognition-corrections.md#pdf-음표-글리프의-숫자-빠르기-누락-935).
+
 S15P31E102-882: 오선보 metronome/sound의 숫자 빠르기와 정확히 대응되는 구간을 기존 `expressions/performancePlan`으로 전달합니다. PDF 글자층으로 유일하게 대조된 마디 첫 빠르기는 누락·위치를 보완합니다. 사용자 선택에 따라 `accel.`은 앞 숫자에서 다음 숫자까지 선형 BPM으로 연결하며, 기존 항목의 선택적 `start_bpm`으로 즉시 감속 후 가속을 표현합니다. 이 입력을 읽는 생성기·BE·OMR이 함께 필요합니다. `uv run pytest tests/unit/test_staff_tempo.py tests/unit/test_staff_pdf_tempo.py tests/unit/test_staff_musicxml.py tests/unit/test_omr_staff_engine.py`로 검사합니다. [스펙·한계](../docs/specs/staff-tempo-import.md), [실제 PDF 실행 근거](../docs/knowledge/ai/score-recognition-corrections.md#숫자-빠르기와-가속-가져오기-882).
 
 악보 인식의 임시 원본은 S15P31E102-534부터 요청 종료 시 삭제하며 별도 watchdog이 30분에 다운로드·쪽 그림 디렉터리를 삭제합니다. 삭제 실패는 1초 뒤 재시도합니다. 운영 OMR의 `/tmp` tmpfs를 유지하고 백업·영구 볼륨에 넣지 않습니다. `uv run pytest tests/unit/test_temporary_sources.py tests/unit/test_omr_api.py`로 파일 수명·API 회귀를 검사하며 모델 인식 품질과 구분합니다.
@@ -168,13 +170,18 @@ docker build -t eolssu-ai:check .
 - librosa가 쓰는 numba는 첫 호출 때 컴파일 결과를 파일로 저장합니다. 실행 사용자는 `/app`에 쓸 수 없어 `NUMBA_CACHE_DIR=/tmp/numba-cache`로 둡니다. 이 값이 없으면 채점 첫 호출이 `RuntimeError`(500)로 실패합니다. 컨테이너 파일 시스템을 읽기 전용(`read_only`)으로 띄우면 `/tmp`에 tmpfs를 붙입니다.
 - 이미지는 약 1.65GB입니다(numba·scipy·ffmpeg). 빌드에 Docker 디스크 여유가 2GB 넘게 필요합니다.
 
-이미지 안에서 테스트를 돌리려면 일회용 컨테이너에 dev 의존성(pytest)을 넣고 테스트 폴더를 읽기 전용으로 붙입니다. 실행 이미지에는 테스트를 넣지 않습니다.
+- `GET /health`는 `{"status": "ok", "modelVersion": …}`만 돌려줍니다. `python -m ai_service.warmup`은 합성 사인파 WAV를 ffmpeg 디코딩 → pYIN → 채점까지 한 번 돌려 numba 컴파일 결과를 만들고 JSON 한 줄을 출력합니다(실패하면 종료 코드 1). 배포 도구가 새 컨테이너 안에서 실행합니다.
+
+이미지 검사는 Jenkins `eolssu-ai` 잡과 같은 도구로 합니다. 커밋한 상태의 저장소 루트에서 실행하며, `test`는 이미지의 Python·의존성·ffmpeg로 읽기 전용 저장소의 채점 테스트를 돌립니다. 테스트가 `data/`를 소스 위치 기준으로 찾으므로 설치된 패키지가 아니라 저장소를 붙입니다. `smoke`는 기본 명령을 비root·읽기 전용으로 띄워 `/health`와 예열 채점을 확인합니다. 실행 이미지에는 테스트를 넣지 않습니다.
 
 ```bash
-docker run --rm --user 0 --tmpfs /tmp:rw,exec,size=512m --mount "type=bind,src=$(pwd)/tests,dst=/app/tests,readonly" --mount "type=bind,src=$(pwd)/evaluation,dst=/app/evaluation,readonly" eolssu-ai:check sh -c 'uv sync --locked --no-editable && uv run --locked --no-editable pytest -p no:cacheprovider'
+SHA=$(git rev-parse HEAD)
+python3 -B infra/jenkins/build-ai-image.py build "$SHA"
+python3 -B infra/jenkins/build-ai-image.py test "$SHA" --junit /tmp/ai-junit.xml
+python3 -B infra/jenkins/build-ai-image.py smoke "$SHA"
 ```
 
-pytest를 받으므로 인터넷이 닿는 네트워크가 필요합니다. 이 검사는 root로 돌아 실행 사용자 권한 문제를 잡지 못합니다. 기본 명령으로 띄운 컨테이너에 요청 1건을 보내는 확인을 함께 합니다([S15P31E102-213 작업 기록](../docs/plans/S15P31E102-213.md#검증)).
+`test`는 dev 그룹을 받으므로 인터넷이 닿는 네트워크가 필요합니다. `omr_service` 테스트는 OMR 이미지 몫이라 이 게이트에서 빼고(Audiveris·정간보 변환기가 있는 omr 이미지에서 `python3 -B infra/jenkins/build-service-image.py omr test "$SHA"`로 돌립니다, [S15P31E102-951](../docs/plans/S15P31E102-951.md)), Windows 전용 평가 실험 테스트 1건(`test_onset_spread_experiment.py::test_experiment_rejects_wrong_recording_hash`)은 노드 ID로만 제외합니다([S15P31E102-244 작업 기록](../docs/plans/S15P31E102-244.md)).
 
 ## 음높이 추정 비교
 

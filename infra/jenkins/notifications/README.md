@@ -11,9 +11,9 @@ edo1의 독립 systemd 서비스가 Jenkins 완료 결과를 읽고 기존 Matte
 | Jenkins 인증 | 기존 `/opt/eolssu/jenkins/admin-cli.auth`를 `LoadCredential`로 읽음 |
 | Mattermost 인증 | `/etc/eolssu-jenkins-notify/webhook-url`, root:root 600, 상위 디렉터리 700 |
 | 상태 | `/var/lib/eolssu-jenkins-notify/state.json`, DynamicUser 전용 디렉터리 700·파일 600 |
-| 대상 | 최상위 `eolssu-*` 잡, 잡당 최근 100개 빌드; 현재 backend/frontend/android-qa/ios-qa/blog/graphify |
+| 대상 | 최상위 `eolssu-*` 잡(한글 이름 포함, [952](../../../docs/plans/S15P31E102-952.md)), 잡당 최근 100개 빌드; 현재 backend/웹 수동 배포(`eolssu-frontend-web-수동배포용`)/android-qa/ios-qa/blog/ai([244](../../../docs/plans/S15P31E102-244.md))/omr/playback([951](../../../docs/plans/S15P31E102-951.md)) (graphify 잡은 [S15P31E102-508](../../../docs/plans/S15P31E102-508.md)에서 제거) |
 
-FAILURE·UNSTABLE과 로그에서 제한시간 초과가 확인된 ABORTED를 알린다. 정상·수동 중단은 제외한다. 최초 시작은 완료된 과거 빌드를 기준점으로 삼고 진행 중 빌드는 계속 추적한다. 동시에 실행한 이전 빌드가 늦게 끝나도 알린다. 알림 처리에 걸리는 시간과 API 응답 시간은 30초 감지 주기에 추가된다. 장기 중단 중 잡당 100개를 넘긴 빌드의 누락 복구는 별도 확인이 필요하다.
+FAILURE·UNSTABLE과 로그에서 제한시간 초과가 확인된 ABORTED를 알린다. 정상·수동 중단은 제외한다. 최초 시작은 완료된 과거 빌드를 기준점으로 삼고 진행 중 빌드는 계속 추적한다. 운영 중 처음 보이는 잡(새 잡이나 대상 조건에 새로 들어온 잡)은 직전 감지 전에 이미 끝난 빌드를 건너뛰고, 그 뒤에 끝나는 빌드부터 알린다. 동시에 실행한 이전 빌드가 늦게 끝나도 알린다. 알림 처리에 걸리는 시간과 API 응답 시간은 30초 감지 주기에 추가된다. 장기 중단 중 잡당 100개를 넘긴 빌드의 누락 복구는 별도 확인이 필요하다.
 
 메시지는 실행 계기·변경 작성자, 잡/번호·실패 단계·SHA, 확인된 원인, 조치 표 하나와 **오류 로그 최대 3줄·합계 300자**다. 원인을 판정할 근거가 없으면 미확정, 로그를 못 읽으면 조회 실패라고 표시하고 실패 알림은 보낸다. 작성자를 원인 제공자로 단정하지 않는다. 로그의 인증 값·URL·이메일·호출 멘션을 마스킹한다.
 

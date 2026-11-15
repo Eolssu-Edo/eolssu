@@ -216,6 +216,57 @@ def test_recognized_numeric_tempo_and_existing_companion_reach_http(fake_audiver
 
 
 @needs_generator
+@pytest.mark.parametrize('source', ['smufl', 'original-opt-in'])
+def test_pdf_numeric_tempo_reaches_real_conversion_http(tmp_path, monkeypatch, source):
+    """Real PDFium/render/conversion/JGB/HTTP; only download and Audiveris are fixed."""
+    import subprocess
+    from test_staff_pdf_tempo import text_pdf, archive
+    if source == 'original-opt-in':
+        supplied = os.environ.get('AUCLAIR_TEMPO_PDF')
+        if not supplied:
+            pytest.skip('Set AUCLAIR_TEMPO_PDF to exercise the local PDF through HTTP.')
+        pdf = Path(supplied).read_bytes()
+        top = 500
+    else:
+        pdf = text_pdf('\ueca5 = 100')
+        top = 400
+    # One self-authored measure at render scale; this is not an OCR quality test.
+    geometry = archive(f'''<sheet><system>
+      <stack left="80" right="800"><slot x-offset="620" time-offset="0"/></stack>
+      <part><staff><lines><line><point x="80" y="{top}"/></line>
+      <line><point x="80" y="{top+20}"/></line></lines></staff></part>
+      </system></sheet>''')
+
+    def run(command, deadline):
+        out = Path(command[command.index('-output') + 1])
+        out.mkdir(parents=True)
+        (out / 'fixed.musicxml').write_bytes(FOUR_QUARTERS)
+        (out / 'fixed.omr').write_bytes(geometry)
+        return subprocess.CompletedProcess(command, 0, b'', b'')
+
+    monkeypatch.setattr(staff_engine, '_run', run)
+    monkeypatch.setattr(staff_engine, 'AUDIVERIS_LOGS', tmp_path / 'logs')
+
+    def fetch(url, dest, max_bytes, deadline):
+        dest.write_bytes(pdf)
+
+    monkeypatch.setitem(app.dependency_overrides, get_fetcher, lambda: fetch)
+    response = TestClient(app).post('/v1/recognitions', json={
+        'conversionId':'pdf-tempo-935', 'notation':'STAFF', 'instrument':'DANSO',
+        'files':[{'url':'https://example.test/score.pdf', 'contentType':'application/pdf'}]})
+    assert response.status_code == 200
+    out = response.json()
+    assert out['status'] == 'DONE' and out['bpm'] == 100
+    assert out['expressions']['performancePlan']['tempos'] == [{'gak':1, 'cell':1, 'bpm':100}]
+    assert out['expressions']['sourceSha256'] == out['expressions']['performancePlan']['input_sha256']
+    assert any(n['detail'].get('reason') == 'TEMPO_PDF_TEXT' for n in out['notices'])
+    music = out['score']['music']
+    assert music['bpmUnit'] == 'QUARTER'
+    assert [(e['startTick']/music['ticksPerBeat'], e['durationTick']/music['ticksPerBeat'])
+            for e in out['score']['events']] == [(0,1), (1,1), (2,1), (3,1)]
+
+
+@needs_generator
 def test_four_quarter_staff_measure_matches_danmori_without_stretching(fake_audiveris):
     out = post("quarters", jangdan="단모리").json()
     assert out["status"] == "DONE"

@@ -107,4 +107,45 @@ class NotificationTests(unittest.TestCase):
             self.assertEqual(sender.call_count,1)
             self.assertEqual(json.loads(path.read_text())['deliveries']['eolssu-ios-qa#5'],'uncertain')
 
+    WEB = 'eolssu-frontend-web-수동배포용'
+
+    def test_korean_job_name_is_watched_and_its_urls_are_encoded(self):
+        self.assertTrue(n.JOB.fullmatch(self.WEB))
+        self.assertIsNone(n.JOB.fullmatch('other-job'))
+        text = n.render(dict(self.sample(), job=self.WEB, number=7))
+        self.assertIn(f'· {self.WEB} #7', text)
+        encoded = 'job/eolssu-frontend-web-%EC%88%98%EB%8F%99%EB%B0%B0%ED%8F%AC%EC%9A%A9/7/'
+        self.assertIn(f'http://127.0.0.1:18080/{encoded}console', text)
+        api = n.Jenkins('user:token')
+        api.get = Mock(side_effect=[{'result':'FAILURE','actions':[],'changeSets':[]}, OSError(), ValueError()])
+        self.assertEqual(api.detail(self.WEB, 7)['job'], self.WEB)
+        self.assertTrue(api.get.call_args_list[0].args[0].startswith(encoded + 'api/json?'))
+        self.assertTrue(all(ord(c) < 128 for call in api.get.call_args_list for c in call.args[0]))
+
+    def test_job_newly_matched_in_existing_state_skips_history_but_alerts_new_failures(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'state.json';api=Mock();api.jobs.return_value={'eolssu-ios-qa':[]};sent=[]
+            api.detail.side_effect=lambda job,num:dict(self.sample(),job=job,number=num)
+            n.poll(api,path,sent.append)
+            last_ms = path.stat().st_mtime*1000
+            old = [{'number':k,'building':False,'result':'FAILURE','timestamp':last_ms-600000-k,'duration':1000} for k in (1,2,3)]
+            running = {'number':4,'building':True,'result':None,'timestamp':last_ms-5000,'duration':0}
+            later = {'number':5,'building':False,'result':'FAILURE','timestamp':last_ms+1000,'duration':2000}
+            api.jobs.return_value={'eolssu-ios-qa':[], self.WEB:[running, later, *old]}
+            n.poll(api,path,sent.append)
+            self.assertEqual([d['number'] for d in sent],[5])
+            api.jobs.return_value={'eolssu-ios-qa':[], self.WEB:[dict(running,building=False,result='FAILURE'), later, *old]}
+            n.poll(api,path,sent.append)
+            self.assertEqual([d['number'] for d in sent],[5,4])
+
+    def test_brand_new_job_still_alerts_its_first_failed_build(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'state.json';api=Mock();api.jobs.return_value={'eolssu-ios-qa':[]};sent=[]
+            api.detail.side_effect=lambda job,num:dict(self.sample(),job=job,number=num)
+            n.poll(api,path,sent.append)
+            last_ms = path.stat().st_mtime*1000
+            api.jobs.return_value={'eolssu-ios-qa':[], 'eolssu-ai':[{'number':1,'building':False,'result':'FAILURE','timestamp':last_ms+10,'duration':500}]}
+            n.poll(api,path,sent.append)
+            self.assertEqual([(d['job'],d['number']) for d in sent],[('eolssu-ai',1)])
+
 if __name__=='__main__':unittest.main()

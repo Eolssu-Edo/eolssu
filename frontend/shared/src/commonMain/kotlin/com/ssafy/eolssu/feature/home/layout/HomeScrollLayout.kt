@@ -67,6 +67,7 @@ import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.feature.home.HomeFeatureColumns
 import com.ssafy.eolssu.feature.home.HomeScrollRange
 import com.ssafy.eolssu.feature.home.HomeStageFlingBehavior
+import com.ssafy.eolssu.feature.home.PrepareHomeFonts
 import com.ssafy.eolssu.feature.home.homeScrollFrame
 import com.ssafy.eolssu.feature.home.homeSnapTarget
 import com.ssafy.eolssu.feature.home.mix
@@ -101,6 +102,7 @@ internal fun HomeScrollLayout(
     val dragged by scroll.interactionSource.collectIsDraggedAsState()
     val scope = rememberCoroutineScope()
     val environment = rememberHomeEnvironment()
+    PrepareHomeFonts()
     val homeGround = EolssuTheme.colors.groupedBackground
     val reduceMotion = environment.reduceMotion || scope.coroutineContext[MotionDurationScale]?.scaleFactor == 0f
     var wasOpen by remember { mutableStateOf(false) }

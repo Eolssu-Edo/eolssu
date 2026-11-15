@@ -1,0 +1,15 @@
+# 승격 때만 replica.compose.yml 뒤에 겹쳐 쓴다(S15P31E102-930).
+# 기동 옵션 --read-only=ON은 SET PERSIST read_only=OFF보다 우선해 재시작하면 다시 읽기 전용이 된다.
+# 나머지 옵션은 복제본과 같게 유지한다.
+services:
+  mysql:
+    command:
+      - --server-id=57902
+      - --log-bin=mysql-bin
+      - --log-replica-updates=ON
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --sync-binlog=1
+      - --innodb-flush-log-at-trx-commit=1
+      - --relay-log-recovery=ON
+      - --replica-net-timeout=15
