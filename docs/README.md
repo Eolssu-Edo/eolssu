@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [Jenkins backend 잡의 폐기용 MySQL databaseTest 단계 (946)](plans/S15P31E102-946.md)
+
 - [Jenkins omr·playback 이미지 빌드·이미지 안 테스트·배포와 되돌리기 (951)](plans/S15P31E102-951.md) · [운영 안내·적용 절차](../infra/runtime/README.md#omrplayback-자동-배포-s15p31e102-951)
 
 - [edo2 장애 전환 서버 리허설과 SSAFY DNS 답 반영 (948)](plans/S15P31E102-948.md) · [런북](../infra/standby/failover-runbook.md) · [사본 연습 파일](../infra/standby/rehearsal/)
