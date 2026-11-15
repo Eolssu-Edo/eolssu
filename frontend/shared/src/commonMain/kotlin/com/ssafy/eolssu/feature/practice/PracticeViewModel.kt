@@ -297,6 +297,14 @@ class PracticeViewModel(
         }
         rhythmStartsAtAttack = true
         modelStartsAtAttack = true
+        if (target == PracticeMode.Model) {
+            if (modelAudio.state.value.audio != null) {
+                if (before.mode == PracticeMode.Rhythm) modelAudio.pauseAtTick(_uiState.value.currentTick ?: 0.0)
+                _uiState.update { it.withModelAudio(modelAudio.state.value) }
+            } else if (supportsPersonalAudio) {
+                _uiState.value.song?.let(::checkPersonalAudio)
+            }
+        }
     }
 
     /** Non-recorded continuous practice uses the same absolute timeline clock as the score. */
@@ -346,6 +354,7 @@ class PracticeViewModel(
         stepJob?.cancel()
         stepClock = null
         _uiState.update { it.copy(playing = false, eventStartedAt = null, pausedFraction = it.currentEventFraction.toFloat()) }
+        stopPreview()
         stopJangdan()
     }
 
@@ -384,7 +393,6 @@ class PracticeViewModel(
         accountScope.launch {
             modelAudio.state.collect { playback ->
                 _uiState.update { state ->
-                    if (state.mode != PracticeMode.Model) return@update state
                     val next = state.withModelAudio(playback)
                     if (state.personalAudio == PracticePersonalAudio.Ready && playback.status == ModelAudioStatus.Unavailable) {
                         next.copy(personalAudio = PracticePersonalAudio.Missing)
@@ -619,9 +627,17 @@ class PracticeViewModel(
     fun applyTempo(close: Boolean = true) {
         if (_uiState.value.mode == PracticeMode.Model) {
             modelResumeAfterTick = modelTickAtReportedPosition()
-            val song = _uiState.value.song ?: return
-            settingsStore.update { it.applyTempo(_uiState.value.draft, song, mine) }
-            _uiState.update { it.copy(settings = settingsStore.settings.value).withModelAudio(modelAudio.state.value) }
+            val state = _uiState.value
+            val song = state.song ?: return
+            settingsStore.update { it.applyTempo(state.draft, song, mine) }
+            _uiState.update {
+                val playback = modelAudio.state.value
+                val updated = it.copy(settings = settingsStore.settings.value).withModelAudio(playback)
+                if (playback.audio == null) {
+                    val scale = state.bpm.toDouble() / updated.bpm
+                    updated.copy(elapsedMs = state.elapsedMs * scale, eventElapsedMs = state.eventElapsedMs * scale)
+                } else updated
+            }
             modelAudio.setBpm(_uiState.value.bpm)
             if (close) closePanel()
             return
@@ -638,6 +654,7 @@ class PracticeViewModel(
             val updated = it.copy(settings = settingsStore.settings.value)
             updated.copy(eventElapsedMs = updated.eventDurationMs() * carry, pausedFraction = carry.toFloat())
         }
+        modelAudio.setBpm(_uiState.value.bpm)
         if (close) closePanel()
         if (state.mode == PracticeMode.Rhythm) {
             val msPerTick = 60_000.0 / _uiState.value.bpm / song.score.timing!!.ticksPerBeat
@@ -661,7 +678,7 @@ class PracticeViewModel(
     /** 연습 설정의 ‘연습 악기’. 운지 그림과 제목 옆 표시에만 쓰고 프로필 악기는 바꾸지 않는다. */
     fun setInstrument(id: String) = settingsStore.update { it.copy(instrumentId = id) }
 
-    /** 플레이어의 −5초·+5초. 모범 연주 중에는 음원 위치를, 준비 상태에서는 고른 음을 옮긴다. */
+    /** 플레이어의 −5초·+5초. 음원을 아직 받지 않았어도 타임라인과 다음 재생 위치를 옮긴다. */
     fun seekModel(deltaMs: Long) {
         val state = _uiState.value
         // 구간 연습은 구간 안에서만 옮긴다(S15P31E102-794).
@@ -670,15 +687,21 @@ class PracticeViewModel(
             seekSection(sectionTick)
             return
         }
+        if (state.mode in setOf(PracticeMode.Ready, PracticeMode.Model) && modelAudio.state.value.audio == null) {
+            val duration = state.song?.durationMs(state.bpm) ?: return
+            if (duration > 0.0) seekToFraction(((state.elapsedMs + deltaMs) / duration).toFloat())
+            return
+        }
         when (state.mode) {
-            PracticeMode.Model -> {
+            PracticeMode.Ready, PracticeMode.Model -> {
+                if (state.mode == PracticeMode.Ready) _uiState.update { it.copy(mode = PracticeMode.Model) }
                 modelStartsAtAttack = true
                 modelResumeAfterTick = null
                 stopJangdan()
                 modelAudio.seekBy(deltaMs)
+                _uiState.update { it.withModelAudio(modelAudio.state.value) }
             }
             PracticeMode.Rhythm -> seekRhythm(deltaMs)
-            PracticeMode.Ready -> _uiState.update { it.seekSelection(deltaMs) }
             else -> Unit
         }
     }
@@ -697,11 +720,13 @@ class PracticeViewModel(
             seekSection(sectionTick)
             return
         }
-        if (state.mode == PracticeMode.Model && modelAudio.state.value.audio != null) {
+        if (state.mode in setOf(PracticeMode.Ready, PracticeMode.Model) && modelAudio.state.value.audio != null) {
+            if (state.mode == PracticeMode.Ready) _uiState.update { it.copy(mode = PracticeMode.Model) }
             modelStartsAtAttack = true
             modelResumeAfterTick = null
             stopJangdan()
             modelAudio.seekToFraction(progress)
+            _uiState.update { it.withModelAudio(modelAudio.state.value) }
             return
         }
         val wasPlaying = state.mode == PracticeMode.Rhythm && state.playing
@@ -744,11 +769,13 @@ class PracticeViewModel(
             _uiState.update { it.stopAtSectionStart() }
             return
         }
-        if (state.mode == PracticeMode.Model && modelAudio.state.value.audio != null) {
+        if (state.mode in setOf(PracticeMode.Ready, PracticeMode.Model) && modelAudio.state.value.audio != null) {
+            if (state.mode == PracticeMode.Ready) _uiState.update { it.copy(mode = PracticeMode.Model) }
             modelStartsAtAttack = true
             modelResumeAfterTick = null
             stopJangdan()
             modelAudio.seekToTick(tick)
+            _uiState.update { it.withModelAudio(modelAudio.state.value) }
             return
         }
         val wasPlaying = state.mode == PracticeMode.Rhythm && state.playing
@@ -814,16 +841,19 @@ class PracticeViewModel(
         } else PracticePersonalAudio.Missing
         _uiState.update { it.copy(personalAudio = PracticePersonalAudio.Checking) }
         personalAudioJob = accountScope.launch {
-            val available = try {
-                repository.hasLocalAudio(song)
+            val audio = try {
+                repository.get(song)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                false
+                null
             }
+            if (!accountScope.isActive || _uiState.value.song != song) return@launch
+            if (audio != null) modelAudio.prepareMetadata(song, _uiState.value.bpm, audio, _uiState.value.currentTick)
             _uiState.update {
                 if (it.song != song) it
-                else it.copy(personalAudio = if (available) PracticePersonalAudio.Ready else missing)
+                else if (audio != null) it.copy(personalAudio = PracticePersonalAudio.Ready).withModelAudio(modelAudio.state.value)
+                else it.copy(personalAudio = missing, modelPerformance = null, sheetPerformanceBpm = null)
             }
         }
     }
@@ -849,12 +879,24 @@ class PracticeViewModel(
             } catch (_: Exception) {
                 SheetPracticeDownload.Failed
             }
+            val audio = if (result == SheetPracticeDownload.Saved) try {
+                repository.get(song)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            } else null
+            val latest = _uiState.value
+            if (!accountScope.isActive || latest.song != song ||
+                latest.personalAudio !in setOf(PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading)) return@launch
+            if (audio != null) modelAudio.prepareMetadata(song, latest.bpm, audio, latest.currentTick)
             _uiState.update { current ->
                 if (current.song != song ||
                     current.personalAudio !in setOf(PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading)
                 ) return@update current
                 when (result) {
-                    SheetPracticeDownload.Saved -> current.copy(personalAudio = PracticePersonalAudio.Ready, modelAudioStatus = ModelAudioStatus.Idle)
+                    SheetPracticeDownload.Saved -> current.copy(personalAudio = PracticePersonalAudio.Ready,
+                        modelAudioStatus = ModelAudioStatus.Idle).withModelAudio(modelAudio.state.value)
                     SheetPracticeDownload.UnsupportedPitches -> current.copy(personalAudio = PracticePersonalAudio.UnsupportedPitches)
                     SheetPracticeDownload.Failed -> current.copy(personalAudio = PracticePersonalAudio.Failed)
                     SheetPracticeDownload.VersionChanged -> current.copy(personalAudio = PracticePersonalAudio.VersionChanged)
@@ -887,7 +929,8 @@ class PracticeViewModel(
         stepJob?.cancel()
         stepClock = null
         _uiState.update { it.startModel().copy(playing = false, eventStartedAt = null) }
-        modelAudio.play(song, state.bpm, _uiState.value.currentTick)
+        val startTick = if (state.mode == PracticeMode.Model && modelAudio.state.value.audio != null) null else _uiState.value.currentTick
+        modelAudio.play(song, state.bpm, startTick)
     }
 
     fun toggleModel() {

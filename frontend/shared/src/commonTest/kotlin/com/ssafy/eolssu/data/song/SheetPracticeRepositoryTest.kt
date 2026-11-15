@@ -33,6 +33,29 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SheetPracticeRepositoryTest {
+    @Test fun exposesTheConfirmedModelDurationWithoutChangingWrittenTimingOrReadingTheDraft() = runTest {
+        val original = smallScoreData()
+        val score = Json.encodeToJsonElement(original)
+        val confirmed = """{"performancePlan":{"tempos":[{"gak":1,"cell":2,"bpm":120}]}}"""
+        val draft = """{"performancePlan":{"tempos":[{"gak":1,"cell":1,"bpm":30}]}}"""
+        val client = createHttpClient(MockEngine { request ->
+            val result = when (request.url.encodedPath) {
+                "/api/users/me/sheets/42/score" -> """{"sheetId":"42","title":"구간 빠르기","bpm":60,"scoreVersion":"1","reviewStatus":"EVALUABLE","scoreData":$score,"expressions":$confirmed,"draft":{"title":"미확정","bpm":90,"score":$score,"baseScoreVersion":"1","draftRevision":1,"expressions":$draft}}"""
+                "/api/instruments" -> """{"items":[{"instrumentId":"2","code":"DANSO","name":"단소"}]}"""
+                else -> error("Unexpected request ${request.url.encodedPath}")
+            }
+            respond("""{"isSuccess":true,"code":200,"result":$result}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val song = assertNotNull(practiceRepository(client).load("42"))
+            assertEquals(60, song.baseBpm)
+            assertEquals(2000.0, song.estimatedModelDurationMs)
+            assertEquals(3000.0, song.durationMs())
+            assertEquals(3000.0, song.timeline.sumOf { song.eventDurationMs(it) })
+            assertEquals(original.events.map { it.startTick to it.durationTick }, song.timeline.map { it.startTick to it.durationTick })
+        } finally { client.close() }
+    }
+
     @Test fun readsConfirmedBasicAccompanimentWithoutInventingACatalogLink() = runTest {
         val original = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "", bpmUnit = "QUARTER")) }
         val score = Json.encodeToJsonElement(original)
@@ -85,6 +108,7 @@ class SheetPracticeRepositoryTest {
             assertEquals("내 악보", song.title)
             assertEquals(60, song.baseBpm)
             assertEquals("2", song.instrumentId)
+            assertNull(song.estimatedModelDurationMs)
             assertEquals(12L, song.jangdanPlayback?.cycleTicks)
             assertEquals(original.events.map { it.id }, song.timeline.map { it.id })
             assertFalse(song.evaluable)

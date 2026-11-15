@@ -34,6 +34,8 @@
 
 - [정간보 각 나눔과 연습 화면 다음 각 표시 통일 (922)](plans/S15P31E102-922.md)
 
+- [연습곡 선택·재생·설정 실기기 검증과 수정 (932)](knowledge/frontend/practice-playback-qa-932.md) · [작업 계획](plans/S15P31E102-932.md)
+
 - [PDF·사진 악보 변환 완료 앱 내 알림 (927)](plans/S15P31E102-927.md) · [알림 규칙](specs/sheet-conversion-completion.md)
 
 - [무음 판정과 오답·미검출 채점 분리 (291)](plans/S15P31E102-291.md) · [실패 기준](specs/practice-analysis-failure.md#실패-코드)

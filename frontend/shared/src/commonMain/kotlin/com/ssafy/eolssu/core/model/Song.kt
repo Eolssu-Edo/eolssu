@@ -26,6 +26,8 @@ data class Song(
     val jangdanPlayback: JangdanPlayback? = null,
     val catalogJangdanName: String? = null,
     val basicAccompaniment: BasicAccompaniment? = null,
+    /** 내 악보 모범 연주의 기준 BPM 예상 길이. 기보·녹음·평가의 시간 계산에는 사용하지 않는다. */
+    val estimatedModelDurationMs: Double? = null,
 ) {
     /** 장단 pattern이 연결되지 않아도 원본 악보의 이름은 보존한다. */
     val jangdanName: String get() = basicAccompaniment?.displayPattern?.name ?: jangdan?.name ?: score.timing?.jangdan.orEmpty().ifBlank { catalogJangdanName.orEmpty() }
