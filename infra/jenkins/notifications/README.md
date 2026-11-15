@@ -11,7 +11,7 @@ edo1의 독립 systemd 서비스가 Jenkins 완료 결과를 읽고 기존 Matte
 | Jenkins 인증 | 기존 `/opt/eolssu/jenkins/admin-cli.auth`를 `LoadCredential`로 읽음 |
 | Mattermost 인증 | `/etc/eolssu-jenkins-notify/webhook-url`, root:root 600, 상위 디렉터리 700 |
 | 상태 | `/var/lib/eolssu-jenkins-notify/state.json`, DynamicUser 전용 디렉터리 700·파일 600 |
-| 대상 | 최상위 `eolssu-*` 잡, 잡당 최근 100개 빌드; 현재 backend/frontend/android-qa/ios-qa/blog/graphify, 적용 후 ai([244](../../../docs/plans/S15P31E102-244.md)) |
+| 대상 | 최상위 `eolssu-*` 잡, 잡당 최근 100개 빌드; 현재 backend/frontend/android-qa/ios-qa/blog/graphify/ai([244](../../../docs/plans/S15P31E102-244.md)) |
 
 FAILURE·UNSTABLE과 로그에서 제한시간 초과가 확인된 ABORTED를 알린다. 정상·수동 중단은 제외한다. 최초 시작은 완료된 과거 빌드를 기준점으로 삼고 진행 중 빌드는 계속 추적한다. 동시에 실행한 이전 빌드가 늦게 끝나도 알린다. 알림 처리에 걸리는 시간과 API 응답 시간은 30초 감지 주기에 추가된다. 장기 중단 중 잡당 100개를 넘긴 빌드의 누락 복구는 별도 확인이 필요하다.
 

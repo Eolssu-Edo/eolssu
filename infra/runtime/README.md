@@ -53,11 +53,11 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" ffp
 
 연주 분석 API([ai README](../../ai/README.md#분석-api))는 `ai` 서비스로 실행합니다. 인증이 없으므로 호스트 포트를 열지 않고, backend가 Compose 내부망의 `http://ai:8000`으로만 부릅니다(`ANALYSIS_AI_BASE_URL`). 주소는 비밀값이 아니라 Compose에 직접 적습니다. AI가 없거나 응답하지 않으면 업로드한 세션은 `SERVER_ERROR` 또는 제한 시간(60초) 뒤 `TIMEOUT`이 되고, 다른 API에는 영향이 없습니다.
 
-이미지는 저장소 `ai/Dockerfile`로 edo1에서 빌드한 `eolssu-ai:runtime`을 씁니다(약 1.65GB, 빌드에 2GB 넘는 디스크 여유 필요). 배포는 `--pull never`입니다. Jenkins 잡 `eolssu-ai`(아래 '자동 배포')는 아직 운영에 적용하지 않았으므로, 그 전까지는 `ai/` 변경을 반영할 때 아래 수동 절차로 같은 태그를 다시 빌드한 뒤 `ai`만 재생성합니다. 빌드한 develop 커밋을 아래 작업 기록에 남깁니다.
+이미지는 저장소 `ai/Dockerfile`로 edo1에서 빌드한 `eolssu-ai:runtime`을 씁니다(약 1.65GB, 빌드에 2GB 넘는 디스크 여유 필요). 배포는 `--pull never`입니다. 2026-11-15부터 Jenkins 잡 `eolssu-ai`(아래 '자동 배포')가 `ai/` 변경을 빌드·검사·배포합니다. 아래 수동 빌드는 Jenkins를 쓸 수 없을 때만 씁니다.
 
-#### 자동 배포 (S15P31E102-244, 운영 미적용)
+#### 자동 배포 (S15P31E102-244)
 
-[ai.Jenkinsfile](../jenkins/ai.Jenkinsfile)은 backend 잡처럼 develop을 1분마다 확인합니다. 흐름과 각 단계의 근거는 [244 작업 기록](../../docs/plans/S15P31E102-244.md)에 있습니다.
+[ai.Jenkinsfile](../jenkins/ai.Jenkinsfile)은 전용 슬롯 `edo1-ai`([슬롯 구성](../jenkins/controller/README.md#ai-배포-전용-슬롯))에서 develop을 1분마다 확인합니다. 흐름과 각 단계의 근거는 [244 작업 기록](../../docs/plans/S15P31E102-244.md)에 있습니다.
 
 1. [build-ai-image.py](../jenkins/build-ai-image.py) `plan`: 이미지를 만드는 입력(`ai/Dockerfile`·`.dockerignore`·`.python-version`·`pyproject.toml`·`uv.lock`·`src/`)의 Git 해시를 실행 중인 ai 이미지의 `com.eolssu.ai.source` 라벨과 비교합니다. 같으면 빌드·배포를 생략합니다.
 2. `build`: `eolssu-ai:ci-<SHA>`를 커밋·입력 해시 라벨과 함께 만듭니다.
@@ -67,13 +67,13 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" ffp
 
 실패는 잡 이름이 `eolssu-`로 시작하므로 [Jenkins 실패 알림](../jenkins/notifications/README.md)이 그대로 보냅니다. 쌓이는 `eolssu-ai:ci-*` 태그는 [보존 정리](../retention/README.md)가 함께 정리합니다.
 
-운영 적용은 발표(11-18) 뒤 사용자 확인을 받고 이 순서로 합니다. 각 단계 전에 실행 중인 배포 잡이 없는지 확인합니다.
+운영 설치(2026-11-15 적용, 다시 설치할 때도 같은 순서). 각 단계 전에 실행 중인 배포 잡이 없는지 확인합니다.
 
-1. 변경이 develop에 병합된 뒤 `deploy-ai.py`를 `deploy-backend` 옆에 설치합니다(`sudo install -o root -g root -m 0755 infra/jenkins/deploy-ai.py /opt/eolssu/bin/deploy-ai`). 같은 폴더의 `deploy-backend` 공통 함수를 읽으므로 두 파일을 함께 관리합니다. 보존 정리 도구도 같은 방법으로 `/opt/eolssu/bin/eolssu-retention`에 다시 설치합니다.
-2. `sudo visudo -f /etc/sudoers.d/<기존 Jenkins 배포 파일>`에 `jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-ai *`를 추가합니다.
+1. `deploy-ai.py`를 `deploy-backend` 옆에 설치합니다(`sudo install -o root -g root -m 0755 infra/jenkins/deploy-ai.py /opt/eolssu/bin/deploy-ai`). 같은 폴더의 `deploy-backend` 공통 함수를 읽으므로 두 파일을 함께 관리합니다. 보존 정리 도구도 같은 방법으로 `/opt/eolssu/bin/eolssu-retention`에 다시 설치합니다(이전 판은 `eolssu-retention.bak-244`).
+2. `visudo -cf`로 검사한 `/etc/sudoers.d/eolssu-ai`(root 0440)에 `jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-ai *`를 둡니다.
 3. 실행 중인 ai 컨테이너의 이미지와 `eolssu-ai:runtime` 태그가 같은지 확인합니다(`sudo docker inspect --format '{{.Image}}' eolssu-runtime-ai-1`, `sudo docker image inspect --format '{{.Id}}' eolssu-ai:runtime`). 다르면 도구가 시작을 거부합니다.
-4. Jenkins에 Pipeline 잡 `eolssu-ai`를 만들고, linter를 통과한 `ai.Jenkinsfile` 정의를 넣습니다. 처음에는 polling을 지우고 **Build Now**로 한 번 실행합니다. 확인할 것은 `ai-deployment.jsonl`의 `deployed`, 운영 `eolssu-ai:runtime`의 revision 라벨, backend 안의 422 응답(아래 명령), 분석 1건입니다.
-5. 문제가 없으면 polling을 되살립니다. 이후 수동 빌드 이미지는 source 라벨이 없으므로 다음 자동 실행이 다시 빌드·배포합니다.
+4. 슬롯과 잡은 [컨트롤러 문서](../jenkins/controller/README.md#ai-배포-전용-슬롯)대로 등록합니다. 잡을 처음 만들면 Jenkinsfile의 polling은 첫 실행 뒤에 켜지므로 **Build Now**로 한 번 실행합니다. 확인할 것은 `ai-deployment.jsonl`의 `deployed`, 운영 `eolssu-ai:runtime`의 revision 라벨, backend 안의 422 응답(아래 명령), 분석 1건입니다.
+5. 이후 수동 빌드 이미지는 source 라벨이 없으므로 다음 자동 실행이 다시 빌드·배포합니다.
 
 되돌리기: 잡을 비활성화합니다. 도구가 중단돼 journal이 `deploying`·`rollback_failed`이면 `sudo /opt/eolssu/bin/deploy-ai --recover`로 이전 이미지를 복구합니다. 배포가 끝난 뒤 이전 판으로 돌릴 때는 `sudo docker tag eolssu-ai:rollback eolssu-ai:runtime`을 실행한 뒤 아래 `up` 명령으로 `ai`만 재생성합니다.
 
