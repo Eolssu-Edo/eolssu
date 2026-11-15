@@ -79,8 +79,9 @@ data class EvaluationResult(
     }
 
     /**
-     * 틀린 칸이 가장 많이 몰린 이웃한 두 각(0부터)과 그 수. 틀린 칸이 없으면 null.
-     * 결과 화면의 '틀린 칸 14개 중 9개가 3–4각에 몰려 있어요' 문구에 쓴다.
+     * 틀린 정간([errors])이 가장 많이 몰린 이웃한 두 각(0부터)과 그 수. 틀린 정간이 없으면 null.
+     * 연주 결과에서 처음 고를 정간을 정할 때만 쓰고 수는 화면에 보이지 않는다.
+     * 화면의 '틀린 부분' 개수는 소박·음 단위로 센다(`core/ui/score`의 `errorCount`).
      */
     fun densestColumnPair(): Pair<Int, Int>? {
         if (errors.isEmpty()) return null
