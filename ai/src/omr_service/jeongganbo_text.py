@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -176,7 +177,24 @@ def _run(cmd: list[str], deadline: float) -> subprocess.CompletedProcess:
     remaining = deadline - monotonic()
     if remaining <= 0:
         raise TimeoutError()
-    try:
-        return subprocess.run(cmd, capture_output=True, timeout=remaining)  # 넘으면 자식 프로세스를 끝낸다
-    except subprocess.TimeoutExpired:
-        raise TimeoutError() from None
+    if os.name != "posix":
+        try:
+            return subprocess.run(cmd, capture_output=True, timeout=remaining)
+        except subprocess.TimeoutExpired:
+            raise TimeoutError() from None
+    # Audiveris' native launcher forks helpers. Own their session even when the
+    # direct child exits first; the container init process reaps adopted children.
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True) as child:
+        try:
+            try:
+                stdout, stderr = child.communicate(timeout=remaining)
+            finally:
+                try:
+                    os.killpg(child.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        except subprocess.TimeoutExpired:
+            # Close inherited output pipes only after terminating the whole tree.
+            child.communicate()
+            raise TimeoutError() from None
+        return subprocess.CompletedProcess(cmd, child.returncode, stdout, stderr)
