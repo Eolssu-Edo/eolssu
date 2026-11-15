@@ -280,13 +280,11 @@
    },
    {
     "path": "/opt/edo-check/collector.py",
-    "source": "infra/edo-check/collector.py",
-    "note": "2026-11-15 ece038d8(11-10)판. edo2 자체 점검용"
+    "source": "infra/edo-check/collector.py"
    },
    {
     "path": "/opt/edo-check/relay.py",
-    "source": "infra/edo-check/relay.py",
-    "note": "2026-11-15 cf283cdc(11-10)판. 763 applog 계측 미반영"
+    "source": "infra/edo-check/relay.py"
    },
    {
     "path": "/opt/edo-check/ssh-dispatch-edo2.sh",
