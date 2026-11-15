@@ -67,7 +67,10 @@ EOLSSU_SYSLOG_DIR = Path('/var/log/eolssu/ordinary')
 EOLSSU_SYSLOG_TAGS = {'eolssu-frontend', 'eolssu-backend', 'eolssu-ai', 'eolssu-mysql', 'eolssu-playback', 'eolssu-omr'}
 PROC_ROOT = Path('/proc')
 CGROUP_ROOT = Path('/sys/fs/cgroup')
-BLOG_EDITOR_ROLLBACK_NAME = re.compile(r'eolssu-blog-editor-writable-(?:before|rollback|pre)-[0-9a-f]{8}')
+# 662: <editor>-writable-<kind>-<8 hex>. 713: <editor>[-writable]-<task>-<UTC stamp>-<kind>.
+BLOG_EDITOR_ROLLBACK_NAME = re.compile(
+    r'eolssu-blog-editor-writable-(?:before|rollback|pre)-[0-9a-f]{8}'
+    r'|eolssu-blog-editor(?:-writable)?-[0-9]+-[0-9]{8}t[0-9]{6}z-(?:before|rollback|pre)')
 STORAGE_SNAPSHOT_PATH = Path('/var/lib/edo-check-storage/edo1.json')
 STORAGE_MAX_AGE = timedelta(minutes=45)
 R2_PROBE = '/opt/edo-check/r2_probe.py'
