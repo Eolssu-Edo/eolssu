@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [기초 배우기 돌다리 그림과 화면 UI 개선 (888)](plans/S15P31E102-888.md)
+
 - [시김새 편집 지원과 원본 반음올림표 재현 (920)](plans/S15P31E102-920.md) · [표시·입력 스펙](specs/score-sigimsae-display.md)
 
 - [운영 Nginx TLS 설정의 블로그 편집·IPA 블록 저장소 반영 (926)](plans/S15P31E102-926.md) · [운영 Nginx 규칙](../infra/runtime/README.md)
