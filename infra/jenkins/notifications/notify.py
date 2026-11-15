@@ -11,7 +11,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-JOB = re.compile(r'eolssu-[a-z0-9-]+')
+# 웹 수동 배포 잡(eolssu-frontend-web-수동배포용)처럼 한글이 든 잡 이름도 대상이다.
+JOB = re.compile(r'eolssu-[a-z0-9가-힣-]+')
+
+
+def job_path(job):
+    """Jenkins URL path for a top-level job; non-ASCII names must be percent-encoded."""
+    return 'job/' + urllib.parse.quote(job, safe='-') + '/'
 ERROR = re.compile(r'(?i)(^e: |\berror:|^FAILURE:|Execution failed for task|^\s*Caused by:\s*\S|\bexception\b|\bFAILED\b|No profiles|Unable to find|Could not resolve|No space left|Check database migrations)')
 
 
@@ -74,7 +80,7 @@ def render(data):
     reason, action = diagnose(data.get('log', ''), data.get('stage', ''))
     job, number = data['job'], int(data['number'])
     assert JOB.fullmatch(job) and number > 0
-    path = f'http://127.0.0.1:18080/job/{job}/{number}/'
+    path = f'http://127.0.0.1:18080/{job_path(job)}{number}/'
     sha = data.get('sha', '')
     revision = f'`{sha[:10]}`' if re.fullmatch('[a-f0-9]{40}', sha) else '미확인'
     authors = list(dict.fromkeys(data.get('authors', [])))
@@ -113,12 +119,12 @@ class Jenkins:
         return body.decode(errors='replace') if raw else json.loads(body)
 
     def jobs(self):
-        jobs = self.get('api/json?tree=jobs[name,builds[number,result,building]{0,100}]')['jobs']
+        jobs = self.get('api/json?tree=jobs[name,builds[number,result,building,timestamp,duration]{0,100}]')['jobs']
         return {j['name']:j.get('builds', []) for j in jobs if JOB.fullmatch(j['name'])}
 
     def detail(self, job, number):
         assert JOB.fullmatch(job) and int(number)>0
-        path = f'job/{job}/{int(number)}/'
+        path = f'{job_path(job)}{int(number)}/'
         tree = 'result,actions[causes[userName,shortDescription,upstreamProject,upstreamBuild],lastBuiltRevision[SHA1]],changeSets[items[author[fullName]]]'
         data = self.get(path+'api/json?tree='+tree)
         causes = [c for a in data.get('actions',[]) for c in a.get('causes',[])]
@@ -159,10 +165,20 @@ def save(path, data):
 def poll(api, path, sender):
     state = json.loads(path.read_text()) if path.exists() else {'jobs':{},'deliveries':{}}
     initial = not path.exists()
+    # The state file is rewritten on every poll, so its mtime is when the previous poll finished.
+    last_poll_ms = None if initial else path.stat().st_mtime * 1000
     for job, builds in api.jobs().items():
         if job not in state['jobs']:
-            state['jobs'][job] = {'floor':max([b['number'] for b in builds] or [0]) if initial else 0,
-                                  'pending':[b['number'] for b in builds if b.get('building')] if initial else []}
+            if initial:
+                floor = max([b['number'] for b in builds] or [0])
+            else:
+                # A job seen for the first time may be brand new or may only now match JOB (e.g. a
+                # Korean name). Skip builds that had already finished before the previous poll so
+                # its history is not re-announced; builds finishing later still alert.
+                floor = max([b['number'] for b in builds if not b.get('building') and 'timestamp' in b
+                             and b['timestamp'] + b.get('duration', 0) <= last_poll_ms] or [0])
+            # Running builds stay tracked even when an older-numbered one is still running.
+            state['jobs'][job] = {'floor':floor, 'pending':[b['number'] for b in builds if b.get('building')]}
         cursor = state['jobs'][job]
         selected = sorted([b for b in builds if b['number']>cursor['floor'] or b['number'] in cursor['pending']],key=lambda b:b['number'])
         for build in selected:

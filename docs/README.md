@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [Jenkins 실패 알림의 한글 잡 이름 처리 (952)](plans/S15P31E102-952.md) · [운영 안내](../infra/jenkins/notifications/README.md)
+
 - [서버 관리 파일·Jenkins 잡 정의와 저장소 일치 점검 (943)](plans/S15P31E102-943.md) · [점검 도구](../infra/drift/README.md)
 
 - [분석 실행기 지표 노출과 배포 시 진행 중 분석 보존 (947)](plans/S15P31E102-947.md) · [블루그린 계약](specs/backend-blue-green.md)
