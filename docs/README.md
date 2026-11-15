@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [Python 테스트를 Jenkins 변경 경로 기준으로 실행 (945)](plans/S15P31E102-945.md) · [선택 규칙·실측·격리 근거](knowledge/infra/python-tests-ci.md) · [운영 적용 절차](../infra/runtime/README.md#python-테스트-잡-s15p31e102-945)
+
 - [녹음·평가·기록 실제 흐름 검증 (933)](plans/S15P31E102-933.md) · [기록 메모 유니코드 문자 수](knowledge/frontend/record-memo-unicode-length.md)
 
 - [Jenkins backend 잡의 폐기용 MySQL databaseTest 단계 (946)](plans/S15P31E102-946.md)
@@ -33,6 +35,8 @@
 - [edo2 장애·복제·백업·디스크 상태 변화 Mattermost 자동 알림 (919)](plans/S15P31E102-919.md) · [운영 안내](../infra/edo-check/README.md#상태-변화-능동-알림)
 
 - [정간보 각 나눔과 연습 화면 다음 각 표시 통일 (922)](plans/S15P31E102-922.md)
+
+- [연습곡 선택·재생·설정 실기기 검증과 수정 (932)](knowledge/frontend/practice-playback-qa-932.md) · [작업 계획](plans/S15P31E102-932.md)
 
 - [PDF·사진 악보 변환 완료 앱 내 알림 (927)](plans/S15P31E102-927.md) · [알림 규칙](specs/sheet-conversion-completion.md)
 

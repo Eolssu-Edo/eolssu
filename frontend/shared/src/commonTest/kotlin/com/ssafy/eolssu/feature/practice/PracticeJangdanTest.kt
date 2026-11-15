@@ -20,6 +20,64 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeJangdanTest {
+    @Test fun skipButtonsBeforeFirstPlaybackUpdateTheTimelineAndKeepItPaused() = practice { vm, _, media, _ ->
+        vm.seekModel(5_000); runCurrent()
+        assertEquals(3_000.0, vm.uiState.value.elapsedMs, 0.001)
+        assertFalse(vm.uiState.value.playing)
+        assertEquals(0, media.loads)
+        vm.seekModel(-5_000); runCurrent()
+        assertEquals(0.0, vm.uiState.value.elapsedMs, 0.001)
+
+        vm.seekToFraction(0.5f); runCurrent()
+        vm.seekModel(-500); runCurrent()
+        assertEquals(1_000.0, vm.uiState.value.elapsedMs, 0.001)
+        assertEquals(0, media.loads)
+        vm.startModel(); runCurrent()
+        assertEquals(1_000L, media.state.value.positionMs)
+    }
+
+    @Test fun changingTempoBeforeFirstPlaybackPreservesTheSeekPosition() = practice { vm, _, media, _ ->
+        vm.seekModel(1_000); runCurrent()
+        val tick = vm.uiState.value.currentTick!!
+        vm.openPanel(PracticePanel.Tempo)
+        vm.updateDraft { it.copy(step = TempoStep.Slow) }; runCurrent()
+        assertEquals(48, vm.uiState.value.bpm)
+        assertEquals(tick, vm.uiState.value.currentTick!!, 0.001)
+        assertEquals(1_250.0, vm.uiState.value.elapsedMs, 0.001)
+        assertFalse(vm.uiState.value.playing)
+        assertEquals(0, media.loads)
+
+        vm.seekModel(500); runCurrent()
+        assertEquals(1_750.0, vm.uiState.value.elapsedMs, 0.001)
+        assertEquals(5.6, vm.uiState.value.currentTick!!, 0.001)
+        vm.startModel(); runCurrent()
+        assertEquals(1_400L, media.state.value.positionMs)
+    }
+
+    @Test fun disablingRhythmSoundWhilePreviewingAlsoClearsThePreviewControls() = practice { vm, samples, _, _ ->
+        vm.startRhythm(); runCurrent()
+        vm.openPanel(PracticePanel.Jangdan)
+        vm.togglePreview(); runCurrent()
+        assertTrue(vm.uiState.value.draft.previewing)
+        assertEquals(JangdanStatus.Playing, vm.uiState.value.jangdanStatus)
+
+        vm.updateDraft { it.copy(jangdanSound = false) }; runCurrent()
+        assertEquals(JangdanStatus.Idle, vm.uiState.value.jangdanStatus)
+        assertFalse(vm.uiState.value.draft.previewing, "Stopped audio must not leave a stop-preview button")
+        assertEquals(0, vm.uiState.value.draft.previewBeat)
+        val stoppedHits = samples.hits.size
+        advanceTimeBy(750); runCurrent()
+        assertEquals(stoppedHits, samples.hits.size)
+        assertEquals(0, vm.uiState.value.draft.previewBeat, "A stopped preview must not keep its beat timer")
+
+        vm.togglePreview(); runCurrent()
+        assertTrue(vm.uiState.value.draft.previewing)
+        assertEquals(JangdanStatus.Playing, vm.uiState.value.jangdanStatus)
+        vm.togglePreview(); runCurrent()
+        assertFalse(vm.uiState.value.draft.previewing)
+        assertEquals(JangdanStatus.Idle, vm.uiState.value.jangdanStatus)
+    }
+
     @Test fun basicRhythmUsesSavedPickupAndAccentsThenStopsWithoutACatalogMapping() = practice(
         basic = BasicAccompaniment(BasicPulseUnit.EIGHTH, listOf(2, 3), 4),
     ) { vm, samples, _, _ ->

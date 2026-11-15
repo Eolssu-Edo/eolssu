@@ -137,9 +137,9 @@ Windows PowerShell 5.1에서는 파이프가 바이너리를 글자로 바꿔 ta
 
 - 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 512MiB tmpfs로 씁니다(녹음 임시 파일, numba 캐시).
 - 메모리 한도는 6GiB입니다. AI는 채점 DTW 예상 메모리가 4GiB(120초 × 120초)를 넘는 요청을 먼저 거절하고, 120초 녹음 채점에 약 3GiB가 듭니다([측정 기록](../../docs/knowledge/ai/analysis-latency.md)). backend는 분석을 기본 2개까지 동시에 보내므로, 긴 녹음 두 개가 겹치면 한도를 넘어 `ai`가 재시작되고 두 세션이 `SERVER_ERROR`가 될 수 있습니다.
-- 요청 본문의 녹음 서명 URL은 uvicorn 접근 로그(경로만 남김)와 분석 로그(`analysis session=… attempt=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo docker logs eolssu-runtime-ai-1`에서 `X-Amz`·`audioUrl`이 없는지 확인합니다.
+- 요청 본문의 녹음 서명 URL은 uvicorn 접근 로그(경로만 남김)와 분석 로그(`analysis session=… attempt=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo sh -c 'grep -ciE "X-Amz|audioUrl" /var/log/eolssu/ordinary/eolssu-ai.$(date -u +%F).log'`가 0인지 확인합니다. 운영 컨테이너는 syslog 로그 드라이버라 `docker logs`가 아무것도 읽지 못해, 그 명령으로는 늘 '없음'처럼 보입니다.
 
-backend가 분석을 시작하지 못하면 업로드마다 경고 로그가 남습니다. 배포 뒤 `sudo docker logs "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" 2>&1 | grep -i wiring`이 비어 있어야 합니다.
+backend가 분석을 시작하지 못하면 업로드마다 경고 로그가 남습니다. 배포 뒤 `sudo sh -c 'grep -i wiring /var/log/eolssu/ordinary/eolssu-backend.$(date -u +%F).log'`가 비어 있어야 합니다.
 
 ### omr 악보 인식 서비스
 
@@ -173,7 +173,7 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" \
 
 - 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 1GiB tmpfs로 씁니다(원본·쪽 그림·Audiveris 작업 폴더와 홈 `/tmp/home`). 로컬 실측에서 요청 사이 `/tmp`는 14MB였습니다.
 - 메모리 한도 2GiB, CPU 2개입니다. Audiveris는 한 번에 하나만 돌고(동시 요청은 남은 시간 안에서 기다림), 로컬 실측 최대 1.31GiB(tmpfs 포함)였습니다. Audiveris가 도는 동안 다른 요청이 큰 PDF 쪽을 그림으로 바꾸는 경우는 재지 않았습니다. 정간보 그림 경로([S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458), torch)를 붙이면 다시 잽니다.
-- 요청 본문의 서명 URL은 uvicorn 접근 로그와 인식 로그(`recognition conversion=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo docker logs eolssu-runtime-omr-1`에서 `X-Amz`·`url`이 없는지 확인합니다.
+- 요청 본문의 서명 URL은 uvicorn 접근 로그와 인식 로그(`recognition conversion=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo sh -c 'grep -ciE "X-Amz|https?://" /var/log/eolssu/ordinary/eolssu-omr.$(date -u +%F).log'`가 0인지 확인합니다. rsyslog는 omr 줄 중 healthcheck·요청 경로와, 변환 ID가 `sheet-<숫자>-<숫자>`인 인식 요약만 저장합니다([규칙](../privacy/30-eolssu-logs.conf)). 그래서 아래 시험 요청(`probe-…`)의 요약 줄은 남지 않습니다.
 
 서버(4코어) 처리 시간과 메모리는 처음 배포할 때 사람이 잽니다. omr은 파일을 URL로만 받고 컨테이너가 읽기 전용이라, 시험 그림을 같은 내부망의 임시 웹 서버(`omr-probe`, omr 이미지의 Python 사용)로 내보내고 backend 컨테이너에서 요청합니다. 서버에 컨테이너를 잠깐 더 띄우는 일이므로 실행하는 사람이 판단합니다. 시험 그림은 [조사 문서](../../docs/knowledge/ai/score-omr-feasibility.md) 5절의 4곡 오선보 쪽 그림(표준악보집 300DPI PNG, 오른쪽 반)입니다.
 
@@ -510,6 +510,27 @@ Pipeline Graph View에서 빌드를 열어 `Stages`의 `Deploy ... transaction`�
 블로그 잡은 별도 blog 브랜치의 `Jenkinsfile`·`scripts/deploy.sh`를 사용합니다. 작업 S15P31E102-262의 blog 브랜치 변경은 정리·checkout·Hugo 준비/빌드·산출물 검사·Pages 원격 준비·파일 복사·커밋·Push의 9단계로 나눕니다. blog 변경은 blog 대상 MR로 전달하고 기존 SCM 정의와 polling을 보존합니다. 원격 반영/병합 전에는 운영 blog 잡에 새 stage가 적용되지 않습니다.
 
 검증은 `python3 -B -m unittest discover -s infra/jenkins/tests -v`, `python3 -B -m unittest discover -s infra/backup/tests -p test_deploy_hooks.py -v`로 수행합니다. 별도 임시 Jenkins 잡에서 성공·phase 실패/롤백·프로세스 중단·로그 없는 실패를 주입해 실제 stage 결과와 후속 단계 차단을 검증했습니다. 앱 배포나 공개 Pages 게시를 이 검증에 사용하지 않습니다.
+
+### Python 테스트 잡 (S15P31E102-945)
+
+`eolssu-python-tests`는 `eolssu-backend`가 성공·불안정·실패로 끝날 때마다, 그리고 매주 월요일 새벽에 전체 검사로 develop을 다시 받아 직전 성공 실행과의 변경 경로에 맞는 infra·catalog·data·ai 테스트만 실행합니다. 배포·DB·외부 서비스는 건드리지 않습니다. 실패 알림은 `eolssu-*` 잡을 읽는 기존 [Jenkins 실패 알림](../jenkins/notifications/README.md)이 그대로 보냅니다. 선택 규칙·실측·격리 테스트는 [Python 테스트 CI 기록](../../docs/knowledge/infra/python-tests-ci.md)을 따릅니다. **아직 운영 Jenkins에 등록하지 않았습니다.** 발표(11-18) 동결이 끝난 뒤 사용자 확인을 받고 적용합니다.
+
+| 파일 | 역할 |
+| --- | --- |
+| [python-tests.Jenkinsfile](../jenkins/python-tests.Jenkinsfile) | 잡 정의. 서버 복사본 `/opt/eolssu/config/python-tests.Jenkinsfile`(root 0644) |
+| [python-tests.py](../jenkins/python-tests.py) | `plan`(변경 경로→묶음), `run <묶음>`(환경 준비·실행), `run <묶음> --quarantine` |
+| [python-tests-requirements.txt](../jenkins/python-tests-requirements.txt) | data·catalog 고정 의존성. ai는 `ai/uv.lock` |
+| [register-python-tests.groovy](../jenkins/register-python-tests.groovy) | 잡 생성 전용. 이미 있으면 같은 정의일 때만 통과하고 덮어쓰지 않음 |
+
+적용 전제는 Jenkins 사용자로 `python3`와 `uv`(ai 이미지와 같은 0.13.6)를 실행할 수 있고, 첫 실행에서 uv가 Python 3.12와 패키지를 받을 외부 연결이 있는 것입니다. 받은 Python·패키지는 Jenkins 사용자의 uv 캐시에 남아 다음 실행부터 재사용됩니다.
+
+1. 실행 중·대기 중인 빌드가 없을 때 edo1에서 `sudo -u jenkins python3 --version`, `sudo -u jenkins uv --version`을 확인합니다. uv가 없으면 버전을 고정해 설치한 뒤 진행합니다.
+2. 검토한 커밋의 `python-tests.Jenkinsfile`을 `/opt/eolssu/config/`에 root 소유 0644로 설치하고 Jenkins linter를 통과시킵니다.
+3. 기존 관리자 CLI의 `groovy =`로 `register-python-tests.groovy`를 실행합니다. 이어서 **Build Now**로 한 번 실행해 매개변수와 트리거를 등록합니다(기준 SHA가 없어 첫 실행은 모든 묶음을 검사합니다). 그리고 단계별 결과와 소요 시간을 [기록](../../docs/plans/S15P31E102-945.md)에 남깁니다.
+4. 다음 develop 병합 뒤 `eolssu-backend` 완료 직후 이 잡이 예약되는지, 빌드 설명의 SHA·묶음이 변경 경로와 맞는지 확인합니다.
+5. [일치 점검 manifest](../drift/manifest.json)에 `/opt/eolssu/config/python-tests.Jenkinsfile`과 `eolssu-python-tests` 잡 두 줄을 더하고 `python3 -I -B infra/drift/check.py --host edo1`로 일치를 확인합니다. 등록 전에 넣으면 `서버 없음`으로 실패하므로 등록 뒤에 넣습니다.
+
+되돌릴 때는 실행·예약이 없는 상태에서 잡을 비활성화합니다. 다른 잡과 서버 파일은 바꾸지 않으므로 함께 되돌릴 대상이 없습니다. 로컬·리뷰 검증은 `python3 -B -m unittest discover -s infra/jenkins/tests -p test_python_tests.py -v`와 `python3 -B infra/jenkins/python-tests.py run <묶음> --work <새 폴더>`로 합니다.
 
 ## 테스트 회원의 인증 만료 예외
 
