@@ -35,6 +35,10 @@
     "source": "infra/jenkins/controller/eolssu-jenkins-agent.service"
    },
    {
+    "path": "/etc/systemd/system/eolssu-jenkins-ai-agent.service",
+    "source": "infra/jenkins/controller/eolssu-jenkins-ai-agent.service"
+   },
+   {
     "path": "/etc/systemd/system/eolssu-jenkins-notify.service",
     "source": "infra/jenkins/notifications/eolssu-jenkins-notify.service"
    },
@@ -109,6 +113,10 @@
    {
     "path": "/opt/eolssu-replication-579/source-stream.conf",
     "source": "infra/standby/source-stream.conf"
+   },
+   {
+    "path": "/opt/eolssu/bin/deploy-ai",
+    "source": "infra/jenkins/deploy-ai.py"
    },
    {
     "path": "/opt/eolssu/bin/deploy-backend",
@@ -220,6 +228,10 @@
    {
     "path": "/opt/eolssu/mysql-admin/config.user.inc.php",
     "source": "infra/mysql-admin/config.user.inc.php"
+   },
+   {
+    "job": "eolssu-ai",
+    "source": "infra/jenkins/ai.Jenkinsfile"
    },
    {
     "job": "eolssu-android-qa",
