@@ -197,6 +197,29 @@ class PracticePersonalAudioTest {
         assertEquals(1, fixture.requests.size)
     }
 
+    @Test fun unreadableSavedDownloadKeepsRetryAvailableUntilTheFileCanBeLoaded() = practiceTest { vm, fixture, player ->
+        fixture.request = SheetAudioRequest.Accepted(fixture.done)
+        fixture.savedLookupUnavailable = true
+        vm.downloadPersonalAudio()
+        runCurrent()
+        assertEquals(1, fixture.saves)
+        assertEquals(PracticePersonalAudio.Failed, vm.uiState.value.personalAudio)
+        assertEquals(PracticePersonalAudio.Failed, vm.uiState.value.personalAudioControl)
+        assertEquals(PracticePlayerNotice.PersonalDownloadFailed, vm.uiState.value.playerNotice)
+        assertEquals(0, player.loads)
+
+        fixture.savedLookupUnavailable = false
+        vm.downloadPersonalAudio()
+        runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(PracticePlayerNotice.PersonalAudioReady, vm.uiState.value.playerNotice)
+        assertEquals(1, fixture.requests.size)
+        assertEquals(1, fixture.saves)
+        vm.startModel()
+        runCurrent()
+        assertEquals(1, player.loads)
+    }
+
     @Test fun rejectsAnotherVersionsFileEvenWhenTheScoreIsStillCurrent() = practiceTest { vm, fixture, player ->
         fixture.request = SheetAudioRequest.Accepted(fixture.done.copy(scoreVersion = "2"))
         vm.downloadPersonalAudio()
@@ -288,6 +311,7 @@ class PracticePersonalAudioTest {
         var statusReads = 0
         var saves = 0
         var saved: DeviceSheetAudio? = null
+        var savedLookupUnavailable = false
         var downloadFinished: CompletableDeferred<Unit>? = null
 
         override val available = true
@@ -303,7 +327,7 @@ class PracticePersonalAudioTest {
         }
         override suspend fun find(accountId: String, sheetId: String, scoreVersion: String): DeviceSheetAudio? {
             assertEquals(Triple("7", "42", "1"), Triple(accountId, sheetId, scoreVersion))
-            return saved
+            return saved.takeUnless { savedLookupUnavailable }
         }
         override suspend fun save(accountId: String, sheetId: String, scoreVersion: String, download: SheetAudioDownload): DeviceSheetAudio {
             assertEquals(Triple("7", "42", "1"), Triple(accountId, sheetId, scoreVersion))

@@ -895,8 +895,10 @@ class PracticeViewModel(
                     current.personalAudio !in setOf(PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading)
                 ) return@update current
                 when (result) {
-                    SheetPracticeDownload.Saved -> current.copy(personalAudio = PracticePersonalAudio.Ready,
-                        modelAudioStatus = ModelAudioStatus.Idle).withModelAudio(modelAudio.state.value)
+                    SheetPracticeDownload.Saved -> if (audio != null) {
+                        current.copy(personalAudio = PracticePersonalAudio.Ready,
+                            modelAudioStatus = ModelAudioStatus.Idle).withModelAudio(modelAudio.state.value)
+                    } else current.copy(personalAudio = PracticePersonalAudio.Failed)
                     SheetPracticeDownload.UnsupportedPitches -> current.copy(personalAudio = PracticePersonalAudio.UnsupportedPitches)
                     SheetPracticeDownload.Failed -> current.copy(personalAudio = PracticePersonalAudio.Failed)
                     SheetPracticeDownload.VersionChanged -> current.copy(personalAudio = PracticePersonalAudio.VersionChanged)
