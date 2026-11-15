@@ -54,6 +54,7 @@ val PracticeInstruments: List<Instrument> = listOf(Instrument.Danso, Instrument.
  * 누르면 알약 오른쪽 끝에 맞춘 메뉴가 아래로 열리고,
  * 고르면 [onSelect]로 전달한 뒤 닫힌다. 저장 중([enabled]=false)에는 열리지 않는다. 누르는 높이는 48dp를 유지한다.
  * [bordered]가 false면 테두리 없는 흰 알약이다(연습곡 고르기의 회색 바탕).
+ * 놓인 자리가 좁으면 그림과 꺽쇠는 두고 악기 이름만 ‘정악…’처럼 말줄임한다(S15P31E102-924).
  */
 @Composable
 fun PracticeInstrumentDropdown(
@@ -89,6 +90,8 @@ fun PracticeInstrumentDropdown(
                 InstrumentPicture(shown, size = InstrumentPictureCompactSize)
                 Text(
                     selectedLabel,
+                    // 이름을 나중에 재서 꺽쇠 자리를 먼저 남긴다.
+                    modifier = Modifier.weight(1f, fill = false),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
