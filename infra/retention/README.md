@@ -2,7 +2,7 @@
 
 작업: [S15P31E102-921](../../docs/plans/S15P31E102-921.md). 측정 근거, 보호 규칙 선택 이유, 운영 적용 순서는 작업 기록을 따른다.
 
-`retention.py`는 edo1의 `/opt/eolssu/releases/<SHA>`, `eolssu-backend:ci-<SHA>`·`eolssu-frontend:ci-<SHA>` 이미지 태그, 72시간 지난 빌드 캐시를 정리한다. 다른 이미지·컨테이너·볼륨과 SHA 형식이 아닌 디렉터리는 건드리지 않는다.
+`retention.py`는 edo1의 `/opt/eolssu/releases/<SHA>`, `eolssu-backend:ci-<SHA>`·`eolssu-frontend:ci-<SHA>`·`eolssu-ai:ci-<SHA>` 이미지 태그, 72시간 지난 빌드 캐시를 정리한다. ai 태그를 지워도 `eolssu-ai:runtime`·`eolssu-ai:rollback`이 가리키는 이미지는 이름표만 빠지고 남는다([S15P31E102-244](../../docs/plans/S15P31E102-244.md)). 다른 이미지·컨테이너·볼륨과 SHA 형식이 아닌 디렉터리는 건드리지 않는다.
 
 | 보호 대상 | 근거 |
 | --- | --- |
