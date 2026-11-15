@@ -58,6 +58,7 @@ internal fun SheetDraft.correctPitch(target: SheetPitchCorrection, pitch: Pair<Y
         }) })
     return corrected.editingDraft(title, bpm, jangdan).copy(jangdanId = jangdanId,
         editedJangdanName = editedJangdanName, authoring = authoring,
+        tempoExpressions = tempoExpressions, tempoReferenceBpm = tempoReferenceBpm,
         adaptationBaseline = sourcePitchNotes().associate { it.eventId to it.midi })
 }
 

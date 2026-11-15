@@ -6,9 +6,14 @@
  <button id="tab-prometheus" role="tab" aria-controls="site-panel" aria-selected="false" tabindex="-1">Prometheus</button>
  <button id="tab-jenkins" role="tab" aria-controls="site-panel" aria-selected="false" tabindex="-1">Jenkins</button>
  <button id="tab-db" role="tab" aria-controls="site-panel" aria-selected="false" tabindex="-1">DB</button>
+ <button id="tab-erd" role="tab" aria-controls="site-panel" aria-selected="false" tabindex="-1">ERD</button>
  <button id="tab-n8n" role="tab" aria-controls="site-panel" aria-selected="false" tabindex="-1">n8n</button>
  <button id="tab-playstore" title="기본 브라우저에서 열기" role="tab" aria-controls="site-panel" aria-selected="false" tabindex="-1">PlayStore출시</button>
 </nav>
+<div id="erd-toolbar" hidden>
+ <span id="erd-browser-error" class="error" role="status"></span>
+ <button id="erd-browser" class="secondary">브라우저에서 열기</button>
+</div>
 <main id="updates-panel" role="tabpanel" aria-labelledby="tab-updates">
 <section class="card" id="graph-cleanup" aria-labelledby="graph-title" hidden>
  <div class="line graph-row">

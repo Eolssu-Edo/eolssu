@@ -28,4 +28,11 @@
     <string name="sheet_review_notice_transposed">음높이 조정 · %1$s반음</string>
     <string name="sheet_review_notice_transposed_unknown">변환하면서 조를 옮겼어요.</string>
     <string name="sheet_review_notice_other">악보를 원본과 비교해 확인해 주세요.</string>
+    <string name="sheet_review_notice_information">변환 참고 · 아래 안내는 저장을 막지 않아요</string>
+    <string name="sheet_review_notice_tempo_pdf">PDF의 빠르기 표시를 보완했어요. 편집 설정의 빠르기를 원본과 비교해 주세요.</string>
+    <string name="sheet_review_notice_tempo_pdf_count">PDF의 빠르기 표시 %1$d곳을 보완했어요. 편집 설정의 빠르기를 원본과 비교해 주세요.</string>
+    <string name="sheet_review_notice_voice">성부·화음 중 선율을 골랐어요. 악보에 빠지거나 다른 음이 없는지 원본과 비교해 주세요.</string>
+    <string name="sheet_review_notice_occurrences">%1$s (같은 안내 %2$d건)</string>
+    <string name="sheet_review_notice_measure">원본 %1$s마디 · %2$s</string>
+    <string name="sheet_review_notice_global">악보 전체 · %1$s</string>
 </resources>

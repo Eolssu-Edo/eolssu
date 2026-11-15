@@ -45,6 +45,19 @@ internal fun recommendedAdaptations(plans: List<PitchAdaptationPlan>): List<Pitc
         .thenBy { abs(it.transpose) }.thenBy { it.octaveChanges }.thenBy { it.octaveDistance }.thenBy { it.transpose }))
         .distinctBy { it.transpose }
 
+/** Last applied original-relative offset belongs to this draft, never to a shared slider preference. */
+internal val SheetDraft.appliedTranspose: Int
+    get() = ((authoring?.get("adaptation") as? JsonObject)?.get("transpose") as? JsonPrimitive)
+        ?.takeUnless { it.isString }?.intOrNull?.takeIf { it in -6..6 } ?: 0
+
+/** Missing/null is not a server-side clear: send zero when undo restores a draft without an adaptation. */
+internal fun SheetDraft.authoringForSave(instrumentCode: String): JsonObject? = authoring?.let { metadata ->
+    if (metadata["adaptation"] != null && metadata["adaptation"] != JsonNull) metadata
+    else JsonObject(metadata + ("adaptation" to buildJsonObject {
+        put("instrument", instrumentCode); put("transpose", 0); put("changes", JsonArray(emptyList()))
+    }))
+}
+
 internal fun SheetDraft.originalPitchLayoutMatches(): Boolean {
     val source = authoring?.get("source")?.jsonObject
     val saved = source?.get("notes")?.jsonArray.orEmpty()
@@ -136,5 +149,6 @@ internal fun SheetDraft.applyAdaptation(plan: PitchAdaptationPlan, capability: C
     })) }
     return adapted.editingDraft(title, bpm, jangdan).copy(jangdanId = jangdanId,
         editedJangdanName = editedJangdanName, authoring = metadata,
+        tempoExpressions = tempoExpressions, tempoReferenceBpm = tempoReferenceBpm,
         adaptationBaseline = plan.notes.associate { it.source.eventId to it.source.midi })
 }

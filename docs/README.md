@@ -2,6 +2,16 @@
 
 - [개인정보 처리방침 내 악보 업로드·재생 음원 고지 (918)](plans/S15P31E102-918.md) · [약관 공개 계약](specs/terms-release.md#2026-11-15-결정2026-11-16-판-내-악보-업로드와-재생-음원-고지-s15p31e102-918)
 
+- [정간보 각 나눔과 연습 화면 다음 각 표시 통일 (922)](plans/S15P31E102-922.md)
+
+- [PDF·사진 악보 변환 완료 앱 내 알림 (927)](plans/S15P31E102-927.md) · [알림 규칙](specs/sheet-conversion-completion.md)
+
+- [무음 판정과 오답·미검출 채점 분리 (291)](plans/S15P31E102-291.md) · [실패 기준](specs/practice-analysis-failure.md#실패-코드)
+
+- [가져온 악보의 악기 맞춤 후 구간 빠르기 소실 원인·수정 (882)](knowledge/frontend/imported-tempo-editor-state.md)
+
+- [기초 배우기 돌다리 그림과 화면 UI 개선 (888)](plans/S15P31E102-888.md)
+
 - [시김새 편집 지원과 원본 반음올림표 재현 (920)](plans/S15P31E102-920.md) · [표시·입력 스펙](specs/score-sigimsae-display.md)
 
 - [운영 Nginx TLS 설정의 블로그 편집·IPA 블록 저장소 반영 (926)](plans/S15P31E102-926.md) · [운영 Nginx 규칙](../infra/runtime/README.md)
@@ -27,8 +37,10 @@
 - [악보 불러오기·올리기·편집 화면 배치 정리와 자동저장 중단 (889)](plans/S15P31E102-889.md)
 
 - [이조 슬라이더 최초 원조 유지·눈금 정렬·간격 (893)](specs/score-authoring-consistency.md#이조-슬라이더-최초-선택과-표식-정렬-s15p31e102-893) · [원인·좌표 실측](knowledge/frontend/sheet-pitch-adaptation.md#최초-원조-유지와-이조-눈금-끝점-정렬-893) · [계획·검증](plans/S15P31E102-893.md)
+- [악보 편집 재진입의 마지막 이조 위치 복원 (929)](plans/S15P31E102-929.md) · [복원 계약](specs/sheet-transpose-restoration.md) · [기존 메타데이터·원인](knowledge/frontend/sheet-pitch-adaptation.md#저장재진입의-마지막-이조-위치-복원-929)
 
 - [선택 위치 검수 안내 (890)](specs/score-authoring-consistency.md#인식-검수-이유의-정간-클릭-안내-s15p31e102-890) · [원인·OMR 운영 배포](knowledge/frontend/sheet-pitch-adaptation.md#사용자-승인-후-omr-배포-890) · [검증·인수인계](plans/S15P31E102-890.md)
+- [저장 창 반복 검수 안내의 원인·위치별 개선 (928)](plans/S15P31E102-928.md) · [안내 스펙](specs/sheet-review-guidance.md) · [참고 안내와 실제 검수의 구분](knowledge/frontend/sheet-editor-save-validation.md#반복-참고-안내와-실제-미확인-검수의-구분-928)
 - [악보 리듬 보존·무반주 저장·악보별 기본 박 반주 (883)](specs/score-rhythm-preservation.md) · [실제 악보 전후 비교](knowledge/data/common/rhythm-metronome/meter-import-validation.md) · [작업 기록](plans/S15P31E102-883.md)
 
 - [분석 완료 후 음역·이조 즉시 사용 (879)](specs/sheet-adaptation-readiness.md) · [중복 조회 원인과 실제 검증](knowledge/frontend/sheet-adaptation-readiness.md) · [계획·검증](plans/S15P31E102-879.md)
@@ -102,6 +114,7 @@
 - [edo1·edo2 운영 로그 중복과 증가량 줄이기 (712)](plans/S15P31E102-712.md) · [운영 로그 집계](knowledge/infra/edo-operational-logging.md)
 - [R2·저장공간 최신성·독립 HTTPS 운영 점검 (709)](plans/S15P31E102-709.md)
 - [edo1·edo2 Docker 기본 로그 크기 회전 제한 (713)](plans/S15P31E102-713.md) · [적용·복구 절차](../infra/docker/README.md)
+- [edo1 배포 산출물과 edo2 설정 백업 보존 정리 (921, 295 실측)](plans/S15P31E102-921.md) · [정리 도구](../infra/retention/README.md)
 - [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
 - [연습 화면 외 정간보 공통 형식 (591)](knowledge/frontend/reading-score-format.md)
@@ -391,6 +404,9 @@
 - [장단 선택·저장·재생의 이전 통합 검증 근거](knowledge/frontend/sheet-jangdan-consistency.md)
 
 - [S15P31E102-766 개인 악보 저장과 미리듣기 상태](plans/S15P31E102-766.md)
+
+- [S15P31E102-579 edo2 운영 대기계 배포·장애 전환 계획](plans/S15P31E102-579.md) · [격리 환경 운영 안내](../infra/standby/README.md)
+
 - [S15P31E102-518 연습 모드 선택·평가 장단·악보 공간](plans/S15P31E102-518.md)
 
 - [S15P31E102-306 탈퇴 유예 만료 후 취소 차단과 녹음 삭제 경합 수정](plans/S15P31E102-306.md)
@@ -519,7 +535,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [QA APK MR 자동 반영과 기기별 최신 설치](knowledge/infra/qa-apk-mr-metadata.md)
 - [QA MR 동기화 10개 단위 조회 (624)](plans/S15P31E102-624.md)
 
-- [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)
+- [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [529 ERD 탭](plans/S15P31E102-529.md) · [사용·패키징](../infra/tool-updates/README.md)
 
 - [이전 연주 기록의 단독 평가·악기명 연결 (530)](plans/S15P31E102-530.md)
 
