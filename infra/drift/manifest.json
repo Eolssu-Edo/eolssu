@@ -8,8 +8,7 @@
    },
    {
     "path": "/etc/systemd/system/edo-check-outside.service",
-    "source": "infra/edo-check/edo-check-outside.service",
-    "note": "S15P31E102-944 작업으로 서버 선적용"
+    "source": "infra/edo-check/edo-check-outside.service"
    },
    {
     "path": "/etc/systemd/system/edo-check-outside.timer",
@@ -93,8 +92,7 @@
    },
    {
     "path": "/opt/edo-check/outside.py",
-    "source": "infra/edo-check/outside.py",
-    "note": "S15P31E102-944 작업으로 서버 선적용, 병합 전까지 불일치"
+    "source": "infra/edo-check/outside.py"
    },
    {
     "path": "/opt/edo-check/r2_probe.py",
