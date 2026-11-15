@@ -80,7 +80,7 @@ fun PracticeStepToggle(state: PracticeUiState, onToggle: () -> Unit, modifier: M
 
 /**
  * 작은 알약 스위치: 32dp 높이 테두리 없는 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두). 누르는 영역은 44dp 이상이다.
- * ‘한 음씩’ 토글과 연주 평가 제목 옆 ‘운지법 보기’·‘쉬운 표기’(S15P31E102-716)가 함께 쓴다.
+ * ‘한 음씩’ 토글과 연주 평가 제목 옆 ‘운지법 보기’(S15P31E102-716)가 함께 쓴다.
  */
 @Composable
 fun PracticeMiniToggle(

@@ -32,7 +32,6 @@ import com.ssafy.eolssu.feature.practice.sectionEvaluation
 import eolssu.shared.generated.resources.jangdan_practice_label
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_eval_title
-import eolssu.shared.generated.resources.practice_menu_notation
 import eolssu.shared.generated.resources.practice_settings
 import eolssu.shared.generated.resources.practice_subtitle
 import eolssu.shared.generated.resources.practice_subtitle_mine
@@ -95,7 +94,8 @@ fun PracticeTopBar(
  * 본문 첫 줄(`.section-row`): 곡 제목(Song Myung 25sp, 운지법과 함께 보기는 22sp)과 오른쪽 `.pill` ‘{악기} · {난이도}’.
  * 연습 모드는 ‘{악기} · 연습 모드’, 내 악보 연습은 ‘{악기} · 내 악보’다.
  * [showPill]이 false이면(휴대폰 연습 화면) 오른쪽을 비워 둔다. 상태 문구(‘연습 준비’·‘연주 중’ 등)는 어느 화면에도 두지 않는다.
- * [toggles]가 있으면(연주 평가 휴대폰 화면, S15P31E102-716) 제목 아래 줄 오른쪽에 ‘운지법 보기’·‘쉬운 표기’ 스위치를 둔다.
+ * [toggles]가 있으면(연주 평가 휴대폰 화면, S15P31E102-716) 제목 아래 줄 오른쪽에 ‘운지법 보기’ 스위치를 둔다.
+ * ‘한글 읽는 법 표시’는 연습 설정 안에 있다(S15P31E102-875).
  * 곡 제목은 어느 경우에도 한 줄이고, 다 들어가지 않을 때만 왼쪽으로 흘린다(S15P31E102-730).
  */
 @Composable
@@ -120,7 +120,6 @@ fun PracticeTitleRow(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Spacer(Modifier.weight(1f))
                 PracticeMiniToggle(stringResource(Res.string.practice_title_fingering), state.fingeringView, toggles.onToggleFingering)
-                PracticeMiniToggle(stringResource(Res.string.practice_menu_notation), state.settings.showHangul, toggles.onToggleNotation)
             }
         }
         return
@@ -132,7 +131,7 @@ fun PracticeTitleRow(
 }
 
 /** 연주 평가 제목 옆 스위치 동작(S15P31E102-716). */
-class PracticeTitleToggles(val onToggleFingering: () -> Unit, val onToggleNotation: () -> Unit)
+class PracticeTitleToggles(val onToggleFingering: () -> Unit)
 
 /** `.pill`: 연두 20% 바탕에 10sp 600 짙은 연두 글자, 반지름 4, 여백 3·7. */
 @Composable

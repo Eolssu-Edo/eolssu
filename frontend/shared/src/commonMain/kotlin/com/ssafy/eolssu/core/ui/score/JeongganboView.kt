@@ -185,6 +185,7 @@ data class ScoreCellMark(
  * @param currentIndex 현재 위치의 연주 순서([ScoreEvent.index]). 그 정간을 강조하고 앞의 정간을 흐리게 한다.
  * @param playback 재생·연주 중이면 진행 모습([ScorePlayback])으로 그린다. 이때 현재 음은 [currentIndex] 대신 진행 위치에서 읽는다.
  * @param follow 현재 위치가 화면 밖으로 나가면 가로로 따라간다. 사용자가 악보를 끌면 [onUserScroll]을 부른다.
+ * @param userScrollEnabled false면 사용자가 악보를 끌어 넘길 수 없다. 따라가기([follow])는 그대로 움직인다(평가 연주 중).
  * @param errors 틀린 정간(각, 정간) → 틀린 항목. 종류별 색·아이콘으로 칠한다. 곁줄(가사 칸)이 있으면 바탕·테두리는 가사 칸까지 덮는다
  *   ([decorations]·[section]도 같다). 종류 아이콘은 율명 칸 오른쪽 위에 둔다.
  * @param errorKinds 틀린 정간(각, 정간) → 그 정간의 틀린 종류 전부. 있으면 종류마다 아이콘 상자를 오른쪽 끝에 세로로 쌓는다(한 정간의 복합 오류).
@@ -225,6 +226,7 @@ fun JeongganboView(
     playback: ScorePlayback? = null,
     follow: Boolean = false,
     onUserScroll: () -> Unit = {},
+    userScrollEnabled: Boolean = true,
     errors: Map<Pair<Int, Int>, ScoreErrorKind> = emptyMap(),
     errorKinds: Map<Pair<Int, Int>, List<ScoreErrorKind>> = emptyMap(),
     unitErrors: Map<ScoreUnitKey, List<ScoreErrorKind>> = emptyMap(),
@@ -326,7 +328,7 @@ fun JeongganboView(
     val playingKey = if (live) currentUnit?.key else null
 
     val rowModifier = if (scrollState != null) {
-        Modifier.horizontalScroll(scrollState, reverseScrolling = true)
+        Modifier.horizontalScroll(scrollState, enabled = userScrollEnabled, reverseScrolling = true)
     } else {
         Modifier.wrapContentWidth(align = Alignment.End, unbounded = true)
     }

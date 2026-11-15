@@ -72,8 +72,6 @@ class PracticeScreenActions(
     val panel: PracticePanelActions,
     val dialog: PracticeDialogActions,
     val onRetrySong: () -> Unit = {},
-    /** 연주 평가 제목 옆 ‘쉬운 표기’(S15P31E102-716). */
-    val onToggleHangul: () -> Unit = {},
 )
 
 /**
@@ -181,7 +179,7 @@ private fun PracticeCompactLayout(
                 PracticeTitleRow(
                     state,
                     showPill = false,
-                    toggles = if (state.showsTitleToggles) PracticeTitleToggles(actions.panel.onToggleFingeringView, actions.onToggleHangul) else null,
+                    toggles = if (state.showsTitleToggles) PracticeTitleToggles(actions.panel.onToggleFingeringView) else null,
                     // 휴대폰은 머리 제목이 잘리지 않게 ‘한 음씩’을 설정 버튼 아래(제목 줄 오른쪽)에 둔다. 연습·구간 연습이 같은 자리다(S15P31E102-816).
                     trailing = if (state.solo && state.step.available) {
                         { PracticeStepToggle(state, actions.bottom.onToggleStep) }
