@@ -14,6 +14,38 @@ class ImportedTempoDisplayTest {
     private fun expression(tempos: String, placements: String = "[]") = Json.parseToJsonElement(
         """{"placements":$placements,"performancePlan":{"tempos":[$tempos]}}""").jsonObject
     private val ramp = """{"gak":1,"cell":1,"start_bpm":80,"bpm":160,"end_gak":2,"end_cell":1}"""
+    @Test fun decreasingRampShowsGraduallySlowerWithoutChangingStoredPlan() {
+        val source = smallScoreData()
+        val input = expression(ramp.replace("\"start_bpm\":80", "\"start_bpm\":160").replace("\"bpm\":160", "\"bpm\":80"))
+        val draft = source.editingDraft(source.score.title, 160, null).withTempoExpressions(input)
+        val beforeScore = draft.toCommonScore()
+        val hash = commonSourceSha256(Json.encodeToJsonElement(beforeScore))
+        val before = draft.exportExpressions(input, hash, 160)
+        val displayed = draft.toSong().score
+        assertEquals(mapOf(ScoreUnitKey("c0-j0", 0, 0) to listOf(HanbaeMark.GraduallySlower)), displayed.tempoMarks)
+        assertEquals(source.toScore().columns, source.toScore(input).columns)
+        assertEquals(source.toScore().events, source.toScore(input).events)
+        assertEquals(before, draft.exportExpressions(input, hash, 160))
+        assertNull(draft.tempoChanges.single().mark)
+        val reentered = beforeScore.editingDraft(source.score.title, 160, null).withTempoExpressions(before)
+        assertEquals(displayed.tempoMarks, reentered.toSong().score.tempoMarks)
+        val scaled = draft.copy(bpm = 80)
+        assertEquals(80.0, scaled.tempoChanges.single().startBpm)
+        assertEquals(40.0, scaled.tempoChanges.single().targetBpm)
+        assertEquals(displayed.tempoMarks, scaled.toSong().score.tempoMarks)
+        assertEquals(displayed.tempoMarks, draft.erase(1).toSong().score.tempoMarks)
+    }
+
+    @Test fun decreasingRampUsesExplicitStartThenPreviousTempoOrBaseline() {
+        val decreasing = """{"gak":1,"cell":2,"start_bpm":160,"bpm":80,"end_gak":3,"end_cell":1}"""
+        val slower = mapOf(ScoreUnitKey("c0-j1", 0, 0) to listOf(HanbaeMark.GraduallySlower))
+        val source = smallScoreData()
+        assertEquals(slower, source.toScore(expression("""{"gak":1,"cell":1,"bpm":40},$decreasing"""), 40.0).tempoMarks)
+        val inherited = decreasing.replace("\"start_bpm\":160,", "")
+        assertEquals(slower, source.toScore(expression("""{"gak":1,"cell":1,"bpm":160},$inherited"""), 40.0).tempoMarks)
+        assertEquals(slower, source.toScore(expression(inherited), 160.0).tempoMarks)
+        assertTrue(source.toScore(expression(inherited)).tempoMarks.isEmpty())
+    }
     @Test fun numericRampWithEmptyPlacementsShowsAtItsStartWithoutChangingSource() {
         val source = smallScoreData()
         val expression = Json.parseToJsonElement("""{"placements":[],"performancePlan":{"tempos":[
@@ -30,8 +62,8 @@ class ImportedTempoDisplayTest {
     }
 
     @Test fun explicitMarksOnAnyUnitOfTheSameCellTakePriority() {
-        for (mark in HanbaeMark.entries) {
-            val input = expression(ramp, """[{"cellId":"c0-j0","row":0,"col":1,"symbols":["${mark.symbol}"]}]""")
+        for (target in listOf(160, 40)) for (mark in HanbaeMark.entries) {
+            val input = expression(ramp.replace("\"bpm\":160", "\"bpm\":$target"), """[{"cellId":"c0-j0","row":0,"col":1,"symbols":["${mark.symbol}"]}]""")
             val score = smallScoreData().toScore(input)
             assertEquals(mapOf(ScoreUnitKey("c0-j0", 0, 1) to listOf(mark)), score.tempoMarks)
         }
@@ -81,11 +113,10 @@ class ImportedTempoDisplayTest {
         assertEquals(draft.toSong().score.tempoMarks, erased.toSong().score.tempoMarks)
     }
 
-    @Test fun nonRampsAndInvalidOrOverlappingPlansNeverInventAcceleration() {
+    @Test fun nonRampsAndInvalidOrOverlappingPlansNeverInventGradualTempo() {
         val cases = listOf(
             """{"gak":1,"cell":1,"bpm":160}""",
             ramp.replace("\"bpm\":160", "\"bpm\":80"),
-            ramp.replace("\"bpm\":160", "\"bpm\":60"),
             ramp.replace("\"end_gak\":2", "\"end_gak\":1"),
             ramp.replace("\"end_gak\":2", "\"end_gak\":4"),
             ramp.replace("\"start_bpm\":80", "\"start_bpm\":0"),
