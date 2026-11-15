@@ -41,7 +41,8 @@
 | [jenkins/frontend.Jenkinsfile](jenkins/frontend.Jenkinsfile) | 검증된 `REVISION`의 웹 빌드·배포(수동 잡) |
 | [qa-phone/android.Jenkinsfile](qa-phone/android.Jenkinsfile) · [ios-qa/ios.Jenkinsfile](ios-qa/ios.Jenkinsfile) | Android·iOS QA 앱 빌드·배포 |
 | [release/release-candidate.Jenkinsfile](release/release-candidate.Jenkinsfile) | 릴리스 후보 검사 잡 초안([릴리스 절차](release/README.md)) |
-| `backend/Jenkinsfile` | 초기 CI 정의. **운영 잡이 사용하지 않습니다.** 고쳐도 배포에 반영되지 않습니다 |
+
+초기 CI 정의였던 `backend/Jenkinsfile`은 운영 잡이 쓰지 않아 [S15P31E102-942](../docs/plans/S15P31E102-942.md)에서 삭제했습니다. backend CI를 바꿀 때는 `jenkins/backend.Jenkinsfile`과 서버 복사본을 고칩니다.
 
 ## edo2 점검 중계 서버 준비
 
