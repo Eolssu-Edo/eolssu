@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [edo2 장애 전환 서버 리허설과 SSAFY DNS 답 반영 (948)](plans/S15P31E102-948.md) · [런북](../infra/standby/failover-runbook.md) · [사본 연습 파일](../infra/standby/rehearsal/)
+
 - [발표용 운영·품질 실측 근거 표와 검증 이야기 (941)](knowledge/infra/ops-quality-evidence.md) · [시스템 아키텍처](knowledge/infra/system-architecture.md) · [계획·검증](plans/S15P31E102-941.md)
 
 - [발표 전 가입·주요 API 동시 접속 리허설 (940)](plans/S15P31E102-940.md) · [결과·시연 대책](knowledge/infra/demo-load-rehearsal.md) · [실행 도구](../infra/loadtest/README.md)
