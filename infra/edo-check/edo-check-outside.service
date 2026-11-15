@@ -8,8 +8,11 @@ Type=oneshot
 DynamicUser=yes
 StateDirectory=edo-check-outside
 StateDirectoryMode=0700
+# Existing Jenkins failure webhook (e102-cicd); edo2 outage notices reuse it. Root-only 600.
+LoadCredential=webhook-url:/etc/eolssu-jenkins-notify/webhook-url
 ExecStart=/usr/bin/python3 -B -I /opt/edo-check/outside.py
-TimeoutStartSec=25s
+# Two 5 s probes plus one 10 s Mattermost post.
+TimeoutStartSec=40s
 # Drop routine service-manager messages. The script tags outage and recovery lines.
 LogLevelMax=notice
 # Unhandled Python errors must still appear in the journal.
