@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.audio.DeviceSheetAudio
 import com.ssafy.eolssu.core.audio.LocalAudioFile
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.SheetAudioDownload
+import com.ssafy.eolssu.core.audio.SheetAudioPerformance
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
@@ -24,6 +25,9 @@ import com.ssafy.eolssu.data.song.SheetAudioSettings
 import com.ssafy.eolssu.data.song.SheetAudioStatus
 import com.ssafy.eolssu.data.song.SheetPracticeRepository
 import com.ssafy.eolssu.data.song.smallScoreSong
+import com.ssafy.eolssu.data.song.previewSong
+import com.ssafy.eolssu.data.song.previewJson
+import com.ssafy.eolssu.data.song.SourceHash
 import io.ktor.client.engine.mock.MockEngine
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -35,12 +39,102 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticePersonalAudioTest {
+    @Test fun estimatedLengthIsAvailableBeforeGenerationWithoutChangingTheRhythmClock() = practiceTest(estimatedMs = 6_500.0) { vm, fixture, player ->
+        assertEquals(PracticePersonalAudio.Missing, vm.uiState.value.personalAudio)
+        assertEquals(7, vm.uiState.value.totalSeconds)
+        vm.selectRhythm(); runCurrent()
+        assertEquals(3, vm.uiState.value.totalSeconds)
+        vm.selectModel(); runCurrent()
+        assertEquals(7, vm.uiState.value.totalSeconds)
+        val downloadFinished = CompletableDeferred<Unit>()
+        fixture.downloadFinished = downloadFinished
+        vm.downloadPersonalAudio(); runCurrent()
+        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
+        assertEquals(7, vm.uiState.value.totalSeconds)
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Downloading, vm.uiState.value.personalAudio)
+        assertEquals(7, vm.uiState.value.totalSeconds)
+        downloadFinished.complete(Unit); runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(3, vm.uiState.value.totalSeconds, "Legacy audio without a valid sidecar keeps the written fallback")
+        assertEquals(0, player.loads)
+    }
+
+    @Test fun cachedPerformanceIsReadyBeforePlayAndSurvivesReentry() = practiceTest(performed = true, cached = true) { vm, _, player ->
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(7, vm.uiState.value.totalSeconds)
+        assertNotNull(vm.uiState.value.modelPerformance)
+        assertFalse(vm.uiState.value.playing)
+        assertEquals(0, player.loads)
+        vm.seekToFraction(0.75f); runCurrent()
+        vm.onScreenHidden(); runCurrent()
+        vm.onScreenShown(); runCurrent()
+        assertEquals(7, vm.uiState.value.totalSeconds)
+        assertEquals(4_875.0, vm.uiState.value.elapsedMs, 0.001)
+        assertEquals(0, player.loads)
+        vm.startModel(); runCurrent()
+        assertEquals(4_875L, player.requestedPosition)
+    }
+
+    @Test fun downloadedPerformanceDrivesFirstSeekWithoutPlaying() = practiceTest(performed = true) { vm, fixture, player ->
+        fixture.request = SheetAudioRequest.Accepted(fixture.done)
+        vm.downloadPersonalAudio(); runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(7, vm.uiState.value.totalSeconds)
+        assertEquals(0, player.loads)
+
+        vm.seekToFraction(0.75f); runCurrent()
+        assertEquals(4_875.0, vm.uiState.value.elapsedMs, 0.001)
+        assertEquals(75f, vm.uiState.value.progressPercent, 0.001f)
+        assertFalse(vm.uiState.value.playing)
+        assertEquals(0, player.loads)
+        vm.startModel(); runCurrent()
+        assertEquals(4_875L, player.requestedPosition, "First playback must retain the selected performed occurrence")
+    }
+
+    @Test fun preparedPerformanceScalesDisplayOnceAndKeepsTheFirstMediaPosition() = practiceTest(performed = true, cached = true) { vm, _, player ->
+        vm.openPanel(PracticePanel.Tempo)
+        vm.updateDraft { it.copy(step = TempoStep.Slow) }; runCurrent()
+        assertEquals(48, vm.uiState.value.bpm)
+        assertEquals(8, vm.uiState.value.totalSeconds)
+        vm.seekToFraction(0.5f); runCurrent()
+        assertEquals(4_062.5, vm.uiState.value.elapsedMs, 0.001)
+        assertEquals(50f, vm.uiState.value.progressPercent, 0.001f)
+        vm.seekModel(500); runCurrent()
+        assertEquals(4_562.5, vm.uiState.value.elapsedMs, 0.001)
+        vm.seekModel(-500); runCurrent()
+        assertEquals(4_062.5, vm.uiState.value.elapsedMs, 0.001)
+        assertEquals(0, player.loads)
+        vm.startModel(); runCurrent()
+        assertEquals(3_250L, player.requestedPosition)
+    }
+
+    @Test fun returningFromPausedRhythmKeepsTheNewScorePosition() = practiceTest(performed = true, cached = true) { vm, _, player ->
+        vm.selectModel(); runCurrent()
+        assertEquals(7, vm.uiState.value.totalSeconds)
+        vm.seekToFraction(0.25f); runCurrent()
+        vm.selectRhythm(); runCurrent()
+        assertEquals(3, vm.uiState.value.totalSeconds, "Rhythm keeps the written clock")
+        vm.seekModel(500); runCurrent()
+        assertEquals(7.5, vm.uiState.value.currentTick!!, 0.001)
+        vm.selectModel(); runCurrent()
+        assertEquals(7, vm.uiState.value.totalSeconds)
+        assertEquals(7.5, vm.uiState.value.currentTick!!, 0.001)
+        assertEquals(0, player.loads)
+        vm.startModel(); runCurrent()
+        assertEquals(2_125L, player.requestedPosition)
+    }
+
     @Test fun unsupportedGuidanceReturnsToEditingInsteadOfRetryingGeneration() = practiceTest { vm, fixture, _ ->
         fixture.request = SheetAudioRequest.UnsupportedPitches(com.ssafy.eolssu.data.song.AuthoringPitchRejection("SOGEUM",
             listOf(com.ssafy.eolssu.data.song.AuthoringPitchIssue("c0-j0-r0-u0", "c0-j0", "이", 1, listOf("FINGERING_UNKNOWN"))),
@@ -151,15 +245,22 @@ class PracticePersonalAudioTest {
         assertEquals(1, fixture.saves)
     }
 
-    private fun practiceTest(block: suspend TestScope.(PracticeViewModel, Fixture, FakeAudioPlayer) -> Unit) = runTest {
+    private fun practiceTest(performed: Boolean = false, cached: Boolean = false, estimatedMs: Double? = null,
+        block: suspend TestScope.(PracticeViewModel, Fixture, FakeAudioPlayer) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val views = ViewModelStore()
         val client = createHttpClient(MockEngine { error("Only the fake audio repository should be called") }, ServerAddress.Production)
         try {
             val storage = FakeKeyValueStore()
             val member = SignedInMember(storage).apply { set("7") }
-            val song = smallScoreSong().copy(id = "42", instrumentId = "9", scoreVersion = 1)
-            val fixture = Fixture()
+            val song = (if (performed) previewSong() else smallScoreSong()).copy(id = "42", instrumentId = "9", scoreVersion = 1,
+                estimatedModelDurationMs = estimatedMs)
+            val fixture = Fixture(performed)
+            if (cached) {
+                val audio = requireNotNull(fixture.done.audio)
+                fixture.saved = DeviceSheetAudio(LocalAudioFile("/app/files/42.m4a"), "9", 60, false,
+                    "a".repeat(64), requireNotNull(audio.durationMs), audio.performance)
+            }
             val repository = SheetPracticeRepository(ApiSheetDocumentRepository(client), fixture,
                 ApiReferenceCatalogRepository(client), InstrumentCatalog(client), member, fixture, { testScheduler.currentTime })
             val player = FakeAudioPlayer()
@@ -177,10 +278,11 @@ class PracticePersonalAudioTest {
         }
     }
 
-    private class Fixture : SheetAudioDeviceStore, SheetAudioRepository {
+    private class Fixture(performed: Boolean = false) : SheetAudioDeviceStore, SheetAudioRepository {
         val done = SheetAudio("42", SheetAudioStatus.Done, "1", "1", false, "9", false, 60,
             audio = SheetAudioFile("https://example.invalid/song.m4a", 60_000, "audio/mp4", 100, "song.m4a",
-                "a".repeat(64), 3_300))
+                "a".repeat(64), if (performed) 7_050 else 3_300,
+                performance = if (performed) SheetAudioPerformance(SourceHash, Json.parseToJsonElement(previewJson()).jsonObject) else null))
         var request: SheetAudioRequest = SheetAudioRequest.Accepted(done.copy(status = SheetAudioStatus.Queued, audio = null, pollAfterMs = 500))
         val requests = mutableListOf<SheetAudioSettings>()
         var statusReads = 0
