@@ -104,3 +104,22 @@ QA_DEMO_DIR=/Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd
 검증 APK SHA-256은 `74129ec3b02a2e83a8d67089e99122ebd4bef58976e6b89906b80d3c700f174a`이며 API 기준 커밋은 `57666c0389f067a4ba084a2fd88088491f2273ee`이다. 수집한 런타임 증거와 호스트 검사는 각각의 범위로 기록했다.
 
 [확인 요약](</Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13/evidence/live-app/verified-summary.json>) · [요청·앱·AI·DB 이벤트](</Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13/evidence/live-app/end-to-end-events.json>) · [실제 앱 결과 화면](</Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13/evidence/live-app/actual-app-result.png>)
+
+## 최종 구성 재시작과 재검증
+
+같은 APK에 최신 수집기·QA 로그인 입력 버튼을 적용해 별도 격리 세션에서 전체 경로를 다시 클릭했다. 실제 logcat의 `appRun=1`이 수집되고, 로그인 200·곡 표시·30초 PCM 녹음·업로드·실제 AI·DB DONE·본인 결과 200·첫 점수 표시가 연결됐다. 최종 화면에서도 98점을 확인했다.
+
+| 최종 개별 시연 | 실제 관측 |
+| --- | --- |
+| 서버 워커 처리 | 5,779ms |
+| AI 호출 완료 | 4,970ms |
+| 앱 제출 동작 → DONE 확인 | 8,503ms |
+| 앱 제출 동작 → 첫 점수 표시 | 8,686ms |
+| DB | DONE, 평가 1건, 음표 피드백 61건 |
+| 서버 마감 | 60초 유지 |
+
+원 이벤트는 같은 증거 디렉터리의 `end-to-end-events-final.json`, 집계는 `verified-summary.json`의 `finalRun`이다. 앞 실행의 5,506ms와 최종 실행의 8,686ms를 합하면 제출→첫 점수 기준 5초 이내는 0/2다. 이 두 번의 개별 실행으로 동시 처리 용량이나 서비스 전체 비율을 추정하지 않는다. 실제 앱 첫 점수 표시까지 확인한 결과이며 서버 처리 시간만으로 대체하지 않았다.
+
+수집기·실제 Content-Length/chunked 스트리밍·복수 Set-Cookie 보존·앱 실행 세대 분리·종료 시간 초과 후 소유권 유지와 정리 재시도·계정 값 비노출의 집중 검사 12건이 통과했다. Python과 실행 셸 문법 검사도 통과했다. QA 이메일·비밀번호 입력 버튼은 앱에서 선택한 칸에 현재 폐기용 환경 계정만 보내고, 서버 응답과 이벤트에는 값이 포함되지 않는다.
+
+시연 번들의 기동 후 자동 종료는 기존 1,800초다. 채점 60초 마감과 다른 수명 제한이며, 종료 뒤 관찰 시작으로 환경을 다시 생성한다. 마지막 화면은 최신 결과와 단계 확인을 보여준 채 유지했다. 실제 마이크·실기기는 이번 완료 범위의 대체 증거가 아니며 연결 뒤 별도 검증한다.
