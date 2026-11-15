@@ -65,6 +65,23 @@ DROP DATABASE metabase;
 
 `'%'`는 모든 주소에서 접속을 허용한다는 뜻이지만, 이 MySQL은 서버 밖에 포트를 열지 않아 같은 Docker 네트워크 안에서만 접속됩니다.
 
+2026-11-15 운영 조회에서 `metabase` 계정과 DB가 모두 없고, `grafana`의 권한이 위 SQL과 같음을 확인했습니다([S15P31E102-939](../../docs/plans/S15P31E102-939.md)).
+
+### 권한을 바꿀 때 (edo2 복제 주의)
+
+edo2 복제본에는 `root@localhost` 말고 다른 계정이 없습니다. 그래서 운영에서 기존 계정에 `GRANT`·`REVOKE`·`DROP USER`를 실행하면 복제본에서는 실패하고, **edo2 복제가 멈춥니다**. 복제가 멈추면 [edo-check](../edo-check/README.md) 알림이 울립니다. 기존 계정의 권한을 바꾸거나 되돌릴 때는 한 줄짜리라도 바이너리 로그에 남기지 않도록 아래처럼 실행합니다.
+
+```sql
+SET SESSION sql_log_bin = 0;
+-- 표 단위 권한을 먼저 회수한 뒤 열 단위 권한을 준다. 순서를 바꾸면 표 단위 REVOKE가 열 권한까지 지운다.
+REVOKE SELECT ON eolssu.practice_sessions FROM 'grafana'@'%';
+GRANT SELECT (<대시보드 쿼리가 쓰는 열>) ON eolssu.practice_sessions TO 'grafana'@'%';
+SHOW GRANTS FOR 'grafana'@'%';
+SET SESSION sql_log_bin = 1;
+```
+
+열 목록은 바꾸기 전에 대시보드 쿼리에서 확인합니다. 이때 사용자가 직접 쓴 메모인 `practice_sessions.memo`는 목록에서 뺍니다.
+
 ## 2. 파일 올리고 실행
 
 내 PC의 저장소 루트에서 서버로 복사합니다.
