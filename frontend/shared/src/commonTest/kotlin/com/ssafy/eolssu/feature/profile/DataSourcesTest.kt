@@ -27,6 +27,7 @@ class DataSourcesTest {
             setOf(
                 "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
                 "https://www.kogl.or.kr/info/license.do",
+                "https://www.catseoul.com/gugak-library/",
                 "https://github.com/danbinaerinHan/jeongganbo-generator",
                 "https://kukaksa.co.kr/web/myimg/daekum%20use.jpg",
             ),

@@ -39,6 +39,15 @@ sudo python3 /opt/eolssu/ops707-airplane-history-20261111/publish_airplane_revis
 
 6. 현재 56 v2·77 BPM, 정확한 v1 조회·음표·BPM, 4박 기본 반주 12·24tick/4타점, 다른 세 곡의 같은 반주 12·4tick/4타점을 대조한다. 네 곡 모두 한 주기 4분음표 네 박·약 3.116883초다. 현재 모범 음원·수행 시간표의 판본과 전체/부분 재생 해시를 확인한다. 기존 세션의 판본·점수·녹음·음표 결과를 변경하지 않았는지 확인하고 사후 DB 백업을 수행한다.
 
+7. 6번 확인과 사후 백업이 끝난 뒤 [곡 설명 정리 SQL](airplane-description-cleanup.sql)을 실행한다(S15P31E102-938). 단소 132·소금 133·산조대금 134의 곡 설명에 붙은 CAT 음원 고지를 빼고 `세 음으로 연주하는 입문곡이에요.`만 남긴다. 게시기는 세 곡의 설명까지 release의 before와 비교하므로 56 게시 전에 실행하면 게시가 `Other Airplane rows changed`로 멈춘다. SQL은 56이 v2가 아니거나 세 곡의 설명이 옛 문구·새 문구가 아니면 CHECK 위반으로 아무 행도 바꾸지 않는다. 마지막 SELECT의 `new_ok`가 세 행 모두 1인지, 공개 `GET /api/songs/132`·`133`·`134`의 `description`이 새 문구인지 확인한다. 고지는 앱 마이페이지 `자료 및 데이터 출처`와 음원 파일의 comment 메타데이터에 남는다.
+
+DB 이름은 다른 게시 도구와 같이 활성 backend 컨테이너의 `DB_URL`에서 확인해 `DB`에 넣는다.
+
+```sh
+sudo docker exec -i eolssu-runtime-mysql-1 sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --no-defaults --default-character-set=utf8mb4 --user=root --database="$0"' "$DB" \
+  < infra/catalog/airplane-description-cleanup.sql
+```
+
 ## 실패와 복구
 
 - before가 달라졌거나 archive 내용이 충돌하면 적용하지 않는다. 정확한 생성물과 운영 상태를 재검토한다. 기존 receipt와 불변 객체를 보존하며 재생성으로 성공 결과를 덮지 않는다.
