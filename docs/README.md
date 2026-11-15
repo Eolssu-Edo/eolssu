@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [PDF·사진 악보 변환 완료 앱 내 알림 (927)](plans/S15P31E102-927.md) · [알림 규칙](specs/sheet-conversion-completion.md)
+
 - [무음 판정과 오답·미검출 채점 분리 (291)](plans/S15P31E102-291.md) · [실패 기준](specs/practice-analysis-failure.md#실패-코드)
 
 - [가져온 악보의 악기 맞춤 후 구간 빠르기 소실 원인·수정 (882)](knowledge/frontend/imported-tempo-editor-state.md)
