@@ -202,4 +202,4 @@ MySQL은 **Save & test**에서 `Database Connection OK`, Prometheus는 `Successf
 ## 끄기와 데이터
 
 - 끄기: `docker compose down`. Grafana 설정은 `grafana-data` 볼륨에 남습니다.
-- 일 배치와 집계 DB, 외부 공개 주소·TLS, 알림은 아직 없습니다.
+- 일 배치와 집계 DB, 외부 공개 주소·TLS, Prometheus 경보 규칙은 아직 없습니다. 장애·백업·복제·디스크 상태 변화 알림은 edo2의 [능동 알림](../edo-check/README.md#상태-변화-능동-알림)이 맡습니다.
