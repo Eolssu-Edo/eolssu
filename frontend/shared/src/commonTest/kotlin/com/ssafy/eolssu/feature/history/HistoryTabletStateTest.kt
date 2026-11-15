@@ -65,4 +65,15 @@ class HistoryTabletStateTest {
         assertEquals((8..minOf(15, song.score.columns.lastIndex)).toList(), strips.map { it.column }.distinct())
         assertEquals(scoreStrips(song.score, song.jangdan), scoreStrips(song.score, song.jangdan, columnRange = 0..999))
     }
+
+    @Test
+    fun wideRecordDetailPlacesSummaryBesideScoreWithSeveralGak() {
+        // 1280dp 창 두 칸: 본문 1120 - 목록 400 - 사이 24 = 오른쪽 칸 696.
+        val pane = 696.dp
+        assertTrue(recordDetailSideBySide(pane))
+        val metrics = readingScoreMetrics(SampleSongs.first())
+        assertTrue(stripSlots(pane - RecordSideColumnWidth - 16.dp, metrics) >= 4)
+        // 840dp 창 두 칸(본문 760 - 목록 320 - 24 = 416)은 위아래로 쌓는다.
+        assertTrue(!recordDetailSideBySide(416.dp))
+    }
 }
