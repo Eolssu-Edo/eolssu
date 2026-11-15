@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -31,6 +30,7 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
+import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.data.practice.RecentPracticeSummary
 import com.ssafy.eolssu.data.user.UserProfile
@@ -186,9 +186,7 @@ private fun ProfileCard(profile: UserProfile, progress: MyLearningProgress?, onE
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
-                Icon(EolssuIcons.Pencil, contentDescription = stringResource(Res.string.my_nickname_edit), modifier = Modifier.size(18.dp), tint = colors.textMuted)
-            }
+            EolssuIconButton(EolssuIcons.Pencil, stringResource(Res.string.my_nickname_edit), onClick = onEdit, bordered = false)
         }
         if (progress != null) {
             Box(Modifier.padding(top = 2.dp)) { LearningBadge(progress) }

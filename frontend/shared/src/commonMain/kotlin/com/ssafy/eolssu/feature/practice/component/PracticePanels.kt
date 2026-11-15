@@ -24,8 +24,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -41,9 +39,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,7 +55,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.ui.component.InstrumentMenuItem
 import com.ssafy.eolssu.core.ui.component.InstrumentPicture
-import com.ssafy.eolssu.core.ui.component.EolssuMenuShape
+import com.ssafy.eolssu.core.ui.component.EolssuMenuAlign
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
@@ -265,46 +268,54 @@ private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth().background(EolssuTheme.colors.surface, RoundedCornerShape(20.dp)).padding(vertical = 4.dp), content = content)
 }
 
-/** ‘연습 악기’: 15sp 600 라벨과 오른쪽 고르기 알약(38dp, 테두리 없는 회색 바탕, 악기 그림 28dp + 13sp 500). 목록에도 악기 그림을 둔다(S15P31E102-831). */
+/**
+ * ‘연습 악기’: 15sp 600 라벨과 오른쪽 고르기 알약(38dp, 테두리 없는 회색 바탕, 악기 그림 28dp + 13sp 500). 목록에도 악기 그림을 둔다(S15P31E102-831).
+ * 알약의 누르는 영역은 48dp이고 눌림 효과는 알약 안에만 보인다. 줄 높이는 전과 같게 위아래 여백을 줄였다(S15P31E102-970).
+ */
 @Composable
 private fun InstrumentSelect(selected: GuideInstrument, onSelect: (String) -> Unit) {
     val colors = EolssuTheme.colors
     var open by remember { mutableStateOf(false) }
     val label = stringResource(Res.string.practice_instrument)
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = SettingsCardInset, vertical = 8.dp),
+        Modifier.fillMaxWidth().padding(horizontal = SettingsCardInset, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
         Box {
-            Row(
-                Modifier
-                    .heightIn(min = 38.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(colors.groupedBackground)
-                    .clickable(role = Role.DropdownList) { open = true }
-                    .padding(start = 6.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            Surface(
+                onClick = { open = true },
+                modifier = Modifier.heightIn(min = 38.dp).semantics { role = Role.DropdownList },
+                shape = RoundedCornerShape(50),
+                color = colors.groupedBackground,
+                contentColor = colors.text,
             ) {
-                InstrumentPicture(selected)
-                Text(stringResource(selected.label), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), color = colors.text)
-                Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textMuted)
+                Row(
+                    Modifier.padding(start = 6.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    InstrumentPicture(selected)
+                    Text(stringResource(selected.label), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), color = colors.text)
+                    Icon(
+                        EolssuIcons.ChevronDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp).rotate(if (open) 180f else 0f),
+                        tint = colors.textMuted,
+                    )
+                }
             }
-            DropdownMenu(
-                expanded = open,
-                onDismissRequest = { open = false },
-                shape = EolssuMenuShape,
-                containerColor = colors.surface,
-                shadowElevation = 8.dp,
-                modifier = Modifier.width(168.dp).padding(horizontal = 6.dp),
-            ) {
-                GuideInstrument.entries.forEach { instrument ->
-                    InstrumentMenuItem(instrument, instrument == selected, onClick = {
-                        open = false
-                        onSelect(instrument.id)
-                    })
+            if (open) {
+                EolssuMenuPopup(onDismissRequest = { open = false }, align = EolssuMenuAlign.End) {
+                    EolssuMenuPanel(width = 168.dp) {
+                        GuideInstrument.entries.forEach { instrument ->
+                            InstrumentMenuItem(instrument, instrument == selected, onClick = {
+                                open = false
+                                onSelect(instrument.id)
+                            })
+                        }
+                    }
                 }
             }
         }

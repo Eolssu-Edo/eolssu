@@ -22,7 +22,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -30,15 +29,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
@@ -105,12 +97,7 @@ fun PracticeInstrumentDropdown(
             }
         }
         if (open) {
-            val gap = with(LocalDensity.current) { 4.dp.roundToPx() }
-            Popup(
-                popupPositionProvider = remember(gap) { BelowAnchorEnd(gap) },
-                onDismissRequest = { open = false },
-                properties = PopupProperties(focusable = true),
-            ) {
+            EolssuMenuPopup(onDismissRequest = { open = false }, align = EolssuMenuAlign.End) {
                 EolssuMenuPanel(width = 168.dp) {
                     PracticeInstruments.forEach { option ->
                         InstrumentMenuItem(option, option == shown, onClick = {
@@ -122,10 +109,4 @@ fun PracticeInstrumentDropdown(
             }
         }
     }
-}
-
-/** 메뉴를 기준 알약의 오른쪽 끝에 맞춰 [gap]만큼 아래에 둔다. 화면 왼쪽을 넘으면 0에서 멈춘다. */
-private class BelowAnchorEnd(private val gap: Int) : PopupPositionProvider {
-    override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize) =
-        IntOffset((anchorBounds.right - popupContentSize.width).coerceAtLeast(0), anchorBounds.bottom + gap)
 }
