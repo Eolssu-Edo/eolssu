@@ -146,3 +146,29 @@ Audiveris stdout에는 beam 높이11 추정 경고와 `MetronomeInter invalid-in
 로컬 근거 루트는 `C:/higher/qa-evidence/S15P31E102-935/`다. `run_actual_auclair.py`는 관찰 스크립트, `actual-auclair/`는 첫 실패, `actual-auclair-fixed/`는 위치 보완 후 성공, `actual-auclair-final/`은 리뷰 보완 후 최종 결과다. 각 폴더에 `request.json`, `response.json`, `receipt.json`, `audiveris-0/page-0.mxl|.omr`, 보충 전후 XML이 있고 최종 `validation.json`에 실제 preflight·원본 대조 결과가 있다. 이 파일들은 Git 밖에 보존했다. 재현은 같은 소스·원본·이미지를 읽기 전용 연결하고 위 자원 제한으로 `/app/ai/.venv/bin/python /probe.py`를 실행한다. 상세 실행 명령은 계획의 기존 회귀 명령과 로컬 관찰 스크립트를 참고한다.
 
 이번 검증으로 원본 전체 실제 OMR과100BPM·38.4초 전달까지 확인했다. 음원 파일 합성·스피커·실제 기기·운영 서버는 검증하지 않았다. 내보내기 여백까지 포함한 계산상38.95초는 악보 수행38.4초와 구분한다.
+
+## 빠르기 숫자의 잇단음표 오인식 (953)
+
+QA931의 실제 BlueVal 음원 검사에서30·62마디 일부8분음이1/3Q로 줄고 끝에1Q 공백이 생겼다. 총118마디·472Q와 전체 길이가 맞아도 개별 리듬은 틀릴 수 있다. [953 계획](../../plans/S15P31E102-953.md)에서 로컬 원시 인식부터 분리했다. 원본은 Downloads 지정 폴더의 `BlueVal_261114_091621.pdf`, SHA256 `5aa7f7af037acdb7540071b187cdec5923a4d51f4521861828b129ec98321f1d`다.
+
+실제 Audiveris5.11.0의2쪽5번째(전체30)마디에서 `160`의 숫자6을 `TUPLET_SIX`로 오인했다. OMR표식 경계(2100,230,21,33)와 원본 숫자6 경계(2101.177,229.702,19.644,32.740)가 일치하고 여섯 화음에 연결됐다. raw XML은 divisions6·6:4연음·각duration2로 출력했고 베이스는4Q를 유지했다. 선택 선율의3Q와 베이스4Q 차이가 마지막1Q쉼이 됐다. tempo시계나 MusicXML 파서의 비율 중복 적용이 원인은 아니었다.
+
+확인된 PDF 빠르기 숫자와 경계가 유일하게 맞는3·6연음 표식만 작업용 렌더에서 처리한다. 해당 표기의 각 글자 잉크를 개별적으로 가려 숫자만 부분 삭제되거나 글자 사이의 덧줄음이 지워지는 것을 피한다. 원본과 실제 잇단음표는 보존하고 기존 Audiveris 재인식·PDF 빠르기 보충을 사용한다. 모든6:4를 지우거나 음가를 일괄3/2배 하지 않는다.
+
+| 실제 원본 대조 | 결과 |
+| --- | --- |
+| 요청/인식 | 최종 `SANJO_DAEGEUM`,4쪽300dpi, HTTP200 `DONE`,160BPM.2쪽 재인식 포함 Audiveris5회 모두종료0, 총약89.9초 |
+| 30마디 | 수정 전1Q쉼+6×1/3Q+1Q쉼 → 수정 후1Q쉼+6×1/2Q |
+| 62·63마디 | 로컬 baseline과 수정본 모두8×1/2Q. 배포 앱의62마디 오독은 이번 로컬 실행에서 재현하지 못함 |
+| 회귀 대조 |118각·472Q·492음 동일. 전체492음 음고와30마디 밖486음의 시작·길이 동일. 전곡 정답과의 대조는 아님 |
+| 표현/식별자 |5빠르기·2가속·반복 계획 동일. tpb12→4와30마디 자리 이동으로4개 음표ID는 바뀌며 최종sourcePitches와 연결됨 |
+| 실제 재생 계산 | 기보177초, 수행/MIDI181.635520833초, 시간표181635.520833ms. 독립적분 경계오차 최대0.01293ms |
+| AuClair 실제 회귀 |16마디44음64Q,100BPM·38.4초 유지 |
+| 작은 회귀/끝 붙임줄 |관련9파일226검사 통과. 마지막음467.5Q→472Q·4.5Q와 마지막4칸의 같은 이벤트 참조 보존 |
+| 최종 BlueVal 응답 SHA256 | `5877364772d75106ac4e972628c57e0024a904956cf0085748e899e49dc55cfb` |
+
+같은935 로컬 이미지·언어 데이터·Python3.12.16/PDFium5.15.2 환경을 재사용했다. Docker Desktop 로컬 엔진, 네트워크 없음·CPU2/2GiB·512MiB tmpfs·읽기 전용 루트/소스/원본·쪽당60초 제한이며 새 이미지·모델 다운로드는 없다. Audiveris가 쪽별 입력의 일부 시스템에서 박자표의 목표 길이를 찾지 못한 경고를 냈다는 점도 보존한다. 성공 종료를 경고 없음이나 전곡 인식 정확도 보증으로 확대하지 않는다.
+
+근거는 Git 밖 `C:/higher/qa-evidence/S15P31E102-953/`의 `run_actual_blueval.py`, `baseline/`, `fixed/`, `auclair-regression/`에 있다. 관찰wrapper는 실제 subprocess를 실행한 뒤 raw MXL/OMR·stdout/stderr·채택XML·보충 전후XML을 복사하고 원래 결과를 반환한다. 네트워크 다운로드만 로컬 원본 복사로 대체했다. 최초 baseline probe의 악기 코드 오타는 원시 Audiveris 단계와 무관하지만 산조대금 성공 근거로 사용하지 않으며 최종 요청은 올바른 코드로 다시 실행했다.
+
+최종 실제 실행의 제품 SHA256: `staff_engine.py`=`cf50cdb454c2b55cfabeecfea811a4e3204d709b5b21b7c92bfccc0679f5798e`, `staff_pdf_tempo.py`=`ed437dec325af2c08b074fcef4aaef11dce2add0b5349d4a4b57ec4bfcb8f400`. 독립 수치 검증은 `fixed/independent-validation-duration-check.json`에 있다. 수정 음원 합성·기기 재생·운영 서버 검증은 이 단계에서 미수행이며 기존 저장 악보·음원을 자동 수정하지 않는다.

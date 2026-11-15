@@ -125,7 +125,7 @@ def _read_pages(job, deadline, page_time_s):
     신호로 죽음)는 엔진 오류다. 악보를 냈으면 종료 코드가 0이 아니어도 쓴다.
     """
     pages, issues = [], []
-    pdf_marks = staff_pdf_tempo.read_marks(job)
+    pdf_marks = staff_pdf_tempo.read_marks(job, with_bounds=True)
     with tempfile.TemporaryDirectory(prefix="audiveris-") as work:
         for i, page in enumerate(job.pages):
             out = Path(work) / f"page-{i}"
@@ -136,20 +136,25 @@ def _read_pages(job, deadline, page_time_s):
             input_path = page.path
             archives = [p.read_bytes() for p in out.rglob('*.omr')]
             issues += [issue for archive in archives for issue in time_signature_reviews(archive, page=i)]
-            regions = [box for archive in archives for box in tempo_regions(archive)]
-            if regions:
-                # 빠르기 표시의 음표가 성부 음으로 붙은 경우만, OCR로 확인한 영역을
-                # 별도 쪽 그림에서 지우고 다시 읽는다. 원본과 진짜 덧줄 음은 보존한다.
+            region_groups = [[box] for archive in archives for box in tempo_regions(archive)]
+            if i < len(pdf_marks):
+                region_groups += [group for archive in archives
+                                  for group in staff_pdf_tempo.tuplet_regions(archive, pdf_marks[i])]
+            if region_groups:
+                # OCR 빠르기의 잘못 붙은 음표 또는 PDF 빠르기 숫자로 확인된 잇단음표를
+                # 작업용 그림에서 지우고 한 번 다시 읽는다. 원본과 글자 사이 음은 보존한다.
                 cleaned = Path(work) / f"cleaned-{i}.png"
                 with Image.open(page.path) as original:
                     image = original.convert("RGB")
                     draw = ImageDraw.Draw(image)
-                    for box in regions:
+                    for box in (box for group in region_groups for box in group):
                         draw.rectangle(box, fill="white")
                     image.save(cleaned)
                 out = Path(work) / f"retry-{i}"
                 run = _run(command + [str(out), "--", str(cleaned)], page_deadline)
                 input_path = cleaned
+                regions = [(min(b[0] for b in group), min(b[1] for b in group),
+                            max(b[2] for b in group), max(b[3] for b in group)) for group in region_groups]
                 issues += [{"kind": "LOW_CONFIDENCE", "eventId": None, "cellId": None, "page": i,
                             "bbox": [x, y, right - x, bottom - y],
                             "detail": {"reason": "TEMPO_MARK_REMOVED"}} for x, y, right, bottom in regions]

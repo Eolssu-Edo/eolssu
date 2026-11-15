@@ -4,6 +4,7 @@ PDFium uses the service lock. No extra OCR, source mutation or guessed note unit
 Audiveris geometry must agree with the exported measure count and coordinate scale.
 """
 import io
+import math
 import re
 import zipfile
 import xml.etree.ElementTree as ET
@@ -12,7 +13,7 @@ from fractions import Fraction
 from omr_service import staff_musicxml
 
 
-def read_marks(job):
+def read_marks(job, *, with_bounds=False):
     if job.kind != 'PDF':
         return []
     from omr_service.api import PDFIUM_LOCK, pdfium
@@ -47,8 +48,19 @@ def read_marks(job):
                             left = first[0]
                     # The word changes only the measure anchor; accel still
                     # belongs to a nearby numeric unit at its original position.
-                    positioned_marks.append(({'x': left * scale, 'bottom': (page.get_height()-bottom)*scale,
-                                  'bpm': match[2], 'dots': int(bool(match[1])), 'accel': False}, unit_x))
+                    mark = {'x': left * scale, 'bottom': (page.get_height()-bottom)*scale,
+                            'bpm': match[2], 'dots': int(bool(match[1])), 'accel': False}
+                    if with_bounds:
+                        glyphs = []
+                        for index in range(match.start(), match.end()):
+                            if text[index].isspace():
+                                continue
+                            x1, y1, x2, y2 = textpage.get_charbox(index)
+                            glyphs.append({'text': text[index], 'number': match.start(2) <= index < match.end(2),
+                                           'bounds': [x1*scale, (page.get_height()-y2)*scale,
+                                                      x2*scale, (page.get_height()-y1)*scale]})
+                        mark['glyphs'] = glyphs
+                    positioned_marks.append((mark, unit_x))
                 for match in re.finditer(r'\b(?:molto\s+)?accel(?:erando)?\.?', text, re.I):
                     x, y, _, _ = textpage.get_charbox(match.start())
                     x, y = x * scale, (page.get_height()-y)*scale
@@ -61,6 +73,43 @@ def read_marks(job):
                 textpage.close()
                 page.close()
     return pages
+
+
+def tuplet_regions(archive, marks):
+    """Groups of PDF tempo ink boxes misclassified as tuplet3/6 by Audiveris.
+
+    Require a unique matching digit, raster-rounding agreement and separation
+    above the owning staff. Mask every printed tempo character, not just the6
+    (which would turn160 into10), and preserve the spaces between characters.
+    """
+    matched = set()
+    with zipfile.ZipFile(io.BytesIO(archive)) as z:
+        for name in z.namelist():
+            if not re.fullmatch(r'sheet#\d+/sheet#\d+\.xml', name):
+                continue
+            sheet = ET.fromstring(z.read(name))
+            staff_tops = {staff.get('id'): min(float(p.get('y')) for p in points)
+                          for staff in sheet.iter('staff')
+                          if (points := staff.findall('lines/line[1]/point'))}
+            for tuplet in sheet.iter('tuplet'):
+                digit = {'TUPLET_THREE': '3', 'TUPLET_SIX': '6'}.get(tuplet.get('shape'))
+                bounds, top = tuplet.find('bounds'), staff_tops.get(tuplet.get('staff'))
+                if digit is None or bounds is None or top is None:
+                    continue
+                x, y, w, h = (float(bounds.get(k)) for k in ('x', 'y', 'w', 'h'))
+                box = (x, y, x+w, y+h)
+                candidates = []
+                for index, mark in enumerate(marks):
+                    glyphs = mark.get('glyphs', [])
+                    if not glyphs or any(not (b[0] < b[2] and b[1] < b[3] < top-1)
+                                         for g in glyphs for b in [g['bounds']]):
+                        continue
+                    candidates += [index for glyph in glyphs if glyph['number'] and glyph['text'] == digit
+                                   and all(abs(a-b) <= 2 for a, b in zip(box, glyph['bounds']))]
+                if len(candidates) == 1:
+                    matched.add(candidates[0])
+    return [[(math.floor(b[0])-1, math.floor(b[1])-1, math.ceil(b[2])+1, math.ceil(b[3])+1)
+             for glyph in marks[index]['glyphs'] for b in [glyph['bounds']]] for index in sorted(matched)]
 
 
 def supplement(data, archive, marks):
