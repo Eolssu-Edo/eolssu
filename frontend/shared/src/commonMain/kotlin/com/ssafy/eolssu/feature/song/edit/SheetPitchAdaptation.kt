@@ -149,5 +149,6 @@ internal fun SheetDraft.applyAdaptation(plan: PitchAdaptationPlan, capability: C
     })) }
     return adapted.editingDraft(title, bpm, jangdan).copy(jangdanId = jangdanId,
         editedJangdanName = editedJangdanName, authoring = metadata,
+        tempoExpressions = tempoExpressions, tempoReferenceBpm = tempoReferenceBpm,
         adaptationBaseline = plan.notes.associate { it.source.eventId to it.source.midi })
 }

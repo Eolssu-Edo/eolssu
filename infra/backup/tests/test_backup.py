@@ -43,6 +43,31 @@ class BackupTests(unittest.TestCase):
             finally:
                 backup.STORE = previous
 
+    def test_config_keeps_every_recent_copy_and_first_daily_copy_after_a_week(self):
+        with tempfile.TemporaryDirectory() as folder:
+            previous = backup.STORE
+            backup.STORE = Path(folder)
+            try:
+                root = backup.STORE / 'config'; root.mkdir()
+                current = datetime.now(timezone.utc)
+                def write(ident, age_days):
+                    body = ident.encode()
+                    (root / (ident + '.cms')).write_bytes(body)
+                    (root / (ident + '.json')).write_text(json.dumps({'sha256': hashlib.sha256(body).hexdigest(), 'snapshot_at': (current - timedelta(days=age_days)).isoformat()}))
+                # Run IDs carry their own UTC date; snapshot_at drives the age.
+                old_first, old_second = '20261101T031000Z-0123456789ab', '20261101T090000Z-0123456789ac'
+                recent_first, recent_second = '20261114T031000Z-0123456789ad', '20261114T090000Z-0123456789ae'
+                expired = '20261001T031000Z-0123456789af'
+                write(old_first, 10); write(old_second, 9.9)
+                write(recent_first, 1); write(recent_second, 0.9)
+                write(expired, 31)
+                backup.prune()
+                kept = sorted(p.stem for p in root.glob('*.cms'))
+                self.assertEqual(kept, [old_first, recent_first, recent_second])
+                self.assertEqual(sorted(p.stem for p in root.glob('*.json')), kept)
+            finally:
+                backup.STORE = previous
+
     def test_users_precede_definers_and_table_grants_follow_schema(self):
         accounts = (b"CREATE USER 'reader'@'%' IDENTIFIED BY 'fixture';\n"
                     b"GRANT SELECT ON `eolssu`.`songs` TO 'reader'@'%';\n"
