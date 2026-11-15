@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -63,6 +65,9 @@ fun InstrumentPicker(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 56.dp)
+                        // 고를 수 없을 때는 칸 전체를 흐리고, 눌림 효과는 둥근 칸 안에만 그린다(S15P31E102-968).
+                        .alpha(if (enabled) 1f else 0.45f)
+                        .clip(shape)
                         .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton, onClick = { onSelect(instrument) }),
                     shape = shape,
                     // 테두리 없이 고른 칸은 연두, 나머지는 회색 채움(S15P31E102-768).

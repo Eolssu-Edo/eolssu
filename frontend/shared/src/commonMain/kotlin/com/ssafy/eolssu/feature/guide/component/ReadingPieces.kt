@@ -64,6 +64,7 @@ import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -159,7 +160,7 @@ internal fun GuideCard(
             .fillMaxWidth()
             .clip(shape)
             .background(colors.surface)
-            .padding(horizontal = 14.dp, vertical = 16.dp),
+            .padding(horizontal = GuideCardInset, vertical = 16.dp),
         verticalArrangement = verticalArrangement,
     ) {
         if (title != null) {
@@ -180,6 +181,17 @@ internal fun GuideCard(
         }
         content()
     }
+}
+
+/** [GuideCard] 안쪽 좌우 여백. */
+private val GuideCardInset = 14.dp
+
+/** 카드 안쪽 좌우 여백([GuideCardInset])만큼 양옆으로 넓혀 카드 끝까지 닿게 한다. 넓힌 만큼 안쪽 여백은 부르는 쪽이 다시 준다. */
+private fun Modifier.bleedToCardEdges(): Modifier = layout { measurable, constraints ->
+    val inset = GuideCardInset.roundToPx()
+    val maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + inset * 2 else constraints.maxWidth
+    val placeable = measurable.measure(constraints.copy(minWidth = (constraints.minWidth + inset * 2).coerceAtMost(maxWidth), maxWidth = maxWidth))
+    layout(placeable.width - inset * 2, placeable.height) { placeable.place(-inset, 0) }
 }
 
 /** 쪽 표시(`.rb-mark`): 연두 원 안의 번호. 정간보란의 井은 세리프로 쓴다. */
@@ -774,6 +786,7 @@ private fun SectionTitle(title: String, fontSize: TextUnit, modifier: Modifier =
 /**
  * 기호 한 줄(`.sig-item`): 기호 44 · 이름 66 · 설명 · 화살표 18. 이름 칸 너비를 고정해 설명이 모두 같은 세로줄에서 시작한다.
  * 줄 전체가 창을 여는 단추다. [stretch]이면 격자 한 줄의 높이에 맞춰 아래 선을 칸끼리 맞춘다.
+ * 한 칸 목록(휴대폰)에서는 목록형으로 줄을 카드 좌우 끝까지 넓혀, 눌림 효과가 줄 전체 사각으로 그려지고 카드 모서리에서만 잘린다(S15P31E102-968).
  */
 @Composable
 private fun SigimsaeRow(
@@ -790,8 +803,10 @@ private fun SigimsaeRow(
         Row(
             Modifier
                 .fillMaxWidth()
+                .then(if (stretch) Modifier else Modifier.bleedToCardEdges())
                 .focusRequester(focusRequester)
                 .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .then(if (stretch) Modifier else Modifier.padding(horizontal = GuideCardInset))
                 .padding(top = 10.dp, bottom = if (last) 0.dp else if (stretch) 12.dp else 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,

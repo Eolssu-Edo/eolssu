@@ -40,6 +40,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuStartTopBar
+import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import com.ssafy.eolssu.core.ui.component.ScoreSummaryCard
 import com.ssafy.eolssu.core.ui.score.ErrorFilter
 import com.ssafy.eolssu.core.ui.score.ErrorKindSegments
@@ -145,17 +146,13 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
             if (result != null) ErrorKindSegments(result, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 8.dp))
             if (section != null) SectionScore(evaluation, section, state.filter)
             // 다음 단계 안내 문구는 두지 않는다(S15P31E102-832).
-            Text(
-                stringResource(Res.string.weak_result_other_more),
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(top = 10.dp, bottom = 10.dp)
-                    .minimumInteractiveComponentSize()
-                    .clickable(role = Role.Button, onClick = actions.onOtherSection)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-                color = colors.textSub,
-            )
+            EolssuTextLink(actions.onOtherSection, Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp, bottom = 10.dp)) {
+                Text(
+                    stringResource(Res.string.weak_result_other_more),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
+                    color = colors.textSub,
+                )
+            }
         }
     }
     val recordedAt = evaluation?.result?.recordedAt

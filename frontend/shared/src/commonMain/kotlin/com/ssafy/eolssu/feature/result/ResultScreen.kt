@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.result
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
+import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import com.ssafy.eolssu.core.ui.component.rememberHideKeyboard
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -260,17 +261,13 @@ private fun ResultContent(state: ResultUiState, result: EvaluationResult, song: 
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            Text(
-                stringResource(Res.string.result_other_song_more),
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(top = 2.dp, bottom = 10.dp)
-                    .minimumInteractiveComponentSize()
-                    .clickable(role = Role.Button, onClick = actions.onOtherSong)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-                color = colors.textSub,
-            )
+            EolssuTextLink(actions.onOtherSong, Modifier.align(Alignment.CenterHorizontally).padding(top = 2.dp, bottom = 10.dp)) {
+                Text(
+                    stringResource(Res.string.result_other_song_more),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
+                    color = colors.textSub,
+                )
+            }
         }
     }
 }

@@ -226,7 +226,7 @@ private fun ProviderRow(provider: SocialProvider, linked: Boolean, onClick: () -
     }
 }
 
-/** 카드 안 한 줄: 글자 · 오른쪽 옅은 화살표. 줄 전체가 누르는 영역이다. */
+/** 카드 안 한 줄: 글자 · 오른쪽 옅은 화살표. 줄 전체가 누르는 영역이고 목록형으로 사각으로 눌린다(카드가 모서리를 자른다, S15P31E102-968). */
 @Composable
 private fun AccountRow(text: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors

@@ -2,6 +2,8 @@ package com.ssafy.eolssu.feature.song.edit
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -22,10 +24,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -197,16 +202,24 @@ private fun ListenRow(playing: Boolean, onToggle: () -> Unit) {
     val colors = EolssuTheme.colors
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         val press = remember { MutableInteractionSource() }
-        Surface(onClick = onToggle, modifier = Modifier.elasticSquash(press).size(48.dp), shape = CircleShape, color = colors.surface, interactionSource = press) {
-            Box(contentAlignment = Alignment.Center) {
-                Box(Modifier.size(40.dp).background(colors.accentTint, CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(
-                        if (playing) EolssuIcons.Pause else EolssuIcons.Play,
-                        contentDescription = stringResource(if (playing) Res.string.sheetedit_result_pause else Res.string.sheetedit_result_play),
-                        modifier = Modifier.size(16.dp),
-                        tint = colors.text,
-                    )
-                }
+        // 누르는 영역은 48dp, 눌림 효과는 그린 40dp 연두 원 안에만 둔다(S15P31E102-968).
+        Box(
+            Modifier
+                .elasticSquash(press)
+                .size(48.dp)
+                .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = onToggle),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                Modifier.size(40.dp).clip(CircleShape).background(colors.accentTint).indication(press, ripple()),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    if (playing) EolssuIcons.Pause else EolssuIcons.Play,
+                    contentDescription = stringResource(if (playing) Res.string.sheetedit_result_pause else Res.string.sheetedit_result_play),
+                    modifier = Modifier.size(16.dp),
+                    tint = colors.text,
+                )
             }
         }
         Text(

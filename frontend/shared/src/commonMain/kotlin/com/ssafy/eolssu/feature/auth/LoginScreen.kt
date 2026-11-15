@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import eolssu.shared.generated.resources.auth_withdrawn_title
 import eolssu.shared.generated.resources.auth_withdrawn_message
 import androidx.compose.foundation.background
@@ -304,11 +305,5 @@ private fun Links(onFindPassword: () -> Unit, onSignUp: () -> Unit, modifier: Mo
 
 @Composable
 private fun LinkButton(text: String, onClick: () -> Unit, content: @Composable (String) -> Unit) {
-    Box(
-        Modifier
-            .heightIn(min = 44.dp)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) { content(text) }
+    EolssuTextLink(onClick) { content(text) }
 }
