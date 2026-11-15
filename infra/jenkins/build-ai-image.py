@@ -5,7 +5,8 @@ Run from the root of a checkout of that commit as the Jenkins user (Docker acces
 
   plan SHA   print whether the runtime inputs differ from the image the running ai container uses
   build SHA  build ai/ into eolssu-ai:ci-SHA with revision and source labels
-  test SHA   run the ai pytest suite inside that image (dev dependencies only in a throwaway container)
+  test SHA   run the scoring unit tests with the image's Python, dependencies and ffmpeg against the
+             read-only checkout (dev dependencies only in a throwaway container)
   smoke SHA  start the image like production (non-root, read-only, tmpfs /tmp, no network),
              then check /health and run one synthetic scoring pass (ai_service.warmup)
 
@@ -31,9 +32,12 @@ VERIFY_LABEL = 'com.eolssu.ci.verification'
 # The image is built only from these paths (ai/.dockerignore keeps the rest out of the context).
 RUNTIME_INPUTS = ('ai/.dockerignore', 'ai/.python-version', 'ai/Dockerfile', 'ai/pyproject.toml',
                   'ai/src', 'ai/uv.lock')
-# Read-only mounts for the test container. Tests resolve repository data from parents[3] of /app/tests/unit.
-TEST_MOUNTS = (('ai/tests', '/app/tests'), ('ai/evaluation', '/app/evaluation'),
-               ('data/tests/fixtures', '/data/tests/fixtures'), ('data/src/scores', '/data/src/scores'))
+# Tests find repository data (data/reference, data/tests/fixtures, ...) relative to the source tree, so the
+# whole checkout is mounted read-only and the project is installed editable into the image's own environment.
+REPOSITORY_MOUNT = '/repo'
+TEST_DIRECTORY = Path('ai/tests/unit')
+# The scoring image does not serve omr_service; those tests belong to the OMR image (244 stage 2).
+OMR_MARKER = 'omr_service'
 # Same constraints as the ai service in infra/runtime/compose.yml.
 RUNTIME_FLAGS = ('--read-only', '--tmpfs', '/tmp:rw,size=512m', '--memory', '6g')
 HEALTH_SCRIPT = ("import json, urllib.request; "
@@ -73,8 +77,7 @@ def require_checkout(sha, run=subprocess.run):
     """The build context is the working tree, so it must be exactly the commit being labelled."""
     if call(run, ['git', 'rev-parse', 'HEAD'], timeout=30).stdout.strip() != sha:
         raise BuildError('working tree is not at the requested commit')
-    if call(run, ['git', 'status', '--porcelain', '--', 'ai', 'data/tests/fixtures', 'data/src/scores'],
-            timeout=30).stdout.strip():
+    if call(run, ['git', 'status', '--porcelain', '--', 'ai', 'data'], timeout=30).stdout.strip():
         raise BuildError('working tree has local changes under the build inputs')
 
 
@@ -120,22 +123,29 @@ def remove(run, name):
         signal.pthread_sigmask(signal.SIG_SETMASK, previous)
 
 
+def scoring_tests(directory=TEST_DIRECTORY):
+    """Unit test files of the scoring service and its evaluation tools (everything that does not use omr_service)."""
+    files = sorted(path for path in directory.glob('test_*.py') if OMR_MARKER not in path.read_text(encoding='utf-8'))
+    if not any(path.name == 'test_api.py' for path in files):
+        raise BuildError('scoring API tests are missing')
+    return [path.as_posix().removeprefix('ai/') for path in files]
+
+
 def test(sha, junit, run=subprocess.run):
     image = image_name(sha)
     require_checkout(sha, run)
-    mounts = []
-    for source, target in TEST_MOUNTS:
-        path = Path(source).resolve()
-        if not path.is_dir():
-            raise BuildError('test input missing: ' + source)
-        mounts += ['--mount', f'type=bind,src={path},dst={target},readonly']
+    selected = scoring_tests()
     name = 'eolssu-ci-ai-test-' + uuid.uuid4().hex
-    # Root only to install the dev group into the image's environment; the runtime user is checked by smoke.
-    command = ('uv sync --locked --no-editable && uv run --locked --no-editable '
-               'pytest -p no:cacheprovider -q --junitxml=/tmp/junit.xml')
+    # Root only to add the dev group to the image's environment in this throwaway container; the runtime user,
+    # read-only file system and installed (non-editable) package are checked by smoke.
+    command = ('uv sync --locked --no-default-groups --group dev && uv run --locked --no-default-groups --group dev '
+               'pytest -p no:cacheprovider -q --junitxml=/tmp/junit.xml ' + ' '.join(selected))
     try:
         call(run, ['docker', 'create', '--name', name, '--label', f'{VERIFY_LABEL}=ai-tests', '--user', '0',
-                   '--tmpfs', '/tmp:rw,exec,size=1g', *mounts, image, 'sh', '-c', command], timeout=60)
+                   '--tmpfs', '/tmp:rw,exec,size=1g', '--env', 'UV_PROJECT_ENVIRONMENT=/app/.venv',
+                   '--env', 'PYTHONDONTWRITEBYTECODE=1', '--workdir', REPOSITORY_MOUNT + '/ai',
+                   '--mount', f'type=bind,src={Path.cwd().resolve()},dst={REPOSITORY_MOUNT},readonly',
+                   image, 'sh', '-c', command], timeout=60)
         result = call(run, ['docker', 'start', '--attach', name], timeout=1800, check=False)
         print(result.stdout[-20000:], end='', flush=True)
         print(result.stderr[-5000:], end='', flush=True)
@@ -147,7 +157,7 @@ def test(sha, junit, run=subprocess.run):
             raise BuildError('ai test report missing')
     finally:
         remove(run, name)
-    return {'image': image, 'junit': str(junit)}
+    return {'image': image, 'junit': str(junit), 'test_files': len(selected)}
 
 
 def smoke(sha, run=subprocess.run, sleep=time.sleep, seconds=60):

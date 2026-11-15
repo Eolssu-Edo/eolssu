@@ -126,19 +126,26 @@ class GateTests(unittest.TestCase):
         self.cwd = os.getcwd()
         os.chdir(self.tmp.name)
         self.addCleanup(os.chdir, self.cwd)
-        for source, _ in build.TEST_MOUNTS:
-            Path(source).mkdir(parents=True)
+        tests = Path('ai/tests/unit')
+        tests.mkdir(parents=True)
+        (tests / 'test_api.py').write_text('from ai_service import api\n')
+        (tests / 'test_scoring.py').write_text('from ai_service.pipelines import scoring\n')
+        (tests / 'test_omr_api.py').write_text('from omr_service import api\n')
+        (tests / 'helper.py').write_text('')
         self.junit = Path('out/junit.xml')
         self.junit.parent.mkdir()
 
-    def test_tests_run_in_image_with_read_only_inputs_and_report_is_copied(self):
+    def test_scoring_tests_run_in_image_against_read_only_checkout(self):
         boundary = Boundary()
-        build.test(SHA, self.junit, boundary)
+        result = build.test(SHA, self.junit, boundary)
         create = boundary.commands('docker', 'create')[0]
         self.assertIn('eolssu-ai:ci-' + SHA, create)
         mounts = [create[i + 1] for i, a in enumerate(create) if a == '--mount']
-        self.assertEqual(len(mounts), len(build.TEST_MOUNTS))
-        self.assertTrue(all(m.endswith(',readonly') for m in mounts))
+        self.assertEqual(mounts, [f'type=bind,src={Path.cwd().resolve()},dst=/repo,readonly'])
+        command = create[-1]
+        self.assertIn('tests/unit/test_api.py tests/unit/test_scoring.py', command)
+        self.assertNotIn('test_omr_api.py', command)
+        self.assertEqual(result['test_files'], 2)
         self.assertTrue(self.junit.exists())
         self.assertEqual(len(boundary.commands('docker', 'rm', '-f')), 1)
 
@@ -148,10 +155,10 @@ class GateTests(unittest.TestCase):
             build.test(SHA, self.junit, boundary)
         self.assertEqual(len(boundary.commands('docker', 'rm', '-f')), 1)
 
-    def test_missing_test_input_is_reported_before_docker(self):
-        Path('data/src/scores').rmdir()
+    def test_missing_scoring_api_tests_are_reported_before_docker(self):
+        Path('ai/tests/unit/test_api.py').unlink()
         boundary = Boundary()
-        with self.assertRaisesRegex(build.BuildError, 'data/src/scores'):
+        with self.assertRaisesRegex(build.BuildError, 'scoring API tests'):
             build.test(SHA, self.junit, boundary)
         self.assertEqual(boundary.commands('docker', 'create'), [])
 
