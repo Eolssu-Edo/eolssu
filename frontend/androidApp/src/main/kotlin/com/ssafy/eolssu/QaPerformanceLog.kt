@@ -43,7 +43,8 @@ internal object QaPerformanceLog {
         PerformanceLog.liveRequestsEnabled = live
         PerformanceLog.sink = { event ->
             // Keep the snapshot relay's established schema while logcat carries live-only fields.
-            if (event.requestId == null && event.phase != PerfPhase.SONG_DETAIL_DRAWN) log.offer(event)
+            if (event.requestId == null && event.phase != PerfPhase.SONG_DETAIL_DRAWN &&
+                event.phase != PerfPhase.SYNTHETIC_INPUT) log.offer(event)
             if (live) Log.i("EolssuLive", event.encode())
         }
     }

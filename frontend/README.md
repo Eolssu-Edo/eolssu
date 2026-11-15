@@ -358,3 +358,6 @@ S15P31E102-283의 실제 앱 시연에서는 Android debug를 다음과 같이 �
 `request_started`와 `request_finished`는 실제 HTTP 시도마다 같은 `request_id`를 사용하며, 중계에는 `X-QA-Request-Id`로 전달합니다. 로그인 토큰 갱신과 재전송은 서로 다른 요청 ID를 사용합니다. 평가 흐름은 기존 `evaluation_timing_id`로 이어집니다. 로그에는 허용한 대상 이름·단계·시간·상태·난수 ID만 넣습니다.
 
 `milestone/song_detail_drawn`, `milestone/practice_drawn`, 결과 화면의 `milestone/score_drawn`은 Compose의 해당 콘텐츠 그리기 이후 발생합니다. HTTP 응답과 화면 표시를 각각 확인할 수 있습니다. `eolssu.qaLive`는 기본적으로 꺼져 있고, 켜면 API 주소가 위 격리 루프백 주소여야 합니다. release에는 이 계측을 켜지 않습니다.
+
+
+QA 입력 파일을 사용하는 시연에서는 실행 담당자가 앱의 `files/qa-live-input.pcm`을 녹음 시작 전에 준비합니다. 형식은 16kHz 모노 signed16 little-endian이며 최대 60초입니다. `.qa` 디버그 앱과 QA_LIVE 조건에서만 파일을 읽고, 기존 44.1kHz 녹음 파이프라인으로 리샘플링해 실제 시간에 맞춰 전달합니다. AAC 인코딩·레벨·음높이 추정·기존 입력 검사를 거칩니다. 파일이 열리면 `synthetic_input` 이벤트가 발생하며, 파일 변경·삭제는 다음 녹음부터 적용합니다. 파일이 없으면 마이크 입력을 사용합니다.
