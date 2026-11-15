@@ -4,7 +4,7 @@ import com.ssafy.eolssu.feature.guide.BasicSigimsae
 import com.ssafy.eolssu.feature.guide.MoreSigimsae
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
@@ -17,7 +17,7 @@ class ScoreSigimsaeTest {
         assertEquals("원문점", scoreSigimsaeName(raw))
         assertNotEquals(scoreSigimsaeImage("반길이표"), dot)
         assertNotEquals(scoreSigimsaeImage("끊는표"), dot)
-        assertFalse("원문점" in RegisteredSigimsaeNames)
+        assertTrue("원문점" in RegisteredSigimsaeNames)
     }
 
     @Test fun everySanjoJindoArirangMarkUsesAGlyphInsteadOfItsKoreanName() {
@@ -27,7 +27,7 @@ class ScoreSigimsaeTest {
         sourceMarks.forEach { raw -> assertNotNull(scoreSigimsaeImage(raw), raw) }
         for (name in listOf("혀치기", "반음올림표", "꺾는음")) {
             assertEquals(name, scoreSigimsaeName("$name@100,10,0"))
-            assertFalse(name in RegisteredSigimsaeNames) // Preserve the existing editor insertion palette.
+            assertTrue(name in RegisteredSigimsaeNames) // 표시되는 원본 기호를 편집기에서도 다시 넣을 수 있다.
         }
     }
 

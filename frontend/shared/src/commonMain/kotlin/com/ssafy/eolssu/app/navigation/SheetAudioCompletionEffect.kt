@@ -7,7 +7,6 @@ import androidx.compose.material3.SnackbarVisuals
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -18,7 +17,6 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheet_audio_completed
 import eolssu.shared.generated.resources.sheet_audio_open
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
@@ -52,7 +50,7 @@ internal fun SheetAudioCompletionEffect(
     }
 }
 
-/** Acknowledge when actually visible, so pause neither repeats shown notices nor loses queued ones. */
+/** The top banner remains pending until the user opens or dismisses it, including across pause. */
 internal suspend fun showSheetAudioCompletion(
     repository: NotifyingSheetAudioRepository,
     snackbar: SnackbarHostState,
@@ -60,24 +58,31 @@ internal suspend fun showSheetAudioCompletion(
     message: String,
     actionLabel: String,
     onOpen: (String) -> Unit,
+) = showSheetCompletion(snackbar, completion.sheetId, message, actionLabel,
+    isCurrent = { repository.isCurrent(completion) }, consume = { repository.consume(completion) }, onOpen = onOpen)
+
+/** Audio and recognition notices share visibility/acknowledgement semantics on the same host. */
+internal suspend fun showSheetCompletion(
+    snackbar: SnackbarHostState,
+    sheetId: String,
+    message: String,
+    actionLabel: String,
+    isCurrent: () -> Boolean,
+    consume: () -> Unit,
+    onOpen: (String) -> Unit,
 ) = coroutineScope {
-    if (!repository.isCurrent(completion)) return@coroutineScope
+    if (!isCurrent()) return@coroutineScope
     val visuals = object : SnackbarVisuals {
         override val message = message
         override val actionLabel = actionLabel
-        override val duration = SnackbarDuration.Long
-        override val withDismissAction = false
-    }
-    val delivery = launch(start = CoroutineStart.UNDISPATCHED) {
-        snapshotFlow { snackbar.currentSnackbarData?.visuals === visuals }.first { it }
-        repository.consume(completion)
+        override val duration = SnackbarDuration.Indefinite
+        override val withDismissAction = true
     }
     try {
         val result = snackbar.showSnackbar(visuals)
-        repository.consume(completion)
-        if (result == SnackbarResult.ActionPerformed && repository.isCurrent(completion)) onOpen(completion.sheetId)
+        consume()
+        if (result == SnackbarResult.ActionPerformed && isCurrent()) onOpen(sheetId)
     } finally {
-        delivery.cancel()
         snackbar.currentSnackbarData?.takeIf { it.visuals === visuals }?.dismiss()
     }
 }

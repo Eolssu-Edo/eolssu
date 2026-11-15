@@ -1,0 +1,8 @@
+[Unit]
+Description=Eolssu read-only replica health check
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/eolssu-replication-579/check-replication.py
+TimeoutStartSec=8

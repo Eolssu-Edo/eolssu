@@ -207,6 +207,34 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         assertFalse(repository.writes.single().first)
     }
 
+    @Test fun summarizedTempoAndVoiceNoticesNeverAcknowledgeAPendingReview() = runTest {
+        val original = document(issues = listOf(issue("LOW_CONFIDENCE")), notices = listOf(
+            json("""{"type":"LOW_CONFIDENCE","detail":{"reason":"TEMPO_PDF_TEXT","count":1}}"""),
+            json("""{"type":"LOW_CONFIDENCE","detail":{"reason":"TEMPO_PDF_TEXT","count":2}}"""),
+            json("""{"type":"LOW_CONFIDENCE","detail":{"reason":"TEMPO_PDF_TEXT","count":2}}"""),
+            json("""{"type":"VOICE_GUESSED","detail":{"voices":2}}"""),
+        ))
+        val repository = RecordingDocuments(original)
+        val model = open(repository)
+        runCurrent()
+        assertEquals(2, model.uiState.value.reviewNotices.size)
+        assertEquals(5, model.uiState.value.reviewNotices.first().count)
+        assertEquals(1, model.uiState.value.completionValidation.pendingReviewCount)
+        assertTrue(model.uiState.value.checkedIssueIds.isEmpty())
+        assertEquals(listOf("i1"), model.uiState.value.reviewIssuesAt(0).map { it.id })
+        val before = model.uiState.value.draft.toCommonScore()
+        model.requestSave(); runCurrent()
+        assertTrue(repository.writes.isEmpty(), "참고 안내 요약이 실제 미확인 검수의 저장 제한을 바꾸지 않는다")
+
+        model.openNextReviewCell()
+        model.checkReviewIssue()
+        assertTrue(model.uiState.value.completionValidation.canComplete)
+        model.requestSave(); runCurrent()
+        assertEquals(listOf("i1"), repository.writes.single().second.resolvedIssueIds)
+        assertEquals(original.notices, repository.document.notices)
+        assertEquals(before, repository.writes.single().second.score)
+    }
+
     @Test fun incompleteHoldBlocksFinalSaveButRemainsDraftSaveable() = runTest {
         val repository = RecordingDocuments(document())
         val model = open(repository)

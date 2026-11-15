@@ -36,8 +36,8 @@ from ai_service.pipelines.scoring import (
 
 # evaluations.model_version(30자 이하). 음높이 추정·채점 방식을 바꾸면 올린다. 2: 쉼(startBeat)·곡별 조율 보정 상한,
 # 6: 대금의 곡 음역 아래 값 두 배 보정(S15P31E102-848), 7: 길이를 다음 음의 실제 시작까지의 자리와 비교(S15P31E102-910),
-# 8: 긴 음의 길이 오류 판정 LENGTH(S15P31E102-912)
-MODEL_VERSION = "pyin-8"
+# 8: 긴 음의 길이 오류 판정 LENGTH(S15P31E102-912), 9: 소리가 있으면 모든 음표를 놓쳐도 NO_SOUND 대신 DONE(S15P31E102-291)
+MODEL_VERSION = "pyin-9"
 # 곡 음역 아래 값을 두 배로 고치는 악기(instruments.code). 낮은 음역으로 부는 초보가 많은 대금만 고친다.
 LIFT_BELOW_RANGE = frozenset({"JEONGAK_DAEGEUM", "SANJO_DAEGEUM"})
 MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024  # PRA-02 원본 상한 20MiB, Nginx·multipart 한도 25MiB
@@ -154,7 +154,10 @@ class AnalysisDone(_Camel):
 
 class AnalysisFailed(_Camel):
     status: Literal["FAILED"]
-    fail_reason: Literal["NO_SOUND", "TOO_SHORT", "DECODE_ERROR"] = Field(description="녹음 탓의 분석 실패 사유")
+    fail_reason: Literal["NO_SOUND", "TOO_SHORT", "DECODE_ERROR"] = Field(
+        description="녹음 탓의 분석 실패 사유. NO_SOUND는 녹음에 소리가 없을 때만이다."
+        " 소리가 있으면 음높이를 못 잡거나 모든 음표가 MISSED여도 DONE이다"
+    )
 
 
 class InvalidField(BaseModel):

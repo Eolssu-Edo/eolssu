@@ -32,6 +32,7 @@ import com.ssafy.eolssu.data.song.ApiPublishedSheetCopyRepository
 import com.ssafy.eolssu.data.song.PublishedSheetCopyRepository
 import com.ssafy.eolssu.data.song.ApiSheetConversionRepository
 import com.ssafy.eolssu.data.song.SheetConversionRepository
+import com.ssafy.eolssu.data.song.NotifyingSheetConversionRepository
 import com.ssafy.eolssu.feature.song.edit.SheetImportViewModel
 import com.ssafy.eolssu.data.song.ApiMySheetRepository
 import com.ssafy.eolssu.data.song.ApiSheetAudioRepository
@@ -230,11 +231,13 @@ val appModule = module {
     viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull(), get()) }
 
     // 내 악보 목록과 편집 문서는 같은 인증 HTTP 클라이언트를 쓴다.
-    single<MySheetRepository> { ApiMySheetRepository(get(), member = get(), deviceAudioStore = get()) }
+    single<MySheetRepository> { ApiMySheetRepository(get(), member = get(), deviceAudioStore = get(),
+        onDeleted = get<NotifyingSheetConversionRepository>()::deleted) }
     single<SheetDocumentRepository> { ApiSheetDocumentRepository(get(), member = get()) }
-    single<SheetImportRepository> { ApiSheetImportRepository(get(), get()) }
+    single { NotifyingSheetConversionRepository(ApiSheetConversionRepository(get(), get()), ApiSheetImportRepository(get(), get()), get()) }
+    single<SheetImportRepository> { get<NotifyingSheetConversionRepository>() }
     single<PublishedSheetCopyRepository> { ApiPublishedSheetCopyRepository(get(), get()) }
-    single<SheetConversionRepository> { ApiSheetConversionRepository(get(), get()) }
+    single<SheetConversionRepository> { get<NotifyingSheetConversionRepository>() }
     viewModel { (kind: ImportKind, hwang: HwangPitch) ->
         SheetImportViewModel(kind, hwang, get(),
             get<InstrumentCatalog>()::load, get<ReferenceCatalogRepository>()::jangdans, get(), authoringCatalog = get())
