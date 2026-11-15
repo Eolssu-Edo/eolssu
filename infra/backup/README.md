@@ -53,7 +53,7 @@ ssh -o ClearAllForwardings=yes edo1 'sudo systemctl list-units --failed "eolssu-
 ssh -o ClearAllForwardings=yes edo2 'sudo systemctl list-units --failed "eolssu-backup*"'
 ```
 
-실패는 systemd 종료 코드·journal과 마지막 성공 영수증/복원 결과로 확인한다. 업로드 완료 시각과 DB 스냅샷 시각을 구분한다. 암호화/전송 실패를 성공으로 처리하지 않는다. 15분 상태 검사 실패는 systemd failed 상태로 드러나며 Mattermost 등 외부 메시지 알림은 연결하지 않았다.
+실패는 systemd 종료 코드·journal과 마지막 성공 영수증/복원 결과로 확인한다. 업로드 완료 시각과 DB 스냅샷 시각을 구분한다. 암호화/전송 실패를 성공으로 처리하지 않는다. 15분 상태 검사 실패는 systemd failed 상태로 드러난다. 백업 최신성·복구 검증 결과의 변화는 edo2 [능동 알림](../edo-check/README.md#상태-변화-능동-알림)이 Mattermost로 알린다(적용 후).
 
 ## 격리 복원 검증
 
