@@ -52,6 +52,42 @@ internal fun homeScrollFrame(width: Float, height: Float, scroll: Float, buttonH
     )
 }
 
+/** 그림 원본(1086×1448)의 높이/너비 비. */
+internal const val HomeArtAspect = 1448f / 1086f
+
+/**
+ * 넓은 창(Expanded)에서 그림·왼쪽 무대의 배치.
+ *
+ * @property artScale 그림 너비 배율. 첫 화면에서도 창 높이를 덮는 최소 배율만 쓴다.
+ * @property artY 그림 위쪽 위치(dp, [heroOffset] 미포함).
+ * @property heroOffset 펼친 화면에서 그림 띠·제목·버튼 묶음을 내리는 양(dp). 첫 화면에서는 0이다.
+ */
+internal data class HomeExpandedHero(val artScale: Float, val artY: Float, val heroOffset: Float)
+
+/**
+ * 첫 화면은 펼친 화면과 같은 비율(위 62%)로 그림을 잘라 정자와 제목이 보이게 한다.
+ * 펼친 화면은 왼쪽 무대 묶음(그림 띠 + 12 + 버튼)의 세로 가운데를 오른쪽 카드 묶음에 맞추되 창 아래로 넘치지 않게 한다.
+ */
+internal fun homeExpandedHero(
+    width: Float,
+    height: Float,
+    heroWidth: Float,
+    frame: HomeScrollFrame,
+    buttonHeight: Float,
+    featureTop: Float,
+    featureHeight: Float,
+): HomeExpandedHero {
+    val e = frame.eased
+    val band = frame.bandHeight
+    val startScale = maxOf(1f, height / (width * HomeArtAspect))
+    val startY = (height - width * startScale * HomeArtAspect) * .62f
+    val endY = (band - heroWidth * HomeArtAspect) * .62f
+    val heroHeight = band + 12f + buttonHeight
+    val maxOffset = (height - band - buttonHeight - 58f).coerceAtLeast(0f)
+    val offset = (featureTop + featureHeight / 2f - heroHeight / 2f).coerceIn(0f, maxOffset)
+    return HomeExpandedHero(mix(startScale, 1f, e), mix(startY, endY, e), offset * e)
+}
+
 /** 펼친 뒤 추가 스크롤은 유지한다. 스냅 중 발생한 위치를 새 제스처로 처리하지 않는다. */
 internal fun homeSnapTarget(scroll: Float, wasOpen: Boolean): Float = when {
     scroll >= HomeScrollRange -> scroll

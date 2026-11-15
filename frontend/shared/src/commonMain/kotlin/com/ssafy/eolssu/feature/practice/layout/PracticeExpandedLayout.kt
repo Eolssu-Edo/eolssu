@@ -24,7 +24,7 @@ import com.ssafy.eolssu.feature.practice.component.PracticeSideDock
 
 /**
  * 태블릿 가로·넓은 웹 창 배치(와이어프레임 `Tab-Practice-Land`). 왼쪽에 악보(한 단, 가로 스크롤), 오른쪽 380dp에 상태 패널을 둔다.
- * 상단 설정 버튼 대신 상태 패널에 설정 바로가기가 있고, 보조 패널은 화면을 덮지 않고 상태 패널 자리에 열린다.
+ * 상단 설정 버튼 대신 상태 패널에 설정 바로가기가 있다. 보조 패널은 다른 크기와 같이 배경을 눌러 닫는 시트로 열린다(S15P31E102-518).
  * 내용은 최대 [WindowBreakpoints.ContentMaxWidth]로 가운데에 두고, 양옆은 40dp 이상 띄운다.
  */
 @Composable
