@@ -55,17 +55,25 @@ fun pitchIndexOf(hanja: String): Int {
 }
 
 /**
- * 세리프 글꼴에 있는 율명 한자(`tools/fonts/build_fonts.py`의 `SERIF_HANJA`와 같은 율명 15자).
- * 나머지 청성·탁성·중청 글자는 글꼴에 없어서 변(氵·亻)과 기본 율명을 나란히 그린다.
+ * 세리프 글꼴(`noto_serif_kr_*.otf`)에 실제 글리프가 있는 율명 한자. `tools/fonts/build_fonts.py`의 `SERIF_YUL`과 같다.
+ * 정간보 원본 표기(옥타브 -2~2)와 운지표 글자를 모두 담고, 보충 평면 세 글자(𢓡 𠐭 𣴘)만 보조 글꼴이 그린다.
  */
-internal val SerifYulGlyphs: Set<String> = Yul.entries.filter { it.drawnAs == null }.map { it.symbol }.toSet()
+internal const val SerifYulHanja: String =
+    "黃大太夾姑仲蕤林夷南無應" +
+        "潢汏汰浹㴌㳞㶋淋洟湳潕㶐" +
+        "㶂㳲㴺㵈㴢㶙㵉㴣㵜㶃㶝" + "㶄㴩㶌㶍" +
+        "僙㐲㑀俠㑬㑖㑣侇㑲㒇㒣" + "㑥" +
+        "㣴㣕㣖㣣㣨㣡㣸㣩㣮㣳㣹"
+
+/** [SerifYulHanja]의 글자 집합. 여기 있는 율명은 조합하지 않고 글꼴의 글자를 그대로 그린다. */
+internal val SerifYulGlyphs: Set<String> = SerifYulHanja.map(Char::toString).toSet()
 
 /** 율명 글자를 그릴 조각. [radicals]를 작게 앞에 붙이고 [base]를 그린다. [radicals]가 비면 글자 그대로다. */
 data class HanjaGlyphParts(val radicals: String, val base: String)
 
 /**
- * 글꼴에 없는 율명을 변 + 글꼴에 있는 율명으로 나눈다. 탁성은 亻, 청성은 氵, 중청은 氵를 하나 더 붙인다.
- * 예: 㑣 → 亻 + 林, 㳞 → 氵 + 仲, 㶂 → 氵 + 潢, 㴩 → 氵氵 + 姑.
+ * 율명을 그릴 조각. 글꼴에 있는 글자([SerifYulGlyphs])는 그대로 그리고, 없는 글자만 변 + 기본 율명으로 나눈다.
+ * 탁성은 亻, 청성은 氵, 중청은 氵를 하나 더 붙인다(조합 예비 경로: 㶂 → 氵 + 潢, 그 밖의 중청 → 氵氵 + 기본).
  */
 fun glyphPartsOf(hanja: String): HanjaGlyphParts {
     if (hanja in SerifYulGlyphs) return HanjaGlyphParts("", hanja)

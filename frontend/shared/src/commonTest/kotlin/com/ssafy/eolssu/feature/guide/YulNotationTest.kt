@@ -54,15 +54,11 @@ class YulNotationTest {
     }
 
     @Test
-    fun glyphsMissingFromSerifFontAreSplitIntoRadicalAndBase() {
-        assertEquals(HanjaGlyphParts("", "潢"), glyphPartsOf("潢"))
-        assertEquals(HanjaGlyphParts("亻", "林"), glyphPartsOf("㑣"))
-        assertEquals(HanjaGlyphParts("氵", "仲"), glyphPartsOf("㳞"))
-        assertEquals(HanjaGlyphParts("氵", "大"), glyphPartsOf("汏"))
-        // 중청: 글꼴에 있는 청성 글자가 있으면 그 앞에 氵 하나, 없으면 氵 둘
-        assertEquals(HanjaGlyphParts("氵", "潢"), glyphPartsOf("㶂"))
-        assertEquals(HanjaGlyphParts("氵", "淋"), glyphPartsOf("㶍"))
-        assertEquals(HanjaGlyphParts("氵氵", "姑"), glyphPartsOf("㴩"))
+    fun clearAndLowGlyphsInSerifFontAreDrawnAsIs() {
+        // 탁성·청성·중청 모두 세리프 글꼴에 실제 글자가 있어 변으로 조합하지 않는다.
+        listOf("潢", "㑣", "㒣", "㳞", "汏", "㶂", "㶍", "㴩").forEach { hanja ->
+            assertEquals(HanjaGlyphParts("", hanja), glyphPartsOf(hanja))
+        }
     }
 
     @Test
