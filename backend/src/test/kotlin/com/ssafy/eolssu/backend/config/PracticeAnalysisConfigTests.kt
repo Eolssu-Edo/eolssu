@@ -11,12 +11,15 @@ import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisReposito
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeScoreNotes
 import com.ssafy.eolssu.backend.feature.analysis.domain.RecordingReadUrls
 import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.support.StaticListableBeanFactory
@@ -35,10 +38,14 @@ class PracticeAnalysisConfigTests {
     private val readUrls = RecordingReadUrls { "https://storage.test/a.m4a?sig=x" }
     private val config = PracticeAnalysisConfig()
 
-    private fun onUpload(properties: AnalysisProperties, vararg beans: Pair<String, Any>) = StaticListableBeanFactory(beans.toMap()).let {
+    private fun onUpload(
+        properties: AnalysisProperties,
+        vararg beans: Pair<String, Any>,
+        registry: MeterRegistry = SimpleMeterRegistry(),
+    ) = StaticListableBeanFactory(beans.toMap()).let {
         config.analysisOnUpload(
             properties, repository, jacksonMapperBuilder().build(),
-            it.getBeanProvider(PracticeScoreNotes::class.java), it.getBeanProvider(RecordingReadUrls::class.java),
+            it.getBeanProvider(PracticeScoreNotes::class.java), it.getBeanProvider(RecordingReadUrls::class.java), registry,
         )
     }
 
@@ -50,6 +57,42 @@ class PracticeAnalysisConfigTests {
         assertFalse(onUpload(configured, "urls" to readUrls).ready)
         assertFalse(onUpload(AnalysisProperties(), "notes" to scoreNotes, "urls" to readUrls).ready)
         onUpload(configured, "notes" to scoreNotes, "urls" to readUrls).use { assertTrue(it.ready) }
+    }
+
+    @Test
+    fun `reports whether the analysis is wired and exposes the executor state`() {
+        val off = SimpleMeterRegistry()
+        onUpload(AnalysisProperties(aiBaseUrl = "http://ai.test"), registry = off)
+        assertEquals(0.0, off.get("eolssu.analysis.ready").gauge().value())
+        // 연결 전에는 실행기가 없으므로 실행기 지표도 없다.
+        assertNull(off.find("executor.active").tag("name", "analysis").gauge())
+
+        val on = SimpleMeterRegistry()
+        onUpload(AnalysisProperties(aiBaseUrl = "http://ai.test", workers = 3, queueCapacity = 7), "notes" to scoreNotes, "urls" to readUrls, registry = on).use {
+            assertEquals(1.0, on.get("eolssu.analysis.ready").gauge().value())
+            assertEquals(0.0, on.get("executor.active").tag("name", "analysis").gauge().value())
+            assertEquals(0.0, on.get("executor.queued").tag("name", "analysis").gauge().value())
+            assertEquals(7.0, on.get("executor.queue.remaining").tag("name", "analysis").gauge().value())
+            assertEquals(3.0, on.get("executor.pool.max").tag("name", "analysis").gauge().value())
+            // 새 슬롯의 첫 거절·실패도 increase()로 잡히게 카운터를 0으로 미리 만든다.
+            for (reason in listOf("queue_full", "shutdown")) assertEquals(0.0, on.get("eolssu.analysis.rejected").tag("reason", reason).counter().count())
+            for (code in listOf("DONE", "SERVER_ERROR", "TIMEOUT", "NO_SOUND", "DECODE_ERROR")) {
+                assertEquals(0.0, on.get("eolssu.analysis.outcomes").tag("outcome", code).counter().count())
+            }
+        }
+    }
+
+    @Test
+    fun `counts each finished analysis by its outcome code`() {
+        val registry = SimpleMeterRegistry()
+        // 시도가 PENDING이 아니면 AI를 부르지 않고 NOT_PENDING으로 끝난다(저장소 대역이 늘 null을 돌려준다).
+        onUpload(AnalysisProperties(aiBaseUrl = "http://ai.test"), "notes" to scoreNotes, "urls" to readUrls, registry = registry).use {
+            it.submit(7, attempt = 1)
+            it.submit(8, attempt = 1)
+        } // close가 받은 분석을 끝까지 기다린다.
+        assertEquals(2.0, registry.get("eolssu.analysis.outcomes").tag("outcome", "NOT_PENDING").counter().count())
+        assertEquals(2L, registry.get("eolssu.analysis.run").timer().count())
+        assertEquals(2L, registry.get("eolssu.analysis.queue.wait").timer().count())
     }
 
     @Test
@@ -82,6 +125,17 @@ class PracticeAnalysisConfigTests {
     fun `explains which values are invalid`() {
         val error = assertFailsWith<IllegalArgumentException> { AnalysisProperties(queueCapacity = -1) }
         assertTrue(error.message!!.contains("queue-capacity"), error.message)
+        val wait = assertFailsWith<IllegalArgumentException> { AnalysisProperties(shutdownWait = Duration.ofSeconds(-1)) }
+        assertTrue(wait.message!!.contains("shutdown-wait"), wait.message)
+    }
+
+    // 종료 전에 시작된 시도는 제한 시간 안에 모두 마감되므로, 그만큼(+저장 여유)만 기다린다.
+    // 운영 Compose의 stop_grace_period(250초)와 웹 서버 마무리(120초)를 합쳐도 넘지 않는다.
+    @Test
+    fun `waits for running analyses about as long as the time limit on shutdown`() {
+        assertEquals(Duration.ofSeconds(65), AnalysisProperties().shutdownWait)
+        assertEquals(Duration.ofSeconds(95), bind("eolssu.analysis.time-limit" to "90").shutdownWait)
+        assertEquals(Duration.ofSeconds(20), bind("eolssu.analysis.shutdown-wait" to "20").shutdownWait)
     }
 
     private class Retries(var state: AnalysisState) : AnalysisRetryRepository {
