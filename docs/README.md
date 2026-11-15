@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [PDF·사진 악보 변환 완료 앱 내 알림 (927)](plans/S15P31E102-927.md) · [알림 규칙](specs/sheet-conversion-completion.md)
+
 - [화요일 QA 사전 점검·결함·검증 기록 (911)](plans/S15P31E102-911.md) · [녹음 시작 요청과 화면 수명 기준](specs/qa-preflight-lifecycle.md)
 
 - [악보 추가·편집과 구간 선택 안내 일관성 개선 (906)](plans/S15P31E102-906.md) · [표시 스펙](specs/app-qa-consistency.md)
