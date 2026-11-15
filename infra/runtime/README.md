@@ -279,7 +279,7 @@ sudo docker compose --env-file /opt/eolssu/.env \
 
 1. 실행 중인 잡을 취소하지 않고 현재 관리 파일과 실제 inline 잡 정의를 별도 백업합니다. 설치 전·후 SHA-256과 기존 stage·QA 예약·알림·트리거를 확인합니다.
 2. `infra/jenkins/backend-artifact.Dockerfile`을 root 소유 0644의 `/opt/eolssu/config/backend-artifact.Dockerfile`에 먼저 설치합니다. 조회 시 실제 파일과 저장소 원본의 SHA-256이 같아야 합니다.
-3. 관리 backend/frontend Pipeline의 변경을 운영 inline 정의와 대조해 반영합니다. 저장소에 없는 Android/iOS QA 예약이나 환경 주입을 덮어쓰지 않습니다. 병합 전 revision에는 helper·검사 파일이 없어 새 Pipeline이 실패하므로 미리 활성화하지 않습니다.
+3. 관리 backend/frontend Pipeline의 변경을 운영 inline 정의와 대조해 반영합니다. Android/iOS QA 예약은 2026-11-15부터 저장소 [backend.Jenkinsfile](../jenkins/backend.Jenkinsfile)에도 있습니다(S15P31E102-943). 그래도 운영 정의에만 있는 환경 주입이 없는지 [일치 점검](../drift/README.md)으로 먼저 확인합니다. 병합 전 revision에는 helper·검사 파일이 없어 새 Pipeline이 실패하므로 미리 활성화하지 않습니다.
 4. 실제 Jenkins linter 검사 후 정의를 저장하고 다시 읽어 해시와 기존 옵션·stage를 확인합니다. 정상 자동 실행에서 daemon 재사용, JAR 해시, 테스트·배포 상태와 대기/실행 시간을 나누어 확인합니다. 문제 시 백업 Pipeline을 복원하고 새 artifact Dockerfile은 사용하지 않습니다.
 
 빠른 회귀 검사:
