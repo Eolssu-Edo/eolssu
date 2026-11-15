@@ -41,7 +41,6 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.adaptive.isNarrowTextWindow
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_instrument_select
 import org.jetbrains.compose.resources.stringResource
@@ -55,8 +54,7 @@ val PracticeInstruments: List<Instrument> = listOf(Instrument.Danso, Instrument.
  * 누르면 알약 오른쪽 끝에 맞춘 메뉴가 아래로 열리고,
  * 고르면 [onSelect]로 전달한 뒤 닫힌다. 저장 중([enabled]=false)에는 열리지 않는다. 누르는 높이는 48dp를 유지한다.
  * [bordered]가 false면 테두리 없는 흰 알약이다(연습곡 고르기의 회색 바탕).
- * [compactWhenNarrow]가 true이고 창이 좁으면([isNarrowTextWindow]) 선택값의 악기 그림을 빼고 글자만 두어 알약을 줄인다.
- * 상단 바 가운데 제목이 잘리지 않게 하려는 것이라 상단 바에 둘 때만 켠다(S15P31E102-924). 메뉴 목록은 그대로다.
+ * 놓인 자리가 좁으면 그림과 꺽쇠는 두고 악기 이름만 ‘정악…’처럼 말줄임한다(S15P31E102-924).
  */
 @Composable
 fun PracticeInstrumentDropdown(
@@ -65,14 +63,12 @@ fun PracticeInstrumentDropdown(
     onSelect: (Instrument) -> Unit,
     modifier: Modifier = Modifier,
     bordered: Boolean = true,
-    compactWhenNarrow: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val shown = instrument ?: PracticeInstruments.first()
     var open by remember { mutableStateOf(false) }
     val menuLabel = stringResource(Res.string.guide_instrument_select)
     val selectedLabel = stringResource(shown.label)
-    val narrow = compactWhenNarrow && isNarrowTextWindow()
     Box(modifier.heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
         Surface(
             onClick = { if (enabled) open = !open },
@@ -87,13 +83,15 @@ fun PracticeInstrumentDropdown(
             border = if (bordered) BorderStroke(1.dp, colors.lineSoft) else null,
         ) {
             Row(
-                Modifier.padding(start = if (narrow) 12.dp else 8.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+                Modifier.padding(start = 8.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                if (!narrow) InstrumentPicture(shown, size = InstrumentPictureCompactSize)
+                InstrumentPicture(shown, size = InstrumentPictureCompactSize)
                 Text(
                     selectedLabel,
+                    // 이름을 나중에 재서 꺽쇠 자리를 먼저 남긴다.
+                    modifier = Modifier.weight(1f, fill = false),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

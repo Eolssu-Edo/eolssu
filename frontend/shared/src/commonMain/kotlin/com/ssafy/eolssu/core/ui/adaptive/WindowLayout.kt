@@ -22,9 +22,6 @@ object WindowBreakpoints {
 
     /** 태블릿 가로 배치에서 12정간 줄을 정간 44dp로 세로 스크롤 없이 넣는 데 필요한 창 높이 */
     val LandscapeLayoutMinHeight: Dp = 650.dp
-
-    /** 글꼴 배율을 나눈 창 너비가 이보다 좁으면 상단 바 오른쪽 칸을 줄인다([isNarrowTextWidth]). 기본 글꼴 360dp 휴대폰은 줄이지 않아도 가운데 제목이 들어간다. */
-    val NarrowTextMinWidth: Dp = 360.dp
 }
 
 /** 창 너비 구간. 기기 종류가 아니라 지금 앱이 쓰는 창의 너비로 정한다. */
@@ -60,19 +57,6 @@ fun windowLayoutOf(width: Dp, height: Dp): WindowLayout {
         widthClass = widthClass,
         isShortHeight = height < WindowBreakpoints.LandscapeLayoutMinHeight,
     )
-}
-
-/**
- * 글자가 들어갈 너비로 보아 좁은 휴대폰 창인지. 기기 글꼴을 키우면 같은 폭에 들어가는 글자가 줄어드므로 [fontScale]로 나눠 비교한다.
- */
-fun isNarrowTextWidth(width: Dp, fontScale: Float): Boolean = width / fontScale < WindowBreakpoints.NarrowTextMinWidth
-
-/** 현재 창이 [isNarrowTextWidth]로 좁은지. 창 크기나 글꼴 배율이 바뀌면 다시 계산된다. */
-@Composable
-fun isNarrowTextWindow(): Boolean {
-    val width = LocalWindowInfo.current.containerSize.width
-    val density = LocalDensity.current
-    return remember(width, density) { with(density) { isNarrowTextWidth(width.toDp(), fontScale) } }
 }
 
 /** 현재 창 크기로 판정한다. 창 크기가 바뀌면(회전, 화면 분할, 웹 창 조절) 다시 계산된다. */
