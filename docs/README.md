@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [저장 창 반복 검수 안내의 원인·위치별 개선 (928)](plans/S15P31E102-928.md) · [안내 스펙](specs/sheet-review-guidance.md) · [참고 안내와 실제 검수의 구분](knowledge/frontend/sheet-editor-save-validation.md#반복-참고-안내와-실제-미확인-검수의-구분-928)
+
 - [화요일 QA 사전 점검·결함·검증 기록 (911)](plans/S15P31E102-911.md) · [녹음 시작 요청과 화면 수명 기준](specs/qa-preflight-lifecycle.md)
 
 - [악보 추가·편집과 구간 선택 안내 일관성 개선 (906)](plans/S15P31E102-906.md) · [표시 스펙](specs/app-qa-consistency.md)
