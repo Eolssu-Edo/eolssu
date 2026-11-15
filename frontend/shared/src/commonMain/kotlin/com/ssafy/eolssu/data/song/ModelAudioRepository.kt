@@ -62,7 +62,7 @@ class ApiModelAudioRepository(
 
     override suspend fun get(song: Song): ModelAudio? {
         val audio = published(song) ?: return null
-        val file = fileCache?.fileFor(audio.audioUrl, audio.sha256) ?: return audio
+        val file = fileCache?.fileFor(audio.audioUrl, audio.sha256, audio.contentType) ?: return audio
         return audio.copy(localFile = file)
     }
 

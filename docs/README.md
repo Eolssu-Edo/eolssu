@@ -2,6 +2,14 @@
 
 - [기초 배우기 돌다리 그림과 화면 UI 개선 (888)](plans/S15P31E102-888.md)
 
+- [시김새 편집 지원과 원본 반음올림표 재현 (920)](plans/S15P31E102-920.md) · [표시·입력 스펙](specs/score-sigimsae-display.md)
+
+- [운영 Nginx TLS 설정의 블로그 편집·IPA 블록 저장소 반영 (926)](plans/S15P31E102-926.md) · [운영 Nginx 규칙](../infra/runtime/README.md)
+
+- [웹 정적 자산 gzip 압축과 캐시 헤더 (917)](plans/S15P31E102-917.md) · [운영 Nginx 규칙](../infra/runtime/README.md)
+
+- [최종 발표 릴리스·시연 동결 절차 (916)](../infra/release/README.md) · [버전 단일화 방안](knowledge/infra/release-versioning.md) · [계획·질문](plans/S15P31E102-916.md)
+
 - [화요일 QA 사전 점검·결함·검증 기록 (911)](plans/S15P31E102-911.md) · [녹음 시작 요청과 화면 수명 기준](specs/qa-preflight-lifecycle.md)
 
 - [악보 추가·편집과 구간 선택 안내 일관성 개선 (906)](plans/S15P31E102-906.md) · [표시 스펙](specs/app-qa-consistency.md)
@@ -33,7 +41,7 @@
 
 - [악보 추가·편집 결함 점검·수정 (828)](plans/S15P31E102-828.md)
 - [악보 가져오기·편집 조작과 안내 정리 (827)](plans/S15P31E102-827.md) · [확정 정책](specs/score-authoring-consistency.md#오선보-원음-가져오기-s15p31e102-827)
-- [마이페이지 최근 연주 조회 요청을 한 번으로 줄이기 (823)](plans/S15P31E102-823.md) · [카드 조회 스펙](specs/practice-records.md#마이페이지-최근-연주-카드)
+- [마이페이지 최근 연주 조회 요청을 한 번으로 줄이기 (823)](plans/S15P31E102-823.md) · [운영 배포·전후 측정](plans/S15P31E102-823.md#배포-후-검증-결론) · [카드 조회 스펙](specs/practice-records.md#마이페이지-최근-연주-카드)
 - [악보 음역 맞추기 입력판·추천 기준과 원본 음고 보존 (820)](knowledge/frontend/sheet-pitch-adaptation.md) · [패널 높이와 한 줄 배치 정리 (850)](plans/S15P31E102-850.md)
 - [인식 정간보의 장단 정정](specs/sheet-jangdan-correction.md) · [원인·검증 근거](knowledge/frontend/sheet-jangdan-correction.md) · [822 계획·검증](plans/S15P31E102-822.md)
 - [오선보4/4 장단 후보 수정과 기존 초안 복구 (880)](specs/staff-four-beat-import.md) · [원인·복구 근거](knowledge/frontend/sheet-jangdan-correction.md#오선보-44-가져오기의-장단-후보-누락-880) · [작업 기록](plans/S15P31E102-880.md)
@@ -69,6 +77,7 @@
 - [비행기 네 악기 악보·CAT 음원·4박 기본 반주 연결 (707)](specs/airplane-four-instruments.md) · [계획·검증](plans/S15P31E102-707.md) · [악보·생성 근거](knowledge/data/airplane-beginner-score.md)
 
 - [iOS 무음 모드에서 기초 배우기·운지법·정간보 읽기 예시음 재생 수정 (914)](plans/S15P31E102-914.md)
+- [iOS 연습 화면 모범 연주 재생 수정 (915)](plans/S15P31E102-915.md)
 - [iOS 평가 녹음 중 장단 소리 크기 제한과 iPhone 볼륨 곡선 실측 (907)](plans/S15P31E102-907.md)
 - [iOS 녹음 입력과 실시간 음높이 분석 (562)](plans/S15P31E102-562.md)
 - [iOS 연습 장단 소리 재생 연결 (714)](plans/S15P31E102-714.md) · [장단 재생 스펙](specs/jangdan-practice-playback.md#ios-연습-장단-재생-s15p31e102-714)
