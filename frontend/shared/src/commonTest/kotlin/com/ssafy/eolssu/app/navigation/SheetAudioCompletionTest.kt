@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.app.navigation
 
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.runtime.snapshots.Snapshot
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
@@ -34,8 +35,9 @@ class SheetAudioCompletionTest {
             showSheetAudioCompletion(fixture.repository, snackbar, notice, "ready", "open", opened::add)
         }
         runCurrent(); Snapshot.sendApplyNotifications(); runCurrent()
-        assertEquals(listOf(notice), fixture.repository.completions.first(), "top banner stays until user acknowledgement")
+        assertEquals(listOf(notice), fixture.repository.completions.first(), "notice remains pending until the host closes it")
         assertEquals("ready", snackbar.currentSnackbarData?.visuals?.message)
+        assertEquals(SnackbarDuration.Short, snackbar.currentSnackbarData?.visuals?.duration)
         snackbar.currentSnackbarData!!.performAction()
         runCurrent()
         assertEquals(listOf("12"), opened)
