@@ -40,7 +40,7 @@ data class CommonScoreData(
     @Serializable data class Provenance(val sourceId: String, val jgbSha256: String, val review: String, val converter: String)
 
     /** 누락/중복/잘못된 시간·참조를 샘플이나 빈 악보로 대체하지 않는다. */
-    fun toScore(expressions: JsonObject? = null): Score {
+    fun toScore(expressions: JsonObject? = null, baseBpm: Double? = null): Score {
         checkScore(schemaVersion == 1, "schemaVersion", "지원 버전은 1이다")
         checkScore(score.title.isNotEmpty() && score.part >= 0 && score.scoreVersion >= 1, "score", "제목·파트·버전을 확인해야 한다")
         checkScore(music.hwangHz.isFinite() && music.hwangHz > 0 && music.ticksPerBeat > 0 && music.ticksPerJeonggan > 0,
@@ -139,7 +139,7 @@ data class CommonScoreData(
             ScoreTiming(music.hwangHz, music.jangdan, bpmUnit, music.ticksPerBeat, music.ticksPerJeonggan),
             ScoreSource(schemaVersion, score.title, score.instrument, score.part, score.sourceId, score.scoreVersion,
                 ScoreProvenance(provenance.sourceId, provenance.jgbSha256, provenance.review, provenance.converter)), timeline,
-            tempoMarks = tempoPositions(expressions))
+            tempoMarks = tempoPositions(expressions)).withImportedTempo(this, expressions, baseBpm)
     }
 
     companion object {
