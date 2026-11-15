@@ -47,7 +47,7 @@ class LegalDocumentPageTests {
                 // The overseas transfer notice must not become visible while recordings are still on the domestic disk.
                 assertEquals(503, client.get(port, "/api/terms/documents/2026-11-02/$document").statusCode())
                 assertEquals(503, client.get(port, "/api/terms/documents/2026-11-03/$document").statusCode())
-                assertEquals(503, client.get(port, "/api/terms/documents/2026-11-16/$document").statusCode())
+                assertEquals(503, client.get(port, "/api/terms/documents/2026-11-15/$document").statusCode())
             }
             assertEquals(200, client.get(port, "/api/terms/documents/account-deletion").statusCode())
             assertEquals(401, client.get(port, "/api/terms/documents/2026-10-30/private").statusCode())
@@ -71,8 +71,8 @@ class R2LegalDocumentTests {
     @Test fun `R2 storage publishes the user sheet version and keeps the previous versions as history`() {
         HttpClient.newHttpClient().use { client ->
             for (document in LegalDocumentPageController.DOCUMENTS) {
-                val path = "/api/terms/documents/2026-11-16/$document"
-                assertPublished(client.get(port, path), path, "2026년 11월 16일")
+                val path = "/api/terms/documents/2026-11-15/$document"
+                assertPublished(client.get(port, path), path, "2026년 11월 15일")
                 for ((version, effectiveDate) in listOf("2026-11-03" to "2026년 11월 3일", "2026-11-02" to "2026년 11월 2일",
                         "2026-10-30" to "2026년 10월 30일")) {
                     val previous = "/api/terms/documents/$version/$document"
@@ -84,7 +84,7 @@ class R2LegalDocumentTests {
             assertTrue(privacy.contains("국외 이전"))
             assertFalse(privacy.contains("국내 서버·비공개 디스크"))
             val current = client.get(port, "/api/terms/documents/current/privacy")
-            assertPublished(current, "current", "2026년 11월 16일")
+            assertPublished(current, "current", "2026년 11월 15일")
             assertTrue(current.body().contains("Cloudflare, Inc."))
             // S15P31E102-375: saved records keep their recordings; unsaved ones still go after 30 days.
             assertTrue(current.body().contains("'연습 기록 저장'한 연주의 녹음은 그 기록을 삭제하거나 탈퇴 삭제가 끝날 때까지 보관합니다."))
@@ -115,7 +115,7 @@ class R2LegalDocumentTests {
             assertTrue(deletion.body().contains("저장한 연습 기록의 녹음은 그 기록을 삭제하거나 탈퇴 삭제가 끝날 때까지 보관합니다."))
             assertTrue(LegalDocumentPageController.PUBLIC_PATHS.containsAll(LegalDocumentPageController.DOCUMENTS.flatMap {
                 listOf("/api/terms/documents/2026-10-30/$it", "/api/terms/documents/2026-11-02/$it", "/api/terms/documents/2026-11-03/$it",
-                    "/api/terms/documents/2026-11-16/$it", "/api/terms/documents/current/$it")
+                    "/api/terms/documents/2026-11-15/$it", "/api/terms/documents/current/$it")
             }))
         }
     }
@@ -133,7 +133,7 @@ class UnpublishedLegalDocumentTests {
     @Value("\${local.server.port}") private var port = 0
     @Test fun `deploying a draft does not publish it before storage cutover and activation`() {
         HttpClient.newHttpClient().use { client ->
-            for (version in listOf("2026-10-30", "2026-11-02", "2026-11-03", "2026-11-16")) {
+            for (version in listOf("2026-10-30", "2026-11-02", "2026-11-03", "2026-11-15")) {
                 val response = client.get(port, "/api/terms/documents/$version/privacy")
                 assertEquals(503, response.statusCode())
                 assertFalse(response.body().contains("국내 서버"))
@@ -145,7 +145,7 @@ class UnpublishedLegalDocumentTests {
 }
 
 private fun assertNothingPublished(client: HttpClient, port: Int) {
-    for (version in listOf("2026-10-30", "2026-11-02", "2026-11-03", "2026-11-16", "current")) {
+    for (version in listOf("2026-10-30", "2026-11-02", "2026-11-03", "2026-11-15", "current")) {
         assertEquals(503, client.get(port, "/api/terms/documents/$version/privacy").statusCode(), version)
     }
     assertEquals(503, client.get(port, "/api/terms/documents/account-deletion").statusCode())

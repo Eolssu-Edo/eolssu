@@ -47,13 +47,13 @@ class LegalDocumentPageController(
     companion object {
         /**
          * 2026-10-30은 국내 디스크 저장, 2026-11-02은 Cloudflare R2 국외 보관, 2026-11-03은 저장한 기록의 녹음 보관(S15P31E102-375),
-         * 2026-11-16은 내 악보 업로드 처리와 재생 음원의 R2 국외 보관(S15P31E102-918)을 고지한다.
+         * 2026-11-15은 내 악보 업로드 처리와 재생 음원의 R2 국외 보관(S15P31E102-918)을 고지한다.
          * R2 운영 중에는 최신 판이 현행이고 앞의 판들은 이전 버전 이력이다. 판 날짜는 실제 운영 배포일과 같아야 하므로 배포가 늦어지면 병합 전에 고친다.
          */
         const val DOMESTIC_DISK_VERSION = "2026-10-30"
         const val R2_VERSION = "2026-11-02"
         const val SAVED_RECORDING_VERSION = "2026-11-03"
-        const val USER_SHEET_VERSION = "2026-11-16"
+        const val USER_SHEET_VERSION = "2026-11-15"
         val VERSIONS = setOf(DOMESTIC_DISK_VERSION, R2_VERSION, SAVED_RECORDING_VERSION, USER_SHEET_VERSION)
         val DOCUMENTS = setOf("service", "privacy", "collection", "permissions", "age")
         val PUBLIC_PATHS = (VERSIONS + "current").flatMap { version -> DOCUMENTS.map { "/api/terms/documents/$version/$it" } }

@@ -9,7 +9,7 @@ from pathlib import Path
 import subprocess
 import urllib.request
 
-VERSION = '2026-11-16'
+VERSION = '2026-11-15'
 BASE = 'https://k15e102.p.ssafy.io'
 ROWS = [
     ('AGE_OVER_14', '만 14세 이상 확인', 'age', True, 10),
