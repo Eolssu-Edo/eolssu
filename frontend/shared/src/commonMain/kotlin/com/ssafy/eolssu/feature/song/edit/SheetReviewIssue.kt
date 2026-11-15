@@ -64,6 +64,9 @@ data class SheetReviewNotice(
     val semitones: Int?,
     val jangdan: String?,
     val rhythmReview: SheetRhythmReview? = null,
+    val measure: String? = null,
+    val count: Int? = null,
+    val occurrences: Int = 1,
 )
 
 internal fun SheetDocument.editorReviewNotices(): List<SheetReviewNotice> =
@@ -77,6 +80,21 @@ internal fun SheetDocument.editorReviewNotices(): List<SheetReviewNotice> =
             semitones = (detail?.get("semitones") as? JsonPrimitive)?.intOrNull?.takeIf { it in -127..127 },
             jangdan = detail?.text("jangdan")?.takeIf { it.length <= 30 },
             rhythmReview = detail?.rhythmReview(),
+            measure = detail?.text("measure")?.takeIf { it.matches(Regex("[1-9][0-9]{0,8}")) },
+            count = detail?.positiveInt("count"),
+        ) to notice
+    }.groupBy { (notice, raw) ->
+        // Only a known positive tempo count is additive. Keep all other source
+        // detail and bounds in the identity so different locations never merge.
+        val additive = notice.type == "LOW_CONFIDENCE" && notice.reason == "TEMPO_PDF_TEXT" && notice.count != null
+        additive to if (additive) JsonObject(raw + ("detail" to JsonObject((raw["detail"] as JsonObject) - "count"))) else raw
+    }.values.map { group ->
+        val first = group.first().first
+        first.copy(
+            count = if (first.type == "LOW_CONFIDENCE" && first.reason == "TEMPO_PDF_TEXT" && first.count != null)
+                group.sumOf { requireNotNull(it.first.count).toLong() }.takeIf { it <= Int.MAX_VALUE }?.toInt()
+            else first.count,
+            occurrences = group.size,
         )
     }
 
@@ -89,3 +107,6 @@ private fun JsonObject.rhythmReview(): SheetRhythmReview? {
 
 private fun JsonObject.text(key: String): String? =
     (get(key) as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+
+private fun JsonObject.positiveInt(key: String): Int? =
+    (get(key) as? JsonPrimitive)?.intOrNull?.takeIf { it > 0 }
