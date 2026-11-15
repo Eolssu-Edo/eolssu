@@ -188,6 +188,7 @@ dig @8.8.8.8 k15e102.p.ssafy.io A +short
 - edo1의 백엔드가 멈췄거나 서버가 꺼졌음을 확인한 뒤에만 예약 작업을 켠다. `promote.env`에 `PROMOTE_SCHEDULING_ENABLED=true`를 추가하고 5단계의 `up -d ... backend`를 다시 실행한다.
 - `/root/failover-930`에는 복호화한 운영 비밀값이 있다. 앱이 정상 기동한 뒤 `sudo rm -rf /root/failover-930`으로 지운다. 백업 원본은 그대로 남는다.
 - 승격 기간에는 edo2의 운영 DB를 다른 서버로 보내는 백업이 없다. 원복 전까지 하루 한 번 `mysqldump`를 edo2 root 전용 경로에 남긴다.
+- [능동 알림](../edo-check/README.md#상태-변화-능동-알림)은 승격 기간에 MySQL 복제 감시와 edo1 백업 최신성을 장애로 보낸다. 감시·터널을 끄고 edo1 백업이 멈춘 결과이므로 예상된 알림으로 기록한다. 원복 7단계 뒤 복구 알림이 오는지 확인한다.
 - T0, DNS 요청·반영, 승격, 앱 기동, 첫 쓰기, 손실 구간(4-2)을 장애 기록에 남긴다.
 
 ## 승격 기간의 인증서 갱신
