@@ -36,6 +36,24 @@ class PracticeJangdanTest {
         assertEquals(1_000L, media.state.value.positionMs)
     }
 
+    @Test fun changingTempoBeforeFirstPlaybackPreservesTheSeekPosition() = practice { vm, _, media, _ ->
+        vm.seekModel(1_000); runCurrent()
+        val tick = vm.uiState.value.currentTick!!
+        vm.openPanel(PracticePanel.Tempo)
+        vm.updateDraft { it.copy(step = TempoStep.Slow) }; runCurrent()
+        assertEquals(48, vm.uiState.value.bpm)
+        assertEquals(tick, vm.uiState.value.currentTick!!, 0.001)
+        assertEquals(1_250.0, vm.uiState.value.elapsedMs, 0.001)
+        assertFalse(vm.uiState.value.playing)
+        assertEquals(0, media.loads)
+
+        vm.seekModel(500); runCurrent()
+        assertEquals(1_750.0, vm.uiState.value.elapsedMs, 0.001)
+        assertEquals(5.6, vm.uiState.value.currentTick!!, 0.001)
+        vm.startModel(); runCurrent()
+        assertEquals(1_400L, media.state.value.positionMs)
+    }
+
     @Test fun disablingRhythmSoundWhilePreviewingAlsoClearsThePreviewControls() = practice { vm, samples, _, _ ->
         vm.startRhythm(); runCurrent()
         vm.openPanel(PracticePanel.Jangdan)

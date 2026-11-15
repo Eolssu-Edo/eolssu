@@ -620,9 +620,17 @@ class PracticeViewModel(
     fun applyTempo(close: Boolean = true) {
         if (_uiState.value.mode == PracticeMode.Model) {
             modelResumeAfterTick = modelTickAtReportedPosition()
-            val song = _uiState.value.song ?: return
-            settingsStore.update { it.applyTempo(_uiState.value.draft, song, mine) }
-            _uiState.update { it.copy(settings = settingsStore.settings.value).withModelAudio(modelAudio.state.value) }
+            val state = _uiState.value
+            val song = state.song ?: return
+            settingsStore.update { it.applyTempo(state.draft, song, mine) }
+            _uiState.update {
+                val playback = modelAudio.state.value
+                val updated = it.copy(settings = settingsStore.settings.value).withModelAudio(playback)
+                if (playback.audio == null) {
+                    val scale = state.bpm.toDouble() / updated.bpm
+                    updated.copy(elapsedMs = state.elapsedMs * scale, eventElapsedMs = state.eventElapsedMs * scale)
+                } else updated
+            }
             modelAudio.setBpm(_uiState.value.bpm)
             if (close) closePanel()
             return
