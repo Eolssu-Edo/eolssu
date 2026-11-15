@@ -65,6 +65,19 @@ sudo journalctl -u eolssu-jenkins-agent --since today --no-pager
 
 되돌릴 때는 실행·예약 중인 웹 빌드가 없을 때 웹 잡의 Pipeline을 `agent any`로 되돌리고 `eolssu-jenkins-web-agent`를 중지한다. 노드 설정과 작업 공간은 보존한다.
 
+## ai 배포 전용 슬롯
+
+작업: [S15P31E102-244](../../../docs/plans/S15P31E102-244.md). `eolssu-ai` 잡([ai.Jenkinsfile](../ai.Jenkinsfile))은 전용 노드 `edo1-ai`에서 실행한다. 웹 슬롯과 같이 executor 1개, EXCLUSIVE, 노드 이름과 같은 라벨만 받는다. AI 이미지 빌드(수 분)가 백엔드 빌드를 막거나 기다리지 않는다. 운영 교체는 공유 배포 lock으로 한 번에 하나만 진행한다. 작업 공간은 `/var/lib/jenkins-ai-agent/workspace`다.
+
+2026-11-15에 아래 1~4를 운영에 적용했다. secret 값은 터미널·로그·명령 인자에 출력하지 않는다. CLI 명령은 `sudo -n java -jar /opt/eolssu/jenkins/jenkins-cli.jar -s http://127.0.0.1:8080 -auth @/opt/eolssu/jenkins/admin-cli.auth groovy =`이다.
+
+1. [등록 파일](register-ai-agent.groovy)을 CLI에 입력한다. 같은 설정이면 재사용하고, 다르면 덮어쓰지 않고 멈춘다.
+2. `/var/lib/jenkins-ai-agent`를 `jenkins:jenkins` 0750으로 만든다. `println …getComputer('edo1-ai').getJnlpMac()`의 출력을 root 셸 안에서 개행을 지워 `secret`(jenkins 0600, 64자)으로 바로 저장한다. `print`는 CLI 출력이 비어 이 용도에 쓰지 않는다.
+3. [서비스 파일](eolssu-jenkins-ai-agent.service)을 설치하고 `systemd-analyze verify`, `daemon-reload`, `enable --now eolssu-jenkins-ai-agent` 순서로 실행한 뒤, `edo1-ai`가 online인지 확인한다.
+4. develop에 병합된 [ai.Jenkinsfile](../ai.Jenkinsfile)을 `declarative-linter`로 검사하고 `/var/lib/jenkins/eolssu-ai.Jenkinsfile`(jenkins 소유)에 둔다. [잡 등록 파일](register-ai-job.groovy)을 `check`로 확인한 뒤 `apply`로 저장한다. 기존 잡이 있으면 config.xml을 백업하고 바꾼다.
+
+되돌릴 때는 실행·예약 중인 ai 빌드가 없을 때 `eolssu-ai` 잡을 비활성화하고 `eolssu-jenkins-ai-agent`를 중지한다. 노드 설정과 작업 공간은 보존한다. 운영 ai 이미지 되돌리기는 [운영 안내](../../runtime/README.md#ai-분석-서비스)를 따른다.
+
 ## 복구
 
 전환 검증에 실패하면 새 빌드를 막고 실행 중인 빌드가 끝난 뒤 에이전트와 컨트롤러를 중단한다. 먼저 현재 홈의 실패 시점 복사본을 별도로 보존한다. 기존 홈을 즉시 삭제하거나 백업을 그 위에 무분별하게 덮어쓰지 않는다.

@@ -103,6 +103,14 @@ class RetentionTests(unittest.TestCase):
         self.assertNotIn(sha(40), removed)
         self.assertNotIn(sha(41), removed)
 
+    def test_plan_includes_ai_images_but_never_the_running_one(self):
+        images = [image('eolssu-ai', n, n) for n in range(1, 8)]
+        images.append(image('eolssu-ai', 50, 50, image_id='sha256:ai-running'))
+        decided = retention.plan([], images, set(), NOW, in_use={'sha256:ai-running'},
+                                 keep_count=2, keep_age=timedelta(days=1))
+        removed = {item['sha'] for item in decided['images'] if item['repository'] == 'eolssu-ai'}
+        self.assertEqual(removed, {sha(n) for n in range(3, 8)})
+
     def test_dry_run_changes_nothing_and_reports_plan(self):
         with tempfile.TemporaryDirectory() as folder:
             fixture = Fixture(folder)
