@@ -137,9 +137,9 @@ Windows PowerShell 5.1에서는 파이프가 바이너리를 글자로 바꿔 ta
 
 - 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 512MiB tmpfs로 씁니다(녹음 임시 파일, numba 캐시).
 - 메모리 한도는 6GiB입니다. AI는 채점 DTW 예상 메모리가 4GiB(120초 × 120초)를 넘는 요청을 먼저 거절하고, 120초 녹음 채점에 약 3GiB가 듭니다([측정 기록](../../docs/knowledge/ai/analysis-latency.md)). backend는 분석을 기본 2개까지 동시에 보내므로, 긴 녹음 두 개가 겹치면 한도를 넘어 `ai`가 재시작되고 두 세션이 `SERVER_ERROR`가 될 수 있습니다.
-- 요청 본문의 녹음 서명 URL은 uvicorn 접근 로그(경로만 남김)와 분석 로그(`analysis session=… attempt=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo docker logs eolssu-runtime-ai-1`에서 `X-Amz`·`audioUrl`이 없는지 확인합니다.
+- 요청 본문의 녹음 서명 URL은 uvicorn 접근 로그(경로만 남김)와 분석 로그(`analysis session=… attempt=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo sh -c 'grep -ciE "X-Amz|audioUrl" /var/log/eolssu/ordinary/eolssu-ai.$(date -u +%F).log'`가 0인지 확인합니다. 운영 컨테이너는 syslog 로그 드라이버라 `docker logs`가 아무것도 읽지 못해, 그 명령으로는 늘 '없음'처럼 보입니다.
 
-backend가 분석을 시작하지 못하면 업로드마다 경고 로그가 남습니다. 배포 뒤 `sudo docker logs "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" 2>&1 | grep -i wiring`이 비어 있어야 합니다.
+backend가 분석을 시작하지 못하면 업로드마다 경고 로그가 남습니다. 배포 뒤 `sudo sh -c 'grep -i wiring /var/log/eolssu/ordinary/eolssu-backend.$(date -u +%F).log'`가 비어 있어야 합니다.
 
 ### omr 악보 인식 서비스
 
@@ -173,7 +173,7 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" \
 
 - 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 1GiB tmpfs로 씁니다(원본·쪽 그림·Audiveris 작업 폴더와 홈 `/tmp/home`). 로컬 실측에서 요청 사이 `/tmp`는 14MB였습니다.
 - 메모리 한도 2GiB, CPU 2개입니다. Audiveris는 한 번에 하나만 돌고(동시 요청은 남은 시간 안에서 기다림), 로컬 실측 최대 1.31GiB(tmpfs 포함)였습니다. Audiveris가 도는 동안 다른 요청이 큰 PDF 쪽을 그림으로 바꾸는 경우는 재지 않았습니다. 정간보 그림 경로([S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458), torch)를 붙이면 다시 잽니다.
-- 요청 본문의 서명 URL은 uvicorn 접근 로그와 인식 로그(`recognition conversion=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo docker logs eolssu-runtime-omr-1`에서 `X-Amz`·`url`이 없는지 확인합니다.
+- 요청 본문의 서명 URL은 uvicorn 접근 로그와 인식 로그(`recognition conversion=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo sh -c 'grep -ciE "X-Amz|https?://" /var/log/eolssu/ordinary/eolssu-omr.$(date -u +%F).log'`가 0인지 확인합니다. rsyslog는 omr 줄 중 healthcheck·요청 경로와, 변환 ID가 `sheet-<숫자>-<숫자>`인 인식 요약만 저장합니다([규칙](../privacy/30-eolssu-logs.conf)). 그래서 아래 시험 요청(`probe-…`)의 요약 줄은 남지 않습니다.
 
 서버(4코어) 처리 시간과 메모리는 처음 배포할 때 사람이 잽니다. omr은 파일을 URL로만 받고 컨테이너가 읽기 전용이라, 시험 그림을 같은 내부망의 임시 웹 서버(`omr-probe`, omr 이미지의 Python 사용)로 내보내고 backend 컨테이너에서 요청합니다. 서버에 컨테이너를 잠깐 더 띄우는 일이므로 실행하는 사람이 판단합니다. 시험 그림은 [조사 문서](../../docs/knowledge/ai/score-omr-feasibility.md) 5절의 4곡 오선보 쪽 그림(표준악보집 300DPI PNG, 오른쪽 반)입니다.
 

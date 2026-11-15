@@ -135,6 +135,18 @@ data class RecordMemoState(val editing: Boolean = false, val saving: Boolean = f
 /** 서버가 받는 메모 최대 길이(REC-01, 넘으면 400). 입력칸도 이 길이까지만 받는다. */
 const val RECORD_MEMO_MAX_LENGTH = 500
 
+/** REC-01과 같이 유니코드 코드 포인트를 센다. UTF-16 서로게이트 쌍은 한 글자다. */
+internal fun recordMemoLength(text: String): Int {
+    var count = 0
+    var index = 0
+    while (index < text.length) {
+        val character = text[index++]
+        if (character.isHighSurrogate() && index < text.length && text[index].isLowSurrogate()) index++
+        count++
+    }
+    return count
+}
+
 enum class RecordCompareLoad { Loading, Ready, Failed }
 
 enum class RecordSongLookup { Loading, Ready, Missing, Failed }
@@ -567,7 +579,7 @@ class RecordDetailViewModel(
         val dialog = state.memo?.takeIf { it.editing } ?: return
         if (!accountScope.isActive || dialog.saving || !state.canEditMemo) return
         val text = memo.trim()
-        if (text.length > RECORD_MEMO_MAX_LENGTH) {
+        if (recordMemoLength(text) > RECORD_MEMO_MAX_LENGTH) {
             _uiState.update { it.copy(memo = dialog.copy(failed = true)) }
             return
         }
