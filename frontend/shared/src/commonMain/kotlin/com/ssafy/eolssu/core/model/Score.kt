@@ -92,10 +92,20 @@ data class Score(
     val source: ScoreSource? = null,
     val events: List<ScoreEvent>? = null,
     val tempoMarks: Map<ScoreUnitKey, List<HanbaeMark>> = emptyMap(),
+    /** 저장 표현과 분리된 숫자 가속 안내. 음표·재생 타임라인에는 영향을 주지 않는다. */
+    val tempoRanges: List<ScoreTempoRange> = emptyList(),
 ) {
     /** 정간 수. 연주 시간 계산의 단위다. */
     val totalUnits: Int get() = columns.sumOf { it.size }
 }
+
+/** 끝 위치는 목표 속도에 도달하는 정간 시작이며 null이면 악보 끝이다. */
+data class ScoreTempoRange(
+    val start: ScorePosition,
+    val end: ScorePosition?,
+    val startBpm: Double,
+    val targetBpm: Double,
+)
 
 enum class ScoreBpmUnit { QUARTER, DOTTED_QUARTER, JEONGGAN, JANGDAN_BEAT }
 data class ScoreTiming(val hwangHz: Double, val jangdan: String, val bpmUnit: ScoreBpmUnit, val ticksPerBeat: Int, val ticksPerJeonggan: Int)

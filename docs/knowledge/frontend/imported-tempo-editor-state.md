@@ -47,6 +47,16 @@ actual: []
 
 실행 후 commonTest의 일회용 소스를 제거하고 진단용 사본·`adaptation-red.log`·`adaptation-red.xml`을 제외 경로 `.scratch/tempo-recheck-882/`에 보존했다. 실제 폰 캡처도 같은 경로의 `device-current.png`, `device-tempo-dialog.png`에 있다. 이 검사는 결함을 재현한 것이며 수정 완료·전체 회귀 통과를 뜻하지 않는다. 원본 PDF·사용자 악보 전체·인증값·DB 비밀값은 문서에 복사하지 않는다.
 
+## 숫자 가속과 표시용 한배의 분리 (956)
+
+숫자 계획이 있어도 `placements=[]`이면 기존 한배 렌더러는 표시할 기호를 받지 않는다. 이는 가속 재생이나 계획의 소실과 다른 표시 문제다. 2026-11-15 사용자는 `ㅈㅈㅅ`와 시작·목표 속도 표시를 선택했다. 원문 `molto`의 정도를 숫자 계획만으로 복원하지 않는다.
+
+956은 `CommonScoreData.toScore`에서만 상승 구간을 UI 모델로 투영한다. 명시 한배가 같은 정간의 어느 소박에든 있으면 이를 우선하며, 파생 기호를 `tempoAnnotations`나 export에 추가하지 않는다. 저장은 여전히 `orderedPlacements → scoreWithTempo/exportExpressions`를 사용한다. 정간/분을 표시 BPM으로 바꾼 뒤 편집 기준 BPM 배율을 한 번 적용하고, 명시 시작값은 앞 구간 목표보다 우선한다.
+
+휴대폰 연습은 `PracticeScoreArea`가 아니라 `PracticeScreen → PracticeBoardScore`를 사용한다. 두 경로와 `EditScoreBoard` 모두에 안내를 연결하고, 숫자·위치는 14dp 세로 기호 영역 밖에 둔다. 새 안내 높이를 제외한 constraints로 휴대폰 packing과 태블릿 단 나누기를 계산해야 한다. `ScorePerformance.matches()`가 Score 전체를 비교하므로 투영은 Song 최초 생성 때 수행하며 sidecar 결합 후 표시만 별도로 바꾸지 않는다.
+
+원본 BlueVal 응답의 투영·export·재진입 검사에서 26→30각과 58→62각의 80→160, 492음·24쉼·472박, 저장 payload/SHA·181.6355초 추정이 보존됐다. 소스 기호·음가를 새로 인식하거나 음원을 다시 합성한 검사는 아니다. 실제 화면·게시 상태와 환경 실패/회복의 근거는 [956 계획](../../plans/S15P31E102-956.md)에 기록한다.
+
 ## 후속 수정과 회귀 검증
 
 `applyAdaptation`과 실제 이벤트를 다시 만드는 `correctPitch`에서 `tempoExpressions`·`tempoReferenceBpm` 두 필드를 새 draft에 그대로 복사한다. 음고 변경 시 시간 격자는 그대로이므로 구간 위치·반복·기호와 기준을 재해석하지 않는다. SHA와 악기별 계획 schema는 기존 BE 저장 경계에서 재결합하며 이 helper에서 새로 만들지 않는다. 장단 retiming 경로는 이번 수정 범위가 아니다.

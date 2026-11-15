@@ -78,7 +78,7 @@ internal fun CommonScoreData.estimatedModelDurationMs(expressions: JsonObject?, 
     return (seconds * 1000).takeIf { it.isFinite() }
 }
 
-private fun CommonScoreData.tempoCell(entry: JsonObject, columnKey: String, cellKey: String, terminal: Boolean = false): Int? {
+internal fun CommonScoreData.tempoCell(entry: JsonObject, columnKey: String, cellKey: String, terminal: Boolean = false): Int? {
     val column = (entry[columnKey] as? JsonPrimitive)?.intOrNull ?: return null
     val cell = (entry[cellKey] as? JsonPrimitive)?.intOrNull ?: return null
     if (terminal && column == columns.size + 1 && cell == 1) return columns.sumOf { it.cells.size }
