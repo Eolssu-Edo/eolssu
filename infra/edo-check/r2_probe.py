@@ -23,7 +23,7 @@ ASSET_SHA256 = 'e6a9a9eb2fe9e0ee2506ec91aa0efe5323f022b9fa036a5c87e96285d986a81e
 ASSET_PREFIX = bytes.fromhex('0000001c667479704d344120000002004d34412069736f6d69736f3200000662')
 BUCKET = 'eolssu-recordings'
 SHEET_BUCKET = 'eolssu-sheet-audio'
-SHEET_OK = 'put_signed_get_delete_ok'
+STORAGE_OK = 'put_signed_get_delete_ok'
 R2_HOST = re.compile(r'[a-f0-9]{32}\.r2\.cloudflarestorage\.com')
 READ_TIMEOUT = 3
 RECORDING_ENV = Path('/opt/eolssu/.env')
@@ -103,7 +103,7 @@ def recording_settings():
     return validated_settings(settings, BUCKET)
 
 
-def active_sheet_settings():
+def active_storage_settings(prefix, bucket):
     slot = subprocess.run(['/opt/eolssu/bin/deploy-backend', '--active-container'],
                           capture_output=True, check=True, text=True, timeout=4).stdout.strip()
     if slot not in ('eolssu-runtime-backend-1', 'eolssu-runtime-backend-green-1'):
@@ -116,12 +116,12 @@ def active_sheet_settings():
     settings = {}
     for entry in entries:
         key, _, value = entry.partition('=')
-        name = key.removeprefix('SHEET_STORAGE_')
+        name = key.removeprefix(prefix)
         if key != name and name in SETTINGS_FIELDS:
             if name in settings:
                 raise ValueError('duplicate active storage setting')
             settings[name] = value
-    return validated_settings(settings, SHEET_BUCKET)
+    return validated_settings(settings, bucket)
 
 
 def validated_settings(settings, bucket):
@@ -194,7 +194,7 @@ def write_cycle(client, bucket):
     return WRITE_OK if verified else 'write_read'
 
 
-def sheet_download_matches(client, target, host, payload):
+def signed_download_matches(client, target, host, payload):
     try:
         signed = client.generate_presigned_url('get_object', Params=target, ExpiresIn=90)
         path = f"/{target['Bucket']}/{target['Key']}"
@@ -207,7 +207,7 @@ def sheet_download_matches(client, target, host, payload):
         return False
 
 
-def sheet_object_removed(client, target):
+def object_removed(client, target):
     try:
         if status_code(client.delete_object(**target)) != 204:
             return False
@@ -220,41 +220,44 @@ def sheet_object_removed(client, target):
     return False
 
 
-def sheet_cycle(client, bucket, host):
+def storage_cycle(client, bucket, host, kind):
     run_id = uuid4().hex
-    target = {'Bucket': bucket, 'Key': f'sheet-audio/verification/edo-check/{run_id}.txt'}
-    payload = f'edo1 sheet storage probe {run_id}\n'.encode('ascii')
+    prefix = {'sheet': 'sheet-audio', 'recording': 'recordings'}[kind]
+    target = {'Bucket': bucket, 'Key': f'{prefix}/verification/edo-check/{run_id}.txt'}
+    payload = f'edo1 {kind} storage probe {run_id}\n'.encode('ascii')
     try:
         response = client.put_object(**target, Body=payload, ContentType='text/plain', ContentLength=len(payload))
         code = status_code(response)
     except Exception as error:
         code = status_code(getattr(error, 'response', None) or {})
     if code in (409, 412):
-        return 'sheet_conflict'
+        return kind + '_conflict'
 
     # A failed PUT response can still leave an object. Check cleanup for this run's unique key.
-    detail = 'sheet_put'
+    detail = kind + '_put'
     if code == 200:
-        detail = SHEET_OK if sheet_download_matches(client, target, host, payload) else 'sheet_download'
-    if not sheet_object_removed(client, target):
-        return 'sheet_delete' if detail == SHEET_OK else detail + '_delete'
+        detail = STORAGE_OK if signed_download_matches(client, target, host, payload) else kind + '_download'
+    if not object_removed(client, target):
+        return kind + '_delete' if detail == STORAGE_OK else detail + '_delete'
     return detail
 
 
-def check_sheet():
+def check_storage(kind):
     started = time.monotonic_ns()
     try:
-        settings = active_sheet_settings()
+        prefix, bucket = {'sheet': ('SHEET_STORAGE_', SHEET_BUCKET),
+                          'recording': (SETTINGS_PREFIX, BUCKET)}[kind]
+        settings = active_storage_settings(prefix, bucket)
         host = urlsplit(settings['ENDPOINT']).netloc
         with closing(write_client(settings)) as client:
-            detail = sheet_cycle(client, settings['BUCKET'], host)
+            detail = storage_cycle(client, settings['BUCKET'], host, kind)
     except ImportError:
-        detail = 'sheet_dependency'
+        detail = kind + '_dependency'
     except (OSError, ValueError, TypeError, AttributeError, subprocess.SubprocessError):
-        detail = 'sheet_configuration'
+        detail = kind + '_configuration'
     except Exception:
-        detail = 'sheet_unavailable'
-    return {'status': 'ok' if detail == SHEET_OK else 'failed', 'detail': detail,
+        detail = kind + '_unavailable'
+    return {'status': 'ok' if detail == STORAGE_OK else 'failed', 'detail': detail,
             'elapsed_ms': (time.monotonic_ns() - started) // 1_000_000}
 
 
@@ -307,8 +310,8 @@ def main():
     if sys.argv[1:] == ['read']:
         print(json.dumps(read_probe()))
         return 0
-    if sys.argv[1:] == ['sheet']:
-        print(json.dumps(check_sheet()))
+    if sys.argv[1:] in (['sheet'], ['recording']):
+        print(json.dumps(check_storage(sys.argv[1])))
         return 0
     if sys.argv[1:] == ['write']:
         attempted_at = datetime.now(timezone.utc)
@@ -320,7 +323,7 @@ def main():
             return 1
         print(json.dumps(result))
         return 0
-    print('usage: r2_probe.py {read,write,sheet}', file=sys.stderr)
+    print('usage: r2_probe.py {read,write,sheet,recording}', file=sys.stderr)
     return 2
 
 

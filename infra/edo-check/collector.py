@@ -74,7 +74,6 @@ BLOG_EDITOR_ROLLBACK_NAME = re.compile(
 STORAGE_SNAPSHOT_PATH = Path('/var/lib/edo-check-storage/edo1.json')
 STORAGE_MAX_AGE = timedelta(minutes=45)
 R2_PROBE = '/opt/edo-check/r2_probe.py'
-R2_WRITE_RECORD = Path('/var/lib/edo-check-r2/write.json')
 OUTSIDE_RECORD = Path('/var/lib/edo-check-outside/latest.json')
 EDO1_OPERATION_LOCATION = 'edo1 운영 검사'
 JENKINS_CONTROLLER = 'eolssu-jenkins-controller-1'
@@ -1070,11 +1069,12 @@ def r2_read_status():
         return '미측정', 'R2 읽기 점검 실행 결과 확인 불가', '—'
 
 
-def sheet_r2_status():
+def r2_storage_status(kind):
+    label = {'sheet': '악보', 'recording': '녹음'}[kind]
     try:
-        result = run(['/usr/bin/python3', '-B', '-I', R2_PROBE, 'sheet'], timeout=40)
+        result = run(['/usr/bin/python3', '-B', '-I', R2_PROBE, kind], timeout=40)
         if result.returncode or len(result.stdout) > 2048:
-            raise ValueError('invalid sheet probe output')
+            raise ValueError('invalid storage probe output')
         data = json.loads(result.stdout)
         status, detail, elapsed = data['status'], data['detail'], data['elapsed_ms']
         if type(elapsed) is not int or not 0 <= elapsed <= 40000:
@@ -1082,46 +1082,29 @@ def sheet_r2_status():
         if status == 'ok' and detail == 'put_signed_get_delete_ok':
             return '정상', '합성 객체 쓰기 · 서명 다운로드 본문 일치 · 삭제 후 HTTP 404', f'{elapsed}ms'
         reasons = {
-            'sheet_configuration': '활성 백엔드의 악보 R2 설정 확인 실패',
-            'sheet_dependency': 'R2 도구 준비 실패',
-            'sheet_unavailable': 'R2 점검 실행 실패',
-            'sheet_conflict': '점검 객체 키 충돌',
-            'sheet_put': '쓰기 실패 · 정리 확인',
-            'sheet_put_delete': '쓰기 실패 · 삭제 확인 실패',
-            'sheet_download': '서명 다운로드 검증 실패 · 정리 확인',
-            'sheet_download_delete': '서명 다운로드 검증 실패 · 삭제 확인 실패',
-            'sheet_delete': '삭제 확인 실패',
+            kind + '_configuration': f'활성 백엔드의 {label} R2 설정 확인 실패',
+            kind + '_dependency': 'R2 도구 준비 실패',
+            kind + '_unavailable': 'R2 점검 실행 실패',
+            kind + '_conflict': '점검 객체 키 충돌',
+            kind + '_put': '쓰기 실패 · 정리 확인',
+            kind + '_put_delete': '쓰기 실패 · 삭제 확인 실패',
+            kind + '_download': '서명 다운로드 검증 실패 · 정리 확인',
+            kind + '_download_delete': '서명 다운로드 검증 실패 · 삭제 확인 실패',
+            kind + '_delete': '삭제 확인 실패',
         }
         if status == 'failed' and detail in reasons:
             return '실패', reasons[detail], f'{elapsed}ms'
     except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, TypeError):
         pass
-    return '미측정', '악보 음원 R2 점검 결과 확인 불가', '—'
+    return '미측정', f'{label} 음원 R2 점검 결과 확인 불가', '—'
+
+
+def sheet_r2_status():
+    return r2_storage_status('sheet')
 
 
 def r2_write_status():
-    try:
-        data = read_record(R2_WRITE_RECORD)
-        attempt, age = observation_time(data['last_attempt_at'])
-        success_value = data.get('last_success_at')
-        success = observation_time(success_value)[0] if success_value is not None else None
-        status, detail = data['status'], data['detail']
-        if (status == 'ok' and detail == 'put_get_delete_ok' and success is not None
-                and timedelta(0) <= success - attempt <= timedelta(seconds=40)):
-            verdict, evidence = '정상', '합성 객체 쓰기·읽기·삭제 통과'
-        elif status == 'failed' and (success is None or success <= attempt):
-            verdict = '실패'
-            evidence = {'write_configuration': '운영 저장소 설정 확인 실패', 'write_dependency': 'R2 도구 준비 실패',
-                        'write_put_conflict': '점검 객체 키 충돌', 'write_put': '합성 객체 쓰기 실패',
-                        'write_read': '합성 객체 읽기·대조 실패', 'write_delete': '합성 객체 삭제 확인 실패'}.get(detail, '쓰기 검증 실패')
-        else:
-            raise ValueError('invalid write probe status')
-        last = kst_timestamp(success) if success else '기록 없음'
-        if age > timedelta(hours=6, minutes=30):
-            return '주의', f'최근 실행 기록 지연 · {kst_timestamp(attempt)} · 최근 성공 {last}'
-        return verdict, f'{evidence} · 최근 성공 {last}'
-    except (OSError, ValueError, KeyError, TypeError, OverflowError):
-        return '미측정', 'R2 쓰기 점검 기록 확인 불가'
+    return r2_storage_status('recording')
 
 
 def storage_observation_status():
@@ -1176,16 +1159,20 @@ def outside_observation_status():
 
 
 def edo1_dependency_rows():
-    read_status, read_evidence, elapsed = r2_read_status()
-    write_status, write_evidence = r2_write_status()
-    sheet_status, sheet_evidence, sheet_elapsed = sheet_r2_status()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        read = pool.submit(r2_read_status)
+        write = pool.submit(r2_write_status)
+        sheet = pool.submit(sheet_r2_status)
+        read_status, read_evidence, elapsed = read.result()
+        write_status, write_evidence, write_elapsed = write.result()
+        sheet_status, sheet_evidence, sheet_elapsed = sheet.result()
     storage_status, storage_evidence = storage_observation_status()
     outside_status, outside_evidence = outside_observation_status()
     return [
         ['R2 읽기', EDO1_OPERATION_LOCATION, read_status, read_evidence, elapsed,
          '학습 음원 API의 서명 발급과 R2 읽기 확인'],
-        ['R2 쓰기', EDO1_OPERATION_LOCATION, write_status, write_evidence, '—',
-         'journalctl -u edo-check-r2-write.service 확인'],
+        ['R2 쓰기', EDO1_OPERATION_LOCATION, write_status, write_evidence, write_elapsed,
+         '활성 백엔드의 녹음 R2 설정, 전용 버킷 권한과 점검 객체 정리 확인'],
         ['악보 음원 R2', EDO1_OPERATION_LOCATION, sheet_status, sheet_evidence, sheet_elapsed,
          '활성 백엔드의 악보 R2 설정, 전용 버킷 권한과 점검 객체 정리 확인'],
         ['저장공간 자동 측정', EDO1_OPERATION_LOCATION, storage_status, storage_evidence, '—',
