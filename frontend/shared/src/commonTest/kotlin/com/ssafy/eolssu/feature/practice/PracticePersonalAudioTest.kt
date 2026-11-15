@@ -231,6 +231,64 @@ class PracticePersonalAudioTest {
         assertEquals(0, player.loads)
     }
 
+    @Test fun keepsWaitingForTheCurrentVersionWhileAnOlderKeptFileIsOutdated() = practiceTest { vm, fixture, _ ->
+        // SHT-13: outdated describes the kept older file, even while the current version is being generated.
+        val olderFile = fixture.done.audio?.copy(url = "https://example.invalid/older.m4a", sha256 = "b".repeat(64))
+        fixture.request = SheetAudioRequest.Accepted(fixture.done.copy(
+            status = SheetAudioStatus.Running, outdated = true, audio = olderFile, pollAfterMs = 500))
+        vm.downloadPersonalAudio()
+        runCurrent()
+        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
+        assertEquals(0, fixture.saves)
+
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(1, fixture.statusReads)
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(1, fixture.saves)
+        assertEquals("a".repeat(64), fixture.saved?.sha256)
+    }
+
+    @Test fun refusesACompletedFileThatIsStillOutdated() = practiceTest { vm, fixture, _ ->
+        fixture.request = SheetAudioRequest.Accepted(fixture.done.copy(outdated = true))
+        vm.downloadPersonalAudio()
+        runCurrent()
+        assertEquals(PracticePersonalAudio.Failed, vm.uiState.value.personalAudio)
+        assertEquals(0, fixture.saves)
+    }
+
+    @Test fun pollingKeepsTheCurrentRequestWhileTheKeptFileIsOutdatedButStopsForOtherSettings() = practiceTest { vm, fixture, _ ->
+        val generating = fixture.done.copy(status = SheetAudioStatus.Running, outdated = true,
+            audio = fixture.done.audio?.copy(sha256 = "b".repeat(64)), pollAfterMs = 500)
+        fixture.request = SheetAudioRequest.InProgress
+        fixture.statuses += listOf(generating, generating, fixture.done)
+        vm.downloadPersonalAudio()
+        runCurrent()
+        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(3, fixture.statusReads)
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(1, fixture.saves)
+    }
+
+    @Test fun pollingStopsWhenAnotherSettingsRequestIsGenerating() = practiceTest { vm, fixture, _ ->
+        val generating = fixture.done.copy(status = SheetAudioStatus.Running, outdated = true, audio = null, pollAfterMs = 500)
+        fixture.request = SheetAudioRequest.Accepted(generating)
+        fixture.statuses += generating.copy(bpm = 61)
+        vm.downloadPersonalAudio()
+        runCurrent()
+        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(1, fixture.statusReads)
+        assertEquals(PracticePersonalAudio.Failed, vm.uiState.value.personalAudio)
+        assertEquals(0, fixture.saves)
+    }
+
     @Test fun refusesExpiredLinkAndCanRetry() = practiceTest { vm, fixture, _ ->
         fixture.request = SheetAudioRequest.Accepted(fixture.done.copy(audio = fixture.done.audio?.copy(urlExpiresAt = 0)))
         vm.downloadPersonalAudio()
@@ -308,6 +366,7 @@ class PracticePersonalAudioTest {
                 performance = if (performed) SheetAudioPerformance(SourceHash, Json.parseToJsonElement(previewJson()).jsonObject) else null))
         var request: SheetAudioRequest = SheetAudioRequest.Accepted(done.copy(status = SheetAudioStatus.Queued, audio = null, pollAfterMs = 500))
         val requests = mutableListOf<SheetAudioSettings>()
+        val statuses = ArrayDeque<SheetAudio>()
         var statusReads = 0
         var saves = 0
         var saved: DeviceSheetAudio? = null
@@ -323,7 +382,7 @@ class PracticePersonalAudioTest {
         override suspend fun status(sheetId: String): SheetAudioLookup {
             assertEquals("42", sheetId)
             statusReads++
-            return SheetAudioLookup.Found(done)
+            return SheetAudioLookup.Found(statuses.removeFirstOrNull() ?: done)
         }
         override suspend fun find(accountId: String, sheetId: String, scoreVersion: String): DeviceSheetAudio? {
             assertEquals(Triple("7", "42", "1"), Triple(accountId, sheetId, scoreVersion))
