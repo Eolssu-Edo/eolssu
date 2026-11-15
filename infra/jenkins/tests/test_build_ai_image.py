@@ -145,6 +145,10 @@ class GateTests(unittest.TestCase):
         command = create[-1]
         self.assertIn('tests/unit/test_api.py tests/unit/test_scoring.py', command)
         self.assertNotIn('test_omr_api.py', command)
+        for node in build.KNOWN_PLATFORM_FAILURES:
+            self.assertIn('--deselect ' + node, command)
+        copy = boundary.commands('docker', 'cp')[0]
+        self.assertFalse(copy[2].endswith(':/tmp/junit.xml'))  # tmpfs disappears when the container stops
         self.assertEqual(result['test_files'], 2)
         self.assertTrue(self.junit.exists())
         self.assertEqual(len(boundary.commands('docker', 'rm', '-f')), 1)
