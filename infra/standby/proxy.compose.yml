@@ -1,0 +1,33 @@
+# edo1 /opt/eolssu-replication-579 에서 사용하는 복제 원본 루프백 프록시 정의.
+# 운영 컨테이너는 docker run으로 만든 독립 컨테이너다. 재생성 기준과 차이는 README의 "edo1 복제 프록시" 절을 따른다.
+name: eolssu-replication-proxy-579
+
+services:
+  proxy:
+    container_name: eolssu-replication-proxy-579
+    image: ${REPLICATION_PROXY_IMAGE:?set the pinned nginx:1.30.6-alpine image ID used by the running proxy}
+    user: nginx
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./source-stream.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "127.0.0.1:13306:3306"
+    networks:
+      - runtime
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
+    mem_limit: 64m
+    cpus: 0.25
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    restart: unless-stopped
+
+networks:
+  runtime:
+    external: true
+    name: eolssu-runtime_default

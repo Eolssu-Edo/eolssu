@@ -4,9 +4,37 @@ import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.data.song.smallScoreData
+import com.ssafy.eolssu.data.song.CommonScoreData
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlin.test.*
 
 class SheetDocumentEditingTest {
+    @Test fun catalogMarksCanBeSelectedRemovedAndReinsertedAfterJsonRoundTrip() {
+        for (name in listOf("혀치기", "반음올림표", "꺾는음", "원문점")) {
+            val choice = assertNotNull(Sigimsae.entries.singleOrNull { it.name == name }, "$name 입력 누락")
+            val source = smallScoreData()
+            val originalMark = "$name@100,10,0"
+            val original = source.copy(events = source.events.mapIndexed { i, event ->
+                if (i == 0) event.copy(sigimsae = listOf(originalMark)) else event
+            })
+            val draft = original.editingDraft(original.score.title, 60, null)
+            val edited = draft.toggleSigimsae(0, choice, sub = 1)
+            val saved = CommonScoreData.decode(Json.encodeToString(edited.toCommonScore()))
+            assertEquals(listOf(originalMark), saved.events.first().sigimsae, "원본 변형은 유지")
+            assertEquals(listOf("니레", name), saved.events[1].sigimsae, "선택한 두 번째 소박에 저장")
+            assertEquals(original.events.map { it.copy(sigimsae = emptyList()) },
+                saved.events.map { it.copy(sigimsae = emptyList()) }, "음표 ID·음고·시간은 유지")
+            val restored = saved.editingDraft(original.score.title, 60, null)
+            assertEquals(edited.sigimsae, restored.sigimsae)
+            assertEquals(edited.annotations(), restored.annotations())
+            val removed = restored.toggleSigimsae(0, choice, sub = 1)
+            assertEquals(listOf(Sigimsae("니레")), removed.sigimsaeAt(0, 1))
+            assertEquals(restored.sigimsae, removed.toggleSigimsae(0, choice, sub = 1).sigimsae)
+            assertTrue(restored.toggleSigimsae(0, choice).sigimsaeAt(0).isEmpty(), "변형 문자열도 이름으로 선택 해제")
+        }
+    }
+
     @Test fun replacingPitchKeepsUneditedBreathAndUnknownAnnotationAtThatUnit() {
         val source = smallScoreData()
         val original = source.copy(events = source.events.mapIndexed { i, event -> if (i == 0) event.copy(breathAfter = true, sigimsae = listOf("니레", "요성표", "퇴성")) else event })
