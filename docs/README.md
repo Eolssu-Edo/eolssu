@@ -1,6 +1,8 @@
 # 프로젝트 문서
 
-- [가져온 악보의 악기 맞춤 후 구간 빠르기 표시 소실 진단 (882)](knowledge/frontend/imported-tempo-editor-state.md)
+- [가져온 악보의 악기 맞춤 후 구간 빠르기 소실 원인·수정 (882)](knowledge/frontend/imported-tempo-editor-state.md)
+
+- [기초 배우기 돌다리 그림과 화면 UI 개선 (888)](plans/S15P31E102-888.md)
 
 - [시김새 편집 지원과 원본 반음올림표 재현 (920)](plans/S15P31E102-920.md) · [표시·입력 스펙](specs/score-sigimsae-display.md)
 
@@ -102,6 +104,7 @@
 - [edo1·edo2 운영 로그 중복과 증가량 줄이기 (712)](plans/S15P31E102-712.md) · [운영 로그 집계](knowledge/infra/edo-operational-logging.md)
 - [R2·저장공간 최신성·독립 HTTPS 운영 점검 (709)](plans/S15P31E102-709.md)
 - [edo1·edo2 Docker 기본 로그 크기 회전 제한 (713)](plans/S15P31E102-713.md) · [적용·복구 절차](../infra/docker/README.md)
+- [edo1 배포 산출물과 edo2 설정 백업 보존 정리 (921, 295 실측)](plans/S15P31E102-921.md) · [정리 도구](../infra/retention/README.md)
 - [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
 - [연습 화면 외 정간보 공통 형식 (591)](knowledge/frontend/reading-score-format.md)
@@ -519,7 +522,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [QA APK MR 자동 반영과 기기별 최신 설치](knowledge/infra/qa-apk-mr-metadata.md)
 - [QA MR 동기화 10개 단위 조회 (624)](plans/S15P31E102-624.md)
 
-- [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)
+- [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [529 ERD 탭](plans/S15P31E102-529.md) · [사용·패키징](../infra/tool-updates/README.md)
 
 - [이전 연주 기록의 단독 평가·악기명 연결 (530)](plans/S15P31E102-530.md)
 
