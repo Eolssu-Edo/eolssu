@@ -130,8 +130,9 @@ class PracticePanelActions(
 )
 
 /**
- * 휴대폰·태블릿 세로에서는 아래에서 올라오는 시트(보드 `.sheet`)로 보여 준다.
+ * 모든 창 크기에서 아래에서 올라오는 시트(보드 `.sheet`)로 보여 준다(S15P31E102-518).
  * 시트 너비는 Material 기본값(최대 640dp, 가운데)이고, 태블릿 세로([tablet])는 창 높이의 45%(설정)·60%까지만 올라온다.
+ * 태블릿 가로·넓은 웹 창([expanded])은 창 높이가 낮아 45%면 설정이 시트 안에서 스크롤되므로 75%(설정)·80%까지 올라온다(S15P31E102-975).
  */
 @Composable
 fun PracticePanelSheet(
@@ -140,6 +141,7 @@ fun PracticePanelSheet(
     tablet: Boolean = false,
     modifier: Modifier = Modifier,
     titleToggles: Boolean = false,
+    expanded: Boolean = false,
 ) {
     val panel = state.panel ?: return
     val song = state.song ?: return
@@ -148,6 +150,7 @@ fun PracticePanelSheet(
     Dialog(onDismissRequest = actions.onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
             val maxSheetHeight = maxHeight * when {
+                expanded -> if (settings) 0.75f else 0.8f
                 tablet -> if (settings) 0.45f else 0.6f
                 settings -> 0.62f
                 else -> 0.82f
