@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -12,7 +13,10 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.audio.AudioPlaybackState
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.ElasticSquashSoftAmount
+import com.ssafy.eolssu.core.ui.component.ElasticSquashTextWidth
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.elasticSquash
 import com.ssafy.eolssu.feature.guide.ReferenceAudioController
 import com.ssafy.eolssu.feature.guide.ReferenceAudioKind
 import com.ssafy.eolssu.feature.guide.ReferenceAudioSelection
@@ -106,9 +110,14 @@ private fun SpeakerButton(
         active -> stringResource(Res.string.reference_audio_stop, label)
         else -> stringResource(Res.string.reference_audio_listen, label)
     }
+    val press = remember { MutableInteractionSource() }
     Surface(
         onClick = onClick, enabled = enabled,
-        modifier = modifier.heightIn(min = 48.dp).semantics { contentDescription = description },
+        // 음을 차례로 빠르게 눌러 비교하는 버튼이라 약하게 출렁인다(S15P31E102-891).
+        modifier = modifier
+            .elasticSquash(press, amount = ElasticSquashSoftAmount, widthFactor = ElasticSquashTextWidth)
+            .heightIn(min = 48.dp).semantics { contentDescription = description },
+        interactionSource = press,
         shape = RoundedCornerShape(10.dp),
         color = if (active) colors.primary else colors.accentTint,
         contentColor = when {

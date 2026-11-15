@@ -1,5 +1,7 @@
 # AI: 연주 채점
 
+S15P31E102-882: 오선보 metronome/sound의 숫자 빠르기와 정확히 대응되는 구간을 기존 `expressions/performancePlan`으로 전달합니다. PDF 글자층으로 유일하게 대조된 마디 첫 빠르기는 누락·위치를 보완합니다. 사용자 선택에 따라 `accel.`은 앞 숫자에서 다음 숫자까지 선형 BPM으로 연결하며, 기존 항목의 선택적 `start_bpm`으로 즉시 감속 후 가속을 표현합니다. 이 입력을 읽는 생성기·BE·OMR이 함께 필요합니다. `uv run pytest tests/unit/test_staff_tempo.py tests/unit/test_staff_pdf_tempo.py tests/unit/test_staff_musicxml.py tests/unit/test_omr_staff_engine.py`로 검사합니다. [스펙·한계](../docs/specs/staff-tempo-import.md), [실제 PDF 실행 근거](../docs/knowledge/ai/score-recognition-corrections.md#숫자-빠르기와-가속-가져오기-882).
+
 악보 인식의 임시 원본은 S15P31E102-534부터 요청 종료 시 삭제하며 별도 watchdog이 30분에 다운로드·쪽 그림 디렉터리를 삭제합니다. 삭제 실패는 1초 뒤 재시도합니다. 운영 OMR의 `/tmp` tmpfs를 유지하고 백업·영구 볼륨에 넣지 않습니다. `uv run pytest tests/unit/test_temporary_sources.py tests/unit/test_omr_api.py`로 파일 수명·API 회귀를 검사하며 모델 인식 품질과 구분합니다.
 
 녹음의 음높이를 추정해 정답 음표와 DTW로 맞추고, 음표마다 음정·박자·길이를 판정합니다. 작업 지침은 [AGENTS.md](AGENTS.md)를 따릅니다.
@@ -77,7 +79,7 @@ uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 
 1. `audioUrl`(서명 URL)에서 원본을 임시 폴더로 내려받습니다. 연결부터 전체 30초, 25MiB까지 받고 응답을 마치면 지웁니다.
 2. 위 '녹음 디코딩'으로 16kHz 모노로 바꾸고, pYIN으로 음높이를 추정해 '채점 방식'대로 채점합니다.
-3. `DONE`(`modelVersion` `pyin-6`, `scoringVersion` `note-mean-1`, 점수 4개, 조율 보정, 음표별 판정·부분 점수) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
+3. `DONE`(`modelVersion` `pyin-8`, `scoringVersion` `note-mean-2`, 점수 4개, 조율 보정, 음표별 판정·부분 점수) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
 
 | 상황 | 응답 | 백엔드 처리 |
 | --- | --- | --- |
@@ -126,7 +128,11 @@ uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
 
 오선보는 `src/omr_service/staff_engine.py`가 쪽마다 Audiveris를 별도 프로세스로 돌리고(쪽당 60초와 남은 요청 시간 중 짧은 쪽, 넘으면 끝냄), 쪽들의 MusicXML을 이어 `staff_musicxml.py`로 정간보 줄을 만든 뒤 글자 층과 같은 변환을 거칩니다. 명령은 `AUDIVERIS_CMD`(기본 `audiveris`)이고, 테스트(`tests/unit/test_omr_staff_engine.py`)는 가짜 Audiveris를 씁니다.
 
+S15P31E102-880: 요청 장단이 없는4분음표4박 오선보는 기존 `4박 기본 반주`를 후보로 잡습니다.4/4를 굿거리의 점4분박으로 저장해 편집 후보가 모두 사라지던 문제를 고쳤습니다. `JANGDAN_GUESSED`와 명시 요청 장단은 유지합니다. 서버의 기존 장단 기본 BPM 계약에 따라 시작 기본값160을 쓰며, PDF의 숫자 템포·가속 구간을 자동 인식한 값은 아닙니다. `uv run pytest tests/unit/test_staff_musicxml.py tests/unit/test_omr_staff_engine.py tests/unit/test_staff_audiveris_fixtures.py tests/unit/test_staff_source_pitches.py`로 회귀를 확인합니다. [기존 초안의 보존 복구 범위](../docs/specs/staff-four-beat-import.md)를 참고하세요.
+
 ### 악보 인식 이미지
+
+S15P31E102-883: 오선보의 각간 붙임줄은 한 NOTE로 유지하고 변박·불완전마디는 실제 길이와 마디 경계로 배치합니다. 자동 연결 대상이 아닌 박자에는 굿거리 기본값을 넣지 않고 장단 빈 이름을 반환합니다. 낮은 박자표 신뢰도·반복 불완전마디는 검수 대상으로 남깁니다. 정간보 글자층은 장구 예시 열을 제외하고, 스캔은 알려진 격자 높이 검출 실패에서 다음 배율을 시도합니다. `uv run pytest tests/unit/test_staff_rhythm_preservation.py tests/unit/test_omr_scan_engine.py`와 [실제 악보 비교](../docs/knowledge/data/common/rhythm-metronome/meter-import-validation.md)를 참고하세요. 이전의 글자층만 명시적 이음을 켠다는 설명은 오선보에도 확대됐습니다.
 
 `omr.Dockerfile`은 Ubuntu 24.04에 Audiveris 5.11(데스크톱 등록 스크립트를 뺀 deb와 `libgtk-3-0`), Node, jeongganbo-generator `9d4a24e`, 서비스·`omr` 그룹 의존성, `data/src/scores`·`data/reference`를 넣고 사용자 10001로 실행합니다. 빌드 맥락은 저장소 루트이고 보낼 파일은 `omr.Dockerfile.dockerignore`가 정합니다. 저장소 루트에서 실행합니다.
 
@@ -222,10 +228,11 @@ uv run --locked python -m evaluation.dtw_u4_table ../data/processed/dtw-286/u4-r
 | 조율 보정 | 정렬된 음의 가운데 구간에서 잰 어긋남의 중앙값. 상한 `min(100, 가장 가까운 두 음 간격 − 50 − 10)`센트를 넘으면 보정하지 않고 `tuning_out_of_range`로 표시 |
 | 시김새 음표 | 음정 판정 제외, 박자·길이만 판정 |
 | 음 시작 | 앞 음보다 이 음의 높이에 가까워진 첫 프레임. 앞 음과 높이가 같으면 음량(`frame_rms`)이 크게 줄었다 다시 올라온 첫 프레임 |
-| 판정 | `MISSED` → `PITCH` → `TIMING` → `CORRECT` 순으로 먼저 걸리는 것 |
+| 음 길이 | 울린 길이를 자리와 비교한다. 자리는 다음 음이 쉼 없이 이어지면 그 음이 실제로 시작할 때까지, 쉼 앞·마지막 음·다음 음을 놓쳤으면 악보 길이 × 연주 빠르기다. 울린 길이는 자리 안(쉼 앞·마지막 음은 마지막 소리까지)에서 소리가 잡힌 프레임 수다. 긴 음은 `LENGTH` 판정에도 쓴다 |
+| 판정 | `MISSED` → `PITCH` → `TIMING` → `LENGTH` → `CORRECT` 순으로 먼저 걸리는 것. `LENGTH`는 자리와 악보 길이(연주 빠르기 반영)가 모두 0.6초 이상인 음에서 길이 오차가 자리의 30%(최소 120ms)를 넘을 때이며, 첫 음·같은 높이로 이어지는 음·시김새 음은 판정하지 않는다 |
 | 실패 | 소리가 없거나 잡음 몇 프레임만 잡혀 모든 음표가 `MISSED`면 `NO_SOUND`, 녹음이 정답 길이의 절반 미만이면 `TOO_SHORT`. 0점과 구분 |
 
-허용 범위 기본값(음정 ±50센트, 시작 박의 1/8, 길이 ±25%)과 조율 보정 상한은 녹음으로 검증하기 전의 제안 값입니다. 입력 규칙, 상한 식의 근거와 한계는 [채점 입력과 기준음·조율 보정 상한](../docs/knowledge/ai/scoring-input-and-tuning.md)에 있습니다. 1분이 넘는 녹음은 아직 다루지 않습니다.
+허용 범위 기본값(음정 ±50센트, 시작 박의 1/8, 길이는 자리의 ±25%와 120ms 중 큰 쪽)과 조율 보정 상한은 녹음으로 검증하기 전의 제안 값입니다. 길이 기준을 정한 실험은 [음 길이 점수의 자리 기준 보정](../docs/knowledge/ai/duration-score-slot.md)에 있습니다. 입력 규칙, 상한 식의 근거와 한계는 [채점 입력과 기준음·조율 보정 상한](../docs/knowledge/ai/scoring-input-and-tuning.md)에 있습니다. 1분이 넘는 녹음은 아직 다루지 않습니다.
 
 
 ## 정상·오류 녹음 평가
@@ -235,6 +242,10 @@ uv run --locked python -m evaluation.dtw_u4_table ../data/processed/dtw-286/u4-r
 ### 스캔 모델 실행 (458)
 
 기본 Docker 빌드는 마지막 `scanner` 단계까지 실행합니다. `JEONGGANBO_OMR_DIR=/opt/jeongganbo-omr`의 코드·체크포인트를 이미지에 포함하고 CPU 배치 16개, 스레드 2개로 추론합니다. 원본과 모델 경로는 읽기 전용이며 변환한 체크포인트는 요청별 `/tmp` 안에만 씁니다. 추론은 Audiveris와 같은 잠금으로 동시 1건이고 기존 쪽당 60초·CPU 2개·메모리 2GiB를 유지합니다. 런타임 모델 다운로드는 없습니다.
+
+스캔 엔진 `e95045f-v1.0.0-r4`는 모델 어휘에 없는 중청 음을 두 물수변의 실제 획으로 복원합니다. 청 음의 점 두 쌍과 아래 획이 모두 확인될 때만 올리고, 위치·시김새·confidence를 보존합니다. 글자층 PDF·오선보·모델 가중치는 바꾸지 않습니다. 같은 PNG·JPEG 24/24 대조와 기존 스캔 5종 전후 보존 결과는 [중청 음역 교정 기록](../docs/knowledge/ai/jeongganbo-double-water-register.md)에 있습니다.
+
+S15P31E102-882 후속: 글자층 엔진4·스캔 r5는 정간 오른쪽 한배 기호 `ㅈㄴ/ㅈㅅ/ㅈㅈㄴ/ㅈㅈㅅ/ㅂㅅ`를 별도로 읽습니다. 스캔 검출은 똑바로 인쇄된 연결 자모와 구분점·이어지는 점선이 확인되는 경우에 한정하며, 모델 어휘나 가중치를 바꾸지 않습니다. 숫자 없는 기호는 기존 기호 배치와 명시적 빈 빠르기 계획으로 보존하여 임의 배율을 적용하지 않고 `TEMPO_CUE_UNRESOLVED`로 목표 입력을 요청합니다. 기호는 보이지만 해당 선율 열을 기존 격자 리더가 놓친 경우에는 `TEMPO_CUE_POSITION_UNRESOLVED`와 원본 위치만 남기며 다른 정간에 옮겨 붙이지 않습니다. 같은 정간의 상충 기호는 `TEMPO_CUE_CONFLICT`로 남깁니다. `uv run pytest tests/unit/test_jeongganbo_tempo.py tests/unit/test_omr_text_engine.py tests/unit/test_omr_scan_engine.py`로 작은 고정 입력을 검사합니다. 그림 검출 검사는 스캔 런타임의 OpenCV가 필요합니다.
 
 스캔 전용 의존성은 `omr-scan-requirements.in`과 SHA-256을 포함한 `omr-scan-requirements.txt`로 고정해 기존 채점 서비스의 `uv.lock`과 분리했습니다. Python 3.12·Linux x86_64 CPU 휠을 사용합니다. 같은 uv 버전에서 `uv pip compile --python .venv/bin/python --generate-hashes omr-scan-requirements.in -o omr-scan-requirements.txt`로 다시 고정할 수 있습니다. 모델 소스·가중치의 획득 URL과 체크섬은 `omr.Dockerfile`에 있습니다.
 

@@ -1,4 +1,6 @@
+from contextlib import redirect_stdout
 from datetime import datetime, timezone
+from io import StringIO
 import json
 from pathlib import Path
 import ssl
@@ -82,3 +84,54 @@ class OutsideTests(unittest.TestCase):
             outside.publish(path, data)
             self.assertEqual(json.loads(path.read_text()), data)
             self.assertEqual(list(Path(directory).iterdir()), [path])
+
+    def test_run_always_publishes_and_only_logs_per_target_outages_and_recoveries(self):
+        healthy = {'relay': {'ok': True, 'detail': 'HTTP 200 · 중계 JSON 정상'},
+                   'terms': {'ok': True, 'detail': 'HTTP 200 · 약관 목록 JSON 정상'}}
+        relay_failed = {**healthy, 'relay': {'ok': False, 'detail': 'HTTP 502'}}
+        both_failed = {**relay_failed, 'terms': {'ok': False, 'detail': 'HTTPS 응답 시간 초과'}}
+        relay_recovered = {**both_failed, 'relay': healthy['relay']}
+        relay_failed_again = {**both_failed, 'relay': {'ok': False, 'detail': 'TLS 인증 실패'}}
+        cases = [
+            (healthy, []),
+            (healthy, []),
+            (relay_failed, [('relay', 'outage_started')]),
+            (both_failed, [('terms', 'outage_started')]),
+            ({**both_failed, 'relay': relay_failed_again['relay']}, []),
+            (relay_recovered, [('relay', 'recovered')]),
+            (relay_failed_again, [('relay', 'outage_started')]),
+            (healthy, [('relay', 'recovered'), ('terms', 'recovered')]),
+        ]
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / 'latest.json'
+            with patch.object(outside, 'STATE_FILE', path):
+                for minute, (results, expected) in enumerate(cases):
+                    snapshot = {'captured_at': f'2026-11-10T10:{minute:02}:00Z', **results}
+                    output = StringIO()
+                    with self.subTest(minute=minute), patch.object(outside, 'collect', return_value=snapshot), \
+                            redirect_stdout(output):
+                        outside.main()
+                        self.assertEqual(json.loads(path.read_text()), snapshot)
+                        events = [(line[:3], json.loads(line[3:])) for line in output.getvalue().splitlines()]
+                        self.assertEqual(events, [
+                            ('<5>' if event == 'recovered' else '<4>',
+                             {'captured_at': snapshot['captured_at'], 'target': target,
+                              'event': event, 'detail': snapshot[target]['detail']})
+                            for target, event in expected
+                        ])
+
+    def test_first_failure_is_logged_when_previous_state_cannot_be_decoded(self):
+        snapshot = {'captured_at': '2026-11-10T10:00:00Z',
+                    'relay': {'ok': False, 'detail': 'HTTP 503'},
+                    'terms': {'ok': True, 'detail': 'HTTP 200 · 약관 목록 JSON 정상'}}
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / 'latest.json'
+            path.write_bytes(b'{')
+            output = StringIO()
+            with patch.object(outside, 'STATE_FILE', path), \
+                    patch.object(outside, 'collect', return_value=snapshot), redirect_stdout(output):
+                outside.main()
+            self.assertEqual(json.loads(path.read_text()), snapshot)
+            self.assertEqual(len(output.getvalue().splitlines()), 1)
+            self.assertEqual(json.loads(output.getvalue()[3:])['target'], 'relay')
+            self.assertEqual(json.loads(output.getvalue()[3:])['event'], 'outage_started')

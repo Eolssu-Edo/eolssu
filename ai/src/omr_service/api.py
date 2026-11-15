@@ -247,6 +247,7 @@ def _done(request: RecognitionIn, result: dict, pages: list[Page]) -> dict:
         "jgb": result["jgb"],
         "score": result["score"],
         "sourcePitches": result.get("sourcePitches", []),
+        **{key: result[key] for key in ('bpm', 'expressions') if key in result},
         **_split_issues(result["issues"], result["score"]),
     }
 

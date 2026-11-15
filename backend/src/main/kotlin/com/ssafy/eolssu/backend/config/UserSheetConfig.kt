@@ -2,7 +2,11 @@ package com.ssafy.eolssu.backend.config
 
 import com.ssafy.eolssu.backend.common.error.ErrorResponseWriter
 import com.ssafy.eolssu.backend.feature.sheet.api.SheetBodyLimitFilter
+import com.ssafy.eolssu.backend.feature.sheet.application.CopyJangdanSource
 import com.ssafy.eolssu.backend.feature.sheet.application.CopyPublishedSheet
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetJangdanValidation
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetJangdan
+import com.ssafy.eolssu.backend.feature.song.domain.SongJangdanPlaybackResolver
 import com.ssafy.eolssu.backend.feature.sheet.application.EditUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetImportFiles
@@ -66,8 +70,17 @@ class UserSheetConfig {
 
     @Bean
     fun copyPublishedSheet(songs: SongScoreMapper, sheets: UserSheetMapper, imports: SheetImportMapper,
-        transactionManager: PlatformTransactionManager, scores: SheetScores, clock: Clock) =
-        CopyPublishedSheet(MyBatisPublishedSheetCopyRepository(songs, sheets, imports, TransactionTemplate(transactionManager)), scores, clock)
+        transactionManager: PlatformTransactionManager, scores: SheetScores, clock: Clock, json: JsonMapper,
+        playback: SongJangdanPlaybackResolver): CopyPublishedSheet {
+        val published = MyBatisSongScoreRepository(songs)
+        // 원곡 연습(CAT-04)과 같은 반주 판정으로 장단을 찾는다.
+        val accompaniment = CopyJangdanSource { songId ->
+            published.findPublished(songId)?.let(playback::resolve)?.jangdanId?.toLongOrNull()
+                ?.let(sheets::findJangdan)?.let { SheetJangdan(it.id, it.bpmUnit, it.name, it.pattern) }
+        }
+        return CopyPublishedSheet(MyBatisPublishedSheetCopyRepository(songs, sheets, imports, TransactionTemplate(transactionManager)),
+            scores, clock, accompaniment, SheetJangdanValidation(json))
+    }
 
     // R2는 생성 음원과 명시적 과거 원본 삭제용이다. 새 업로드의 임시 저장소와 분리한다.
     @Bean(defaultCandidate=false)

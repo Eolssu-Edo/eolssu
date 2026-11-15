@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
 import androidx.compose.runtime.Composable
+import com.ssafy.eolssu.data.song.SheetConversionFailure
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
@@ -26,6 +27,19 @@ enum class SheetFileProblem {
 
     /** 인식기가 정간·오선을 찾지 못했다(업로드 뒤 변환 실패). */
     Unrecognized,
+    ;
+
+    companion object {
+        /**
+         * 내 악보 '다시 불러오기'에서 보일 안내. 정간·오선을 못 찾았으면 인식 실패, 인식기가 못 읽은 파일이면 읽기 실패다.
+         * 시간 초과·서버 오류처럼 파일을 바꿔도 소용없는 실패는 안내하지 않는다(null).
+         */
+        fun ofConversionFailure(failure: SheetConversionFailure?): SheetFileProblem? = when (failure) {
+            SheetConversionFailure.NoScoreFound -> Unrecognized
+            SheetConversionFailure.UnsupportedFile -> Unreadable
+            else -> null
+        }
+    }
 }
 
 /** [SheetFileProblem] 안내 창. 형식 오류는 '확인', 나머지는 '다시 선택하기'([onRepick])와 '취소'를 둔다. */

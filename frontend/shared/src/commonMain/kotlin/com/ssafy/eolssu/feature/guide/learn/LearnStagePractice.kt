@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.guide.learn
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -88,6 +89,8 @@ internal fun rememberLearnStagePractice(
             if (number == 5) detail?.let { d -> LearnPattern.entries.getOrNull(box)?.notes(d.pitchNames)?.mapNotNull(instrument::noteOf) } else null
         }
         val segmentJudging = judgesInTasks(number) && state.pitch != null && state.canListen
+        // 듣기 주 버튼은 듣는 박스 안에 둔다(S15P31E102-877).
+        val primary: @Composable (Modifier) -> Unit = { modifier -> LearnPracticePrimary(state, actions, selfDone, last = next == null, modifier) }
         StepPractice(
             title = stringResource(Res.string.learn_practice_box_title),
             segment = if (judgesInTasks(number)) { box, done ->
@@ -100,15 +103,10 @@ internal fun rememberLearnStagePractice(
                 null
             },
             segmentReplacesFigure = number == 5,
-            // 할 일 박스 안에서 판정하지 못하면(판정 계획이 없거나 마이크를 쓸 수 없음) 박스의 '해 봤어요'로 마치고 아래는 '연습 시작'을 둔다.
-            primary = if (!judgesInTasks(number) || segmentJudging) { modifier ->
-                LearnPracticePrimary(state, actions, selfDone, last = next == null, modifier)
-            } else {
-                null
-            },
+            // 할 일 박스 안에서 판정하지 못하면(판정 계획이 없거나 마이크를 쓸 수 없음) 박스의 '해 봤어요'로 마친다.
+            primary = primary.takeIf { !judgesInTasks(number) || segmentJudging },
             passed = passed,
             // 5·6단계 할 일 박스의 체크를 풀면 그 박스의 첫 음부터 다시 판정한다.
-            start = { if (!judgesInTasks(number) || segmentJudging) viewModel.startListening() },
             onUndo = { box -> if (judgesInTasks(number)) viewModel.rewindTo(segmentNotes(number, box, state.pitch?.notes?.size ?: 0).first) },
             overlay = {
                 if (celebrating) {
@@ -116,7 +114,7 @@ internal fun rememberLearnStagePractice(
                 }
             },
         ) {
-            LearnPracticeBox(state, stage, detail, instrument, actions, selfDone)
+            LearnPracticeBox(state, stage, detail, instrument, actions, selfDone, primary)
         }
     }
 }

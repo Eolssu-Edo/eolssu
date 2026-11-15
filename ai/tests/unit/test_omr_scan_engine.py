@@ -12,6 +12,19 @@ from PIL import Image
 from omr_service import api
 
 
+@pytest.mark.parametrize('code,message,expected', [
+    (4, b'', True),
+    (1, b'Traceback\nAssertionError: Jeonggan height is not in range: 161.5, [np.int32(309)]\n', True),
+    (1, b'AssertionError: beta is not zero\n', False),
+    (1, b'RuntimeError: CUDA out of memory\n', False),
+    (137, b'Killed\n', False),
+])
+def test_only_known_geometry_failure_is_recoverable(code, message, expected):
+    from types import SimpleNamespace
+    from omr_service.jeongganbo_scan import recoverable_grid_failure
+    assert recoverable_grid_failure(SimpleNamespace(returncode=code, stderr=message)) == expected
+
+
 def test_scan_cell_keeps_supported_pitch_and_marks_unsupported_ornament():
     from omr_service.jeongganbo_scan import cell_text
     assert cell_text({'text':'청태:5','jg':':0 청태'}) == (':0 청태',None)
@@ -49,11 +62,12 @@ def test_tiny_image_without_grid_is_not_an_engine_error(tmp_path,monkeypatch):
 
 
 @pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
+@pytest.mark.parametrize('geometry_assertion', [False, True])
 @pytest.mark.parametrize('width,accepted,expected', [
     (1907, (2200, 2300), [84, 168, 84, 84]),
     (3000, (1950, 2050), [150, 300, 150, 150]),
 ])
-def test_image_grid_size_retry_keeps_boxes_in_original_coordinates(tmp_path,monkeypatch,width,accepted,expected):
+def test_image_grid_size_retry_keeps_boxes_in_original_coordinates(tmp_path,monkeypatch,width,accepted,expected,geometry_assertion):
     from omr_service import jeongganbo_scan as scan
     script=tmp_path/'reader.py'
     script.write_text(f'''import json,sys
@@ -61,6 +75,8 @@ from pathlib import Path
 from PIL import Image
 with Image.open(sys.argv[1]) as image:
     if not {accepted[0]} <= image.width <= {accepted[1]}:
+        if {geometry_assertion!r}:
+            raise AssertionError('Jeonggan height is not in range: 161.5, [309, 279]')
         sys.exit(4)
     if {width} == 3000 and '--grid-boxes' not in sys.argv:
         sys.exit(4)

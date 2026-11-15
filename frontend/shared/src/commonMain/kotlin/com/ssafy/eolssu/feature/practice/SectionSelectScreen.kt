@@ -44,6 +44,7 @@ import eolssu.shared.generated.resources.weak_score_unavailable
 import eolssu.shared.generated.resources.weak_select_hint
 import eolssu.shared.generated.resources.weak_select_hint_end
 import eolssu.shared.generated.resources.weak_select_hint_ready
+import eolssu.shared.generated.resources.weak_select_hint_recommended
 import eolssu.shared.generated.resources.weak_select_reset
 import eolssu.shared.generated.resources.weak_loop_evaluate_start
 import eolssu.shared.generated.resources.weak_select_title
@@ -65,7 +66,7 @@ class SectionSelectActions(
 /**
  * 구간 고르기(S15P31E102-767 와이어프레임 ①). 연습 기록의 ‘구간 연습’·‘구간 재평가’가 함께 쓴다(S15P31E102-794).
  * 회색 베이스(`groupedBackground`) 위에 앱 바 제목 ‘구간 연습-구간 선택’(구간 재평가와 같은 페이지형 상단 바, S15P31E102-821) ·
- * 5칸 틀린 종류 필터 · 연두 견본과 단계별 안내(시작 정간 → 끝 정간 → 연습) · 추천 구간이 있으면 ‘취약 구간 보기’ ·
+ * 5칸 틀린 종류 필터 · 연두 견본과 추천/수동 선택 단계별 안내 · 추천 구간이 있으면 ‘취약 구간 보기’ ·
  * 곡 전체 정간보(틀린 정간은 종류별 색·아이콘, 구간 밖은 흐리게, 구간 각은 연두 테두리, 시작·끝 표시) ·
  * 아래는 나란한 ‘구간 연습 시작’(연습 화면의 구간 연습)과 ‘구간 재평가 시작’. 속도는 각 화면의 설정에서 정한다.
  */
@@ -126,6 +127,7 @@ private fun SelectHintRow(state: SectionSelectUiState, onReset: () -> Unit) {
             false -> Res.string.weak_score_changed
             null -> Res.string.weak_score_unavailable
             true -> when (state.step) {
+                SectionSelectStep.Recommended -> Res.string.weak_select_hint_recommended
                 SectionSelectStep.Start -> Res.string.weak_select_hint
                 SectionSelectStep.End -> Res.string.weak_select_hint_end
                 SectionSelectStep.Ready -> Res.string.weak_select_hint_ready

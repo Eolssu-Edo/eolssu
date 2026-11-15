@@ -29,10 +29,9 @@ class SectionPracticeStateTest {
     }
 
     @Test
-    fun hintMovesFromStartToEndToReadyAndResetReturnsToTheRecommendedSection() {
+    fun recommendedHintAllowsStartingOrReselectingAndResetRestoresIt() {
         val start = SectionSelectUiState(loading = false, section = recommended, recommended = recommended)
-        // 추천 구간이 잡혀 있어도 직접 고르기 전에는 시작 정간부터 안내한다.
-        assertEquals(SectionSelectStep.Start, start.step)
+        assertEquals(SectionSelectStep.Recommended, start.step)
         assertTrue(start.canStart)
 
         val picking = start.tap(ScorePosition(4, 3))
@@ -46,7 +45,27 @@ class SectionPracticeStateTest {
         val reset = picking.resetToRecommended()
         assertEquals(recommended, reset.section)
         assertFalse(reset.picking)
-        assertEquals(SectionSelectStep.Start, reset.step)
+        assertEquals(SectionSelectStep.Recommended, reset.step)
         assertTrue(reset.canStart)
+    }
+
+    @Test
+    fun withoutRecommendationWaitsForStartAndResetClearsSelection() {
+        val start = SectionSelectUiState(loading = false)
+        assertEquals(SectionSelectStep.Start, start.step)
+        assertFalse(start.canStart)
+
+        val picking = start.tap(ScorePosition(0, 0))
+        assertEquals(SectionSelectStep.End, picking.step)
+        assertFalse(picking.canStart)
+
+        val ready = picking.tap(ScorePosition(1, 0))
+        assertEquals(SectionSelectStep.Ready, ready.step)
+        assertTrue(ready.canStart)
+
+        val reset = ready.resetToRecommended()
+        assertNull(reset.section)
+        assertEquals(SectionSelectStep.Start, reset.step)
+        assertFalse(reset.canStart)
     }
 }

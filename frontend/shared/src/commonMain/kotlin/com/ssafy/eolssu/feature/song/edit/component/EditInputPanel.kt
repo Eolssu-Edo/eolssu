@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.feature.song.edit.accompanimentName
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.offset
 import eolssu.shared.generated.resources.sheetedit_redo
@@ -558,7 +560,7 @@ private fun CellTools(draft: SheetDraft, actions: EditInputActions) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    stringResource(Res.string.sheetedit_cell_jangdan, jangdanLabel(draft.jangdanName)),
+                    stringResource(Res.string.sheetedit_cell_jangdan, jangdanLabel(draft.accompanimentName)),
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
                 )
                 if (draft.jangdan != null) Text(

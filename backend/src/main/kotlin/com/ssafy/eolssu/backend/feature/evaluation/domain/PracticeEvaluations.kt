@@ -52,5 +52,7 @@ object Verdict {
     const val CORRECT = "CORRECT"
     const val PITCH = "PITCH"
     const val TIMING = "TIMING"
+    /** 긴 음의 길이가 크게 어긋남(S15P31E102-912). AI `pyin-8`부터 온다. */
+    const val LENGTH = "LENGTH"
     const val MISSED = "MISSED"
 }

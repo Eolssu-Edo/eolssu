@@ -4,7 +4,7 @@ from fractions import Fraction
 import math
 import unittest
 
-from data.src.playback.tempo_repeat import apply_tempo_repeat
+from data.src.playback.tempo_repeat import apply_tempo_repeat, performed_points
 from data.src.playback.score import PPQN, compile_score
 from data.src.playback.tests._helpers import converted, document, midi
 
@@ -17,6 +17,25 @@ def plan(**values):
 
 
 class TempoRepeatTests(unittest.TestCase):
+    def test_explicit_ramp_start_steps_down_before_accelerating_without_changing_the_previous_bar(self):
+        value, mapping = converted(document('청황 | 청태\n청임 | 청남', beats=2))
+        selected = plan(tempos=[{'gak':2,'cell':1,'start_bpm':30,'bpm':120,'end_gak':3,'end_cell':1}])
+        result, positions = apply_tempo_repeat(value, mapping, selected, HASH)
+        actual = midi(result)['notes']
+        self.assertAlmostEqual(actual[2]['start'], 2, delta=.002)
+        self.assertAlmostEqual(actual[-1]['end'], 2 + 60 * 2 / 90 * math.log(4), delta=.002)
+        self.assertEqual(positions['performance']['resolved_tempos'][0]['start_bpm'], 30)
+        # This JGB fixture uses dotted-quarter jeonggan (1.5 written quarters).
+        times = [t for t,_ in performed_points(positions['timingMap'],[(q,None) for q in (0,1.5,3,4.5)])]
+        for actual,expected in zip(times,[0,1,2,2+60/45*math.log(75/30)]):
+            self.assertAlmostEqual(actual,expected,delta=.002)
+
+    def test_ramp_start_requires_a_positive_value_and_an_end(self):
+        value, mapping = converted(document('청황 | 청태'))
+        for extra in ({'start_bpm':0,'end_gak':2,'end_cell':1}, {'start_bpm':float('nan'),'end_gak':2,'end_cell':1}, {'start_bpm':30}):
+            with self.subTest(extra=extra), self.assertRaises(ValueError):
+                apply_tempo_repeat(value, mapping, plan(tempos=[{'gak':1,'cell':1,'bpm':120,**extra}]), HASH)
+
     def test_jeongak_repeat_tempo_plan_keeps_schema_and_source_hash(self):
         source = document("황 | {조금속하게} 태")
         source["parts"][0]["instrument"] = "jeongak-daegeum"

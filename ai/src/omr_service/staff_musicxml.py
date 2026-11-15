@@ -4,8 +4,8 @@
 한 줄이 한 각, 정간은 '|', 정간 안은 ':위치 율명'(0 통째, 3행 1~9, 2행 10·11 통째와 12~15 좌우)이다.
 
 - 정간 하나 = 1박. 겹박자(6/8·9/8·12/8)는 점4분음표, 마디가 4분음표로 나뉘면 4분음표, 그 밖(5/8·7/8)은 8분음표다.
-  한 각 = 첫 박자표 한 마디의 박 수. 마디선이 빠진 인식 결과도 있어 마디가 아니라 시간 순서대로 각을 자른다.
-  첫 마디가 짧으면(못갖춘마디) 앞을, 끝 각은 뒤를 쉼표로 채운다. 각을 넘는 음은 다음 각 처음에 다시 적는다.
+  명시한 박자표가 있으면 마디별 실제 길이와 경계를 보존한다. 변박은 공통 음가의 정간과 각별 너비로 나타낸다.
+  첫 못갖춘마디 앞은 쉼표로 채운다. 끝의 불완전마디는 실제 길이대로 두고, 각을 넘는 음은 명시적 이음으로 잇는다.
 - 첫 파트에서 곡 길이 절반 이상을 덮는 성부 중 높은 성부를 쓰되, 본음 시작이 두 배 이상 많은 하성부가 있으면 고른다.
   성부 안의 빈 시간은 쉼표다. 꾸밈음·가사는 버린다. 반복·volta는 펼친다.
 - 원음 MIDI를 보존한다. 악기에 맞추는 이조·옥타브 이동은 앱에서 지원 목록과 전후 결과를 확인한 뒤 적용한다.
@@ -17,9 +17,12 @@ import io
 import re
 import zipfile
 import xml.etree.ElementTree as ET
+from bisect import bisect_left, bisect_right
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
+from itertools import accumulate
+from math import gcd, lcm
 from statistics import median
 
 from omr_service.jeongganbo_text import score_data  # data/src/scores의 율명·옥타브 표를 함께 쓴다
@@ -39,13 +42,21 @@ MIN_COVER = Fraction(1, 2)  # 성부 후보: 곡 길이의 절반 이상을 덮�
 @dataclass
 class Conversion:
     lines: list[str]
-    jangdan: str | None  # 박자표로 정한 장단(9/8 세마치, 12/8 굿거리). 없으면 요청·기본값을 쓴다
+    jangdan: str | None  # 기존 자동 연결 대상만 제안한다. 없으면 명시 요청 또는 무반주다.
     beats_per_gak: int
     issues: list[dict] = field(default_factory=list)
     shift: int = 0  # 자동 조 옮김 반음(hwang_pitch가 있으면 0)
     beat: Fraction = Fraction(1)  # 정간 하나(1박)의 4분음표 수. 점4분 3/2, 4분 1, 8분 1/2
     meter_guessed: bool = False  # 박자표를 못 읽어 리듬으로 박 구성을 골랐다
     source_pitches: list[dict] = field(default_factory=list)
+    quarter_bpm: Fraction | None = None
+    tempos: list[dict] = field(default_factory=list)  # existing performancePlan, BPM in jeonggan/minute
+    gak_beats: list[int] = field(default_factory=list)  # 각별 정간 수. 모든 정간은 beat만큼의 같은 음가다.
+    source_meters: list[str | None] = field(default_factory=list)  # 원본 마디 순서, 상속된 박자표. 추정값을 섞지 않는다.
+
+    @property
+    def bpm_unit(self):
+        return 'DOTTED_QUARTER' if self.jangdan in ('세마치', '굿거리') or self.beat == Fraction(3, 2) else 'QUARTER'
 
 
 @dataclass
@@ -55,6 +66,7 @@ class _Note:
     midi: int | None  # None = 쉼표
     measure: int
     flags: list = field(default_factory=list)  # 이 음의 시작 칸에 남길 issue (kind, detail): 버린 꾸밈음·성부 안 빈 시간
+    continuation: bool = False  # 각 경계의 명시적 지속. 새 onset과 원음 ID를 만들지 않는다.
 
 
 def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Conversion:
@@ -63,15 +75,20 @@ def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Convers
     if part is None:
         raise ValueError("MusicXML에 파트가 없음")
     issues = []
-    notes, beats_per_gak, compound, beat, meter_guessed = _read_part(part, issues)
+    notes, beats_per_gak, compound, beat, meter_guessed, raw_tempos, pad, widths, source_meter, source_meters = _read_part(part, issues)
     if not any(n.midi is not None for n in notes):
         raise ValueError("음표가 없음")
     shift, hwang = 0, DEFAULT_HWANG if hwang_pitch is None else hwang_pitch
-    jangdan = {(True, 3): "세마치", (True, 4): "굿거리"}.get((compound, beats_per_gak))
-    lines = _layout(notes, beats_per_gak, hwang, instrument, issues)
+    jangdan = {(True, Fraction(3, 2), 3): "세마치", (True, Fraction(3, 2), 4): "굿거리"}.get(source_meter)
+    if source_meter == (False, Fraction(1), 4):
+        jangdan = "4박 기본 반주"
+    lines = _layout(notes, beats_per_gak, hwang, instrument, issues, widths=widths)
+    widths = widths or [beats_per_gak] * len(lines)
     originals = [item['detail'] for item in issues if item['kind'] == '_SOURCE_PITCH']
     issues = [item for item in issues if item['kind'] != '_SOURCE_PITCH']
-    return Conversion(lines, jangdan, beats_per_gak, issues, shift, beat, meter_guessed, originals)
+    quarter_bpm, tempos = _tempo_plan(raw_tempos, beat, widths, pad, issues)
+    return Conversion(lines, jangdan, beats_per_gak, issues, shift, beat, meter_guessed, originals,
+                      quarter_bpm, tempos, widths, source_meters)
 
 
 def _xml_bytes(data: bytes) -> bytes:
@@ -111,6 +128,7 @@ def _read_part(part, issues):
     measures = part.findall("measure")
     divisions, transpose, meter, measure_meters = [], [], None, []
     current_meter = None
+    source_meters, current_text = [], None
     div, shift = Fraction(1), 0
     for i, m in enumerate(measures):  # 마디 시작 시점의 divisions·이조 값(반복으로 돌아가도 같은 값)
         divisions.append(div)
@@ -120,27 +138,47 @@ def _read_part(part, issues):
             time = attrs.find("time")
             if time is not None:
                 read = _meter(time)
+                current_text = f"{time.findtext('beats')}/{time.findtext('beat-type')}" if read else None
                 current_meter = read
                 if meter is None:
                     meter = read or False
                 elif read and read != meter:
                     issues.append(_issue("LOW_CONFIDENCE", {"measure": i + 1, "reason": "TIME_SIGNATURE_CHANGED"}))
         measure_meters.append(current_meter)
+        source_meters.append(current_text)
+
+    written_lengths = [_measure_length(m, d) for m, d in zip(measures, divisions)]
+    for index, length in enumerate(written_lengths):
+        if length == 0:
+            issues.append(_issue('LOW_CONFIDENCE', {'measure': index + 1, 'reason': 'EMPTY_MEASURE_REVIEW_REQUIRED'}))
+    underfull = {i for i in range(1, len(measures) - 1) if measure_meters[i]
+                 and 0 < written_lengths[i] < measure_meters[i][1] * measure_meters[i][2]}
+    if len(underfull) < 2:
+        underfull.clear()  # 못갖춘마디·마지막 불완전마디 한 번으로 박자 오독을 단정하지 않는다.
 
     voices = defaultdict(list)  # 성부 → [시작, 길이, [(MIDI, 이어받음)], 마디, flags] 묶음(화음은 한 묶음)
     graces = defaultdict(list)  # 성부 → 다음 음에 붙일 버린 꾸밈음
-    cursor, last = Fraction(0), None
+    cursor, last, tempos, lengths = Fraction(0), None, [], []
     for index in _play_order(measures, issues):
         m, number, d, shift = measures[index], index + 1, divisions[index], transpose[index]
         local_meter = measure_meters[index]
         overfull = local_meter and _measure_length(m, d) > local_meter[1] * local_meter[2]
         rhythm_flags = [("LOW_CONFIDENCE", {"measure": number, "reason": "OVERFULL_MEASURE"})] if overfull else []
+        if index in underfull:
+            rhythm_flags.append(('LOW_CONFIDENCE', {'measure': number, 'reason': 'REPEATED_UNDERFULL_MEASURE',
+                'expectedQuarters': str(local_meter[1] * local_meter[2]),
+                'actualQuarters': str(written_lengths[index])}))
         t, longest = Fraction(0), Fraction(0)
         for el in m:
             if el.tag == "attributes":
                 d, shift = _attributes(el, d, shift)
             elif el.tag in ("backup", "forward"):
                 t += (-1 if el.tag == "backup" else 1) * Fraction(int(el.findtext("duration"))) / d
+            elif el.tag in ("direction", "sound"):
+                cue = _tempo_direction(el)
+                if cue is not None:
+                    offset = Fraction(el.findtext('offset') or 0) / d
+                    tempos.append({**cue, 'position': cursor + t + offset, 'measure': number})
             elif el.tag == "note":
                 voice = el.findtext("voice") or "1"
                 if el.find("grace") is not None:  # 꾸밈음은 뒤따르는 음의 칸에 알린다
@@ -160,6 +198,7 @@ def _read_part(part, issues):
                 voices[voice].append(last)
                 t += dur
             longest = max(longest, t)
+        lengths.append(longest)
         cursor += longest
     issues += [_issue(kind, detail) for flags in graces.values() for kind, detail in flags]  # 뒤따르는 음이 없는 꾸밈음
 
@@ -169,20 +208,125 @@ def _read_part(part, issues):
     if len(voices) > 1 or any(len(g[2]) > 1 for g in voices[voice]):
         issues.append(_issue("VOICE_GUESSED", {"voices": len(voices)}))
     melody = _melody(voices[voice])
+    if melody[-1].start + melody[-1].length < cursor:
+        end = melody[-1].start + melody[-1].length
+        melody.append(_Note(end, cursor - end, None, melody[-1].measure,
+                            [("LOW_CONFIDENCE", {"measure": melody[-1].measure, "reason": "GAP_IN_VOICE"})]))
+    source_meter = None
+    widths = []
+    pad_quarters = Fraction(0)
     if meter:
         compound, beat, beats_per_gak = meter
+        # 실제 마디 길이와 박 단위의 공통 음가를 사용해, 변박·불완전마디도
+        # 정수 개 셀로 나타낸다. 각의 길이를 맞추려고 끝 쉼표를 만들지 않는다.
+        first_length = lengths[0]
+        expected = meter[1] * meter[2]
+        if 0 < first_length < expected:
+            pad_quarters = expected - first_length
+        lengths[0] += pad_quarters
+        values = [m[1] for m in measure_meters if m] + [n for n in lengths if n]
+        denominator = lcm(*(v.denominator for v in values))
+        numerator = 0
+        for value in values:
+            numerator = gcd(numerator, int(value * denominator))
+        beat = Fraction(numerator, denominator)
+        widths = [int(length / beat) for length in lengths if length]
+        beats_per_gak = widths[0]
+        if all(written_lengths) and all(m == meter for m in measure_meters) and not underfull and not any(
+                length > m[1] * m[2] for length, m in zip(written_lengths, measure_meters) if m):
+            source_meter = meter
     else:  # 박자표를 못 읽었으면 각 경계를 넘는 음이 가장 적은 박 구성을 고른다
         compound, beats_per_gak = _guess_meter(melody)
         beat = Fraction(3, 2) if compound else Fraction(1)
+        source_meter = (compound, beat, beats_per_gak)
     notes = [_Note(n.start / beat, n.length / beat, n.midi, n.measure, n.flags) for n in melody]
-    pad = 0
-    if meter:  # 첫 마디가 짧으면(못갖춘마디) 앞을 쉼표로 채워 첫 각을 맞춘다
-        first = _measure_length(measures[0], divisions[0]) / beat
-        pad = (beats_per_gak - first % beats_per_gak) % beats_per_gak
+    pad = pad_quarters / beat
     if pad:
         notes = [_Note(Fraction(0), pad, None, 1)] + [_Note(n.start + pad, n.length, n.midi, n.measure, n.flags)
                                                       for n in notes]
-    return notes, beats_per_gak, compound, beat, not meter
+    return notes, beats_per_gak, compound, beat, not meter, tempos, pad, widths, source_meter, source_meters
+
+
+def _tempo_direction(el):
+    """MusicXML metronome units differ from sound's quarter-notes/minute."""
+    bpm = None
+    units = {'whole': 4, 'half': 2, 'quarter': 1, 'eighth': Fraction(1, 2), '16th': Fraction(1, 4)}
+    text = ' '.join(el.itertext())
+    accel = bool(re.search(r'\baccel(?:erando)?\b', text, re.I))
+    for mark in el.findall('direction-type/metronome'):
+        value = (mark.findtext('per-minute') or '').strip()
+        # Audiveris sometimes includes the following instruction in per-minute.
+        match = re.fullmatch(r'(\d+(?:\.\d+)?)\s*(?:(?:molto\s+)?accel(?:erando)?\.?\s*[_-]*)?', value, re.I)
+        unit = units.get(mark.findtext('beat-unit'))
+        if match and unit and len(mark.findall('beat-unit')) == 1:
+            dots = len(mark.findall('beat-unit-dot'))
+            bpm = Fraction(match[1]) * unit * (2 - Fraction(1, 2 ** dots))
+    sound = el if el.tag == 'sound' else el.find('sound')
+    if bpm is None and sound is not None:
+        try:
+            bpm = Fraction(sound.get('tempo', ''))
+        except (ValueError, ZeroDivisionError):
+            pass
+    if bpm is not None and bpm <= 0:
+        bpm = None
+    return {'bpm': bpm, 'accel': accel} if bpm is not None or accel else None
+
+
+def _tempo_plan(raw, beat, widths, pad, issues):
+    """Map through the same repeat/pickup clock; never snap a cue to another cell."""
+    positioned = {}
+    unbound = []
+    initial = None
+    raw = [dict(cue) for cue in raw]
+    for i, cue in enumerate(raw):
+        if cue['bpm'] is None and cue['accel']:
+            previous = next((r for r in raw if r['bpm'] is not None and r['measure'] == cue['measure']
+                             and r['position'] == cue['position']), None) or next(
+                (r for r in reversed(raw[:i]) if r['bpm'] is not None
+                 and r['measure'] == cue['measure'] and r['position'] <= cue['position']), None)
+            if previous is not None:
+                previous['accel'] = True
+                cue['accel'] = False
+    for cue in raw:
+        if cue['bpm'] is None and not cue['accel']:
+            continue
+        written = cue['position'] / beat
+        position = written + pad if written else Fraction(0)
+        if position.denominator != 1 or not 0 <= position < sum(widths):
+            issues.append(_issue('LOW_CONFIDENCE', {'reason': 'TEMPO_OFF_GRID', 'measure': cue['measure']}))
+            if cue['bpm'] is not None:
+                unbound.append(position)
+            continue
+        if cue['bpm'] is None:
+            issues.append(_issue('LOW_CONFIDENCE', {'reason': 'TEMPO_RAMP_UNRESOLVED', 'measure': cue['measure']}))
+            continue
+        if position in positioned and positioned[position]['bpm'] != cue['bpm']:
+            issues.append(_issue('LOW_CONFIDENCE', {'reason': 'TEMPO_CONFLICT', 'measure': cue['measure']}))
+            positioned[position]['conflict'] = True
+        else:
+            old = positioned.get(position, {})
+            positioned[position] = {**cue, 'accel': cue['accel'] or old.get('accel', False),
+                                    'conflict': old.get('conflict', False)}
+    tempos = []
+    ordered = sorted(positioned.items())
+    for i, (position, cue) in enumerate(ordered):
+        if cue['conflict']:
+            continue
+        gak, cell = _column_at(int(position), widths)
+        entry = {'gak': gak + 1, 'cell': cell + 1, 'bpm': float(cue['bpm'] / beat)}
+        tempos.append(entry)
+        if position == 0:
+            initial = cue['bpm']
+        if cue['accel']:
+            target = ordered[i + 1] if i + 1 < len(ordered) else None
+            if (target and not target[1]['conflict'] and target[1]['bpm'] > cue['bpm']
+                    and not any(position < p <= target[0] for p in unbound)):
+                end_gak, end_cell = _column_at(int(target[0]), widths)
+                entry.update(start_bpm=entry['bpm'], bpm=float(target[1]['bpm'] / beat),
+                             end_gak=end_gak + 1, end_cell=end_cell + 1)
+            else:
+                issues.append(_issue('LOW_CONFIDENCE', {'reason': 'TEMPO_RAMP_UNRESOLVED', 'measure': cue['measure']}))
+    return initial, tempos
 
 
 def _attributes(attrs, divisions, transpose):
@@ -325,29 +469,37 @@ def _midi(note, transpose=0):
     return written + transpose  # 이조 파트는 실음으로
 
 
-def _layout(notes, beats_per_gak, hwang, instrument, issues):
+def _column_at(position, widths, *, starts=None):
+    if starts is None:
+        starts = [0, *accumulate(widths)]
+    column = bisect_right(starts, position) - 1
+    return column, position - starts[column]
+
+
+def _layout(notes, beats_per_gak, hwang, instrument, issues, *, widths=None):
     end = max(n.start + n.length for n in notes)
-    gak_count = int(-(-end // beats_per_gak))  # 올림
-    total = gak_count * beats_per_gak
+    widths = widths or [beats_per_gak] * int(-(-end // beats_per_gak))
+    total = sum(widths)
+    starts = [0, *accumulate(widths)]
     if end < total:  # 끝 각을 쉼표로 채운다
         notes = notes + [_Note(end, total - end, None, notes[-1].measure)]
-    # 각을 넘는 음은 다음 각 처음에 다시 적는다. 정간 번호로 한 번에 묶는다
+    # 각 경계의 지속을 명시해 같은 eventId로 이어 붙인다.
     cells = defaultdict(list)
     for n in notes:
         cells[int(n.start)].append((n.start - int(n.start), n))
-        gak_start = (n.start // beats_per_gak + 1) * beats_per_gak
-        while gak_start < n.start + n.length:
-            cells[int(gak_start)].append((Fraction(0), n))
-            gak_start += beats_per_gak
+        for gak_start in starts[bisect_right(starts, n.start):bisect_left(starts, n.start + n.length)]:
+            cells[gak_start].append((Fraction(0), replace(n, continuation=n.midi is not None)))
     for n in notes:  # 음에 붙은 issue는 그 음이 시작하는 칸에(정간 하나 = 1박)
-        g, j = divmod(int(n.start), beats_per_gak)
+        g, j = _column_at(int(n.start), widths, starts=starts)
         issues += [_issue(kind, detail, f"c{g}-j{j}") for kind, detail in n.flags]
     flagged = set()  # OUT_OF_RANGE는 음마다 한 번
     lines = []
-    for g in range(gak_count):
-        row = [_cell(sorted(cells.get(g * beats_per_gak + j, []), key=lambda c: c[0]), hwang, issues, flagged,
-                     f"c{g}-j{j}") for j in range(beats_per_gak)]
+    start = 0
+    for g, width in enumerate(widths):
+        row = [_cell(sorted(cells.get(start + j, []), key=lambda c: c[0]), hwang, issues, flagged,
+                     f"c{g}-j{j}") for j in range(width)]
         lines.append(" | ".join(row))
+        start += width
     return lines
 
 
@@ -390,6 +542,8 @@ def _nearest(f, grid):
 
 
 def _yul(note, hwang, issues, flagged, cell_id, row=0, col=0):
+    if note.continuation:
+        return "-"
     if note.midi is None:
         return "쉼표"
     s = note.midi - hwang

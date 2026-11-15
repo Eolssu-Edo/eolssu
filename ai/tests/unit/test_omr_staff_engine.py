@@ -174,7 +174,7 @@ def test_staff_page_becomes_common_score(fake_audiveris):
         if event['kind'] == 'NOTE':
             assert 63 + staff_engine.staff_musicxml.YUL.index(event['yul']) + 12 * event['octave'] == originals[event['id']]
     assert guessed(out) == [{"source": "rhythm", "jangdan": "굿거리"}]
-    assert sum(e["kind"] == "NOTE" for e in out["score"]["events"]) == 66
+    assert sum(e["kind"] == "NOTE" for e in out["score"]["events"]) == 63  # 각 경계 지속 3개는 재발음하지 않는다.
 
 
 @needs_generator
@@ -184,6 +184,35 @@ def test_requested_jangdan_wins_and_mismatch_is_flagged(fake_audiveris):
     assert out["status"] == "DONE" and out["score"]["music"]["jangdan"] == "세마치"
     assert {"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
             "detail": {"jangdan": "세마치", "jeongganPerGak": 4}} in out["notices"]
+
+
+@needs_generator
+def test_four_quarter_staff_measure_uses_four_beat_accompaniment(fake_audiveris):
+    out = post("quarters").json()
+    assert out["status"] == "DONE"
+    music = out["score"]["music"]
+    assert music["jangdan"] == "4박 기본 반주" and music["bpmUnit"] == "QUARTER"
+    assert music["ticksPerJeonggan"] == music["ticksPerBeat"]
+    assert len(out["score"]["columns"]) == 1
+    assert len(out["score"]["columns"][0]["cells"]) == 4
+    assert max(e["startTick"] + e["durationTick"] for e in out["score"]["events"]) == 4 * music["ticksPerBeat"]
+    assert guessed(out) == [{"source": "timeSignature", "jangdan": "4박 기본 반주"}]
+    assert not any(i["kind"] == "JANGDAN_MISMATCH" for i in out["notices"])
+
+
+@needs_generator
+def test_recognized_numeric_tempo_and_existing_companion_reach_http(fake_audiveris, tmp_path):
+    import json, hashlib
+    path = tmp_path / 'four-quarters.musicxml'
+    path.write_bytes(FOUR_QUARTERS.replace(b'</attributes>', b'</attributes><direction><direction-type>'
+        b'<metronome><beat-unit>quarter</beat-unit><per-minute>80</per-minute></metronome>'
+        b'</direction-type><sound tempo="80"/></direction>'))
+    out = post('quarters').json()
+    assert out['status'] == 'DONE' and out['bpm'] == 80
+    digest = hashlib.sha256(json.dumps(out['score'], ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    assert out['expressions'] == {'schema':'common-score-expressions/v1', 'sourceSha256':digest,
+        'placements':[], 'performancePlan':{'schema':'danso-performance/v1','input_sha256':digest,
+        'tempos':[{'gak':1,'cell':1,'bpm':80}], 'repeats':[]}}
 
 
 @needs_generator
@@ -257,7 +286,7 @@ def guessed(out):
 @needs_generator
 @pytest.mark.parametrize("mode, detail, mismatch", [
     ("s128", {"source": "timeSignature", "jangdan": "굿거리"}, False),
-    ("s44", {"source": "default", "jangdan": "굿거리"}, True),  # 4/4는 장단이 없어 굿거리로 두고 맞지 않음을 알린다
+    ("s44", {"source": "timeSignature", "jangdan": "4박 기본 반주"}, False),
 ])
 def test_jangdan_guess_source(fake_audiveris, mode, detail, mismatch):
     out = post(mode).json()

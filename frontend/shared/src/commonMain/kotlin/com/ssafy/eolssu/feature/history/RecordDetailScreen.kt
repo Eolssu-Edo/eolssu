@@ -112,7 +112,7 @@ fun RecordDetailScreen(
     ) {
         Box(Modifier.fillMaxSize()) {
             RecordResultContent(state, actions, wrapped = frame.isTablet,
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp))
+                modifier = Modifier.fillMaxSize().padding(horizontal = if (frame.isTablet) 16.dp else 20.dp))
             if (state.playbackLoading) PlaybackLoadingOverlay()
         }
     }

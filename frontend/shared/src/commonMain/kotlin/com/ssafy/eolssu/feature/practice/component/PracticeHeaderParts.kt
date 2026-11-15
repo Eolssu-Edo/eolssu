@@ -140,7 +140,7 @@ fun PracticePill(text: String, modifier: Modifier = Modifier) {
     Text(
         text,
         modifier = modifier.background(colors.accentTint, RoundedCornerShape(4.dp)).padding(horizontal = 7.dp, vertical = 3.dp),
-        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold),
+        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold),
         color = colors.accentText,
         maxLines = 1,
     )

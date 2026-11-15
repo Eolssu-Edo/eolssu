@@ -149,18 +149,21 @@ private fun fingerBoundaries(song: Song): List<Double> {
     val total = song.score.totalUnits
     val timing = song.score.timing
     val mapping = song.jangdanPlayback
-    if (timing != null && mapping != null) {
+    val basic = song.basicAccompaniment
+    val pulse = if (timing != null && basic != null) basic.pulseTicks(timing) else mapping?.cellTicks
+    val groups = basic?.groups ?: mapping?.groups
+    if (timing != null && pulse != null && groups != null) {
         val ticks = timing.ticksPerJeonggan.toDouble()
         val boundaries = mutableListOf(0.0)
-        var cycle = mapping.startTick.toDouble()
+        var cycle = basic?.startTick?.toDouble() ?: requireNotNull(mapping).startTick.toDouble()
         while (cycle < total * ticks) {
             var at = cycle
-            for (size in mapping.groups) {
+            for (size in groups) {
                 val position = at / ticks
                 if (position > 0 && position < total) boundaries += position
-                at += size * mapping.cellTicks
+                at += size * pulse
             }
-            cycle += mapping.cycleTicks
+            cycle += groups.sum() * pulse
         }
         return boundaries.distinct().sorted()
     }

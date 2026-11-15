@@ -7,11 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.data.song.MySheetRepository
-import com.ssafy.eolssu.data.song.SheetConversionLookup
 import com.ssafy.eolssu.data.song.SheetConversionRepository
-import com.ssafy.eolssu.data.song.SheetConversionRetry
-import com.ssafy.eolssu.data.song.SheetConversionStatus
-import kotlinx.coroutines.delay
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.UserRepository
@@ -21,7 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 
 class MySongsViewModel(
@@ -37,15 +33,18 @@ class MySongsViewModel(
     private var loadJob: Job? = null
     private var loadGeneration = 0
     private var sheetJob: Job? = null
-    private var watchJob: Job? = null
-    private var watching = false
-    private val failedDetailAttempts = mutableSetOf<String>()
 
-    private val accountScope = member.screenScope(viewModelScope) {
+    private val accountScope: CoroutineScope = member.screenScope(viewModelScope) {
         _uiState.value = MySongsUiState()
-        failedDetailAttempts.clear()
+        conversionWatcher.forgetFailedDetails()
         instrumentSelection.clear()
     }
+
+    private val conversionWatcher: MySheetConversionWatcher = MySheetConversionWatcher(
+        accountScope, mySheetRepository, conversionRepository,
+        read = { _uiState.value.mine },
+        write = { change -> _uiState.update { it.copy(mine = change(it.mine)) } },
+    )
 
     /** 상단 바 연습 악기 드롭다운. 고른 악기가 바뀌면 제공 곡 목록을 다시 받는다. */
     internal val instrumentSelection: SongInstrumentSelection = SongInstrumentSelection(instrumentRepository, userRepository, accountScope)
@@ -65,120 +64,21 @@ class MySongsViewModel(
         accountScope.launch {
             mySheetRepository.sheets.collect { sheets ->
                 _uiState.update { it.receiveSheets(sheets) }
-                failedDetailAttempts.retainAll(_uiState.value.failedConversionIdsWithoutDetails.toSet())
-                startWatch()
+                conversionWatcher.onSheetsReceived()
             }
         }
     }
 
-    /**
-     * 화면이 보이는 동안 변환 중인 내 악보의 상태(SHT-10)를 `pollAfterMs`마다 다시 묻는다.
-     * 하나라도 끝나면(DONE·FAILED·404) 목록을 다시 받아 제목·장단·수정 시각을 맞춘다.
-     * 이미 실패한 목록 항목은 원인을 한 번 받으며, 조회 실패는 재진입·목록 새로고침 때 다시 시도한다.
-     */
-    fun watchConversions() {
-        if (!watching) failedDetailAttempts.clear()
-        watching = true
-        startWatch()
-    }
+    /** 화면이 보이는 동안 변환 중인 내 악보의 상태를 묻는다([MySheetConversionWatcher]). */
+    fun watchConversions() = conversionWatcher.watch()
 
     /** 화면이 가려지면 더 묻지 않는다. 다시 보이면 [watchConversions]로 이어 간다. */
-    fun stopWatchingConversions() {
-        watching = false
-        watchJob?.cancel()
-        watchJob = null
-    }
+    fun stopWatchingConversions() = conversionWatcher.stop()
 
-    private fun startWatch() {
-        val repository = conversionRepository ?: return
-        if (!watching || !accountScope.isActive || watchJob?.isActive == true || conversionIdsToQuery().isEmpty()) return
-        val job = accountScope.launch(start = CoroutineStart.LAZY) {
-            while (isActive) {
-                val ids = conversionIdsToQuery()
-                if (ids.isEmpty()) break
-                var finished = false
-                // 서버가 준 간격 중 가장 짧은 것을 따른다. 아무도 주지 않았으면(응답 없음 포함) 기본 간격이다.
-                var wait: Long? = null
-                for (id in ids) {
-                    val current = _uiState.value
-                    if (current.sheets.orEmpty().none { it.id == id }) continue
-                    val failureDetailsOnly = id in current.failedConversionIdsWithoutDetails
-                    val lookup = try { repository.status(id) }
-                    catch (cancelled: CancellationException) { throw cancelled }
-                    catch (_: Exception) { SheetConversionLookup.Unavailable }
-                    if (!isActive) return@launch
-                    if (_uiState.value.sheets.orEmpty().none { it.id == id }) continue
-                    if (failureDetailsOnly) failedDetailAttempts += id
-                    when (lookup) {
-                        is SheetConversionLookup.Found -> {
-                            val conversion = lookup.conversion
-                            _uiState.update { it.copy(conversions = it.conversions + (id to conversion)) }
-                            if (conversion.status.inProgress) {
-                                val next = conversion.pollAfterMs ?: CONVERSION_POLL_DEFAULT_MS
-                                wait = wait?.let { minOf(it, next) } ?: next
-                            }
-                            else if (!failureDetailsOnly || conversion.status != SheetConversionStatus.Failed) finished = true
-                        }
-                        SheetConversionLookup.NotFound -> {
-                            _uiState.update { it.copy(conversions = it.conversions - id) }
-                            finished = true
-                        }
-                        SheetConversionLookup.Unavailable -> Unit
-                    }
-                }
-                if (finished) mySheetRepository.refresh()
-                if (conversionIdsToQuery().isEmpty()) break
-                delay((wait ?: CONVERSION_POLL_DEFAULT_MS).coerceIn(CONVERSION_POLL_MIN_MS, CONVERSION_POLL_MAX_MS))
-            }
-        }
-        watchJob = job
-        job.invokeOnCompletion {
-            if (watchJob === job) {
-                watchJob = null
-                startWatch()
-            }
-        }
-        job.start()
-    }
+    /** 실패한 변환의 '다시 시도'(SHT-14). */
+    fun retryConversion(sheet: MySheet) = conversionWatcher.retry(sheet)
 
-    private fun conversionIdsToQuery(): List<String> = _uiState.value.let { state ->
-        state.convertingIds + state.failedConversionIdsWithoutDetails.filterNot { it in failedDetailAttempts }
-    }
-
-    /**
-     * 실패한 변환의 '다시 시도'(SHT-14). 서버가 다시 시도할 수 있다고 한 악보만 보낸다.
-     * 409면 원본이 없어 새 파일로 다시 불러와야 한다고 알리고, 받아 들이면 다시 상태를 묻기 시작한다.
-     */
-    fun retryConversion(sheet: MySheet) {
-        val repository = conversionRepository ?: return
-        val state = _uiState.value
-        if (!accountScope.isActive || sheet.id in state.retrying || state.conversionOf(sheet)?.retryable != true) return
-        _uiState.update { it.copy(retrying = it.retrying + sheet.id, conversionNotice = null) }
-        accountScope.launch {
-            val result = try { repository.retry(sheet.id) }
-            catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { SheetConversionRetry.Unavailable }
-            _uiState.update { current ->
-                val done = current.copy(retrying = current.retrying - sheet.id)
-                when (result) {
-                    is SheetConversionRetry.Accepted -> done.copy(conversions = done.conversions + (sheet.id to result.conversion))
-                    SheetConversionRetry.NotRetryable -> done.copy(
-                        conversions = done.conversions + (sheet.id to (done.conversionOf(sheet) ?: return@update done).copy(retryable = false)),
-                        conversionNotice = ConversionNotice.Reimport,
-                    )
-                    SheetConversionRetry.NotFound -> done.copy(conversions = done.conversions - sheet.id)
-                    SheetConversionRetry.Unavailable -> done.copy(conversionNotice = ConversionNotice.RetryFailed)
-                }
-            }
-            when (result) {
-                is SheetConversionRetry.Accepted -> startWatch()
-                SheetConversionRetry.NotFound -> mySheetRepository.refresh()
-                else -> Unit
-            }
-        }
-    }
-
-    fun consumeConversionNotice() = _uiState.update { it.copy(conversionNotice = null) }
+    fun consumeConversionNotice() = _uiState.update { it.copy(mine = it.mine.copy(notice = null)) }
 
     fun retry() {
         if (!accountScope.isActive) return
@@ -251,19 +151,14 @@ class MySongsViewModel(
 
     fun refreshSheets() {
         if (!accountScope.isActive || sheetJob?.isActive == true) return
-        failedDetailAttempts.clear()
+        conversionWatcher.forgetFailedDetails()
         sheetJob = accountScope.launch {
             _uiState.update { it.copy(sheetLoadState = SongLoadState.Loading) }
             val ok = mySheetRepository.refresh()
             _uiState.update { it.copy(sheetLoadState = if (ok) SongLoadState.Ready else SongLoadState.Failed) }
-            startWatch()
+            conversionWatcher.start()
         }
     }
 
     fun consumeDeleteFailure() = _uiState.update { it.copy(deleteFailed = false) }
 }
-
-/** 서버가 `pollAfterMs`를 주지 않을 때의 간격(SHT-10 진행 중 기본값과 같다). */
-internal const val CONVERSION_POLL_DEFAULT_MS = 2_000L
-private const val CONVERSION_POLL_MIN_MS = 1_000L
-private const val CONVERSION_POLL_MAX_MS = 30_000L

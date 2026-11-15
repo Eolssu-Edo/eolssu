@@ -1,5 +1,9 @@
 # 내 악보 조회·목록·편집 저장·삭제·불러오기 API (SHT-01·02·04·07·08·10·11)
 
+## 악보별 기본 박 반주 (2026-11-13, S15P31E102-883)
+
+SHT-04·08·11의 기존 `authoring`에 선택적 `accompaniment`를 저장한다. `schema=basic-accompaniment/v1`, `groups`, `pulseUnit`, `startTick`이며 허용 패턴과 단위·시작 위치는 [리듬 보존 계약](score-rhythm-preservation.md#반주-선택)을 따른다. 생략은 현재 설정 유지, null은 해제, 객체는 교체다. 카탈로그 장단과 동시에 선택할 수 없고 잘못된 값은 `400 INVALID_REQUEST`다. 공통 악보와 원본 source snapshot은 바꾸지 않는다. 초안은 `draft.authoring`, 확정 문서는 최상위 `authoring`으로 구분한다. 연습은 확정 설정만 재생한다. 기존 authoring JSON 컬럼을 쓰며 DB 마이그레이션은 없다. 새 FE의 쓰기는 BE 지원 배포 이후에 사용한다.
+
 ## 작성 원본과 변환 기록 (2026-11-12, S15P31E102-788)
 
 SHT-08·초안은 공통 v1 밖의 선택적 `authoring`을 반환한다. `schema=sheet-authoring/v1`, `source={kind,instrument,scoreVersion,scoreSha256,score,notes}`이며 notes는 eventId·cellId·startTick·durationTick·원래 실음 MIDI다. `RECOGNIZED`는 인식 결과 원본, `EXISTING_SCORE`는 과거 원본이 없는 현재 판본 기준이다. 인식 결과 JSON과 V42 `user_sheets.authoring_json`에 보존하고 기존 행은 일괄 변환하지 않는다. 원본 PDF 비보관 정책은 유지한다.
@@ -62,7 +66,7 @@ SHT-04·08·11은 선택적 `expressions` 형제를 전달한다. V43 `expressio
 
 - 쿼리: `kind`(`JEONGGANBO`/`MIDI`/`PDF`, 그 외 400), `page`(0 이상, 기본 0), `size`(1~100, 기본 20).
 - `result.items[]`: `sheetId`, `kind`, `title`, `status`, `jangdanId`·`jangdanName`(장단 없는 곡 복사본은 둘 다 null), `source`, `pendingCellCount`, `sourcePageCount`(null), `updatedAt`, `instrumentCode`(문자열 또는 null). `page`, `size`, `totalElements`, `totalPages`도 반환한다.
-- 모든 목록 항목에 `instrumentCode`를 포함한다. 초안이 있으면 초안 공통 악보의 `score.instrument`, 그 외에는 확정 공통 악보의 `score.instrument`를 반환한다. 코드가 비어 있거나 확정본·초안의 JSON을 편집기가 읽을 수 없으면 null이다. 항목에 코드를 받은 편집기는 해당 항목을 목록에서 바로 거른다. null 또는 필드가 없는 응답은 이전 상세 조회 경로를 사용한다. [S15P31E102-765 작업 기록](../plans/S15P31E102-765.md)
+- 모든 목록 항목에 `instrumentCode`를 포함한다. 초안이 있으면 초안 공통 악보의 `score.instrument`, 그 외에는 확정 공통 악보의 `score.instrument`를 반환한다. 코드가 비어 있거나 확정본·초안의 JSON을 편집기가 읽을 수 없으면 null이다. 항목에 코드를 받은 편집기는 해당 항목을 목록에서 바로 거른다. 불러올 악보 고르기는 null·누락·공백 항목을 미확인 수에 포함하고 목록에서 제외하며 본문을 추가 조회하지 않는다(S15P31E102-886 후속 사용자 지시). 이 화면의 기존 상세 보충 조회 규칙을 대체한다. [목록 개선 스펙](edit-pick-list.md) · [S15P31E102-765 작업 기록](../plans/S15P31E102-765.md)
 - 본인 악보만, `updatedAt` 내림차순·`sheetId` 내림차순. 없으면 빈 배열.
 
 ## 노션 초안과 다른 점
@@ -167,7 +171,7 @@ FE 접수 흐름(S15P31E102-539, 사용자 2026-11-06 결정): 정간보의 장�
 | 요청 | `POST /api/users/me/sheets/copies`, JSON `{"songId":"1"}`. 로그인 access 쿠키와 공백 없는 가시 ASCII 1~100자의 `Idempotency-Key`가 필수다. `songId`는 양의 정수를 나타내는 1~18자리 문자열이다. |
 | 성공 | `201`, `result.sheetId`는 새 개인 악보 ID 문자열이다. 사본이 남아 있을 때 같은 회원이 같은 키와 곡으로 재전송하면 기존 개인 ID를 반환한다. |
 | 오류 | 잘못된 요청 400, 미인증 401, 없거나 게시되지 않은 곡 404, 본문 1MiB 초과 413, 공통 악보를 읽을 수 없거나 원본의 각이 비었거나 편집 속도가 양의 정수가 아니면 409 `STATE_CONFLICT`, 같은 키의 다른 요청 409 `IDEMPOTENCY_CONFLICT`, 변환 중 409 `CONVERSION_IN_PROGRESS`, 내 악보 10개 409 `SHEET_LIMIT_EXCEEDED`. |
-| 저장 | 제공 곡의 게시 악보와 설정을 읽어 버전 1의 개인 정간보를 만든다. 제목 뒤에 ` (사본)`을 붙여 50자 이내로 제한한다. 서버가 작성 근거를 채우며, 음표·정간 ID·tick·악기·빠르기·장단을 보존한다. 장단 없는 곡의 `jangdanId`는 null이다. |
+| 저장 | 제공 곡의 게시 악보와 설정을 읽어 버전 1의 개인 정간보를 만든다. 제목 뒤에 ` (사본)`을 붙여 50자 이내로 제한한다. 서버가 작성 근거를 채우며, 음표·정간 ID·tick·악기·빠르기·장단을 보존한다. 곡 행에 장단 연결이 없으면 원곡 연습 반주(CAT-04 `jangdanPlayback`)의 장단을 넣되, 사본 저장(SHT-04)과 같은 이름·박 단위·격자 검사를 통과할 때만 넣는다(S15P31E102-894). 둘 다 없으면 `jangdanId`는 null이다. |
 | 동시성 | 파일 불러오기와 같은 회원 행을 잠근 뒤 재전송과 한도를 검사한다. 인증 후 탈퇴가 먼저 처리됐다면 활성 상태를 잃은 회원의 새 사본은 404로 거절한다. 재전송은 현재 한도보다 먼저 처리한다. |
 
 편집, 저장과 음원 생성은 복사한 악보의 ID로 기존 SHT-08·04·11·12·13을 호출한다. 복사 요청은 원본 게시 악보를 수정하지 않는다. 과거 SHT-03 `POST /api/users/me/sheets`는 405이며 빈 악보와 개인 악보의 복사 경로를 제공하지 않는다.

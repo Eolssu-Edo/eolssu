@@ -282,7 +282,7 @@ private val FingerLyricWidth = 30.dp
 @Composable
 private fun FingerHead(instrumentName: String) {
     val colors = EolssuTheme.colors
-    val style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium)
+    val style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium)
     Row(Modifier.fillMaxWidth().height(FingerHeadHeight)) {
         Text(stringResource(Res.string.practice_finger_head_fingering, instrumentName), Modifier.weight(1f).fillMaxHeight().padding(horizontal = 2.dp, vertical = 5.dp), style = style, color = colors.textMuted, textAlign = TextAlign.Center)
         HeadCell(stringResource(Res.string.practice_finger_head_yul), FingerNoteWidth, style)

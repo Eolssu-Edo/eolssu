@@ -269,6 +269,13 @@ data class PracticeUiState(
         get() {
             val song = song ?: return 0
             val jangdan = song.displayJangdan ?: return -1
+            song.basicAccompaniment?.let { basic ->
+                val timing = song.score.timing ?: return -1
+                val performedTick = modelPerformance?.takeIf { mode == PracticeMode.Model }
+                    ?.at(modelPerformancePositionMs)?.accompanimentTick
+                val cell = basic.cellAt(performedTick ?: currentTick ?: return -1, timing)
+                return if (cell < 0) -1 else jangdan.daegangIndexOfRow(cell)
+            }
             song.jangdanPlayback?.let { mapping ->
                 val performedTick = modelPerformance?.takeIf { mode == PracticeMode.Model }
                     ?.at(modelPerformancePositionMs)?.accompanimentTick
