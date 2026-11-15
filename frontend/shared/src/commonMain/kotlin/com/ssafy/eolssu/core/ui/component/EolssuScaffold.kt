@@ -108,6 +108,7 @@ internal val BackChevronPull: Dp = (-10).dp
 
 /**
  * 상단 바(`.topbar`): 왼쪽 뒤로 가기 꺽쇠([EolssuBackButton]) · 가운데 제목(보조 문구, 그 아래 [below]) · 오른쪽 자리. [titleFontSize]를 주면 제목만 그 크기로 바꾼다.
+ * [shrinkRight]가 true면 제목 자리가 모자랄 때 오른쪽 자리를 좁혀 그 안 글자를 말줄임한다([CenteredTitleRow]의 `shrinkEnd`).
  * 휴대폰은 상태 표시줄 아래 12dp, 태블릿은 와이어프레임처럼 화면 맨 위에서 세로 40dp · 가로 28dp에 두고 제목을 17sp로 키운다.
  * 상태 표시줄 영역은 감싸는 쪽(`EolssuScaffold` 등)이 비켜 간다.
  */
@@ -122,6 +123,7 @@ fun EolssuTopBar(
     titleFontSize: TextUnit = TextUnit.Unspecified,
     /** 바 아래 여백. 기록 화면처럼 바로 아래 내용이 붙는 화면만 줄인다. */
     bottom: Dp = 12.dp,
+    shrinkRight: Boolean = false,
     right: @Composable RowScope.() -> Unit = {},
 ) {
     val widthClass = currentWindowLayout().widthClass
@@ -145,6 +147,7 @@ fun EolssuTopBar(
                 }
             },
             end = { Row(Modifier.widthIn(min = 48.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically, content = right) },
+            shrinkEnd = shrinkRight,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(

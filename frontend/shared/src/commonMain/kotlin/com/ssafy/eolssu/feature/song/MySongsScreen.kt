@@ -94,6 +94,8 @@ private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHos
             EolssuTopBar(
                 stringResource(Res.string.mysongs_title),
                 onBack = actions.onBack,
+                // 좁은 휴대폰에서는 제목을 다 보이게 하고 악기 이름을 ‘정악…’처럼 줄인다(S15P31E102-924).
+                shrinkRight = true,
                 right = { instrumentPicker() },
             )
         },

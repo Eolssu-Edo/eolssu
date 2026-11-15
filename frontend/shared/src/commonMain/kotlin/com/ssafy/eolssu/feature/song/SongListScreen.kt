@@ -61,7 +61,7 @@ private fun SongListCompact(state: SongListUiState, actions: SongListActions, sn
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
         containerColor = EolssuTheme.colors.groupedBackground,
-        topBar = { EolssuPageTopBar(stringResource(Res.string.song_list_title), onBack = actions.onBack, right = { instrumentPicker() }, divider = false) },
+        topBar = { EolssuPageTopBar(stringResource(Res.string.song_list_title), onBack = actions.onBack, right = { instrumentPicker() }, divider = false, shrinkRight = true) },
     ) {
         LazyColumn(
             Modifier.fillMaxSize(),
