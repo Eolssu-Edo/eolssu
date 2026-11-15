@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [악보 변환·음원 생성의 동시성·큐·자원 부하 검증 계획 (954)](plans/S15P31E102-954.md)
+
 - [Python 테스트를 Jenkins 변경 경로 기준으로 실행 (945)](plans/S15P31E102-945.md) · [선택 규칙·실측·격리 근거](knowledge/infra/python-tests-ci.md) · [운영 적용 절차](../infra/runtime/README.md#python-테스트-잡-s15p31e102-945)
 
 - [녹음·평가·기록 실제 흐름 검증 (933)](plans/S15P31E102-933.md) · [기록 메모 유니코드 문자 수](knowledge/frontend/record-memo-unicode-length.md)
