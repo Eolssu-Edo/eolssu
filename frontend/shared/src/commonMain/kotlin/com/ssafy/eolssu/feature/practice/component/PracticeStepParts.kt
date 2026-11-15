@@ -83,7 +83,7 @@ fun PracticeStepToggle(state: PracticeUiState, onToggle: () -> Unit, modifier: M
 /**
  * 작은 알약 스위치: 32dp 높이 테두리 없는 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두).
  * 누르는 곳은 스위치뿐이다(S15P31E102-924). 글자나 알약 바탕을 눌러도 바뀌지 않는다.
- * 스위치는 보이는 크기를 그대로 두고 둘레로 [MINI_SWITCH_TOUCH] 정사각형만큼 눌리게 넓힌다.
+ * 스위치는 보이는 크기를 그대로 두고 둘레로 [MiniSwitchTouch] 정사각형만큼 눌리게 넓힌다.
  * 화면 읽기에는 스위치 하나가 [description]으로 읽히고 글자는 따로 읽히지 않는다.
  * ‘한 음씩’ 토글과 연주 평가 제목 옆 ‘운지법 보기’(S15P31E102-716)가 함께 쓴다.
  */
@@ -98,7 +98,7 @@ fun PracticeMiniToggle(
 ) {
     val colors = EolssuTheme.colors
     Row(
-        modifier.heightIn(min = MINI_SWITCH_TOUCH),
+        modifier.heightIn(min = MiniSwitchTouch),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
@@ -120,9 +120,9 @@ fun PracticeMiniToggle(
             Box(
                 Modifier
                     .layout { measurable, _ ->
-                        val touch = MINI_SWITCH_TOUCH.roundToPx()
-                        val width = MINI_SWITCH_WIDTH.roundToPx()
-                        val height = MINI_SWITCH_HEIGHT.roundToPx()
+                        val touch = MiniSwitchTouch.roundToPx()
+                        val width = MiniSwitchWidth.roundToPx()
+                        val height = MiniSwitchHeight.roundToPx()
                         val placeable = measurable.measure(Constraints.fixed(touch, touch))
                         layout(width, height) { placeable.place((width - touch) / 2, (height - touch) / 2) }
                     }
@@ -133,8 +133,8 @@ fun PracticeMiniToggle(
                 // 다른 스위치([com.ssafy.eolssu.core.ui.component.EolssuSwitch])와 같은 색·그림자 없는 손잡이(S15P31E102-768).
                 Box(
                     Modifier
-                        .width(MINI_SWITCH_WIDTH)
-                        .height(MINI_SWITCH_HEIGHT)
+                        .width(MiniSwitchWidth)
+                        .height(MiniSwitchHeight)
                         .background(if (on) colors.primary else colors.line, RoundedCornerShape(9.dp)),
                 ) {
                     Box(
@@ -149,11 +149,11 @@ fun PracticeMiniToggle(
     }
 }
 
-private val MINI_SWITCH_WIDTH = 30.dp
-private val MINI_SWITCH_HEIGHT = 18.dp
+private val MiniSwitchWidth = 30.dp
+private val MiniSwitchHeight = 18.dp
 
 /** 작은 스위치 하나를 누르는 정사각형 한 변. 손가락 누름 기준 44dp 이상. */
-private val MINI_SWITCH_TOUCH = 44.dp
+private val MiniSwitchTouch = 44.dp
 
 /**
  * 한 음씩이 켜지면 플레이어 카드 대신 놓는 두 칸(와이어프레임 STEP_PANELS).

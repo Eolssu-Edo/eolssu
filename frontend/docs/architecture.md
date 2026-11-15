@@ -250,6 +250,7 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 | 너비 `Expanded` (`ExpandedMinWidth`) | 840dp 이상 | 태블릿 가로·넓은 웹 창. 와이어프레임 가로 아트보드(1280×800) |
 | 내용 최대 너비 (`ContentMaxWidth`) | 1120dp | 넓은 창에서는 내용을 이 너비로 가운데에 둔다 |
 | 낮은 높이 (`LandscapeLayoutMinHeight`, `isShortHeight`) | 650dp 미만 | 태블릿 가로 배치에서 12정간 줄을 정간 44dp로 세로 스크롤 없이 넣으려면 약 650dp가 필요하다. 너비는 넓지만 높이가 낮은 창(납작한 웹 창, 태블릿 화면 분할)을 가려낸다 |
+| 글자 기준 좁은 너비 (`NarrowTextMinWidth`, `isNarrowTextWidth`) | 창 너비 ÷ 글꼴 배율이 360dp 미만 | 곡 고르기 상단 바의 악기 고르기 알약에서 그림을 빼 가운데 제목 자리를 남긴다(S15P31E102-924). 기본 글꼴 360dp 휴대폰은 그림을 둔 채로 제목이 들어가고, 기기 글꼴을 키우면 같은 폭도 좁게 본다 |
 
 - 낮은 높이의 창에서 무엇을 보여줄지(정간을 줄일지, 세로 스크롤을 허용할지, 세로 배치로 돌릴지)는 아직 정하지 않았다. 지금은 `isShortHeight` 판정 값만 제공하고 화면은 이 값을 쓰지 않는다.
 - 연습·결과 화면도 같은 기준값을 쓴다. 기준값을 바꾸면 이 표와 `WindowBreakpoints`를 함께 고치고 상대 개발자에게 알린다.

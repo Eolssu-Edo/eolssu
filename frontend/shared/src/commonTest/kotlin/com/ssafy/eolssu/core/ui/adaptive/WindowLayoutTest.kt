@@ -47,4 +47,14 @@ class WindowLayoutTest {
         assertEquals(WindowWidthClass.Expanded, wideShort.widthClass)
         assertTrue(wideShort.isShortHeight)
     }
+
+    @Test
+    fun narrowTextWindowCountsFontScale() {
+        assertFalse(isNarrowTextWidth(width = 360.dp, fontScale = 1f), "360dp 기본 글꼴은 좁지 않다")
+        assertTrue(isNarrowTextWidth(width = 359.9.dp, fontScale = 1f))
+        assertTrue(isNarrowTextWidth(width = 320.dp, fontScale = 1f))
+        assertTrue(isNarrowTextWidth(width = 360.dp, fontScale = 1.15f), "글꼴을 키우면 같은 폭도 좁게 본다")
+        assertFalse(isNarrowTextWidth(width = 411.dp, fontScale = 1.1f))
+        assertTrue(isNarrowTextWidth(width = 411.dp, fontScale = 1.3f))
+    }
 }

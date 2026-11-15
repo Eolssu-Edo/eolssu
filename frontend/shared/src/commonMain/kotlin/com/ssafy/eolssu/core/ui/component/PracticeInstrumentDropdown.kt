@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -42,6 +41,7 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.isNarrowTextWindow
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_instrument_select
 import org.jetbrains.compose.resources.stringResource
@@ -55,7 +55,8 @@ val PracticeInstruments: List<Instrument> = listOf(Instrument.Danso, Instrument.
  * 누르면 알약 오른쪽 끝에 맞춘 메뉴가 아래로 열리고,
  * 고르면 [onSelect]로 전달한 뒤 닫힌다. 저장 중([enabled]=false)에는 열리지 않는다. 누르는 높이는 48dp를 유지한다.
  * [bordered]가 false면 테두리 없는 흰 알약이다(연습곡 고르기의 회색 바탕).
- * 창 너비가 [NarrowPhoneWidth]보다 좁으면 선택값의 악기 그림을 빼고 글자만 두어 알약을 줄인다(S15P31E102-924, 가운데 제목이 잘리지 않게). 메뉴 목록은 그대로다.
+ * [compactWhenNarrow]가 true이고 창이 좁으면([isNarrowTextWindow]) 선택값의 악기 그림을 빼고 글자만 두어 알약을 줄인다.
+ * 상단 바 가운데 제목이 잘리지 않게 하려는 것이라 상단 바에 둘 때만 켠다(S15P31E102-924). 메뉴 목록은 그대로다.
  */
 @Composable
 fun PracticeInstrumentDropdown(
@@ -64,13 +65,14 @@ fun PracticeInstrumentDropdown(
     onSelect: (Instrument) -> Unit,
     modifier: Modifier = Modifier,
     bordered: Boolean = true,
+    compactWhenNarrow: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val shown = instrument ?: PracticeInstruments.first()
     var open by remember { mutableStateOf(false) }
     val menuLabel = stringResource(Res.string.guide_instrument_select)
     val selectedLabel = stringResource(shown.label)
-    val narrow = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } < NarrowPhoneWidth
+    val narrow = compactWhenNarrow && isNarrowTextWindow()
     Box(modifier.heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
         Surface(
             onClick = { if (enabled) open = !open },
@@ -123,9 +125,6 @@ fun PracticeInstrumentDropdown(
         }
     }
 }
-
-/** 이 너비보다 좁은 휴대폰 창에서는 선택값 알약에서 악기 그림을 뺀다. 360dp 휴대폰은 그림을 둔 채로 제목이 들어간다. */
-private val NarrowPhoneWidth = 360.dp
 
 /** 메뉴를 기준 알약의 오른쪽 끝에 맞춰 [gap]만큼 아래에 둔다. 화면 왼쪽을 넘으면 0에서 멈춘다. */
 private class BelowAnchorEnd(private val gap: Int) : PopupPositionProvider {

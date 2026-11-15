@@ -36,6 +36,8 @@ internal fun SongInstrumentPicker(
         enabled = !saving,
         modifier = modifier,
         bordered = bordered,
+        // 곡 고르기 상단 바 오른쪽에 두므로, 좁은 창에서는 그림을 빼 가운데 제목 자리를 남긴다.
+        compactWhenNarrow = true,
         onSelect = { selected ->
             scope.launch {
                 val message = when (selection.select(selected)) {
