@@ -142,6 +142,38 @@ class PracticeEvaluationMicPermissionTest {
         assertEquals(2, mic.requests)
     }
 
+    @Test fun leavingWhilePermissionIsPendingDoesNotStartRecordingAndAllowsExplicitRetry() = micTest(Mic()) { vm, mic, _, recorder ->
+        vm.requestEvaluation()
+        runCurrent()
+        assertEquals(1, mic.requests)
+
+        vm.onLeaveScreen()
+        mic.answer(true)
+        runCurrent()
+        advanceTimeBy(3_100)
+        runCurrent()
+        assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
+        assertEquals(0, recorder.starts)
+
+        vm.requestEvaluation()
+        advanceTimeBy(3_100)
+        runCurrent()
+        assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
+        assertEquals(1, recorder.starts)
+        assertEquals(1, mic.requests)
+    }
+
+    @Test fun stoppingWhilePermissionIsPendingDoesNotStartRecording() = micTest(Mic()) { vm, mic, _, recorder ->
+        vm.requestEvaluation()
+        runCurrent()
+        vm.stopAll()
+        mic.answer(true)
+        advanceTimeBy(3_100)
+        runCurrent()
+        assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
+        assertEquals(0, recorder.starts)
+    }
+
     private class Mic(var granted: Boolean = false, var blocked: Boolean = false, val fails: Boolean = false) : MicPermission {
         var requests = 0
             private set
