@@ -22,6 +22,7 @@ data class SheetCompletionValidation(
     val correctionCellIndices: Set<Int> = emptySet(),
     val correctionUnitKeys: Set<ScoreUnitKey> = emptySet(),
     internal val checkableIssueIds: Set<String> = emptySet(),
+    internal val resolvedPitchIssueIds: Set<String> = emptySet(),
 ) {
     val hasEmptyCells: Boolean get() = emptyCellCount > 0
     val canComplete: Boolean get() = !hasEmptyCells && pendingReviewCount == 0 && invalidPitchCount == 0 &&
@@ -63,6 +64,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val checkable = reviewIssues.filter { issue ->
         val index = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 }
         when (issue.kind) {
+            "TEMPO_CUE_UNRESOLVED" -> index != null && draft.tempoChanges.none { it.cell == index && !it.resolved }
             "UNREGISTERED_PITCH", "OUT_OF_RANGE" -> {
                 val allowed = supportedInputPitches
                 index != null && validStructure && pitchesByCell[index].all { pitch -> allowed?.contains(pitch) == true }
@@ -70,7 +72,17 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
             else -> index != null
         }
     }.mapTo(mutableSetOf(), SheetReviewIssue::id)
-    val pending = reviewIssues.filter { it.id !in checkedIssueIds || it.id !in checkable }
+    // 음역 오류는 현재 악보로 판정한다. 원본 항목을 보존해야 되돌리기에서도 다시 드러난다.
+    val verifiedInstrument = !catalogPending && score != null && authoringCapabilities?.let {
+        it.instrumentCode == score.score.instrument && it.matchesTuning(score.music.hwangHz)
+    } == true
+    val resolvedPitchIssues = if (!verifiedInstrument) emptySet() else reviewIssues
+        .filter { it.kind in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE") && it.id in checkable }
+        .mapTo(mutableSetOf(), SheetReviewIssue::id)
+    val resolvedTempoIssues = reviewIssues.filter { it.kind == "TEMPO_CUE_UNRESOLVED" && it.id in checkable }.map { it.id }
+    val resolved = checkedIssueIds + resolvedPitchIssues + resolvedTempoIssues
+    val pending = reviewIssues.filter { it.id !in resolved || it.id !in checkable }
+    val unresolvedTempos = draft.tempoChanges.filterNot { it.resolved }.map { it.cell }.toSet()
     val jangdan = availableJangdans?.firstOrNull { it.jangdanId == draft.jangdanId }
     val mismatch = if (draft.jangdanId == null) completionCatalogState == SheetCompletionCatalogState.Ready && draft.jangdanName.isNotEmpty() else when {
         jangdan != null -> jangdan.name != draft.jangdanName || !draft.isCompatibleWith(jangdan)
@@ -104,6 +116,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val corrections = buildSet {
         addAll(empty)
         addAll(invalidPitches)
+        addAll(unresolvedTempos)
         pending.forEach { issue -> draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 }?.let(::add) }
         if (structureError != null) {
             val structuralCells = cells.orEmpty().mapIndexedNotNull { index, cell ->
@@ -116,7 +129,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     }.sorted().toSet()
     return SheetCompletionValidation(
         emptyCellCount = empty.size,
-        pendingReviewCount = pending.size,
+        pendingReviewCount = pending.size + unresolvedTempos.count { index -> pending.none { it.cellId == draft.sourceCellIds?.getOrNull(index) } },
         invalidPitchCount = invalidPitches.size,
         hasInvalidStructure = empty.isEmpty() && structureError != null,
         hasJangdanMismatch = mismatch,
@@ -127,6 +140,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
         correctionCellIndices = corrections,
         correctionUnitKeys = correctionUnits,
         checkableIssueIds = checkable,
+        resolvedPitchIssueIds = resolvedPitchIssues + resolvedTempoIssues,
     )
 }
 

@@ -141,41 +141,30 @@ class PracticeStateTest {
         assertFalse(ready.awaitingStart)
     }
 
+    /** 평가 연주(카운트다운·녹음·중단) 중에는 악보를 끌어도 따라가기를 멈추지 않는다(S15P31E102-875). */
     @Test
-    fun draggingScoreDuringRecordingFollowsAgainAtNextGak() {
-        var state = ready.beginCountdown().beginRecording()
-        val firstGak = state.currentScoreUnit!!.column
-        state = state.stopFollowing()
-        assertFalse(state.follow)
-        assertEquals(firstGak, state.followHeldGak)
-
-        // 같은 각 안에서는 사용자가 끌어 둔 자리를 유지한다.
-        while (state.currentScoreUnit?.column == firstGak) {
-            assertFalse(state.resumeFollowOnNextGak().follow)
-            state = state.advance(doneMs = 100.0, micLevel = 0.5f)
+    fun scoreKeepsFollowingWhileEvaluating() {
+        val counting = ready.beginCountdown()
+        val recording = counting.beginRecording()
+        val interrupted = recording.askAbort(fraction = 0f)
+        for (state in listOf(counting, recording, interrupted)) {
+            assertTrue(state.scoreFollowLocked, "${state.mode}")
         }
-        val followed = state.resumeFollowOnNextGak()
-        assertTrue(followed.follow)
-        assertNull(followed.followHeldGak)
+        assertTrue(recording.stopFollowing().follow)
+        assertEquals(recording, recording.stopFollowing())
+        assertTrue(interrupted.beginCountdown(resume = true).resumeRecording().follow)
     }
 
+    /** 평가 연주가 아니면(준비·모범 연주) 끌어서 볼 수 있고 ‘현재 위치로’로 다시 따라간다. */
     @Test
     fun draggingScoreOutsideRecordingWaitsForFollowNow() {
-        var state = ready.startModel().stopFollowing()
-        assertNull(state.followHeldGak)
-        repeat(state.eventCount - 1) { state = state.advance(doneMs = 100.0, micLevel = 0f).resumeFollowOnNextGak() }
+        assertFalse(ready.scoreFollowLocked)
+        var state = ready.startModel()
+        assertFalse(state.scoreFollowLocked)
+        state = state.stopFollowing()
+        repeat(state.eventCount - 1) { state = state.advance(doneMs = 100.0, micLevel = 0f) }
         assertFalse(state.follow)
         assertTrue(state.followNow().follow)
-    }
-
-    @Test
-    fun followNowAndNewTakeClearHeldGak() {
-        val held = ready.beginCountdown().beginRecording().stopFollowing()
-        assertEquals(true, held.followNow().follow)
-        assertNull(held.followNow().followHeldGak)
-        val again = held.askAbort(fraction = 0f).beginCountdown(resume = true).resumeRecording()
-        assertTrue(again.follow)
-        assertNull(again.followHeldGak)
     }
 
     @Test
@@ -287,7 +276,6 @@ class PracticeStateTest {
     fun recordingOpensViewAndJangdanSettingsButNotTempo() {
         val recording = ready.beginRecording()
         assertEquals(PracticePanel.Settings, recording.openPanel(PracticePanel.Settings).panel)
-        assertEquals(PracticePanel.Notation, recording.openPanel(PracticePanel.Notation).panel)
         assertNull(recording.openPanel(PracticePanel.Tempo).panel)
         assertEquals(PracticePanel.Jangdan, recording.openPanel(PracticePanel.Jangdan).panel)
         assertEquals(PracticePanel.Tempo, ready.openPanel(PracticePanel.Tempo).panel)
@@ -347,13 +335,7 @@ class PracticeStateTest {
         assertTrue(ready.copy(settings = PracticeSettings(fingeringView = true)).fingeringView)
     }
 
-    @Test
-    fun notationAppliesHangulReading() {
-        assertTrue(PracticeSettings().applyNotation(PracticeDraft(showHangul = true)).showHangul)
-        assertFalse(PracticeSettings(showHangul = true).applyNotation(PracticeDraft(showHangul = false)).showHangul)
-    }
-
-    /** 연주 평가만 곡 제목 옆에 운지법 보기·쉬운 표기 스위치를 두고, 혼자 연습·내 악보 연습은 톱니 안에 둔다(S15P31E102-716). */
+    /** 연주 평가만 곡 제목 옆에 운지법 보기 스위치를 두고, 혼자 연습·내 악보 연습은 톱니 안에 둔다(S15P31E102-716). */
     @Test
     fun onlyEvaluationShowsNotationTogglesBesideTitle() {
         assertTrue(ready.showsTitleToggles)

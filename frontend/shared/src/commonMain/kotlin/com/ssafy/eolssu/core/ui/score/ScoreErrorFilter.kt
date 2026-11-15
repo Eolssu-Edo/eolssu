@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.EvaluationResult
+import com.ssafy.eolssu.core.model.ScoreError
 import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.model.Song
@@ -76,11 +77,16 @@ enum class ErrorFilter(val kind: ScoreErrorKind?) {
 }
 
 /**
- * [filter]에 해당하는 틀린 칸 수. 전체는 오류 종류가 여럿인 칸도 한 칸으로 센다('틀린 정간 N개').
- * 종류별은 그 종류가 있는 칸 수다.
+ * [filter]에 해당하는 틀린 표시 수. 정간보가 칠하는 단위와 같게 센다(S15P31E102-913).
+ * 음별 판정([EvaluationResult.eventErrors])이 있으면 틀린 음마다 하나다. 2·3소박으로 나뉜 정간은 틀린 소박마다 세고,
+ * 전체는 종류가 여럿인 음도 한 번만 센다. 서버 `errorCounts`(판정별 음 수)와 같은 단위다.
+ * 음별 판정이 없는 예시 결과는 정간 단위로 칠하므로 틀린 정간 수를 센다.
  */
-fun EvaluationResult.errorCount(filter: ErrorFilter): Int =
-    if (filter.kind == null) errors.distinctBy { it.column to it.row }.size else errors.count { it.kind == filter.kind }
+fun EvaluationResult.errorCount(filter: ErrorFilter): Int = when {
+    eventErrors.isNotEmpty() -> eventErrors.values.count { kinds -> kinds.any { filter.kind == null || it == filter.kind } }
+    filter.kind == null -> errors.distinctBy { it.column to it.row }.size
+    else -> errors.count { it.kind == filter.kind }
+}
 
 /**
  * 칸(각, 정간)마다의 오류 종류 전부. 한 칸에 음이 여럿이면 종류도 여럿일 수 있다.
@@ -103,6 +109,17 @@ fun EvaluationResult.visibleUnitErrors(song: Song, filter: ErrorFilter): Map<Sco
     }.toMap()
 }
 
+/**
+ * 정간 꾸밈으로 정간 전체를 칠할 틀린 정간(구간 고르기). [filter]에 해당하는 것만 남긴다.
+ * 음별 판정이 있으면 소박으로 나뉜 정간은 빼고, 그 정간은 [visibleUnitErrors]로 틀린 소박만 칠한다(S15P31E102-913).
+ */
+fun EvaluationResult.wholeCellErrors(song: Song, filter: ErrorFilter): List<ScoreError> {
+    val matching = errors.filter { filter.kind == null || it.kind == filter.kind }
+    if (eventErrors.isEmpty()) return matching
+    val split = song.displayUnits.groupingBy { it.column to it.row }.eachCount().filterValues { it > 1 }.keys
+    return matching.filter { (it.column to it.row) !in split }
+}
+
 /** 정간보에 칠할 틀린 칸(각, 정간) → 대표 종류(바탕·테두리 색). 대표는 [visibleErrorKinds]의 첫 종류다. */
 fun EvaluationResult.visibleErrors(filter: ErrorFilter): Map<Pair<Int, Int>, ScoreErrorKind> =
     visibleErrorKinds(filter).mapValues { it.value.first() }
@@ -112,7 +129,7 @@ fun EvaluationResult.visibleErrors(filter: ErrorFilter): Map<Pair<Int, Int>, Sco
  * '틀린 부분' 제목(고른 칸 이름과 같은 13sp 굵게, S15P31E102-808·825)과 탭 바를 폴더 탭 모양의 흰 상자 하나로 묶는다(S15P31E102-818).
  * 제목만 감싸는 머리가 탭 바 왼쪽 위에 붙고, 머리 오른쪽 아래는 오목하게 탭 바 윗변으로 이어진다. 오른쪽 위는 비워 상자가 제목 줄 전체로 늘지 않는다.
  * 흰 바탕 화면에서도 상자가 보이도록 윤곽에 흰 카드의 옅은 테두리(lineSoft)를 그린다.
- * 탭 바(높이 52, 안쪽 5dp) 안에서 고른 칸만 연한 연두(accentTintStrong) 알약으로 넓게 펼쳐 '아이콘 · 이름 · 개수'를 보이고,
+ * 탭 바(높이 52, 안쪽 5dp) 안에서 고른 칸만 옅은 중립색(surfaceStrong) 알약으로 넓게 펼쳐 '아이콘 · 이름 · 개수'를 보이고,
  * 나머지 칸은 '아이콘 · 개수'만 둔다. 고른 칸이 바뀌면 너비·바탕·이름이 함께 부드럽게 바뀐다(S15P31E102-786).
  */
 @Composable
@@ -195,7 +212,7 @@ private fun ErrorKindTabs(result: EvaluationResult, selected: ErrorFilter, onSel
             val name = segmentLabel(filter)
             val description = stringResource(Res.string.error_segment_description, name, count)
             val weight by animateFloatAsState(if (on) SelectedTabWeight else 1f, tween(TabMotionMillis), label = "errorTabWeight")
-            val fill by animateColorAsState(if (on) colors.accentTintStrong else Color.Transparent, tween(TabMotionMillis), label = "errorTabFill")
+            val fill by animateColorAsState(if (on) colors.surfaceStrong else Color.Transparent, tween(TabMotionMillis), label = "errorTabFill")
             Surface(
                 onClick = { onSelect(filter) },
                 modifier = Modifier.weight(weight).fillMaxHeight()

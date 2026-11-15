@@ -107,8 +107,21 @@ class ScoreLayoutTest {
     fun sourceColumnsHaveIndependentLengthsAndNeverLoseTrailingCells() {
         val source = Score(listOf(List(14) { hwang }, List(5) { hwang }),
             timing = ScoreTiming(311.13, "세마치", ScoreBpmUnit.DOTTED_QUARTER, 3, 3))
-        assertEquals(listOf(ScoreStrip(0, 0, 0..11), ScoreStrip(0, 1, 12..13), ScoreStrip(1, 0, 0..4)), scoreStrips(source, semachi))
+        assertEquals(listOf(ScoreStrip(0, 0, 0..6), ScoreStrip(0, 1, 7..13), ScoreStrip(1, 0, 0..4)), scoreStrips(source, semachi))
         assertEquals(19, scoreStrips(source, semachi).sumOf { it.rows.count() })
+    }
+
+    @Test
+    fun longSourceGakSplitsIntoEvenStripsInsteadOfTwelvePlusRemainder() {
+        // S15P31E102-922 정악대금 인연: 16정간 각이 12·4로 잘려 짧은 줄이 따로 떨어진 각처럼 보였다. 8·8로 고르게 나눈다.
+        val timing = ScoreTiming(400.0, "", ScoreBpmUnit.QUARTER, 4, 2)
+        val source = Score(listOf(List(1) { hwang }, List(16) { hwang }, List(25) { hwang }), timing = timing)
+        val strips = scoreStrips(source, null)
+        assertEquals(listOf(0..0), strips.filter { it.column == 0 }.map { it.rows })
+        assertEquals(listOf(0..7, 8..15), strips.filter { it.column == 1 }.map { it.rows })
+        assertEquals(listOf(0..8, 9..16, 17..24), strips.filter { it.column == 2 }.map { it.rows })
+        // 장단을 모르는 악보도 같은 규칙을 쓴다.
+        assertEquals(listOf(0..7, 8..15), scoreStrips(score(columns = 1, rows = 16), null).map { it.rows })
     }
 
     @Test

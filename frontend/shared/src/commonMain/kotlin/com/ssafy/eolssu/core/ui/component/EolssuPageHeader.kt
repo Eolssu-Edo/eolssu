@@ -60,7 +60,8 @@ fun EolssuPageTopBar(
                     .widthIn(max = maxWidth)
                     .fillMaxWidth()
                     .heightIn(min = 62.dp)
-                    .padding(horizontal = PageButtonInset),
+                    // 꺽쇠 왼쪽과 오른쪽 원의 바깥이 모두 본문 끝(20dp)에 오게 한다(S15P31E102-849).
+                    .padding(start = PageBackStart, end = PageButtonEnd),
                 start = { if (onBack != null) EolssuBackButton(onBack) },
                 end = { Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically, content = right) },
             ) {
@@ -113,6 +114,12 @@ fun CenteredTitleRow(
 
 /** 누르는 영역(48dp)과 보이는 원(36dp)의 차이 절반. */
 private val PageButtonInset: Dp = 6.dp
+
+/** 꺽쇠(48dp 칸 안 14dp, [EolssuBackButton]이 4dp 당김)가 20dp에 오는 줄 왼쪽 여백. */
+private val PageBackStart: Dp = 10.dp
+
+/** 오른쪽 원(바깥 [PageButtonInset])이 20dp에 오는 줄 오른쪽 여백. */
+private val PageButtonEnd: Dp = 20.dp - PageButtonInset
 
 /**
  * [EolssuPageTopBar]의 원형 버튼(`.back-btn`): 흰 바탕 · 옅은 테두리 36dp 원, 누르는 영역 48dp.

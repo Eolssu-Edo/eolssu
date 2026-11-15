@@ -17,7 +17,12 @@ function render(value) {
  if(state?.config.projectPath!==value.config.projectPath)$('graph-error').textContent='';
  state=value;
  const remote=value.tab!=='updates';
- if(activeTab!==value.tab){activeTab=value.tab;$('site-error').textContent='';window.scrollTo(0,0);}
+ if(activeTab!==value.tab){
+  activeTab=value.tab;
+  $('site-error').textContent='';
+  $('erd-browser-error').textContent='';
+  window.scrollTo(0,0);
+ }
  $('updates-panel').hidden=remote;
  for(const tab of tabs) {
   const selected=value.tab===tab,button=$('tab-'+tab);
@@ -25,6 +30,7 @@ function render(value) {
  }
  const panel=$('site-panel'),failed=value.siteStatus==='error',setup=value.siteStatus==='setup';
  const playstore=value.tab==='playstore',ready=value.siteStatus==='ready';
+ $('erd-toolbar').hidden=value.tab!=='erd'||!ready;
  panel.hidden=!remote||ready;
  panel.classList.toggle('local-fallback',!!value.localPort);
  $('site-connect-row').hidden=!value.localPort;
@@ -127,6 +133,7 @@ async function connectSSH(host) {
 }
 $('site-connect').onclick=()=>connectSSH('edo1');
 $('site-browser').onclick=()=>invoke(()=>window.updates.siteBrowser(),null,'site-error');
+$('erd-browser').onclick=()=>invoke(()=>window.updates.siteBrowser(),null,'erd-browser-error');
 $('playstore-form').onsubmit=async event=>{
  event.preventDefault();
  const button=$('playstore-save'),field=$('playstore-link');

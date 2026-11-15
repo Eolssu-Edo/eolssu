@@ -21,6 +21,7 @@ class EvaluationDetailControllerTests {
     private var state = "DONE"
     private var scoreVersion = 3
     // 세션 구간 1~4. 각 0: 음표 0·1, 각 1: 음표 2·3, 각 2: 음표 4.
+    private var lengthAtFour = false
     private val repository = object : PracticeEvaluations {
         override fun findPreviousSessionId(userId: Long, current: PracticeEvaluationSnapshot): Long? = null
         override fun findOwned(sessionId: Long, userId: Long) = if (sessionId == 11L && userId == 2L)
@@ -29,7 +30,7 @@ class EvaluationDetailControllerTests {
             PracticeEvaluationNote(1,"CORRECT",3,10,-5,7,7),
             PracticeEvaluationNote(2,"PITCH",40,120,-80,12,13,1520),
             PracticeEvaluationNote(3,"MISSED",null,null,null,12,null),
-            PracticeEvaluationNote(4,"TIMING",0,200,10,9,9),
+            PracticeEvaluationNote(4,if (lengthAtFour) "LENGTH" else "TIMING",0,200,if (lengthAtFour) -400 else 10,9,9),
         )
     }
     private val cells = EvaluationScoreCells { _, version ->
@@ -60,6 +61,17 @@ class EvaluationDetailControllerTests {
             .andExpect(jsonPath("$.result.errorCounts.timing").value(1))
             .andExpect(jsonPath("$.result.errorCounts.duration").value(0))
             .andExpect(jsonPath("$.result.errorCounts.missed").value(1))
+    }
+
+    @Test fun `length errors are counted as duration errors`() {
+        // S15P31E102-912: 저장 판정 LENGTH는 errorTypes에 그대로, errorCounts.duration에 센다.
+        lengthAtFour = true
+        login("2")
+        mvc.perform(get("/api/practice-sessions/11/evaluation/notes")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.items[3].errorTypes[0]").value("LENGTH"))
+            .andExpect(jsonPath("$.result.errorCount").value(3))
+            .andExpect(jsonPath("$.result.errorCounts.timing").value(0))
+            .andExpect(jsonPath("$.result.errorCounts.duration").value(1))
     }
 
     @Test fun `notes filter by inclusive range and errors only`() {

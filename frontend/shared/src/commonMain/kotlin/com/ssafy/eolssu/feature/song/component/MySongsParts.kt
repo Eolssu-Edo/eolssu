@@ -23,11 +23,19 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.song.MySongsTab
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.mysongs_add
+import eolssu.shared.generated.resources.mysongs_delete
+import eolssu.shared.generated.resources.mysongs_delete_message
+import eolssu.shared.generated.resources.mysongs_delete_title
 import eolssu.shared.generated.resources.mysongs_tab_sheets
 import eolssu.shared.generated.resources.mysongs_tab_songs
 import org.jetbrains.compose.resources.stringResource
@@ -46,7 +54,7 @@ internal fun MySongsTabSwitch(
     Row(
         modifier
             .fillMaxWidth()
-            .background(colors.surface, frame)
+            .background(colors.surfaceStrong, frame)
             .padding(4.dp),
     ) {
         MySongsTab.entries.forEach { entry ->
@@ -67,17 +75,33 @@ internal fun MySongsTabSwitch(
                     },
                 // 틀 모서리(14dp)에서 안쪽 여백(4dp)을 뺀 값이라 두 모서리가 나란히 휜다.
                 shape = RoundedCornerShape(10.dp),
-                color = if (selected) colors.primary else Color.Transparent,
-                contentColor = if (selected) colors.onPrimary else colors.textSub,
+                color = if (selected) colors.surface else Color.Transparent,
+                contentColor = if (selected) colors.text else colors.textSub,
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                     val style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp)
                     Text(label, style = style.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium))
-                    // 고른 탭의 연두 바탕 위에서는 회색 숫자가 탁해 보여 이름과 같은 글자색을 쓴다(S15P31E102-768).
-                    Text("$count", style = style.copy(fontWeight = FontWeight.Medium), color = if (selected) colors.onPrimary else colors.textMuted)
+                    Text("$count", style = style.copy(fontWeight = FontWeight.Medium), color = colors.textMuted)
                 }
             }
         }
+    }
+}
+
+/** 내 악보 삭제 확인(`Song-Practice-Delete`): 붉은 휴지통 고리 · '삭제' · '취소'. 가림막·뒤로 가기도 취소다. 내 악보 탭과 악보 추가 화면이 함께 쓴다. */
+@Composable
+internal fun DeleteSheetDialog(sheet: MySheet, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val colors = EolssuTheme.colors
+    EolssuDialog(
+        title = stringResource(Res.string.mysongs_delete_title, sheet.title),
+        message = stringResource(Res.string.mysongs_delete_message),
+        icon = EolssuIcons.Trash,
+        iconBackground = colors.recSoft,
+        iconTint = colors.recText,
+        onDismissRequest = onDismiss,
+    ) {
+        EolssuButton(stringResource(Res.string.mysongs_delete), onConfirm, style = EolssuButtonStyle.Danger)
+        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary)
     }
 }
 

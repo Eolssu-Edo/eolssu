@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly Eolssu deployment retention check (cleans below 10 GiB free)
+
+[Timer]
+OnCalendar=*-*-* *:50:00 Asia/Seoul
+RandomizedDelaySec=120
+Persistent=true
+
+[Install]
+WantedBy=timers.target

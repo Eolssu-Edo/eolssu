@@ -1,0 +1,8 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- 원본 반음올림표: 두 가로획과 오른쪽 연결획. 아래 획이 양옆으로 더 길다. -->
+    <path android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="1.8"
+        android:strokeLineCap="square" android:strokeLineJoin="miter"
+        android:pathData="M5,7H18V17 M2,17H22" />
+</vector>

@@ -6,6 +6,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -13,9 +15,39 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
     private val compatible = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 3, 1, 1)
     private val incompatible = CatalogJangdanSummary("5", "중모리", 90, "QUARTER", 12, 4, 2)
 
-    @Test fun recognizedJangdanCorrectionSurvivesAutosaveReloadAndFinalSave() = runTest {
+    @Test fun basicPresetSurvivesDraftReloadAndConfirmationWithMelodyOnlyAudio() = runTest {
+        val original = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
+        val metadata = SheetJangdanCorrectionTest.sourceMetadata(original)
+        val repository = RecordingDocuments(original).also { it.document = it.document.copy(authoring = metadata) }
+        val catalog = JangdanCatalog(emptyList())
+        val audio = RecordingAudio()
+        fun open() = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
+            SampleMySheetRepository(), documents = repository, pitchCatalog = catalog, sheetAudio = audio))
+        val model = open()
+        runCurrent()
+        model.selectBasicAccompaniment(com.ssafy.eolssu.core.model.BasicAccompanimentPreset.FiveTwoThree, 1)
+        model.saveDraft(); runCurrent()
+        val savedDraft = repository.writes.single().second
+        assertEquals(original.copy(score = original.score.copy(title = repository.document.title)), savedDraft.score)
+        assertEquals(4L, savedDraft.authoring?.basicAccompaniment(original)?.startTick)
+        val restored = open()
+        runCurrent()
+        assertEquals(model.uiState.value.draft.basicAccompaniment, restored.uiState.value.draft.basicAccompaniment)
+        restored.requestSave(); runCurrent()
+        assertFalse(repository.writes.last().first)
+        assertNull(repository.document.jangdanId)
+        val confirmed = open()
+        runCurrent()
+        assertEquals(listOf(2, 3), confirmed.uiState.value.draft.basicAccompaniment?.groups)
+        confirmed.requestAudio(); runCurrent()
+        assertEquals(SheetAudioSettings(withJangdan = false, bpm = 60), audio.requests.single())
+    }
+
+    @Test fun recognizedJangdanCorrectionSurvivesDraftReloadAndFinalSave() = runTest {
         val original = SheetJangdanCorrectionTest.recognized("QUARTER", 12, 36, "중모리")
         val metadata = SheetJangdanCorrectionTest.sourceMetadata(original)
+        val savedMetadata = JsonObject(metadata + ("adaptation" to Json.parseToJsonElement(
+            """{"instrument":"DANSO","transpose":0,"changes":[]}""")))
         val gutgeori = CatalogJangdanSummary("2", "굿거리", 80, "DOTTED_QUARTER", 12, 4, 1)
         val danmori = CatalogJangdanSummary("7", "단모리", 120, "QUARTER", 8, 4, 1)
         val repository = RecordingDocuments(original, jangdanId = "3").also {
@@ -30,14 +62,14 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         runCurrent()
         model.updateSettings(100, gutgeori.jangdanId)
         assertEquals("2", model.uiState.value.draft.jangdanId)
-        advanceTimeBy(1_100)
+        model.saveDraft()
         runCurrent()
         val copy = repository.writes.single().second
         assertEquals(original.columns, copy.score.columns)
         assertEquals(original.events, copy.score.events)
         assertEquals("DOTTED_QUARTER", copy.score.music.bpmUnit)
         assertEquals(copy.score.music.ticksPerJeonggan, copy.score.music.ticksPerBeat)
-        assertEquals(metadata, copy.authoring)
+        assertEquals(savedMetadata, copy.authoring, "원본 메타데이터를 유지하고 저장할 원조 이력만 명시한다")
 
         val restored = open()
         runCurrent()
@@ -51,7 +83,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         assertEquals("QUARTER", repository.document.score!!.music.bpmUnit)
         assertEquals(original.columns, repository.document.score!!.columns)
         assertEquals(original.events, repository.document.score!!.events)
-        assertEquals(metadata, repository.document.authoring)
+        assertEquals(savedMetadata, repository.document.authoring)
         assertEquals(100, restored.uiState.value.draft.bpm)
     }
 
@@ -84,7 +116,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         assertEquals(SheetEditMessage.AudioNeedsSave, model.uiState.value.message)
         assertTrue(audio.requests.isEmpty())
 
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
         val autoSaved = repository.writes.single()
         assertTrue(autoSaved.first)
@@ -155,7 +187,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
             }
             val version = copy.baseScoreVersion.toInt() + 1
             document = document.copy(jangdanId = copy.jangdanId, scoreVersion = version.toString(),
-                score = copy.score.copy(score = copy.score.score.copy(scoreVersion = version)), draft = null)
+                score = copy.score.copy(score = copy.score.score.copy(scoreVersion = version)), draft = null, authoring = copy.authoring)
             return SheetWrite.Saved(version.toString())
         }
     }

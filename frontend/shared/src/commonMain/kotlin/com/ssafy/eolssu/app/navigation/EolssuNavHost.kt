@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import com.ssafy.eolssu.core.ui.component.EolssuSnackbarHost
+import com.ssafy.eolssu.core.ui.component.SheetCompletionBannerHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -213,6 +214,19 @@ fun EolssuNavHost(
     }
     // 화면을 옮긴 뒤에도 남아야 하는 안내(예: 마이크를 허용하지 않아 연습 화면을 나옴). 각 화면의 안내 위에 겹쳐 띄운다.
     val appSnackbar = remember { SnackbarHostState() }
+    val completionBanner = remember { SnackbarHostState() }
+    val sheetAudio = koinInject<com.ssafy.eolssu.data.song.NotifyingSheetAudioRepository>()
+    val deviceSheetAudio = koinInject<com.ssafy.eolssu.core.audio.SheetAudioDeviceStore>()
+    SheetAudioCompletionEffect(sheetAudio, member, completionBanner) { sheetId ->
+        navController.navigate(
+            if (deviceSheetAudio.available) EolssuDestination.practice(sheetId, mine = true)
+            else SheetEditDestination.editMine(sheetId),
+        ) { launchSingleTop = true }
+    }
+    val sheetConversions = koinInject<com.ssafy.eolssu.data.song.NotifyingSheetConversionRepository>()
+    SheetConversionCompletionEffect(sheetConversions, member, completionBanner) { sheetId ->
+        navController.navigate(SheetEditDestination.editMine(sheetId)) { launchSingleTop = true }
+    }
     Box(Modifier.fillMaxSize()) {
         // 화면 전환 모션을 쓰지 않는다. 기본 전환(0.7초 페이드)이 도는 동안 나가는 화면이 남아 그 위의 확인 창도 늦게 사라졌고,
         // Android 제스처 뒤로 가기(predictive)는 따로 정한 줌아웃(scaleOut 0.7)을 써서 그것도 함께 끈다.
@@ -634,6 +648,7 @@ fun EolssuNavHost(
             }
         }
         EolssuSnackbarHost(appSnackbar, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars))
+        SheetCompletionBannerHost(completionBanner, Modifier.align(Alignment.TopCenter))
         PendingRecordingNotice(
             routeId = navController.currentBackStackEntryAsState().value?.id,
             onSend = {

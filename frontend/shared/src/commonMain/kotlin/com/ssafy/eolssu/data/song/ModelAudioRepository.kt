@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.data.song
 
 import com.ssafy.eolssu.core.audio.LocalAudioFile
+import com.ssafy.eolssu.core.audio.ModelAudioFileCache
 import com.ssafy.eolssu.core.diagnostics.PerfSource
 import com.ssafy.eolssu.core.diagnostics.PerfTarget
 import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
@@ -36,6 +37,7 @@ data class ModelAudio(
     @Transient val performance: ScorePerformance? = null,
     @Transient val sheetPlayback: SheetPlayback? = null,
     val playbackRevisionSupported: Boolean = false,
+    @Transient val localFile: LocalAudioFile? = null,
 ) {
     /** A current score must never play a different version or a differently defined beat. */
     fun matches(song: Song): Boolean = songId == song.id && scoreVersion == song.scoreVersion &&
@@ -51,11 +53,20 @@ interface ModelAudioRepository {
     suspend fun get(song: Song): ModelAudio?
 }
 
-class ApiModelAudioRepository(private val client: HttpClient) : ModelAudioRepository {
+class ApiModelAudioRepository(
+    private val client: HttpClient,
+    private val fileCache: ModelAudioFileCache? = null,
+) : ModelAudioRepository {
     private val cacheLock = Mutex()
     private val verifiedBySong = linkedMapOf<String, ModelAudio>()
 
     override suspend fun get(song: Song): ModelAudio? {
+        val audio = published(song) ?: return null
+        val file = fileCache?.fileFor(audio.audioUrl, audio.sha256, audio.contentType) ?: return audio
+        return audio.copy(localFile = file)
+    }
+
+    private suspend fun published(song: Song): ModelAudio? {
         val songId = song.id
         if (!validCatalogId(songId)) throw CatalogUnavailable()
         // The score does not identify the currently published audio. Check metadata before reusing its timeline.

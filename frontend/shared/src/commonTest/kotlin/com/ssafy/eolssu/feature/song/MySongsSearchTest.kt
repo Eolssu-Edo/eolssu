@@ -38,7 +38,7 @@ internal class MySongsSearchTest : CatalogViewModelTest() {
 
     @Test
     fun sameQueryFiltersMySheetsKeepingReceivedOrder() {
-        val state = MySongsUiState(songs = songs, sheets = sheets)
+        val state = MySongsUiState(songs = songs, mine = MySheetList(sheets))
         assertEquals(sheets, state.visibleSheets, "검색어가 없으면 내 악보를 받은 순서대로 모두 보인다")
         assertEquals(listOf("a"), state.copy(query = "도라지").visibleSheets.map { it.id })
         val none = state.copy(query = "없는 제목")

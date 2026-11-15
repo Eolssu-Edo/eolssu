@@ -9,9 +9,13 @@ import com.ssafy.eolssu.core.network.screenScope
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
+import com.ssafy.eolssu.core.audio.JangdanVolumeLimit
+import com.ssafy.eolssu.core.audio.LimitedJangdanSamplePlayer
+import com.ssafy.eolssu.core.audio.NoJangdanVolumeLimit
 import com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer
 import com.ssafy.eolssu.core.audio.JangdanPlan
 import com.ssafy.eolssu.core.audio.planJangdan
+import com.ssafy.eolssu.core.audio.planBasicAccompaniment
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
@@ -97,6 +101,8 @@ class PracticeViewModel(
     stepJudge: StepNoteJudge = ManualStepNoteJudge(),
     member: SignedInMember? = null,
     private val jangdanPlayer: JangdanSamplePlayer = UnavailableJangdanSamplePlayer(),
+    /** 평가 녹음 중 장단 배율(S15P31E102-878). 플랫폼이 시스템 볼륨으로 계산한다. */
+    jangdanVolume: JangdanVolumeLimit = NoJangdanVolumeLimit,
     private val notePractice: NotePracticeCriteriaRepository? = null,
     private val loadPersonalSheet: (suspend (String) -> Song?)? = null,
     private val perf: PerformanceVisit? = null,
@@ -169,7 +175,8 @@ class PracticeViewModel(
      */
     val stepGauge: StateFlow<StepPitchGauge?>? = stepGaugeState?.asStateFlow()
 
-    private val jangdanAudio = JangdanSession(jangdanPlayer, accountScope)
+    private val jangdanAudio = JangdanSession(
+        LimitedJangdanSamplePlayer(jangdanPlayer, jangdanVolume) { soundPurpose == SoundPurpose.Recording }, accountScope)
     private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource, perf = perf) { song, bpm ->
         val plan = if (settingsStore.settings.value.jangdanSound && jangdanPlayer.available) song.jangdanPlanAt(bpm) else null
         plan == null || jangdanAudio.prepareAccompaniment(plan)
@@ -196,6 +203,7 @@ class PracticeViewModel(
 
     private fun Song.jangdanPlanAt(bpm: Int): JangdanPlan? {
         val timing = score.timing ?: return null
+        basicAccompaniment?.let { return planBasicAccompaniment(it, timing, bpm) }
         return jangdanPlayback?.let { planJangdan(it, bpm, timing.ticksPerBeat) }
     }
 
@@ -584,7 +592,6 @@ class PracticeViewModel(
         val state = _uiState.value
         val song = state.song ?: return
         when (state.panel) {
-            PracticePanel.Notation -> settingsStore.update { it.applyNotation(state.draft) }
             PracticePanel.Jangdan -> {
                 settingsStore.update { it.applyJangdan(state.draft) }
                 if (!state.draft.jangdanSound) pauseRhythm()
@@ -648,7 +655,7 @@ class PracticeViewModel(
         else settingsStore.update { it.copy(fingeringView = !it.fingeringView) }
     }
 
-    /** 연주 평가 제목 옆 ‘쉬운 표기’ 스위치. 한글 읽는 법 표시를 바로 켜고 끈다(S15P31E102-716). */
+    /** 연습 설정의 ‘한글 읽는 법 표시’ 스위치. 바로 켜고 끈다(S15P31E102-875). */
     fun toggleHangul() = settingsStore.update { it.copy(showHangul = !it.showHangul) }
 
     /** 연습 설정의 ‘연습 악기’. 운지 그림과 제목 옆 표시에만 쓰고 프로필 악기는 바꾸지 않는다. */
@@ -768,14 +775,14 @@ class PracticeViewModel(
         var mark: kotlin.time.TimeMark? = null
         soundPurpose = SoundPurpose.Preview
         jangdanAudio.start(plan, accompanyingModel = false, tick = {
-            if (plan == null) null else mark?.elapsedNow()?.inWholeNanoseconds?.div(1_000_000.0)?.div(plan.msPerTick)?.plus(plan.mapping.startTick)
+            if (plan == null) null else mark?.elapsedNow()?.inWholeNanoseconds?.div(1_000_000.0)?.div(plan.msPerTick)?.plus(plan.startTick)
         }, onStarted = {
             mark = playbackTimeSource.markNow()
             _uiState.update { it.copy(draft = it.draft.copy(previewing = true, previewBeat = 0)) }
             previewJob = accountScope.launch {
                 while (isActive) {
                     val elapsed = mark.elapsedNow().inWholeNanoseconds / 1_000_000.0
-                    val cell = plan!!.mapping.cellAt(plan.mapping.startTick + elapsed / plan.msPerTick)
+                    val cell = plan!!.cellAt(plan.startTick + elapsed / plan.msPerTick)
                     _uiState.update { it.copy(draft = it.draft.copy(previewBeat = cell)) }
                     delay(50)
                 }
@@ -1166,6 +1173,7 @@ class PracticeViewModel(
     /** 화면을 벗어남(앱 전환·전화 등). 연주 중이면 끊긴 것으로 처리하고, 모범 연주는 일시정지한다. */
     fun onLeaveScreen() {
         evaluationCheckJob?.cancel()
+        micRequestJob?.cancel()
         pauseRhythm()
         stopPreview()
         stopJangdan()
@@ -1184,6 +1192,7 @@ class PracticeViewModel(
     /** 타이머를 모두 멈추고 진행 중인 녹음을 버린다. 마친 녹음 파일은 남긴다. */
     fun stopAll() {
         evaluationCheckJob?.cancel()
+        micRequestJob?.cancel()
         pauseRhythm()
         stopPreview()
         stopJangdan()
@@ -1216,7 +1225,8 @@ class PracticeViewModel(
             _uiState.update { if (resume) it.resumeRecording() else it.beginRecording() }
             startStepping(if (resume) carry else 0.0)
             val state = _uiState.value
-            state.song?.let { pitchSession.start(it, state.bpm, state.elapsedMs) }
+            // 녹음 범위와 같이 구간 재평가일 때만 구간 최저음을 대금 하한 기준으로 쓴다(S15P31E102-892).
+            state.song?.let { pitchSession.start(it, state.bpm, state.elapsedMs, state.sectionEvents.takeIf { state.sectionEvaluation }) }
         }
     }
 
@@ -1436,7 +1446,6 @@ class PracticeViewModel(
                         _uiState.update {
                             it.copy(eventElapsedMs = duration, elapsedMs = endElapsedMs)
                                 .advance(0.0, micLevel = it.micLevel)
-                                .resumeFollowOnNextGak()
                         }
                         clock.completeEvent(duration)
                         if (_uiState.value.mode == PracticeMode.Rhythm && (_uiState.value.passedSectionEnd ||
@@ -1457,7 +1466,7 @@ class PracticeViewModel(
                         if (!running) { if (next.mode == PracticeMode.Rhythm) stopJangdan(); break }
                     } else {
                         _uiState.update { it.copy(eventElapsedMs = sample.eventElapsedMs.coerceAtLeast(0.0),
-                            elapsedMs = sample.elapsedMs, eventStartedAt = clock.eventStartedAt).resumeFollowOnNextGak() }
+                            elapsedMs = sample.elapsedMs, eventStartedAt = clock.eventStartedAt) }
                         delay(_uiState.value.nextTimelineSampleMs().milliseconds)
                     }
                 }

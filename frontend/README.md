@@ -231,14 +231,14 @@ Web은 기기 글꼴로 한글·한자를 그리지 않기 때문에 글꼴 파�
 | --- | --- | --- |
 | `ibm_plex_sans_kr_regular·semibold·bold.ttf` | 제목·본문·버튼·사용자가 입력한 글자 | Google Fonts 공식 IBM Plex Sans KR 원본 |
 | `song_myung_regular.ttf` | 미사용(제목은 S15P31E102-768부터 IBM Plex Sans KR SemiBold) | Google Fonts 공식 Song Myung 원본 |
-| `noto_serif_kr_semibold·bold.otf` | 율명·곡 제목 | 기존 Noto Serif KR 서브셋, 한글 2,350자·율명 한자·영숫자 |
+| `noto_serif_kr_semibold·bold.otf` | 율명·곡 제목 | Noto Serif CJK KR 서브셋, 한글 2,350자·옥타브 -2~2 율명 한자·영숫자 |
 | `eolssu_yul_supplement.ttf` | 하배이·배유·중청대 | Jigmo2 20250912에서 실제 세 글자만 남긴 보조 폰트, 3,808바이트(CC0 1.0) |
 | `seal_brush.ttf` | 연습곡 표지의 붉은 '얼쑤' 도장 | 나눔손글씨 붓(Google Fonts `ofl/nanumbrushscript`)에서 `얼쑤` 2자만 남긴 서브셋(약 4.5KB). OFL 예약 글꼴 이름 때문에 글꼴 이름을 `Eolssu Seal Brush`로 바꿨고 라이선스 원문은 `files/licenses/nanum_brush_script_ofl.txt` |
 | `pretendard_regular·semibold·bold.otf` | 기존 리소스 보존, 기본 본문에서는 미사용 | Pretendard 1.3.9 원본 |
 
-- 기존 Noto Serif KR 서브셋에는 한글이 2,350자만 있으므로 **사용자가 입력한 글자는 본문 글꼴로 씁니다.** 율명은 기존 Noto Serif KR와 글리프 처리를 유지합니다.
-- 기본 율명 폰트는 [`tools/fonts/build_fonts.py`](tools/fonts/build_fonts.py)의 `SERIF_HANJA`에 있는 글자를 담습니다. Noto Serif KR 원본에 없는 글자는 이 스크립트로 추가할 수 없어 부수 조합 또는 별도 보조 폰트를 사용합니다. 하배이·배유·중청대는 보조 폰트의 실제 한자로 표시합니다.
-- 운지표의 청성·탁성·중청 글자 21자(`㑣㑥㑲㒇㒣㴌㳞㶋潕㶐㶂㶃㶄㴩㶌㶍㶝`는 Noto Serif KR(Windows 가변 글꼴로 확인)에 없고, `汏浹洟湳`은 원본에만 있음)는 글꼴에 넣지 않고 `feature/guide`의 `HanjaGlyph`가 변(氵·亻) + 율명으로 나눠 그립니다. 두 글꼴 모두 `♭`가 없어 계이름의 내림표는 그림으로 넣습니다.
+- 세리프 서브셋에는 한글이 2,350자만 있으므로 **사용자가 입력한 글자는 본문 글꼴로 씁니다.**
+- 기본 율명 폰트는 [`tools/fonts/build_fonts.py`](tools/fonts/build_fonts.py)의 `SERIF_YUL`(정간보 원본 표기 옥타브 -2~2와 운지표 글자)을 담습니다. 앱의 `SerifYulHanja`(`core/model/fingering/YulNotation.kt`)와 같게 유지하고, `YulFontCoverageTest`가 실제 글꼴 파일에 글리프가 있는지 검사합니다. 하배이·배유·중청대는 보조 폰트의 실제 한자로 표시합니다.
+- Noto Serif KR(SubsetOTF)에는 탁성·하배·중청 율명이 없어 S15P31E102-923부터 같은 디자인의 Noto Serif CJK KR(OTF/Korean)에서 만듭니다. 그래서 대금의 배·하배 율명도 단소·소금과 같은 세리프 글리프로 그립니다. 변(氵·亻) + 율명 조합(`ComposedGlyph`)은 글꼴 어디에도 없는 글자의 예비 경로로만 남습니다. 두 글꼴 모두 `♭`가 없어 계이름의 내림표는 그림으로 넣습니다.
 - 기존 글꼴은 SIL Open Font License 1.1, 율명 보조 폰트는 CC0 1.0입니다. 원문은 [`tools/fonts/licenses/`](tools/fonts/licenses/), 앱에 포함하는 원문은 `shared/src/commonMain/composeResources/files/licenses/`에 있습니다.
 
 기존 Pretendard·Noto 서브셋을 다시 만들 때(`frontend/`에서, Python 3.11 이상; IBM Plex Sans KR·Song Myung에는 적용하지 않음):
@@ -247,7 +247,7 @@ Web은 기기 글꼴로 한글·한자를 그리지 않기 때문에 글꼴 파�
 python -m pip install --user fonttools==4.60.1
 SRC="${TMPDIR:-/tmp}/eolssu-fonts-src"; mkdir -p "$SRC"
 for w in Regular SemiBold Bold; do curl -fL -o "$SRC"/Pretendard-$w.otf "https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/public/static/Pretendard-$w.otf"; done
-for w in SemiBold Bold; do curl -fL -o "$SRC"/NotoSerifKR-$w.otf "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Serif/SubsetOTF/KR/NotoSerifKR-$w.otf"; done
+for w in SemiBold Bold; do curl -fL -o "$SRC"/NotoSerifCJKkr-$w.otf "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Serif/OTF/Korean/NotoSerifCJKkr-$w.otf"; done
 PYTHONUTF8=1 python -P tools/fonts/build_fonts.py "$SRC"
 ```
 
@@ -281,6 +281,7 @@ node tools/sigimsae-sound/build_sigimsae_sounds.mjs
 - **커밋하지 않는 파일**: `local.properties`, `build/`, `.gradle/`, `.kotlin/`, `.idea/`, `xcuserdata/` ([`.gitignore`](.gitignore)에 등록됨)
 - **커밋하는 파일**: 웹을 처음 빌드하면 생기는 `kotlin-js-store/`(웹 의존성 lock 파일)는 커밋합니다.
 - **iOS 번들 ID**: Android `applicationId`와 같은 `com.ssafy.eolssu`입니다. App Store에 등록한 뒤에는 바꿀 수 없습니다. Mac에서 빌드하려면 `iosApp/Configuration/Config.xcconfig`의 `TEAM_ID`에 Apple 개발팀 ID를 넣습니다(개인 값이면 커밋하지 않음).
+- **iOS 버전·언어**: 버전·빌드 번호는 `iosApp/Configuration/Config.xcconfig`의 `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION`입니다. App Store에 올릴 때마다 빌드 번호를 마지막 업로드보다 크게 올립니다. 개발 언어는 한국어(`ko`)이고, `iosApp/iosApp/ko.lproj`가 있어야 App Store에 한국어로 표시됩니다([S15P31E102-814](../docs/plans/S15P31E102-814.md)).
 - **iOS 출시 설정**: 마이크 권한 설명·표시 이름은 `iosApp/iosApp/Info.plist`, 개인정보 매니페스트는 `iosApp/iosApp/PrivacyInfo.xcprivacy`에 있습니다. 매니페스트의 수집 항목은 App Store Connect의 개인정보 라벨과 같게 맞춥니다([S15P31E102-373 계획](../docs/plans/S15P31E102-373.md)).
 
 ## Android release 검증

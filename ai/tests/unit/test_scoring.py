@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 
 from ai_service.pipelines.scoring import (
-    HOP_S, HWANG_HZ, Note, combine, frame_rms, lift_below_range, pyin_f0, reference_hz, score, total_score,
+    HOP_S, HWANG_HZ, MIN_SOUND_S, SILENCE_DBFS, Note, combine, frame_rms, has_sound, lift_below_range, pyin_f0,
+    reference_hz, score, total_score,
 )
 from evaluation.synthetic import BPM, REF_HZ, SCALE, SR, synth
 
@@ -103,6 +104,56 @@ def test_wrong_pitch_notes_get_no_timing_or_duration_credit():
     expected = round(100 * (len(SCALE) - 2) / len(SCALE))
     assert (result.timing, result.duration) == (expected, expected)
     assert result.total == round((result.pitch + result.timing + result.duration) / 3)
+
+
+def test_slower_playing_keeps_full_duration_score():
+    # 길이는 악보 BPM의 길이가 아니라 다음 음이 실제로 시작할 때까지의 자리와 비교한다. 끝 음은 연주 빠르기로 늘린 악보 길이다.
+    # 악보 길이와 비교하면 30% 느린 연주는 음마다 43% 길어 길이 점수가 30점 안팎이었다(S15P31E102-910).
+    result = run(synth(SCALE, bpm=BPM * 0.7))
+    assert verdicts(result) == {}
+    assert result.duration == 100
+    assert all(abs(n.duration_error_ms) <= 30 for n in result.notes)
+
+
+def test_note_cut_short_loses_only_its_duration_score():
+    # 4번 음 자리의 뒤 절반을 비운다. 박자는 그대로라 박자 오류가 아니고 그 음의 길이 점수만 깎인다.
+    audio = synth(SCALE)
+    beat = 60 / BPM
+    env = np.ones(audio.size)
+    env[int((4 + 0.5) * beat * SR) : int(5 * beat * SR)] = 0.0
+    audio = audio * np.convolve(env, np.ones(160) / 160, mode="same")  # 10ms 페이드
+    result = run(audio)
+    assert verdicts(result) == {}
+    cut = result.notes[4]
+    assert cut.duration_error_ms < -120
+    assert cut.duration_score < 80
+    assert all(n.duration_score == 100 for n in result.notes if n.idx != 4)
+
+
+def cut_tail(audio, k, bpm, keep=0.5):
+    """k번 음 자리의 뒤쪽을 비운다(10ms 페이드). 그 음만 keep만큼 분 연주다."""
+    beat = 60 / bpm
+    env = np.ones(audio.size)
+    env[int((k + keep) * beat * SR) : int((k + 1) * beat * SR)] = 0.0
+    return audio * np.convolve(env, np.ones(160) / 160, mode="same")
+
+
+def test_long_note_played_half_is_length_error():
+    # 자리 0.67초인 음을 절반만 불면 길이 오류다(S15P31E102-912). 박자는 맞아 TIMING이 아니다.
+    bpm = BPM * 0.75
+    audio = cut_tail(synth(SCALE, bpm=bpm), 4, bpm)
+    result = score(pyin_f0(audio, SR), SCALE, bpm, REF_HZ, rms=frame_rms(audio, SR))
+    assert verdicts(result) == {4: "LENGTH"}
+    assert result.notes[4].duration_score < 50
+
+
+def test_length_error_skips_short_and_first_notes():
+    # 자리 0.5초 음은 음높이 도구의 끊김 오차(약 70ms)에 묻혀 판정하지 않는다. 첫 음은 녹음 앞 소리로 자리가 틀어져 뺀다.
+    short = cut_tail(synth(SCALE), 4, BPM)
+    assert verdicts(run(short)) == {}
+    bpm = BPM * 0.75
+    first = cut_tail(synth(SCALE, bpm=bpm), 0, bpm)
+    assert "LENGTH" not in verdicts(score(pyin_f0(first, SR), SCALE, bpm, REF_HZ, rms=frame_rms(first, SR))).values()
 
 
 def test_late_note_is_timing_error():
@@ -224,6 +275,78 @@ def test_few_noise_frames_fail_as_no_sound():
     f0[[40, 41, 42, 300, 301]] = REF_HZ * 1.5  # 잡음이 음높이로 잡힌 몇 프레임
     result = score(f0, SCALE, BPM, REF_HZ)
     assert (result.status, result.fail_reason) == ("FAILED", "NO_SOUND")
+
+
+# 무음과, 소리는 있는데 음높이·음표를 못 잡은 채점을 나눈다(S15P31E102-291).
+SILENCE_RMS = 10 ** (SILENCE_DBFS / 20)
+
+
+def test_sound_needs_min_duration_of_loud_or_pitched_frames():
+    need = round(MIN_SOUND_S / HOP_S)
+    nan = np.full(500, np.nan)
+    pitched = nan.copy()
+    pitched[:need] = REF_HZ
+    assert has_sound(pitched) and not has_sound(pitched[: need - 1])
+    loud = np.zeros(500)
+    loud[:need] = SILENCE_RMS
+    assert has_sound(nan, loud)
+    loud[need - 1] = SILENCE_RMS * 0.99
+    assert not has_sound(nan, loud)
+
+
+def test_loud_sound_without_pitch_is_zero_not_no_sound():
+    # 숨소리처럼 소리는 큰데 음높이가 한 프레임도 잡히지 않으면 무음 실패가 아니라 모든 음표를 놓친 0점이다.
+    f0 = f0_frames(SCALE, played=())
+    result = score(f0, SCALE, BPM, REF_HZ, rms=np.full(f0.size, 0.05))
+    assert (result.status, result.fail_reason, result.total) == ("DONE", None, 0)
+    assert verdicts(result) == {k: "MISSED" for k in range(len(SCALE))}
+
+
+def test_all_missed_with_pitched_sound_is_zero_not_no_sound():
+    # 실기기 세션 22: 22초 녹음에서 음높이 1027프레임이 잡혔는데 모든 음표가 MISSED라 NO_SOUND가 됐다.
+    # 음높이가 다섯 프레임에 하나만 잡히면 음표마다 30%에 못 미쳐 모두 MISSED지만 소리는 있다.
+    f0 = f0_frames(SCALE)
+    f0[np.arange(f0.size) % 5 != 0] = np.nan
+    result = score(f0, SCALE, BPM, REF_HZ)
+    assert (result.status, result.fail_reason, result.total) == ("DONE", None, 0)
+    assert verdicts(result) == {k: "MISSED" for k in range(len(SCALE))}
+
+
+def test_quiet_room_noise_is_no_sound():
+    # 연주 없이 조용한 방 잡음(-60dBFS 안팎)만 녹음됐다.
+    noise = 0.001 * np.random.default_rng(0).standard_normal(SR * 6)
+    assert frame_rms(noise, SR).max() < SILENCE_RMS
+    result = run(noise)
+    assert (result.status, result.fail_reason) == ("FAILED", "NO_SOUND")
+
+
+def test_loud_noise_is_low_score_not_no_sound():
+    # 음높이가 거의 없는 큰 잡음은 소리가 있으므로 실패가 아니라 낮은 점수다.
+    noise = 0.1 * np.random.default_rng(0).standard_normal(SR * 6)
+    result = run(noise)
+    assert (result.status, result.fail_reason) == ("DONE", None)
+    assert result.total <= 10
+
+
+def test_quiet_playing_below_level_counts_by_pitch():
+    # 음량이 기준보다 작아도 음높이가 잡히면 소리가 있다. 마이크에서 멀리 분 연주를 무음으로 보지 않는다.
+    audio = synth(SCALE, gain=0.002)
+    assert frame_rms(audio, SR).max() < SILENCE_RMS
+    result = run(audio)
+    assert result.status == "DONE"
+    assert result.total == 100
+
+
+def test_some_silent_notes_are_missed_in_done():
+    result = run(synth(SCALE, drop=(1, 3, 5, 7, 9)))
+    assert result.status == "DONE"
+    assert verdicts(result) == {k: "MISSED" for k in (1, 3, 5, 7, 9)}
+
+
+def test_short_recording_is_too_short_and_short_silence_is_no_sound():
+    short = synth(SCALE, seconds=1.0)  # 정답 5.5초의 절반 미만
+    assert run(short).fail_reason == "TOO_SHORT"
+    assert run(np.zeros(SR)).fail_reason == "NO_SOUND"
 
 
 def test_one_played_note_is_not_a_failure():

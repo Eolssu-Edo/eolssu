@@ -16,6 +16,36 @@ import kotlinx.serialization.json.*
 internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
     private fun document(draft: SheetWorkingCopy? = null) = SheetDocument("31", "실제 악보", null, 60, "1", smallScoreData(), draft, "EVALUABLE", null, emptyList())
 
+    @Test fun tempoDurationSurvivesDraftSaveReopenAndFinalChangeDeletion() = runTest {
+        var stored: SheetWorkingCopy? = null
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document(stored)
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                assertTrue(draft)
+                stored = copy.copy(revision = copy.revision + 1)
+                return SheetWrite.Saved(copy.baseScoreVersion, copy.revision + 1)
+            }
+        }
+        fun open() = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        val model = open()
+        runCurrent()
+        model.updateTempoSettings(model.uiState.value.draft.withTempoChange(
+            SheetTempoChange(1, com.ssafy.eolssu.core.model.HanbaeMark.Faster, 120.0)).copy(bpm = 90))
+        model.saveDraft(); runCurrent()
+        assertNotNull(stored?.expressions)
+        val reopened = open()
+        runCurrent()
+        assertTrue(reopened.uiState.value.hasTempoPlan)
+        assertEquals(4.0 / 3, assertNotNull(reopened.uiState.value.draft.estimatedDurationSeconds(90)), 1e-9)
+        reopened.updateTempoSettings(reopened.uiState.value.draft.withoutTempoChange(1))
+        assertEquals(2.0, assertNotNull(reopened.uiState.value.draft.estimatedDurationSeconds(90)), 1e-9)
+        reopened.saveDraft(); runCurrent()
+        val withoutChanges = open()
+        runCurrent()
+        assertTrue(withoutChanges.uiState.value.draft.tempoChanges.isEmpty())
+        assertEquals(2.0, assertNotNull(withoutChanges.uiState.value.draft.estimatedDurationSeconds(90)), 1e-9)
+    }
+
     @Test fun adaptationCannotOverwriteTheDraftWithoutConfirmation() = runTest {
         val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
             AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
@@ -51,8 +81,10 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         model.requestApplyAdaptation(); model.applyAdaptation()
         val applied = model.uiState.value.draft
         assertNotEquals(before, applied)
-        assertNull(model.uiState.value.adaptation)
-        assertEquals(EditTab.Yul, model.uiState.value.tab)
+        assertFalse(assertNotNull(model.uiState.value.adaptation).loading)
+        assertEquals(4, model.uiState.value.adaptation?.selectedTranspose)
+        assertEquals(applied, model.uiState.value.adaptation?.baseline)
+        assertEquals(EditTab.Adaptation, model.uiState.value.tab)
         model.undo()
         assertEquals(before, model.uiState.value.draft)
         model.redo()
@@ -67,11 +99,12 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
     @Test fun closedAdaptationReplyCannotReplaceAReopenedPanel() = runTest {
         var delayed = false
         val pending = mutableListOf<CompletableDeferred<CatalogAuthoringCapabilities>>()
-        fun capability(version: String) = CatalogAuthoringCapabilities("1", "DANSO", version, 63,
+        fun capability(version: String, id: String = "1") = CatalogAuthoringCapabilities(id, if (id == "1") "DANSO" else "SOGEUM", version, 63,
             AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
         val catalog = object : ReferenceCatalogRepository {
             override suspend fun authoringCapabilities(instrumentId: String): CatalogAuthoringCapabilities =
-                if (!delayed) capability("initial") else CompletableDeferred<CatalogAuthoringCapabilities>().also { pending += it }.await()
+                if (!delayed || instrumentId == "1") capability("initial", instrumentId)
+                else CompletableDeferred<CatalogAuthoringCapabilities>().also { pending += it }.await()
             override suspend fun pitches(instrumentId: String): List<CatalogPitch> = emptyList()
             override suspend fun allPitches(): List<CatalogPitch> = emptyList()
             override suspend fun fingerings(instrumentId: String, pitchId: String?): CatalogFingerings = error("unused")
@@ -84,15 +117,17 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
             override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) = SheetWrite.Failed
         }
         val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(),
-            documents = repository, pitchCatalog = catalog, loadAudioInstruments = { listOf(CatalogInstrument("1", "DANSO", "단소")) }))
+            documents = repository, pitchCatalog = catalog, loadAudioInstruments = {
+                listOf(CatalogInstrument("1", "DANSO", "단소"), CatalogInstrument("2", "SOGEUM", "소금")) }))
         runCurrent(); delayed = true
-        model.openAdaptation(); runCurrent()
+        model.openAdaptation(); model.selectAdaptationInstrument("2"); runCurrent()
         model.closeAdaptation(); model.updateDetails("다른 편집본", 60)
         model.openAdaptation(); runCurrent()
-        assertEquals(2, pending.size)
-        pending[1].complete(capability("new")); runCurrent()
-        pending[0].complete(capability("old")); runCurrent()
-        assertEquals("new", model.uiState.value.adaptation?.capabilities?.policyVersion)
+        assertEquals(1, pending.size, "준비된 원래 악기는 다시 요청하지 않는다")
+        pending.single().complete(capability("late", "2")); runCurrent()
+        assertEquals("1", model.uiState.value.adaptation?.selectedId)
+        assertEquals("initial", model.uiState.value.adaptation?.capabilities?.policyVersion)
+        assertFalse(assertNotNull(model.uiState.value.adaptation).loading)
         assertEquals("다른 편집본", model.uiState.value.adaptation?.baseline?.title)
     }
 
@@ -146,7 +181,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertTrue(model.uiState.value.closeWarning)
     }
 
-    @Test fun closingImmediatelyFlushesPendingEditAndWaitsForAcknowledgement() = runTest {
+    @Test fun closingWithUnsavedEditAsksFirstAndSaveDraftAndCloseWaitsForAcknowledgement() = runTest {
         val reply = CompletableDeferred<SheetWrite>()
         var closed = false
         var writes = 0
@@ -160,12 +195,56 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         runCurrent(); model.selectCell(2); model.put(ScoreNote.Pitch(Yul.Taeju))
         model.closeEditor { closed = true }; runCurrent()
         assertFalse(closed)
-        assertEquals(1, writes, "1초 자동 저장 대기를 기다리지 않고 초안을 저장한다")
+        assertEquals(0, writes, "닫기만으로는 저장하지 않는다")
+        assertTrue(model.uiState.value.closeWarning, "저장하지 않은 변경이 있으면 먼저 묻는다")
+        model.saveDraftAndClose { closed = true }; runCurrent()
+        assertEquals(1, writes)
+        assertFalse(closed, "임시저장 응답 전에는 닫지 않는다")
         reply.complete(SheetWrite.Saved("1", 1)); runCurrent()
         assertTrue(closed)
     }
 
-    @Test fun closeDuringAutoSaveWaitsWithoutSendingTheSameDraftTwice() = runTest {
+    @Test fun editsAreNotSavedUntilTheUserAsks() = runTest {
+        var writes = 0
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document()
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite { writes++; return SheetWrite.Saved("1", 1) }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        model.selectCell(2); model.erase(); model.updateDetails("새 제목", 60)
+        advanceTimeBy(60_000); runCurrent()
+        assertEquals(0, writes, "편집은 자동저장하지 않는다")
+        assertNull(model.uiState.value.saveStatus)
+        var closed = false
+        model.closeEditor { closed = true }; runCurrent()
+        assertTrue(model.uiState.value.closeWarning)
+        model.continueEditing(); advanceTimeBy(60_000); runCurrent()
+        assertFalse(model.uiState.value.closeWarning)
+        assertEquals(0, writes, "계속 편집해도 저절로 저장하지 않는다")
+        model.discardChangesAndClose { closed = true }
+        assertTrue(closed)
+        assertEquals(0, writes)
+    }
+
+    @Test fun failedSaveDraftAndCloseKeepsTheEditorOpenAndAsksAgain() = runTest {
+        val writes = mutableListOf<SheetWorkingCopy>()
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document()
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite { writes += copy; return SheetWrite.Failed }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent(); model.updateDetails("남길 초안", 60)
+        var closed = false
+        model.closeEditor { closed = true }; model.saveDraftAndClose { closed = true }; runCurrent()
+        assertEquals(1, writes.size)
+        assertFalse(closed)
+        assertTrue(model.uiState.value.closeWarning)
+        assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
+        assertEquals("남길 초안", model.uiState.value.draft.title)
+    }
+
+    @Test fun closeDuringDraftSaveWaitsWithoutSendingTheSameDraftTwice() = runTest {
         val reply = CompletableDeferred<SheetWrite>()
         var closed = false
         var writes = 0
@@ -181,7 +260,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         runCurrent()
         model.selectCell(2)
         model.erase()
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
         model.closeEditor { closed = true }
         runCurrent()
@@ -193,7 +272,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertTrue(closed)
     }
 
-    @Test fun closeDuringFailedAutoSaveKeepsTheEditorOpenWithoutRetrying() = runTest {
+    @Test fun closeDuringFailedDraftSaveKeepsTheEditorOpenWithoutRetrying() = runTest {
         val reply = CompletableDeferred<SheetWrite>()
         val writes = mutableListOf<SheetWorkingCopy>()
         val repository = object : SheetDocumentRepository {
@@ -207,7 +286,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
         runCurrent()
         model.updateDetails("저장 중인 초안", 60)
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
         var closed = false
         model.closeEditor { closed = true }
@@ -223,7 +302,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
     }
 
-    @Test fun closeInvalidatesQueuedAutoSaveAfterUndoAndFailure() = runTest {
+    @Test fun closeWaitsForDraftSaveAfterUndoAndAsksOnFailure() = runTest {
         val reply = CompletableDeferred<SheetWrite>()
         val writes = mutableListOf<SheetWorkingCopy>()
         val repository = object : SheetDocumentRepository {
@@ -237,7 +316,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
         runCurrent()
         model.updateDetails("저장 중인 초안", 60)
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
         model.updateDetails("대기 중인 초안", 60)
         advanceTimeBy(1_000)
@@ -273,7 +352,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
         runCurrent()
         model.updateDetails("저장 중인 초안", 60)
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
 
         var closed = false
@@ -294,86 +373,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
     }
 
-    @Test fun closeDoesNotRetryIfTheDraftReturnsToTheFailedCopyDuringReconciliation() = runTest {
-        val reply = CompletableDeferred<SheetWrite>()
-        val reconciliation = CompletableDeferred<SheetDocument>()
-        val writes = mutableListOf<SheetWorkingCopy>()
-        var reads = 0
-        val repository = object : SheetDocumentRepository {
-            override suspend fun get(sheetId: String) = if (reads++ == 0) document() else reconciliation.await()
-            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
-                assertTrue(draft)
-                writes += copy
-                return if (writes.size == 1) reply.await() else SheetWrite.Saved("1", 1)
-            }
-        }
-        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
-        runCurrent()
-        model.updateDetails("저장 중인 초안", 60)
-        advanceTimeBy(1_000)
-        runCurrent()
-        model.updateDetails("새 편집", 60)
-
-        var closed = false
-        model.closeEditor { closed = true }
-        reply.complete(SheetWrite.Failed)
-        runCurrent()
-        assertEquals(2, reads)
-        assertFalse(closed)
-
-        model.undo()
-        reconciliation.complete(document())
-        advanceUntilIdle()
-        assertEquals(listOf("저장 중인 초안"), writes.map { it.title })
-        assertFalse(closed)
-        assertTrue(model.uiState.value.closeWarning)
-        assertEquals("저장 중인 초안", model.uiState.value.draft.title)
-        assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
-    }
-
-    @Test fun editDuringCloseSaveIsAutoSavedAfterContinuingToEdit() = runTest {
-        val reply = CompletableDeferred<SheetWrite>()
-        val writes = mutableListOf<SheetWorkingCopy>()
-        val repository = object : SheetDocumentRepository {
-            override suspend fun get(sheetId: String) = document()
-            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
-                assertTrue(draft)
-                writes += copy
-                return if (writes.size == 1) reply.await() else SheetWrite.Saved("1", copy.revision + 1)
-            }
-        }
-        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
-        runCurrent()
-        model.updateDetails("닫기에서 저장한 초안", 60)
-        var closed = false
-        model.closeEditor { closed = true }
-        runCurrent()
-
-        model.selectCell(2)
-        model.erase()
-        advanceTimeBy(1_000)
-        runCurrent()
-        assertEquals(1, writes.size)
-
-        reply.complete(SheetWrite.Saved("1", 1))
-        runCurrent()
-        assertFalse(closed)
-        assertTrue(model.uiState.value.closeWarning)
-        advanceTimeBy(1_000)
-        runCurrent()
-        assertEquals(1, writes.size)
-
-        model.continueEditing()
-        advanceUntilIdle()
-
-        assertEquals(listOf(0, 1), writes.map { it.revision })
-        assertNotEquals(writes[0].score, writes[1].score)
-        assertTrue(model.uiState.value.draft.cells[2].isEmpty())
-        assertFalse(model.uiState.value.closeWarning)
-        assertEquals(SheetSaveStatus.DraftSaved, model.uiState.value.saveStatus)
-    }
-
-    @Test fun undoAfterLostAutoSaveAcknowledgementUsesTheServerRevision() = runTest {
+    @Test fun undoAfterLostDraftAcknowledgementUsesTheServerRevision() = runTest {
         val writes = mutableListOf<SheetWorkingCopy>()
         var stored: SheetWorkingCopy? = null
         val repository = object : SheetDocumentRepository {
@@ -389,16 +389,16 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
         runCurrent()
         model.updateDetails("먼저 저장한 초안", 60)
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
         model.updateDetails("응답이 유실된 초안", 60)
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
         assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
         assertEquals("응답이 유실된 초안", stored?.title)
 
         model.undo()
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
         assertEquals(listOf(0, 1, 2), writes.map { it.revision })
         assertEquals(SheetSaveStatus.DraftSaved, model.uiState.value.saveStatus)
@@ -437,11 +437,11 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
             SampleMySheetRepository(), documents = repository))
         runCurrent()
         model.updateDetails("첫 초안", 60)
-        advanceTimeBy(1_000); runCurrent()
+        model.saveDraft(); runCurrent()
         model.updateDetails("응답 유실", 60)
-        advanceTimeBy(1_000); runCurrent()
+        model.saveDraft(); runCurrent()
         model.undo()
-        advanceTimeBy(1_000); runCurrent()
+        model.saveDraft(); runCurrent()
         assertEquals(requestHasSource, model.uiState.value.saveConflict)
         assertEquals(if (requestHasSource) listOf(0, 1) else listOf(0, 1, 2), writes.map { it.revision })
         if (!requestHasSource) assertEquals(SheetSaveStatus.DraftSaved, model.uiState.value.saveStatus)
@@ -463,7 +463,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertFalse(model.uiState.value.closeWarning)
     }
 
-    @Test fun autoSaveRestoresAndAdvancesServerRevisionAndKeepsBlankCells() = runTest {
+    @Test fun draftSaveRestoresAndAdvancesServerRevisionAndKeepsBlankCells() = runTest {
         val writes = mutableListOf<SheetWorkingCopy>()
         var stored = SheetWorkingCopy("이어 쓰기", null, 55, smallScoreData(), "1", 3)
         val repository = object : SheetDocumentRepository {
@@ -480,10 +480,10 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertEquals("이어 쓰기", model.uiState.value.draft.title)
         assertEquals(55, model.uiState.value.draft.bpm)
         model.selectCell(2); model.erase()
-        advanceTimeBy(1_000); runCurrent()
+        model.saveDraft(); runCurrent()
         assertEquals(3, writes.single().revision)
         assertTrue(writes.single().score.columns[1].cells[0].units.isEmpty())
-        assertNull(model.uiState.value.message, "자동저장은 별도 알림 없이 편집기에 상태를 표시한다")
+        assertEquals(SheetEditMessage.Draft, model.uiState.value.message)
         assertEquals(SheetSaveStatus.DraftSaved, model.uiState.value.saveStatus)
         model.saveDraft(); runCurrent()
         assertEquals(1, writes.size, "같은 편집 내용은 다시 전송하지 않는다")
@@ -498,7 +498,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertNull(reopened.uiState.value.saveStatus)
     }
 
-    @Test fun autoSaveKeepsLatestEditPendingAndRetriesOnlyAfterAnError() = runTest {
+    @Test fun draftSaveKeepsLatestEditPendingAndRetriesOnlyAfterAnError() = runTest {
         val reply = CompletableDeferred<SheetWrite>()
         val writes = mutableListOf<SheetWorkingCopy>()
         var stored: SheetWorkingCopy? = null
@@ -519,7 +519,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
         runCurrent()
         model.updateDetails("첫 편집", 60)
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
         assertTrue(model.uiState.value.saving)
         model.updateDetails("다음 편집", 60)
@@ -527,7 +527,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         runCurrent()
         assertNull(model.uiState.value.saveStatus, "이전 요청의 성공을 최신 제목의 저장 성공으로 표시하지 않는다")
 
-        advanceTimeBy(1_000)
+        model.saveDraft()
         runCurrent()
         assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
         assertEquals("다음 편집", model.uiState.value.draft.title)
@@ -636,7 +636,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         model.undo()
         assertEquals("실제 악보" to 60, model.uiState.value.draft.run { this.title to bpm })
         model.redo()
-        advanceTimeBy(1_000); runCurrent()
+        model.saveDraft(); runCurrent()
         model.requestSave(); runCurrent()
 
         assertEquals(listOf(true, false), writes.map { it.first })

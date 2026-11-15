@@ -129,6 +129,11 @@ internal fun practiceScorePacking(
         } else if (found != null) {
             count = found
             fitted = minOf(metrics.cellHeight, allowedFor(found))
+        } else if (allowedFor(1) >= PracticeMinStackCell) {
+            // 최소 정간으로는 안 들어가도 읽을 수 있는 하한까지 줄여 들어가면 한 각을 한 줄로 둔다(S15P31E102-922 한오백년 12정간).
+            // 정간과 글자를 같은 비율로 줄인다. 이보다 낮은 화면만 아래에서 두 줄로 나눈다.
+            fitted = allowedFor(1)
+            textRatio = fitted / minimum
         } else if (score.columns.maxOf { it.size } >= PracticeSplitColumnCells) {
             // 한 각도 최소 크기로 들어가지 않는 높이: 각을 대강 경계에서 두 줄로 나누고 각 번호는 첫 줄에만 둔다(S15P31E102-654).
             // 나눠도 모자라면 정간과 글자를 같은 비율로 줄인다.

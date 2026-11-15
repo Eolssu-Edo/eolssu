@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.core.ui.score.YulGlyph
+import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.StepPhase
@@ -80,7 +80,7 @@ fun PracticeStepToggle(state: PracticeUiState, onToggle: () -> Unit, modifier: M
 
 /**
  * 작은 알약 스위치: 32dp 높이 테두리 없는 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두). 누르는 영역은 44dp 이상이다.
- * ‘한 음씩’ 토글과 연주 평가 제목 옆 ‘운지법 보기’·‘쉬운 표기’(S15P31E102-716)가 함께 쓴다.
+ * ‘한 음씩’ 토글과 연주 평가 제목 옆 ‘운지법 보기’(S15P31E102-716)가 함께 쓴다.
  */
 @Composable
 fun PracticeMiniToggle(
@@ -153,11 +153,7 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
                 },
             ) {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (yul != null) {
-                        YulGlyph(yul, 28.sp, fontWeight = FontWeight.Bold)
-                    } else {
-                        Text(note?.symbol.orEmpty(), style = EolssuTheme.serif.yul.copy(fontSize = 28.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold))
-                    }
+                    if (note != null) ScoreNoteGlyph(note, 28.sp, fontWeight = FontWeight.Bold)
                     Text(note?.reading.orEmpty(), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textSub)
                 }
             }

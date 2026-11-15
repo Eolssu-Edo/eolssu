@@ -3,6 +3,21 @@
 set -euo pipefail
 # Prevent idle sleep only for this build; do not change system power settings.
 /usr/bin/caffeinate -i -w $$ &
+# S15P31E102-908: a build cut off by an agent disconnect keeps running and writes the same workspace.
+# The node has one executor, so any other copy of this script or its xcodebuild is a leftover.
+derived="${IOS_DERIVED_DATA:-$HOME/jenkins-agent/ios-derived}"
+stop_tree() {
+  local child
+  for child in $(pgrep -P "$1"); do stop_tree "$child"; done
+  kill -TERM "$1" 2>/dev/null || true
+}
+leftovers=$( { pgrep -f "jenkins-agent/build-ipa[.]sh" || true; pgrep -f "xcodebuild .*($derived|$PWD/build/ipa/)" || true; } | sort -u)
+for pid in $leftovers; do
+  [[ "$pid" == "$$" ]] && continue
+  kill -0 "$pid" 2>/dev/null || continue
+  echo "Stopping leftover iOS build process $pid"
+  stop_tree "$pid"
+done
 : "${GIT_COMMIT:?full revision required}"
 : "${BUILD_NUMBER:?Jenkins build number required}"
 : "${IOS_TEAM_ID:?paid Apple team required}"
@@ -39,7 +54,7 @@ info['CFBundleDisplayName']='얼쑤 개발'
 with open(sys.argv[1],'wb') as f: plistlib.dump(info,f)
 PYINFO
 xcodebuild -project frontend/iosApp/iosApp.xcodeproj -scheme iosApp -configuration Release \
-  -destination 'generic/platform=iOS' -derivedDataPath "${IOS_DERIVED_DATA:-$HOME/jenkins-agent/ios-derived}" \
+  -destination 'generic/platform=iOS' -derivedDataPath "$derived" \
   -archivePath "$archive" -allowProvisioningUpdates ${auth[@]+"${auth[@]}"} \
   "TEAM_ID=$IOS_TEAM_ID" PRODUCT_BUNDLE_IDENTIFIER=com.ssafy.eolssu.dev \
   "INFOPLIST_FILE=$out/DevelopmentInfo.plist" \

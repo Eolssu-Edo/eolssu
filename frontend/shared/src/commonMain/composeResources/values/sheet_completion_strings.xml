@@ -12,9 +12,9 @@
     <string name="sheet_completion_catalog_failed">악기의 음역 정보를 불러오지 못해 저장할 수 없어요. 다시 시도해 주세요. 임시저장은 할 수 있어요.</string>
     <string name="sheet_completion_catalog_retry">음역 정보 다시 받기</string>
     <string name="sheet_completion_saving">저장 중…</string>
-    <string name="sheet_save_auto_complete">자동저장 완료</string>
+    <string name="sheet_save_auto_complete">임시저장 완료</string>
     <string name="sheet_save_confirm_complete">확정 저장 완료</string>
-    <string name="sheet_save_auto_failed">자동저장하지 못했어요</string>
-    <string name="sheet_save_auto_retry">자동저장 다시 시도</string>
+    <string name="sheet_save_auto_failed">임시저장하지 못했어요</string>
+    <string name="sheet_save_auto_retry">임시저장 다시 시도</string>
     <string name="sheet_completion_tuning">악기 변환에서 기준음을 확인해 주세요.</string>
 </resources>

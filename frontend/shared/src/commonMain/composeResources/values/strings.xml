@@ -1,6 +1,8 @@
 <resources>
-    <string name="sheet_close_unsaved">저장하지 못한 변경이 있어요.</string>
+    <string name="sheet_close_unsaved">저장하지 않은 변경이 있어요.</string>
     <string name="sheet_close_message">계속 편집하거나, 저장되지 않은 변경을 버리고 닫을 수 있어요.</string>
+    <string name="sheet_close_message_draft">임시저장하면 다음에 이어서 편집할 수 있어요.</string>
+    <string name="sheet_save_draft_close">임시저장하고 닫기</string>
     <string name="sheet_discard_close">변경을 버리고 닫기</string>
     <string name="sheet_keep_editing">계속 편집하기</string>
     <string name="sheet_document_title">내 악보 편집</string>
@@ -95,17 +97,13 @@
     <string name="practice_countdown_ready">준비</string>
     <string name="practice_switched_to_eval">평가 모드로 바꿨어요. ‘연주 평가 시작’을 누르면 평가해요.</string>
 
-    <string name="practice_menu_notation">쉬운 표기</string>
     <string name="practice_title_fingering">운지법 보기</string>
     <string name="practice_menu_jangdan">장단</string>
     <string name="practice_menu_tempo">속도</string>
-    <string name="practice_on">켜짐</string>
-    <string name="practice_off">꺼짐</string>
     <string name="practice_jangdan_sound_on">%1$s · 소리 켜짐</string>
     <string name="practice_big_score">크게 보기</string>
     <string name="practice_apply">적용</string>
 
-    <string name="practice_notation_title">악보 표시 설정</string>
     <string name="practice_notation_hangul">한글 읽는 법 표시</string>
 
     <string name="practice_fingering_title">운지법</string>
@@ -176,7 +174,7 @@
     <string name="practice_instrument">연습 악기</string>
     <string name="practice_jangdan_sound_off">%1$s · 소리 꺼짐</string>
     <string name="practice_fingering_view">운지법과 함께 보기</string>
-    <string name="practice_fingering_view_desc">각 정간마다 가로 %1$s 그림과 율명을 함께 봐요</string>
+    <string name="practice_fingering_view_desc">%1$s 운지 그림을 함께 봐요</string>
     <string name="practice_fingering_rest">쉼 · 숨을 고르세요</string>
     <string name="practice_fingering_desc">막는 구멍 %1$s</string>
     <string name="practice_fingering_none">없음</string>
@@ -195,7 +193,6 @@
     <string name="practice_finger_gak_range">%1$d–%2$d각</string>
     <string name="practice_finger_rest">쉼</string>
     <string name="practice_finger_missing">운지 자료 없음</string>
-    <string name="practice_upcoming">← 다음</string>
     <string name="score_column_head">%1$d각</string>
     <string name="score_column_head_start">시작 · %1$d각</string>
     <string name="analysis_title">연주 분석</string>
@@ -305,6 +302,7 @@
     <string name="growth_range_years">%1$d년 %2$d월 – %3$d년 %4$d월</string>
     <string name="growth_range_pick">날짜 고르기</string>
     <string name="growth_axis_minutes">(분)</string>
+    <string name="growth_axis_hours">(시간)</string>
     <string name="growth_axis_count">(회)</string>
     <string name="growth_bar_month">%1$d월</string>
     <string name="growth_chart_desc">%1$s %2$s %3$s</string>
@@ -356,8 +354,8 @@
     <string name="guide_reading_title">정간보 읽기</string>
     <string name="guide_reading_toc_open">쪽 목차 펼침</string>
     <string name="guide_reading_toc_closed">쪽 목차 접힘</string>
-    <string name="guide_reading_prev">이전</string>
-    <string name="guide_reading_next">다음</string>
+    <string name="guide_reading_nav_prev">이전 쪽 %1$d쪽 %2$s</string>
+    <string name="guide_reading_nav_next">다음 쪽 %1$d쪽 %2$s</string>
     <string name="guide_reading_page_dot">%1$d쪽 %2$s</string>
     <string name="guide_reading_page_intro">정간보란</string>
     <string name="guide_reading_intro_lead">**井** 모양 칸에 율명을 적은 우리 악보</string>
@@ -644,7 +642,6 @@
     <string name="mysongs_title">연습곡 고르기</string>
     <string name="mysongs_tab_songs">제공 곡</string>
     <string name="mysongs_tab_sheets">내 악보</string>
-    <string name="mysongs_no_jangdan">장단 없음</string>
     <string name="mysongs_reset_filter">전체 곡 보기</string>
     <string name="mysongs_add">악보 추가</string>
     <string name="mysongs_sheet_count">내 악보 %1$d개</string>
@@ -810,5 +807,4 @@
     <string name="sheet_adapt_failed">지원음을 불러오지 못했어요.</string>
     <string name="sheet_adapt_original_key">원조 유지</string>
     <string name="sheet_adapt_semitones">%1$s반음</string>
-    <string name="sheet_adapt_unresolved">남은 음은 지원되는 음으로 수정하거나 쉼표로 바꿔 주세요. 초안에는 그대로 남아요.</string>
 </resources>

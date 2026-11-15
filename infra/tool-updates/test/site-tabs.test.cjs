@@ -79,6 +79,29 @@ test('blog allows its own pages, rejects cross-origin navigation and supports re
  assert.equal(visible.size,1);
 });
 
+test('ERD opens the team diagram in an isolated view without an SSH tunnel',async()=>{
+ const {tabs,created,visible}=fixture();
+ tabs.select('db');
+ tabs.select('erd');
+ const [db,erd]=created;
+ const diagram='https://www.erdcloud.com/d/aB9vM5edsqHqmedcE';
+ assert.equal(erd.webContents.url,diagram);
+ assert.equal(tabs.currentURL(),diagram);
+ assert.equal(tabs.currentForward(),undefined);
+ assert.notEqual(erd.options.webPreferences.partition,db.options.webPreferences.partition);
+ erd.webContents.failed(new Error('ERR_INTERNET_DISCONNECTED'));
+ await Promise.resolve();
+ assert.equal(tabs.snapshot().siteStatus,'error');
+ assert.equal(tabs.currentURL(),diagram);
+ tabs.select('erd');
+ erd.webContents.loaded();
+ await Promise.resolve();
+ assert.equal(tabs.snapshot().siteStatus,'ready');
+ assert.deepEqual([...visible],[erd]);
+ tabs.select('updates');
+ assert.equal(visible.size,0);
+});
+
 test('each local tool uses its fixed loopback port in its own session',async()=>{
  const {tabs,created,visible}=fixture();
  const targets=[['grafana',13000,3000],['prometheus',13001,3001],['jenkins',18080,8080],['db',18081,8081],['n8n',15688,5688]];

@@ -8,8 +8,8 @@ import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.ui.score.ErrorFilter
 
-/** 구간 고르기 안내 문구 단계: 시작 정간 고르기 → 끝 정간 고르기 → 고른 구간 연습. */
-enum class SectionSelectStep { Start, End, Ready }
+/** 추천 구간 바로 쓰기 또는 다시 고르기, 수동 선택은 시작 → 끝 → 고른 구간 연습을 안내한다. */
+enum class SectionSelectStep { Recommended, Start, End, Ready }
 
 /**
  * 구간 고르기 상태. 고른 구간으로 구간 연습(연습 화면)과 구간 재평가를 시작한다. 속도는 각 화면의 설정에서 정한다(S15P31E102-794).
@@ -36,11 +36,12 @@ data class SectionSelectUiState(
     /** 구간을 골라 연습을 시작할 수 있는지. 끝 정간을 기다리는 중에는 한 정간 구간으로 시작하지 않는다. */
     val canStart: Boolean get() = section != null && !picking && currentScore == true
 
-    /** 안내 문구 단계. 추천 구간이 잡혀 있어도 직접 고르기 전에는 시작 정간부터 안내한다. */
+    /** 기본 추천 구간과 사용자가 직접 고르는 단계를 구분한다. */
     val step: SectionSelectStep
         get() = when {
             picking -> SectionSelectStep.End
             picked && section != null -> SectionSelectStep.Ready
+            section != null -> SectionSelectStep.Recommended
             else -> SectionSelectStep.Start
         }
 }
@@ -58,7 +59,7 @@ fun SectionSelectUiState.tap(position: ScorePosition): SectionSelectUiState {
     }
 }
 
-/** ‘취약 구간 보기’: 서버 추천 구간으로 되돌리고 안내도 처음 문구로 돌린다. */
+/** ‘취약 구간 보기’: 추천 구간으로 되돌린다. 추천이 없으면 시작 정간 선택부터 안내한다. */
 fun SectionSelectUiState.resetToRecommended(): SectionSelectUiState =
     copy(section = recommended, picking = false, picked = false)
 

@@ -57,7 +57,7 @@ internal fun scoreStrips(
             var start = 0
             // 공통 악보의 각 길이는 원본 columns가 정한다. 장단 이름의 샘플 정간 수로 자르지 않는다.
             val maxStrip = Jangdan.MAX_STRIP_CELLS
-            val counts = if (score.timing != null || jangdan == null) List((size + maxStrip - 1) / maxStrip) { maxStrip } else jangdan.strips
+            val counts = if (score.timing != null || jangdan == null) evenStrips(size, maxStrip) else jangdan.strips
             for (count in counts) {
                 if (start >= size) break
                 strips += ScoreStrip(column, strips.size, start until minOf(start + count, size))
@@ -76,6 +76,15 @@ internal fun scoreStrips(
             }
         }
     }
+}
+
+/**
+ * 대강을 모르는 각을 [maxStrip] 이하의 줄로 고르게 나눈 줄별 정간 수. 앞줄이 하나 더 길다.
+ * 예: 12 → [12], 16 → [8, 8], 25 → [9, 8, 8]. 12·4처럼 짧은 나머지 줄이 따로 떨어진 각으로 보이지 않게 한다(S15P31E102-922).
+ */
+private fun evenStrips(size: Int, maxStrip: Int): List<Int> {
+    val count = maxOf(1, (size + maxStrip - 1) / maxStrip)
+    return List(count) { index -> size / count + if (index < size % count) 1 else 0 }
 }
 
 /**

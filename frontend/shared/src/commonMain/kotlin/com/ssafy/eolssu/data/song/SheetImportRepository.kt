@@ -11,10 +11,19 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+enum class SheetImportField { Title, Instrument, Jangdan, Files }
+
 data class SheetImportInput(val title: String, val notation: String, val instrumentId: String,
     val jangdanId: String?, val hwangPitch: String?, val files: List<SheetFile>) {
-    fun valid() = title.trim().count { !it.isLowSurrogate() } in 1..50 && validCatalogId(instrumentId) &&
-        (jangdanId == null || validCatalogId(jangdanId)) && validSheetFiles(files) &&
+    /** 화면의 필드 안내와 실제 접수 전 검사에서 같은 조건을 사용한다. */
+    fun invalidFields(): Set<SheetImportField> = buildSet {
+        if (title.trim().count { !it.isLowSurrogate() } !in 1..50) add(SheetImportField.Title)
+        if (!validCatalogId(instrumentId)) add(SheetImportField.Instrument)
+        if ((jangdanId != null && !validCatalogId(jangdanId)) || (notation == "JEONGGANBO" && jangdanId == null)) add(SheetImportField.Jangdan)
+        if (!validSheetFiles(files)) add(SheetImportField.Files)
+    }
+
+    fun valid() = invalidFields().isEmpty() &&
         when (notation) {
             "JEONGGANBO" -> jangdanId != null && hwangPitch == null
             "STAFF" -> hwangPitch == null || Regex("[A-G][#b]?[0-8]").matches(hwangPitch)

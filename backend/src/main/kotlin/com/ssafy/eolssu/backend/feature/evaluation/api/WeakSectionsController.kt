@@ -40,6 +40,7 @@ class WeakSectionsController(private val getWeakSections: GetWeakSections) {
         val REASONS = mapOf(
             Verdict.PITCH to "음높이 오류가 가장 많은 구간이에요",
             Verdict.TIMING to "박자 오류가 가장 많은 구간이에요",
+            Verdict.LENGTH to "음 길이 오류가 가장 많은 구간이에요",
             Verdict.MISSED to "놓친 음이 가장 많은 구간이에요",
         )
     }

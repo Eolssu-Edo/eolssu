@@ -61,6 +61,7 @@ interface ConversionWorkerMapper {
     fun building(@Param("sheetId") sheetId: Long,@Param("attempt") attempt: Int): Int
     @Update("""UPDATE user_sheets SET score_json=#{result.scoreJson},draft_json=#{result.draftJson},draft_revision=#{revision},
         draft_base_version=#{baseVersion},draft_saved_at=#{draftAt},bpm=#{result.bpm},bpm_unit=#{result.bpmUnit},jangdan_id=#{jangdanId},
+        expressions_json=#{result.expressionsJson,jdbcType=LONGVARCHAR},
         column_count=#{result.columnCount},note_count=#{result.noteCount},pending_cell_count=#{result.pendingCellCount},status='NEEDS_REVIEW',updated_at=#{now}
         WHERE id=#{sheetId}""")
     fun saveScore(@Param("sheetId") sheetId: Long,@Param("result") result: BuiltRecognition,@Param("jangdanId") jangdanId: Long?,

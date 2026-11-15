@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -153,9 +154,10 @@ internal fun HomeScrollLayout(
         val contentLeft = (w - contentW) / 2
         val finalHeroW = if (expanded) contentW * .52f else w
         val buttonW = (if (expanded) finalHeroW else contentW).coerceAtMost(360f)
-        var buttonH by remember { mutableFloatStateOf(56.5f) }
-        var headlineH by remember { mutableFloatStateOf(100f) }
-        var featureH by remember(widthClass) { mutableFloatStateOf(480f) }
+        // 다른 화면에 갔다 돌아오면 스크롤 위치는 복원되지만 잰 높이가 기본값이면 바닥이 짧아져 위치가 잘린다.
+        var buttonH by rememberSaveable { mutableFloatStateOf(56.5f) }
+        var headlineH by rememberSaveable { mutableFloatStateOf(100f) }
+        var featureH by rememberSaveable(widthClass) { mutableFloatStateOf(480f) }
         val s = scroll.value / density.density
         val frame = homeScrollFrame(w, h, s, buttonH)
         val featureTop = if (expanded) mix(h + 32f, 140f, frame.eased)

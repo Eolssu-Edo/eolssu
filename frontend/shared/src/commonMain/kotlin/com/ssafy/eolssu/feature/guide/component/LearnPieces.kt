@@ -230,7 +230,7 @@ internal fun NoteChips(notes: List<FingeringNote>, modifier: Modifier = Modifier
                     Text(
                         note.reading,
                         Modifier.clearAndSetSemantics {},
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp),
                         color = colors.textMuted,
                         maxLines = 1,
                     )

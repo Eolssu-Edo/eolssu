@@ -153,7 +153,7 @@ class SheetEditStateTest {
     @Test
     fun editPickSearchesSongsAndTogglesSelection() {
         val songs = listOf(EditPickSong("arirang", "아리랑", SongLevel.Intro, "세마치"), EditPickSong("doraji", "도라지타령", SongLevel.Intro, "세마치"))
-        val state = EditPickUiState(instrument = Instrument.Danso, load = EditPickLoad.Ready, tab = EditPickTab.Songs, songs = songs)
+        val state = EditPickUiState(instrument = Instrument.Danso, songsLoad = EditPickLoad.Ready, tab = EditPickTab.Songs, songs = songs)
         assertEquals(listOf("도라지타령"), state.copy(query = " 도라지 ").visibleSongs.map { it.title })
         assertFalse(state.canSelect)
         val picked = state.toggle(EditPickTarget.Song("arirang"))
@@ -167,7 +167,7 @@ class SheetEditStateTest {
         val start = EditPickUiState()
         assertEquals(EditPickLoad.NeedsInstrument, start.load, "악기를 고르기 전에는 악보 목록을 보이지 않는다")
         assertFalse(start.toggle(EditPickTarget.Song("1")).canSelect)
-        val loaded = start.chooseInstrument(Instrument.Danso).copy(load = EditPickLoad.Ready,
+        val loaded = start.chooseInstrument(Instrument.Danso).copy(songsLoad = EditPickLoad.Ready,
             songs = listOf(EditPickSong("1", "아리랑", SongLevel.Intro, "세마치"))).toggle(EditPickTarget.Song("1"))
         assertTrue(loaded.canSelect)
         val changed = loaded.chooseInstrument(Instrument.Sogeum)

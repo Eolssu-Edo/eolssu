@@ -4,9 +4,12 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.security.NetworkSecurityPolicy
 import com.ssafy.eolssu.core.audio.FileSheetAudioDeviceStore
+import com.ssafy.eolssu.core.audio.ModelAudioFileCache
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
+import com.ssafy.eolssu.core.audio.JangdanVolumeLimit
 import com.ssafy.eolssu.platform.audio.AndroidJangdanSamplePlayer
+import com.ssafy.eolssu.platform.audio.AndroidJangdanVolumeLimit
 import com.ssafy.eolssu.platform.audio.JangdanSampleCache
 import java.io.File
 import com.ssafy.eolssu.core.audio.AudioRecorder
@@ -54,6 +57,13 @@ internal fun androidPlatformModule(context: Context, serverAddress: ServerAddres
         // 연습 화면마다 따로 녹음한다.
         factory<AudioRecorder> { AndroidAudioRecorder(appContext) }
         factory<AudioPlayer> { AndroidAudioPlayer(appContext) }
+        single {
+            ModelAudioFileCache(
+                Path(appContext.cacheDir.absolutePath, "model-audio-v1"), get(), Dispatchers.IO,
+                allowDebugLoopback = appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+                    NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("127.0.0.1"),
+            )
+        }
         single<SheetAudioDeviceStore> {
             FileSheetAudioDeviceStore(
                 Path(appContext.noBackupFilesDir.absolutePath, "sheet-audio-v1"), get(), Dispatchers.IO,
@@ -63,6 +73,8 @@ internal fun androidPlatformModule(context: Context, serverAddress: ServerAddres
         }
         single { JangdanSampleCache(File(appContext.cacheDir, "jangdan-practice-v1"), get()) }
         factory<JangdanSamplePlayer> { AndroidJangdanSamplePlayer(appContext, get()) }
+        // 평가 녹음 중 장단 크기를 시스템 볼륨으로 압축한다(S15P31E102-878).
+        factory<JangdanVolumeLimit> { AndroidJangdanVolumeLimit(appContext) }
         // 업로드를 기다리는 녹음. RecordingUploads가 쓴다.
         single<RecordingFiles> { AndroidRecordingFiles(appContext) }
         single<SoundPlayer> { AndroidSoundPlayer() }

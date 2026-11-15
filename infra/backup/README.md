@@ -23,7 +23,7 @@ edo1의 root systemd 작업이 DB·설정을 수집해 암호화한 뒤 edo2에 
 | 작업 | 주기 | 보관 |
 | --- | --- | --- |
 | DB | 매시 10분 | 시간별 7일 + UTC 날짜별 최초 성공본 최대 30일(일별 정리를 위해 29일 경과부터 정리) |
-| 앱·프록시·인증서·활성/이전 릴리스·백업 실행 설정 | 매일 03:20, Jenkins 배포 전·후 | 30일 |
+| 앱·프록시·인증서·활성/이전 릴리스·백업 실행 설정 | 매일 03:20, Jenkins 배포 전·후 | 최근 7일 전체 + UTC 날짜별 최초 성공본 30일([S15P31E102-921](../../docs/plans/S15P31E102-921.md)) |
 | Grafana | 매일 03:30 | 30일 |
 | Jenkins 핵심 설정·잡·플러그인·Credentials | 매일 03:40 | 14일 |
 | 별도 Jenkins 복구 키 | 매일 03:45 | 자동 삭제하지 않음 |
@@ -53,7 +53,7 @@ ssh -o ClearAllForwardings=yes edo1 'sudo systemctl list-units --failed "eolssu-
 ssh -o ClearAllForwardings=yes edo2 'sudo systemctl list-units --failed "eolssu-backup*"'
 ```
 
-실패는 systemd 종료 코드·journal과 마지막 성공 영수증/복원 결과로 확인한다. 업로드 완료 시각과 DB 스냅샷 시각을 구분한다. 암호화/전송 실패를 성공으로 처리하지 않는다. 15분 상태 검사 실패는 systemd failed 상태로 드러나며 Mattermost 등 외부 메시지 알림은 연결하지 않았다.
+실패는 systemd 종료 코드·journal과 마지막 성공 영수증/복원 결과로 확인한다. 업로드 완료 시각과 DB 스냅샷 시각을 구분한다. 암호화/전송 실패를 성공으로 처리하지 않는다. 15분 상태 검사 실패는 systemd failed 상태로 드러난다. 백업 최신성·복구 검증 결과의 변화는 edo2 [능동 알림](../edo-check/README.md#상태-변화-능동-알림)이 Mattermost로 알린다(적용 후).
 
 ## 격리 복원 검증
 

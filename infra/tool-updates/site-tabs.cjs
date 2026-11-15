@@ -8,6 +8,7 @@ const SITES=new Map([
  loopback('prometheus',13001,3001),
  loopback('jenkins',18080,8080),
  loopback('db',18081,8081),
+ ['erd',{url:'https://www.erdcloud.com/d/aB9vM5edsqHqmedcE',partition:'eolssu-erd',toolbarHeight:36}],
  loopback('n8n',15688,5688)
 ]);
 const EDO1_FORWARDS=[...SITES.values()].map(site=>site.forward).filter(Boolean);
@@ -23,7 +24,8 @@ function createSiteTabs(win,createView,onChange) {
  const resize=()=>{
   if(!attached)return;
   const [width,height]=win.getContentSize();
-  attached.setBounds({x:0,y:TAB_BAR_HEIGHT,width,height:Math.max(1,height-TAB_BAR_HEIGHT)});
+  const top=TAB_BAR_HEIGHT+(SITES.get(tab)?.toolbarHeight??0);
+  attached.setBounds({x:0,y:top,width,height:Math.max(1,height-top)});
  };
  function refresh() {
   if(closed)return;

@@ -24,7 +24,7 @@ enum class EditPickLoad { NeedsInstrument, Loading, Ready, Failed }
 
 /**
  * 불러올 악보 고르기(EditPick) 상태. 먼저 악기를 고르면 그 악기의 내 악보·제공 곡만 보이고,
- * 줄을 누르면 고르기만 하며(다시 누르면 풀림) 오른쪽 위 '선택'으로 편집에 간다. 제공 곡 탭에서만 곡 이름으로 찾는다.
+ * 줄을 누르면 고르기만 하며(다시 누르면 풀림) 하단 버튼으로 복사하거나 편집에 간다. 제공 곡 탭에서만 곡 이름으로 찾는다.
  *
  * @property instrument 고른 악기. 연습 악기 설정과 따로 두며 바꿔도 회원 설정을 바꾸지 않는다.
  * @property sheets 고른 악기로 만든 내 악보. 내 악보에는 정간보만 둔다(2차 결정).
@@ -32,7 +32,8 @@ enum class EditPickLoad { NeedsInstrument, Loading, Ready, Failed }
  */
 data class EditPickUiState(
     val instrument: Instrument? = null,
-    val load: EditPickLoad = EditPickLoad.NeedsInstrument,
+    val songsLoad: EditPickLoad = EditPickLoad.NeedsInstrument,
+    val sheetsLoad: EditPickLoad = EditPickLoad.NeedsInstrument,
     val tab: EditPickTab = EditPickTab.Songs,
     val query: String = "",
     val sort: SongSortOrder = SongSortOrder.Ascending,
@@ -43,6 +44,9 @@ data class EditPickUiState(
     val copying: Boolean = false,
     val copyProblem: PublishedSheetCopyProblem? = null,
 ) {
+    /** 보고 있는 탭만 로딩·실패를 판단한다. 다른 탭의 조회는 이 목록을 가리지 않는다. */
+    val load: EditPickLoad get() = if (tab == EditPickTab.Songs) songsLoad else sheetsLoad
+
     /** 검색어가 이름에 든 제공 곡을 [sort] 순서로. 검색어 앞뒤 공백은 무시한다. */
     val visibleSongs: List<EditPickSong>
         get() = query.trim()
@@ -64,5 +68,6 @@ data class EditPickUiState(
 
     /** 악기를 바꾸면 이전 악기의 목록과 고른 악보를 비우고 새로 받는다. 편집 전이라 버릴 작업은 없다. */
     fun chooseInstrument(next: Instrument): EditPickUiState =
-        copy(instrument = next, load = EditPickLoad.Loading, picked = null, sheets = emptyList(), songs = emptyList(), uncheckedSheets = 0, copyProblem = null)
+        copy(instrument = next, songsLoad = EditPickLoad.Loading, sheetsLoad = EditPickLoad.Loading,
+            picked = null, sheets = emptyList(), songs = emptyList(), uncheckedSheets = 0, copyProblem = null)
 }

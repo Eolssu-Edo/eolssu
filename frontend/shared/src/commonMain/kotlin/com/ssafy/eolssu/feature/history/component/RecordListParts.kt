@@ -12,7 +12,6 @@ import eolssu.shared.generated.resources.growth_retry
 import eolssu.shared.generated.resources.records_section
 import eolssu.shared.generated.resources.records_row_today
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -97,14 +96,13 @@ internal data class RecordListSpacing(
     val groupPaddingV: Dp,
     val rowPaddingH: Dp,
     val rowPaddingV: Dp,
-    val rowIcon: Dp,
 ) {
     companion object {
         /** 휴대폰(RECORD-01). */
-        val Compact = RecordListSpacing(4.dp, 12.dp, 16.dp, 14.dp, 16.dp, 12.dp, 36.dp)
+        val Compact = RecordListSpacing(4.dp, 12.dp, 16.dp, 14.dp, 16.dp, 12.dp)
 
         /** 태블릿 세로(`Tab-RecordList-Port`). */
-        val Portrait = RecordListSpacing(4.dp, 14.dp, 20.dp, 16.dp, 20.dp, 14.dp, 40.dp)
+        val Portrait = RecordListSpacing(4.dp, 14.dp, 20.dp, 16.dp, 20.dp, 14.dp)
 
         /** 태블릿 가로 왼쪽 목록(`Tab-Records-Land`). */
         val Pane = Compact
@@ -286,7 +284,7 @@ private fun SongGroupCard(
                 Text(
                     group.title,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
                 )
                 Text(
                     buildAnnotatedString {
@@ -384,8 +382,9 @@ private fun InstrumentTag(instrument: Instrument) {
 }
 
 /**
- * 녹음 한 줄: 구간 · 시각 · 메모, 오른쪽에 악기와 점수. 날짜는 위 날짜 머리에 있어 시각만 쓴다. [selected]가 null이 아니면 두 칸 배치의 고르기 줄이라,
- * 고른 줄은 회색 바탕 · 왼쪽 검은 띠 · 검은 재생 아이콘으로 표시한다(`Tab-Records-Land`).
+ * 녹음 한 줄: 구간 · 시각 · 메모, 오른쪽에 악기와 점수, 끝에 상세로 가는 ›. 날짜는 위 날짜 머리에 있어 시각만 쓴다.
+ * 줄 자체는 재생하지 않으므로 재생 표시를 두지 않는다(S15P31E102-874). [selected]가 null이 아니면 두 칸 배치의 고르기 줄이라,
+ * 고른 줄은 회색 바탕 · 왼쪽 검은 띠 · 검은 ›로 표시한다(`Tab-Records-Land`).
  */
 @Composable
 private fun RecordRow(
@@ -417,24 +416,14 @@ private fun RecordRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 보드: 36dp 흰 원(테두리 `#E8E4DA`) 안 14dp 재생 표시. 두 칸 배치에서 고른 줄은 검은 원.
-        Box(
-            Modifier
-                .size(spacing.rowIcon)
-                .background(if (on) colors.text else colors.surface, CircleShape)
-                .then(if (on) Modifier else Modifier.border(1.dp, colors.lineSoft, CircleShape)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(EolssuIcons.Play, contentDescription = null, modifier = Modifier.size(14.dp), tint = if (on) colors.background else colors.text)
-        }
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(record.section?.let { stringResource(Res.string.records_section, it) } ?: stringResource(Res.string.records_whole), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                Text(record.section?.let { stringResource(Res.string.records_section, it) } ?: stringResource(Res.string.records_whole), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, fontWeight = FontWeight.Normal))
                 if (justSaved) {
                     Text(
                         stringResource(Res.string.records_just_saved),
                         modifier = Modifier.background(colors.primary, CircleShape).padding(horizontal = 8.dp, vertical = 3.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
                         color = colors.onPrimary,
                     )
                 }
@@ -459,6 +448,8 @@ private fun RecordRow(
                 withStyle(SpanStyle(fontSize = 11.sp, color = colors.textMuted)) { append(stringResource(Res.string.records_score_unit)) }
             },
         )
+        // 줄 전체가 기록 상세로 가는 버튼임을 보이는 ›. 두 칸 배치에서 고른 줄은 검게.
+        Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (on) colors.text else colors.textMuted)
     }
 }
 

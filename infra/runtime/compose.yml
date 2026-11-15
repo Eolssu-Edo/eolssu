@@ -21,6 +21,8 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./backend-route:/etc/nginx/backend-route:ro
       - /opt/eolssu/acme/.well-known:/usr/share/nginx/html/.well-known:ro
+      # iOS QA IPA(S15P31E102-444). 웹 배포가 바뀌어도 OTA 주소가 유지되도록 따로 연결한다.
+      - /opt/eolssu/ipas:/usr/share/nginx/ipas:ro
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1/"]
       interval: 5s

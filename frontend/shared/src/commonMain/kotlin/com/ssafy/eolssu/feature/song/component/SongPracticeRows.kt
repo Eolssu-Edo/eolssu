@@ -1,6 +1,12 @@
 package com.ssafy.eolssu.feature.song.component
 
 import androidx.compose.ui.draw.alpha
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import com.ssafy.eolssu.feature.song.conversionProgress
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import eolssu.shared.generated.resources.mysongs_no_jangdan
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.clip
@@ -69,10 +74,10 @@ import eolssu.shared.generated.resources.mysongs_status_review
 import eolssu.shared.generated.resources.song_difficulty_number
 import org.jetbrains.compose.resources.stringResource
 
-/** 제공 곡 제목 밑 문구: 장단 이름. 목록 응답에 없으면 '장단 없음'이고, 줄에서 옅은 회색으로 보인다([ProvidedSongRow]). */
+/** 제공 곡 제목 밑 문구: 장단 이름. 목록 응답에 없으면 공통 '장단 미지정'을 옅은 회색으로 보인다([ProvidedSongRow]). */
 @Composable
 internal fun providedSongMeta(song: SongSummary): String =
-    if (song.jangdanName.isBlank()) stringResource(Res.string.mysongs_no_jangdan) else jangdanLabel(song.jangdanName)
+    jangdanLabel(song.jangdanName)
 
 /**
  * SONG-03 줄 틀(`.srow`): 흰 바탕, 옅은 테두리, 모서리 14dp, 최소 64dp. [onClick]이 있으면 줄 전체를 누른다.
@@ -131,7 +136,7 @@ private fun RowScope.RowText(
 }
 
 /**
- * SONG-03 제공 곡 줄: 제목 · 장단(검은 Medium, 없으면 옅은 회색 '장단 없음') · 세로 가운데의 난이도 배지 · 화살표.
+ * SONG-03 제공 곡 줄: 제목 · 장단(검은 Medium, 없으면 옅은 회색 '장단 미지정') · 세로 가운데의 난이도 배지 · 화살표.
  * 연습곡 고르기에서는 누르면 평가 없는 연습 모드에, 평가할 곡 고르기에서는 곡 상세(태블릿 가로는 오른쪽 칸)로 간다.
  */
 @Composable
@@ -231,7 +236,31 @@ internal fun MySheetRow(
                     }
                 }
             }
+            if (!usable && status != SheetConversionStatus.Failed) {
+                ConversionProgressBar(conversionProgress(conversion ?: SheetConversion(sheet.id, SheetConversionStatus.Queued)) ?: 0f)
+            }
         }
+    }
+}
+
+/**
+ * 변환 진행 막대: 옅은 선 위에 연두로 채운 6dp 막대. 서버가 퍼센트를 주지 않아 숫자는 쓰지 않고 [conversionProgress]의 어림값만 그린다.
+ * 값이 바뀌면 부드럽게 늘어난다.
+ */
+@Composable
+private fun ConversionProgressBar(progress: Float) {
+    val colors = EolssuTheme.colors
+    val shown by animateFloatAsState(progress.coerceIn(0f, 1f), animationSpec = tween(600))
+    val shape = RoundedCornerShape(3.dp)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(6.dp)
+            .clip(shape)
+            .background(colors.lineSoft)
+            .semantics { progressBarRangeInfo = ProgressBarRangeInfo(progress.coerceIn(0f, 1f), 0f..1f) },
+    ) {
+        Box(Modifier.fillMaxWidth(shown).height(6.dp).clip(shape).background(colors.primary))
     }
 }
 

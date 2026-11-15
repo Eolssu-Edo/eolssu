@@ -101,6 +101,15 @@ class HttpAnalysisClientTests {
     }
 
     @Test
+    fun `reads a length error verdict`() {
+        // S15P31E102-912: AI pyin-8부터 긴 음의 길이 오류를 LENGTH로 준다. 다른 판정처럼 그대로 저장한다.
+        respond(doneBody.replace("\"verdict\":\"CORRECT\"", "\"verdict\":\"LENGTH\""))
+
+        val done = client.analyze(request) as AnalysisResult.Done
+        assertEquals(NoteJudgement(4, NoteVerdict.LENGTH, 3.1, 20, -15), done.notes.first())
+    }
+
+    @Test
     fun `reads the note scores and the scoring rule`() {
         respond("""{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90.5,"timingScore":80,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""")
 

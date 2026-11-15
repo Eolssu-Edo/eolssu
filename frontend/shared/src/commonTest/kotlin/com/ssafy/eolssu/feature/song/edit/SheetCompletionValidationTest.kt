@@ -207,6 +207,34 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         assertFalse(repository.writes.single().first)
     }
 
+    @Test fun summarizedTempoAndVoiceNoticesNeverAcknowledgeAPendingReview() = runTest {
+        val original = document(issues = listOf(issue("LOW_CONFIDENCE")), notices = listOf(
+            json("""{"type":"LOW_CONFIDENCE","detail":{"reason":"TEMPO_PDF_TEXT","count":1}}"""),
+            json("""{"type":"LOW_CONFIDENCE","detail":{"reason":"TEMPO_PDF_TEXT","count":2}}"""),
+            json("""{"type":"LOW_CONFIDENCE","detail":{"reason":"TEMPO_PDF_TEXT","count":2}}"""),
+            json("""{"type":"VOICE_GUESSED","detail":{"voices":2}}"""),
+        ))
+        val repository = RecordingDocuments(original)
+        val model = open(repository)
+        runCurrent()
+        assertEquals(2, model.uiState.value.reviewNotices.size)
+        assertEquals(5, model.uiState.value.reviewNotices.first().count)
+        assertEquals(1, model.uiState.value.completionValidation.pendingReviewCount)
+        assertTrue(model.uiState.value.checkedIssueIds.isEmpty())
+        assertEquals(listOf("i1"), model.uiState.value.reviewIssuesAt(0).map { it.id })
+        val before = model.uiState.value.draft.toCommonScore()
+        model.requestSave(); runCurrent()
+        assertTrue(repository.writes.isEmpty(), "참고 안내 요약이 실제 미확인 검수의 저장 제한을 바꾸지 않는다")
+
+        model.openNextReviewCell()
+        model.checkReviewIssue()
+        assertTrue(model.uiState.value.completionValidation.canComplete)
+        model.requestSave(); runCurrent()
+        assertEquals(listOf("i1"), repository.writes.single().second.resolvedIssueIds)
+        assertEquals(original.notices, repository.document.notices)
+        assertEquals(before, repository.writes.single().second.score)
+    }
+
     @Test fun incompleteHoldBlocksFinalSaveButRemainsDraftSaveable() = runTest {
         val repository = RecordingDocuments(document())
         val model = open(repository)
@@ -277,8 +305,8 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         model.erase()
         assertNotEquals(snapshot, model.uiState.value.draft, "응답 후 편집을 다시 허용한다")
         val edited = model.uiState.value.draft
-        advanceTimeBy(1_000); runCurrent()
-        assertEquals(listOf(false, true), writes.map { it.first }, "응답 후 새 편집은 정상적으로 자동 저장한다")
+        model.saveDraft(); runCurrent()
+        assertEquals(listOf(false, true), writes.map { it.first }, "응답 후 새 편집은 정상적으로 임시저장한다")
         assertEquals(edited.toCommonScore(), writes.last().second.score)
         assertEquals("2", writes.last().second.baseScoreVersion)
     }
@@ -300,7 +328,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         assertTrue(model.uiState.value.draft.unfilledCells.isNotEmpty())
     }
 
-    @Test fun newEditsCannotCompleteWhileInstrumentRangeIsStillLoading() = runTest {
+    @Test fun coldDocumentWaitsForInstrumentRangeAndStillRejectsUnsupportedEdits() = runTest {
         val instruments = CompletableDeferred<List<CatalogInstrument>>()
         val repository = RecordingDocuments(document())
         val catalog = CompletionCatalog(
@@ -312,15 +340,23 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
             loadAudioInstruments = { instruments.await() }))
         runCurrent()
         assertTrue(model.uiState.value.completionValidation.catalogLoading)
+        assertTrue(model.uiState.value.documentLoading)
+        val before = model.uiState.value.draft
         model.selectCell(2); model.put(ScoreNote.SourcePitch("임", 0))
         model.requestSave(); runCurrent()
         assertTrue(repository.writes.isEmpty())
         model.saveDraft(); runCurrent()
-        assertTrue(repository.writes.single().first)
+        assertTrue(repository.writes.isEmpty(), "필수 자료가 준비되기 전의 비어 있는 문서를 저장하지 않는다")
+        assertEquals(before, model.uiState.value.draft)
         instruments.complete(listOf(CatalogInstrument("11", "DANSO", "단소"))); runCurrent()
         assertEquals(SheetCompletionCatalogState.Ready, model.uiState.value.completionCatalogState)
+        assertFalse(model.uiState.value.documentLoading)
+        model.selectCell(2); model.put(ScoreNote.SourcePitch("임", 0))
         assertEquals(1, model.uiState.value.completionValidation.invalidPitchCount)
         model.requestSave(); runCurrent()
+        assertTrue(repository.writes.isEmpty())
+        model.saveDraft(); runCurrent()
+        assertTrue(repository.writes.single().first)
         assertEquals(1, repository.writes.size)
         model.putYul(Yul.Taeju)
         model.requestSave(); runCurrent()
@@ -372,6 +408,22 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
             assertEquals(missingMapping, model.uiState.value.completionValidation.catalogFailed)
             assertFalse(model.uiState.value.completionValidation.canComplete)
         }
+    }
+
+    @Test fun correctedRangeIsSavedWithoutManualAcknowledgement() = runTest {
+        val repository = RecordingDocuments(document(issues = listOf(issue("OUT_OF_RANGE"))))
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo,
+            SampleMySheetRepository(), documents = repository,
+            pitchCatalog = CompletionCatalog(instrument = listOf(pitch("황", 0), pitch("태", 0))),
+            loadAudioInstruments = { listOf(CatalogInstrument("11", "DANSO", "단소")) }))
+        runCurrent()
+        assertTrue(model.uiState.value.completionValidation.invalidPitchCount > 0)
+        model.selectUnit(0, 1); model.putYul(Yul.Taeju)
+        assertEquals(0, model.uiState.value.pendingChecks)
+        assertTrue(model.uiState.value.checkedIssueIds.isEmpty())
+        model.requestSave(); runCurrent()
+        assertEquals(listOf("i1"), repository.writes.single().second.resolvedIssueIds)
+        assertFalse(repository.writes.single().first)
     }
 
     private fun open(repository: SheetDocumentRepository, catalog: ReferenceCatalogRepository? = null) =
