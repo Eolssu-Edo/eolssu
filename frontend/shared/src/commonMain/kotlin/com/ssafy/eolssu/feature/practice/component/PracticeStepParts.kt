@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.core.ui.score.YulGlyph
+import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.StepPhase
@@ -153,11 +153,7 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
                 },
             ) {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (yul != null) {
-                        YulGlyph(yul, 28.sp, fontWeight = FontWeight.Bold)
-                    } else {
-                        Text(note?.symbol.orEmpty(), style = EolssuTheme.serif.yul.copy(fontSize = 28.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold))
-                    }
+                    if (note != null) ScoreNoteGlyph(note, 28.sp, fontWeight = FontWeight.Bold)
                     Text(note?.reading.orEmpty(), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textSub)
                 }
             }

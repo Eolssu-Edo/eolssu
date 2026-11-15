@@ -9,6 +9,7 @@ import com.ssafy.eolssu.core.model.fingering.solfegeOf
 import com.ssafy.eolssu.core.model.fingering.pitchIndexOf
 import com.ssafy.eolssu.core.model.fingering.baseYulOf
 import com.ssafy.eolssu.core.model.fingering.glyphPartsOf
+import com.ssafy.eolssu.core.model.fingering.yulGlyphParts
 import com.ssafy.eolssu.core.model.fingering.HanjaGlyphParts
 import com.ssafy.eolssu.core.model.fingering.SerifYulGlyphs
 import com.ssafy.eolssu.core.model.fingering.UNKNOWN_PITCH
@@ -54,15 +55,23 @@ class YulNotationTest {
     }
 
     @Test
-    fun glyphsMissingFromSerifFontAreSplitIntoRadicalAndBase() {
-        assertEquals(HanjaGlyphParts("", "潢"), glyphPartsOf("潢"))
-        assertEquals(HanjaGlyphParts("亻", "林"), glyphPartsOf("㑣"))
-        assertEquals(HanjaGlyphParts("氵", "仲"), glyphPartsOf("㳞"))
-        assertEquals(HanjaGlyphParts("氵", "大"), glyphPartsOf("汏"))
-        // 중청: 글꼴에 있는 청성 글자가 있으면 그 앞에 氵 하나, 없으면 氵 둘
-        assertEquals(HanjaGlyphParts("氵", "潢"), glyphPartsOf("㶂"))
-        assertEquals(HanjaGlyphParts("氵", "淋"), glyphPartsOf("㶍"))
-        assertEquals(HanjaGlyphParts("氵氵", "姑"), glyphPartsOf("㴩"))
+    fun clearAndLowGlyphsInSerifFontAreDrawnAsIs() {
+        // 탁성·청성·중청 모두 세리프 글꼴에 실제 글자가 있어 변으로 조합하지 않는다.
+        listOf("潢", "㑣", "㒣", "㳞", "汏", "㶂", "㶍", "㴩").forEach { hanja ->
+            assertEquals(HanjaGlyphParts("", hanja), glyphPartsOf(hanja))
+        }
+    }
+
+    @Test
+    fun glyphsMissingFromFontGetTheOctaveRadicalBeforeTheBaseYul() {
+        // 글꼴에 없는 글자(여기서는 "?")만 옥타브의 변 + 기본 율명으로 나눈다.
+        assertEquals(HanjaGlyphParts("彳", "林"), yulGlyphParts("?", "林", -2))
+        assertEquals(HanjaGlyphParts("亻", "林"), yulGlyphParts("?", "林", -1))
+        assertEquals(HanjaGlyphParts("", "林"), yulGlyphParts("?", "林", 0))
+        assertEquals(HanjaGlyphParts("氵", "林"), yulGlyphParts("?", "林", 1))
+        assertEquals(HanjaGlyphParts("氵氵", "林"), yulGlyphParts("?", "林", 2))
+        assertEquals(HanjaGlyphParts("", "林"), yulGlyphParts("?", "林", 3))
+        assertEquals(HanjaGlyphParts("", "㑣"), yulGlyphParts("㑣", "林", -1))
     }
 
     @Test
