@@ -50,7 +50,7 @@ internal fun SheetAudioCompletionEffect(
     }
 }
 
-/** The top banner remains pending until the user opens or dismisses it, including across pause. */
+/** The top banner is consumed after opening, dismissal or timeout; pause preserves pending delivery. */
 internal suspend fun showSheetAudioCompletion(
     repository: NotifyingSheetAudioRepository,
     snackbar: SnackbarHostState,
@@ -75,7 +75,7 @@ internal suspend fun showSheetCompletion(
     val visuals = object : SnackbarVisuals {
         override val message = message
         override val actionLabel = actionLabel
-        override val duration = SnackbarDuration.Indefinite
+        override val duration = SnackbarDuration.Short
         override val withDismissAction = true
     }
     try {
