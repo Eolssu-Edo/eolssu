@@ -200,7 +200,7 @@ internal fun SheetDraft.renderEditingScore(): Score {
     val encoded = runCatching { toCommonScore() }.getOrNull()
     val reference = tempoReferenceBpm ?: bpm
     fun CommonScoreData.displayOrNull() = runCatching {
-        toScore(tempoExpressions, baseBpm = reference.toDouble(), tempoScale = bpm.toDouble() / reference)
+        toScore(tempoExpressions, baseBpm = reference.toDouble())
     }.getOrNull()
     val rendered = encoded?.displayOrNull()
     val displayed = rendered ?: original?.displayOrNull()
@@ -219,5 +219,5 @@ internal fun SheetDraft.renderEditingScore(): Score {
         }
         ScoreCell(displayNotes.ifEmpty { listOf(ScoreNote.Blank) }, "c$c-j$j",
             units.map { ScoreUnit(it.row, it.col, it.symbol, it.eventId) }, originalCell(index)?.lyric)
-    } }, tempoMarks = displayed?.tempoMarks.orEmpty(), tempoRanges = displayed?.tempoRanges.orEmpty())
+    } }, tempoMarks = displayed?.tempoMarks.orEmpty())
 }

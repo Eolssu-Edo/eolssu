@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.data.song
 
 import com.ssafy.eolssu.core.model.HanbaeMark
-import com.ssafy.eolssu.core.model.ScorePosition
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.feature.song.edit.editingDraft
 import com.ssafy.eolssu.feature.song.edit.withTempoExpressions
@@ -27,10 +26,7 @@ class ImportedTempoDisplayTest {
         assertEquals(plain.events, displayed.events)
         assertEquals(plain.source, displayed.source)
         assertTrue(expression.getValue("placements").jsonArray.isEmpty())
-        assertEquals(ScorePosition(0, 0), displayed.tempoRanges.single().start)
-        assertEquals(ScorePosition(1, 0), displayed.tempoRanges.single().end)
-        assertEquals(80.0, displayed.tempoRanges.single().startBpm)
-        assertEquals(160.0, displayed.tempoRanges.single().targetBpm)
+        assertEquals(setOf(ScoreUnitKey("c0-j0", 0, 0)), displayed.tempoMarks.keys)
     }
 
     @Test fun explicitMarksOnAnyUnitOfTheSameCellTakePriority() {
@@ -38,7 +34,6 @@ class ImportedTempoDisplayTest {
             val input = expression(ramp, """[{"cellId":"c0-j0","row":0,"col":1,"symbols":["${mark.symbol}"]}]""")
             val score = smallScoreData().toScore(input)
             assertEquals(mapOf(ScoreUnitKey("c0-j0", 0, 1) to listOf(mark)), score.tempoMarks)
-            assertEquals(1, score.tempoRanges.size)
         }
     }
 
@@ -46,19 +41,19 @@ class ImportedTempoDisplayTest {
         val first = """{"gak":1,"cell":1,"bpm":160}"""
         val second = """{"gak":1,"cell":2,"start_bpm":80,"bpm":160,"end_gak":3,"end_cell":1}"""
         val score = smallScoreData().toScore(expression("$first,$second"), baseBpm = 60.0)
-        assertEquals(80.0, score.tempoRanges.single().startBpm)
-        assertNull(score.tempoRanges.single().end)
+        assertEquals(setOf(ScoreUnitKey("c0-j1", 0, 0)), score.tempoMarks.keys)
         val inherited = second.replace("\"start_bpm\":80,", "").replace("\"bpm\":160", "\"bpm\":200")
-        assertEquals(160.0, smallScoreData().toScore(expression("$first,$inherited"), 60.0).tempoRanges.single().startBpm)
-        assertEquals(60.0, smallScoreData().toScore(expression(inherited), 60.0).tempoRanges.single().startBpm)
-        assertTrue(smallScoreData().toScore(expression(inherited)).tempoRanges.isEmpty())
+        assertEquals(score.tempoMarks, smallScoreData().toScore(expression("$first,$inherited"), 60.0).tempoMarks)
+        assertEquals(score.tempoMarks, smallScoreData().toScore(expression(inherited), 60.0).tempoMarks)
+        assertTrue(smallScoreData().toScore(expression(inherited)).tempoMarks.isEmpty())
+        assertTrue(smallScoreData().toScore(expression("$first,${second.replace("\"start_bpm\":80,", "")}"), 60.0).tempoMarks.isEmpty())
     }
 
     @Test fun displayUnitAndEditorScaleApplyOnceAndRenderingDoesNotChangeSavePayload() {
         val source = smallScoreData().let { it.copy(music = it.music.copy(ticksPerBeat = 12)) }
         val input = expression(ramp.replace("\"start_bpm\":80", "\"start_bpm\":90").replace("\"bpm\":160", "\"bpm\":360"))
         val loaded = source.editingDraft(source.score.title, 40, null).withTempoExpressions(input)
-        val initial = loaded.toSong().score.tempoRanges.single()
+        val initial = loaded.tempoChanges.single()
         assertEquals(30.0, initial.startBpm)
         assertEquals(120.0, initial.targetBpm)
         val faster = loaded.copy(bpm = 80)
@@ -66,21 +61,23 @@ class ImportedTempoDisplayTest {
         val hash = commonSourceSha256(Json.encodeToJsonElement(beforeScore))
         val beforePayload = faster.exportExpressions(input, hash, 80)
         val displayed = faster.toSong().score
-        assertEquals(60.0, displayed.tempoRanges.single().startBpm)
-        assertEquals(240.0, displayed.tempoRanges.single().targetBpm)
+        assertEquals(60.0, faster.tempoChanges.single().startBpm)
+        assertEquals(240.0, faster.tempoChanges.single().targetBpm)
+        assertEquals(loaded.toSong().score.tempoMarks, displayed.tempoMarks)
         assertEquals(beforeScore, faster.toCommonScore())
         assertEquals(beforePayload, faster.exportExpressions(input, hash, 80))
         assertNull(faster.tempoChanges.single().mark)
         val reentered = beforeScore.editingDraft(source.score.title, 80, null).withTempoExpressions(beforePayload)
-        assertEquals(displayed.tempoRanges, reentered.toSong().score.tempoRanges)
-        assertEquals(displayed.tempoRanges, beforeScore.toScore(beforePayload, 80.0).tempoRanges)
+        assertEquals(faster.tempoChanges, reentered.tempoChanges)
+        assertEquals(displayed.tempoMarks, reentered.toSong().score.tempoMarks)
+        assertEquals(displayed.tempoMarks, beforeScore.toScore(beforePayload, 80.0).tempoMarks)
     }
 
-    @Test fun unfinishedEditingKeepsRangeAndStartGlyph() {
+    @Test fun unfinishedEditingKeepsStartGlyphAndNumericEditPlan() {
         val source = smallScoreData()
         val draft = source.editingDraft(source.score.title, 80, null).withTempoExpressions(expression(ramp))
         val erased = draft.erase(1)
-        assertEquals(draft.toSong().score.tempoRanges, erased.toSong().score.tempoRanges)
+        assertEquals(draft.tempoChanges, erased.tempoChanges)
         assertEquals(draft.toSong().score.tempoMarks, erased.toSong().score.tempoMarks)
     }
 
@@ -99,7 +96,6 @@ class ImportedTempoDisplayTest {
         )
         for (input in cases) {
             val displayed = smallScoreData().toScore(expression(input), 80.0)
-            assertTrue(displayed.tempoRanges.isEmpty(), input)
             assertTrue(displayed.tempoMarks.isEmpty(), input)
         }
     }

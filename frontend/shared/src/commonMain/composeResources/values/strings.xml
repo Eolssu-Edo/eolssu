@@ -1,9 +1,4 @@
 <resources>
-    <string name="score_tempo_bpm_range">%1$s → %2$s BPM</string>
-    <string name="score_tempo_position">%1$d각 %2$d정간</string>
-    <string name="score_tempo_bounds">%1$s → %2$s</string>
-    <string name="score_tempo_boundary">%1$s 시작</string>
-    <string name="score_tempo_end">악보 끝</string>
     <string name="sheet_close_unsaved">저장하지 않은 변경이 있어요.</string>
     <string name="sheet_close_message">계속 편집하거나, 저장되지 않은 변경을 버리고 닫을 수 있어요.</string>
     <string name="sheet_close_message_draft">임시저장하면 다음에 이어서 편집할 수 있어요.</string>

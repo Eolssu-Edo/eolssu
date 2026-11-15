@@ -45,7 +45,6 @@ import com.ssafy.eolssu.core.ui.score.ScoreCellMark
 import com.ssafy.eolssu.core.ui.score.ScoreCursor
 import com.ssafy.eolssu.core.ui.score.ScoreHighlight
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
-import com.ssafy.eolssu.core.ui.score.ScoreTempoLayout
 import com.ssafy.eolssu.core.ui.score.ScorePlayback
 import com.ssafy.eolssu.core.ui.score.rememberScoreCursor
 import com.ssafy.eolssu.core.ui.score.twoBandColumnCount
@@ -116,7 +115,7 @@ fun PracticeScoreArea(
     val lyricLane = remember(song, big) { JeongganboLook.practiceLyricLane(big).takeIf { song.score.hasLyrics() } }
     val look = JeongganboLook.Classic.copy(lyricLane = lyricLane)
     fun JeongganboMetrics.withLane(): JeongganboMetrics = if (lyricLane == null) this else copy(columnWidth = columnWidth + lyricLane)
-    ScoreTempoLayout(song.score.tempoRanges, modifier.fillMaxSize().padding(padding)) {
+    BoxWithConstraints(modifier.fillMaxSize().padding(padding)) {
         // 확대 글꼴에서는 고정 높이 두 단 대신 가로·세로 스크롤로 모든 정간을 열어 둔다.
         val bandColumns = if (style == PracticeScoreStyle.TabletPortrait && LocalDensity.current.fontScale <= 1f) {
             twoBandColumnCount(
@@ -317,7 +316,7 @@ fun PracticeBoardScore(
     val longestStrip = strips.maxOf { it.rows.count() }
     val recording = state.mode == PracticeMode.Recording || state.resuming
     val playback = state.scorePlayback()
-    ScoreTempoLayout(song.score.tempoRanges, modifier.fillMaxWidth()) {
+    BoxWithConstraints(modifier.fillMaxWidth()) {
         val bounded = constraints.hasBoundedHeight
         val fontScale = LocalDensity.current.fontScale
         Column(if (bounded) Modifier.fillMaxSize() else Modifier.fillMaxWidth()) {

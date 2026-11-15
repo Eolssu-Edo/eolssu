@@ -82,7 +82,9 @@ internal fun SheetEditSettingsDialog(
             changes.forEach { cue ->
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(positionLabel(cue.cell) + " · " + (cue.mark?.label ?: stringResource(Res.string.sheet_tempo_numeric)), style = MaterialTheme.typography.bodyMedium)
-                    Text(if (cue.resolved) (cue.endCell?.let { "${positionLabel(it)}까지 · " }.orEmpty() + "${cue.targetBpm?.let { if (it == it.roundToInt().toDouble()) it.roundToInt() else it }} ${draft.tempoUnitLabel}/분")
+                    Text(if (cue.resolved) (cue.endCell?.let { "${positionLabel(it)}까지 · " }.orEmpty() +
+                        cue.startBpm?.takeIf { cue.endCell != null }?.let { "${if (it == it.roundToInt().toDouble()) it.roundToInt() else it} → " }.orEmpty() +
+                        "${cue.targetBpm?.let { if (it == it.roundToInt().toDouble()) it.roundToInt() else it }} ${draft.tempoUnitLabel}/분")
                         else stringResource(Res.string.sheet_tempo_unresolved), style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         EolssuButton(stringResource(Res.string.sheet_tempo_edit), { edit(cue) }, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, small = true, enabled = !saving)

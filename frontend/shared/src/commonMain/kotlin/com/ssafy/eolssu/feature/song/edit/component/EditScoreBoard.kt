@@ -16,7 +16,6 @@ import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.ScoreCellMark
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
-import com.ssafy.eolssu.core.ui.score.ScoreTempoLayout
 import com.ssafy.eolssu.core.ui.score.readingScoreFormat
 import com.ssafy.eolssu.core.ui.score.rememberReadingScoreFormat
 import com.ssafy.eolssu.feature.song.edit.ImportCheck
@@ -82,24 +81,22 @@ internal fun EditScoreBoard(
             if (!visible) scrollState.animateScrollTo((right - (viewport - width) / 2).toInt().coerceIn(0, scrollState.maxValue))
         }
     }
-    ScoreTempoLayout(song.score.tempoRanges, modifier) {
-        JeongganboView(
-            song = song,
-            modifier = if (scrollVertically) Modifier.verticalScroll(rememberScrollState()) else Modifier,
-            metrics = sized,
-            notation = notation,
-            scrollState = scrollState,
-            onUnitClick = onUnitClick?.let { click -> { unit -> click(unit.column, unit.row, unit.unitRow, unit.unitCol) } }
-                ?: onCellClick?.let { click -> { unit -> click(unit.column, unit.row) } },
-            annotations = annotations,
-            look = look,
-            cellHeights = cellHeights,
-            cellMarks = marks,
-            unitMarks = unitMarks,
-            focusCell = focusCell,
-            focusRequestKey = focusRequestKey,
-        )
-    }
+    JeongganboView(
+        song = song,
+        modifier = if (scrollVertically) modifier.verticalScroll(rememberScrollState()) else modifier,
+        metrics = sized,
+        notation = notation,
+        scrollState = scrollState,
+        onUnitClick = onUnitClick?.let { click -> { unit -> click(unit.column, unit.row, unit.unitRow, unit.unitCol) } }
+            ?: onCellClick?.let { click -> { unit -> click(unit.column, unit.row) } },
+        annotations = annotations,
+        look = look,
+        cellHeights = cellHeights,
+        cellMarks = marks,
+        unitMarks = unitMarks,
+        focusCell = focusCell,
+        focusRequestKey = focusRequestKey,
+    )
 }
 
 /**
