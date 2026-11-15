@@ -2,8 +2,10 @@ package com.ssafy.eolssu
 
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.ssafy.eolssu.core.browser.IncomingLinks
@@ -14,7 +16,14 @@ class MainActivity : ComponentActivity() {
     private val incomingLinks = IncomingLinks()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        // 앱은 밝은 테마를 사용하므로 시스템 다크 모드에서도 어두운 시스템 바 아이콘을 유지한다.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { false },
+            navigationBarStyle = SystemBarStyle.auto(
+                Color.argb(0xe6, 0xff, 0xff, 0xff),
+                Color.argb(0x80, 0x1b, 0x1b, 0x1b),
+            ) { false },
+        )
         super.onCreate(savedInstanceState)
         lockPortraitOnPhone()
         QaPerformanceLog.install(applicationContext)
