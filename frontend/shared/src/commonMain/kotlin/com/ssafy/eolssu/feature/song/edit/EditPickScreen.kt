@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -43,11 +45,13 @@ fun EditPickScreen(
     onConfirm: () -> Unit,
 ) {
     val colors = EolssuTheme.colors
+    val contentMaxWidth = sheetAddContentMaxWidth()
     EolssuScaffold(
+        contentMaxWidth = contentMaxWidth,
         containerColor = colors.groupedBackground,
         bottomDivider = false,
-        topBar = { EolssuTopBar(stringResource(Res.string.sheetedit_pick_title), onBack = onBack) },
-        bottomBar = {
+        topBar = { EolssuTopBar(stringResource(Res.string.sheetedit_pick_title), onBack = onBack, maxWidth = contentMaxWidth) },
+        bottomBar = sheetAddBottomBar(contentMaxWidth) {
             state.copyProblem?.let { problem ->
                 val message = when (problem) {
                     PublishedSheetCopyProblem.Limit -> Res.string.sheetedit_pick_copy_limit
