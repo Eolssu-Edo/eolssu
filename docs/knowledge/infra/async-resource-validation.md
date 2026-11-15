@@ -153,3 +153,5 @@ Android의 debug 평문 허용 목록을 바꾸지 않기 위해 Git 밖 nginx �
 각 수정은 같은 Task의 목적에 속한다. 문서 커밋은 이 결과와 계획·목록을 함께 보존한다. 작성자와 다른 에이전트의 코드 리뷰를 완료했으며, 사람의 MR 승인을 대신하지 않는다. Jira 시작 때 확인한 Task는 Story 328 관련 링크·활성 스프린트 59321(스프린트 5)·진행 중이며 로컬 완료로 Jira를 완료 전환하지 않는다. Push·MR 생성·배포는 수행하지 않았다.
 
 종료 시 소유 시험 악보 9개를 실제 DELETE API로 정리하고 각각 후속 조회 404를 확인했다. DB 악보·음원·객체 장부·임시 원본은 모두 0건, 로컬 버킷 객체도 0건이었다. `com.eolssu.qa.task=S15P31E102-954` 라벨과 이름을 확인한 컨테이너 7개, 연결이 없는 소유 네트워크 2개, read-only 에뮬레이터만 종료·제거했다. 원본 자료·다른 작업의 서비스·실기기에는 적용하지 않았다. 증거는 `pre-cleanup-state.json`, `cleanup-http-events.json`, `cleanup-db-counts.tsv`, `cleanup-receipt.json`이다. 로그·APK·고정 입력 사본 등 실행 증거는 Git 밖에 남긴다.
+
+이후 사용자의 Push·MR 요청에 따라 develop `3bef4600`을 동기화했다(`ebb613d4`). 통합 호스트 회귀 1,809통과/5조건부 생략·실패/오류 0, debug APK 빌드 성공을 다시 확인했다. 새로 들어온 완료 알림 자동 닫힘과 자료 출처 변경은 이 Task의 신규 수정으로 집계하지 않는다. 통합 APK의 자동 닫힘을 실제 Android에서 재관찰한 것은 아니다. [게시 준비와 검증 경계](../../plans/S15P31E102-954.md#후속-pushmr-요청), 외부 증거 `push/integration-result.json`을 참조한다.
