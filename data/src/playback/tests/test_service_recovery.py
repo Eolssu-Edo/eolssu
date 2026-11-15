@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import socket
 import sys
 import tempfile
@@ -19,8 +20,13 @@ from data.src.playback.service import PlaybackService, handler
 
 
 class PlaybackRecoveryTests(unittest.TestCase):
-    @unittest.skipUnless(os.name == 'posix', 'POSIX renderer process group lifecycle')
     def test_failed_renderer_terminates_descendants_before_next_success(self):
+        self._assert_renderer_failure_recovers('crash')
+
+    def test_timed_out_renderer_terminates_descendants_before_next_success(self):
+        self._assert_renderer_failure_recovers('timeout')
+
+    def _assert_renderer_failure_recovers(self, fault):
         descendant_script = '''import json, os, pathlib, socket, sys
 held = (pathlib.Path(sys.argv[1]) / 'child-open.bin').open('wb')
 listener = socket.socket()
@@ -30,6 +36,8 @@ print(json.dumps({'port': listener.getsockname()[1]}), flush=True)
 while True:
     connection, _ = listener.accept()
     with connection:
+        if connection.recv(1) == b'X':
+            break
         connection.sendall(b'alive')
 '''
         with tempfile.TemporaryDirectory() as fixture:
@@ -42,6 +50,8 @@ if request['score'].get('crash'):
     info = json.loads(child.stdout.readline())
     info.update(group=os.getpid(), directory=str(p))
     pathlib.Path({str(marker)!r}).write_text(json.dumps(info))
+    if {fault!r} == 'timeout':
+        threading.Event().wait()
     while not pathlib.Path({str(release)!r}).exists():
         threading.Event().wait(.01)
     raise SystemExit(7)
@@ -74,15 +84,18 @@ if request['score'].get('crash'):
                     self.assertTrue(marker.exists(), 'renderer did not start its descendant')
                     info = json.loads(marker.read_text())
                     with socket.create_connection(('127.0.0.1', info['port']), timeout=1) as observer:
+                        observer.sendall(b'?')
                         self.assertEqual(observer.recv(5), b'alive')
                     release.touch()
                     status, payload = future.result(timeout=5)
-                    self.assertEqual((status, json.loads(payload)), (500, {'errorCode': 'SERVER_ERROR'}))
+                    expected = (504, 'TIMEOUT') if fault == 'timeout' else (500, 'SERVER_ERROR')
+                    self.assertEqual((status, json.loads(payload)), (expected[0], {'errorCode': expected[1]}))
                     self.assertFalse(Path(info['directory']).exists())
                     deadline = time.monotonic() + 1
                     while True:
                         try:
                             with socket.create_connection(('127.0.0.1', info['port']), timeout=.1) as observer:
+                                observer.sendall(b'?')
                                 if observer.recv(5) != b'alive':
                                     break
                         except OSError:
@@ -97,12 +110,24 @@ if request['score'].get('crash'):
                 release.touch()
                 if info is not None:
                     try:
-                        os.killpg(info['group'], signal.SIGKILL)
-                    except ProcessLookupError:
+                        with socket.create_connection(('127.0.0.1', info['port']), timeout=1) as observer:
+                            observer.sendall(b'X')
+                    except OSError:
                         pass
+                    if os.name == 'posix':
+                        try:
+                            os.killpg(info['group'], signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
                 server.shutdown()
                 server.server_close()
                 thread.join()
+                if info is not None:
+                    directory = Path(info['directory']).resolve()
+                    self.assertEqual(directory.parent, Path(tempfile.gettempdir()).resolve())
+                    self.assertTrue(directory.name.startswith('sheet-audio-'))
+                    if directory.exists():
+                        shutil.rmtree(directory)
 
     def test_corrupt_renderer_metadata_is_server_error_and_next_request_succeeds(self):
         script = '''import json, pathlib, sys

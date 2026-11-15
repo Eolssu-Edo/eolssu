@@ -68,31 +68,32 @@ class PlaybackService:
                     request = {**request, 'performanceSourceSha256': performance_source_sha256}
                 (root / 'request.json').write_text(json.dumps(request, ensure_ascii=False, allow_nan=False), encoding='utf-8')
                 try:
-                    # The command comes only from server configuration. Never use a shell
-                    # or expose renderer stderr (which may contain asset paths/input).
-                    with subprocess.Popen([*self.command, directory, *(['--estimate'] if estimate else [])], stdin=subprocess.DEVNULL,
-                                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                          start_new_session=os.name != 'nt') as child:
-                        try:
-                            status = child.wait(timeout=min(10,self.timeout) if estimate else self.timeout)
-                            if status != 0:
-                                LOG.warning('renderer exited with status %s', status)
-                                raise GenerationError('SERVER_ERROR')
-                        except subprocess.TimeoutExpired:
-                            if os.name == 'nt':
-                                subprocess.run(['taskkill', '/PID', str(child.pid), '/T', '/F'],
-                                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-                            child.kill()
-                            child.wait()
-                            raise
-                        finally:
-                            # A failed renderer may leave its encoder running after
-                            # the direct child exits. Its session remains ours to clean.
-                            if os.name != 'nt':
+                    command = [*self.command, directory, *(['--estimate'] if estimate else [])]
+                    timeout = min(10, self.timeout) if estimate else self.timeout
+                    if os.name == 'nt':
+                        from ._windows_renderer import run_renderer
+                        status = run_renderer(command, timeout)
+                    else:
+                        # Only server configuration supplies commands. Keep stderr
+                        # private: it may contain asset paths or request input.
+                        with subprocess.Popen(command, stdin=subprocess.DEVNULL,
+                                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                              start_new_session=True) as child:
+                            try:
+                                status = child.wait(timeout=timeout)
+                            except subprocess.TimeoutExpired:
+                                child.kill()
+                                child.wait()
+                                raise
+                            finally:
+                                # The encoder can outlive an already exited renderer.
                                 try:
                                     os.killpg(child.pid, signal.SIGKILL)
                                 except ProcessLookupError:
                                     pass
+                    if status != 0:
+                        LOG.warning('renderer exited with status %s', status)
+                        raise GenerationError('SERVER_ERROR')
                 except subprocess.TimeoutExpired:
                     raise GenerationError('TIMEOUT', 504) from None
                 except (OSError, subprocess.CalledProcessError):
