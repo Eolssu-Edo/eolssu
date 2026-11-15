@@ -8,7 +8,7 @@ import androidx.compose.runtime.remember
 internal actual fun rememberHomeEnvironment() = HomeEnvironment()
 
 @Composable
-internal actual fun PrepareHomeFonts(expanded: Boolean) = Unit
+internal actual fun PrepareHomeFonts() = Unit
 
 @Composable
 internal actual fun rememberHomeAppExit(): (() -> Unit)? {

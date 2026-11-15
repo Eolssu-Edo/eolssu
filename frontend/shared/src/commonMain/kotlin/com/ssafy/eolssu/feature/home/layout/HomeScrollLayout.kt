@@ -101,6 +101,7 @@ internal fun HomeScrollLayout(
     val dragged by scroll.interactionSource.collectIsDraggedAsState()
     val scope = rememberCoroutineScope()
     val environment = rememberHomeEnvironment()
+    PrepareHomeFonts()
     val homeGround = EolssuTheme.colors.groupedBackground
     val reduceMotion = environment.reduceMotion || scope.coroutineContext[MotionDurationScale]?.scaleFactor == 0f
     var wasOpen by remember { mutableStateOf(false) }
@@ -157,7 +158,6 @@ internal fun HomeScrollLayout(
         var featureH by remember(widthClass) { mutableFloatStateOf(480f) }
         val s = scroll.value / density.density
         val frame = homeScrollFrame(w, h, s, buttonH)
-        PrepareHomeFonts(frame.progress >= 1f)
         val featureTop = if (expanded) mix(h + 32f, 140f, frame.eased)
             else frame.buttonTop + buttonH + 16f + 76f * (1 - frame.eased)
         val featureEndTop = if (expanded) 140f else frame.bandHeight + 12f + buttonH + 16f

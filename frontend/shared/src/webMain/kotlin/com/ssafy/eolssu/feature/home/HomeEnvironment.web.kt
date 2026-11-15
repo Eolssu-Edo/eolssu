@@ -13,7 +13,6 @@ import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.text.font.FontListFontFamily
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.browser.window
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.w3c.dom.events.Event
 import kotlin.coroutines.resume
@@ -38,14 +37,12 @@ internal actual fun rememberHomeEnvironment(): HomeEnvironment {
 internal actual fun rememberHomeAppExit(): (() -> Unit)? = null
 
 @Composable
-internal actual fun PrepareHomeFonts(expanded: Boolean) {
-    if (!expanded) return
+internal actual fun PrepareHomeFonts() {
     val family = MaterialTheme.typography.bodyLarge.fontFamily as? FontListFontFamily ?: return
     val resolver = LocalFontFamilyResolver.current
     LaunchedEffect(family, resolver) {
         if (!supportsIdleCallback() || family.fonts.none { it.weight == FontWeight.Bold }) return@LaunchedEffect
         withFrameNanos { }
-        delay(200)
         for (weight in listOf(FontWeight.Bold, FontWeight.SemiBold, FontWeight.Normal)) {
             awaitBrowserIdle()
             resolver.resolve(family, fontWeight = weight)
