@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [개인정보 처리방침 내 악보 업로드·재생 음원 고지 (918)](plans/S15P31E102-918.md) · [약관 공개 계약](specs/terms-release.md#2026-11-15-결정2026-11-16-판-내-악보-업로드와-재생-음원-고지-s15p31e102-918)
+
 - [시김새 편집 지원과 원본 반음올림표 재현 (920)](plans/S15P31E102-920.md) · [표시·입력 스펙](specs/score-sigimsae-display.md)
 
 - [운영 Nginx TLS 설정의 블로그 편집·IPA 블록 저장소 반영 (926)](plans/S15P31E102-926.md) · [운영 Nginx 규칙](../infra/runtime/README.md)
