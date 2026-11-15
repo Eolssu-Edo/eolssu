@@ -246,6 +246,52 @@ class SheetAudioDatabaseTests {
         assertTrue(mapper.retiredForSheet(994481).isEmpty())
     }
 
+    @Test fun `cleanup retries a failed object without retaining other expired downloads`() {
+        val clock = MovingClock(Instant.parse("2026-11-05T00:00:00Z"))
+        val worker = audioWith(fakeClient { made() }, clock)
+        val copy = assertIs<SheetCopyResult.Created>(copies.copy(994482, 1, "audio-cleanup-copy"))
+        val targets = listOf(994481L to 994481L, 994482L to copy.sheetId)
+        try {
+            for ((userId, sheetId) in targets) {
+                worker.request(userId, sheetId, null, false, null)
+                worker.runOne()
+                assertNotNull(worker.get(userId, sheetId).audio)
+            }
+            assertEquals(2, objects.size)
+            clock.now = clock.now.plus(Duration.ofMinutes(10))
+            var failedKey: String? = null
+            failDelete = { key ->
+                if (failedKey == null) failedKey = key
+                key == failedKey
+            }
+
+            worker.cleanup()
+
+            for ((userId, sheetId) in targets) {
+                val expired = worker.get(userId, sheetId)
+                assertEquals("AUDIO_EXPIRED", expired.failureCode)
+                assertNull(expired.audio)
+            }
+            val retainedKey = assertNotNull(failedKey)
+            assertEquals(setOf(retainedKey), objects)
+            assertEquals(setOf(retainedKey), targets.flatMap { mapper.retiredForSheet(it.second) }.toSet())
+            worker.cleanup()
+            assertEquals(setOf(retainedKey), objects)
+
+            failDelete = { false }
+            worker.cleanup()
+            assertTrue(objects.isEmpty())
+            assertTrue(targets.all { mapper.retiredForSheet(it.second).isEmpty() })
+            worker.request(994481, 994481, null, false, null)
+            worker.runOne()
+            assertEquals("DONE", worker.get(994481, 994481).status)
+            assertNotNull(worker.get(994481, 994481).audio)
+        } finally {
+            failDelete = { false }
+            worker.delete(994482, copy.sheetId)
+        }
+    }
+
     @Test fun `legacy files receive no new links and retire when their generation is replaced`() {
         audio.request(994481, 994481, null, false, null)
         audio.runOne()

@@ -234,7 +234,7 @@ class SheetAudios(
                 if(mapper.expireResult(candidate.sheetId,now)>0) mapper.retireCurrent(candidate.sheetId)
             }
         }
-        for(key in mapper.retired()) try { storage.delete(key); mapper.forget(key) } catch(_: Exception) { break /* durable retry next tick */ }
+        for(key in mapper.retired()) try { storage.delete(key); mapper.forget(key) } catch(_: Exception) { /* retry this key next tick without blocking other objects */ }
     }
     private fun waitForGenerator(job: SheetAudioRow): Boolean {
         val now=clock.instant()
