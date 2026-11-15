@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,7 +70,6 @@ fun AccountLinkScreen(
     val name = stringResource(state.provider.displayName)
     AuthScaffold(
         authFrameOf(widthClass, split = true),
-        modifier = Modifier.imePadding(),
         topBar = { AuthTopBar(stringResource(Res.string.auth_link_title), onBack = onBack) },
         bottomBar = {
             EolssuButton(stringResource(Res.string.auth_link_confirm), onClick = onLink, busy = state.linking)

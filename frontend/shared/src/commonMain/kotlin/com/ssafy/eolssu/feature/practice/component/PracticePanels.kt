@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.height
@@ -48,7 +50,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,6 +69,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuSwitch
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
+import com.ssafy.eolssu.core.ui.component.sheetBottomPadding
 import com.ssafy.eolssu.core.ui.score.FingeringFigure
 import com.ssafy.eolssu.core.ui.score.HoleLegend
 import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
@@ -145,14 +147,19 @@ fun PracticePanelSheet(
     val song = state.song ?: return
     val settings = panel == PracticePanel.Settings
     // 배경 누르기와 상위로 뒤로가기를 분리한다. 모달 전체 배경이 닫기 입력을 받는다.
-    Dialog(onDismissRequest = actions.onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+    // 시트는 화면 바닥까지 닿고, 시스템 하단 여백(홈 막대·내비게이션 바)은 시트 안쪽 아래에 둔다(S15P31E102-973).
+    Dialog(onDismissRequest = actions.onClose, properties = practiceSheetDialogProperties()) {
+        BoxWithConstraints(
+            Modifier.fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+        ) {
             val maxSheetHeight = maxHeight * when {
                 tablet -> if (settings) 0.45f else 0.6f
                 settings -> 0.62f
                 else -> 0.82f
             }
-            Box(Modifier.fillMaxSize().clickable(onClick = actions.onDismiss))
+            // 바깥 막을 눌러 닫을 때 막 전체에 눌림 효과가 번쩍이지 않게 한다.
+            Box(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = actions.onDismiss))
             Surface(
                 modifier = modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).fillMaxWidth()
                     .heightIn(max = maxSheetHeight),
@@ -160,7 +167,10 @@ fun PracticePanelSheet(
                 // 연습 설정과 하위 화면(장단·속도·운지법) 모두 회색 시트 위 흰 카드다(S15P31E102-768).
                 color = EolssuTheme.colors.groupedBackground,
             ) {
-                Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 24.dp)) {
+                Column(
+                    Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                        .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = sheetBottomPadding(24.dp)),
+                ) {
                     PanelHeader(panel, state, actions.onClose)
                     Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp)) {

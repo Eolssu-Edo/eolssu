@@ -2,9 +2,7 @@ package com.ssafy.eolssu.feature.auth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -46,7 +44,6 @@ fun ProfileSetupScreen(
 ) {
     AuthScaffold(
         authFrameOf(widthClass, split = true),
-        modifier = Modifier.imePadding(),
         topBar = {
             SignupTopBar(SignupProgress(if (social) SignupPath.Social else SignupPath.Email, SignupStep.Profile), onBack = onBack)
         },

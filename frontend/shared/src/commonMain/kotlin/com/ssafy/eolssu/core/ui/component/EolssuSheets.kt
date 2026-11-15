@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
@@ -67,6 +69,7 @@ fun EolssuBottomSheet(
 ) {
     val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
     // 연두 보드 `.sheet`: 흰 바탕, 위 반지름 24, 손잡이 40×4(위 12 · 아래 2), 안쪽 여백 20 · 아래 34, 스크림 먹색 45%.
+    // 시트가 내용 아래에 시스템 하단 여백(홈 막대·내비게이션 바)을 이미 넣으므로 아래 34는 그 여백과 합쳐 계산한다.
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
@@ -88,7 +91,7 @@ fun EolssuBottomSheet(
             Modifier
                 .fillMaxWidth()
                 .heightIn(max = windowHeight * maxHeightFraction)
-                .padding(start = 20.dp, end = 20.dp, bottom = 34.dp),
+                .padding(start = 20.dp, end = 20.dp, bottom = sheetBottomPadding(SheetBottomSpace)),
         ) {
             header()
             Column(
@@ -101,6 +104,23 @@ fun EolssuBottomSheet(
             }
         }
     }
+}
+
+/** 하단 시트 내용 아래 기본 여백(보드 `.sheet` 아래 34). 아이폰 홈 막대 높이와 같다. */
+private val SheetBottomSpace: Dp = 34.dp
+
+/** 시스템 하단 여백 위에 남길 최소 여백. */
+private val SheetBottomMinSpace: Dp = 16.dp
+
+/**
+ * 시스템 하단 여백(홈 막대·내비게이션 바·키보드)을 따로 넣는 시트의 내용 아래 여백.
+ * 시스템 여백과 합친 높이가 [base]가 되도록 줄이고, 시스템 여백이 크면 [SheetBottomMinSpace]만 남긴다.
+ * 아이폰(홈 막대 34)에서 34 + 34 = 68dp로 두 번 쌓이던 빈 공간을 34 + 16 = 50dp로 맞춘다(S15P31E102-973).
+ */
+@Composable
+fun sheetBottomPadding(base: Dp): Dp {
+    val systemBottom = with(LocalDensity.current) { WindowInsets.safeDrawing.getBottom(this).toDp() }
+    return (base - systemBottom).coerceAtLeast(SheetBottomMinSpace)
 }
 
 /** 패널 머리(`.sheet-head`): 제목(Song Myung 18sp)·보조 문구와 닫기 버튼. */

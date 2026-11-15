@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -94,7 +93,7 @@ fun LoginScreen(
     onWithdrawalCancelledConfirmed: () -> Unit,
 ) {
     val frame = authFrameOf(widthClass, split = true)
-    AuthScaffold(frame, modifier = Modifier.imePadding(), snackbarHostState = snackbarHostState) {
+    AuthScaffold(frame, snackbarHostState = snackbarHostState) {
         AuthBody(
             topPadding = authBodyTopWithoutBar(),
             modifier = if (frame == AuthFrame.Compact) Modifier.mountainRidges(EolssuTheme.colors.radical) else Modifier,
