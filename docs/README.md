@@ -2,6 +2,8 @@
 
 - [저장 창 반복 검수 안내의 원인·위치별 개선 (928)](plans/S15P31E102-928.md) · [안내 스펙](specs/sheet-review-guidance.md) · [참고 안내와 실제 검수의 구분](knowledge/frontend/sheet-editor-save-validation.md#반복-참고-안내와-실제-미확인-검수의-구분-928)
 
+- [가져온 악보의 악기 맞춤 후 구간 빠르기 소실 원인·수정 (882)](knowledge/frontend/imported-tempo-editor-state.md)
+
 - [기초 배우기 돌다리 그림과 화면 UI 개선 (888)](plans/S15P31E102-888.md)
 
 - [시김새 편집 지원과 원본 반음올림표 재현 (920)](plans/S15P31E102-920.md) · [표시·입력 스펙](specs/score-sigimsae-display.md)
