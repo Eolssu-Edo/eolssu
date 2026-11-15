@@ -13,3 +13,7 @@ internal expect fun rememberHomeEnvironment(): HomeEnvironment
  */
 @Composable
 internal expect fun rememberHomeAppExit(): (() -> Unit)?
+
+/** 홈이 완전히 펼쳐진 뒤 웹 글꼴 해석을 유휴 시간에 준비한다. */
+@Composable
+internal expect fun PrepareHomeFonts(expanded: Boolean)

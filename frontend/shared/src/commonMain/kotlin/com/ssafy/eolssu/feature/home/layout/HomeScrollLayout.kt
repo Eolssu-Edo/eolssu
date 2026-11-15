@@ -66,6 +66,7 @@ import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.feature.home.HomeFeatureColumns
 import com.ssafy.eolssu.feature.home.HomeScrollRange
 import com.ssafy.eolssu.feature.home.HomeStageFlingBehavior
+import com.ssafy.eolssu.feature.home.PrepareHomeFonts
 import com.ssafy.eolssu.feature.home.homeScrollFrame
 import com.ssafy.eolssu.feature.home.homeSnapTarget
 import com.ssafy.eolssu.feature.home.mix
@@ -156,6 +157,7 @@ internal fun HomeScrollLayout(
         var featureH by remember(widthClass) { mutableFloatStateOf(480f) }
         val s = scroll.value / density.density
         val frame = homeScrollFrame(w, h, s, buttonH)
+        PrepareHomeFonts(frame.progress >= 1f)
         val featureTop = if (expanded) mix(h + 32f, 140f, frame.eased)
             else frame.buttonTop + buttonH + 16f + 76f * (1 - frame.eased)
         val featureEndTop = if (expanded) 140f else frame.bandHeight + 12f + buttonH + 16f

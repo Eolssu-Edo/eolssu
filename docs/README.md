@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [웹 마이페이지 첫 진입 글꼴 준비 비용 줄이기 (872)](plans/S15P31E102-872.md)
+
 - [공개 악보 시김새 전수 점검·한글 표시 수정 (847)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md#시김새의-한글-대체-출력-847) · [곡별 결과](knowledge/frontend/sigimsae-catalog-audit.json) · [표시 스펙](specs/score-sigimsae-display.md) · [계획·검증](plans/S15P31E102-847.md)
 
 - [악보 추가·편집 결함 점검·수정 (828)](plans/S15P31E102-828.md)
