@@ -68,6 +68,7 @@ import com.ssafy.eolssu.feature.home.HomeFeatureColumns
 import com.ssafy.eolssu.feature.home.HomeScrollRange
 import com.ssafy.eolssu.feature.home.HomeStageFlingBehavior
 import com.ssafy.eolssu.feature.home.PrepareHomeFonts
+import com.ssafy.eolssu.feature.home.homeExpandedHero
 import com.ssafy.eolssu.feature.home.homeScrollFrame
 import com.ssafy.eolssu.feature.home.homeSnapTarget
 import com.ssafy.eolssu.feature.home.mix
@@ -163,7 +164,10 @@ internal fun HomeScrollLayout(
         val featureTop = if (expanded) mix(h + 32f, 140f, frame.eased)
             else frame.buttonTop + buttonH + 16f + 76f * (1 - frame.eased)
         val featureEndTop = if (expanded) 140f else frame.bandHeight + 12f + buttonH + 16f
-        val overflow = (maxOf(featureEndTop + featureH + 34f, frame.bandHeight + buttonH + 58f) - h).coerceAtLeast(0f)
+        // 넓은 창: 그림을 과하게 키우지 않고, 펼친 왼쪽 무대 묶음을 오른쪽 카드와 세로 가운데로 맞춘다.
+        val hero = if (expanded) homeExpandedHero(w, h, finalHeroW, frame, buttonH, featureEndTop, featureH) else null
+        val heroY = hero?.heroOffset ?: 0f
+        val overflow = (maxOf(featureEndTop + featureH + 34f, frame.bandHeight + heroY + buttonH + 58f) - h).coerceAtLeast(0f)
         val artWidth = mix(w, finalHeroW, frame.eased)
         val artLeft = if (expanded) contentLeft * frame.eased else 0f
         val openFeatures = frame.progress > .6f
@@ -184,9 +188,9 @@ internal fun HomeScrollLayout(
                         .fillMaxWidth().height((h + overflow).dp),
                 ) {
                     HomeArt(
-                        artWidth, artLeft, frame.artScale,
-                        if (expanded) mix(-200f * w / 390f, (frame.bandHeight - finalHeroW * 1448f / 1086f) * .62f, frame.eased) else frame.artY,
-                        mix(.18f, .5f, frame.eased), frame.groundTop, frame.eased, homeGround,
+                        artWidth, artLeft, hero?.artScale ?: frame.artScale,
+                        (hero?.artY ?: frame.artY) + heroY, heroY,
+                        mix(.18f, .5f, frame.eased), frame.groundTop + heroY, frame.eased, homeGround,
                         Modifier.fillMaxSize().clickable(
                             interactionSource = remember { MutableInteractionSource() }, indication = null,
                             enabled = frame.progress < .6f, onClick = open,
@@ -208,7 +212,7 @@ internal fun HomeScrollLayout(
                         )
                     }
                     Column(
-                        Modifier.offset(x = artLeft.dp, y = (frame.headlineBottom - headlineH).dp)
+                        Modifier.offset(x = artLeft.dp, y = (frame.headlineBottom + heroY - headlineH).dp)
                             .width(artWidth.dp).padding(horizontal = 20.dp)
                             .onSizeChanged { headlineH = it.height / density.density }
                             .graphicsLayer {
@@ -238,7 +242,7 @@ internal fun HomeScrollLayout(
                         darkBackground = frame.darkBehindButton,
                         scrollProgress = frame.progress,
                         reduceMotion = reduceMotion,
-                        modifier = Modifier.offset(x = buttonLeft.dp, y = frame.buttonTop.dp).width(buttonW.dp)
+                        modifier = Modifier.offset(x = buttonLeft.dp, y = (frame.buttonTop + heroY).dp).width(buttonW.dp)
                             .heightIn(min = (buttonW * 50f / 310f).dp)
                             .onSizeChanged { buttonH = it.height / density.density },
                     )
@@ -285,7 +289,7 @@ internal fun HomeScrollLayout(
 
 /** 원본 그림의 비율·잘림을 직접 그린다. CSS mask 대신 아래에서 올라오는 흰 그라데이션을 겹친다. */
 @Composable
-private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, x: Float, ground: Float, progress: Float, groundColor: Color, modifier: Modifier) {
+private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, clipTop: Float, x: Float, ground: Float, progress: Float, groundColor: Color, modifier: Modifier) {
     val painter = painterResource(Res.drawable.home_illustration)
     val density = LocalDensity.current.density
     Canvas(modifier) {
@@ -295,7 +299,8 @@ private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, x: Flo
         val imageH = imageW * 1448f / 1086f
         val imageTop = artY * d
         val imageBottom = imageTop + imageH
-        clipRect(left = left * d, right = (left + width) * d) {
+        // 넓은 창에서 내린 그림 띠는 위쪽도 잘라 띠 위로 그림이 비치지 않게 한다.
+        clipRect(left = left * d, top = clipTop * d, right = (left + width) * d) {
             translate(left * d + (width * d - imageW) * x, imageTop) {
                 with(painter) { draw(androidx.compose.ui.geometry.Size(imageW, imageH)) }
             }
@@ -305,7 +310,7 @@ private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, x: Flo
             ))
             drawRect(Brush.linearGradient(
                 .52f to Color.Transparent, .88f to Color(0x9E141824),
-                start = Offset(left * d, 0f), end = Offset((left + width) * d, ground * d),
+                start = Offset(left * d, clipTop * d), end = Offset((left + width) * d, ground * d),
             ), size = androidx.compose.ui.geometry.Size(size.width, ground * d))
         }
         drawRect(Brush.verticalGradient(

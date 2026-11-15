@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -66,7 +68,7 @@ class EditNewSheetActions(
  * 아래 고정 버튼 '악보 정보 입력하기'는 고른 종류의 정보 입력 화면으로 간다. 파일은 그 화면에서 고르고, 음역은 가져온 뒤 편집기에서 조정한다.
  * 그 아래에 내 악보와 변환 진행 상황(대기·읽는 중·만드는 중·실패)을 내 악보 탭과 같은 줄로 보인다(S15P31E102-881).
  * 파일 형식·촬영 안내는 화면에 늘 두지 않고, 문제가 생겼을 때만 [EditNewUiState.problem] 안내 창으로 알린다.
- * 넓은 창에서는 [EolssuScaffold]가 휴대폰 너비로 가운데에 둔다.
+ * 태블릿 가로에서는 본문을 [sheetAddContentMaxWidth]로 넓히고 하단 버튼은 휴대폰 열 폭으로 둔다(S15P31E102-978).
  */
 @Composable
 fun EditNewScreen(
@@ -79,14 +81,16 @@ fun EditNewScreen(
     sheetActions: EditNewSheetActions = EditNewSheetActions(),
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
+    val contentMaxWidth = sheetAddContentMaxWidth()
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
+        contentMaxWidth = contentMaxWidth,
         containerColor = EolssuTheme.colors.groupedBackground,
         topBar = {
-            EolssuTopBar(stringResource(Res.string.sheetedit_new_title), onBack = onBack)
+            EolssuTopBar(stringResource(Res.string.sheetedit_new_title), onBack = onBack, maxWidth = contentMaxWidth)
         },
         bottomDivider = false,
-        bottomBar = { EolssuButton(stringResource(Res.string.sheetedit_new_pick_file), onOpenDevicePick) },
+        bottomBar = sheetAddBottomBar(contentMaxWidth) { EolssuButton(stringResource(Res.string.sheetedit_new_pick_file), onOpenDevicePick) },
     ) {
         Column(
             Modifier
