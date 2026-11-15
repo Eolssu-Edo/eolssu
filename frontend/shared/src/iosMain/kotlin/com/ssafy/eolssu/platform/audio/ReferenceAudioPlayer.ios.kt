@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.koin.compose.koinInject
 import platform.AVFAudio.AVAudioPlayer
 import platform.Foundation.*
+import com.ssafy.eolssu.platform.audio.IosAudioSession
 
 @Composable
 actual fun rememberReferenceAudioPlayer(): ReferenceAudioPlayer {
@@ -31,6 +32,8 @@ private class IosReferenceAudioPlayer(private val client: HttpClient) : Referenc
     private var job: Job? = null
     private var positionJob: Job? = null
     private var player: AVAudioPlayer? = null
+    /** 기초 배우기·운지법 예시음도 '연주 듣기'처럼 재생 세션을 써서 무음 모드에서도 들리게 한다(S15P31E102-914). */
+    private var sessionActive = false
     override fun load(source: AudioSource, positionMs: Long, speed: Float) {
         stop()
         mutable.value = AudioPlaybackState(source.id, AudioPlaybackStatus.Loading)
@@ -55,6 +58,7 @@ private class IosReferenceAudioPlayer(private val client: HttpClient) : Referenc
                 current.currentTime = positionMs / 1000.0
                 check(current.prepareToPlay())
                 player = current
+                activateSession()
                 check(current.play())
                 mutable.value = AudioPlaybackState(source.id, AudioPlaybackStatus.Playing,
                     (current.currentTime * 1000).toLong(), (current.duration * 1000).toLong())
@@ -67,6 +71,7 @@ private class IosReferenceAudioPlayer(private val client: HttpClient) : Referenc
         val current = player ?: return
         try {
             current.rate = speed
+            activateSession()
             check(current.play())
             mutable.value = mutable.value.copy(status = AudioPlaybackStatus.Playing)
             observePosition(current)
@@ -86,7 +91,10 @@ private class IosReferenceAudioPlayer(private val client: HttpClient) : Referenc
                             positionMs = (current.currentTime * 1000).toLong(),
                             durationMs = (current.duration * 1000).toLong(),
                         )
-                        if (!current.playing) break
+                        if (!current.playing) {
+                            deactivateSession()
+                            break
+                        }
                     }
                     delay(100)
                 }
@@ -108,6 +116,7 @@ private class IosReferenceAudioPlayer(private val client: HttpClient) : Referenc
         job?.cancel(); job = null
         positionJob?.cancel(); positionJob = null
         player?.stop(); player = null
+        deactivateSession()
         mutable.value = AudioPlaybackState()
     }
     override fun release() { stop(); scope.cancel() }
@@ -115,6 +124,15 @@ private class IosReferenceAudioPlayer(private val client: HttpClient) : Referenc
         job?.cancel(); job = null
         positionJob?.cancel(); positionJob = null
         player?.stop(); player = null
+        deactivateSession()
         mutable.value = mutable.value.copy(status = AudioPlaybackStatus.Failed)
+    }
+    private fun activateSession() {
+        if (!sessionActive) sessionActive = IosAudioSession.startPlayback()
+    }
+    private fun deactivateSession() {
+        if (!sessionActive) return
+        sessionActive = false
+        IosAudioSession.stopPlayback()
     }
 }

@@ -40,6 +40,12 @@ class WeakSectionsTests {
         assertEquals(listOf(WeakSection(2, 3, 1, 1, 2, "MISSED")), report.sections)
     }
 
+    @Test fun `length loses a tie with every older error`() {
+        val report = WeakSections.recommend(notes(2 to "LENGTH", 3 to "TIMING"), cells, 0, 9, 1)
+        assertEquals("TIMING", report.sections.single().dominantError)
+        assertEquals("LENGTH", WeakSections.recommend(notes(2 to "LENGTH", 3 to "LENGTH", 6 to "PITCH"), cells, 0, 9, 1).sections.single().dominantError)
+    }
+
     @Test fun `pitch wins a tie with timing`() {
         val report = WeakSections.recommend(notes(2 to "TIMING", 3 to "PITCH"), cells, 0, 9, 1)
         assertEquals("PITCH", report.sections.single().dominantError)

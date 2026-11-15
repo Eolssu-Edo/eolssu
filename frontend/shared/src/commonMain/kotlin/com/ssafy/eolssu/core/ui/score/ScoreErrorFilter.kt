@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.EvaluationResult
+import com.ssafy.eolssu.core.model.ScoreError
 import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.model.Song
@@ -76,11 +77,16 @@ enum class ErrorFilter(val kind: ScoreErrorKind?) {
 }
 
 /**
- * [filter]에 해당하는 틀린 칸 수. 전체는 오류 종류가 여럿인 칸도 한 칸으로 센다('틀린 정간 N개').
- * 종류별은 그 종류가 있는 칸 수다.
+ * [filter]에 해당하는 틀린 표시 수. 정간보가 칠하는 단위와 같게 센다(S15P31E102-913).
+ * 음별 판정([EvaluationResult.eventErrors])이 있으면 틀린 음마다 하나다. 2·3소박으로 나뉜 정간은 틀린 소박마다 세고,
+ * 전체는 종류가 여럿인 음도 한 번만 센다. 서버 `errorCounts`(판정별 음 수)와 같은 단위다.
+ * 음별 판정이 없는 예시 결과는 정간 단위로 칠하므로 틀린 정간 수를 센다.
  */
-fun EvaluationResult.errorCount(filter: ErrorFilter): Int =
-    if (filter.kind == null) errors.distinctBy { it.column to it.row }.size else errors.count { it.kind == filter.kind }
+fun EvaluationResult.errorCount(filter: ErrorFilter): Int = when {
+    eventErrors.isNotEmpty() -> eventErrors.values.count { kinds -> kinds.any { filter.kind == null || it == filter.kind } }
+    filter.kind == null -> errors.distinctBy { it.column to it.row }.size
+    else -> errors.count { it.kind == filter.kind }
+}
 
 /**
  * 칸(각, 정간)마다의 오류 종류 전부. 한 칸에 음이 여럿이면 종류도 여럿일 수 있다.
@@ -101,6 +107,17 @@ fun EvaluationResult.visibleUnitErrors(song: Song, filter: ErrorFilter): Map<Sco
         val kinds = eventErrors[unit.event.index].orEmpty().filter { filter.kind == null || it == filter.kind }
         if (kinds.isEmpty()) null else unit.key to kinds
     }.toMap()
+}
+
+/**
+ * 정간 꾸밈으로 정간 전체를 칠할 틀린 정간(구간 고르기). [filter]에 해당하는 것만 남긴다.
+ * 음별 판정이 있으면 소박으로 나뉜 정간은 빼고, 그 정간은 [visibleUnitErrors]로 틀린 소박만 칠한다(S15P31E102-913).
+ */
+fun EvaluationResult.wholeCellErrors(song: Song, filter: ErrorFilter): List<ScoreError> {
+    val matching = errors.filter { filter.kind == null || it.kind == filter.kind }
+    if (eventErrors.isEmpty()) return matching
+    val split = song.displayUnits.groupingBy { it.column to it.row }.eachCount().filterValues { it > 1 }.keys
+    return matching.filter { (it.column to it.row) !in split }
 }
 
 /** 정간보에 칠할 틀린 칸(각, 정간) → 대표 종류(바탕·테두리 색). 대표는 [visibleErrorKinds]의 첫 종류다. */

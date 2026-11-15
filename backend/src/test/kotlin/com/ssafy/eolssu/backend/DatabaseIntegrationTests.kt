@@ -121,7 +121,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("43", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("44", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -931,6 +931,23 @@ class DatabaseIntegrationTests {
             jdbc.queryForMap("SELECT status, fail_reason FROM practice_sessions WHERE id = 22"),
         )
         assertNull(repository.findPending(22, inTime))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `note results accept the length verdict and still reject unknown verdicts`() {
+        // V44(S15P31E102-912): V1의 자동 이름 판정 CHECK를 이름 있는 제약으로 바꾸고 LENGTH를 더했다.
+        val id = assertNotNull(jdbc.queryForObject("SELECT MIN(id) FROM note_results", Long::class.java))
+        assertEquals(1, jdbc.update("UPDATE note_results SET verdict='LENGTH' WHERE id=?", id))
+        assertFailsWith<DataAccessException> { jdbc.update("UPDATE note_results SET verdict='DURATION' WHERE id=?", id) }
+        assertEquals(
+            0,
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.check_constraints WHERE constraint_schema = DATABASE() AND constraint_name = 'note_results_chk_2'",
+                Int::class.java,
+            ),
+        )
     }
 
     @Test

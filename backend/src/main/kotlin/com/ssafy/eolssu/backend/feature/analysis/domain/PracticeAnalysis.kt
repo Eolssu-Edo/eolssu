@@ -45,7 +45,7 @@ data class AnalysisRequest(
     override fun toString() = "AnalysisRequest(sessionId=$sessionId, attempt=$attempt, notes=${notes.size})"
 }
 
-enum class NoteVerdict { CORRECT, PITCH, TIMING, MISSED }
+enum class NoteVerdict { CORRECT, PITCH, TIMING, LENGTH, MISSED }
 
 /**
  * `detectedSemitone`은 조율 보정을 적용한 뒤 가장 가까운 반음(`pitches.semitone` 기준)이고,

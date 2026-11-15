@@ -124,7 +124,6 @@ fun PracticeRoute(
             actions = PracticeScreenActions(
                 onBack = back,
                 onOpenSettings = { viewModel.openPanel(PracticePanel.Settings) },
-                onToggleHangul = viewModel::toggleHangul,
                 onSelectUnit = viewModel::selectUnit,
                 onUserScroll = viewModel::stopFollowing,
                 onFollowNow = viewModel::followNow,
@@ -178,6 +177,7 @@ fun PracticeRoute(
                     onTogglePreview = viewModel::togglePreview,
                     onSetInstrument = viewModel::setInstrument,
                     onToggleFingeringView = viewModel::toggleFingeringView,
+                    onToggleHangul = viewModel::toggleHangul,
                 ),
                 dialog = PracticeDialogActions(
                     // 마이크 안내 창(Permission)은 혼자 연습 '한 음씩'에서만 뜬다. 연주 평가는 기기 권한 창을 바로 띄운다.

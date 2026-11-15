@@ -681,6 +681,7 @@ class SheetEditViewModel(
     fun deleteColumn() = change { if (it.reviewIssues.isEmpty()) it.deleteColumn() else it.copy(message = SheetEditMessage.ReviewBeforeReshape) }
     fun undo() = change { it.undo() }
     fun redo() = change { it.redo() }
+    fun updateTitle(title: String) = change { it.updateTitle(title) }
     fun updateDetails(title: String, bpm: Int) = change { it.updateDetails(title, bpm) }
     fun updateTempoSettings(draft: SheetDraft) = change { it.updateTempoSettings(draft) }
     fun updateSettings(bpm: Int, jangdanId: String?) {
@@ -823,7 +824,9 @@ class SheetEditViewModel(
         if (!showsAudioExport) return
         val current = _uiState.value
         if (!accountScope.isActive || current.documentLoading || current.documentFailed || current.saving || current.audioDownloading) return
-        if (loaded != null && (current.draft.jangdanId != savedJangdanId || current.draft.bpm != confirmedDraft?.bpm)) {
+        if (loaded != null && (current.draft.jangdanId != savedJangdanId || current.draft.bpm != confirmedDraft?.bpm ||
+                current.draft.tempoExpressions != confirmedDraft?.tempoExpressions ||
+                current.draft.tempoReferenceBpm != confirmedDraft?.tempoReferenceBpm)) {
             change { it.copy(message = SheetEditMessage.AudioNeedsSave) }
             return
         }

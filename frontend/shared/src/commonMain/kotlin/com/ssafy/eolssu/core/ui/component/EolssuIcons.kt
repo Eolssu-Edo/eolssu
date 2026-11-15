@@ -77,8 +77,7 @@ object EolssuIcons {
             "a1.7 1.7 0 0 0 1 -1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8 -.3l.1 -.1a2 2 0 1 1 2.8 2.8l-.1 .1" +
             "a1.7 1.7 0 0 0 -.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0 -1.5 1z",
     )
-    /** 연습 설정 메뉴 줄 아이콘(보드 `.menu-row .mi`): 쉬운 표기 · 장단 · 속도. */
-    val NotationMark = lineIcon("NotationMark", "M5 6h14M12 6v13M8 19h8")
+    /** 연습 설정 메뉴 줄 아이콘(보드 `.menu-row .mi`): 장단 · 속도. */
     val JangdanMark = lineIcon("JangdanMark", "M8 21h8M12 21V11M6 4l6 7 6 -7")
     val TempoMark = lineIcon("TempoMark", "M4 16a8 8 0 1 1 16 0", "M12 16l4 -5")
     /** 음 듣기(보드 운지법 패널 `.btn.secondary`). */

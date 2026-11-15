@@ -202,17 +202,13 @@ fun SheetEditRoute(
     LaunchedEffect(state.tempoIssue) { if (state.tempoIssue != null) saveOpen = true }
     if (saveOpen) SheetEditDetailsDialog(
         initialTitle = state.draft.title,
-        initialBpm = state.draft.bpm,
-        bpmUnitLabel = state.draft.tempoUnitLabel,
         tempoIssue = state.tempoIssue,
-        hasTempoPlan = state.hasTempoPlan,
-        saveMode = true,
         saving = state.confirming,
         canApply = !state.saving && !state.saveConflict && state.completionValidation.canComplete,
-        durationSeconds = state.draft::estimatedDurationSeconds,
-        onApply = { title, bpm ->
+        durationSeconds = state.draft.estimatedDurationSeconds(state.draft.bpm),
+        onApply = { title ->
             saveError = null
-            viewModel.updateDetails(title, bpm)
+            viewModel.updateTitle(title)
             viewModel.requestSave()
         },
         onDismiss = { saveOpen = false },

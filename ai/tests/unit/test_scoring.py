@@ -105,6 +105,56 @@ def test_wrong_pitch_notes_get_no_timing_or_duration_credit():
     assert result.total == round((result.pitch + result.timing + result.duration) / 3)
 
 
+def test_slower_playing_keeps_full_duration_score():
+    # 길이는 악보 BPM의 길이가 아니라 다음 음이 실제로 시작할 때까지의 자리와 비교한다. 끝 음은 연주 빠르기로 늘린 악보 길이다.
+    # 악보 길이와 비교하면 30% 느린 연주는 음마다 43% 길어 길이 점수가 30점 안팎이었다(S15P31E102-910).
+    result = run(synth(SCALE, bpm=BPM * 0.7))
+    assert verdicts(result) == {}
+    assert result.duration == 100
+    assert all(abs(n.duration_error_ms) <= 30 for n in result.notes)
+
+
+def test_note_cut_short_loses_only_its_duration_score():
+    # 4번 음 자리의 뒤 절반을 비운다. 박자는 그대로라 박자 오류가 아니고 그 음의 길이 점수만 깎인다.
+    audio = synth(SCALE)
+    beat = 60 / BPM
+    env = np.ones(audio.size)
+    env[int((4 + 0.5) * beat * SR) : int(5 * beat * SR)] = 0.0
+    audio = audio * np.convolve(env, np.ones(160) / 160, mode="same")  # 10ms 페이드
+    result = run(audio)
+    assert verdicts(result) == {}
+    cut = result.notes[4]
+    assert cut.duration_error_ms < -120
+    assert cut.duration_score < 80
+    assert all(n.duration_score == 100 for n in result.notes if n.idx != 4)
+
+
+def cut_tail(audio, k, bpm, keep=0.5):
+    """k번 음 자리의 뒤쪽을 비운다(10ms 페이드). 그 음만 keep만큼 분 연주다."""
+    beat = 60 / bpm
+    env = np.ones(audio.size)
+    env[int((k + keep) * beat * SR) : int((k + 1) * beat * SR)] = 0.0
+    return audio * np.convolve(env, np.ones(160) / 160, mode="same")
+
+
+def test_long_note_played_half_is_length_error():
+    # 자리 0.67초인 음을 절반만 불면 길이 오류다(S15P31E102-912). 박자는 맞아 TIMING이 아니다.
+    bpm = BPM * 0.75
+    audio = cut_tail(synth(SCALE, bpm=bpm), 4, bpm)
+    result = score(pyin_f0(audio, SR), SCALE, bpm, REF_HZ, rms=frame_rms(audio, SR))
+    assert verdicts(result) == {4: "LENGTH"}
+    assert result.notes[4].duration_score < 50
+
+
+def test_length_error_skips_short_and_first_notes():
+    # 자리 0.5초 음은 음높이 도구의 끊김 오차(약 70ms)에 묻혀 판정하지 않는다. 첫 음은 녹음 앞 소리로 자리가 틀어져 뺀다.
+    short = cut_tail(synth(SCALE), 4, BPM)
+    assert verdicts(run(short)) == {}
+    bpm = BPM * 0.75
+    first = cut_tail(synth(SCALE, bpm=bpm), 0, bpm)
+    assert "LENGTH" not in verdicts(score(pyin_f0(first, SR), SCALE, bpm, REF_HZ, rms=frame_rms(first, SR))).values()
+
+
 def test_late_note_is_timing_error():
     assert verdicts(run(synth(SCALE, delay={4: 0.15}))) == {4: "TIMING"}
 

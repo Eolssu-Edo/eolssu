@@ -35,14 +35,14 @@ class EvaluationNotesController(private val getNotes: GetEvaluationNotes) {
                     evaluationId.toString(), notes.map { it.toItem() }, errorCount,
                     ErrorCounts(
                         errorCountsByVerdict[Verdict.PITCH] ?: 0, errorCountsByVerdict[Verdict.TIMING] ?: 0,
-                        0, errorCountsByVerdict[Verdict.MISSED] ?: 0,
+                        errorCountsByVerdict[Verdict.LENGTH] ?: 0, errorCountsByVerdict[Verdict.MISSED] ?: 0,
                     ),
                 )))
             }
         }
     }
 
-    // 저장 판정은 음표당 하나이고 DURATION은 저장하지 않는다. 인식 음·녹음 위치는 저장값이 없으면 null이다.
+    // 저장 판정은 음표당 하나다. 길이 오류는 LENGTH로 저장한다(S15P31E102-912). 인식 음·녹음 위치는 저장값이 없으면 null이다.
     private fun PracticeEvaluationNote.toItem() = EvaluationNoteItem(
         noteIdx, expectedPitchId.toString(), detectedPitchId?.toString(), pitchErrorCent, onsetErrorMs, durationErrorMs,
         verdict, if (isError) listOf(verdict) else emptyList(), recordingOffsetMs,

@@ -90,7 +90,7 @@ class SheetImportViewModel(
         val input = SheetImportInput(current.title, if (kind == ImportKind.Jeongganbo) "JEONGGANBO" else "STAFF",
             current.instrumentId.orEmpty(), current.jangdanId,
             if (kind == ImportKind.Staff) hwang.name else null, current.files)
-        if (!input.valid()) { state.value = current.copy(error = "INPUT_REQUIRED"); return }
+        if (!input.valid()) { state.value = current.copy(error = "INPUT_REQUIRED", validationRequested = true); return }
         val submissionKey = key ?: Uuid.random().toString().also { key = it }
         state.value = current.copy(busy = true, error = null)
         scope.launch {

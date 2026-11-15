@@ -15,6 +15,59 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
     private val jangdans = listOf(CatalogJangdanSummary("12", "굿거리", 60, "QUARTER", 12, 4))
     private val pdf = SheetFile("실제 악보.pdf", "%PDF-1.7\n".encodeToByteArray())
 
+    @Test fun incompleteSubmissionKeepsOnlyUnresolvedFieldErrorsUntilAccepted() = runTest {
+        var uploads = 0
+        val repository = object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String): SheetImportResult {
+                uploads++
+                assertTrue(input.valid())
+                return SheetImportResult.Accepted("91")
+            }
+        }
+        val model = keep(SheetImportViewModel(ImportKind.Jeongganbo, HwangPitch.Default, repository, { instruments }, { jangdans }))
+        runCurrent()
+        fun errors() = model.uiState.value.inputErrors(ImportKind.Jeongganbo)
+        assertTrue(errors().isEmpty())
+        model.submit(); runCurrent()
+        assertEquals(SheetImportField.entries.toSet(), errors())
+        assertEquals(0, uploads)
+        model.title("곡")
+        assertEquals(setOf(SheetImportField.Instrument, SheetImportField.Jangdan, SheetImportField.Files), errors())
+        model.instrument("4")
+        assertEquals(setOf(SheetImportField.Jangdan, SheetImportField.Files), errors())
+        model.jangdan("12")
+        assertEquals(setOf(SheetImportField.Files), errors())
+        model.selectFiles(SheetFileSelection.Selected(listOf(pdf)))
+        assertTrue(errors().isEmpty())
+        model.submit(); runCurrent()
+        assertEquals(1, uploads)
+        assertEquals("91", model.uiState.value.acceptedId)
+        assertTrue(errors().isEmpty())
+    }
+
+    @Test fun staffValidationSurvivesCancelledPickerAndDoesNotRequireJangdan() = runTest {
+        val repository = object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String): SheetImportResult {
+                assertNull(input.jangdanId)
+                return SheetImportResult.Failed("INVALID_REQUEST")
+            }
+        }
+        val model = keep(SheetImportViewModel(ImportKind.Staff, HwangPitch.Eb4, repository, { instruments }, { jangdans }))
+        runCurrent()
+        model.submit()
+        assertEquals(setOf(SheetImportField.Title, SheetImportField.Instrument, SheetImportField.Files), model.uiState.value.inputErrors(ImportKind.Staff))
+        model.selectFiles(SheetFileSelection.Selected(listOf(pdf)))
+        assertEquals("실제 악보", model.uiState.value.title)
+        assertTrue(model.beginPicking())
+        model.selectFiles(SheetFileSelection.Cancelled)
+        assertEquals(listOf(pdf), model.uiState.value.files)
+        assertEquals(setOf(SheetImportField.Instrument), model.uiState.value.inputErrors(ImportKind.Staff))
+        model.instrument("4")
+        model.submit(); runCurrent()
+        assertEquals("INVALID_REQUEST", model.uiState.value.error)
+        assertTrue(model.uiState.value.inputErrors(ImportKind.Staff).isEmpty())
+    }
+
     @Test fun explicitJangdanStableKeyDuplicateTapAndAcceptedOnlyAfterReply() = runTest {
         val keys = mutableListOf<String>()
         var response = CompletableDeferred<SheetImportResult>()
@@ -67,7 +120,8 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
             override suspend fun upload(input: SheetImportInput, key: String): SheetImportResult { sent++; return response.await() }
         }
         val model = keep(SheetImportViewModel(ImportKind.Staff, HwangPitch.Eb4, repository, { instruments }, { jangdans }, member))
-        runCurrent(); model.selectFiles(SheetFileSelection.Selected(listOf(pdf))); model.instrument("4"); model.title("제목")
+        runCurrent(); model.submit()
+        model.selectFiles(SheetFileSelection.Selected(listOf(pdf))); model.instrument("4"); model.title("제목")
         model.selectFiles(SheetFileSelection.Cancelled)
         assertEquals(listOf(pdf), model.uiState.value.files)
         model.submit(); runCurrent(); assertEquals(1, sent)
@@ -75,6 +129,8 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
         response.complete(SheetImportResult.Accepted("91")); runCurrent()
         assertNull(model.uiState.value.acceptedId)
         assertTrue(model.uiState.value.files.isEmpty())
+        assertFalse(model.uiState.value.validationRequested)
+        assertTrue(model.uiState.value.inputErrors(ImportKind.Staff).isEmpty())
         model.selectFiles(SheetFileSelection.Selected(listOf(pdf))); model.submit(); runCurrent()
         assertEquals(1, sent)
     }

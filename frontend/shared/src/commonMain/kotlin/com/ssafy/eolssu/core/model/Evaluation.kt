@@ -11,13 +11,18 @@ enum class ScoreErrorKind {
     Pitch, Rhythm, Length, Missed;
 
     companion object {
-        /** 정상 판정만 null이다. 미지원 판정을 정상으로 표시하지 않는다. */
+        /**
+         * 서버 판정의 틀린 종류. 정상 판정과 이 앱이 모르는 판정은 null이다.
+         *
+         * 모르는 판정은 예외를 던지면 결과 화면 전체가 열리지 않으므로, 그 음만 표시하지 않고 나머지를 보여 준다.
+         * 서버에 새 판정이 생겨도 이미 설치된 앱이 멈추지 않게 하려는 것이다(S15P31E102-912, 배포 순서 앱 → 백엔드 → AI).
+         */
         fun fromVerdict(verdict: String): ScoreErrorKind? = when (verdict) {
-            "CORRECT" -> null
             "PITCH" -> Pitch
             "TIMING" -> Rhythm
+            "LENGTH" -> Length
             "MISSED" -> Missed
-            else -> throw IllegalArgumentException("Unsupported evaluation verdict: $verdict")
+            else -> null
         }
     }
 }
@@ -74,8 +79,9 @@ data class EvaluationResult(
     }
 
     /**
-     * 틀린 칸이 가장 많이 몰린 이웃한 두 각(0부터)과 그 수. 틀린 칸이 없으면 null.
-     * 결과 화면의 '틀린 칸 14개 중 9개가 3–4각에 몰려 있어요' 문구에 쓴다.
+     * 틀린 정간([errors])이 가장 많이 몰린 이웃한 두 각(0부터)과 그 수. 틀린 정간이 없으면 null.
+     * 연주 결과에서 처음 고를 정간을 정할 때만 쓰고 수는 화면에 보이지 않는다.
+     * 화면의 '틀린 부분' 개수는 소박·음 단위로 센다(`core/ui/score`의 `errorCount`).
      */
     fun densestColumnPair(): Pair<Int, Int>? {
         if (errors.isEmpty()) return null

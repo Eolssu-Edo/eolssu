@@ -7,6 +7,8 @@ import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.data.practice.PracticeRecordRepository
+import com.ssafy.eolssu.data.practice.RecordListPage
+import com.ssafy.eolssu.data.practice.RecordSongSummary
 import com.ssafy.eolssu.data.song.CatalogInstrument
 import com.ssafy.eolssu.data.song.SampleSongs
 import com.ssafy.eolssu.data.song.SongRepository
@@ -56,12 +58,97 @@ internal class RecordListInstrumentFilterTest : CatalogViewModelTest() {
         }
     }
 
+    private class RecoveringSongs(var catalogFails: Boolean = false, var detailFails: Boolean = false) : SongRepository {
+        var catalogRequests = 0
+        var detailRequests = 0
+
+        override suspend fun getInstruments(): List<CatalogInstrument> {
+            catalogRequests++
+            if (catalogFails) error("일시적인 연결 실패")
+            return listOf(CatalogInstrument("i-jeongak", "JEONGAK_DAEGEUM", "정악대금"))
+        }
+
+        override suspend fun getSongs(instrumentId: String?) = emptyList<SongSummary>()
+
+        override suspend fun getSong(songId: String): Song {
+            detailRequests++
+            if (detailFails) error("일시적인 연결 실패")
+            return SampleSongs.first().copy(id = songId, instrumentId = "i-jeongak")
+        }
+    }
+
+    @Test
+    fun retryRecoversInstrumentFilterAfterSongDetailFailure() = runTest {
+        val songs = RecoveringSongs(detailFails = true)
+        val model = keep(RecordListViewModel(null, Records(listOf(record("r1", "hidden-arirang", 12))), now = { 0L }, songs = songs))
+        runCurrent()
+        model.changeInstrument(Instrument.DaegeumJeongak)
+        assertTrue(model.uiState.value.groups.isEmpty())
+        assertTrue(model.uiState.value.loadFailed)
+        assertTrue(model.uiState.value.showLoadStatus)
+        assertEquals(1, songs.detailRequests)
+
+        songs.detailFails = false
+        model.retry()
+        runCurrent()
+
+        assertEquals(listOf(listOf("hidden-arirang")), model.uiState.value.groups.map { it.songIds })
+        assertEquals(2, songs.detailRequests)
+        assertEquals(1, model.uiState.value.totalRecordCount)
+        assertFalse(model.uiState.value.loadFailed)
+        assertFalse(model.uiState.value.showLoadStatus)
+    }
+
+    @Test
+    fun retryRecoversInstrumentFilterAfterCatalogFailure() = runTest {
+        val songs = RecoveringSongs(catalogFails = true)
+        val model = keep(RecordListViewModel(null, Records(listOf(record("r1", "hidden-arirang", 12))), now = { 0L }, songs = songs))
+        runCurrent()
+        model.changeInstrument(Instrument.DaegeumJeongak)
+        assertTrue(model.uiState.value.groups.isEmpty())
+        assertTrue(model.uiState.value.loadFailed)
+        assertTrue(model.uiState.value.showLoadStatus)
+        assertEquals(1, songs.catalogRequests)
+
+        songs.catalogFails = false
+        model.retry()
+        runCurrent()
+
+        assertEquals(listOf(listOf("hidden-arirang")), model.uiState.value.groups.map { it.songIds })
+        assertEquals(2, songs.catalogRequests)
+        assertEquals(1, model.uiState.value.totalRecordCount)
+        assertFalse(model.uiState.value.loadFailed)
+        assertFalse(model.uiState.value.showLoadStatus)
+    }
+
+    @Test
+    fun knownInstrumentCodeNeedsNoCatalogRequestsEvenAfterRetry() = runTest {
+        val row = record("r1", "hidden-arirang", 12)
+        val records = object : PracticeRecordRepository by Records(listOf(row)) {
+            override suspend fun loadListPage(songId: String?, oldest: Boolean, page: Int, weekOf: KoreanDateTime?) =
+                RecordListPage(1, listOf(RecordSongSummary(row.songId, row.songTitle, 1, row.recordedAt, row.score,
+                    "JEONGAK_DAEGEUM")), row.songId, listOf(row), 1, null)
+        }
+        val songs = RecoveringSongs(catalogFails = true, detailFails = true)
+        val model = keep(RecordListViewModel(null, records, now = { 0L }, songs = songs))
+        runCurrent()
+        model.changeInstrument(Instrument.DaegeumJeongak)
+        model.retry()
+        runCurrent()
+
+        assertEquals(listOf(listOf("hidden-arirang")), model.uiState.value.groups.map { it.songIds })
+        assertFalse(model.uiState.value.loadFailed)
+        assertEquals(0, songs.catalogRequests)
+        assertEquals(0, songs.detailRequests)
+    }
+
     @Test
     fun filtersSongGroupsByTheSongInstrument() = runTest {
         val songs = Songs()
         val model = keep(RecordListViewModel(null, Records(records), now = { 0L }, songs = songs))
         runCurrent()
         val state = model.uiState.value
+        assertFalse(state.loadFailed) // 악기가 원래 없는 곡의 정상 null 응답은 통신 실패가 아니다.
         assertEquals(
             mapOf("danso-arirang" to Instrument.Danso, "sogeum-arirang" to Instrument.Sogeum, "hidden-arirang" to Instrument.DaegeumJeongak),
             state.songInstruments,

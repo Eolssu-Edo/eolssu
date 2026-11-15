@@ -51,10 +51,8 @@ import eolssu.shared.generated.resources.practice_fingering_rest
 import eolssu.shared.generated.resources.practice_fingering_title
 import eolssu.shared.generated.resources.practice_jangdan_sound_on
 import eolssu.shared.generated.resources.practice_menu_jangdan
-import eolssu.shared.generated.resources.practice_menu_notation
+import eolssu.shared.generated.resources.practice_notation_hangul
 import eolssu.shared.generated.resources.practice_menu_tempo
-import eolssu.shared.generated.resources.practice_off
-import eolssu.shared.generated.resources.practice_on
 import eolssu.shared.generated.resources.practice_settings
 import org.jetbrains.compose.resources.stringResource
 
@@ -117,7 +115,6 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
     val settings = state.settings
     // 평가 중 속도만 고정한다. 장단과 보기 설정은 바꿀 수 있다.
     val locked = state.playbackSettingsLocked
-    val notationOn = settings.showHangul
     val noteLabel = when (val note = state.draft.note) {
         is ScoreNote.Pitch -> if (note.yul.drawnAs == null) "${note.symbol} ${note.yul.fullName}" else note.yul.fullName
         is ScoreNote.SourcePitch -> note.fullName
@@ -131,10 +128,6 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
             color = colors.textMuted,
         )
         QuickRow(
-            stringResource(Res.string.practice_menu_notation),
-            stringResource(if (notationOn) Res.string.practice_on else Res.string.practice_off), notationOn, locked = false,
-        ) { actions.onOpen(PracticePanel.Notation) }
-        QuickRow(
             stringResource(Res.string.practice_menu_jangdan),
             if (state.jangdanProblem) jangdanHint(state) else if (settings.jangdanSound) stringResource(Res.string.practice_jangdan_sound_on, song.jangdanName) else jangdanLabel(song.jangdanName),
             !state.jangdanProblem && settings.jangdanSound, locked = !song.hasAccompaniment,
@@ -145,6 +138,16 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
         ) { actions.onOpen(PracticePanel.Tempo) }
         QuickRow(stringResource(Res.string.practice_fingering_title), noteLabel, on = false, locked = false) {
             actions.onOpen(PracticePanel.Fingering)
+        }
+        // ‘한글 읽는 법 표시’는 하위 화면 없이 바로 켜고 끈다(S15P31E102-875).
+        val hangulLabel = stringResource(Res.string.practice_notation_hangul)
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                .drawBehind { drawLine(colors.line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(hangulLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+            EolssuSwitch(settings.showHangul, actions.onToggleHangul, hangulLabel)
         }
         val bigLabel = stringResource(Res.string.practice_big_score)
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
