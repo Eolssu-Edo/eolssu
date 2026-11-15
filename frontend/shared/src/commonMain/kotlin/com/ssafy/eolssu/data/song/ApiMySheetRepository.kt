@@ -28,6 +28,7 @@ class ApiMySheetRepository(
     private val client: HttpClient,
     private val member: SignedInMember? = null,
     private val deviceAudioStore: SheetAudioDeviceStore? = null,
+    private val onDeleted: (String) -> Unit = {},
 ) : MySheetRepository {
     private val state = MutableStateFlow<List<MySheet>>(emptyList())
     override val sheets = state.asStateFlow()
@@ -66,6 +67,7 @@ class ApiMySheetRepository(
             // 404도 이미 지워졌음을 확인한 응답이다. 서버 오류일 때 목록에서 지우지 않는다.
             if (response?.status?.value !in listOf(204, 404)) throw CatalogUnavailable()
             ensureAccountSession()
+            onDeleted(sheetId)
             state.update { items -> items.filterNot { it.id == sheetId } }
             if (accountId != null) {
                 try { deviceAudioStore?.delete(accountId, sheetId) }

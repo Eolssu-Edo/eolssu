@@ -39,4 +39,7 @@
     <string name="sheet_upload_dialog_unrecognized_title">악보를 정확하게 인식하지 못했어요</string>
     <string name="sheet_upload_dialog_unrecognized_body">악보 전체가 보이도록 기울지 않게 촬영한 사진을 사용해 주세요.</string>
     <string name="sheet_upload_dialog_repick">다시 선택하기</string>
+    <string name="sheet_conversion_completed">악보 변환이 완료됐어요.</string>
+    <string name="sheet_conversion_banner_title">완료 알림</string>
+    <string name="sheet_conversion_banner_dismiss">알림 닫기</string>
 </resources>

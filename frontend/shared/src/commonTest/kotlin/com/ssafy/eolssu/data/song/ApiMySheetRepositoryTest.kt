@@ -12,6 +12,7 @@ class ApiMySheetRepositoryTest {
     @Test fun paginatesAndOnlyRemovesAfterServerConfirms() = runTest {
         var deleteStatus = HttpStatusCode.ServiceUnavailable
         val pages = mutableListOf<String?>()
+        val deleted = mutableListOf<String>()
         val repository = ApiMySheetRepository(createHttpClient(MockEngine { request ->
             if (request.method == HttpMethod.Delete) {
                 assertEquals("/api/users/me/sheets/31", request.url.encodedPath)
@@ -21,15 +22,20 @@ class ApiMySheetRepositoryTest {
                 val id = if (pages.size == 1) "31" else "32"
                 respond("""{"isSuccess":true,"code":200,"result":{"items":[{"sheetId":"$id","kind":"JEONGGANBO","title":"내 악보 $id","status":"EVALUABLE","source":"IMPORTED_JEONGGANBO","updatedAt":"2026-11-05T16:00:00Z"}],"page":${pages.size-1},"totalPages":2}}""", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType,"application/json"))
             }
-        }, ServerAddress.Production))
+        }, ServerAddress.Production), onDeleted = deleted::add)
         assertTrue(repository.refresh())
         assertEquals(listOf<String?>("0", "1"), pages)
         assertEquals(listOf("31", "32"), repository.sheets.value.map { it.id })
         assertEquals(6, repository.sheets.value.first().updatedAt.day)
         assertFails { repository.delete("31") }
+        assertTrue(deleted.isEmpty())
         assertEquals(2, repository.sheets.value.size)
         deleteStatus = HttpStatusCode.NoContent
         repository.delete("31")
         assertEquals(listOf("32"), repository.sheets.value.map { it.id })
+        assertEquals(listOf("31"), deleted)
+        deleteStatus = HttpStatusCode.NotFound
+        repository.delete("31")
+        assertEquals(listOf("31", "31"), deleted)
     }
 }

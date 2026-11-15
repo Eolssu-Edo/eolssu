@@ -31,6 +31,13 @@ import eolssu.shared.generated.resources.sheet_review_meter_unknown
 import eolssu.shared.generated.resources.sheet_review_measure_short
 import eolssu.shared.generated.resources.sheet_review_measure_long
 import eolssu.shared.generated.resources.sheet_review_measure_empty
+import eolssu.shared.generated.resources.sheet_review_notice_tempo_pdf
+import eolssu.shared.generated.resources.sheet_review_notice_tempo_pdf_count
+import eolssu.shared.generated.resources.sheet_review_notice_voice
+import eolssu.shared.generated.resources.sheet_review_notice_occurrences
+import eolssu.shared.generated.resources.sheet_review_notice_measure
+import eolssu.shared.generated.resources.sheet_review_notice_global
+import eolssu.shared.generated.resources.sheet_review_notice_information
 import org.jetbrains.compose.resources.stringResource
 
 /** 변환 당시 참고 정보는 저장 화면에 바로 표시한다. 현재 오류는 SheetCompletionNotice에서 다룬다. */
@@ -42,10 +49,15 @@ internal fun SheetConversionNotes(notices: List<SheetReviewNotice>) {
         Modifier.fillMaxWidth().heightIn(max = 96.dp).verticalScroll(rememberScrollState()).padding(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        Text(stringResource(Res.string.sheet_review_notice_information), style = MaterialTheme.typography.bodySmall)
         information.forEach { notice ->
-            val label = notice.label()
+            val reason = notice.label()
+            val repeated = if (notice.occurrences > 1 && !(notice.type == "LOW_CONFIDENCE" && notice.reason == "TEMPO_PDF_TEXT" && notice.count != null))
+                stringResource(Res.string.sheet_review_notice_occurrences, reason, notice.occurrences) else reason
+            val label = notice.measure?.let { stringResource(Res.string.sheet_review_notice_measure, it, repeated) } ?: repeated
             Text(
-                notice.page?.let { stringResource(Res.string.sheet_review_notice_page, it, label) } ?: label,
+                notice.page?.let { stringResource(Res.string.sheet_review_notice_page, it, label) }
+                    ?: if (notice.measure != null) label else stringResource(Res.string.sheet_review_notice_global, label),
                 style = MaterialTheme.typography.bodySmall,
                 color = EolssuTheme.colors.textMuted,
             )
@@ -55,7 +67,11 @@ internal fun SheetConversionNotes(notices: List<SheetReviewNotice>) {
 
 @Composable
 private fun SheetReviewNotice.label(): String = rhythmReview?.label()
-    ?: if (reason == "TEMPO_CUE_POSITION_UNRESOLVED") stringResource(Res.string.sheet_tempo_position_unresolved) else when (type) {
+    ?: if (reason == "TEMPO_CUE_POSITION_UNRESOLVED") stringResource(Res.string.sheet_tempo_position_unresolved)
+    else if (type == "LOW_CONFIDENCE" && reason == "TEMPO_PDF_TEXT") count?.let {
+        stringResource(Res.string.sheet_review_notice_tempo_pdf_count, it)
+    } ?: stringResource(Res.string.sheet_review_notice_tempo_pdf)
+    else when (type) {
     "UNREADABLE" -> stringResource(
         when (reason) {
             "NO_GRID" -> Res.string.sheet_review_notice_grid
@@ -68,6 +84,7 @@ private fun SheetReviewNotice.label(): String = rhythmReview?.label()
     "JANGDAN_MISMATCH" -> stringResource(Res.string.sheet_review_notice_jangdan_mismatch)
     "TRANSPOSED" -> semitones?.let { stringResource(Res.string.sheet_review_notice_transposed, if (it > 0) "+$it" else it.toString()) }
         ?: stringResource(Res.string.sheet_review_notice_transposed_unknown)
+    "VOICE_GUESSED" -> stringResource(Res.string.sheet_review_notice_voice)
     else -> stringResource(Res.string.sheet_review_notice_other)
 }
 

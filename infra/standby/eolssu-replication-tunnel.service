@@ -1,0 +1,22 @@
+[Unit]
+Description=Eolssu database replication SSH tunnel
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+StartLimitIntervalSec=0
+
+[Service]
+DynamicUser=yes
+LoadCredential=key:/opt/eolssu-replication-579/tunnel.key
+LoadCredential=known_hosts:/opt/eolssu-replication-579/known_hosts
+ExecStart=/usr/bin/ssh -4 -F /dev/null -NT -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile=%d/known_hosts -o ExitOnForwardFailure=yes -o ConnectTimeout=5 -o ServerAliveInterval=5 -o ServerAliveCountMax=2 -i %d/key -L 172.30.79.1:13306:127.0.0.1:13306 eolssu-repl579@43.203.215.107
+Restart=always
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_UNIX AF_NETLINK
+
+[Install]
+WantedBy=multi-user.target
