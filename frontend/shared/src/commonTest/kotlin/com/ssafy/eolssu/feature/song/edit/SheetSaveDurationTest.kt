@@ -4,6 +4,7 @@ import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.HanbaeMark
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.data.song.smallScoreData
+import com.ssafy.eolssu.data.song.estimatedModelDurationMs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -69,6 +70,17 @@ internal class SheetSaveDurationTest {
         assertEquals(4.0 / 3, assertNotNull(reopened.estimatedDurationSeconds(90)), 1e-9)
         assertEquals(1.0, assertNotNull(reopened.estimatedDurationSeconds(120)), 1e-9)
         assertEquals(edited.tempoChanges, reopened.tempoChanges)
+    }
+
+    @Test fun confirmedPlanAndEditorEstimateUseTheSameBeatUnitAndBpmRatio() {
+        val source = smallScoreData().let { it.copy(music = it.music.copy(ticksPerBeat = 12)) }
+        val edited = source.editingDraft("구간 길이", 60, null)
+            .withTempoChange(SheetTempoChange(1, null, 120.0, 3, startBpm = 30.0)).copy(bpm = 90)
+        val score = edited.toCommonScore()
+        // A confirmed companion has already been scaled by the server to the saved base BPM.
+        val confirmed = assertNotNull(edited.exportExpressions(null, commonSourceSha256(Json.encodeToJsonElement(score)), 90))
+        val editorSeconds = assertNotNull(edited.estimatedDurationSeconds(90))
+        assertEquals(editorSeconds * 1000, assertNotNull(score.estimatedModelDurationMs(confirmed, 90)), 1e-9)
     }
 
     @Test fun unsupportedLengthSymbolsAndExplicitRepeatsStillHaveNoEstimate() {
