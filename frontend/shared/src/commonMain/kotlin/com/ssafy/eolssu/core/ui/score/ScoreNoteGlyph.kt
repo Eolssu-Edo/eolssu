@@ -8,7 +8,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import com.ssafy.eolssu.core.model.ScoreNote
-import com.ssafy.eolssu.core.model.fingering.SerifYulGlyphs
+import com.ssafy.eolssu.core.model.fingering.yulGlyphParts
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.eolssu_yul_supplement
@@ -33,10 +33,9 @@ internal fun noteGlyphOf(note: ScoreNote): NoteGlyph {
     val symbol = note.symbol
     if (symbol in SupplementaryYulSymbols) return NoteGlyph.Supplement(symbol)
     val pitch = note as? ScoreNote.SourcePitch
-    if (pitch == null || symbol in SerifYulGlyphs || symbol == pitch.hangul) return NoteGlyph.Serif(symbol)
-    // data/src/scores/review_page.html HANJA: 하배 彳, 배 亻, 청 氵, 중청은 청성을 한 번 더 올린다.
-    val radicals = when (pitch.octave) { -2 -> "彳"; -1 -> "亻"; 1 -> "氵"; 2 -> "氵氵"; else -> "" }
-    return NoteGlyph.Composed(radicals, pitch.baseYul.symbol)
+    if (pitch == null || symbol == pitch.hangul) return NoteGlyph.Serif(symbol)
+    val parts = yulGlyphParts(symbol, pitch.baseYul.symbol, pitch.octave)
+    return if (parts.radicals.isEmpty() && parts.base == symbol) NoteGlyph.Serif(symbol) else NoteGlyph.Composed(parts.radicals, parts.base)
 }
 
 /** 정간보 음표 글자. 대금의 배·하배 율명도 단소·소금과 같은 세리프 글리프로 그린다. */

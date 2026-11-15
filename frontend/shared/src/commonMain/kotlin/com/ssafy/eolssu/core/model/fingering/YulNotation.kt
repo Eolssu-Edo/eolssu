@@ -72,19 +72,18 @@ internal val SerifYulGlyphs: Set<String> = SerifYulHanja.map(Char::toString).toS
 data class HanjaGlyphParts(val radicals: String, val base: String)
 
 /**
- * 율명을 그릴 조각. 글꼴에 있는 글자([SerifYulGlyphs])는 그대로 그리고, 없는 글자만 변 + 기본 율명으로 나눈다.
- * 탁성은 亻, 청성은 氵, 중청은 氵를 하나 더 붙인다(조합 예비 경로: 㶂 → 氵 + 潢, 그 밖의 중청 → 氵氵 + 기본).
+ * 율명을 그릴 조각을 고르는 하나뿐인 규칙. 글꼴에 있는 글자([SerifYulGlyphs])는 그대로 그리고,
+ * 없는 글자만 옥타브의 변을 기본 율명 [base] 앞에 붙인다.
+ * data/src/scores/review_page.html HANJA와 같이 하배 彳, 배 亻, 청 氵, 중청 氵氵이고 그 밖의 옥타브는 변이 없다.
  */
+fun yulGlyphParts(symbol: String, base: String, octave: Int): HanjaGlyphParts {
+    if (symbol in SerifYulGlyphs) return HanjaGlyphParts("", symbol)
+    val radicals = when (octave) { -2 -> "彳"; -1 -> "亻"; 1 -> "氵"; 2 -> "氵氵"; else -> "" }
+    return HanjaGlyphParts(radicals, base)
+}
+
+/** 운지표 율명 글자의 조각. 운지표에 없는 글자는 나누지 않고 그대로 그린다. */
 fun glyphPartsOf(hanja: String): HanjaGlyphParts {
-    if (hanja in SerifYulGlyphs) return HanjaGlyphParts("", hanja)
     val base = baseYulOf(hanja) ?: return HanjaGlyphParts("", hanja)
-    return when (val octave = octaveOf(hanja)) {
-        -1 -> HanjaGlyphParts("亻", base)
-        1 -> HanjaGlyphParts("氵", base)
-        2 -> {
-            val oneUp = SerifYulGlyphs.firstOrNull { BaseOf[it] == base && octaveOf(it) == 1 }
-            if (oneUp != null) HanjaGlyphParts("氵", oneUp) else HanjaGlyphParts("氵氵", base)
-        }
-        else -> error("율명 $hanja 의 옥타브 $octave 는 그릴 수 없다")
-    }
+    return yulGlyphParts(hanja, base, octaveOf(hanja))
 }
