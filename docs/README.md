@@ -396,6 +396,9 @@
 - [장단 선택·저장·재생의 이전 통합 검증 근거](knowledge/frontend/sheet-jangdan-consistency.md)
 
 - [S15P31E102-766 개인 악보 저장과 미리듣기 상태](plans/S15P31E102-766.md)
+
+- [S15P31E102-579 edo2 운영 대기계 배포·장애 전환 계획](plans/S15P31E102-579.md) · [격리 환경 운영 안내](../infra/standby/README.md)
+
 - [S15P31E102-518 연습 모드 선택·평가 장단·악보 공간](plans/S15P31E102-518.md)
 
 - [S15P31E102-306 탈퇴 유예 만료 후 취소 차단과 녹음 삭제 경합 수정](plans/S15P31E102-306.md)
