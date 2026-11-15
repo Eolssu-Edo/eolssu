@@ -45,15 +45,23 @@ class ModelAudioFileCache(
         require(maxFileBytes in 1..32L * 1024 * 1024 && maxFiles in 1..4 && downloadTimeoutMs > 0)
     }
 
-    /** null keeps the existing remote playback path. Caller cancellation must still stop preparation. */
-    suspend fun fileFor(url: String, hash: String): LocalAudioFile? {
+    /**
+     * null keeps the existing remote playback path. Caller cancellation must still stop preparation.
+     * The file name carries the format's extension: iOS AVPlayer picks a local file's format from it and cannot open `.audio`.
+     */
+    suspend fun fileFor(url: String, hash: String, contentType: String): LocalAudioFile? {
+        val extension = EXTENSIONS[contentType] ?: return null
         if (!HASH.matches(hash) || !validUrl(url)) return null
         return try {
             mutex.withLock {
                 withContext(io) {
-                    val target = Path(directory, "$hash.audio")
+                    val target = Path(directory, "$hash.$extension")
                     val partial = Path(directory, "download.part")
-                    if (files.metadataOrNull(directory)?.isDirectory == true) files.delete(partial, mustExist = false)
+                    if (files.metadataOrNull(directory)?.isDirectory == true) {
+                        files.delete(partial, mustExist = false)
+                        // Files from before the extension was kept could never play on iOS.
+                        files.delete(Path(directory, "$hash.$LEGACY_EXTENSION"), mustExist = false)
+                    }
                     val metadata = files.metadataOrNull(target)
                     if (metadata?.isRegularFile == true && metadata.size in 1..maxFileBytes &&
                         digest(read(target)) == hash
@@ -116,6 +124,8 @@ class ModelAudioFileCache(
 
     private companion object {
         val HASH = Regex("[a-f0-9]{64}")
-        val NAME = Regex("[a-f0-9]{64}\\.audio")
+        const val LEGACY_EXTENSION = "audio"
+        val EXTENSIONS = mapOf("audio/mp4" to "m4a", "audio/mpeg" to "mp3", "audio/ogg" to "ogg", "audio/wav" to "wav")
+        val NAME = Regex("[a-f0-9]{64}\\.(audio|m4a|mp3|ogg|wav)")
     }
 }
