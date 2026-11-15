@@ -1,11 +1,10 @@
 package com.ssafy.eolssu.feature.result
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,17 +22,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIconButton
@@ -53,6 +53,8 @@ import com.ssafy.eolssu.core.ui.score.visibleUnitErrors
 import com.ssafy.eolssu.data.practice.CheckLoad
 import com.ssafy.eolssu.data.practice.SectionEvaluation
 import com.ssafy.eolssu.data.practice.SessionCheck
+import com.ssafy.eolssu.feature.result.layout.ResultButtonRow
+import com.ssafy.eolssu.feature.result.layout.ResultExpandedPanes
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.result_home
 import eolssu.shared.generated.resources.weak_load_missing
@@ -98,13 +100,22 @@ class SectionResultActions(
  * 점수는 서버 값만 쓰고 화면에서 계산하지 않는다. 저장은 연주 결과와 같은 저장 시트(①·②)로 한다.
  */
 @Composable
-fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: SnackbarHostState, actions: SectionResultActions) {
+fun SectionResultScreen(
+    state: SectionResultUiState,
+    widthClass: WindowWidthClass,
+    snackbarHostState: SnackbarHostState,
+    actions: SectionResultActions,
+) {
     val colors = EolssuTheme.colors
     val evaluation = state.evaluation
     val section = state.section
+    // 태블릿 가로만 넓게 두고 두 칸으로 나눈다(S15P31E102-974). 휴대폰·태블릿 세로는 560dp 한 줄 그대로다.
+    val expanded = widthClass == WindowWidthClass.Expanded
+    val maxWidth = if (expanded) WindowBreakpoints.ContentMaxWidth else CompactContentMaxWidth
     EolssuScaffold(
         containerColor = colors.surface,
         snackbarHostState = snackbarHostState,
+        contentMaxWidth = maxWidth,
         topBar = {
             EolssuStartTopBar(
                 title = evaluation?.let {
@@ -116,6 +127,7 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
                 } ?: stringResource(Res.string.weak_result_title),
                 onBack = actions.onBack.takeIf { evaluation == null },
                 subtitle = stringResource(Res.string.weak_result_title).takeIf { evaluation != null },
+                maxWidth = maxWidth,
                 right = {
                     if (evaluation != null) {
                         EolssuIconButton(EolssuIcons.House, stringResource(Res.string.result_home), actions.onHome, bordered = false)
@@ -124,7 +136,7 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
             )
         },
         bottomBar = if (evaluation != null) {
-            { ResultButtons(state, actions) }
+            { ResultButtons(state, expanded, actions) }
         } else {
             null
         },
@@ -135,23 +147,25 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
             }
             return@EolssuScaffold
         }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            ScoreSummaryCard(
-                total = evaluation.total,
-                metrics = evaluation.metrics,
-                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+        if (expanded) {
+            // 태블릿 가로: 왼쪽 칸에 점수 상자 · 틀린 음 비교 · 종류 필터 · ‘다른 구간 고르기’, 오른쪽 칸에 구간 정간보.
+            ResultExpandedPanes(
+                summary = {
+                    SectionSummary(evaluation, state.filter, actions)
+                    OtherSectionLink(actions.onOtherSection, Modifier.align(Alignment.CenterHorizontally))
+                },
+                score = {
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        if (section != null) SectionScore(evaluation, section, state.filter)
+                    }
+                },
             )
-            ErrorCompareBox(evaluation.check, Modifier.padding(bottom = 8.dp))
-            val result = evaluation.result
-            if (result != null) ErrorKindSegments(result, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 8.dp))
-            if (section != null) SectionScore(evaluation, section, state.filter)
-            // 다음 단계 안내 문구는 두지 않는다(S15P31E102-832).
-            EolssuTextLink(actions.onOtherSection, Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp, bottom = 10.dp)) {
-                Text(
-                    stringResource(Res.string.weak_result_other_more),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-                    color = colors.textSub,
-                )
+        } else {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+                SectionSummary(evaluation, state.filter, actions)
+                if (section != null) SectionScore(evaluation, section, state.filter)
+                // 다음 단계 안내 문구는 두지 않는다(S15P31E102-832).
+                OtherSectionLink(actions.onOtherSection, Modifier.align(Alignment.CenterHorizontally))
             }
         }
     }
@@ -172,13 +186,39 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
     }
 }
 
+/** 점수 상자 · 틀린 음 비교 · 틀린 종류 필터. 휴대폰은 악보 위에, 태블릿 가로는 왼쪽 칸에 쌓는다. */
+@Composable
+private fun SectionSummary(evaluation: SectionEvaluation, filter: ErrorFilter, actions: SectionResultActions) {
+    ScoreSummaryCard(
+        total = evaluation.total,
+        metrics = evaluation.metrics,
+        modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+    )
+    ErrorCompareBox(evaluation.check, Modifier.padding(bottom = 8.dp))
+    val result = evaluation.result
+    if (result != null) ErrorKindSegments(result, filter, actions.onSelectFilter, Modifier.padding(bottom = 8.dp))
+}
+
+/** ‘다른 구간 고르기 ›’ 글자 버튼. */
+@Composable
+private fun OtherSectionLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    EolssuTextLink(onClick, modifier.padding(top = 10.dp, bottom = 10.dp)) {
+        Text(
+            stringResource(Res.string.weak_result_other_more),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
+            color = EolssuTheme.colors.textSub,
+        )
+    }
+}
+
 /**
- * 아래 고정 영역: 왼쪽 보조 ‘연습 기록 저장’(저장했으면 ‘저장됨’), 오른쪽 주 ‘곡 전체 다시 평가’. 휴대폰·태블릿 모두 한 줄에 반씩 둔다.
+ * 아래 고정 영역: 왼쪽 보조 ‘연습 기록 저장’(저장했으면 ‘저장됨’), 오른쪽 주 ‘곡 전체 다시 평가’. 휴대폰·태블릿 모두 한 줄에 반씩 두고,
+ * 태블릿 가로는 줄을 최대 640dp로 묶는다(S15P31E102-974).
  * 글꼴을 키워 줄이 바뀌어도 두 버튼 높이가 같다. 평가 결과(EVA-01)를 받지 못해 저장할 수 없으면 ‘곡 전체 다시 평가’만 둔다.
  */
 @Composable
-private fun ResultButtons(state: SectionResultUiState, actions: SectionResultActions) {
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun ColumnScope.ResultButtons(state: SectionResultUiState, expanded: Boolean, actions: SectionResultActions) {
+    ResultButtonRow(expanded) {
         if (state.canSave) {
             RecordSaveButton(
                 state.savedRecord != null, actions.onSave, Modifier.weight(1f).fillMaxHeight(), style = EolssuButtonStyle.Secondary,

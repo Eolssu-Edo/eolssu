@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -84,16 +86,19 @@ fun ImportResultScreen(
     val draft = remember(state.fixed, state.kind) { state.draft() }
     val song = remember(draft) { draft.toSong() }
     val fileName = SheetEditSamples.importFileName(state.kind)
+    val contentMaxWidth = sheetAddContentMaxWidth()
     EolssuScaffold(
+        contentMaxWidth = contentMaxWidth,
         containerColor = colors.surface,
         topBar = {
             EolssuTopBar(
                 stringResource(Res.string.sheetedit_import_result_title),
                 onBack = onBack,
+                maxWidth = contentMaxWidth,
                 subtitle = if (staff) stringResource(Res.string.sheetedit_result_file_staff, fileName) else fileName,
             )
         },
-        bottomBar = {
+        bottomBar = sheetAddBottomBar(contentMaxWidth) {
             ListenRow(state.playing, onTogglePlay)
             EolssuButton(stringResource(Res.string.sheetedit_result_edit_jg), onEdit)
         },

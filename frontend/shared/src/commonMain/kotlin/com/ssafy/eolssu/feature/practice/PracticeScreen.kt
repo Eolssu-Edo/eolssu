@@ -112,6 +112,7 @@ fun PracticeScreen(
             tablet = widthClass != WindowWidthClass.Compact,
             modifier = Modifier.reportUserActivity(actions.onUserActivity),
             titleToggles = widthClass == WindowWidthClass.Compact && state.showsTitleToggles,
+            expanded = widthClass == WindowWidthClass.Expanded,
         )
     }
     state.popup?.takeUnless { it == PracticePopup.SettingsPaused && state.panel != null }
