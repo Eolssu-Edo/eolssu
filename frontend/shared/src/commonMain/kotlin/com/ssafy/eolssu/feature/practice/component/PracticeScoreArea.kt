@@ -63,7 +63,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -291,7 +293,7 @@ private fun rememberBandScroll(
 /**
  * 휴대폰 보드의 악보 영역. 각의 실제 높이로 위→아래 들어가는 수를 정하고 다음 묶음은 왼쪽에 둔다.
  * 3줄 이상의 소박 표기 정간은 높이를 늘린다. 공간이 부족하면 정간과 글자를 함께 줄여 세로 스크롤 없이 좌우로만 넘긴다.
- * 아래에는 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다.
+ * 아래에는 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다. 버튼 자리는 항상 비워 두어 버튼이 나타나도 정간 배치가 바뀌지 않는다.
  */
 @Composable
 fun PracticeBoardScore(
@@ -349,7 +351,10 @@ fun PracticeBoardScore(
                     unitMarksAfterPass = true,
                 )
             }
-            if (state.live && !state.follow) {
+            val showFollow = state.live && !state.follow
+            // 높이가 정해진 배치에서는 버튼이 없을 때도 자리를 비워 둔다. 버튼이 나타나고 사라질 때 악보 높이가 바뀌면
+            // 묶음 배치가 한 각↔두 각으로 다시 계산되어 악보가 흔들린다(S15P31E102-869).
+            if (showFollow || bounded) {
                 // 보드 `.score-follow`: 오른쪽 정렬 작은 버튼.
                 val shape = RoundedCornerShape(8.dp)
                 Text(
@@ -357,9 +362,10 @@ fun PracticeBoardScore(
                     modifier = Modifier
                         .align(Alignment.End)
                         .padding(top = 8.dp)
+                        .then(if (showFollow) Modifier else Modifier.alpha(0f).clearAndSetSemantics {})
                         .background(colors.surface, shape)
                         .border(1.dp, colors.line, shape)
-                        .clickable(role = Role.Button, onClick = onFollowNow)
+                        .clickable(enabled = showFollow, role = Role.Button, onClick = onFollowNow)
                         .padding(horizontal = 10.dp, vertical = 7.dp),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
                     color = colors.accentText,
