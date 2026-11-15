@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [악보 편집 재진입의 마지막 이조 위치 복원 (929)](plans/S15P31E102-929.md) · [복원 계약](specs/sheet-transpose-restoration.md) · [기존 메타데이터·원인](knowledge/frontend/sheet-pitch-adaptation.md#저장재진입의-마지막-이조-위치-복원-929)
+
 - [화요일 QA 사전 점검·결함·검증 기록 (911)](plans/S15P31E102-911.md) · [녹음 시작 요청과 화면 수명 기준](specs/qa-preflight-lifecycle.md)
 
 - [악보 추가·편집과 구간 선택 안내 일관성 개선 (906)](plans/S15P31E102-906.md) · [표시 스펙](specs/app-qa-consistency.md)

@@ -45,6 +45,11 @@ internal fun recommendedAdaptations(plans: List<PitchAdaptationPlan>): List<Pitc
         .thenBy { abs(it.transpose) }.thenBy { it.octaveChanges }.thenBy { it.octaveDistance }.thenBy { it.transpose }))
         .distinctBy { it.transpose }
 
+/** Last applied original-relative offset belongs to this draft, never to a shared slider preference. */
+internal val SheetDraft.appliedTranspose: Int
+    get() = ((authoring?.get("adaptation") as? JsonObject)?.get("transpose") as? JsonPrimitive)
+        ?.takeUnless { it.isString }?.intOrNull?.takeIf { it in -6..6 } ?: 0
+
 internal fun SheetDraft.originalPitchLayoutMatches(): Boolean {
     val source = authoring?.get("source")?.jsonObject
     val saved = source?.get("notes")?.jsonArray.orEmpty()
