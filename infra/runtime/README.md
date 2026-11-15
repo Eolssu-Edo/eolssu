@@ -53,7 +53,31 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" ffp
 
 연주 분석 API([ai README](../../ai/README.md#분석-api))는 `ai` 서비스로 실행합니다. 인증이 없으므로 호스트 포트를 열지 않고, backend가 Compose 내부망의 `http://ai:8000`으로만 부릅니다(`ANALYSIS_AI_BASE_URL`). 주소는 비밀값이 아니라 Compose에 직접 적습니다. AI가 없거나 응답하지 않으면 업로드한 세션은 `SERVER_ERROR` 또는 제한 시간(60초) 뒤 `TIMEOUT`이 되고, 다른 API에는 영향이 없습니다.
 
-이미지는 저장소 `ai/Dockerfile`로 edo1에서 직접 빌드한 `eolssu-ai:runtime`을 씁니다(약 1.65GB, 빌드에 2GB 넘는 디스크 여유 필요). 배포는 `--pull never`이고 Jenkins는 이 서비스를 다시 만들지 않으므로, `ai/` 변경을 반영할 때는 같은 태그로 다시 빌드한 뒤 `ai`만 재생성합니다. 빌드한 develop 커밋을 아래 작업 기록에 남깁니다.
+이미지는 저장소 `ai/Dockerfile`로 edo1에서 빌드한 `eolssu-ai:runtime`을 씁니다(약 1.65GB, 빌드에 2GB 넘는 디스크 여유 필요). 배포는 `--pull never`입니다. 2026-11-15부터 Jenkins 잡 `eolssu-ai`(아래 '자동 배포')가 `ai/` 변경을 빌드·검사·배포합니다. 아래 수동 빌드는 Jenkins를 쓸 수 없을 때만 씁니다.
+
+#### 자동 배포 (S15P31E102-244)
+
+[ai.Jenkinsfile](../jenkins/ai.Jenkinsfile)은 전용 슬롯 `edo1-ai`([슬롯 구성](../jenkins/controller/README.md#ai-배포-전용-슬롯))에서 develop을 1분마다 확인합니다. 흐름과 각 단계의 근거는 [244 작업 기록](../../docs/plans/S15P31E102-244.md)에 있습니다.
+
+1. [build-ai-image.py](../jenkins/build-ai-image.py) `plan`: 이미지를 만드는 입력(`ai/Dockerfile`·`.dockerignore`·`.python-version`·`pyproject.toml`·`uv.lock`·`src/`)의 Git 해시를 실행 중인 ai 이미지의 `com.eolssu.ai.source` 라벨과 비교합니다. 같으면 빌드·배포를 생략합니다.
+2. `build`: `eolssu-ai:ci-<SHA>`를 커밋·입력 해시 라벨과 함께 만듭니다.
+3. `test`: 그 이미지의 Python·의존성·ffmpeg로 읽기 전용 저장소의 채점 테스트를 돌립니다. `omr_service` 테스트는 OMR 이미지 몫이라 빼고, Windows 전용 평가 실험 테스트 1건은 노드 ID로만 제외합니다.
+4. `smoke`: 운영과 같은 조건(비root, 읽기 전용, `/tmp` tmpfs, 네트워크 없음)으로 띄워 `/health`와 합성음 채점(`python -m ai_service.warmup`)을 확인합니다.
+5. [deploy-ai.py](../jenkins/deploy-ai.py) (`sudo -n /opt/eolssu/bin/deploy-ai <SHA>`): backend·frontend와 같은 lock을 쓰고, backend가 전환·drain 중이면 멈춥니다. 중단된 배포를 먼저 복구한 뒤 순서·라벨을 검사하고, `eolssu-ai:runtime` 태그를 후보로 옮겨 `ai`만 `--wait`로 재생성합니다. 이어서 실행 이미지, backend 안에서의 422 응답, `/health`, 예열 채점, backend·frontend·MySQL 동일성을 확인합니다. 하나라도 실패하면 이전 이미지로 되돌립니다. 이전 이미지는 `eolssu-ai:rollback` 태그와 `/opt/eolssu/ai-deployment.json`(root 0600)에 남습니다. ai는 DB·설정을 바꾸지 않으므로 DB 백업은 하지 않습니다.
+
+실패는 잡 이름이 `eolssu-`로 시작하므로 [Jenkins 실패 알림](../jenkins/notifications/README.md)이 그대로 보냅니다. 쌓이는 `eolssu-ai:ci-*` 태그는 [보존 정리](../retention/README.md)가 함께 정리합니다.
+
+운영 설치(2026-11-15 적용, 다시 설치할 때도 같은 순서). 각 단계 전에 실행 중인 배포 잡이 없는지 확인합니다.
+
+1. `deploy-ai.py`를 `deploy-backend` 옆에 설치합니다(`sudo install -o root -g root -m 0755 infra/jenkins/deploy-ai.py /opt/eolssu/bin/deploy-ai`). 같은 폴더의 `deploy-backend` 공통 함수를 읽으므로 두 파일을 함께 관리합니다. 보존 정리 도구도 같은 방법으로 `/opt/eolssu/bin/eolssu-retention`에 다시 설치합니다(이전 판은 `eolssu-retention.bak-244`).
+2. `visudo -cf`로 검사한 `/etc/sudoers.d/eolssu-ai`(root 0440)에 `jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-ai *`를 둡니다.
+3. 실행 중인 ai 컨테이너의 이미지와 `eolssu-ai:runtime` 태그가 같은지 확인합니다(`sudo docker inspect --format '{{.Image}}' eolssu-runtime-ai-1`, `sudo docker image inspect --format '{{.Id}}' eolssu-ai:runtime`). 다르면 도구가 시작을 거부합니다.
+4. 슬롯과 잡은 [컨트롤러 문서](../jenkins/controller/README.md#ai-배포-전용-슬롯)대로 등록합니다. 잡을 처음 만들면 Jenkinsfile의 polling은 첫 실행 뒤에 켜지므로 **Build Now**로 한 번 실행합니다. 확인할 것은 `ai-deployment.jsonl`의 `deployed`, 운영 `eolssu-ai:runtime`의 revision 라벨, backend 안의 422 응답(아래 명령), 분석 1건입니다.
+5. 이후 수동 빌드 이미지는 source 라벨이 없으므로 다음 자동 실행이 다시 빌드·배포합니다.
+
+되돌리기: 잡을 비활성화합니다. 도구가 중단돼 journal이 `deploying`·`rollback_failed`이면 `sudo /opt/eolssu/bin/deploy-ai --recover`로 이전 이미지를 복구합니다. 배포가 끝난 뒤 이전 판으로 돌릴 때는 `sudo docker tag eolssu-ai:rollback eolssu-ai:runtime`을 실행한 뒤 아래 `up` 명령으로 `ai`만 재생성합니다.
+
+#### 수동 빌드
 
 ```sh
 # 로컬 저장소에서: 되돌릴 수 있게 지금 이미지에 빌드 커밋 이름표를 붙이고,
@@ -294,7 +318,7 @@ ssh -N -L 18080:127.0.0.1:8080 edo1
 
 실행 순서는 Gradle 빌드·테스트 → Compose/Nginx 검사 → 이미지 빌드·JAR 보관 → 후보 배포입니다. 격리 후보는 운영 DB 없이 liveness를 확인하고 JAR을 추출한 뒤 정리합니다. 이후 운영 DB 마이그레이션을 확인하고 비활성 슬롯을 실제 운영 설정으로 기동합니다.
 
-블루그린이 활성화되면 두 슬롯은 같은 Compose 네트워크·MySQL을 사용합니다. 새 슬롯의 readiness가 UP이면 Nginx 설정을 검사하고 리로드합니다. 실제 HTTPS에서 선택된 슬롯과 준비 상태를 확인한 뒤 활성 슬롯·JAR을 기록합니다. 전환 전에 접수된 요청·악보 변환이 남아 있는 동안 이전 슬롯이 계속 실행됩니다.
+블루그린이 활성화되면 두 슬롯은 같은 Compose 네트워크·MySQL을 사용합니다. 새 슬롯의 readiness가 UP이면 Nginx 설정을 검사하고 리로드합니다. 실제 HTTPS에서 선택된 슬롯과 준비 상태를 확인한 뒤 활성 슬롯·JAR을 기록합니다. 전환 전에 접수된 요청·악보 변환이 남아 있는 동안 이전 슬롯이 계속 실행됩니다. 이전 슬롯을 내릴 때(`compose stop`, 종료 대기 250초)는 이미 받은 연주 분석을 `eolssu.analysis.shutdown-wait`(기본 65초)까지 끝내고, 새 분석은 받지 않습니다. 종료 로그와 확인 방법은 [S15P31E102-947](../../docs/plans/S15P31E102-947.md#운영-적용-절차)을 따릅니다.
 
 배포 도구 원본은 [deploy-backend.py](../jenkins/deploy-backend.py), 서버 설치 위치는 `/opt/eolssu/bin/deploy-backend`입니다. root 소유 0755로 설치하고 Jenkins에는 아래 도구의 sudo 실행만 허용합니다. 운영 `.env`는 root 전용 0600을 유지합니다. Jenkins의 기존 Docker 접근도 서버 수준 권한이므로 잡 설정·실행은 승인된 관리자만 사용합니다.
 
