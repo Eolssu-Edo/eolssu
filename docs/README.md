@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [Jenkins omr·playback 이미지 빌드·이미지 안 테스트·배포와 되돌리기 (951)](plans/S15P31E102-951.md) · [운영 안내·적용 절차](../infra/runtime/README.md#omrplayback-자동-배포-s15p31e102-951)
+
 - [서버 관리 파일·Jenkins 잡 정의와 저장소 일치 점검 (943)](plans/S15P31E102-943.md) · [점검 도구](../infra/drift/README.md)
 
 - [분석 실행기 지표 노출과 배포 시 진행 중 분석 보존 (947)](plans/S15P31E102-947.md) · [블루그린 계약](specs/backend-blue-green.md)
