@@ -1,18 +1,48 @@
-# 인프라 실행과 검증
+# 인프라 실행과 운영 문서
 
-최종 발표의 RC 선정·테스트 영수증·main 반영·태그·시연 동결·장애 전환은 [릴리스 절차](release/README.md)를 따릅니다.
+이 폴더는 운영 서버 edo1·edo2의 구성 원본과 점검·배포·복구 도구를 관리합니다. 서버의 `/opt/eolssu/config/` 등에 복사해 쓰는 파일은 저장소를 바꿔도 서버에 자동 반영되지 않으므로, 각 문서의 반영 절차를 함께 따릅니다. 작업 지침은 [AGENTS.md](AGENTS.md)를 따릅니다.
 
-시연 규모(동시 10~30명)의 가입·로그인·조회·녹음 분석을 격리된 로컬 환경에서 재현하는 방법은 [동시 접속 리허설](loadtest/README.md)을 따릅니다.
+## 운영 구성 한눈에
 
-기존 R2 연결로 개발 파일·폴더를 올리는 명령과 팀원별 로컬/서버 사용법은 [R2 공통 업로드](r2/README.md)를 따릅니다.
+| 서버 | 구성 | 원본 |
+| --- | --- | --- |
+| edo1 (운영) | Nginx(웹 정적 파일·`/api/` 프록시·TLS) → backend 블루그린 · ai · omr · playback · MySQL 8.4 | [runtime](runtime/README.md) |
+| edo1 (CI·관측) | Jenkins 컨트롤러와 호스트 에이전트, Prometheus·Grafana, Jenkins 실패 Mattermost 알림, 배포 산출물 보존 정리 | [jenkins/controller](jenkins/controller/README.md) · [monitoring](monitoring/README.md) · [jenkins/notifications](jenkins/notifications/README.md) · [retention](retention/README.md) |
+| edo2 (보조) | DB·설정 암호화 백업과 격리 복원, MySQL 읽기 전용 복제본·격리 대기 환경, Mattermost 점검 중계와 상태 변화 알림 | [backup](backup/README.md) · [standby](standby/README.md) · [edo-check](edo-check/README.md) |
 
-기본음·시김새 M4A의 검증된 DRAFT 적재와 운영 게시 순서는 [음원 카탈로그 안내](catalog/README.md)를 따른다.
+- backend: develop 병합을 Jenkins가 감지해 블루그린으로 자동 배포합니다([runtime](runtime/README.md#jenkins)).
+- 웹: Jenkins 수동 잡으로 배포합니다([runtime](runtime/README.md#프론트-웹-수동-배포)).
+- ai·omr·playback: Jenkins가 다시 만들지 않으며, 담당자가 edo1에서 이미지를 빌드해 해당 서비스만 재생성합니다([runtime](runtime/README.md#ai-분석-서비스)).
+- 최종 발표용 RC 선정·테스트 영수증·main 반영·태그·시연 동결·장애 판단은 [릴리스 절차](release/README.md)를 따릅니다.
 
-edo1의 DB·설정을 edo2에 암호화 보관하는 자동 백업과 격리 실제 복원은 [백업 운영 안내](backup/README.md)를 따릅니다.
+## 문서 안내
 
-edo1 배포 릴리스·ci 이미지·빌드 캐시의 보존 정리는 [보존 정리 안내](retention/README.md)를 따릅니다.
+| 분류 | 문서 |
+| --- | --- |
+| 전체 구조 | [시스템 아키텍처](../docs/knowledge/infra/system-architecture.md) · [운영·품질 실측 근거](../docs/knowledge/infra/ops-quality-evidence.md) |
+| 배포·릴리스 | [운영 구성·배포·복구](runtime/README.md) · [릴리스 절차](release/README.md) · [Jenkins 컨트롤러](jenkins/controller/README.md) · [iOS Ad Hoc 자동 배포](ios-qa/README.md) |
+| 백업·복제·대기 | [자동 백업과 격리 복원](backup/README.md) · [edo2 격리 대기·복제본](standby/README.md) · [edo2 장애 전환 런북](standby/failover-runbook.md) |
+| 부하 확인 | [시연 규모 동시 접속 리허설](loadtest/README.md) |
+| 점검·알림·관측 | [Mattermost 점검 중계·상태 변화 알림](edo-check/README.md) · [Jenkins 실패 알림](jenkins/notifications/README.md) · [Grafana·Prometheus](monitoring/README.md) · [운영 MySQL 웹 조회](mysql-admin/README.md) |
+| 저장공간·로그 | [배포 산출물 보존 정리](retention/README.md) · [Docker 기본 로그 회전](docker/README.md) |
+| 데이터·파일 | [R2 파일·폴더 업로드](r2/README.md) · [기본음·시김새 카탈로그 적재](catalog/README.md) · [국내 비공개 녹음 저장 전환](storage/README.md) |
+| 약관·개인정보 | [약관 본문 공개와 버전 등록](terms/README.md) · [개인정보 보유기간과 관리자 처리 기록](privacy/README.md) |
+| QA·팀 도구 | [실제 Android 기기 QA 웹](qa-phone/README.md) · [Eolssu Updates 앱](tool-updates/README.md) |
 
-edo1의 실제 프론트·백엔드·MySQL 운영 구성, 웹 수동 배포와 백엔드 자동 배포, `eolssu` 이름 전환·Jenkins 접속은 [운영 서버 문서](runtime/README.md)를 따릅니다. 아래 내용은 앞서 만든 백엔드·프록시 두 서비스 실행 예시입니다.
+구성 선택·병목 측정·배포 제약의 근거는 [docs/knowledge/infra](../docs/knowledge/infra/)에 있습니다.
+
+## Jenkins 파이프라인 원본
+
+운영 Jenkins의 backend·웹·QA 잡은 파이프라인을 SCM이 아니라 잡 설정에 직접 둡니다. 저장소에는 아래 원본을 두고, 바꿀 때는 각 문서의 서버 반영 절차를 따릅니다([runtime](runtime/README.md#jenkins)). 기술 블로그만 `blog` 브랜치의 `Jenkinsfile`을 SCM으로 읽습니다. 잡 목록과 실패 알림 대상은 [Jenkins 실패 알림](jenkins/notifications/README.md)을 따릅니다.
+
+| 파일 | 용도 |
+| --- | --- |
+| [jenkins/backend.Jenkinsfile](jenkins/backend.Jenkinsfile) | backend 검증·이미지·운영 DB 마이그레이션·블루그린 배포(`eolssu-backend`, 서버 복사본 `/opt/eolssu/config/backend.Jenkinsfile`) |
+| [jenkins/frontend.Jenkinsfile](jenkins/frontend.Jenkinsfile) | 검증된 `REVISION`의 웹 빌드·배포(수동 잡) |
+| [qa-phone/android.Jenkinsfile](qa-phone/android.Jenkinsfile) · [ios-qa/ios.Jenkinsfile](ios-qa/ios.Jenkinsfile) | Android·iOS QA 앱 빌드·배포 |
+| [release/release-candidate.Jenkinsfile](release/release-candidate.Jenkinsfile) | 릴리스 후보 검사 잡 초안([릴리스 절차](release/README.md)) |
+
+초기 CI 정의였던 `backend/Jenkinsfile`은 운영 잡이 쓰지 않아 [S15P31E102-942](../docs/plans/S15P31E102-942.md)에서 삭제했습니다. backend CI를 바꿀 때는 `jenkins/backend.Jenkinsfile`과 서버 복사본을 고칩니다.
 
 ## edo2 점검 중계 서버 준비
 
@@ -25,33 +55,18 @@ ssh edo2 'sudo -n ufw status verbose'
 ssh -o BatchMode=yes -o ConnectTimeout=10 -o ControlMaster=no -o ControlPath=none edo2 'sudo -n ufw status numbered'
 ```
 
-Mattermost 명령 3개와 HTTPS 인증서·중계 서비스·edo1 전용 SSH 수집기를 배포했습니다. Lightsail에도 TCP 443을 IPv4·IPv6로 허용했고, 외부 HTTPS 접속과 CI/CD 채널의 세 공개 보고를 검증했습니다. 실행·권한·지표·갱신·복구는 [점검 중계 안내](edo-check/README.md), 합의한 출력·등록 결과·실제 검증·후속 범위는 [S15P31E102-95 작업 기록](../docs/plans/S15P31E102-95.md)을 따릅니다. 정적 IP `15.165.144.7`을 연결했고 인증서·Mattermost URL·SSH 출발지 제한과 관리 SSH 별칭을 함께 전환했습니다.
+Mattermost 명령과 HTTPS 인증서·중계 서비스·edo1 전용 SSH 수집기의 실행·권한·지표·갱신·복구는 [점검 중계 안내](edo-check/README.md), 초기 합의와 검증은 [S15P31E102-95 작업 기록](../docs/plans/S15P31E102-95.md)을 따릅니다. 정적 IP `15.165.144.7`을 연결했고 인증서·Mattermost URL·SSH 출발지 제한과 관리 SSH 별칭을 함께 전환했습니다.
 
-## 백엔드·프록시 실행 예시
+## 로컬 두 서비스 예시 (운영 미사용)
 
-`/opt/app/infra`에서 실행하는 `./scripts/init-letsencrypt.sh`의 준비·실행·인증서 갱신·복구 방법도 [운영 서버 문서](runtime/README.md#lets-encrypt와-https)를 따릅니다.
-
-운영 MySQL과 백엔드 수치를 읽는 Grafana·Prometheus의 계정 준비·실행·SSH 터널 접속은 [모니터링 문서](monitoring/README.md)를 따릅니다.
-
-현재 구현된 Spring Boot 백엔드를 Nginx 뒤에서 실행하는 구성입니다. 개발·운영은 각각 `eolsu-dev`, `eolsu-prod` Compose 프로젝트이며 DB·AI 서비스는 포함하지 않습니다. Docker Engine과 Compose v2 이상이 필요합니다. 아래 명령은 저장소 루트에서 실행합니다.
+루트의 `docker-compose.dev.yml`·`docker-compose.prod.yml`은 초기(S15P31E102-65)에 만든 backend·Nginx 두 서비스 예시입니다. 운영 edo1은 [runtime/compose.yml](runtime/compose.yml)을 사용하며 이 두 파일을 쓰지 않습니다. backend는 DB 없는 기본 프로필로 뜨므로 업무 API·DB 확인에는 [backend README](../backend/README.md)의 `db` 프로필과 실제 MySQL 검사를 사용합니다.
 
 | 파일 | 역할 |
 | --- | --- |
-| `docker-compose.dev.yml` / `docker-compose.prod.yml` | 개발·운영의 백엔드와 Nginx 구성 |
+| `docker-compose.dev.yml` / `docker-compose.prod.yml` | 개발·운영 이름의 backend·Nginx 예시(`eolsu-dev`, `eolsu-prod` 프로젝트) |
 | `.env.dev.example` / `.env.prod.example` | Compose 치환용 환경변수 예시 |
-| `backend/Dockerfile` / `backend/.dockerignore` | JDK 21 빌드, JRE 21 실행(녹음 검사용 ffmpeg 버전 고정 설치), 소스·Wrapper만 포함하는 빌드 컨텍스트. 서버의 `/opt/eolssu/config/backend.Dockerfile`과 맞춘다 |
-| `ai/Dockerfile` / `ai/.dockerignore` | AI 분석 API 실행 이미지(백엔드와 같은 Ubuntu 26.04·ffmpeg 버전 고정, 사용자 10001, 포트 8000 미공개). Compose에는 아직 없다. [실행 방법](../ai/README.md#실행-이미지) |
-| `infra/nginx/default.conf` | URI를 유지해 `backend:8080`으로 전달하는 HTTP 프록시 |
-| `backend/Jenkinsfile` | 백엔드 검증·이미지 빌드·JAR 보관 |
-
-## 환경 설정
-
-로컬에서 처음 준비할 때 예시를 복사합니다. 기존 파일이 있으면 덮어쓰지 말고 필요한 변수만 반영합니다.
-
-```sh
-test -e .env.dev || (umask 077; cp .env.dev.example .env.dev)
-test -e .env.prod || (umask 077; cp .env.prod.example .env.prod)
-```
+| `backend/Dockerfile` / `backend/Dockerfile.dockerignore` | JDK 21 빌드, JRE 21 실행(녹음 검사용 ffmpeg 버전 고정). 운영 실행 이미지는 [runtime](runtime/README.md#backend-실행-이미지)을 따름 |
+| `nginx/default.conf` | URI를 유지해 `backend:8080`으로 전달하는 HTTP 프록시 |
 
 | 변수 | 의미 | 개발 / 운영 예시 |
 | --- | --- | --- |
@@ -59,81 +74,17 @@ test -e .env.prod || (umask 077; cp .env.prod.example .env.prod)
 | `HTTP_BIND_ADDRESS` | Nginx의 호스트 바인딩 주소 | `127.0.0.1` / `127.0.0.1` |
 | `HTTP_PORT` | Nginx의 호스트 포트. 누락·빈 값은 구성 검사 실패 | `8080` / `8081` |
 
-포트는 실행 예시이며 확정된 서버 공개 포트가 아닙니다. 두 환경을 동시에 실행하면 서로 다른 포트와 이미지 태그를 사용합니다. 백엔드의 컨테이너 내부 포트는 8080이며 호스트에 직접 공개하지 않습니다.
-
-`.env.dev`·`.env.prod`는 Git 제외 대상입니다. `--env-file`은 Compose 변수 치환에 사용하며, 파일 전체가 앱에 자동 주입되지는 않습니다. 현재 앱에는 Compose의 `environment`로 `SERVER_PORT=8080`만 전달합니다. DB·인증 등 실제 앱 설정이 추가되면 필요한 변수만 명시적으로 연결합니다. 비밀값은 예시·Dockerfile·빌드 인자·로그에 넣지 않습니다.
-
-## 구성 검사와 실행
-
-비밀값 없는 예시만으로 구성 검사를 할 수 있습니다. 이 명령은 컨테이너를 시작하지 않습니다.
+`.env.dev`·`.env.prod`는 Git 제외 대상입니다. 예시를 복사할 때 기존 파일을 덮어쓰지 않습니다. 앱에는 Compose의 `environment`로 `SERVER_PORT=8080`만 전달합니다.
 
 ```sh
+test -e .env.dev || (umask 077; cp .env.dev.example .env.dev)
 docker compose --env-file .env.dev.example -f docker-compose.dev.yml config --quiet
-docker compose --env-file .env.prod.example -f docker-compose.prod.yml config --quiet
-docker build -f backend/Dockerfile --tag eolsu-backend:check .
-docker run --rm --network none \
-  --mount "type=bind,src=$(pwd)/infra/nginx/default.conf,dst=/etc/nginx/conf.d/default.conf,readonly" \
-  nginx:1.30.6-alpine nginx -t
-```
-
-개발 환경:
-
-```sh
 docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --build
-docker compose --env-file .env.dev -f docker-compose.dev.yml ps
-docker compose --env-file .env.dev -f docker-compose.dev.yml logs --tail=100 backend nginx
 curl -i http://127.0.0.1:8080/
-```
-
-운영 구성은 배포 담당자가 서버 상태와 설정을 확인한 뒤 별도로 실행합니다.
-
-```sh
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
-docker compose --env-file .env.prod -f docker-compose.prod.yml ps
-docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 backend nginx
-curl -i http://127.0.0.1:8081/
-```
-
-주소·포트를 바꿨다면 `curl`도 그 값에 맞춥니다. 현재 백엔드에는 업무 API가 없어 프록시를 통과한 `/` 요청은 Spring Boot의 JSON `404`가 정상입니다. 연결 거부나 Nginx의 `502`는 성공이 아닙니다. `depends_on`은 시작 순서만 정하므로 앱 기동 중에는 일시적으로 `502`가 날 수 있습니다. Nginx는 Docker DNS로 백엔드 주소를 재조회하여 컨테이너 재생성 후의 주소 변경을 반영합니다.
-
-중지·재기동은 해당 환경의 명령만 사용합니다. 영속 볼륨은 구성하지 않았으며 `down -v`는 사용하지 않습니다.
-
-```sh
 docker compose --env-file .env.dev -f docker-compose.dev.yml down
-docker compose --env-file .env.prod -f docker-compose.prod.yml down
 ```
 
-롤백할 때는 앞서 검증한 Git 커밋의 구성·Dockerfile로 복귀해 같은 환경의 `up -d --build`를 실행합니다. 실제 환경변수 파일은 유지합니다. 아직 배포 이력이 없으므로 최초 배포 전에는 담당자가 복귀할 커밋·이미지를 정해야 합니다.
-
-## 기존 서버의 빈 파일 처리
-
-2026-10-22 확인한 `/opt/app`에는 같은 이름의 미추적 Compose 두 개와 환경변수 파일 두 개가 모두 비어 있었습니다. 이 상태에서 같은 이름의 추적 파일을 pull하면 충돌할 수 있습니다. 서버에 반영하는 담당자는 먼저 `git status --short`와 파일 크기를 다시 확인하고, Compose는 저장소 밖으로 옮겨 보존한 뒤 병합된 `develop`을 fast-forward로 받습니다.
-
-```sh
-cd /opt/app
-backup_dir="$(mktemp -d "$HOME/eolsu-infra-backup.XXXXXX")"
-cp -p .env.dev .env.prod "$backup_dir/"
-mv docker-compose.dev.yml docker-compose.prod.yml "$backup_dir/"
-git pull --ff-only origin develop
-```
-
-이 명령은 해당 파일이 여전히 미추적일 때만 사용합니다. 비어 있는 환경변수 파일은 백업을 확인한 뒤 예시의 변수를 채웁니다. 이번 작업에서는 서버 파일 이동·pull·앱 실행을 수행하지 않습니다.
-
-## Jenkins 연결
-
-Jenkins 잡의 SCM 브랜치를 `develop`, Script Path를 `backend/Jenkinsfile`로 지정합니다. Linux 에이전트에는 JDK 21, Git, Docker CLI와 Compose, 동일 호스트 Docker daemon 접근 권한이 필요합니다. Nginx 검사에서 workspace를 bind mount하므로 원격 daemon이나 workspace 경로가 다른 컨테이너형 에이전트에는 그대로 적용하지 않습니다. Pipeline·Pipeline: Declarative·JUnit 플러그인을 사용합니다. Git 인증은 Jenkins Credentials에서 관리합니다.
-
-파이프라인은 경로 필터 없이 checkout → `clean build`·JUnit 결과 수집 → 개발/운영 Compose 검사 → 커밋별 이미지 `eolsu-backend:ci-<Git SHA>` 빌드 → Nginx 검사 → 실행 JAR 보관을 수행합니다. Dockerfile은 `bootJar`만 빌드하므로 테스트는 앞선 Gradle 단계에서 필수로 실행합니다. 이미지가 Jenkins 에이전트에 남으므로 보관 기간과 해당 이미지의 정리 정책은 잡 운영자가 관리합니다.
-
-실제 Jenkins 설치·잡 등록·webhook·이미지 레지스트리·배포 인증은 아직 확인되지 않았습니다. Jenkinsfile은 트리거·레지스트리 Push·서버 배포를 정의하지 않습니다. 팀의 실제 트리거 설정이 정해지면 연결합니다. 기술 블로그는 develop이 아닌 `blog` 브랜치의 `Jenkinsfile`을 별도 잡 `eolssu-blog`가 사용합니다.
-
-## 검증 기준과 기록
-
-변경 시 `backend/README.md`의 필수 `clean build`, 두 Compose의 `config --quiet`, Docker 이미지 빌드, `nginx -t`, 격리된 개발·운영 Compose에서 프록시 경유 HTTP를 확인합니다. 테스트용 Compose는 `-p`로 별도 이름을 주고 사용한 컨테이너·네트워크만 정리합니다. 이 기준은 운영 서버의 배포 성공이나 실제 Jenkins 잡 실행을 대신하지 않습니다.
-
-- [현재 구성의 근거·제약](../docs/knowledge/infra/server-configuration.md)
-- [S15P31E102-65 작업·검증 기록](../docs/plans/S15P31E102-65.md)
-
+프록시를 통과한 `/` 요청은 Spring Boot의 JSON `404`가 정상입니다. 연결 거부나 Nginx의 `502`는 성공이 아닙니다. 영속 볼륨은 없으며 `down -v`는 사용하지 않습니다.
 
 ## Jenkins 전체 시간과 단계 시간 대조
 
@@ -166,3 +117,9 @@ PY
 ```
 
 `pre_stage_s`는 agent 할당 대기와 초기화의 합이다. Console의 `Still waiting to schedule task`, 노드 executor 설정과 동시간대 다른 잡 실행 구간으로 대기를 판별한다. 상위 stage 안의 병렬 배포 phase를 다시 더하지 않는다. 최상위 agent 할당 대기는 그 뒤 시작하는 Pipeline timeout에 포함되지 않는다. 운영 연결은 [runtime 문서](runtime/README.md#jenkins), 실제 수치·개선 순서·한계는 [Task 510 조사](../docs/knowledge/infra/jenkins-latency.md)를 따른다.
+
+## 검증
+
+- 폴더별 테스트·검사 명령은 각 README를 따릅니다. Python 도구 테스트는 대부분 `python3 -B -m unittest discover -s infra/<폴더>/tests` 형식입니다.
+- 문서 상대 링크: `python3 -B infra/scripts/check-markdown-links.py` (끊긴 링크가 있으면 `파일:행: 대상`을 출력하고 1로 종료). 검사기 테스트: `python3 -B -m unittest discover -s infra/scripts/tests -p test_check_markdown_links.py`.
+- 저장소 검사는 운영 서버의 배포 성공이나 실제 Jenkins 잡 실행을 대신하지 않습니다.
