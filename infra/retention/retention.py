@@ -15,7 +15,9 @@ import sys
 
 ROOT = Path('/opt/eolssu')
 LOCK = Path('/run/lock/eolssu-backend-deploy.lock')
-REPOSITORIES = ('eolssu-backend', 'eolssu-frontend')
+# eolssu-ai:ci-<SHA> is built only when the ai runtime inputs change (S15P31E102-244). Removing one of these tags
+# only untags an image that eolssu-ai:runtime or eolssu-ai:rollback still names, and in-use images are skipped.
+REPOSITORIES = ('eolssu-backend', 'eolssu-frontend', 'eolssu-ai')
 KEEP_COUNT = 20
 KEEP_AGE = timedelta(days=7)
 CACHE_UNTIL = '72h'

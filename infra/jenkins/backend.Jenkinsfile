@@ -28,6 +28,8 @@ pipeline {
                             url: 'https://lab.ssafy.com/s15-final/S15P31E102.git',
                             refspec: '+refs/heads/develop:refs/remotes/origin/develop']])
                     env.GIT_COMMIT = revision.GIT_COMMIT
+                    def previous = revision.GIT_PREVIOUS_SUCCESSFUL_COMMIT
+                    env.IOS_QA_BASE = previous?.matches('[0-9a-f]{40}') ? previous : ''
                     if (!env.GIT_COMMIT?.matches('[0-9a-f]{40}')) {
                         error('Git checkout commit SHA is missing or invalid')
                     }
@@ -163,6 +165,41 @@ pipeline {
                 }
             }
             post { always { archiveArtifacts artifacts: 'deployment.jsonl', allowEmptyArchive: true } }
+        }
+
+        stage('Queue Android QA APK') {
+            steps {
+                build job: 'eolssu-android-qa', parameters: [string(name: 'REVISION', value: env.GIT_COMMIT)], wait: false
+            }
+        }
+
+        stage('Queue iOS QA IPA') {
+            steps {
+                script {
+                    def changed = sh(returnStatus: true, script: '''
+                        base="$IOS_QA_BASE"
+                        if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+                            base=$(git rev-parse --verify "${GIT_COMMIT}^1" 2>/dev/null) ||
+                                base=$(git hash-object -t tree /dev/null)
+                        fi
+                        echo "iOS QA diff: $base .. $GIT_COMMIT"
+                        git diff --quiet --no-ext-diff "$base" "$GIT_COMMIT" -- \
+                            frontend/iosApp/ \
+                            frontend/shared/src/commonMain/ frontend/shared/src/iosMain/ \
+                            frontend/shared/src/nativeMain/ frontend/shared/src/appleMain/ \
+                            frontend/shared/src/iosArm64Main/ frontend/shared/src/iosSimulatorArm64Main/ \
+                            frontend/shared/build.gradle.kts frontend/build.gradle.kts \
+                            frontend/settings.gradle.kts frontend/gradle.properties frontend/gradle/ frontend/gradlew
+                    ''')
+                    if (changed == 1) {
+                        build job: 'eolssu-ios-qa', parameters: [string(name: 'REVISION', value: env.GIT_COMMIT)], wait: false
+                    } else if (changed == 0) {
+                        echo 'iOS QA skipped: no iOS build inputs changed'
+                    } else {
+                        unstable("iOS QA skipped: Git diff failed (exit ${changed})")
+                    }
+                }
+            }
         }
 
     }

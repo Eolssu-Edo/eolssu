@@ -1,8 +1,22 @@
 # 프로젝트 문서
 
-- [웹 마이페이지 첫 진입 글꼴 준비 비용 줄이기 (872)](plans/S15P31E102-872.md)
+- [서버 관리 파일·Jenkins 잡 정의와 저장소 일치 점검 (943)](plans/S15P31E102-943.md) · [점검 도구](../infra/drift/README.md)
+
+- [분석 실행기 지표 노출과 배포 시 진행 중 분석 보존 (947)](plans/S15P31E102-947.md) · [블루그린 계약](specs/backend-blue-green.md)
+
+- [Jenkins ai 이미지 빌드·이미지 안 테스트·배포와 되돌리기 (244)](plans/S15P31E102-244.md) · [운영 안내·적용 절차](../infra/runtime/README.md#ai-분석-서비스)
+
+- [발표용 운영·품질 실측 근거 표와 검증 이야기 (941)](knowledge/infra/ops-quality-evidence.md) · [시스템 아키텍처](knowledge/infra/system-architecture.md) · [계획·검증](plans/S15P31E102-941.md)
+
+- [발표 전 가입·주요 API 동시 접속 리허설 (940)](plans/S15P31E102-940.md) · [결과·시연 대책](knowledge/infra/demo-load-rehearsal.md) · [실행 도구](../infra/loadtest/README.md)
+
+- [발표 전 테스트 계정·운영 관리 화면 접근 권한 점검 (939)](plans/S15P31E102-939.md) · [발표 당일 접근 권한 점검표](../infra/release/README.md#접근-권한-점검)
+
+- [edo2가 멈추면 edo1에서 Mattermost로 알림 (944)](plans/S15P31E102-944.md) · [운영 안내](../infra/edo-check/README.md#edo2-중단-알림)
 
 - [개인정보 처리방침 내 악보 업로드·재생 음원 고지 (918)](plans/S15P31E102-918.md) · [약관 공개 계약](specs/terms-release.md#2026-11-15-결정2026-11-15-판-내-악보-업로드와-재생-음원-고지-s15p31e102-918)
+
+- [웹 마이페이지 첫 진입 글꼴 준비 비용 줄이기 (872)](plans/S15P31E102-872.md)
 
 - [edo2 장애 전환 런북·DNS 부탁 글·운영 도메인 TLS (930)](../infra/standby/failover-runbook.md) · [결정·점검·로컬 리허설](plans/S15P31E102-930.md)
 
@@ -21,6 +35,8 @@
 - [시김새 편집 지원과 원본 반음올림표 재현 (920)](plans/S15P31E102-920.md) · [표시·입력 스펙](specs/score-sigimsae-display.md)
 
 - [운영 Nginx TLS 설정의 블로그 편집·IPA 블록 저장소 반영 (926)](plans/S15P31E102-926.md) · [운영 Nginx 규칙](../infra/runtime/README.md)
+
+- [루트·인프라 README 현행화와 문서 링크 검사 (942)](plans/S15P31E102-942.md) · [인프라 문서 안내](../infra/README.md)
 
 - [웹 정적 자산 gzip 압축과 캐시 헤더 (917)](plans/S15P31E102-917.md) · [운영 Nginx 규칙](../infra/runtime/README.md)
 
@@ -61,8 +77,8 @@
 - [악보 가져오기·편집 조작과 안내 정리 (827)](plans/S15P31E102-827.md) · [확정 정책](specs/score-authoring-consistency.md#오선보-원음-가져오기-s15p31e102-827)
 - [마이페이지 최근 연주 조회 요청을 한 번으로 줄이기 (823)](plans/S15P31E102-823.md) · [운영 배포·전후 측정](plans/S15P31E102-823.md#배포-후-검증-결론) · [카드 조회 스펙](specs/practice-records.md#마이페이지-최근-연주-카드)
 - [악보 음역 맞추기 입력판·추천 기준과 원본 음고 보존 (820)](knowledge/frontend/sheet-pitch-adaptation.md) · [패널 높이와 한 줄 배치 정리 (850)](plans/S15P31E102-850.md)
-- [인식 정간보의 장단 정정](specs/sheet-jangdan-correction.md) · [원인·검증 근거](knowledge/frontend/sheet-jangdan-correction.md) · [822 계획·검증](plans/S15P31E102-822.md)
-- [오선보4/4 장단 후보 수정과 기존 초안 복구 (880)](specs/staff-four-beat-import.md) · [원인·복구 근거](knowledge/frontend/sheet-jangdan-correction.md#오선보-44-가져오기의-장단-후보-누락-880) · [작업 기록](plans/S15P31E102-880.md)
+- [인식 정간보의 장단 정정](specs/sheet-jangdan-correction.md) · [원인·검증 근거](knowledge/frontend/sheet-jangdan-correction.md) · [822 계획·검증](https://ssafy.atlassian.net/browse/S15P31E102-822)
+- [오선보4/4 장단 후보 수정과 기존 초안 복구 (880)](specs/staff-four-beat-import.md) · [원인·복구 근거](knowledge/frontend/sheet-jangdan-correction.md#오선보-44-가져오기의-장단-후보-누락-880) · [작업 기록](https://ssafy.atlassian.net/browse/S15P31E102-880)
 - [오선보 음높이·성부·꾸밈음 교정 (806)](specs/score-recognition-corrections.md) · [실제 PDF·이미지 대조와 한계](knowledge/ai/score-recognition-corrections.md) · [계획·검증](plans/S15P31E102-806.md)
 - [홈 기능 카드 그림을 단소 그림 느낌으로 통일 (797)](plans/S15P31E102-797.md)
 - [악보 빠르기 설정과 기기 반주 시간표 동기화 (791)](plans/S15P31E102-791.md)
@@ -178,7 +194,7 @@
 | 프론트엔드 구조·협업 규칙 | [frontend/docs/architecture.md](../frontend/docs/architecture.md) · [frontend/docs/collaboration.md](../frontend/docs/collaboration.md) |
 | 문서 작성 지침 | [docs/AGENTS.md](AGENTS.md) |
 | 데이터 담당 범위·파일 관리 | [data/README.md](../data/README.md) |
-| Docker·Compose·Nginx·백엔드 Jenkins 실행 | [infra/README.md](../infra/README.md) |
+| 인프라 운영 구성·배포·점검 문서 안내 | [infra/README.md](../infra/README.md) |
 | edo1 운영 서버·eolssu 이름·Jenkins 접속 | [infra/runtime/README.md](../infra/runtime/README.md) |
 | 내 악보 생성 음원 R2 운영 설정·검증 | [710 작업 기록](plans/S15P31E102-710.md) |
 | 운영 Compose 교체·권한 유지 | [스펙](specs/runtime-compose-install.md) · [541 원인·검증](plans/S15P31E102-541.md) |
@@ -418,7 +434,7 @@
 
 - [S15P31E102-306 탈퇴 유예 만료 후 취소 차단과 녹음 삭제 경합 수정](plans/S15P31E102-306.md)
 
-- [S15P31E102-261 Android 디자인·release 검증 및 제출 준비](plans/S15P31E102-261.md) (직접 구현 작업)
+- [S15P31E102-261 Android 디자인·release 검증 및 제출 준비](https://ssafy.atlassian.net/browse/S15P31E102-261) (직접 구현 작업)
 - [S15P31E102-178 서버 녹음·분석 실패 복구 검증](plans/S15P31E102-178.md)
 - [S15P31E102-60 백엔드 기본 구조 구성](plans/S15P31E102-60.md)
 - [S15P31E102-65 서버 인프라 설정 파일 관리](plans/S15P31E102-65.md)

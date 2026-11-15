@@ -48,3 +48,7 @@ WHERE Variable_name IN ('Uptime', 'Threads_connected', 'Threads_running');
 ## 중단·복구
 
 sudo docker compose --project-directory /opt/eolssu/mysql-admin -f /opt/eolssu/mysql-admin/compose.yml down으로 UI만 내립니다. 접근을 영구히 없앨 때는 별도로 위 호스트 조건의 전용 사용자만 DROP USER하고 비밀번호 파일을 제거합니다.
+
+edo2 복제본에는 이 계정이 없습니다. 그래서 `DROP USER`나 권한 변경(`GRANT`·`REVOKE`)을 그냥 실행하면 복제본에서 실패해 복제가 멈춥니다. 같은 세션에서 `SET SESSION sql_log_bin = 0;`을 먼저 실행하고, 끝나면 `SET SESSION sql_log_bin = 1;`로 되돌립니다. 열 단위로 줄일 때의 순서는 [모니터링 문서](../monitoring/README.md#권한을-바꿀-때-edo2-복제-주의)를 따릅니다.
+
+위의 비밀번호 확인 명령은 비밀번호를 터미널에 그대로 출력합니다. 화면 공유나 녹화 중에는 실행하지 말고, 확인한 뒤에는 터미널을 닫습니다.
