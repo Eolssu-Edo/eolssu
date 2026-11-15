@@ -46,3 +46,29 @@ sudo journalctl -u eolssu-replication-watch.service -n 20 --no-pager
 초기 사본 생성은 사용자 데이터가 없는 복제본에만 `seed-replica.py`를 사용한다. edo1 기존 배포 잠금을 잡고 임시 초기화 권한을 발급한 뒤 실행하며, 대상 DB가 이미 있는 경우에는 데이터 보존과 별도 복구 판단을 우선한다. 사본 해시를 대조하고 쓰기 금지 상태에서 복제를 시작한다. 수신·적용 상태와 원본 GTID를 따라잡은 결과를 확인한 뒤 임시 초기화 계정을 제거한다.
 
 복제 연결을 운영에서 빼야 하면 edo2 복제본에서 `STOP REPLICA`를 실행하고 터널과 상태 검사 타이머를 중지한다. 이렇게 하면 edo1의 앱과 쓰기 DB는 계속 요청을 받는다. 복제 볼륨과 마지막 GTID를 보존한다. GTID 설정의 원복이 별도로 필요한 경우 모든 복제 채널을 먼저 중지하고 원본을 확인한 뒤 격리 검증을 거친 역순 절차를 적용한다. 승격은 기존 쓰기 원본을 차단하고 받은 거래를 모두 적용한 뒤 운영자가 수행한다.
+
+### edo1 복제 프록시
+
+edo1의 `/opt/eolssu-replication-579`에 `source-stream.conf`가 있다. 운영 중인 `eolssu-replication-proxy-579`는 `docker run`으로 만든 독립 컨테이너다. [713 사전 확인](../../docs/plans/S15P31E102-713.md#edo1-복제-프록시-실행복구-사전-확인-2026-11-12-kst)에서 아래 실행 설정을 확인했다.
+
+- 이미지 `nginx:1.30.6-alpine`, `nginx` 사용자
+- 포트 `127.0.0.1:13306 → 3306`, 네트워크 `eolssu-runtime_default`(원본 `mysql` 별칭)
+- 읽기 전용 루트, 설정 읽기 전용 마운트, `/tmp` tmpfs
+- 메모리 64 MiB, CPU 0.25, `unless-stopped`
+
+`proxy.compose.yml`은 이 설정을 재생성 기준으로 옮긴 파일이다. 현재 컨테이너와는 세 가지가 다르다.
+
+- 로그 회전 `json-file` `10m`·`3`: 713의 목표값이다.
+- `SIGTERM`·10초 종료: 이미지 기본 `SIGQUIT`는 긴 복제 연결을 기다린다.
+- Compose 관리 라벨이 붙는다.
+
+기존 `com.eolssu.owner` 라벨 값과 이미지 ID는 서버에서 확인하기 전이라 파일에 적지 않았다. `.env`의 `REPLICATION_PROXY_IMAGE`에 운영 프록시의 이미지 ID를 넣는다.
+
+교체는 [프록시 전환·복구 절차](../docker/README.md#edo1-복제-프록시-전환과-복구)의 변경 창에서만 한다. 배포·백업 잠금과 edo2 복제 상태를 먼저 확인한다. 기존 컨테이너는 이름을 바꿔 중지 상태로 보관한 뒤 아래 명령을 실행한다. 실행 뒤 `127.0.0.1:13306` 수신, edo2 감시 2회와 GTID 기준점을 확인한다.
+
+```sh
+sudo docker compose -f proxy.compose.yml config --quiet
+sudo docker compose -f proxy.compose.yml up -d --pull never --wait
+```
+
+로컬 격리 시험(Docker 29.5.2)에서 같은 이름의 브리지와 `mysql` 별칭의 대체 TCP 서버로 전달을 확인했다. 연결이 열린 상태에서도 `down`은 0.5초에 끝났다.
