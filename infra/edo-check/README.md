@@ -157,7 +157,7 @@ systemctl list-timers 'edo-check-*' --all --no-pager
 
 ## 상태 변화 능동 알림
 
-`edo-check-alert.timer`는 edo2에서 매분 [감시기](alert.py)를 실행한다. 상태가 확인된 뒤 바뀔 때만 Mattermost incoming webhook으로 게시물 한 건을 보낸다. 점검 명령과 판정을 맞추기 위해 중계의 외부 HTTPS 검사와 고정 SSH 수집(`health`, `server`)을 그대로 재사용한다. SSH 권한·sudoers·edo1은 바꾸지 않는다. [작업 기록](../../docs/plans/S15P31E102-919.md)
+`edo-check-alert.timer`는 edo2에서 매분 [감시기](alert.py)를 실행한다. 2026-11-15부터 `e102-cicd` 채널의 전용 webhook `edo 감시`로 운영 중이다. 상태가 확인된 뒤 바뀔 때만 Mattermost incoming webhook으로 게시물 한 건을 보낸다. 점검 명령과 판정을 맞추기 위해 중계의 외부 HTTPS 검사와 고정 SSH 수집(`health`, `server`)을 그대로 재사용한다. SSH 권한·sudoers·edo1은 바꾸지 않는다. [작업 기록](../../docs/plans/S15P31E102-919.md)
 
 | 원천 | 주기 | 내용 |
 | --- | --- | --- |
