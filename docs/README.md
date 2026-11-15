@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [성장 화면 태블릿 가로 두 칸 최소 높이 조정 (977)](plans/S15P31E102-977.md)
+
 - [악보 변환·음원 생성의 동시성·큐·자원 부하 검증 계획 (954)](plans/S15P31E102-954.md) · [실행 결과·결함 수정·미검증 경계](knowledge/infra/async-resource-validation.md)
 - [음원·악보 생성 완료 알림 자동 닫기 (955)](plans/S15P31E102-955.md) · [표시 규칙](specs/sheet-conversion-completion.md)
 
