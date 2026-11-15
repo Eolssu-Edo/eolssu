@@ -151,6 +151,20 @@ systemctl list-timers 'edo-check-*' --all --no-pager
 
 `edo-check-outside.timer`는 매분 edo2 중계의 HTTPS `/healthz`와 공개 `/api/terms`의 응답을 확인한다. 검사 시각과 대상별 최근 판정은 `/var/lib/edo-check-outside/latest.json`에 매번 기록한다. 운영 보고서의 독립 HTTPS 행은 이 파일을 읽는다.
 
+### edo2 중단 알림
+
+edo2가 꺼지면 edo2의 [상태 변화 알림](#상태-변화-능동-알림)도 함께 멈춘다. 그래서 edo1의 이 검사가 edo2 중계 `/healthz` 결과를 같은 규칙으로 알린다. 같은 결과가 2회 연속이면(약 2분) 장애 1건, 복구도 2회 연속이면 복구 1건을 `e102-cicd`에 보낸다. 확실한 미전달만 다음 분에 다시 보내고, 결과가 모호한 전송은 다시 보내지 않는다. 약관 API는 edo2 감시가 이미 확인하므로 여기서는 알리지 않는다. [작업 기록](../../docs/plans/S15P31E102-944.md)
+
+| 구성 | 위치 |
+| --- | --- |
+| 판정·전송 | 같은 디렉터리의 `/opt/edo-check/alert.py`(edo2와 같은 파일)를 불러 재사용한다 |
+| webhook | edo1에 이미 있는 Jenkins 실패 알림용 `/etc/eolssu-jenkins-notify/webhook-url`(root 600, `e102-cicd`)을 `LoadCredential`로 재사용한다. 새 비밀값은 없다 |
+| 상태 | `/var/lib/edo-check-outside/alert.json`(DynamicUser 전용). `latest.json`과 journal 기록은 그대로 유지한다 |
+
+webhook 파일이 없으면 unit이 시작되지 않으므로, Jenkins 알림 webhook을 옮기거나 폐기할 때는 이 unit의 `LoadCredential`도 함께 바꾼다. `alert.py`가 없거나 webhook을 읽지 못하면 알림만 건너뛰고 검사·기록은 계속한다. 알림 오류는 journal의 `edo2_notice_error`로 남는다.
+
+2026-11-15에 실제 장애·복구 알림을 확인했다(중지 후 약 1분 30초에 장애, 재시작 후 약 2분에 복구). 같은 확인은 edo2의 `sudo systemctl stop edo-check`로 중계를 잠시 멈추고, 약 2분 뒤 장애 1건을 확인한 뒤 `sudo systemctl start edo-check`로 되돌려 복구 1건을 확인한다. 그동안 `/edo1`·`/edo2` 명령은 응답하지 않는다.
+
 `journalctl -u edo-check-outside.service`에서는 대상별 `outage_started`(warning)와 `recovered`(notice), 서비스 실행 오류를 확인한다. 서비스 단위에서 정상 시작·종료에 해당하는 info를 걸러낸다. journal에 최근 출력이 없어도 정상일 수 있으므로 마지막 검사 시각은 상태 파일에서 확인한다.
 
 설치 또는 갱신 시 `outside.py`와 `edo-check-outside.service`를 한 세트로 취급한다. 기존 스크립트와 유닛을 백업한 뒤 타이머를 중지하고 서비스의 진행 중 실행이 끝난 뒤 두 파일을 기존 경로에 설치한다. `systemd-analyze verify`와 `systemctl daemon-reload`를 거쳐 타이머를 다시 시작한다. 연속된 두 실행에서 상태 파일의 수정 시각이 갱신되고, 정상이라면 새로운 결과 로그가 없으며, 운영 보고서가 두 판정을 표시하는지 확인한다. 복구 시 타이머를 중지하고 두 파일을 같이 복원한 뒤 `daemon-reload`와 타이머 시작을 반복한다. 상태 파일은 보존한다. [운영 로그 측정과 적용 범위](../../docs/knowledge/infra/edo-operational-logging.md)
@@ -232,7 +246,7 @@ sudo systemctl disable --now edo-check-alert.timer
 sudo systemctl stop edo-check-alert.service
 ```
 
-알림만 멈추며 점검 명령과 다른 timer는 그대로 동작한다. 제거할 때는 `/opt/edo-check/alert.py`와 두 유닛을 지우고 `daemon-reload`한다. 중계 코드(`relay.py`)는 바꾸지 않았으므로 중계를 재시작할 필요가 없다. 상태 파일은 보존한다. webhook을 폐기할 때는 Mattermost에서 해당 incoming webhook을 삭제한 뒤 `/etc/edo-check-alert/`를 지운다.
+알림만 멈추며 점검 명령과 다른 timer는 그대로 동작한다. edo2 자체의 중단은 edo1이 따로 알린다([edo2 중단 알림](#edo2-중단-알림)). 제거할 때는 `/opt/edo-check/alert.py`와 두 유닛을 지우고 `daemon-reload`한다. 중계 코드(`relay.py`)는 바꾸지 않았으므로 중계를 재시작할 필요가 없다. 상태 파일은 보존한다. webhook을 폐기할 때는 Mattermost에서 해당 incoming webhook을 삭제한 뒤 `/etc/edo-check-alert/`를 지운다.
 
 `uncertain`이면 Mattermost 채널에서 같은 시각의 게시물부터 찾는다. 실제로 받지 못했을 때만 `/edo1`·`/edo2`로 현재 상태를 직접 확인한다. 재전송을 유도하려고 상태 파일을 지우지 않는다.
 
