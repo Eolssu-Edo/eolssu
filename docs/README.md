@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [edo2 장애 전환 서버 리허설과 SSAFY DNS 답 반영 (948)](plans/S15P31E102-948.md) · [런북](../infra/standby/failover-runbook.md) · [사본 연습 파일](../infra/standby/rehearsal/)
+
 - [Jenkins 실패 알림의 한글 잡 이름 처리 (952)](plans/S15P31E102-952.md) · [운영 안내](../infra/jenkins/notifications/README.md)
 
 - [서버 관리 파일·Jenkins 잡 정의와 저장소 일치 점검 (943)](plans/S15P31E102-943.md) · [점검 도구](../infra/drift/README.md)

@@ -321,12 +321,24 @@
     "source": "infra/standby/replica.compose.yml"
    },
    {
+    "path": "/opt/eolssu-replication-579/replica.promote.compose.yml",
+    "source": "infra/standby/replica.promote.compose.yml"
+   },
+   {
     "path": "/opt/eolssu-replication-579/seed-replica.py",
     "source": "infra/standby/seed-replica.py"
    },
    {
+    "path": "/opt/eolssu-standby-579/compose.promote.yml",
+    "source": "infra/standby/compose.promote.yml"
+   },
+   {
     "path": "/opt/eolssu-standby-579/compose.yml",
     "source": "infra/standby/compose.yml"
+   },
+   {
+    "path": "/opt/eolssu-standby-579/edo2-domain.nginx.conf",
+    "source": "infra/standby/edo2-domain.nginx.conf"
    },
    {
     "path": "/opt/eolssu-standby-579/nginx.conf",
