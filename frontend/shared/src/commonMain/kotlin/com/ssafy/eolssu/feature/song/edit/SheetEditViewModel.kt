@@ -266,7 +266,7 @@ class SheetEditViewModel(
     private fun readyAdaptation(panel: SheetAdaptationUi, capabilities: com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities): SheetAdaptationUi {
         val pitches = capabilities.items.filter { it.selectable }.map { AdaptationPitch(it.midi, it.yul, it.octave) }
         val plans = planPitchAdaptation(panel.baseline.sourcePitchNotes(), pitches)
-        return panel.copy(capabilities = capabilities, plans = plans, selectedTranspose = 0,
+        return panel.copy(capabilities = capabilities, plans = plans, selectedTranspose = panel.baseline.appliedTranspose,
             loading = false, failed = false, confirmationRequested = false)
     }
 
@@ -470,7 +470,7 @@ class SheetEditViewModel(
                         val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
                             .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
                         val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
-                            snapshot.draft.bpm, score, version, revision, resolvedIds, authoring = snapshot.draft.authoring, expressions = snapshot.draft.exportExpressions(expressions,
+                            snapshot.draft.bpm, score, version, revision, resolvedIds, authoring = snapshot.draft.authoringForSave(score.score.instrument), expressions = snapshot.draft.exportExpressions(expressions,
                                 (expressions?.get("sourceSha256") as? kotlinx.serialization.json.JsonPrimitive)?.content
                                     ?: expressionSourceSha256
                                     ?: com.ssafy.eolssu.data.song.commonSourceSha256(kotlinx.serialization.json.Json.encodeToJsonElement(requireNotNull(snapshot.draft.original))),
