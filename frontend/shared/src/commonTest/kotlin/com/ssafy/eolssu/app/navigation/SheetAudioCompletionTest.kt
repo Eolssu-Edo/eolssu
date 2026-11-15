@@ -25,7 +25,7 @@ import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SheetAudioCompletionTest {
-    @Test fun visibleNoticeIsConsumedBeforePauseAndActionOpensItsSheet() = runTest {
+    @Test fun visibleNoticeStaysPendingUntilActionAndOpensItsSheet() = runTest {
         val fixture = fixture()
         val snackbar = SnackbarHostState()
         val opened = mutableListOf<String>()
@@ -34,12 +34,28 @@ class SheetAudioCompletionTest {
             showSheetAudioCompletion(fixture.repository, snackbar, notice, "ready", "open", opened::add)
         }
         runCurrent(); Snapshot.sendApplyNotifications(); runCurrent()
-        assertTrue(fixture.repository.completions.first().isEmpty(), "visible notice must not be replayed after resume")
+        assertEquals(listOf(notice), fixture.repository.completions.first(), "top banner stays until user acknowledgement")
         assertEquals("ready", snackbar.currentSnackbarData?.visuals?.message)
         snackbar.currentSnackbarData!!.performAction()
         runCurrent()
         assertEquals(listOf("12"), opened)
         showing.cancelAndJoin()
+        assertTrue(fixture.repository.completions.first().isEmpty())
+    }
+
+    @Test fun pausedVisibleBannerReturnsUntilExplicitlyDismissed() = runTest {
+        val fixture = fixture()
+        val snackbar = SnackbarHostState()
+        val notice = fixture.repository.completions.first().single()
+        val first = backgroundScope.launch {
+            showSheetAudioCompletion(fixture.repository, snackbar, notice, "ready", "open") {}
+        }
+        runCurrent(); first.cancelAndJoin()
+        assertEquals(listOf(notice), fixture.repository.completions.first())
+        backgroundScope.launch { showSheetAudioCompletion(fixture.repository, snackbar, notice, "ready", "open") {} }
+        runCurrent()
+        assertEquals("ready", snackbar.currentSnackbarData?.visuals?.message)
+        snackbar.currentSnackbarData!!.dismiss(); runCurrent()
         assertTrue(fixture.repository.completions.first().isEmpty())
     }
 
@@ -63,8 +79,9 @@ class SheetAudioCompletionTest {
         }
         runCurrent(); Snapshot.sendApplyNotifications(); runCurrent()
         assertEquals("ready", snackbar.currentSnackbarData?.visuals?.message)
-        assertTrue(fixture.repository.completions.first().isEmpty())
+        assertEquals(listOf(notice), fixture.repository.completions.first())
         resumed.cancelAndJoin()
+        assertEquals(listOf(notice), fixture.repository.completions.first())
     }
 
     @Test fun accountChangeInvalidatesVisibleNoticeAction() = runTest {

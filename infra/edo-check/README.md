@@ -223,7 +223,7 @@ sudo journalctl -u edo-check-alert.service -n 30 --no-pager
 3. `sudo systemctl start eolssu-backup-status.timer`로 되돌린다. 약 1~6분 안에 `✅ 복구` 게시물 1건이 와야 한다.
 4. `journalctl -u edo-check-alert.service`에서 `alert_transition` 두 줄과 `"state": "sent"`를 확인한다. 게시물에 URL·토큰이 없어야 한다.
 
-외부 경로는 `--only edo1:external --dry-run`으로 수집 결과만 확인한다. 공개 서비스를 일부러 내리지 않는다. 복제 감시 경로는 edo2 대기계 작업(579)의 장애 전환 리허설에서 복제 수신을 잠시 멈출 때 함께 확인한다.
+외부 경로는 `--only edo1:external --dry-run`으로 수집 결과만 확인한다. 공개 서비스를 일부러 내리지 않는다. 복제 감시 경로는 [edo2 대기계 작업(579)](../../docs/plans/S15P31E102-579.md)의 장애 전환 리허설에서 복제 수신을 잠시 멈출 때 함께 확인한다.
 
 ### 끄기·복구
 
