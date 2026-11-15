@@ -293,6 +293,7 @@
 - [Notion API 명세 행 생성의 제목 필드](knowledge/tooling/notion-mcp.md)
 - [Notion 테스트 시나리오 작성 프롬프트](knowledge/tooling/notion-test-scenario-prompt.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
+- [얼쑤의 Redis 적용 필요성 조사](knowledge/infra/redis-adoption-review.md)
 - [운영 Flyway 마이그레이션 자동화와 버전 중복 검사 (426)](knowledge/infra/ops-flyway-auto-migration.md)
 - [R2 서명 URL·비공개 접근·30일 삭제 규칙·CORS 정책 검증](knowledge/infra/r2-storage-verification.md)
 - [운영 DB·설정 백업 현황과 보관 권고](knowledge/infra/backup-restore-assessment.md)
