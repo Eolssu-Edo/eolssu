@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.feature.history.GrowthActions
 import com.ssafy.eolssu.feature.history.GrowthUiState
@@ -23,8 +24,12 @@ import com.ssafy.eolssu.feature.history.component.HistoryFrame
 import com.ssafy.eolssu.feature.history.component.PeriodChartCard
 import com.ssafy.eolssu.feature.history.component.RangeTabs
 
-/** 두 칸이 세로 스크롤 없이 들어가는 최소 높이(오른쪽 연습량 달력 6줄 기준). 창이 이보다 낮으면 전체를 세로로 스크롤한다. */
-private val GrowthTwoColumnMinHeight = 680.dp
+/**
+ * 두 칸의 최소 높이. 창이 이보다 낮으면 전체를 세로로 스크롤한다.
+ * 1280×800 태블릿 가로에서 상단 바·시스템 바를 빼고 남는 약 640dp 안에 들도록 정했다.
+ * 6주 달·기록 있는 날 상세를 띄운 달력(약 606dp)이 칸보다 길면 오른쪽 칸만 스크롤한다.
+ */
+private val GrowthTwoColumnMinHeight = 600.dp
 
 /**
  * 태블릿 가로 연습 기록지: 같은 너비의 두 칸(사이 24dp).
@@ -40,7 +45,7 @@ internal fun GrowthExpandedLayout(
     onOpenPicker: () -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val height = if (maxHeight > GrowthTwoColumnMinHeight) maxHeight else GrowthTwoColumnMinHeight
+        val height = maxHeight.coerceAtLeast(GrowthTwoColumnMinHeight)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Row(
                 Modifier.fillMaxWidth().height(height).padding(start = frame.gutter, end = frame.gutter, top = 4.dp, bottom = 24.dp),
@@ -54,7 +59,7 @@ internal fun GrowthExpandedLayout(
                         modifier = Modifier.weight(1f), fill = true,
                     )
                 }
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) {
                     HeatCalendarCard(state, spacing, actions.onMoveHeatMonth, actions.onPickHeatDay)
                 }
             }

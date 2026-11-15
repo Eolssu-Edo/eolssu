@@ -74,7 +74,7 @@ class SheetAudios(
         val sheet=sheets.find(sheetId,userId) ?: reject(ErrorCode.RESOURCE_NOT_FOUND)
         val selectedId = instrumentId ?: sheet.scoreJson?.let {
             mapper.instrumentByCode(json.readTree(it).path("score").path("instrument").asString())?.id
-        } ?: reject(ErrorCode.INVALID_REQUEST)
+        } ?: reject(if(sheet.scoreJson==null) ErrorCode.STATE_CONFLICT else ErrorCode.INVALID_REQUEST)
         val instrument=mapper.instrument(selectedId) ?: reject(ErrorCode.RESOURCE_NOT_FOUND)
         if(instrument.code !in setOf("DANSO","SOGEUM","JEONGAK_DAEGEUM","SANJO_DAEGEUM")) reject(ErrorCode.RESOURCE_NOT_FOUND)
         val speed=bpm ?: sheet.bpm
@@ -234,7 +234,7 @@ class SheetAudios(
                 if(mapper.expireResult(candidate.sheetId,now)>0) mapper.retireCurrent(candidate.sheetId)
             }
         }
-        for(key in mapper.retired()) try { storage.delete(key); mapper.forget(key) } catch(_: Exception) { break /* durable retry next tick */ }
+        for(key in mapper.retired()) try { storage.delete(key); mapper.forget(key) } catch(_: Exception) { /* retry this key next tick without blocking other objects */ }
     }
     private fun waitForGenerator(job: SheetAudioRow): Boolean {
         val now=clock.instant()

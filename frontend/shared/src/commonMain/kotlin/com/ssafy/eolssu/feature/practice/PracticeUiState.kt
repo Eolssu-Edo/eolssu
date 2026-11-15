@@ -184,9 +184,19 @@ data class PracticeUiState(
             return song?.writtenScoreAnnotations.orEmpty()
         }
 
-    val totalSeconds: Int get() = if (mode == PracticeMode.Model && modelPerformance != null && bpm > 0)
-        (modelPerformance.durationMs * (sheetPerformanceBpm ?: song?.baseBpm ?: bpm) / bpm / 1000).roundToInt()
-        else song?.durationSeconds(bpm) ?: 0
+    val totalSeconds: Int
+        get() {
+            val currentSong = song ?: return 0
+            if (mode in setOf(PracticeMode.Ready, PracticeMode.Model) && bpm > 0) {
+                modelPerformance?.let {
+                    return (it.durationMs * (sheetPerformanceBpm ?: currentSong.baseBpm) / bpm / 1000).roundToInt()
+                }
+                if (personalAudioControl != null) currentSong.estimatedModelDurationMs?.let {
+                    return (it * currentSong.baseBpm / bpm / 1000).roundToInt()
+                }
+            }
+            return currentSong.durationSeconds(bpm)
+        }
 
     /**
      * 연습 속도를 바꿀 수 없는 상태(평가 연주의 카운트다운·녹음·중단). 속도는 채점 기준이므로 평가 중에는 고정한다. 장단 소리는 바꿀 수 있다.

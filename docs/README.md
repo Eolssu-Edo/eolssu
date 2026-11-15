@@ -1,6 +1,22 @@
 # 프로젝트 문서
 
 - [실제 앱 조작과 격리 서버 처리 실시간 시연 (283)](plans/S15P31E102-283.md) · [실행 구조·지휘통제 사용법](plans/S15P31E102-283-live-observation.md)
+- [성장 화면 태블릿 가로 두 칸 최소 높이 조정 (977)](plans/S15P31E102-977.md)
+- [악보 추가·가져오기 화면 태블릿 가로 폭 확장 (978)](plans/S15P31E102-978.md)
+- [곡 상세 태블릿 가로 표지 높이와 시작 버튼 위치 (976)](plans/S15P31E102-976.md)
+- [홈 화면 태블릿 가로 그림 과확대·잘림과 정렬 개선 (963)](plans/S15P31E102-963.md)
+- [연습 화면 태블릿 가로 악보 빈 공간과 설정 시트 높이 정리 (975)](plans/S15P31E102-975.md)
+- [구간 연습 구간 선택 화면 태블릿 가로 두 칸 배치 (967)](plans/S15P31E102-967.md)
+- [이전 연주와 비교 화면 태블릿 가로 두 칸 배치 (966)](plans/S15P31E102-966.md)
+- [연습 기록 상세 태블릿 가로 악보 높이 확보 (964)](plans/S15P31E102-964.md)
+- [평가 결과·구간 재평가 결과 화면 태블릿 가로 배치 (974)](plans/S15P31E102-974.md)
+- [태블릿 가로 화면 배치·이미지 조사와 일괄 개선 (960)](plans/S15P31E102-960.md)
+- [악보·음원 잔여 경합과 실기기 장애 복구 검증 (958)](plans/S15P31E102-958.md)
+
+- [악보 변환·음원 생성의 동시성·큐·자원 부하 검증 계획 (954)](plans/S15P31E102-954.md) · [실행 결과·결함 수정·미검증 경계](knowledge/infra/async-resource-validation.md)
+- [음원·악보 생성 완료 알림 자동 닫기 (955)](plans/S15P31E102-955.md) · [표시 규칙](specs/sheet-conversion-completion.md)
+
+- [Python 테스트를 Jenkins 변경 경로 기준으로 실행 (945)](plans/S15P31E102-945.md) · [선택 규칙·실측·격리 근거](knowledge/infra/python-tests-ci.md) · [운영 적용 절차](../infra/runtime/README.md#python-테스트-잡-s15p31e102-945)
 
 - [녹음·평가·기록 실제 흐름 검증 (933)](plans/S15P31E102-933.md) · [기록 메모 유니코드 문자 수](knowledge/frontend/record-memo-unicode-length.md)
 
@@ -35,6 +51,8 @@
 - [edo2 장애·복제·백업·디스크 상태 변화 Mattermost 자동 알림 (919)](plans/S15P31E102-919.md) · [운영 안내](../infra/edo-check/README.md#상태-변화-능동-알림)
 
 - [정간보 각 나눔과 연습 화면 다음 각 표시 통일 (922)](plans/S15P31E102-922.md)
+
+- [연습곡 선택·재생·설정 실기기 검증과 수정 (932)](knowledge/frontend/practice-playback-qa-932.md) · [작업 계획](plans/S15P31E102-932.md)
 
 - [PDF·사진 악보 변환 완료 앱 내 알림 (927)](plans/S15P31E102-927.md) · [알림 규칙](specs/sheet-conversion-completion.md)
 
@@ -576,11 +594,14 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 ## 악보 작성 결과별 작업 계획
 
+- [S15P31E102-931 배포 APK의 실제 PDF 추가부터 저장·기기 음원 재생까지 검증](plans/S15P31E102-931.md)
+- [S15P31E102-953 BlueVal 오선보 변환의 8분음표 길이 축소 수정](plans/S15P31E102-953.md)
+
 - [S15P31E102-935 PDF 음표 글리프의 숫자 빠르기 누락 수정](plans/S15P31E102-935.md) · [원본·회귀 근거](knowledge/ai/score-recognition-corrections.md#pdf-음표-글리프의-숫자-빠르기-누락-935)
 
 - [S15P31E102-904 생성 음원 구간 빠르기와 운영 버전 대조](plans/S15P31E102-904.md)
 
-- [정간보 한배 지원 스펙](specs/jeonggan-tempo-edit.md) · [S15P31E102-882 재개 계획·검증](plans/S15P31E102-882.md) · [중단 시점 인수인계](knowledge/ai/jeonggan-tempo-handoff.md)
+- [정간보 한배 지원 스펙](specs/jeonggan-tempo-edit.md) · [S15P31E102-882 재개 계획·검증](plans/S15P31E102-882.md) · [저장된 가속 표시·검증 (956)](plans/S15P31E102-956.md) · [중단 시점 인수인계](knowledge/ai/jeonggan-tempo-handoff.md)
 
 - S15P31E102-882 악보 빠르기 인식과 편집 · [숫자 가져오기 스펙](specs/staff-tempo-import.md) · [지원 범위·실제 PDF·검증 근거](knowledge/ai/score-recognition-corrections.md#숫자-빠르기와-가속-가져오기-882)
 

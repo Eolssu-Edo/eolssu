@@ -198,7 +198,13 @@ internal fun SheetDraft.toCommonScoreWithoutTempo(): CommonScoreData {
 /** 유효한 악보는 원본 타임라인 그대로 표시한다. 미입력 초안도 같은 row/col과 가사를 보인다. */
 internal fun SheetDraft.renderEditingScore(): Score {
     val encoded = runCatching { toCommonScore() }.getOrNull()
-    if (unfilledCells.isEmpty() && encoded != null) runCatching { encoded.toScore(tempoExpressions) }.getOrNull()?.let { return it }
+    val reference = tempoReferenceBpm ?: bpm
+    fun CommonScoreData.displayOrNull() = runCatching {
+        toScore(tempoExpressions, baseBpm = reference.toDouble())
+    }.getOrNull()
+    val rendered = encoded?.displayOrNull()
+    val displayed = rendered ?: original?.displayOrNull()
+    if (unfilledCells.isEmpty() && rendered != null) return rendered
     return Score(sizes.mapIndexed { c, count -> List(count) { j ->
         val index = indexOf(c, j)
         val units = layout(index)
@@ -213,5 +219,5 @@ internal fun SheetDraft.renderEditingScore(): Score {
         }
         ScoreCell(displayNotes.ifEmpty { listOf(ScoreNote.Blank) }, "c$c-j$j",
             units.map { ScoreUnit(it.row, it.col, it.symbol, it.eventId) }, originalCell(index)?.lyric)
-    } })
+    } }, tempoMarks = displayed?.tempoMarks.orEmpty())
 }

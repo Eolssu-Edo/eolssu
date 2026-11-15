@@ -122,11 +122,12 @@ def multipart(field: str, filename: str, content: bytes, content_type: str) -> t
 class Client:
     """One virtual user: keeps its auth cookies and records every call."""
 
-    def __init__(self, base: str, recorder: Recorder, timeout: float = 70.0) -> None:
+    def __init__(self, base: str, recorder: Recorder, timeout: float = 70.0, *, opener=None) -> None:
         self.base = base.rstrip("/")
         self.recorder = recorder
         self.timeout = timeout
         self.cookies: dict[str, str] = {}
+        self.open = opener.open if opener is not None else urllib.request.urlopen
 
     def call(self, step: str, method: str, path: str, body: object = None, *,
              raw: bytes | None = None, content_type: str | None = None,
@@ -144,7 +145,7 @@ class Client:
         started = time.perf_counter()
         status, payload, error = 0, {}, ""
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with self.open(request, timeout=self.timeout) as response:
                 status = response.status
                 self.cookies.update(parse_cookies(response.headers.get_all("Set-Cookie") or []))
                 payload = json.loads(response.read() or b"{}")
@@ -156,7 +157,8 @@ class Client:
                 payload = {}
             error = f"{status} {payload.get('result', {}).get('errorCode', '') if isinstance(payload.get('result'), dict) else ''}".strip()
         except Exception as failure:  # noqa: BLE001 - timeouts and resets are results here
-            error = f"{type(failure).__name__}: {failure}"[:160]
+            error = f"HTTP {status} incomplete: {type(failure).__name__}: {failure}"[:160]
+            status, payload = 0, {}
         self.recorder.add(step, status, (time.perf_counter() - started) * 1000, error)
         return status, payload
 

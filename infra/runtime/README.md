@@ -511,6 +511,27 @@ Pipeline Graph View에서 빌드를 열어 `Stages`의 `Deploy ... transaction`�
 
 검증은 `python3 -B -m unittest discover -s infra/jenkins/tests -v`, `python3 -B -m unittest discover -s infra/backup/tests -p test_deploy_hooks.py -v`로 수행합니다. 별도 임시 Jenkins 잡에서 성공·phase 실패/롤백·프로세스 중단·로그 없는 실패를 주입해 실제 stage 결과와 후속 단계 차단을 검증했습니다. 앱 배포나 공개 Pages 게시를 이 검증에 사용하지 않습니다.
 
+### Python 테스트 잡 (S15P31E102-945)
+
+`eolssu-python-tests`는 `eolssu-backend`가 성공·불안정·실패로 끝날 때마다, 그리고 매주 월요일 새벽에 전체 검사로 develop을 다시 받아 직전 성공 실행과의 변경 경로에 맞는 infra·catalog·data·ai 테스트만 실행합니다. 배포·DB·외부 서비스는 건드리지 않습니다. 실패 알림은 `eolssu-*` 잡을 읽는 기존 [Jenkins 실패 알림](../jenkins/notifications/README.md)이 그대로 보냅니다. 선택 규칙·실측·격리 테스트는 [Python 테스트 CI 기록](../../docs/knowledge/infra/python-tests-ci.md)을 따릅니다. **아직 운영 Jenkins에 등록하지 않았습니다.** 발표(11-18) 동결이 끝난 뒤 사용자 확인을 받고 적용합니다.
+
+| 파일 | 역할 |
+| --- | --- |
+| [python-tests.Jenkinsfile](../jenkins/python-tests.Jenkinsfile) | 잡 정의. 서버 복사본 `/opt/eolssu/config/python-tests.Jenkinsfile`(root 0644) |
+| [python-tests.py](../jenkins/python-tests.py) | `plan`(변경 경로→묶음), `run <묶음>`(환경 준비·실행), `run <묶음> --quarantine` |
+| [python-tests-requirements.txt](../jenkins/python-tests-requirements.txt) | data·catalog 고정 의존성. ai는 `ai/uv.lock` |
+| [register-python-tests.groovy](../jenkins/register-python-tests.groovy) | 잡 생성 전용. 이미 있으면 같은 정의일 때만 통과하고 덮어쓰지 않음 |
+
+적용 전제는 Jenkins 사용자로 `python3`와 `uv`(ai 이미지와 같은 0.13.6)를 실행할 수 있고, 첫 실행에서 uv가 Python 3.12와 패키지를 받을 외부 연결이 있는 것입니다. 받은 Python·패키지는 Jenkins 사용자의 uv 캐시에 남아 다음 실행부터 재사용됩니다.
+
+1. 실행 중·대기 중인 빌드가 없을 때 edo1에서 `sudo -u jenkins python3 --version`, `sudo -u jenkins uv --version`을 확인합니다. uv가 없으면 버전을 고정해 설치한 뒤 진행합니다.
+2. 검토한 커밋의 `python-tests.Jenkinsfile`을 `/opt/eolssu/config/`에 root 소유 0644로 설치하고 Jenkins linter를 통과시킵니다.
+3. 기존 관리자 CLI의 `groovy =`로 `register-python-tests.groovy`를 실행합니다. 이어서 **Build Now**로 한 번 실행해 매개변수와 트리거를 등록합니다(기준 SHA가 없어 첫 실행은 모든 묶음을 검사합니다). 그리고 단계별 결과와 소요 시간을 [기록](../../docs/plans/S15P31E102-945.md)에 남깁니다.
+4. 다음 develop 병합 뒤 `eolssu-backend` 완료 직후 이 잡이 예약되는지, 빌드 설명의 SHA·묶음이 변경 경로와 맞는지 확인합니다.
+5. [일치 점검 manifest](../drift/manifest.json)에 `/opt/eolssu/config/python-tests.Jenkinsfile`과 `eolssu-python-tests` 잡 두 줄을 더하고 `python3 -I -B infra/drift/check.py --host edo1`로 일치를 확인합니다. 등록 전에 넣으면 `서버 없음`으로 실패하므로 등록 뒤에 넣습니다.
+
+되돌릴 때는 실행·예약이 없는 상태에서 잡을 비활성화합니다. 다른 잡과 서버 파일은 바꾸지 않으므로 함께 되돌릴 대상이 없습니다. 로컬·리뷰 검증은 `python3 -B -m unittest discover -s infra/jenkins/tests -p test_python_tests.py -v`와 `python3 -B infra/jenkins/python-tests.py run <묶음> --work <새 폴더>`로 합니다.
+
 ## 테스트 회원의 인증 만료 예외
 
 `AUTH_NON_EXPIRING_USER_IDS`는 기본 빈 목록이며, 검토한 테스트 회원 ID에만 설정합니다. 이 설정을 전달하는 관리된 Compose와 V7이 적용된 백엔드 릴리스가 필요합니다. 운영 `ops`는 Flyway를 실행하지 않으므로 마이그레이션은 먼저 `db` 프로필로 별도 수행합니다. 실제 계정 생성·배포 순서와 검증은 [S15P31E102-260](../../docs/plans/S15P31E102-260.md)을 따릅니다. 설정을 비우고 백엔드에 다시 주입하면 예외 토큰을 거부합니다. 기존 비밀값을 출력하거나 전체 `.env`를 덮어쓰지 않습니다.
