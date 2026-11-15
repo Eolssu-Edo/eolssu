@@ -2,6 +2,8 @@
 
 - [edo2 장애·복제·백업·디스크 상태 변화 Mattermost 자동 알림 (919)](plans/S15P31E102-919.md) · [운영 안내](../infra/edo-check/README.md#상태-변화-능동-알림)
 
+- [정간보 각 나눔과 연습 화면 다음 각 표시 통일 (922)](plans/S15P31E102-922.md)
+
 - [PDF·사진 악보 변환 완료 앱 내 알림 (927)](plans/S15P31E102-927.md) · [알림 규칙](specs/sheet-conversion-completion.md)
 
 - [무음 판정과 오답·미검출 채점 분리 (291)](plans/S15P31E102-291.md) · [실패 기준](specs/practice-analysis-failure.md#실패-코드)
@@ -35,8 +37,10 @@
 - [악보 불러오기·올리기·편집 화면 배치 정리와 자동저장 중단 (889)](plans/S15P31E102-889.md)
 
 - [이조 슬라이더 최초 원조 유지·눈금 정렬·간격 (893)](specs/score-authoring-consistency.md#이조-슬라이더-최초-선택과-표식-정렬-s15p31e102-893) · [원인·좌표 실측](knowledge/frontend/sheet-pitch-adaptation.md#최초-원조-유지와-이조-눈금-끝점-정렬-893) · [계획·검증](plans/S15P31E102-893.md)
+- [악보 편집 재진입의 마지막 이조 위치 복원 (929)](plans/S15P31E102-929.md) · [복원 계약](specs/sheet-transpose-restoration.md) · [기존 메타데이터·원인](knowledge/frontend/sheet-pitch-adaptation.md#저장재진입의-마지막-이조-위치-복원-929)
 
 - [선택 위치 검수 안내 (890)](specs/score-authoring-consistency.md#인식-검수-이유의-정간-클릭-안내-s15p31e102-890) · [원인·OMR 운영 배포](knowledge/frontend/sheet-pitch-adaptation.md#사용자-승인-후-omr-배포-890) · [검증·인수인계](plans/S15P31E102-890.md)
+- [저장 창 반복 검수 안내의 원인·위치별 개선 (928)](plans/S15P31E102-928.md) · [안내 스펙](specs/sheet-review-guidance.md) · [참고 안내와 실제 검수의 구분](knowledge/frontend/sheet-editor-save-validation.md#반복-참고-안내와-실제-미확인-검수의-구분-928)
 - [악보 리듬 보존·무반주 저장·악보별 기본 박 반주 (883)](specs/score-rhythm-preservation.md) · [실제 악보 전후 비교](knowledge/data/common/rhythm-metronome/meter-import-validation.md) · [작업 기록](plans/S15P31E102-883.md)
 
 - [분석 완료 후 음역·이조 즉시 사용 (879)](specs/sheet-adaptation-readiness.md) · [중복 조회 원인과 실제 검증](knowledge/frontend/sheet-adaptation-readiness.md) · [계획·검증](plans/S15P31E102-879.md)

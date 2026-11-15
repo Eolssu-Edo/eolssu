@@ -6,6 +6,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -44,6 +46,8 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
     @Test fun recognizedJangdanCorrectionSurvivesDraftReloadAndFinalSave() = runTest {
         val original = SheetJangdanCorrectionTest.recognized("QUARTER", 12, 36, "중모리")
         val metadata = SheetJangdanCorrectionTest.sourceMetadata(original)
+        val savedMetadata = JsonObject(metadata + ("adaptation" to Json.parseToJsonElement(
+            """{"instrument":"DANSO","transpose":0,"changes":[]}""")))
         val gutgeori = CatalogJangdanSummary("2", "굿거리", 80, "DOTTED_QUARTER", 12, 4, 1)
         val danmori = CatalogJangdanSummary("7", "단모리", 120, "QUARTER", 8, 4, 1)
         val repository = RecordingDocuments(original, jangdanId = "3").also {
@@ -65,7 +69,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         assertEquals(original.events, copy.score.events)
         assertEquals("DOTTED_QUARTER", copy.score.music.bpmUnit)
         assertEquals(copy.score.music.ticksPerJeonggan, copy.score.music.ticksPerBeat)
-        assertEquals(metadata, copy.authoring)
+        assertEquals(savedMetadata, copy.authoring, "원본 메타데이터를 유지하고 저장할 원조 이력만 명시한다")
 
         val restored = open()
         runCurrent()
@@ -79,7 +83,7 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         assertEquals("QUARTER", repository.document.score!!.music.bpmUnit)
         assertEquals(original.columns, repository.document.score!!.columns)
         assertEquals(original.events, repository.document.score!!.events)
-        assertEquals(metadata, repository.document.authoring)
+        assertEquals(savedMetadata, repository.document.authoring)
         assertEquals(100, restored.uiState.value.draft.bpm)
     }
 
