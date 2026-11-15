@@ -69,7 +69,7 @@ sudo journalctl -u eolssu-jenkins-agent --since today --no-pager
 
 작업: [S15P31E102-244](../../../docs/plans/S15P31E102-244.md). `eolssu-ai` 잡([ai.Jenkinsfile](../ai.Jenkinsfile))은 전용 노드 `edo1-ai`에서 실행한다. 웹 슬롯과 같이 executor 1개, EXCLUSIVE, 노드 이름과 같은 라벨만 받는다. AI 이미지 빌드(수 분)가 백엔드 빌드를 막거나 기다리지 않는다. 운영 교체는 공유 배포 lock으로 한 번에 하나만 진행한다. 작업 공간은 `/var/lib/jenkins-ai-agent/workspace`다.
 
-2026-11-15에 아래 1~3을 운영에 적용했다. secret 값은 터미널·로그·명령 인자에 출력하지 않는다. CLI 명령은 `sudo -n java -jar /opt/eolssu/jenkins/jenkins-cli.jar -s http://127.0.0.1:8080 -auth @/opt/eolssu/jenkins/admin-cli.auth groovy =`이다.
+2026-11-15에 아래 1~4를 운영에 적용했다. secret 값은 터미널·로그·명령 인자에 출력하지 않는다. CLI 명령은 `sudo -n java -jar /opt/eolssu/jenkins/jenkins-cli.jar -s http://127.0.0.1:8080 -auth @/opt/eolssu/jenkins/admin-cli.auth groovy =`이다.
 
 1. [등록 파일](register-ai-agent.groovy)을 CLI에 입력한다. 같은 설정이면 재사용하고, 다르면 덮어쓰지 않고 멈춘다.
 2. `/var/lib/jenkins-ai-agent`를 `jenkins:jenkins` 0750으로 만든다. `println …getComputer('edo1-ai').getJnlpMac()`의 출력을 root 셸 안에서 개행을 지워 `secret`(jenkins 0600, 64자)으로 바로 저장한다. `print`는 CLI 출력이 비어 이 용도에 쓰지 않는다.
