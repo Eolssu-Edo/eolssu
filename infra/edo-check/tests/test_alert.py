@@ -146,6 +146,12 @@ class RenderTests(unittest.TestCase):
         self.assertIn('\\| x y', text)
         self.assertNotIn('`z`', text)
 
+    def test_times_do_not_become_emoji_shortcodes(self):
+        text = alert.render([self.event('ok', 'crit', evidence='active/waiting · 다음 Sun 2026-11-15 07:00:00 UTC :smile:')])
+        self.assertNotIn(':00:', text)
+        self.assertNotIn(':smile:', text)
+        self.assertIn('07:\u206000:00', text)
+
     def test_mention_only_for_new_failure(self):
         self.assertTrue(alert.render([self.event()], '@here').endswith('@here'))
         self.assertNotIn('@here', alert.render([self.event('ok', 'crit')], '@here'))

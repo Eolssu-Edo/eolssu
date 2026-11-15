@@ -170,6 +170,8 @@ def clean(value, limit=160):
     text = re.sub(r'https?://\S+', '[URL 생략]', str(value))
     text = re.sub(r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}', '[EMAIL]', text)
     text = text.replace('@', '@\u200b').replace('|', '\\|').replace('\n', ' ').replace('`', "'")
+    # Mattermost renders :name: as an emoji, e.g. the :00: in 07:00:00; break the shortcode.
+    text = re.sub(r':(?=[A-Za-z0-9_+-]+:)', ':\u2060', text)
     return text[:limit]
 
 
