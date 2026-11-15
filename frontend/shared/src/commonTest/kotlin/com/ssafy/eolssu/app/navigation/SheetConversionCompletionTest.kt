@@ -50,7 +50,7 @@ class SheetConversionCompletionTest {
             repository.completions.first().single(), "score ready", "open", opened::add) }
         runCurrent(); Snapshot.sendApplyNotifications(); runCurrent()
         assertEquals("score ready", snackbar.currentSnackbarData?.visuals?.message)
-        assertEquals(SnackbarDuration.Indefinite, snackbar.currentSnackbarData?.visuals?.duration)
+        assertEquals(SnackbarDuration.Short, snackbar.currentSnackbarData?.visuals?.duration)
         assertTrue(snackbar.currentSnackbarData!!.visuals.withDismissAction)
         assertEquals(1, repository.completions.first().size)
         snackbar.currentSnackbarData!!.performAction(); runCurrent()

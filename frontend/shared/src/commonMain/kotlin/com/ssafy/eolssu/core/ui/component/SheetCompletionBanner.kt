@@ -33,7 +33,7 @@ import eolssu.shared.generated.resources.sheet_conversion_banner_dismiss
 import eolssu.shared.generated.resources.sheet_conversion_banner_title
 import org.jetbrains.compose.resources.stringResource
 
-/** Completion notices stay in a separate top lane until opened or dismissed. */
+/** Completion notices use a separate top lane and the host's accessible automatic timeout. */
 @Composable
 fun SheetCompletionBannerHost(hostState: SnackbarHostState, modifier: Modifier = Modifier) {
     SnackbarHost(hostState, modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))) { data ->
