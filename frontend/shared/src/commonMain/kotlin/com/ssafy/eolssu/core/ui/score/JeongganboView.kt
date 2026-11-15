@@ -93,7 +93,6 @@ import com.ssafy.eolssu.core.model.displayUnitAt
 import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.practice_upcoming
 import eolssu.shared.generated.resources.score_blank
 import eolssu.shared.generated.resources.score_column_head
 import eolssu.shared.generated.resources.score_column_head_start
@@ -299,16 +298,6 @@ fun JeongganboView(
     val currentUnit by remember(song, shownIndex, live) {
         derivedStateOf { shownIndex?.let { song.displayUnitAt(it, if (live) cursor.fraction else 0f) } }
     }
-    // 보드 `.ms-col.upcoming`: 연주 중 각의 마지막 정간에서 10% 넘게 지나면 다음 각 머리를 강조한다.
-    val upcomingColumn by remember(song, live, look.upcomingMark) {
-        derivedStateOf {
-            val unit = currentUnit
-            if (!look.upcomingMark || !live || unit == null) return@derivedStateOf null
-            val lastRow = song.score.columns[unit.column].size - 1
-            if (unit.row == lastRow && cursor.fraction >= 0.1f && unit.column + 1 < song.score.columns.size) unit.column + 1 else null
-        }
-    }
-
     if (scrollState != null) {
         FollowPlayhead(
             scrollState = scrollState,
@@ -346,7 +335,6 @@ fun JeongganboView(
             highlighted = highlightedColumn,
             section = sectionColumn,
             faded = strip.column in fadedColumns,
-            upcoming = upcomingColumn == strip.column,
             leftDivider = look.joined && readingIndex != strips.lastIndex,
         ) { row ->
             val height = cellHeights[strip.column to row]
@@ -526,7 +514,6 @@ private fun ScoreStripColumn(
     highlighted: Boolean = false,
     section: Boolean = false,
     faded: Boolean = false,
-    upcoming: Boolean = false,
     leftDivider: Boolean = false,
     cell: @Composable (row: Int) -> Unit,
 ) {
@@ -582,7 +569,7 @@ private fun ScoreStripColumn(
             .background(if (look.board || look.soft) colors.surface else colors.background)
             .border(1.dp, if (highlighted || section) colors.accent else if (look.soft) colors.lineSoft else colors.line, shape),
     ) {
-        if (strip.strip == 0) ColumnHead(strip.column, metrics, look, highlighted, upcoming, section)
+        if (strip.strip == 0) ColumnHead(strip.column, metrics, look, highlighted, section)
         for (row in strip.rows) cell(row)
     }
 }
@@ -593,13 +580,12 @@ private fun ColumnHead(
     metrics: JeongganboMetrics,
     look: JeongganboLook,
     highlighted: Boolean = false,
-    upcoming: Boolean = false,
     section: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 10.sp)
     val background = when {
-        upcoming || section -> colors.accentTint
+        section -> colors.accentTint
         highlighted -> colors.accentSoft
         look.board -> colors.background
         else -> colors.surface
@@ -622,20 +608,13 @@ private fun ColumnHead(
             }
             Text("${column + 1}", style = style.copy(fontSize = 11.sp, lineHeight = 11.sp), color = colors.textMuted, fontWeight = FontWeight.Normal)
         } else if (look.headCompact) {
-            // 보드 `.ms-lab`: ‘시작 · 1각’ · ‘2각’. 다음 각 강조는 글자색을 바꾸고 ‘← 다음’을 덧붙인다.
+            // 보드 `.ms-lab`: ‘시작 · 1각’ · ‘2각’.
             Text(
                 stringResource(if (column == 0) Res.string.score_column_head_start else Res.string.score_column_head, column + 1),
                 style = style,
-                color = when {
-                    upcoming -> colors.accentText
-                    section -> colors.text
-                    else -> colors.textMuted
-                },
+                color = if (section) colors.text else colors.textMuted,
                 fontWeight = if (section) FontWeight.SemiBold else FontWeight.Normal,
             )
-            if (upcoming) {
-                Text(stringResource(Res.string.practice_upcoming), style = style.copy(fontSize = 8.sp, lineHeight = 8.sp), color = colors.accentText, fontWeight = FontWeight.Medium)
-            }
         } else {
             if (column == 0) {
                 Text(stringResource(Res.string.score_column_start), style = style, color = colors.accentText, fontWeight = FontWeight.Bold)
