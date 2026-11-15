@@ -346,6 +346,7 @@ class PracticeViewModel(
         stepJob?.cancel()
         stepClock = null
         _uiState.update { it.copy(playing = false, eventStartedAt = null, pausedFraction = it.currentEventFraction.toFloat()) }
+        stopPreview()
         stopJangdan()
     }
 
@@ -661,13 +662,19 @@ class PracticeViewModel(
     /** 연습 설정의 ‘연습 악기’. 운지 그림과 제목 옆 표시에만 쓰고 프로필 악기는 바꾸지 않는다. */
     fun setInstrument(id: String) = settingsStore.update { it.copy(instrumentId = id) }
 
-    /** 플레이어의 −5초·+5초. 모범 연주 중에는 음원 위치를, 준비 상태에서는 고른 음을 옮긴다. */
+    /** 플레이어의 −5초·+5초. 음원을 아직 받지 않았어도 타임라인과 다음 재생 위치를 옮긴다. */
     fun seekModel(deltaMs: Long) {
         val state = _uiState.value
         // 구간 연습은 구간 안에서만 옮긴다(S15P31E102-794).
         val sectionTick = state.sectionTickBy(deltaMs)
         if (sectionTick != null) {
             seekSection(sectionTick)
+            return
+        }
+        if (state.mode == PracticeMode.Ready ||
+            state.mode == PracticeMode.Model && modelAudio.state.value.audio == null) {
+            val duration = state.song?.durationMs(state.bpm) ?: return
+            if (duration > 0.0) seekToFraction(((state.elapsedMs + deltaMs) / duration).toFloat())
             return
         }
         when (state.mode) {
@@ -678,7 +685,6 @@ class PracticeViewModel(
                 modelAudio.seekBy(deltaMs)
             }
             PracticeMode.Rhythm -> seekRhythm(deltaMs)
-            PracticeMode.Ready -> _uiState.update { it.seekSelection(deltaMs) }
             else -> Unit
         }
     }
