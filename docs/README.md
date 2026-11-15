@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [실제 앱 조작과 격리 서버 처리 실시간 시연 (283)](plans/S15P31E102-283.md)
+
 - [녹음·평가·기록 실제 흐름 검증 (933)](plans/S15P31E102-933.md) · [기록 메모 유니코드 문자 수](knowledge/frontend/record-memo-unicode-length.md)
 
 - [Jenkins backend 잡의 폐기용 MySQL databaseTest 단계 (946)](plans/S15P31E102-946.md)

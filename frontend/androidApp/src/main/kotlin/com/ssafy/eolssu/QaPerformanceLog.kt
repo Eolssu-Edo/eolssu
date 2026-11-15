@@ -6,7 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.system.Os
+import android.util.Log
 import androidx.core.content.ContextCompat
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.diagnostics.PerformanceEvent
 import com.ssafy.eolssu.core.diagnostics.PerformanceLog
 import org.json.JSONObject
@@ -37,7 +39,13 @@ internal object QaPerformanceLog {
         if (!BuildConfig.DEBUG || BuildConfig.APPLICATION_ID != QA_PACKAGE || worker != null) return
         val log = QaPerformanceWorker(context.applicationContext)
         worker = log
-        PerformanceLog.sink = log::offer
+        val live = BuildConfig.QA_LIVE && BuildConfig.API_BASE_URL == "http://127.0.0.1:18180"
+        PerformanceLog.liveRequestsEnabled = live
+        PerformanceLog.sink = { event ->
+            // Keep the snapshot relay's established schema while logcat carries live-only fields.
+            if (event.requestId == null && event.phase != PerfPhase.SONG_DETAIL_DRAWN) log.offer(event)
+            if (live) Log.i("EolssuLive", event.encode())
+        }
     }
 
     fun show(activity: Activity) {

@@ -14,6 +14,10 @@ val releaseSigningValues = listOf(releaseStore, releaseStorePassword, releaseAli
 // TEMP S15P31E102-309: opt-in QA APK only; remove after normal consent flow is verified.
 val qaSkipConsent = providers.gradleProperty("eolssu.qaSkipConsent").orElse("false").get().toBooleanStrict()
 val debugApiBaseUrl = providers.gradleProperty("eolssu.debugApiBaseUrl").orElse("https://k15e102.p.ssafy.io").get()
+val qaLive = providers.gradleProperty("eolssu.qaLive").orElse("false").get().toBooleanStrict()
+check(!qaLive || debugApiBaseUrl == "http://127.0.0.1:18180") {
+    "Live QA requires the isolated loopback API http://127.0.0.1:18180."
+}
 val debugLoopbackPort = Regex("http://127\\.0\\.0\\.1:([0-9]{1,5})").matchEntire(debugApiBaseUrl)
     ?.groupValues?.get(1)?.toIntOrNull()
 check(debugApiBaseUrl == "https://k15e102.p.ssafy.io" || debugLoopbackPort in 1..65535) {
@@ -67,12 +71,18 @@ android {
     }
     buildTypes {
         debug {
+            if (qaLive) {
+                applicationIdSuffix = ".qa"
+                versionNameSuffix = "-qa283-live"
+            }
+            buildConfigField("boolean", "QA_LIVE", qaLive.toString())
             // TEMP S15P31E102-309
             buildConfigField("boolean", "QA_SKIP_CONSENT", qaSkipConsent.toString())
             if (qaSkipConsent) versionNameSuffix = "-qa309"
             buildConfigField("String", "API_BASE_URL", "\"$debugApiBaseUrl\"")
         }
         release {
+            buildConfigField("boolean", "QA_LIVE", "false")
             // TEMP S15P31E102-309: never enable this in release, even when the property is true.
             buildConfigField("boolean", "QA_SKIP_CONSENT", "false")
             buildConfigField("String", "API_BASE_URL", "\"https://k15e102.p.ssafy.io\"")

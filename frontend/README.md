@@ -342,3 +342,19 @@ release 키가 없으면 이 스크립트는 중단하며 debug 키로 대체하
 ### 악보 작성 지원음
 
 편집기의 율명 입력·오선 이동·수정 후보는 `ReferenceCatalogRepository.authoringCapabilities`의 동일한 선택 목록을 사용합니다. 운지 미등록을 연주 불가로 표시하지 않으며, 최종 저장 오류의 위치를 보이고 초안은 보존합니다. 악기 변경과 음원 악기 재선택 시 다시 검증합니다. 실제 연습 음원 다운로드가 지원음 오류로 거절되면 반복 생성 대신 악보 편집을 안내합니다. [작성 일관성 스펙](../docs/specs/score-authoring-consistency.md)을 따릅니다.
+
+
+### 격리 지휘통제 화면과 실제 앱 이벤트 연결
+
+S15P31E102-283의 실제 앱 시연에서는 Android debug를 다음과 같이 빌드합니다.
+
+```bash
+./gradlew :shared:testAndroidHostTest :androidApp:assembleDebug \
+  -Peolssu.qaLive=true -Peolssu.debugApiBaseUrl=http://127.0.0.1:18180
+```
+
+이 빌드는 `com.ssafy.eolssu.qa`로 설치됩니다. 기기의 루프백 18180을 실행 중인 격리 중계에 연결한 뒤 앱을 조작하면 `adb logcat -v raw -s EolssuLive:I`로 JSON 이벤트를 확인할 수 있습니다. 중계와 기기 연결은 QA 실행 담당자가 준비합니다.
+
+`request_started`와 `request_finished`는 실제 HTTP 시도마다 같은 `request_id`를 사용하며, 중계에는 `X-QA-Request-Id`로 전달합니다. 로그인 토큰 갱신과 재전송은 서로 다른 요청 ID를 사용합니다. 평가 흐름은 기존 `evaluation_timing_id`로 이어집니다. 로그에는 허용한 대상 이름·단계·시간·상태·난수 ID만 넣습니다.
+
+`milestone/song_detail_drawn`, `milestone/practice_drawn`, 결과 화면의 `milestone/score_drawn`은 Compose의 해당 콘텐츠 그리기 이후 발생합니다. HTTP 응답과 화면 표시를 각각 확인할 수 있습니다. `eolssu.qaLive`는 기본적으로 꺼져 있고, 켜면 API 주소가 위 격리 루프백 주소여야 합니다. release에는 이 계측을 켜지 않습니다.
