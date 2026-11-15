@@ -29,8 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.sheet_completion_dismiss
-import eolssu.shared.generated.resources.sheet_completion_title
+import eolssu.shared.generated.resources.sheet_conversion_banner_dismiss
+import eolssu.shared.generated.resources.sheet_conversion_banner_title
 import org.jetbrains.compose.resources.stringResource
 
 /** Completion notices stay in a separate top lane until opened or dismissed. */
@@ -48,7 +48,7 @@ fun SheetCompletionBannerHost(hostState: SnackbarHostState, modifier: Modifier =
                     horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(EolssuIcons.Check, contentDescription = null, tint = colors.play)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(Res.string.sheet_completion_title), style = MaterialTheme.typography.titleMedium,
+                        Text(stringResource(Res.string.sheet_conversion_banner_title), style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold)
                         Text(data.visuals.message, style = MaterialTheme.typography.bodyLarge)
                     }
@@ -56,7 +56,7 @@ fun SheetCompletionBannerHost(hostState: SnackbarHostState, modifier: Modifier =
                         FilledTonalButton(onClick = data::performAction) { Text(label) }
                     }
                     IconButton(onClick = data::dismiss) {
-                        Icon(EolssuIcons.Close, stringResource(Res.string.sheet_completion_dismiss))
+                        Icon(EolssuIcons.Close, stringResource(Res.string.sheet_conversion_banner_dismiss))
                     }
                 }
             }
