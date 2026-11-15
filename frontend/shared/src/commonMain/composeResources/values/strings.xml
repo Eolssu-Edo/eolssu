@@ -193,7 +193,6 @@
     <string name="practice_finger_gak_range">%1$d–%2$d각</string>
     <string name="practice_finger_rest">쉼</string>
     <string name="practice_finger_missing">운지 자료 없음</string>
-    <string name="practice_upcoming">← 다음</string>
     <string name="score_column_head">%1$d각</string>
     <string name="score_column_head_start">시작 · %1$d각</string>
     <string name="analysis_title">연주 분석</string>

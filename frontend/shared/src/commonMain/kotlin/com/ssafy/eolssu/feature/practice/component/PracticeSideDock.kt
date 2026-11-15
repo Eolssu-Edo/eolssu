@@ -116,7 +116,8 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
     // 평가 중 속도만 고정한다. 장단과 보기 설정은 바꿀 수 있다.
     val locked = state.playbackSettingsLocked
     val noteLabel = when (val note = state.draft.note) {
-        is ScoreNote.Pitch -> if (note.yul.drawnAs == null) "${note.symbol} ${note.yul.fullName}" else note.yul.fullName
+        // 상태 문구는 본문 글꼴(한자 없음)이라 한자 없이 이름만 쓴다.
+        is ScoreNote.Pitch -> note.yul.fullName
         is ScoreNote.SourcePitch -> note.fullName
         else -> stringResource(Res.string.practice_fingering_rest)
     }

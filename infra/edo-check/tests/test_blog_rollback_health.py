@@ -47,6 +47,18 @@ class BlogRollbackHealthTests(unittest.TestCase):
         for name in backups:
             self.assertNotIn(name, report)
 
+    def test_task_stamped_rollback_copies_of_both_editors_are_excluded(self):
+        backups = ['eolssu-blog-editor-713-20261111t145146z-before',
+                   'eolssu-blog-editor-writable-713-20261111t145146z-before']
+        lookalikes = ['eolssu-blog-editor-713-before', 'eolssu-blog-editor-713-20261111t145146z-before-x']
+        containers = [exited_container(name) for name in [*backups, *lookalikes, 'eolssu-blog-editor']]
+        columns, rows, issues, facts = self.health_report(containers)
+        names = {row[0] for row in rows if row[2] == '실패'}
+        self.assertEqual(names, {*lookalikes, 'eolssu-blog-editor'})
+        stopped_badly = [exited_container(backups[0], ExitCode=137)]
+        _, rows, _, _ = self.health_report(stopped_badly)
+        self.assertEqual([row[0] for row in rows if row[2] == '실패'], [backups[0]])
+
     def test_abnormal_or_unconfirmed_stops_remain_visible(self):
         cases = [
             ('edo1', exited_container(f'{EDITOR}-rollback-deadbeef', ExitCode=1), '실패'),

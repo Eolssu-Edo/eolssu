@@ -152,14 +152,14 @@ sudo docker stop omr-probe && rm -rf /tmp/omr-probe
 | --- | --- | --- |
 | `AUTH_JWT_SECRET` | 로그인 토큰 서명 키. 32바이트 이상 무작위 값 | backend는 기동하고 로그인 토큰만 모두 거절 |
 | `AUTH_CODE_HMAC_SECRET` | 이메일 인증번호 해시 키. 32바이트 이상 무작위 값 | 인증번호 발송·확인 거절. 이메일 가입·비밀번호 재설정도 불가 |
-| `AUTH_MAIL_HOST`·`AUTH_MAIL_PORT` | 인증 메일 SMTP 서버. 운영은 `smtp.gmail.com`·587(STARTTLS는 백엔드 설정에 고정) | 호스트가 없으면 메일 발송만 거절. 포트는 Compose 기본 587 |
-| `AUTH_MAIL_USERNAME`·`AUTH_MAIL_PASSWORD` | 발송 계정 `eolssu.mailservice@gmail.com`과 Gmail 앱 비밀번호(계정 비밀번호 아님) | 메일 발송만 거절 |
+| `AUTH_MAIL_HOST`·`AUTH_MAIL_PORT` | 인증 메일 SMTP 서버. 운영은 `smtp.naver.com`·587(STARTTLS는 백엔드 설정에 고정. 465 SSL로 포트만 바꾸지 않음) | 호스트가 없으면 메일 발송만 거절. 포트는 Compose 기본 587 |
+| `AUTH_MAIL_USERNAME`·`AUTH_MAIL_PASSWORD` | 발송용 네이버 메일 주소와 네이버 애플리케이션 비밀번호(로그인 비밀번호 아님). 실제 값은 서버 `.env`에만 둠 | 메일 발송만 거절 |
 | `AUTH_MAIL_FROM`·`AUTH_MAIL_FROM_NAME` | 발신 주소·이름(`얼쑤`) | 주소는 Compose가 `AUTH_MAIL_USERNAME`으로 채움. 이름이 없으면 주소만 표시 |
 | `AUTH_OAUTH_{KAKAO,GOOGLE,NAVER}_CLIENT_ID`·`_CLIENT_SECRET` | 간편 로그인 제공자별 앱 키. 백엔드가 개발자 콘솔에서 발급해 별도 경로로 전달 | 그 제공자의 로그인만 거절 |
 | `RECORDING_STORAGE_ENDPOINT`·`_BUCKET`·`_ACCESS_KEY_ID`·`_SECRET_ACCESS_KEY`·`_REGION` | 녹음 원본 저장소(Cloudflare R2) S3 API 주소·버킷과 버킷 전용 R2 API 토큰의 S3 키. 지역은 `auto`. 준비 방법은 [backend README](../../backend/README.md#녹음-업로드와-원본-저장소pra-02) | 녹음 업로드만 503으로 거절 |
 | `SHEET_STORAGE_ENDPOINT`·`_BUCKET`·`_ACCESS_KEY_ID`·`_SECRET_ACCESS_KEY`·`_REGION` | 내 악보 임시 M4A용 별도 비공개 R2 버킷과 그 버킷에 한정한 Object Read & Write 키. 지역 기본값은 `auto`. 버킷 공개 여부와 실제 업로드·서명 읽기·삭제는 [710 작업 기록](../../docs/plans/S15P31E102-710.md) 참조 | 필수 값이 비면 내 악보 음원 생성은 503으로 거절 |
 
-Compose는 값이 없는 변수를 빈 문자열로 넘기므로 백엔드는 빈 값을 미설정과 같게 처리합니다. `AUTH_COOKIE_SECURE`는 연결하지 않습니다. 백엔드 기본값이 `true`이고 운영은 HTTPS라 넣을 필요가 없습니다. 값을 넣거나 바꿀 때는 `.env`를 root 전용으로 백업한 뒤 `sudoedit`로 고치고, 아래 절차대로 backend만 재생성합니다. 서명 키를 바꾸면 기존 로그인 토큰은 모두 무효가 되고, 인증번호 해시 키를 바꾸면 발송 중인 인증번호가 모두 무효가 됩니다. Gmail 앱 비밀번호는 Google 계정 보안 설정에서 발급·폐기하며, 교체하면 이전 값은 바로 쓸 수 없습니다.
+Compose는 값이 없는 변수를 빈 문자열로 넘기므로 백엔드는 빈 값을 미설정과 같게 처리합니다. `AUTH_COOKIE_SECURE`는 연결하지 않습니다. 백엔드 기본값이 `true`이고 운영은 HTTPS라 넣을 필요가 없습니다. 값을 넣거나 바꿀 때는 `.env`를 root 전용으로 백업한 뒤 `sudoedit`로 고치고, 아래 절차대로 backend만 재생성합니다. 서명 키를 바꾸면 기존 로그인 토큰은 모두 무효가 되고, 인증번호 해시 키를 바꾸면 발송 중인 인증번호가 모두 무효가 됩니다. 네이버 발송 계정은 2단계 인증을 켠 뒤 네이버ID 보안설정에서 애플리케이션 비밀번호를 발급하고, PC 네이버 메일 환경설정의 IMAP/SMTP 사용을 `사용함`으로 둡니다([네이버 공식 안내](https://help.naver.com/service/30029/contents/21344?osType=COMMONOS)). 애플리케이션 비밀번호를 폐기·재발급하면 이전 값은 바로 쓸 수 없으므로 서버 `.env`를 고친 뒤 backend를 재생성하고, 회원가입 인증 메일 수신으로 발송을 확인합니다. readiness 성공만으로 메일 발송 성공을 판단하지 않습니다.
 
 ```sh
 openssl rand -base64 48

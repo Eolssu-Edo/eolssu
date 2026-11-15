@@ -4,21 +4,41 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import com.ssafy.eolssu.core.model.ScoreNote
-import com.ssafy.eolssu.core.model.fingeringYul
+import com.ssafy.eolssu.core.model.fingering.yulGlyphParts
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import kotlin.math.roundToInt
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.eolssu_yul_supplement
 import org.jetbrains.compose.resources.Font
 
 private val SupplementaryYulSymbols = setOf("𢓡", "𠐭", "𣴘")
 
-/** 글꼴의 15자 밖인 청·배성도 옥타브를 빼지 않는다. 기존 guide의 부수 조합 방식과 같은 표시다. */
+/** 음표 하나를 어떤 글꼴·모양으로 그릴지. 악기와 상관없이 같은 글자는 같은 글리프로 그린다. */
+internal sealed interface NoteGlyph {
+    /** 세리프 글꼴의 글자 그대로. 율명이 아닌 기호(ㅡ·△)도 여기에 속한다. */
+    data class Serif(val text: String) : NoteGlyph
+
+    /** 세리프 원본에 없는 보충 평면 율명(하배이·배유·중청대). 보조 글꼴로 그린다. */
+    data class Supplement(val text: String) : NoteGlyph
+
+    /** 글꼴 어디에도 없는 율명의 예비 표시. 변을 기본 율명 왼쪽에 붙인다([ComposedGlyph]). */
+    data class Composed(val radicals: String, val base: String) : NoteGlyph
+}
+
+/** 글꼴에 실제 글리프가 있으면 그 글자를, 없을 때만 변 + 기본 율명 조합을 고른다. */
+internal fun noteGlyphOf(note: ScoreNote): NoteGlyph {
+    val symbol = note.symbol
+    if (symbol in SupplementaryYulSymbols) return NoteGlyph.Supplement(symbol)
+    val pitch = note as? ScoreNote.SourcePitch
+    if (pitch == null || symbol == pitch.hangul) return NoteGlyph.Serif(symbol)
+    val parts = yulGlyphParts(symbol, pitch.baseYul.symbol, pitch.octave)
+    return if (parts.radicals.isEmpty() && parts.base == symbol) NoteGlyph.Serif(symbol) else NoteGlyph.Composed(parts.radicals, parts.base)
+}
+
+/** 정간보 음표 글자. 대금의 배·하배 율명도 단소·소금과 같은 세리프 글리프로 그린다. */
 @Composable
 fun ScoreNoteGlyph(
     note: ScoreNote,
@@ -27,38 +47,12 @@ fun ScoreNoteGlyph(
     color: Color = EolssuTheme.colors.text,
     fontWeight: FontWeight = FontWeight.SemiBold,
 ) {
-    val knownYul = when (note) {
-        is ScoreNote.Pitch -> note.yul
-        is ScoreNote.SourcePitch -> note.fingeringYul
-        else -> null
-    }
-    if (knownYul != null) {
-        YulGlyph(knownYul, size, modifier, color, fontWeight)
-        return
-    }
-    val pitch = note as? ScoreNote.SourcePitch
     val style = EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size, fontWeight = fontWeight)
-    if (pitch?.symbol in SupplementaryYulSymbols) {
-        Text(note.symbol, modifier, color = color,
+    when (val glyph = noteGlyphOf(note)) {
+        is NoteGlyph.Serif -> Text(glyph.text, modifier, color = color, style = style)
+        is NoteGlyph.Supplement -> Text(glyph.text, modifier, color = color,
             style = style.copy(fontFamily = FontFamily(Font(Res.font.eolssu_yul_supplement))))
-        return
-    }
-    if (pitch == null || pitch.fingeringYul != null || pitch.symbol == pitch.hangul) {
-        Text(note.symbol, modifier, color = color, style = style)
-        return
-    }
-    // data/src/scores/review_page.html HANJA: 하배 彳, 배 亻, 청 氵, 중청은 청성을 한 번 더 올린다.
-    val radical = when (pitch.octave) { -2 -> "彳"; -1 -> "亻"; 1 -> "氵"; 2 -> "氵氵"; else -> "" }
-    Layout(content = {
-        radical.forEach { Text(it.toString(), color = color, style = style.copy(fontSize = size * 0.62f, lineHeight = size * 0.62f)) }
-        Text(pitch.baseYul.symbol, color = color, style = style.copy(fontSize = size * 0.8f, lineHeight = size * 0.8f))
-    }, modifier = modifier) { measurables, constraints ->
-        val parts = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
-        val height = parts.maxOf { it.height }
-        var width = 0
-        val positions = parts.mapIndexed { index, part ->
-            width.also { width += if (index == parts.lastIndex) part.width else (part.width * 0.55f).roundToInt() }
-        }
-        layout(width, height) { parts.forEachIndexed { index, part -> part.place(positions[index], (height - part.height) / 2) } }
+        is NoteGlyph.Composed -> ComposedGlyph(glyph.radicals, glyph.base, size * 0.62f, size * 0.8f,
+            overlap = 0.45f, modifier = modifier, color = color, fontWeight = fontWeight)
     }
 }
