@@ -72,7 +72,7 @@ sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" ffp
 1. `deploy-ai.py`를 `deploy-backend` 옆에 설치합니다(`sudo install -o root -g root -m 0755 infra/jenkins/deploy-ai.py /opt/eolssu/bin/deploy-ai`). 같은 폴더의 `deploy-backend` 공통 함수를 읽으므로 두 파일을 함께 관리합니다. 보존 정리 도구도 같은 방법으로 `/opt/eolssu/bin/eolssu-retention`에 다시 설치합니다(이전 판은 `eolssu-retention.bak-244`).
 2. `visudo -cf`로 검사한 `/etc/sudoers.d/eolssu-ai`(root 0440)에 `jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-ai *`를 둡니다.
 3. 실행 중인 ai 컨테이너의 이미지와 `eolssu-ai:runtime` 태그가 같은지 확인합니다(`sudo docker inspect --format '{{.Image}}' eolssu-runtime-ai-1`, `sudo docker image inspect --format '{{.Id}}' eolssu-ai:runtime`). 다르면 도구가 시작을 거부합니다.
-4. 슬롯과 잡은 [컨트롤러 문서](../jenkins/controller/README.md#ai-배포-전용-슬롯)대로 등록합니다. 잡을 처음 만들면 Jenkinsfile의 polling은 첫 실행 뒤에 켜지므로 **Build Now**로 한 번 실행합니다. 확인할 것은 `ai-deployment.jsonl`의 `deployed`, 운영 `eolssu-ai:runtime`의 revision 라벨, backend 안의 422 응답(아래 명령), 분석 1건입니다.
+4. 슬롯과 잡은 [컨트롤러 문서](../jenkins/controller/README.md#ai-배포-전용-슬롯)대로 등록합니다(2026-11-15 등록, 첫 운영 배포 #1 성공). 잡을 처음 만들면 Jenkinsfile의 polling은 첫 실행 뒤에 켜지므로 **Build Now**로 한 번 실행합니다. 확인할 것은 `ai-deployment.jsonl`의 `deployed`, 운영 `eolssu-ai:runtime`의 revision 라벨, backend 안의 422 응답(아래 명령), 분석 1건입니다.
 5. 이후 수동 빌드 이미지는 source 라벨이 없으므로 다음 자동 실행이 다시 빌드·배포합니다.
 
 되돌리기: 잡을 비활성화합니다. 도구가 중단돼 journal이 `deploying`·`rollback_failed`이면 `sudo /opt/eolssu/bin/deploy-ai --recover`로 이전 이미지를 복구합니다. 배포가 끝난 뒤 이전 판으로 돌릴 때는 `sudo docker tag eolssu-ai:rollback eolssu-ai:runtime`을 실행한 뒤 아래 `up` 명령으로 `ai`만 재생성합니다.
