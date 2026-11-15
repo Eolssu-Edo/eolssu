@@ -1,3 +1,5 @@
+limit_req_zone $binary_remote_addr zone=blog_editor_per_ip:1m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=blog_views:1m rate=30r/m;
 log_format eolssu_safe_tls '$remote_addr [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent';
 # A container-local check can verify the TLS vhost's selected upstream.
 map $remote_addr $eolssu_tls_probe_backend {
@@ -79,6 +81,37 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location = /blog-editor/config {
+        proxy_pass http://172.18.0.1:18121/config;
+    }
+
+    location = /blog-editor/session {
+        limit_req zone=blog_editor_per_ip burst=5 nodelay;
+        limit_req_status 429;
+        client_max_body_size 8k;
+        proxy_read_timeout 40s;
+        proxy_pass http://172.18.0.1:18121/session;
+    }
+
+    location = /blog-editor/post {
+        limit_req zone=blog_editor_per_ip burst=5 nodelay;
+        limit_req_status 429;
+        client_max_body_size 270k;
+        proxy_read_timeout 40s;
+        proxy_pass http://172.18.0.1:18121/post;
+    }
+
+    location = /blog-editor/views {
+        client_max_body_size 256;
+        limit_req zone=blog_views burst=10 nodelay;
+        limit_req_status 429;
+        access_log off;
+        proxy_pass http://172.18.0.1:18121/views;
+    }
+
+    location = /blog-editor { return 404; }
+    location ^~ /blog-editor/ { return 404; }
+
     # Uploaded originals are available only to the internal recognition worker.
     location ^~ /api/internal/ {
         access_log off;
@@ -102,6 +135,21 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # iOS QA IPA OTA 설치(S15P31E102-444). 웹 릴리스 폴더와 분리된 /opt/eolssu/ipas를 고정 경로로 제공한다.
+    location ^~ /ipas/ {
+        alias /usr/share/nginx/ipas/;
+        index index.html;
+        autoindex off;
+        types {
+            text/html html;
+            application/xml plist;
+            application/octet-stream ipa;
+        }
+        add_header Cache-Control "no-store" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Robots-Tag noindex always;
     }
 
     location / {
