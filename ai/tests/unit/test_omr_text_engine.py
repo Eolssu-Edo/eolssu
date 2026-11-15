@@ -221,8 +221,13 @@ def test_reader_crash_is_engine_error_not_no_grid(monkeypatch, tmp_path, caplog)
     monkeypatch.setenv("JGB_GENERATOR_DIR", "unused")
     (tmp_path / "standard_score_text.py").write_text("raise RuntimeError('boom')", encoding="utf-8")
     monkeypatch.setattr(jeongganbo_text, "SCORES", tmp_path)
-    with caplog.at_level("INFO"):
-        out = post(pdf_bytes(SEMACHI)).json()
+    # The service logger does not propagate to pytest's root capture handler.
+    api.log.addHandler(caplog.handler)
+    try:
+        with caplog.at_level("INFO"):
+            out = post(pdf_bytes(SEMACHI)).json()
+    finally:
+        api.log.removeHandler(caplog.handler)
     assert out["failReason"] == "ENGINE_ERROR"
     assert "result=ENGINE_ERROR:RuntimeError" in caplog.text
 
