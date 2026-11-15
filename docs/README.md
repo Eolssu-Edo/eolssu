@@ -26,6 +26,8 @@
 
 - [운영 Nginx TLS 설정의 블로그 편집·IPA 블록 저장소 반영 (926)](plans/S15P31E102-926.md) · [운영 Nginx 규칙](../infra/runtime/README.md)
 
+- [루트·인프라 README 현행화와 문서 링크 검사 (942)](plans/S15P31E102-942.md) · [인프라 문서 안내](../infra/README.md)
+
 - [웹 정적 자산 gzip 압축과 캐시 헤더 (917)](plans/S15P31E102-917.md) · [운영 Nginx 규칙](../infra/runtime/README.md)
 
 - [최종 발표 릴리스·시연 동결 절차 (916)](../infra/release/README.md) · [버전 단일화 방안](knowledge/infra/release-versioning.md) · [계획·질문](plans/S15P31E102-916.md)
