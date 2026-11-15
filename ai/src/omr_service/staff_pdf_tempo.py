@@ -24,10 +24,15 @@ def read_marks(job):
                 text = textpage.get_text_range()
                 scale = job.pages[len(pages)].width / page.get_width()
                 marks = []
-                # q is the quarter-note glyph encoding in many engraved PDFs.
-                for match in re.finditer(r'(?:♩|q)(\.)?\s*=\s*(\d+(?:\.\d+)?)(?![\d.])', text):
-                    if re.match(r'\s*[-–—]\s*\d', text[match.end():]):
-                        continue  # A range does not specify one BPM.
+                # Explicit SMuFL metronome quarters (Leipzig Type3 in AuClair).
+                # Trust the PDF's Unicode mapping, never guess arbitrary PUA units.
+                # q is also used by engraved PDFs, but not inside prose words.
+                for match in re.finditer(
+                    r'(?:♩|(?<!\w)q|[\ueca5\ueca6])([.\uecb7])?[^\S\r\n]*='
+                    r'[^\S\r\n]*(\d+(?:\.\d+)?)(?![\w.,/])', text
+                ):
+                    if re.match(r'[^\S\r\n]*(?:[-–—~～/,][^\S\r\n]*)?\d', text[match.end():]):
+                        continue  # Ranges, fractions and adjacent numbers are not one BPM.
                     left, bottom, _, _ = textpage.get_charbox(match.start())
                     marks.append({'x': left * scale, 'bottom': (page.get_height()-bottom)*scale,
                                   'bpm': match[2], 'dots': int(bool(match[1])), 'accel': False})
@@ -69,7 +74,7 @@ def supplement(data, archive, marks):
                         geometry.append((stack,top,spacing))
     if len(geometry) != len(measures):
         return data, 0
-    count = 0
+    aligned = {}
     for mark in marks:
         candidates = []
         for i,(stack,top,spacing) in enumerate(geometry):
@@ -85,7 +90,16 @@ def supplement(data, archive, marks):
                 candidates.append(i)
         if len(candidates) != 1:
             continue
-        measure = measures[candidates[0]]
+        aligned.setdefault(candidates[0], []).append(mark)
+    count = 0
+    for index, candidates in aligned.items():
+        # Resolve PDF conflicts before mutating XML: an earlier PDF insertion is
+        # not an original machine-readable value that can override later marks.
+        values = {Fraction(m['bpm']) * (Fraction(3, 2) if m['dots'] else 1) for m in candidates}
+        if len(values) != 1:
+            continue
+        mark = {**candidates[0], 'accel': any(m['accel'] for m in candidates)}
+        measure = measures[index]
         t = 0
         existing = []
         for element in measure:

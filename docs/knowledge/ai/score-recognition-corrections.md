@@ -106,3 +106,19 @@ Audiveris 원출력은 숫자3곳만 metronome으로 내고 다른160은 누락�
 로컬 근거 루트는 `C:/Users/SSAFY/.codex/worktrees/score-test-assets-801/data/processed/score-test-assets-801/runtime/fix806/`이다. `quality-report.json`, `final/backend/summary.json`, `final/backend/frontend-edit-report.txt`, `backend-final.log`, `frontend-final.log`, `omr-tests.log`와 캡처된 실제 MXL/응답을 보존했다. 원본·임시 진단 코드·모델은 이 제외 경로에만 둔다.
 
 재실행은 AI 폴더의 `uv run pytest tests/unit/test_omr_api.py tests/unit/test_omr_staff_engine.py tests/unit/test_omr_text_engine.py tests/unit/test_staff_musicxml.py tests/unit/test_staff_source_pitches.py tests/unit/test_staff_audiveris_fixtures.py`를 사용한다. 실제 원본 대조와 BE/FE 재현 하네스는 위 근거 루트의 `harness/`에 보관하며 테스트 원본의 출처·이용 조건·해시는 Downloads 테스트자료의 `manifest.json`에 보존했다. 공식 독립 리뷰는 아직 수행하지 않았다.
+
+## PDF 음표 글리프의 숫자 빠르기 누락 (935)
+
+2026-11-15, [S15P31E102-935 계획](../../plans/S15P31E102-935.md). QA931은 배포 Android QA372(a2983834)에 AuClair PDF를 실제 업로드해 최초160BPM·24초를 관찰했다. 원본은100Q BPM·64Q=38.4초다. 이후 사용자가100으로 수정한 저장·음원38.95초 성공은 최초 자동 인식 성공이 아니다. 기존 [박자 가져오기 검증](../data/common/rhythm-metronome/meter-import-validation.md)에도 같은 제한이 기록돼 있다.
+
+원본 `02_AuClairDeLaLune_양손피아노.pdf`를 PDFium5.15.2로 읽으면 `Moderato\ueca5 = 100`이다. Type3 폰트의 PDFium 이름은 빈 문자열이지만 PDF FontDescriptor의 FontFamily는 Leipzig, ToUnicode는 byte09→U+ECA5다. [SMuFL 메트로놈 표](https://smufl.formats.music/latest/tables/metronome-marks.html)는 ECA5/ECA6을4분음표, ECB7을점으로 정의한다. 임의 PUA 전체를4분음표로 치환하거나 폰트 이름을 추정하지 않고 이 명시적 표기만 추가했다. PDF의 Unicode 매핑 자체가 잘못된 임의 폰트까지 의미를 검증한 것은 아니다.
+
+- 수정 전 `read_marks`는 `[[]]`, 수정 후 한 표시 `{x:148.53569, bottom:101.72937, bpm:'100', dots:0, accel:false}`를 읽는다(원본 PDF 좌표, 렌더 폭에 맞춰 확대).
+- 자체 Type3 PDF를 메모리에서 만들어 실제 PDFium으로 읽는다. SMuFL/일반4분음표·점·소수·가속, 다른 음표 단위·임의PUA·범위·분수·쉼표·단어 안q·별도 줄 숫자·인접 숫자를 검사한다. 소스 악보·폰트 파일은 테스트에 복사하지 않았다.
+- 같은 마디에 PDF100/120이 동시에 있으면 기존 코드는 입력 순서의 첫 값을 선택했다. 이제 보충 전 마디별 후보를 모아 상충 숫자는 거부한다. 기존 MusicXML 우선, 같은 값의 중복, 다른 마디 값, 중간/모호한 위치, 음표 불변을 함께 검사한다.
+- 원본 AuClair와 자체PDF를 실제 FastAPI 경계로 넣어 `DONE`, `bpm=100`, 첫 정간 tempo100, `TEMPO_PDF_TEXT`, 음표 시간축 불변을 확인했다. 다운로드와 Audiveris subprocess는 통제된 경계이며, Audiveris 출력은 자체 작성1마디 MusicXML/기하다. 실제 PDFium 읽기·렌더·MusicXML→공통악보·JGB 생성·HTTP 응답을 실행했으나 원본16마디 전체 OCR의 성공을 증명하지 않는다.
+- BlueVal 원본4쪽은 수정 전후 읽힌 다섯 값160/80/160/80/160, 좌표, 가속 두 곳이 모두 동일하다. 이 비교는 이미 읽던 표시의 보존 근거이며 새 전체 모델 실행이 아니다.
+
+실행환경: Windows Python3.12.5, 기존 `C:/higher/tmp/score-zip-784/venv`, PDFium5.15.2, `JGB_GENERATOR_DIR=C:/higher/projects/jeongganbo-generator`. AI 폴더에서 `PYTHONPATH=src;../data/src`와 README의 원본 opt-in 환경변수로 실행했다. Git 기준은 edf90cc3이며 모델·의존성을 새로 설치하지 않았다. 원본은 Downloads의 지정 폴더에 그대로 있고 비교 JSON만 작업 worktree의 `.scratch/935/source-read-comparison.json`에 보존한다.
+
+집중 회귀31건·HTTP2건 통과. 첫 수정 전 숫자/글리프10건, 충돌 보완 전3건의 실패를 관찰했다. 확장 회귀 도중 C: 여유0 및 WinError112로 임시파일 생성이 실패했으며 이 실행은 제품 통과로 세지 않는다. 최종 회귀·독립 리뷰 결과는935 계획에 기록한다. 배포판의 최초 raw Audiveris MusicXML은 확보하지 못했으므로 최초 OCR누락 전체 원인은 단정하지 않는다. 배포 후 실제 폰에서 서버 수정 효과는 미검증이다.
