@@ -155,8 +155,8 @@ class PracticeJangdanTest {
     }
 
     @Test fun settingsSaveImmediatelyAndRecordingCanToggleAccompaniment() = practice { vm, samples, _, settings ->
-        vm.openPanel(PracticePanel.Notation)
-        vm.updateDraft { it.copy(showHangul = true) }; runCurrent()
+        vm.openPanel(PracticePanel.Settings)
+        vm.toggleHangul(); runCurrent()
         assertTrue(settings.settings.value.showHangul)
         vm.closePanel(); runCurrent()
         vm.requestEvaluation(); runCurrent()

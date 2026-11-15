@@ -87,7 +87,13 @@ data class ScoreCellDecoration(
     val tag: ScoreErrorKind? = null,
     val alpha: Float = 1f,
     val edgeLabel: String? = null,
-)
+) {
+    /**
+     * 정간 전체를 바탕색이나 종류 아이콘으로 칠하는지. 흐리기·구간 처음/끝 알약·테두리만 있는 꾸밈은 아니어서,
+     * 나뉜 정간의 틀린 소박 표시([JeongganboView]의 `unitErrors`)와 함께 그린다(S15P31E102-913).
+     */
+    val paintsCell: Boolean get() = fill != null || tag != null
+}
 
 /** 틀린 정간 꾸밈: 종류별 바탕, 2dp 안쪽 테두리(음 길이 점선)와 아이콘. */
 @Composable

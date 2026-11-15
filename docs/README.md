@@ -66,6 +66,7 @@
 - [정간보 단모리 변환 시간 교정 (732)](specs/danmori-conversion-timing.md) · [오류 원인과 기존 데이터 영향](knowledge/ai/jeongganbo-beat-timing.md)
 - [비행기 네 악기 악보·CAT 음원·4박 기본 반주 연결 (707)](specs/airplane-four-instruments.md) · [계획·검증](plans/S15P31E102-707.md) · [악보·생성 근거](knowledge/data/airplane-beginner-score.md)
 
+- [iOS 무음 모드에서 기초 배우기·운지법·정간보 읽기 예시음 재생 수정 (914)](plans/S15P31E102-914.md)
 - [iOS 평가 녹음 중 장단 소리 크기 제한과 iPhone 볼륨 곡선 실측 (907)](plans/S15P31E102-907.md)
 - [iOS 녹음 입력과 실시간 음높이 분석 (562)](plans/S15P31E102-562.md)
 - [iOS 연습 장단 소리 재생 연결 (714)](plans/S15P31E102-714.md) · [장단 재생 스펙](specs/jangdan-practice-playback.md#ios-연습-장단-재생-s15p31e102-714)
@@ -351,6 +352,7 @@
 - [단소 채점 오류 검출 평가: 실행과 결과 해석](knowledge/ai/scoring-error-evaluation.md)
 - [짧은 옥타브 위 음 채점 오류: 원인과 수정](knowledge/ai/short-octave-error.md)
 - [대금 낮은 옥타브 채점 보정: 운영 녹음 재채점과 방식 비교 (848)](knowledge/ai/daegeum-low-octave.md) · [계획](plans/S15P31E102-848.md)
+- [음 길이 점수의 자리 기준 보정: 실제 연주 전후 비교와 길이 판정 보류 (910)](knowledge/ai/duration-score-slot.md)
 - [입문자 정상 연주 채점: 박자 판정과 소금 정답](knowledge/ai/beginner-normal-performance.md)
 - [일부러 틀린 실제 녹음 요청서 (아리랑, 단소·소금, 보류)](knowledge/ai/real-error-recording-request.md)
 - [DTW 메모리 절감 비교: 기준 관찰과 연구용 후보](knowledge/ai/dtw-memory-comparison.md)

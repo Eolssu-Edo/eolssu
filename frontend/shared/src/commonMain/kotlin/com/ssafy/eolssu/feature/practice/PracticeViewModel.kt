@@ -592,7 +592,6 @@ class PracticeViewModel(
         val state = _uiState.value
         val song = state.song ?: return
         when (state.panel) {
-            PracticePanel.Notation -> settingsStore.update { it.applyNotation(state.draft) }
             PracticePanel.Jangdan -> {
                 settingsStore.update { it.applyJangdan(state.draft) }
                 if (!state.draft.jangdanSound) pauseRhythm()
@@ -656,7 +655,7 @@ class PracticeViewModel(
         else settingsStore.update { it.copy(fingeringView = !it.fingeringView) }
     }
 
-    /** 연주 평가 제목 옆 ‘쉬운 표기’ 스위치. 한글 읽는 법 표시를 바로 켜고 끈다(S15P31E102-716). */
+    /** 연습 설정의 ‘한글 읽는 법 표시’ 스위치. 바로 켜고 끈다(S15P31E102-875). */
     fun toggleHangul() = settingsStore.update { it.copy(showHangul = !it.showHangul) }
 
     /** 연습 설정의 ‘연습 악기’. 운지 그림과 제목 옆 표시에만 쓰고 프로필 악기는 바꾸지 않는다. */
@@ -1447,7 +1446,6 @@ class PracticeViewModel(
                         _uiState.update {
                             it.copy(eventElapsedMs = duration, elapsedMs = endElapsedMs)
                                 .advance(0.0, micLevel = it.micLevel)
-                                .resumeFollowOnNextGak()
                         }
                         clock.completeEvent(duration)
                         if (_uiState.value.mode == PracticeMode.Rhythm && (_uiState.value.passedSectionEnd ||
@@ -1468,7 +1466,7 @@ class PracticeViewModel(
                         if (!running) { if (next.mode == PracticeMode.Rhythm) stopJangdan(); break }
                     } else {
                         _uiState.update { it.copy(eventElapsedMs = sample.eventElapsedMs.coerceAtLeast(0.0),
-                            elapsedMs = sample.elapsedMs, eventStartedAt = clock.eventStartedAt).resumeFollowOnNextGak() }
+                            elapsedMs = sample.elapsedMs, eventStartedAt = clock.eventStartedAt) }
                         delay(_uiState.value.nextTimelineSampleMs().milliseconds)
                     }
                 }

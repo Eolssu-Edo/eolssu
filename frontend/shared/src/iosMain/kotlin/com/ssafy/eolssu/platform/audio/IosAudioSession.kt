@@ -40,15 +40,26 @@ internal object IosAudioSession {
         deactivate()
     }
 
-    /** 녹음 중이면 false: 재생기는 녹음을 끊지 않고 중단 상태로 둔다. */
-    fun startPlayback(): Boolean =
-        !recording && session.setCategory(AVAudioSessionCategoryPlayback, error = null) && session.setActive(true, error = null)
+    /** 지금 재생 세션을 쓰는 재생기 수. 마지막 재생기가 멈출 때만 세션을 끈다. */
+    private var playbackOwners = 0
 
-    fun stopPlayback() {
-        if (!recording) deactivate()
+    /**
+     * 재생 세션(Playback)을 켠다. 무음 스위치와 상관없이 소리가 난다. 녹음 중이면 false: 재생기는 녹음을 끊지 않고 중단 상태로 둔다.
+     * 녹음이 끝나며 세션이 기본값으로 돌아갔을 수 있어 부를 때마다 범주를 다시 맞춘다. 성공하면 [stopPlayback]을 한 번 불러야 한다.
+     */
+    fun startPlayback(): Boolean {
+        if (recording) return false
+        if (!session.setCategory(AVAudioSessionCategoryPlayback, error = null) || !session.setActive(true, error = null)) return false
+        playbackOwners++
+        return true
     }
 
-    /** 끈 뒤 기본 설정(SoloAmbient)으로 되돌려, 짧은 안내음([IosSoundPlayer])이 다시 무음 스위치를 따르고 측정 모드가 남지 않게 한다. */
+    fun stopPlayback() {
+        if (playbackOwners > 0) playbackOwners--
+        if (playbackOwners == 0 && !recording) deactivate()
+    }
+
+    /** 끈 뒤 기본 설정(SoloAmbient)으로 되돌려 측정 모드가 남지 않게 한다. */
     private fun deactivate() {
         session.setActive(false, withOptions = AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation, error = null)
         session.setCategory(AVAudioSessionCategorySoloAmbient, mode = AVAudioSessionModeDefault, options = 0uL, error = null)

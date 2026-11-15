@@ -78,7 +78,8 @@ class ApiEvaluationRepositoryTest {
         assertEquals(1, songReads)
     }
 
-    @Test fun unsupportedNoteVerdictDoesNotHideScoresBeforeScoreMapping() = runTest {
+    @Test fun unknownNoteVerdictIsSkippedWhenMappingTheScore() = runTest {
+        // 서버에 새 판정이 먼저 생겨도 점수와 악보 상세가 열려야 한다. 모르는 판정의 음만 틀린 표시를 하지 않는다(S15P31E102-912).
         val repo = repository {
             HttpStatusCode.OK to """{"isSuccess":true,"result":{"sessionId":"41","songId":"2","scoreVersion":1,
                 "bpm":60,"startedAt":"2026-10-29T00:00:00Z","totalScore":80,"pitchScore":90,"timingScore":70,
@@ -87,7 +88,8 @@ class ApiEvaluationRepositoryTest {
         val prepared = checkNotNull(repo.resultForScreen("41", song))
         assertEquals(80, prepared.scores.total)
         assertEquals(0, songReads)
-        assertFailsWith<IllegalArgumentException> { prepared.loadDetails() }
+        val details = checkNotNull(prepared.loadDetails())
+        assertEquals(emptyList(), details.first.errors)
         assertEquals(80, prepared.scores.total)
     }
 
