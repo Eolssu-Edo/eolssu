@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [발표 전 가입·주요 API 동시 접속 리허설 (940)](plans/S15P31E102-940.md) · [결과·시연 대책](knowledge/infra/demo-load-rehearsal.md) · [실행 도구](../infra/loadtest/README.md)
+
 - [edo2 장애·복제·백업·디스크 상태 변화 Mattermost 자동 알림 (919)](plans/S15P31E102-919.md) · [운영 안내](../infra/edo-check/README.md#상태-변화-능동-알림)
 
 - [정간보 각 나눔과 연습 화면 다음 각 표시 통일 (922)](plans/S15P31E102-922.md)
