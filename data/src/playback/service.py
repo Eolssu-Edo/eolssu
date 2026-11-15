@@ -82,21 +82,29 @@ class PlaybackService:
                             if os.name == 'nt':
                                 subprocess.run(['taskkill', '/PID', str(child.pid), '/T', '/F'],
                                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-                            else:
+                            child.kill()
+                            child.wait()
+                            raise
+                        finally:
+                            # A failed renderer may leave its encoder running after
+                            # the direct child exits. Its session remains ours to clean.
+                            if os.name != 'nt':
                                 try:
                                     os.killpg(child.pid, signal.SIGKILL)
                                 except ProcessLookupError:
                                     pass
-                            child.kill()
-                            child.wait()
-                            raise
                 except subprocess.TimeoutExpired:
                     raise GenerationError('TIMEOUT', 504) from None
                 except (OSError, subprocess.CalledProcessError):
                     raise GenerationError('SERVER_ERROR') from None
                 result_path = root / 'result.json'
                 if result_path.is_file() and not result_path.is_symlink() and result_path.stat().st_size <= 4096:
-                    preliminary = json.loads(result_path.read_text(encoding='utf-8'))
+                    try:
+                        preliminary = json.loads(result_path.read_text(encoding='utf-8'))
+                        if not isinstance(preliminary, dict):
+                            raise ValueError()
+                    except (ValueError, OSError):
+                        raise GenerationError('SERVER_ERROR') from None
                     if preliminary.get('errorCode') in ('EXPORT_TOO_LONG', 'INVALID_REQUEST', 'TEMPO_UNRENDERABLE'):
                         raise GenerationError(preliminary['errorCode'], 400, preliminary.get('details'))
                 artifacts = [('result.json',4096)] if estimate else [('audio.m4a', MAX_AUDIO), ('score.mid', MAX_MIDI), ('result.json', 4096)]
