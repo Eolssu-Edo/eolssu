@@ -50,6 +50,14 @@ internal val SheetDraft.appliedTranspose: Int
     get() = ((authoring?.get("adaptation") as? JsonObject)?.get("transpose") as? JsonPrimitive)
         ?.takeUnless { it.isString }?.intOrNull?.takeIf { it in -6..6 } ?: 0
 
+/** Missing/null is not a server-side clear: send zero when undo restores a draft without an adaptation. */
+internal fun SheetDraft.authoringForSave(instrumentCode: String): JsonObject? = authoring?.let { metadata ->
+    if (metadata["adaptation"] != null && metadata["adaptation"] != JsonNull) metadata
+    else JsonObject(metadata + ("adaptation" to buildJsonObject {
+        put("instrument", instrumentCode); put("transpose", 0); put("changes", JsonArray(emptyList()))
+    }))
+}
+
 internal fun SheetDraft.originalPitchLayoutMatches(): Boolean {
     val source = authoring?.get("source")?.jsonObject
     val saved = source?.get("notes")?.jsonArray.orEmpty()
