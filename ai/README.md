@@ -179,7 +179,7 @@ python3 -B infra/jenkins/build-ai-image.py test "$SHA" --junit /tmp/ai-junit.xml
 python3 -B infra/jenkins/build-ai-image.py smoke "$SHA"
 ```
 
-`test`는 dev 그룹을 받으므로 인터넷이 닿는 네트워크가 필요합니다. `omr_service` 테스트는 OMR 이미지 몫이라 이 게이트에서 빼고, Windows 전용 평가 실험 테스트 1건(`test_onset_spread_experiment.py::test_experiment_rejects_wrong_recording_hash`)은 노드 ID로만 제외합니다([S15P31E102-244 작업 기록](../docs/plans/S15P31E102-244.md)).
+`test`는 dev 그룹을 받으므로 인터넷이 닿는 네트워크가 필요합니다. `omr_service` 테스트는 OMR 이미지 몫이라 이 게이트에서 빼고(Audiveris·정간보 변환기가 있는 omr 이미지에서 `python3 -B infra/jenkins/build-service-image.py omr test "$SHA"`로 돌립니다, [S15P31E102-951](../docs/plans/S15P31E102-951.md)), Windows 전용 평가 실험 테스트 1건(`test_onset_spread_experiment.py::test_experiment_rejects_wrong_recording_hash`)은 노드 ID로만 제외합니다([S15P31E102-244 작업 기록](../docs/plans/S15P31E102-244.md)).
 
 ## 음높이 추정 비교
 

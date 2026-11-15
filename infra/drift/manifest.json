@@ -127,6 +127,10 @@
     "source": "infra/jenkins/deploy-frontend.py"
    },
    {
+    "path": "/opt/eolssu/bin/deploy-service-image",
+    "source": "infra/jenkins/deploy-service-image.py"
+   },
+   {
     "path": "/opt/eolssu/bin/eolssu-retention",
     "source": "infra/retention/retention.py"
    },
@@ -248,6 +252,16 @@
    {
     "job": "eolssu-ios-qa",
     "source": "infra/ios-qa/ios.Jenkinsfile"
+   },
+   {
+    "job": "eolssu-omr",
+    "source": "infra/jenkins/service-image.Jenkinsfile",
+    "note": "S15P31E102-951 잡 등록 전에는 서버 없음"
+   },
+   {
+    "job": "eolssu-playback",
+    "source": "infra/jenkins/service-image.Jenkinsfile",
+    "note": "S15P31E102-951 잡 등록 전에는 서버 없음"
    }
   ],
   "edo2": [
