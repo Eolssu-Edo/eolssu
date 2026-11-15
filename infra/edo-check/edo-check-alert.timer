@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the edo1/edo2 state-change watcher every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=1min
+AccuracySec=5s
+Unit=edo-check-alert.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,31 @@
+[Unit]
+Description=Mattermost notices for confirmed edo1/edo2 state changes
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=edo-check
+Group=edo-check
+StateDirectory=edo-check-alert
+StateDirectoryMode=0700
+# Root-only 600 file; systemd hands a private copy to this run.
+LoadCredential=webhook-url:/etc/edo-check-alert/webhook-url
+# Optional overrides in a drop-in: ALERT_CHANNEL=<channel name>, ALERT_MENTION=@here
+ExecStart=/usr/bin/python3 -I -B /opt/edo-check/alert.py /etc/edo-check/relay.json
+# First run collects every source: 4 SSH collections (90 s cap each) plus HTTPS probes.
+TimeoutStartSec=420
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=strict
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+MemoryMax=160M
+TasksMax=32
