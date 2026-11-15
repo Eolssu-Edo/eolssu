@@ -75,13 +75,25 @@ def read_marks(job, *, with_bounds=False):
     return pages
 
 
-def tuplet_regions(archive, marks):
+def tuplet_regions(data, archive, marks):
     """Groups of PDF tempo ink boxes misclassified as tuplet3/6 by Audiveris.
 
     Require a unique matching digit, raster-rounding agreement and separation
     above the owning staff. Mask every printed tempo character, not just the6
     (which would turn160 into10), and preserve the spaces between characters.
     """
+    part = ET.fromstring(staff_musicxml._xml_bytes(data)).find('part')
+    measures = part.findall('measure') if part is not None else []
+    eligible = []
+    for index, candidates in _aligned_marks(archive, marks, len(measures)).items():
+        values = {Fraction(m['bpm']) * (Fraction(3, 2) if m['dots'] else 1) for m in candidates}
+        existing = [cue['bpm'] for element in measures[index]
+                    if element.tag in ('direction', 'sound')
+                    and (cue := staff_musicxml._tempo_direction(element)) and cue['bpm'] is not None]
+        # Every erased mark must be recoverable by supplement, including when
+        # the first pass already contains a conflicting machine-readable tempo.
+        if len(values) == 1 and (not existing or len(existing) == 1 and existing[0] in values):
+            eligible.extend(candidates)
     matched = set()
     with zipfile.ZipFile(io.BytesIO(archive)) as z:
         for name in z.namelist():
@@ -101,7 +113,8 @@ def tuplet_regions(archive, marks):
                 candidates = []
                 for index, mark in enumerate(marks):
                     glyphs = mark.get('glyphs', [])
-                    if not glyphs or any(not (b[0] < b[2] and b[1] < b[3] < top-1)
+                    if mark not in eligible or not glyphs or any(not (b[0] < b[2] and b[1] < b[3]
+                                                                       and math.ceil(b[3])+1 < top)
                                          for g in glyphs for b in [g['bounds']]):
                         continue
                     candidates += [index for glyph in glyphs if glyph['number'] and glyph['text'] == digit
@@ -112,13 +125,8 @@ def tuplet_regions(archive, marks):
              for glyph in marks[index]['glyphs'] for b in [glyph['bounds']]] for index in sorted(matched)]
 
 
-def supplement(data, archive, marks):
-    """Accept only first-slot alignment; a midmeasure/ambiguous mark stays unbound."""
-    root = ET.fromstring(staff_musicxml._xml_bytes(data))
-    part = root.find('part')
-    if part is None:
-        return data, 0
-    measures = part.findall('measure')
+def _aligned_marks(archive, marks, measure_count):
+    """Share the same first-slot and measure-count proof before masking/restoring."""
     geometry = []
     with zipfile.ZipFile(io.BytesIO(archive)) as z:
         for name in z.namelist():
@@ -127,16 +135,16 @@ def supplement(data, archive, marks):
                 for system in sheet.iter('system'):
                     staff = system.find('part/staff')
                     if staff is None:
-                        return data, 0
+                        return {}
                     points = staff.findall('lines/line/point')
                     heights = sorted(set(float(p.get('y')) for p in points))
                     if len(heights) < 2:
-                        return data, 0
+                        return {}
                     top, spacing = heights[0], heights[1]-heights[0]
                     for stack in system.findall('stack'):
                         geometry.append((stack,top,spacing))
-    if len(geometry) != len(measures):
-        return data, 0
+    if len(geometry) != measure_count:
+        return {}
     aligned = {}
     for mark in marks:
         candidates = []
@@ -154,6 +162,17 @@ def supplement(data, archive, marks):
         if len(candidates) != 1:
             continue
         aligned.setdefault(candidates[0], []).append(mark)
+    return aligned
+
+
+def supplement(data, archive, marks):
+    """Accept only first-slot alignment; a midmeasure/ambiguous mark stays unbound."""
+    root = ET.fromstring(staff_musicxml._xml_bytes(data))
+    part = root.find('part')
+    if part is None:
+        return data, 0
+    measures = part.findall('measure')
+    aligned = _aligned_marks(archive, marks, len(measures))
     count = 0
     for index, candidates in aligned.items():
         # Resolve PDF conflicts before mutating XML: an earlier PDF insertion is

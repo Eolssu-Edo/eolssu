@@ -137,9 +137,11 @@ def _read_pages(job, deadline, page_time_s):
             archives = [p.read_bytes() for p in out.rglob('*.omr')]
             issues += [issue for archive in archives for issue in time_signature_reviews(archive, page=i)]
             region_groups = [[box] for archive in archives for box in tempo_regions(archive)]
-            if i < len(pdf_marks):
-                region_groups += [group for archive in archives
-                                  for group in staff_pdf_tempo.tuplet_regions(archive, pdf_marks[i])]
+            sheets = sorted([*out.rglob("*.mxl"), *out.rglob("*.musicxml")], key=_natural)
+            pdf_regions = []
+            if i < len(pdf_marks) and len(sheets) == len(archives) == 1:
+                pdf_regions = staff_pdf_tempo.tuplet_regions(sheets[0].read_bytes(), archives[0], pdf_marks[i])
+                region_groups += pdf_regions
             if region_groups:
                 # OCR 빠르기의 잘못 붙은 음표 또는 PDF 빠르기 숫자로 확인된 잇단음표를
                 # 작업용 그림에서 지우고 한 번 다시 읽는다. 원본과 글자 사이 음은 보존한다.
@@ -150,9 +152,20 @@ def _read_pages(job, deadline, page_time_s):
                     for box in (box for group in region_groups for box in group):
                         draw.rectangle(box, fill="white")
                     image.save(cleaned)
+                original_out, original_run = out, run
                 out = Path(work) / f"retry-{i}"
                 run = _run(command + [str(out), "--", str(cleaned)], page_deadline)
                 input_path = cleaned
+                if pdf_regions and run.returncode >= 0:
+                    candidates = sorted([*out.rglob("*.mxl"), *out.rglob("*.musicxml")], key=_natural)
+                    if (len(candidates) != 1 or staff_pdf_tempo.tuplet_regions(
+                            candidates[0].read_bytes(), archives[0], pdf_marks[i]) != pdf_regions):
+                        # A changed measure count or new conflicting tempo would
+                        # prevent restoration. Keep the original recognition.
+                        out, run, input_path = original_out, original_run, page.path
+                        region_groups = []
+                        issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {
+                            'reason': 'TEMPO_TUPLET_RETRY_REJECTED'}))
                 regions = [(min(b[0] for b in group), min(b[1] for b in group),
                             max(b[2] for b in group), max(b[3] for b in group)) for group in region_groups]
                 issues += [{"kind": "LOW_CONFIDENCE", "eventId": None, "cellId": None, "page": i,
