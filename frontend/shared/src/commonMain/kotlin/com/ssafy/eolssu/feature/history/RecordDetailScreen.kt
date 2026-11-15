@@ -281,6 +281,7 @@ private fun RecordMemoEditor(recordId: String, memo: String, dialog: RecordMemoS
     var draft by rememberSaveable(recordId, memo, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(memo, TextRange(memo.length)))
     }
+    val memoLength = recordMemoLength(draft.text)
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val textStyle = memoTextStyle().copy(color = colors.text)
@@ -296,7 +297,7 @@ private fun RecordMemoEditor(recordId: String, memo: String, dialog: RecordMemoS
             BasicTextField(
                 value = draft,
                 // 서버는 500자를 넘는 메모를 받지 않으므로(400) 그 이상은 입력하지 않는다.
-                onValueChange = { if (it.text.length <= RECORD_MEMO_MAX_LENGTH) draft = it },
+                onValueChange = { if (recordMemoLength(it.text) <= RECORD_MEMO_MAX_LENGTH) draft = it },
                 enabled = !dialog.saving,
                 textStyle = textStyle,
                 cursorBrush = SolidColor(colors.text),
@@ -315,10 +316,10 @@ private fun RecordMemoEditor(recordId: String, memo: String, dialog: RecordMemoS
                 }
             }
             Text(
-                stringResource(Res.string.record_memo_count, draft.text.length, RECORD_MEMO_MAX_LENGTH),
+                stringResource(Res.string.record_memo_count, memoLength, RECORD_MEMO_MAX_LENGTH),
                 Modifier.padding(start = 8.dp),
                 style = small,
-                color = if (draft.text.length >= RECORD_MEMO_MAX_LENGTH) colors.recText else colors.textMuted,
+                color = if (memoLength >= RECORD_MEMO_MAX_LENGTH) colors.recText else colors.textMuted,
             )
         }
     }

@@ -1,6 +1,6 @@
 # edo2 격리 대기 환경
 
-장애 때 승격·운영 도메인 전환·원복 절차는 [장애 전환 런북](failover-runbook.md)을 따른다. 승격에만 쓰는 겹쳐 쓰기 파일은 `compose.promote.yml`·`replica.promote.compose.yml`·`edo2-domain.nginx.conf`다.
+장애 때 승격·운영 도메인 전환·원복 절차는 [장애 전환 런북](failover-runbook.md)을 따른다. 승격에만 쓰는 겹쳐 쓰기 파일은 `compose.promote.yml`·`replica.promote.compose.yml`·`edo2-domain.nginx.conf`다. `rehearsal/`은 운영 복제본을 건드리지 않고 사본으로 전환을 연습할 때만 쓴다([런북](failover-runbook.md#사본으로-연습하기)).
 
 [S15P31E102-579 계획·검증](../../docs/plans/S15P31E102-579.md)에 원본 릴리스와 실제 검증 결과를 기록한다. 운영과 같은 웹·백엔드·AI·OMR·재생 이미지를 사용한다. DB와 녹음·악보 파일은 edo2의 별도 볼륨과 디렉터리에 저장한다. 운영 계정이나 데이터베이스 백업을 가져올 필요 없이 JAR의 마이그레이션으로 스키마와 기본 카탈로그를 준비한다.
 

@@ -38,6 +38,16 @@ import eolssu.shared.generated.resources.song_cover_seal
 import eolssu.shared.generated.resources.song_preview_label
 import org.jetbrains.compose.resources.stringResource
 
+/**
+ * 표지 세로 제목: 첫 괄호(`(` 또는 `（`)부터 끝까지 떼고 앞뒤 공백을 지운다(S15P31E102-924). 남는 글자가 없으면 원래 제목을 그대로 쓴다.
+ * 표지에만 쓰고, 다른 화면은 곡 제목 전체를 그대로 보인다.
+ */
+internal fun coverTitle(title: String): String {
+    val cut = title.indexOfFirst { it == '(' || it == '（' }
+    val trimmed = (if (cut >= 0) title.substring(0, cut) else title).trim()
+    return trimmed.ifEmpty { title }
+}
+
 /** 세로 제목이 [TitleFitChars]자를 넘으면 글자를 줄여 표지가 제목 때문에 지나치게 길어지지 않게 한다. */
 private const val TitleFitChars = 5
 
@@ -65,7 +75,7 @@ internal fun SongScoreCover(
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
     val previewLabel = stringResource(Res.string.song_preview_label)
-    val titleChars = song.title.filterNot { it.isWhitespace() }
+    val titleChars = coverTitle(song.title).filterNot { it.isWhitespace() }
     val titleSize = fittedTitleSize(titleChars.length, if (large) 36.sp else 30.sp)
     val sealSize = if (large) 20.sp else 17.sp
     // 악보가 짧아도 세로 제목(위 25dp)과 그 아래 도장이 표지 안에 들어오도록 높이의 하한을 둔다.

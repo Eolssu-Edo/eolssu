@@ -42,6 +42,7 @@ import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
  * 페이지형 상단 바(`.page-head`, SONG-01 · SONG-02 · PRACTICE-01): 왼쪽 뒤로 가기 꺽쇠([EolssuBackButton]) · 가운데 제목 · 오른쪽 버튼 자리 · 아래 구분선.
  * 제목은 다른 화면의 [EolssuTopBar]처럼 줄 가운데에 두되([CenteredTitleRow]) 보조 문구가 없고, 큰 제목은 본문의 [PageHeading]이 맡는다.
  * 버튼은 보이는 자리 36dp, 누르는 영역 48dp라 버튼 바깥 여백(6dp)만큼 줄 양옆 여백을 줄여 그 자리가 화면 끝에서 20dp에 오게 한다.
+ * [shrinkRight]가 true면 제목 자리가 모자랄 때 오른쪽 자리를 좁혀 그 안 글자를 말줄임한다([CenteredTitleRow]의 `shrinkEnd`).
  * 상태 표시줄 영역은 감싸는 쪽(`EolssuScaffold` 등)이 비켜 간다.
  */
 @Composable
@@ -51,6 +52,7 @@ fun EolssuPageTopBar(
     modifier: Modifier = Modifier,
     maxWidth: Dp = CompactContentMaxWidth,
     divider: Boolean = true,
+    shrinkRight: Boolean = false,
     right: @Composable RowScope.() -> Unit = {},
 ) {
     Column(modifier.fillMaxWidth()) {
@@ -64,6 +66,7 @@ fun EolssuPageTopBar(
                     .padding(start = PageBackStart, end = PageButtonEnd),
                 start = { if (onBack != null) EolssuBackButton(onBack) },
                 end = { Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically, content = right) },
+                shrinkEnd = shrinkRight,
             ) {
                 // 글꼴·크기도 가운데 제목형 [EolssuTopBar]와 같게 둔다(휴대폰 16sp · 태블릿 17sp).
                 Text(
@@ -82,8 +85,11 @@ fun EolssuPageTopBar(
 }
 
 /**
- * 왼쪽 [start] · 가운데 [title] · 오른쪽 [end]를 한 줄에 두는 상단 바 줄. 제목은 양옆 칸 너비와 관계없이 줄 가운데에 오고,
- * 양옆 중 넓은 쪽 너비와 [gap]만큼 양쪽을 비운 폭 안에서 줄인다(오른쪽 버튼이 여러 개여도 겹치지 않는다).
+ * 왼쪽 [start] · 가운데 [title] · 오른쪽 [end]를 한 줄에 두는 상단 바 줄. 제목은 양옆 칸 너비와 관계없이 줄 가운데에 둔다.
+ * 양옆 칸이 한쪽만 넓어 가운데 자리에 제목이 다 들어가지 않으면, 줄이지 않고 양옆 칸 사이([gap]씩 띄운) 실제 남는 폭 안에서
+ * 가운데에 가장 가깝게 옮긴다(S15P31E102-924). 그 폭으로도 모자라면 [shrinkEnd]가 true일 때 오른쪽 칸을 제목이 다 들어갈 만큼 좁혀
+ * 오른쪽 칸 안 글자가 말줄임(‘정악…’)되게 하고, false면 제목이 그 폭 안에서 줄어든다.
+ * 오른쪽 칸은 줄 오른쪽 끝에 붙어 있으므로 좁혀져도 오른쪽 끝 위치는 그대로다. 줄어들 수 있는 글자를 가진 칸에만 켠다.
  */
 @Composable
 fun CenteredTitleRow(
@@ -91,26 +97,57 @@ fun CenteredTitleRow(
     start: @Composable () -> Unit = {},
     end: @Composable () -> Unit = {},
     gap: Dp = 8.dp,
+    shrinkEnd: Boolean = false,
     title: @Composable () -> Unit,
 ) {
     Layout(contents = listOf(start, title, end), modifier = modifier) { (startItems, titleItems, endItems), constraints ->
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val starts = startItems.map { it.measure(loose) }
-        val ends = endItems.map { it.measure(loose) }
         val width = constraints.maxWidth
-        val side = maxOf(starts.sumOf { it.width }, ends.sumOf { it.width })
-        val inset = if (side > 0) side + gap.roundToPx() else 0
-        val titles = titleItems.map { it.measure(loose.copy(maxWidth = (width - inset * 2).coerceAtLeast(0))) }
+        val startWidth = starts.sumOf { it.width }
+        // 한 번만 잴 수 있으므로, 오른쪽 칸을 좁힐지는 고유 너비로 먼저 정한 뒤 잰다.
+        val endConstraints = if (shrinkEnd) {
+            val titleWidth = titleItems.maxOfOrNull { it.maxIntrinsicWidth(constraints.maxHeight) } ?: 0
+            val endWidth = endItems.sumOf { it.maxIntrinsicWidth(constraints.maxHeight) }
+            val slotNow = centeredTitleSlot(width, startWidth, endWidth, gap.roundToPx())
+            if (titleWidth > slotNow.last - slotNow.first) {
+                loose.copy(maxWidth = minOf(endWidth, endWidthLeftForTitle(width, startWidth, titleWidth, gap.roundToPx())))
+            } else {
+                loose
+            }
+        } else {
+            loose
+        }
+        val ends = endItems.map { it.measure(endConstraints) }
+        val slot = centeredTitleSlot(width, startWidth, ends.sumOf { it.width }, gap.roundToPx())
+        val titles = titleItems.map { it.measure(loose.copy(maxWidth = slot.last - slot.first)) }
         val height = maxOf(constraints.minHeight, (starts + ends + titles).maxOfOrNull { it.height } ?: 0)
         layout(width, height) {
             var x = 0
             starts.forEach { it.placeRelative(x, (height - it.height) / 2); x += it.width }
             x = width - ends.sumOf { it.width }
             ends.forEach { it.placeRelative(x, (height - it.height) / 2); x += it.width }
-            titles.forEach { it.placeRelative((width - it.width) / 2, (height - it.height) / 2) }
+            titles.forEach { it.placeRelative(centeredTitleX(width, it.width, slot), (height - it.height) / 2) }
         }
     }
 }
+
+/** 제목이 놓일 수 있는 가로 구간(왼쪽 끝 이상 · 오른쪽 끝 이하). 양옆 칸이 비면 그쪽은 [gap] 없이 줄 끝까지 쓴다. */
+internal fun centeredTitleSlot(width: Int, startWidth: Int, endWidth: Int, gap: Int): IntRange {
+    val left = if (startWidth > 0) startWidth + gap else 0
+    val right = width - if (endWidth > 0) endWidth + gap else 0
+    return left..maxOf(left, right)
+}
+
+/** 제목 [titleWidth]를 줄이지 않고 두려면 오른쪽 칸이 쓸 수 있는 최대 너비. 모자라면 0이다. */
+internal fun endWidthLeftForTitle(width: Int, startWidth: Int, titleWidth: Int, gap: Int): Int {
+    val left = if (startWidth > 0) startWidth + gap else 0
+    return (width - left - titleWidth - gap).coerceAtLeast(0)
+}
+
+/** 너비 [titleWidth]인 제목의 왼쪽 위치: 줄 가운데에 두되 [slot] 밖으로 나가면 구간 안으로 밀어 넣는다. */
+internal fun centeredTitleX(width: Int, titleWidth: Int, slot: IntRange): Int =
+    ((width - titleWidth) / 2).coerceIn(slot.first, maxOf(slot.first, slot.last - titleWidth))
 
 /** 누르는 영역(48dp)과 보이는 원(36dp)의 차이 절반. */
 private val PageButtonInset: Dp = 6.dp

@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -35,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.fingeringYul
@@ -79,7 +81,10 @@ fun PracticeStepToggle(state: PracticeUiState, onToggle: () -> Unit, modifier: M
 }
 
 /**
- * 작은 알약 스위치: 32dp 높이 테두리 없는 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두). 누르는 영역은 44dp 이상이다.
+ * 작은 알약 스위치: 32dp 높이 테두리 없는 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두).
+ * 누르는 곳은 스위치뿐이다(S15P31E102-924). 글자나 알약 바탕을 눌러도 바뀌지 않는다.
+ * 스위치는 보이는 크기를 그대로 두고 둘레로 [MiniSwitchTouch] 정사각형만큼 눌리게 넓힌다.
+ * 화면 읽기에는 스위치 하나가 [description]으로 읽히고 글자는 따로 읽히지 않는다.
  * ‘한 음씩’ 토글과 연주 평가 제목 옆 ‘운지법 보기’(S15P31E102-716)가 함께 쓴다.
  */
 @Composable
@@ -93,39 +98,62 @@ fun PracticeMiniToggle(
 ) {
     val colors = EolssuTheme.colors
     Row(
-        modifier
-            .heightIn(min = 44.dp)
-            .toggleable(value = on, enabled = enabled, role = Role.Switch, onValueChange = { onToggle() })
-            .semantics { contentDescription = description },
+        modifier.heightIn(min = MiniSwitchTouch),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
             Modifier
                 .height(32.dp)
                 .background(colors.surface, RoundedCornerShape(16.dp))
-                .padding(start = 10.dp, end = 5.dp)
-                .clearAndSetSemantics {},
+                .padding(start = 10.dp, end = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
                 label,
+                modifier = Modifier.clearAndSetSemantics {},
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
                 color = if (enabled) colors.text else colors.textDisabled,
                 maxLines = 1,
             )
-            // 다른 스위치([com.ssafy.eolssu.core.ui.component.EolssuSwitch])와 같은 색·그림자 없는 손잡이(S15P31E102-768).
-            Box(Modifier.width(30.dp).height(18.dp).background(if (on) colors.primary else colors.line, RoundedCornerShape(9.dp))) {
+            // 배치에는 30×18dp만 차지하고, 누르는 영역은 그 둘레로 넓혀 알약 밖까지 걸친다.
+            Box(
+                Modifier
+                    .layout { measurable, _ ->
+                        val touch = MiniSwitchTouch.roundToPx()
+                        val width = MiniSwitchWidth.roundToPx()
+                        val height = MiniSwitchHeight.roundToPx()
+                        val placeable = measurable.measure(Constraints.fixed(touch, touch))
+                        layout(width, height) { placeable.place((width - touch) / 2, (height - touch) / 2) }
+                    }
+                    .toggleable(value = on, enabled = enabled, role = Role.Switch, onValueChange = { onToggle() })
+                    .semantics { contentDescription = description },
+                contentAlignment = Alignment.Center,
+            ) {
+                // 다른 스위치([com.ssafy.eolssu.core.ui.component.EolssuSwitch])와 같은 색·그림자 없는 손잡이(S15P31E102-768).
                 Box(
                     Modifier
-                        .offset(x = if (on) 14.dp else 2.dp, y = 2.dp)
-                        .size(14.dp)
-                        .background(colors.surface, CircleShape),
-                )
+                        .width(MiniSwitchWidth)
+                        .height(MiniSwitchHeight)
+                        .background(if (on) colors.primary else colors.line, RoundedCornerShape(9.dp)),
+                ) {
+                    Box(
+                        Modifier
+                            .offset(x = if (on) 14.dp else 2.dp, y = 2.dp)
+                            .size(14.dp)
+                            .background(colors.surface, CircleShape),
+                    )
+                }
             }
         }
     }
 }
+
+private val MiniSwitchWidth = 30.dp
+private val MiniSwitchHeight = 18.dp
+
+/** 작은 스위치 하나를 누르는 정사각형 한 변. 손가락 누름 기준 44dp 이상. */
+private val MiniSwitchTouch = 44.dp
 
 /**
  * 한 음씩이 켜지면 플레이어 카드 대신 놓는 두 칸(와이어프레임 STEP_PANELS).

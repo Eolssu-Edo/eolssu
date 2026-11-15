@@ -151,6 +151,35 @@ internal class RecordMemoEditTest : CatalogViewModelTest() {
         assertEquals(RECORD_MEMO_MAX_LENGTH, repo.sent.single().second.length)
     }
 
+    @Test fun memoLimitCountsSupplementaryUnicodeCharactersOnce() = runTest {
+        val repo = Records(record)
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository()))
+        runCurrent()
+        model.openMemo()
+        model.editMemo()
+
+        val allowed = "😀".repeat(500)
+        model.saveMemo(allowed + "가")
+        runCurrent()
+        assertTrue(repo.sent.isEmpty())
+        assertEquals(RecordMemoState(editing = true, failed = true), model.uiState.value.memo)
+
+        model.saveMemo("  $allowed  ")
+        runCurrent()
+        assertEquals(listOf("41" to allowed), repo.sent)
+        assertEquals(allowed, model.uiState.value.record?.memo)
+        assertEquals(RecordMemoState(), model.uiState.value.memo)
+    }
+
+    @Test fun memoCounterUsesCodePointsIncludingLineBreaksAndCombiningCharacters() {
+        assertEquals(0, recordMemoLength(""))
+        assertEquals(3, recordMemoLength("가😀\n"))
+        assertEquals(2, recordMemoLength("e\u0301"))
+        assertEquals(3, recordMemoLength("👩‍🔬"))
+        assertEquals(2, recordMemoLength("\uD800가"))
+        assertEquals(1, recordMemoLength("\uDC00"))
+    }
+
     @Test fun switchingRecordDropsMemoWindowAndLateResult() = runTest {
         val repo = Records(record)
         repo.records.update { it + record.copy(id = "42", memo = "") }

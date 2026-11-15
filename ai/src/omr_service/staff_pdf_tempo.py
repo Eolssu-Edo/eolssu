@@ -23,21 +23,40 @@ def read_marks(job):
             try:
                 text = textpage.get_text_range()
                 scale = job.pages[len(pages)].width / page.get_width()
-                marks = []
-                # q is the quarter-note glyph encoding in many engraved PDFs.
-                for match in re.finditer(r'(?:♩|q)(\.)?\s*=\s*(\d+(?:\.\d+)?)(?![\d.])', text):
-                    if re.match(r'\s*[-–—]\s*\d', text[match.end():]):
-                        continue  # A range does not specify one BPM.
-                    left, bottom, _, _ = textpage.get_charbox(match.start())
-                    marks.append({'x': left * scale, 'bottom': (page.get_height()-bottom)*scale,
-                                  'bpm': match[2], 'dots': int(bool(match[1])), 'accel': False})
+                positioned_marks = []
+                # Explicit SMuFL metronome quarters (Leipzig Type3 in AuClair).
+                # Trust the PDF's Unicode mapping, never guess arbitrary PUA units.
+                # q is also used by engraved PDFs, but not inside prose words.
+                for match in re.finditer(
+                    r'(?:♩|(?<!\w)q|[\ueca5\ueca6])([.\uecb7])?[^\S\r\n]*='
+                    r'[^\S\r\n]*(\d+(?:\.\d+)?)(?![\w.,/])', text
+                ):
+                    if re.match(r'[^\S\r\n]*(?:[-–—~～/,][^\S\r\n]*)?\d', text[match.end():]):
+                        continue  # Ranges, fractions and adjacent numbers are not one BPM.
+                    left, bottom, _, top = textpage.get_charbox(match.start())
+                    unit_x = left * scale
+                    # In AuClair the adjacent "Moderato" starts before beat one,
+                    # while its unit glyph lies over beat two. Bind that complete
+                    # printed mark only when the actual glyph boxes are adjacent.
+                    label = re.search(r'\b(Moderato)[^\S\r\n]*$', text[:match.start()], re.I)
+                    if label:
+                        first = textpage.get_charbox(label.start(1))
+                        last = textpage.get_charbox(label.end(1) - 1)
+                        if (0 <= left - last[2] <= top - bottom
+                                and min(top, first[3], last[3]) > max(bottom, first[1], last[1])):
+                            left = first[0]
+                    # The word changes only the measure anchor; accel still
+                    # belongs to a nearby numeric unit at its original position.
+                    positioned_marks.append(({'x': left * scale, 'bottom': (page.get_height()-bottom)*scale,
+                                  'bpm': match[2], 'dots': int(bool(match[1])), 'accel': False}, unit_x))
                 for match in re.finditer(r'\b(?:molto\s+)?accel(?:erando)?\.?', text, re.I):
                     x, y, _, _ = textpage.get_charbox(match.start())
                     x, y = x * scale, (page.get_height()-y)*scale
-                    candidates = [m for m in marks if 0 <= x-m['x'] <= 300 and abs(y-m['bottom']) <= 40]
+                    candidates = [(m, unit_x) for m, unit_x in positioned_marks
+                                  if 0 <= x-unit_x <= 300 and abs(y-m['bottom']) <= 40]
                     if candidates:
-                        max(candidates,key=lambda m:m['x'])['accel'] = True
-                pages.append(marks)
+                        max(candidates, key=lambda item: item[1])[0]['accel'] = True
+                pages.append([m for m, _ in positioned_marks])
             finally:
                 textpage.close()
                 page.close()
@@ -69,7 +88,7 @@ def supplement(data, archive, marks):
                         geometry.append((stack,top,spacing))
     if len(geometry) != len(measures):
         return data, 0
-    count = 0
+    aligned = {}
     for mark in marks:
         candidates = []
         for i,(stack,top,spacing) in enumerate(geometry):
@@ -85,7 +104,16 @@ def supplement(data, archive, marks):
                 candidates.append(i)
         if len(candidates) != 1:
             continue
-        measure = measures[candidates[0]]
+        aligned.setdefault(candidates[0], []).append(mark)
+    count = 0
+    for index, candidates in aligned.items():
+        # Resolve PDF conflicts before mutating XML: an earlier PDF insertion is
+        # not an original machine-readable value that can override later marks.
+        values = {Fraction(m['bpm']) * (Fraction(3, 2) if m['dots'] else 1) for m in candidates}
+        if len(values) != 1:
+            continue
+        mark = {**candidates[0], 'accel': any(m['accel'] for m in candidates)}
+        measure = measures[index]
         t = 0
         existing = []
         for element in measure:

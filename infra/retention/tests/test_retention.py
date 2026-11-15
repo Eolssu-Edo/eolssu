@@ -103,6 +103,25 @@ class RetentionTests(unittest.TestCase):
         self.assertNotIn(sha(40), removed)
         self.assertNotIn(sha(41), removed)
 
+    def test_plan_includes_ai_images_but_never_the_running_one(self):
+        images = [image('eolssu-ai', n, n) for n in range(1, 8)]
+        images.append(image('eolssu-ai', 50, 50, image_id='sha256:ai-running'))
+        decided = retention.plan([], images, set(), NOW, in_use={'sha256:ai-running'},
+                                 keep_count=2, keep_age=timedelta(days=1))
+        removed = {item['sha'] for item in decided['images'] if item['repository'] == 'eolssu-ai'}
+        self.assertEqual(removed, {sha(n) for n in range(3, 8)})
+
+    def test_plan_keeps_only_newest_service_images_but_never_the_running_one(self):
+        # n days old: the running image 9 is the oldest, 1~3 are the newest three.
+        images = [image('eolssu-omr', n, n) for n in range(1, 8)]
+        images.append(image('eolssu-omr', 9, 9, image_id='sha256:omr-running'))
+        images += [image('eolssu-playback', n, n) for n in range(10, 12)]
+        # A backend release or a recent date does not keep these: their rollback uses the image ID and :rollback.
+        decided = retention.plan([(sha(5), NOW)], images, {sha(6)}, NOW, in_use={'sha256:omr-running'},
+                                 keep_count=20, keep_age=timedelta(days=365))
+        removed = {(item['repository'], item['sha']) for item in decided['images']}
+        self.assertEqual(removed, {('eolssu-omr', sha(n)) for n in range(4, 8)})
+
     def test_dry_run_changes_nothing_and_reports_plan(self):
         with tempfile.TemporaryDirectory() as folder:
             fixture = Fixture(folder)
