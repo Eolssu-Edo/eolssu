@@ -10,7 +10,8 @@
 | 수정 기반 | 최신 develop `edf90cc38e40801490bcd073f0815851d3998d81` |
 | 실기기 확인한 최초 수정 APK | 코드 `21d4c58b`, `qa932-local-edf90cc3`, code1794724935, `com.ssafy.eolssu.qa`, SHA256 `5fc9c2e26afe69a434bdd1547bf2a2db8d8fab623e9c86ffc21aecfcbdaff03c` |
 | 설치 | 기존 QA 인증서 AADE로 서버에서 재서명, payload581개 동일, `adb install -r` 성공. 로그인·내악보7개 보존 |
-| 리뷰 보완한 최종 APK | 코드 `3419462a67e6f403d0dfe70924dd355ea3ad5bb1`, `qa932-review-edf90cc3`, code1794724936, SHA256 `f73f5e38ae86b9f4f8180aa0bf9152f7103c6b95a36d0f3b01bb4b3f4a668d35`. 같은 QA 인증서·payload581개 일치. 설치·추가 경계 실기기는 후속 대기 |
+| 리뷰 보완 APK(통합 전) | 코드 `3419462a67e6f403d0dfe70924dd355ea3ad5bb1`, `qa932-review-edf90cc3`, code1794724936, SHA256 `f73f5e38ae86b9f4f8180aa0bf9152f7103c6b95a36d0f3b01bb4b3f4a668d35`. 같은 QA 인증서·payload581개 일치. 기기 미설치 |
+| 최종 인계 APK | `origin/develop` e5910c33 통합 코드 `15e91837b080dfdec7c1d36f56e137222c0e010d`, `qa932-final-e5910c33`, code1794724937, SHA256 `ee862e0142df3457747f70b460760f2211afb57637815c639a607c3142db2a8d`. 같은 QA 인증서·payload581개 일치. 설치·추가 경계 실기기는 후속 대기 |
 
 ## 확인한 동작
 
@@ -39,15 +40,16 @@
 - 신규2건은 각각 기대3,000ms/실제0ms, 정지 후 `previewing=true`로 수정 전 실패 (`seek-red`, `preview-red` 로그/XML).
 - 최초 수정 후 `PracticeJangdanTest`, `PracticeStateTest`, `SectionPracticeStateTest`, `ModelAudioSessionTest`, `PracticeSectionTest`, `PracticePersonalAudioTest` 6개 클래스85건 통과, 실패·제외0. `:androidApp:assembleDebug` 성공 (`fix-build.log`). `--max-workers=1` 사용.
 - 독립 리뷰에서 재생 전 탐색 후 속도를 바꾸면 이전 BPM 기준 시간이 남는 경계를 발견했다. 60BPM에서1,000ms로 탐색 후48BPM으로 바꾼 회귀가 기대 tick4/실제3.4로 실패(`tempo-red.xml`)했다. 음원 로드 전 `elapsedMs`와 `eventElapsedMs`를 함께 환산해 같은 악보 위치를 보존한다. 이후+500ms와 첫 media 재생 위치도 확인했다. 최종 같은6개 클래스86건 통과, 실패·제외0 및 APK 빌드 성공(`review-fix-build.log`). 독립 재리뷰에서 지적 해소·추가 결함 없음.
+- Push 직전 최신 develop e5910c33을 통합했다. 문서 목록 충돌은 양쪽 링크를 보존했으며, 독립 검토에서 새 악보 배치·글리프 변경과 이 수정의 의미 충돌은 발견되지 않았다. 위86건에 `PracticeScorePackingTest`, `ScoreLayoutTest`, `NoteGlyphTest`, `YulNotationTest`, `YulFontCoverageTest`를 더한 11개 클래스140건 통과, 실패·오류·제외0 및 APK 빌드 성공(`integrated-build.log`). 통합 뒤 제품 코드는 추가 변경하지 않았다.
 
 ## 추가 경계 실기기 인계
 
-원본 채팅이 평가·학습의 순차 사용 뒤 마지막 검증에서 실행한다. 최종 APK는 `C:/higher/qa-evidence/S15P31E102-932/review-fixed-signed.apk`이며 설치 시 기존 로그인·데이터를 보존한다. 이미 반납한 기기는 이 작업에서 다시 조작하지 않았다.
+원본 채팅이 평가·학습의 순차 사용 뒤 마지막 검증에서 실행한다. 최종 APK는 `C:/higher/qa-evidence/S15P31E102-932/final-signed.apk`이며 설치 시 기존 로그인·데이터를 보존한다. 이미 반납한 기기는 이 작업에서 다시 조작하지 않았다.
 
 1. 최종 APK의 package/versionCode와 기기 OS 버전을 확인한다. 제공곡 중급·산조대금 **진도아리랑**에 새로 진입하고, 아직 모범 재생을 누르지 않는다. 연습 속도를 보통 **48BPM**으로 맞춘다. 기존 저장값이 느리게이면 반드시 보통으로 되돌린다.
 2. +5초를 두 번 눌러 **0:10/0:30**, 정지 상태임을 확인하고 악보의 진행 위치를 보관한다.
-3. 연습 속도를 느리게 **38BPM**으로 바꾼다. 같은 악보 위치가 유지되고 경과 시간은 `10×48/38=12.63초`, 화면 **0:12/0:38**이 되어야 한다. 자동 재생되지 않는다.
-4. 설정을 닫고 +5초를 한 번 누르면 `17.63초`, 화면 **0:17/0:38**로 이동해야 한다. −5초는 다시 **0:12**로 돌아간다.
+3. 연습 속도를 느리게 **38BPM**으로 바꾼다. 같은 악보 위치가 유지되고 경과 시간은 `10×48/38=12.63초`, 화면 **0:13/0:38**이 되어야 한다. 자동 재생되지 않는다.
+4. 설정을 닫고 +5초를 한 번 누르면 `17.63초`, 화면 **0:18/0:38**로 이동해야 한다. −5초는 다시 **0:13**으로 돌아간다. 화면의 `formatClock`은 초를 반올림한다.
 5. 재생을 눌러 선택 위치에서 이어지는지 확인하고 즉시 정지한다. 타이밍 정밀도는 자동 검사와 구분한다. 화면 이동 후 다시 진입해 미리듣기 중 장단 소리 끔의 버튼/박 강조도 짧게 확인한다.
 
 속도가48/38BPM인 경우의 정확한 기대값이다. 다른 곡·BPM으로 확인하면 같은 tick의 시간은 `이전 시간×이전 BPM/새 BPM`으로 환산한다. 단계3~5의 최종 APK 실기기 결과는 아직 없으므로 자동 검사 통과와 구분한다.
