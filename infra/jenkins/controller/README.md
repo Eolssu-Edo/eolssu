@@ -86,7 +86,7 @@ sudo journalctl -u eolssu-jenkins-agent --since today --no-pager
 - 슬롯·secret·systemd 서비스를 더 만들지 않아 운영 변경이 줄어든다. 백엔드 빌드(`edo1-host`)와는 여전히 서로 기다리지 않는다.
 - 대가: `ai/src`가 바뀐 커밋은 ai와 omr을 함께 다시 만들므로 두 잡이 차례로 돈다(나중 잡이 앞 잡의 빌드 시간만큼 늦게 반영된다).
 
-등록 순서(운영 미적용, 사용자 확인 뒤 진행). CLI 명령은 위 'ai 배포 전용 슬롯'과 같다.
+2026-11-15에 아래 1~3을 운영에 적용했다(첫 배포 omr #1 6분 2초, playback #1 2분 11초 성공). CLI 명령은 위 'ai 배포 전용 슬롯'과 같다.
 
 1. develop에 병합된 `service-image.Jenkinsfile`을 `declarative-linter`로 검사하고 `/var/lib/jenkins/eolssu-service-image.Jenkinsfile`(jenkins 소유)에 둔다.
 2. [잡 등록 파일](register-service-image-jobs.groovy)을 `check`로 확인한 뒤 `apply`로 저장한다. 기존 잡이 있으면 config.xml을 백업하고 바꾼다.

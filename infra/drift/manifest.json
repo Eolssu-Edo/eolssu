@@ -255,13 +255,11 @@
    },
    {
     "job": "eolssu-omr",
-    "source": "infra/jenkins/service-image.Jenkinsfile",
-    "note": "S15P31E102-951 잡 등록 전에는 서버 없음"
+    "source": "infra/jenkins/service-image.Jenkinsfile"
    },
    {
     "job": "eolssu-playback",
-    "source": "infra/jenkins/service-image.Jenkinsfile",
-    "note": "S15P31E102-951 잡 등록 전에는 서버 없음"
+    "source": "infra/jenkins/service-image.Jenkinsfile"
    }
   ],
   "edo2": [
