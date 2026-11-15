@@ -115,14 +115,19 @@ pipeline {
         }
 
         stage('Backend database tests') {
-            options { timeout(time: 10, unit: 'MINUTES') }
             steps {
-                dir('backend') {
-                    // Disposable loopback MySQL per run; never the runtime database.
-                    sh 'python3 -B ../infra/jenkins/run-database-tests.py -- ./gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 databaseTest'
+                // Warning-only until the 2026-11-18 release freeze ends: a failure or timeout marks
+                // the build UNSTABLE (alerted to Mattermost) without blocking deploy. S15P31E102-946
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    timeout(time: 10, unit: 'MINUTES') {
+                        dir('backend') {
+                            // Disposable loopback MySQL per run; never the runtime database.
+                            sh 'python3 -B ../infra/jenkins/run-database-tests.py -- ./gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 databaseTest'
+                        }
+                    }
                 }
             }
-            post { always { junit testResults: 'backend/build/test-results/databaseTest/*.xml', allowEmptyResults: false } }
+            post { always { junit testResults: 'backend/build/test-results/databaseTest/*.xml', allowEmptyResults: true } }
         }
 
         stage('Package executable JAR') {

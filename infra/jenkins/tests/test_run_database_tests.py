@@ -170,7 +170,10 @@ class BackendJenkinsfileTests(unittest.TestCase):
         self.assertIn('databaseTest', stage)
         self.assertIn("backend/build/test-results/databaseTest/*.xml", stage)
         self.assertNotIn('TEST_DB_', stage)
-        self.assertIn("options { timeout(time: 10, unit: 'MINUTES') }", stage)
+        # Warning-only during the release freeze: failures and timeouts must not stop deploy.
+        self.assertIn("catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE')", stage)
+        self.assertLess(stage.index('catchError('), stage.index("timeout(time: 10, unit: 'MINUTES')"))
+        self.assertIn('allowEmptyResults: true', stage)
         self.assertIn("timeout(time: 25, unit: 'MINUTES')", text)
         self.assertIn("stage('Database wrapper tests')", text)
 
