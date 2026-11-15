@@ -1,6 +1,9 @@
 # 프로젝트 문서
 
 - [악보 편집 화면 태블릿 가로 악보·입력판 좌우 배치 (965)](plans/S15P31E102-965.md)
+- [태블릿 가로 화면 배치·이미지 조사와 일괄 개선 (960)](plans/S15P31E102-960.md)
+- [악보·음원 잔여 경합과 실기기 장애 복구 검증 (958)](plans/S15P31E102-958.md)
+
 - [악보 변환·음원 생성의 동시성·큐·자원 부하 검증 계획 (954)](plans/S15P31E102-954.md) · [실행 결과·결함 수정·미검증 경계](knowledge/infra/async-resource-validation.md)
 - [음원·악보 생성 완료 알림 자동 닫기 (955)](plans/S15P31E102-955.md) · [표시 규칙](specs/sheet-conversion-completion.md)
 
