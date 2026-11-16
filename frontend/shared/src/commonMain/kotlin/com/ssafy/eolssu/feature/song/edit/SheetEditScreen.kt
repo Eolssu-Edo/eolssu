@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
@@ -148,13 +149,14 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
     }
 }
 
-/** 빠르기 옆 작은 연필(아이콘 16dp, 누르는 칸 36dp). 누르면 제목·빠르기 변경 창을 연다. */
+/** 빠르기 옆 작은 연필(아이콘 16dp, 보이는 칸 36dp, 누르는 영역 48dp). 누르면 제목·빠르기 변경 창을 연다. */
 @Composable
 private fun TempoEditButton(onClick: () -> Unit, enabled: Boolean) {
     val label = stringResource(Res.string.sheet_details_edit)
     Box(
         Modifier
             .padding(start = 2.dp)
+            .minimumInteractiveComponentSize()
             .size(36.dp)
             .clip(RoundedCornerShape(10.dp))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)

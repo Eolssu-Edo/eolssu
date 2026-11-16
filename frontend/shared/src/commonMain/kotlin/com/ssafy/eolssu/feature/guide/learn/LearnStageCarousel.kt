@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -221,6 +222,8 @@ private fun CarouselArrow(next: Boolean, enabled: Boolean, onClick: () -> Unit) 
     Box(
         Modifier
             .alpha(if (enabled) 1f else 0.3f)
+            // 보이는 원은 40dp, 누르는 영역은 48dp(S15P31E102-971).
+            .minimumInteractiveComponentSize()
             .size(40.dp)
             .clip(CircleShape)
             .background(colors.surface)
