@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.guide
 
+import com.ssafy.eolssu.core.audio.LocalAudioFile
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.data.song.ReferenceAudioClip
@@ -243,8 +244,52 @@ class ReferenceAudioViewModelTest {
         } finally { vm.dismiss(); Dispatchers.resetMain() }
     }
 
-    private fun repository(load: suspend (ReferenceAudioQuery) -> List<ReferenceAudioClip>) = object : ReferenceAudioRepository {
+    @Test fun prefetchedExamplesAreReusedUntilTheScreenIsLeft() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val downloads = mutableListOf<String>()
+        val vm = ReferenceAudioViewModel(repository(file = { downloads += it.assetId; LocalAudioFile("/cache/${it.assetId}.m4a") }) {
+            listOf(clip(it.datasetId))
+        })
+        try {
+            vm.open(GuideInstrument.Danso); advanceUntilIdle()
+            val shown = clip("danso")
+            assertNull(vm.localFile(shown))
+            vm.prefetch(shown); vm.prefetch(shown)
+            assertEquals("/cache/${shown.assetId}.m4a", vm.localFile(shown)?.path)
+            assertEquals(1, downloads.size)
+            // 받아 둔 파일로 재생에 실패하면 다음에는 원격으로 받는다.
+            vm.forgetLocalFile(shown)
+            assertNull(vm.localFile(shown))
+            vm.keepForNext(shown); advanceUntilIdle()
+            assertNotNull(vm.localFile(shown))
+            vm.dismiss()
+            assertNull(vm.localFile(shown))
+        } finally { vm.dismiss(); Dispatchers.resetMain() }
+    }
+
+    @Test fun examplesThatCannotBeDownloadedOrAreNotListedStayRemote() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        var fail = true
+        val vm = ReferenceAudioViewModel(repository(file = { if (fail) error("offline") else LocalAudioFile("/cache/x.m4a") }) {
+            listOf(clip(it.datasetId))
+        })
+        try {
+            vm.open(GuideInstrument.Danso); advanceUntilIdle()
+            vm.prefetch(clip("danso"))
+            assertNull(vm.localFile(clip("danso")))
+            fail = false
+            val other = clip("danso").copy(assetId = "f".repeat(64))
+            vm.prefetch(other)
+            assertNull(vm.localFile(other))
+        } finally { vm.dismiss(); Dispatchers.resetMain() }
+    }
+
+    private fun repository(
+        file: suspend (ReferenceAudioClip) -> LocalAudioFile? = { null },
+        load: suspend (ReferenceAudioQuery) -> List<ReferenceAudioClip>,
+    ) = object : ReferenceAudioRepository {
         override suspend fun clips(query: ReferenceAudioQuery) = load(query)
+        override suspend fun localFile(clip: ReferenceAudioClip) = file(clip)
     }
     private fun clip(dataset: String) = ReferenceAudioClip("a".repeat(64), dataset, "source-a", "기본음계", "기본음", "평취", "중", "중", 1200, "inferred", "https://example.test/play")
 }

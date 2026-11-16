@@ -139,7 +139,7 @@ val appModule = module {
     single { InstrumentCatalog(get()) }
     single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
     single { SheetAuthoringCatalog(get<InstrumentCatalog>()::load, get(), get(), get()) }
-    single<ReferenceAudioRepository> { ApiReferenceAudioRepository(get(), get()) }
+    single<ReferenceAudioRepository> { ApiReferenceAudioRepository(get(), get(), getOrNull()) }
     viewModelOf(::ReferenceAudioViewModel)
     single { PracticeSettingsStore(get()) }
     // 현재 시각(ms). 테스트에서는 고정 값을 넣는다.

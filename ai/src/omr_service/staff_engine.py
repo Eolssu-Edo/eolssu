@@ -9,6 +9,7 @@ import io
 import hashlib
 import json
 from copy import deepcopy
+from dataclasses import replace
 from functools import lru_cache
 import os
 import re
@@ -38,6 +39,14 @@ ENGINE = "audiveris"
 UNIT_QUARTERS = {"DOTTED_QUARTER": Fraction(3, 2), "QUARTER": Fraction(1)}  # bpm 단위 한 박의 4분음표 수
 # 검증 표본의 5/8·7/8 오독을 검수로 보내는 보수적 가드다. 정확도 보증 임계값이 아니다.
 TIME_SIGNATURE_REVIEW_GRADE = 0.65
+# Audiveris 5.11은 오선 간격을 너무 작게 재면 이 경고 뒤 쪽을 버린다(StepException: Sheet ignored).
+LOW_INTERLINE = re.compile(rb"too low interline value of (\d+) pixels")
+# 확대 목표 간격(픽셀). Audiveris 권장 300dpi에서 보통 오선 간격 1.75mm가 약 20.7픽셀인 데서 잡은 값이다. 정확도 보증값이 아니다.
+TARGET_INTERLINE = 20
+# 간격을 잘못 잰 사진을 흑백으로 다시 읽을 때의 긴 변 상한. 운영 실패 사진 원본 1장 실측(이 PC)에서 1500·2448은
+# 채팅 사진 결과와 음높이 68/68, 2000은 55/68, 원본 크기는 70초였다. 가장 빠른 1500을 쓴다. 표본 1장의 값이다.
+GRAY_LONG_SIDE = 1500
+MIN_ENLARGEMENT = 1.1  # 최대 화소 때문에 이보다 덜 키울 수밖에 없으면 다시 읽어도 같다고 보고 건너뛴다
 log = logging.getLogger("omr_service.api")
 
 
@@ -136,6 +145,15 @@ def _read_pages(job, deadline, page_time_s):
             page_deadline = min(deadline, monotonic() + page_time_s)
             command = AUDIVERIS + ["-batch", *AUDIVERIS_OPTIONS, "-transcribe", "-export", "-output"]
             run = _run(command + [str(out), "--", str(page.path)], page_deadline)
+            first_issue, scale = len(issues), 1.0
+            retried = _retry_low_interline(command, out, run, page, Path(work) / f"interline-{i}", page_deadline, page_index=i)
+            if retried:
+                out, run, page, scale, issue = retried
+                issues.append(issue)
+                if i < len(pdf_marks):  # PDF 글자 좌표를 확대한 쪽 그림에 맞춰 다시 읽는다
+                    pages_now = [*job.pages[:i], page, *job.pages[i + 1:]]
+                    pdf_marks[i] = staff_pdf_tempo.read_marks(replace(job, pages=pages_now), with_bounds=True,
+                                                              deadline=deadline)[i]
             first_run_s = monotonic() - page_began
             input_path = page.path
             archives = [p.read_bytes() for p in out.rglob('*.omr')]
@@ -219,6 +237,7 @@ def _read_pages(job, deadline, page_time_s):
                 log.info("audiveris page=%d no staff: %s", i, _reason(run))
                 issues.append({"kind": "UNREADABLE", "eventId": None, "cellId": None, "page": i,
                                "bbox": [0, 0, page.width, page.height], "detail": {"reason": "NO_STAFF"}})
+                _restore_scale(issues[first_issue:], i, scale, job.pages[i])
                 continue
             if run.returncode != 0:
                 log.info("audiveris page=%d exit=%d with score: %s", i, run.returncode, _reason(run))
@@ -227,6 +246,7 @@ def _read_pages(job, deadline, page_time_s):
                 data[0], count = staff_pdf_tempo.supplement(data[0], archives[0], pdf_marks[i])
                 if count:
                     issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {'reason': 'TEMPO_PDF_TEXT', 'count': count}))
+            _restore_scale(issues[first_issue:], i, scale, job.pages[i])
             pages += data
     return pages, issues
 
@@ -417,6 +437,68 @@ def _retry_without_lyrics(command, out, run, input_path, retry_out, deadline, *,
                "bbox": [x0, y0, x1 - x0, y1 - y0], "detail": {"reason": "LYRICS_REMOVED"}}
               for x0, y0, x1, y1 in boxes]
     return retry_out, retry, masked, issues
+
+
+def _retry_low_interline(command, out, run, page, work: Path, deadline, *, page_index):
+    """Audiveris가 오선 간격을 너무 작게 재 쪽을 버렸으면 흑백으로, 그래도 작다고 하면 확대해 다시 읽는다.
+
+    운영에서 실패한 폰 사진 원본(2448×3264)은 컬러로는 간격 3픽셀로 재져 버려졌고 흑백으로는 24픽셀로 읽혔다.
+    흑백 원본 크기는 처리가 오래 걸려(이 PC 70초) 긴 변 GRAY_LONG_SIDE 안으로 줄여 읽는다. 악보가 작게 찍혀
+    그래도 간격이 작다고 하면 그 크기에서 잰 간격이 TARGET_INTERLINE이 되게(최대 화소 안) 확대한다(S15P31E102-1002).
+    악보가 나왔을 때만 (출력 폴더, 실행 결과, 다시 읽은 쪽, 원래 쪽 대비 배율, notice)를, 아니면 None을 돌려준다.
+    """
+    match = LOW_INTERLINE.search(run.stdout + run.stderr)
+    if run.returncode < 0 or not match or _sheets(out):
+        return None
+    first_interline = interline = int(match.group(1))
+    with Image.open(page.path) as original:
+        already_gray, gray = original.mode in ("1", "L"), original.convert("L")
+    limit = (Image.MAX_IMAGE_PIXELS / (page.width * page.height)) ** 0.5 if Image.MAX_IMAGE_PIXELS else float("inf")
+    measured_at = 1.0  # interline을 잰 그림의 원래 쪽 대비 배율
+    scale = round(min(1.0, GRAY_LONG_SIDE / max(page.width, page.height)), 2)
+    if already_gray and scale == 1:
+        scale = None  # 같은 그림을 다시 읽지 않고 바로 확대한다
+    for _ in range(2):
+        if scale is None:
+            scale = round(min(measured_at * TARGET_INTERLINE / max(interline, 1), limit), 2)
+            if scale < measured_at * MIN_ENLARGEMENT:
+                log.info("audiveris page=%d low interline %d: no room to enlarge", page_index, interline)
+                return None
+        size = (round(page.width * scale), round(page.height * scale))
+        path, retry_out = work.with_name(f"{work.name}-x{scale}.png"), work.with_name(f"{work.name}-x{scale}")
+        (gray if size == gray.size else gray.resize(size, Image.Resampling.LANCZOS)).save(path)
+        try:
+            retry = _run(command + [str(retry_out), "--", str(path)], deadline)
+        except TimeoutError:
+            log.info("audiveris page=%d low interline retry x%s skipped: timeout", page_index, scale)
+            return None
+        if retry.returncode >= 0 and _sheets(retry_out):
+            log.info("audiveris page=%d low interline %d: read again in grayscale x%s", page_index, first_interline, scale)
+            issue = {"kind": "LOW_CONFIDENCE", "eventId": None, "cellId": None, "page": page_index, "bbox": None,
+                     "detail": {"reason": "LOW_INTERLINE_RETRY", "interline": first_interline, "scale": scale}}
+            return retry_out, retry, type(page)(path, *size), scale, issue
+        log.info("audiveris page=%d grayscale x%s still without score: %s", page_index, scale, _reason(retry))
+        match = LOW_INTERLINE.search(retry.stdout + retry.stderr)
+        if retry.returncode < 0 or not match:
+            return None  # 오선이 없다거나 엔진이 실패했다. 확대해도 같다
+        measured_at, interline, scale = scale, int(match.group(1)), None
+    return None
+
+
+def _sheets(out: Path) -> list[Path]:
+    return sorted([*out.rglob("*.mxl"), *out.rglob("*.musicxml")], key=_natural)
+
+
+def _restore_scale(issues: list[dict], page_index: int, scale: float, page) -> None:
+    """확대한 그림 기준의 bbox를 원래 쪽 픽셀 좌표로 되돌린다. backend는 쪽 크기 밖 bbox를 거부하므로 쪽 안으로 자른다."""
+    if scale == 1:
+        return
+    for issue in issues:
+        if issue.get("page") != page_index or not issue.get("bbox"):
+            continue
+        x, y, w, h = (round(v / scale) for v in issue["bbox"])
+        x, y = min(max(x, 0), page.width), min(max(y, 0), page.height)
+        issue["bbox"] = [x, y, min(max(w, 0), page.width - x), min(max(h, 0), page.height - y)]
 
 
 def rhythm_mismatches(sheets: list[bytes]):
