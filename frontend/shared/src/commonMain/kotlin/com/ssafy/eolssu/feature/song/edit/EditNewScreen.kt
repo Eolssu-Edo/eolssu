@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -21,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -111,10 +113,13 @@ fun EditNewScreen(
                     emphasized = true,
                     trailing = EolssuIcons.ChevronDown,
                 )
-                if (kindMenuOpen) SheetKindMenu(
-                    onPick = { kind -> kindMenuOpen = false; onSelectKind(kind) },
-                    onDismiss = { kindMenuOpen = false },
-                )
+                // 메뉴는 오른쪽 화살표(⌄) 자리를 기준으로 그 아래에 연다.
+                Box(Modifier.align(Alignment.CenterEnd).padding(end = 16.dp).size(20.dp)) {
+                    if (kindMenuOpen) SheetKindMenu(
+                        onPick = { kind -> kindMenuOpen = false; onSelectKind(kind) },
+                        onDismiss = { kindMenuOpen = false },
+                    )
+                }
             }
             // 얼쑤가 주는 곡이나 이미 만든 내 악보를 복사해 온다.
             KindCard(
