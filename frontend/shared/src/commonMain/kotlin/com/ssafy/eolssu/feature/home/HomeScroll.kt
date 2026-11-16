@@ -145,10 +145,15 @@ internal fun homeHeroTitle(kind: HomeArtKind, width: Float, height: Float, butto
     )
     HomeArtKind.TabletLandscape -> {
         // 제목 너비 = 창 너비의 23%, 오른쪽 여백 = 창 너비의 5%, 제목 가운데 = 창 높이의 50%.
+        // 웹의 낮은 가로 창(예: 780×360)에서는 제목 아래가 평가 시작 버튼에 닿으므로 버튼 위 12dp까지만 내려온다(S15P31E102-1026).
         val scale = width * .23f / HomeTitleWidth
-        HomeHeroTitle(scale, width * .95f, height * .5f + homeTitleHeight(scale) / 2f)
+        val buttonTop = (height - 88f - buttonHeight).coerceAtLeast(80f)
+        HomeHeroTitle(scale, width * .95f, minOf(height * .5f + homeTitleHeight(scale) / 2f, buttonTop - HomeTitleButtonGap))
     }
 }
+
+/** 가로 첫 화면에서 제목 아래와 평가 시작 버튼 위 사이에 두는 최소 간격(dp). */
+internal const val HomeTitleButtonGap = 12f
 
 /**
  * 펼친 화면에서 그림 띠 아래를 흰 바탕으로 흐려 보내는 구간(dp). 띠 아래 끝([ground]) 기준으로 위 [HomeArtFadeAbove]부터
