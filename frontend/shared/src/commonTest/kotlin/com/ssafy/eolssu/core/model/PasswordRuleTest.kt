@@ -35,14 +35,14 @@ class PasswordRuleTest {
         assertEquals(setOf(Letter, Digit, MinLength), PasswordRule.checks("abc 1234"))
     }
 
-    /** 체크리스트 네 조건을 모두 채우는 것과 제출 가능(128자 이하)이 같은 기준이다. */
+    /** 체크리스트 네 조건을 모두 채우는 것과 제출 가능(64자 이하)이 같은 기준이다. */
     @Test
-    fun validMeansAllChecksWithin128() {
+    fun validMeansAllChecksWithin64() {
         assertTrue(PasswordRule.meetsAllChecks("eolssu1!"))
         assertTrue(PasswordRule.isValid("eolssu1!"))
         assertFalse(PasswordRule.isValid("eols1!"))
-        assertTrue(PasswordRule.isValid("a1!" + "x".repeat(125)))
-        val tooLong = "a1!" + "x".repeat(126)
+        assertTrue(PasswordRule.isValid("a1!" + "x".repeat(61)))
+        val tooLong = "a1!" + "x".repeat(62)
         assertTrue(PasswordRule.meetsAllChecks(tooLong))
         assertTrue(PasswordRule.isTooLong(tooLong))
         assertFalse(PasswordRule.isValid(tooLong))

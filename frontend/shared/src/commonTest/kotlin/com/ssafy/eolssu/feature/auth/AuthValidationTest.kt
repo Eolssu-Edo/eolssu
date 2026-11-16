@@ -44,16 +44,16 @@ class AuthValidationTest {
     }
 
     @Test
-    fun passwordNeedsLetterDigitAndSymbolWithin8To128() {
+    fun passwordNeedsLetterDigitAndSymbolWithin8To64() {
         assertNull(AuthValidation.passwordError("eolssu1!"))
         assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("eols1!"))
         assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("eolssu12"))
         assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("eolssu!!"))
         assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("12345678!"))
-        assertNull(AuthValidation.passwordError("a1!" + "x".repeat(125)))
-        assertEquals(FieldError.PasswordTooLong, AuthValidation.passwordError("a1!" + "x".repeat(126)))
-        // 조건을 덜 채운 채 128자를 넘으면 체크리스트로 보이는 조건 오류가 먼저다.
-        assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("x".repeat(129)))
+        assertNull(AuthValidation.passwordError("a1!" + "x".repeat(61)))
+        assertEquals(FieldError.PasswordTooLong, AuthValidation.passwordError("a1!" + "x".repeat(62)))
+        // 조건을 덜 채운 채 64자를 넘으면 체크리스트로 보이는 조건 오류가 먼저다.
+        assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("x".repeat(65)))
     }
 
     @Test

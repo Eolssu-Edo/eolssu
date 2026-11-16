@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.model.InputLimit
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.background
@@ -81,6 +82,7 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
                         onValueChange = { if (editable) onTitle(it) },
                         label = stringResource(Res.string.sheet_upload_name),
                         placeholder = stringResource(Res.string.sheet_upload_name_placeholder),
+                        maxLength = InputLimit.SHEET_TITLE,
                         bordered = false,
                         containerColor = colors.groupedBackground,
                         imeAction = ImeAction.Done,
