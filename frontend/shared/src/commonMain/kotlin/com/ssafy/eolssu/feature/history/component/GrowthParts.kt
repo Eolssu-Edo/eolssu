@@ -160,7 +160,7 @@ internal fun RangeTabs(range: GrowthRange, onRange: (GrowthRange) -> Unit) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         stringResource(label),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal),
                     )
                 }
             }
@@ -274,7 +274,7 @@ internal fun PeriodChartCard(
                 buildAnnotatedString {
                     append(stringResource(if (other == GrowthMetric.Time) Res.string.growth_metric_time else Res.string.growth_metric_count))
                     append(" ")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.text)) {
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = colors.text)) {
                         append(if (other == GrowthMetric.Time) minutesLabel(chart.totalMinutes) else stringResource(Res.string.growth_count_value, chart.totalCount))
                     }
                 },
@@ -372,7 +372,7 @@ private fun BarLabelsRow(chart: PeriodChart, dense: Boolean, onToggleDense: () -
                 Text(
                     label,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = size, lineHeight = 15.sp, fontWeight = if (last) FontWeight.Bold else FontWeight.Normal),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = size, lineHeight = 15.sp, fontWeight = if (last) FontWeight.SemiBold else FontWeight.Normal),
                     color = if (last) colors.text else colors.textMuted,
                     textAlign = TextAlign.Center,
                     maxLines = 1,

@@ -539,7 +539,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        if (strong) Text("${starts.indexOf(i) + 1}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.Bold), color = colors.text)
+                        if (strong) Text("${starts.indexOf(i) + 1}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
                         val gueum = jangdan.gueum?.getOrNull(i).orEmpty()
                         if (gueum.isNotEmpty()) Text(gueum, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 13.sp), color = colors.text, maxLines = 1)
                     }

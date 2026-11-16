@@ -106,7 +106,7 @@ private fun LegalBlockText(block: TermsBlock) {
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontSize = if (block.level <= 1) 18.sp else 15.sp,
                 lineHeight = if (block.level <= 1) 25.2.sp else 21.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
             ),
             color = colors.text,
         )

@@ -62,9 +62,9 @@ private fun TermsBlockText(block: TermsBlock) {
             block.text,
             modifier = Modifier.padding(top = if (block.level <= 1) 0.dp else 8.dp).semantics { heading() },
             style = if (block.level <= 1) {
-                MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 25.2.sp, fontWeight = FontWeight.Bold)
+                MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 25.2.sp, fontWeight = FontWeight.SemiBold)
             } else {
-                MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold)
+                MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
             },
             color = colors.text,
         )

@@ -215,7 +215,7 @@ private fun PassLine(rule: String) {
         Box(Modifier.size(26.dp).background(colors.primary, CircleShape), contentAlignment = Alignment.Center) {
             Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.onPrimary)
         }
-        Text(rule, style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold))
+        Text(rule, style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
     }
 }
 
@@ -284,7 +284,7 @@ private fun TongueDots(tongues: Int) {
             ) {
                 Text(
                     stringResource(Res.string.learn_tour_tongue),
-                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
                     color = if (done) colors.text else colors.accentText,
                 )
             }
@@ -370,7 +370,7 @@ private fun PitchNote(pitch: LearnPitchProgress, instrument: GuideInstrument, i:
     ) {
         Text(
             reading,
-            style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = if (current) FontWeight.Bold else FontWeight.Normal),
+            style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = if (current) FontWeight.SemiBold else FontWeight.Normal),
             color = when {
                 result == LearnNoteResult.Miss -> colors.recText
                 result == LearnNoteResult.Hit || current -> colors.text
@@ -395,7 +395,7 @@ private fun PassedMark() {
         }
         Text(
             stringResource(Res.string.learn_practice_passed_title),
-            style = MaterialTheme.typography.titleMedium.copy(fontSize = 19.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 19.sp, fontWeight = FontWeight.SemiBold),
         )
     }
 }

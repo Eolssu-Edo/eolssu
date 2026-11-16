@@ -258,7 +258,7 @@ private fun TrailNode(stage: LearnStage, done: Boolean, viewed: Boolean, paper: 
             Text(
                 "${stage.number}",
                 lift,
-                style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = if (viewed) FontWeight.Bold else FontWeight.Medium),
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = if (viewed) FontWeight.SemiBold else FontWeight.Medium),
                 color = if (viewed) colors.text else colors.textMuted,
             )
         }

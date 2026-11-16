@@ -47,7 +47,7 @@ fun SheetCompletionBannerHost(hostState: SnackbarHostState, modifier: Modifier =
                     Icon(EolssuIcons.Check, contentDescription = null, tint = colors.play)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(stringResource(Res.string.sheet_conversion_banner_title), style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold)
+                            fontWeight = FontWeight.SemiBold)
                         Text(data.visuals.message, style = MaterialTheme.typography.bodyLarge)
                     }
                     data.visuals.actionLabel?.let { label ->

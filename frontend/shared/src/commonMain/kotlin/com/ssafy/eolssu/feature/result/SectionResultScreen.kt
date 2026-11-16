@@ -290,7 +290,7 @@ private fun CheckBody(check: SessionCheck) {
                 stringResource(Res.string.weak_result_errors_now, check.afterErrors)
             },
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
             color = colors.text,
         )
         if (check.comparable && delta != null) DeltaPill(delta)
@@ -320,7 +320,7 @@ private fun DeltaPill(delta: Int) {
                 delta > 0 -> stringResource(Res.string.weak_result_more, delta)
                 else -> stringResource(Res.string.weak_result_same)
             },
-            style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
             color = if (fewer) colors.accentText else colors.text,
         )
     }

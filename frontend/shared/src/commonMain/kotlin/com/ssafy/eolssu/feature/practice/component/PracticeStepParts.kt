@@ -214,7 +214,7 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
                         Box(Modifier.size(16.dp).background(colors.recSoft, CircleShape).padding(3.dp).background(colors.rec, CircleShape))
                         Text(
                             stringResource(Res.string.practice_step_recording),
-                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
                             color = colors.recText,
                             maxLines = 1,
                         )
