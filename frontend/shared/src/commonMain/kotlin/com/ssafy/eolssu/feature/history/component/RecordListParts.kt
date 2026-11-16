@@ -298,7 +298,7 @@ private fun SongGroupCard(
                 Text(
                     buildAnnotatedString {
                         append(stringResource(Res.string.records_best) + " ")
-                        withStyle(SpanStyle(fontSize = 15.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.bestScore}") }
+                        withStyle(SpanStyle(fontFamily = EolssuTheme.serif.yul.fontFamily, fontSize = 16.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.bestScore}") }
                         append(stringResource(Res.string.records_score_unit))
                     },
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
@@ -453,7 +453,7 @@ private fun RecordRow(
         instrument?.let { InstrumentTag(it) }
         Text(
             buildAnnotatedString {
-                withStyle(SpanStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold)) { append("${record.score}") }
+                withStyle(SpanStyle(fontFamily = EolssuTheme.serif.yul.fontFamily, fontSize = 18.sp, fontWeight = FontWeight.Bold)) { append("${record.score}") }
                 withStyle(SpanStyle(fontSize = 11.sp, color = colors.textMuted)) { append(stringResource(Res.string.records_score_unit)) }
             },
         )
