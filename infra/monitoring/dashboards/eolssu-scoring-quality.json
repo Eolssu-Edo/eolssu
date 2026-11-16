@@ -216,7 +216,7 @@
       "id": 4,
       "type": "barchart",
       "title": "길이 오차 분포 (ms, ±1000 넘으면 끝 칸)",
-      "description": "음 길이 오차의 50 ms 구간별 음 수. 판정 값에는 없고 길이 점수에만 들어가는 축이다. -1050 칸은 -1000 미만, 1000 칸은 1000 이상이다.",
+      "description": "음 길이 오차의 50 ms 구간별 음 수. 길이 점수에 들어가고, pyin-8부터는 길이 오류(LENGTH) 판정에도 쓰인다. 판정은 0.6초 이상인 음 등 일부 음만 하므로 이 값이 커도 LENGTH가 아닐 수 있다. -1050 칸은 -1000 미만, 1000 칸은 1000 이상이다.",
       "datasource": {
         "type": "mysql",
         "uid": "${DS_EOLSSU}"
@@ -264,7 +264,7 @@
       "id": 6,
       "type": "barchart",
       "title": "음별 판정 (음 수, 율명은 낮은 음부터)",
-      "description": "정답 음별 판정 수. 막대는 100%로 쌓아 비율을 보인다. 특정 음만 못 잡음·음높이가 많으면 그 음의 인식 문제다.",
+      "description": "정답 음별 판정 수. 막대는 100%로 쌓아 비율을 보인다. 판정은 맞음·음높이·박자·길이(pyin-8부터)·못 잡음 다섯 가지다. 특정 음만 못 잡음·음높이가 많으면 그 음의 인식 문제다.",
       "datasource": {
         "type": "mysql",
         "uid": "${DS_EOLSSU}"
@@ -301,7 +301,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT p.hangul AS 음, SUM(nr.verdict = 'CORRECT') AS 맞음, SUM(nr.verdict = 'PITCH') AS 음높이, SUM(nr.verdict = 'TIMING') AS 박자, SUM(nr.verdict = 'MISSED') AS 못_잡음 FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id JOIN pitches p ON p.id = nr.expected_pitch_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) GROUP BY p.id, p.hangul, p.semitone ORDER BY p.semitone"
+          "rawSql": "SELECT p.hangul AS 음, SUM(nr.verdict = 'CORRECT') AS 맞음, SUM(nr.verdict = 'PITCH') AS 음높이, SUM(nr.verdict = 'TIMING') AS 박자, SUM(nr.verdict = 'LENGTH') AS 길이, SUM(nr.verdict = 'MISSED') AS 못_잡음 FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id JOIN pitches p ON p.id = nr.expected_pitch_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) GROUP BY p.id, p.hangul, p.semitone ORDER BY p.semitone"
         }
       ]
     },
@@ -309,7 +309,7 @@
       "id": 7,
       "type": "table",
       "title": "곡별 판정 비율 (%)",
-      "description": "곡별 음 수와 판정 비율. 음 수가 적은 곡의 비율은 흔들리기 쉽다.",
+      "description": "곡별 음 수와 판정 비율. 다섯 판정 비율의 합은 반올림 오차 안에서 100이다. 음 수가 적은 곡의 비율은 흔들리기 쉽다.",
       "datasource": {
         "type": "mysql",
         "uid": "${DS_EOLSSU}"
@@ -330,7 +330,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT s.title AS 곡, COUNT(*) AS 음_수, ROUND(100 * SUM(nr.verdict = 'CORRECT') / COUNT(*), 1) AS 맞음, ROUND(100 * SUM(nr.verdict = 'PITCH') / COUNT(*), 1) AS 음높이, ROUND(100 * SUM(nr.verdict = 'TIMING') / COUNT(*), 1) AS 박자, ROUND(100 * SUM(nr.verdict = 'MISSED') / COUNT(*), 1) AS 못_잡음 FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) GROUP BY s.id, s.title ORDER BY 음_수 DESC, s.title"
+          "rawSql": "SELECT s.title AS 곡, COUNT(*) AS 음_수, ROUND(100 * SUM(nr.verdict = 'CORRECT') / COUNT(*), 1) AS 맞음, ROUND(100 * SUM(nr.verdict = 'PITCH') / COUNT(*), 1) AS 음높이, ROUND(100 * SUM(nr.verdict = 'TIMING') / COUNT(*), 1) AS 박자, ROUND(100 * SUM(nr.verdict = 'LENGTH') / COUNT(*), 1) AS 길이, ROUND(100 * SUM(nr.verdict = 'MISSED') / COUNT(*), 1) AS 못_잡음 FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) GROUP BY s.id, s.title ORDER BY 음_수 DESC, s.title"
         }
       ]
     },
