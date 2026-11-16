@@ -4,10 +4,10 @@ Task S15P31E102-283, Story S15P31E102-38의 후속 구현이며 업무 상태는
 
 ## 실행 위치와 필요한 파일
 
-2026-11-15 Joseph의 macOS 환경에서 사용하는 도구 묶음은 다음 로컬 산출물 경로에 있다. 실행 스크립트·수집기·대시보드는 이 경로에서 관리하며, 다른 컴퓨터에서 사용하려면 이 묶음과 실행 의존성을 함께 전달해야 한다.
+2026-11-15 작업자 macOS 환경에서 사용하는 도구 묶음은 다음 로컬 산출물 경로(작업자 홈 기준)에 있다. 저장소에는 포함되지 않는다. 실행 스크립트·수집기·대시보드는 이 경로에서 관리하며, 다른 컴퓨터에서 사용하려면 이 묶음과 실행 의존성을 함께 전달해야 한다.
 
 ```sh
-QA_DEMO_DIR=/Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13
+QA_DEMO_DIR="$HOME/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13"
 "$QA_DEMO_DIR/tools/qa-live/open-control.sh"
 ```
 
@@ -22,7 +22,7 @@ QA_DEMO_DIR=/Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd
 | QA AVD | `/private/tmp/eolssu-qa-ui-283.sVN5cF/avd/eolssu-qa-flow.avd` 및 같은 폴더의 ini |
 | 기존 AI·실행 보조 파일 | `/private/tmp/eolssu-physical-283.YiLrDg`의 `source/ai/.venv`, `numba`, `smtp` |
 | Java·DB·기본 도구 | Homebrew JDK 21, MySQL 8.4, Node, Python 3, FFmpeg, curl, lsof |
-| 임시 DB 수명 관리 | `/Users/Joseph/.local/bin/temp-mysql`, [도구 지침](</Users/Joseph/.local/share/temp-mysql/README.md>) |
+| 임시 DB 수명 관리 | 작업자 로컬 도구 `~/.local/bin/temp-mysql`, 도구 지침 `~/.local/share/temp-mysql/README.md`(저장소 밖) |
 
 `/private/tmp`의 파일은 이후 정리될 수 있다. 2026-11-15에는 SDK 메타데이터와 일부 실행 파일이 사라져 공식 배포 파일·체크섬으로 복구했다. API 37.0 메타데이터는 기존 AGP가 읽는 주 버전 37·부 버전 0 형식으로 맞췄다. 새 세션은 위 APK·JAR·SDK·AVD·AI 실행 파일의 존재를 먼저 확인하고 준비 실패를 화면에 남긴다. [Android 빌드 방법](../../frontend/README.md#격리-지휘통제-화면과-실제-앱-이벤트-연결)
 
@@ -103,7 +103,7 @@ QA_DEMO_DIR=/Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd
 
 검증 APK SHA-256은 `74129ec3b02a2e83a8d67089e99122ebd4bef58976e6b89906b80d3c700f174a`이며 API 기준 커밋은 `57666c0389f067a4ba084a2fd88088491f2273ee`이다. 수집한 런타임 증거와 호스트 검사는 각각의 범위로 기록했다.
 
-[확인 요약](</Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13/evidence/live-app/verified-summary.json>) · [요청·앱·AI·DB 이벤트](</Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13/evidence/live-app/end-to-end-events.json>) · [실제 앱 결과 화면](</Users/Joseph/.codex/visualizations/2026/11/12/01a1ceee-f7f7-7cc1-bd11-9d2718489d82/eolssu-qa-demo-2026-11-13/evidence/live-app/actual-app-result.png>)
+근거 파일은 저장소 밖의 로컬 산출물(`$QA_DEMO_DIR/evidence/live-app/`)에 있다: 확인 요약 `verified-summary.json` · 요청·앱·AI·DB 이벤트 `end-to-end-events.json` · 실제 앱 결과 화면 `actual-app-result.png`
 
 ## 최종 구성 재시작과 재검증
 
