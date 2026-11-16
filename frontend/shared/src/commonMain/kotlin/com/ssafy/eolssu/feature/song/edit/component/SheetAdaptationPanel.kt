@@ -4,6 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -29,6 +31,7 @@ import com.ssafy.eolssu.feature.song.edit.PitchAdaptationPlan
 import com.ssafy.eolssu.feature.song.edit.recommendedAdaptations
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import kotlin.math.roundToInt
 
 /**
@@ -44,7 +47,13 @@ internal fun SheetAdaptationPanel(
     val density = LocalDensity.current
     var thumbInset by remember { mutableStateOf(10.dp) }
     var trackCorner by remember { mutableStateOf(8.dp) }
-    val textButtonColors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+    val colors = EolssuTheme.colors
+    val held = sliderInteractions.collectIsDraggedAsState().value || sliderInteractions.collectIsPressedAsState().value
+    // 앱 슬라이더(재생 위치·속도)와 같은 연두 길·옅은 회색 남은 길(S15P31E102-970).
+    val sliderColors = SliderDefaults.colors(
+        thumbColor = colors.primary, activeTrackColor = colors.primary, inactiveTrackColor = colors.surfaceStrong,
+        activeTickColor = colors.surface, inactiveTickColor = colors.lineStrong,
+    )
     val instrumentLabel: @Composable () -> Unit = {
         val chosen = state.instruments.firstOrNull { it.instrumentId == state.selectedId }
         Row(Modifier.heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -60,12 +69,13 @@ internal fun SheetAdaptationPanel(
         when {
             state.loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 instrumentLabel()
-                CircularProgressIndicator(Modifier.size(24.dp))
+                CircularProgressIndicator(Modifier.size(24.dp), color = colors.textMuted, strokeWidth = 2.dp)
             }
             state.failed -> {
                 instrumentLabel()
                 Text(stringResource(Res.string.sheet_adapt_failed), style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = onRetry, colors = textButtonColors) { Text(stringResource(Res.string.sheet_upload_reload)) }
+                EolssuButton(stringResource(Res.string.sheet_upload_reload), onRetry, style = EolssuButtonStyle.Secondary, small = true,
+                    containerColor = colors.surface, borderColor = colors.surface)
             }
             state.selected == null -> Text(stringResource(Res.string.sheet_adapt_empty))
             else -> state.selected?.let { selected ->
@@ -78,10 +88,10 @@ internal fun SheetAdaptationPanel(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(Res.string.sheet_adapt_octave_count, selected.octaveChanges), style = MaterialTheme.typography.labelMedium,
                             maxLines = 1)
-                        Text("·", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
+                        Text("·", style = MaterialTheme.typography.labelMedium, color = colors.lineStrong)
                         Text(stringResource(Res.string.sheet_adapt_unresolved_count, selected.unresolved), style = MaterialTheme.typography.labelMedium,
                             maxLines = 1,
-                            color = if (selected.unresolved > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                            color = if (selected.unresolved > 0) colors.recText else colors.text)
                     }
                     PillButton(stringResource(Res.string.sheet_details_apply), onApply, compact = true)
                 }
@@ -92,18 +102,20 @@ internal fun SheetAdaptationPanel(
                     Modifier.fillMaxWidth().padding(horizontal = StepButtonSize))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     val decreaseLabel = stringResource(Res.string.sheet_adapt_decrease)
-                    IconButton(onClick = { onTranspose(selected.transpose - 1) }, enabled = selected.transpose > -6,
-                        modifier = Modifier.size(StepButtonSize).semantics { contentDescription = decreaseLabel }) { Text("−") }
+                    SquareIconButton(SheetEditIcons.Minus, decreaseLabel, { onTranspose(selected.transpose - 1) },
+                        enabled = selected.transpose > -6)
                     val sliderLabel = stringResource(Res.string.sheet_adapt_slider)
                     Slider(value = selected.transpose.toFloat(), onValueChange = { onTranspose(it.roundToInt()) },
                         valueRange = -6f..6f, steps = 11,
                         interactionSource = sliderInteractions,
-                        thumb = { SliderDefaults.Thumb(sliderInteractions, modifier = Modifier.onSizeChanged {
+                        colors = sliderColors,
+                        // 앱 슬라이더와 같은 장구 손잡이(S15P31E102-970).
+                        thumb = { DrumThumb(held, modifier = Modifier.onSizeChanged {
                             thumbInset = with(density) { (it.width / 2f).toDp() }
                         }) },
                         track = { SliderDefaults.Track(it, modifier = Modifier.onSizeChanged { size ->
                             trackCorner = with(density) { (size.height / 2f).toDp() }
-                        }, drawStopIndicator = null, drawTick = { offset, color ->
+                        }, colors = sliderColors, thumbTrackGapSize = 0.dp, drawStopIndicator = null, drawTick = { offset, color ->
                             // 양끝 칸은 막대 끝 자체가 -6/+6이라 점을 그리지 않는다. 둥근 끝 밖으로 점이 삐져나오지 않게 한다.
                             val corner = size.height / 2f
                             if (offset.x > corner && offset.x < size.width - corner)
@@ -111,8 +123,8 @@ internal fun SheetAdaptationPanel(
                         }) },
                         modifier = Modifier.weight(1f).semantics { contentDescription = sliderLabel })
                     val increaseLabel = stringResource(Res.string.sheet_adapt_increase)
-                    IconButton(onClick = { onTranspose(selected.transpose + 1) }, enabled = selected.transpose < 6,
-                        modifier = Modifier.size(StepButtonSize).semantics { contentDescription = increaseLabel }) { Text("+") }
+                    SquareIconButton(EolssuIcons.Plus, increaseLabel, { onTranspose(selected.transpose + 1) },
+                        enabled = selected.transpose < 6)
                 }
             }
         }
