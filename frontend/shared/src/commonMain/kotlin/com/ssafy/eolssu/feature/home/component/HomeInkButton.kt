@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontSynthesis
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eolssu.shared.generated.resources.Res
@@ -58,6 +59,7 @@ import org.jetbrains.compose.resources.stringResource
  * 원본 SVG는 고정하고 붓털 모양의 클립만 전진시킨다. 글자 반전도 같은 경계를 쓴다.
  * 누르는 동안에는 같은 붓털 경계로 짙은 먹이 왼쪽에서 오른쪽으로 번지며 글자를 덮고, 손을 떼면 되돌아간다.
  * 키보드 포커스는 네모 테두리 대신 붓 모양을 따라 두른 테두리로 보인다(S15P31E102-969).
+ * 첫 화면에서도 누를 수 있는 버튼으로 보이게 붓 모양의 옅은 먹 바탕과 윤곽을 둔다(S15P31E102-1009).
  */
 @Composable
 internal fun HomeInkButton(
@@ -87,6 +89,19 @@ internal fun HomeInkButton(
             .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
+        // 붓이 칠해지기 전 첫 화면에서도 버튼으로 보이도록 옅은 먹 바탕과 붓 윤곽을 깔아 둔다(S15P31E102-1009).
+        // 윤곽은 붓이 칠해지는 만큼 흐려져 다 펼친 화면에서는 기존 붓 버튼만 남는다.
+        Image(
+            brush, contentDescription = null,
+            modifier = Modifier.matchParentSize().padding(vertical = 2.dp),
+            contentScale = ContentScale.FillBounds, colorFilter = ColorFilter.tint(ink.copy(alpha = InkCueFillAlpha)),
+        )
+        if (reveal < 1f) {
+            InkFocusRing(
+                brush, Modifier.matchParentSize().padding(vertical = 2.dp).graphicsLayer { alpha = 1f - reveal },
+                color = ink.copy(alpha = InkCueOutlineAlpha), width = InkCueOutlineWidth,
+            )
+        }
         if (focused) InkFocusRing(brush, Modifier.matchParentSize().padding(vertical = 2.dp))
         Image(
             brush, contentDescription = null,
@@ -137,20 +152,20 @@ private fun rememberInkPress(interactions: MutableInteractionSource, reduceMotio
     return press
 }
 
-/** 붓 모양을 바깥으로 [InkFocusWidth]만큼 키운 뒤 원래 붓 모양을 도려내, 붓 둘레만 남긴 포커스 테두리. */
+/** 붓 모양을 바깥으로 [width]만큼 키운 뒤 원래 붓 모양을 도려내, 붓 둘레만 남긴 테두리. 포커스 테두리와 첫 화면 윤곽에 쓴다. */
 @Composable
-private fun InkFocusRing(brush: Painter, modifier: Modifier) {
+private fun InkFocusRing(brush: Painter, modifier: Modifier, color: Color = InkFocusColor, width: Dp = InkFocusWidth) {
     Box(modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
         Image(
             brush, contentDescription = null,
             modifier = Modifier.matchParentSize().graphicsLayer {
-                val grow = InkFocusWidth.toPx() * 2
+                val grow = width.toPx() * 2
                 if (size.width > 0f && size.height > 0f) {
                     scaleX = 1f + grow / size.width
                     scaleY = 1f + grow / size.height
                 }
             },
-            contentScale = ContentScale.FillBounds, colorFilter = ColorFilter.tint(InkFocusColor),
+            contentScale = ContentScale.FillBounds, colorFilter = ColorFilter.tint(color),
         )
         Image(
             brush, contentDescription = null,
@@ -161,6 +176,9 @@ private fun InkFocusRing(brush: Painter, modifier: Modifier) {
 }
 
 private val InkFocusWidth = 3.dp
+private const val InkCueFillAlpha = .38f
+private const val InkCueOutlineAlpha = .75f
+private val InkCueOutlineWidth = 1.5.dp
 private val InkFocusColor = Color(0xFF686250)
 
 @Composable
