@@ -5,8 +5,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.uikit.LocalUIViewController
 import platform.UIKit.UIUserInterfaceStyle
-import platform.UIKit.UIUserInterfaceStyleDark
-import platform.UIKit.UIUserInterfaceStyleUnspecified
 
 /**
  * SwiftUI가 감싼 화면은 하위 화면의 `preferredStatusBarStyle`을 따르지 않는다. 기본 상태 표시줄은 창의 밝기 모드를 따르므로
@@ -19,6 +17,6 @@ internal actual fun HomeStatusBarIcons(light: Boolean) {
     fun apply(style: UIUserInterfaceStyle) {
         controller.view.window?.overrideUserInterfaceStyle = style
     }
-    SideEffect { apply(if (light) UIUserInterfaceStyleDark else UIUserInterfaceStyleUnspecified) }
-    DisposableEffect(controller) { onDispose { apply(UIUserInterfaceStyleUnspecified) } }
+    SideEffect { apply(if (light) UIUserInterfaceStyle.UIUserInterfaceStyleDark else UIUserInterfaceStyle.UIUserInterfaceStyleUnspecified) }
+    DisposableEffect(controller) { onDispose { apply(UIUserInterfaceStyle.UIUserInterfaceStyleUnspecified) } }
 }
