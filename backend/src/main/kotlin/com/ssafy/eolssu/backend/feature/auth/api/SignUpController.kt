@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.feature.auth.api
 
 import com.ssafy.eolssu.backend.common.error.ErrorCode
+import com.ssafy.eolssu.backend.feature.auth.domain.EmailPolicy
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.auth.application.SignUpResult
@@ -42,7 +43,7 @@ class SignUpController(private val service: SignUpService, private val cookies: 
 
 /** 비밀번호 규칙은 서비스의 PasswordPolicy가 판정한다. ID는 명세대로 양의 정수 문자열이다. */
 class SignUpRequest(
-    @field:NotBlank @field:Email @field:Size(max = 320) val email: String,
+    @field:NotBlank @field:Email @field:Size(max = EmailPolicy.MAX_LENGTH) val email: String,
     val password: String,
     @field:NotBlank @field:Size(max = NicknamePolicy.MAX_LENGTH) val nickname: String,
     @field:NotBlank val verificationToken: String,
