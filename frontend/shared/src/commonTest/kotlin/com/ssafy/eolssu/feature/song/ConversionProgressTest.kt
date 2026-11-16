@@ -74,6 +74,18 @@ class ConversionProgressTest {
     }
 
     @Test
+    fun readingEstimateIsNearlyFullWhenReadingUsuallyEnds() {
+        // 에뮬레이터 실측(2026-11-16): 2쪽 오선보가 읽기에 약 65초 걸렸는데 막대는 54%여서 끝날 때 확 차 보였다.
+        val atTypicalEnd = readingEstimate(64_000, pageCount = 2, notation = SheetNotation.Staff)
+        assertTrue(atTypicalEnd >= 0.8f, "평소 끝나는 때에는 읽기 구간을 거의 채운다: $atTypicalEnd")
+        val halfway = readingEstimate(32_000, pageCount = 2, notation = SheetNotation.Staff)
+        assertTrue(halfway in 0.4f..0.75f, "중간쯤에는 절반 안팎이다: $halfway")
+        val reading = running(SheetConversionStage.Recognizing, 0, 2).copy(notation = SheetNotation.Staff)
+        val nearEnd = conversionProgress(reading, readingElapsedMs = 64_000) ?: error("진행 값")
+        assertTrue(nearEnd >= 0.7f, "막대 전체로도 끝나기 직전에 70% 이상이다: $nearEnd")
+    }
+
+    @Test
     fun readingEstimateIsSlowerForMorePagesAndForStaffScores() {
         val onePage = readingEstimate(20_000, pageCount = 1, notation = SheetNotation.Staff)
         val fivePages = readingEstimate(20_000, pageCount = 5, notation = SheetNotation.Staff)
