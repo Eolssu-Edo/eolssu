@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.runtime.LaunchedEffect
@@ -87,8 +91,8 @@ fun AccountLinkScreen(
         authFrameOf(widthClass, split = true),
         topBar = { AuthTopBar(stringResource(Res.string.auth_link_title), onBack = onBack) },
         bottomBar = {
-            EolssuButton(stringResource(Res.string.auth_link_confirm), onClick = onLink, busy = state.linking)
-            EolssuButton(stringResource(Res.string.auth_link_cancel), onClick = onBack, style = EolssuButtonStyle.Text)
+            EolssuButton(stringResource(Res.string.auth_link_confirm), onClick = UserActionLog.click(QaTarget.ACCOUNT_LINK_SCREEN_01, onLink), busy = state.linking, qaTarget = QaTarget.ACCOUNT_LINK_SCREEN_BUTTON_01)
+            EolssuButton(stringResource(Res.string.auth_link_cancel), onClick = UserActionLog.click(QaTarget.ACCOUNT_LINK_SCREEN_02, onBack), style = EolssuButtonStyle.Text, qaTarget = QaTarget.ACCOUNT_LINK_SCREEN_BUTTON_02)
         },
     ) {
         AuthBody(topPadding = AuthBodyTopWithBar) {
@@ -102,11 +106,11 @@ fun AccountLinkScreen(
             }
             if (state.needsPassword) {
                 Column {
-                    EolssuTextField(
+                    EolssuTextField(qaTarget = QaTarget.ACCOUNT_LINK_SCREEN_03,
                         bordered = false,
                         labelInside = true,
                         value = state.password,
-                        onValueChange = onPasswordChange,
+                        onValueChange = UserActionLog.change(QaTarget.ACCOUNT_LINK_SCREEN_03, onPasswordChange),
                         label = stringResource(Res.string.auth_link_password),
                         placeholder = stringResource(Res.string.auth_password_placeholder),
                         type = TextFieldType.Password,
@@ -117,7 +121,7 @@ fun AccountLinkScreen(
                         onImeAction = onLink,
                     )
                     // 알약 안쪽 여백만큼 왼쪽으로 당겨 글자를 위 입력칸의 시작선에 맞춘다(S15P31E102-968).
-                    EolssuTextLink(onFindPassword, Modifier.offset(x = (-12).dp)) {
+                    EolssuTextLink(onFindPassword, Modifier.offset(x = (-12).dp), qaTarget = QaTarget.ACCOUNT_LINK_SCREEN_LINK_01) {
                         Text(
                             stringResource(Res.string.auth_find_password),
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
@@ -130,7 +134,7 @@ fun AccountLinkScreen(
     }
     if (state.expired) {
         EolssuDialog(title = stringResource(Res.string.social_auth_merge_expired), icon = EolssuIcons.Info) {
-            EolssuButton(stringResource(Res.string.common_confirm), onClick = onBack)
+            EolssuButton(stringResource(Res.string.common_confirm), onClick = UserActionLog.click(QaTarget.ACCOUNT_LINK_SCREEN_04, onBack), qaTarget = QaTarget.ACCOUNT_LINK_SCREEN_BUTTON_03)
         }
     }
 }
@@ -181,7 +185,7 @@ private fun FlowOnTapText(text: String, style: TextStyle, color: Color, modifier
     Text(
         text,
         modifier = modifier
-            .clickable(enabled = cut && !flowing, interactionSource = null, indication = null) { flowing = true }
+            .clickable(enabled = cut && !flowing, interactionSource = null, indication = null) { UserActionLog.event(QaKind.CLICK, QaTarget.ACCOUNT_LINK_SCREEN_05); flowing = true }
             .then(if (flowing) Modifier.basicMarquee(iterations = 1, initialDelayMillis = 0) else Modifier),
         style = style,
         color = color,

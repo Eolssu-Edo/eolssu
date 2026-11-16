@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.SessionSection
@@ -231,19 +233,19 @@ fun AnalysisScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         if (upload?.retryable == true) {
-                            EolssuButton(stringResource(Res.string.analysis_resend), onResend, busy = state.resending)
+                            EolssuButton(stringResource(Res.string.analysis_resend), onResend, busy = state.resending, qaTarget = QaTarget.ANALYSIS_SCREEN_BUTTON_01)
                             EolssuButton(
                                 stringResource(Res.string.analysis_back_to_practice), onBackToPractice,
-                                style = EolssuButtonStyle.Secondary, enabled = !state.resending,
+                                style = EolssuButtonStyle.Secondary, enabled = !state.resending, qaTarget = QaTarget.ANALYSIS_SCREEN_BUTTON_02
                             )
                         } else if (upload == null && failure?.retryable == true) {
-                            EolssuButton(stringResource(Res.string.analysis_retry), onRetry, busy = state.retrying)
+                            EolssuButton(stringResource(Res.string.analysis_retry), onRetry, busy = state.retrying, qaTarget = QaTarget.ANALYSIS_SCREEN_BUTTON_03)
                             EolssuButton(
                                 stringResource(Res.string.analysis_back_to_practice), onBackToPractice,
-                                style = EolssuButtonStyle.Secondary, enabled = !state.retrying,
+                                style = EolssuButtonStyle.Secondary, enabled = !state.retrying, qaTarget = QaTarget.ANALYSIS_SCREEN_BUTTON_04
                             )
                         } else {
-                            EolssuButton(stringResource(Res.string.analysis_play_again), onBackToPractice)
+                            EolssuButton(stringResource(Res.string.analysis_play_again), onBackToPractice, qaTarget = QaTarget.ANALYSIS_SCREEN_BUTTON_05)
                         }
                     }
                 }

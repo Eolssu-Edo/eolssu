@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -142,7 +145,7 @@ fun PracticeOptionChip(label: String, on: Boolean, onToggle: () -> Unit, modifie
             .heightIn(min = OptionChipTouch)
             // 누를 수 없을 때(예: 녹음 중 ‘한 음씩’)는 켜진 초록 바탕까지 함께 흐리게 한다.
             .alpha(if (enabled) 1f else 0.45f)
-            .toggleable(value = on, interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onValueChange = { onToggle() }),
+            .toggleable(value = on, interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onValueChange = UserActionLog.change(QaTarget.PRACTICE_HEADER_PARTS_01, { onToggle() })),
         contentAlignment = Alignment.Center,
     ) {
         Box(

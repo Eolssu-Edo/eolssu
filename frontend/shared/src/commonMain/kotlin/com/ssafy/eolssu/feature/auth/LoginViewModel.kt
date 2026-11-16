@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.diagnostics.*
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 import androidx.lifecycle.ViewModel
 import com.ssafy.eolssu.data.user.AccountDraft
 import com.ssafy.eolssu.data.user.AuthRepository
@@ -45,24 +48,29 @@ class LoginViewModel(
      * 이메일이 비었거나 형식이 틀렸거나 비밀번호가 비었으면 서버에 보내지 않고 칸 아래 오류만 남긴다.
      * 서버 응답을 기다리는 동안 다시 누르면 무시하고 false를 돌려준다.
      */
-    suspend fun logIn(): Boolean {
+    suspend fun logIn(): Boolean = withContext(QaInteractionContext(UserActionLog.capture())) {
+        val qaInteraction = kotlinx.coroutines.currentCoroutineContext()[QaInteractionContext]!!.interaction
+        fun qa(kind: QaKind, outcome: QaOutcome? = null) = UserActionLog.event(kind, QaTarget.LOGIN_SUBMIT, outcome, qaInteraction)
+        qa(QaKind.LOGIN_ATTEMPT)
         val state = _uiState.value
-        if (state.loggingIn) return false
+        if (state.loggingIn) return@withContext false
         val emailError = AuthValidation.emailError(state.email)
         val passwordError = if (state.password.isEmpty()) FieldError.PasswordEmpty else null
         if (emailError != null || passwordError != null) {
+            qa(QaKind.INPUT_VALIDATION, QaOutcome.INVALID)
             _uiState.update { it.copy(emailError = emailError, passwordError = passwordError, error = null) }
-            return false
+            return@withContext false
         }
         _uiState.update { it.copy(loggingIn = true, error = null) }
-        return try {
+        try {
             when (val result = authRepository.logIn(state.email, state.password)) {
-                LoginResult.WrongCredentials -> false.also { _uiState.update { it.copy(error = FieldError.LoginFailed) } }
-                LoginResult.Unavailable -> false.also { _uiState.update { it.copy(error = FieldError.LoginUnavailable) } }
-                is LoginResult.Locked -> false.also {
+                LoginResult.WrongCredentials -> false.also { qa(QaKind.LOGIN_RESULT, QaOutcome.FAILED); _uiState.update { it.copy(error = FieldError.LoginFailed) } }
+                LoginResult.Unavailable -> false.also { qa(QaKind.LOGIN_RESULT, QaOutcome.UNAVAILABLE); _uiState.update { it.copy(error = FieldError.LoginUnavailable) } }
+                is LoginResult.Locked -> false.also { qa(QaKind.LOGIN_RESULT, QaOutcome.LOCKED);
                     _uiState.update { it.copy(error = null, notice = LoginNotice.Locked, lockedUntil = lockRetryTime(result.retryAvailableAtMillis)) }
                 }
                 is LoginResult.Success -> {
+                    qa(QaKind.LOGIN_RESULT, QaOutcome.READY)
                     // A completed login ends the anonymous signup flow, including its consent choices.
                     draft.clear()
                     // 회원이 바뀐 뒤에 남겨야 자동 로그인 선택이 회원 변경 정리에 지워지지 않는다.
@@ -74,6 +82,9 @@ class LoginViewModel(
                     notice == null
                 }
             }
+        } catch (cancelled: CancellationException) {
+            qa(QaKind.LOGIN_RESULT, QaOutcome.CANCELLED)
+            throw cancelled
         } finally {
             _uiState.update { it.copy(loggingIn = false) }
         }

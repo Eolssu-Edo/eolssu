@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -192,11 +194,11 @@ private fun SectionSettings(state: SectionSelectUiState, actions: SectionSelectA
     Row(modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         EolssuButton(
             stringResource(Res.string.weak_select_start), actions.onStart, Modifier.weight(1f).fillMaxHeight(),
-            icon = EolssuIcons.Play, enabled = state.canStart, compact = true,
+            icon = EolssuIcons.Play, enabled = state.canStart, compact = true, qaTarget = QaTarget.SECTION_SELECT_SCREEN_BUTTON_01
         )
         EolssuButton(
             stringResource(Res.string.weak_loop_evaluate_start), actions.onEvaluate, Modifier.weight(1f).fillMaxHeight(),
-            icon = EolssuIcons.Mic, enabled = state.canStart, compact = true, style = EolssuButtonStyle.Secondary,
+            icon = EolssuIcons.Mic, enabled = state.canStart, compact = true, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SECTION_SELECT_SCREEN_BUTTON_02
         )
     }
 }

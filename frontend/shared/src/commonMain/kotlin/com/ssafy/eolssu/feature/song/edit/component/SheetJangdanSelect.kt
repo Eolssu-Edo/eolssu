@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -61,7 +65,7 @@ internal fun SheetJangdanSelect(
                 .heightIn(min = 48.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(colors.groupedBackground)
-                .clickable(enabled = enabled, role = Role.DropdownList) { open = true }
+                .clickable(enabled = enabled, role = Role.DropdownList) { UserActionLog.event(QaKind.CLICK, QaTarget.SHEET_JANGDAN_SELECT_02); open = true }
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -90,7 +94,7 @@ internal fun SheetJangdanSelect(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     jangdans.forEach { item ->
-                        EolssuMenuItem(item.name, selected = item.jangdanId == selectedId, onClick = { open = false; onSelect(item.jangdanId) })
+                        EolssuMenuItem(item.name, selected = item.jangdanId == selectedId, onClick = UserActionLog.click(QaTarget.SHEET_JANGDAN_SELECT_01, { open = false; onSelect(item.jangdanId) }))
                     }
                 }
             }

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,7 +33,7 @@ class RecordDeleteActions(val onAsk: () -> Unit, val onConfirm: () -> Unit, val 
 internal fun RecordDeleteButton(busy: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.RECORD_DELETE_PARTS_01, onClick),
         enabled = !busy,
         modifier = Modifier.size(48.dp),
         shape = CircleShape,
@@ -55,8 +58,8 @@ internal fun RecordDeleteDialog(actions: RecordDeleteActions) {
         iconTint = colors.recText,
         onDismissRequest = actions.onCancel,
     ) {
-        EolssuButton(stringResource(Res.string.record_delete_confirm), actions.onConfirm, style = EolssuButtonStyle.Danger)
-        EolssuButton(stringResource(Res.string.common_cancel), actions.onCancel, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.record_delete_confirm), actions.onConfirm, style = EolssuButtonStyle.Danger, qaTarget = QaTarget.RECORD_DELETE_PARTS_BUTTON_01)
+        EolssuButton(stringResource(Res.string.common_cancel), actions.onCancel, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.RECORD_DELETE_PARTS_BUTTON_02)
     }
 }
 

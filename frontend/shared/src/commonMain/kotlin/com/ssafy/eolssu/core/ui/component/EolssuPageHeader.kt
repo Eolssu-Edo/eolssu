@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -181,7 +184,7 @@ fun EolssuPageIconButton(
     Box(
         modifier
             .size(48.dp)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.EOLSSU_PAGE_HEADER_01, onClick)),
         contentAlignment = Alignment.Center,
     ) {
         Box(

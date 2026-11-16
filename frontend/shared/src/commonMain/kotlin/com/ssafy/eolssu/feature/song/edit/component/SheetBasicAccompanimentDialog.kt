@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -41,7 +44,7 @@ internal fun SheetBasicAccompanimentDialog(
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 BasicAccompanimentPreset.entries.forEach { option ->
                     // 앱 알약 칩: 회색 바탕, 고르면 연두(S15P31E102-970).
-                    EolssuChip(option.label, selected = option == preset, onClick = { presetName = option.name },
+                    EolssuChip(option.label, selected = option == preset, onClick = UserActionLog.click(QaTarget.SHEET_BASIC_ACCOMPANIMENT_DIALOG_01, { presetName = option.name }),
                         bordered = false, containerColor = EolssuTheme.colors.groupedBackground)
                 }
             }
@@ -51,14 +54,14 @@ internal fun SheetBasicAccompanimentDialog(
             EolssuTextField(firstCell, { firstCell = it },
                 label = stringResource(Res.string.basic_accompaniment_first_cell, draft.cells.size), placeholder = "1",
                 type = TextFieldType.Number, maxLength = cellDigits,
-                error = if (cell == null) stringResource(Res.string.basic_accompaniment_cell_error, draft.cells.size) else null)
+                error = if (cell == null) stringResource(Res.string.basic_accompaniment_cell_error, draft.cells.size) else null, qaTarget = QaTarget.SHEET_BASIC_ACCOMPANIMENT_DIALOG_FIELD_01)
             if (cell != null) Text(stringResource(Res.string.basic_accompaniment_cell_location,
                 draft.columnOf(cell) + 1, draft.rowOf(cell) + 1), style = MaterialTheme.typography.bodySmall)
             EolssuButton(stringResource(Res.string.basic_accompaniment_use_selected, selectedCell + 1),
-                { firstCell = (selectedCell + 1).toString() }, style = EolssuButtonStyle.Secondary)
+                { firstCell = (selectedCell + 1).toString() }, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_BASIC_ACCOMPANIMENT_DIALOG_BUTTON_01)
         }
         EolssuButton(stringResource(Res.string.sheet_details_apply),
-            { if (preset != null && cell != null) onApply(preset, cell) }, enabled = preset != null && cell != null)
-        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary)
+            { if (preset != null && cell != null) onApply(preset, cell) }, enabled = preset != null && cell != null, qaTarget = QaTarget.SHEET_BASIC_ACCOMPANIMENT_DIALOG_BUTTON_02)
+        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_BASIC_ACCOMPANIMENT_DIALOG_BUTTON_03)
     }
 }

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -87,7 +90,7 @@ internal fun ReadingTocButton(page: ReadingPage, open: Boolean, onClick: () -> U
             .height(48.dp)
             .clip(shape)
             .background(colors.surface)
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button, onClick = UserActionLog.click(QaTarget.READING_BOOK_01, onClick))
             .semantics { stateDescription = state }
             .padding(start = 10.dp, end = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -110,7 +113,7 @@ internal fun ReadingTocButton(page: ReadingPage, open: Boolean, onClick: () -> U
 internal fun ReadingTocMenu(current: ReadingPage, onSelect: (ReadingPage) -> Unit, modifier: Modifier = Modifier) {
     EolssuMenuPanel(modifier = modifier) {
         ReadingPage.entries.forEach { page ->
-            EolssuMenuItem(page.title(), page == current, onClick = { onSelect(page) }, leading = { PageMark(page.mark) })
+            EolssuMenuItem(page.title(), page == current, onClick = UserActionLog.click(QaTarget.READING_BOOK_02, { onSelect(page) }), leading = { PageMark(page.mark) })
         }
     }
 }
@@ -156,7 +159,7 @@ private fun PageDot(page: ReadingPage, on: Boolean, onClick: () -> Unit) {
     Box(
         Modifier
             .size(width = 32.dp, height = 48.dp)
-            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = UserActionLog.click(QaTarget.READING_BOOK_03, onClick))
             .semantics {
                 contentDescription = description
                 selected = on

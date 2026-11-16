@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.ui.graphics.Color
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -54,9 +57,9 @@ internal fun SheetEditDetailsDialog(
     ) {
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            EolssuTextField(
+            EolssuTextField(qaTarget = QaTarget.SHEET_EDIT_DETAILS_DIALOG_01,
                 value = title,
-                onValueChange = { if (!saving) { title = it; touched = true } },
+                onValueChange = UserActionLog.change(QaTarget.SHEET_EDIT_DETAILS_DIALOG_01, { if (!saving) { title = it; touched = true } }),
                 label = stringResource(Res.string.sheet_details_title),
                 placeholder = "",
                 maxLength = InputLimit.SHEET_TITLE,
@@ -75,10 +78,10 @@ internal fun SheetEditDetailsDialog(
         }
         EolssuButton(
             text = stringResource(if (saving) Res.string.sheet_completion_saving else Res.string.sheetedit_preview_save),
-            onClick = { if (validTitle != null) onApply(validTitle) },
-            enabled = validTitle != null && canApply && !saving,
+            onClick = UserActionLog.click(QaTarget.SHEET_EDIT_DETAILS_DIALOG_02, { if (validTitle != null) onApply(validTitle) }),
+            enabled = validTitle != null && canApply && !saving, qaTarget = QaTarget.SHEET_EDIT_DETAILS_DIALOG_BUTTON_01
         )
         EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, enabled = !saving,
-            containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
+            containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_EDIT_DETAILS_DIALOG_BUTTON_02)
     }
 }

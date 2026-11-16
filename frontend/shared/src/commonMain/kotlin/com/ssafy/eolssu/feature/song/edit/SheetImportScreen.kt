@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.core.model.InputLimit
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
@@ -69,13 +72,13 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
         bottomDivider = false,
         topBar = { EolssuTopBar(stringResource(Res.string.sheet_upload_title), onBack = { if (!state.busy) onBack() }, maxWidth = contentMaxWidth) },
         bottomBar = sheetAddBottomBar(contentMaxWidth) {
-            if (state.acceptedId != null) EolssuButton(stringResource(Res.string.sheet_upload_list), onList)
+            if (state.acceptedId != null) EolssuButton(stringResource(Res.string.sheet_upload_list), onList, qaTarget = QaTarget.SHEET_IMPORT_SCREEN_BUTTON_01)
             else {
                 feedback?.let { UploadError(it) }
                 EolssuButton(stringResource(Res.string.sheet_upload_send), onSubmit,
-                    enabled = editable && !state.loading && !state.catalogFailed, busy = state.busy)
+                    enabled = editable && !state.loading && !state.catalogFailed, busy = state.busy, qaTarget = QaTarget.SHEET_IMPORT_SCREEN_BUTTON_02)
                 if (showListAction) EolssuButton(stringResource(Res.string.sheet_upload_list), onList,
-                    style = EolssuButtonStyle.Secondary, borderColor = Color.Transparent)
+                    style = EolssuButtonStyle.Secondary, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_IMPORT_SCREEN_BUTTON_03)
             }
         },
     ) {
@@ -98,16 +101,16 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ImportKind.entries.forEach { item ->
                             PillChip(stringResource(if (item == ImportKind.Jeongganbo) Res.string.sheetedit_new_kind_jeongganbo else Res.string.sheetedit_new_kind_staff),
-                                selected = kind == item, onClick = { onKind(item) }, modifier = Modifier.weight(1f), enabled = editable)
+                                selected = kind == item, onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_SCREEN_01, { onKind(item) }), modifier = Modifier.weight(1f), enabled = editable)
                         }
                     }
                 }
                 if (editable && state.error == null) SheetTutorials(SheetTutorial.Upload)
                 SheetUploadGuideCard(kind)
                 UploadCard {
-                    EolssuTextField(
+                    EolssuTextField(qaTarget = QaTarget.SHEET_IMPORT_SCREEN_02,
                         value = state.title,
-                        onValueChange = { if (editable) onTitle(it) },
+                        onValueChange = UserActionLog.change(QaTarget.SHEET_IMPORT_SCREEN_02, { if (editable) onTitle(it) }),
                         label = stringResource(Res.string.sheet_upload_name),
                         placeholder = stringResource(Res.string.sheet_upload_name_placeholder),
                         maxLength = InputLimit.SHEET_TITLE,
@@ -122,14 +125,14 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                     UploadCard {
                         Text(stringResource(Res.string.sheet_upload_catalog_failed), style = MaterialTheme.typography.bodyMedium, color = colors.textSub)
                         EolssuButton(stringResource(Res.string.sheet_upload_reload), onReload, style = EolssuButtonStyle.Secondary,
-                            containerColor = colors.groupedBackground, borderColor = Color.Transparent)
+                            containerColor = colors.groupedBackground, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_IMPORT_SCREEN_BUTTON_04)
                     }
                 }
                 if (state.instruments.isNotEmpty()) UploadCard {
                     UploadLabel(stringResource(Res.string.sheet_upload_instrument))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.instruments.forEach { item ->
-                            PillChip(item.name, selected = state.instrumentId == item.instrumentId, onClick = { onInstrument(item.instrumentId) }, enabled = editable)
+                            PillChip(item.name, selected = state.instrumentId == item.instrumentId, onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_SCREEN_03, { onInstrument(item.instrumentId) }), enabled = editable)
                         }
                     }
                     if (SheetImportField.Instrument in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Instrument)))
@@ -157,7 +160,7 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                     Box {
                         EolssuButton(stringResource(if (state.picking) Res.string.sheet_upload_reading else Res.string.sheet_upload_pick), startPick,
                             style = EolssuButtonStyle.Secondary, enabled = editable, icon = EolssuIcons.Plus,
-                            containerColor = colors.accentTint, contentColor = colors.accentText, borderColor = Color.Transparent)
+                            containerColor = colors.accentTint, contentColor = colors.accentText, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_IMPORT_SCREEN_BUTTON_05)
                         if (sourceMenuOpen) SheetFileSourceMenu(sources,
                             onPick = { source -> sourceMenuOpen = false; onPick(source) },
                             onDismiss = { sourceMenuOpen = false })

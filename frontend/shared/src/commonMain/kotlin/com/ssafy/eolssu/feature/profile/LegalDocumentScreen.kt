@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.profile
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -87,7 +89,7 @@ fun LegalDocumentScreen(
             state.loading -> Text(stringResource(Res.string.member_api_terms_loading), style = notice, color = colors.textMuted)
             body == null -> {
                 Text(stringResource(Res.string.member_api_terms_unavailable), style = notice, color = colors.textMuted)
-                EolssuButton(stringResource(Res.string.member_api_retry), onRetry)
+                EolssuButton(stringResource(Res.string.member_api_retry), onRetry, qaTarget = QaTarget.LEGAL_DOCUMENT_SCREEN_BUTTON_01)
             }
             else -> body.forEach { LegalBlockText(it) }
         }

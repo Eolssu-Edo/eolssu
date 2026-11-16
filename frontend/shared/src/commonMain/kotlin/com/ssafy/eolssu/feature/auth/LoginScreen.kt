@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.ui.draw.alpha
 import com.ssafy.eolssu.core.ui.component.EolssuTextLink
@@ -112,7 +115,8 @@ fun LoginScreen(
             Column(formWidth.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 EolssuTextField(
                     value = state.email,
-                    onValueChange = onEmailChange,
+                    qaTarget = QaTarget.LOGIN_EMAIL,
+                    onValueChange = UserActionLog.change(QaTarget.LOGIN_SCREEN_01, onEmailChange),
                     label = stringResource(Res.string.auth_email),
                     placeholder = stringResource(Res.string.auth_email_placeholder),
                     type = TextFieldType.Email,
@@ -124,7 +128,8 @@ fun LoginScreen(
                 )
                 EolssuTextField(
                     value = state.password,
-                    onValueChange = onPasswordChange,
+                    qaTarget = QaTarget.LOGIN_PASSWORD,
+                    onValueChange = UserActionLog.change(QaTarget.LOGIN_SCREEN_02, onPasswordChange),
                     label = stringResource(Res.string.auth_password),
                     placeholder = stringResource(Res.string.auth_password_placeholder),
                     type = TextFieldType.Password,
@@ -139,8 +144,8 @@ fun LoginScreen(
                 LoginOptions(state, onRememberEmailChange, onKeepSignedInChange)
                 EolssuButton(
                     stringResource(Res.string.auth_login),
-                    onClick = onLogIn,
-                    busy = state.loggingIn,
+                    onClick = UserActionLog.click(QaTarget.LOGIN_SUBMIT, onLogIn),
+                    busy = state.loggingIn, qaTarget = QaTarget.LOGIN_SCREEN_BUTTON_01
                 )
             }
             Links(onFindPassword, onSignUp, formWidth)
@@ -148,7 +153,7 @@ fun LoginScreen(
                 SocialDivider(formWidth.padding(top = 8.dp))
                 Row(formWidth, horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)) {
                     providers.forEach { provider ->
-                        SocialButton(provider, enabled = !state.loggingIn, onClick = { onSocialLogIn(provider) })
+                        SocialButton(provider, enabled = !state.loggingIn, onClick = UserActionLog.click(QaTarget.LOGIN_SCREEN_04, { onSocialLogIn(provider) }))
                     }
                 }
             }
@@ -163,8 +168,8 @@ fun LoginScreen(
             // 다른 안내 창처럼 바깥 누르기·뒤로 가기로 닫는다(S15P31E102-969).
             onDismissRequest = onDismissNotice,
         ) {
-            EolssuButton(stringResource(Res.string.auth_confirm), onClick = onDismissNotice)
-            EolssuButton(stringResource(Res.string.auth_find_password), onClick = onFindPassword, style = EolssuButtonStyle.Text)
+            EolssuButton(stringResource(Res.string.auth_confirm), onClick = UserActionLog.click(QaTarget.LOGIN_SCREEN_05, onDismissNotice), qaTarget = QaTarget.LOGIN_SCREEN_BUTTON_02)
+            EolssuButton(stringResource(Res.string.auth_find_password), onClick = UserActionLog.click(QaTarget.LOGIN_SCREEN_06, onFindPassword), style = EolssuButtonStyle.Text, qaTarget = QaTarget.LOGIN_SCREEN_BUTTON_03)
         }
         LoginNotice.WithdrawalCancelled -> EolssuDialog(
             title = stringResource(Res.string.auth_withdrawal_cancelled_title),
@@ -173,7 +178,7 @@ fun LoginScreen(
             // 바깥 누르기·뒤로 가기로 닫아도 '확인'과 같이 로그인을 이어 간다(S15P31E102-969).
             onDismissRequest = onWithdrawalCancelledConfirmed,
         ) {
-            EolssuButton(stringResource(Res.string.auth_confirm), onClick = onWithdrawalCancelledConfirmed)
+            EolssuButton(stringResource(Res.string.auth_confirm), onClick = UserActionLog.click(QaTarget.LOGIN_SCREEN_07, onWithdrawalCancelledConfirmed), qaTarget = QaTarget.LOGIN_SCREEN_BUTTON_04)
         }
         LoginNotice.Withdrawn -> EolssuDialog(
             title = stringResource(Res.string.auth_withdrawn_title),
@@ -181,7 +186,7 @@ fun LoginScreen(
             icon = EolssuIcons.Check,
             onDismissRequest = onDismissNotice,
         ) {
-            EolssuButton(stringResource(Res.string.auth_confirm), onClick = onDismissNotice)
+            EolssuButton(stringResource(Res.string.auth_confirm), onClick = UserActionLog.click(QaTarget.LOGIN_SCREEN_08, onDismissNotice), qaTarget = QaTarget.LOGIN_SCREEN_BUTTON_05)
         }
         null -> Unit
     }
@@ -217,7 +222,7 @@ private fun SocialButton(provider: SocialProvider, enabled: Boolean, onClick: ()
     val look = socialLook(provider)
     val description = stringResource(Res.string.auth_social_login, stringResource(provider.displayName))
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.LOGIN_SCREEN_09, onClick),
         enabled = enabled,
         // 로그인 중에는 같은 화면의 로그인 버튼처럼 0.45로 흐려 누를 수 없음을 보인다(S15P31E102-969).
         modifier = Modifier.size(SocialSize).alpha(if (enabled) 1f else 0.45f).semantics { contentDescription = description },
@@ -319,5 +324,5 @@ private fun Links(onFindPassword: () -> Unit, onSignUp: () -> Unit, modifier: Mo
 
 @Composable
 private fun LinkButton(text: String, onClick: () -> Unit, content: @Composable (String) -> Unit) {
-    EolssuTextLink(onClick) { content(text) }
+    EolssuTextLink(onClick, qaTarget = QaTarget.LOGIN_SCREEN_LINK_01) { content(text) }
 }

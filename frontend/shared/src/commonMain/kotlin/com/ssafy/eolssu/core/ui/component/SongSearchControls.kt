@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -91,7 +94,7 @@ fun SongSearchField(
             BasicTextField(
                 value = query,
                 // 검색어는 [InputLimit.SEARCH]자까지만 받는다(S15P31E102-996).
-                onValueChange = { input -> onQueryChange(InputLimit.limit(query, input, InputLimit.SEARCH)) },
+                onValueChange = UserActionLog.change(QaTarget.SONG_SEARCH_CONTROLS_01, { input -> onQueryChange(InputLimit.limit(query, input, InputLimit.SEARCH)) }),
                 singleLine = true,
                 textStyle = textStyle,
                 cursorBrush = SolidColor(colors.text),
@@ -112,7 +115,7 @@ fun SongSearchField(
             Box(
                 Modifier
                     .requiredSize(48.dp)
-                    .clickable(interactionSource = clearInteraction, indication = null, role = Role.Button, onClick = onClear),
+                    .clickable(interactionSource = clearInteraction, indication = null, role = Role.Button, onClick = UserActionLog.click(QaTarget.SONG_SEARCH_CONTROLS_02, onClear)),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
@@ -137,7 +140,7 @@ fun SongSortButton(order: SongSortOrder, onToggle: () -> Unit, modifier: Modifie
     val ascending = order == SongSortOrder.Ascending
     val description = stringResource(if (ascending) Res.string.song_sort_ascending_description else Res.string.song_sort_descending_description)
     Surface(
-        onClick = onToggle,
+        onClick = UserActionLog.click(QaTarget.SONG_SEARCH_CONTROLS_03, onToggle),
         modifier = modifier.heightIn(min = if (small) 28.dp else 36.dp),
         shape = CircleShape,
         color = colors.surface,

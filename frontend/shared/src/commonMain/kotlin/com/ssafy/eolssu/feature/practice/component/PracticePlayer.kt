@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -129,7 +132,7 @@ private fun PracticePlayerContent(
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(PlaybackSectionSpacing)) {
         if (step) {
             PracticeStepPanels(state, actions, Modifier.padding(bottom = 4.dp))
-            if (eval != null) EolssuButton(eval.label, eval.onClick, icon = EolssuIcons.Mic, enabled = eval.enabled)
+            if (eval != null) EolssuButton(eval.label, eval.onClick, icon = EolssuIcons.Mic, enabled = eval.enabled, qaTarget = QaTarget.PRACTICE_PLAYER_BUTTON_01)
         } else {
             PracticeModeSwitch(state, actions)
             PracticePlayerTimeline(state, actions)
@@ -162,7 +165,7 @@ private fun PracticePlayerTimeline(state: PracticeUiState, actions: PracticeBott
         // 끄는 동안에는 재생 위치 보고와 분리하고, 놓을 때 한 번만 음원을 이동한다.
         PlaybackPositionSlider(
             value = draggedFraction ?: state.playerFraction,
-            onValueChange = { draggedFraction = it },
+            onValueChange = UserActionLog.change(QaTarget.PRACTICE_PLAYER_01, { draggedFraction = it }),
             onValueChangeFinished = { draggedFraction?.let(actions.onSeekToFraction); draggedFraction = null },
             enabled = canSeek,
             label = stringResource(Res.string.record_detail_seek),
@@ -359,7 +362,7 @@ private fun PracticeModeSwitch(state: PracticeUiState, actions: PracticeBottomAc
             val enabled = index == 0 || state.jangdanSupported
             Box(
                 Modifier.weight(1f).clip(pill).background(if (selected) colors.surface else Color.Transparent)
-                    .selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = select)
+                    .selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = UserActionLog.click(QaTarget.PRACTICE_PLAYER_02, select))
                     .heightIn(min = 40.dp).padding(horizontal = 8.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {

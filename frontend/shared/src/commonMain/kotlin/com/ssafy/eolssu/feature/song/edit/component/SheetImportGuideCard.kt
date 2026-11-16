@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -52,7 +55,7 @@ internal fun SheetImportGuideCard(
             Text(stringResource(Res.string.sheet_import_guide_title, listOf(showRange, showReview).count { it }),
                 Modifier.weight(1f).padding(start = 2.dp), style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold, color = colors.accentText)
-            IconButton(onClick = onDismiss) {
+            IconButton(onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_01, onDismiss)) {
                 Icon(EolssuIcons.Close, contentDescription = stringResource(Res.string.sheet_import_guide_close),
                     Modifier.size(18.dp), tint = colors.textSub)
             }
@@ -70,8 +73,8 @@ internal fun SheetImportGuideCard(
                     shift > 0 -> stringResource(Res.string.sheet_import_guide_up, shift, fixed)
                     all -> stringResource(Res.string.sheet_import_guide_down_all, abs(shift))
                     else -> stringResource(Res.string.sheet_import_guide_down, abs(shift), fixed)
-                }, primary = true, onClick = onApplyRecommended)
-            } else GuideAction(stringResource(Res.string.sheet_import_guide_adapt), primary = false, onClick = onOpenAdaptation)
+                }, primary = true, onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_02, onApplyRecommended))
+            } else GuideAction(stringResource(Res.string.sheet_import_guide_adapt), primary = false, onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_03, onOpenAdaptation))
         }
         if (showReview) GuideTile {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -112,7 +115,7 @@ private fun GuideHeadline(badge: String, badgeColor: Color, title: String, detai
 @Composable
 private fun GuideAction(label: String, primary: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp), shape = RoundedCornerShape(12.dp),
+    Surface(onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_04, onClick), modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp), shape = RoundedCornerShape(12.dp),
         color = if (primary) colors.primary else colors.groupedBackground,
         contentColor = if (primary) colors.onPrimary else colors.text) {
         Box(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {

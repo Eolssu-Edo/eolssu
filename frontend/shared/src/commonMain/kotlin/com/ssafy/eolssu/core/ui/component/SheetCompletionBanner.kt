@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,9 +54,9 @@ fun SheetCompletionBannerHost(hostState: SnackbarHostState, modifier: Modifier =
                         Text(data.visuals.message, style = MaterialTheme.typography.bodyLarge)
                     }
                     data.visuals.actionLabel?.let { label ->
-                        EolssuButton(label, onClick = data::performAction, small = true)
+                        EolssuButton(label, onClick = UserActionLog.click(QaTarget.SHEET_COMPLETION_BANNER_01, data::performAction), small = true, qaTarget = QaTarget.SHEET_COMPLETION_BANNER_BUTTON_01)
                     }
-                    EolssuIconButton(EolssuIcons.Close, stringResource(Res.string.sheet_conversion_banner_dismiss), onClick = data::dismiss, bordered = false)
+                    EolssuIconButton(EolssuIcons.Close, stringResource(Res.string.sheet_conversion_banner_dismiss), onClick = UserActionLog.click(QaTarget.SHEET_COMPLETION_BANNER_02, data::dismiss), bordered = false)
                 }
             }
         }

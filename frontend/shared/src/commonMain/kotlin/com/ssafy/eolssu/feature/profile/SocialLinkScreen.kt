@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.profile
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.ssafy.eolssu.core.model.SocialProvider
@@ -46,14 +49,14 @@ fun SocialLinkScreen(
         onBack,
         bottomBar = {
             when (step) {
-                SocialLinkStep.InBrowser -> EolssuButton(stringResource(Res.string.social_auth_reopen, name), onClick = onReopen)
+                SocialLinkStep.InBrowser -> EolssuButton(stringResource(Res.string.social_auth_reopen, name), onClick = UserActionLog.click(QaTarget.SOCIAL_LINK_SCREEN_01, onReopen), qaTarget = QaTarget.SOCIAL_LINK_SCREEN_BUTTON_01)
                 is SocialLinkStep.Stopped -> if (step.problem.retryable) {
-                    EolssuButton(stringResource(Res.string.member_api_retry), onClick = onRetry)
+                    EolssuButton(stringResource(Res.string.member_api_retry), onClick = UserActionLog.click(QaTarget.SOCIAL_LINK_SCREEN_02, onRetry), qaTarget = QaTarget.SOCIAL_LINK_SCREEN_BUTTON_02)
                 } else {
-                    EolssuButton(stringResource(Res.string.common_confirm), onClick = onBack)
+                    EolssuButton(stringResource(Res.string.common_confirm), onClick = UserActionLog.click(QaTarget.SOCIAL_LINK_SCREEN_03, onBack), qaTarget = QaTarget.SOCIAL_LINK_SCREEN_BUTTON_03)
                 }
                 SocialLinkStep.Starting, SocialLinkStep.Completing ->
-                    EolssuButton(stringResource(Res.string.social_auth_progress), onClick = {}, busy = true)
+                    EolssuButton(stringResource(Res.string.social_auth_progress), onClick = UserActionLog.click(QaTarget.SOCIAL_LINK_SCREEN_04, {}), busy = true, qaTarget = QaTarget.SOCIAL_LINK_SCREEN_BUTTON_04)
                 else -> Unit
             }
         },
@@ -73,7 +76,7 @@ fun SocialLinkScreen(
             message = stringResource(Res.string.my_link_taken_message, name),
             icon = EolssuIcons.Info,
         ) {
-            EolssuButton(stringResource(Res.string.common_confirm), onClick = onBack)
+            EolssuButton(stringResource(Res.string.common_confirm), onClick = UserActionLog.click(QaTarget.SOCIAL_LINK_SCREEN_05, onBack), qaTarget = QaTarget.SOCIAL_LINK_SCREEN_BUTTON_05)
         }
     }
 }

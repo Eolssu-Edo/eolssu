@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -37,6 +40,7 @@ fun EolssuTextLink(
     enabled: Boolean = true,
     pillHeight: Dp = TextLinkPillHeight,
     reserveTouchHeight: Boolean = true,
+    qaTarget: QaTarget = QaTarget.UNIDENTIFIED,
     content: @Composable RowScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -44,7 +48,7 @@ fun EolssuTextLink(
         modifier
             .then(if (reserveTouchHeight) Modifier else Modifier.overflowTouchHeight(pillHeight))
             .sizeIn(minWidth = TextLinkTouch, minHeight = TextLinkTouch)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = UserActionLog.click(qaTarget, onClick)),
         contentAlignment = Alignment.Center,
     ) {
         Row(

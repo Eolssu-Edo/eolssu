@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -126,6 +127,7 @@ fun EolssuMemoField(
  */
 internal class MaxCodePoints(private val max: Int) : InputTransformation {
     override fun TextFieldBuffer.transformInput() {
+        UserActionLog.event(QaKind.INPUT_CHANGED, QaTarget.MEMO)
         val text = asCharSequence()
         val over = InputLimit.length(text) - max
         if (over <= 0) return

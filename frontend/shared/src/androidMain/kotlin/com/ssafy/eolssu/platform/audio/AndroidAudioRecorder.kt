@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.platform.audio
 
+import com.ssafy.eolssu.core.diagnostics.*
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.util.Log
@@ -77,6 +78,8 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
     private data class Window(val samples: FloatArray, val reading: PitchReading)
 
     private inner class Session(val id: Long, private val previous: Session?) {
+        private val qaInteraction = UserActionLog.capture()
+        private fun qa(outcome: QaOutcome) = UserActionLog.event(QaKind.RECORDING_STATE, QaTarget.RECORDING, outcome, qaInteraction)
         val file = File(directory, "practice-$id-${System.currentTimeMillis()}.m4a")
         val ready = CompletableFuture<Unit>()
         val result = CompletableFuture<RecordedAudio?>()
@@ -154,6 +157,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 check(!cancelled)
                 newSegment(input)
                 analysis.start()
+                qa(QaOutcome.STARTED)
                 ready.complete(Unit)
                 var paused = false
                 var stopping = false
@@ -167,13 +171,14 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                                 Action.Pause -> if (!paused) {
                                     input?.stop()
                                     paused = true
+                                    qa(QaOutcome.PAUSED)
                                     fill = 0
                                     windows.clear()
                                     level = 0f
                                     boundary = CaptureBoundary(id, segment, fileSamples, RATE,
                                         segmentNanos + (fileSamples - segmentStart) * 1_000_000_000 / RATE, timestampValid)
                                 }
-                                Action.Resume -> if (paused) { newSegment(input); paused = false }
+                                Action.Resume -> if (paused) { newSegment(input); paused = false; qa(QaOutcome.STARTED) }
                                 Action.Stop -> stopping = true
                             }
                             command.result.complete(Unit)
@@ -239,7 +244,9 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                     pending.result.completeExceptionally(IllegalStateException("Recording closed"))
                 }
                 ready.completeExceptionally(IllegalStateException("Recording cancelled"))
-                result.complete(if (keep && !cancelled && file.length() > 0) RecordedAudio(file.absolutePath, file.length()) else null)
+                val recorded = if (keep && !cancelled && file.length() > 0) RecordedAudio(file.absolutePath, file.length()) else null
+                qa(if (cancelled) QaOutcome.CANCELLED else if (recorded != null) QaOutcome.COMPLETED else QaOutcome.FAILED)
+                result.complete(recorded)
                 done.countDown()
             }
         }

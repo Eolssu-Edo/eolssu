@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,7 +62,7 @@ import org.jetbrains.compose.resources.stringResource
 private fun JangdanOptionButton(selected: Boolean, onClick: () -> Unit, label: @Composable () -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.SHEET_EDIT_JANGDAN_DIALOG_01, onClick),
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics { this.selected = selected },
         shape = RoundedCornerShape(14.dp),
         color = if (selected) colors.primary else colors.groupedBackground,
@@ -101,7 +104,7 @@ internal fun SheetEditJangdanDialog(
     ) {
         EolssuButton(draft.basicAccompaniment?.let { stringResource(Res.string.basic_accompaniment_title) + " · " + it.preset.label }
             ?: stringResource(Res.string.basic_accompaniment_title), { basicOpen = true },
-            style = EolssuButtonStyle.Secondary, enabled = draft.canSelectBasicAccompaniment)
+            style = EolssuButtonStyle.Secondary, enabled = draft.canSelectBasicAccompaniment, qaTarget = QaTarget.SHEET_EDIT_JANGDAN_DIALOG_BUTTON_01)
         if (!draft.canSelectBasicAccompaniment) Text(stringResource(
             if (draft.original?.music?.bpmUnit !in setOf("QUARTER", "DOTTED_QUARTER")) Res.string.basic_accompaniment_unsupported
             else Res.string.basic_accompaniment_source_unavailable), style = dialogHelpStyle(), color = EolssuTheme.colors.textSub)
@@ -114,7 +117,7 @@ internal fun SheetEditJangdanDialog(
             SheetEditJangdanPicker.Loading -> CircularProgressIndicator()
             SheetEditJangdanPicker.Failed -> {
                 Text(stringResource(Res.string.sheetedit_jangdan_load_failed), style = dialogHelpStyle(), color = EolssuTheme.colors.textSub)
-                EolssuButton(stringResource(Res.string.sheet_upload_reload), onReload, style = EolssuButtonStyle.Secondary)
+                EolssuButton(stringResource(Res.string.sheet_upload_reload), onReload, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_EDIT_JANGDAN_DIALOG_BUTTON_02)
             }
             is SheetEditJangdanPicker.Ready -> if (selectable.isEmpty()) SheetJangdanNoMatchHelp()
         }
@@ -123,17 +126,17 @@ internal fun SheetEditJangdanDialog(
             modifier = Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            JangdanOptionButton(selected = selectedId == null && draft.basicAccompaniment == null, onClick = onClear) {
+            JangdanOptionButton(selected = selectedId == null && draft.basicAccompaniment == null, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_JANGDAN_DIALOG_02, onClear)) {
                 Text(stringResource(Res.string.basic_accompaniment_none))
             }
             selectable.forEach { option ->
-                JangdanOptionButton(selected = option.jangdanId == selectedId, onClick = {
+                JangdanOptionButton(selected = option.jangdanId == selectedId, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_JANGDAN_DIALOG_03, {
                     if (!hasTempoPlan && draft.requiresJangdanRetiming(option)) pendingId = option.jangdanId
                     else onSelect(option.jangdanId)
-                }) { SheetJangdanOptionLabel(option) }
+                })) { SheetJangdanOptionLabel(option) }
             }
         }
-        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_EDIT_JANGDAN_DIALOG_BUTTON_03)
     }
     (picker as? SheetEditJangdanPicker.Ready)?.options?.firstOrNull { it.jangdanId == pendingId }?.let { option ->
         SheetJangdanCorrectionDialog(option, onApply = { pendingId = null; onSelect(option.jangdanId) },

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -120,7 +123,7 @@ private fun NavButton(icon: ImageVector, label: String, enabled: Boolean, onClic
             .minimumInteractiveComponentSize()
             .size(44.dp)
             .clip(CircleShape)
-            .clickable(enabled = enabled, role = Role.Button, onClickLabel = label, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClickLabel = label, onClick = UserActionLog.click(QaTarget.GROWTH_CALENDAR_PARTS_01, onClick))
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
@@ -211,7 +214,7 @@ internal fun HeatCalendarCard(
                                         today = day == state.todayDay,
                                         future = day > state.todayDay,
                                         selected = day == state.heatDay,
-                                        onClick = { onPickDay(day) },
+                                        onClick = UserActionLog.click(QaTarget.GROWTH_CALENDAR_PARTS_02, { onPickDay(day) }),
                                     )
                                 }
                             }
@@ -257,7 +260,7 @@ private fun HeatDay(
             }
             .clip(CircleShape)
             .background(fill)
-            .clickable(enabled = !future, role = Role.Button, onClick = onClick)
+            .clickable(enabled = !future, role = Role.Button, onClick = UserActionLog.click(QaTarget.GROWTH_CALENDAR_PARTS_03, onClick))
             .semantics {
                 contentDescription = description
                 this.selected = selected
@@ -385,7 +388,7 @@ internal fun AnchorPickerSheet(state: GrowthUiState, onPick: (Long) -> Unit, onD
                                 enabled = state.canPickAnchor(day),
                                 selected = day == state.anchorDay,
                                 sunday = c == 6,
-                                onClick = { onPick(day) },
+                                onClick = UserActionLog.click(QaTarget.GROWTH_CALENDAR_PARTS_04, { onPick(day) }),
                             )
                         }
                     }
@@ -413,7 +416,7 @@ private fun PickDay(day: Long, inMonth: Boolean, practiced: Boolean, enabled: Bo
             .size(40.dp)
             .clip(CircleShape)
             .background(background)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.GROWTH_CALENDAR_PARTS_05, onClick))
             .semantics {
                 contentDescription = description
                 this.selected = selected

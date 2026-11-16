@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -95,7 +98,7 @@ fun EditNewScreen(
                 stringResource(Res.string.sheetedit_new_upload_title),
                 stringResource(Res.string.sheetedit_new_upload_caption),
                 SheetEditIcons.Folder,
-                onClick = onUpload,
+                onClick = UserActionLog.click(QaTarget.EDIT_NEW_SCREEN_01, onUpload),
                 emphasized = true,
             )
             // 얼쑤가 주는 곡이나 이미 만든 내 악보를 복사해 온다.
@@ -103,7 +106,7 @@ fun EditNewScreen(
                 stringResource(Res.string.sheetedit_new_eolssu_title),
                 stringResource(Res.string.sheetedit_new_eolssu_caption),
                 SheetEditIcons.MySheet,
-                onClick = onLoadExisting,
+                onClick = UserActionLog.click(QaTarget.EDIT_NEW_SCREEN_02, onLoadExisting),
             )
             MySheetsSection(state, sheetActions)
         }

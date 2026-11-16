@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import androidx.compose.ui.graphics.Color
 import org.jetbrains.compose.resources.stringResource
 import eolssu.shared.generated.resources.input_password_show
@@ -86,6 +90,7 @@ fun EolssuTextField(
     containerColor: Color? = null,
     labelInside: Boolean = false,
     maxLength: Int? = null,
+    qaTarget: QaTarget = QaTarget.TEXT_FIELD,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -93,6 +98,14 @@ fun EolssuTextField(
     val hideKeyboard = rememberHideKeyboard()
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    var wasFocused by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(focused) {
+        if (focused != wasFocused) UserActionLog.event(if (focused) QaKind.INPUT_FOCUS else QaKind.INPUT_BLUR, qaTarget)
+        wasFocused = focused
+    }
+    androidx.compose.runtime.LaunchedEffect(error != null) {
+        if (error != null) UserActionLog.event(QaKind.INPUT_VALIDATION, qaTarget, com.ssafy.eolssu.core.diagnostics.QaOutcome.INVALID)
+    }
     val password = type == TextFieldType.Password
     // 가려진 비밀번호도 무엇을 쳤는지 확인할 수 있게 한다. 화면을 다시 그려도 가린 상태로 돌아가지 않게 저장한다.
     var revealed by rememberSaveable { mutableStateOf(false) }
@@ -105,13 +118,13 @@ fun EolssuTextField(
         val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, color = colors.text)
         BasicTextField(
             value = value,
-            onValueChange = { input ->
+            onValueChange = UserActionLog.change(qaTarget, { input ->
                 if (maxLength == null) onValueChange(input)
                 else {
                     overflowed = InputLimit.length(input) > maxLength
                     onValueChange(InputLimit.limit(value, input, maxLength))
                 }
-            },
+            }),
             singleLine = true,
             interactionSource = interaction,
             textStyle = textStyle,
@@ -129,6 +142,7 @@ fun EolssuTextField(
                 imeAction = imeAction,
             ),
             keyboardActions = KeyboardActions(onAny = {
+                UserActionLog.event(QaKind.INPUT_COMMIT, qaTarget)
                 // '다음'은 다음 칸으로 옮기고, 옮길 칸이 없으면 키보드를 내린다.
                 // 확인·완료 등은 키보드를 먼저 내린 뒤 [onImeAction](로그인·저장 등)을 한다(S15P31E102-800).
                 when {

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.ui.draw.alpha
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -194,7 +197,7 @@ internal fun MySheetRow(
     val status = conversion?.status
     val usable = status == null || status == SheetConversionStatus.Done
     // 제공 곡 줄처럼 카드 전체가 둥글게 눌려 악보를 연다. 편집·휴지통은 각자의 모양으로 따로 눌린다(S15P31E102-968).
-    PracticeRowFrame(modifier, onClick = if (usable) onOpen else onOpenConversion, bordered = bordered) {
+    PracticeRowFrame(modifier, onClick = UserActionLog.nullableClick(QaTarget.SONG_PRACTICE_ROWS_01, if (usable) onOpen else onOpenConversion), bordered = bordered) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             // 제목 줄 오른쪽에 편집(연두 채움)과 휴지통을 나란히 두고, 아래 줄에는 상태 배지만 둔다(S15P31E102-768).
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

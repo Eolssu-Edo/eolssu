@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,7 +37,7 @@ internal fun SheetReviewInfoDialog(state: SheetEditUiState, selection: SheetRevi
         } }
         Text(labels.joinToString(" · "), style = MaterialTheme.typography.bodyLarge)
         issues.forEach { Text(sheetReviewReason(it), style = MaterialTheme.typography.bodyMedium) }
-        EolssuButton(stringResource(Res.string.common_close), onDismiss, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.common_close), onDismiss, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_REVIEW_INFO_DIALOG_BUTTON_01)
     }
 }
 

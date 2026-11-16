@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -62,6 +65,7 @@ fun EolssuButton(
     containerColor: Color? = null,
     squash: Boolean = false,
     singleLine: Boolean = false,
+    qaTarget: QaTarget = QaTarget.UNIDENTIFIED,
 ) {
     val colors = EolssuTheme.colors
     val press = remember { MutableInteractionSource() }
@@ -79,7 +83,7 @@ fun EolssuButton(
         else -> 52.dp
     }
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(qaTarget, onClick),
         enabled = enabled && !busy,
         modifier = modifier
             .then(if (squash) Modifier.elasticSquash(press, widthFactor = ElasticSquashTextWidth) else Modifier)

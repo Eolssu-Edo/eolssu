@@ -182,6 +182,7 @@ fun EolssuNavHost(
     val recentPrefetch = remember(scope) { RecentPracticePrefetch(scope) }
     DisposableEffect(navController, recentPrefetch) {
         val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
+            com.ssafy.eolssu.core.diagnostics.UserActionLog.screen(destination.route)
             recentPrefetch.onDestinationChanged(destination.route)
         }
         navController.addOnDestinationChangedListener(listener)

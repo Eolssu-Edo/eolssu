@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -179,7 +181,7 @@ fun ResultScreen(
             ResultButtonRow(expanded = widthClass == WindowWidthClass.Expanded) {
                 EolssuButton(
                     stringResource(Res.string.result_practice_again), actions.onPracticeAgain, Modifier.weight(1f).fillMaxHeight(),
-                    style = EolssuButtonStyle.Secondary, compact = true,
+                    style = EolssuButtonStyle.Secondary, compact = true, qaTarget = QaTarget.RESULT_SCREEN_BUTTON_01
                 )
                 RecordSaveButton(state.savedRecord != null, actions.onSave, Modifier.weight(1f).fillMaxHeight())
             }
@@ -214,7 +216,7 @@ internal fun RecordSaveButton(
     EolssuButton(
         stringResource(if (saved) Res.string.result_saved_button else Res.string.result_save),
         onClick, modifier,
-        style = style, icon = if (saved) EolssuIcons.Check else EolssuIcons.Save, compact = true,
+        style = style, icon = if (saved) EolssuIcons.Check else EolssuIcons.Save, compact = true, qaTarget = QaTarget.RESULT_SCREEN_BUTTON_02
     )
 }
 
@@ -310,7 +312,7 @@ private val ExpandedScoreBottomGap = 12.dp
 /** 악보 아래(태블릿 가로는 왼쪽 칸 아래) ‘다른 곡 고르기’ 글자 버튼. */
 @Composable
 private fun OtherSongLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    EolssuTextLink(onClick, modifier.padding(top = 2.dp, bottom = 10.dp)) {
+    EolssuTextLink(onClick, modifier.padding(top = 2.dp, bottom = 10.dp), qaTarget = QaTarget.RESULT_SCREEN_LINK_01) {
         Text(
             stringResource(Res.string.result_other_song_more),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
@@ -415,7 +417,7 @@ internal fun SaveFormSheet(
             )
         },
         footer = {
-            EolssuButton(stringResource(Res.string.result_save_confirm), onConfirm, busy = saving)
+            EolssuButton(stringResource(Res.string.result_save_confirm), onConfirm, busy = saving, qaTarget = QaTarget.RESULT_SCREEN_BUTTON_03)
         },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -476,7 +478,7 @@ internal fun SavedSheet(onDismiss: () -> Unit, onOpenRecord: () -> Unit) {
         onDismiss = onDismiss,
         header = {},
         footer = {
-            EolssuButton(stringResource(Res.string.result_saved_open_record), onOpenRecord)
+            EolssuButton(stringResource(Res.string.result_saved_open_record), onOpenRecord, qaTarget = QaTarget.RESULT_SCREEN_BUTTON_04)
         },
     ) {
         Text(

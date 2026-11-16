@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
@@ -100,7 +103,7 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
             StepPanel(
                 label = stringResource(Res.string.practice_step_now),
                 description = listenDesc,
-                onClick = actions.onListenStepNote,
+                onClick = UserActionLog.click(QaTarget.PRACTICE_STEP_PARTS_01, actions.onListenStepNote),
                 modifier = Modifier.weight(1f),
                 icon = {
                     // 실제 재생기가 연결되면 그 상태를, 연결이 없으면(미리보기) 누른 표시를 따른다.
@@ -122,7 +125,7 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
                         else -> Res.string.practice_step_rec_desc_start
                     },
                 ),
-                onClick = actions.onTapStepPlaying,
+                onClick = UserActionLog.click(QaTarget.PRACTICE_STEP_PARTS_02, actions.onTapStepPlaying),
                 modifier = Modifier.weight(1f),
                 recording = listening,
                 icon = { StepIcon(EolssuIcons.Mic, if (listening) colors.rec else colors.surfaceStrong, if (listening) colors.onRec else colors.text) },
@@ -168,7 +171,7 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
                     // 누르는 영역은 48dp 높이로 두고, 눌림 효과는 그린 점선 알약 안에만 둔다(S15P31E102-968).
                     modifier = Modifier
                         .heightIn(min = 48.dp)
-                        .clickable(interactionSource = confirmInteraction, indication = null, role = Role.Button, onClick = actions.onConfirmStepNote)
+                        .clickable(interactionSource = confirmInteraction, indication = null, role = Role.Button, onClick = UserActionLog.click(QaTarget.PRACTICE_STEP_PARTS_03, actions.onConfirmStepNote))
                         .wrapContentHeight()
                         .clip(CircleShape)
                         .drawBehind {
@@ -205,7 +208,7 @@ private fun StepPanel(
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(16.dp)
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.PRACTICE_STEP_PARTS_04, onClick),
         modifier = modifier.fillMaxHeight().heightIn(min = 80.dp).clearAndSetSemantics { contentDescription = description; role = Role.Button },
         shape = shape,
         // 플레이어 카드처럼 회색 바탕 위 테두리 없는 흰 카드(녹음 중엔 옅은 빨강)(S15P31E102-768).

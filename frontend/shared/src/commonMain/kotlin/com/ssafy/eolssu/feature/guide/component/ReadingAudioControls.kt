@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -80,7 +82,7 @@ internal fun ReadingListenButton(
         },
         style = if (active) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary,
         icon = if (active) EolssuIcons.Stop else EolssuIcons.Speaker,
-        enabled = enabled, small = true,
+        enabled = enabled, small = true, qaTarget = QaTarget.READING_AUDIO_CONTROLS_BUTTON_01
     )
 }
 

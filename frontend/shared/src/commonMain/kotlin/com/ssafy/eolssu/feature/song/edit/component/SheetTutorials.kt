@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
@@ -48,7 +51,7 @@ internal fun SheetTutorials(vararg tutorials: SheetTutorial) {
 
     Column(verticalArrangement = Arrangement.Top) {
         available.forEach { tutorial ->
-            TextButton(onClick = { step = 0; active = tutorial.key }) {
+            TextButton(onClick = UserActionLog.click(QaTarget.SHEET_TUTORIALS_01, { step = 0; active = tutorial.key })) {
                 Text(stringResource(Res.string.sheet_tutorial_replay, stringResource(tutorial.title)))
             }
         }
@@ -67,8 +70,8 @@ internal fun SheetTutorials(vararg tutorials: SheetTutorial) {
         val last = step == tutorial.steps.lastIndex
         EolssuButton(
             stringResource(if (last) Res.string.sheet_tutorial_done else Res.string.sheet_tutorial_next),
-            onClick = { if (last) finish() else step++ },
+            onClick = UserActionLog.click(QaTarget.SHEET_TUTORIALS_02, { if (last) finish() else step++ }), qaTarget = QaTarget.SHEET_TUTORIALS_BUTTON_01
         )
-        EolssuButton(stringResource(Res.string.sheet_tutorial_skip), finish, style = EolssuButtonStyle.Text)
+        EolssuButton(stringResource(Res.string.sheet_tutorial_skip), finish, style = EolssuButtonStyle.Text, qaTarget = QaTarget.SHEET_TUTORIALS_BUTTON_02)
     }
 }

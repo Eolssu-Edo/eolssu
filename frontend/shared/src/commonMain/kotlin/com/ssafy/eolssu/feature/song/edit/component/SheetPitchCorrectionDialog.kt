@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.unit.dp
@@ -52,7 +55,7 @@ internal fun SheetPitchCorrectionDialog(
         onDismissRequest = onDismiss,
     ) {
         reviewDetails()
-        EolssuButton(stringResource(Res.string.sheet_adapt_title), onAdapt, enabled = !state.confirming)
+        EolssuButton(stringResource(Res.string.sheet_adapt_title), onAdapt, enabled = !state.confirming, qaTarget = QaTarget.SHEET_PITCH_CORRECTION_DIALOG_BUTTON_01)
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (target.isContinuation) Text(
@@ -68,11 +71,11 @@ internal fun SheetPitchCorrectionDialog(
                 val reason = if (choice.first == base) stringResource(Res.string.sheet_pitch_correction_same_yul, distance) else distance
                 EolssuButton(
                     stringResource(Res.string.sheet_pitch_correction_choice, ScoreNote.SourcePitch(choice.first.hangul, choice.second).hangul, reason),
-                    onClick = { onSelect(choice) }, enabled = !state.confirming,
-                    style = EolssuButtonStyle.Secondary,
+                    onClick = UserActionLog.click(QaTarget.SHEET_PITCH_CORRECTION_DIALOG_01, { onSelect(choice) }), enabled = !state.confirming,
+                    style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_PITCH_CORRECTION_DIALOG_BUTTON_02
                 )
             }
         }
-        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_PITCH_CORRECTION_DIALOG_BUTTON_03)
     }
 }
