@@ -14,7 +14,6 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.song.component.SongInstrumentPicker
 import org.koin.compose.viewmodel.koinViewModel
-import org.koin.core.parameter.parametersOf
 
 /**
  * SONG-01 연결. 곡을 고르면 [onOpenSong]으로 곡 상세로 간다.
@@ -54,7 +53,7 @@ fun SongListRoute(
     val selectedId = state.selectedSong?.id
     val detailBinding: Pair<SongDetailUiState, () -> Unit>? = if (twoPane && selectedId != null) {
         key(selectedId) {
-            val detailViewModel: SongDetailViewModel = koinViewModel(key = "song-list-detail-$selectedId") { parametersOf(selectedId) }
+            val detailViewModel: SongDetailViewModel = koinViewModel(key = "song-list-detail-$selectedId") { songDetailParameters(selectedId) }
             val detailState by detailViewModel.uiState.collectAsStateWithLifecycle()
             detailState to detailViewModel::retry
         }
