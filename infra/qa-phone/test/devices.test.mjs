@@ -2,13 +2,12 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {startRelay} from '../server.mjs';
 
-const token='isolated-device-test-access-token';
 const build={id:'20261102T023715Z-21-1dec028b',package:'com.ssafy.eolssu.qa',versionCode:21,versionName:'qa-21'};
 async function device(t,id,basePath,width,height){
   const inputs=[]; let installed=null,finishInstall;
   const installPending=new Promise(resolve=>finishInstall=resolve);
   const data=Buffer.alloc(24);Buffer.from([137,80,78,71,13,10,26,10]).copy(data);data.writeUInt32BE(width,16);data.writeUInt32BE(height,20);
-  const relay=await startRelay({port:0,token,basePath,deviceId:id,deviceName:id==='tablet'?'QA 태블릿':'QA 휴대폰',
+  const relay=await startRelay({port:0,basePath,deviceId:id,deviceName:id==='tablet'?'QA 태블릿':'QA 휴대폰',
     phone:{capture:async()=>({data,width,height}),input:async a=>inputs.push(a),installed:async()=>installed,
       install:async()=>{await installPending;installed=build;return installed;}},
     catalog:{list:()=>({builds:[build],latest:build.id}),file:async()=>'/isolated.apk'}});
@@ -16,7 +15,7 @@ async function device(t,id,basePath,width,height){
   const request=(path,data,cookie)=>fetch(relay.publicUrl+'api/'+path,{method:data===undefined?'GET':'POST',
     headers:{Origin:relay.url,...(cookie?{Cookie:cookie}:{}),...(data===undefined?{}:{'Content-Type':'application/json'})},
     ...(data===undefined?{}:{body:JSON.stringify(data)})});
-  const login=async()=>{const r=await request('login',{token,name:'Same team member'});assert.equal(r.status,200);return r.headers.get('set-cookie').split(';')[0];};
+  const login=async()=>{const r=await request('login',{name:'Same team member'});assert.equal(r.status,200);return r.headers.get('set-cookie').split(';')[0];};
   return {relay,inputs,request,login,finishInstall};
 }
 
@@ -68,6 +67,6 @@ test('tablet installation locks only tablet; phone input and installed version s
 
 test('device identity rejects invalid operator configuration',async()=>{
   for(const fields of [{deviceId:'tablet;id'},{deviceId:''},{deviceName:'x\ny'},{deviceName:' '}]){
-    await assert.rejects(startRelay({token,...fields}),/identity/);
+    await assert.rejects(startRelay({...fields}),/identity/);
   }
 });

@@ -39,6 +39,12 @@ class QaLiveRequestFilter : OncePerRequestFilter() {
 
     internal fun target(path: String): String? = when {
         path == "/api/auth/sign-in" -> "sign_in"
+        path == "/api/auth/sign-up" -> "auth_sign_up"
+        path == "/api/auth/email-verifications" -> "email_verification"
+        verificationConfirm.matches(path) -> "email_verification_confirm"
+        path == "/api/auth/refresh" -> "auth_refresh"
+        path == "/api/auth/sign-out" -> "auth_sign_out"
+        path == "/api/terms" -> "terms"
         path == "/api/songs" -> "song_list"
         songScore.matches(path) -> "score"
         song.matches(path) -> "song_detail"
@@ -54,6 +60,7 @@ class QaLiveRequestFilter : OncePerRequestFilter() {
         val log = LoggerFactory.getLogger(QaLiveRequestFilter::class.java)
         val uuid = Regex("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")
         val song = Regex("/api/songs/[1-9][0-9]{0,18}")
+        val verificationConfirm = Regex("/api/auth/email-verifications/[1-9][0-9]{0,18}/confirm")
         val songScore = Regex("/api/songs/[1-9][0-9]{0,18}/score")
         val session = Regex("/api/practice-sessions/[1-9][0-9]{0,18}")
         val recording = Regex("/api/practice-sessions/[1-9][0-9]{0,18}/recording")
