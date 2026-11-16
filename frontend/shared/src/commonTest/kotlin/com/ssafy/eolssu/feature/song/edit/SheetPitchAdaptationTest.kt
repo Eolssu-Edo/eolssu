@@ -7,6 +7,9 @@ import kotlin.test.assertTrue
 import com.ssafy.eolssu.data.song.*
 import kotlinx.serialization.json.*
 import kotlin.math.log2
+import kotlin.math.nextDown
+import kotlin.math.nextUp
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 class SheetPitchAdaptationTest {
@@ -96,6 +99,21 @@ class SheetPitchAdaptationTest {
             result.toCommonScore().events.map { listOf(it.id, it.kind, it.startTick, it.durationTick, it.sigimsae) })
         assertEquals(before.columns.map { it.cells.map { cell -> cell.units.size to cell.lyric } },
             result.toCommonScore().columns.map { it.cells.map { cell -> cell.units.size to cell.lyric } })
+    }
+
+    @Test fun keepsTheStoredHwangFrequencyWhenItOnlyDiffersByFloatingPointRounding() {
+        // JVM과 Wasm의 pow 결과는 마지막 자리(1 ulp)가 다르다. 다른 플랫폼에서 저장한 같은 기준음을 바꾸지 않는다.
+        val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
+            AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
+        val nominal = 440.0 * 2.0.pow(-0.5)
+        fun adaptAt(hwangHz: Double): Double {
+            val score = smallScoreData().let { it.copy(music = it.music.copy(hwangHz = hwangHz)) }
+            val draft = score.editingDraft(score.score.title, 60, null)
+            val plan = planPitchAdaptation(draft.sourcePitchNotes(), emptyList()).first { it.transpose == 0 }
+            return draft.applyAdaptation(plan, capability).toCommonScore().music.hwangHz
+        }
+        listOf(nominal.nextUp(), nominal.nextDown(), nominal).forEach { assertEquals(it, adaptAt(it)) }
+        assertEquals(nominal, adaptAt(440.0), "다른 기준음은 대상 악기의 기준음으로 바꾼다")
     }
 
     @Test fun restoresOriginalHighOctaveAfterSemitoneTransposeAndOnlyRaisesLowNotes() {
