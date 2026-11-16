@@ -74,7 +74,7 @@ class LearnListActions(
 
 /**
  * LEARN-02 단계 목록. 악기별 진행을 달리기 지도로, 단계는 그림 카드로 보여주고, 잠금 없이 아무 단계나 열 수 있다.
- * 태블릿 세로도 휴대폰처럼 카드를 넘기고, 카드를 키운 넘기기를 최대 600dp로 가운데에 둔다. 태블릿 가로는 단계 상세와 한 화면이라 [com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout]이 그린다.
+ * 태블릿 세로도 휴대폰처럼 카드를 넘기고, 카드를 키운 넘기기를 최대 720dp로 가운데에 둔다. 태블릿 가로는 단계 상세와 한 화면이라 [com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout]이 그린다.
  */
 @Composable
 fun LearnListScreen(

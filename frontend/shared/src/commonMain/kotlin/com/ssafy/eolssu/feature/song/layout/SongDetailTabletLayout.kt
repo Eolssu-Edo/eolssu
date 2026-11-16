@@ -1,8 +1,10 @@
 package com.ssafy.eolssu.feature.song.layout
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -12,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -27,7 +30,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * SONG-02 태블릿 배치. 새 디자인 보드에는 태블릿 판이 없어 휴대폰 `Song-Detail`의 순서를 720dp 너비로 쓰고,
  * 표지는 앞 6각, 정보 격자는 4열 한 줄로 넓힌다.
- * 태블릿 세로는 표지를 8정간에서 시작해, 본문 아래가 비지 않도록 남는 높이만큼 정간을 늘린다(최대 [PortraitMaxCoverRows], S15P31E102-1031).
+ * 태블릿 세로는 표지를 8정간에서 시작해, 본문 아래가 비지 않도록 남는 높이만큼 정간을 늘리고(최대 [PortraitMaxCoverRows]) 그래도 남으면 본문을 세로 가운데에 둔다(S15P31E102-1031).
  * 가로 창([expanded])에서는 곡 상세 경로가 곡 목록 두 칸 화면으로 바로 바뀌므로(S15P31E102-234) 이 배치는 바뀌기 전 잠깐만 보인다.
  * 그동안에도 1280×800 창에서 '연주 평가 시작'이 스크롤 없이 보이도록, 표지를 두 칸 화면 오른쪽 칸과 같은 5정간으로 줄인다(S15P31E102-976).
  */
@@ -66,20 +69,27 @@ internal fun SongDetailTabletLayout(
                     ((constraints.maxHeight - (height - cell * usedRows)) / cell).coerceIn(PortraitMinCoverRows, PortraitMaxCoverRows)
                 }
             }
-            SongDetailBody(
-                song,
-                onStartPractice,
+            // 각이 짧아 정간을 다 늘려도 높이가 남으면 본문을 세로 가운데에 둔다.
+            Box(
                 Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .onSizeChanged { if (!expanded) measured = it.height to rows }
-                    .padding(horizontal = gutter)
-                    .padding(top = 22.dp, bottom = 32.dp),
-                coverColumns = 6,
-                coverRows = rows,
-                infoColumns = 4,
-                large = true,
-            )
+                    .then(if (expanded) Modifier else Modifier.heightIn(min = maxHeight)),
+                contentAlignment = Alignment.Center,
+            ) {
+                SongDetailBody(
+                    song,
+                    onStartPractice,
+                    Modifier
+                        .onSizeChanged { if (!expanded) measured = it.height to rows }
+                        .padding(horizontal = gutter)
+                        .padding(top = 22.dp, bottom = 32.dp),
+                    coverColumns = 6,
+                    coverRows = rows,
+                    infoColumns = 4,
+                    large = true,
+                )
+            }
         }
     }
 }

@@ -112,10 +112,10 @@ private val CarouselMaxWidth = 480.dp
 private val CardMaxSize = 240.dp
 
 /** 태블릿 세로([large])의 카드 넘기기 최대 너비. 240dp 카드로는 화면 아래 절반이 비어 카드를 키운다(S15P31E102-1031). */
-private val LargeCarouselMaxWidth = 600.dp
+private val LargeCarouselMaxWidth = 720.dp
 
 /** 태블릿 세로([large])의 단계 카드 한 변 최대 크기. 남는 높이가 모자라면 [cardMaxSize]가 더 줄인다. */
-private val LargeCardMaxSize = 420.dp
+private val LargeCardMaxSize = 560.dp
 
 /** 공개 단계 수만큼 그림이 있는지 테스트에서 확인한다. */
 internal val LearnArtCount: Int get() = LearnArts.size
