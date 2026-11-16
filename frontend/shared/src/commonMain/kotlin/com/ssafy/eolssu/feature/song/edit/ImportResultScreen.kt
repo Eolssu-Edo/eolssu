@@ -25,7 +25,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.selected
@@ -33,6 +37,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,6 +48,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.song.edit.component.EditScoreBoard
+import com.ssafy.eolssu.feature.song.edit.component.InputPanelToggle
 import com.ssafy.eolssu.feature.song.edit.component.importMarks
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheetedit_import_result_title
@@ -140,11 +146,12 @@ fun ImportResultScreen(
     }
 }
 
-/** 고른 확인 정간의 원본 조각 · 위치 · 설명 · 후보 버튼. 모두 확인했으면 완료 안내. */
+/** 고른 확인 정간의 원본 조각 · 위치 · 설명 · 후보 버튼. 모두 확인했으면 완료 안내. 접으면 제목·위치 한 줄만 남는다. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CheckCard(state: ImportResultUiState, draft: SheetDraft, onChoose: (String) -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
+    var expanded by rememberSaveable { mutableStateOf(true) }
     Column(
         modifier
             .fillMaxWidth()
@@ -163,16 +170,32 @@ private fun CheckCard(state: ImportResultUiState, draft: SheetDraft, onChoose: (
             }
             return@Column
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        val cellLabel = stringResource(Res.string.sheetedit_result_cell, stringResource(Res.string.sheetedit_where_cell, draft.columnOf(check.index) + 1, draft.rowOf(check.index) + 1))
+        // 접으면 위치·제목 한 줄만 남겨 짧은 휴대폰에서도 정간보를 넓게 본다(S15P31E102-972).
+        if (!expanded) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${check.title} · $cellLabel",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                InputPanelToggle(expanded = false, onToggle = { expanded = true })
+            }
+            return@Column
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
-                    stringResource(Res.string.sheetedit_result_cell, stringResource(Res.string.sheetedit_where_cell, draft.columnOf(check.index) + 1, draft.rowOf(check.index) + 1)),
+                    cellLabel,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                     color = colors.textMuted,
                 )
                 Text(check.title, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold))
                 Text(check.description, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp), color = colors.textMuted)
             }
+            InputPanelToggle(expanded = true, onToggle = { expanded = false })
         }
         Text(stringResource(Res.string.sheetedit_result_source_discarded), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

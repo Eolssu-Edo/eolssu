@@ -1,18 +1,25 @@
 package com.ssafy.eolssu.feature.auth.component
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -38,7 +45,8 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,28 +60,33 @@ import com.ssafy.eolssu.feature.auth.SignupStepEntry
 import com.ssafy.eolssu.feature.auth.SignupStepStatus
 import com.ssafy.eolssu.feature.auth.SignupStepTransitions
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.auth_signup_step_next
 import eolssu.shared.generated.resources.practice_beat_janggu
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
  * 회원가입·비밀번호 찾기 각 단계 화면의 공통 머리: 상단 바(제목은 경로의 [SignupPath.title], 오른쪽 `n / N`)와
- * 그 아래 [SignupStepIndicator]. 단계는 화면이 넘기는 [progress]로만 정하므로, 앞뒤로 이동하거나 다시 방문해도
+ * 그 아래 [SignupStepIndicator](휴대폰에서 키보드가 열리면 숨김). 단계는 화면이 넘기는 [progress]로만 정하므로, 앞뒤로 이동하거나 다시 방문해도
  * 떠 있는 화면과 표시가 같다.
  */
 @Composable
 fun SignupTopBar(progress: SignupProgress, onBack: () -> Unit) {
+    // 휴대폰에서 키보드가 열리면 단계 표시를 접어 입력 본문 높이를 확보한다. 단계 수는 상단 바 오른쪽에 남는다(S15P31E102-972).
+    val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val showIndicator = LocalAuthFrame.current.isTablet || !keyboardOpen
     Column {
         AuthTopBar(
             stringResource(progress.path.title),
             onBack = onBack,
             right = { AuthStepLabel(progress.number, progress.total) },
         )
-        SignupStepIndicator(progress)
+        AnimatedVisibility(showIndicator, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+            SignupStepIndicator(progress)
+        }
     }
 }
 
@@ -83,7 +96,7 @@ fun SignupTopBar(progress: SignupProgress, onBack: () -> Unit) {
  *   장구 주변 선에는 옅은 붉은 빛이 남는다.
  * - 다음 단계로 가면 장구가 앞 점에서 새 점으로 미끄러지며 선을 채우고(뒤로 가기는 반대로), 도착하면 붉은 고리가 퍼진다.
  *   출발점은 [transitions]가 기억한 직전 단계다. 직전 단계를 모르면(가입 시작·앱 재시작·새로고침) 움직이지 않고 도착 표시만 한다.
- * 점 아래 단계명은 휴대폰에서 지금 단계와 다음 단계만, 태블릿에서 점마다 보인다. 한 줄로 두고 넘치면 말줄임한다.
+ * 점 아래 단계명은 휴대폰에서 지금 단계만 장구 아래에, 태블릿에서 점마다 보인다. 한 줄로 두고 넘치면 말줄임한다.
  * 화면 읽기 프로그램은 '회원가입 4단계 중 2단계, 이메일 인증'처럼 경로의 [SignupPath.progressDescription]으로 한 번에 읽는다.
  */
 @Composable
@@ -141,27 +154,25 @@ fun SignupStepIndicator(
                     progress.steps.forEach { step -> StepLabel(step, progress.statusOf(step), Modifier.weight(1f), centered = true) }
                 }
             } else {
-                // 두 단계명이 각자 줄 너비의 절반까지만 차지하고 양 끝에 붙는다. 넘치면 말줄임한다.
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    StepLabel(progress.current, SignupStepStatus.Current, Modifier.weight(1f, fill = false))
-                    progress.next?.let { next ->
-                        Text(
-                            stringResource(Res.string.auth_signup_step_next, stringResource(next.label)),
-                            modifier = Modifier.weight(1f, fill = false).padding(start = 12.dp),
-                            style = labelStyle(),
-                            color = colors.textMuted,
-                            textAlign = TextAlign.End,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
+                // 지금 단계명을 장구가 놓인 칸 가운데 아래에 둔다. 양 끝 칸에서는 줄 밖으로 나가지 않게 끝에 맞춘다(S15P31E102-972).
+                CurrentStepLabel(progress)
             }
         }
+    }
+}
+
+/** 휴대폰: 지금 단계명 하나를 장구 칸(전체 너비 ÷ 단계 수)의 가운데 아래에 둔다. 넘치면 줄 너비 안에서 말줄임한다. */
+@Composable
+private fun CurrentStepLabel(progress: SignupProgress) {
+    Layout(
+        content = { StepLabel(progress.current, SignupStepStatus.Current) },
+        modifier = Modifier.fillMaxWidth(),
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val label = measurables.first().measure(constraints.copy(minWidth = 0))
+        val center = width.toFloat() / progress.total * (progress.index + 0.5f)
+        val x = (center - label.width / 2f).roundToInt().coerceIn(0, (width - label.width).coerceAtLeast(0))
+        layout(width, label.height) { label.place(x, 0) }
     }
 }
 

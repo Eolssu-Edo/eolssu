@@ -138,7 +138,7 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
         val score: @Composable (Modifier) -> Unit = { modifier ->
             JeongganboView(
                 song = song,
-                modifier = modifier.verticalScroll(rememberScrollState()),
+                modifier = modifier,
                 metrics = format.metrics,
                 look = format.look,
                 cellHeights = format.cellHeights,
@@ -156,13 +156,22 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
                     ) {
                         CompareSummary(state, comparison.current.score, actions.onToggleMetrics)
                     }
-                    score(Modifier.weight(1f).fillMaxHeight())
+                    score(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()))
                 }
             }
         } else {
-            Column(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 2.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                CompareSummary(state, comparison.current.score, actions.onToggleMetrics)
-                score(Modifier.weight(1f))
+            // 휴대폰: 항목별 점수를 펼쳤거나 화면이 낮으면 정간보가 짓눌리지 않게 화면 전체를 스크롤한다(기록 상세와 같은 방식, S15P31E102-972).
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val scrollPage = maxHeight < if (state.metricsOpen) ScrollPageHeightOpen else ScrollPageHeight
+                Column(
+                    Modifier.fillMaxSize()
+                        .then(if (scrollPage) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                        .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = if (scrollPage) 16.dp else 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CompareSummary(state, comparison.current.score, actions.onToggleMetrics)
+                    score(if (scrollPage) Modifier else Modifier.weight(1f).verticalScroll(rememberScrollState()))
+                }
             }
         }
     }
@@ -188,6 +197,10 @@ private fun CompareSummary(state: CompareUiState, currentScore: Int, onToggleMet
     }
     CompareLegend(state.counts)
 }
+
+/** 이 높이보다 낮으면 화면 전체를 스크롤한다. 항목별 점수(약 110dp)를 펼치면 기준을 그만큼 올린다. */
+private val ScrollPageHeight = 360.dp
+private val ScrollPageHeightOpen = 600.dp
 
 /** 이전 · 이번 정간 꾸밈: 이전에 틀림 = 옅은 붉은 바탕, 이번에 틀림 = 2dp 붉은 테두리. */
 @Composable

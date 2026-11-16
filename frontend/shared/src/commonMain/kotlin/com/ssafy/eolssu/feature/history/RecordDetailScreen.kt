@@ -216,7 +216,8 @@ private fun RecordSummaryBlock(state: RecordDetailUiState, actions: RecordDetail
         compact = true,
         action = if (state.canCompare || showMemo) {
             {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                // 좁은 휴대폰에서 두 알약이 한 줄에 안 들어가면 ‘지난 연주와 비교’를 다음 줄로 내린다(S15P31E102-972).
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (showMemo) {
                         TintPillButton(stringResource(Res.string.record_memo_button), actions.onOpenMemo, icon = EolssuIcons.Chat)
                     }

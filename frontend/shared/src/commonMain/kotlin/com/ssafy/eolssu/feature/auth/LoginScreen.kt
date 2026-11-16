@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -257,10 +258,13 @@ private val KakaoInk = Color(0xD9000000)
 private val NaverGreen = Color(0xFF03C75A)
 private val GoogleInk = Color(0xFF1F1F1F)
 
-/** 아이디 기억하기 · 자동 로그인 체크(한 줄). 체크 칸은 작게 두고 누르는 영역은 44dp 높이를 지킨다. */
+/**
+ * 아이디 기억하기 · 자동 로그인 체크. 체크 칸은 작게 두고 누르는 영역은 44dp 높이를 지킨다.
+ * 큰 글꼴·좁은 화면에서 두 개가 한 줄에 안 들어가면 글자를 쪼개지 않고 두 번째를 다음 줄로 내린다(S15P31E102-972).
+ */
 @Composable
 private fun LoginOptions(state: LoginUiState, onRememberEmailChange: (Boolean) -> Unit, onKeepSignedInChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), itemVerticalAlignment = Alignment.CenterVertically) {
         LoginOption(stringResource(Res.string.auth_remember_email), state.rememberEmail, onRememberEmailChange)
         LoginOption(stringResource(Res.string.auth_keep_signed_in), state.keepSignedIn, onKeepSignedInChange)
     }
