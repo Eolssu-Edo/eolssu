@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,7 +40,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.feature.auth.component.AuthBody
-import com.ssafy.eolssu.feature.auth.component.AuthCheckBox
+import com.ssafy.eolssu.feature.auth.component.AuthCheckRow
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthLead
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
@@ -124,19 +125,19 @@ fun ConsentScreen(
 
 @Composable
 private fun AgreeAllRow(checked: Boolean, onToggle: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val label = stringResource(Res.string.auth_agree_all)
+    // 상자와 글자를 포함한 줄 전체를 누르고, 눌림 효과는 상자에만 보인다(S15P31E102-969).
+    AuthCheckRow(
+        checked,
+        label,
+        { onToggle() },
+        Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        uncheckedColor = EolssuTheme.colors.cardLine,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
-        val label = stringResource(Res.string.auth_agree_all)
-        AuthCheckBox(checked, label, { onToggle() }, uncheckedColor = EolssuTheme.colors.cardLine)
         Text(
             label,
-            modifier = Modifier.clearAndSetSemantics {},
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
             color = EolssuTheme.colors.text,
         )
@@ -153,17 +154,21 @@ private fun AgreementRow(agreement: AccountTerm, checked: Boolean, onToggle: () 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Row(
+        // 상자와 약관 이름을 포함한 줄 전체를 누르고, 눌림 효과는 상자에만 보인다(S15P31E102-969). 오른쪽 '보기'는 따로 눌린다.
+        AuthCheckRow(
+            checked,
+            "$prefix $label",
+            { onToggle() },
             Modifier
                 .weight(1f)
-                .heightIn(min = 48.dp)
-                .padding(vertical = 12.dp),
+                .heightIn(min = 48.dp),
+            uncheckedColor = EolssuTheme.colors.cardLine,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+            contentPadding = PaddingValues(vertical = 12.dp),
         ) {
-            AuthCheckBox(checked, "$prefix $label", { onToggle() }, uncheckedColor = EolssuTheme.colors.cardLine)
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    modifier = Modifier.clearAndSetSemantics {},
                     text = buildAnnotatedString {
                         withStyle(
                             if (agreement.required) SpanStyle(fontWeight = FontWeight.Bold)

@@ -156,7 +156,7 @@ fun Bar(fraction: Float, color: androidx.compose.ui.graphics.Color, modifier: Mo
     }
 }
 
-/** 연두 옅은 알약 버튼(높이 30 · 마이페이지 '연결'과 같은 연한 연두 바탕·짙은 연두 글자, 테두리 없음 · 12sp). 누르는 영역은 40dp를 둔다. */
+/** 연두 옅은 알약 버튼(높이 30 · 마이페이지 '연결'과 같은 연한 연두 바탕·짙은 연두 글자, 테두리 없음 · 12sp). 누르는 영역은 48dp를 둔다(S15P31E102-971). */
 @Composable
 fun TintPillButton(
     text: String,
@@ -167,7 +167,8 @@ fun TintPillButton(
     enabled: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
-    Box(modifier.heightIn(min = 40.dp), contentAlignment = Alignment.Center) {
+    // Surface(onClick)는 30dp 알약 둘레로 48dp까지 누르게 하지만, 바깥 칸이 48dp보다 작으면 그만큼 잘린다.
+    Box(modifier.heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
         Surface(
             onClick = onClick,
             enabled = enabled,

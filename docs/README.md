@@ -596,6 +596,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 - [S15P31E102-931 배포 APK의 실제 PDF 추가부터 저장·기기 음원 재생까지 검증](plans/S15P31E102-931.md)
 - [S15P31E102-953 BlueVal 오선보 변환의 8분음표 길이 축소 수정](plans/S15P31E102-953.md)
+- [S15P31E102-979 가져온 오선보의 추천 이조 적용과 확인 표시 구분](plans/S15P31E102-979.md) · [원인 진단](knowledge/frontend/sheet-pitch-adaptation.md#가져온-악보의-틀림-표시가-많아-보인-원인과-안내-979)
 
 - [S15P31E102-935 PDF 음표 글리프의 숫자 빠르기 누락 수정](plans/S15P31E102-935.md) · [원본·회귀 근거](knowledge/ai/score-recognition-corrections.md#pdf-음표-글리프의-숫자-빠르기-누락-935)
 

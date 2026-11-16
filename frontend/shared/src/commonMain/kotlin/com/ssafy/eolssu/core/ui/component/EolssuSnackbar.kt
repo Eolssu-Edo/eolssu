@@ -14,6 +14,7 @@ import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,13 +51,14 @@ fun EolssuSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
                 .widthIn(max = CompactContentMaxWidth)
                 .clip(SnackbarShape)
                 .background(SnackbarContainer)
-                .padding(start = 16.dp, end = if (action != null) 6.dp else 16.dp, top = 10.dp, bottom = 10.dp),
+                // 동작 버튼은 누르는 영역이 48dp라 위아래 여백을 4dp로 줄이고, 글은 6dp를 더해 여백 10dp를 유지한다(S15P31E102-971).
+                .padding(start = 16.dp, end = if (action != null) 6.dp else 16.dp).padding(vertical = if (action != null) 4.dp else 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
                 snackbarLines(data.visuals.message),
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f, fill = false).padding(vertical = if (action != null) 6.dp else 0.dp),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 19.sp),
                 color = Color.White,
                 textAlign = if (action != null) TextAlign.Start else TextAlign.Center,
@@ -65,6 +67,7 @@ fun EolssuSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
                 Text(
                     action,
                     modifier = Modifier
+                        .minimumInteractiveComponentSize()
                         .clip(RoundedCornerShape(8.dp))
                         .clickable(role = Role.Button, onClick = data::performAction)
                         .padding(horizontal = 10.dp, vertical = 8.dp),

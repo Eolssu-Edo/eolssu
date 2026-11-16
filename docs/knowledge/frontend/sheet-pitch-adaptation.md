@@ -1,5 +1,12 @@
 # 악보 편집기의 음역 맞추기
 
+## 가져온 악보의 틀림 표시가 많아 보인 원인과 안내 (979)
+
+- serbia_march 진단: 수정 필요 74칸 대부분이 인식 오류가 아니라 원조 유지 때문에 악기 음역·운지 밖으로 나간 음이었다(옥타브 이동 70). 운지 자료가 없는 음도 같은 `!`로 보여 "틀림"처럼 읽혔다.
+- 그래서 완료 검사에 `rangeCellIndices`·`rangeUnitKeys`(음역·운지 문제만 있는 칸)를 따로 두고, 화면 표시·안내 카드·`첫 곳 보기`가 이 구분을 쓴다. 수정 필요 판정 자체는 같다.
+- 추천은 `recommendedAdaptations(plans).first()`를 그대로 쓰고, 현재 적용 이조보다 남는 음이 적을 때만 권한다. 안내는 패널 계산이 현재 편집본과 같을 때(`baseline == draft`)만 추천을 보인다.
+- 테스트 문서는 `authoring.source`를 가져야 `appliedTranspose`가 기록된다. 실제 인식 결과는 항상 가지고 있다.
+
 ## 저장·재진입의 마지막 이조 위치 복원 (929)
 
 `authoring.adaptation.transpose`는 원본 기준으로 마지막 적용한 -6~+6 반음이다. `SheetDraft`의 `applyAdaptation`이 저장하고 `SheetDocumentRepository`가 초안·확정판에 전달한다. 서버의 `SheetAuthoring`은 원본 snapshot을 보존하면서 이 값을 받아 재조회에 포함한다. 화면 위치를 음고나 추천 순위에서 추측할 필요가 없다.
