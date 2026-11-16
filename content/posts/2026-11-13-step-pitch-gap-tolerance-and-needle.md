@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Kotlin Multiplatform", "Android", "음높이", "YIN", "단소", "Jetpack Compose"]
 description: "한 음씩 연습에서 단소만 유독 넘어가기 어려웠던 원인을 높이를 못 구한 창에서 찾고, 짧은 끊김을 봐주는 규칙과 흔들리지 않는 음높이 바늘을 만든 과정입니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-step-pitch-gap-tolerance-and-needle.webp"
 ---
 
 이 글은 앞서 쓴 「맞는 음을 불어야 넘어가는 연습, 기기 안에서 판정하기」의 후속입니다. 그 글에서는 혼자 연습 화면의 '한 음씩 따라 불기'에 휴대폰 안 음높이 판정을 붙였습니다. 목표 음에서 ±50센트 안의 높이가 300ms 끊기지 않고 이어지면 맞음으로 봅니다.

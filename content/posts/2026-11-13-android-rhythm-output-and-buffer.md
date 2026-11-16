@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Android", "AudioTrack", "오디오", "성능 측정"]
 description: "장단 재생의 호출 시각과 실제 파형을 나눠 측정하고, 8ms 버퍼에서 생긴 소리 끊김을 실기기에서 확인한 과정을 정리했습니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-android-rhythm-output-and-buffer.webp"
 ---
 
 얼쑤는 국악기를 혼자 연습하는 앱입니다. 모범 연주를 듣거나 장단에 맞춰 연습할 때 장구 반주를 켤 수 있습니다. 그런데 반주가 일정하게 이어지지 않았습니다. ‘덩–덕–궁–덕’에서 중간 타격이 빠지거나 간격이 벌어졌습니다.

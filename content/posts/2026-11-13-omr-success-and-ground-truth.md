@@ -7,6 +7,7 @@ categories: ["ai"]
 tags: ["OMR", "Audiveris", "평가 데이터", "악보"]
 description: "오선보 인식의 성공 상태 뒤에 남은 선율·빠르기 기호·꾸밈음 오류를 독립된 원본 데이터로 대조하고 교정한 과정을 소개합니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-omr-success-and-ground-truth.webp"
 ---
 
 악보 파일을 올리면 음표가 나오고, 편집 화면도 열리고, 저장도 됐습니다. 그런데 프레르 자크에서 가져온 16음은 우리가 연주하려던 선율이 아니었습니다. 높은 음역에서 길게 이어지는 반주였습니다. 원본의 주선율은 더 낮은 64음이었습니다.

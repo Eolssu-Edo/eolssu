@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Jetpack Compose", "LaunchedEffect", "Coroutines", "UI 테스트"]
 description: "편집을 막는 검증은 동작했지만 Snackbar가 보이지 않던 문제에서, 효과의 키와 메시지 소비 순서를 확인한 과정을 정리했습니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-compose-snackbar-effect-cancellation.webp"
 ---
 
 악보 편집기에서 칸을 바꾸는 버튼을 눌렀는데 아무 일도 일어나지 않았습니다. 구간 빠르기가 지정된 악보에서 허용하지 않는 구조 변경이어서, 편집을 막는 동작 자체는 맞았습니다. 문제는 왜 막혔는지 알려 주는 안내도 보이지 않았다는 점입니다.

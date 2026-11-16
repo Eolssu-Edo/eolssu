@@ -12,6 +12,7 @@ tags:
 - 채점
 description: 짧은 옥타브 오류를 놓친 채점기를 살펴보며 음높이 추정과 악보 정렬의 관계를 알아봅니다.
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-octave-error-in-music-scoring.webp"
 ---
 
 단소를 연습할 때 누군가 옆에서 악보를 봐준다면 어떨까요? 어느 음을 잘못 불었는지, 박자는 어디서 빨라졌는지 알려주는 사람 말입니다.

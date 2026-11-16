@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Compose Multiplatform", "정간보", "타이포그래피", "색 대비", "접근성"]
 description: "글꼴에 없는 율명, 변 강조색의 대비, 화면에 들어가지 않는 긴 각, 두 연주의 오류 비교를 정간보 화면에서 어떻게 표현했는지 정리했습니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-jeongganbo-notation-on-screen.webp"
 ---
 
 얼쑤는 국악 악보인 정간보를 휴대폰과 태블릿 화면에 그립니다. 종이 악보를 그대로 옮기면 될 것 같았지만, 막상 화면에 올리니 글꼴에 없는 글자, 색으로 구분해야 하는 글자 조각, 화면 높이에 들어가지 않는 줄, 두 번의 연주를 겹쳐 보여 주는 방법을 하나씩 정해야 했습니다.

@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Kotlin Multiplatform", "Android", "음높이", "실시간 피드백", "채점", "Jetpack Compose"]
 description: "서버 채점 규칙을 실시간 판정에 옮기자 지나간 음의 색이 한꺼번에 뒤집혔습니다. 지나간 음의 색을 고정하고 조율 추정을 안정시킨 과정을 정리했습니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-live-pitch-freeze-passed-notes.webp"
 ---
 
 이 글은 앞서 쓴 「계산은 되는데 보이지 않던 실시간 채점」의 후속입니다. 그 글에서는 AI 연주 평가 중 실시간 음높이 판정이 계산만 되고 화면에 보이지 않던 이유를 확인했습니다. 실시간 판정과 서버의 최종 채점이 왜 다른지도 정리했습니다. 이번에는 그 판정을 악보에 칠하면서 겪은 문제를 다룹니다. 서버 규칙을 그대로 옮겼더니, 이미 지나간 음의 색이 한꺼번에 틀림으로 바뀌었습니다.
