@@ -10,19 +10,51 @@ import kotlin.math.log2
 import kotlin.math.roundToInt
 
 class SheetPitchAdaptationTest {
-    @Test fun recommendsFewerOctaveMovesBeforeASmallerKeyChange() {
+    @Test fun movingTheWholeSongByAnOctaveIsNotCountedAsAContourSplit() {
         val plans = planPitchAdaptation(source(60, 64), listOf(64, 68, 71, 75).map { AdaptationPitch(it, "황", 0) })
-        assertEquals(4, plans.first().transpose)
-        assertEquals(0, plans.first().octaveChanges)
-        assertEquals(2, plans.first { it.transpose == -1 }.octaveChanges)
+        val wholeOctave = plans.first { it.transpose == -1 }
+        assertEquals(listOf(1, 1), wholeOctave.notes.map { it.octaveShift })
+        assertEquals(2, wholeOctave.octaveChanges)
+        assertEquals(0, wholeOctave.octaveSplits)
+        assertEquals(-1, plans.first().transpose)
     }
 
     private fun source(vararg midi: Int) = midi.mapIndexed { i, m -> SourcePitchNote("c0-j$i-r0-u0", "c0-j$i", m) }
     private val sogeum = listOf(70, 72, 75, 77, 79, 82, 84, 87).map { AdaptationPitch(it, "황", 0) }
 
+    // 운영 단소 선택 가능 음(2026-11-16 authoring-capabilities)과 파자마파티즈의 노래 오선보 선율(C4~A4).
+    private val danso = listOf(66, 68, 70, 72, 73, 75, 77, 78, 79, 80, 82, 84, 85, 87, 89, 90, 92).map { AdaptationPitch(it, "황", 0) }
+    private val pajamaMelody = run {
+        val a = listOf(67, 67, 64, 64, 69, 67, 65, 65, 65, 65, 64, 62, 60, 64, 62)
+        val b = listOf(60, 60, 62, 60, 64, 64, 62, 64, 62, 60, 62, 64, 65, 65, 65, 65, 64, 62, 64, 65, 67)
+        val c = listOf(60, 60, 62, 60, 64, 64, 62, 64, 62, 64, 65, 67, 69, 69, 69, 67, 64, 65, 64, 62, 60)
+        (a + b + a + c).toIntArray()
+    }
+
+    @Test fun movesTheWholeMelodyByOneOctaveInsteadOfFoldingOnlySomeNotes() {
+        // 이전에는 +1에서 음마다 가까운 옥타브로 접어 43개만 올라가 선율이 13번 오르내렸다.
+        val plans = planPitchAdaptation(source(*pajamaMelody), danso)
+        val best = plans.first()
+        assertEquals(1, best.transpose)
+        assertEquals(0, best.unresolved)
+        assertEquals(0, best.octaveSplits)
+        assertEquals(setOf(1), best.notes.map { it.octaveShift }.toSet())
+        assertEquals(pajamaMelody.toList().zipWithNext { x, y -> y - x }, best.notes.map { it.target!!.midi }.zipWithNext { x, y -> y - x })
+        assertEquals(0, plans.first { it.transpose == -4 }.octaveSplits)
+    }
+
+    @Test fun ranksContourSplitsBeforeTheSizeOfTheKeyChange() {
+        // 원조는 일부 음만 옥타브를 옮겨야 하므로, 끊김 없는 이조가 조 변화는 커도 앞선다.
+        val supported = (64..76).map { AdaptationPitch(it, "황", 0) }
+        val plans = planPitchAdaptation(source(60, 62, 64, 67), supported)
+        assertEquals(0, plans.first().octaveSplits)
+        assertTrue(plans.first { it.transpose == 0 }.octaveSplits > 0)
+        assertEquals(-3, plans.first().transpose)
+    }
+
     @Test fun alsoRecommendsTheSmallestKeyChangeWithoutDuplicatingTheDefault() {
-        val plans = planPitchAdaptation(source(60, 64), listOf(64, 68, 71, 75).map { AdaptationPitch(it, "황", 0) })
-        assertEquals(listOf(4, -1), recommendedAdaptations(plans).map { it.transpose })
+        val supported = (64..76).map { AdaptationPitch(it, "황", 0) }
+        assertEquals(listOf(-3, 0), recommendedAdaptations(planPitchAdaptation(source(60, 62, 64, 67), supported)).map { it.transpose })
         assertEquals(listOf(0), recommendedAdaptations(planPitchAdaptation(source(70), sogeum)).map { it.transpose })
     }
 
