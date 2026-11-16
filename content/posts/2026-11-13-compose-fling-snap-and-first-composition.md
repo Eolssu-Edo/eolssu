@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Compose Multiplatform", "스크롤", "FlingBehavior", "애니메이션", "Android"]
 description: "홈 첫 화면 스크롤이 중간에서 멈췄다가 다시 움직이던 원인을 관성과 스냅이 따로 움직인 것과 스크롤 도중 처음 구성되는 카드 두 가지로 나눠 찾고, 한 번의 움직임으로 고친 과정입니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-compose-fling-snap-and-first-composition.webp"
 ---
 
 얼쑤의 홈 첫 화면은 일반적인 목록이 아닙니다. 위로 400dp를 미는 동안 그림이 작아지고 제목과 시작 버튼이 올라가며, 다 펼치면 그 아래에 기능 카드가 나타납니다. 이 400dp 구간을 코드에서는 무대라고 부릅니다. 무대 중간에 멈춰 있지 않도록 손을 떼면 닫힌 쪽(0dp)이나 펼친 쪽(400dp)으로 맞춰 주는 스냅이 있습니다.

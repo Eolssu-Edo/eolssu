@@ -7,6 +7,7 @@ categories: ["backend"]
 tags: ["API 설계", "페이지네이션", "성능 측정"]
 description: "곡별 요약과 첫 페이지로 연습 기록 목록을 열고, 나머지는 펼칠 때 조회하도록 바꿨습니다. Galaxy S10에서 요청 수와 첫 카드 표시를 각각 확인했습니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-practice-record-list-get.webp"
 ---
 
 얼쑤의 연습 기록 화면에서는 곡별로 몇 번 연주했는지와 최고점을 먼저 볼 수 있습니다. 화면을 열면 한 곡이 펼쳐지고, 나머지 곡은 이름과 요약만 보입니다. 이전 앱은 화면을 열 때 접혀 있는 곡의 기록까지 미리 조회했습니다. 운영 서버에 연결한 Galaxy S10에서 이 화면을 한 번 열 때 GET 8건이 나갔습니다.

@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Kotlin Multiplatform", "오프라인 저장", "계정 전환", "Coroutines", "실패 테스트"]
 description: "기기에 쌓아 두었다가 서버로 보내는 연습 시간 기록과 학습 진도를 다른 회원 계정으로 보내지 않도록, 로그아웃 처리 대신 데이터마다 주인을 적는 방식으로 정리한 과정입니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-stamp-owner-on-offline-records.webp"
 ---
 
 얼쑤 앱에는 서버로 바로 보내지 못하고 기기에 잠시 남겨 두는 데이터가 두 가지 있습니다. 하나는 연습 시간 기록입니다. 악보 화면에서 연습한 구간을 기기에 쌓아 두었다가, 연결되면 서버로 보냅니다. 다른 하나는 '기초부터 배우기' 완료 표시입니다. 서버에 학습 진도 API가 생기기 전에는 기기에만 저장했고, 지금은 그 표시를 서버로 옮겨야 합니다.

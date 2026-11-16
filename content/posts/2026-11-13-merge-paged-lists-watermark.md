@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Kotlin Multiplatform", "Compose", "페이지 목록", "상태 관리", "단위 테스트"]
 description: "악기별로 나뉘어 오는 연습 기록을 서버 API를 바꾸지 않고 앱에서 한 곡으로 합치면서, 아직 받지 않은 기록 때문에 순서가 비지 않도록 기준선 규칙을 정한 과정입니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-merge-paged-lists-watermark.webp"
 ---
 
 얼쑤의 연습 기록 화면은 저장한 연주를 곡별로 묶어 보여 줍니다. 그런데 같은 '비행기'를 단소로 한 번, 소금으로 한 번 불면 '비행기' 묶음이 두 개 생겼습니다. 저는 곡 하나에 묶음 하나를 두고, 그 안에서 연습한 날짜별로 연주를 모아 보이게 하고 싶었습니다.
