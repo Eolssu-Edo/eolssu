@@ -9,6 +9,7 @@
     <string name="mysongs_conversion_failed_file_row">파일을 열 수 없었어요. 다른 PDF나 사진으로 불러와 주세요.</string>
     <string name="mysongs_conversion_failed_timeout_row">읽는 시간이 너무 오래 걸렸어요. 쪽을 나눠 불러와 주세요.</string>
     <string name="mysongs_conversion_failed_server_row">서버 문제로 변환하지 못했어요. 잠시 후 다시 불러와 주세요.</string>
+    <string name="mysongs_conversion_failed_unknown_row">변환하지 못했어요. 눌러서 이유를 확인해 주세요.</string>
 
     <string name="mysongs_conversion_failed_no_grid_tip1">정간보 한 쪽이 화면에 모두 들어오게 찍어 주세요.</string>
     <string name="mysongs_conversion_failed_no_grid_tip2">그림자나 기울어짐 없이 정면에서 밝게 찍어 주세요.</string>

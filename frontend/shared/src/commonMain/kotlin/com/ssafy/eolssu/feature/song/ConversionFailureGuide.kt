@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song
 
+import com.ssafy.eolssu.data.song.SheetConversion
 import com.ssafy.eolssu.data.song.SheetConversionFailure
 import com.ssafy.eolssu.data.song.SheetNotation
 import eolssu.shared.generated.resources.Res
@@ -33,6 +34,7 @@ import eolssu.shared.generated.resources.mysongs_conversion_failed_timeout
 import eolssu.shared.generated.resources.mysongs_conversion_failed_timeout_row
 import eolssu.shared.generated.resources.mysongs_conversion_failed_timeout_tip1
 import eolssu.shared.generated.resources.mysongs_conversion_failed_timeout_tip2
+import eolssu.shared.generated.resources.mysongs_conversion_failed_unknown_row
 import org.jetbrains.compose.resources.StringResource
 
 /** 실패 뒤 사용자가 할 일. 지금 서버는 같은 원본으로 다시 시도하지 않으므로(SHT-14 409) 모두 새로 불러오기로 이어진다. */
@@ -96,3 +98,10 @@ internal fun conversionFailureGuide(failure: SheetConversionFailure?, notation: 
     SheetConversionFailure.Timeout -> ConversionFailureGuide.Timeout
     SheetConversionFailure.ServerError, null -> ConversionFailureGuide.Server
 }
+
+/**
+ * 내 악보 목록 실패 줄의 한 줄 안내. 원인 코드를 아직 받지 못했으면(목록만 받았거나 상세 조회 실패)
+ * '서버 문제'라고 단정하지 않고 줄을 눌러 원인을 보게 한다.
+ */
+internal fun conversionFailureRow(conversion: SheetConversion?): StringResource =
+    conversion?.failure?.let { conversionFailureGuide(it, conversion.notation).row } ?: Res.string.mysongs_conversion_failed_unknown_row

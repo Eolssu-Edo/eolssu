@@ -7,7 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import com.ssafy.eolssu.feature.song.ConversionStep
-import com.ssafy.eolssu.feature.song.conversionFailureGuide
+import com.ssafy.eolssu.feature.song.conversionFailureRow
 import com.ssafy.eolssu.feature.song.conversionProgress
 import com.ssafy.eolssu.feature.song.conversionStep
 import androidx.compose.foundation.layout.height
@@ -225,7 +225,7 @@ internal fun MySheetRow(
                         status == SheetConversionStatus.Failed -> {
                             EolssuBadge(stringResource(Res.string.mysongs_conversion_failed), small = true)
                             Text(
-                                stringResource(conversionFailureGuide(conversion?.failure, conversion?.notation).row),
+                                stringResource(conversionFailureRow(conversion)),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                                 color = EolssuTheme.colors.textMuted,
                                 maxLines = 2,
