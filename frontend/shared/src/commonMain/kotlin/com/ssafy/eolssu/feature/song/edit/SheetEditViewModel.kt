@@ -749,7 +749,7 @@ class SheetEditViewModel(
         if (!accountScope.isActive || state.documentLoading || state.documentFailed || jangdanJob?.isActive == true) return
         val catalog = pitchCatalog
         if (loaded == null || catalog == null) {
-            change { it.copy(message = SheetEditMessage.ComingSoon) }
+            change { it.copy(message = SheetEditMessage.JangdanUnavailable) }
             return
         }
         change { it.copy(jangdanPicker = SheetEditJangdanPicker.Loading) }

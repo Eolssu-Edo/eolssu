@@ -216,6 +216,8 @@
     <string name="sheetedit_register_baetak_short">배탁</string>
     <string name="sheetedit_register_jungcheong_short">중청</string>
     <string name="sheetedit_key_unavailable">%1$s · 현재 악보의 지원 목록에 없는 음</string>
+    <string name="sheetedit_sig_pitch_help">황과 청황은 같은 율명이지만 청황이 한 옥타브 높아요. 음을 바꾸려면 율명·기호 탭을 열어 주세요.</string>
+    <string name="sheetedit_jangdan_unavailable">이 악보에서는 장단을 바꿀 수 없어요.</string>
     <string name="sheetedit_sig_none">이 정간에 붙인 시김새가 없어요</string>
     <string name="sheetedit_sig_need_pitch">율명에만 시김새를 붙일 수 있어요</string>
     <string name="sheetedit_sig_limit">한 정간에 %1$d개까지 붙일 수 있어요</string>
