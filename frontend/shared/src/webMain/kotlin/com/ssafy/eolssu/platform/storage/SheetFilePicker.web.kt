@@ -13,8 +13,11 @@ import org.w3c.files.File
 import org.w3c.files.FileReader
 import org.w3c.files.get
 
+/** 브라우저는 파일 선택 창 하나가 앨범·파일을 함께 다루므로 고를 곳을 묻지 않는다. */
+actual val sheetFileSources: List<SheetFileSource> = listOf(SheetFileSource.Files)
+
 @Composable
-actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): () -> Unit {
+actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): (SheetFileSource) -> Unit {
     val callback by rememberUpdatedState(onResult)
     val scope = rememberCoroutineScope()
     val input = remember {
@@ -44,7 +47,7 @@ actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): () -
         }
         onDispose { input.onchange = null; input.remove() }
     }
-    return { input.value = ""; input.click() }
+    return { _ -> input.value = ""; input.click() }
 }
 
 private suspend fun readSheetFile(file: File): ByteArray = suspendCancellableCoroutine { continuation ->

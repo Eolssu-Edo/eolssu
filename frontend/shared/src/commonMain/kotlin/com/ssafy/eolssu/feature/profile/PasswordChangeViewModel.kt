@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.update
 
 /** MY-03. 새 비밀번호는 가입과 같은 규칙을 지키고, 현재 비밀번호는 서버가 확인한다. */
 class PasswordChangeViewModel(private val userRepository: UserRepository, member: SignedInMember? = null) : ViewModel() {
-    private var submitting = false
     private val _uiState = MutableStateFlow(PasswordChangeUiState())
     val uiState: StateFlow<PasswordChangeUiState> = _uiState.asStateFlow()
 
@@ -37,7 +36,7 @@ class PasswordChangeViewModel(private val userRepository: UserRepository, member
 
     /** 바꿨으면 true. */
     suspend fun submit(): Boolean = accountScope.inAccount {
-        if (submitting) return@inAccount false
+        if (_uiState.value.submitting) return@inAccount false
         val state = _uiState.value
         val currentError = if (state.current.isEmpty()) ProfileFieldError.PasswordEmpty else null
         // 가입(AuthValidation.passwordError)과 같은 순서로 보고, 서버가 거절하는 '현재와 같은 비밀번호'는 보내기 전에 막는다.
@@ -49,16 +48,17 @@ class PasswordChangeViewModel(private val userRepository: UserRepository, member
             else -> null
         }
         val confirmError = if (state.new.isNotEmpty() && state.new != state.confirm) ProfileFieldError.PasswordMismatch else null
-        _uiState.update { it.copy(currentError = currentError, newError = newError, confirmError = confirmError) }
+        _uiState.update { it.copy(currentError = currentError, newError = newError, confirmError = confirmError, formError = null) }
         if (currentError != null || newError != null || confirmError != null) return@inAccount false
-        submitting = true
-        val result = try { userRepository.changePassword(state.current, state.new) } finally { submitting = false }
+        _uiState.update { it.copy(submitting = true) }
+        val result = try { userRepository.changePassword(state.current, state.new) } finally { _uiState.update { it.copy(submitting = false) } }
         return@inAccount when (result) {
             PasswordCheckResult.Done -> true.also { _uiState.value = PasswordChangeUiState() }
-            PasswordCheckResult.Unavailable -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.Unavailable) } }
-            PasswordCheckResult.Unauthenticated -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.Unauthenticated) } }
-            PasswordCheckResult.RateLimited -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.RateLimited) } }
-            PasswordCheckResult.InvalidInput -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.InvalidInput) } }
+            // 칸과 상관없는 실패는 화면 오류로, 서버가 거절한 입력은 새 비밀번호 칸에 붙인다(S15P31E102-996).
+            PasswordCheckResult.Unavailable -> false.also { _uiState.update { it.copy(formError = ProfileFieldError.Unavailable) } }
+            PasswordCheckResult.Unauthenticated -> false.also { _uiState.update { it.copy(formError = ProfileFieldError.Unauthenticated) } }
+            PasswordCheckResult.RateLimited -> false.also { _uiState.update { it.copy(formError = ProfileFieldError.RateLimited) } }
+            PasswordCheckResult.InvalidInput -> false.also { _uiState.update { it.copy(newError = ProfileFieldError.InvalidInput) } }
             PasswordCheckResult.WrongPassword -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.CurrentPasswordWrong) } }
         }
     }

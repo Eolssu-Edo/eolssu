@@ -58,6 +58,8 @@ import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
+import com.ssafy.eolssu.feature.practice.component.StepNoteAudio
+import com.ssafy.eolssu.feature.practice.component.StepNotePlayMs
 import com.ssafy.eolssu.feature.result.AnalysisExit
 import com.ssafy.eolssu.feature.result.AnalysisRoute
 import com.ssafy.eolssu.feature.result.ResultRoute
@@ -347,7 +349,7 @@ fun EolssuNavHost(
                     perf = perf,
                     songId = songId,
                     fingeringAudio = { instrument, note, onPlaying -> FingeringBasicAudio(instrument, note, onPlaying) },
-                    stepNoteAudio = { instrument -> rememberBasicNotePlayer(instrument) },
+                    stepNoteAudio = { instrument -> rememberBasicNotePlayer(instrument, StepNotePlayMs).let { StepNoteAudio(it.play, it.playback) } },
                     solo = entry.savedStateHandle.get<Boolean>("solo") ?: false,
                     onBack = { navController.popBackStackFrom(entry) },
                     onGoHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
@@ -638,6 +640,9 @@ fun EolssuNavHost(
                     },
                     onAddSheet = { navController.navigate(SheetEditDestination.new()) },
                     onReimportSheet = { failure -> navController.navigate(SheetEditDestination.new(failure)) },
+                    onOpenConversion = { sheetId ->
+                        if (navController.currentBackStackEntry?.id == entry.id) navController.navigate(SheetEditDestination.conversion(sheetId))
+                    },
                     onEditSheet = { navController.navigate(SheetEditDestination.editMine(it.id)) },
                     onSessionExpired = {
                         navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {

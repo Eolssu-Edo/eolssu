@@ -23,6 +23,8 @@ from enable_scoring import mysql, quote
 from stage_model_audio import create_client, require, safe_file, sha, upload_objects
 
 TASK = 'S15P31E102-728'
+# 1019 reuses this release format to move two songs to per-jeonggan tempo units.
+TASKS = {TASK, 'S15P31E102-1019'}
 SCHEMA = 'eolssu-score-tempo-release/v1'
 UPLOAD_SCHEMA = 'eolssu-score-tempo-upload/v1'
 EXCLUDED_SONG_IDS = {56, 132, 133, 134}  # User-owned concurrent Airplane task.
@@ -74,6 +76,11 @@ def validate_score_change(entry, target):
         require(type(tpb) is int and tpb > 0 and tpb != original['music']['ticksPerBeat'], 'No beat notation correction')
         require(entry['targetBpm'] * tpb == before['bpm'] * original['music']['ticksPerBeat'], 'Notation correction changes actual speed')
         expected['music']['ticksPerBeat'] = tpb
+        # A per-jeonggan unit is only a label when one beat is exactly one jeonggan (S15P31E102-1019).
+        unit = target['music'].get('bpmUnit')
+        if unit != original['music']['bpmUnit']:
+            require(unit == 'JEONGGAN' and tpb == original['music']['ticksPerJeonggan'], 'Unit change must make one beat one jeonggan')
+            expected['music']['bpmUnit'] = unit
     require(target == expected, 'Unapproved score content or time-grid change')
 
 
@@ -163,7 +170,7 @@ def validate_performance_timing(source,perf,bpm):
 def load_release(root):
     raw = safe_file(root, 'release.json').read_bytes()
     release = json.loads(raw)
-    require(set(release) == {'task','schema','entries'} and release['task'] == TASK and release['schema'] == SCHEMA, 'Wrong release')
+    require(set(release) == {'task','schema','entries'} and release['task'] in TASKS and release['schema'] == SCHEMA, 'Wrong release')
     entries = release['entries']
     require(isinstance(entries, list), 'Entries must be a list')
     ids_sql([e['songId'] for e in entries])

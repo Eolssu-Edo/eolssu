@@ -158,7 +158,7 @@ class AuthFormViewModelTest {
         viewModel.changeNickname(" 얼쑤 ")
         assertNull(viewModel.uiState.value.nicknameError)
         assertFalse(viewModel.complete())
-        assertEquals(FieldError.InstrumentUnavailable, viewModel.uiState.value.nicknameError)
+        assertEquals(FieldError.InstrumentUnavailable, viewModel.uiState.value.formError)
         assertNull(instruments.instrument.value)
         viewModel.selectInstrument(Instrument.Danso)
         assertTrue(viewModel.complete())

@@ -1,4 +1,4 @@
-package com.ssafy.eolssu.feature.result.component
+package com.ssafy.eolssu.core.ui.component
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -34,7 +34,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /*
- * 연주 분석 대기 그림의 붓 일원상(S15P31E102-760). 미리 그린 그림을 돌리지 않고, 붓털 여러 가닥이 각자 먹을 머금고
+ * 연주 분석·악보 변환 대기 그림의 붓 일원상(S15P31E102-760, 998). 미리 그린 그림을 돌리지 않고, 붓털 여러 가닥이 각자 먹을 머금고
  * 7시에서 시계 방향으로 돌며 화면에 그려 간다. 시작은 둥근 붓머리로 눌러 앉히고, 꼬리 구간(4시 → 6시)에서 붓을 들며
  * 가장자리 털부터 먹이 말라 갈라진다. 그리는 동안 앞끝은 털마다 들쭉날쭉 끌려오는 거친 붓 모양이다.
  * 값은 웹 시안에서 고른 값(끝 6시 · 꼬리 시작 4시 · 굵기 1.40배 · 0.9초 · 거친 붓 앞끝)이다.
@@ -262,7 +262,7 @@ private const val ChaseMaxPerSecond = 0.6f
  * 화면에 보이는 진행률 [shown]을 [dt]초 동안 [target] 쪽으로 옮긴 값. 넘어서지 않고 따라가며,
  * 목표가 줄면(재시도로 0부터) 바로 맞추고, 다 보냈으면 끝 무렵에서 1로 맞춘다.
  */
-internal fun chaseProgress(shown: Float, target: Float, dt: Float): Float {
+fun chaseProgress(shown: Float, target: Float, dt: Float): Float {
     var next = shown
     if (next < target) next = min(target, next + min((target - next) * dt * ChaseRate, dt * ChaseMaxPerSecond) + 1e-4f)
     if (target < next) next = target
@@ -276,7 +276,7 @@ internal fun chaseProgress(shown: Float, target: Float, dt: Float): Float {
  * 그린 부분은 비트맵에 쌓아 두고 프레임마다 새로 지나간 부분만 더 그린다.
  */
 @Composable
-internal fun BrushEnso(color: Color, progress: Float? = null, modifier: Modifier = Modifier) {
+fun BrushEnso(color: Color, progress: Float? = null, modifier: Modifier = Modifier) {
     val brush = remember { EnsoBrush() }
     val trail = remember { EnsoBrush.Trail(brush.bristles.size) }
     val layer = remember { EnsoLayer() }

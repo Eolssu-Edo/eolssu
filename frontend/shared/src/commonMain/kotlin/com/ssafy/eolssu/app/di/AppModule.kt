@@ -33,6 +33,7 @@ import com.ssafy.eolssu.data.song.PublishedSheetCopyRepository
 import com.ssafy.eolssu.data.song.ApiSheetConversionRepository
 import com.ssafy.eolssu.data.song.SheetConversionRepository
 import com.ssafy.eolssu.data.song.NotifyingSheetConversionRepository
+import com.ssafy.eolssu.feature.song.edit.SheetConversionViewModel
 import com.ssafy.eolssu.feature.song.edit.SheetImportViewModel
 import com.ssafy.eolssu.data.song.ApiMySheetRepository
 import com.ssafy.eolssu.data.song.ApiSheetAudioRepository
@@ -242,6 +243,7 @@ val appModule = module {
         SheetImportViewModel(kind, hwang, get(),
             get<InstrumentCatalog>()::load, get<ReferenceCatalogRepository>()::jangdans, get(), authoringCatalog = get())
     }
+    viewModel { (sheetId: String) -> SheetConversionViewModel(sheetId, get(), get(), member = get()) }
     viewModel { MySongsViewModel(get(), get(), get(), get(), get(), get()) }
 
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
@@ -260,5 +262,5 @@ val appModule = module {
     single<SheetAudioRepository> { get<NotifyingSheetAudioRepository>() }
     viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), now = get(), documents = get(), member = get(),
         songs = get(), pitchCatalog = get(), deviceAudioStore = get(), loadAudioInstruments = get<InstrumentCatalog>()::load,
-        authoringCatalog = get()) }
+        authoringCatalog = get(), saveDispatcher = kotlinx.coroutines.Dispatchers.Default) }
 }

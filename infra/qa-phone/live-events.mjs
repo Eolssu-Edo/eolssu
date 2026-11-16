@@ -5,9 +5,9 @@ const localKey=event=>Number.isSafeInteger(event.appRun)&&Number.isSafeInteger(e
     :event.visit!==undefined?`visit/${event.appRun}/${event.flow}/${event.visit}`:null:null;
 
 // Logs are a separate, opt-in projection. Never forward raw bodies or headers.
-export function safeLogRecords(events) {
-  const tokens=new Set(['kind','phase','target','outcome','method','modelVersion','failReason','state','scoringVersion']);
-  const numbers=new Set(['seq','durationMs','queueMs','processingMs','threadCpuMs','ms','attempt','visit','flow','appRun','evaluationSubmission','count','evaluations','notes','total','pitch','timing','duration','bytes','noteCount']);
+export function safeLogRecords(events,{limit=500}={}) {
+  const tokens=new Set(['kind','phase','target','outcome','method','modelVersion','failReason','state','scoringVersion','versionName','reason','dataSource']);
+  const numbers=new Set(['seq','durationMs','queueMs','processingMs','threadCpuMs','ms','attempt','visit','flow','appRun','evaluationSubmission','count','evaluations','notes','total','pitch','timing','duration','bytes','noteCount','load','resource','revision','failed','missing','versionCode']);
   const records=[];
   for(const event of Array.isArray(events)?events:[]){
     if(!event||!['app','proxy','backend','ai','db','observer','test'].includes(event.source)||!/^\d{4}-\d\d-\d\dT[\d:.+-]+Z?$/.test(event.at)||!Number.isFinite(Date.parse(event.at)))continue;
@@ -16,12 +16,13 @@ export function safeLogRecords(events) {
       if(tokens.has(key)&&typeof value==='string'&&/^[A-Za-z0-9_.:-]{1,100}$/.test(value))row[key]=value;
       else if(numbers.has(key)&&Number.isFinite(value)&&value>=0&&value<=1e12)row[key]=value;
       else if(['requestId','evaluationTimingId'].includes(key)&&validUuid(value))row[key]=value;
+      else if(key==='runId'&&/^[a-f0-9]{32}$/.test(value))row[key]=value;
       else if(['sessionId','evaluationId'].includes(key)&&/^[1-9][0-9]{0,18}$/.test(String(value)))row[key]=String(value);
       else if(key==='status'&&((Number.isInteger(value)&&value>=100&&value<=599)||['RECORDING','PENDING','DONE','FAILED'].includes(value)))row[key]=value;
     }
     if(row.kind)records.push(row);
   }
-  return {total:records.length,records:records.slice(-500)};
+  return {total:records.length,records:limit===null?records:records.slice(-limit)};
 }
 
 export function deviceEvidence(events) {
@@ -88,6 +89,13 @@ export function liveOperations(events) {
         if(all.some(event=>event.target===(phase==='practice_drawn'?'practice':'song_detail')))stages.push(stage(phase,milestone(phase)));
       }
     }
+    // Standard QA APKs record completed HTTP attempts/resource loads, without
+    // live-only request UUIDs. Show that actual evidence; never infer server/AI/DB stages.
+    if(!all.some(event=>event.kind==='request_started')){
+      stages.length=0;
+      for(const event of all.filter(event=>['visit_started','http_attempt','data_load','milestone','flow_end','action','poll_summary'].includes(event.kind)))
+        stages.push(stage(event.kind==='milestone'?(event.phase||'milestone'):event.kind,event));
+    }
     const context=all.find(event=>event.evaluationTimingId&&event.sessionId)||all.find(event=>event.sessionId)||{};
     const requestEvidence=all.filter(event=>event.source==='app'&&event.kind==='request_started'&&validUuid(event.requestId)).map(start=>{
       const received=all.find(event=>event.source==='backend'&&event.kind==='request_received'&&event.requestId===start.requestId);
@@ -95,6 +103,8 @@ export function liveOperations(events) {
       const finished=all.find(event=>event.source==='app'&&event.kind==='request_finished'&&event.requestId===start.requestId);
       return {requestId:start.requestId,target:names[start.target]||start.target,backendReceived:!!received,status:finished?.status??null,durationMs:response?.durationMs??null};
     });
+    for(const event of all.filter(event=>event.source==='app'&&event.kind==='http_attempt'))
+      requestEvidence.push({requestId:null,target:names[event.target]||event.target,backendReceived:false,status:event.status??null,durationMs:event.durationMs??null});
     return {id:group.id,name:group.name,startedAt:begin.at,requestId:begin.requestId??null,timingId:context.evaluationTimingId??null,
       sessionId:context.sessionId??null,attempt:context.attempt??null,evaluationId:all.find(event=>event.evaluationId)?.evaluationId??null,stages,requests:requestEvidence};
   }).sort((a,b)=>Date.parse(a.startedAt)-Date.parse(b.startedAt)).slice(-80);

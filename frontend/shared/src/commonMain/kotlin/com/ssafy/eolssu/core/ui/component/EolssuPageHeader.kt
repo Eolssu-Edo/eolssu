@@ -208,8 +208,6 @@ fun PageHeading(
     title: String,
     modifier: Modifier = Modifier,
     intro: String? = null,
-    /** 연습 화면의 ‘운지법과 함께 보기’처럼 자리를 아끼는 22sp 제목(보드 `.paged-fingering .page-title`). */
-    compact: Boolean = false,
     /**
      * 곡 제목처럼 줄바꿈하면 안 되는 제목(S15P31E102-730): 한 줄로 고정하고, 다 들어가지 않을 때만 왼쪽으로 흘려 끝까지 보인다.
      * 끝에 닿으면 처음부터 다시 흘리고, 다 들어가면 움직이지 않는다.
@@ -225,8 +223,8 @@ fun PageHeading(
             maxLines = if (singleLine) 1 else Int.MAX_VALUE,
             softWrap = !singleLine,
             style = MaterialTheme.typography.headlineSmall.copy(
-                fontSize = if (compact) 22.sp else 25.sp,
-                lineHeight = if (compact) 33.sp else 37.5.sp,
+                fontSize = 25.sp,
+                lineHeight = 37.5.sp,
                 letterSpacing = (-0.5).sp,
                 fontWeight = FontWeight.Normal,
             ),

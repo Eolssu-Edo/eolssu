@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.feature.auth.api
 
 import com.ssafy.eolssu.backend.common.error.ErrorCode
+import com.ssafy.eolssu.backend.feature.auth.domain.PasswordPolicy
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.feature.auth.application.PasswordResetResult
 import com.ssafy.eolssu.backend.feature.auth.application.PasswordResetService
@@ -27,5 +28,5 @@ class PasswordResetController(private val service: PasswordResetService) {
 
 class PasswordResetRequest(
     @field:NotBlank @field:Size(max = 256) val verificationToken: String,
-    @field:NotBlank @field:Size(max = 256) val newPassword: String,
+    @field:NotBlank @field:Size(max = 2 * PasswordPolicy.MAX_LENGTH) val newPassword: String,
 )
