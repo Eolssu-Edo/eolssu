@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [배포 구조와 Kubernetes 도입 필요성 검토 (990)](plans/S15P31E102-990.md) · [결정 기록](decisions/kubernetes-adoption.md)
 - [휴대폰·태블릿·아이폰 공통 화면 UI 점검 목록과 일괄 개선 (961)](plans/S15P31E102-961.md)
 - [실제 앱 조작과 격리 서버 처리 실시간 시연 (283)](plans/S15P31E102-283.md) · [실행 구조·지휘통제 사용법](plans/S15P31E102-283-live-observation.md)
 - [악보 편집 화면 태블릿 가로 악보·입력판 좌우 배치 (965)](plans/S15P31E102-965.md)
@@ -331,6 +332,7 @@
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
 - [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
 - [소리 나는 버튼의 눌림 효과(elastic squash)](decisions/frontend-sound-button-press.md) (확정)
+- [운영 배포 구조와 Kubernetes 도입](decisions/kubernetes-adoption.md) (제안)
 
 - [S15P31E102-256 곡·악보 조회](plans/S15P31E102-256.md)
 - [S15P31E102-345 곡 목록 서버 검색·페이지 보류와 재개 조건](plans/S15P31E102-345.md)
@@ -599,6 +601,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [S15P31E102-931 배포 APK의 실제 PDF 추가부터 저장·기기 음원 재생까지 검증](plans/S15P31E102-931.md)
 - [S15P31E102-953 BlueVal 오선보 변환의 8분음표 길이 축소 수정](plans/S15P31E102-953.md)
 - [S15P31E102-979 가져온 오선보의 추천 이조 적용과 확인 표시 구분](plans/S15P31E102-979.md) · [원인 진단](knowledge/frontend/sheet-pitch-adaptation.md#가져온-악보의-틀림-표시가-많아-보인-원인과-안내-979)
+- S15P31E102-988 추천 이조의 곡 전체 공통 옥타브 기준 접기 · [원인·결과](knowledge/frontend/sheet-pitch-adaptation.md#곡-전체-공통-옥타브-기준-접기와-추천-988)
 
 - [S15P31E102-935 PDF 음표 글리프의 숫자 빠르기 누락 수정](plans/S15P31E102-935.md) · [원본·회귀 근거](knowledge/ai/score-recognition-corrections.md#pdf-음표-글리프의-숫자-빠르기-누락-935)
 
