@@ -10,6 +10,7 @@ import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.feature.practice.component.PracticeSplitLineFill
+import com.ssafy.eolssu.feature.practice.component.hasPracticeThreeSplit
 import com.ssafy.eolssu.feature.practice.component.practiceScorePacking
 import com.ssafy.eolssu.data.song.Song2Json
 import kotlinx.serialization.json.Json
@@ -405,5 +406,75 @@ class PracticeScorePackingTest {
         assertEquals(lengths.indices.toList(), packing.columnGroups.flatten())
         assertTrue(packing.height <= 500.dp)
         assertTrue(packing.stackRowHeights[2] > packing.stackRowHeights[0])
+    }
+
+    // S15P31E102-1022: 휴대폰 연습 악보는 3소박 정간을 곡과 상관없이 66dp·율명 17.6sp로 지킨다.
+    private fun keepMetrics(longestStrip: Int) =
+        JeongganboMetrics.practiceBoard(false, longestStrip, threeSplit = true).copy(splitLineFill = PracticeSplitLineFill)
+
+    @Test
+    fun threeSplitScoresUseTheNormalCellEvenForLongColumns() {
+        val keep = JeongganboMetrics.practiceBoard(false, 12, threeSplit = true)
+        assertEquals(44.dp, keep.cellHeight)
+        assertEquals(21f, keep.yulSize.value)
+        // 3소박이 없는 긴 각은 그대로 32dp다.
+        assertEquals(32.dp, JeongganboMetrics.practiceBoard(false, 12).cellHeight)
+        assertTrue(Score(listOf(arirangColumn())).hasPracticeThreeSplit())
+        assertTrue(!Score(listOf(List(12) { ScoreCell(note, note) })).hasPracticeThreeSplit())
+    }
+
+    @Test
+    fun twelveCellGakWithThreeSplitCellsSplitsInTwoInsteadOfShrinking() {
+        // 단소 아리랑: 휴대폰 악보 영역 약 466dp. 예전에는 한 각을 한 줄에 넣느라 정간이 약 27dp(3소박 40dp)까지 줄었다.
+        val score = Score(List(4) { arirangColumn() })
+        val before = practiceScorePacking(score, JeongganboMetrics.practiceBoard(false, 12).copy(splitLineFill = PracticeSplitLineFill), 466.dp)
+        assertTrue(!before.splitColumns)
+        assertTrue(before.metrics.cellHeight < 32.dp)
+
+        val packing = practiceScorePacking(score, keepMetrics(12), 466.dp, keepThreeSplit = true)
+        assertTrue(packing.splitColumns)
+        assertEquals(44.dp, packing.metrics.cellHeight)
+        assertEquals(21f, packing.metrics.yulSize.value)
+        assertEquals(66.dp, packing.metrics.threeSplitGlyphCell)
+        assertTrue(packing.cellHeights.getValue(0 to 1) >= 66.dp)
+        assertTrue(renderedHeight(packing, 1f) <= 466.dp)
+    }
+
+    @Test
+    fun eightCellGakWithThreeSplitCellsSplitsInTwoToKeepSixtySixDp() {
+        // 박연폭포·싸름처럼 8정간 각: 한 줄 무게 10이면 (466 − 38) ÷ 10 = 42.8dp라 44dp가 안 된다. 4·4로 나눈다.
+        val triple = ScoreCell(note, note, note)
+        val score = Score(List(4) { listOf(cell, triple, cell, triple, cell, triple, cell, triple) })
+        val packing = practiceScorePacking(score, keepMetrics(8), 466.dp, keepThreeSplit = true)
+        assertTrue(packing.splitColumns)
+        assertEquals(44.dp, packing.metrics.cellHeight)
+        assertTrue(packing.cellHeights.getValue(0 to 1) >= 66.dp)
+        assertTrue(renderedHeight(packing, 1f) <= 466.dp)
+    }
+
+    @Test
+    fun stretchedThreeSplitCellsKeepTheSameGlyphSize() {
+        // 같은 가로줄의 더 긴 각(3소박 세 개)에 맞춰 짧은 각의 칸을 늘려도 3소박 율명은 17.6sp에 머문다.
+        val triple = ScoreCell(note, note, note)
+        // 300dp에서는 한 각씩 세로줄에 두므로 두 각이 같은 가로줄을 나눠 쓴다(무게 3.5 → 4.5로 늘림).
+        val score = Score(listOf(listOf(cell, triple, cell), List(3) { triple }))
+        val packing = practiceScorePacking(score, keepMetrics(3), 300.dp, keepThreeSplit = true)
+        assertEquals(1, packing.columnsPerStack)
+        assertEquals(44.dp, packing.metrics.cellHeight)
+        val stretched = packing.cellHeights.getValue(0 to 1)
+        assertTrue(stretched > 66.dp)
+        val glyphCell = assertNotNull(packing.metrics.threeSplitGlyphCell)
+        assertEquals(66.dp, glyphCell)
+        assertEquals(17.6f, packing.metrics.splitYulSize(3, minOf(stretched, glyphCell) / 3, 1f).value, 0.001f)
+    }
+
+    @Test
+    fun keepThreeSplitChangesNothingForScoresWithoutThreeSplitCells() {
+        val score = Score(List(4) { List(12) { cell } })
+        val height = 14.dp + metrics.headHeight + 2.dp + 28.dp * 12
+        val plain = practiceScorePacking(score, metrics, height)
+        val kept = practiceScorePacking(score, metrics, height, keepThreeSplit = true)
+        assertEquals(plain, kept)
+        assertEquals(null, kept.metrics.threeSplitGlyphCell)
     }
 }
