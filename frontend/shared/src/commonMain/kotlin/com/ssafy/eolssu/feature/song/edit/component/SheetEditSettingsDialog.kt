@@ -16,7 +16,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -53,7 +55,11 @@ internal fun SheetEditSettingsDialog(
     var initialBpm by remember { mutableStateOf<Double?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val editTarget = remember { BringIntoViewRequester() }
-    LaunchedEffect(editing, replacing) { if (editing) editTarget.bringIntoView() }
+    val density = LocalDensity.current
+    // 카드가 화면보다 길어도 어느 구간인지 보이도록 카드 윗부분(머리글과 입력판 시작)을 기준으로 스크롤한다.
+    LaunchedEffect(editing, replacing) {
+        if (editing) editTarget.bringIntoView(Rect(0f, 0f, 1f, with(density) { 280.dp.toPx() }))
+    }
     val validBpm = bpm.toIntOrNull()?.takeIf { it in SheetBpmRange }
     val current = working.copy(bpm = validBpm ?: working.bpm)
     val changes = current.tempoChanges
