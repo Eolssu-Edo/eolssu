@@ -145,12 +145,6 @@ data class PracticeUiState(
         savedBpm ?: it.baseBpm
     } ?: 0
 
-    /**
-     * 연주 평가(혼자 연습·내 악보 연습이 아님)는 곡 제목 옆에 ‘운지법 보기’ 스위치를 두고 톱니 설정에서는 뺀다(S15P31E102-716).
-     * ‘한글 읽는 법 표시’는 모든 연습 설정에 두므로 제목 옆에 두지 않는다(S15P31E102-875). 제목 줄이 있는 휴대폰 배치에서만 쓴다.
-     */
-    val showsTitleToggles: Boolean get() = !solo && !mine
-
     /** 화면 제목. 내 악보면 그 악보 제목, 아니면 곡 제목. */
     val title: String get() = sheetTitle ?: song?.title.orEmpty()
 
@@ -184,9 +178,19 @@ data class PracticeUiState(
             return song?.writtenScoreAnnotations.orEmpty()
         }
 
-    val totalSeconds: Int get() = if (mode == PracticeMode.Model && modelPerformance != null && bpm > 0)
-        (modelPerformance.durationMs * (sheetPerformanceBpm ?: song?.baseBpm ?: bpm) / bpm / 1000).roundToInt()
-        else song?.durationSeconds(bpm) ?: 0
+    val totalSeconds: Int
+        get() {
+            val currentSong = song ?: return 0
+            if (mode in setOf(PracticeMode.Ready, PracticeMode.Model) && bpm > 0) {
+                modelPerformance?.let {
+                    return (it.durationMs * (sheetPerformanceBpm ?: currentSong.baseBpm) / bpm / 1000).roundToInt()
+                }
+                if (personalAudioControl != null) currentSong.estimatedModelDurationMs?.let {
+                    return (it * currentSong.baseBpm / bpm / 1000).roundToInt()
+                }
+            }
+            return currentSong.durationSeconds(bpm)
+        }
 
     /**
      * 연습 속도를 바꿀 수 없는 상태(평가 연주의 카운트다운·녹음·중단). 속도는 채점 기준이므로 평가 중에는 고정한다. 장단 소리는 바꿀 수 있다.

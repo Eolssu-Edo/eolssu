@@ -1,7 +1,11 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -22,15 +26,23 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +53,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.song.edit.component.EditScoreBoard
+import com.ssafy.eolssu.feature.song.edit.component.InputPanelToggle
 import com.ssafy.eolssu.feature.song.edit.component.importMarks
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheetedit_import_result_title
@@ -79,16 +92,19 @@ fun ImportResultScreen(
     val draft = remember(state.fixed, state.kind) { state.draft() }
     val song = remember(draft) { draft.toSong() }
     val fileName = SheetEditSamples.importFileName(state.kind)
+    val contentMaxWidth = sheetAddContentMaxWidth()
     EolssuScaffold(
+        contentMaxWidth = contentMaxWidth,
         containerColor = colors.surface,
         topBar = {
             EolssuTopBar(
                 stringResource(Res.string.sheetedit_import_result_title),
                 onBack = onBack,
+                maxWidth = contentMaxWidth,
                 subtitle = if (staff) stringResource(Res.string.sheetedit_result_file_staff, fileName) else fileName,
             )
         },
-        bottomBar = {
+        bottomBar = sheetAddBottomBar(contentMaxWidth) {
             ListenRow(state.playing, onTogglePlay)
             EolssuButton(stringResource(Res.string.sheetedit_result_edit_jg), onEdit)
         },
@@ -135,11 +151,12 @@ fun ImportResultScreen(
     }
 }
 
-/** 고른 확인 정간의 원본 조각 · 위치 · 설명 · 후보 버튼. 모두 확인했으면 완료 안내. */
+/** 고른 확인 정간의 원본 조각 · 위치 · 설명 · 후보 버튼. 모두 확인했으면 완료 안내. 접으면 제목·위치 한 줄만 남는다. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CheckCard(state: ImportResultUiState, draft: SheetDraft, onChoose: (String) -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
+    var expanded by rememberSaveable { mutableStateOf(true) }
     Column(
         modifier
             .fillMaxWidth()
@@ -158,16 +175,32 @@ private fun CheckCard(state: ImportResultUiState, draft: SheetDraft, onChoose: (
             }
             return@Column
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        val cellLabel = stringResource(Res.string.sheetedit_result_cell, stringResource(Res.string.sheetedit_where_cell, draft.columnOf(check.index) + 1, draft.rowOf(check.index) + 1))
+        // 접으면 위치·제목 한 줄만 남겨 짧은 휴대폰에서도 정간보를 넓게 본다(S15P31E102-972).
+        if (!expanded) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${check.title} · $cellLabel",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                InputPanelToggle(expanded = false, onToggle = { expanded = true })
+            }
+            return@Column
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
-                    stringResource(Res.string.sheetedit_result_cell, stringResource(Res.string.sheetedit_where_cell, draft.columnOf(check.index) + 1, draft.rowOf(check.index) + 1)),
+                    cellLabel,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                     color = colors.textMuted,
                 )
                 Text(check.title, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold))
                 Text(check.description, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp), color = colors.textMuted)
             }
+            InputPanelToggle(expanded = true, onToggle = { expanded = false })
         }
         Text(stringResource(Res.string.sheetedit_result_source_discarded), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -197,16 +230,24 @@ private fun ListenRow(playing: Boolean, onToggle: () -> Unit) {
     val colors = EolssuTheme.colors
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         val press = remember { MutableInteractionSource() }
-        Surface(onClick = onToggle, modifier = Modifier.elasticSquash(press).size(48.dp), shape = CircleShape, color = colors.surface, interactionSource = press) {
-            Box(contentAlignment = Alignment.Center) {
-                Box(Modifier.size(40.dp).background(colors.accentTint, CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(
-                        if (playing) EolssuIcons.Pause else EolssuIcons.Play,
-                        contentDescription = stringResource(if (playing) Res.string.sheetedit_result_pause else Res.string.sheetedit_result_play),
-                        modifier = Modifier.size(16.dp),
-                        tint = colors.text,
-                    )
-                }
+        // 누르는 영역은 48dp, 눌림 효과는 그린 40dp 연두 원 안에만 둔다(S15P31E102-968).
+        Box(
+            Modifier
+                .elasticSquash(press)
+                .size(48.dp)
+                .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = onToggle),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                Modifier.size(40.dp).clip(CircleShape).background(colors.accentTint).indication(press, ripple()),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    if (playing) EolssuIcons.Pause else EolssuIcons.Play,
+                    contentDescription = stringResource(if (playing) Res.string.sheetedit_result_pause else Res.string.sheetedit_result_play),
+                    modifier = Modifier.size(16.dp),
+                    tint = colors.text,
+                )
             }
         }
         Text(

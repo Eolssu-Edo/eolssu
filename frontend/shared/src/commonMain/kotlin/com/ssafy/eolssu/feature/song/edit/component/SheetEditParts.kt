@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -23,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,15 +71,17 @@ internal fun SegmentTabs(
         modifier
             .then(if (fill) Modifier.fillMaxWidth() else Modifier)
             .background(frameColor, frame)
-            .padding(4.dp),
+            // 작은 탭은 위아래 여백 대신 48dp 누르는 영역이 틀을 채워, 보이는 틀(48dp)·알약(40dp) 크기는 그대로다(S15P31E102-971).
+            .padding(horizontal = 4.dp, vertical = if (large) 4.dp else 0.dp),
         horizontalArrangement = Arrangement.spacedBy(if (large) 0.dp else 4.dp),
     ) {
         labels.forEachIndexed { index, label ->
             val on = index == selected
             val pill = RoundedCornerShape(10.dp)
-            // Surface(onClick)는 48dp 최소 터치 칸을 강제해 틀 안의 알약이 작아 보인다. 알약 크기 그대로 누르게 한다(S15P31E102-768).
+            // Surface(onClick)는 알약 자체를 48dp로 키워 틀 안에서 커 보이므로, 알약은 보이는 크기로 두고 누르는 영역만 48dp로 넓힌다(S15P31E102-768·971).
             Row(
                 (if (fill) Modifier.weight(1f) else Modifier)
+                    .minimumInteractiveComponentSize()
                     .height(if (large) 48.dp else 40.dp)
                     .clip(pill)
                     .background(if (on) colors.surface else Color.Transparent)
@@ -234,12 +241,13 @@ internal fun EditorTopBar(
     closeLabel: String,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    maxWidth: Dp = CompactContentMaxWidth,
     right: @Composable RowScope.() -> Unit = {},
 ) {
-    // 넓은 창에서도 본문([com.ssafy.eolssu.core.ui.component.EolssuScaffold])과 같은 휴대폰 너비로 가운데에 둔다.
+    // 넓은 창에서도 본문([com.ssafy.eolssu.core.ui.component.EolssuScaffold])과 같은 너비([maxWidth])로 가운데에 둔다.
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         CenteredTitleRow(
-            modifier.widthIn(max = CompactContentMaxWidth).fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
+            modifier.widthIn(max = maxWidth).fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
             start = { EolssuIconButton(EolssuIcons.Close, closeLabel, onClose, bordered = false) },
             end = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { right() } },
         ) {
@@ -280,28 +288,30 @@ internal fun PillButton(
     compact: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
-    Surface(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier.heightIn(min = 48.dp),
-        color = Color.Transparent,
+    val interaction = remember { MutableInteractionSource() }
+    // 누르는 영역은 48dp 높이로 두고, 눌림 효과는 보이는 버튼 모양 안에만 그린다(S15P31E102-968).
+    Box(
+        modifier
+            .heightIn(min = 48.dp)
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Box(
-                Modifier
-                    .height(if (compact) 32.dp else 40.dp)
-                    .widthIn(min = if (compact) 48.dp else 64.dp)
-                    // 다른 작은 버튼과 같은 모서리 12dp. [secondary]는 회색 채움(편집처럼 보조 동작)(S15P31E102-768).
-                    .background(if (!enabled) colors.surfaceStrong else if (secondary) colors.groupedBackground else colors.primary, if (square) RoundedCornerShape(12.dp) else CircleShape)
-                    .padding(horizontal = if (compact) 12.dp else 14.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelLarge.copy(fontSize = if (compact) 13.sp else 14.sp, fontWeight = FontWeight.SemiBold),
-                    color = if (!enabled) colors.textDisabled else if (secondary) colors.text else colors.onPrimary,
-                )
-            }
+        Box(
+            Modifier
+                .height(if (compact) 32.dp else 40.dp)
+                .widthIn(min = if (compact) 48.dp else 64.dp)
+                // 다른 작은 버튼과 같은 모서리 12dp. [secondary]는 회색 채움(편집처럼 보조 동작)(S15P31E102-768).
+                .clip(if (square) RoundedCornerShape(12.dp) else CircleShape)
+                .background(if (!enabled) colors.surfaceStrong else if (secondary) colors.groupedBackground else colors.primary)
+                .indication(interaction, ripple())
+                .padding(horizontal = if (compact) 12.dp else 14.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = if (compact) 13.sp else 14.sp, fontWeight = FontWeight.SemiBold),
+                color = if (!enabled) colors.textDisabled else if (secondary) colors.text else colors.onPrimary,
+            )
         }
     }
 }
@@ -317,17 +327,24 @@ internal fun SquareIconButton(
     size: Dp = 40.dp,
 ) {
     val colors = EolssuTheme.colors
-    Surface(onClick = onClick, enabled = enabled, modifier = modifier.size(48.dp), color = Color.Transparent) {
-        Box(contentAlignment = Alignment.Center) {
-            Box(
-                Modifier
-                    .size(size)
-                    .alpha(if (enabled) 1f else 0.4f)
-                    .background(colors.surface, RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, contentDescription = label, modifier = Modifier.size(18.dp), tint = colors.text)
-            }
+    val interaction = remember { MutableInteractionSource() }
+    // 누르는 영역은 48dp, 눌림 효과는 보이는 둥근 네모 안에만 그린다(S15P31E102-968).
+    Box(
+        modifier
+            .size(48.dp)
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(size)
+                .alpha(if (enabled) 1f else 0.4f)
+                .clip(RoundedCornerShape(10.dp))
+                .background(colors.surface)
+                .indication(interaction, ripple()),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = label, modifier = Modifier.size(18.dp), tint = colors.text)
         }
     }
 }

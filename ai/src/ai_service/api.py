@@ -199,6 +199,12 @@ def get_fetcher() -> Callable[[str, Path], None]:
     return download
 
 
+@app.get("/health", include_in_schema=False)
+def health() -> dict:
+    """프로세스가 요청을 받는지만 본다. 배포 도구가 실행 중인 판본을 확인하도록 modelVersion을 돌려준다."""
+    return {"status": "ok", "modelVersion": MODEL_VERSION}
+
+
 @app.post(
     "/v1/analyses",
     response_model=None,

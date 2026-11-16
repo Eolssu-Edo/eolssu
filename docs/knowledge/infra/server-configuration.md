@@ -8,7 +8,7 @@
 
 SSH 별칭 `edo1`의 `/opt/app`과 저장소를 읽기 전용으로 대조했다. 서버의 개발·운영 Compose와 환경변수 파일 네 개는 모두 0바이트였고 Docker Compose 프로젝트·실행 컨테이너가 없었다. Nginx·Jenkins 실행 파일도 확인되지 않았다. 이 파일들은 기존 운영 구성을 추출한 결과가 아니라, 현재 백엔드 구현에 맞춰 새로 작성한 실행 기반이다.
 
-`backend/build.gradle.kts`, Wrapper, `backend/src/main/resources/application.yml`에서 Java 21·Spring Boot·`bootJar`·`SERVER_PORT`를 확인했다. DB·인증·AI 호출은 아직 앱에 연결되지 않았다. 블로그 파이프라인은 `blog/Jenkinsfile`에 이미 있으므로 백엔드는 별도 `backend/Jenkinsfile`을 사용한다.
+`backend/build.gradle.kts`, Wrapper, `backend/src/main/resources/application.yml`에서 Java 21·Spring Boot·`bootJar`·`SERVER_PORT`를 확인했다. DB·인증·AI 호출은 아직 앱에 연결되지 않았다. 블로그 파이프라인은 `blog/Jenkinsfile`에 이미 있으므로 백엔드는 별도 `backend/Jenkinsfile`을 사용했다. 이후 운영 잡은 `infra/jenkins/backend.Jenkinsfile`을 잡 설정에 직접 두게 되어, 쓰이지 않던 `backend/Jenkinsfile`은 [S15P31E102-942](../../plans/S15P31E102-942.md)에서 삭제했다.
 
 ## 구성 선택과 적용점
 
@@ -131,4 +131,4 @@ backend #9를 수동으로 한 번 시작하자 frontend #1이 upstream 원인�
 
 백엔드 develop 잡은 경로 필터 없이 develop의 모든 커밋을 검사·배포하고 프론트 잡을 이어 실행한다(위 '구성 선택과 적용점'). 그래서 develop의 `blog/`에 글을 머지해도 백엔드(약 1분 30초~3분)·프론트(약 3분 30초~4분) 빌드·운영 배포가 함께 일어났다. "develop에는 관리 대상 코드만 둔다"는 팀 의견에 따라 경로 필터를 넣는 대신 블로그를 develop과 기록을 공유하지 않는 `blog` 브랜치로 옮겼다. 앱 잡의 "공통 설정·문서 변경도 검사" 원칙은 그대로 유지된다.
 
-블로그 잡 `eolssu-blog`는 `blog` 브랜치를 1분 polling해 Hugo 빌드 후 GitHub Pages(`team-ido/team-ido.github.io`)에 결과물만 push한다. 글 이미지는 저장소 clone이 커지지 않도록 GitHub `team-ido/blog-images`에 둔다. 구성·결정 기록은 [S15P31E102-128](../../plans/S15P31E102-128.md), [S15P31E102-137](../../plans/S15P31E102-137.md)을 따른다.
+블로그 잡 `eolssu-blog`는 `blog` 브랜치를 1분 polling해 Hugo 빌드 후 GitHub Pages(`team-edo/team-edo.github.io`)에 결과물만 push한다. 글 이미지는 저장소 clone이 커지지 않도록 GitHub `team-edo/blog-images`에 둔다. 초기 계획 문서의 `team-ido`는 조직을 만들기 전 예시 이름이다. 구성·결정 기록은 [S15P31E102-128](../../plans/S15P31E102-128.md), [S15P31E102-137](../../plans/S15P31E102-137.md)을 따른다.

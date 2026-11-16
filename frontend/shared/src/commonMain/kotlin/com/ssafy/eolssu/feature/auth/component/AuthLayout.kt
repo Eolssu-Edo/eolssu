@@ -1,5 +1,12 @@
 package com.ssafy.eolssu.feature.auth.component
 
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.runtime.remember
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -122,26 +129,53 @@ fun AuthStepLabel(step: Int, total: Int) {
 }
 
 /**
- * 22dp 체크 상자(`.au-box`). 테두리 없이 고르면 연두, 안 고르면 [uncheckedColor] 채움이다. 흰 카드 안에서는 회색을 넘긴다.
- * 옆 글자가 아니라 이 상자만 눌린다(S15P31E102-798). 누르는 영역은 Compose가 최소 48dp로 넓혀 주고, 화면 읽기는 [label]을 읽는다.
+ * 22dp 체크 상자(`.au-box`)와 옆 글자를 묶은 체크 줄. 테두리 없이 고르면 연두, 안 고르면 [uncheckedColor] 채움이다. 흰 카드 안에서는 회색을 넘긴다.
+ * 상자와 글자를 포함한 줄 전체([modifier] 영역)가 눌리고, 눌림 효과는 체크 상자 안에만 보인다(S15P31E102-969).
+ * 화면 읽기는 줄 하나를 [label] 체크 상자로 읽고, [content]의 글자는 따로 읽지 않는다.
  */
 @Composable
-fun AuthCheckBox(
+fun AuthCheckRow(
     checked: Boolean,
     label: String,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     uncheckedColor: Color = EolssuTheme.colors.surface,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(8.dp),
+    verticalAlignment: Alignment.Vertical = Alignment.CenterVertically,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    content: @Composable () -> Unit,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    Row(
+        modifier
+            .toggleable(
+                value = checked,
+                interactionSource = interaction,
+                indication = null,
+                role = Role.Checkbox,
+                onValueChange = onCheckedChange,
+            )
+            .semantics { contentDescription = label }
+            .padding(contentPadding),
+        horizontalArrangement = horizontalArrangement,
+        verticalAlignment = verticalAlignment,
+    ) {
+        AuthCheckMark(checked, uncheckedColor, interaction)
+        // 글자가 길면 남은 너비 안에서 줄바꿈한다.
+        Box(Modifier.weight(1f, fill = false).clearAndSetSemantics {}) { content() }
+    }
+}
+
+@Composable
+private fun AuthCheckMark(checked: Boolean, uncheckedColor: Color, interaction: MutableInteractionSource) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(6.dp)
     Box(
-        modifier
+        Modifier
             .size(22.dp)
             .clip(shape)
             .background(if (checked) colors.primary else uncheckedColor)
-            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onCheckedChange)
-            .semantics { contentDescription = label },
+            .indication(interaction, ripple()),
         contentAlignment = Alignment.Center,
     ) {
         if (checked) {

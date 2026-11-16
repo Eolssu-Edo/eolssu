@@ -6,9 +6,8 @@ package com.ssafy.eolssu.core.model
  * @property symbol 악보에 적는 한자. 서버·데이터의 정간보 값과 같다.
  * @property hangul 율명 아래에 붙이는 한글 읽는 법.
  * @property fullName 율명 전체 이름. 운지법·율명 설명과 접근성 이름에 쓴다.
- * @property drawnAs 세리프 글꼴에 없는 글자를 그릴 (변, 기본 율명). 변을 작게 기본 율명 왼쪽에 겹쳐 그린다. 글꼴에 있으면 null.
  */
-enum class Yul(val symbol: String, val hangul: String, val fullName: String, val drawnAs: Pair<String, String>? = null) {
+enum class Yul(val symbol: String, val hangul: String, val fullName: String) {
     Hwangjong("黃", "황", "황종"),
     Daeryeo("大", "대", "대려"),
     Taeju("太", "태", "태주"),
@@ -25,9 +24,9 @@ enum class Yul(val symbol: String, val hangul: String, val fullName: String, val
     /** 황종보다 한 옥타브 높은 음. 글자 왼쪽의 삼수변(氵)이 한 옥타브 위를 뜻한다. */
     CheongHwangjong("潢", "청황", "청황종"),
     CheongTaeju("汰", "청태", "청태주"),
-    CheongJungnyeo("㳞", "청중", "청중려", drawnAs = "氵" to "仲"),
+    CheongJungnyeo("㳞", "청중", "청중려"),
     CheongImjong("淋", "청임", "청임종"),
-    CheongMuyeok("潕", "청무", "청무역", drawnAs = "氵" to "無"),
+    CheongMuyeok("潕", "청무", "청무역"),
     ;
 
     companion object {

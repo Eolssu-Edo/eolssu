@@ -51,6 +51,7 @@ import eolssu.shared.generated.resources.practice_fingering_rest
 import eolssu.shared.generated.resources.practice_fingering_title
 import eolssu.shared.generated.resources.practice_jangdan_sound_on
 import eolssu.shared.generated.resources.practice_menu_jangdan
+import eolssu.shared.generated.resources.practice_live_marks
 import eolssu.shared.generated.resources.practice_notation_hangul
 import eolssu.shared.generated.resources.practice_menu_tempo
 import eolssu.shared.generated.resources.practice_settings
@@ -116,7 +117,8 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
     // 평가 중 속도만 고정한다. 장단과 보기 설정은 바꿀 수 있다.
     val locked = state.playbackSettingsLocked
     val noteLabel = when (val note = state.draft.note) {
-        is ScoreNote.Pitch -> if (note.yul.drawnAs == null) "${note.symbol} ${note.yul.fullName}" else note.yul.fullName
+        // 상태 문구는 본문 글꼴(한자 없음)이라 한자 없이 이름만 쓴다.
+        is ScoreNote.Pitch -> note.yul.fullName
         is ScoreNote.SourcePitch -> note.fullName
         else -> stringResource(Res.string.practice_fingering_rest)
     }
@@ -148,6 +150,18 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
         ) {
             Text(hangulLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
             EolssuSwitch(settings.showHangul, actions.onToggleHangul, hangulLabel)
+        }
+        // ‘실시간 채점’은 AI 연주 평가에서만 둔다(S15P31E102-980).
+        if (!state.solo) {
+            val liveLabel = stringResource(Res.string.practice_live_marks)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .drawBehind { drawLine(colors.line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(liveLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+                EolssuSwitch(settings.liveMarks, actions.onToggleLiveMarks, liveLabel)
+            }
         }
         val bigLabel = stringResource(Res.string.practice_big_score)
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {

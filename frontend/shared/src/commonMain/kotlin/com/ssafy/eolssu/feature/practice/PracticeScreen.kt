@@ -42,7 +42,6 @@ import com.ssafy.eolssu.feature.practice.component.PracticePlayer
 import com.ssafy.eolssu.feature.practice.component.PracticeRecordingBar
 import com.ssafy.eolssu.feature.practice.component.PracticePlaybackLoadingOverlay
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
-import com.ssafy.eolssu.feature.practice.component.PracticeTitleToggles
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.component.PracticeStepToggle
 import com.ssafy.eolssu.feature.practice.component.reportUserActivity
@@ -87,7 +86,7 @@ fun PracticeScreen(
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
     actions: PracticeScreenActions,
-    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
+    livePitch: Map<ScoreUnitKey, LivePitchCell> = emptyMap(),
 ) {
     if (state.song == null) {
         PracticeSongLoadScreen(state, actions, snackbarHostState)
@@ -111,7 +110,7 @@ fun PracticeScreen(
             actions.panel,
             tablet = widthClass != WindowWidthClass.Compact,
             modifier = Modifier.reportUserActivity(actions.onUserActivity),
-            titleToggles = widthClass == WindowWidthClass.Compact && state.showsTitleToggles,
+            expanded = widthClass == WindowWidthClass.Expanded,
         )
     }
     state.popup?.takeUnless { it == PracticePopup.SettingsPaused && state.panel != null }
@@ -153,7 +152,7 @@ private fun PracticeCompactLayout(
     state: PracticeUiState,
     snackbarHostState: SnackbarHostState,
     actions: PracticeScreenActions,
-    livePitch: Map<ScoreUnitKey, LivePitchMark>,
+    livePitch: Map<ScoreUnitKey, LivePitchCell>,
 ) {
     val recordingBar = state.recordingLayout
     // 연주 평가는 준비 상태의 플레이어·행동 버튼 없이 하단의 평가 대기 막대(‘평가 시작’)를 둔다.
@@ -179,7 +178,6 @@ private fun PracticeCompactLayout(
                 PracticeTitleRow(
                     state,
                     showPill = false,
-                    toggles = if (state.showsTitleToggles) PracticeTitleToggles(actions.panel.onToggleFingeringView) else null,
                     // 휴대폰은 머리 제목이 잘리지 않게 ‘한 음씩’을 설정 버튼 아래(제목 줄 오른쪽)에 둔다. 연습·구간 연습이 같은 자리다(S15P31E102-816).
                     trailing = if (state.solo && state.step.available) {
                         { PracticeStepToggle(state, actions.bottom.onToggleStep) }
@@ -189,7 +187,7 @@ private fun PracticeCompactLayout(
                 )
                 Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
                 if (fingering) {
-                    PracticeFingeringPage(state, actions.onSelectUnit, modifier = Modifier.weight(1f))
+                    PracticeFingeringPage(state, actions.onSelectUnit, modifier = Modifier.weight(1f), livePitch = livePitch)
                 } else {
                     PracticeBoardScore(
                         state, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,

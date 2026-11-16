@@ -15,7 +15,6 @@ import androidx.compose.ui.unit.sp
  * @property lyricLane 곁줄(가사 칸) 너비. 보드 25dp(크게 보기 34dp). 가사 데이터가 없으면 빈 칸으로 둔다.
  * @property headCompact 각 머리를 ‘시작 · 1각’·‘2각’ 한 줄로 적는다(보드 `.ms-lab`). 아니면 ‘시작’ + 번호.
  * @property daegangWhenFits 공통 악보라도 각 길이가 장단의 정간 수와 같으면 대강 선을 긋는다(보드).
- * @property upcomingMark 연주 중 각의 마지막 정간에 들어서면 다음 각 머리를 ‘← 다음’으로 강조한다(보드).
  * @property joined 각 사이를 띄우지 않고 붙여 바깥 테두리 하나로 감싼다(보드 결과 `.ms`: 바깥 `#8E887D`, 각 경계 `#B9B3A6`).
  * @property headStartPill 첫 각 머리에 연두 ‘시작’ 알약을 번호 앞에 둔다(보드 결과 `.ms-lab`).
  * @property soft 옛 모양에서 각 바탕을 흰색, 각·정간 선을 옅은 `#E8E4DA`, 현재 칸 바탕을 `#EFF2D6`로 그린다(보드 RECORD-02).
@@ -28,7 +27,6 @@ data class JeongganboLook(
     val lyricLane: Dp? = null,
     val headCompact: Boolean = false,
     val daegangWhenFits: Boolean = false,
-    val upcomingMark: Boolean = false,
     val joined: Boolean = false,
     val headStartPill: Boolean = false,
     val soft: Boolean = false,
@@ -46,16 +44,19 @@ data class JeongganboLook(
         /** 연습 화면 악보의 곁줄(가사 칸) 너비. 보드 25dp, 크게 보기 34dp. */
         fun practiceLyricLane(big: Boolean): Dp = if (big) 34.dp else 25.dp
 
-        /** 연습 화면 PRACTICE-01의 악보(`.practice-score .ms`). */
+        /**
+         * 연습 화면 PRACTICE-01의 악보(`.practice-score .ms`). 연주 중에도 각 머리는 그대로 두고 현재 위치는 정간 테두리로만 보인다.
+         * S15P31E102-922: 휴대폰 연습 화면에서만 마지막 정간에 다음 각 머리를 연두 ‘← 다음’으로 바꾸던 강조를 없애 모든 곡·악기·화면을 같게 했다.
+         */
         fun practice(big: Boolean) = JeongganboLook(
-            style = Style.Board, lyricLane = practiceLyricLane(big), headCompact = true, daegangWhenFits = true, upcomingMark = true,
+            style = Style.Board, lyricLane = practiceLyricLane(big), headCompact = true, daegangWhenFits = true,
         )
 
         /**
-         * 연습 화면을 뺀 모든 화면의 공통 모양([ReadingScoreFormat]): 연습과 같은 보드에 대강 선은 회갈색이고 ‘← 다음’ 강조는 없다.
+         * 연습 화면을 뺀 모든 화면의 공통 모양([ReadingScoreFormat]): 연습과 같은 보드에 대강 선은 회갈색이다.
          * 곁줄은 [readingScoreFormat]이 곡에 가사가 있을 때만 둔다.
          */
-        val Reading = practice(big = false).copy(upcomingMark = false, softDaegang = true)
+        val Reading = practice(big = false).copy(softDaegang = true)
     }
 }
 

@@ -1,7 +1,9 @@
 package com.ssafy.eolssu.core.ui.component
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,10 +26,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,11 +56,11 @@ import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.common_close
 import eolssu.shared.generated.resources.enso_ring
 import eolssu.shared.generated.resources.top_bar_full_title
 import eolssu.shared.generated.resources.result_score_of
 import eolssu.shared.generated.resources.score_metric_description
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -150,7 +156,7 @@ fun Bar(fraction: Float, color: androidx.compose.ui.graphics.Color, modifier: Mo
     }
 }
 
-/** 연두 옅은 알약 버튼(높이 30 · 마이페이지 '연결'과 같은 연한 연두 바탕·짙은 연두 글자, 테두리 없음 · 12sp). 누르는 영역은 40dp를 둔다. */
+/** 연두 옅은 알약 버튼(높이 30 · 마이페이지 '연결'과 같은 연한 연두 바탕·짙은 연두 글자, 테두리 없음 · 12sp). 누르는 영역은 48dp를 둔다(S15P31E102-971). */
 @Composable
 fun TintPillButton(
     text: String,
@@ -161,7 +167,8 @@ fun TintPillButton(
     enabled: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
-    Box(modifier.heightIn(min = 40.dp), contentAlignment = Alignment.Center) {
+    // Surface(onClick)는 30dp 알약 둘레로 48dp까지 누르게 하지만, 바깥 칸이 48dp보다 작으면 그만큼 잘린다.
+    Box(modifier.heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
         Surface(
             onClick = onClick,
             enabled = enabled,
@@ -355,7 +362,8 @@ private val CompactSummaryGap = SummaryGap(
 
 /**
  * 왼쪽 정렬 상단 바(높이 56 · 위 8): 뒤로 가기(있을 때) · 제목(16sp 굵게, 한 줄) · 보조 문구(12sp) · 오른쪽 [right].
- * 제목이 잘릴 수 있어 제목 칸을 누르면 전체 제목을 창으로 보여 준다. 이전 연주 결과 · 이전 연주와 비교 · 연주 결과가 쓴다.
+ * 제목이 잘렸을 때만 제목 칸을 누를 수 있고, 누르면 제목이 왼쪽으로 한 번 흘러 전체를 보여 준 뒤 말줄임으로 돌아온다.
+ * 잘리지 않은 제목은 눌러도 반응하지 않는다(S15P31E102-968). 이전 연주 결과 · 이전 연주와 비교 · 연주 결과가 쓴다.
  */
 @Composable
 fun EolssuStartTopBar(
@@ -367,8 +375,22 @@ fun EolssuStartTopBar(
     right: @Composable () -> Unit = {},
 ) {
     val colors = EolssuTheme.colors
-    var fullTitleOpen by remember(title) { mutableStateOf(false) }
+    // 말줄임으로 잘렸는지는 말줄임 상태로 그린 배치에서만 알 수 있어, 흐르는 동안에는 값을 바꾸지 않는다.
+    var truncated by remember(title) { mutableStateOf(false) }
+    // 0이 아니면 그 회차의 한 번 흐르기를 보여 준다. 다시 누르면 처음부터 다시 흐른다.
+    var marqueeRun by remember(title) { mutableIntStateOf(0) }
+    var titleWidthPx by remember(title) { mutableIntStateOf(0) }
+    val density = LocalDensity.current
     val showFullTitle = stringResource(Res.string.top_bar_full_title)
+    if (marqueeRun != 0) {
+        LaunchedEffect(marqueeRun, titleWidthPx) {
+            if (titleWidthPx == 0) return@LaunchedEffect
+            // 한 번 흐르는 시간(시작 지연 + (글자 폭 + 간격) ÷ 속도)이 지나면 말줄임 제목으로 돌아온다.
+            val travelDp = with(density) { titleWidthPx.toDp() } + TitleMarqueeSpacing
+            delay(TitleMarqueeDelayMillis + (travelDp.value / TitleMarqueeVelocity.value * 1000).toLong())
+            marqueeRun = 0
+        }
+    }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Row(
             modifier.widthIn(max = maxWidth).fillMaxWidth().padding(top = 8.dp).heightIn(min = 56.dp)
@@ -378,19 +400,46 @@ fun EolssuStartTopBar(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             if (onBack != null) EolssuBackButton(onBack, size = 44.dp)
+            // 눌림 효과는 헤더 폭 전체가 아니라 제목 칸의 둥근 모양 안에만 그린다.
             Column(
                 Modifier.weight(1f).heightIn(min = 44.dp)
-                    .clickable(onClickLabel = showFullTitle, role = Role.Button) { fullTitleOpen = true },
+                    .clip(RoundedCornerShape(10.dp))
+                    .then(
+                        if (truncated) Modifier.clickable(onClickLabel = showFullTitle, role = Role.Button) { marqueeRun++ }
+                        else Modifier,
+                    ),
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(
-                    title,
-                    modifier = Modifier.semantics { heading() },
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold),
-                    color = colors.text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                val titleStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
+                if (marqueeRun != 0) {
+                    key(marqueeRun) {
+                        Text(
+                            title,
+                            modifier = Modifier
+                                .semantics { heading() }
+                                .basicMarquee(
+                                    iterations = 1,
+                                    initialDelayMillis = TitleMarqueeDelayMillis.toInt(),
+                                    spacing = MarqueeSpacing(TitleMarqueeSpacing),
+                                    velocity = TitleMarqueeVelocity,
+                                ),
+                            style = titleStyle,
+                            color = colors.text,
+                            maxLines = 1,
+                            onTextLayout = { titleWidthPx = it.size.width },
+                        )
+                    }
+                } else {
+                    Text(
+                        title,
+                        modifier = Modifier.semantics { heading() },
+                        style = titleStyle,
+                        color = colors.text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { truncated = it.hasVisualOverflow },
+                    )
+                }
                 if (subtitle != null) {
                     Text(
                         subtitle,
@@ -404,9 +453,9 @@ fun EolssuStartTopBar(
             right()
         }
     }
-    if (fullTitleOpen) {
-        EolssuDialog(title = title, message = subtitle, onDismissRequest = { fullTitleOpen = false }) {
-            EolssuButton(stringResource(Res.string.common_close), { fullTitleOpen = false }, style = EolssuButtonStyle.Secondary)
-        }
-    }
 }
+
+/** 잘린 제목을 한 번 흘려 보일 때의 시작 지연·속도·이어지는 간격. */
+private const val TitleMarqueeDelayMillis = 300L
+private val TitleMarqueeVelocity = 40.dp
+private val TitleMarqueeSpacing = 32.dp

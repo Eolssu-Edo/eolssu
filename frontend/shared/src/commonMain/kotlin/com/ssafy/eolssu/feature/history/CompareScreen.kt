@@ -5,9 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +26,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -47,7 +55,11 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.Bar
+import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EnsoRing
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
@@ -94,17 +106,22 @@ class CompareActions(
  * COMPARE-01 이전 연주와 비교(S15P31E102-753, 시안 ③ 비교): 제목과 오른쪽 위 ‘비교 기록 바꾸기’ · 점수 비교 카드
  * (이전 점수 → 변화 칩 → 이번 일원상, ‘항목별 점수 보기’로 펼침) · 범례 · 곡 전체 정간보(이전에 틀림 = 옅은 붉은 바탕,
  * 이번에 틀림 = 붉은 테두리). 정간보는 보기 전용이고, 듣기·연습 버튼은 없다.
+ * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded])은 왼쪽에 점수 카드·범례, 오른쪽에 악보를 둔 두 칸이다.
  */
 @Composable
 fun CompareScreen(state: CompareUiState, actions: CompareActions) {
     val colors = EolssuTheme.colors
     val comparison = state.comparison
+    val expanded = currentWindowLayout().widthClass == WindowWidthClass.Expanded
+    val contentMaxWidth = if (expanded) WindowBreakpoints.ContentMaxWidth else CompactContentMaxWidth
     EolssuScaffold(
         containerColor = colors.groupedBackground,
+        contentMaxWidth = contentMaxWidth,
         topBar = {
             EolssuStartTopBar(
                 stringResource(Res.string.weak_compare_title),
                 onBack = actions.onBack,
+                maxWidth = contentMaxWidth,
                 right = {
                     if (comparison != null && comparison.previous.isNotEmpty()) {
                         TintPillButton(
@@ -124,23 +141,51 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
         }
         val song = comparison.song
         val format = rememberReadingScoreFormat(song)
-        Column(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 2.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val previous = state.previous
-            if (previous == null) {
-                Text(stringResource(Res.string.weak_compare_none), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textSub)
-            } else {
-                ScoreCompareCard(previous.score, comparison.current.score, state, actions.onToggleMetrics)
-                CompareCheckNote(state.check)
-            }
-            CompareLegend(state.counts)
+        val score: @Composable (Modifier) -> Unit = { modifier ->
             JeongganboView(
                 song = song,
-                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                modifier = modifier,
                 metrics = format.metrics,
                 look = format.look,
                 cellHeights = format.cellHeights,
                 decorations = compareDecorations(state.marks),
             )
+        }
+        if (expanded) {
+            // 태블릿 가로: 왼쪽 점수 카드·범례(따로 스크롤) · 오른쪽 악보가 남은 너비와 높이를 채운다(S15P31E102-966).
+            BoxWithConstraints(Modifier.fillMaxSize().padding(start = 24.dp, end = 24.dp, top = 2.dp, bottom = 16.dp)) {
+                val sideWidth = (maxWidth * 0.34f).coerceIn(CompareSideMinWidth, CompareSideMaxWidth)
+                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    Column(
+                        Modifier.width(sideWidth).fillMaxHeight().verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CompareSummary(state, comparison.current.score, actions.onToggleMetrics)
+                    }
+                    score(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()))
+                }
+            }
+        } else {
+            // 휴대폰: 항목별 점수를 펼쳤거나 큰 글꼴·낮은 화면에서 정간보 몫이 모자라면 화면 전체를 스크롤한다(기록 상세와 같은 방식, S15P31E102-972).
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val density = LocalDensity.current
+                var summaryHeight by remember { mutableStateOf(0.dp) }
+                val scrollPage = maxHeight < ScrollPageHeight || maxHeight - summaryHeight < CompareScoreMinHeight
+                Column(
+                    Modifier.fillMaxSize()
+                        .then(if (scrollPage) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                        .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = if (scrollPage) 16.dp else 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Column(
+                        Modifier.onSizeChanged { summaryHeight = with(density) { it.height.toDp() } },
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CompareSummary(state, comparison.current.score, actions.onToggleMetrics)
+                    }
+                    score(if (scrollPage) Modifier else Modifier.weight(1f).verticalScroll(rememberScrollState()))
+                }
+            }
         }
     }
     val pick = state.pick
@@ -148,6 +193,27 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
         ComparePickSheet(pick, actions.onClosePicker, actions.onPickRecord)
     }
 }
+
+/** 태블릿 가로에서 왼쪽 점수 카드 칸의 너비 범위. 본문의 34%를 쓰되 이 범위로 묶는다. */
+private val CompareSideMinWidth = 340.dp
+private val CompareSideMaxWidth = 400.dp
+
+/** 점수 비교 카드(이전 기록이 없으면 안내 문구) · 비교 실패 안내 · 범례. 휴대폰은 악보 위에, 태블릿 가로는 왼쪽 칸에 둔다. */
+@Composable
+private fun CompareSummary(state: CompareUiState, currentScore: Int, onToggleMetrics: () -> Unit) {
+    val previous = state.previous
+    if (previous == null) {
+        Text(stringResource(Res.string.weak_compare_none), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = EolssuTheme.colors.textSub)
+    } else {
+        ScoreCompareCard(previous.score, currentScore, state, onToggleMetrics)
+        CompareCheckNote(state.check)
+    }
+    CompareLegend(state.counts)
+}
+
+/** 본문이 이 높이보다 낮거나, 점수 카드·범례 아래 정간보 몫이 [CompareScoreMinHeight]보다 낮으면 화면 전체를 스크롤한다. */
+private val ScrollPageHeight = 360.dp
+private val CompareScoreMinHeight = 160.dp
 
 /** 이전 · 이번 정간 꾸밈: 이전에 틀림 = 옅은 붉은 바탕, 이번에 틀림 = 2dp 붉은 테두리. */
 @Composable

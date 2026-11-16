@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
@@ -35,7 +36,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
+import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
+import com.ssafy.eolssu.feature.song.edit.layout.SheetEditExpandedLayout
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.EditInputPanel
 import com.ssafy.eolssu.feature.song.edit.component.EditScoreBoard
@@ -71,28 +77,36 @@ class SheetEditActions(
     val input: EditInputActions,
 )
 
-/** 빠르기와 옆의 연필(제목·빠르기 변경), 오른쪽 끝 예상 음원 길이, 오류 정간 표시를 제공하는 편집 화면. */
+/**
+ * 빠르기와 옆의 연필(제목·빠르기 변경), 오른쪽 끝 예상 음원 길이, 오류 정간 표시를 제공하는 편집 화면.
+ * 휴대폰·태블릿 세로는 악보 아래에 입력판을 두고, 태블릿 가로([WindowWidthClass.Expanded])는
+ * [SheetEditExpandedLayout]으로 악보 오른쪽에 입력판을 세운다(S15P31E102-965). 상태·동작은 같다.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostState, actions: SheetEditActions,
-    focusRequestKey: Int = 0, adaptationContent: @Composable () -> Unit = {}) {
+    focusRequestKey: Int = 0, adaptationContent: @Composable () -> Unit = {}, guideContent: @Composable () -> Unit = {},
+    widthClass: WindowWidthClass = currentWindowLayout().widthClass) {
     val draft = state.draft
     val song = remember(draft) { draft.toSong() }
     val corrections = state.completionValidation.correctionCellIndices
     val correctionUnits = state.completionValidation.correctionUnitKeys
+    val expanded = widthClass == WindowWidthClass.Expanded
+    val contentMaxWidth = if (expanded) WindowBreakpoints.ContentMaxWidth else CompactContentMaxWidth
     EolssuScaffold(
         containerColor = EolssuTheme.colors.surface,
         snackbarHostState = snackbarHostState,
+        contentMaxWidth = contentMaxWidth,
         topBar = {
-            EditorTopBar(draft.title, "", stringResource(Res.string.sheetedit_close), actions.onClose) {
+            EditorTopBar(draft.title, "", stringResource(Res.string.sheetedit_close), actions.onClose, maxWidth = contentMaxWidth) {
                 PillButton(stringResource(if (state.confirming) Res.string.sheet_completion_saving else Res.string.sheetedit_preview), actions.onSave, enabled = !state.confirming)
             }
         },
     ) {
-        Column(Modifier.fillMaxSize()) {
+        val tempoRow: @Composable (Modifier) -> Unit = { modifier ->
             // 빠르기 바로 오른쪽 연필로 제목·빠르기를 고치고, 예상 음원 길이는 오른쪽 끝에 둔다(S15P31E102-889).
             Row(
-                Modifier.fillMaxWidth().heightIn(min = 40.dp).padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+                modifier.fillMaxWidth().heightIn(min = 40.dp).padding(bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("${draft.tempoUnitLabel} = ${draft.bpm}", style = MaterialTheme.typography.bodyMedium)
@@ -103,32 +117,52 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                     else stringResource(Res.string.sheet_editor_duration_unavailable), style = MaterialTheme.typography.bodySmall,
                     color = EolssuTheme.colors.textSub, textAlign = TextAlign.End)
             }
-            EditScoreBoard(
-                song = song,
-                modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp),
-                marks = editorMarks(draft, state.selected, state.selectedSub, corrections, correctionUnits),
-                unitMarks = editorUnitMarks(draft, state.selected, state.selectedSub, correctionUnits),
-                annotations = remember(draft) { draft.annotations() },
-                focusCell = draft.columnOf(state.selected) to draft.rowOf(state.selected),
-                focusRequestKey = focusRequestKey,
-                onUnitClick = { column, row, unitRow, unitCol ->
-                    val index = draft.indexOf(column, row)
-                    actions.onSelectUnit(index, draft.subIndexOf(index, unitRow, unitCol))
-                },
-            )
+        }
+        val scoreBoard: @Composable (Modifier) -> Unit = { modifier ->
+            // 가져온 악보 확인 안내는 악보 바로 위에 둬서 처음 열 때 보이게 한다(S15P31E102-979). 두 배치 모두 같다.
+            Column(modifier) {
+                guideContent()
+                EditScoreBoard(
+                    song = song,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    marks = editorMarks(draft, state.selected, state.selectedSub, corrections, correctionUnits,
+                        state.completionValidation.rangeCellIndices),
+                    unitMarks = editorUnitMarks(draft, state.selected, state.selectedSub, correctionUnits,
+                        state.completionValidation.rangeUnitKeys),
+                    annotations = remember(draft) { draft.annotations() },
+                    focusCell = draft.columnOf(state.selected) to draft.rowOf(state.selected),
+                    focusRequestKey = focusRequestKey,
+                    onUnitClick = { column, row, unitRow, unitCol ->
+                        val index = draft.indexOf(column, row)
+                        actions.onSelectUnit(index, draft.subIndexOf(index, unitRow, unitCol))
+                    },
+                )
+            }
+        }
+        val inputPanel: @Composable (docked: Boolean) -> Unit = { docked ->
             EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.supportedInputPitches, state.canUndo, state.canRedo, actions.input,
-                saveFeedback = { SheetSaveFeedback(state, actions.onRetryDraft) }, adaptationContent = adaptationContent)
+                saveFeedback = { SheetSaveFeedback(state, actions.onRetryDraft) }, adaptationContent = adaptationContent, docked = docked)
+        }
+        if (expanded) {
+            SheetEditExpandedLayout(tempoRow = tempoRow, scoreBoard = scoreBoard, inputPanel = { inputPanel(true) })
+        } else {
+            Column(Modifier.fillMaxSize()) {
+                tempoRow(Modifier.padding(horizontal = 20.dp))
+                scoreBoard(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp))
+                inputPanel(false)
+            }
         }
     }
 }
 
-/** 빠르기 옆 작은 연필(아이콘 16dp, 누르는 칸 36dp). 누르면 제목·빠르기 변경 창을 연다. */
+/** 빠르기 옆 작은 연필(아이콘 16dp, 보이는 칸 36dp, 누르는 영역 48dp). 누르면 제목·빠르기 변경 창을 연다. */
 @Composable
 private fun TempoEditButton(onClick: () -> Unit, enabled: Boolean) {
     val label = stringResource(Res.string.sheet_details_edit)
     Box(
         Modifier
             .padding(start = 2.dp)
+            .minimumInteractiveComponentSize()
             .size(36.dp)
             .clip(RoundedCornerShape(10.dp))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)

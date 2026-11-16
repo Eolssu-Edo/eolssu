@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +43,7 @@ enum class EolssuButtonStyle { Primary, Secondary, Text, Danger, Ghost }
  * [containerColor]·[borderColor]·[contentColor]를 주면 모양별 기본 색 대신 쓴다.
  * [busy]이면 글자 대신 도는 표시를 보이고 누를 수 없다. [minHeight]를 주면 모양별 기본 높이 대신 쓴다. 좁은 칸에 두 개를 나란히 둘 때는 [compact]로 옆 여백을 줄인다.
  * [squash]는 누르면 바로 소리가 나는 버튼에만 켠다([elasticSquash], S15P31E102-891).
+ * [singleLine]이면 큰 글꼴·좁은 칸에서도 한 줄을 유지하고 넘치는 만큼 글자를 줄인다(S15P31E102-972).
  */
 @Composable
 fun EolssuButton(
@@ -59,6 +61,7 @@ fun EolssuButton(
     minHeight: Dp? = null,
     containerColor: Color? = null,
     squash: Boolean = false,
+    singleLine: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val press = remember { MutableInteractionSource() }
@@ -95,13 +98,17 @@ fun EolssuButton(
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (icon != null) Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                    val fontSize = if (small) 14.sp else 15.sp
                     Text(
                         text,
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontSize = if (small) 14.sp else 15.sp,
+                            fontSize = fontSize,
                             fontWeight = if (style == EolssuButtonStyle.Text || style == EolssuButtonStyle.Ghost) FontWeight.Medium else FontWeight.SemiBold,
                         ),
                         textAlign = TextAlign.Center,
+                        maxLines = if (singleLine) 1 else Int.MAX_VALUE,
+                        softWrap = !singleLine,
+                        autoSize = if (singleLine) TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = fontSize, stepSize = 0.5.sp) else null,
                     )
                 }
             }

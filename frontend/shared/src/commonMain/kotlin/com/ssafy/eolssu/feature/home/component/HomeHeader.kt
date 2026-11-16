@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.home.component
 
+import androidx.compose.runtime.remember
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -34,7 +38,14 @@ import org.jetbrains.compose.resources.stringResource
 internal fun MyPagePlate(image: ProfileImage, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     // 누르는 영역(48dp)과 그리는 원(40dp)을 나눠, 누르는 최소 크기 때문에 원이 타원으로 늘어나지 않게 한다(S15P31E102-768).
-    Box(modifier.minimumInteractiveComponentSize(), contentAlignment = Alignment.Center) {
+    // 48dp 전체가 눌리지만 눌림 효과는 40dp 원 안에만 그린다(S15P31E102-969).
+    val interaction = remember { MutableInteractionSource() }
+    Box(
+        modifier
+            .minimumInteractiveComponentSize()
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
         Image(
             painter = painterResource(image.drawable),
             contentDescription = stringResource(Res.string.home_my_page),
@@ -43,7 +54,7 @@ internal fun MyPagePlate(image: ProfileImage, onClick: () -> Unit, modifier: Mod
                 .shadow(1.dp, CircleShape)
                 .clip(CircleShape)
                 .background(colors.surface)
-                .clickable(role = Role.Button, onClick = onClick),
+                .indication(interaction, ripple()),
             contentScale = ContentScale.Crop,
         )
     }

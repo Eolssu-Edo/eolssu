@@ -84,7 +84,7 @@ fun PracticeRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 평가 연주에서 음마다 모은 실시간 음높이 안내(S15P31E102-597). 관측이 없는 플랫폼은 집계가 비어 아무것도 칠하지 않는다.
     val pitchTally by viewModel.livePitch.collectAsStateWithLifecycle()
-    val livePitch = remember(state.song, state.solo, pitchTally) { livePitchMarks(state, pitchTally) }
+    val livePitch = remember(state.song, state.solo, state.position, state.finished, state.settings.liveMarks, pitchTally) { livePitchMarks(state, pitchTally) }
     // 한 음씩은 혼자 연습에만 있어 그때만 예시음 목록을 받는다.
     val playStepNote: (FingeringNote) -> Unit = if (state.solo) stepNoteAudio(state.instrument) else { _ -> }
     val scope = rememberCoroutineScope()
@@ -178,6 +178,7 @@ fun PracticeRoute(
                     onSetInstrument = viewModel::setInstrument,
                     onToggleFingeringView = viewModel::toggleFingeringView,
                     onToggleHangul = viewModel::toggleHangul,
+                    onToggleLiveMarks = viewModel::toggleLiveMarks,
                 ),
                 dialog = PracticeDialogActions(
                     // 마이크 안내 창(Permission)은 혼자 연습 '한 음씩'에서만 뜬다. 연주 평가는 기기 권한 창을 바로 띄운다.

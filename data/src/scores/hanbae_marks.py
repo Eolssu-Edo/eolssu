@@ -2,6 +2,7 @@
 
 Text uses actual jamo, not an interpretation of ornament names. The scan path
 accepts upright connected jamo with a separating dot and a dotted continuation.
+A return to the original tempo may end without a continuation in a unique cell margin.
 That narrow geometry is deliberately separate from the note model vocabulary.
 """
 import re
@@ -90,7 +91,7 @@ def _letter(mask):
     bottom = mask[-max(2, h // 5):].mean()
     if left > .58 and bottom > .65 and right < .35:
         return 'ㄴ'
-    if left > .52 and right > .52 and bottom > .65 and mask[h // 2 - 1:h // 2 + 2].mean() > .65:
+    if left > .52 and right > .52 and bottom > .65 and mask[h // 2 - 1:h // 2 + 2].mean(axis=1).max() > .65:
         return 'ㅂ'
     # Both diagonal feet must survive; a note's ordinary horizontal dash or
     # single angled ornament cannot become a tempo letter.
@@ -160,11 +161,16 @@ def image_marks(image, cells):
         cx, end = last['x'] + last['w'] / 2, last['y'] + last['h']
         continuation = [d for d in dots if abs(d[0] - cx) <= last['w'] * .25 and
                         end < d[1] < end + last['w'] * 3.6]
-        if len(continuation) < 2:
+        if len(continuation) < 2 and raw != 'ㅂㅅ':
             continue
         x0 = min(letters[i]['x'] for i in group)
         x1 = max(letters[i]['x'] + letters[i]['w'] for i in group)
         mark = dict(symbol=name, rawText=raw, bbox=[x0, first['y'], x1 - x0, end - first['y']])
-        out.append(_located(mark, cells, first['x'] + first['w'] / 2, first['y'] + first['h'] / 2))
+        mark = _located(mark, cells, first['x'] + first['w'] / 2, first['y'] + first['h'] / 2)
+        # Original tempo is an immediate return, often printed without a dotted range.
+        # Require a unique margin anchor when that additional visual evidence is absent.
+        if len(continuation) < 2 and 'gak' not in mark:
+            continue
+        out.append(mark)
         used.update(group)
     return out

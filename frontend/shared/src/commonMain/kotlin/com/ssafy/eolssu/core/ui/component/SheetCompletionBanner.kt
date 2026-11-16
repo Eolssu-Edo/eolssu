@@ -14,9 +14,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -33,7 +31,7 @@ import eolssu.shared.generated.resources.sheet_conversion_banner_dismiss
 import eolssu.shared.generated.resources.sheet_conversion_banner_title
 import org.jetbrains.compose.resources.stringResource
 
-/** Completion notices stay in a separate top lane until opened or dismissed. */
+/** Completion notices use a separate top lane and the host's accessible automatic timeout. */
 @Composable
 fun SheetCompletionBannerHost(hostState: SnackbarHostState, modifier: Modifier = Modifier) {
     SnackbarHost(hostState, modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))) { data ->
@@ -53,11 +51,9 @@ fun SheetCompletionBannerHost(hostState: SnackbarHostState, modifier: Modifier =
                         Text(data.visuals.message, style = MaterialTheme.typography.bodyLarge)
                     }
                     data.visuals.actionLabel?.let { label ->
-                        FilledTonalButton(onClick = data::performAction) { Text(label) }
+                        EolssuButton(label, onClick = data::performAction, small = true)
                     }
-                    IconButton(onClick = data::dismiss) {
-                        Icon(EolssuIcons.Close, stringResource(Res.string.sheet_conversion_banner_dismiss))
-                    }
+                    EolssuIconButton(EolssuIcons.Close, stringResource(Res.string.sheet_conversion_banner_dismiss), onClick = data::dismiss, bordered = false)
                 }
             }
         }

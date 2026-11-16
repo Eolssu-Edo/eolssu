@@ -139,14 +139,16 @@ internal class AndroidJangdanSamplePlayer(context: Context, private val cache: J
         return true
     }
 
-    @Synchronized override fun play(clip: JangdanClip, gain: Float): Boolean {
+    @Synchronized override fun play(clip: JangdanClip, gain: Float, delayMs: Double): Boolean {
         if (interrupted || failed || !acceptingHits) return false
         val current = track ?: return false
         val pcm = samples[clip] ?: return false
         val now = System.nanoTime()
         val first = originNs == null
         val origin = originNs ?: now.also { originNs = it }
-        val frame = ((now - origin) * (outputRate / 1_000_000_000.0)).roundToLong() + current.bufferSizeInFrames + BLOCK_FRAMES
+        // 같은 출력 기준(origin + 버퍼 지연)에 악보에서 계산한 예약 시간을 더한다. 확인 시각의 흔들림은 frame에 들어가지 않는다.
+        val frame = ((now - origin) * (outputRate / 1_000_000_000.0) + delayMs.coerceAtLeast(0.0) * outputRate / 1000.0)
+            .roundToLong() + current.bufferSizeInFrames + BLOCK_FRAMES
         queue.add(pcm, gain.coerceIn(0f, 1f) * 0.65f, frame)
         if (first) {
             val token = ++outputGeneration

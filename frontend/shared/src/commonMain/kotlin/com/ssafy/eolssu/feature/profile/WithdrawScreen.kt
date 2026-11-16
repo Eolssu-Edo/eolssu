@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -105,19 +104,13 @@ fun WithdrawScreen(
         if (reauth?.busy == true) {
             val name = stringResource(reauth.provider.displayName)
             val waiting = reauth.step == WithdrawReauth.Step.InBrowser
-            // 연결(MY-05) 대기 화면과 같이 휴대폰 480dp · 태블릿 세로 640dp · 가로 520dp 높이의 가운데에 둔다.
+            // 연결(MY-05) 대기 화면과 같이 남은 화면 높이의 가운데에 둔다(S15P31E102-972).
             ProviderWaiting(
                 reauth.provider,
                 title = if (waiting) stringResource(Res.string.social_auth_waiting_title, name) else null,
                 body = stringResource(if (waiting) Res.string.social_auth_waiting_body else Res.string.social_auth_progress),
                 busy = true,
-                modifier = Modifier.heightIn(
-                    min = when (widthClass) {
-                        WindowWidthClass.Compact -> 480.dp
-                        WindowWidthClass.Medium -> 640.dp
-                        WindowWidthClass.Expanded -> 520.dp
-                    },
-                ),
+                modifier = Modifier.weight(1f),
             )
             return@ProfileScaffold
         }

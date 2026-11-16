@@ -97,7 +97,6 @@
     <string name="practice_countdown_ready">준비</string>
     <string name="practice_switched_to_eval">평가 모드로 바꿨어요. ‘연주 평가 시작’을 누르면 평가해요.</string>
 
-    <string name="practice_title_fingering">운지법 보기</string>
     <string name="practice_menu_jangdan">장단</string>
     <string name="practice_menu_tempo">속도</string>
     <string name="practice_jangdan_sound_on">%1$s · 소리 켜짐</string>
@@ -174,7 +173,7 @@
     <string name="practice_instrument">연습 악기</string>
     <string name="practice_jangdan_sound_off">%1$s · 소리 꺼짐</string>
     <string name="practice_fingering_view">운지법과 함께 보기</string>
-    <string name="practice_fingering_view_desc">%1$s 운지 그림을 함께 봐요</string>
+    <string name="practice_live_marks">실시간 채점</string>
     <string name="practice_fingering_rest">쉼 · 숨을 고르세요</string>
     <string name="practice_fingering_desc">막는 구멍 %1$s</string>
     <string name="practice_fingering_none">없음</string>
@@ -193,7 +192,6 @@
     <string name="practice_finger_gak_range">%1$d–%2$d각</string>
     <string name="practice_finger_rest">쉼</string>
     <string name="practice_finger_missing">운지 자료 없음</string>
-    <string name="practice_upcoming">← 다음</string>
     <string name="score_column_head">%1$d각</string>
     <string name="score_column_head_start">시작 · %1$d각</string>
     <string name="analysis_title">연주 분석</string>
@@ -556,7 +554,6 @@
     <string name="auth_signup_step_email">이메일 인증</string>
     <string name="auth_signup_step_password">비밀번호 설정</string>
     <string name="auth_signup_step_profile">프로필 설정</string>
-    <string name="auth_signup_step_next">다음 · %1$s</string>
     <string name="auth_signup_step_progress_description">회원가입 %2$d단계 중 %1$d단계, %3$s</string>
     <string name="auth_password_confirm">비밀번호 확인</string>
     <string name="auth_password_confirm_placeholder">비밀번호를 한 번 더 입력</string>

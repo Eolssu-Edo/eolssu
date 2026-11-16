@@ -2,7 +2,8 @@
 
 Compose Web은 기기 글꼴로 한글·한자를 대신 그리지 않으므로 글꼴 파일을 앱 리소스에 넣어야 한다.
 - 본문: Pretendard 원본(Regular·SemiBold·Bold). 한글 11,172자가 모두 있다. 예약 글꼴 이름이 있어 가공하지 않는다.
-- 율명·제목: Noto Serif KR(CFF) SemiBold·Bold에서 자주 쓰는 한글 2,350자(KS X 1001)와 율명 한자만 남긴다.
+- 율명·제목: Noto Serif CJK KR(CFF) SemiBold·Bold에서 자주 쓰는 한글 2,350자(KS X 1001)와 율명 한자만 남긴다.
+  Noto Serif KR(SubsetOTF)에는 탁성·하배·중청 율명이 없어 같은 디자인의 CJK 원본(OTF/Korean)을 쓴다.
   그래서 세리프는 율명과 앱이 정한 문구에만 쓰고, 사용자가 입력한 글자는 Pretendard로 표시한다.
 
 사용법(원본 내려받기는 frontend/README.md 참고, frontend/에서 실행):
@@ -24,8 +25,8 @@ SOURCES = {
     "Pretendard-Regular.otf": "3ffbacde6ab8411f1d2db54bb9b1f0b3ee2a738932033722cf0388c06aed1c93",
     "Pretendard-SemiBold.otf": "c89bc43027dc7cde5726e96223376f8eec09302b2fc1f8147fd5b57cfc376118",
     "Pretendard-Bold.otf": "2e91915fab54df71cc9598ebf608b2bdb54c6fe3c066ac61dff0bc44fca71cc7",
-    "NotoSerifKR-SemiBold.otf": "a63051d299d7219132a98ff3c2b76a62022344e50e9f3b50fdb9b0ee4560f583",
-    "NotoSerifKR-Bold.otf": "263408609ef416d597718ea91055379867d3e7086fa32f049996995d4e715e55",
+    "NotoSerifCJKkr-SemiBold.otf": "bce8d43887e2999c3af13802311fdc2b68f2c5b79d606ed3dd85293649932dcc",
+    "NotoSerifCJKkr-Bold.otf": "10cc03741178ad6d2747df8497d911e34b167d0474a826fb9d866c402cbe3d8f",
 }
 
 PRETENDARD = {
@@ -35,13 +36,21 @@ PRETENDARD = {
 }
 
 SERIF = {
-    "NotoSerifKR-SemiBold.otf": "noto_serif_kr_semibold.otf",
-    "NotoSerifKR-Bold.otf": "noto_serif_kr_bold.otf",
+    "NotoSerifCJKkr-SemiBold.otf": "noto_serif_kr_semibold.otf",
+    "NotoSerifCJKkr-Bold.otf": "noto_serif_kr_bold.otf",
 }
 
-# 세리프로 그리는 한자. 12율명 기본형, 와이어프레임·데이터에서 쓰는 청성, 정간보 설명에 쓰는 글자.
-# 새 율명 표기가 데이터에 생기면 여기에 추가하고 다시 만든다. Noto Serif KR에 없는 글자(예: 탁황 僙)는 넣을 수 없다.
-SERIF_HANJA = "黃大太夾姑仲蕤林夷南無應" "潢汰淋" "井亻氵彳"
+# 세리프로 그리는 한자. 율명은 core/model/Score.kt의 SourceHanja(옥타브 -2~2)와 운지표 글자, 나머지는 정간보 설명용이다.
+# 보충 평면의 하배이 𢓡·배유 𠐭·중청대 𣴘는 원본에 없어 eolssu_yul_supplement.ttf가 맡는다.
+# 앱의 SerifYulHanja(core/model/fingering/YulNotation.kt)와 같게 유지한다. 새 율명 표기가 데이터에 생기면 함께 추가한다.
+SERIF_YUL = (
+    "黃大太夾姑仲蕤林夷南無應"  # 기본
+    "潢汏汰浹㴌㳞㶋淋洟湳潕㶐"  # 청성
+    "㶂㳲㴺㵈㴢㶙㵉㴣㵜㶃㶝" "㶄㴩㶌㶍"  # 중청(SourceHanja, 운지표)
+    "僙㐲㑀俠㑬㑖㑣侇㑲㒇㒣" "㑥"  # 탁성(배)
+    "㣴㣕㣖㣣㣨㣡㣸㣩㣮㣳㣹"  # 하배
+)
+SERIF_HANJA = SERIF_YUL + "井亻氵彳"
 
 SERIF_RANGES = [
     (0x0020, 0x007E),  # 기본 라틴(영숫자·기호)

@@ -91,6 +91,8 @@ fun OAuthScreen(
             title = stringResource(Res.string.auth_withdrawal_cancelled_title),
             message = stringResource(Res.string.auth_withdrawal_cancelled_message),
             icon = EolssuIcons.Check,
+            // 바깥 누르기·뒤로 가기로 닫아도 '확인'과 같이 로그인을 이어 간다(S15P31E102-969).
+            onDismissRequest = onLoggedIn,
         ) {
             EolssuButton(stringResource(Res.string.auth_confirm), onClick = onLoggedIn)
         }

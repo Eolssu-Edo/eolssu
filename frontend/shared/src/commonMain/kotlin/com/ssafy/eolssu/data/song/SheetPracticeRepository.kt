@@ -29,7 +29,7 @@ class SheetPracticeRepository(
         if (document.reviewStatus != "EVALUABLE" ||
             (document.conversionStatus != null && document.conversionStatus != "DONE")
         ) throw SheetPracticeNeedsReview()
-        val score = document.score?.toScore(document.expressions) ?: throw CatalogUnavailable()
+        val score = document.score?.toScore(document.expressions, baseBpm = document.bpm.toDouble()) ?: throw CatalogUnavailable()
         val version = document.scoreVersion.toIntOrNull()?.takeIf { it > 0 } ?: throw CatalogUnavailable()
         val source = score.source ?: throw CatalogUnavailable()
         if (source.scoreVersion != version) throw CatalogUnavailable()
@@ -58,6 +58,7 @@ class SheetPracticeRepository(
             scoreVersion = version,
             jangdanPlayback = accompaniment,
             basicAccompaniment = basic,
+            estimatedModelDurationMs = requireNotNull(document.score).estimatedModelDurationMs(document.expressions, document.bpm),
         )
     }
 
@@ -88,7 +89,7 @@ class SheetPracticeRepository(
                 else -> null
             } ?: return@withTimeoutOrNull null
             var misses = 0
-            while (audio.matches(song.id, version, settings) && audio.status.inProgress) {
+            while (audio.requestMatches(song.id, version, settings) && audio.status.inProgress) {
                 delay((audio.pollAfterMs ?: 2_000).coerceIn(500, 30_000))
                 when (val status = sheetAudio.status(song.id)) {
                     is SheetAudioLookup.Found -> {
@@ -147,9 +148,14 @@ enum class SheetPracticeDownload { Saved, Failed, VersionChanged, UnsupportedPit
 
 private const val AUDIO_GENERATION_LIMIT_MS = 12 * 60 * 1000L
 
-private fun SheetAudio.matches(sheetId: String, version: String, settings: SheetAudioSettings): Boolean =
-    this.sheetId == sheetId && scoreVersion == version && currentScoreVersion == version && !outdated &&
+/** 진행 중인 생성이 이 악보 판본·설정의 요청인지 본다. `outdated`는 보관 중인 이전 파일의 상태라 여기서 보지 않는다. */
+private fun SheetAudio.requestMatches(sheetId: String, version: String, settings: SheetAudioSettings): Boolean =
+    this.sheetId == sheetId && scoreVersion == version && currentScoreVersion == version &&
         instrumentId == settings.instrumentId && bpm == settings.bpm && withJangdan == settings.withJangdan
+
+/** 완료된 파일이 이 판본·설정의 최신 음원인지 본다. */
+private fun SheetAudio.matches(sheetId: String, version: String, settings: SheetAudioSettings): Boolean =
+    requestMatches(sheetId, version, settings) && !outdated
 
 /** 확인된 패턴 칸 음가로 한 주기를 악보의 tick 단위로 바꾼다. */
 internal fun CatalogJangdanDetail.playbackFor(timing: ScoreTiming): JangdanPlayback? {

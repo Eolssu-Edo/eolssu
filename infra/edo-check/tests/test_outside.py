@@ -135,3 +135,81 @@ class OutsideTests(unittest.TestCase):
             self.assertEqual(len(output.getvalue().splitlines()), 1)
             self.assertEqual(json.loads(output.getvalue()[3:])['target'], 'relay')
             self.assertEqual(json.loads(output.getvalue()[3:])['event'], 'outage_started')
+
+
+class Edo2NoticeTests(unittest.TestCase):
+    HEALTHY = {'relay': {'ok': True, 'detail': 'HTTP 200 · 중계 JSON 정상'},
+               'terms': {'ok': True, 'detail': 'HTTP 200 · 약관 목록 JSON 정상'}}
+    DOWN = {**HEALTHY, 'relay': {'ok': False, 'detail': 'HTTPS 요청 실패'}}
+
+    def setUp(self):
+        self.directory = TemporaryDirectory()
+        root = Path(self.directory.name)
+        self.state_file = root / 'state' / 'latest.json'
+        self.state_file.parent.mkdir()
+        credentials = root / 'credentials'
+        credentials.mkdir()
+        (credentials / 'webhook-url').write_text('https://meeting.ssafy.com/hooks/abc123\n')
+        self.env = {'CREDENTIALS_DIRECTORY': str(credentials)}
+        self.alert = load('alert')
+        self.sent = []
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def run_minutes(self, results, send=None, env=None):
+        output = StringIO()
+        sender = send or (lambda transport, url, text: self.sent.append((url, text)))
+        for minute, result in enumerate(results):
+            snapshot = {'captured_at': f'2026-11-15T07:{minute:02}:00Z', **result}
+            with patch.object(outside, 'STATE_FILE', self.state_file), \
+                    patch.object(outside, 'collect', return_value=snapshot), \
+                    patch.object(outside, 'load_alert', return_value=self.alert), \
+                    patch.object(self.alert, 'send', side_effect=sender), \
+                    patch.object(outside.time, 'time', return_value=1_800_000_000 + minute * 60), \
+                    patch.dict(outside.os.environ, self.env if env is None else env, clear=True), \
+                    redirect_stdout(output):
+                outside.main()
+            self.assertEqual(json.loads(self.state_file.read_text()), snapshot, 'snapshot is always published')
+        return output.getvalue()
+
+    def test_confirmed_edo2_outage_and_recovery_are_posted_once_each(self):
+        log = self.run_minutes([self.HEALTHY, self.DOWN, self.DOWN, self.DOWN, self.HEALTHY, self.HEALTHY, self.HEALTHY])
+        self.assertEqual(len(self.sent), 2)
+        url, outage = self.sent[0]
+        self.assertEqual(url, 'https://meeting.ssafy.com/hooks/abc123')
+        self.assertIn('❌ 장애', outage)
+        self.assertIn('edo2 중계 HTTPS(edo1에서 확인)', outage)
+        self.assertIn('HTTPS 요청 실패', outage)
+        self.assertNotIn('hooks/abc123', outage)
+        self.assertIn('✅ 복구', self.sent[1][1])
+        self.assertIn('장애 3분 뒤 복구', self.sent[1][1])
+        self.assertEqual(log.count('"event": "edo2_notice"'), 2)
+
+    def test_single_failed_minute_is_not_posted(self):
+        self.run_minutes([self.HEALTHY, self.DOWN, self.HEALTHY, self.HEALTHY])
+        self.assertEqual(self.sent, [])
+
+    def test_without_credential_only_journal_lines_are_written(self):
+        log = self.run_minutes([self.DOWN, self.DOWN], env={})
+        self.assertEqual(self.sent, [])
+        self.assertFalse((self.state_file.parent / 'alert.json').exists())
+        self.assertIn('outage_started', log)
+
+    def test_certain_failure_retries_next_minute_and_errors_never_block_the_snapshot(self):
+        def refuse(transport, url, text):
+            raise self.alert.NotDelivered('connect')
+        self.run_minutes([self.DOWN, self.DOWN], send=refuse)
+        self.assertEqual(self.sent, [])
+        self.run_minutes([self.DOWN])
+        self.assertEqual(len(self.sent), 1, 'the refused outage notice is sent on the next minute')
+
+        with patch.object(outside, 'notify_edo2', side_effect=RuntimeError('boom')):
+            log = self.run_minutes([self.HEALTHY])
+        self.assertIn('edo2_notice_error', log)
+
+    def test_unit_reuses_existing_root_only_webhook(self):
+        unit = (Path(__file__).parents[1] / 'edo-check-outside.service').read_text()
+        self.assertIn('LoadCredential=webhook-url:/etc/eolssu-jenkins-notify/webhook-url', unit)
+        self.assertIn('DynamicUser=yes', unit)
+        self.assertIn('TimeoutStartSec=40s', unit)

@@ -288,6 +288,20 @@ class PracticeScorePackingTest {
     }
 
     @Test
+    fun twelveCellGakStaysOneColumnWhenItFitsAtTheReadableFloor() {
+        // S15P31E102-922 정악대금 한오백년: 12정간 각이 32dp로는 안 들어가도 24dp 이상이면 6·6으로 쪼개지 않고 한 각을 한 줄로 둔다.
+        val score = Score(List(4) { List(12) { cell } })
+        val height = 14.dp + metrics.headHeight + 2.dp + 28.dp * 12
+        val packing = practiceScorePacking(score, metrics, height)
+        assertTrue(!packing.splitColumns)
+        assertEquals(1, packing.columnsPerStack)
+        assertEquals(28f, packing.metrics.cellHeight.value, 0.01f)
+        assertTrue(renderedHeight(packing, 1f) <= height)
+        // 글자도 정간과 같은 비율로 줄인다.
+        assertEquals(metrics.yulSize.value * 28f / 32f, packing.metrics.yulSize.value, 0.01f)
+    }
+
+    @Test
     fun columnsThatFitAtMinimumKeepOneLinePerColumn() {
         val score = Score(List(4) { arirangColumn() })
         val packing = practiceScorePacking(score, metrics, 700.dp)
