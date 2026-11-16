@@ -9,6 +9,7 @@
 - [홈 첫 화면 그림을 전각 전경 그림으로 교체 (983)](plans/S15P31E102-983.md)
 - [최신 설치 APK의 QA 앱 로그 수집 연결 복구 (994)](plans/S15P31E102-994.md) · [원본 보존 수집 계약](specs/qa-installed-app-logs.md)
 - [Windows QA 실행·관측 통합 (936 · 과거 격리 환경)](plans/S15P31E102-936.md) · [당시 요구사항](specs/qa-live-control.md) · [현행 QA 시연 대본](../infra/qa-phone/public/guide.html) · [현행 QA 운영](../infra/qa-phone/LIVE.md)
+- [강원도아리랑·옹헤야 빠르기를 정간 단위로 바꿔 40~200 범위에 맞추기 (1019)](plans/S15P31E102-1019.md) · [운영 적용 기록](knowledge/data/score-tempo-1019.md)
 - [S10 실제 마이크·평가 로그 대조](knowledge/infra/qa-s10-real-microphone-verification.md)
 - [S10 기초 콘텐츠 화면·진도·실제 스피커 확인](knowledge/infra/qa-s10-content-verification.md)
 - [통합 QA 실제 적용·최신 APK·기기별 경계와 검증](knowledge/infra/qa-multi-device-rollout.md)
