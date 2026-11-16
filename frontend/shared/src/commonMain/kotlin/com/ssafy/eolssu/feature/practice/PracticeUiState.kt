@@ -148,11 +148,11 @@ data class PracticeUiState(
     /** 화면 제목. 내 악보면 그 악보 제목, 아니면 곡 제목. */
     val title: String get() = sheetTitle ?: song?.title.orEmpty()
 
-    /** ‘운지법과 함께 보기’(PANEL-00)가 켜져 정간 옆에 가로 악기 그림을 함께 보는 중. */
+    /** 제목 줄 ‘운지법’ 버튼(운지법과 함께 보기)이 켜져 정간 옆에 가로 악기 그림을 함께 보는 중. */
     val fingeringView: Boolean get() = fingeringOverride ?: settings.fingeringView
 
     /**
-     * 운지 그림과 제목 옆 표시에 쓰는 악기. 연습 설정에서 고른 값이 없으면 곡 악보의 악기 코드를 따른다.
+     * 운지 그림과 제목 옆 표시에 쓰는 악기. 설정의 [PracticeSettings.instrumentId]가 없으면 곡 악보의 악기 코드를 따른다.
      * 정악·산조대금을 구분하며 기존 DAEGEUM은 정악대금 안공표를 쓴다. 프로필의 악기는 바꾸지 않는다.
      */
     val instrument: GuideInstrument
@@ -547,7 +547,8 @@ internal enum class PracticePlayerNotice {
     None, Loading, Failed, Unavailable, PersonalAudioUnavailable, PersonalDownloadFailed, PersonalScoreChanged, PersonalUnsupportedPitches, PersonalAudioReady, EmbeddedJangdan, Unsupported, Interrupted,
 }
 
-enum class PracticePersonalAudio { Checking, Missing, Preparing, Downloading, Failed, VersionChanged, UnsupportedPitches, Unsupported, Ready }
+/** [Queued]: 서버가 다른 음원을 먼저 만들어 이 음원은 대기 중. [Preparing]: 생성 요청 직후·생성 중. */
+enum class PracticePersonalAudio { Checking, Missing, Queued, Preparing, Downloading, Failed, VersionChanged, UnsupportedPitches, Unsupported, Ready }
 
 internal val PracticeUiState.personalAudioControl: PracticePersonalAudio?
     get() = personalAudio?.takeUnless { !mine || mode == PracticeMode.Rhythm || it == PracticePersonalAudio.Ready }

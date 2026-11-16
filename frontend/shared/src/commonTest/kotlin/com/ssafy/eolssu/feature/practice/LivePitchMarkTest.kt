@@ -188,7 +188,7 @@ class LivePitchMarkTest {
         val confirmed = tally(window(song, 0, 0.0)).confirmBefore(song, 1)
         assertEquals(keysOf(song, 0), livePitchMarks(recording, confirmed).keys)
         assertEquals(emptyMap(), livePitchMarks(recording.copy(solo = true), confirmed))
-        // ‘실시간 채점’을 끄면 색만 숨기고, 다시 켜면 모은 판정이 그대로 보인다(S15P31E102-980).
+        // ‘퍼펙트 스코어’(실시간 채점)를 끄면 색만 숨기고, 다시 켜면 모은 판정이 그대로 보인다(S15P31E102-980).
         assertEquals(emptyMap(), livePitchMarks(recording.copy(settings = PracticeSettings(liveMarks = false)), confirmed))
         assertEquals(keysOf(song, 0), livePitchMarks(recording.copy(settings = PracticeSettings(liveMarks = true)), confirmed).keys)
         assertEquals(emptyMap(), livePitchMarks(recording.copy(song = null), confirmed))
