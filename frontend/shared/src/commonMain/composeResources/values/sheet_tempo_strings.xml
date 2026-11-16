@@ -18,5 +18,7 @@
     <string name="sheet_tempo_end_cell">끝 정간</string>
     <string name="sheet_tempo_end_help">끝 정간의 시작에서 목표 빠르기에 도달해요. 악보 끝은 마지막 다음 각의 1정간이에요.</string>
     <string name="sheet_tempo_keep_change">이 구간 반영</string>
+    <string name="sheet_tempo_editing">수정 중</string>
+    <string name="sheet_tempo_new">새 구간 변경</string>
     <string name="sheet_tempo_position_unresolved">빠르기 기호의 위치를 읽지 못했어요. 빠르기 편집에서 시작 위치를 지정해 주세요.</string>
 </resources>
