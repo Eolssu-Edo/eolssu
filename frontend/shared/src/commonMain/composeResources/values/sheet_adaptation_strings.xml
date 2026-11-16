@@ -1,10 +1,7 @@
 <resources>
     <string name="sheet_adapt_tab">음역·이조</string>
-    <string name="sheet_adapt_choose_instrument">선택</string>
-    <string name="sheet_adapt_marker_legend">◆ 추천 · ◇ 최소 이조</string>
-    <string name="sheet_adapt_marker_single">◆ 추천</string>
+    <string name="sheet_adapt_marker_primary_short">추천</string>
     <string name="sheet_adapt_marker_primary">추천 %1$s</string>
-    <string name="sheet_adapt_marker_alternative">이조 폭 최소 %1$s</string>
     <string name="sheet_adapt_slider">이조 조절, 마이너스 6부터 플러스 6반음</string>
     <string name="sheet_adapt_decrease">이조 한 반음 내리기</string>
     <string name="sheet_adapt_increase">이조 한 반음 올리기</string>

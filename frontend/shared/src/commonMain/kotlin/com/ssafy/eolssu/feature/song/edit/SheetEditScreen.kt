@@ -84,7 +84,7 @@ class SheetEditActions(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostState, actions: SheetEditActions,
-    focusRequestKey: Int = 0, adaptationContent: @Composable () -> Unit = {},
+    focusRequestKey: Int = 0, adaptationContent: @Composable () -> Unit = {}, guideContent: @Composable () -> Unit = {},
     widthClass: WindowWidthClass = currentWindowLayout().widthClass) {
     val draft = state.draft
     val song = remember(draft) { draft.toSong() }
@@ -118,19 +118,25 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
             }
         }
         val scoreBoard: @Composable (Modifier) -> Unit = { modifier ->
-            EditScoreBoard(
-                song = song,
-                modifier = modifier,
-                marks = editorMarks(draft, state.selected, state.selectedSub, corrections, correctionUnits),
-                unitMarks = editorUnitMarks(draft, state.selected, state.selectedSub, correctionUnits),
-                annotations = remember(draft) { draft.annotations() },
-                focusCell = draft.columnOf(state.selected) to draft.rowOf(state.selected),
-                focusRequestKey = focusRequestKey,
-                onUnitClick = { column, row, unitRow, unitCol ->
-                    val index = draft.indexOf(column, row)
-                    actions.onSelectUnit(index, draft.subIndexOf(index, unitRow, unitCol))
-                },
-            )
+            // 가져온 악보 확인 안내는 악보 바로 위에 둬서 처음 열 때 보이게 한다(S15P31E102-979). 두 배치 모두 같다.
+            Column(modifier) {
+                guideContent()
+                EditScoreBoard(
+                    song = song,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    marks = editorMarks(draft, state.selected, state.selectedSub, corrections, correctionUnits,
+                        state.completionValidation.rangeCellIndices),
+                    unitMarks = editorUnitMarks(draft, state.selected, state.selectedSub, correctionUnits,
+                        state.completionValidation.rangeUnitKeys),
+                    annotations = remember(draft) { draft.annotations() },
+                    focusCell = draft.columnOf(state.selected) to draft.rowOf(state.selected),
+                    focusRequestKey = focusRequestKey,
+                    onUnitClick = { column, row, unitRow, unitCol ->
+                        val index = draft.indexOf(column, row)
+                        actions.onSelectUnit(index, draft.subIndexOf(index, unitRow, unitCol))
+                    },
+                )
+            }
         }
         val inputPanel: @Composable (docked: Boolean) -> Unit = { docked ->
             EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.supportedInputPitches, state.canUndo, state.canRedo, actions.input,

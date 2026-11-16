@@ -3,6 +3,8 @@ package com.ssafy.eolssu.core.ui.component
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -72,6 +76,8 @@ fun EolssuTextField(
     val shape = RoundedCornerShape(12.dp)
     val focusManager = LocalFocusManager.current
     val hideKeyboard = rememberHideKeyboard()
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (!labelInside) Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
         val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, color = colors.text)
@@ -79,6 +85,7 @@ fun EolssuTextField(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
+            interactionSource = interaction,
             textStyle = textStyle,
             cursorBrush = SolidColor(colors.text),
             visualTransformation = if (type == TextFieldType.Password) PasswordVisualTransformation() else VisualTransformation.None,
@@ -120,10 +127,11 @@ fun EolssuTextField(
                         .heightIn(min = fieldHeight)
                         .background(containerColor ?: colors.surface, shape)
                         // [bordered]가 false면 오류일 때도 테두리 없이 같은 바탕색 칸을 두고, 오류는 아래 문장으로만 알린다(S15P31E102-798).
+                        // 다만 고른(포커스) 칸은 어디인지 보이도록 연두 1.5dp 테두리를 두른다(S15P31E102-969).
                         // 테두리 있는 칸은 오류일 때 빨간 테두리를 두른다.
                         .then(
                             when {
-                                !bordered -> Modifier
+                                !bordered -> if (focused) Modifier.border(1.5.dp, colors.primary, shape) else Modifier
                                 error != null -> Modifier.border(1.5.dp, colors.rec, shape)
                                 else -> Modifier.border(1.dp, colors.line, shape)
                             },

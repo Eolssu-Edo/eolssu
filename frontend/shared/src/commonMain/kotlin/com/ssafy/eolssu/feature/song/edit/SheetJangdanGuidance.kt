@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheet_jangdan_beat_quarter
@@ -51,7 +54,7 @@ private fun beatFraction(numerator: Long, denominator: Long): String {
 
 @Composable
 internal fun SheetJangdanOptionLabel(option: CatalogJangdanSummary) {
-    Column {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(option.name)
         option.jangdanBeats()?.let { beats ->
             Text(stringResource(Res.string.sheet_jangdan_option_beats, beats, beatUnitName(option.bpmUnit)),
@@ -62,10 +65,14 @@ internal fun SheetJangdanOptionLabel(option: CatalogJangdanSummary) {
 
 @Composable
 internal fun SheetJangdanNoMatchHelp() {
-    Text(stringResource(Res.string.sheet_jangdan_no_match_help), style = MaterialTheme.typography.bodySmall)
+    Text(stringResource(Res.string.sheet_jangdan_no_match_help), style = dialogHelpStyle(), color = EolssuTheme.colors.textSub)
 }
 
 @Composable
 private fun beatUnitName(unit: String): String = stringResource(
     if (unit == "DOTTED_QUARTER") Res.string.sheet_jangdan_beat_dotted_quarter else Res.string.sheet_jangdan_beat_quarter,
 )
+
+/** 다이얼로그 본문 안내와 같은 크기·색으로 맞춘다. */
+@Composable
+internal fun dialogHelpStyle() = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp)
