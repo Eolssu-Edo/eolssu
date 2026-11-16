@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.diagnostics.PerfSource
 import com.ssafy.eolssu.core.diagnostics.PerfTarget
 import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.ScoreBpmUnit
 import com.ssafy.eolssu.core.model.ScorePerformance
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
@@ -75,7 +76,7 @@ class ApiModelAudioRepository(
         if (response.status.value != 200) throw CatalogUnavailable()
         val audio = response.apiResponse<ModelAudio>()?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
         if (audio.songId != songId || audio.scoreVersion <= 0 || audio.bpm !in 30..400 ||
-            audio.bpmUnit !in setOf("QUARTER", "DOTTED_QUARTER") ||
+            audio.bpmUnit !in ModelAudioBpmUnits ||
             audio.durationMs !in 1..Int.MAX_VALUE.toLong() || audio.startOffsetMs !in 0 until audio.durationMs ||
             audio.contentType !in setOf("audio/mp4", "audio/mpeg", "audio/ogg", "audio/wav") ||
             !audio.sha256.matches(Sha256) || !audio.matches(song)
@@ -145,6 +146,8 @@ private fun sameServerPlaybackUrl(base: Url, path: String, revision: ModelAudio?
 }
 
 private val Sha256 = Regex("[a-f0-9]{64}")
+// Score timing already defines every published unit; matches(song) still requires the score's own unit.
+private val ModelAudioBpmUnits = ScoreBpmUnit.entries.map { it.name }.toSet()
 private const val MaxPerformanceChars = 2_000_000
 private const val MaxCachedPerformances = 4
 
