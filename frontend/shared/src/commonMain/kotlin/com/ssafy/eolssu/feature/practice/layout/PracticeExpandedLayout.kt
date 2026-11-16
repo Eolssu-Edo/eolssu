@@ -16,6 +16,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.feature.practice.LivePitchCell
 import com.ssafy.eolssu.feature.practice.PracticeScreenActions
+import com.ssafy.eolssu.feature.practice.component.PracticeOptionButtonRow
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.component.PracticeScoreArea
@@ -42,7 +43,8 @@ internal fun PracticeExpandedLayout(
             // 상단 바 안쪽 여백(20dp)과 합쳐 내용 양옆이 40dp 이상, 내용 너비는 최대 1120dp가 되게 한다.
             PracticeTopBar(
                 state, actions.onBack, actions.onOpenSettings, Modifier.padding(horizontal = SideGutter / 2),
-                maxWidth = WindowBreakpoints.ContentMaxWidth + SideGutter, showSettings = false, onToggleStep = actions.bottom.onToggleStep,
+                maxWidth = WindowBreakpoints.ContentMaxWidth + SideGutter, showSettings = false,
+                options = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep, fingering = false) },
             )
         },
     ) {

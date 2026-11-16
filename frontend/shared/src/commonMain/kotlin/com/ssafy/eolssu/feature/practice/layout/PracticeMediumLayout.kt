@@ -16,6 +16,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.feature.practice.LivePitchCell
 import com.ssafy.eolssu.feature.practice.PracticeScreenActions
+import com.ssafy.eolssu.feature.practice.component.PracticeOptionButtonRow
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomContent
@@ -40,7 +41,7 @@ internal fun PracticeMediumLayout(
         topBar = {
             PracticeTopBar(
                 state, actions.onBack, actions.onOpenSettings, Modifier.padding(horizontal = 12.dp), maxWidth = WindowBreakpoints.ContentMaxWidth,
-                onToggleStep = actions.bottom.onToggleStep,
+                options = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep, fingering = false) },
             )
         },
         bottomBar = {

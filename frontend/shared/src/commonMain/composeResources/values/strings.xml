@@ -104,7 +104,7 @@
     <string name="practice_big_score">크게 보기</string>
     <string name="practice_apply">적용</string>
 
-    <string name="practice_notation_hangul">한글 읽는 법 표시</string>
+    <string name="practice_notation_hangul">한글 표기</string>
 
     <string name="practice_fingering_title">운지법</string>
     <string name="practice_fingering_instrument">현재 악기: %1$s</string>
@@ -171,10 +171,9 @@
     <string name="practice_seek_back_desc">5초 뒤로</string>
     <string name="practice_seek_forward_desc">5초 앞으로</string>
     <string name="practice_notice_eval">평가를 시작하면 마이크로 연주를 듣고 음정·박자·음 길이를 확인해요.</string>
-    <string name="practice_instrument">연습 악기</string>
     <string name="practice_jangdan_sound_off">%1$s · 소리 꺼짐</string>
-    <string name="practice_fingering_view">운지법과 함께 보기</string>
-    <string name="practice_live_marks">실시간 채점</string>
+    <string name="practice_fingering_view">운지법</string>
+    <string name="practice_live_marks">퍼펙트 스코어</string>
     <string name="practice_fingering_rest">쉼 · 숨을 고르세요</string>
     <string name="practice_fingering_desc">막는 구멍 %1$s</string>
     <string name="practice_fingering_none">없음</string>

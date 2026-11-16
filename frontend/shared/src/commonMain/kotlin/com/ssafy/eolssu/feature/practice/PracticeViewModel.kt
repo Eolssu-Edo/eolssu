@@ -706,21 +706,18 @@ class PracticeViewModel(
 
     fun toggleBigScore() = settingsStore.update { it.copy(bigScore = !it.bigScore) }
 
-    /** 연습 설정의 ‘운지법과 함께 보기’. 바로 반영된다(적용 버튼 없음). */
+    /** 제목 줄 ‘운지법’ 버튼(운지법과 함께 보기). 바로 반영된다(적용 버튼 없음). */
     /** 기초부터 배우기 곡 연습은 저장한 설정을 바꾸지 않고 이 화면에서만 켜고 끈다. */
     fun toggleFingeringView() {
         if (_uiState.value.fingeringOverride != null) _uiState.update { it.copy(fingeringOverride = !it.fingeringView) }
         else settingsStore.update { it.copy(fingeringView = !it.fingeringView) }
     }
 
-    /** 연습 설정의 ‘한글 읽는 법 표시’ 스위치. 바로 켜고 끈다(S15P31E102-875). */
+    /** 제목 줄 ‘한글 표기’ 버튼. 바로 켜고 끈다(S15P31E102-875·1037). */
     fun toggleHangul() = settingsStore.update { it.copy(showHangul = !it.showHangul) }
 
-    /** 연주 설정의 ‘실시간 채점’ 스위치. 판정 색만 숨기거나 다시 보이고, 판정 집계는 그대로 둔다(S15P31E102-980). */
+    /** 제목 줄 ‘퍼펙트 스코어’ 버튼(실시간 채점). 판정 색만 숨기거나 다시 보이고, 판정 집계는 그대로 둔다(S15P31E102-980·1037). */
     fun toggleLiveMarks() = settingsStore.update { it.copy(liveMarks = !it.liveMarks) }
-
-    /** 연습 설정의 ‘연습 악기’. 운지 그림과 제목 옆 표시에만 쓰고 프로필 악기는 바꾸지 않는다. */
-    fun setInstrument(id: String) = settingsStore.update { it.copy(instrumentId = id) }
 
     /** 플레이어의 −5초·+5초. 음원을 아직 받지 않았어도 타임라인과 다음 재생 위치를 옮긴다. */
     fun seekModel(deltaMs: Long) {

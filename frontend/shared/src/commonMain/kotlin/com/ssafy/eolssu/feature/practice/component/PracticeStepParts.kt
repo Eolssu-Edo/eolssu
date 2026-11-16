@@ -13,12 +13,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -37,16 +34,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.audio.AudioPlaybackState
@@ -61,119 +55,18 @@ import com.ssafy.eolssu.feature.practice.StepPhase
 import com.ssafy.eolssu.feature.practice.reading
 import com.ssafy.eolssu.feature.practice.stepRepeatsPrevious
 import com.ssafy.eolssu.feature.practice.stepShownIndex
-import com.ssafy.eolssu.feature.practice.stepToggleEnabled
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_step_finished
 import eolssu.shared.generated.resources.practice_step_listen_desc
 import eolssu.shared.generated.resources.practice_step_manual_confirm
 import eolssu.shared.generated.resources.practice_step_mine
 import eolssu.shared.generated.resources.practice_step_now
-import eolssu.shared.generated.resources.practice_step_off
-import eolssu.shared.generated.resources.practice_step_on
 import eolssu.shared.generated.resources.practice_step_rec_desc_on
 import eolssu.shared.generated.resources.practice_step_rec_desc_resume
 import eolssu.shared.generated.resources.practice_step_rec_desc_start
 import eolssu.shared.generated.resources.practice_step_recording
 import eolssu.shared.generated.resources.practice_step_repeat_hint
-import eolssu.shared.generated.resources.practice_step_toggle
-import eolssu.shared.generated.resources.practice_step_toggle_desc
 import org.jetbrains.compose.resources.stringResource
-
-/**
- * 설정 버튼 옆 작은 ‘한 음씩’ 토글(와이어프레임 STEP_TOGGLE): 32dp 높이 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두).
- * 화면 읽기에는 ‘한 음씩 따라 불기 켜짐/꺼짐’ 스위치로 읽힌다. 혼자 연습의 준비·모범 연주·장단으로 연습 상태에서만 누를 수 있다.
- */
-@Composable
-fun PracticeStepToggle(state: PracticeUiState, onToggle: () -> Unit, modifier: Modifier = Modifier) {
-    val on = state.step.on
-    PracticeMiniToggle(
-        label = stringResource(Res.string.practice_step_toggle),
-        on = on,
-        onToggle = onToggle,
-        modifier = modifier,
-        enabled = state.stepToggleEnabled,
-        description = stringResource(Res.string.practice_step_toggle_desc, stringResource(if (on) Res.string.practice_step_on else Res.string.practice_step_off)),
-    )
-}
-
-/**
- * 작은 알약 스위치: 32dp 높이 테두리 없는 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두).
- * 누르는 곳은 스위치뿐이다(S15P31E102-924). 글자나 알약 바탕을 눌러도 바뀌지 않는다.
- * 스위치는 보이는 크기를 그대로 두고 둘레로 [MiniSwitchTouch] 정사각형만큼 눌리게 넓힌다.
- * 화면 읽기에는 스위치 하나가 [description]으로 읽히고 글자는 따로 읽히지 않는다.
- * ‘한 음씩’ 토글과 연주 평가 제목 옆 ‘운지법 보기’(S15P31E102-716)가 함께 쓴다.
- */
-@Composable
-fun PracticeMiniToggle(
-    label: String,
-    on: Boolean,
-    onToggle: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    description: String = label,
-) {
-    val colors = EolssuTheme.colors
-    Row(
-        modifier.heightIn(min = MiniSwitchTouch),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            Modifier
-                .height(32.dp)
-                .background(colors.surface, RoundedCornerShape(16.dp))
-                .padding(start = 10.dp, end = 5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                label,
-                modifier = Modifier.clearAndSetSemantics {},
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
-                color = if (enabled) colors.text else colors.textDisabled,
-                maxLines = 1,
-            )
-            // 배치에는 30×18dp만 차지하고, 누르는 영역은 그 둘레로 넓혀 알약 밖까지 걸친다.
-            // 눌림 효과는 넓힌 영역이 아니라 보이는 알약 안에만 그린다(S15P31E102-968).
-            val interaction = remember { MutableInteractionSource() }
-            Box(
-                Modifier
-                    .layout { measurable, _ ->
-                        val touch = MiniSwitchTouch.roundToPx()
-                        val width = MiniSwitchWidth.roundToPx()
-                        val height = MiniSwitchHeight.roundToPx()
-                        val placeable = measurable.measure(Constraints.fixed(touch, touch))
-                        layout(width, height) { placeable.place((width - touch) / 2, (height - touch) / 2) }
-                    }
-                    .toggleable(value = on, interactionSource = interaction, indication = null, enabled = enabled, role = Role.Switch, onValueChange = { onToggle() })
-                    .semantics { contentDescription = description },
-                contentAlignment = Alignment.Center,
-            ) {
-                // 다른 스위치([com.ssafy.eolssu.core.ui.component.EolssuSwitch])와 같은 색·그림자 없는 손잡이(S15P31E102-768).
-                Box(
-                    Modifier
-                        .width(MiniSwitchWidth)
-                        .height(MiniSwitchHeight)
-                        .clip(RoundedCornerShape(9.dp))
-                        .background(if (on) colors.primary else colors.line)
-                        .indication(interaction, ripple()),
-                ) {
-                    Box(
-                        Modifier
-                            .offset(x = if (on) 14.dp else 2.dp, y = 2.dp)
-                            .size(14.dp)
-                            .background(colors.surface, CircleShape),
-                    )
-                }
-            }
-        }
-    }
-}
-
-private val MiniSwitchWidth = 30.dp
-private val MiniSwitchHeight = 18.dp
-
-/** 작은 스위치 하나를 누르는 정사각형 한 변. 손가락 누름 기준 44dp 이상. */
-private val MiniSwitchTouch = 44.dp
 
 /** 한 음씩 '현재 정간' 칸의 예시음 재생기: 누를 때 부를 [play]와 지금 재생 상태 [playback](S15P31E102-1006). */
 class StepNoteAudio(val play: (FingeringNote) -> Unit, val playback: AudioPlaybackState = AudioPlaybackState())
