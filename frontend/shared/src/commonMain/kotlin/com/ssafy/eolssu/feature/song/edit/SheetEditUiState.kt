@@ -94,6 +94,7 @@ enum class SheetEditMessage {
 
     /** 서버 문서가 없는 경로 등에서 제공하지 않는 기능. */
     ComingSoon,
+    JangdanUnavailable,
 }
 
 /**

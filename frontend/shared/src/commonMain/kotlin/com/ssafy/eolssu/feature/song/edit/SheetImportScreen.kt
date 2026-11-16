@@ -28,6 +28,8 @@ import androidx.compose.runtime.setValue
 import com.ssafy.eolssu.core.storage.SheetFileSource
 import com.ssafy.eolssu.core.storage.sheetFileSources
 import com.ssafy.eolssu.feature.song.edit.component.SheetUploadGuideCard
+import com.ssafy.eolssu.feature.song.edit.component.SheetTutorial
+import com.ssafy.eolssu.feature.song.edit.component.SheetTutorials
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.semantics.*
@@ -100,6 +102,7 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                         }
                     }
                 }
+                if (editable && state.error == null) SheetTutorials(SheetTutorial.Upload)
                 SheetUploadGuideCard(kind)
                 UploadCard {
                     EolssuTextField(

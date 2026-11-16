@@ -83,6 +83,8 @@ import com.ssafy.eolssu.feature.song.edit.EditTab
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.Sigimsae
 import com.ssafy.eolssu.feature.song.edit.YulRegister
+import eolssu.shared.generated.resources.sheet_tempo_before_reshape
+import eolssu.shared.generated.resources.sheetedit_sig_pitch_help
 import com.ssafy.eolssu.feature.song.edit.isAvailablePitch
 import com.ssafy.eolssu.feature.song.edit.isPitch
 import com.ssafy.eolssu.feature.song.edit.pitchKey
@@ -157,6 +159,7 @@ internal fun EditInputPanel(
     saveFeedback: @Composable () -> Unit = {},
     adaptationContent: @Composable () -> Unit = {},
     docked: Boolean = false,
+    hasTempoPlan: Boolean,
 ) {
     val colors = EolssuTheme.colors
     val shape = if (docked) RoundedCornerShape(20.dp) else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
@@ -194,7 +197,7 @@ internal fun EditInputPanel(
             EditTab.Adaptation -> adaptationContent()
             EditTab.Yul -> YulKeys(draft, selected, selectedSub, register, availablePitches, actions, wrapKeys = docked)
             EditTab.Sigimsae -> SigimsaeKeys(draft, selected, draft.sigimsaeSub(selected, selectedSub), actions)
-            EditTab.Cell -> CellTools(draft, actions)
+            EditTab.Cell -> CellTools(draft, actions, hasTempoPlan)
         }
     }
 }
@@ -474,6 +477,7 @@ private fun SigimsaeKeys(draft: SheetDraft, selected: Int, sub: Int, actions: Ed
                 }
             }
         }
+        HintText(stringResource(Res.string.sheetedit_sig_pitch_help))
         val listState = rememberLazyListState()
         Box {
             LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
@@ -581,12 +585,15 @@ private fun SigimsaeTile(value: Sigimsae) {
 
 /** 정간 나누기·합치기, 각 추가·삭제, 장단 정보와 '장단 바꾸기'. */
 @Composable
-private fun CellTools(draft: SheetDraft, actions: EditInputActions) {
+private fun CellTools(draft: SheetDraft, actions: EditInputActions, hasTempoPlan: Boolean) {
     val colors = EolssuTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ToolButton(stringResource(Res.string.sheetedit_cell_split), actions.onSplit, Modifier.weight(1f))
             ToolButton(stringResource(Res.string.sheetedit_cell_merge), actions.onMerge, Modifier.weight(1f))
+        }
+        if (hasTempoPlan) {
+            HintText(stringResource(Res.string.sheet_tempo_before_reshape))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ToolButton(stringResource(Res.string.sheetedit_cell_add_column), actions.onAddColumn, Modifier.weight(1f))
