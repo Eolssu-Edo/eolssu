@@ -1,18 +1,20 @@
 package com.ssafy.eolssu.core.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
@@ -28,12 +30,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -47,7 +52,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
@@ -236,11 +240,22 @@ fun EolssuDialog(
     actions: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = EolssuTheme.colors
-    Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(onDismissRequest = onDismissRequest, properties = eolssuDialogProperties()) {
+        // 창을 화면 크기로 고정하고 시스템 바·키보드 여백은 여기서만 넣는다. 창이 내용에 맞춰 줄면 키보드와 겹치는 높이가
+        // 바뀔 때마다 여백과 창 크기가 서로 따라 움직여 입력 중 창이 흔들린다(S15P31E102-1000).
+        // 창이 화면을 덮으므로 바깥 누름은 플랫폼 대신 여기서 받아 닫는다.
+        val dismiss by rememberUpdatedState(onDismissRequest)
+        Box(
+            Modifier.fillMaxSize()
+                .pointerInput(Unit) { detectTapGestures { dismiss() } }
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+            contentAlignment = Alignment.Center,
+        ) {
         // 휴대폰 가로·큰 글꼴·키보드로 높이가 모자라면 위쪽 내용만 스크롤하고 버튼은 아래에 고정한다.
         Column(
             modifier
-                .imePadding()
+                // 카드와 둘레 여백을 누르면 닫히지 않게 여기서 받는다. 전에도 이 여백은 창 안이었다.
+                .pointerInput(Unit) { detectTapGestures { } }
                 .padding(horizontal = 28.dp, vertical = 16.dp)
                 .widthIn(max = maxWidth)
                 .fillMaxWidth()
@@ -270,6 +285,7 @@ fun EolssuDialog(
                 }
             }
             Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
+        }
         }
     }
 }

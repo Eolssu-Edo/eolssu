@@ -20,7 +20,7 @@ class SignUpService(
 ) {
     fun signUp(command: SignUpCommand): SignUpResult {
         val email = command.email.lowercase(Locale.ROOT)
-        if (email.length > 320 || !PasswordPolicy.isValid(command.password)) return SignUpResult.InvalidRequest
+        if (email.length > EmailPolicy.MAX_LENGTH || !PasswordPolicy.isValid(command.password)) return SignUpResult.InvalidRequest
         if (command.agreements.map { it.termId }.toSet().size != command.agreements.size) return SignUpResult.InvalidRequest
         // Argon2 계산은 잠금 밖에서 끝낸다.
         val passwordHash = checkNotNull(passwordEncoder.encode(command.password))

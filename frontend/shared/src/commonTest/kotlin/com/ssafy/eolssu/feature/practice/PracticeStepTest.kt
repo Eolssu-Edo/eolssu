@@ -65,7 +65,8 @@ class PracticeStepTest {
         val on = solo.toggleStep()
         assertTrue(on.stepUi)
         assertEquals(StepPhase.Idle, on.step.phase)
-        assertNull(on.stepCurrentIndex)
+        // '내 연주'를 누르기 전에도 첫 음에 연두 테두리를 둔다(S15P31E102-1006).
+        assertEquals(0, on.stepCurrentIndex)
         assertEquals(0, on.stepShownIndex)
         assertFalse(on.toggleStep().stepUi)
     }
@@ -127,15 +128,47 @@ class PracticeStepTest {
         assertTrue(resumed.stepBusy)
     }
 
-    @Test fun busyStepBlocksScoreSelectionAndCountsAsPracticeActivity() {
+    /** 한 음씩에서 악보를 누르면 운지법을 열지 않고 지금 음을 그 자리로 옮긴다(S15P31E102-1006). */
+    @Test fun tappingScoreMovesStepTargetInsteadOfOpeningFingering() {
         val listening = solo.toggleStep().tapStepPlaying()
-        val tapped = requireNotNull(listening.song).displayUnits[5]
-        assertEquals(listening, listening.selectUnit(tapped))
         assertEquals(setOf(ContinuousActivity.RECORDING), listening.runningActivities)
+        val units = requireNotNull(listening.song).displayUnits
+        fun unitAt(index: Int) = units.first { it.event.index == index }
+
+        val moved = listening.selectUnit(unitAt(5))
+        assertEquals(StepPhase.Listening, moved.step.phase)
+        assertEquals(5, moved.step.target)
+        assertNull(moved.panel)
+        assertEquals(listening.selected, moved.selected)
+
+        // 쉼(△)을 누르면 다음 음, 이음(ㅡ)을 누르면 이어 내는 앞 음으로 옮긴다.
+        assertEquals(3, listening.moveStepTo(2).step.target)
+        assertEquals(0, listening.moveStepTo(1).step.target)
+
+        // 시작 전에 누르면 그 음에서 멈춤으로 두고, '내 연주'를 누르면 그 음부터 듣는다.
+        val idle = solo.toggleStep().selectUnit(unitAt(5))
+        assertEquals(StepPhase.Paused, idle.step.phase)
+        assertEquals(5, idle.stepCurrentIndex)
+        assertEquals(5, idle.tapStepPlaying().step.target)
+
         val paused = listening.pauseStep()
-        assertEquals(StepPhase.Paused, paused.step.phase)
         assertEquals(emptySet(), paused.runningActivities)
-        assertEquals(5, paused.selectUnit(tapped).selected)
+        assertEquals(3, paused.selectUnit(unitAt(3)).stepCurrentIndex)
+    }
+
+    /** 앞과 같은 음을 기다리면 한 번 끊고 불라는 안내를 둔다(S15P31E102-1006). */
+    @Test fun repeatedSameNoteIsFlaggedWhileListening() {
+        val repeated = song.copy(
+            score = Score(listOf(listOf(ScoreCell(pitch(Yul.Hwangjong)), ScoreCell(pitch(Yul.Hwangjong)), ScoreCell(pitch(Yul.Taeju))))),
+        )
+        val on = PracticeUiState(song = repeated, solo = true).toggleStep()
+        assertFalse(on.stepRepeatsPrevious)
+        val listening = on.tapStepPlaying()
+        assertFalse(listening.stepRepeatsPrevious)
+        val second = listening.matchStepNote(0)
+        assertTrue(second.stepRepeatsPrevious)
+        assertFalse(second.pauseStep().stepRepeatsPrevious)
+        assertFalse(second.matchStepNote(1).stepRepeatsPrevious)
     }
 
     @Test fun turningOffWhileListeningKeepsPositionPausedForLater() {

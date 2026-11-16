@@ -1,10 +1,15 @@
 # 프로젝트 문서
 
 - [연습 악보에서 쉼표를 눌러도 운지법 팝업 열기 (1007)](plans/S15P31E102-1007.md)
+- [홈 낮은 가로 창에서 첫 화면 제목과 시작 버튼 겹침 수정 (1026)](plans/S15P31E102-1026.md)
+- [악보 편집 임시저장 닫기 지연과 빠르기 입력 창 흔들림 수정 (1000)](plans/S15P31E102-1000.md)
+- [홈 휴대폰 가로 그림 제거와 웹 공통 테스트 컴파일 오류 수정 (1025)](plans/S15P31E102-1025.md)
+- [악보 올리기 흐름의 화면 이동·파일 선택·사전 안내 개선 (997)](plans/S15P31E102-997.md)
 - [홈 첫 화면 그림 4종 디자인 수정 요청 반영 (1015)](plans/S15P31E102-1015.md)
 - [가사 있는 오선보의 가사 기호 오인식 차단 (992)](plans/S15P31E102-992.md)
 - [홈 첫 화면 그림을 전각 전경 그림으로 교체 (983)](plans/S15P31E102-983.md)
-- [Windows QA 실행·관측 통합 (936)](plans/S15P31E102-936.md) · [요구사항](specs/qa-live-control.md) · [QA 시연 대본](../infra/qa-phone/public/guide.html) · [운영 실행·증거 해석](../infra/qa-phone/LIVE.md)
+- [최신 설치 APK의 QA 앱 로그 수집 연결 복구 (994)](plans/S15P31E102-994.md) · [원본 보존 수집 계약](specs/qa-installed-app-logs.md)
+- [Windows QA 실행·관측 통합 (936 · 과거 격리 환경)](plans/S15P31E102-936.md) · [당시 요구사항](specs/qa-live-control.md) · [현행 QA 시연 대본](../infra/qa-phone/public/guide.html) · [현행 QA 운영](../infra/qa-phone/LIVE.md)
 - [S10 실제 마이크·평가 로그 대조](knowledge/infra/qa-s10-real-microphone-verification.md)
 - [S10 기초 콘텐츠 화면·진도·실제 스피커 확인](knowledge/infra/qa-s10-content-verification.md)
 - [통합 QA 실제 적용·최신 APK·기기별 경계와 검증](knowledge/infra/qa-multi-device-rollout.md)
@@ -632,3 +637,4 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 - [입력칸 글자 수 상한과 메모 입력 방식 (996)](knowledge/frontend/input-length-limits.md)
 - [악보 빠르기 범위 40~200 (1018)](knowledge/frontend/sheet-tempo-range.md)
+- [강원도아리랑·옹헤야 빠르기 정간 단위 표기와 운영 적용 (1019)](knowledge/data/score-tempo-1019.md)

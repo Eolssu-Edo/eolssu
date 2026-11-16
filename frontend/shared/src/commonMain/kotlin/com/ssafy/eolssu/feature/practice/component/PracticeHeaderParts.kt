@@ -89,7 +89,8 @@ fun PracticeTopBar(
 }
 
 /**
- * 본문 첫 줄(`.section-row`): 곡 제목(Song Myung 25sp, 운지법과 함께 보기는 22sp)과 오른쪽 `.pill` ‘{악기} · {난이도}’.
+ * 본문 첫 줄(`.section-row`): 곡 제목(Song Myung 25sp)과 오른쪽 `.pill` ‘{악기} · {난이도}’.
+ * 곡 제목 크기는 ‘운지법과 함께 보기’를 켜고 꺼도 그대로다(S15P31E102-1017).
  * 연습 모드는 ‘{악기} · 연습 모드’, 내 악보 연습은 ‘{악기} · 내 악보’다.
  * [showPill]이 false이면(휴대폰 연습 화면) 오른쪽을 비워 둔다. 상태 문구(‘연습 준비’·‘연주 중’ 등)는 어느 화면에도 두지 않는다.
  * ‘운지법과 함께 보기’·‘한글 읽는 법 표시’는 연습 설정 안에 있다(S15P31E102-875·980).
@@ -109,7 +110,7 @@ fun PracticeTitleRow(
         else if (state.solo) stringResource(Res.string.practice_subtitle_solo, instrument)
         else stringResource(Res.string.practice_subtitle, instrument, songLevelLabel(song.level))
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PageHeading(state.title, Modifier.weight(1f), compact = state.fingeringView, singleLine = true)
+        PageHeading(state.title, Modifier.weight(1f), singleLine = true)
         if (trailing != null) trailing() else if (showPill) PracticePill(pill)
     }
 }

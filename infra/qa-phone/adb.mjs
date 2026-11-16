@@ -75,6 +75,10 @@ export class AdbPhone {
       await clear(1000).catch(() => {});
     }
   }
+  async readPerformanceLog() {
+    const selection=await this.deviceArgs();
+    return this.execute([...selection,'exec-out','run-as','com.ssafy.eolssu.qa','--user','0','cat','no_backup/qa-performance.db'],true,3000,16*1024*1024);
+  }
   async inputReady() {
     // A lost ADB client must not leave a phone-side input command running.
     const table=await this.run(['shell','ps','-A','-o','ARGS']);

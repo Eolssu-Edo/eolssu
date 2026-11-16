@@ -14,7 +14,7 @@ import com.ssafy.eolssu.feature.practice.component.fingeringFor
 
 /**
  * 한 음씩 따라 불기의 진행 단계.
- * [Idle]은 아직 시작하지 않음, [Listening]은 '내 연주'를 듣는 중(녹음 중), [Paused]는 멈춤, [Finished]는 마지막 음까지 따라 붊.
+ * [Idle]은 아직 시작하지 않음, [Listening]은 '내 연주'를 듣는 중, [Paused]는 멈춤, [Finished]는 마지막 음까지 따라 붊.
  * 멈춘 자리에서 다시 누르면 카운트다운 없이 바로 듣는다(S15P31E102-645).
  */
 enum class StepPhase { Idle, Listening, Paused, Finished }
@@ -87,11 +87,25 @@ val PracticeUiState.stepUi: Boolean get() = solo && step.on
 val PracticeUiState.stepBusy: Boolean get() = stepUi && step.phase == StepPhase.Listening
 
 /**
- * 악보에 연두 테두리로 보일 지금 음. 시작 전·끝난 뒤에는 없다. 테두리는 정간에만 두고 곁줄에는 두지 않는다.
- * 운지법과 함께 보기도 이 음이 든 줄에 같은 테두리를 두고 그 페이지로 넘긴다.
+ * 악보에 연두 테두리로 보일 지금 음. '내 연주'를 누르기 전에도 첫 음(또는 악보를 눌러 옮긴 음)에 두고, 끝난 뒤에는 없다(S15P31E102-1006).
+ * 테두리는 정간에만 두고 곁줄에는 두지 않는다. 운지법과 함께 보기도 이 음이 든 줄에 같은 테두리를 두고 그 페이지로 넘긴다.
  */
 val PracticeUiState.stepCurrentIndex: Int?
-    get() = if (stepUi && (step.phase == StepPhase.Listening || step.phase == StepPhase.Paused)) step.target else null
+    get() = if (stepUi && step.phase != StepPhase.Finished) stepShownIndex else null
+
+/**
+ * 지금 기다리는 음이 바로 앞에서 기다린 음과 율명·옥타브가 같은지. 판정기는 같은 음이 이어지면 숨·혀로 한 번 끊은 뒤에 새로 재므로
+ * 화면이 그 사실을 알린다(S15P31E102-1006). 예: 아리랑 ‘넘어간다’의 7각 3정간 ‘간’과 8각 1정간 ‘다’.
+ */
+val PracticeUiState.stepRepeatsPrevious: Boolean
+    get() {
+        if (!stepUi || step.phase != StepPhase.Listening) return false
+        val timeline = song?.timeline ?: return false
+        val targets = stepTargetsInSection()
+        val k = targets.indexOf(step.target)
+        if (k <= 0) return false
+        return timeline.getOrNull(targets[k - 1])?.note == timeline.getOrNull(step.target)?.note
+    }
 
 /** '현재 정간' 칸을 누르면 낼 운지 예시음(S15P31E102-717). 한 음씩이 꺼져 있거나 운지표에 없는 음이면 없다. */
 val PracticeUiState.stepNoteToPlay: FingeringNote?
@@ -158,6 +172,24 @@ fun PracticeUiState.tapStepPlaying(): PracticeUiState {
         StepPhase.Idle, StepPhase.Finished ->
             copy(panel = null, listening = null, follow = true, step = step.copy(phase = StepPhase.Listening, target = targets.first()))
     }
+}
+
+/**
+ * 한 음씩이 켜져 있을 때 악보의 [index] 자리를 누름: 운지법을 여는 대신 지금 음을 그 자리로 옮긴다(S15P31E102-1006).
+ * 음이 있는 자리면 그 음, 쉼(△)이면 다음 음, 이음(ㅡ)·빈 정간이면 이어 내는 앞 음으로 옮긴다. 구간 연습이면 구간 안에서 고른다.
+ * 듣는 중이면 그대로 새 음을 듣고, 아니면 멈춤으로 두어 ‘내 연주’를 누르면 그 음부터 이어 간다.
+ */
+fun PracticeUiState.moveStepTo(index: Int): PracticeUiState {
+    if (!stepUi || mode != PracticeMode.Ready) return this
+    val targets = stepTargetsInSection()
+    if (targets.isEmpty()) return this
+    val target = when {
+        index in targets -> index
+        song?.timeline?.getOrNull(index)?.note == ScoreNote.Rest -> targets.firstOrNull { it > index } ?: targets.last()
+        else -> targets.lastOrNull { it < index } ?: targets.first()
+    }
+    val phase = if (step.phase == StepPhase.Listening) StepPhase.Listening else StepPhase.Paused
+    return copy(panel = null, follow = true, step = step.copy(phase = phase, target = target))
 }
 
 /**
