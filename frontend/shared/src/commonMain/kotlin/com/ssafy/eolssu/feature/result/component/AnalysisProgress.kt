@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.result.component
 
 import androidx.compose.runtime.Composable
+import com.ssafy.eolssu.core.ui.component.chaseProgress
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
