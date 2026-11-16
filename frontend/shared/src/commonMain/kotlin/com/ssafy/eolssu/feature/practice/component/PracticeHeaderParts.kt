@@ -1,5 +1,12 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -103,7 +110,7 @@ fun PracticeTopBar(
 }
 
 /**
- * 보기 버튼 묶음(S15P31E102-1037): 왼쪽부터 ‘퍼펙트 스코어’(평가) 또는 ‘한 음씩’(혼자 연습) · ‘운지법’ · ‘한글 표기’.
+ * 보기 토글 묶음(S15P31E102-1037): 왼쪽부터 ‘퍼펙트 스코어’(평가) 또는 ‘한 음씩’(혼자 연습) · ‘운지법’ · ‘한글 표기’.
  * 어느 연습 모드·화면 크기에서도 같은 [PracticeOptionChip]을 같은 순서로 놓는다. 어떤 버튼을 둘지는 [optionButtons]가 정한다.
  * [include]로 일부만 놓는다. 휴대폰은 모드 버튼은 톱니 옆, 나머지는 제목 줄에 나눠 둔다.
  */
@@ -129,43 +136,71 @@ fun PracticeOptionButtonRow(
 }
 
 /**
- * 보기 버튼 하나: 스위치 없는 32dp 알약 · 12sp 600 글자. 꺼지면 흰 바탕, 켜면 초록(`primary`) 바탕이다(S15P31E102-1037).
- * 알약 전체를 눌러 켜고 끄며, 누르는 높이는 [OptionChipTouch]로 넓히되 눌림 효과는 보이는 알약 안에만 그린다(S15P31E102-968).
- * 화면 읽기에는 켜짐·꺼짐 상태가 있는 버튼 하나로 읽힌다.
+ * 보기 토글 하나: 32dp 높이 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두)(S15P31E102-1037).
+ * 예전 ‘한 음씩’ 토글과 같은 모양이다. 버튼처럼 보이지 않는다는 의견으로 단순 버튼에서 되돌렸다.
+ * 누르는 곳은 스위치뿐이다(S15P31E102-924). 스위치는 보이는 크기를 그대로 두고 둘레로 [OptionChipTouch] 정사각형만큼 눌리게 넓히고,
+ * 눌림 효과는 보이는 스위치 안에만 그린다(S15P31E102-968). 화면 읽기에는 [label] 이름의 스위치 하나로 읽힌다.
  */
 @Composable
 fun PracticeOptionChip(label: String, on: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     val colors = EolssuTheme.colors
-    val interaction = remember { MutableInteractionSource() }
-    Box(
-        modifier
-            .heightIn(min = OptionChipTouch)
-            // 누를 수 없을 때(예: 녹음 중 ‘한 음씩’)는 켜진 초록 바탕까지 함께 흐리게 한다.
-            .alpha(if (enabled) 1f else 0.45f)
-            .toggleable(value = on, interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onValueChange = { onToggle() }),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
+    Row(modifier.heightIn(min = OptionChipTouch), verticalAlignment = Alignment.CenterVertically) {
+        Row(
             Modifier
                 .height(32.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(if (on) colors.primary else colors.surface)
-                .indication(interaction, ripple())
-                .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.Center,
+                .background(colors.surface, RoundedCornerShape(16.dp))
+                .padding(start = 10.dp, end = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
                 label,
+                modifier = Modifier.clearAndSetSemantics {},
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
-                color = if (on) colors.onPrimary else colors.text,
+                color = if (enabled) colors.text else colors.textDisabled,
                 maxLines = 1,
                 softWrap = false,
             )
+            val interaction = remember { MutableInteractionSource() }
+            Box(
+                Modifier
+                    .layout { measurable, _ ->
+                        val touch = OptionChipTouch.roundToPx()
+                        val width = OptionSwitchWidth.roundToPx()
+                        val height = OptionSwitchHeight.roundToPx()
+                        val placeable = measurable.measure(Constraints.fixed(touch, touch))
+                        layout(width, height) { placeable.place((width - touch) / 2, (height - touch) / 2) }
+                    }
+                    .toggleable(value = on, interactionSource = interaction, indication = null, enabled = enabled, role = Role.Switch, onValueChange = { onToggle() })
+                    .semantics { contentDescription = label },
+                contentAlignment = Alignment.Center,
+            ) {
+                // 다른 스위치([com.ssafy.eolssu.core.ui.component.EolssuSwitch])와 같은 색·그림자 없는 손잡이(S15P31E102-768).
+                Box(
+                    Modifier
+                        .width(OptionSwitchWidth)
+                        .height(OptionSwitchHeight)
+                        .clip(RoundedCornerShape(9.dp))
+                        .alpha(if (enabled) 1f else 0.45f)
+                        .background(if (on) colors.primary else colors.line)
+                        .indication(interaction, ripple()),
+                ) {
+                    Box(
+                        Modifier
+                            .offset(x = if (on) 14.dp else 2.dp, y = 2.dp)
+                            .size(14.dp)
+                            .background(colors.surface, CircleShape),
+                    )
+                }
+            }
         }
     }
 }
 
-/** 보기 버튼을 누르는 높이. 손가락 누름 기준 44dp 이상. */
+private val OptionSwitchWidth = 30.dp
+private val OptionSwitchHeight = 18.dp
+
+/** 작은 스위치 하나를 누르는 정사각형 한 변. 손가락 누름 기준 44dp 이상. */
 private val OptionChipTouch = 44.dp
 
 /**

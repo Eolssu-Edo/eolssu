@@ -7,9 +7,12 @@ package com.ssafy.eolssu.core.model
  */
 object InputLimit {
     /**
-     * 이메일(가입·로그인·인증번호 발송). 서버는 320자까지 받지만 실제 주소가 100자를 넘는 일은 없어 앱에서 100자로 막는다.
+     * 가입·인증번호 발송 등에서 사용하는 이메일 입력 상한.
      */
     const val EMAIL = 100
+
+    /** 로그인 화면의 아이디(이메일) 입력 상한. */
+    const val LOGIN_ID = 64
 
     /**
      * 모든 비밀번호 칸(가입·재설정·변경·로그인·탈퇴·현재 비밀번호·계정 연결). [PasswordRule.MaxLength]와 같은 64자다.
