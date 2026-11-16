@@ -112,4 +112,28 @@ class JangdanPlaybackTest {
         assertEquals(listOf(4.0), cursor.due(4.0).map { it.tick }, "반복 구간 첫 박을 다시 친다")
         assertEquals(emptyList(), cursor.due(5.0), "탐색한 중간 위치의 이전 타격은 재생하지 않는다")
     }
+
+    @Test fun lookaheadReturnsUpcomingStrikesOnceAndRefillsAfterTheOutputIsCleared() {
+        // 250 ms/tick; 120 ms look-ahead is 0.48 tick.
+        val plan = assertNotNull(planJangdan(JangdanPlayback("3", "세마치", 0, 4, listOf("덩", "쿵"), listOf(1, 1)), 60, 4))
+        val cursor = JangdanCursor(plan, lookaheadMs = 120.0, untilTick = 8.0)
+        assertEquals(listOf(0.0), cursor.due(0.0).map { it.tick })
+        assertEquals(listOf(2.0), cursor.due(1.6).map { it.tick }, "The attack 100 ms ahead is handed out before it is due")
+        assertEquals(emptyList(), cursor.due(2.0), "An attack scheduled ahead is never handed out twice")
+        cursor.forgetScheduled()
+        assertEquals(emptyList(), cursor.due(2.01), "Clearing after the attack passed does not replay it")
+        assertEquals(listOf(4.0), cursor.due(3.6).map { it.tick })
+        cursor.forgetScheduled()
+        assertEquals(listOf(4.0), cursor.due(3.61).map { it.tick }, "A cleared, not yet heard attack is scheduled again")
+        assertEquals(listOf(6.0), cursor.due(5.9).map { it.tick })
+        assertEquals(emptyList(), cursor.due(7.9), "The end tick itself is not scheduled ahead")
+    }
+
+    @Test fun negativeTicksMeanNotStartedAndScheduleNothingAhead() {
+        val plan = assertNotNull(planJangdan(JangdanPlayback("3", "세마치", 0, 4, listOf("덩", "쿵"), listOf(1, 1)), 60, 48))
+        val cursor = JangdanCursor(plan, lookaheadMs = 120.0)
+        assertEquals(emptyList(), cursor.due(-1.0), "Before the media start the first attack is not scheduled ahead")
+        // 20.8 ms/tick: once started, 120 ms covers the next 5.76 ticks.
+        assertEquals(listOf(0.0, 2.0, 4.0), cursor.due(0.0).map { it.tick })
+    }
 }
