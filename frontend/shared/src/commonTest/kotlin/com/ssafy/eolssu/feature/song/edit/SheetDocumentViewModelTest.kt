@@ -200,7 +200,35 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         model.saveDraftAndClose { closed = true }; runCurrent()
         assertEquals(1, writes)
         assertFalse(closed, "임시저장 응답 전에는 닫지 않는다")
+        assertTrue(model.uiState.value.closeWarning, "저장하는 동안 확인 창에 저장 중을 보인다")
+        assertTrue(model.uiState.value.closeSaving)
+        model.saveDraftAndClose { closed = true }; model.continueEditing(); runCurrent()
+        assertEquals(1, writes, "저장 중 다시 눌러도 한 번만 보낸다")
+        assertTrue(model.uiState.value.closeWarning, "저장 중에는 창을 닫지 않는다")
         reply.complete(SheetWrite.Saved("1", 1)); runCurrent()
+        assertTrue(closed)
+    }
+
+    @Test fun saveDraftAndCloseSendsTheDraftOffTheScreenThread() = runTest {
+        val worker = StandardTestDispatcher(testScheduler, name = "save-worker")
+        var saveThread: kotlin.coroutines.ContinuationInterceptor? = null
+        var sent: SheetWorkingCopy? = null
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document()
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
+                saveThread = kotlinx.coroutines.currentCoroutineContext()[kotlin.coroutines.ContinuationInterceptor]
+                sent = copy
+                return SheetWrite.Saved("1", 1)
+            }
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(),
+            documents = repository, saveDispatcher = worker))
+        runCurrent(); model.updateDetails("백그라운드 초안", 60)
+        var closed = false
+        model.closeEditor { closed = true }; model.saveDraftAndClose { closed = true }; advanceUntilIdle()
+        assertSame(worker, saveThread, "직렬화·전송은 화면 스레드 밖에서 한다")
+        assertEquals("백그라운드 초안", sent?.title)
+        assertEquals(0, sent?.revision)
         assertTrue(closed)
     }
 
@@ -240,6 +268,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertEquals(1, writes.size)
         assertFalse(closed)
         assertTrue(model.uiState.value.closeWarning)
+        assertFalse(model.uiState.value.closeSaving, "실패하면 다시 누를 수 있다")
         assertEquals(SheetSaveStatus.DraftFailed, model.uiState.value.saveStatus)
         assertEquals("남길 초안", model.uiState.value.draft.title)
     }

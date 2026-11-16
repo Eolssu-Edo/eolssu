@@ -147,6 +147,8 @@ data class SheetEditUiState(
     val confirming: Boolean = false,
     val saveConflict: Boolean = false,
     val closeWarning: Boolean = false,
+    /** 닫기 확인에서 '임시저장하고 닫기'를 눌러 저장 응답을 기다리는 중. 확인 창에 저장 중을 보이고 다시 누르지 못하게 한다. */
+    val closeSaving: Boolean = false,
     val reviewIssues: List<SheetReviewIssue> = emptyList(),
     val reviewNotices: List<SheetReviewNotice> = emptyList(),
     val checkedIssueIds: Set<String> = emptySet(),
