@@ -243,12 +243,18 @@ def _read_part(part, issues):
         if 0 < first_length < expected:
             pad_quarters = expected - first_length
         lengths[0] += pad_quarters
-        values = [m[1] for m in measure_meters if m] + [n for n in lengths if n]
-        denominator = lcm(*(v.denominator for v in values))
-        numerator = 0
-        for value in values:
-            numerator = gcd(numerator, int(value * denominator))
-        beat = Fraction(numerator, denominator)
+        values = [m[1] for m in measure_meters if m] + [n for n in lengths[:-1] if n]
+        grid = _common_value(values)
+        # OMR이 끝 쉼표를 빠뜨려 끝 마디가 박자표보다 한 박 안쪽으로 모자라면, 그 한 마디로 곡 전체 박을 쪼개지 않고
+        # 다음 박 경계까지 쉼표로 채운 뒤 검수 사유를 남긴다(S15P31E102-1043). 한 박 이상 모자란 끝 불완전마디는 그대로 둔다.
+        last_meter = measure_meters[index] or meter
+        shortfall = last_meter[1] * last_meter[2] - lengths[-1]
+        end_pad = -(-lengths[-1] // grid) * grid - lengths[-1]
+        if end_pad and 0 < shortfall < last_meter[1]:
+            melody.append(_Note(cursor, end_pad, None, number,
+                                [("LOW_CONFIDENCE", {"measure": number, "reason": "FINAL_MEASURE_PADDED"})]))
+            lengths[-1] += end_pad
+        beat = _common_value(values + [lengths[-1]] if lengths[-1] else values)
         widths = [int(length / beat) for length in lengths if length]
         beats_per_gak = widths[0]
         if all(written_lengths) and all(m == meter for m in measure_meters) and not underfull and not any(
@@ -427,6 +433,15 @@ def _guess_meter(notes):
         size = per_gak * (Fraction(3, 2) if compound else Fraction(1))
         return sum(1 for n in notes if n.start // size != (n.start + n.length) // size and (n.start + n.length) % size)
     return min(METER_ORDER, key=lambda o: (crossings(o), METER_ORDER.index(o)))
+
+
+def _common_value(values):
+    """음가(4분음표 수)들을 모두 정수 개로 나누는 가장 긴 음가."""
+    denominator = lcm(*(v.denominator for v in values))
+    numerator = 0
+    for value in values:
+        numerator = gcd(numerator, int(value * denominator))
+    return Fraction(numerator, denominator)
 
 
 def _measure_length(measure, divisions):

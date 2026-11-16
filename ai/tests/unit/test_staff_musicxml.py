@@ -106,6 +106,16 @@ def test_pickup_is_padded_at_start_and_last_partial_bar_keeps_actual_length():
     assert out.lines == [":0 쉼표 |  |  | :0 황", ":0 태 |  |  | ", ":0 고 | "]
 
 
+def test_last_bar_short_of_a_beat_is_padded_to_the_beat_instead_of_shrinking_the_grid():
+    # 9/8 아리랑 끝 마디의 8분쉼표를 OMR이 빠뜨린 경우: 점2분+4분 = 8/8
+    doc = xml(measure(note("C4", 6), note("C4", 6), note("C4", 6), time=(9, 8)),
+              measure(note("C4", 12), note("D4", 4)))
+    out = convert(doc, instrument="ANY", hwang_pitch=60)
+    assert (out.jangdan, out.beats_per_gak) == ("세마치", 3)
+    assert out.lines == [":0 황 | :0 황 | :0 황", ":0 황 |  | :2 태 :8 쉼표"]
+    assert [i["detail"]["reason"] for i in out.issues] == ["FINAL_MEASURE_PADDED"]
+
+
 def test_repeat_with_first_and_second_endings_is_expanded():
     fwd = '<barline location="left"><repeat direction="forward"/></barline>'
     end1 = '<barline location="left"><ending number="1" type="start"/></barline>'
