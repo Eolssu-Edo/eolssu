@@ -43,13 +43,13 @@ internal fun SheetImportGuideCard(
     onApplyRecommended: () -> Unit,
     onOpenAdaptation: () -> Unit,
     onMoveReview: (step: Int) -> Unit,
-    onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     rightToLeft: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
     val showRange = guide.rangeNotes > 0 || guide.recommendedTranspose != null
     val showReview = guide.reviewCells > 0
+    // 닫기 버튼은 두지 않는다. 고칠 것을 다 고치면 줄이 하나씩 사라지고, 다 고치면 카드도 사라진다(S15P31E102-1042).
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (showRange) GuideRow(RANGE_TAG, colors.pitchError, colors.pitchErrorSoft,
@@ -86,10 +86,6 @@ internal fun SheetImportGuideCard(
                     if (rightToLeft) { next(); previous() } else { previous(); next() }
                 }
             }
-        }
-        IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
-            Icon(EolssuIcons.Close, contentDescription = stringResource(Res.string.sheet_import_guide_close),
-                Modifier.size(16.dp), tint = colors.textSub)
         }
     }
 }

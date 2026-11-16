@@ -155,7 +155,6 @@ data class SheetEditUiState(
     val checkedIssueIds: Set<String> = emptySet(),
     val jangdanPicker: SheetEditJangdanPicker? = null,
     val adaptation: SheetAdaptationUi? = null,
-    val importGuideDismissed: Boolean = false,
     /** 아래 입력판을 펼쳤는지. 변환된 악보는 악보부터 보도록 접은 채 연다(S15P31E102-1042). */
     val inputPanelExpanded: Boolean = true,
 ) {

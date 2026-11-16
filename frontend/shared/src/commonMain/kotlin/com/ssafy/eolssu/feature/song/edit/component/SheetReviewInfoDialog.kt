@@ -16,8 +16,9 @@ import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 다시 볼 칸을 고르면 무엇이 문제인지와 바로 할 일을 함께 보인다(S15P31E102-1042).
- * 꾸밈음이 빠진 칸은 시김새 넣기, 그 밖에는 율명 바꾸기를 먼저 권하고, 원본과 같으면 확인으로 끝낸다.
+ * 다시 볼 칸을 고르면 무엇이 문제인지와 그 문제를 고치는 버튼 하나를 보인다(S15P31E102-1042).
+ * 앱은 원본 악보를 보여 주지 않으므로 원본과 비교하라고 하지 않는다. 문제 종류마다 고치는 곳(율명·시김새·정간·장단)으로 바로 보내고,
+ * 지금 그대로가 맞으면 `이대로 둘게요`로 확인을 끝낸다. 위치(몇 각 몇 정간)는 악보에서 칸이 선택돼 보이므로 적지 않는다.
  */
 @Composable
 internal fun SheetReviewInfoDialog(
@@ -26,16 +27,15 @@ internal fun SheetReviewInfoDialog(
     onDismiss: () -> Unit,
     onEditYul: () -> Unit = onDismiss,
     onEditSigimsae: () -> Unit = onDismiss,
+    onEditCells: () -> Unit = onDismiss,
+    onChangeJangdan: () -> Unit = onDismiss,
     onConfirmSame: (() -> Unit)? = null,
 ) {
     val issues = state.reviewIssuesAt(selection.cell, selection.sub)
     val notes = state.draft.cells.getOrNull(selection.cell).orEmpty()
     if (issues.isEmpty() || notes.isEmpty()) return
     val selectedNotes = selection.sub?.let { listOfNotNull(notes.getOrNull(it)) } ?: notes
-    val location = if (selection.sub != null && notes.size > 1) stringResource(Res.string.sheet_review_info_unit,
-        state.draft.columnOf(selection.cell) + 1, state.draft.rowOf(selection.cell) + 1, selection.sub + 1)
-    else stringResource(Res.string.sheet_review_info_location, state.draft.columnOf(selection.cell) + 1, state.draft.rowOf(selection.cell) + 1)
-    EolssuDialog(title = stringResource(Res.string.sheet_review_fix_title), message = location, onDismissRequest = onDismiss) {
+    EolssuDialog(title = stringResource(Res.string.sheet_review_fix_title), onDismissRequest = onDismiss) {
         val labels = selectedNotes.map { note -> when (note) {
             ScoreNote.Rest -> stringResource(Res.string.sheet_review_info_rest)
             ScoreNote.Hold -> stringResource(Res.string.sheet_review_info_hold)
@@ -45,8 +45,14 @@ internal fun SheetReviewInfoDialog(
         } }
         Text(labels.joinToString(" · "), style = MaterialTheme.typography.bodyLarge)
         issues.forEach { Text(sheetReviewReason(it), style = MaterialTheme.typography.bodyMedium) }
-        if (issues.any { it.kind == "ORNAMENT_DROPPED" }) EolssuButton(stringResource(Res.string.sheet_review_fix_sigimsae), onEditSigimsae)
-        else EolssuButton(stringResource(Res.string.sheet_review_fix_yul), onEditYul)
+        val rhythm = issues.firstNotNullOfOrNull { it.rhythmReview }
+        when {
+            rhythm?.reason == "TIME_SIGNATURE_REVIEW_REQUIRED" ->
+                EolssuButton(stringResource(Res.string.sheetedit_cell_jangdan_change), onChangeJangdan)
+            rhythm != null -> EolssuButton(stringResource(Res.string.sheet_review_fix_cells), onEditCells)
+            issues.any { it.kind == "ORNAMENT_DROPPED" } -> EolssuButton(stringResource(Res.string.sheet_review_fix_sigimsae), onEditSigimsae)
+            else -> EolssuButton(stringResource(Res.string.sheet_review_fix_yul), onEditYul)
+        }
         if (onConfirmSame != null) EolssuButton(stringResource(Res.string.sheet_review_fix_same), onConfirmSame, style = EolssuButtonStyle.Secondary)
         EolssuButton(stringResource(Res.string.common_close), onDismiss, style = EolssuButtonStyle.Secondary)
     }

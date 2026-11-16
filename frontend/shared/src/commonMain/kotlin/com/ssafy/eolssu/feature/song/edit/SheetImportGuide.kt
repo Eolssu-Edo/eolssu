@@ -28,7 +28,7 @@ internal val SheetEditUiState.recognitionReviewCells: List<Int>
     get() = completionValidation.let { (it.correctionCellIndices - it.rangeCellIndices).sorted() }
 
 internal fun SheetEditUiState.importGuide(): SheetImportGuide? {
-    if (importGuideDismissed || draft.original == null || documentLoading || documentFailed) return null
+    if (draft.original == null || documentLoading || documentFailed) return null
     val validation = completionValidation
     val reviewList = recognitionReviewCells
     val reviewCells = reviewList.size

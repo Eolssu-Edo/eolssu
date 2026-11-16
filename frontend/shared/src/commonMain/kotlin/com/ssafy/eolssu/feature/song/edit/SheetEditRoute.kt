@@ -160,7 +160,6 @@ fun SheetEditRoute(
                 onOpenAdaptation = viewModel::openAdaptation,
                 // 다시 볼 곳은 칸을 옮겨 보여 주기만 한다. 칸을 누르면 고칠 방법 창이 열린다.
                 onMoveReview = { step -> viewModel.moveRecognitionReview(step); focusRequestKey++ },
-                onDismiss = viewModel::dismissImportGuide,
                 modifier = Modifier.padding(bottom = 8.dp),
                 rightToLeft = state.view == EditView.Jeongganbo) }
         },
@@ -233,7 +232,9 @@ fun SheetEditRoute(
             onDismiss = { reviewSelection = null },
             onEditYul = { reviewSelection = null; viewModel.selectTab(EditTab.Yul) },
             onEditSigimsae = { reviewSelection = null; viewModel.selectTab(EditTab.Sigimsae) },
-            // 원본과 같으면 확인으로 끝내고, 다음 다시 볼 곳이 있으면 바로 그 칸으로 간다.
+            onEditCells = { reviewSelection = null; viewModel.selectTab(EditTab.Cell) },
+            onChangeJangdan = { reviewSelection = null; viewModel.changeJangdan() },
+            // 지금 그대로가 맞으면 확인으로 끝내고, 다음 다시 볼 곳이 있으면 바로 그 칸으로 간다.
             onConfirmSame = {
                 reviewSelection = null
                 viewModel.checkSelectedReviewIssue()

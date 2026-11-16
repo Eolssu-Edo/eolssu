@@ -70,7 +70,24 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
         assertTrue(model.uiState.value.adaptation?.confirmationRequested == true)
     }
 
-    @Test fun recognitionReviewsAreCountedApartFromRangeAndTheGuideCanBeClosed() = runTest {
+    @Test fun theCardKeepsCountingPlayableNotesAfterAnEditAndUndo() = runTest {
+        val model = open(sixUp)
+        runCurrent()
+        val first = assertNotNull(model.uiState.value.importGuide)
+
+        model.selectTab(EditTab.Yul)
+        model.selectCell(2) // 음이 없는 쉼표 정간만 바꾼다
+        model.put(ScoreNote.Hold)
+        val edited = assertNotNull(model.uiState.value.importGuide)
+        assertEquals("단소", edited.instrumentName, "1042: 편집 뒤에도 악기 이름을 잃지 않는다")
+        assertEquals(first.rangeNotes, edited.rangeNotes, "음은 그대로라 낼 수 없는 음 수도 같다")
+
+        model.undo()
+        assertEquals(first, model.uiState.value.importGuide?.copy(reviewPosition = first.reviewPosition),
+            "1042: 실행 취소하면 처음 카드와 같다")
+    }
+
+    @Test fun recognitionReviewsAreCountedApartFromRangeAndTheGuideGoesAwayOnceChecked() = runTest {
         val model = open(ReadinessCatalog(), issues = listOf(json("""{"issueId":"i1","cellId":"c0-j0","type":"LOW_CONFIDENCE"}""")))
         runCurrent()
         val guide = assertNotNull(model.uiState.value.importGuide)
@@ -80,7 +97,9 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
 
         model.openFirstRecognitionReview()
         assertEquals(0, model.uiState.value.selected)
-        model.dismissImportGuide()
+        // 1042: 닫기 버튼 없이, 다시 볼 곳을 다 확인하면 카드가 저절로 사라진다.
+        assertTrue(model.uiState.value.canCheckSelectedReviewIssue)
+        model.checkSelectedReviewIssue()
         assertNull(model.uiState.value.importGuide)
     }
 

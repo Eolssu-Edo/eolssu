@@ -273,6 +273,10 @@ class SheetEditViewModel(
             loading = false, failed = false, confirmationRequested = false)
     }
 
+    /** 계산을 마친 높이 패널을 [draft] 기준으로 다시 계산한다. 아직 불러오는 중이거나 실패한 패널은 버린다. */
+    private fun refreshedAdaptation(panel: SheetAdaptationUi, draft: SheetDraft): SheetAdaptationUi? =
+        panel.capabilities?.takeIf { !panel.loading && !panel.failed }?.let { readyAdaptation(panel.copy(baseline = draft), it) }
+
     /** 문서가 준비됐다는 화면 뒤로 추천 로딩을 따로 노출하지 않는다. */
     private suspend fun initialAdaptation(draft: SheetDraft): SheetAdaptationUi {
         var panel = SheetAdaptationUi(baseline = draft)
@@ -332,7 +336,6 @@ class SheetEditViewModel(
         selectCell(next)
     }
 
-    fun dismissImportGuide() = _uiState.update { it.copy(importGuideDismissed = true) }
 
     fun applyAdaptation() {
         val panel = _uiState.value.adaptation ?: return
@@ -359,7 +362,9 @@ class SheetEditViewModel(
             if (current.confirming && (next.draft != current.draft || next.checkedIssueIds != current.checkedIssueIds ||
                 next.reviewIssues != current.reviewIssues)) current
             else if (next.draft != current.draft) next.copy(saveStatus = null,
-                adaptation = if (preserveAdaptation) next.adaptation else null,
+                // 이미 받은 악기 음 목록으로 바뀐 악보의 높이 계산을 다시 해 둔다. 버리면 확인 카드가 악기 이름과
+                // 낼 수 없는 음 수를 잃고, 실행 취소해도 처음 카드로 돌아오지 않는다(S15P31E102-1042).
+                adaptation = if (preserveAdaptation) next.adaptation else next.adaptation?.let { refreshedAdaptation(it, next.draft) },
                 tab = if (!preserveAdaptation && next.tab == EditTab.Adaptation) EditTab.Yul else next.tab)
             else next
         }

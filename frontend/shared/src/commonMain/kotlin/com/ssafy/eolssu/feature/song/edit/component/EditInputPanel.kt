@@ -97,14 +97,9 @@ import com.ssafy.eolssu.feature.song.edit.pitchKey
 import com.ssafy.eolssu.feature.song.edit.pitchNote
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheetedit_cell_add_column
-import eolssu.shared.generated.resources.sheetedit_cell_add_column_desc
-import eolssu.shared.generated.resources.sheetedit_cell_delete_column_desc
-import eolssu.shared.generated.resources.sheetedit_cell_merge_desc
-import eolssu.shared.generated.resources.sheetedit_cell_split_desc
 import eolssu.shared.generated.resources.sheetedit_yul_octave_caption
 import eolssu.shared.generated.resources.sheetedit_yul_pitch_caption
 import eolssu.shared.generated.resources.sheetedit_cell_delete_column
-import eolssu.shared.generated.resources.sheetedit_cell_jangdan
 import eolssu.shared.generated.resources.sheetedit_cell_jangdan_change
 import eolssu.shared.generated.resources.sheetedit_cell_jangdan_desc
 import eolssu.shared.generated.resources.sheetedit_cell_merge
@@ -456,13 +451,12 @@ private fun BoxScope.ScrollFades(state: LazyListState) {
 }
 
 /**
- * 흰 바탕 테두리 도구 버튼(44dp · 13sp 600). [picture]와 [description]을 주면 왼쪽에 바뀌는 모양 그림을,
- * 이름 아래에 무엇이 바뀌는지 한 줄을 둔다(정간·장단 탭, S15P31E102-1042).
+ * 흰 바탕 테두리 도구 버튼(44dp · 13sp 600). [picture]를 주면 이름 왼쪽에 바뀌는 모양 그림을 둔다(정간·장단 탭, S15P31E102-1042).
  */
 @Composable
 private fun ToolButton(
     label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
-    picture: CellPicture? = null, description: String? = null,
+    picture: CellPicture? = null,
 ) {
     val colors = EolssuTheme.colors
     Surface(
@@ -478,13 +472,9 @@ private fun ToolButton(
             if (picture != null) {
                 val ink = colors.text
                 val mark = colors.primary
-                Canvas(Modifier.size(width = 34.dp, height = 24.dp)) { drawCellPicture(picture, ink, mark) }
+                Canvas(Modifier.size(width = 40.dp, height = 22.dp)) { drawCellPicture(picture, ink, mark) }
             }
-            Column(horizontalAlignment = if (picture != null) Alignment.Start else Alignment.CenterHorizontally) {
-                Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
-                if (description != null) Text(description,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 13.sp), color = colors.textMuted, maxLines = 2)
-            }
+            Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
         }
     }
 }
@@ -520,14 +510,14 @@ private fun DrawScope.drawCellPicture(picture: CellPicture, ink: Color, mark: Co
         drawLine(ink, Offset(to - head, y - head), Offset(to, y), line)
         drawLine(ink, Offset(to - head, y + head), Offset(to, y), line)
     }
-    val box = 11.dp.toPx()
-    val pad = 2.dp.toPx()
+    val box = 10.dp.toPx()
+    val pad = 4.dp.toPx()
     when (picture) {
         CellPicture.Split -> { cell(0f, box, split = false); arrow(box + pad, size.width - box - pad); cell(size.width - box, box, split = true) }
         CellPicture.Merge -> { cell(0f, box, split = true); arrow(box + pad, size.width - box - pad); cell(size.width - box, box, split = false) }
         CellPicture.AddColumn -> {
-            val w = 12.dp.toPx()
-            val gap = 4.dp.toPx()
+            val w = 11.dp.toPx()
+            val gap = 6.dp.toPx()
             val left = (size.width - 2 * w - gap) / 2
             cell(left, w, split = false, fill = mark)
             val plus = 3.dp.toPx()
@@ -686,45 +676,36 @@ private fun CellTools(draft: SheetDraft, actions: EditInputActions, hasTempoPlan
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ToolButton(stringResource(Res.string.sheetedit_cell_split), actions.onSplit, Modifier.weight(1f),
-                picture = CellPicture.Split, description = stringResource(Res.string.sheetedit_cell_split_desc))
+                picture = CellPicture.Split)
             ToolButton(stringResource(Res.string.sheetedit_cell_merge), actions.onMerge, Modifier.weight(1f),
-                picture = CellPicture.Merge, description = stringResource(Res.string.sheetedit_cell_merge_desc))
+                picture = CellPicture.Merge)
         }
         if (hasTempoPlan) {
             HintText(stringResource(Res.string.sheet_tempo_before_reshape))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ToolButton(stringResource(Res.string.sheetedit_cell_add_column), actions.onAddColumn, Modifier.weight(1f),
-                picture = CellPicture.AddColumn, description = stringResource(Res.string.sheetedit_cell_add_column_desc))
+                picture = CellPicture.AddColumn)
             ToolButton(stringResource(Res.string.sheetedit_cell_delete_column), actions.onDeleteColumn, Modifier.weight(1f),
-                picture = CellPicture.DeleteColumn, description = stringResource(Res.string.sheetedit_cell_delete_column_desc))
+                picture = CellPicture.DeleteColumn)
         }
-        Row(
-            Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        // 장단 고르기는 다른 도구와 같은 높이의 한 줄로 둔다. 줄을 누르면 장단 선택 창이 열린다(S15P31E102-1042).
+        val jangdanChange = stringResource(Res.string.sheetedit_cell_jangdan_change)
+        Surface(
+            onClick = actions.onChangeJangdan,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).semantics { contentDescription = jangdanChange },
+            shape = RoundedCornerShape(10.dp),
+            color = colors.surface,
+            contentColor = colors.text,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(Res.string.sheetedit_cell_jangdan, jangdanLabel(draft.accompanimentName)),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                )
-                if (draft.jangdan != null) Text(
-                    stringResource(Res.string.sheetedit_cell_jangdan_desc, draft.jangdan.beats, draft.jangdan.subdivision, draft.bpm),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    color = colors.textMuted,
-                )
-            }
-            Surface(
-                onClick = actions.onChangeJangdan,
-                modifier = Modifier.heightIn(min = 34.dp),
-                shape = RoundedCornerShape(10.dp),
-                color = colors.groupedBackground,
-                contentColor = colors.text,
-            ) {
-                Box(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
-                    Text(stringResource(Res.string.sheetedit_cell_jangdan_change), style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
-                }
+            Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(jangdanLabel(draft.accompanimentName), maxLines = 1,
+                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+                Text(draft.jangdan?.let { stringResource(Res.string.sheetedit_cell_jangdan_desc, it.beats, it.subdivision, draft.bpm) }.orEmpty(),
+                    Modifier.weight(1f), style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = colors.textMuted,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textSub)
             }
         }
     }

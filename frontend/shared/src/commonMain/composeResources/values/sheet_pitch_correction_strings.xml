@@ -12,7 +12,7 @@
     <string name="sheet_pitch_correction_choice">%1$s · %2$s</string>
     <string name="sheet_pitch_correction_no_choices">선택할 지원음이 없어요. 초안은 유지됩니다.</string>
     <string name="sheet_pitch_correction_show">추천 대체음 보기</string>
-    <string name="sheet_pitch_corrected_review">현재 음은 지원 목록에 있어요. 원본과 비교한 뒤 확인해 주세요.</string>
+    <string name="sheet_pitch_corrected_review">지금 음은 이 악기로 낼 수 있어요. 맞으면 그대로 두세요.</string>
     <string name="sheet_pitch_fingering_unknown">%1$s · 이 악기의 운지 안내가 아직 없는 음이에요. 아래 음으로 바꿔 주세요.</string>
     <string name="sheet_pitch_notation_unsupported">%1$s · 화면에 그릴 수 없는 음이에요. 아래 음으로 바꿔 주세요.</string>
     <string name="sheet_pitch_synthesis_unsupported">%1$s · 소리를 만들 수 없는 음이에요. 아래 음으로 바꿔 주세요.</string>

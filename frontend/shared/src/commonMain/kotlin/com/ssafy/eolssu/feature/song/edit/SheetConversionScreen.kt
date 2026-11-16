@@ -26,6 +26,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -176,21 +179,28 @@ private fun WaitingContent(state: SheetConversionUiState) {
                 step.pageCount > 0 -> stringResource(Res.string.sheet_conversion_reading_total_body, step.pageCount)
                 else -> stringResource(Res.string.sheet_conversion_reading_body)
             }
-            if (conversion?.notation == SheetNotation.Staff) pages + "\n" + stringResource(Res.string.sheet_conversion_staff_hint) else pages
+            // 오선보는 걸리는 시간 한 줄만, 정간보는 읽는 쪽수 한 줄만 둔다(S15P31E102-1042).
+            if (conversion?.notation == SheetNotation.Staff) stringResource(Res.string.sheet_conversion_staff_hint) else pages
         }
         else -> null
     }
-    body?.let { BodyText(it) }
+    // 안내는 두 줄: 지금 할 일·걸리는 시간 한 줄, 나가도 계속된다는 한 줄(S15P31E102-1042).
+    val lines = listOfNotNull(body, stringResource(Res.string.sheet_conversion_leave_hint).takeIf { !state.done })
+    if (lines.isNotEmpty()) BodyText(lines.joinToString("\n"))
     if (conversion != null) StepLine(step, state.done)
     if (state.unreachable) BodyText(stringResource(Res.string.sheet_conversion_unreachable), color = colors.recText)
-    if (!state.done) BodyText(stringResource(Res.string.sheet_conversion_leave_hint), color = colors.textMuted)
 }
 
-/** 붓 일원상(220dp)과 공부하는 호랑이. 진행을 모르면(첫 응답 전) 붓을 되풀이해 그린다. */
+/**
+ * 붓 일원상(220dp)과 공부하는 호랑이. 붓은 변환 전체에 걸쳐 딱 한 번 그린다(S15P31E102-1042).
+ * 단계·쪽이 바뀌며 진행 추정이 잠깐 줄어도 지운 뒤 다시 그리지 않도록 지금까지의 최댓값만 따라간다.
+ */
 @Composable
 private fun ConvertingFigure(progress: Float?) {
+    var peak by remember { mutableFloatStateOf(0f) }
+    if (progress != null && progress > peak) peak = progress
     // 서버 응답이 2초 간격이라 그 사이를 부드럽게 잇는다.
-    val shown by animateFloatAsState(progress ?: 0f, animationSpec = tween(1_800))
+    val shown by animateFloatAsState(peak, animationSpec = tween(1_800))
     val percent = progress?.let { floor(shown * 100).toInt().coerceIn(0, 100) }
     val description = percent?.let { stringResource(Res.string.sheet_conversion_progress, it) }
     Box(
@@ -201,7 +211,7 @@ private fun ConvertingFigure(progress: Float?) {
             }
         },
     ) {
-        BrushEnso(color = EolssuTheme.colors.text, progress = if (progress == null) null else shown, modifier = Modifier.fillMaxSize())
+        BrushEnso(color = EolssuTheme.colors.text, progress = shown, modifier = Modifier.fillMaxSize())
         Image(
             painterResource(Res.drawable.profile_tiger_study),
             contentDescription = null,

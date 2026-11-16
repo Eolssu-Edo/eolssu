@@ -6,15 +6,14 @@
     <string name="sheet_review_missing_pitch">등록되지 않은 율명</string>
     <string name="sheet_review_pitch_label">등록되지 않은 율명 · %1$s (%2$d옥타브)</string>
     <string name="sheet_review_range">이 악기로 낼 수 없는 음이에요. 다른 음으로 바꿔 주세요.</string>
-    <string name="sheet_review_uncertain">잘못 읽었을 수 있어요. 원본과 다르면 율명을 바꿔 주세요.</string>
-    <string name="sheet_review_ornament_dropped">원본의 꾸밈음은 옮기지 못했어요. 필요하면 시김새로 넣어 주세요.</string>
-    <string name="sheet_review_gap_in_voice">악보를 읽지 못해 쉼표(△)로 채웠어요. 원본에 음이 있으면 율명으로 바꿔 주세요.</string>
-    <string name="sheet_review_fix_title">이 칸을 원본과 비교해 주세요</string>
+    <string name="sheet_review_uncertain">잘못 읽었을 수 있어요. 아는 가락과 다르면 율명을 바꾸고, 맞으면 그대로 두세요.</string>
+    <string name="sheet_review_ornament_dropped">꾸밈음은 옮기지 못했어요. 필요하면 시김새로 넣어 주세요.</string>
+    <string name="sheet_review_gap_in_voice">이 부분을 읽지 못해 쉼표(△)로 채웠어요. 음이 있어야 하면 율명으로 바꿔 주세요.</string>
+    <string name="sheet_review_fix_title">이 칸을 확인해 주세요</string>
     <string name="sheet_review_fix_yul">율명 바꾸기</string>
     <string name="sheet_review_fix_sigimsae">시김새 넣기</string>
-    <string name="sheet_review_fix_same">원본과 같아요</string>
-    <string name="sheet_review_info_location">%1$d각 %2$d정간</string>
-    <string name="sheet_review_info_unit">%1$d각 %2$d정간 · 소박 %3$d</string>
+    <string name="sheet_review_fix_same">이대로 둘게요</string>
+    <string name="sheet_review_fix_cells">정간 고치기</string>
     <string name="sheet_review_info_rest">쉼표 (△)</string>
     <string name="sheet_review_info_hold">지속 (ㅡ)</string>
     <string name="sheet_review_info_blank">빈 표기</string>
@@ -51,5 +50,4 @@
     <string name="sheet_import_guide_review_prev">이전 다시 볼 곳</string>
     <string name="sheet_import_guide_review_next">다음 다시 볼 곳</string>
     <string name="sheet_import_guide_review_go">첫 칸 보기</string>
-    <string name="sheet_import_guide_close">안내 닫기</string>
 </resources>
