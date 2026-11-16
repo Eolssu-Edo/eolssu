@@ -7,8 +7,7 @@
     <string name="sheet_upload_rules_title">알아 두세요</string>
     <string name="sheet_upload_rules_limit">내 악보는 %1$d개까지 둘 수 있어요</string>
     <string name="sheet_upload_rules_one_at_a_time">악보는 한 번에 하나씩 바꿔요. 바꾸는 중이면 끝난 뒤에 올려 주세요</string>
-    <!-- 파일 가져올 곳 토글: 고른 곳에 따라 아래 버튼이 그 선택 창을 연다 -->
-    <string name="sheet_upload_source_files">내 파일</string>
+    <!-- 파일 선택 버튼을 누르면 펼쳐지는 가져올 곳 메뉴 -->
+    <string name="sheet_upload_source_files">파일</string>
     <string name="sheet_upload_source_album">갤러리</string>
-    <string name="sheet_upload_pick_album">갤러리에서 사진 선택</string>
 </resources>

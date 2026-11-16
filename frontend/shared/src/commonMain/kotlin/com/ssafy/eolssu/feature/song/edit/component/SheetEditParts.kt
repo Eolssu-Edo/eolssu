@@ -135,27 +135,6 @@ internal fun KindCard(title: String, caption: String, icon: ImageVector, onClick
     }
 }
 
-/**
- * EDIT-01 '내 악보·제공 곡 불러오기' 줄: 왼쪽 둥근 네모 아이콘, 이름, 오른쪽 화살표. 줄 전체를 누르면 다른 화면으로 넘어간다.
- */
-@Composable
-internal fun LinkRow(icon: ImageVector, title: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    Surface(onClick = onClick, modifier = modifier.fillMaxWidth().heightIn(min = 64.dp), shape = RoundedCornerShape(20.dp), color = colors.surface, contentColor = colors.text) {
-        Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.size(40.dp).background(colors.accentTint, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = colors.text)
-            }
-            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
-            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
-        }
-    }
-}
-
 /** 고름 표시(18dp 원): 고르면 먹색 굵은 테두리, 아니면 옅은 회색 테두리. */
 @Composable
 internal fun RadioDot(selected: Boolean, modifier: Modifier = Modifier, size: Dp = 18.dp, background: Color = Color.Transparent) {

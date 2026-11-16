@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.song.edit
 
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -17,7 +18,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,17 +35,16 @@ import com.ssafy.eolssu.feature.song.component.DeleteSheetDialog
 import com.ssafy.eolssu.feature.song.component.MySheetRow
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.edit.component.KindCard
-import com.ssafy.eolssu.feature.song.edit.component.LinkRow
+import com.ssafy.eolssu.feature.song.edit.component.SheetKindMenu
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditIcons
 import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblemDialog
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_sheet_count
-import eolssu.shared.generated.resources.sheetedit_new_copy_title
-import eolssu.shared.generated.resources.sheetedit_new_jg_caption
-import eolssu.shared.generated.resources.sheetedit_new_staff_caption
-import eolssu.shared.generated.resources.sheetedit_new_jg_title
 import eolssu.shared.generated.resources.sheetedit_new_question
-import eolssu.shared.generated.resources.sheetedit_new_staff_title
+import eolssu.shared.generated.resources.sheetedit_new_eolssu_caption
+import eolssu.shared.generated.resources.sheetedit_new_eolssu_title
+import eolssu.shared.generated.resources.sheetedit_new_upload_caption
+import eolssu.shared.generated.resources.sheetedit_new_upload_title
 import eolssu.shared.generated.resources.sheetedit_new_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -60,8 +63,9 @@ class EditNewSheetActions(
 )
 
 /**
- * EDIT-01 악보 추가: 같은 크기로 나란히 둔 정간보 가져오기 · 오선보 가져오기 카드와 그 아래 따로 둔 '내 악보·제공 곡 불러오기' 줄.
- * 카드를 누르면 확인 버튼 없이 바로 그 종류의 악보 올리기 화면으로 간다(S15P31E102-997). 파일은 그 화면에서 고르고, 음역은 가져온 뒤 편집기에서 조정한다.
+ * EDIT-01 악보 추가: 같은 크기로 나란히 둔 '내 악보 가져오기' · '얼쑤에서 가져오기' 카드(S15P31E102-997).
+ * '내 악보 가져오기'는 아래로 정간보·오선보 메뉴를 펼치고, 고르면 확인 버튼 없이 그 종류의 악보 올리기 화면으로 간다.
+ * 파일은 그 화면에서 고르고, 음역은 가져온 뒤 편집기에서 조정한다. '얼쑤에서 가져오기'는 제공 곡·내 악보 목록(EditPick)으로 간다.
  * 그 아래에 내 악보와 변환 진행 상황(대기·읽는 중·만드는 중·실패)을 내 악보 탭과 같은 줄로 보인다(S15P31E102-881).
  * 파일 형식·촬영 안내는 화면에 늘 두지 않고, 문제가 생겼을 때만 [EditNewUiState.problem] 안내 창으로 알린다.
  * 태블릿 가로에서는 본문을 [sheetAddContentMaxWidth]로 넓힌다(S15P31E102-978).
@@ -70,7 +74,7 @@ class EditNewSheetActions(
 fun EditNewScreen(
     state: EditNewUiState,
     onBack: () -> Unit,
-    /** 종류 카드를 눌렀다. 고른 종류의 악보 올리기 화면으로 간다. */
+    /** '내 악보 가져오기' 메뉴에서 종류를 골랐다. 고른 종류의 악보 올리기 화면으로 간다. */
     onSelectKind: (ImportKind) -> Unit,
     onLoadExisting: () -> Unit,
     onOpenDevicePick: () -> Unit,
@@ -79,6 +83,7 @@ fun EditNewScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val contentMaxWidth = sheetAddContentMaxWidth()
+    var kindMenuOpen by remember { mutableStateOf(false) }
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
         contentMaxWidth = contentMaxWidth,
@@ -100,28 +105,29 @@ fun EditNewScreen(
                 Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                // 내 기기의 사진·PDF를 올린다. 누르면 아래로 정간보·오선보 메뉴를 펼친다(S15P31E102-997).
+                Box(Modifier.weight(1f).heightIn(min = KindCardMinHeight).fillMaxHeight()) {
+                    KindCard(
+                        stringResource(Res.string.sheetedit_new_upload_title),
+                        stringResource(Res.string.sheetedit_new_upload_caption),
+                        SheetEditIcons.Folder,
+                        onClick = { kindMenuOpen = true },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    if (kindMenuOpen) SheetKindMenu(
+                        onPick = { kind -> kindMenuOpen = false; onSelectKind(kind) },
+                        onDismiss = { kindMenuOpen = false },
+                    )
+                }
+                // 얼쑤가 주는 곡이나 이미 만든 내 악보를 복사해 온다.
                 KindCard(
-                    stringResource(Res.string.sheetedit_new_jg_title),
-                    stringResource(Res.string.sheetedit_new_jg_caption),
-                    SheetEditIcons.Jeongganbo,
-                    onClick = { onSelectKind(ImportKind.Jeongganbo) },
-                    modifier = Modifier.weight(1f).heightIn(min = KindCardMinHeight).fillMaxHeight(),
-                )
-                KindCard(
-                    stringResource(Res.string.sheetedit_new_staff_title),
-                    stringResource(Res.string.sheetedit_new_staff_caption),
-                    SheetEditIcons.StaffNotes,
-                    onClick = { onSelectKind(ImportKind.Staff) },
+                    stringResource(Res.string.sheetedit_new_eolssu_title),
+                    stringResource(Res.string.sheetedit_new_eolssu_caption),
+                    SheetEditIcons.MySheet,
+                    onClick = onLoadExisting,
                     modifier = Modifier.weight(1f).heightIn(min = KindCardMinHeight).fillMaxHeight(),
                 )
             }
-            // 파일 업로드와 다른 기능이라 두 카드와 조금 떼어 따로 둔다.
-            LinkRow(
-                SheetEditIcons.MySheet,
-                stringResource(Res.string.sheetedit_new_copy_title),
-                onClick = onLoadExisting,
-                modifier = Modifier.padding(top = 8.dp),
-            )
             MySheetsSection(state, sheetActions)
         }
     }

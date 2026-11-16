@@ -30,7 +30,7 @@ fun validSheetFiles(files: List<SheetFile>): Boolean = files.size in 1..10 &&
     (files.none { it.contentType == "application/pdf" } || files.size == 1)
 
 /**
- * 악보 파일을 고를 곳. 화면은 [sheetFileSources]에 든 것만 토글로 두고(첫 항목이 기본), 하나뿐이면 토글 없이 바로 연다.
+ * 악보 파일을 고를 곳. 화면은 파일 선택 버튼 아래 메뉴에 [sheetFileSources]에 든 것만 두고, 하나뿐이면 메뉴 없이 바로 연다.
  * 새 방법(예: 카메라 문서 스캔)은 항목과 플랫폼 구현만 더한다.
  */
 enum class SheetFileSource {

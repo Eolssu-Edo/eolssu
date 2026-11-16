@@ -7,11 +7,12 @@
     <!-- EDIT-01 악보 추가 -->
     <string name="sheetedit_new_title">악보 추가</string>
     <string name="sheetedit_new_question">어떻게 추가할까요?</string>
-    <string name="sheetedit_new_jg_title">정간보 가져오기</string>
-    <string name="sheetedit_new_staff_title">오선보 가져오기</string>
-    <string name="sheetedit_new_jg_caption">사진·PDF 정간보</string>
-    <string name="sheetedit_new_staff_caption">사진·PDF 오선보</string>
-    <string name="sheetedit_new_copy_title">내 악보·제공 곡 불러오기</string>
+    <string name="sheetedit_new_upload_title">내 악보 가져오기</string>
+    <string name="sheetedit_new_upload_caption">사진·PDF 올리기</string>
+    <string name="sheetedit_new_eolssu_title">얼쑤에서 가져오기</string>
+    <string name="sheetedit_new_eolssu_caption">제공 곡·내 악보 복사</string>
+    <string name="sheetedit_new_kind_jeongganbo">정간보</string>
+    <string name="sheetedit_new_kind_staff">오선보</string>
 
     <!-- DevicePick 기기 기본 선택 창 자리 -->
     <string name="sheetedit_device_title_jg">정간보 사진·PDF 가져오기</string>
