@@ -234,12 +234,13 @@ internal fun EditorTopBar(
     closeLabel: String,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    maxWidth: Dp = CompactContentMaxWidth,
     right: @Composable RowScope.() -> Unit = {},
 ) {
-    // 넓은 창에서도 본문([com.ssafy.eolssu.core.ui.component.EolssuScaffold])과 같은 휴대폰 너비로 가운데에 둔다.
+    // 넓은 창에서도 본문([com.ssafy.eolssu.core.ui.component.EolssuScaffold])과 같은 너비([maxWidth])로 가운데에 둔다.
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         CenteredTitleRow(
-            modifier.widthIn(max = CompactContentMaxWidth).fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
+            modifier.widthIn(max = maxWidth).fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
             start = { EolssuIconButton(EolssuIcons.Close, closeLabel, onClose, bordered = false) },
             end = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { right() } },
         ) {
