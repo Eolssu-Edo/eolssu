@@ -16,12 +16,13 @@ enum class PasswordCheck {
 }
 
 /**
- * 서버 비밀번호 규칙: 영문·숫자·특수문자를 모두 넣은 8~128자. 가입·비밀번호 찾기·비밀번호 변경이 함께 쓴다.
+ * 새 비밀번호 규칙: 영문·숫자·특수문자를 모두 넣은 8~64자. 가입·비밀번호 찾기·비밀번호 변경이 함께 쓴다.
+ * 서버는 아직 8~128자를 받지만 앱은 모든 비밀번호 칸에서 64자까지만 받는다(S15P31E102-996, [InputLimit.PASSWORD]).
  * 화면 체크리스트([checks])와 제출 검사([isValid])가 같은 판정을 쓰도록 한곳에 둔다.
  */
 object PasswordRule {
     const val MinLength = 8
-    const val MaxLength = 128
+    const val MaxLength = 64
 
     /** [password]가 채운 조건. 비어 있으면 빈 집합이다. */
     fun checks(password: String): Set<PasswordCheck> = buildSet {

@@ -1,5 +1,13 @@
 package com.ssafy.eolssu.feature.profile
 
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.Modifier
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
@@ -40,7 +48,7 @@ fun PasswordChangeScreen(
         // 마이페이지처럼 회색 바탕 위 테두리 없는 흰 입력칸(S15P31E102-768).
         containerColor = EolssuTheme.colors.groupedBackground,
         bottomDivider = false,
-        bottomBar = { EolssuButton(stringResource(Res.string.my_password_change_done), onClick = onSubmit) },
+        bottomBar = { EolssuButton(stringResource(Res.string.my_password_change_done), onClick = onSubmit, busy = state.submitting) },
     ) {
         EolssuTextField(
             value = state.current,
@@ -48,11 +56,12 @@ fun PasswordChangeScreen(
             label = stringResource(Res.string.my_password_current),
             placeholder = stringResource(Res.string.my_password_current),
             type = TextFieldType.Password,
+            maxLength = InputLimit.PASSWORD,
             bordered = false,
             error = state.currentError?.let { stringResource(it.message) },
         )
         // 가입 비밀번호 칸(AUTH-08)처럼 규칙은 문장 대신 체크리스트로 안내하고, 조건을 덜 채운 채 누르면 체크리스트를 강조한다.
-        // 입력칸 오류 문장은 그 밖의 오류(미입력·128자 초과·현재와 같음)만 쓴다.
+        // 입력칸 오류 문장은 그 밖의 오류(미입력·64자 초과·현재와 같음)만 쓴다.
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val ruleError = state.newError == ProfileFieldError.PasswordRule
             EolssuTextField(
@@ -61,6 +70,7 @@ fun PasswordChangeScreen(
                 label = stringResource(Res.string.my_password_new),
                 placeholder = stringResource(Res.string.my_password_new),
                 type = TextFieldType.Password,
+                maxLength = InputLimit.PASSWORD,
                 bordered = false,
                 error = state.newError?.takeUnless { ruleError }?.let { stringResource(it.message) },
             )
@@ -72,10 +82,23 @@ fun PasswordChangeScreen(
             label = stringResource(Res.string.my_password_confirm),
             placeholder = stringResource(Res.string.my_password_confirm_placeholder),
             type = TextFieldType.Password,
+            maxLength = InputLimit.PASSWORD,
             bordered = false,
             error = state.confirmError?.let { stringResource(it.message) },
             imeAction = ImeAction.Done,
             onImeAction = onSubmit,
         )
+        state.formError?.let { ProfileFormError(stringResource(it.message)) }
     }
+}
+
+/** 칸과 상관없는 제출 실패 안내. 화면 읽기도 바로 읽는다. */
+@Composable
+private fun ProfileFormError(text: String) {
+    Text(
+        text,
+        Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+        color = EolssuTheme.colors.recText,
+    )
 }
