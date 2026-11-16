@@ -40,6 +40,8 @@ internal fun FingeringCompactLayout(
                     onToggle = actions.onToggleDropdown,
                     onSelect = actions.onSelectInstrument,
                     onDismiss = actions.onDismissDropdown,
+                    enabled = state.hasSelectedInstrument,
+                    loading = state.isInstrumentListLoading,
                     modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
                 )
                 BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.padding(bottom = 10.dp))

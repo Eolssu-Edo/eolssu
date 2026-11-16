@@ -7,10 +7,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eolssu.shared.generated.resources.Res
@@ -38,6 +36,8 @@ internal fun completeLearnSegment(
  * 3~7단계 연습 연결(S15P31E102-688). 단계 화면을 옮기지 않고 박스에서 듣고 판정한다.
  * 3·4·7단계는 마지막 연습 박스, 5·6단계는 할 일 박스 안에서 듣는다(S15P31E102-749).
  * 단계마다 연습 상태([LearnPracticeViewModel])를 따로 두고, 화면을 벗어나면(ON_STOP) 듣기를 멈춘다.
+ * 연습 상태는 [practiceOwner](단계 목록·상세가 함께 쓰는 기초부터 배우기 그래프)에 묶는다. 태블릿을 돌려 단계 화면과
+ * 목록 2단 배치가 바뀌어도 통과 상태가 이어진다(S15P31E102-1030).
  * 4단계부터는 통과하거나 스스로 확인하면 '완료했어요!'를 띄우고, '다음 단계로'가 완료 표시 뒤 [onCompleted]로 다음 단계(마지막이면 null)를 넘긴다.
  * 연습 단계가 아니면 null이다.
  */
@@ -46,14 +46,16 @@ internal fun rememberLearnStagePractice(
     stage: LearnStage?,
     learnState: LearnUiState,
     learnViewModel: LearnViewModel,
+    practiceOwner: ViewModelStoreOwner,
     onSettingsFailed: () -> Unit,
     onCompleted: (Int?) -> Unit,
 ): StepPractice? {
     if (stage == null || stage.primaryAction != LearnStageAction.Practice) return null
     return key(stage.number) {
         val number = stage.number
-        val viewModel: LearnPracticeViewModel = koinViewModel(key = "learn-practice-$number") { parametersOf(number) }
+        val viewModel: LearnPracticeViewModel = koinViewModel(viewModelStoreOwner = practiceOwner, key = "learn-practice-$number") { parametersOf(number) }
         val state by viewModel.uiState.collectAsStateWithLifecycle()
+        val celebrating by viewModel.celebrating.collectAsStateWithLifecycle()
         val detail = (learnState.detail(number) as? LearnDetailLoad.Loaded)?.detail
         LaunchedEffect(learnState.instrument, detail) { detail?.let { viewModel.prepare(learnState.instrument, it) } }
         LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.stopListening() }
@@ -63,21 +65,14 @@ internal fun rememberLearnStagePractice(
         val next = learnState.stageAfterConfirm(number)
         val complete = {
             viewModel.stopListening()
+            viewModel.dismissCelebration()
             if (next == null) learnViewModel.finishTrack(number) else learnViewModel.confirm(number)
             onCompleted(next)
         }
         // 한 번 통과에 한 번만 띄우고(닫은 뒤 화면을 돌려도 다시 뜨지 않음), 처음부터 다시 하면 다음 통과에 다시 띄운다.
         val celebrates = number >= 4
-        var celebrating by rememberSaveable(number) { mutableStateOf(false) }
-        var announcedPass by rememberSaveable(number) { mutableStateOf(false) }
         val passed = state.phase == LearnPracticePhase.Passed
-        LaunchedEffect(passed) {
-            if (!passed) announcedPass = false
-            else if (celebrates && !announcedPass) {
-                announcedPass = true
-                celebrating = true
-            }
-        }
+        LaunchedEffect(passed) { viewModel.onPassChanged(passed, celebrates) }
         val actions = LearnPracticeActions(
             onStart = viewModel::startListening,
             onStop = viewModel::stopListening,
@@ -86,14 +81,7 @@ internal fun rememberLearnStagePractice(
             onOpenSettings = { if (!viewModel.openMicSettings()) onSettingsFailed() },
             onRewind = viewModel::rewindTo,
         )
-        val selfDone: () -> Unit = if (celebrates) {
-            {
-                viewModel.stopListening()
-                celebrating = true
-            }
-        } else {
-            complete
-        }
+        val selfDone: () -> Unit = if (celebrates) viewModel::celebrate else complete
         val instrument = learnState.instrument
         val boxes = detail?.let { learnStepCount(number, it, instrument) } ?: 0
         // 5단계는 박스마다 올라가기·내려오기 음을 정간보 한 각으로 그린다.
@@ -120,7 +108,7 @@ internal fun rememberLearnStagePractice(
             onUndo = { box -> if (judgesInTasks(number)) viewModel.rewindTo(segmentNotes(number, box, state.pitch?.notes?.size ?: 0).first) },
             overlay = {
                 if (celebrating) {
-                    LearnDoneDialog(learnDoneBody(number), onDismiss = { celebrating = false }, onNext = complete, action = learnDoneAction(next == null))
+                    LearnDoneDialog(learnDoneBody(number), onDismiss = viewModel::dismissCelebration, onNext = complete, action = learnDoneAction(next == null))
                 }
             },
         ) {
