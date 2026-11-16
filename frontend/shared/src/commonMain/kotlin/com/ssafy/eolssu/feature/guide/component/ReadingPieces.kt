@@ -866,10 +866,10 @@ private fun SigimsaeTile(symbol: SigimsaeSymbol, on: Boolean, enabled: Boolean, 
     val shape = RoundedCornerShape(12.dp)
     Column(
         modifier
-            // 고른 칸은 녹색 테두리로만 보인다. 누르는 동안의 회색 반응 박스는 그리지 않는다(QA)
+            // 고른 칸은 녹색 테두리로 보인다. 누르는 동안·키보드로 고른 동안의 반응은 칸(그림+이름) 전체의
+            // 12dp 둥근 모양 안에만 그려 네모 박스로 튀어나오지 않게 한다(S15P31E102-969).
+            .clip(shape)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
                 enabled = enabled,
                 role = Role.Button,
                 onClick = onClick,

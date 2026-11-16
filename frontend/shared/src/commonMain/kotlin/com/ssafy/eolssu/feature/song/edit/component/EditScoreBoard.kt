@@ -23,6 +23,7 @@ import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.StaffNote
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheet_editor_correction_description
+import eolssu.shared.generated.resources.sheet_editor_range_description
 import org.jetbrains.compose.resources.stringResource
 
 /** EDIT-03 아래 '같은 위치의 정간보'처럼 작게 그리는 크기(율명 15 · 두 음 10). */
@@ -101,19 +102,24 @@ internal fun EditScoreBoard(
 
 /**
  * 수정할 정간은 붉은 바탕·점선·!로 표시하고 선택해도 오류 바탕과 태그를 유지한다.
+ * 악기 음역·운지만 걸린 정간([rangeCells])은 갈색 바탕·점선·↕로 구분한다(S15P31E102-979). 이조로 풀 수 있는 문제다.
  * 정상 정간·소박의 선택은 기존 연두 표시를 쓴다.
  */
 @Composable
 internal fun editorMarks(draft: SheetDraft, selected: Int, sub: Int? = null, correctionCells: Set<Int> = emptySet(),
-    correctionUnits: Set<ScoreUnitKey> = emptySet()): Map<Pair<Int, Int>, ScoreCellMark> {
+    correctionUnits: Set<ScoreUnitKey> = emptySet(), rangeCells: Set<Int> = emptySet()): Map<Pair<Int, Int>, ScoreCellMark> {
     val colors = EolssuTheme.colors
     val correctionDescription = stringResource(Res.string.sheet_editor_correction_description)
+    val rangeDescription = stringResource(Res.string.sheet_editor_range_description)
     val empty = ScoreCellMark(fill = colors.background, ring = colors.line, ringWidth = 1.dp, dashed = true)
     return buildMap {
         draft.emptyCells.forEach { put(draft.columnOf(it) to draft.rowOf(it), empty) }
         correctionCells.filter { it in draft.cells.indices &&
             (draft.cells[it].size <= 1 || draft.cells[it].indices.none { sub -> draft.unitKeyOf(it, sub) in correctionUnits }) }.forEach {
-            put(draft.columnOf(it) to draft.rowOf(it), ScoreCellMark(
+            put(draft.columnOf(it) to draft.rowOf(it), if (it in rangeCells) ScoreCellMark(
+                fill = colors.pitchErrorSoft, ring = colors.pitchError, ringWidth = 1.5.dp, dashed = true, tag = RANGE_TAG,
+                description = rangeDescription, selected = it == selected && sub == null,
+            ) else ScoreCellMark(
                 fill = colors.recSoft, ring = colors.rec, ringWidth = 1.5.dp, dashed = true, tag = "!",
                 description = correctionDescription, selected = it == selected && sub == null,
             ))
@@ -128,13 +134,17 @@ internal fun editorMarks(draft: SheetDraft, selected: Int, sub: Int? = null, cor
     }
 }
 
-/** 오류가 있는 소박의 붉은 바탕·점선·!를 유지하고 고른 소박의 선택 테두리를 덧그린다. */
+/** 오류가 있는 소박의 붉은 바탕·점선·!(음역만 걸린 소박은 갈색·↕)를 유지하고 고른 소박의 선택 테두리를 덧그린다. */
 @Composable
-internal fun editorUnitMarks(draft: SheetDraft, selected: Int, sub: Int?, correctionUnits: Set<ScoreUnitKey> = emptySet()): Map<ScoreUnitKey, ScoreCellMark> {
+internal fun editorUnitMarks(draft: SheetDraft, selected: Int, sub: Int?, correctionUnits: Set<ScoreUnitKey> = emptySet(),
+    rangeUnits: Set<ScoreUnitKey> = emptySet()): Map<ScoreUnitKey, ScoreCellMark> {
     val colors = EolssuTheme.colors
     val correctionDescription = stringResource(Res.string.sheet_editor_correction_description)
+    val rangeDescription = stringResource(Res.string.sheet_editor_range_description)
     return buildMap {
-        correctionUnits.forEach { key -> put(key, ScoreCellMark(fill = colors.recSoft,
+        correctionUnits.forEach { key -> put(key, if (key in rangeUnits) ScoreCellMark(fill = colors.pitchErrorSoft,
+            ring = colors.pitchError, ringWidth = 1.5.dp, dashed = true, tag = RANGE_TAG, description = rangeDescription)
+            else ScoreCellMark(fill = colors.recSoft,
             ring = colors.rec, ringWidth = 1.5.dp, dashed = true, tag = "!", description = correctionDescription)) }
         if (sub != null && selected in draft.cells.indices) draft.unitKeyOf(selected, sub)?.let { key ->
             put(key, this[key]?.copy(ring = colors.text, dashed = false, selected = true)
@@ -167,3 +177,6 @@ internal fun staffMarks(draft: SheetDraft, note: StaffNote?): Map<Pair<Int, Int>
     return (note.key.start until (note.key.start + note.span).coerceAtMost(draft.cells.size))
         .associate { (draft.columnOf(it) to draft.rowOf(it)) to mark }
 }
+
+/** 음역·운지만 걸린 정간의 태그. 이조·옥타브 조정으로 풀 수 있다는 뜻이다. */
+internal const val RANGE_TAG = "↕"

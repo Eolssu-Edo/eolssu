@@ -47,6 +47,7 @@ internal fun sheetReviewReason(issue: SheetReviewIssue, correctedPitch: Boolean 
         "UNREGISTERED_PITCH" -> issue.pitch?.let { (name, octave) -> stringResource(Res.string.sheet_review_pitch_label, name, octave) }
             ?: stringResource(Res.string.sheet_review_missing_pitch)
         "OUT_OF_RANGE" -> stringResource(Res.string.sheet_review_range)
+        "ORNAMENT_DROPPED" -> stringResource(Res.string.sheet_review_ornament_dropped)
         "LOW_CONFIDENCE" -> if (issue.reason == "GAP_IN_VOICE") stringResource(Res.string.sheet_review_gap_in_voice)
             else stringResource(Res.string.sheet_review_uncertain)
         else -> stringResource(Res.string.sheet_review_uncertain)

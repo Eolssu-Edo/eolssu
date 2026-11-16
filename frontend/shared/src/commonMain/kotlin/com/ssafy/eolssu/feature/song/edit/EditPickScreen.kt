@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import androidx.compose.ui.draw.alpha
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.BorderStroke
@@ -181,7 +182,8 @@ private fun PickRow(title: String, meta: String, selected: Boolean, enabled: Boo
         selected = selected,
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { role = Role.RadioButton },
+        // 복사 중에는 누를 수 없음을 앱 버튼과 같은 0.45 흐림으로 알린다(S15P31E102-969).
+        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).alpha(if (enabled) 1f else 0.45f).semantics { role = Role.RadioButton },
         shape = RoundedCornerShape(14.dp),
         color = if (selected) colors.accentTint else colors.surface,
         contentColor = colors.text,

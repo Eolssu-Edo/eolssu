@@ -10,6 +10,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import kotlinx.coroutines.delay
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.Image
 import com.ssafy.eolssu.core.model.Instrument
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -128,9 +132,17 @@ internal val ProfileImage.label: StringResource
 internal fun MyPageAvatar(image: ProfileImage, onEdit: () -> Unit) {
     val colors = EolssuTheme.colors
     val description = stringResource(Res.string.my_profile_image_edit)
+    // 원과 뱃지는 버튼 하나다. 화면 읽기·웹 키보드도 이 버튼 하나로 그림 고르기를 열고,
+    // 어디를 눌러도 같은 눌림 효과가 원 안에만 보인다(S15P31E102-969).
+    val interaction = remember { MutableInteractionSource() }
     // 부모 칸이 좁아도 타원이 되지 않게 정사각형을 강제한다(S15P31E102-768).
-    Box(Modifier.requiredSize(84.dp).clearAndSetSemantics { contentDescription = description; role = Role.Button }) {
-        Box(Modifier.matchParentSize().clip(CircleShape).clickable(onClick = onEdit)) {
+    Box(
+        Modifier
+            .requiredSize(84.dp)
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onEdit)
+            .clearAndSetSemantics { contentDescription = description; role = Role.Button; onClick { onEdit(); true } },
+    ) {
+        Box(Modifier.matchParentSize().clip(CircleShape).indication(interaction, ripple())) {
             ProfileImageCircle(image, 84.dp)
         }
         Box(
@@ -141,8 +153,7 @@ internal fun MyPageAvatar(image: ProfileImage, onEdit: () -> Unit) {
                 .background(colors.groupedBackground, CircleShape)
                 .padding(2.dp)
                 .clip(CircleShape)
-                .background(colors.cardInk)
-                .clickable(onClick = onEdit),
+                .background(colors.cardInk),
             contentAlignment = Alignment.Center,
         ) {
             Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.onInk)
