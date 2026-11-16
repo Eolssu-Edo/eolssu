@@ -88,15 +88,19 @@ class SheetConversionViewModel(
     /** 화면이 보이면 묻기 시작한다. */
     fun watch() {
         watching = true
+        repository.showingConversion(sheetId, true)
         start()
     }
 
     /** 화면이 가려지면 더 묻지 않는다. 변환은 서버에서 계속된다. */
     fun stop() {
         watching = false
+        repository.showingConversion(sheetId, false)
         pollJob?.cancel()
         pollJob = null
     }
+
+    override fun onCleared() = repository.showingConversion(sheetId, false)
 
     /** 화면이 편집으로 이동했다. */
     fun editorOpened() = state.update { it.copy(openEditor = false) }

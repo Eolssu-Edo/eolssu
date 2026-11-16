@@ -127,7 +127,6 @@ private const val READING_MS_PER_PAGE_STAFF = 28_000.0
 private const val READING_MS_PER_PAGE_JEONGGANBO = 10_000.0
 
 /** 변환 다시 시도 뒤 한 번 보일 안내. */
-
 enum class ConversionNotice {
     /** 서버가 다시 시도할 수 없다고 했다(원본 미보관). 새 파일로 다시 불러와야 한다. */
     Reimport,

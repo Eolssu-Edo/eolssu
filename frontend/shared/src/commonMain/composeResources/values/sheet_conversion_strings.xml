@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 악보 변환 실패 안내 (S15P31E102-998). 제목은 strings.xml의 mysongs_conversion_failed_* -->
+    <!-- 악보 변환 실패 안내 (S15P31E102-998). 정간·오선 제목은 여기, 나머지 제목은 strings.xml의 mysongs_conversion_failed_* -->
     <string name="mysongs_conversion_failed_no_grid">정간 칸을 찾지 못했어요</string>
     <string name="mysongs_conversion_failed_no_staff">오선을 찾지 못했어요</string>
     <string name="mysongs_conversion_failed_no_grid_row">정간 칸을 찾지 못했어요. 정간보가 화면에 꽉 차게 다시 찍어 주세요.</string>
     <string name="mysongs_conversion_failed_no_staff_row">오선을 찾지 못했어요. 오선이 또렷하게 보이게 다시 찍어 주세요.</string>
     <string name="mysongs_conversion_failed_no_score_row">악보를 찾지 못했어요. 악보만 보이게 다시 찍어 주세요.</string>
     <string name="mysongs_conversion_failed_file_row">파일을 열 수 없었어요. 다른 PDF나 사진으로 불러와 주세요.</string>
-    <string name="mysongs_conversion_failed_timeout_row">읽는 시간이 너무 오래 걸렸어요. 쪽을 나눠 불러와 주세요.</string>
+    <string name="mysongs_conversion_failed_timeout_row">시간 안에 변환하지 못했어요. 잠시 후 다시 불러와 주세요.</string>
     <string name="mysongs_conversion_failed_server_row">서버 문제로 변환하지 못했어요. 잠시 후 다시 불러와 주세요.</string>
     <string name="mysongs_conversion_failed_unknown_row">변환하지 못했어요. 눌러서 이유를 확인해 주세요.</string>
 
@@ -21,14 +21,13 @@
     <string name="mysongs_conversion_failed_no_score_tip2">그림자나 기울어짐 없이 정면에서 밝게 찍어 주세요.</string>
     <string name="mysongs_conversion_failed_file_tip1">암호가 걸린 PDF는 암호를 푼 뒤 다시 저장해 주세요.</string>
     <string name="mysongs_conversion_failed_file_tip2">파일이 열리지 않으면 악보를 사진(JPG·PNG)으로 찍어 올려 주세요.</string>
-    <string name="mysongs_conversion_failed_timeout_tip1">쪽이 많으면 몇 쪽씩 나눠서 불러와 주세요.</string>
-    <string name="mysongs_conversion_failed_timeout_tip2">사진이 아주 크면 악보 부분만 잘라 올려 주세요.</string>
+    <string name="mysongs_conversion_failed_timeout_tip1">변환을 기다리는 악보가 많았거나 읽는 데 시간이 오래 걸렸어요.</string>
+    <string name="mysongs_conversion_failed_timeout_tip2">잠시 후 다시 불러와 주세요. 쪽이 많으면 몇 쪽씩 나눠 불러오면 더 빨라요.</string>
     <string name="mysongs_conversion_failed_server_tip1">악보나 사진의 문제가 아니에요.</string>
     <string name="mysongs_conversion_failed_server_tip2">잠시 후 같은 파일로 다시 불러와 주세요.</string>
 
     <string name="mysongs_conversion_action_retake">다시 찍어 불러오기</string>
     <string name="mysongs_conversion_action_other_file">다른 파일로 불러오기</string>
-    <string name="mysongs_conversion_action_split">나눠서 다시 불러오기</string>
     <string name="mysongs_conversion_action_try_later">다시 불러오기</string>
 
     <!-- 악보 변환 대기 화면 (S15P31E102-998) -->
@@ -45,6 +44,7 @@
     <string name="sheet_conversion_building_body">거의 다 됐어요. 끝나면 바로 편집 화면으로 넘어가요.</string>
     <string name="sheet_conversion_done_title">악보를 다 만들었어요</string>
     <string name="sheet_conversion_done_body">편집 화면으로 넘어가요.</string>
+    <string name="sheet_conversion_open_editor">편집 화면 열기</string>
     <string name="sheet_conversion_step_queued">차례 기다리기</string>
     <string name="sheet_conversion_step_reading">악보 읽기</string>
     <string name="sheet_conversion_step_building">악보 만들기</string>

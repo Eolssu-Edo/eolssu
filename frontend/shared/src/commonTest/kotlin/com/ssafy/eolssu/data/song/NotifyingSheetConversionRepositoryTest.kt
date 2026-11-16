@@ -173,6 +173,29 @@ class NotifyingSheetConversionRepositoryTest {
         assertTrue(repository.isCurrent(repository.completions.first().single()), "다음 변환의 완료는 다시 알린다")
     }
 
+    @Test fun sheetOnTheWaitingScreenIsLeftToThatScreenUntilItLeaves() = runTest {
+        val api = ConversionApi()
+        val repository = repository(api)
+        backgroundScope.launch { repository.monitor() }
+        repository.upload(input, "upload-1")
+        repository.showingConversion("12", true)
+        runCurrent()
+        api.current = SheetConversion("12", SheetConversionStatus.Done)
+        advanceTimeBy(10_000); runCurrent()
+        assertEquals(0, api.statusCalls, "대기 화면이 묻는 동안 앱 전체 감시는 같은 악보를 다시 묻지 않는다")
+        repository.status("12") // 대기 화면 자신의 조회
+        assertTrue(repository.completions.first().isEmpty(), "대기 화면이 보이는 악보의 완료는 앱 배너로 알리지 않는다")
+
+        api.current = SheetConversion("12", SheetConversionStatus.Running, pollAfterMs = 1_000)
+        repository.status("12")
+        repository.showingConversion("12", false)
+        api.current = SheetConversion("12", SheetConversionStatus.Done)
+        val calls = api.statusCalls
+        advanceTimeBy(3_000); runCurrent()
+        assertTrue(api.statusCalls > calls, "대기 화면을 떠나면 앱 전체 감시가 다시 묻는다")
+        assertEquals(listOf("12"), repository.completions.first().map { it.sheetId }, "떠난 뒤 끝난 변환은 배너로 알린다")
+    }
+
     private fun repository(api: ConversionApi) = NotifyingSheetConversionRepository(api, api,
         SignedInMember(FakeKeyValueStore()).apply { set("8") })
 

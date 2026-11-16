@@ -62,6 +62,7 @@ import eolssu.shared.generated.resources.sheet_conversion_building_title
 import eolssu.shared.generated.resources.sheet_conversion_checking
 import eolssu.shared.generated.resources.sheet_conversion_done_body
 import eolssu.shared.generated.resources.sheet_conversion_done_title
+import eolssu.shared.generated.resources.sheet_conversion_open_editor
 import eolssu.shared.generated.resources.sheet_conversion_leave_hint
 import eolssu.shared.generated.resources.sheet_conversion_missing
 import eolssu.shared.generated.resources.sheet_conversion_progress
@@ -92,13 +93,15 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * 악보 변환 대기 화면(S15P31E102-998). 연주 분석 대기처럼 붓 일원상이 진행만큼 그려지고 가운데에 공부하는 호랑이를 둔다.
  * 위에서부터 단계 제목 · 악보 제목 · 단계 설명 · 단계 줄(차례 기다리기 → 악보 읽기 → 악보 만들기) · 나가도 된다는 안내 순서다.
- * 실패하면 붓 대신 호랑이와 원인 · 할 일 목록 · 다음 행동 버튼을 둔다. 완료되면 Route가 편집 화면으로 보낸다.
+ * 실패하면 붓 대신 호랑이와 원인 · 할 일 목록 · 다음 행동 버튼을 둔다. 완료되면 Route가 편집 화면으로 보내고,
+ * 화면 전환 중이라 이동이 무시돼도 머물지 않게 '편집 화면 열기'([onOpenEditor])를 둔다.
  */
 @Composable
 fun SheetConversionScreen(
     state: SheetConversionUiState,
     onList: () -> Unit,
     onReimport: () -> Unit,
+    onOpenEditor: () -> Unit,
 ) {
     val failure = state.failure
     EolssuScaffold(
@@ -112,7 +115,8 @@ fun SheetConversionScreen(
                             style = EolssuButtonStyle.Secondary, borderColor = Color.Transparent)
                     }
                     state.missing -> EolssuButton(stringResource(Res.string.sheet_conversion_to_list), onList)
-                    !state.done -> EolssuButton(stringResource(Res.string.sheet_conversion_wait_in_list), onList,
+                    state.done -> EolssuButton(stringResource(Res.string.sheet_conversion_open_editor), onOpenEditor)
+                    else -> EolssuButton(stringResource(Res.string.sheet_conversion_wait_in_list), onList,
                         style = EolssuButtonStyle.Secondary)
                 }
             }

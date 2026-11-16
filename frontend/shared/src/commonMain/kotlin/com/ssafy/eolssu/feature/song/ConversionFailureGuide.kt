@@ -6,7 +6,6 @@ import com.ssafy.eolssu.data.song.SheetNotation
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_conversion_action_other_file
 import eolssu.shared.generated.resources.mysongs_conversion_action_retake
-import eolssu.shared.generated.resources.mysongs_conversion_action_split
 import eolssu.shared.generated.resources.mysongs_conversion_action_try_later
 import eolssu.shared.generated.resources.mysongs_conversion_failed_file
 import eolssu.shared.generated.resources.mysongs_conversion_failed_file_row
@@ -45,10 +44,7 @@ enum class ConversionNextAction(val label: StringResource) {
     /** 다른 파일(사진·다시 저장한 PDF)로 올린다. */
     OtherFile(Res.string.mysongs_conversion_action_other_file),
 
-    /** 쪽 수를 나눠 올린다. */
-    Split(Res.string.mysongs_conversion_action_split),
-
-    /** 악보 문제가 아니므로 잠시 뒤 같은 파일로 다시 올린다. */
+    /** 악보 문제가 아니거나 단정할 수 없으므로 잠시 뒤 같은 파일로 다시 올린다. */
     TryLater(Res.string.mysongs_conversion_action_try_later),
 }
 
@@ -78,9 +74,9 @@ enum class ConversionFailureGuide(
     File(Res.string.mysongs_conversion_failed_file, Res.string.mysongs_conversion_failed_file_row,
         listOf(Res.string.mysongs_conversion_failed_file_tip1, Res.string.mysongs_conversion_failed_file_tip2), ConversionNextAction.OtherFile),
 
-    /** 시간 상한을 넘었다. */
+    /** 시간 상한을 넘었다. 처리가 오래 걸린 때뿐 아니라 대기 중 기한이 지나거나 원본이 만료돼도 난다(사용자 탓으로 단정하지 않는다). */
     Timeout(Res.string.mysongs_conversion_failed_timeout, Res.string.mysongs_conversion_failed_timeout_row,
-        listOf(Res.string.mysongs_conversion_failed_timeout_tip1, Res.string.mysongs_conversion_failed_timeout_tip2), ConversionNextAction.Split),
+        listOf(Res.string.mysongs_conversion_failed_timeout_tip1, Res.string.mysongs_conversion_failed_timeout_tip2), ConversionNextAction.TryLater),
 
     /** 인식기·서버 오류(인식기의 `ENGINE_ERROR` 포함). */
     Server(Res.string.mysongs_conversion_failed_server, Res.string.mysongs_conversion_failed_server_row,

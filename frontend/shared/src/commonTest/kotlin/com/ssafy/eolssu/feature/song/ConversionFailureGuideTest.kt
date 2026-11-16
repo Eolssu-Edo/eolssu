@@ -39,12 +39,13 @@ class ConversionFailureGuideTest {
 
     @Test
     fun nextActionMatchesWhatTheUserCanChange() {
-        // 악보·사진 문제는 다시 찍거나 자르고, 파일 문제는 다른 파일, 시간 초과는 나눠 올리고, 서버 문제는 같은 파일로 잠시 뒤 다시 한다.
+        // 악보·사진 문제는 다시 찍거나 자르고, 파일 문제는 다른 파일로 한다.
+        // 시간 초과는 서버가 밀려 대기 중에 기한이 지나도 나므로(ConversionQueue.expire) 서버 문제처럼 잠시 뒤 다시 한다.
         assertEquals(ConversionNextAction.Retake, ConversionFailureGuide.NoGrid.action)
         assertEquals(ConversionNextAction.Retake, ConversionFailureGuide.NoStaff.action)
         assertEquals(ConversionNextAction.Retake, ConversionFailureGuide.NoScore.action)
         assertEquals(ConversionNextAction.OtherFile, ConversionFailureGuide.File.action)
-        assertEquals(ConversionNextAction.Split, ConversionFailureGuide.Timeout.action)
+        assertEquals(ConversionNextAction.TryLater, ConversionFailureGuide.Timeout.action)
         assertEquals(ConversionNextAction.TryLater, ConversionFailureGuide.Server.action)
     }
 }

@@ -660,7 +660,7 @@
     <string name="mysongs_conversion_failed">변환 실패</string>
     <string name="mysongs_conversion_failed_no_score">악보를 찾지 못했어요</string>
     <string name="mysongs_conversion_failed_file">파일을 열 수 없었어요</string>
-    <string name="mysongs_conversion_failed_timeout">읽는 시간이 너무 오래 걸렸어요</string>
+    <string name="mysongs_conversion_failed_timeout">시간 안에 변환하지 못했어요</string>
     <string name="mysongs_conversion_failed_server">서버에서 변환하지 못했어요</string>
     <string name="mysongs_conversion_retry">다시 시도</string>
     <string name="mysongs_conversion_reimport">다시 불러오기</string>

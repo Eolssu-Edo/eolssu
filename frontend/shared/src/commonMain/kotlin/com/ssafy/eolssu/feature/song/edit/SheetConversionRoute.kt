@@ -35,5 +35,5 @@ fun SheetConversionRoute(
         }
     }
     BackHandler(onBack = onList)
-    SheetConversionScreen(state, onList = onList, onReimport = { onReimport(state.conversion?.failure) })
+    SheetConversionScreen(state, onList = onList, onReimport = { onReimport(state.conversion?.failure) }, onOpenEditor = { onDone(sheetId) })
 }

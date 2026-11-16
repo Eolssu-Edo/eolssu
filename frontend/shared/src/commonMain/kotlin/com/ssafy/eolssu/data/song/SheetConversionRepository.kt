@@ -137,6 +137,12 @@ interface SheetConversionRepository {
 
     /** 대기 화면이 완료를 보고 편집으로 데려갔다. 같은 완료를 앱 전체 배너로 다시 알리지 않는다. */
     fun acknowledgeCompletion(sheetId: String) {}
+
+    /**
+     * 대기 화면이 이 악보를 직접 묻는 중이다([showing] = true). 그동안 앱 전체 감시는 같은 악보를 묻지 않고,
+     * 그사이 끝난 완료도 배너로 알리지 않는다. 화면이 가려지면 false로 돌려 앱 전체 감시에 맡긴다.
+     */
+    fun showingConversion(sheetId: String, showing: Boolean) {}
 }
 
 /** 응답 코드로만 분기한다. 서버 ID가 아닌 악보는 서버에 묻지 않는다. 상태 응답은 `no-store`라 캐시하지 않는다. */

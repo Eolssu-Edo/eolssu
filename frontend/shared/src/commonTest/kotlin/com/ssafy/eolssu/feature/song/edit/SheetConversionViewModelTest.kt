@@ -40,6 +40,10 @@ internal class SheetConversionViewModelTest : CatalogViewModelTest() {
         }
         override suspend fun retry(sheetId: String) = SheetConversionRetry.NotRetryable
         override fun acknowledgeCompletion(sheetId: String) { acknowledged += sheetId }
+        val showing = mutableSetOf<String>()
+        override fun showingConversion(sheetId: String, showing: Boolean) {
+            if (showing) this.showing += sheetId else this.showing -= sheetId
+        }
     }
 
     private class Sheets : MySheetRepository {
@@ -130,12 +134,17 @@ internal class SheetConversionViewModelTest : CatalogViewModelTest() {
     fun hiddenScreenStopsAskingAndResumesOnReturn() = runTest {
         val conversions = Conversions().apply { repeat(5) { answers += found(SheetConversionStatus.Queued) } }
         val model = model(conversions)
-        model.watch(); runCurrent()
-        model.stop()
-        advanceTimeBy(20_000)
-        assertEquals(1, conversions.asked, "가려진 동안은 묻지 않는다")
-        model.watch(); runCurrent()
-        assertEquals(2, conversions.asked)
-        model.stop()
+        try {
+            model.watch(); runCurrent()
+            assertEquals(setOf("7"), conversions.showing, "보이는 동안은 앱 전체 감시 대신 이 화면이 묻는다")
+            model.stop()
+            assertTrue(conversions.showing.isEmpty(), "가려지면 앱 전체 감시에 맡긴다")
+            advanceTimeBy(20_000)
+            assertEquals(1, conversions.asked, "가려진 동안은 묻지 않는다")
+            model.watch(); runCurrent()
+            assertEquals(2, conversions.asked)
+        } finally {
+            model.stop()
+        }
     }
 }
