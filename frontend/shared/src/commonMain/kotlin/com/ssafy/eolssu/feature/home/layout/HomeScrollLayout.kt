@@ -56,6 +56,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.ProfileImage
@@ -67,6 +68,7 @@ import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.feature.home.HomeFeatureColumns
 import com.ssafy.eolssu.feature.home.HomeScrollRange
 import com.ssafy.eolssu.feature.home.HomeStageFlingBehavior
+import com.ssafy.eolssu.feature.home.HomeStatusBarIcons
 import com.ssafy.eolssu.feature.home.PrepareHomeFonts
 import com.ssafy.eolssu.feature.home.homeExpandedHero
 import com.ssafy.eolssu.feature.home.homeScrollFrame
@@ -97,6 +99,7 @@ internal fun HomeScrollLayout(
     onStartEvaluation: () -> Unit,
     onFeatureClick: (HomeFeature) -> Unit,
     modifier: Modifier = Modifier,
+    statusBarTop: Dp = 0.dp,
 ) {
     val density = LocalDensity.current
     val scroll = rememberScrollState()
@@ -173,6 +176,12 @@ internal fun HomeScrollLayout(
         val openFeatures = frame.progress > .6f
         val featureAlpha = ((frame.progress - .6f) / .25f).coerceIn(0f, 1f)
         val mountainColor = EolssuTheme.colors.radical
+        // 그림(어두운 바탕)이 상태 표시줄 뒤에 있는 동안만 아이콘을 밝게 한다. 넓은 창은 펼치면 그림이 왼쪽으로 줄어
+        // 오른쪽 아이콘이 밝은 바탕에 놓이므로 절반 이상 펼치면 어두운 아이콘으로 돌린다(S15P31E102-973).
+        val pastStage = (s - HomeScrollRange).coerceAtLeast(0f)
+        HomeStatusBarIcons(
+            light = if (expanded) frame.eased < .5f else frame.groundTop - pastStage > statusBarTop.value,
+        )
         val open: () -> Unit = { scope.launch { goTo(rangePx) } }
         // 화살표는 펼친 무대 아래 카드 끝까지 내린다. 펼치는 도중 카드 높이를 처음 재면 바닥이 늘 수 있어 한 번 더 맞춘다.
         val openToBottom: () -> Unit = {
@@ -277,7 +286,7 @@ internal fun HomeScrollLayout(
         // 연습 악기 판은 곡 고르기 화면 상단 바로 옮겼다. 왼쪽 위 로고 판은 두지 않는다.
         if (frame.headerAlpha > 0f) {
             Row(
-                Modifier.offset(x = contentLeft.dp, y = HomeHeaderTop).width(contentW.dp).graphicsLayer { alpha = frame.headerAlpha },
+                Modifier.offset(x = contentLeft.dp, y = statusBarTop + HomeHeaderTop).width(contentW.dp).graphicsLayer { alpha = frame.headerAlpha },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End,
             ) {
@@ -323,7 +332,7 @@ private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, clipTo
 /** 홈 산 능선은 맨 앞 능선은 두고 가운데·맨 뒤 능선만 차례로 더 높인다(뒤 → 앞, 보드 좌표). */
 private val HomeRidgeLifts = listOf(36f, 20f, 0f)
 
-/** 상단 판과 화면(안전 영역) 위 가장자리 사이의 틈. */
+/** 상단 판과 상태 표시줄 아래 가장자리 사이의 틈. */
 private val HomeHeaderTop = 12.dp
 // 흰색 RGB는 그대로 두고 반투명한 붓 획의 불투명도만 높인다.
 private val HomeHeroLogoColor = ColorFilter.colorMatrix(ColorMatrix().apply { this[3, 3] = 2.2f })

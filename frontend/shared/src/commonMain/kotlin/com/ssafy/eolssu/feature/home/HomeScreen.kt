@@ -1,6 +1,11 @@
 package com.ssafy.eolssu.feature.home
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.Scaffold
 import com.ssafy.eolssu.core.ui.component.EolssuSnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -57,11 +62,14 @@ fun HomeScreen(
     onStartEvaluation: () -> Unit,
     onFeatureClick: (HomeFeature) -> Unit,
 ) {
+    // 그림이 상태 표시줄 아래까지 차도록 위쪽 시스템 여백은 비우지 않고, 그 높이를 판 배치에만 넘긴다(S15P31E102-973).
+    val statusBarTop = with(LocalDensity.current) { WindowInsets.safeDrawing.getTop(this).toDp() }
     Scaffold(
         snackbarHost = { EolssuSnackbarHost(snackbarHostState) },
         containerColor = EolssuTheme.colors.groupedBackground,
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)
-        HomeScrollLayout(widthClass, profileImage, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
+        HomeScrollLayout(widthClass, profileImage, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier, statusBarTop)
     }
 }
