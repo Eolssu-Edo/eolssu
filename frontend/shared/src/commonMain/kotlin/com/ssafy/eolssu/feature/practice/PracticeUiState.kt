@@ -462,7 +462,8 @@ fun PracticeUiState.selectUnit(unit: ScoreDisplayUnit): PracticeUiState {
     if (stepUi) return moveStepTo(unit.event.index)
     val base = copy(selected = unit.event.index, selectedCell = ScorePosition(unit.column, unit.row), listening = null)
     return when (val note = unit.note) {
-        is ScoreNote.Pitch, is ScoreNote.SourcePitch ->
+        // 쉼표도 운지법 팝업을 쉼 페이지로 연다. 팝업에서 좌우로 넘길 때 쉼 페이지가 뜨는 것과 맞춘다(S15P31E102-1007).
+        is ScoreNote.Pitch, is ScoreNote.SourcePitch, ScoreNote.Rest ->
             base.copy(panel = PracticePanel.Fingering, draft = draft.copy(note = note))
         else -> base.copy(panel = base.panel.takeUnless { it == PracticePanel.Fingering })
     }
