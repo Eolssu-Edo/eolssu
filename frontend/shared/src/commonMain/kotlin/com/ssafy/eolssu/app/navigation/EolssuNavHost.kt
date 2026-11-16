@@ -220,14 +220,12 @@ fun EolssuNavHost(
     val sheetAudio = koinInject<com.ssafy.eolssu.data.song.NotifyingSheetAudioRepository>()
     val deviceSheetAudio = koinInject<com.ssafy.eolssu.core.audio.SheetAudioDeviceStore>()
     SheetAudioCompletionEffect(sheetAudio, member, completionBanner) { sheetId ->
-        navController.navigate(
-            if (deviceSheetAudio.available) EolssuDestination.practice(sheetId, mine = true)
-            else SheetEditDestination.editMine(sheetId),
-        ) { launchSingleTop = true }
+        navController.openCompletedSheet(sheetId,
+            if (deviceSheetAudio.available) SheetCompletionTarget.Practice else SheetCompletionTarget.Editor)
     }
     val sheetConversions = koinInject<com.ssafy.eolssu.data.song.NotifyingSheetConversionRepository>()
     SheetConversionCompletionEffect(sheetConversions, member, completionBanner) { sheetId ->
-        navController.navigate(SheetEditDestination.editMine(sheetId)) { launchSingleTop = true }
+        navController.openCompletedSheet(sheetId, SheetCompletionTarget.Editor)
     }
     Box(Modifier.fillMaxSize()) {
         // 화면 전환 모션을 쓰지 않는다. 기본 전환(0.7초 페이드)이 도는 동안 나가는 화면이 남아 그 위의 확인 창도 늦게 사라졌고,
