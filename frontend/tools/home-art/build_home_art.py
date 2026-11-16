@@ -24,7 +24,6 @@ ASSETS = HERE.parents[1] / "shared" / "src" / "commonMain" / "composeResources" 
 # 이름: 받은 그림에서 쓸 영역(가로, 세로 px). 오른쪽·아래의 흰 여백과 흰색이 번진 경계 줄은 뺀다.
 CROP = {
     "phone_portrait": (580, 1254),
-    "phone_landscape": (1846, 852),
     "tablet_portrait": (644, 1028),
     "tablet_landscape": (1586, 992),
 }
@@ -32,7 +31,6 @@ CROP = {
 # 제목이 먹 영역 안에 들어와야 하는 창 크기(dp). 그림 종류를 고르는 기준(homeArtKind)과 같은 묶음이다.
 SIZES = {
     "phone_portrait": [(360, 780), (360, 800), (390, 844), (412, 915)],
-    "phone_landscape": [(780, 360), (800, 360), (844, 390), (915, 412)],
     "tablet_portrait": [(600, 960), (768, 1024), (800, 1280), (834, 1194)],
     "tablet_landscape": [(1024, 768), (1194, 834), (1280, 800), (1366, 1024)],
 }
@@ -54,10 +52,9 @@ def hero_title(name, w, h):
         right = w - 20
         bottom = max(h - 88 - button_height(w), 80) - 10
     else:
-        phone = name == "phone_landscape"
-        scale = w * (.29 if phone else .23) / 171
+        scale = w * .23 / 171
         right = w * .95
-        bottom = h * (.38 if phone else .52) + ((59 + 42) * scale + 4) / 2
+        bottom = h * .5 + ((59 + 42) * scale + 4) / 2
     return right - 171 * scale, bottom - ((59 + 42) * scale + 4), right, bottom
 
 
