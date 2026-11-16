@@ -7,8 +7,6 @@ import kotlin.test.assertTrue
 import com.ssafy.eolssu.data.song.*
 import kotlinx.serialization.json.*
 import kotlin.math.log2
-import kotlin.math.nextDown
-import kotlin.math.nextUp
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -101,21 +99,6 @@ class SheetPitchAdaptationTest {
             result.toCommonScore().columns.map { it.cells.map { cell -> cell.units.size to cell.lyric } })
     }
 
-    @Test fun keepsTheStoredHwangFrequencyWhenItOnlyDiffersByFloatingPointRounding() {
-        // JVM과 Wasm의 pow 결과는 마지막 자리(1 ulp)가 다르다. 다른 플랫폼에서 저장한 같은 기준음을 바꾸지 않는다.
-        val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
-            AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
-        val nominal = 440.0 * 2.0.pow(-0.5)
-        fun adaptAt(hwangHz: Double): Double {
-            val score = smallScoreData().let { it.copy(music = it.music.copy(hwangHz = hwangHz)) }
-            val draft = score.editingDraft(score.score.title, 60, null)
-            val plan = planPitchAdaptation(draft.sourcePitchNotes(), emptyList()).first { it.transpose == 0 }
-            return draft.applyAdaptation(plan, capability).toCommonScore().music.hwangHz
-        }
-        listOf(nominal.nextUp(), nominal.nextDown(), nominal).forEach { assertEquals(it, adaptAt(it)) }
-        assertEquals(nominal, adaptAt(440.0), "다른 기준음은 대상 악기의 기준음으로 바꾼다")
-    }
-
     @Test fun restoresOriginalHighOctaveAfterSemitoneTransposeAndOnlyRaisesLowNotes() {
         val plan = planPitchAdaptation(source(88, 59, 71), sogeum).first()
         assertEquals(-1, plan.transpose)
@@ -152,6 +135,21 @@ class SheetPitchAdaptationTest {
         assertEquals(original.events.map { Triple(it.id, it.startTick, it.durationTick) },
             adapted.events.map { Triple(it.id, it.startTick, it.durationTick) })
         assertEquals(original.provenance, adapted.provenance)
+    }
+
+    @Test fun keepsAStoredReferenceFrequencyThatAlreadyMatchesTheInstrument() {
+        val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
+            AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
+        listOf(311.1269837220809, 311.12698372208087).forEach { stored ->
+            val score = smallScoreData().let { it.copy(music = it.music.copy(hwangHz = stored)) }
+            val draft = score.editingDraft("adapt", 60, null)
+            val plan = planPitchAdaptation(draft.sourcePitchNotes(), emptyList()).first { it.transpose == 0 }
+            assertEquals(stored, draft.applyAdaptation(plan, capability).toCommonScore().music.hwangHz,
+                "같은 기준음은 다시 계산한 마지막 자리로 바꾸지 않는다")
+        }
+        val detuned = smallScoreData().let { it.copy(music = it.music.copy(hwangHz = 315.0)) }.editingDraft("adapt", 60, null)
+        val plan = planPitchAdaptation(detuned.sourcePitchNotes(), emptyList()).first { it.transpose == 0 }
+        assertEquals(440.0 * 2.0.pow(-6 / 12.0), detuned.applyAdaptation(plan, capability).toCommonScore().music.hwangHz)
     }
 
     @Test fun reopeningAdaptedDraftUsesImmutableOriginalOctaves() {
