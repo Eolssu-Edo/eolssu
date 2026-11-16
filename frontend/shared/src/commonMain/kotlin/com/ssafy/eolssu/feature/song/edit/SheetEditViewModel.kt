@@ -318,9 +318,18 @@ class SheetEditViewModel(
 
     /** 음역 문제가 아닌 첫 인식 확인 정간으로 간다. */
     fun openFirstRecognitionReview() {
-        val validation = _uiState.value.completionValidation
-        val index = (validation.correctionCellIndices - validation.rangeCellIndices).minOrNull() ?: return
+        val index = _uiState.value.recognitionReviewCells.firstOrNull() ?: return
         selectCell(index)
+    }
+
+    /** 다시 볼 곳을 앞뒤로 옮겨 다닌다. 다시 볼 칸이 아닌 곳에 있으면 앞으로는 첫 칸, 뒤로는 마지막 칸으로 간다(S15P31E102-1042). */
+    fun moveRecognitionReview(step: Int) {
+        val state = _uiState.value
+        val cells = state.recognitionReviewCells.ifEmpty { return }
+        val position = cells.indexOf(state.selected)
+        val next = if (position < 0) (if (step >= 0) cells.first() else cells.last())
+            else cells[(position + step).coerceIn(0, cells.lastIndex)]
+        selectCell(next)
     }
 
     fun dismissImportGuide() = _uiState.update { it.copy(importGuideDismissed = true) }

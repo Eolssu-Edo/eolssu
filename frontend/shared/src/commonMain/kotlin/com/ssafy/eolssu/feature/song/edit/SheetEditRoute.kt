@@ -158,7 +158,8 @@ fun SheetEditRoute(
             state.importGuide?.let { guide -> SheetImportGuideCard(guide,
                 onApplyRecommended = viewModel::applyRecommendedAdaptation,
                 onOpenAdaptation = viewModel::openAdaptation,
-                onOpenReview = ::openFirstReview,
+                // 다시 볼 곳은 칸을 옮겨 보여 주기만 한다. 칸을 누르면 고칠 방법 창이 열린다.
+                onMoveReview = { step -> viewModel.moveRecognitionReview(step); focusRequestKey++ },
                 onDismiss = viewModel::dismissImportGuide,
                 modifier = Modifier.padding(bottom = 8.dp)) }
         },

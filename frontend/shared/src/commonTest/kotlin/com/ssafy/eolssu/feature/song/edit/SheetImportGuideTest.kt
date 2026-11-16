@@ -84,6 +84,29 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
         assertNull(model.uiState.value.importGuide)
     }
 
+    @Test fun reviewPlacesAreVisitedOneByOneWithPreviousAndNext() = runTest {
+        val model = open(ReadinessCatalog(), issues = listOf(
+            json("""{"issueId":"i1","cellId":"c0-j0","type":"LOW_CONFIDENCE"}"""),
+            json("""{"issueId":"i2","cellId":"c1-j0","type":"LOW_CONFIDENCE"}"""),
+        ))
+        runCurrent()
+        model.selectCell(1)
+        assertNull(model.uiState.value.importGuide?.reviewPosition, "다시 볼 칸이 아니면 순서를 보이지 않는다")
+
+        model.moveRecognitionReview(1)
+        assertEquals(0, model.uiState.value.selected, "처음엔 첫 칸으로 간다")
+        assertEquals(1, model.uiState.value.importGuide?.reviewPosition)
+
+        model.moveRecognitionReview(1)
+        assertEquals(2, model.uiState.value.selected)
+        assertEquals(2, model.uiState.value.importGuide?.reviewPosition)
+        model.moveRecognitionReview(1)
+        assertEquals(2, model.uiState.value.selected, "마지막에서 다음은 그대로")
+
+        model.moveRecognitionReview(-1)
+        assertEquals(0, model.uiState.value.selected)
+    }
+
     @Test fun whenNoHeightFixesEveryNoteThePanelKnowsHowManyRemain() = runTest {
         // 황(63)은 +6, 청중(80)은 +1에서만 MIDI69 한 음에 맞는다. 어느 높이로도 둘 다 맞출 수 없다(S15P31E102-1042).
         val oneNote = object : ReferenceCatalogRepository by ReadinessCatalog() {

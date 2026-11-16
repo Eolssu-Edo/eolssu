@@ -39,14 +39,17 @@
     <string name="sheet_review_notice_occurrences">%1$s (같은 안내 %2$d건)</string>
     <string name="sheet_review_notice_measure">원본 %1$s마디 · %2$s</string>
     <string name="sheet_review_notice_global">악보 전체 · %1$s</string>
-    <string name="sheet_import_guide_range">확인 필요: %1$s 낼 수 없는 음 %2$d개</string>
+    <string name="sheet_import_guide_range">%1$s 낼 수 없는 음 %2$d개</string>
     <string name="sheet_import_guide_instrument_fallback">악기로</string>
-    <string name="sheet_import_guide_up_all">%1$d반음 올려서 모두 고치기</string>
-    <string name="sheet_import_guide_up">%1$d반음 올려서 %2$d개 고치기</string>
-    <string name="sheet_import_guide_down_all">%1$d반음 내려서 모두 고치기</string>
-    <string name="sheet_import_guide_down">%1$d반음 내려서 %2$d개 고치기</string>
-    <string name="sheet_import_guide_adapt">높이 맞추기에서 고치기</string>
-    <string name="sheet_import_guide_review">확인 필요: 다시 볼 곳 %1$d곳</string>
-    <string name="sheet_import_guide_review_go">첫 곳으로 가서 고치기</string>
+    <string name="sheet_import_guide_up_all">%1$d반음 올려 고치기</string>
+    <string name="sheet_import_guide_up">%1$d반음 올려 %2$d개 고치기</string>
+    <string name="sheet_import_guide_down_all">%1$d반음 내려 고치기</string>
+    <string name="sheet_import_guide_down">%1$d반음 내려 %2$d개 고치기</string>
+    <string name="sheet_import_guide_adapt">높이 맞추기</string>
+    <string name="sheet_import_guide_review">다시 볼 곳 %1$d곳</string>
+    <string name="sheet_import_guide_review_position">다시 볼 곳 %1$d / %2$d</string>
+    <string name="sheet_import_guide_review_prev">이전 다시 볼 곳</string>
+    <string name="sheet_import_guide_review_next">다음 다시 볼 곳</string>
+    <string name="sheet_import_guide_review_go">첫 칸 보기</string>
     <string name="sheet_import_guide_close">안내 닫기</string>
 </resources>
