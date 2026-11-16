@@ -183,7 +183,6 @@ fun PracticeRoute(
                     onMoveFingering = viewModel::moveFingering,
                     fingeringAudio = { instrument, note -> fingeringAudio(instrument, note, viewModel::reportFingeringAudio) },
                     onTogglePreview = viewModel::togglePreview,
-                    onSetInstrument = viewModel::setInstrument,
                     onToggleFingeringView = viewModel::toggleFingeringView,
                     onToggleHangul = viewModel::toggleHangul,
                     onToggleLiveMarks = viewModel::toggleLiveMarks,
