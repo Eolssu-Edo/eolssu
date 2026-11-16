@@ -1,8 +1,8 @@
 import http from 'node:http';
 import { isIP } from 'node:net';
 import { randomBytes, randomUUID, createHash, timingSafeEqual } from 'node:crypto';
-import { readFile, writeFile, access, unlink } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { readFile, access, unlink } from 'node:fs/promises';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Control, Rejected } from './control.mjs';
 import { AdbPhone } from './adb.mjs';
@@ -14,7 +14,8 @@ import { ScreenKeeper } from './screen-keeper.mjs';
 import {pairWireless,queueWirelessPort,wirelessPortState} from './wireless-recovery.mjs';
 import {promisify} from 'node:util';
 import {execFile} from 'node:child_process';
-import {loadLiveClient} from './live-client.mjs';
+import {InstalledAppLogs} from './installed-app-logs.mjs';
+import {appDatabaseReader} from './read-only-app-db.mjs';
 const hash = value => createHash('sha256').update(value).digest();
 const IDLE_PROMPT_MS = 10 * 60_000;
 const IDLE_GRACE_MS = 60_000;
@@ -36,7 +37,7 @@ async function body(req) {
   try { const value = JSON.parse(Buffer.concat(chunks).toString('utf8')); if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(); return value; }
   catch { throw new Rejected('invalid JSON', 400); }
 }
-export async function startRelay({ phone, port = 17680, origin, basePath = '/', deviceId = 'phone', deviceName = '휴대폰', trustProxy = false, catalog = null, mirror = null, video = null, screenKeeper = null, wireless = null, applog = null, pairingKey = null, live = null, sessionNow = Date.now } = {}) {
+export async function startRelay({ phone, port = 17680, origin, basePath = '/', deviceId = 'phone', deviceName = '휴대폰', trustProxy = false, catalog = null, mirror = null, video = null, screenKeeper = null, wireless = null, applog = null, sessionNow = Date.now } = {}) {
   if (typeof basePath !== 'string' || !/^\/(?:[a-zA-Z0-9_-]+\/)*$/.test(basePath)) throw new Error('invalid QA_BASE_PATH');
   if (!/^[a-z][a-z0-9-]{0,31}$/.test(deviceId) || typeof deviceName !== 'string' || !deviceName.trim() || deviceName.length > 60 || /[\p{C}]/u.test(deviceName)) throw new Error('invalid QA device identity');
   if (applog && (deviceId !== 'phone' || basePath !== '/qa/' || typeof phone.applog !== 'function' ||
@@ -47,7 +48,7 @@ export async function startRelay({ phone, port = 17680, origin, basePath = '/', 
   const applogCredential = applog ? hash(applog.token) : null;
   let applogTask = null;
   const device = { id: deviceId, name: deviceName.trim() };
-  const pairingCredential = wireless?.pair && /^[a-f0-9]{64}$/.test(pairingKey) ? hash(pairingKey) : null;
+  const pairingAvailable = typeof wireless?.pair === 'function';
   let pairingPending = false, nextPairingAt = 0;
   // A parent-path cookie is also sent to nested paths. Distinct names avoid order-dependent login.
   const cookieName = ['/', '/qa/'].includes(basePath) ? 'qa_session' : 'qa_session_' + hash(basePath).toString('hex').slice(0,16);
@@ -69,6 +70,13 @@ export async function startRelay({ phone, port = 17680, origin, basePath = '/', 
       throw error;
     }
   }});
+  const readAppDatabase=typeof phone.readPerformanceLog==='function'?appDatabaseReader(phone):null;
+  const installedLogs=readAppDatabase&&typeof phone.installed==='function'
+    ?new InstalledAppLogs({installed:()=>phone.installed(),snapshot:async(after,stream)=>{
+      if(closed||control.maintenance||applogTask)throw new Error('App log reader busy');
+      try{applogTask=readAppDatabase(after,stream);return await applogTask;}
+      finally{applogTask=null;}
+    }}):null;
   function syncScreen(){
     if(!screenKeeper)return;
     const now = sessionNow();
@@ -203,7 +211,7 @@ export async function startRelay({ phone, port = 17680, origin, basePath = '/', 
       if (req.method === 'GET' && path === '/api/state') {
         if(freshVideo()&&frame&&!inputFault&&!control.online)await control.setOnline(true);
         const remaining = idleLeft(session, sessionNow());
-        json(200, { ...control.state(id), idlePromptMs: remaining <= IDLE_GRACE_MS ? Math.max(0,remaining) : null, wireless:wireless?{...await wireless.state(),pairing:!!pairingCredential}:null, width: frame?.width, height: frame?.height, frameAt: freshVideo()?video.lastFrameAt:frameAt, video:!!video, screenAwake:screenKeeper?.state()||null, heartbeatMs: 900, graceMs: 10000, inputFault }); return;
+        json(200, { ...control.state(id), idlePromptMs: remaining <= IDLE_GRACE_MS ? Math.max(0,remaining) : null, wireless:wireless?{...await wireless.state(),pairing:pairingAvailable}:null, width: frame?.width, height: frame?.height, frameAt: freshVideo()?video.lastFrameAt:frameAt, video:!!video, screenAwake:screenKeeper?.state()||null, heartbeatMs: 900, graceMs: 10000, inputFault }); return;
       }
       if(req.method==='GET'&&path==='/api/video'){
         if(!video)throw new Rejected('video unavailable',503);
@@ -222,7 +230,12 @@ export async function startRelay({ phone, port = 17680, origin, basePath = '/', 
         json(200, { ...(catalog?.list() || {builds:[],latest:null}), installed, installedStatus, job, sync: mirror?.state() || null }); return;
       }
       if(req.method==='GET'&&path==='/api/live/status'){
-        json(200,live?await live.status({logsFor:new URL(req.url,url).searchParams.get('logs')}):{available:false,message:'격리 관측 서비스 설정 대기',operations:[],history:[]});return;
+        const logsFor=new URL(req.url,url).searchParams.get('logs');
+        if(installedLogs&&!control.maintenance)installedLogs.refresh(installed);
+        const snapshot={available:!!installedLogs,mode:'app',phase:'observing',api:null,device:{name:device.name,appVersion:installed?.versionName??null},
+          appLog:{state:installedLogs?.state||'unavailable',count:0,partial:false},operations:[],history:[]};
+        if(logsFor)snapshot.evidence={id:logsFor,total:0,records:[]};
+        json(200,installedLogs?.project(snapshot,logsFor)||snapshot);return;
       }
       if (req.method === 'GET' && path === '/api/frame') {
         fallbackAt=Date.now();if(!frame?.data||Date.now()-frameAt>700)await capture();
@@ -238,24 +251,12 @@ export async function startRelay({ phone, port = 17680, origin, basePath = '/', 
             control.checkMaintenance();control.owns(id);
             if(!control.online||data.epoch!==control.epoch||!frame||geometryPending||(!freshVideo()&&Date.now()-frameAt>3000))throw new Rejected('최신 기기 화면과 제어권을 확인하세요.',409);
             if(typeof phone.launchQa!=='function')throw new Rejected('기기 앱 실행을 지원하지 않습니다.',503);
-            if(live)return live.command({action:'launch'},phone.identity,id);
             try{return await phone.launchQa();}catch{throw new Rejected('QA 앱 실행을 확인하지 못했습니다. 설치 상태를 확인하세요.',503);}
           });
           json(200,result);return;
         }
         case '/api/live/control': {
-          if(!live)throw new Rejected('격리 관측 서비스 설정이 필요합니다.',503);
-          const result=await control.serial(async()=>{
-            control.checkMaintenance();
-            const cancelling=['stop','cancel'].includes(data.action);
-            if(!cancelling){
-              control.owns(id);
-              if(!control.online||data.epoch!==control.epoch)throw new Rejected('제어권 또는 기기 연결이 바뀌었습니다.',409);
-              if(!frame||geometryPending||(!freshVideo()&&Date.now()-frameAt>3000))throw new Rejected('최신 기기 화면을 확인한 뒤 다시 시도하세요.',409);
-            }
-            return live.command(data,phone.identity,id);
-          });
-          json(202,result);return;
+          throw new Rejected('격리 검사 기능은 종료되었습니다.',410);
         }
         case '/api/activity': {
           const activeAt = sessionNow();
@@ -263,10 +264,9 @@ export async function startRelay({ phone, port = 17680, origin, basePath = '/', 
           break;
         }
         case '/api/wireless/pair': {
-          if(!pairingCredential)throw new Rejected('이 기기는 웹 페어링을 지원하지 않습니다.',503);
-          if(typeof data.key!=='string'||!timingSafeEqual(hash(data.key),pairingCredential)){
-            throw new Rejected('운영 PC의 페어링 키를 확인하세요.',403);
-          }
+          if(!pairingAvailable)throw new Rejected('이 기기는 웹 페어링을 지원하지 않습니다.',503);
+          if(!Number.isInteger(data.port)||data.port<1||data.port>65535||typeof data.code!=='string'||!/^\d{6}$/.test(data.code))
+            throw new Rejected('페어링 팝업의 포트와 6자리 코드를 입력하세요.',400);
           if(pairingPending||Date.now()<nextPairingAt)throw new Rejected('잠시 후 다시 시도하세요.',429);
           pairingPending=true;
           try{
@@ -302,7 +302,6 @@ export async function startRelay({ phone, port = 17680, origin, basePath = '/', 
           if(!catalog) throw new Rejected('APK 보관소가 설정되지 않았습니다',503);
           control.owns(id); control.checkMaintenance();
           if (applogTask) throw new Rejected('앱 로그를 읽고 있습니다. 잠시 후 다시 설치하세요.',409);
-          if(live&&(await live.status()).busy)throw new Rejected('격리 QA 실행을 종료한 뒤 APK를 설치하세요.',409);
           const build=catalog.list().builds.find(v=>v.id===data.id);
           if(!build) throw new Rejected('APK를 찾을 수 없습니다',404);
           const drained=control.beginMaintenance(id,data.epoch);
@@ -367,6 +366,7 @@ export async function startRelay({ phone, port = 17680, origin, basePath = '/', 
   }
   schedule();
   return { url, publicUrl: url + basePath, control, async close() {
+    if(installedLogs)await installedLogs.close();
     closed = true; clearTimeout(timer); if(screenKeeper)await screenKeeper.close(); if(mirror?.close)await mirror.close();if(catalog)await catalog.tail; if(video)await video.stop(); if(installTask) await installTask; await control.tail; await control.setOnline(false);
     if (applogTask) await applogTask.catch(() => {});
     server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
@@ -381,19 +381,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const video=process.env.QA_VIDEO_SERVER ? new PhoneVideo(phone,process.env.QA_VIDEO_SERVER) : null;
     const screenKeeper=process.env.QA_SCREEN_SERVER ? new ScreenKeeper(phone,process.env.QA_SCREEN_SERVER) : null;
     const wirelessFile=process.env.QA_WIRELESS_STATE,execute=promisify(execFile);
-    const pairingKey=wirelessFile && (!process.env.QA_ORIGIN || process.env.QA_ORIGIN.startsWith('https://')) ? randomBytes(32).toString('hex') : null;
-    if(pairingKey)await writeFile(join(dirname(wirelessFile),'pairing-key.txt'),pairingKey,{mode:0o600});
     const wireless=wirelessFile?{
       state:()=>wirelessPortState(wirelessFile),
       change:port=>queueWirelessPort({file:wirelessFile,port,run:async args=>(await execute(phone.adb,['-P',String(phone.port),...args],{windowsHide:true,timeout:4000,maxBuffer:256*1024})).stdout}),
-      pair:(port,code)=>pairWireless({file:wirelessFile,port,code,adb:phone.adb,adbPort:phone.port,resumeAfterPairing:(process.env.QA_DEVICE_ID||'phone')==='phone'}),
+      pair:(!process.env.QA_ORIGIN||process.env.QA_ORIGIN.startsWith('https://'))?(port,code)=>pairWireless({file:wirelessFile,port,code,adb:phone.adb,adbPort:phone.port,resumeAfterPairing:true}):null,
     }:null;
     const applog = process.env.QA_APPLOG_TOKEN || process.env.QA_APPLOG_DEVICE_IDENTITY ?
       { token: process.env.QA_APPLOG_TOKEN, identity: process.env.QA_APPLOG_DEVICE_IDENTITY } : null;
     delete process.env.QA_APPLOG_TOKEN;
     delete process.env.QA_APPLOG_DEVICE_IDENTITY;
-    const live=await loadLiveClient(process.env.QA_LIVE_CONFIG);
-    const relay = await startRelay({ phone, catalog, mirror, video, screenKeeper, wireless, applog, pairingKey, live, port: Number(process.env.QA_PORT || 17680), origin: process.env.QA_ORIGIN, basePath: process.env.QA_BASE_PATH || '/', deviceId:process.env.QA_DEVICE_ID || 'phone', deviceName:process.env.QA_DEVICE_NAME || '휴대폰', trustProxy: process.env.QA_TRUST_PROXY === '1' });
+    const relay = await startRelay({ phone, catalog, mirror, video, screenKeeper, wireless, applog, port: Number(process.env.QA_PORT || 17680), origin: process.env.QA_ORIGIN, basePath: process.env.QA_BASE_PATH || '/', deviceId:process.env.QA_DEVICE_ID || 'phone', deviceName:process.env.QA_DEVICE_NAME || '휴대폰', trustProxy: process.env.QA_TRUST_PROXY === '1' });
     console.log(`QA phone relay: ${relay.publicUrl} (loopback only; audio stays on phone)`);
     let stopping = false, stopTimer;
     const stop = async () => { if (stopping) return; stopping = true; clearInterval(stopTimer); await relay.close();if(process.env.QA_STOP_FILE)await unlink(process.env.QA_STOP_FILE).catch(()=>{}); process.exit(0); };

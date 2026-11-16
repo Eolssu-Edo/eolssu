@@ -1,0 +1,32 @@
+{
+  "task": "S15P31E102-1019",
+  "checkedOn": "2026-11-16",
+  "excludedSongIds": [56, 132, 133, 134],
+  "policy": "악보 빠르기 40~200(S15P31E102-1018)에 맞추려고 정간 하나를 한 박으로 다시 표기한다. 실제 재생 속도·음표·시김새·정간 tick은 바꾸지 않는다(이전 BPM × 이전 ticksPerBeat = 새 BPM × 새 ticksPerBeat).",
+  "corrections": [
+    {
+      "songId": 5,
+      "sourceId": "mr203-fixed-danso-001-p1",
+      "version": 1,
+      "targetBpm": 190,
+      "ticksPerBeat": 6,
+      "bpmUnit": "JEONGGAN",
+      "kind": "per-jeonggan-relabel",
+      "nativeTempo": "8분음표 190/분",
+      "basis": "엇모리 한 장단은 8분음표 10개(3+2+3+2)이고 이 악보도 한 장단이 정간 10개라 정간 하나가 8분음표 하나다. S15P31E102-728 감사의 채택값 ♪=190(국악사전 엇모리 일반 범위 180~200)을 정간 단위로 그대로 적는다. 기존 285(QUARTER, 정간=1.5박)와 실제 속도가 같다.",
+      "sources": ["https://www.gugak.go.kr/ency/topic/view/1323", "docs/knowledge/data/common/rhythm-metronome/score-tempo-audit.csv"]
+    },
+    {
+      "songId": 99,
+      "sourceId": "mr203-fixed-sogeum-011-p1",
+      "version": 1,
+      "targetBpm": 160,
+      "ticksPerBeat": 6,
+      "bpmUnit": "JEONGGAN",
+      "kind": "per-jeonggan-relabel",
+      "nativeTempo": "4분음표 160/분",
+      "basis": "단모리 한 장단은 4박이고 이 악보도 한 장단이 정간 4개라 정간 하나가 한 박이다. S15P31E102-728 감사의 채택값 ♩=160(국악기 이해와 활용2 단모리 ♩=120~160)을 정간 단위로 그대로 적는다. 기존 240(QUARTER, 정간=1.5박)과 실제 속도가 같다.",
+      "sources": ["https://academy.gugak.go.kr/dp/pds/HTML5-2-4-2/HTML5-2-4-2-4/HTML5-2-4-2-4-1/index.htm", "docs/knowledge/data/common/rhythm-metronome/score-tempo-audit.csv"]
+    }
+  ]
+}

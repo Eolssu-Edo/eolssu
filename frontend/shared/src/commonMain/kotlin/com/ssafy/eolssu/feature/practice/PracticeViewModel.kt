@@ -560,7 +560,14 @@ class PracticeViewModel(
 
     /** 정간을 누름: 그 음을 고르고 운지법을 연다. 구간 연습은 구간이 정해져 있어 고르지 않는다. */
     fun selectUnit(unit: ScoreDisplayUnit) {
-        if (_uiState.value.sectionPractice != null) return
+        val state = _uiState.value
+        if (state.stepUi) {
+            // 한 음씩은 운지법 대신 지금 음을 옮기고, 듣는 중이면 판정기가 새 음을 기다리게 한다(S15P31E102-1006).
+            _uiState.update { it.selectUnit(unit) }
+            syncStep()
+            return
+        }
+        if (state.sectionPractice != null) return
         _uiState.update { it.selectUnit(unit) }
     }
 
@@ -645,7 +652,7 @@ class PracticeViewModel(
 
     fun moveFingering(delta: Int) = _uiState.update { it.moveFingering(delta) }
 
-    /** 한 음씩 따라 불기에서 재생 연결 전까지 유지하는 표시다. */
+    /** 누른 음 표시. 예시음도 1.2초만 들려주므로([com.ssafy.eolssu.feature.practice.component.StepNotePlayMs]) 같은 길이로 둔다. */
     private fun listen(yul: Yul) {
         if (!accountScope.isActive) return
         listenJob?.cancel()
@@ -1316,11 +1323,21 @@ class PracticeViewModel(
 
     // 한 음씩 따라 불기
 
-    /** 설정 옆 '한 음씩' 토글. 모범 연주 중이면 음원을 멈추고 듣던 자리부터 이어 갈 수 있게 멈춤으로 둔다. */
+    /**
+     * 설정 옆 '한 음씩' 토글. 모범 연주·장단으로 연습 중이면 재생을 멈추고 듣던 자리부터 이어 갈 수 있게 멈춤으로 둔다.
+     * 장단으로 연습은 지금 자리를 먼저 받아 두고 장단 소리를 멈춘다(S15P31E102-1016).
+     */
     fun toggleStep() {
         val before = _uiState.value
-        if (!before.solo || (before.mode != PracticeMode.Ready && before.mode != PracticeMode.Model)) return
-        if (before.mode == PracticeMode.Model) modelAudio.stop()
+        if (!before.solo || !before.step.available || !before.stepToggleEnabled) return
+        when (before.mode) {
+            PracticeMode.Model -> modelAudio.stop()
+            PracticeMode.Rhythm -> {
+                pauseRhythm()
+                rhythmStartsAtAttack = true
+            }
+            else -> Unit
+        }
         _uiState.update { it.toggleStep() }
         syncStep()
     }

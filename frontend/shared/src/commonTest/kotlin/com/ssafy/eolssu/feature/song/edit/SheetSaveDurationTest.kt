@@ -25,8 +25,9 @@ internal class SheetSaveDurationTest {
     @Test fun gradualTempoIntegratesTheReciprocalAndKeepsTheTargetAfterItsEnd() {
         val ramp = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.GraduallyFaster, 120.0, 2))
         assertEquals(2 * ln(2.0) + 0.5, assertNotNull(ramp.estimatedDurationSeconds(60)), 1e-9)
-        val slower = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.GraduallySlower, 30.0, 3))
-        assertEquals(6 * ln(2.0), assertNotNull(slower.estimatedDurationSeconds(60)), 1e-9)
+        // 60에서 40까지 세 정간 동안 고르게 느려진다: 60·3·ln(60/40)/(60-40) = 9·ln(1.5)초.
+        val slower = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.GraduallySlower, 40.0, 3))
+        assertEquals(9 * ln(1.5), assertNotNull(slower.estimatedDurationSeconds(60)), 1e-9)
         val afterStep = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.Faster, 120.0))
             .withTempoChange(SheetTempoChange(1, HanbaeMark.GraduallySlower, 60.0, 3))
         assertEquals(0.5 + 2 * ln(2.0), assertNotNull(afterStep.estimatedDurationSeconds(60)), 1e-9)

@@ -51,24 +51,16 @@
       </div>
 
       </div></section>
-      <div id="dashboardSplitter" class="dashboardSplitter" role="separator" aria-orientation="vertical" aria-label="앱과 검사 영역 너비 조절" aria-controls="qaLive qaAutomation" aria-valuemin="35" aria-valuemax="75" aria-valuenow="67" tabindex="0" title="드래그·좌우 키로 너비 조절 · Home/End 최소·최대 · 더블클릭 기본 복원"></div><section id="qaAutomation" class="qaAutomation" aria-label="서버 자동 검사"></section>
-      <aside class="deviceTools" aria-label="APK 관리와 연결 설정">
+      <div id="dashboardSplitter" class="dashboardSplitter" role="separator" aria-orientation="vertical" aria-label="앱과 로그 영역 너비 조절" aria-controls="qaLive qaAutomation" aria-valuemin="35" aria-valuemax="75" aria-valuenow="67" tabindex="0" title="드래그·좌우 키로 너비 조절 · Home/End 최소·최대 · 더블클릭 기본 복원"></div><section id="qaAutomation" class="qaAutomation" aria-label="앱 처리 기록"></section>
+      <aside class="deviceTools" aria-label="연결 설정">
         <section id="pairingCard" class="card" hidden><details id="pairingDetails"><summary>Wi-Fi 디버깅 페어링</summary>
           <div class="knownConnectionSettings"><label>기기<select id="knownConnectionDevice"></select></label><button id="openKnownConnectionSettings" type="button" class="secondary">연결 설정</button></div><form id="pairingForm" autocomplete="off">
             <label>팝업의 페어링 포트<input id="pairingPort" inputmode="numeric" pattern="[0-9]{1,5}" maxlength="5" required></label>
             <label>6자리 페어링 코드<input id="pairingCode" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required></label>
-            <label>운영 PC 페어링 키<input id="pairingKey" type="password" pattern="[0-9a-f]{64}" maxlength="64" required></label>
             <button id="pairDevice" class="secondary" type="submit" disabled>페어링</button>
           </form>
           <p id="pairingStatus" class="subtle" role="status"></p>
           <button id="pairingConnectPort" class="secondary" type="button" hidden>연결 포트 입력</button>
-        </details></section>
-        <section id="apkManager" class="card apkCard"><details><summary>APK 버전 관리</summary>
-          <p id="installedVersion" class="subtle" hidden></p>
-          <button id="installLatest" class="primary apkUpdate" disabled>최신 APK로 업데이트</button><p id="apkUpdateHint" class="subtle" role="status">기기와 최신 APK를 확인하고 있습니다.</p>
-          <label for="apkVersion">MR별 APK 이력 · 한국시간</label><select id="apkVersion" disabled><option value="">빌드 대기</option></select>
-          <p id="apkMeta" class="subtle"></p>
-          <p id="apkStatus" role="status" class="subtle"></p>
         </details></section>
       </aside>
     </div>

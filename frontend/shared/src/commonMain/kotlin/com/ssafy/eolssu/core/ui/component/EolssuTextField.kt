@@ -1,6 +1,17 @@
 package com.ssafy.eolssu.core.ui.component
 
 import androidx.compose.ui.graphics.Color
+import org.jetbrains.compose.resources.stringResource
+import eolssu.shared.generated.resources.input_password_show
+import eolssu.shared.generated.resources.input_password_hide
+import eolssu.shared.generated.resources.input_limit_reached
+import eolssu.shared.generated.resources.Res
+import androidx.compose.ui.semantics.Role
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -41,6 +52,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.InputLimit
 import com.ssafy.eolssu.core.theme.EolssuTheme
 
 /** 입력칸 종류. 키보드와 가림 표시가 달라진다. */
@@ -50,7 +62,9 @@ enum class TextFieldType { Text, Email, Password, Number }
  * 이름표가 붙은 입력칸(`.au-field`): 이름표 13sp · 칸 높이 48dp · 아래 도움말 또는 오류.
  * [error]가 있으면 도움말 대신 오류를 보이고, 테두리 있는 칸([bordered])은 빨간 테두리를 두른다. [trailing]은 칸 오른쪽 끝 글자(인증번호 남은 시간)다.
  * 로그인·가입과 마이페이지가 함께 쓴다. 칸 높이는 [fieldHeight](기본 52dp)로 줄일 수 있고, 글꼴을 키우면 내용에 맞게 높아진다.
- * [counter](예: `4/10`)가 있으면 도움말·오류 줄 오른쪽 끝에 함께 보인다. 길이 제한 자체는 값을 가진 쪽이 [onValueChange]에서 지킨다.
+ * [counter](예: `4/10`)가 있으면 도움말·오류 줄 오른쪽 끝에 함께 보인다.
+ * [maxLength]가 있으면 그 글자 수(코드 포인트)를 넘는 입력은 칸에 남기지 않고, 넘겨 치려다 막히면 칸 아래에 'n자까지 입력할 수 있어요'를 보인다
+ * ([InputLimit.limit], S15P31E102-996). 비밀번호 칸은 오른쪽 눈 버튼으로 입력한 글자를 보이거나 다시 가린다.
  * [labelInside]면 칸 위 이름표 없이 이름을 자리 글자로만 두고, 입력하면 사라진다(로그인·가입, S15P31E102-798). 화면 읽기는 그대로 이름을 읽는다.
  */
 @Composable
@@ -71,6 +85,7 @@ fun EolssuTextField(
     bordered: Boolean = true,
     containerColor: Color? = null,
     labelInside: Boolean = false,
+    maxLength: Int? = null,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -78,17 +93,30 @@ fun EolssuTextField(
     val hideKeyboard = rememberHideKeyboard()
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val password = type == TextFieldType.Password
+    // 가려진 비밀번호도 무엇을 쳤는지 확인할 수 있게 한다. 화면을 다시 그려도 가린 상태로 돌아가지 않게 저장한다.
+    var revealed by rememberSaveable { mutableStateOf(false) }
+    // 상한을 넘겨 치려다 막혔을 때만 안내한다. 딱 맞게 채운 값(빠르기 120 등)에는 띄우지 않고, 값이 상한 아래로 줄면 지운다.
+    var overflowed by remember { mutableStateOf(false) }
+    val atLimit = maxLength != null && InputLimit.length(value) >= maxLength
+    if (!atLimit && overflowed) overflowed = false
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (!labelInside) Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
         val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, color = colors.text)
         BasicTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { input ->
+                if (maxLength == null) onValueChange(input)
+                else {
+                    overflowed = InputLimit.length(input) > maxLength
+                    onValueChange(InputLimit.limit(value, input, maxLength))
+                }
+            },
             singleLine = true,
             interactionSource = interaction,
             textStyle = textStyle,
             cursorBrush = SolidColor(colors.text),
-            visualTransformation = if (type == TextFieldType.Password) PasswordVisualTransformation() else VisualTransformation.None,
+            visualTransformation = if (password && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(
                 keyboardType = when (type) {
                     TextFieldType.Text -> KeyboardType.Text
@@ -139,10 +167,22 @@ fun EolssuTextField(
                         .padding(horizontal = if (labelInside) 16.dp else 14.dp, vertical = 12.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    Box(Modifier.padding(end = if (trailing != null) 48.dp else 0.dp)) {
+                    Box(Modifier.padding(end = if (trailing != null) 48.dp else if (password) 36.dp else 0.dp)) {
                         // 자리 글자는 대비 기준(4.5:1)을 지키도록 회색 글자색을 쓴다(와이어프레임은 더 옅은 회색).
                         if (value.isEmpty()) Text(if (labelInside) label else placeholder, style = textStyle, color = colors.textMuted)
                         innerTextField()
+                    }
+                    if (password && trailing == null) {
+                        val toggle = stringResource(if (revealed) Res.string.input_password_hide else Res.string.input_password_show)
+                        // 누르는 영역은 44dp로 두고, 칸 오른쪽 여백 안쪽에 눈 아이콘을 맞춘다.
+                        Box(
+                            Modifier.align(Alignment.CenterEnd).offset(x = 12.dp).size(44.dp)
+                                .clickable(role = Role.Button, onClickLabel = toggle) { revealed = !revealed }
+                                .semantics { contentDescription = toggle },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(if (revealed) EolssuIcons.EyeOff else EolssuIcons.Eye, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textMuted)
+                        }
                     }
                     if (trailing != null) {
                         Text(
@@ -156,7 +196,9 @@ fun EolssuTextField(
             },
         )
         val helpStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp)
-        if (error != null || help != null || counter != null) {
+        // 상한에 닿으면 도움말 대신 상한 안내를 보인다. 오류가 있으면 오류가 먼저다.
+        val limitNotice = if (atLimit && overflowed && maxLength != null) stringResource(Res.string.input_limit_reached, maxLength) else null
+        if (error != null || help != null || counter != null || limitNotice != null) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
                 Box(Modifier.weight(1f)) {
                     when {
@@ -168,6 +210,12 @@ fun EolssuTextField(
                             Icon(EolssuIcons.Info, contentDescription = null, modifier = Modifier.size(15.dp), tint = colors.text)
                             Text(error, style = helpStyle.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
                         }
+                        limitNotice != null -> Text(
+                            limitNotice,
+                            Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                            style = helpStyle.copy(fontWeight = FontWeight.SemiBold),
+                            color = colors.recText,
+                        )
                         help != null -> Text(help, style = helpStyle, color = colors.textMuted)
                     }
                 }

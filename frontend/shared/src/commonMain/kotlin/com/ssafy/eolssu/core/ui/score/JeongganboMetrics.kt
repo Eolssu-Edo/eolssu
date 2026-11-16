@@ -81,11 +81,19 @@ data class JeongganboMetrics(
      * 기본 0은 나뉜 수로 정한 고정 크기([yulSizeFor])만 쓴다. 휴대폰 연습 악보만 켠다(S15P31E102-560).
      */
     val splitLineFill: Float = 0f,
+    /**
+     * 세 줄 이상으로 나뉜 정간의 율명 크기를 정하는 정간 높이 상한. 같은 가로줄에 맞춰 칸을 늘려도 율명은 이 높이 기준보다 커지지 않는다.
+     * null이면 실제 칸 높이로 정한다. 휴대폰 연습 악보만 3소박 크기를 맞추려고 쓴다(S15P31E102-1022).
+     */
+    val threeSplitGlyphCell: Dp? = null,
 ) {
     /** sp 글꼴 확대와 같은 기하. 부모의 줄 나누기와 실제 렌더가 함께 사용한다. */
     fun forFontScale(scale: Float): JeongganboMetrics {
         val factor = scale.coerceAtLeast(1f)
-        return copy(columnWidth = columnWidth * factor, cellHeight = cellHeight * factor, headHeight = headHeight * factor)
+        return copy(
+            columnWidth = columnWidth * factor, cellHeight = cellHeight * factor, headHeight = headHeight * factor,
+            threeSplitGlyphCell = threeSplitGlyphCell?.times(factor),
+        )
     }
 
     /** 한 정간에 든 음 수에 맞춘 율명 크기. 와이어프레임의 16 → 12 → 10 비율을 따른다. */
@@ -137,8 +145,9 @@ data class JeongganboMetrics(
          * 연두 보드 PRACTICE-01 휴대폰 악보(`.practice-score .ms`): 각 78dp(크게 보기 104), 머리 22dp, 정간 44dp 고정
          * (11정간 이상 줄은 32, 크게 보기 60), 율명 21sp(18 · 26), 보조 9sp(9 · 11), 각 사이 6dp. 세로로 넘치면 화면이 스크롤된다.
          */
-        fun practiceBoard(big: Boolean, longestStrip: Int): JeongganboMetrics {
-            val dense = longestStrip >= 11
+        fun practiceBoard(big: Boolean, longestStrip: Int, threeSplit: Boolean = false): JeongganboMetrics {
+            // 3소박을 66dp로 지키는 휴대폰 연습 악보([threeSplit])는 긴 각도 기본 정간(44dp)을 쓴다(S15P31E102-1022).
+            val dense = longestStrip >= 11 && !threeSplit
             return when {
                 big -> JeongganboMetrics(columnWidth = 104.dp, cellHeight = 60.dp, yulSize = 26.sp, auxSize = 11.sp, headHeight = 22.dp, splitScaleTwo = 17f / 26f)
                 dense -> JeongganboMetrics(columnWidth = 78.dp, cellHeight = 32.dp, yulSize = 18.sp, auxSize = 9.sp, headHeight = 22.dp, splitScaleTwo = 12f / 18f)

@@ -8,4 +8,8 @@ data class PasswordChangeUiState(
     val currentError: ProfileFieldError? = null,
     val newError: ProfileFieldError? = null,
     val confirmError: ProfileFieldError? = null,
+    /** 어느 칸 탓도 아닌 실패(서버 오류·로그인 만료·요청 제한). 칸 대신 화면 아래에 보인다(S15P31E102-996). */
+    val formError: ProfileFieldError? = null,
+    /** 변경 요청 중. 완료 버튼에 진행 표시를 보인다. */
+    val submitting: Boolean = false,
 )

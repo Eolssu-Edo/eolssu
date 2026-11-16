@@ -4,4 +4,6 @@ package com.ssafy.eolssu.feature.profile
 data class NicknameEditUiState(
     val nickname: String = "",
     val error: ProfileFieldError? = null,
+    /** 저장 요청 중. 저장 버튼에 진행 표시를 보인다. */
+    val submitting: Boolean = false,
 )
