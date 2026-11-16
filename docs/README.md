@@ -12,6 +12,7 @@
 - [S10 실제 마이크·평가 로그 대조](knowledge/infra/qa-s10-real-microphone-verification.md)
 - [S10 기초 콘텐츠 화면·진도·실제 스피커 확인](knowledge/infra/qa-s10-content-verification.md)
 - [통합 QA 실제 적용·최신 APK·기기별 경계와 검증](knowledge/infra/qa-multi-device-rollout.md)
+- [로그인·메모 등 입력칸 글자 수 제한과 메모 입력 오류 수정 (996)](plans/S15P31E102-996.md) · [입력칸 상한과 메모 입력 방식](knowledge/frontend/input-length-limits.md)
 - [배포 구조와 Kubernetes 도입 필요성 검토 (990)](plans/S15P31E102-990.md) · [결정 기록](decisions/kubernetes-adoption.md)
 - [휴대폰·태블릿·아이폰 공통 화면 UI 점검 목록과 일괄 개선 (961)](plans/S15P31E102-961.md)
 - [실제 앱 조작과 격리 서버 처리 실시간 시연 (283)](plans/S15P31E102-283.md) · [실행 구조·지휘통제 사용법](plans/S15P31E102-283-live-observation.md)
