@@ -63,6 +63,8 @@ class MySongsActions(
     val onRetryConversion: (MySheet) -> Unit = {},
     /** 변환에 실패한 악보의 '다시 불러오기'. 실패 원인을 알리며 악보 추가로 간다. */
     val onReimportSheet: (MySheet) -> Unit = { onAddSheet() },
+    /** 변환 중·실패한 악보 줄을 누르면 변환 대기 화면을 다시 연다(S15P31E102-998). null이면 눌리지 않는다. */
+    val onOpenConversion: ((MySheet) -> Unit)? = null,
 )
 
 /**
@@ -172,6 +174,7 @@ internal fun MySongsBody(
                                 onRetryConversion = { actions.onRetryConversion(sheet) },
                                 onReimport = { actions.onReimportSheet(sheet) },
                                 bordered = false,
+                                onOpenConversion = actions.onOpenConversion?.let { open -> { open(sheet) } },
                             )
                         }
                     }
