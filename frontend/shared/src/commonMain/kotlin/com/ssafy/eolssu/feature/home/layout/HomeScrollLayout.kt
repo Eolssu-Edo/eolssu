@@ -53,6 +53,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -65,6 +67,8 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.mountainRidges
+import com.ssafy.eolssu.feature.home.HomeAutoScroll
+import com.ssafy.eolssu.feature.home.HomeAutoScrollDelayMillis
 import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.feature.home.HomeFeatureColumns
 import com.ssafy.eolssu.feature.home.HomeScrollRange
@@ -82,6 +86,9 @@ import com.ssafy.eolssu.feature.home.rememberHomeEnvironment
 import com.ssafy.eolssu.feature.home.component.FeatureSection
 import com.ssafy.eolssu.feature.home.component.HomeInkButton
 import com.ssafy.eolssu.feature.home.component.MyPagePlate
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_hero_brush_lettering
 import eolssu.shared.generated.resources.home_hero_logo_white
@@ -151,11 +158,40 @@ internal fun HomeScrollLayout(
             if (target != value) scope.launch { goTo(target) }
         }
     }
+    // 첫 화면에서 손대지 않고 머물면 무대를 펼쳐 카드를 보여 준다. 화면에 들어올 때마다 한 번이며, 그 전에 터치·스크롤하면 취소한다(S15P31E102-1013).
+    var autoScroll by remember { mutableStateOf(HomeAutoScroll.start(scroll.value == 0, reduceMotion)) }
+    val autoScrollWaiting = autoScroll == HomeAutoScroll.Waiting
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(scroll, autoScrollWaiting) {
+        if (autoScrollWaiting) snapshotFlow { scroll.value == 0 }.collect { autoScroll = autoScroll.onScrolled(it) }
+    }
+    LaunchedEffect(lifecycle, autoScrollWaiting) {
+        if (!autoScrollWaiting) return@LaunchedEffect
+        // 앱이 가려진 동안에는 세지 않고, 다시 보이면 처음부터 기다린다.
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            delay(HomeAutoScrollDelayMillis)
+            autoScroll = autoScroll.onElapsed()
+            // 상태가 바뀌면 이 효과가 취소되므로 펼침은 화면 범위에서 띄운다.
+            if (autoScroll == HomeAutoScroll.Fired) scope.launch { goTo(rangePx) }
+        }
+    }
     LaunchedEffect(reduceMotion) {
         if (reduceMotion) bounce.snapTo(0f)
         else bounce.animateTo(6f, infiniteRepeatable(tween(1000), RepeatMode.Reverse))
     }
-    BoxWithConstraints(modifier.fillMaxSize().clipToBounds().background(homeGround)) {
+    BoxWithConstraints(
+        modifier.fillMaxSize().clipToBounds().background(homeGround).pointerInput(autoScrollWaiting) {
+            if (!autoScrollWaiting) return@pointerInput
+            // 그림·버튼·화살표가 입력을 쓰기 전에 엿보기만 하고 소비하지 않는다.
+            awaitPointerEventScope {
+                while (true) {
+                    if (awaitPointerEvent(PointerEventPass.Initial).changes.any { it.pressed }) {
+                        autoScroll = autoScroll.onUserInput()
+                    }
+                }
+            }
+        },
+    ) {
         val w = maxWidth.value
         val h = maxHeight.value
         val expanded = widthClass == WindowWidthClass.Expanded
