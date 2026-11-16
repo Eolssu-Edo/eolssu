@@ -160,8 +160,11 @@ internal fun SheetDraft.applyAdaptation(plan: PitchAdaptationPlan, capability: C
                     ?: ScoreNote.SourcePitch(pitch.yul, pitch.octave).hangul) else unit
         })
     }) }
+    // pow의 마지막 자리는 실행 환경마다 다르므로, 같은 기준음이면 저장된 값을 그대로 둔다.
+    val nominalHz = 440.0 * 2.0.pow((capability.nominalHwangMidi - 69) / 12.0)
+    val hwangHz = current.music.hwangHz.takeIf { abs(it - nominalHz) <= nominalHz * 1e-12 } ?: nominalHz
     val adapted = current.copy(score = current.score.copy(instrument = capability.instrumentCode),
-        music = current.music.copy(hwangHz = 440.0 * 2.0.pow((capability.nominalHwangMidi - 69) / 12.0)),
+        music = current.music.copy(hwangHz = hwangHz),
         events = events, columns = columns)
     val metadata = authoring?.let { base -> JsonObject(base + ("adaptation" to buildJsonObject {
         put("instrument", capability.instrumentCode); put("transpose", plan.transpose)

@@ -121,7 +121,7 @@ class LessonApiDatabaseTests {
         val sanjoHold = result(get("/api/lessons/29", "961"))
         assertEquals("DAEGEUM_SANJO", sanjoHold["track"].asString())
         assertEquals("악기 잡기", sanjoHold["tasks"][1]["title"].asString())
-        assertEquals("가로로 오른쪽을 향해 잡아요. 기본 운지틀은 정악대금과 같아요.", sanjoHold["tasks"][1]["description"].asString())
+        assertEquals("왼쪽 어깨에 걸쳐 가로로 잡아요. 기본 운지틀은 정악대금과 같아요.", sanjoHold["tasks"][1]["description"].asString())
 
         val jeongakRanges = result(get("/api/lessons/24", "961"))
         assertEquals(listOf("HIGH" to "淋", "LOW" to "㑣"), jeongakRanges["ranges"].values().map { it["blow"].asString() to it["firstPitch"].asString() })
