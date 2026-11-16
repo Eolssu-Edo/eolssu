@@ -14,6 +14,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -272,11 +275,17 @@ private fun StepBox(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // 체크 동그라미만 누르면 체크가 풀리고, 제목 쪽을 누르면 펼치고 접는다. 누르는 자리는 48dp로 둔다.
+            // 체크 동그라미만 누르면 체크가 풀리고, 제목 쪽을 누르면 펼치고 접는다. 누르는 자리는 48dp로 두고,
+            // 눌림 효과는 그린 30dp 동그라미 안에만 둔다(S15P31E102-968).
+            val undoInteraction = remember { MutableInteractionSource() }
             Box(
-                Modifier.size(48.dp).clip(CircleShape).clickable(enabled = done, onClick = onUndo),
+                Modifier.size(48.dp).clickable(interactionSource = undoInteraction, indication = null, enabled = done, onClick = onUndo),
                 contentAlignment = Alignment.Center,
-            ) { StepBadge(index + 1, done, open) }
+            ) {
+                StepBadge(index + 1, done, open)
+                // 체크가 튀어 오를 때 커지는 동그라미가 잘리지 않게 눌림 효과는 따로 위에 겹친다.
+                Box(Modifier.size(30.dp).clip(CircleShape).indication(undoInteraction, ripple()))
+            }
             Text(
                 task.title,
                 Modifier.weight(1f).padding(vertical = 8.dp),

@@ -237,7 +237,8 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     val lockedStatus = stringResource(Res.string.practice_settings_locked)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (state.solo && !state.learn) SettingsCard { InstrumentSelect(state.instrument, actions.onSetInstrument) }
-        SettingsCard {
+        // 메뉴 줄은 카드 위아래 끝까지 닿고, 눌림 효과는 카드의 둥근 모서리에서 잘린다(S15P31E102-968).
+        SettingsCard(verticalPadding = 0.dp) {
         MenuRow(
             EolssuIcons.JangdanMark, stringResource(Res.string.practice_menu_jangdan),
             when {
@@ -275,10 +276,16 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
 /** 연습 설정 시트의 카드 안쪽 좌우 여백. */
 private val SettingsCardInset: Dp = 16.dp
 
-/** 연습 설정 묶음 카드: 회색 시트 위 테두리 없는 흰 카드 · 모서리 20dp(마이페이지 카드와 같은 모양, S15P31E102-768). */
+/**
+ * 연습 설정 묶음 카드: 회색 시트 위 테두리 없는 흰 카드 · 모서리 20dp(마이페이지 카드와 같은 모양, S15P31E102-768).
+ * 안쪽 줄의 눌림 효과가 둥근 모서리 밖으로 나가지 않게 카드 모양으로 자른다(S15P31E102-968).
+ */
 @Composable
-private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().background(EolssuTheme.colors.surface, RoundedCornerShape(20.dp)).padding(vertical = 4.dp), content = content)
+private fun SettingsCard(verticalPadding: Dp = 4.dp, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(EolssuTheme.colors.surface).padding(vertical = verticalPadding),
+        content = content,
+    )
 }
 
 /**

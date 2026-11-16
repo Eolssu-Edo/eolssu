@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import com.ssafy.eolssu.data.user.AccountTerm
 import eolssu.shared.generated.resources.member_api_terms_unavailable
 import eolssu.shared.generated.resources.member_api_terms_loading
@@ -184,17 +185,7 @@ private fun AgreementRow(agreement: AccountTerm, checked: Boolean, onToggle: () 
         }
         if (agreement.contentUrl.isNotBlank()) {
             val description = stringResource(Res.string.auth_view_terms_description, label)
-            Box(
-                Modifier
-                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                    .clickable(onClick = onOpenTerms)
-                    .semantics {
-                        contentDescription = description
-                        role = Role.Button
-                    }
-                    .padding(start = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
+            EolssuTextLink(onOpenTerms, Modifier.semantics { contentDescription = description }) {
                 Text(
                     stringResource(Res.string.auth_view_terms),
                     modifier = Modifier.clearAndSetSemantics {},

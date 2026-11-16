@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
@@ -41,6 +42,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.MotionDurationScale
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -272,6 +274,8 @@ internal fun HomeScrollLayout(
                         Box(
                             Modifier.offset(x = ((w - 48f) / 2f).dp, y = (h - 82f).dp).size(48.dp)
                                 .graphicsLayer { alpha = frame.arrowAlpha }
+                                // 아이콘만 있는 버튼이라 눌림 효과를 48dp 원으로 둔다(S15P31E102-968).
+                                .clip(CircleShape)
                                 .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.home_scroll_to_features), onClick = openToBottom),
                             contentAlignment = Alignment.Center,
                         ) {

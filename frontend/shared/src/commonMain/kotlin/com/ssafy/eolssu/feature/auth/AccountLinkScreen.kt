@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +30,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import com.ssafy.eolssu.feature.auth.component.AuthBody
 import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
 import com.ssafy.eolssu.core.ui.component.TextFieldType
@@ -100,13 +102,8 @@ fun AccountLinkScreen(
                         imeAction = ImeAction.Done,
                         onImeAction = onLink,
                     )
-                    Box(
-                        Modifier
-                            .heightIn(min = 44.dp)
-                            .clickable(role = Role.Button, onClick = onFindPassword)
-                            .padding(end = 10.dp),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
+                    // 알약 안쪽 여백만큼 왼쪽으로 당겨 글자를 위 입력칸의 시작선에 맞춘다(S15P31E102-968).
+                    EolssuTextLink(onFindPassword, Modifier.offset(x = (-12).dp)) {
                         Text(
                             stringResource(Res.string.auth_find_password),
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
