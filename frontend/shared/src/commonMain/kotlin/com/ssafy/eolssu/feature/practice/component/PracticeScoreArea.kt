@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.ripple
+import androidx.compose.ui.draw.clip
 import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import androidx.compose.foundation.ScrollState
@@ -363,20 +369,29 @@ fun PracticeBoardScore(
             // 묶음 배치가 한 각↔두 각으로 다시 계산되어 악보가 흔들린다(S15P31E102-869).
             if (showFollow || bounded) {
                 // 보드 `.score-follow`: 오른쪽 정렬 작은 버튼.
+                // 누르는 영역은 48dp 높이(위 간격 포함)로 두고, 눌림 효과는 보이는 8dp 둥근 버튼 안에만 그린다(S15P31E102-968).
                 val shape = RoundedCornerShape(8.dp)
-                Text(
-                    stringResource(Res.string.practice_follow_now),
-                    modifier = Modifier
+                val followInteraction = remember { MutableInteractionSource() }
+                Box(
+                    Modifier
                         .align(Alignment.End)
-                        .padding(top = 8.dp)
+                        .heightIn(min = 48.dp)
                         .then(if (showFollow) Modifier else Modifier.alpha(0f).clearAndSetSemantics {})
-                        .background(colors.surface, shape)
-                        .border(1.dp, colors.line, shape)
-                        .clickable(enabled = showFollow, role = Role.Button, onClick = onFollowNow)
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
-                    color = colors.accentText,
-                )
+                        .clickable(interactionSource = followInteraction, indication = null, enabled = showFollow, role = Role.Button, onClick = onFollowNow),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(Res.string.practice_follow_now),
+                        modifier = Modifier
+                            .clip(shape)
+                            .background(colors.surface)
+                            .border(1.dp, colors.line, shape)
+                            .indication(followInteraction, ripple())
+                            .padding(horizontal = 10.dp, vertical = 7.dp),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                        color = colors.accentText,
+                    )
+                }
             }
         }
     }

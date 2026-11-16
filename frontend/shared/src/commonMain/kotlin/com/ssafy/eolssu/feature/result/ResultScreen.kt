@@ -1,9 +1,9 @@
 package com.ssafy.eolssu.feature.result
 
 import androidx.compose.ui.text.input.ImeAction
+import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,7 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,7 +33,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -307,16 +305,13 @@ private val ExpandedScoreBottomGap = 12.dp
 /** 악보 아래(태블릿 가로는 왼쪽 칸 아래) ‘다른 곡 고르기’ 글자 버튼. */
 @Composable
 private fun OtherSongLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Text(
-        stringResource(Res.string.result_other_song_more),
-        modifier = modifier
-            .padding(top = 2.dp, bottom = 10.dp)
-            .minimumInteractiveComponentSize()
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-        color = EolssuTheme.colors.textSub,
-    )
+    EolssuTextLink(onClick, modifier.padding(top = 2.dp, bottom = 10.dp)) {
+        Text(
+            stringResource(Res.string.result_other_song_more),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
+            color = EolssuTheme.colors.textSub,
+        )
+    }
 }
 
 /** 악보 아래 ‘다른 곡 고르기’ 줄 높이(위 2 + 48 + 아래 10). */

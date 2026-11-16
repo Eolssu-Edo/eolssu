@@ -4,6 +4,8 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,13 +15,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -130,29 +135,36 @@ internal fun ReadingBookNav(current: ReadingPage, onGo: (ReadingPage) -> Unit, m
             onNext = { next?.let(onGo) },
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 18.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            // 점마다 32dp 폭 누르는 칸이 붙어 있어 따로 간격을 두지 않는다(S15P31E102-968).
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 ReadingPage.entries.forEach { page -> PageDot(page, on = page == current) { onGo(page) } }
             }
         }
     }
 }
 
-/** 쪽 점. 지금 쪽은 길고 녹색, 나머지는 옅은 회색이다. 누르는 영역은 점보다 넓다. */
+/**
+ * 쪽 점. 지금 쪽은 길고 녹색, 나머지는 옅은 회색이다.
+ * 누르는 영역은 32×48dp로 점보다 넓고, 눌림 효과는 점 둘레 32dp 원으로 그린다(S15P31E102-968).
+ */
 @Composable
 private fun PageDot(page: ReadingPage, on: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     val width by animateDpAsState(if (on) 20.dp else 8.dp)
     val description = stringResource(Res.string.guide_reading_page_dot, page.ordinal + 1, page.title())
+    val interaction = remember { MutableInteractionSource() }
     Box(
         Modifier
-            .height(28.dp)
-            .clickable(role = Role.Button, onClick = onClick)
+            .size(width = 32.dp, height = 48.dp)
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
             .semantics {
                 contentDescription = description
                 selected = on
             },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.width(width).height(8.dp).background(if (on) colors.green else GuideFaint, RoundedCornerShape(4.dp)))
+        Box(Modifier.size(32.dp).clip(CircleShape).indication(interaction, ripple()), contentAlignment = Alignment.Center) {
+            Box(Modifier.width(width).height(8.dp).background(if (on) colors.green else GuideFaint, RoundedCornerShape(4.dp)))
+        }
     }
 }

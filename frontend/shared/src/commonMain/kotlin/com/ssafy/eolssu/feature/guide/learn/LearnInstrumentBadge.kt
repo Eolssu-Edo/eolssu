@@ -13,11 +13,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -25,17 +23,11 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
 import com.ssafy.eolssu.core.ui.component.InstrumentMenuItem
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -80,12 +72,7 @@ internal fun LearnInstrumentChip(
             }
         }
         if (open) {
-            val gap = with(LocalDensity.current) { 6.dp.roundToPx() }
-            Popup(
-                popupPositionProvider = remember(gap) { BelowStart(gap) },
-                onDismissRequest = onDismiss,
-                properties = PopupProperties(focusable = true),
-            ) {
+            EolssuMenuPopup(onDismissRequest = onDismiss, gap = 6.dp) {
                 EolssuMenuPanel(width = 200.dp) {
                     GuideInstrument.entries.forEach { instrument ->
                         InstrumentMenuItem(instrument, instrument == selected, onClick = { onSelect(instrument) })
@@ -94,10 +81,4 @@ internal fun LearnInstrumentChip(
             }
         }
     }
-}
-
-/** 메뉴를 기준 영역 왼쪽 아래에 [gap]만큼 띄워 둔다. */
-private class BelowStart(private val gap: Int) : PopupPositionProvider {
-    override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize) =
-        IntOffset(anchorBounds.left, anchorBounds.bottom + gap)
 }

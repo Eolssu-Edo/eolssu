@@ -1,13 +1,18 @@
 package com.ssafy.eolssu.feature.history
 
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -340,13 +345,20 @@ private fun RecordMemoDialog(recordId: String, memo: String, dialog: RecordMemoS
                 style = memoTextStyle(),
                 color = colors.text,
             )
+            // 누르는 영역은 48dp, 눌림 효과는 연필 둘레 40dp 원 안에만 그려 메모 상자 모서리와 겹치지 않게 한다(S15P31E102-968).
+            val editInteraction = remember { MutableInteractionSource() }
             Box(
-                Modifier.align(Alignment.TopEnd).size(44.dp)
-                    .clickable(role = Role.Button, onClick = actions.onEditMemo)
+                Modifier.align(Alignment.TopEnd).size(48.dp)
+                    .clickable(interactionSource = editInteraction, indication = null, role = Role.Button, onClick = actions.onEditMemo)
                     .semantics { contentDescription = editLabel },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.accentText)
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape).indication(editInteraction, ripple()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.accentText)
+                }
             }
         }
         EolssuButton(

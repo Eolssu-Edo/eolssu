@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import com.ssafy.eolssu.feature.guide.learn.LearnJudge
 import com.ssafy.eolssu.feature.guide.learn.LearnTask
 import eolssu.shared.generated.resources.Res
@@ -125,14 +126,13 @@ internal fun LearnSection(
     }
 }
 
-/** '더 보기' 글자 링크(`.lp-more`). */
+/**
+ * '더 보기' 글자 링크(`.lp-more`). 섹션 머리 줄은 28dp 알약 높이만 차지하고, 48dp 누르는 영역은 위아래로 넘쳐 걸친다.
+ * 알약 안쪽 여백(12dp) 때문에 글자가 안으로 들어가므로, 글자를 끝선에 맞출 곳은 부르는 쪽에서 [modifier]로 당긴다(S15P31E102-968).
+ */
 @Composable
 internal fun MoreLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Row(
-        modifier.clickable(role = Role.Button, onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
+    EolssuTextLink(onClick, modifier, pillHeight = 28.dp, reserveTouchHeight = false) {
         Text(text, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
         Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(14.dp))
     }
