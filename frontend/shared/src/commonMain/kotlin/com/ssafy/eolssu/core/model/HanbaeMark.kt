@@ -2,7 +2,7 @@ package com.ssafy.eolssu.core.model
 
 /** 빠르기 지시. 음높이를 꾸미는 시김새와 별도로 편집한다. */
 enum class HanbaeMark(val symbol: String, val label: String, val glyph: String, val gradual: Boolean = false) {
-    Slower("조금느리게", "좀 느리게", "ㅈ\nㄴ"),
+    Slower("조금느리게", "조금 느리게", "ㅈ\nㄴ"),
     Faster("조금속하게", "조금 빠르게", "ㅈ\nㅅ"),
     GraduallySlower("점점느리게", "점점 느리게", "ㅈ\nㅈ\nㄴ", true),
     GraduallyFaster("점점속하게", "점점 빠르게", "ㅈ\nㅈ\nㅅ", true),
