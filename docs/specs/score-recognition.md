@@ -88,6 +88,7 @@ POST /v1/recognitions
 | `OUT_OF_RANGE` | issues | 그 음이 놓인 정간 |
 | `LOW_CONFIDENCE` `OFF_GRID_RHYTHM`·`COLLIDED` | issues | 리듬을 옮기거나 겹친 정간 |
 | `LOW_CONFIDENCE` `GAP_IN_VOICE` | issues | 빈 시간이 시작하는 쉼표 정간 |
+| `LOW_CONFIDENCE` `FINAL_MEASURE_PADDED` | issues | 소리가 있는 마지막 마디가 박자표보다 한 박 안쪽으로 모자라 정간 박 경계까지 채운 쉼표 정간. 반복 연주면 회차마다 하나(S15P31E102-1043) |
 | `ORNAMENT_DROPPED` | issues | 꾸밈음이 붙어 있던 음의 정간. 반복을 펼치면 펼친 각마다 하나. 뒤따르는 음이 없으면 notices |
 | `UNREADABLE` 읽지 못한 글자(`detail.text`) | issues | 그 글자를 덮는 정간 |
 | `UNREADABLE` `NO_TEXT`·`NO_GRID`·`NO_STAFF`·`NOT_SCORE_COLUMN` | notices | 쪽·열 전체 |
