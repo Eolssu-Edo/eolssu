@@ -1,0 +1,195 @@
+{
+  "ticket": "S15P31E102-936",
+  "verifiedAt": "2026-11-16T11:51:17.2408317+09:00",
+  "url": "https://15.165.144.7/qa/",
+  "browser": "Chrome",
+  "actualDevices": [
+    "Galaxy S10",
+    "Galaxy Tab S9 FE"
+  ],
+  "registered": 2,
+  "registryLimit": 6,
+  "installedPackage": "com.ssafy.eolssu.qa",
+  "installedVersion": "qa-20261116.022919-59e0e700",
+  "installedVersionCode": 1794796159,
+  "nodeTests": {
+    "pass": 115,
+    "fail": 0
+  },
+  "pythonBoundaryTests": {
+    "pass": 17,
+    "fail": 0
+  },
+  "runs": [
+    {
+      "id": "473475c8-327e-4b0d-b68a-b907596bb28e",
+      "device": "SM-X510",
+      "startedAt": "2026-11-16T11:34:35.003+09:00",
+      "finishedAt": "2026-11-16T11:35:45.768+09:00",
+      "status": "fail",
+      "total": 6,
+      "success": 4,
+      "failed": 2,
+      "within5": 0,
+      "elapsedMs": [
+        60359.0,
+        null,
+        46938.0,
+        38031.0,
+        null,
+        30454.0
+      ],
+      "logCount": 500,
+      "dbLogCount": 3
+    },
+    {
+      "id": "38f06305-5c59-4fd3-a1fb-df12b9dcf856",
+      "device": "SM-G973N",
+      "startedAt": "2026-11-16T11:41:26.055+09:00",
+      "finishedAt": "2026-11-16T11:41:39.566+09:00",
+      "status": "pass",
+      "total": 6,
+      "success": 6,
+      "failed": 0,
+      "within5": 2,
+      "elapsedMs": [
+        6234.0,
+        11219.0,
+        4219.0,
+        7469.0,
+        2985.0,
+        9344.0
+      ],
+      "logCount": 394,
+      "dbLogCount": 6
+    }
+  ],
+  "deployment": [
+    {
+      "path": "public\\index.html",
+      "sha256": "c60154db57c0f618a4ef0a08c5cc224370bb49eed9c7d40b8bda1d0eeb3d5cdf",
+      "deployedMatch": true
+    },
+    {
+      "path": "public\\app.js",
+      "sha256": "33db737283f10860d251e37cc821935f729727017d8936341a02450adf1551c7",
+      "deployedMatch": true
+    },
+    {
+      "path": "public\\device-session.js",
+      "sha256": "3c5b1e710c73cad2d4f22c3f557d1ca8dcb149658aa74ec53daa2c78e8bb74a6",
+      "deployedMatch": true
+    },
+    {
+      "path": "public\\dashboard.css",
+      "sha256": "c95046d3144115fb7a8ebfd169adb5ccdb8343232c916f87bcbadc40fc745c71",
+      "deployedMatch": true
+    },
+    {
+      "path": "public\\dashboard-splitter.js",
+      "sha256": "824caf01cc7d5121bcdae385679e3e64c0df996076ef59422ba845ab15546575",
+      "deployedMatch": true
+    },
+    {
+      "path": "public\\live-panel.js",
+      "sha256": "f16ee61134c4d1c3d6f2b14d2c3f1b1edc45b5c3bf6a96940d50e51a2bd8548a",
+      "deployedMatch": true
+    },
+    {
+      "path": "public\\video-view.js",
+      "sha256": "be2da9b56c959064acfe953cde1f8de9b2e504121b35b760b7cd277df1f56720",
+      "deployedMatch": true
+    },
+    {
+      "path": "public\\apk-update.js",
+      "sha256": "f15818de01a0f7d4be15d7a8baf0b1def95a51916abbd916b028cddc46b3e10c",
+      "deployedMatch": true
+    },
+    {
+      "path": "public\\devices.json",
+      "sha256": "a006451f6ac0f8979fd805f41506d105cc4db70cba59aa28595129d639c3f5c5",
+      "deployedMatch": true
+    },
+    {
+      "path": "public\\guide.html",
+      "sha256": "4897ca781b73d7a9b66dec5fd38b86bd8c9f6774c60ea7cbef32d740cf536ef7",
+      "deployedMatch": true
+    },
+    {
+      "path": "server.mjs",
+      "sha256": "0f51c72af15680aff41316ad8878960d91d9470956284544494b04c5cb0fdef4",
+      "deployedMatch": true
+    },
+    {
+      "path": "adb.mjs",
+      "sha256": "0e4e5b97dfd89ae7ea0460a67e5613cf71739cfba0e20ad44f90237fddb2b0a4",
+      "deployedMatch": true
+    },
+    {
+      "path": "live-client.mjs",
+      "sha256": "0fc71f34590a49b862c6a64bdab86f0fb77f704217d28f7bfb4ced287e25bde4",
+      "deployedMatch": true
+    },
+    {
+      "path": "live-events.mjs",
+      "sha256": "7949928def4c985ffee4b04409cc364c9f23552fc8a4c4474d8b7d2f14f3587b",
+      "deployedMatch": true
+    },
+    {
+      "path": "live\\windows_runtime.py",
+      "sha256": "e30a9f07b8aa6bc4be293f596906a1dfa67fa63f3287f54db40bdc60497efcdc",
+      "deployedMatch": true
+    },
+    {
+      "path": "video.mjs",
+      "sha256": "59aa5a1194e0cc9cf64ecd3f86ff62aea257e0adcf07e57a49a9bffeb96214f0",
+      "deployedMatch": true
+    },
+    {
+      "path": "relay-transport.ps1",
+      "sha256": "94e245a832036d8433c4f2faaa09f2ba1a0c75421bfd0a3e18a9eb6db31fdaf3",
+      "deployedMatch": true
+    },
+    {
+      "path": "start-public.ps1",
+      "sha256": "087b5bb5563d6b4b3e6a46ce00f56c3a36b0d2d8c1a327b71eb6ba1d41892720",
+      "deployedMatch": true
+    }
+  ],
+  "ui": {
+    "loadButtonObserved": "loading -> complete after 6 verified submissions",
+    "loadPendingScreenshot": "qa-multi-device-load-running.jpg",
+    "fullLogRowsObserved": 394,
+    "sourceButtons": 8,
+    "splitterRatio": 67,
+    "realTwoDeviceVideo": true,
+    "chromeViewportWidth": 1440,
+    "documentWidth": 1425,
+    "dashboardScreenshot": "qa-multi-device-dashboard.jpg",
+    "responsiveProduction320": "not rerun in final pass",
+    "loadCompleteScreenshot": "qa-multi-device-load-complete.jpg"
+  },
+  "cleanup": {
+    "temporaryServerSession": "52668 exited",
+    "removed": [
+      "apply-operational-layout.py",
+      "apply-operational-qa.ps1",
+      "reload-operational-qa.ps1",
+      "qa-operational-check.mjs",
+      "operational-rollback"
+    ],
+    "preserved": [
+      "QA supervisors and relays",
+      "isolated backend AI DB containers",
+      "app data and APK archive",
+      "execution history",
+      "approved prototype evidence"
+    ]
+  },
+  "limitations": [
+    "Actual connected devices verified: 2; simultaneous physical 6 not performed",
+    "Latest automatically built APK used; unavailable app traces are not synthesized",
+    "Second six-request run: 2 of 6 within 5 seconds; performance threshold not fully met",
+    "Whole app and microphone QA not repeated in this UI rollout"
+  ]
+}

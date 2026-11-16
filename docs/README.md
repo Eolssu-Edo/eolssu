@@ -1,5 +1,10 @@
 # 프로젝트 문서
 
+- [Windows QA 실행·관측 통합 (936)](plans/S15P31E102-936.md) · [요구사항](specs/qa-live-control.md) · [QA 시연 대본](../infra/qa-phone/public/guide.html) · [운영 실행·증거 해석](../infra/qa-phone/LIVE.md)
+- [S10 실제 마이크·평가 로그 대조](knowledge/infra/qa-s10-real-microphone-verification.md)
+- [S10 기초 콘텐츠 화면·진도·실제 스피커 확인](knowledge/infra/qa-s10-content-verification.md)
+- [통합 QA 실제 적용·최신 APK·기기별 경계와 검증](knowledge/infra/qa-multi-device-rollout.md)
+
 - [PDF·사진 악보 변환 완료 앱 내 알림 (927)](plans/S15P31E102-927.md) · [알림 규칙](specs/sheet-conversion-completion.md)
 
 - [무음 판정과 오답·미검출 채점 분리 (291)](plans/S15P31E102-291.md) · [실패 기준](specs/practice-analysis-failure.md#실패-코드)
