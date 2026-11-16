@@ -59,7 +59,7 @@ class PracticePersonalAudioTest {
         val downloadFinished = CompletableDeferred<Unit>()
         fixture.downloadFinished = downloadFinished
         vm.downloadPersonalAudio(); runCurrent()
-        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
+        assertEquals(PracticePersonalAudio.Queued, vm.uiState.value.personalAudio)
         assertEquals(7, vm.uiState.value.totalSeconds)
         advanceTimeBy(500); runCurrent()
         assertEquals(PracticePersonalAudio.Downloading, vm.uiState.value.personalAudio)
@@ -161,7 +161,7 @@ class PracticePersonalAudioTest {
         vm.downloadPersonalAudio()
         vm.downloadPersonalAudio()
         runCurrent()
-        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
+        assertEquals(PracticePersonalAudio.Queued, vm.uiState.value.personalAudio)
         assertEquals(listOf(SheetAudioSettings(instrumentId = "9", withJangdan = false, bpm = 60)), fixture.requests)
         assertEquals(0, fixture.saves)
 
@@ -322,11 +322,97 @@ class PracticePersonalAudioTest {
         vm.downloadPersonalAudio()
         runCurrent()
         assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
-        assertEquals(1, fixture.statusReads)
+        assertEquals(2, fixture.statusReads, "Re-entry checks for a running generation once before the InProgress lookup")
         assertEquals(1, fixture.saves)
     }
 
+    @Test fun openingWhileTheServerGeneratesShowsGeneratingAndSavesWithoutRequesting() = practiceTest(
+        serverStatuses = listOf(Generating, Generating, Generating.copy(status = SheetAudioStatus.Running)),
+    ) { vm, fixture, _ ->
+        assertEquals(PracticePersonalAudio.Queued, vm.uiState.value.personalAudio, "Server queue shows as waiting")
+        assertEquals(PracticePlayerNotice.None, vm.uiState.value.playerNotice, "The spinner row alone explains the wait")
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio, "RUNNING shows as generating")
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(0, fixture.requests.size, "Opening practice must not request another generation")
+        assertEquals(1, fixture.saves)
+    }
+
+    @Test fun reenteringWhileTheServerStillGeneratesResumesWaiting() = practiceTest(
+        serverStatuses = listOf(Generating, Generating),
+    ) { vm, fixture, _ ->
+        vm.onScreenHidden(); runCurrent()
+        fixture.statuses.addAll(listOf(Generating, Generating))
+        vm.onScreenShown(); runCurrent()
+        assertEquals(PracticePersonalAudio.Queued, vm.uiState.value.personalAudio)
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(0, fixture.requests.size)
+    }
+
+    @Test fun generationFinishedWithOtherSettingsReturnsToTheDownloadButton() = practiceTest(
+        serverStatuses = listOf(Generating, Generating, Generating.copy(status = SheetAudioStatus.Done, bpm = 90)),
+    ) { vm, fixture, _ ->
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Missing, vm.uiState.value.personalAudio)
+        assertEquals(PracticePlayerNotice.None, vm.uiState.value.playerNotice)
+        assertEquals(0, fixture.saves)
+    }
+
+    @Test fun failedGenerationFoundOnOpeningOffersRetry() = practiceTest(
+        serverStatuses = listOf(Generating, Generating, Generating.copy(status = SheetAudioStatus.Failed, pollAfterMs = null)),
+    ) { vm, fixture, _ ->
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Failed, vm.uiState.value.personalAudio)
+        assertEquals(0, fixture.saves)
+    }
+
+    @Test fun deletedDeviceFileFallsBackToDownloadAndRestoresWithoutPlayingAMissingFile() = practiceTest(cached = true) { vm, fixture, player ->
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        vm.onScreenHidden(); runCurrent()
+        fixture.saved = null // 사용자가 기기에서 음원 파일을 지움
+        vm.onScreenShown(); runCurrent()
+        assertEquals(PracticePersonalAudio.Missing, vm.uiState.value.personalAudio)
+        assertEquals(0, player.loads)
+        fixture.request = SheetAudioRequest.Accepted(fixture.done)
+        vm.downloadPersonalAudio(); runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(1, fixture.requests.size)
+        assertEquals(1, fixture.saves)
+    }
+
+    @Test fun editedSheetIgnoresTheOldVersionFileAndDownloadsTheNewVersion() = practiceTest(
+        scoreVersion = 2,
+        // 편집 전(판본 1) 음원이 기기에 있고, 서버의 마지막 음원도 판본 1이다.
+        deviceFiles = mapOf("1" to DeviceSheetAudio(LocalAudioFile("/app/files/42-v1.m4a"), "9", 60, false, "a".repeat(64), 3_300, null)),
+        serverStatuses = listOf(SheetAudio("42", SheetAudioStatus.Done, "1", "2", true, "9", false, 60)),
+    ) { vm, fixture, player ->
+        assertEquals(PracticePersonalAudio.Missing, vm.uiState.value.personalAudio, "The v1 file must not count for v2")
+        vm.downloadPersonalAudio(); runCurrent()
+        assertEquals(PracticePersonalAudio.Queued, vm.uiState.value.personalAudio)
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals("/app/files/42-v2.m4a", fixture.saved?.localFile?.path)
+        vm.startModel(); runCurrent()
+        assertEquals("/app/files/42-v2.m4a", player.requestedSource?.localFile?.path)
+    }
+
+    @Test fun editedSheetWhoseNewVersionIsGeneratingWaitsInsteadOfOfferingTheOldFile() = practiceTest(
+        scoreVersion = 2,
+        deviceFiles = mapOf("1" to DeviceSheetAudio(LocalAudioFile("/app/files/42-v1.m4a"), "9", 60, false, "a".repeat(64), 3_300, null)),
+        serverStatuses = List(2) { SheetAudio("42", SheetAudioStatus.Running, "2", "2", true, "9", false, 60, pollAfterMs = 500) },
+    ) { vm, fixture, _ ->
+        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(0, fixture.requests.size)
+        assertEquals("/app/files/42-v2.m4a", fixture.saved?.localFile?.path)
+    }
+
     private fun practiceTest(performed: Boolean = false, cached: Boolean = false, estimatedMs: Double? = null,
+        serverStatuses: List<SheetAudio> = listOf(NoCurrentGeneration), scoreVersion: Int = 1,
+        deviceFiles: Map<String, DeviceSheetAudio> = emptyMap(),
         block: suspend TestScope.(PracticeViewModel, Fixture, FakeAudioPlayer) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val views = ViewModelStore()
@@ -334,9 +420,11 @@ class PracticePersonalAudioTest {
         try {
             val storage = FakeKeyValueStore()
             val member = SignedInMember(storage).apply { set("7") }
-            val song = (if (performed) previewSong() else smallScoreSong()).copy(id = "42", instrumentId = "9", scoreVersion = 1,
+            val song = (if (performed) previewSong() else smallScoreSong()).copy(id = "42", instrumentId = "9", scoreVersion = scoreVersion,
                 estimatedModelDurationMs = estimatedMs)
-            val fixture = Fixture(performed)
+            val fixture = Fixture(performed, scoreVersion.toString())
+            fixture.files.putAll(deviceFiles)
+            if (!cached) fixture.statuses.addAll(serverStatuses)
             if (cached) {
                 val audio = requireNotNull(fixture.done.audio)
                 fixture.saved = DeviceSheetAudio(LocalAudioFile("/app/files/42.m4a"), "9", 60, false,
@@ -351,6 +439,8 @@ class PracticePersonalAudioTest {
                 loadPersonalSheet = { song }, personalAudio = repository)
             views.put("practice", vm)
             runCurrent()
+            // 열 때의 진행 중 생성 확인(SHT-13)은 아래 각 검사의 다운로드 조회 횟수에서 뺀다.
+            if (serverStatuses == listOf(NoCurrentGeneration) && scoreVersion == 1) fixture.statusReads = 0
             block(vm, fixture, player)
         } finally {
             views.clear()
@@ -359,8 +449,15 @@ class PracticePersonalAudioTest {
         }
     }
 
-    private class Fixture(performed: Boolean = false) : SheetAudioDeviceStore, SheetAudioRepository {
-        val done = SheetAudio("42", SheetAudioStatus.Done, "1", "1", false, "9", false, 60,
+    private companion object {
+        /** 연습 화면을 열 때 서버가 이 악보 음원을 만들고 있다(편집기 등에서 요청, S15P31E102-1039). */
+        val Generating = SheetAudio("42", SheetAudioStatus.Queued, "1", "1", false, "9", false, 60, pollAfterMs = 500)
+        /** 열 때 서버에 진행 중인 생성이 없다(이전 판본의 완료 음원). */
+        val NoCurrentGeneration = SheetAudio("42", SheetAudioStatus.Done, "0", "1", true, "9", false, 60)
+    }
+
+    private class Fixture(performed: Boolean = false, val version: String = "1") : SheetAudioDeviceStore, SheetAudioRepository {
+        val done = SheetAudio("42", SheetAudioStatus.Done, version, version, false, "9", false, 60,
             audio = SheetAudioFile("https://example.invalid/song.m4a", 60_000, "audio/mp4", 100, "song.m4a",
                 "a".repeat(64), if (performed) 7_050 else 3_300,
                 performance = if (performed) SheetAudioPerformance(SourceHash, Json.parseToJsonElement(previewJson()).jsonObject) else null))
@@ -369,7 +466,11 @@ class PracticePersonalAudioTest {
         val statuses = ArrayDeque<SheetAudio>()
         var statusReads = 0
         var saves = 0
-        var saved: DeviceSheetAudio? = null
+        /** 확정 판본별 기기 저장본. 앱은 계정·악보·판본이 모두 맞는 파일만 쓴다. */
+        val files = mutableMapOf<String, DeviceSheetAudio>()
+        var saved: DeviceSheetAudio?
+            get() = files[version]
+            set(value) { if (value == null) files.remove(version) else files[version] = value }
         var savedLookupUnavailable = false
         var downloadFinished: CompletableDeferred<Unit>? = null
 
@@ -385,14 +486,14 @@ class PracticePersonalAudioTest {
             return SheetAudioLookup.Found(statuses.removeFirstOrNull() ?: done)
         }
         override suspend fun find(accountId: String, sheetId: String, scoreVersion: String): DeviceSheetAudio? {
-            assertEquals(Triple("7", "42", "1"), Triple(accountId, sheetId, scoreVersion))
-            return saved.takeUnless { savedLookupUnavailable }
+            assertEquals(Triple("7", "42", version), Triple(accountId, sheetId, scoreVersion))
+            return files[scoreVersion].takeUnless { savedLookupUnavailable }
         }
         override suspend fun save(accountId: String, sheetId: String, scoreVersion: String, download: SheetAudioDownload): DeviceSheetAudio {
-            assertEquals(Triple("7", "42", "1"), Triple(accountId, sheetId, scoreVersion))
+            assertEquals(Triple("7", "42", version), Triple(accountId, sheetId, scoreVersion))
             saves++
             downloadFinished?.await()
-            return DeviceSheetAudio(LocalAudioFile("/app/files/42.m4a"), download.instrumentId, download.bpm,
+            return DeviceSheetAudio(LocalAudioFile("/app/files/42-v$version.m4a"), download.instrumentId, download.bpm,
                 download.withJangdan, download.sha256, download.durationMs, download.performance).also { saved = it }
         }
         override suspend fun delete(accountId: String, sheetId: String) = error("Unexpected delete")
