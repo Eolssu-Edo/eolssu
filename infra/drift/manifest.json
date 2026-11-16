@@ -3,6 +3,10 @@
  "hosts": {
   "edo1": [
    {
+    "path": "/etc/needrestart/conf.d/50-eolssu-jenkins-agents.conf",
+    "source": "infra/needrestart/50-eolssu-jenkins-agents.conf"
+   },
+   {
     "path": "/etc/rsyslog.d/30-eolssu-logs.conf",
     "source": "infra/privacy/30-eolssu-logs.conf"
    },
