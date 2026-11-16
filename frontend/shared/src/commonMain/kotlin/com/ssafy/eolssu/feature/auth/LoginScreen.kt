@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
@@ -265,11 +266,14 @@ private val KakaoInk = Color(0xD9000000)
 private val NaverGreen = Color(0xFF03C75A)
 private val GoogleInk = Color(0xFF1F1F1F)
 
-/** 아이디 기억하기 · 자동 로그인 체크(한 줄). 상자는 약관 동의와 같은 22dp, 누르는 영역은 글자까지 포함한 48dp 높이다(S15P31E102-969). */
+/**
+ * 아이디 기억하기 · 자동 로그인 체크. 상자는 약관 동의와 같은 22dp, 누르는 영역은 글자까지 포함한 48dp 높이다(S15P31E102-969).
+ * 큰 글꼴·좁은 화면에서 두 개가 한 줄에 안 들어가면 글자를 쪼개지 않고 두 번째를 다음 줄로 내린다(S15P31E102-972).
+ */
 @Composable
 private fun LoginOptions(state: LoginUiState, onRememberEmailChange: (Boolean) -> Unit, onKeepSignedInChange: (Boolean) -> Unit) {
     // 두 줄 사이 16dp 간격은 각 줄의 좌우 안쪽 여백(4dp+4dp)과 8dp로 나눈다. 첫 상자는 입력칸 왼쪽 끝에 맞춘다.
-    Row(Modifier.fillMaxWidth().offset(x = (-4).dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    FlowRow(Modifier.fillMaxWidth().offset(x = (-4).dp), horizontalArrangement = Arrangement.spacedBy(8.dp), itemVerticalAlignment = Alignment.CenterVertically) {
         LoginOption(stringResource(Res.string.auth_remember_email), state.rememberEmail, onRememberEmailChange)
         LoginOption(stringResource(Res.string.auth_keep_signed_in), state.keepSignedIn, onKeepSignedInChange)
     }

@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.offset
 import eolssu.shared.generated.resources.sheetedit_redo
 import eolssu.shared.generated.resources.sheet_adapt_tab
 import eolssu.shared.generated.resources.sheetedit_undo
+import eolssu.shared.generated.resources.sheetedit_panel_collapse
+import eolssu.shared.generated.resources.sheetedit_panel_expand
 import eolssu.shared.generated.resources.sheetedit_register_jungcheong_short
 import eolssu.shared.generated.resources.sheetedit_register_baetak_short
 import androidx.compose.foundation.background
@@ -40,11 +42,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -65,6 +72,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
 import com.ssafy.eolssu.core.ui.score.ComposedGlyph
@@ -153,6 +161,7 @@ internal fun EditInputPanel(
     val colors = EolssuTheme.colors
     val shape = if (docked) RoundedCornerShape(20.dp) else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     val tabsScroll = rememberScrollState()
+    var expanded by rememberSaveable { mutableStateOf(true) }
     LaunchedEffect(tab) { if (tab == EditTab.Adaptation) tabsScroll.animateScrollTo(0) }
     Column(
         modifier
@@ -167,7 +176,10 @@ internal fun EditInputPanel(
             SquareIconButton(SheetEditIcons.Undo, stringResource(Res.string.sheetedit_undo), actions.onUndo, enabled = canUndo)
             SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.onRedo, enabled = canRedo)
             Box(Modifier.weight(1f).offset(x = 4.dp), contentAlignment = Alignment.CenterEnd) { saveFeedback() }
+            InputPanelToggle(expanded, onToggle = { expanded = !expanded }, Modifier.offset(x = 8.dp))
         }
+        // 접으면 실행 취소 줄 한 줄만 남겨 짧은 휴대폰에서도 정간보를 넓게 본다(S15P31E102-972).
+        if (!expanded) return@Column
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Row(Modifier.horizontalScroll(tabsScroll)) {
                 SegmentTabs(
@@ -185,6 +197,17 @@ internal fun EditInputPanel(
             EditTab.Cell -> CellTools(draft, actions)
         }
     }
+}
+
+/** 입력판 접기·펼치기(누르는 칸 48dp). 펼쳐 있으면 아래 화살표, 접혀 있으면 위 화살표를 보인다. */
+@Composable
+internal fun InputPanelToggle(expanded: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    SquareIconButton(
+        EolssuIcons.ChevronDown,
+        stringResource(if (expanded) Res.string.sheetedit_panel_collapse else Res.string.sheetedit_panel_expand),
+        onToggle,
+        modifier.rotate(if (expanded) 0f else 180f),
+    )
 }
 
 /** 처음부터 있던 네 시김새는 앱 문구로, 나머지는 공통 렌더러에 등록된 이름 그대로 적는다. */

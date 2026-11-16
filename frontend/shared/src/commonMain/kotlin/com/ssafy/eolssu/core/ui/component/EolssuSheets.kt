@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -216,33 +217,39 @@ fun EolssuDialog(
 ) {
     val colors = EolssuTheme.colors
     Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        // 휴대폰 가로·큰 글꼴·키보드로 높이가 모자라면 위쪽 내용만 스크롤하고 버튼은 아래에 고정한다.
         Column(
             modifier
-                .padding(horizontal = 28.dp)
+                .imePadding()
+                .padding(horizontal = 28.dp, vertical = 16.dp)
                 .widthIn(max = maxWidth)
                 .fillMaxWidth()
                 .shadow(12.dp, RoundedCornerShape(20.dp))
                 .background(colors.surface, RoundedCornerShape(20.dp))
                 .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (icon != null) {
-                Box(
-                    Modifier.size(48.dp).background(iconBackground ?: colors.accentTint, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = iconTint ?: colors.text)
+            Column(
+                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (icon != null) {
+                    Box(
+                        Modifier.size(48.dp).background(iconBackground ?: colors.accentTint, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = iconTint ?: colors.text)
+                    }
+                }
+                Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 19.sp, lineHeight = 24.7.sp), color = colors.text)
+                if (message != null) {
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
+                        color = colors.textSub,
+                    )
                 }
             }
-            Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 19.sp, lineHeight = 24.7.sp), color = colors.text)
-            if (message != null) {
-                Text(
-                    message,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
-                    color = colors.textSub,
-                )
-            }
-            Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
+            Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
         }
     }
 }

@@ -93,6 +93,8 @@
     <string name="sheetedit_subtitle_editing">편집 중 · %1$s · %2$d BPM</string>
     <string name="sheetedit_subtitle_staff">오선보로 보기 · 황 = %1$s 기준</string>
     <string name="sheetedit_undo">실행 취소</string>
+    <string name="sheetedit_panel_collapse">입력판 접기</string>
+    <string name="sheetedit_panel_expand">입력판 펼치기</string>
     <string name="sheetedit_redo">다시 실행</string>
     <string name="sheetedit_view_jeongganbo">정간보</string>
     <string name="sheetedit_view_staff">오선보</string>

@@ -2,7 +2,8 @@ package com.ssafy.eolssu.feature.profile
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import com.ssafy.eolssu.core.ui.component.drawable
@@ -140,6 +141,12 @@ private fun ProfileImageOption(image: ProfileImage, selected: Boolean, onClick: 
             .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Image(painterResource(image.drawable), contentDescription = null, modifier = Modifier.requiredSize(84.dp), contentScale = ContentScale.Fit)
+        // 칸이 84dp보다 좁은 화면(320dp 등)에서는 옆 칸과 겹치지 않게 칸 너비에 맞춰 줄인다(S15P31E102-972).
+        Image(
+            painterResource(image.drawable),
+            contentDescription = null,
+            modifier = Modifier.widthIn(max = 84.dp).fillMaxWidth().aspectRatio(1f),
+            contentScale = ContentScale.Fit,
+        )
     }
 }
