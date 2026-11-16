@@ -99,7 +99,8 @@ internal fun SheetEditSettingsDialog(
             EolssuTextField(bpm, { if (!saving) { bpm = it; bpmTouched = true; error = null } },
                 label = stringResource(Res.string.sheet_tempo_whole) + " · " + draft.tempoUnitLabel,
                 placeholder = "", type = TextFieldType.Number, maxLength = InputLimit.BPM_DIGITS, imeAction = ImeAction.Done,
-                error = if (bpmTouched && validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
+                help = stringResource(Res.string.sheet_details_bpm_help, SheetBpmRange.first, SheetBpmRange.last),
+                error = if (bpmTouched && validBpm == null) stringResource(Res.string.sheet_details_bpm_error, SheetBpmRange.first, SheetBpmRange.last) else null,
                 bordered = false, containerColor = EolssuTheme.colors.groupedBackground)
             if (hasTempoPlan || changes.isNotEmpty()) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(Res.string.sheet_tempo_changes), style = MaterialTheme.typography.titleSmall)

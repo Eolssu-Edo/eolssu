@@ -260,10 +260,10 @@ class SheetEditAudioViewModelTest {
         try {
             runCurrent()
             val original = vm.uiState.value.draft
-            val changed = original.withTempoChange(SheetTempoChange(0, HanbaeMark.Slower, 30.0))
+            val changed = original.withTempoChange(SheetTempoChange(0, HanbaeMark.Slower, 40.0))
                 .withTempoChange(SheetTempoChange(2, HanbaeMark.Faster, 120.0))
             assertEquals(original.bpm, changed.bpm)
-            assertEquals(listOf(30.0, 120.0), changed.tempoChanges.map { it.targetBpm })
+            assertEquals(listOf(40.0, 120.0), changed.tempoChanges.map { it.targetBpm })
             vm.updateTempoSettings(changed)
             vm.requestAudio(); runCurrent()
             assertTrue(repository.requests.isEmpty(), "구간만 바뀌어도 이전 확정판으로 생성하지 않는다")
