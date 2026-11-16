@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.KoreanParticle
+import com.ssafy.eolssu.core.ui.component.withParticle
 import com.ssafy.eolssu.feature.song.edit.SheetImportGuide
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -126,7 +128,5 @@ private fun GuideAction(label: String, primary: Boolean, onClick: () -> Unit) {
 @Composable
 private fun instrumentWithRo(name: String?): String {
     val word = name?.takeIf { it.isNotBlank() } ?: return stringResource(Res.string.sheet_import_guide_instrument_fallback)
-    val code = word.last().code - 0xAC00
-    val batchim = if (code in 0..11171) code % 28 else 0
-    return word + if (batchim == 0 || batchim == 8) "로" else "으로"
+    return word.withParticle(KoreanParticle.EuroRo)
 }

@@ -105,11 +105,17 @@ private val LearnArts: List<DrawableResource> = listOf(
     Res.drawable.learn_stage_7,
 )
 
-/** 카드 넘기기의 최대 너비(`.lc`). 태블릿 세로에서도 이 너비로 가운데에 둔다. */
+/** 카드 넘기기의 최대 너비(`.lc`). 태블릿 세로는 [LargeCarouselMaxWidth]를 쓴다. */
 private val CarouselMaxWidth = 480.dp
 
 /** 단계 카드 한 변의 최대 크기. 카드를 조금 줄여 목록이 한눈에 들어오게 한다. */
 private val CardMaxSize = 240.dp
+
+/** 태블릿 세로([large])의 카드 넘기기 최대 너비. 240dp 카드로는 화면 아래 절반이 비어 카드를 키운다(S15P31E102-1031). */
+private val LargeCarouselMaxWidth = 600.dp
+
+/** 태블릿 세로([large])의 단계 카드 한 변 최대 크기. 남는 높이가 모자라면 [cardMaxSize]가 더 줄인다. */
+private val LargeCardMaxSize = 420.dp
 
 /** 공개 단계 수만큼 그림이 있는지 테스트에서 확인한다. */
 internal val LearnArtCount: Int get() = LearnArts.size
@@ -125,6 +131,7 @@ private const val LearnCardArtInset = 0.94f
  * @param onOpen 카드를 누르면 그 단계 상세를 연다.
  * @param cardMaxSize 카드 한 변의 최대 크기. 낮은 화면에서 시작 버튼까지 보이도록 줄일 때 쓴다.
  * @param onCardHeight 그려진 카드 높이(px)를 알린다.
+ * @param large 태블릿 세로처럼 넓고 키 큰 창이면 카드를 [LargeCardMaxSize]까지 키운다.
  */
 @Composable
 internal fun LearnStageCarousel(
@@ -135,7 +142,9 @@ internal fun LearnStageCarousel(
     modifier: Modifier = Modifier,
     cardMaxSize: Dp = Dp.Unspecified,
     onCardHeight: (Int) -> Unit = {},
+    large: Boolean = false,
 ) {
+    val cardCap = if (large) LargeCardMaxSize else CardMaxSize
     val stages = state.stages
     val count = stages.size
     val pager = rememberPagerState(initialPage = (current - 1).coerceIn(0, (count - 1).coerceAtLeast(0))) { count }
@@ -162,7 +171,7 @@ internal fun LearnStageCarousel(
 
     Column(
         modifier
-            .widthIn(max = CarouselMaxWidth)
+            .widthIn(max = if (large) LargeCarouselMaxWidth else CarouselMaxWidth)
             .fillMaxWidth()
             .padding(top = 2.dp, bottom = 6.dp)
             .onPreviewKeyEvent { e ->
@@ -180,7 +189,7 @@ internal fun LearnStageCarousel(
             // 옆 카드를 미리 그려 두어 넘기는 순간 그림을 읽느라 멈칫하지 않게 한다.
             HorizontalPager(pager, Modifier.weight(1f), pageSpacing = 16.dp, beyondViewportPageCount = 1) { page ->
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    StageCard(stages[page], state.isDone(stages[page].number), onOpen, cardMaxSize, onCardHeight)
+                    StageCard(stages[page], state.isDone(stages[page].number), onOpen, cardMaxSize, cardCap, onCardHeight)
                 }
             }
             CarouselArrow(next = true, enabled = shownPage < count) { go(shownPage + 1) }
@@ -239,7 +248,7 @@ private fun CarouselArrow(next: Boolean, enabled: Boolean, onClick: () -> Unit) 
  * 정사각형 단계 카드(`.lc-card`). 완료는 연두 굵은 테두리와 '✓ 완료', 선택 단계는 회색 점선 테두리와 '선택'.
  */
 @Composable
-private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, maxSize: Dp, onHeight: (Int) -> Unit) {
+private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, maxSize: Dp, cap: Dp, onHeight: (Int) -> Unit) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(20.dp)
     val description = stringResource(
@@ -249,7 +258,7 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, m
     )
     Box(
         Modifier
-            .widthIn(max = if (maxSize == Dp.Unspecified) CardMaxSize else minOf(maxSize, CardMaxSize))
+            .widthIn(max = if (maxSize == Dp.Unspecified) cap else minOf(maxSize, cap))
             .fillMaxWidth()
             .aspectRatio(1f)
             .onSizeChanged { onHeight(it.height) }

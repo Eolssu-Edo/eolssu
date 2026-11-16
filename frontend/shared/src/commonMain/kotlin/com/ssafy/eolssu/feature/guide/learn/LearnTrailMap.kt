@@ -70,6 +70,8 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuColors
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.KoreanParticle
+import com.ssafy.eolssu.core.ui.component.withParticle
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_tiger
 import eolssu.shared.generated.resources.learn_card_dot
@@ -240,7 +242,7 @@ internal fun LearnTrailMap(
 @Composable
 private fun TrailNode(stage: LearnStage, done: Boolean, viewed: Boolean, paper: Color, water: Color, onClick: () -> Unit, modifier: Modifier) {
     val colors = EolssuTheme.colors
-    val label = if (done) stringResource(Res.string.learn_trail_done, stage.number, stage.title) else stringResource(Res.string.learn_card_dot, stage.number, stage.title)
+    val label = if (done) stringResource(Res.string.learn_trail_done, stage.number, stage.title) else stringResource(Res.string.learn_card_dot, stage.number, stage.title.withParticle(KoreanParticle.EuroRo))
     val rock = remember(stage.number) { TrailRock(stage.number) }
     val dashed = stage.optional && !done && !viewed
     Box(

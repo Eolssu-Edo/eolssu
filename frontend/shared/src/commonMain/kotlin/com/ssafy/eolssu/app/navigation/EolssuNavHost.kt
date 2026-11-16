@@ -493,6 +493,7 @@ fun EolssuNavHost(
                     onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                     onSelectSection = { id -> performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(id)) } },
                     onPracticeSection = { id, _ -> performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(id)) } },
+                    onStartPractice = { navController.navigate(EolssuDestination.SONG_LIST) },
                 )
             }
             composable(
@@ -513,6 +514,7 @@ fun EolssuNavHost(
                         onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                         onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
                         onPracticeSection = { id, _ -> navController.navigate(WeakSectionDestination.select(id)) },
+                        onStartPractice = { navController.navigate(EolssuDestination.SONG_LIST) },
                     )
                 } else {
                     RecordDetailRoute(

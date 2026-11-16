@@ -74,7 +74,7 @@ class LearnListActions(
 
 /**
  * LEARN-02 단계 목록. 악기별 진행을 달리기 지도로, 단계는 그림 카드로 보여주고, 잠금 없이 아무 단계나 열 수 있다.
- * 태블릿 세로도 휴대폰처럼 카드를 넘기고 카드는 최대 480dp로 가운데에 둔다. 태블릿 가로는 단계 상세와 한 화면이라 [com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout]이 그린다.
+ * 태블릿 세로도 휴대폰처럼 카드를 넘기고, 카드를 키운 넘기기를 최대 600dp로 가운데에 둔다. 태블릿 가로는 단계 상세와 한 화면이라 [com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout]이 그린다.
  */
 @Composable
 fun LearnListScreen(
@@ -99,6 +99,7 @@ fun LearnListScreen(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = side, end = side, bottom = 24.dp),
             currentStage = state.cardStage,
+            largeCard = widthClass == WindowWidthClass.Medium,
         )
     }
 }
@@ -107,6 +108,7 @@ fun LearnListScreen(
  * 단계 목록 본문(악기 · 달리기 지도 · 단계 카드 넘기기). 세로로 스크롤한다. 단계 구성 출처는 마이페이지 '자료 및 데이터 출처'에 둔다.
  *
  * @param currentStage 펼칠 단계 카드. 태블릿 가로 배치에서는 오른쪽 칸에 보이는 단계다.
+ * @param largeCard 태블릿 세로 목록이면 단계 카드를 키워 남는 아래 공간을 채운다.
  *
  * 높이가 낮은 휴대폰에서도 시작 버튼까지 한 화면에 들어오도록, 카드 밖 내용의 높이를 재어 남는 높이만큼만 단계 카드를 키운다
  * (최소 [LearnCardMinSize]). 키 큰 화면에서는 전처럼 너비에 맞춘다.
@@ -118,6 +120,7 @@ internal fun LearnListContent(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
     currentStage: Int = state.cardStage,
+    largeCard: Boolean = false,
 ) {
     var contentHeight by remember { mutableIntStateOf(0) }
     var cardHeight by remember { mutableIntStateOf(0) }
@@ -189,6 +192,7 @@ internal fun LearnListContent(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
                 cardMaxSize = cardMaxSize,
                 onCardHeight = { cardHeight = it },
+                large = largeCard,
             )
         }
     }
