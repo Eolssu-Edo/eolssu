@@ -7,7 +7,8 @@
     <string name="practice_sheet_audio_unavailable">편집에서 현재 악보의 M4A를 내려받아 주세요</string>
     <string name="practice_sheet_audio_checking">음원 확인 중</string>
     <string name="practice_sheet_audio_download">음원 다운로드</string>
-    <string name="practice_sheet_audio_preparing">음원 준비 중</string>
+    <string name="practice_sheet_audio_preparing">음원 만드는 중</string>
+    <string name="practice_sheet_audio_generating">음원을 만들고 있어요 · 다 되면 바로 들을 수 있어요</string>
     <string name="practice_sheet_audio_downloading">음원 다운로드 중</string>
     <string name="practice_sheet_audio_ready">미리듣기 준비 완료</string>
     <string name="practice_sheet_audio_retry">다시 시도</string>

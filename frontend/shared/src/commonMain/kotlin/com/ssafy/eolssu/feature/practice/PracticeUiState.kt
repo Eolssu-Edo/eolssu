@@ -544,7 +544,7 @@ fun PracticeSettings.applyTempo(draft: PracticeDraft, song: Song, mine: Boolean 
 
 /** 플레이어의 고정 안내 칸에만 표시한다. 정상 재생에는 문구가 없다. */
 internal enum class PracticePlayerNotice {
-    None, Loading, Failed, Unavailable, PersonalAudioUnavailable, PersonalDownloadFailed, PersonalScoreChanged, PersonalUnsupportedPitches, PersonalAudioReady, EmbeddedJangdan, Unsupported, Interrupted,
+    None, Loading, Failed, Unavailable, PersonalAudioUnavailable, PersonalDownloadFailed, PersonalScoreChanged, PersonalUnsupportedPitches, PersonalAudioGenerating, PersonalAudioReady, EmbeddedJangdan, Unsupported, Interrupted,
 }
 
 enum class PracticePersonalAudio { Checking, Missing, Preparing, Downloading, Failed, VersionChanged, UnsupportedPitches, Unsupported, Ready }
@@ -565,6 +565,7 @@ internal val PracticeUiState.playerNotice: PracticePlayerNotice
                 PracticePersonalAudio.UnsupportedPitches -> PracticePlayerNotice.PersonalUnsupportedPitches
                 PracticePersonalAudio.Failed -> PracticePlayerNotice.PersonalDownloadFailed
                 PracticePersonalAudio.VersionChanged -> PracticePlayerNotice.PersonalScoreChanged
+                PracticePersonalAudio.Preparing -> PracticePlayerNotice.PersonalAudioGenerating
                 else -> PracticePlayerNotice.None
             }
         }

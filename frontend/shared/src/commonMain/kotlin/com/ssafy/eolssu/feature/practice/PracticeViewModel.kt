@@ -895,12 +895,22 @@ class PracticeViewModel(
                 null
             }
             if (!accountScope.isActive || _uiState.value.song != song) return@launch
+            // 기기 파일이 없으면 이미 요청된 생성이 서버에서 진행 중인지 본다. 진행 중이면 '음원 다운로드' 대신 만드는 중으로 두고 이어서 기다린다(S15P31E102-1039).
+            val generating = audio == null && missing == PracticePersonalAudio.Missing && try {
+                repository.generating(song)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
+            if (!accountScope.isActive || _uiState.value.song != song) return@launch
             if (audio != null) modelAudio.prepareMetadata(song, _uiState.value.bpm, audio, _uiState.value.currentTick)
             _uiState.update {
                 if (it.song != song) it
                 else if (audio != null) it.copy(personalAudio = PracticePersonalAudio.Ready).withModelAudio(modelAudio.state.value)
-                else it.copy(personalAudio = missing, modelPerformance = null, sheetPerformanceBpm = null)
+                else it.copy(personalAudio = if (generating) PracticePersonalAudio.Preparing else missing, modelPerformance = null, sheetPerformanceBpm = null)
             }
+            if (generating) runPersonalDownload(repository, song, resume = true)
         }
     }
 
@@ -911,44 +921,48 @@ class PracticeViewModel(
         val song = state.song ?: return
         if (state.personalAudioControl !in setOf(PracticePersonalAudio.Missing, PracticePersonalAudio.Failed)) return
         _uiState.update { it.copy(personalAudio = PracticePersonalAudio.Preparing) }
-        personalAudioJob = accountScope.launch {
-            val result = try {
-                repository.download(song) {
-                    _uiState.update { current ->
-                        if (current.song == song && current.personalAudio == PracticePersonalAudio.Preparing) {
-                            current.copy(personalAudio = PracticePersonalAudio.Downloading)
-                        } else current
-                    }
+        personalAudioJob = accountScope.launch { runPersonalDownload(repository, song, resume = false) }
+    }
+
+    /** 생성 요청(또는 진행 중인 생성 대기)부터 기기 저장까지. 상태가 [PracticePersonalAudio.Preparing]인 채로 부른다. */
+    private suspend fun runPersonalDownload(repository: SheetPracticeRepository, song: Song, resume: Boolean) {
+        val result = try {
+            repository.download(song, resume) {
+                _uiState.update { current ->
+                    if (current.song == song && current.personalAudio == PracticePersonalAudio.Preparing) {
+                        current.copy(personalAudio = PracticePersonalAudio.Downloading)
+                    } else current
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                SheetPracticeDownload.Failed
             }
-            val audio = if (result == SheetPracticeDownload.Saved) try {
-                repository.get(song)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                null
-            } else null
-            val latest = _uiState.value
-            if (!accountScope.isActive || latest.song != song ||
-                latest.personalAudio !in setOf(PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading)) return@launch
-            if (audio != null) modelAudio.prepareMetadata(song, latest.bpm, audio, latest.currentTick)
-            _uiState.update { current ->
-                if (current.song != song ||
-                    current.personalAudio !in setOf(PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading)
-                ) return@update current
-                when (result) {
-                    SheetPracticeDownload.Saved -> if (audio != null) {
-                        current.copy(personalAudio = PracticePersonalAudio.Ready,
-                            modelAudioStatus = ModelAudioStatus.Idle).withModelAudio(modelAudio.state.value)
-                    } else current.copy(personalAudio = PracticePersonalAudio.Failed)
-                    SheetPracticeDownload.UnsupportedPitches -> current.copy(personalAudio = PracticePersonalAudio.UnsupportedPitches)
-                    SheetPracticeDownload.Failed -> current.copy(personalAudio = PracticePersonalAudio.Failed)
-                    SheetPracticeDownload.VersionChanged -> current.copy(personalAudio = PracticePersonalAudio.VersionChanged)
-                }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            SheetPracticeDownload.Failed
+        }
+        val audio = if (result == SheetPracticeDownload.Saved) try {
+            repository.get(song)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        } else null
+        val latest = _uiState.value
+        if (!accountScope.isActive || latest.song != song ||
+            latest.personalAudio !in setOf(PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading)) return
+        if (audio != null) modelAudio.prepareMetadata(song, latest.bpm, audio, latest.currentTick)
+        _uiState.update { current ->
+            if (current.song != song ||
+                current.personalAudio !in setOf(PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading)
+            ) return@update current
+            when (result) {
+                SheetPracticeDownload.Saved -> if (audio != null) {
+                    current.copy(personalAudio = PracticePersonalAudio.Ready,
+                        modelAudioStatus = ModelAudioStatus.Idle).withModelAudio(modelAudio.state.value)
+                } else current.copy(personalAudio = PracticePersonalAudio.Failed)
+                SheetPracticeDownload.UnsupportedPitches -> current.copy(personalAudio = PracticePersonalAudio.UnsupportedPitches)
+                SheetPracticeDownload.Failed -> current.copy(personalAudio = PracticePersonalAudio.Failed)
+                SheetPracticeDownload.VersionChanged -> current.copy(personalAudio = PracticePersonalAudio.VersionChanged)
+                SheetPracticeDownload.NotStarted -> current.copy(personalAudio = PracticePersonalAudio.Missing)
             }
         }
     }

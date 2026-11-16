@@ -322,11 +322,54 @@ class PracticePersonalAudioTest {
         vm.downloadPersonalAudio()
         runCurrent()
         assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
-        assertEquals(1, fixture.statusReads)
+        assertEquals(2, fixture.statusReads, "Re-entry checks for a running generation once before the InProgress lookup")
         assertEquals(1, fixture.saves)
     }
 
+    @Test fun openingWhileTheServerGeneratesShowsGeneratingAndSavesWithoutRequesting() = practiceTest(
+        serverStatuses = listOf(Generating, Generating, Generating.copy(status = SheetAudioStatus.Running)),
+    ) { vm, fixture, _ ->
+        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
+        assertEquals(PracticePlayerNotice.PersonalAudioGenerating, vm.uiState.value.playerNotice)
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(0, fixture.requests.size, "Opening practice must not request another generation")
+        assertEquals(1, fixture.saves)
+    }
+
+    @Test fun reenteringWhileTheServerStillGeneratesResumesWaiting() = practiceTest(
+        serverStatuses = listOf(Generating, Generating),
+    ) { vm, fixture, _ ->
+        vm.onScreenHidden(); runCurrent()
+        fixture.statuses.addAll(listOf(Generating, Generating))
+        vm.onScreenShown(); runCurrent()
+        assertEquals(PracticePersonalAudio.Preparing, vm.uiState.value.personalAudio)
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(0, fixture.requests.size)
+    }
+
+    @Test fun generationFinishedWithOtherSettingsReturnsToTheDownloadButton() = practiceTest(
+        serverStatuses = listOf(Generating, Generating, Generating.copy(status = SheetAudioStatus.Done, bpm = 90)),
+    ) { vm, fixture, _ ->
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Missing, vm.uiState.value.personalAudio)
+        assertEquals(PracticePlayerNotice.None, vm.uiState.value.playerNotice)
+        assertEquals(0, fixture.saves)
+    }
+
+    @Test fun failedGenerationFoundOnOpeningOffersRetry() = practiceTest(
+        serverStatuses = listOf(Generating, Generating, Generating.copy(status = SheetAudioStatus.Failed, pollAfterMs = null)),
+    ) { vm, fixture, _ ->
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Failed, vm.uiState.value.personalAudio)
+        assertEquals(0, fixture.saves)
+    }
+
     private fun practiceTest(performed: Boolean = false, cached: Boolean = false, estimatedMs: Double? = null,
+        serverStatuses: List<SheetAudio> = listOf(NoCurrentGeneration),
         block: suspend TestScope.(PracticeViewModel, Fixture, FakeAudioPlayer) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val views = ViewModelStore()
@@ -337,6 +380,7 @@ class PracticePersonalAudioTest {
             val song = (if (performed) previewSong() else smallScoreSong()).copy(id = "42", instrumentId = "9", scoreVersion = 1,
                 estimatedModelDurationMs = estimatedMs)
             val fixture = Fixture(performed)
+            if (!cached) fixture.statuses.addAll(serverStatuses)
             if (cached) {
                 val audio = requireNotNull(fixture.done.audio)
                 fixture.saved = DeviceSheetAudio(LocalAudioFile("/app/files/42.m4a"), "9", 60, false,
@@ -351,12 +395,21 @@ class PracticePersonalAudioTest {
                 loadPersonalSheet = { song }, personalAudio = repository)
             views.put("practice", vm)
             runCurrent()
+            // 열 때의 진행 중 생성 확인(SHT-13)은 아래 각 검사의 다운로드 조회 횟수에서 뺀다.
+            if (serverStatuses == listOf(NoCurrentGeneration)) fixture.statusReads = 0
             block(vm, fixture, player)
         } finally {
             views.clear()
             client.close()
             Dispatchers.resetMain()
         }
+    }
+
+    private companion object {
+        /** 연습 화면을 열 때 서버가 이 악보 음원을 만들고 있다(편집기 등에서 요청, S15P31E102-1039). */
+        val Generating = SheetAudio("42", SheetAudioStatus.Queued, "1", "1", false, "9", false, 60, pollAfterMs = 500)
+        /** 열 때 서버에 진행 중인 생성이 없다(이전 판본의 완료 음원). */
+        val NoCurrentGeneration = SheetAudio("42", SheetAudioStatus.Done, "0", "1", true, "9", false, 60)
     }
 
     private class Fixture(performed: Boolean = false) : SheetAudioDeviceStore, SheetAudioRepository {

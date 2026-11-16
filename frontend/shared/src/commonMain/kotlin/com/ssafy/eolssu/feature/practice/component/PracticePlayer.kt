@@ -264,6 +264,7 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         PracticePlayerNotice.PersonalDownloadFailed -> stringResource(Res.string.practice_sheet_audio_download_failed)
         PracticePlayerNotice.PersonalUnsupportedPitches -> stringResource(Res.string.practice_sheet_audio_support_edit)
         PracticePlayerNotice.PersonalScoreChanged -> stringResource(Res.string.practice_sheet_audio_reopen)
+        PracticePlayerNotice.PersonalAudioGenerating -> stringResource(Res.string.practice_sheet_audio_generating)
         PracticePlayerNotice.PersonalAudioReady -> stringResource(Res.string.practice_sheet_audio_ready)
         PracticePlayerNotice.EmbeddedJangdan -> stringResource(Res.string.practice_sheet_audio_with_jangdan)
         PracticePlayerNotice.Unsupported -> stringResource(Res.string.practice_player_unsupported)
