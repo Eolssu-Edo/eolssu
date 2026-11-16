@@ -22,6 +22,8 @@ data class PracticeSettings(
     val fingeringView: Boolean = false,
     val instrumentId: String? = null,
     val bpmBySheet: Map<String, Int> = emptyMap(),
+    /** AI 연주 평가 중 지나간 음에 실시간 판정 색을 칠한다(연주 설정 '실시간 채점', S15P31E102-980). 끄면 색만 숨기고 판정은 계속 모은다. */
+    val liveMarks: Boolean = true,
 )
 
 /**

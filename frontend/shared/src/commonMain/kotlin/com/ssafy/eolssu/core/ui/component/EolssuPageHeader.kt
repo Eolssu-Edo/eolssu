@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +21,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -172,18 +176,21 @@ fun EolssuPageIconButton(
     bordered: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
+    val interaction = remember { MutableInteractionSource() }
+    // 누르는 영역은 48dp, 눌림 효과는 보이는 36dp 원 안에만 그린다(S15P31E102-968).
     Box(
         modifier
             .size(48.dp)
-            .clip(CircleShape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             Modifier
                 .size(36.dp)
-                .background(if (enabled) colors.surface else colors.background, CircleShape)
-                .then(if (bordered) Modifier.border(1.dp, colors.lineSoft, CircleShape) else Modifier),
+                .clip(CircleShape)
+                .background(if (enabled) colors.surface else colors.background)
+                .then(if (bordered) Modifier.border(1.dp, colors.lineSoft, CircleShape) else Modifier)
+                .indication(interaction, ripple()),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription, Modifier.size(18.dp), tint = if (enabled) colors.text else colors.textDisabled)
@@ -201,8 +208,6 @@ fun PageHeading(
     title: String,
     modifier: Modifier = Modifier,
     intro: String? = null,
-    /** 연습 화면의 ‘운지법과 함께 보기’처럼 자리를 아끼는 22sp 제목(보드 `.paged-fingering .page-title`). */
-    compact: Boolean = false,
     /**
      * 곡 제목처럼 줄바꿈하면 안 되는 제목(S15P31E102-730): 한 줄로 고정하고, 다 들어가지 않을 때만 왼쪽으로 흘려 끝까지 보인다.
      * 끝에 닿으면 처음부터 다시 흘리고, 다 들어가면 움직이지 않는다.
@@ -218,8 +223,8 @@ fun PageHeading(
             maxLines = if (singleLine) 1 else Int.MAX_VALUE,
             softWrap = !singleLine,
             style = MaterialTheme.typography.headlineSmall.copy(
-                fontSize = if (compact) 22.sp else 25.sp,
-                lineHeight = if (compact) 33.sp else 37.5.sp,
+                fontSize = 25.sp,
+                lineHeight = 37.5.sp,
                 letterSpacing = (-0.5).sp,
                 fontWeight = FontWeight.Normal,
             ),

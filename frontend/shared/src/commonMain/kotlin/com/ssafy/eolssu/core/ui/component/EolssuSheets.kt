@@ -1,15 +1,20 @@
 package com.ssafy.eolssu.core.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
@@ -25,12 +30,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -44,7 +52,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
@@ -67,6 +74,7 @@ fun EolssuBottomSheet(
 ) {
     val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
     // 연두 보드 `.sheet`: 흰 바탕, 위 반지름 24, 손잡이 40×4(위 12 · 아래 2), 안쪽 여백 20 · 아래 34, 스크림 먹색 45%.
+    // 시트가 내용 아래에 시스템 하단 여백(홈 막대·내비게이션 바)을 이미 넣으므로 아래 34는 그 여백과 합쳐 계산한다.
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
@@ -88,7 +96,7 @@ fun EolssuBottomSheet(
             Modifier
                 .fillMaxWidth()
                 .heightIn(max = windowHeight * maxHeightFraction)
-                .padding(start = 20.dp, end = 20.dp, bottom = 34.dp),
+                .padding(start = 20.dp, end = 20.dp, bottom = sheetBottomPadding(SheetBottomSpace)),
         ) {
             header()
             Column(
@@ -101,6 +109,23 @@ fun EolssuBottomSheet(
             }
         }
     }
+}
+
+/** 하단 시트 내용 아래 기본 여백(보드 `.sheet` 아래 34). 아이폰 홈 막대 높이와 같다. */
+private val SheetBottomSpace: Dp = 34.dp
+
+/** 시스템 하단 여백 위에 남길 최소 여백. */
+private val SheetBottomMinSpace: Dp = 16.dp
+
+/**
+ * 시스템 하단 여백(홈 막대·내비게이션 바·키보드)을 따로 넣는 시트의 내용 아래 여백.
+ * 시스템 여백과 합친 높이가 [base]가 되도록 줄이고, 시스템 여백이 크면 [SheetBottomMinSpace]만 남긴다.
+ * 아이폰(홈 막대 34)에서 34 + 34 = 68dp로 두 번 쌓이던 빈 공간을 34 + 16 = 50dp로 맞춘다(S15P31E102-973).
+ */
+@Composable
+fun sheetBottomPadding(base: Dp): Dp {
+    val systemBottom = with(LocalDensity.current) { WindowInsets.safeDrawing.getBottom(this).toDp() }
+    return (base - systemBottom).coerceAtLeast(SheetBottomMinSpace)
 }
 
 /** 패널 머리(`.sheet-head`): 제목(Song Myung 18sp)·보조 문구와 닫기 버튼. */
@@ -141,8 +166,10 @@ fun EolssuSwitch(
     Surface(
         onClick = onToggle,
         enabled = enabled,
+        // 누를 수 없으면 앱 버튼(`EolssuButton`)과 같이 0.45로 흐린다(S15P31E102-969).
         modifier = modifier
             .size(width = width, height = height)
+            .alpha(if (enabled) 1f else 0.45f)
             .semantics {
                 role = Role.Switch
                 toggleableState = ToggleableState(checked)
@@ -213,34 +240,52 @@ fun EolssuDialog(
     actions: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = EolssuTheme.colors
-    Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(onDismissRequest = onDismissRequest, properties = eolssuDialogProperties()) {
+        // 창을 화면 크기로 고정하고 시스템 바·키보드 여백은 여기서만 넣는다. 창이 내용에 맞춰 줄면 키보드와 겹치는 높이가
+        // 바뀔 때마다 여백과 창 크기가 서로 따라 움직여 입력 중 창이 흔들린다(S15P31E102-1000).
+        // 창이 화면을 덮으므로 바깥 누름은 플랫폼 대신 여기서 받아 닫는다.
+        val dismiss by rememberUpdatedState(onDismissRequest)
+        Box(
+            Modifier.fillMaxSize()
+                .pointerInput(Unit) { detectTapGestures { dismiss() } }
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+            contentAlignment = Alignment.Center,
+        ) {
+        // 휴대폰 가로·큰 글꼴·키보드로 높이가 모자라면 위쪽 내용만 스크롤하고 버튼은 아래에 고정한다.
         Column(
             modifier
-                .padding(horizontal = 28.dp)
+                // 카드와 둘레 여백을 누르면 닫히지 않게 여기서 받는다. 전에도 이 여백은 창 안이었다.
+                .pointerInput(Unit) { detectTapGestures { } }
+                .padding(horizontal = 28.dp, vertical = 16.dp)
                 .widthIn(max = maxWidth)
                 .fillMaxWidth()
                 .shadow(12.dp, RoundedCornerShape(20.dp))
                 .background(colors.surface, RoundedCornerShape(20.dp))
                 .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (icon != null) {
-                Box(
-                    Modifier.size(48.dp).background(iconBackground ?: colors.accentTint, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = iconTint ?: colors.text)
+            Column(
+                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (icon != null) {
+                    Box(
+                        Modifier.size(48.dp).background(iconBackground ?: colors.accentTint, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = iconTint ?: colors.text)
+                    }
+                }
+                Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 19.sp, lineHeight = 24.7.sp), color = colors.text)
+                if (message != null) {
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
+                        color = colors.textSub,
+                    )
                 }
             }
-            Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 19.sp, lineHeight = 24.7.sp), color = colors.text)
-            if (message != null) {
-                Text(
-                    message,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
-                    color = colors.textSub,
-                )
-            }
-            Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
+            Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
+        }
         }
     }
 }

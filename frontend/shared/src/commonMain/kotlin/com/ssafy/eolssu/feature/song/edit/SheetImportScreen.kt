@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.model.InputLimit
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
@@ -11,11 +14,20 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.data.song.SheetImportField
 import com.ssafy.eolssu.feature.song.edit.component.PillChip
+import com.ssafy.eolssu.feature.song.edit.component.SheetJangdanSelect
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import com.ssafy.eolssu.feature.song.edit.component.SheetFileSourceMenu
+import androidx.compose.runtime.setValue
+import com.ssafy.eolssu.core.storage.SheetFileSource
+import com.ssafy.eolssu.core.storage.sheetFileSources
+import com.ssafy.eolssu.feature.song.edit.component.SheetUploadGuideCard
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.semantics.*
@@ -29,13 +41,18 @@ import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalLayoutApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
-fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () -> Unit, onList: () -> Unit,
-    onTitle: (String) -> Unit, onInstrument: (String) -> Unit, onJangdan: (String) -> Unit,
-    onPick: () -> Unit, onSubmit: () -> Unit, onReload: () -> Unit, onDismissError: () -> Unit = {}) {
+fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () -> Unit,
+    onTitle: (String) -> Unit, onKind: (ImportKind) -> Unit, onInstrument: (String) -> Unit, onJangdan: (String) -> Unit,
+    onPick: (SheetFileSource) -> Unit, onSubmit: () -> Unit, onReload: () -> Unit, onDismissError: () -> Unit = {},
+    sources: List<SheetFileSource> = sheetFileSources) {
     BackHandler(enabled = state.busy) { }
     val editable = !state.busy && !state.picking && !state.expired && state.acceptedId == null
     val colors = EolssuTheme.colors
-    val inputErrors = state.inputErrors(kind)
+    // 가져올 곳이 여럿이면 버튼 아래로 메뉴(파일·갤러리)를 펼치고, 하나뿐이면 바로 연다(S15P31E102-997).
+    var sourceMenuOpen by remember { mutableStateOf(false) }
+    val startPick = { sources.singleOrNull()?.let(onPick) ?: run { sourceMenuOpen = true } }
+    val kind = state.kind
+    val inputErrors = state.inputErrors()
     // 서버/파일 실패는 누락 필드로 추측하지 않고, 입력 오류는 첫 미해결 항목을 안내한다.
     val feedback = state.error?.takeIf { it != "INPUT_REQUIRED" && fileProblem(it) == null }
         ?.let { stringResource(importErrorText(it)) }
@@ -43,11 +60,13 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
         ?: state.error?.takeIf { it == "INPUT_REQUIRED" }?.let { stringResource(importErrorText(it)) }
     val showListAction = state.error in setOf("CONVERSION_IN_PROGRESS", "SHEET_LIMIT_EXCEEDED", "IDEMPOTENCY_CONFLICT")
     // 악보 추가 화면처럼 회색 바탕 위 흰 카드로 묶는다(S15P31E102-768).
+    val contentMaxWidth = sheetAddContentMaxWidth()
     EolssuScaffold(
+        contentMaxWidth = contentMaxWidth,
         containerColor = colors.groupedBackground,
         bottomDivider = false,
-        topBar = { EolssuTopBar(stringResource(Res.string.sheet_upload_title), onBack = { if (!state.busy) onBack() }) },
-        bottomBar = {
+        topBar = { EolssuTopBar(stringResource(Res.string.sheet_upload_title), onBack = { if (!state.busy) onBack() }, maxWidth = contentMaxWidth) },
+        bottomBar = sheetAddBottomBar(contentMaxWidth) {
             if (state.acceptedId != null) EolssuButton(stringResource(Res.string.sheet_upload_list), onList)
             else {
                 feedback?.let { UploadError(it) }
@@ -71,12 +90,24 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
                     Text(stringResource(Res.string.sheet_upload_accepted_help), style = MaterialTheme.typography.bodyMedium, color = colors.textSub)
                 }
             } else {
+                // 내 악보 가져오기에서 바로 들어오므로 종류는 여기서 고른다. 정간보일 때만 장단 칸을 보인다(S15P31E102-997).
+                UploadCard {
+                    UploadLabel(stringResource(Res.string.sheet_upload_kind))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ImportKind.entries.forEach { item ->
+                            PillChip(stringResource(if (item == ImportKind.Jeongganbo) Res.string.sheetedit_new_kind_jeongganbo else Res.string.sheetedit_new_kind_staff),
+                                selected = kind == item, onClick = { onKind(item) }, modifier = Modifier.weight(1f), enabled = editable)
+                        }
+                    }
+                }
+                SheetUploadGuideCard(kind)
                 UploadCard {
                     EolssuTextField(
                         value = state.title,
                         onValueChange = { if (editable) onTitle(it) },
                         label = stringResource(Res.string.sheet_upload_name),
                         placeholder = stringResource(Res.string.sheet_upload_name_placeholder),
+                        maxLength = InputLimit.SHEET_TITLE,
                         bordered = false,
                         containerColor = colors.groupedBackground,
                         imeAction = ImeAction.Done,
@@ -103,11 +134,8 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
                 if (kind == ImportKind.Jeongganbo && state.jangdans.isNotEmpty()) UploadCard {
                     UploadLabel(stringResource(Res.string.sheet_upload_jangdan))
                     Text(stringResource(Res.string.sheet_upload_jangdan_help), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
-                    FlowRow(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        state.jangdans.forEach { item ->
-                            PillChip(item.name, selected = state.jangdanId == item.jangdanId, onClick = { onJangdan(item.jangdanId) }, enabled = editable)
-                        }
-                    }
+                    SheetJangdanSelect(state.jangdans, state.jangdanId, onJangdan, enabled = editable,
+                        isError = SheetImportField.Jangdan in inputErrors)
                     if (SheetImportField.Jangdan in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Jangdan)))
                 }
                 UploadCard {
@@ -119,13 +147,18 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            Text("${index + 1}", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold), color = colors.accentText)
+                            Text("${index + 1}", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = colors.accentText)
                             Text(file.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
-                    EolssuButton(stringResource(if (state.picking) Res.string.sheet_upload_reading else Res.string.sheet_upload_pick), onPick,
-                        style = EolssuButtonStyle.Secondary, enabled = editable, icon = EolssuIcons.Plus,
-                        containerColor = colors.accentTint, contentColor = colors.accentText, borderColor = Color.Transparent)
+                    Box {
+                        EolssuButton(stringResource(if (state.picking) Res.string.sheet_upload_reading else Res.string.sheet_upload_pick), startPick,
+                            style = EolssuButtonStyle.Secondary, enabled = editable, icon = EolssuIcons.Plus,
+                            containerColor = colors.accentTint, contentColor = colors.accentText, borderColor = Color.Transparent)
+                        if (sourceMenuOpen) SheetFileSourceMenu(sources,
+                            onPick = { source -> sourceMenuOpen = false; onPick(source) },
+                            onDismiss = { sourceMenuOpen = false })
+                    }
                     if (SheetImportField.Files in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Files)))
                 }
                 if (state.busy) Text(stringResource(Res.string.sheet_upload_sending), style = MaterialTheme.typography.bodyMedium, color = colors.textSub)
@@ -133,7 +166,7 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
         }
     }
     state.error?.let(::fileProblem)?.let { problem ->
-        SheetFileProblemDialog(problem, onRepick = { onDismissError(); onPick() }, onDismiss = onDismissError)
+        SheetFileProblemDialog(problem, onRepick = { onDismissError(); startPick() }, onDismiss = onDismissError)
     }
 }
 

@@ -23,11 +23,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -62,7 +63,9 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
-import com.ssafy.eolssu.core.ui.component.EolssuMenuShape
+import com.ssafy.eolssu.core.ui.component.EolssuMenuAlign
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
 import com.ssafy.eolssu.feature.history.GrowthLoad
 import com.ssafy.eolssu.feature.history.GrowthMetric
 import com.ssafy.eolssu.feature.history.GrowthRange
@@ -157,7 +160,7 @@ internal fun RangeTabs(range: GrowthRange, onRange: (GrowthRange) -> Unit) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         stringResource(label),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal),
                     )
                 }
             }
@@ -248,6 +251,8 @@ internal fun PeriodChartCard(
             Row(
                 Modifier
                     .offset(x = (-6).dp)
+                    // 보이는 칸은 32dp, 누르는 영역은 48dp(S15P31E102-971).
+                    .minimumInteractiveComponentSize()
                     .height(32.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .clickable(role = Role.Button, onClickLabel = pick, onClick = onOpenPicker)
@@ -269,7 +274,7 @@ internal fun PeriodChartCard(
                 buildAnnotatedString {
                     append(stringResource(if (other == GrowthMetric.Time) Res.string.growth_metric_time else Res.string.growth_metric_count))
                     append(" ")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.text)) {
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = colors.text)) {
                         append(if (other == GrowthMetric.Time) minutesLabel(chart.totalMinutes) else stringResource(Res.string.growth_count_value, chart.totalCount))
                     }
                 },
@@ -367,7 +372,7 @@ private fun BarLabelsRow(chart: PeriodChart, dense: Boolean, onToggleDense: () -
                 Text(
                     label,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = size, lineHeight = 15.sp, fontWeight = if (last) FontWeight.Bold else FontWeight.Normal),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = size, lineHeight = 15.sp, fontWeight = if (last) FontWeight.SemiBold else FontWeight.Normal),
                     color = if (last) colors.text else colors.textMuted,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
@@ -400,7 +405,10 @@ private fun BarLabelsRow(chart: PeriodChart, dense: Boolean, onToggleDense: () -
     }
 }
 
-/** '연습 시간 ▾' 알약과 연습 시간 · 연습 횟수 메뉴. */
+/**
+ * '연습 시간 ▾' 알약과 연습 시간 · 연습 횟수 메뉴.
+ * 보이는 알약은 32dp이고 누르는 영역은 48dp이며, 눌림 효과는 알약 모양 안에만 보인다(S15P31E102-970).
+ */
 @Composable
 private fun MetricPicker(metric: GrowthMetric, onMetric: (GrowthMetric) -> Unit) {
     val colors = EolssuTheme.colors
@@ -410,32 +418,38 @@ private fun MetricPicker(metric: GrowthMetric, onMetric: (GrowthMetric) -> Unit)
         GrowthMetric.Count to stringResource(Res.string.growth_metric_count),
     )
     Box {
-        Row(
-            Modifier
-                .height(32.dp)
-                .clip(CircleShape)
-                .border(1.dp, colors.lineSoft, CircleShape)
-                .clickable(role = Role.DropdownList) { expanded = true }
-                .padding(start = 12.dp, end = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        Surface(
+            onClick = { expanded = true },
+            modifier = Modifier.height(32.dp).semantics { role = Role.DropdownList },
+            shape = CircleShape,
+            color = Color.Transparent,
+            contentColor = colors.text,
+            border = BorderStroke(1.dp, colors.lineSoft),
         ) {
-            Text(names.getValue(metric), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
-            Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.text)
+            Row(
+                Modifier.padding(start = 12.dp, end = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(names.getValue(metric), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
+                Icon(
+                    EolssuIcons.ChevronDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp).rotate(if (expanded) 180f else 0f),
+                    tint = colors.text,
+                )
+            }
         }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            shape = EolssuMenuShape,
-            containerColor = colors.surface,
-            shadowElevation = 8.dp,
-            modifier = Modifier.width(140.dp).padding(horizontal = 6.dp),
-        ) {
-            names.forEach { (m, name) ->
-                EolssuMenuItem(name, m == metric, onClick = {
-                    expanded = false
-                    onMetric(m)
-                })
+        if (expanded) {
+            EolssuMenuPopup(onDismissRequest = { expanded = false }, align = EolssuMenuAlign.End) {
+                EolssuMenuPanel(width = 140.dp) {
+                    names.forEach { (m, name) ->
+                        EolssuMenuItem(name, m == metric, onClick = {
+                            expanded = false
+                            onMetric(m)
+                        })
+                    }
+                }
             }
         }
     }

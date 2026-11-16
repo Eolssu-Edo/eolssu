@@ -14,9 +14,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -49,15 +47,13 @@ fun SheetCompletionBannerHost(hostState: SnackbarHostState, modifier: Modifier =
                     Icon(EolssuIcons.Check, contentDescription = null, tint = colors.play)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(stringResource(Res.string.sheet_conversion_banner_title), style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold)
+                            fontWeight = FontWeight.SemiBold)
                         Text(data.visuals.message, style = MaterialTheme.typography.bodyLarge)
                     }
                     data.visuals.actionLabel?.let { label ->
-                        FilledTonalButton(onClick = data::performAction) { Text(label) }
+                        EolssuButton(label, onClick = data::performAction, small = true)
                     }
-                    IconButton(onClick = data::dismiss) {
-                        Icon(EolssuIcons.Close, stringResource(Res.string.sheet_conversion_banner_dismiss))
-                    }
+                    EolssuIconButton(EolssuIcons.Close, stringResource(Res.string.sheet_conversion_banner_dismiss), onClick = data::dismiss, bordered = false)
                 }
             }
         }

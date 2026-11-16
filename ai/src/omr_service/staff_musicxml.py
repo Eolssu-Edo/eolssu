@@ -79,9 +79,7 @@ def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Convers
     if not any(n.midi is not None for n in notes):
         raise ValueError("음표가 없음")
     shift, hwang = 0, DEFAULT_HWANG if hwang_pitch is None else hwang_pitch
-    jangdan = {(True, Fraction(3, 2), 3): "세마치", (True, Fraction(3, 2), 4): "굿거리"}.get(source_meter)
-    if source_meter == (False, Fraction(1), 4):
-        jangdan = "4박 기본 반주"
+    jangdan = METER_JANGDANS.get(source_meter)
     lines = _layout(notes, beats_per_gak, hwang, instrument, issues, widths=widths)
     widths = widths or [beats_per_gak] * len(lines)
     originals = [item['detail'] for item in issues if item['kind'] == '_SOURCE_PITCH']
@@ -106,6 +104,24 @@ def _xml_bytes(data: bytes) -> bytes:
 def _issue(kind, detail, cell_id=None):
     """cell_id는 결과 악보의 칸 c{각}-j{정간}(score_data). 악보 전체에 대한 것은 None이다."""
     return {"kind": kind, "eventId": None, "cellId": cell_id, "page": None, "bbox": None, "detail": detail}
+
+
+# 박자표 → 자동으로 제안하는 장단. 4분음표4박은 카탈로그 ID12 반주이며 전통 장단명으로 단정하지 않는다.
+METER_JANGDANS = {(True, Fraction(3, 2), 3): "세마치", (True, Fraction(3, 2), 4): "굿거리",
+                  (False, Fraction(1), 4): "4박 기본 반주"}
+
+
+def printed_jangdan(source_meters):
+    """악보 전체에 적힌 박자표가 하나일 때 그 박자표의 장단과 박자표 글자. 마디 길이는 보지 않는다."""
+    printed = {text for text in source_meters if text}
+    if len(printed) != 1:
+        return None, None
+    text = printed.pop()
+    beats, _, beat_type = text.partition("/")
+    time = ET.Element("time")
+    ET.SubElement(time, "beats").text, ET.SubElement(time, "beat-type").text = beats, beat_type
+    jangdan = METER_JANGDANS.get(_meter(time))
+    return (jangdan, text) if jangdan else (None, None)
 
 
 def _meter(time):
@@ -169,6 +185,7 @@ def _read_part(part, issues):
                 'expectedQuarters': str(local_meter[1] * local_meter[2]),
                 'actualQuarters': str(written_lengths[index])}))
         t, longest = Fraction(0), Fraction(0)
+        flagged_voices = set()  # 마디 길이 검수는 성부마다 마디 첫 음에만 남긴다
         for el in m:
             if el.tag == "attributes":
                 d, shift = _attributes(el, d, shift)
@@ -194,7 +211,9 @@ def _read_part(part, issues):
                 if dur <= 0:
                     last = None  # 길이 없는 음에 붙은 화음은 버린다
                     continue
-                last = [cursor + t, dur, [(pitch, tie_stop)], number, graces.pop(voice, []) + rhythm_flags]
+                flags = graces.pop(voice, []) + (rhythm_flags if voice not in flagged_voices else [])
+                flagged_voices.add(voice)
+                last = [cursor + t, dur, [(pitch, tie_stop)], number, flags]
                 voices[voice].append(last)
                 t += dur
             longest = max(longest, t)

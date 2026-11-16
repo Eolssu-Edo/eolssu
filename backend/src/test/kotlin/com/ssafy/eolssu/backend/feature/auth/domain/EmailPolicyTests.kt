@@ -8,14 +8,16 @@ class EmailPolicyTests {
     @Test
     fun `accepts common addresses with dotted domains and a letter TLD`() {
         val local64 = "a".repeat(64)
-        val maxLength = local64 + "@" + listOf("b".repeat(63), "c".repeat(63), "d".repeat(63), "e".repeat(63)).joinToString(".")
+        // 앱과 같은 100자까지 받는다(S15P31E102-1014): 64 + @ + 31 + .com = 100
+        val maxLength = local64 + "@" + "b".repeat(31) + ".com"
         for (email in listOf(
             "user@naver.com", "first.last+tag@sub.example.co.kr", "User.Name@Example.COM", "a_b%c-d@my-domain.io",
             "1234@daum.net", local64 + "@example.com", maxLength,
         )) {
             assertTrue(EmailPolicy.isValid(email), email)
         }
-        check(maxLength.length == 320)
+        check(maxLength.length == 100)
+        assertFalse(EmailPolicy.isValid(local64 + "@" + "b".repeat(32) + ".com"), "101자")
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.core.ui.score
 
+import androidx.compose.animation.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -31,6 +32,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -164,6 +167,8 @@ fun rememberScoreCursor(playback: ScorePlayback?): ScoreCursorState {
  * @property tag 오른쪽 위에 붙이는 작은 글자(예: 확인할 정간 '?', 고친 정간 '✓').
  * @property description 색·태그로 표시한 상태를 화면 읽기 프로그램에도 알린다. 율명 설명은 보존한다.
  * @property selected 명시적인 편집 선택 상태. null이면 기존 이벤트·표시 정간 선택을 따른다.
+ * @property fillInMillis 실시간 판정 바탕([JeongganboView]의 `unitMarks`를 `unitMarksAfterPass`로 칠할 때와 운지법 보기)이 이전 바탕에서 [fill]로 바뀌는 색 전환 시간.
+ *   빈 바탕에서는 투명한 [fill]에서 시작한다. 표시가 사라지면 전환 없이 지운다.
  */
 @Immutable
 data class ScoreCellMark(
@@ -174,6 +179,7 @@ data class ScoreCellMark(
     val tag: String? = null,
     val description: String? = null,
     val selected: Boolean? = null,
+    val fillInMillis: Int = 0,
 )
 
 /**
@@ -212,6 +218,7 @@ data class ScoreCellMark(
  * @param focusRequestKey 같은 정간으로 다시 이동할 때 증가시킨다. 사용자가 다른 곳으로 스크롤한 뒤에도 다시 보이게 한다.
  * @param unitMarksAfterPass 재생·연주 중에는 [unitMarks]를 진행이 그 표시 자리를 다 지난 뒤에만 칠한다.
  *   연주 중인 자리의 진행 채움을 덮지 않게 한다(연주 평가의 실시간 판정). 진행 모습([playback])이 없으면 모두 칠한다.
+ *   바탕은 [ScoreCellMark.fillInMillis] 동안 색 전환으로 바꾼다(S15P31E102-980).
  */
 @Composable
 fun JeongganboView(
@@ -617,7 +624,7 @@ private fun ColumnHead(
             )
         } else {
             if (column == 0) {
-                Text(stringResource(Res.string.score_column_start), style = style, color = colors.accentText, fontWeight = FontWeight.Bold)
+                Text(stringResource(Res.string.score_column_start), style = style, color = colors.accentText, fontWeight = FontWeight.SemiBold)
             }
             Text("${column + 1}", style = style, color = if (highlighted) colors.text else colors.textMuted, fontWeight = FontWeight.SemiBold)
         }
@@ -900,8 +907,15 @@ private fun ScoreCellBox(
                                 }
                             }
                             val pick = pickedUnits[unit.key]?.takeIf { passedUnits?.contains(unit.key) != false }
-                            val pickModifier = if (pick == null) Modifier else Modifier
-                                .unitFill(pick.fill, unitFillTop)
+                            val liveFill = if (pickedAfterPass) key(unit.key) { animatedMarkFill(pick?.fill, pick?.fillInMillis ?: 0) } else null
+                            val fillModifier = if (liveFill == null) Modifier.unitFill(pick?.fill, unitFillTop) else Modifier.drawBehind {
+                                val color = liveFill.value
+                                if (color.alpha > 0f) {
+                                    val top = unitFillTop.toPx()
+                                    drawRect(color, topLeft = Offset(0f, top), size = Size(size.width, size.height - top))
+                                }
+                            }
+                            val pickModifier = if (pick == null) fillModifier else fillModifier
                                 .drawWithContent {
                                     drawContent()
                                     val ring = pick.ring ?: return@drawWithContent
@@ -930,7 +944,11 @@ private fun ScoreCellBox(
                                 reserveBottomStart = edgeReserve?.takeIf { r == rows.lastIndex && c == 0 },
                                 unit = unit,
                                 splitCount = maxOf(rows.size, row.size),
-                                lineHeight = if (rows.size > 1) metrics.cellHeight / rows.size else null,
+                                // 3소박 율명은 칸을 늘려도 정한 크기를 넘지 않는다(S15P31E102-1022).
+                                lineHeight = if (rows.size > 1) {
+                                    val glyphCell = metrics.threeSplitGlyphCell?.takeIf { rows.size >= 3 }
+                                    (if (glyphCell != null) minOf(metrics.cellHeight, glyphCell) else metrics.cellHeight) / rows.size
+                                } else null,
                                 metrics = metrics,
                                 look = look,
                                 showDivider = r > 0,
@@ -1092,6 +1110,24 @@ internal data class RingEdges(
     val openLeft: Boolean = false,
     val openRight: Boolean = false,
 )
+
+/**
+ * 실시간 판정 바탕색. [fill]이 바뀌면 [durationMillis] 동안 색을 바꾸고, 빈 바탕에서는 투명한 [fill]에서 시작한다.
+ * 처음 그릴 때(창 밖에서 들어온 정간 포함)는 전환 없이 지금 색으로 둔다. 표시가 사라지면 바로 지운다.
+ */
+@Composable
+internal fun animatedMarkFill(fill: Color?, durationMillis: Int): State<Color> {
+    val color = remember { Animatable(fill ?: Color.Transparent) }
+    LaunchedEffect(fill) {
+        if (fill == null) {
+            color.snapTo(Color.Transparent)
+        } else {
+            if (color.value.alpha == 0f) color.snapTo(fill.copy(alpha = 0f))
+            color.animateTo(fill, tween(durationMillis))
+        }
+    }
+    return color.asState()
+}
 
 /** 소박 바탕. [top]만큼 위를 비워 그 자리의 정간 윗선이 보이게 한다. [color]가 없으면 칠하지 않는다. */
 private fun Modifier.unitFill(color: Color?, top: Dp): Modifier = when {

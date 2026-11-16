@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.ripple
+import androidx.compose.ui.draw.clip
 import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import androidx.compose.foundation.ScrollState
@@ -49,6 +55,7 @@ import com.ssafy.eolssu.core.ui.score.ScorePlayback
 import com.ssafy.eolssu.core.ui.score.rememberScoreCursor
 import com.ssafy.eolssu.core.ui.score.twoBandColumnCount
 import com.ssafy.eolssu.core.ui.score.scoreStrips
+import com.ssafy.eolssu.feature.practice.LivePitchCell
 import com.ssafy.eolssu.feature.practice.LivePitchMark
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
@@ -97,7 +104,7 @@ fun PracticeScoreArea(
     onUserScroll: () -> Unit,
     onFollowNow: () -> Unit,
     modifier: Modifier = Modifier,
-    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
+    livePitch: Map<ScoreUnitKey, LivePitchCell> = emptyMap(),
 ) {
     val song = state.song ?: return
     val pitchMarks = livePitchCellMarks(livePitch)
@@ -295,7 +302,8 @@ private fun rememberBandScroll(
 
 /**
  * 휴대폰 보드의 악보 영역. 각의 실제 높이로 위→아래 들어가는 수를 정하고 다음 묶음은 왼쪽에 둔다.
- * 3줄 이상의 소박 표기 정간은 높이를 늘린다. 공간이 부족하면 정간과 글자를 함께 줄여 세로 스크롤 없이 좌우로만 넘긴다.
+ * 정간은 곡과 상관없이 같은 크기(기본 정간, 3줄 이상의 소박 표기 정간은 × 1.5)로 그린다. 긴 각은 두 세로줄로 나누고,
+ * 그래도 공간이 부족하면 정간과 글자를 함께 줄여 세로 스크롤 없이 좌우로만 넘긴다.
  * 아래에는 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다. 버튼 자리는 항상 비워 두어 버튼이 나타나도 정간 배치가 바뀌지 않는다.
  * 평가 연주 중에는 악보를 끌 수 없어 버튼을 보이지 않는다(자리는 그대로 비워 둔다).
  */
@@ -306,7 +314,7 @@ fun PracticeBoardScore(
     onUserScroll: () -> Unit,
     onFollowNow: () -> Unit,
     modifier: Modifier = Modifier,
-    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
+    livePitch: Map<ScoreUnitKey, LivePitchCell> = emptyMap(),
 ) {
     val song = state.song ?: return
     val colors = EolssuTheme.colors
@@ -323,8 +331,9 @@ fun PracticeBoardScore(
             BoxWithConstraints(if (bounded) Modifier.weight(1f).fillMaxWidth() else Modifier.fillMaxWidth()) {
                 val packing = remember(song, big, maxHeight, fontScale) {
                     // 휴대폰 연습 악보만 나뉜 정간의 율명을 줄 높이에 맞춰 키운다. 결과·비교·편집 화면의 같은 메트릭은 그대로다.
-                    val metrics = JeongganboMetrics.practiceBoard(big, longestStrip).copy(splitLineFill = PracticeSplitLineFill)
-                    practiceScorePacking(song.score, metrics, maxHeight, fontScale, song.jangdan)
+                    // 정간·율명은 곡과 상관없이 같은 크기로 지키고, 긴 각은 줄이는 대신 두 세로줄로 나눈다(S15P31E102-1022·1028).
+                    val metrics = JeongganboMetrics.practiceBoard(big, longestStrip, keepBaseCell = true).copy(splitLineFill = PracticeSplitLineFill)
+                    practiceScorePacking(song.score, metrics, maxHeight, fontScale, song.jangdan, keepBaseCell = true)
                 }
                 JeongganboView(
                     song = song,
@@ -363,42 +372,56 @@ fun PracticeBoardScore(
             // 묶음 배치가 한 각↔두 각으로 다시 계산되어 악보가 흔들린다(S15P31E102-869).
             if (showFollow || bounded) {
                 // 보드 `.score-follow`: 오른쪽 정렬 작은 버튼.
+                // 누르는 영역은 48dp 높이(위 간격 포함)로 두고, 눌림 효과는 보이는 8dp 둥근 버튼 안에만 그린다(S15P31E102-968).
                 val shape = RoundedCornerShape(8.dp)
-                Text(
-                    stringResource(Res.string.practice_follow_now),
-                    modifier = Modifier
+                val followInteraction = remember { MutableInteractionSource() }
+                Box(
+                    Modifier
                         .align(Alignment.End)
-                        .padding(top = 8.dp)
+                        .heightIn(min = 48.dp)
                         .then(if (showFollow) Modifier else Modifier.alpha(0f).clearAndSetSemantics {})
-                        .background(colors.surface, shape)
-                        .border(1.dp, colors.line, shape)
-                        .clickable(enabled = showFollow, role = Role.Button, onClick = onFollowNow)
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
-                    color = colors.accentText,
-                )
+                        .clickable(interactionSource = followInteraction, indication = null, enabled = showFollow, role = Role.Button, onClick = onFollowNow),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(Res.string.practice_follow_now),
+                        modifier = Modifier
+                            .clip(shape)
+                            .background(colors.surface)
+                            .border(1.dp, colors.line, shape)
+                            .indication(followInteraction, ripple())
+                            .padding(horizontal = 10.dp, vertical = 7.dp),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                        color = colors.accentText,
+                    )
+                }
             }
         }
     }
 }
 
 /**
- * 평가 연주에서 음마다 모은 실시간 음높이 안내를 그 음의 표시 자리에 칠한다(S15P31E102-597).
- * 맞음은 연두, 다른 음은 주황, 판단 보류는 회색 테두리만 둔다. 연주 후 채점의 틀린 칸 표시와 달리 아이콘·문구는 없다.
- * 연주 중에는 진행 채움이 그 자리를 다 지난 뒤에 칠한다(S15P31E102-752).
+ * 평가 연주에서 확정한 실시간 음높이 안내를 그 음의 표시 자리에 칠한다(S15P31E102-597).
+ * 3-A '옅어지는 바탕'(S15P31E102-980): 맞음은 진한 연두로 칠했다가 한 음 뒤 옅은 연두로 가라앉고, 다른 음은 주황 바탕이 남고,
+ * 판단 보류는 회색 테두리만 둔다. 색 전환만 쓴다(칠할 때 [LiveMarkFillInMillis], 가라앉을 때 [LiveMarkSettleMillis]).
+ * 연주 후 채점의 틀린 칸 표시와 달리 아이콘·문구는 없다. 연주 중에는 진행 채움이 그 자리를 다 지난 뒤에 칠한다(S15P31E102-752).
  */
 @Composable
-private fun livePitchCellMarks(marks: Map<ScoreUnitKey, LivePitchMark>): Map<ScoreUnitKey, ScoreCellMark> {
+internal fun livePitchCellMarks(marks: Map<ScoreUnitKey, LivePitchCell>): Map<ScoreUnitKey, ScoreCellMark> {
     if (marks.isEmpty()) return emptyMap()
     val colors = EolssuTheme.colors
-    return marks.mapValues { (_, mark) ->
-        when (mark) {
-            LivePitchMark.Correct -> ScoreCellMark(fill = colors.accentTintStrong, ring = colors.green, ringWidth = 1.5.dp)
-            LivePitchMark.Wrong -> ScoreCellMark(fill = colors.pitchErrorSoft, ring = colors.pitchError, ringWidth = 1.5.dp)
+    return marks.mapValues { (_, cell) ->
+        when (cell.mark) {
+            LivePitchMark.Correct -> if (cell.settled) ScoreCellMark(fill = colors.accentSoft, fillInMillis = LiveMarkSettleMillis)
+                else ScoreCellMark(fill = colors.accentTintStrong, fillInMillis = LiveMarkFillInMillis)
+            LivePitchMark.Wrong -> ScoreCellMark(fill = colors.pitchErrorSoft, fillInMillis = LiveMarkFillInMillis)
             LivePitchMark.Listening -> ScoreCellMark(ring = colors.textDisabled, ringWidth = 1.5.dp)
         }
     }
 }
+
+private const val LiveMarkFillInMillis = 100
+private const val LiveMarkSettleMillis = 250
 
 /**
  * 구간 연습(S15P31E102-776)의 악보 꾸밈: 구간 밖 정간은 흐리게, 구간을 고르는 동안에는 시작·끝 정간에 ‘시작’·‘끝’ 표와 먹색 테두리를 둔다.

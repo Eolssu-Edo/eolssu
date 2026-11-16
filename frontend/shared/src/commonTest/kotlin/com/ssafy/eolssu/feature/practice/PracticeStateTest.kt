@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.model.Score
+import com.ssafy.eolssu.core.model.ScoreCell
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.practice.PracticeSettings
@@ -272,6 +274,19 @@ class PracticeStateTest {
         assertNull(hold.panel)
     }
 
+    /** 쉼표를 눌러도 운지법 팝업을 쉼 페이지로 연다. 팝업에서 좌우로 넘길 때와 같다(S15P31E102-1007). */
+    @Test
+    fun selectingRestOpensFingeringOnRestPage() {
+        val song = arirang.copy(score = Score(listOf(listOf(ScoreCell(ScoreNote.Pitch(Yul.Hwangjong)), ScoreCell(ScoreNote.Rest), ScoreCell(ScoreNote.Hold)))))
+        val state = PracticeUiState(song = song)
+        val rest = song.displayUnits.first { it.note == ScoreNote.Rest }
+        val opened = state.selectUnit(rest)
+        assertEquals(PracticePanel.Fingering, opened.panel)
+        assertEquals(ScoreNote.Rest, opened.draft.note)
+        assertEquals(rest.event.index, opened.selected)
+        assertEquals(opened.fingeringNoteAt(opened.selected), opened.draft.note)
+    }
+
     @Test
     fun recordingOpensViewAndJangdanSettingsButNotTempo() {
         val recording = ready.beginRecording()
@@ -335,13 +350,6 @@ class PracticeStateTest {
         assertTrue(ready.copy(settings = PracticeSettings(fingeringView = true)).fingeringView)
     }
 
-    /** 연주 평가만 곡 제목 옆에 운지법 보기 스위치를 두고, 혼자 연습·내 악보 연습은 톱니 안에 둔다(S15P31E102-716). */
-    @Test
-    fun onlyEvaluationShowsNotationTogglesBesideTitle() {
-        assertTrue(ready.showsTitleToggles)
-        assertFalse(ready.copy(solo = true).showsTitleToggles)
-        assertFalse(ready.copy(mine = true).showsTitleToggles)
-    }
 
     @Test
     fun tempoIsStoredPerSong() {

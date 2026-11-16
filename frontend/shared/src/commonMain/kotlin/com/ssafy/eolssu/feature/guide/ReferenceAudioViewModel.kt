@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.guide
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.audio.LocalAudioFile
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
@@ -100,6 +101,28 @@ class ReferenceAudioViewModel(private val repository: ReferenceAudioRepository) 
     val uiState = mutableState.asStateFlow()
     private var request: Job? = null
     private val loadedClips = mutableMapOf<GuideInstrument, List<ReferenceAudioClip>>()
+    /** 기기에 받아 둔 예시음 파일(S15P31E102-1005). 화면을 떠나면 비우고, 다시 오면 기기 파일을 확인해 채운다. */
+    private val localFiles = mutableMapOf<String, LocalAudioFile>()
+
+    /** 받아 둔 파일. 없으면 null이고 원격 주소로 재생한다. */
+    fun localFile(clip: ReferenceAudioClip): LocalAudioFile? = localFiles[clip.assetId]
+
+    /** 재생에 실패한 기기 파일은 다음 재생에서 원격 주소로 받는다. */
+    fun forgetLocalFile(clip: ReferenceAudioClip) {
+        localFiles.remove(clip.assetId)
+    }
+
+    /** 보이는 음의 예시음을 미리 받는다. 부른 쪽이 화면에서 사라져 취소되면 받기를 멈춘다. */
+    suspend fun prefetch(clip: ReferenceAudioClip) {
+        if (clip.assetId in localFiles) return
+        val file = try { repository.localFile(clip) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
+        if (file != null && mutableState.value.clips.any { it.assetId == clip.assetId }) localFiles[clip.assetId] = file
+    }
+
+    /** 원격으로 재생한 예시음을 다음에 바로 낼 수 있게 받아 둔다. */
+    fun keepForNext(clip: ReferenceAudioClip) {
+        if (clip.assetId !in localFiles) viewModelScope.launch { prefetch(clip) }
+    }
 
     fun open(instrument: GuideInstrument) {
         val state = mutableState.value
@@ -141,6 +164,7 @@ class ReferenceAudioViewModel(private val repository: ReferenceAudioRepository) 
         request?.cancel()
         request = null
         loadedClips.clear()
+        localFiles.clear()
         mutableState.value = ReferenceAudioUiState()
     }
 }

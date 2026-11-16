@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
+import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -89,17 +91,20 @@ fun ImportScreen(
 ) {
     val staff = kind == ImportKind.Staff
     val percent = if (staff) 42 else 62
+    val contentMaxWidth = sheetAddContentMaxWidth()
     EolssuScaffold(
+        contentMaxWidth = contentMaxWidth,
         containerColor = EolssuTheme.colors.surface,
         topBar = {
             val fileName = SheetEditSamples.importFileName(kind)
             EolssuTopBar(
                 stringResource(if (staff) Res.string.sheetedit_import_title_staff else Res.string.sheetedit_import_title_jg),
                 onBack = onBack,
+                maxWidth = contentMaxWidth,
                 subtitle = if (staff) stringResource(Res.string.sheetedit_import_page, fileName, 1, 2) else fileName,
             )
         },
-        bottomBar = {
+        bottomBar = sheetAddBottomBar(contentMaxWidth) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 EolssuButton(stringResource(Res.string.sheetedit_import_cancel), onBack, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true)
                 EolssuButton(stringResource(Res.string.sheetedit_import_result), onResult, Modifier.weight(1.4f), compact = true)
@@ -166,7 +171,7 @@ private fun MascotSpot(note: String, progress: String) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Image(painterResource(Res.drawable.tiger_play), contentDescription = null, modifier = Modifier.size(132.dp).alpha(0.85f), contentScale = ContentScale.Fit)
-            Text(stringResource(Res.string.sheetedit_import_gif), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+            Text(stringResource(Res.string.sheetedit_import_gif), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
             Text(
                 note,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
@@ -214,7 +219,7 @@ private fun ImportStep(label: String, description: String, state: StepState) {
         ) {
             Text(
                 mark,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
                 color = if (state == StepState.Now) colors.accentText else colors.onPrimary,
             )
         }

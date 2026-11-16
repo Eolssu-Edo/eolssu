@@ -1,7 +1,8 @@
 package com.ssafy.eolssu.feature.history.component
 
 import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
-import com.ssafy.eolssu.core.ui.component.EolssuMenuShape
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
 import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import androidx.compose.material3.CircularProgressIndicator
@@ -24,10 +25,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -179,47 +180,56 @@ internal fun RecordListToolbar(
     }
 }
 
-/** 악기 선택 상자: 고른 악기의 그림과 이름(‘악기 전체’는 그림 없이)을 보이고, 목록에도 악기마다 그림을 둔다. */
+/**
+ * 악기 선택 상자: 고른 악기의 그림과 이름(‘악기 전체’는 그림 없이)을 보이고, 목록에도 악기마다 그림을 둔다.
+ * 보이는 알약은 36dp이고 누르는 영역은 48dp이며, 눌림 효과는 알약 모양 안에만 보인다(S15P31E102-970).
+ */
 @Composable
 private fun InstrumentSelectBox(value: Instrument?, onPick: (Instrument?) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val all = stringResource(Res.string.records_instrument_all)
+    val selectedLabel = value?.let { stringResource(it.label) } ?: all
     Box {
-        Row(
-            Modifier
-                .height(36.dp)
-                .background(EolssuTheme.colors.surface, CircleShape)
-                .clickable(role = Role.DropdownList) { expanded = true }
-                .padding(start = if (value == null) 14.dp else 6.dp, end = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        Surface(
+            onClick = { expanded = true },
+            modifier = Modifier.height(36.dp).semantics { role = Role.DropdownList },
+            shape = CircleShape,
+            color = EolssuTheme.colors.surface,
+            contentColor = EolssuTheme.colors.text,
         ) {
-            value?.let { InstrumentPicture(it, size = 24.dp) }
-            Text(
-                value?.let { stringResource(it.label) } ?: all,
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
-                maxLines = 1,
-            )
-            Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp))
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            shape = EolssuMenuShape,
-            containerColor = EolssuTheme.colors.surface,
-            shadowElevation = 8.dp,
-            modifier = Modifier.width(180.dp).padding(horizontal = 6.dp),
-        ) {
-            (listOf(null) + Instrument.entries).forEach { option ->
-                EolssuMenuItem(
-                    option?.let { stringResource(it.label) } ?: all,
-                    option == value,
-                    onClick = {
-                        expanded = false
-                        onPick(option)
-                    },
-                    leading = option?.let { { InstrumentPicture(it) } },
+            Row(
+                Modifier.padding(start = if (value == null) 14.dp else 6.dp, end = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                value?.let { InstrumentPicture(it, size = 24.dp) }
+                Text(
+                    selectedLabel,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
+                    maxLines = 1,
                 )
+                Icon(
+                    EolssuIcons.ChevronDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp).rotate(if (expanded) 180f else 0f),
+                )
+            }
+        }
+        if (expanded) {
+            EolssuMenuPopup(onDismissRequest = { expanded = false }) {
+                EolssuMenuPanel(width = 180.dp) {
+                    (listOf(null) + Instrument.entries).forEach { option ->
+                        EolssuMenuItem(
+                            option?.let { stringResource(it.label) } ?: all,
+                            option == value,
+                            onClick = {
+                                expanded = false
+                                onPick(option)
+                            },
+                            leading = option?.let { { InstrumentPicture(it) } },
+                        )
+                    }
+                }
             }
         }
     }
@@ -289,7 +299,7 @@ private fun SongGroupCard(
                 Text(
                     buildAnnotatedString {
                         append(stringResource(Res.string.records_best) + " ")
-                        withStyle(SpanStyle(fontSize = 15.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.bestScore}") }
+                        withStyle(SpanStyle(fontFamily = EolssuTheme.serif.yul.fontFamily, fontSize = 16.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.bestScore}") }
                         append(stringResource(Res.string.records_score_unit))
                     },
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
@@ -442,11 +452,14 @@ private fun RecordRow(
         }
         // 악기 표시는 점수 바로 왼쪽에 둔다.
         instrument?.let { InstrumentTag(it) }
+        // 점수 자릿수가 달라도 악기 칩이 한 열에 서도록 '100점' 폭을 잡고 오른쪽에 붙인다.
         Text(
             buildAnnotatedString {
-                withStyle(SpanStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold)) { append("${record.score}") }
+                withStyle(SpanStyle(fontFamily = EolssuTheme.serif.yul.fontFamily, fontSize = 18.sp, fontWeight = FontWeight.Bold)) { append("${record.score}") }
                 withStyle(SpanStyle(fontSize = 11.sp, color = colors.textMuted)) { append(stringResource(Res.string.records_score_unit)) }
             },
+            modifier = Modifier.widthIn(min = RecordScoreWidth),
+            textAlign = TextAlign.End,
         )
         // 줄 전체가 기록 상세로 가는 버튼임을 보이는 ›. 두 칸 배치에서 고른 줄은 검게.
         Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (on) colors.text else colors.textMuted)
@@ -470,3 +483,6 @@ internal fun RecordsLoadStatus(failed: Boolean, onRetry: () -> Unit, modifier: M
         }
     }
 }
+
+/** 기록 줄 점수 칸의 최소 폭: 세리프 18sp ‘100’과 11sp ‘점’이 들어간다. */
+private val RecordScoreWidth = 44.dp

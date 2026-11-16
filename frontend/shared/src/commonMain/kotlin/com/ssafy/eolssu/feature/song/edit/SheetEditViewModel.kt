@@ -70,6 +70,8 @@ class SheetEditViewModel(
     private val deviceAudioStore: SheetAudioDeviceStore? = null,
     loadAudioInstruments: (suspend () -> List<CatalogInstrument>)? = null,
     authoringCatalog: SheetAuthoringCatalog? = null,
+    /** 저장 본문 만들기·직렬화·전송을 돌릴 곳. 앱은 [kotlinx.coroutines.Dispatchers.Default]를 넘기고, null이면 화면 코루틴에서 그대로 한다. */
+    private val saveDispatcher: kotlinx.coroutines.CoroutineDispatcher? = null,
 ) : ViewModel() {
     private val preparedCatalog = authoringCatalog ?: if (pitchCatalog != null && loadAudioInstruments != null)
         SheetAuthoringCatalog(loadAudioInstruments, pitchCatalog, viewModelScope, member) else null
@@ -302,6 +304,26 @@ class SheetEditViewModel(
 
     fun cancelApplyAdaptation() = _uiState.update { it.copy(adaptation = it.adaptation?.copy(confirmationRequested = false)) }
 
+    /**
+     * 확인 안내의 '추천 적용'. 인식한 그대로라 덮어쓸 수정이 없으면 바로 적용하고(되돌리기로 취소),
+     * 편집했거나 임시저장본을 열었으면 슬라이더의 적용과 같은 덮어쓰기 확인을 거친다.
+     */
+    fun applyRecommendedAdaptation() {
+        val transpose = _uiState.value.importGuide?.recommendedTranspose ?: return
+        selectAdaptationTranspose(transpose)
+        requestApplyAdaptation()
+        if (_uiState.value.past.isEmpty() && loaded?.draft == null) applyAdaptation()
+    }
+
+    /** 음역 문제가 아닌 첫 인식 확인 정간으로 간다. */
+    fun openFirstRecognitionReview() {
+        val validation = _uiState.value.completionValidation
+        val index = (validation.correctionCellIndices - validation.rangeCellIndices).minOrNull() ?: return
+        selectCell(index)
+    }
+
+    fun dismissImportGuide() = _uiState.update { it.copy(importGuideDismissed = true) }
+
     fun applyAdaptation() {
         val panel = _uiState.value.adaptation ?: return
         val plan = panel.selected ?: return
@@ -421,6 +443,9 @@ class SheetEditViewModel(
         }
     }
 
+    private suspend fun <T> onSaveWorker(block: suspend () -> T): T =
+        saveDispatcher?.let { kotlinx.coroutines.withContext(it) { block() } } ?: block()
+
     private class DraftSave(val draft: SheetDraft, var unconfirmedRequest: SheetWorkingCopy?)
 
     private fun persist(
@@ -465,19 +490,28 @@ class SheetEditViewModel(
                         writing = snapshot.draft
                         _uiState.update { it.copy(saving = true, confirming = !draft, saveStatus = null,
                             emptyWarning = false, completionWarning = false) }
-                        val score = snapshot.draft.toCommonScore()
-                        if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
+                        // 큰 악보의 본문 만들기·해시·JSON 직렬화가 화면 스레드를 멈추지 않도록 저장 작업 스레드에서 한다.
+                        // 작업 스레드에서는 화면 상태를 바꾸지 않도록 필요한 값을 먼저 읽어 둔다.
+                        val baseExpressions = expressions
+                        val baseSourceSha256 = expressionSourceSha256
+                        val baseExpressionsBpm = expressionsBpm
+                        val baseVersion = version
+                        val baseRevision = revision
                         val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
                             .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
-                        val copy = SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
-                            snapshot.draft.bpm, score, version, revision, resolvedIds, authoring = snapshot.draft.authoringForSave(score.score.instrument), expressions = snapshot.draft.exportExpressions(expressions,
-                                (expressions?.get("sourceSha256") as? kotlinx.serialization.json.JsonPrimitive)?.content
-                                    ?: expressionSourceSha256
-                                    ?: com.ssafy.eolssu.data.song.commonSourceSha256(kotlinx.serialization.json.Json.encodeToJsonElement(requireNotNull(snapshot.draft.original))),
-                                expressionsBpm))
+                        val copy = onSaveWorker {
+                            val score = snapshot.draft.toCommonScore()
+                            if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
+                            SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
+                                snapshot.draft.bpm, score, baseVersion, baseRevision, resolvedIds, authoring = snapshot.draft.authoringForSave(score.score.instrument), expressions = snapshot.draft.exportExpressions(baseExpressions,
+                                    (baseExpressions?.get("sourceSha256") as? kotlinx.serialization.json.JsonPrimitive)?.content
+                                        ?: baseSourceSha256
+                                        ?: com.ssafy.eolssu.data.song.commonSourceSha256(kotlinx.serialization.json.Json.encodeToJsonElement(requireNotNull(snapshot.draft.original))),
+                                    baseExpressionsBpm))
+                        }
                         val attempt = if (draft) DraftSave(snapshot.draft, copy) else null
                         val result = try {
-                            repository.save(id, copy, draft).also { ensureAccountSession() }
+                            onSaveWorker { repository.save(id, copy, draft) }.also { ensureAccountSession() }
                         } finally {
                             if (attempt != null && accountScope.isActive) lastFinishedDraftSave = attempt
                         }
@@ -625,22 +659,31 @@ class SheetEditViewModel(
         }
     }
 
-    /** 닫기 확인에서 '임시저장하고 닫기': 지금 편집을 임시저장하고 성공하면 닫는다. 실패하면 화면과 확인 창을 유지한다. */
+    /**
+     * 닫기 확인에서 '임시저장하고 닫기': 지금 편집을 임시저장하고 성공하면 닫는다.
+     * 저장하는 동안 확인 창에 저장 중을 보이며 다시 누르거나 창을 닫지 못하게 하고, 실패하면 화면과 확인 창을 유지한다.
+     */
     fun saveDraftAndClose(onClose: () -> Unit) {
         if (!accountScope.isActive || closeJob?.isActive == true) return
-        _uiState.update { it.copy(closeWarning = false) }
+        _uiState.update { it.copy(closeWarning = true, closeSaving = true) }
         val write = persist(draft = true, announce = false)
         closeJob = accountScope.launch {
-            write?.join()
-            if (isDraftPersisted(_uiState.value.draft) && !_uiState.value.saveConflict) onClose()
-            else _uiState.update { it.copy(closeWarning = true) }
+            try {
+                write?.join()
+                if (isDraftPersisted(_uiState.value.draft) && !_uiState.value.saveConflict) {
+                    _uiState.update { it.copy(closeWarning = false, closeSaving = false) }
+                    onClose()
+                }
+            } finally {
+                _uiState.update { it.copy(closeSaving = false) }
+            }
         }
     }
 
-    fun continueEditing() = _uiState.update { it.copy(closeWarning = false) }
+    fun continueEditing() = _uiState.update { if (it.closeSaving) it else it.copy(closeWarning = false) }
 
     fun discardChangesAndClose(onClose: () -> Unit) {
-        if (!accountScope.isActive) return
+        if (!accountScope.isActive || _uiState.value.closeSaving) return
         _uiState.update { it.copy(closeWarning = false) }
         onClose()
     }

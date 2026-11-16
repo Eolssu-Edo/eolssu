@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
@@ -57,10 +58,13 @@ import com.ssafy.eolssu.core.model.fingering.baseYulOf
 import com.ssafy.eolssu.core.model.fingering.octaveOf
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.score.FingeringFigure
+import com.ssafy.eolssu.core.ui.score.ScoreCellMark
+import com.ssafy.eolssu.core.ui.score.animatedMarkFill
 import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
 import com.ssafy.eolssu.core.ui.score.rememberScoreCursor
 import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.feature.practice.LivePitchCell
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.stepCurrentIndex
@@ -136,10 +140,17 @@ fun fingerCells(song: Song, instrument: GuideInstrument): List<FingerCell> {
  * 화면이 낮거나 글꼴이 크면 자리 높이가 [FingerReadableSlotHeight] 아래로 내려가지 않도록 그보다 적게 담는다.
  * 재생 위치가 다음 페이지에 들어가면 함께 넘긴다.
  * 한 음씩 따라 불기 중이면 지금 불 음이 든 페이지로 넘기고, 그 줄에 운지법을 끈 악보의 지금 정간과 같은 2dp 연두 테두리를 둔다(S15P31E102-645).
+ * [livePitch]는 AI 연주 평가에서 확정한 실시간 판정으로, 악보와 같은 색을 그 음의 율명 칸 바탕에 칠한다(S15P31E102-980).
  */
 @Composable
-fun PracticeFingeringPage(state: PracticeUiState, onSelectUnit: (ScoreDisplayUnit) -> Unit, modifier: Modifier = Modifier) {
+fun PracticeFingeringPage(
+    state: PracticeUiState,
+    onSelectUnit: (ScoreDisplayUnit) -> Unit,
+    modifier: Modifier = Modifier,
+    livePitch: Map<ScoreUnitKey, LivePitchCell> = emptyMap(),
+) {
     val song = state.song ?: return
+    val pitchMarks = livePitchCellMarks(livePitch)
     val colors = EolssuTheme.colors
     val instrument = state.instrument
     val cells = remember(song, instrument) { fingerCells(song, instrument) }
@@ -217,6 +228,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectUnit: (ScoreDisplayUni
                                 daegangStarts = cell.units.indices.filter { slot -> song.jangdan?.let { jangdan -> cell.row in jangdan.daegang.runningFold(0) { acc, n -> acc + n }.dropLast(1) } == true && slot == 0 && !cell.continued },
                                 imageHeight = imageHeight,
                                 onSelectUnit = onSelectUnit.takeIf { state.canSelectUnit },
+                                marks = pitchMarks,
                             )
                         }
                     }
@@ -304,6 +316,7 @@ private fun HeadCell(text: String, width: Dp, style: androidx.compose.ui.text.Te
  * 각 첫 줄은 2dp 먹색 윗선과 ‘N각’, 대강 첫 줄은 2dp 회색 윗선, 그 밖은 점선. 고른 줄은 2dp 안쪽 테두리.
  * 재생·연주 중에는 악보처럼 노래방 방식으로 [fill]만큼 위에서부터 회색으로 채우고, 지금 연주하는 율명([playingKey])을 붉게 한다.
  * 한 음씩 따라 불기의 지금 음([stepKey])이 여러 음이 든 줄에 있으면 악보의 나뉜 정간처럼 그 율명 자리만 옅게 칠해 구분한다.
+ * [marks]는 율명 자리마다의 실시간 판정 표시로, 운지 그림은 두고 율명 칸에만 칠한다.
  */
 @Composable
 private fun FingerRow(
@@ -318,6 +331,7 @@ private fun FingerRow(
     daegangStarts: List<Int>,
     imageHeight: Dp = FingerImageHeight,
     onSelectUnit: ((ScoreDisplayUnit) -> Unit)?,
+    marks: Map<ScoreUnitKey, ScoreCellMark> = emptyMap(),
 ) {
     val colors = EolssuTheme.colors
     var rowModifier = Modifier
@@ -368,7 +382,8 @@ private fun FingerRow(
             cell.units.forEach { unit ->
                 NoteLine(unit, showHangul, big = cell.parts == 1, playing = playingKey != null && unit.key == playingKey, height = imageHeight * fingerSlotWeight(unit),
                     current = cell.units.size > 1 && stepKey != null && unit.key == stepKey,
-                    onClick = onSelectUnit?.let { select -> { select(unit) } })
+                    onClick = onSelectUnit?.let { select -> { select(unit) } },
+                    mark = marks[unit.key])
             }
         }
         Column(
@@ -414,12 +429,29 @@ private fun FingerDiagram(instrument: GuideInstrument, entry: FingerEntry, heigh
 
 /**
  * 율명 한 줄(`.note-line`): 글자와 오른쪽 작은 한글 읽는 법. 지금 연주하는 율명([playing])은 붉게 쓰고,
- * 한 음씩의 지금 음([current])은 연두 바탕으로 칠한다.
+ * 한 음씩의 지금 음([current])은 연두 바탕으로 칠한다. 실시간 판정([mark])은 악보처럼 색 전환으로 바탕을 칠하고 판단 보류는 테두리만 둔다.
  * 중청황(氵氵黃 중청황)처럼 글자와 한글이 칸 너비보다 길면 한글을 줄바꿈하지 않고 한 줄 전체를 비율대로 줄인다(S15P31E102-561).
  */
 @Composable
-private fun NoteLine(unit: ScoreDisplayUnit, showHangul: Boolean, big: Boolean, playing: Boolean = false, height: Dp = FingerImageHeight, current: Boolean = false, onClick: (() -> Unit)? = null) {
+private fun NoteLine(
+    unit: ScoreDisplayUnit,
+    showHangul: Boolean,
+    big: Boolean,
+    playing: Boolean = false,
+    height: Dp = FingerImageHeight,
+    current: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    mark: ScoreCellMark? = null,
+) {
     val colors = EolssuTheme.colors
+    val markFill = animatedMarkFill(mark?.fill, mark?.fillInMillis ?: 0)
+    val markModifier = Modifier.drawBehind {
+        val fill = markFill.value
+        if (fill.alpha > 0f) drawRect(fill)
+        val ring = mark?.ring ?: return@drawBehind
+        val stroke = mark.ringWidth.toPx()
+        drawRect(ring, topLeft = Offset(stroke / 2, stroke / 2), size = Size(size.width - stroke, size.height - stroke), style = Stroke(stroke))
+    }
     val note = unit.note
     val isPitch = note is ScoreNote.Pitch || note is ScoreNote.SourcePitch
     val hangul = when {
@@ -429,7 +461,7 @@ private fun NoteLine(unit: ScoreDisplayUnit, showHangul: Boolean, big: Boolean, 
         note == ScoreNote.Rest -> stringResource(Res.string.score_rest_hangul)
         else -> null
     }
-    ShrinkToWidth(Modifier.fillMaxWidth().height(height).then(if (current) Modifier.background(colors.accentTint) else Modifier).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)) {
+    ShrinkToWidth(Modifier.fillMaxWidth().height(height).then(if (current) Modifier.background(colors.accentTint) else Modifier).then(markModifier).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             if (isPitch) {
                 ScoreNoteGlyph(note, size = fitText(if (big) 25.sp else 19.sp, height), color = if (playing) colors.rec else colors.text)

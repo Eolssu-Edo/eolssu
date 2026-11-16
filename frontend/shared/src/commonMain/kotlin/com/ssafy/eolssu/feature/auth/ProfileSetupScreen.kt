@@ -1,10 +1,15 @@
 package com.ssafy.eolssu.feature.auth
 
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.Modifier
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -46,11 +51,10 @@ fun ProfileSetupScreen(
 ) {
     AuthScaffold(
         authFrameOf(widthClass, split = true),
-        modifier = Modifier.imePadding(),
         topBar = {
             SignupTopBar(SignupProgress(if (social) SignupPath.Social else SignupPath.Email, SignupStep.Profile), onBack = onBack)
         },
-        bottomBar = { EolssuButton(stringResource(Res.string.auth_signup_done), onClick = onComplete) },
+        bottomBar = { EolssuButton(stringResource(Res.string.auth_signup_done), onClick = onComplete, busy = state.submitting) },
     ) {
         AuthBody(topPadding = authBodyTopBelowProgress()) {
             AuthHeading(stringResource(Res.string.auth_profile_heading))
@@ -76,7 +80,20 @@ fun ProfileSetupScreen(
                     // 회색 바탕 화면이라 고르지 않은 칸은 흰 채움(S15P31E102-798).
                     unselectedColor = EolssuTheme.colors.surface,
                 )
+                // 닉네임과 상관없는 실패는 칸 밖에 두어, 닉네임을 고쳐도 사라지지 않게 한다(S15P31E102-996).
+                state.formError?.let { FormErrorText(stringResource(it.message)) }
             }
         }
     }
+}
+
+/** 칸과 상관없는 제출 실패 안내. 화면 읽기도 바로 읽는다. */
+@Composable
+private fun FormErrorText(text: String) {
+    Text(
+        text,
+        Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+        color = EolssuTheme.colors.recText,
+    )
 }

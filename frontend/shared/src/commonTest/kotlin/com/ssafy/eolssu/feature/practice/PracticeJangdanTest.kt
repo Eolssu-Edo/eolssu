@@ -15,6 +15,7 @@ import com.ssafy.eolssu.data.song.*
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
 import kotlin.test.*
 
@@ -81,11 +82,12 @@ class PracticeJangdanTest {
     @Test fun basicRhythmUsesSavedPickupAndAccentsThenStopsWithoutACatalogMapping() = practice(
         basic = BasicAccompaniment(BasicPulseUnit.EIGHTH, listOf(2, 3), 4),
     ) { vm, samples, _, _ ->
+        samples.now = { testScheduler.currentTime.toDouble() }
         assertNull(vm.uiState.value.song?.jangdanPlayback)
         assertTrue(vm.uiState.value.jangdanSupported)
         vm.startRhythm(); runCurrent()
         advanceTimeBy(999); runCurrent()
-        assertTrue(samples.hits.isEmpty())
+        assertTrue(samples.heardAtMs.all { it >= 1_000.0 }, "Nothing is heard before the pickup ends: ${samples.heardAtMs}")
         advanceTimeBy(1_502); runCurrent()
         assertEquals(listOf(JangdanSample.Deong, JangdanSample.Deok, JangdanSample.Kung, JangdanSample.Deok), samples.hits)
         assertEquals(listOf(1f, 0.65f, 1f, 0.65f), samples.gains)
@@ -315,6 +317,70 @@ class PracticeJangdanTest {
         assertEquals(JangdanStatus.Failed, session.status.value)
     }
 
+    @Test fun polledStrikesAreScheduledAtTheirScoreTimeInsteadOfWhenTheLoopNoticesThem() = runTest {
+        val player = Samples().apply { now = { testScheduler.currentTime.toDouble() } }
+        val session = JangdanSession(player, backgroundScope)
+        // 60 BPM, 4 tick/beat: 250 ms/tick, 덩 at tick 0 and 쿵 at tick 2 of every 4-tick cycle.
+        session.start(planJangdan(mapping, 60, 4), false, { testScheduler.currentTime / 250.0 })
+        runCurrent()
+        advanceTimeBy(3_001); runCurrent()
+        assertEquals(listOf(0.0, 500.0, 1_000.0, 1_500.0, 2_000.0, 2_500.0, 3_000.0), player.heardAtMs,
+            "Each attack is heard exactly once at tick x msPerTick, not at the 5 ms poll that found it")
+        session.stop()
+    }
+
+    @Test fun strikesAtTheEndTickAreNotScheduledAhead() = runTest {
+        val player = Samples()
+        val session = JangdanSession(player, backgroundScope)
+        var tick = 0.0
+        session.start(planJangdan(mapping, 60, 4), false, { tick }, untilTick = 4.0)
+        runCurrent()
+        tick = 1.9
+        advanceTimeBy(5); runCurrent()
+        tick = 3.9 // 25 ms before the next cycle's 덩 at tick 4, inside the look-ahead.
+        advanceTimeBy(5); runCurrent()
+        assertEquals(listOf(JangdanSample.Deong, JangdanSample.Kung), player.hits)
+        session.stop()
+    }
+
+    @Test fun restartingWithPreparedSoundsDoesNotShowLoading() = runTest {
+        val player = Samples()
+        val session = JangdanSession(player, backgroundScope)
+        val plan = planJangdan(mapping, 60, 4)!!
+        session.start(plan, false, { 0.0 })
+        runCurrent()
+        assertEquals(JangdanStatus.Playing, session.status.value)
+        session.start(plan, false, { 2.0 })
+        assertNotEquals(JangdanStatus.Loading, session.status.value, "Nothing has to load; the seek must not flash a loading notice")
+        assertTrue(session.starting)
+        runCurrent()
+        assertEquals(JangdanStatus.Playing, session.status.value)
+        assertFalse(session.starting)
+    }
+
+    @Test fun seekingWhileRhythmPlaysMovesTheSameSessionWithoutLoadingOrRestartingOutput() = practice { vm, samples, _, _ ->
+        val statuses = mutableListOf<JangdanStatus>()
+        backgroundScope.launch { vm.uiState.collect { statuses += it.jangdanStatus } }
+        vm.startRhythm(); runCurrent()
+        assertTrue(vm.uiState.value.playing)
+        val begins = samples.begins
+        val silences = samples.silences
+        statuses.clear()
+
+        vm.seekToFraction(0.5f); runCurrent()
+        advanceTimeBy(20); runCurrent()
+        assertTrue(vm.uiState.value.playing)
+        assertEquals(50f, vm.uiState.value.progressPercent, 1f)
+        vm.seekModel(-500); runCurrent()
+        advanceTimeBy(20); runCurrent()
+        assertTrue(vm.uiState.value.playing)
+
+        assertEquals(begins, samples.begins, "Seeking keeps the output, focus and prepared sounds")
+        assertTrue(samples.silences >= silences + 2, "Each seek clears attacks scheduled for the old position")
+        assertFalse(JangdanStatus.Loading in statuses, "Statuses while seeking: $statuses")
+        assertEquals(JangdanStatus.Playing, vm.uiState.value.jangdanStatus)
+    }
+
     @Test fun rhythmSharesScoreClockPausesSeeksChangesTempoAndStopsOnHidden() = practice { vm, samples, _, _ ->
         vm.startRhythm(); runCurrent()
         assertEquals(PracticeMode.Rhythm, vm.uiState.value.mode)
@@ -521,10 +587,34 @@ class PracticeJangdanTest {
         assertTrue(recorded.all { it == 0.25f }, "Recording strikes are limited: $recorded")
     }
 
+    @Test fun turningOnStepDuringRhythmStopsJangdanAndPausesAtHeardNote() = practice(solo = true) { vm, samples, _, _ ->
+        vm.startRhythm(); runCurrent()
+        advanceTimeBy(1_000); runCurrent()
+        val playing = vm.uiState.value
+        assertEquals(PracticeMode.Rhythm, playing.mode)
+        assertTrue(playing.playing)
+        assertTrue(playing.stepToggleEnabled)
+        val heard = playing.position
+        assertTrue(heard > 0, "The rhythm must have moved past the first note")
+
+        vm.toggleStep(); runCurrent()
+        val on = vm.uiState.value
+        assertEquals(PracticeMode.Ready, on.mode)
+        assertFalse(on.playing)
+        assertTrue(on.step.on)
+        assertEquals(StepPhase.Paused, on.step.phase)
+        assertEquals(stepTargets(on.song!!.timeline).first { it >= heard }, on.step.target)
+        assertEquals(JangdanStatus.Idle, on.jangdanStatus)
+        val hits = samples.hits.size
+        advanceTimeBy(2_000); runCurrent()
+        assertEquals(hits, samples.hits.size, "Jangdan must stay silent once step mode is on")
+    }
+
     private fun practice(
         jangdan: JangdanPlayback = mapping,
         basic: BasicAccompaniment? = null,
         volume: com.ssafy.eolssu.core.audio.JangdanVolumeLimit = com.ssafy.eolssu.core.audio.NoJangdanVolumeLimit,
+        solo: Boolean = false,
         block: suspend TestScope.(PracticeViewModel, Samples, FakeAudioPlayer, PracticeSettingsStore) -> Unit,
     ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -541,7 +631,7 @@ class PracticeJangdanTest {
             val settings = PracticeSettingsStore(kv).apply { grantMic() }
             val samples = Samples()
             val media = FakeAudioPlayer()
-            val vm = PracticeViewModel(song.id, false, repository, settings, PracticeTimeMeter({ 0L }),
+            val vm = PracticeViewModel(song.id, solo, repository, settings, PracticeTimeMeter({ 0L }),
                 PracticeTimeQueue(kv, null, SignedInMember(kv), backgroundScope), recorder = FakePracticeRecorder(),
                 playbackTimeSource = testScheduler.timeSource, jangdanPlayer = samples, jangdanVolume = volume,
                 modelAudioRepository = modelRepository { audioFixture() }, audioPlayer = media)
@@ -567,12 +657,18 @@ private class Samples(override val timingContext: kotlin.coroutines.CoroutineCon
     val hits = mutableListOf<JangdanSample>()
     val gains = mutableListOf<Float>()
     val prepared = mutableListOf<Set<JangdanClip>>()
+    /** 타격이 들릴 시각(호출 시각 + 예약 지연, ms). [now]는 테스트의 시계를 넘긴다. */
+    var now: () -> Double = { 0.0 }
+    val heardAtMs = mutableListOf<Double>()
     override suspend fun prepare(clips: Set<JangdanClip>): Boolean {
         prepared += clips
         return pending?.await() ?: true
     }
     override fun begin(accompanyingModel: Boolean): Boolean { begins++; modelFocus = accompanyingModel; return true }
-    override fun play(clip: JangdanClip, gain: Float): Boolean { if (accept) { hits += clip.sample; gains += gain }; return accept }
+    override fun play(clip: JangdanClip, gain: Float, delayMs: Double): Boolean {
+        if (accept) { hits += clip.sample; gains += gain; heardAtMs += now() + delayMs }
+        return accept
+    }
     override fun silence() { silences++ }
     override fun stop() = silence()
     override fun release() { stop(); releases++ }

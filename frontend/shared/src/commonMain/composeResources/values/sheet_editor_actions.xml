@@ -3,6 +3,7 @@
     <string name="sheet_editor_tempo">빠르기 %1$d BPM</string>
     <string name="sheet_editor_edit">편집</string>
     <string name="sheet_editor_correction_description">수정 필요</string>
+    <string name="sheet_editor_range_description">악기 음역 밖 · 음역 맞추기로 해결</string>
     <string name="sheet_editor_correction_title">이 정간을 확인해 주세요</string>
     <string name="sheet_editor_correction_location">%1$d각 %2$d정간으로 이동했어요. 빨간 표시를 고친 뒤 저장해 주세요.</string>
     <string name="sheet_editor_correct_cell">정간 수정</string>

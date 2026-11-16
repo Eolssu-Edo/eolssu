@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -165,7 +166,8 @@ internal fun LearnListContent(
             Row(
                 Modifier
                     .align(Alignment.End)
-                    .padding(bottom = 10.dp)
+                    // 보이는 알약(약 28dp)은 그대로, 누르는 영역은 48dp. 늘어난 위아래 10dp가 아래 여백을 대신한다(S15P31E102-971).
+                    .minimumInteractiveComponentSize()
                     .clip(RoundedCornerShape(50))
                     .clickable(role = Role.Button, onClick = { confirmingReset = true })
                     .padding(horizontal = 8.dp, vertical = 6.dp),

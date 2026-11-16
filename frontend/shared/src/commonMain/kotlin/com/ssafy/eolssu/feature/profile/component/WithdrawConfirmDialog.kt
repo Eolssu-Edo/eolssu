@@ -5,10 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,35 +43,42 @@ import org.jetbrains.compose.resources.stringResource
 fun WithdrawConfirmDialog(confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val colors = EolssuTheme.colors
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        // 휴대폰 가로·큰 글꼴에서 높이가 모자라면 그림·안내만 스크롤하고 버튼은 아래에 고정한다.
         Column(
             Modifier
-                .padding(horizontal = 28.dp)
+                .imePadding()
+                .padding(horizontal = 28.dp, vertical = 16.dp)
                 .widthIn(max = 340.dp)
                 .fillMaxWidth()
                 .shadow(12.dp, RoundedCornerShape(20.dp))
                 .background(colors.surface, RoundedCornerShape(20.dp))
                 .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Image(
-                painterResource(Res.drawable.withdraw_jeolssu_crying),
-                contentDescription = stringResource(Res.string.my_withdraw_confirm_image),
-                modifier = Modifier.size(132.dp),
-            )
-            Text(
-                stringResource(Res.string.my_withdraw_confirm_title),
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 19.sp, lineHeight = 24.7.sp),
-                color = colors.text,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                stringResource(Res.string.my_withdraw_confirm_message),
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
-                color = colors.textSub,
-                textAlign = TextAlign.Center,
-            )
-            Column(Modifier.fillMaxWidth().padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Image(
+                    painterResource(Res.drawable.withdraw_jeolssu_crying),
+                    contentDescription = stringResource(Res.string.my_withdraw_confirm_image),
+                    modifier = Modifier.size(132.dp),
+                )
+                Text(
+                    stringResource(Res.string.my_withdraw_confirm_title),
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 19.sp, lineHeight = 24.7.sp),
+                    color = colors.text,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    stringResource(Res.string.my_withdraw_confirm_message),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
+                    color = colors.textSub,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            Column(Modifier.fillMaxWidth().padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 EolssuButton(confirmLabel, onClick = onConfirm, style = EolssuButtonStyle.Danger)
                 EolssuButton(stringResource(Res.string.common_cancel), onClick = onDismiss, style = EolssuButtonStyle.Text)
             }

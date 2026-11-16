@@ -145,12 +145,6 @@ data class PracticeUiState(
         savedBpm ?: it.baseBpm
     } ?: 0
 
-    /**
-     * 연주 평가(혼자 연습·내 악보 연습이 아님)는 곡 제목 옆에 ‘운지법 보기’ 스위치를 두고 톱니 설정에서는 뺀다(S15P31E102-716).
-     * ‘한글 읽는 법 표시’는 모든 연습 설정에 두므로 제목 옆에 두지 않는다(S15P31E102-875). 제목 줄이 있는 휴대폰 배치에서만 쓴다.
-     */
-    val showsTitleToggles: Boolean get() = !solo && !mine
-
     /** 화면 제목. 내 악보면 그 악보 제목, 아니면 곡 제목. */
     val title: String get() = sheetTitle ?: song?.title.orEmpty()
 
@@ -170,8 +164,11 @@ data class PracticeUiState(
             else -> GuideInstrument.DaegeumJeongak
         }
 
-    /** 악보를 눌러 음을 고를 수 있는지. 구간 연습은 구간이 정해져 있어 고르지 않는다. */
-    val canSelectUnit: Boolean get() = mode == PracticeMode.Ready && !stepBusy && sectionPractice == null
+    /**
+     * 악보를 눌러 음을 고를 수 있는지. 구간 연습은 구간이 정해져 있어 고르지 않는다.
+     * 한 음씩이 켜져 있으면 듣는 중·구간 연습에서도 눌러 지금 음을 옮긴다([moveStepTo], S15P31E102-1006).
+     */
+    val canSelectUnit: Boolean get() = mode == PracticeMode.Ready && (stepUi || (!stepBusy && sectionPractice == null))
 
     val scoreSelection: ScorePosition?
         get() = selectedCell.takeIf { mode == PracticeMode.Ready && stepCurrentIndex == null }
@@ -462,9 +459,11 @@ fun PracticeUiState.interrupt(): PracticeUiState =
 /** 선택 테두리는 표시 정간에 그린다. 빈 자리와 이음이 공유하는 재생 이벤트는 탐색에만 쓴다. */
 fun PracticeUiState.selectUnit(unit: ScoreDisplayUnit): PracticeUiState {
     if (!canSelectUnit) return this
+    if (stepUi) return moveStepTo(unit.event.index)
     val base = copy(selected = unit.event.index, selectedCell = ScorePosition(unit.column, unit.row), listening = null)
     return when (val note = unit.note) {
-        is ScoreNote.Pitch, is ScoreNote.SourcePitch ->
+        // 쉼표도 운지법 팝업을 쉼 페이지로 연다. 팝업에서 좌우로 넘길 때 쉼 페이지가 뜨는 것과 맞춘다(S15P31E102-1007).
+        is ScoreNote.Pitch, is ScoreNote.SourcePitch, ScoreNote.Rest ->
             base.copy(panel = PracticePanel.Fingering, draft = draft.copy(note = note))
         else -> base.copy(panel = base.panel.takeUnless { it == PracticePanel.Fingering })
     }
@@ -548,7 +547,8 @@ internal enum class PracticePlayerNotice {
     None, Loading, Failed, Unavailable, PersonalAudioUnavailable, PersonalDownloadFailed, PersonalScoreChanged, PersonalUnsupportedPitches, PersonalAudioReady, EmbeddedJangdan, Unsupported, Interrupted,
 }
 
-enum class PracticePersonalAudio { Checking, Missing, Preparing, Downloading, Failed, VersionChanged, UnsupportedPitches, Unsupported, Ready }
+/** [Queued]: 서버가 다른 음원을 먼저 만들어 이 음원은 대기 중. [Preparing]: 생성 요청 직후·생성 중. */
+enum class PracticePersonalAudio { Checking, Missing, Queued, Preparing, Downloading, Failed, VersionChanged, UnsupportedPitches, Unsupported, Ready }
 
 internal val PracticeUiState.personalAudioControl: PracticePersonalAudio?
     get() = personalAudio?.takeUnless { !mine || mode == PracticeMode.Rhythm || it == PracticePersonalAudio.Ready }

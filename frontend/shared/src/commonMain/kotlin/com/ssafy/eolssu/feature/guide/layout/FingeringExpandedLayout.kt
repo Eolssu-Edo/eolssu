@@ -51,6 +51,8 @@ internal fun FingeringExpandedLayout(
                     onToggle = actions.onToggleDropdown,
                     onSelect = actions.onSelectInstrument,
                     onDismiss = actions.onDismissDropdown,
+                    enabled = state.hasSelectedInstrument,
+                    loading = state.isInstrumentListLoading,
                     modifier = Modifier.padding(bottom = 10.dp),
                 )
                 BlowTabs(

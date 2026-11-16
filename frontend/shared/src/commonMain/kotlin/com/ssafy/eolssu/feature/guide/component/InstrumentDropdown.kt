@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -30,17 +31,11 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
 import com.ssafy.eolssu.core.ui.component.InstrumentMenuItem
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.InstrumentPicture
@@ -53,8 +48,9 @@ import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.feature.guide.FingeringInstrumentOption
 
 /**
- * '악기' + 드롭다운(`.fg-select`). 메뉴는 버튼 바로 아래에 겹쳐 열리고, 바깥을 누르면 [onDismiss]로 닫힌다.
+ * '악기' + 드롭다운(`.fg-select`). 메뉴는 버튼 바로 아래에 열리고(아래가 모자라면 위로), 바깥을 누르면 [onDismiss]로 닫힌다.
  * 운지법 보기와 기초부터 배우기가 함께 쓴다. 선택 칸과 목록에 기초부터 배우기처럼 악기 그림을 함께 둔다(S15P31E102-768).
+ * 악기 목록을 받기 전에는 [enabled]를 끄고, 받는 중이면 [loading]으로 펼침 표시 대신 작은 로딩 표시를 둔다.
  */
 @Composable
 internal fun InstrumentDropdown(
@@ -65,6 +61,8 @@ internal fun InstrumentDropdown(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     options: List<FingeringInstrumentOption>? = null,
+    enabled: Boolean = true,
+    loading: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -80,6 +78,7 @@ internal fun InstrumentDropdown(
         Box(Modifier.weight(1f).onSizeChanged { anchorWidth = it.width }) {
             Surface(
                 onClick = onToggle,
+                enabled = enabled,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(44.dp)
@@ -98,7 +97,12 @@ internal fun InstrumentDropdown(
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
                     )
-                    Icon(
+                    if (loading) CircularProgressIndicator(
+                        Modifier.size(14.dp),
+                        color = colors.textMuted,
+                        trackColor = colors.lineSoft,
+                        strokeWidth = 2.dp,
+                    ) else Icon(
                         EolssuIcons.ChevronDown,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp).rotate(if (open) 180f else 0f),
@@ -107,13 +111,8 @@ internal fun InstrumentDropdown(
                 }
             }
             if (open) {
-                val gap = with(LocalDensity.current) { 4.dp.roundToPx() }
                 val width = with(LocalDensity.current) { anchorWidth.toDp() }
-                Popup(
-                    popupPositionProvider = remember(gap) { BelowAnchor(gap) },
-                    onDismissRequest = onDismiss,
-                    properties = PopupProperties(focusable = true),
-                ) {
+                EolssuMenuPopup(onDismissRequest = onDismiss) {
                     EolssuMenuPanel(width = width) {
                         (options?.map { it.instrument } ?: GuideInstrument.entries).forEach { instrument ->
                             val label = options?.firstOrNull { it.instrument == instrument }?.name ?: stringResource(instrument.label)
@@ -124,10 +123,4 @@ internal fun InstrumentDropdown(
             }
         }
     }
-}
-
-/** 메뉴를 기준 영역 왼쪽 아래에 [gap]만큼 띄워 둔다. */
-private class BelowAnchor(private val gap: Int) : PopupPositionProvider {
-    override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize) =
-        IntOffset(anchorBounds.left, anchorBounds.bottom + gap)
 }

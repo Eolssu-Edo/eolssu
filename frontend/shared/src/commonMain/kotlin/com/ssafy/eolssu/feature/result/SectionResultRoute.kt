@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import androidx.compose.runtime.CompositionLocalProvider
 import com.ssafy.eolssu.core.diagnostics.LocalPerformanceVisit
 import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
@@ -52,6 +53,7 @@ fun SectionResultRoute(
     CompositionLocalProvider(LocalPerformanceVisit provides perf) {
         SectionResultScreen(
             state = state,
+            widthClass = currentWindowLayout().widthClass,
             snackbarHostState = snackbarHostState,
             actions = SectionResultActions(
                 onBack = onBack,

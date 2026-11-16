@@ -1,11 +1,11 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -79,7 +79,6 @@ fun EmailVerificationScreen(
     val needsNewCode = state.needsNewCode(now)
     AuthScaffold(
         authFrameOf(widthClass, split = true),
-        modifier = Modifier.imePadding(),
         snackbarHostState = snackbarHostState,
         topBar = {
             val path = if (signUp) SignupPath.Email else SignupPath.PasswordReset
@@ -87,9 +86,9 @@ fun EmailVerificationScreen(
         },
         bottomBar = {
             if (state.codeSent) {
-                EolssuButton(stringResource(Res.string.auth_code_confirm), onClick = onConfirm, enabled = !needsNewCode)
+                EolssuButton(stringResource(Res.string.auth_code_confirm), onClick = onConfirm, enabled = !needsNewCode, busy = state.confirming)
             } else {
-                EolssuButton(stringResource(Res.string.auth_code_send), onClick = onSendCode)
+                EolssuButton(stringResource(Res.string.auth_code_send), onClick = onSendCode, busy = state.sending)
             }
         },
     ) {
@@ -104,6 +103,7 @@ fun EmailVerificationScreen(
                     label = stringResource(Res.string.auth_email),
                     placeholder = stringResource(Res.string.auth_email_placeholder),
                     type = TextFieldType.Email,
+                    maxLength = InputLimit.EMAIL,
                     help = when {
                         !state.codeSent -> null
                         signUp -> stringResource(Res.string.auth_code_sent, state.email)

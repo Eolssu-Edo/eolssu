@@ -132,6 +132,31 @@ def test_jamo_without_a_dotted_continuation_are_not_claimed_as_an_image_cue():
     assert image_marks(image, [dict(x=10, y=20, w=100, h=160, gak=0)]) == []
 
 
+@needs_scan
+def test_original_tempo_can_end_after_the_letters_in_a_unique_cell_margin():
+    from hanbae_marks import image_marks
+    image = sign_image('ㅂㅅ')
+    ImageDraw.Draw(image).rectangle((0, 90, 199, 239), fill='white')
+    cells = [dict(x=10, y=20, w=100, h=160, gak=0)]
+    marks = image_marks(image, cells)
+    assert [(m['symbol'], m.get('gak'), m.get('jeonggan')) for m in marks] == [('본래속도로', 0, 0)]
+    # Without the continuation, do not claim an unanchored pair or one inside a melody cell.
+    assert image_marks(image, [dict(x=-60, y=20, w=100, h=160, gak=0)]) == []
+    assert image_marks(image, [dict(x=100, y=20, w=100, h=160, gak=0)]) == []
+    assert image_marks(image, cells + [cells[0] | {'gak': 1}]) == []
+
+
+@needs_scan
+def test_original_tempo_retains_a_thin_middle_crossbar():
+    from hanbae_marks import image_marks
+    image = sign_image('ㅂㅅ')
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((117, 40, 131, 44), fill='white')
+    draw.line((115, 42, 133, 42), fill=0, width=1)
+    marks = image_marks(image, [dict(x=10, y=20, w=100, h=160, gak=0)])
+    assert [(m['symbol'], m.get('gak'), m.get('jeonggan')) for m in marks] == [('본래속도로', 0, 0)]
+
+
 @pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'), reason='Node 변환기 필요')
 @pytest.mark.parametrize('letters,expected', [('ㅈㄴ', '조금느리게'), ('ㅈㅅ', '조금속하게'),
     ('ㅈㅈㄴ', '점점느리게'), ('ㅈㅈㅅ', '점점속하게'), ('ㅂㅅ', '본래속도로')])

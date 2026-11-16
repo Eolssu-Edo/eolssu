@@ -15,6 +15,8 @@ import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.ElasticSquashSoftAmount
 import com.ssafy.eolssu.core.ui.component.ElasticSquashTextWidth
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.elasticSquash
 import com.ssafy.eolssu.feature.guide.ReferenceAudioController
@@ -28,6 +30,8 @@ import org.jetbrains.compose.resources.stringResource
  * 음마다 기본음·요성 예시를 스피커 버튼으로 들려준다. 같은 버튼을 다시 누르면 멈춘다.
  * [showLoadingMessage]가 false면 불러오는 중 안내 문구를 숨긴다. 음원 목록을 받는 동안에도 문구 대신 버튼을 비활성으로
  * 먼저 보이고 목록이 오면 누를 수 있게 하며, 재생 준비 중 문구도 띄우지 않는다(버튼의 재생 중 표시는 그대로).
+ * 보이는 예시음은 미리 받아 두어 처음 누를 때도 바로 낸다. [stopOnLeave]면 버튼이 화면에서 사라질 때(기초 배우기 할 일 박스가
+ * '해 봤어요'로 접히는 등) 이 버튼이 낸 소리를 멈춘다(S15P31E102-1005).
  */
 @Composable
 fun ReferenceAudioControls(
@@ -35,11 +39,20 @@ fun ReferenceAudioControls(
     controller: ReferenceAudioController,
     basicOnly: Boolean = false,
     showLoadingMessage: Boolean = true,
+    stopOnLeave: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val state = controller.state
     val basic = state.clipFor(selection, ReferenceAudioKind.Basic)
     val yoseong = if (basicOnly) null else state.clipFor(selection, ReferenceAudioKind.Yoseong)
+    val current by rememberUpdatedState(controller)
+    LaunchedEffect(basic?.assetId, yoseong?.assetId) {
+        listOfNotNull(basic, yoseong).forEach { current.prefetch(it) }
+    }
+    if (stopOnLeave) {
+        val shown = setOfNotNull(basic?.assetId, yoseong?.assetId)
+        DisposableEffect(shown) { onDispose { current.stopClips(shown) } }
+    }
     val playback = controller.playback.takeIf {
         it.status == AudioPlaybackStatus.Unavailable || it.sourceId in setOfNotNull(basic?.assetId, yoseong?.assetId)
     } ?: AudioPlaybackState()
@@ -56,7 +69,15 @@ fun ReferenceAudioControls(
                 Text(stringResource(message), Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
                     style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
                 if (state.loadState == ReferenceLoadState.Failed) {
-                    TextButton(onClick = controller.retry) { Text(stringResource(Res.string.guide_catalog_retry)) }
+                    // 다른 화면의 '다시 시도'와 같은 회색 앱 버튼(S15P31E102-970).
+                    EolssuButton(
+                        stringResource(Res.string.guide_catalog_retry),
+                        onClick = controller.retry,
+                        style = EolssuButtonStyle.Secondary,
+                        small = true,
+                        containerColor = colors.groupedBackground,
+                        borderColor = colors.groupedBackground,
+                    )
                 }
             }
             return@Column

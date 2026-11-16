@@ -9,8 +9,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -27,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,7 +68,8 @@ internal fun FeatureSection(
     Column(modifier.padding(top = 4.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             HomeFeatureGrid.chunked(columns).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 한 칸 제목만 두 줄이 되어도 같은 줄 칸 높이를 맞춘다(S15P31E102-972).
+                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { feature ->
                         FeatureTile(
                             feature,
@@ -73,7 +77,7 @@ internal fun FeatureSection(
                             boxMinHeight = cardMinHeight,
                             large = large,
                             enabled = enabled,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                     }
                     // 마지막 줄이 짧으면 빈 칸으로 칸 너비를 맞춘다.
@@ -119,11 +123,12 @@ private fun FeatureTile(
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.titleSmall.copy(
                 fontSize = if (large) 17.sp else 15.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
                 letterSpacing = if (large) (-0.4).sp else 0.sp, // 16sp 미만 휴대폰 글자는 자간을 줄이지 않는다(S15P31E102-849).
             ),
             color = EolssuTheme.colors.cardInk,
             maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

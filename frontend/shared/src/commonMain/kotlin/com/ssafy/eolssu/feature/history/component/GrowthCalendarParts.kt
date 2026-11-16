@@ -17,6 +17,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -116,6 +117,7 @@ private fun NavButton(icon: ImageVector, label: String, enabled: Boolean, onClic
     val colors = EolssuTheme.colors
     Box(
         Modifier
+            .minimumInteractiveComponentSize()
             .size(44.dp)
             .clip(CircleShape)
             .clickable(enabled = enabled, role = Role.Button, onClickLabel = label, onClick = onClick)
@@ -183,7 +185,7 @@ internal fun HeatCalendarCard(
                     buildAnnotatedString {
                         append(stringResource(Res.string.growth_metric_count))
                         append(" ")
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = colors.text)) { append(stringResource(Res.string.growth_count_value, count)) }
+                        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = colors.text)) { append(stringResource(Res.string.growth_count_value, count)) }
                     },
                     modifier = Modifier.padding(bottom = 4.dp),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
@@ -289,11 +291,11 @@ private fun HeatDayDetail(state: GrowthUiState) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 stringResource(Res.string.growth_day_title, date.month, date.day, weekdayNames().getOrElse(date.dayOfWeek) { "" }),
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
             )
             if (day == state.todayDay) {
                 Box(Modifier.height(20.dp).background(colors.primary, RoundedCornerShape(10.dp)).padding(horizontal = 7.dp), contentAlignment = Alignment.Center) {
-                    Text(stringResource(Res.string.growth_today), style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = colors.onPrimary)
+                    Text(stringResource(Res.string.growth_today), style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), color = colors.onPrimary)
                 }
             }
         }
@@ -398,7 +400,7 @@ private fun PickDay(day: Long, inMonth: Boolean, practiced: Boolean, enabled: Bo
     val colors = EolssuTheme.colors
     val date = dateOf(day)
     val (background, ink, weight) = when {
-        selected -> Triple(colors.text, colors.surface, FontWeight.Bold)
+        selected -> Triple(colors.text, colors.surface, FontWeight.SemiBold)
         !enabled -> Triple(Color.Transparent, GrowthColors.DisabledDay, FontWeight.Normal)
         practiced -> Triple(colors.accentTint, colors.accentText, FontWeight.SemiBold)
         else -> Triple(Color.Transparent, if (sunday) colors.rec else colors.text, FontWeight.Normal)

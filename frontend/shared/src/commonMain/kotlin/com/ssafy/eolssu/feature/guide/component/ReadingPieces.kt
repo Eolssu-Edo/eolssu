@@ -64,6 +64,7 @@ import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -159,7 +160,7 @@ internal fun GuideCard(
             .fillMaxWidth()
             .clip(shape)
             .background(colors.surface)
-            .padding(horizontal = 14.dp, vertical = 16.dp),
+            .padding(horizontal = GuideCardInset, vertical = 16.dp),
         verticalArrangement = verticalArrangement,
     ) {
         if (title != null) {
@@ -174,12 +175,23 @@ internal fun GuideCard(
                         }
                     },
                     // `.gcard h3`: 본문 글꼴 굵게 16(제목 글꼴 아님)
-                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
                 )
             }
         }
         content()
     }
+}
+
+/** [GuideCard] 안쪽 좌우 여백. */
+private val GuideCardInset = 14.dp
+
+/** 카드 안쪽 좌우 여백([GuideCardInset])만큼 양옆으로 넓혀 카드 끝까지 닿게 한다. 넓힌 만큼 안쪽 여백은 부르는 쪽이 다시 준다. */
+private fun Modifier.bleedToCardEdges(): Modifier = layout { measurable, constraints ->
+    val inset = GuideCardInset.roundToPx()
+    val maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + inset * 2 else constraints.maxWidth
+    val placeable = measurable.measure(constraints.copy(minWidth = (constraints.minWidth + inset * 2).coerceAtMost(maxWidth), maxWidth = maxWidth))
+    layout(placeable.width - inset * 2, placeable.height) { placeable.place(-inset, 0) }
 }
 
 /** 쪽 표시(`.rb-mark`): 연두 원 안의 번호. 정간보란의 井은 세리프로 쓴다. */
@@ -376,7 +388,7 @@ private fun IntroLegend() {
                 rows.forEach { (icon, term, _) ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         icon()
-                        GuideText(term, style = style.copy(fontWeight = FontWeight.Bold))
+                        GuideText(term, style = style.copy(fontWeight = FontWeight.SemiBold))
                     }
                 }
                 rows.forEach { (_, _, desc) ->
@@ -558,7 +570,7 @@ private fun LengthExample(
         if (onPlayAudio != null) ReadingBeatMarkers(position)
         Text(
             caption,
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
             textAlign = TextAlign.Center,
             maxLines = 1,
             softWrap = false,
@@ -607,6 +619,10 @@ private data class PitchStep(val level: Int, val radical: String, val base: Stri
 /** 한 단 높이(`.pit.lv*`의 margin-top 차이). */
 private val PitchRise: Dp = 32.dp
 
+/** 왼쪽 축 너비와 계단 한 칸의 기본 너비. 좁은 화면에서는 칸 너비만 줄인다. */
+private val PitchAxisWidth: Dp = 32.dp
+private val PitchCellWidth: Dp = 82.dp
+
 /** 3 음의 높낮이(`.pit-row`): 디딤판과 챌판이 이어진 계단으로 높이를 보여 주고, 율명 왼쪽에 붙는 부수만 이끼색으로 칠한다. */
 @Composable
 internal fun PitchSteps(audio: ReadingAudioState, onPlayAudio: (ReadingAudioClip) -> Unit, enabled: Boolean = true) {
@@ -617,16 +633,22 @@ internal fun PitchSteps(audio: ReadingAudioState, onPlayAudio: (ReadingAudioClip
         PitchStep(1, "", "黃", stringResource(Res.string.guide_reading_pitch_base), stringResource(Res.string.guide_reading_pitch_base_term), stringResource(Res.string.guide_reading_pitch_base_gloss)),
         PitchStep(2, "氵", "黃", stringResource(Res.string.guide_reading_pitch_high), stringResource(Res.string.guide_reading_pitch_high_term), stringResource(Res.string.guide_reading_pitch_high_gloss)),
     )
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.Center) {
-        PitchAxis(Modifier.width(32.dp).fillMaxHeight().padding(end = 12.dp))
-        steps.forEach { PitchStepCell(it) }
-    }
-    // 디딤판 높이와 관계없이 세 스피커의 중심을 같은 가로선에 둔다.
-    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.Center) {
-        Spacer(Modifier.width(32.dp))
-        steps.forEachIndexed { i, step ->
-            Box(Modifier.width(82.dp), contentAlignment = Alignment.Center) {
-                ReadingSpeakerButton(ReadingPitchClips[i], step.name, audio, { onPlayAudio(ReadingPitchClips[i]) }, enabled)
+    // 계단(축 32dp + 칸 82dp × 3 = 278dp)이 들어가지 않는 좁은 화면에서는 칸 너비를 줄여 잘리지 않게 한다(S15P31E102-972).
+    // 칸은 남은 너비를 똑같이 나눈 값과 82dp 중 작은 값이다. 태블릿 격자가 카드 높이를 맞추려고 크기를 미리 재므로
+    // (IntrinsicSize) BoxWithConstraints 대신 Row 가중치로 나눈다. BoxWithConstraints는 미리 재기를 지원하지 않아 앱이 종료된다(S15P31E102-1008).
+    val cell = Modifier.width(PitchCellWidth)
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.Center) {
+            PitchAxis(Modifier.width(PitchAxisWidth).fillMaxHeight().padding(end = 12.dp))
+            steps.forEach { PitchStepCell(it, Modifier.weight(1f, fill = false).then(cell)) }
+        }
+        // 디딤판 높이와 관계없이 세 스피커의 중심을 같은 가로선에 둔다.
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.Center) {
+            Spacer(Modifier.width(PitchAxisWidth))
+            steps.forEachIndexed { i, step ->
+                Box(Modifier.weight(1f, fill = false).then(cell), contentAlignment = Alignment.Center) {
+                    ReadingSpeakerButton(ReadingPitchClips[i], step.name, audio, { onPlayAudio(ReadingPitchClips[i]) }, enabled)
+                }
             }
         }
     }
@@ -656,7 +678,7 @@ internal fun PitchSteps(audio: ReadingAudioState, onPlayAudio: (ReadingAudioClip
 @Composable
 private fun PitchAxis(modifier: Modifier) {
     val colors = EolssuTheme.colors
-    val style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.sp)
+    val style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp)
     Column(modifier.padding(top = 4.dp).offset(y = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(stringResource(Res.string.guide_reading_pitch_axis_high), style = style, color = colors.textMuted)
         Box(Modifier.weight(1f).width(1.5.dp).background(Brush.verticalGradient(listOf(colors.textMuted, colors.lineSoft))))
@@ -665,13 +687,12 @@ private fun PitchAxis(modifier: Modifier) {
 }
 
 @Composable
-private fun PitchStepCell(step: PitchStep) {
+private fun PitchStepCell(step: PitchStep, modifier: Modifier) {
     val colors = EolssuTheme.colors
     val tread = 3.dp
     Column(
-        Modifier
+        modifier
             .padding(top = PitchRise * (2 - step.level))
-            .width(82.dp)
             .drawBehind {
                 // 디딤판(아래 굵은 선)과, 높은 칸이면 왼쪽에 한 단 아래 디딤판까지 내려오는 챌판
                 val t = tread.toPx()
@@ -689,8 +710,8 @@ private fun PitchStepCell(step: PitchStep) {
                 ComposedGlyph(step.radical, step.base, 23.sp, 30.sp, overlap = 0.45f, radicalColor = colors.radical, radicalWeight = FontWeight.Bold)
             }
         }
-        Text(step.name, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.sp))
-        Text(step.term, Modifier.padding(top = 2.dp), style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.sp))
+        Text(step.name, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp))
+        Text(step.term, Modifier.padding(top = 2.dp), style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp))
         Text(step.gloss, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, letterSpacing = 0.sp), color = colors.textMuted)
     }
 }
@@ -732,7 +753,7 @@ internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier, columns: Int = 1,
             val first = start
             start += group.items.size
             Column(Modifier.padding(top = 16.dp)) {
-                Text(group.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold), color = colors.textMuted)
+                Text(group.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.textMuted)
                 if (columns <= 1) {
                     Column(Modifier.padding(top = 4.dp)) {
                         group.items.forEachIndexed { i, item ->
@@ -767,13 +788,14 @@ private fun SectionTitle(title: String, fontSize: TextUnit, modifier: Modifier =
         title,
         modifier,
         color = color,
-        style = MaterialTheme.typography.titleSmall.copy(fontSize = fontSize, fontWeight = FontWeight.Bold),
+        style = MaterialTheme.typography.titleSmall.copy(fontSize = fontSize, fontWeight = FontWeight.SemiBold),
     )
 }
 
 /**
  * 기호 한 줄(`.sig-item`): 기호 44 · 이름 66 · 설명 · 화살표 18. 이름 칸 너비를 고정해 설명이 모두 같은 세로줄에서 시작한다.
  * 줄 전체가 창을 여는 단추다. [stretch]이면 격자 한 줄의 높이에 맞춰 아래 선을 칸끼리 맞춘다.
+ * 한 칸 목록(휴대폰)에서는 목록형으로 줄을 카드 좌우 끝까지 넓혀, 눌림 효과가 줄 전체 사각으로 그려지고 카드 모서리에서만 잘린다(S15P31E102-968).
  */
 @Composable
 private fun SigimsaeRow(
@@ -790,14 +812,16 @@ private fun SigimsaeRow(
         Row(
             Modifier
                 .fillMaxWidth()
+                .then(if (stretch) Modifier else Modifier.bleedToCardEdges())
                 .focusRequester(focusRequester)
                 .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .then(if (stretch) Modifier else Modifier.padding(horizontal = GuideCardInset))
                 .padding(top = 10.dp, bottom = if (last) 0.dp else if (stretch) 12.dp else 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             SigimsaeGlyph(item, box = 44.dp, imageHeight = 26.dp, imageMaxWidth = if (item.images.size > 1) 18.dp else 34.dp)
-            Text(item.name, Modifier.width(66.dp), style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold))
+            Text(item.name, Modifier.width(66.dp), style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
             FlowRow(
                 Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -855,10 +879,10 @@ private fun SigimsaeTile(symbol: SigimsaeSymbol, on: Boolean, enabled: Boolean, 
     val shape = RoundedCornerShape(12.dp)
     Column(
         modifier
-            // 고른 칸은 녹색 테두리로만 보인다. 누르는 동안의 회색 반응 박스는 그리지 않는다(QA)
+            // 고른 칸은 녹색 테두리로 보인다. 누르는 동안·키보드로 고른 동안의 반응은 칸(그림+이름) 전체의
+            // 12dp 둥근 모양 안에만 그려 네모 박스로 튀어나오지 않게 한다(S15P31E102-969).
+            .clip(shape)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
                 enabled = enabled,
                 role = Role.Button,
                 onClick = onClick,
@@ -880,7 +904,7 @@ private fun SigimsaeTile(symbol: SigimsaeSymbol, on: Boolean, enabled: Boolean, 
         }
         Text(
             symbol.name,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium),
             textAlign = TextAlign.Center,
         )
     }
@@ -902,7 +926,7 @@ private fun SigimsaeTip(symbol: SigimsaeSymbol, at: Float) {
         }
         Text(
             buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(symbol.name) }
+                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(symbol.name) }
                 append("  ")
                 append(symbol.description)
             },

@@ -49,8 +49,10 @@ import eolssu.shared.generated.resources.practice_dock_locked
 import eolssu.shared.generated.resources.practice_dock_song_info
 import eolssu.shared.generated.resources.practice_fingering_rest
 import eolssu.shared.generated.resources.practice_fingering_title
+import eolssu.shared.generated.resources.practice_fingering_view
 import eolssu.shared.generated.resources.practice_jangdan_sound_on
 import eolssu.shared.generated.resources.practice_menu_jangdan
+import eolssu.shared.generated.resources.practice_live_marks
 import eolssu.shared.generated.resources.practice_notation_hangul
 import eolssu.shared.generated.resources.practice_menu_tempo
 import eolssu.shared.generated.resources.practice_settings
@@ -100,7 +102,7 @@ private fun SongInfo(state: PracticeUiState, song: Song) {
     val colors = EolssuTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(stringResource(Res.string.practice_dock_song_info), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
-        Text(state.title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold))
+        Text(state.title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold))
         Text(
             stringResource(Res.string.practice_dock_info, jangdanLabel(song.jangdanName), state.bpm, songLevelLabel(song.level)),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
@@ -149,6 +151,28 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
         ) {
             Text(hangulLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
             EolssuSwitch(settings.showHangul, actions.onToggleHangul, hangulLabel)
+        }
+        // 태블릿 가로는 연습 설정 시트를 여는 버튼이 없어 ‘운지법과 함께 보기’도 이 패널에서 바로 켜고 끈다(S15P31E102-1011).
+        val fingeringViewLabel = stringResource(Res.string.practice_fingering_view)
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                .drawBehind { drawLine(colors.line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(fingeringViewLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+            EolssuSwitch(state.fingeringView, actions.onToggleFingeringView, fingeringViewLabel)
+        }
+        // ‘실시간 채점’은 AI 연주 평가에서만 둔다(S15P31E102-980).
+        if (!state.solo) {
+            val liveLabel = stringResource(Res.string.practice_live_marks)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .drawBehind { drawLine(colors.line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(liveLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+                EolssuSwitch(settings.liveMarks, actions.onToggleLiveMarks, liveLabel)
+            }
         }
         val bigLabel = stringResource(Res.string.practice_big_score)
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {

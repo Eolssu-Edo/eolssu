@@ -12,6 +12,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,11 +56,14 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -237,17 +243,11 @@ private fun TrailNode(stage: LearnStage, done: Boolean, viewed: Boolean, paper: 
     val label = if (done) stringResource(Res.string.learn_trail_done, stage.number, stage.title) else stringResource(Res.string.learn_card_dot, stage.number, stage.title)
     val rock = remember(stage.number) { TrailRock(stage.number) }
     val dashed = stage.optional && !done && !viewed
-    // 바위 그림은 누르는 칸보다 조금 커서 칸 밖까지 그리고, 누를 때 번지는 표시만 칸 모양으로 자른다.
     Box(
         modifier
             .size(StoneWidth, NodeSize)
             .drawBehind { drawRock(rock, done, viewed, dashed, colors, paper, water) }
-            .clip(RoundedCornerShape(percent = 50))
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics {
-                contentDescription = label
-                selected = viewed
-            },
+            .clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {
         // 숫자·체크는 물 밖으로 나온 바위의 세로 가운데에 둔다.
@@ -258,10 +258,31 @@ private fun TrailNode(stage: LearnStage, done: Boolean, viewed: Boolean, paper: 
             Text(
                 "${stage.number}",
                 lift,
-                style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = if (viewed) FontWeight.Bold else FontWeight.Medium),
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = if (viewed) FontWeight.SemiBold else FontWeight.Medium),
                 color = if (viewed) colors.text else colors.textMuted,
             )
         }
+    }
+    // 배치에는 돌 칸(31×26dp)만 차지하고, 누르는 영역은 그 둘레 48dp로 넓혀 칸 밖까지 걸친다.
+    // 눌림 효과는 그려진 바위 크기의 타원으로 둬 그림보다 작게 번지지 않게 한다(S15P31E102-968).
+    val interaction = remember { MutableInteractionSource() }
+    Box(
+        modifier
+            .layout { measurable, _ ->
+                val width = StoneWidth.roundToPx()
+                val height = NodeSize.roundToPx()
+                val touch = NodeTouch.roundToPx()
+                val placeable = measurable.measure(Constraints.fixed(touch, touch))
+                layout(width, height) { placeable.place((width - touch) / 2, (height - touch) / 2) }
+            }
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .semantics {
+                contentDescription = label
+                selected = viewed
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.size(StoneRippleWidth, StoneRippleHeight).clip(CircleShape).indication(interaction, ripple()))
     }
 }
 
@@ -583,8 +604,8 @@ private const val FinishUpMillis = 230
 private const val FinishDownMillis = 210
 private const val FinishStartDelayMillis = 450L
 
-/** 호랑이 발이 바위 꼭대기에 걸치는 깊이. 그림 아래 투명한 여백만큼 더 내린다. */
-private val TigerFeetInset = 6.5.dp
+/** 호랑이 발이 바위 꼭대기에 걸치는 깊이. 더 내리면 발이 지금 단계 바위의 번호를 가리므로 0으로 둔다(S15P31E102-987). */
+private val TigerFeetInset = 0.dp
 
 /** 호랑이 발밑 그림자 크기. */
 private val TigerShadowWidth = 30.dp
@@ -597,6 +618,11 @@ private val RippleHeight = 16.dp
 private val TrailHeight: Dp = 120.dp
 private val NodeSize: Dp = 26.dp
 private val StoneWidth: Dp = 31.dp
+
+/** 돌을 누르는 정사각형 한 변과, 그려진 바위(물결 포함 약 42×30dp)를 덮는 눌림 타원 크기. */
+private val NodeTouch: Dp = 48.dp
+private val StoneRippleWidth: Dp = 44.dp
+private val StoneRippleHeight: Dp = 32.dp
 private val TigerWidth: Dp = 60.dp
 private val TigerHeight: Dp = 49.dp
 

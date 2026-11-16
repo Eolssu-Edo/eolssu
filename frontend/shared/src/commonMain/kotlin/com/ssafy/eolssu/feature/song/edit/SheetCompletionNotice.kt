@@ -63,7 +63,7 @@ internal fun SheetCompletionNotice(
             Text(stringResource(Res.string.sheet_completion_catalog_failed), style = MaterialTheme.typography.bodySmall)
             EolssuButton(stringResource(Res.string.sheet_completion_catalog_retry), onRetryCatalog, style = EolssuButtonStyle.Secondary, compact = true)
         } else {
-            Text(stringResource(Res.string.sheet_completion_title), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            Text(stringResource(Res.string.sheet_completion_title), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         }
         if (showReviewSummary && validation.hasEmptyCells) {
             Text(stringResource(Res.string.sheet_completion_empty, validation.emptyCellCount), style = MaterialTheme.typography.bodySmall)

@@ -14,17 +14,18 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.model.ScoreUnitKey
-import com.ssafy.eolssu.feature.practice.LivePitchMark
+import com.ssafy.eolssu.feature.practice.LivePitchCell
 import com.ssafy.eolssu.feature.practice.PracticeScreenActions
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import com.ssafy.eolssu.feature.practice.component.PracticeFingeringPage
 import com.ssafy.eolssu.feature.practice.component.PracticeScoreArea
 import com.ssafy.eolssu.feature.practice.component.PracticeScoreStyle
 import com.ssafy.eolssu.feature.practice.component.PracticeSideDock
 
 /**
  * 태블릿 가로·넓은 웹 창 배치(와이어프레임 `Tab-Practice-Land`). 왼쪽에 악보(한 단, 가로 스크롤), 오른쪽 380dp에 상태 패널을 둔다.
- * 상단 설정 버튼 대신 상태 패널에 설정 바로가기가 있고, 보조 패널은 화면을 덮지 않고 상태 패널 자리에 열린다.
+ * 상단 설정 버튼 대신 상태 패널에 설정 바로가기가 있다. 보조 패널은 다른 크기와 같이 배경을 눌러 닫는 시트로 열린다(S15P31E102-518).
  * 내용은 최대 [WindowBreakpoints.ContentMaxWidth]로 가운데에 두고, 양옆은 40dp 이상 띄운다.
  */
 @Composable
@@ -32,7 +33,7 @@ internal fun PracticeExpandedLayout(
     state: PracticeUiState,
     snackbarHostState: SnackbarHostState,
     actions: PracticeScreenActions,
-    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
+    livePitch: Map<ScoreUnitKey, LivePitchCell> = emptyMap(),
 ) {
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
@@ -51,10 +52,15 @@ internal fun PracticeExpandedLayout(
             Modifier.fillMaxSize().padding(start = SideGutter, end = SideGutter, top = 4.dp, bottom = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            PracticeScoreArea(
-                state, PracticeScoreStyle.TabletLandscape, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
-                Modifier.weight(1f), livePitch = livePitch,
-            )
+            // '운지법과 함께 보기'는 휴대폰과 같은 운지 페이지를 악보 자리에 둔다(S15P31E102-1011).
+            if (state.fingeringView) {
+                PracticeFingeringPage(state, actions.onSelectUnit, Modifier.weight(1f).fillMaxHeight(), livePitch = livePitch)
+            } else {
+                PracticeScoreArea(
+                    state, PracticeScoreStyle.TabletLandscape, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
+                    Modifier.weight(1f), livePitch = livePitch,
+                )
+            }
             PracticeSideDock(state, actions.panel, actions.bottom, Modifier.width(DockWidth).fillMaxHeight())
         }
     }

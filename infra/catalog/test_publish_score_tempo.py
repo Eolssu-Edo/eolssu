@@ -182,6 +182,23 @@ class ReleaseGuards(unittest.TestCase):
         entry['targetBpm'] = 61
         with self.assertRaises(ValueError): tool.validate_score_change(entry,target)
 
+    def test_unit_change_only_relabels_one_beat_as_one_jeonggan(self):
+        # S15P31E102-1019: 정간 하나를 한 박으로 보면 같은 실제 속도에서 숫자만 바뀐다.
+        entry = copy.deepcopy(self.original)
+        entry['targetBpm'] = 60
+        entry['beatNotationCorrection'] = {'basis':'one jeonggan is one beat of the source jangdan'}
+        target = copy.deepcopy(entry['beforeSong']['score'])
+        target['score']['scoreVersion'] = 3
+        target['music']['ticksPerBeat'] = 2
+        target['music']['bpmUnit'] = 'JEONGGAN'
+        tool.validate_score_change(entry,target)
+        target['music']['bpmUnit'] = 'DOTTED_QUARTER'
+        with self.assertRaisesRegex(ValueError,'one jeonggan'): tool.validate_score_change(entry,target)
+        # 단위 변경에는 근거 있는 박 표기 교정이 함께 있어야 한다.
+        target['music']['bpmUnit'] = 'JEONGGAN'
+        del entry['beatNotationCorrection']
+        with self.assertRaises(ValueError): tool.validate_score_change(entry,target)
+
     def test_airplane_scope_is_explicitly_rejected(self):
         entry=fixture(self.root,56)
         with self.assertRaisesRegex(ValueError,'Airplane'): tool.load_release(self.root)

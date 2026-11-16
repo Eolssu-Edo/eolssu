@@ -78,8 +78,8 @@ class CompareStateTest {
         // 처음에는 비교 중인 기록의 날(10월 13일)을 보인다.
         assertEquals(KoreanDateTime(2026, 10, 13, 0, 0).epochDay, pick.initialDay)
         val october = pick.month(CompareMonth(2026, 10))
-        // 2026-10-01은 목요일이라 일요일부터 네 칸(일·월·화·수)을 비운다.
-        assertEquals(4, october.takeWhile { it == null }.size)
+        // 2026-10-01은 목요일이라 월요일부터 세 칸(월·화·수)을 비운다.
+        assertEquals(3, october.takeWhile { it == null }.size)
         val days = october.filterNotNull()
         assertEquals(31, days.size)
         assertEquals(listOf("prev-1", "prev-2"), days.first { it.date.day == 13 }.records.map { it.id })

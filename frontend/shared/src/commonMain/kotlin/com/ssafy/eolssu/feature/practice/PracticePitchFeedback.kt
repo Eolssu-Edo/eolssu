@@ -69,6 +69,9 @@ data class PitchFeedback(
 
 data class PracticePitchFeedback(val current: PitchFeedback? = null, val previous: PitchFeedback? = null)
 
+/** 입력 창 끝을 캡처한 뒤 이 시간 안에 처리된 결과만 받는다. 음 끝에서 이만큼 지나면 그 음에는 새 값이 오지 않는다. */
+internal const val PitchFeedbackLifetimeNanos = 300_000_000L
+
 internal class PracticePitchTracker(
     private val events: List<ScoreEvent>,
     private val hwangHz: Double,
@@ -106,7 +109,7 @@ internal class PracticePitchTracker(
         if (lastSequence >= 0 && reading.sequence != lastSequence + 1) latest = PracticePitchFeedback()
         lastSequence = reading.sequence
         if (!reading.analysisAvailable) { latest = PracticePitchFeedback(); return latest }
-        if (nowNanos < reading.capturedEndNanos || nowNanos - reading.capturedEndNanos >= 300_000_000L) return latest
+        if (nowNanos < reading.capturedEndNanos || nowNanos - reading.capturedEndNanos >= PitchFeedbackLifetimeNanos) return latest
         val start = scoreStartMs + (reading.startSample - base.samplePosition) * 1000.0 / base.sampleRate
         val end = scoreStartMs + (reading.endSample - base.samplePosition) * 1000.0 / base.sampleRate
         val index = events.indexOfLast { (it.startTick ?: Long.MAX_VALUE) * msPerTick <= start }
@@ -127,7 +130,7 @@ internal class PracticePitchTracker(
 
     fun expire(currentIndex: Int, nowNanos: Long): PracticePitchFeedback {
         val values = listOfNotNull(latest.current, latest.previous)
-            .filter { nowNanos >= it.capturedEndNanos && nowNanos - it.capturedEndNanos < 300_000_000L }
+            .filter { nowNanos >= it.capturedEndNanos && nowNanos - it.capturedEndNanos < PitchFeedbackLifetimeNanos }
         latest = PracticePitchFeedback(values.firstOrNull { it.eventId == events.getOrNull(currentIndex)?.id },
             values.firstOrNull { it.eventId == events.getOrNull(currentIndex - 1)?.id })
         return latest

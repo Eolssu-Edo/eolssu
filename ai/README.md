@@ -1,5 +1,7 @@
 # AI: 연주 채점
 
+S15P31E102-992: 오선 아래 가사(영어 외 글자)를 Audiveris가 잇단음표·아티큘레이션·음표 기호로 읽은 경우, 첫 인식 `.omr`에서 가사 줄을 찾아 그 띠만 가린 그림으로 한 번 다시 읽고 박자와 맞지 않는 마디가 늘지 않을 때만 씁니다. `uv run pytest tests/unit/test_staff_lyrics.py`로 판정·채택 경계를 검사합니다. [기준](../docs/specs/score-recognition-corrections.md#가사-줄-기호-오인식-차단-992), [실제 대조](../docs/knowledge/ai/score-recognition-corrections.md#가사-줄의-기호-오인식-992).
+
 S15P31E102-953: PDF 빠르기의 숫자3·6이 잇단음표로 읽힌 경우, 원본 글자와 인식 표식의 경계가 유일하게 일치할 때 해당 빠르기의 글자 잉크만 가리고 한 번 재인식합니다. 진짜 잇단음표와 글자 사이의 음표는 보존합니다. `JGB_GENERATOR_DIR`가 있는 환경에서 `uv run pytest tests/unit/test_staff_pdf_tuplets.py`로 자체 PDF·기하·실제 변환 경계를 검사합니다(Audiveris 출력만 고정 입력). 원본 전체의 실제 인식 결과와 한계는 [953 계획](../docs/plans/S15P31E102-953.md)에 기록합니다.
 
 S15P31E102-935: PDF 글자층의 SMuFL 4분음표(U+ECA5/ECA6) 숫자 빠르기를 보완합니다. 작은 자체 PDF를 실제 PDFium으로 읽는 회귀는 `uv run pytest tests/unit/test_staff_pdf_tempo.py`입니다. 로컬 제공 자료를 검사하려면 `AUCLAIR_TEMPO_PDF`를 `C:/Users/kingc/Downloads/악보 추가 편집 테스트 자료/02_AuClairDeLaLune_양손피아노.pdf`로 지정하세요. `JGB_GENERATOR_DIR`가 설정된 기존 환경에서 `uv run pytest tests/unit/test_omr_staff_engine.py -k pdf_numeric_tempo`는 실제 PDF 읽기·렌더·변환·HTTP 전달을 검사하고 외부 Audiveris 출력만 고정 입력으로 대체합니다. 원본 파일은 Git에 넣지 않습니다. [실행 근거·한계](../docs/knowledge/ai/score-recognition-corrections.md#pdf-음표-글리프의-숫자-빠르기-누락-935).
@@ -254,7 +256,7 @@ uv run --locked python -m evaluation.dtw_u4_table ../data/processed/dtw-286/u4-r
 
 스캔 엔진 `e95045f-v1.0.0-r4`는 모델 어휘에 없는 중청 음을 두 물수변의 실제 획으로 복원합니다. 청 음의 점 두 쌍과 아래 획이 모두 확인될 때만 올리고, 위치·시김새·confidence를 보존합니다. 글자층 PDF·오선보·모델 가중치는 바꾸지 않습니다. 같은 PNG·JPEG 24/24 대조와 기존 스캔 5종 전후 보존 결과는 [중청 음역 교정 기록](../docs/knowledge/ai/jeongganbo-double-water-register.md)에 있습니다.
 
-S15P31E102-882 후속: 글자층 엔진4·스캔 r5는 정간 오른쪽 한배 기호 `ㅈㄴ/ㅈㅅ/ㅈㅈㄴ/ㅈㅈㅅ/ㅂㅅ`를 별도로 읽습니다. 스캔 검출은 똑바로 인쇄된 연결 자모와 구분점·이어지는 점선이 확인되는 경우에 한정하며, 모델 어휘나 가중치를 바꾸지 않습니다. 숫자 없는 기호는 기존 기호 배치와 명시적 빈 빠르기 계획으로 보존하여 임의 배율을 적용하지 않고 `TEMPO_CUE_UNRESOLVED`로 목표 입력을 요청합니다. 기호는 보이지만 해당 선율 열을 기존 격자 리더가 놓친 경우에는 `TEMPO_CUE_POSITION_UNRESOLVED`와 원본 위치만 남기며 다른 정간에 옮겨 붙이지 않습니다. 같은 정간의 상충 기호는 `TEMPO_CUE_CONFLICT`로 남깁니다. `uv run pytest tests/unit/test_jeongganbo_tempo.py tests/unit/test_omr_text_engine.py tests/unit/test_omr_scan_engine.py`로 작은 고정 입력을 검사합니다. 그림 검출 검사는 스캔 런타임의 OpenCV가 필요합니다.
+S15P31E102-882 후속: 글자층 엔진4·스캔 r6는 정간 오른쪽 한배 기호 `ㅈㄴ/ㅈㅅ/ㅈㅈㄴ/ㅈㅈㅅ/ㅂㅅ`를 별도로 읽습니다. 스캔 검출은 똑바로 인쇄된 연결 자모와 구분점·이어지는 점선이 확인되는 경우에 한정하며, 모델 어휘나 가중치를 바꾸지 않습니다. 956 후속에서는 얇은 가운데 획의 `ㅂ`를 보존하고, `ㅂㅅ`에 한해 연장 점선이 없어도 오른쪽 여백의 정간 하나로 위치가 확정되면 읽습니다. 숫자 없는 기호는 기존 기호 배치와 명시적 빈 빠르기 계획으로 보존하여 임의 배율을 적용하지 않고 `TEMPO_CUE_UNRESOLVED`로 목표 입력을 요청합니다. 기호는 보이지만 해당 선율 열을 기존 격자 리더가 놓친 경우에는 `TEMPO_CUE_POSITION_UNRESOLVED`와 원본 위치만 남기며 다른 정간에 옮겨 붙이지 않습니다. 같은 정간의 상충 기호는 `TEMPO_CUE_CONFLICT`로 남깁니다. `uv run pytest tests/unit/test_jeongganbo_tempo.py tests/unit/test_omr_text_engine.py tests/unit/test_omr_scan_engine.py`로 작은 고정 입력을 검사합니다. 그림 검출 검사는 스캔 런타임의 OpenCV가 필요합니다.
 
 스캔 전용 의존성은 `omr-scan-requirements.in`과 SHA-256을 포함한 `omr-scan-requirements.txt`로 고정해 기존 채점 서비스의 `uv.lock`과 분리했습니다. Python 3.12·Linux x86_64 CPU 휠을 사용합니다. 같은 uv 버전에서 `uv pip compile --python .venv/bin/python --generate-hashes omr-scan-requirements.in -o omr-scan-requirements.txt`로 다시 고정할 수 있습니다. 모델 소스·가중치의 획득 URL과 체크섬은 `omr.Dockerfile`에 있습니다.
 

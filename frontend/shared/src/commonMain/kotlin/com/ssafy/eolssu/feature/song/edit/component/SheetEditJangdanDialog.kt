@@ -34,6 +34,7 @@ import com.ssafy.eolssu.feature.song.edit.SheetEditJangdanPicker
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.SheetJangdanOptionLabel
 import com.ssafy.eolssu.feature.song.edit.SheetJangdanNoMatchHelp
+import com.ssafy.eolssu.feature.song.edit.dialogHelpStyle
 import com.ssafy.eolssu.feature.song.edit.canSelectJangdan
 import com.ssafy.eolssu.feature.song.edit.requiresJangdanRetiming
 import com.ssafy.eolssu.feature.song.edit.basicAccompaniment
@@ -64,7 +65,8 @@ private fun JangdanOptionButton(selected: Boolean, onClick: () -> Unit, label: @
         color = if (selected) colors.primary else colors.groupedBackground,
         contentColor = if (selected) colors.onPrimary else colors.text,
     ) {
-        Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = Alignment.CenterStart) {
+        // 위아래 기본 박 반주·취소 버튼과 같이 글자를 가운데에 둔다(S15P31E102-979).
+        Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
             ProvideTextStyle(MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)) { label() }
         }
@@ -102,14 +104,16 @@ internal fun SheetEditJangdanDialog(
             style = EolssuButtonStyle.Secondary, enabled = draft.canSelectBasicAccompaniment)
         if (!draft.canSelectBasicAccompaniment) Text(stringResource(
             if (draft.original?.music?.bpmUnit !in setOf("QUARTER", "DOTTED_QUARTER")) Res.string.basic_accompaniment_unsupported
-            else Res.string.basic_accompaniment_source_unavailable))
-        Text(stringResource(Res.string.basic_accompaniment_catalog))
+            else Res.string.basic_accompaniment_source_unavailable), style = dialogHelpStyle(), color = EolssuTheme.colors.textSub)
+        Text(stringResource(Res.string.basic_accompaniment_catalog), modifier = Modifier.padding(top = 8.dp),
+            style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+            color = EolssuTheme.colors.text)
         val selectable = (picker as? SheetEditJangdanPicker.Ready)?.options.orEmpty()
             .filter { draft.canSelectJangdan(it, hasTempoPlan) }
         when (picker) {
             SheetEditJangdanPicker.Loading -> CircularProgressIndicator()
             SheetEditJangdanPicker.Failed -> {
-                Text(stringResource(Res.string.sheetedit_jangdan_load_failed))
+                Text(stringResource(Res.string.sheetedit_jangdan_load_failed), style = dialogHelpStyle(), color = EolssuTheme.colors.textSub)
                 EolssuButton(stringResource(Res.string.sheet_upload_reload), onReload, style = EolssuButtonStyle.Secondary)
             }
             is SheetEditJangdanPicker.Ready -> if (selectable.isEmpty()) SheetJangdanNoMatchHelp()

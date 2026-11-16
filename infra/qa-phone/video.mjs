@@ -10,6 +10,15 @@ const codec=Buffer.from('68323634','hex');
 export class PhoneVideo {
   constructor(phone,file){this.phone=phone;this.file=file;this.clients=new Set();this.cleanups=new Set();this.lastFrameAt=0;this.lastTransportAt=0;this.starting=null;this.active=null;this.idle=null;this.gop=[];this.gopBytes=0;this.session=null;this.config=null;}
   get healthy(){return !!this.active?.socket&&!this.active.socket.destroyed&&this.lastFrameAt>0&&Date.now()-this.lastTransportAt<6000;}
+  closeSlow(client,reason){if(client.qaVideoClosing)return;client.qaVideoClosing=true;client.qaVideoQueue=[];client.qaVideoQueued=0;console.warn('QA video stream closed: '+reason);client.destroy();}
+  send(client,bytes){
+    if(client.qaVideoClosing||client.destroyed)return;
+    if(client.qaVideoBlocked){client.qaVideoQueue.push(bytes);client.qaVideoQueued+=bytes.length;if(client.qaVideoQueued>256*1024)this.closeSlow(client,'queue-limit');return;}
+    if(client.write(bytes)===false){
+      client.qaVideoBlocked=true;client.qaVideoQueue=[];client.qaVideoQueued=0;
+      client.once('drain',()=>{const pending=client.qaVideoQueue;client.qaVideoQueue=[];client.qaVideoQueued=0;client.qaVideoBlocked=false;for(const packet of pending)this.send(client,packet);});
+    }
+  }
   subscribe(res,{onSession=()=>{}}={}){
     clearTimeout(this.idle);this.onSession=onSession;
     if(this.clients.size>=16)throw Error('video viewer limit');
@@ -17,8 +26,8 @@ export class PhoneVideo {
     res.writeHead(200,{'Content-Type':'application/octet-stream','X-Accel-Buffering':'no'});
     res.write(codec);res.qaVideoReady=false;
     // Replay a complete decoding boundary, never a partial/delta-only history.
-    if(this.session&&this.config&&this.gop.length){res.write(this.session.raw);res.write(this.config);for(const packet of this.gop)res.write(packet);res.qaVideoReady=true;}
-    res.on('close',()=>{this.clients.delete(res);if(!this.clients.size)this.idle=setTimeout(()=>void this.stop(),3000).unref();});
+    if(this.session&&this.config&&this.gop.length){this.send(res,this.session.raw);this.send(res,this.config);for(const packet of this.gop)this.send(res,packet);res.qaVideoReady=true;}
+    res.on('close',()=>{res.qaVideoQueue=[];res.qaVideoQueued=0;this.clients.delete(res);if(!this.clients.size)this.idle=setTimeout(()=>void this.stop(),3000).unref();});
     if(!this.beat)this.beat=setInterval(()=>void this.heartbeat(),2000).unref();
     if(!this.starting&&!this.active)this.starting=this.start().catch(async()=>{for(const client of this.clients)client.destroy();if(this.active)await this.cleanup(this.active);}).finally(()=>{this.starting=null;});
   }
@@ -29,10 +38,14 @@ export class PhoneVideo {
       if((await this.phone.run(['get-state'])).trim()!=='device')throw Error('device offline');
       if(state!==this.active)return;this.lastTransportAt=Date.now();
       // Empty media packet is a relay heartbeat; it is never sent to the decoder.
-      for(const client of this.clients){if(client.writableLength>256*1024)client.destroy();else client.write(Buffer.alloc(12));}
-    }catch{await this.fail(state);}finally{state.checking=false;}
+      for(const client of this.clients){if(client.writableLength>256*1024)this.closeSlow(client,'slow-viewer');else this.send(client,Buffer.alloc(12));}
+    }catch{
+      // A recent encoded frame is direct liveness evidence even if an ADB probe times out under load.
+      // Do not extend timestamps: a silent or replaced transport still expires and closes normally.
+      if(state!==this.active||!state.socket||state.socket.destroyed||Date.now()-this.lastFrameAt>3000)await this.fail(state,'heartbeat');
+    }finally{state.checking=false;}
   }
-  broadcast(bytes){for(const client of this.clients){if(client.writableLength>256*1024)client.destroy();else if(client.qaVideoReady)client.write(bytes);}}
+  broadcast(bytes){for(const client of this.clients)if(client.qaVideoReady)this.send(client,bytes);}
   async start(){
     if(createHash('sha256').update(await readFile(this.file)).digest('hex')!==manifest.sha256)throw Error('scrcpy checksum mismatch');
     const sid=randomInt(0x7fffffff).toString(16).padStart(8,'0');
@@ -48,7 +61,7 @@ export class PhoneVideo {
       if(state.closing)return;
       state.child=spawn(this.phone.adb,[...await this.phone.deviceArgs(),'shell',`CLASSPATH=${state.remote}`,...argv],{windowsHide:true,stdio:['ignore','pipe','pipe']});
       state.child.stdout.resume();state.child.stderr.resume();
-      state.child.on('error',()=>void this.fail(state));state.child.on('exit',()=>void this.fail(state));
+      state.child.on('error',()=>void this.fail(state,'encoder-error'));state.child.on('exit',()=>void this.fail(state,'encoder-exit'));
       const parser=new VideoPackets({deviceHeader:true,onSession:s=>{
         this.session=s;this.config=null;this.gop=[];this.gopBytes=0;
         this.onSession(s);for(const client of this.clients)client.qaVideoReady=false;
@@ -60,7 +73,7 @@ export class PhoneVideo {
           if(p.key||this.gop.length){this.gop.push(p.raw);this.gopBytes+=p.raw.length;}
           if(this.gopBytes>4*1024*1024||this.gop.length>180){this.gop=[];this.gopBytes=0;}
         }
-        if(p.key&&this.session&&this.config)for(const client of this.clients)if(!client.qaVideoReady){client.write(this.session.raw);client.write(this.config);client.qaVideoReady=true;}
+        if(p.key&&this.session&&this.config)for(const client of this.clients)if(!client.qaVideoReady){this.send(client,this.session.raw);this.send(client,this.config);client.qaVideoReady=true;}
         this.broadcast(p.raw);
       }});
       let header=false;
@@ -71,9 +84,9 @@ export class PhoneVideo {
           state.socket=net.createConnection({host:'127.0.0.1',port:state.port});
           state.socket.setTimeout(10000,()=>state.socket.destroy());
           state.socket.on('error',()=>finish(false));
-          state.socket.on('close',()=>{finish(false);if(header)void this.fail(state);});
+          state.socket.on('close',()=>{finish(false);if(header)void this.fail(state,state.failureReason||'socket-close');});
           state.socket.on('data',chunk=>{
-            try{parser.push(chunk);if(parser.codec){header=true;state.socket.setTimeout(0);finish(true);}}catch{state.socket.destroy();}
+            try{parser.push(chunk);if(parser.codec){header=true;state.socket.setTimeout(0);finish(true);}}catch{state.failureReason='packet-parse';state.socket.destroy();}
           });
         });
         if(received)return;
@@ -83,7 +96,7 @@ export class PhoneVideo {
       throw Error('video start timeout');
     }catch(error){await this.cleanup(state);throw error;}
   }
-  async fail(state){if(state!==this.active||state.closing)return;for(const client of this.clients)client.destroy();await this.cleanup(state);}
+  async fail(state,reason='transport'){if(state!==this.active||state.closing)return;console.warn('QA video transport ended: '+reason);for(const client of this.clients)client.destroy();await this.cleanup(state);}
   async cleanup(state){
     if(state.cleanup)return state.cleanup;
     state.closing=true;

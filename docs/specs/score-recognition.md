@@ -74,7 +74,7 @@ POST /v1/recognitions
 - `score`: 공통 악보 v1([score_data.schema.json](../../data/src/scores/score_data.schema.json)). 언제나 초안이라 `provenance.review`는 `inferred`다. 내 악보는 사용자가 검수해 저장한 뒤에도 `inferred`로 둔다(`reviewed`는 전문가가 검수한 채점 정답용). 저장할 때 backend가 `converter`·`jgbSha256`·`sourceId`를 다시 채운다(S15P31E102-447).
 - `provenance.converter` 값: `jeongganbo-text/standard_score_text`(글자 층), `jeongganbo-omr/malerlab`, `staff-omr/audiveris-<버전>`. `jgbSha256`·`sourceId`는 변환한 `.jgb.json`과 `conversionId` 기준으로 채운다.
 - `jgb`: 중간 결과 `.jgb.json`(382). 저장 여부는 backend가 정한다.
-- 오선보의 선택적 `bpm`은 인식된 첫 숫자를 `score.music.bpmUnit` 기준 양의 INT로 표현할 수 있을 때만 보낸다. 미인식 시 생략한다. 선택적 `expressions`는 기존 `common-score-expressions/v1`의 해시 결합 숫자 `performancePlan`이다. 공통 악보 v1에 숫자 필드를 추가하지 않는다. backend는 요청 BPM → 인식 BPM → 장단 기본값 순으로 선택하고 서버 메타데이터 변경 뒤 companion SHA를 재결합한다. [숫자·가속 스펙](staff-tempo-import.md).
+- 오선보의 선택적 `bpm`은 인식된 첫 숫자를 `score.music.bpmUnit` 기준 양의 INT로 표현할 수 있을 때 보낸다. 숫자를 읽지 못했고 장단도 비었으면(요청 장단 없음, 마디 길이가 박자표와 달라 자동 장단을 정하지 않음) 악보에 적힌 박자표가 하나이고 자동 장단 대응(4분음표4박·9/8·12/8)이 있을 때 그 장단의 기본 빠르기를 같은 단위로 보내고 `LOW_CONFIDENCE` `TEMPO_DEFAULT_FROM_TIME_SIGNATURE`(`detail` `{"timeSignature", "jangdan", "bpm"}`)를 남긴다. backend가 장단 없이 쓰던 60을 피하려는 시작값이다(S15P31E102-1035). 그 밖에는 생략한다. 선택적 `expressions`는 기존 `common-score-expressions/v1`의 해시 결합 숫자 `performancePlan`이다. 공통 악보 v1에 숫자 필드를 추가하지 않는다. backend는 요청 BPM → 인식 BPM → 장단 기본값 순으로 선택하고 서버 메타데이터 변경 뒤 companion SHA를 재결합한다. [숫자·가속 스펙](staff-tempo-import.md).
 - `bbox`: `pages[index]` 그림 픽셀 좌표 `[x, y, 너비, 높이]`. 검수 화면이 원본 쪽 이미지에 표시한다.
 
 ### issues와 notices (S15P31E102-469)
@@ -93,6 +93,7 @@ POST /v1/recognitions
 | `UNREADABLE` `NO_TEXT`·`NO_GRID`·`NO_STAFF`·`NOT_SCORE_COLUMN` | notices | 쪽·열 전체 |
 | `LOW_CONFIDENCE` `TIME_SIGNATURE_CHANGED`·`VOLTA_NUMBER` | notices | 마디 구조 |
 | `LOW_CONFIDENCE` `TEMPO_PDF_TEXT`·`TEMPO_OFF_GRID`·`TEMPO_CONFLICT`·`TEMPO_RAMP_UNRESOLVED`·`TEMPO_BASE_NOT_INTEGER` | notices | 숫자 보완·위치/가속 검토. 상세 기준은 숫자·가속 스펙 |
+| `LOW_CONFIDENCE` `TEMPO_DEFAULT_FROM_TIME_SIGNATURE` | notices | 숫자가 없어 박자표의 장단 기본 빠르기를 시작값으로 보냄 |
 | `TRANSPOSED`·`VOICE_GUESSED`·`JANGDAN_GUESSED`·`JANGDAN_MISMATCH` | notices | 악보 전체 |
 
 ### issues 종류
@@ -197,4 +198,4 @@ MusicXML 읽기는 우리 Audiveris 출력만 받는다고 보고 만들었다. 
 
 ### 오선보 인식 오류 교정 (806)
 
-작은 음표·빔 인식을 켜 꾸밈음을 분리하고, legacy 영어 OCR로 확인한 빠르기 지시문에 일반 음표가 섞였을 때 해당 영역만 별도 그림에서 제외해 다시 읽는다. 초과 마디는 쪽당 60초 예산 안에서 1.25배 그림으로 한 번 재인식한다. 한 선율의 본음·꾸밈음 순서를 유일하게 대응할 수 있고 음고가 보존될 때만 초과 마디의 음가를 교정하며, 정상 마디는 보존한다. 적용은 `LOW_CONFIDENCE` notice의 `TEMPO_MARK_REMOVED`·`RHYTHM_RECOGNITION_RETRY`로 알린다. 남는 초과 마디는 해당 음의 정간에 `LOW_CONFIDENCE`(`OVERFULL_MEASURE`)를 남긴다. [상세 기준](score-recognition-corrections.md)과 [실제 대조](../knowledge/ai/score-recognition-corrections.md)를 따른다.
+작은 음표·빔 인식을 켜 꾸밈음을 분리하고, legacy 영어 OCR로 확인한 빠르기 지시문에 일반 음표가 섞였을 때 해당 영역만 별도 그림에서 제외해 다시 읽는다. 초과 마디는 쪽당 60초 예산 안에서 1.25배 그림으로 한 번 재인식한다. 한 선율의 본음·꾸밈음 순서를 유일하게 대응할 수 있고 음고가 보존될 때만 초과 마디의 음가를 교정하며, 정상 마디는 보존한다. 마지막 오선 아래 가사 줄을 영어 OCR이 악보 기호로 읽은 경우 그 줄만 가린 그림으로 한 번 다시 읽고, 박자와 맞지 않는 마디가 늘지 않을 때만 쓴다. Audiveris가 오선 간격을 너무 작게 재 쪽을 버리면(폰 사진) 긴 변 1500픽셀 안의 흑백 그림으로, 그래도 작으면 간격이 약 20픽셀이 되게 확대한 흑백 그림으로 다시 읽는다. 적용은 `LOW_CONFIDENCE` notice의 `TEMPO_MARK_REMOVED`·`LYRICS_REMOVED`·`RHYTHM_RECOGNITION_RETRY`·`LOW_INTERLINE_RETRY`로 알린다. 남는 초과 마디는 해당 음의 정간에 `LOW_CONFIDENCE`(`OVERFULL_MEASURE`)를 남긴다. [상세 기준](score-recognition-corrections.md)과 [실제 대조](../knowledge/ai/score-recognition-corrections.md)를 따른다.

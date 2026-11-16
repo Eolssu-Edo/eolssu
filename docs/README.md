@@ -1,6 +1,41 @@
 # 프로젝트 문서
 
 - [녹음 R2 점검 직접 실행 (959)](plans/S15P31E102-959.md) · [점검 범위](specs/mattermost-inspection-measurements.md#녹음-r2-직접-점검-전환-s15p31e102-959)
+- [홈 세로 첫 화면 제목 확대와 시작 버튼 뒤 먹 띠 올리기 (1034)](plans/S15P31E102-1034.md)
+- [장단을 정하지 못한 오선보 인식의 빠르기를 박자표 기본값으로 적용 (1035)](plans/S15P31E102-1035.md)
+- [연습 악보에서 쉼표를 눌러도 운지법 팝업 열기 (1007)](plans/S15P31E102-1007.md)
+- [한 음씩 연습의 예시음 1.2초 재생·악보 눌러 위치 이동과 듣는 중 표시 정리 (1006)](plans/S15P31E102-1006.md)
+- [홈 낮은 가로 창에서 첫 화면 제목과 시작 버튼 겹침 수정 (1026)](plans/S15P31E102-1026.md)
+- [악보 편집 임시저장 닫기 지연과 빠르기 입력 창 흔들림 수정 (1000)](plans/S15P31E102-1000.md)
+- [홈 휴대폰 가로 그림 제거와 웹 공통 테스트 컴파일 오류 수정 (1025)](plans/S15P31E102-1025.md)
+- [악보 올리기 흐름의 화면 이동·파일 선택·사전 안내 개선 (997)](plans/S15P31E102-997.md)
+- [홈 첫 화면 그림 4종 디자인 수정 요청 반영 (1015)](plans/S15P31E102-1015.md)
+- [비밀번호 64자·이메일 100자로 서버 입력 상한을 앱과 맞추기 (1014)](plans/S15P31E102-1014.md)
+- [가사 있는 오선보의 가사 기호 오인식 차단 (992)](plans/S15P31E102-992.md)
+- [홈 첫 화면 그림을 전각 전경 그림으로 교체 (983)](plans/S15P31E102-983.md)
+- [최신 설치 APK의 QA 앱 로그 수집 연결 복구 (994)](plans/S15P31E102-994.md) · [원본 보존 수집 계약](specs/qa-installed-app-logs.md)
+- [Windows QA 실행·관측 통합 (936 · 과거 격리 환경)](plans/S15P31E102-936.md) · [당시 요구사항](specs/qa-live-control.md) · [현행 QA 시연 대본](../infra/qa-phone/public/guide.html) · [현행 QA 운영](../infra/qa-phone/LIVE.md)
+- [강원도아리랑·옹헤야 빠르기를 정간 단위로 바꿔 40~200 범위에 맞추기 (1019)](plans/S15P31E102-1019.md) · [운영 적용 기록](knowledge/data/score-tempo-1019.md)
+- [S10 실제 마이크·평가 로그 대조](knowledge/infra/qa-s10-real-microphone-verification.md)
+- [S10 기초 콘텐츠 화면·진도·실제 스피커 확인](knowledge/infra/qa-s10-content-verification.md)
+- [통합 QA 실제 적용·최신 APK·기기별 경계와 검증](knowledge/infra/qa-multi-device-rollout.md)
+- [로그인·메모 등 입력칸 글자 수 제한과 메모 입력 오류 수정 (996)](plans/S15P31E102-996.md) · [입력칸 상한과 메모 입력 방식](knowledge/frontend/input-length-limits.md)
+- [악보 편집 빠르기를 연주 평가 가능한 40~200으로 제한 (1018)](plans/S15P31E102-1018.md) · [빠르기 범위 근거·음원 확인](knowledge/frontend/sheet-tempo-range.md)
+- [배포 구조와 Kubernetes 도입 필요성 검토 (990)](plans/S15P31E102-990.md) · [결정 기록](decisions/kubernetes-adoption.md)
+- [휴대폰·태블릿·아이폰 공통 화면 UI 점검 목록과 일괄 개선 (961)](plans/S15P31E102-961.md)
+- [실제 앱 조작과 격리 서버 처리 실시간 시연 (283)](plans/S15P31E102-283.md) · [실행 구조·지휘통제 사용법](plans/S15P31E102-283-live-observation.md)
+- [악보 편집 화면 태블릿 가로 악보·입력판 좌우 배치 (965)](plans/S15P31E102-965.md)
+- [성장 화면 태블릿 가로 두 칸 최소 높이 조정 (977)](plans/S15P31E102-977.md)
+- [악보 추가·가져오기 화면 태블릿 가로 폭 확장 (978)](plans/S15P31E102-978.md)
+- [곡 상세 태블릿 가로 표지 높이와 시작 버튼 위치 (976)](plans/S15P31E102-976.md)
+- [홈 화면 태블릿 가로 그림 과확대·잘림과 정렬 개선 (963)](plans/S15P31E102-963.md)
+- [연습 화면 태블릿 가로 악보 빈 공간과 설정 시트 높이 정리 (975)](plans/S15P31E102-975.md)
+- [구간 연습 구간 선택 화면 태블릿 가로 두 칸 배치 (967)](plans/S15P31E102-967.md)
+- [이전 연주와 비교 화면 태블릿 가로 두 칸 배치 (966)](plans/S15P31E102-966.md)
+- [연습 기록 상세 태블릿 가로 악보 높이 확보 (964)](plans/S15P31E102-964.md)
+- [평가 결과·구간 재평가 결과 화면 태블릿 가로 배치 (974)](plans/S15P31E102-974.md)
+- [태블릿 가로 화면 배치·이미지 조사와 일괄 개선 (960)](plans/S15P31E102-960.md)
+- [악보·음원 잔여 경합과 실기기 장애 복구 검증 (958)](plans/S15P31E102-958.md)
 
 - [악보 변환·음원 생성의 동시성·큐·자원 부하 검증 계획 (954)](plans/S15P31E102-954.md) · [실행 결과·결함 수정·미검증 경계](knowledge/infra/async-resource-validation.md)
 - [음원·악보 생성 완료 알림 자동 닫기 (955)](plans/S15P31E102-955.md) · [표시 규칙](specs/sheet-conversion-completion.md)
@@ -318,6 +353,7 @@
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
 - [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
 - [소리 나는 버튼의 눌림 효과(elastic squash)](decisions/frontend-sound-button-press.md) (확정)
+- [운영 배포 구조와 Kubernetes 도입](decisions/kubernetes-adoption.md) (제안)
 
 - [S15P31E102-256 곡·악보 조회](plans/S15P31E102-256.md)
 - [S15P31E102-345 곡 목록 서버 검색·페이지 보류와 재개 조건](plans/S15P31E102-345.md)
@@ -585,6 +621,8 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 - [S15P31E102-931 배포 APK의 실제 PDF 추가부터 저장·기기 음원 재생까지 검증](plans/S15P31E102-931.md)
 - [S15P31E102-953 BlueVal 오선보 변환의 8분음표 길이 축소 수정](plans/S15P31E102-953.md)
+- [S15P31E102-979 가져온 오선보의 추천 이조 적용과 확인 표시 구분](plans/S15P31E102-979.md) · [원인 진단](knowledge/frontend/sheet-pitch-adaptation.md#가져온-악보의-틀림-표시가-많아-보인-원인과-안내-979)
+- S15P31E102-988 추천 이조의 곡 전체 공통 옥타브 기준 접기 · [원인·결과](knowledge/frontend/sheet-pitch-adaptation.md#곡-전체-공통-옥타브-기준-접기와-추천-988)
 
 - [S15P31E102-935 PDF 음표 글리프의 숫자 빠르기 누락 수정](plans/S15P31E102-935.md) · [원본·회귀 근거](knowledge/ai/score-recognition-corrections.md#pdf-음표-글리프의-숫자-빠르기-누락-935)
 
@@ -604,3 +642,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [S15P31E102-909 악보 저장 창에서 빠르기 설정 제거](plans/S15P31E102-909.md)
 
 - [S15P31E102-934 홈·학습·운지·마이페이지 실제 흐름 검증](plans/S15P31E102-934.md) · [기초 배우기 수동 완료 연결](specs/learn-manual-completion.md) · [실기기 결과와 오디오 관찰 기준](knowledge/frontend/android-guide-flow-verification.md)
+
+- [입력칸 글자 수 상한과 메모 입력 방식 (996)](knowledge/frontend/input-length-limits.md)
+- [악보 빠르기 범위 40~200 (1018)](knowledge/frontend/sheet-tempo-range.md)
+- [강원도아리랑·옹헤야 빠르기 정간 단위 표기와 운영 적용 (1019)](knowledge/data/score-tempo-1019.md)

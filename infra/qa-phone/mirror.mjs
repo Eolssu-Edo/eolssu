@@ -6,12 +6,12 @@ import { randomUUID } from 'node:crypto';
 import { validateBuild } from './catalog.mjs';
 const execute=promisify(execFile);
 // The server address and archive location are operator configuration, never browser input.
-export function createMirror(catalog,host='edo1') {
+export function createMirror(catalog,host='edo1',configFile) {
   if(!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(host)) throw new Error('invalid APK SSH host');
   const abort=new AbortController();let closing=false;
   let pending=null; let error='',updatedAt=null;
   const options={signal:abort.signal,windowsHide:true,timeout:120000,maxBuffer:4*1024*1024};
-  const sshOptions=['-o','BatchMode=yes','-o','ClearAllForwardings=yes','-o','ConnectTimeout=10'];
+  const sshOptions=[...(configFile?['-F',configFile]:[]),'-o','BatchMode=yes','-o','ClearAllForwardings=yes','-o','ConnectTimeout=10'];
   return {
     state:()=>({error,updatedAt}),
     async close(){closing=true;abort.abort();if(pending)await pending;},

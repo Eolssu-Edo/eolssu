@@ -147,13 +147,18 @@ data class SheetEditUiState(
     val confirming: Boolean = false,
     val saveConflict: Boolean = false,
     val closeWarning: Boolean = false,
+    /** 닫기 확인에서 '임시저장하고 닫기'를 눌러 저장 응답을 기다리는 중. 확인 창에 저장 중을 보이고 다시 누르지 못하게 한다. */
+    val closeSaving: Boolean = false,
     val reviewIssues: List<SheetReviewIssue> = emptyList(),
     val reviewNotices: List<SheetReviewNotice> = emptyList(),
     val checkedIssueIds: Set<String> = emptySet(),
     val jangdanPicker: SheetEditJangdanPicker? = null,
     val adaptation: SheetAdaptationUi? = null,
+    val importGuideDismissed: Boolean = false,
 ) {
     val completionValidation: SheetCompletionValidation by lazy { validateCompletion() }
+    /** 가져온 악보의 확인 안내. 확인할 것이 없거나 닫았으면 null. */
+    val importGuide: SheetImportGuide? by lazy { importGuide() }
     internal val validatedCheckedIssueIds: Set<String>
         get() = (checkedIssueIds + completionValidation.resolvedPitchIssueIds)
             .intersect(completionValidation.checkableIssueIds)
@@ -495,7 +500,12 @@ private fun SheetDraft.reviewSoundingPitches(): List<List<Int?>>? = runCatching 
     }
 }.getOrNull()
 
-internal val SheetBpmRange = 1..Int.MAX_VALUE
+/**
+ * 악보에 쓸 수 있는 빠르기(S15P31E102-996). 연주 평가는 20~240만 받고 연습 빠르기는 0.6~1.2배라,
+ * 어느 연습 빠르기를 골라도 평가가 거절되지 않도록 20/0.6 ≈ 34, 240/1.2 = 200 안에서 40~200으로 정했다.
+ * 서버 저장은 아직 1 이상을 받으므로 앱만 이 범위로 막는다.
+ */
+internal val SheetBpmRange = 40..200
 
 /** SHT-04·11 count Unicode code points after trimming, including a surrogate pair as one. */
 internal fun normalizedSheetTitle(value: String): String? {

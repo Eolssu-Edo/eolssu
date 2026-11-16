@@ -167,6 +167,14 @@ internal class LearnTour(
         return true
     }
 
+    /**
+     * 마지막 연습 박스를 통과했다(3·4·7단계, S15P31E102-1030). 할 일 [count]개를 모두 마침으로 남겨 진행 막대를 채운다.
+     * 통과 문구를 보도록 펼친 박스는 그대로 둔다.
+     */
+    fun passPractice(count: Int) {
+        if (count > doneCount) doneState.value = count
+    }
+
     fun finish() { celebrateState.value = true }
     fun dismiss() { celebrateState.value = false }
 }

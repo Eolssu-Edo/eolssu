@@ -9,6 +9,7 @@ import io
 import hashlib
 import json
 from copy import deepcopy
+from dataclasses import replace
 from functools import lru_cache
 import os
 import re
@@ -38,6 +39,14 @@ ENGINE = "audiveris"
 UNIT_QUARTERS = {"DOTTED_QUARTER": Fraction(3, 2), "QUARTER": Fraction(1)}  # bpm 단위 한 박의 4분음표 수
 # 검증 표본의 5/8·7/8 오독을 검수로 보내는 보수적 가드다. 정확도 보증 임계값이 아니다.
 TIME_SIGNATURE_REVIEW_GRADE = 0.65
+# Audiveris 5.11은 오선 간격을 너무 작게 재면 이 경고 뒤 쪽을 버린다(StepException: Sheet ignored).
+LOW_INTERLINE = re.compile(rb"too low interline value of (\d+) pixels")
+# 확대 목표 간격(픽셀). Audiveris 권장 300dpi에서 보통 오선 간격 1.75mm가 약 20.7픽셀인 데서 잡은 값이다. 정확도 보증값이 아니다.
+TARGET_INTERLINE = 20
+# 간격을 잘못 잰 사진을 흑백으로 다시 읽을 때의 긴 변 상한. 운영 실패 사진 원본 1장 실측(이 PC)에서 1500·2448은
+# 채팅 사진 결과와 음높이 68/68, 2000은 55/68, 원본 크기는 70초였다. 가장 빠른 1500을 쓴다. 표본 1장의 값이다.
+GRAY_LONG_SIDE = 1500
+MIN_ENLARGEMENT = 1.1  # 최대 화소 때문에 이보다 덜 키울 수밖에 없으면 다시 읽어도 같다고 보고 건너뛴다
 log = logging.getLogger("omr_service.api")
 
 
@@ -96,8 +105,27 @@ def recognize(job) -> dict:
                 tempo['bpm'] = int(bpm)
             else:
                 issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {'reason': 'TEMPO_BASE_NOT_INTEGER'}))
+    if 'bpm' not in tempo and not jangdan:
+        tempo.update(_time_signature_tempo(conv.source_meters, score['music']['bpmUnit'], issues))
     return {"engine": ENGINE, "engineVersion": AUDIVERIS_VERSION, "jgb": doc, "score": score, "issues": issues,
             "sourcePitches": conv.source_pitches, **tempo}
+
+
+def _time_signature_tempo(source_meters, bpm_unit, issues):
+    """빠르기 표시도 장단도 없을 때 적힌 박자표에 맞는 장단의 기본 빠르기를 시작 빠르기로 준다(S15P31E102-1035).
+
+    마디 길이가 박자표와 달라 장단을 비운 악보도 박자표 글자는 믿는다. 추정값임을 notice로 알린다.
+    """
+    jangdan, text = staff_musicxml.printed_jangdan(source_meters)
+    if jangdan is None:
+        return {}
+    row = JANGDANS[jangdan]
+    bpm = row['default_bpm'] * UNIT_QUARTERS[row['bpm_unit']] / UNIT_QUARTERS[bpm_unit]
+    if bpm.denominator != 1 or bpm <= 0:
+        return {}
+    issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {'reason': 'TEMPO_DEFAULT_FROM_TIME_SIGNATURE',
+                                                          'timeSignature': text, 'jangdan': jangdan, 'bpm': int(bpm)}))
+    return {'bpm': int(bpm)}
 
 
 def restore_source_pitches(score, originals, hwang_pitch):
@@ -136,6 +164,16 @@ def _read_pages(job, deadline, page_time_s):
             page_deadline = min(deadline, monotonic() + page_time_s)
             command = AUDIVERIS + ["-batch", *AUDIVERIS_OPTIONS, "-transcribe", "-export", "-output"]
             run = _run(command + [str(out), "--", str(page.path)], page_deadline)
+            first_issue, scale = len(issues), 1.0
+            retried = _retry_low_interline(command, out, run, page, Path(work) / f"interline-{i}", page_deadline, page_index=i)
+            if retried:
+                out, run, page, scale, issue = retried
+                issues.append(issue)
+                if i < len(pdf_marks):  # PDF 글자 좌표를 확대한 쪽 그림에 맞춰 다시 읽는다
+                    pages_now = [*job.pages[:i], page, *job.pages[i + 1:]]
+                    pdf_marks[i] = staff_pdf_tempo.read_marks(replace(job, pages=pages_now), with_bounds=True,
+                                                              deadline=deadline)[i]
+            first_run_s = monotonic() - page_began
             input_path = page.path
             archives = [p.read_bytes() for p in out.rglob('*.omr')]
             issues += [issue for archive in archives for issue in time_signature_reviews(archive, page=i)]
@@ -174,6 +212,10 @@ def _read_pages(job, deadline, page_time_s):
                 issues += [{"kind": "LOW_CONFIDENCE", "eventId": None, "cellId": None, "page": i,
                             "bbox": [x, y, right - x, bottom - y],
                             "detail": {"reason": "TEMPO_MARK_REMOVED"}} for x, y, right, bottom in regions]
+            if run.returncode >= 0 and page_deadline - monotonic() > first_run_s * 1.2:
+                out, run, input_path, lyric_issues = _retry_without_lyrics(
+                    command, out, run, input_path, Path(work) / f"lyrics-{i}", page_deadline, page=i)
+                issues += lyric_issues
             _forget_logs()
             if run.returncode < 0:
                 log.info("audiveris page=%d killed by signal %d", i, -run.returncode)
@@ -214,6 +256,7 @@ def _read_pages(job, deadline, page_time_s):
                 log.info("audiveris page=%d no staff: %s", i, _reason(run))
                 issues.append({"kind": "UNREADABLE", "eventId": None, "cellId": None, "page": i,
                                "bbox": [0, 0, page.width, page.height], "detail": {"reason": "NO_STAFF"}})
+                _restore_scale(issues[first_issue:], i, scale, job.pages[i])
                 continue
             if run.returncode != 0:
                 log.info("audiveris page=%d exit=%d with score: %s", i, run.returncode, _reason(run))
@@ -222,6 +265,7 @@ def _read_pages(job, deadline, page_time_s):
                 data[0], count = staff_pdf_tempo.supplement(data[0], archives[0], pdf_marks[i])
                 if count:
                     issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {'reason': 'TEMPO_PDF_TEXT', 'count': count}))
+            _restore_scale(issues[first_issue:], i, scale, job.pages[i])
             pages += data
     return pages, issues
 
@@ -376,6 +420,220 @@ def tempo_regions(archive: bytes) -> list[tuple[int, int, int, int]]:
                 if any(inside(a) for a in heads):
                     boxes.append((x, max(0, y - round(h * 1.5)), x + w, y + h + round(h / 4)))
     return boxes
+
+
+def _retry_without_lyrics(command, out, run, input_path, retry_out, deadline, *, page):
+    """가사 줄을 가린 그림으로 한 번 다시 읽는다. 마디 수가 같고 박자와 맞지 않는 마디가 늘지 않을 때만 쓴다.
+
+    선택 단계이므로 시간 초과·실패·악화는 앞 결과를 그대로 돌려준다.
+    """
+    archives = [p.read_bytes() for p in out.rglob("*.omr")]
+    sheets = sorted([*out.rglob("*.mxl"), *out.rglob("*.musicxml")], key=_natural)
+    if len(archives) != 1 or not sheets:
+        return out, run, input_path, []
+    boxes = lyric_regions(archives[0])
+    if not boxes:
+        return out, run, input_path, []
+    masked = retry_out.with_suffix(".png")
+    with Image.open(input_path) as original:
+        image = original.convert("RGB")
+        draw = ImageDraw.Draw(image)
+        for box in boxes:
+            draw.rectangle(box, fill="white")
+        image.save(masked)
+    try:
+        retry = _run(command + [str(retry_out), "--", str(masked)], deadline)
+    except TimeoutError:
+        log.info("audiveris page=%d lyric retry skipped: timeout", page)
+        return out, run, input_path, []
+    candidates = sorted([*retry_out.rglob("*.mxl"), *retry_out.rglob("*.musicxml")], key=_natural)
+    before = rhythm_mismatches([p.read_bytes() for p in sheets])
+    after = rhythm_mismatches([p.read_bytes() for p in candidates]) if candidates else None
+    if retry.returncode < 0 or after is None or after[0] != before[0] or after[1] > before[1]:
+        log.info("audiveris page=%d lyric retry kept original: %s -> %s", page, before, after)
+        return out, run, input_path, []
+    issues = [{"kind": "LOW_CONFIDENCE", "eventId": None, "cellId": None, "page": page,
+               "bbox": [x0, y0, x1 - x0, y1 - y0], "detail": {"reason": "LYRICS_REMOVED"}}
+              for x0, y0, x1, y1 in boxes]
+    return retry_out, retry, masked, issues
+
+
+def _retry_low_interline(command, out, run, page, work: Path, deadline, *, page_index):
+    """Audiveris가 오선 간격을 너무 작게 재 쪽을 버렸으면 흑백으로, 그래도 작다고 하면 확대해 다시 읽는다.
+
+    운영에서 실패한 폰 사진 원본(2448×3264)은 컬러로는 간격 3픽셀로 재져 버려졌고 흑백으로는 24픽셀로 읽혔다.
+    흑백 원본 크기는 처리가 오래 걸려(이 PC 70초) 긴 변 GRAY_LONG_SIDE 안으로 줄여 읽는다. 악보가 작게 찍혀
+    그래도 간격이 작다고 하면 그 크기에서 잰 간격이 TARGET_INTERLINE이 되게(최대 화소 안) 확대한다(S15P31E102-1002).
+    악보가 나왔을 때만 (출력 폴더, 실행 결과, 다시 읽은 쪽, 원래 쪽 대비 배율, notice)를, 아니면 None을 돌려준다.
+    """
+    match = LOW_INTERLINE.search(run.stdout + run.stderr)
+    if run.returncode < 0 or not match or _sheets(out):
+        return None
+    first_interline = interline = int(match.group(1))
+    with Image.open(page.path) as original:
+        already_gray, gray = original.mode in ("1", "L"), original.convert("L")
+    limit = (Image.MAX_IMAGE_PIXELS / (page.width * page.height)) ** 0.5 if Image.MAX_IMAGE_PIXELS else float("inf")
+    measured_at = 1.0  # interline을 잰 그림의 원래 쪽 대비 배율
+    scale = round(min(1.0, GRAY_LONG_SIDE / max(page.width, page.height)), 2)
+    if already_gray and scale == 1:
+        scale = None  # 같은 그림을 다시 읽지 않고 바로 확대한다
+    for _ in range(2):
+        if scale is None:
+            scale = round(min(measured_at * TARGET_INTERLINE / max(interline, 1), limit), 2)
+            if scale < measured_at * MIN_ENLARGEMENT:
+                log.info("audiveris page=%d low interline %d: no room to enlarge", page_index, interline)
+                return None
+        size = (round(page.width * scale), round(page.height * scale))
+        path, retry_out = work.with_name(f"{work.name}-x{scale}.png"), work.with_name(f"{work.name}-x{scale}")
+        (gray if size == gray.size else gray.resize(size, Image.Resampling.LANCZOS)).save(path)
+        try:
+            retry = _run(command + [str(retry_out), "--", str(path)], deadline)
+        except TimeoutError:
+            log.info("audiveris page=%d low interline retry x%s skipped: timeout", page_index, scale)
+            return None
+        if retry.returncode >= 0 and _sheets(retry_out):
+            log.info("audiveris page=%d low interline %d: read again in grayscale x%s", page_index, first_interline, scale)
+            issue = {"kind": "LOW_CONFIDENCE", "eventId": None, "cellId": None, "page": page_index, "bbox": None,
+                     "detail": {"reason": "LOW_INTERLINE_RETRY", "interline": first_interline, "scale": scale}}
+            return retry_out, retry, type(page)(path, *size), scale, issue
+        log.info("audiveris page=%d grayscale x%s still without score: %s", page_index, scale, _reason(retry))
+        match = LOW_INTERLINE.search(retry.stdout + retry.stderr)
+        if retry.returncode < 0 or not match:
+            return None  # 오선이 없다거나 엔진이 실패했다. 확대해도 같다
+        measured_at, interline, scale = scale, int(match.group(1)), None
+    return None
+
+
+def _sheets(out: Path) -> list[Path]:
+    return sorted([*out.rglob("*.mxl"), *out.rglob("*.musicxml")], key=_natural)
+
+
+def _restore_scale(issues: list[dict], page_index: int, scale: float, page) -> None:
+    """확대한 그림 기준의 bbox를 원래 쪽 픽셀 좌표로 되돌린다. backend는 쪽 크기 밖 bbox를 거부하므로 쪽 안으로 자른다."""
+    if scale == 1:
+        return
+    for issue in issues:
+        if issue.get("page") != page_index or not issue.get("bbox"):
+            continue
+        x, y, w, h = (round(v / scale) for v in issue["bbox"])
+        x, y = min(max(x, 0), page.width), min(max(y, 0), page.height)
+        issue["bbox"] = [x, y, min(max(w, 0), page.width - x), min(max(h, 0), page.height - y)]
+
+
+def rhythm_mismatches(sheets: list[bytes]):
+    """(악곡별 마디 수, 처음·끝 마디를 뺀 박자표와 길이가 다른 마디 수). 못갖춘마디·끝 불완전마디는 세지 않는다."""
+    shape, count = [], 0
+    for data in sheets:
+        part = ET.fromstring(staff_musicxml._xml_bytes(data)).find("part")
+        measures = [] if part is None else part.findall("measure")
+        shape.append(len(measures))
+        div, meter = Fraction(1), None
+        for k, measure in enumerate(measures):
+            initial_div = div
+            for attrs in measure.findall("attributes"):
+                div, _ = staff_musicxml._attributes(attrs, div, 0)
+                if attrs.find("time") is not None:
+                    meter = staff_musicxml._meter(attrs.find("time"))
+            if (0 < k < len(measures) - 1 and meter
+                    and staff_musicxml._measure_length(measure, initial_div) != meter[1] * meter[2]):
+                count += 1
+    return tuple(shape), count
+
+
+# 가사 줄 판정(줄 간격 배수). legacy 영어 OCR은 가타카나·한글 가사를 글자로 읽지 못해 잇단음표 숫자·악센트·
+# 스타카토·음표 머리 등으로 분류한다. 오선 맨 아랫줄에서 LYRIC_GAP 안쪽(첫 덧줄 음)은 건드리지 않는다.
+LYRIC_GAP = 1.5
+LYRIC_CENTER = 2.5  # 후보 기호의 중심이 맨 아랫줄에서 이만큼 아래에 있어야 한다
+LYRIC_LINE = 3.0  # 한 글줄의 최대 높이. 겹침으로 여러 줄이 이어 붙지 않게 한다
+LYRIC_PAD = 0.5  # 인식되지 않은 글자 조각까지 가리도록 글줄 위아래에 더하는 여유
+LYRIC_MIN_GLYPHS = 3  # 띄엄띄엄 한두 개인 아래쪽 기호는 가사로 보지 않는다
+LYRIC_ANCHORS = {"ledger", "stem", "beam", "flag", "rest", "barline", "clef", "key", "time-number", "time-whole",
+                 "time-pair", "repeat-dot"}  # 오선에 딸린 구조. 가리지 않는다
+LYRIC_IGNORED = {"head-chord", "rest-chord", "small-chord", "beam-group", "staff-barline", "sentence", "word",
+                 "slur", "ending", "wedge"}  # 묶음·글자·곡선은 후보로 세지 않는다
+
+
+def lyric_regions(archive: bytes) -> list[tuple[int, int, int, int]]:
+    """각 단의 마지막 오선 아래 가사 줄에서 Audiveris가 악보 기호로 읽은 글자 영역(x0, y0, x1, y1).
+
+    오선·기둥·덧줄과 떨어진 기호가 LYRIC_MIN_GLYPHS개 이상 같은 높이에 늘어선 줄만 가사로 본다.
+    그 줄을 오선 너비로 가리되 덧줄 음·기둥·쉼표 등 구조 기호의 가로 구간은 남긴다. 단 안의 오선 사이는 보지 않는다.
+    """
+    boxes = []
+    with zipfile.ZipFile(io.BytesIO(archive)) as z:
+        for name in z.namelist():
+            if re.fullmatch(r"sheet#\d+/sheet#\d+\.xml", name):
+                boxes += _sheet_lyric_regions(ET.fromstring(z.read(name)))
+    return boxes
+
+
+def _sheet_lyric_regions(root) -> list[tuple[int, int, int, int]]:
+    scale = root.find("scale/interline")
+    try:
+        il = float(scale.get("main"))
+    except (AttributeError, TypeError, ValueError):
+        return []
+    picture = root.find("picture")
+    page_bottom = float(picture.get("height")) if picture is not None and picture.get("height") else float("inf")
+
+    systems = []  # (위, 아래, 왼쪽, 오른쪽): 단의 첫 오선 윗줄과 마지막 오선 아랫줄
+    for system in root.iter("system"):
+        staves = []
+        for staff in system.iter("staff"):
+            ys = [sum(float(p.get("y")) for p in line.findall("point")) / max(1, len(line.findall("point")))
+                  for line in staff.findall("lines/line")]
+            if ys and staff.get("left") and staff.get("right"):
+                staves.append((min(ys), max(ys), float(staff.get("left")), float(staff.get("right"))))
+        if staves:
+            systems.append((min(s[0] for s in staves), max(s[1] for s in staves),
+                            min(s[2] for s in staves), max(s[3] for s in staves)))
+    systems.sort()
+
+    inters = []
+    for el in root.iter():
+        b = el.find("bounds")
+        if b is None or el.tag in LYRIC_IGNORED or el.tag in ("staff", "glyph"):
+            continue
+        try:
+            x, y, w, h = (float(b.get(k)) for k in ("x", "y", "w", "h"))
+        except (TypeError, ValueError):
+            continue
+        inters.append((el.tag, (x, y, x + w, y + h)))
+
+    def near(a, b, pad):
+        return a[0] - pad < b[2] and b[0] - pad < a[2] and a[1] - pad < b[3] and b[1] - pad < a[3]
+
+    anchors = [box for tag, box in inters if tag in LYRIC_ANCHORS]
+    supports = [box for tag, box in inters if tag in ("stem", "ledger")]
+    anchors += [box for tag, box in inters if tag == "head" and any(near(box, s, il / 2) for s in supports)]
+    loose = [box for tag, box in inters if tag not in LYRIC_ANCHORS and box not in anchors]
+
+    regions = []
+    for k, (_, bottom, left, right) in enumerate(systems):
+        lo = bottom + LYRIC_GAP * il
+        hi = (systems[k + 1][0] if k + 1 < len(systems) else page_bottom) - LYRIC_GAP * il
+        found = sorted((b for b in loose if lo <= b[1] and b[3] <= hi and (b[1] + b[3]) / 2 >= bottom + LYRIC_CENTER * il
+                        and not any(near(b, a, il) for a in anchors)), key=lambda b: b[1])
+        rows = []  # 세로 범위가 겹치는 기호를 한 글줄로 묶는다(점·탁점처럼 작은 조각도 같은 줄에 들어간다)
+        for b in found:
+            if rows and b[1] < rows[-1][2] and max(rows[-1][2], b[3]) - rows[-1][1] <= LYRIC_LINE * il:
+                rows[-1] = (rows[-1][0] + [b], rows[-1][1], max(rows[-1][2], b[3]))
+            else:
+                rows.append(([b], b[1], b[3]))
+        for row, row_top, row_bottom in rows:
+            if len(row) < LYRIC_MIN_GLYPHS:
+                continue
+            top = max(lo, row_top - LYRIC_PAD * il)
+            low = min(hi, row_bottom + LYRIC_PAD * il)
+            keep = sorted((a[0] - il / 2, a[2] + il / 2) for a in anchors if a[1] < low and top < a[3])
+            start = left
+            for x0, x1 in keep + [(right, right)]:
+                if x0 > start:
+                    regions.append((int(start), int(top), int(min(x0, right)), int(low) + 1))
+                start = max(start, x1)
+                if start >= right:
+                    break
+    return regions
 
 
 def _reason(run) -> str:

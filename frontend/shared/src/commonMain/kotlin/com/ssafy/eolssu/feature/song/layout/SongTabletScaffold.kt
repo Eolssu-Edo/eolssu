@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
@@ -70,6 +71,8 @@ internal fun SongTabletScaffold(
         val gutter = tabletGutter(maxWidth, expanded)
         val windowWidth = maxWidth
         Scaffold(
+            // 휴대폰 틀([com.ssafy.eolssu.core.ui.component.EolssuScaffold])처럼 키보드 높이만큼 비켜 검색할 때 목록 아래가 가려지지 않게 한다.
+            modifier = Modifier.imePadding(),
             containerColor = containerColor,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
