@@ -134,4 +134,40 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
         model.selectFiles(SheetFileSelection.Selected(listOf(pdf))); model.submit(); runCurrent()
         assertEquals(1, sent)
     }
+
+    @Test fun switchingKindOnUploadScreenChangesNotationAndJangdanRequirement() = runTest {
+        val sent = mutableListOf<SheetImportInput>()
+        val repository = object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String): SheetImportResult {
+                sent += input
+                return SheetImportResult.Accepted("7")
+            }
+        }
+        val model = keep(SheetImportViewModel(ImportKind.Jeongganbo, HwangPitch.Eb4, repository, { instruments }, { jangdans }))
+        runCurrent()
+        assertEquals(ImportKind.Jeongganbo, model.uiState.value.kind)
+        model.title("곡"); model.instrument("4"); model.selectFiles(SheetFileSelection.Selected(listOf(pdf)))
+        model.submit(); runCurrent()
+        assertEquals(setOf(SheetImportField.Jangdan), model.uiState.value.inputErrors(model.uiState.value.kind))
+        assertTrue(sent.isEmpty())
+
+        model.kind(ImportKind.Staff)
+        assertEquals(ImportKind.Staff, model.uiState.value.kind)
+        assertTrue(model.uiState.value.inputErrors(model.uiState.value.kind).isEmpty())
+        model.submit(); runCurrent()
+        assertEquals("STAFF", sent.single().notation)
+        assertNull(sent.single().jangdanId)
+        assertEquals("Eb4", sent.single().hwangPitch)
+    }
+
+    @Test fun jangdanCatalogLoadsForStaffStartSoSwitchingToJeongganboCanChoose() = runTest {
+        val model = keep(SheetImportViewModel(ImportKind.Staff, HwangPitch.Default, object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String) = SheetImportResult.Accepted("1")
+        }, { instruments }, { jangdans }))
+        runCurrent()
+        assertEquals(jangdans, model.uiState.value.jangdans)
+        model.kind(ImportKind.Jeongganbo)
+        model.jangdan("12")
+        assertEquals("12", model.uiState.value.jangdanId)
+    }
 }

@@ -217,11 +217,11 @@ class OAuthViewModelTest {
 
         auth.signUpResult = MemberResult.SocialAccountInUse
         assertFalse(viewModel.complete())
-        assertEquals(FieldError.SocialAccountInUse, viewModel.uiState.value.nicknameError)
+        assertEquals(FieldError.SocialAccountInUse, viewModel.uiState.value.formError)
         // 다른 회원이 된 티켓은 다시 보내지 않는다.
         assertNull(attempts.signUpTicket())
         assertFalse(viewModel.complete())
-        assertEquals(FieldError.SignUpExpired, viewModel.uiState.value.nicknameError)
+        assertEquals(FieldError.SignUpExpired, viewModel.uiState.value.formError)
         assertEquals(1, auth.signUps.size)
 
         attempts.offerSignUp(SignUpTicket(SocialProvider.Kakao, TICKET, EXPIRES_AT))
@@ -241,7 +241,7 @@ class OAuthViewModelTest {
         val viewModel = socialProfile(AccountDraft())
         viewModel.changeNickname("새회원")
         assertFalse(viewModel.complete())
-        assertEquals(FieldError.TermsAgain, viewModel.uiState.value.nicknameError)
+        assertEquals(FieldError.TermsAgain, viewModel.uiState.value.formError)
 
         now = EXPIRES_AT
         assertFalse(socialProfile(AccountDraft().apply { agreements = listOf(TermAgreement("5", "v1", true)) }).apply { changeNickname("새회원") }.complete())

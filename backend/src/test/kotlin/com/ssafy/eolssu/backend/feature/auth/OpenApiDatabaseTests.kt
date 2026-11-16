@@ -223,7 +223,7 @@ open class OpenApiDatabaseTests {
         assertTrue(song.path("properties").path("jangdan").path("nullable").asBoolean(), song.toString())
         val request=doc.path("components").path("schemas").path("PasswordResetRequest")
         assertEquals(8,request.path("properties").path("newPassword").path("minLength").asInt())
-        assertEquals(128,request.path("properties").path("newPassword").path("maxLength").asInt())
+        assertEquals(64,request.path("properties").path("newPassword").path("maxLength").asInt())
         assertTrue(request.path("required").any { it.asString()=="verificationToken" })
         val score=doc.path("components").path("schemas").path("RecordScoreViewRequest")
         assertEquals("string",score.path("properties").path("songId").path("type").asString())

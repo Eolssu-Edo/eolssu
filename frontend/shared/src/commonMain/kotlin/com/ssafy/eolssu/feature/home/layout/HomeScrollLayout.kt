@@ -72,8 +72,15 @@ import com.ssafy.eolssu.feature.home.HomeStageFlingBehavior
 import com.ssafy.eolssu.feature.home.HomeStatusBarIcons
 import com.ssafy.eolssu.feature.home.PrepareHomeFonts
 import com.ssafy.eolssu.feature.home.homeArtKind
+import com.ssafy.eolssu.feature.home.homeHeroTitle
+import com.ssafy.eolssu.feature.home.HomeTitleGap
+import com.ssafy.eolssu.feature.home.HomeTitleLogoHeight
+import com.ssafy.eolssu.feature.home.HomeTitleLogoWidth
 import com.ssafy.eolssu.feature.home.homeArtPlacement
+import com.ssafy.eolssu.feature.home.HomeArtFadeAbove
+import com.ssafy.eolssu.feature.home.HomeArtFadeBelow
 import com.ssafy.eolssu.feature.home.HomeArtKind
+import com.ssafy.eolssu.feature.home.homeArtFade
 import com.ssafy.eolssu.feature.home.homeExpandedHero
 import com.ssafy.eolssu.feature.home.homeScrollFrame
 import com.ssafy.eolssu.feature.home.homeSnapTarget
@@ -86,7 +93,6 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_hero_brush_lettering
 import eolssu.shared.generated.resources.home_hero_logo_white
 import eolssu.shared.generated.resources.home_hero_title
-import eolssu.shared.generated.resources.home_art_phone_landscape
 import eolssu.shared.generated.resources.home_art_phone_portrait
 import eolssu.shared.generated.resources.home_art_tablet_landscape
 import eolssu.shared.generated.resources.home_art_tablet_portrait
@@ -183,6 +189,8 @@ internal fun HomeScrollLayout(
         val openFeatures = frame.progress > .6f
         val featureAlpha = ((frame.progress - .6f) / .25f).coerceIn(0f, 1f)
         val mountainColor = EolssuTheme.colors.radical
+        val artKind = homeArtKind(w, h)
+        val heroTitle = homeHeroTitle(artKind, w, h, buttonH)
         // 그림(어두운 바탕)이 상태 표시줄 뒤에 있는 동안만 아이콘을 밝게 한다. 넓은 창은 펼치면 그림이 왼쪽으로 줄어
         // 오른쪽 아이콘이 밝은 바탕에 놓이므로 절반 이상 펼치면 어두운 아이콘으로 돌린다(S15P31E102-973).
         val pastStage = (s - HomeScrollRange).coerceAtLeast(0f)
@@ -204,7 +212,7 @@ internal fun HomeScrollLayout(
                         .fillMaxWidth().height((h + overflow).dp),
                 ) {
                     HomeArt(
-                        homeArtKind(w, h), artLeft, artWidth, heroY, frame.groundTop + heroY, frame.eased, homeGround,
+                        artKind, artLeft, artWidth, heroY, frame.groundTop + heroY, frame.eased, homeGround,
                         Modifier.fillMaxSize().clickable(
                             interactionSource = remember { MutableInteractionSource() }, indication = null,
                             enabled = frame.progress < .6f, onClick = open,
@@ -225,22 +233,26 @@ internal fun HomeScrollLayout(
                                 .mountainRidges(mountainColor, HomeRidgeLifts),
                         )
                     }
+                    // 제목은 첫 화면 자리(그림마다 다른 크기·위치)에서 펼친 화면 자리(배율 1, 그림 띠 오른쪽 아래)로 옮겨 간다.
+                    val titleScale = mix(heroTitle.scale, 1f, frame.headlineProgress)
+                    val titleRight = mix(heroTitle.right, artLeft + artWidth - 20f, frame.headlineProgress)
+                    val titleBottom = mix(heroTitle.bottom, frame.bandHeight - 10f, frame.headlineProgress) + heroY
                     Column(
-                        Modifier.offset(x = artLeft.dp, y = (frame.headlineBottom + heroY - headlineH).dp)
+                        Modifier.offset(x = (titleRight + 20f - artWidth).dp, y = (titleBottom - headlineH).dp)
                             .width(artWidth.dp).padding(horizontal = 20.dp)
                             .onSizeChanged { headlineH = it.height / density.density }
                             .graphicsLayer {
                                 transformOrigin = TransformOrigin(1f, 1f)
-                                scaleX = frame.headlineScale; scaleY = frame.headlineScale
+                                scaleX = titleScale; scaleY = titleScale
                             },
                         horizontalAlignment = Alignment.End,
-                        // 확대되는 첫 화면에서도 화면에 보이는 간격은 4dp로 유지한다.
-                        verticalArrangement = Arrangement.spacedBy(4.dp / frame.headlineScale),
+                        // 크기가 바뀌어도 화면에 보이는 간격은 4dp로 유지한다.
+                        verticalArrangement = Arrangement.spacedBy(HomeTitleGap.dp / titleScale),
                     ) {
                         Image(
                             painterResource(Res.drawable.home_hero_logo_white),
                             contentDescription = null,
-                            modifier = Modifier.size(width = 96.dp, height = 47.dp),
+                            modifier = Modifier.size(width = HomeTitleLogoWidth.dp, height = HomeTitleLogoHeight.dp),
                             colorFilter = HomeHeroLogoColor,
                         )
                         Image(
@@ -307,13 +319,13 @@ internal fun HomeScrollLayout(
  * 창 모양에 맞는 그림을 그림 칸([left], [top] ~ [left]+[width], [ground])에 빈틈없이 덮어 그린다.
  * 첫 화면은 칸이 창 전체라 그림이 화면을 채우고, 펼치면 줄어든 칸에 전각 쪽이 남는다.
  * 제목·버튼이 놓이는 어두운 바탕은 그림 안의 먹색이 맡으므로 그림 위에 따로 어둡게 덮지 않는다.
+ * 띠 아래 끝은 자르지 않고 [HomeArtFadeBelow]만큼 더 그린 뒤 바탕색으로 흐려 아래 카드 바탕과 이어지게 한다(S15P31E102-1015).
  */
 @Composable
 private fun HomeArt(kind: HomeArtKind, left: Float, width: Float, top: Float, ground: Float, progress: Float, groundColor: Color, modifier: Modifier) {
     val painter = painterResource(
         when (kind) {
             HomeArtKind.PhonePortrait -> Res.drawable.home_art_phone_portrait
-            HomeArtKind.PhoneLandscape -> Res.drawable.home_art_phone_landscape
             HomeArtKind.TabletPortrait -> Res.drawable.home_art_tablet_portrait
             HomeArtKind.TabletLandscape -> Res.drawable.home_art_tablet_landscape
         },
@@ -326,15 +338,19 @@ private fun HomeArt(kind: HomeArtKind, left: Float, width: Float, top: Float, gr
             kind, width, (ground - top).coerceAtLeast(1f),
             mix(.5f, kind.openFocusX, progress), mix(.5f, kind.openFocusY, progress),
         )
-        clipRect(left = left * d, top = top * d, right = (left + width) * d, bottom = ground * d) {
+        val fadeTop = ground - HomeArtFadeAbove
+        val fadeBottom = ground + HomeArtFadeBelow
+        clipRect(left = left * d, top = top * d, right = (left + width) * d, bottom = fadeBottom * d) {
             translate((left + place.x) * d, (top + place.y) * d) {
                 with(painter) { draw(androidx.compose.ui.geometry.Size(place.width * d, place.height * d)) }
             }
         }
-        drawRect(Brush.verticalGradient(
-            0f to Color.Transparent, 1f to groundColor,
-            startY = (ground - 60f) * d, endY = (ground + 30f) * d,
-        ))
+        val stops = Array(9) { i ->
+            val t = i / 8f
+            t to groundColor.copy(alpha = homeArtFade(t))
+        }
+        drawRect(Brush.verticalGradient(*stops, startY = fadeTop * d, endY = fadeBottom * d))
+        drawRect(groundColor, topLeft = androidx.compose.ui.geometry.Offset(0f, fadeBottom * d))
     }
 }
 

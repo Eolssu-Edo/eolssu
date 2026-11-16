@@ -45,7 +45,7 @@ $qaToolRoot = if ($ToolRoot) { (Resolve-Path -LiteralPath $ToolRoot).Path } else
 $qaSshConfig = Join-Path (Split-Path -Parent $qaRuntime) 'ssh_config'
 if (!(Test-Path -LiteralPath $qaSshConfig -PathType Leaf)) { throw 'QA 전용 SSH 설정이 없습니다. setup-ssh.ps1을 먼저 실행하세요.' }
 $qaPrevious = @{}
-foreach ($qaName in @('QA_LIVE_CONFIG','QA_APPLOG_TOKEN','QA_APPLOG_DEVICE_IDENTITY','QA_EXPECTED_IDENTITY','QA_SERIAL','QA_ADB','QA_ADB_PORT','QA_PORT','QA_ORIGIN','QA_BASE_PATH','QA_DEVICE_ID','QA_DEVICE_NAME','QA_TRUST_PROXY','QA_APK_DIR','QA_APK_SSH_HOST','QA_SCREEN_SERVER','QA_VIDEO_SERVER','QA_STOP_FILE','QA_WIRELESS_STATE','QA_SSH_CONFIG')) { $qaPrevious[$qaName] = [Environment]::GetEnvironmentVariable($qaName,'Process') }
+foreach ($qaName in @('QA_APPLOG_TOKEN','QA_APPLOG_DEVICE_IDENTITY','QA_EXPECTED_IDENTITY','QA_SERIAL','QA_ADB','QA_ADB_PORT','QA_PORT','QA_ORIGIN','QA_BASE_PATH','QA_DEVICE_ID','QA_DEVICE_NAME','QA_TRUST_PROXY','QA_APK_DIR','QA_APK_SSH_HOST','QA_SCREEN_SERVER','QA_VIDEO_SERVER','QA_STOP_FILE','QA_WIRELESS_STATE','QA_SSH_CONFIG')) { $qaPrevious[$qaName] = [Environment]::GetEnvironmentVariable($qaName,'Process') }
 $qaNodeProcess = $null; $qaTunnelProcess = $null; $qaAdbChild=$null; $qaWirelessChild=$null
 $qaConfiguredSerial=$Serial
 $qaWirelessState=Join-Path $qaRuntime 'wireless-state.json'
@@ -53,17 +53,16 @@ try {
   $env:QA_APPLOG_TOKEN=$null
   $env:QA_APPLOG_DEVICE_IDENTITY=$null
   $env:QA_EXPECTED_IDENTITY=$null
-  if($AutoRecover -and $Serial -match '^\d{1,3}(?:\.\d{1,3}){3}:\d+$' -and (Test-Path -LiteralPath $qaWirelessState)){
-    $qaSavedWireless=Get-Content -LiteralPath $qaWirelessState -Raw | ConvertFrom-Json
-    if($qaSavedWireless.configuredSerial -eq $qaConfiguredSerial -and $qaSavedWireless.identity -match '^[A-Za-z0-9_-]{4,80}$' -and $qaSavedWireless.endpoint -match '^\d{1,3}(?:\.\d{1,3}){3}:\d{1,5}$'){$Serial=$qaSavedWireless.endpoint;$env:QA_EXPECTED_IDENTITY=$qaSavedWireless.identity}
+  if($AutoRecover){
+    $qaSavedWireless=if(Test-Path -LiteralPath $qaWirelessState){Get-Content -LiteralPath $qaWirelessState -Raw | ConvertFrom-Json}else{$null}
+    $qaRegistration=Get-QaWirelessRegistration -Serial $Serial -Saved $qaSavedWireless
+    if($qaRegistration){$qaConfiguredSerial=$qaRegistration.configuredSerial;$Serial=$qaRegistration.endpoint;$env:QA_EXPECTED_IDENTITY=$qaRegistration.identity}
   }
   if($env:QA_EXPECTED_IDENTITY){
     $qaRows=& $Adb -P $AdbPort devices
-    $qaNetworkPresent=$qaRows | Where-Object { $_ -match ('^'+[regex]::Escape($Serial)+'\s+device\s*$') }
     $qaUsbPresent=$qaRows | Where-Object { $_ -match ('^'+[regex]::Escape($env:QA_EXPECTED_IDENTITY)+'\s+device\s*$') }
     $Serial=Get-QaRelayTransport -Identity $env:QA_EXPECTED_IDENTITY -CurrentSerial $Serial -Endpoint $Serial -UsbConnected ([bool]$qaUsbPresent)
   }
-  $env:QA_LIVE_CONFIG=Join-Path $qaRuntime 'live-control.json'
   $env:QA_STOP_FILE=Join-Path $qaRuntime ('stop-'+[guid]::NewGuid().ToString('N'))
   $env:QA_SERIAL=$Serial; $env:QA_ADB=$Adb; $env:QA_ADB_PORT=[string]$AdbPort; $env:QA_PORT=[string]$Port
   $env:QA_DEVICE_ID=$DeviceId; $env:QA_DEVICE_NAME=$DeviceName
@@ -109,10 +108,11 @@ try {
       if($qaWirelessChild.HasExited){throw 'Wireless discovery stopped; supervisor will retry'}
       if(Test-Path -LiteralPath $qaWirelessState){
         $qaWireless=Get-Content -LiteralPath $qaWirelessState -Raw | ConvertFrom-Json
-        if($qaWireless.configuredSerial -eq $qaConfiguredSerial -and $qaWireless.status -eq 'connected' -and $qaWireless.identity -match '^[A-Za-z0-9_-]{4,80}$' -and $qaWireless.endpoint -match '^\d{1,3}(?:\.\d{1,3}){3}:\d{1,5}$'){
+        if($qaWireless.configuredSerial -ceq $qaConfiguredSerial -and $qaWireless.identity -cmatch '^[A-Za-z0-9_-]{4,80}$' -and (Test-QaWirelessEndpoint $qaWireless.endpoint)){
           try{$qaUsbState=& $Adb -P $AdbPort -s $qaWireless.identity get-state 2>$null}catch{$qaUsbState=''}
           $qaUsbReady=$LASTEXITCODE -eq 0 -and ($qaUsbState -join '').Trim() -eq 'device'
-          $qaPreferred=Get-QaRelayTransport -Identity $qaWireless.identity -CurrentSerial $Serial -Endpoint $qaWireless.endpoint -UsbConnected $qaUsbReady
+          $qaReadyEndpoint=if($qaWireless.status -eq 'connected'){$qaWireless.endpoint}else{''}
+          $qaPreferred=Get-QaRelayTransport -Identity $qaWireless.identity -CurrentSerial $Serial -Endpoint $qaReadyEndpoint -UsbConnected $qaUsbReady
           if($qaPreferred -ne $Serial){
             Write-Host '등록 기기의 연결 경로 변경을 확인했습니다. 중계를 정상 재시작합니다.'
             if($null -ne $RestartForWirelessAddress){$RestartForWirelessAddress.Value=$true}

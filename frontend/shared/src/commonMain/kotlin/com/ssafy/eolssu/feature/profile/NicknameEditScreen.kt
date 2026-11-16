@@ -27,7 +27,7 @@ fun NicknameEditScreen(
         widthClass,
         stringResource(Res.string.my_nickname_edit),
         onBack,
-        bottomBar = { EolssuButton(stringResource(Res.string.my_save), onClick = onSave) },
+        bottomBar = { EolssuButton(stringResource(Res.string.my_save), onClick = onSave, busy = state.submitting) },
     ) {
         EolssuTextField(
             value = state.nickname,

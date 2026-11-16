@@ -260,5 +260,5 @@ val appModule = module {
     single<SheetAudioRepository> { get<NotifyingSheetAudioRepository>() }
     viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), now = get(), documents = get(), member = get(),
         songs = get(), pitchCatalog = get(), deviceAudioStore = get(), loadAudioInstruments = get<InstrumentCatalog>()::load,
-        authoringCatalog = get()) }
+        authoringCatalog = get(), saveDispatcher = kotlinx.coroutines.Dispatchers.Default) }
 }
