@@ -14,7 +14,7 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.model.ScoreUnitKey
-import com.ssafy.eolssu.feature.practice.LivePitchMark
+import com.ssafy.eolssu.feature.practice.LivePitchCell
 import com.ssafy.eolssu.feature.practice.PracticeScreenActions
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.PracticeUiState
@@ -31,7 +31,7 @@ internal fun PracticeMediumLayout(
     state: PracticeUiState,
     snackbarHostState: SnackbarHostState,
     actions: PracticeScreenActions,
-    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
+    livePitch: Map<ScoreUnitKey, LivePitchCell> = emptyMap(),
 ) {
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
