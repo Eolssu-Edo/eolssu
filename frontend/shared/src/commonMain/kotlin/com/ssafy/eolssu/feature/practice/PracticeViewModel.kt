@@ -1323,11 +1323,21 @@ class PracticeViewModel(
 
     // 한 음씩 따라 불기
 
-    /** 설정 옆 '한 음씩' 토글. 모범 연주 중이면 음원을 멈추고 듣던 자리부터 이어 갈 수 있게 멈춤으로 둔다. */
+    /**
+     * 설정 옆 '한 음씩' 토글. 모범 연주·장단으로 연습 중이면 재생을 멈추고 듣던 자리부터 이어 갈 수 있게 멈춤으로 둔다.
+     * 장단으로 연습은 지금 자리를 먼저 받아 두고 장단 소리를 멈춘다(S15P31E102-1016).
+     */
     fun toggleStep() {
         val before = _uiState.value
-        if (!before.solo || (before.mode != PracticeMode.Ready && before.mode != PracticeMode.Model)) return
-        if (before.mode == PracticeMode.Model) modelAudio.stop()
+        if (!before.solo || !before.step.available || !before.stepToggleEnabled) return
+        when (before.mode) {
+            PracticeMode.Model -> modelAudio.stop()
+            PracticeMode.Rhythm -> {
+                pauseRhythm()
+                rhythmStartsAtAttack = true
+            }
+            else -> Unit
+        }
         _uiState.update { it.toggleStep() }
         syncStep()
     }

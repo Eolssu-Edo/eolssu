@@ -22,7 +22,10 @@ import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.readByteArray
 
-/** Rebuildable public model audio files, independent of any screen's native player. */
+/**
+ * Rebuildable public model audio files, independent of any screen's native player.
+ * [ReferenceAudioFileCache] reuses it for many short reference clips with a larger [maxFiles].
+ */
 class ModelAudioFileCache(
     private val directory: Path,
     engine: HttpClientEngine,
@@ -42,7 +45,7 @@ class ModelAudioFileCache(
     private val access = linkedMapOf<String, Unit>()
 
     init {
-        require(maxFileBytes in 1..32L * 1024 * 1024 && maxFiles in 1..4 && downloadTimeoutMs > 0)
+        require(maxFileBytes in 1..32L * 1024 * 1024 && maxFiles in 1..MAX_FILES && downloadTimeoutMs > 0)
     }
 
     /**
@@ -123,6 +126,7 @@ class ModelAudioFileCache(
     private fun digest(bytes: ByteArray): String = sha256(bytes).toHexString()
 
     private companion object {
+        const val MAX_FILES = 128
         val HASH = Regex("[a-f0-9]{64}")
         const val LEGACY_EXTENSION = "audio"
         val EXTENSIONS = mapOf("audio/mp4" to "m4a", "audio/mpeg" to "mp3", "audio/ogg" to "ogg", "audio/wav" to "wav")

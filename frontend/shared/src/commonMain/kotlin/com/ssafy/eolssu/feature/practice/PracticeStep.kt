@@ -133,21 +133,27 @@ val PracticeUiState.stepProgress: Pair<Int, Int>
         return (k + 1) to targets.size
     }
 
+/** '한 음씩' 토글을 누를 수 있는 상태: 준비·모범 연주·장단으로 연습. 평가 녹음·카운트다운·중단 중에는 막는다(S15P31E102-1016). */
+val PracticeUiState.stepToggleEnabled: Boolean
+    get() = mode == PracticeMode.Ready || mode == PracticeMode.Model || mode == PracticeMode.Rhythm
+
 /**
- * '한 음씩' 토글. 혼자 연습의 준비·모범 연주 상태에서만 바뀐다.
- * 끄면 진행을 멈춘 채 두고(다시 켜고 ‘내 연주’를 누르면 그 자리부터 이어서), 모범 연주 중에 켜면 모범 연주를 멈추고 듣던 자리의 음부터 이어서 시작하도록 멈춤으로 둔다.
- * 모범 연주 음원 정지는 ViewModel이 한다.
+ * '한 음씩' 토글. 혼자 연습의 준비·모범 연주·장단으로 연습 상태에서만 바뀐다([stepToggleEnabled]).
+ * 끄면 진행을 멈춘 채 두고(다시 켜고 ‘내 연주’를 누르면 그 자리부터 이어서), 모범 연주·장단으로 연습 중에 켜면 재생을 멈추고 준비 상태로 돌려
+ * 듣던 자리의 음부터 이어서 시작하도록 멈춤으로 둔다. 모범 연주 음원과 장단 소리 정지는 ViewModel이 한다.
  */
 fun PracticeUiState.toggleStep(): PracticeUiState {
-    if (!solo || !step.available || (mode != PracticeMode.Ready && mode != PracticeMode.Model)) return this
+    if (!solo || !step.available || !stepToggleEnabled) return this
     if (step.on) {
         val phase = if (step.phase == StepPhase.Listening) StepPhase.Paused else step.phase
         return copy(step = step.copy(on = false, phase = phase))
     }
-    if (mode == PracticeMode.Model) {
+    if (mode == PracticeMode.Model || mode == PracticeMode.Rhythm) {
         val targets = stepTargetsInSection()
         val target = targets.firstOrNull { it >= position } ?: targets.lastOrNull() ?: 0
-        return stopModel().copy(modelAudioStatus = ModelAudioStatus.Idle, step = step.copy(on = true, phase = StepPhase.Paused, target = target))
+        // 장단으로 연습은 모범 연주 음원을 멈춰 둔 채라 음원 상태는 그대로 둔다.
+        val audioStatus = if (mode == PracticeMode.Model) ModelAudioStatus.Idle else modelAudioStatus
+        return stopModel().copy(modelAudioStatus = audioStatus, step = step.copy(on = true, phase = StepPhase.Paused, target = target))
     }
     return copy(step = step.copy(on = true))
 }

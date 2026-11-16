@@ -38,8 +38,12 @@ class AccountLinkViewModel(
         }
         val offer = attempts.mergeOffer() ?: return false.also { _uiState.update { it.copy(expired = true) } }
         _uiState.update { it.copy(linking = true, passwordError = null, error = null) }
-        val result = authRepository.mergeAccount(offer, state.password.takeIf { state.needsPassword })
-        _uiState.update { it.copy(linking = false) }
+        // 요청이 예외로 끝나도 버튼이 진행 중으로 남지 않게 한다(S15P31E102-996).
+        val result = try {
+            authRepository.mergeAccount(offer, state.password.takeIf { state.needsPassword })
+        } finally {
+            _uiState.update { it.copy(linking = false) }
+        }
         when (result) {
             MergeResult.Success -> {
                 attempts.clearMerge()

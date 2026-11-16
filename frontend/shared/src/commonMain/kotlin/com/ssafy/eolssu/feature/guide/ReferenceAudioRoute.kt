@@ -14,6 +14,7 @@ import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.rememberReferenceAudioPlayer
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.data.song.ReferenceAudioClip
 import com.ssafy.eolssu.feature.guide.component.ReferenceAudioControls
 import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
@@ -55,13 +56,18 @@ fun rememberBasicNotePlayer(instrument: GuideInstrument, maxPlayMs: Long? = null
     return BasicNotePlayer(onPlay, audio.playback)
 }
 
-/** 목록과 플레이어는 화면이 소유하고, Lazy 카드에는 값과 동작만 전달한다. */
+/**
+ * 목록과 플레이어는 화면이 소유하고, Lazy 카드에는 값과 동작만 전달한다.
+ * [prefetch]는 보이는 예시음을 미리 받고, [stopClips]는 그 예시음 중 하나가 재생 중일 때만 멈춘다(S15P31E102-1005).
+ */
 class ReferenceAudioController(
     val state: ReferenceAudioUiState,
     val playback: AudioPlaybackState,
     val play: (ReferenceAudioSelection, ReferenceAudioKind) -> Unit,
     val retry: () -> Unit,
     val stop: () -> Unit = {},
+    val prefetch: suspend (ReferenceAudioClip) -> Unit = {},
+    val stopClips: (Set<String>) -> Unit = {},
 )
 
 @Composable
@@ -82,8 +88,19 @@ fun rememberReferenceAudioController(
     return ReferenceAudioController(
         state = if (state.instrument == instrument) state else ReferenceAudioUiState(instrument),
         playback = playback,
-        play = { selection, kind -> viewModel.uiState.value.clipFor(selection, kind)?.let { toggleReferenceAudio(player, it) } },
+        play = { selection, kind ->
+            viewModel.uiState.value.clipFor(selection, kind)?.let { clip ->
+                val current = player.state.value
+                // 받아 둔 파일로 재생에 실패했으면 이번에는 원격 주소로 다시 받는다.
+                if (current.sourceId == clip.assetId && current.status == AudioPlaybackStatus.Failed) viewModel.forgetLocalFile(clip)
+                val file = viewModel.localFile(clip)
+                toggleReferenceAudio(player, clip, file)
+                if (file == null) viewModel.keepForNext(clip)
+            }
+        },
         retry = { player.stop(); viewModel.retry() },
         stop = { player.stop() },
+        prefetch = viewModel::prefetch,
+        stopClips = { ids -> if (player.state.value.sourceId in ids) player.stop() },
     )
 }
