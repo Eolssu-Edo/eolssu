@@ -3,7 +3,6 @@ package com.ssafy.eolssu.feature.song.edit.component
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -11,6 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.BasicAccompanimentPreset
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.*
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.basicAccompaniment
@@ -39,8 +39,9 @@ internal fun SheetBasicAccompanimentDialog(
             Text(stringResource(Res.string.basic_accompaniment_help), style = MaterialTheme.typography.bodySmall)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 BasicAccompanimentPreset.entries.forEach { option ->
-                    FilterChip(selected = option == preset, onClick = { presetName = option.name },
-                        label = { Text(option.label) })
+                    // 앱 알약 칩: 회색 바탕, 고르면 연두(S15P31E102-970).
+                    EolssuChip(option.label, selected = option == preset, onClick = { presetName = option.name },
+                        bordered = false, containerColor = EolssuTheme.colors.groupedBackground)
                 }
             }
             Text(stringResource(Res.string.basic_accompaniment_pickup_help), style = MaterialTheme.typography.bodySmall)

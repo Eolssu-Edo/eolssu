@@ -141,8 +141,10 @@ fun EolssuSwitch(
     Surface(
         onClick = onToggle,
         enabled = enabled,
+        // 누를 수 없으면 앱 버튼(`EolssuButton`)과 같이 0.45로 흐린다(S15P31E102-969).
         modifier = modifier
             .size(width = width, height = height)
+            .alpha(if (enabled) 1f else 0.45f)
             .semantics {
                 role = Role.Switch
                 toggleableState = ToggleableState(checked)

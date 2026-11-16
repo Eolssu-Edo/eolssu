@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,7 +24,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,7 +72,7 @@ fun SongSearchField(
             .height(46.dp)
             .background(colors.surface, shape)
             .then(if (bordered) Modifier.border(1.dp, colors.lineSoft, shape) else Modifier)
-            .padding(start = 13.dp, end = if (query.isEmpty()) 13.dp else 4.dp),
+            .padding(start = 13.dp, end = if (query.isEmpty()) 13.dp else 0.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -99,15 +104,19 @@ fun SongSearchField(
         }
         if (query.isNotEmpty()) {
             // 흰 칸 위에서 바로 보이도록 진한 회색 원에 흰 ×를 그린다(S15P31E102-870).
-            // 누르는 범위는 40dp로 넓히고, 오른쪽 여백을 줄여 원이 검색 아이콘과 같은 거리에서 칸 끝에 붙게 한다.
+            // 누르는 범위는 48dp로 넓히고(46dp 칸 위아래로 1dp씩 넘친다), 오른쪽 여백을 없애 원이 검색 아이콘과 같은 거리에서 칸 끝에 붙게 한다.
+            // 눌림 효과는 그린 22dp 원 안에만 둔다(S15P31E102-968).
+            val clearInteraction = remember { MutableInteractionSource() }
             Box(
                 Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .clickable(role = Role.Button, onClick = onClear),
+                    .requiredSize(48.dp)
+                    .clickable(interactionSource = clearInteraction, indication = null, role = Role.Button, onClick = onClear),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(Modifier.size(22.dp).background(colors.textMuted, CircleShape), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.size(22.dp).clip(CircleShape).background(colors.textMuted).indication(clearInteraction, ripple()),
+                    contentAlignment = Alignment.Center,
+                ) {
                     Icon(EolssuIcons.Close, stringResource(Res.string.common_clear), Modifier.size(14.dp), tint = colors.onInk)
                 }
             }

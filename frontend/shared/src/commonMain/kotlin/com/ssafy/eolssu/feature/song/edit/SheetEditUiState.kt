@@ -152,8 +152,11 @@ data class SheetEditUiState(
     val checkedIssueIds: Set<String> = emptySet(),
     val jangdanPicker: SheetEditJangdanPicker? = null,
     val adaptation: SheetAdaptationUi? = null,
+    val importGuideDismissed: Boolean = false,
 ) {
     val completionValidation: SheetCompletionValidation by lazy { validateCompletion() }
+    /** 가져온 악보의 확인 안내. 확인할 것이 없거나 닫았으면 null. */
+    val importGuide: SheetImportGuide? by lazy { importGuide() }
     internal val validatedCheckedIssueIds: Set<String>
         get() = (checkedIssueIds + completionValidation.resolvedPitchIssueIds)
             .intersect(completionValidation.checkableIssueIds)

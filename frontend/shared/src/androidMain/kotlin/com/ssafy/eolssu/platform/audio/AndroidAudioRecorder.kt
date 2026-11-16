@@ -7,6 +7,11 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioTimestamp
 import android.media.MediaRecorder
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.PerfTarget
+import com.ssafy.eolssu.core.diagnostics.PerformanceFlow
+import com.ssafy.eolssu.core.diagnostics.PerformanceLog
+import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.CaptureBoundary
 import com.ssafy.eolssu.core.audio.PitchConfirmation
@@ -29,6 +34,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 class AndroidAudioRecorder(context: Context) : AudioRecorder {
     private val debugBuild = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     private val directory = File(context.applicationContext.cacheDir, "recordings")
+    private val qaInputAllowed = debugBuild && context.packageName == "com.ssafy.eolssu.qa"
+    private val qaInputFile = File(context.applicationContext.filesDir, "qa-live-input.pcm")
     private val readings = MutableSharedFlow<PitchReading>(extraBufferCapacity = 16)
     private val ids = AtomicLong()
     private val stateLock = Any()
@@ -89,6 +96,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
         private var segmentStart = 0L
         private var segmentNanos = 0L
         private var timestampValid = false
+        private var fixedInput: QaPcmInput? = null
         private var fill = 0
         private val rolling = FloatArray(WINDOW + HOP)
         val worker = Thread({ capture() }, "practice-recording-$id")
@@ -105,16 +113,18 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
             await(response)
         }
 
-        private fun newSegment(input: AudioRecord) {
+        private fun newSegment(input: AudioRecord?) {
             segment++
             segmentStart = fileSamples
             fill = 0
-            timestampValid = false
-            segmentNanos = System.nanoTime()
-            boundary = CaptureBoundary(id, segment, segmentStart, RATE, segmentNanos, false)
+            timestampValid = fixedInput != null
+            segmentNanos = fixedInput?.startSegment() ?: System.nanoTime()
+            boundary = CaptureBoundary(id, segment, segmentStart, RATE, segmentNanos, timestampValid)
             windows.clear()
-            input.startRecording()
-            check(input.recordingState == AudioRecord.RECORDSTATE_RECORDING)
+            if (input != null) {
+                input.startRecording()
+                check(input.recordingState == AudioRecord.RECORDSTATE_RECORDING)
+            }
         }
 
         private fun capture() {
@@ -127,13 +137,19 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                 check(directory.isDirectory || directory.mkdirs())
                 completed?.delete()
                 completed = null
-                val minimum = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-                check(minimum > 0)
-                input = AudioRecord.Builder().setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
-                    .setAudioFormat(AudioFormat.Builder().setSampleRate(RATE).setChannelMask(AudioFormat.CHANNEL_IN_MONO)
-                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
-                    .setBufferSizeInBytes(maxOf(minimum, HOP * 8)).build()
-                check(input.state == AudioRecord.STATE_INITIALIZED && input.sampleRate == RATE)
+                // Check per recording, because the QA operator may stage input after opening the screen.
+                fixedInput = if (qaInputAllowed && PerformanceLog.liveRequestsEnabled) QaPcmInput.open(qaInputFile, RATE) else null
+                if (fixedInput == null) {
+                    val minimum = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+                    check(minimum > 0)
+                    input = AudioRecord.Builder().setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+                        .setAudioFormat(AudioFormat.Builder().setSampleRate(RATE).setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
+                        .setBufferSizeInBytes(maxOf(minimum, HOP * 8)).build()
+                    check(input.state == AudioRecord.STATE_INITIALIZED && input.sampleRate == RATE)
+                } else {
+                    PerformanceVisit(PerformanceFlow(), PerfTarget.PRACTICE).milestone(PerfPhase.SYNTHETIC_INPUT)
+                }
                 writer = AndroidAacWriter(file, RATE)
                 check(!cancelled)
                 newSegment(input)
@@ -149,7 +165,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                         try {
                             when (command.action) {
                                 Action.Pause -> if (!paused) {
-                                    input.stop()
+                                    input?.stop()
                                     paused = true
                                     fill = 0
                                     windows.clear()
@@ -165,10 +181,11 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                         continue
                     }
                     if (paused) continue
-                    val count = input.read(pcm, 0, pcm.size, AudioRecord.READ_BLOCKING)
+                    val count = fixedInput?.read(pcm)
+                        ?: checkNotNull(input).read(pcm, 0, pcm.size, AudioRecord.READ_BLOCKING)
                     check(count > 0) { "Microphone read failed: $count" }
                     if (cancelled) break
-                    if (input.getTimestamp(timestamp, AudioTimestamp.TIMEBASE_MONOTONIC) == AudioRecord.SUCCESS) {
+                    if (input != null && input.getTimestamp(timestamp, AudioTimestamp.TIMEBASE_MONOTONIC) == AudioRecord.SUCCESS) {
                         if (captureTimestampAligned(timestamp.framePosition, fileSamples - segmentStart + count, input.bufferSizeInFrames)) {
                             segmentNanos = timestamp.nanoTime - timestamp.framePosition * 1_000_000_000 / RATE
                             timestampValid = true
@@ -202,7 +219,7 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                     }
                 }
                 if (!cancelled) {
-                    if (!paused) input.stop()
+                    if (!paused) input?.stop()
                     writer.finish()
                     keep = !cancelled
                 }

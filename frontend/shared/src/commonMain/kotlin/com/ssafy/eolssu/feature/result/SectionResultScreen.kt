@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,12 +22,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,6 +40,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuStartTopBar
+import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import com.ssafy.eolssu.core.ui.component.ScoreSummaryCard
 import com.ssafy.eolssu.core.ui.score.ErrorFilter
 import com.ssafy.eolssu.core.ui.score.ErrorKindSegments
@@ -204,16 +202,13 @@ private fun SectionSummary(evaluation: SectionEvaluation, filter: ErrorFilter, a
 /** ‘다른 구간 고르기 ›’ 글자 버튼. */
 @Composable
 private fun OtherSectionLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Text(
-        stringResource(Res.string.weak_result_other_more),
-        modifier = modifier
-            .padding(top = 10.dp, bottom = 10.dp)
-            .minimumInteractiveComponentSize()
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-        color = EolssuTheme.colors.textSub,
-    )
+    EolssuTextLink(onClick, modifier.padding(top = 10.dp, bottom = 10.dp)) {
+        Text(
+            stringResource(Res.string.weak_result_other_more),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
+            color = EolssuTheme.colors.textSub,
+        )
+    }
 }
 
 /**

@@ -1,6 +1,8 @@
 package com.ssafy.eolssu.feature.song
 
 import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
+import com.ssafy.eolssu.core.diagnostics.LocalPerformanceVisit
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,18 +33,20 @@ fun SongDetailRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val comingSoon = stringResource(Res.string.common_coming_soon)
-    SongDetailScreen(
-        state = state,
-        widthClass = currentWindowLayout().widthClass,
-        snackbarHostState = snackbarHostState,
-        onBack = onBack,
-        onRetry = viewModel::retry,
-        onStartPractice = {
-            if (onStartPractice != null) {
-                onStartPractice(songId)
-            } else {
-                scope.launch { snackbarHostState.showSnackbar(comingSoon) }
-            }
-        },
-    )
+    CompositionLocalProvider(LocalPerformanceVisit provides perf) {
+        SongDetailScreen(
+            state = state,
+            widthClass = currentWindowLayout().widthClass,
+            snackbarHostState = snackbarHostState,
+            onBack = onBack,
+            onRetry = viewModel::retry,
+            onStartPractice = {
+                if (onStartPractice != null) {
+                    onStartPractice(songId)
+                } else {
+                    scope.launch { snackbarHostState.showSnackbar(comingSoon) }
+                }
+            },
+        )
+    }
 }
