@@ -604,8 +604,8 @@ private const val FinishUpMillis = 230
 private const val FinishDownMillis = 210
 private const val FinishStartDelayMillis = 450L
 
-/** 호랑이 발이 바위 꼭대기에 걸치는 깊이. 그림 아래 투명한 여백만큼 더 내린다. */
-private val TigerFeetInset = 6.5.dp
+/** 호랑이 발이 바위 꼭대기에 걸치는 깊이. 더 내리면 발이 지금 단계 바위의 번호를 가리므로 0으로 둔다(S15P31E102-987). */
+private val TigerFeetInset = 0.dp
 
 /** 호랑이 발밑 그림자 크기. */
 private val TigerShadowWidth = 30.dp

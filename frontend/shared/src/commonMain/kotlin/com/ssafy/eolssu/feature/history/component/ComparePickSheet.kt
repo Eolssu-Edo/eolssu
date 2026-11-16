@@ -123,7 +123,8 @@ internal fun ComparePickSheet(
                         weekdays.getOrNull(k).orEmpty(),
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 16.sp),
-                        color = colors.textMuted,
+                        // 연습 기록지 달력처럼 일요일 머리만 붉은 글자로 둔다.
+                        color = if (k == 6) colors.rec else colors.textMuted,
                         textAlign = TextAlign.Center,
                     )
                 }

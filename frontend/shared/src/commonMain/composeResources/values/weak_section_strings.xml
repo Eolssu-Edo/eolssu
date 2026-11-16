@@ -61,7 +61,7 @@
     <string name="weak_compare_legend_now">이번 연주에서 틀림 %1$d</string>
     <string name="weak_compare_none">비교할 이전 기록이 없어요.</string>
     <string name="weak_compare_pick_title">비교할 기록 고르기</string>
-    <string name="weak_compare_weekdays">일월화수목금토</string>
+    <string name="weak_compare_weekdays">월화수목금토일</string>
     <string name="weak_compare_day_records">%1$s · 녹음 %2$d개</string>
     <string name="weak_compare_day_today">%1$s · 이번 기록</string>
     <string name="weak_compare_day_after">%1$s · 이번 기록 이후</string>
