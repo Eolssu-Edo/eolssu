@@ -156,6 +156,25 @@ class PracticeStepTest {
         assertEquals(5, on.step.target)
     }
 
+    @Test fun turningOnDuringRhythmStopsRhythmAndPausesAtHeardNote() {
+        val rhythm = solo.copy(mode = PracticeMode.Rhythm, playing = true, position = 4)
+        assertTrue(rhythm.stepToggleEnabled)
+        val on = rhythm.toggleStep()
+        assertEquals(PracticeMode.Ready, on.mode)
+        assertFalse(on.playing)
+        assertTrue(on.step.on)
+        assertEquals(StepPhase.Paused, on.step.phase)
+        assertEquals(5, on.step.target)
+    }
+
+    @Test fun toggleIsLockedWhileEvaluating() {
+        for (mode in listOf(PracticeMode.Countdown, PracticeMode.Recording, PracticeMode.Interrupted)) {
+            val locked = solo.copy(mode = mode)
+            assertFalse(locked.stepToggleEnabled)
+            assertEquals(locked, locked.toggleStep())
+        }
+    }
+
     @Test fun viewModelDrivesJudgeAndResumesImmediately() {
         val judge = FakeStepNoteJudge()
         stepTest(judge) { vm ->
