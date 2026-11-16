@@ -1,18 +1,23 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +34,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -213,6 +219,7 @@ private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownloa
     val label = stringResource(
         when (personalAudio) {
             PracticePersonalAudio.Checking -> Res.string.practice_sheet_audio_checking
+            PracticePersonalAudio.Queued -> Res.string.practice_sheet_audio_queued
             PracticePersonalAudio.Preparing -> Res.string.practice_sheet_audio_preparing
             PracticePersonalAudio.Downloading -> Res.string.practice_sheet_audio_downloading
             PracticePersonalAudio.Unsupported -> Res.string.practice_player_unsupported
@@ -225,6 +232,8 @@ private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownloa
     Box(modifier.height(52.dp), contentAlignment = Alignment.Center) {
         if (personalAudio == PracticePersonalAudio.Missing || personalAudio == PracticePersonalAudio.Failed) {
             PlaybackActionButton(label, onDownload, Modifier.fillMaxWidth())
+        } else if (personalAudio in PersonalAudioWorking) {
+            PersonalAudioProgress(label, Modifier.fillMaxWidth())
         } else {
             Text(
                 label,
@@ -233,6 +242,25 @@ private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownloa
                 color = EolssuTheme.colors.textMuted,
                 textAlign = TextAlign.Center,
             )
+        }
+    }
+}
+
+/** 확인·대기·생성·다운로드처럼 기다리는 상태. 버튼 자리에 회전 표시와 한 줄 문구를 둔다(S15P31E102-1039). */
+private val PersonalAudioWorking = setOf(
+    PracticePersonalAudio.Checking, PracticePersonalAudio.Queued, PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading,
+)
+
+@Composable
+private fun PersonalAudioProgress(label: String, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    Surface(
+        modifier.fillMaxHeight().semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        shape = RoundedCornerShape(14.dp), color = colors.surface, border = BorderStroke(1.dp, colors.line),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(Modifier.size(18.dp), color = colors.play, trackColor = colors.lineSoft, strokeWidth = 2.5.dp)
+            Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = colors.text, maxLines = 1)
         }
     }
 }
@@ -264,7 +292,6 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         PracticePlayerNotice.PersonalDownloadFailed -> stringResource(Res.string.practice_sheet_audio_download_failed)
         PracticePlayerNotice.PersonalUnsupportedPitches -> stringResource(Res.string.practice_sheet_audio_support_edit)
         PracticePlayerNotice.PersonalScoreChanged -> stringResource(Res.string.practice_sheet_audio_reopen)
-        PracticePlayerNotice.PersonalAudioGenerating -> stringResource(Res.string.practice_sheet_audio_generating)
         PracticePlayerNotice.PersonalAudioReady -> stringResource(Res.string.practice_sheet_audio_ready)
         PracticePlayerNotice.EmbeddedJangdan -> stringResource(Res.string.practice_sheet_audio_with_jangdan)
         PracticePlayerNotice.Unsupported -> stringResource(Res.string.practice_player_unsupported)

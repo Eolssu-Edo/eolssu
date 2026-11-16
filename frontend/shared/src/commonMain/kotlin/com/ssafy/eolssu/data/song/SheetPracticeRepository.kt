@@ -73,17 +73,20 @@ class SheetPracticeRepository(
      * 기기 파일이 없을 때 서버가 이 확정 악보의 음원을 만드는 중인지 SHT-13으로 본다(S15P31E102-1039).
      * 편집기 등에서 이미 요청한 생성을 연습 화면이 '음원 다운로드'로 잘못 안내하지 않게 한다. 새 생성은 요청하지 않는다.
      */
-    suspend fun generating(song: Song): Boolean = member.inSession {
-        if (!deviceAudio.available) return@inSession false
-        val version = song.scoreVersion?.takeIf { it > 0 }?.toString() ?: return@inSession false
-        (sheetAudio.status(song.id) as? SheetAudioLookup.Found)?.audio?.generating(song.id, version) == true
+    suspend fun generationStatus(song: Song): SheetAudioStatus? = member.inSession {
+        if (!deviceAudio.available) return@inSession null
+        val version = song.scoreVersion?.takeIf { it > 0 }?.toString() ?: return@inSession null
+        (sheetAudio.status(song.id) as? SheetAudioLookup.Found)?.audio?.takeIf { it.generating(song.id, version) }?.status
     }
 
     /**
      * 사용자가 요청한 확정 악보의 M4A만 내려받는다. 장단은 연습 플레이어에서 별도로 켠다.
      * [resume]이면 SHT-12를 보내지 않고 이미 진행 중인 생성(SHT-13)만 기다린다. 끝난 음원이 연습 설정과 다르면 [SheetPracticeDownload.NotStarted]다.
+     * [onStatus]는 기다리는 동안 서버 생성 상태(대기·생성)를 알린다.
      */
-    suspend fun download(song: Song, resume: Boolean = false, onDownloading: () -> Unit = {}): SheetPracticeDownload = member.inSession {
+    suspend fun download(
+        song: Song, resume: Boolean = false, onStatus: (SheetAudioStatus) -> Unit = {}, onDownloading: () -> Unit = {},
+    ): SheetPracticeDownload = member.inSession {
         if (!deviceAudio.available) return@inSession SheetPracticeDownload.Failed
         val accountId = member.id ?: return@inSession SheetPracticeDownload.Failed
         val version = song.scoreVersion?.takeIf { it > 0 }?.toString() ?: return@inSession SheetPracticeDownload.Failed
@@ -104,12 +107,14 @@ class SheetPracticeRepository(
                 else -> null
             }) ?: return@withTimeoutOrNull null
             var misses = 0
+            if (audio.status.inProgress) onStatus(audio.status)
             while (if (resume) audio.generating(song.id, version) else audio.requestMatches(song.id, version, settings) && audio.status.inProgress) {
                 delay((audio.pollAfterMs ?: 2_000).coerceIn(500, 30_000))
                 when (val status = sheetAudio.status(song.id)) {
                     is SheetAudioLookup.Found -> {
                         audio = status.audio
                         misses = 0
+                        if (audio.status.inProgress) onStatus(audio.status)
                     }
                     SheetAudioLookup.None -> return@withTimeoutOrNull null
                     SheetAudioLookup.Unavailable -> if (++misses == 3) return@withTimeoutOrNull null
