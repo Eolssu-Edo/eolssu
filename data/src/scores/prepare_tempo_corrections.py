@@ -48,6 +48,11 @@ def prepare(before, decision, expressions):
         if decision['targetBpm'] * decision['ticksPerBeat'] != before['bpm'] * old['music']['ticksPerBeat']:
             raise ValueError('notation correction changed actual speed')
         target['music']['ticksPerBeat'] = decision['ticksPerBeat']
+    if 'bpmUnit' in decision:
+        # Only relabel when one beat becomes exactly one jeonggan; the tick timing stays identical (S15P31E102-1019).
+        if decision['bpmUnit'] != 'JEONGGAN' or target['music']['ticksPerBeat'] != old['music']['ticksPerJeonggan']:
+            raise ValueError('unit change must make one beat one jeonggan')
+        target['music']['bpmUnit'] = decision['bpmUnit']
     validate_common(target, allow_sigimsae=True)
     body = encoded(target)
     expr = deepcopy(expressions)
@@ -58,7 +63,7 @@ def prepare(before, decision, expressions):
     return target, body, expr, instrument
 
 
-def build_release(snapshot, records, bundle):
+def build_release(snapshot, records, bundle, task='S15P31E102-728'):
     """Package only verified renderer outputs and before-images, without upload."""
     songs = {s['id']: s for s in snapshot['songs']}
     audios = {(a['songId'], a['version']): a for a in snapshot['audios']}
@@ -96,20 +101,20 @@ def build_release(snapshot, records, bundle):
         if entry['audioFile']['sha256'] != media['sha256'] or perf['audioSha256'] != media['sha256']:
             raise ValueError('audio digest mismatch')
         metadata = deepcopy(old_audio['generation_metadata'])
-        metadata.update(task='S15P31E102-728', previousScoreVersion=before['version'],
+        metadata.update(task=task, previousScoreVersion=before['version'],
                         previousAudioSha256=old_audio['sha256'], sourceCommonSha256=sha(source),
                         tempoCorrection=record['decision'],
                         rendererManifestSha256=sha((output / 'manifest.json').read_bytes()))
         if 'difficulty' in metadata:
             metadata['difficulty']['inheritedFromScoreVersion'] = before['version']
         entry['audioMetadata'] = dict(source_common_sha256=sha(source), bpm=record['bpm'],
-            bpm_unit=before['score']['music']['bpmUnit'], duration_ms=math.ceil(media['container_seconds'] * 1000),
+            bpm_unit=json.loads(source)['music']['bpmUnit'], duration_ms=math.ceil(media['container_seconds'] * 1000),
             start_offset_ms=0, content_type='audio/mp4', sha256=media['sha256'],
             status=old_audio['status'], generation_metadata=metadata)
         if 'ticksPerBeat' in record['decision']:
             entry['beatNotationCorrection'] = dict(basis=record['decision']['basis'])
         entries.append(entry)
-    (bundle / 'release.json').write_bytes(encoded(dict(task='S15P31E102-728',
+    (bundle / 'release.json').write_bytes(encoded(dict(task=task,
         schema='eolssu-score-tempo-release/v1', entries=entries)))
 
 
@@ -158,7 +163,7 @@ def main():
         print(f'{sid}: ' + ('rendered' if args.render else 'prepared'), flush=True)
     (args.out / 'preparation.json').write_bytes(encoded(dict(task=decisions['task'], songs=records)))
     if args.bundle:
-        build_release(snapshot, records, args.bundle)
+        build_release(snapshot, records, args.bundle, decisions['task'])
 
 
 if __name__ == '__main__':
