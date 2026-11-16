@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -16,19 +17,19 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 class SheetImportViewModel(
-    private val kind: ImportKind, private val hwang: HwangPitch,
+    kind: ImportKind, private val hwang: HwangPitch,
     private val repository: SheetImportRepository,
     private val loadInstruments: suspend () -> List<CatalogInstrument>,
     private val loadJangdans: suspend () -> List<CatalogJangdanSummary>,
     member: SignedInMember? = null,
     private val authoringCatalog: SheetAuthoringCatalog? = null,
 ) : ViewModel() {
-    private val state = MutableStateFlow(SheetImportUiState())
+    private val state = MutableStateFlow(SheetImportUiState(kind = kind))
     val uiState = state.asStateFlow()
     private var key: String? = null
     private val scope = member.screenScope(viewModelScope) {
         key = null
-        state.value = SheetImportUiState(loading = false, expired = true)
+        state.value = SheetImportUiState(kind = state.value.kind, loading = false, expired = true)
     }
 
     init { reload() }
@@ -39,8 +40,13 @@ class SheetImportViewModel(
         scope.launch {
             try {
                 val instruments = (authoringCatalog?.instruments() ?: loadInstruments()).sortedBy { instrumentDisplayRank(it.code) }
-                val jangdans = if (kind == ImportKind.Jeongganbo) (authoringCatalog?.references?.jangdans() ?: loadJangdans()) else emptyList()
-                check(instruments.isNotEmpty() && (kind != ImportKind.Jeongganbo || jangdans.isNotEmpty()))
+                // 올리기 화면에서 정간보·오선보를 바꿀 수 있으므로 장단 목록은 종류와 상관없이 받아 둔다.
+                // 오선보로 시작했으면 장단을 못 받아도 올리기를 막지 않고, 정간보로 바꿀 때 다시 받는다([kind]).
+                val jeongganbo = state.value.kind == ImportKind.Jeongganbo
+                val jangdans = try { authoringCatalog?.references?.jangdans() ?: loadJangdans() }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (failure: Exception) { if (jeongganbo) throw failure else emptyList() }
+                check(instruments.isNotEmpty() && (!jeongganbo || jangdans.isNotEmpty()))
                 ensureAccountSession()
                 state.value = state.value.copy(instruments = instruments, jangdans = jangdans, loading = false)
                 authoringCatalog?.warmUp()
@@ -52,6 +58,12 @@ class SheetImportViewModel(
     private fun editable() = !state.value.busy && !state.value.expired && state.value.acceptedId == null
     private fun edit(value: SheetImportUiState) { key = null; state.value = value.copy(error = null) }
     fun title(value: String) { if (editable() && value != state.value.title) edit(state.value.copy(title = value)) }
+    /** 올리기 화면 위 '악보 종류'. 고른 장단은 오선보로 바꿔도 남겨 두고, 접수할 때만 정간보에 싣는다. */
+    fun kind(value: ImportKind) {
+        if (!editable() || value == state.value.kind) return
+        edit(state.value.copy(kind = value))
+        if (value == ImportKind.Jeongganbo && state.value.jangdans.isEmpty() && !state.value.loading) reload()
+    }
     fun instrument(id: String) {
         if (editable() && id != state.value.instrumentId && state.value.instruments.any { it.instrumentId == id }) edit(state.value.copy(instrumentId = id))
     }
@@ -75,7 +87,7 @@ class SheetImportViewModel(
                 if (result.files.any { it.contentType == null }) state.value = state.value.copy(error = "UNSUPPORTED_FILE_TYPE")
                 else if (!validSheetFiles(result.files)) state.value = state.value.copy(error = "INVALID_FILE_SET")
                 else edit(state.value.copy(files = result.files,
-                    title = state.value.title.ifBlank { result.files.first().name.substringBeforeLast('.').take(50) }))
+                    title = state.value.title.ifBlank { fileTitle(result.files.first().name) }))
             }
         }
     }
@@ -87,9 +99,10 @@ class SheetImportViewModel(
     fun submit() {
         val current = state.value
         if (!editable() || current.picking || current.loading || current.catalogFailed) return
-        val input = SheetImportInput(current.title, if (kind == ImportKind.Jeongganbo) "JEONGGANBO" else "STAFF",
-            current.instrumentId.orEmpty(), current.jangdanId,
-            if (kind == ImportKind.Staff) hwang.name else null, current.files)
+        val jeongganbo = current.kind == ImportKind.Jeongganbo
+        val input = SheetImportInput(current.title, if (jeongganbo) "JEONGGANBO" else "STAFF",
+            current.instrumentId.orEmpty(), current.jangdanId.takeIf { jeongganbo },
+            if (jeongganbo) null else hwang.name, current.files)
         if (!input.valid()) { state.value = current.copy(error = "INPUT_REQUIRED", validationRequested = true); return }
         val submissionKey = key ?: Uuid.random().toString().also { key = it }
         state.value = current.copy(busy = true, error = null)
@@ -105,4 +118,10 @@ class SheetImportViewModel(
             }
         }
     }
+}
+
+/** 파일 이름으로 채울 제목: 확장자를 빼고 앞뒤 공백을 자른 뒤 [InputLimit.SHEET_TITLE]자까지(이모지를 반으로 자르지 않는다, S15P31E102-996). */
+internal fun fileTitle(fileName: String): String {
+    val name = fileName.substringBeforeLast('.').trim()
+    return name.substring(0, InputLimit.endOfFirst(name, InputLimit.SHEET_TITLE)).trim()
 }

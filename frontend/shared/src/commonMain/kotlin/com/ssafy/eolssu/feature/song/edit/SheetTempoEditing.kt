@@ -85,8 +85,10 @@ internal val SheetDraft.tempoChanges: List<SheetTempoChange> get() {
 }
 
 internal fun SheetDraft.tempoChangeError(change: SheetTempoChange, replacing: Int? = change.cell): String? {
-    if (change.cell !in cells.indices || change.targetBpm?.let { !it.isFinite() || it <= 0 || it > Int.MAX_VALUE } == true)
-        return "실제 정간과 양수 빠르기를 입력해 주세요."
+    if (change.cell !in cells.indices) return "실제 정간을 입력해 주세요."
+    // 구간 목표 빠르기도 악보 전체 빠르기와 같은 범위만 받는다(S15P31E102-996).
+    if (change.targetBpm?.let { !it.isFinite() || it < SheetBpmRange.first || it > SheetBpmRange.last } == true)
+        return "목표 빠르기는 ${SheetBpmRange.first}~${SheetBpmRange.last} 사이로 입력해 주세요."
     if (change.mark == null && change.targetBpm == null) return "목표 빠르기를 입력해 주세요."
     val gradual = change.mark?.gradual ?: (change.endCell != null)
     if (gradual && change.targetBpm != null && (change.endCell == null || change.endCell !in (change.cell + 1)..cells.size))

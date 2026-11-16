@@ -29,5 +29,20 @@ fun validSheetFiles(files: List<SheetFile>): Boolean = files.size in 1..10 &&
     files.all { it.bytes.isNotEmpty() && it.contentType != null } &&
     (files.none { it.contentType == "application/pdf" } || files.size == 1)
 
+/**
+ * 악보 파일을 고를 곳. 화면은 파일 선택 버튼 아래 메뉴에 [sheetFileSources]에 든 것만 두고, 하나뿐이면 메뉴 없이 바로 연다.
+ * 새 방법(예: 카메라 문서 스캔)은 항목과 플랫폼 구현만 더한다.
+ */
+enum class SheetFileSource {
+    /** 기기 사진 앨범(사진 선택기). 사진만 고른다. */
+    Album,
+    /** 파일·드라이브(문서 선택기). PDF와 사진을 고른다. */
+    Files,
+}
+
+/** 이 플랫폼에서 쓸 수 있는 고를 곳(보여 줄 순서). */
+expect val sheetFileSources: List<SheetFileSource>
+
+/** 돌려준 함수에 고를 곳을 넘기면 그 선택 창을 연다. 결과는 [onResult]로 한 번 온다. */
 @Composable
-expect fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): () -> Unit
+expect fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): (SheetFileSource) -> Unit
