@@ -9,9 +9,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.sheet_jangdan_beat_quarter
-import eolssu.shared.generated.resources.sheet_jangdan_beat_dotted_quarter
-import eolssu.shared.generated.resources.sheet_jangdan_option_beats
+import eolssu.shared.generated.resources.sheet_jangdan_option_tempo
 import eolssu.shared.generated.resources.sheet_jangdan_no_match_help
 import org.jetbrains.compose.resources.stringResource
 
@@ -36,10 +34,16 @@ internal fun SheetDraft.jangdanTiming(): SheetJangdanTiming? {
     )
 }
 
-internal fun CatalogJangdanSummary.jangdanBeats(): String? {
-    val cell = patternCellEighths() ?: return null
-    val beat = when (bpmUnit) { "QUARTER" -> 2; "DOTTED_QUARTER" -> 3; else -> return null }
-    return if (beatCount > 0) beatFraction(beatCount.toLong() * cell, beat.toLong()) else null
+/**
+ * 장단 고르기에 보이는 얼쑤 기본 빠르기(예: 굿거리 "♩.=66"). 오선보식 4분음표 박으로 환산하지 않고
+ * 카탈로그 defaultBpm·bpmUnit을 그대로 보인다(S15P31E102-1054). 모르는 단위는 추측하지 않는다.
+ */
+internal fun CatalogJangdanSummary.defaultTempoLabel(): String? {
+    val unit = when (bpmUnit) {
+        "QUARTER" -> "♩"; "DOTTED_QUARTER" -> "♩."; "JEONGGAN" -> "정간"; "JANGDAN_BEAT" -> "장단박"
+        else -> return null
+    }
+    return "$unit=$defaultBpm"
 }
 
 /** data/reference/jangdans.json의 장구 패턴 한 칸 음가. 호환 판정과 안내가 같은 값을 쓴다. */
@@ -56,9 +60,8 @@ private fun beatFraction(numerator: Long, denominator: Long): String {
 internal fun SheetJangdanOptionLabel(option: CatalogJangdanSummary) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(option.name)
-        option.jangdanBeats()?.let { beats ->
-            Text(stringResource(Res.string.sheet_jangdan_option_beats, beats, beatUnitName(option.bpmUnit)),
-                style = MaterialTheme.typography.labelSmall)
+        option.defaultTempoLabel()?.let { tempo ->
+            Text(stringResource(Res.string.sheet_jangdan_option_tempo, tempo), style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -67,11 +70,6 @@ internal fun SheetJangdanOptionLabel(option: CatalogJangdanSummary) {
 internal fun SheetJangdanNoMatchHelp() {
     Text(stringResource(Res.string.sheet_jangdan_no_match_help), style = dialogHelpStyle(), color = EolssuTheme.colors.textSub)
 }
-
-@Composable
-private fun beatUnitName(unit: String): String = stringResource(
-    if (unit == "DOTTED_QUARTER") Res.string.sheet_jangdan_beat_dotted_quarter else Res.string.sheet_jangdan_beat_quarter,
-)
 
 /** 다이얼로그 본문 안내와 같은 크기·색으로 맞춘다. */
 @Composable

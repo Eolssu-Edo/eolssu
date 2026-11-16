@@ -12,7 +12,11 @@ import kotlin.test.*
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class SheetImportViewModelTest : CatalogViewModelTest() {
     private val instruments = listOf(CatalogInstrument("4", "DANSO", "단소"))
-    private val jangdans = listOf(CatalogJangdanSummary("12", "굿거리", 60, "QUARTER", 12, 4))
+    // 실제 카탈로그 id: 굿거리 2(V6), 세마치 3, 4박 기본 반주 12(V40, 편곡 반주라 정간보 올리기 목록에서 뺀다).
+    private val guguri = CatalogJangdanSummary("2", "굿거리", 66, "DOTTED_QUARTER", 4, 4)
+    private val semachi = CatalogJangdanSummary("3", "세마치", 90, "DOTTED_QUARTER", 3, 3)
+    private val fourBeat = CatalogJangdanSummary("12", "4박 기본 반주", 160, "QUARTER", 4, 4)
+    private val jangdans = listOf(guguri, semachi, fourBeat)
     private val pdf = SheetFile("실제 악보.pdf", "%PDF-1.7\n".encodeToByteArray())
 
     @Test fun incompleteSubmissionKeepsOnlyUnresolvedFieldErrorsUntilAccepted() = runTest {
@@ -35,7 +39,7 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
         assertEquals(setOf(SheetImportField.Instrument, SheetImportField.Jangdan, SheetImportField.Files), errors())
         model.instrument("4")
         assertEquals(setOf(SheetImportField.Jangdan, SheetImportField.Files), errors())
-        model.jangdan("12")
+        model.jangdan("2")
         assertEquals(setOf(SheetImportField.Files), errors())
         model.selectFiles(SheetFileSelection.Selected(listOf(pdf)))
         assertTrue(errors().isEmpty())
@@ -73,7 +77,7 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
         var response = CompletableDeferred<SheetImportResult>()
         val repository = object : SheetImportRepository {
             override suspend fun upload(input: SheetImportInput, key: String): SheetImportResult {
-                assertEquals("12", input.jangdanId); assertNull(input.hwangPitch)
+                assertEquals("2", input.jangdanId); assertNull(input.hwangPitch)
                 keys += key
                 return response.await()
             }
@@ -83,7 +87,7 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
         model.selectFiles(SheetFileSelection.Selected(listOf(pdf)))
         model.title("곡"); model.instrument("4")
         model.submit(); runCurrent(); assertTrue(keys.isEmpty())
-        model.jangdan("12"); model.submit(); model.submit(); runCurrent()
+        model.jangdan("2"); model.submit(); model.submit(); runCurrent()
         assertEquals(1, keys.size); assertNull(model.uiState.value.acceptedId)
         response.complete(SheetImportResult.Failed()); runCurrent()
         response = CompletableDeferred()
@@ -165,9 +169,50 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
             override suspend fun upload(input: SheetImportInput, key: String) = SheetImportResult.Accepted("1")
         }, { instruments }, { jangdans }))
         runCurrent()
-        assertEquals(jangdans, model.uiState.value.jangdans)
+        assertEquals(listOf(guguri, semachi), model.uiState.value.jangdans)
         model.kind(ImportKind.Jeongganbo)
+        model.jangdan("2")
+        assertEquals("2", model.uiState.value.jangdanId)
+    }
+
+    @Test fun fourBeatAccompanimentIsHiddenAndCannotBeChosenForJeongganboUpload() = runTest {
+        val model = keep(SheetImportViewModel(ImportKind.Jeongganbo, HwangPitch.Default, object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String) = SheetImportResult.Accepted("1")
+        }, { instruments }, { jangdans }))
+        runCurrent()
+        assertEquals(listOf("2", "3"), model.uiState.value.jangdans.map { it.jangdanId })
         model.jangdan("12")
-        assertEquals("12", model.uiState.value.jangdanId)
+        assertNull(model.uiState.value.jangdanId)
+    }
+
+    @Test fun unsureUploadsRecommendedGuguriAndExplicitChoiceClearsIt() = runTest {
+        val sent = mutableListOf<SheetImportInput>()
+        val model = keep(SheetImportViewModel(ImportKind.Jeongganbo, HwangPitch.Default, object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String): SheetImportResult { sent += input; return SheetImportResult.Failed() }
+        }, { instruments }, { jangdans }))
+        runCurrent()
+        model.title("곡"); model.instrument("4"); model.selectFiles(SheetFileSelection.Selected(listOf(pdf)))
+        model.jangdanUnsure()
+        assertTrue(model.uiState.value.jangdanUnsure)
+        assertTrue(model.uiState.value.inputErrors().isEmpty())
+        model.submit(); runCurrent()
+        assertEquals("2", sent.single().jangdanId)
+        model.jangdan("3")
+        assertFalse(model.uiState.value.jangdanUnsure)
+        // 추천과 같은 굿거리를 직접 고르면 '잘 모르겠어요' 표시만 풀린다.
+        model.jangdanUnsure(); model.jangdan("2")
+        assertEquals("2", model.uiState.value.jangdanId)
+        assertFalse(model.uiState.value.jangdanUnsure)
+    }
+
+    @Test fun unsureIsUnavailableWhenCatalogHasNoGuguri() = runTest {
+        val model = keep(SheetImportViewModel(ImportKind.Jeongganbo, HwangPitch.Default, object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String) = SheetImportResult.Accepted("1")
+        }, { instruments }, { listOf(semachi) }))
+        runCurrent()
+        assertFalse(model.uiState.value.canChooseJangdanUnsure)
+        model.jangdanUnsure()
+        assertNull(model.uiState.value.jangdanId)
+        assertFalse(model.uiState.value.jangdanUnsure)
     }
 }

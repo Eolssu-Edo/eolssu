@@ -43,7 +43,7 @@ class SheetImportViewModel(
                 // 올리기 화면에서 정간보·오선보를 바꿀 수 있으므로 장단 목록은 종류와 상관없이 받아 둔다.
                 // 오선보로 시작했으면 장단을 못 받아도 올리기를 막지 않고, 정간보로 바꿀 때 다시 받는다([kind]).
                 val jeongganbo = state.value.kind == ImportKind.Jeongganbo
-                val jangdans = try { authoringCatalog?.references?.jangdans() ?: loadJangdans() }
+                val jangdans = try { jeongganboUploadJangdans(authoringCatalog?.references?.jangdans() ?: loadJangdans()) }
                     catch (cancelled: CancellationException) { throw cancelled }
                     catch (failure: Exception) { if (jeongganbo) throw failure else emptyList() }
                 check(instruments.isNotEmpty() && (!jeongganbo || jangdans.isNotEmpty()))
@@ -68,7 +68,15 @@ class SheetImportViewModel(
         if (editable() && id != state.value.instrumentId && state.value.instruments.any { it.instrumentId == id }) edit(state.value.copy(instrumentId = id))
     }
     fun jangdan(id: String) {
-        if (editable() && id != state.value.jangdanId && state.value.jangdans.any { it.jangdanId == id }) edit(state.value.copy(jangdanId = id))
+        val current = state.value
+        if (editable() && (id != current.jangdanId || current.jangdanUnsure) && current.jangdans.any { it.jangdanId == id })
+            edit(current.copy(jangdanId = id, jangdanUnsure = false))
+    }
+    /** 장단을 모를 때 고르는 '잘 모르겠어요'. 추천 장단 굿거리로 올린다(S15P31E102-1054). */
+    fun jangdanUnsure() {
+        val current = state.value
+        if (editable() && !current.jangdanUnsure && current.canChooseJangdanUnsure)
+            edit(current.copy(jangdanId = RECOMMENDED_JANGDAN_ID, jangdanUnsure = true))
     }
     fun beginPicking(): Boolean {
         if (!editable() || state.value.picking) return false

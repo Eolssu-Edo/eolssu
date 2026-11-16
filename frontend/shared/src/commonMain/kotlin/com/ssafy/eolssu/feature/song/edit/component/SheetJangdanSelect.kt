@@ -35,8 +35,10 @@ import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
 import com.ssafy.eolssu.data.song.CatalogJangdanSummary
+import com.ssafy.eolssu.feature.song.edit.defaultTempoLabel
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheet_upload_jangdan_placeholder
+import eolssu.shared.generated.resources.sheet_upload_jangdan_unsure
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -50,10 +52,13 @@ internal fun SheetJangdanSelect(
     onSelect: (String) -> Unit,
     enabled: Boolean,
     isError: Boolean,
+    unsure: Boolean = false,
+    onUnsure: (() -> Unit)? = null,
 ) {
     val colors = EolssuTheme.colors
     var open by remember { mutableStateOf(false) }
     val selected = jangdans.firstOrNull { it.jangdanId == selectedId }
+    val unsureLabel = stringResource(Res.string.sheet_upload_jangdan_unsure)
     Box(Modifier.fillMaxWidth()) {
         Row(
             Modifier
@@ -67,7 +72,7 @@ internal fun SheetJangdanSelect(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                selected?.name ?: stringResource(Res.string.sheet_upload_jangdan_placeholder),
+                if (unsure && selected != null) unsureLabel else selected?.name ?: stringResource(Res.string.sheet_upload_jangdan_placeholder),
                 Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontSize = 15.sp,
@@ -89,8 +94,12 @@ internal fun SheetJangdanSelect(
                     Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
+                    // 장단을 모르는 사람을 위해 맨 위에 둔다. 고르면 추천 장단 굿거리로 올린다(S15P31E102-1054).
+                    if (onUnsure != null) EolssuMenuItem(unsureLabel, selected = unsure, onClick = { open = false; onUnsure() })
                     jangdans.forEach { item ->
-                        EolssuMenuItem(item.name, selected = item.jangdanId == selectedId, onClick = { open = false; onSelect(item.jangdanId) })
+                        // 정간보는 장단마다 기본 빠르기가 달라 이름 옆에 얼쑤 기본 빠르기를 함께 보인다(예: 굿거리 · ♩.=66).
+                        val label = item.defaultTempoLabel()?.let { "${item.name} · $it" } ?: item.name
+                        EolssuMenuItem(label, selected = !unsure && item.jangdanId == selectedId, onClick = { open = false; onSelect(item.jangdanId) })
                     }
                 }
             }

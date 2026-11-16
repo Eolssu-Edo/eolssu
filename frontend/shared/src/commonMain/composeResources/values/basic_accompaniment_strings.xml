@@ -1,10 +1,10 @@
 <resources>
     <string name="basic_accompaniment_title">기본 박 반주</string>
     <string name="basic_accompaniment_none">반주 없이</string>
-    <string name="basic_accompaniment_cleared_after_reshape">반주 시작 위치를 유지할 수 없어 기본 박 반주를 해제했어요. 장단 선택에서 다시 골라 주세요.</string>
+    <string name="basic_accompaniment_cleared_after_reshape">정간이 바뀌어 기본 박 반주를 껐어요. 장단 선택에서 다시 골라 주세요.</string>
     <string name="sheet_review_meter_signature">박자표를 %1$s로 읽었어요. 곡의 박과 다르면 장단을 다시 골라 주세요.</string>
     <string name="sheet_review_meter_unknown">박자표를 읽지 못했어요. 곡에 맞는 장단을 골라 주세요.</string>
-    <string name="sheet_review_measure_short">이 마디가 박자보다 짧아요. 못갖춘마디면 그대로 두고, 아니면 정간을 나누거나 합쳐 길이를 맞춰 주세요.</string>
-    <string name="sheet_review_measure_long">이 마디가 박자보다 길어요. 정간을 나누거나 합쳐 길이를 맞춰 주세요.</string>
+    <string name="sheet_review_measure_short">이 마디가 짧아요. 원래 짧은 마디면 그대로 두고, 아니면 정간을 나누거나 합쳐 맞춰 주세요.</string>
+    <string name="sheet_review_measure_long">이 마디가 길어요. 정간을 나누거나 합쳐 맞춰 주세요.</string>
     <string name="sheet_review_measure_empty">%1$s번째 마디가 비어 있어요. 빠진 음이 있으면 채워 주세요.</string>
 </resources>

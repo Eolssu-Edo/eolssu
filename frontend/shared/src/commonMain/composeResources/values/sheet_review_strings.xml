@@ -6,9 +6,9 @@
     <string name="sheet_review_missing_pitch">등록되지 않은 율명</string>
     <string name="sheet_review_pitch_label">등록되지 않은 율명 · %1$s (%2$d옥타브)</string>
     <string name="sheet_review_range">이 악기로 낼 수 없는 음이에요. 다른 음으로 바꿔 주세요.</string>
-    <string name="sheet_review_uncertain">잘못 읽었을 수 있어요. 아는 가락과 다르면 율명을 바꾸고, 맞으면 그대로 두세요.</string>
+    <string name="sheet_review_uncertain">잘못 읽었을 수 있어요. 틀리면 율명을 바꾸고, 맞으면 그대로 두세요.</string>
     <string name="sheet_review_ornament_dropped">꾸밈음은 옮기지 못했어요. 필요하면 시김새로 넣어 주세요.</string>
-    <string name="sheet_review_gap_in_voice">이 부분을 읽지 못해 쉼표(△)로 채웠어요. 음이 있어야 하면 율명으로 바꿔 주세요.</string>
+    <string name="sheet_review_gap_in_voice">못 읽은 곳을 쉼표(△)로 채웠어요. 음이 있으면 율명으로 바꿔 주세요.</string>
     <string name="sheet_review_fix_title">이 칸을 확인해 주세요</string>
     <string name="sheet_review_fix_yul">율명 바꾸기</string>
     <string name="sheet_review_fix_sigimsae">시김새 넣기</string>
@@ -32,9 +32,9 @@
     <string name="sheet_review_notice_transposed_unknown">변환하면서 조를 옮겼어요.</string>
     <string name="sheet_review_notice_other">악보를 원본과 비교해 확인해 주세요.</string>
     <string name="sheet_review_notice_information">변환 참고 · 아래 안내는 저장을 막지 않아요</string>
-    <string name="sheet_review_notice_tempo_pdf">PDF의 빠르기 표시를 보완했어요. 편집 설정의 빠르기를 원본과 비교해 주세요.</string>
-    <string name="sheet_review_notice_tempo_pdf_count">PDF의 빠르기 표시 %1$d곳을 보완했어요. 편집 설정의 빠르기를 원본과 비교해 주세요.</string>
-    <string name="sheet_review_notice_voice">성부·화음 중 선율을 골랐어요. 악보에 빠지거나 다른 음이 없는지 원본과 비교해 주세요.</string>
+    <string name="sheet_review_notice_tempo_pdf">PDF에서 빠르기를 읽어 넣었어요. 원본과 같은지 확인해 주세요.</string>
+    <string name="sheet_review_notice_tempo_pdf_count">PDF에서 빠르기 %1$d곳을 읽어 넣었어요. 원본과 같은지 확인해 주세요.</string>
+    <string name="sheet_review_notice_voice">여러 성부 중 가락 하나만 골랐어요. 원본과 비교해 주세요.</string>
     <string name="sheet_review_notice_occurrences">%1$s (같은 안내 %2$d건)</string>
     <string name="sheet_review_notice_measure">원본 %1$s마디 · %2$s</string>
     <string name="sheet_review_notice_global">악보 전체 · %1$s</string>
