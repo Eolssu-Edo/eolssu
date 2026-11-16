@@ -75,7 +75,8 @@ data class SheetAudioFile(
 /**
  * 내 악보 음원 요청 상태(SHT-12·13 `result`). 완료한 최신 M4A에 다운로드 기한이 있다.
  *
- * @property scoreVersion 음원을 만든(만드는) 악보 버전. [currentScoreVersion]과 다르면 [outdated]다.
+ * @property scoreVersion 최근 요청이 음원을 만든(만드는) 악보 버전. 보관 중인 파일의 버전과 다를 수 있다.
+ * @property outdated 보관 파일이 있으면 그 파일의 버전으로 계산한다. 새 버전을 만드는 중이거나 실패해도 보관 파일이 옛 버전이면 true다.
  * @property pollAfterMs QUEUED·RUNNING일 때 다음 조회까지 기다릴 시간. 그 밖에는 null.
  */
 data class SheetAudio(

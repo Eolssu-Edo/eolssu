@@ -40,6 +40,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -131,6 +132,7 @@ class EditInputActions(
  *
  * @param register 다음 율명에 붙일 음역 단계.
  * @param availablePitches 서버에 등록된 (율명, 옥타브). null이면 모두 누를 수 있고 서버 저장 때 확인한다.
+ * @param docked 태블릿 가로에서 악보 오른쪽 칸에 세울 때 true. 네 모서리를 둥글게 하고 12율 자판을 6개씩 두 줄로 놓아 가로로 밀지 않게 한다.
  */
 @Composable
 internal fun EditInputPanel(
@@ -146,9 +148,10 @@ internal fun EditInputPanel(
     modifier: Modifier = Modifier,
     saveFeedback: @Composable () -> Unit = {},
     adaptationContent: @Composable () -> Unit = {},
+    docked: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    val shape = if (docked) RoundedCornerShape(20.dp) else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     val tabsScroll = rememberScrollState()
     LaunchedEffect(tab) { if (tab == EditTab.Adaptation) tabsScroll.animateScrollTo(0) }
     Column(
@@ -177,7 +180,7 @@ internal fun EditInputPanel(
         }
         when (tab) {
             EditTab.Adaptation -> adaptationContent()
-            EditTab.Yul -> YulKeys(draft, selected, selectedSub, register, availablePitches, actions)
+            EditTab.Yul -> YulKeys(draft, selected, selectedSub, register, availablePitches, actions, wrapKeys = docked)
             EditTab.Sigimsae -> SigimsaeKeys(draft, selected, draft.sigimsaeSub(selected, selectedSub), actions)
             EditTab.Cell -> CellTools(draft, actions)
         }
@@ -209,6 +212,7 @@ private fun YulKeys(
     register: YulRegister,
     available: Set<Pair<String, Int>>?,
     actions: EditInputActions,
+    wrapKeys: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     // 소박을 골랐으면 그 소박의 음만, 아니면 정간의 모든 음을 자판에 표시한다.
@@ -230,20 +234,29 @@ private fun YulKeys(
                 )
             }
         }
-        val listState = rememberLazyListState()
-        Box {
-            LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
-                items(BaseYuls, key = { it.name }) { base ->
-                    val note = draft.pitchNote(base, register.octave)
-                    YulKey(
-                        note = note,
-                        enabled = isAvailablePitch(available, base, register.octave),
-                        selected = (base to register.octave) in current,
-                        onClick = { actions.onPutYul(base) },
-                    )
+        val yulKey: @Composable (base: Yul) -> Unit = { base ->
+            YulKey(
+                note = draft.pitchNote(base, register.octave),
+                enabled = isAvailablePitch(available, base, register.octave),
+                selected = (base to register.octave) in current,
+                onClick = { actions.onPutYul(base) },
+            )
+        }
+        if (wrapKeys) {
+            // 오른쪽 칸 안쪽 너비(약 372dp)에 52dp 자판 6개(342dp)가 들어가므로 두 줄로 모두 보인다.
+            BaseYuls.chunked(YulKeysPerWrappedRow).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    row.forEach { base -> key(base.name) { yulKey(base) } }
                 }
             }
-            ScrollFades(listState)
+        } else {
+            val listState = rememberLazyListState()
+            Box {
+                LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
+                    items(BaseYuls, key = { it.name }) { base -> yulKey(base) }
+                }
+                ScrollFades(listState)
+            }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SymbolKey(ScoreNote.Hold, stringResource(Res.string.sheetedit_key_hold), ScoreNote.Hold in notes) { actions.onPut(ScoreNote.Hold) }
@@ -264,6 +277,9 @@ private fun YulKeys(
         }
     }
 }
+
+/** 오른쪽 칸에 세운 입력판에서 12율 자판 한 줄에 놓는 수. */
+private const val YulKeysPerWrappedRow = 6
 
 /** 버튼 아래에 적는 다섯 음역 이름. */
 @Composable
