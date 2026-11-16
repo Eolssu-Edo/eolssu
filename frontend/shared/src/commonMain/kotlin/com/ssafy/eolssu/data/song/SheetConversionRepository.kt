@@ -28,6 +28,19 @@ enum class SheetConversionStatus {
     }
 }
 
+/** SHT-10 `notation`. 실패 원인(정간·오선)과 읽는 데 걸리는 시간을 가르는 데 쓴다. */
+enum class SheetNotation {
+    Jeongganbo, Staff;
+
+    companion object {
+        fun fromCode(code: String?): SheetNotation? = when (code) {
+            "JEONGGANBO" -> Jeongganbo
+            "STAFF" -> Staff
+            else -> null
+        }
+    }
+}
+
 /** SHT-10 `stage`. RUNNING일 때만 온다. [Recognizing]은 쪽마다 인식(OMR), [BuildingScore]는 인식 결과로 악보를 만드는 중. */
 enum class SheetConversionStage {
     Recognizing, BuildingScore;
@@ -41,7 +54,11 @@ enum class SheetConversionStage {
     }
 }
 
-/** SHT-10 `failureCode`. FAILED일 때만 오고, 모르는 값은 [ServerError]로 본다. */
+/**
+ * SHT-10 `failureCode`. FAILED일 때만 오고, 모르는 값은 [ServerError]로 본다.
+ * 서버는 인식기의 `NO_GRID_FOUND`·`NO_STAFF_FOUND`를 `NO_SCORE_FOUND`로, `ENGINE_ERROR`를 `SERVER_ERROR`로 바꿔 준다.
+ * 정간·오선 구분은 [SheetConversion.notation]으로 한다.
+ */
 enum class SheetConversionFailure {
     /** 정간·오선을 찾지 못했다. */
     NoScoreFound,
@@ -67,6 +84,7 @@ enum class SheetConversionFailure {
 /**
  * 불러오기로 만든 내 악보의 변환 상태(SHT-10 `result`).
  *
+ * @property notation 정간보·오선보. 서버가 모르는 값을 주면 null.
  * @property pollAfterMs 변환 중일 때 다음 조회까지 기다릴 시간. 그 밖에는 null.
  * @property issueCount DONE일 때 확인이 남은 정간 수. 그 밖에는 null.
  * @property retryable FAILED이고 서버가 같은 원본으로 다시 시도할 수 있다고 답했을 때만 true(SHT-14).
@@ -82,6 +100,7 @@ data class SheetConversion(
     val issueCount: Int? = null,
     val failure: SheetConversionFailure? = null,
     val retryable: Boolean = false,
+    val notation: SheetNotation? = null,
 )
 
 /** SHT-10 결과. */
@@ -115,6 +134,15 @@ interface SheetConversionRepository {
     suspend fun status(sheetId: String): SheetConversionLookup
 
     suspend fun retry(sheetId: String): SheetConversionRetry
+
+    /** 대기 화면이 완료를 보고 편집으로 데려갔다. 같은 완료를 앱 전체 배너로 다시 알리지 않는다. */
+    fun acknowledgeCompletion(sheetId: String) {}
+
+    /**
+     * 대기 화면이 이 악보를 직접 묻는 중이다([showing] = true). 그동안 앱 전체 감시는 같은 악보를 묻지 않고,
+     * 그사이 끝난 완료도 배너로 알리지 않는다. 화면이 가려지면 false로 돌려 앱 전체 감시에 맡긴다.
+     */
+    fun showingConversion(sheetId: String, showing: Boolean) {}
 }
 
 /** 응답 코드로만 분기한다. 서버 ID가 아닌 악보는 서버에 묻지 않는다. 상태 응답은 `no-store`라 캐시하지 않는다. */
@@ -148,6 +176,7 @@ class ApiSheetConversionRepository(private val client: HttpClient, private val m
 @Serializable
 private class ConversionDto(
     val sheetId: String,
+    val notation: String? = null,
     val status: String,
     val stage: String? = null,
     val processedPageCount: Int = 0,
@@ -170,6 +199,7 @@ private class ConversionDto(
             issueCount = issueCount?.takeIf { status == SheetConversionStatus.Done && it >= 0 },
             failure = if (status == SheetConversionStatus.Failed) SheetConversionFailure.fromCode(failureCode) else null,
             retryable = status == SheetConversionStatus.Failed && retryable,
+            notation = SheetNotation.fromCode(notation),
         )
     }
 }

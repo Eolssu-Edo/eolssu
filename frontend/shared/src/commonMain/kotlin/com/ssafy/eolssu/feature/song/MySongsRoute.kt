@@ -21,7 +21,7 @@ import com.ssafy.eolssu.data.song.SheetConversionFailure
 /**
  * SONG-03 연결. 제공 곡은 [onPractice]로 평가 없는 연습 모드에, 내 악보 선택은 [onOpenSheet]로 열람 또는 연습에 연결한다.
  * 내 악보 위 '악보 추가'는 시트 없이 바로 [onAddSheet]로, 변환 실패 악보의 '다시 불러오기'는 실패 원인과 함께 [onReimportSheet]로 악보 추가(EDIT-01)에, 악보마다 '편집'은 [onEditSheet]로 내 악보 편집(EDIT-02)에 가고,
- * 휴지통은 묻는 창을 거쳐 지운다(2차 결합본 결정: 악보 추가 시트와 보기 전용 PDF 화면을 뺐다).
+ * 변환 중·실패한 악보 줄은 [onOpenConversion]으로 변환 대기 화면을 다시 연다. 휴지통은 묻는 창을 거쳐 지운다(2차 결합본 결정: 악보 추가 시트와 보기 전용 PDF 화면을 뺐다).
  * 상단 바의 연습 악기 드롭다운으로 악기를 바꾸면 제공 곡 목록이 그 악기로 바뀌고, 세션이 끝났으면 [onSessionExpired]로 로그인에 간다.
  * [startOnSheets]면 내 악보 탭부터 보인다. 개인 악보를 열 때는 개인 악보 ID를 전달한다.
  */
@@ -32,6 +32,7 @@ fun MySongsRoute(
     onAddSheet: () -> Unit,
     onEditSheet: (MySheet) -> Unit,
     onReimportSheet: (SheetConversionFailure?) -> Unit = { onAddSheet() },
+    onOpenConversion: ((sheetId: String) -> Unit)? = null,
     startOnSheets: Boolean = false,
     onOpenSheet: (MySheet) -> Unit,
     onSessionExpired: () -> Unit = {},
@@ -86,6 +87,7 @@ fun MySongsRoute(
             onCancelDelete = viewModel::cancelDelete,
             onRetryConversion = viewModel::retryConversion,
             onReimportSheet = { sheet -> onReimportSheet(state.conversionOf(sheet)?.failure) },
+            onOpenConversion = onOpenConversion?.let { open -> { sheet -> open(sheet.id) } },
         ),
         instrumentPicker = { SongInstrumentPicker(viewModel.instrumentSelection, snackbarHostState, onSessionExpired, bordered = false) },
     )

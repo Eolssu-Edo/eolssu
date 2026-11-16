@@ -33,6 +33,7 @@ fun EditNewRoute(
     reimportProblem: SheetFileProblem? = null,
     onOpenSheet: (MySheet) -> Unit = {},
     onEditSheet: (MySheet) -> Unit = {},
+    onOpenConversion: (MySheet) -> Unit = {},
     viewModel: EditNewViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -69,6 +70,7 @@ fun EditNewRoute(
         sheetActions = EditNewSheetActions(
             onOpen = onOpenSheet,
             onEdit = onEditSheet,
+            onOpenConversion = onOpenConversion,
             onDelete = viewModel::askDelete,
             onConfirmDelete = viewModel::confirmDelete,
             onCancelDelete = viewModel::cancelDelete,

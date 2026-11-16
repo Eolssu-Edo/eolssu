@@ -640,6 +640,9 @@ fun EolssuNavHost(
                     },
                     onAddSheet = { navController.navigate(SheetEditDestination.new()) },
                     onReimportSheet = { failure -> navController.navigate(SheetEditDestination.new(failure)) },
+                    onOpenConversion = { sheetId ->
+                        if (navController.currentBackStackEntry?.id == entry.id) navController.navigate(SheetEditDestination.conversion(sheetId))
+                    },
                     onEditSheet = { navController.navigate(SheetEditDestination.editMine(it.id)) },
                     onSessionExpired = {
                         navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {
