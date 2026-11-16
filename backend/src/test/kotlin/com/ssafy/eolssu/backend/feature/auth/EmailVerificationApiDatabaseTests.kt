@@ -111,8 +111,9 @@ class EmailVerificationApiDatabaseTests {
 
     @Test
     fun `email normalization exceeding the storage length returns 400 without sending`() {
-        val email = "İ".repeat(64) + "@" + listOf("a".repeat(63), "b".repeat(63), "c".repeat(63), "d".repeat(61)).joinToString(".")
-        assertTrue(email.length <= 320)
+        // 요청 길이는 100자 안이지만 소문자로 바꾸면 İ가 두 글자가 되어 이메일 상한(100자)을 넘는다(S15P31E102-1014).
+        val email = "İ".repeat(40) + "@" + "a".repeat(55) + ".com"
+        assertTrue(email.length <= 100)
         assertError(send(email), 400, "INVALID_REQUEST")
         assertEquals(0, count())
         assertTrue(mail.messages.isEmpty())
