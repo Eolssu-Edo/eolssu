@@ -560,7 +560,14 @@ class PracticeViewModel(
 
     /** 정간을 누름: 그 음을 고르고 운지법을 연다. 구간 연습은 구간이 정해져 있어 고르지 않는다. */
     fun selectUnit(unit: ScoreDisplayUnit) {
-        if (_uiState.value.sectionPractice != null) return
+        val state = _uiState.value
+        if (state.stepUi) {
+            // 한 음씩은 운지법 대신 지금 음을 옮기고, 듣는 중이면 판정기가 새 음을 기다리게 한다(S15P31E102-1006).
+            _uiState.update { it.selectUnit(unit) }
+            syncStep()
+            return
+        }
+        if (state.sectionPractice != null) return
         _uiState.update { it.selectUnit(unit) }
     }
 
@@ -645,7 +652,7 @@ class PracticeViewModel(
 
     fun moveFingering(delta: Int) = _uiState.update { it.moveFingering(delta) }
 
-    /** 한 음씩 따라 불기에서 재생 연결 전까지 유지하는 표시다. */
+    /** 누른 음 표시. 예시음도 1.2초만 들려주므로([com.ssafy.eolssu.feature.practice.component.StepNotePlayMs]) 같은 길이로 둔다. */
     private fun listen(yul: Yul) {
         if (!accountScope.isActive) return
         listenJob?.cancel()

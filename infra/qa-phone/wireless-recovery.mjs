@@ -210,7 +210,7 @@ export function createPortDiscovery({probe=canReachPort,signal,now=Date.now}={})
         if(await verify(candidate))return candidate;
       }
     }
-    if(checked===total){checked=0;retryAt=now()+(pairing?1000:30_000);}
+    if(checked===total){checked=0;retryAt=now()+(pairing?1000:5000);}
   };
   discover.useDeviceRange=value=>{
     const [start,end,...rest]=value.trim().split(/\s+/).map(Number);
@@ -295,7 +295,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   const monitor=setInterval(()=>{try{process.kill(parent,0);}catch(e){if(e.code==='ESRCH')controller.abort();}},5000).unref();
   process.once('SIGTERM',()=>controller.abort());
   const discover=createPortDiscovery({signal:controller.signal});
-  const usbPortHint=process.env.QA_DEVICE_ID==='phone';
+  const usbPortHint=true;
   let wirelessPortHint;
   if(usbPortHint){
     try{wirelessPortHint=createWirelessPortHint((await readFile(file+'.hint-key','utf8')).trim());}
