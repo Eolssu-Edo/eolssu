@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -298,7 +299,7 @@ private fun SongGroupCard(
                 Text(
                     buildAnnotatedString {
                         append(stringResource(Res.string.records_best) + " ")
-                        withStyle(SpanStyle(fontSize = 15.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.bestScore}") }
+                        withStyle(SpanStyle(fontFamily = EolssuTheme.serif.yul.fontFamily, fontSize = 16.sp, color = colors.text, fontWeight = FontWeight.Bold)) { append("${group.bestScore}") }
                         append(stringResource(Res.string.records_score_unit))
                     },
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
@@ -451,11 +452,14 @@ private fun RecordRow(
         }
         // 악기 표시는 점수 바로 왼쪽에 둔다.
         instrument?.let { InstrumentTag(it) }
+        // 점수 자릿수가 달라도 악기 칩이 한 열에 서도록 '100점' 폭을 잡고 오른쪽에 붙인다.
         Text(
             buildAnnotatedString {
-                withStyle(SpanStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold)) { append("${record.score}") }
+                withStyle(SpanStyle(fontFamily = EolssuTheme.serif.yul.fontFamily, fontSize = 18.sp, fontWeight = FontWeight.Bold)) { append("${record.score}") }
                 withStyle(SpanStyle(fontSize = 11.sp, color = colors.textMuted)) { append(stringResource(Res.string.records_score_unit)) }
             },
+            modifier = Modifier.widthIn(min = RecordScoreWidth),
+            textAlign = TextAlign.End,
         )
         // 줄 전체가 기록 상세로 가는 버튼임을 보이는 ›. 두 칸 배치에서 고른 줄은 검게.
         Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (on) colors.text else colors.textMuted)
@@ -479,3 +483,6 @@ internal fun RecordsLoadStatus(failed: Boolean, onRetry: () -> Unit, modifier: M
         }
     }
 }
+
+/** 기록 줄 점수 칸의 최소 폭: 세리프 18sp ‘100’과 11sp ‘점’이 들어간다. */
+private val RecordScoreWidth = 44.dp

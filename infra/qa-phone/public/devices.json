@@ -1,0 +1,4 @@
+[
+  {"id":"phone","name":"Galaxy S10","basePath":"/qa/"},
+  {"id":"tablet","name":"Galaxy Tab S9 FE","basePath":"/qa/tablet/"}
+]
