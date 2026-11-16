@@ -11,7 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.*
 import java.io.ByteArrayOutputStream
 
-actual val sheetFileSources: List<SheetFileSource> = listOf(SheetFileSource.Album, SheetFileSource.Files)
+actual val sheetFileSources: List<SheetFileSource> = listOf(SheetFileSource.Files, SheetFileSource.Album)
 
 /** 앨범은 사진 선택기(권한 없이 사진만, 최대 10장), 파일은 문서 선택기(PDF·PNG·JPEG)로 연다. */
 @Composable
@@ -35,6 +35,7 @@ actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): (She
     }
 }
 
+/** 한 번 올릴 때 받는 사진 수. 서버 `SHEET_IMPORT_MAX_FILES`(10)와 같다. 내 악보 개수 제한(10개)과는 다른 규칙이다. */
 private const val MAX_SHEET_IMAGES = 10
 
 private fun readSheetFiles(context: Context, uris: List<Uri>): SheetFileSelection = try {

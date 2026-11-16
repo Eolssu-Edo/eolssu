@@ -20,11 +20,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.ssafy.eolssu.core.storage.SheetFileSource
 import com.ssafy.eolssu.core.storage.sheetFileSources
-import com.ssafy.eolssu.feature.song.edit.component.SheetFileSourceSheet
 import com.ssafy.eolssu.feature.song.edit.component.SheetUploadGuideCard
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
@@ -46,9 +45,9 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
     BackHandler(enabled = state.busy) { }
     val editable = !state.busy && !state.picking && !state.expired && state.acceptedId == null
     val colors = EolssuTheme.colors
-    // 가져올 곳이 여럿이면 아래 패널로 묻고, 하나뿐이면 바로 연다(S15P31E102-997).
-    var choosingSource by remember { mutableStateOf(false) }
-    val startPick = { sources.singleOrNull()?.let(onPick) ?: run { choosingSource = true } }
+    // 가져올 곳(내 파일·갤러리)은 악기처럼 토글로 고르고, 아래 버튼이 고른 곳의 선택 창을 연다(S15P31E102-997).
+    var source by rememberSaveable { mutableStateOf(sources.first()) }
+    val startPick = { onPick(source) }
     val inputErrors = state.inputErrors(kind)
     // 서버/파일 실패는 누락 필드로 추측하지 않고, 입력 오류는 첫 미해결 항목을 안내한다.
     val feedback = state.error?.takeIf { it != "INPUT_REQUIRED" && fileProblem(it) == null }
@@ -130,6 +129,11 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
                 UploadCard {
                     UploadLabel(stringResource(Res.string.sheet_upload_files))
                     Text(stringResource(Res.string.sheet_upload_limits), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
+                    if (sources.size > 1) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        sources.forEach { item ->
+                            PillChip(stringResource(sourceText(item)), selected = source == item, onClick = { source = item }, enabled = editable)
+                        }
+                    }
                     state.files.forEachIndexed { index, file ->
                         Row(
                             Modifier.fillMaxWidth().background(colors.groupedBackground, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
@@ -140,7 +144,11 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
                             Text(file.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
-                    EolssuButton(stringResource(if (state.picking) Res.string.sheet_upload_reading else Res.string.sheet_upload_pick), startPick,
+                    EolssuButton(stringResource(when {
+                        state.picking -> Res.string.sheet_upload_reading
+                        source == SheetFileSource.Album -> Res.string.sheet_upload_pick_album
+                        else -> Res.string.sheet_upload_pick
+                    }), startPick,
                         style = EolssuButtonStyle.Secondary, enabled = editable, icon = EolssuIcons.Plus,
                         containerColor = colors.accentTint, contentColor = colors.accentText, borderColor = Color.Transparent)
                     if (SheetImportField.Files in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Files)))
@@ -152,9 +160,11 @@ fun SheetImportScreen(state: SheetImportUiState, kind: ImportKind, onBack: () ->
     state.error?.let(::fileProblem)?.let { problem ->
         SheetFileProblemDialog(problem, onRepick = { onDismissError(); startPick() }, onDismiss = onDismissError)
     }
-    if (choosingSource) {
-        SheetFileSourceSheet(sources, onPick = { source -> choosingSource = false; onPick(source) }, onDismiss = { choosingSource = false })
-    }
+}
+
+private fun sourceText(source: SheetFileSource): StringResource = when (source) {
+    SheetFileSource.Files -> Res.string.sheet_upload_source_files
+    SheetFileSource.Album -> Res.string.sheet_upload_source_album
 }
 
 /** 파일 형식·읽기 실패는 안내 창, 나머지는 고정 하단 오류 요약으로 알린다. */
