@@ -88,6 +88,45 @@ internal fun homeExpandedHero(
     return HomeExpandedHero(mix(startScale, 1f, e), mix(startY, endY, e), offset * e)
 }
 
+/**
+ * 창 모양에 따라 고르는 홈 그림. 휴대폰·태블릿의 세로·가로마다 구도를 따로 잡은 그림을 쓴다(S15P31E102-983).
+ *
+ * @property aspect 그림의 높이/너비 비.
+ * @property openFocusX 펼친 화면의 그림 띠에 남길 가로 위치(0 왼쪽 끝 ~ 1 오른쪽 끝).
+ * @property openFocusY 펼친 화면의 그림 띠에 남길 세로 위치(0 위 끝 ~ 1 아래 끝). 전각과 연주자가 띠에 들어오는 값이다.
+ */
+internal enum class HomeArtKind(val aspect: Float, val openFocusX: Float, val openFocusY: Float) {
+    PhonePortrait(2340f / 1080f, .5f, .8f),
+    PhoneLandscape(1080f / 2340f, .4f, .5f),
+    TabletPortrait(1920f / 1200f, .5f, .74f),
+    TabletLandscape(1200f / 1920f, .5f, .5f),
+}
+
+/** 짧은 변이 이 값(dp) 이상이면 태블릿 그림을 쓴다. 배치 판정의 Medium 시작 너비와 같다. */
+private const val HomeTabletMinSide = 600f
+
+/** 창 크기(dp)로 그림을 고른다. 방향은 너비·높이 비교로, 휴대폰·태블릿은 짧은 변으로 가른다. */
+internal fun homeArtKind(width: Float, height: Float): HomeArtKind {
+    val tablet = minOf(width, height) >= HomeTabletMinSide
+    return when {
+        width > height -> if (tablet) HomeArtKind.TabletLandscape else HomeArtKind.PhoneLandscape
+        else -> if (tablet) HomeArtKind.TabletPortrait else HomeArtKind.PhonePortrait
+    }
+}
+
+/** 칸 안에서 그림을 그릴 크기와 칸 왼쪽 위 기준 위치(dp). 위치는 0 이하다. */
+internal data class HomeArtPlacement(val width: Float, val height: Float, val x: Float, val y: Float)
+
+/**
+ * 그림이 칸을 빈틈없이 덮도록 비율을 지켜 키우고, 넘치는 쪽은 [focusX]·[focusY] 위치가 남게 자른다.
+ * 스크롤로 칸이 줄어드는 동안에도 같은 식을 써서 그림이 끊기지 않고 이어진다.
+ */
+internal fun homeArtPlacement(kind: HomeArtKind, boxWidth: Float, boxHeight: Float, focusX: Float, focusY: Float): HomeArtPlacement {
+    val width = maxOf(boxWidth, boxHeight / kind.aspect)
+    val height = width * kind.aspect
+    return HomeArtPlacement(width, height, (boxWidth - width) * focusX, (boxHeight - height) * focusY)
+}
+
 /** 펼친 뒤 추가 스크롤은 유지한다. 스냅 중 발생한 위치를 새 제스처로 처리하지 않는다. */
 internal fun homeSnapTarget(scroll: Float, wasOpen: Boolean): Float = when {
     scroll >= HomeScrollRange -> scroll

@@ -44,7 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -72,6 +71,9 @@ import com.ssafy.eolssu.feature.home.HomeScrollRange
 import com.ssafy.eolssu.feature.home.HomeStageFlingBehavior
 import com.ssafy.eolssu.feature.home.HomeStatusBarIcons
 import com.ssafy.eolssu.feature.home.PrepareHomeFonts
+import com.ssafy.eolssu.feature.home.homeArtKind
+import com.ssafy.eolssu.feature.home.homeArtPlacement
+import com.ssafy.eolssu.feature.home.HomeArtKind
 import com.ssafy.eolssu.feature.home.homeExpandedHero
 import com.ssafy.eolssu.feature.home.homeScrollFrame
 import com.ssafy.eolssu.feature.home.homeSnapTarget
@@ -84,7 +86,10 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_hero_brush_lettering
 import eolssu.shared.generated.resources.home_hero_logo_white
 import eolssu.shared.generated.resources.home_hero_title
-import eolssu.shared.generated.resources.home_illustration
+import eolssu.shared.generated.resources.home_art_phone_landscape
+import eolssu.shared.generated.resources.home_art_phone_portrait
+import eolssu.shared.generated.resources.home_art_tablet_landscape
+import eolssu.shared.generated.resources.home_art_tablet_portrait
 import eolssu.shared.generated.resources.home_scroll_to_features
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -199,9 +204,7 @@ internal fun HomeScrollLayout(
                         .fillMaxWidth().height((h + overflow).dp),
                 ) {
                     HomeArt(
-                        artWidth, artLeft, hero?.artScale ?: frame.artScale,
-                        (hero?.artY ?: frame.artY) + heroY, heroY,
-                        mix(.18f, .5f, frame.eased), frame.groundTop + heroY, frame.eased, homeGround,
+                        homeArtKind(w, h), artLeft, artWidth, heroY, frame.groundTop + heroY, frame.eased, homeGround,
                         Modifier.fillMaxSize().clickable(
                             interactionSource = remember { MutableInteractionSource() }, indication = null,
                             enabled = frame.progress < .6f, onClick = open,
@@ -300,31 +303,33 @@ internal fun HomeScrollLayout(
     }
 }
 
-/** 원본 그림의 비율·잘림을 직접 그린다. CSS mask 대신 아래에서 올라오는 흰 그라데이션을 겹친다. */
+/**
+ * 창 모양에 맞는 그림을 그림 칸([left], [top] ~ [left]+[width], [ground])에 빈틈없이 덮어 그린다.
+ * 첫 화면은 칸이 창 전체라 그림이 화면을 채우고, 펼치면 줄어든 칸에 전각 쪽이 남는다.
+ * 제목·버튼이 놓이는 어두운 바탕은 그림 안의 먹색이 맡으므로 그림 위에 따로 어둡게 덮지 않는다.
+ */
 @Composable
-private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, clipTop: Float, x: Float, ground: Float, progress: Float, groundColor: Color, modifier: Modifier) {
-    val painter = painterResource(Res.drawable.home_illustration)
+private fun HomeArt(kind: HomeArtKind, left: Float, width: Float, top: Float, ground: Float, progress: Float, groundColor: Color, modifier: Modifier) {
+    val painter = painterResource(
+        when (kind) {
+            HomeArtKind.PhonePortrait -> Res.drawable.home_art_phone_portrait
+            HomeArtKind.PhoneLandscape -> Res.drawable.home_art_phone_landscape
+            HomeArtKind.TabletPortrait -> Res.drawable.home_art_tablet_portrait
+            HomeArtKind.TabletLandscape -> Res.drawable.home_art_tablet_landscape
+        },
+    )
     val density = LocalDensity.current.density
     Canvas(modifier) {
         val d = density
         drawRect(lerp(HomeNight, groundColor, progress))
-        val imageW = width * scale * d
-        val imageH = imageW * 1448f / 1086f
-        val imageTop = artY * d
-        val imageBottom = imageTop + imageH
-        // 넓은 창에서 내린 그림 띠는 위쪽도 잘라 띠 위로 그림이 비치지 않게 한다.
-        clipRect(left = left * d, top = clipTop * d, right = (left + width) * d) {
-            translate(left * d + (width * d - imageW) * x, imageTop) {
-                with(painter) { draw(androidx.compose.ui.geometry.Size(imageW, imageH)) }
+        val place = homeArtPlacement(
+            kind, width, (ground - top).coerceAtLeast(1f),
+            mix(.5f, kind.openFocusX, progress), mix(.5f, kind.openFocusY, progress),
+        )
+        clipRect(left = left * d, top = top * d, right = (left + width) * d, bottom = ground * d) {
+            translate((left + place.x) * d, (top + place.y) * d) {
+                with(painter) { draw(androidx.compose.ui.geometry.Size(place.width * d, place.height * d)) }
             }
-            drawRect(Brush.verticalGradient(
-                0f to Color.Transparent, 1f to HomeNight,
-                startY = imageBottom - 118f * d, endY = imageBottom,
-            ))
-            drawRect(Brush.linearGradient(
-                .52f to Color.Transparent, .88f to Color(0x9E141824),
-                start = Offset(left * d, clipTop * d), end = Offset((left + width) * d, ground * d),
-            ), size = androidx.compose.ui.geometry.Size(size.width, ground * d))
         }
         drawRect(Brush.verticalGradient(
             0f to Color.Transparent, 1f to groundColor,
