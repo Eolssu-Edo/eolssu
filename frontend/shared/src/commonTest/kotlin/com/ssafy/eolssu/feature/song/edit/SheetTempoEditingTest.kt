@@ -3,6 +3,8 @@ package com.ssafy.eolssu.feature.song.edit
 import com.ssafy.eolssu.core.model.HanbaeMark
 import com.ssafy.eolssu.core.model.BasicAccompanimentPreset
 import com.ssafy.eolssu.core.model.ScoreUnitKey
+import com.ssafy.eolssu.data.song.CommonScoreData
+import com.ssafy.eolssu.data.song.CommonScoreData as c
 import com.ssafy.eolssu.data.song.commonSourceSha256
 import com.ssafy.eolssu.data.song.smallScoreData
 import kotlinx.serialization.json.*
@@ -221,6 +223,38 @@ class SheetTempoEditingTest {
         assertNotNull(initial.tempoChangeError(SheetTempoChange(1, HanbaeMark.Slower, 100.0)))
         assertNotNull(initial.tempoChangeError(SheetTempoChange(1, HanbaeMark.GraduallySlower, 60.0, 0)))
         assertEquals(initial, initial.withTempoChange(SheetTempoChange(1, HanbaeMark.Slower, 100.0)))
+    }
+
+    /** 한 각에 한 정간인 악보. 정간 번호가 곧 각-1이라 구간 경계를 읽기 쉽다. */
+    private fun longDraft(gak: Int = 8): SheetDraft {
+        return CommonScoreData(1, c.Header("긴 악보", "DANSO", 0, "long-score", 1), c.Music(311.13, "", "QUARTER", 4, 4),
+            (0 until gak).map { i -> c.Column(i, listOf(c.Cell("c$i-j0", 0, listOf(c.Unit(0, 0, "황", "e$i"))))) },
+            (0 until gak).map { i -> c.Event("e$i", "NOTE", "황", 0, i * 4L, 4, "c$i-j0", false, emptyList()) },
+            c.Provenance("long-score", "0".repeat(64), "inferred", "test-fixture"),
+        ).editingDraft("긴 악보", 80, null)
+    }
+
+    @Test fun rangesMayTouchAtTheirBoundaryButNeverOverlap() {
+        val ramp = longDraft().withTempoChange(SheetTempoChange(0, null, 160.0, 3, startBpm = 80.0))
+        // 1~4각 가속이 끝나는 4각에서 다음 구간이 시작하는 것은 허용한다.
+        val touching = ramp.withTempoChange(SheetTempoChange(3, HanbaeMark.GraduallySlower, 100.0, 6))
+        assertEquals(listOf(0, 3), touching.tempoChanges.map { it.cell })
+        assertNull(ramp.tempoChangeError(SheetTempoChange(3, null, 160.0), null))
+        // 가속 구간 안에서 시작하거나, 앞에서 시작해 다음 구간 안까지 이어지는 변경은 막는다.
+        assertNotNull(ramp.tempoChangeError(SheetTempoChange(2, HanbaeMark.Slower, 60.0), null))
+        assertNotNull(ramp.tempoChangeError(SheetTempoChange(1, HanbaeMark.GraduallyFaster, 200.0, 5), null))
+        assertNotNull(touching.tempoChangeError(SheetTempoChange(5, HanbaeMark.Slower, 60.0), null))
+        // 기존 구간을 옮겨 겹치게 만드는 수정도 막는다.
+        assertNotNull(touching.tempoChangeError(SheetTempoChange(2, HanbaeMark.GraduallySlower, 100.0, 5), replacing = 3))
+        assertEquals(touching, touching.withTempoChange(SheetTempoChange(2, HanbaeMark.GraduallySlower, 100.0, 5), replacing = 3))
+    }
+
+    @Test fun changesAreListedInScoreOrderWhateverOrderTheyWereAddedOrMoved() {
+        val added = longDraft().withTempoChange(SheetTempoChange(6, HanbaeMark.Faster, 100.0))
+            .withTempoChange(SheetTempoChange(2, HanbaeMark.Faster, 90.0))
+        assertEquals(listOf(2, 6), added.tempoChanges.map { it.cell })
+        val moved = added.withTempoChange(SheetTempoChange(7, null, 90.0), replacing = 2)
+        assertEquals(listOf(6, 7), moved.tempoChanges.map { it.cell })
     }
 
     @Test fun sourceSlotIdentityAndRelativePrefixSurviveOrderedMarkRebuild() {
