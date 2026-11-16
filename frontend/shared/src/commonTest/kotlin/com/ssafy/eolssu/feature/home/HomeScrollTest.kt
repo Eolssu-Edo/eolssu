@@ -82,11 +82,12 @@ class HomeScrollTest {
 
     @Test fun picksArtByOrientationAndShortSide() {
         assertEquals(HomeArtKind.PhonePortrait, homeArtKind(390f, 844f))
-        assertEquals(HomeArtKind.PhoneLandscape, homeArtKind(844f, 390f))
+        // 휴대폰은 가로를 지원하지 않는다. 낮은 가로 창(웹)도 가로 그림을 쓴다.
+        assertEquals(HomeArtKind.TabletLandscape, homeArtKind(844f, 390f))
         assertEquals(HomeArtKind.TabletPortrait, homeArtKind(800f, 1280f))
         assertEquals(HomeArtKind.TabletLandscape, homeArtKind(1280f, 800f))
-        // 넓지만 낮은 창은 짧은 변이 휴대폰 크기라 휴대폰 가로 그림을 쓴다.
-        assertEquals(HomeArtKind.PhoneLandscape, homeArtKind(1200f, 500f))
+        assertEquals(HomeArtKind.TabletLandscape, homeArtKind(1200f, 500f))
+        assertEquals(HomeArtKind.TabletPortrait, homeArtKind(600f, 960f))
     }
 
     @Test fun artCoversTheBoxAndKeepsItsRatio() {
@@ -132,18 +133,16 @@ class HomeScrollTest {
         assertEquals(370f, portrait.right)
         assertEquals(844f - 88f - 56.5f - 10f, portrait.bottom, 1e-3f)
         assertEquals(1.3f, homeHeroTitle(HomeArtKind.TabletPortrait, 800f, 1280f, 58f).scale)
-        val phoneLand = homeHeroTitle(HomeArtKind.PhoneLandscape, 844f, 390f, 58f)
-        val tabletLand = homeHeroTitle(HomeArtKind.TabletLandscape, 1280f, 800f, 58f)
-        assertTrue(phoneLand.scale > 1.3f && tabletLand.scale > 1.3f)
-        assertEquals(844f * .95f, phoneLand.right, 1e-3f)
-        // 가로 제목의 가운데는 창 높이의 정해진 비율에 놓인다.
-        assertEquals(390f * .38f, phoneLand.bottom - homeTitleHeight(phoneLand.scale) / 2f, 1e-3f)
+        val land = homeHeroTitle(HomeArtKind.TabletLandscape, 1280f, 800f, 58f)
+        assertTrue(land.scale > 1.3f)
+        assertEquals(1280f * .95f, land.right, 1e-3f)
+        // 가로 제목의 가운데는 창 높이의 50%에 놓인다.
+        assertEquals(400f, land.bottom - homeTitleHeight(land.scale) / 2f, 1e-3f)
     }
 
     @Test fun landscapeHeroTitleStaysClearOfTheStartButton() {
         for ((kind, w, h) in listOf(
-            Triple(HomeArtKind.PhoneLandscape, 780f, 360f), Triple(HomeArtKind.PhoneLandscape, 844f, 390f),
-            Triple(HomeArtKind.PhoneLandscape, 915f, 412f), Triple(HomeArtKind.TabletLandscape, 1024f, 768f),
+            Triple(HomeArtKind.TabletLandscape, 1024f, 768f), Triple(HomeArtKind.TabletLandscape, 1194f, 834f),
             Triple(HomeArtKind.TabletLandscape, 1280f, 800f), Triple(HomeArtKind.TabletLandscape, 1366f, 1024f),
         )) {
             val title = homeHeroTitle(kind, w, h, 58f)

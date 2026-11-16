@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** 악보 빠르기는 어느 연습 빠르기(0.6~1.2배)로도 평가(20~240)가 거절되지 않는 40~200만 받는다(S15P31E102-1018). */
 internal class SheetBpmRangeTest {
@@ -13,13 +14,13 @@ internal class SheetBpmRangeTest {
 
     @Test fun rangeKeepsEveryPracticeStepInsideTheEvaluationRange() {
         assertEquals(40..200, SheetBpmRange)
-        assert(SheetBpmRange.first * 0.6 >= 20)
-        assert(SheetBpmRange.last * 1.2 <= 240)
+        assertTrue(SheetBpmRange.first * 0.6 >= 20)
+        assertTrue(SheetBpmRange.last * 1.2 <= 240)
     }
 
     @Test fun boundariesAreInclusive() {
-        assert(40 in SheetBpmRange && 200 in SheetBpmRange)
-        assert(39 !in SheetBpmRange && 201 !in SheetBpmRange)
+        assertTrue(40 in SheetBpmRange && 200 in SheetBpmRange)
+        assertTrue(39 !in SheetBpmRange && 201 !in SheetBpmRange)
         // 저장 길이 추정도 같은 범위를 쓴다.
         assertNull(draft().estimatedDurationSeconds(201))
         assertNotNull(draft().estimatedDurationSeconds(200))

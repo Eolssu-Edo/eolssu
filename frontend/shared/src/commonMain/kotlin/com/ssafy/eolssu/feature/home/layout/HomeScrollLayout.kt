@@ -93,7 +93,6 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_hero_brush_lettering
 import eolssu.shared.generated.resources.home_hero_logo_white
 import eolssu.shared.generated.resources.home_hero_title
-import eolssu.shared.generated.resources.home_art_phone_landscape
 import eolssu.shared.generated.resources.home_art_phone_portrait
 import eolssu.shared.generated.resources.home_art_tablet_landscape
 import eolssu.shared.generated.resources.home_art_tablet_portrait
@@ -327,7 +326,6 @@ private fun HomeArt(kind: HomeArtKind, left: Float, width: Float, top: Float, gr
     val painter = painterResource(
         when (kind) {
             HomeArtKind.PhonePortrait -> Res.drawable.home_art_phone_portrait
-            HomeArtKind.PhoneLandscape -> Res.drawable.home_art_phone_landscape
             HomeArtKind.TabletPortrait -> Res.drawable.home_art_tablet_portrait
             HomeArtKind.TabletLandscape -> Res.drawable.home_art_tablet_landscape
         },
