@@ -81,17 +81,29 @@ fun planJangdan(mapping: JangdanPlayback, bpm: Int, ticksPerBeat: Int): JangdanP
 private val gutgeoriRolls = listOf(59 to JangdanSample.Gutgeori59, 79 to JangdanSample.Gutgeori79,
     99 to JangdanSample.Gutgeori99, 109 to JangdanSample.Gutgeori109, 119 to JangdanSample.Gutgeori119)
 
-/** 절대 악보 위치를 사용한다. 늦은 콜백은 과거 타격을 몰아치지 않으며 반복 경계도 원래 tick으로 계산한다. */
+/**
+ * 절대 악보 위치를 사용한다. 늦은 콜백은 과거 타격을 몰아치지 않으며 반복 경계도 원래 tick으로 계산한다.
+ * [lookaheadMs]만큼 앞의 타격을 미리 꺼내 플레이어가 정확한 시각에 예약하게 한다. [untilTick]과 그 뒤는 꺼내지 않는다.
+ * 음수 tick은 아직 시작 전이라는 표시이므로 미리 꺼내지 않는다.
+ */
 class JangdanCursor(
     private val plan: JangdanPlan,
     private val lateMs: Double = 30.0,
     resumeAfterTick: Double? = null,
     private val startAtTick: Double? = null,
+    private val lookaheadMs: Double = 0.0,
+    private val untilTick: Double = Double.POSITIVE_INFINITY,
 ) {
     private var previous: Double? = resumeAfterTick
+    private var scheduledUntil: Double? = resumeAfterTick
     private var resumeFloor: Double? = resumeAfterTick
     var movedBackward: Boolean = false
         private set
+
+    /** 플레이어가 예약해 둔 타격을 비웠을 때 부른다. 다음 [due]가 지난 위치 뒤의 타격을 다시 꺼낸다. */
+    fun forgetScheduled() {
+        scheduledUntil = previous
+    }
 
     fun due(tick: Double): List<JangdanStrike> {
         if (!tick.isFinite()) return emptyList()
@@ -106,18 +118,20 @@ class JangdanCursor(
         val from = when {
             last == null -> maxOf(lateFloor, startAtTick ?: Double.NEGATIVE_INFINITY) - 0.000001
             movedBackward -> lateFloor - 0.000001
-            else -> maxOf(last + 0.000001, lateFloor)
+            else -> maxOf((scheduledUntil ?: last) + 0.000001, lateFloor)
         }
+        val horizon = if (tick < 0) tick else minOf(tick + lookaheadMs / plan.msPerTick, untilTick - 0.000001)
         previous = tick
-        if (tick < plan.startTick) return emptyList()
+        scheduledUntil = maxOf(horizon, tick)
+        if (tick < 0 || horizon < plan.startTick) return emptyList()
         val cycle = plan.cycleTicks
         val firstCycle = floor((from - plan.startTick) / cycle).toLong().coerceAtLeast(0)
-        val lastCycle = floor((tick - plan.startTick) / cycle).toLong().coerceAtLeast(0)
+        val lastCycle = floor((horizon - plan.startTick) / cycle).toLong().coerceAtLeast(0)
         return (firstCycle..lastCycle).flatMap { number ->
             val start = plan.startTick + number * cycle
             plan.strikes.mapNotNull { strike ->
                 val absolute = start + strike.tick
-                strike.copy(tick = absolute).takeIf { absolute > from && absolute <= tick + 0.000001 }
+                strike.copy(tick = absolute).takeIf { absolute > from && absolute <= horizon + 0.000001 && absolute < untilTick }
             }
         }
     }
