@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.song.edit
 
-import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -26,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.song.SongLoadState
@@ -43,7 +40,6 @@ import eolssu.shared.generated.resources.sheetedit_new_copy_title
 import eolssu.shared.generated.resources.sheetedit_new_jg_caption
 import eolssu.shared.generated.resources.sheetedit_new_staff_caption
 import eolssu.shared.generated.resources.sheetedit_new_jg_title
-import eolssu.shared.generated.resources.sheetedit_new_pick_file
 import eolssu.shared.generated.resources.sheetedit_new_question
 import eolssu.shared.generated.resources.sheetedit_new_staff_title
 import eolssu.shared.generated.resources.sheetedit_new_title
@@ -65,15 +61,16 @@ class EditNewSheetActions(
 
 /**
  * EDIT-01 악보 추가: 같은 크기로 나란히 둔 정간보 가져오기 · 오선보 가져오기 카드와 그 아래 따로 둔 '내 악보·제공 곡 불러오기' 줄.
- * 아래 고정 버튼 '악보 정보 입력하기'는 고른 종류의 정보 입력 화면으로 간다. 파일은 그 화면에서 고르고, 음역은 가져온 뒤 편집기에서 조정한다.
+ * 카드를 누르면 확인 버튼 없이 바로 그 종류의 악보 올리기 화면으로 간다(S15P31E102-997). 파일은 그 화면에서 고르고, 음역은 가져온 뒤 편집기에서 조정한다.
  * 그 아래에 내 악보와 변환 진행 상황(대기·읽는 중·만드는 중·실패)을 내 악보 탭과 같은 줄로 보인다(S15P31E102-881).
  * 파일 형식·촬영 안내는 화면에 늘 두지 않고, 문제가 생겼을 때만 [EditNewUiState.problem] 안내 창으로 알린다.
- * 태블릿 가로에서는 본문을 [sheetAddContentMaxWidth]로 넓히고 하단 버튼은 휴대폰 열 폭으로 둔다(S15P31E102-978).
+ * 태블릿 가로에서는 본문을 [sheetAddContentMaxWidth]로 넓힌다(S15P31E102-978).
  */
 @Composable
 fun EditNewScreen(
     state: EditNewUiState,
     onBack: () -> Unit,
+    /** 종류 카드를 눌렀다. 고른 종류의 악보 올리기 화면으로 간다. */
     onSelectKind: (ImportKind) -> Unit,
     onLoadExisting: () -> Unit,
     onOpenDevicePick: () -> Unit,
@@ -90,7 +87,6 @@ fun EditNewScreen(
             EolssuTopBar(stringResource(Res.string.sheetedit_new_title), onBack = onBack, maxWidth = contentMaxWidth)
         },
         bottomDivider = false,
-        bottomBar = sheetAddBottomBar(contentMaxWidth) { EolssuButton(stringResource(Res.string.sheetedit_new_pick_file), onOpenDevicePick) },
     ) {
         Column(
             Modifier
@@ -101,14 +97,13 @@ fun EditNewScreen(
         ) {
             SectionLabel(stringResource(Res.string.sheetedit_new_question))
             Row(
-                Modifier.fillMaxWidth().height(IntrinsicSize.Min).selectableGroup(),
+                Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 KindCard(
                     stringResource(Res.string.sheetedit_new_jg_title),
                     stringResource(Res.string.sheetedit_new_jg_caption),
                     SheetEditIcons.Jeongganbo,
-                    selected = state.kind == ImportKind.Jeongganbo,
                     onClick = { onSelectKind(ImportKind.Jeongganbo) },
                     modifier = Modifier.weight(1f).heightIn(min = KindCardMinHeight).fillMaxHeight(),
                 )
@@ -116,7 +111,6 @@ fun EditNewScreen(
                     stringResource(Res.string.sheetedit_new_staff_title),
                     stringResource(Res.string.sheetedit_new_staff_caption),
                     SheetEditIcons.StaffNotes,
-                    selected = state.kind == ImportKind.Staff,
                     onClick = { onSelectKind(ImportKind.Staff) },
                     modifier = Modifier.weight(1f).heightIn(min = KindCardMinHeight).fillMaxHeight(),
                 )

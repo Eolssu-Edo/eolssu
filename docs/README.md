@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [악보 올리기 흐름의 화면 이동·파일 선택·사전 안내 개선 (997)](plans/S15P31E102-997.md)
 - [가사 있는 오선보의 가사 기호 오인식 차단 (992)](plans/S15P31E102-992.md)
 - [홈 첫 화면 그림을 전각 전경 그림으로 교체 (983)](plans/S15P31E102-983.md)
 - [Windows QA 실행·관측 통합 (936)](plans/S15P31E102-936.md) · [요구사항](specs/qa-live-control.md) · [QA 시연 대본](../infra/qa-phone/public/guide.html) · [운영 실행·증거 해석](../infra/qa-phone/LIVE.md)

@@ -5,7 +5,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -101,26 +100,24 @@ internal fun SegmentTabs(
 }
 
 /**
- * EDIT-01 가져오기 종류 카드(모서리 16 · 테두리 2). 두 장을 같은 줄에 같은 크기로 놓고,
+ * EDIT-01 가져오기 종류 카드. 두 장을 같은 줄에 같은 크기로 놓고,
  * 왼쪽 위에 아이콘 원, 아래 왼쪽에 이름과 한 줄 설명([caption])을 둔다.
- * 고르면 옅은 연두 바탕·연두 테두리, 아니면 흰 바탕이라 고름 표시 없이 카드 색으로 고른 상태를 보인다.
+ * 누르면 고른 상태를 따로 보이지 않고 바로 악보 올리기 화면으로 넘어간다(S15P31E102-997).
  */
 @Composable
-internal fun KindCard(title: String, caption: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun KindCard(title: String, caption: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     Surface(
-        selected = selected,
         onClick = onClick,
-        modifier = modifier.semantics { role = Role.RadioButton },
-        // 회색 바탕 위 테두리 없는 흰 카드(모서리 20). 고르면 옅은 연두 바탕에 연두 테두리(S15P31E102-849, 연두 채움은 주 행동 버튼에만).
+        modifier = modifier.semantics { role = Role.Button },
+        // 회색 바탕 위 테두리 없는 흰 카드(모서리 20).
         shape = RoundedCornerShape(20.dp),
-        color = if (selected) colors.accentTint else colors.surface,
-        border = if (selected) BorderStroke(2.dp, colors.primary) else null,
+        color = colors.surface,
         contentColor = colors.text,
     ) {
         Column(Modifier.padding(16.dp)) {
             Box(
-                Modifier.size(42.dp).background(if (selected) colors.surface else colors.accentTint, CircleShape),
+                Modifier.size(42.dp).background(colors.accentTint, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = colors.text)

@@ -12,7 +12,6 @@
     <string name="sheetedit_new_jg_caption">사진·PDF 정간보</string>
     <string name="sheetedit_new_staff_caption">사진·PDF 오선보</string>
     <string name="sheetedit_new_copy_title">내 악보·제공 곡 불러오기</string>
-    <string name="sheetedit_new_pick_file">악보 정보 입력하기</string>
 
     <!-- DevicePick 기기 기본 선택 창 자리 -->
     <string name="sheetedit_device_title_jg">정간보 사진·PDF 가져오기</string>
