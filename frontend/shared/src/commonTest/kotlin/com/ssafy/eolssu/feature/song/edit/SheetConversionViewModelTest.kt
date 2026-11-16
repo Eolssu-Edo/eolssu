@@ -85,8 +85,10 @@ internal class SheetConversionViewModelTest : CatalogViewModelTest() {
         assertFalse(model.uiState.value.openEditor)
 
         advanceTimeBy(2_000)
-        assertTrue(model.uiState.value.openEditor, "완료되면 편집 화면으로 보낸다")
-        assertEquals(1f, model.uiState.value.progress)
+        assertEquals(1f, model.uiState.value.progress, "완료되면 붓을 끝까지 그린다")
+        assertFalse(model.uiState.value.openEditor, "붓이 다 그려지기 전에는 넘어가지 않는다(갑자기 끝나 보이지 않게)")
+        advanceTimeBy(SheetConversionViewModel.FINISH_SHOW_MS)
+        assertTrue(model.uiState.value.openEditor, "완료를 잠깐 보인 뒤 편집 화면으로 보낸다")
         assertEquals(listOf("7"), conversions.acknowledged, "같은 완료를 앱 배너로 다시 알리지 않는다")
 
         val asked = conversions.asked

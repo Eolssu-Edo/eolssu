@@ -50,7 +50,7 @@
     <string name="sheet_conversion_step_state_done">%1$s, 끝남</string>
     <string name="sheet_conversion_step_state_now">%1$s, 진행 중</string>
     <string name="sheet_conversion_step_state_next">%1$s, 남음</string>
-    <string name="sheet_conversion_progress">변환 진행 %1$d%%</string>
+    <string name="sheet_conversion_progress">변환 진행 %1$d%</string>
     <string name="sheet_conversion_leave_hint">나가도 변환은 계속돼요.</string>
     <string name="sheet_conversion_wait_in_list">내 악보 목록에서 기다리기</string>
     <string name="sheet_conversion_unreachable">연결이 불안정해 상태를 확인하지 못하고 있어요. 계속 다시 확인할게요.</string>

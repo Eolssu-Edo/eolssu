@@ -160,7 +160,7 @@ private fun WaitingContent(state: SheetConversionUiState) {
     val conversion = state.conversion
     val step = conversion?.let(::conversionStep)
     val progress = state.progress
-    ConvertingFigure(progress)
+    ConvertingFigure(progress, finishing = state.done)
     val title = when {
         state.done -> Res.string.sheet_conversion_done_title
         conversion == null -> Res.string.sheet_conversion_checking
@@ -202,9 +202,9 @@ internal fun waitingBody(step: ConversionStep?, notation: SheetNotation?, done: 
 
 /** 붓 일원상(220dp)과 책 읽는 호랑이([StudyingTiger]). 진행을 모르면(첫 응답 전) 붓을 되풀이해 그린다. */
 @Composable
-private fun ConvertingFigure(progress: Float?) {
-    // 서버 응답이 2초 간격이라 그 사이를 부드럽게 잇는다.
-    val shown by animateFloatAsState(progress ?: 0f, animationSpec = tween(1_800))
+private fun ConvertingFigure(progress: Float?, finishing: Boolean) {
+    // 서버 응답이 2초 간격이라 그 사이를 부드럽게 잇는다. 완료되면 편집 화면으로 넘어가기 전에(FINISH_SHOW_MS) 끝까지 그린다.
+    val shown by animateFloatAsState(progress ?: 0f, animationSpec = tween(if (finishing) FINISH_DRAW_MS else 1_800))
     val percent = progress?.let { floor(shown * 100).toInt().coerceIn(0, 100) }
     val description = percent?.let { stringResource(Res.string.sheet_conversion_progress, it) }
     Box(
@@ -216,7 +216,7 @@ private fun ConvertingFigure(progress: Float?) {
         },
     ) {
         BrushEnso(color = EolssuTheme.colors.text, progress = if (progress == null) null else shown, modifier = Modifier.fillMaxSize())
-        StudyingTiger(Modifier.align(Alignment.Center).size(132.dp))
+        StudyingTiger(Modifier.align(Alignment.Center).size(160.dp))
     }
 }
 
@@ -247,6 +247,9 @@ private fun StudyingTiger(modifier: Modifier) {
 }
 
 private const val STUDY_FRAME_SIZE = 192
+
+/** 완료 붓을 끝까지 그리는 시간. 넘어가기 전 보이는 시간([SheetConversionViewModel.FINISH_SHOW_MS])보다 조금 짧다. */
+private const val FINISH_DRAW_MS = 800
 private const val STUDY_FRAME_COLUMNS = 6
 private const val STUDY_FRAME_COUNT = 30
 
