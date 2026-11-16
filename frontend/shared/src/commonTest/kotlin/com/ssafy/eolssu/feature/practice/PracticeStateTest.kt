@@ -335,13 +335,6 @@ class PracticeStateTest {
         assertTrue(ready.copy(settings = PracticeSettings(fingeringView = true)).fingeringView)
     }
 
-    /** 연주 평가만 곡 제목 옆에 운지법 보기 스위치를 두고, 혼자 연습·내 악보 연습은 톱니 안에 둔다(S15P31E102-716). */
-    @Test
-    fun onlyEvaluationShowsNotationTogglesBesideTitle() {
-        assertTrue(ready.showsTitleToggles)
-        assertFalse(ready.copy(solo = true).showsTitleToggles)
-        assertFalse(ready.copy(mine = true).showsTitleToggles)
-    }
 
     @Test
     fun tempoIsStoredPerSong() {

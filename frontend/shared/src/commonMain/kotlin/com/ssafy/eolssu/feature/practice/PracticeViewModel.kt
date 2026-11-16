@@ -162,7 +162,7 @@ class PracticeViewModel(
     val pitchFeedback: StateFlow<PracticePitchFeedback> = pitchSession.state
 
     /**
-     * 이번 평가 연주에서 음마다 모은 실시간 판정(S15P31E102-597). 지나간 음은 색을 고정한다. 멈춤·이어 연주·연주 완료 동안 남고,
+     * 이번 평가 연주에서 음마다 모은 실시간 판정(S15P31E102-597). 측정이 끝난 음은 판정을 확정해 색을 고정한다(980). 멈춤·이어 연주·연주 완료 동안 남고,
      * 새 연주를 시작하거나(처음부터 다시 포함) 준비로 돌아가거나 연주 중 화면을 벗어나면 비운다.
      */
     val livePitch: StateFlow<LivePitchTally> = pitchTally.asStateFlow()
@@ -377,11 +377,16 @@ class PracticeViewModel(
 
     init {
         accountScope.launch {
-            _uiState.map { it.position }.distinctUntilChanged().collect { position ->
-                pitchSession.refresh()
-                // 두 음 앞까지 지나간 음은 색을 고정한다. 직전 음은 늦게 도착하는 결과를 더 받는다.
-                _uiState.value.song?.let { song -> pitchTally.update { it.freezeBefore(song, position - 1) } }
-            }
+            _uiState.map { it.position }.distinctUntilChanged().collect { pitchSession.refresh() }
+        }
+        accountScope.launch {
+            // 녹음하는 동안 측정이 끝난 음(끝난 뒤 300ms 또는 두 음 뒤)의 판정을 확정한다. 화면은 확정한 음만 칠한다(S15P31E102-980).
+            _uiState.map { if (it.mode == PracticeMode.Recording && !it.finished) Triple(it.position, it.elapsedMs, it.bpm) else null }
+                .distinctUntilChanged()
+                .collect { at ->
+                    val song = _uiState.value.song
+                    if (at != null && song != null) pitchTally.update { it.confirm(song, at.first, at.second, at.third) }
+                }
         }
         accountScope.launch {
             _uiState.map { it.mode == PracticeMode.Ready || (it.mode == PracticeMode.Countdown && !it.resume) }
@@ -674,6 +679,9 @@ class PracticeViewModel(
 
     /** 연습 설정의 ‘한글 읽는 법 표시’ 스위치. 바로 켜고 끈다(S15P31E102-875). */
     fun toggleHangul() = settingsStore.update { it.copy(showHangul = !it.showHangul) }
+
+    /** 연주 설정의 ‘실시간 채점’ 스위치. 판정 색만 숨기거나 다시 보이고, 판정 집계는 그대로 둔다(S15P31E102-980). */
+    fun toggleLiveMarks() = settingsStore.update { it.copy(liveMarks = !it.liveMarks) }
 
     /** 연습 설정의 ‘연습 악기’. 운지 그림과 제목 옆 표시에만 쓰고 프로필 악기는 바꾸지 않는다. */
     fun setInstrument(id: String) = settingsStore.update { it.copy(instrumentId = id) }
@@ -1407,8 +1415,15 @@ class PracticeViewModel(
         return true
     }
 
+    /** 녹음을 멈추거나 마쳐 음높이 결과가 끊길 때 [before]번보다 앞의 음 판정을 확정한다. 기본은 지금 음 앞까지다. */
+    private fun confirmPitchBefore(before: Int = _uiState.value.position) {
+        val song = _uiState.value.song ?: return
+        pitchTally.update { it.confirmBefore(song, before) }
+    }
+
     private fun pauseRecorder() {
         pitchSession.stop()
+        confirmPitchBefore()
         val recorder = recorder ?: return
         levelJob?.cancel()
         recordingClock.pause()
@@ -1418,6 +1433,7 @@ class PracticeViewModel(
 
     private fun cancelRecorder() {
         pitchSession.stop()
+        confirmPitchBefore()
         levelJob?.cancel()
         recordingClock.reset()
         recorder?.cancel()
@@ -1426,6 +1442,7 @@ class PracticeViewModel(
     /** 곡 끝이나 최대 길이에서 녹음을 마치고 저장된 파일을 확인한다. */
     private fun finishRecorder() {
         pitchSession.stop()
+        confirmPitchBefore(_uiState.value.song?.timeline?.size ?: 0)
         levelJob?.cancel()
         recordingClock.reset()
         val audio = recorder?.stop()

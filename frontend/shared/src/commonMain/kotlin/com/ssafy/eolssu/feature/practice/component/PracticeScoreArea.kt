@@ -49,6 +49,7 @@ import com.ssafy.eolssu.core.ui.score.ScorePlayback
 import com.ssafy.eolssu.core.ui.score.rememberScoreCursor
 import com.ssafy.eolssu.core.ui.score.twoBandColumnCount
 import com.ssafy.eolssu.core.ui.score.scoreStrips
+import com.ssafy.eolssu.feature.practice.LivePitchCell
 import com.ssafy.eolssu.feature.practice.LivePitchMark
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
@@ -97,7 +98,7 @@ fun PracticeScoreArea(
     onUserScroll: () -> Unit,
     onFollowNow: () -> Unit,
     modifier: Modifier = Modifier,
-    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
+    livePitch: Map<ScoreUnitKey, LivePitchCell> = emptyMap(),
 ) {
     val song = state.song ?: return
     val pitchMarks = livePitchCellMarks(livePitch)
@@ -306,7 +307,7 @@ fun PracticeBoardScore(
     onUserScroll: () -> Unit,
     onFollowNow: () -> Unit,
     modifier: Modifier = Modifier,
-    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
+    livePitch: Map<ScoreUnitKey, LivePitchCell> = emptyMap(),
 ) {
     val song = state.song ?: return
     val colors = EolssuTheme.colors
@@ -383,22 +384,27 @@ fun PracticeBoardScore(
 }
 
 /**
- * 평가 연주에서 음마다 모은 실시간 음높이 안내를 그 음의 표시 자리에 칠한다(S15P31E102-597).
- * 맞음은 연두, 다른 음은 주황, 판단 보류는 회색 테두리만 둔다. 연주 후 채점의 틀린 칸 표시와 달리 아이콘·문구는 없다.
- * 연주 중에는 진행 채움이 그 자리를 다 지난 뒤에 칠한다(S15P31E102-752).
+ * 평가 연주에서 확정한 실시간 음높이 안내를 그 음의 표시 자리에 칠한다(S15P31E102-597).
+ * 3-A '옅어지는 바탕'(S15P31E102-980): 맞음은 진한 연두로 칠했다가 한 음 뒤 옅은 연두로 가라앉고, 다른 음은 주황 바탕이 남고,
+ * 판단 보류는 회색 테두리만 둔다. 색 전환만 쓴다(칠할 때 [LiveMarkFillInMillis], 가라앉을 때 [LiveMarkSettleMillis]).
+ * 연주 후 채점의 틀린 칸 표시와 달리 아이콘·문구는 없다. 연주 중에는 진행 채움이 그 자리를 다 지난 뒤에 칠한다(S15P31E102-752).
  */
 @Composable
-private fun livePitchCellMarks(marks: Map<ScoreUnitKey, LivePitchMark>): Map<ScoreUnitKey, ScoreCellMark> {
+internal fun livePitchCellMarks(marks: Map<ScoreUnitKey, LivePitchCell>): Map<ScoreUnitKey, ScoreCellMark> {
     if (marks.isEmpty()) return emptyMap()
     val colors = EolssuTheme.colors
-    return marks.mapValues { (_, mark) ->
-        when (mark) {
-            LivePitchMark.Correct -> ScoreCellMark(fill = colors.accentTintStrong, ring = colors.green, ringWidth = 1.5.dp)
-            LivePitchMark.Wrong -> ScoreCellMark(fill = colors.pitchErrorSoft, ring = colors.pitchError, ringWidth = 1.5.dp)
+    return marks.mapValues { (_, cell) ->
+        when (cell.mark) {
+            LivePitchMark.Correct -> if (cell.settled) ScoreCellMark(fill = colors.accentSoft, fillInMillis = LiveMarkSettleMillis)
+                else ScoreCellMark(fill = colors.accentTintStrong, fillInMillis = LiveMarkFillInMillis)
+            LivePitchMark.Wrong -> ScoreCellMark(fill = colors.pitchErrorSoft, fillInMillis = LiveMarkFillInMillis)
             LivePitchMark.Listening -> ScoreCellMark(ring = colors.textDisabled, ringWidth = 1.5.dp)
         }
     }
 }
+
+private const val LiveMarkFillInMillis = 100
+private const val LiveMarkSettleMillis = 250
 
 /**
  * 구간 연습(S15P31E102-776)의 악보 꾸밈: 구간 밖 정간은 흐리게, 구간을 고르는 동안에는 시작·끝 정간에 ‘시작’·‘끝’ 표와 먹색 테두리를 둔다.

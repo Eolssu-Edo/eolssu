@@ -88,7 +88,6 @@ import eolssu.shared.generated.resources.practice_fingering_prev
 import eolssu.shared.generated.resources.practice_fingering_rest
 import eolssu.shared.generated.resources.practice_fingering_title
 import eolssu.shared.generated.resources.practice_fingering_view
-import eolssu.shared.generated.resources.practice_fingering_view_desc
 import eolssu.shared.generated.resources.practice_instrument
 import eolssu.shared.generated.resources.practice_jangdan_beat
 import eolssu.shared.generated.resources.practice_jangdan_meta
@@ -106,6 +105,7 @@ import eolssu.shared.generated.resources.practice_menu_tempo
 import eolssu.shared.generated.resources.practice_notation_hangul
 import eolssu.shared.generated.resources.practice_settings
 import eolssu.shared.generated.resources.practice_settings_locked
+import eolssu.shared.generated.resources.practice_live_marks
 import eolssu.shared.generated.resources.practice_tempo_note
 import eolssu.shared.generated.resources.practice_tempo_sub
 import eolssu.shared.generated.resources.practice_tempo_title
@@ -127,6 +127,8 @@ class PracticePanelActions(
     val onToggleFingeringView: () -> Unit = {},
     /** 연습 설정의 ‘한글 읽는 법 표시’. 바로 반영된다(S15P31E102-875). */
     val onToggleHangul: () -> Unit = {},
+    /** 연주 설정의 ‘실시간 채점’. AI 연주 평가에서만 보이고 바로 반영된다(S15P31E102-980). */
+    val onToggleLiveMarks: () -> Unit = {},
 )
 
 /**
@@ -140,7 +142,6 @@ fun PracticePanelSheet(
     actions: PracticePanelActions,
     tablet: Boolean = false,
     modifier: Modifier = Modifier,
-    titleToggles: Boolean = false,
     expanded: Boolean = false,
 ) {
     val panel = state.panel ?: return
@@ -167,7 +168,7 @@ fun PracticePanelSheet(
                     PanelHeader(panel, state, actions.onClose)
                     Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        PanelBody(panel, state, song, actions, titleToggles)
+                        PanelBody(panel, state, song, actions)
                     }
                 }
             }
@@ -199,9 +200,9 @@ fun PanelHeader(panel: PracticePanel, state: PracticeUiState, onClose: () -> Uni
 }
 
 @Composable
-fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: Song, actions: PracticePanelActions, titleToggles: Boolean = false) {
+fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: Song, actions: PracticePanelActions) {
     when (panel) {
-        PracticePanel.Settings -> SettingsMenu(state, song, actions, titleToggles)
+        PracticePanel.Settings -> SettingsMenu(state, song, actions)
         PracticePanel.Fingering -> FingeringPanel(state, actions)
         PracticePanel.Jangdan -> JangdanPanel(state, song, actions)
         PracticePanel.Tempo -> TempoPanel(state.draft, song, actions)
@@ -209,16 +210,15 @@ fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: So
 }
 
 /**
- * PANEL-00 연습 설정: ‘연습 악기’ 고르기 → 장단 · 속도 메뉴 줄(`.menu-row`) → ‘한글 읽는 법 표시’·‘운지법과 함께 보기’ 스위치(`.trow`).
+ * PANEL-00 연습 설정: ‘연습 악기’ 고르기 → 장단 · 속도 메뉴 줄(`.menu-row`) → ‘한글 읽는 법 표시’·‘운지법과 함께 보기’·‘실시간 채점’ 스위치(`.trow`).
  * 한글 읽는 법은 하위 화면 없이 이 시트에서 바로 켜고 끈다. 연주 평가 중에도 바꿀 수 있다(S15P31E102-875).
  * AI 연주 평가로 들어온 연습([PracticeUiState.solo]가 아님)은 고른 곡의 악기로 평가하므로 ‘연습 악기’를 두지 않는다(S15P31E102-561).
- * [titleToggles]이면 운지법이 곡 제목 옆 스위치에 있으므로 여기서 뺀다(S15P31E102-716).
+ * 연주 평가도 ‘운지법과 함께 보기’를 곡 제목 옆이 아닌 이 시트에서 바꾼다(S15P31E102-980).
  */
 @Composable
-private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePanelActions, titleToggles: Boolean) {
+private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
     val settings = state.settings
     val step = TempoStep.nearest(song.baseBpm, state.bpm)
-    val instrumentName = stringResource(state.instrument.label)
     // 평가 중에는 속도만 고정하고 장단 소리는 바꿀 수 있다.
     val locked = state.playbackSettingsLocked
     val lockedStatus = stringResource(Res.string.practice_settings_locked)
@@ -248,11 +248,16 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
                     topLine = false,
                     topPadding = 12.dp,
                 )
-                if (!titleToggles) SettingRow(
-                    stringResource(Res.string.practice_fingering_view),
-                    stringResource(Res.string.practice_fingering_view_desc, instrumentName),
+                SettingRow(
+                    stringResource(Res.string.practice_fingering_view), null,
                     checked = state.fingeringView,
                     onToggle = actions.onToggleFingeringView,
+                )
+                // 실시간 판정 색은 AI 연주 평가에서만 칠하므로 혼자 연습에는 두지 않는다(S15P31E102-980).
+                if (!state.solo) SettingRow(
+                    stringResource(Res.string.practice_live_marks), null,
+                    checked = settings.liveMarks,
+                    onToggle = actions.onToggleLiveMarks,
                 )
             }
         }

@@ -75,7 +75,7 @@ internal class PracticePitchSession(
         output.value = value
         onPublish(value)
         expiry?.cancel()
-        val expiresAt = listOfNotNull(value.current, value.previous).minOfOrNull { it.capturedEndNanos + 300_000_000L } ?: return
+        val expiresAt = listOfNotNull(value.current, value.previous).minOfOrNull { it.capturedEndNanos + PitchFeedbackLifetimeNanos } ?: return
         val now = recorder?.captureBoundary?.observedNanos ?: return
         expiry = scope.launch {
             delay((expiresAt - now).coerceAtLeast(1).nanoseconds)
