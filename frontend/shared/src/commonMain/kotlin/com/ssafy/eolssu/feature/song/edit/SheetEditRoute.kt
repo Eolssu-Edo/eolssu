@@ -20,6 +20,8 @@ import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationPanel
 import com.ssafy.eolssu.feature.song.edit.component.SheetImportGuideCard
+import com.ssafy.eolssu.feature.song.edit.component.SheetTutorial
+import com.ssafy.eolssu.feature.song.edit.component.SheetTutorials
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -134,6 +136,11 @@ fun SheetEditRoute(
         snackbarHostState = snackbarHostState,
         focusRequestKey = focusRequestKey,
         guideContent = {
+            if (state.importGuide?.reviewCells?.let { it > 0 } == true) {
+                SheetTutorials(SheetTutorial.Editor, SheetTutorial.Review)
+            } else {
+                SheetTutorials(SheetTutorial.Editor)
+            }
             state.importGuide?.let { guide -> SheetImportGuideCard(guide,
                 onApplyRecommended = viewModel::applyRecommendedAdaptation,
                 onOpenAdaptation = viewModel::openAdaptation,
