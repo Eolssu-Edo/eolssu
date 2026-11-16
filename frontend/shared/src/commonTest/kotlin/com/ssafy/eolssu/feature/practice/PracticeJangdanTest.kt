@@ -587,10 +587,34 @@ class PracticeJangdanTest {
         assertTrue(recorded.all { it == 0.25f }, "Recording strikes are limited: $recorded")
     }
 
+    @Test fun turningOnStepDuringRhythmStopsJangdanAndPausesAtHeardNote() = practice(solo = true) { vm, samples, _, _ ->
+        vm.startRhythm(); runCurrent()
+        advanceTimeBy(1_000); runCurrent()
+        val playing = vm.uiState.value
+        assertEquals(PracticeMode.Rhythm, playing.mode)
+        assertTrue(playing.playing)
+        assertTrue(playing.stepToggleEnabled)
+        val heard = playing.position
+        assertTrue(heard > 0, "The rhythm must have moved past the first note")
+
+        vm.toggleStep(); runCurrent()
+        val on = vm.uiState.value
+        assertEquals(PracticeMode.Ready, on.mode)
+        assertFalse(on.playing)
+        assertTrue(on.step.on)
+        assertEquals(StepPhase.Paused, on.step.phase)
+        assertEquals(stepTargets(on.song!!.timeline).first { it >= heard }, on.step.target)
+        assertEquals(JangdanStatus.Idle, on.jangdanStatus)
+        val hits = samples.hits.size
+        advanceTimeBy(2_000); runCurrent()
+        assertEquals(hits, samples.hits.size, "Jangdan must stay silent once step mode is on")
+    }
+
     private fun practice(
         jangdan: JangdanPlayback = mapping,
         basic: BasicAccompaniment? = null,
         volume: com.ssafy.eolssu.core.audio.JangdanVolumeLimit = com.ssafy.eolssu.core.audio.NoJangdanVolumeLimit,
+        solo: Boolean = false,
         block: suspend TestScope.(PracticeViewModel, Samples, FakeAudioPlayer, PracticeSettingsStore) -> Unit,
     ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -607,7 +631,7 @@ class PracticeJangdanTest {
             val settings = PracticeSettingsStore(kv).apply { grantMic() }
             val samples = Samples()
             val media = FakeAudioPlayer()
-            val vm = PracticeViewModel(song.id, false, repository, settings, PracticeTimeMeter({ 0L }),
+            val vm = PracticeViewModel(song.id, solo, repository, settings, PracticeTimeMeter({ 0L }),
                 PracticeTimeQueue(kv, null, SignedInMember(kv), backgroundScope), recorder = FakePracticeRecorder(),
                 playbackTimeSource = testScheduler.timeSource, jangdanPlayer = samples, jangdanVolume = volume,
                 modelAudioRepository = modelRepository { audioFixture() }, audioPlayer = media)
