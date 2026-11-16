@@ -67,7 +67,7 @@ enum class FieldError(val message: StringResource) {
 
 /**
  * 서버에 보내기 전의 입력 검사. 계정 확인·이메일 중복·인증번호는 서버 응답을 따른다.
- * 비밀번호 규칙은 서버와 같은 '영문·숫자·특수문자를 포함한 8~128자'다. 닉네임은 서버와 같은 공백이 아닌 최대 10자([NicknameRule])다.
+ * 새 비밀번호 규칙은 앱 기준 '영문·숫자·특수문자를 포함한 8~64자'다(서버는 128자까지 받는다). 닉네임은 서버와 같은 공백이 아닌 최대 10자([NicknameRule])다.
  */
 object AuthValidation {
     private val codePattern = Regex("""^\d{6}$""")
@@ -84,7 +84,7 @@ object AuthValidation {
         else -> null
     }
 
-    /** 조건을 덜 채우면 [FieldError.PasswordRule](화면은 체크리스트로 보인다), 네 조건을 채웠지만 128자를 넘으면 [FieldError.PasswordTooLong]. */
+    /** 조건을 덜 채우면 [FieldError.PasswordRule](화면은 체크리스트로 보인다), 네 조건을 채웠지만 64자를 넘으면 [FieldError.PasswordTooLong]. */
     fun passwordError(password: String): FieldError? = when {
         password.isEmpty() -> FieldError.PasswordEmpty
         !PasswordRule.meetsAllChecks(password) -> FieldError.PasswordRule

@@ -33,33 +33,33 @@ class ProfileSetupViewModel(
 
     fun selectInstrument(instrument: Instrument) = _uiState.update { it.copy(instrument = instrument) }
 
-    private var submitting = false
+    /** 실패를 닉네임 칸 오류와 화면 오류로 나눈다. 닉네임 칸에는 닉네임 때문에 생긴 오류만 붙인다. */
+    private fun fail(error: FieldError): Boolean {
+        val nickname = error == FieldError.NicknameEmpty || error == FieldError.InvalidInput
+        _uiState.update { it.copy(nicknameError = error.takeIf { nickname }, formError = error.takeUnless { nickname }) }
+        return false
+    }
 
     /** 인증 토큰(소셜은 가입 티켓)·실제 동의와 입력을 보내고 서버가 계정을 생성했을 때만 true. */
     suspend fun complete(): Boolean {
-        if (submitting) return false
+        if (_uiState.value.submitting) return false
         val state = _uiState.value
-        val error = AuthValidation.nicknameError(state.nickname)
-        _uiState.update { it.copy(nicknameError = error) }
-        if (error != null) return false
+        _uiState.update { it.copy(formError = null) }
+        AuthValidation.nicknameError(state.nickname)?.let { return fail(it) }
+        _uiState.update { it.copy(nicknameError = null) }
         val ticket = if (social) {
-            attempts?.signUpTicket() ?: return false.also { _uiState.update { it.copy(nicknameError = FieldError.SignUpExpired) } }
+            attempts?.signUpTicket() ?: return fail(FieldError.SignUpExpired)
         } else {
             if (draft.token.isBlank() || draft.password.isBlank() || draft.purpose != VerificationPurpose.SignUp) {
-                _uiState.update { it.copy(nicknameError = FieldError.VerifyAgain) }; return false
+                return fail(FieldError.VerifyAgain)
             }
             null
         }
-        if (draft.agreements.isEmpty()) {
-            _uiState.update { it.copy(nicknameError = FieldError.TermsAgain) }; return false
-        }
-        submitting = true
+        if (draft.agreements.isEmpty()) return fail(FieldError.TermsAgain)
+        _uiState.update { it.copy(submitting = true) }
         return try {
             val instrumentId = instrumentRepository.serverIdFor(state.instrument)
-            if (instrumentId == null) {
-                _uiState.update { it.copy(nicknameError = FieldError.InstrumentUnavailable) }
-                return false
-            }
+                ?: return fail(FieldError.InstrumentUnavailable)
             val result = if (ticket != null) {
                 auth.socialSignUp(SocialRegistration(ticket, state.nickname.trim(), draft.agreements, instrumentId))
             } else {
@@ -76,8 +76,8 @@ class ProfileSetupViewModel(
                 if (result == MemberResult.TermsRequired) draft.agreements = emptyList()
                 // 티켓이 만료·재사용됐거나 이미 다른 회원이 됐으면 같은 티켓으로 다시 보내도 같다.
                 if (result == MemberResult.TicketExpired || result == MemberResult.SocialAccountInUse) attempts?.clearSignUp()
-                _uiState.update { it.copy(nicknameError = result.fieldError(social)) }; false
+                fail(result.fieldError(social))
             }
-        } finally { submitting = false }
+        } finally { _uiState.update { it.copy(submitting = false) } }
     }
 }

@@ -8,7 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -16,14 +16,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -335,11 +333,14 @@ private fun RecordMemoDialog(recordId: String, memo: String, dialog: RecordMemoS
         val editLabel = stringResource(Res.string.record_memo_edit)
         // 메모가 없는 기록은 안내 문구 없이 같은 상자를 비워 두고, 연필 버튼을 눌러야 입력칸으로 바뀐다(S15P31E102-846).
         Box(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+            // 긴 메모는 상자 안에서 스크롤하고, 오른쪽에 스크롤 막대를 보인다(S15P31E102-996).
+            val memoScroll = rememberScrollState()
             Text(
                 memo,
                 Modifier.fillMaxWidth().heightIn(min = 52.dp, max = 240.dp)
                     .background(colors.background, MemoFieldShape)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScrollIndicator(memoScroll, scrollIndicatorColor(colors.text))
+                    .verticalScroll(memoScroll)
                     // 오른쪽 위 연필 버튼과 첫 줄이 겹치지 않게 오른쪽을 비운다.
                     .padding(start = 14.dp, top = 14.dp, end = 40.dp, bottom = 14.dp),
                 style = memoTextStyle(),
@@ -371,56 +372,38 @@ private fun RecordMemoDialog(recordId: String, memo: String, dialog: RecordMemoS
     }
 }
 
-/** 메모 고치기: 여러 줄 입력칸(500자까지) · 실패 안내 · 글자 수 · ‘취소’ · ‘저장’. */
+/** 메모 고치기: 여러 줄 입력칸(500자까지, 넘치면 칸 안에서 스크롤) · 실패 안내 · 글자 수 · ‘취소’ · ‘저장’. */
 @Composable
 private fun RecordMemoEditor(recordId: String, memo: String, dialog: RecordMemoState, actions: RecordDetailActions) {
     val colors = EolssuTheme.colors
     // 고치기를 새로 시작할 때마다 지금 메모로 채운다. 저장에 실패하면 적던 내용을 그대로 둔다.
-    var draft by rememberSaveable(recordId, memo, stateSaver = TextFieldValue.Saver) {
-        mutableStateOf(TextFieldValue(memo, TextRange(memo.length)))
+    // 서버는 500자를 넘는 메모를 받지 않으므로(400) 입력칸이 그 이상은 받지 않는다(S15P31E102-996).
+    val draft = rememberSaveable(recordId, memo, saver = TextFieldState.Saver) {
+        TextFieldState(memo, TextRange(memo.length))
     }
-    val memoLength = recordMemoLength(draft.text)
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    val textStyle = memoTextStyle().copy(color = colors.text)
     val small = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp)
-    Column(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(
-            Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 240.dp)
-                .background(colors.surface, MemoFieldShape)
-                .border(1.dp, if (dialog.failed) colors.rec else colors.line, MemoFieldShape)
-                .padding(14.dp),
-        ) {
-            // 기록 상세에서 고칠 때는 예시 문구를 두지 않고 빈 입력칸만 보인다(S15P31E102-830).
-            BasicTextField(
-                value = draft,
-                // 서버는 500자를 넘는 메모를 받지 않으므로(400) 그 이상은 입력하지 않는다.
-                onValueChange = { if (recordMemoLength(it.text) <= RECORD_MEMO_MAX_LENGTH) draft = it },
-                enabled = !dialog.saving,
-                textStyle = textStyle,
-                cursorBrush = SolidColor(colors.text),
-                modifier = Modifier.fillMaxWidth().focusRequester(focus),
-            )
-        }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Box(Modifier.weight(1f)) {
-                if (dialog.failed) {
-                    Text(
-                        stringResource(Res.string.record_memo_save_failed),
-                        Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                        style = small,
-                        color = colors.recText,
-                    )
-                }
+    // 기록 상세에서 고칠 때는 예시 문구를 두지 않고 빈 입력칸만 보인다(S15P31E102-830).
+    EolssuMemoField(
+        state = draft,
+        label = stringResource(Res.string.record_memo_button),
+        modifier = Modifier.padding(bottom = 6.dp),
+        fieldModifier = Modifier.focusRequester(focus),
+        maxLength = RECORD_MEMO_MAX_LENGTH,
+        enabled = !dialog.saving,
+        error = dialog.failed,
+        supporting = if (dialog.failed) {
+            {
+                Text(
+                    stringResource(Res.string.record_memo_save_failed),
+                    Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    style = small,
+                    color = colors.recText,
+                )
             }
-            Text(
-                stringResource(Res.string.record_memo_count, memoLength, RECORD_MEMO_MAX_LENGTH),
-                Modifier.padding(start = 8.dp),
-                style = small,
-                color = if (memoLength >= RECORD_MEMO_MAX_LENGTH) colors.recText else colors.textMuted,
-            )
-        }
-    }
+        } else null,
+    )
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         EolssuButton(
             stringResource(Res.string.common_cancel),
@@ -433,7 +416,7 @@ private fun RecordMemoEditor(recordId: String, memo: String, dialog: RecordMemoS
         )
         EolssuButton(
             stringResource(Res.string.record_memo_save),
-            { actions.onSaveMemo(draft.text) },
+            { actions.onSaveMemo(draft.text.toString()) },
             Modifier.weight(1f),
             busy = dialog.saving,
         )

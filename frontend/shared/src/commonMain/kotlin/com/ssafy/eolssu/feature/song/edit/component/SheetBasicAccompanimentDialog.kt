@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -47,7 +48,7 @@ internal fun SheetBasicAccompanimentDialog(
             Text(stringResource(Res.string.basic_accompaniment_pickup_help), style = MaterialTheme.typography.bodySmall)
             EolssuTextField(firstCell, { firstCell = it },
                 label = stringResource(Res.string.basic_accompaniment_first_cell, draft.cells.size), placeholder = "1",
-                type = TextFieldType.Number,
+                type = TextFieldType.Number, maxLength = InputLimit.NUMBER_DIGITS,
                 error = if (cell == null) stringResource(Res.string.basic_accompaniment_cell_error, draft.cells.size) else null)
             if (cell != null) Text(stringResource(Res.string.basic_accompaniment_cell_location,
                 draft.columnOf(cell) + 1, draft.rowOf(cell) + 1), style = MaterialTheme.typography.bodySmall)

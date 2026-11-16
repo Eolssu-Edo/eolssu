@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -43,6 +44,8 @@ internal fun SheetEditSettingsDialog(
 ) {
     var working by remember(draft) { mutableStateOf(draft) }
     var bpm by rememberSaveable { mutableStateOf(draft.bpm.toString()) }
+    // 빠르기 칸을 고친 뒤에만 오류를 보인다(S15P31E102-996).
+    var bpmTouched by rememberSaveable { mutableStateOf(false) }
     var editing by rememberSaveable { mutableStateOf(false) }
     var replacing by rememberSaveable { mutableStateOf<Int?>(null) }
     var markName by rememberSaveable { mutableStateOf<String?>(HanbaeMark.Slower.name) }
@@ -89,10 +92,10 @@ internal fun SheetEditSettingsDialog(
     }
     EolssuDialog(title = stringResource(Res.string.sheet_settings_title), onDismissRequest = { if (!saving) onDismiss() }) {
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            EolssuTextField(bpm, { if (!saving) bpm = it },
+            EolssuTextField(bpm, { if (!saving) { bpm = it; bpmTouched = true; error = null } },
                 label = stringResource(Res.string.sheet_tempo_whole) + " · " + draft.tempoUnitLabel,
-                placeholder = "", type = TextFieldType.Number, imeAction = ImeAction.Done,
-                error = if (validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
+                placeholder = "", type = TextFieldType.Number, maxLength = InputLimit.NUMBER_DIGITS, imeAction = ImeAction.Done,
+                error = if (bpmTouched && validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
                 bordered = false, containerColor = EolssuTheme.colors.groupedBackground)
             if (hasTempoPlan || changes.isNotEmpty()) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(Res.string.sheet_tempo_changes), style = MaterialTheme.typography.titleSmall)
@@ -108,20 +111,20 @@ internal fun SheetEditSettingsDialog(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EolssuTextField(startGak, { startGak = it; error = null }, stringResource(Res.string.sheet_tempo_start_gak), "", Modifier.weight(1f), type = TextFieldType.Number)
-                    EolssuTextField(startCell, { startCell = it; error = null }, stringResource(Res.string.sheet_tempo_start_cell), "", Modifier.weight(1f), type = TextFieldType.Number)
+                    EolssuTextField(startGak, { startGak = it; error = null }, stringResource(Res.string.sheet_tempo_start_gak), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = InputLimit.NUMBER_DIGITS)
+                    EolssuTextField(startCell, { startCell = it; error = null }, stringResource(Res.string.sheet_tempo_start_cell), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = InputLimit.NUMBER_DIGITS)
                 }
                 if (mark == null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     EolssuButton(stringResource(Res.string.sheet_tempo_step), { gradual = false }, Modifier.weight(1f), small = true, style = if (!gradual) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary)
                     EolssuButton(stringResource(Res.string.sheet_tempo_ramp), { gradual = true }, Modifier.weight(1f), small = true, style = if (gradual) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary)
                 }
                 if (mark != HanbaeMark.Original) EolssuTextField(target, { target = it; error = null },
-                    stringResource(Res.string.sheet_tempo_target) + " · " + draft.tempoUnitLabel, "", type = TextFieldType.Number,
+                    stringResource(Res.string.sheet_tempo_target) + " · " + draft.tempoUnitLabel, "", type = TextFieldType.Number, maxLength = InputLimit.NUMBER_DIGITS,
                     help = stringResource(Res.string.sheet_tempo_target_help))
                 if (needsEnd) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        EolssuTextField(endGak, { endGak = it; error = null }, stringResource(Res.string.sheet_tempo_end_gak), "", Modifier.weight(1f), type = TextFieldType.Number)
-                        EolssuTextField(endCell, { endCell = it; error = null }, stringResource(Res.string.sheet_tempo_end_cell), "", Modifier.weight(1f), type = TextFieldType.Number)
+                        EolssuTextField(endGak, { endGak = it; error = null }, stringResource(Res.string.sheet_tempo_end_gak), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = InputLimit.NUMBER_DIGITS)
+                        EolssuTextField(endCell, { endCell = it; error = null }, stringResource(Res.string.sheet_tempo_end_cell), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = InputLimit.NUMBER_DIGITS)
                     }
                     Text(stringResource(Res.string.sheet_tempo_end_help), style = MaterialTheme.typography.bodySmall)
                 }

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.profile
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -145,6 +146,7 @@ fun WithdrawScreen(
                 label = stringResource(Res.string.my_password_current),
                 placeholder = stringResource(Res.string.my_password_current),
                 type = TextFieldType.Password,
+                maxLength = InputLimit.PASSWORD,
                 help = stringResource(Res.string.my_withdraw_password_help),
                 error = state.error?.takeIf { it != ProfileFieldError.ProofExpired }?.let { stringResource(it.message) },
                 imeAction = ImeAction.Done,

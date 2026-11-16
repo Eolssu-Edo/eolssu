@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.LaunchedEffect
@@ -81,14 +82,14 @@ fun PasswordSetupScreen(
             val path = if (signUp) SignupPath.Email else SignupPath.PasswordReset
             SignupTopBar(SignupProgress(path, SignupStep.Password), onBack = onBack)
         },
-        bottomBar = { EolssuButton(stringResource(if (signUp) Res.string.auth_next else Res.string.auth_reset_done), onClick = onSubmit) },
+        bottomBar = { EolssuButton(stringResource(if (signUp) Res.string.auth_next else Res.string.auth_reset_done), onClick = onSubmit, busy = state.submitting) },
     ) {
         AuthBody(topPadding = authBodyTopBelowProgress()) {
             AuthHeading(stringResource(if (signUp) Res.string.auth_signup_password_heading else Res.string.auth_reset_password_heading))
             VerifiedEmail(email)
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // 규칙 미충족은 문장 대신 체크리스트로 보이므로, 입력칸 오류 문장은 그 밖의 오류(미입력·128자 초과·재인증)만 쓴다.
+                    // 규칙 미충족은 문장 대신 체크리스트로 보이므로, 입력칸 오류 문장은 그 밖의 오류(미입력·64자 초과·재인증)만 쓴다.
                     val ruleError = state.passwordError == FieldError.PasswordRule
                     EolssuTextField(
                         bordered = false,
@@ -98,6 +99,7 @@ fun PasswordSetupScreen(
                         label = stringResource(if (signUp) Res.string.auth_password else Res.string.auth_new_password),
                         placeholder = stringResource(Res.string.auth_password_placeholder),
                         type = TextFieldType.Password,
+                        maxLength = InputLimit.NEW_PASSWORD,
                         error = state.passwordError?.takeUnless { ruleError }?.let { stringResource(it.message) },
                     )
                     PasswordChecklist(state.password, highlightUnmet = ruleError)
@@ -110,6 +112,7 @@ fun PasswordSetupScreen(
                     label = stringResource(Res.string.auth_password_confirm),
                     placeholder = stringResource(Res.string.auth_password_confirm_placeholder),
                     type = TextFieldType.Password,
+                    maxLength = InputLimit.NEW_PASSWORD,
                     error = state.passwordConfirmError?.let { stringResource(it.message) },
                     imeAction = ImeAction.Done,
                     onImeAction = onSubmit,

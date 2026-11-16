@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -89,7 +90,8 @@ fun SongSearchField(
             }
             BasicTextField(
                 value = query,
-                onValueChange = onQueryChange,
+                // 검색어는 [InputLimit.SEARCH]자까지만 받는다(S15P31E102-996).
+                onValueChange = { input -> onQueryChange(InputLimit.limit(query, input, InputLimit.SEARCH)) },
                 singleLine = true,
                 textStyle = textStyle,
                 cursorBrush = SolidColor(colors.text),

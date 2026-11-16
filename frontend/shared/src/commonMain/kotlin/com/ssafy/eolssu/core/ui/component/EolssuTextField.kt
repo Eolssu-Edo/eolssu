@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.InputLimit
 import com.ssafy.eolssu.core.theme.EolssuTheme
 
 /** 입력칸 종류. 키보드와 가림 표시가 달라진다. */
@@ -50,7 +51,8 @@ enum class TextFieldType { Text, Email, Password, Number }
  * 이름표가 붙은 입력칸(`.au-field`): 이름표 13sp · 칸 높이 48dp · 아래 도움말 또는 오류.
  * [error]가 있으면 도움말 대신 오류를 보이고, 테두리 있는 칸([bordered])은 빨간 테두리를 두른다. [trailing]은 칸 오른쪽 끝 글자(인증번호 남은 시간)다.
  * 로그인·가입과 마이페이지가 함께 쓴다. 칸 높이는 [fieldHeight](기본 52dp)로 줄일 수 있고, 글꼴을 키우면 내용에 맞게 높아진다.
- * [counter](예: `4/10`)가 있으면 도움말·오류 줄 오른쪽 끝에 함께 보인다. 길이 제한 자체는 값을 가진 쪽이 [onValueChange]에서 지킨다.
+ * [counter](예: `4/10`)가 있으면 도움말·오류 줄 오른쪽 끝에 함께 보인다.
+ * [maxLength]가 있으면 그 글자 수(코드 포인트)를 넘는 입력은 칸에 남기지 않는다([InputLimit.limit], S15P31E102-996).
  * [labelInside]면 칸 위 이름표 없이 이름을 자리 글자로만 두고, 입력하면 사라진다(로그인·가입, S15P31E102-798). 화면 읽기는 그대로 이름을 읽는다.
  */
 @Composable
@@ -71,6 +73,7 @@ fun EolssuTextField(
     bordered: Boolean = true,
     containerColor: Color? = null,
     labelInside: Boolean = false,
+    maxLength: Int? = null,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -83,7 +86,7 @@ fun EolssuTextField(
         val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, color = colors.text)
         BasicTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { input -> onValueChange(if (maxLength == null) input else InputLimit.limit(value, input, maxLength)) },
             singleLine = true,
             interactionSource = interaction,
             textStyle = textStyle,
