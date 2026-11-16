@@ -171,6 +171,7 @@ def _read_part(part, issues):
                  and 0 < written_lengths[i] < measure_meters[i][1] * measure_meters[i][2]}
     if len(underfull) < 2:
         underfull.clear()  # 못갖춘마디·마지막 불완전마디 한 번으로 박자 오독을 단정하지 않는다.
+    tail, tail_pad = _short_tail(written_lengths, measure_meters, meter)
 
     voices = defaultdict(list)  # 성부 → [시작, 길이, [(MIDI, 이어받음)], 마디, flags] 묶음(화음은 한 묶음)
     graces = defaultdict(list)  # 성부 → 다음 음에 붙일 버린 꾸밈음
@@ -217,6 +218,11 @@ def _read_part(part, issues):
                 voices[voice].append(last)
                 t += dur
             longest = max(longest, t)
+        if index == tail and tail_pad:  # 반복으로 여러 번 연주해도 회차마다 같은 쉼표를 채운다
+            flag = ("LOW_CONFIDENCE", {"measure": number, "reason": "FINAL_MEASURE_PADDED"})
+            for v in flagged_voices:  # 이 마디에 음이 있는 성부. 어느 성부가 선율이 되어도 쉼표가 들어간다
+                voices[v].append([cursor + longest, tail_pad, [(None, False)], number, [flag]])
+            longest += tail_pad
         lengths.append(longest)
         cursor += longest
     issues += [_issue(kind, detail) for flags in graces.values() for kind, detail in flags]  # 뒤따르는 음이 없는 꾸밈음
@@ -236,25 +242,14 @@ def _read_part(part, issues):
     pad_quarters = Fraction(0)
     if meter:
         compound, beat, beats_per_gak = meter
-        # 실제 마디 길이와 박 단위의 공통 음가를 사용해, 변박·불완전마디도
-        # 정수 개 셀로 나타낸다. 각의 길이를 맞추려고 끝 쉼표를 만들지 않는다.
+        # 실제 마디 길이와 박 단위의 공통 음가를 사용해, 변박·불완전마디도 정수 개 셀로 나타낸다.
+        # 각의 길이를 맞추려고 끝 쉼표를 만들지 않는다. 예외는 _short_tail이 정한 끝 마디 채움뿐이다.
         first_length = lengths[0]
         expected = meter[1] * meter[2]
         if 0 < first_length < expected:
             pad_quarters = expected - first_length
         lengths[0] += pad_quarters
-        values = [m[1] for m in measure_meters if m] + [n for n in lengths[:-1] if n]
-        grid = _common_value(values)
-        # OMR이 끝 쉼표를 빠뜨려 끝 마디가 박자표보다 한 박 안쪽으로 모자라면, 그 한 마디로 곡 전체 박을 쪼개지 않고
-        # 다음 박 경계까지 쉼표로 채운 뒤 검수 사유를 남긴다(S15P31E102-1043). 한 박 이상 모자란 끝 불완전마디는 그대로 둔다.
-        last_meter = measure_meters[index] or meter
-        shortfall = last_meter[1] * last_meter[2] - lengths[-1]
-        end_pad = -(-lengths[-1] // grid) * grid - lengths[-1]
-        if end_pad and 0 < shortfall < last_meter[1]:
-            melody.append(_Note(cursor, end_pad, None, number,
-                                [("LOW_CONFIDENCE", {"measure": number, "reason": "FINAL_MEASURE_PADDED"})]))
-            lengths[-1] += end_pad
-        beat = _common_value(values + [lengths[-1]] if lengths[-1] else values)
+        beat = _common_value([m[1] for m in measure_meters if m] + [n for n in lengths if n])
         widths = [int(length / beat) for length in lengths if length]
         beats_per_gak = widths[0]
         if all(written_lengths) and all(m == meter for m in measure_meters) and not underfull and not any(
@@ -442,6 +437,25 @@ def _common_value(values):
     for value in values:
         numerator = gcd(numerator, int(value * denominator))
     return Fraction(numerator, denominator)
+
+
+def _short_tail(written_lengths, measure_meters, meter):
+    """OMR이 끝 쉼표를 빠뜨린 끝 마디의 (악보 마디 순번, 채울 길이). 해당 없으면 (None, 0).
+
+    소리가 있는 마지막 마디가 박자표보다 한 박 안쪽으로만 모자라면, 그 마디로 곡 전체 정간 박을 쪼개지 않도록
+    나머지 마디로 정한 정간 박 경계까지 쉼표로 채운다(S15P31E102-1043). 한 박 이상 모자란 끝 불완전마디는 그대로 둔다.
+    """
+    tail = max((i for i, n in enumerate(written_lengths) if n), default=None)
+    if not meter or not tail or not measure_meters[tail]:  # 첫 마디뿐이면 못갖춘마디 앞 채움이 맡는다
+        return None, Fraction(0)
+    tail_meter = measure_meters[tail]
+    shortfall = tail_meter[1] * tail_meter[2] - written_lengths[tail]
+    if not 0 < shortfall < tail_meter[1]:
+        return None, Fraction(0)
+    full = meter[1] * meter[2]  # 못갖춘마디는 앞을 채워 한 마디가 되므로 박자표 박의 배수다
+    others = [n for i, n in enumerate(written_lengths) if n and i != tail and not (i == 0 and n < full)]
+    grid = _common_value([m[1] for m in measure_meters if m] + others)
+    return tail, -(-written_lengths[tail] // grid) * grid - written_lengths[tail]
 
 
 def _measure_length(measure, divisions):

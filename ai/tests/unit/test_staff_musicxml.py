@@ -113,7 +113,29 @@ def test_last_bar_short_of_a_beat_is_padded_to_the_beat_instead_of_shrinking_the
     out = convert(doc, instrument="ANY", hwang_pitch=60)
     assert (out.jangdan, out.beats_per_gak) == ("세마치", 3)
     assert out.lines == [":0 황 | :0 황 | :0 황", ":0 황 |  | :2 태 :8 쉼표"]
-    assert [i["detail"]["reason"] for i in out.issues] == ["FINAL_MEASURE_PADDED"]
+    assert [(i["cellId"], i["detail"]) for i in out.issues] == [
+        ("c1-j2", {"measure": 2, "reason": "FINAL_MEASURE_PADDED"})]
+
+
+def test_short_last_bar_inside_a_repeat_is_padded_on_every_pass():
+    fwd = '<barline location="left"><repeat direction="forward"/></barline>'
+    bwd = '<barline location="right"><repeat direction="backward"/></barline>'
+    doc = xml(measure(note("C4", 6), note("C4", 6), note("C4", 6), time=(9, 8), barline=fwd),
+              measure(note("C4", 12), note("D4", 4), barline=bwd))
+    out = convert(doc, instrument="ANY", hwang_pitch=60)
+    assert out.beats_per_gak == 3
+    assert out.lines == [":0 황 | :0 황 | :0 황", ":0 황 |  | :2 태 :8 쉼표"] * 2
+    assert [(i["cellId"], i["detail"]["reason"]) for i in out.issues] == [
+        ("c1-j2", "FINAL_MEASURE_PADDED"), ("c3-j2", "FINAL_MEASURE_PADDED")]
+
+
+def test_short_last_sounding_bar_before_an_empty_bar_is_padded():
+    doc = xml(measure(note("C4", 6), note("C4", 6), note("C4", 6), time=(9, 8)),
+              measure(note("C4", 12), note("D4", 4)), measure())
+    out = convert(doc, instrument="ANY", hwang_pitch=60)
+    assert out.beats_per_gak == 3
+    assert out.lines[1] == ":0 황 |  | :2 태 :8 쉼표"
+    assert [i["detail"]["reason"] for i in out.issues] == ["EMPTY_MEASURE_REVIEW_REQUIRED", "FINAL_MEASURE_PADDED"]
 
 
 def test_repeat_with_first_and_second_endings_is_expanded():
