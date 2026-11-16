@@ -17,6 +17,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -116,6 +117,7 @@ private fun NavButton(icon: ImageVector, label: String, enabled: Boolean, onClic
     val colors = EolssuTheme.colors
     Box(
         Modifier
+            .minimumInteractiveComponentSize()
             .size(44.dp)
             .clip(CircleShape)
             .clickable(enabled = enabled, role = Role.Button, onClickLabel = label, onClick = onClick)
