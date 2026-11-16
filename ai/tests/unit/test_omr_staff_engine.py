@@ -116,6 +116,18 @@ FOUR_QUARTERS = (b'<?xml version="1.0"?><score-partwise><part id="P1"><measure><
                             % s for s in [b"E", b"G", b"A", b"G"]) + b"</measure></part></score-partwise>")
 
 
+def _quarters(count):
+    return b"".join(b"<note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice></note>"
+                    for _ in range(count))
+
+
+# 4/4인데 가운데 두 마디가 3박으로 읽힌 악보(쉼표를 놓친 그림 PDF처럼). 박자 오독이라 장단을 정하지 않는다.
+SHORT_FOUR_FOUR = (b'<?xml version="1.0"?><score-partwise><part id="P1"><measure><attributes><divisions>1</divisions>'
+                   b'<time><beats>4</beats><beat-type>4</beat-type></time></attributes>' + _quarters(4) + b"</measure>"
+                   + b"".join(b"<measure>" + _quarters(n) + b"</measure>" for n in (3, 3, 4))
+                   + b"</part></score-partwise>")
+
+
 def page_png(mode):
     """가짜 Audiveris가 읽을 표시(mode)를 PNG 끝에 붙인 쪽 그림."""
     buf = io.BytesIO()
@@ -139,8 +151,10 @@ def fake_audiveris(tmp_path, monkeypatch):
     script = tmp_path / "audiveris.py"
     (tmp_path / "gutgeori.musicxml").write_bytes(GUTGEORI)
     (tmp_path / "four-quarters.musicxml").write_bytes(FOUR_QUARTERS)
+    (tmp_path / "short-four-four.musicxml").write_bytes(SHORT_FOUR_FOUR)
     fixtures = {"score": str(FIXTURES / "danso_onara.audiveris.mxl"), "s44": str(FIXTURES / "danso_bukcheon.audiveris.mxl"),
-                "s128": str(tmp_path / "gutgeori.musicxml"), "quarters": str(tmp_path / "four-quarters.musicxml")}
+                "s128": str(tmp_path / "gutgeori.musicxml"), "quarters": str(tmp_path / "four-quarters.musicxml"),
+                "short44": str(tmp_path / "short-four-four.musicxml")}
     script.write_text(FAKE.format(fixtures=fixtures), encoding="utf-8")
     monkeypatch.setattr(staff_engine, "AUDIVERIS_LOGS", tmp_path / "audiveris-logs")  # 개발 PC의 로그를 지우지 않게
     monkeypatch.setattr(staff_engine, "AUDIVERIS", [sys.executable, str(script)])
@@ -200,6 +214,38 @@ def test_four_quarter_staff_measure_uses_four_beat_accompaniment(fake_audiveris)
     assert max(e["startTick"] + e["durationTick"] for e in out["score"]["events"]) == 4 * music["ticksPerBeat"]
     assert guessed(out) == [{"source": "timeSignature", "jangdan": "4박 기본 반주"}]
     assert not any(i["kind"] == "JANGDAN_MISMATCH" for i in out["notices"])
+    assert "bpm" not in out  # 장단이 있으면 backend가 그 장단의 기본 빠르기를 쓴다
+
+
+def default_tempo(out):
+    return [i["detail"] for i in out["notices"] if i["detail"].get("reason") == "TEMPO_DEFAULT_FROM_TIME_SIGNATURE"]
+
+
+@needs_generator
+def test_unsettled_jangdan_gets_the_time_signature_default_tempo(fake_audiveris):
+    # 박자표는 4/4로 읽었지만 마디 길이가 맞지 않아 장단을 비운 악보. 빠르기 표시도 없다(S15P31E102-1035).
+    out = post("short44").json()
+    assert out["status"] == "DONE" and out["score"]["music"]["jangdan"] == ""
+    assert out["score"]["music"]["bpmUnit"] == "QUARTER"
+    assert out["bpm"] == 160 and "expressions" not in out
+    assert default_tempo(out) == [{"reason": "TEMPO_DEFAULT_FROM_TIME_SIGNATURE", "timeSignature": "4/4",
+                                   "jangdan": "4박 기본 반주", "bpm": 160}]
+
+
+@needs_generator
+def test_requested_jangdan_keeps_its_own_default_tempo(fake_audiveris):
+    out = post("short44", jangdan="굿거리").json()
+    assert out["status"] == "DONE" and "bpm" not in out and default_tempo(out) == []
+
+
+@needs_generator
+def test_recognized_tempo_wins_over_the_time_signature_default(fake_audiveris, tmp_path):
+    path = tmp_path / "short-four-four.musicxml"
+    path.write_bytes(SHORT_FOUR_FOUR.replace(b'</attributes>', b'</attributes><direction><direction-type>'
+        b'<metronome><beat-unit>quarter</beat-unit><per-minute>156</per-minute></metronome>'
+        b'</direction-type><sound tempo="156"/></direction>', 1))
+    out = post("short44").json()
+    assert out["bpm"] == 156 and default_tempo(out) == []
 
 
 @needs_generator
