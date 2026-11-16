@@ -95,6 +95,7 @@
     <string name="sheetedit_undo">실행 취소</string>
     <string name="sheetedit_panel_collapse">입력판 접기</string>
     <string name="sheetedit_panel_expand">입력판 펼치기</string>
+    <string name="sheetedit_panel_hint">악보를 직접 편집할 수 있어요</string>
     <string name="sheetedit_redo">다시 실행</string>
     <string name="sheetedit_view_jeongganbo">정간보</string>
     <string name="sheetedit_view_staff">오선보</string>
@@ -116,9 +117,10 @@
     <string name="sheetedit_cell_merge">정간 합치기</string>
     <string name="sheetedit_cell_add_column">왼쪽에 각 추가</string>
     <string name="sheetedit_cell_delete_column">이 각 삭제</string>
-    <string name="sheetedit_cell_jangdan">반주 · %1$s</string>
+    <string name="sheetedit_yul_octave_caption">옥타브</string>
+    <string name="sheetedit_yul_pitch_caption">음</string>
     <string name="sheetedit_cell_jangdan_desc">%1$d박 · 박마다 %2$d정간 · %3$d BPM</string>
-    <string name="sheetedit_cell_jangdan_change">반주 선택</string>
+    <string name="sheetedit_cell_jangdan_change">장단 선택</string>
     <string name="sheetedit_jangdan_same_unit">현재 악보의 박자 단위와 한 각의 길이에 맞는 장단만 선택할 수 있어요. 음표와 길이는 바뀌지 않아요.</string>
     <string name="sheetedit_jangdan_none_compatible">현재 악보에 맞는 장단이 없어요. 돌아가서 ‘장단 사용 안 함’을 선택해 주세요.</string>
     <string name="sheetedit_jangdan_load_failed">장단 목록을 불러오지 못했어요.</string>
@@ -216,7 +218,6 @@
     <string name="sheetedit_register_baetak_short">배탁</string>
     <string name="sheetedit_register_jungcheong_short">중청</string>
     <string name="sheetedit_key_unavailable">%1$s · 현재 악보의 지원 목록에 없는 음</string>
-    <string name="sheetedit_sig_pitch_help">황과 청황은 같은 율명이지만 청황이 한 옥타브 높아요. 음을 바꾸려면 율명·기호 탭을 열어 주세요.</string>
     <string name="sheetedit_jangdan_unavailable">이 악보에서는 장단을 바꿀 수 없어요.</string>
     <string name="sheetedit_sig_none">이 정간에 붙인 시김새가 없어요</string>
     <string name="sheetedit_sig_need_pitch">율명에만 시김새를 붙일 수 있어요</string>

@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -176,10 +177,12 @@ private fun WaitingContent(state: SheetConversionUiState) {
         textAlign = TextAlign.Center,
     )
     state.title?.let { EolssuBadge(it, style = EolssuBadgeStyle.Outline) }
-    waitingBody(step, conversion?.notation, state.done)?.let { body -> BodyText(stringResource(body.text, *body.args.toTypedArray())) }
+    // 안내는 두 줄: 지금 할 일·걸리는 시간 한 줄, 나가도 계속된다는 한 줄(S15P31E102-1042).
+    val body = waitingBody(step, conversion?.notation, state.done)?.let { stringResource(it.text, *it.args.toTypedArray()) }
+    val lines = listOfNotNull(body, stringResource(Res.string.sheet_conversion_leave_hint).takeIf { !state.done })
+    if (lines.isNotEmpty()) BodyText(lines.joinToString("\n"))
     if (conversion != null) StepLine(step, state.done)
     if (state.unreachable) BodyText(stringResource(Res.string.sheet_conversion_unreachable), color = colors.recText)
-    if (!state.done) BodyText(stringResource(Res.string.sheet_conversion_leave_hint), color = colors.textMuted)
 }
 
 /** 단계 아래 한 줄 설명. 제목이 단계를 말하므로 설명은 한 줄만 둔다. */
@@ -200,11 +203,16 @@ internal fun waitingBody(step: ConversionStep?, notation: SheetNotation?, done: 
     else -> null
 }
 
-/** 붓 일원상(220dp)과 책 읽는 호랑이([StudyingTiger]). 진행을 모르면(첫 응답 전) 붓을 되풀이해 그린다. */
+/**
+ * 붓 일원상(220dp)과 책 읽는 호랑이([StudyingTiger]). 붓은 변환 전체에 걸쳐 딱 한 번 그린다(S15P31E102-1042).
+ * 단계·쪽이 바뀌며 진행 추정이 잠깐 줄어도 지운 뒤 다시 그리지 않도록 지금까지의 최댓값만 따라간다.
+ */
 @Composable
 private fun ConvertingFigure(progress: Float?, finishing: Boolean) {
     // 서버 응답이 2초 간격이라 그 사이를 부드럽게 잇는다. 완료되면 편집 화면으로 넘어가기 전에(FINISH_SHOW_MS) 끝까지 그린다.
-    val shown by animateFloatAsState(progress ?: 0f, animationSpec = tween(if (finishing) FINISH_DRAW_MS else 1_800))
+    var peak by remember { mutableFloatStateOf(0f) }
+    if (progress != null && progress > peak) peak = progress
+    val shown by animateFloatAsState(peak, animationSpec = tween(if (finishing) FINISH_DRAW_MS else 1_800))
     val percent = progress?.let { floor(shown * 100).toInt().coerceIn(0, 100) }
     val description = percent?.let { stringResource(Res.string.sheet_conversion_progress, it) }
     Box(
@@ -215,7 +223,7 @@ private fun ConvertingFigure(progress: Float?, finishing: Boolean) {
             }
         },
     ) {
-        BrushEnso(color = EolssuTheme.colors.text, progress = if (progress == null) null else shown, modifier = Modifier.fillMaxSize())
+        BrushEnso(color = EolssuTheme.colors.text, progress = shown, modifier = Modifier.fillMaxSize())
         StudyingTiger(Modifier.align(Alignment.Center).size(160.dp))
     }
 }

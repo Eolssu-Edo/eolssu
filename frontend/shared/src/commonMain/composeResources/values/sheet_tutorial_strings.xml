@@ -3,7 +3,6 @@
     <string name="sheet_tutorial_editor">편집 입력판</string>
     <string name="sheet_tutorial_review">확인 카드</string>
     <string name="sheet_tutorial_step">%1$s · %2$d/%3$d</string>
-    <string name="sheet_tutorial_replay">%1$s 안내 다시 보기</string>
     <string name="sheet_tutorial_next">다음</string>
     <string name="sheet_tutorial_done">완료</string>
     <string name="sheet_tutorial_skip">건너뛰기</string>

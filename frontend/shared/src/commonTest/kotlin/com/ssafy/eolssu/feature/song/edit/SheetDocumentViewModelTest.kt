@@ -93,7 +93,10 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         model.updateDetails("다른 편집", 100)
         model.applyAdaptation()
         assertEquals("다른 편집", model.uiState.value.draft.title)
-        assertNull(model.uiState.value.adaptation, "다른 편집 뒤에 이전 제안을 적용할 수 없다")
+        // 1042: 편집하면 높이 계산을 바뀐 악보로 다시 하고, 이전 적용 요청은 지운다.
+        val refreshed = assertNotNull(model.uiState.value.adaptation)
+        assertFalse(refreshed.confirmationRequested, "다른 편집 뒤에 이전 제안을 적용할 수 없다")
+        assertEquals(model.uiState.value.draft, refreshed.baseline)
     }
 
     @Test fun closedAdaptationReplyCannotReplaceAReopenedPanel() = runTest {
