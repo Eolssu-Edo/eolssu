@@ -34,14 +34,13 @@
     <string name="sheet_conversion_title">악보 변환</string>
     <string name="sheet_conversion_checking">변환 상태를 확인하고 있어요</string>
     <string name="sheet_conversion_queued_title">변환 차례를 기다리고 있어요</string>
-    <string name="sheet_conversion_queued_body">다른 악보를 먼저 읽고 있어요. 차례가 되면 바로 시작해요.</string>
+    <string name="sheet_conversion_queued_body">차례가 되면 바로 시작해요.</string>
     <string name="sheet_conversion_reading_title">악보를 읽고 있어요</string>
-    <string name="sheet_conversion_reading_body">악보를 한 쪽씩 읽고 있어요.</string>
-    <string name="sheet_conversion_reading_total_body">악보 %1$d쪽을 한 쪽씩 읽고 있어요.</string>
-    <string name="sheet_conversion_reading_pages_body">악보 %2$d쪽 중 %1$d쪽을 읽었어요.</string>
+    <string name="sheet_conversion_reading_total_body">%1$d쪽을 읽고 있어요.</string>
+    <string name="sheet_conversion_reading_pages_body">%2$d쪽 중 %1$d쪽을 읽었어요.</string>
     <string name="sheet_conversion_staff_hint">오선보는 한 쪽에 30초쯤 걸려요.</string>
     <string name="sheet_conversion_building_title">악보를 만들고 있어요</string>
-    <string name="sheet_conversion_building_body">거의 다 됐어요. 끝나면 바로 편집 화면으로 넘어가요.</string>
+    <string name="sheet_conversion_building_body">끝나면 편집 화면으로 넘어가요.</string>
     <string name="sheet_conversion_done_title">악보를 다 만들었어요</string>
     <string name="sheet_conversion_done_body">편집 화면으로 넘어가요.</string>
     <string name="sheet_conversion_open_editor">편집 화면 열기</string>
@@ -52,7 +51,7 @@
     <string name="sheet_conversion_step_state_now">%1$s, 진행 중</string>
     <string name="sheet_conversion_step_state_next">%1$s, 남음</string>
     <string name="sheet_conversion_progress">변환 진행 %1$d%%</string>
-    <string name="sheet_conversion_leave_hint">다른 화면으로 나가도 변환은 계속돼요. 내 악보 목록에서 이 악보를 누르면 다시 볼 수 있어요.</string>
+    <string name="sheet_conversion_leave_hint">나가도 변환은 계속돼요.</string>
     <string name="sheet_conversion_wait_in_list">내 악보 목록에서 기다리기</string>
     <string name="sheet_conversion_unreachable">연결이 불안정해 상태를 확인하지 못하고 있어요. 계속 다시 확인할게요.</string>
     <string name="sheet_conversion_what_to_do">이렇게 해 보세요</string>
