@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [오선보 아리랑 변환 결과가 원곡과 크게 다른 원인 확인과 수정 (1043)](plans/S15P31E102-1043.md) · [원인·실제 대조](knowledge/ai/score-recognition-corrections.md#아리랑-98의-끝-쉼표-누락과-9정간-각-1043)
 - [웹 마이페이지 최근 연주 카드 표시 지연 원인 규명 (863)](knowledge/frontend/web-mypage-recent-rendering.md)
 - [앱 마이페이지 최근 연주 개선 전후 실기기 속도 비교 (864)](plans/S15P31E102-864.md)
 - [연습 화면 보기 버튼을 스위치 토글 모양으로 되돌리기 (1057)](plans/S15P31E102-1057.md)
