@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.song.SongLoadState
@@ -63,7 +63,7 @@ class EditNewSheetActions(
 )
 
 /**
- * EDIT-01 악보 추가: 같은 크기로 나란히 둔 '내 악보 가져오기' · '얼쑤에서 가져오기' 카드(S15P31E102-997).
+ * EDIT-01 악보 추가: 위아래로 쌓은 '내 악보 가져오기'(연두로 강조) · '얼쑤에서 가져오기' 카드(S15P31E102-997).
  * '내 악보 가져오기'는 아래로 정간보·오선보 메뉴를 펼치고, 고르면 확인 버튼 없이 그 종류의 악보 올리기 화면으로 간다.
  * 파일은 그 화면에서 고르고, 음역은 가져온 뒤 편집기에서 조정한다. '얼쑤에서 가져오기'는 제공 곡·내 악보 목록(EditPick)으로 간다.
  * 그 아래에 내 악보와 변환 진행 상황(대기·읽는 중·만드는 중·실패)을 내 악보 탭과 같은 줄로 보인다(S15P31E102-881).
@@ -101,33 +101,28 @@ fun EditNewScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             SectionLabel(stringResource(Res.string.sheetedit_new_question))
-            Row(
-                Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                // 내 기기의 사진·PDF를 올린다. 누르면 아래로 정간보·오선보 메뉴를 펼친다(S15P31E102-997).
-                Box(Modifier.weight(1f).heightIn(min = KindCardMinHeight).fillMaxHeight()) {
-                    KindCard(
-                        stringResource(Res.string.sheetedit_new_upload_title),
-                        stringResource(Res.string.sheetedit_new_upload_caption),
-                        SheetEditIcons.Folder,
-                        onClick = { kindMenuOpen = true },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    if (kindMenuOpen) SheetKindMenu(
-                        onPick = { kind -> kindMenuOpen = false; onSelectKind(kind) },
-                        onDismiss = { kindMenuOpen = false },
-                    )
-                }
-                // 얼쑤가 주는 곡이나 이미 만든 내 악보를 복사해 온다.
+            // 내 기기의 사진·PDF를 올린다. 주 행동이라 연두로 칠하고, 누르면 아래로 정간보·오선보 메뉴를 펼친다(S15P31E102-997).
+            Box(Modifier.fillMaxWidth()) {
                 KindCard(
-                    stringResource(Res.string.sheetedit_new_eolssu_title),
-                    stringResource(Res.string.sheetedit_new_eolssu_caption),
-                    SheetEditIcons.MySheet,
-                    onClick = onLoadExisting,
-                    modifier = Modifier.weight(1f).heightIn(min = KindCardMinHeight).fillMaxHeight(),
+                    stringResource(Res.string.sheetedit_new_upload_title),
+                    stringResource(Res.string.sheetedit_new_upload_caption),
+                    SheetEditIcons.Folder,
+                    onClick = { kindMenuOpen = true },
+                    emphasized = true,
+                    trailing = EolssuIcons.ChevronDown,
+                )
+                if (kindMenuOpen) SheetKindMenu(
+                    onPick = { kind -> kindMenuOpen = false; onSelectKind(kind) },
+                    onDismiss = { kindMenuOpen = false },
                 )
             }
+            // 얼쑤가 주는 곡이나 이미 만든 내 악보를 복사해 온다.
+            KindCard(
+                stringResource(Res.string.sheetedit_new_eolssu_title),
+                stringResource(Res.string.sheetedit_new_eolssu_caption),
+                SheetEditIcons.MySheet,
+                onClick = onLoadExisting,
+            )
             MySheetsSection(state, sheetActions)
         }
     }
@@ -178,6 +173,3 @@ private fun MySheetsSection(state: EditNewUiState, actions: EditNewSheetActions)
 private fun SectionLabel(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
 }
-
-/** 가져오기 종류 카드의 최소 높이. 아이콘 원과 이름·설명 두 줄 사이에 여백이 남게 한다. */
-private val KindCardMinHeight = 150.dp

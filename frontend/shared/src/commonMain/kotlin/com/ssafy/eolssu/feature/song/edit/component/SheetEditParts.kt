@@ -100,37 +100,50 @@ internal fun SegmentTabs(
 }
 
 /**
- * EDIT-01 가져오기 종류 카드. 두 장을 같은 줄에 같은 크기로 놓고,
- * 왼쪽 위에 아이콘 원, 아래 왼쪽에 이름과 한 줄 설명([caption])을 둔다.
- * 누르면 고른 상태를 따로 보이지 않고 바로 악보 올리기 화면으로 넘어간다(S15P31E102-997).
+ * EDIT-01 가져오기 카드. 위아래로 쌓아 폭을 다 쓰고, 왼쪽 아이콘 원 · 이름과 한 줄 설명([caption]) · 오른쪽 [trailing] 화살표를 둔다.
+ * [emphasized]면 주 행동처럼 연두 바탕에 먹색 글자로 눈에 띄게 한다(S15P31E102-997).
  */
 @Composable
-internal fun KindCard(title: String, caption: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun KindCard(
+    title: String,
+    caption: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    emphasized: Boolean = false,
+    trailing: ImageVector = EolssuIcons.Chevron,
+) {
     val colors = EolssuTheme.colors
+    val ink = if (emphasized) colors.onPrimary else colors.text
     Surface(
         onClick = onClick,
-        modifier = modifier.semantics { role = Role.Button },
-        // 회색 바탕 위 테두리 없는 흰 카드(모서리 20).
+        modifier = modifier.fillMaxWidth().heightIn(min = 84.dp).semantics { role = Role.Button },
         shape = RoundedCornerShape(20.dp),
-        color = colors.surface,
-        contentColor = colors.text,
+        color = if (emphasized) colors.primary else colors.surface,
+        contentColor = ink,
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box(
-                Modifier.size(42.dp).background(colors.accentTint, CircleShape),
+                Modifier.size(44.dp).background(if (emphasized) colors.surface else colors.accentTint, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = colors.text)
             }
-            Spacer(Modifier.weight(1f).heightIn(min = 12.dp))
-            Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), maxLines = 2)
-            Text(
-                caption,
-                modifier = Modifier.padding(top = 2.dp),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = colors.textMuted,
-                maxLines = 2,
-            )
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold), color = ink, maxLines = 2)
+                Text(
+                    caption,
+                    modifier = Modifier.padding(top = 2.dp),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                    color = if (emphasized) colors.onPrimary.copy(alpha = 0.75f) else colors.textMuted,
+                    maxLines = 2,
+                )
+            }
+            Icon(trailing, contentDescription = null, modifier = Modifier.size(20.dp), tint = if (emphasized) ink else colors.textDisabled)
         }
     }
 }
