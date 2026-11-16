@@ -59,7 +59,7 @@ internal fun ReadingBeatMarkers(positionMs: Long?) {
             val on = positionMs != null && positionMs / ReadingBeatMs == i.toLong()
             Text(text,
                 Modifier.background(if (on) colors.primary else colors.background, CircleShape).padding(horizontal = 10.dp, vertical = 3.dp),
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = if (on) FontWeight.Bold else FontWeight.Normal),
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal),
                 color = if (on) colors.onPrimary else colors.textMuted)
         }
     }

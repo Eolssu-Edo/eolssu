@@ -101,7 +101,7 @@ internal fun MyPageCardTitle(title: String, modifier: Modifier = Modifier, trail
         Text(
             title,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
             color = EolssuTheme.colors.text,
         )
         trailing()
@@ -297,7 +297,7 @@ private fun ScoreValue(score: Int) {
         Text(
             stringResource(Res.string.my_recent_score_unit),
             modifier = Modifier.alignByBaseline().padding(start = 1.dp),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
             color = colors.cardInk,
         )
     }

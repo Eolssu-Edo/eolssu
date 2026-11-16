@@ -331,7 +331,7 @@ private fun WeakSectionLine(columns: String, errorCount: Int) {
                     append(text)
                 } else {
                     append(text.substring(0, at))
-                    withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.Bold)) { append(columns) }
+                    withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.SemiBold)) { append(columns) }
                     append(text.substring(at + columns.length))
                 }
             },
@@ -422,7 +422,7 @@ internal fun SaveFormSheet(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         title,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold),
                         color = colors.text,
                     )
                     Text(

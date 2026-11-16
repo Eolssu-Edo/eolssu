@@ -169,7 +169,7 @@ private fun TongueFigure() {
             ) {
                 Text(
                     stringResource(Res.string.learn_tour_tongue),
-                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
                     color = colors.accentText,
                 )
             }

@@ -176,7 +176,7 @@ internal fun GuideCard(
                         }
                     },
                     // `.gcard h3`: 본문 글꼴 굵게 16(제목 글꼴 아님)
-                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
                 )
             }
         }
@@ -389,7 +389,7 @@ private fun IntroLegend() {
                 rows.forEach { (icon, term, _) ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         icon()
-                        GuideText(term, style = style.copy(fontWeight = FontWeight.Bold))
+                        GuideText(term, style = style.copy(fontWeight = FontWeight.SemiBold))
                     }
                 }
                 rows.forEach { (_, _, desc) ->
@@ -571,7 +571,7 @@ private fun LengthExample(
         if (onPlayAudio != null) ReadingBeatMarkers(position)
         Text(
             caption,
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
             textAlign = TextAlign.Center,
             maxLines = 1,
             softWrap = false,
@@ -679,7 +679,7 @@ internal fun PitchSteps(audio: ReadingAudioState, onPlayAudio: (ReadingAudioClip
 @Composable
 private fun PitchAxis(modifier: Modifier) {
     val colors = EolssuTheme.colors
-    val style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.sp)
+    val style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp)
     Column(modifier.padding(top = 4.dp).offset(y = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(stringResource(Res.string.guide_reading_pitch_axis_high), style = style, color = colors.textMuted)
         Box(Modifier.weight(1f).width(1.5.dp).background(Brush.verticalGradient(listOf(colors.textMuted, colors.lineSoft))))
@@ -712,8 +712,8 @@ private fun PitchStepCell(step: PitchStep, width: Dp) {
                 ComposedGlyph(step.radical, step.base, 23.sp, 30.sp, overlap = 0.45f, radicalColor = colors.radical, radicalWeight = FontWeight.Bold)
             }
         }
-        Text(step.name, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.sp))
-        Text(step.term, Modifier.padding(top = 2.dp), style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.sp))
+        Text(step.name, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp))
+        Text(step.term, Modifier.padding(top = 2.dp), style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp))
         Text(step.gloss, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, letterSpacing = 0.sp), color = colors.textMuted)
     }
 }
@@ -755,7 +755,7 @@ internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier, columns: Int = 1,
             val first = start
             start += group.items.size
             Column(Modifier.padding(top = 16.dp)) {
-                Text(group.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold), color = colors.textMuted)
+                Text(group.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.textMuted)
                 if (columns <= 1) {
                     Column(Modifier.padding(top = 4.dp)) {
                         group.items.forEachIndexed { i, item ->
@@ -790,7 +790,7 @@ private fun SectionTitle(title: String, fontSize: TextUnit, modifier: Modifier =
         title,
         modifier,
         color = color,
-        style = MaterialTheme.typography.titleSmall.copy(fontSize = fontSize, fontWeight = FontWeight.Bold),
+        style = MaterialTheme.typography.titleSmall.copy(fontSize = fontSize, fontWeight = FontWeight.SemiBold),
     )
 }
 
@@ -823,7 +823,7 @@ private fun SigimsaeRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             SigimsaeGlyph(item, box = 44.dp, imageHeight = 26.dp, imageMaxWidth = if (item.images.size > 1) 18.dp else 34.dp)
-            Text(item.name, Modifier.width(66.dp), style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold))
+            Text(item.name, Modifier.width(66.dp), style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
             FlowRow(
                 Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -906,7 +906,7 @@ private fun SigimsaeTile(symbol: SigimsaeSymbol, on: Boolean, enabled: Boolean, 
         }
         Text(
             symbol.name,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium),
             textAlign = TextAlign.Center,
         )
     }
@@ -928,7 +928,7 @@ private fun SigimsaeTip(symbol: SigimsaeSymbol, at: Float) {
         }
         Text(
             buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(symbol.name) }
+                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(symbol.name) }
                 append("  ")
                 append(symbol.description)
             },

@@ -65,7 +65,7 @@ internal fun FingeringCard(
             }
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(note.name, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold))
+                    Text(note.name, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
                     SolfegeText(instrument.solfegeOf(note.hanja), Modifier.padding(start = 7.dp))
                 }
                 Text(

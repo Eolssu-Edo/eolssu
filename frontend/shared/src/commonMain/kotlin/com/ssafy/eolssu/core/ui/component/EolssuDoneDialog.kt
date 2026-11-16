@@ -70,7 +70,7 @@ fun EolssuDoneDialog(title: String, body: String, action: String, onDismiss: () 
             }
             Text(
                 title,
-                style = EolssuTheme.serif.yul.copy(fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold),
+                style = EolssuTheme.serif.yul.copy(fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold),
                 textAlign = TextAlign.Center,
             )
             Text(

@@ -51,7 +51,7 @@ internal fun SheetImportGuideCard(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(Res.string.sheet_import_guide_title, listOf(showRange, showReview).count { it }),
                 Modifier.weight(1f).padding(start = 2.dp), style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold, color = colors.accentText)
+                fontWeight = FontWeight.SemiBold, color = colors.accentText)
             IconButton(onClick = onDismiss) {
                 Icon(EolssuIcons.Close, contentDescription = stringResource(Res.string.sheet_import_guide_close),
                     Modifier.size(18.dp), tint = colors.textSub)
@@ -98,11 +98,11 @@ private fun GuideHeadline(badge: String, badgeColor: Color, title: String, detai
     val colors = EolssuTheme.colors
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Box(Modifier.size(28.dp).background(badgeColor, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-            Text(badge, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color.White,
+            Text(badge, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = Color.White,
                 textAlign = TextAlign.Center)
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp), fontWeight = FontWeight.Bold, color = colors.text)
+            Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp), fontWeight = FontWeight.SemiBold, color = colors.text)
             if (detail != null) Text(detail, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), color = colors.textSub)
         }
     }

@@ -366,7 +366,7 @@ private fun StepBadge(number: Int, done: Boolean, open: Boolean) {
             Text(
                 number.toString(),
                 Modifier.graphicsLayer { alpha = 1f - pop },
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
                 color = if (open) colors.text else colors.textMuted,
             )
         }

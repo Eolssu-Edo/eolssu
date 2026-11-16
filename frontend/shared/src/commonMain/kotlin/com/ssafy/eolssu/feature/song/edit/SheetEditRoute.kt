@@ -285,7 +285,7 @@ fun SheetEditRoute(
         onDismissRequest = viewModel::cancelApplyAdaptation,
     ) {
         Text(stringResource(Res.string.sheet_adapt_confirm_overwrite),
-            style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
         Text(stringResource(Res.string.sheet_adapt_confirm_message), style = MaterialTheme.typography.bodyMedium)
         EolssuButton(stringResource(Res.string.sheet_adapt_confirm_apply), viewModel::applyAdaptation)
         EolssuButton(stringResource(Res.string.common_cancel), viewModel::cancelApplyAdaptation, style = EolssuButtonStyle.Secondary)

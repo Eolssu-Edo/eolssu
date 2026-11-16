@@ -197,7 +197,7 @@ internal fun LearnStageCarousel(
             Text(
                 stage.title,
                 Modifier.padding(top = 2.dp),
-                style = EolssuTheme.serif.yul.copy(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold),
+                style = EolssuTheme.serif.yul.copy(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold),
                 textAlign = TextAlign.Center,
             )
         }
@@ -329,6 +329,6 @@ private fun CardBadge(modifier: Modifier, check: Boolean, text: String) {
     ) {
         val fg = if (check) colors.onPrimary else colors.textMuted
         if (check) Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(11.dp), tint = fg)
-        Text(text, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 11.sp, fontWeight = FontWeight.Bold), color = fg)
+        Text(text, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 11.sp, fontWeight = FontWeight.SemiBold), color = fg)
     }
 }
