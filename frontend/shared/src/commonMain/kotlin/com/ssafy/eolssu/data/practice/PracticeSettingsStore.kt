@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.update
  * 연습 화면을 다시 열어도 이어지는 설정. 와이어프레임처럼 표기·장단·크게 보기는 모든 곡에, 속도는 곡마다 둔다.
  *
  * @property bpmBySong 곡별 연습 속도(BPM). 없으면 곡의 기준 속도.
- * @property fingeringView ‘운지법과 함께 보기’(PANEL-00). 정간 옆에 가로 악기 그림과 율명을 함께 본다.
- * @property instrumentId 연습 설정 시트에서 고른 운지 악기(`GuideInstrument.id`). null이면 곡의 악기를 따른다.
+ * @property fingeringView 제목 줄 ‘운지법’ 버튼(운지법과 함께 보기). 정간 옆에 가로 악기 그림과 율명을 함께 본다.
+ * @property instrumentId 곡 악기 대신 쓸 운지 악기(`GuideInstrument.id`). 화면에서 고르는 곳은 없고(S15P31E102-1037) null이면 곡의 악기를 따른다.
  */
 data class PracticeSettings(
     val showHangul: Boolean = false,
@@ -22,7 +22,7 @@ data class PracticeSettings(
     val fingeringView: Boolean = false,
     val instrumentId: String? = null,
     val bpmBySheet: Map<String, Int> = emptyMap(),
-    /** AI 연주 평가 중 지나간 음에 실시간 판정 색을 칠한다(연주 설정 '실시간 채점', S15P31E102-980). 끄면 색만 숨기고 판정은 계속 모은다. */
+    /** AI 연주 평가 중 지나간 음에 실시간 판정 색을 칠한다(제목 줄 '퍼펙트 스코어' 버튼, S15P31E102-980·1037). 끄면 색만 숨기고 판정은 계속 모은다. */
     val liveMarks: Boolean = true,
 )
 

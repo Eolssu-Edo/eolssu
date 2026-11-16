@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [악보·연주·연습·평가 화면의 연습 설정 시트와 보기 버튼을 하나의 UI로 통일 (1037)](plans/S15P31E102-1037.md)
 - [자동 보안 업데이트 뒤 Jenkins 에이전트 재시작 미루기 (758)](plans/S15P31E102-758.md) · [운영 안내](../infra/needrestart/README.md)
 - [녹음 R2 점검 직접 실행 (959)](plans/S15P31E102-959.md) · [점검 범위](specs/mattermost-inspection-measurements.md#녹음-r2-직접-점검-전환-s15p31e102-959)
 - [홈 세로 첫 화면 제목 확대와 시작 버튼 뒤 먹 띠 올리기 (1034)](plans/S15P31E102-1034.md)
