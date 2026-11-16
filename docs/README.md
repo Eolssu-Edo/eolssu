@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [홈 첫 화면 그림을 전각 전경 그림으로 교체 (983)](plans/S15P31E102-983.md)
 - [Windows QA 실행·관측 통합 (936)](plans/S15P31E102-936.md) · [요구사항](specs/qa-live-control.md) · [QA 시연 대본](../infra/qa-phone/public/guide.html) · [운영 실행·증거 해석](../infra/qa-phone/LIVE.md)
 - [S10 실제 마이크·평가 로그 대조](knowledge/infra/qa-s10-real-microphone-verification.md)
 - [S10 기초 콘텐츠 화면·진도·실제 스피커 확인](knowledge/infra/qa-s10-content-verification.md)
