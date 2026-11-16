@@ -55,6 +55,8 @@ internal fun FingeringMediumLayout(
                         onToggle = actions.onToggleDropdown,
                         onSelect = actions.onSelectInstrument,
                         onDismiss = actions.onDismissDropdown,
+                        enabled = state.hasSelectedInstrument,
+                        loading = state.isInstrumentListLoading,
                         modifier = Modifier.weight(1f),
                     )
                     BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.weight(1f), large = true)
