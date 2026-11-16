@@ -98,7 +98,9 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         assertEquals(original.columns, repository.document.score!!.columns)
         assertEquals(original.events, repository.document.score!!.events)
         assertEquals(savedMetadata, repository.document.authoring)
-        assertEquals(100, restored.uiState.value.draft.bpm)
+        // 정간보에서 장단을 바꾸면 이전 빠르기(100) 대신 단모리 기본 빠르기를 쓴다(S15P31E102-1054).
+        assertEquals(danmori.defaultBpm, restored.uiState.value.draft.bpm)
+        assertEquals(danmori.defaultBpm, repository.writes.last().second.bpm)
     }
 
     @Test fun changingJangdanLoadsChoicesAndPreservesTimingThroughDraftAndFinalSave() = runTest {

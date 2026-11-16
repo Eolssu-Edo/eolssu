@@ -1,7 +1,7 @@
 <resources>
     <string name="sheet_jangdan_timing_details">박자·시작 위치 보기</string>
     <string name="sheet_jangdan_timing_close">박자·시작 위치 접기</string>
-    <string name="sheet_jangdan_origin">장단은 0박부터 시작해요. 첫 쉼은 그대로 연주하며, 각은 완전한 장단 주기여야 해요.</string>
+    <string name="sheet_jangdan_origin">장단은 첫 정간부터 시작해요.</string>
     <string name="sheet_jangdan_melody_entry">선율의 첫 음: %1$s박 위치</string>
-    <string name="sheet_jangdan_no_pickup">임의 시작 위치와 못갖춘마디는 아직 지원하지 않아요. 맞는 장단을 선택하거나 ‘장단 미지정’ 상태로 적용해 주세요.</string>
+    <string name="sheet_jangdan_no_pickup">중간에서 시작하는 장단은 아직 안 돼요. 다른 장단을 고르거나 장단 없이 써 주세요.</string>
 </resources>

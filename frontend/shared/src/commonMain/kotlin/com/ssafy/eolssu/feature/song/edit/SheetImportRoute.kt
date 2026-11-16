@@ -20,5 +20,6 @@ fun SheetImportRoute(kind: ImportKind, hwang: HwangPitch, onBack: () -> Unit, on
     }
     val pick = { source: SheetFileSource -> if (viewModel.beginPicking()) picker(source) }
     SheetImportScreen(state, onBack, onList, viewModel::title, viewModel::kind, viewModel::instrument,
-        viewModel::jangdan, pick, viewModel::submit, viewModel::reload, viewModel::dismissError)
+        viewModel::jangdan, pick, viewModel::submit, viewModel::reload, viewModel::dismissError,
+        onJangdanUnsure = viewModel::jangdanUnsure)
 }
