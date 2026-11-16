@@ -25,11 +25,11 @@
     <string name="sheet_upload_format">PDF 1개 또는 PNG·JPEG 1~10장만 선택할 수 있어요. PDF와 이미지를 함께 올릴 수 없어요.</string>
     <string name="sheet_upload_pages">PDF는 최대 10쪽까지 올릴 수 있어요.</string>
     <string name="sheet_upload_unreadable">파일을 해석할 수 없어요. 암호 없는 PDF 또는 다른 이미지를 골라 주세요.</string>
-    <string name="sheet_upload_in_progress">이미 변환 중인 악보가 있어요. 내 악보 목록을 확인해 주세요.</string>
-    <string name="sheet_upload_limit">내 악보는 최대 10개까지 보관할 수 있어요. 목록에서 정리한 뒤 다시 올려 주세요.</string>
-    <string name="sheet_upload_unavailable">지금은 악보 변환을 접수할 수 없어요. 잠시 후 다시 시도해 주세요.</string>
-    <string name="sheet_upload_conflict">접수 정보가 달라졌어요. 내 악보 목록을 먼저 확인해 주세요.</string>
-    <string name="sheet_upload_failed">접수를 확인하지 못했어요. 같은 파일로 다시 누르면 중복 접수를 방지해요.</string>
+    <string name="sheet_upload_in_progress">다른 악보를 바꾸는 중이에요. 악보는 한 번에 하나씩 바꿀 수 있어요. 끝난 뒤 다시 올려 주세요.</string>
+    <string name="sheet_upload_limit">내 악보가 10개로 꽉 찼어요. 쓰지 않는 악보를 지운 뒤 다시 올려 주세요.</string>
+    <string name="sheet_upload_unavailable">지금은 악보를 받을 수 없어요. 잠시 뒤에 다시 올려 주세요.</string>
+    <string name="sheet_upload_conflict">이 악보는 이미 올라갔을 수 있어요. 내 악보 목록에서 먼저 확인해 주세요.</string>
+    <string name="sheet_upload_failed">악보가 잘 올라갔는지 확인하지 못했어요. 인터넷 연결을 확인하고 ‘악보 업로드’를 다시 눌러 주세요. 두 번 올라가지는 않아요.</string>
     <string name="sheet_upload_expired">로그인 정보가 바뀌었어요. 화면을 닫고 다시 시작해 주세요.</string>
     <!-- 파일 선택·인식 실패 안내 창 -->
     <string name="sheet_upload_dialog_format_title">지원하지 않는 파일 형식이에요</string>

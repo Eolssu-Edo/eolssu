@@ -92,7 +92,8 @@ internal fun homeExpandedHero(
 }
 
 /**
- * 창 모양에 따라 고르는 홈 그림. 휴대폰·태블릿의 세로·가로마다 구도를 따로 잡은 그림을 쓴다(S15P31E102-983, 그림 교체 S15P31E102-1015).
+ * 창 모양에 따라 고르는 홈 그림. 휴대폰 세로·태블릿 세로·가로 창마다 구도를 따로 잡은 그림을 쓴다(S15P31E102-983, 그림 교체 S15P31E102-1015).
+ * 휴대폰은 회전을 막아 가로 화면을 지원하지 않으므로 휴대폰 가로 그림은 두지 않는다(S15P31E102-1025).
  *
  * @property aspect 그림의 높이/너비 비.
  * @property openFocusX 펼친 화면의 그림 띠에 남길 가로 위치(0 왼쪽 끝 ~ 1 오른쪽 끝).
@@ -100,21 +101,18 @@ internal fun homeExpandedHero(
  */
 internal enum class HomeArtKind(val aspect: Float, val openFocusX: Float, val openFocusY: Float) {
     PhonePortrait(1254f / 580f, .5f, .62f),
-    PhoneLandscape(852f / 1846f, .75f, .5f),
     TabletPortrait(1028f / 644f, .5f, .55f),
     TabletLandscape(992f / 1586f, .45f, .5f),
 }
 
-/** 짧은 변이 이 값(dp) 이상이면 태블릿 그림을 쓴다. 배치 판정의 Medium 시작 너비와 같다. */
+/** 세로 창의 너비가 이 값(dp) 이상이면 태블릿 세로 그림을 쓴다. 배치 판정의 Medium 시작 너비와 같다. */
 private const val HomeTabletMinSide = 600f
 
-/** 창 크기(dp)로 그림을 고른다. 방향은 너비·높이 비교로, 휴대폰·태블릿은 짧은 변으로 가른다. */
-internal fun homeArtKind(width: Float, height: Float): HomeArtKind {
-    val tablet = minOf(width, height) >= HomeTabletMinSide
-    return when {
-        width > height -> if (tablet) HomeArtKind.TabletLandscape else HomeArtKind.PhoneLandscape
-        else -> if (tablet) HomeArtKind.TabletPortrait else HomeArtKind.PhonePortrait
-    }
+/** 창 크기(dp)로 그림을 고른다. 가로 창은 모두 가로 그림을, 세로 창은 너비로 휴대폰·태블릿을 가른다. */
+internal fun homeArtKind(width: Float, height: Float): HomeArtKind = when {
+    width > height -> HomeArtKind.TabletLandscape
+    width >= HomeTabletMinSide -> HomeArtKind.TabletPortrait
+    else -> HomeArtKind.PhonePortrait
 }
 
 /**
@@ -145,14 +143,17 @@ internal fun homeHeroTitle(kind: HomeArtKind, width: Float, height: Float, butto
         right = width - 20f,
         bottom = (height - 88f - buttonHeight).coerceAtLeast(80f) - 10f,
     )
-    HomeArtKind.PhoneLandscape, HomeArtKind.TabletLandscape -> {
-        // 제목 너비 = 창 너비의 비율, 오른쪽 여백 = 창 너비의 5%, 제목 가운데 = 창 높이의 비율.
-        val phone = kind == HomeArtKind.PhoneLandscape
-        val scale = width * (if (phone) .29f else .23f) / HomeTitleWidth
-        val centerY = height * (if (phone) .38f else .5f)
-        HomeHeroTitle(scale, width * .95f, centerY + homeTitleHeight(scale) / 2f)
+    HomeArtKind.TabletLandscape -> {
+        // 제목 너비 = 창 너비의 23%, 오른쪽 여백 = 창 너비의 5%, 제목 가운데 = 창 높이의 50%.
+        // 웹의 낮은 가로 창(예: 780×360)에서는 제목 아래가 평가 시작 버튼에 닿으므로 버튼 위 12dp까지만 내려온다(S15P31E102-1026).
+        val scale = width * .23f / HomeTitleWidth
+        val buttonTop = (height - 88f - buttonHeight).coerceAtLeast(80f)
+        HomeHeroTitle(scale, width * .95f, minOf(height * .5f + homeTitleHeight(scale) / 2f, buttonTop - HomeTitleButtonGap))
     }
 }
+
+/** 가로 첫 화면에서 제목 아래와 평가 시작 버튼 위 사이에 두는 최소 간격(dp). */
+internal const val HomeTitleButtonGap = 12f
 
 /**
  * 펼친 화면에서 그림 띠 아래를 흰 바탕으로 흐려 보내는 구간(dp). 띠 아래 끝([ground]) 기준으로 위 [HomeArtFadeAbove]부터

@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.feature.auth.api
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.ssafy.eolssu.backend.feature.auth.domain.EmailPolicy
 import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.feature.auth.application.*
@@ -49,7 +50,7 @@ class EmailVerificationController(private val service: EmailVerificationService)
     private fun error(code: ErrorCode, details: Any? = null) = ResponseEntity.status(code.status).body(ErrorResponse.of(code, details))
 }
 
-data class SendVerificationRequest(@field:NotBlank @field:Email @field:Size(max = 320) val email: String, val purpose: VerificationPurpose)
+data class SendVerificationRequest(@field:NotBlank @field:Email @field:Size(max = EmailPolicy.MAX_LENGTH) val email: String, val purpose: VerificationPurpose)
 data class ConfirmVerificationRequest(@param:JsonDeserialize(using = VerificationCodeDeserializer::class) @field:Pattern(regexp = "[0-9]{6}") val code: String)
 data class VerificationResponse<T>(val httpStatus: String, @get:JsonProperty("isSuccess") val isSuccess: Boolean, val message: String, val code: Int, val result: T)
 data class SentVerification(val verificationId: String, val expiresAt: Instant, val resendAvailableAt: Instant)

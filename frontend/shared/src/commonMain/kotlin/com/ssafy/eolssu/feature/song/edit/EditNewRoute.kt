@@ -18,7 +18,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * EDIT-01 연결. 정간보·오선보는 [onImport]로 실제 파일·업로드 준비 화면에 가고,
+ * EDIT-01 연결. 정간보·오선보 카드는 누르는 즉시 [onImport]로 악보 올리기 화면에 가고,
  * '내 악보·제공 곡 불러오기'는 [onLoadExisting]으로 목록(EditPick)에 간다. 뒤로 가기는 내 악보로 돌아간다.
  * 내 악보의 '다시 불러오기'로 왔으면 [reimportProblem] 안내 창을 먼저 띄우고, '다시 선택하기'는 고른 종류로 파일 선택에 간다.
  *
@@ -61,7 +61,8 @@ fun EditNewRoute(
     EditNewScreen(
         state = state,
         onBack = onBack,
-        onSelectKind = viewModel::selectKind,
+        // 종류는 올리기 화면에서 고르므로 정간보로 열어 둔다.
+        onUpload = { onImport(ImportKind.Jeongganbo, HwangPitch.Default) },
         onLoadExisting = onLoadExisting,
         onOpenDevicePick = openDevicePick,
         onDismissProblem = viewModel::dismissProblem,

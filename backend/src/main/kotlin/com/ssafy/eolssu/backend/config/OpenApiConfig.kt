@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.config
 
 import com.ssafy.eolssu.backend.common.error.ErrorCode
+import com.ssafy.eolssu.backend.feature.auth.domain.PasswordPolicy
 import com.ssafy.eolssu.backend.common.error.ErrorCode.*
 import com.ssafy.eolssu.backend.feature.auth.api.RetryDetails
 import com.ssafy.eolssu.backend.feature.auth.api.ResendDetails
@@ -177,8 +178,8 @@ class OpenApiConfig {
         components.schemas?.get("RecordScoreViewRequest")?.properties?.set("songId",StringSchema().pattern("0*[1-9][0-9]*").description("양의 정수 ID를 JSON 문자열로 전송"))
         for ((name,property) in listOf("SignUpRequest" to "password","PasswordChangeRequest" to "newPassword","PasswordResetRequest" to "newPassword")) {
             components.schemas?.get(name)?.properties?.get(property)?.apply {
-                minLength = 8; maxLength = 128; format = "password"; writeOnly = true
-                description = "영문·숫자·특수문자 포함 8~128자(코드 포인트). 공백은 특수문자로 세지 않습니다."
+                minLength = PasswordPolicy.MIN_LENGTH; maxLength = PasswordPolicy.MAX_LENGTH; format = "password"; writeOnly = true
+                description = "영문·숫자·특수문자 포함 8~64자(코드 포인트). 공백은 특수문자로 세지 않습니다."
             }
         }
     }
