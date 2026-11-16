@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -305,7 +306,8 @@ private fun StageBody(
     val instrument = state.instrument
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
     val fingeringMore: @Composable (StringResource, Blow) -> Unit = { label, blow ->
-        MoreLink(stringResource(label), onClick = { actions.onOpenFingering(blow) })
+        // 섹션 오른쪽 끝에 놓이므로 알약 안쪽 여백만큼 밀어 글자 끝을 본문 끝선에 맞춘다(S15P31E102-968).
+        MoreLink(stringResource(label), onClick = { actions.onOpenFingering(blow) }, modifier = Modifier.offset(x = 12.dp))
     }
     val grid = columns.grid
     val taskImageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified
@@ -364,6 +366,8 @@ private fun StageBody(
                         MoreLink(
                             stringResource(Res.string.learn_more_fingering_blow, blowShortLabel(stringResource(range.blow.label))),
                             onClick = { actions.onOpenFingering(range.blow) },
+                            // 상자 왼쪽에 놓이므로 알약 안쪽 여백만큼 당겨 글자 시작을 다른 줄과 맞춘다(S15P31E102-968).
+                            modifier = Modifier.offset(x = (-12).dp),
                         )
                     }
                 }
