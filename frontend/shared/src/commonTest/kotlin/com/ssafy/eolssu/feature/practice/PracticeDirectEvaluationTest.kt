@@ -184,7 +184,7 @@ class PracticeDirectEvaluationTest {
         assertFalse(vm.uiState.value.recordingSupported)
     }
 
-    /** 연습 설정의 '한글 읽는 법 표시' 스위치는 하위 화면 없이 바로 켜고 끈다(S15P31E102-875). */
+    /** 제목 줄 '한글 표기' 버튼은 하위 화면 없이 바로 켜고 끈다(S15P31E102-875·1037). */
     @Test fun hangulSwitchTogglesImmediately() = directTest(direct = false) { vm, settings ->
         vm.toggleHangul()
         runCurrent()

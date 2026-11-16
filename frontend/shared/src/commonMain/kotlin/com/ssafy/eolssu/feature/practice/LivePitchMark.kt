@@ -173,7 +173,7 @@ data class LivePitchCell(val mark: LivePitchMark, val settled: Boolean = false)
 
 /**
  * 평가 연주에서 확정한 판정을 악보 표시 자리별 안내로 바꾼다. 같은 음이 여러 정간에 걸치면(이음표) 모든 자리를 한꺼번에 칠한다.
- * 확정한 뒤 진행이 한 음 더 넘어가거나 연주를 마치면 가라앉힌다. 혼자 연습과 ‘실시간 채점’을 끈 동안은 비운다.
+ * 확정한 뒤 진행이 한 음 더 넘어가거나 연주를 마치면 가라앉힌다. 혼자 연습과 ‘퍼펙트 스코어’(실시간 채점)를 끈 동안은 비운다.
  * 언제 지울지는 [PracticeViewModel]이 집계를 비우는 시점(새 연주·준비·화면 이탈)을 따른다.
  */
 internal fun livePitchMarks(state: PracticeUiState, tally: LivePitchTally): Map<ScoreUnitKey, LivePitchCell> {
