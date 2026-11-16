@@ -49,6 +49,78 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
         assertTrue(errors().isEmpty())
     }
 
+    @Test fun reimportReplacesTheFailedSheetOnlyAfterTheNewUploadIsAccepted() = runTest {
+        val failed = com.ssafy.eolssu.core.model.MySheet("7", com.ssafy.eolssu.core.model.MySheetOrigin.Imported, "강원도 아리랑",
+            updatedAt = com.ssafy.eolssu.core.model.KoreanDateTime(2026, 11, 16, 9, 0), conversionStatus = "FAILED")
+        val deleted = mutableListOf<String>()
+        val sheets = object : MySheetRepository {
+            override val sheets = kotlinx.coroutines.flow.MutableStateFlow(listOf(failed))
+            override suspend fun delete(sheetId: String) { deleted += sheetId }
+        }
+        var reply: SheetImportResult = SheetImportResult.Failed("UPLOAD_FAILED")
+        val repository = object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String) = reply
+        }
+        val model = keep(SheetImportViewModel(ImportKind.Staff, HwangPitch.Default, repository, { instruments }, { jangdans },
+            replacing = "7", mySheets = sheets))
+        runCurrent()
+        assertEquals("강원도 아리랑", model.uiState.value.title)
+        model.instrument("4")
+        model.selectFiles(SheetFileSelection.Selected(listOf(pdf)))
+        assertEquals("강원도 아리랑", model.uiState.value.title)
+        model.submit(); runCurrent()
+        assertTrue(deleted.isEmpty())
+        reply = SheetImportResult.Accepted("91")
+        model.submit(); runCurrent()
+        assertEquals(listOf("7"), deleted)
+        assertEquals("91", model.uiState.value.acceptedId)
+    }
+
+    @Test fun aFullListMakesRoomByDeletingTheFailedSheetAndUploadsOnceMore() = runTest {
+        val failed = com.ssafy.eolssu.core.model.MySheet("7", com.ssafy.eolssu.core.model.MySheetOrigin.Imported, "강원도 아리랑",
+            updatedAt = com.ssafy.eolssu.core.model.KoreanDateTime(2026, 11, 16, 9, 0), conversionStatus = "FAILED")
+        val deleted = mutableListOf<String>()
+        val sheets = object : MySheetRepository {
+            override val sheets = kotlinx.coroutines.flow.MutableStateFlow(listOf(failed))
+            override suspend fun delete(sheetId: String) { deleted += sheetId }
+        }
+        val keys = mutableListOf<String>()
+        val repository = object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String): SheetImportResult {
+                keys += key
+                return if (deleted.isEmpty()) SheetImportResult.Failed("SHEET_LIMIT_EXCEEDED") else SheetImportResult.Accepted("91")
+            }
+        }
+        val model = keep(SheetImportViewModel(ImportKind.Staff, HwangPitch.Default, repository, { instruments }, { jangdans },
+            replacing = "7", mySheets = sheets))
+        runCurrent()
+        model.instrument("4")
+        model.selectFiles(SheetFileSelection.Selected(listOf(pdf)))
+        model.submit(); runCurrent()
+        assertEquals(listOf("7"), deleted)
+        assertEquals(2, keys.size)
+        assertNotEquals(keys[0], keys[1])
+        assertEquals("91", model.uiState.value.acceptedId)
+        assertNull(model.uiState.value.error)
+    }
+
+    @Test fun aFullListWithoutAFailedSheetToReplaceStillShowsTheLimit() = runTest {
+        var uploads = 0
+        val repository = object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String): SheetImportResult {
+                uploads++
+                return SheetImportResult.Failed("SHEET_LIMIT_EXCEEDED")
+            }
+        }
+        val model = keep(SheetImportViewModel(ImportKind.Staff, HwangPitch.Default, repository, { instruments }, { jangdans }))
+        runCurrent()
+        model.title("곡"); model.instrument("4")
+        model.selectFiles(SheetFileSelection.Selected(listOf(pdf)))
+        model.submit(); runCurrent()
+        assertEquals(1, uploads)
+        assertEquals("SHEET_LIMIT_EXCEEDED", model.uiState.value.error)
+    }
+
     @Test fun staffValidationSurvivesCancelledPickerAndDoesNotRequireJangdan() = runTest {
         val repository = object : SheetImportRepository {
             override suspend fun upload(input: SheetImportInput, key: String): SheetImportResult {
