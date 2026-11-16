@@ -128,6 +128,18 @@ class Edo1DependencyTests(unittest.TestCase):
         with patch.object(collector, 'run', side_effect=subprocess.TimeoutExpired('private', 40)):
             self.assertEqual(collector.r2_write_status()[0], '미측정')
 
+    def test_uncertain_put_never_claims_cleanup_is_confirmed(self):
+        for kind in ('recording', 'sheet'):
+            for suffix, expected in (('', '정리 재확인 필요'), ('_delete', '삭제 확인 실패')):
+                data = {'status': 'failed', 'detail': kind + '_put_uncertain' + suffix, 'elapsed_ms': 12}
+                with self.subTest(kind=kind, suffix=suffix), patch.object(
+                        collector, 'run', return_value=subprocess.CompletedProcess([], 0, json.dumps(data), '')):
+                    status, evidence, elapsed = collector.r2_storage_status(kind)
+                self.assertEqual(status, '실패')
+                self.assertIn('쓰기 결과 미확인', evidence)
+                self.assertIn(expected, evidence)
+                self.assertNotIn('정리 확인', evidence)
+
     def test_slow_recording_probe_does_not_delay_starting_the_other_r2_checks(self):
         ready = threading.Barrier(3)
 

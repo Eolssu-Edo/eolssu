@@ -1088,6 +1088,8 @@ def r2_storage_status(kind):
             kind + '_conflict': '점검 객체 키 충돌',
             kind + '_put': '쓰기 실패 · 정리 확인',
             kind + '_put_delete': '쓰기 실패 · 삭제 확인 실패',
+            kind + '_put_uncertain': '쓰기 결과 미확인 · 정리 재확인 필요',
+            kind + '_put_uncertain_delete': '쓰기 결과 미확인 · 삭제 확인 실패',
             kind + '_download': '서명 다운로드 검증 실패 · 정리 확인',
             kind + '_download_delete': '서명 다운로드 검증 실패 · 삭제 확인 실패',
             kind + '_delete': '삭제 확인 실패',

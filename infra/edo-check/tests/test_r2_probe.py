@@ -189,10 +189,16 @@ class SheetStorageTests(unittest.TestCase):
         self.client.delete_object.assert_not_called()
         self.client.generate_presigned_url.assert_not_called()
         self.client.put_object.side_effect = TimeoutError('private provider detail')
-        self.assertEqual(self.cycle(), self.kind + '_put')
+        self.assertEqual(self.cycle(), self.kind + '_put_uncertain')
         self.client.delete_object.assert_called_once_with(**{
             key: self.client.put_object.call_args.kwargs[key] for key in ('Bucket', 'Key')
         })
+
+    def test_uncertain_put_with_cleanup_failure_keeps_both_results(self):
+        self.client.put_object.side_effect = TimeoutError('private provider detail')
+        self.client.delete_object.side_effect = TimeoutError('private provider detail')
+        self.assertEqual(self.cycle(), self.kind + '_put_uncertain_delete')
+        self.client.head_object.assert_not_called()
 
     def test_requires_absence_after_delete(self):
         with patch.object(probe, 'signed_download_matches', return_value=True):

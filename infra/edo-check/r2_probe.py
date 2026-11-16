@@ -234,7 +234,7 @@ def storage_cycle(client, bucket, host, kind):
         return kind + '_conflict'
 
     # A failed PUT response can still leave an object. Check cleanup for this run's unique key.
-    detail = kind + '_put'
+    detail = kind + ('_put_uncertain' if code is None else '_put')
     if code == 200:
         detail = STORAGE_OK if signed_download_matches(client, target, host, payload) else kind + '_download'
     if not object_removed(client, target):
