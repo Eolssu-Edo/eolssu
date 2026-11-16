@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
@@ -50,10 +51,12 @@ class LearnNavigation(
 /**
  * 단계 목록. 단계를 고르면 [onOpenStage]로 단계 상세에 간다.
  * 가로 배치에서는 고른 단계를 오른쪽 칸에 보여주고, 세로로 바뀌었을 때 고른 단계가 있으면 그 단계 상세로 간다.
+ * [practiceOwner]는 단계 연습 상태를 둘 곳으로, 단계 상세와 같은 것을 넘겨 배치가 바뀌어도 연습 상태를 잇는다.
  */
 @Composable
 fun LearnListRoute(
     viewModel: LearnViewModel,
+    practiceOwner: ViewModelStoreOwner,
     onBack: () -> Unit,
     onOpenStage: (Int) -> Unit,
     navigation: LearnNavigation,
@@ -103,6 +106,7 @@ fun LearnListRoute(
             stage,
             state,
             viewModel,
+            practiceOwner,
             onSettingsFailed = { snackbarHostState.notifier(scope)({ getString(Res.string.learn_practice_settings_failed) }) },
             // 가로 배치는 다음 단계를 오른쪽 칸에 고른다. 마지막 단계면 왼쪽 지도에서 결승 축하를 본다.
             onCompleted = { next -> next?.let(viewModel::selectStage) },
@@ -138,11 +142,13 @@ fun LearnListRoute(
  * 단계 상세. 이전·다음 단계는 [onOpenStage]로 바꾸고, 마지막 단계를 확인하면 [onBack]으로 목록에 돌아간다.
  * 3~7단계는 마지막 연습 박스에서 화면을 옮기지 않고 듣고 판정하며, 마지막 단계를 마치면 단계 목록으로 돌아가 결승 축하를 본다.
  * 창이 가로 배치 너비가 되면 이 단계를 고른 채 [onShowInList]로 단계 목록(목록 + 상세 한 화면)에 돌아간다.
+ * 이때 연습 상태가 이어지도록 [practiceOwner]는 단계 목록과 같은 것을 넘긴다.
  */
 @Composable
 fun LearnStageRoute(
     stageNumber: Int,
     viewModel: LearnViewModel,
+    practiceOwner: ViewModelStoreOwner,
     onBack: () -> Unit,
     onOpenStage: (Int) -> Unit,
     onShowInList: () -> Unit,
@@ -178,6 +184,7 @@ fun LearnStageRoute(
         stage,
         state,
         viewModel,
+        practiceOwner,
         onSettingsFailed = { snackbarHostState.notifier(scope)({ getString(Res.string.learn_practice_settings_failed) }) },
         onCompleted = { next -> next?.let(onOpenStage) ?: navigation.onReturnToList() },
     )
