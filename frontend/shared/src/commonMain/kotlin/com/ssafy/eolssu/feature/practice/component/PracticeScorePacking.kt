@@ -67,13 +67,11 @@ internal data class PracticeScorePacking(
 private fun practiceCellParts(cell: ScoreCell): Int =
     if (cell.units.isEmpty()) cell.notes.size else cell.units.map { it.row }.distinct().size
 
-/** 세 줄 이상으로 나뉜 3소박 정간이 있는 악보. 이 정간은 기본 정간의 1.5배 높이로 그린다. */
-internal fun Score.hasPracticeThreeSplit(): Boolean = columns.any { cells -> cells.any { practiceCellParts(it) >= 3 } }
-
 /**
  * 각의 실제 높이에 맞춰 위→아래로 쌓고, 들어가지 않는 다음 각은 왼쪽 세로줄로 넘긴다.
  *
- * [keepThreeSplit]이면(휴대폰 연습 악보) 3소박 정간을 곡과 상관없이 기본 정간 × 1.5(보통 66dp)·율명 17.6sp로 지킨다(S15P31E102-1022).
+ * [keepBaseCell]이면(휴대폰 연습 악보) 3소박 정간이 있거나 긴 각([PracticeSplitColumnCells] 이상)이 있는 곡은 기본 정간(보통 44dp·율명 21sp)을 지키고,
+ * 3소박 정간은 그 × 1.5(66dp)·율명 17.6sp로 그린다(S15P31E102-1022, 3소박 없는 긴 각 곡까지 넓힌 것은 S15P31E102-1028).
  * 그 크기로 한 세로줄에 들어가지 않는 긴 각은 정간을 줄이는 대신 두 세로줄로 나누고, 나눠도 모자랄 때만 줄인다.
  * 같은 가로줄에 맞춰 칸을 늘려도 3소박 율명은 커지지 않는다([JeongganboMetrics.threeSplitGlyphCell]).
  */
@@ -83,14 +81,15 @@ internal fun practiceScorePacking(
     availableHeight: Dp,
     fontScale: Float = 1f,
     jangdan: Jangdan? = null,
-    keepThreeSplit: Boolean = false,
+    keepBaseCell: Boolean = false,
 ): PracticeScorePacking {
     val scale = fontScale.coerceAtLeast(1f)
     val parts = ::practiceCellParts
     val expanded = score.columns.flatMapIndexed { column, cells ->
         cells.mapIndexedNotNull { row, cell -> (column to row).takeIf { parts(cell) >= 3 } }
     }.toSet()
-    val keepThree = keepThreeSplit && expanded.isNotEmpty()
+    // 짧은 각만 있고 3소박도 없는 곡(단소 도라지타령 등)은 기존 묶음을 그대로 둔다. 3소박 곡과 긴 각 곡만 기본 정간을 지킨다.
+    val keep = keepBaseCell && (expanded.isNotEmpty() || score.columns.any { it.size >= PracticeSplitColumnCells })
     // 위아래로 나뉜 정간이 있으면 한 줄이 정간의 절반이 되므로, 두 각 이상 쌓을 정간 높이를 그 줄의 율명 크기로 정한다.
     val split = score.columns.any { cells -> cells.any { parts(it) >= 2 } }
     val splitStackCell = run {
@@ -120,8 +119,8 @@ internal fun practiceScorePacking(
     val packable = score.supportsPracticeColumnPacking(jangdan)
     if (packable && availableHeight.value.isFinite()) {
         // 글꼴 확대에서도 묶음을 유지한다. 글자도 같은 배율로 커지므로 정간 최소 크기는 배율 전 값으로 본다.
-        // 3소박을 지키는 악보는 기본 정간보다 작게 줄이지 않는다(3소박 = 기본 정간 × 1.5).
-        val minimum = if (keepThree) metrics.cellHeight else minOf(metrics.cellHeight, if (metrics.cellHeight > 44.dp) 44.dp else 32.dp)
+        // 정간 크기를 지키는 악보는 기본 정간보다 작게 줄이지 않는다(3소박 = 기본 정간 × 1.5).
+        val minimum = if (keep) metrics.cellHeight else minOf(metrics.cellHeight, if (metrics.cellHeight > 44.dp) 44.dp else 32.dp)
         fun allowedFor(candidate: Int): Dp {
             val sharedWeight = rowWeights(candidate).sum()
             // 가로줄별 픽셀 반올림 여유와 악보 바깥 여백까지 포함해 맞춘다.
@@ -136,7 +135,7 @@ internal fun practiceScorePacking(
         val found = (limit downTo 1).firstOrNull { allowedFor(it) >= if (it >= 2) maxOf(minimum, splitStackCell) else minimum }
         val shortColumns = score.columns.size > 1 && score.columns.maxOf { it.size } <= PracticeShortColumnCells
         val stackReadable = allowedFor(2).let { cell -> cell >= PracticeMinStackCell && cell >= splitStackCell }
-        if ((found == null || found == 1) && shortColumns && stackReadable && !keepThree) {
+        if ((found == null || found == 1) && shortColumns && stackReadable && !keep) {
             // 짧은 각은 한 줄로 늘어놓지 않고 1각 아래 2각을 둔다. 낮은 화면에서는 정간과 글자를 같은 비율로 줄인다.
             count = 2
             fitted = minOf(minimum, allowedFor(2))
@@ -144,10 +143,10 @@ internal fun practiceScorePacking(
         } else if (found != null) {
             count = found
             fitted = minOf(metrics.cellHeight, allowedFor(found))
-        } else if (allowedFor(1) >= PracticeMinStackCell && !(keepThree && score.columns.maxOf { it.size } >= PracticeSplitColumnCells)) {
+        } else if (allowedFor(1) >= PracticeMinStackCell && !(keep && score.columns.maxOf { it.size } >= PracticeSplitColumnCells)) {
             // 최소 정간으로는 안 들어가도 읽을 수 있는 하한까지 줄여 들어가면 한 각을 한 줄로 둔다(S15P31E102-922 한오백년 12정간).
             // 정간과 글자를 같은 비율로 줄인다. 이보다 낮은 화면만 아래에서 두 줄로 나눈다.
-            // 3소박을 지키는 악보는 줄이지 않고 아래에서 두 줄로 나눈다(S15P31E102-1022).
+            // 정간 크기를 지키는 악보는 줄이지 않고 아래에서 두 줄로 나눈다(S15P31E102-1022·1028).
             fitted = allowedFor(1)
             textRatio = fitted / minimum
         } else if (score.columns.maxOf { it.size } >= PracticeSplitColumnCells) {
@@ -177,7 +176,7 @@ internal fun practiceScorePacking(
     val groups = score.columns.indices.toList().chunked(count)
     val packedMetrics = metrics.copy(
         cellHeight = fitted, yulSize = metrics.yulSize * textRatio, auxSize = metrics.auxSize * textRatio,
-        threeSplitGlyphCell = if (keepThree) fitted * 1.5f else null,
+        threeSplitGlyphCell = if (keep && expanded.isNotEmpty()) fitted * 1.5f else null,
     )
     if (splitInTwo) {
         // 줄마다 가장 긴 줄의 높이에 맞춰 정간을 비례 확대해 모든 줄의 아래 끝을 맞춘다(한 각씩 둘 때와 같은 방식).

@@ -145,9 +145,9 @@ data class JeongganboMetrics(
          * 연두 보드 PRACTICE-01 휴대폰 악보(`.practice-score .ms`): 각 78dp(크게 보기 104), 머리 22dp, 정간 44dp 고정
          * (11정간 이상 줄은 32, 크게 보기 60), 율명 21sp(18 · 26), 보조 9sp(9 · 11), 각 사이 6dp. 세로로 넘치면 화면이 스크롤된다.
          */
-        fun practiceBoard(big: Boolean, longestStrip: Int, threeSplit: Boolean = false): JeongganboMetrics {
-            // 3소박을 66dp로 지키는 휴대폰 연습 악보([threeSplit])는 긴 각도 기본 정간(44dp)을 쓴다(S15P31E102-1022).
-            val dense = longestStrip >= 11 && !threeSplit
+        fun practiceBoard(big: Boolean, longestStrip: Int, keepBaseCell: Boolean = false): JeongganboMetrics {
+            // 정간 크기를 곡과 상관없이 지키는 휴대폰 연습 악보([keepBaseCell])는 긴 각도 기본 정간(44dp)을 쓴다(S15P31E102-1022·1028).
+            val dense = longestStrip >= 11 && !keepBaseCell
             return when {
                 big -> JeongganboMetrics(columnWidth = 104.dp, cellHeight = 60.dp, yulSize = 26.sp, auxSize = 11.sp, headHeight = 22.dp, splitScaleTwo = 17f / 26f)
                 dense -> JeongganboMetrics(columnWidth = 78.dp, cellHeight = 32.dp, yulSize = 18.sp, auxSize = 9.sp, headHeight = 22.dp, splitScaleTwo = 12f / 18f)
