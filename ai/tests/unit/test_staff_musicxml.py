@@ -133,6 +133,14 @@ def test_overfull_recognition_is_pointed_to_notes_for_review():
     assert flagged and all(i["cellId"] for i in flagged)
 
 
+def test_measure_rhythm_review_is_left_once_per_measure():
+    """마디 길이 문제는 마디 안 모든 음이 아니라 마디 첫 음 칸에 한 번만 알린다."""
+    notes = "".join(note(p, 4) for p in ("C4", "D4", "E4", "F4", "G4"))
+    out = convert(xml(measure(notes, time=(4, 4))), instrument="ANY", hwang_pitch=60)
+    flagged = [i for i in out.issues if i["detail"].get("reason") == "OVERFULL_MEASURE"]
+    assert [i["cellId"] for i in flagged] == ["c0-j0"]
+
+
 def test_highest_voice_and_top_of_chord_are_kept():
     upper = note("E4", 8, voice=1) + note("G4", 4, voice=1) + note("C5", 4, "<chord/>", voice=1)
     lower = "<backup><duration>16</duration></backup>" + note("C4", 16, voice=2)

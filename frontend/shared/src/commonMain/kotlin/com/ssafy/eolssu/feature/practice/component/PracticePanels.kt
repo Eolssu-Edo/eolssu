@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.height
@@ -24,8 +26,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -41,20 +41,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.ui.component.InstrumentMenuItem
 import com.ssafy.eolssu.core.ui.component.InstrumentPicture
-import com.ssafy.eolssu.core.ui.component.EolssuMenuShape
+import com.ssafy.eolssu.core.ui.component.EolssuMenuAlign
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
@@ -68,6 +72,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuSwitch
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
+import com.ssafy.eolssu.core.ui.component.sheetBottomPadding
 import com.ssafy.eolssu.core.ui.score.FingeringFigure
 import com.ssafy.eolssu.core.ui.score.HoleLegend
 import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
@@ -148,15 +153,20 @@ fun PracticePanelSheet(
     val song = state.song ?: return
     val settings = panel == PracticePanel.Settings
     // 배경 누르기와 상위로 뒤로가기를 분리한다. 모달 전체 배경이 닫기 입력을 받는다.
-    Dialog(onDismissRequest = actions.onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+    // 시트는 화면 바닥까지 닿고, 시스템 하단 여백(홈 막대·내비게이션 바)은 시트 안쪽 아래에 둔다(S15P31E102-973).
+    Dialog(onDismissRequest = actions.onClose, properties = practiceSheetDialogProperties()) {
+        BoxWithConstraints(
+            Modifier.fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+        ) {
             val maxSheetHeight = maxHeight * when {
                 expanded -> if (settings) 0.75f else 0.8f
                 tablet -> if (settings) 0.45f else 0.6f
                 settings -> 0.62f
                 else -> 0.82f
             }
-            Box(Modifier.fillMaxSize().clickable(onClick = actions.onDismiss))
+            // 바깥 막을 눌러 닫을 때 막 전체에 눌림 효과가 번쩍이지 않게 한다.
+            Box(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = actions.onDismiss))
             Surface(
                 modifier = modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).fillMaxWidth()
                     .heightIn(max = maxSheetHeight),
@@ -164,7 +174,10 @@ fun PracticePanelSheet(
                 // 연습 설정과 하위 화면(장단·속도·운지법) 모두 회색 시트 위 흰 카드다(S15P31E102-768).
                 color = EolssuTheme.colors.groupedBackground,
             ) {
-                Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 24.dp)) {
+                Column(
+                    Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                        .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = sheetBottomPadding(24.dp)),
+                ) {
                     PanelHeader(panel, state, actions.onClose)
                     Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -224,7 +237,8 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     val lockedStatus = stringResource(Res.string.practice_settings_locked)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (state.solo && !state.learn) SettingsCard { InstrumentSelect(state.instrument, actions.onSetInstrument) }
-        SettingsCard {
+        // 메뉴 줄은 카드 위아래 끝까지 닿고, 눌림 효과는 카드의 둥근 모서리에서 잘린다(S15P31E102-968).
+        SettingsCard(verticalPadding = 0.dp) {
         MenuRow(
             EolssuIcons.JangdanMark, stringResource(Res.string.practice_menu_jangdan),
             when {
@@ -267,52 +281,66 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
 /** 연습 설정 시트의 카드 안쪽 좌우 여백. */
 private val SettingsCardInset: Dp = 16.dp
 
-/** 연습 설정 묶음 카드: 회색 시트 위 테두리 없는 흰 카드 · 모서리 20dp(마이페이지 카드와 같은 모양, S15P31E102-768). */
+/**
+ * 연습 설정 묶음 카드: 회색 시트 위 테두리 없는 흰 카드 · 모서리 20dp(마이페이지 카드와 같은 모양, S15P31E102-768).
+ * 안쪽 줄의 눌림 효과가 둥근 모서리 밖으로 나가지 않게 카드 모양으로 자른다(S15P31E102-968).
+ */
 @Composable
-private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().background(EolssuTheme.colors.surface, RoundedCornerShape(20.dp)).padding(vertical = 4.dp), content = content)
+private fun SettingsCard(verticalPadding: Dp = 4.dp, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(EolssuTheme.colors.surface).padding(vertical = verticalPadding),
+        content = content,
+    )
 }
 
-/** ‘연습 악기’: 15sp 600 라벨과 오른쪽 고르기 알약(38dp, 테두리 없는 회색 바탕, 악기 그림 28dp + 13sp 500). 목록에도 악기 그림을 둔다(S15P31E102-831). */
+/**
+ * ‘연습 악기’: 15sp 600 라벨과 오른쪽 고르기 알약(38dp, 테두리 없는 회색 바탕, 악기 그림 28dp + 13sp 500). 목록에도 악기 그림을 둔다(S15P31E102-831).
+ * 알약의 누르는 영역은 48dp이고 눌림 효과는 알약 안에만 보인다. 줄 높이는 전과 같게 위아래 여백을 줄였다(S15P31E102-970).
+ */
 @Composable
 private fun InstrumentSelect(selected: GuideInstrument, onSelect: (String) -> Unit) {
     val colors = EolssuTheme.colors
     var open by remember { mutableStateOf(false) }
     val label = stringResource(Res.string.practice_instrument)
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = SettingsCardInset, vertical = 8.dp),
+        Modifier.fillMaxWidth().padding(horizontal = SettingsCardInset, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
         Box {
-            Row(
-                Modifier
-                    .heightIn(min = 38.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(colors.groupedBackground)
-                    .clickable(role = Role.DropdownList) { open = true }
-                    .padding(start = 6.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            Surface(
+                onClick = { open = true },
+                modifier = Modifier.heightIn(min = 38.dp).semantics { role = Role.DropdownList },
+                shape = RoundedCornerShape(50),
+                color = colors.groupedBackground,
+                contentColor = colors.text,
             ) {
-                InstrumentPicture(selected)
-                Text(stringResource(selected.label), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), color = colors.text)
-                Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textMuted)
+                Row(
+                    Modifier.padding(start = 6.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    InstrumentPicture(selected)
+                    Text(stringResource(selected.label), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), color = colors.text)
+                    Icon(
+                        EolssuIcons.ChevronDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp).rotate(if (open) 180f else 0f),
+                        tint = colors.textMuted,
+                    )
+                }
             }
-            DropdownMenu(
-                expanded = open,
-                onDismissRequest = { open = false },
-                shape = EolssuMenuShape,
-                containerColor = colors.surface,
-                shadowElevation = 8.dp,
-                modifier = Modifier.width(168.dp).padding(horizontal = 6.dp),
-            ) {
-                GuideInstrument.entries.forEach { instrument ->
-                    InstrumentMenuItem(instrument, instrument == selected, onClick = {
-                        open = false
-                        onSelect(instrument.id)
-                    })
+            if (open) {
+                EolssuMenuPopup(onDismissRequest = { open = false }, align = EolssuMenuAlign.End) {
+                    EolssuMenuPanel(width = 168.dp) {
+                        GuideInstrument.entries.forEach { instrument ->
+                            InstrumentMenuItem(instrument, instrument == selected, onClick = {
+                                open = false
+                                onSelect(instrument.id)
+                            })
+                        }
+                    }
                 }
             }
         }

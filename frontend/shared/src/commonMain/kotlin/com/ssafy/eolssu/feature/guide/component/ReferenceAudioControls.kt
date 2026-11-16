@@ -15,6 +15,8 @@ import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.ElasticSquashSoftAmount
 import com.ssafy.eolssu.core.ui.component.ElasticSquashTextWidth
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.elasticSquash
 import com.ssafy.eolssu.feature.guide.ReferenceAudioController
@@ -56,7 +58,15 @@ fun ReferenceAudioControls(
                 Text(stringResource(message), Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
                     style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
                 if (state.loadState == ReferenceLoadState.Failed) {
-                    TextButton(onClick = controller.retry) { Text(stringResource(Res.string.guide_catalog_retry)) }
+                    // 다른 화면의 '다시 시도'와 같은 회색 앱 버튼(S15P31E102-970).
+                    EolssuButton(
+                        stringResource(Res.string.guide_catalog_retry),
+                        onClick = controller.retry,
+                        style = EolssuButtonStyle.Secondary,
+                        small = true,
+                        containerColor = colors.groupedBackground,
+                        borderColor = colors.groupedBackground,
+                    )
                 }
             }
             return@Column

@@ -234,7 +234,16 @@ class PracticeViewModel(
             if (audio == null) null else state.song?.modelSectionEndMediaPosition(audio, ticks, playback.mediaPositionMs.toDouble())
         }
         var lastMediaMs: Double? = null
+        val startAudio = modelAudio.state.value.audio
+        val startSong = state.song
+        // 반복이 있는 수행표는 재생 중 장단 tick이 원래 위치로 돌아가므로 미리 예약하지 않는다.
+        val linear = startAudio != null && startAudio.performance == null
+        val untilTick = if (startSong == null || startAudio == null || !linear) null else {
+            val endMs = startAudio.startOffsetMs + startSong.modelScoreDurationMs(startAudio)
+            startSong.modelJangdanTickAt(startAudio, minOf(endMs, sectionEndMs ?: endMs))
+        }
         jangdanAudio.start(currentPlan(), accompanyingModel = true, resumeAfterTick = resumeAfter, startAtTick = startAt,
+            untilTick = untilTick, lookaheadMs = if (linear) JANGDAN_LOOKAHEAD_MS else 0.0,
             clockReady = { modelAudio.playbackClockReady }, tick = {
             val now = _uiState.value
             val song = now.song
@@ -336,7 +345,7 @@ class PracticeViewModel(
         val resumeAfter = if (rhythmStartsAtAttack) null else _uiState.value.elapsedMs / plan.msPerTick
         val endTick = _uiState.value.sectionTicks?.endInclusive
             ?: song.timeline.last().let { (it.startTick!! + it.durationTick!!).toDouble() }
-        jangdanAudio.start(plan, accompanyingModel = false, resumeAfterTick = resumeAfter, tick = {
+        jangdanAudio.start(plan, accompanyingModel = false, resumeAfterTick = resumeAfter, untilTick = endTick, tick = {
             if (_uiState.value.mode == PracticeMode.Rhythm && _uiState.value.playing)
                 stepClock?.elapsedMs()?.div(plan.msPerTick)?.takeIf { it < endTick } else null
         }, onStarted = {
@@ -360,18 +369,37 @@ class PracticeViewModel(
 
     private fun seekRhythm(deltaMs: Long) {
         val wasPlaying = _uiState.value.playing
-        pauseRhythm()
+        var live = canSeekPlayingRhythm()
+        if (live) captureStepProgress() else pauseRhythm()
         val state = _uiState.value
         val song = state.song ?: return
         val msPerTick = 60_000.0 / state.bpm / (song.score.timing?.ticksPerBeat ?: return)
         val last = song.timeline.last()
-        val target = ((state.currentTick ?: 0.0) + deltaMs / msPerTick)
-            .coerceIn(0.0, (last.startTick!! + last.durationTick!!).toDouble())
+        val end = (last.startTick!! + last.durationTick!!).toDouble()
+        val target = ((state.currentTick ?: 0.0) + deltaMs / msPerTick).coerceIn(0.0, end)
+        if (live && target >= end) { pauseRhythm(); live = false }
         val position = song.timeline.indexOfLast { it.startTick!! <= target }.coerceAtLeast(0)
         _uiState.update { it.copy(position = position, eventElapsedMs = (target - song.timeline[position].startTick!!) * msPerTick,
             elapsedMs = target * msPerTick, eventStartedAt = null) }
         rhythmStartsAtAttack = true
-        if (wasPlaying && target < last.startTick + last.durationTick) startRhythm()
+        if (live) continueRhythmAfterSeek() else if (wasPlaying && target < end) startRhythm()
+    }
+
+    /** 장단 연습이 소리를 내며 진행 중이면 세션을 다시 만들지 않고 탐색한다(로딩·출력 재시작 없음). */
+    private fun canSeekPlayingRhythm(): Boolean {
+        val state = _uiState.value
+        return state.mode == PracticeMode.Rhythm && state.playing && soundPurpose == SoundPurpose.Rhythm &&
+            stepJob?.isActive == true && jangdanAudio.status.value == JangdanStatus.Playing
+    }
+
+    /** 상태에 새 위치를 넣은 뒤 부른다. 새 악보 시계를 먼저 걸어야 장단이 이전 위치의 타격을 예약하지 않는다. */
+    private fun continueRhythmAfterSeek() {
+        stepJob?.cancel()
+        startStepping(_uiState.value.eventElapsedMs)
+        if (!jangdanAudio.reposition()) {
+            pauseRhythm()
+            startRhythm()
+        }
     }
 
 
@@ -650,7 +678,8 @@ class PracticeViewModel(
         captureStepProgress()
         val state = _uiState.value
         val song = state.song ?: return
-        val preparingRhythm = soundPurpose == SoundPurpose.Rhythm && jangdanAudio.status.value == JangdanStatus.Loading
+        val preparingRhythm = soundPurpose == SoundPurpose.Rhythm &&
+            (jangdanAudio.status.value == JangdanStatus.Loading || jangdanAudio.starting)
         val running = stepJob?.isActive == true || preparingRhythm
         if (state.mode == PracticeMode.Rhythm) pauseRhythm()
         val carry = state.currentEventFraction
@@ -738,7 +767,8 @@ class PracticeViewModel(
             return
         }
         val wasPlaying = state.mode == PracticeMode.Rhythm && state.playing
-        pauseRhythm()
+        val live = progress < 1f && canSeekPlayingRhythm()
+        if (!live) pauseRhythm()
         val timing = song.score.timing ?: return
         val last = song.timeline.last()
         val endTick = (last.startTick!! + last.durationTick!!).toDouble()
@@ -746,12 +776,12 @@ class PracticeViewModel(
         val position = song.timeline.indexOfLast { it.startTick!! <= target }.coerceAtLeast(0)
         val msPerTick = 60_000.0 / state.bpm / timing.ticksPerBeat
         _uiState.update { it.copy(mode = if (it.mode == PracticeMode.Ready) PracticeMode.Model else it.mode,
-            position = position, selected = position, selectedCell = state.cellForEvent(position), playing = false, follow = true,
+            position = position, selected = position, selectedCell = state.cellForEvent(position), playing = live, follow = true,
             eventElapsedMs = (target - song.timeline[position].startTick!!) * msPerTick,
             elapsedMs = target * msPerTick, eventStartedAt = null, modelClock = null) }
         modelStartsAtAttack = true
         rhythmStartsAtAttack = true
-        if (wasPlaying && progress < 1f) startRhythm()
+        if (live) continueRhythmAfterSeek() else if (wasPlaying && progress < 1f) startRhythm()
     }
 
     /**
@@ -787,16 +817,17 @@ class PracticeViewModel(
             return
         }
         val wasPlaying = state.mode == PracticeMode.Rhythm && state.playing
-        pauseRhythm()
+        val live = canSeekPlayingRhythm()
+        if (!live) pauseRhythm()
         val position = song.timeline.indexOfLast { (it.startTick ?: 0) <= tick }.coerceAtLeast(0)
         val msPerTick = 60_000.0 / state.bpm / timing.ticksPerBeat
         _uiState.update { it.copy(mode = if (it.mode == PracticeMode.Ready) PracticeMode.Model else it.mode,
-            position = position, selected = position, selectedCell = state.cellForEvent(position), playing = false, follow = true,
+            position = position, selected = position, selectedCell = state.cellForEvent(position), playing = live, follow = true,
             eventElapsedMs = (tick - (song.timeline[position].startTick ?: 0)) * msPerTick,
             elapsedMs = tick * msPerTick, eventStartedAt = null, modelClock = null) }
         modelStartsAtAttack = true
         rhythmStartsAtAttack = true
-        if (wasPlaying) startRhythm()
+        if (live) continueRhythmAfterSeek() else if (wasPlaying) startRhythm()
     }
 
     /** Preview uses the reviewed score tick scale and the selected practice BPM. */

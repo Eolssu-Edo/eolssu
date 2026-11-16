@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -79,7 +78,6 @@ fun EmailVerificationScreen(
     val needsNewCode = state.needsNewCode(now)
     AuthScaffold(
         authFrameOf(widthClass, split = true),
-        modifier = Modifier.imePadding(),
         snackbarHostState = snackbarHostState,
         topBar = {
             val path = if (signUp) SignupPath.Email else SignupPath.PasswordReset

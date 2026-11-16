@@ -2,6 +2,8 @@ package com.ssafy.eolssu.feature.practice.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,9 +23,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -117,6 +123,8 @@ fun PracticeMiniToggle(
                 maxLines = 1,
             )
             // 배치에는 30×18dp만 차지하고, 누르는 영역은 그 둘레로 넓혀 알약 밖까지 걸친다.
+            // 눌림 효과는 넓힌 영역이 아니라 보이는 알약 안에만 그린다(S15P31E102-968).
+            val interaction = remember { MutableInteractionSource() }
             Box(
                 Modifier
                     .layout { measurable, _ ->
@@ -126,7 +134,7 @@ fun PracticeMiniToggle(
                         val placeable = measurable.measure(Constraints.fixed(touch, touch))
                         layout(width, height) { placeable.place((width - touch) / 2, (height - touch) / 2) }
                     }
-                    .toggleable(value = on, enabled = enabled, role = Role.Switch, onValueChange = { onToggle() })
+                    .toggleable(value = on, interactionSource = interaction, indication = null, enabled = enabled, role = Role.Switch, onValueChange = { onToggle() })
                     .semantics { contentDescription = description },
                 contentAlignment = Alignment.Center,
             ) {
@@ -135,7 +143,9 @@ fun PracticeMiniToggle(
                     Modifier
                         .width(MiniSwitchWidth)
                         .height(MiniSwitchHeight)
-                        .background(if (on) colors.primary else colors.line, RoundedCornerShape(9.dp)),
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(if (on) colors.primary else colors.line)
+                        .indication(interaction, ripple()),
                 ) {
                     Box(
                         Modifier
@@ -216,12 +226,16 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
         if (listening) PracticeStepGauge()
         if (state.step.manualConfirm && listening) {
             // 실제 음 판정(S15P31E102-341)을 붙이기 전의 대역 조작. 판정기가 스스로 판정하면 보이지 않는다.
+            val confirmInteraction = remember { MutableInteractionSource() }
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Text(
                     stringResource(Res.string.practice_step_manual_confirm),
+                    // 누르는 영역은 48dp 높이로 두고, 눌림 효과는 그린 점선 알약 안에만 둔다(S15P31E102-968).
                     modifier = Modifier
-                        .heightIn(min = 44.dp)
-                        .padding(vertical = 8.dp)
+                        .heightIn(min = 48.dp)
+                        .clickable(interactionSource = confirmInteraction, indication = null, role = Role.Button, onClick = actions.onConfirmStepNote)
+                        .wrapContentHeight()
+                        .clip(CircleShape)
                         .drawBehind {
                             drawRoundRect(
                                 colors.line,
@@ -229,7 +243,7 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
                                 style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))),
                             )
                         }
-                        .clickable(role = Role.Button, onClick = actions.onConfirmStepNote)
+                        .indication(confirmInteraction, ripple())
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                     color = colors.textSub,
@@ -271,14 +285,14 @@ private fun StepPanel(
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(label, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textMuted)
-                Box(Modifier.height(StepContentHeight), contentAlignment = Alignment.CenterStart) { content() }
+                Box(Modifier.heightIn(min = StepContentHeight), contentAlignment = Alignment.CenterStart) { content() }
             }
             icon()
         }
     }
 }
 
-/** 두 칸의 내용 줄 높이. 28sp 율명 한 줄이 들어간다. */
+/** 두 칸의 내용 줄 최소 높이. 28sp 율명 한 줄이 들어가고 큰 글꼴에서는 내용만큼 높아진다(S15P31E102-972). */
 private val StepContentHeight = 36.dp
 
 @Composable

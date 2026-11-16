@@ -1,12 +1,9 @@
 package com.ssafy.eolssu.feature.result
 
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
-import com.ssafy.eolssu.core.ui.component.rememberHideKeyboard
+import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,12 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,11 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -65,6 +58,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuStartTopBar
+import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.ScoreSummaryCard
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
@@ -311,16 +305,13 @@ private val ExpandedScoreBottomGap = 12.dp
 /** 악보 아래(태블릿 가로는 왼쪽 칸 아래) ‘다른 곡 고르기’ 글자 버튼. */
 @Composable
 private fun OtherSongLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Text(
-        stringResource(Res.string.result_other_song_more),
-        modifier = modifier
-            .padding(top = 2.dp, bottom = 10.dp)
-            .minimumInteractiveComponentSize()
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-        color = EolssuTheme.colors.textSub,
-    )
+    EolssuTextLink(onClick, modifier.padding(top = 2.dp, bottom = 10.dp)) {
+        Text(
+            stringResource(Res.string.result_other_song_more),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
+            color = EolssuTheme.colors.textSub,
+        )
+    }
 }
 
 /** 악보 아래 ‘다른 곡 고르기’ 줄 높이(위 2 + 48 + 아래 10). */
@@ -452,34 +443,15 @@ internal fun SaveFormSheet(
                     maxLines = 1,
                 )
             }
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    stringResource(Res.string.result_memo_label),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
-                    color = colors.textSub,
-                )
-                val fieldShape = RoundedCornerShape(12.dp)
-                Box(
-                    Modifier.fillMaxWidth().height(52.dp).background(colors.background, fieldShape).border(1.dp, colors.line, fieldShape).padding(horizontal = 14.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, color = colors.text)
-                    val hideKeyboard = rememberHideKeyboard()
-                    if (memo.isEmpty()) Text(stringResource(Res.string.result_memo_placeholder), style = textStyle, color = colors.textDisabled)
-                    BasicTextField(
-                        value = memo,
-                        onValueChange = onMemoChange,
-                        singleLine = true,
-                        enabled = !saving,
-                        textStyle = textStyle,
-                        cursorBrush = SolidColor(colors.text),
-                        // 키보드 확인을 누르면 키보드를 내린다(S15P31E102-800).
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onAny = { hideKeyboard() }),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
+            // 공용 입력칸: 선택 테두리·큰 글꼴 높이 맞춤을 다른 입력칸과 같게 한다(S15P31E102-972). 저장 중에는 바꾸지 않는다.
+            EolssuTextField(
+                value = memo,
+                onValueChange = { if (!saving) onMemoChange(it) },
+                label = stringResource(Res.string.result_memo_label),
+                placeholder = stringResource(Res.string.result_memo_placeholder),
+                imeAction = ImeAction.Done,
+                containerColor = colors.background,
+            )
         }
     }
 }

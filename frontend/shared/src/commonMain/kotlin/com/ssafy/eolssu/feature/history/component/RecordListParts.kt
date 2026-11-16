@@ -1,7 +1,8 @@
 package com.ssafy.eolssu.feature.history.component
 
 import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
-import com.ssafy.eolssu.core.ui.component.EolssuMenuShape
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
+import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
 import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,8 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +43,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -179,47 +179,56 @@ internal fun RecordListToolbar(
     }
 }
 
-/** 악기 선택 상자: 고른 악기의 그림과 이름(‘악기 전체’는 그림 없이)을 보이고, 목록에도 악기마다 그림을 둔다. */
+/**
+ * 악기 선택 상자: 고른 악기의 그림과 이름(‘악기 전체’는 그림 없이)을 보이고, 목록에도 악기마다 그림을 둔다.
+ * 보이는 알약은 36dp이고 누르는 영역은 48dp이며, 눌림 효과는 알약 모양 안에만 보인다(S15P31E102-970).
+ */
 @Composable
 private fun InstrumentSelectBox(value: Instrument?, onPick: (Instrument?) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val all = stringResource(Res.string.records_instrument_all)
+    val selectedLabel = value?.let { stringResource(it.label) } ?: all
     Box {
-        Row(
-            Modifier
-                .height(36.dp)
-                .background(EolssuTheme.colors.surface, CircleShape)
-                .clickable(role = Role.DropdownList) { expanded = true }
-                .padding(start = if (value == null) 14.dp else 6.dp, end = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        Surface(
+            onClick = { expanded = true },
+            modifier = Modifier.height(36.dp).semantics { role = Role.DropdownList },
+            shape = CircleShape,
+            color = EolssuTheme.colors.surface,
+            contentColor = EolssuTheme.colors.text,
         ) {
-            value?.let { InstrumentPicture(it, size = 24.dp) }
-            Text(
-                value?.let { stringResource(it.label) } ?: all,
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
-                maxLines = 1,
-            )
-            Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp))
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            shape = EolssuMenuShape,
-            containerColor = EolssuTheme.colors.surface,
-            shadowElevation = 8.dp,
-            modifier = Modifier.width(180.dp).padding(horizontal = 6.dp),
-        ) {
-            (listOf(null) + Instrument.entries).forEach { option ->
-                EolssuMenuItem(
-                    option?.let { stringResource(it.label) } ?: all,
-                    option == value,
-                    onClick = {
-                        expanded = false
-                        onPick(option)
-                    },
-                    leading = option?.let { { InstrumentPicture(it) } },
+            Row(
+                Modifier.padding(start = if (value == null) 14.dp else 6.dp, end = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                value?.let { InstrumentPicture(it, size = 24.dp) }
+                Text(
+                    selectedLabel,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
+                    maxLines = 1,
                 )
+                Icon(
+                    EolssuIcons.ChevronDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp).rotate(if (expanded) 180f else 0f),
+                )
+            }
+        }
+        if (expanded) {
+            EolssuMenuPopup(onDismissRequest = { expanded = false }) {
+                EolssuMenuPanel(width = 180.dp) {
+                    (listOf(null) + Instrument.entries).forEach { option ->
+                        EolssuMenuItem(
+                            option?.let { stringResource(it.label) } ?: all,
+                            option == value,
+                            onClick = {
+                                expanded = false
+                                onPick(option)
+                            },
+                            leading = option?.let { { InstrumentPicture(it) } },
+                        )
+                    }
+                }
             }
         }
     }

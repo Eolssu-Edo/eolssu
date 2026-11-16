@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -31,6 +30,7 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
+import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.data.practice.RecentPracticeSummary
 import com.ssafy.eolssu.data.user.UserProfile
@@ -186,9 +186,7 @@ private fun ProfileCard(profile: UserProfile, progress: MyLearningProgress?, onE
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
-                Icon(EolssuIcons.Pencil, contentDescription = stringResource(Res.string.my_nickname_edit), modifier = Modifier.size(18.dp), tint = colors.textMuted)
-            }
+            EolssuIconButton(EolssuIcons.Pencil, stringResource(Res.string.my_nickname_edit), onClick = onEdit, bordered = false)
         }
         if (progress != null) {
             Box(Modifier.padding(top = 2.dp)) { LearningBadge(progress) }
@@ -226,7 +224,7 @@ private fun ProviderRow(provider: SocialProvider, linked: Boolean, onClick: () -
     }
 }
 
-/** 카드 안 한 줄: 글자 · 오른쪽 옅은 화살표. 줄 전체가 누르는 영역이다. */
+/** 카드 안 한 줄: 글자 · 오른쪽 옅은 화살표. 줄 전체가 누르는 영역이고 목록형으로 사각으로 눌린다(카드가 모서리를 자른다, S15P31E102-968). */
 @Composable
 private fun AccountRow(text: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors

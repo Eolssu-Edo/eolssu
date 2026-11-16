@@ -1,13 +1,18 @@
 package com.ssafy.eolssu.feature.history
 
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -35,6 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -156,9 +163,14 @@ internal fun RecordResultContent(
         return
     }
     BoxWithConstraints(modifier) {
-        val scrollPage = maxHeight < 360.dp
+        // 큰 글꼴에서는 점수 상자가 커져 정간보 칸이 짓눌린다. 요약 높이를 재어 정간보 몫이 모자라면 본문 전체를 스크롤한다(S15P31E102-972).
+        val density = LocalDensity.current
+        var summaryHeight by remember { mutableStateOf(0.dp) }
+        val scrollPage = maxHeight < 360.dp || maxHeight - summaryHeight < RecordScoreMinHeight
         Column(Modifier.fillMaxSize().then(if (scrollPage) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
-            RecordSummaryBlock(state, actions, record)
+            Column(Modifier.onSizeChanged { summaryHeight = with(density) { it.height.toDp() } }) {
+                RecordSummaryBlock(state, actions, record)
+            }
             RecordScoreArea(
                 state, actions,
                 wrapped = wrapped && !scrollPage,
@@ -216,7 +228,8 @@ private fun RecordSummaryBlock(state: RecordDetailUiState, actions: RecordDetail
         compact = true,
         action = if (state.canCompare || showMemo) {
             {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                // 좁은 휴대폰에서 두 알약이 한 줄에 안 들어가면 ‘지난 연주와 비교’를 다음 줄로 내린다(S15P31E102-972).
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (showMemo) {
                         TintPillButton(stringResource(Res.string.record_memo_button), actions.onOpenMemo, icon = EolssuIcons.Chat)
                     }
@@ -287,6 +300,9 @@ private fun RecordScoreArea(
     }
 }
 
+/** 휴대폰 배치에서 정간보 칸이 이보다 낮아지면 본문 전체를 스크롤한다(정간 두세 칸이 보이는 높이). */
+private val RecordScoreMinHeight = 160.dp
+
 /** 나란히 배치의 왼쪽 칸 너비. 점수 상자 막대 칸에 ‘메모’ · ‘지난 연주와 비교’ 두 버튼이 한 줄로 들어간다. */
 internal val RecordSideColumnWidth = 340.dp
 private val RecordSideColumnGap = 16.dp
@@ -329,13 +345,20 @@ private fun RecordMemoDialog(recordId: String, memo: String, dialog: RecordMemoS
                 style = memoTextStyle(),
                 color = colors.text,
             )
+            // 누르는 영역은 48dp, 눌림 효과는 연필 둘레 40dp 원 안에만 그려 메모 상자 모서리와 겹치지 않게 한다(S15P31E102-968).
+            val editInteraction = remember { MutableInteractionSource() }
             Box(
-                Modifier.align(Alignment.TopEnd).size(44.dp)
-                    .clickable(role = Role.Button, onClick = actions.onEditMemo)
+                Modifier.align(Alignment.TopEnd).size(48.dp)
+                    .clickable(interactionSource = editInteraction, indication = null, role = Role.Button, onClick = actions.onEditMemo)
                     .semantics { contentDescription = editLabel },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.accentText)
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape).indication(editInteraction, ripple()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.accentText)
+                }
             }
         }
         EolssuButton(

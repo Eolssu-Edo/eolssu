@@ -14,7 +14,11 @@ interface JangdanSamplePlayer {
     suspend fun prepare(clips: Set<JangdanClip>): Boolean
     /** 모범 음원과 함께 틀 때는 그 플레이어가 오디오 포커스를 소유한다. */
     fun begin(accompanyingModel: Boolean): Boolean
-    fun play(clip: JangdanClip, gain: Float): Boolean
+    /**
+     * [delayMs] 뒤에 들리도록 예약한다. 모든 타격에 같은 출력 지연을 더하므로 0이면 지금 친 것과 같다.
+     * 타격 시각은 호출 시각이 아니라 악보 tick에서 계산해 넘기므로 확인 주기의 지연이 박자에 섞이지 않는다.
+     */
+    fun play(clip: JangdanClip, gain: Float, delayMs: Double = 0.0): Boolean
     fun silence()
     fun stop()
     fun release()
@@ -35,7 +39,7 @@ class UnavailableJangdanSamplePlayer : JangdanSamplePlayer {
     override val interrupted = false
     override suspend fun prepare(clips: Set<JangdanClip>) = false
     override fun begin(accompanyingModel: Boolean) = false
-    override fun play(clip: JangdanClip, gain: Float) = false
+    override fun play(clip: JangdanClip, gain: Float, delayMs: Double) = false
     override fun silence() = Unit
     override fun stop() = Unit
     override fun release() = Unit

@@ -21,18 +21,21 @@ import platform.AVFAudio.AVAudioPCMBuffer
 import platform.AVFAudio.AVAudioPCMFormatFloat32
 import platform.AVFAudio.AVAudioPlayerNode
 import platform.AVFAudio.AVAudioPlayerNodeBufferInterrupts
+import platform.AVFAudio.AVAudioSession
 import platform.AVFAudio.AVAudioSessionInterruptionNotification
 import platform.AVFAudio.AVAudioSessionInterruptionTypeBegan
 import platform.AVFAudio.AVAudioSessionInterruptionTypeKey
 import platform.AVFAudio.AVAudioSessionRouteChangeNotification
 import platform.AVFAudio.AVAudioSessionRouteChangeReasonKey
 import platform.AVFAudio.AVAudioSessionRouteChangeReasonOldDeviceUnavailable
+import platform.AVFAudio.AVAudioTime
 import platform.AVFAudio.AVAudioUnitTimePitch
 import platform.Foundation.NSNotification
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSNumber
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSURL
+import platform.QuartzCore.CACurrentMediaTime
 import platform.darwin.NSObjectProtocol
 
 /**
@@ -92,7 +95,7 @@ internal class IosJangdanSamplePlayer(
         return true
     }
 
-    override fun play(clip: JangdanClip, gain: Float): Boolean {
+    override fun play(clip: JangdanClip, gain: Float, delayMs: Double): Boolean {
         if (interrupted) return false
         val current = engine?.takeIf { it.running } ?: return false
         val buffer = buffers[clip] ?: return false
@@ -100,11 +103,20 @@ internal class IosJangdanSamplePlayer(
         val node = nodes[next]
         next = (next + 1) % nodes.size
         node.volume = gain.coerceIn(0f, 1f) * 0.65f
-        // Each node holds one hit; reusing it cuts that node's oldest hit, like the Android stream bound.
-        node.scheduleBuffer(buffer, atTime = null, options = AVAudioPlayerNodeBufferInterrupts, completionHandler = null)
+        // The node's timeline must run before a host-time buffer is converted to its sample time.
         if (!node.playing) node.play()
+        // Every hit gets the same lead past the render cycle, so the first hit and scheduled hits share one latency.
+        // Host time is the audio clock (mach_absolute_time), so polling jitter never reaches the attack.
+        val at = AVAudioTime(hostTime = AVAudioTime.hostTimeForSeconds(
+            CACurrentMediaTime() + delayMs.coerceAtLeast(0.0) / 1000.0 + scheduleLeadSeconds()))
+        // Each node holds one hit; reusing it cuts that node's oldest hit, like the Android stream bound.
+        node.scheduleBuffer(buffer, atTime = at, options = AVAudioPlayerNodeBufferInterrupts, completionHandler = null)
         return current.running
     }
+
+    /** Two I/O buffers: later than the next render cycle even when the main thread wakes late. */
+    private fun scheduleLeadSeconds(): Double =
+        (AVAudioSession.sharedInstance().IOBufferDuration * 2).coerceIn(MIN_LEAD_SECONDS, MAX_LEAD_SECONDS)
 
     override fun silence() {
         nodes.forEach { it.stop() }
@@ -171,6 +183,8 @@ internal class IosJangdanSamplePlayer(
 
     private companion object {
         const val NODE_COUNT = 8
+        const val MIN_LEAD_SECONDS = 0.01
+        const val MAX_LEAD_SECONDS = 0.05
     }
 }
 

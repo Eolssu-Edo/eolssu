@@ -33,5 +33,6 @@ internal class LimitedJangdanSamplePlayer(
 ) : JangdanSamplePlayer by inner {
     override val failed: Boolean get() = inner.failed
     override val timingContext: CoroutineContext get() = inner.timingContext
-    override fun play(clip: JangdanClip, gain: Float): Boolean = inner.play(clip, if (active()) gain * limit.gain() else gain)
+    override fun play(clip: JangdanClip, gain: Float, delayMs: Double): Boolean =
+        inner.play(clip, if (active()) gain * limit.gain() else gain, delayMs)
 }
