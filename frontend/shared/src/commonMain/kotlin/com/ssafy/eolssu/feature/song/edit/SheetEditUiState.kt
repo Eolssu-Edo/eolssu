@@ -156,6 +156,8 @@ data class SheetEditUiState(
     val jangdanPicker: SheetEditJangdanPicker? = null,
     val adaptation: SheetAdaptationUi? = null,
     val importGuideDismissed: Boolean = false,
+    /** 아래 입력판을 펼쳤는지. 변환된 악보는 악보부터 보도록 접은 채 연다(S15P31E102-1042). */
+    val inputPanelExpanded: Boolean = true,
 ) {
     val completionValidation: SheetCompletionValidation by lazy { validateCompletion() }
     /** 가져온 악보의 확인 안내. 확인할 것이 없거나 닫았으면 null. */

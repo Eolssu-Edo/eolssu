@@ -95,6 +95,7 @@
     <string name="sheetedit_undo">실행 취소</string>
     <string name="sheetedit_panel_collapse">입력판 접기</string>
     <string name="sheetedit_panel_expand">입력판 펼치기</string>
+    <string name="sheetedit_panel_hint">악보를 직접 편집할 수 있어요</string>
     <string name="sheetedit_redo">다시 실행</string>
     <string name="sheetedit_view_jeongganbo">정간보</string>
     <string name="sheetedit_view_staff">오선보</string>

@@ -24,7 +24,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
-import com.ssafy.eolssu.core.model.instrumentOfServerCode
 import com.ssafy.eolssu.core.ui.component.*
 import com.ssafy.eolssu.feature.song.edit.SheetAdaptationUi
 import com.ssafy.eolssu.feature.song.edit.PitchAdaptationPlan
@@ -35,8 +34,9 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import kotlin.math.roundToInt
 
 /**
- * 악기는 악보를 만들 때 고르므로 여기서는 이름만 보여 준다(S15P31E102-979).
- * 개수·적용 줄 아래에 이조 값, 추천 칩, −·슬라이더·+를 한 줄로 쌓는다.
+ * 곡 전체 높이 맞추기(S15P31E102-979·1042). 악기는 악보를 만들 때 고르므로 여기서는 보이지 않는다.
+ * 첫 줄 왼쪽 흰 상자에 지금 고른 높이(`+1반음`), 오른쪽에 개수와 적용을 두고, 아래에 추천 칩, −·슬라이더·+,
+ * '추천'의 뜻과 높이만으로 다 못 고칠 때 남는 음 수·다음 할 일을 쌓는다.
  */
 @Composable
 internal fun SheetAdaptationPanel(
@@ -54,25 +54,13 @@ internal fun SheetAdaptationPanel(
         thumbColor = colors.primary, activeTrackColor = colors.primary, inactiveTrackColor = colors.surfaceStrong,
         activeTickColor = colors.surface, inactiveTickColor = colors.lineStrong,
     )
-    val instrumentLabel: @Composable () -> Unit = {
-        val chosen = state.instruments.firstOrNull { it.instrumentId == state.selectedId }
-        Row(Modifier.heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
-            instrumentOfServerCode(chosen?.code)?.let {
-                InstrumentPicture(it, size = InstrumentPictureCompactSize)
-                Spacer(Modifier.width(6.dp))
-            }
-            chosen?.let { Text(it.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-        }
-    }
-    Column(Modifier.fillMaxWidth().heightIn(max = 180.dp).verticalScroll(rememberScrollState()),
+    Column(Modifier.fillMaxWidth().heightIn(max = 220.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
         when {
-            state.loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                instrumentLabel()
+            state.loading -> Row(Modifier.heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(24.dp), color = colors.textMuted, strokeWidth = 2.dp)
             }
             state.failed -> {
-                instrumentLabel()
                 Text(stringResource(Res.string.sheet_adapt_failed), style = MaterialTheme.typography.bodySmall)
                 EolssuButton(stringResource(Res.string.sheet_upload_reload), onRetry, style = EolssuButtonStyle.Secondary, small = true,
                     containerColor = colors.surface, borderColor = colors.surface)
@@ -82,7 +70,7 @@ internal fun SheetAdaptationPanel(
                 val recommended = recommendedAdaptations(state.plans).firstOrNull()
                 FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp), itemVerticalAlignment = Alignment.CenterVertically) {
-                    instrumentLabel()
+                    TransposeBox(transposeLabel(selected.transpose))
                     Spacer(Modifier.weight(1f))
                     // 두 개수를 한 줄에 나란히 두고, 적용은 작은 네모 버튼(32dp)으로 둔다(S15P31E102-889).
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -95,8 +83,6 @@ internal fun SheetAdaptationPanel(
                     }
                     PillButton(stringResource(Res.string.sheet_details_apply), onApply, compact = true)
                 }
-                Text(transposeLabel(selected.transpose), style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.align(Alignment.CenterHorizontally))
                 // 칩 영역은 −·+ 버튼 폭만큼 안쪽에 두어 슬라이더 칸과 같은 가로 위치를 쓴다.
                 RecommendationMark(recommended, thumbInset, trackCorner,
                     Modifier.fillMaxWidth().padding(horizontal = StepButtonSize))
@@ -126,12 +112,27 @@ internal fun SheetAdaptationPanel(
                     SquareIconButton(EolssuIcons.Plus, increaseLabel, { onTranspose(selected.transpose + 1) },
                         enabled = selected.transpose < 6)
                 }
+                // '추천'이 무엇을 고른 것인지 한 줄로 말한다. 어느 높이로도 다 못 고치면 남는 수와 다음 할 일을 알린다.
+                if (recommended != null) Text(stringResource(Res.string.sheet_adapt_recommend_help),
+                    style = MaterialTheme.typography.bodySmall, color = colors.textSub)
+                if (selected.unresolved > 0 && state.unavoidableUnresolved > 0) Text(
+                    stringResource(Res.string.sheet_adapt_remaining_help, selected.unresolved),
+                    style = MaterialTheme.typography.bodySmall, color = colors.recText)
             }
         }
     }
 }
 
 private val StepButtonSize = 48.dp
+
+/** 지금 고른 높이를 흰 상자에 담아 슬라이더 값과 같은 말로 보인다. */
+@Composable
+private fun TransposeBox(label: String) {
+    Box(Modifier.heightIn(min = 36.dp).background(EolssuTheme.colors.surface, RoundedCornerShape(10.dp))
+        .padding(horizontal = 12.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
+        Text(label, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+    }
+}
 
 /**
  * 추천 이조를 슬라이더 칸 위의 `추천` 칩 하나로 보여 준다(S15P31E102-979).

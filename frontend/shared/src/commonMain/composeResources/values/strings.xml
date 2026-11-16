@@ -801,7 +801,7 @@
     <string name="my_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~64자로 정해 주세요.</string>
     <string name="my_error_password_mismatch">새 비밀번호가 서로 달라요.</string>
     <string name="my_error_password_same_as_current">현재 비밀번호와 다르게 입력해주세요</string>
-    <string name="sheet_adapt_title">악기·음역 맞추기</string>
+    <string name="sheet_adapt_title">곡 전체 높이 맞추기</string>
     <string name="sheet_adapt_failed">지원음을 불러오지 못했어요.</string>
     <string name="sheet_adapt_original_key">원조 유지</string>
     <string name="sheet_adapt_semitones">%1$s반음</string>

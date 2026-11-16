@@ -202,6 +202,7 @@ class SheetEditViewModel(
     fun openAdaptation() {
         val before = _uiState.value
         if (!accountScope.isActive || before.confirming || before.documentLoading || before.draft.original == null) return
+        _uiState.update { it.copy(inputPanelExpanded = true) }
         val existing = before.adaptation
         if (existing != null && existing.baseline == before.draft && !existing.loading && !existing.failed) {
             _uiState.update { it.copy(tab = EditTab.Adaptation, view = EditView.Jeongganbo) }
@@ -413,6 +414,7 @@ class SheetEditViewModel(
                     withJangdan = draft.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
                     reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet(),
                     reviewNotices = document.editorReviewNotices(),
+                    inputPanelExpanded = document.conversionStatus == null,
                     deviceAudio = deviceAudio, adaptation = adaptation) }
                 loadCompletionCatalog()
                 loadAudioInstrumentOptions()
@@ -733,8 +735,10 @@ class SheetEditViewModel(
     }
     fun selectTab(tab: EditTab) {
         if (tab == EditTab.Adaptation) openAdaptation()
-        else change { it.copy(tab = tab) }
+        else change { it.copy(tab = tab, inputPanelExpanded = true) }
     }
+
+    fun setInputPanelExpanded(expanded: Boolean) = _uiState.update { it.copy(inputPanelExpanded = expanded) }
     fun selectView(view: EditView) = change { state ->
         if (state.view == view || state.draft.original == null) return@change state.copy(view = view)
         when (view) {

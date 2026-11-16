@@ -15,9 +15,19 @@ import com.ssafy.eolssu.feature.song.edit.reviewIssuesAt
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
-/** 클릭한 위치의 정보만 보여 준다. 전체 저장 검수와 확인 처리는 저장 경로에 둔다. */
+/**
+ * 다시 볼 칸을 고르면 무엇이 문제인지와 바로 할 일을 함께 보인다(S15P31E102-1042).
+ * 꾸밈음이 빠진 칸은 시김새 넣기, 그 밖에는 율명 바꾸기를 먼저 권하고, 원본과 같으면 확인으로 끝낸다.
+ */
 @Composable
-internal fun SheetReviewInfoDialog(state: SheetEditUiState, selection: SheetReviewSelection, onDismiss: () -> Unit) {
+internal fun SheetReviewInfoDialog(
+    state: SheetEditUiState,
+    selection: SheetReviewSelection,
+    onDismiss: () -> Unit,
+    onEditYul: () -> Unit = onDismiss,
+    onEditSigimsae: () -> Unit = onDismiss,
+    onConfirmSame: (() -> Unit)? = null,
+) {
     val issues = state.reviewIssuesAt(selection.cell, selection.sub)
     val notes = state.draft.cells.getOrNull(selection.cell).orEmpty()
     if (issues.isEmpty() || notes.isEmpty()) return
@@ -25,7 +35,7 @@ internal fun SheetReviewInfoDialog(state: SheetEditUiState, selection: SheetRevi
     val location = if (selection.sub != null && notes.size > 1) stringResource(Res.string.sheet_review_info_unit,
         state.draft.columnOf(selection.cell) + 1, state.draft.rowOf(selection.cell) + 1, selection.sub + 1)
     else stringResource(Res.string.sheet_review_info_location, state.draft.columnOf(selection.cell) + 1, state.draft.rowOf(selection.cell) + 1)
-    EolssuDialog(title = stringResource(Res.string.sheet_review_info_title), message = location, onDismissRequest = onDismiss) {
+    EolssuDialog(title = stringResource(Res.string.sheet_review_fix_title), message = location, onDismissRequest = onDismiss) {
         val labels = selectedNotes.map { note -> when (note) {
             ScoreNote.Rest -> stringResource(Res.string.sheet_review_info_rest)
             ScoreNote.Hold -> stringResource(Res.string.sheet_review_info_hold)
@@ -35,6 +45,9 @@ internal fun SheetReviewInfoDialog(state: SheetEditUiState, selection: SheetRevi
         } }
         Text(labels.joinToString(" · "), style = MaterialTheme.typography.bodyLarge)
         issues.forEach { Text(sheetReviewReason(it), style = MaterialTheme.typography.bodyMedium) }
+        if (issues.any { it.kind == "ORNAMENT_DROPPED" }) EolssuButton(stringResource(Res.string.sheet_review_fix_sigimsae), onEditSigimsae)
+        else EolssuButton(stringResource(Res.string.sheet_review_fix_yul), onEditYul)
+        if (onConfirmSame != null) EolssuButton(stringResource(Res.string.sheet_review_fix_same), onConfirmSame, style = EolssuButtonStyle.Secondary)
         EolssuButton(stringResource(Res.string.common_close), onDismiss, style = EolssuButtonStyle.Secondary)
     }
 }

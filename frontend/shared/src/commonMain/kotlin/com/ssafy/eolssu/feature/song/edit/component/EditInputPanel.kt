@@ -9,6 +9,9 @@ import eolssu.shared.generated.resources.sheet_adapt_tab
 import eolssu.shared.generated.resources.sheetedit_undo
 import eolssu.shared.generated.resources.sheetedit_panel_collapse
 import eolssu.shared.generated.resources.sheetedit_panel_expand
+import eolssu.shared.generated.resources.sheetedit_panel_hint
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import eolssu.shared.generated.resources.sheetedit_register_jungcheong_short
 import eolssu.shared.generated.resources.sheetedit_register_baetak_short
 import androidx.compose.foundation.background
@@ -135,6 +138,7 @@ class EditInputActions(
     val onAddColumn: () -> Unit,
     val onDeleteColumn: () -> Unit,
     val onChangeJangdan: () -> Unit,
+    val onSetPanelExpanded: (Boolean) -> Unit = {},
 )
 
 /**
@@ -160,11 +164,11 @@ internal fun EditInputPanel(
     adaptationContent: @Composable () -> Unit = {},
     docked: Boolean = false,
     hasTempoPlan: Boolean,
+    expanded: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
     val shape = if (docked) RoundedCornerShape(20.dp) else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     val tabsScroll = rememberScrollState()
-    var expanded by rememberSaveable { mutableStateOf(true) }
     LaunchedEffect(tab) { if (tab == EditTab.Adaptation) tabsScroll.animateScrollTo(0) }
     Column(
         modifier
@@ -178,8 +182,16 @@ internal fun EditInputPanel(
         Row(Modifier.fillMaxWidth().height(48.dp).offset(x = (-4).dp), verticalAlignment = Alignment.CenterVertically) {
             SquareIconButton(SheetEditIcons.Undo, stringResource(Res.string.sheetedit_undo), actions.onUndo, enabled = canUndo)
             SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.onRedo, enabled = canRedo)
-            Box(Modifier.weight(1f).offset(x = 4.dp), contentAlignment = Alignment.CenterEnd) { saveFeedback() }
-            InputPanelToggle(expanded, onToggle = { expanded = !expanded }, Modifier.offset(x = 8.dp))
+            Box(Modifier.weight(1f).offset(x = 4.dp), contentAlignment = Alignment.CenterEnd) {
+                // 접혀 있으면 펼침 버튼 옆에서 아래 입력판으로 직접 고칠 수 있음을 알린다(S15P31E102-1042). 글자를 눌러도 펼친다.
+                if (expanded) saveFeedback()
+                else Text(stringResource(Res.string.sheetedit_panel_hint),
+                    Modifier.clip(RoundedCornerShape(8.dp)).clickable { actions.onSetPanelExpanded(true) }
+                        .padding(horizontal = 6.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium, color = colors.textSub, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
+            }
+            InputPanelToggle(expanded, onToggle = { actions.onSetPanelExpanded(!expanded) }, Modifier.offset(x = 8.dp))
         }
         // 접으면 실행 취소 줄 한 줄만 남겨 짧은 휴대폰에서도 정간보를 넓게 본다(S15P31E102-972).
         if (!expanded) return@Column
