@@ -86,6 +86,11 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
                 )
             },
             onEditSheet = { sheet -> navController.navigate(SheetEditDestination.editMine(sheet.id)) },
+            onOpenConversion = { sheet ->
+                if (navController.currentBackStackEntry?.id == entry.id) {
+                    navController.navigate(SheetEditDestination.conversion(sheet.id))
+                }
+            },
         )
     }
     composable(SheetEditDestination.PICK) { entry ->
