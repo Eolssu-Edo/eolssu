@@ -105,18 +105,16 @@ fun PracticeTopBar(
 /**
  * 보기 버튼 묶음(S15P31E102-1037): 왼쪽부터 ‘퍼펙트 스코어’(평가) 또는 ‘한 음씩’(혼자 연습) · ‘운지법’ · ‘한글 표기’.
  * 어느 연습 모드·화면 크기에서도 같은 [PracticeOptionChip]을 같은 순서로 놓는다. 어떤 버튼을 둘지는 [optionButtons]가 정한다.
- * [fingering]이 false(태블릿 배치)면 ‘운지법’(운지법과 함께 보기)을 두지 않는다. 태블릿 악보는 이 보기를 쓰지 않는다.
  */
 @Composable
 fun PracticeOptionButtonRow(
     state: PracticeUiState,
     actions: PracticePanelActions,
     onToggleStep: () -> Unit,
-    fingering: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        state.optionButtons(fingering).forEach { button ->
+        state.optionButtons().forEach { button ->
             val (label, onToggle) = when (button.kind) {
                 PracticeOptionKind.Step -> Res.string.practice_step_toggle to onToggleStep
                 PracticeOptionKind.LiveMarks -> Res.string.practice_live_marks to actions.onToggleLiveMarks

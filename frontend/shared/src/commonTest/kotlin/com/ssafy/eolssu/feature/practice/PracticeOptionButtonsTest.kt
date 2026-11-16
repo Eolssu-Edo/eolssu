@@ -21,7 +21,7 @@ class PracticeOptionButtonsTest {
         score = Score(listOf(listOf(ScoreCell(ScoreNote.Pitch(Yul.Hwangjong)), ScoreCell(ScoreNote.Hold), ScoreCell(ScoreNote.Rest)))),
     )
 
-    private fun kinds(state: PracticeUiState, fingering: Boolean = true) = state.optionButtons(fingering).map { it.kind }
+    private fun kinds(state: PracticeUiState) = state.optionButtons().map { it.kind }
 
     @Test fun evaluationShowsPerfectScoreThenFingeringThenHangul() {
         val evaluation = PracticeUiState(song = song)
@@ -35,25 +35,21 @@ class PracticeOptionButtonsTest {
         assertEquals(listOf(PracticeOptionKind.Fingering, PracticeOptionKind.Hangul), kinds(noCriteria))
     }
 
-    @Test fun tabletLeavesOutFingeringView() {
-        assertEquals(listOf(PracticeOptionKind.LiveMarks, PracticeOptionKind.Hangul), kinds(PracticeUiState(song = song), fingering = false))
-    }
-
     @Test fun buttonsFollowSettings() {
         val off = PracticeUiState(song = song, settings = PracticeSettings(showHangul = false, fingeringView = false, liveMarks = false))
-        assertTrue(off.optionButtons(true).none { it.on })
+        assertTrue(off.optionButtons().none { it.on })
         val on = PracticeUiState(song = song, settings = PracticeSettings(showHangul = true, fingeringView = true, liveMarks = true))
-        assertTrue(on.optionButtons(true).all { it.on })
+        assertTrue(on.optionButtons().all { it.on })
         // 기초부터 배우기 곡의 화면 한정 운지법 값도 버튼에 그대로 보인다.
         val learn = off.copy(fingeringOverride = true)
-        assertTrue(learn.optionButtons(true).single { it.kind == PracticeOptionKind.Fingering }.on)
+        assertTrue(learn.optionButtons().single { it.kind == PracticeOptionKind.Fingering }.on)
     }
 
     @Test fun stepButtonLocksWhileStepCannotToggle() {
         val solo = PracticeUiState(song = song, solo = true)
-        assertTrue(solo.optionButtons(true).first().enabled)
+        assertTrue(solo.optionButtons().first().enabled)
         val recording = solo.copy(mode = PracticeMode.Recording)
-        assertFalse(recording.optionButtons(true).single { it.kind == PracticeOptionKind.Step }.enabled)
-        assertTrue(recording.optionButtons(true).filter { it.kind != PracticeOptionKind.Step }.all { it.enabled })
+        assertFalse(recording.optionButtons().single { it.kind == PracticeOptionKind.Step }.enabled)
+        assertTrue(recording.optionButtons().filter { it.kind != PracticeOptionKind.Step }.all { it.enabled })
     }
 }

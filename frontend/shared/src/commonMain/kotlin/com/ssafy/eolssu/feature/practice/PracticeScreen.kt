@@ -189,7 +189,7 @@ private fun PracticeCompactLayout(
                     showPill = false,
                     // 휴대폰은 머리 제목이 잘리지 않게 보기 버튼을 설정 버튼 아래(제목 줄 오른쪽)에 둔다.
                     // 연습·구간 연습·연주 평가가 같은 자리·같은 모양이다(S15P31E102-816·1037).
-                    trailing = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep, fingering = true) },
+                    trailing = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep) },
                 )
                 Spacer(Modifier.height(if (fingering) 8.dp else 12.dp))
                 if (fingering) {

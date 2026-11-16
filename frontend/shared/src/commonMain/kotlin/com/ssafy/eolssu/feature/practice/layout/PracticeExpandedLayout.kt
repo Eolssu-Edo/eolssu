@@ -16,6 +16,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.feature.practice.LivePitchCell
 import com.ssafy.eolssu.feature.practice.PracticeScreenActions
+import com.ssafy.eolssu.feature.practice.component.PracticeFingeringPage
 import com.ssafy.eolssu.feature.practice.component.PracticeOptionButtonRow
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.PracticeUiState
@@ -44,7 +45,7 @@ internal fun PracticeExpandedLayout(
             PracticeTopBar(
                 state, actions.onBack, actions.onOpenSettings, Modifier.padding(horizontal = SideGutter / 2),
                 maxWidth = WindowBreakpoints.ContentMaxWidth + SideGutter, showSettings = false,
-                options = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep, fingering = false) },
+                options = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep) },
             )
         },
     ) {
@@ -53,10 +54,15 @@ internal fun PracticeExpandedLayout(
             Modifier.fillMaxSize().padding(start = SideGutter, end = SideGutter, top = 4.dp, bottom = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            PracticeScoreArea(
-                state, PracticeScoreStyle.TabletLandscape, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
-                Modifier.weight(1f), livePitch = livePitch,
-            )
+            if (state.fingeringView) {
+                // ‘운지법’ 버튼을 켜면 악보 자리에 운지법과 함께 보기를 둔다(S15P31E102-1037).
+                PracticeFingeringPage(state, actions.onSelectUnit, modifier = Modifier.weight(1f).fillMaxHeight(), livePitch = livePitch)
+            } else {
+                PracticeScoreArea(
+                    state, PracticeScoreStyle.TabletLandscape, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
+                    Modifier.weight(1f), livePitch = livePitch,
+                )
+            }
             PracticeSideDock(state, actions.panel, actions.bottom, Modifier.width(DockWidth).fillMaxHeight())
         }
     }
