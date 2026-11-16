@@ -628,3 +628,6 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [S15P31E102-909 악보 저장 창에서 빠르기 설정 제거](plans/S15P31E102-909.md)
 
 - [S15P31E102-934 홈·학습·운지·마이페이지 실제 흐름 검증](plans/S15P31E102-934.md) · [기초 배우기 수동 완료 연결](specs/learn-manual-completion.md) · [실기기 결과와 오디오 관찰 기준](knowledge/frontend/android-guide-flow-verification.md)
+
+- [입력칸 글자 수 상한과 메모 입력 방식 (996)](knowledge/frontend/input-length-limits.md)
+- [악보 빠르기 범위 40~200 (1018)](knowledge/frontend/sheet-tempo-range.md)

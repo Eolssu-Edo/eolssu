@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.result
 
-import androidx.compose.ui.text.input.ImeAction
 import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,6 +22,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.ssafy.eolssu.core.ui.component.EolssuMemoField
+import androidx.compose.ui.text.TextRange
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,7 +64,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuStartTopBar
-import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.ScoreSummaryCard
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
@@ -443,14 +448,22 @@ internal fun SaveFormSheet(
                     maxLines = 1,
                 )
             }
-            // 공용 입력칸: 선택 테두리·큰 글꼴 높이 맞춤을 다른 입력칸과 같게 한다(S15P31E102-972). 저장 중에는 바꾸지 않는다.
-            EolssuTextField(
-                value = memo,
-                onValueChange = { if (!saving) onMemoChange(it) },
+            // 기록 상세와 같은 여러 줄 메모 칸: 500자까지 받고, 줄이 많아지면 칸 안에서 스크롤한다(S15P31E102-996).
+            // 저장 중에는 바꾸지 않는다. 칸의 글은 바뀔 때마다 상태(memo)로 올린다.
+            val memoState = rememberSaveable(saver = TextFieldState.Saver) { TextFieldState(memo, TextRange(memo.length)) }
+            val latestMemoChange by rememberUpdatedState(onMemoChange)
+            LaunchedEffect(memoState) {
+                snapshotFlow { memoState.text.toString() }.collect { latestMemoChange(it) }
+            }
+            EolssuMemoField(
+                state = memoState,
                 label = stringResource(Res.string.result_memo_label),
                 placeholder = stringResource(Res.string.result_memo_placeholder),
-                imeAction = ImeAction.Done,
+                showLabel = true,
+                enabled = !saving,
                 containerColor = colors.background,
+                minHeight = 96.dp,
+                maxHeight = 168.dp,
             )
         }
     }

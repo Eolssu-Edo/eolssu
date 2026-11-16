@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -109,6 +110,7 @@ fun AccountLinkScreen(
                         label = stringResource(Res.string.auth_link_password),
                         placeholder = stringResource(Res.string.auth_password_placeholder),
                         type = TextFieldType.Password,
+                        maxLength = InputLimit.PASSWORD,
                         help = stringResource(Res.string.auth_link_password_help),
                         error = state.passwordError?.let { stringResource(it.message) },
                         imeAction = ImeAction.Done,
