@@ -61,10 +61,8 @@ fun EditNewRoute(
     EditNewScreen(
         state = state,
         onBack = onBack,
-        onSelectKind = { kind ->
-            viewModel.selectKind(kind)
-            onImport(kind, HwangPitch.Default)
-        },
+        // 종류는 올리기 화면에서 고르므로 정간보로 열어 둔다.
+        onUpload = { onImport(ImportKind.Jeongganbo, HwangPitch.Default) },
         onLoadExisting = onLoadExisting,
         onOpenDevicePick = openDevicePick,
         onDismissProblem = viewModel::dismissProblem,

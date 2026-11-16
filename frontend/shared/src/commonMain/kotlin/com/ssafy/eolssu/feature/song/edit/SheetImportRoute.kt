@@ -16,6 +16,6 @@ fun SheetImportRoute(kind: ImportKind, hwang: HwangPitch, onBack: () -> Unit, on
         onDispose { viewModel.selectFiles(com.ssafy.eolssu.core.storage.SheetFileSelection.Cancelled) }
     }
     val pick = { source: SheetFileSource -> if (viewModel.beginPicking()) picker(source) }
-    SheetImportScreen(state, kind, onBack, onList, viewModel::title, viewModel::instrument,
+    SheetImportScreen(state, onBack, onList, viewModel::title, viewModel::kind, viewModel::instrument,
         viewModel::jangdan, pick, viewModel::submit, viewModel::reload, viewModel::dismissError)
 }

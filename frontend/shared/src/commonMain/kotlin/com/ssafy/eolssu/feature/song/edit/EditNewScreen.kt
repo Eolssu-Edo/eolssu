@@ -2,34 +2,22 @@ package com.ssafy.eolssu.feature.song.edit
 
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.song.SongLoadState
@@ -37,7 +25,6 @@ import com.ssafy.eolssu.feature.song.component.DeleteSheetDialog
 import com.ssafy.eolssu.feature.song.component.MySheetRow
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.edit.component.KindCard
-import com.ssafy.eolssu.feature.song.edit.component.SheetKindMenu
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditIcons
 import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblemDialog
 import eolssu.shared.generated.resources.Res
@@ -66,8 +53,8 @@ class EditNewSheetActions(
 
 /**
  * EDIT-01 악보 추가: 위아래로 쌓은 '내 악보 가져오기'(연두로 강조) · '얼쑤에서 가져오기' 카드(S15P31E102-997).
- * '내 악보 가져오기'는 아래로 정간보·오선보 메뉴를 펼치고, 고르면 확인 버튼 없이 그 종류의 악보 올리기 화면으로 간다.
- * 파일은 그 화면에서 고르고, 음역은 가져온 뒤 편집기에서 조정한다. '얼쑤에서 가져오기'는 제공 곡·내 악보 목록(EditPick)으로 간다.
+ * '내 악보 가져오기'는 확인 버튼 없이 바로 악보 올리기 화면으로 가고, 정간보·오선보와 파일은 그 화면에서 고른다.
+ * 음역은 가져온 뒤 편집기에서 조정한다. '얼쑤에서 가져오기'는 제공 곡·내 악보 목록(EditPick)으로 간다.
  * 그 아래에 내 악보와 변환 진행 상황(대기·읽는 중·만드는 중·실패)을 내 악보 탭과 같은 줄로 보인다(S15P31E102-881).
  * 파일 형식·촬영 안내는 화면에 늘 두지 않고, 문제가 생겼을 때만 [EditNewUiState.problem] 안내 창으로 알린다.
  * 태블릿 가로에서는 본문을 [sheetAddContentMaxWidth]로 넓힌다(S15P31E102-978).
@@ -76,8 +63,8 @@ class EditNewSheetActions(
 fun EditNewScreen(
     state: EditNewUiState,
     onBack: () -> Unit,
-    /** '내 악보 가져오기' 메뉴에서 종류를 골랐다. 고른 종류의 악보 올리기 화면으로 간다. */
-    onSelectKind: (ImportKind) -> Unit,
+    /** '내 악보 가져오기'를 눌렀다. 악보 올리기 화면으로 간다. */
+    onUpload: () -> Unit,
     onLoadExisting: () -> Unit,
     onOpenDevicePick: () -> Unit,
     onDismissProblem: () -> Unit = {},
@@ -85,7 +72,6 @@ fun EditNewScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val contentMaxWidth = sheetAddContentMaxWidth()
-    var kindMenuOpen by remember { mutableStateOf(false) }
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
         contentMaxWidth = contentMaxWidth,
@@ -103,24 +89,14 @@ fun EditNewScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             SectionLabel(stringResource(Res.string.sheetedit_new_question))
-            // 내 기기의 사진·PDF를 올린다. 주 행동이라 연두로 칠하고, 누르면 아래로 정간보·오선보 메뉴를 펼친다(S15P31E102-997).
-            Box(Modifier.fillMaxWidth()) {
-                KindCard(
-                    stringResource(Res.string.sheetedit_new_upload_title),
-                    stringResource(Res.string.sheetedit_new_upload_caption),
-                    SheetEditIcons.Folder,
-                    onClick = { kindMenuOpen = true },
-                    emphasized = true,
-                    trailing = EolssuIcons.ChevronDown,
-                )
-                // 메뉴는 오른쪽 화살표(⌄) 자리를 기준으로 그 아래에 연다.
-                Box(Modifier.align(Alignment.CenterEnd).padding(end = 16.dp).size(20.dp)) {
-                    if (kindMenuOpen) SheetKindMenu(
-                        onPick = { kind -> kindMenuOpen = false; onSelectKind(kind) },
-                        onDismiss = { kindMenuOpen = false },
-                    )
-                }
-            }
+            // 내 기기의 사진·PDF를 올린다. 주 행동이라 연두로 칠하고, 누르면 바로 악보 올리기 화면으로 간다(S15P31E102-997).
+            KindCard(
+                stringResource(Res.string.sheetedit_new_upload_title),
+                stringResource(Res.string.sheetedit_new_upload_caption),
+                SheetEditIcons.Folder,
+                onClick = onUpload,
+                emphasized = true,
+            )
             // 얼쑤가 주는 곡이나 이미 만든 내 악보를 복사해 온다.
             KindCard(
                 stringResource(Res.string.sheetedit_new_eolssu_title),
