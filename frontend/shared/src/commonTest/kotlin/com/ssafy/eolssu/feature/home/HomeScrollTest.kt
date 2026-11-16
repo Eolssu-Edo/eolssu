@@ -129,10 +129,13 @@ class HomeScrollTest {
 
     @Test fun heroTitleShrinksOnPhonePortraitAndGrowsInLandscape() {
         val portrait = homeHeroTitle(HomeArtKind.PhonePortrait, 390f, 844f, 56.5f)
-        assertEquals(.8f, portrait.scale)
+        assertEquals(390f * .56f / HomeTitleWidth, portrait.scale, 1e-4f)
+        assertTrue(portrait.scale > 1.2f)
         assertEquals(370f, portrait.right)
-        assertEquals(844f - 88f - 56.5f - 10f, portrait.bottom, 1e-3f)
-        assertEquals(1.3f, homeHeroTitle(HomeArtKind.TabletPortrait, 800f, 1280f, 58f).scale)
+        assertEquals(844f - 88f - 56.5f - 12f - 24f, portrait.bottom, 1e-3f)
+        val tablet = homeHeroTitle(HomeArtKind.TabletPortrait, 800f, 1280f, 58f)
+        assertEquals(800f * .52f / HomeTitleWidth, tablet.scale, 1e-4f)
+        assertEquals(1280f - 88f - 58f - 12f - 36f, tablet.bottom, 1e-3f)
         val land = homeHeroTitle(HomeArtKind.TabletLandscape, 1280f, 800f, 58f)
         assertTrue(land.scale > 1.3f)
         assertEquals(1280f * .95f, land.right, 1e-3f)
@@ -156,6 +159,22 @@ class HomeScrollTest {
             assertTrue(title.bottom + 12f <= frame.buttonTop || left - 12f >= buttonRight, "$kind ${w}x$h")
             assertTrue(title.right <= w - 20f)
             assertTrue(title.bottom - homeTitleHeight(title.scale) >= 20f, "$kind ${w}x$h 제목 위가 창 밖으로 나감")
+        }
+    }
+
+    @Test fun portraitArtLiftPutsTheBottomInkBandAboveTheStartButton() {
+        for ((kind, w, h) in listOf(
+            Triple(HomeArtKind.PhonePortrait, 360f, 800f), Triple(HomeArtKind.PhonePortrait, 390f, 844f),
+            Triple(HomeArtKind.TabletPortrait, 800f, 1280f), Triple(HomeArtKind.TabletPortrait, 768f, 1024f),
+            Triple(HomeArtKind.TabletLandscape, 1280f, 800f), Triple(HomeArtKind.TabletLandscape, 1024f, 768f),
+        )) {
+            val buttonH = 58f
+            val lift = homeArtLift(kind, w, h, buttonH)
+            val place = homeArtPlacement(kind, w, h, .5f, .5f)
+            val bandTop = place.y - lift + place.height * kind.bandTop!!
+            val buttonTop = h - 88f - buttonH
+            assertTrue(lift >= 0f)
+            assertTrue(bandTop <= buttonTop - HomeArtBandAboveButton + 1e-3f, "$kind ${w}x$h")
         }
     }
 }

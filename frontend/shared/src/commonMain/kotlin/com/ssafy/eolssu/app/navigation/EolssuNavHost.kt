@@ -220,14 +220,12 @@ fun EolssuNavHost(
     val sheetAudio = koinInject<com.ssafy.eolssu.data.song.NotifyingSheetAudioRepository>()
     val deviceSheetAudio = koinInject<com.ssafy.eolssu.core.audio.SheetAudioDeviceStore>()
     SheetAudioCompletionEffect(sheetAudio, member, completionBanner) { sheetId ->
-        navController.navigate(
-            if (deviceSheetAudio.available) EolssuDestination.practice(sheetId, mine = true)
-            else SheetEditDestination.editMine(sheetId),
-        ) { launchSingleTop = true }
+        navController.openCompletedSheet(sheetId,
+            if (deviceSheetAudio.available) SheetCompletionTarget.Practice else SheetCompletionTarget.Editor)
     }
     val sheetConversions = koinInject<com.ssafy.eolssu.data.song.NotifyingSheetConversionRepository>()
     SheetConversionCompletionEffect(sheetConversions, member, completionBanner) { sheetId ->
-        navController.navigate(SheetEditDestination.editMine(sheetId)) { launchSingleTop = true }
+        navController.openCompletedSheet(sheetId, SheetCompletionTarget.Editor)
     }
     Box(Modifier.fillMaxSize()) {
         // 화면 전환 모션을 쓰지 않는다. 기본 전환(0.7초 페이드)이 도는 동안 나가는 화면이 남아 그 위의 확인 창도 늦게 사라졌고,
@@ -572,6 +570,7 @@ fun EolssuNavHost(
                 composable(EolssuDestination.LEARN_LIST) { entry ->
                     LearnListRoute(
                         viewModel = learnViewModel(navController, entry),
+                        practiceOwner = learnGraphEntry(navController, entry),
                         onBack = { navController.popBackStackFrom(entry) },
                         onOpenStage = { navController.navigate(EolssuDestination.learnStage(it)) },
                         navigation = learnNavigation,
@@ -595,6 +594,7 @@ fun EolssuNavHost(
                         LearnStageRoute(
                             stageNumber = entry.savedStateHandle.get<Int>("stage") ?: 1,
                             viewModel = viewModel,
+                            practiceOwner = learnGraphEntry(navController, entry),
                             onBack = { navController.popBackStackFrom(entry) },
                             // 이전·다음 상세는 바꿔 끼워 뒤로 가면 들어온 목록 또는 마이페이지로 돌아간다.
                             onOpenStage = { stage ->
@@ -730,7 +730,13 @@ private fun NavController.showSongInList(songId: String) {
 
 /** 기초부터 배우기의 단계 목록·상세가 함께 쓰는 ViewModel. 그래프 `learn`을 벗어나면 사라진다. */
 @Composable
-private fun learnViewModel(navController: NavController, entry: NavBackStackEntry): LearnViewModel {
-    val graphEntry = remember(entry) { navController.getBackStackEntry(EolssuDestination.LEARN) }
-    return koinViewModel(viewModelStoreOwner = graphEntry)
-}
+private fun learnViewModel(navController: NavController, entry: NavBackStackEntry): LearnViewModel =
+    koinViewModel(viewModelStoreOwner = learnGraphEntry(navController, entry))
+
+/**
+ * 그래프 `learn`의 항목. 단계 목록·상세가 함께 쓰는 ViewModel(단계 연습 포함)을 여기에 묶는다.
+ * 태블릿을 돌리면 단계 상세 항목이 빠지고 목록(2단)이 이어 그리므로, 상세 항목에 묶으면 연습 상태가 사라진다(S15P31E102-1030).
+ */
+@Composable
+private fun learnGraphEntry(navController: NavController, entry: NavBackStackEntry): NavBackStackEntry =
+    remember(entry) { navController.getBackStackEntry(EolssuDestination.LEARN) }
