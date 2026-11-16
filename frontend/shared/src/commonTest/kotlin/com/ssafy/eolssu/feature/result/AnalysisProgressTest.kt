@@ -4,7 +4,7 @@ import com.ssafy.eolssu.feature.result.component.AnalysisTimeConstantMillis
 import com.ssafy.eolssu.feature.result.component.PendingProgressCap
 import com.ssafy.eolssu.feature.result.component.UploadShare
 import com.ssafy.eolssu.feature.result.component.analysisProgress
-import com.ssafy.eolssu.feature.result.component.chaseProgress
+import com.ssafy.eolssu.core.ui.component.chaseProgress
 import kotlin.math.floor
 import kotlin.test.Test
 import kotlin.test.assertEquals

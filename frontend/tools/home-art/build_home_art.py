@@ -55,6 +55,8 @@ def hero_title(name, w, h):
         scale = w * .23 / 171
         right = w * .95
         bottom = h * .5 + ((59 + 42) * scale + 4) / 2
+        # 낮은 가로 창에서는 평가 시작 버튼 위 12dp까지만 내려온다(S15P31E102-1026).
+        bottom = min(bottom, max(h - 88 - button_height(w), 80) - 12)
     return right - 171 * scale, bottom - ((59 + 42) * scale + 4), right, bottom
 
 

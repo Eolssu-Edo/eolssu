@@ -142,6 +142,9 @@ class HomeScrollTest {
 
     @Test fun landscapeHeroTitleStaysClearOfTheStartButton() {
         for ((kind, w, h) in listOf(
+            // 휴대폰은 가로를 막지만 웹의 낮은 가로 창은 같은 가로 규칙을 쓴다(S15P31E102-1026).
+            Triple(HomeArtKind.TabletLandscape, 780f, 360f), Triple(HomeArtKind.TabletLandscape, 844f, 390f),
+            Triple(HomeArtKind.TabletLandscape, 915f, 412f),
             Triple(HomeArtKind.TabletLandscape, 1024f, 768f), Triple(HomeArtKind.TabletLandscape, 1194f, 834f),
             Triple(HomeArtKind.TabletLandscape, 1280f, 800f), Triple(HomeArtKind.TabletLandscape, 1366f, 1024f),
         )) {
@@ -152,6 +155,7 @@ class HomeScrollTest {
             val left = title.right - HomeTitleWidth * title.scale
             assertTrue(title.bottom + 12f <= frame.buttonTop || left - 12f >= buttonRight, "$kind ${w}x$h")
             assertTrue(title.right <= w - 20f)
+            assertTrue(title.bottom - homeTitleHeight(title.scale) >= 20f, "$kind ${w}x$h 제목 위가 창 밖으로 나감")
         }
     }
 }

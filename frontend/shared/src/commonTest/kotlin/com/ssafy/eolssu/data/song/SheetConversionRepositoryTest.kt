@@ -28,6 +28,14 @@ class SheetConversionRepositoryTest {
         assertEquals(1 to 3, found.processedPageCount to found.pageCount)
         assertEquals(2000L, found.pollAfterMs)
         assertNull(found.failure)
+        assertEquals(SheetNotation.Jeongganbo, found.notation)
+    }
+
+    @Test fun readsStaffNotationAndIgnoresUnknownNotation() = runTest {
+        val staff = repository(HttpStatusCode.OK, conversion("FAILED", ""","failureCode":"NO_SCORE_FOUND"""").replace("JEONGGANBO", "STAFF"))
+        assertEquals(SheetNotation.Staff, assertIs<SheetConversionLookup.Found>(staff.status("91")).conversion.notation)
+        val unknown = repository(HttpStatusCode.OK, conversion("QUEUED").replace("JEONGGANBO", "MIDI"))
+        assertNull(assertIs<SheetConversionLookup.Found>(unknown.status("91")).conversion.notation, "모르는 표기법은 비워 둔다")
     }
 
     @Test fun failedKeepsCauseAndServerRetryableFlag() = runTest {

@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -20,12 +22,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.component.EolssuBottomBar
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuPageTopBar
@@ -146,6 +151,11 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
  * 플레이어([PracticePlayer]))를 세로 스크롤 없이 한 화면에 두고, 연주 중에만 하단 바가 고정된다.
  * 연주 중에는 손으로 스크롤하기 어려우므로 악보는 플레이어·버튼을 뺀 남은 높이를 쓴다. 운지법을 끈 악보는 좌우로만 넘기고,
  * 운지법과 함께 보기는 남은 높이에 들어가는 운지만 한 페이지에 담아 넘긴다.
+ *
+ * 연습·연주 평가·연주 중은 같은 화면이므로 악보 자리 높이를 하나로 둔다(S15P31E102-1027). 그러지 않으면 화면이 작은 기기에서
+ * 남은 높이로 정간 크기를 다시 계산해, 페이지를 옮기거나 연주를 시작할 때 정간 크기와 위치가 바뀐다.
+ * 위 여백·제목 줄 높이·제목 아래 간격은 상태와 관계없이 같고, 하단은 플레이어와 평가·녹음 막대 중 높은 쪽만큼 늘 비워 둔다
+ * ([PracticeCompactBottom]). 운지법과 함께 보기만 자리를 아끼려고 위 여백을 줄인다.
  */
 @Composable
 private fun PracticeCompactLayout(
@@ -173,10 +183,12 @@ private fun PracticeCompactLayout(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .padding(start = 20.dp, end = 20.dp, top = if (fingering || recordingBar) 8.dp else 18.dp, bottom = 12.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = if (fingering) 8.dp else 18.dp, bottom = 12.dp),
             ) {
                 PracticeTitleRow(
                     state,
+                    // ‘한 음씩’이 없는 연주 평가도 제목 줄 높이를 스위치(44dp)와 같게 둔다.
+                    modifier = Modifier.heightIn(min = PracticeCompactTitleRowHeight),
                     showPill = false,
                     // 휴대폰은 머리 제목이 잘리지 않게 ‘한 음씩’을 설정 버튼 아래(제목 줄 오른쪽)에 둔다. 연습·구간 연습이 같은 자리다(S15P31E102-816).
                     trailing = if (state.solo && state.step.available) {
@@ -185,7 +197,7 @@ private fun PracticeCompactLayout(
                         null
                     },
                 )
-                Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
+                Spacer(Modifier.height(if (fingering) 8.dp else 12.dp))
                 if (fingering) {
                     PracticeFingeringPage(state, actions.onSelectUnit, modifier = Modifier.weight(1f), livePitch = livePitch)
                 } else {
@@ -194,9 +206,48 @@ private fun PracticeCompactLayout(
                         modifier = Modifier.weight(1f), livePitch = livePitch,
                     )
                 }
-                if (showPlayer) PracticePlayer(state, actions.bottom, Modifier.padding(top = 8.dp))
+                PracticeCompactBottom(state, actions.bottom, showPlayer = showPlayer, barShown = recordingBar)
                 Spacer(Modifier.height(8.dp))
             }
+        }
+    }
+}
+
+/** 휴대폰 연습 화면 제목 줄 높이. 오른쪽 ‘한 음씩’ 스위치의 누르는 높이와 같다. */
+private val PracticeCompactTitleRowHeight = 44.dp
+
+/** 악보와 플레이어 사이 간격. */
+private val PracticeCompactPlayerGap = 8.dp
+
+/** 휴대폰 본문 좌우 여백. 하단 막대는 이 여백 없이 화면 너비를 쓴다. */
+private val PracticeCompactSidePadding = 20.dp
+
+private enum class CompactBottomSlot { Player, Bar }
+
+/**
+ * 휴대폰 본문 아래 칸. 플레이어(간격 포함)와 화면 하단에 고정되는 평가·녹음 막대([PracticeRecordingBar]) 높이를 둘 다 재서
+ * 높은 쪽([reserve])만큼 늘 자리를 잡는다(S15P31E102-1027).
+ * - 플레이어를 보일 때: [reserve] 높이 안의 아래쪽에 플레이어를 둔다.
+ * - 막대가 떠 있을 때: 막대는 화면 틀(하단 고정 영역)이 이미 비켜 두므로 [reserve]에서 막대 높이를 뺀 만큼만 비운다.
+ * - 둘 다 없을 때도 [reserve]를 비워 둔다.
+ * 본문은 내비게이션 바 영역을 이미 뺀 상태라, 여기서 잰 막대 높이에는 그 영역이 들어가지 않는다(화면 틀과 같은 기준).
+ * 재기만 하는 사본은 배치하지 않아 보이지도, 화면 읽기에 읽히지도 않는다.
+ */
+@Composable
+private fun PracticeCompactBottom(state: PracticeUiState, actions: PracticeBottomActions, showPlayer: Boolean, barShown: Boolean) {
+    SubcomposeLayout(Modifier.fillMaxWidth()) { constraints ->
+        val loose = constraints.copy(minHeight = 0)
+        val gap = PracticeCompactPlayerGap.roundToPx()
+        val players = subcompose(CompactBottomSlot.Player) { PracticePlayer(state, actions) }.map { it.measure(loose) }
+        val playerHeight = players.maxOfOrNull { it.height } ?: 0
+        // 하단 막대는 본문 좌우 여백 바깥까지 화면 너비를 쓰므로 같은 너비로 잰다.
+        val barWidth = constraints.maxWidth + (PracticeCompactSidePadding * 2).roundToPx()
+        val barHeight = subcompose(CompactBottomSlot.Bar) { EolssuBottomBar { PracticeRecordingBar(state, actions) } }
+            .maxOfOrNull { it.measure(Constraints(minWidth = barWidth, maxWidth = barWidth)).height } ?: 0
+        val reserve = maxOf(gap + playerHeight, barHeight)
+        val height = (if (barShown) reserve - barHeight else reserve).coerceIn(0, constraints.maxHeight)
+        layout(constraints.maxWidth, height) {
+            if (showPlayer && !barShown) players.forEach { it.place(0, height - it.height) }
         }
     }
 }

@@ -6,7 +6,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
+import com.ssafy.eolssu.feature.song.ConversionStep
+import com.ssafy.eolssu.feature.song.conversionFailureRow
 import com.ssafy.eolssu.feature.song.conversionProgress
+import com.ssafy.eolssu.feature.song.conversionStep
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -49,20 +52,15 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuLevelBadge
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.data.song.SheetConversion
-import com.ssafy.eolssu.data.song.SheetConversionFailure
-import com.ssafy.eolssu.data.song.SheetConversionStage
 import com.ssafy.eolssu.data.song.SheetConversionStatus
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_conversion_building
 import eolssu.shared.generated.resources.mysongs_conversion_failed
-import eolssu.shared.generated.resources.mysongs_conversion_failed_file
-import eolssu.shared.generated.resources.mysongs_conversion_failed_no_score
-import eolssu.shared.generated.resources.mysongs_conversion_failed_server
-import eolssu.shared.generated.resources.mysongs_conversion_failed_timeout
 import eolssu.shared.generated.resources.mysongs_conversion_issues
 import eolssu.shared.generated.resources.mysongs_conversion_queued
 import eolssu.shared.generated.resources.mysongs_conversion_reading
 import eolssu.shared.generated.resources.mysongs_conversion_reading_pages
+import eolssu.shared.generated.resources.mysongs_conversion_reading_total
 import eolssu.shared.generated.resources.mysongs_conversion_reimport
 import eolssu.shared.generated.resources.mysongs_conversion_retry
 import eolssu.shared.generated.resources.jangdan_label
@@ -176,7 +174,8 @@ internal fun ProvidedSongRow(
  * 아랫줄은 글자 줄에 맞춘 상태 배지와 오른쪽 끝 휴지통([onDelete])이다.
  *
  * 불러오기로 만든 악보는 [conversion] 상태를 따른다. 변환 중이면 '변환 중' 배지만 두고 열기·편집을 막으며,
- * 실패하면 원인과 함께 '다시 시도'([onRetryConversion], 서버가 다시 시도할 수 있다고 할 때만) 또는 '다시 불러오기'([onReimport])를 둔다.
+ * 실패하면 원인·할 일 한 줄과 함께 '다시 시도'([onRetryConversion], 서버가 다시 시도할 수 있다고 할 때만) 또는 '다시 불러오기'([onReimport])를 둔다.
+ * [onOpenConversion]이 있으면 변환 중·실패한 줄을 눌러 변환 대기 화면을 다시 연다(S15P31E102-998).
  */
 @Composable
 internal fun MySheetRow(
@@ -190,11 +189,12 @@ internal fun MySheetRow(
     onRetryConversion: () -> Unit = {},
     onReimport: () -> Unit = {},
     bordered: Boolean = true,
+    onOpenConversion: (() -> Unit)? = null,
 ) {
     val status = conversion?.status
     val usable = status == null || status == SheetConversionStatus.Done
     // 제공 곡 줄처럼 카드 전체가 둥글게 눌려 악보를 연다. 편집·휴지통은 각자의 모양으로 따로 눌린다(S15P31E102-968).
-    PracticeRowFrame(modifier, onClick = if (usable) onOpen else null, bordered = bordered) {
+    PracticeRowFrame(modifier, onClick = if (usable) onOpen else onOpenConversion, bordered = bordered) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             // 제목 줄 오른쪽에 편집(연두 채움)과 휴지통을 나란히 두고, 아래 줄에는 상태 배지만 둔다(S15P31E102-768).
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -225,7 +225,7 @@ internal fun MySheetRow(
                         status == SheetConversionStatus.Failed -> {
                             EolssuBadge(stringResource(Res.string.mysongs_conversion_failed), small = true)
                             Text(
-                                conversionFailureText(conversion?.failure),
+                                stringResource(conversionFailureRow(conversion)),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                                 color = EolssuTheme.colors.textMuted,
                                 maxLines = 2,
@@ -264,24 +264,17 @@ private fun ConversionProgressBar(progress: Float) {
     }
 }
 
-/** '변환 대기 중' · '악보 읽는 중 1/3쪽' · '악보 만드는 중'. 쪽 수를 모르면 쪽 수 없이 쓴다. */
+/** '변환 대기 중' · '악보 3쪽 읽는 중'(서버가 읽은 쪽 수를 주면 '악보 읽는 중 1/3쪽') · '악보 만드는 중'. 쪽 수를 모르면 쪽 수 없이 쓴다. */
 @Composable
-private fun conversionProgressText(conversion: SheetConversion): String = when {
-    conversion.status == SheetConversionStatus.Queued -> stringResource(Res.string.mysongs_conversion_queued)
-    conversion.stage == SheetConversionStage.BuildingScore -> stringResource(Res.string.mysongs_conversion_building)
-    conversion.pageCount > 0 -> stringResource(Res.string.mysongs_conversion_reading_pages, conversion.processedPageCount, conversion.pageCount)
-    else -> stringResource(Res.string.mysongs_conversion_reading)
+private fun conversionProgressText(conversion: SheetConversion): String = when (val step = conversionStep(conversion)) {
+    ConversionStep.Building -> stringResource(Res.string.mysongs_conversion_building)
+    is ConversionStep.Reading -> when {
+        step.pagesRead != null -> stringResource(Res.string.mysongs_conversion_reading_pages, step.pagesRead, step.pageCount)
+        step.pageCount > 0 -> stringResource(Res.string.mysongs_conversion_reading_total, step.pageCount)
+        else -> stringResource(Res.string.mysongs_conversion_reading)
+    }
+    ConversionStep.Queued, null -> stringResource(Res.string.mysongs_conversion_queued)
 }
-
-@Composable
-private fun conversionFailureText(failure: SheetConversionFailure?): String = stringResource(
-    when (failure) {
-        SheetConversionFailure.NoScoreFound -> Res.string.mysongs_conversion_failed_no_score
-        SheetConversionFailure.UnsupportedFile -> Res.string.mysongs_conversion_failed_file
-        SheetConversionFailure.Timeout -> Res.string.mysongs_conversion_failed_timeout
-        SheetConversionFailure.ServerError, null -> Res.string.mysongs_conversion_failed_server
-    },
-)
 
 /** 휴지통: 편집 칩과 같은 높이(34dp)의 회색 네모 버튼(모서리 10), 아이콘 18dp. 누르는 영역은 48dp. */
 @Composable
