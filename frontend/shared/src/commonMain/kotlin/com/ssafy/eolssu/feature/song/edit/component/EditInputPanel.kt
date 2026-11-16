@@ -55,7 +55,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -87,13 +91,18 @@ import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.Sigimsae
 import com.ssafy.eolssu.feature.song.edit.YulRegister
 import eolssu.shared.generated.resources.sheet_tempo_before_reshape
-import eolssu.shared.generated.resources.sheetedit_sig_pitch_help
 import com.ssafy.eolssu.feature.song.edit.isAvailablePitch
 import com.ssafy.eolssu.feature.song.edit.isPitch
 import com.ssafy.eolssu.feature.song.edit.pitchKey
 import com.ssafy.eolssu.feature.song.edit.pitchNote
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheetedit_cell_add_column
+import eolssu.shared.generated.resources.sheetedit_cell_add_column_desc
+import eolssu.shared.generated.resources.sheetedit_cell_delete_column_desc
+import eolssu.shared.generated.resources.sheetedit_cell_merge_desc
+import eolssu.shared.generated.resources.sheetedit_cell_split_desc
+import eolssu.shared.generated.resources.sheetedit_yul_octave_caption
+import eolssu.shared.generated.resources.sheetedit_yul_pitch_caption
 import eolssu.shared.generated.resources.sheetedit_cell_delete_column
 import eolssu.shared.generated.resources.sheetedit_cell_jangdan
 import eolssu.shared.generated.resources.sheetedit_cell_jangdan_change
@@ -257,6 +266,8 @@ private fun YulKeys(
     val notes = selectedSub?.let { listOfNotNull(draft.cells[selected].getOrNull(it)) } ?: draft.cells[selected]
     val current = notes.mapNotNull { it.pitchKey() }.toSet()
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        // 윗줄은 옥타브(음역), 아랫줄은 음(율명)을 고른다는 것을 줄 위에 적는다(S15P31E102-1042).
+        RowCaption(stringResource(Res.string.sheetedit_yul_octave_caption))
         Row(
             Modifier.fillMaxWidth().selectableGroup(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -280,6 +291,7 @@ private fun YulKeys(
                 onClick = { actions.onPutYul(base) },
             )
         }
+        RowCaption(stringResource(Res.string.sheetedit_yul_pitch_caption))
         if (wrapKeys) {
             // 오른쪽 칸 안쪽 너비(약 372dp)에 52dp 자판 6개(342dp)가 들어가므로 두 줄로 모두 보인다.
             BaseYuls.chunked(YulKeysPerWrappedRow).forEach { row ->
@@ -443,9 +455,15 @@ private fun BoxScope.ScrollFades(state: LazyListState) {
     }
 }
 
-/** 흰 바탕 테두리 도구 버튼(44dp · 13sp 600). */
+/**
+ * 흰 바탕 테두리 도구 버튼(44dp · 13sp 600). [picture]와 [description]을 주면 왼쪽에 바뀌는 모양 그림을,
+ * 이름 아래에 무엇이 바뀌는지 한 줄을 둔다(정간·장단 탭, S15P31E102-1042).
+ */
 @Composable
-private fun ToolButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+private fun ToolButton(
+    label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
+    picture: CellPicture? = null, description: String? = null,
+) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
@@ -455,8 +473,75 @@ private fun ToolButton(label: String, onClick: () -> Unit, modifier: Modifier = 
         color = colors.surface,
         contentColor = colors.text,
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 8.dp)) {
-            Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
+        Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+            if (picture != null) {
+                val ink = colors.text
+                val mark = colors.primary
+                Canvas(Modifier.size(width = 34.dp, height = 24.dp)) { drawCellPicture(picture, ink, mark) }
+            }
+            Column(horizontalAlignment = if (picture != null) Alignment.Start else Alignment.CenterHorizontally) {
+                Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
+                if (description != null) Text(description,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 13.sp), color = colors.textMuted, maxLines = 2)
+            }
+        }
+    }
+}
+
+/** 율명·기호 탭에서 줄마다 무엇을 고르는지 적는 작은 제목. */
+@Composable
+private fun RowCaption(text: String) {
+    Text(text, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.SemiBold),
+        color = EolssuTheme.colors.textSub, modifier = Modifier.padding(start = 2.dp))
+}
+
+/** 정간·장단 탭 도구 버튼의 그림 종류. */
+private enum class CellPicture { Split, Merge, AddColumn, DeleteColumn }
+
+/**
+ * 도구를 누르면 바뀌는 모양을 작게 그린다. 나누기·합치기는 `정간 → 바뀐 정간`, 각 추가는 지금 각 왼쪽의 연두 새 각,
+ * 각 삭제는 X 친 각이다. 정간보처럼 각은 세로로 길고 오른쪽부터 읽는다.
+ */
+private fun DrawScope.drawCellPicture(picture: CellPicture, ink: Color, mark: Color) {
+    val line = 1.5.dp.toPx()
+    val stroke = Stroke(width = line)
+    val corner = CornerRadius(2.dp.toPx())
+    val h = size.height
+    fun cell(x: Float, w: Float, split: Boolean, fill: Color? = null) {
+        if (fill != null) drawRoundRect(fill, Offset(x, 1f), Size(w, h - 2f), corner)
+        drawRoundRect(ink, Offset(x, 1f), Size(w, h - 2f), corner, style = stroke)
+        if (split) drawLine(ink, Offset(x, h / 2), Offset(x + w, h / 2), line)
+    }
+    fun arrow(from: Float, to: Float) {
+        val y = h / 2
+        val head = 3.dp.toPx()
+        drawLine(ink, Offset(from, y), Offset(to, y), line)
+        drawLine(ink, Offset(to - head, y - head), Offset(to, y), line)
+        drawLine(ink, Offset(to - head, y + head), Offset(to, y), line)
+    }
+    val box = 11.dp.toPx()
+    val pad = 2.dp.toPx()
+    when (picture) {
+        CellPicture.Split -> { cell(0f, box, split = false); arrow(box + pad, size.width - box - pad); cell(size.width - box, box, split = true) }
+        CellPicture.Merge -> { cell(0f, box, split = true); arrow(box + pad, size.width - box - pad); cell(size.width - box, box, split = false) }
+        CellPicture.AddColumn -> {
+            val w = 12.dp.toPx()
+            val gap = 4.dp.toPx()
+            val left = (size.width - 2 * w - gap) / 2
+            cell(left, w, split = false, fill = mark)
+            val plus = 3.dp.toPx()
+            drawLine(ink, Offset(left + w / 2 - plus, h / 2), Offset(left + w / 2 + plus, h / 2), line)
+            drawLine(ink, Offset(left + w / 2, h / 2 - plus), Offset(left + w / 2, h / 2 + plus), line)
+            cell(left + w + gap, w, split = true)
+        }
+        CellPicture.DeleteColumn -> {
+            val w = 12.dp.toPx()
+            val left = (size.width - w) / 2
+            val out = 3.dp.toPx()
+            cell(left, w, split = true)
+            drawLine(ink, Offset(left - out, 2f), Offset(left + w + out, h - 2f), line)
+            drawLine(ink, Offset(left + w + out, 2f), Offset(left - out, h - 2f), line)
         }
     }
 }
@@ -489,7 +574,6 @@ private fun SigimsaeKeys(draft: SheetDraft, selected: Int, sub: Int, actions: Ed
                 }
             }
         }
-        HintText(stringResource(Res.string.sheetedit_sig_pitch_help))
         val listState = rememberLazyListState()
         Box {
             LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
@@ -601,15 +685,19 @@ private fun CellTools(draft: SheetDraft, actions: EditInputActions, hasTempoPlan
     val colors = EolssuTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ToolButton(stringResource(Res.string.sheetedit_cell_split), actions.onSplit, Modifier.weight(1f))
-            ToolButton(stringResource(Res.string.sheetedit_cell_merge), actions.onMerge, Modifier.weight(1f))
+            ToolButton(stringResource(Res.string.sheetedit_cell_split), actions.onSplit, Modifier.weight(1f),
+                picture = CellPicture.Split, description = stringResource(Res.string.sheetedit_cell_split_desc))
+            ToolButton(stringResource(Res.string.sheetedit_cell_merge), actions.onMerge, Modifier.weight(1f),
+                picture = CellPicture.Merge, description = stringResource(Res.string.sheetedit_cell_merge_desc))
         }
         if (hasTempoPlan) {
             HintText(stringResource(Res.string.sheet_tempo_before_reshape))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ToolButton(stringResource(Res.string.sheetedit_cell_add_column), actions.onAddColumn, Modifier.weight(1f))
-            ToolButton(stringResource(Res.string.sheetedit_cell_delete_column), actions.onDeleteColumn, Modifier.weight(1f))
+            ToolButton(stringResource(Res.string.sheetedit_cell_add_column), actions.onAddColumn, Modifier.weight(1f),
+                picture = CellPicture.AddColumn, description = stringResource(Res.string.sheetedit_cell_add_column_desc))
+            ToolButton(stringResource(Res.string.sheetedit_cell_delete_column), actions.onDeleteColumn, Modifier.weight(1f),
+                picture = CellPicture.DeleteColumn, description = stringResource(Res.string.sheetedit_cell_delete_column_desc))
         }
         Row(
             Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 8.dp),

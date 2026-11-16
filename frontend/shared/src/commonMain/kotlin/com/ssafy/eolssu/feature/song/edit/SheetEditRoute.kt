@@ -161,7 +161,8 @@ fun SheetEditRoute(
                 // 다시 볼 곳은 칸을 옮겨 보여 주기만 한다. 칸을 누르면 고칠 방법 창이 열린다.
                 onMoveReview = { step -> viewModel.moveRecognitionReview(step); focusRequestKey++ },
                 onDismiss = viewModel::dismissImportGuide,
-                modifier = Modifier.padding(bottom = 8.dp)) }
+                modifier = Modifier.padding(bottom = 8.dp),
+                rightToLeft = state.view == EditView.Jeongganbo) }
         },
         adaptationContent = {
             state.adaptation?.let { panel -> SheetAdaptationPanel(panel,
@@ -323,7 +324,7 @@ fun SheetEditRoute(
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
             onSelect = viewModel::selectJangdan, onClear = viewModel::clearJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker,
-            hasTempoPlan = state.hasTempoPlan, selectedCell = state.selected, onBasic = viewModel::selectBasicAccompaniment)
+            hasTempoPlan = state.hasTempoPlan)
     }
     if (state.closeWarning) EolssuDialog(
         title = stringResource(if (state.saveStatus == SheetSaveStatus.DraftFailed) Res.string.sheet_save_auto_failed

@@ -38,13 +38,8 @@ import com.ssafy.eolssu.feature.song.edit.dialogHelpStyle
 import com.ssafy.eolssu.feature.song.edit.canSelectJangdan
 import com.ssafy.eolssu.feature.song.edit.requiresJangdanRetiming
 import com.ssafy.eolssu.feature.song.edit.basicAccompaniment
-import com.ssafy.eolssu.feature.song.edit.canSelectBasicAccompaniment
-import com.ssafy.eolssu.core.model.BasicAccompanimentPreset
 import eolssu.shared.generated.resources.basic_accompaniment_title
 import eolssu.shared.generated.resources.basic_accompaniment_none
-import eolssu.shared.generated.resources.basic_accompaniment_catalog
-import eolssu.shared.generated.resources.basic_accompaniment_unsupported
-import eolssu.shared.generated.resources.basic_accompaniment_source_unavailable
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.sheetedit_cell_jangdan_change
@@ -83,15 +78,8 @@ internal fun SheetEditJangdanDialog(
     onReload: () -> Unit,
     onDismiss: () -> Unit,
     hasTempoPlan: Boolean = false,
-    selectedCell: Int = 0,
-    onBasic: (BasicAccompanimentPreset, Int) -> Unit,
 ) {
     var pendingId by rememberSaveable { mutableStateOf<String?>(null) }
-    var basicOpen by rememberSaveable { mutableStateOf(false) }
-    if (basicOpen) {
-        SheetBasicAccompanimentDialog(draft, selectedCell, onApply = onBasic, onDismiss = { basicOpen = false })
-        return
-    }
     EolssuDialog(
         title = stringResource(Res.string.sheetedit_cell_jangdan_change),
         modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -99,15 +87,7 @@ internal fun SheetEditJangdanDialog(
             Res.string.sheet_jangdan_correction_help else Res.string.sheetedit_jangdan_same_unit),
         onDismissRequest = onDismiss,
     ) {
-        EolssuButton(draft.basicAccompaniment?.let { stringResource(Res.string.basic_accompaniment_title) + " · " + it.preset.label }
-            ?: stringResource(Res.string.basic_accompaniment_title), { basicOpen = true },
-            style = EolssuButtonStyle.Secondary, enabled = draft.canSelectBasicAccompaniment)
-        if (!draft.canSelectBasicAccompaniment) Text(stringResource(
-            if (draft.original?.music?.bpmUnit !in setOf("QUARTER", "DOTTED_QUARTER")) Res.string.basic_accompaniment_unsupported
-            else Res.string.basic_accompaniment_source_unavailable), style = dialogHelpStyle(), color = EolssuTheme.colors.textSub)
-        Text(stringResource(Res.string.basic_accompaniment_catalog), modifier = Modifier.padding(top = 8.dp),
-            style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
-            color = EolssuTheme.colors.text)
+        // 악보 올리기처럼 장단만 고른다. 기본 박 반주는 고르는 곳을 빼고, 이미 고른 악보에서만 지금 상태로 보인다(S15P31E102-1042).
         val selectable = (picker as? SheetEditJangdanPicker.Ready)?.options.orEmpty()
             .filter { draft.canSelectJangdan(it, hasTempoPlan) }
         when (picker) {
@@ -125,6 +105,11 @@ internal fun SheetEditJangdanDialog(
         ) {
             JangdanOptionButton(selected = selectedId == null && draft.basicAccompaniment == null, onClick = onClear) {
                 Text(stringResource(Res.string.basic_accompaniment_none))
+            }
+            draft.basicAccompaniment?.let { basic ->
+                JangdanOptionButton(selected = true, onClick = {}) {
+                    Text(stringResource(Res.string.basic_accompaniment_title) + " · " + basic.preset.label)
+                }
             }
             selectable.forEach { option ->
                 JangdanOptionButton(selected = option.jangdanId == selectedId, onClick = {

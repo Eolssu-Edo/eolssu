@@ -1,9 +1,5 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,14 +39,6 @@ internal fun SheetTutorials(vararg tutorials: SheetTutorial) {
         if (available.none { it.key == active }) {
             step = 0
             active = available.firstOrNull { store.getString(it.key) != "seen" }?.key
-        }
-    }
-
-    Column(verticalArrangement = Arrangement.Top) {
-        available.forEach { tutorial ->
-            TextButton(onClick = { step = 0; active = tutorial.key }) {
-                Text(stringResource(Res.string.sheet_tutorial_replay, stringResource(tutorial.title)))
-            }
         }
     }
 

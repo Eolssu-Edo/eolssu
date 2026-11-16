@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
@@ -96,7 +97,8 @@ internal fun SheetAdaptationPanel(
                         interactionSource = sliderInteractions,
                         colors = sliderColors,
                         // 앱 슬라이더와 같은 장구 손잡이(S15P31E102-970).
-                        thumb = { DrumThumb(held, modifier = Modifier.onSizeChanged {
+                        // 손잡이를 앱 기본(30dp)보다 작게 두어 바로 옆 추천 칸 점을 가리지 않는다(S15P31E102-1042).
+                        thumb = { DrumThumb(held, size = AdaptThumbSize, modifier = Modifier.onSizeChanged {
                             thumbInset = with(density) { (it.width / 2f).toDp() }
                         }) },
                         track = { SliderDefaults.Track(it, modifier = Modifier.onSizeChanged { size ->
@@ -104,8 +106,15 @@ internal fun SheetAdaptationPanel(
                         }, colors = sliderColors, thumbTrackGapSize = 0.dp, drawStopIndicator = null, drawTick = { offset, color ->
                             // 양끝 칸은 막대 끝 자체가 -6/+6이라 점을 그리지 않는다. 둥근 끝 밖으로 점이 삐져나오지 않게 한다.
                             val corner = size.height / 2f
-                            if (offset.x > corner && offset.x < size.width - corner)
-                                drawCircle(color, SliderDefaults.TickSize.toPx() / 2f, Offset(offset.x.roundToInt().toFloat(), offset.y))
+                            if (offset.x > corner && offset.x < size.width - corner) {
+                                val point = Offset(offset.x.roundToInt().toFloat(), offset.y)
+                                val step = ((offset.x - corner) / (size.width - 2 * corner) * 12f).roundToInt() - 6
+                                // 추천 칸은 칩과 같은 먹색 고리 점으로 따로 그려 손잡이가 옆에 있어도 보이게 한다.
+                                if (recommended != null && step == recommended.transpose) {
+                                    drawCircle(colors.text, RecommendDot.toPx(), point)
+                                    drawCircle(colors.surface, RecommendDot.toPx() / 2f, point)
+                                } else drawCircle(color, SliderDefaults.TickSize.toPx() / 2f, point)
+                            }
                         }) },
                         modifier = Modifier.weight(1f).semantics { contentDescription = sliderLabel })
                     val increaseLabel = stringResource(Res.string.sheet_adapt_increase)
@@ -124,6 +133,8 @@ internal fun SheetAdaptationPanel(
 }
 
 private val StepButtonSize = 48.dp
+private val AdaptThumbSize = 22.dp
+private val RecommendDot = 5.dp
 
 /** 지금 고른 높이를 흰 상자에 담아 슬라이더 값과 같은 말로 보인다. */
 @Composable
@@ -140,17 +151,18 @@ private fun TransposeBox(label: String) {
  */
 @Composable
 private fun RecommendationMark(plan: PitchAdaptationPlan?, thumbInset: Dp, trackCorner: Dp, modifier: Modifier) {
-    val colors = MaterialTheme.colorScheme
+    val colors = EolssuTheme.colors
     if (plan == null) { Spacer(modifier.height(20.dp)); return }
     val description = stringResource(Res.string.sheet_adapt_marker_primary, transposeLabel(plan.transpose))
     Layout(
         content = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(stringResource(Res.string.sheet_adapt_marker_primary_short),
-                    style = MaterialTheme.typography.labelMedium, maxLines = 1, color = colors.onPrimary,
-                    modifier = Modifier.background(colors.primary, RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 1.dp))
+                // 연두 막대 위에서도 묻히지 않게 먹색 칩에 추천 값을 함께 적는다(S15P31E102-1042).
+                Text(description, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, color = colors.surface,
+                    modifier = Modifier.background(colors.text, RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 2.dp))
                 Canvas(Modifier.size(MarkPointer * 2, MarkPointer)) {
-                    drawPath(Path().apply { moveTo(0f, 0f); lineTo(size.width, 0f); lineTo(size.width / 2, size.height); close() }, colors.primary)
+                    drawPath(Path().apply { moveTo(0f, 0f); lineTo(size.width, 0f); lineTo(size.width / 2, size.height); close() }, colors.text)
                 }
             }
         },
@@ -169,7 +181,7 @@ private fun RecommendationMark(plan: PitchAdaptationPlan?, thumbInset: Dp, track
     }
 }
 
-private val MarkPointer = 4.dp
+private val MarkPointer = 5.dp
 
 @Composable
 internal fun transposeLabel(value: Int): String = if (value == 0) stringResource(Res.string.sheet_adapt_original_key)
