@@ -41,6 +41,7 @@ import org.jetbrains.compose.resources.stringResource
 class EditNewSheetActions(
     val onOpen: (MySheet) -> Unit = {},
     val onEdit: (MySheet) -> Unit = {},
+    val onOpenConversion: (MySheet) -> Unit = {},
     val onDelete: (MySheet) -> Unit = {},
     val onConfirmDelete: () -> Unit = {},
     val onCancelDelete: () -> Unit = {},
@@ -139,6 +140,7 @@ private fun MySheetsSection(state: EditNewUiState, actions: EditNewSheetActions)
                 sheet,
                 onOpen = { actions.onOpen(sheet) },
                 onEdit = { actions.onEdit(sheet) },
+                onOpenConversion = { actions.onOpenConversion(sheet) },
                 onDelete = { actions.onDelete(sheet) },
                 conversion = state.mine.conversionOf(sheet),
                 retrying = sheet.id in state.mine.retrying,

@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -635,20 +634,20 @@ internal fun PitchSteps(audio: ReadingAudioState, onPlayAudio: (ReadingAudioClip
         PitchStep(2, "氵", "黃", stringResource(Res.string.guide_reading_pitch_high), stringResource(Res.string.guide_reading_pitch_high_term), stringResource(Res.string.guide_reading_pitch_high_gloss)),
     )
     // 계단(축 32dp + 칸 82dp × 3 = 278dp)이 들어가지 않는 좁은 화면에서는 칸 너비를 줄여 잘리지 않게 한다(S15P31E102-972).
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val cellWidth = ((maxWidth - PitchAxisWidth) / steps.size).coerceAtMost(PitchCellWidth)
-        Column {
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.Center) {
-                PitchAxis(Modifier.width(PitchAxisWidth).fillMaxHeight().padding(end = 12.dp))
-                steps.forEach { PitchStepCell(it, cellWidth) }
-            }
-            // 디딤판 높이와 관계없이 세 스피커의 중심을 같은 가로선에 둔다.
-            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.Center) {
-                Spacer(Modifier.width(PitchAxisWidth))
-                steps.forEachIndexed { i, step ->
-                    Box(Modifier.width(cellWidth), contentAlignment = Alignment.Center) {
-                        ReadingSpeakerButton(ReadingPitchClips[i], step.name, audio, { onPlayAudio(ReadingPitchClips[i]) }, enabled)
-                    }
+    // 칸은 남은 너비를 똑같이 나눈 값과 82dp 중 작은 값이다. 태블릿 격자가 카드 높이를 맞추려고 크기를 미리 재므로
+    // (IntrinsicSize) BoxWithConstraints 대신 Row 가중치로 나눈다. BoxWithConstraints는 미리 재기를 지원하지 않아 앱이 종료된다(S15P31E102-1008).
+    val cell = Modifier.width(PitchCellWidth)
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.Center) {
+            PitchAxis(Modifier.width(PitchAxisWidth).fillMaxHeight().padding(end = 12.dp))
+            steps.forEach { PitchStepCell(it, Modifier.weight(1f, fill = false).then(cell)) }
+        }
+        // 디딤판 높이와 관계없이 세 스피커의 중심을 같은 가로선에 둔다.
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.Center) {
+            Spacer(Modifier.width(PitchAxisWidth))
+            steps.forEachIndexed { i, step ->
+                Box(Modifier.weight(1f, fill = false).then(cell), contentAlignment = Alignment.Center) {
+                    ReadingSpeakerButton(ReadingPitchClips[i], step.name, audio, { onPlayAudio(ReadingPitchClips[i]) }, enabled)
                 }
             }
         }
@@ -688,13 +687,12 @@ private fun PitchAxis(modifier: Modifier) {
 }
 
 @Composable
-private fun PitchStepCell(step: PitchStep, width: Dp) {
+private fun PitchStepCell(step: PitchStep, modifier: Modifier) {
     val colors = EolssuTheme.colors
     val tread = 3.dp
     Column(
-        Modifier
+        modifier
             .padding(top = PitchRise * (2 - step.level))
-            .width(width)
             .drawBehind {
                 // 디딤판(아래 굵은 선)과, 높은 칸이면 왼쪽에 한 단 아래 디딤판까지 내려오는 챌판
                 val t = tread.toPx()
