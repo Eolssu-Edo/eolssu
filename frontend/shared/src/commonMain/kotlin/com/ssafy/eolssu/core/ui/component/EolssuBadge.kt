@@ -192,7 +192,7 @@ fun EolssuLevelChip(level: SongLevel, selected: Boolean, onClick: () -> Unit, mo
                 songLevelLabel(level),
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontSize = 14.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 ),
             )
         }
@@ -254,7 +254,7 @@ private fun LevelBadge(text: String, palette: LevelBadgePalette, modifier: Modif
         Canvas(Modifier.size(if (small) 14.dp else 16.dp)) { drawLevelMotif(palette.motif) }
         Text(
             text,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = if (small) 11.sp else 12.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = if (small) 11.sp else 12.sp, fontWeight = FontWeight.SemiBold),
             color = palette.text,
         )
     }

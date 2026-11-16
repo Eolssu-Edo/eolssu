@@ -624,7 +624,7 @@ private fun ColumnHead(
             )
         } else {
             if (column == 0) {
-                Text(stringResource(Res.string.score_column_start), style = style, color = colors.accentText, fontWeight = FontWeight.Bold)
+                Text(stringResource(Res.string.score_column_start), style = style, color = colors.accentText, fontWeight = FontWeight.SemiBold)
             }
             Text("${column + 1}", style = style, color = if (highlighted) colors.text else colors.textMuted, fontWeight = FontWeight.SemiBold)
         }

@@ -138,7 +138,7 @@ private fun AgreeAllRow(checked: Boolean, onToggle: () -> Unit) {
     ) {
         Text(
             label,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
             color = EolssuTheme.colors.text,
         )
     }
@@ -171,7 +171,7 @@ private fun AgreementRow(agreement: AccountTerm, checked: Boolean, onToggle: () 
                 Text(
                     text = buildAnnotatedString {
                         withStyle(
-                            if (agreement.required) SpanStyle(fontWeight = FontWeight.Bold)
+                            if (agreement.required) SpanStyle(fontWeight = FontWeight.SemiBold)
                             else SpanStyle(fontWeight = FontWeight.Medium, color = colors.textMuted),
                         ) { append(prefix) }
                         append(" ")

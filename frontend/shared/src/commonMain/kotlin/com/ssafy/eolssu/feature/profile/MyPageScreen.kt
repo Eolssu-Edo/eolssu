@@ -181,7 +181,7 @@ private fun ProfileCard(profile: UserProfile, progress: MyLearningProgress?, onE
             Text(
                 profile.nickname,
                 modifier = Modifier.weight(1f, fill = false),
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
                 color = colors.text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

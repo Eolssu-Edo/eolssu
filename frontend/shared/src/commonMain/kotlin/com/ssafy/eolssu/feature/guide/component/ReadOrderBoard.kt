@@ -133,7 +133,7 @@ internal fun ReadOrderBoard(modifier: Modifier = Modifier, animate: Boolean = fa
     val frame = if (seconds < 0f) OrderFrame.Rest else orderFrameAt(seconds)
     val colors = EolssuTheme.colors
     val serif = EolssuTheme.serif.yul
-    val label = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+    val label = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
     val columnLabels = (1..3).map { stringResource(Res.string.guide_reading_order_column, it) }
     val startLabel = stringResource(Res.string.score_column_start)
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -121,7 +121,7 @@ fun ImportResultScreen(
                 val hint = stringResource(Res.string.sheetedit_result_tap_hint)
                 Text(
                     buildAnnotatedString {
-                        withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.Bold)) { append(summary) }
+                        withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.SemiBold)) { append(summary) }
                         append(" · ")
                         append(hint)
                     },
@@ -197,7 +197,7 @@ private fun CheckCard(state: ImportResultUiState, draft: SheetDraft, onChoose: (
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                     color = colors.textMuted,
                 )
-                Text(check.title, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold))
+                Text(check.title, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold))
                 Text(check.description, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp), color = colors.textMuted)
             }
             InputPanelToggle(expanded = true, onToggle = { expanded = false })
@@ -252,7 +252,7 @@ private fun ListenRow(playing: Boolean, onToggle: () -> Unit) {
         }
         Text(
             buildAnnotatedString {
-                withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.Bold, fontSize = 13.sp)) { append(stringResource(Res.string.sheetedit_result_listen)) }
+                withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)) { append(stringResource(Res.string.sheetedit_result_listen)) }
                 append(" · ")
                 append(stringResource(Res.string.sheetedit_result_listen_desc))
             },

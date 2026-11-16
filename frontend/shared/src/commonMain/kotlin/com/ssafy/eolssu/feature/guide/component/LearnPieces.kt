@@ -170,10 +170,10 @@ internal fun LearnTaskList(tasks: List<LearnTask>, columns: Int = 1, collapsible
                 Modifier.padding(top = 1.dp).size(22.dp).border(1.5.dp, GuideFaint, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("${i + 1}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = colors.textMuted)
+                Text("${i + 1}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), color = colors.textMuted)
             }
             Column(Modifier.weight(1f)) {
-                Text(task.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                Text(task.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
                 if (task.detail != null && open) {
                     GuideText(
                         task.detail,
