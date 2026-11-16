@@ -14,6 +14,8 @@
 	<string>얼쑤</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>악보를 촬영하고 문서 스캔본으로 가져오는 데 카메라를 사용해요.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>연주를 녹음해 음정과 박자를 평가하는 데 마이크를 사용해요.</string>
 </dict>

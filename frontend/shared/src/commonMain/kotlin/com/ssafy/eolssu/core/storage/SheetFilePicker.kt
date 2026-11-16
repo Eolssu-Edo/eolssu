@@ -38,6 +38,8 @@ enum class SheetFileSource {
     Album,
     /** 파일·드라이브(문서 선택기). PDF와 사진을 고른다. */
     Files,
+    /** 카메라로 촬영하고 보정한 악보를 JPEG로 받는다. */
+    Scan,
 }
 
 /** 이 플랫폼에서 쓸 수 있는 고를 곳(보여 줄 순서). */

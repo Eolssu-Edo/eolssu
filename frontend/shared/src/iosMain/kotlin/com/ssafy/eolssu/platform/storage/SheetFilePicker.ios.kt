@@ -7,12 +7,18 @@ import kotlinx.cinterop.*
 import platform.Foundation.*
 import platform.PhotosUI.*
 import platform.UIKit.*
+import platform.VisionKit.VNDocumentCameraScan
+import platform.VisionKit.VNDocumentCameraViewController
+import platform.VisionKit.VNDocumentCameraViewControllerDelegateProtocol
 import platform.darwin.NSObject
 import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_main_queue
 import platform.posix.memcpy
 
-actual val sheetFileSources: List<SheetFileSource> = listOf(SheetFileSource.Files, SheetFileSource.Album)
+actual val sheetFileSources: List<SheetFileSource>
+    get() = if (UIImagePickerController.isSourceTypeAvailable(UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypeCamera))
+        listOf(SheetFileSource.Files, SheetFileSource.Album, SheetFileSource.Scan)
+    else listOf(SheetFileSource.Files, SheetFileSource.Album)
 
 /** 앨범은 PHPicker(권한 없이 사진만, 최대 10장, 호환 형식으로 받음), 파일은 문서 선택기(PDF·PNG·JPEG)로 연다. */
 @Composable
@@ -60,11 +66,30 @@ actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): (She
             }
         }
     }
+    val scanDelegate = remember {
+        object : NSObject(), VNDocumentCameraViewControllerDelegateProtocol {
+            override fun documentCameraViewControllerDidCancel(controller: VNDocumentCameraViewController) {
+                controller.dismissViewControllerAnimated(true, null)
+                callback(SheetFileSelection.Cancelled)
+            }
+
+            override fun documentCameraViewController(controller: VNDocumentCameraViewController, didFailWithError: NSError) {
+                controller.dismissViewControllerAnimated(true, null)
+                callback(SheetFileSelection.Failed)
+            }
+
+            override fun documentCameraViewController(controller: VNDocumentCameraViewController, didFinishWithScan: VNDocumentCameraScan) {
+                controller.dismissViewControllerAnimated(true, null)
+                callback(scanFiles(didFinishWithScan))
+            }
+        }
+    }
     var presented by remember { mutableStateOf<UIViewController?>(null) }
     DisposableEffect(Unit) {
         onDispose {
             (presented as? UIDocumentPickerViewController)?.delegate = null
             (presented as? PHPickerViewController)?.delegate = null
+            (presented as? VNDocumentCameraViewController)?.delegate = null
             presented?.dismissViewControllerAnimated(false, null)
         }
     }
@@ -83,6 +108,7 @@ actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): (She
                         PHPickerConfigurationAssetRepresentationMode.PHPickerConfigurationAssetRepresentationModeCompatible
                     PHPickerViewController(configuration = configuration).also { it.delegate = albumDelegate }
                 }
+                SheetFileSource.Scan -> VNDocumentCameraViewController().also { it.delegate = scanDelegate }
                 SheetFileSource.Files -> UIDocumentPickerViewController(
                     documentTypes = listOf("com.adobe.pdf", "public.png", "public.jpeg"),
                     inMode = UIDocumentPickerMode.UIDocumentPickerModeOpen,
@@ -131,6 +157,21 @@ private fun loadAlbumImages(results: List<PHPickerResult>, done: (SheetFileSelec
             }
         }
     }
+}
+
+private fun scanFiles(scan: VNDocumentCameraScan): SheetFileSelection {
+    val count = scan.pageCount.toInt()
+    if (count !in 1..MAX_SHEET_IMAGES) return SheetFileSelection.Failed
+    var remaining = SHEET_MAX_BYTES
+    val files = (0 until count).map { index ->
+        val image = scan.imageOfPageAtIndex(index.toULong())
+        val jpeg = UIImageJPEGRepresentation(image, 0.9) ?: return SheetFileSelection.Failed
+        if (jpeg.length > remaining.toULong()) return SheetFileSelection.TooLarge
+        val bytes = jpeg.toByteArray()
+        remaining -= bytes.size
+        SheetFile("스캔 ${index + 1}.jpg", bytes)
+    }
+    return SheetFileSelection.Selected(files)
 }
 
 private fun NSData.toByteArray(): ByteArray {

@@ -56,6 +56,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.mlkit.document.scanner)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.androidx.media3.common)
         }

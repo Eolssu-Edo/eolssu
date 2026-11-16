@@ -10,6 +10,7 @@
     <!-- 파일 선택 버튼을 누르면 펼쳐지는 가져올 곳 메뉴 -->
     <string name="sheet_upload_source_files">파일</string>
     <string name="sheet_upload_source_album">갤러리</string>
+    <string name="sheet_upload_source_scan">카메라로 스캔</string>
     <!-- 악보 올리기 위쪽 종류 고르기와 장단 고르기 칸 -->
     <string name="sheet_upload_kind">악보 종류</string>
     <string name="sheet_upload_jangdan_placeholder">장단 고르기</string>
