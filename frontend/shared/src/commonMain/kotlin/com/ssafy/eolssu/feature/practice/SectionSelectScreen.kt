@@ -5,10 +5,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -186,13 +188,14 @@ private fun SelectHintRow(state: SectionSelectUiState, onReset: () -> Unit) {
 @Composable
 private fun SectionSettings(state: SectionSelectUiState, actions: SectionSelectActions, modifier: Modifier = Modifier) {
     if (state.song == null) return
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    // 한쪽만 두 줄이 되어도 두 버튼 높이를 맞춘다(결과 화면 하단과 같은 방식).
+    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         EolssuButton(
-            stringResource(Res.string.weak_select_start), actions.onStart, Modifier.weight(1f),
+            stringResource(Res.string.weak_select_start), actions.onStart, Modifier.weight(1f).fillMaxHeight(),
             icon = EolssuIcons.Play, enabled = state.canStart, compact = true,
         )
         EolssuButton(
-            stringResource(Res.string.weak_loop_evaluate_start), actions.onEvaluate, Modifier.weight(1f),
+            stringResource(Res.string.weak_loop_evaluate_start), actions.onEvaluate, Modifier.weight(1f).fillMaxHeight(),
             icon = EolssuIcons.Mic, enabled = state.canStart, compact = true, style = EolssuButtonStyle.Secondary,
         )
     }

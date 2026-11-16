@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -50,8 +51,8 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 /** 카드와 아래 조작 줄 사이 간격. 기록 상세 하단 바([EolssuBottomBar])의 간격과 같다. */
 val PlaybackSectionSpacing: Dp = 10.dp
 
-/** 조작 줄 오른쪽 행동 버튼(‘구간 연습’·‘연주 평가 시작’) 높이. 옆 5초 이동 버튼과 같다. */
-val PlaybackActionHeight: Dp = 44.dp
+/** 조작 줄 오른쪽 행동 버튼(‘구간 연습’·‘연주 평가 시작’) 최소 높이. 터치 48dp를 지키고 큰 글꼴에서는 내용만큼 높아진다(S15P31E102-972). */
+val PlaybackActionHeight: Dp = 48.dp
 
 /** 테두리 없는 흰 카드(모서리 16)에 시간 줄·재생 위치 막대를 담는다. */
 @Composable
@@ -178,7 +179,7 @@ fun PlaybackSkipGroup(
     }
 }
 
-/** 조작 줄 오른쪽 행동 버튼(높이 [PlaybackActionHeight]). 너비는 [modifier]로 정한다(보통 `weight(1f)`). */
+/** 조작 줄 오른쪽 행동 버튼(최소 높이 [PlaybackActionHeight]). 너비는 [modifier]로 정한다(보통 `weight(1f)`). 글자는 한 줄을 유지하고 넘치면 줄어든다. */
 @Composable
 fun PlaybackActionButton(
     text: String,
@@ -188,8 +189,8 @@ fun PlaybackActionButton(
     icon: ImageVector? = null,
 ) {
     EolssuButton(
-        text, onClick, modifier.height(PlaybackActionHeight),
-        icon = icon, enabled = enabled, compact = true, small = true, minHeight = PlaybackActionHeight,
+        text, onClick, modifier.heightIn(min = PlaybackActionHeight),
+        icon = icon, enabled = enabled, compact = true, small = true, minHeight = PlaybackActionHeight, singleLine = true,
     )
 }
 

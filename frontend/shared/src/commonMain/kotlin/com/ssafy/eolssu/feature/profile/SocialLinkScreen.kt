@@ -1,9 +1,7 @@
 package com.ssafy.eolssu.feature.profile
 
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -60,19 +58,13 @@ fun SocialLinkScreen(
             }
         },
     ) {
-        // 본문 칸이 스크롤이라 높이를 정해 가운데에 둔다: 휴대폰 480dp, 태블릿 세로 640dp · 가로 520dp.
+        // 본문 칸이 스크롤이라도 남은 화면 높이를 채워 가운데에 둔다. 고정 높이는 iPhone SE·가로 휴대폰에서 스크롤을 만든다(S15P31E102-972).
         ProviderWaiting(
             provider,
             title,
             body,
             busy = step !is SocialLinkStep.Stopped,
-            modifier = Modifier.heightIn(
-                min = when (widthClass) {
-                    WindowWidthClass.Compact -> 480.dp
-                    WindowWidthClass.Medium -> 640.dp
-                    WindowWidthClass.Expanded -> 520.dp
-                },
-            ),
+            modifier = Modifier.weight(1f),
         )
     }
     if (step == SocialLinkStep.InUse) {

@@ -285,14 +285,14 @@ private fun StepPanel(
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(label, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textMuted)
-                Box(Modifier.height(StepContentHeight), contentAlignment = Alignment.CenterStart) { content() }
+                Box(Modifier.heightIn(min = StepContentHeight), contentAlignment = Alignment.CenterStart) { content() }
             }
             icon()
         }
     }
 }
 
-/** 두 칸의 내용 줄 높이. 28sp 율명 한 줄이 들어간다. */
+/** 두 칸의 내용 줄 최소 높이. 28sp 율명 한 줄이 들어가고 큰 글꼴에서는 내용만큼 높아진다(S15P31E102-972). */
 private val StepContentHeight = 36.dp
 
 @Composable

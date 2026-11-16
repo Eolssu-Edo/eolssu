@@ -1,7 +1,16 @@
 package com.ssafy.eolssu.feature.profile.component
 
-import androidx.compose.ui.semantics.onClick
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
+import kotlinx.coroutines.delay
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.material3.ripple
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.indication
@@ -169,13 +178,49 @@ internal fun LearningBadge(progress: MyLearningProgress) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         InstrumentPicture(progress.instrument, size = 22.dp)
-        Text(
+        FlowOnTapText(
             text,
             style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
             color = colors.cardInk,
-            maxLines = 1,
+            modifier = Modifier.weight(1f, fill = false),
         )
     }
+}
+
+/**
+ * 한 줄로 두고 넘치면 말줄임한다. 잘린 글자를 누르면 왼쪽으로 한 번 흘러 전체를 보여 준 뒤 말줄임으로 돌아온다(S15P31E102-972).
+ * 흐르는 시간은 글자 폭과 [basicMarquee] 기본 속도(초당 30dp)·간격(칸 너비의 1/3)으로 셈한다.
+ */
+@Composable
+private fun FlowOnTapText(text: String, style: TextStyle, color: Color, modifier: Modifier = Modifier) {
+    val velocity = with(LocalDensity.current) { 30.dp.toPx() }
+    var cut by remember(text) { mutableStateOf(false) }
+    var flowMillis by remember(text) { mutableLongStateOf(0L) }
+    var flowing by remember(text) { mutableStateOf(false) }
+    LaunchedEffect(flowing) {
+        if (flowing) {
+            delay(flowMillis)
+            flowing = false
+        }
+    }
+    Text(
+        text,
+        modifier = modifier
+            .clickable(enabled = cut && !flowing, interactionSource = null, indication = null) { flowing = true }
+            .then(if (flowing) Modifier.basicMarquee(iterations = 1, initialDelayMillis = 0) else Modifier),
+        style = style,
+        color = color,
+        maxLines = 1,
+        softWrap = false,
+        overflow = if (flowing) TextOverflow.Clip else TextOverflow.Ellipsis,
+        onTextLayout = { layout ->
+            if (!flowing) {
+                cut = layout.hasVisualOverflow
+                val travel = layout.multiParagraph.intrinsics.maxIntrinsicWidth + layout.size.width / 3f
+                flowMillis = (travel / velocity * 1000).toLong()
+            }
+        },
+    )
 }
 
 /**

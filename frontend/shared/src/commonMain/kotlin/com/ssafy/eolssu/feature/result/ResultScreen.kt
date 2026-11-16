@@ -1,10 +1,7 @@
 package com.ssafy.eolssu.feature.result
 
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
 import com.ssafy.eolssu.core.ui.component.EolssuTextLink
-import com.ssafy.eolssu.core.ui.component.rememberHideKeyboard
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -21,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -34,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -63,6 +58,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuStartTopBar
+import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.ScoreSummaryCard
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
@@ -447,34 +443,15 @@ internal fun SaveFormSheet(
                     maxLines = 1,
                 )
             }
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    stringResource(Res.string.result_memo_label),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
-                    color = colors.textSub,
-                )
-                val fieldShape = RoundedCornerShape(12.dp)
-                Box(
-                    Modifier.fillMaxWidth().height(52.dp).background(colors.background, fieldShape).border(1.dp, colors.line, fieldShape).padding(horizontal = 14.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, color = colors.text)
-                    val hideKeyboard = rememberHideKeyboard()
-                    if (memo.isEmpty()) Text(stringResource(Res.string.result_memo_placeholder), style = textStyle, color = colors.textDisabled)
-                    BasicTextField(
-                        value = memo,
-                        onValueChange = onMemoChange,
-                        singleLine = true,
-                        enabled = !saving,
-                        textStyle = textStyle,
-                        cursorBrush = SolidColor(colors.text),
-                        // 키보드 확인을 누르면 키보드를 내린다(S15P31E102-800).
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onAny = { hideKeyboard() }),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
+            // 공용 입력칸: 선택 테두리·큰 글꼴 높이 맞춤을 다른 입력칸과 같게 한다(S15P31E102-972). 저장 중에는 바꾸지 않는다.
+            EolssuTextField(
+                value = memo,
+                onValueChange = { if (!saving) onMemoChange(it) },
+                label = stringResource(Res.string.result_memo_label),
+                placeholder = stringResource(Res.string.result_memo_placeholder),
+                imeAction = ImeAction.Done,
+                containerColor = colors.background,
+            )
         }
     }
 }
