@@ -1,5 +1,11 @@
 # 프로젝트 문서
 
+- [홈 첫 화면 그림을 전각 전경 그림으로 교체 (983)](plans/S15P31E102-983.md)
+- [Windows QA 실행·관측 통합 (936)](plans/S15P31E102-936.md) · [요구사항](specs/qa-live-control.md) · [QA 시연 대본](../infra/qa-phone/public/guide.html) · [운영 실행·증거 해석](../infra/qa-phone/LIVE.md)
+- [S10 실제 마이크·평가 로그 대조](knowledge/infra/qa-s10-real-microphone-verification.md)
+- [S10 기초 콘텐츠 화면·진도·실제 스피커 확인](knowledge/infra/qa-s10-content-verification.md)
+- [통합 QA 실제 적용·최신 APK·기기별 경계와 검증](knowledge/infra/qa-multi-device-rollout.md)
+- [배포 구조와 Kubernetes 도입 필요성 검토 (990)](plans/S15P31E102-990.md) · [결정 기록](decisions/kubernetes-adoption.md)
 - [휴대폰·태블릿·아이폰 공통 화면 UI 점검 목록과 일괄 개선 (961)](plans/S15P31E102-961.md)
 - [실제 앱 조작과 격리 서버 처리 실시간 시연 (283)](plans/S15P31E102-283.md) · [실행 구조·지휘통제 사용법](plans/S15P31E102-283-live-observation.md)
 - [악보 편집 화면 태블릿 가로 악보·입력판 좌우 배치 (965)](plans/S15P31E102-965.md)
@@ -331,6 +337,7 @@
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
 - [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
 - [소리 나는 버튼의 눌림 효과(elastic squash)](decisions/frontend-sound-button-press.md) (확정)
+- [운영 배포 구조와 Kubernetes 도입](decisions/kubernetes-adoption.md) (제안)
 
 - [S15P31E102-256 곡·악보 조회](plans/S15P31E102-256.md)
 - [S15P31E102-345 곡 목록 서버 검색·페이지 보류와 재개 조건](plans/S15P31E102-345.md)

@@ -290,13 +290,8 @@ private fun ScoreValue(score: Int) {
         Text(
             score.toString(),
             modifier = Modifier.alignByBaseline(),
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontSize = 28.sp,
-                lineHeight = 32.sp,
-                fontWeight = FontWeight.Bold,
-                // 숫자 글꼴의 좌우 여백을 줄여 '점'이 숫자에 바로 붙게 한다.
-                letterSpacing = (-0.5).sp,
-            ),
+            // 점수 숫자는 결과·기록 화면과 같은 세리프로 쓴다.
+            style = EolssuTheme.serif.yul.copy(fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold),
             color = colors.cardInk,
         )
         Text(
