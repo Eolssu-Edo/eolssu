@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo
 import android.security.NetworkSecurityPolicy
 import com.ssafy.eolssu.core.audio.FileSheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.ModelAudioFileCache
+import com.ssafy.eolssu.core.audio.ReferenceAudioFileCache
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
 import com.ssafy.eolssu.core.audio.JangdanVolumeLimit
@@ -62,6 +63,18 @@ internal fun androidPlatformModule(context: Context, serverAddress: ServerAddres
                 Path(appContext.cacheDir.absolutePath, "model-audio-v1"), get(), Dispatchers.IO,
                 allowDebugLoopback = appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
                     NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("127.0.0.1"),
+            )
+        }
+        // 기초 배우기·운지법 예시음(S15P31E102-1005). 한 번 받은 예시음은 다시 받지 않는다.
+        single {
+            ReferenceAudioFileCache(
+                ModelAudioFileCache(
+                    Path(appContext.cacheDir.absolutePath, ReferenceAudioFileCache.DIRECTORY), get(), Dispatchers.IO,
+                    allowDebugLoopback = appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+                        NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("127.0.0.1"),
+                    maxFileBytes = ReferenceAudioFileCache.MAX_FILE_BYTES,
+                    maxFiles = ReferenceAudioFileCache.MAX_FILES,
+                ),
             )
         }
         single<SheetAudioDeviceStore> {

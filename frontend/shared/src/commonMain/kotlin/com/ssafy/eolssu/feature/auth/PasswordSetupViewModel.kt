@@ -12,21 +12,20 @@ class PasswordSetupViewModel(private val auth: AuthRepository? = null, private v
     private val _uiState = MutableStateFlow(PasswordSetupUiState())
     val uiState: StateFlow<PasswordSetupUiState> = _uiState.asStateFlow()
 
-    private var submitting = false
     suspend fun submitToServer(purpose: VerificationPurpose, email: String): Boolean {
-        if (submitting || !submit()) return false
+        if (_uiState.value.submitting || !submit()) return false
         if (draft.purpose != purpose || draft.email != email || draft.token.isBlank()) {
             _uiState.update { it.copy(passwordError = FieldError.VerifyAgain) }
             return false
         }
         val password = _uiState.value.password
         if (purpose == VerificationPurpose.SignUp) { draft.password = password; return true }
-        submitting = true
+        _uiState.update { it.copy(submitting = true) }
         return try {
             val result = auth?.resetPassword(draft.token, password) ?: MemberResult.Unavailable
             if (result == MemberResult.Done) { draft.clearVerification(); _uiState.value = PasswordSetupUiState(); true }
             else { _uiState.update { it.copy(passwordError = result.fieldError()) }; false }
-        } finally { submitting = false }
+        } finally { _uiState.update { it.copy(submitting = false) } }
     }
 
     /** 비밀번호를 고치면 확인칸 오류도 다시 판단해야 하므로 함께 지운다. */

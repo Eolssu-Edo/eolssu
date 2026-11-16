@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ReferenceAudioRepositoryTest {
@@ -30,6 +31,20 @@ class ReferenceAudioRepositoryTest {
             assertEquals(listOf("a".repeat(64), "b".repeat(64)), result.map { it.assetId })
             assertEquals(listOf("source-a", "source-b"), result.map { it.labelId })
             assertEquals("https://api.example.test:8443/api/reference-audios/${"a".repeat(64)}/play", result.first().soundUrl)
+        } finally { client.close() }
+    }
+
+    @Test fun contentHashAndTypeAreKeptForTheDeviceFileAndNoCacheMeansRemotePlayback() = runTest {
+        val address = ServerAddress("https://api.example.test")
+        val hash = "e".repeat(64)
+        val row = clip("a").replace("\"durationMs\"", "\"sha256\":\"$hash\",\"contentType\":\"audio/mp4\",\"bytes\":68500,\"durationMs\"")
+        val client = mockClient(envelope(row))
+        try {
+            val repository = ApiReferenceAudioRepository(client, address)
+            val clip = repository.clips(ReferenceAudioQuery("sogeum")).single()
+            assertEquals(hash, clip.sha256)
+            assertEquals("audio/mp4", clip.contentType)
+            assertNull(repository.localFile(clip))
         } finally { client.close() }
     }
 
