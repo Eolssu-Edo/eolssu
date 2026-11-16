@@ -195,6 +195,8 @@ services:
         <<: *private-log-options
         tag: eolssu-omr
     image: eolssu-omr:runtime
+    # Reap helpers adopted after an OMR renderer exits or its process group is killed.
+    init: true
     read_only: true
     tmpfs:
       # 원본(20MiB 이하)·쪽 그림(300dpi PNG, 10쪽까지)·Audiveris 작업 폴더와 홈(HOME=/tmp/home: 설정·네이티브 라이브러리 캐시).

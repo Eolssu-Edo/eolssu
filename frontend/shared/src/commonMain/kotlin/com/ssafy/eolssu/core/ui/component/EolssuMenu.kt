@@ -17,17 +17,26 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import com.ssafy.eolssu.core.theme.EolssuTheme
 
 /**
@@ -84,5 +93,55 @@ fun EolssuMenuItem(
             overflow = TextOverflow.Ellipsis,
         )
         if (selected) Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = ink)
+    }
+}
+
+/** 메뉴를 기준 영역의 어느 끝에 맞출지. [Start]는 왼쪽 끝, [End]는 오른쪽 끝이다. */
+enum class EolssuMenuAlign { Start, End }
+
+/**
+ * 앱 공통 드롭다운 창(S15P31E102-970): 기준 영역(이 함수를 부른 `Box`) 아래에 [gap]만큼 띄워 [content]를 연다.
+ * 아래 공간이 모자라면 위로 뒤집고([BelowAnchor]), 바깥을 누르거나 뒤로 가면 [onDismissRequest]로 닫는다.
+ * 모든 드롭다운이 Material `DropdownMenu` 대신 이 창과 [EolssuMenuPanel]을 쓴다.
+ */
+@Composable
+fun EolssuMenuPopup(
+    onDismissRequest: () -> Unit,
+    align: EolssuMenuAlign = EolssuMenuAlign.Start,
+    gap: Dp = 4.dp,
+    content: @Composable () -> Unit,
+) {
+    val gapPx = with(LocalDensity.current) { gap.roundToPx() }
+    Popup(
+        popupPositionProvider = remember(gapPx, align) { BelowAnchor(gapPx, align) },
+        onDismissRequest = onDismissRequest,
+        properties = PopupProperties(focusable = true),
+        content = content,
+    )
+}
+
+/**
+ * 메뉴를 기준 영역 아래에 [gap]만큼 띄워 두고, 화면 아래로 넘치면 기준 영역 위로 뒤집는다.
+ * 위아래 모두 모자라면 공간이 더 넓은 쪽에 두고 화면 안으로 당긴다. 가로는 [align] 끝에 맞추고 화면 밖으로 나가지 않게 당긴다.
+ */
+internal class BelowAnchor(private val gap: Int, private val align: EolssuMenuAlign = EolssuMenuAlign.Start) : PopupPositionProvider {
+    override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
+        val width = popupContentSize.width
+        val height = popupContentSize.height
+        val x = when (align) {
+            EolssuMenuAlign.Start -> anchorBounds.left
+            EolssuMenuAlign.End -> anchorBounds.right - width
+        }.coerceIn(0, (windowSize.width - width).coerceAtLeast(0))
+        val below = anchorBounds.bottom + gap
+        val above = anchorBounds.top - gap - height
+        val roomBelow = windowSize.height - below
+        val roomAbove = anchorBounds.top - gap
+        val y = when {
+            height <= roomBelow -> below
+            height <= roomAbove -> above
+            roomAbove > roomBelow -> above
+            else -> below
+        }.coerceIn(0, (windowSize.height - height).coerceAtLeast(0))
+        return IntOffset(x, y)
     }
 }

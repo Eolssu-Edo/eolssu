@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.feature.guide.FingeringUiState
 import com.ssafy.eolssu.feature.guide.ReferenceLoadState
 import eolssu.shared.generated.resources.*
@@ -49,31 +49,36 @@ internal fun CatalogLink(url: String?, label: String) {
     if (failed) Text(stringResource(Res.string.guide_catalog_link_failed), color = EolssuTheme.colors.textMuted)
 }
 
+/** 운지 목록 창: 앱 공통 확인 창([EolssuDialog]) 안에 목록을 세로로 넘기고, 아래에 회색 '닫기' 버튼을 둔다(S15P31E102-970). */
 @Composable
 internal fun FingeringCatalogDialog(state: FingeringUiState, onRetry: () -> Unit, onClose: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onClose,
-        title = { Text(stringResource(Res.string.guide_catalog_fingering_title)) },
-        text = {
-            Column(Modifier.heightIn(max = 540.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                CatalogStatus(state.catalogState, empty = state.catalogPitches.isEmpty(), onRetry = onRetry)
-                if (state.catalogState == ReferenceLoadState.Ready) {
-                    CatalogLink(state.catalogFingerings.structureImageUrl, stringResource(Res.string.guide_catalog_structure_image))
-                    state.catalogPitches.forEach { pitch ->
-                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            GuideText("${pitch.hanja} · ${pitch.hangul}", style = MaterialTheme.typography.titleMedium)
-                            pitch.description?.takeIf { it.isNotBlank() }?.let { GuideText(it) }
-                            CatalogLink(pitch.soundUrl, stringResource(Res.string.guide_catalog_open_sound))
-                            state.catalogFingerings.items.filter { it.pitchId == pitch.pitchId }.forEach { fingering ->
-                                fingering.description?.takeIf { it.isNotBlank() }?.let { GuideText(it) }
-                                CatalogLink(fingering.imageUrl, stringResource(Res.string.guide_catalog_fingering_image))
-                            }
+    val colors = EolssuTheme.colors
+    EolssuDialog(title = stringResource(Res.string.guide_catalog_fingering_title), onDismissRequest = onClose) {
+        Column(Modifier.heightIn(max = 540.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            CatalogStatus(state.catalogState, empty = state.catalogPitches.isEmpty(), onRetry = onRetry)
+            if (state.catalogState == ReferenceLoadState.Ready) {
+                CatalogLink(state.catalogFingerings.structureImageUrl, stringResource(Res.string.guide_catalog_structure_image))
+                state.catalogPitches.forEach { pitch ->
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        GuideText("${pitch.hanja} · ${pitch.hangul}", style = MaterialTheme.typography.titleMedium)
+                        pitch.description?.takeIf { it.isNotBlank() }?.let { GuideText(it) }
+                        CatalogLink(pitch.soundUrl, stringResource(Res.string.guide_catalog_open_sound))
+                        state.catalogFingerings.items.filter { it.pitchId == pitch.pitchId }.forEach { fingering ->
+                            fingering.description?.takeIf { it.isNotBlank() }?.let { GuideText(it) }
+                            CatalogLink(fingering.imageUrl, stringResource(Res.string.guide_catalog_fingering_image))
                         }
                     }
-                    if (state.catalogFingerings.items.isEmpty()) Text(stringResource(Res.string.guide_catalog_no_fingerings), color = EolssuTheme.colors.textMuted)
                 }
+                if (state.catalogFingerings.items.isEmpty()) Text(stringResource(Res.string.guide_catalog_no_fingerings), color = colors.textMuted)
             }
-        },
-        confirmButton = { EolssuButton(stringResource(Res.string.guide_catalog_close), onClose, style = EolssuButtonStyle.Text, small = true) },
-    )
+        }
+        EolssuButton(
+            stringResource(Res.string.guide_catalog_close),
+            onClose,
+            style = EolssuButtonStyle.Secondary,
+            containerColor = colors.groupedBackground,
+            borderColor = colors.groupedBackground,
+            minHeight = 48.dp,
+        )
+    }
 }

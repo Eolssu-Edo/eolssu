@@ -1,13 +1,18 @@
 package com.ssafy.eolssu.feature.history
 
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -35,8 +40,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.*
@@ -92,6 +99,8 @@ fun RecordDetailScreen(
     actions: RecordDetailActions,
 ) {
     val frame = historyFrame(widthClass)
+    // 태블릿 가로·넓은 창은 재생 묶음을 아래 막대 대신 왼쪽 칸에 두고 정간보에 높이를 준다(S15P31E102-964).
+    val sideBySide = widthClass == WindowWidthClass.Expanded && state.record != null
     RecordDeleteConfirmation(state, actions)
     EolssuScaffold(
         containerColor = EolssuTheme.colors.groupedBackground,
@@ -106,10 +115,14 @@ fun RecordDetailScreen(
                 right = { if (state.record != null) RecordDeleteButton(state.delete == RecordDeleteState.Deleting, actions.onAskDelete) },
             )
         },
-        bottomBar = if (state.record != null) {
+        bottomBar = if (state.record != null && !sideBySide) {
             { PlaybackBarContent(state, actions) }
         } else null,
     ) {
+        if (sideBySide) {
+            RecordResultSideBySide(state, actions, Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, bottom = 16.dp))
+            return@EolssuScaffold
+        }
         Box(Modifier.fillMaxSize()) {
             RecordResultContent(state, actions, wrapped = frame.isTablet,
                 modifier = Modifier.fillMaxSize().padding(horizontal = if (frame.isTablet) 16.dp else 20.dp))
@@ -143,7 +156,6 @@ internal fun RecordResultContent(
     modifier: Modifier = Modifier,
 ) {
     val record = state.record
-    val song = state.song
     if (record == null) {
         RecordSongLookupContent(state, actions)
         return
@@ -151,77 +163,145 @@ internal fun RecordResultContent(
     BoxWithConstraints(modifier) {
         val scrollPage = maxHeight < 360.dp
         Column(Modifier.fillMaxSize().then(if (scrollPage) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
-            // 메모는 상자 안에 펼치지 않고 ‘메모’ 버튼(‘지난 연주와 비교’와 같은 줄)을 누르면 창으로 보인다.
-            // 메모가 없는 기록도 버튼을 두어 창에서 연필 버튼으로 새로 적게 한다(S15P31E102-819·825).
-            val showMemo = record.memo.isNotBlank() || state.canEditMemo
-            ScoreSummaryCard(
-                total = record.score,
-                metrics = record.metrics,
-                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
-                title = song?.title ?: record.songTitle,
-                filled = true,
-                compact = true,
-                action = if (state.canCompare || showMemo) {
-                    {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (showMemo) {
-                                TintPillButton(stringResource(Res.string.record_memo_button), actions.onOpenMemo, icon = EolssuIcons.Chat)
-                            }
-                            if (state.canCompare) {
-                                TintPillButton(
-                                    stringResource(Res.string.weak_record_compare), actions.onCompare,
-                                    icon = EolssuIcons.Calendar, trailing = EolssuIcons.Chevron,
-                                )
-                            }
-                        }
-                    }
-                } else null,
+            RecordSummaryBlock(state, actions, record)
+            RecordScoreArea(
+                state, actions,
+                wrapped = wrapped && !scrollPage,
+                scrollPage = scrollPage,
+                modifier = if (scrollPage) Modifier.fillMaxWidth() else Modifier.weight(1f).fillMaxWidth(),
             )
-            state.memo?.let { memo -> RecordMemoDialog(record.id, record.memo, memo, actions) }
-            val evaluation = state.evaluation
-            if (evaluation != null && song != null) {
-                ErrorKindSegments(evaluation, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 6.dp))
-            }
-            if (!state.canPlay) {
-                Text(
-                    stringResource(Res.string.record_play_unavailable),
-                    modifier = Modifier.padding(bottom = 6.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = EolssuTheme.colors.textMuted,
-                )
-            }
-            if (song == null) {
-                Box(if (scrollPage) Modifier.height(240.dp) else Modifier.weight(1f)) { RecordSongLookupContent(state, actions) }
-                return@Column
-            }
-            // 다른 화면과 같은 공통 정간보 형식(가사가 있으면 곁줄까지).
-            val format = rememberReadingScoreFormat(song)
-            val errors = evaluation?.visibleErrors(state.filter).orEmpty()
-            val kinds = evaluation?.visibleErrorKinds(state.filter).orEmpty()
-            val units = evaluation?.visibleUnitErrors(song, state.filter).orEmpty()
-            val current = state.position.takeIf { state.canPlay }
-            val onEventClick: ((Int) -> Unit)? = actions.onPlayAt.takeIf { state.canPlay }
-            // 재생 중에는 늘 따라가고, 사용자가 악보를 넘기면 멈춘 뒤 ‘지금 위치로’로 다시 따라간다.
-            val follow = state.canPlay && state.follow
-            Box(if (scrollPage) Modifier.fillMaxWidth() else Modifier.weight(1f).fillMaxWidth()) {
-                if (wrapped && !scrollPage) {
-                    WrappedJeongganbo(song, format, current, follow, errors, onEventClick,
-                        Modifier.fillMaxSize(), errorKinds = kinds, unitErrors = units, onUserScroll = actions.onDetachFollow)
-                } else {
-                    JeongganboView(
-                        song = song, look = format.look, metrics = format.metrics,
-                        cellHeights = format.cellHeights,
-                        modifier = (if (scrollPage) Modifier else Modifier.fillMaxSize().verticalScroll(rememberScrollState())).padding(top = 4.dp),
-                        errors = errors, errorKinds = kinds, unitErrors = units,
-                        currentIndex = current, follow = follow, onUserScroll = actions.onDetachFollow,
-                        onEventClick = onEventClick?.let { seek -> { event -> seek(event.index) } },
-                    )
-                }
-                if (state.showFollowNow) FollowNowButton(actions.onFollowNow, Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp))
-            }
         }
     }
 }
+
+/**
+ * 태블릿 가로·넓은 창(S15P31E102-964): 왼쪽 [RecordSideColumnWidth] 칸에 점수 상자 · 틀린 부분 탭 · 재생 묶음을 두고,
+ * 오른쪽 칸 전체 높이를 정간보에 준다. 정간보는 각을 여러 줄로 접어 한 줄(각 한 세로 줄)이 세로 스크롤 없이 보인다.
+ * 왼쪽 칸이 창 높이보다 길면 그 칸만 스크롤한다.
+ */
+@Composable
+internal fun RecordResultSideBySide(state: RecordDetailUiState, actions: RecordDetailActions, modifier: Modifier = Modifier) {
+    val record = state.record
+    if (record == null) {
+        RecordSongLookupContent(state, actions)
+        return
+    }
+    Box(modifier) {
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(RecordSideColumnGap)) {
+            BoxWithConstraints(Modifier.width(RecordSideColumnWidth).fillMaxHeight()) {
+                Column(
+                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column { RecordSummaryBlock(state, actions, record) }
+                    Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PlaybackBarContent(state, actions)
+                    }
+                }
+            }
+            RecordScoreArea(state, actions, wrapped = true, scrollPage = false, modifier = Modifier.weight(1f).fillMaxHeight())
+        }
+        if (state.playbackLoading) PlaybackLoadingOverlay()
+    }
+}
+
+/** 점수 상자(메모 · 지난 연주와 비교 버튼) · 메모 창 · 틀린 부분 탭 · 재생 불가 안내. */
+@Composable
+private fun RecordSummaryBlock(state: RecordDetailUiState, actions: RecordDetailActions, record: PracticeRecord) {
+    // 메모는 상자 안에 펼치지 않고 ‘메모’ 버튼(‘지난 연주와 비교’와 같은 줄)을 누르면 창으로 보인다.
+    // 메모가 없는 기록도 버튼을 두어 창에서 연필 버튼으로 새로 적게 한다(S15P31E102-819·825).
+    val song = state.song
+    val showMemo = record.memo.isNotBlank() || state.canEditMemo
+    ScoreSummaryCard(
+        total = record.score,
+        metrics = record.metrics,
+        modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+        title = song?.title ?: record.songTitle,
+        filled = true,
+        compact = true,
+        action = if (state.canCompare || showMemo) {
+            {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (showMemo) {
+                        TintPillButton(stringResource(Res.string.record_memo_button), actions.onOpenMemo, icon = EolssuIcons.Chat)
+                    }
+                    if (state.canCompare) {
+                        TintPillButton(
+                            stringResource(Res.string.weak_record_compare), actions.onCompare,
+                            icon = EolssuIcons.Calendar, trailing = EolssuIcons.Chevron,
+                        )
+                    }
+                }
+            }
+        } else null,
+    )
+    state.memo?.let { memo -> RecordMemoDialog(record.id, record.memo, memo, actions) }
+    val evaluation = state.evaluation
+    if (evaluation != null && song != null) {
+        ErrorKindSegments(evaluation, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 6.dp))
+    }
+    if (!state.canPlay) {
+        Text(
+            stringResource(Res.string.record_play_unavailable),
+            modifier = Modifier.padding(bottom = 6.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = EolssuTheme.colors.textMuted,
+        )
+    }
+}
+
+/** 정간보(곡을 못 찾으면 곡 찾기 안내)와 ‘지금 위치로’ 버튼. [scrollPage]이면 바깥 본문이 스크롤한다. */
+@Composable
+private fun RecordScoreArea(
+    state: RecordDetailUiState,
+    actions: RecordDetailActions,
+    wrapped: Boolean,
+    scrollPage: Boolean,
+    modifier: Modifier,
+) {
+    val song = state.song
+    if (song == null) {
+        Box(if (scrollPage) modifier.height(240.dp) else modifier) { RecordSongLookupContent(state, actions) }
+        return
+    }
+    val evaluation = state.evaluation
+    // 다른 화면과 같은 공통 정간보 형식(가사가 있으면 곁줄까지).
+    val format = rememberReadingScoreFormat(song)
+    val errors = evaluation?.visibleErrors(state.filter).orEmpty()
+    val kinds = evaluation?.visibleErrorKinds(state.filter).orEmpty()
+    val units = evaluation?.visibleUnitErrors(song, state.filter).orEmpty()
+    val current = state.position.takeIf { state.canPlay }
+    val onEventClick: ((Int) -> Unit)? = actions.onPlayAt.takeIf { state.canPlay }
+    // 재생 중에는 늘 따라가고, 사용자가 악보를 넘기면 멈춘 뒤 ‘지금 위치로’로 다시 따라간다.
+    val follow = state.canPlay && state.follow
+    Box(modifier) {
+        if (wrapped) {
+            WrappedJeongganbo(song, format, current, follow, errors, onEventClick,
+                Modifier.fillMaxSize(), errorKinds = kinds, unitErrors = units, onUserScroll = actions.onDetachFollow)
+        } else {
+            JeongganboView(
+                song = song, look = format.look, metrics = format.metrics,
+                cellHeights = format.cellHeights,
+                modifier = (if (scrollPage) Modifier else Modifier.fillMaxSize().verticalScroll(rememberScrollState())).padding(top = 4.dp),
+                errors = errors, errorKinds = kinds, unitErrors = units,
+                currentIndex = current, follow = follow, onUserScroll = actions.onDetachFollow,
+                onEventClick = onEventClick?.let { seek -> { event -> seek(event.index) } },
+            )
+        }
+        if (state.showFollowNow) FollowNowButton(actions.onFollowNow, Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp))
+    }
+}
+
+/** 나란히 배치의 왼쪽 칸 너비. 점수 상자 막대 칸에 ‘메모’ · ‘지난 연주와 비교’ 두 버튼이 한 줄로 들어간다. */
+internal val RecordSideColumnWidth = 340.dp
+private val RecordSideColumnGap = 16.dp
+
+/** 나란히 배치에서 오른쪽 정간보 칸에 각이 2개 이상 들어갈 최소 너비(각 78 + 사이 6, 좌우 2씩). */
+private val RecordSideScoreMinWidth = 172.dp
+
+/** [width] 너비의 기록 상세를 왼쪽 요약 · 오른쪽 정간보로 나란히 놓을지. 좁으면 위아래로 쌓는다. */
+internal fun recordDetailSideBySide(width: Dp): Boolean =
+    width >= RecordSideColumnWidth + RecordSideColumnGap + RecordSideScoreMinWidth
 
 /**
  * 메모 창(S15P31E102-819). 읽을 때는 옅은 바탕 상자에 메모를 보이고, 상자 오른쪽 위 연필 버튼으로 고치기에 들어간다.
@@ -254,13 +334,20 @@ private fun RecordMemoDialog(recordId: String, memo: String, dialog: RecordMemoS
                 style = memoTextStyle(),
                 color = colors.text,
             )
+            // 누르는 영역은 48dp, 눌림 효과는 연필 둘레 40dp 원 안에만 그려 메모 상자 모서리와 겹치지 않게 한다(S15P31E102-968).
+            val editInteraction = remember { MutableInteractionSource() }
             Box(
-                Modifier.align(Alignment.TopEnd).size(44.dp)
-                    .clickable(role = Role.Button, onClick = actions.onEditMemo)
+                Modifier.align(Alignment.TopEnd).size(48.dp)
+                    .clickable(interactionSource = editInteraction, indication = null, role = Role.Button, onClick = actions.onEditMemo)
                     .semantics { contentDescription = editLabel },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.accentText)
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape).indication(editInteraction, ripple()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.accentText)
+                }
             }
         }
         EolssuButton(

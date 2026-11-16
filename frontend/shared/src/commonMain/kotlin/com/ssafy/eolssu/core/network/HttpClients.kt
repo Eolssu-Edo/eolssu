@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.core.network
 
+import com.ssafy.eolssu.core.diagnostics.EvaluationTiming
+import com.ssafy.eolssu.core.diagnostics.PerformanceFlow
 import com.ssafy.eolssu.core.diagnostics.PerfKind
 import com.ssafy.eolssu.core.diagnostics.PerfMethod
 import com.ssafy.eolssu.core.diagnostics.PerfReason
@@ -32,6 +34,8 @@ import io.ktor.http.encodedPath
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.util.AttributeKey
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -97,16 +101,70 @@ fun createHttpClient(engine: HttpClientEngine, server: ServerAddress, cookies: C
         val seen = refresher.generation
         val path = request.url.encodedPath
         val method = request.method
-        val call = observedAttempt(path, method) { execute(request) }
+        val call = liveAttempt(request, server) { observedAttempt(path, method) { execute(request) } }
         if (call.response.status != HttpStatusCode.Unauthorized ||
             request.attributes.contains(authRefreshSkipped) || skipsRefresh(method, path)
         ) return@intercept call
         val refreshed = refresher.refresh(seen) { client.post(REFRESH_PATH).status.isSuccess() }
-        if (refreshed) observedAttempt(path, method, PerfReason.REPLAY) { execute(request) } else call
+        if (refreshed) liveAttempt(request, server, PerfReason.REPLAY) {
+            observedAttempt(path, method, PerfReason.REPLAY) { execute(request) }
+        } else call
     }
     return client
 }
 
+/** Each actual QA HTTP attempt has its own header, including authentication replay. */
+@OptIn(ExperimentalUuidApi::class)
+private suspend fun liveAttempt(
+    request: HttpRequestBuilder,
+    server: ServerAddress,
+    reason: PerfReason? = null,
+    send: suspend () -> HttpClientCall,
+): HttpClientCall {
+    if (!PerformanceLog.liveRequestsEnabled || server.baseUrl != "http://127.0.0.1:18180" ||
+        request.url.host != "127.0.0.1" || request.url.port != 18180 ||
+        !request.url.encodedPath.startsWith("/api/")
+    ) return send()
+
+    val method = PerfMethod.entries.find { it.name == request.method.value } ?: return send()
+    val target = when (request.url.encodedPath) {
+        "/api/auth/sign-in" -> PerfTarget.AUTH_SIGN_IN
+        "/api/auth/sign-up" -> PerfTarget.AUTH_SIGN_UP
+        "/api/practice-sessions" -> PerfTarget.SESSION_CREATE
+        else -> if (recordingEndpoint.matches(request.url.encodedPath)) PerfTarget.RECORDING_UPLOAD
+            else observedTarget(request.url.encodedPath)?.first ?: PerfTarget.API
+    }
+    val visit = currentCoroutineContext()[PerformanceVisit] ?: PerformanceVisit(PerformanceFlow(), target)
+    val requestId = Uuid.random().toString()
+    request.headers.remove("X-QA-Request-Id")
+    request.headers.append("X-QA-Request-Id", requestId)
+    var timingId = EvaluationTiming.parseId(request.headers[EvaluationTiming.HEADER])
+    val started = PerformanceLog.now()
+    var status: Int? = null
+    var outcome = PerfReason.FAILED
+    visit.event(PerfKind.REQUEST_STARTED, target, method = method, reason = reason,
+        requestId = requestId, evaluationTimingId = timingId)
+    try {
+        return send().also { call ->
+            status = call.response.status.value
+            timingId = EvaluationTiming.parseId(call.response.headers[EvaluationTiming.HEADER]) ?: timingId
+            outcome = if (call.response.status.isSuccess()) PerfReason.READY else PerfReason.FAILED
+        }
+    } catch (error: Exception) {
+        outcome = when (error) {
+            is CancellationException -> PerfReason.CANCELLED
+            is HttpRequestTimeoutException, is ConnectTimeoutException, is SocketTimeoutException -> PerfReason.HTTP_TIMEOUT
+            else -> PerfReason.FAILED
+        }
+        throw error
+    } finally {
+        visit.event(PerfKind.REQUEST_FINISHED, target, method = method, reason = reason,
+            requestId = requestId, evaluationTimingId = timingId, status = status, outcome = outcome,
+            durationMs = PerformanceLog.now() - started)
+    }
+}
+
+private val recordingEndpoint = Regex("/api/practice-sessions/[1-9][0-9]{0,18}/recording")
 private val songEndpoint = Regex("/api/songs/([1-9][0-9]{0,18})(/score|/model-audio(?:/performance|/play)?)?")
 private val sessionEndpoint = Regex("/api/practice-sessions/([1-9][0-9]{0,18})(/evaluation|/weak-sections|/comparison|/retry)?")
 

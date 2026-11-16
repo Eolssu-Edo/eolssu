@@ -19,6 +19,10 @@ import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationPanel
+import com.ssafy.eolssu.feature.song.edit.component.SheetImportGuideCard
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import eolssu.shared.generated.resources.sheet_adapt_confirm_title
 import eolssu.shared.generated.resources.sheet_adapt_confirm_message
 import eolssu.shared.generated.resources.sheet_adapt_confirm_overwrite
@@ -128,9 +132,17 @@ fun SheetEditRoute(
         state = state,
         snackbarHostState = snackbarHostState,
         focusRequestKey = focusRequestKey,
+        guideContent = {
+            state.importGuide?.let { guide -> SheetImportGuideCard(guide,
+                onApplyRecommended = viewModel::applyRecommendedAdaptation,
+                onOpenAdaptation = viewModel::openAdaptation,
+                onOpenReview = { viewModel.openFirstRecognitionReview(); focusRequestKey++ },
+                onDismiss = viewModel::dismissImportGuide,
+                modifier = Modifier.padding(bottom = 8.dp)) }
+        },
         adaptationContent = {
             state.adaptation?.let { panel -> SheetAdaptationPanel(panel,
-                onInstrument = viewModel::selectAdaptationInstrument, onTranspose = viewModel::selectAdaptationTranspose,
+                onTranspose = viewModel::selectAdaptationTranspose,
                 onApply = viewModel::requestApplyAdaptation, onRetry = viewModel::openAdaptation) }
         },
         actions = SheetEditActions(
