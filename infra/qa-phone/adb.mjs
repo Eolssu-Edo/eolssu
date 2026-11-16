@@ -96,6 +96,13 @@ export class AdbPhone {
     const code=/versionCode=(\d+)/.exec(text),name=/versionName=([^\r\n]+)/.exec(text);
     return code?{package:packageName,versionCode:Number(code[1]),versionName:name?.[1]?.trim()||''}:null;
   }
+  async launchQa() {
+    const installed=await this.installed();
+    if(!installed)throw new Error('QA 앱이 설치되어 있지 않습니다.');
+    const output=await this.run(['shell','am','start','-n','com.ssafy.eolssu.qa/com.ssafy.eolssu.MainActivity'],false,12000);
+    if(/Error:|Exception|does not exist/i.test(output))throw new Error('QA 앱 실행을 확인하지 못했습니다.');
+    return {started:true};
+  }
   async install(file,build) {
     if(build.package !== 'com.ssafy.eolssu.qa') throw new Error('unsupported package');
     try {

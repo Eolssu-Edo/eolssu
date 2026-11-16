@@ -38,9 +38,9 @@ test('the same device can reconnect at the same endpoint with a new verified tra
 
 test('a mismatched pinned identity cannot expose a screen or acquire control after restart',async t=>{
   const f=fixture();f.replace();
-  const relay=await startRelay({phone:f.phone,token:'isolated-identity-fixture-token',port:0});t.after(()=>relay.close());
+  const relay=await startRelay({phone:f.phone,port:0});t.after(()=>relay.close());
   const headers={Origin:relay.url,'Content-Type':'application/json'};
-  const login=await fetch(relay.url+'/api/login',{method:'POST',headers,body:JSON.stringify({name:'fixture',token:'isolated-identity-fixture-token'})});
+  const login=await fetch(relay.url+'/api/login',{method:'POST',headers,body:JSON.stringify({name:'fixture'})});
   headers.Cookie=login.headers.get('set-cookie').split(';')[0];
   const state=await(await fetch(relay.url+'/api/state',{headers})).json();assert.equal(state.online,false);
   assert.equal((await fetch(relay.url+'/api/request',{method:'POST',headers,body:'{}'})).status,409);
@@ -49,11 +49,11 @@ test('a mismatched pinned identity cannot expose a screen or acquire control aft
 });
 
 test('identity loss revokes a live controller before any command reaches the replacement',async t=>{
-  const f=fixture(),token='isolated-live-identity-fixture';
-  const relay=await startRelay({phone:f.phone,token,port:0});t.after(()=>relay.close());
+  const f=fixture();
+  const relay=await startRelay({phone:f.phone,port:0});t.after(()=>relay.close());
   const headers={Origin:relay.url,'Content-Type':'application/json'};
   const request=(path,body)=>fetch(relay.url+'/api/'+path,{headers,method:body===undefined?'GET':'POST',...(body===undefined?{}:{body:JSON.stringify(body)})});
-  const login=await request('login',{name:'fixture',token});headers.Cookie=login.headers.get('set-cookie').split(';')[0];
+  const login=await request('login',{name:'fixture'});headers.Cookie=login.headers.get('set-cookie').split(';')[0];
   await request('request',{});const before=await(await request('state')).json();assert.equal(before.owner,before.you);
   f.replace();const count=f.calls.length;
   const input=await request('input',{epoch:before.epoch,seq:1,sentAt:before.now,width:1440,height:2304,action:{kind:'key',key:'HOME'}});

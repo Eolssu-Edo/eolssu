@@ -9,6 +9,15 @@ if(-not (Test-Path -LiteralPath $Config)){throw "QA 설정 파일이 없습니�
 $qaRuntime=Split-Path -Parent $Config
 . (Join-Path $PSScriptRoot 'relay-settings.ps1')
 $qaConfig=Get-Content -LiteralPath $Config -Raw | ConvertFrom-Json
+if($qaConfig.PSObject.Properties['releaseDirectory']){
+  $qaRelease=(Resolve-Path -LiteralPath $qaConfig.releaseDirectory).Path
+  $qaRoot=[IO.Path]::GetFullPath((Split-Path -Parent $qaRuntime)).TrimEnd('\')+'\'
+  if(-not $qaRelease.StartsWith($qaRoot,[StringComparison]::OrdinalIgnoreCase)){throw 'QA 릴리스는 QA 도구 폴더 안에 있어야 합니다.'}
+  if($qaRelease -cne (Resolve-Path -LiteralPath $PSScriptRoot).Path){
+    & (Join-Path $qaRelease 'supervise.ps1') -Config $Config
+    return
+  }
+}
 $qaParameters=Get-QaRelaySettings -Value $qaConfig -Runtime $qaRuntime
 $qaStop=Join-Path $qaRuntime 'supervisor.disabled'
 if(Test-Path -LiteralPath $qaStop){throw "QA가 중지 설정 상태입니다. supervisor.disabled 파일을 확인하세요: $qaStop"}
@@ -19,6 +28,7 @@ try {
   Write-Host 'QA 감독 실행 시작 · 종료: Ctrl+C'
   $qaLog=Join-Path $qaRuntime 'supervisor.log'
   while(-not (Test-Path -LiteralPath $qaStop)){
+    $qaWirelessRestart=$false
     try {
       # Reconcile children left by an abrupt supervisor termination. Never kill arbitrary PIDs.
       $qaRecord=Join-Path $qaRuntime 'processes.json'
@@ -42,11 +52,13 @@ try {
         }
       }
       Add-Content $qaLog "$([DateTime]::UtcNow.ToString('o')) starting relay"
-      & (Join-Path $PSScriptRoot 'start-public.ps1') @qaParameters -AutoRecover -SupervisorStopFile $qaStop
+      & (Join-Path $PSScriptRoot 'start-public.ps1') @qaParameters -AutoRecover -SupervisorStopFile $qaStop -RestartForWirelessAddress ([ref]$qaWirelessRestart)
     } catch {
       # Avoid raw exceptions/command lines: they may contain credentials.
       Add-Content $qaLog "$([DateTime]::UtcNow.ToString('o')) relay stopped or unavailable; retry in 10 seconds"
+      $qaWirelessRestart=$false
     }
+    if($qaWirelessRestart){continue}
     for($qaWait=0;$qaWait -lt 10 -and -not (Test-Path -LiteralPath $qaStop);$qaWait++){Start-Sleep -Seconds 1}
   }
 } finally {$qaLock.Dispose()}
