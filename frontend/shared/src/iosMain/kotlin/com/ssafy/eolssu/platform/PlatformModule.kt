@@ -8,6 +8,7 @@ import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
 import com.ssafy.eolssu.core.audio.JangdanVolumeLimit
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.ModelAudioFileCache
+import com.ssafy.eolssu.core.audio.ReferenceAudioFileCache
 import com.ssafy.eolssu.core.audio.RecordingFiles
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.SoundPlayer
@@ -68,6 +69,24 @@ internal fun iosPlatformModule(): Module = module {
             }
         }
         ModelAudioFileCache(Path(caches, "model-audio-v1"), engine, Dispatchers.IO)
+    }
+    // 기초 배우기·운지법 예시음(S15P31E102-1005). 한 번 받은 예시음은 다시 받지 않는다.
+    single {
+        val caches = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, true).first() as String
+        val engine = Darwin.create {
+            configureSession {
+                HTTPShouldSetCookies = false
+                HTTPCookieStorage = null
+                URLCache = null
+            }
+        }
+        ReferenceAudioFileCache(
+            ModelAudioFileCache(
+                Path(caches, ReferenceAudioFileCache.DIRECTORY), engine, Dispatchers.IO,
+                maxFileBytes = ReferenceAudioFileCache.MAX_FILE_BYTES,
+                maxFiles = ReferenceAudioFileCache.MAX_FILES,
+            ),
+        )
     }
     single<SheetAudioDeviceStore> {
         val directory = Path(applicationSupportPath(), "sheet-audio-v1")
