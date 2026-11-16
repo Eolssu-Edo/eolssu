@@ -49,6 +49,7 @@ import eolssu.shared.generated.resources.practice_dock_locked
 import eolssu.shared.generated.resources.practice_dock_song_info
 import eolssu.shared.generated.resources.practice_fingering_rest
 import eolssu.shared.generated.resources.practice_fingering_title
+import eolssu.shared.generated.resources.practice_fingering_view
 import eolssu.shared.generated.resources.practice_jangdan_sound_on
 import eolssu.shared.generated.resources.practice_menu_jangdan
 import eolssu.shared.generated.resources.practice_live_marks
@@ -150,6 +151,16 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
         ) {
             Text(hangulLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
             EolssuSwitch(settings.showHangul, actions.onToggleHangul, hangulLabel)
+        }
+        // 태블릿 가로는 연습 설정 시트를 여는 버튼이 없어 ‘운지법과 함께 보기’도 이 패널에서 바로 켜고 끈다(S15P31E102-1011).
+        val fingeringViewLabel = stringResource(Res.string.practice_fingering_view)
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                .drawBehind { drawLine(colors.line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(fingeringViewLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+            EolssuSwitch(state.fingeringView, actions.onToggleFingeringView, fingeringViewLabel)
         }
         // ‘실시간 채점’은 AI 연주 평가에서만 둔다(S15P31E102-980).
         if (!state.solo) {

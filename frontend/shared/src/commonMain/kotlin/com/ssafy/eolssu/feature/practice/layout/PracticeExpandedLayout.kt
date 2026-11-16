@@ -18,6 +18,7 @@ import com.ssafy.eolssu.feature.practice.LivePitchCell
 import com.ssafy.eolssu.feature.practice.PracticeScreenActions
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import com.ssafy.eolssu.feature.practice.component.PracticeFingeringPage
 import com.ssafy.eolssu.feature.practice.component.PracticeScoreArea
 import com.ssafy.eolssu.feature.practice.component.PracticeScoreStyle
 import com.ssafy.eolssu.feature.practice.component.PracticeSideDock
@@ -51,10 +52,15 @@ internal fun PracticeExpandedLayout(
             Modifier.fillMaxSize().padding(start = SideGutter, end = SideGutter, top = 4.dp, bottom = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            PracticeScoreArea(
-                state, PracticeScoreStyle.TabletLandscape, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
-                Modifier.weight(1f), livePitch = livePitch,
-            )
+            // '운지법과 함께 보기'는 휴대폰과 같은 운지 페이지를 악보 자리에 둔다(S15P31E102-1011).
+            if (state.fingeringView) {
+                PracticeFingeringPage(state, actions.onSelectUnit, Modifier.weight(1f).fillMaxHeight(), livePitch = livePitch)
+            } else {
+                PracticeScoreArea(
+                    state, PracticeScoreStyle.TabletLandscape, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
+                    Modifier.weight(1f), livePitch = livePitch,
+                )
+            }
             PracticeSideDock(state, actions.panel, actions.bottom, Modifier.width(DockWidth).fillMaxHeight())
         }
     }
