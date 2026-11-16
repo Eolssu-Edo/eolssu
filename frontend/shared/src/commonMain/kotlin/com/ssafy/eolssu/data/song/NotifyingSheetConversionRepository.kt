@@ -29,6 +29,10 @@ class NotifyingSheetConversionRepository(
         val finished: Set<String> = emptySet(),
         val deleted: Set<String> = emptySet(),
         val completions: List<SheetConversionCompletion> = emptyList(),
+        /** 대기 화면이 이미 보여 준 완료의 순번. 띄우던 배너도 닫는다. */
+        val acknowledged: Set<Long> = emptySet(),
+        /** 대기 화면이 직접 묻는 중인 악보. */
+        val showing: Set<String> = emptySet(),
         val sequence: Long = 0,
     )
     private val state = MutableStateFlow(State(member.session.value))
@@ -87,6 +91,7 @@ class NotifyingSheetConversionRepository(
                         while (state.value.session == session) {
                             val current = state.value.tracked[sheetId] ?: break
                             delay((current.pollAfterMs ?: 3_000).coerceIn(500, 30_000))
+                            if (sheetId in state.value.showing) continue
                             if (status(sheetId) == SheetConversionLookup.Unavailable) {
                                 if (++misses >= 5) { forget(session, sheetId); break }
                             } else misses = 0
@@ -101,11 +106,23 @@ class NotifyingSheetConversionRepository(
         state.update { it.copy(completions = it.completions - completion) }
     }
 
+    override fun showingConversion(sheetId: String, showing: Boolean) {
+        state.update { it.copy(showing = if (showing) it.showing + sheetId else it.showing - sheetId) }
+    }
+
+    override fun acknowledgeCompletion(sheetId: String) {
+        state.update { current ->
+            val seen = current.completions.filter { it.sheetId == sheetId }
+            if (seen.isEmpty()) current
+            else current.copy(completions = current.completions - seen.toSet(), acknowledged = current.acknowledged + seen.map { it.sequence })
+        }
+    }
+
     fun isCurrent(completion: SheetConversionCompletion): Boolean = member.session.value == completion.session &&
-        completion.sheetId !in state.value.deleted
+        completion.sheetId !in state.value.deleted && completion.sequence !in state.value.acknowledged
 
     suspend fun awaitInvalidation(completion: SheetConversionCompletion) {
-        state.first { it.session != completion.session || completion.sheetId in it.deleted }
+        state.first { it.session != completion.session || completion.sheetId in it.deleted || completion.sequence in it.acknowledged }
     }
 
     /** The confirmed DELETE path invalidates a notice even after polling has finished. */
@@ -129,7 +146,7 @@ class NotifyingSheetConversionRepository(
             if (result.status.inProgress) return@update current.copy(
                 tracked = current.tracked + (result.sheetId to result), finished = current.finished - result.sheetId)
             if (result.sheetId in current.finished) return@update current
-            val completed = result.status == SheetConversionStatus.Done && result.sheetId in current.tracked
+            val completed = result.status == SheetConversionStatus.Done && result.sheetId in current.tracked && result.sheetId !in current.showing
             current.copy(
                 tracked = current.tracked - result.sheetId,
                 finished = current.finished + result.sheetId,
