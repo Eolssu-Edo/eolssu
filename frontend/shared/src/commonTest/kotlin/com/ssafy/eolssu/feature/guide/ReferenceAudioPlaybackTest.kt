@@ -4,6 +4,7 @@ import com.ssafy.eolssu.core.audio.AudioPlaybackState
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.AudioSource
+import com.ssafy.eolssu.core.audio.LocalAudioFile
 import com.ssafy.eolssu.data.song.ReferenceAudioClip
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.test.Test
@@ -44,6 +45,18 @@ class ReferenceAudioPlaybackTest {
             assertEquals(AudioSource(clip.assetId, clip.soundUrl), player.loaded)
             assertEquals(listOf("load:${clip.assetId}:0"), player.calls)
         }
+    }
+
+    @Test fun aDownloadedExamplePlaysFromTheDeviceFileWithoutTheApi() {
+        val file = LocalAudioFile("/cache/reference-audio-v1/${clip.assetId}.m4a")
+        val player = RecordingPlayer(AudioPlaybackState())
+        toggleReferenceAudio(player, clip, file)
+        assertEquals(AudioSource(clip.assetId, "", file), player.loaded)
+        assertEquals(listOf("load:${clip.assetId}:0"), player.calls)
+        // 같은 예시음을 다시 누르면 기기 파일이 있어도 멈춘다.
+        player.state.value = AudioPlaybackState(clip.assetId, AudioPlaybackStatus.Playing, 300, 5_000)
+        toggleReferenceAudio(player, clip, file)
+        assertEquals(AudioPlaybackState(), player.state.value)
     }
 
     private class RecordingPlayer(initial: AudioPlaybackState) : AudioPlayer {
