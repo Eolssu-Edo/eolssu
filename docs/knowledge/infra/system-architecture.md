@@ -1,6 +1,6 @@
 # 얼쑤 시스템 아키텍처
 
-- 작업: [S15P31E102-941](https://ssafy.atlassian.net/browse/S15P31E102-941). 기준 develop `25f7d263`, 정리일 2026-11-15.
+- 작업: [S15P31E102-941](https://ssafy.atlassian.net/browse/S15P31E102-941). 기준 develop `25f7d263`, 정리일 2026-11-15. 장애 대비 행과 미확인 항목은 [S15P31E102-1045](https://ssafy.atlassian.net/browse/S15P31E102-1045)에서 develop `0c06cc56` 기준으로 고쳤다.
 - 목적: 발표와 인수인계에서 실제 운영 구성을 한 장으로 보여 준다. 구성 요소마다 저장소의 정의 위치를 연결했다.
 - 저장소 파일과 운영 문서만 보고 정리했다. 서버의 현재 상태와 같은지는 이번에 접속해 확인하지 않았다.
 - 발표 슬라이드는 [S15P31E102-865](https://ssafy.atlassian.net/browse/S15P31E102-865), 수치 근거는 [운영·품질 실측 근거 표](ops-quality-evidence.md)를 본다.
@@ -130,7 +130,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | 암호화 백업·격리 복원 | edo1이 DB(매시)와 설정을 암호화해 SSH로 보내고, edo2가 검증·보관한 뒤 매주 일요일 실제로 복원해 본다 | edo1 → edo2 | [infra/backup/README.md](../../../infra/backup/README.md) 1–31 |
 | MySQL 복제 | edo1의 loopback 프록시를 SSH 터널로 이어 edo2 복제본(GTID, read-only)이 받는다. 상태는 20초마다 검사한다 | edo1 → edo2 | [proxy.compose.yml](../../../infra/standby/proxy.compose.yml), [replica.compose.yml](../../../infra/standby/replica.compose.yml), [eolssu-replication-tunnel.service](../../../infra/standby/eolssu-replication-tunnel.service), [infra/standby/README.md](../../../infra/standby/README.md) 34–69 |
-| 대기 앱 스택 | 운영과 같은 이미지로 웹·백엔드·AI·OMR·playback을 띄워 둔 격리 스택. 전환 런북과 운영 도메인 TLS 절차는 930에서 작성했고, SSAFY DNS 변경 경로 문의와 서버 리허설은 아직이다 | edo2 | [infra/standby/compose.yml](../../../infra/standby/compose.yml), [infra/standby/README.md](../../../infra/standby/README.md) 1–21, [장애 전환 런북](../../../infra/standby/failover-runbook.md), [릴리스 절차](../../../infra/release/README.md) 18 |
+| 대기 앱 스택 | 운영과 같은 이미지로 웹·백엔드·AI·OMR·playback을 띄워 둔 격리 스택. 전환 런북과 운영 도메인 TLS 절차는 930에서 작성했다. 2026-11-15 복제본 사본으로 서버 리허설을 했고(948), 승격 파일과 인증서는 edo2에 미리 뒀다. 운영 도메인 가상 호스트는 꺼 두었고 SSAFY DNS 변경 경로는 답을 기다린다 | edo2 | [infra/standby/compose.yml](../../../infra/standby/compose.yml), [infra/standby/README.md](../../../infra/standby/README.md) 1–21, [장애 전환 런북](../../../infra/standby/failover-runbook.md) 9–20, [948 계획](../../plans/S15P31E102-948.md) 73–81, [릴리스 절차](../../../infra/release/README.md) 18 |
 | 점검 중계 | Mattermost `/edo1`·`/edo2`·`/applog` 명령을 받아 전용 SSH로 상태를 모아 게시한다 | edo2 | [infra/edo-check/README.md](../../../infra/edo-check/README.md) 1–52 |
 | 능동 알림 | 외부 HTTPS·복제·백업·디스크 상태가 2회 연속 바뀔 때만 Mattermost로 알린다 | edo2 | [infra/edo-check/README.md](../../../infra/edo-check/README.md) 172–252, [919 계획](../../plans/S15P31E102-919.md) |
 | edo1 관측 timer | 저장공간, R2 쓰기, 독립 HTTPS를 주기적으로 기록해 점검이 읽는다. edo2 중계가 멈추면 edo1이 따로 Mattermost로 알린다(944) | edo1 | [infra/edo-check/README.md](../../../infra/edo-check/README.md) 111–171, [944 계획](../../plans/S15P31E102-944.md) |
@@ -156,7 +156,5 @@ flowchart LR
 - 운영 SMTP 처리자: 저장소 안내는 `smtp.naver.com`이지만 운영 값은 저장소로 확인할 수 없다(S15P31E102-302).
 - 복제 프록시는 운영에서 `docker run`으로 만든 독립 컨테이너라 `proxy.compose.yml`과 세 가지가 다르다([infra/standby/README.md](../../../infra/standby/README.md) 54–65).
 - 블로그 잡이 도는 `edo1-blog` 노드와 편집기 소스는 develop이 아니라 `blog` 브랜치에 있다. develop 문서에는 언급만 있다([755 계획](../../plans/S15P31E102-755.md) 15).
-- 블로그 주소 표기가 `team-ido.github.io`와 `team-edo.github.io` 두 가지로 섞여 있다(루트 README 66행, [infra/tool-updates/README.md](../../../infra/tool-updates/README.md) 15).
-- OMR 운영 반영 상태가 [infra/runtime/README.md](../../../infra/runtime/README.md) 안에서 다르게 적혀 있다. 87행은 11-14 운영 반영, 99행은 11-04 기준 미반영이다.
-- edo2 대기 앱을 공개 도메인으로 전환할 SSAFY DNS 변경 경로와 실제 서버 리허설. 런북·TLS 절차는 [930](../../plans/S15P31E102-930.md)에서 작성했다.
+- edo2 대기 앱을 공개 도메인으로 전환할 SSAFY DNS 변경 경로와 실제 DNS 변경·반영 시간. 서버 리허설은 [948](../../plans/S15P31E102-948.md)에서 사본 DB로 했고, DNS 변경·원복 연습은 SSAFY 답이 온 뒤 한다(같은 문서 15–16, 112–117).
 - edo2 하드웨어 사양, AI와 OMR이 함께 돌 때의 CPU 경합 실측.

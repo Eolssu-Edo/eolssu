@@ -34,6 +34,14 @@ data class FingeringUiState(
     val hasSelectedInstrument: Boolean get() = instrumentListState == ReferenceLoadState.Ready &&
         instrumentOptions.any { it.instrument == instrument }
 
+    /**
+     * 서버가 운지법을 볼 수 있는 악기를 하나도 주지 않았다. 이때만 운지 카드 대신 안내를 보여준다.
+     * 운지 카드는 앱 안의 운지 데이터로 그리므로, 목록을 불러오는 중이거나 실패해도 처음 악기의 카드는 바로 보여준다.
+     */
+    val hasNoInstruments: Boolean get() = instrumentListState == ReferenceLoadState.Ready && instrumentOptions.isEmpty()
+
+    val isInstrumentListLoading: Boolean get() = instrumentListState == ReferenceLoadState.Loading
+
     val shownBlow: Blow get() = instrument.resolveBlow(blow)
 
     val notes: List<FingeringNote> get() = instrument.notesByPitch(blow)
