@@ -205,7 +205,31 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         model.saveDraftAndClose { closed = true }; model.continueEditing(); runCurrent()
         assertEquals(1, writes, "저장 중 다시 눌러도 한 번만 보낸다")
         assertTrue(model.uiState.value.closeWarning, "저장 중에는 창을 닫지 않는다")
+        model.discardChangesAndClose { closed = true }
+        assertFalse(closed, "저장 중에는 버리고 닫기도 막는다")
         reply.complete(SheetWrite.Saved("1", 1)); runCurrent()
+        assertTrue(closed)
+        assertFalse(model.uiState.value.closeWarning)
+        assertFalse(model.uiState.value.closeSaving)
+    }
+
+    @Test fun conflictDuringSaveDraftAndCloseReleasesTheDialogWithoutClosing() = runTest {
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document()
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite = SheetWrite.Conflict
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent(); model.updateDetails("충돌 초안", 60)
+        var closed = false
+        model.closeEditor { closed = true }; model.saveDraftAndClose { closed = true }; runCurrent()
+        assertFalse(closed, "충돌이면 화면을 떠나지 않는다")
+        assertTrue(model.uiState.value.saveConflict)
+        assertTrue(model.uiState.value.closeWarning)
+        assertFalse(model.uiState.value.closeSaving, "충돌 뒤에는 다른 버튼을 다시 누를 수 있다")
+        model.saveDraftAndClose { closed = true }; runCurrent()
+        assertFalse(closed)
+        assertFalse(model.uiState.value.closeSaving, "보낼 수 없는 저장은 저장 중으로 남지 않는다")
+        model.discardChangesAndClose { closed = true }
         assertTrue(closed)
     }
 

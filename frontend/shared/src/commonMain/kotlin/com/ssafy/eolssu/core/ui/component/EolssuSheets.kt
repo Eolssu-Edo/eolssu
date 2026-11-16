@@ -30,6 +30,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -242,22 +244,23 @@ fun EolssuDialog(
         // 창을 화면 크기로 고정하고 시스템 바·키보드 여백은 여기서만 넣는다. 창이 내용에 맞춰 줄면 키보드와 겹치는 높이가
         // 바뀔 때마다 여백과 창 크기가 서로 따라 움직여 입력 중 창이 흔들린다(S15P31E102-1000).
         // 창이 화면을 덮으므로 바깥 누름은 플랫폼 대신 여기서 받아 닫는다.
+        val dismiss by rememberUpdatedState(onDismissRequest)
         Box(
             Modifier.fillMaxSize()
-                .pointerInput(onDismissRequest) { detectTapGestures { onDismissRequest() } }
+                .pointerInput(Unit) { detectTapGestures { dismiss() } }
                 .windowInsetsPadding(WindowInsets.safeDrawing),
             contentAlignment = Alignment.Center,
         ) {
         // 휴대폰 가로·큰 글꼴·키보드로 높이가 모자라면 위쪽 내용만 스크롤하고 버튼은 아래에 고정한다.
         Column(
             modifier
+                // 카드와 둘레 여백을 누르면 닫히지 않게 여기서 받는다. 전에도 이 여백은 창 안이었다.
+                .pointerInput(Unit) { detectTapGestures { } }
                 .padding(horizontal = 28.dp, vertical = 16.dp)
                 .widthIn(max = maxWidth)
                 .fillMaxWidth()
                 .shadow(12.dp, RoundedCornerShape(20.dp))
                 .background(colors.surface, RoundedCornerShape(20.dp))
-                // 창 안을 누르면 바깥 누름으로 닫히지 않도록 여기서 받는다.
-                .pointerInput(Unit) { detectTapGestures { } }
                 .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 20.dp),
         ) {
             Column(
