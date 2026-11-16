@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.auth
 
+import androidx.compose.ui.draw.alpha
+import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import eolssu.shared.generated.resources.auth_withdrawn_title
 import eolssu.shared.generated.resources.auth_withdrawn_message
 import androidx.compose.foundation.background
@@ -7,7 +9,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -25,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -46,7 +50,7 @@ import com.ssafy.eolssu.core.ui.component.mountainRidges
 import com.ssafy.eolssu.core.ui.component.ProviderGlyph
 import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthBody
-import com.ssafy.eolssu.feature.auth.component.AuthCheckBox
+import com.ssafy.eolssu.feature.auth.component.AuthCheckRow
 import com.ssafy.eolssu.feature.auth.component.AuthFrame
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.authBodyTopWithoutBar
@@ -154,6 +158,8 @@ fun LoginScreen(
             message = state.lockedUntil?.let { stringResource(Res.string.auth_locked_message_until, clockLabel(it)) }
                 ?: stringResource(Res.string.auth_locked_message),
             icon = EolssuIcons.Lock,
+            // 다른 안내 창처럼 바깥 누르기·뒤로 가기로 닫는다(S15P31E102-969).
+            onDismissRequest = onDismissNotice,
         ) {
             EolssuButton(stringResource(Res.string.auth_confirm), onClick = onDismissNotice)
             EolssuButton(stringResource(Res.string.auth_find_password), onClick = onFindPassword, style = EolssuButtonStyle.Text)
@@ -162,6 +168,8 @@ fun LoginScreen(
             title = stringResource(Res.string.auth_withdrawal_cancelled_title),
             message = stringResource(Res.string.auth_withdrawal_cancelled_message),
             icon = EolssuIcons.Check,
+            // 바깥 누르기·뒤로 가기로 닫아도 '확인'과 같이 로그인을 이어 간다(S15P31E102-969).
+            onDismissRequest = onWithdrawalCancelledConfirmed,
         ) {
             EolssuButton(stringResource(Res.string.auth_confirm), onClick = onWithdrawalCancelledConfirmed)
         }
@@ -209,7 +217,8 @@ private fun SocialButton(provider: SocialProvider, enabled: Boolean, onClick: ()
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.size(SocialSize).semantics { contentDescription = description },
+        // 로그인 중에는 같은 화면의 로그인 버튼처럼 0.45로 흐려 누를 수 없음을 보인다(S15P31E102-969).
+        modifier = Modifier.size(SocialSize).alpha(if (enabled) 1f else 0.45f).semantics { contentDescription = description },
         shape = CircleShape,
         color = look.background,
         contentColor = look.content,
@@ -257,10 +266,14 @@ private val KakaoInk = Color(0xD9000000)
 private val NaverGreen = Color(0xFF03C75A)
 private val GoogleInk = Color(0xFF1F1F1F)
 
-/** 아이디 기억하기 · 자동 로그인 체크(한 줄). 체크 칸은 작게 두고 누르는 영역은 44dp 높이를 지킨다. */
+/**
+ * 아이디 기억하기 · 자동 로그인 체크. 상자는 약관 동의와 같은 22dp, 누르는 영역은 글자까지 포함한 48dp 높이다(S15P31E102-969).
+ * 큰 글꼴·좁은 화면에서 두 개가 한 줄에 안 들어가면 글자를 쪼개지 않고 두 번째를 다음 줄로 내린다(S15P31E102-972).
+ */
 @Composable
 private fun LoginOptions(state: LoginUiState, onRememberEmailChange: (Boolean) -> Unit, onKeepSignedInChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+    // 두 줄 사이 16dp 간격은 각 줄의 좌우 안쪽 여백(4dp+4dp)과 8dp로 나눈다. 첫 상자는 입력칸 왼쪽 끝에 맞춘다.
+    FlowRow(Modifier.fillMaxWidth().offset(x = (-4).dp), horizontalArrangement = Arrangement.spacedBy(8.dp), itemVerticalAlignment = Alignment.CenterVertically) {
         LoginOption(stringResource(Res.string.auth_remember_email), state.rememberEmail, onRememberEmailChange)
         LoginOption(stringResource(Res.string.auth_keep_signed_in), state.keepSignedIn, onKeepSignedInChange)
     }
@@ -268,14 +281,14 @@ private fun LoginOptions(state: LoginUiState, onRememberEmailChange: (Boolean) -
 
 @Composable
 private fun LoginOption(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(
-        Modifier.heightIn(min = 44.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    AuthCheckRow(
+        checked,
+        label,
+        onChange,
+        Modifier.heightIn(min = 48.dp),
+        contentPadding = PaddingValues(horizontal = 4.dp),
     ) {
-        AuthCheckBox(checked, label, onChange, Modifier.size(20.dp))
-        // 글자는 누르지 않는다. 화면 읽기는 체크 상자에서 이름을 읽는다(S15P31E102-798).
-        Text(label, Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), color = EolssuTheme.colors.textSub)
+        Text(label, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), color = EolssuTheme.colors.textSub)
     }
 }
 
@@ -304,11 +317,5 @@ private fun Links(onFindPassword: () -> Unit, onSignUp: () -> Unit, modifier: Mo
 
 @Composable
 private fun LinkButton(text: String, onClick: () -> Unit, content: @Composable (String) -> Unit) {
-    Box(
-        Modifier
-            .heightIn(min = 44.dp)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) { content(text) }
+    EolssuTextLink(onClick) { content(text) }
 }

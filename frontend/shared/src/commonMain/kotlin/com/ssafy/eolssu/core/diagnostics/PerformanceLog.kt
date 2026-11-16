@@ -13,21 +13,21 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.TimeSource
 
-enum class PerfKind { ACTION, VISIT_STARTED, DATA_LOAD, HTTP_ATTEMPT, POLL_SUMMARY, MILESTONE, FLOW_END }
+enum class PerfKind { REQUEST_STARTED, REQUEST_FINISHED, ACTION, VISIT_STARTED, DATA_LOAD, HTTP_ATTEMPT, POLL_SUMMARY, MILESTONE, FLOW_END }
 enum class PerfTarget {
     SONG_DETAIL, PRACTICE, RESULT, WEAK_ERRORS, WEAK_SELECT, WEAK_LOOP, SECTION_RESULT, ANALYSIS,
     RECORDS, RECORD_DETAIL, SONG_BUNDLE, SCORE, EVALUATION, RECORD_PAGE, MODEL_AUDIO_METADATA,
     MODEL_AUDIO_TIMELINE, MODEL_AUDIO, PRACTICE_STATUS, WEAK_SECTIONS, COMPARISON, AUTH_REFRESH,
-    INSTRUMENTS, SONG_LIST,
+    INSTRUMENTS, SONG_LIST, API, AUTH_SIGN_IN, AUTH_SIGN_UP, SESSION_CREATE, RECORDING_UPLOAD,
 }
-enum class PerfMethod { GET, POST }
+enum class PerfMethod { GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS }
 enum class PerfSource { NETWORK, NAVIGATION, RETAINED }
 enum class PerfReason {
     INITIAL, RETRY, VERSION_MISMATCH, REFRESH, REPLAY, POLL,
     CANCELLED, FAILED, MISSING, READY, LEFT, UNAVAILABLE, HTTP_TIMEOUT, ALREADY_PENDING,
 }
 enum class PerfPhase {
-    SCORE_READY, SCORE_DRAWN, PRACTICE_READY, PRACTICE_DRAWN, RECORD_DRAWN, RECORD_EMPTY,
+    SYNTHETIC_INPUT, SONG_DETAIL_DRAWN, SCORE_READY, SCORE_DRAWN, PRACTICE_READY, PRACTICE_DRAWN, RECORD_DRAWN, RECORD_EMPTY,
     MODEL_AUDIO_PLAY, TIMELINE_READY, PLAYER_LOAD, PLAYER_STARTED,
     SESSION_CREATE, RECORDING_UPLOAD, ANALYSIS_RETRY, FIRST_STATUS_REQUEST, ANALYSIS_READY,
 }
@@ -53,6 +53,7 @@ data class PerformanceEvent(
     val outcome: PerfReason? = null,
     val evaluationTimingId: String? = null,
     val evaluationSubmission: Int? = null,
+    val requestId: String? = null,
 ) {
     fun encode(): String = buildJsonObject {
         put("kind", kind.name.lowercase())
@@ -74,12 +75,17 @@ data class PerformanceEvent(
         outcome?.let { put("outcome", it.name.lowercase()) }
         evaluationTimingId?.let { put("evaluation_timing_id", it) }
         evaluationSubmission?.let { put("evaluation_submission", it) }
+        requestId?.let { put("request_id", it) }
     }.toString()
 }
 
 object PerformanceLog {
     @Volatile
     var sink: ((PerformanceEvent) -> Unit)? = null
+
+    /** Enabled only by the loopback Android QA entry point. */
+    @Volatile
+    var liveRequestsEnabled: Boolean = false
     private val started = TimeSource.Monotonic.markNow()
     private val ids = MutableStateFlow(0)
     internal fun id(): Int = ids.updateAndGet { it + 1 }
@@ -158,8 +164,9 @@ class PerformanceVisit(
         outcome: PerfReason? = null,
         evaluationTimingId: String? = null,
         submission: Int? = evaluationSubmission,
+        requestId: String? = null,
     ) = PerformanceLog.emit(PerformanceEvent(kind, PerformanceLog.now(), flow.id, id, target, load, resource,
-        revision, source, reason, phase, status, durationMs, count, failed, method, outcome, evaluationTimingId, submission))
+        revision, source, reason, phase, status, durationMs, count, failed, method, outcome, evaluationTimingId, submission, requestId))
 
     fun reuse(target: PerfTarget, key: String, source: PerfSource, revision: Int? = null) =
         event(PerfKind.DATA_LOAD, target, load = PerformanceLog.id(), resource = flow.alias(target, key),

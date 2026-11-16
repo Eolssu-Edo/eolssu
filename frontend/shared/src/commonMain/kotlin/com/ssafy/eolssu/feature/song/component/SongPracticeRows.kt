@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -192,23 +193,22 @@ internal fun MySheetRow(
 ) {
     val status = conversion?.status
     val usable = status == null || status == SheetConversionStatus.Done
-    PracticeRowFrame(modifier, bordered = bordered) {
+    // 제공 곡 줄처럼 카드 전체가 둥글게 눌려 악보를 연다. 편집·휴지통은 각자의 모양으로 따로 눌린다(S15P31E102-968).
+    PracticeRowFrame(modifier, onClick = if (usable) onOpen else null, bordered = bordered) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             // 제목 줄 오른쪽에 편집(연두 채움)과 휴지통을 나란히 두고, 아래 줄에는 상태 배지만 둔다(S15P31E102-768).
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    Modifier.weight(1f).clickable(enabled = usable, role = Role.Button, onClick = onOpen),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RowText(sheet.title, sheetMeta(sheet))
+                RowText(sheet.title, sheetMeta(sheet))
+                // 편집 칩·휴지통의 48dp 누르는 영역끼리 맞닿게 간격 없이 둔다. 휴지통 영역의 여백 7dp가 보이는 간격이 된다(S15P31E102-971).
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    when {
+                        usable -> EditChip(stringResource(Res.string.mysongs_edit), onEdit)
+                        status == SheetConversionStatus.Failed && conversion?.retryable == true ->
+                            EditChip(stringResource(Res.string.mysongs_conversion_retry), onRetryConversion, enabled = !retrying)
+                        status == SheetConversionStatus.Failed -> EditChip(stringResource(Res.string.mysongs_conversion_reimport), onReimport)
+                    }
+                    DeleteButton(stringResource(Res.string.mysongs_delete_label, sheet.title), onDelete)
                 }
-                when {
-                    usable -> EditChip(stringResource(Res.string.mysongs_edit), onEdit)
-                    status == SheetConversionStatus.Failed && conversion?.retryable == true ->
-                        EditChip(stringResource(Res.string.mysongs_conversion_retry), onRetryConversion, enabled = !retrying)
-                    status == SheetConversionStatus.Failed -> EditChip(stringResource(Res.string.mysongs_conversion_reimport), onReimport)
-                }
-                DeleteButton(stringResource(Res.string.mysongs_delete_label, sheet.title), onDelete)
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -283,12 +283,13 @@ private fun conversionFailureText(failure: SheetConversionFailure?): String = st
     },
 )
 
-/** 휴지통: 편집 칩과 같은 높이(34dp)의 회색 네모 버튼(모서리 10), 아이콘 18dp. */
+/** 휴지통: 편집 칩과 같은 높이(34dp)의 회색 네모 버튼(모서리 10), 아이콘 18dp. 누르는 영역은 48dp. */
 @Composable
 private fun DeleteButton(label: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Box(
         Modifier
+            .minimumInteractiveComponentSize()
             .size(34.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(colors.groupedBackground)
@@ -300,12 +301,13 @@ private fun DeleteButton(label: String, onClick: () -> Unit) {
     }
 }
 
-/** 편집 칩: 34dp · 모서리 10 · 연한 연두 채움에 짙은 연두 글자(13sp 600)로 눈에 띄게 한다(S15P31E102-768). */
+/** 편집 칩: 34dp · 모서리 10 · 연한 연두 채움에 짙은 연두 글자(13sp 600)로 눈에 띄게 한다(S15P31E102-768). 누르는 영역은 48dp. */
 @Composable
 private fun EditChip(text: String, onClick: () -> Unit, enabled: Boolean = true) {
     val colors = EolssuTheme.colors
     Box(
         Modifier
+            .minimumInteractiveComponentSize()
             .height(34.dp)
             .alpha(if (enabled) 1f else 0.45f)
             .clip(RoundedCornerShape(10.dp))

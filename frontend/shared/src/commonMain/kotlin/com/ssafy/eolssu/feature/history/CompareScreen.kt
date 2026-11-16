@@ -26,6 +26,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -138,7 +144,7 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
         val score: @Composable (Modifier) -> Unit = { modifier ->
             JeongganboView(
                 song = song,
-                modifier = modifier.verticalScroll(rememberScrollState()),
+                modifier = modifier,
                 metrics = format.metrics,
                 look = format.look,
                 cellHeights = format.cellHeights,
@@ -156,13 +162,29 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
                     ) {
                         CompareSummary(state, comparison.current.score, actions.onToggleMetrics)
                     }
-                    score(Modifier.weight(1f).fillMaxHeight())
+                    score(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()))
                 }
             }
         } else {
-            Column(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 2.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                CompareSummary(state, comparison.current.score, actions.onToggleMetrics)
-                score(Modifier.weight(1f))
+            // 휴대폰: 항목별 점수를 펼쳤거나 큰 글꼴·낮은 화면에서 정간보 몫이 모자라면 화면 전체를 스크롤한다(기록 상세와 같은 방식, S15P31E102-972).
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val density = LocalDensity.current
+                var summaryHeight by remember { mutableStateOf(0.dp) }
+                val scrollPage = maxHeight < ScrollPageHeight || maxHeight - summaryHeight < CompareScoreMinHeight
+                Column(
+                    Modifier.fillMaxSize()
+                        .then(if (scrollPage) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                        .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = if (scrollPage) 16.dp else 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Column(
+                        Modifier.onSizeChanged { summaryHeight = with(density) { it.height.toDp() } },
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CompareSummary(state, comparison.current.score, actions.onToggleMetrics)
+                    }
+                    score(if (scrollPage) Modifier else Modifier.weight(1f).verticalScroll(rememberScrollState()))
+                }
             }
         }
     }
@@ -188,6 +210,10 @@ private fun CompareSummary(state: CompareUiState, currentScore: Int, onToggleMet
     }
     CompareLegend(state.counts)
 }
+
+/** 본문이 이 높이보다 낮거나, 점수 카드·범례 아래 정간보 몫이 [CompareScoreMinHeight]보다 낮으면 화면 전체를 스크롤한다. */
+private val ScrollPageHeight = 360.dp
+private val CompareScoreMinHeight = 160.dp
 
 /** 이전 · 이번 정간 꾸밈: 이전에 틀림 = 옅은 붉은 바탕, 이번에 틀림 = 2dp 붉은 테두리. */
 @Composable

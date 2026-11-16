@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import androidx.compose.ui.draw.alpha
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.BorderStroke
@@ -71,50 +72,54 @@ fun EditPickScreen(
                 modifier = Modifier.semantics { stateDescription = action; liveRegion = LiveRegionMode.Polite })
         },
     ) {
-        Column(Modifier.fillMaxSize()) {
-            Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (state.instrument == null) {
-                    Text(stringResource(Res.string.sheetedit_pick_step_instrument), style = MaterialTheme.typography.labelLarge)
-                    Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Instrument.entries.forEach { instrument ->
-                            Surface(onClick = { onSelectInstrument(instrument) }, shape = RoundedCornerShape(14.dp), color = colors.surface,
-                                modifier = Modifier.weight(1f).heightIn(min = 76.dp).semantics { role = Role.RadioButton; selected = false }) {
-                                Column(Modifier.padding(horizontal = 4.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    InstrumentPicture(instrument)
-                                    Text(stringResource(instrument.label), style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        // 악기·탭·검색·정렬도 목록과 함께 스크롤한다. 360×640에서 검색 키보드를 열어도 목록이 보이게 한다(S15P31E102-972).
+        // 악기·탭이 바뀌면 처음 위치로 돌아간다.
+        key(state.instrument, state.tab) {
+            LazyColumn(
+                Modifier.fillMaxSize().selectableGroup(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item(key = "header", contentType = "header") {
+                    Column(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (state.instrument == null) {
+                            Text(stringResource(Res.string.sheetedit_pick_step_instrument), style = MaterialTheme.typography.labelLarge)
+                            Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Instrument.entries.forEach { instrument ->
+                                    Surface(onClick = { onSelectInstrument(instrument) }, shape = RoundedCornerShape(14.dp), color = colors.surface,
+                                        modifier = Modifier.weight(1f).heightIn(min = 76.dp).semantics { role = Role.RadioButton; selected = false }) {
+                                        Column(Modifier.padding(horizontal = 4.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            InstrumentPicture(instrument)
+                                            Text(stringResource(instrument.label), style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                                        }
+                                    }
                                 }
+                            }
+                        } else {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(stringResource(Res.string.sheetedit_pick_step_instrument), style = MaterialTheme.typography.labelLarge)
+                                PracticeInstrumentDropdown(state.instrument, enabled = !state.copying, onSelect = onSelectInstrument, bordered = false)
+                            }
+                        }
+                        // 로딩·오류 중에도 다른 탭으로 이동할 수 있다.
+                        MySongsTabSwitch(
+                            tab = if (state.tab == EditPickTab.Songs) MySongsTab.Songs else MySongsTab.Sheets,
+                            songCount = state.songs.size,
+                            sheetCount = state.sheets.size,
+                            onSelect = { onSelectTab(if (it == MySongsTab.Songs) EditPickTab.Songs else EditPickTab.Mine) },
+                        )
+                        if (state.instrument != null && state.tab == EditPickTab.Songs) {
+                            SongSearchField(state.query, onSearch, onClear = { onSearch("") }, bordered = false)
+                            if (state.load == EditPickLoad.Ready && state.songs.isNotEmpty()) {
+                                SongSortButton(state.sort, onToggleSort, Modifier.align(Alignment.End), small = true, bordered = false)
                             }
                         }
                     }
+                }
+                if (state.load != EditPickLoad.Ready) {
+                    item(key = "status", contentType = "status") { PickStatus(state.load, onRetry) }
                 } else {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(stringResource(Res.string.sheetedit_pick_step_instrument), style = MaterialTheme.typography.labelLarge)
-                        PracticeInstrumentDropdown(state.instrument, enabled = !state.copying, onSelect = onSelectInstrument, bordered = false)
-                    }
-                }
-                // 로딩·오류 중에도 다른 탭으로 이동할 수 있다.
-                MySongsTabSwitch(
-                    tab = if (state.tab == EditPickTab.Songs) MySongsTab.Songs else MySongsTab.Sheets,
-                    songCount = state.songs.size,
-                    sheetCount = state.sheets.size,
-                    onSelect = { onSelectTab(if (it == MySongsTab.Songs) EditPickTab.Songs else EditPickTab.Mine) },
-                )
-                if (state.instrument != null && state.tab == EditPickTab.Songs) {
-                    SongSearchField(state.query, onSearch, onClear = { onSearch("") }, bordered = false)
-                    if (state.load == EditPickLoad.Ready && state.songs.isNotEmpty()) {
-                        SongSortButton(state.sort, onToggleSort, Modifier.align(Alignment.End), small = true, bordered = false)
-                    }
-                }
-            }
-            if (state.load != EditPickLoad.Ready) {
-                PickStatus(state.load, onRetry, Modifier.weight(1f))
-            } else key(state.instrument, state.tab) {
-                LazyColumn(
-                    Modifier.weight(1f).fillMaxWidth().selectableGroup(),
-                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
                     when (state.tab) {
                         EditPickTab.Mine -> {
                             if (state.uncheckedSheets > 0) item { HintText(stringResource(Res.string.sheetedit_pick_unchecked, state.uncheckedSheets), size = 12) }
@@ -154,7 +159,7 @@ private fun EmptyRow(text: String) {
 @Composable
 private fun PickStatus(load: EditPickLoad, onRetry: () -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp).semantics { liveRegion = LiveRegionMode.Polite },
+        modifier.fillMaxWidth().padding(vertical = 24.dp).semantics { liveRegion = LiveRegionMode.Polite },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -177,7 +182,8 @@ private fun PickRow(title: String, meta: String, selected: Boolean, enabled: Boo
         selected = selected,
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { role = Role.RadioButton },
+        // 복사 중에는 누를 수 없음을 앱 버튼과 같은 0.45 흐림으로 알린다(S15P31E102-969).
+        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).alpha(if (enabled) 1f else 0.45f).semantics { role = Role.RadioButton },
         shape = RoundedCornerShape(14.dp),
         color = if (selected) colors.accentTint else colors.surface,
         contentColor = colors.text,
