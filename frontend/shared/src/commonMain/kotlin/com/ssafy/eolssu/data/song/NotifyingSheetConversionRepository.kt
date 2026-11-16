@@ -29,6 +29,8 @@ class NotifyingSheetConversionRepository(
         val finished: Set<String> = emptySet(),
         val deleted: Set<String> = emptySet(),
         val completions: List<SheetConversionCompletion> = emptyList(),
+        /** 대기 화면이 이미 보여 준 완료의 순번. 띄우던 배너도 닫는다. */
+        val acknowledged: Set<Long> = emptySet(),
         val sequence: Long = 0,
     )
     private val state = MutableStateFlow(State(member.session.value))
@@ -101,11 +103,19 @@ class NotifyingSheetConversionRepository(
         state.update { it.copy(completions = it.completions - completion) }
     }
 
+    override fun acknowledgeCompletion(sheetId: String) {
+        state.update { current ->
+            val seen = current.completions.filter { it.sheetId == sheetId }
+            if (seen.isEmpty()) current
+            else current.copy(completions = current.completions - seen.toSet(), acknowledged = current.acknowledged + seen.map { it.sequence })
+        }
+    }
+
     fun isCurrent(completion: SheetConversionCompletion): Boolean = member.session.value == completion.session &&
-        completion.sheetId !in state.value.deleted
+        completion.sheetId !in state.value.deleted && completion.sequence !in state.value.acknowledged
 
     suspend fun awaitInvalidation(completion: SheetConversionCompletion) {
-        state.first { it.session != completion.session || completion.sheetId in it.deleted }
+        state.first { it.session != completion.session || completion.sheetId in it.deleted || completion.sequence in it.acknowledged }
     }
 
     /** The confirmed DELETE path invalidates a notice even after polling has finished. */

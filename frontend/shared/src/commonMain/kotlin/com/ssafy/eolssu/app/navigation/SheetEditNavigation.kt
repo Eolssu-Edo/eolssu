@@ -16,6 +16,7 @@ import com.ssafy.eolssu.feature.song.edit.EditView
 import com.ssafy.eolssu.feature.song.edit.HwangPitch
 import com.ssafy.eolssu.feature.song.edit.ImportKind
 import com.ssafy.eolssu.feature.song.edit.ImportResultRoute
+import com.ssafy.eolssu.feature.song.edit.SheetConversionRoute
 import com.ssafy.eolssu.feature.song.edit.SheetImportRoute
 import com.ssafy.eolssu.feature.song.edit.SheetEditRoute
 import com.ssafy.eolssu.feature.song.edit.SheetEditViewModel
@@ -35,6 +36,7 @@ object SheetEditDestination {
     const val IMPORT_RESULT = "sheet-edit/import/{kind}/result?hwang={hwang}"
     const val EDIT = "sheet-edit/edit?from={from}&id={id}&pending={pending}&hwang={hwang}"
     const val VIEW = "sheet-edit/view/{id}"
+    const val CONVERSION = "sheet-edit/conversion/{id}"
 
     /** 악보 추가. 내 악보 '다시 불러오기'면 [failure]로 변환 실패 원인을 넘겨 안내 창을 먼저 띄운다. */
     fun new(failure: SheetConversionFailure? = null) = if (failure == null) "sheet-edit/new" else "sheet-edit/new?failure=${failure.name}"
@@ -51,6 +53,9 @@ object SheetEditDestination {
         is EditSource.Mine -> "sheet-edit/edit?from=mine&id=${source.sheetId}"
     }
 
+    /** 접수한 악보의 변환 대기 화면(S15P31E102-998). */
+    fun conversion(sheetId: String) = "sheet-edit/conversion/$sheetId"
+
     /** 내 악보 목록의 '편집'(Edit-Mine). */
     fun editMine(sheetId: String) = edit(EditSource.Mine(sheetId))
 
@@ -58,7 +63,8 @@ object SheetEditDestination {
 
 /**
  * 악보 추가·편집 화면 이동. 내 악보 '악보 추가' → 악보 추가(EDIT-01) →
- * 정간보·오선보: 파일·악기·장단 선택 → 실제 업로드 접수 → 내 악보 목록 또는 악보 추가. 변환 진행·실패는 두 화면의 내 악보 줄에서 보이고(SHT-10·14), 인식 결과 확인 화면 연결은 후속 작업이다.
+ * 정간보·오선보: 파일·악기·장단 선택 → 실제 업로드 접수 → 변환 대기 화면(S15P31E102-998) → 완료되면 편집 화면.
+ * 대기 화면을 나가도 변환 진행·실패는 두 화면의 내 악보 줄에서 보이고(SHT-10·14), 연습곡 고르기의 줄을 누르면 대기 화면을 다시 연다.
  * 기존 예시 결과·복사 편집 경로는 이 접수 흐름에서 사용하지 않는다.
  * 편집과 저장은 편집 경로 안에서 처리한다. 편집 닫기는 내 악보(SONG-03)로 돌아간다.
  */
@@ -102,14 +108,40 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
             kind = kind,
             hwang = hwang,
             onBack = { navController.popBackStackFrom(entry) },
-            // 접수 뒤: 연습곡 고르기에서 왔으면 그 '내 악보' 탭으로, 홈에서 악보 추가로 바로 왔으면 진행 상황이 보이는 악보 추가로 돌아간다.
-            onList = {
+            onList = { navController.returnToSheetList(entry) },
+            // 접수되면 올리기 화면 대신 변환 대기 화면을 연다. 뒤로 가면 올리기 화면이 아닌 목록으로 돌아간다.
+            onAccepted = { sheetId ->
                 if (navController.currentBackStackEntry?.id == entry.id) {
-                    val returned = navController.popBackStack(EolssuDestination.MY_SONGS, inclusive = false) ||
-                        navController.popBackStack(SheetEditDestination.NEW, inclusive = false)
-                    if (!returned) navController.navigate(EolssuDestination.mySongs(sheets = true)) {
+                    navController.navigate(SheetEditDestination.conversion(sheetId)) {
                         popUpTo(entry.destination.id) { inclusive = true }
-                        launchSingleTop = true
+                    }
+                }
+            },
+        )
+    }
+    composable(
+        SheetEditDestination.CONVERSION,
+        arguments = listOf(navArgument("id") { type = NavType.StringType }),
+    ) { entry ->
+        val sheetId = entry.savedStateHandle.get<String>("id").orEmpty()
+        SheetConversionRoute(
+            sheetId = sheetId,
+            onList = { navController.returnToSheetList(entry) },
+            // 완료: 대기 화면을 닫고 편집 화면을 연다. 편집을 닫으면 대기 화면 아래(목록)로 돌아간다.
+            onDone = { id ->
+                if (navController.currentBackStackEntry?.id == entry.id) {
+                    navController.navigate(SheetEditDestination.editMine(id)) {
+                        popUpTo(entry.destination.id) { inclusive = true }
+                    }
+                }
+            },
+            // 실패의 다시 불러오기: 아래에 악보 추가가 있으면 그것까지 닫고 원인 안내와 함께 새로 연다.
+            onReimport = { failure ->
+                if (navController.currentBackStackEntry?.id == entry.id) {
+                    val newInStack = runCatching { navController.getBackStackEntry(SheetEditDestination.NEW) }.isSuccess
+                    navController.navigate(SheetEditDestination.new(failure)) {
+                        if (newInStack) popUpTo(SheetEditDestination.NEW) { inclusive = true }
+                        else popUpTo(entry.destination.id) { inclusive = true }
                     }
                 }
             },
@@ -157,6 +189,20 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
                 }
             }
         }
+    }
+}
+
+/**
+ * 접수 뒤·대기 화면에서 목록으로: 연습곡 고르기에서 왔으면 그 '내 악보' 탭으로, 홈에서 악보 추가로 바로 왔으면 진행 상황이 보이는 악보 추가로 돌아간다.
+ * 둘 다 없으면 이 화면을 닫고 '내 악보' 탭을 연다.
+ */
+private fun NavController.returnToSheetList(entry: NavBackStackEntry) {
+    if (currentBackStackEntry?.id != entry.id) return
+    val returned = popBackStack(EolssuDestination.MY_SONGS, inclusive = false) ||
+        popBackStack(SheetEditDestination.NEW, inclusive = false)
+    if (!returned) navigate(EolssuDestination.mySongs(sheets = true)) {
+        popUpTo(entry.destination.id) { inclusive = true }
+        launchSingleTop = true
     }
 }
 

@@ -151,6 +151,28 @@ class NotifyingSheetConversionRepositoryTest {
         assertEquals(1, repository.completions.first().size)
     }
 
+    @Test fun waitingScreenAcknowledgesItsCompletionSoTheAppBannerStaysQuiet() = runTest {
+        val api = ConversionApi()
+        val repository = repository(api)
+        repository.upload(input, "upload-1")
+        api.current = SheetConversion("12", SheetConversionStatus.Done)
+        repository.status("12")
+        val notice = repository.completions.first().single()
+        val invalidated = backgroundScope.launch { repository.awaitInvalidation(notice) }
+        runCurrent()
+        repository.acknowledgeCompletion("12")
+        runCurrent()
+        assertTrue(repository.completions.first().isEmpty(), "대기 화면이 편집으로 데려갔으면 완료 알림을 남기지 않는다")
+        assertTrue(!repository.isCurrent(notice), "이미 띄우던 배너도 더는 유효하지 않다")
+        assertTrue(invalidated.isCompleted, "띄우던 배너를 닫는다")
+
+        api.current = SheetConversion("12", SheetConversionStatus.Running)
+        repository.status("12")
+        api.current = SheetConversion("12", SheetConversionStatus.Done)
+        repository.status("12")
+        assertTrue(repository.isCurrent(repository.completions.first().single()), "다음 변환의 완료는 다시 알린다")
+    }
+
     private fun repository(api: ConversionApi) = NotifyingSheetConversionRepository(api, api,
         SignedInMember(FakeKeyValueStore()).apply { set("8") })
 
