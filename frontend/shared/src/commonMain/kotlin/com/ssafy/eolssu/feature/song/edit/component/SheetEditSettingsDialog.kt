@@ -104,6 +104,7 @@ internal fun SheetEditSettingsDialog(
                 bordered = false, containerColor = EolssuTheme.colors.groupedBackground)
             if (hasTempoPlan || changes.isNotEmpty()) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(Res.string.sheet_tempo_changes), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(Res.string.sheet_tempo_changes_help), style = MaterialTheme.typography.bodySmall)
             if (changes.isEmpty()) Text(stringResource(Res.string.sheet_tempo_none), style = MaterialTheme.typography.bodySmall)
             // 수정 중인 구간은 연두 바탕·테두리로 강조하고, 입력판을 그 항목 안에 붙여 대상이 분명하게 보이게 한다.
             val tempoForm: @Composable ColumnScope.() -> Unit = {

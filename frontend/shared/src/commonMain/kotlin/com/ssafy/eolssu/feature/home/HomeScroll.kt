@@ -99,10 +99,30 @@ internal fun homeExpandedHero(
  * @property openFocusX 펼친 화면의 그림 띠에 남길 가로 위치(0 왼쪽 끝 ~ 1 오른쪽 끝).
  * @property openFocusY 펼친 화면의 그림 띠에 남길 세로 위치(0 위 끝 ~ 1 아래 끝). 전각과 연주자가 띠에 들어오는 값이다.
  */
-internal enum class HomeArtKind(val aspect: Float, val openFocusX: Float, val openFocusY: Float) {
-    PhonePortrait(1254f / 580f, .5f, .62f),
-    TabletPortrait(1028f / 644f, .5f, .55f),
-    TabletLandscape(992f / 1586f, .45f, .5f),
+internal enum class HomeArtKind(
+    val aspect: Float,
+    val openFocusX: Float,
+    val openFocusY: Float,
+    /** 그림 아래쪽 가로 먹 띠가 시작하는 높이(그림 높이 비율). 첫 화면에서 이 띠를 시작 버튼 위로 올려 흰 버튼 글자 뒤를 먹으로 둔다. */
+    val bandTop: Float?,
+) {
+    PhonePortrait(1254f / 580f, .5f, .62f, 1132f / 1254f),
+    TabletPortrait(1028f / 644f, .5f, .55f, 929f / 1028f),
+    TabletLandscape(992f / 1586f, .45f, .5f, 897f / 992f),
+}
+
+/** 첫 화면에서 아래 먹 띠가 시작 버튼 위보다 먼저 시작하도록 남기는 간격(dp). 흰 버튼 글자 뒤가 늘 먹이 되게 한다. */
+internal const val HomeArtBandAboveButton = 16f
+
+/**
+ * 첫 화면에서 그림을 위로 올리는 양(dp, S15P31E102-1034). 그림 아래 가로 먹 띠가 시작 버튼 위 [HomeArtBandAboveButton]에서
+ * 시작하게 하고, 그림 아래로 빈 곳은 먹 띠를 이어 그린다. 올린 만큼 오른쪽 사선 먹 영역도 함께 올라와 제목을 크게 둘 수 있다.
+ */
+internal fun homeArtLift(kind: HomeArtKind, width: Float, height: Float, buttonHeight: Float): Float {
+    val band = kind.bandTop ?: return 0f
+    val place = homeArtPlacement(kind, width, height, .5f, .5f)
+    val buttonTop = (height - 88f - buttonHeight).coerceAtLeast(80f)
+    return (place.y + place.height * band - (buttonTop - HomeArtBandAboveButton)).coerceAtLeast(0f)
 }
 
 /** 세로 창의 너비가 이 값(dp) 이상이면 태블릿 세로 그림을 쓴다. 배치 판정의 Medium 시작 너비와 같다. */
@@ -138,17 +158,27 @@ internal data class HomeHeroTitle(val scale: Float, val right: Float, val bottom
  * 그림을 바꾸면 `frontend/tools/home-art/build_home_art.py`로 여유를 다시 점검한다.
  */
 internal fun homeHeroTitle(kind: HomeArtKind, width: Float, height: Float, buttonHeight: Float): HomeHeroTitle = when (kind) {
-    HomeArtKind.PhonePortrait, HomeArtKind.TabletPortrait -> HomeHeroTitle(
-        scale = if (kind == HomeArtKind.PhonePortrait) .8f else 1.3f,
-        right = width - 20f,
-        bottom = (height - 88f - buttonHeight).coerceAtLeast(80f) - 10f,
-    )
+    // 세로: 오른쪽 아래 먹 영역에 창 너비에 비례해 크게 두고 버튼 위로 조금 띄운다(휴대폰 56%·24dp, 태블릿 52%·36dp, S15P31E102-1034).
+    // 그림의 먹 영역은 이 크기·자리에 맞춰 넓혀 두었다(build_home_art.py).
+    HomeArtKind.PhonePortrait, HomeArtKind.TabletPortrait -> {
+        val phone = kind == HomeArtKind.PhonePortrait
+        HomeHeroTitle(
+            scale = width * (if (phone) .56f else .52f) / HomeTitleWidth,
+            right = width - 20f,
+            bottom = (height - 88f - buttonHeight).coerceAtLeast(80f) - HomeTitleButtonGap - (if (phone) 24f else 36f),
+        )
+    }
     HomeArtKind.TabletLandscape -> {
         // 제목 너비 = 창 너비의 23%, 오른쪽 여백 = 창 너비의 5%, 제목 가운데 = 창 높이의 50%.
+        // 웹의 낮은 가로 창(예: 780×360)에서는 제목 아래가 평가 시작 버튼에 닿으므로 버튼 위 12dp까지만 내려온다(S15P31E102-1026).
         val scale = width * .23f / HomeTitleWidth
-        HomeHeroTitle(scale, width * .95f, height * .5f + homeTitleHeight(scale) / 2f)
+        val buttonTop = (height - 88f - buttonHeight).coerceAtLeast(80f)
+        HomeHeroTitle(scale, width * .95f, minOf(height * .5f + homeTitleHeight(scale) / 2f, buttonTop - HomeTitleButtonGap))
     }
 }
+
+/** 가로 첫 화면에서 제목 아래와 평가 시작 버튼 위 사이에 두는 최소 간격(dp). */
+internal const val HomeTitleButtonGap = 12f
 
 /**
  * 펼친 화면에서 그림 띠 아래를 흰 바탕으로 흐려 보내는 구간(dp). 띠 아래 끝([ground]) 기준으로 위 [HomeArtFadeAbove]부터

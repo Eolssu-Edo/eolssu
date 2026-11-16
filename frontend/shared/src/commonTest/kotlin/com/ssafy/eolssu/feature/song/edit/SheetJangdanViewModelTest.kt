@@ -15,6 +15,20 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
     private val compatible = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 3, 1, 1)
     private val incompatible = CatalogJangdanSummary("5", "중모리", 90, "QUARTER", 12, 4, 2)
 
+    @Test fun unsupportedDraftExplainsWhyJangdanCannotBeChanged() = runTest {
+        val model = keep(SheetEditViewModel(EditSource.CopySong("1"), EditView.Jeongganbo,
+            SampleMySheetRepository(), pitchCatalog = JangdanCatalog(listOf(compatible))))
+        runCurrent()
+        val draft = model.uiState.value.draft
+
+        model.changeJangdan()
+        runCurrent()
+
+        assertEquals(SheetEditMessage.JangdanUnavailable, model.uiState.value.message)
+        assertEquals(draft, model.uiState.value.draft)
+        assertNull(model.uiState.value.jangdanPicker)
+    }
+
     @Test fun basicPresetSurvivesDraftReloadAndConfirmationWithMelodyOnlyAudio() = runTest {
         val original = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
         val metadata = SheetJangdanCorrectionTest.sourceMetadata(original)

@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.practice.layout
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -16,9 +17,11 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.feature.practice.LivePitchCell
 import com.ssafy.eolssu.feature.practice.PracticeScreenActions
+import com.ssafy.eolssu.feature.practice.component.PracticeOptionButtonRow
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomContent
+import com.ssafy.eolssu.feature.practice.component.PracticeFingeringPage
 import com.ssafy.eolssu.feature.practice.component.PracticeScoreArea
 import com.ssafy.eolssu.feature.practice.component.PracticeScoreStyle
 
@@ -40,7 +43,7 @@ internal fun PracticeMediumLayout(
         topBar = {
             PracticeTopBar(
                 state, actions.onBack, actions.onOpenSettings, Modifier.padding(horizontal = 12.dp), maxWidth = WindowBreakpoints.ContentMaxWidth,
-                onToggleStep = actions.bottom.onToggleStep,
+                options = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep) },
             )
         },
         bottomBar = {
@@ -52,7 +55,15 @@ internal fun PracticeMediumLayout(
             }
         },
     ) {
-        if (state.song != null) {
+        if (state.song == null) return@EolssuScaffold
+        // '운지법과 함께 보기'는 휴대폰과 같은 운지 페이지를 악보 자리에 둔다(S15P31E102-1011).
+        if (state.fingeringView) {
+            PracticeFingeringPage(
+                state, actions.onSelectUnit,
+                modifier = Modifier.fillMaxSize().padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 12.dp),
+                livePitch = livePitch,
+            )
+        } else {
             PracticeScoreArea(
                 state, PracticeScoreStyle.TabletPortrait, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
                 livePitch = livePitch,

@@ -15,7 +15,7 @@
 | Gradle | 9.5.1 (Wrapper로 자동 설치) |
 | Android | minSdk 24 (Android 7.0), targetSdk 37 |
 | iOS | 18.2 이상 |
-| Web | Kotlin/Wasm (최신 브라우저), Kotlin/JS (구형 브라우저 대비) |
+| Web | Kotlin/Wasm (운영 배포, Wasm GC를 지원하는 최신 브라우저), Kotlin/JS (빌드·테스트만, 배포하지 않음) |
 
 버전은 모두 [`gradle/libs.versions.toml`](gradle/libs.versions.toml)에서 관리합니다.
 
@@ -64,6 +64,8 @@ Gradle 프로젝트명은 `eolssu`, Android 앱 표시명은 `얼쑤`입니다. 
   ```
 
 빌드가 끝나면 터미널에 `Loopback: http://localhost:8080/`이 나옵니다. 브라우저에서 이 주소를 열면 앱이 보입니다. 화면이 깨지거나 동작하지 않으면 브라우저 개발자 도구(F12)의 Console을 확인합니다. 멈출 때는 실행 창의 ■(Stop)이나 `Ctrl+C`를 누릅니다.
+
+첫 화면(`webApp/src/webMain/resources/index.html`)은 앱을 불러오는 동안 로고와 로딩 표시를 보여 줍니다. 앱 파일을 받지 못하거나 시작 중 오류가 나면 실패 안내를, 20초가 지나면 지연 안내를, 브라우저가 Wasm GC를 지원하지 않으면 다른 브라우저 안내를 새로고침 버튼과 함께 띄웁니다. 안내가 뜬 뒤에도 앱이 화면을 붙이면 안내는 사라집니다.
 
 ## 🍎 iOS 실행 (Mac)
 
@@ -121,7 +123,7 @@ Android Studio 밖에서 실행할 때는 `JAVA_HOME`이 JDK 17 이상을 가리
 | Android 디버그 APK 빌드 | `./gradlew :androidApp:assembleDebug` | `androidApp/build/outputs/apk/debug/androidApp-debug.apk` |
 | 연결된 기기·에뮬레이터에 설치 | `./gradlew :androidApp:installDebug` | 설치만 합니다. 앱 아이콘을 눌러 실행합니다 |
 | Web 개발 서버 (Wasm, 권장) | `./gradlew :webApp:wasmJsBrowserDevelopmentRun` | `http://localhost:8080/`에 개발 서버를 띄웁니다 |
-| Web 개발 서버 (JS, 구형 브라우저) | `./gradlew :webApp:jsBrowserDevelopmentRun` | 로컬 개발 서버를 띄웁니다 |
+| Web 개발 서버 (JS) | `./gradlew :webApp:jsBrowserDevelopmentRun` | 로컬 개발 서버를 띄웁니다. 운영에는 배포하지 않습니다 |
 | Web 배포용 빌드 (Wasm) | `./gradlew :webApp:wasmJsBrowserDistribution` | `webApp/build/dist/wasmJs/productionExecutable/` (압축 전 약 13MB) |
 | iOS | Mac에서만 가능 — 위의 "iOS 실행 (Mac)" 참고 | — |
 

@@ -77,6 +77,8 @@ fun MySongsRoute(
             onQueryChange = viewModel::changeQuery,
             onClearQuery = viewModel::clearQuery,
             onResetSongFilters = viewModel::resetSongFilters,
+            onSelectSheetInstrument = viewModel::selectSheetInstrument,
+            onResetSheetFilters = viewModel::resetSheetFilters,
             onToggleSort = viewModel::toggleSort,
             onOpenSong = onPractice,
             onOpenSheet = onOpenSheet,
