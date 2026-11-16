@@ -35,7 +35,12 @@ class GuideCatalogViewModelTest {
             val references = StubReferences()
             val vm = FingeringViewModel(instruments = InstrumentCatalog(client), references = references)
             assertFalse(vm.uiState.value.hasSelectedInstrument)
+            // 목록을 받기 전에도 처음 악기의 운지 카드는 바로 보이고, 악기 고르기 칸만 로딩 중이다.
+            assertTrue(vm.uiState.value.isInstrumentListLoading)
+            assertFalse(vm.uiState.value.hasNoInstruments)
+            assertEquals(GuideInstrument.Danso.notesByPitch(Blow.Mid), vm.uiState.value.notes)
             vm.uiState.first { it.catalogState != ReferenceLoadState.Loading }
+            assertFalse(vm.uiState.value.isInstrumentListLoading)
             assertEquals(listOf("서버 단소", "서버 산조대금"), vm.uiState.value.instrumentOptions.map { it.name })
             assertEquals(listOf("42", "94"), vm.uiState.value.instrumentOptions.map { it.instrumentId })
             assertEquals(GuideInstrument.Danso, vm.uiState.value.instrument)
@@ -66,6 +71,8 @@ class GuideCatalogViewModelTest {
             vm.uiState.first { it.catalogState != ReferenceLoadState.Loading }
             assertEquals(ReferenceLoadState.Failed, vm.uiState.value.instrumentListState)
             assertFalse(vm.uiState.value.hasSelectedInstrument)
+            assertFalse(vm.uiState.value.hasNoInstruments)
+            assertTrue(vm.uiState.value.notes.isNotEmpty())
             vm.toggleDropdown()
             assertFalse(vm.uiState.value.isDropdownOpen)
             available = true
@@ -74,6 +81,7 @@ class GuideCatalogViewModelTest {
             assertEquals(ReferenceLoadState.Ready, vm.uiState.value.instrumentListState)
             assertTrue(vm.uiState.value.instrumentOptions.isEmpty())
             assertFalse(vm.uiState.value.hasSelectedInstrument)
+            assertTrue(vm.uiState.value.hasNoInstruments)
             assertTrue(references.pitchRequests.isEmpty())
             assertEquals(2, loads)
         } finally { client.close(); Dispatchers.resetMain() }
