@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {logWindow} from '../public/live-panel.js';
+import {logWindow,filterAppLogs} from '../public/live-panel.js';
 test('log pages retain their anchor during live arrivals and can reach every record',()=>{
  const rows=Array.from({length:866},(_,seq)=>({deviceId:'phone',source:'app',seq,at:'2026-11-16T00:00:00Z'}));
  const latest=logWindow(rows);assert.equal(latest.records.at(-1).seq,865);
@@ -9,4 +9,11 @@ test('log pages retain their anchor during live arrivals and can reach every rec
  assert.deepEqual(growing.records,previous.records);
  const reached=new Set();let anchor=null;do{const page=logWindow(rows,anchor);page.records.forEach(row=>reached.add(row.seq));anchor=page.before;}while(anchor);
  assert.equal(reached.size,866);
+});
+
+test('native filters preserve all records and distinguish HTTP evidence from failures',()=>{
+ const rows=[{kind:'run_started'},{kind:'http_attempt',status:200},{kind:'http_attempt',status:503},{kind:'flow_end',outcome:'failed'}];
+ assert.equal(filterAppLogs(rows,'all').length,4);
+ assert.deepEqual(filterAppLogs(rows,'http'),[rows[1],rows[2]]);
+ assert.deepEqual(filterAppLogs(rows,'error'),[rows[2],rows[3]]);
 });

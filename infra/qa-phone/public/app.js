@@ -7,7 +7,7 @@ const $=id=>document.getElementById(id);
 const sessions=[];
 let activeId=null,running=false,displayName=null,dialogTarget=null,dialogOpener=null,requestTarget=null;
 let batchBusy=false,pairingBusy=false,portBusy=false,deciding=false,lastActivity=-Infinity;
-let batchFeedback='',launchFeedback='',paintFrame=null,gridKey='',backgroundTimer;
+let batchFeedback='',launchFeedback='',paintFrame=null,gridKey='';
 const pairingRegistered=new Set();
 const active=()=>sessions.find(device=>device.id===activeId);
 const connected=()=>sessions.filter(device=>device.connected||device.authorized&&device.state?.maintenance&&Date.now()-device.stateAt<3000);
@@ -67,28 +67,14 @@ function pendingBuild(device){
   const result=apkVersionState(device.catalog);return result.status==='outdated'?result.build:null;
 }
 function paintBatch(){
-  const targets=connected(),pending=targets.filter(pendingBuild),serverBusy=sessions.some(device=>['scenario','run'].includes(device.liveSnapshot?.mode)),observing=sessions.some(device=>device.liveSnapshot?.mode==='observe');
-  $('applyLatestBatch').disabled=batchBusy||serverBusy||observing||!pending.length;
+  const targets=connected(),pending=targets.filter(pendingBuild);
+  $('applyLatestBatch').disabled=batchBusy||!pending.length;
   $('applyLatestBatch').textContent=batchBusy&&batchKind==='apk'?'APK 적용 중':'최신 APK 적용';
   const unknown=targets.filter(device=>apkVersionState(device.catalog).status==='unavailable'),checking=targets.filter(device=>apkVersionState(device.catalog).status==='checking');
-  $('batchApkStatus').textContent=batchFeedback||(!targets.length?'연결 기기 없음':[pending.length?pending.map(device=>device.number).join('·')+(observing?' 로그 수집 종료 후 적용':' 적용 대기'):'',checking.length?checking.map(device=>device.number).join('·')+' 버전 확인 중':'',unknown.length?unknown.map(device=>device.number).join('·')+' 버전 확인 불가':''].filter(Boolean).join(' · ')||'모든 기기 최신');
-  const launch=livePanel.query('[data-action=start]');launch.disabled=batchBusy||serverBusy||!targets.length;
+  $('batchApkStatus').textContent=batchFeedback||(!targets.length?'연결 기기 없음':[pending.length?pending.map(device=>device.number).join('·')+' 적용 대기':'',checking.length?checking.map(device=>device.number).join('·')+' 버전 확인 중':'',unknown.length?unknown.map(device=>device.number).join('·')+' 버전 확인 불가':''].filter(Boolean).join(' · ')||'모든 기기 최신');
+  const launch=livePanel.query('[data-action=start]');launch.disabled=batchBusy||!targets.length;
   launch.textContent=batchBusy&&batchKind==='launch'?'앱 실행 중':'QA 앱 실행';$('launchAllStatus').textContent=launchFeedback;
-  if(batchBusy)livePanel.nodes('[data-action],[data-scenario]').forEach(button=>button.disabled=true);
-}
-function paintScenarioBands(){
-  for(const name of ['feedback','retry','duplicate','ownership']){
-    const button=livePanel.query('[data-scenario="'+name+'"]');let rail=button.querySelector('.scenarioPassBands'),badges=button.querySelector('.scenarioDeviceBadges');
-    if(!rail){rail=node('span','scenarioPassBands');rail.setAttribute('aria-hidden','true');badges=node('span','scenarioDeviceBadges');button.prepend(rail);button.append(badges);}
-    rail.replaceChildren();badges.replaceChildren();
-    for(const device of sessions){
-      const snapshot=device.liveSnapshot,history=(snapshot?.history||[]).filter(run=>run.name===name),result=device.id===activeId&&livePanel.pendingScenario===name?{status:'running'}:snapshot?.scenario?.name===name?snapshot.scenario:history.at(-1);
-      if(!result)continue;
-      if(result.status==='pass'){const stripe=node('i');stripe.style.background=device.color;rail.append(stripe);}
-      const badge=node('span','scenarioDeviceBadge',device.number+' '+({pass:'통과',fail:'실패',failed:'실패',running:'진행 중',cancelled:'중단'}[result.status]||result.status));badge.dataset.state=result.status;badge.style.setProperty('--device-color',device.color);badge.title=device.name+' · 서버 API 검사';badges.append(badge);
-    }
-    button.querySelector('[data-result]').hidden=badges.childElementCount>0;button.style.setProperty('--pass-band-width',rail.childElementCount*4+'px');
-  }
+  if(batchBusy)livePanel.nodes('[data-action]').forEach(button=>button.disabled=true);
 }
 function paint(){
   const list=connected();
@@ -132,7 +118,6 @@ function paintRequests(){
 }
 async function deviceApi(path,data){
   const device=active();if(!device)throw Error('기기 연결 대기');
-  if(path==='live/control')device.invalidateLive();
   const result=await(path.startsWith('live/status')?device.liveStatus(path):device.api(path,data));
   if(path.startsWith('live/status')){
     if(result.evidence)result.evidence={...result.evidence,records:result.evidence.records.map(record=>({...record,deviceId:device.id}))};
@@ -148,7 +133,7 @@ async function deviceApi(path,data){
 const livePanel=new LivePanel($('qaLive'),{api:deviceApi,notify:message,automationRoot:$('qaAutomation'),owner:()=>{const device=active();return{connected:!!device?.connected,allowed:!!device?.inputReady,epoch:device?.state?.epoch,frameAt:Number(device?.canvas.dataset.videoAt)||device?.state?.frameAt};}});
 livePanel.get('results').querySelector('h3').append(node('span','activeDeviceLabel'));
 livePanel.deviceInfo=id=>sessions.find(device=>device.id===id);
-livePanel.onRender=()=>{paintScenarioBands();paintBatch();};
+livePanel.onRender=paintBatch;
 let batchKind=null;
 async function requireControl(device){
   await device.readState();if(device.owned)return;
@@ -180,11 +165,7 @@ livePanel.launchAll=async()=>{
   const targets=connected().slice();batchBusy=true;batchKind='launch';launchFeedback=targets.map(device=>device.number).join('·')+' 실행 중';paintBatch();
   const results=await Promise.all(targets.map(async device=>{try{
     await requireControl(device);await device.refreshBuilds();
-    if(device.catalog?.installed&&!device.catalog.installed.versionName.endsWith('-qa283-live')){
-      await device.api('app/launch',{epoch:device.state.epoch});return device.number+' 실행 완료';
-    }
-    await device.api('live/control',{action:'start',epoch:device.state.epoch});
-    await waitFor(device,()=>device.api('live/status'),snapshot=>{device.liveSnapshot=snapshot;if(snapshot.message)throw Error(snapshot.message);return snapshot.selected!==false&&snapshot.mode==='observe'&&snapshot.phase==='observing';},180000);
+    await device.api('app/launch',{epoch:device.state.epoch});
     return device.number+' 실행 완료';
   }catch(error){return device.number+' '+error.message;}}));
   batchBusy=false;batchKind=null;launchFeedback=results.join(' · ');livePanel.follow=true;livePanel.get('follow').checked=true;await livePanel.refresh();schedulePaint();
@@ -235,20 +216,15 @@ for(const type of ['pointerdown','click','keydown','wheel'])document.addEventLis
 $('idlePrompt').addEventListener('cancel',event=>event.preventDefault());
 $('continueSession').addEventListener('click',async()=>{$('continueSession').disabled=true;try{await reportActivity(true);$('idlePrompt').close();for(const device of sessions)if(device.state)device.state.idlePromptMs=null;}finally{$('continueSession').disabled=false;}});
 async function disconnect(text=''){
-  running=false;clearTimeout(backgroundTimer);livePanel.setActive(false);await Promise.allSettled(sessions.map(device=>device.logout()));displayName=null;
+  running=false;livePanel.setActive(false);await Promise.allSettled(sessions.map(device=>device.logout()));displayName=null;
   $('workspace').hidden=true;$('login').hidden=false;$('logout').hidden=true;document.body.classList.remove('workspaceOpen');$('pairingForm').reset();$('pairingDetails').open=false;if($('connectionDialog').open)$('connectionDialog').close();if($('idlePrompt').open)$('idlePrompt').close();message(text);
 }
 $('logout').addEventListener('click',()=>void disconnect());
-function begin(name){displayName=name;running=true;$('login').hidden=true;$('workspace').hidden=false;$('logout').hidden=false;document.body.classList.add('workspaceOpen');for(const device of sessions)device.start(name);livePanel.setActive(true);schedulePaint();void pollBackground();}
+function begin(name){displayName=name;running=true;$('login').hidden=true;$('workspace').hidden=false;$('logout').hidden=false;document.body.classList.add('workspaceOpen');for(const device of sessions)device.start(name);livePanel.setActive(true);schedulePaint();}
 $('loginForm').addEventListener('submit',async event=>{
   event.preventDefault();const name=$('name').value.trim(),button=$('loginForm').querySelector('button');button.disabled=true;
   try{const results=await Promise.allSettled(sessions.map(device=>device.join(name)));if(!results.some(result=>result.status==='fulfilled'))throw Error('기기 중계를 연결하지 못했습니다. 잠시 후 다시 연결하세요.');message('');begin(name);}catch(error){message(error.message);}finally{button.disabled=false;}
 });
-async function pollBackground(){
-  if(!running)return;
-  await Promise.all(sessions.filter(device=>device.id!==activeId&&device.authorized).map(device=>device.liveStatus().catch(()=>{})));
-  paintScenarioBands();if(running)backgroundTimer=setTimeout(()=>void pollBackground(),1500);
-}
 document.querySelectorAll('.brand').forEach(link=>link.addEventListener('click',event=>{if(running){event.preventDefault();const first=connected()[0];if(first)selectDevice(first.id);}}));
 document.addEventListener('click',event=>document.querySelectorAll('.controlHeader details[open]').forEach(menu=>{if(!menu.contains(event.target))menu.open=false;}));
 document.addEventListener('keydown',event=>{const open=document.querySelector('.controlHeader details[open]');if(event.key==='Escape'&&open){event.preventDefault();open.open=false;open.querySelector('summary').focus();}},true);

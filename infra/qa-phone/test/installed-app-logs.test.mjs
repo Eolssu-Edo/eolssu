@@ -24,7 +24,7 @@ test('latest installed APK logs reach authenticated QA status without app launch
   assert.equal((await fetch(relay.url+'/api/live/status')).status,401);assert.deepEqual(calls,[]);
   const login=await fetch(relay.url+'/api/login',{method:'POST',headers:{Origin:relay.url,'Content-Type':'application/json'},body:JSON.stringify({name:'QA'})});const cookie=login.headers.get('set-cookie').split(';')[0];
   let value;for(let i=0;i<50;i++){value=await(await fetch(relay.url+'/api/live/status?logs=device%2Fall',{headers:{Cookie:cookie}})).json();if(value.evidence?.total)break;await new Promise(resolve=>setTimeout(resolve,10));}
-  assert.equal(value.evidence?.total,2);assert.equal(value.operations.length,1);assert.equal(value.device.appVersion,version);assert.equal(value.api,null);assert.equal(value.history[0].id,'kept');
+  assert.equal(value.evidence?.total,2);assert.equal(value.operations.length,1);assert.equal(value.device.appVersion,version);assert.equal(value.api,null);assert.deepEqual(value.history,[]);
   assert.ok(value.evidence.records.every(row=>row.source==='app'));assert.ok(!JSON.stringify(value).includes('must-not-leak'));assert.ok(!JSON.stringify(value).includes('private.invalid'));
   assert.ok(value.operations[0].stages.some(stage=>stage.name==='http_attempt'&&stage.status===200));assert.ok(!value.operations[0].stages.some(stage=>stage.source==='backend'||stage.name==='db_saved'));
 });
@@ -49,7 +49,7 @@ test('polling deduplicates, separates devices and excludes another installed ver
   const phone=make('song_list'),tablet=make('record_page');phone.refresh();tablet.refresh();await Promise.all([phone.pending,tablet.pending]);
   assert.equal(phone.project({},'device/all').evidence.records[0].target,'song_list');assert.equal(tablet.project({},'device/all').evidence.records[0].target,'record_page');
   clock=500;count=3;phone.refresh();await phone.pending;assert.deepEqual(phone.project({},'device/all').evidence.records.map(x=>x.seq),[2,3]);
-  assert.equal(phone.project({evidence:{total:7}},'server/load').evidence.total,7);await Promise.all([phone.close(),tablet.close()]);
+  assert.equal(phone.project({evidence:{total:7}},'server/load').evidence.total,0);await Promise.all([phone.close(),tablet.close()]);
 });
 
 test('all retained native event kinds and storage markers remain visible beyond 500 rows',async()=>{
@@ -71,7 +71,16 @@ test('read-only collection does not depend on video or the isolated test server 
   const relay=await startRelay({port:0,phone:{capture:async()=>{throw Error('video offline');},installed:async()=>({versionName:version}),readPerformanceLog:async()=>bytes},live:{status:async()=>{throw Error('server offline');}}});t.after(()=>relay.close());
   const login=await fetch(relay.url+'/api/login',{method:'POST',headers:{Origin:relay.url,'Content-Type':'application/json'},body:JSON.stringify({name:'QA'})}),cookie=login.headers.get('set-cookie').split(';')[0];
   let value;for(let i=0;i<50;i++){const response=await fetch(relay.url+'/api/live/status?logs=device%2Fall',{headers:{Cookie:cookie}});assert.equal(response.status,200);value=await response.json();if(value.evidence?.total)break;await new Promise(resolve=>setTimeout(resolve,10));}
-  assert.equal(value.evidence.total,1);assert.equal(value.available,false);
+  assert.equal(value.evidence.total,1);assert.equal(value.available,true);
+});
+
+test('a stalled isolated status response cannot delay native APK log reads',async t=>{
+  const bytes=bytesFor([event(1)]);let release;const gate=new Promise(resolve=>{release=()=>resolve({available:true,operations:[],history:[]});});
+  const relay=await startRelay({port:0,phone:{capture:async()=>{throw Error('video offline');},installed:async()=>({versionName:version}),readPerformanceLog:async()=>bytes},live:{status:()=>gate}});
+  t.after(async()=>{release();await relay.close();});
+  const login=await fetch(relay.url+'/api/login',{method:'POST',headers:{Origin:relay.url,'Content-Type':'application/json'},body:JSON.stringify({name:'QA'})}),cookie=login.headers.get('set-cookie').split(';')[0];
+  let value;for(let i=0;i<20;i++){const response=await fetch(relay.url+'/api/live/status?logs=device%2Fall',{headers:{Cookie:cookie},signal:AbortSignal.timeout(600)});value=await response.json();if(value.evidence?.total)break;await new Promise(resolve=>setTimeout(resolve,10));}
+  assert.equal(value.evidence.total,1);assert.equal(value.available,true);
 });
 
 test('a failed read stays unavailable while a retry is pending',async()=>{

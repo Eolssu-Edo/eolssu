@@ -17,7 +17,6 @@ export class InstalledAppLogs {
     const installed=known||await this.installed();
     const version=installed?.versionName;
     if(typeof version!=='string'||!/^[A-Za-z0-9._+-]{1,100}$/.test(version))throw Error('App version unavailable');
-    if(version.endsWith('-qa283-live')){this.state='disabled';return;}
     if(this.version!==version){this.version=version;this.records=[];this.runs.clear();this.highWater=0;this.round=null;this.stream=null;this.lastEventAt=null;}
     const value=await this.snapshot(this.highWater,this.stream);
     if(this.stream!==value.stream_id){this.stream=value.stream_id;this.highWater=0;this.records=[];this.runs.clear();this.lastEventAt=null;}
@@ -40,13 +39,12 @@ export class InstalledAppLogs {
     this.state='collecting';
   }
   project(snapshot,logsFor) {
-    if(!this.version||this.state==='disabled')return snapshot;
+    if(!this.version)return snapshot;
     const result={...snapshot,api:null,device:{...snapshot.device,appVersion:this.version},
       appLog:{state:this.state,count:this.records.length,partial:!!this.round},
       operations:liveOperations(this.records),lastEventAt:this.lastEventAt||null};
     if(logsFor==='device/all')result.evidence={id:logsFor,...safeLogRecords(this.records,{limit:null})};
-    else if(logsFor&&!logsFor.startsWith('server/')&&!logsFor.startsWith('history/'))
-      result.evidence={id:logsFor,...liveEvidence(this.records,logsFor)};
+    else if(logsFor)result.evidence={id:logsFor,...liveEvidence(this.records,logsFor)};
     return result;
   }
   async close(){this.closed=true;await this.pending;}

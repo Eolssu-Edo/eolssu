@@ -45,7 +45,7 @@ $qaToolRoot = if ($ToolRoot) { (Resolve-Path -LiteralPath $ToolRoot).Path } else
 $qaSshConfig = Join-Path (Split-Path -Parent $qaRuntime) 'ssh_config'
 if (!(Test-Path -LiteralPath $qaSshConfig -PathType Leaf)) { throw 'QA 전용 SSH 설정이 없습니다. setup-ssh.ps1을 먼저 실행하세요.' }
 $qaPrevious = @{}
-foreach ($qaName in @('QA_LIVE_CONFIG','QA_APPLOG_TOKEN','QA_APPLOG_DEVICE_IDENTITY','QA_EXPECTED_IDENTITY','QA_SERIAL','QA_ADB','QA_ADB_PORT','QA_PORT','QA_ORIGIN','QA_BASE_PATH','QA_DEVICE_ID','QA_DEVICE_NAME','QA_TRUST_PROXY','QA_APK_DIR','QA_APK_SSH_HOST','QA_SCREEN_SERVER','QA_VIDEO_SERVER','QA_STOP_FILE','QA_WIRELESS_STATE','QA_SSH_CONFIG')) { $qaPrevious[$qaName] = [Environment]::GetEnvironmentVariable($qaName,'Process') }
+foreach ($qaName in @('QA_APPLOG_TOKEN','QA_APPLOG_DEVICE_IDENTITY','QA_EXPECTED_IDENTITY','QA_SERIAL','QA_ADB','QA_ADB_PORT','QA_PORT','QA_ORIGIN','QA_BASE_PATH','QA_DEVICE_ID','QA_DEVICE_NAME','QA_TRUST_PROXY','QA_APK_DIR','QA_APK_SSH_HOST','QA_SCREEN_SERVER','QA_VIDEO_SERVER','QA_STOP_FILE','QA_WIRELESS_STATE','QA_SSH_CONFIG')) { $qaPrevious[$qaName] = [Environment]::GetEnvironmentVariable($qaName,'Process') }
 $qaNodeProcess = $null; $qaTunnelProcess = $null; $qaAdbChild=$null; $qaWirelessChild=$null
 $qaConfiguredSerial=$Serial
 $qaWirelessState=Join-Path $qaRuntime 'wireless-state.json'
@@ -63,7 +63,6 @@ try {
     $qaUsbPresent=$qaRows | Where-Object { $_ -match ('^'+[regex]::Escape($env:QA_EXPECTED_IDENTITY)+'\s+device\s*$') }
     $Serial=Get-QaRelayTransport -Identity $env:QA_EXPECTED_IDENTITY -CurrentSerial $Serial -Endpoint $Serial -UsbConnected ([bool]$qaUsbPresent)
   }
-  $env:QA_LIVE_CONFIG=Join-Path $qaRuntime 'live-control.json'
   $env:QA_STOP_FILE=Join-Path $qaRuntime ('stop-'+[guid]::NewGuid().ToString('N'))
   $env:QA_SERIAL=$Serial; $env:QA_ADB=$Adb; $env:QA_ADB_PORT=[string]$AdbPort; $env:QA_PORT=[string]$Port
   $env:QA_DEVICE_ID=$DeviceId; $env:QA_DEVICE_NAME=$DeviceName
