@@ -91,15 +91,16 @@ class HomeScrollTest {
 
     @Test fun artCoversTheBoxAndKeepsItsRatio() {
         // 그림과 같은 비율의 창은 넘침 없이 꼭 맞는다.
-        val fit = homeArtPlacement(HomeArtKind.PhonePortrait, 1080f, 2340f, .5f, .5f)
-        assertEquals(1080f, fit.width, 1e-2f)
+        val fit = homeArtPlacement(HomeArtKind.PhonePortrait, 580f, 1254f, .5f, .5f)
+        assertEquals(580f, fit.width, 1e-2f)
         assertEquals(0f, fit.x, 1e-2f)
         assertEquals(0f, fit.y, 1e-2f)
         // 펼친 그림 띠(390×376): 너비에 맞추고 세로로 넘친 만큼 초점 위치를 남긴다.
         val band = homeArtPlacement(HomeArtKind.PhonePortrait, 390f, 376f, .5f, .8f)
         assertEquals(390f, band.width, 1e-3f)
-        assertEquals(845f, band.height, 1e-2f)
-        assertEquals((376f - 845f) * .8f, band.y, 1e-2f)
+        val bandHeight = 390f * 1254f / 580f
+        assertEquals(bandHeight, band.height, 1e-2f)
+        assertEquals((376f - bandHeight) * .8f, band.y, 1e-2f)
         // 그림보다 넓적한 칸·길쭉한 칸 모두 빈틈이 없다.
         for (kind in HomeArtKind.entries) for ((bw, bh) in listOf(300f to 900f, 900f to 300f)) {
             val p = homeArtPlacement(kind, bw, bh, kind.openFocusX, kind.openFocusY)
@@ -107,6 +108,51 @@ class HomeScrollTest {
             assertTrue(p.x <= 0f && p.y <= 0f)
             assertTrue(p.x + p.width >= bw - 1e-3f && p.y + p.height >= bh - 1e-3f)
             assertEquals(kind.aspect, p.height / p.width, 1e-4f)
+        }
+    }
+
+    @Test fun bottomFadeStartsClearAndEndsInGround() {
+        assertEquals(0f, homeArtFade(0f))
+        assertEquals(1f, homeArtFade(1f))
+        assertEquals(1f, homeArtFade(2f))
+        // 띠 안 제목의 아래 끝(띠 아래 끝 10dp 위)에서는 바탕색이 거의 덮이지 않는다.
+        val atTitle = (HomeArtFadeAbove - 10f) / (HomeArtFadeAbove + HomeArtFadeBelow)
+        assertTrue(homeArtFade(atTitle) < .1f)
+        var last = 0f
+        for (i in 1..20) {
+            val v = homeArtFade(i / 20f)
+            assertTrue(v >= last)
+            last = v
+        }
+    }
+
+    @Test fun heroTitleShrinksOnPhonePortraitAndGrowsInLandscape() {
+        val portrait = homeHeroTitle(HomeArtKind.PhonePortrait, 390f, 844f, 56.5f)
+        assertEquals(.8f, portrait.scale)
+        assertEquals(370f, portrait.right)
+        assertEquals(844f - 88f - 56.5f - 10f, portrait.bottom, 1e-3f)
+        assertEquals(1.3f, homeHeroTitle(HomeArtKind.TabletPortrait, 800f, 1280f, 58f).scale)
+        val phoneLand = homeHeroTitle(HomeArtKind.PhoneLandscape, 844f, 390f, 58f)
+        val tabletLand = homeHeroTitle(HomeArtKind.TabletLandscape, 1280f, 800f, 58f)
+        assertTrue(phoneLand.scale > 1.3f && tabletLand.scale > 1.3f)
+        assertEquals(844f * .95f, phoneLand.right, 1e-3f)
+        // 가로 제목의 가운데는 창 높이의 정해진 비율에 놓인다.
+        assertEquals(390f * .38f, phoneLand.bottom - homeTitleHeight(phoneLand.scale) / 2f, 1e-3f)
+    }
+
+    @Test fun landscapeHeroTitleStaysClearOfTheStartButton() {
+        for ((kind, w, h) in listOf(
+            Triple(HomeArtKind.PhoneLandscape, 780f, 360f), Triple(HomeArtKind.PhoneLandscape, 844f, 390f),
+            Triple(HomeArtKind.PhoneLandscape, 915f, 412f), Triple(HomeArtKind.TabletLandscape, 1024f, 768f),
+            Triple(HomeArtKind.TabletLandscape, 1280f, 800f), Triple(HomeArtKind.TabletLandscape, 1366f, 1024f),
+        )) {
+            val title = homeHeroTitle(kind, w, h, 58f)
+            val frame = homeScrollFrame(w, h, 0f, 58f)
+            val buttonW = minOf(minOf(w - 80f, 1120f), 360f)
+            val buttonRight = (w + buttonW) / 2f
+            val left = title.right - HomeTitleWidth * title.scale
+            assertTrue(title.bottom + 12f <= frame.buttonTop || left - 12f >= buttonRight, "$kind ${w}x$h")
+            assertTrue(title.right <= w - 20f)
         }
     }
 }
