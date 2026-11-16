@@ -43,6 +43,8 @@ object EolssuIcons {
         rect(4f, 14f, 4f, 6f, 1f),
         rect(16f, 14f, 4f, 6f, 1f),
     )
+    val Eye = lineIcon("Eye", "M2 12s3.5 -7 10 -7 10 7 10 7 -3.5 7 -10 7 -10 -7 -10 -7z", circle(12f, 12f, 3f))
+    val EyeOff = lineIcon("EyeOff", "M2 12s3.5 -7 10 -7 10 7 10 7 -3.5 7 -10 7 -10 -7 -10 -7z", circle(12f, 12f, 3f), "M4 4l16 16")
     val Lock = lineIcon("Lock", rect(5f, 11f, 14f, 10f, 2f), "M8 11V7a4 4 0 0 1 8 0v4")
     val Info = lineIcon("Info", circle(12f, 12f, 9f), "M12 11v5M12 8h0.01")
     val Alert = lineIcon("Alert", "M12 3l10 18H2z", "M12 10v4M12 17h0.01")

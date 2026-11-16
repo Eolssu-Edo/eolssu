@@ -99,7 +99,7 @@ fun PasswordSetupScreen(
                         label = stringResource(if (signUp) Res.string.auth_password else Res.string.auth_new_password),
                         placeholder = stringResource(Res.string.auth_password_placeholder),
                         type = TextFieldType.Password,
-                        maxLength = InputLimit.NEW_PASSWORD,
+                        maxLength = InputLimit.PASSWORD,
                         error = state.passwordError?.takeUnless { ruleError }?.let { stringResource(it.message) },
                     )
                     PasswordChecklist(state.password, highlightUnmet = ruleError)
@@ -112,7 +112,7 @@ fun PasswordSetupScreen(
                     label = stringResource(Res.string.auth_password_confirm),
                     placeholder = stringResource(Res.string.auth_password_confirm_placeholder),
                     type = TextFieldType.Password,
-                    maxLength = InputLimit.NEW_PASSWORD,
+                    maxLength = InputLimit.PASSWORD,
                     error = state.passwordConfirmError?.let { stringResource(it.message) },
                     imeAction = ImeAction.Done,
                     onImeAction = onSubmit,

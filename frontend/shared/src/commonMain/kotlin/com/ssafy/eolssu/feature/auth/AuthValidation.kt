@@ -67,7 +67,7 @@ enum class FieldError(val message: StringResource) {
 
 /**
  * 서버에 보내기 전의 입력 검사. 계정 확인·이메일 중복·인증번호는 서버 응답을 따른다.
- * 새 비밀번호 규칙은 앱 기준 '영문·숫자·특수문자를 포함한 8~64자'다(서버는 128자까지 받는다). 닉네임은 서버와 같은 공백이 아닌 최대 10자([NicknameRule])다.
+ * 비밀번호 규칙은 앱 기준 '영문·숫자·특수문자를 포함한 8~64자'다(서버는 아직 128자까지 받는다, S15P31E102-1014). 닉네임은 서버와 같은 공백이 아닌 최대 10자([NicknameRule])다.
  */
 object AuthValidation {
     private val codePattern = Regex("""^\d{6}$""")

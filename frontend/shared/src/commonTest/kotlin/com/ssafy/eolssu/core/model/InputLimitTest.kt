@@ -35,8 +35,7 @@ class InputLimitTest {
     @Test
     fun serverLengthsAreKept() {
         assertEquals(100, InputLimit.EMAIL)
-        assertEquals(128, InputLimit.PASSWORD)
-        assertEquals(64, InputLimit.NEW_PASSWORD)
+        assertEquals(64, InputLimit.PASSWORD)
         assertEquals(50, InputLimit.SHEET_TITLE)
         assertEquals(500, InputLimit.MEMO)
         val longEmail = "a".repeat(400) + "@eolssu.kr"

@@ -46,9 +46,11 @@ internal fun SheetBasicAccompanimentDialog(
                 }
             }
             Text(stringResource(Res.string.basic_accompaniment_pickup_help), style = MaterialTheme.typography.bodySmall)
+            // 악보 전체 정간 순서라 이 악보 정간 수의 자릿수까지만 받는다(S15P31E102-996).
+            val cellDigits = remember(draft) { draft.cells.size.toString().length }
             EolssuTextField(firstCell, { firstCell = it },
                 label = stringResource(Res.string.basic_accompaniment_first_cell, draft.cells.size), placeholder = "1",
-                type = TextFieldType.Number, maxLength = InputLimit.NUMBER_DIGITS,
+                type = TextFieldType.Number, maxLength = cellDigits,
                 error = if (cell == null) stringResource(Res.string.basic_accompaniment_cell_error, draft.cells.size) else null)
             if (cell != null) Text(stringResource(Res.string.basic_accompaniment_cell_location,
                 draft.columnOf(cell) + 1, draft.rowOf(cell) + 1), style = MaterialTheme.typography.bodySmall)

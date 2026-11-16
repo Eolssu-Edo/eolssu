@@ -70,7 +70,7 @@ fun PasswordChangeScreen(
                 label = stringResource(Res.string.my_password_new),
                 placeholder = stringResource(Res.string.my_password_new),
                 type = TextFieldType.Password,
-                maxLength = InputLimit.NEW_PASSWORD,
+                maxLength = InputLimit.PASSWORD,
                 bordered = false,
                 error = state.newError?.takeUnless { ruleError }?.let { stringResource(it.message) },
             )
@@ -82,7 +82,7 @@ fun PasswordChangeScreen(
             label = stringResource(Res.string.my_password_confirm),
             placeholder = stringResource(Res.string.my_password_confirm_placeholder),
             type = TextFieldType.Password,
-            maxLength = InputLimit.NEW_PASSWORD,
+            maxLength = InputLimit.PASSWORD,
             bordered = false,
             error = state.confirmError?.let { stringResource(it.message) },
             imeAction = ImeAction.Done,

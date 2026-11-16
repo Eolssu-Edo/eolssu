@@ -31,6 +31,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.InputLimit
+import org.jetbrains.compose.resources.stringResource
+import eolssu.shared.generated.resources.input_limit_reached
+import eolssu.shared.generated.resources.Res
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import com.ssafy.eolssu.core.theme.EolssuTheme
 
 /**
@@ -40,7 +45,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
  *   한글을 조합하는 중에 상한에 닿아도 키보드와 칸의 내용이 어긋나 앞의 글이 되돌아가지 않는다.
  * - 줄바꿈을 여러 번 넣어도 칸은 [maxHeight]까지만 커지고, 그 뒤로는 칸 안에서 스크롤하며 커서를 따라간다.
  *   넘친 줄이 있으면 오른쪽에 스크롤 막대를 보인다.
- * - 칸 아래 오른쪽에 `n/[maxLength]`를 보이고, 왼쪽에는 [supporting](실패 안내 등)을 둔다.
+ * - 칸 아래 오른쪽에 `n/[maxLength]`를 보이고, 왼쪽에는 [supporting](실패 안내 등)을, 없으면 상한에 닿았을 때 상한 안내를 둔다.
  */
 @Composable
 fun EolssuMemoField(
@@ -93,7 +98,18 @@ fun EolssuMemoField(
             )
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Box(Modifier.weight(1f)) { supporting?.invoke() }
+            Box(Modifier.weight(1f)) {
+                when {
+                    supporting != null -> supporting()
+                    // 상한에 닿으면 왜 더 써지지 않는지 알린다(S15P31E102-996).
+                    length >= maxLength -> Text(
+                        stringResource(Res.string.input_limit_reached, maxLength),
+                        Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        style = small.copy(fontWeight = FontWeight.SemiBold),
+                        color = colors.recText,
+                    )
+                }
+            }
             Text(
                 "$length/$maxLength",
                 Modifier.padding(start = 8.dp),
