@@ -634,3 +634,4 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 - [입력칸 글자 수 상한과 메모 입력 방식 (996)](knowledge/frontend/input-length-limits.md)
 - [악보 빠르기 범위 40~200 (1018)](knowledge/frontend/sheet-tempo-range.md)
+- [강원도아리랑·옹헤야 빠르기 정간 단위 표기와 운영 적용 (1019)](knowledge/data/score-tempo-1019.md)
