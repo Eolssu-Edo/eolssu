@@ -7,6 +7,7 @@ import kotlin.test.assertTrue
 import com.ssafy.eolssu.data.song.*
 import kotlinx.serialization.json.*
 import kotlin.math.log2
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 class SheetPitchAdaptationTest {
@@ -134,6 +135,21 @@ class SheetPitchAdaptationTest {
         assertEquals(original.events.map { Triple(it.id, it.startTick, it.durationTick) },
             adapted.events.map { Triple(it.id, it.startTick, it.durationTick) })
         assertEquals(original.provenance, adapted.provenance)
+    }
+
+    @Test fun keepsAStoredReferenceFrequencyThatAlreadyMatchesTheInstrument() {
+        val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
+            AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
+        listOf(311.1269837220809, 311.12698372208087).forEach { stored ->
+            val score = smallScoreData().let { it.copy(music = it.music.copy(hwangHz = stored)) }
+            val draft = score.editingDraft("adapt", 60, null)
+            val plan = planPitchAdaptation(draft.sourcePitchNotes(), emptyList()).first { it.transpose == 0 }
+            assertEquals(stored, draft.applyAdaptation(plan, capability).toCommonScore().music.hwangHz,
+                "같은 기준음은 다시 계산한 마지막 자리로 바꾸지 않는다")
+        }
+        val detuned = smallScoreData().let { it.copy(music = it.music.copy(hwangHz = 315.0)) }.editingDraft("adapt", 60, null)
+        val plan = planPitchAdaptation(detuned.sourcePitchNotes(), emptyList()).first { it.transpose == 0 }
+        assertEquals(440.0 * 2.0.pow(-6 / 12.0), detuned.applyAdaptation(plan, capability).toCommonScore().music.hwangHz)
     }
 
     @Test fun reopeningAdaptedDraftUsesImmutableOriginalOctaves() {

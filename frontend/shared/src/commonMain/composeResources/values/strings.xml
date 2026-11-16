@@ -469,9 +469,9 @@
     <string name="learn_pattern_ascending">순차 상행</string>
     <string name="learn_pattern_descending">순차 하행</string>
     <string name="learn_task_range_high">높은 음 내기</string>
-    <string name="learn_task_range_high_detail">조금 세게 불어 높은 음을 내 보아요.</string>
+    <string name="learn_task_range_high_detail">입술을 모아 세게 불어 높은 음을 내요.</string>
     <string name="learn_task_range_low">낮은 음 내기</string>
-    <string name="learn_task_range_low_detail">조금 약하게 불어 낮은 음을 내 보아요.</string>
+    <string name="learn_task_range_low_detail">입술을 풀고 약하게 불어 낮은 음을 내요.</string>
     <string name="learn_task_range_both">높은 음·낮은 음 내기</string>
     <string name="learn_section_pass">통과 기준</string>
     <string name="learn_more_fingering">운지법 보기</string>
