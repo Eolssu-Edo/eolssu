@@ -169,6 +169,7 @@ def _read_part(part, issues):
                 'expectedQuarters': str(local_meter[1] * local_meter[2]),
                 'actualQuarters': str(written_lengths[index])}))
         t, longest = Fraction(0), Fraction(0)
+        flagged_voices = set()  # 마디 길이 검수는 성부마다 마디 첫 음에만 남긴다
         for el in m:
             if el.tag == "attributes":
                 d, shift = _attributes(el, d, shift)
@@ -194,7 +195,9 @@ def _read_part(part, issues):
                 if dur <= 0:
                     last = None  # 길이 없는 음에 붙은 화음은 버린다
                     continue
-                last = [cursor + t, dur, [(pitch, tie_stop)], number, graces.pop(voice, []) + rhythm_flags]
+                flags = graces.pop(voice, []) + (rhythm_flags if voice not in flagged_voices else [])
+                flagged_voices.add(voice)
+                last = [cursor + t, dur, [(pitch, tie_stop)], number, flags]
                 voices[voice].append(last)
                 t += dur
             longest = max(longest, t)

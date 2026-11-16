@@ -21,6 +21,10 @@ data class SheetCompletionValidation(
     val firstCellIndex: Int? = null,
     val correctionCellIndices: Set<Int> = emptySet(),
     val correctionUnitKeys: Set<ScoreUnitKey> = emptySet(),
+    /** [correctionCellIndices] 중 악기 음역·운지 문제만 있는 칸. 이조나 옥타브 조정으로 풀 수 있다. */
+    val rangeCellIndices: Set<Int> = emptySet(),
+    /** [correctionUnitKeys] 중 음역·운지 문제만 있는 소박. */
+    val rangeUnitKeys: Set<ScoreUnitKey> = emptySet(),
     internal val checkableIssueIds: Set<String> = emptySet(),
     internal val resolvedPitchIssueIds: Set<String> = emptySet(),
 ) {
@@ -28,6 +32,8 @@ data class SheetCompletionValidation(
     val canComplete: Boolean get() = !hasEmptyCells && pendingReviewCount == 0 && invalidPitchCount == 0 &&
         !hasInvalidStructure && !hasJangdanMismatch && !hasTuningMismatch && !catalogLoading && !catalogFailed
 }
+
+private val PITCH_REVIEW_KINDS = setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE")
 
 internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val empty = draft.unfilledCells
@@ -92,27 +98,30 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
         cells?.indexOfFirst { it.id == location || location.startsWith("${it.id}-") }?.takeIf { it >= 0 }
     }
     val structuralUnits = if (structureError != null) score?.structuralUnitKeys().orEmpty() else emptySet()
-    val correctionUnits = buildSet {
-        addAll(invalidUnits)
+    fun SheetReviewIssue.units(): List<ScoreUnitKey> {
+        val index = draft.sourceCellIds?.indexOf(cellId)?.takeIf { it >= 0 } ?: return emptyList()
+        val sourceUnits = draft.originalCell(index)?.units.orEmpty()
+        val matched = draft.cells[index].indices.filter { sub ->
+            when {
+                eventId != null -> sourceUnits.getOrNull(sub)?.eventId == eventId
+                pitch != null -> pitchesByUnit[index].getOrNull(sub) == pitch
+                else -> true
+            }
+        }.ifEmpty { draft.cells[index].indices.toList() }
+        return matched.mapNotNull { draft.unitKeyOf(index, it) }
+    }
+    val (pitchPending, otherPending) = pending.partition { it.kind in PITCH_REVIEW_KINDS }
+    val otherUnits = buildSet {
         empty.forEach { index ->
             draft.cells[index].forEachIndexed { sub, note ->
                 if (note == ScoreNote.Blank) draft.unitKeyOf(index, sub)?.let(::add)
             }
         }
-        pending.forEach { issue ->
-            val index = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@forEach
-            val sourceUnits = draft.originalCell(index)?.units.orEmpty()
-            val matched = draft.cells[index].indices.filter { sub ->
-                when {
-                    issue.eventId != null -> sourceUnits.getOrNull(sub)?.eventId == issue.eventId
-                    issue.pitch != null -> pitchesByUnit[index].getOrNull(sub) == issue.pitch
-                    else -> true
-                }
-            }.ifEmpty { draft.cells[index].indices.toList() }
-            matched.forEach { draft.unitKeyOf(index, it)?.let(::add) }
-        }
+        otherPending.forEach { addAll(it.units()) }
         addAll(structuralUnits)
     }
+    val pitchUnits = invalidUnits + pitchPending.flatMap { it.units() }
+    val correctionUnits = pitchUnits + otherUnits
     val corrections = buildSet {
         addAll(empty)
         addAll(invalidPitches)
@@ -127,6 +136,17 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
             if (structuralCells.isEmpty() && empty.isEmpty()) structureCell?.let(::add)
         }
     }.sorted().toSet()
+    // 음역·운지만 걸린 칸은 인식 확인과 다른 표시를 쓴다. 다른 이유가 하나라도 있으면 인식 확인으로 둔다.
+    val otherCells = buildSet {
+        addAll(empty)
+        addAll(unresolvedTempos)
+        otherPending.forEach { issue -> draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 }?.let(::add) }
+        addAll(corrections.filter { index -> draft.cells[index].indices.any { draft.unitKeyOf(index, it) in structuralUnits } })
+        if (structureError != null && structuralUnits.isEmpty()) structureCell?.let(::add)
+    }
+    val rangeCells = corrections.filterTo(linkedSetOf()) { index ->
+        index !in otherCells && draft.cells[index].indices.any { draft.unitKeyOf(index, it) in pitchUnits }
+    }
     return SheetCompletionValidation(
         emptyCellCount = empty.size,
         pendingReviewCount = pending.size + unresolvedTempos.count { index -> pending.none { it.cellId == draft.sourceCellIds?.getOrNull(index) } },
@@ -139,6 +159,8 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
         firstCellIndex = corrections.firstOrNull(),
         correctionCellIndices = corrections,
         correctionUnitKeys = correctionUnits,
+        rangeCellIndices = rangeCells,
+        rangeUnitKeys = pitchUnits - otherUnits,
         checkableIssueIds = checkable,
         resolvedPitchIssueIds = resolvedPitchIssues + resolvedTempoIssues,
     )

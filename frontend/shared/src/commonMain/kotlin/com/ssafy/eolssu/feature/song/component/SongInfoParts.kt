@@ -18,6 +18,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -50,7 +52,7 @@ internal fun SongDetailBody(
     infoColumns: Int = 2,
     large: Boolean = false,
 ) {
-    Column(modifier.fillMaxWidth()) {
+    Column(modifier.observeFirstDraw(PerfPhase.SONG_DETAIL_DRAWN).fillMaxWidth()) {
         SongScoreCover(song, columns = coverColumns, rows = coverRows, scoreFraction = coverFraction, large = large)
         SongTitleRow(song, Modifier.padding(top = 24.dp, bottom = 10.dp))
         if (song.description.isNotBlank()) {

@@ -33,6 +33,9 @@ internal object SheetEditIcons {
 
     val ChevronUp = lineIcon("ChevronUp", "M6 15l6 -6 6 6")
 
+    /** 이조 한 칸 내리기(가로줄). 올리기는 [com.ssafy.eolssu.core.ui.component.EolssuIcons.Plus]다. */
+    val Minus = lineIcon("Minus", "M5 12h14")
+
     private fun lineIcon(name: String, vararg strokes: String): ImageVector {
         val builder = ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
         strokes.forEach { data ->
