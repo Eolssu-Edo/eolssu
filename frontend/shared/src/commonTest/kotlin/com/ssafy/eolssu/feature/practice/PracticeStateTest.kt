@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.model.Score
+import com.ssafy.eolssu.core.model.ScoreCell
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.practice.PracticeSettings
@@ -270,6 +272,19 @@ class PracticeStateTest {
         val hold = ready.selectUnit(arirang.displayUnits[1])
         assertEquals(1, hold.selected)
         assertNull(hold.panel)
+    }
+
+    /** 쉼표를 눌러도 운지법 팝업을 쉼 페이지로 연다. 팝업에서 좌우로 넘길 때와 같다(S15P31E102-1007). */
+    @Test
+    fun selectingRestOpensFingeringOnRestPage() {
+        val song = arirang.copy(score = Score(listOf(listOf(ScoreCell(ScoreNote.Pitch(Yul.Hwangjong)), ScoreCell(ScoreNote.Rest), ScoreCell(ScoreNote.Hold)))))
+        val state = PracticeUiState(song = song)
+        val rest = song.displayUnits.first { it.note == ScoreNote.Rest }
+        val opened = state.selectUnit(rest)
+        assertEquals(PracticePanel.Fingering, opened.panel)
+        assertEquals(ScoreNote.Rest, opened.draft.note)
+        assertEquals(rest.event.index, opened.selected)
+        assertEquals(opened.fingeringNoteAt(opened.selected), opened.draft.note)
     }
 
     @Test

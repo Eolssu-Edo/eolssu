@@ -34,29 +34,33 @@ async function fixture(t, failInput = false, extra = {}) {
   }
   return { relay, calls, request, login };
 }
-test('Wi-Fi pairing requires a session and the operator key before invoking ADB', async t => {
-  const key = 'a'.repeat(64);
+test('Wi-Fi pairing uses the Android code without a PC key, retaining session, origin and retry guards', async t => {
   const calls = [];
   const {request, login} = await fixture(t, false, {
-    pairingKey:key,
     wireless:{
       state:async()=>({available:true,port:40519}),
       pair:async(port,code)=>{calls.push([port,code]);return {paired:true};},
     },
   });
   const path = '/api/wireless/pair';
-  const payload = {key,port:37631,code:'012345'};
+  const payload = {port:37631,code:'012345'};
   assert.equal((await request(path,payload)).status,401);
   const viewer = await login('참여자');
   assert.equal((await request(path,payload,viewer,'https://other.example')).status,403);
-  assert.equal((await request(path,{...payload,key:'b'.repeat(64)},viewer)).status,403);
+  assert.equal((await request(path,{...payload,code:'bad'},viewer)).status,400);
+  assert.equal((await request(path,{...payload,port:70000},viewer)).status,400);
   assert.deepEqual(calls,[]);
   const state = await (await request('/api/state',undefined,viewer)).json();
   assert.equal(state.wireless.pairing,true);
-  assert.equal(JSON.stringify(state).includes(key),false);
   assert.deepEqual(await (await request(path,payload,viewer)).json(),{paired:true});
   assert.deepEqual(calls,[[37631,'012345']]);
   assert.equal((await request(path,payload,viewer)).status,429);
+});
+
+test('a viewer cannot pair while another participant owns the device',async t=>{
+  const f=await fixture(t,false,{wireless:{state:async()=>({available:true}),pair:()=>assert.fail('viewer cannot pair')}});
+  const a=await f.login('Alice'),b=await f.login('Bob');await f.request('/api/request',{},a);
+  assert.equal((await f.request('/api/wireless/pair',{port:37631,code:'012345'},b)).status,409);
 });
 test('unauthenticated screen/API and cross-origin writes rejected', async t => {
   const { request, login } = await fixture(t);

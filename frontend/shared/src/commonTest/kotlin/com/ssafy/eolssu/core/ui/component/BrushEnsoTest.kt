@@ -1,8 +1,5 @@
-package com.ssafy.eolssu.feature.result
+package com.ssafy.eolssu.core.ui.component
 
-import com.ssafy.eolssu.feature.result.component.EnsoBrush
-import com.ssafy.eolssu.feature.result.component.Mulberry32
-import com.ssafy.eolssu.feature.result.component.chaseProgress
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals

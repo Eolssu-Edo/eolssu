@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.ui.graphics.Color
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,8 @@ internal fun SheetEditDetailsDialog(
     notice: @Composable () -> Unit = {},
 ) {
     var title by rememberSaveable { mutableStateOf(initialTitle) }
+    // 제목 칸을 고치기 전에는 오류를 보이지 않는다. 빈 제목으로 열려도 저장 버튼만 막고 오류 문장은 띄우지 않는다(S15P31E102-996).
+    var touched by rememberSaveable { mutableStateOf(false) }
     val validTitle = normalizedSheetTitle(title)
 
     EolssuDialog(
@@ -53,10 +56,11 @@ internal fun SheetEditDetailsDialog(
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             EolssuTextField(
                 value = title,
-                onValueChange = { if (!saving) title = it },
+                onValueChange = { if (!saving) { title = it; touched = true } },
                 label = stringResource(Res.string.sheet_details_title),
                 placeholder = "",
-                error = if (validTitle == null) stringResource(Res.string.sheet_details_title_error) else null,
+                maxLength = InputLimit.SHEET_TITLE,
+                error = if (touched && validTitle == null) stringResource(Res.string.sheet_details_title_error) else null,
                 bordered = false,
                 containerColor = EolssuTheme.colors.groupedBackground,
             )

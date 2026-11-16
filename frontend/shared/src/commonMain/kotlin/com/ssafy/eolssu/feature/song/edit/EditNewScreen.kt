@@ -1,19 +1,11 @@
 package com.ssafy.eolssu.feature.song.edit
 
-import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -26,7 +18,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.song.SongLoadState
@@ -34,18 +25,15 @@ import com.ssafy.eolssu.feature.song.component.DeleteSheetDialog
 import com.ssafy.eolssu.feature.song.component.MySheetRow
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.edit.component.KindCard
-import com.ssafy.eolssu.feature.song.edit.component.LinkRow
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditIcons
 import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblemDialog
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_sheet_count
-import eolssu.shared.generated.resources.sheetedit_new_copy_title
-import eolssu.shared.generated.resources.sheetedit_new_jg_caption
-import eolssu.shared.generated.resources.sheetedit_new_staff_caption
-import eolssu.shared.generated.resources.sheetedit_new_jg_title
-import eolssu.shared.generated.resources.sheetedit_new_pick_file
 import eolssu.shared.generated.resources.sheetedit_new_question
-import eolssu.shared.generated.resources.sheetedit_new_staff_title
+import eolssu.shared.generated.resources.sheetedit_new_eolssu_caption
+import eolssu.shared.generated.resources.sheetedit_new_eolssu_title
+import eolssu.shared.generated.resources.sheetedit_new_upload_caption
+import eolssu.shared.generated.resources.sheetedit_new_upload_title
 import eolssu.shared.generated.resources.sheetedit_new_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -53,6 +41,7 @@ import org.jetbrains.compose.resources.stringResource
 class EditNewSheetActions(
     val onOpen: (MySheet) -> Unit = {},
     val onEdit: (MySheet) -> Unit = {},
+    val onOpenConversion: (MySheet) -> Unit = {},
     val onDelete: (MySheet) -> Unit = {},
     val onConfirmDelete: () -> Unit = {},
     val onCancelDelete: () -> Unit = {},
@@ -64,17 +53,19 @@ class EditNewSheetActions(
 )
 
 /**
- * EDIT-01 악보 추가: 같은 크기로 나란히 둔 정간보 가져오기 · 오선보 가져오기 카드와 그 아래 따로 둔 '내 악보·제공 곡 불러오기' 줄.
- * 아래 고정 버튼 '악보 정보 입력하기'는 고른 종류의 정보 입력 화면으로 간다. 파일은 그 화면에서 고르고, 음역은 가져온 뒤 편집기에서 조정한다.
+ * EDIT-01 악보 추가: 위아래로 쌓은 '내 악보 가져오기'(연두로 강조) · '얼쑤에서 가져오기' 카드(S15P31E102-997).
+ * '내 악보 가져오기'는 확인 버튼 없이 바로 악보 올리기 화면으로 가고, 정간보·오선보와 파일은 그 화면에서 고른다.
+ * 음역은 가져온 뒤 편집기에서 조정한다. '얼쑤에서 가져오기'는 제공 곡·내 악보 목록(EditPick)으로 간다.
  * 그 아래에 내 악보와 변환 진행 상황(대기·읽는 중·만드는 중·실패)을 내 악보 탭과 같은 줄로 보인다(S15P31E102-881).
  * 파일 형식·촬영 안내는 화면에 늘 두지 않고, 문제가 생겼을 때만 [EditNewUiState.problem] 안내 창으로 알린다.
- * 태블릿 가로에서는 본문을 [sheetAddContentMaxWidth]로 넓히고 하단 버튼은 휴대폰 열 폭으로 둔다(S15P31E102-978).
+ * 태블릿 가로에서는 본문을 [sheetAddContentMaxWidth]로 넓힌다(S15P31E102-978).
  */
 @Composable
 fun EditNewScreen(
     state: EditNewUiState,
     onBack: () -> Unit,
-    onSelectKind: (ImportKind) -> Unit,
+    /** '내 악보 가져오기'를 눌렀다. 악보 올리기 화면으로 간다. */
+    onUpload: () -> Unit,
     onLoadExisting: () -> Unit,
     onOpenDevicePick: () -> Unit,
     onDismissProblem: () -> Unit = {},
@@ -90,7 +81,6 @@ fun EditNewScreen(
             EolssuTopBar(stringResource(Res.string.sheetedit_new_title), onBack = onBack, maxWidth = contentMaxWidth)
         },
         bottomDivider = false,
-        bottomBar = sheetAddBottomBar(contentMaxWidth) { EolssuButton(stringResource(Res.string.sheetedit_new_pick_file), onOpenDevicePick) },
     ) {
         Column(
             Modifier
@@ -100,33 +90,20 @@ fun EditNewScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             SectionLabel(stringResource(Res.string.sheetedit_new_question))
-            Row(
-                Modifier.fillMaxWidth().height(IntrinsicSize.Min).selectableGroup(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                KindCard(
-                    stringResource(Res.string.sheetedit_new_jg_title),
-                    stringResource(Res.string.sheetedit_new_jg_caption),
-                    SheetEditIcons.Jeongganbo,
-                    selected = state.kind == ImportKind.Jeongganbo,
-                    onClick = { onSelectKind(ImportKind.Jeongganbo) },
-                    modifier = Modifier.weight(1f).heightIn(min = KindCardMinHeight).fillMaxHeight(),
-                )
-                KindCard(
-                    stringResource(Res.string.sheetedit_new_staff_title),
-                    stringResource(Res.string.sheetedit_new_staff_caption),
-                    SheetEditIcons.StaffNotes,
-                    selected = state.kind == ImportKind.Staff,
-                    onClick = { onSelectKind(ImportKind.Staff) },
-                    modifier = Modifier.weight(1f).heightIn(min = KindCardMinHeight).fillMaxHeight(),
-                )
-            }
-            // 파일 업로드와 다른 기능이라 두 카드와 조금 떼어 따로 둔다.
-            LinkRow(
+            // 내 기기의 사진·PDF를 올린다. 주 행동이라 연두로 칠하고, 누르면 바로 악보 올리기 화면으로 간다(S15P31E102-997).
+            KindCard(
+                stringResource(Res.string.sheetedit_new_upload_title),
+                stringResource(Res.string.sheetedit_new_upload_caption),
+                SheetEditIcons.Folder,
+                onClick = onUpload,
+                emphasized = true,
+            )
+            // 얼쑤가 주는 곡이나 이미 만든 내 악보를 복사해 온다.
+            KindCard(
+                stringResource(Res.string.sheetedit_new_eolssu_title),
+                stringResource(Res.string.sheetedit_new_eolssu_caption),
                 SheetEditIcons.MySheet,
-                stringResource(Res.string.sheetedit_new_copy_title),
                 onClick = onLoadExisting,
-                modifier = Modifier.padding(top = 8.dp),
             )
             MySheetsSection(state, sheetActions)
         }
@@ -163,6 +140,7 @@ private fun MySheetsSection(state: EditNewUiState, actions: EditNewSheetActions)
                 sheet,
                 onOpen = { actions.onOpen(sheet) },
                 onEdit = { actions.onEdit(sheet) },
+                onOpenConversion = { actions.onOpenConversion(sheet) },
                 onDelete = { actions.onDelete(sheet) },
                 conversion = state.mine.conversionOf(sheet),
                 retrying = sheet.id in state.mine.retrying,
@@ -178,6 +156,3 @@ private fun MySheetsSection(state: EditNewUiState, actions: EditNewSheetActions)
 private fun SectionLabel(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
 }
-
-/** 가져오기 종류 카드의 최소 높이. 아이콘 원과 이름·설명 두 줄 사이에 여백이 남게 한다. */
-private val KindCardMinHeight = 150.dp

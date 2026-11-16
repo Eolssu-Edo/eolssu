@@ -944,7 +944,11 @@ private fun ScoreCellBox(
                                 reserveBottomStart = edgeReserve?.takeIf { r == rows.lastIndex && c == 0 },
                                 unit = unit,
                                 splitCount = maxOf(rows.size, row.size),
-                                lineHeight = if (rows.size > 1) metrics.cellHeight / rows.size else null,
+                                // 3소박 율명은 칸을 늘려도 정한 크기를 넘지 않는다(S15P31E102-1022).
+                                lineHeight = if (rows.size > 1) {
+                                    val glyphCell = metrics.threeSplitGlyphCell?.takeIf { rows.size >= 3 }
+                                    (if (glyphCell != null) minOf(metrics.cellHeight, glyphCell) else metrics.cellHeight) / rows.size
+                                } else null,
                                 metrics = metrics,
                                 look = look,
                                 showDivider = r > 0,
