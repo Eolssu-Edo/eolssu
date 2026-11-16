@@ -3,9 +3,14 @@ const duration=value=>Number.isFinite(value)?`${(value/1000).toFixed(2)}초`:'�
 const scenarioNames={feedback:'평가 결과 비교',retry:'평가 재시도',duplicate:'중복 제출 방지',ownership:'계정 접근 차단'};
 const statuses={requesting:'요청 중',preparing:'준비 중',running:'진행 중',pass:'통과',fail:'실패',failed:'실패',cancelled:'중단'};
 const sources={app:'앱',proxy:'중계',backend:'서버',ai:'AI',db:'DB 조회',observer:'수집기',test:'검사 요청'};
-const stageLabels={request_started:'앱 요청',request_received:'서버 수신',proxy_received:'중계 수신',response_finished:'서버 응답',request_finished:'앱 수신',song_detail_drawn:'악보 표시',practice_drawn:'연습 화면',upload_accepted:'녹음 접수',ai_started:'AI 시작',ai_finished:'AI 완료',db_saved:'DB 저장',analysis_ready:'앱 결과 수신',score_drawn:'점수 표시'};
+const stageLabels={action:'앱 동작',poll_summary:'조회 집계',visit_started:'화면 진입',http_attempt:'앱 HTTP 응답',data_load:'데이터 로드',flow_end:'동작 종료',request_started:'앱 요청',request_received:'서버 수신',proxy_received:'중계 수신',response_finished:'서버 응답',request_finished:'앱 수신',song_detail_drawn:'악보 표시',practice_drawn:'연습 화면',upload_accepted:'녹음 접수',ai_started:'AI 시작',ai_finished:'AI 완료',db_saved:'DB 저장',analysis_ready:'앱 결과 수신',score_drawn:'점수 표시'};
 const friendlyName=value=>({instruments:'악기 목록',record_page:'최근 연주',member_me:'내 정보',session_create:'연습 시작',practice_status:'채점 상태',score:'악보 조회'}[value]||value);
 const qaFeatures=[['launch','앱 실행'],['login','로그인'],['contents','기초 콘텐츠'],['history','연습 기록 보기'],['perform','연습·평가'],['sheet','악보 추가·편집'],['load','부하 테스트']];
+const logKey=row=>`${row.deviceId||''}/${row.source}/${row.seq}/${row.at}`;
+export function logWindow(records,anchor=null,size=150){
+  const index=anchor?records.findIndex(row=>logKey(row)===anchor):-1,end=index<0?records.length:index+1,start=Math.max(0,end-size);
+  return {records:records.slice(start,end),start,end,before:start?logKey(records[start-1]):null,anchored:index>=0};
+}
 
 export function stageState(stage){
   if(!stage?.at)return 'waiting';
@@ -26,7 +31,7 @@ export function qaWorkflow(snapshot,owner){
     operation.stages?.some(stage=>['song_detail_drawn','practice_drawn'].includes(stage.name)&&stageState(stage)==='observed'));
   return signedIn?'perform':'login';
 }
-const logView=target=>`<details class="logDetails" data-log="${target}"><summary>로그 보기</summary><div class="logToolbar"><div class="logSourceButtons" role="group" aria-label="로그 출처"><button type="button" data-log-source="all" aria-pressed="true">전체 출처</button><button type="button" data-log-source="app" aria-pressed="false">앱</button><button type="button" data-log-source="backend" aria-pressed="false">서버</button><button type="button" data-log-source="ai" aria-pressed="false">AI</button><button type="button" data-log-source="db" aria-pressed="false">DB 조회</button><button type="button" data-log-source="test" aria-pressed="false">검사 요청</button><button type="button" data-log-source="proxy" aria-pressed="false">중계</button><button type="button" data-log-source="observer" aria-pressed="false">수집기</button></div><span class="logCount"></span></div><pre class="logRecords" tabindex="0">기록 없음</pre></details>`;
+const logView=target=>`<details class="logDetails" data-log="${target}"><summary>로그 보기</summary><div class="logToolbar"><div class="logSourceButtons" role="group" aria-label="로그 출처"><button type="button" data-log-source="all" aria-pressed="true">전체 출처</button><button type="button" data-log-source="app" aria-pressed="false">앱</button><button type="button" data-log-source="backend" aria-pressed="false">서버</button><button type="button" data-log-source="ai" aria-pressed="false">AI</button><button type="button" data-log-source="db" aria-pressed="false">DB 조회</button><button type="button" data-log-source="test" aria-pressed="false">검사 요청</button><button type="button" data-log-source="proxy" aria-pressed="false">중계</button><button type="button" data-log-source="observer" aria-pressed="false">수집기</button></div><span class="logCount"></span></div><div class="logPaging"><button type="button" data-log-page="previous">이전 기록</button><button type="button" data-log-page="latest">최신 기록</button></div><pre class="logRecords" tabindex="0">기록 없음</pre></details>`;
 
 export class LivePanel{
   constructor(root,{api,owner,notify,automationRoot}){
@@ -63,7 +68,8 @@ export class LivePanel{
     const loadPane=document.createElement('section');loadPane.className='qaStepPane loadStepPane';loadPane.id='qaPanel-load';loadPane.dataset.stepPane='load';loadPane.hidden=true;loadPane.setAttribute('role','tabpanel');loadPane.setAttribute('aria-labelledby','qaTab-load');loadPane.append(this.query('.loadCard'));root.append(loadPane);
     const scopeBar=document.createElement('div');scopeBar.className='logDeviceToolbar';
     scopeBar.innerHTML='<label>기기 로그 <select aria-label="로그 기기 범위"><option value="operation">선택 동작</option><option value="active">선택 기기</option><option value="all">연결된 모든 기기</option></select></label><span data-live="logDevice"></span>';
-    this.query('[data-log=operation] .logToolbar').before(scopeBar);this.logScope=scopeBar.querySelector('select');this.logScope.addEventListener('change',()=>void this.refresh());
+    this.query('[data-log=operation] .logToolbar').before(scopeBar);this.logScope=scopeBar.querySelector('select');this.logScope.value='all';this.logScope.addEventListener('change',()=>void this.refresh());
+    this.query('[data-log=operation]').open=true;
     this.get('size').addEventListener('change',()=>this.render(this.snapshot));
     this.nodes('[data-action],[data-scenario]').forEach(button=>button.disabled=true);
     this.nodes('[data-step]').forEach((button,index)=>{
@@ -86,7 +92,7 @@ export class LivePanel{
       if(!details.open){void this.refresh();return;}
       this.nodes('.logDetails[open]').forEach(other=>{if(other!==details)other.open=false;});void this.refresh();
     },true));
-    this.roots.forEach(node=>node.addEventListener('click',event=>{const button=event.target.closest('[data-log-source]');if(!button||!node.contains(button))return;const details=button.closest('.logDetails');this.logSourceSelections.set(details.dataset.log,button.dataset.logSource);this.renderLogs(this.snapshot);}));
+    this.roots.forEach(node=>node.addEventListener('click',event=>{const button=event.target.closest('[data-log-source],[data-log-page]');if(!button||!node.contains(button))return;const details=button.closest('.logDetails');if(button.dataset.logSource)this.logSourceSelections.set(details.dataset.log,button.dataset.logSource);else details.logAnchor=button.dataset.logPage==='previous'?details.logBefore:null;this.renderLogs(this.snapshot);}));
   }
   async command(action,extra={}){
     if(action==='start'&&this.launchAll){await this.launchAll();return;}
@@ -107,13 +113,14 @@ export class LivePanel{
     const context=this.context,version=++this.requestVersion;
     try{const target=this.logTarget(),snapshot=await this.api('live/status'+(target?'?logs='+encodeURIComponent(target):''));if(context===this.context&&version===this.requestVersion&&this.active)this.render(snapshot);}
     catch{if(context===this.context&&version===this.requestVersion){this.render({available:false,phase:'failed',message:'관측 서비스 연결 대기',operations:[],history:[]});this.nodes('.logDetails[open] .logRecords').forEach(pre=>pre.textContent='로그 연결 대기');}}
-    finally{if(context===this.context&&version===this.requestVersion){clearTimeout(this.timer);if(this.active)this.timer=setTimeout(()=>void this.refresh(),1000);}}
+    finally{if(context===this.context&&version===this.requestVersion){clearTimeout(this.timer);if(this.active)this.timer=setTimeout(()=>void this.refresh(),500);}}
   }
   render(snapshot){
     if(!snapshot)return;this.snapshot=snapshot;
     const owned=this.owner(),busy=this.pending||!owned.allowed||!snapshot.available;
     const phases={preparing:'QA 서버 준비 중',ready:'로그 수집 전',starting:'앱 실행 중',stopping:'로그 수집 종료 중',observing:'로그 수집 중',running:'서버 검사 중',failed:'시작 실패',stopped:'로그 수집 전'};
     this.get('status').textContent=snapshot.message?'실행 오류':snapshot.selected===false&&snapshot.busy?'다른 기기 사용 중':phases[snapshot.phase]||'대기';this.get('status').dataset.state=snapshot.message?'failed':snapshot.phase;
+    if(snapshot.appLog){this.get('status').textContent=snapshot.appLog.state==='unavailable'?'로그 연결 대기':snapshot.appLog.partial?'저장 로그 읽는 중':'로그 수집 중';this.get('status').dataset.state=snapshot.appLog.state==='unavailable'?'waiting':'observing';}
     const step=qaWorkflow(snapshot,owned);
     this.root.closest('.realQa').dataset.next=owned.allowed&&snapshot.mode==='observe'&&(['contents','history','perform','sheet'].includes(this.qaStep)||(this.qaStep==='login'&&this.loginNext==='device'))?'device':'';
     this.nodes('[data-step]').forEach(item=>{const selected=item.dataset.step===this.qaStep;item.setAttribute('aria-selected',String(selected));item.tabIndex=selected?0:-1;item.dataset.state=selected?'current':'waiting';});
@@ -162,7 +169,10 @@ export class LivePanel{
     const details=this.openLog();if(!details)return;const target=this.logTarget(),evidence=snapshot?.evidence,pre=details.querySelector('.logRecords'),count=details.querySelector('.logCount');
     if(!target){pre.textContent='기록 없음';count.textContent='';return;}if(evidence?.id!==target){pre.textContent='불러오는 중';count.textContent='';return;}
     const source=this.logSourceSelections.get(details.dataset.log)||'all';details.querySelectorAll('[data-log-source]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.logSource===source)));
-    const records=(evidence.records||[]).filter(row=>source==='all'||row.source===source);count.textContent=`${records.length} / ${evidence.total}건${evidence.total>evidence.records.length?' · 최근 '+evidence.records.length+'건':''}${evidence.unavailable?' · '+evidence.unavailable+'대 연결 대기':''}`;
+    const context=target+'|'+source;if(details.logContext!==context){details.logContext=context;details.logAnchor=null;}
+    const all=(evidence.records||[]).filter(row=>source==='all'||row.source===source),page=logWindow(all,details.logAnchor),records=page.records;
+    details.logBefore=page.before;details.querySelector('[data-log-page=previous]').disabled=!page.before;details.querySelector('[data-log-page=latest]').disabled=!page.anchored;
+    count.textContent=`${page.end?page.start+1+'–'+page.end:0} / ${all.length}건${evidence.total>evidence.records.length?' · 전체 '+evidence.total+'건':''}${evidence.unavailable?' · '+evidence.unavailable+'대 연결 대기':''}`;
     pre.classList.add('hasDeviceRows');pre.replaceChildren(...records.map(({at,source,deviceId,...fields})=>{const device=this.deviceInfo?.(deviceId),row=document.createElement('div');row.className='deviceLogRow';row.style.setProperty('--device-color',device?.color||'#69734f');row.dataset.level=(Number(fields.status)>=400||fields.status==='FAILED'||fields.outcome==='FAILED')?'failed':'observed';const when=document.createElement('time');when.textContent=time(at);const tag=document.createElement('span');tag.className='deviceTag';tag.textContent=device?`${device.number} ${device.name}`:'서버';const body=document.createElement('span');body.className='logBody';const origin=document.createElement('span');origin.className='sourceChip';origin.textContent=sources[source]||source;const name=document.createElement('strong');name.textContent=fields.kind||'기록';const data=document.createElement('small');data.textContent=JSON.stringify(fields);body.append(origin,name,data);row.append(when,tag,body);return row;}));if(!records.length)pre.textContent='기록 없음';
   }
 }

@@ -116,7 +116,7 @@ function paint(){
   document.querySelectorAll('[data-key],#textForm button,#text').forEach(element=>element.disabled=!device?.inputReady);
   $('mode').textContent=device?.inputReady?'기기 화면 조작 가능':'제어권 또는 화면 연결 대기';
   const label=livePanel.query('.activeDeviceLabel');if(label){label.textContent=device?device.number+' '+device.name:'기기 없음';label.style.color=device?.color||'';}
-  paintPeers();paintRequests();paintPairing();paintApk();paintBatch();
+  paintPeers();paintRequests();paintPairing();paintBatch();
   const prompts=sessions.filter(value=>value.authorized&&value.state?.idlePromptMs!=null).map(value=>value.state.idlePromptMs);
   if(prompts.length&&running){$('idleCountdown').textContent='연결 해제까지 '+Math.ceil(Math.min(...prompts)/1000)+'초';if(!$('idlePrompt').open)$('idlePrompt').showModal();}
   else if($('idlePrompt').open)$('idlePrompt').close();
@@ -148,7 +148,7 @@ async function deviceApi(path,data){
 const livePanel=new LivePanel($('qaLive'),{api:deviceApi,notify:message,automationRoot:$('qaAutomation'),owner:()=>{const device=active();return{connected:!!device?.connected,allowed:!!device?.inputReady,epoch:device?.state?.epoch,frameAt:Number(device?.canvas.dataset.videoAt)||device?.state?.frameAt};}});
 livePanel.get('results').querySelector('h3').append(node('span','activeDeviceLabel'));
 livePanel.deviceInfo=id=>sessions.find(device=>device.id===id);
-livePanel.onRender=snapshot=>{const installed=active()?.catalog?.installed;if(installed&&!installed.versionName.endsWith('-qa283-live')&&snapshot.available){livePanel.get('status').textContent='앱 로그 없음';livePanel.get('status').dataset.state='waiting';if(snapshot.message?.includes('관측용 QA APK'))livePanel.get('message').textContent='';}paintScenarioBands();paintBatch();};
+livePanel.onRender=()=>{paintScenarioBands();paintBatch();};
 let batchKind=null;
 async function requireControl(device){
   await device.readState();if(device.owned)return;
@@ -191,20 +191,6 @@ livePanel.launchAll=async()=>{
 };
 $('applyLatestBatch').addEventListener('click',()=>void applyLatestAll());
 
-const historyDate=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Seoul',month:'2-digit',day:'2-digit'});
-const buildName=build=>build?.mergeRequest?'MR !'+build.mergeRequest+' - '+(build.authorName||'작성자 확인 중')+' - '+(build.mergeRequestTitle||'제목 확인 중'):'MR 정보 없음';
-function paintApk(){
-  const device=active(),catalog=device?.catalog,builds=catalog?.builds||[];
-  const key=JSON.stringify(builds);if($('apkVersion').dataset.key!==key&&document.activeElement!==$('apkVersion')){const selected=$('apkVersion').value;$('apkVersion').dataset.key=key;$('apkVersion').replaceChildren(...builds.map(build=>{const parts=historyDate.formatToParts(new Date(build.builtAt)),option=node('option','',parts.find(value=>value.type==='month').value+'.'+parts.find(value=>value.type==='day').value+' '+(build.authorName||'작성자 미확인')+' '+(build.mergeRequestTitle||'MR !'+build.mergeRequest));option.value=build.id;return option;}));if(builds.some(build=>build.id===selected))$('apkVersion').value=selected;}
-  $('apkVersion').disabled=!builds.length;const selected=builds.find(build=>build.id===$('apkVersion').value);
-  $('apkMeta').textContent=selected?buildName(selected)+' · '+selected.versionName+' · '+selected.commit.slice(0,8):'';
-  const installed=catalog?.installed;$('installedVersion').hidden=!installed;$('installedVersion').textContent=installed?'설치됨: '+installed.versionName:'';
-  const update=latestApkUpdate(catalog,device?.connected?device.state:null,batchBusy);$('installLatest').disabled=!update.enabled;$('installLatest').textContent=update.label;$('apkUpdateHint').textContent='';
-  $('apkStatus').textContent=catalog?.sync?.error||device?.error||'';
-}
-$('apkVersion').addEventListener('change',paintApk);
-$('installLatest').addEventListener('click',async()=>{const device=active();if(!device)return;try{await requireControl(device);await device.refreshBuilds();const update=latestApkUpdate(device.catalog,device.state);if(!update.enabled)throw Error(update.hint);await device.api('builds/install',{id:update.build.id,epoch:device.state.epoch});message('APK 적용 중');await device.refreshBuilds();schedulePaint();}catch(error){message(error.message);}});
-
 function openConnection(device,opener){
   dialogTarget=device;dialogOpener=opener;$('connectionSettingsTitle').textContent=device.name+' · 연결 설정';$('connectionSettingsStatus').textContent='';$('wirelessPort').value=device.state?.wireless?.port||'';$('connectionDialog').showModal();paintPairing();$('wirelessPort').focus();$('wirelessPort').select();
 }
@@ -227,7 +213,7 @@ $('portForm').addEventListener('submit',async event=>{
 });
 $('pairingForm').addEventListener('submit',async event=>{
   event.preventDefault();const device=pairingDevice();if(!device||$('pairDevice').disabled)return;
-  const data={port:Number($('pairingPort').value),code:$('pairingCode').value,key:$('pairingKey').value};$('pairingForm').reset();pairingBusy=true;$('pairingStatus').textContent='페어링 확인 중';paintPairing();
+  const data={port:Number($('pairingPort').value),code:$('pairingCode').value};$('pairingForm').reset();pairingBusy=true;$('pairingStatus').textContent='페어링 확인 중';paintPairing();
   try{await device.api('wireless/pair',data);pairingRegistered.add(device.id);$('pairingStatus').textContent='PC 페어링 완료 · 화면 연결 중';$('pairingConnectPort').hidden=false;}catch(error){$('pairingStatus').textContent=error.message;}finally{pairingBusy=false;paintPairing();}
 });
 $('pairingConnectPort').addEventListener('click',()=>{const device=pairingDevice();if(device)openConnection(device,$('pairingConnectPort'));});

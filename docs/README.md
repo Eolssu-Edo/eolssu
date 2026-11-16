@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [최신 설치 APK의 QA 앱 로그 수집 연결 복구 (994)](plans/S15P31E102-994.md) · [원본 보존 수집 계약](specs/qa-installed-app-logs.md)
+
 - [Windows QA 실행·관측 통합 (936)](plans/S15P31E102-936.md) · [요구사항](specs/qa-live-control.md) · [QA 시연 대본](../infra/qa-phone/public/guide.html) · [운영 실행·증거 해석](../infra/qa-phone/LIVE.md)
 - [S10 실제 마이크·평가 로그 대조](knowledge/infra/qa-s10-real-microphone-verification.md)
 - [S10 기초 콘텐츠 화면·진도·실제 스피커 확인](knowledge/infra/qa-s10-content-verification.md)

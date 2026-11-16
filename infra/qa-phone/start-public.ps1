@@ -53,13 +53,13 @@ try {
   $env:QA_APPLOG_TOKEN=$null
   $env:QA_APPLOG_DEVICE_IDENTITY=$null
   $env:QA_EXPECTED_IDENTITY=$null
-  if($AutoRecover -and $Serial -match '^\d{1,3}(?:\.\d{1,3}){3}:\d+$' -and (Test-Path -LiteralPath $qaWirelessState)){
-    $qaSavedWireless=Get-Content -LiteralPath $qaWirelessState -Raw | ConvertFrom-Json
-    if($qaSavedWireless.configuredSerial -eq $qaConfiguredSerial -and $qaSavedWireless.identity -match '^[A-Za-z0-9_-]{4,80}$' -and $qaSavedWireless.endpoint -match '^\d{1,3}(?:\.\d{1,3}){3}:\d{1,5}$'){$Serial=$qaSavedWireless.endpoint;$env:QA_EXPECTED_IDENTITY=$qaSavedWireless.identity}
+  if($AutoRecover){
+    $qaSavedWireless=if(Test-Path -LiteralPath $qaWirelessState){Get-Content -LiteralPath $qaWirelessState -Raw | ConvertFrom-Json}else{$null}
+    $qaRegistration=Get-QaWirelessRegistration -Serial $Serial -Saved $qaSavedWireless
+    if($qaRegistration){$qaConfiguredSerial=$qaRegistration.configuredSerial;$Serial=$qaRegistration.endpoint;$env:QA_EXPECTED_IDENTITY=$qaRegistration.identity}
   }
   if($env:QA_EXPECTED_IDENTITY){
     $qaRows=& $Adb -P $AdbPort devices
-    $qaNetworkPresent=$qaRows | Where-Object { $_ -match ('^'+[regex]::Escape($Serial)+'\s+device\s*$') }
     $qaUsbPresent=$qaRows | Where-Object { $_ -match ('^'+[regex]::Escape($env:QA_EXPECTED_IDENTITY)+'\s+device\s*$') }
     $Serial=Get-QaRelayTransport -Identity $env:QA_EXPECTED_IDENTITY -CurrentSerial $Serial -Endpoint $Serial -UsbConnected ([bool]$qaUsbPresent)
   }
@@ -109,10 +109,11 @@ try {
       if($qaWirelessChild.HasExited){throw 'Wireless discovery stopped; supervisor will retry'}
       if(Test-Path -LiteralPath $qaWirelessState){
         $qaWireless=Get-Content -LiteralPath $qaWirelessState -Raw | ConvertFrom-Json
-        if($qaWireless.configuredSerial -eq $qaConfiguredSerial -and $qaWireless.status -eq 'connected' -and $qaWireless.identity -match '^[A-Za-z0-9_-]{4,80}$' -and $qaWireless.endpoint -match '^\d{1,3}(?:\.\d{1,3}){3}:\d{1,5}$'){
+        if($qaWireless.configuredSerial -ceq $qaConfiguredSerial -and $qaWireless.identity -cmatch '^[A-Za-z0-9_-]{4,80}$' -and (Test-QaWirelessEndpoint $qaWireless.endpoint)){
           try{$qaUsbState=& $Adb -P $AdbPort -s $qaWireless.identity get-state 2>$null}catch{$qaUsbState=''}
           $qaUsbReady=$LASTEXITCODE -eq 0 -and ($qaUsbState -join '').Trim() -eq 'device'
-          $qaPreferred=Get-QaRelayTransport -Identity $qaWireless.identity -CurrentSerial $Serial -Endpoint $qaWireless.endpoint -UsbConnected $qaUsbReady
+          $qaReadyEndpoint=if($qaWireless.status -eq 'connected'){$qaWireless.endpoint}else{''}
+          $qaPreferred=Get-QaRelayTransport -Identity $qaWireless.identity -CurrentSerial $Serial -Endpoint $qaReadyEndpoint -UsbConnected $qaUsbReady
           if($qaPreferred -ne $Serial){
             Write-Host '등록 기기의 연결 경로 변경을 확인했습니다. 중계를 정상 재시작합니다.'
             if($null -ne $RestartForWirelessAddress){$RestartForWirelessAddress.Value=$true}
