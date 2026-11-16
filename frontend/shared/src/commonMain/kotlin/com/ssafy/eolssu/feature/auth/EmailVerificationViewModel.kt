@@ -26,12 +26,12 @@ class EmailVerificationViewModel(
 
     fun currentTime(): Long = now()
 
-    private var busy = false
+    private val busy get() = _uiState.value.let { it.sending || it.confirming }
     private var revision = 0
     fun changeEmail(email: String) {
         revision++
         draft.clearVerification()
-        _uiState.update { if (it.codeSent) EmailVerificationUiState(email = email) else it.copy(email = email, emailError = null) }
+        _uiState.update { if (it.codeSent) EmailVerificationUiState(email = email, sending = it.sending, confirming = it.confirming) else it.copy(email = email, emailError = null) }
     }
 
     /** 숫자만 6자리까지 받는다. 새 번호가 필요한 오류는 새로 받을 때까지 남긴다. */
@@ -47,10 +47,10 @@ class EmailVerificationViewModel(
             _uiState.update { it.copy(emailError = error) }
             return false
         }
-        busy = true
+        _uiState.update { it.copy(sending = true) }
         val requestRevision = revision
         draft.clearVerification()
-        val result = try { authRepository.sendCode(email, purpose) } finally { busy = false }
+        val result = try { authRepository.sendCode(email, purpose) } finally { _uiState.update { it.copy(sending = false) } }
         if (requestRevision != revision) return false
         return when (result) {
             SendCodeResult.Unavailable -> false.also { _uiState.update { it.copy(emailError = FieldError.Unavailable) } }
@@ -89,9 +89,9 @@ class EmailVerificationViewModel(
             _uiState.update { it.copy(codeError = CodeError.Invalid) }
             return false
         }
-        busy = true
+        _uiState.update { it.copy(confirming = true) }
         val requestRevision = revision
-        val result = try { authRepository.confirmCode(verificationId, state.code) } finally { busy = false }
+        val result = try { authRepository.confirmCode(verificationId, state.code) } finally { _uiState.update { it.copy(confirming = false) } }
         if (requestRevision != revision) return false
         val error = when (result) {
             is ConfirmCodeResult.Confirmed -> {
