@@ -92,7 +92,7 @@ internal fun homeExpandedHero(
 }
 
 /**
- * 창 모양에 따라 고르는 홈 그림. 휴대폰 세로·태블릿 세로·가로 창마다 구도를 따로 잡은 그림을 쓴다(S15P31E102-983, 그림 교체 S15P31E102-1015).
+ * 창 모양에 따라 고르는 홈 그림. 휴대폰 세로·태블릿 세로·가로 창마다 구도를 따로 잡은 그림을 쓴다(S15P31E102-983, 그림 교체 S15P31E102-1015·1049).
  * 휴대폰은 회전을 막아 가로 화면을 지원하지 않으므로 휴대폰 가로 그림은 두지 않는다(S15P31E102-1025).
  *
  * @property aspect 그림의 높이/너비 비.
@@ -106,9 +106,10 @@ internal enum class HomeArtKind(
     /** 그림 아래쪽 가로 먹 띠가 시작하는 높이(그림 높이 비율). 첫 화면에서 이 띠를 시작 버튼 위로 올려 흰 버튼 글자 뒤를 먹으로 둔다. */
     val bandTop: Float?,
 ) {
-    PhonePortrait(1254f / 580f, .5f, .62f, 1132f / 1254f),
-    TabletPortrait(1028f / 644f, .5f, .55f, 929f / 1028f),
-    TabletLandscape(992f / 1586f, .45f, .5f, 897f / 992f),
+    // 그림 크기와 아래 먹 띠 시작 행은 frontend/tools/home-art/refine_phone.py·refine_tablet.py가 만든 그림에서 잰 값이다(S15P31E102-1049).
+    PhonePortrait(2087f / 1080f, .5f, .62f, 1650f / 2087f),
+    TabletPortrait(2560f / 1600f, .5f, .6f, 2024f / 2560f),
+    TabletLandscape(1600f / 2560f, .35f, .5f, 1430f / 1600f),
 }
 
 /** 첫 화면에서 아래 먹 띠가 시작 버튼 위보다 먼저 시작하도록 남기는 간격(dp). 흰 버튼 글자 뒤가 늘 먹이 되게 한다. */
@@ -155,11 +156,11 @@ internal data class HomeHeroTitle(val scale: Float, val right: Float, val bottom
  * 첫 화면 제목의 크기와 자리. 받은 그림은 고치지 않고, 제목이 오른쪽 먹 영역 안에 사방 16dp 이상 여유를 두고 들어오도록 그림마다 정했다(S15P31E102-1015).
  * 세로 화면은 평가 시작 버튼 바로 위 오른쪽에 둔다. 휴대폰 세로는 먹 영역이 좁아 기본 배율보다 작게 쓴다.
  * 가로 화면은 먹 영역이 화면 높이 전체에 걸쳐 넓으므로 창 너비에 비례해 크게 키우고, 오른쪽 먹 영역의 세로 가운데 쪽에 둔다.
- * 그림을 바꾸면 `frontend/tools/home-art/build_home_art.py`로 여유를 다시 점검한다.
+ * 그림을 바꾸면 `frontend/tools/home-art/refine_tablet.py`가 만드는 모의 화면으로 제목·버튼 자리를 다시 점검한다.
  */
 internal fun homeHeroTitle(kind: HomeArtKind, width: Float, height: Float, buttonHeight: Float): HomeHeroTitle = when (kind) {
     // 세로: 오른쪽 아래 먹 영역에 창 너비에 비례해 크게 두고 버튼 위로 조금 띄운다(휴대폰 56%·24dp, 태블릿 52%·36dp, S15P31E102-1034).
-    // 그림의 먹 영역은 이 크기·자리에 맞춰 넓혀 두었다(build_home_art.py).
+    // 그림의 먹 영역은 이 크기·자리에 맞춰 두었다(refine_phone.py·refine_tablet.py의 모의 화면으로 확인).
     HomeArtKind.PhonePortrait, HomeArtKind.TabletPortrait -> {
         val phone = kind == HomeArtKind.PhonePortrait
         HomeHeroTitle(

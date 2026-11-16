@@ -92,14 +92,14 @@ class HomeScrollTest {
 
     @Test fun artCoversTheBoxAndKeepsItsRatio() {
         // 그림과 같은 비율의 창은 넘침 없이 꼭 맞는다.
-        val fit = homeArtPlacement(HomeArtKind.PhonePortrait, 580f, 1254f, .5f, .5f)
-        assertEquals(580f, fit.width, 1e-2f)
+        val fit = homeArtPlacement(HomeArtKind.PhonePortrait, 1080f, 2087f, .5f, .5f)
+        assertEquals(1080f, fit.width, 1e-2f)
         assertEquals(0f, fit.x, 1e-2f)
         assertEquals(0f, fit.y, 1e-2f)
         // 펼친 그림 띠(390×376): 너비에 맞추고 세로로 넘친 만큼 초점 위치를 남긴다.
         val band = homeArtPlacement(HomeArtKind.PhonePortrait, 390f, 376f, .5f, .8f)
         assertEquals(390f, band.width, 1e-3f)
-        val bandHeight = 390f * 1254f / 580f
+        val bandHeight = 390f * 2087f / 1080f
         assertEquals(bandHeight, band.height, 1e-2f)
         assertEquals((376f - bandHeight) * .8f, band.y, 1e-2f)
         // 그림보다 넓적한 칸·길쭉한 칸 모두 빈틈이 없다.

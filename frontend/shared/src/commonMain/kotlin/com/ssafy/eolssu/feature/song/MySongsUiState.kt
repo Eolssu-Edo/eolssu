@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.song
 
 import com.ssafy.eolssu.core.model.SongSortOrder
 import com.ssafy.eolssu.core.model.sortedByTitle
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.data.song.SheetConversion
@@ -28,6 +29,7 @@ data class MySongsUiState(
     val sort: SongSortOrder = SongSortOrder.Ascending,
     val sheetLoadState: SongLoadState = SongLoadState.Loading,
     val deleteFailed: Boolean = false,
+    val sheetInstrument: Instrument? = null,
 ) {
     /** 내 악보. 아직 받지 않았으면 null. */
     val sheets: List<MySheet>? get() = mine.sheets
@@ -52,12 +54,14 @@ data class MySongsUiState(
                 .sortedByTitle(sort) { it.title }
         }
 
-    /** 제목에 [query]가 든 내 악보. 순서는 받은 목록 그대로다. */
+    /** [sheetInstrument]와 제목 검색에 맞는 내 악보. 서버 목록 순서를 따른다. */
     val visibleSheets: List<MySheet>
         get() {
             val q = query.trim()
-            val all = sheets.orEmpty()
-            return if (q.isEmpty()) all else all.filter { it.title.contains(q) }
+            return sheets.orEmpty().filter { sheet ->
+                (sheetInstrument == null || sheet.instrumentCode == sheetInstrument.serverCode) &&
+                    sheet.title.contains(q)
+            }
         }
 
     /** 내 악보 목록을 받는다([MySheetList.receive]). 삭제를 묻던 악보가 목록에서 빠졌으면 창도 닫는다. */

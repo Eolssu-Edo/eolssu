@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,10 +23,21 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlin.math.roundToInt
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.imageResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -59,7 +68,7 @@ import com.ssafy.eolssu.feature.song.ConversionNextAction
 import com.ssafy.eolssu.feature.song.ConversionStep
 import com.ssafy.eolssu.feature.song.conversionStep
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.profile_tiger_study
+import eolssu.shared.generated.resources.learning_mascot_study
 import eolssu.shared.generated.resources.sheet_conversion_building_body
 import eolssu.shared.generated.resources.sheet_conversion_building_title
 import eolssu.shared.generated.resources.sheet_conversion_checking
@@ -71,7 +80,6 @@ import eolssu.shared.generated.resources.sheet_conversion_missing
 import eolssu.shared.generated.resources.sheet_conversion_progress
 import eolssu.shared.generated.resources.sheet_conversion_queued_body
 import eolssu.shared.generated.resources.sheet_conversion_queued_title
-import eolssu.shared.generated.resources.sheet_conversion_reading_body
 import eolssu.shared.generated.resources.sheet_conversion_reading_pages_body
 import eolssu.shared.generated.resources.sheet_conversion_reading_title
 import eolssu.shared.generated.resources.sheet_conversion_reading_total_body
@@ -153,7 +161,7 @@ private fun WaitingContent(state: SheetConversionUiState) {
     val conversion = state.conversion
     val step = conversion?.let(::conversionStep)
     val progress = state.progress
-    ConvertingFigure(progress)
+    ConvertingFigure(progress, finishing = state.done)
     val title = when {
         state.done -> Res.string.sheet_conversion_done_title
         conversion == null -> Res.string.sheet_conversion_checking
@@ -169,38 +177,42 @@ private fun WaitingContent(state: SheetConversionUiState) {
         textAlign = TextAlign.Center,
     )
     state.title?.let { EolssuBadge(it, style = EolssuBadgeStyle.Outline) }
-    val body = when {
-        state.done -> stringResource(Res.string.sheet_conversion_done_body)
-        step == ConversionStep.Queued -> stringResource(Res.string.sheet_conversion_queued_body)
-        step == ConversionStep.Building -> stringResource(Res.string.sheet_conversion_building_body)
-        step is ConversionStep.Reading -> {
-            val pages = when {
-                step.pagesRead != null -> stringResource(Res.string.sheet_conversion_reading_pages_body, step.pagesRead, step.pageCount)
-                step.pageCount > 0 -> stringResource(Res.string.sheet_conversion_reading_total_body, step.pageCount)
-                else -> stringResource(Res.string.sheet_conversion_reading_body)
-            }
-            // 오선보는 걸리는 시간 한 줄만, 정간보는 읽는 쪽수 한 줄만 둔다(S15P31E102-1042).
-            if (conversion?.notation == SheetNotation.Staff) stringResource(Res.string.sheet_conversion_staff_hint) else pages
-        }
-        else -> null
-    }
     // 안내는 두 줄: 지금 할 일·걸리는 시간 한 줄, 나가도 계속된다는 한 줄(S15P31E102-1042).
+    val body = waitingBody(step, conversion?.notation, state.done)?.let { stringResource(it.text, *it.args.toTypedArray()) }
     val lines = listOfNotNull(body, stringResource(Res.string.sheet_conversion_leave_hint).takeIf { !state.done })
     if (lines.isNotEmpty()) BodyText(lines.joinToString("\n"))
     if (conversion != null) StepLine(step, state.done)
     if (state.unreachable) BodyText(stringResource(Res.string.sheet_conversion_unreachable), color = colors.recText)
 }
 
+/** 단계 아래 한 줄 설명. 제목이 단계를 말하므로 설명은 한 줄만 둔다. */
+internal data class WaitingBody(val text: StringResource, val args: List<Any> = emptyList())
+
 /**
- * 붓 일원상(220dp)과 공부하는 호랑이. 붓은 변환 전체에 걸쳐 딱 한 번 그린다(S15P31E102-1042).
+ * 단계 아래 한 줄 설명을 고른다. 서버가 읽은 쪽 수를 주면 그것을, 오선보는 걸리는 시간을, 여러 쪽 정간보는 쪽 수를 쓴다.
+ * 1쪽 정간보처럼 금방 끝나 더 말할 것이 없으면 null이다.
+ */
+internal fun waitingBody(step: ConversionStep?, notation: SheetNotation?, done: Boolean): WaitingBody? = when {
+    done -> WaitingBody(Res.string.sheet_conversion_done_body)
+    step == ConversionStep.Queued -> WaitingBody(Res.string.sheet_conversion_queued_body)
+    step == ConversionStep.Building -> WaitingBody(Res.string.sheet_conversion_building_body)
+    step !is ConversionStep.Reading -> null
+    step.pagesRead != null -> WaitingBody(Res.string.sheet_conversion_reading_pages_body, listOf(step.pagesRead, step.pageCount))
+    notation == SheetNotation.Staff -> WaitingBody(Res.string.sheet_conversion_staff_hint)
+    step.pageCount > 1 -> WaitingBody(Res.string.sheet_conversion_reading_total_body, listOf(step.pageCount))
+    else -> null
+}
+
+/**
+ * 붓 일원상(220dp)과 책 읽는 호랑이([StudyingTiger]). 붓은 변환 전체에 걸쳐 딱 한 번 그린다(S15P31E102-1042).
  * 단계·쪽이 바뀌며 진행 추정이 잠깐 줄어도 지운 뒤 다시 그리지 않도록 지금까지의 최댓값만 따라간다.
  */
 @Composable
-private fun ConvertingFigure(progress: Float?) {
+private fun ConvertingFigure(progress: Float?, finishing: Boolean) {
+    // 서버 응답이 2초 간격이라 그 사이를 부드럽게 잇는다. 완료되면 편집 화면으로 넘어가기 전에(FINISH_SHOW_MS) 끝까지 그린다.
     var peak by remember { mutableFloatStateOf(0f) }
     if (progress != null && progress > peak) peak = progress
-    // 서버 응답이 2초 간격이라 그 사이를 부드럽게 잇는다.
-    val shown by animateFloatAsState(peak, animationSpec = tween(1_800))
+    val shown by animateFloatAsState(peak, animationSpec = tween(if (finishing) FINISH_DRAW_MS else 1_800))
     val percent = progress?.let { floor(shown * 100).toInt().coerceIn(0, 100) }
     val description = percent?.let { stringResource(Res.string.sheet_conversion_progress, it) }
     Box(
@@ -212,14 +224,42 @@ private fun ConvertingFigure(progress: Float?) {
         },
     ) {
         BrushEnso(color = EolssuTheme.colors.text, progress = shown, modifier = Modifier.fillMaxSize())
-        Image(
-            painterResource(Res.drawable.profile_tiger_study),
-            contentDescription = null,
-            modifier = Modifier.align(Alignment.Center).offset(y = (-4).dp).width(120.dp),
-            contentScale = ContentScale.FillWidth,
+        StudyingTiger(Modifier.align(Alignment.Center).size(160.dp))
+    }
+}
+
+/**
+ * 책 읽는 호랑이 전신 애니메이션. 마이페이지 학습 마스코트(S15P31E102-524)의 프레임 묶음(192px × 30장, 6열)을 재생한다.
+ * 프레임은 흰 바탕이라 곱하기 혼합으로 그려 화면 바탕색에 녹인다.
+ */
+@Composable
+private fun StudyingTiger(modifier: Modifier) {
+    val sheet = imageResource(Res.drawable.learning_mascot_study)
+    var frame by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            delay(if (frame % 3 == 1) 60L else 70L)
+            frame = (frame + 1) % STUDY_FRAME_COUNT
+        }
+    }
+    Canvas(modifier.clearAndSetSemantics {}) {
+        if (sheet.width < STUDY_FRAME_SIZE * STUDY_FRAME_COLUMNS) return@Canvas
+        drawImage(
+            image = sheet,
+            srcOffset = IntOffset(frame % STUDY_FRAME_COLUMNS * STUDY_FRAME_SIZE, frame / STUDY_FRAME_COLUMNS * STUDY_FRAME_SIZE),
+            srcSize = IntSize(STUDY_FRAME_SIZE, STUDY_FRAME_SIZE),
+            dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+            blendMode = BlendMode.Multiply,
         )
     }
 }
+
+private const val STUDY_FRAME_SIZE = 192
+
+/** 완료 붓을 끝까지 그리는 시간. 넘어가기 전 보이는 시간([SheetConversionViewModel.FINISH_SHOW_MS])보다 조금 짧다. */
+private const val FINISH_DRAW_MS = 800
+private const val STUDY_FRAME_COLUMNS = 6
+private const val STUDY_FRAME_COUNT = 30
 
 /** 차례 기다리기 → 악보 읽기 → 악보 만들기. 지난 단계는 체크, 지금 단계는 연두 점, 남은 단계는 옅은 점이다. */
 @Composable

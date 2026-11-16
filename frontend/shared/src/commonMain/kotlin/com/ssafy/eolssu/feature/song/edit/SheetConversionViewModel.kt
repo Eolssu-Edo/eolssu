@@ -33,7 +33,7 @@ import kotlin.time.TimeSource
  * @property readingElapsedMs 이 화면에서 '읽는 중'을 처음 본 뒤 지난 시간. 진행 막대 어림에 쓴다.
  * @property unreachable 상태 조회가 여러 번 이어서 실패했다. 계속 다시 묻는다.
  * @property missing 악보가 없다(404). 지워졌거나 다른 계정이다.
- * @property openEditor 완료돼 편집 화면으로 갈 차례. 화면이 이동한 뒤 [SheetConversionViewModel.editorOpened]로 지운다.
+ * @property openEditor 완료를 [SheetConversionViewModel.FINISH_SHOW_MS]만큼 보인 뒤 편집 화면으로 갈 차례. 화면이 이동한 뒤 [SheetConversionViewModel.editorOpened]로 지운다.
  */
 data class SheetConversionUiState(
     val conversion: SheetConversion? = null,
@@ -131,11 +131,15 @@ class SheetConversionViewModel(
             val now = clockMs()
             if (reading && readingSince == null) readingSince = now
             val elapsed = readingSince?.takeIf { reading }?.let { now - it } ?: 0
-            if (conversion.status == SheetConversionStatus.Done) repository.acknowledgeCompletion(sheetId)
-            state.update {
-                it.copy(conversion = conversion, readingElapsedMs = elapsed, unreachable = false,
-                    openEditor = conversion.status == SheetConversionStatus.Done)
+            if (conversion.status == SheetConversionStatus.Done) {
+                repository.acknowledgeCompletion(sheetId)
+                // 붓이 끝까지 그려지는 것을 잠깐 보인 뒤 넘어간다. 바로 넘어가면 진행 중에 갑자기 끝난 것처럼 보인다.
+                scope.launch {
+                    delay(FINISH_SHOW_MS)
+                    state.update { it.copy(openEditor = true) }
+                }
             }
+            state.update { it.copy(conversion = conversion, readingElapsedMs = elapsed, unreachable = false) }
             conversion.pollAfterMs ?: CONVERSION_POLL_DEFAULT_MS
         }
         SheetConversionLookup.NotFound -> {
@@ -152,6 +156,9 @@ class SheetConversionViewModel(
     companion object {
         /** 조회 실패가 이만큼 이어지면 연결 안내를 띄운다. */
         const val UNREACHABLE_AFTER = 3
+
+        /** 완료한 붓을 보이는 시간. 화면의 마무리 붓 애니메이션([SheetConversionScreen]) 길이와 맞춘다. */
+        const val FINISH_SHOW_MS = 1_000L
         private const val POLL_MIN_MS = 1_000L
         private const val POLL_MAX_MS = 30_000L
 

@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.practice.component
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,9 +24,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.innerShadow
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -37,6 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -246,7 +248,7 @@ private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownloa
     }
 }
 
-/** 확인·대기·생성·다운로드처럼 기다리는 상태. 버튼 자리에 회전 표시와 한 줄 문구를 둔다(S15P31E102-1039). */
+/** 확인·대기·생성·다운로드처럼 기다리는 상태. 버튼 자리에 눌린 버튼 모양으로 회전 표시와 한 줄 문구를 둔다(S15P31E102-1039). */
 private val PersonalAudioWorking = setOf(
     PracticePersonalAudio.Checking, PracticePersonalAudio.Queued, PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading,
 )
@@ -254,13 +256,17 @@ private val PersonalAudioWorking = setOf(
 @Composable
 private fun PersonalAudioProgress(label: String, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
+    val shape = RoundedCornerShape(14.dp)
+    // 받기 버튼을 누른 채로 기다리는 느낌: 옅은 연두 바탕이 위쪽 안 그림자로 꺼져 보이게 한다.
     Surface(
-        modifier.fillMaxHeight().semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
-        shape = RoundedCornerShape(14.dp), color = colors.surface, border = BorderStroke(1.dp, colors.line),
+        modifier.fillMaxHeight()
+            .innerShadow(shape, Shadow(radius = 5.dp, color = colors.accentText.copy(alpha = 0.25f), offset = DpOffset(0.dp, 2.dp)))
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        shape = shape, color = colors.accentTintStrong,
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-            CircularProgressIndicator(Modifier.size(18.dp), color = colors.play, trackColor = colors.lineSoft, strokeWidth = 2.5.dp)
-            Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = colors.text, maxLines = 1)
+            CircularProgressIndicator(Modifier.size(18.dp), color = colors.accentText, trackColor = colors.accentTintLine, strokeWidth = 2.5.dp)
+            Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = colors.accentText, maxLines = 1)
         }
     }
 }
