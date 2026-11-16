@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -86,7 +87,7 @@ class SheetImportViewModel(
                 if (result.files.any { it.contentType == null }) state.value = state.value.copy(error = "UNSUPPORTED_FILE_TYPE")
                 else if (!validSheetFiles(result.files)) state.value = state.value.copy(error = "INVALID_FILE_SET")
                 else edit(state.value.copy(files = result.files,
-                    title = state.value.title.ifBlank { result.files.first().name.substringBeforeLast('.').take(50) }))
+                    title = state.value.title.ifBlank { fileTitle(result.files.first().name) }))
             }
         }
     }
@@ -117,4 +118,10 @@ class SheetImportViewModel(
             }
         }
     }
+}
+
+/** 파일 이름으로 채울 제목: 확장자를 빼고 앞뒤 공백을 자른 뒤 [InputLimit.SHEET_TITLE]자까지(이모지를 반으로 자르지 않는다, S15P31E102-996). */
+internal fun fileTitle(fileName: String): String {
+    val name = fileName.substringBeforeLast('.').trim()
+    return name.substring(0, InputLimit.endOfFirst(name, InputLimit.SHEET_TITLE)).trim()
 }
