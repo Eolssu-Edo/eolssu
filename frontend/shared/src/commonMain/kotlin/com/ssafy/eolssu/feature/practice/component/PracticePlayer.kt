@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -72,12 +73,53 @@ const val PRACTICE_SEEK_MS = 5_000L
  *   평가 버튼이 없는 내 악보·기초부터 배우기는 재생 묶음만 가운데에 둔다.
  * 불러오는 중은 카드 대신 화면 가운데에 띄운다([PracticePlaybackLoadingOverlay]).
  * 한 음씩이 켜지면 플레이어 대신 두 칸([PracticeStepPanels])과 너비를 채운 평가 버튼을 둔다.
+ * 두 칸은 플레이어보다 낮아서, 그대로 두면 한 음씩을 켜고 끌 때마다 악보·운지 칸이 남은 높이에 맞춰 커졌다 작아진다.
+ * 그래서 한 음씩이 켜져도 플레이어 높이를 그대로 비워 두고 두 칸을 그 아래쪽에 붙인다(S15P31E102-1017).
  */
 @Composable
 fun PracticePlayer(state: PracticeUiState, actions: PracticeBottomActions, modifier: Modifier = Modifier) {
     val eval = practiceEvalAction(state, actions)
+    if (state.stepUi) {
+        ReserveHeightOf(
+            reserve = { PracticePlayerContent(state, actions, eval, step = false) },
+            modifier = modifier.fillMaxWidth(),
+        ) {
+            PracticePlayerContent(state, actions, eval, step = true)
+        }
+    } else {
+        PracticePlayerContent(state, actions, eval, step = false, modifier = modifier)
+    }
+}
+
+/**
+ * [reserve]를 재어 그 높이만큼 자리를 잡고, [content]를 그 안의 아래쪽에 둔다. [reserve]는 그리지 않는다.
+ * [content]가 더 높으면 그 높이를 쓴다.
+ */
+@Composable
+private fun ReserveHeightOf(reserve: @Composable () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    SubcomposeLayout(modifier) { constraints ->
+        val loose = constraints.copy(minHeight = 0)
+        val reserved = subcompose(ReserveSlot.Reserve, reserve).maxOfOrNull { it.measure(loose).height } ?: 0
+        val placeables = subcompose(ReserveSlot.Content, content).map { it.measure(loose) }
+        val height = maxOf(reserved, placeables.maxOfOrNull { it.height } ?: 0)
+            .coerceIn(constraints.minHeight, constraints.maxHeight)
+        val width = (placeables.maxOfOrNull { it.width } ?: 0).coerceIn(constraints.minWidth, constraints.maxWidth)
+        layout(width, height) { placeables.forEach { it.place(0, height - it.height) } }
+    }
+}
+
+private enum class ReserveSlot { Reserve, Content }
+
+@Composable
+private fun PracticePlayerContent(
+    state: PracticeUiState,
+    actions: PracticeBottomActions,
+    eval: PracticeEvalAction?,
+    step: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(PlaybackSectionSpacing)) {
-        if (state.stepUi) {
+        if (step) {
             PracticeStepPanels(state, actions, Modifier.padding(bottom = 4.dp))
             if (eval != null) EolssuButton(eval.label, eval.onClick, icon = EolssuIcons.Mic, enabled = eval.enabled)
         } else {
