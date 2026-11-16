@@ -172,7 +172,11 @@ private fun PracticeCompactLayout(
         snackbarHostState = snackbarHostState,
         containerColor = EolssuTheme.colors.groupedBackground,
         topBar = {
-            PracticeTopBar(state, actions.onBack, actions.onOpenSettings)
+            // 휴대폰은 모드 버튼(‘한 음씩’·‘퍼펙트 스코어’)만 톱니 옆에 둬 제목 줄 폭을 넓힌다(S15P31E102-1037).
+            PracticeTopBar(
+                state, actions.onBack, actions.onOpenSettings,
+                options = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep, include = { it.modeButton }) },
+            )
         },
         bottomBar = if (recordingBar) { { PracticeRecordingBar(state, actions.bottom) } } else null,
     ) {
@@ -187,9 +191,9 @@ private fun PracticeCompactLayout(
                     // 보기 버튼이 없는 경우에도 제목 줄 높이를 버튼의 누르는 높이(44dp)와 같게 둔다.
                     modifier = Modifier.heightIn(min = PracticeCompactTitleRowHeight),
                     showPill = false,
-                    // 휴대폰은 머리 제목이 잘리지 않게 보기 버튼을 설정 버튼 아래(제목 줄 오른쪽)에 둔다.
+                    // 휴대폰 제목 줄 오른쪽에는 ‘운지법’·‘한글 표기’만 둔다. 모드 버튼은 상단 바 톱니 옆에 있다.
                     // 연습·구간 연습·연주 평가가 같은 자리·같은 모양이다(S15P31E102-816·1037).
-                    trailing = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep) },
+                    trailing = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep, include = { !it.modeButton }) },
                 )
                 Spacer(Modifier.height(if (fingering) 8.dp else 12.dp))
                 if (fingering) {

@@ -52,4 +52,14 @@ class PracticeOptionButtonsTest {
         assertFalse(recording.optionButtons().single { it.kind == PracticeOptionKind.Step }.enabled)
         assertTrue(recording.optionButtons().filter { it.kind != PracticeOptionKind.Step }.all { it.enabled })
     }
+
+    @Test fun onlyModeButtonMovesNextToSettingsOnPhone() {
+        // 휴대폰은 모드 버튼(한 음씩·퍼펙트 스코어)만 톱니 옆으로 옮기고 운지법·한글 표기는 제목 줄에 둔다.
+        assertEquals(listOf(PracticeOptionKind.LiveMarks), PracticeUiState(song = song).optionButtons().filter { it.kind.modeButton }.map { it.kind })
+        assertEquals(listOf(PracticeOptionKind.Step), PracticeUiState(song = song, solo = true).optionButtons().filter { it.kind.modeButton }.map { it.kind })
+        assertEquals(
+            listOf(PracticeOptionKind.Fingering, PracticeOptionKind.Hangul),
+            PracticeUiState(song = song).optionButtons().filterNot { it.kind.modeButton }.map { it.kind },
+        )
+    }
 }

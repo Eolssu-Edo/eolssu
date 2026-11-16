@@ -15,6 +15,9 @@ enum class PracticeOptionKind {
     Hangul,
 }
 
+/** 모드마다 다른 맨 왼쪽 칸(‘한 음씩’·‘퍼펙트 스코어’). 휴대폰은 이 버튼만 상단 바 톱니 옆에 둔다. */
+val PracticeOptionKind.modeButton: Boolean get() = this == PracticeOptionKind.Step || this == PracticeOptionKind.LiveMarks
+
 /** 보기 버튼 하나: 종류, 켜짐(초록), 누를 수 있는지. */
 data class PracticeOptionButton(val kind: PracticeOptionKind, val on: Boolean, val enabled: Boolean = true)
 
