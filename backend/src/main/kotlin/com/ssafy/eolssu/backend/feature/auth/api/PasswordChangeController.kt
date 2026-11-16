@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.feature.auth.api
 
 import com.ssafy.eolssu.backend.common.error.ErrorCode
+import com.ssafy.eolssu.backend.feature.auth.domain.PasswordPolicy
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.auth.application.PasswordChangeResult
@@ -39,10 +40,13 @@ class PasswordChangeController(private val service: PasswordChangeService, priva
     private fun error(code: ErrorCode, details: Any? = null) = ResponseEntity.status(code.status).body(ErrorResponse.of(code, details))
 }
 
-/** 새 비밀번호 규칙은 서비스의 PasswordPolicy가 판정한다. 보충 문자는 UTF-16으로 2칸이라 128자의 두 배까지 받는다. */
+/**
+ * 새 비밀번호 규칙은 서비스의 PasswordPolicy가 판정한다. 보충 문자는 UTF-16으로 2칸이라 상한의 두 배까지 받는다.
+ * 현재 비밀번호는 예전 규칙(128자)으로 정한 계정도 바꿀 수 있게 넉넉히 받는다.
+ */
 class PasswordChangeRequest(
     @field:NotBlank @field:Size(max = 256) val currentPassword: String,
-    @field:NotBlank @field:Size(max = 256) val newPassword: String,
+    @field:NotBlank @field:Size(max = 2 * PasswordPolicy.MAX_LENGTH) val newPassword: String,
 )
 
 data class PasswordChanged(val changed: Boolean)

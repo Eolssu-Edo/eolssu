@@ -45,6 +45,7 @@ import eolssu.shared.generated.resources.sheet_save_conflict
 import eolssu.shared.generated.resources.sheet_save_too_large
 import eolssu.shared.generated.resources.sheet_close_unsaved
 import eolssu.shared.generated.resources.sheet_save_draft_close
+import eolssu.shared.generated.resources.sheet_save_draft_closing
 import eolssu.shared.generated.resources.sheet_close_message_draft
 import eolssu.shared.generated.resources.sheet_save_auto_failed
 import eolssu.shared.generated.resources.sheet_close_message
@@ -302,9 +303,13 @@ fun SheetEditRoute(
         onDismissRequest = viewModel::continueEditing,
     ) {
         // 편집은 자동저장하지 않으므로 닫을 때 임시저장을 먼저 권한다(S15P31E102-889).
-        if (state.canSaveDraft) EolssuButton(stringResource(Res.string.sheet_save_draft_close), { viewModel.saveDraftAndClose(onClose) })
+        // 저장 응답을 기다리는 동안 저장 중임을 보이고 모든 버튼을 막는다. 실패하면 창이 그대로 남아 다시 고를 수 있다.
+        if (state.canSaveDraft || state.closeSaving) EolssuButton(
+            stringResource(if (state.closeSaving) Res.string.sheet_save_draft_closing else Res.string.sheet_save_draft_close),
+            { viewModel.saveDraftAndClose(onClose) }, enabled = !state.closeSaving)
         EolssuButton(stringResource(Res.string.sheet_keep_editing), viewModel::continueEditing,
-            style = if (state.canSaveDraft) EolssuButtonStyle.Secondary else EolssuButtonStyle.Primary)
-        EolssuButton(stringResource(Res.string.sheet_discard_close), { viewModel.discardChangesAndClose(onClose) }, style = EolssuButtonStyle.Secondary)
+            style = if (state.canSaveDraft) EolssuButtonStyle.Secondary else EolssuButtonStyle.Primary, enabled = !state.closeSaving)
+        EolssuButton(stringResource(Res.string.sheet_discard_close), { viewModel.discardChangesAndClose(onClose) },
+            style = EolssuButtonStyle.Secondary, enabled = !state.closeSaving)
     }
 }
