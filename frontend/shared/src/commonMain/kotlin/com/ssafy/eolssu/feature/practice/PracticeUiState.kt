@@ -164,8 +164,11 @@ data class PracticeUiState(
             else -> GuideInstrument.DaegeumJeongak
         }
 
-    /** 악보를 눌러 음을 고를 수 있는지. 구간 연습은 구간이 정해져 있어 고르지 않는다. */
-    val canSelectUnit: Boolean get() = mode == PracticeMode.Ready && !stepBusy && sectionPractice == null
+    /**
+     * 악보를 눌러 음을 고를 수 있는지. 구간 연습은 구간이 정해져 있어 고르지 않는다.
+     * 한 음씩이 켜져 있으면 듣는 중·구간 연습에서도 눌러 지금 음을 옮긴다([moveStepTo], S15P31E102-1006).
+     */
+    val canSelectUnit: Boolean get() = mode == PracticeMode.Ready && (stepUi || (!stepBusy && sectionPractice == null))
 
     val scoreSelection: ScorePosition?
         get() = selectedCell.takeIf { mode == PracticeMode.Ready && stepCurrentIndex == null }
@@ -456,6 +459,7 @@ fun PracticeUiState.interrupt(): PracticeUiState =
 /** 선택 테두리는 표시 정간에 그린다. 빈 자리와 이음이 공유하는 재생 이벤트는 탐색에만 쓴다. */
 fun PracticeUiState.selectUnit(unit: ScoreDisplayUnit): PracticeUiState {
     if (!canSelectUnit) return this
+    if (stepUi) return moveStepTo(unit.event.index)
     val base = copy(selected = unit.event.index, selectedCell = ScorePosition(unit.column, unit.row), listening = null)
     return when (val note = unit.note) {
         is ScoreNote.Pitch, is ScoreNote.SourcePitch ->
