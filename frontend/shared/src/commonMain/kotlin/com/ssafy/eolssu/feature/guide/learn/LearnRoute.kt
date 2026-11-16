@@ -123,7 +123,9 @@ fun LearnListRoute(
                 navigation = navigation,
             ),
             noteAudioContent = { note ->
-                ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note), audio)
+                // 단계를 다시 열면 음원 목록을 새로 받는다. 그동안 문구 대신 비활성 버튼을 보여 칸 높이를 유지한다.
+                ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note), audio,
+                    showLoadingMessage = false, stopOnLeave = true)
             },
             practice = practice,
         )
@@ -194,7 +196,9 @@ fun LearnStageRoute(
             navigation = navigation,
         ),
         noteAudioContent = { note ->
-            ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note), audio)
+            // 단계를 다시 열면 음원 목록을 새로 받는다. 그동안 문구 대신 비활성 버튼을 보여 칸 높이를 유지한다.
+            ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note), audio,
+                showLoadingMessage = false, stopOnLeave = true)
         },
         practice = practice,
     )
