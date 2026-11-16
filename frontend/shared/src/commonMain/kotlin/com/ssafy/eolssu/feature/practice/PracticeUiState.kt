@@ -145,12 +145,6 @@ data class PracticeUiState(
         savedBpm ?: it.baseBpm
     } ?: 0
 
-    /**
-     * 연주 평가(혼자 연습·내 악보 연습이 아님)는 곡 제목 옆에 ‘운지법 보기’ 스위치를 두고 톱니 설정에서는 뺀다(S15P31E102-716).
-     * ‘한글 읽는 법 표시’는 모든 연습 설정에 두므로 제목 옆에 두지 않는다(S15P31E102-875). 제목 줄이 있는 휴대폰 배치에서만 쓴다.
-     */
-    val showsTitleToggles: Boolean get() = !solo && !mine
-
     /** 화면 제목. 내 악보면 그 악보 제목, 아니면 곡 제목. */
     val title: String get() = sheetTitle ?: song?.title.orEmpty()
 

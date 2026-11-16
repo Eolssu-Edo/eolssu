@@ -25,24 +25,42 @@ data class PitchAdaptationPlan(val transpose: Int, val notes: List<AdaptedPitch>
     val unresolved: Int get() = notes.count { it.target == null }
     val octaveChanges: Int get() = notes.count { it.octaveShift != null && it.octaveShift != 0 }
     val octaveDistance: Int get() = notes.sumOf { abs(it.octaveShift ?: 0) }
+
+    /** 곡 전체가 함께 옮겨진 옥타브. 가장 많은 음이 쓴 이동이며 같으면 0에 가까운 쪽이다. */
+    val commonOctaveShift: Int get() = notes.mapNotNull { it.octaveShift }.groupingBy { it }.eachCount().entries
+        .minWithOrNull(compareByDescending<Map.Entry<Int, Int>> { it.value }.thenBy { abs(it.key) }.thenBy { it.key })?.key ?: 0
+
+    /** 공통 옥타브와 다르게 접혀 선율 윤곽을 끊는 음. 곡 전체를 한 옥타브 옮기는 것은 끊김이 아니다. */
+    val octaveSplits: Int get() = commonOctaveShift.let { common -> notes.count { it.octaveShift != null && it.octaveShift != common } }
+    val splitDistance: Int get() = commonOctaveShift.let { common -> notes.sumOf { it.octaveShift?.let { shift -> abs(shift - common) } ?: 0 } }
 }
 
-/** One representative of every pitch class; larger shifts are equivalent octave moves and rank worse. */
+/**
+ * 반음 이조마다 곡 전체의 공통 옥타브를 정하고, 각 음은 그 옥타브에 가장 가까운 지원음으로 맞춘다.
+ * 음마다 가까운 옥타브로 따로 접으면 선율이 오르내리므로, 순위도 옮긴 음 수가 아니라 공통 옥타브와 갈린 음 수로 매긴다.
+ */
 fun planPitchAdaptation(source: List<SourcePitchNote>, supported: List<AdaptationPitch>): List<PitchAdaptationPlan> =
     (-6..6).map { transpose ->
-        PitchAdaptationPlan(transpose, source.map { note ->
+        val options = source.map { note ->
             val transposed = note.midi + transpose
-            val target = supported.filter { (it.midi - transposed) % 12 == 0 }
-                .minWithOrNull(compareBy<AdaptationPitch> { abs(it.midi - transposed) }.thenBy { it.midi })
-            AdaptedPitch(note, target, target?.let { (it.midi - transposed) / 12 })
-        })
-    }.sortedWith(compareBy<PitchAdaptationPlan> { it.unresolved }.thenBy { it.octaveChanges }
-        .thenBy { it.octaveDistance }.thenBy { abs(it.transpose) }.thenBy { it.transpose })
+            note to supported.filter { (it.midi - transposed) % 12 == 0 }.map { it to (it.midi - transposed) / 12 }
+        }
+        val commons = options.flatMap { (_, targets) -> targets.map { it.second } }.distinct().ifEmpty { listOf(0) }
+        commons.map { common ->
+            PitchAdaptationPlan(transpose, options.map { (note, targets) ->
+                val pick = targets.minWithOrNull(compareBy<Pair<AdaptationPitch, Int>> { abs(it.second - common) }
+                    .thenBy { abs(it.second) }.thenBy { it.first.midi })
+                AdaptedPitch(note, pick?.first, pick?.second)
+            })
+        }.minWith(compareBy<PitchAdaptationPlan> { it.octaveSplits }.thenBy { it.splitDistance }
+            .thenBy { abs(it.commonOctaveShift) }.thenBy { it.commonOctaveShift })
+    }.sortedWith(compareBy<PitchAdaptationPlan> { it.unresolved }.thenBy { it.octaveSplits }.thenBy { it.splitDistance }
+        .thenBy { abs(it.transpose) }.thenBy { abs(it.commonOctaveShift) }.thenBy { it.transpose })
 
-/** The default minimizes octave moves; the alternative preserves the key as closely as possible. */
+/** The default keeps the melody contour; the alternative preserves the key as closely as possible. */
 internal fun recommendedAdaptations(plans: List<PitchAdaptationPlan>): List<PitchAdaptationPlan> =
     listOfNotNull(plans.firstOrNull(), plans.minWithOrNull(compareBy<PitchAdaptationPlan> { it.unresolved }
-        .thenBy { abs(it.transpose) }.thenBy { it.octaveChanges }.thenBy { it.octaveDistance }.thenBy { it.transpose }))
+        .thenBy { abs(it.transpose) }.thenBy { it.octaveSplits }.thenBy { it.splitDistance }.thenBy { it.transpose }))
         .distinctBy { it.transpose }
 
 /** Last applied original-relative offset belongs to this draft, never to a shared slider preference. */

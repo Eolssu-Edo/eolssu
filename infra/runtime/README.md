@@ -294,7 +294,7 @@ sudo docker compose --env-file /opt/eolssu/.env \
 
 ### 검증 JAR와 Gradle JVM 재사용 (510)
 
-이 절은 Task 510 브랜치의 구현 후보이며 2026-11-05 운영 잡에는 아직 적용하지 않았습니다. [스펙·완료 조건](../../docs/specs/jenkins-build-reuse.md), [실제 검증·한계](../../docs/knowledge/infra/jenkins-latency.md#후속-구현과-실제-검증)를 참고합니다.
+2026-11-05 14:19 KST에 `aa334ff5` 기준으로 운영 백엔드·프론트 잡에 적용했습니다. 기존 inline 잡 정의와 관리 파일 백업은 edo1의 `/var/backups/eolssu-jenkins-510-j4wj8_dy`에 있습니다. [스펙](../../docs/specs/jenkins-build-reuse.md) · [운영 적용과 실측](../../docs/knowledge/infra/jenkins-latency.md#운영-적용과-실측)
 
 관리 backend Pipeline은 `python3 -B infra/jenkins/build-backend-image.py "$GIT_COMMIT" --dockerfile /opt/eolssu/config/backend-artifact.Dockerfile`을 호출합니다. 스크립트는 실행 JAR 하나만 임시 context에 넣어 `eolssu-backend:ci-<SHA>`를 만들고 이미지의 JAR 해시 일치를 검사합니다. 개발용 소스 Dockerfile과 이전 `/opt/eolssu/config/backend.Dockerfile`은 복구용으로 보존합니다. 각 Gradle 명령은 stage를 유지하며 daemon을 재사용하고 60초 유휴 종료를 설정합니다.
 
