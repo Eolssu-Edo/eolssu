@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,15 +67,17 @@ internal fun SegmentTabs(
         modifier
             .then(if (fill) Modifier.fillMaxWidth() else Modifier)
             .background(frameColor, frame)
-            .padding(4.dp),
+            // 작은 탭은 위아래 여백 대신 48dp 누르는 영역이 틀을 채워, 보이는 틀(48dp)·알약(40dp) 크기는 그대로다(S15P31E102-971).
+            .padding(horizontal = 4.dp, vertical = if (large) 4.dp else 0.dp),
         horizontalArrangement = Arrangement.spacedBy(if (large) 0.dp else 4.dp),
     ) {
         labels.forEachIndexed { index, label ->
             val on = index == selected
             val pill = RoundedCornerShape(10.dp)
-            // Surface(onClick)는 48dp 최소 터치 칸을 강제해 틀 안의 알약이 작아 보인다. 알약 크기 그대로 누르게 한다(S15P31E102-768).
+            // Surface(onClick)는 알약 자체를 48dp로 키워 틀 안에서 커 보이므로, 알약은 보이는 크기로 두고 누르는 영역만 48dp로 넓힌다(S15P31E102-768·971).
             Row(
                 (if (fill) Modifier.weight(1f) else Modifier)
+                    .minimumInteractiveComponentSize()
                     .height(if (large) 48.dp else 40.dp)
                     .clip(pill)
                     .background(if (on) colors.surface else Color.Transparent)
