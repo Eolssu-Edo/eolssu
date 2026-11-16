@@ -101,13 +101,13 @@ data class ComparePick(val current: PracticeRecord, val candidates: List<Practic
     fun recordsOn(epochDay: Long): List<PracticeRecord> = candidates.filter { it.recordedAt.epochDay == epochDay }
 
     /**
-     * [month]의 달력(일요일 시작). 1일 앞의 빈칸은 null이다. 날마다 그날의 이전 기록을 담는다.
+     * [month]의 달력(월요일 시작, 연습 기록지 달력과 같음). 1일 앞의 빈칸은 null이다. 날마다 그날의 이전 기록을 담는다.
      */
     fun month(month: CompareMonth): List<CompareDay?> {
         val currentDay = current.recordedAt.epochDay
         val first = month.firstDay
-        // KoreanDateTime.dayOfWeek는 월요일 0 … 일요일 6이다. 일요일을 첫 칸으로 옮긴다.
-        val lead = (KoreanDateTime.ofEpochDay(first).dayOfWeek + 1) % 7
+        // KoreanDateTime.dayOfWeek는 월요일 0 … 일요일 6이라 그대로 앞 빈칸 수가 된다.
+        val lead = KoreanDateTime.ofEpochDay(first).dayOfWeek
         val byDay = candidates.groupBy { it.recordedAt.epochDay }
         return List(lead) { null } + (0 until month.length).map { offset ->
             val day = first + offset

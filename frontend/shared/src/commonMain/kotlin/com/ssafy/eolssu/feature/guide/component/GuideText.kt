@@ -77,7 +77,7 @@ internal fun guideAnnotated(raw: String, serif: FontFamily, boldColor: Color? = 
             }
             else -> append(c)
         }
-        if (bold) addStyle(SpanStyle(fontWeight = FontWeight.Bold, color = boldColor ?: Color.Unspecified), start, length)
+        if (bold) addStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = boldColor ?: Color.Unspecified), start, length)
         i++
     }
 }

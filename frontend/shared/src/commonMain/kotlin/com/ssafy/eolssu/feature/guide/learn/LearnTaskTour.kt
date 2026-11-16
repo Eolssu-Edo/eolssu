@@ -193,7 +193,7 @@ private fun BreathFigure() {
         }
         Text(
             stringResource(if (breathInhaling(phase)) Res.string.learn_tour_breath_in else Res.string.learn_tour_breath_out),
-            style = MaterialTheme.typography.titleSmall.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleSmall.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
             color = colors.accentText,
         )
     }

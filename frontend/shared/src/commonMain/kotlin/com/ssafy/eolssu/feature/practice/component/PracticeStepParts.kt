@@ -49,11 +49,11 @@ import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
-import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.StepPhase
 import com.ssafy.eolssu.feature.practice.reading
 import com.ssafy.eolssu.feature.practice.stepShownIndex
+import com.ssafy.eolssu.feature.practice.stepToggleEnabled
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_step_listen_desc
 import eolssu.shared.generated.resources.practice_step_manual_confirm
@@ -71,7 +71,7 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * 설정 버튼 옆 작은 ‘한 음씩’ 토글(와이어프레임 STEP_TOGGLE): 32dp 높이 흰 알약 · 12sp 600 글자 · 30×18dp 작은 스위치(켜면 연두).
- * 화면 읽기에는 ‘한 음씩 따라 불기 켜짐/꺼짐’ 스위치로 읽힌다. 혼자 연습의 준비·모범 연주 상태에서만 누를 수 있다.
+ * 화면 읽기에는 ‘한 음씩 따라 불기 켜짐/꺼짐’ 스위치로 읽힌다. 혼자 연습의 준비·모범 연주·장단으로 연습 상태에서만 누를 수 있다.
  */
 @Composable
 fun PracticeStepToggle(state: PracticeUiState, onToggle: () -> Unit, modifier: Modifier = Modifier) {
@@ -81,7 +81,7 @@ fun PracticeStepToggle(state: PracticeUiState, onToggle: () -> Unit, modifier: M
         on = on,
         onToggle = onToggle,
         modifier = modifier,
-        enabled = state.mode == PracticeMode.Ready || state.mode == PracticeMode.Model,
+        enabled = state.stepToggleEnabled,
         description = stringResource(Res.string.practice_step_toggle_desc, stringResource(if (on) Res.string.practice_step_on else Res.string.practice_step_off)),
     )
 }
@@ -214,7 +214,7 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
                         Box(Modifier.size(16.dp).background(colors.recSoft, CircleShape).padding(3.dp).background(colors.rec, CircleShape))
                         Text(
                             stringResource(Res.string.practice_step_recording),
-                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
                             color = colors.recText,
                             maxLines = 1,
                         )

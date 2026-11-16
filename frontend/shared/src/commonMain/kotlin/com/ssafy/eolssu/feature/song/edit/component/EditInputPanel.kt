@@ -533,7 +533,7 @@ private fun SigimsaeCard(value: Sigimsae, order: Int, enabled: Boolean, onClick:
                 SigimsaeTile(value)
                 Text(
                     sigimsaeLabel(value),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -600,7 +600,7 @@ private fun CellTools(draft: SheetDraft, actions: EditInputActions) {
             Column(Modifier.weight(1f)) {
                 Text(
                     stringResource(Res.string.sheetedit_cell_jangdan, jangdanLabel(draft.accompanimentName)),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                 )
                 if (draft.jangdan != null) Text(
                     stringResource(Res.string.sheetedit_cell_jangdan_desc, draft.jangdan.beats, draft.jangdan.subdivision, draft.bpm),

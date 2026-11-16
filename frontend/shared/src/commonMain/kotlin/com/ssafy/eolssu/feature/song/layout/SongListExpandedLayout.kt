@@ -112,7 +112,7 @@ private fun PickSongHint(modifier: Modifier) {
     ) {
         Text(
             stringResource(Res.string.tab_song_pick_title),
-            style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
             textAlign = TextAlign.Center,
         )
         Text(

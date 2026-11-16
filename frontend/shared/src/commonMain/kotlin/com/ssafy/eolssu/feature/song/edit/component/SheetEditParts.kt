@@ -126,7 +126,7 @@ internal fun KindCard(title: String, caption: String, icon: ImageVector, selecte
                 Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = colors.text)
             }
             Spacer(Modifier.weight(1f).heightIn(min = 12.dp))
-            Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold), maxLines = 2)
+            Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), maxLines = 2)
             Text(
                 caption,
                 modifier = Modifier.padding(top = 2.dp),
@@ -153,7 +153,7 @@ internal fun LinkRow(icon: ImageVector, title: String, onClick: () -> Unit, modi
             Box(Modifier.size(40.dp).background(colors.accentTint, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = colors.text)
             }
-            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold))
+            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
             Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
         }
     }

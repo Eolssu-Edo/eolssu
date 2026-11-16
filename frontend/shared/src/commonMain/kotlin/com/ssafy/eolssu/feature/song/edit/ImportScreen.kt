@@ -171,7 +171,7 @@ private fun MascotSpot(note: String, progress: String) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Image(painterResource(Res.drawable.tiger_play), contentDescription = null, modifier = Modifier.size(132.dp).alpha(0.85f), contentScale = ContentScale.Fit)
-            Text(stringResource(Res.string.sheetedit_import_gif), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+            Text(stringResource(Res.string.sheetedit_import_gif), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
             Text(
                 note,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
@@ -219,7 +219,7 @@ private fun ImportStep(label: String, description: String, state: StepState) {
         ) {
             Text(
                 mark,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
                 color = if (state == StepState.Now) colors.accentText else colors.onPrimary,
             )
         }
