@@ -1,0 +1,19 @@
+<resources>
+    <string name="sheet_tutorial_upload">악보 올리기</string>
+    <string name="sheet_tutorial_editor">편집 입력판</string>
+    <string name="sheet_tutorial_review">확인 카드</string>
+    <string name="sheet_tutorial_step">%1$s · %2$d/%3$d</string>
+    <string name="sheet_tutorial_replay">%1$s 안내 다시 보기</string>
+    <string name="sheet_tutorial_next">다음</string>
+    <string name="sheet_tutorial_done">완료</string>
+    <string name="sheet_tutorial_skip">건너뛰기</string>
+    <string name="sheet_tutorial_upload_kind">먼저 올릴 악보의 종류를 정간보 또는 오선보에서 골라 주세요.</string>
+    <string name="sheet_tutorial_upload_instrument">연주할 악기를 골라 주세요. 정간보는 악보의 장단도 골라 주세요.</string>
+    <string name="sheet_tutorial_upload_file">PDF·이미지 선택으로 악보를 첨부한 다음 악보 업로드를 눌러 주세요.</string>
+    <string name="sheet_tutorial_editor_cell">악보에서 바꿀 정간이나, 정간 안의 작은 칸인 소박을 눌러 주세요.</string>
+    <string name="sheet_tutorial_editor_input">아래 율명·기호 탭에서 넣을 음이나 기호를 골라 주세요.</string>
+    <string name="sheet_tutorial_editor_save">입력판에서 실행 취소할 수 있어요. 편집을 마치면 화면 위의 저장하기를 눌러 주세요.</string>
+    <string name="sheet_tutorial_review_open">확인 카드에서 확인할 칸을 열거나 악보에 표시된 칸을 눌러 주세요.</string>
+    <string name="sheet_tutorial_review_edit">앱이 읽은 음과 안내를 살펴보고, 필요하면 율명·기호 입력판에서 고쳐 주세요.</string>
+    <string name="sheet_tutorial_review_next">다른 확인 표시가 남아 있다면 그 칸으로 이동해 같은 방법으로 살펴보세요.</string>
+</resources>
