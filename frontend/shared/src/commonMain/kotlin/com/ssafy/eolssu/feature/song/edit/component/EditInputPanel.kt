@@ -495,8 +495,8 @@ private fun RowCaption(text: String) {
 private enum class CellPicture { Split, Merge, AddColumn, DeleteColumn }
 
 /**
- * 도구를 누르면 바뀌는 모양을 작게 그린다. 나누기·합치기는 `정간 → 바뀐 정간`, 각 추가는 지금 각 왼쪽의 연두 새 각,
- * 각 삭제는 X 친 각이다. 정간보처럼 각은 세로로 길고 오른쪽부터 읽는다.
+ * 도구를 누르면 바뀌는 모양을 작게 그린다. 나누기·합치기는 `정간 → 바뀐 정간`, 각 추가는 이어진 각들 끝(맨 왼쪽)에
+ * 붙는 연두 새 각, 각 삭제는 X 친 각이다. 정간보처럼 각은 세로로 길고 오른쪽부터 읽는다.
  */
 private fun DrawScope.drawCellPicture(picture: CellPicture, ink: Color, mark: Color) {
     val line = 1.5.dp.toPx()
@@ -521,14 +521,16 @@ private fun DrawScope.drawCellPicture(picture: CellPicture, ink: Color, mark: Co
         CellPicture.Split -> { cell(0f, box, split = false); arrow(box + pad, size.width - box - pad); cell(size.width - box, box, split = true) }
         CellPicture.Merge -> { cell(0f, box, split = true); arrow(box + pad, size.width - box - pad); cell(size.width - box, box, split = false) }
         CellPicture.AddColumn -> {
-            val w = 11.dp.toPx()
-            val gap = 6.dp.toPx()
-            val left = (size.width - 2 * w - gap) / 2
+            // 오른쪽부터 읽는 기존 각 둘 뒤(왼쪽 끝)에 새 각이 붙는다. 기존 각은 붙여 그려 한 악보로 보이게 한다.
+            val w = 10.dp.toPx()
+            val gap = 4.dp.toPx()
+            val left = (size.width - 3 * w - gap) / 2
             cell(left, w, split = false, fill = mark)
             val plus = 3.dp.toPx()
             drawLine(ink, Offset(left + w / 2 - plus, h / 2), Offset(left + w / 2 + plus, h / 2), line)
             drawLine(ink, Offset(left + w / 2, h / 2 - plus), Offset(left + w / 2, h / 2 + plus), line)
             cell(left + w + gap, w, split = true)
+            cell(left + 2 * w + gap, w, split = true)
         }
         CellPicture.DeleteColumn -> {
             val w = 12.dp.toPx()
@@ -707,7 +709,7 @@ private fun CellTools(draft: SheetDraft, selected: Int, actions: EditInputAction
             ToolButton(stringResource(Res.string.sheetedit_cell_delete_column), actions.onDeleteColumn, Modifier.weight(1f),
                 picture = CellPicture.DeleteColumn)
         }
-        // 각 추가는 구간 빠르기 위치를 함께 민다. 빠르기 구간이 걸친 각만 지울 수 없다(S15P31E102-1095).
+        // 각 추가는 악보 맨 끝에 붙어 구간 빠르기 위치를 바꾸지 않는다(S15P31E102-1139). 빠르기 구간이 걸친 각만 지울 수 없다(S15P31E102-1095).
         if (hasTempoPlan) {
             HintText(stringResource(Res.string.sheet_tempo_before_reshape))
         }

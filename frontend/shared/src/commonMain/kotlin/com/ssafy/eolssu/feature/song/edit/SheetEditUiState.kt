@@ -434,11 +434,14 @@ data class SheetEditUiState(
         return commit(merged, sub = null)
     }
 
-    /** 고른 정간의 각 왼쪽에 빈 각을 넣고 새 각의 첫 정간을 고른다. 구간 빠르기 위치는 함께 민다(S15P31E102-1095). */
+    /**
+     * 선택과 관계없이 악보 맨 끝에 마지막 각과 같은 정간 수의 빈 각을 더하고 그 첫 정간을 고른다(S15P31E102-1139).
+     * 뒤에 밀 위치가 없어 구간 빠르기·반복·반주 시작은 그대로이고, 끝까지 이어지는 빠르기는 새 각에도 이어진다.
+     */
     fun addColumn(): SheetEditUiState {
-        val column = draft.columnOf(selected)
-        val next = draft.addColumnAfter(column)
-        return commit(next, next.indexOf(column + 1, 0))
+        val last = draft.columnCount - 1
+        val next = draft.addColumnAfter(last)
+        return commit(next, next.indexOf(last + 1, 0))
     }
 
     /** 고른 정간의 각을 지운다. 선택은 같은 자리(마지막 각이었으면 새 마지막 각)로 둔다. */

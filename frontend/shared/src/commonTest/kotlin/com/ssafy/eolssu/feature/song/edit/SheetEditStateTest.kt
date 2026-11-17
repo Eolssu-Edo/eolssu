@@ -117,7 +117,7 @@ class SheetEditStateTest {
     fun addAndDeleteColumnMoveSelection() {
         val added = importState().select(4).addColumn()
         assertEquals(7, added.draft.columnCount)
-        assertEquals(9, added.selected, "새 각의 첫 정간")
+        assertEquals(54, added.selected, "맨 끝에 더한 새 각의 첫 정간")
         val deleted = added.select(60).deleteColumn()
         assertEquals(6, deleted.draft.columnCount)
         assertEquals(45, deleted.selected, "마지막 각을 지우면 새 마지막 각 첫 정간")

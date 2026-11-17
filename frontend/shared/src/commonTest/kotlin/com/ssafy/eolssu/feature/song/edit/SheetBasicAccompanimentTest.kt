@@ -60,11 +60,12 @@ class SheetBasicAccompanimentTest {
         assertEquals(after.draft, after.undo().redo().draft)
     }
 
-    @Test fun insertingBeforeTheFirstStrongCellMovesItsTickAndUndoKeepsTheAnchor() {
+    @Test fun appendingAGakKeepsTheFirstStrongCellTickAndUndoKeepsTheAnchor() {
         val before = state().selectBasicAccompaniment(BasicAccompanimentPreset.FiveTwoThree, 2).select(0)
         val after = before.addColumn()
         val encoded = after.draft.toCommonScore()
-        assertEquals(16L, after.draft.authoring!!.basicAccompaniment(encoded)?.startTick)
+        assertEquals(before.draft.authoring!!.basicAccompaniment(before.draft.toCommonScore())?.startTick,
+            after.draft.authoring!!.basicAccompaniment(encoded)?.startTick)
         assertEquals(before.draft, after.undo().draft)
         assertEquals(after.draft, after.undo().redo().draft)
     }

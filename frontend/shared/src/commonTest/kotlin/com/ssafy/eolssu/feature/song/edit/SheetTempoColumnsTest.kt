@@ -7,7 +7,7 @@ import com.ssafy.eolssu.data.song.smallScoreData
 import kotlinx.serialization.json.*
 import kotlin.test.*
 
-/** 구간 빠르기·반복이 있는 악보의 각 추가·삭제(S15P31E102-1095, 스펙 2단계). 한 각은 4정간이다. */
+/** 구간 빠르기·반복이 있는 악보의 각 추가·삭제(S15P31E102-1095, 스펙 2단계). 각 추가는 맨 끝에 붙는다(S15P31E102-1139). 한 각은 4정간이다. */
 class SheetTempoColumnsTest {
     private fun score(columns: Int): CommonScoreData {
         val base = smallScoreData()
@@ -46,30 +46,35 @@ class SheetTempoColumnsTest {
     private fun JsonObject.tempoMarkCells() = getValue("placements").jsonArray.map { it.jsonObject }
         .filter { p -> p.getValue("symbols").jsonArray.any { HanbaeMark.fromSymbol(it.jsonPrimitive.content) != null } }
 
-    @Test fun insertingAGakShiftsLaterChangesMarksAndTheirCompanionIds() {
+    @Test fun addingAGakAppendsItAtTheEndAndKeepsChangesMarksAndTheirCompanionIds() {
         val planned = state(4, step(4, 120.0), step(9, 60.0))
+        // 어느 각을 골랐든 맨 끝에 붙고 새 각의 첫 정간을 고른다.
         val added = planned.copy(selected = 0).addColumn()
+        assertEquals(added.draft, planned.copy(selected = planned.draft.indexOf(2, 0)).addColumn().draft)
         assertNull(added.message)
         assertEquals(5, added.draft.columnCount)
-        assertEquals(listOf(8 to HanbaeMark.Faster, 13 to HanbaeMark.Slower), added.draft.tempoCues.map { it.start to it.mark })
-        assertEquals(listOf(listOf(3, 1), listOf(4, 2)), added.draft.plan().positions("tempos"))
+        assertEquals(16, added.selected)
+        assertEquals(List(4) { emptyList() }, added.draft.cells.drop(16))
+        assertEquals(planned.draft.tempoCues, added.draft.tempoCues)
+        assertEquals(listOf(listOf(2, 1), listOf(3, 2)), added.draft.plan().positions("tempos"))
         val exported = requireNotNull(added.draft.exportExpressions(null, 80))
         val score = added.draft.toCommonScore()
         assertEquals(commonSourceSha256(Json.encodeToJsonElement(score)), exported.getValue("sourceSha256").jsonPrimitive.content)
         assertEquals(exported.getValue("sourceSha256"), exported.getValue("performancePlan").jsonObject.getValue("input_sha256"))
-        assertEquals(listOf("c2-j0" to "c2-j0-r0-u0", "c3-j1" to "c3-j1-r0-u0"),
+        assertEquals(listOf("c1-j0" to "c1-j0-r0-u0", "c2-j1" to "c2-j1-r0-u0"),
             exported.tempoMarkCells().map { it.getValue("cellId").jsonPrimitive.content to it.getValue("eventId").jsonPrimitive.content })
-        assertEquals(listOf("조금느리게"), score.events.first { it.id == "c3-j1-r0-u0" }.sigimsae)
+        assertEquals(listOf("조금느리게"), score.events.first { it.id == "c2-j1-r0-u0" }.sigimsae)
         assertEquals(planned.draft, added.undo().draft)
     }
 
-    @Test fun aGakInsertedRightAfterARampContinuesIt() {
-        val planned = state(3, ramp(1, 120.0, 3)).let { it.updateTempoSettings(it.draft.withRepeats(1 to 1)) }
+    @Test fun anAppendedGakContinuesTheLastTempoAndStaysOutsideARepeatOnTheLastGak() {
+        val planned = state(3, step(9, 120.0)).let { it.updateTempoSettings(it.draft.withRepeats(3 to 3)) }
         val added = planned.copy(selected = 0).addColumn()
-        // 점점 끝 (2,1)은 다음 각 시작이라 새 각도 변화 구간에 든다. 반복은 끝 각을 포함하므로 새 각은 반복 밖이다.
-        assertEquals(7, added.draft.tempoCues.single().last)
-        assertEquals(listOf(listOf(1, 2, 3, 1)), added.draft.plan().positions("tempos"))
-        assertEquals(listOf(listOf(1, 1)), added.draft.plan().positions("repeats"))
+        // 끝 각까지 이어지던 빠르기는 새 각에도 이어진다. 반복은 끝 각을 포함하므로 그 뒤 새 각은 반복 밖이다.
+        assertNull(added.message)
+        assertEquals(planned.draft.tempoCues, added.draft.tempoCues)
+        assertEquals(listOf(listOf(3, 2)), added.draft.plan().positions("tempos"))
+        assertEquals(listOf(listOf(3, 3)), added.draft.plan().positions("repeats"))
     }
 
     @Test fun gakWithAChangeStartARampOrARepeatCannotBeDeleted() {
@@ -107,17 +112,17 @@ class SheetTempoColumnsTest {
         assertNull(planned.copy(selected = planned.draft.indexOf(2, 0)).deleteColumn().message)
     }
 
-    @Test fun anInsertedGakTakesChangesAndGetsItsMarkAfterSaving() {
+    @Test fun anAppendedGakTakesChangesAndGetsItsMarkAfterSaving() {
         val added = state(2, step(1, 120.0)).copy(selected = 0).addColumn()
-        val inserted = added.draft.indexOf(1, 0)
+        val inserted = added.draft.indexOf(2, 0)
         assertNull(added.draft.tempoCueError(step(inserted, 100.0)))
         val withChange = added.draft.withTempoCue(step(inserted, 100.0))
         // 저장 전 새 각에는 companion ID가 없어 숫자만 두고 기호는 붙이지 않는다.
         assertEquals(listOf(1 to HanbaeMark.Faster, inserted to null), withChange.tempoCues.map { it.start to it.mark })
-        assertEquals(listOf(listOf(1, 2), listOf(2, 1)), withChange.plan().positions("tempos"))
+        assertEquals(listOf(listOf(1, 2), listOf(3, 1)), withChange.plan().positions("tempos"))
     }
 
-    @Test fun slurGroupsAndContinuationsFollowTheRenumberedIds() {
+    @Test fun slurGroupsAndContinuationsKeepTheirIdsWhenAGakIsAppended() {
         val planned = state(3, step(9, 120.0))
         val expression = requireNotNull(planned.draft.tempoExpressions)
         val withExtras = planned.draft.withTempoExpressions(JsonObject(expression +
@@ -128,9 +133,9 @@ class SheetTempoColumnsTest {
             })), planned.draft.tempoReferenceBpm ?: 80)
         val added = planned.updateTempoSettings(withExtras).copy(selected = 0).addColumn()
         val exported = requireNotNull(added.draft.exportExpressions(null, 80))
-        assertEquals(listOf("c3-j0-r0-u0", "c3-j1-r0-u0"), exported.getValue("slurGroups").jsonArray.single().jsonObject
+        assertEquals(listOf("c2-j0-r0-u0", "c2-j1-r0-u0"), exported.getValue("slurGroups").jsonArray.single().jsonObject
             .getValue("eventIds").jsonArray.map { it.jsonPrimitive.content })
-        // 1각 뒤의 새 각 때문에 2각으로 들어오던 지속은 끊기고, 3각 경계는 4각으로 민다.
-        assertEquals(listOf(4), exported.getValue("gakContinuations").jsonArray.map { it.jsonObject.getValue("gak").jsonPrimitive.int })
+        // 새 각은 맨 끝에 붙어 기존 각 경계의 지속은 그대로다.
+        assertEquals(listOf(2, 3), exported.getValue("gakContinuations").jsonArray.map { it.jsonObject.getValue("gak").jsonPrimitive.int })
     }
 }
