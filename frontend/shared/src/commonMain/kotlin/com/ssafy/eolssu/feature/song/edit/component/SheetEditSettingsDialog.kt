@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.SolidColor
@@ -71,9 +72,16 @@ internal fun SheetEditSettingsDialog(
     var target by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     val editTarget = remember { BringIntoViewRequester() }
+    val editActions = remember { BringIntoViewRequester() }
     val density = LocalDensity.current
     LaunchedEffect(editing, replacing) {
         if (editing) editTarget.bringIntoView(Rect(0f, 0f, 1f, with(density) { 320.dp.toPx() }))
+    }
+    // 빠르기 숫자를 고치는 동안 키보드가 올라와 창이 줄면 입력 칸 아래 삭제·취소·넣기 줄까지 보이게 올린다(S15P31E102-1130).
+    var targetFocused by remember { mutableStateOf(false) }
+    val imeBottom = WindowInsets.ime.getBottom(density)
+    LaunchedEffect(targetFocused, imeBottom) {
+        if (targetFocused && editing) editActions.bringIntoView()
     }
     val validBpm = bpm.toIntOrNull()?.takeIf { it in SheetBpmRange }
     val current = working.copy(bpm = validBpm ?: working.bpm)
@@ -109,7 +117,10 @@ internal fun SheetEditSettingsDialog(
 
     EolssuDialog(title = stringResource(Res.string.sheet_settings_title), onDismissRequest = { if (!saving) onDismiss() }) {
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            BaseTempoRow(bpm, draft.tempoUnitLabel, enabled = !saving) { bpm = it; bpmTouched = true; error = null }
+            TempoNumberRow(stringResource(Res.string.sheet_tempo_whole), "${draft.tempoUnitLabel} =", bpm, "기본 빠르기", enabled = !saving,
+                titleStyle = MaterialTheme.typography.titleSmall, background = EolssuTheme.colors.groupedBackground) {
+                bpm = it; bpmTouched = true; error = null
+            }
             if (bpmTouched && validBpm == null) Text(stringResource(Res.string.sheet_details_bpm_error, SheetBpmRange.first, SheetBpmRange.last),
                 color = EolssuTheme.colors.rec, style = MaterialTheme.typography.bodySmall)
 
@@ -136,9 +147,10 @@ internal fun SheetEditSettingsDialog(
                 if (kind == SheetTempoKind.Ramp) PositionPicker(stringResource(Res.string.sheet_tempo_end), current, end, enabled = !saving) {
                     end = it; if (start > it) start = it; error = null
                 }
-                EolssuTextField(target, { target = it; error = null },
-                    stringResource(Res.string.sheet_tempo_bpm), "", type = TextFieldType.Number, maxLength = InputLimit.BPM_DIGITS,
-                    qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_FIELD_02)
+                // 기본 빠르기와 같은 [−] 숫자 [+] 칸으로 고친다. 인식한 소수 빠르기도 그대로 보이고, 버튼은 정수로 맞춘다.
+                TempoNumberRow(stringResource(Res.string.sheet_tempo_bpm), null, target, "바뀌는 빠르기", enabled = !saving,
+                    titleStyle = MaterialTheme.typography.labelLarge, background = EolssuTheme.colors.surface, allowDecimal = true,
+                    onFocus = { targetFocused = it }) { target = it; error = null }
                 val shown = error ?: pendingError
                 if (shown != null) Text(shown, color = EolssuTheme.colors.rec, style = MaterialTheme.typography.bodySmall)
                 else if (pending != null) {
@@ -148,7 +160,8 @@ internal fun SheetEditSettingsDialog(
                     Text(listOfNotNull(mark?.label, "${before.bpmText()} → ${after.bpmText()}").joinToString(" · "),
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = EolssuTheme.colors.accentText)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.bringIntoViewRequester(editActions), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
                     replacing?.let { at ->
                         EolssuButton(stringResource(Res.string.sheet_tempo_remove), {
                             error = current.tempoCueDeletionError(at)
@@ -201,30 +214,51 @@ internal fun SheetEditSettingsDialog(
     }
 }
 
-/** 기본 빠르기 한 줄: 라벨 · 단위 = [−] 숫자 [+]. 숫자는 키보드로도 고친다. */
+/**
+ * 빠르기 한 줄: 라벨 · 단위 = [−] 숫자 [+]. 숫자는 키보드로도 고친다. 기본 빠르기와 바뀌는 빠르기가 같은 모양을 쓴다.
+ * [allowDecimal]이면 인식한 소수 빠르기(예: 92.5)도 입력할 수 있고, [−]/[+]는 정수로 반올림한 뒤 1씩 옮긴다.
+ */
 @Composable
-private fun BaseTempoRow(value: String, unit: String, enabled: Boolean, onValue: (String) -> Unit) {
+private fun TempoNumberRow(
+    label: String,
+    unit: String?,
+    value: String,
+    description: String,
+    enabled: Boolean,
+    titleStyle: androidx.compose.ui.text.TextStyle,
+    background: Color,
+    allowDecimal: Boolean = false,
+    onFocus: (Boolean) -> Unit = {},
+    onValue: (String) -> Unit,
+) {
     val colors = EolssuTheme.colors
-    val number = value.toIntOrNull()
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.groupedBackground).padding(horizontal = 14.dp, vertical = 10.dp),
+    val number = value.toDoubleOrNull()
+    val first = SheetBpmRange.first
+    val last = SheetBpmRange.last
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(background)
+        .then(if (background == colors.surface) Modifier.border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp)) else Modifier)
+        .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(Res.string.sheet_tempo_whole), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, maxLines = 1)
-        Text("$unit =", style = MaterialTheme.typography.bodyMedium, color = colors.textSub, maxLines = 1)
-        StepButton("−", "기본 빠르기 내리기", enabled && (number ?: 0) > SheetBpmRange.first) {
-            onValue(((number ?: SheetBpmRange.first) - 1).coerceIn(SheetBpmRange).toString())
+        Text(label, Modifier.weight(1f), style = titleStyle, maxLines = 1)
+        if (unit != null) Text(unit, style = MaterialTheme.typography.bodyMedium, color = colors.textSub, maxLines = 1)
+        StepButton("−", "$description 내리기", enabled && (number ?: 0.0) > first) {
+            onValue(((number?.roundToInt() ?: first) - 1).coerceIn(SheetBpmRange).toString())
         }
         BasicTextField(
             value = value,
-            onValueChange = { input -> onValue(input.filter(Char::isDigit).take(InputLimit.BPM_DIGITS)) },
+            onValueChange = { input ->
+                val kept = input.filter { it.isDigit() || (allowDecimal && it == '.') }
+                onValue(if (allowDecimal) kept.take(InputLimit.BPM_DIGITS + 2) else kept.take(InputLimit.BPM_DIGITS))
+            },
             enabled = enabled,
             singleLine = true,
             textStyle = MaterialTheme.typography.titleLarge.copy(color = colors.text, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardOptions = KeyboardOptions(keyboardType = if (allowDecimal) KeyboardType.Decimal else KeyboardType.Number, imeAction = ImeAction.Done),
             cursorBrush = SolidColor(colors.accent),
-            modifier = Modifier.width(56.dp).semantics { contentDescription = "기본 빠르기" },
+            modifier = Modifier.width(64.dp).onFocusChanged { onFocus(it.isFocused) }.semantics { contentDescription = description },
         )
-        StepButton("+", "기본 빠르기 올리기", enabled && (number ?: Int.MAX_VALUE) < SheetBpmRange.last) {
-            onValue(((number ?: SheetBpmRange.last) + 1).coerceIn(SheetBpmRange).toString())
+        StepButton("+", "$description 올리기", enabled && (number ?: Double.MAX_VALUE) < last) {
+            onValue(((number?.roundToInt() ?: last) + 1).coerceIn(SheetBpmRange).toString())
         }
     }
 }
