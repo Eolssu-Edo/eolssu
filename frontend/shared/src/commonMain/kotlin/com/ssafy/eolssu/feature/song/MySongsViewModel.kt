@@ -5,7 +5,6 @@ import com.ssafy.eolssu.core.network.screenScope
 import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SheetConversionRepository
@@ -36,7 +35,7 @@ class MySongsViewModel(
     private var sheetJob: Job? = null
 
     private val accountScope: CoroutineScope = member.screenScope(viewModelScope) {
-        _uiState.value = MySongsUiState()
+        _uiState.value = MySongsUiState(practiceInstrument = instrumentRepository.instrument.value)
         conversionWatcher.forgetFailedDetails()
         instrumentSelection.clear()
     }
@@ -61,7 +60,13 @@ class MySongsViewModel(
     }
 
     init {
-        accountScope.launch { instrumentRepository.instrument.collect { reloadForInstrument() } }
+        accountScope.launch {
+            instrumentRepository.instrument.collect { instrument ->
+                // 내 악보는 바뀐 연습 악기의 악보를 먼저 보이고, 펼쳐 둔 다른 악기 묶음은 다시 접는다.
+                _uiState.update { it.copy(practiceInstrument = instrument, otherSheetsOpen = false) }
+                reloadForInstrument()
+            }
+        }
         accountScope.launch {
             mySheetRepository.sheets.collect { sheets ->
                 _uiState.update { it.receiveSheets(sheets) }
@@ -128,9 +133,8 @@ class MySongsViewModel(
 
     fun clearQuery() = changeQuery("")
 
-    fun selectSheetInstrument(instrument: Instrument?) = _uiState.update { it.copy(sheetInstrument = instrument) }
-
-    fun resetSheetFilters() = _uiState.update { it.copy(query = "", sheetInstrument = null) }
+    /** 내 악보의 '다른 악기 악보 보기'·'접기'. */
+    fun toggleOtherSheets() = _uiState.update { it.copy(otherSheetsOpen = !it.otherSheetsOpen) }
 
     /** 제공 곡 빈 결과의 초기화: 검색어와 단계를 모두 처음으로 되돌린다. */
     fun resetSongFilters() = _uiState.update { it.copy(query = "", filter = SongLevelFilter.All) }
