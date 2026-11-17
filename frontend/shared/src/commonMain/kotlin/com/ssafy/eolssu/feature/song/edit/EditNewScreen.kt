@@ -160,6 +160,7 @@ private fun MySheetsSection(state: EditNewUiState, actions: EditNewSheetActions)
                 onRetryConversion = { actions.onRetryConversion(sheet) },
                 onReimport = { actions.onReimport(sheet) },
                 bordered = false,
+                conversionDetailed = state.mine.hasConversionDetail(sheet),
             )
         } }
     }
