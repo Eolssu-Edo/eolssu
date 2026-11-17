@@ -106,14 +106,13 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * 악보 변환 대기 화면(S15P31E102-998). 연주 분석 대기처럼 붓 일원상이 진행만큼 그려지고 가운데에 공부하는 호랑이를 둔다.
  * 위에서부터 단계 제목 · 악보 제목 · 단계 설명 · 단계 줄(차례 기다리기 → 악보 읽기 → 악보 만들기) · 나가도 된다는 안내 순서다.
- * 실패하면 붓 대신 호랑이와 원인 · 할 일 목록 · 다음 행동 버튼을 둔다. 완료되면 Route가 편집 화면으로 보내고,
+ * 실패하면 붓 대신 호랑이와 원인 · 할 일 목록을 두고, 원본을 보관하지 않아 다시 불러올 수 없으므로 '내 악보 목록으로'만 둔다(S15P31E102-1140). 완료되면 Route가 편집 화면으로 보내고,
  * 화면 전환 중이라 이동이 무시돼도 머물지 않게 '편집 화면 열기'([onOpenEditor])를 둔다.
  */
 @Composable
 fun SheetConversionScreen(
     state: SheetConversionUiState,
     onList: () -> Unit,
-    onReimport: () -> Unit,
     onOpenEditor: () -> Unit,
 ) {
     val failure = state.failure
@@ -122,11 +121,8 @@ fun SheetConversionScreen(
         bottomBar = {
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 when {
-                    failure != null -> {
-                        EolssuButton(stringResource(failure.action.label), onReimport, qaTarget = QaTarget.SHEET_CONVERSION_SCREEN_BUTTON_01)
-                        EolssuButton(stringResource(Res.string.sheet_conversion_to_list), onList,
-                            style = EolssuButtonStyle.Secondary, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_CONVERSION_SCREEN_BUTTON_02)
-                    }
+                    failure != null ->
+                        EolssuButton(stringResource(Res.string.sheet_conversion_to_list), onList, qaTarget = QaTarget.SHEET_CONVERSION_SCREEN_BUTTON_02)
                     state.missing -> EolssuButton(stringResource(Res.string.sheet_conversion_to_list), onList, qaTarget = QaTarget.SHEET_CONVERSION_SCREEN_BUTTON_03)
                     state.done -> EolssuButton(stringResource(Res.string.sheet_conversion_open_editor), onOpenEditor, qaTarget = QaTarget.SHEET_CONVERSION_SCREEN_BUTTON_04)
                     else -> EolssuButton(stringResource(Res.string.sheet_conversion_wait_in_list), onList,

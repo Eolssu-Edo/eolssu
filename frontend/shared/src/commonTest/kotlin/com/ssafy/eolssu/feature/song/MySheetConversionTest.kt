@@ -296,7 +296,7 @@ internal class MySheetConversionTest : CatalogViewModelTest() {
         model.retryConversion(failed); runCurrent()
         assertEquals(1, conversions.retries)
         assertEquals(ConversionNotice.Reimport, model.uiState.value.conversionNotice)
-        assertFalse(model.uiState.value.conversionOf(failed)?.retryable == true, "409 뒤에는 '다시 불러오기'로 바뀐다")
+        assertFalse(model.uiState.value.conversionOf(failed)?.retryable == true, "409 뒤에는 다시 시도를 거두고 새 파일을 올리라고 알린다")
         assertTrue(model.uiState.value.retrying.isEmpty())
     }
 

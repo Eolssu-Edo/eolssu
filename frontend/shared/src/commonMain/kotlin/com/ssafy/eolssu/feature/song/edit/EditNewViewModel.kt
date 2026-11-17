@@ -9,7 +9,6 @@ import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SheetConversionRepository
 import com.ssafy.eolssu.feature.song.MySheetConversionWatcher
 import com.ssafy.eolssu.feature.song.SongLoadState
-import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -69,17 +68,6 @@ class EditNewViewModel(
 
     fun closeDevicePick() = _uiState.update { it.copy(devicePickOpen = false) }
 
-    private var reimportHandled = false
-
-    /** '다시 불러오기'로 들어온 첫 한 번만 [problem] 안내를 띄운다. 화면을 다시 그려도 닫은 안내를 되살리지 않는다. */
-    fun showReimportProblem(problem: SheetFileProblem?, sheetId: String? = null) {
-        if (reimportHandled) return
-        reimportHandled = true
-        _uiState.update { it.copy(problem = problem ?: it.problem, replacing = sheetId ?: it.replacing) }
-    }
-
-    fun dismissProblem() = _uiState.update { it.copy(problem = null) }
-
     /** 내 악보 목록을 새로 받는다. 화면이 다시 보일 때와 '다시 시도'에서 부른다. */
     fun refreshSheets() {
         val repository = mySheetRepository ?: return
@@ -102,17 +90,6 @@ class EditNewViewModel(
     fun retryConversion(sheet: MySheet) { watcher?.retry(sheet) }
 
     fun consumeConversionNotice() = _uiState.update { it.copy(mine = it.mine.copy(notice = null)) }
-
-    /**
-     * 변환에 실패한 악보의 '다시 불러오기'. 이미 악보 추가 화면이므로 이동하지 않는다.
-     * 원인별 안내가 있으면 안내 창을 띄우고 true, 없으면 false를 돌려 바로 파일 선택으로 가게 한다.
-     */
-    fun reimport(sheet: MySheet): Boolean {
-        _uiState.update { it.copy(replacing = sheet.id) }
-        val problem = SheetFileProblem.ofConversionFailure(_uiState.value.mine.conversionOf(sheet)?.failure) ?: return false
-        _uiState.update { it.copy(problem = problem) }
-        return true
-    }
 
     /** 휴지통: 삭제를 묻는 창을 연다. */
     fun askDelete(sheet: MySheet) = _uiState.update { it.copy(deleting = sheet) }

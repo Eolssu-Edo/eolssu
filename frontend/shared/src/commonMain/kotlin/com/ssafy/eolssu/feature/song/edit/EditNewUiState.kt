@@ -3,7 +3,6 @@ package com.ssafy.eolssu.feature.song.edit
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.feature.song.MySheetList
 import com.ssafy.eolssu.feature.song.SongLoadState
-import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblem
 
 /**
  * EDIT-01 악보 추가 상태. 정간보·오선보 가져오기 중 하나를 고른다(기본 정간보).
@@ -11,18 +10,14 @@ import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblem
  * 아래에는 내 악보와 그 변환 진행 상황([mine])을 내 악보 탭과 같게 보인다.
  *
  * @property devicePickOpen 기기에서 사진·PDF를 고르는 창(DevicePick)이 열려 있다.
- * @property problem 내 악보 '다시 불러오기'로 들어왔을 때 보일 인식 실패 안내. 닫으면 null이다.
  * @property sheetLoad 내 악보 목록을 받는 상태.
  * @property deleting 삭제를 묻는 창에 띄운 내 악보. 창이 닫혀 있으면 null.
- * @property replacing '다시 불러오기'로 대신할 변환 실패 악보 ID. 위의 '악보 올리기'로 가면 쓰지 않는다(S15P31E102-1052).
  */
 data class EditNewUiState(
     val kind: ImportKind = ImportKind.Jeongganbo,
     val devicePickOpen: Boolean = false,
-    val problem: SheetFileProblem? = null,
     val mine: MySheetList = MySheetList(),
     val sheetLoad: SongLoadState = SongLoadState.Loading,
     val deleting: MySheet? = null,
     val deleteFailed: Boolean = false,
-    val replacing: String? = null,
 )

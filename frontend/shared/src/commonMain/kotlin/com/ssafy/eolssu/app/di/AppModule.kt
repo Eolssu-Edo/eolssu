@@ -239,10 +239,9 @@ val appModule = module {
     single<SheetImportRepository> { get<NotifyingSheetConversionRepository>() }
     single<PublishedSheetCopyRepository> { ApiPublishedSheetCopyRepository(get(), get()) }
     single<SheetConversionRepository> { get<NotifyingSheetConversionRepository>() }
-    viewModel { (kind: ImportKind, hwang: HwangPitch, replacing: String) ->
+    viewModel { (kind: ImportKind, hwang: HwangPitch) ->
         SheetImportViewModel(kind, hwang, get(),
-            get<InstrumentCatalog>()::load, get<ReferenceCatalogRepository>()::jangdans, get(), authoringCatalog = get(),
-            replacing = replacing, mySheets = get())
+            get<InstrumentCatalog>()::load, get<ReferenceCatalogRepository>()::jangdans, get(), authoringCatalog = get())
     }
     viewModel { (sheetId: String) -> SheetConversionViewModel(sheetId, get(), get(), member = get()) }
     viewModel { MySongsViewModel(get(), get(), get(), get(), get(), get()) }

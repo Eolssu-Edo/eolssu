@@ -23,13 +23,8 @@ class SheetImportViewModel(
     private val loadJangdans: suspend () -> List<CatalogJangdanSummary>,
     member: SignedInMember? = null,
     private val authoringCatalog: SheetAuthoringCatalog? = null,
-    replacing: String? = null,
-    private val mySheets: MySheetRepository? = null,
 ) : ViewModel() {
-    /** '다시 불러오기'로 바꿀 변환 실패 악보. 새 악보가 접수되면 지워 목록의 그 자리를 새 악보가 잇게 한다(S15P31E102-1052). */
-    private val replacing = replacing?.takeIf { it.isNotBlank() }
-    private val state = MutableStateFlow(SheetImportUiState(kind = kind,
-        title = mySheets?.sheets?.value?.firstOrNull { it.id == this.replacing }?.title.orEmpty()))
+    private val state = MutableStateFlow(SheetImportUiState(kind = kind))
     val uiState = state.asStateFlow()
     private var key: String? = null
     private val scope = member.screenScope(viewModelScope) {
@@ -120,17 +115,9 @@ class SheetImportViewModel(
         val submissionKey = key ?: Uuid.random().toString().also { key = it }
         state.value = current.copy(busy = true, error = null)
         scope.launch {
-            var result = upload(input, submissionKey)
+            val result = upload(input, submissionKey)
             // 로그인 변경에 늦게 온 대역/플랫폼 결과도 새 화면에 노출하지 않는다.
             if (state.value.expired) return@launch
-            // 내 악보가 꽉 차 막혔을 때만 대신할 실패 악보를 먼저 지우고 새 키로 한 번 더 올린다(S15P31E102-1052).
-            if (result is SheetImportResult.Failed && result.code == "SHEET_LIMIT_EXCEEDED" && deleteReplaced()) {
-                val retryKey = Uuid.random().toString().also { key = it }
-                result = upload(input, retryKey)
-                if (state.value.expired) return@launch
-            }
-            // 그 밖에는 실패 악보를 새 악보가 접수된 뒤에만 지운다. 지우지 못해도 접수는 그대로 두고 실패 줄만 남는다.
-            if (result is SheetImportResult.Accepted) deleteReplaced()
             state.value = when (result) {
                 is SheetImportResult.Accepted -> state.value.copy(busy = false, acceptedId = result.sheetId, files = emptyList())
                 is SheetImportResult.Failed -> state.value.copy(busy = false, error = result.code ?: "UPLOAD_FAILED")
@@ -142,18 +129,6 @@ class SheetImportViewModel(
         try { repository.upload(input, submissionKey) }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { SheetImportResult.Failed() }
-
-    private var replacedDeleted = false
-
-    /** 대신할 실패 악보를 한 번만 지운다. 지웠으면 true, 대신할 악보가 없거나 지우지 못했으면 false. */
-    private suspend fun deleteReplaced(): Boolean {
-        val sheetId = replacing ?: return false
-        val sheets = mySheets ?: return false
-        if (replacedDeleted) return false
-        return try { sheets.delete(sheetId); replacedDeleted = true; true }
-        catch (cancelled: CancellationException) { throw cancelled }
-        catch (_: Exception) { false }
-    }
 }
 
 /** 파일 이름으로 채울 제목: 확장자를 빼고 앞뒤 공백을 자른 뒤 [InputLimit.SHEET_TITLE]자까지(이모지를 반으로 자르지 않는다, S15P31E102-996). */

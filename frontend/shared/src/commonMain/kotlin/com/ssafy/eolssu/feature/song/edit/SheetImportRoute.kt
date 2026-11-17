@@ -10,8 +10,7 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun SheetImportRoute(kind: ImportKind, hwang: HwangPitch, onBack: () -> Unit, onList: () -> Unit,
     onAccepted: ((String) -> Unit)? = null,
-    replacing: String? = null,
-    viewModel: SheetImportViewModel = koinViewModel { parametersOf(kind, hwang, replacing.orEmpty()) }) {
+    viewModel: SheetImportViewModel = koinViewModel { parametersOf(kind, hwang) }) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 접수되면 변환 대기 화면으로 넘긴다(S15P31E102-998). 콜백이 없으면 이 화면의 접수 안내를 그대로 보인다.
     LaunchedEffect(state.acceptedId) { state.acceptedId?.let { id -> onAccepted?.invoke(id) } }

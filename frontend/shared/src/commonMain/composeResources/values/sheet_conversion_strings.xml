@@ -26,9 +26,6 @@
     <string name="mysongs_conversion_failed_server_tip1">악보나 사진의 문제가 아니에요.</string>
     <string name="mysongs_conversion_failed_server_tip2">잠시 후 같은 파일로 다시 불러와 주세요.</string>
 
-    <string name="mysongs_conversion_action_retake">다시 찍어 불러오기</string>
-    <string name="mysongs_conversion_action_other_file">다른 파일로 불러오기</string>
-    <string name="mysongs_conversion_action_try_later">다시 불러오기</string>
 
     <!-- 악보 변환 대기 화면 (S15P31E102-998) -->
     <string name="sheet_conversion_title">악보 변환</string>

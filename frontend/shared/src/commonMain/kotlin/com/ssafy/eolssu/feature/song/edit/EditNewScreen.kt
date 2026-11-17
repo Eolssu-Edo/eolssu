@@ -30,7 +30,6 @@ import com.ssafy.eolssu.feature.song.component.MySheetRow
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.edit.component.KindCard
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditIcons
-import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblemDialog
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_sheet_count
 import eolssu.shared.generated.resources.mysongs_sheet_limit_note
@@ -51,8 +50,6 @@ class EditNewSheetActions(
     val onConfirmDelete: () -> Unit = {},
     val onCancelDelete: () -> Unit = {},
     val onRetryConversion: (MySheet) -> Unit = {},
-    /** 변환에 실패한 악보의 '다시 불러오기'. 이 화면 안에서 안내 창 또는 파일 선택으로 이어진다. */
-    val onReimport: (MySheet) -> Unit = {},
     /** 목록을 받지 못했을 때의 '다시 시도'. */
     val onRetryLoad: () -> Unit = {},
 )
@@ -62,7 +59,6 @@ class EditNewSheetActions(
  * '내 악보 가져오기'는 확인 버튼 없이 바로 악보 올리기 화면으로 가고, 정간보·오선보와 파일은 그 화면에서 고른다.
  * 음역은 가져온 뒤 편집기에서 조정한다. '얼쑤에서 가져오기'는 제공 곡·내 악보 목록(EditPick)으로 간다.
  * 그 아래에 내 악보와 변환 진행 상황(대기·읽는 중·만드는 중·실패)을 내 악보 탭과 같은 줄로 보인다(S15P31E102-881).
- * 파일 형식·촬영 안내는 화면에 늘 두지 않고, 문제가 생겼을 때만 [EditNewUiState.problem] 안내 창으로 알린다.
  * 태블릿 가로에서는 본문을 [sheetAddContentMaxWidth]로 넓힌다(S15P31E102-978).
  */
 @Composable
@@ -72,8 +68,6 @@ fun EditNewScreen(
     /** '내 악보 가져오기'를 눌렀다. 악보 올리기 화면으로 간다. */
     onUpload: () -> Unit,
     onLoadExisting: () -> Unit,
-    onOpenDevicePick: () -> Unit,
-    onDismissProblem: () -> Unit = {},
     sheetActions: EditNewSheetActions = EditNewSheetActions(),
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
@@ -113,16 +107,6 @@ fun EditNewScreen(
             MySheetsSection(state, sheetActions)
         }
     }
-    state.problem?.let { problem ->
-        SheetFileProblemDialog(
-            problem,
-            onRepick = {
-                onDismissProblem()
-                onOpenDevicePick()
-            },
-            onDismiss = onDismissProblem,
-        )
-    }
     state.deleting?.let { DeleteSheetDialog(it, sheetActions.onConfirmDelete, sheetActions.onCancelDelete) }
 }
 
@@ -158,7 +142,6 @@ private fun MySheetsSection(state: EditNewUiState, actions: EditNewSheetActions)
                 conversion = state.mine.conversionOf(sheet),
                 retrying = sheet.id in state.mine.retrying,
                 onRetryConversion = { actions.onRetryConversion(sheet) },
-                onReimport = { actions.onReimport(sheet) },
                 bordered = false,
                 conversionDetailed = state.mine.hasConversionDetail(sheet),
             )
