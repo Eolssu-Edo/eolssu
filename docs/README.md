@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [QA 웹 APK 적용의 앱 로그 읽기 대기 후 자동 설치 (1066)](plans/S15P31E102-1066.md)
 - [이조 적용 시 황종 주파수의 웹(Wasm) 마지막 자리 차이 수정 (1056)](plans/S15P31E102-1056.md) · [원인](knowledge/frontend/sheet-pitch-adaptation.md#황종-주파수의-플랫폼별-마지막-자리-차이-1056)
 - [오선보 아리랑 변환 결과가 원곡과 크게 다른 원인 확인과 수정 (1043)](plans/S15P31E102-1043.md) · [원인·실제 대조](knowledge/ai/score-recognition-corrections.md#아리랑-98의-끝-쉼표-누락과-9정간-각-1043)
 - [웹 마이페이지 최근 연주 카드 표시 지연 원인 규명 (863)](knowledge/frontend/web-mypage-recent-rendering.md)

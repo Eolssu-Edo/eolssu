@@ -154,8 +154,11 @@ async function applyLatestAll(){
     if(version.status==='latest'){results.push(device.number+' 최신');continue;}
     if(version.status!=='outdated')throw Error('설치 버전 확인 불가 · 적용 보류');
     if(!update.enabled)throw Error(update.hint);
-    await device.api('builds/install',{id:update.build.id,epoch:device.state.epoch});
-    await waitFor(device,async()=>{await device.refreshBuilds();return device.catalog;},catalog=>{if(catalog?.job?.status==='failed')throw Error('APK 설치 실패');return catalog?.installed?.versionCode===update.build.versionCode&&catalog?.installed?.versionName===update.build.versionName&&catalog?.installed?.package===update.build.package;},180000);
+    const accepted=await device.api('builds/install',{id:update.build.id,epoch:device.state.epoch});
+    // The relay installs by itself once its app log read ends; this only shows progress.
+    const progress=job=>{batchFeedback=[...results,device.number+' '+(job?.status==='waiting'?job.message||accepted?.message:'적용 중')].join(' · ');schedulePaint();};
+    if(accepted?.waiting)progress({status:'waiting',message:accepted.message});
+    await waitFor(device,async()=>{await device.refreshBuilds();progress(device.catalog?.job);return device.catalog;},catalog=>{if(catalog?.job?.status==='failed')throw Error(catalog.job.error||'APK 설치 실패');return catalog?.installed?.versionCode===update.build.versionCode&&catalog?.installed?.versionName===update.build.versionName&&catalog?.installed?.package===update.build.package;},180000);
     results.push(device.number+' 적용 완료');
   }catch(error){results.push(device.number+' '+error.message);}batchFeedback=results.join(' · ');schedulePaint();}}
   finally{batchBusy=false;batchKind=null;schedulePaint();}
