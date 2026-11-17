@@ -123,12 +123,10 @@ class MyPageViewModelTest {
     fun nicknameAllowsTenCharacters() = runTest {
         val viewModel = NicknameEditViewModel(users)
 
+        // 11자를 넣어도 칸에는 10자만 남는다(S15P31E102-1081).
         viewModel.changeNickname("가".repeat(11))
-        assertFalse(viewModel.save())
-        assertEquals(ProfileFieldError.NicknameTooLong, viewModel.uiState.value.error)
-        assertEquals("얼쑤연주자", users.profile.value.nickname)
-
-        viewModel.changeNickname(" ${"가".repeat(10)} ")
+        assertEquals("가".repeat(10), viewModel.uiState.value.nickname)
+        assertNull(viewModel.uiState.value.error)
         assertTrue(viewModel.save())
         assertEquals("가".repeat(10), users.profile.value.nickname)
     }

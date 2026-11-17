@@ -49,20 +49,42 @@ class AccountSettingsInputTest {
     @AfterTest fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun nicknameOverTenCharactersShowsTheLimitWhileTypingAndIsNotSaved() = runTest {
+    fun nicknameEditStopsAtTheAnnouncedTenCharacters() = runTest {
         val viewModel = NicknameEditViewModel(users)
         viewModel.changeNickname("가나다라마바사아자차")
         assertNull(viewModel.uiState.value.error)
 
-        // 넘치는 글자도 칸에 남겨 글자 수(11/10)와 함께 바로 안내한다.
+        // 안내한 10자에서 더 치면 칸에 들어가지 않는다(S15P31E102-1081).
         viewModel.changeNickname("가나다라마바사아자차카")
-        assertEquals("가나다라마바사아자차카", viewModel.uiState.value.nickname)
+        assertEquals("가나다라마바사아자차", viewModel.uiState.value.nickname)
+        assertNull(viewModel.uiState.value.error)
+
+        // 한 번에 넘치게 붙여넣으면 앞에서부터 10자만 남는다.
+        viewModel.changeNickname("")
+        viewModel.changeNickname("가나다라마바사아자차카타파하")
+        assertEquals("가나다라마바사아자차", viewModel.uiState.value.nickname)
+
+        assertTrue(viewModel.save())
+        assertEquals(listOf("가나다라마바사아자차"), nicknames)
+    }
+
+    @Test
+    fun legacyNicknameOverTenCharactersCanOnlyBeShortened() = runTest {
+        val legacy = "가나다라마바사아자차카타"
+        val repository = object : UserRepository by users {
+            override val profile = kotlinx.coroutines.flow.MutableStateFlow(users.profile.value.copy(nickname = legacy))
+        }
+        val viewModel = NicknameEditViewModel(repository)
+        assertEquals(legacy, viewModel.uiState.value.nickname)
+
+        // 규칙 이전에 저장된 긴 닉네임에는 더 붙일 수 없고, 고치는 동안 '10자 이내' 오류를 보인다.
+        viewModel.changeNickname(legacy + "파")
+        assertEquals(legacy, viewModel.uiState.value.nickname)
         assertEquals(ProfileFieldError.NicknameTooLong, viewModel.uiState.value.error)
         assertFalse(viewModel.save())
-        assertEquals(ProfileFieldError.NicknameTooLong, viewModel.uiState.value.error)
         assertTrue(nicknames.isEmpty())
 
-        // 다시 10자로 줄이면 안내가 사라지고 저장된다.
+        // 지워서 10자 안으로 줄이면 오류가 사라지고 저장된다.
         viewModel.changeNickname("가나다라마바사아자차")
         assertNull(viewModel.uiState.value.error)
         assertTrue(viewModel.save())
