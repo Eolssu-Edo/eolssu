@@ -20,8 +20,6 @@ import com.ssafy.eolssu.feature.song.edit.SheetConversionRoute
 import com.ssafy.eolssu.feature.song.edit.SheetImportRoute
 import com.ssafy.eolssu.feature.song.edit.SheetEditRoute
 import com.ssafy.eolssu.feature.song.edit.SheetEditViewModel
-import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblem
-import com.ssafy.eolssu.data.song.SheetConversionFailure
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -30,26 +28,19 @@ import org.koin.core.parameter.parametersOf
  * 편집 경로의 `from`은 `jg`·`staff`(인식 결과에서) · `song`·`sheet`(목록에서 복사) · `mine`(내 악보 '편집')이다.
  */
 object SheetEditDestination {
-    const val NEW = "sheet-edit/new?failure={failure}&replace={replace}"
+    const val NEW = "sheet-edit/new"
     const val PICK = "sheet-edit/pick"
-    const val IMPORT = "sheet-edit/import/{kind}?hwang={hwang}&replace={replace}"
+    const val IMPORT = "sheet-edit/import/{kind}?hwang={hwang}"
     const val IMPORT_RESULT = "sheet-edit/import/{kind}/result?hwang={hwang}"
     const val EDIT = "sheet-edit/edit?from={from}&id={id}&pending={pending}&hwang={hwang}"
     const val VIEW = "sheet-edit/view/{id}"
     const val CONVERSION = "sheet-edit/conversion/{id}"
 
-    /**
-     * 악보 추가. 내 악보 '다시 불러오기'면 [failure]로 변환 실패 원인을 넘겨 안내 창을 먼저 띄우고,
-     * [replace]로 그 실패 악보를 넘겨 새 악보가 접수되면 대신하게 한다(S15P31E102-1052).
-     */
-    fun new(failure: SheetConversionFailure? = null, replace: String? = null): String {
-        val query = listOfNotNull(failure?.let { "failure=${it.name}" }, replace?.let { "replace=$it" })
-        return if (query.isEmpty()) "sheet-edit/new" else "sheet-edit/new?" + query.joinToString("&")
-    }
+    /** 악보 추가. */
+    fun new(): String = NEW
 
     /** 파일·악기·장단 선택. 기기 파일 선택 창은 화면의 'PDF·이미지 선택'을 눌렀을 때만 연다(S15P31E102-889). */
-    fun import(kind: ImportKind, hwang: HwangPitch, replace: String? = null) =
-        "sheet-edit/import/${kind.routeId}?hwang=${hwang.name}" + replace?.let { "&replace=$it" }.orEmpty()
+    fun import(kind: ImportKind, hwang: HwangPitch) = "sheet-edit/import/${kind.routeId}?hwang=${hwang.name}"
 
     fun importResult(kind: ImportKind, hwang: HwangPitch) = "sheet-edit/import/${kind.routeId}/result?hwang=${hwang.name}"
 
@@ -76,19 +67,11 @@ object SheetEditDestination {
  * 편집과 저장은 편집 경로 안에서 처리한다. 편집 닫기는 내 악보(SONG-03)로 돌아간다.
  */
 fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
-    composable(
-        SheetEditDestination.NEW,
-        arguments = listOf(
-            navArgument("failure") { type = NavType.StringType; nullable = true; defaultValue = null },
-            replaceArgument(),
-        ),
-    ) { entry ->
+    composable(SheetEditDestination.NEW) { entry ->
         EditNewRoute(
             onBack = { navController.popBackStackFrom(entry) },
-            onImport = { kind, hwang, replace -> navController.navigate(SheetEditDestination.import(kind, hwang, replace)) },
-            reimportSheetId = entry.replaceSheetId(),
+            onImport = { kind, hwang -> navController.navigate(SheetEditDestination.import(kind, hwang)) },
             onLoadExisting = { navController.navigate(SheetEditDestination.PICK) },
-            reimportProblem = entry.reimportProblem(),
             // 내 악보 탭과 같게: 연습할 수 있으면 연습, 아니면 편집기로 연다.
             onOpenSheet = { sheet ->
                 navController.navigate(
@@ -116,14 +99,13 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
     }
     composable(
         SheetEditDestination.IMPORT,
-        arguments = listOf(kindArgument(), hwangArgument(), replaceArgument()),
+        arguments = listOf(kindArgument(), hwangArgument()),
     ) { entry ->
         val kind = entry.importKind()
         val hwang = entry.hwang()
         SheetImportRoute(
             kind = kind,
             hwang = hwang,
-            replacing = entry.replaceSheetId(),
             onBack = { navController.popBackStackFrom(entry) },
             onList = { navController.returnToSheetList(entry) },
             // 접수되면 올리기 화면 대신 변환 대기 화면을 연다. 뒤로 가면 올리기 화면이 아닌 목록으로 돌아간다.
@@ -149,16 +131,6 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
                 if (navController.currentBackStackEntry?.id == entry.id) {
                     navController.navigate(SheetEditDestination.editMine(id)) {
                         popUpTo(entry.destination.id) { inclusive = true }
-                    }
-                }
-            },
-            // 실패의 다시 불러오기: 아래에 악보 추가가 있으면 그것까지 닫고 원인 안내와 함께 새로 연다.
-            onReimport = { failure ->
-                if (navController.currentBackStackEntry?.id == entry.id) {
-                    val newInStack = runCatching { navController.getBackStackEntry(SheetEditDestination.NEW) }.isSuccess
-                    navController.navigate(SheetEditDestination.new(failure, replace = entry.savedStateHandle.get<String>("id"))) {
-                        if (newInStack) popUpTo(SheetEditDestination.NEW) { inclusive = true }
-                        else popUpTo(entry.destination.id) { inclusive = true }
                     }
                 }
             },
@@ -255,19 +227,9 @@ private fun kindArgument() = navArgument("kind") { type = NavType.StringType; de
 
 private fun hwangArgument() = navArgument("hwang") { type = NavType.StringType; defaultValue = HwangPitch.Default.name }
 
-/** '다시 불러오기'로 대신할 변환 실패 악보 ID(S15P31E102-1052). 없으면 새 악보로 더한다. */
-private fun replaceArgument() = navArgument("replace") { type = NavType.StringType; nullable = true; defaultValue = null }
-
-private fun NavBackStackEntry.replaceSheetId(): String? = savedStateHandle.get<String>("replace")?.takeIf { it.isNotBlank() }
-
 private fun NavBackStackEntry.importKind(): ImportKind = ImportKind.fromRouteId(savedStateHandle.get<String>("kind"))
 
 private fun NavBackStackEntry.hwang(): HwangPitch = HwangPitch.fromRouteId(savedStateHandle.get<String>("hwang"))
-
-/** 내 악보 '다시 불러오기'로 넘긴 변환 실패 원인을 안내 창 종류로 바꾼다([SheetFileProblem.ofConversionFailure]). */
-private fun NavBackStackEntry.reimportProblem(): SheetFileProblem? = SheetFileProblem.ofConversionFailure(
-    savedStateHandle.get<String>("failure")?.let { name -> SheetConversionFailure.entries.firstOrNull { it.name == name } },
-)
 
 /** 편집 경로 인자를 [EditSource]로 되돌린다. */
 private fun NavBackStackEntry.editSource(): EditSource {

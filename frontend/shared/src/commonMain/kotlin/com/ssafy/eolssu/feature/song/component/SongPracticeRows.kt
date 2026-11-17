@@ -91,7 +91,6 @@ import eolssu.shared.generated.resources.mysongs_conversion_queued
 import eolssu.shared.generated.resources.mysongs_conversion_reading
 import eolssu.shared.generated.resources.mysongs_conversion_reading_pages
 import eolssu.shared.generated.resources.mysongs_conversion_reading_total
-import eolssu.shared.generated.resources.mysongs_conversion_reimport
 import eolssu.shared.generated.resources.mysongs_conversion_retry
 import eolssu.shared.generated.resources.jangdan_label
 import eolssu.shared.generated.resources.mysongs_delete_label
@@ -204,7 +203,8 @@ internal fun ProvidedSongRow(
  * 아랫줄은 글자 줄에 맞춘 상태 배지와 오른쪽 끝 휴지통([onDelete])이다.
  *
  * 불러오기로 만든 악보는 [conversion] 상태를 따른다. 변환 중이면 '변환 중' 배지만 두고 열기·편집을 막으며,
- * 실패하면 원인·할 일 한 줄과 함께 '다시 시도'([onRetryConversion], 서버가 다시 시도할 수 있다고 할 때만) 또는 '다시 불러오기'([onReimport])를 둔다.
+ * 실패하면 실패 꼬리표와 '실패 사유'를 두고, 서버가 다시 시도할 수 있다고 할 때만 '다시 시도'([onRetryConversion])를 둔다.
+ * 서버가 원본을 보관하지 않아 같은 파일로 다시 불러올 수 없으므로 '다시 불러오기'는 두지 않는다(S15P31E102-1140).
  * [onOpenConversion]이 있으면 변환 중·실패한 줄을 눌러 변환 대기 화면을 다시 연다(S15P31E102-998).
  */
 @Composable
@@ -217,7 +217,6 @@ internal fun MySheetRow(
     conversion: SheetConversion? = null,
     retrying: Boolean = false,
     onRetryConversion: () -> Unit = {},
-    onReimport: () -> Unit = {},
     bordered: Boolean = true,
     onOpenConversion: (() -> Unit)? = null,
     conversionDetailed: Boolean = true,
@@ -238,7 +237,6 @@ internal fun MySheetRow(
                         usable -> EditChip(stringResource(Res.string.mysongs_edit), onEdit)
                         status == SheetConversionStatus.Failed && conversion?.retryable == true ->
                             EditChip(stringResource(Res.string.mysongs_conversion_retry), onRetryConversion, enabled = !retrying)
-                        status == SheetConversionStatus.Failed -> EditChip(stringResource(Res.string.mysongs_conversion_reimport), onReimport)
                     }
                     DeleteButton(stringResource(Res.string.mysongs_delete_label, sheet.title), onDelete)
                 }
