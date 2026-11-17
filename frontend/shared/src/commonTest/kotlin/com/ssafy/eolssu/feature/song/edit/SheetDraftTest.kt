@@ -65,12 +65,13 @@ class SheetDraftTest {
 
     @Test
     fun severalSigimsaeKeepOrderAndRemoveOneByOne() {
-        val added = draft().toggleSigimsae(0, Sigimsae.Chuseong).toggleSigimsae(0, Sigimsae.Yoseong).toggleSigimsae(0, Sigimsae("농음표"))
-        assertEquals(listOf(Sigimsae.Chuseong, Sigimsae.Yoseong, Sigimsae("농음표")), added.sigimsaeAt(0), "붙인 순서대로 둔다")
-        assertEquals(mapOf(ScoreUnitKey("c0-j0", 0, 0) to listOf("추성", "요성표", "농음표")), added.annotations())
-        assertSame(added, added.toggleSigimsae(0, Sigimsae.Toeseong), "한 정간에 ${SheetDraft.MAX_SIGIMSAE}개까지만 붙인다")
-        assertEquals(listOf(Sigimsae.Chuseong, Sigimsae("농음표")), added.toggleSigimsae(0, Sigimsae.Yoseong).sigimsaeAt(0), "다시 누르면 그 시김새만 뗀다")
-        assertEquals(listOf(Sigimsae.Yoseong, Sigimsae("농음표")), added.removeSigimsae(0, 0).sigimsaeAt(0))
+        // 음원 생성기가 함께 해석하는 조합으로 쓴다(S15P31E102-1080).
+        val added = draft().toggleSigimsae(0, Sigimsae.Chuseong).toggleSigimsae(0, Sigimsae.Yoseong).toggleSigimsae(0, Sigimsae("특강표"))
+        assertEquals(listOf(Sigimsae.Chuseong, Sigimsae.Yoseong, Sigimsae("특강표")), added.sigimsaeAt(0), "붙인 순서대로 둔다")
+        assertEquals(mapOf(ScoreUnitKey("c0-j0", 0, 0) to listOf("추성", "요성표", "특강표")), added.annotations())
+        assertSame(added, added.toggleSigimsae(0, Sigimsae("끊는표")), "한 정간에 ${SheetDraft.MAX_SIGIMSAE}개까지만 붙인다")
+        assertEquals(listOf(Sigimsae.Chuseong, Sigimsae("특강표")), added.toggleSigimsae(0, Sigimsae.Yoseong).sigimsaeAt(0), "다시 누르면 그 시김새만 뗀다")
+        assertEquals(listOf(Sigimsae.Yoseong, Sigimsae("특강표")), added.removeSigimsae(0, 0).sigimsaeAt(0))
         assertTrue(NoteSlot(0) !in added.withSigimsae(0, emptyList()).sigimsae)
     }
 

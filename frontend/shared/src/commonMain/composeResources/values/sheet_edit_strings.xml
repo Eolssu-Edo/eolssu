@@ -196,6 +196,8 @@
     <string name="sheetedit_msg_audio_requested">음원을 만들고 있어요 · 다 되면 알려 드릴게요</string>
     <string name="sheetedit_msg_audio_ready">음원이 준비됐어요. ‘편집 내용 확인’에서 재생·저장할 수 있어요.</string>
     <string name="sheetedit_msg_audio_failed">음원을 만들지 못했어요. ‘편집 내용 확인’에서 다시 시도할 수 있어요.</string>
+    <string name="sheetedit_pitch_unavailable">이 악기로 낼 수 없는 음이라 적지 않았어요</string>
+    <string name="sheetedit_sig_replaced">함께 쓰면 음원을 만들 수 없는 시김새를 새로 고른 것으로 바꿨어요</string>
     <string name="sheetedit_msg_audio_too_long">연주 길이가 10분을 넘어요 · 빠르기나 각 수를 줄여 주세요</string>
     <string name="sheetedit_msg_audio_invalid">장단 소리나 빠르기가 맞지 않아요 · 장단이 없으면 장단 소리를 꺼 주세요</string>
     <string name="sheetedit_msg_audio_in_progress">만들고 있는 음원이 끝난 뒤 다시 눌러 주세요</string>

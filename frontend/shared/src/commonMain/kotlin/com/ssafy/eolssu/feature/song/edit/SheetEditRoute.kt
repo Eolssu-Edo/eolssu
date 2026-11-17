@@ -71,6 +71,8 @@ import eolssu.shared.generated.resources.sheet_editor_correct_cell
 import eolssu.shared.generated.resources.sheet_editor_correction_location
 import eolssu.shared.generated.resources.sheet_review_checked
 import eolssu.shared.generated.resources.basic_accompaniment_cleared_after_reshape
+import eolssu.shared.generated.resources.sheetedit_pitch_unavailable
+import eolssu.shared.generated.resources.sheetedit_sig_replaced
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -129,6 +131,8 @@ fun SheetEditRoute(
         SheetEditMessage.JangdanUnavailable to stringResource(Res.string.sheetedit_jangdan_unavailable),
         SheetEditMessage.TempoPlanBeforeReshape to stringResource(Res.string.sheet_tempo_before_reshape),
         SheetEditMessage.BasicAccompanimentCleared to stringResource(Res.string.basic_accompaniment_cleared_after_reshape),
+        SheetEditMessage.SigimsaeReplaced to stringResource(Res.string.sheetedit_sig_replaced),
+        SheetEditMessage.PitchUnavailable to stringResource(Res.string.sheetedit_pitch_unavailable),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),

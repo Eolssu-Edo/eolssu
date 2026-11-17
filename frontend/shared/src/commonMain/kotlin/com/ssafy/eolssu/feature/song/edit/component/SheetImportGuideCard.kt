@@ -60,7 +60,10 @@ internal fun SheetImportGuideCard(
                 stringResource(Res.string.sheet_import_guide_range, instrumentWithRo(guide.instrumentName), guide.rangeNotes)) {
                 // 무엇을 하면 어떻게 되는지를 버튼 글자 하나로 말한다. 추천이 없으면 높이 맞추기 탭으로 보낸다.
                 val shift = guide.recommendedShift?.takeIf { it != 0 && guide.recommendedTranspose != null }
-                if (shift != null) {
+                if (shift == null && guide.tuningMismatch && guide.recommendedTranspose != null) {
+                    GuideButton(stringResource(Res.string.sheet_import_guide_tuning),
+                        UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_02, onApplyRecommended))
+                } else if (shift != null) {
                     val fixed = guide.rangeNotes - (guide.recommendedRemaining ?: 0)
                     val all = guide.recommendedRemaining == 0
                     GuideButton(when {

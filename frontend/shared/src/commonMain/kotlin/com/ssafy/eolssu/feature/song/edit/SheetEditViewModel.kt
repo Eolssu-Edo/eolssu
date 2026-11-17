@@ -424,7 +424,7 @@ class SheetEditViewModel(
                 val adaptation = if (startsWithAdaptation) initialAdaptation(draft) else null
                 _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,
-                    hasTempoPlan = expressions?.containsKey("performancePlan") == true,
+                    hasTempoPlan = expressions.hasPositionedTempoPlan(),
                     withJangdan = draft.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
                     reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet(),
                     reviewNotices = document.editorReviewNotices(),

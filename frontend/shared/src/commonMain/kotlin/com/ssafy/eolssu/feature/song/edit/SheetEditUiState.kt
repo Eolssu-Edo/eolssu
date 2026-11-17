@@ -92,6 +92,12 @@ enum class SheetEditMessage {
     TempoPlanBeforeReshape,
     BasicAccompanimentCleared,
 
+    /** 음원 생성기가 함께 해석하지 못하는 시김새를 새로 고른 것으로 바꿨다. */
+    SigimsaeReplaced,
+
+    /** 지금 악기·기준음으로 적을 수 없는 음을 눌렀다. */
+    PitchUnavailable,
+
     /** 서버 문서가 없는 경로 등에서 제공하지 않는 기능. */
     ComingSoon,
     JangdanUnavailable,
@@ -286,7 +292,7 @@ data class SheetEditUiState(
     }
 
     private fun nextTempoPlan(next: SheetDraft): Boolean =
-        if (draft.tempoExpressions != null || next.tempoExpressions != null) next.tempoExpressions?.containsKey("performancePlan") == true
+        if (draft.tempoExpressions != null || next.tempoExpressions != null) next.tempoExpressions.hasPositionedTempoPlan()
         else hasTempoPlan
 
     /** 한 번 확인한 칸도 내용이나 시김새를 바꾸거나 실행 취소하면 다시 확인한다. */
@@ -336,7 +342,8 @@ data class SheetEditUiState(
 
     /** [base]를 [octave] 음역으로 적는다. 같은 음 데이터([SheetDraft.pitchNote])로 적는다. */
     fun putYul(base: Yul, octave: Int): SheetEditUiState {
-        if (!isAvailablePitch(supportedInputPitches, base, octave)) return this
+        // 흐리게 보이는 음도 누를 수 있으므로, 적지 않을 때는 이유를 알린다(S15P31E102-1080).
+        if (!isAvailablePitch(supportedInputPitches, base, octave)) return copy(message = SheetEditMessage.PitchUnavailable)
         return put(draft.pitchNote(base, octave)).copy(yulRegister = YulRegister.Base)
     }
 
@@ -354,7 +361,14 @@ data class SheetEditUiState(
     val sigimsaeSub: Int get() = draft.sigimsaeSub(selected, selectedSub)
 
     /** 고른 소박에 시김새를 붙이거나(끝에 추가) 이미 있으면 뗀다. */
-    fun toggleSigimsae(value: Sigimsae): SheetEditUiState = commit(draft.toggleSigimsae(selected, value, sigimsaeSub))
+    fun toggleSigimsae(value: Sigimsae): SheetEditUiState {
+        val before = draft.sigimsaeAt(selected, sigimsaeSub)
+        val next = commit(draft.toggleSigimsae(selected, value, sigimsaeSub))
+        val after = next.draft.sigimsaeAt(selected, sigimsaeSub)
+        // 함께 쓸 수 없어 뺀 시김새가 있으면 알린다. 실행 취소로 되돌릴 수 있다.
+        return if (before.any { old -> after.none { it.name == old.name } } && after.any { it.name == value.name })
+            next.copy(message = SheetEditMessage.SigimsaeReplaced) else next
+    }
 
     fun removeSigimsae(position: Int): SheetEditUiState = commit(draft.removeSigimsae(selected, position, sigimsaeSub))
 
