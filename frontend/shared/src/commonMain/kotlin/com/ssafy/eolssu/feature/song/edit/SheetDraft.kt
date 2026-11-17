@@ -279,16 +279,19 @@ data class SheetDraft(
     }
 
     /** [column] 각 왼쪽(다음 순서)에 빈 각을 하나 넣는다. 뒤 정간의 시김새 번호도 함께 민다. */
-    fun addColumnAfter(column: Int): SheetDraft {
-        val count = sizes[column]
-        val at = indexOf(column, 0) + count
+    fun addColumnAfter(column: Int): SheetDraft = insertColumnAt(column + 1, List(sizes[column]) { null })
+
+    /** [column](0부터) 자리에 빈 각을 넣는다. [ids]는 새 정간들의 원본 정간 ID(새 각이면 null)이고 그 수가 각의 정간 수다. */
+    internal fun insertColumnAt(column: Int, ids: List<String?>): SheetDraft {
+        val count = ids.size
+        val at = if (column >= columnCount) cells.size else indexOf(column, 0)
         val inserted = cells.subList(0, at) + List(count) { emptyList() } + cells.subList(at, cells.size)
         val next = copy(cells = inserted,
-            columnSizes = columnSizes?.toMutableList()?.also { it.add(column + 1, count) },
-            sourceCellIds = sourceCellIds?.let { it.take(at) + List(count) { null } + it.drop(at) },
+            columnSizes = (columnSizes ?: sizes).toMutableList().also { it.add(column, count) },
+            sourceCellIds = sourceCellIds?.let { it.take(at) + ids + it.drop(at) },
             sigimsae = sigimsae.mapKeys { (slot, _) -> if (slot.cell >= at) slot.copy(cell = slot.cell + count) else slot },
             // 구간 빠르기·반복·각 경계 지속의 각 번호를 함께 민다(S15P31E102-1095).
-            tempoExpressions = tempoExpressionsAfterColumnInsert(column))
+            tempoExpressions = tempoExpressionsWithColumnAt(column))
         return remapBasicAccompaniment(next, atCell = at, insertedCells = count)
     }
 

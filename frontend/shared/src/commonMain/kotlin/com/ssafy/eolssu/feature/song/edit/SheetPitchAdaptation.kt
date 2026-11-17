@@ -140,30 +140,38 @@ internal fun SheetDraft.sourcePitchNotes(): List<SourcePitchNote> {
             }
         }
     }
-    // 원본에 없는 음은 지금 높이로 적은 음이다. 적용된 높이를 빼야 다른 높이를 적용할 때 두 번 옮기지 않는다(S15P31E102-1136).
-    val applied = appliedTranspose
     return score.events.filter { it.kind == "NOTE" }.map { event ->
         SourcePitchNote(event.id, event.cellId, baselines[event.id]
-            ?: (hwang + "황대태협고중유임이남무응".indexOf(event.yul.orEmpty()) + 12 * (event.octave ?: 0) - applied))
+            ?: (hwang + "황대태협고중유임이남무응".indexOf(event.yul.orEmpty()) + 12 * (event.octave ?: 0)))
     }
 }
 
 /**
- * 높이 맞추기의 출발점. 원본에 있던 정간은 원본의 음·나눔·시김새로 되돌리고, 원본에 없는 정간(새 각)은 그대로 둔다.
- * 높이 맞추기는 '원본 악보에서 높이만 바꾼 상태'로 가므로 직접 고친 음·나눔은 덮어쓴다(S15P31E102-1136).
+ * 높이 맞추기의 출발점: 처음 연 악보의 각·정간·음·나눔·시김새. 새로 넣은 각은 빼고 지운 각은 되살린다.
+ * 제목·빠르기·장단 설정은 그대로 두고, 구간 빠르기는 각을 빼고 넣는 편집과 같은 규칙으로 위치를 옮긴다(S15P31E102-1136).
  */
 internal fun SheetDraft.withOriginalNotes(): SheetDraft {
     val source = original ?: return this
     val pristine = runCatching { source.editingDraft(title, bpm, jangdan) }.getOrNull() ?: return this
-    val pristineIndex = pristine.sourceCellIds.orEmpty().withIndex().associate { (index, id) -> id to index }
-    val mapped = cells.indices.map { index -> sourceCellIds?.getOrNull(index)?.let(pristineIndex::get) }
-    if (mapped.all { it == null }) return this
-    val currentOf = mapped.withIndex().mapNotNull { (index, at) -> at?.let { it to index } }.toMap()
-    val restored = copy(
-        cells = cells.mapIndexed { index, notes -> mapped[index]?.let { pristine.cells[it] } ?: notes },
-        sigimsae = sigimsae.filterKeys { mapped.getOrNull(it.cell) == null } +
-            pristine.sigimsae.mapNotNull { (slot, signs) -> currentOf[slot.cell]?.let { NoteSlot(it, slot.sub) to signs } },
-    )
+    val originalIds = pristine.sourceCellIds?.filterNotNull() ?: return this
+    if (sourceCellIds == null) return this
+    val known = originalIds.toSet()
+    // 각은 넣고 빼기만 하고 순서를 바꾸지 않는다. 새 각을 뒤에서부터 빼면 남은 각은 원본 순서다.
+    var restored = this
+    for (column in restored.columnCount - 1 downTo 0) {
+        val from = restored.indexOf(column, 0)
+        val ids = restored.sourceCellIds.orEmpty().subList(from, from + restored.sizes[column])
+        if (ids.all { it == null || it !in known } && restored.columnCount > 1) restored = restored.deleteColumn(column)
+    }
+    pristine.sizes.indices.forEach { column ->
+        val from = pristine.indexOf(column, 0)
+        val ids = originalIds.subList(from, from + pristine.sizes[column])
+        if (restored.sourceCellIds.orEmpty().getOrNull(restored.indexOf(column.coerceAtMost(restored.columnCount - 1), 0)) != ids.first() ||
+            column >= restored.columnCount) restored = restored.insertColumnAt(column, ids)
+    }
+    if (restored.sourceCellIds != pristine.sourceCellIds) return this
+    restored = restored.copy(cells = pristine.cells, columnSizes = pristine.columnSizes ?: restored.columnSizes,
+        sigimsae = pristine.sigimsae)
     return restored.takeIf { runCatching { it.toCommonScore() }.isSuccess } ?: this
 }
 

@@ -49,8 +49,5 @@
     <string name="sheet_import_guide_review_position">다시 볼 곳 %1$d / %2$d</string>
     <string name="sheet_import_guide_review_prev">이전 다시 볼 곳</string>
     <string name="sheet_import_guide_review_next">다음 다시 볼 곳</string>
-    <string name="sheet_import_guide_blank">빈칸 %1$d곳 · 음·쉼표(△)·이음(ㅡ)으로 채워 주세요</string>
-    <string name="sheet_import_guide_blank_position">%1$d / %2$d · 빈칸에 음·쉼표(△)·이음(ㅡ)을 넣어 주세요</string>
-    <string name="sheet_import_guide_review_with_blank">다시 볼 곳 %1$d곳 · 그중 빈칸 %2$d곳</string>
     <string name="sheet_import_guide_review_go">첫 칸 보기</string>
 </resources>

@@ -105,7 +105,7 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
     }
 
     @Test fun aSplitBlankSaysWhatToFillAndAPlayableNoteIsNotCountedAsUnplayable() = runTest {
-        // 1136: 높이를 맞춘 뒤 정간을 나눠 빈칸이 생기면 무엇을 넣을지 말하고, 입력판에서 고른 음은 낼 수 없는 음으로 세지 않는다.
+        // 1136: 높이를 맞춘 뒤 정간을 나눠 생긴 빈칸은 다시 볼 곳이고, 입력판에서 고른 음은 낼 수 없는 음으로 세지 않는다.
         val model = open(sixUp)
         runCurrent()
         model.applyRecommendedAdaptation()
@@ -116,8 +116,8 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
         model.split()
 
         val blank = assertNotNull(model.uiState.value.importGuide)
-        assertEquals(1, blank.blankCells)
-        assertTrue(blank.selectedBlank)
+        assertEquals(1, blank.reviewPosition, "빈칸은 다시 볼 곳이고 입력판이 무엇을 넣을지 안내한다")
+        assertTrue(2 in model.uiState.value.draft.unfilledCells)
         assertEquals(0, blank.rangeNotes)
 
         val (yul, octave) = assertNotNull(model.uiState.value.supportedInputPitches).first()

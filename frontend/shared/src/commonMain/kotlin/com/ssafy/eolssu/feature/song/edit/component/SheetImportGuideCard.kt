@@ -68,7 +68,9 @@ internal fun SheetImportGuideCard(
                         UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_02, onApplyRecommended))
                 } else GuideButton(stringResource(Res.string.sheet_import_guide_adapt), UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_03, onOpenAdaptation))
             }
-            if (showReview) GuideRow("!", colors.rec, colors.recSoft, reviewLabel(guide)) {
+            if (showReview) GuideRow("!", colors.rec, colors.recSoft,
+                guide.reviewPosition?.let { stringResource(Res.string.sheet_import_guide_review_position, it, guide.reviewCells) }
+                    ?: stringResource(Res.string.sheet_import_guide_review, guide.reviewCells)) {
                 // 처음엔 첫 칸으로 가고, 다시 볼 칸에 있으면 이전·다음으로 옮긴다.
                 val position = guide.reviewPosition
                 if (position == null) GuideButton(stringResource(Res.string.sheet_import_guide_review_go)) { onMoveReview(1) }
@@ -81,22 +83,6 @@ internal fun SheetImportGuideCard(
                 }
             }
         }
-    }
-}
-
-/**
- * 다시 볼 곳 줄의 글자. 정간 나누기로 생긴 빈칸은 무엇을 넣어야 하는지까지 말한다(S15P31E102-1136).
- */
-@Composable
-private fun reviewLabel(guide: SheetImportGuide): String {
-    val position = guide.reviewPosition
-    return when {
-        guide.selectedBlank && position != null ->
-            stringResource(Res.string.sheet_import_guide_blank_position, position, guide.reviewCells)
-        position != null -> stringResource(Res.string.sheet_import_guide_review_position, position, guide.reviewCells)
-        guide.blankCells == guide.reviewCells -> stringResource(Res.string.sheet_import_guide_blank, guide.blankCells)
-        guide.blankCells > 0 -> stringResource(Res.string.sheet_import_guide_review_with_blank, guide.reviewCells, guide.blankCells)
-        else -> stringResource(Res.string.sheet_import_guide_review, guide.reviewCells)
     }
 }
 

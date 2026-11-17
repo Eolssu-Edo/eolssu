@@ -96,18 +96,21 @@ class SheetPitchAdaptationTest {
             result.toCommonScore().events.map { listOf(it.id, it.kind, it.startTick, it.durationTick, it.sigimsae) })
     }
 
-    @Test fun aNoteWrittenInANewColumnMovesOnlyByTheChangeInHeight() {
-        // 새 각의 음은 지금 높이로 적은 음이다. +1에서 적은 음을 +3으로 맞추면 2반음만 오른다(이전에는 3반음 더 올렸다).
+    @Test fun addedColumnsAreRemovedAndDeletedColumnsComeBack() {
+        // 높이 맞추기는 처음 연 악보로 돌아간다. 새로 넣은 각은 빠지고 지운 각은 되살아난다(S15P31E102-1136).
         val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
             AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
-        val draft = smallScoreData().editingDraft("adapt", 60, null).copy(authoring = JsonObject(emptyMap()))
-        val raised = draft.applyAdaptation(planPitchAdaptation(draft.adaptationSourceNotes(), emptyList()).first { it.transpose == 1 }, capability)
-        val written = raised.addColumnAfter(raised.columnCount - 1).putAt(raised.cells.size, 0, com.ssafy.eolssu.core.model.ScoreNote.SourcePitch("황", 0))
-        val added = written.adaptationSourceNotes().last()
-        assertEquals(62, added.midi, "적용된 +1을 빼 원본 기준 음으로 센다")
-        val plan = planPitchAdaptation(written.adaptationSourceNotes(), emptyList()).first { it.transpose == 3 }
-        val moved = written.applyAdaptation(plan, capability).toCommonScore().events.last { it.kind == "NOTE" }
-        assertEquals("태" to 0, moved.yul to moved.octave)
+        val draft = smallScoreData().editingDraft("adapt", 60, null)
+        val added = draft.addColumnAfter(0).putAt(2, 0, com.ssafy.eolssu.core.model.ScoreNote.SourcePitch("태", 0))
+        val removed = draft.deleteColumn(0)
+        listOf(added, removed, added.deleteColumn(2)).forEach { edited ->
+            val plan = planPitchAdaptation(edited.adaptationSourceNotes(), emptyList()).first { it.transpose == 0 }
+            val result = edited.applyAdaptation(plan, capability)
+            assertEquals(draft.cells, result.cells)
+            assertEquals(draft.sizes, result.sizes)
+            assertEquals(draft.sourceCellIds, result.sourceCellIds)
+            assertEquals(draft.sourcePitchNotes(), edited.adaptationSourceNotes())
+        }
     }
 
     @Test fun restoresOriginalHighOctaveAfterSemitoneTransposeAndOnlyRaisesLowNotes() {

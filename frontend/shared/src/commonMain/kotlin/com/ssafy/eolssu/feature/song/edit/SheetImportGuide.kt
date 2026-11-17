@@ -14,8 +14,6 @@ package com.ssafy.eolssu.feature.song.edit
  * @property reviewPosition 지금 고른 칸이 다시 볼 곳 중 몇 번째인지(1부터). 다시 볼 칸이 아니면 null.
  * @property tuningMismatch 악보 기준음(황)이 악기 조율과 달라 모든 음이 입력 가능 음으로 인정되지 않는 상태.
  *   높이 맞추기를 한 번 적용하면 악기 기준음으로 바뀌므로 같은 줄에서 바로 적용한다(S15P31E102-1080).
- * @property blankCells 다시 볼 곳 중 정간 나누기 등으로 아직 비어 있어 채워야 하는 칸 수.
- * @property selectedBlank 지금 고른 칸이 채워야 할 빈칸인지. 안내 줄이 무엇을 넣어야 하는지 말한다.
  */
 data class SheetImportGuide(
     val rangeNotes: Int,
@@ -26,8 +24,6 @@ data class SheetImportGuide(
     val instrumentName: String? = null,
     val reviewPosition: Int? = null,
     val tuningMismatch: Boolean = false,
-    val blankCells: Int = 0,
-    val selectedBlank: Boolean = false,
 )
 
 /** 음역과 별개로 인식 결과를 다시 볼 칸(연주 순서). */
@@ -39,7 +35,6 @@ internal fun SheetEditUiState.importGuide(): SheetImportGuide? {
     val validation = completionValidation
     val reviewList = recognitionReviewCells
     val reviewCells = reviewList.size
-    val unfilled = draft.unfilledCells.toSet()
     val panel = adaptation?.takeIf { !it.loading && !it.failed && it.baseline == draft }
     val current = panel?.plans?.firstOrNull { it.transpose == draft.appliedTranspose }
     // 낼 수 없는 음 수는 정간에 칠한 음(rangeUnitKeys)으로 센다. 높이 계산은 원본 음 기준이라 직접 고친 음과 다를 수 있다(S15P31E102-1136).
@@ -59,6 +54,5 @@ internal fun SheetEditUiState.importGuide(): SheetImportGuide? {
     val instrument = panel?.instruments?.firstOrNull { it.instrumentId == panel.selectedId }?.name
     return SheetImportGuide(rangeNotes, recommended?.transpose, recommended?.unresolved, reviewCells,
         recommendedShift = recommended?.let { it.transpose - draft.appliedTranspose }, instrumentName = instrument,
-        reviewPosition = (reviewList.indexOf(selected) + 1).takeIf { it > 0 }, tuningMismatch = tuningMismatch,
-        blankCells = reviewList.count { it in unfilled }, selectedBlank = selected in unfilled && selected in reviewList)
+        reviewPosition = (reviewList.indexOf(selected) + 1).takeIf { it > 0 }, tuningMismatch = tuningMismatch)
 }

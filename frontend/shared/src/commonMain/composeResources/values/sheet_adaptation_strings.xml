@@ -14,8 +14,8 @@
     <string name="sheet_adapt_applied_original_done">원음 적용됨</string>
     <string name="sheet_adapt_empty">맞출 수 있는 음이 없어요.</string>
     <string name="sheet_adapt_confirm_title">원본에서 높이를 다시 맞출까요?</string>
-    <string name="sheet_adapt_confirm_overwrite">직접 고친 음·정간 나누기·시김새는 원본으로 돌아가고, 원본 악보에서 높이만 바뀌어요.</string>
-    <string name="sheet_adapt_confirm_message">새로 추가한 각의 음은 같은 만큼 함께 옮겨요. 실행 취소로 되돌릴 수 있어요.</string>
+    <string name="sheet_adapt_confirm_overwrite">고친 음·정간 나누기·시김새와 추가·삭제한 각이 모두 처음 악보로 돌아가고, 높이만 바뀌어요.</string>
+    <string name="sheet_adapt_confirm_message">제목·빠르기·장단은 그대로예요. 실행 취소로 되돌릴 수 있어요.</string>
     <string name="sheet_adapt_confirm_apply">다시 맞추기</string>
     <string name="sheet_adapt_retry">다시 불러오기</string>
     <string name="sheet_adapt_applied">%1$s으로 맞췄어요</string>

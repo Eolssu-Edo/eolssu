@@ -12,6 +12,8 @@ import eolssu.shared.generated.resources.sheet_adapt_tab
 import eolssu.shared.generated.resources.sheetedit_undo
 import eolssu.shared.generated.resources.sheetedit_panel_collapse
 import eolssu.shared.generated.resources.sheetedit_panel_expand
+import eolssu.shared.generated.resources.sheetedit_blank_fill
+import eolssu.shared.generated.resources.sheetedit_blank_fill_other_tab
 import eolssu.shared.generated.resources.sheetedit_panel_hint
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
@@ -50,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -179,6 +182,7 @@ internal fun EditInputPanel(
     val colors = EolssuTheme.colors
     val shape = if (docked) RoundedCornerShape(20.dp) else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     val tabsScroll = rememberScrollState()
+    val blankSelected = remember(draft, selected) { selected in draft.unfilledCells }
     LaunchedEffect(tab) { if (tab == EditTab.Adaptation) tabsScroll.animateScrollTo(0) }
     Column(
         modifier
@@ -195,10 +199,10 @@ internal fun EditInputPanel(
             Box(Modifier.weight(1f).offset(x = 4.dp), contentAlignment = Alignment.CenterEnd) {
                 // 접혀 있으면 펼침 버튼 옆에서 아래 입력판으로 직접 고칠 수 있음을 알린다(S15P31E102-1042). 글자를 눌러도 펼친다.
                 if (expanded) saveFeedback()
-                else Text(stringResource(Res.string.sheetedit_panel_hint),
+                else Text(stringResource(if (blankSelected) Res.string.sheetedit_blank_fill else Res.string.sheetedit_panel_hint),
                     Modifier.clip(RoundedCornerShape(8.dp)).clickable { actions.onSetPanelExpanded(true) }
                         .padding(horizontal = 6.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodyMedium, color = colors.textSub, maxLines = 1,
+                    style = MaterialTheme.typography.bodyMedium, color = if (blankSelected) colors.rec else colors.textSub, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
             }
             InputPanelToggle(expanded, onToggle = { actions.onSetPanelExpanded(!expanded) }, Modifier.offset(x = 8.dp))
@@ -215,6 +219,13 @@ internal fun EditInputPanel(
                 )
             }
         }
+        // 정간 나누기로 생긴 빈칸은 빨갛게 '다시 볼 곳'으로만 보이므로, 무엇을 넣으면 되는지 여기서 말한다(S15P31E102-1136).
+        if (blankSelected && tab != EditTab.Adaptation) Text(
+            stringResource(if (tab == EditTab.Yul) Res.string.sheetedit_blank_fill else Res.string.sheetedit_blank_fill_other_tab),
+            Modifier.padding(start = 2.dp),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
+            color = colors.rec,
+        )
         when (tab) {
             EditTab.Adaptation -> adaptationContent()
             EditTab.Yul -> YulKeys(draft, selected, selectedSub, register, availablePitches, actions, wrapKeys = docked)
