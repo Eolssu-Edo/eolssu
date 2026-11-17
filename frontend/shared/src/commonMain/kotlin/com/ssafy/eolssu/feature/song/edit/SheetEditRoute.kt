@@ -6,6 +6,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +86,8 @@ fun SheetEditRoute(
     var correctionOpen by rememberSaveable { mutableStateOf(false) }
     var pitchCorrection by remember { mutableStateOf<SheetPitchCorrection?>(null) }
     var reviewSelection by remember { mutableStateOf<SheetReviewSelection?>(null) }
+    // '이대로 둘게요' 뒤 다음 칸 창을 다시 열 차례. 창이 닫히고 칸이 옮겨 간 것을 본 뒤에 연다(S15P31E102-1074).
+    var reopenReviewKey by remember { mutableStateOf<Int?>(null) }
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
     val adaptationOpen = state.tab == EditTab.Adaptation && state.adaptation != null
@@ -155,8 +158,7 @@ fun SheetEditRoute(
                 onOpenAdaptation = viewModel::openAdaptation,
                 // 다시 볼 곳은 칸을 옮겨 보여 주기만 한다. 칸을 누르면 고칠 방법 창이 열린다.
                 onMoveReview = { step -> viewModel.moveRecognitionReview(step); focusRequestKey++ },
-                modifier = Modifier.padding(bottom = 8.dp),
-                rightToLeft = state.view == EditView.Jeongganbo) }
+                modifier = Modifier.padding(bottom = 8.dp)) }
         },
         adaptationContent = {
             state.adaptation?.let { panel -> SheetAdaptationPanel(panel,
@@ -229,14 +231,25 @@ fun SheetEditRoute(
             onEditSigimsae = { reviewSelection = null; viewModel.selectTab(EditTab.Sigimsae) },
             onEditCells = { reviewSelection = null; viewModel.selectTab(EditTab.Cell) },
             onChangeJangdan = { reviewSelection = null; viewModel.changeJangdan() },
-            // 지금 그대로가 맞으면 확인으로 끝내고, 다음 다시 볼 곳이 있으면 바로 그 칸으로 간다.
+            // 지금 그대로가 맞으면 확인으로 끝낸다. 창을 먼저 닫고 다음 다시 볼 칸으로 옮긴 뒤, 잠시 후 그 칸의 창을 연다.
             onConfirmSame = {
                 reviewSelection = null
                 viewModel.checkSelectedReviewIssue()
                 val next = viewModel.uiState.value
-                if ((next.completionValidation.correctionCellIndices - next.completionValidation.rangeCellIndices).any { it != selection.cell }) openFirstReview()
+                if ((next.completionValidation.correctionCellIndices - next.completionValidation.rangeCellIndices).any { it != selection.cell }) {
+                    viewModel.openFirstRecognitionReview()
+                    focusRequestKey++
+                    reopenReviewKey = (reopenReviewKey ?: 0) + 1
+                }
             }.takeIf { state.selected == selection.cell && state.canCheckSelectedReviewIssue })
         else LaunchedEffect(selection) { reviewSelection = null }
+    }
+    reopenReviewKey?.let { key ->
+        LaunchedEffect(key) {
+            delay(REVIEW_REOPEN_DELAY_MS)
+            reopenReviewKey = null
+            openCellHelp(viewModel.uiState.value.selected)
+        }
     }
     LaunchedEffect(state.tempoIssue) { if (state.tempoIssue != null) saveOpen = true }
     if (saveOpen) SheetEditDetailsDialog(
@@ -339,3 +352,6 @@ fun SheetEditRoute(
             style = EolssuButtonStyle.Secondary, enabled = !state.closeSaving, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_07)
     }
 }
+
+/** '이대로 둘게요' 뒤 창이 닫히고 다음 칸으로 옮겨 간 것을 볼 수 있게 다시 열기 전에 기다리는 시간. */
+private const val REVIEW_REOPEN_DELAY_MS = 450L
