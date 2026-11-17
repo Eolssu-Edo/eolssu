@@ -17,6 +17,12 @@ import androidx.compose.ui.graphics.Brush
 import com.ssafy.eolssu.feature.song.ConversionReadingClock
 import kotlinx.coroutines.delay
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.runtime.SideEffect
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -270,9 +276,7 @@ internal fun MySheetRow(
                     )
                 }
             }
-            if (!usable && status != SheetConversionStatus.Failed) {
-                ConversionProgressBar(conversion ?: SheetConversion(sheet.id, SheetConversionStatus.Queued))
-            }
+            ConversionProgressRow(sheet.id, conversion, converting = !usable && status != SheetConversionStatus.Failed)
         }
     }
 }
@@ -303,27 +307,63 @@ private fun FailureReasonToggle(open: Boolean, onToggle: () -> Unit) {
 }
 
 /**
+ * 목록 줄의 변환 진행 막대 자리(S15P31E102-1103). 변환 중이면 막대를 그린다.
+ * 이 화면에서 변환 중으로 본 악보가 완료되면 막대를 바로 없애지 않고 지금 위치에서 끝까지 채운 뒤 접는다.
+ * 화면에 들어올 때 이미 끝난 악보와 실패한 악보는 채우지 않고 바로 접는다.
+ */
+@Composable
+private fun ConversionProgressRow(sheetId: String, conversion: SheetConversion?, converting: Boolean) {
+    val current = if (converting) conversion ?: SheetConversion(sheetId, SheetConversionStatus.Queued) else null
+    // 마지막으로 그린 변환 중 상태. 완료 모션 동안 같은 막대(채운 정도)를 이어 그리는 데 쓴다.
+    var last by remember(sheetId) { mutableStateOf(current) }
+    var completeShown by remember(sheetId) { mutableStateOf(false) }
+    if (current != null) SideEffect {
+        last = current
+        completeShown = false
+    }
+    val completing = current == null && conversion?.status == SheetConversionStatus.Done && last != null && !completeShown
+    if (completing) {
+        LaunchedEffect(Unit) {
+            delay(COMPLETE_FILL_MS + COMPLETE_HOLD_MS)
+            completeShown = true
+        }
+    }
+    AnimatedVisibility(
+        visible = current != null || completing,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically(),
+    ) {
+        (current ?: last)?.let { ConversionProgressBar(it, complete = current == null) }
+    }
+}
+
+/**
  * 변환 진행 막대: 옅은 선 위에 연두로 채운 6dp 막대. 서버가 퍼센트를 주지 않아 숫자는 쓰지 않고 [conversionProgress]의 어림값만 그린다.
  * '읽는 중'에는 서버 응답이 바뀌지 않아도 읽기 시작부터 지난 시간([ConversionReadingClock])으로 1초마다 조금씩 채운다(S15P31E102-1064).
  * 어림이 잠깐 줄어도 뒤로 가지 않고, 채운 부분 위로 밝은 빛이 지나가 멈추지 않았음을 보인다.
  */
 @Composable
-private fun ConversionProgressBar(conversion: SheetConversion) {
+private fun ConversionProgressBar(conversion: SheetConversion, complete: Boolean = false) {
     val colors = EolssuTheme.colors
     val clock = ConversionReadingClock.Shared
     val reading = conversionStep(conversion) is ConversionStep.Reading
     var elapsed by remember(conversion.sheetId) { mutableLongStateOf(clock.elapsedMs(conversion)) }
     LaunchedEffect(conversion) {
         elapsed = clock.elapsedMs(conversion)
-        while (reading) {
+        while (reading && !complete) {
             delay(PROGRESS_TICK_MS)
             elapsed = clock.elapsedMs(conversion)
         }
     }
-    val target = (conversionProgress(conversion, elapsed) ?: 0f).coerceIn(0f, 1f)
+    val target = if (complete) 1f else (conversionProgress(conversion, elapsed) ?: 0f).coerceIn(0f, 1f)
     var peak by remember(conversion.sheetId) { mutableFloatStateOf(0f) }
     if (target > peak) peak = target
-    val shown by animateFloatAsState(peak, animationSpec = tween(PROGRESS_TICK_MS.toInt(), easing = LinearEasing))
+    // 완료되면 남은 부분을 1초 단위 직선이 아니라 짧게 감속하며 끝까지 채운다.
+    val shown by animateFloatAsState(
+        peak,
+        animationSpec = if (complete) tween(COMPLETE_FILL_MS.toInt(), easing = FastOutSlowInEasing)
+        else tween(PROGRESS_TICK_MS.toInt(), easing = LinearEasing),
+    )
     val sweep by rememberInfiniteTransition().animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -356,6 +396,9 @@ private fun ConversionProgressBar(conversion: SheetConversion) {
 
 private const val PROGRESS_TICK_MS = 1_000L
 private const val SWEEP_MS = 1_400
+private const val COMPLETE_FILL_MS = 450L
+/** 다 찬 막대를 잠깐 보인 뒤 접는다. */
+private const val COMPLETE_HOLD_MS = 350L
 
 /** '변환 대기 중' · '악보 3쪽 읽는 중'(서버가 읽은 쪽 수를 주면 '악보 읽는 중 1/3쪽') · '악보 만드는 중'. 쪽 수를 모르면 쪽 수 없이 쓴다. */
 @Composable
