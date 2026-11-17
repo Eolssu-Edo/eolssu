@@ -127,6 +127,9 @@ internal fun LearnListContent(
 ) {
     var contentHeight by remember { mutableIntStateOf(0) }
     var cardHeight by remember { mutableIntStateOf(0) }
+    // 단계 카드를 화살표·키보드로 넘겨 가고 있는 단계. 카드가 자리 잡기 전에 지도 호랑이가 먼저 따라가는 데만 쓴다.
+    // 손으로 끌거나 바깥에서 다른 단계를 고르면 카드 넘기기가 null로 되돌린다.
+    var aimedStage by remember(state.instrument) { mutableStateOf<Int?>(null) }
     // '초기화하기'는 진도를 모두 지우므로 바로 지우지 않고 한 번 묻는다(S15P31E102-845).
     var confirmingReset by rememberSaveable { mutableStateOf(false) }
     if (confirmingReset) LearnResetDialog(onConfirm = { confirmingReset = false; actions.onResetDone() }, onCancel = { confirmingReset = false })
@@ -167,7 +170,8 @@ internal fun LearnListContent(
                 LearnLoadStatus(failed = track == LearnTrackLoad.Failed, failedMessage = Res.string.learn_track_failed, onRetry = actions.onRetryTrack)
                 return@Column
             }
-            LearnTrailMap(state, viewedStage = currentStage, onShowStage = actions.onShowCard, onCelebrated = actions.onFinishCelebrated, modifier = Modifier.padding(bottom = 6.dp))
+            // 호랑이는 카드가 자리 잡기를 기다리지 않고, 아래 카드가 가고 있는 단계로 바로 건너간다(S15P31E102-1102).
+            LearnTrailMap(state, viewedStage = aimedStage ?: currentStage, onShowStage = actions.onShowCard, onCelebrated = actions.onFinishCelebrated, modifier = Modifier.padding(bottom = 6.dp))
             // 진도를 모두 지우는 버튼임이 드러나도록 둥근 화살표와 '초기화하기'로 둔다(S15P31E102-749).
             Row(
                 Modifier
@@ -193,6 +197,7 @@ internal fun LearnListContent(
                 onShow = actions.onShowCard,
                 onOpen = actions.onOpenStage,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
+                onAim = { aimedStage = it },
                 cardMaxSize = cardMaxSize,
                 onCardHeight = { cardHeight = it },
                 large = largeCard,
