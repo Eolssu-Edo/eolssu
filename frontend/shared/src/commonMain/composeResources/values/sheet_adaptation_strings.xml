@@ -1,6 +1,5 @@
 <resources>
     <string name="sheet_adapt_tab">높이 맞추기</string>
-    <string name="sheet_adapt_recommend_help">추천: 낼 수 없는 음이 가장 적은 높이예요.</string>
     <string name="sheet_adapt_remaining_help">높이만 바꾸면 %1$d개가 남아요. 적용 뒤 빨간 칸을 하나씩 고쳐 주세요.</string>
     <string name="sheet_adapt_marker_primary">추천 %1$s</string>
     <string name="sheet_adapt_slider">높이 맞추기, 마이너스 6부터 플러스 6반음</string>
@@ -10,7 +9,9 @@
     <string name="sheet_adapt_unresolved_count">못 내는 음</string>
     <string name="sheet_adapt_count">%1$d개</string>
     <string name="sheet_adapt_apply_semitones">%1$s반음으로 적용</string>
-    <string name="sheet_adapt_apply_original">원조 유지로 적용</string>
+    <string name="sheet_adapt_apply_original">원음으로 적용</string>
+    <string name="sheet_adapt_applied_semitones">%1$s반음 적용됨</string>
+    <string name="sheet_adapt_applied_original_done">원음 적용됨</string>
     <string name="sheet_adapt_empty">맞출 수 있는 음이 없어요.</string>
     <string name="sheet_adapt_confirm_title">음높이를 다시 맞출까요?</string>
     <string name="sheet_adapt_confirm_overwrite">직접 바꾼 음높이·옥타브는 덮어씁니다.</string>
@@ -18,5 +19,5 @@
     <string name="sheet_adapt_confirm_apply">다시 맞추기</string>
     <string name="sheet_adapt_retry">다시 불러오기</string>
     <string name="sheet_adapt_applied">%1$s으로 맞췄어요</string>
-    <string name="sheet_adapt_applied_original">원조 유지로 맞췄어요</string>
+    <string name="sheet_adapt_applied_original">원음으로 맞췄어요</string>
 </resources>

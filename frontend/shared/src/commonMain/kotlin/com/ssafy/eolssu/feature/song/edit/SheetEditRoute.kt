@@ -194,7 +194,7 @@ fun SheetEditRoute(
             onSave = {
                 saveError = null
                 // 높이를 바꿔 한 번에 고칠 수 있으면 첫 칸의 음 확인 대신 저장 창을 열어
-                // "단소로 낼 수 없는 음 N개 · N반음 올려 고치기"를 먼저 보인다(S15P31E102-1085).
+                // "단소로 낼 수 없는 음 N개 · +N반음으로 적용"를 먼저 보인다(S15P31E102-1085).
                 if (state.rangeFixGuide() != null) saveOpen = true
                 else if (state.completionValidation.correctionCellIndices.isNotEmpty()) {
                     viewModel.openCompletionIssue()

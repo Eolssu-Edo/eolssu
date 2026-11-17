@@ -34,7 +34,6 @@ import com.ssafy.eolssu.core.ui.component.withParticle
 import com.ssafy.eolssu.feature.song.edit.SheetImportGuide
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
-import kotlin.math.abs
 
 /**
  * 가져온 악보 확인 카드(S15P31E102-979·1042). 악보 위에 두어 처음 열 때 바로 보이게 한다.
@@ -64,14 +63,9 @@ internal fun SheetImportGuideCard(
                     GuideButton(stringResource(Res.string.sheet_import_guide_tuning),
                         UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_02, onApplyRecommended))
                 } else if (shift != null) {
-                    val fixed = guide.rangeNotes - (guide.recommendedRemaining ?: 0)
-                    val all = guide.recommendedRemaining == 0
-                    GuideButton(when {
-                        shift > 0 && all -> stringResource(Res.string.sheet_import_guide_up_all, shift)
-                        shift > 0 -> stringResource(Res.string.sheet_import_guide_up, shift, fixed)
-                        all -> stringResource(Res.string.sheet_import_guide_down_all, abs(shift))
-                        else -> stringResource(Res.string.sheet_import_guide_down, abs(shift), fixed)
-                    }, UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_02, onApplyRecommended))
+                    // 높이 맞추기 적용 버튼과 같은 글자(원본 기준 `+1반음으로 적용`·`원음으로 적용`)를 쓴다.
+                    GuideButton(applyLabel(requireNotNull(guide.recommendedTranspose)),
+                        UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_02, onApplyRecommended))
                 } else GuideButton(stringResource(Res.string.sheet_import_guide_adapt), UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_03, onOpenAdaptation))
             }
             if (showReview) GuideRow("!", colors.rec, colors.recSoft,

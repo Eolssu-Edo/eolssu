@@ -265,7 +265,8 @@ private fun PositionPicker(label: String, draft: SheetDraft, index: Int, enabled
             onChange(draft.indexOf(target, row.coerceAtMost(draft.sizes[target] - 1)))
         }
         Text("각", style = MaterialTheme.typography.bodyMedium, color = colors.textSub)
-        NumberBox(row + 1, "$label 정간", enabled, valid = { it in 1..draft.sizes[gak] }) { value -> onChange(draft.indexOf(gak, value - 1)) }
+        // 한 각의 정간은 두 자리를 넘지 않으므로 두 자리까지만 받는다.
+        NumberBox(row + 1, "$label 정간", enabled, maxDigits = 2, valid = { it in 1..draft.sizes[gak] }) { value -> onChange(draft.indexOf(gak, value - 1)) }
         Text("정간", style = MaterialTheme.typography.bodyMedium, color = colors.textSub, maxLines = 1)
         Spacer(Modifier.weight(1f))
         StepButton("‹", "$label 한 정간 앞으로", enabled && index > 0) { onChange(index - 1) }
@@ -276,14 +277,14 @@ private fun PositionPicker(label: String, draft: SheetDraft, index: Int, enabled
 
 /** 숫자 하나를 크게 보이는 입력 칸. 바깥 값이 바뀌면 입력 중이던 글자도 그 값으로 맞춘다. */
 @Composable
-private fun NumberBox(value: Int, description: String, enabled: Boolean, valid: (Int) -> Boolean, onValue: (Int) -> Unit) {
+private fun NumberBox(value: Int, description: String, enabled: Boolean, maxDigits: Int = 3, valid: (Int) -> Boolean, onValue: (Int) -> Unit) {
     val colors = EolssuTheme.colors
     var text by remember(value) { mutableStateOf(value.toString()) }
     val wrong = text.toIntOrNull()?.let { !valid(it) } ?: text.isNotEmpty()
     BasicTextField(
         value = text,
         onValueChange = { input ->
-            val digits = input.filter(Char::isDigit).take(3)
+            val digits = input.filter(Char::isDigit).take(maxDigits)
             text = digits
             digits.toIntOrNull()?.takeIf(valid)?.let(onValue)
         },
