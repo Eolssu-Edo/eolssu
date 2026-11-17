@@ -282,4 +282,14 @@ sudo python3 publish_sigimsae_placements.py --plan sigimsae-placements/plan-1078
 - 되돌리기는 대상 곡의 `sigimsae_placements_json`을 NULL로 바꾸면 된다. 앱은 이전처럼 시작 자리에 그린다.
 - 악보를 교체해 칸 위치가 맞지 않게 되면 서버가 값을 무시(null 응답)하므로 화면이 깨지지 않는다. 새 판본에 맞춰 다시 `prepare`한다.
 
-검사: `python -m unittest discover -s infra/catalog -p "test_publish_sigimsae_placements.py" -v`. 2026-11-17 폐기용 MySQL 8.4 컨테이너(V1~V46)에 공개 API의 세 곡 악보를 넣어 조회 → 적용 → 재실행 no-op → 악보 버전 변경 시 중단을 확인했다. 운영 DB에는 적용하지 않았다.
+검사: `python -m unittest discover -s infra/catalog -p "test_publish_sigimsae_placements.py" -v`. 2026-11-17 폐기용 MySQL 8.4 컨테이너(V1~V46)에 공개 API의 세 곡 악보를 넣어 조회 → 적용 → 재실행 no-op → 악보 버전 변경 시 중단을 확인했다.
+
+### 운영 적용 (2026-11-17)
+
+!947 병합 후 자동 배포가 V46을 적용했다(14:25 KST, `flyway_schema_history` 46 success). edo1 `/opt/eolssu/ops1078-sigimsae-20261117/`에 develop과 SHA-256이 같은 도구 2개·계획을 두고 아래 순서로 실행했다.
+
+1. 공유 배포 lock 안에서 `backup.py send prechange`(DB run `20261117T052718Z-ddfbbacf3b52`) 후 조회: `pending` 55·85·86.
+2. lock 안에서 `--apply`: `applied`, `updated` 55·85·86. 이어 조회: `pending` 없음, `done` 3곡.
+3. 사후 `backup.py send db`(run `20261117T053021Z-142100144947`). 처음에는 배포 lock을 쥔 채 실행해 `lock timeout`으로 실패했다. 이 백업은 스스로 같은 lock을 잡으므로 lock 밖에서 실행한다.
+
+receipt는 edo1 `/root/sigimsae-1078-{check,apply,after}.json`이다. 공개 API에서 세 곡의 `sigimsaePlacements`가 13·39·5자리로 내려옴을 확인했다.
