@@ -214,11 +214,19 @@ if args.grid_boxes or args.grid_address:
         beats = args.beats or Counter(map(len, groups)).most_common(1)[0][0]
         boxes = [c for group in groups for c in group]
     if args.grid_address:
-        # 칸 상자는 선 가운데에서 잘라 굵은 각 구분선의 절반이 칸 끝에 들어간다. 모델이 이를 이음표로 읽으므로
-        # 리더가 선 안쪽만 자르듯 칸 크기의 4%(최소 2px)만큼 안으로 잘라 읽는다. 결과 상자는 그대로 둔다.
-        inset = lambda c: max(2, round(min(c["w"], c["h"]) * .04))
-        crops = [image[c["y"] + inset(c):c["y"] + c["h"] - inset(c), c["x"] + inset(c):c["x"] + c["w"] - inset(c)]
-                 for c in boxes]
+        # 칸 상자는 선 가운데에서 잘라 굵은 각 구분선의 절반이 칸 끝에 들어가고, 모델은 이를 이음표로 읽는다.
+        # 리더가 선 사이 흰 영역을 칸으로 자르듯, 칸 가장자리에서 먹이 30% 넘는 줄·열(선)을 칸 크기의 15%까지
+        # 걷어 내고 읽는다. 결과 상자는 그대로 둔다. 조정용 표본 율명 일치 201(그대로)·205(4% 안쪽)·209칸(S15P31E102-1077).
+        def inner(c):
+            x, y, w, h = c["x"], c["y"], c["w"], c["h"]
+            dark = gray[y:y + h, x:x + w] < 160
+            t, b, l, r = 0, h, 0, w
+            while t < h * .15 and dark[t, l:r].mean() > .3: t += 1
+            while h - b < h * .15 and dark[b - 1, l:r].mean() > .3: b -= 1
+            while l < w * .15 and dark[t:b, l].mean() > .3: l += 1
+            while w - r < w * .15 and dark[t:b, r - 1].mean() > .3: r -= 1
+            return x + l, y + t, x + r, y + b
+        crops = [image[y0:y1, x0:x1] for x0, y0, x1, y1 in map(inner, boxes)]
     else:
         crops = [image[c["y"]:c["y"] + c["h"], c["x"]:c["x"] + c["w"]] for c in boxes]
     predictions, confidences = reader.omr(crops)
