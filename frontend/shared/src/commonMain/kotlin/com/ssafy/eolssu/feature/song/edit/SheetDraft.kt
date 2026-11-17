@@ -243,7 +243,7 @@ data class SheetDraft(
      */
     fun toggleSigimsae(index: Int, value: Sigimsae, sub: Int = 0): SheetDraft {
         val current = sigimsaeAt(index, sub)
-        val kept = current.filter { it.name == value.name || sigimsaeCompatible(it.name, value.name) }
+        val kept = current - sigimsaeConflicts(current, value).toSet()
         val next = if (current.any { it.name == value.name }) current.filterNot { it.name == value.name }
             else if (kept.size >= MAX_SIGIMSAE) return this else kept + value
         return withSigimsae(index, next, sub)
@@ -255,6 +255,12 @@ data class SheetDraft(
         if (position !in current.indices) return this
         return withSigimsae(index, current.filterIndexed { i, _ -> i != position }, sub)
     }
+
+    /** [index] 정간을 더 나눌 수 있는지. [split]이 바꾸지 않는 경우(이미 [MAX_SPLIT]개)는 false다. */
+    fun canSplit(index: Int): Boolean = cells.getOrNull(index)?.let { it.size < MAX_SPLIT } == true
+
+    /** [index] 정간이 나눠져 있어 [merge]로 합칠 수 있는지. */
+    fun canMerge(index: Int): Boolean = cells.getOrNull(index)?.let { it.size > 1 } == true
 
     /** 한 정간을 하나 더 나눈다(최대 [MAX_SPLIT]). 새 자리는 비워 두고 위에서부터 채운다. */
     fun split(index: Int): SheetDraft {

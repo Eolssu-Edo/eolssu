@@ -86,7 +86,7 @@ internal class SheetAdaptationReviewTest : CatalogViewModelTest() {
         }
         val score = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
         val issues = listOf("changed" to "c0-j0", "tied" to "c0-j1", "rest" to "c1-j0").map { (id, cell) ->
-            buildJsonObject { put("issueId", id); put("cellId", cell); put("type", "LOW_CONFIDENCE") }
+            buildJsonObject { put("issueId", id); put("cellId", cell); put("type", "ORNAMENT_DROPPED") }
         }
         val repository = object : SheetDocumentRepository {
             override suspend fun get(sheetId: String) =

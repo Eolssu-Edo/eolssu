@@ -36,9 +36,12 @@ enum class SheetAudioStatus {
     }
 }
 
-/** SHT-13 `failureCode`. FAILED일 때만 오고, 모르는 값은 [Unknown]이다. SHT-12로 다시 요청할 수 있다. */
+/**
+ * SHT-13 `failureCode`. FAILED일 때만 오고, 모르는 값은 [Unknown]이다. SHT-12로 다시 요청할 수 있다.
+ * [TooLong]·[TempoUnrenderable]·[InvalidRequest]는 접수 뒤 생성기가 거절해 서버가 그대로 옮긴 코드다(backend `SheetAudios.runOne`).
+ */
 enum class SheetAudioFailure {
-    Timeout, TooLarge, ServerError, Expired, Unknown;
+    Timeout, TooLarge, ServerError, Expired, TooLong, TempoUnrenderable, InvalidRequest, Unknown;
 
     companion object {
         fun fromCode(code: String?): SheetAudioFailure = when (code) {
@@ -46,6 +49,9 @@ enum class SheetAudioFailure {
             "TOO_LARGE" -> TooLarge
             "SERVER_ERROR" -> ServerError
             "AUDIO_EXPIRED" -> Expired
+            "EXPORT_TOO_LONG" -> TooLong
+            "TEMPO_UNRENDERABLE" -> TempoUnrenderable
+            "INVALID_REQUEST" -> InvalidRequest
             else -> Unknown
         }
     }

@@ -138,4 +138,19 @@ class SheetDraftTest {
         assertEquals(listOf(hwang), draft().shiftPitch(0, 0, -1).cells[0], "가장 낮은 율명 아래로는 내려가지 않는다")
         assertEquals(draft(), draft().shiftPitch(1, 0, 1), "지속 기호는 바꾸지 않는다")
     }
+
+    /** 나누기·합치기 버튼은 실제로 바뀌는 정간에서만 켠다(S15P31E102-1096). */
+    @Test
+    fun splitAndMergeAreAvailableOnlyWhenTheyChangeTheCell() {
+        val base = draft()
+        assertTrue(base.canSplit(2))
+        assertFalse(base.canMerge(2), "나누지 않은 정간은 합칠 게 없다")
+        val full = base.split(2).split(2)
+        assertEquals(SheetDraft.MAX_SPLIT, full.cells[2].size)
+        assertFalse(full.canSplit(2), "최대로 나눈 정간은 더 나누지 않는다")
+        assertSame(full, full.split(2))
+        assertTrue(full.canMerge(2))
+        assertSame(base, base.merge(0))
+        assertFalse(base.canSplit(99))
+    }
 }

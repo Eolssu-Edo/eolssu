@@ -2,7 +2,18 @@ package com.ssafy.eolssu.feature.song.edit
 
 import com.ssafy.eolssu.data.song.SheetAudio
 import com.ssafy.eolssu.core.audio.DeviceSheetAudio
+import com.ssafy.eolssu.data.song.SheetAudioFailure
 import com.ssafy.eolssu.data.song.SheetAudioStatus
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.sheetedit_audio_failure_expired
+import eolssu.shared.generated.resources.sheetedit_audio_failure_invalid
+import eolssu.shared.generated.resources.sheetedit_audio_failure_server
+import eolssu.shared.generated.resources.sheetedit_audio_failure_tempo
+import eolssu.shared.generated.resources.sheetedit_audio_failure_timeout
+import eolssu.shared.generated.resources.sheetedit_audio_failure_too_large
+import eolssu.shared.generated.resources.sheetedit_audio_failure_too_long
+import eolssu.shared.generated.resources.sheetedit_audio_failure_unknown
+import org.jetbrains.compose.resources.StringResource
 
 /**
  * 미리보기(EDIT-04)의 내 악보 음원 칸 상태. 서버 상태(SHT-13)를 화면 단계로 옮긴 것이다.
@@ -55,6 +66,21 @@ internal fun SheetAudio.toUi(): SheetAudioUi = when (status) {
     SheetAudioStatus.Queued, SheetAudioStatus.Running -> SheetAudioUi.Generating(this)
     SheetAudioStatus.Done -> SheetAudioUi.Ready(this)
     SheetAudioStatus.Failed -> SheetAudioUi.Failed(this)
+}
+
+/**
+ * 음원을 만들지 못한 이유와 할 일 한 줄. 다시 받기는 연습 화면에서 하고, 악보를 고쳐야 하면 고친 뒤 저장하게 한다.
+ * 모르는 코드나 사유가 없으면 일반 안내로 돌린다(S15P31E102-1097).
+ */
+internal fun SheetAudioFailure?.reasonText(): StringResource = when (this) {
+    SheetAudioFailure.Timeout -> Res.string.sheetedit_audio_failure_timeout
+    SheetAudioFailure.TooLarge -> Res.string.sheetedit_audio_failure_too_large
+    SheetAudioFailure.ServerError -> Res.string.sheetedit_audio_failure_server
+    SheetAudioFailure.Expired -> Res.string.sheetedit_audio_failure_expired
+    SheetAudioFailure.TooLong -> Res.string.sheetedit_audio_failure_too_long
+    SheetAudioFailure.TempoUnrenderable -> Res.string.sheetedit_audio_failure_tempo
+    SheetAudioFailure.InvalidRequest -> Res.string.sheetedit_audio_failure_invalid
+    SheetAudioFailure.Unknown, null -> Res.string.sheetedit_audio_failure_unknown
 }
 
 /** 다운로드 링크나 경로를 노출하지 않고 기기에 저장한 음원을 식별한다. */

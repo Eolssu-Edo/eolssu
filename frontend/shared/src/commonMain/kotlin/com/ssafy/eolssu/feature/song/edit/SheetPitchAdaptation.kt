@@ -15,8 +15,13 @@ data class SheetAdaptationUi(
     val selectedTranspose: Int? = null, val loading: Boolean = true, val failed: Boolean = false,
     val baseline: SheetDraft,
     val confirmationRequested: Boolean = false,
+    /** 다시 적용해도 [baseline]이 그대로인 높이. 이미 그 높이로 맞춰 두었고 그 뒤 음을 고치지 않았을 때만 있다. */
+    val appliedTranspose: Int? = null,
 ) {
     val selected: PitchAdaptationPlan? get() = plans.firstOrNull { it.transpose == selectedTranspose }
+
+    /** 고른 높이가 이미 적용된 상태와 같아 적용해도 바뀌는 것이 없다(S15P31E102-1096). */
+    val selectionApplied: Boolean get() = selectedTranspose != null && selectedTranspose == appliedTranspose
 
     /** 어느 높이로 옮겨도 악기로 낼 수 없는 음 수. 0보다 크면 높이만으로는 다 못 고치고 남은 음을 하나씩 바꿔야 한다. */
     val unavoidableUnresolved: Int get() = plans.minOfOrNull { it.unresolved } ?: 0
@@ -139,6 +144,14 @@ internal fun SheetDraft.sourcePitchNotes(): List<SourcePitchNote> {
         SourcePitchNote(event.id, event.cellId, baselines[event.id]
             ?: (hwang + "황대태협고중유임이남무응".indexOf(event.yul.orEmpty()) + 12 * (event.octave ?: 0)))
     }
+}
+
+/** [candidates] 높이 중 적용해도 이 악보가 그대로인 첫 높이. 모든 높이를 계산하지 않도록 후보만 확인한다. */
+internal fun SheetDraft.unchangedAdaptation(plans: List<PitchAdaptationPlan>, capability: CatalogAuthoringCapabilities,
+    candidates: List<Int> = listOf(appliedTranspose)): Int? = candidates.distinct().firstOrNull { transpose ->
+    plans.firstOrNull { it.transpose == transpose }?.let { plan ->
+        runCatching { remapBasicAccompaniment(applyAdaptation(plan, capability)) == this }.getOrDefault(false)
+    } == true
 }
 
 /** Pitch-only adaptation preserves timing, IDs, rests, ties and immutable source notes. */

@@ -24,10 +24,12 @@ class SheetReviewExplanationTest {
             .copy(reviewIssues = document.editorReviewIssues(score))
         val selected = before.select(2)
 
-        assertEquals("GAP_IN_VOICE", selected.selectedReviewIssue?.reason)
-        assertEquals("LOW_CONFIDENCE", selected.selectedReviewIssue?.kind)
+        val gap = selected.reviewIssuesAt(2).single()
+        assertEquals("GAP_IN_VOICE", gap.reason)
+        assertEquals("LOW_CONFIDENCE", gap.kind)
         assertTrue(selected.pitchCorrectionsAt(2).isEmpty())
-        assertEquals(1, selected.completionValidation.pendingReviewCount)
+        assertEquals(0, selected.completionValidation.pendingReviewCount, "신뢰도 낮음은 저장을 막지 않는 노란 표시다")
+        assertEquals(setOf(2), selected.completionValidation.advisoryCellIndices)
         assertTrue(selected.checkedIssueIds.isEmpty())
         assertEquals(before.draft, selected.draft)
         assertFalse(selected.canUndo)
@@ -70,8 +72,8 @@ class SheetReviewExplanationTest {
         ) }
         val before = SheetEditUiState(EditSource.Mine("31"), score.editingDraft("선택 정보", 60, null))
             .copy(reviewIssues = listOf(
-                SheetReviewIssue("first", "c0-j0", "LOW_CONFIDENCE", eventId = "c0-j0-r0-u0", reason = "GAP_IN_VOICE"),
-                SheetReviewIssue("second", "c0-j0", "LOW_CONFIDENCE", eventId = "c0-j0-r0-u1", reason = "OTHER_REASON"),
+                SheetReviewIssue("first", "c0-j0", "ORNAMENT_DROPPED", eventId = "c0-j0-r0-u0", reason = "GAP_IN_VOICE"),
+                SheetReviewIssue("second", "c0-j0", "ORNAMENT_DROPPED", eventId = "c0-j0-r0-u1", reason = "OTHER_REASON"),
             ))
         assertEquals(listOf("second"), before.reviewIssuesAt(0, 1).map { it.id })
 

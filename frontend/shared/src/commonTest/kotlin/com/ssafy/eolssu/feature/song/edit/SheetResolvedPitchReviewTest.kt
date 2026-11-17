@@ -20,7 +20,7 @@ class SheetResolvedPitchReviewTest {
             availableJangdans = emptyList(), reviewIssues = listOf(
                 SheetReviewIssue("range", "c0-j0", "OUT_OF_RANGE", eventId = "c0-j0-r0-u1"),
                 SheetReviewIssue("tie", "c0-j1", "UNREGISTERED_PITCH", eventId = "c0-j0-r0-u1"),
-                SheetReviewIssue("manual", "c0-j0", "LOW_CONFIDENCE", eventId = "c0-j0-r0-u0"),
+                SheetReviewIssue("manual", "c0-j0", "ORNAMENT_DROPPED", eventId = "c0-j0-r0-u0"),
             ))
     }
 
