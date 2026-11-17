@@ -660,7 +660,7 @@ private fun SigimsaeTile(value: Sigimsae) {
         if (scoreSigimsaeImage(value.scoreName) != null) {
             ScoreSigimsaeGlyph(value.scoreName, 13.sp)
         } else {
-            // 그림이 없는 시김새(전성)는 이름을 상자 안에 들어가게 작게 한 줄로 적는다.
+            // 그림이 없는 시김새는 이름을 상자 안에 들어가게 작게 한 줄로 적는다.
             Text(
                 value.name,
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 10.sp, letterSpacing = 0.sp),
