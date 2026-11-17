@@ -139,6 +139,7 @@ data class SheetEditUiState(
     val audioDownloading: Boolean = false,
     val message: SheetEditMessage? = null,
     val tempoIssue: com.ssafy.eolssu.data.song.SheetTempoIssue? = null,
+    val sigimsaeIssue: com.ssafy.eolssu.data.song.SheetSigimsaeIssue? = null,
     val hasTempoPlan: Boolean = false,
     val documentLoading: Boolean = false,
     val documentFailed: Boolean = false,
@@ -356,6 +357,33 @@ data class SheetEditUiState(
     fun toggleSigimsae(value: Sigimsae): SheetEditUiState = commit(draft.toggleSigimsae(selected, value, sigimsaeSub))
 
     fun removeSigimsae(position: Int): SheetEditUiState = commit(draft.removeSigimsae(selected, position, sigimsaeSub))
+
+    /** 음원 생성기가 거절한 시김새가 붙은 정간·소박. 그 사이 악보가 바뀌어 찾을 수 없으면 null. */
+    val sigimsaeIssueSlot: NoteSlot? get() {
+        val eventId = sigimsaeIssue?.eventId ?: return null
+        val cells = runCatching { draft.toCommonScore().columns.flatMap { it.cells } }.getOrNull() ?: return null
+        cells.forEachIndexed { index, cell ->
+            val sub = cell.units.indexOfFirst { it.eventId == eventId }
+            if (sub >= 0) return NoteSlot(index, sub).takeIf { index in draft.cells.indices }
+        }
+        return null
+    }
+
+    /** 거절된 시김새가 있는 정간으로 가서 그 소박을 고른다. */
+    fun openSigimsaeIssue(): SheetEditUiState {
+        val slot = sigimsaeIssueSlot ?: return copy(sigimsaeIssue = null)
+        val sub = slot.sub.takeIf { draft.cells[slot.cell].size > 1 }
+        return copy(selected = slot.cell, selectedSub = sub, view = EditView.Jeongganbo, tab = EditTab.Sigimsae)
+    }
+
+    /** 거절된 기호만 떼고(이름을 모르면 그 소박의 시김새 전부) 그 칸을 고른다. 다시 저장해 확인한다. */
+    fun removeRejectedSigimsae(): SheetEditUiState {
+        val issue = sigimsaeIssue ?: return this
+        val slot = sigimsaeIssueSlot ?: return copy(sigimsaeIssue = null)
+        val current = draft.sigimsaeAt(slot.cell, slot.sub)
+        val kept = if (issue.symbols.isEmpty()) emptyList() else current.filterNot { it.name in issue.symbols }
+        return commit(draft.withSigimsae(slot.cell, kept, slot.sub), slot.cell, slot.sub).copy(sigimsaeIssue = null)
+    }
 
 
     fun split(): SheetEditUiState = if (hasTempoPlan) copy(message = SheetEditMessage.TempoPlanBeforeReshape)
