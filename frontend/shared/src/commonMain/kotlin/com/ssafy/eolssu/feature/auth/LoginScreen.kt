@@ -123,7 +123,8 @@ fun LoginScreen(
                     maxLength = InputLimit.LOGIN_ID,
                     bordered = false,
                     labelInside = true,
-                    fieldHeight = 48.dp,
+                    // 비밀번호 칸은 눈 버튼(44dp)과 위아래 여백(12dp씩) 때문에 68dp가 되므로, 이메일 칸도 같은 높이로 맞춘다(S15P31E102-1075).
+                    fieldHeight = LoginFieldHeight,
                     error = state.emailError?.let { stringResource(it.message) },
                 )
                 EolssuTextField(
@@ -136,7 +137,7 @@ fun LoginScreen(
                     maxLength = InputLimit.PASSWORD,
                     bordered = false,
                     labelInside = true,
-                    fieldHeight = 48.dp,
+                    fieldHeight = LoginFieldHeight,
                     error = (state.passwordError ?: state.error)?.let { stringResource(it.message) },
                     imeAction = ImeAction.Done,
                     onImeAction = onLogIn,
@@ -194,6 +195,7 @@ fun LoginScreen(
 
 /** 로그인 내용의 최대 너비. 넓은 화면에서도 입력칸·버튼이 길게 늘어나지 않게 한다. */
 private val FormMaxWidth = 400.dp
+private val LoginFieldHeight = 68.dp
 
 /** 앱 이름과 한 줄 소개(`.au-brand`). */
 @Composable
