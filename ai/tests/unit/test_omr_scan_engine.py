@@ -192,3 +192,42 @@ cells[4]['split']=True
     assert out['status']=='DONE',out
     assert [len(c['cells']) for c in out['score']['columns']]==[3,3]
     assert [(i['cellId'],i['detail']) for i in out['issues']]==[('c1-j1',{'confidence':.99,'reason':'GRID_SPLIT'})]
+
+def _column_image(tmp_path, thick_after, *, columns=2, cells=12, h=40, w=30, thick=4):
+    """정간 cells개가 세로로 쌓인 줄 columns개. thick_after 번째 정간 아래 선만 굵게 그린다(S15P31E102-1068)."""
+    from PIL import ImageDraw
+    image = Image.new('L', (columns * (w + 20) + 20, cells * h + 40), 255)
+    draw = ImageDraw.Draw(image)
+    boxes = []
+    for col in range(columns):
+        x = 20 + col * (w + 20)
+        for j in range(cells + 1):
+            y = 20 + j * h
+            width = thick if j in thick_after else 1
+            draw.rectangle([x, y - width // 2, x + w, y - width // 2 + width - 1], fill=0)
+        boxes += [dict(x=x, y=20 + j * h + 1, w=w, h=h - 2) for j in range(cells)]
+    path = tmp_path / 'grid.png'
+    image.save(path)
+    return path, boxes
+
+
+def test_semachi_column_read_as_one_gak_is_split_at_thick_gak_lines(tmp_path):
+    from omr_service.jeongganbo_scan import gak_size_from_lines
+    # 아리랑 사진처럼 12정간 줄에 3정간마다 굵은 각 구분선이 있다. 세마치 한 각은 3정간(정간당 1박)이다.
+    path, cells = _column_image(tmp_path, {3, 6, 9})
+    assert gak_size_from_lines(path, cells, 12, '세마치') == 3
+
+
+def test_gak_size_is_kept_without_clear_regular_thick_lines(tmp_path):
+    from omr_service.jeongganbo_scan import gak_size_from_lines
+    plain, cells = _column_image(tmp_path, set())
+    assert gak_size_from_lines(plain, cells, 12, '세마치') == 12  # 굵은 선이 없으면 고치지 않는다
+    irregular, cells = _column_image(tmp_path, {3, 7})
+    assert gak_size_from_lines(irregular, cells, 12, '세마치') == 12  # 간격이 일정하지 않으면 고치지 않는다
+
+
+def test_gak_size_matching_the_jangdan_is_not_reinterpreted(tmp_path):
+    from omr_service.jeongganbo_scan import gak_size_from_lines
+    # 굿거리 12정간 각은 이미 정간당 1/3박으로 맞으므로 줄 안의 굵은 선이 있어도 바꾸지 않는다.
+    path, cells = _column_image(tmp_path, {3, 6, 9})
+    assert gak_size_from_lines(path, cells, 12, '굿거리') == 12

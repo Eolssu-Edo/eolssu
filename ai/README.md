@@ -260,6 +260,8 @@ S15P31E102-882 후속: 글자층 엔진4·스캔 r6는 정간 오른쪽 한배 �
 
 S15P31E102-1058: 스캔 r7은 요청 악기로 율명 후보를 좁힙니다. `DANSO`·`SOGEUM`·`JEONGAK_DAEGEUM`은 리더의 `--yul danso`·`sogeum`·`jeongak-daegeum`으로 대응하고, `SANJO_DAEGEUM` 등 목록이 없는 악기는 이전과 같이 제한하지 않습니다. 제한은 모든 크기 재시도·`--grid-boxes`·CPU 배치 분할에 똑같이 적용됩니다. 신뢰도는 제한 전 모델 분포에서 고른 율명의 확률이라 제한 때문에 높아지지 않습니다. 인자 전달은 `uv run pytest tests/unit/test_omr_scan_engine.py`로, 리더의 제한 해독·배치·중청 복원 연결은 스캔 런타임(torch·OpenCV·pdfplumber)에서 `pytest data/tests/test_scan_register_cli.py`로 검사합니다. 실제 모델 결과는 [스캔 실행 기록](../docs/knowledge/ai/jeongganbo-scan-runtime.md#악기-음역-율명-제한-1058)에 있습니다.
 
+S15P31E102-1068: 스캔 r9는 읽은 각의 정간 수가 고른 장단과 맞지 않을 때 정간 사이 가로선의 굵기로 각 경계를 다시 찾습니다. 일정한 간격의 선만 분명히 굵고 그 간격이 장단에 맞을 때만 바꿉니다(예: 세마치 12정간 줄 → 3정간 각). `uv run pytest tests/unit/test_omr_scan_engine.py -k gak`이 작은 자체 그림으로 판정 경계를 검사합니다. 실제 사진 결과는 [스캔 실행 기록](../docs/knowledge/ai/jeongganbo-scan-runtime.md#굵은-각-구분선으로-각-나누기-1068)에 있습니다.
+
 스캔 전용 의존성은 `omr-scan-requirements.in`과 SHA-256을 포함한 `omr-scan-requirements.txt`로 고정해 기존 채점 서비스의 `uv.lock`과 분리했습니다. Python 3.12·Linux x86_64 CPU 휠을 사용합니다. 같은 uv 버전에서 `uv pip compile --python .venv/bin/python --generate-hashes omr-scan-requirements.in -o omr-scan-requirements.txt`로 다시 고정할 수 있습니다. 모델 소스·가중치의 획득 URL과 체크섬은 `omr.Dockerfile`에 있습니다.
 
 `docker build -f ai/omr.Dockerfile -t eolssu-omr .`로 전체를 빌드합니다. 이미 검증한 기본 런타임을 재사용하는 로컬 검사는 `--build-arg OMR_SCANNER_BASE=<검증한 기본 이미지>`로 스캔 확장만 빌드하며, AI/DATA 소스·참조 데이터는 현재 작업본으로 복사합니다. `--target runtime`은 확장을 제외한 기본 단계입니다. 스캔 확장 없는 실행에는 `JEONGGANBO_OMR_DIR`가 없어 스캔 요청이 `ENGINE_ERROR`로 끝납니다.
