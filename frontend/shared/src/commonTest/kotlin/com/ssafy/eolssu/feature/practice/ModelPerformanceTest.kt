@@ -42,6 +42,29 @@ class ModelPerformanceTest {
         assertTrue(PracticeUiState().scoreAnnotations.isEmpty())
     }
 
+    @Test fun writtenSlotsShowAHeldCellOrnamentBeforePlaybackAndStaleSlotsFallBack() {
+        val written = mapOf(
+            ScoreUnitKey("c0-j0", 0, 0) to listOf("늘임표"),
+            ScoreUnitKey("c0-j0", 0, 1) to listOf("니레", "노라느니"),
+        )
+        val held = mapOf(
+            ScoreUnitKey("c0-j0", 0, 0) to listOf("늘임표"),
+            ScoreUnitKey("c0-j0", 0, 1) to listOf("니레"),
+            ScoreUnitKey("c0-j1", 0, 0) to listOf("노라느니"),
+        )
+        fun annotations(placements: Map<ScoreUnitKey, List<String>>) =
+            PracticeUiState(song = song.copy(score = song.score.copy(sigimsaePlacements = placements))).scoreAnnotations
+        assertEquals(held, annotations(held))
+        for (stale in listOf(
+            held - ScoreUnitKey("c0-j1", 0, 0),
+            held + (ScoreUnitKey("c0-j1", 0, 0) to listOf("니레")),
+            held + (ScoreUnitKey("c0-j0", 1, 0) to listOf("노라느니")),
+            held + (ScoreUnitKey("c9-j0", 0, 0) to emptyList()),
+        )) {
+            assertEquals(written, annotations(stale))
+        }
+    }
+
     @Test fun stretchedAndRepeatedMediaUsesWrittenCursorButPerformedProgress() {
         val initial = PracticeUiState(song = song, mode = PracticeMode.Model)
         val stretched = initial.withModelAudio(ModelAudioState(ModelAudioStatus.Playing, audio, 250))

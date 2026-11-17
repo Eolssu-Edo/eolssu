@@ -37,6 +37,16 @@ S15P31E102-503에서 CAT-01·02는 표시용 `jangdanName`을 제공한다. 공�
 
 공개 GET `/api/jangdan-samples/{sample}/{sha256}`은 160의 배포 목록에 샘플명·SHA-256 쌍이 있을 때 비공개 R2 M4A의 15분 서명 주소로 302 이동한다. 서명 응답은 `Cache-Control: no-store`를 붙인다. 매핑 불일치는 404, 서명 실패는 503이다. 앱은 R2에서 받은 M4A의 길이와 SHA-256을 확인한 뒤 파일을 캐시한다.
 
+## 시김새 표시 자리 (S15P31E102-1078)
+
+공통 악보 v1은 시김새를 `events[].sigimsae`(음 단위)로만 저장해, 이음(`-`) 자리에 적힌 시김새의 위치를 알 수 없다. CAT-04 `result.sigimsaePlacements`는 선택적 배열이며 V46 `songs.sigimsae_placements_json`(보관 판본은 `song_score_versions`의 같은 열)을 그대로 돌려준다. `score`는 바꾸지 않는다.
+
+```json
+[{"cellId":"c0-j0","row":0,"col":0,"symbols":["니레"]},{"cellId":"c0-j1","row":0,"col":0,"symbols":["농음"]}]
+```
+
+서버는 모든 자리가 그 판본의 `units`에 한 번씩 있고, 음마다 자리를 표시 순서(각 → 정간 → row → col)로 이은 기호가 `event.sigimsae`와 같을 때만 반환한다. 저장값이 없거나 형식이 틀리거나 악보 교체로 맞지 않으면 null이며 악보 조회는 실패하지 않는다. 앱은 null이면 시김새를 음의 시작 자리에 그린다. 앱 응답 해석은 모르는 필드를 무시하므로 구버전 앱에도 추가 필드다. 운영 값은 [채우기 도구](../../infra/catalog/README.md#시김새-표시-자리-채우기-1078)로 넣는다.
+
 ## 현재 악보에 맞춘 장단 반주 (S15P31E102-491)
 
 CAT-04 `result.jangdanPlayback`은 선택적 객체이며 현재 악보의 시작점과 주기를 확정할 수 없으면 null이다. 기존 `score`, `defaultBpm`, `bpmUnit`, 곡 목록의 `jangdan`과 DB FK의 의미는 바뀌지 않는다. 새 앱은 이 객체가 있을 때만 곡 반주를 켠다. 구버전 응답에서 필드가 없어도 악보·모범 음원은 그대로 사용한다.
