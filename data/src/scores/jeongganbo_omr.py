@@ -18,7 +18,8 @@
   * 리더가 각을 나누지 못하는 쪽이 있어 각은 --beats(한 각의 정간 수)로 다시 나눈다.
   * 세로선이 연하고 끊긴 스캔은 --gap-fill 10 --line-threshold 250으로 칸 찾기 그림만 보정한다.
     율명 인식은 보정하지 않은 원래 그림을 잘라서 한다.
-  * 그래도 놓친 정간은 --fill-grid로 옆 열의 줄 위치에서 채운다(먹이 있는 자리만).
+  * --fill-grid는 격자 줄 위치로 두 줄 높이로 합쳐진 상자를 나누고 놓친 정간을 채워 다시 읽는다(jeongganbo_grid.py).
+    칸 하나의 오류가 뒤 각 구분으로 번지지 않게 한다. 나눈 칸은 split, 채운 칸은 filled를 cells.json에 남긴다.
   * --yul은 모델이 고를 수 있는 율명을 악기 음역이나 곡의 율명으로 좁힌다. 모델의 해독 함수를 바꾸므로 격자 검출·
     --fill-grid·--grid-boxes·--batch-size의 모든 읽기에 적용된다. 신뢰도는 제한 전 분포에서 고른 토큰의 확률이다.
     --read-dpi는 칸은 --dpi에서 찾고 율명은 더 높은 해상도로 다시 그린 쪽에서 잘라 모든 정간을 다시 읽는다.
@@ -32,6 +33,7 @@ import re
 import sys
 import shutil
 from pathlib import Path
+from jeongganbo_grid import fit_columns
 from jeongganbo_tokens import jg_like
 from octave_check import recover_water_register
 
@@ -55,7 +57,7 @@ parser.add_argument("--keep-empty-columns", action="store_true", help="율명을
 parser.add_argument("--grid-boxes", action="store_true", help="얇은 선과 여러 단은 기존 기하 격자 검출기로 읽는다")
 parser.add_argument("--gap-fill", type=int, default=0, help="칸 찾기 전에 세로로 메울 선 틈(px). 0이면 보정 없음")
 parser.add_argument("--line-threshold", type=int, default=240, help="이보다 어두운 픽셀을 선으로 본다. 리더 기본 240")
-parser.add_argument("--fill-grid", action="store_true", help="옆 열의 줄 위치로 놓친 정간을 채운다")
+parser.add_argument("--fill-grid", action="store_true", help="격자 줄 위치로 합쳐진 정간을 나누고 놓친 정간을 채운다")
 parser.add_argument("--yul", default=None,
                     help="고를 수 있는 율명: 악기 이름(" + ", ".join("danso sogeum jeongak-daegeum".split()) + ") 또는 '중,임,무'처럼 쉼표 목록")
 parser.add_argument("--read-dpi", type=int, default=None, help="율명은 이 해상도로 다시 그린 쪽에서 칸을 잘라 읽는다(예: 300)")
@@ -190,16 +192,23 @@ if args.grid_boxes:
         if not groups or abs(groups[-1][-1][0] - box[0]) >= box[2] / 2 or box[1] <= groups[-1][-1][1]:
             groups.append([])
         groups[-1].append(box)
+    groups = [[dict(x=x, y=y, w=w, h=h) for x, y, w, h in group] for group in groups]
+    if args.fill_grid:
+        # 가로선을 놓쳐 두 줄 높이가 된 상자를 나눈다. 단마다 열이 따로라 열 안쪽만 채운다.
+        fit_columns(groups, gray, inside_only=True)
     beats = args.beats or Counter(map(len, groups)).most_common(1)[0][0]
-    crops = [image[y:y + h, x:x + w] for x, y, w, h in boxes]
+    boxes = [c for group in groups for c in group]
+    crops = [image[c["y"]:c["y"] + c["h"], c["x"]:c["x"] + c["w"]] for c in boxes]
     predictions, confidences = reader.omr(crops)
     cells = []
-    for i, ((x, y, w, h), text, confidence) in enumerate(zip(boxes, predictions, confidences)):
+    for i, (box, text, confidence) in enumerate(zip(boxes, predictions, confidences)):
+        x, y, w, h = (box[k] for k in ('x', 'y', 'w', 'h'))
         text = recover_water_register(text, gray[y:y + h, x:x + w])
         inner = gray[y + h * 15 // 100:y + h * 85 // 100, x + w * 15 // 100:x + w * 85 // 100]
         cells.append(dict(text=text, jg=jg_like(text), conf=round(float(confidence), 3),
-                          x=x, y=y, w=w, h=h, gak=i // beats,
-                          ink=round(float((inner < 160).mean()), 4) if inner.size else 0))
+                          x=x, y=y, w=w, h=h, gak=i // beats, jeonggan=i % beats,
+                          ink=round(float((inner < 160).mean()), 4) if inner.size else 0,
+                          **{k: True for k in ('split', 'filled') if box.get(k)}))
     title = args.title or pdf.stem
     (out / 'cells.json').write_text(json.dumps(dict(title=title, image='page.png', beats=beats, cells=cells),
                                               ensure_ascii=False, indent=1), encoding='utf-8')
@@ -240,37 +249,17 @@ if not args.keep_empty_columns:
 
 if args.fill_grid:
     # 정간보 격자는 규칙적이라 한 열에서 정간이 잡힌 줄은 옆 열에서도 정간이 있는 줄이다.
-    # 선이 끊겨 리더가 놓친 자리를 옆 열의 줄 위치로 채우고, 안쪽에 먹(글자·획)이 있을 때만 정간으로 보고 읽는다.
-    # 곡이 열 중간에서 끝나 아래가 비어 있으면 먹이 없어 채우지 않는다. 장단 열을 거른 뒤에 채우므로
+    # 두 줄 높이로 합쳐진 상자는 줄 위치에서 나누고, 선이 끊겨 놓친 자리는 옆 열의 줄 위치로 채워 다시 읽는다
+    # (jeongganbo_grid.py). 그래야 칸 하나의 오류가 뒤 각 구분으로 번지지 않는다. 장단 열을 거른 뒤에 맞추므로
     # 장단 열 아래의 '자진모리장단'·'강원도민요' 같은 글씨는 정간이 되지 않는다.
     page_img = cv2.imread(str(png))
-    gray = cv2.cvtColor(page_img, cv2.COLOR_BGR2GRAY)
-    med = lambda v: sorted(v)[len(v) // 2]
-    w, h = med([c["w"] for c in cells]), med([c["h"] for c in cells])
-    rows = []
-    for y in sorted(c["y"] for c in cells):
-        if rows and y - rows[-1][-1] < h / 2:
-            rows[-1].append(y)
-        else:
-            rows.append([y])
-    rows = [med(r) for r in rows]
-    added = []
-    for col in columns:
-        x = med([c["x"] for c in col])
-        for y in rows:
-            if any(abs(c["y"] - y) < h / 2 for c in col):
-                continue
-            inner = gray[y + h * 15 // 100:y + h * 85 // 100, x + w * 15 // 100:x + w * 85 // 100]
-            if inner.size == 0 or (inner < 160).mean() < 0.005:
-                continue
-            cell = dict(text="", conf=None, x=x, y=y, w=w, h=h, filled=True)
-            col.append(cell)
-            added.append(cell)
+    added = fit_columns(columns, cv2.cvtColor(page_img, cv2.COLOR_BGR2GRAY))
     if added:
         preds, confs = reader.omr([page_img[c["y"]:c["y"] + c["h"], c["x"]:c["x"] + c["w"]] for c in added])
         for c, p, k in zip(added, preds, confs):
             c["text"], c["conf"] = p, round(float(k), 3)
-    print(f"격자로 채운 정간 {len(added)}개")
+    print(f"격자로 나눈 정간 {sum(1 for c in added if c.get('split'))}개, "
+          f"채운 정간 {sum(1 for c in added if c.get('filled'))}개")
 
 if args.read_dpi:
     # 칸은 정간 크기 기준에 맞춘 --dpi 그림에서 찾았고, 율명은 같은 칸을 고해상도 그림에서 잘라 다시 읽는다.
@@ -292,7 +281,7 @@ source_image = cv2.imread(str(png), cv2.IMREAD_GRAYSCALE)
 for i, c in enumerate(ordered):
     x, y, w, h = (c[k] for k in ('x', 'y', 'w', 'h'))
     c['text'] = recover_water_register(c['text'], source_image[y:y + h, x:x + w])
-    c["jg"], c["gak"] = jg_like(c["text"]), i // args.beats
+    c["jg"], c["gak"], c["jeonggan"] = jg_like(c["text"]), i // args.beats, i % args.beats
 if args.octave_check:
     oct_png = out / "page-read.png"
     if args.read_dpi != 300:

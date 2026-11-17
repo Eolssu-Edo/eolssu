@@ -376,7 +376,7 @@ PYTHONUTF8=1 ~/omr/jeongganbo-omr/.venv/Scripts/python.exe data/src/scores/jeong
 node ~/omr/jeongganbo-generator/tools/import-ngc-omr.mjs data/processed/scores/omr/ngc-easy-danso-06 data/processed/scores/omr/ngc-easy-danso-06/jgb --verify
 ```
 
-처음 실행하면 체크포인트의 옛 LayerNorm 이름을 바꾼 `model_weight-names.pt`를 OMR 폴더에 만듭니다. 정간 수가 장단 × 각 수와 다르면 칸 자르기가 실패한 것입니다. 율명이 하나도 없는 열은 장단 열로 보고 뺍니다. 세로선이 연하거나 끊긴 스캔에서 칸이 합쳐지면 `--gap-fill 10 --line-threshold 250`을 더합니다. 칸 찾기 그림에만 적용되고 율명 인식은 원래 그림으로 합니다. 그래도 빠진 정간은 `--fill-grid`로 옆 열의 줄 위치에서 채웁니다(장단 열 제외, 먹이 있는 자리만).
+처음 실행하면 체크포인트의 옛 LayerNorm 이름을 바꾼 `model_weight-names.pt`를 OMR 폴더에 만듭니다. 정간 수가 장단 × 각 수와 다르면 칸 자르기가 실패한 것입니다. 율명이 하나도 없는 열은 장단 열로 보고 뺍니다. 세로선이 연하거나 끊긴 스캔에서 칸이 합쳐지면 `--gap-fill 10 --line-threshold 250`을 더합니다. 칸 찾기 그림에만 적용되고 율명 인식은 원래 그림으로 합니다. 그래도 남은 칸 오류는 `--fill-grid`로 격자 줄 위치에 맞춥니다. 두 줄 높이로 합쳐진 상자는 줄마다 나눠 다시 읽고, 빠진 정간은 옆 열의 줄 위치에서 채웁니다(장단 열 제외, 먹이 있는 자리 또는 같은 열 위·아래 칸 사이의 인쇄된 빈칸만). 계산은 `jeongganbo_grid.py`에 있습니다.
 
 교과서 표준악보집처럼 PDF에 율명이 글자로 들어 있으면 OMR 없이 글자·선 좌표로 읽습니다. 저장소의 Python만 있으면 되고(`pymupdf`), 한 단의 한 열을 한 각으로 씁니다(쪽을 가로 여러 단으로 나눈 판형은 단을 위에서부터 읽음). `--page`로 쪽을 고르고, 율명 글자가 없는 쪽은 종료 코드 3, 율명은 있지만 정간 격자를 못 읽은 쪽은 4로 끝납니다(악보 인식 서비스가 쪽마다 처리를 고르는 신호). 2중주 쪽은 열 위 '단소1' 표시가 있는 열만 읽습니다. 규칙 검사는 `python -m unittest data/tests/test_standard_score_text.py`(pymupdf 필요)입니다. 결과는 같은 변환 도구로 `.jgb.json`을 만듭니다. 두 경로의 곡별 결과는 [단소 악보 변환 기록](../docs/knowledge/data/danso-scores-umulsai.md)을 확인합니다.
 
@@ -455,4 +455,4 @@ python -m unittest data.tests.test_repair_scoring data.tests.test_rebind_perform
 
 `jeongganbo_omr.py`는 `--image`로 이미 렌더링한 PNG를 받을 수 있습니다. 이때 쪽 번호는 0이고, PDF 재렌더링 옵션(`--read-dpi`, `--octave-check`)은 함께 쓰지 않습니다. 서비스는 `--model-cache-dir`로 요청별 쓰기 경로를 지정하고, `--batch-size 16`으로 추론 배치를 제한합니다. `--beats 0`은 검출한 각의 정간 수 중 최빈값을 사용합니다. 한 인쇄 열에 장단이 여러 번 들어간 경우 실제 장단별 각 구분은 검수해야 합니다.
 
-`--fill-grid`는 옆 열의 칸 위치를 참고해 놓친 칸을 보완하고, `--keep-empty-columns`는 율명을 못 읽은 열도 보존합니다. 읽지 못한 열을 없애 뒤 칸을 당기지 않도록 서비스에서 두 옵션을 사용합니다. `cells.json`에는 원문·신뢰도·상자·보완 여부와 중앙 먹 비율(`ink`)을 남깁니다. 격자를 못 찾으면 종료 코드 4입니다. 순수 토큰 변환은 `jeongganbo_tokens.py`로 공유합니다. [모델 설치와 서비스 검사](../ai/README.md#스캔-모델-실행-458)를 따릅니다.
+`--fill-grid`는 격자 줄 위치로 합쳐진 칸을 나누고 놓친 칸을 보완하고, `--keep-empty-columns`는 율명을 못 읽은 열도 보존합니다. 읽지 못한 열을 없애 뒤 칸을 당기지 않도록 서비스에서 두 옵션을 사용합니다. `cells.json`에는 원문·신뢰도·상자·각과 정간 번호(`gak`·`jeonggan`)·나눔(`split`)·보완(`filled`) 여부와 중앙 먹 비율(`ink`)을 남깁니다. 격자를 못 찾으면 종료 코드 4입니다. 순수 토큰 변환은 `jeongganbo_tokens.py`로 공유합니다. [모델 설치와 서비스 검사](../ai/README.md#스캔-모델-실행-458)를 따릅니다.

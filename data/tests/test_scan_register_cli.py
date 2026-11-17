@@ -162,3 +162,50 @@ def test_instrument_pitch_limit_reaches_bounded_batches_and_keeps_unlimited_conf
     assert all(c['conf'] < top < .8 for c in limited['cells'])
     if not grid:
         assert json.loads((tmp_path / 'batches.json').read_text()) == [5, 5, 5, 5, 4]
+
+
+GRID_MODEL = '''
+import json
+import cv2
+import os
+from pathlib import Path
+from types import SimpleNamespace as Box
+INFERENCER_DEFAULT_KWARGS = {}
+boxes = json.loads(Path(os.environ['REGISTER_FIXTURE']).with_name('boxes.json').read_text())
+class Predictions:
+    def __call__(self, images):
+        return [f'임:{min(9, len(image) // 100)}' for image in images], [.91] * len(images)
+class JeongganboReader:
+    def __init__(self, **kwargs): self.omr = Predictions()
+    def __call__(self, path):
+        notes = [Box(x=x, y=y, w=w, h=h, omr_text='임:5', omr_confidence=.91) for x, y, w, h in boxes]
+        return Box(img=cv2.imread(path), gaks=[Box(is_jangdan=False, jeonggans=notes)])
+'''
+
+
+@pytest.mark.parametrize('grid', [False, True], ids=['model-grid', 'geometric-grid'])
+def test_merged_and_missing_cells_keep_following_gak_positions(tmp_path, grid):
+    """둘째 열의 1·2줄 상자가 합쳐지고 넷째 열의 3줄 상자가 빠져도 뒤 정간의 각·정간 번호는 그대로다."""
+    source, record, model = register_page(tmp_path)
+    boxes = [c['box'] for c in json.loads(record.read_text(encoding='utf-8'))]
+    merged, missing = 4 + 1, 12 + 3
+    if grid:
+        image = cv2.imread(str(source), cv2.IMREAD_GRAYSCALE)
+        x, y = boxes[merged][:2]
+        image[y, x + 2:x + 99] = 255  # 가로선 하나를 지운다
+        cv2.imwrite(str(source), image)
+    else:
+        boxes[merged - 1] = boxes[merged - 1][:3] + [200]
+        del boxes[missing], boxes[merged]
+    record.with_name('boxes.json').write_text(json.dumps(boxes), encoding='utf-8')
+    (model / 'jngbomr.py').write_text(GRID_MODEL, encoding='utf-8')
+    result, report = run_reader(tmp_path, source, model, record, '--fill-grid', *(['--grid-boxes'] if grid else []))
+    cells = report['cells']
+    assert len(cells) == 24 and report['beats'] == 4
+    assert [(c['gak'], c['jeonggan']) for c in cells] == [(i // 4, i % 4) for i in range(24)]
+    assert [i for i, c in enumerate(cells) if c.get('split')] == [merged - 1, merged]
+    assert [i for i, c in enumerate(cells) if c.get('filled')] == ([] if grid else [missing])
+    # 나눈 칸과 채운 칸은 한 정간 높이로 다시 읽었다(가짜 모델은 높이 100px마다 위치 번호 1을 낸다)
+    assert all(c['text'] == '임:1' for c in cells if c.get('split') or c.get('filled'))
+    expected = json.loads(record.read_text(encoding='utf-8'))
+    assert all(abs(c['y'] - e['box'][1]) <= 2 for c, e in zip(cells, expected))

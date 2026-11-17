@@ -159,3 +159,36 @@ cells=[dict(text=t,jg=j,conf=c,ink=.1,x=10,y=i*20,w=20,h=20,gak=0) for i,(t,j,c)
     assert any(i['kind']=='UNREADABLE' and i['cellId']=='c0-j1' for i in out['issues'])
     assert any(i['kind']=='LOW_CONFIDENCE' and i['cellId']=='c0-j2' for i in out['issues'])
     assert all(i['page']==0 and i['bbox'] for i in out['issues'])
+
+
+def test_grid_places_use_reader_numbers_and_fall_back_to_order():
+    from omr_service.jeongganbo_scan import grid_places
+    numbered = [dict(gak=g, jeonggan=j) for g, j in [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1)]]
+    assert grid_places(numbered, 3) == [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1)]
+    assert grid_places([dict(gak=0)] * 4, 3) == [(0, 0), (0, 1), (0, 2), (1, 0)]  # 옛 리더 출력
+    assert grid_places([dict(gak=0, jeonggan=0), dict(gak=0, jeonggan=0)], 3) == [(0, 0), (0, 1)]
+    assert grid_places([dict(gak=0, jeonggan=3)], 3) == [(0, 0)]
+
+
+@pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
+def test_split_cell_is_flagged_where_the_reader_placed_it(tmp_path,monkeypatch):
+    from omr_service import jeongganbo_scan as scan
+    script=tmp_path/'reader.py'
+    script.write_text('''import json,sys
+from pathlib import Path
+out=Path(sys.argv[3]);out.mkdir(parents=True,exist_ok=True)
+cells=[dict(text='청태:5',conf=.99,ink=.1,x=10,y=i*20,w=20,h=20,gak=i//3,jeonggan=i%3) for i in range(6)]
+cells[4]['split']=True
+(out/'cells.json').write_text(json.dumps(dict(beats=3,cells=cells)))
+''',encoding='utf-8')
+    monkeypatch.setattr(scan,'READER',[sys.executable,str(script)])
+    monkeypatch.setenv('JEONGGANBO_OMR_DIR',str(tmp_path))
+    buf=io.BytesIO();Image.new('RGB',(200,200),'white').save(buf,'PNG')
+    api.app.dependency_overrides[api.get_fetcher]=lambda:lambda url,p,limit,deadline:p.write_bytes(buf.getvalue())
+    try:
+        out=TestClient(api.app).post('/v1/recognitions',json=dict(conversionId='split',notation='JEONGGANBO',jangdan='세마치',instrument='SOGEUM',files=[dict(url='https://local.invalid/page.png',contentType='image/png')])).json()
+    finally:
+        api.app.dependency_overrides.clear()
+    assert out['status']=='DONE',out
+    assert [len(c['cells']) for c in out['score']['columns']]==[3,3]
+    assert [(i['cellId'],i['detail']) for i in out['issues']]==[('c1-j1',{'confidence':.99,'reason':'GRID_SPLIT'})]
