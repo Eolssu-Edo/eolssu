@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -146,7 +147,8 @@ private fun MySheetsSection(state: EditNewUiState, actions: EditNewSheetActions)
                 color = EolssuTheme.colors.textMuted,
             )
         }
-        sheets.forEach { sheet ->
+        // 줄마다 key를 두어 목록 순서가 바뀌어도 변환 막대의 완료 모션 상태가 그 악보를 따라간다(S15P31E102-1103).
+        sheets.forEach { sheet -> key(sheet.id) {
             MySheetRow(
                 sheet,
                 onOpen = { actions.onOpen(sheet) },
@@ -159,7 +161,7 @@ private fun MySheetsSection(state: EditNewUiState, actions: EditNewSheetActions)
                 onReimport = { actions.onReimport(sheet) },
                 bordered = false,
             )
-        }
+        } }
     }
 }
 
