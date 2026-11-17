@@ -14,6 +14,8 @@ import com.ssafy.eolssu.feature.song.CONVERSION_POLL_DEFAULT_MS
 import com.ssafy.eolssu.feature.song.ConversionFailureGuide
 import com.ssafy.eolssu.feature.song.conversionFailureGuide
 import com.ssafy.eolssu.feature.song.conversionProgress
+import com.ssafy.eolssu.feature.song.serverReadingElapsedMs
+import com.ssafy.eolssu.feature.song.wallClockMs as systemWallClockMs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -30,7 +32,7 @@ import kotlin.time.TimeSource
  *
  * @property conversion 마지막으로 받은 변환 상태(SHT-10). 아직 받지 못했으면 null.
  * @property title 내 악보 목록에서 찾은 제목. 모르면 null.
- * @property readingElapsedMs 이 화면에서 '읽는 중'을 처음 본 뒤 지난 시간. 진행 막대 어림에 쓴다.
+ * @property readingElapsedMs 서버가 읽기를 시작한 뒤 지난 시간. 시작 시각을 모르면 이 화면에서 '읽는 중'을 처음 본 뒤 지난 시간. 진행 막대 어림에 쓴다.
  * @property unreachable 상태 조회가 여러 번 이어서 실패했다. 계속 다시 묻는다.
  * @property missing 악보가 없다(404). 지워졌거나 다른 계정이다.
  * @property openEditor 완료를 [SheetConversionViewModel.FINISH_SHOW_MS]만큼 보인 뒤 편집 화면으로 갈 차례. 화면이 이동한 뒤 [SheetConversionViewModel.editorOpened]로 지운다.
@@ -68,6 +70,7 @@ class SheetConversionViewModel(
     mySheetRepository: MySheetRepository? = null,
     member: SignedInMember? = null,
     private val clockMs: () -> Long = monotonicMs(),
+    private val wallClockMs: () -> Long = ::systemWallClockMs,
 ) : ViewModel() {
     private val state = MutableStateFlow(SheetConversionUiState())
     val uiState: StateFlow<SheetConversionUiState> = state.asStateFlow()
@@ -130,7 +133,9 @@ class SheetConversionViewModel(
             val reading = conversion.status == SheetConversionStatus.Running && conversion.stage != SheetConversionStage.BuildingScore
             val now = clockMs()
             if (reading && readingSince == null) readingSince = now
-            val elapsed = readingSince?.takeIf { reading }?.let { now - it } ?: 0
+            // 서버 시작 시각부터 세어 화면에 들어온 때부터 막대가 다시 차지 않게 한다(S15P31E102-1099).
+            val elapsed = if (!reading) 0
+                else serverReadingElapsedMs(conversion, wallClockMs()) ?: readingSince?.let { now - it } ?: 0
             if (conversion.status == SheetConversionStatus.Done) {
                 repository.acknowledgeCompletion(sheetId)
                 // 붓이 끝까지 그려지는 것을 잠깐 보인 뒤 넘어간다. 바로 넘어가면 진행 중에 갑자기 끝난 것처럼 보인다.

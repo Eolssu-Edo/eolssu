@@ -31,6 +31,19 @@ class SheetConversionRepositoryTest {
         assertEquals(SheetNotation.Jeongganbo, found.notation)
     }
 
+    @Test fun readsServerReadingStartOnlyWhileConverting() = runTest {
+        // 진행 막대가 화면 진입이 아니라 서버 시작부터 세도록 startedAt을 받는다(S15P31E102-1099).
+        val running = assertIs<SheetConversionLookup.Found>(repository(HttpStatusCode.OK,
+            conversion("RUNNING", ""","stage":"OMR","startedAt":"2026-11-09T00:00:30Z"""")).status("91")).conversion
+        assertEquals(1_794_182_430_000L, running.startedAtMs)
+        val done = assertIs<SheetConversionLookup.Found>(repository(HttpStatusCode.OK,
+            conversion("DONE", ""","startedAt":"2026-11-09T00:00:30Z"""")).status("91")).conversion
+        assertNull(done.startedAtMs, "끝난 변환은 막대가 없어 시작 시각을 쓰지 않는다")
+        val broken = assertIs<SheetConversionLookup.Found>(repository(HttpStatusCode.OK,
+            conversion("RUNNING", ""","stage":"OMR","startedAt":"어제"""")).status("91")).conversion
+        assertNull(broken.startedAtMs, "읽을 수 없는 시각은 무시하고 변환 상태는 그대로 받는다")
+    }
+
     @Test fun readsStaffNotationAndIgnoresUnknownNotation() = runTest {
         val staff = repository(HttpStatusCode.OK, conversion("FAILED", ""","failureCode":"NO_SCORE_FOUND"""").replace("JEONGGANBO", "STAFF"))
         assertEquals(SheetNotation.Staff, assertIs<SheetConversionLookup.Found>(staff.status("91")).conversion.notation)
