@@ -148,6 +148,7 @@ if args.yul:
     banned = torch.tensor([i for i, t in enumerate(tok.vocab) if yul_re.match(t) and t not in allowed])
     model = reader.omr.model
 
+    @torch.inference_mode()  # 원래 inference처럼 기울기 그래프를 만들지 않는다
     def constrained_inference(x, max_len=None, batch=True, return_confidence=False):
         """jngbomr TransformerOMR.inference와 같은 탐욕 해독인데, 허용하지 않은 율명 토큰은 고르지 못하게 한다."""
         x = model.run_img_cnn(x)
