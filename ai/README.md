@@ -262,6 +262,8 @@ S15P31E102-1058: 스캔 r7은 요청 악기로 율명 후보를 좁힙니다. `D
 
 S15P31E102-1068: 스캔 r9는 읽은 각의 정간 수가 고른 장단과 맞지 않을 때 정간 사이 가로선의 굵기로 각 경계를 다시 찾습니다. 일정한 간격의 선만 분명히 굵고 그 간격이 장단에 맞을 때만 바꿉니다(예: 세마치 12정간 줄 → 3정간 각). `uv run pytest tests/unit/test_omr_scan_engine.py -k gak`이 작은 자체 그림으로 판정 경계를 검사합니다. 실제 사진 결과는 [스캔 실행 기록](../docs/knowledge/ai/jeongganbo-scan-runtime.md#굵은-각-구분선으로-각-나누기-1068)에 있습니다.
 
+S15P31E102-1059: 스캔 r10은 리더에 넘기기 전에 `omr_service/page_rectify.py`로 사진의 기울기·원근을 격자선 네 개로 펴고, 그늘진 종이는 밝기를 고릅니다. 반듯하고 흰 쪽은 원래 파일을 그대로 넘겨 이전 결과와 같습니다. numpy·Pillow만 써서 기본 테스트 환경에서도 돕니다. `uv run pytest tests/unit/test_omr_page_rectify.py`가 합성 기울임 사진의 격자 복원과 원래 좌표 복원을 검사하고, Node 변환기가 필요한 응답 검사는 `JGB_GENERATOR_DIR`가 있을 때만 돕니다. 실제 리더 전후 비교는 `uv run python -m evaluation.jeongganbo_rectify --help`의 명령으로 재현하며 결과는 [보정 기록](../docs/knowledge/ai/jeongganbo-scan-rectify.md)에 있습니다.
+
 스캔 전용 의존성은 `omr-scan-requirements.in`과 SHA-256을 포함한 `omr-scan-requirements.txt`로 고정해 기존 채점 서비스의 `uv.lock`과 분리했습니다. Python 3.12·Linux x86_64 CPU 휠을 사용합니다. 같은 uv 버전에서 `uv pip compile --python .venv/bin/python --generate-hashes omr-scan-requirements.in -o omr-scan-requirements.txt`로 다시 고정할 수 있습니다. 모델 소스·가중치의 획득 URL과 체크섬은 `omr.Dockerfile`에 있습니다.
 
 `docker build -f ai/omr.Dockerfile -t eolssu-omr .`로 전체를 빌드합니다. 이미 검증한 기본 런타임을 재사용하는 로컬 검사는 `--build-arg OMR_SCANNER_BASE=<검증한 기본 이미지>`로 스캔 확장만 빌드하며, AI/DATA 소스·참조 데이터는 현재 작업본으로 복사합니다. `--target runtime`은 확장을 제외한 기본 단계입니다. 스캔 확장 없는 실행에는 `JEONGGANBO_OMR_DIR`가 없어 스캔 요청이 `ENGINE_ERROR`로 끝납니다.
