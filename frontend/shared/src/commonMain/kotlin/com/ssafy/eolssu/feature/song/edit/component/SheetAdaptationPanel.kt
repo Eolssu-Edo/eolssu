@@ -39,7 +39,7 @@ import kotlin.math.roundToInt
 
 /**
  * 곡 전체 높이 맞추기(S15P31E102-979·1042). 악기는 악보를 만들 때 고르므로 여기서는 보이지 않는다.
- * 첫 줄 왼쪽 흰 상자에 지금 고른 높이(`+1반음`), 오른쪽에 개수와 적용을 두고, 아래에 추천 칩, −·슬라이더·+,
+ * 첫 줄 왼쪽에 두 개수를 두 줄로, 오른쪽에 고른 높이를 담은 적용 버튼(`+1반음으로 적용`)을 두고(S15P31E102-1098), 아래에 추천 칩, −·슬라이더·+,
  * '추천'의 뜻과 높이만으로 다 못 고칠 때 남는 음 수·다음 할 일을 쌓는다.
  */
 @Composable
@@ -72,21 +72,15 @@ internal fun SheetAdaptationPanel(
             state.selected == null -> Text(stringResource(Res.string.sheet_adapt_empty))
             else -> state.selected?.let { selected ->
                 val recommended = recommendedAdaptations(state.plans).firstOrNull()
-                // 높이 상자·개수·적용을 늘 한 줄에 둔다. 줄바꿈 배치(FlowRow)는 '원조 유지'처럼 긴 상자나 큰 글꼴에서
-                // 마지막 적용 버튼만 다음 줄로 밀어냈다(S15P31E102-1098). 남는 폭은 개수가 나눠 쓰고 넘치면 줄임표로 줄인다.
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TransposeBox(transposeLabel(selected.transpose))
-                    // 두 개수를 한 줄에 나란히 두고, 적용은 작은 네모 버튼(32dp)으로 둔다(S15P31E102-889).
-                    Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(Res.string.sheet_adapt_octave_count, selected.octaveChanges), style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                        Text("·", style = MaterialTheme.typography.labelMedium, color = colors.lineStrong)
-                        Text(stringResource(Res.string.sheet_adapt_unresolved_count, selected.unresolved), style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
-                            color = if (selected.unresolved > 0) colors.recText else colors.text)
+                // 왼쪽에 두 개수를 두 줄로 쌓고, 오른쪽에 고른 높이를 담은 적용 버튼 하나를 둔다(S15P31E102-1098).
+                // 높이 상자와 적용 버튼을 따로 두던 한 줄(FlowRow)은 '원조 유지'나 큰 글꼴에서 적용 버튼만 다음 줄로 밀어냈다.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        AdaptCount(stringResource(Res.string.sheet_adapt_octave_count), selected.octaveChanges, colors.text)
+                        AdaptCount(stringResource(Res.string.sheet_adapt_unresolved_count), selected.unresolved,
+                            if (selected.unresolved > 0) colors.recText else colors.text)
                     }
-                    PillButton(stringResource(Res.string.sheet_details_apply), onApply, compact = true)
+                    PillButton(applyLabel(selected.transpose), onApply)
                 }
                 // 칩 영역은 −·+ 버튼 폭만큼 안쪽에 두어 슬라이더 칸과 같은 가로 위치를 쓴다.
                 RecommendationMark(recommended, thumbInset, trackCorner,
@@ -140,14 +134,20 @@ private val StepButtonSize = 48.dp
 private val AdaptThumbSize = 22.dp
 private val RecommendDot = 5.dp
 
-/** 지금 고른 높이를 흰 상자에 담아 슬라이더 값과 같은 말로 보인다. */
+/** 개수 한 줄: 옅은 이름 뒤에 굵은 개수. 개수가 바뀌어도 이름 자리는 그대로라 눈이 숫자만 따라간다. */
 @Composable
-private fun TransposeBox(label: String) {
-    Box(Modifier.heightIn(min = 36.dp).background(EolssuTheme.colors.surface, RoundedCornerShape(10.dp))
-        .padding(horizontal = 12.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
-        Text(label, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+private fun AdaptCount(label: String, count: Int, countColor: androidx.compose.ui.graphics.Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = EolssuTheme.colors.textSub, maxLines = 1)
+        Text(stringResource(Res.string.sheet_adapt_count, count), style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold, color = countColor, maxLines = 1)
     }
 }
+
+/** 적용 버튼 글자. 고른 높이를 함께 적어 무엇이 적용되는지 버튼만 봐도 알게 한다. */
+@Composable
+private fun applyLabel(value: Int): String = if (value == 0) stringResource(Res.string.sheet_adapt_apply_original)
+    else stringResource(Res.string.sheet_adapt_apply_semitones, if (value > 0) "+$value" else value.toString())
 
 /**
  * 추천 이조를 슬라이더 칸 위의 `추천` 칩 하나로 보여 준다(S15P31E102-979).

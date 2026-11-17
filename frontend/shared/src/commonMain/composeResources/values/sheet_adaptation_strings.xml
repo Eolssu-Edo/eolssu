@@ -6,8 +6,11 @@
     <string name="sheet_adapt_slider">이조 조절, 마이너스 6부터 플러스 6반음</string>
     <string name="sheet_adapt_decrease">이조 한 반음 내리기</string>
     <string name="sheet_adapt_increase">이조 한 반음 올리기</string>
-    <string name="sheet_adapt_octave_count">옥타브 옮긴 음 %1$d개</string>
-    <string name="sheet_adapt_unresolved_count">낼 수 없는 음 %1$d개</string>
+    <string name="sheet_adapt_octave_count">옥타브 이동</string>
+    <string name="sheet_adapt_unresolved_count">못 내는 음</string>
+    <string name="sheet_adapt_count">%1$d개</string>
+    <string name="sheet_adapt_apply_semitones">%1$s반음으로 적용</string>
+    <string name="sheet_adapt_apply_original">원조 유지로 적용</string>
     <string name="sheet_adapt_empty">맞출 수 있는 음이 없어요.</string>
     <string name="sheet_adapt_confirm_title">음높이를 다시 맞출까요?</string>
     <string name="sheet_adapt_confirm_overwrite">직접 바꾼 음높이·옥타브는 덮어씁니다.</string>
