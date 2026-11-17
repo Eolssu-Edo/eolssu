@@ -35,6 +35,23 @@ def test_scan_cell_keeps_supported_pitch_and_marks_unsupported_ornament():
     assert cell_text({'text':'','jg':'','ink':0}) == ('',None)
 
 
+@pytest.mark.parametrize('text,expected', [
+    ('청태:2 -_풀어내림표:5 청임:8', ':2 청태 :5 - 풀어내림표 :8 청임'),
+    ('-_흘림표:0', ':0 - 흘림표'),
+    ('-_니루-니:5', ':0 - 니루-니'),
+    ('-_반길이표/덧길이표:5', ':0 - 반길이표/덧길이표'),
+])
+def test_scan_cell_keeps_ornament_attached_to_tie(text, expected):
+    from omr_service.jeongganbo_scan import cell_text
+    assert cell_text({'text': text}) == (expected, None)
+
+
+@pytest.mark.parametrize('text', ['-_-:5', '-__니나:5', '쉼표_흘림표:5', '흘림표:5'])
+def test_scan_cell_rejects_tie_split_and_ornaments_without_note(text):
+    from omr_service.jeongganbo_scan import cell_text
+    assert cell_text({'text': text}) == ('', 'UNSUPPORTED_SYMBOL')
+
+
 def test_text_probe_time_is_subtracted_before_scan(monkeypatch):
     from omr_service import jeongganbo_text, jeongganbo_scan
     clock=iter([10.,13.])
@@ -92,6 +109,7 @@ sys.exit(4)
     for argv in runs:
         assert [a for i,a in enumerate(argv) if a=='--yul' or (i and argv[i-1]=='--yul')]==expected
         assert '--batch-size' in argv
+        assert '--side-marks' in argv
 
 
 @pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
