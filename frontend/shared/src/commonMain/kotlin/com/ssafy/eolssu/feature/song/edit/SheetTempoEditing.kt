@@ -4,6 +4,7 @@ import com.ssafy.eolssu.core.model.HanbaeMark
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.data.song.CommonScoreData
 import com.ssafy.eolssu.data.song.ModelTempoChange
+import com.ssafy.eolssu.data.song.commonSourceSha256
 import kotlinx.serialization.json.*
 
 /** 빠르기가 바뀌는 방식. 정간보 한배 기호 하나가 바뀌는 곳 하나다(S15P31E102-1089). */
@@ -74,13 +75,104 @@ private fun SheetDraft.editingExpressions(): JsonObject = tempoExpressions ?: bu
     put("placements", JsonArray(original?.let(::inferredPlacements).orEmpty()))
 }
 
+/**
+ * 편집 중 companion의 칸·이벤트 ID는 불러온 악보(original) 기준이다. 각을 넣거나 지우면 내보낼 악보의 칸 ID가
+ * `c{각}-j{정간}`으로 다시 매겨지므로 같은 정간 순서의 새 ID로 옮긴다(S15P31E102-1095). 지운 칸은 대응이 없다.
+ */
+private class CompanionIds(private val cells: Map<String, String>?, private val events: Map<String, String>?) {
+    fun cell(id: String?): String? = id?.let { if (cells == null) it else cells[it] }
+    fun event(id: String?): String? = id?.let { if (events == null) it else events[it] }
+}
+
+private fun SheetDraft.companionIds(score: CommonScoreData): CompanionIds {
+    val ids = sourceCellIds ?: return CompanionIds(null, null)
+    val next = score.columns.flatMap { it.cells }
+    val old = original?.columns?.flatMap { it.cells }.orEmpty().associateBy { it.id }
+    val cells = mutableMapOf<String, String>()
+    val events = mutableMapOf<String, String>()
+    ids.forEachIndexed { index, id ->
+        val cell = next.getOrNull(index) ?: return@forEachIndexed
+        if (id == null) return@forEachIndexed
+        cells[id] = cell.id
+        val units = cell.units.associateBy { it.row to it.col }
+        old[id]?.units?.forEach { unit ->
+            val moved = units[unit.row to unit.col]?.eventId
+            if (unit.eventId.isNotEmpty() && !moved.isNullOrEmpty()) events.getOrPut(unit.eventId) { moved }
+        }
+    }
+    return CompanionIds(cells, events)
+}
+
+private fun JsonObject.shifted(key: String, shift: (Int) -> Int): JsonObject =
+    integer(key)?.let { changed(key to JsonPrimitive(shift(it))) } ?: this
+
+/**
+ * 각을 지우면 막을지 본다. 빠르기 변경(기호만 있는 것 포함)이 시작하는 각, 점점 구간이
+ * 걸친 각, 반복 범위의 각은 지울 수 없다(S15P31E102-1095, 사용자 결정). 바로 바뀐 빠르기가 이어지기만 하는 각은 지운다.
+ */
+internal fun SheetDraft.tempoColumnDeletionBlocked(column: Int): Boolean {
+    val expression = tempoExpressions ?: return false
+    if (column !in 0 until columnCount) return false
+    val from = indexOf(column, 0)
+    val to = from + sizes[column]
+    if (tempoCues.any { cue -> cue.start < to && cue.last >= from }) return true
+    val plan = expression["performancePlan"] as? JsonObject ?: return false
+    return plan.objects("repeats").any { (it.integer("start_gak") ?: 0) <= column + 1 && column + 1 <= (it.integer("end_gak") ?: 0) }
+}
+
+private fun JsonObject.withPlan(transform: (JsonObject) -> JsonObject, continuations: (List<JsonObject>) -> List<JsonObject>): JsonObject {
+    val result = toMutableMap()
+    (this["performancePlan"] as? JsonObject)?.let { result["performancePlan"] = transform(it) }
+    (this["gakContinuations"] as? JsonArray)?.let { result["gakContinuations"] = JsonArray(continuations(it.filterIsInstance<JsonObject>())) }
+    return JsonObject(result)
+}
+
+private fun JsonObject.mapped(key: String, transform: (List<JsonObject>) -> List<JsonObject>): JsonObject =
+    if (key in this) changed(key to JsonArray(transform(objects(key)))) else this
+
+/**
+ * [column](0부터) 뒤에 각을 넣으면 그 뒤 위치를 한 각씩 민다. 새 각은 앞 각 끝의 빠르기를 잇는다.
+ * 구간 끝이 바로 다음 각 시작이면 새 각도 그 구간에 든다. 반복은 끝 각을 포함하므로 끝 각 바로 뒤의 새 각은 반복 밖이다.
+ */
+internal fun SheetDraft.tempoExpressionsAfterColumnInsert(column: Int): JsonObject? {
+    val expression = tempoExpressions ?: return null
+    val first = column + 2
+    fun shift(gak: Int) = if (gak >= first) gak + 1 else gak
+    return expression.withPlan({ plan ->
+        plan.mapped("tempos") { it.map { e -> e.shifted("gak", ::shift).shifted("end_gak", ::shift) } }
+            .mapped("repeats") { it.map { r -> r.shifted("start_gak", ::shift).shifted("end_gak", ::shift) } }
+    }) { entries -> entries.filter { it.integer("gak") != first }.map { it.shifted("gak", ::shift) } }
+}
+
+/**
+ * [column](0부터) 각을 지우면 뒤 위치를 한 각씩 당긴다. 막는 경우([tempoColumnDeletionBlocked])는 미리 거른다.
+ * 지운 각 첫 정간의 복귀 항목은 다음 각 시작으로 남고, 그 자리에 다른 변경이 오거나 악보 끝이 되면 버린다.
+ */
+internal fun SheetDraft.tempoExpressionsAfterColumnDelete(column: Int): JsonObject? {
+    val expression = tempoExpressions ?: return null
+    val deleted = column + 1
+    val last = columnCount
+    fun shift(gak: Int) = if (gak > deleted) gak - 1 else gak
+    return expression.withPlan({ plan ->
+        plan.mapped("tempos") { entries ->
+            val moved = entries.map { e -> e.shifted("gak", ::shift).shifted("end_gak", ::shift) }
+            moved.filterIndexed { i, e ->
+                if (entries[i].integer("gak") != deleted) true
+                else deleted != last && moved.withIndex().none { (j, o) -> j != i && entries[j].integer("gak") != deleted &&
+                    o.integer("gak") == e.integer("gak") && o.integer("cell") == e.integer("cell") }
+            }
+        }.mapped("repeats") { it.map { r -> r.shifted("start_gak", ::shift).shifted("end_gak", ::shift) } }
+    }) { entries -> entries.filter { it.integer("gak") !in setOf(deleted, deleted + 1) }.map { it.shifted("gak", ::shift) } }
+}
+
 /** DATA common_preview의 교육용 자동 반복과 같은 각 단위 2회 재생을 명시화한다. */
-private fun initialPerformancePlan(score: CommonScoreData, expression: JsonObject): JsonObject {
+private fun SheetDraft.initialPerformancePlan(score: CommonScoreData, expression: JsonObject): JsonObject {
+    val ids = companionIds(score)
     val repeatedCells = expression.objects("placements").filter { placement ->
         (placement["symbols"] as? JsonArray).orEmpty().any {
             (it as? JsonPrimitive)?.content?.substringBefore('@') in setOf("반복표", "도돌이표")
         }
-    }.mapNotNull { it.string("cellId") }.toSet()
+    }.mapNotNull { ids.cell(it.string("cellId")) }.toSet()
     return buildJsonObject {
         put("schema", "${score.score.instrument.lowercase().replace('_', '-')}-performance/v1")
         put("repeats", buildJsonArray {
@@ -231,11 +323,16 @@ internal fun SheetDraft.withTempoCues(cues: List<SheetTempoCue>): SheetDraft {
         val mark = if (cue.resolved) cue.markFrom(before, base) else cue.mark
         val cell = flatCells.getOrNull(cue.start)
         val unit = cell?.units?.firstOrNull()
-        if (mark != null && cell != null && unit != null) {
+        // companion은 불러온 악보의 칸·이벤트 ID를 쓰고 저장 때 새 ID로 옮긴다(S15P31E102-1095).
+        // 저장 전 새로 넣은 각에는 대응 ID가 없어 숫자만 두고, 기호는 저장 뒤 다시 편집할 때 붙는다.
+        val cellId = if (sourceCellIds == null) cell?.id else sourceCellIds.getOrNull(cue.start)
+        if (mark != null && cell != null && unit != null && cellId != null) {
+            val eventId = original?.columns?.flatMap { it.cells }?.firstOrNull { it.id == cellId }?.units
+                ?.firstOrNull { it.row == unit.row && it.col == unit.col }?.eventId ?: unit.eventId
             val symbol = JsonPrimitive(mark.symbol)
-            val at = placements.indexOfFirst { it.string("cellId") == cell.id && it.integer("row") == unit.row && it.integer("col") == unit.col }
+            val at = placements.indexOfFirst { it.string("cellId") == cellId && it.integer("row") == unit.row && it.integer("col") == unit.col }
             if (at >= 0) placements[at] = placements[at].changed("symbols" to JsonArray((placements[at]["symbols"] as? JsonArray).orEmpty() + symbol))
-            else placements += buildJsonObject { put("eventId", unit.eventId); put("cellId", cell.id); put("row", unit.row); put("col", unit.col)
+            else placements += buildJsonObject { put("eventId", eventId); put("cellId", cellId); put("row", unit.row); put("col", unit.col)
                 put("symbols", JsonArray(listOf(symbol))) }
         }
         if (!cue.resolved) continue
@@ -318,15 +415,22 @@ internal fun SheetDraft.scoreWithTempo(source: CommonScoreData): CommonScoreData
 /** 이벤트 기호와 companion은 동일한 기보 위치 순서로 합쳐야 DATA 검증을 통과한다. */
 private fun SheetDraft.orderedPlacements(score: CommonScoreData): List<JsonObject> {
     val expression = editingExpressions()
+    val ids = companionIds(score)
     // 정간을 합쳐 기호가 붙어 있던 음 자리가 사라지면 같은 정간의 첫 음 자리로 옮긴다(S15P31E102-1091).
     val units = score.columns.flatMap { it.cells }.associate { cell -> cell.id to cell.units.map { ScoreUnitKey(cell.id, it.row, it.col) } }
     val desiredTempo = mutableMapOf<ScoreUnitKey, List<String>>()
-    tempoAnnotations().forEach { (key, symbols) ->
-        val inCell = units[key.cellId].orEmpty()
+    tempoAnnotations().forEach { (old, symbols) ->
+        val cellId = ids.cell(old.cellId) ?: return@forEach
+        val key = old.copy(cellId = cellId)
+        val inCell = units[cellId].orEmpty()
         val target = key.takeIf { it in inCell } ?: inCell.firstOrNull() ?: return@forEach
         desiredTempo[target] = desiredTempo[target].orEmpty() + symbols.filterNot { it in desiredTempo[target].orEmpty() }
     }
-    val existing = expression.objects("placements")
+    val existing = expression.objects("placements").mapNotNull { placement ->
+        val cellId = ids.cell(placement.string("cellId")) ?: return@mapNotNull null
+        placement.changed("cellId" to JsonPrimitive(cellId),
+            "eventId" to JsonPrimitive(ids.event(placement.string("eventId")) ?: ""))
+    }
     val byId = score.events.associateBy { it.id }
     val ordinary = mutableMapOf<ScoreUnitKey, List<String>>()
     val seen = mutableSetOf<String>()
@@ -351,9 +455,15 @@ private fun SheetDraft.orderedPlacements(score: CommonScoreData): List<JsonObjec
     } } }
 }
 
-internal fun SheetDraft.exportExpressions(template: JsonObject?, sourceSha256: String, serverBpm: Int): JsonObject? {
+/**
+ * 편집한 companion을 보낼 악보에 결합한다. 각을 넣거나 지워도 좌표가 이 악보를 가리키도록 결합 해시는 보낼 악보의
+ * 정규화 SHA다. 서버는 이 결합이면 위치 동일성 대신 좌표 유효성을 검사한다(S15P31E102-1095).
+ */
+internal fun SheetDraft.exportExpressions(template: JsonObject?, serverBpm: Int): JsonObject? {
     if (tempoExpressions == null) return template
     val score = toCommonScore()
+    val sourceSha256 = commonSourceSha256(Json.encodeToJsonElement(score))
+    val ids = companionIds(score)
     val expression = editingExpressions()
     val placements = orderedPlacements(score)
     val plan = expression["performancePlan"] as? JsonObject ?: return template
@@ -371,8 +481,9 @@ internal fun SheetDraft.exportExpressions(template: JsonObject?, sourceSha256: S
     result["sourceSha256"] = JsonPrimitive(sourceSha256)
     result["placements"] = JsonArray(placements)
     val slots = expression["sourceSlots"] as? JsonArray
-    if (slots != null) result["sourceSlots"] = JsonArray(slots.map { raw ->
-        val slot = raw as? JsonObject ?: return@map raw
+    if (slots != null) result["sourceSlots"] = JsonArray(slots.mapNotNull { raw ->
+        val original = raw as? JsonObject ?: return@mapNotNull raw
+        val slot = original.changed("cellId" to JsonPrimitive(ids.cell(original.string("cellId")) ?: return@mapNotNull null))
         val cid = slot.string("cellId")
         val row = slot.integer("row")
         val cols = (slot["cols"] as? JsonArray).orEmpty().filterIsInstance<JsonPrimitive>().mapNotNull { it.intOrNull }
@@ -381,6 +492,11 @@ internal fun SheetDraft.exportExpressions(template: JsonObject?, sourceSha256: S
         val prefix = if (slot.string("kind") == "relative") (slot["symbols"] as? JsonArray).orEmpty().take(1) else emptyList()
         slot.changed("symbols" to JsonArray(prefix + flattened))
     })
+    (expression["slurGroups"] as? JsonArray)?.let { groups -> result["slurGroups"] = JsonArray(groups.mapNotNull { raw ->
+        val group = raw as? JsonObject ?: return@mapNotNull raw
+        val events = (group["eventIds"] as? JsonArray).orEmpty().map { ids.event((it as? JsonPrimitive)?.contentOrNull) ?: return@mapNotNull null }
+        if (events.toSet().size != events.size) null else group.changed("eventIds" to JsonArray(events.map(::JsonPrimitive)))
+    }) }
     result["performancePlan"] = plan.changed("input_sha256" to JsonPrimitive(sourceSha256), "tempos" to JsonArray(tempos))
     return JsonObject(result)
 }

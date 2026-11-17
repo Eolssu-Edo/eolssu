@@ -72,7 +72,7 @@ internal class SheetSaveDurationTest {
     @Test fun saveReopenAndGlobalTempoApplyTheRatioOnce() {
         val edited = draft().withTempoCue(step(1, 120.0)).copy(bpm = 90)
         val score = edited.toCommonScore()
-        val expressions = assertNotNull(edited.exportExpressions(null, commonSourceSha256(Json.encodeToJsonElement(score)), 60))
+        val expressions = assertNotNull(edited.exportExpressions(null, 60))
         val reopened = score.editingDraft(edited.title, 90, null).withTempoExpressions(expressions, referenceBpm = 60)
         assertEquals(4.0 / 3, assertNotNull(reopened.estimatedDurationSeconds(90)), 1e-9)
         assertEquals(1.0, assertNotNull(reopened.estimatedDurationSeconds(120)), 1e-9)
@@ -84,7 +84,7 @@ internal class SheetSaveDurationTest {
         val edited = source.editingDraft("구간 길이", 60, null).withTempoCue(ramp(1, 120.0, 2)).copy(bpm = 90)
         val score = edited.toCommonScore()
         // A confirmed companion has already been scaled by the server to the saved base BPM.
-        val confirmed = assertNotNull(edited.exportExpressions(null, commonSourceSha256(Json.encodeToJsonElement(score)), 90))
+        val confirmed = assertNotNull(edited.exportExpressions(null, 90))
         val editorSeconds = assertNotNull(edited.estimatedDurationSeconds(90))
         assertEquals(editorSeconds * 1000, assertNotNull(score.estimatedModelDurationMs(confirmed, 90)), 1e-9)
     }

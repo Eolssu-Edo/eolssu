@@ -12,13 +12,13 @@ class SheetTempoPlanLockTest {
         val added = state().updateTempoSettings(state().draft.withTempoCue(SheetTempoCue(1, SheetTempoKind.Step, 120.0)))
         assertTrue(added.hasTempoPlan)
         // 나누기·합치기는 S15P31E102-1091부터 허용하고 각 추가·삭제만 막는다.
-        assertEquals(SheetEditMessage.TempoPlanBeforeReshape, added.addColumn().message)
+        assertEquals(SheetEditMessage.TempoPlanBeforeReshape, added.deleteColumn().message)
         assertNotEquals(SheetEditMessage.TempoPlanBeforeReshape, added.split().message)
 
         val removed = added.updateTempoSettings(added.draft.withoutTempoCue(1))
         assertTrue(removed.draft.tempoExpressions?.containsKey("performancePlan") == true)
         assertFalse(removed.hasTempoPlan)
-        assertNotEquals(SheetEditMessage.TempoPlanBeforeReshape, removed.addColumn().message)
+        assertNotEquals(SheetEditMessage.TempoPlanBeforeReshape, removed.deleteColumn().message)
     }
 
     @Test fun onlyPositionedTempoOrRepeatEntriesCountAsAPlan() {

@@ -416,9 +416,8 @@ data class SheetEditUiState(
         return commit(merged, sub = null)
     }
 
-    /** 고른 정간의 각 왼쪽에 빈 각을 넣고 새 각의 첫 정간을 고른다. */
+    /** 고른 정간의 각 왼쪽에 빈 각을 넣고 새 각의 첫 정간을 고른다. 구간 빠르기 위치는 함께 민다(S15P31E102-1095). */
     fun addColumn(): SheetEditUiState {
-        if (hasTempoPlan) return copy(message = SheetEditMessage.TempoPlanBeforeReshape)
         val column = draft.columnOf(selected)
         val next = draft.addColumnAfter(column)
         return commit(next, next.indexOf(column + 1, 0))
@@ -426,8 +425,9 @@ data class SheetEditUiState(
 
     /** 고른 정간의 각을 지운다. 선택은 같은 자리(마지막 각이었으면 새 마지막 각)로 둔다. */
     fun deleteColumn(): SheetEditUiState {
-        if (hasTempoPlan) return copy(message = SheetEditMessage.TempoPlanBeforeReshape)
         val column = draft.columnOf(selected)
+        // 빠르기가 바뀌기 시작하거나 끝이 있는 구간·반복이 걸친 각은 지우지 않는다(S15P31E102-1095).
+        if (draft.tempoColumnDeletionBlocked(column)) return copy(message = SheetEditMessage.TempoPlanBeforeReshape)
         val next = draft.deleteColumn(column)
         if (next == draft) return this
         val changed = commit(next, next.indexOf(minOf(column, next.columnCount - 1), 0))
