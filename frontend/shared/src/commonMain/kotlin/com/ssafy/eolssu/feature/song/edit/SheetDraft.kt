@@ -280,7 +280,9 @@ data class SheetDraft(
         val next = copy(cells = inserted,
             columnSizes = columnSizes?.toMutableList()?.also { it.add(column + 1, count) },
             sourceCellIds = sourceCellIds?.let { it.take(at) + List(count) { null } + it.drop(at) },
-            sigimsae = sigimsae.mapKeys { (slot, _) -> if (slot.cell >= at) slot.copy(cell = slot.cell + count) else slot })
+            sigimsae = sigimsae.mapKeys { (slot, _) -> if (slot.cell >= at) slot.copy(cell = slot.cell + count) else slot },
+            // 구간 빠르기·반복·각 경계 지속의 각 번호를 함께 민다(S15P31E102-1095).
+            tempoExpressions = tempoExpressionsAfterColumnInsert(column))
         return remapBasicAccompaniment(next, atCell = at, insertedCells = count)
     }
 
@@ -295,6 +297,8 @@ data class SheetDraft(
             sourceCellIds = sourceCellIds?.let { it.take(from) + it.drop(to) },
             sigimsae = sigimsae.filterKeys { it.cell !in from until to }
                 .mapKeys { (slot, _) -> if (slot.cell >= to) slot.copy(cell = slot.cell - (to - from)) else slot },
+            // 빠르기 구간이 걸친 각은 편집 상태가 미리 막는다. 나머지는 뒤 각 번호를 당긴다(S15P31E102-1095).
+            tempoExpressions = tempoExpressionsAfterColumnDelete(column),
         )
         return remapBasicAccompaniment(next, atCell = from, removedCells = to - from)
     }

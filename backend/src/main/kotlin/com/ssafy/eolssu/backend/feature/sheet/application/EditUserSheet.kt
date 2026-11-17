@@ -109,7 +109,7 @@ class EditUserSheet(
         val expressions = try {
             SheetExpressions(json).prepare(command.expressionsJson ?: SheetExpressions(json).current(sheet),
                 sheet.scoreJson ?: SheetAuthoring(json).current(sheet)?.path("source")?.get("score")?.let(json::writeValueAsString)
-                    ?: command.scoreJson, prepared.json, sheet.bpm, command.bpm)
+                    ?: command.scoreJson, prepared.json, sheet.bpm, command.bpm, requestScore = command.scoreJson)
         } catch (_: SheetExpressionPositionChanged) {
             return SaveSheetScoreResult.Rejected(ErrorCode.TEMPO_UNRENDERABLE, mapOf("reason" to "PLAN_POSITIONS_CHANGED"))
         } catch (_: Exception) { return SaveSheetScoreResult.InvalidRequest }

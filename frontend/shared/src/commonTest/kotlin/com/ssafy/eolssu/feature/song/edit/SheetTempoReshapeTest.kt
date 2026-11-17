@@ -35,8 +35,8 @@ class SheetTempoReshapeTest {
         assertEquals(1, merged.draft.cells[2].size)
         assertEquals(planned.draft.tempoChanges, merged.draft.tempoChanges)
         assertEquals(planned.draft, merged.undo().undo().draft)
-        // 각 추가·삭제는 2단계 합의 전이라 계속 막는다.
-        assertEquals(SheetEditMessage.TempoPlanBeforeReshape, planned.addColumn().message)
+        // 각 추가는 위치를 밀고, 빠르기가 시작하는 각 삭제는 막는다(S15P31E102-1095).
+        assertNotEquals(SheetEditMessage.TempoPlanBeforeReshape, planned.addColumn().message)
         assertEquals(SheetEditMessage.TempoPlanBeforeReshape, planned.deleteColumn().message)
     }
 
@@ -55,7 +55,7 @@ class SheetTempoReshapeTest {
             }))), split.tempoReferenceBpm ?: split.bpm)
         val merged = planned.copy(draft = moved, selected = 2).merge()
         assertEquals(1, merged.draft.cells[2].size)
-        val exported = merged.draft.exportExpressions(null, "a".repeat(64), 80)!!
+        val exported = merged.draft.exportExpressions(null, 80)!!
         val marks = exported.getValue("placements").jsonArray.map { it.jsonObject }
             .filter { p -> p.getValue("symbols").jsonArray.any { HanbaeMark.fromSymbol(it.jsonPrimitive.content) != null } }
         assertEquals(listOf("c0-j2"), marks.map { it.getValue("cellId").jsonPrimitive.content })
@@ -94,11 +94,11 @@ class SheetTempoReshapeTest {
 
     @Test fun retimedPlanExportsTheSameJeongganSpeedTheServerExpects() {
         val planned = state(SheetTempoChange(2, null, 120.0))
-        val before = planned.draft.exportExpressions(null, "a".repeat(64), 80)!!
+        val before = planned.draft.exportExpressions(null, 80)!!
             .getValue("performancePlan").jsonObject.getValue("tempos").jsonArray.single().jsonObject.getValue("bpm").jsonPrimitive.double
         val changed = planned.selectJangdan(gutgeori66.jangdanId).draft
         // 서버는 저장된 빠르기 80 기준 숫자를 받고 새 기본 66으로 한 번 비례 조정한다(SheetExpressions.prepare).
-        val sent = changed.exportExpressions(null, "a".repeat(64), 80)!!
+        val sent = changed.exportExpressions(null, 80)!!
             .getValue("performancePlan").jsonObject.getValue("tempos").jsonArray.single().jsonObject.getValue("bpm").jsonPrimitive.double
         val stored = sent * 66 / 80
         val oldFactor = 12.0 / 36

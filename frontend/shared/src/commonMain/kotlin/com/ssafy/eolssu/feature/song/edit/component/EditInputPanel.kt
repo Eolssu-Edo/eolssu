@@ -687,7 +687,7 @@ private fun CellTools(draft: SheetDraft, actions: EditInputActions, hasTempoPlan
             ToolButton(stringResource(Res.string.sheetedit_cell_delete_column), actions.onDeleteColumn, Modifier.weight(1f),
                 picture = CellPicture.DeleteColumn)
         }
-        // 나누기·합치기는 구간 빠르기가 있어도 된다. 각 추가·삭제만 막힌다(S15P31E102-1091).
+        // 각 추가는 구간 빠르기 위치를 함께 민다. 빠르기 구간이 걸친 각만 지울 수 없다(S15P31E102-1095).
         if (hasTempoPlan) {
             HintText(stringResource(Res.string.sheet_tempo_before_reshape))
         }
