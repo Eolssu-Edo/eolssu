@@ -37,6 +37,23 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
         assertEquals("단소", guide.instrumentName)
     }
 
+    @Test fun theSaveDialogOffersTheSameOneTapFixAndClearsOnceApplied() = runTest {
+        val model = open(sixUp)
+        runCurrent()
+        // 저장을 눌러 막힌 상태에서도 위 안내와 같은 추천을 보여 준다(S15P31E102-1085).
+        val blocked = model.uiState.value
+        assertFalse(blocked.completionValidation.canComplete)
+        val guide = assertNotNull(blocked.rangeFixGuide())
+        assertEquals(6, guide.recommendedTranspose)
+        assertEquals(0, guide.reviewCells, "다시 볼 곳은 저장 창의 다른 줄이 맡는다")
+
+        model.applyRecommendedAdaptation()
+
+        val fixed = model.uiState.value
+        assertEquals(0, fixed.completionValidation.invalidPitchCount)
+        assertNull(fixed.rangeFixGuide(), "고치면 저장 창의 줄도 사라진다")
+    }
+
     @Test fun oneTapAppliesTheRecommendationWhenNothingWasEditedAndUndoRestoresIt() = runTest {
         val model = open(sixUp)
         runCurrent()

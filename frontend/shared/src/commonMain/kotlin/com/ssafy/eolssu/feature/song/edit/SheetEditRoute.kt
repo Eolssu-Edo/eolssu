@@ -178,7 +178,10 @@ fun SheetEditRoute(
             onRetryDraft = viewModel::retryDraftSave,
             onSave = {
                 saveError = null
-                if (state.completionValidation.correctionCellIndices.isNotEmpty()) {
+                // 높이를 바꿔 한 번에 고칠 수 있으면 첫 칸의 음 확인 대신 저장 창을 열어
+                // "단소로 낼 수 없는 음 N개 · N반음 올려 고치기"를 먼저 보인다(S15P31E102-1085).
+                if (state.rangeFixGuide() != null) saveOpen = true
+                else if (state.completionValidation.correctionCellIndices.isNotEmpty()) {
                     viewModel.openCompletionIssue()
                     focusRequestKey++
                     val current = viewModel.uiState.value
@@ -226,6 +229,8 @@ fun SheetEditRoute(
             },
             onDismiss = { pitchCorrection = null },
             onAdapt = { pitchCorrection = null; correctionOpen = false; viewModel.openAdaptation() },
+            // 곡 전체 높이를 바로 바꾸면 이 음 창은 닫고 바뀐 악보를 보여 준다.
+            onApplyRecommended = { pitchCorrection = null; correctionOpen = false; viewModel.applyRecommendedAdaptation() },
             reviewDetails = {
                 state.reviewIssuesAt(target.cell, target.sub).filter { it.kind !in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE") }
                     .forEach { Text(sheetReviewReason(it), style = MaterialTheme.typography.bodyMedium) }
@@ -281,6 +286,9 @@ fun SheetEditRoute(
                 onChangeJangdan = { saveOpen = false; viewModel.changeJangdan() },
                 onClearJangdan = viewModel::clearJangdan,
                 onRetryCatalog = viewModel::retryCompletionCatalog,
+                // 높이를 바꿔 고칠 수 있으면 저장 창에서 바로 고친다. 고친 뒤 저장을 다시 누르면 된다.
+                onApplyRecommended = viewModel::applyRecommendedAdaptation,
+                onOpenAdaptation = { saveOpen = false; viewModel.openAdaptation() },
             )
             val error = saveError ?: when {
                 state.saveConflict -> messages[SheetEditMessage.SaveConflict]
