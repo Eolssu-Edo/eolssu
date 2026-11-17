@@ -103,7 +103,7 @@ class LearnPitchJudgeTest {
         assertEquals(StepLeniency.Strict, plan(4, instrument = GuideInstrument.Sogeum).rule.leniency)
     }
 
-    /** 허용 오차·유지 시간·조율 상한은 서버 기준을 넓히거나 좁히지 않고 그대로 쓴다. 4단계 유지 시간만 서버 기준과 상관없이 1초다. 3단계 첫 소리는 한 음씩 유지 시간 초안과 같은 0.3초다. */
+    /** 허용 오차·유지 시간·조율 상한은 서버 기준을 넓히거나 좁히지 않고 그대로 쓴다. 4단계 유지 시간만 서버 기준과 상관없이 1초다. 3단계 첫 소리도 4단계와 같은 1초다. */
     @Test fun criteriaValuesFlowStraightIntoTheRule() {
         listOf(4, 5, 6).forEach { stage ->
             val danso = plan(stage, criteria = criteria.copy(pitchToleranceCent = 70.0, holdMs = 200, maxTuningOffsetCent = 100.0)).rule
@@ -112,7 +112,7 @@ class LearnPitchJudgeTest {
             assertEquals(100.0, danso.maxTuningOffsetCent)
             assertEquals(25.0, plan(stage, criteria = criteria.copy(pitchToleranceCent = 25.0)).rule.toleranceCent)
         }
-        assertEquals(300.0, FIRST_SOUND_HOLD_MS)
+        assertEquals(1_000.0, FIRST_SOUND_HOLD_MS)
     }
 
     @Test fun noPlanForOtherStagesOrUnknownNotes() {

@@ -12,8 +12,8 @@ package com.ssafy.eolssu.feature.guide.learn
 /** 이 크기(0~1, -35dBFS쯤) 이상이면 소리가 난 것으로 본다. 숨소리·주변 소음보다 크고 관악기 소리보다 작게 잡은 예시. */
 const val LEARN_SOUND_LEVEL = 0.3f
 
-/** 3단계: 한 소리를 이만큼 끊김 없이 이어야 한 번으로 센다. 연습 화면 한 음씩의 유지 시간(서버 초안 0.3초)과 같게 둔다(S15P31E102-857). */
-const val FIRST_SOUND_HOLD_MS = 300.0
+/** 3단계: 한 소리를 이만큼 끊김 없이 이어야 한 번으로 센다. '길게 내기'라 4단계 직접 불기와 같은 1초로 둔다(S15P31E102-1072). */
+const val FIRST_SOUND_HOLD_MS = 1_000.0
 
 /** 통과 기준 문구에 넣을 초. 300ms는 "0.3", 1,000ms는 "1"처럼 끝의 0을 뺀다(1ms 단위까지). */
 internal fun holdSecondsLabel(ms: Double): String {
