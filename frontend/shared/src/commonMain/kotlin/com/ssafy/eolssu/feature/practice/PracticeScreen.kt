@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -140,7 +142,7 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
                 null -> Res.string.practice_score_loading
             }), style = MaterialTheme.typography.bodyLarge)
             if (!state.isSongLoading && state.songError != null) {
-                EolssuButton(stringResource(Res.string.practice_score_retry), actions.onRetrySong)
+                EolssuButton(stringResource(Res.string.practice_score_retry), actions.onRetrySong, qaTarget = QaTarget.PRACTICE_SCREEN_BUTTON_01)
             }
         }
     }
@@ -264,7 +266,7 @@ private fun CountdownOverlay(state: PracticeUiState, onCancel: () -> Unit) {
                 stringResource(Res.string.practice_countdown_cancel),
                 onCancel,
                 style = EolssuButtonStyle.Secondary,
-                modifier = Modifier.padding(horizontal = 48.dp),
+                modifier = Modifier.padding(horizontal = 48.dp), qaTarget = QaTarget.PRACTICE_SCREEN_BUTTON_02
             )
         },
     )

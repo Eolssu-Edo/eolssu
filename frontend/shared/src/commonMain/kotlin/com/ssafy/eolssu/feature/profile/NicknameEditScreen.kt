@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.profile
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.input.ImeAction
 import com.ssafy.eolssu.core.model.NicknameRule
@@ -27,11 +30,11 @@ fun NicknameEditScreen(
         widthClass,
         stringResource(Res.string.my_nickname_edit),
         onBack,
-        bottomBar = { EolssuButton(stringResource(Res.string.my_save), onClick = onSave, busy = state.submitting) },
+        bottomBar = { EolssuButton(stringResource(Res.string.my_save), onClick = UserActionLog.click(QaTarget.NICKNAME_EDIT_SCREEN_01, onSave), busy = state.submitting, qaTarget = QaTarget.NICKNAME_EDIT_SCREEN_BUTTON_01) },
     ) {
-        EolssuTextField(
+        EolssuTextField(qaTarget = QaTarget.NICKNAME_EDIT_SCREEN_02,
             value = state.nickname,
-            onValueChange = onNicknameChange,
+            onValueChange = UserActionLog.change(QaTarget.NICKNAME_EDIT_SCREEN_02, onNicknameChange),
             label = stringResource(Res.string.my_nickname),
             placeholder = stringResource(Res.string.my_nickname),
             help = stringResource(Res.string.member_api_nickname_rule),

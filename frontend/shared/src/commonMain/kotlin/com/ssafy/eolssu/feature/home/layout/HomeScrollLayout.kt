@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.home.layout
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
@@ -217,7 +220,7 @@ internal fun HomeScrollLayout(
                         homeArtLift(artKind, w, h, buttonH) * (1f - frame.eased), homeGround,
                         Modifier.fillMaxSize().clickable(
                             interactionSource = remember { MutableInteractionSource() }, indication = null,
-                            enabled = frame.progress < .6f, onClick = open,
+                            enabled = frame.progress < .6f, onClick = UserActionLog.click(QaTarget.HOME_SCROLL_LAYOUT_01, open),
                         ).clearAndSetSemantics {},
                     )
                     if (expanded) {
@@ -266,7 +269,7 @@ internal fun HomeScrollLayout(
                     val buttonLeft = mix((w - buttonW) / 2f,
                         if (expanded) contentLeft + (finalHeroW - buttonW) / 2f else (w - buttonW) / 2f, frame.eased)
                     HomeInkButton(
-                        onClick = onStartEvaluation,
+                        onClick = UserActionLog.click(QaTarget.HOME_SCROLL_LAYOUT_02, onStartEvaluation),
                         darkBackground = frame.darkBehindButton,
                         scrollProgress = frame.progress,
                         reduceMotion = reduceMotion,
@@ -293,7 +296,7 @@ internal fun HomeScrollLayout(
                                 .graphicsLayer { alpha = frame.arrowAlpha }
                                 // 아이콘만 있는 버튼이라 눌림 효과를 48dp 원으로 둔다(S15P31E102-968).
                                 .clip(CircleShape)
-                                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.home_scroll_to_features), onClick = openToBottom),
+                                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.home_scroll_to_features), onClick = UserActionLog.click(QaTarget.HOME_SCROLL_LAYOUT_03, openToBottom)),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(EolssuIcons.ChevronDown, stringResource(Res.string.home_scroll_to_features),

@@ -23,6 +23,7 @@ import json
 import sys
 import types
 from collections import Counter
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -73,16 +74,32 @@ def answers(folder):
 
 # ---------- collect ----------
 
-def _stub_api(page_time_s):
-    """scan.recognize가 쓰는 api 이름만 둔다. 실제 api 모듈은 fastapi가 있어야 import된다."""
-    from PIL import Image
-    api = types.ModuleType('omr_service.api')
+@contextmanager
+def _api(page_time_s):
+    """scan.recognize가 부르는 api를 준비하고, 쪽당 시간 예산만 page_time_s로 바꿨다가 되돌린다.
 
-    class RecognitionFailed(Exception):
-        pass
-    api.PAGE_TIME_S, api.MAX_PIXELS, api.RecognitionFailed = page_time_s, Image.MAX_IMAGE_PIXELS, RecognitionFailed
-    sys.modules['omr_service.api'] = api
-    return api
+    실제 api는 fastapi가 있어야 import된다. 없는 스캔 런타임에서는 recognize가 쓰는 이름만 둔 대역을 잠시 넣는다.
+    """
+    import omr_service
+    try:
+        from omr_service import api
+        stub = False
+    except ImportError:
+        from PIL import Image
+        api, stub = types.ModuleType('omr_service.api'), True
+
+        class RecognitionFailed(Exception):
+            pass
+        api.MAX_PIXELS, api.RecognitionFailed, api.PAGE_TIME_S = Image.MAX_IMAGE_PIXELS, RecognitionFailed, 60
+        sys.modules['omr_service.api'], omr_service.api = api, api
+    saved = api.PAGE_TIME_S
+    api.PAGE_TIME_S = page_time_s
+    try:
+        yield api
+    finally:
+        api.PAGE_TIME_S = saved
+        if stub:
+            del sys.modules['omr_service.api'], omr_service.api
 
 
 @dataclass(frozen=True)
@@ -111,14 +128,19 @@ def render(pdf, work):
 
 def recognize_cells(pdf, instrument, jangdan, work, page_time_s):
     """실제 recognize를 돌리고, 공통 악보 변환 직전에 칸과 issue를 가로챈다."""
-    api = _stub_api(page_time_s)
     from omr_service import jeongganbo_scan as scan
-    seen = []
-    original_cell_text = scan.cell_text
+    seen, places = [], []
+    original_cell_text, original_places = scan.cell_text, scan.grid_places
 
     def recording_cell_text(cell):
-        seen.append({k: cell.get(k) for k in ('text', 'conf', 'filled', 'ink', 'x', 'y', 'w', 'h')})
+        seen.append({k: cell.get(k) for k in ('text', 'conf', 'filled', 'split', 'ink', 'x', 'y', 'w', 'h')})
         return original_cell_text(cell)
+
+    def recording_places(cells, beats):
+        # 쪽마다 한 번 불린다. recognize는 칸을 이 (각, 정간) 순서로 cell_text에 넘기고 cellId를 만든다.
+        got = original_places(cells, beats)
+        places.append(got)
+        return got
 
     def capture(lines, request, jangdan_name, bpj_of, *rest, **kw):
         closure = dict(zip(bpj_of.__code__.co_freevars, (c.cell_contents for c in bpj_of.__closure__)))
@@ -127,25 +149,29 @@ def recognize_cells(pdf, instrument, jangdan, work, page_time_s):
     pages = render(pdf, work)
     request = types.SimpleNamespace(instrument=instrument, jangdan=jangdan)
     job = types.SimpleNamespace(request=request, pages=pages, time_budget_s=page_time_s * len(pages))
-    scan.cell_text, scan.lines_to_score = recording_cell_text, capture
+    original_convert = scan.lines_to_score
+    scan.cell_text, scan.grid_places, scan.lines_to_score = recording_cell_text, recording_places, capture
     try:
-        scan.recognize(job)
-        raise RuntimeError('lines_to_score was not reached')
-    except _Captured as got:
-        lines, issues = got.lines, got.issues
-    except api.RecognitionFailed:
-        lines, issues = [], []
+        with _api(page_time_s) as api:
+            try:
+                scan.recognize(job)
+                raise RuntimeError('lines_to_score was not reached')
+            except _Captured as got:
+                lines, issues = got.lines, got.issues
+            except api.RecognitionFailed:
+                lines, issues = [], []
     finally:
-        scan.cell_text = original_cell_text
-    # cellId는 recognize와 같은 순서로 매긴다(c{각}-j{정간}). 읽힌 칸은 seen 순서와 같다.
-    cells, k = [], 0
-    for g, line in enumerate(lines):
-        for j, text in enumerate(line.split(' | ')):
-            cell_id = f'c{g}-j{j}'
-            cells.append(dict(seen[k], cellId=cell_id, jg=text,
+        scan.cell_text, scan.grid_places, scan.lines_to_score = original_cell_text, original_places, original_convert
+    # cellId는 recognize와 같게 c{앞 쪽까지의 각 수 + 쪽 안 각}-j{정간}이다. 읽힌 칸은 seen 순서와 같다.
+    cells, k, first_gak = [], 0, 0
+    for page_places in places:
+        for g, j in page_places:
+            cell_id = f'c{first_gak + g}-j{j}'
+            cells.append(dict(seen[k], cellId=cell_id, jg=lines[first_gak + g].split(' | ')[j],
                               issues=[dict(kind=i['kind'], reason=(i.get('detail') or {}).get('reason'))
                                       for i in issues if i.get('cellId') == cell_id]))
             k += 1
+        first_gak += page_places[-1][0] + 1
     notices = [dict(kind=i['kind'], reason=(i.get('detail') or {}).get('reason'), page=i.get('page'))
                for i in issues if i.get('cellId') is None]
     return dict(engine=scan.ENGINE_VERSION, pages=len(pages), cells=cells, notices=notices)

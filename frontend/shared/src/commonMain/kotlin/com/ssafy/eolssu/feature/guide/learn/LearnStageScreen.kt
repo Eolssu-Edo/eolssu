@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -307,7 +310,7 @@ private fun StageBody(
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
     val fingeringMore: @Composable (StringResource, Blow) -> Unit = { label, blow ->
         // 섹션 오른쪽 끝에 놓이므로 알약 안쪽 여백만큼 밀어 글자 끝을 본문 끝선에 맞춘다(S15P31E102-968).
-        MoreLink(stringResource(label), onClick = { actions.onOpenFingering(blow) }, modifier = Modifier.offset(x = 12.dp))
+        MoreLink(stringResource(label), onClick = UserActionLog.click(QaTarget.LEARN_STAGE_SCREEN_01, { actions.onOpenFingering(blow) }), modifier = Modifier.offset(x = 12.dp))
     }
     val grid = columns.grid
     val taskImageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified
@@ -365,7 +368,7 @@ private fun StageBody(
                         if (first != null) NoteCard(instrument, first, noteAudioContent)
                         MoreLink(
                             stringResource(Res.string.learn_more_fingering_blow, blowShortLabel(stringResource(range.blow.label))),
-                            onClick = { actions.onOpenFingering(range.blow) },
+                            onClick = UserActionLog.click(QaTarget.LEARN_STAGE_SCREEN_02, { actions.onOpenFingering(range.blow) }),
                             // 상자 왼쪽에 놓이므로 알약 안쪽 여백만큼 당겨 글자 시작을 다른 줄과 맞춘다(S15P31E102-968).
                             modifier = Modifier.offset(x = (-12).dp),
                         )
@@ -446,8 +449,8 @@ internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions
 private fun StagePrimary(stage: LearnStage, stepCount: Int, actions: LearnStageActions, tour: LearnTour) {
     val modifier = Modifier.fillMaxWidth().padding(top = 20.dp).attention(tour.allDone(stepCount))
     when (stage.primaryAction) {
-        LearnStageAction.Confirm -> EolssuButton(stringResource(Res.string.learn_confirm_next), { actions.onConfirm(stage.number) }, modifier)
-        LearnStageAction.ListenModel -> EolssuButton(stringResource(Res.string.learn_listen_model), actions.onListenModel, modifier, icon = GuideIcons.Speaker)
+        LearnStageAction.Confirm -> EolssuButton(stringResource(Res.string.learn_confirm_next), { actions.onConfirm(stage.number) }, modifier, qaTarget = QaTarget.LEARN_STAGE_SCREEN_BUTTON_01)
+        LearnStageAction.ListenModel -> EolssuButton(stringResource(Res.string.learn_listen_model), actions.onListenModel, modifier, icon = GuideIcons.Speaker, qaTarget = QaTarget.LEARN_STAGE_SCREEN_BUTTON_02)
         LearnStageAction.Practice -> Unit
     }
 }

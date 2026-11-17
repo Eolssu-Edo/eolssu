@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -82,8 +85,8 @@ fun OAuthScreen(
             message = stringResource(Res.string.auth_no_account_message, name),
             icon = EolssuIcons.Info,
         ) {
-            EolssuButton(stringResource(Res.string.auth_no_account_signup), onClick = onSignUp)
-            EolssuButton(stringResource(Res.string.auth_close), onClick = onBack, style = EolssuButtonStyle.Text)
+            EolssuButton(stringResource(Res.string.auth_no_account_signup), onClick = UserActionLog.click(QaTarget.O_AUTH_SCREEN_01, onSignUp), qaTarget = QaTarget.O_AUTH_SCREEN_BUTTON_01)
+            EolssuButton(stringResource(Res.string.auth_close), onClick = UserActionLog.click(QaTarget.O_AUTH_SCREEN_02, onBack), style = EolssuButtonStyle.Text, qaTarget = QaTarget.O_AUTH_SCREEN_BUTTON_02)
         }
     }
     if (step == OAuthStep.WithdrawalCancelled) {
@@ -94,7 +97,7 @@ fun OAuthScreen(
             // 바깥 누르기·뒤로 가기로 닫아도 '확인'과 같이 로그인을 이어 간다(S15P31E102-969).
             onDismissRequest = onLoggedIn,
         ) {
-            EolssuButton(stringResource(Res.string.auth_confirm), onClick = onLoggedIn)
+            EolssuButton(stringResource(Res.string.auth_confirm), onClick = UserActionLog.click(QaTarget.O_AUTH_SCREEN_03, onLoggedIn), qaTarget = QaTarget.O_AUTH_SCREEN_BUTTON_03)
         }
     }
 }
@@ -103,13 +106,13 @@ fun OAuthScreen(
 @Composable
 private fun ProviderStepButton(step: OAuthStep, name: String, onBack: () -> Unit, onRetry: () -> Unit, onReopen: () -> Unit) {
     when (step) {
-        OAuthStep.InBrowser -> EolssuButton(stringResource(Res.string.social_auth_reopen, name), onClick = onReopen)
+        OAuthStep.InBrowser -> EolssuButton(stringResource(Res.string.social_auth_reopen, name), onClick = UserActionLog.click(QaTarget.O_AUTH_SCREEN_04, onReopen), qaTarget = QaTarget.O_AUTH_SCREEN_BUTTON_04)
         is OAuthStep.Stopped -> if (step.problem.retryable) {
-            EolssuButton(stringResource(Res.string.member_api_retry), onClick = onRetry)
+            EolssuButton(stringResource(Res.string.member_api_retry), onClick = UserActionLog.click(QaTarget.O_AUTH_SCREEN_05, onRetry), qaTarget = QaTarget.O_AUTH_SCREEN_BUTTON_05)
         } else {
-            EolssuButton(stringResource(Res.string.common_confirm), onClick = onBack)
+            EolssuButton(stringResource(Res.string.common_confirm), onClick = UserActionLog.click(QaTarget.O_AUTH_SCREEN_06, onBack), qaTarget = QaTarget.O_AUTH_SCREEN_BUTTON_06)
         }
-        OAuthStep.Starting, OAuthStep.Completing -> EolssuButton(stringResource(Res.string.social_auth_progress), onClick = {}, busy = true)
+        OAuthStep.Starting, OAuthStep.Completing -> EolssuButton(stringResource(Res.string.social_auth_progress), onClick = UserActionLog.click(QaTarget.O_AUTH_SCREEN_07, {}), busy = true, qaTarget = QaTarget.O_AUTH_SCREEN_BUTTON_07)
         else -> Unit
     }
 }

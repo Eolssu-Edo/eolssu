@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
@@ -44,8 +47,9 @@ fun EolssuDoneDialog(title: String, body: String, action: String, onDismiss: () 
         jump.animateTo(1f, spring(dampingRatio = 0.35f, stiffness = 250f))
     }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        QaModalObservation()
         Column(
-            Modifier
+            Modifier.qaModalInput()
                 .padding(horizontal = 32.dp)
                 .widthIn(max = 360.dp)
                 .fillMaxWidth()
@@ -81,11 +85,11 @@ fun EolssuDoneDialog(title: String, body: String, action: String, onDismiss: () 
             )
             EolssuButton(
                 action,
-                onClick = {
+                onClick = UserActionLog.click(QaTarget.EOLSSU_DONE_DIALOG_01, {
                     onDismiss()
                     onAction()
-                },
-                modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
+                }),
+                modifier = Modifier.padding(top = 8.dp).fillMaxWidth(), qaTarget = QaTarget.EOLSSU_DONE_DIALOG_BUTTON_01
             )
         }
     }

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.home.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.runtime.remember
 import androidx.compose.material3.ripple
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -43,7 +46,7 @@ internal fun MyPagePlate(image: ProfileImage, onClick: () -> Unit, modifier: Mod
     Box(
         modifier
             .minimumInteractiveComponentSize()
-            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = UserActionLog.click(QaTarget.HOME_HEADER_01, onClick)),
         contentAlignment = Alignment.Center,
     ) {
         Image(

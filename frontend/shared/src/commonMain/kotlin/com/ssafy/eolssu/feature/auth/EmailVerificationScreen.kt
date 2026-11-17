@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -86,20 +89,20 @@ fun EmailVerificationScreen(
         },
         bottomBar = {
             if (state.codeSent) {
-                EolssuButton(stringResource(Res.string.auth_code_confirm), onClick = onConfirm, enabled = !needsNewCode, busy = state.confirming)
+                EolssuButton(stringResource(Res.string.auth_code_confirm), onClick = UserActionLog.click(QaTarget.EMAIL_VERIFICATION_SCREEN_01, onConfirm), enabled = !needsNewCode, busy = state.confirming, qaTarget = QaTarget.EMAIL_VERIFICATION_SCREEN_BUTTON_01)
             } else {
-                EolssuButton(stringResource(Res.string.auth_code_send), onClick = onSendCode, busy = state.sending)
+                EolssuButton(stringResource(Res.string.auth_code_send), onClick = UserActionLog.click(QaTarget.EMAIL_VERIFICATION_SCREEN_02, onSendCode), busy = state.sending, qaTarget = QaTarget.EMAIL_VERIFICATION_SCREEN_BUTTON_02)
             }
         },
     ) {
         AuthBody(topPadding = authBodyTopBelowProgress()) {
             AuthHeading(stringResource(if (signUp) Res.string.auth_signup_verify_heading else Res.string.auth_reset_verify_heading))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                EolssuTextField(
+                EolssuTextField(qaTarget = QaTarget.EMAIL_VERIFICATION_SCREEN_03,
                     bordered = false,
                     labelInside = true,
                     value = state.email,
-                    onValueChange = onEmailChange,
+                    onValueChange = UserActionLog.change(QaTarget.EMAIL_VERIFICATION_SCREEN_03, onEmailChange),
                     label = stringResource(Res.string.auth_email),
                     placeholder = stringResource(Res.string.auth_email_placeholder),
                     type = TextFieldType.Email,
@@ -114,11 +117,11 @@ fun EmailVerificationScreen(
                     onImeAction = if (state.codeSent) null else onSendCode,
                 )
                 if (state.codeSent) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EolssuTextField(
+                    EolssuTextField(qaTarget = QaTarget.EMAIL_VERIFICATION_SCREEN_04,
                         bordered = false,
                         labelInside = true,
                         value = state.code,
-                        onValueChange = onCodeChange,
+                        onValueChange = UserActionLog.change(QaTarget.EMAIL_VERIFICATION_SCREEN_04, onCodeChange),
                         label = stringResource(Res.string.auth_code),
                         placeholder = stringResource(Res.string.auth_code_placeholder),
                         type = TextFieldType.Number,
@@ -140,7 +143,7 @@ fun EmailVerificationScreen(
                             else -> stringResource(Res.string.auth_code_resend)
                         },
                         enabled = state.resendSecondsLeft(now) == 0L,
-                        onClick = onResendCode,
+                        onClick = UserActionLog.click(QaTarget.EMAIL_VERIFICATION_SCREEN_05, onResendCode),
                     )
                 }
             }
@@ -165,7 +168,7 @@ private fun ResendRow(label: String, enabled: Boolean, onClick: () -> Unit) {
     val style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         Surface(
-            onClick = onClick,
+            onClick = UserActionLog.click(QaTarget.EMAIL_VERIFICATION_SCREEN_06, onClick),
             enabled = enabled,
             shape = CircleShape,
             // 회색 바탕 위 테두리 없는 흰 알약, 막히면 회색 채움(S15P31E102-798).

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.guide
 
+import com.ssafy.eolssu.core.diagnostics.*
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.AudioSource
@@ -11,6 +12,7 @@ import com.ssafy.eolssu.data.song.ReferenceAudioClip
  * [localFile]이 있으면 기기에 받아 둔 파일로 바로 재생한다(S15P31E102-1005).
  */
 internal fun toggleReferenceAudio(player: AudioPlayer, clip: ReferenceAudioClip, localFile: LocalAudioFile? = null) {
+    UserActionLog.event(QaKind.AUDIO_REQUESTED, QaTarget.REFERENCE_AUDIO)
     val current = player.state.value
     if (current.sourceId == clip.assetId && current.status in setOf(
             AudioPlaybackStatus.Loading, AudioPlaybackStatus.Playing, AudioPlaybackStatus.Paused)) {

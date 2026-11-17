@@ -89,11 +89,17 @@ test('a failed read stays unavailable while a retry is pending',async()=>{
   logs.refresh();await logs.pending;assert.equal(logs.project({}).appLog.state,'unavailable');
   clock=500;logs.refresh();assert.equal(logs.project({}).appLog.state,'unavailable');await logs.close();
 });
-test('APK installation cannot overlap a read-only app log snapshot',async t=>{
-  const bytes=bytesFor([event(1)]);let finish,blocked=true;const build={id:'20261116T000000Z-1-aaaaaaaa',versionName:'qa-next'};
-  const relay=await startRelay({port:0,catalog:{list:()=>({builds:[build],latest:build.id}),tail:Promise.resolve()},phone:{identity:'PHONE994',capture:async()=>({data:Buffer.alloc(24),width:10,height:20}),installed:async()=>({versionName:version}),readPerformanceLog:()=>blocked?new Promise(resolve=>{finish=()=>resolve(bytes);}):Promise.resolve(bytes),install:()=>assert.fail('no installation')}});
+test('APK installation cannot overlap a read-only app log snapshot and starts by itself after it',async t=>{
+  const bytes=bytesFor([event(1)]);let finish,blocked=true,reading=false;const installs=[];const build={id:'20261116T000000Z-1-aaaaaaaa',package:'com.ssafy.eolssu.qa',versionCode:2,versionName:'qa-next'};
+  const relay=await startRelay({port:0,catalog:{list:()=>({builds:[build],latest:build.id}),file:async()=>'/fixture.apk',tail:Promise.resolve()},phone:{identity:'PHONE994',capture:async()=>({data:Buffer.alloc(24),width:10,height:20}),installed:async()=>({versionName:version}),
+    readPerformanceLog:()=>{reading=true;return blocked?new Promise(resolve=>{finish=()=>{reading=false;resolve(bytes);};}):Promise.resolve(bytes).finally(()=>{reading=false;});},
+    install:async()=>{assert.equal(reading,false,'install never overlaps an app database copy');installs.push(build.id);return build;}}});
   t.after(async()=>{blocked=false;finish?.();await relay.close();});const post=(path,data,cookie)=>fetch(relay.url+'/api/'+path,{method:'POST',headers:{Origin:relay.url,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(data)});
-  const login=await post('login',{name:'QA'}),cookie=login.headers.get('set-cookie').split(';')[0];await post('request',{},cookie);const state=await(await fetch(relay.url+'/api/state',{headers:{Cookie:cookie}})).json();await fetch(relay.url+'/api/live/status',{headers:{Cookie:cookie}});assert.equal((await post('builds/install',{id:build.id,epoch:state.epoch},cookie)).status,409);
+  const login=await post('login',{name:'QA'}),cookie=login.headers.get('set-cookie').split(';')[0];await post('request',{},cookie);const state=await(await fetch(relay.url+'/api/state',{headers:{Cookie:cookie}})).json();await fetch(relay.url+'/api/live/status',{headers:{Cookie:cookie}});
+  const accepted=await post('builds/install',{id:build.id,epoch:state.epoch},cookie);assert.equal(accepted.status,202);assert.equal((await accepted.json()).waiting,true);
+  assert.deepEqual(installs,[]);blocked=false;finish();
+  let result;do{result=await(await fetch(relay.url+'/api/builds',{headers:{Cookie:cookie}})).json();}while(['waiting','installing'].includes(result.job.status));
+  assert.equal(result.job.status,'success');assert.deepEqual(installs,[build.id]);
 });
 test('native log transport only reads the fixed QA performance database on the verified device',async()=>{
   const calls=[];const phone=new AdbPhone({serial:'192.168.30.82:44709',identity:'PHONE994',executor:async(_,args)=>{calls.push(args);if(args.includes('devices'))return{stdout:'192.168.30.82:44709 device transport_id:12\n'};if(args.includes('getprop'))return{stdout:'PHONE994\n'};return{stdout:Buffer.alloc(0)};}});

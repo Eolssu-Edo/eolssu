@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
@@ -27,7 +30,7 @@ internal fun SheetFileSourceMenu(sources: List<SheetFileSource>, onPick: (SheetF
                     SheetFileSource.Files -> stringResource(Res.string.sheet_upload_source_files) to SheetEditIcons.Folder
                     SheetFileSource.Album -> stringResource(Res.string.sheet_upload_source_album) to SheetEditIcons.Photo
                 }
-                EolssuMenuItem(label, selected = false, onClick = { onPick(source) }, leading = {
+                EolssuMenuItem(label, selected = false, onClick = UserActionLog.click(QaTarget.SHEET_FILE_SOURCE_MENU_01, { onPick(source) }), leading = {
                     Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = EolssuTheme.colors.text)
                 })
             }

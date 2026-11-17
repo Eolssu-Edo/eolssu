@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
@@ -105,7 +108,7 @@ fun PlaybackPositionSlider(
     val sliderColors = SliderDefaults.colors(thumbColor = colors.primary, activeTrackColor = colors.primary, inactiveTrackColor = colors.surfaceStrong)
     Slider(
         value = value.coerceIn(valueRange.start, valueRange.endInclusive),
-        onValueChange = onValueChange,
+        onValueChange = UserActionLog.change(QaTarget.PLAYBACK_CONTROLS_01, onValueChange),
         onValueChangeFinished = onValueChangeFinished,
         valueRange = valueRange,
         enabled = enabled,
@@ -158,10 +161,10 @@ fun PlaybackSkipGroup(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        SkipButton(EolssuIcons.ReplayBack, backLabel, skipEnabled, digitOffset = 0.2.dp, onClick = onBack)
+        SkipButton(EolssuIcons.ReplayBack, backLabel, skipEnabled, digitOffset = 0.2.dp, onClick = UserActionLog.click(QaTarget.PLAYBACK_CONTROLS_02, onBack))
         val playPress = remember { MutableInteractionSource() }
         Surface(
-            onClick = onTogglePlay,
+            onClick = UserActionLog.click(QaTarget.PLAYBACK_CONTROLS_03, onTogglePlay),
             enabled = playEnabled,
             // 누르면 출렁인다(S15P31E102-891). 44dp 원은 늘어나도 흰 묶음 안쪽 여백(4dp) 안에 든다.
             modifier = Modifier.elasticSquash(playPress).size(44.dp),
@@ -175,7 +178,7 @@ fun PlaybackSkipGroup(
                 Icon(if (playing) EolssuIcons.Pause else EolssuIcons.Play, contentDescription = playLabel, modifier = Modifier.size(22.dp))
             }
         }
-        SkipButton(EolssuIcons.ReplayForward, forwardLabel, skipEnabled, digitOffset = (-0.2).dp, onClick = onForward)
+        SkipButton(EolssuIcons.ReplayForward, forwardLabel, skipEnabled, digitOffset = (-0.2).dp, onClick = UserActionLog.click(QaTarget.PLAYBACK_CONTROLS_04, onForward))
     }
 }
 
@@ -190,7 +193,7 @@ fun PlaybackActionButton(
 ) {
     EolssuButton(
         text, onClick, modifier.heightIn(min = PlaybackActionHeight),
-        icon = icon, enabled = enabled, compact = true, small = true, minHeight = PlaybackActionHeight, singleLine = true,
+        icon = icon, enabled = enabled, compact = true, small = true, minHeight = PlaybackActionHeight, singleLine = true, qaTarget = QaTarget.PLAYBACK_CONTROLS_BUTTON_01
     )
 }
 
@@ -199,7 +202,7 @@ fun PlaybackActionButton(
 private fun SkipButton(icon: ImageVector, label: String, enabled: Boolean, digitOffset: Dp, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.PLAYBACK_CONTROLS_05, onClick),
         enabled = enabled,
         modifier = Modifier.size(44.dp).semantics { contentDescription = label },
         shape = RoundedCornerShape(10.dp),

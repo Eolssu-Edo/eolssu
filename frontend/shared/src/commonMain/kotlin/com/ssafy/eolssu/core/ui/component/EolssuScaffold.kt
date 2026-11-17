@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -185,7 +188,7 @@ fun EolssuBackButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: D
             .offset(x = (-4).dp)
             .size(size)
             .clip(CircleShape)
-            .clickable(role = Role.Button, onClickLabel = back, onClick = onClick)
+            .clickable(role = Role.Button, onClickLabel = back, onClick = UserActionLog.click(QaTarget.EOLSSU_SCAFFOLD_01, onClick))
             .semantics { contentDescription = back },
         contentAlignment = Alignment.Center,
     ) {
@@ -204,7 +207,7 @@ fun EolssuIconButton(
     bordered: Boolean = true,
 ) {
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.EOLSSU_SCAFFOLD_02, onClick),
         enabled = enabled,
         modifier = modifier.size(48.dp),
         shape = CircleShape,

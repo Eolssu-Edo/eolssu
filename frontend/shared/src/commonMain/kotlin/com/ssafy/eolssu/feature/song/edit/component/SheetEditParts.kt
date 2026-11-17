@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.ripple
@@ -84,7 +88,7 @@ internal fun SegmentTabs(
                     .height(if (large) 48.dp else 40.dp)
                     .clip(pill)
                     .background(if (on) colors.surface else Color.Transparent)
-                    .clickable(role = Role.Tab) { onSelect(index) }
+                    .clickable(role = Role.Tab) { UserActionLog.event(QaKind.CLICK, QaTarget.SHEET_EDIT_PARTS_05); onSelect(index) }
                     .semantics { this.selected = on }
                     .padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
@@ -116,7 +120,7 @@ internal fun KindCard(
     val colors = EolssuTheme.colors
     val ink = if (emphasized) colors.onPrimary else colors.text
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.SHEET_EDIT_PARTS_01, onClick),
         modifier = modifier.fillMaxWidth().heightIn(min = 84.dp).semantics { role = Role.Button },
         shape = RoundedCornerShape(20.dp),
         color = if (emphasized) colors.primary else colors.surface,
@@ -176,7 +180,7 @@ internal fun PillChip(
 ) {
     val colors = EolssuTheme.colors
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.SHEET_EDIT_PARTS_02, onClick),
         enabled = enabled,
         modifier = modifier.heightIn(min = 34.dp).semantics { this.selected = selected },
         shape = CircleShape,
@@ -282,7 +286,7 @@ internal fun PillButton(
     Box(
         modifier
             .heightIn(min = 48.dp)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_PARTS_03, onClick)),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -321,7 +325,7 @@ internal fun SquareIconButton(
     Box(
         modifier
             .size(48.dp)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_PARTS_04, onClick)),
         contentAlignment = Alignment.Center,
     ) {
         Box(

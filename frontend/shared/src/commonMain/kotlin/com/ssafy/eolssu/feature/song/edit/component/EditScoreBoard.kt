@@ -97,6 +97,8 @@ internal fun EditScoreBoard(
         unitMarks = unitMarks,
         focusCell = focusCell,
         focusRequestKey = focusRequestKey,
+        // 편집은 원본의 빈칸·이음(-) 구분을 저장하므로 화면도 원본 표기를 그대로 보인다(S15P31E102-1069).
+        wholeCellHoldAsBlank = false,
     )
 }
 

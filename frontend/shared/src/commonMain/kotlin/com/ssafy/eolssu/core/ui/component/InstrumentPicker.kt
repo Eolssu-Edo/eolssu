@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,7 +71,7 @@ fun InstrumentPicker(
                         // 고를 수 없을 때는 칸 전체를 흐리고, 눌림 효과는 둥근 칸 안에만 그린다(S15P31E102-968).
                         .alpha(if (enabled) 1f else 0.45f)
                         .clip(shape)
-                        .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton, onClick = { onSelect(instrument) }),
+                        .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton, onClick = UserActionLog.click(QaTarget.INSTRUMENT_PICKER_01, { onSelect(instrument) })),
                     shape = shape,
                     // 테두리 없이 고른 칸은 연두, 나머지는 회색 채움(S15P31E102-768).
                     color = if (isSelected) colors.primary else unselectedColor,

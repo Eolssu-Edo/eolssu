@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -76,7 +79,7 @@ internal fun sectionDecorations(
 internal fun SegmentButton(text: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.SECTION_SCORE_PARTS_01, onClick),
         enabled = enabled,
         modifier = modifier.heightIn(min = 28.dp).semantics { this.selected = selected },
         shape = RoundedCornerShape(8.dp),

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.guide
 
+import com.ssafy.eolssu.core.diagnostics.*
 import com.ssafy.eolssu.core.audio.SoundPlayer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -64,10 +65,19 @@ internal class ReadingAudioSession(
     private val mutable = MutableStateFlow(ReadingAudioState())
     val state = mutable.asStateFlow()
     private var job: Job? = null
+    private var qaInteraction = QaInteraction(0, true)
 
     fun toggle(clip: ReadingAudioClip) {
         if (mutable.value.active(clip)) { stop(); return }
         stop()
+        qaInteraction = UserActionLog.capture()
+        UserActionLog.event(QaKind.AUDIO_REQUESTED, QaTarget.READING_AUDIO, interaction = qaInteraction,
+            content = when (clip) {
+                ReadingAudioClip.Each -> QaContent.EACH; ReadingAudioClip.Split -> QaContent.SPLIT
+                ReadingAudioClip.Hold -> QaContent.HOLD; ReadingAudioClip.Rest -> QaContent.REST
+                ReadingAudioClip.LowHwang -> QaContent.LOW_HWANG; ReadingAudioClip.Hwang -> QaContent.HWANG
+                ReadingAudioClip.HighHwang -> QaContent.HIGH_HWANG
+            })
         mutable.value = ReadingAudioState(clip = clip, loading = true)
         job = scope.launch {
             val started = try { player.play(clip.path) }
@@ -76,6 +86,7 @@ internal class ReadingAudioSession(
             currentCoroutineContext().ensureActive()
             if (!started) {
                 player.stop()
+                UserActionLog.event(QaKind.AUDIO_STATE, QaTarget.READING_AUDIO, QaOutcome.FAILED, qaInteraction)
                 mutable.value = ReadingAudioState(clip = clip, failed = true)
                 return@launch
             }
@@ -93,6 +104,7 @@ internal class ReadingAudioSession(
     }
 
     fun stop() {
+        if (mutable.value.loading || mutable.value.playing) UserActionLog.event(QaKind.AUDIO_STATE, QaTarget.READING_AUDIO, QaOutcome.STOPPED, qaInteraction)
         job?.cancel()
         job = null
         player.stop()

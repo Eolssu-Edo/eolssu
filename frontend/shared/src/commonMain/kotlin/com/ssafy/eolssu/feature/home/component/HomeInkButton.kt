@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.home.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import androidx.compose.ui.graphics.painter.Painter
@@ -86,7 +89,7 @@ internal fun HomeInkButton(
     val brush = painterResource(Res.drawable.home_ink_brush)
     Box(
         modifier.fillMaxWidth().heightIn(min = 44.dp)
-            .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = UserActionLog.click(QaTarget.HOME_INK_BUTTON_01, onClick)),
         contentAlignment = Alignment.Center,
     ) {
         // 붓이 칠해지기 전 첫 화면에서도 버튼으로 보이도록 옅은 먹 바탕과 붓 윤곽을 깔아 둔다(S15P31E102-1009).

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.auth.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.runtime.remember
 import androidx.compose.material3.ripple
@@ -153,7 +156,7 @@ fun AuthCheckRow(
                 interactionSource = interaction,
                 indication = null,
                 role = Role.Checkbox,
-                onValueChange = onCheckedChange,
+                onValueChange = UserActionLog.change(QaTarget.AUTH_LAYOUT_01, onCheckedChange),
             )
             .semantics { contentDescription = label }
             .padding(contentPadding),

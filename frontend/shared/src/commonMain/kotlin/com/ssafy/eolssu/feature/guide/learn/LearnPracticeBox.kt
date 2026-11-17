@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -150,7 +152,7 @@ internal fun LearnSegmentPractice(
             }
             else -> ListenPanel(state.takeUnless { it.phase == LearnPracticePhase.Passed } ?: state.copy(phase = LearnPracticePhase.Ready), instrument, notes)
         }
-        if (!judging) EolssuButton(stringResource(Res.string.learn_step_try), onDone, Modifier.fillMaxWidth(), icon = EolssuIcons.Check)
+        if (!judging) EolssuButton(stringResource(Res.string.learn_step_try), onDone, Modifier.fillMaxWidth(), icon = EolssuIcons.Check, qaTarget = QaTarget.LEARN_PRACTICE_BOX_BUTTON_01)
     }
 }
 
@@ -408,10 +410,10 @@ private fun PassedMark() {
 private fun LearnPracticeSideButtons(state: LearnPracticeUiState, actions: LearnPracticeActions, onSelfDone: () -> Unit) {
     when {
         state.phase == LearnPracticePhase.Passed ->
-            EolssuButton(stringResource(Res.string.learn_practice_restart), actions.onRestart, Modifier.fillMaxWidth(), style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Restart)
+            EolssuButton(stringResource(Res.string.learn_practice_restart), actions.onRestart, Modifier.fillMaxWidth(), style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Restart, qaTarget = QaTarget.LEARN_PRACTICE_BOX_BUTTON_02)
         state.mic == LearnMicStatus.Unsupported -> Unit
         !state.autoJudged || state.mic == LearnMicStatus.Blocked ->
-            EolssuButton(stringResource(Res.string.learn_practice_self_done), onSelfDone, Modifier.fillMaxWidth(), style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.learn_practice_self_done), onSelfDone, Modifier.fillMaxWidth(), style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.LEARN_PRACTICE_BOX_BUTTON_03)
     }
 }
 
@@ -429,13 +431,13 @@ internal fun LearnPracticePrimary(
     modifier: Modifier,
 ) {
     when {
-        state.phase == LearnPracticePhase.Passed -> EolssuButton(stringResource(learnDoneAction(last)), actions.onComplete, modifier)
+        state.phase == LearnPracticePhase.Passed -> EolssuButton(stringResource(learnDoneAction(last)), actions.onComplete, modifier, qaTarget = QaTarget.LEARN_PRACTICE_BOX_BUTTON_04)
         state.listening ->
-            EolssuButton(stringResource(Res.string.learn_practice_stop), actions.onStop, modifier, style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Stop)
+            EolssuButton(stringResource(Res.string.learn_practice_stop), actions.onStop, modifier, style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Stop, qaTarget = QaTarget.LEARN_PRACTICE_BOX_BUTTON_05)
         state.mic == LearnMicStatus.Blocked ->
-            EolssuButton(stringResource(Res.string.learn_practice_open_settings), actions.onOpenSettings, modifier, icon = EolssuIcons.Settings)
-        state.mic == LearnMicStatus.Unsupported -> EolssuButton(stringResource(Res.string.learn_practice_self_done), onSelfDone, modifier)
+            EolssuButton(stringResource(Res.string.learn_practice_open_settings), actions.onOpenSettings, modifier, icon = EolssuIcons.Settings, qaTarget = QaTarget.LEARN_PRACTICE_BOX_BUTTON_06)
+        state.mic == LearnMicStatus.Unsupported -> EolssuButton(stringResource(Res.string.learn_practice_self_done), onSelfDone, modifier, qaTarget = QaTarget.LEARN_PRACTICE_BOX_BUTTON_07)
         // 듣기 전·멈춘 뒤·'처음부터' 뒤 모두 '연습 시작' 한 문구로 둔다(S15P31E102-845, 전에는 들은 적이 있으면 '다시 시작').
-        else -> EolssuButton(stringResource(Res.string.learn_start_practice), actions.onStart, modifier, icon = EolssuIcons.Mic)
+        else -> EolssuButton(stringResource(Res.string.learn_start_practice), actions.onStart, modifier, icon = EolssuIcons.Mic, qaTarget = QaTarget.LEARN_PRACTICE_BOX_BUTTON_08)
     }
 }

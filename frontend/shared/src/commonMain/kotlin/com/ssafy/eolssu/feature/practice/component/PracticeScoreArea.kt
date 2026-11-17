@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -209,7 +212,7 @@ fun PracticeScoreArea(
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = 8.dp, bottom = 14.dp).shadow(8.dp, MaterialTheme.shapes.extraLarge),
                 style = EolssuButtonStyle.Secondary,
                 icon = EolssuIcons.Restart,
-                small = true,
+                small = true, qaTarget = QaTarget.PRACTICE_SCORE_AREA_BUTTON_01
             )
         }
     }
@@ -380,7 +383,7 @@ fun PracticeBoardScore(
                         .align(Alignment.End)
                         .heightIn(min = 48.dp)
                         .then(if (showFollow) Modifier else Modifier.alpha(0f).clearAndSetSemantics {})
-                        .clickable(interactionSource = followInteraction, indication = null, enabled = showFollow, role = Role.Button, onClick = onFollowNow),
+                        .clickable(interactionSource = followInteraction, indication = null, enabled = showFollow, role = Role.Button, onClick = UserActionLog.click(QaTarget.PRACTICE_SCORE_AREA_01, onFollowNow)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(

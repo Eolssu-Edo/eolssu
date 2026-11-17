@@ -60,3 +60,31 @@ def test_tally_counts_missed_errors_and_review_burden_per_rule():
     # 소금도 청황·중청황이 모두 후보다. 율명 후보 목록이 없는 악기는 옥타브 쌍 표시를 하지 않는다.
     no_preset, _ = labelled(song([('청황:5', ':0 청황', .95, [])], ['중청황'], instrument='SANJO_DAEGEUM'))
     assert tally(no_preset, by_threshold(.8, pairs=('황', '태')))['flagged'] == 0
+
+
+def test_recognize_cells_maps_cells_to_reader_grid_places(tmp_path, monkeypatch):
+    """1060의 격자 자리 번호(gak·jeonggan)로 빈 자리가 생겨도 칸·cellId·issue가 어긋나지 않는다."""
+    import sys
+    from PIL import Image
+    from evaluation import jeongganbo_scan_review as review
+    from omr_service import jeongganbo_scan as scan
+    script = tmp_path / 'reader.py'
+    script.write_text('''import json,sys
+from pathlib import Path
+out=Path(sys.argv[3]);out.mkdir(parents=True,exist_ok=True)
+places=[(0,0),(0,1),(0,2),(1,0),(1,2)]
+texts=['청태:5','청임:5','쉼표:5','청무:5','청황:5']
+cells=[dict(text=t,conf=c,ink=.1,x=10,y=i*20,w=20,h=20,gak=g,jeonggan=j)
+       for i,((g,j),t,c) in enumerate(zip(places,texts,[.9,.5,.99,.9,.9]))]
+(out/'cells.json').write_text(json.dumps(dict(beats=3,cells=cells)))
+''', encoding='utf-8')
+    monkeypatch.setattr(scan, 'READER', [sys.executable, str(script)])
+    monkeypatch.setenv('JEONGGANBO_OMR_DIR', str(tmp_path))
+    pdf = tmp_path / 'page.pdf'
+    Image.new('RGB', (200, 200), 'white').save(pdf)
+    work = tmp_path / 'work'
+    work.mkdir()
+    got = review.recognize_cells(pdf, 'DANSO', '세마치', work, 60)
+    assert [(c['cellId'], c['jg']) for c in got['cells']] == [
+        ('c0-j0', ':0 청태'), ('c0-j1', ':0 청임'), ('c0-j2', ':0 쉼표'), ('c1-j0', ':0 청무'), ('c1-j2', ':0 청황')]
+    assert [[i['reason'] for i in c['issues']] for c in got['cells']] == [[], ['MODEL_CONFIDENCE'], ['REST_ONLY'], [], []]

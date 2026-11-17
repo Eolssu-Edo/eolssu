@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -121,14 +123,14 @@ fun SheetConversionScreen(
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 when {
                     failure != null -> {
-                        EolssuButton(stringResource(failure.action.label), onReimport)
+                        EolssuButton(stringResource(failure.action.label), onReimport, qaTarget = QaTarget.SHEET_CONVERSION_SCREEN_BUTTON_01)
                         EolssuButton(stringResource(Res.string.sheet_conversion_to_list), onList,
-                            style = EolssuButtonStyle.Secondary, borderColor = Color.Transparent)
+                            style = EolssuButtonStyle.Secondary, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_CONVERSION_SCREEN_BUTTON_02)
                     }
-                    state.missing -> EolssuButton(stringResource(Res.string.sheet_conversion_to_list), onList)
-                    state.done -> EolssuButton(stringResource(Res.string.sheet_conversion_open_editor), onOpenEditor)
+                    state.missing -> EolssuButton(stringResource(Res.string.sheet_conversion_to_list), onList, qaTarget = QaTarget.SHEET_CONVERSION_SCREEN_BUTTON_03)
+                    state.done -> EolssuButton(stringResource(Res.string.sheet_conversion_open_editor), onOpenEditor, qaTarget = QaTarget.SHEET_CONVERSION_SCREEN_BUTTON_04)
                     else -> EolssuButton(stringResource(Res.string.sheet_conversion_wait_in_list), onList,
-                        style = EolssuButtonStyle.Secondary)
+                        style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_CONVERSION_SCREEN_BUTTON_05)
                 }
             }
         },

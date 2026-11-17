@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -30,7 +32,7 @@ internal fun SheetDocumentNotice(
                 else -> Res.string.sheet_document_failed
             }
             Text(stringResource(message))
-            if (!loading && !practiceVersionChanged) EolssuButton(stringResource(Res.string.song_catalog_retry), onRetry)
+            if (!loading && !practiceVersionChanged) EolssuButton(stringResource(Res.string.song_catalog_retry), onRetry, qaTarget = QaTarget.SHEET_DOCUMENT_NOTICE_BUTTON_01)
         }
     }
 }
