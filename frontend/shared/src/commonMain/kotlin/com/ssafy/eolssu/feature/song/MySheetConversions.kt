@@ -41,6 +41,12 @@ data class MySheetList(
     fun conversionOf(sheet: MySheet): SheetConversion? =
         conversions[sheet.id] ?: SheetConversionStatus.fromCode(sheet.conversionStatus)?.let { SheetConversion(sheet.id, it) }
 
+    /**
+     * 변환 상태 조회(SHT-10)·다시 시도(SHT-14)로 받은 상태가 있는지. 없으면 [conversionOf]는 목록의 상태 코드만 담아
+     * 쪽 수·시작 시각을 모르므로, 진행 막대가 지난 시간으로 어림하지 않는다(S15P31E102-1135).
+     */
+    fun hasConversionDetail(sheet: MySheet): Boolean = sheet.id in conversions
+
     /** 아직 변환 중이라 상태를 다시 물어야 하는 악보. */
     val convertingIds: List<String>
         get() = sheets.orEmpty().filter { conversionOf(it)?.status?.inProgress == true }.map { it.id }
@@ -140,10 +146,15 @@ internal fun wallClockMs(): Long = Clock.System.now().toEpochMilliseconds()
 internal class ConversionReadingClock(private val nowMs: () -> Long, private val wallNowMs: () -> Long = ::wallClockMs) {
     private val readingSince = mutableMapOf<String, Long>()
 
-    /** 이 변환이 '읽는 중'이 된 뒤 지난 시간. 읽는 중이 아니면 0. */
-    fun elapsedMs(conversion: SheetConversion): Long {
+    /**
+     * 이 변환이 '읽는 중'이 된 뒤 지난 시간. 읽는 중이 아니면 0.
+     * [detailed]가 false면(목록 상태 코드만 있음) 쪽 수·시작 시각을 몰라 0을 돌려주고 처음 본 시각도 남기지 않는다.
+     * 그러지 않으면 다른 화면에서 먼저 남긴 시각부터 1쪽으로 어림한 큰 값이 막대에 잡혀,
+     * 상세 상태가 온 뒤에도 줄지 않아 화면마다 채운 정도가 달랐다(S15P31E102-1135).
+     */
+    fun elapsedMs(conversion: SheetConversion, detailed: Boolean = true): Long {
         if (!conversion.status.inProgress) readingSince.remove(conversion.sheetId)
-        if (conversionStep(conversion) !is ConversionStep.Reading) return 0
+        if (!detailed || conversionStep(conversion) !is ConversionStep.Reading) return 0
         serverReadingElapsedMs(conversion, wallNowMs())?.let { return it }
         val now = nowMs()
         return now - readingSince.getOrPut(conversion.sheetId) { now }

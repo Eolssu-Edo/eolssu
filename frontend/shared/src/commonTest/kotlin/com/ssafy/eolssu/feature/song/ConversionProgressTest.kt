@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song
 
+import com.ssafy.eolssu.core.model.KoreanDateTime
+import com.ssafy.eolssu.core.model.MySheet
+import com.ssafy.eolssu.core.model.MySheetOrigin
 import com.ssafy.eolssu.data.song.SheetConversion
 import com.ssafy.eolssu.data.song.SheetNotation
 import com.ssafy.eolssu.data.song.SheetConversionStage
@@ -133,6 +136,26 @@ class ConversionProgressTest {
         assertEquals(0, clock.elapsedMs(skewed), "기기 시계가 서버보다 늦으면 처음 본 때부터 센다")
         now = 8_000
         assertEquals(3_000, clock.elapsedMs(skewed))
+    }
+
+    @Test
+    fun listStatusCodeAloneDoesNotEstimateByTimeSoEveryScreenFillsTheSame() {
+        // 악보 추가에서 남긴 처음 본 시각부터 1쪽으로 어림해, 나중에 연 연습곡 고르기 막대가 더 차 있던 문제(S15P31E102-1135).
+        var now = 0L
+        val clock = ConversionReadingClock({ now }, { 0L })
+        val sheet = MySheet("s1", MySheetOrigin.Imported, "곡", updatedAt = KoreanDateTime(2026, 11, 17, 23, 0), conversionStatus = "RUNNING")
+        val listOnly = MySheetList(sheets = listOf(sheet))
+        val fromList = listOnly.conversionOf(sheet) ?: error("변환 중 상태")
+        assertTrue(!listOnly.hasConversionDetail(sheet))
+        assertEquals(0, clock.elapsedMs(fromList, detailed = false), "목록 상태 코드만으로는 시간을 세지 않는다")
+        now = 120_000
+        assertEquals(0, clock.elapsedMs(fromList, detailed = false), "다른 화면에서 다시 봐도 앞서 본 시각부터 어림하지 않는다")
+
+        val detail = running(SheetConversionStage.Recognizing, 0, 3)
+        assertTrue(listOnly.copy(conversions = mapOf("s1" to detail)).hasConversionDetail(sheet))
+        assertEquals(0, clock.elapsedMs(detail), "상세 상태를 처음 받은 때부터 센다")
+        now = 130_000
+        assertEquals(10_000, clock.elapsedMs(detail))
     }
 
     private fun assertNotNullProgress(conversion: SheetConversion): Float =

@@ -245,6 +245,7 @@ private fun MySheetRows(sheets: List<MySheet>, state: MySongsUiState, actions: M
             onReimport = { actions.onReimportSheet(sheet) },
             bordered = false,
             onOpenConversion = actions.onOpenConversion?.let { open -> { open(sheet) } },
+            conversionDetailed = state.mine.hasConversionDetail(sheet),
         )
     }
 }

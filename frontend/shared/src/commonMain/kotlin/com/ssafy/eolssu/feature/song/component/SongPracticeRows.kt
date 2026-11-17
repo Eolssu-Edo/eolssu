@@ -220,6 +220,7 @@ internal fun MySheetRow(
     onReimport: () -> Unit = {},
     bordered: Boolean = true,
     onOpenConversion: (() -> Unit)? = null,
+    conversionDetailed: Boolean = true,
 ) {
     val status = conversion?.status
     val usable = status == null || status == SheetConversionStatus.Done
@@ -276,7 +277,7 @@ internal fun MySheetRow(
                     )
                 }
             }
-            ConversionProgressRow(sheet.id, conversion, converting = !usable && status != SheetConversionStatus.Failed)
+            ConversionProgressRow(sheet.id, conversion, converting = !usable && status != SheetConversionStatus.Failed, detailed = conversionDetailed)
         }
     }
 }
@@ -312,7 +313,7 @@ private fun FailureReasonToggle(open: Boolean, onToggle: () -> Unit) {
  * 화면에 들어올 때 이미 끝난 악보와 실패한 악보는 채우지 않고 바로 접는다.
  */
 @Composable
-private fun ConversionProgressRow(sheetId: String, conversion: SheetConversion?, converting: Boolean) {
+private fun ConversionProgressRow(sheetId: String, conversion: SheetConversion?, converting: Boolean, detailed: Boolean) {
     val current = if (converting) conversion ?: SheetConversion(sheetId, SheetConversionStatus.Queued) else null
     // 마지막으로 그린 변환 중 상태. 완료 모션 동안 같은 막대(채운 정도)를 이어 그리는 데 쓴다.
     var last by remember(sheetId) { mutableStateOf(current) }
@@ -333,7 +334,7 @@ private fun ConversionProgressRow(sheetId: String, conversion: SheetConversion?,
         enter = fadeIn() + expandVertically(),
         exit = fadeOut() + shrinkVertically(),
     ) {
-        (current ?: last)?.let { ConversionProgressBar(it, complete = current == null) }
+        (current ?: last)?.let { ConversionProgressBar(it, complete = current == null, detailed = detailed) }
     }
 }
 
@@ -341,18 +342,19 @@ private fun ConversionProgressRow(sheetId: String, conversion: SheetConversion?,
  * 변환 진행 막대: 옅은 선 위에 연두로 채운 6dp 막대. 서버가 퍼센트를 주지 않아 숫자는 쓰지 않고 [conversionProgress]의 어림값만 그린다.
  * '읽는 중'에는 서버 응답이 바뀌지 않아도 읽기 시작부터 지난 시간([ConversionReadingClock])으로 1초마다 조금씩 채운다(S15P31E102-1064).
  * 어림이 잠깐 줄어도 뒤로 가지 않고, 채운 부분 위로 밝은 빛이 지나가 멈추지 않았음을 보인다.
+ * 목록 상태 코드만 있을 때([detailed] false)는 시간으로 어림하지 않아, 어느 화면에서 열어도 같은 상세 상태로 같은 만큼 찬다(S15P31E102-1135).
  */
 @Composable
-private fun ConversionProgressBar(conversion: SheetConversion, complete: Boolean = false) {
+private fun ConversionProgressBar(conversion: SheetConversion, complete: Boolean = false, detailed: Boolean = true) {
     val colors = EolssuTheme.colors
     val clock = ConversionReadingClock.Shared
     val reading = conversionStep(conversion) is ConversionStep.Reading
-    var elapsed by remember(conversion.sheetId) { mutableLongStateOf(clock.elapsedMs(conversion)) }
-    LaunchedEffect(conversion) {
-        elapsed = clock.elapsedMs(conversion)
-        while (reading && !complete) {
+    var elapsed by remember(conversion.sheetId) { mutableLongStateOf(clock.elapsedMs(conversion, detailed)) }
+    LaunchedEffect(conversion, detailed) {
+        elapsed = clock.elapsedMs(conversion, detailed)
+        while (reading && detailed && !complete) {
             delay(PROGRESS_TICK_MS)
-            elapsed = clock.elapsedMs(conversion)
+            elapsed = clock.elapsedMs(conversion, detailed)
         }
     }
     val target = if (complete) 1f else (conversionProgress(conversion, elapsed) ?: 0f).coerceIn(0f, 1f)
