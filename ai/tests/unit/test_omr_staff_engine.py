@@ -227,9 +227,9 @@ def test_unsettled_jangdan_gets_the_time_signature_default_tempo(fake_audiveris)
     out = post("short44").json()
     assert out["status"] == "DONE" and out["score"]["music"]["jangdan"] == ""
     assert out["score"]["music"]["bpmUnit"] == "QUARTER"
-    assert out["bpm"] == 160 and "expressions" not in out
+    assert out["bpm"] == 128 and "expressions" not in out
     assert default_tempo(out) == [{"reason": "TEMPO_DEFAULT_FROM_TIME_SIGNATURE", "timeSignature": "4/4",
-                                   "jangdan": "4박 기본 반주", "bpm": 160}]
+                                   "jangdan": "4박 기본 반주", "bpm": 128}]
 
 
 @needs_generator

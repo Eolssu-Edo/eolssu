@@ -121,7 +121,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("45", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("46", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -797,7 +797,7 @@ class DatabaseIntegrationTests {
             jdbc.queryForMap("SELECT code, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active FROM instruments WHERE id = 1"),
         )
         assertEquals(
-            listOf("세마치 96 DOTTED_QUARTER", "굿거리 66 DOTTED_QUARTER", "중모리 88 QUARTER"),
+            listOf("세마치 77 DOTTED_QUARTER", "굿거리 53 DOTTED_QUARTER", "중모리 70 QUARTER"),
             jdbc.queryForList("SELECT CONCAT(name, ' ', default_bpm, ' ', bpm_unit) FROM jangdans WHERE id BETWEEN 1 AND 3 ORDER BY id", String::class.java),
         )
         val songs = jdbc.queryForList(

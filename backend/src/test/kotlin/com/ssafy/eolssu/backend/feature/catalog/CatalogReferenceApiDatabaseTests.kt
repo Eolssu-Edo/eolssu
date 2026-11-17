@@ -198,8 +198,8 @@ class CatalogReferenceApiDatabaseTests {
         assertEquals(listOf("1", "2", "3", "4", "5"), items.take(5).map { it.path("jangdanId").asString() })
         assertEquals(listOf("세마치", "굿거리", "중모리", "자진모리", "중중모리"), items.take(5).map { it.path("name").asString() })
         val expected = listOf(
-            Triple("4", 96, listOf("떵", "", "덕", "쿵", "덕", "", "떵", "", "덕", "쿵", "덕", "")),
-            Triple("5", 80, listOf("덩", "", "따", "궁", "따", "따", "궁", "궁", "따", "궁", "", "궁")),
+            Triple("4", 77, listOf("떵", "", "덕", "쿵", "덕", "", "떵", "", "덕", "쿵", "덕", "")),
+            Triple("5", 64, listOf("덩", "", "따", "궁", "따", "따", "궁", "궁", "따", "궁", "", "궁")),
         )
         for ((id, bpm, beats) in expected) {
             val summary = items.single { it.path("jangdanId").asString() == id }
@@ -215,7 +215,7 @@ class CatalogReferenceApiDatabaseTests {
             assertTrue(detail.path("source").asString().contains("https://"))
             assertEquals("/api/jangdans/$id/audio", detail.path("soundUrl").asString())
         }
-        assertEquals(listOf("1 세마치 96 DOTTED_QUARTER", "2 굿거리 66 DOTTED_QUARTER", "3 중모리 88 QUARTER"),
+        assertEquals(listOf("1 세마치 77 DOTTED_QUARTER", "2 굿거리 53 DOTTED_QUARTER", "3 중모리 70 QUARTER"),
             jdbc.queryForList("SELECT CONCAT(id,' ',name,' ',default_bpm,' ',bpm_unit) FROM jangdans WHERE id<=3 ORDER BY id", String::class.java))
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE jangdan_id IN (4,5)", Int::class.java))
     }
@@ -223,11 +223,11 @@ class CatalogReferenceApiDatabaseTests {
     @Test fun `remaining rhythms preserve source syllables groups and chosen quarter tempo without linking songs`() {
         data class Expected(val id: String, val name: String, val bpm: Int, val beats: List<String>, val groups: List<Int>)
         val expected = listOf(
-            Expected("6", "엇모리", 90, listOf("덩", "", "덕", "쿵", "", "쿵", "", "덕", "쿵", ""), listOf(3,2,3,2)),
-            Expected("7", "단모리", 120, listOf("덩", "", "따", "따", "궁", "따", "궁", ""), listOf(2,2,2,2)),
-            Expected("8", "타령", 48, listOf("덩", "", "", "기닥", "", "다", "덩", "", "기닥", "", "", "다"), listOf(3,3,3,3)),
-            Expected("9", "계면가락도드리", 48, listOf("덩", "", "", "기닥", "", "다", "덩", "", "기닥", "", "", "다"), listOf(3,3,3,3)),
-            Expected("10", "세령산", 63, listOf("덩", "", "덩", "더러러러", "", "궁", "", "기닥", "", "다"), listOf(3,2,2,3)),
+            Expected("6", "엇모리", 72, listOf("덩", "", "덕", "쿵", "", "쿵", "", "덕", "쿵", ""), listOf(3,2,3,2)),
+            Expected("7", "단모리", 96, listOf("덩", "", "따", "따", "궁", "따", "궁", ""), listOf(2,2,2,2)),
+            Expected("8", "타령", 40, listOf("덩", "", "", "기닥", "", "다", "덩", "", "기닥", "", "", "다"), listOf(3,3,3,3)),
+            Expected("9", "계면가락도드리", 40, listOf("덩", "", "", "기닥", "", "다", "덩", "", "기닥", "", "", "다"), listOf(3,3,3,3)),
+            Expected("10", "세령산", 50, listOf("덩", "", "덩", "더러러러", "", "궁", "", "기닥", "", "다"), listOf(3,2,2,3)),
         )
         val items = body("/api/jangdans", staleCookie = true).path("items").toList()
         assertEquals((1..12).map(Int::toString), items.map { it.path("jangdanId").asString() })
@@ -252,7 +252,7 @@ class CatalogReferenceApiDatabaseTests {
     @Test fun `four beat accompaniment exposes the approved arrangement separately from traditional sources`() {
         val detail = body("/api/jangdans/12")
         assertEquals("4박 기본 반주", detail.path("name").asString())
-        assertEquals(160, detail.path("defaultBpm").intValue())
+        assertEquals(128, detail.path("defaultBpm").intValue())
         assertEquals("QUARTER", detail.path("bpmUnit").asString())
         assertEquals(listOf("덩", "덕", "궁", "덕"), detail.path("pattern").path("beats").toList().map { it.asString() })
         assertEquals(listOf(1, 1, 1, 1), detail.path("pattern").path("group").toList().map { it.intValue() })
@@ -264,7 +264,7 @@ class CatalogReferenceApiDatabaseTests {
     @Test fun `Jajin taryeong exposes the Danso teaching pattern without changing song foreign keys`() {
         val detail = body("/api/jangdans/11")
         assertEquals("자진타령", detail.path("name").asString())
-        assertEquals(60, detail.path("defaultBpm").asInt())
+        assertEquals(48, detail.path("defaultBpm").asInt())
         assertEquals("DOTTED_QUARTER", detail.path("bpmUnit").asString())
         assertEquals(listOf("덩", "", "", "덩", "", "", "덩", "", "덕", "", "", ""),
             detail.path("pattern").path("beats").toList().map { it.asString() })

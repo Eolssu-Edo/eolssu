@@ -104,13 +104,14 @@ class PitchFrequencyTests(unittest.TestCase):
 
 
 class JangdanTableTests(unittest.TestCase):
-    # 기존3종은 기획141, 추가7종은 Task411의 공식 기본형·승인된 서비스 시작값.
-    EXPECTED = {"세마치": (96, "DOTTED_QUARTER", 9), "굿거리": (66, "DOTTED_QUARTER", 12),
-                "중모리": (88, "QUARTER", 12), "자진모리": (96, "DOTTED_QUARTER", 12),
-                "중중모리": (80, "DOTTED_QUARTER", 12), "엇모리": (90, "QUARTER", 10),
-                "단모리": (120, "QUARTER", 8), "타령": (48, "QUARTER", 12),
-                "계면가락도드리": (48, "QUARTER", 12), "세령산": (63, "QUARTER", 10),
-                "자진타령": (60, "DOTTED_QUARTER", 12), "4박 기본 반주": (160, "QUARTER", 4)}
+    # 기존3종은 기획141, 추가7종은 Task411의 공식 기본형·승인된 서비스 시작값을
+    # S15P31E102-1073에서 80%로 반올림해 낮췄다(40 미만은 40).
+    EXPECTED = {"세마치": (77, "DOTTED_QUARTER", 9), "굿거리": (53, "DOTTED_QUARTER", 12),
+                "중모리": (70, "QUARTER", 12), "자진모리": (77, "DOTTED_QUARTER", 12),
+                "중중모리": (64, "DOTTED_QUARTER", 12), "엇모리": (72, "QUARTER", 10),
+                "단모리": (96, "QUARTER", 8), "타령": (40, "QUARTER", 12),
+                "계면가락도드리": (40, "QUARTER", 12), "세령산": (50, "QUARTER", 10),
+                "자진타령": (48, "DOTTED_QUARTER", 12), "4박 기본 반주": (128, "QUARTER", 4)}
 
     def test_jangdans_match_planning_tempo_and_unit(self):
         rows = {r["name"]: r for r in load("jangdans.json")["rows"]}
@@ -140,7 +141,8 @@ class SongTableTests(unittest.TestCase):
             self.assertEqual(set(row), {"title", "instrument", "jangdan", "difficulty", "default_bpm",
                                         "description", "source", "is_scorable", "status"})
             self.assertEqual(row["instrument"], "DANSO")
-            self.assertEqual(row["default_bpm"], jangdans[row["jangdan"]]["default_bpm"], row["title"])
+            # 곡 BPM은 V6 시드 때의 장단 기본값이며 S15P31E102-1073의 장단 기본값 변경을 따르지 않는다.
+            self.assertEqual(row["default_bpm"], {"세마치": 96, "굿거리": 66}[row["jangdan"]], row["title"])
             self.assertIn(row["status"], {"DRAFT", "PUBLISHED", "HIDDEN"})
             self.assertIn(row["difficulty"], range(1, 6), row["title"])  # songs.difficulty NOT NULL, 1~5
             # 채점 가능 곡은 사람이 확정한 정답 jgb가 annotations에 있어야 한다
