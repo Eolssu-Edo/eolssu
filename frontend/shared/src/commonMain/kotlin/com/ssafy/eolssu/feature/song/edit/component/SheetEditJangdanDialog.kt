@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.diagnostics.QaTarget
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -35,7 +36,8 @@ import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.feature.song.edit.SheetEditJangdanPicker
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
-import com.ssafy.eolssu.feature.song.edit.SheetJangdanOptionLabel
+import com.ssafy.eolssu.feature.song.edit.jangguCells
+import com.ssafy.eolssu.data.song.CatalogJangdanSummary
 import com.ssafy.eolssu.feature.song.edit.SheetJangdanNoMatchHelp
 import com.ssafy.eolssu.feature.song.edit.dialogHelpStyle
 import com.ssafy.eolssu.feature.song.edit.canSelectJangdan
@@ -48,11 +50,18 @@ import eolssu.shared.generated.resources.basic_accompaniment_none
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.sheetedit_cell_jangdan_change
-import eolssu.shared.generated.resources.sheetedit_jangdan_same_unit
-import eolssu.shared.generated.resources.sheet_jangdan_correction_help
 import eolssu.shared.generated.resources.sheetedit_jangdan_load_failed
 import eolssu.shared.generated.resources.sheet_upload_reload
 import org.jetbrains.compose.resources.stringResource
+
+/** 장단 이름과 그 밑의 장구 기호 칸. 패턴을 모르는 장단은 이름만 보인다(S15P31E102-1138). */
+@Composable
+private fun JangdanPatternLabel(option: CatalogJangdanSummary, cellSize: androidx.compose.ui.unit.Dp) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(option.name)
+        option.pattern?.jangguCells()?.let { JangguPatternCells(it, cellSize) }
+    }
+}
 
 /** 장단 하나를 고르는 네모 버튼(최소 52dp · 모서리 14). 고른 장단은 연두 채움, 나머지는 회색 바탕이다. */
 @Composable
@@ -86,9 +95,6 @@ internal fun SheetEditJangdanDialog(
     var pendingId by rememberSaveable { mutableStateOf<String?>(null) }
     EolssuDialog(
         title = stringResource(Res.string.sheetedit_cell_jangdan_change),
-        // 대화상자가 제목·안내를 스크롤하므로 바깥에 스크롤을 또 두지 않는다. 겹치면 제목·안내가 0 높이로 접힌다(S15P31E102-1080).
-        message = stringResource(if (draft.inferredJeongganSizes != null)
-            Res.string.sheet_jangdan_correction_help else Res.string.sheetedit_jangdan_same_unit),
         onDismissRequest = onDismiss,
     ) {
         // 악보 올리기처럼 장단만 고른다. 기본 박 반주는 고르는 곳을 빼고, 이미 고른 악보에서만 지금 상태로 보인다(S15P31E102-1042).
@@ -102,24 +108,29 @@ internal fun SheetEditJangdanDialog(
             }
             is SheetEditJangdanPicker.Ready -> if (selectable.isEmpty()) SheetJangdanNoMatchHelp()
         }
+        // 장단 기호 칸은 모든 장단이 같은 크기를 쓴다. 가장 긴 장단이 버튼 안에 들어가지 않을 때만 함께 줄인다(S15P31E102-1138).
+        val longest = selectable.maxOfOrNull { it.pattern?.jangguCells()?.size ?: 0 } ?: 0
         // 아래 버튼들과 같은 네모 버튼을 한 줄에 하나씩 같은 너비로 쌓는다(S15P31E102-889).
-        Column(
-            modifier = Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            JangdanOptionButton(selected = selectedId == null && draft.basicAccompaniment == null, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_JANGDAN_DIALOG_02, onClear)) {
-                Text(stringResource(Res.string.basic_accompaniment_none))
-            }
-            draft.basicAccompaniment?.let { basic ->
-                JangdanOptionButton(selected = true, onClick = {}) {
-                    Text(stringResource(Res.string.basic_accompaniment_title) + " · " + basic.preset.label)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val cellSize = jangguCellSize(maxWidth - 32.dp, longest)
+            Column(
+                modifier = Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                JangdanOptionButton(selected = selectedId == null && draft.basicAccompaniment == null, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_JANGDAN_DIALOG_02, onClear)) {
+                    Text(stringResource(Res.string.basic_accompaniment_none))
                 }
-            }
-            selectable.forEach { option ->
-                JangdanOptionButton(selected = option.jangdanId == selectedId, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_JANGDAN_DIALOG_03, {
-                    if (draft.requiresJangdanRetiming(option) && !draft.jangdanTempoOutOfRange(option)) pendingId = option.jangdanId
-                    else onSelect(option.jangdanId)
-                })) { SheetJangdanOptionLabel(option) }
+                draft.basicAccompaniment?.let { basic ->
+                    JangdanOptionButton(selected = true, onClick = {}) {
+                        Text(stringResource(Res.string.basic_accompaniment_title) + " · " + basic.preset.label)
+                    }
+                }
+                selectable.forEach { option ->
+                    JangdanOptionButton(selected = option.jangdanId == selectedId, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_JANGDAN_DIALOG_03, {
+                        if (draft.requiresJangdanRetiming(option) && !draft.jangdanTempoOutOfRange(option)) pendingId = option.jangdanId
+                        else onSelect(option.jangdanId)
+                    })) { JangdanPatternLabel(option, cellSize) }
+                }
             }
         }
         EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_EDIT_JANGDAN_DIALOG_BUTTON_03)

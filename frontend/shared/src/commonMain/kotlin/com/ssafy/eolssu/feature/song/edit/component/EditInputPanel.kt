@@ -94,7 +94,6 @@ import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.Sigimsae
 import com.ssafy.eolssu.feature.song.edit.sigimsaeConflicts
 import com.ssafy.eolssu.feature.song.edit.YulRegister
-import eolssu.shared.generated.resources.sheet_tempo_before_reshape
 import com.ssafy.eolssu.feature.song.edit.isAvailablePitch
 import com.ssafy.eolssu.feature.song.edit.isPitch
 import com.ssafy.eolssu.feature.song.edit.pitchKey
@@ -173,7 +172,6 @@ internal fun EditInputPanel(
     saveFeedback: @Composable () -> Unit = {},
     adaptationContent: @Composable () -> Unit = {},
     docked: Boolean = false,
-    hasTempoPlan: Boolean,
     expanded: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
@@ -219,7 +217,7 @@ internal fun EditInputPanel(
             EditTab.Adaptation -> adaptationContent()
             EditTab.Yul -> YulKeys(draft, selected, selectedSub, register, availablePitches, actions, wrapKeys = docked)
             EditTab.Sigimsae -> SigimsaeKeys(draft, selected, draft.sigimsaeSub(selected, selectedSub), actions)
-            EditTab.Cell -> CellTools(draft, selected, actions, hasTempoPlan)
+            EditTab.Cell -> CellTools(draft, selected, actions)
         }
     }
 }
@@ -693,7 +691,7 @@ private fun SigimsaeTile(value: Sigimsae) {
 
 /** 정간 나누기·합치기, 각 추가·삭제, 장단 정보와 '장단 바꾸기'. */
 @Composable
-private fun CellTools(draft: SheetDraft, selected: Int, actions: EditInputActions, hasTempoPlan: Boolean) {
+private fun CellTools(draft: SheetDraft, selected: Int, actions: EditInputActions) {
     val colors = EolssuTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -709,10 +707,7 @@ private fun CellTools(draft: SheetDraft, selected: Int, actions: EditInputAction
             ToolButton(stringResource(Res.string.sheetedit_cell_delete_column), actions.onDeleteColumn, Modifier.weight(1f),
                 picture = CellPicture.DeleteColumn)
         }
-        // 각 추가는 악보 맨 끝에 붙어 구간 빠르기 위치를 바꾸지 않는다(S15P31E102-1139). 빠르기 구간이 걸친 각만 지울 수 없다(S15P31E102-1095).
-        if (hasTempoPlan) {
-            HintText(stringResource(Res.string.sheet_tempo_before_reshape))
-        }
+        // 빠르기 구간이 걸친 각을 지우려 할 때만 막힌 이유를 알린다. 늘 띄워 두지 않는다(S15P31E102-1138).
         // 장단 고르기는 다른 도구와 같은 높이의 한 줄로 둔다. 줄을 누르면 장단 선택 창이 열린다(S15P31E102-1042).
         val jangdanChange = stringResource(Res.string.sheetedit_cell_jangdan_change)
         Surface(

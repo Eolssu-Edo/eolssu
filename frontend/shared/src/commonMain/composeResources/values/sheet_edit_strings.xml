@@ -121,7 +121,6 @@
     <string name="sheetedit_yul_pitch_caption">음</string>
     <string name="sheetedit_cell_jangdan_desc">%1$d박 · 박마다 %2$d정간 · %3$d BPM</string>
     <string name="sheetedit_cell_jangdan_change">장단 선택</string>
-    <string name="sheetedit_jangdan_same_unit">이 악보에 맞는 장단만 보여요. 음은 바뀌지 않아요.</string>
     <string name="sheetedit_jangdan_none_compatible">맞는 장단이 없어요. ‘장단 사용 안 함’을 골라 주세요.</string>
     <string name="sheetedit_jangdan_load_failed">장단 목록을 불러오지 못했어요.</string>
     <string name="sheetedit_staff_hint">한쪽을 고치면 다른 쪽도 바로 바뀌어요</string>

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="sheet_jangdan_correction_help">이 악보에 맞는 장단만 보여요.</string>
     <string name="sheet_jangdan_correction_title">장단에 맞춰 박 길이를 바꿀까요?</string>
     <string name="sheet_jangdan_correction_message">음은 그대로 두고, 장단에 맞춰 박 길이와 빠르기를 바꿔요. 실행 취소로 되돌릴 수 있어요.</string>
     <string name="sheet_jangdan_correction_tempo">중간에 바뀌는 빠르기도 기본 빠르기와 같은 비율로 바뀌어요.</string>

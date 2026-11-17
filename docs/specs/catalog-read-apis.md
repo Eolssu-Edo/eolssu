@@ -15,7 +15,7 @@
 | CAT-07 | `/instruments/{instrumentId}/fingerings?pitchId=...` | 해당 활성 악기의 등록 운지, 선택한 음의 운지. 없는 콘텐츠는 빈 목록이다. |
 | CAT-08 | `/jangdans/{jangdanId}` | 장단 이름·defaultBpm·bpmUnit·원본 pattern(beats/group)·patternCellEighths·source·soundUrl. 미리듣기가 있으면 같은 API 원점의 `/api/jangdans/{jangdanId}/audio`를 반환한다. |
 | CAT-09 | `/notation-symbols` | symbolId/symbol/name/description/imageUrl 및 nullable source/descriptionStatus/imageLicense. [기존 FE 사전 연결](notation-symbol-catalog.md). 학습용 설명이며 악보 이벤트의 의미를 재정의하지 않는다. |
-| CAT-10 | `/jangdans` | jangdanId/name/defaultBpm/bpmUnit/beatCount/groupCount/patternCellEighths. 소박·묶음 수는 저장 pattern에서 구한다. |
+| CAT-10 | `/jangdans` | jangdanId/name/defaultBpm/bpmUnit/beatCount/groupCount/patternCellEighths/pattern(beats/group, 상세와 같은 원본). 소박·묶음 수는 저장 pattern에서 구한다. 앱은 장단 바꾸기 창의 장구 기호 칸에 pattern을 쓴다(S15P31E102-1138). |
 
 ## 내장 운지 자료
 
