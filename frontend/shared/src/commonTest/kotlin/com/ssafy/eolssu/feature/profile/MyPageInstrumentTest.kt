@@ -8,6 +8,7 @@ import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.song.InstrumentCatalog
 import com.ssafy.eolssu.data.user.*
+import com.ssafy.eolssu.testing.CatalogViewModelTest
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.*
@@ -18,7 +19,8 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
-class MyPageInstrumentTest {
+/** viewModelScope는 iOS에서 실제 메인 큐를 쓰므로, runTest가 메인 스레드를 잡고 있으면 결과를 받지 못해 멈춘다. 테스트 디스패처로 바꿔 둔다. */
+internal class MyPageInstrumentTest : CatalogViewModelTest() {
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test fun savesServerIdThenUpdatesSharedInstrumentAndIgnoresRepeatedTap() = runTest {
         val gate = CompletableDeferred<Unit>()
@@ -41,8 +43,8 @@ class MyPageInstrumentTest {
             val store = FakeKeyValueStore()
             val instruments = InstrumentRepository(store, InstrumentCatalog(client))
             val users = ApiUserRepository(client, null, instruments)
-            val model = MyPageViewModel(users, instruments,
-                PracticeTimeQueue(store, null, SignedInMember(store), backgroundScope), SampleAuthRepository { 0L })
+            val model = keep(MyPageViewModel(users, instruments,
+                PracticeTimeQueue(store, null, SignedInMember(store), backgroundScope), SampleAuthRepository { 0L }))
             assertEquals(MemberResult.Done, model.refresh())
             assertEquals(Instrument.Danso, model.instrument.value)
             val save = async { model.selectInstrument(Instrument.DaegeumSanjo) }
@@ -77,8 +79,8 @@ class MyPageInstrumentTest {
                 val store = FakeKeyValueStore()
                 val instruments = InstrumentRepository(store, InstrumentCatalog(client))
                 val users = ApiUserRepository(client, null, instruments)
-                val model = MyPageViewModel(users, instruments,
-                    PracticeTimeQueue(store, null, SignedInMember(store), backgroundScope), SampleAuthRepository { 0L })
+                val model = keep(MyPageViewModel(users, instruments,
+                    PracticeTimeQueue(store, null, SignedInMember(store), backgroundScope), SampleAuthRepository { 0L }))
                 assertEquals(MemberResult.Done, model.refresh())
                 assertEquals(expected, model.selectInstrument(Instrument.DaegeumSanjo))
                 assertEquals(if (expected == MemberResult.Unauthenticated) null else Instrument.Danso, model.instrument.value)
@@ -95,8 +97,8 @@ class MyPageInstrumentTest {
             val store = FakeKeyValueStore()
             val instruments = InstrumentRepository(store, InstrumentCatalog(client)).apply { select(Instrument.Danso) }
             val users = ApiUserRepository(client, null, instruments)
-            val model = MyPageViewModel(users, instruments,
-                PracticeTimeQueue(store, null, SignedInMember(store), backgroundScope), SampleAuthRepository { 0L })
+            val model = keep(MyPageViewModel(users, instruments,
+                PracticeTimeQueue(store, null, SignedInMember(store), backgroundScope), SampleAuthRepository { 0L }))
             assertEquals(MemberResult.Unauthenticated, model.refresh())
             assertNull(instruments.instrument.value)
         } finally { client.close() }

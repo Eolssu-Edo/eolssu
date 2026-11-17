@@ -30,6 +30,7 @@ import platform.AVFAudio.AVAudioSessionRouteChangeReasonKey
 import platform.AVFAudio.AVAudioSessionRouteChangeReasonOldDeviceUnavailable
 import platform.AVFAudio.AVAudioTime
 import platform.AVFAudio.AVAudioUnitTimePitch
+import platform.AVFAudio.IOBufferDuration
 import platform.Foundation.NSNotification
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSNumber
