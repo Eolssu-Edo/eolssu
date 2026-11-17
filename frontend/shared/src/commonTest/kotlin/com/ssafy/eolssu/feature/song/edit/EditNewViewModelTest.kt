@@ -46,6 +46,18 @@ internal class EditNewViewModelTest : CatalogViewModelTest() {
         assertEquals(SheetFileProblem.Unreadable, model.uiState.value.problem)
     }
 
+    @Test fun reimportRemembersTheFailedSheetToReplaceAndKeepsItAfterTheProblemCloses() {
+        val fromList = EditNewViewModel()
+        fromList.showReimportProblem(SheetFileProblem.Unrecognized, sheetId = "7")
+        fromList.dismissProblem()
+        assertEquals("7", fromList.uiState.value.replacing)
+
+        val here = EditNewViewModel()
+        assertNull(here.uiState.value.replacing)
+        assertFalse(here.reimport(sheet("9", conversionStatus = "FAILED")))
+        assertEquals("9", here.uiState.value.replacing)
+    }
+
     private fun sheet(id: String, conversionStatus: String? = null) =
         MySheet(id, MySheetOrigin.Imported, "악보 $id", updatedAt = KoreanDateTime(2026, 11, 13, 9, 0), conversionStatus = conversionStatus)
 

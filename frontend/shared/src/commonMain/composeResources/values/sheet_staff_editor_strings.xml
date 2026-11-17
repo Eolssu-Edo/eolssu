@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="sheet_staff_generated">현재 악보를 실음 오선보로 표시해요. 음표를 눌러 높이를 바꿀 수 있어요.</string>
+    <string name="sheet_staff_generated">지금 악보를 오선보로 보여 줘요. 음표를 눌러 높이를 바꿀 수 있어요.</string>
     <string name="sheet_staff_incomplete">아직 입력하지 않은 칸이 있어요. 정간보로 돌아가 빈 칸을 채워 주세요.</string>
     <string name="sheet_staff_invalid">음표의 위치나 길이를 확인할 수 없어요. 정간보에서 악보를 확인해 주세요.</string>
-    <string name="sheet_staff_tuning">이 악보의 조율은 현재 오선보에 표시할 수 없어요. 정간보에서 계속 편집할 수 있어요.</string>
-    <string name="sheet_staff_pitch_range">이 악보에는 오선보에 표시할 수 있는 음역을 벗어난 음이 있어요. 정간보에서 계속 편집할 수 있어요.</string>
-    <string name="sheet_staff_timing_unit">이 악보의 박 단위는 현재 오선보에 표시할 수 없어요. 정간보에서 계속 편집할 수 있어요.</string>
-    <string name="sheet_staff_duration">현재 오선보로 나타낼 수 없는 음 길이가 있어요. 정간보에서 계속 편집할 수 있어요.</string>
-    <string name="sheet_staff_size">오선보로 표시하기에는 악보가 너무 길어요. 정간보에서 계속 편집할 수 있어요.</string>
+    <string name="sheet_staff_tuning">이 악보의 음높이는 오선보로 볼 수 없어요. 정간보에서 고쳐 주세요.</string>
+    <string name="sheet_staff_pitch_range">오선보에 그릴 수 없는 높은·낮은 음이 있어요. 정간보에서 고쳐 주세요.</string>
+    <string name="sheet_staff_timing_unit">이 악보의 박은 오선보로 볼 수 없어요. 정간보에서 고쳐 주세요.</string>
+    <string name="sheet_staff_duration">오선보로 그릴 수 없는 음 길이가 있어요. 정간보에서 고쳐 주세요.</string>
+    <string name="sheet_staff_size">악보가 길어 오선보로 볼 수 없어요. 정간보에서 고쳐 주세요.</string>
     <string name="sheet_staff_pick_note">편집할 음표를 선택해 주세요.</string>
     <string name="sheet_staff_value">%1$s · 온음표의 1/%2$d</string>
     <string name="sheet_staff_dots">점 %1$d개</string>

@@ -52,7 +52,7 @@
     <string name="sheetedit_import_step_staff_3_desc">황 = %1$s 기준</string>
     <string name="sheetedit_import_step_staff_4">정간보로 옮기기</string>
     <string name="sheetedit_import_step_staff_4_desc">장단에 맞춰 각·정간으로 나눠요</string>
-    <string name="sheetedit_import_notice">인식이 끝나면 읽은 결과를 보여 드려요. 확실하지 않은 정간은 표시해 두니 확인하고 고쳐요.</string>
+    <string name="sheetedit_import_notice">다 읽으면 결과를 보여 드려요. 헷갈리는 정간은 표시해 둘게요.</string>
     <string name="sheetedit_import_cancel">인식 취소</string>
     <string name="sheetedit_import_result">결과 확인</string>
 
@@ -65,7 +65,7 @@
     <string name="sheetedit_result_setting_jg">장단 %1$s(인식) · %2$d각 · %3$d BPM</string>
     <string name="sheetedit_result_setting_staff">황 = %1$s · %2$s %3$d각</string>
     <string name="sheetedit_result_cell">%1$s · 인식 결과</string>
-    <string name="sheetedit_result_source_discarded">업로드 원본은 인식 후 삭제해요. 인식한 정간보를 확인하고 수정해 주세요.</string>
+    <string name="sheetedit_result_source_discarded">올린 파일은 읽은 뒤 지워요. 읽은 정간보를 확인해 주세요.</string>
     <string name="sheetedit_result_all_done">확인할 정간을 모두 봤어요. 편집에서 더 고칠 수 있어요.</string>
     <string name="sheetedit_result_listen">들어보며 확인</string>
     <string name="sheetedit_result_listen_desc">읽은 악보를 소리로 들려줘요</string>
@@ -121,8 +121,8 @@
     <string name="sheetedit_yul_pitch_caption">음</string>
     <string name="sheetedit_cell_jangdan_desc">%1$d박 · 박마다 %2$d정간 · %3$d BPM</string>
     <string name="sheetedit_cell_jangdan_change">장단 선택</string>
-    <string name="sheetedit_jangdan_same_unit">현재 악보의 박자 단위와 한 각의 길이에 맞는 장단만 선택할 수 있어요. 음표와 길이는 바뀌지 않아요.</string>
-    <string name="sheetedit_jangdan_none_compatible">현재 악보에 맞는 장단이 없어요. 돌아가서 ‘장단 사용 안 함’을 선택해 주세요.</string>
+    <string name="sheetedit_jangdan_same_unit">이 악보에 맞는 장단만 보여요. 음은 바뀌지 않아요.</string>
+    <string name="sheetedit_jangdan_none_compatible">맞는 장단이 없어요. ‘장단 사용 안 함’을 골라 주세요.</string>
     <string name="sheetedit_jangdan_load_failed">장단 목록을 불러오지 못했어요.</string>
     <string name="sheetedit_staff_hint">한쪽을 고치면 다른 쪽도 바로 바뀌어요</string>
     <string name="sheetedit_staff_system">정간보 %1$d–%2$d각</string>
@@ -178,7 +178,7 @@
     <string name="sheetedit_preview_draft">임시저장</string>
     <string name="sheetedit_preview_save">저장</string>
     <string name="sheetedit_warn_title">빈 정간 %1$d개를 채워야 저장할 수 있어요</string>
-    <string name="sheetedit_warn_message">%1$s이 비어 있어요. 빈 정간이 있어도 임시저장은 되고, 나중에 이어서 고칠 수 있어요.</string>
+    <string name="sheetedit_warn_message">%1$s이 비어 있어요. 임시저장하고 나중에 고쳐도 돼요.</string>
     <string name="sheetedit_warn_more">%1$s 외 %2$d곳</string>
     <string name="sheetedit_warn_fill">빈 정간 채우기</string>
     <string name="sheetedit_msg_draft">임시저장했어요. 내 악보에서 이어서 고칠 수 있어요.</string>
@@ -197,7 +197,7 @@
     <string name="sheetedit_msg_audio_ready">음원이 준비됐어요. ‘편집 내용 확인’에서 재생·저장할 수 있어요.</string>
     <string name="sheetedit_msg_audio_failed">음원을 만들지 못했어요. ‘편집 내용 확인’에서 다시 시도할 수 있어요.</string>
     <string name="sheetedit_msg_audio_too_long">연주 길이가 10분을 넘어요 · 빠르기나 각 수를 줄여 주세요</string>
-    <string name="sheetedit_msg_audio_invalid">장단 소리나 빠르기 설정이 맞지 않아요 · 장단이 없는 악보는 장단 소리를 끄고 만들어요</string>
+    <string name="sheetedit_msg_audio_invalid">장단 소리나 빠르기가 맞지 않아요 · 장단이 없으면 장단 소리를 꺼 주세요</string>
     <string name="sheetedit_msg_audio_in_progress">만들고 있는 음원이 끝난 뒤 다시 눌러 주세요</string>
     <string name="sheetedit_msg_audio_not_ready">빈 정간 없이 저장한 악보만 음원을 만들 수 있어요</string>
     <string name="sheetedit_msg_audio_not_found">악보를 찾지 못했어요 · 내 악보 목록을 확인해 주세요</string>

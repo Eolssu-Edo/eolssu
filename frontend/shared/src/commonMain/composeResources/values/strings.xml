@@ -641,7 +641,8 @@
     <string name="mysongs_tab_sheets">내 악보</string>
     <string name="mysongs_reset_filter">전체 곡 보기</string>
     <string name="mysongs_add">악보 추가</string>
-    <string name="mysongs_sheet_count">내 악보 %1$d개</string>
+    <string name="mysongs_sheet_count">내 악보 %1$d/%2$d</string>
+    <string name="mysongs_sheet_limit_note">내 악보는 최대 %1$d개까지만 저장할 수 있어요.</string>
     <string name="mysongs_origin_copied">제공 곡에서 고침</string>
     <string name="mysongs_meta_updated">%1$s 수정</string>
     <string name="mysongs_status_practice">연습 가능</string>
@@ -657,6 +658,9 @@
     <string name="mysongs_conversion_building">악보 만드는 중</string>
     <string name="mysongs_conversion_issues">확인할 칸 %1$d개</string>
     <string name="mysongs_conversion_failed">변환 실패</string>
+    <string name="mysongs_conversion_failure_reason">실패 사유</string>
+    <string name="mysongs_conversion_failure_reason_open">펼침</string>
+    <string name="mysongs_conversion_failure_reason_closed">접힘</string>
     <string name="mysongs_conversion_failed_no_score">악보를 찾지 못했어요</string>
     <string name="mysongs_conversion_failed_file">파일을 열 수 없었어요</string>
     <string name="mysongs_conversion_failed_timeout">시간 안에 변환하지 못했어요</string>

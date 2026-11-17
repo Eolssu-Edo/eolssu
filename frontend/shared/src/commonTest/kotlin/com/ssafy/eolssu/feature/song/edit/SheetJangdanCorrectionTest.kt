@@ -119,6 +119,30 @@ internal class SheetJangdanCorrectionTest {
         assertEquals(6, corrected.music.ticksPerBeat)
     }
 
+    @Test fun changingJeongganboJangdanUsesTheNewJangdanDefaultTempoNotTheOldNumber() {
+        // 4박 기본 반주(160♩)로 올린 정간보를 굿거리로 바꾸면 160♩.이 아니라 얼쑤 기본 빠르기 ♩.=66이 된다(S15P31E102-1054).
+        val fromFourBeat = state(recognized("QUARTER", 12, 36, "중모리")).let { it.copy(draft = it.draft.copy(bpm = 160)) }
+        val gutgeori66 = gutgeori.copy(defaultBpm = 66)
+        val changed = fromFourBeat.copy(jangdanPicker = SheetEditJangdanPicker.Ready(listOf(gutgeori66))).selectJangdan("2").draft
+        assertEquals("DOTTED_QUARTER", changed.toCommonScore().music.bpmUnit)
+        assertEquals(66, changed.bpm)
+        assertEquals(160, fromFourBeat.selectJangdan(danmori.jangdanId).undo().draft.bpm)
+        // 박 길이를 바꾸지 않는 장단으로 바꿔도 새 장단의 기본 빠르기를 쓴다.
+        assertEquals(120, state(recognized("DOTTED_QUARTER", 12, 12, "굿거리")).selectJangdan(danmori.jangdanId).draft.bpm)
+    }
+
+    @Test fun staffScoresAndTempoPlansKeepTheirWrittenTempoWhenJangdanChanges() {
+        val planned = state(recognized("QUARTER", 12, 12, "")).copy(hasTempoPlan = true)
+        assertEquals(80, planned.selectJangdan(danmori.jangdanId).draft.bpm)
+        val staff = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
+        val compatible = CatalogJangdanSummary("4", "굿거리", 66, "DOTTED_QUARTER", 3, 1, 1)
+        val fixed = SheetEditUiState(source = EditSource.Mine("31"), draft = staff.editingDraft("오선보", 132, null),
+            availableJangdans = listOf(compatible), jangdanPicker = SheetEditJangdanPicker.Ready(listOf(compatible)))
+        val chosen = fixed.selectJangdan(compatible.jangdanId).draft
+        assertEquals("4", chosen.jangdanId)
+        assertEquals(132, chosen.bpm)
+    }
+
     internal fun state(score: CommonScoreData, metadata: JsonObject? = sourceMetadata(score)) = SheetEditUiState(
         source = EditSource.Mine("31"),
         draft = score.editingDraft("인식 악보", 80, null).copy(authoring = metadata),

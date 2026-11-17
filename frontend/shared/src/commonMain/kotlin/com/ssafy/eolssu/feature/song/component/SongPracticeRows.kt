@@ -9,12 +9,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import com.ssafy.eolssu.feature.song.ConversionReadingClock
 import kotlinx.coroutines.delay
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -69,6 +74,9 @@ import com.ssafy.eolssu.data.song.SheetConversionStatus
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_conversion_building
 import eolssu.shared.generated.resources.mysongs_conversion_failed
+import eolssu.shared.generated.resources.mysongs_conversion_failure_reason
+import eolssu.shared.generated.resources.mysongs_conversion_failure_reason_closed
+import eolssu.shared.generated.resources.mysongs_conversion_failure_reason_open
 import eolssu.shared.generated.resources.mysongs_conversion_issues
 import eolssu.shared.generated.resources.mysongs_conversion_queued
 import eolssu.shared.generated.resources.mysongs_conversion_reading
@@ -206,6 +214,8 @@ internal fun MySheetRow(
 ) {
     val status = conversion?.status
     val usable = status == null || status == SheetConversionStatus.Done
+    // 실패 사유는 처음엔 접어 두고 '실패 사유'를 누를 때만 아래에 펼친다(S15P31E102-1052).
+    var reasonOpen by rememberSaveable(sheet.id) { mutableStateOf(false) }
     // 제공 곡 줄처럼 카드 전체가 둥글게 눌려 악보를 연다. 편집·휴지통은 각자의 모양으로 따로 눌린다(S15P31E102-968).
     PracticeRowFrame(modifier, onClick = if (usable) onOpen else onOpenConversion, bordered = bordered) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -236,23 +246,56 @@ internal fun MySheetRow(
                             if (!sheet.practiceReady && issues > 0) EolssuBadge(stringResource(Res.string.mysongs_conversion_issues, issues), small = true)
                         }
                         status == SheetConversionStatus.Failed -> {
-                            EolssuBadge(stringResource(Res.string.mysongs_conversion_failed), small = true)
-                            Text(
-                                stringResource(conversionFailureRow(conversion)),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-                                color = EolssuTheme.colors.textMuted,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            EolssuBadge(stringResource(Res.string.mysongs_conversion_failed), style = EolssuBadgeStyle.Failed, small = true)
+                            FailureReasonToggle(open = reasonOpen, onToggle = { reasonOpen = !reasonOpen })
                         }
                         else -> EolssuBadge(conversionProgressText(conversion ?: SheetConversion(sheet.id, SheetConversionStatus.Queued)), style = EolssuBadgeStyle.Soft, small = true)
                     }
+                }
+            }
+            if (status == SheetConversionStatus.Failed) {
+                AnimatedVisibility(reasonOpen) {
+                    Text(
+                        stringResource(conversionFailureRow(conversion)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(EolssuTheme.colors.recSoft)
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 19.sp),
+                        color = EolssuTheme.colors.recText,
+                    )
                 }
             }
             if (!usable && status != SheetConversionStatus.Failed) {
                 ConversionProgressBar(conversion ?: SheetConversion(sheet.id, SheetConversionStatus.Queued))
             }
         }
+    }
+}
+
+/** '실패 사유 ▾' 글자 버튼. 누를 때마다 아래 사유 칸을 펼치고 접으며, 화살표가 펼침 상태를 따라 돈다. 누르는 영역은 48dp. */
+@Composable
+private fun FailureReasonToggle(open: Boolean, onToggle: () -> Unit) {
+    val colors = EolssuTheme.colors
+    val turn by animateFloatAsState(if (open) 180f else 0f, animationSpec = tween(200))
+    val state = stringResource(if (open) Res.string.mysongs_conversion_failure_reason_open else Res.string.mysongs_conversion_failure_reason_closed)
+    Row(
+        Modifier
+            .minimumInteractiveComponentSize()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(role = Role.Button, onClick = onToggle)
+            .semantics { stateDescription = state }
+            .padding(horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            stringResource(Res.string.mysongs_conversion_failure_reason),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
+            color = colors.recText,
+        )
+        Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp).rotate(turn), tint = colors.recText)
     }
 }
 
