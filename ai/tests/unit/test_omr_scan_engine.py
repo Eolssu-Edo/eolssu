@@ -38,6 +38,7 @@ def test_scan_cell_keeps_supported_pitch_and_marks_unsupported_ornament():
 @pytest.mark.parametrize('cell,text,expected', [
     ({'conf': .99, 'split': True, 'filled': True}, ':0 청태', 'GRID_SPLIT'),
     ({'conf': .99, 'filled': True}, ':0 청태', 'GRID_FILLED'),
+    ({'conf': .2, 'gakMismatch': True}, ':0 청태', 'GAK_MISMATCH'),  # 장단과 어긋난 각의 첫 칸(1077)
     ({'conf': None}, ':0 청태', 'MODEL_CONFIDENCE'),
     ({'conf': .79}, ':0 청태', 'MODEL_CONFIDENCE'),
     ({'conf': .8}, ':0 청태', None),
@@ -122,7 +123,7 @@ sys.exit(4)
         api.app.dependency_overrides.clear()
     assert out['failReason']=='NO_GRID_FOUND'
     runs=[json.loads(line) for line in calls.read_text(encoding='utf-8').splitlines()]
-    assert len(runs)==4 and '--grid-boxes' in runs[-1]
+    assert len(runs)==5 and '--grid-address' in runs[0] and '--grid-boxes' in runs[-1]  # 격자 주소 경로 다음 기존 크기 재시도
     for argv in runs:
         assert [a for i,a in enumerate(argv) if a=='--yul' or (i and argv[i-1]=='--yul')]==expected
         assert '--batch-size' in argv
@@ -266,3 +267,69 @@ def test_gak_size_matching_the_jangdan_is_not_reinterpreted(tmp_path):
     # 굿거리 12정간 각은 이미 정간당 1/3박으로 맞으므로 줄 안의 굵은 선이 있어도 바꾸지 않는다.
     path, cells = _column_image(tmp_path, {3, 6, 9})
     assert gak_size_from_lines(path, cells, 12, '굿거리') == 12
+
+
+
+def _address_reader(tmp_path, columns, *, address=True):
+    """--grid-address일 때 칸 주소(단·열·줄)와 칸 위 선 굵기를 내는 가짜 리더. columns는 열마다 칸 위 선 굵기 목록이다.
+    address가 거짓이면 그 경로에서 격자를 못 찾고(종료 4) 기존 경로에서 순번 칸을 낸다."""
+    script = tmp_path / 'reader.py'
+    script.write_text(f'''import json,sys
+from pathlib import Path
+out=Path(sys.argv[3])
+if '--grid-address' in sys.argv:
+    if not {address!r}:
+        sys.exit(4)
+    cells=[dict(text='청태:5',conf=.99,ink=.1,x=100-c*30,y=r*20,w=20,h=20,band=0,col=c,row=r,line=line)
+           for c,col in enumerate({columns!r}) for r,line in enumerate(col)]
+    beats=0
+else:
+    cells=[dict(text='청태:5',conf=.99,ink=.1,x=10,y=i*20,w=20,h=20) for i in range(6)]
+    beats=3
+out.mkdir(parents=True,exist_ok=True)
+(out/'cells.json').write_text(json.dumps(dict(beats=beats,cells=cells)))
+''',encoding='utf-8')
+    return script
+
+
+def _recognize(tmp_path, monkeypatch, script, jangdan='세마치'):
+    from omr_service import jeongganbo_scan as scan
+    monkeypatch.setattr(scan,'READER',[sys.executable,str(script)])
+    monkeypatch.setenv('JEONGGANBO_OMR_DIR',str(tmp_path))
+    buf=io.BytesIO();Image.new('RGB',(200,200),'white').save(buf,'PNG')
+    api.app.dependency_overrides[api.get_fetcher]=lambda:lambda url,p,limit,deadline:p.write_bytes(buf.getvalue())
+    try:
+        out=TestClient(api.app).post('/v1/recognitions',json=dict(conversionId='address',notation='JEONGGANBO',jangdan=jangdan,instrument='SOGEUM',files=[dict(url='https://local.invalid/page.png',contentType='image/png')])).json()
+    finally:
+        api.app.dependency_overrides.clear()
+    assert out['status']=='DONE',out
+    return out
+
+
+THIN, THICK = 2, 7
+
+
+@pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
+def test_grid_address_splits_columns_at_thick_gak_lines(tmp_path,monkeypatch):
+    # 단소교실 아리랑처럼 6정간 열 안에 굵은 각 구분선이 있다. 세마치 3정간 각 4개다.
+    column = [None, THIN, THIN, THICK, THIN, THIN]
+    out = _recognize(tmp_path, monkeypatch, _address_reader(tmp_path, [column, column]))
+    assert [len(c['cells']) for c in out['score']['columns']] == [3, 3, 3, 3]
+    assert out['issues'] == [] and out['notices'] == []
+    assert out['engineVersion'] == 'e95045f-v1.0.0-r13'
+
+
+@pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
+def test_grid_address_gak_that_disagrees_with_the_jangdan_is_flagged_at_its_first_cell(tmp_path,monkeypatch):
+    # 4정간 열을 굵은 선이 2정간씩 나누지만 세마치는 3·6·9정간 각만 받는다. 굵은 선을 따르고 각 첫 칸에 표시한다.
+    column = [None, THIN, THICK, THIN]
+    out = _recognize(tmp_path, monkeypatch, _address_reader(tmp_path, [column]))
+    assert [len(c['cells']) for c in out['score']['columns']] == [2, 2]
+    assert [(i['cellId'], i['detail']['reason']) for i in out['issues']] == [('c0-j0', 'GAK_MISMATCH'), ('c1-j0', 'GAK_MISMATCH')]
+
+
+@pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
+def test_grid_address_failure_falls_back_to_the_reader_path_with_a_notice(tmp_path,monkeypatch):
+    out = _recognize(tmp_path, monkeypatch, _address_reader(tmp_path, [], address=False))
+    assert [len(c['cells']) for c in out['score']['columns']] == [3, 3]
+    assert [(n['kind'], n['detail']['reason'], n['page']) for n in out['notices']] == [('LOW_CONFIDENCE', 'GRID_FALLBACK', 0)]

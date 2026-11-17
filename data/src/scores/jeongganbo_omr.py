@@ -58,6 +58,8 @@ parser.add_argument("--model-cache-dir", type=Path, help="변환한 체크포인
 parser.add_argument("--batch-size", type=int, help="CPU 추론 배치 상한")
 parser.add_argument("--keep-empty-columns", action="store_true", help="율명을 못 읽은 격자 열도 보존한다")
 parser.add_argument("--grid-boxes", action="store_true", help="얇은 선과 여러 단은 기존 기하 격자 검출기로 읽는다")
+parser.add_argument("--grid-address", action="store_true",
+                    help="선으로 찾은 칸 주소(단·열·줄)와 칸 위 선 굵기를 내고 각은 나누지 않는다(S15P31E102-1077)")
 parser.add_argument("--gap-fill", type=int, default=0, help="칸 찾기 전에 세로로 메울 선 틈(px). 0이면 보정 없음")
 parser.add_argument("--line-threshold", type=int, default=240, help="이보다 어두운 픽셀을 선으로 본다. 리더 기본 240")
 parser.add_argument("--fill-grid", action="store_true", help="격자 줄 위치로 합쳐진 정간을 나누고 놓친 정간을 채운다")
@@ -180,29 +182,45 @@ if args.yul:
         return (dec, conf) if return_confidence else dec
     model.inference = constrained_inference
 
-if args.grid_boxes:
+if args.grid_boxes or args.grid_address:
     # 기존 검토 도구의 검출기는 칸 너비 제한 없이 얇은 선·단의 순서를 보존한다.
     # 나란한 여러 악보를 임의 선택하지 않고, 단일 악보로 확인되는 경우만 읽는다.
     from collections import Counter
-    from grid_boxes import find_blocks
+    from grid_boxes import find_blocks, find_grid
     image = cv2.imread(str(png))
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blocks = find_blocks(gray, allow_alternating_lyrics=False)
-    if len(blocks) != 1 or len(blocks[0]) != 1 or not blocks[0][0]:
-        sys.exit(4)
-    boxes = [tuple(round(v) for v in box) for box in blocks[0][0]]
-    groups = []
-    for box in boxes:
-        if not groups or abs(groups[-1][-1][0] - box[0]) >= box[2] / 2 or box[1] <= groups[-1][-1][1]:
-            groups.append([])
-        groups[-1].append(box)
-    groups = [[dict(x=x, y=y, w=w, h=h) for x, y, w, h in group] for group in groups]
-    if args.fill_grid:
-        # 가로선을 놓쳐 두 줄 높이가 된 상자를 나눈다. 단마다 열이 따로라 열 안쪽만 채운다.
-        fit_columns(groups, gray, inside_only=True)
-    beats = args.beats or Counter(map(len, groups)).most_common(1)[0][0]
-    boxes = [c for group in groups for c in group]
-    crops = [image[c["y"]:c["y"] + c["h"], c["x"]:c["x"] + c["w"]] for c in boxes]
+    if args.grid_address:
+        # 각·정간 번호는 부르는 쪽이 칸 주소와 선 굵기로 정한다(grid_boxes.gaks). 칸 순번으로 각을 나누지 않는다.
+        blocks = find_grid(gray, allow_alternating_lyrics=False)
+        if len(blocks) != 1 or len(blocks[0]) != 1 or not blocks[0][0]:
+            sys.exit(4)
+        boxes = [dict(band=c['band'], col=c['col'], row=c['row'], line=int(c['line']) if c['line'] else None,
+                      **{k: int(round(float(c[k]))) for k in 'xywh'}) for c in blocks[0][0]]
+        beats = 0
+    else:
+        blocks = find_blocks(gray, allow_alternating_lyrics=False)
+        if len(blocks) != 1 or len(blocks[0]) != 1 or not blocks[0][0]:
+            sys.exit(4)
+        boxes = [tuple(round(v) for v in box) for box in blocks[0][0]]
+        groups = []
+        for box in boxes:
+            if not groups or abs(groups[-1][-1][0] - box[0]) >= box[2] / 2 or box[1] <= groups[-1][-1][1]:
+                groups.append([])
+            groups[-1].append(box)
+        groups = [[dict(x=x, y=y, w=w, h=h) for x, y, w, h in group] for group in groups]
+        if args.fill_grid:
+            # 가로선을 놓쳐 두 줄 높이가 된 상자를 나눈다. 단마다 열이 따로라 열 안쪽만 채운다.
+            fit_columns(groups, gray, inside_only=True)
+        beats = args.beats or Counter(map(len, groups)).most_common(1)[0][0]
+        boxes = [c for group in groups for c in group]
+    if args.grid_address:
+        # 칸 상자는 선 가운데에서 잘라 굵은 각 구분선의 절반이 칸 끝에 들어간다. 모델이 이를 이음표로 읽으므로
+        # 리더가 선 안쪽만 자르듯 칸 크기의 4%(최소 2px)만큼 안으로 잘라 읽는다. 결과 상자는 그대로 둔다.
+        inset = lambda c: max(2, round(min(c["w"], c["h"]) * .04))
+        crops = [image[c["y"] + inset(c):c["y"] + c["h"] - inset(c), c["x"] + inset(c):c["x"] + c["w"] - inset(c)]
+                 for c in boxes]
+    else:
+        crops = [image[c["y"]:c["y"] + c["h"], c["x"]:c["x"] + c["w"]] for c in boxes]
     predictions, confidences = reader.omr(crops)
     cells = []
     for i, (box, text, confidence) in enumerate(zip(boxes, predictions, confidences)):
@@ -211,8 +229,10 @@ if args.grid_boxes:
         if args.side_marks:
             mark_cell(cell, gray[y:y + h, x:x + w])
         inner = gray[y + h * 15 // 100:y + h * 85 // 100, x + w * 15 // 100:x + w * 85 // 100]
+        place = ({k: box[k] for k in ('band', 'col', 'row', 'line')} if args.grid_address
+                 else dict(gak=i // beats, jeonggan=i % beats))
         cells.append(dict(cell, jg=jg_like(cell['text']), conf=round(float(confidence), 3),
-                          x=x, y=y, w=w, h=h, gak=i // beats, jeonggan=i % beats,
+                          x=x, y=y, w=w, h=h, **place,
                           ink=round(float((inner < 160).mean()), 4) if inner.size else 0,
                           **{k: True for k in ('split', 'filled') if box.get(k)}))
     if args.side_marks and unify_short_waves(cells):
@@ -221,7 +241,11 @@ if args.grid_boxes:
     title = args.title or pdf.stem
     (out / 'cells.json').write_text(json.dumps(dict(title=title, image='page.png', beats=beats, cells=cells),
                                               ensure_ascii=False, indent=1), encoding='utf-8')
-    lines = [' | '.join(c['jg'] for c in cells[i:i + beats]) for i in range(0, len(cells), beats)]
+    if args.grid_address:  # 열마다 한 줄
+        lines = [' | '.join(c['jg'] for c in cells if (c['band'], c['col']) == key)
+                 for key in dict.fromkeys((c['band'], c['col']) for c in cells)]
+    else:
+        lines = [' | '.join(c['jg'] for c in cells[i:i + beats]) for i in range(0, len(cells), beats)]
     (out / f'{title}.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
     sys.exit(0)
 

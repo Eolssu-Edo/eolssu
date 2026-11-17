@@ -156,7 +156,7 @@ sys.exit(4)
     assert _post(_png(image))['failReason'] == 'NO_GRID_FOUND'
     images = [Path(json.loads(line)).name for line in calls.read_text(encoding='utf-8').splitlines()]
     assert images[0] == 'source-0' and not any('rectified' in name for name in images)
-    assert len(images) == 4  # 보정이 없으면 원래 재시도 4번만 한다
+    assert len(images) == 5  # 보정이 없으면 원래 그림으로 격자 주소 1번과 크기 재시도 4번만 한다(1077)
 
 
 def test_rectify_error_falls_back_to_original_reading(tmp_path, monkeypatch):
@@ -176,7 +176,7 @@ sys.exit(4)
     image, *_ = photo(rot=4)
     assert _post(_png(image))['failReason'] == 'NO_GRID_FOUND'
     images = [Path(json.loads(line)).name for line in calls.read_text(encoding='utf-8').splitlines()]
-    assert images[0] == 'source-0' and len(images) == 4
+    assert images[0] == 'source-0' and len(images) == 5
 
 
 def test_tilted_page_reads_rectified_image_then_falls_back_to_original(tmp_path, monkeypatch):
