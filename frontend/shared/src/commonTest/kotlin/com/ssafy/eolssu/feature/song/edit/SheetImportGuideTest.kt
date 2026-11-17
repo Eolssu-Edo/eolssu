@@ -105,7 +105,7 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
     }
 
     @Test fun recognitionReviewsAreCountedApartFromRangeAndTheGuideGoesAwayOnceChecked() = runTest {
-        val model = open(ReadinessCatalog(), issues = listOf(json("""{"issueId":"i1","cellId":"c0-j0","type":"LOW_CONFIDENCE"}""")))
+        val model = open(ReadinessCatalog(), issues = listOf(json("""{"issueId":"i1","cellId":"c0-j0","type":"ORNAMENT_DROPPED"}""")))
         runCurrent()
         val guide = assertNotNull(model.uiState.value.importGuide)
         assertEquals(1, guide.reviewCells)
@@ -122,8 +122,8 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
 
     @Test fun reviewPlacesAreVisitedOneByOneWithPreviousAndNext() = runTest {
         val model = open(ReadinessCatalog(), issues = listOf(
-            json("""{"issueId":"i1","cellId":"c0-j0","type":"LOW_CONFIDENCE"}"""),
-            json("""{"issueId":"i2","cellId":"c1-j0","type":"LOW_CONFIDENCE"}"""),
+            json("""{"issueId":"i1","cellId":"c0-j0","type":"ORNAMENT_DROPPED"}"""),
+            json("""{"issueId":"i2","cellId":"c1-j0","type":"ORNAMENT_DROPPED"}"""),
         ))
         runCurrent()
         model.selectCell(1)

@@ -133,7 +133,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         range.openNextReviewCell(); range.checkReviewIssue()
         assertFalse(range.uiState.value.completionValidation.canComplete)
         assertTrue(range.uiState.value.checkedIssueIds.isEmpty())
-        for (kind in listOf("LOW_CONFIDENCE", "ORNAMENT_DROPPED")) {
+        for (kind in listOf("ORNAMENT_DROPPED")) {
             val repository = RecordingDocuments(document(issues = listOf(issue(kind))))
             val model = open(repository)
             runCurrent()
@@ -208,7 +208,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
     }
 
     @Test fun summarizedTempoAndVoiceNoticesNeverAcknowledgeAPendingReview() = runTest {
-        val original = document(issues = listOf(issue("LOW_CONFIDENCE")), notices = listOf(
+        val original = document(issues = listOf(issue("ORNAMENT_DROPPED")), notices = listOf(
             json("""{"type":"LOW_CONFIDENCE","detail":{"reason":"TEMPO_PDF_TEXT","count":1}}"""),
             json("""{"type":"LOW_CONFIDENCE","detail":{"reason":"TEMPO_PDF_TEXT","count":2}}"""),
             json("""{"type":"LOW_CONFIDENCE","detail":{"reason":"TEMPO_PDF_TEXT","count":2}}"""),
@@ -273,7 +273,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         val reply = CompletableDeferred<SheetWrite>()
         val writes = mutableListOf<Pair<Boolean, SheetWorkingCopy>>()
         val repository = object : SheetDocumentRepository {
-            override suspend fun get(sheetId: String) = document(issues = listOf(issue("LOW_CONFIDENCE")))
+            override suspend fun get(sheetId: String) = document(issues = listOf(issue("ORNAMENT_DROPPED")))
             override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite {
                 writes += draft to copy
                 if (draft) {
@@ -314,7 +314,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
     @Test fun failedFinalNetworkSaveReleasesTheEditLockAndKeepsChecks() = runTest {
         val reply = CompletableDeferred<SheetWrite>()
         val repository = object : SheetDocumentRepository {
-            override suspend fun get(sheetId: String) = document(issues = listOf(issue("LOW_CONFIDENCE")))
+            override suspend fun get(sheetId: String) = document(issues = listOf(issue("ORNAMENT_DROPPED")))
             override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) = reply.await()
         }
         val model = open(repository)
@@ -438,7 +438,7 @@ internal class SheetCompletionValidationTest : CatalogViewModelTest() {
         assertEquals(rangeCheck.correctionCellIndices, rangeCheck.rangeCellIndices, "이 악보의 수정 필요는 모두 음역 문제다")
         assertTrue(rangeCheck.rangeUnitKeys.isNotEmpty() && rangeCheck.rangeUnitKeys.all { it in rangeCheck.correctionUnitKeys })
 
-        val review = open(RecordingDocuments(document(issues = listOf(issue("LOW_CONFIDENCE")))))
+        val review = open(RecordingDocuments(document(issues = listOf(issue("ORNAMENT_DROPPED")))))
         runCurrent()
         val reviewCheck = review.uiState.value.completionValidation
         assertTrue(0 in reviewCheck.correctionCellIndices)

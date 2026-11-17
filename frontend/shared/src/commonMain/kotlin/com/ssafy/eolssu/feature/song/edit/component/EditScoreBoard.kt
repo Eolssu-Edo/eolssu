@@ -22,6 +22,7 @@ import com.ssafy.eolssu.feature.song.edit.ImportCheck
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.StaffNote
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.sheet_editor_advisory_description
 import eolssu.shared.generated.resources.sheet_editor_correction_description
 import eolssu.shared.generated.resources.sheet_editor_range_description
 import org.jetbrains.compose.resources.stringResource
@@ -109,13 +110,21 @@ internal fun EditScoreBoard(
  */
 @Composable
 internal fun editorMarks(draft: SheetDraft, selected: Int, sub: Int? = null, correctionCells: Set<Int> = emptySet(),
-    correctionUnits: Set<ScoreUnitKey> = emptySet(), rangeCells: Set<Int> = emptySet()): Map<Pair<Int, Int>, ScoreCellMark> {
+    correctionUnits: Set<ScoreUnitKey> = emptySet(), rangeCells: Set<Int> = emptySet(), advisoryCells: Set<Int> = emptySet(),
+    advisoryUnits: Set<ScoreUnitKey> = emptySet()): Map<Pair<Int, Int>, ScoreCellMark> {
     val colors = EolssuTheme.colors
     val correctionDescription = stringResource(Res.string.sheet_editor_correction_description)
     val rangeDescription = stringResource(Res.string.sheet_editor_range_description)
+    val advisoryDescription = stringResource(Res.string.sheet_editor_advisory_description)
     val empty = ScoreCellMark(fill = colors.background, ring = colors.line, ringWidth = 1.dp, dashed = true)
     return buildMap {
         draft.emptyCells.forEach { put(draft.columnOf(it) to draft.rowOf(it), empty) }
+        // 신뢰도 낮음은 저장을 막지 않는 참고 표시라 노란색으로 따로 칠한다. 나눈 칸에서 소박만 걸리면 소박에 칠한다(S15P31E102-1100).
+        advisoryCells.filter { it in draft.cells.indices &&
+            (draft.cells[it].size <= 1 || draft.cells[it].indices.none { sub -> draft.unitKeyOf(it, sub) in advisoryUnits }) }.forEach {
+            put(draft.columnOf(it) to draft.rowOf(it), ScoreCellMark(fill = colors.cautionSoft, ring = colors.caution, ringWidth = 1.5.dp,
+                dashed = true, tag = ADVISORY_TAG, description = advisoryDescription, selected = it == selected && sub == null))
+        }
         correctionCells.filter { it in draft.cells.indices &&
             (draft.cells[it].size <= 1 || draft.cells[it].indices.none { sub -> draft.unitKeyOf(it, sub) in correctionUnits }) }.forEach {
             put(draft.columnOf(it) to draft.rowOf(it), if (it in rangeCells) ScoreCellMark(
@@ -128,7 +137,7 @@ internal fun editorMarks(draft: SheetDraft, selected: Int, sub: Int? = null, cor
         }
         if (selected in draft.cells.indices) {
             val key = draft.columnOf(selected) to draft.rowOf(selected)
-            val correction = this[key]?.takeIf { selected in correctionCells }
+            val correction = this[key]?.takeIf { selected in correctionCells || selected in advisoryCells }
             val fill = if (sub == null) colors.primary else colors.accentTint
             put(key, correction?.copy(ring = colors.text, ringWidth = 2.5.dp, dashed = false)
                 ?: ScoreCellMark(fill = fill, ring = colors.text, ringWidth = 2.5.dp, selected = sub == null))
@@ -139,11 +148,14 @@ internal fun editorMarks(draft: SheetDraft, selected: Int, sub: Int? = null, cor
 /** 오류가 있는 소박의 붉은 바탕·점선·!(음역만 걸린 소박은 갈색·↕)를 유지하고 고른 소박의 선택 테두리를 덧그린다. */
 @Composable
 internal fun editorUnitMarks(draft: SheetDraft, selected: Int, sub: Int?, correctionUnits: Set<ScoreUnitKey> = emptySet(),
-    rangeUnits: Set<ScoreUnitKey> = emptySet()): Map<ScoreUnitKey, ScoreCellMark> {
+    rangeUnits: Set<ScoreUnitKey> = emptySet(), advisoryUnits: Set<ScoreUnitKey> = emptySet()): Map<ScoreUnitKey, ScoreCellMark> {
     val colors = EolssuTheme.colors
     val correctionDescription = stringResource(Res.string.sheet_editor_correction_description)
     val rangeDescription = stringResource(Res.string.sheet_editor_range_description)
+    val advisoryDescription = stringResource(Res.string.sheet_editor_advisory_description)
     return buildMap {
+        advisoryUnits.forEach { key -> put(key, ScoreCellMark(fill = colors.cautionSoft, ring = colors.caution, ringWidth = 1.5.dp,
+            dashed = true, tag = ADVISORY_TAG, description = advisoryDescription)) }
         correctionUnits.forEach { key -> put(key, if (key in rangeUnits) ScoreCellMark(fill = colors.pitchErrorSoft,
             ring = colors.pitchError, ringWidth = 1.5.dp, dashed = true, tag = RANGE_TAG, description = rangeDescription)
             else ScoreCellMark(fill = colors.recSoft,
@@ -179,6 +191,9 @@ internal fun staffMarks(draft: SheetDraft, note: StaffNote?): Map<Pair<Int, Int>
     return (note.key.start until (note.key.start + note.span).coerceAtMost(draft.cells.size))
         .associate { (draft.columnOf(it) to draft.rowOf(it)) to mark }
 }
+
+/** 저장을 막지 않는 신뢰도 낮음 칸의 태그. */
+internal const val ADVISORY_TAG = "?"
 
 /** 음역·운지만 걸린 정간의 태그. 이조·옥타브 조정으로 풀 수 있다는 뜻이다. */
 internal const val RANGE_TAG = "↕"
