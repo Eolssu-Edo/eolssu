@@ -134,9 +134,12 @@ private fun JsonObject.mapped(key: String, transform: (List<JsonObject>) -> List
  * [column](0부터) 뒤에 각을 넣으면 그 뒤 위치를 한 각씩 민다. 새 각은 앞 각 끝의 빠르기를 잇는다.
  * 구간 끝이 바로 다음 각 시작이면 새 각도 그 구간에 든다. 반복은 끝 각을 포함하므로 끝 각 바로 뒤의 새 각은 반복 밖이다.
  */
-internal fun SheetDraft.tempoExpressionsAfterColumnInsert(column: Int): JsonObject? {
+internal fun SheetDraft.tempoExpressionsAfterColumnInsert(column: Int): JsonObject? = tempoExpressionsWithColumnAt(column + 1)
+
+/** [column](0부터) 자리에 각이 들어오면 그 자리부터 뒤 위치를 한 각씩 민다. */
+internal fun SheetDraft.tempoExpressionsWithColumnAt(column: Int): JsonObject? {
     val expression = tempoExpressions ?: return null
-    val first = column + 2
+    val first = column + 1
     fun shift(gak: Int) = if (gak >= first) gak + 1 else gak
     return expression.withPlan({ plan ->
         plan.mapped("tempos") { it.map { e -> e.shifted("gak", ::shift).shifted("end_gak", ::shift) } }

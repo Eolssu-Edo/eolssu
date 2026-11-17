@@ -27,7 +27,7 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
     }
 
     @Test fun partiallyFilledSplitHighlightsOnlyTheMissingPart() {
-        val partial = state().select(2).split().selectUnit(2, 0).putYul(Yul.Hwangjong)
+        val partial = state().select(2).split().selectUnit(2, 1).erase().selectUnit(2, 0).putYul(Yul.Hwangjong)
         assertEquals(setOf(2), partial.completionValidation.correctionCellIndices)
         assertEquals(setOf(ScoreUnitKey("c1-j0", 1, 0)), partial.completionValidation.correctionUnitKeys)
     }

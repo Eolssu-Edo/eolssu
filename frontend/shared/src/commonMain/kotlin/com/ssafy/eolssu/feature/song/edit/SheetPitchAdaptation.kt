@@ -146,6 +146,38 @@ internal fun SheetDraft.sourcePitchNotes(): List<SourcePitchNote> {
     }
 }
 
+/**
+ * 높이 맞추기의 출발점: 처음 연 악보의 각·정간·음·나눔·시김새. 새로 넣은 각은 빼고 지운 각은 되살린다.
+ * 제목·빠르기·장단 설정은 그대로 두고, 구간 빠르기는 각을 빼고 넣는 편집과 같은 규칙으로 위치를 옮긴다(S15P31E102-1136).
+ */
+internal fun SheetDraft.withOriginalNotes(): SheetDraft {
+    val source = original ?: return this
+    val pristine = runCatching { source.editingDraft(title, bpm, jangdan) }.getOrNull() ?: return this
+    val originalIds = pristine.sourceCellIds?.filterNotNull() ?: return this
+    if (sourceCellIds == null) return this
+    val known = originalIds.toSet()
+    // 각은 넣고 빼기만 하고 순서를 바꾸지 않는다. 새 각을 뒤에서부터 빼면 남은 각은 원본 순서다.
+    var restored = this
+    for (column in restored.columnCount - 1 downTo 0) {
+        val from = restored.indexOf(column, 0)
+        val ids = restored.sourceCellIds.orEmpty().subList(from, from + restored.sizes[column])
+        if (ids.all { it == null || it !in known } && restored.columnCount > 1) restored = restored.deleteColumn(column)
+    }
+    pristine.sizes.indices.forEach { column ->
+        val from = pristine.indexOf(column, 0)
+        val ids = originalIds.subList(from, from + pristine.sizes[column])
+        if (restored.sourceCellIds.orEmpty().getOrNull(restored.indexOf(column.coerceAtMost(restored.columnCount - 1), 0)) != ids.first() ||
+            column >= restored.columnCount) restored = restored.insertColumnAt(column, ids)
+    }
+    if (restored.sourceCellIds != pristine.sourceCellIds) return this
+    restored = restored.copy(cells = pristine.cells, columnSizes = pristine.columnSizes ?: restored.columnSizes,
+        sigimsae = pristine.sigimsae)
+    return restored.takeIf { runCatching { it.toCommonScore() }.isSuccess } ?: this
+}
+
+/** 높이 맞추기 계산에 쓰는 음. 적용할 때와 같은 출발점([withOriginalNotes])에서 센다. */
+internal fun SheetDraft.adaptationSourceNotes(): List<SourcePitchNote> = withOriginalNotes().sourcePitchNotes()
+
 /** [candidates] 높이 중 적용해도 이 악보가 그대로인 첫 높이. 모든 높이를 계산하지 않도록 후보만 확인한다. */
 internal fun SheetDraft.unchangedAdaptation(plans: List<PitchAdaptationPlan>, capability: CatalogAuthoringCapabilities,
     candidates: List<Int> = listOf(appliedTranspose)): Int? = candidates.distinct().firstOrNull { transpose ->
@@ -154,8 +186,11 @@ internal fun SheetDraft.unchangedAdaptation(plans: List<PitchAdaptationPlan>, ca
     } == true
 }
 
-/** Pitch-only adaptation preserves timing, IDs, rests, ties and immutable source notes. */
-internal fun SheetDraft.applyAdaptation(plan: PitchAdaptationPlan, capability: CatalogAuthoringCapabilities): SheetDraft {
+/** 원본 음·나눔으로 되돌린 뒤 높이만 바꾼다. 시간·ID·쉼표·이음과 불변 원본 음은 그대로 둔다. */
+internal fun SheetDraft.applyAdaptation(plan: PitchAdaptationPlan, capability: CatalogAuthoringCapabilities): SheetDraft =
+    withOriginalNotes().adaptedPitches(plan, capability)
+
+private fun SheetDraft.adaptedPitches(plan: PitchAdaptationPlan, capability: CatalogAuthoringCapabilities): SheetDraft {
     val current = toCommonScore()
     val targets = plan.notes.associate { item ->
         val midi = item.source.midi + plan.transpose

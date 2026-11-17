@@ -62,41 +62,55 @@ class SheetPitchAdaptationTest {
     @Test fun jangdanRetimingKeepsThePitchBaselineOfANewlyInsertedNote() {
         val score = SheetJangdanCorrectionTest.recognized("QUARTER", 5, 2, "단모리", grid = 10)
         val draft = SheetJangdanCorrectionTest().state(score).draft
-            .putAt(9, 0, com.ssafy.eolssu.core.model.ScoreNote.SourcePitch("황", 0))
-        val sources = draft.sourcePitchNotes()
         val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
             AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
-        val adapted = draft.applyAdaptation(planPitchAdaptation(sources, emptyList()).first { it.transpose == 1 }, capability)
+        // 높이 맞추기는 원본으로 되돌리므로, 맞춘 뒤 새로 넣은 음의 기준음이 재시간 보정 뒤에도 그대로인지 본다.
+        val adapted = draft.applyAdaptation(planPitchAdaptation(draft.adaptationSourceNotes(), emptyList()).first { it.transpose == 1 }, capability)
+            .putAt(9, 0, com.ssafy.eolssu.core.model.ScoreNote.SourcePitch("황", 0))
+        val sources = adapted.sourcePitchNotes()
+        val inserted = sources.first { it.cellId == "c0-j9" }.midi
         val retimed = requireNotNull(adapted.withJangdan(CatalogJangdanSummary("10", "세령산", 63, "QUARTER", 10, 4, 3)))
-        assertEquals(63, retimed.sourcePitchNotes().first { it.cellId == "c0-j9" }.midi)
+        assertEquals(inserted, retimed.sourcePitchNotes().first { it.cellId == "c0-j9" }.midi)
         assertEquals(sources, retimed.sourcePitchNotes())
         assertEquals(6, retimed.toCommonScore().music.ticksPerJeonggan)
     }
 
-    @Test fun resetsManualPitchesButPreservesSplitsSignsMetadataAndTiming() {
+    @Test fun startsFromTheOriginalNotesSplitsAndSignsButKeepsMetadata() {
+        // 높이 맞추기는 '원본 악보에서 높이만 바꾼 상태'로 간다. 직접 고친 음·나눔·시김새는 원본으로 돌아간다(S15P31E102-1136).
         val draft = smallScoreData().editingDraft("수정 제목", 123, null).copy(editedJangdanName = "수정 장단", jangdanId = "9")
-        val originalNotes = draft.sourcePitchNotes()
         val edited = draft.putAt(0, 0, com.ssafy.eolssu.core.model.ScoreNote.SourcePitch("응", -2))
             .toggleSigimsae(0, Sigimsae.Chuseong).split(2)
             .putAt(2, 1, com.ssafy.eolssu.core.model.ScoreNote.SourcePitch("태", 0))
-        val sources = edited.sourcePitchNotes()
-        assertEquals(originalNotes.map { it.midi }, sources.take(2).map { it.midi })
-        assertEquals(65, sources.last().midi, "새 음은 현재 판본의 음고를 쓴다")
-        val before = edited.toCommonScore()
+        assertEquals(draft.sourcePitchNotes(), edited.adaptationSourceNotes(), "높이 계산은 원본 음에서 시작한다")
         val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
             AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
-        val result = edited.applyAdaptation(planPitchAdaptation(sources, emptyList()).first { it.transpose == 0 }, capability)
-        assertEquals(sources.map { it.midi }, result.sourcePitchNotes().map { it.midi })
-        val twice = result.putAt(0, 0, com.ssafy.eolssu.core.model.ScoreNote.SourcePitch("응", -2))
-        assertEquals(sources.map { it.midi }, twice.sourcePitchNotes().map { it.midi })
+        val result = edited.applyAdaptation(planPitchAdaptation(edited.adaptationSourceNotes(), emptyList()).first { it.transpose == 0 }, capability)
+        assertEquals(draft.cells, result.cells, "나눈 정간과 직접 넣은 음이 원본으로 돌아간다")
+        assertEquals(draft.sigimsae, result.sigimsae)
         assertEquals(edited.title, result.title)
         assertEquals(123, result.bpm)
         assertEquals("수정 장단", result.jangdanName)
         assertEquals("9", result.jangdanId)
+        val before = draft.toCommonScore()
         assertEquals(before.events.map { listOf(it.id, it.kind, it.startTick, it.durationTick, it.sigimsae) },
             result.toCommonScore().events.map { listOf(it.id, it.kind, it.startTick, it.durationTick, it.sigimsae) })
-        assertEquals(before.columns.map { it.cells.map { cell -> cell.units.size to cell.lyric } },
-            result.toCommonScore().columns.map { it.cells.map { cell -> cell.units.size to cell.lyric } })
+    }
+
+    @Test fun addedColumnsAreRemovedAndDeletedColumnsComeBack() {
+        // 높이 맞추기는 처음 연 악보로 돌아간다. 새로 넣은 각은 빠지고 지운 각은 되살아난다(S15P31E102-1136).
+        val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
+            AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
+        val draft = smallScoreData().editingDraft("adapt", 60, null)
+        val added = draft.addColumnAfter(0).putAt(2, 0, com.ssafy.eolssu.core.model.ScoreNote.SourcePitch("태", 0))
+        val removed = draft.deleteColumn(0)
+        listOf(added, removed, added.deleteColumn(2)).forEach { edited ->
+            val plan = planPitchAdaptation(edited.adaptationSourceNotes(), emptyList()).first { it.transpose == 0 }
+            val result = edited.applyAdaptation(plan, capability)
+            assertEquals(draft.cells, result.cells)
+            assertEquals(draft.sizes, result.sizes)
+            assertEquals(draft.sourceCellIds, result.sourceCellIds)
+            assertEquals(draft.sourcePitchNotes(), edited.adaptationSourceNotes())
+        }
     }
 
     @Test fun restoresOriginalHighOctaveAfterSemitoneTransposeAndOnlyRaisesLowNotes() {

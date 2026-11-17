@@ -425,7 +425,13 @@ data class SheetEditUiState(
 
 
     /** 나누기·합치기는 정간 경계를 바꾸지 않아 구간 빠르기·반복 위치가 그대로다(S15P31E102-1091). */
-    fun split(): SheetEditUiState = commit(draft.split(selected), sub = null)
+    /**
+     * 지속·쉼으로 채운 새 자리를 골라 두어, 바로 율명을 누르면 그 자리만 바뀐다(S15P31E102-1136).
+     * 빈 정간을 나눠 빈 자리가 생기면 지금처럼 위에서부터 채운다.
+     */
+    fun split(): SheetEditUiState = draft.split(selected).let { next ->
+        commit(next, sub = next.cells[selected].let { cell -> cell.lastIndex.takeIf { cell.last() != ScoreNote.Blank } })
+    }
 
     /** 합쳐서 정간이 비면 그 정간의 한배 기호를 둘 음 자리가 없어 막는다. */
     fun merge(): SheetEditUiState {

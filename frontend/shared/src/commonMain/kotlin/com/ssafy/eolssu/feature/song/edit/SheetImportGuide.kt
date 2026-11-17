@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.model.ScoreNote
+
 /**
  * 가져온 악보를 열었을 때 보여 주는 확인 안내(S15P31E102-979).
  *
@@ -30,23 +32,50 @@ data class SheetImportGuide(
 internal val SheetEditUiState.recognitionReviewCells: List<Int>
     get() = completionValidation.let { (it.correctionCellIndices - it.rangeCellIndices).sorted() }
 
+/** 다시 볼 곳 하나. 나눈 정간의 빈 자리는 [sub]로 한 자리씩 따로 센다. */
+internal data class SheetReviewStop(val cell: Int, val sub: Int? = null)
+
+/**
+ * 다시 볼 곳을 연주 순서로 센다. 나눈 정간에 빈 자리가 여럿이면 자리마다 하나씩 세어
+ * 빨간 자리 수와 카드 숫자가 같고, 이전·다음도 한 자리씩 옮겨 간다(S15P31E102-1136).
+ */
+internal val SheetEditUiState.recognitionReviewStops: List<SheetReviewStop>
+    get() {
+        val unfilled = draft.unfilledCells.toSet()
+        return recognitionReviewCells.flatMap { cell ->
+            val notes = draft.cells[cell]
+            val blanks = if (cell in unfilled && notes.size > 1) notes.indices.filter { notes[it] == ScoreNote.Blank } else emptyList()
+            blanks.map { SheetReviewStop(cell, it) }.ifEmpty { listOf(SheetReviewStop(cell)) }
+        }
+    }
+
+/** 지금 고른 칸·자리가 [recognitionReviewStops] 중 몇 번째인지(0부터). 아니면 -1. */
+internal fun SheetEditUiState.reviewStopIndex(stops: List<SheetReviewStop> = recognitionReviewStops): Int =
+    stops.indexOfFirst { it.cell == selected && (it.sub == null || it.sub == selectedSub) }
+
 internal fun SheetEditUiState.importGuide(): SheetImportGuide? {
     if (draft.original == null || documentLoading || documentFailed) return null
     val validation = completionValidation
-    val reviewList = recognitionReviewCells
-    val reviewCells = reviewList.size
+    val stops = recognitionReviewStops
+    val reviewCells = stops.size
     val panel = adaptation?.takeIf { !it.loading && !it.failed && it.baseline == draft }
     val current = panel?.plans?.firstOrNull { it.transpose == draft.appliedTranspose }
+    // 낼 수 없는 음 수는 정간에 칠한 음(rangeUnitKeys)으로 센다. 높이 계산은 원본 음 기준이라 직접 고친 음과 다를 수 있다(S15P31E102-1136).
+    // 이음(ㅡ) 자리는 앞 음과 같은 음이므로 세지 않는다.
+    val actualRange = draft.cells.indices.sumOf { index ->
+        draft.cells[index].indices.count { sub ->
+            draft.cells[index][sub].pitchKey() != null && draft.unitKeyOf(index, sub) in validation.rangeUnitKeys
+        }
+    }
     val better = panel?.let { recommendedAdaptations(it.plans).firstOrNull() }
-        ?.takeIf { rec -> current != null && rec.transpose != current.transpose && rec.unresolved < current.unresolved }
+        ?.takeIf { rec -> current != null && rec.transpose != current.transpose && rec.unresolved < actualRange }
     // 기준음이 다르면 이조 계획의 음 수는 0이어도 칸은 모두 표시된다. 지금 높이(또는 더 나은 추천)를 적용해 기준음을 맞춘다.
     val tuningMismatch = validation.hasTuningMismatch && current != null
     val recommended = better ?: current?.takeIf { tuningMismatch }
-    val rangeNotes = if (tuningMismatch) maxOf(requireNotNull(current).unresolved, validation.rangeCellIndices.size)
-        else current?.unresolved ?: validation.rangeCellIndices.size
+    val rangeNotes = if (tuningMismatch) maxOf(requireNotNull(current).unresolved, actualRange) else actualRange
     if (rangeNotes == 0 && reviewCells == 0 && recommended == null) return null
     val instrument = panel?.instruments?.firstOrNull { it.instrumentId == panel.selectedId }?.name
     return SheetImportGuide(rangeNotes, recommended?.transpose, recommended?.unresolved, reviewCells,
-        recommendedShift = recommended?.let { it.transpose - requireNotNull(current).transpose }, instrumentName = instrument,
-        reviewPosition = (reviewList.indexOf(selected) + 1).takeIf { it > 0 }, tuningMismatch = tuningMismatch)
+        recommendedShift = recommended?.let { it.transpose - draft.appliedTranspose }, instrumentName = instrument,
+        reviewPosition = (reviewStopIndex(stops) + 1).takeIf { it > 0 }, tuningMismatch = tuningMismatch)
 }

@@ -114,7 +114,7 @@ class SheetBasicAccompanimentTest {
         assertEquals(1, merged.draft.basicAccompanimentStartCell)
         assertEquals(before.draft, split.undo().draft)
         assertEquals(split.draft, merged.undo().draft)
-        val erased = split.erase()
+        val erased = split.select(0).erase()
         assertEquals(1, erased.draft.toCommonScore().music.ticksPerJeonggan)
         assertEquals(1L, erased.draft.basicAccompaniment?.startTick)
     }

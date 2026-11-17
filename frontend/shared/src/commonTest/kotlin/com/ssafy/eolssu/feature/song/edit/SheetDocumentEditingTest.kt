@@ -119,17 +119,31 @@ class SheetDocumentEditingTest {
     @Test fun thirdsRescaleIntegerTicksWithoutChangingOtherMusicalTimes() {
         val original = smallScoreData()
         var edited = original.editingDraft(original.score.title, 60, null).split(2)
-        edited = edited.put(2, ScoreNote.Pitch(Yul.Hwangjong)).first.split(2)
-        edited = edited.put(2, ScoreNote.Pitch(Yul.Taeju)).first
+        edited = edited.putAt(2, 1, ScoreNote.Pitch(Yul.Hwangjong)).split(2)
+        edited = edited.putAt(2, 2, ScoreNote.Pitch(Yul.Taeju))
         val saved = edited.toCommonScore()
         assertEquals(12, saved.music.ticksPerJeonggan)
         assertEquals(original.toScore().events!!.take(2).map { it.unitStart to it.unitDuration }, saved.toScore().events!!.take(2).map { it.unitStart to it.unitDuration })
         assertEquals(36L, saved.events.last().let { it.startTick + it.durationTick })
     }
 
+    @Test fun splittingAnOriginalTieKeepsTheSoundAndLeavesNoBlank() {
+        // 1136: 원본의 빈 표기(앞 음 잇기)를 나누면 지속(ㅡ)으로 채워 빨간 빈칸이 생기지 않고 음 길이도 그대로다.
+        val original = smallScoreData()
+        val draft = original.editingDraft(original.score.title, 60, null)
+        val split = draft.split(1)
+        assertEquals(listOf(ScoreNote.Hold, ScoreNote.Hold), split.cells[1])
+        assertTrue(split.unfilledCells.isEmpty())
+        val before = draft.toCommonScore().events.map { it.id to (it.startTick.toDouble() / draft.toCommonScore().music.ticksPerJeonggan to
+            it.durationTick.toDouble() / draft.toCommonScore().music.ticksPerJeonggan) }
+        val after = split.toCommonScore().let { score -> score.events.map { it.id to (it.startTick.toDouble() / score.music.ticksPerJeonggan to
+            it.durationTick.toDouble() / score.music.ticksPerJeonggan) } }
+        assertEquals(before, after)
+    }
+
     @Test fun partialInputRestoresAsUnfilledRatherThanAnOriginalTie() {
         val original = smallScoreData()
-        val draft = original.editingDraft(original.score.title, 60, null).split(2)
+        val draft = original.editingDraft(original.score.title, 60, null).split(2).eraseAt(2, 1)
         val restored = draft.toCommonScore().editingDraft(original.score.title, 60, null)
         assertEquals(draft.cells, restored.cells)
         assertEquals(listOf(2), restored.unfilledCells)
