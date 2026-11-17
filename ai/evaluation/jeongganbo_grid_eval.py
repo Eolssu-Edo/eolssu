@@ -186,15 +186,18 @@ def score(args):
 
 
 def grid(args):
-    """격자 단계만 잰다. 번갈음은 가사 열에도 가로선이 있는 판형을 율명·가사 번갈음으로 읽는 경우, 엄격은 읽지 않는 경우다."""
+    """격자 단계만 잰다. 번갈음은 가사 열에도 가로선이 있는 판형을 율명·가사 번갈음으로 읽는 경우, 엄격은 읽지 않는 경우다.
+    각은 엄격 결과를 grid_boxes.gaks로 나누고(장단 대신 표본의 gakSize만 받는다), 칸 수가 정답과 같을 때
+    정답 각 시작(gakSize마다) 중 인식에서도 각이 시작된 수를 센다.
+    """
     import numpy as np
     from PIL import Image
     sys.path.insert(0, str(ROOT / 'data' / 'src' / 'scores'))
-    from grid_boxes import find_grid
+    from grid_boxes import find_grid, gaks
     items = samples(args.samples)
     sources = find_sources(args.sources, {s['sha256'] for s in items})
-    print('| 표본 | 나눔 | 정답 | 칸(번갈음) | 칸(엄격) | 덩어리 | 열별 칸 |')
-    print('| --- | --- | --- | --- | --- | --- | --- |')
+    print('| 표본 | 나눔 | 정답 | 칸(번갈음) | 칸(엄격) | 덩어리 | 열별 칸 | 각/정답 | 맞은 각 시작 | 어긋남 표시 | 각 근거 |')
+    print('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |')
     for s in sorted(items, key=lambda s: (s['split'], s['id'])):
         if args.only and s['id'] not in args.only or s['sha256'] not in sources:
             continue
@@ -207,8 +210,17 @@ def grid(args):
         columns = {}
         for c in (loose[0][0] if len(loose) == 1 else []):
             columns[c['band'], c['col']] = columns.get((c['band'], c['col']), 0) + 1
-        print(f"| {s['id']} | {s['split']} | {len(s['truth'])} | {count(loose)} | {count(strict)} | {len(loose)} | "
-              f"{'/'.join(map(str, columns.values()))} |", flush=True)
+        found = gaks(strict[0][0], lambda n: n == s['gakSize']) if count(strict) else []
+        n, size = len(s['truth']), s['gakSize']
+        starts, at = set(), 0
+        for g in found:
+            starts.add(at)
+            at += len(g['cells'])
+        truth_starts = set(range(0, n, size))
+        hit = len(starts & truth_starts) if count(strict) == n else 0
+        print(f"| {s['id']} | {s['split']} | {n} | {count(loose)} | {count(strict)} | {len(loose)} | "
+              f"{'/'.join(map(str, columns.values()))} | {len(found)}/{len(truth_starts)} | {hit}/{len(truth_starts)} | "
+              f"{sum(g['mismatch'] for g in found)} | {','.join(sorted({g['source'] for g in found}))} |", flush=True)
 
 
 def main(argv=None):

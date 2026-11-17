@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src/scores"))
-from grid_boxes import find_blocks, find_grid
+from grid_boxes import find_blocks, find_grid, gaks
 
 
 def sheet(parts=1):
@@ -55,7 +55,7 @@ class GridBoxesTests(unittest.TestCase):
 
 
 
-def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=False):
+def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=False, thick_lines=True):
     """단소교실 판형을 배율 k로 그린 쪽 (S15P31E102-1077).
 
     오른쪽부터 제목 열, [가사 열, 율명 열] x columns, 맨 왼쪽 빈 열. 열마다 각 gaks개, 각마다 정간 3개.
@@ -63,6 +63,7 @@ def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=
     율명 칸에는 왼쪽 세로선에 붙은 굵은 세로 획과, 띄엄띄엄 가로로 이어진 획(점선처럼 보이는 글자)을 그린다.
     jangdan이면 제목 열 대신 정간 크기 칸이 있는 짧은 장단 열을 맨 오른쪽에 둔다.
     open_lyric이면 장단 열 아래에서 맨 오른쪽 가사 열의 오른쪽 세로선이 끊긴다(실기교재 박연폭포).
+    thick_lines가 거짓이면 각 사이도 가는 선이다(굵은 각 구분선이 없는 판형).
     broken이면 율명 열의 세로선 하나가 가운데에서 3px 끊기고 아래 조각이 1px 옆으로 밀린다(스캔).
     """
     r = lambda v: max(1, round(v * k))
@@ -82,7 +83,7 @@ def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=
     notes = [(xs[i + 1], xs[i]) for i in range(2, 2 + 2 * columns, 2)]  # (왼쪽, 오른쪽) 오른쪽 율명 열부터
     for i in range(1, rows):
         y = top + i * pitch
-        if i % 3 == 0:
+        if i % 3 == 0 and thick_lines:
             g[y:y + thick, xs[-1]:xs[1]] = 0
         else:
             for x0, x1 in notes:
@@ -151,6 +152,54 @@ class GridAddressTests(unittest.TestCase):
         g = classroom()[0]
         (block,) = find_blocks(g)
         self.assertEqual([tuple(c[k] for k in 'xywh') for c in find_grid(g)[0][0]], [tuple(b) for b in block[0]])
+
+
+
+class GakBoundaryTests(unittest.TestCase):
+    """칸 위 가로선이 같은 쪽의 가는 선보다 분명히 굵으면 각 경계다 (S15P31E102-1077 D-1·D-3)."""
+
+    def split(self, g, fits=None):
+        (block,) = find_grid(g)
+        return gaks(block[0], fits)
+
+    def test_thick_lines_split_each_column_into_gaks_at_any_scale(self):
+        for k in (0.5, 1.0, 2.0):
+            with self.subTest(k=k):
+                got = self.split(classroom(k)[0])
+                self.assertEqual([[(c['col'], c['row']) for c in gak['cells']] for gak in got],
+                                 [[(col, row + 3 * i) for row in range(3)] for col in range(3) for i in range(2)])
+                self.assertEqual({(gak['source'], gak['mismatch']) for gak in got}, {('line', False)})
+
+    def test_thick_line_gak_that_disagrees_with_the_jangdan_is_marked(self):
+        got = self.split(classroom()[0], fits=lambda n: n == 4)
+        self.assertEqual([len(gak['cells']) for gak in got], [3] * 6)
+        self.assertTrue(all(gak['mismatch'] for gak in got))
+
+    def test_thick_beat_lines_inside_a_column_that_fits_the_jangdan_are_not_gak_lines(self):
+        # 표준악보집 늴리리야: 굿거리 12정간 열 안에 3정간마다 굵은 박 구분선이 있다(2026-11-17 사용자 결정).
+        got = self.split(classroom()[0], fits=lambda n: n == 6)
+        self.assertEqual([(len(gak['cells']), gak['source'], gak['mismatch']) for gak in got], [(6, 'column', False)] * 3)
+
+    def test_without_thick_lines_a_column_that_fits_the_jangdan_is_one_gak(self):
+        got = self.split(classroom(thick_lines=False)[0], fits=lambda n: n == 6)
+        self.assertEqual([(len(gak['cells']), gak['source'], gak['mismatch']) for gak in got], [(6, 'column', False)] * 3)
+
+    def test_without_thick_lines_a_long_column_is_cut_by_the_jangdan_size(self):
+        got = self.split(classroom(thick_lines=False)[0], fits=lambda n: n == 3)
+        self.assertEqual([(len(gak['cells']), gak['source']) for gak in got], [(3, 'jangdan')] * 6)
+
+    def test_without_thick_lines_or_a_fitting_size_the_column_stays_one_marked_gak(self):
+        got = self.split(classroom(thick_lines=False)[0], fits=lambda n: n == 4)
+        self.assertEqual([(len(gak['cells']), gak['source'], gak['mismatch']) for gak in got], [(6, 'column', True)] * 3)
+
+    def test_one_and_two_pixel_lines_are_not_thick(self):
+        cells = [dict(band=0, col=0, row=r, line=None if r == 0 else (2 if r == 2 else 1)) for r in range(4)]
+        self.assertEqual([len(gak['cells']) for gak in gaks(cells)], [4])
+
+    def test_blurred_scan_lines_a_few_pixels_thicker_are_not_thick(self):
+        # 실기교재 참새노래처럼 흐린 스캔은 가는 선이 9~15px로 들쭉날쭉하다.
+        cells = [dict(band=0, col=0, row=r, line=[None, 11, 11, 15, 11, 10, 11, 11][r]) for r in range(8)]
+        self.assertEqual([len(gak['cells']) for gak in gaks(cells)], [8])
 
 
 if __name__ == "__main__":

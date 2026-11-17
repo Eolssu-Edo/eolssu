@@ -184,3 +184,43 @@ def find_blocks(gray, parts=1, *, allow_alternating_lyrics=True):
     왼쪽부터 덩어리가 나뉜다. 여러 단은 한 덩어리로 잇는다."""
     return [[[(c['x'], c['y'], c['w'], c['h']) for c in part] for part in block]
             for block in find_grid(gray, parts, allow_alternating_lyrics=allow_alternating_lyrics)]
+
+
+def gaks(cells, fits=None):
+    """find_grid의 칸(한 성부)을 각으로 나눈다 (S15P31E102-1077 D-1·D-3). 각은 dict(cells, source, mismatch)다.
+
+    칸 위 가로선이 쪽 가로선 굵기 중간값의 1.8배 이상이면서 2px 넘게 굵으면 굵은 각 구분선이다. 표준악보집의
+    1px·2px 선 차이는 굵은 선이 아니다. 열의 첫 칸과 굵은 선 아래 칸이 각의 첫 칸이다(source='line').
+    그렇게 나눈 각이 fits에 맞지 않는데 열 전체가 맞으면 굵은 선은 박 구분선이고 열이 각 하나다(source='column').
+    쪽에 굵은 선이 없으면 열 하나가 각 하나다(source='column'). fits(정간 수)가 열 길이를 받지 않으면
+    fits가 받는 가장 작은 약수로 열을 나눈다(source='jangdan'). 굵은 선 없는 긴 각의 박 환산은 하지 않는다(1076).
+    fits가 각의 정간 수를 받지 않으면 mismatch다. fits가 없으면 어떤 정간 수든 받는다.
+    """
+    fits = fits or (lambda n: True)
+    columns = []
+    for c in cells:
+        if not columns or (c['band'], c['col']) != (columns[-1][0]['band'], columns[-1][0]['col']):
+            columns.append([])
+        columns[-1].append(c)
+    lines = sorted(c['line'] for c in cells if c['line'])
+    thin = lines[len(lines) // 2] if lines else 0
+    thick = lambda c: c['line'] and c['line'] >= thin * 1.8 and c['line'] > thin + 2
+    out = []
+    if any(thick(c) for c in cells):
+        for col in columns:
+            split = []
+            for c in col:
+                if c is col[0] or thick(c):
+                    split.append(dict(cells=[], source='line'))
+                split[-1]['cells'].append(c)
+            # 굵은 선으로 나눈 각이 장단에 맞지 않고 열 전체가 맞으면 굵은 선은 박 구분선이다(표준악보집 늴리리야).
+            if not all(fits(len(g['cells'])) for g in split) and fits(len(col)):
+                split = [dict(cells=col, source='column')]
+            out += split
+    else:
+        for col in columns:
+            size = len(col) if fits(len(col)) else next(
+                (d for d in range(2, len(col)) if len(col) % d == 0 and fits(d)), len(col))
+            source = 'column' if size == len(col) else 'jangdan'
+            out += [dict(cells=col[i:i + size], source=source) for i in range(0, len(col), size)]
+    return [dict(g, mismatch=not fits(len(g['cells']))) for g in out]
