@@ -70,7 +70,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val checkable = reviewIssues.filter { issue ->
         val index = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 }
         when (issue.kind) {
-            "TEMPO_CUE_UNRESOLVED" -> index != null && draft.tempoChanges.none { it.cell == index && !it.resolved }
+            "TEMPO_CUE_UNRESOLVED" -> index != null && draft.tempoCues.none { it.start == index && !it.resolved }
             "UNREGISTERED_PITCH", "OUT_OF_RANGE" -> {
                 val allowed = supportedInputPitches
                 index != null && validStructure && pitchesByCell[index].all { pitch -> allowed?.contains(pitch) == true }
@@ -88,7 +88,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val resolvedTempoIssues = reviewIssues.filter { it.kind == "TEMPO_CUE_UNRESOLVED" && it.id in checkable }.map { it.id }
     val resolved = checkedIssueIds + resolvedPitchIssues + resolvedTempoIssues
     val pending = reviewIssues.filter { it.id !in resolved || it.id !in checkable }
-    val unresolvedTempos = draft.tempoChanges.filterNot { it.resolved }.map { it.cell }.toSet()
+    val unresolvedTempos = draft.tempoCues.filterNot { it.resolved }.map { it.start }.toSet()
     val jangdan = availableJangdans?.firstOrNull { it.jangdanId == draft.jangdanId }
     val mismatch = if (draft.jangdanId == null) completionCatalogState == SheetCompletionCatalogState.Ready && draft.jangdanName.isNotEmpty() else when {
         jangdan != null -> jangdan.name != draft.jangdanName || !draft.isCompatibleWith(jangdan)

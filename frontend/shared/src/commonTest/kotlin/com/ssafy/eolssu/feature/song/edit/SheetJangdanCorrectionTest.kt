@@ -59,7 +59,7 @@ internal class SheetJangdanCorrectionTest {
         val planned = planned(recognized("QUARTER", 12, 12, ""))
         val corrected = planned.selectJangdan(gutgeori.jangdanId).draft
         assertEquals("2", corrected.jangdanId)
-        assertEquals(planned.draft.tempoChanges.map { it.cell }, corrected.tempoChanges.map { it.cell })
+        assertEquals(planned.draft.tempoCues.map { it.start }, corrected.tempoCues.map { it.start })
         assertEquals("7", planned.selectJangdan(danmori.jangdanId).draft.jangdanId)
     }
 
@@ -149,7 +149,7 @@ internal class SheetJangdanCorrectionTest {
 
     private fun planned(score: CommonScoreData): SheetEditUiState {
         val base = state(score)
-        return base.updateTempoSettings(base.draft.withTempoChange(SheetTempoChange(2, null, 100.0))).copy(jangdanPicker = SheetEditJangdanPicker.Ready(options))
+        return base.updateTempoSettings(base.draft.withTempoCue(SheetTempoCue(2, SheetTempoKind.Step, 100.0))).copy(jangdanPicker = SheetEditJangdanPicker.Ready(options))
             .also { assertTrue(it.hasTempoPlan) }
     }
 

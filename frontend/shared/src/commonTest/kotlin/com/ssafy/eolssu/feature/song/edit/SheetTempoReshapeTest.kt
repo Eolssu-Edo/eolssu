@@ -14,26 +14,26 @@ class SheetTempoReshapeTest {
     private val gutgeori66 = CatalogJangdanSummary("2", "굿거리", 66, "DOTTED_QUARTER", 12, 4, 1)
     private val danmori = CatalogJangdanSummary("7", "단모리", 120, "QUARTER", 8, 4, 1)
 
-    private fun state(vararg changes: SheetTempoChange, options: List<CatalogJangdanSummary> = listOf(gutgeori66, danmori)): SheetEditUiState {
+    private fun state(vararg changes: SheetTempoCue, options: List<CatalogJangdanSummary> = listOf(gutgeori66, danmori)): SheetEditUiState {
         val score = recognized("QUARTER", 12, 36, "중모리")
         val base = SheetEditUiState(EditSource.Mine("31"), score.editingDraft("인식 악보", 80, null).copy(authoring = sourceMetadata(score)),
             availableJangdans = options, jangdanPicker = SheetEditJangdanPicker.Ready(options))
-        val planned = changes.fold(base.draft) { draft, change -> draft.withTempoChange(change).also { assertNotEquals(draft, it, "$change") } }
+        val planned = changes.fold(base.draft) { draft, change -> draft.withTempoCue(change).also { assertNotEquals(draft, it, "$change") } }
         return base.updateTempoSettings(planned).copy(jangdanPicker = SheetEditJangdanPicker.Ready(options))
     }
 
     private fun assertNear(expected: Double, actual: Double?) = assertTrue(actual != null && abs(expected - actual) < 1e-6, "$expected != $actual")
 
     @Test fun splitAndMergeAreAllowedAndKeepThePlan() {
-        val planned = state(SheetTempoChange(2, null, 120.0))
+        val planned = state(SheetTempoCue(2, SheetTempoKind.Step, 120.0))
         assertTrue(planned.hasTempoPlan)
         val split = planned.copy(selected = 2).split()
         assertNotEquals(SheetEditMessage.TempoPlanBeforeReshape, split.message)
         assertEquals(2, split.draft.cells[2].size)
-        assertEquals(planned.draft.tempoChanges, split.draft.tempoChanges)
+        assertEquals(planned.draft.tempoCues, split.draft.tempoCues)
         val merged = split.merge()
         assertEquals(1, merged.draft.cells[2].size)
-        assertEquals(planned.draft.tempoChanges, merged.draft.tempoChanges)
+        assertEquals(planned.draft.tempoCues, merged.draft.tempoCues)
         assertEquals(planned.draft, merged.undo().undo().draft)
         // 각 추가는 위치를 밀고, 빠르기가 시작하는 각 삭제는 막는다(S15P31E102-1095).
         assertNotEquals(SheetEditMessage.TempoPlanBeforeReshape, planned.addColumn().message)
@@ -41,7 +41,7 @@ class SheetTempoReshapeTest {
     }
 
     @Test fun mergingAwayTheUnitOfAMarkMovesTheMarkToTheFirstUnitOfThatCell() {
-        val planned = state(SheetTempoChange(2, HanbaeMark.Slower, 60.0, 3))
+        val planned = state(SheetTempoCue(2, SheetTempoKind.Step, 60.0))
         val split = planned.copy(selected = 2).split().draft.let { it.copy(cells = it.cells.toMutableList().also { cells ->
             cells[2] = listOf(ScoreNote.SourcePitch("황", 0), ScoreNote.SourcePitch("태", 0))
         }) }
@@ -64,7 +64,7 @@ class SheetTempoReshapeTest {
     }
 
     @Test fun mergingACellWithAMarkIntoAnEmptyCellIsBlocked() {
-        val planned = state(SheetTempoChange(2, HanbaeMark.Slower, 60.0, 3))
+        val planned = state(SheetTempoCue(2, SheetTempoKind.Step, 60.0))
         val blankFirst = planned.copy(selected = 2, draft = planned.draft.copy(cells = planned.draft.cells.toMutableList().also {
             it[2] = listOf(ScoreNote.Blank, ScoreNote.SourcePitch("황", 0))
         }))
@@ -74,7 +74,7 @@ class SheetTempoReshapeTest {
     }
 
     @Test fun retimingKeepsCellsAndTheRatioToTheBaseTempo() {
-        val planned = state(SheetTempoChange(2, null, 120.0), SheetTempoChange(5, HanbaeMark.Original, 80.0))
+        val planned = state(SheetTempoCue(2, SheetTempoKind.Step, 120.0), SheetTempoCue(5, SheetTempoKind.Step, 80.0))
         assertTrue(planned.draft.requiresJangdanRetiming(gutgeori66))
         assertEquals(listOf(Triple(2, 120.0, 99.0), Triple(5, 80.0, 66.0)),
             planned.draft.jangdanTempoPreview(gutgeori66).map { (c, b, a) -> Triple(c, b, kotlin.math.round(a * 1e6) / 1e6) })
@@ -83,17 +83,17 @@ class SheetTempoReshapeTest {
         assertEquals(66, changed.draft.bpm)
         assertEquals("DOTTED_QUARTER", changed.draft.toCommonScore().music.bpmUnit)
         assertTrue(changed.hasTempoPlan)
-        assertEquals(planned.draft.tempoChanges.map { it.cell to it.mark }, changed.draft.tempoChanges.map { it.cell to it.mark })
+        assertEquals(planned.draft.tempoCues.map { it.start to it.mark }, changed.draft.tempoCues.map { it.start to it.mark })
         // 기본 66 대비 1.5배 구간, 본래 속도로는 새 기본값과 같다.
-        assertNear(99.0, changed.draft.tempoChanges[0].targetBpm)
-        assertNear(66.0, changed.draft.tempoChanges[1].targetBpm)
-        assertNull(changed.draft.tempoChangeError(changed.draft.tempoChanges[0]))
+        assertNear(99.0, changed.draft.tempoCues[0].bpm)
+        assertNear(66.0, changed.draft.tempoCues[1].bpm)
+        assertNull(changed.draft.tempoCueError(changed.draft.tempoCues[0], replacing = changed.draft.tempoCues[0].start))
         assertEquals(planned.draft, changed.undo().draft)
         assertEquals(changed.draft, changed.undo().redo().draft)
     }
 
     @Test fun retimedPlanExportsTheSameJeongganSpeedTheServerExpects() {
-        val planned = state(SheetTempoChange(2, null, 120.0))
+        val planned = state(SheetTempoCue(2, SheetTempoKind.Step, 120.0))
         val before = planned.draft.exportExpressions(null, 80)!!
             .getValue("performancePlan").jsonObject.getValue("tempos").jsonArray.single().jsonObject.getValue("bpm").jsonPrimitive.double
         val changed = planned.selectJangdan(gutgeori66.jangdanId).draft
@@ -109,7 +109,7 @@ class SheetTempoReshapeTest {
     }
 
     @Test fun retimingThatPushesASectionOutOfRangeIsRefusedWithAMessage() {
-        val planned = state(SheetTempoChange(2, null, 200.0), options = listOf(danmori))
+        val planned = state(SheetTempoCue(2, SheetTempoKind.Step, 200.0), options = listOf(danmori))
         assertTrue(planned.draft.requiresJangdanRetiming(danmori))
         assertTrue(planned.draft.jangdanTempoOutOfRange(danmori))
         val refused = planned.selectJangdan(danmori.jangdanId)

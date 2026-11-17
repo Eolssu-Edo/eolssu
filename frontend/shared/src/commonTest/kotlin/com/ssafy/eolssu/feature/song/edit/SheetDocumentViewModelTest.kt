@@ -29,20 +29,20 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         fun open() = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
         val model = open()
         runCurrent()
-        model.updateTempoSettings(model.uiState.value.draft.withTempoChange(
-            SheetTempoChange(1, com.ssafy.eolssu.core.model.HanbaeMark.Faster, 120.0, 3)).copy(bpm = 90))
+        model.updateTempoSettings(model.uiState.value.draft.withTempoCue(
+            SheetTempoCue(1, SheetTempoKind.Step, 120.0)).copy(bpm = 90))
         model.saveDraft(); runCurrent()
         assertNotNull(stored?.expressions)
         val reopened = open()
         runCurrent()
         assertTrue(reopened.uiState.value.hasTempoPlan)
         assertEquals(4.0 / 3, assertNotNull(reopened.uiState.value.draft.estimatedDurationSeconds(90)), 1e-9)
-        reopened.updateTempoSettings(reopened.uiState.value.draft.withoutTempoChange(1))
+        reopened.updateTempoSettings(reopened.uiState.value.draft.withoutTempoCue(1))
         assertEquals(2.0, assertNotNull(reopened.uiState.value.draft.estimatedDurationSeconds(90)), 1e-9)
         reopened.saveDraft(); runCurrent()
         val withoutChanges = open()
         runCurrent()
-        assertTrue(withoutChanges.uiState.value.draft.tempoChanges.isEmpty())
+        assertTrue(withoutChanges.uiState.value.draft.tempoCues.isEmpty())
         assertEquals(2.0, assertNotNull(withoutChanges.uiState.value.draft.estimatedDurationSeconds(90)), 1e-9)
     }
 
