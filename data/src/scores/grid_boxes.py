@@ -97,10 +97,11 @@ def find_grid(gray, parts=1, *, allow_alternating_lyrics=True):
         여러 선이 같은 높이에서 함께 끊기면 위아래로 쌓인 다른 단 사이 틈이라(표준악보집), 끝까지 덮는 선만 쓴다."""
         found, seen = [], []
         for x, _, _, t in sorted(lines, key=lambda l: l[1] - l[2]):  # 긴 조각의 x·굵기를 쓴다
-            if any(abs(x - p) < same_x for p in seen):
+            near_x = max(same_x, t)  # 끊긴 조각이 선 굵기만큼 옆으로 비켜도 같은 선이다(고사리꺾자 4~5px)
+            if any(abs(x - p) < near_x for p in seen):
                 continue
             seen.append(x)
-            pieces = sorted((max(y0, a), min(y1, b)) for p, y0, y1, _ in lines if abs(p - x) < same_x and y1 > a and y0 < b)
+            pieces = sorted((max(y0, a), min(y1, b)) for p, y0, y1, _ in lines if abs(p - x) < near_x and y1 > a and y0 < b)
             covered, end = 0, a
             for y0, y1 in pieces:
                 covered += max(0, y1 - max(y0, end))

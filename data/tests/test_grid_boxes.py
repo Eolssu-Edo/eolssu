@@ -149,6 +149,17 @@ class GridAddressTests(unittest.TestCase):
         self.assertEqual([(c['col'], c['row']) for c in self.addresses(g)],
                          [(col, row) for col in range(3) for row in range(6)])
 
+    def test_thick_broken_line_shifted_sideways_by_less_than_its_width_is_one_line(self):
+        # 실기교재 고사리꺾자: 굵은 경계선이 끊긴 뒤 4~5px 옆에서 다시 시작한다. 쪽의 다른 선은 가늘다.
+        g, notes, top, pitch = classroom()
+        x = notes[0][1]
+        y = top + pitch * 3 + pitch // 4
+        g[top:y, x:x + 8] = 0
+        g[y:y + pitch // 2, x - 2:x + 14] = 255
+        g[y + pitch // 2:top + pitch * 6, x + 5:x + 13] = 0
+        self.assertEqual([(c['col'], c['row']) for c in self.addresses(g)],
+                         [(col, row) for col in range(3) for row in range(6)])
+
     def test_column_whose_outer_line_ends_early_stays_in_its_band(self):
         # 실기교재 싸름타령: 마지막 열 바깥 선이 칸 하나 넘게(단 높이의 14%) 일찍 끝난다.
         g, notes, top, pitch = classroom()
