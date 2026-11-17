@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -132,6 +133,8 @@ private const val LearnCardArtInset = 0.94f
  *
  * @param current 펼칠 단계. 휴대폰·태블릿 세로는 [LearnUiState.cardStage], 가로 배치는 오른쪽 칸의 [LearnUiState.shownStage]다.
  * @param onShow 넘겨서 다른 단계 카드가 자리 잡으면 그 단계를 알린다.
+ * @param onAim 화살표·키보드로 넘기기 시작하면 가고 있는 단계를 자리 잡기 전에 바로 알리고, 손으로 끌거나 바깥에서 다른 단계를 고르면 null을 알린다.
+ *   지도 호랑이처럼 화면 안에서 바로 따라갈 표시에만 쓴다.
  * @param onOpen 카드를 누르면 그 단계 상세를 연다.
  * @param cardMaxSize 카드 한 변의 최대 크기. 낮은 화면에서 시작 버튼까지 보이도록 줄일 때 쓴다.
  * @param onCardHeight 그려진 카드 높이(px)를 알린다.
@@ -144,6 +147,7 @@ internal fun LearnStageCarousel(
     onShow: (Int) -> Unit,
     onOpen: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    onAim: (Int?) -> Unit = {},
     cardMaxSize: Dp = Dp.Unspecified,
     onCardHeight: (Int) -> Unit = {},
     large: Boolean = false,
@@ -155,20 +159,50 @@ internal fun LearnStageCarousel(
     val scope = rememberCoroutineScope()
     val show by rememberUpdatedState(onShow)
     val latest by rememberUpdatedState(current)
-    val go = { stage: Int -> scope.launch { pager.animateScrollToPage(stage - 1) }; Unit }
-    // 바깥에서 단계가 바뀌면(악기 바꿈 · 가로 배치에서 고름) 그 카드로 넘긴다.
+    val aim by rememberUpdatedState(onAim)
+    // 화살표·키보드로 가고 있는 단계(S15P31E102-1102). 누르는 순간 정해, 빠르게 여러 번 눌러도 지금 보이는 카드가 아니라
+    // 가고 있는 카드에서 한 장 더 가고 지도 호랑이도 바로 따라간다. 손으로 끌거나 바깥에서 다른 단계를 고르면 지운다.
+    var heading by remember { mutableStateOf<Int?>(null) }
+    val setHeading = { stage: Int? -> heading = stage; aim(stage) }
+    // 이 넘기기가 자리 잡고 [onShow]로 알린 단계. 그 알림으로 [current]가 바뀌어도 카드를 다시 넘기지 않는다.
+    var reported by remember { mutableStateOf<Int?>(null) }
+    val aimedPage = heading ?: (pager.targetPage + 1)
+    val go = { step: Int ->
+        val from = heading ?: (pager.targetPage + 1)
+        val stage = (from + step).coerceIn(1, count)
+        if (stage != from) {
+            setHeading(stage)
+            scope.launch { pager.animateScrollToPage(stage - 1) }
+        }
+    }
+    LaunchedEffect(pager) {
+        pager.interactionSource.interactions.collect { if (it is DragInteraction.Start && heading != null) setHeading(null) }
+    }
+    // 바깥에서 단계가 바뀌면(악기 바꿈 · 돌 누르기 · 가로 배치에서 고름) 그 카드로 넘긴다.
     // 넘기기 위치는 화면 이동 뒤 저장된 쪽으로 되살아나므로, 처음 그릴 때는 지금 단계로 바로 옮긴다(상세에서 돌아옴)
     var placed by remember { mutableStateOf(false) }
     LaunchedEffect(current) {
         val target = (current - 1).coerceIn(0, (count - 1).coerceAtLeast(0))
-        if (pager.currentPage != target) {
-            if (placed) pager.animateScrollToPage(target) else pager.scrollToPage(target)
+        if (!placed) {
+            placed = true
+            if (pager.currentPage != target) pager.scrollToPage(target)
+            return@LaunchedEffect
         }
-        placed = true
+        // 이 넘기기가 알렸거나 화살표로 가고 있는 단계면 이미 그쪽에 있거나 가는 중이다. 그 사이 또 누른 넘기기를 되돌리지 않는다.
+        if (current == reported || current == heading) return@LaunchedEffect
+        // 바깥에서 고른 단계로 간다. 예전에 알린 단계는 지워, 돌을 아무 순서로 눌러 그 단계로 돌아와도 카드를 넘긴다.
+        reported = null
+        if (heading != null) setHeading(null)
+        if (pager.currentPage != target || pager.isScrollInProgress) pager.animateScrollToPage(target)
     }
-    // 손으로 넘겨 자리 잡은 카드를 알린다. 되살아난 처음 위치는 알리지 않는다
+    // 넘겨 자리 잡은 카드를 알린다. 되살아난 처음 위치는 알리지 않는다
     LaunchedEffect(pager) {
-        snapshotFlow { pager.settledPage }.drop(1).collect { page -> if (page + 1 != latest) show(page + 1) }
+        snapshotFlow { pager.settledPage }.drop(1).collect { page ->
+            if (page + 1 != latest) {
+                reported = page + 1
+                show(page + 1)
+            }
+        }
     }
     val shownPage = pager.currentPage + 1
     val stage = stages.getOrNull(shownPage - 1) ?: return
@@ -181,22 +215,22 @@ internal fun LearnStageCarousel(
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (e.key) {
-                    Key.DirectionLeft -> (shownPage > 1).also { if (it) go(shownPage - 1) }
-                    Key.DirectionRight -> (shownPage < count).also { if (it) go(shownPage + 1) }
+                    Key.DirectionLeft -> (aimedPage > 1).also { if (it) go(-1) }
+                    Key.DirectionRight -> (aimedPage < count).also { if (it) go(1) }
                     else -> false
                 }
             },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CarouselArrow(next = false, enabled = shownPage > 1) { go(shownPage - 1) }
+            CarouselArrow(next = false, enabled = aimedPage > 1) { go(-1) }
             // 옆 카드를 미리 그려 두어 넘기는 순간 그림을 읽느라 멈칫하지 않게 한다.
             HorizontalPager(pager, Modifier.weight(1f), pageSpacing = 16.dp, beyondViewportPageCount = 1) { page ->
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     StageCard(stages[page], state.isDone(stages[page].number), onOpen, cardMaxSize, cardCap, onCardHeight)
                 }
             }
-            CarouselArrow(next = true, enabled = shownPage < count) { go(shownPage + 1) }
+            CarouselArrow(next = true, enabled = aimedPage < count) { go(1) }
         }
         Column(
             Modifier.padding(start = 48.dp, end = 48.dp, top = 12.dp).fillMaxWidth(),
