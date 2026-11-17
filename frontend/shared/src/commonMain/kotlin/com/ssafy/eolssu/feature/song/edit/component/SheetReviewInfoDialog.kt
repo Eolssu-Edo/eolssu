@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.song.edit.component
 
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,7 +46,12 @@ internal fun SheetReviewInfoDialog(
             is ScoreNote.Pitch -> "${note.yul.fullName} (${note.symbol})"
             is ScoreNote.SourcePitch -> "${note.fullName} (${note.symbol})"
         } }
-        Text(labels.joinToString(" · "), style = MaterialTheme.typography.bodyLarge)
+        // 음 하나의 이름(예: 지속 (ㅡ))이 두 줄로 갈라지지 않게, 음 단위로만 줄을 바꾼다(S15P31E102-1074).
+        FlowRow {
+            labels.forEachIndexed { index, label ->
+                Text(if (index < labels.lastIndex) "$label · " else label, style = MaterialTheme.typography.bodyLarge, softWrap = false)
+            }
+        }
         issues.forEach { Text(sheetReviewReason(it), style = MaterialTheme.typography.bodyMedium) }
         val rhythm = issues.firstNotNullOfOrNull { it.rhythmReview }
         when {

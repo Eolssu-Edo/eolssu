@@ -47,7 +47,6 @@ internal fun SheetImportGuideCard(
     onOpenAdaptation: () -> Unit,
     onMoveReview: (step: Int) -> Unit,
     modifier: Modifier = Modifier,
-    rightToLeft: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
     val showRange = guide.rangeNotes > 0 || guide.recommendedTranspose != null
@@ -77,16 +76,11 @@ internal fun SheetImportGuideCard(
                 val position = guide.reviewPosition
                 if (position == null) GuideButton(stringResource(Res.string.sheet_import_guide_review_go)) { onMoveReview(1) }
                 else {
-                    // 화살표가 악보에서 다음 칸이 있는 쪽을 가리킨다. 정간보는 오른쪽 각부터 왼쪽으로 읽으므로 다음(◀)이 왼쪽이다.
-                    val previous: @Composable () -> Unit = {
-                        StepButton(stringResource(Res.string.sheet_import_guide_review_prev), if (rightToLeft) -90f else 90f,
-                            enabled = position > 1) { onMoveReview(-1) }
-                    }
-                    val next: @Composable () -> Unit = {
-                        StepButton(stringResource(Res.string.sheet_import_guide_review_next), if (rightToLeft) 90f else -90f,
-                            enabled = position < guide.reviewCells) { onMoveReview(1) }
-                    }
-                    if (rightToLeft) { next(); previous() } else { previous(); next() }
+                    // 정간보·오선보 모두 ◀ 이전 · ▶ 다음으로 같게 둔다(S15P31E102-1074).
+                    StepButton(stringResource(Res.string.sheet_import_guide_review_prev), 90f,
+                        enabled = position > 1) { onMoveReview(-1) }
+                    StepButton(stringResource(Res.string.sheet_import_guide_review_next), -90f,
+                        enabled = position < guide.reviewCells) { onMoveReview(1) }
                 }
             }
         }
