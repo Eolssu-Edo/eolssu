@@ -116,6 +116,30 @@ internal fun JsonObject?.hasPositionedTempoPlan(): Boolean {
     return plan.objects("tempos").isNotEmpty() || plan.objects("repeats").isNotEmpty()
 }
 
+/** 한배 기호가 붙은 정간(연주 순서). 기호는 칸 안의 음 자리에 붙으므로 칸이 비면 둘 곳이 없다. */
+internal val SheetDraft.tempoMarkCells: Set<Int> get() = tempoMarks.keys
+
+/**
+ * 장단 재시간 보정으로 정간 tick 비율이 바뀔 때 계획 숫자를 같은 기준 빠르기 대비 배율로 옮긴다(S15P31E102-1091).
+ * 저장값은 `ticksPerBeat/ticksPerJeonggan` 비율에 묶여 있으므로 그 비율 변화만 곱한다. 기본 빠르기 변화는
+ * 저장할 때 서버가 다시 비례 조정하므로 여기서 곱하지 않는다. 좌표·기호는 그대로 둔다.
+ */
+internal fun SheetDraft.retimedTempoExpressions(nextBeatTicks: Int, nextCellTicks: Int): JsonObject? {
+    val expression = tempoExpressions ?: return null
+    val plan = expression["performancePlan"] as? JsonObject ?: return expression
+    val factor = nextBeatTicks.toDouble() / nextCellTicks / cellBpmFactor
+    val tempos = plan.objects("tempos").map { entry -> JsonObject(entry.mapValues { (key, value) ->
+        val number = (value as? JsonPrimitive)?.doubleOrNull
+        if (key in setOf("bpm", "start_bpm") && number != null) JsonPrimitive(number * factor) else value
+    }) }
+    return expression.changed("performancePlan" to plan.changed("tempos" to JsonArray(tempos)))
+}
+
+/** 화면에 보이는 바뀌는 곳의 빠르기가 모두 편집 범위 안인지 본다. */
+internal fun SheetDraft.tempoCuesWithinRange(): Boolean = tempoCues.all { cue ->
+    listOfNotNull(cue.bpm).all { it.isFinite() && it >= SheetBpmRange.first - 1e-6 && it <= SheetBpmRange.last + 1e-6 }
+}
+
 private fun HanbaeMark.kind(): SheetTempoKind = if (gradual) SheetTempoKind.Ramp else SheetTempoKind.Step
 
 /**
@@ -294,7 +318,14 @@ internal fun SheetDraft.scoreWithTempo(source: CommonScoreData): CommonScoreData
 /** 이벤트 기호와 companion은 동일한 기보 위치 순서로 합쳐야 DATA 검증을 통과한다. */
 private fun SheetDraft.orderedPlacements(score: CommonScoreData): List<JsonObject> {
     val expression = editingExpressions()
-    val desiredTempo = tempoAnnotations()
+    // 정간을 합쳐 기호가 붙어 있던 음 자리가 사라지면 같은 정간의 첫 음 자리로 옮긴다(S15P31E102-1091).
+    val units = score.columns.flatMap { it.cells }.associate { cell -> cell.id to cell.units.map { ScoreUnitKey(cell.id, it.row, it.col) } }
+    val desiredTempo = mutableMapOf<ScoreUnitKey, List<String>>()
+    tempoAnnotations().forEach { (key, symbols) ->
+        val inCell = units[key.cellId].orEmpty()
+        val target = key.takeIf { it in inCell } ?: inCell.firstOrNull() ?: return@forEach
+        desiredTempo[target] = desiredTempo[target].orEmpty() + symbols.filterNot { it in desiredTempo[target].orEmpty() }
+    }
     val existing = expression.objects("placements")
     val byId = score.events.associateBy { it.id }
     val ordinary = mutableMapOf<ScoreUnitKey, List<String>>()

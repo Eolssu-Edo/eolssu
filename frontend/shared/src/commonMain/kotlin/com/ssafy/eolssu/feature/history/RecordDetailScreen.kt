@@ -320,8 +320,8 @@ internal fun recordDetailSideBySide(width: Dp): Boolean =
  * 메모가 없으면 안내 문구 없이 빈 상자와 연필 버튼만 보인다.
  * 고칠 때는 같은 자리의 상자가 저장 시트 메모 입력칸 모양(흰 바탕 · 1dp 테두리 · 모서리 12)의 여러 줄 입력칸이 되고,
  * 그 아래에 실패 안내와 ‘n/500’, 맨 아래에 ‘취소’ · ‘저장’을 둔다. 저장 중에는 입력·취소·창 닫기를 막는다.
- * 메모 상자·입력칸은 제목과 함께 스크롤되는 본문에 두고 버튼만 아래에 고정해, 줄이 많아지거나 키보드가 올라와도
- * 버튼이 눌려 잘리지 않는다(S15P31E102-1081).
+ * 메모 상자·입력칸은 창의 본문 자리에 두어 아이콘·제목과 버튼 사이의 남는 높이만 쓰게 한다. 줄이 많아지거나 키보드가
+ * 올라오면 입력칸만 줄고 안에서 스크롤해, 버튼·아이콘·글자 수가 잘리지 않는다(S15P31E102-1081).
  */
 @Composable
 private fun RecordMemoDialog(recordId: String, memo: String, dialog: RecordMemoState, actions: RecordDetailActions) {
@@ -421,6 +421,7 @@ private fun RecordMemoEditor(draft: TextFieldState, dialog: RecordMemoState) {
         modifier = Modifier.padding(top = 6.dp),
         fieldModifier = Modifier.focusRequester(focus),
         maxLength = RECORD_MEMO_MAX_LENGTH,
+        shrinkToFit = true,
         enabled = !dialog.saving,
         error = dialog.failed,
         supporting = if (dialog.failed) {

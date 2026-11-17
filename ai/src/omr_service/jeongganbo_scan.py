@@ -19,6 +19,7 @@ from jeongganbo_tokens import jg_like
 from hanbae_marks import image_marks
 from omr_service.jeongganbo_tempo import attach_marks
 from omr_service import page_rectify
+from grid_boxes import gaks
 
 READER = [sys.executable, '-X', 'utf8', str(SCORES / 'jeongganbo_omr.py')]
 ENGINE_VERSION = 'e95045f-v1.0.0-r13'
@@ -109,21 +110,26 @@ def split_gaks(cells, beats, size):
 
 
 def _read_page(api, i, source, work, model_dir, yul_options, page_deadline):
-    """쪽 그림 하나를 배율을 바꿔 가며 읽는다. (cells.json, 리더에 넣은 그림, 배율, 출력 폴더), 격자가 없으면 report는 None."""
+    """쪽 그림 하나를 읽는다. (cells.json, 리더에 넣은 그림, 배율, 출력 폴더), 격자가 없으면 report는 None.
+
+    먼저 원래 크기에서 선으로 칸 주소를 찾는다(--grid-address, S15P31E102-1077). 칸 크기 가정이 없어 배율을 바꾸지 않는다.
+    못 찾으면 기존 리더 경로로 배율을 바꿔 가며 읽는다. 그때 report['fallback']이 참이다.
+    """
     image, scale, out = source.path, 1, None
     # 리더의 고정 칸 너비는 85~110px, 기준 쪽 높이는 3091px다.
     # 2600px 그림과 넓은 전자 정간도 같은 시간 예산 안에서 시도한다.
-    for scale in dict.fromkeys((1, .5, 3091 / source.height, 2 / 3)):
+    tries = [('address', 1)] + [('reader', scale) for scale in dict.fromkeys((1, .5, 3091 / source.height, 2 / 3))]
+    for n, (mode, scale) in enumerate(tries):
         size = (max(1, round(source.width * scale)), max(1, round(source.height * scale)))
         if size[0] * size[1] > api.MAX_PIXELS:
             continue
-        out = work / f'page-{i}-{scale}'
+        out = work / f'page-{i}-{mode}-{scale}'
         image = source.path
         if scale != 1:
             image = work / f'scaled-{i}.png'
             with Image.open(source.path) as original:
                 original.resize(size, Image.Resampling.LANCZOS).save(image)
-        grid_options = ['--grid-boxes'] if scale == 2 / 3 else []
+        grid_options = ['--grid-address'] if mode == 'address' else ['--grid-boxes'] if scale == 2 / 3 else []
         run = _run(READER + [str(image), '0', str(out), '--image', '--omr-dir', model_dir,
                             '--model-cache-dir', str(work), '--batch-size', '16',
                             '--beats', '0', '--fill-grid', '--keep-empty-columns',
@@ -135,7 +141,8 @@ def _read_page(api, i, source, work, model_dir, yul_options, page_deadline):
         if run.returncode:
             log.info('jeongganbo-scan page=%d failed: %s', i, _last_line(run.stderr))
             raise RuntimeError('jeongganbo scan reader failed')
-        return json.loads((out / 'cells.json').read_text(encoding='utf-8')), image, scale, out
+        report = json.loads((out / 'cells.json').read_text(encoding='utf-8'))
+        return report | {'fallback': n > 0}, image, scale, out
     return None, image, scale, out
 
 
@@ -183,19 +190,32 @@ def recognize(job):
                 if not report or not report['cells']:
                     issues.append(dict(kind='UNREADABLE', **whole, detail={'reason':'NO_GRID'}))
                     continue
-                beats, cells = int(report['beats']), report['cells']
-                size = gak_size_from_lines(image, cells, beats, job.request.jangdan)
-                cells, beats = split_gaks(cells, beats, size), size
+                if report['fallback']:
+                    issues.append(dict(kind='LOW_CONFIDENCE', **whole, detail={'reason':'GRID_FALLBACK'}))
+                cells = report['cells']
+                if 'row' in cells[0]:
+                    # 칸 주소: 굵은 각 구분선과 장단으로 각을 나눈다. 장단과 어긋난 각은 첫 칸에 표시한다(1077 D-1·D-5).
+                    jangdan = job.request.jangdan
+                    found = gaks(cells, lambda n: usual_beats(jangdan, beats_per_jeonggan(jangdan, n)))
+                    cells = [c | ({'gakMismatch': True} if g['mismatch'] and j == 0 else {})
+                             for g in found for j, c in enumerate(g['cells'])]
+                    places = [(gak, j) for gak, g in enumerate(found) for j in range(len(g['cells']))]
+                    widths = [len(g['cells']) for g in found]
+                    beats = max(widths, key=widths.count)
+                else:  # 기존 리더 경로: 리더가 매긴 순번 자리에 1068 굵은 선 판정을 더한다
+                    beats = int(report['beats'])
+                    size = gak_size_from_lines(image, cells, beats, job.request.jangdan)
+                    cells, beats = split_gaks(cells, beats, size), size
+                    places = grid_places(cells, beats)
+                    widths = [beats] * places[-1][0] + [places[-1][1] + 1]  # 마지막 각은 읽은 정간까지만 둔다
                 first_gak = len(lines)
-                places = grid_places(cells, beats)
                 geometry = [cell | {'gak': gak} for cell, (gak, _) in zip(cells, places)]
                 with Image.open(image) as source_image:
                     detected = image_marks(source_image, geometry)
                 tempo_cues += [cue | {'gak': first_gak + cue['gak'], 'page': i, 'bbox': source.to_source(cue['bbox'], scale)}
                                if 'gak' in cue else cue | {'page': i, 'bbox': source.to_source(cue['bbox'], scale)}
                                for cue in detected]
-                grid = [[''] * beats for _ in range(places[-1][0] + 1)]
-                del grid[-1][places[-1][1] + 1:]  # 마지막 각은 읽은 정간까지만 둔다
+                grid = [[''] * width for width in widths]
                 for cell, (gak, jeonggan) in zip(cells, places):
                     text, reason = cell_text(cell)
                     grid[gak][jeonggan] = text
@@ -244,6 +264,8 @@ def review_reason(cell, text):
         return 'GRID_SPLIT'
     if cell.get('filled'):
         return 'GRID_FILLED'
+    if cell.get('gakMismatch'):
+        return 'GAK_MISMATCH'
     if cell.get('conf') is None or cell['conf'] < MIN_CONFIDENCE:
         return 'MODEL_CONFIDENCE'
     names = [token for token in text.split() if not token.startswith(':')]

@@ -40,6 +40,8 @@ import com.ssafy.eolssu.feature.song.edit.SheetJangdanNoMatchHelp
 import com.ssafy.eolssu.feature.song.edit.dialogHelpStyle
 import com.ssafy.eolssu.feature.song.edit.canSelectJangdan
 import com.ssafy.eolssu.feature.song.edit.requiresJangdanRetiming
+import com.ssafy.eolssu.feature.song.edit.jangdanTempoOutOfRange
+import com.ssafy.eolssu.feature.song.edit.jangdanTempoPreview
 import com.ssafy.eolssu.feature.song.edit.basicAccompaniment
 import eolssu.shared.generated.resources.basic_accompaniment_title
 import eolssu.shared.generated.resources.basic_accompaniment_none
@@ -80,19 +82,18 @@ internal fun SheetEditJangdanDialog(
     onClear: () -> Unit,
     onReload: () -> Unit,
     onDismiss: () -> Unit,
-    hasTempoPlan: Boolean = false,
 ) {
     var pendingId by rememberSaveable { mutableStateOf<String?>(null) }
     EolssuDialog(
         title = stringResource(Res.string.sheetedit_cell_jangdan_change),
         // 대화상자가 제목·안내를 스크롤하므로 바깥에 스크롤을 또 두지 않는다. 겹치면 제목·안내가 0 높이로 접힌다(S15P31E102-1080).
-        message = stringResource(if (draft.inferredJeongganSizes != null && !hasTempoPlan)
+        message = stringResource(if (draft.inferredJeongganSizes != null)
             Res.string.sheet_jangdan_correction_help else Res.string.sheetedit_jangdan_same_unit),
         onDismissRequest = onDismiss,
     ) {
         // 악보 올리기처럼 장단만 고른다. 기본 박 반주는 고르는 곳을 빼고, 이미 고른 악보에서만 지금 상태로 보인다(S15P31E102-1042).
         val selectable = (picker as? SheetEditJangdanPicker.Ready)?.options.orEmpty()
-            .filter { draft.canSelectJangdan(it, hasTempoPlan) }
+            .filter { draft.canSelectJangdan(it) }
         when (picker) {
             SheetEditJangdanPicker.Loading -> CircularProgressIndicator()
             SheetEditJangdanPicker.Failed -> {
@@ -116,7 +117,7 @@ internal fun SheetEditJangdanDialog(
             }
             selectable.forEach { option ->
                 JangdanOptionButton(selected = option.jangdanId == selectedId, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_JANGDAN_DIALOG_03, {
-                    if (!hasTempoPlan && draft.requiresJangdanRetiming(option)) pendingId = option.jangdanId
+                    if (draft.requiresJangdanRetiming(option) && !draft.jangdanTempoOutOfRange(option)) pendingId = option.jangdanId
                     else onSelect(option.jangdanId)
                 })) { SheetJangdanOptionLabel(option) }
             }
@@ -124,7 +125,9 @@ internal fun SheetEditJangdanDialog(
         EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_EDIT_JANGDAN_DIALOG_BUTTON_03)
     }
     (picker as? SheetEditJangdanPicker.Ready)?.options?.firstOrNull { it.jangdanId == pendingId }?.let { option ->
-        SheetJangdanCorrectionDialog(option, onApply = { pendingId = null; onSelect(option.jangdanId) },
+        SheetJangdanCorrectionDialog(option, draft.jangdanTempoPreview(option).map { (cell, before, after) ->
+            SheetJangdanTempoPreview(draft.columnOf(cell) + 1, draft.rowOf(cell) + 1, before, after)
+        }, onApply = { pendingId = null; onSelect(option.jangdanId) },
             onDismiss = { pendingId = null })
     }
 }

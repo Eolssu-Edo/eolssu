@@ -681,14 +681,15 @@ private fun CellTools(draft: SheetDraft, actions: EditInputActions, hasTempoPlan
             ToolButton(stringResource(Res.string.sheetedit_cell_merge), actions.onMerge, Modifier.weight(1f),
                 picture = CellPicture.Merge)
         }
-        if (hasTempoPlan) {
-            HintText(stringResource(Res.string.sheet_tempo_before_reshape))
-        }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ToolButton(stringResource(Res.string.sheetedit_cell_add_column), actions.onAddColumn, Modifier.weight(1f),
                 picture = CellPicture.AddColumn)
             ToolButton(stringResource(Res.string.sheetedit_cell_delete_column), actions.onDeleteColumn, Modifier.weight(1f),
                 picture = CellPicture.DeleteColumn)
+        }
+        // 나누기·합치기는 구간 빠르기가 있어도 된다. 각 추가·삭제만 막힌다(S15P31E102-1091).
+        if (hasTempoPlan) {
+            HintText(stringResource(Res.string.sheet_tempo_before_reshape))
         }
         // 장단 고르기는 다른 도구와 같은 높이의 한 줄로 둔다. 줄을 누르면 장단 선택 창이 열린다(S15P31E102-1042).
         val jangdanChange = stringResource(Res.string.sheetedit_cell_jangdan_change)
