@@ -30,6 +30,9 @@ internal val CodeError.needsNewCode: Boolean
  * 인증번호를 보내면 [verificationId]가 생기고 인증번호 칸이 나온다. 남은 시간은 화면이 [secondsLeft]로 매초 다시 센다.
  */
 data class EmailVerificationUiState(
+    /** 인증번호를 보내는 중 / 확인하는 중. 해당 버튼에 진행 표시를 보인다(S15P31E102-996). */
+    val sending: Boolean = false,
+    val confirming: Boolean = false,
     val email: String = "",
     val code: String = "",
     val emailError: FieldError? = null,

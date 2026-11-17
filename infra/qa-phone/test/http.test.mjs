@@ -2,11 +2,22 @@ import http from 'node:http';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startRelay } from '../server.mjs';
-const token = 'test-only-not-a-real-credential-290';
+
+test('name-only entry needs no configured password and duplicate names have independent control',async t=>{
+ const relay=await startRelay({port:0,phone:{capture:async()=>({data:Buffer.from('fixture'),width:1,height:1}),input:async()=>{}}});t.after(()=>relay.close());
+ const post=(path,body,cookie)=>fetch(relay.url+'/api/'+path,{method:'POST',headers:{Origin:relay.url,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)});
+ assert.equal((await fetch(relay.url+'/api/state')).status,401);
+ const first=await post('login',{name:'은서'});assert.equal(first.status,200);const a=first.headers.get('set-cookie').split(';')[0];
+ const second=await post('login',{name:'은서'});assert.equal(second.status,200);const b=second.headers.get('set-cookie').split(';')[0];assert.notEqual(a,b);
+ assert.equal((await post('request',{},a)).status,200);
+ assert.equal((await post('release',{},b)).status,403);
+ for(const name of ['', '   ', 'a'.repeat(33), 'a\nb', null])assert.equal((await post('login',{name})).status,400);
+ assert.equal((await post('login',{name:' 영민 '})).status,200);
+});
 const data = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWQAAAABJRU5ErkJggg==', 'base64');
 async function fixture(t, failInput = false, extra = {}) {
   const calls = [];
-  const relay = await startRelay({ port: 0, token, ...extra, phone: {
+  const relay = await startRelay({ port: 0, ...extra, phone: {
     ...extra.phone, capture: async () => ({ data, width: 1, height: 1 }), input: async a => { if (failInput) throw new Error('test transport failure'); calls.push(a); },
   }});
   t.after(() => relay.close());
@@ -18,16 +29,44 @@ async function fixture(t, failInput = false, extra = {}) {
     });
   }
   async function login(name) {
-    const r = await request('/api/login', { token, name }); assert.equal(r.status, 200);
+    const r = await request('/api/login', { name }); assert.equal(r.status, 200);
     return r.headers.get('set-cookie').split(';')[0];
   }
   return { relay, calls, request, login };
 }
+test('Wi-Fi pairing uses the Android code without a PC key, retaining session, origin and retry guards', async t => {
+  const calls = [];
+  const {request, login} = await fixture(t, false, {
+    wireless:{
+      state:async()=>({available:true,port:40519}),
+      pair:async(port,code)=>{calls.push([port,code]);return {paired:true};},
+    },
+  });
+  const path = '/api/wireless/pair';
+  const payload = {port:37631,code:'012345'};
+  assert.equal((await request(path,payload)).status,401);
+  const viewer = await login('참여자');
+  assert.equal((await request(path,payload,viewer,'https://other.example')).status,403);
+  assert.equal((await request(path,{...payload,code:'bad'},viewer)).status,400);
+  assert.equal((await request(path,{...payload,port:70000},viewer)).status,400);
+  assert.deepEqual(calls,[]);
+  const state = await (await request('/api/state',undefined,viewer)).json();
+  assert.equal(state.wireless.pairing,true);
+  assert.deepEqual(await (await request(path,payload,viewer)).json(),{paired:true});
+  assert.deepEqual(calls,[[37631,'012345']]);
+  assert.equal((await request(path,payload,viewer)).status,429);
+});
+
+test('a viewer cannot pair while another participant owns the device',async t=>{
+  const f=await fixture(t,false,{wireless:{state:async()=>({available:true}),pair:()=>assert.fail('viewer cannot pair')}});
+  const a=await f.login('Alice'),b=await f.login('Bob');await f.request('/api/request',{},a);
+  assert.equal((await f.request('/api/wireless/pair',{port:37631,code:'012345'},b)).status,409);
+});
 test('unauthenticated screen/API and cross-origin writes rejected', async t => {
   const { request, login } = await fixture(t);
   for (const path of ['/api/state', '/api/frame']) assert.equal((await request(path)).status, 401);
-  assert.equal((await request('/api/login', { token: 'wrong', name: 'a' })).status, 401);
-  assert.equal((await request('/api/login', { token, name: 'a' }, null, 'https://evil.test')).status, 403);
+  assert.equal((await request('/api/login', { name: '' })).status, 400);
+  assert.equal((await request('/api/login', { name: 'a' }, null, 'https://evil.test')).status, 403);
   const a = await login('Alice');
   assert.equal((await request('/api/request', {}, a, 'https://evil.test')).status, 403);
   assert.equal((await request('/api/frame', undefined, a)).headers.get('content-type'), 'image/png');
@@ -67,7 +106,7 @@ test('two independent HTTP clients view same frame; owner transfers; old input r
 test('unknown routes, oversized bodies and invalid JSON return controlled errors', async t => {
   const { request, relay } = await fixture(t);
   assert.equal((await request('/../server.mjs')).status, 404);
-  assert.equal((await request('/api/login', { token, name: 'a'.repeat(5000) })).status, 413);
+  assert.equal((await request('/api/login', { name: 'a'.repeat(5000) })).status, 413);
   const r = await fetch(relay.url + '/api/login', { method: 'POST', headers: { Origin: relay.url, 'Content-Type': 'application/json' }, body: '{' });
   assert.equal(r.status, 400);
 });
@@ -82,13 +121,13 @@ test('public peer identifier cannot be used as another client session cookie', a
 
 test('input failure revokes control; transport recovery requires idle input and a fresh screen, never replaying input', async t => {
   let idle=false,screen=true,attempts=0,probes=0;
-  const relay=await startRelay({port:0,token,phone:{
+  const relay=await startRelay({port:0,phone:{
     capture:async()=>{if(!screen)throw Error('screen unavailable');return {data,width:1,height:1};},
     input:async()=>{attempts++;if(attempts===1)throw Error('transient transport failure');},
     inputReady:async()=>{probes++;return idle;},
   }});t.after(()=>relay.close());
   const send=(path,body,cookie)=>fetch(relay.url+path,{method:body===undefined?'GET':'POST',headers:{Origin:relay.url,...(body===undefined?{}:{'Content-Type':'application/json'}),...(cookie?{Cookie:cookie}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});
-  const login=await send('/api/login',{token,name:'Alice'}),cookie=login.headers.get('set-cookie').split(';')[0];
+  const login=await send('/api/login',{name:'Alice'}),cookie=login.headers.get('set-cookie').split(';')[0];
   const state=async()=>(await send('/api/state',undefined,cookie)).json();
   const until=async check=>{const deadline=Date.now()+6000;while(Date.now()<deadline){if(await check())return;await new Promise(r=>setTimeout(r,25));}assert.fail('recovery condition not reached');};
   await send('/api/request',{},cookie);const before=await state();
@@ -125,42 +164,43 @@ test('Host binding and browser security headers are enforced', async t => {
   assert.equal(page.headers.get('cache-control'),'no-store');
   for (const asset of ['/app.js','/style.css','/apk-update.js']) assert.equal((await fetch(relay.url+asset)).status,200);
 });
-test('invalid credentials are throttled without unlimited login work', async t => {
+test('invalid names are throttled without unlimited login work', async t => {
   const { request } = await fixture(t);
-  for (let i=0;i<10;i++) assert.equal((await request('/api/login',{token:'wrong',name:'test'})).status,401);
-  assert.equal((await request('/api/login',{token:'wrong',name:'test'})).status,429);
+  for (let i=0;i<10;i++) assert.equal((await request('/api/login',{name:''})).status,400);
+  assert.equal((await request('/api/login',{name:''})).status,429);
 });
 
 test('subpath deployment scopes API, assets and session cookie', async t => {
-  const relay=await startRelay({port:0,token,basePath:'/qa/',phone:{capture:async()=>({data,width:1,height:1}),input:async()=>{}}});
+  const relay=await startRelay({port:0,basePath:'/qa/',phone:{capture:async()=>({data,width:1,height:1}),input:async()=>{}}});
   t.after(()=>relay.close());
   assert.equal((await fetch(relay.url+'/api/state')).status,404);
   assert.equal((await fetch(relay.url+'/qa/')).status,200);
   const html=await (await fetch(relay.url+'/qa/')).text();
+  assert.doesNotMatch(html.match(/<form id="loginForm">[\s\S]*?<\/form>/)[0],/type="password"/);
   assert.ok(html.includes('href="./style.css"'));assert.ok(html.includes('src="./app.js"'));
-  const r=await fetch(relay.url+'/qa/api/login',{method:'POST',headers:{Origin:relay.url,'Content-Type':'application/json'},body:JSON.stringify({token,name:'Team member'})});
+  const r=await fetch(relay.url+'/qa/api/login',{method:'POST',headers:{Origin:relay.url,'Content-Type':'application/json'},body:JSON.stringify({name:'Team member'})});
   assert.equal(r.status,200);assert.ok(r.headers.get('set-cookie').includes('Path=/qa/'));
   const cookie=r.headers.get('set-cookie').split(';')[0];
   assert.equal((await fetch(relay.url+'/qa/api/frame',{headers:{Cookie:cookie}})).status,200);
 });
 test('only configured proxy mode trusts validated real client address for login limits', async t => {
-  const relay=await startRelay({port:0,token,trustProxy:true,phone:{capture:async()=>({data,width:1,height:1}),input:async()=>{}}});
+  const relay=await startRelay({port:0,trustProxy:true,phone:{capture:async()=>({data,width:1,height:1}),input:async()=>{}}});
   t.after(()=>relay.close());
-  const login=(ip,value)=>fetch(relay.url+'/api/login',{method:'POST',headers:{Origin:relay.url,'Content-Type':'application/json','X-Real-IP':ip},body:JSON.stringify({token:value,name:'Test'})});
-  for(let i=0;i<10;i++)assert.equal((await login('192.0.2.1','wrong')).status,401);
-  assert.equal((await login('192.0.2.1',token)).status,429);
-  assert.equal((await login('192.0.2.2',token)).status,200);
+  const login=(ip,name)=>fetch(relay.url+'/api/login',{method:'POST',headers:{Origin:relay.url,'Content-Type':'application/json','X-Real-IP':ip},body:JSON.stringify({name})});
+  for(let i=0;i<10;i++)assert.equal((await login('192.0.2.1','')).status,400);
+  assert.equal((await login('192.0.2.1','Test')).status,429);
+  assert.equal((await login('192.0.2.2','Test')).status,200);
 });
 
 test('direct mode ignores forged proxy headers when limiting login attempts', async t => {
   const { relay }=await fixture(t);
   for(let i=0;i<11;i++){
-    const r=await fetch(relay.url+'/api/login',{method:'POST',headers:{Origin:relay.url,'Content-Type':'application/json','X-Real-IP':`192.0.2.${i+1}`},body:JSON.stringify({token:'wrong',name:'Test'})});
-    assert.equal(r.status,i<10?401:429);
+    const r=await fetch(relay.url+'/api/login',{method:'POST',headers:{Origin:relay.url,'Content-Type':'application/json','X-Real-IP':`192.0.2.${i+1}`},body:JSON.stringify({name:''})});
+    assert.equal(r.status,i<10?400:429);
   }
 });
 test('deployment base path rejects ambiguous or unsafe prefixes', async () => {
-  for(const basePath of ['/qa','//','/../','/qa/?x=1','/qa space/'])await assert.rejects(startRelay({token,basePath}),/BASE_PATH/);
+  for(const basePath of ['/qa','//','/../','/qa/?x=1','/qa space/'])await assert.rejects(startRelay({basePath}),/BASE_PATH/);
 });
 
 
@@ -220,20 +260,54 @@ test('stream rotation invalidates controller before recapturing physical touch g
  assert.equal((await request('/api/input',{epoch:old.epoch},a)).status,403);await stream.body.cancel();
 });
 
-test('expired session cannot keep a video stream alive',async t=>{
- t.mock.timers.enable({apis:['Date'],now:Date.now()});
+test('10 minutes of inactivity prompts every participant, then only unconfirmed sessions disconnect', {timeout:5000},async t=>{
+ const start=Date.now();let now=start;
+ const video={healthy:true,lastFrameAt:Date.now(),subscribe(res){res.writeHead(200);res.write('frame');},async stop(){}};
+ const {request,login}=await fixture(t,false,{video,sessionNow:()=>now});
+ const owner=await login('Owner'),viewer=await login('Viewer'),present=await login('Present'),absent=await login('Absent');
+ const state=async cookie=>(await request('/api/state',undefined,cookie)).json();
+ await request('/api/request',{},owner);
+ const stream=await request('/api/video',undefined,owner),reader=stream.body.getReader();await reader.read();
+ now=start+599_999;
+ assert.equal((await state(owner)).idlePromptMs,null);
+ assert.equal((await request('/api/activity',{},present)).status,200);
+ now=start+600_000;
+ const warning=await state(owner);
+ assert.equal(warning.idlePromptMs,60_000);assert.equal(warning.owner,warning.you);
+ assert.equal((await state(viewer)).idlePromptMs,60_000);
+ assert.equal((await state(present)).idlePromptMs,null);
+ now=start+659_999;
+ assert.equal((await state(owner)).idlePromptMs,1);
+ await request('/api/activity',{},viewer); // Routine browser events cannot answer the prompt.
+ assert.equal((await state(viewer)).idlePromptMs,1);
+ assert.equal((await request('/api/activity',{confirm:true},viewer)).status,200);
+ assert.equal((await state(viewer)).idlePromptMs,null);
+ now=start+660_000;
+ await assert.rejects(reader.read()); // The server sweep closes the stream without a new owner request.
+ assert.equal((await request('/api/activity',{confirm:true},owner)).status,401);
+ assert.equal((await request('/api/activity',{confirm:true},absent)).status,401);
+ const remaining=await state(viewer);
+ assert.equal(remaining.owner,null);
+ assert.deepEqual(remaining.peers.map(peer=>peer.name),['Viewer','Present']);
+});
+
+test('eight-hour session cap cannot be extended by activity',async t=>{
+ const start=Date.now();let now=start;
  const active=new Set();const video={healthy:true,lastFrameAt:Date.now(),subscribe(res){res.writeHead(200);res.write('frame');active.add(res);res.on('close',()=>active.delete(res));},async stop(){for(const res of active)res.destroy();}};
- const {request,login}=await fixture(t,false,{video});const a=await login('Alice');
+ const {request,login}=await fixture(t,false,{video,sessionNow:()=>now});const a=await login('Alice');
  const stream=await request('/api/video',undefined,a),reader=stream.body.getReader();await reader.read();
- t.mock.timers.setTime(Date.now()+8*3600000+1);
+ for (now=start+540_000;now<start+8*3600000;now+=540_000) {
+   assert.equal((await request('/api/activity',{},a)).status,200);
+ }
+ now=start+8*3600000;
  assert.equal((await request('/api/state',undefined,a)).status,401);await assert.rejects(reader.read());
 });
 test('healthy video retains physical touch geometry across PNG fallback failure',async t=>{
  let rotate,captures=0;
  const video={healthy:true,lastFrameAt:Date.now(),subscribe(res,options){rotate=options.onSession;res.writeHead(200);res.write('frame');},async stop(){}};
- const relay=await startRelay({port:0,token,video,phone:{capture:async()=>{captures++;throw Error('PNG timeout');},geometry:async()=>({width:1080,height:2280}),input:async()=>{}}});t.after(()=>relay.close());
+ const relay=await startRelay({port:0,video,phone:{capture:async()=>{captures++;throw Error('PNG timeout');},geometry:async()=>({width:1080,height:2280}),input:async()=>{}}});t.after(()=>relay.close());
  const send=(path,body,cookie)=>fetch(relay.url+path,{method:body===undefined?'GET':'POST',headers:{Origin:relay.url,...(body===undefined?{}:{'Content-Type':'application/json'}),...(cookie?{Cookie:cookie}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});
- const login=await send('/api/login',{token,name:'Alice'});const cookie=login.headers.get('set-cookie').split(';')[0];
+ const login=await send('/api/login',{name:'Alice'});const cookie=login.headers.get('set-cookie').split(';')[0];
  const stream=await send('/api/video',undefined,cookie);rotate({width:720,height:1520});
  let state=await(await send('/api/state',undefined,cookie)).json();assert.equal(state.width,1080);assert.equal(state.height,2280);assert.equal(state.online,true);
  const before=captures;await send('/api/state',undefined,cookie);assert.equal(captures,before);

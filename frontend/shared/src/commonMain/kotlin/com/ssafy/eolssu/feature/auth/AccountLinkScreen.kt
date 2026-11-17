@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -109,6 +110,7 @@ fun AccountLinkScreen(
                         label = stringResource(Res.string.auth_link_password),
                         placeholder = stringResource(Res.string.auth_password_placeholder),
                         type = TextFieldType.Password,
+                        maxLength = InputLimit.PASSWORD,
                         help = stringResource(Res.string.auth_link_password_help),
                         error = state.passwordError?.let { stringResource(it.message) },
                         imeAction = ImeAction.Done,
@@ -146,10 +148,10 @@ private fun AccountCard(provider: SocialProvider, email: String) {
     ) {
         Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(24.dp).background(colors.surfaceStrong, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
-                Text(provider.mark, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold))
+                Text(provider.mark, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                FlowOnTapText(email, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold), color = colors.text)
+                FlowOnTapText(email, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
                 Text(
                     stringResource(Res.string.auth_link_account_kind),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp),

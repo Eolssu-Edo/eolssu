@@ -24,6 +24,8 @@ internal data class HomeScrollFrame(
     val artY: Float,
     val headlineBottom: Float,
     val headlineScale: Float,
+    /** 제목이 첫 화면 자리에서 펼친 화면 자리로 옮겨 간 정도(0~1). 스크롤 앞쪽 60% 동안 다 옮겨 간다. */
+    val headlineProgress: Float,
     val arrowAlpha: Float,
     val headerAlpha: Float,
     val darkBehindButton: Boolean,
@@ -45,6 +47,7 @@ internal fun homeScrollFrame(width: Float, height: Float, scroll: Float, buttonH
         artY = mix(-200f * width / 390f, (band - width * 1448f / 1086f) * .62f, e),
         headlineBottom = mix(initialTop - 10f, band - 10f, eh),
         headlineScale = mix(1.3f, 1f, eh),
+        headlineProgress = eh,
         arrowAlpha = (1f - p * 6f).coerceIn(0f, 1f),
         // 첫 화면에서는 상단 판을 숨기고, 스크롤 절반을 지나며 나타나 다 펼치면 온전히 보인다.
         headerAlpha = ((p - .5f) / .4f).coerceIn(0f, 1f),
@@ -86,6 +89,122 @@ internal fun homeExpandedHero(
     val maxOffset = (height - band - buttonHeight - 58f).coerceAtLeast(0f)
     val offset = (featureTop + featureHeight / 2f - heroHeight / 2f).coerceIn(0f, maxOffset)
     return HomeExpandedHero(mix(startScale, 1f, e), mix(startY, endY, e), offset * e)
+}
+
+/**
+ * 창 모양에 따라 고르는 홈 그림. 휴대폰 세로·태블릿 세로·가로 창마다 구도를 따로 잡은 그림을 쓴다(S15P31E102-983, 그림 교체 S15P31E102-1015·1049).
+ * 휴대폰은 회전을 막아 가로 화면을 지원하지 않으므로 휴대폰 가로 그림은 두지 않는다(S15P31E102-1025).
+ *
+ * @property aspect 그림의 높이/너비 비.
+ * @property openFocusX 펼친 화면의 그림 띠에 남길 가로 위치(0 왼쪽 끝 ~ 1 오른쪽 끝).
+ * @property openFocusY 펼친 화면의 그림 띠에 남길 세로 위치(0 위 끝 ~ 1 아래 끝). 전각과 연주자가 띠에 들어오는 값이다.
+ */
+internal enum class HomeArtKind(
+    val aspect: Float,
+    val openFocusX: Float,
+    val openFocusY: Float,
+    /** 그림 아래쪽 가로 먹 띠가 시작하는 높이(그림 높이 비율). 첫 화면에서 이 띠를 시작 버튼 위로 올려 흰 버튼 글자 뒤를 먹으로 둔다. */
+    val bandTop: Float?,
+) {
+    // 그림 크기와 아래 먹 띠 시작 행은 frontend/tools/home-art/refine_phone.py·refine_tablet.py가 만든 그림에서 잰 값이다(S15P31E102-1049).
+    PhonePortrait(2087f / 1080f, .5f, .62f, 1650f / 2087f),
+    TabletPortrait(2560f / 1600f, .5f, .6f, 2024f / 2560f),
+    TabletLandscape(1600f / 2560f, .35f, .5f, 1430f / 1600f),
+}
+
+/** 첫 화면에서 아래 먹 띠가 시작 버튼 위보다 먼저 시작하도록 남기는 간격(dp). 흰 버튼 글자 뒤가 늘 먹이 되게 한다. */
+internal const val HomeArtBandAboveButton = 16f
+
+/**
+ * 첫 화면에서 그림을 위로 올리는 양(dp, S15P31E102-1034). 그림 아래 가로 먹 띠가 시작 버튼 위 [HomeArtBandAboveButton]에서
+ * 시작하게 하고, 그림 아래로 빈 곳은 먹 띠를 이어 그린다. 올린 만큼 오른쪽 사선 먹 영역도 함께 올라와 제목을 크게 둘 수 있다.
+ */
+internal fun homeArtLift(kind: HomeArtKind, width: Float, height: Float, buttonHeight: Float): Float {
+    val band = kind.bandTop ?: return 0f
+    val place = homeArtPlacement(kind, width, height, .5f, .5f)
+    val buttonTop = (height - 88f - buttonHeight).coerceAtLeast(80f)
+    return (place.y + place.height * band - (buttonTop - HomeArtBandAboveButton)).coerceAtLeast(0f)
+}
+
+/** 세로 창의 너비가 이 값(dp) 이상이면 태블릿 세로 그림을 쓴다. 배치 판정의 Medium 시작 너비와 같다. */
+private const val HomeTabletMinSide = 600f
+
+/** 창 크기(dp)로 그림을 고른다. 가로 창은 모두 가로 그림을, 세로 창은 너비로 휴대폰·태블릿을 가른다. */
+internal fun homeArtKind(width: Float, height: Float): HomeArtKind = when {
+    width > height -> HomeArtKind.TabletLandscape
+    width >= HomeTabletMinSide -> HomeArtKind.TabletPortrait
+    else -> HomeArtKind.PhonePortrait
+}
+
+/**
+ * 제목 묶음(얼쑤! 로고 위에 '나도 이제 국악인' 붓글씨 171×42를 4dp 간격으로 쌓은 것)의 배율 1 크기(dp). 간격은 배율과 관계없이 4dp로 보인다.
+ * 로고는 붓글씨보다 눈에 띄도록 원래 96×47에서 120×59로 키웠다(S15P31E102-1015).
+ */
+internal const val HomeTitleLogoWidth = 120f
+internal const val HomeTitleLogoHeight = 59f
+internal const val HomeTitleWidth = 171f
+internal const val HomeTitleStackHeight = HomeTitleLogoHeight + 42f
+internal const val HomeTitleGap = 4f
+
+/** 배율 [scale]에서 화면에 보이는 제목 묶음의 높이(dp). */
+internal fun homeTitleHeight(scale: Float): Float = HomeTitleStackHeight * scale + HomeTitleGap
+
+/** 첫 화면 제목의 배율과 오른쪽 아래 모서리 위치(dp). */
+internal data class HomeHeroTitle(val scale: Float, val right: Float, val bottom: Float)
+
+/**
+ * 첫 화면 제목의 크기와 자리. 받은 그림은 고치지 않고, 제목이 오른쪽 먹 영역 안에 사방 16dp 이상 여유를 두고 들어오도록 그림마다 정했다(S15P31E102-1015).
+ * 세로 화면은 평가 시작 버튼 바로 위 오른쪽에 둔다. 휴대폰 세로는 먹 영역이 좁아 기본 배율보다 작게 쓴다.
+ * 가로 화면은 먹 영역이 화면 높이 전체에 걸쳐 넓으므로 창 너비에 비례해 크게 키우고, 오른쪽 먹 영역의 세로 가운데 쪽에 둔다.
+ * 그림을 바꾸면 `frontend/tools/home-art/refine_tablet.py`가 만드는 모의 화면으로 제목·버튼 자리를 다시 점검한다.
+ */
+internal fun homeHeroTitle(kind: HomeArtKind, width: Float, height: Float, buttonHeight: Float): HomeHeroTitle = when (kind) {
+    // 세로: 오른쪽 아래 먹 영역에 창 너비에 비례해 크게 두고 버튼 위로 조금 띄운다(휴대폰 56%·24dp, 태블릿 52%·36dp, S15P31E102-1034).
+    // 그림의 먹 영역은 이 크기·자리에 맞춰 두었다(refine_phone.py·refine_tablet.py의 모의 화면으로 확인).
+    HomeArtKind.PhonePortrait, HomeArtKind.TabletPortrait -> {
+        val phone = kind == HomeArtKind.PhonePortrait
+        HomeHeroTitle(
+            scale = width * (if (phone) .56f else .52f) / HomeTitleWidth,
+            right = width - 20f,
+            bottom = (height - 88f - buttonHeight).coerceAtLeast(80f) - HomeTitleButtonGap - (if (phone) 24f else 36f),
+        )
+    }
+    HomeArtKind.TabletLandscape -> {
+        // 제목 너비 = 창 너비의 23%, 오른쪽 여백 = 창 너비의 5%, 제목 가운데 = 창 높이의 50%.
+        // 웹의 낮은 가로 창(예: 780×360)에서는 제목 아래가 평가 시작 버튼에 닿으므로 버튼 위 12dp까지만 내려온다(S15P31E102-1026).
+        val scale = width * .23f / HomeTitleWidth
+        val buttonTop = (height - 88f - buttonHeight).coerceAtLeast(80f)
+        HomeHeroTitle(scale, width * .95f, minOf(height * .5f + homeTitleHeight(scale) / 2f, buttonTop - HomeTitleButtonGap))
+    }
+}
+
+/** 가로 첫 화면에서 제목 아래와 평가 시작 버튼 위 사이에 두는 최소 간격(dp). */
+internal const val HomeTitleButtonGap = 12f
+
+/**
+ * 펼친 화면에서 그림 띠 아래를 흰 바탕으로 흐려 보내는 구간(dp). 띠 아래 끝([ground]) 기준으로 위 [HomeArtFadeAbove]부터
+ * 아래 [HomeArtFadeBelow]까지 그림을 이어 그리며 바탕색으로 덮는다. 위쪽 구간은 띠 안의 제목(띠 아래 끝에서 10dp 위)을 덜 가리도록 짧게 둔다.
+ */
+internal const val HomeArtFadeAbove = 24f
+internal const val HomeArtFadeBelow = 56f
+
+/** 흰 흐림 구간 안의 위치(0 = 시작, 1 = 끝)별 바탕색 덮임 비율. 끝으로 갈수록 빨리 덮여 띠 아래 끝이 선으로 보이지 않는다. */
+internal fun homeArtFade(t: Float): Float {
+    val u = t.coerceIn(0f, 1f)
+    return u * u * (3f - 2f * u)
+}
+
+/** 칸 안에서 그림을 그릴 크기와 칸 왼쪽 위 기준 위치(dp). 위치는 0 이하다. */
+internal data class HomeArtPlacement(val width: Float, val height: Float, val x: Float, val y: Float)
+
+/**
+ * 그림이 칸을 빈틈없이 덮도록 비율을 지켜 키우고, 넘치는 쪽은 [focusX]·[focusY] 위치가 남게 자른다.
+ * 스크롤로 칸이 줄어드는 동안에도 같은 식을 써서 그림이 끊기지 않고 이어진다.
+ */
+internal fun homeArtPlacement(kind: HomeArtKind, boxWidth: Float, boxHeight: Float, focusX: Float, focusY: Float): HomeArtPlacement {
+    val width = maxOf(boxWidth, boxHeight / kind.aspect)
+    val height = width * kind.aspect
+    return HomeArtPlacement(width, height, (boxWidth - width) * focusX, (boxHeight - height) * focusY)
 }
 
 /** 펼친 뒤 추가 스크롤은 유지한다. 스냅 중 발생한 위치를 새 제스처로 처리하지 않는다. */

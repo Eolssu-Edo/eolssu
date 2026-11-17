@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -43,6 +44,12 @@ internal fun SheetEditSettingsDialog(
 ) {
     var working by remember(draft) { mutableStateOf(draft) }
     var bpm by rememberSaveable { mutableStateOf(draft.bpm.toString()) }
+    // 빠르기 칸을 고친 뒤에만 오류를 보인다(S15P31E102-996).
+    var bpmTouched by rememberSaveable { mutableStateOf(false) }
+    // 각·정간 칸은 이 악보에 있는 번호의 자릿수까지만 받는다. 창이 열린 동안 각 구성은 바뀌지 않으므로 열 때 한 번 정한다(S15P31E102-996).
+    // 각은 '악보 끝'(마지막 각 + 1)까지, 정간은 가장 긴 각의 정간 수까지 쓴다.
+    val gakDigits = remember(draft) { (draft.columnCount + 1).toString().length }
+    val cellDigits = remember(draft) { (draft.sizes.maxOrNull() ?: 1).toString().length }
     var editing by rememberSaveable { mutableStateOf(false) }
     var replacing by rememberSaveable { mutableStateOf<Int?>(null) }
     var markName by rememberSaveable { mutableStateOf<String?>(HanbaeMark.Slower.name) }
@@ -89,13 +96,15 @@ internal fun SheetEditSettingsDialog(
     }
     EolssuDialog(title = stringResource(Res.string.sheet_settings_title), onDismissRequest = { if (!saving) onDismiss() }) {
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            EolssuTextField(bpm, { if (!saving) bpm = it },
+            EolssuTextField(bpm, { if (!saving) { bpm = it; bpmTouched = true; error = null } },
                 label = stringResource(Res.string.sheet_tempo_whole) + " · " + draft.tempoUnitLabel,
-                placeholder = "", type = TextFieldType.Number, imeAction = ImeAction.Done,
-                error = if (validBpm == null) stringResource(Res.string.sheet_details_bpm_error) else null,
+                placeholder = "", type = TextFieldType.Number, maxLength = InputLimit.BPM_DIGITS, imeAction = ImeAction.Done,
+                help = stringResource(Res.string.sheet_details_bpm_help, SheetBpmRange.first, SheetBpmRange.last),
+                error = if (bpmTouched && validBpm == null) stringResource(Res.string.sheet_details_bpm_error, SheetBpmRange.first, SheetBpmRange.last) else null,
                 bordered = false, containerColor = EolssuTheme.colors.groupedBackground)
             if (hasTempoPlan || changes.isNotEmpty()) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(Res.string.sheet_tempo_changes), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(Res.string.sheet_tempo_changes_help), style = MaterialTheme.typography.bodySmall)
             if (changes.isEmpty()) Text(stringResource(Res.string.sheet_tempo_none), style = MaterialTheme.typography.bodySmall)
             // 수정 중인 구간은 연두 바탕·테두리로 강조하고, 입력판을 그 항목 안에 붙여 대상이 분명하게 보이게 한다.
             val tempoForm: @Composable ColumnScope.() -> Unit = {
@@ -108,20 +117,20 @@ internal fun SheetEditSettingsDialog(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EolssuTextField(startGak, { startGak = it; error = null }, stringResource(Res.string.sheet_tempo_start_gak), "", Modifier.weight(1f), type = TextFieldType.Number)
-                    EolssuTextField(startCell, { startCell = it; error = null }, stringResource(Res.string.sheet_tempo_start_cell), "", Modifier.weight(1f), type = TextFieldType.Number)
+                    EolssuTextField(startGak, { startGak = it; error = null }, stringResource(Res.string.sheet_tempo_start_gak), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = gakDigits)
+                    EolssuTextField(startCell, { startCell = it; error = null }, stringResource(Res.string.sheet_tempo_start_cell), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = cellDigits)
                 }
                 if (mark == null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     EolssuButton(stringResource(Res.string.sheet_tempo_step), { gradual = false }, Modifier.weight(1f), small = true, style = if (!gradual) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary)
                     EolssuButton(stringResource(Res.string.sheet_tempo_ramp), { gradual = true }, Modifier.weight(1f), small = true, style = if (gradual) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary)
                 }
                 if (mark != HanbaeMark.Original) EolssuTextField(target, { target = it; error = null },
-                    stringResource(Res.string.sheet_tempo_target) + " · " + draft.tempoUnitLabel, "", type = TextFieldType.Number,
+                    stringResource(Res.string.sheet_tempo_target) + " · " + draft.tempoUnitLabel, "", type = TextFieldType.Number, maxLength = InputLimit.BPM_DIGITS,
                     help = stringResource(Res.string.sheet_tempo_target_help))
                 if (needsEnd) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        EolssuTextField(endGak, { endGak = it; error = null }, stringResource(Res.string.sheet_tempo_end_gak), "", Modifier.weight(1f), type = TextFieldType.Number)
-                        EolssuTextField(endCell, { endCell = it; error = null }, stringResource(Res.string.sheet_tempo_end_cell), "", Modifier.weight(1f), type = TextFieldType.Number)
+                        EolssuTextField(endGak, { endGak = it; error = null }, stringResource(Res.string.sheet_tempo_end_gak), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = gakDigits)
+                        EolssuTextField(endCell, { endCell = it; error = null }, stringResource(Res.string.sheet_tempo_end_cell), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = cellDigits)
                     }
                     Text(stringResource(Res.string.sheet_tempo_end_help), style = MaterialTheme.typography.bodySmall)
                 }

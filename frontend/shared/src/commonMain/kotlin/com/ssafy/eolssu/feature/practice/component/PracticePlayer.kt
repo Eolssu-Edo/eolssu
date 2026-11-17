@@ -5,14 +5,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,16 +24,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.innerShadow
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -72,12 +81,53 @@ const val PRACTICE_SEEK_MS = 5_000L
  *   평가 버튼이 없는 내 악보·기초부터 배우기는 재생 묶음만 가운데에 둔다.
  * 불러오는 중은 카드 대신 화면 가운데에 띄운다([PracticePlaybackLoadingOverlay]).
  * 한 음씩이 켜지면 플레이어 대신 두 칸([PracticeStepPanels])과 너비를 채운 평가 버튼을 둔다.
+ * 두 칸은 플레이어보다 낮아서, 그대로 두면 한 음씩을 켜고 끌 때마다 악보·운지 칸이 남은 높이에 맞춰 커졌다 작아진다.
+ * 그래서 한 음씩이 켜져도 플레이어 높이를 그대로 비워 두고 두 칸을 그 아래쪽에 붙인다(S15P31E102-1017).
  */
 @Composable
 fun PracticePlayer(state: PracticeUiState, actions: PracticeBottomActions, modifier: Modifier = Modifier) {
     val eval = practiceEvalAction(state, actions)
+    if (state.stepUi) {
+        ReserveHeightOf(
+            reserve = { PracticePlayerContent(state, actions, eval, step = false) },
+            modifier = modifier.fillMaxWidth(),
+        ) {
+            PracticePlayerContent(state, actions, eval, step = true)
+        }
+    } else {
+        PracticePlayerContent(state, actions, eval, step = false, modifier = modifier)
+    }
+}
+
+/**
+ * [reserve]를 재어 그 높이만큼 자리를 잡고, [content]를 그 안의 아래쪽에 둔다. [reserve]는 그리지 않는다.
+ * [content]가 더 높으면 그 높이를 쓴다.
+ */
+@Composable
+private fun ReserveHeightOf(reserve: @Composable () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    SubcomposeLayout(modifier) { constraints ->
+        val loose = constraints.copy(minHeight = 0)
+        val reserved = subcompose(ReserveSlot.Reserve, reserve).maxOfOrNull { it.measure(loose).height } ?: 0
+        val placeables = subcompose(ReserveSlot.Content, content).map { it.measure(loose) }
+        val height = maxOf(reserved, placeables.maxOfOrNull { it.height } ?: 0)
+            .coerceIn(constraints.minHeight, constraints.maxHeight)
+        val width = (placeables.maxOfOrNull { it.width } ?: 0).coerceIn(constraints.minWidth, constraints.maxWidth)
+        layout(width, height) { placeables.forEach { it.place(0, height - it.height) } }
+    }
+}
+
+private enum class ReserveSlot { Reserve, Content }
+
+@Composable
+private fun PracticePlayerContent(
+    state: PracticeUiState,
+    actions: PracticeBottomActions,
+    eval: PracticeEvalAction?,
+    step: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(PlaybackSectionSpacing)) {
-        if (state.stepUi) {
+        if (step) {
             PracticeStepPanels(state, actions, Modifier.padding(bottom = 4.dp))
             if (eval != null) EolssuButton(eval.label, eval.onClick, icon = EolssuIcons.Mic, enabled = eval.enabled)
         } else {
@@ -171,6 +221,7 @@ private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownloa
     val label = stringResource(
         when (personalAudio) {
             PracticePersonalAudio.Checking -> Res.string.practice_sheet_audio_checking
+            PracticePersonalAudio.Queued -> Res.string.practice_sheet_audio_queued
             PracticePersonalAudio.Preparing -> Res.string.practice_sheet_audio_preparing
             PracticePersonalAudio.Downloading -> Res.string.practice_sheet_audio_downloading
             PracticePersonalAudio.Unsupported -> Res.string.practice_player_unsupported
@@ -183,6 +234,8 @@ private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownloa
     Box(modifier.height(52.dp), contentAlignment = Alignment.Center) {
         if (personalAudio == PracticePersonalAudio.Missing || personalAudio == PracticePersonalAudio.Failed) {
             PlaybackActionButton(label, onDownload, Modifier.fillMaxWidth())
+        } else if (personalAudio in PersonalAudioWorking) {
+            PersonalAudioProgress(label, Modifier.fillMaxWidth())
         } else {
             Text(
                 label,
@@ -191,6 +244,29 @@ private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownloa
                 color = EolssuTheme.colors.textMuted,
                 textAlign = TextAlign.Center,
             )
+        }
+    }
+}
+
+/** 확인·대기·생성·다운로드처럼 기다리는 상태. 버튼 자리에 눌린 버튼 모양으로 회전 표시와 한 줄 문구를 둔다(S15P31E102-1039). */
+private val PersonalAudioWorking = setOf(
+    PracticePersonalAudio.Checking, PracticePersonalAudio.Queued, PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading,
+)
+
+@Composable
+private fun PersonalAudioProgress(label: String, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    val shape = RoundedCornerShape(14.dp)
+    // 받기 버튼을 누른 채로 기다리는 느낌: 옅은 연두 바탕이 위쪽 안 그림자로 꺼져 보이게 한다.
+    Surface(
+        modifier.fillMaxHeight()
+            .innerShadow(shape, Shadow(radius = 5.dp, color = colors.accentText.copy(alpha = 0.25f), offset = DpOffset(0.dp, 2.dp)))
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        shape = shape, color = colors.accentTintStrong,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(Modifier.size(18.dp), color = colors.accentText, trackColor = colors.accentTintLine, strokeWidth = 2.5.dp)
+            Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = colors.accentText, maxLines = 1)
         }
     }
 }

@@ -97,7 +97,7 @@ internal fun ReadingTocButton(page: ReadingPage, open: Boolean, onClick: () -> U
         Text(
             page.title(),
             Modifier.weight(1f),
-            style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

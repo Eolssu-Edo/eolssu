@@ -130,11 +130,17 @@ systemctl list-timers edo-check-storage.timer --all --no-pager
 
 ## edo1 R2와 독립 HTTPS 관측
 
-`/edo1`의 R2 읽기 행은 공개 학습 음원 API의 302에서 서명 URL을 받아 R2의 HTTP 206과 고정 32바이트를 대조한다. 쓰기 행은 마지막 예약 실행의 합성 객체 쓰기·읽기·삭제 판정과 최근 성공 시각을 표시한다. `edo-check-r2-write.timer`는 KST 00:13부터 6시간 간격으로 실행한다. 작업은 운영 백엔드와 동일한 녹음 버킷 설정을 edo1의 기존 환경 파일에서 읽고 `recordings/verification/edo-check/`의 실행별 새 키만 사용한다. 조건부 PUT으로 기존 객체를 보호하고 생성이 확인된 자체 키만 삭제한다. 응답이 끊겨 생성 여부를 알 수 없는 키에는 기존 녹음 만료 정책이 적용된다. edo1의 시스템 Python에서 boto3가 필요하다.
+`/edo1`의 R2 읽기 행은 공개 학습 음원 API의 302에서 서명 URL을 받아 R2의 HTTP 206과 고정 32바이트를 대조한다. `R2 쓰기` 행은 실행마다 활성 백엔드의 녹음 버킷 설정으로 합성 객체를 조건부 생성하고, 90초 서명 GET의 본문 일치와 DELETE 204 뒤 HEAD 404를 확인한다. 성공 근거와 이번 실행의 소요 시간을 표시한다. 경로는 `recordings/verification/edo-check/`의 실행별 고유 키로 한정하며 쓰기 응답 유실·읽기 실패 뒤에도 정리를 시도한다. 조건부 쓰기 충돌이면 그 키를 보존한다. edo1의 시스템 Python에서 boto3가 필요하다.
+
+녹음용 `recording`과 악보용 `sheet`는 동일한 합성 점검 절차를 사용한다. 세 R2 점검은 독립적으로 실행해 기존 SSH 수집 상한 80초 안에서 각 결과를 수집한다. 보고서에는 허용된 판정·근거·소요 시간만 전달하며 키·서명 URL·원본 예외는 출력하지 않는다. 단계별 실패의 상세 원인과 응답이 불명확한 PUT의 뒤늦은 완료 여부는 수동으로 확인한다.
+
+PUT의 응답이 없으면 삭제·HEAD 404 뒤에도 `쓰기 결과 미확인 · 정리 재확인 필요`로 표시한다. 진행 중 쓰기가 이후 완료될 수 있으므로 이번 실행 객체의 잔여 여부를 수동으로 재확인한다. 삭제 확인도 실패하면 `쓰기 결과 미확인 · 삭제 확인 실패`로 표시한다.
+
+기존 `edo-check-r2-write.timer`와 `r2_probe.py write`는 KST 00:13부터 6시간 간격으로 실행하며 기존 결과 파일 형식을 유지한다. 이 주기 작업은 운영 환경 파일을 읽어 인증 PUT·GET·DELETE를 수행하고 실패 뒤에도 마지막 성공 시각을 보존한다. `/edo1`의 녹음 판정은 새 `recording` 호출의 결과를 사용한다.
 
 `악보 음원 R2` 행은 `/edo1` 실행 시 활성 백엔드의 악보 전용 버킷 설정을 읽는다. `sheet-audio/verification/edo-check/` 아래 실행마다 고유한 합성 객체 하나를 조건부로 만들고, 90초 GET 서명의 응답 본문과 원본 바이트를 비교한다. DELETE 응답 204와 같은 객체 HEAD 404가 확인돼야 삭제를 통과로 판정한다. 쓰기 응답이 끊겨도 이번 키의 정리를 시도하며, 조건부 쓰기 충돌이면 그 키를 보존한다. 보고서에는 고정 판정과 소요 시간만 표시한다. 삭제 확인에 실패하면 Cloudflare의 악보 전용 버킷에서 위 점검 접두사의 잔여 객체만 확인한다.
 
-`edo-check-outside.timer`는 edo1에서 매분 edo2의 공인 HTTPS `/healthz`와 공개 `/api/terms`를 조회한다. 중계의 `status=ok`와 약관 목록 JSON 계약을 확인한다. 두 결과는 edo1의 journal과 상태 파일에 기록한다. 보고서는 최근 검사 3분, R2 쓰기 최근 실행 6시간 30분, Docker·Jenkins 최근 실측 30분을 최신성 기준으로 사용한다. 작업 로그와 상태 파일에는 고정 판정과 시각만 기록한다.
+`edo-check-outside.timer`는 edo1에서 매분 edo2의 공인 HTTPS `/healthz`와 공개 `/api/terms`를 조회한다. 중계의 `status=ok`와 약관 목록 JSON 계약을 확인한다. 두 결과는 edo1의 journal과 상태 파일에 기록한다. 보고서는 독립 HTTPS 최근 검사 3분, Docker·Jenkins 최근 실측 30분을 최신성 기준으로 사용한다. 작업 로그와 상태 파일에는 고정 판정과 시각만 기록한다.
 
 edo1에 두 스크립트를 `/opt/edo-check/`, 두 서비스와 타이머를 `/etc/systemd/system/`에 root 소유로 설치한다. `systemd-analyze verify`와 `systemctl daemon-reload` 뒤 다음 순서로 확인한다.
 

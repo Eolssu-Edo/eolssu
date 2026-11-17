@@ -18,7 +18,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * EDIT-01 연결. 정간보·오선보는 [onImport]로 실제 파일·업로드 준비 화면에 가고,
+ * EDIT-01 연결. 정간보·오선보 카드는 누르는 즉시 [onImport]로 악보 올리기 화면에 가고,
  * '내 악보·제공 곡 불러오기'는 [onLoadExisting]으로 목록(EditPick)에 간다. 뒤로 가기는 내 악보로 돌아간다.
  * 내 악보의 '다시 불러오기'로 왔으면 [reimportProblem] 안내 창을 먼저 띄우고, '다시 선택하기'는 고른 종류로 파일 선택에 간다.
  *
@@ -28,16 +28,18 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun EditNewRoute(
     onBack: () -> Unit,
-    onImport: (ImportKind, HwangPitch) -> Unit,
+    onImport: (ImportKind, HwangPitch, String?) -> Unit,
     onLoadExisting: () -> Unit,
     reimportProblem: SheetFileProblem? = null,
+    reimportSheetId: String? = null,
     onOpenSheet: (MySheet) -> Unit = {},
     onEditSheet: (MySheet) -> Unit = {},
+    onOpenConversion: (MySheet) -> Unit = {},
     viewModel: EditNewViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(viewModel) { viewModel.showReimportProblem(reimportProblem) }
+    LaunchedEffect(viewModel) { viewModel.showReimportProblem(reimportProblem, reimportSheetId) }
     LifecycleResumeEffect(viewModel) {
         viewModel.refreshSheets()
         viewModel.watchConversions()
@@ -57,17 +59,20 @@ fun EditNewRoute(
             snackbarHostState.showSnackbar(deleteFailure)
         }
     }
-    val openDevicePick = { onImport(state.kind, HwangPitch.Default) }
+    // '다시 불러오기'(안내 창의 '다시 선택하기' 포함)는 실패 악보를 대신하고, 위의 '악보 올리기'는 새 악보로 더한다.
+    val openDevicePick = { onImport(state.kind, HwangPitch.Default, viewModel.uiState.value.replacing) }
     EditNewScreen(
         state = state,
         onBack = onBack,
-        onSelectKind = viewModel::selectKind,
+        // 종류는 올리기 화면에서 고르므로 정간보로 열어 둔다.
+        onUpload = { onImport(ImportKind.Jeongganbo, HwangPitch.Default, null) },
         onLoadExisting = onLoadExisting,
         onOpenDevicePick = openDevicePick,
         onDismissProblem = viewModel::dismissProblem,
         sheetActions = EditNewSheetActions(
             onOpen = onOpenSheet,
             onEdit = onEditSheet,
+            onOpenConversion = onOpenConversion,
             onDelete = viewModel::askDelete,
             onConfirmDelete = viewModel::confirmDelete,
             onCancelDelete = viewModel::cancelDelete,

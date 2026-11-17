@@ -1,3 +1,11 @@
+export function apkVersionState(catalog) {
+  if(!catalog||catalog.installedStatus==='checking'||catalog.installedStatus==='installing')return {status:'checking'};
+  const build=catalog.builds?.find(value=>value.id===catalog.latest);
+  if(!build||catalog.sync?.error||!['installed','absent'].includes(catalog.installedStatus))return {status:'unavailable'};
+  const installed=catalog.installed;
+  return {status:installed?.package===build.package&&installed.versionCode===build.versionCode&&installed.versionName===build.versionName?'latest':'outdated',build};
+}
+
 export function latestApkUpdate(catalog, state, pending = false) {
   const build = catalog?.builds?.find(b => b.id === catalog.latest);
   const blocked = hint => ({build, enabled:false, label:'최신 APK로 업데이트', hint});

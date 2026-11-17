@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.core.model.InputLimit
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
 import kotlinx.coroutines.isActive
@@ -133,19 +134,10 @@ data class RecordDetailUiState(
 data class RecordMemoState(val editing: Boolean = false, val saving: Boolean = false, val failed: Boolean = false)
 
 /** 서버가 받는 메모 최대 길이(REC-01, 넘으면 400). 입력칸도 이 길이까지만 받는다. */
-const val RECORD_MEMO_MAX_LENGTH = 500
+const val RECORD_MEMO_MAX_LENGTH = InputLimit.MEMO
 
 /** REC-01과 같이 유니코드 코드 포인트를 센다. UTF-16 서로게이트 쌍은 한 글자다. */
-internal fun recordMemoLength(text: String): Int {
-    var count = 0
-    var index = 0
-    while (index < text.length) {
-        val character = text[index++]
-        if (character.isHighSurrogate() && index < text.length && text[index].isLowSurrogate()) index++
-        count++
-    }
-    return count
-}
+internal fun recordMemoLength(text: String): Int = InputLimit.length(text)
 
 enum class RecordCompareLoad { Loading, Ready, Failed }
 

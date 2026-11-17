@@ -61,6 +61,39 @@ def test_tiny_image_without_grid_is_not_an_engine_error(tmp_path,monkeypatch):
     assert out['failReason']=='NO_GRID_FOUND'
 
 
+@pytest.mark.parametrize('instrument,expected', [
+    ('DANSO', ['--yul', 'danso']),
+    ('SOGEUM', ['--yul', 'sogeum']),
+    ('JEONGAK_DAEGEUM', ['--yul', 'jeongak-daegeum']),
+    ('SANJO_DAEGEUM', []),
+    ('UNKNOWN_INSTRUMENT', []),
+])
+def test_reader_limits_pitch_candidates_by_instrument_on_every_size_retry(tmp_path,monkeypatch,instrument,expected):
+    from omr_service import jeongganbo_scan as scan
+    calls=tmp_path/'calls.jsonl'
+    script=tmp_path/'reader.py'
+    # 모든 크기에서 격자를 못 찾게 해 마지막 --grid-boxes 시도까지 인자를 남긴다.
+    script.write_text(f'''import json,sys
+with open({str(calls)!r},'a',encoding='utf-8') as f:
+    f.write(json.dumps(sys.argv[1:])+'\\n')
+sys.exit(4)
+''',encoding='utf-8')
+    monkeypatch.setattr(scan,'READER',[sys.executable,str(script)])
+    monkeypatch.setenv('JEONGGANBO_OMR_DIR',str(tmp_path))
+    buf=io.BytesIO();Image.new('RGB',(300,400),'white').save(buf,'PNG')
+    api.app.dependency_overrides[api.get_fetcher]=lambda:lambda url,p,limit,deadline:p.write_bytes(buf.getvalue())
+    try:
+        out=TestClient(api.app).post('/v1/recognitions',json=dict(conversionId='yul',notation='JEONGGANBO',jangdan='세마치',instrument=instrument,files=[dict(url='https://local.invalid/page.png',contentType='image/png')])).json()
+    finally:
+        api.app.dependency_overrides.clear()
+    assert out['failReason']=='NO_GRID_FOUND'
+    runs=[json.loads(line) for line in calls.read_text(encoding='utf-8').splitlines()]
+    assert len(runs)==4 and '--grid-boxes' in runs[-1]
+    for argv in runs:
+        assert [a for i,a in enumerate(argv) if a=='--yul' or (i and argv[i-1]=='--yul')]==expected
+        assert '--batch-size' in argv
+
+
 @pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
 @pytest.mark.parametrize('geometry_assertion', [False, True])
 @pytest.mark.parametrize('width,accepted,expected', [

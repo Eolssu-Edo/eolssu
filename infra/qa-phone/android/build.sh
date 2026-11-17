@@ -8,7 +8,7 @@ output=$(cd -- "$output" && pwd)
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
 mkdir -p "$work/classes" "$work/dex"
-javac --release 8 -d "$work/classes" "$source_dir"/*.java
+javac --release 8 -d "$work/classes" "$source_dir/BrightScreen.java" "$source_dir/UnicodeText.java"
 "$ANDROID_HOME/build-tools/37.0.0/d8" --min-api 26 --lib "$ANDROID_HOME/platforms/android-37.0/android.jar" --output "$work/dex" "$work/classes"/com/ssafy/qa/*.class
 jar --create --file "$output/bright-screen.jar" -C "$work/dex" classes.dex
 python3 - "$source_dir/BrightScreen.java" "$output" <<'PY'

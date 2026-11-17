@@ -151,7 +151,7 @@ internal fun SigimsaeDialog(item: SigimsaeItem, hint: String?, onDismiss: () -> 
                         Text(
                             item.name,
                             Modifier.semantics { heading() },
-                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
                         )
                         if (item.chip != null) SigimsaeChip(item.chip)
                     }

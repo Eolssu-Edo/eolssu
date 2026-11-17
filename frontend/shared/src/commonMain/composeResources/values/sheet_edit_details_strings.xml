@@ -4,8 +4,9 @@
     <string name="sheet_details_title">악보 제목</string>
     <string name="sheet_details_bpm">기본 빠르기 (BPM)</string>
     <string name="sheet_details_title_error">제목을 1~50자로 입력해 주세요</string>
-    <string name="sheet_details_bpm_error">1 이상의 정수를 입력해 주세요</string>
+    <string name="sheet_details_bpm_error">%1$d~%2$d 사이로 입력해 주세요</string>
+    <string name="sheet_details_bpm_help">%1$d~%2$d 사이</string>
     <string name="sheet_details_apply">적용</string>
-    <string name="sheet_tempo_profile_note">구간 빠르기도 같은 비율로 바뀌어요.</string>
-    <string name="sheet_tempo_before_reshape">구간 빠르기가 있으면 칸 배치를 바꿀 수 없어요.</string>
+    <string name="sheet_tempo_profile_note">중간에 바뀌는 빠르기도 같이 바뀌어요.</string>
+    <string name="sheet_tempo_before_reshape">정간을 바꾸려면 빠르기 창에서 중간에 바뀌는 빠르기를 먼저 지워 주세요.</string>
 </resources>

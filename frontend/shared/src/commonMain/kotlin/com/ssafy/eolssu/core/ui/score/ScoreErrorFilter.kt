@@ -238,7 +238,7 @@ private fun ErrorKindTabs(result: EvaluationResult, selected: ErrorFilter, onSel
                         Text(
                             name,
                             Modifier.padding(start = 6.dp),
-                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = SegmentNameSize, lineHeight = 16.sp, fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = SegmentNameSize, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
                             maxLines = 1,
                             softWrap = false,
                         )
@@ -249,7 +249,7 @@ private fun ErrorKindTabs(result: EvaluationResult, selected: ErrorFilter, onSel
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = 13.sp,
                             lineHeight = 16.sp,
-                            fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                            fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
                         ),
                         maxLines = 1,
                         softWrap = false,

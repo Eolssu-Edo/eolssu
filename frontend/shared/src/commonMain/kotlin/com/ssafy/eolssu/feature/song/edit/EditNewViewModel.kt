@@ -72,10 +72,10 @@ class EditNewViewModel(
     private var reimportHandled = false
 
     /** '다시 불러오기'로 들어온 첫 한 번만 [problem] 안내를 띄운다. 화면을 다시 그려도 닫은 안내를 되살리지 않는다. */
-    fun showReimportProblem(problem: SheetFileProblem?) {
+    fun showReimportProblem(problem: SheetFileProblem?, sheetId: String? = null) {
         if (reimportHandled) return
         reimportHandled = true
-        if (problem != null) _uiState.update { it.copy(problem = problem) }
+        _uiState.update { it.copy(problem = problem ?: it.problem, replacing = sheetId ?: it.replacing) }
     }
 
     fun dismissProblem() = _uiState.update { it.copy(problem = null) }
@@ -108,6 +108,7 @@ class EditNewViewModel(
      * 원인별 안내가 있으면 안내 창을 띄우고 true, 없으면 false를 돌려 바로 파일 선택으로 가게 한다.
      */
     fun reimport(sheet: MySheet): Boolean {
+        _uiState.update { it.copy(replacing = sheet.id) }
         val problem = SheetFileProblem.ofConversionFailure(_uiState.value.mine.conversionOf(sheet)?.failure) ?: return false
         _uiState.update { it.copy(problem = problem) }
         return true

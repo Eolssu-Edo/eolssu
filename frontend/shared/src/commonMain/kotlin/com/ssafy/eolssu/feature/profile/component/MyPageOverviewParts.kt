@@ -101,7 +101,7 @@ internal fun MyPageCardTitle(title: String, modifier: Modifier = Modifier, trail
         Text(
             title,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
             color = EolssuTheme.colors.text,
         )
         trailing()
@@ -290,19 +290,14 @@ private fun ScoreValue(score: Int) {
         Text(
             score.toString(),
             modifier = Modifier.alignByBaseline(),
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontSize = 28.sp,
-                lineHeight = 32.sp,
-                fontWeight = FontWeight.Bold,
-                // 숫자 글꼴의 좌우 여백을 줄여 '점'이 숫자에 바로 붙게 한다.
-                letterSpacing = (-0.5).sp,
-            ),
+            // 점수 숫자는 결과·기록 화면과 같은 세리프로 쓴다.
+            style = EolssuTheme.serif.yul.copy(fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold),
             color = colors.cardInk,
         )
         Text(
             stringResource(Res.string.my_recent_score_unit),
             modifier = Modifier.alignByBaseline().padding(start = 1.dp),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
             color = colors.cardInk,
         )
     }

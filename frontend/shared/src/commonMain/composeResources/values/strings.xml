@@ -3,6 +3,7 @@
     <string name="sheet_close_message">계속 편집하거나, 저장되지 않은 변경을 버리고 닫을 수 있어요.</string>
     <string name="sheet_close_message_draft">임시저장하면 다음에 이어서 편집할 수 있어요.</string>
     <string name="sheet_save_draft_close">임시저장하고 닫기</string>
+    <string name="sheet_save_draft_closing">임시저장하는 중…</string>
     <string name="sheet_discard_close">변경을 버리고 닫기</string>
     <string name="sheet_keep_editing">계속 편집하기</string>
     <string name="sheet_document_title">내 악보 편집</string>
@@ -49,7 +50,7 @@
 
     <string name="song_list_title">평가할 곡 고르기</string>
     <string name="song_list_heading">당신의 소리로\n완성할 한 곡.</string>
-    <string name="song_search_placeholder">곡 제목으로 찾아보세요</string>
+    <string name="song_search_placeholder">곡 제목 검색</string>
     <string name="song_sort_ascending">ㄱ→ㅎ</string>
     <string name="song_sort_descending">ㅎ→ㄱ</string>
     <string name="song_sort_ascending_description">가나다순</string>
@@ -103,7 +104,7 @@
     <string name="practice_big_score">크게 보기</string>
     <string name="practice_apply">적용</string>
 
-    <string name="practice_notation_hangul">한글 읽는 법 표시</string>
+    <string name="practice_notation_hangul">한글 표기</string>
 
     <string name="practice_fingering_title">운지법</string>
     <string name="practice_fingering_instrument">현재 악기: %1$s</string>
@@ -170,10 +171,9 @@
     <string name="practice_seek_back_desc">5초 뒤로</string>
     <string name="practice_seek_forward_desc">5초 앞으로</string>
     <string name="practice_notice_eval">평가를 시작하면 마이크로 연주를 듣고 음정·박자·음 길이를 확인해요.</string>
-    <string name="practice_instrument">연습 악기</string>
     <string name="practice_jangdan_sound_off">%1$s · 소리 꺼짐</string>
-    <string name="practice_fingering_view">운지법과 함께 보기</string>
-    <string name="practice_live_marks">실시간 채점</string>
+    <string name="practice_fingering_view">운지법</string>
+    <string name="practice_live_marks">퍼펙트 스코어</string>
     <string name="practice_fingering_rest">쉼 · 숨을 고르세요</string>
     <string name="practice_fingering_desc">막는 구멍 %1$s</string>
     <string name="practice_fingering_none">없음</string>
@@ -328,7 +328,6 @@
     <!-- GUIDE-01·02, LEARN-02 (S15P31E102-150). **굵게** 표시는 화면에서 굵은 글자로 바꾼다. -->
     <string name="guide_instrument_label">악기</string>
     <string name="guide_instrument_select">악기 선택</string>
-    <string name="guide_instruments_loading">악기 목록을 불러오고 있어요.</string>
     <string name="guide_instruments_failed">악기 목록을 불러오지 못했어요. 다시 시도해 주세요.</string>
     <string name="guide_instruments_empty">운지법을 볼 수 있는 악기가 아직 없어요.</string>
     <string name="guide_instrument_danso">단소</string>
@@ -470,9 +469,9 @@
     <string name="learn_pattern_ascending">순차 상행</string>
     <string name="learn_pattern_descending">순차 하행</string>
     <string name="learn_task_range_high">높은 음 내기</string>
-    <string name="learn_task_range_high_detail">조금 세게 불어 높은 음을 내 보아요.</string>
+    <string name="learn_task_range_high_detail">입술을 모아 세게 불어 높은 음을 내요.</string>
     <string name="learn_task_range_low">낮은 음 내기</string>
-    <string name="learn_task_range_low_detail">조금 약하게 불어 낮은 음을 내 보아요.</string>
+    <string name="learn_task_range_low_detail">입술을 풀고 약하게 불어 낮은 음을 내요.</string>
     <string name="learn_task_range_both">높은 음·낮은 음 내기</string>
     <string name="learn_section_pass">통과 기준</string>
     <string name="learn_more_fingering">운지법 보기</string>
@@ -627,8 +626,8 @@
     <string name="auth_reset_done">비밀번호 바꾸기</string>
     <string name="auth_reset_done_notice">비밀번호를 바꿨어요. 새 비밀번호로 로그인해 주세요.</string>
     <string name="auth_error_email_exists">이미 가입된 이메일이에요. 로그인해 주세요.</string>
-    <string name="auth_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
-    <string name="auth_error_password_too_long">비밀번호는 128자까지 정할 수 있어요.</string>
+    <string name="auth_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~64자로 정해 주세요.</string>
+    <string name="auth_error_password_too_long">비밀번호는 64자까지 정할 수 있어요.</string>
     <string name="auth_password_check_letter">영문 포함</string>
     <string name="auth_password_check_digit">숫자 포함</string>
     <string name="auth_password_check_special">특수문자 포함</string>
@@ -642,7 +641,8 @@
     <string name="mysongs_tab_sheets">내 악보</string>
     <string name="mysongs_reset_filter">전체 곡 보기</string>
     <string name="mysongs_add">악보 추가</string>
-    <string name="mysongs_sheet_count">내 악보 %1$d개</string>
+    <string name="mysongs_sheet_count">내 악보 %1$d/%2$d</string>
+    <string name="mysongs_sheet_limit_note">내 악보는 최대 %1$d개까지만 저장할 수 있어요.</string>
     <string name="mysongs_origin_copied">제공 곡에서 고침</string>
     <string name="mysongs_meta_updated">%1$s 수정</string>
     <string name="mysongs_status_practice">연습 가능</string>
@@ -653,13 +653,17 @@
     <string name="mysongs_delete">삭제</string>
     <string name="mysongs_conversion_queued">변환 대기 중</string>
     <string name="mysongs_conversion_reading">악보 읽는 중</string>
+    <string name="mysongs_conversion_reading_total">악보 %1$d쪽 읽는 중</string>
     <string name="mysongs_conversion_reading_pages">악보 읽는 중 %1$d/%2$d쪽</string>
     <string name="mysongs_conversion_building">악보 만드는 중</string>
     <string name="mysongs_conversion_issues">확인할 칸 %1$d개</string>
     <string name="mysongs_conversion_failed">변환 실패</string>
-    <string name="mysongs_conversion_failed_no_score">정간이나 오선을 찾지 못했어요</string>
-    <string name="mysongs_conversion_failed_file">읽을 수 없는 파일이에요</string>
-    <string name="mysongs_conversion_failed_timeout">시간이 너무 오래 걸렸어요</string>
+    <string name="mysongs_conversion_failure_reason">실패 사유</string>
+    <string name="mysongs_conversion_failure_reason_open">펼침</string>
+    <string name="mysongs_conversion_failure_reason_closed">접힘</string>
+    <string name="mysongs_conversion_failed_no_score">악보를 찾지 못했어요</string>
+    <string name="mysongs_conversion_failed_file">파일을 열 수 없었어요</string>
+    <string name="mysongs_conversion_failed_timeout">시간 안에 변환하지 못했어요</string>
     <string name="mysongs_conversion_failed_server">서버에서 변환하지 못했어요</string>
     <string name="mysongs_conversion_retry">다시 시도</string>
     <string name="mysongs_conversion_reimport">다시 불러오기</string>
@@ -798,11 +802,15 @@
     <string name="my_error_password_empty">비밀번호를 입력해 주세요.</string>
     <string name="my_error_password_wrong">비밀번호가 맞지 않아요.</string>
     <string name="my_error_current_password_wrong">현재 비밀번호가 맞지 않아요.</string>
-    <string name="my_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
+    <string name="my_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~64자로 정해 주세요.</string>
     <string name="my_error_password_mismatch">새 비밀번호가 서로 달라요.</string>
     <string name="my_error_password_same_as_current">현재 비밀번호와 다르게 입력해주세요</string>
-    <string name="sheet_adapt_title">악기·음역 맞추기</string>
+    <string name="sheet_adapt_title">곡 전체 높이 맞추기</string>
     <string name="sheet_adapt_failed">지원음을 불러오지 못했어요.</string>
     <string name="sheet_adapt_original_key">원조 유지</string>
     <string name="sheet_adapt_semitones">%1$s반음</string>
+    <!-- 입력칸 글자 수 상한 도달 안내·비밀번호 보기(S15P31E102-996) -->
+    <string name="input_limit_reached">%1$d자까지 입력할 수 있어요</string>
+    <string name="input_password_show">비밀번호 보기</string>
+    <string name="input_password_hide">비밀번호 숨기기</string>
 </resources>

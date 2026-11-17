@@ -132,7 +132,7 @@ fun MetricBars(metrics: List<MetricScore>, modifier: Modifier = Modifier, rowSpa
                 Text(
                     "${metric.score}",
                     modifier = Modifier.widthIn(min = 30.dp).clearAndSetSemantics {},
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
                     color = colors.text,
                     textAlign = TextAlign.End,
                     maxLines = 1,

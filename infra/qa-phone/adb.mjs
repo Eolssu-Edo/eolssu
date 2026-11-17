@@ -75,6 +75,10 @@ export class AdbPhone {
       await clear(1000).catch(() => {});
     }
   }
+  async readPerformanceLog() {
+    const selection=await this.deviceArgs();
+    return this.execute([...selection,'exec-out','run-as','com.ssafy.eolssu.qa','--user','0','cat','no_backup/qa-performance.db'],true,3000,16*1024*1024);
+  }
   async inputReady() {
     // A lost ADB client must not leave a phone-side input command running.
     const table=await this.run(['shell','ps','-A','-o','ARGS']);
@@ -95,6 +99,13 @@ export class AdbPhone {
     const text=await this.run(['shell','dumpsys','package',packageName]);
     const code=/versionCode=(\d+)/.exec(text),name=/versionName=([^\r\n]+)/.exec(text);
     return code?{package:packageName,versionCode:Number(code[1]),versionName:name?.[1]?.trim()||''}:null;
+  }
+  async launchQa() {
+    const installed=await this.installed();
+    if(!installed)throw new Error('QA 앱이 설치되어 있지 않습니다.');
+    const output=await this.run(['shell','am','start','-n','com.ssafy.eolssu.qa/com.ssafy.eolssu.MainActivity'],false,12000);
+    if(/Error:|Exception|does not exist/i.test(output))throw new Error('QA 앱 실행을 확인하지 못했습니다.');
+    return {started:true};
   }
   async install(file,build) {
     if(build.package !== 'com.ssafy.eolssu.qa') throw new Error('unsupported package');

@@ -151,6 +151,8 @@ internal fun TourPanel(
         }
         if (practiceBox != null) {
             val i = tasks.size
+            // 통과하면 연습 박스도 마친 할 일로 세어 '할 일 n / 전체'를 바로 채운다.
+            LaunchedEffect(practiceBox.passed, total) { if (practiceBox.passed) tour.passPractice(total) }
             StepBox(
                 index = i,
                 task = LearnTask(practiceBox.title),
@@ -366,7 +368,7 @@ private fun StepBadge(number: Int, done: Boolean, open: Boolean) {
             Text(
                 number.toString(),
                 Modifier.graphicsLayer { alpha = 1f - pop },
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
                 color = if (open) colors.text else colors.textMuted,
             )
         }

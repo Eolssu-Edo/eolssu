@@ -302,7 +302,8 @@ private fun rememberBandScroll(
 
 /**
  * 휴대폰 보드의 악보 영역. 각의 실제 높이로 위→아래 들어가는 수를 정하고 다음 묶음은 왼쪽에 둔다.
- * 3줄 이상의 소박 표기 정간은 높이를 늘린다. 공간이 부족하면 정간과 글자를 함께 줄여 세로 스크롤 없이 좌우로만 넘긴다.
+ * 정간은 곡과 상관없이 같은 크기(기본 정간, 3줄 이상의 소박 표기 정간은 × 1.5)로 그린다. 긴 각은 두 세로줄로 나누고,
+ * 그래도 공간이 부족하면 정간과 글자를 함께 줄여 세로 스크롤 없이 좌우로만 넘긴다.
  * 아래에는 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다. 버튼 자리는 항상 비워 두어 버튼이 나타나도 정간 배치가 바뀌지 않는다.
  * 평가 연주 중에는 악보를 끌 수 없어 버튼을 보이지 않는다(자리는 그대로 비워 둔다).
  */
@@ -330,8 +331,9 @@ fun PracticeBoardScore(
             BoxWithConstraints(if (bounded) Modifier.weight(1f).fillMaxWidth() else Modifier.fillMaxWidth()) {
                 val packing = remember(song, big, maxHeight, fontScale) {
                     // 휴대폰 연습 악보만 나뉜 정간의 율명을 줄 높이에 맞춰 키운다. 결과·비교·편집 화면의 같은 메트릭은 그대로다.
-                    val metrics = JeongganboMetrics.practiceBoard(big, longestStrip).copy(splitLineFill = PracticeSplitLineFill)
-                    practiceScorePacking(song.score, metrics, maxHeight, fontScale, song.jangdan)
+                    // 정간·율명은 곡과 상관없이 같은 크기로 지키고, 긴 각은 줄이는 대신 두 세로줄로 나눈다(S15P31E102-1022·1028).
+                    val metrics = JeongganboMetrics.practiceBoard(big, longestStrip, keepBaseCell = true).copy(splitLineFill = PracticeSplitLineFill)
+                    practiceScorePacking(song.score, metrics, maxHeight, fontScale, song.jangdan, keepBaseCell = true)
                 }
                 JeongganboView(
                     song = song,

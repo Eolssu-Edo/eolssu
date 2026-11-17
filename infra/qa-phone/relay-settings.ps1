@@ -2,7 +2,7 @@
 function Get-QaRelaySettings {
   param([Parameter(Mandatory)]$Value, [Parameter(Mandatory)][string]$Runtime)
   $qaResult = @{
-    Serial=$Value.serial; Adb=$Value.adb; AccessKeyFile=$Value.accessKeyFile
+    Serial=$Value.serial; Adb=$Value.adb
     RuntimeDirectory=$Runtime; DeviceId='phone'; DeviceName='휴대폰'
     Port=17680; ReversePort=27890; BasePath='/qa/'
     SshHost='edo2'; ApkSshHost='edo1'; PublicOrigin='https://15.165.144.7'; AdbPort=5037
@@ -12,7 +12,7 @@ function Get-QaRelaySettings {
     if ($null -ne $qaProperty) { $qaResult[$qaField]=$qaProperty.Value }
   }
   if ($qaResult.Serial -notmatch '^[A-Za-z0-9._:-]+$' -or $qaResult.Serial.StartsWith('emulator-')) { throw '실제 기기 serial이 필요합니다.' }
-  if (-not $qaResult.Adb -or -not $qaResult.AccessKeyFile) { throw 'ADB와 접속 키 경로가 필요합니다.' }
+  if (-not $qaResult.Adb) { throw 'ADB 경로가 필요합니다.' }
   if ($qaResult.DeviceId -notmatch '^[a-z][a-z0-9-]{0,31}$' -or -not $qaResult.DeviceName.Trim() -or $qaResult.DeviceName.Length -gt 60 -or $qaResult.DeviceName -match '\p{C}') { throw '잘못된 기기 이름입니다.' }
   foreach ($qaField in @('Port','ReversePort','AdbPort')) {
     if ([string]$qaResult[$qaField] -notmatch '^\d{1,5}$' -or [int]$qaResult[$qaField] -lt 1 -or [int]$qaResult[$qaField] -gt 65535) { throw '잘못된 포트입니다.' }

@@ -24,7 +24,9 @@ import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
+import com.ssafy.eolssu.feature.practice.component.LocalStepNotePlayback
 import com.ssafy.eolssu.feature.practice.component.LocalStepPitchGauge
+import com.ssafy.eolssu.feature.practice.component.StepNoteAudio
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
 import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
 import com.ssafy.eolssu.feature.practice.component.PracticePanelActions
@@ -63,8 +65,8 @@ fun PracticeRoute(
     onSwitchToEval: () -> Unit,
     onEvaluate: ((songId: String, bpm: Int, take: RecordedTake?, song: Song?) -> Unit)?,
     fingeringAudio: @Composable (GuideInstrument, FingeringNote, (Boolean) -> Unit) -> Unit,
-    /** 한 음씩 '현재 정간' 칸의 운지 예시음 재생기(S15P31E102-717). 앱이 운지 가이드의 기본 예시음을 연결한다. */
-    stepNoteAudio: @Composable (GuideInstrument) -> (FingeringNote) -> Unit = { { } },
+    /** 한 음씩 '현재 정간' 칸의 운지 예시음 재생기(S15P31E102-717). 앱이 운지 가이드의 기본 예시음과 그 재생 상태를 연결한다. */
+    stepNoteAudio: @Composable (GuideInstrument) -> StepNoteAudio = { StepNoteAudio({}) },
     onConfirmBackChange: ((() -> Unit)?) -> Unit = {},
     mine: Boolean = false,
     sheetTitle: String? = null,
@@ -86,7 +88,8 @@ fun PracticeRoute(
     val pitchTally by viewModel.livePitch.collectAsStateWithLifecycle()
     val livePitch = remember(state.song, state.solo, state.position, state.finished, state.settings.liveMarks, pitchTally) { livePitchMarks(state, pitchTally) }
     // 한 음씩은 혼자 연습에만 있어 그때만 예시음 목록을 받는다.
-    val playStepNote: (FingeringNote) -> Unit = if (state.solo) stepNoteAudio(state.instrument) else { _ -> }
+    val stepAudio: StepNoteAudio = if (state.solo) stepNoteAudio(state.instrument) else StepNoteAudio({})
+    val playStepNote: (FingeringNote) -> Unit = stepAudio.play
     val scope = rememberCoroutineScope()
     LaunchedEffect(sheetTitle) { viewModel.showSheetTitle(sheetTitle) }
     // 앱을 벗어나면(전화·다른 앱) 연주를 끊긴 것으로 처리한다.
@@ -116,7 +119,12 @@ fun PracticeRoute(
     }
 
     // 디버그 빌드에서만 한 음씩 음높이 막대에 값을 넘긴다(S15P31E102-666).
-    CompositionLocalProvider(LocalPerformanceVisit provides perf, LocalStepPitchGauge provides viewModel.stepGauge) {
+    // 예시음 재생 경과·길이는 '현재 정간' 칸만 쓰므로 화면 상태 대신 여기서 넘긴다(S15P31E102-1006).
+    CompositionLocalProvider(
+        LocalPerformanceVisit provides perf,
+        LocalStepPitchGauge provides viewModel.stepGauge,
+        LocalStepNotePlayback provides stepAudio.playback,
+    ) {
         PracticeScreen(
             state = state,
             widthClass = currentWindowLayout().widthClass,
@@ -175,7 +183,6 @@ fun PracticeRoute(
                     onMoveFingering = viewModel::moveFingering,
                     fingeringAudio = { instrument, note -> fingeringAudio(instrument, note, viewModel::reportFingeringAudio) },
                     onTogglePreview = viewModel::togglePreview,
-                    onSetInstrument = viewModel::setInstrument,
                     onToggleFingeringView = viewModel::toggleFingeringView,
                     onToggleHangul = viewModel::toggleHangul,
                     onToggleLiveMarks = viewModel::toggleLiveMarks,

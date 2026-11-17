@@ -318,7 +318,7 @@ private fun ChangeChip(change: ScoreChange) {
         Modifier.height(26.dp).background(background, shape).then(if (border != null) Modifier.border(1.dp, border, shape) else Modifier).padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.Bold), color = foreground, maxLines = 1)
+        Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold), color = foreground, maxLines = 1)
     }
 }
 
@@ -399,7 +399,7 @@ private fun DeltaChip(delta: Int) {
         base.background(background, shape).then(if (border != null) Modifier.border(1.dp, border, shape) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
-        Text(metricDeltaLabel(delta), style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold), color = foreground)
+        Text(metricDeltaLabel(delta), style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold), color = foreground)
     }
 }
 

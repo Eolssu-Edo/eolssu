@@ -20,6 +20,8 @@ import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationPanel
 import com.ssafy.eolssu.feature.song.edit.component.SheetImportGuideCard
+import com.ssafy.eolssu.feature.song.edit.component.SheetTutorial
+import com.ssafy.eolssu.feature.song.edit.component.SheetTutorials
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -45,6 +47,7 @@ import eolssu.shared.generated.resources.sheet_save_conflict
 import eolssu.shared.generated.resources.sheet_save_too_large
 import eolssu.shared.generated.resources.sheet_close_unsaved
 import eolssu.shared.generated.resources.sheet_save_draft_close
+import eolssu.shared.generated.resources.sheet_save_draft_closing
 import eolssu.shared.generated.resources.sheet_close_message_draft
 import eolssu.shared.generated.resources.sheet_save_auto_failed
 import eolssu.shared.generated.resources.sheet_close_message
@@ -52,6 +55,7 @@ import eolssu.shared.generated.resources.sheet_discard_close
 import eolssu.shared.generated.resources.sheet_keep_editing
 import eolssu.shared.generated.resources.sheet_review_before_reshape
 import eolssu.shared.generated.resources.sheet_tempo_before_reshape
+import eolssu.shared.generated.resources.sheetedit_jangdan_unavailable
 import eolssu.shared.generated.resources.sheetedit_msg_draft
 import eolssu.shared.generated.resources.sheetedit_msg_saved
 import eolssu.shared.generated.resources.sheetedit_msg_saved_for_practice
@@ -84,6 +88,18 @@ fun SheetEditRoute(
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
     val adaptationOpen = state.tab == EditTab.Adaptation && state.adaptation != null
+    // 고른 칸에 고칠 음이 있으면 음 바꾸기 창을, 다시 볼 곳이면 할 일 창을 연다.
+    fun openCellHelp(index: Int, sub: Int? = null) {
+        val current = viewModel.uiState.value
+        pitchCorrection = current.pitchCorrectionsAt(index, sub).firstOrNull()
+        reviewSelection = SheetReviewSelection(index, sub).takeIf { pitchCorrection == null && current.reviewIssuesAt(index, sub).isNotEmpty() }
+    }
+    // '다시 볼 곳'에서 첫 칸으로 옮겨 가 고칠 방법을 바로 보인다(S15P31E102-1042).
+    fun openFirstReview() {
+        viewModel.openFirstRecognitionReview()
+        focusRequestKey++
+        openCellHelp(viewModel.uiState.value.selected)
+    }
     BackHandler(enabled = state.draft.original != null && !adaptationOpen && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
     BackHandler(enabled = adaptationOpen && state.adaptation?.confirmationRequested != true) { viewModel.closeAdaptation() }
     if (state.documentLoading || state.documentFailed) {
@@ -103,6 +119,7 @@ fun SheetEditRoute(
         SheetEditMessage.SavedNeedsReview to stringResource(Res.string.sheetedit_msg_saved_needs_review),
         SheetEditMessage.ComingSoon to stringResource(Res.string.common_coming_soon),
         SheetEditMessage.ReviewBeforeReshape to stringResource(Res.string.sheet_review_before_reshape),
+        SheetEditMessage.JangdanUnavailable to stringResource(Res.string.sheetedit_jangdan_unavailable),
         SheetEditMessage.TempoPlanBeforeReshape to stringResource(Res.string.sheet_tempo_before_reshape),
         SheetEditMessage.BasicAccompanimentCleared to stringResource(Res.string.basic_accompaniment_cleared_after_reshape),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
@@ -133,12 +150,18 @@ fun SheetEditRoute(
         snackbarHostState = snackbarHostState,
         focusRequestKey = focusRequestKey,
         guideContent = {
+            if (state.importGuide?.reviewCells?.let { it > 0 } == true) {
+                SheetTutorials(SheetTutorial.Editor, SheetTutorial.Review)
+            } else {
+                SheetTutorials(SheetTutorial.Editor)
+            }
             state.importGuide?.let { guide -> SheetImportGuideCard(guide,
                 onApplyRecommended = viewModel::applyRecommendedAdaptation,
                 onOpenAdaptation = viewModel::openAdaptation,
-                onOpenReview = { viewModel.openFirstRecognitionReview(); focusRequestKey++ },
-                onDismiss = viewModel::dismissImportGuide,
-                modifier = Modifier.padding(bottom = 8.dp)) }
+                // 다시 볼 곳은 칸을 옮겨 보여 주기만 한다. 칸을 누르면 고칠 방법 창이 열린다.
+                onMoveReview = { step -> viewModel.moveRecognitionReview(step); focusRequestKey++ },
+                modifier = Modifier.padding(bottom = 8.dp),
+                rightToLeft = state.view == EditView.Jeongganbo) }
         },
         adaptationContent = {
             state.adaptation?.let { panel -> SheetAdaptationPanel(panel,
@@ -161,15 +184,11 @@ fun SheetEditRoute(
             onOpenDetails = { detailsOpen = true },
             onSelectCell = { index ->
                 viewModel.selectCell(index)
-                val current = viewModel.uiState.value
-                pitchCorrection = current.pitchCorrectionsAt(index).firstOrNull()
-                reviewSelection = SheetReviewSelection(index).takeIf { pitchCorrection == null && current.reviewIssuesAt(index).isNotEmpty() }
+                openCellHelp(index)
             },
             onSelectUnit = { index, sub ->
                 viewModel.selectUnit(index, sub)
-                val current = viewModel.uiState.value
-                pitchCorrection = current.pitchCorrectionsAt(index, sub).firstOrNull()
-                reviewSelection = SheetReviewSelection(index, sub).takeIf { pitchCorrection == null && current.reviewIssuesAt(index, sub).isNotEmpty() }
+                openCellHelp(index, sub)
             },
             input = EditInputActions(
                 onUndo = viewModel::undo,
@@ -186,6 +205,7 @@ fun SheetEditRoute(
                 onAddColumn = viewModel::addColumn,
                 onDeleteColumn = viewModel::deleteColumn,
                 onChangeJangdan = viewModel::changeJangdan,
+                onSetPanelExpanded = viewModel::setInputPanelExpanded,
             ),
         ),
     )
@@ -208,7 +228,19 @@ fun SheetEditRoute(
         ) else LaunchedEffect(target) { pitchCorrection = null }
     }
     reviewSelection?.let { selection ->
-        if (state.reviewIssuesAt(selection.cell, selection.sub).isNotEmpty()) SheetReviewInfoDialog(state, selection) { reviewSelection = null }
+        if (state.reviewIssuesAt(selection.cell, selection.sub).isNotEmpty()) SheetReviewInfoDialog(state, selection,
+            onDismiss = { reviewSelection = null },
+            onEditYul = { reviewSelection = null; viewModel.selectTab(EditTab.Yul) },
+            onEditSigimsae = { reviewSelection = null; viewModel.selectTab(EditTab.Sigimsae) },
+            onEditCells = { reviewSelection = null; viewModel.selectTab(EditTab.Cell) },
+            onChangeJangdan = { reviewSelection = null; viewModel.changeJangdan() },
+            // 지금 그대로가 맞으면 확인으로 끝내고, 다음 다시 볼 곳이 있으면 바로 그 칸으로 간다.
+            onConfirmSame = {
+                reviewSelection = null
+                viewModel.checkSelectedReviewIssue()
+                val next = viewModel.uiState.value
+                if ((next.completionValidation.correctionCellIndices - next.completionValidation.rangeCellIndices).any { it != selection.cell }) openFirstReview()
+            }.takeIf { state.selected == selection.cell && state.canCheckSelectedReviewIssue })
         else LaunchedEffect(selection) { reviewSelection = null }
     }
     LaunchedEffect(state.tempoIssue) { if (state.tempoIssue != null) saveOpen = true }
@@ -224,6 +256,7 @@ fun SheetEditRoute(
             viewModel.requestSave()
         },
         onDismiss = { saveOpen = false },
+        // 저장 창은 제목과 예상 음원 길이만 둔다. 저장을 막는 문제·오류가 있을 때만 그 아래에 보인다(S15P31E102-1042).
         notice = {
             SheetCompletionNotice(
                 state,
@@ -232,7 +265,6 @@ fun SheetEditRoute(
                 onClearJangdan = viewModel::clearJangdan,
                 onRetryCatalog = viewModel::retryCompletionCatalog,
             )
-            SheetConversionNotes(state.reviewNotices)
             val error = saveError ?: when {
                 state.saveConflict -> messages[SheetEditMessage.SaveConflict]
                 state.emptyWarning -> stringResource(Res.string.sheet_save_unfilled)
@@ -285,7 +317,7 @@ fun SheetEditRoute(
         onDismissRequest = viewModel::cancelApplyAdaptation,
     ) {
         Text(stringResource(Res.string.sheet_adapt_confirm_overwrite),
-            style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
         Text(stringResource(Res.string.sheet_adapt_confirm_message), style = MaterialTheme.typography.bodyMedium)
         EolssuButton(stringResource(Res.string.sheet_adapt_confirm_apply), viewModel::applyAdaptation)
         EolssuButton(stringResource(Res.string.common_cancel), viewModel::cancelApplyAdaptation, style = EolssuButtonStyle.Secondary)
@@ -293,7 +325,7 @@ fun SheetEditRoute(
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
             onSelect = viewModel::selectJangdan, onClear = viewModel::clearJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker,
-            hasTempoPlan = state.hasTempoPlan, selectedCell = state.selected, onBasic = viewModel::selectBasicAccompaniment)
+            hasTempoPlan = state.hasTempoPlan)
     }
     if (state.closeWarning) EolssuDialog(
         title = stringResource(if (state.saveStatus == SheetSaveStatus.DraftFailed) Res.string.sheet_save_auto_failed
@@ -302,9 +334,13 @@ fun SheetEditRoute(
         onDismissRequest = viewModel::continueEditing,
     ) {
         // 편집은 자동저장하지 않으므로 닫을 때 임시저장을 먼저 권한다(S15P31E102-889).
-        if (state.canSaveDraft) EolssuButton(stringResource(Res.string.sheet_save_draft_close), { viewModel.saveDraftAndClose(onClose) })
+        // 저장 응답을 기다리는 동안 저장 중임을 보이고 모든 버튼을 막는다. 실패하면 창이 그대로 남아 다시 고를 수 있다.
+        if (state.canSaveDraft || state.closeSaving) EolssuButton(
+            stringResource(if (state.closeSaving) Res.string.sheet_save_draft_closing else Res.string.sheet_save_draft_close),
+            { viewModel.saveDraftAndClose(onClose) }, enabled = !state.closeSaving)
         EolssuButton(stringResource(Res.string.sheet_keep_editing), viewModel::continueEditing,
-            style = if (state.canSaveDraft) EolssuButtonStyle.Secondary else EolssuButtonStyle.Primary)
-        EolssuButton(stringResource(Res.string.sheet_discard_close), { viewModel.discardChangesAndClose(onClose) }, style = EolssuButtonStyle.Secondary)
+            style = if (state.canSaveDraft) EolssuButtonStyle.Secondary else EolssuButtonStyle.Primary, enabled = !state.closeSaving)
+        EolssuButton(stringResource(Res.string.sheet_discard_close), { viewModel.discardChangesAndClose(onClose) },
+            style = EolssuButtonStyle.Secondary, enabled = !state.closeSaving)
     }
 }

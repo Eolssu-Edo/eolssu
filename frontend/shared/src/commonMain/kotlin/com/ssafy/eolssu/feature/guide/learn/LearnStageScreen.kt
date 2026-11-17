@@ -244,7 +244,7 @@ private fun StageHero(stage: LearnStage, detail: LearnStageDetail) {
             corner = 16.dp,
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(stage.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold))
+            Text(stage.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold))
             Text(detail.goal, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp), color = colors.textMuted)
         }
     }

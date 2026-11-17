@@ -1,0 +1,19 @@
+{
+  "kind": "prepared API fixture with actual AI, not device microphone",
+  "records": [
+    {
+      "sessionId": "1",
+      "evaluationId": "1",
+      "noteCount": 61,
+      "totalScore": 100,
+      "saveHttp": 200
+    },
+    {
+      "sessionId": "2",
+      "evaluationId": "2",
+      "noteCount": 61,
+      "totalScore": 100,
+      "saveHttp": 200
+    }
+  ]
+}

@@ -51,7 +51,7 @@ internal fun ProviderWaiting(
         if (title != null) {
             Text(
                 title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
                 color = colors.text,
                 textAlign = TextAlign.Center,
             )

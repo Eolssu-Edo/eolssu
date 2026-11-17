@@ -45,6 +45,14 @@ class LearnPracticeViewModel(
         ),
     )
     val uiState: StateFlow<LearnPracticeUiState> = _uiState.asStateFlow()
+    private val _celebrating = MutableStateFlow(false)
+
+    /**
+     * 4단계부터 통과하거나 스스로 확인했을 때 띄우는 '완료했어요!' 창. 화면 배치가 바뀌어도(태블릿 회전으로 단계 화면 ↔ 목록 2단) 이어지도록
+     * 화면이 아니라 이 ViewModel이 갖는다(S15P31E102-1030).
+     */
+    val celebrating: StateFlow<Boolean> = _celebrating.asStateFlow()
+    private var announcedPass = false
     private var startJob: Job? = null
     private var levelJob: Job? = null
     private var pitchJob: Job? = null
@@ -133,6 +141,30 @@ class LearnPracticeViewModel(
     fun rewindTo(noteIndex: Int) {
         tracker?.rewind(noteIndex)
         _uiState.update { it.rewindTo(noteIndex) }
+    }
+
+    /**
+     * 통과 상태가 바뀔 때 부른다. [celebrates] 단계면 한 번 통과에 한 번만 '완료했어요!'를 띄우고(닫은 뒤 화면을 돌려도 다시 뜨지 않음),
+     * 통과가 풀리면(처음부터) 다음 통과에 다시 띄운다.
+     */
+    fun onPassChanged(passed: Boolean, celebrates: Boolean) {
+        if (!passed) {
+            announcedPass = false
+        } else if (celebrates && !announcedPass) {
+            announcedPass = true
+            _celebrating.value = true
+        }
+    }
+
+    /** 스스로 확인으로 마칠 때 '완료했어요!'를 띄운다. 듣는 중이면 멈춘다. */
+    fun celebrate() {
+        stopListening()
+        _celebrating.value = true
+    }
+
+    /** '완료했어요!' 창을 닫는다. */
+    fun dismissCelebration() {
+        _celebrating.value = false
     }
 
     /** 거부 안내의 '설정에서 허용하기'. 열 수 없으면 false. */

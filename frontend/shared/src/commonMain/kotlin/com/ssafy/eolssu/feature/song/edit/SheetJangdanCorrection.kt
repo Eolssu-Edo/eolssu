@@ -27,7 +27,11 @@ internal fun SheetDraft.requiresJangdanRetiming(option: CatalogJangdanSummary): 
 
 internal fun SheetDraft.withJangdan(option: CatalogJangdanSummary, preserveTiming: Boolean): SheetDraft? {
     if (!canSelectJangdan(option, preserveTiming)) return null
-    if (preserveTiming || !requiresJangdanRetiming(option)) return copy(jangdanId = option.jangdanId, editedJangdanName = option.name)
+    // 정간보는 장단이 빠르기 기준이라 고른 장단의 얼쑤 기본 빠르기로 맞춘다. 이전 숫자를 남기면 단위만 바뀌어
+    // 4박 반주 160♩가 160♩.처럼 된다(S15P31E102-1054). 오선보와 빠르기 계획이 있는 악보는 적힌 빠르기를 지킨다.
+    val nextBpm = if (!preserveTiming && inferredJeongganSizes != null && option.defaultBpm in SheetBpmRange) option.defaultBpm else bpm
+    if (preserveTiming || !requiresJangdanRetiming(option))
+        return copy(jangdanId = option.jangdanId, editedJangdanName = option.name, bpm = nextBpm)
     // 보정 전 현재 편집을 먼저 반영한다. 불변 authoring.source와 칸·음고·위치는 그대로 둔다.
     val score = runCatching { toCommonScore() }.getOrNull() ?: return null
     val target = jangdanRetiming(option, score.music.ticksPerJeonggan.toLong()) ?: return null
@@ -36,7 +40,7 @@ internal fun SheetDraft.withJangdan(option: CatalogJangdanSummary, preserveTimin
         music = score.music.copy(jangdan = option.name, bpmUnit = option.bpmUnit, ticksPerBeat = target.beat, ticksPerJeonggan = target.cell),
         events = score.events.map { it.copy(startTick = it.startTick * target.factor, durationTick = it.durationTick * target.factor) },
     )
-    return corrected.editingDraft(title, bpm, jangdan).copy(jangdanId = option.jangdanId, editedJangdanName = option.name, authoring = authoring,
+    return corrected.editingDraft(title, nextBpm, jangdan).copy(jangdanId = option.jangdanId, editedJangdanName = option.name, authoring = authoring,
         adaptationBaseline = sourcePitchNotes().associate { it.eventId to it.midi })
 }
 

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.ui.draw.alpha
 import com.ssafy.eolssu.core.ui.component.EolssuTextLink
 import eolssu.shared.generated.resources.auth_withdrawn_title
@@ -115,6 +116,7 @@ fun LoginScreen(
                     label = stringResource(Res.string.auth_email),
                     placeholder = stringResource(Res.string.auth_email_placeholder),
                     type = TextFieldType.Email,
+                    maxLength = InputLimit.LOGIN_ID,
                     bordered = false,
                     labelInside = true,
                     fieldHeight = 48.dp,
@@ -126,6 +128,7 @@ fun LoginScreen(
                     label = stringResource(Res.string.auth_password),
                     placeholder = stringResource(Res.string.auth_password_placeholder),
                     type = TextFieldType.Password,
+                    maxLength = InputLimit.PASSWORD,
                     bordered = false,
                     labelInside = true,
                     fieldHeight = 48.dp,

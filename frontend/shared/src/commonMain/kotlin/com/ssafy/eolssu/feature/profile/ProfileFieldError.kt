@@ -36,7 +36,7 @@ enum class ProfileFieldError(val message: StringResource) {
     /** 새 비밀번호가 조건을 덜 채웠다. 화면은 문장 대신 가입과 같은 체크리스트로 보인다. */
     PasswordRule(Res.string.my_error_password_rule),
 
-    /** 새 비밀번호가 조건은 채웠지만 128자를 넘었다. 가입과 같은 문구를 쓴다. */
+    /** 새 비밀번호가 조건은 채웠지만 64자를 넘었다. 가입과 같은 문구를 쓴다. */
     PasswordTooLong(Res.string.auth_error_password_too_long),
 
     /** 새 비밀번호가 현재 비밀번호와 같다. 서버도 거절하므로(400) 보내기 전에 새 비밀번호 칸에서 알린다. */
