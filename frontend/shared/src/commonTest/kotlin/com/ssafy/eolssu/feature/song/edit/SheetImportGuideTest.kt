@@ -104,6 +104,36 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
             "1042: 실행 취소하면 처음 카드와 같다")
     }
 
+    @Test fun aSplitBlankSaysWhatToFillAndAPlayableNoteIsNotCountedAsUnplayable() = runTest {
+        // 1136: 높이를 맞춘 뒤 정간을 나눠 빈칸이 생기면 무엇을 넣을지 말하고, 입력판에서 고른 음은 낼 수 없는 음으로 세지 않는다.
+        val model = open(sixUp)
+        runCurrent()
+        model.applyRecommendedAdaptation()
+        runCurrent()
+        val before = model.uiState.value.draft
+        model.selectTab(EditTab.Yul)
+        model.selectCell(2)
+        model.split()
+
+        val blank = assertNotNull(model.uiState.value.importGuide)
+        assertEquals(1, blank.blankCells)
+        assertTrue(blank.selectedBlank)
+        assertEquals(0, blank.rangeNotes)
+
+        val (yul, octave) = assertNotNull(model.uiState.value.supportedInputPitches).first()
+        model.put(ScoreNote.SourcePitch(yul, octave))
+        val filled = model.uiState.value
+        assertTrue(filled.completionValidation.rangeUnitKeys.isEmpty(), "고른 음은 칸에 칠하지 않는다")
+        assertNull(filled.importGuide, "칠하지 않은 음을 낼 수 없는 음으로 세지 않는다")
+
+        // 높이 맞추기를 다시 적용하면 원본 악보에서 높이만 바꾼 상태로 돌아간다.
+        model.openAdaptation()
+        model.requestApplyAdaptation()
+        assertTrue(model.uiState.value.adaptation?.confirmationRequested == true, "고친 것이 있어 확인을 묻는다")
+        model.applyAdaptation()
+        assertEquals(before.cells, model.uiState.value.draft.cells)
+    }
+
     @Test fun recognitionReviewsAreCountedApartFromRangeAndTheGuideGoesAwayOnceChecked() = runTest {
         val model = open(ReadinessCatalog(), issues = listOf(json("""{"issueId":"i1","cellId":"c0-j0","type":"ORNAMENT_DROPPED"}""")))
         runCurrent()

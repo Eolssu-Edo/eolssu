@@ -13,9 +13,9 @@
     <string name="sheet_adapt_applied_semitones">%1$s반음 적용됨</string>
     <string name="sheet_adapt_applied_original_done">원음 적용됨</string>
     <string name="sheet_adapt_empty">맞출 수 있는 음이 없어요.</string>
-    <string name="sheet_adapt_confirm_title">음높이를 다시 맞출까요?</string>
-    <string name="sheet_adapt_confirm_overwrite">직접 바꾼 음높이·옥타브는 덮어씁니다.</string>
-    <string name="sheet_adapt_confirm_message">곡 전체 높이를 바꿔요. 실행 취소로 되돌릴 수 있어요.</string>
+    <string name="sheet_adapt_confirm_title">원본에서 높이를 다시 맞출까요?</string>
+    <string name="sheet_adapt_confirm_overwrite">직접 고친 음·정간 나누기·시김새는 원본으로 돌아가고, 원본 악보에서 높이만 바뀌어요.</string>
+    <string name="sheet_adapt_confirm_message">새로 추가한 각의 음은 같은 만큼 함께 옮겨요. 실행 취소로 되돌릴 수 있어요.</string>
     <string name="sheet_adapt_confirm_apply">다시 맞추기</string>
     <string name="sheet_adapt_retry">다시 불러오기</string>
     <string name="sheet_adapt_applied">%1$s으로 맞췄어요</string>

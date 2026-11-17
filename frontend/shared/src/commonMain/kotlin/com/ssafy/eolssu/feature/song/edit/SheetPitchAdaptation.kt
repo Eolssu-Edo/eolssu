@@ -140,11 +140,35 @@ internal fun SheetDraft.sourcePitchNotes(): List<SourcePitchNote> {
             }
         }
     }
+    // 원본에 없는 음은 지금 높이로 적은 음이다. 적용된 높이를 빼야 다른 높이를 적용할 때 두 번 옮기지 않는다(S15P31E102-1136).
+    val applied = appliedTranspose
     return score.events.filter { it.kind == "NOTE" }.map { event ->
         SourcePitchNote(event.id, event.cellId, baselines[event.id]
-            ?: (hwang + "황대태협고중유임이남무응".indexOf(event.yul.orEmpty()) + 12 * (event.octave ?: 0)))
+            ?: (hwang + "황대태협고중유임이남무응".indexOf(event.yul.orEmpty()) + 12 * (event.octave ?: 0) - applied))
     }
 }
+
+/**
+ * 높이 맞추기의 출발점. 원본에 있던 정간은 원본의 음·나눔·시김새로 되돌리고, 원본에 없는 정간(새 각)은 그대로 둔다.
+ * 높이 맞추기는 '원본 악보에서 높이만 바꾼 상태'로 가므로 직접 고친 음·나눔은 덮어쓴다(S15P31E102-1136).
+ */
+internal fun SheetDraft.withOriginalNotes(): SheetDraft {
+    val source = original ?: return this
+    val pristine = runCatching { source.editingDraft(title, bpm, jangdan) }.getOrNull() ?: return this
+    val pristineIndex = pristine.sourceCellIds.orEmpty().withIndex().associate { (index, id) -> id to index }
+    val mapped = cells.indices.map { index -> sourceCellIds?.getOrNull(index)?.let(pristineIndex::get) }
+    if (mapped.all { it == null }) return this
+    val currentOf = mapped.withIndex().mapNotNull { (index, at) -> at?.let { it to index } }.toMap()
+    val restored = copy(
+        cells = cells.mapIndexed { index, notes -> mapped[index]?.let { pristine.cells[it] } ?: notes },
+        sigimsae = sigimsae.filterKeys { mapped.getOrNull(it.cell) == null } +
+            pristine.sigimsae.mapNotNull { (slot, signs) -> currentOf[slot.cell]?.let { NoteSlot(it, slot.sub) to signs } },
+    )
+    return restored.takeIf { runCatching { it.toCommonScore() }.isSuccess } ?: this
+}
+
+/** 높이 맞추기 계산에 쓰는 음. 적용할 때와 같은 출발점([withOriginalNotes])에서 센다. */
+internal fun SheetDraft.adaptationSourceNotes(): List<SourcePitchNote> = withOriginalNotes().sourcePitchNotes()
 
 /** [candidates] 높이 중 적용해도 이 악보가 그대로인 첫 높이. 모든 높이를 계산하지 않도록 후보만 확인한다. */
 internal fun SheetDraft.unchangedAdaptation(plans: List<PitchAdaptationPlan>, capability: CatalogAuthoringCapabilities,
@@ -154,8 +178,11 @@ internal fun SheetDraft.unchangedAdaptation(plans: List<PitchAdaptationPlan>, ca
     } == true
 }
 
-/** Pitch-only adaptation preserves timing, IDs, rests, ties and immutable source notes. */
-internal fun SheetDraft.applyAdaptation(plan: PitchAdaptationPlan, capability: CatalogAuthoringCapabilities): SheetDraft {
+/** 원본 음·나눔으로 되돌린 뒤 높이만 바꾼다. 시간·ID·쉼표·이음과 불변 원본 음은 그대로 둔다. */
+internal fun SheetDraft.applyAdaptation(plan: PitchAdaptationPlan, capability: CatalogAuthoringCapabilities): SheetDraft =
+    withOriginalNotes().adaptedPitches(plan, capability)
+
+private fun SheetDraft.adaptedPitches(plan: PitchAdaptationPlan, capability: CatalogAuthoringCapabilities): SheetDraft {
     val current = toCommonScore()
     val targets = plan.notes.associate { item ->
         val midi = item.source.midi + plan.transpose
