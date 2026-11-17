@@ -21,7 +21,7 @@ from hanbae_marks import image_marks
 from omr_service.jeongganbo_tempo import attach_marks
 
 READER = [sys.executable, '-X', 'utf8', str(SCORES / 'jeongganbo_omr.py')]
-ENGINE_VERSION = 'e95045f-v1.0.0-r8'
+ENGINE_VERSION = 'e95045f-v1.0.0-r9'
 # instruments.code → 리더 YUL_PRESETS 이름. 목록 근거: docs/knowledge/data/jeongganbo-omr-accuracy.md.
 # 산조대금은 정악 대금 목록과 조율·음역 근거가 달라 제한하지 않는다(목록 없는 악기는 기존 결과와 같다).
 YUL_PRESETS = {'DANSO': 'danso', 'SOGEUM': 'sogeum', 'JEONGAK_DAEGEUM': 'jeongak-daegeum'}
@@ -45,6 +45,15 @@ def cell_text(cell):
     if not text and cell.get('ink', 1) > .005:
         return '', 'EMPTY_RECOGNITION'
     return jg_like(text), None
+
+
+def grid_places(cells, beats):
+    """칸마다 (쪽 안 각, 정간). 리더가 격자 자리로 매긴 gak·jeonggan을 쓰고, 없거나 겹치면 순번으로 나눈다."""
+    places = [(cell.get('gak'), cell.get('jeonggan')) for cell in cells]
+    if (all(isinstance(g, int) and isinstance(j, int) and g >= 0 and 0 <= j < beats for g, j in places)
+            and len(set(places)) == len(places) and places == sorted(places)):
+        return places
+    return [(j // beats, j % beats) for j in range(len(cells))]
 
 
 def usual_beats(jangdan, bpj):
@@ -73,12 +82,11 @@ def gak_size_from_lines(image, cells, beats, jangdan):
     with Image.open(image) as source:
         gray = np.asarray(source.convert('L'))
     gaps = [[] for _ in range(beats - 1)]
-    for start in range(0, len(cells) - beats + 1, beats):
-        gak = cells[start:start + beats]
-        if any(abs(a['x'] - b['x']) >= a['w'] / 2 or b['y'] <= a['y'] for a, b in zip(gak, gak[1:])):
-            continue  # 한 세로줄에서 위에서 아래로 이어진 정간이 아니면 재지 않는다.
-        for position, (upper, lower) in enumerate(zip(gak, gak[1:])):
-            gaps[position].append(_line_thickness(gray, upper, lower))
+    places = grid_places(cells, beats)
+    for (upper, (gak, j)), (lower, place) in zip(zip(cells, places), zip(cells[1:], places[1:])):
+        # 같은 각의 이웃한 정간이 한 세로줄에서 위아래로 붙어 있을 때만 그 사이 선을 잰다.
+        if place == (gak, j + 1) and abs(upper['x'] - lower['x']) < upper['w'] / 2 and lower['y'] > upper['y']:
+            gaps[j].append(_line_thickness(gray, upper, lower))
     if not all(gaps):
         return beats
     widths = [float(np.median(values)) for values in gaps]
@@ -90,6 +98,14 @@ def gak_size_from_lines(image, cells, beats, jangdan):
         if min(thick) >= 2 and min(thick) > max(thin):
             return size
     return beats
+
+
+def split_gaks(cells, beats, size):
+    """[gak_size_from_lines]가 고른 정간 수로 칸의 격자 자리(gak·jeonggan)를 다시 매긴다."""
+    if size == beats:
+        return cells
+    return [cell | {'gak': (g * beats + j) // size, 'jeonggan': (g * beats + j) % size}
+            for cell, (g, j) in zip(cells, grid_places(cells, beats))]
 
 
 def recognize(job):
@@ -140,29 +156,33 @@ def recognize(job):
                     issues.append(dict(kind='UNREADABLE', **whole, detail={'reason':'NO_GRID'}))
                     continue
                 beats, cells = int(report['beats']), report['cells']
-                beats = gak_size_from_lines(image, cells, beats, job.request.jangdan)
+                size = gak_size_from_lines(image, cells, beats, job.request.jangdan)
+                cells, beats = split_gaks(cells, beats, size), size
                 first_gak = len(lines)
-                geometry = [cell | {'gak': j // beats} for j, cell in enumerate(cells)]
+                places = grid_places(cells, beats)
+                geometry = [cell | {'gak': gak} for cell, (gak, _) in zip(cells, places)]
                 with Image.open(image) as source_image:
                     detected = image_marks(source_image, geometry)
                 tempo_cues += [cue | {'gak': first_gak + cue['gak'], 'page': i,
                                       'bbox': [round(v / scale) for v in cue['bbox']]}
                                if 'gak' in cue else cue | {'page': i, 'bbox': [round(v / scale) for v in cue['bbox']]}
                                for cue in detected]
-                tokens = []
-                for j, cell in enumerate(cells):
+                grid = [[''] * beats for _ in range(places[-1][0] + 1)]
+                del grid[-1][places[-1][1] + 1:]  # 마지막 각은 읽은 정간까지만 둔다
+                for cell, (gak, jeonggan) in zip(cells, places):
                     text, reason = cell_text(cell)
-                    tokens.append(text)
-                    at = dict(eventId=None, cellId=f'c{first_gak + j // beats}-j{j % beats}', page=i,
+                    grid[gak][jeonggan] = text
+                    at = dict(eventId=None, cellId=f'c{first_gak + gak}-j{jeonggan}', page=i,
                               bbox=[round(cell[k] / scale) for k in ('x','y','w','h')])
                     if reason:
                         issues.append(dict(kind='UNREADABLE', **at,
                                            detail={'reason':reason,'text':cell.get('text','')}))
-                    if cell.get('conf') is None or cell['conf'] < MIN_CONFIDENCE or cell.get('filled'):
+                    grid_reason = 'GRID_SPLIT' if cell.get('split') else 'GRID_FILLED' if cell.get('filled') else None
+                    if cell.get('conf') is None or cell['conf'] < MIN_CONFIDENCE or grid_reason:
                         issues.append(dict(kind='LOW_CONFIDENCE', **at,
-                                           detail={'confidence':cell.get('conf'),'reason':'GRID_FILLED' if cell.get('filled') else 'MODEL_CONFIDENCE'}))
-                lines += [' | '.join(tokens[start:start + beats]) for start in range(0,len(tokens),beats)]
-                if len(tokens) % beats:
+                                           detail={'confidence':cell.get('conf'),'reason':grid_reason or 'MODEL_CONFIDENCE'}))
+                lines += [' | '.join(gak) for gak in grid]
+                if len(grid[-1]) < beats:
                     issues.append(dict(kind='LOW_CONFIDENCE', **whole, detail={'reason':'PARTIAL_GAK'}))
                 # 칸 위치는 JSON에 보존했으므로 무거운 쪽 그림은 다음 쪽 전에 지운다.
                 shutil.rmtree(out)
