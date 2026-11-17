@@ -175,5 +175,6 @@ def test_only_pdf_tempo_digit_tuplet_is_re_read_before_conversion(tmp_path, monk
         assert 'TEMPO_TUPLET_RETRY_REJECTED' in reasons and 'TEMPO_MARK_REMOVED' not in reasons
     assert result['bpm'] == (80 if midmeasure else 160)
     if midmeasure:
-        assert [t['bpm'] for t in result['expressions']['performancePlan']['tempos']] == [80, 160]
+        # The first 80 is the score's base BPM, not a section change (S15P31E102-1083).
+        assert [t['bpm'] for t in result['expressions']['performancePlan']['tempos']] == [160]
     assert len(result['sourcePitches']) == (8 if eight_notes else 6)

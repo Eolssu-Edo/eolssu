@@ -94,21 +94,32 @@ def recognize(job) -> dict:
                                 gak_beats=conv.gak_beats, bpm_unit=bpm_unit)
     restore_source_pitches(score, conv.source_pitches, request.hwang_pitch)
     tempo = {}
-    if conv.tempos:
+    tempos = conv.tempos
+    if conv.quarter_bpm is not None:
+        bpm = conv.quarter_bpm / UNIT_QUARTERS[score['music']['bpmUnit']]
+        if bpm.denominator == 1 and 0 < bpm <= 2147483647:
+            tempo['bpm'] = int(bpm)
+            tempos = _without_base_tempo(tempos)
+        else:
+            issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {'reason': 'TEMPO_BASE_NOT_INTEGER'}))
+    if tempos:
         digest = hashlib.sha256(json.dumps(score, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
         tempo['expressions'] = {'schema': 'common-score-expressions/v1', 'sourceSha256': digest, 'placements': [],
             'performancePlan': {'schema': f"{request.instrument.lower().replace('_', '-')}-performance/v1",
-                                'input_sha256': digest, 'tempos': conv.tempos, 'repeats': []}}
-        if conv.quarter_bpm is not None:
-            bpm = conv.quarter_bpm / UNIT_QUARTERS[score['music']['bpmUnit']]
-            if bpm.denominator == 1 and 0 < bpm <= 2147483647:
-                tempo['bpm'] = int(bpm)
-            else:
-                issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {'reason': 'TEMPO_BASE_NOT_INTEGER'}))
+                                'input_sha256': digest, 'tempos': tempos, 'repeats': []}}
     if 'bpm' not in tempo and not jangdan:
         tempo.update(_time_signature_tempo(conv.source_meters, score['music']['bpmUnit'], issues))
     return {"engine": ENGINE, "engineVersion": AUDIVERIS_VERSION, "jgb": doc, "score": score, "issues": issues,
             "sourcePitches": conv.source_pitches, **tempo}
+
+
+def _without_base_tempo(tempos):
+    """곡 시작(1각 1정간)의 바로 적용 빠르기는 기본 BPM으로 올렸으므로 구간 목록에서 뺀다(S15P31E102-1083).
+
+    시작부터 점점 바뀌는 항목(end_*, start_bpm)은 구간 의미가 있어 그대로 둔다.
+    """
+    return [t for t in tempos if not (t['gak'] == 1 and t['cell'] == 1
+                                      and not {'end_gak', 'end_cell', 'start_bpm'} & t.keys())]
 
 
 def _time_signature_tempo(source_meters, bpm_unit, issues):
