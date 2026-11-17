@@ -55,7 +55,8 @@ class GridBoxesTests(unittest.TestCase):
 
 
 
-def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=False, thick_lines=True):
+def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=False, thick_lines=True,
+              jangdan_lines_cross_lyric=False):
     """단소교실 판형을 배율 k로 그린 쪽 (S15P31E102-1077).
 
     오른쪽부터 제목 열, [가사 열, 율명 열] x columns, 맨 왼쪽 빈 열. 열마다 각 gaks개, 각마다 정간 3개.
@@ -64,6 +65,7 @@ def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=
     jangdan이면 제목 열 대신 정간 크기 칸이 있는 짧은 장단 열을 맨 오른쪽에 둔다.
     open_lyric이면 장단 열 아래에서 맨 오른쪽 가사 열의 오른쪽 세로선이 끊긴다(실기교재 박연폭포).
     thick_lines가 거짓이면 각 사이도 가는 선이다(굵은 각 구분선이 없는 판형).
+    jangdan_lines_cross_lyric이면 장단 열의 가로선이 왼쪽 가사 열까지 이어진다(실기교재 강원도아리랑).
     broken이면 율명 열의 세로선 하나가 가운데에서 3px 끊기고 아래 조각이 1px 옆으로 밀린다(스캔).
     """
     r = lambda v: max(1, round(v * k))
@@ -103,7 +105,7 @@ def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=
         x0, x1 = xs[1], xs[1] + note
         g[top:top + pitch * 3 + thin, x1:x1 + thin] = 0
         for i in range(4):
-            g[top + i * pitch:top + i * pitch + thin, x0:x1 + thin] = 0
+            g[top + i * pitch:top + i * pitch + thin, xs[2] if jangdan_lines_cross_lyric else x0:x1 + thin] = 0
         if open_lyric:
             g[top + pitch * 3 + thick:bottom + thick, x0:x0 + thin] = 255
     return g, notes, top, pitch
@@ -140,9 +142,80 @@ class GridAddressTests(unittest.TestCase):
         cells = self.addresses(classroom(broken=True)[0])
         self.assertEqual([(c['col'], c['row']) for c in cells], [(col, row) for col in range(3) for row in range(6)])
 
+    def test_vertical_line_broken_by_a_long_gap_keeps_the_column_in_its_band(self):
+        # 실기교재 바람개비·고사리꺾자: 율명 열 경계선이 칸 절반 높이만큼 끊긴다.
+        g, notes, top, pitch = classroom()
+        x = notes[0][1]
+        y = top + pitch * 3 + pitch // 4
+        g[y:y + pitch // 2, x - 2:x + 4] = 255
+        self.assertEqual([(c['col'], c['row']) for c in self.addresses(g)],
+                         [(col, row) for col in range(3) for row in range(6)])
+
+    def test_thick_broken_line_shifted_sideways_by_less_than_its_width_is_one_line(self):
+        # 실기교재 고사리꺾자: 굵은 경계선이 끊긴 뒤 4~5px 옆에서 다시 시작한다. 쪽의 다른 선은 가늘다.
+        g, notes, top, pitch = classroom()
+        x = notes[0][1]
+        y = top + pitch * 3 + pitch // 4
+        g[top:y, x:x + 8] = 0
+        g[y:y + pitch // 2, x - 2:x + 14] = 255
+        g[y + pitch // 2:top + pitch * 6, x + 5:x + 13] = 0
+        self.assertEqual([(c['col'], c['row']) for c in self.addresses(g)],
+                         [(col, row) for col in range(3) for row in range(6)])
+
+    def test_column_whose_outer_line_ends_early_stays_in_its_band(self):
+        # 실기교재 싸름타령: 마지막 열 바깥 선이 칸 하나 넘게(단 높이의 14%) 일찍 끝난다.
+        g, notes, top, pitch = classroom()
+        x = notes[2][0]
+        g[top + pitch * 6 - pitch * 11 // 10:top + pitch * 6 + 4, x - 2:x + 4] = 255
+        self.assertEqual([(c['col'], c['row']) for c in self.addresses(g)],
+                         [(col, row) for col in range(3) for row in range(6)])
+
+    def test_stacked_bands_with_a_small_gap_stay_separate_bands(self):
+        # 표준악보집: 위아래 단 사이 틈이 단 높이의 4%쯤이고 오른쪽에 두 단을 꿰는 긴 선이 있다.
+        page, _, _, pitch = classroom()
+        gap = pitch // 4
+        g = np.full((page.shape[0] * 2 + gap, page.shape[1] + 40), 255, np.uint8)
+        g[:page.shape[0], :page.shape[1]] = page
+        g[page.shape[0] + gap:, :page.shape[1]] = page
+        g[60:-60, -20:-18] = 0
+        cells = self.addresses(g)
+        self.assertEqual([(c['band'], c['col'], c['row']) for c in cells],
+                         [(band, col, row) for band in range(2) for col in range(3) for row in range(6)])
+
+    def test_missed_line_between_two_cells_splits_the_double_cell(self):
+        # 실기교재 강원도아리랑: 빈 정간 두 개 사이 점선을 못 찾아 2배 높이 칸이 된다.
+        g, notes, top, pitch = classroom()
+        x0, x1 = notes[1]
+        y = top + pitch * 5
+        g[y:y + 3, x0 + 3:x1 - 2] = 255
+        cells = self.addresses(g)
+        self.assertEqual([(c['col'], c['row']) for c in cells], [(col, row) for col in range(3) for row in range(6)])
+        split = [c for c in cells if c['col'] == 1 and c['row'] in (4, 5)]
+        self.assertLessEqual(abs(split[1]['y'] - (top + pitch * 5)), 4)
+
     def test_short_jangdan_column_without_lyrics_is_not_read(self):
         cells = self.addresses(classroom(jangdan=True)[0])
         self.assertEqual(len(cells), 18)
+
+    def test_jangdan_lines_crossing_the_lyric_column_do_not_hide_its_note_column(self):
+        # 실기교재 강원도아리랑: 장단표의 가로 실선이 옆 가사 열까지 이어져 가사 열이 율명 열처럼 보인다.
+        cells = self.addresses(classroom(jangdan=True, open_lyric=True, jangdan_lines_cross_lyric=True)[0])
+        self.assertEqual([(c['col'], c['row']) for c in cells], [(col, row) for col in range(3) for row in range(6)])
+
+    def test_shorter_score_beside_another_is_not_taken_for_a_jangdan_table(self):
+        # 나란한 두 악보는 서비스가 읽지 않는다(덩어리 둘). 오른쪽 악보가 짧아도 장단표로 지워 하나로 만들지 않는다.
+        left, right = classroom(gaks=2)[0], classroom(gaks=1)[0]
+        g = np.full((left.shape[0], left.shape[1] + right.shape[1]), 255, np.uint8)
+        g[:, :left.shape[1]] = left
+        g[:right.shape[0], left.shape[1]:] = right
+        self.assertEqual([len(block[0]) for block in find_grid(g)], [18, 9])
+
+    def test_shorter_last_column_on_the_left_is_not_taken_for_a_jangdan_table(self):
+        # 곡 끝의 짧은 열은 왼쪽 끝에 있다. 위가 맞닿은 짧은 단이어도 장단표가 아니다.
+        g, notes, top, pitch = classroom()
+        x0, x1 = notes[2]
+        g[top + pitch * 3 + 8:top + pitch * 6 + 8, x0 - 2:x1 - 4] = 255
+        self.assertIn(3, [len([c for c in block[0] if c['x'] < x1 - 5]) for block in find_grid(g)])
 
     def test_lyric_column_open_on_the_right_still_marks_its_note_column(self):
         cells = self.addresses(classroom(jangdan=True, open_lyric=True)[0])
