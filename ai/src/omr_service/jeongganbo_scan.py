@@ -21,13 +21,15 @@ from hanbae_marks import image_marks
 from omr_service.jeongganbo_tempo import attach_marks
 
 READER = [sys.executable, '-X', 'utf8', str(SCORES / 'jeongganbo_omr.py')]
-ENGINE_VERSION = 'e95045f-v1.0.0-r9'
+ENGINE_VERSION = 'e95045f-v1.0.0-r10'
 # instruments.code → 리더 YUL_PRESETS 이름. 목록 근거: docs/knowledge/data/jeongganbo-omr-accuracy.md.
 # 산조대금은 정악 대금 목록과 조율·음역 근거가 달라 제한하지 않는다(목록 없는 악기는 기존 결과와 같다).
 YUL_PRESETS = {'DANSO': 'danso', 'SOGEUM': 'sogeum', 'JEONGAK_DAEGEUM': 'jeongak-daegeum'}
 MIN_CONFIDENCE = .8  # 검수 기준이며, 보정된 정확도 확률이 아니다.
 log = logging.getLogger('omr_service.api')
-TOKEN = re.compile(rf'(?:{score_data.YUL}(?:_[^:\s]+)?|-|쉼표|쉼):(?:[0-9]|1[0-5])\Z')
+# 율명·이음 뒤 `_이름`은 붙은 시김새다. 이음에 붙은 시김새는 score_data가 앞 음의 시김새로 합친다.
+# 이음 뒤 `_-`는 시김새가 아니라 칸 나눔이라 받지 않는다. 율명 없는 독립 기호(`니나*` 등)는 공통 악보가 아직 받지 않는다.
+TOKEN = re.compile(rf'(?:{score_data.YUL}(?:_[^:\s]+)?|-(?:_[^:\s_-][^:\s_]*)*|쉼표|쉼):(?:[0-9]|1[0-5])\Z')
 
 
 def recoverable_grid_failure(run):
@@ -142,7 +144,8 @@ def recognize(job):
                     run = _run(READER + [str(image), '0', str(out), '--image', '--omr-dir', model_dir,
                                         '--model-cache-dir', str(work), '--batch-size', '16',
                                         '--beats', '0', '--fill-grid', '--keep-empty-columns',
-                                        '--title', 'page', *yul_options, *grid_options], page_deadline)
+                                        '--title', 'page', '--side-marks', *yul_options, *grid_options],
+                               page_deadline)
                     if recoverable_grid_failure(run):
                         log.info('jeongganbo-scan page=%d scale=%s grid retry: %s', i, scale, _last_line(run.stderr))
                         continue

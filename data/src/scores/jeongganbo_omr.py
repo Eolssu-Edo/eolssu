@@ -25,6 +25,8 @@
     --read-dpi는 칸은 --dpi에서 찾고 율명은 더 높은 해상도로 다시 그린 쪽에서 잘라 모든 정간을 다시 읽는다.
   * --octave-check는 모델이 낸 청태·청황·중청황을 300dpi 그림의 글자 모양으로 다시 가려 중청태·중청황을 고친다
     (octave_check.py, 평균 모양 파일은 그 스크립트로 만든다).
+  * --side-marks는 율명 오른쪽의 작은 시김새 획(물결선·`)`·`^`·`И`)을 모양으로 찾아 토큰에 붙이거나, 모델이 물결선을
+    정악보 이름으로 읽은 것을 고친다(side_marks.py). 바뀐 정간은 cells.json에 modelText·sideMarks를 남긴다.
 """
 import argparse
 import json
@@ -36,6 +38,7 @@ from pathlib import Path
 from jeongganbo_grid import fit_columns
 from jeongganbo_tokens import jg_like
 from octave_check import recover_water_register
+from side_marks import mark_cell, unify_short_waves
 
 import cv2
 import numpy as np
@@ -62,6 +65,7 @@ parser.add_argument("--yul", default=None,
                     help="고를 수 있는 율명: 악기 이름(" + ", ".join("danso sogeum jeongak-daegeum".split()) + ") 또는 '중,임,무'처럼 쉼표 목록")
 parser.add_argument("--read-dpi", type=int, default=None, help="율명은 이 해상도로 다시 그린 쪽에서 칸을 잘라 읽는다(예: 300)")
 parser.add_argument("--octave-check", type=Path, default=None, help="청성·중청 글자 평균 모양 파일(octave_check.py로 만든 JSON)")
+parser.add_argument("--side-marks", action="store_true", help="율명 오른쪽의 작은 시김새 획을 모양으로 찾아 붙인다")
 args = parser.parse_args()
 
 pdf, out, omr_dir = args.pdf.resolve(), args.out.resolve(), args.omr_dir.resolve()
@@ -203,12 +207,17 @@ if args.grid_boxes:
     cells = []
     for i, (box, text, confidence) in enumerate(zip(boxes, predictions, confidences)):
         x, y, w, h = (box[k] for k in ('x', 'y', 'w', 'h'))
-        text = recover_water_register(text, gray[y:y + h, x:x + w])
+        cell = dict(text=recover_water_register(text, gray[y:y + h, x:x + w]))
+        if args.side_marks:
+            mark_cell(cell, gray[y:y + h, x:x + w])
         inner = gray[y + h * 15 // 100:y + h * 85 // 100, x + w * 15 // 100:x + w * 85 // 100]
-        cells.append(dict(text=text, jg=jg_like(text), conf=round(float(confidence), 3),
+        cells.append(dict(cell, jg=jg_like(cell['text']), conf=round(float(confidence), 3),
                           x=x, y=y, w=w, h=h, gak=i // beats, jeonggan=i % beats,
                           ink=round(float((inner < 160).mean()), 4) if inner.size else 0,
                           **{k: True for k in ('split', 'filled') if box.get(k)}))
+    if args.side_marks and unify_short_waves(cells):
+        for cell in cells:
+            cell['jg'] = jg_like(cell['text'])
     title = args.title or pdf.stem
     (out / 'cells.json').write_text(json.dumps(dict(title=title, image='page.png', beats=beats, cells=cells),
                                               ensure_ascii=False, indent=1), encoding='utf-8')
@@ -281,7 +290,12 @@ source_image = cv2.imread(str(png), cv2.IMREAD_GRAYSCALE)
 for i, c in enumerate(ordered):
     x, y, w, h = (c[k] for k in ('x', 'y', 'w', 'h'))
     c['text'] = recover_water_register(c['text'], source_image[y:y + h, x:x + w])
+    if args.side_marks:
+        mark_cell(c, source_image[y:y + h, x:x + w])
     c["jg"], c["gak"], c["jeonggan"] = jg_like(c["text"]), i // args.beats, i % args.beats
+if args.side_marks and unify_short_waves(ordered):
+    for c in ordered:
+        c["jg"] = jg_like(c["text"])
 if args.octave_check:
     oct_png = out / "page-read.png"
     if args.read_dpi != 300:
