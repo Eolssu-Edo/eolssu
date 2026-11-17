@@ -89,6 +89,15 @@ private fun JsonObject.hasEnd() = "end_gak" in this || "end_cell" in this
  * 조금 빠르게·느리게는 공유 계획에 시작 항목과 끝 다음 정간의 복귀 항목(기호 없는 즉시 변경)으로 저장한다.
  * 읽을 때 복귀 항목을 다시 한 구간으로 합친다. 복귀 항목이 없으면 다음 변경 또는 악보 끝까지를 구간으로 본다.
  */
+/**
+ * 정간 위치에 묶인 빠르기·반복 계획이 실제로 있는지 본다. 구간을 모두 지워 빈 performancePlan만 남았을 때
+ * 정간·장단 도구를 막지 않는다(S15P31E102-1080). 반복 구간도 각 번호에 묶이므로 함께 본다.
+ */
+internal fun JsonObject?.hasPositionedTempoPlan(): Boolean {
+    val plan = this?.get("performancePlan") as? JsonObject ?: return false
+    return plan.objects("tempos").isNotEmpty() || plan.objects("repeats").isNotEmpty()
+}
+
 internal val SheetDraft.tempoChanges: List<SheetTempoChange> get() {
     val marks = tempoMarks
     val entries = tempoEntries

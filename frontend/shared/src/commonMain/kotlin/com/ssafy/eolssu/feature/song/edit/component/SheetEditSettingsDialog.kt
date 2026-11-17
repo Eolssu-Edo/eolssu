@@ -176,7 +176,9 @@ internal fun SheetEditSettingsDialog(
                         EolssuButton(stringResource(Res.string.sheet_tempo_remove), {
                             error = current.tempoDeletionError(cue.cell)
                             if (error == null) { working = current.withoutTempoChange(cue.cell); editing = false }
-                        }, Modifier.weight(1f), style = EolssuButtonStyle.Text, small = true, enabled = !saving, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_07)
+                        // 수정과 같은 테두리 버튼으로 맞추고 글자만 빨갛게 둬 지우는 동작임을 알린다(S15P31E102-1080).
+                        }, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, small = true, enabled = !saving,
+                            contentColor = EolssuTheme.colors.rec, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_07)
                     }
                 }
             }

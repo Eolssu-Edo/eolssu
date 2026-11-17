@@ -237,11 +237,15 @@ data class SheetDraft(
         }
     }
 
-    /** 고른 소박에 [value]가 없으면 끝에 붙이고(최대 [MAX_SIGIMSAE]개), 있으면 뗀다. 율명이 아닌 소박은 그대로다. */
+    /**
+     * 고른 소박에 [value]가 없으면 끝에 붙이고(최대 [MAX_SIGIMSAE]개), 있으면 뗀다. 율명이 아닌 소박은 그대로다.
+     * 음원 생성기가 함께 해석하지 못하는 시김새는 새로 고른 것으로 바꾼다(S15P31E102-1080).
+     */
     fun toggleSigimsae(index: Int, value: Sigimsae, sub: Int = 0): SheetDraft {
         val current = sigimsaeAt(index, sub)
+        val kept = current.filter { it.name == value.name || sigimsaeCompatible(it.name, value.name) }
         val next = if (current.any { it.name == value.name }) current.filterNot { it.name == value.name }
-            else if (current.size >= MAX_SIGIMSAE) return this else current + value
+            else if (kept.size >= MAX_SIGIMSAE) return this else kept + value
         return withSigimsae(index, next, sub)
     }
 
