@@ -11,6 +11,26 @@ from . import expressions as expr, preview
 from .score import midi_tempo, require, ticks
 
 
+class SymbolRejected(ValueError):
+    """A sigimsae on one written event cannot be rendered; the app fixes that cell."""
+
+    def __init__(self, event_id, symbols, error):
+        super().__init__(str(error))
+        reason = str(error).rpartition(': ')[2]
+        self.details = {'reason': 'SIGIMSAE_UNRENDERABLE', 'eventId': event_id,
+                        'symbols': list(symbols)[:8], 'message': reason[:200]}
+
+
+def _symbol_step(slot, symbols, step):
+    """Attribute a failing symbol-dependent step to its event; plain notes keep their error."""
+    try:
+        return step()
+    except ValueError as error:
+        if not symbols or isinstance(error, SymbolRejected):
+            raise
+        raise SymbolRejected(slot['eventId'], symbols, error) from error
+
+
 def compile_slots(source, base_score, base_map, slots, config, continuations):
     instrument = source['score']['instrument'].lower().replace('_', '-')
     hwang = base_map['hwang_midi']
@@ -35,8 +55,10 @@ def compile_slots(source, base_score, base_map, slots, config, continuations):
         gak, cell, row, unit = slot['location']
         label = f"{slot['eventId']} · {slot['cellId']} ({row-1},{slot['col']})"
         group = {'kind': slot['kind'], 'symbols': []}
+        written_symbols = [raw.partition('@')[0] for raw, _ in slot['symbols']]
         for raw, name in slot['symbols']:
-            expr.add_symbol(group, name, raw.partition('@')[0], instrument, preview.MODE, label)
+            _symbol_step(slot, [raw.partition('@')[0]], lambda: expr.add_symbol(
+                group, name, raw.partition('@')[0], instrument, preview.MODE, label))
         width = slot['writtenDuration'] * group.get('weight', 1)
         duration = expr.performed_duration(width, group)
         ticks(duration)
@@ -56,22 +78,25 @@ def compile_slots(source, base_score, base_map, slots, config, continuations):
                 active_event == slot['eventId'] or crosses):
             target = notes[sustain_index]
             require(not target.get('breath_seconds'), f'{label}: 숨표 뒤의 연장은 명시한 새 음이 필요합니다')
-            expr.validate_sustain_effects(target, group, label)
+            _symbol_step(slot, written_symbols,
+                         lambda: expr.validate_sustain_effects(target, group, label))
             target['duration'] = str(Fraction(target['duration']) + duration)
             delay = float(cursor - sustain_start) * 60 / quarter_bpm
-            expr.apply_effects(target, group, label, delay, profile, policy,
-                               locations[target['id']][0].get('written_pitch_shift_semitones', 0))
+            _symbol_step(slot, written_symbols, lambda: expr.apply_effects(
+                target, group, label, delay, profile, policy,
+                locations[target['id']][0].get('written_pitch_shift_semitones', 0)))
             locations[target['id']].append(loc)
             active_event, active_gak = slot['eventId'], gak
         elif group['kind'] in ('rest', 'hold'):
-            require(not expr.has_effects(group, include_fermata=False), f'{label}: 표현을 적용할 앞 본음이 없습니다')
+            _symbol_step(slot, written_symbols, lambda: require(
+                not expr.has_effects(group, include_fermata=False), f'{label}: 표현을 적용할 앞 본음이 없습니다'))
             notes.append({'id': nid, 'duration': str(duration), 'rest': True})
             locations[nid] = [loc]
         else:
             pitch = slot['pitch'] + group.get('semitone_offset', 0)
-            expanded, target, offset, _, timing = expr.ornament_notes(
-                group, pitch, hwang, scale, duration, nid, label,
-                notation_policy=preview.MODE, profile=profile, policy=policy)
+            expanded, target, offset, _, timing = _symbol_step(slot, written_symbols,
+                lambda: expr.ornament_notes(group, pitch, hwang, scale, duration, nid, label,
+                                            notation_policy=preview.MODE, profile=profile, policy=policy))
             if timing:
                 loc['grace_timing'] = timing
             sustain_index, sustain_start = len(notes) + target, cursor + offset
