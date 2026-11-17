@@ -157,7 +157,8 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
  * 연습·연주 평가·연주 중은 같은 화면이므로 악보 자리 높이를 하나로 둔다(S15P31E102-1027). 그러지 않으면 화면이 작은 기기에서
  * 남은 높이로 정간 크기를 다시 계산해, 페이지를 옮기거나 연주를 시작할 때 정간 크기와 위치가 바뀐다.
  * 위 여백·제목 줄 높이·제목 아래 간격은 상태와 관계없이 같고, 하단은 플레이어와 평가·녹음 막대 중 높은 쪽만큼 늘 비워 둔다
- * ([PracticeCompactBottom]). 운지법과 함께 보기만 자리를 아끼려고 위 여백을 줄인다.
+ * ([PracticeCompactBottom]). 위 여백은 운지법을 켜고 꺼도 같게 둬 곡 제목 줄이 움직이지 않게 한다(S15P31E102-1101).
+ * 운지법과 함께 보기는 제목 아래 간격만 줄여 자리를 아낀다.
  */
 @Composable
 private fun PracticeCompactLayout(
@@ -186,7 +187,7 @@ private fun PracticeCompactLayout(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .padding(start = 20.dp, end = 20.dp, top = if (fingering) 8.dp else 18.dp, bottom = 12.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 12.dp),
             ) {
                 PracticeTitleRow(
                     state,
