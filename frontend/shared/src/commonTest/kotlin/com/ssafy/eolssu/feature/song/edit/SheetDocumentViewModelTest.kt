@@ -30,7 +30,7 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         val model = open()
         runCurrent()
         model.updateTempoSettings(model.uiState.value.draft.withTempoChange(
-            SheetTempoChange(1, com.ssafy.eolssu.core.model.HanbaeMark.Faster, 120.0)).copy(bpm = 90))
+            SheetTempoChange(1, com.ssafy.eolssu.core.model.HanbaeMark.Faster, 120.0, 3)).copy(bpm = 90))
         model.saveDraft(); runCurrent()
         assertNotNull(stored?.expressions)
         val reopened = open()

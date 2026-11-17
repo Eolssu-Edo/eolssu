@@ -73,7 +73,9 @@ internal fun SheetEditSettingsDialog(
     val current = working.copy(bpm = validBpm ?: working.bpm)
     val changes = current.tempoChanges
     val mark = HanbaeMark.entries.firstOrNull { it.name == markName }
-    val needsEnd = mark?.gradual ?: gradual
+    val needsEnd = mark?.needsEnd ?: gradual
+    // 조금 빠르게·느리게의 끝 각·정간은 마지막으로 그 빠르기를 쓰는 정간이다. 내부 끝은 그다음 정간 시작이다.
+    val spanEnd = mark?.span == true
     fun position(g: String, c: String, terminal: Boolean = false): Int? {
         val gak = g.toIntOrNull() ?: return null
         val cell = c.toIntOrNull() ?: return null
@@ -91,7 +93,7 @@ internal fun SheetEditSettingsDialog(
         gradual = cue?.endCell != null
         target = cue?.targetBpm?.let { if (it == it.roundToInt().toDouble()) it.roundToInt().toString() else it.toString() }.orEmpty()
         initialBpm = cue?.startBpm
-        val end = cue?.endCell
+        val end = cue?.endCell?.let { if (cue.mark?.span == true) it - 1 else it }
         endGak = end?.let { if (it == current.cells.size) current.columnCount + 1 else current.columnOf(it) + 1 }?.toString().orEmpty()
         endCell = end?.let { if (it == current.cells.size) 1 else current.rowOf(it) + 1 }?.toString().orEmpty()
         editing = true; error = null
@@ -111,7 +113,9 @@ internal fun SheetEditSettingsDialog(
             // 수정 중인 구간은 연두 바탕·테두리로 강조하고, 입력판을 그 항목 안에 붙여 대상이 분명하게 보이게 한다.
             val tempoForm: @Composable ColumnScope.() -> Unit = {
                 Text(stringResource(Res.string.sheet_tempo_kind), style = MaterialTheme.typography.labelLarge)
-                (listOf<HanbaeMark?>(null) + HanbaeMark.entries).chunked(2).forEach { pair ->
+                // 본래 속도로는 새로 넣지 않는다. 기존·인식 기호를 고칠 때만 그대로 보인다(S15P31E102-1082).
+                (listOf<HanbaeMark?>(null) + HanbaeMark.entries.filter { it != HanbaeMark.Original || mark == HanbaeMark.Original })
+                    .chunked(2).forEach { pair ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         pair.forEach { choice -> EolssuButton(choice?.label ?: stringResource(Res.string.sheet_tempo_numeric),
                             { markName = choice?.name; if (choice == HanbaeMark.Original) target = bpm; error = null }, Modifier.weight(1f),
@@ -134,12 +138,13 @@ internal fun SheetEditSettingsDialog(
                         EolssuTextField(endGak, { endGak = it; error = null }, stringResource(Res.string.sheet_tempo_end_gak), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = gakDigits, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_FIELD_05)
                         EolssuTextField(endCell, { endCell = it; error = null }, stringResource(Res.string.sheet_tempo_end_cell), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = cellDigits, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_FIELD_06)
                     }
-                    Text(stringResource(Res.string.sheet_tempo_end_help), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(if (spanEnd) Res.string.sheet_tempo_span_end_help else Res.string.sheet_tempo_end_help), style = MaterialTheme.typography.bodySmall)
                 }
                 error?.let { Text(it, color = EolssuTheme.colors.rec, style = MaterialTheme.typography.bodySmall) }
                 EolssuButton(stringResource(Res.string.sheet_tempo_keep_change), {
                     val start = position(startGak, startCell)
-                    val finish = if (needsEnd) position(endGak, endCell, terminal = true) else null
+                    val finish = if (!needsEnd) null else if (spanEnd) position(endGak, endCell)?.plus(1)
+                        else position(endGak, endCell, terminal = true)
                     val value = if (mark == HanbaeMark.Original) validBpm?.toDouble() else target.takeIf { it.isNotBlank() }?.toDoubleOrNull()
                     if (start == null || (target.isNotBlank() && value == null) || (needsEnd && value != null && finish == null)) {
                         error = "실제 정간과 목표 빠르기, 끝 위치를 확인해 주세요."
@@ -159,7 +164,7 @@ internal fun SheetEditSettingsDialog(
                             Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                         if (active) EditingBadge(stringResource(Res.string.sheet_tempo_editing))
                     }
-                    Text(if (cue.resolved) (cue.endCell?.let { "${positionLabel(it)}까지 · " }.orEmpty() +
+                    Text(if (cue.resolved) (cue.endCell?.let { "${positionLabel(if (cue.mark?.span == true) it - 1 else it)}까지 · " }.orEmpty() +
                         cue.startBpm?.takeIf { cue.endCell != null }?.let { "${if (it == it.roundToInt().toDouble()) it.roundToInt() else it} → " }.orEmpty() +
                         "${cue.targetBpm?.let { if (it == it.roundToInt().toDouble()) it.roundToInt() else it }} ${draft.tempoUnitLabel}/분")
                         else stringResource(Res.string.sheet_tempo_unresolved), style = MaterialTheme.typography.bodySmall)

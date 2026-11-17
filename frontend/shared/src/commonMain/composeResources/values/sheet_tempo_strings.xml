@@ -18,6 +18,7 @@
     <string name="sheet_tempo_end_gak">끝 각</string>
     <string name="sheet_tempo_end_cell">끝 정간</string>
     <string name="sheet_tempo_end_help">끝 정간에서 바꿀 빠르기가 돼요.</string>
+    <string name="sheet_tempo_span_end_help">끝 정간까지 이 빠르기로 연주하고, 다음 정간부터 앞 빠르기로 돌아가요.</string>
     <string name="sheet_tempo_keep_change">이대로 넣기</string>
     <string name="sheet_tempo_editing">수정 중</string>
     <string name="sheet_tempo_new">새로 바뀌는 곳</string>
