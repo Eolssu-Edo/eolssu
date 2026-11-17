@@ -65,11 +65,8 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
         // 나누기·합치기는 칸 경계를 바꾸지 않아 허용한다(S15P31E102-1091). 각 추가·삭제만 위치를 옮겨 막는다.
         assertEquals(listOf(timed.draft.cells[0].first()), timed.merge().draft.cells[0])
         assertEquals(2, timed.select(1).split().draft.cells[1].size)
-        listOf(timed.addColumn(), timed.deleteColumn()).forEach { changed ->
-            assertEquals(timed.draft, changed.draft, "구간 빠르기 위치를 보존한다")
-            assertNotNull(changed.message)
-            assertFalse(changed.canUndo)
-        }
+        // 각 추가·삭제도 실제 빠르기 구간이 걸친 각만 막는다(S15P31E102-1095). 이 상태에는 계획 항목이 없다.
+        assertNotEquals(timed.draft, timed.addColumn().draft)
         assertNotEquals(timed.draft, timed.selectUnit(0, 1).putYul(Yul.Taeju).draft)
         assertEquals(120, timed.updateDetails("검사", 120).draft.bpm)
         assertNotEquals(timed.draft, timed.copy(hasTempoPlan = false).addColumn().draft)

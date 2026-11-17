@@ -74,4 +74,43 @@ class SheetExpressionsTests {
         (split.path("music") as tools.jackson.databind.node.ObjectNode).put("ticksPerBeat", 2).put("ticksPerJeonggan", 2)
         expressions.prepare(companion, original, json.writeValueAsString(split), 100, 100)
     }
+
+    @Test fun `a companion bound to the request score may follow added gak but its coordinates must exist (S15P31E102-1095)`() {
+        val original = checkNotNull(javaClass.getResource("/tempo-authoring/four-notes.json")).readText()
+        val grown = json.readTree(original)
+        val column = (grown.path("columns")[0] as tools.jackson.databind.node.ObjectNode).deepCopy().put("index", 1)
+        column.path("cells").forEachIndexed { j, cell ->
+            (cell as tools.jackson.databind.node.ObjectNode).put("id", "c1-j$j")
+            (cell.path("units")[0] as tools.jackson.databind.node.ObjectNode).put("eventId", "c1-j$j-r0-u0")
+        }
+        (grown.path("columns") as tools.jackson.databind.node.ArrayNode).add(column)
+        grown.path("events").toList().forEachIndexed { i, event ->
+            (grown.path("events") as tools.jackson.databind.node.ArrayNode).add((event as tools.jackson.databind.node.ObjectNode).deepCopy()
+                .put("id", "c1-j$i-r0-u0").put("cellId", "c1-j$i").put("startTick", event.path("startTick").asLong() + 4))
+        }
+        val request = json.writeValueAsString(grown)
+        fun companion(binding: String, tempos: String) =
+            """{"schema":"common-score-expressions/v1","sourceSha256":"$binding","placements":[],"performancePlan":{"schema":"danso-performance/v1","input_sha256":"$binding","tempos":$tempos,"repeats":[{"start_gak":2,"end_gak":2,"times":2}]}}"""
+        val requestHash = expressions.hash(request)
+        val remapped = companion(requestHash, """[{"gak":2,"cell":3,"bpm":80},{"gak":1,"cell":2,"bpm":120,"end_gak":3,"end_cell":1}]""")
+        val result = json.readTree(expressions.prepare(remapped, original, request, 100, 100, requestScore = request))
+        assertEquals(expressions.hash(request), result.path("performancePlan").path("input_sha256").asString())
+        assertEquals(listOf(2, 1), result.path("performancePlan").path("tempos").toList().map { it.path("gak").asInt() })
+
+        assertFailsWith<SheetExpressionPositionChanged> {
+            expressions.prepare(companion(requestHash, """[{"gak":3,"cell":1,"bpm":80}]"""), original, request, 100, 100, requestScore = request)
+        }
+        assertFailsWith<SheetExpressionPositionChanged> {
+            expressions.prepare(companion(requestHash, """[{"gak":2,"cell":5,"bpm":80}]"""), original, request, 100, 100, requestScore = request)
+        }
+        // 확정본에 결합한 옛 앱의 계획은 각이 늘면 지금처럼 거절한다.
+        val originalHash = expressions.hash(original)
+        assertFailsWith<SheetExpressionPositionChanged> {
+            expressions.prepare(companion(originalHash, """[{"gak":1,"cell":3,"bpm":80}]""").replace(""""start_gak":2,"end_gak":2""", """"start_gak":1,"end_gak":1"""),
+                original, request, 100, 100, requestScore = request)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            expressions.prepare(companion("b".repeat(64), "[]"), original, request, 100, 100, requestScore = request)
+        }
+    }
 }

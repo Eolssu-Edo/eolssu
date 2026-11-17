@@ -509,7 +509,6 @@ class SheetEditViewModel(
                         // 큰 악보의 본문 만들기·해시·JSON 직렬화가 화면 스레드를 멈추지 않도록 저장 작업 스레드에서 한다.
                         // 작업 스레드에서는 화면 상태를 바꾸지 않도록 필요한 값을 먼저 읽어 둔다.
                         val baseExpressions = expressions
-                        val baseSourceSha256 = expressionSourceSha256
                         val baseExpressionsBpm = expressionsBpm
                         val baseVersion = version
                         val baseRevision = revision
@@ -519,11 +518,7 @@ class SheetEditViewModel(
                             val score = snapshot.draft.toCommonScore()
                             if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
                             SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
-                                snapshot.draft.bpm, score, baseVersion, baseRevision, resolvedIds, authoring = snapshot.draft.authoringForSave(score.score.instrument), expressions = snapshot.draft.exportExpressions(baseExpressions,
-                                    (baseExpressions?.get("sourceSha256") as? kotlinx.serialization.json.JsonPrimitive)?.content
-                                        ?: baseSourceSha256
-                                        ?: com.ssafy.eolssu.data.song.commonSourceSha256(kotlinx.serialization.json.Json.encodeToJsonElement(requireNotNull(snapshot.draft.original))),
-                                    baseExpressionsBpm))
+                                snapshot.draft.bpm, score, baseVersion, baseRevision, resolvedIds, authoring = snapshot.draft.authoringForSave(score.score.instrument), expressions = snapshot.draft.exportExpressions(baseExpressions, baseExpressionsBpm))
                         }
                         val attempt = if (draft) DraftSave(snapshot.draft, copy) else null
                         val result = try {
