@@ -34,13 +34,17 @@ export class AdbPhone {
       const actual=(await this.execute([...selection,'shell','getprop','ro.serialno'])).trim();
       if(!/^[A-Za-z0-9_-]{4,80}$/.test(actual)||(this.identity&&actual!==this.identity))throw Error('selected device identity mismatch');
       this.identity=actual;this.transportId=transport;return selection;
-    })().catch(error=>{this.transportId=null;this.size=null;throw error;}).finally(()=>{this.bindingTask=null;});
+    })().catch(error=>{
+      // Every command re-verifies ro.serialno, so only a different device invalidates the screen geometry.
+      this.transportId=null;if(error.message==='selected device identity mismatch')this.size=null;throw error;
+    }).finally(()=>{this.bindingTask=null;});
     return this.bindingTask;
   }
   async run(args, binary = false, timeout = 3000) {
     const selection=await this.deviceArgs();
     try{return await this.execute([...selection,...args],binary,timeout);}
-    catch(error){this.transportId=null;this.size=null;throw error;}
+    // A timed-out probe (for example the video heartbeat under load) must not silently disable input.
+    catch(error){this.transportId=null;throw error;}
   }
   async applog(request, expectedIdentity) {
     const deadline = performance.now() + 7000;
