@@ -11,12 +11,14 @@ class SheetTempoPlanLockTest {
     @Test fun deletingTheLastTempoChangeUnlocksCellTools() {
         val added = state().updateTempoSettings(state().draft.withTempoChange(SheetTempoChange(1, null, 120.0)))
         assertTrue(added.hasTempoPlan)
-        assertEquals(SheetEditMessage.TempoPlanBeforeReshape, added.split().message)
+        // 나누기·합치기는 S15P31E102-1091부터 허용하고 각 추가·삭제만 막는다.
+        assertEquals(SheetEditMessage.TempoPlanBeforeReshape, added.addColumn().message)
+        assertNotEquals(SheetEditMessage.TempoPlanBeforeReshape, added.split().message)
 
         val removed = added.updateTempoSettings(added.draft.withoutTempoChange(1))
         assertTrue(removed.draft.tempoExpressions?.containsKey("performancePlan") == true)
         assertFalse(removed.hasTempoPlan)
-        assertNotEquals(SheetEditMessage.TempoPlanBeforeReshape, removed.split().message)
+        assertNotEquals(SheetEditMessage.TempoPlanBeforeReshape, removed.addColumn().message)
     }
 
     @Test fun onlyPositionedTempoOrRepeatEntriesCountAsAPlan() {

@@ -58,14 +58,13 @@ class SheetExpressions(private val json: JsonMapper) {
         return json.writeValueAsString(value)
     }
 
-    /** Cue coordinates refer to written cells. Pitch, marks and version may change; their grid may not. */
-    private fun positions(score: JsonNode): List<Any> = listOf(
-        listOf("bpmUnit", "ticksPerBeat", "ticksPerJeonggan").map { score.path("music").path(it).toString() },
+    /**
+     * Cue coordinates are (gak, cell) and marks are bound by cell id. Splitting or merging inside a cell and a jangdan
+     * retiming (tick ratio, BPM unit) keep every cell in place, so only the cell grid is compared (S15P31E102-1091).
+     * Adding or removing gak or cells still moves the coordinates and is rejected.
+     */
+    private fun positions(score: JsonNode): List<Any> =
         score.path("columns").toList().map { column -> listOf(column.path("index").toString(), column.path("cells").toList().map { cell ->
-            listOf(cell.path("id").toString(), cell.path("index").toString(), cell.path("units").toList().map { unit ->
-                listOf("row", "col", "eventId").map { unit.path(it).toString() }
-            })
-        }) },
-        score.path("events").toList().map { event -> listOf("id", "cellId", "startTick", "durationTick").map { event.path(it).toString() } },
-    )
+            listOf(cell.path("id").toString(), cell.path("index").toString())
+        }) }
 }

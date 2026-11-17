@@ -56,6 +56,8 @@ import eolssu.shared.generated.resources.sheet_discard_close
 import eolssu.shared.generated.resources.sheet_keep_editing
 import eolssu.shared.generated.resources.sheet_review_before_reshape
 import eolssu.shared.generated.resources.sheet_tempo_before_reshape
+import eolssu.shared.generated.resources.sheet_tempo_mark_before_merge
+import eolssu.shared.generated.resources.sheet_tempo_out_of_range_after_jangdan
 import eolssu.shared.generated.resources.sheetedit_jangdan_unavailable
 import eolssu.shared.generated.resources.sheetedit_msg_draft
 import eolssu.shared.generated.resources.sheetedit_msg_saved
@@ -130,6 +132,8 @@ fun SheetEditRoute(
         SheetEditMessage.ReviewBeforeReshape to stringResource(Res.string.sheet_review_before_reshape),
         SheetEditMessage.JangdanUnavailable to stringResource(Res.string.sheetedit_jangdan_unavailable),
         SheetEditMessage.TempoPlanBeforeReshape to stringResource(Res.string.sheet_tempo_before_reshape),
+        SheetEditMessage.TempoMarkBeforeMerge to stringResource(Res.string.sheet_tempo_mark_before_merge),
+        SheetEditMessage.TempoOutOfRangeAfterJangdan to stringResource(Res.string.sheet_tempo_out_of_range_after_jangdan),
         SheetEditMessage.BasicAccompanimentCleared to stringResource(Res.string.basic_accompaniment_cleared_after_reshape),
         SheetEditMessage.SigimsaeReplaced to stringResource(Res.string.sheetedit_sig_replaced),
         SheetEditMessage.PitchUnavailable to stringResource(Res.string.sheetedit_pitch_unavailable),
@@ -365,8 +369,7 @@ fun SheetEditRoute(
     }
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
-            onSelect = viewModel::selectJangdan, onClear = viewModel::clearJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker,
-            hasTempoPlan = state.hasTempoPlan)
+            onSelect = viewModel::selectJangdan, onClear = viewModel::clearJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)
     }
     if (state.closeWarning) EolssuDialog(
         title = stringResource(if (state.saveStatus == SheetSaveStatus.DraftFailed) Res.string.sheet_save_auto_failed

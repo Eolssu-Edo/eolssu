@@ -90,6 +90,10 @@ enum class SheetEditMessage {
 
     ReviewBeforeReshape,
     TempoPlanBeforeReshape,
+    /** 한배 기호가 있는 정간을 합치면 기호를 둘 음이 없다. */
+    TempoMarkBeforeMerge,
+    /** 박 길이를 바꾸면 구간 빠르기가 편집 범위를 벗어난다. */
+    TempoOutOfRangeAfterJangdan,
     BasicAccompanimentCleared,
 
     /** 음원 생성기가 함께 해석하지 못하는 시김새를 새로 고른 것으로 바꿨다. */
@@ -207,7 +211,8 @@ data class SheetEditUiState(
             else -> {
                 val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: availableJangdans.orEmpty()
                 val option = options.firstOrNull { it.jangdanId == jangdanId } ?: return this
-                draft.withJangdan(option, preserveTiming = hasTempoPlan)?.withBasicAccompaniment(null)?.copy(bpm = bpm) ?: return this
+                if (draft.jangdanTempoOutOfRange(option)) return copy(message = SheetEditMessage.TempoOutOfRangeAfterJangdan)
+                draft.withJangdan(option)?.withBasicAccompaniment(null)?.copy(bpm = bpm) ?: return this
             }
         }
         return commit(next).copy(jangdanPicker = null, withJangdan = if (jangdanId == null) false else withJangdanFor(next))
@@ -215,9 +220,10 @@ data class SheetEditUiState(
 
     fun selectJangdan(id: String): SheetEditUiState {
         val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: return this
-        val option = options.firstOrNull { it.jangdanId == id && draft.canSelectJangdan(it, hasTempoPlan) } ?: return this
+        val option = options.firstOrNull { it.jangdanId == id && draft.canSelectJangdan(it) } ?: return this
         if (option.jangdanId == draft.jangdanId && option.name == draft.jangdanName && draft.basicAccompaniment == null) return copy(jangdanPicker = null)
-        val next = draft.withJangdan(option, preserveTiming = hasTempoPlan)?.withBasicAccompaniment(null) ?: return this
+        if (draft.jangdanTempoOutOfRange(option)) return copy(jangdanPicker = null, message = SheetEditMessage.TempoOutOfRangeAfterJangdan)
+        val next = draft.withJangdan(option)?.withBasicAccompaniment(null) ?: return this
         return commit(next).copy(jangdanPicker = null)
     }
 
@@ -400,11 +406,15 @@ data class SheetEditUiState(
     }
 
 
-    fun split(): SheetEditUiState = if (hasTempoPlan) copy(message = SheetEditMessage.TempoPlanBeforeReshape)
-        else commit(draft.split(selected), sub = null)
+    /** 나누기·합치기는 정간 경계를 바꾸지 않아 구간 빠르기·반복 위치가 그대로다(S15P31E102-1091). */
+    fun split(): SheetEditUiState = commit(draft.split(selected), sub = null)
 
-    fun merge(): SheetEditUiState = if (hasTempoPlan) copy(message = SheetEditMessage.TempoPlanBeforeReshape)
-        else commit(draft.merge(selected), sub = null)
+    /** 합쳐서 정간이 비면 그 정간의 한배 기호를 둘 음 자리가 없어 막는다. */
+    fun merge(): SheetEditUiState {
+        val merged = draft.merge(selected)
+        if (selected in draft.tempoMarkCells && merged.cells[selected].isEmpty()) return copy(message = SheetEditMessage.TempoMarkBeforeMerge)
+        return commit(merged, sub = null)
+    }
 
     /** 고른 정간의 각 왼쪽에 빈 각을 넣고 새 각의 첫 정간을 고른다. */
     fun addColumn(): SheetEditUiState {
