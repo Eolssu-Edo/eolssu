@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Kotlin Multiplatform", "Android", "음높이", "YIN", "실기기 테스트", "단소"]
 description: "연습 화면의 '한 음씩 따라 불기'에 휴대폰 안 음높이 판정을 붙이고, 첫 음에서 막힌 단소 연주를 기준음과 로그 재생으로 원인까지 가려낸 과정입니다."
 draft: true
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-note-step-practice-on-device-pitch.webp"
 ---
 
 얼쑤의 혼자 연습 화면에는 '한 음씩 따라 불기'가 있습니다. 켜면 악보가 시간에 맞춰 흘러가지 않고, 지금 정간의 음을 맞게 불어야 다음 음으로 넘어갑니다. 토글, 두 칸짜리 패널, 3·2·1 카운트다운까지 화면은 이미 있었습니다. 그런데 판정을 맡는 자리에는 아무것도 듣지 않는 대역이 들어 있었습니다. 다음 음으로 가려면 '맞게 분 것으로 넘기기' 버튼을 직접 눌러야 했습니다.

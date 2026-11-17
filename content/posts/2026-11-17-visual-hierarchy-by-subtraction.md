@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["UI", "디자인 점검", "타이포그래피", "Compose Multiplatform"]
 description: "휴대폰 화면 전체를 점검하며 강조색·굵기·움직임을 덜어내 주 행동과 점수가 먼저 보이게 정리하고, 바꾼 것과 남긴 예외를 항목별로 기록했습니다."
 draft: true
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-visual-hierarchy-by-subtraction.webp"
 ---
 
 기능을 하나씩 붙이다 보면 화면마다 "이건 중요하니까" 하며 강조가 늘어납니다. 연두 채움 버튼, 굵은 제목, 빨간 경고 글자, 계속 떠다니는 그림. 하나하나는 이유가 있었지만, 모아 놓고 보니 무엇을 먼저 봐야 할지 알 수 없는 화면이 됐습니다.

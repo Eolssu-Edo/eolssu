@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Compose Multiplatform", "애니메이션", "LaunchedEffect", "FlingBehavior", "인터랙션"]
 description: "소리 나는 버튼에만 쓰는 눌림 효과, 중간에 끊겨도 끝 상태가 맞는 축하 애니메이션, 짧게 튕겨도 과정이 보이는 홈 화면 펼침까지 Compose 움직임 세 가지를 다듬은 기록입니다."
 draft: true
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-compose-press-cancel-fling-motion.webp"
 ---
 
 움직임은 잘 되면 눈에 띄지 않고, 어긋나면 바로 거슬립니다. 이번에는 얼쑤 앱의 움직임 세 가지를 다듬었습니다. 버튼을 **누를 때**, 애니메이션이 **끊길 때**, 화면을 **튕길 때**입니다. 구현은 AI 코딩 에이전트와 함께 했고, 저는 시안을 비교해 적용 범위와 동작을 정했습니다.

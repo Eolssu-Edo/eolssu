@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Compose Multiplatform", "레이아웃", "SubcomposeLayout", "캐시", "로딩"]
 description: "한 음씩을 켜고 끌 때마다 악보 크기가 바뀌던 문제를 보이지 않는 측정으로 자리를 예약해 고치고, 서버 응답을 기다리던 화면을 이미 가진 데이터로 먼저 보여 주도록 바꾼 과정입니다."
 draft: true
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-compose-reserve-space-and-local-first.webp"
 ---
 
 얼쑤의 연습 화면은 정간보를 남은 높이에 맞춰 그립니다. 위에는 제목 줄, 아래에는 플레이어가 있고, 그 사이 남은 높이로 정간 크기와 한 화면에 들어갈 줄 수를 계산합니다. 이 방식 덕분에 기기마다 악보를 꽉 채워 보여 줄 수 있지만, 아래 칸 높이가 조금만 바뀌어도 악보 전체가 다시 배치됩니다.

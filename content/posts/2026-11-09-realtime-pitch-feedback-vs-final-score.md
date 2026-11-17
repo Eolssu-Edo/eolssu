@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Kotlin Multiplatform", "Android", "음높이", "실시간 피드백", "채점"]
 description: "AI 연주 평가 중 실시간 판정이 왜 화면에 보이지 않았는지 코드 흐름을 따라 점검하고, 실시간 안내와 서버 최종 채점을 왜 구분해야 하는지 정리했습니다."
 draft: true
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-realtime-pitch-feedback-vs-final-score.webp"
 ---
 
 "AI 연주 평가에서 실시간으로 채점되는 기능, 지금 제대로 되고 있을까?" 확인을 시작하면서 저는 아마 안 될 거라고 생각했습니다. 확인해 보니 절반만 맞았습니다. 계산은 이미 되고 있었고, 화면에 보이지 않을 뿐이었습니다. 이 글은 그것을 어떻게 확인했는지, 그리고 화면에 붙이기 전에 무엇을 먼저 구분해야 했는지에 대한 기록입니다. 점검과 정리는 AI 코딩 에이전트와 함께 했고, 저는 질문과 방향을 맡았습니다.

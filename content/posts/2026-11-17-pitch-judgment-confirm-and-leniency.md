@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Kotlin Multiplatform", "음높이", "실시간 피드백", "대금", "판정 기준"]
 description: "실시간 판정 색을 측정이 끝난 뒤에만 칠하도록 바꾸고, 대금의 한 옥타브 낮은 소리를 받아 주는 완화 규칙을 연습 화면과 기초 배우기가 함께 쓰게 만든 과정입니다."
 draft: true
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-pitch-judgment-confirm-and-leniency.webp"
 ---
 
 이 글은 앞서 쓴 두 글의 후속입니다. 「지나간 음이 한꺼번에 틀림으로 바뀌던 실시간 채점」에서는 지나간 음의 판정 색을 고정했습니다. 「단소만 넘어가기 어려웠던 이유, 보이지 않는 빈 창」에서는 한 음씩 연습에 단소용 완화 규칙을 더했습니다.
