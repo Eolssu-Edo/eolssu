@@ -39,7 +39,7 @@ fun NicknameEditScreen(
             placeholder = stringResource(Res.string.my_nickname),
             help = stringResource(Res.string.member_api_nickname_rule),
             error = state.error?.let { stringResource(it.message) },
-            // 가입 닉네임 칸과 같은 글자 수 표시(`4/10`). 10자를 넘기면 `11/10`처럼 그대로 보인다.
+            // 가입 닉네임 칸과 같은 글자 수 표시(`4/10`). 10자에서 더 받지 않고, 규칙 이전의 긴 닉네임만 `12/10`처럼 보인다.
             counter = "${state.nickname.length}/${NicknameRule.MAX_LENGTH}",
             imeAction = ImeAction.Done,
             onImeAction = onSave,

@@ -235,6 +235,8 @@ fun ToggleRow(
  * @param onDismissRequest 바깥(가림막)을 누르거나 뒤로 갈 때. 닫기 버튼 없이 이렇게 닫는 창만 넘긴다.
  * @param iconBackground 아이콘 고리 바탕. 기본 연두 20%(`accentTint`), 경고는 `recSoft`, 완료는 `accentTintStrong`.
  * @param iconTint 아이콘 색. 기본 먹색, 경고는 `recText`.
+ * @param body 설명 아래, 제목과 함께 스크롤되는 내용(입력칸 등). 높이가 바뀌는 내용은 [actions] 대신 여기에 두어야
+ *   내용이 길어지거나 키보드가 올라와도 버튼이 눌려 잘리지 않는다(S15P31E102-1081).
  */
 @Composable
 fun EolssuDialog(
@@ -246,6 +248,7 @@ fun EolssuDialog(
     iconBackground: Color? = null,
     iconTint: Color? = null,
     onDismissRequest: () -> Unit = {},
+    body: (@Composable ColumnScope.() -> Unit)? = null,
     actions: @Composable ColumnScope.() -> Unit,
 ) {
     androidx.compose.runtime.DisposableEffect(Unit) {
@@ -297,6 +300,7 @@ fun EolssuDialog(
                         color = colors.textSub,
                     )
                 }
+                body?.invoke(this)
             }
             Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
         }
