@@ -9,6 +9,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
 import kotlinx.serialization.Serializable
+import kotlin.time.Instant
 
 /** SHT-10 `status`. 접수 뒤 QUEUED → RUNNING → DONE/FAILED 순서로 바뀐다. */
 enum class SheetConversionStatus {
@@ -89,6 +90,8 @@ enum class SheetConversionFailure {
  * @property issueCount DONE일 때 확인이 남은 정간 수. 그 밖에는 null.
  * @property retryable FAILED이고 서버가 같은 원본으로 다시 시도할 수 있다고 답했을 때만 true(SHT-14).
  *   원본을 보관하지 않는 지금 서버는 항상 false라 새 파일로 다시 불러와야 한다.
+ * @property startedAtMs 서버가 이번 변환을 읽기 시작한(RUNNING이 된) 시각, 기준 시점(epoch) 밀리초. 대기 중이거나 모르면 null.
+ *   진행 막대가 화면에 들어온 때가 아니라 실제 시작부터 시간을 세는 데 쓴다(S15P31E102-1099).
  */
 data class SheetConversion(
     val sheetId: String,
@@ -101,6 +104,7 @@ data class SheetConversion(
     val failure: SheetConversionFailure? = null,
     val retryable: Boolean = false,
     val notation: SheetNotation? = null,
+    val startedAtMs: Long? = null,
 )
 
 /** SHT-10 결과. */
@@ -185,6 +189,7 @@ private class ConversionDto(
     val issueCount: Int? = null,
     val failureCode: String? = null,
     val retryable: Boolean = false,
+    val startedAt: String? = null,
 ) {
     fun toModel(): SheetConversion? {
         val status = SheetConversionStatus.fromCode(status) ?: return null
@@ -200,6 +205,7 @@ private class ConversionDto(
             failure = if (status == SheetConversionStatus.Failed) SheetConversionFailure.fromCode(failureCode) else null,
             retryable = status == SheetConversionStatus.Failed && retryable,
             notation = SheetNotation.fromCode(notation),
+            startedAtMs = startedAt?.takeIf { status.inProgress }?.let { runCatching { Instant.parse(it).toEpochMilliseconds() }.getOrNull() },
         )
     }
 }

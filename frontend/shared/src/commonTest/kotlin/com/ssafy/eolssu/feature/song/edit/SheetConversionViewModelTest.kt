@@ -99,6 +99,20 @@ internal class SheetConversionViewModelTest : CatalogViewModelTest() {
     }
 
     @Test
+    fun readingTimeCountsFromTheServerStartWhenTheScreenOpensLate() = runTest {
+        // 이미 1분 넘게 읽던 변환에 들어와도 막대가 처음부터 다시 차지 않는다(S15P31E102-1099).
+        val conversions = Conversions().apply {
+            answers += SheetConversionLookup.Found(SheetConversion("7", SheetConversionStatus.Running, SheetConversionStage.Recognizing,
+                pageCount = 2, pollAfterMs = 2_000, notation = SheetNotation.Staff, startedAtMs = 500_000))
+        }
+        val model = keep(SheetConversionViewModel("7", conversions, Sheets(), clockMs = { currentTime },
+            wallClockMs = { 570_000 + currentTime }))
+        model.watch(); runCurrent()
+        assertEquals(70_000, model.uiState.value.readingElapsedMs)
+        model.stop()
+    }
+
+    @Test
     fun failureStopsPollingAndCarriesTheNotationSpecificGuide() = runTest {
         val conversions = Conversions().apply { answers += found(SheetConversionStatus.Failed, failure = SheetConversionFailure.NoScoreFound) }
         val model = model(conversions)
