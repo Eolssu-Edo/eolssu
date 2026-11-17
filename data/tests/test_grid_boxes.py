@@ -202,6 +202,21 @@ class GridAddressTests(unittest.TestCase):
         cells = self.addresses(classroom(jangdan=True, open_lyric=True, jangdan_lines_cross_lyric=True)[0])
         self.assertEqual([(c['col'], c['row']) for c in cells], [(col, row) for col in range(3) for row in range(6)])
 
+    def test_shorter_score_beside_another_is_not_taken_for_a_jangdan_table(self):
+        # 나란한 두 악보는 서비스가 읽지 않는다(덩어리 둘). 오른쪽 악보가 짧아도 장단표로 지워 하나로 만들지 않는다.
+        left, right = classroom(gaks=2)[0], classroom(gaks=1)[0]
+        g = np.full((left.shape[0], left.shape[1] + right.shape[1]), 255, np.uint8)
+        g[:, :left.shape[1]] = left
+        g[:right.shape[0], left.shape[1]:] = right
+        self.assertEqual([len(block[0]) for block in find_grid(g)], [18, 9])
+
+    def test_shorter_last_column_on_the_left_is_not_taken_for_a_jangdan_table(self):
+        # 곡 끝의 짧은 열은 왼쪽 끝에 있다. 위가 맞닿은 짧은 단이어도 장단표가 아니다.
+        g, notes, top, pitch = classroom()
+        x0, x1 = notes[2]
+        g[top + pitch * 3 + 8:top + pitch * 6 + 8, x0 - 2:x1 - 4] = 255
+        self.assertIn(3, [len([c for c in block[0] if c['x'] < x1 - 5]) for block in find_grid(g)])
+
     def test_lyric_column_open_on_the_right_still_marks_its_note_column(self):
         cells = self.addresses(classroom(jangdan=True, open_lyric=True)[0])
         self.assertEqual(len(cells), 18)
