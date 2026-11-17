@@ -73,6 +73,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -91,6 +92,7 @@ import com.ssafy.eolssu.feature.song.edit.BaseYuls
 import com.ssafy.eolssu.feature.song.edit.EditTab
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.Sigimsae
+import com.ssafy.eolssu.feature.song.edit.sigimsaeConflicts
 import com.ssafy.eolssu.feature.song.edit.YulRegister
 import eolssu.shared.generated.resources.sheet_tempo_before_reshape
 import com.ssafy.eolssu.feature.song.edit.isAvailablePitch
@@ -115,6 +117,8 @@ import eolssu.shared.generated.resources.sheetedit_register_cheong
 import eolssu.shared.generated.resources.sheetedit_register_base
 import eolssu.shared.generated.resources.sheetedit_register_tak
 import eolssu.shared.generated.resources.sheetedit_sig_chuseong
+import eolssu.shared.generated.resources.sheetedit_sig_conflict_description
+import eolssu.shared.generated.resources.sheetedit_sig_conflict_hint
 import eolssu.shared.generated.resources.sheetedit_sig_jeonseong
 import eolssu.shared.generated.resources.sheetedit_sig_limit
 import eolssu.shared.generated.resources.sheetedit_sig_need_pitch
@@ -540,6 +544,7 @@ private fun DrawScope.drawCellPicture(picture: CellPicture, ink: Color, mark: Co
 /**
  * 시김새 탭: 고른 정간에 붙인 시김새 알약(붙인 순서, ×를 누르면 뗌)과 등록된 시김새 전체의 가로 스크롤 목록(누르면 붙이거나 뗌).
  * 나눈 정간은 고른 소박([sub])에 붙인다. 율명이 아닌 소박이나 [SheetDraft.MAX_SIGIMSAE]개를 채운 소박에는 더 붙이지 않는다.
+ * 붙은 것과 함께 쓸 수 없는 시김새는 흐리게 보인다. 누르면 겹치는 것을 빼고 붙이므로 다 찬 소박에서도 누를 수 있다.
  */
 @Composable
 private fun SigimsaeKeys(draft: SheetDraft, selected: Int, sub: Int, actions: EditInputActions) {
@@ -570,12 +575,19 @@ private fun SigimsaeKeys(draft: SheetDraft, selected: Int, sub: Int, actions: Ed
             LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
                 itemsIndexed(Sigimsae.entries, key = { _, value -> value.name }) { _, value ->
                     val order = added.indexOfFirst { it.name == value.name }
-                    SigimsaeCard(value, order, enabled = hasPitch && (order >= 0 || !full)) { actions.onToggleSigimsae(value) }
+                    // 함께 쓸 수 없는 것은 흐리게 두되 누를 수 있다. 누르면 겹치는 것을 빼고 붙이며 무엇을 뺐는지 알린다.
+                    // 흐린 율명을 눌러도 이유를 알리는 것과 같은 방식이다(S15P31E102-1080·1097).
+                    val conflicting = order < 0 && sigimsaeConflicts(added, value).isNotEmpty()
+                    SigimsaeCard(value, order, conflicting,
+                        enabled = hasPitch && (order >= 0 || !full || conflicting)) { actions.onToggleSigimsae(value) }
                 }
             }
             ScrollFades(listState)
         }
         if (full) HintText(stringResource(Res.string.sheetedit_sig_limit, SheetDraft.MAX_SIGIMSAE))
+        if (hasPitch && added.isNotEmpty() && Sigimsae.entries.any { sigimsaeConflicts(added, it).isNotEmpty() }) {
+            HintText(stringResource(Res.string.sheetedit_sig_conflict_hint))
+        }
     }
 }
 
@@ -601,15 +613,22 @@ private fun AddedSigimsae(value: Sigimsae, onRemove: () -> Unit) {
     }
 }
 
-/** 시김새 목록 한 칸(76 × 66dp): 기호와 이름만 가운데 정렬한다. 붙어 있으면 먹색 테두리와 순서 번호. */
+/**
+ * 시김새 목록 한 칸(76 × 66dp): 기호와 이름만 가운데 정렬한다. 붙어 있으면 먹색 테두리와 순서 번호.
+ * [conflicting]이면 붙은 시김새와 함께 쓸 수 없어 흐리게 보이고, 읽어 주는 설명에 '누르면 바꿔요'를 더한다.
+ */
 @Composable
-private fun SigimsaeCard(value: Sigimsae, order: Int, enabled: Boolean, onClick: () -> Unit) {
+private fun SigimsaeCard(value: Sigimsae, order: Int, conflicting: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     val on = order >= 0
+    val conflictDescription = stringResource(Res.string.sheetedit_sig_conflict_description)
     Surface(
         onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_09, onClick),
         enabled = enabled,
-        modifier = Modifier.width(76.dp).height(66.dp).alpha(if (enabled) 1f else 0.4f).semantics { selected = on },
+        modifier = Modifier.width(76.dp).height(66.dp).alpha(if (!enabled) 0.4f else if (conflicting) 0.55f else 1f).semantics {
+            selected = on
+            if (conflicting) stateDescription = conflictDescription
+        },
         shape = RoundedCornerShape(10.dp),
         color = if (on) colors.accentTint else colors.surface,
         contentColor = colors.text,
