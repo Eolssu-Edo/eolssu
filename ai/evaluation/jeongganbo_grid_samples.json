@@ -1,5 +1,5 @@
 {
-  "note": "정간보 스캔 격자 평가 표본 (S15P31E102-1077). 원본은 Git 밖 폴더에서 sha256으로 찾는다. gakSize는 인쇄된 굵은 각 구분선·열 기준 한 각의 정간 수다. tune은 규칙 조정에, holdout은 결과 확인에만 쓴다. melody는 정답 jgb가 없는 표본을 원본 그림을 보고 손으로 적은 것이다(2026-11-17 사지한 확인 전 초안).",
+  "note": "정간보 스캔 격자 평가 표본 (S15P31E102-1077). 원본은 Git 밖 폴더에서 sha256으로 찾는다. gakSize는 인쇄된 굵은 각 구분선·열 기준 한 각의 정간 수다. tune은 규칙 조정에, holdout은 결과 확인에만 쓴다. melody는 정답 jgb가 없는 표본을 원본 그림을 보고 손으로 적은 것이다(2026-11-17 사지한 확인 전 초안). S15P31E102-1092가 실기교재 7곡을 조정용으로 더했다. 원본에 장단이 적혀 있지 않은 곡은 jangdan이 null이고 모델 평가(run) 전에 정한다.",
   "samples": [
     {"id": "danso-classroom-06-arirang", "split": "tune", "sha256": "70266c17f527a13818fe0bc4af7b5be7aca8c99d729b9e76c748c3894d9f82d1",
      "source": "[악보](초급)세상에서가장쉬운단소교실_06차시_아리랑_page-0001.png (2480x3509)", "instrument": "DANSO", "jangdan": "세마치", "gakSize": 3,
@@ -8,6 +8,13 @@
     {"id": "standard-danso-p173-arirang", "split": "tune", "answer": "ngc-standard-2022-p173", "instrument": "DANSO", "jangdan": "세마치", "gakSize": 3},
     {"id": "silgi-18924-chamsae", "split": "tune", "answer": "ngc-silgi-2016-18924", "instrument": "DANSO", "jangdan": "굿거리", "gakSize": 8},
     {"id": "silgi-18747-bakyeon", "split": "tune", "answer": "ngc-silgi-2016-18747", "instrument": "DANSO", "jangdan": "굿거리", "gakSize": 8},
+    {"id": "silgi-18875-gosari", "split": "tune", "answer": "ngc-silgi-2016-18875", "instrument": "DANSO", "jangdan": "자진모리", "gakSize": 4},
+    {"id": "silgi-18705-gangwon-arirang", "split": "tune", "answer": "ngc-silgi-2016-18705", "instrument": "DANSO", "jangdan": "엇모리", "gakSize": 10},
+    {"id": "silgi-18730-baramgaebi", "split": "tune", "answer": "ngc-silgi-2016-18730", "instrument": "DANSO", "jangdan": null, "gakSize": 8},
+    {"id": "silgi-ssareum", "split": "tune", "answer": "ngc-silgi-2016-ssareum", "instrument": "DANSO", "jangdan": null, "gakSize": 8},
+    {"id": "silgi-18796-gyeongbokgung", "split": "tune", "answer": "ngc-silgi-2016-18796", "instrument": "DANSO", "jangdan": "자진타령", "gakSize": 4},
+    {"id": "silgi-18868-igeori", "split": "tune", "answer": "ngc-silgi-2016-18868", "instrument": "DANSO", "jangdan": null, "gakSize": 8},
+    {"id": "silgi-19006-pungnyeon", "split": "tune", "answer": "ngc-silgi-2016-19006", "instrument": "DANSO", "jangdan": "굿거리", "gakSize": 4},
 
     {"id": "qa-standard-p172-miryang-200dpi", "split": "holdout", "answer": "ngc-standard-2022-p172", "dpi": 200, "instrument": "DANSO", "jangdan": "세마치", "gakSize": 3},
     {"id": "qa-daegeum-classroom-03-bihaenggi-116dpi", "split": "holdout", "sha256": "e30b89dee0e9d81979b576e124242ca59648b6dc99b32b108de081e5bf100c1f",
