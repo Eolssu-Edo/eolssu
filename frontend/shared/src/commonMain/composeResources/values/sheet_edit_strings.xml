@@ -119,9 +119,6 @@
     <string name="sheetedit_cell_delete_column">이 각 삭제</string>
     <string name="sheetedit_yul_octave_caption">옥타브</string>
     <string name="sheetedit_yul_pitch_caption">음</string>
-    <string name="sheetedit_blank_fill">빈칸이에요. 음·지속(ㅡ)·쉼(△) 중 하나를 넣어 주세요</string>
-    <string name="sheetedit_blank_fill_short">빈칸에 음·지속(ㅡ)·쉼(△)을 넣어요</string>
-    <string name="sheetedit_blank_fill_other_tab">빈칸이에요. 율명·기호 탭에서 음·지속(ㅡ)·쉼(△)을 넣어 주세요</string>
     <string name="sheetedit_cell_jangdan_desc">%1$d박 · 박마다 %2$d정간 · %3$d BPM</string>
     <string name="sheetedit_cell_jangdan_change">장단 선택</string>
     <string name="sheetedit_jangdan_same_unit">이 악보에 맞는 장단만 보여요. 음은 바뀌지 않아요.</string>

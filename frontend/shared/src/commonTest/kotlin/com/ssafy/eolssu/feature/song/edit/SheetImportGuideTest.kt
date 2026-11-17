@@ -116,8 +116,9 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
         model.split()
 
         val blank = assertNotNull(model.uiState.value.importGuide)
-        assertEquals(1, blank.reviewPosition, "빈칸은 다시 볼 곳이고 입력판이 무엇을 넣을지 안내한다")
-        assertTrue(2 in model.uiState.value.draft.unfilledCells)
+        assertEquals(1, blank.reviewPosition)
+        assertEquals(1, blank.blankCells)
+        assertTrue(blank.selectedBlank, "카드 줄이 빈칸에 넣을 것을 말한다")
         assertEquals(0, blank.rangeNotes)
 
         val (yul, octave) = assertNotNull(model.uiState.value.supportedInputPitches).first()
