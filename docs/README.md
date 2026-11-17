@@ -176,6 +176,7 @@
 
 - [iOS 무음 모드에서 기초 배우기·운지법·정간보 읽기 예시음 재생 수정 (914)](plans/S15P31E102-914.md)
 - [iOS 연습 화면 모범 연주 재생 수정 (915)](plans/S15P31E102-915.md)
+- [develop iOS 컴파일 실패와 iOS 테스트 멈춤 수정 (989)](plans/S15P31E102-989.md)
 - [iOS 평가 녹음 중 장단 소리 크기 제한과 iPhone 볼륨 곡선 실측 (907)](plans/S15P31E102-907.md)
 - [iOS 녹음 입력과 실시간 음높이 분석 (562)](plans/S15P31E102-562.md)
 - [iOS 연습 장단 소리 재생 연결 (714)](plans/S15P31E102-714.md) · [장단 재생 스펙](specs/jangdan-practice-playback.md#ios-연습-장단-재생-s15p31e102-714)
