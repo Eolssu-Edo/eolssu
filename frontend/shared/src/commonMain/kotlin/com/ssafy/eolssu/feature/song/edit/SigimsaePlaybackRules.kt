@@ -62,3 +62,10 @@ internal val IncompatibleSigimsaePairs: Set<String> = setOf(
 
 internal fun sigimsaeCompatible(a: String, b: String): Boolean =
     a == b || (if (a < b) "$a|$b" else "$b|$a") !in IncompatibleSigimsaePairs
+
+/** [current]에 붙은 시김새 가운데 [value]와 한 음에 함께 쓸 수 없는 것. 입력판이 흐리게 보이고, 누르면 이것들을 빼고 [value]를 붙인다. */
+internal fun sigimsaeConflicts(current: List<Sigimsae>, value: Sigimsae): List<Sigimsae> =
+    current.filter { !sigimsaeCompatible(it.name, value.name) }
+
+/** 함께 쓸 수 없어 [removed]를 빼고 [added]를 붙였다. 알림에 두 이름을 적는다(S15P31E102-1097). */
+data class SigimsaeSwap(val removed: List<Sigimsae>, val added: Sigimsae)

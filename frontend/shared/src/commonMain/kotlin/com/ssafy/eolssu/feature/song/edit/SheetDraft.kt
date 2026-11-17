@@ -243,7 +243,7 @@ data class SheetDraft(
      */
     fun toggleSigimsae(index: Int, value: Sigimsae, sub: Int = 0): SheetDraft {
         val current = sigimsaeAt(index, sub)
-        val kept = current.filter { it.name == value.name || sigimsaeCompatible(it.name, value.name) }
+        val kept = current - sigimsaeConflicts(current, value).toSet()
         val next = if (current.any { it.name == value.name }) current.filterNot { it.name == value.name }
             else if (kept.size >= MAX_SIGIMSAE) return this else kept + value
         return withSigimsae(index, next, sub)

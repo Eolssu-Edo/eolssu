@@ -96,7 +96,7 @@ enum class SheetEditMessage {
     TempoOutOfRangeAfterJangdan,
     BasicAccompanimentCleared,
 
-    /** 음원 생성기가 함께 해석하지 못하는 시김새를 새로 고른 것으로 바꿨다. */
+    /** 음원 생성기가 함께 해석하지 못하는 시김새를 새로 고른 것으로 바꿨다. 이름은 [SheetEditUiState.sigimsaeSwap]. */
     SigimsaeReplaced,
 
     /** 곡 전체 높이를 맞췄다. 안내 문구에 지금 적용된 높이를 함께 적는다. */
@@ -153,6 +153,8 @@ data class SheetEditUiState(
     val message: SheetEditMessage? = null,
     val tempoIssue: com.ssafy.eolssu.data.song.SheetTempoIssue? = null,
     val sigimsaeIssue: com.ssafy.eolssu.data.song.SheetSigimsaeIssue? = null,
+    /** [SheetEditMessage.SigimsaeReplaced] 알림에 적을 뺀 것·붙인 것. */
+    val sigimsaeSwap: SigimsaeSwap? = null,
     val hasTempoPlan: Boolean = false,
     val documentLoading: Boolean = false,
     val documentFailed: Boolean = false,
@@ -386,9 +388,10 @@ data class SheetEditUiState(
         val before = draft.sigimsaeAt(selected, sigimsaeSub)
         val next = commit(draft.toggleSigimsae(selected, value, sigimsaeSub))
         val after = next.draft.sigimsaeAt(selected, sigimsaeSub)
-        // 함께 쓸 수 없어 뺀 시김새가 있으면 알린다. 실행 취소로 되돌릴 수 있다.
-        return if (before.any { old -> after.none { it.name == old.name } } && after.any { it.name == value.name })
-            next.copy(message = SheetEditMessage.SigimsaeReplaced) else next
+        // 함께 쓸 수 없어 뺀 시김새가 있으면 무엇을 뺐는지 알린다. 실행 취소로 되돌릴 수 있다.
+        val removed = before.filter { old -> after.none { it.name == old.name } }
+        return if (removed.isNotEmpty() && after.any { it.name == value.name })
+            next.copy(message = SheetEditMessage.SigimsaeReplaced, sigimsaeSwap = SigimsaeSwap(removed, value)) else next
     }
 
     fun removeSigimsae(position: Int): SheetEditUiState = commit(draft.removeSigimsae(selected, position, sigimsaeSub))
