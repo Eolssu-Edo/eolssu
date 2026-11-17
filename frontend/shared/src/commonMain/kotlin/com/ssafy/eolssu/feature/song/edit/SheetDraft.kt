@@ -262,11 +262,22 @@ data class SheetDraft(
     /** [index] 정간이 나눠져 있어 [merge]로 합칠 수 있는지. */
     fun canMerge(index: Int): Boolean = cells.getOrNull(index)?.let { it.size > 1 } == true
 
-    /** 한 정간을 하나 더 나눈다(최대 [MAX_SPLIT]). 새 자리는 비워 두고 위에서부터 채운다. */
+    /**
+     * 한 정간을 하나 더 나눈다(최대 [MAX_SPLIT]). 새 자리를 빈칸으로 두지 않는다(S15P31E102-1136).
+     * 음·지속 뒤는 앞 음을 잇는 지속(ㅡ), 쉼 뒤는 쉼(△)이라 소리가 바뀌지 않는다. 원본의 빈 표기(앞 음 잇기)는
+     * 지속으로 바꿔 나눈다. 원래 비어 있어 채워야 하는 정간·자리는 그대로 빈칸이다.
+     */
     fun split(index: Int): SheetDraft {
         val current = cells[index]
         if (current.size >= MAX_SPLIT) return this
-        val updated = if (current.isEmpty()) listOf(ScoreNote.Blank, ScoreNote.Blank) else current + ScoreNote.Blank
+        val continuation = ScoreNote.Blank in current && originalCellIsComplete(index)
+        val base = if (continuation) current.map { if (it == ScoreNote.Blank) ScoreNote.Hold else it } else current
+        val filler = when (base.lastOrNull()) {
+            null, ScoreNote.Blank -> ScoreNote.Blank
+            ScoreNote.Rest -> ScoreNote.Rest
+            else -> ScoreNote.Hold
+        }
+        val updated = if (base.isEmpty()) listOf(ScoreNote.Blank, ScoreNote.Blank) else base + filler
         return withCell(index, updated)
     }
 

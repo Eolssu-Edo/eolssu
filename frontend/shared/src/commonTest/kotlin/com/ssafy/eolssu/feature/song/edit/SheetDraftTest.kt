@@ -22,6 +22,14 @@ class SheetDraftTest {
         sigimsae = sigimsae,
     )
 
+    @Test fun splittingFillsTheNewSlotSoNothingIsLeftBlank() {
+        // 1136: 새 자리를 빈칸으로 두지 않는다. 음·지속 뒤는 지속(ㅡ), 쉼 뒤는 쉼(△)이라 소리가 바뀌지 않는다.
+        val pitch = SheetDraft("t", null, 60, listOf(listOf(ScoreNote.Pitch(Yul.Hwangjong)), listOf(ScoreNote.Rest)), columnSizes = listOf(2))
+        assertEquals(listOf(ScoreNote.Pitch(Yul.Hwangjong), ScoreNote.Hold), pitch.split(0).cells[0])
+        assertEquals(listOf(ScoreNote.Rest, ScoreNote.Rest), pitch.split(1).cells[1])
+        assertTrue(pitch.split(0).split(1).unfilledCells.isEmpty())
+    }
+
     @Test
     fun emptyCellsCountOnlyFullyBlankCells() {
         val split = draft().split(2).put(2, hwang).first

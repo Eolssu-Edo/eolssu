@@ -77,7 +77,7 @@ class SheetReviewExplanationTest {
             ))
         assertEquals(listOf("second"), before.reviewIssuesAt(0, 1).map { it.id })
 
-        val split = before.copy(draft = before.draft.split(0))
+        val split = before.copy(draft = before.draft.split(0).eraseAt(0, 2))
         assertEquals(3, split.draft.cells[0].size)
         assertEquals(listOf("first"), split.reviewIssuesAt(0, 0).map { it.id })
         assertEquals(listOf("second"), split.reviewIssuesAt(0, 1).map { it.id })
@@ -90,7 +90,7 @@ class SheetReviewExplanationTest {
         assertTrue(split.checkedIssueIds.isEmpty())
         assertEquals(before.reviewIssues, split.reviewIssues)
 
-        val mergedAndSplit = before.copy(draft = before.draft.merge(0).split(0))
+        val mergedAndSplit = before.copy(draft = before.draft.merge(0).split(0).eraseAt(0, 1))
         assertEquals(listOf("first"), mergedAndSplit.reviewIssuesAt(0, 0).map { it.id })
         assertTrue(mergedAndSplit.reviewIssuesAt(0, 1).isEmpty(), "합친 뒤 새로 나눈 빈 소박에 삭제한 이벤트 검수를 붙이지 않는다")
 

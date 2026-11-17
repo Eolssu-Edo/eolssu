@@ -104,26 +104,26 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
             "1042: 실행 취소하면 처음 카드와 같다")
     }
 
-    @Test fun aSplitBlankSaysWhatToFillAndAPlayableNoteIsNotCountedAsUnplayable() = runTest {
-        // 1136: 높이를 맞춘 뒤 정간을 나눠 생긴 빈칸은 다시 볼 곳이고, 입력판에서 고른 음은 낼 수 없는 음으로 세지 않는다.
+    @Test fun splittingLeavesNoBlankAndAPlayableNoteIsNotCountedAsUnplayable() = runTest {
+        // 1136: 정간을 나누면 새 자리를 쉼(△)·지속(ㅡ)으로 채워 빈칸이 생기지 않고, 고른 음은 낼 수 없는 음으로 세지 않는다.
         val model = open(sixUp)
         runCurrent()
         model.applyRecommendedAdaptation()
         runCurrent()
         val before = model.uiState.value.draft
         model.selectTab(EditTab.Yul)
-        model.selectCell(2)
+        model.selectCell(2) // 쉼표 정간
         model.split()
+        val split = model.uiState.value
+        assertEquals(listOf(ScoreNote.Rest, ScoreNote.Rest), split.draft.cells[2])
+        assertEquals(1, split.selectedSub, "새 자리를 골라 두어 바로 율명을 넣을 수 있다")
+        assertTrue(split.draft.unfilledCells.isEmpty())
+        assertNull(split.importGuide)
 
-        val blank = assertNotNull(model.uiState.value.importGuide)
-        assertEquals(1, blank.reviewPosition)
-        assertEquals(1, blank.blankCells)
-        assertTrue(blank.selectedBlank, "카드 줄이 빈칸에 넣을 것을 말한다")
-        assertEquals(0, blank.rangeNotes)
-
-        val (yul, octave) = assertNotNull(model.uiState.value.supportedInputPitches).first()
+        val (yul, octave) = assertNotNull(split.supportedInputPitches).first()
         model.put(ScoreNote.SourcePitch(yul, octave))
         val filled = model.uiState.value
+        assertEquals(ScoreNote.Rest, filled.draft.cells[2][0], "고른 자리만 바뀐다")
         assertTrue(filled.completionValidation.rangeUnitKeys.isEmpty(), "고른 음은 칸에 칠하지 않는다")
         assertNull(filled.importGuide, "칠하지 않은 음을 낼 수 없는 음으로 세지 않는다")
 
@@ -133,6 +133,25 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
         assertTrue(model.uiState.value.adaptation?.confirmationRequested == true, "고친 것이 있어 확인을 묻는다")
         model.applyAdaptation()
         assertEquals(before.cells, model.uiState.value.draft.cells)
+    }
+
+    @Test fun eachBlankSlotOfASplitCellIsCountedAndVisitedSeparately() = runTest {
+        // 1136: 빈 정간을 나눠 빈 자리가 둘이면 다시 볼 곳도 둘이고, 이전·다음이 한 자리씩 옮긴다.
+        val model = open(ReadinessCatalog())
+        runCurrent()
+        model.selectCell(2)
+        model.erase()
+        model.split()
+        assertEquals(listOf(ScoreNote.Blank, ScoreNote.Blank), model.uiState.value.draft.cells[2])
+        assertEquals(2, model.uiState.value.importGuide?.reviewCells)
+
+        model.selectCell(0)
+        model.moveRecognitionReview(1)
+        assertEquals(2 to 0, model.uiState.value.selected to model.uiState.value.selectedSub)
+        assertEquals(1, model.uiState.value.importGuide?.reviewPosition)
+        model.moveRecognitionReview(1)
+        assertEquals(2 to 1, model.uiState.value.selected to model.uiState.value.selectedSub)
+        assertEquals(2, model.uiState.value.importGuide?.reviewPosition)
     }
 
     @Test fun recognitionReviewsAreCountedApartFromRangeAndTheGuideGoesAwayOnceChecked() = runTest {
