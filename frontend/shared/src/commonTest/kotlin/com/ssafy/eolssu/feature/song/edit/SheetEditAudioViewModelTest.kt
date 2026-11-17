@@ -260,10 +260,10 @@ class SheetEditAudioViewModelTest {
         try {
             runCurrent()
             val original = vm.uiState.value.draft
-            val changed = original.withTempoChange(SheetTempoChange(0, HanbaeMark.Slower, 40.0, 2))
-                .withTempoChange(SheetTempoChange(2, HanbaeMark.Faster, 120.0, 3))
+            val changed = original.withTempoCue(SheetTempoCue(0, SheetTempoKind.Step, 40.0))
+                .withTempoCue(SheetTempoCue(2, SheetTempoKind.Step, 120.0))
             assertEquals(original.bpm, changed.bpm)
-            assertEquals(listOf(40.0, 120.0), changed.tempoChanges.map { it.targetBpm })
+            assertEquals(listOf(40.0, 120.0), changed.tempoCues.map { it.bpm })
             vm.updateTempoSettings(changed)
             vm.requestAudio(); runCurrent()
             assertTrue(repository.requests.isEmpty(), "구간만 바뀌어도 이전 확정판으로 생성하지 않는다")
@@ -277,11 +277,11 @@ class SheetEditAudioViewModelTest {
             vm.requestSave(); runCurrent()
             val saved = assertNotNull(confirmedCopy)
             val restored = changed.withTempoExpressions(saved.expressions, saved.bpm)
-            assertEquals(changed.tempoChanges, restored.tempoChanges)
+            assertEquals(changed.tempoCues, restored.tempoCues)
             vm.requestAudio(); runCurrent()
             assertEquals(original.bpm, repository.requests.single().second.bpm)
 
-            vm.updateTempoSettings(changed.withoutTempoChange(2))
+            vm.updateTempoSettings(changed.withoutTempoCue(2))
             vm.requestAudio(); runCurrent()
             assertEquals(1, repository.requests.size, "구간 빠르기 삭제도 확정 저장이 필요하다")
             assertEquals(SheetEditMessage.AudioNeedsSave, vm.uiState.value.message)

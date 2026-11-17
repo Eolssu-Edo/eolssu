@@ -64,18 +64,19 @@ class SheetPitchTempoPreservationTest {
     }
 
     private fun assertPreserved(after: SheetDraft) {
-        assertEquals(listOf(SheetTempoChange(0, null, 240.0, 2, 120.0)), after.tempoChanges)
+        // 시작값이 앞 빠르기와 같은 점점 구간은 바뀌는 곳 하나로 읽고, 끝 뒤에는 목표를 유지한다.
+        assertEquals(listOf(SheetTempoCue(0, SheetTempoKind.Ramp, 240.0, 1)), after.tempoCues)
         assertEquals(companion, after.tempoExpressions)
         val draftExpression = assertNotNull(after.exportExpressions(companion, sourceHash, serverBpm = 80))
         assertTempoNumbers(draftExpression, 80.0, 160.0)
         val reopened = after.toCommonScore().editingDraft(after.title, 120, null)
             .withTempoExpressions(draftExpression, referenceBpm = 80)
-        assertEquals(after.tempoChanges, reopened.tempoChanges)
+        assertEquals(after.tempoCues, reopened.tempoCues)
         val confirmed = assertNotNull(reopened.exportExpressions(draftExpression, sourceHash, serverBpm = 120))
         assertTempoNumbers(confirmed, 120.0, 240.0)
         val confirmedDraft = reopened.toCommonScore().editingDraft(reopened.title, 120, null)
             .withTempoExpressions(confirmed, referenceBpm = 120)
-        assertEquals(after.tempoChanges, confirmedDraft.tempoChanges)
+        assertEquals(after.tempoCues, confirmedDraft.tempoCues)
         assertEquals(sourceHash, confirmed.getValue("sourceSha256").jsonPrimitive.content)
         assertEquals(sourceHash, confirmed.getValue("performancePlan").jsonObject.getValue("input_sha256").jsonPrimitive.content)
     }

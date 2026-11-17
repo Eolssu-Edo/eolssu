@@ -9,11 +9,11 @@ class SheetTempoPlanLockTest {
     private fun state() = SheetEditUiState(EditSource.Mine("31"), smallScoreData().editingDraft("잠금", 90, null))
 
     @Test fun deletingTheLastTempoChangeUnlocksCellTools() {
-        val added = state().updateTempoSettings(state().draft.withTempoChange(SheetTempoChange(1, null, 120.0)))
+        val added = state().updateTempoSettings(state().draft.withTempoCue(SheetTempoCue(1, SheetTempoKind.Step, 120.0)))
         assertTrue(added.hasTempoPlan)
         assertEquals(SheetEditMessage.TempoPlanBeforeReshape, added.split().message)
 
-        val removed = added.updateTempoSettings(added.draft.withoutTempoChange(1))
+        val removed = added.updateTempoSettings(added.draft.withoutTempoCue(1))
         assertTrue(removed.draft.tempoExpressions?.containsKey("performancePlan") == true)
         assertFalse(removed.hasTempoPlan)
         assertNotEquals(SheetEditMessage.TempoPlanBeforeReshape, removed.split().message)
