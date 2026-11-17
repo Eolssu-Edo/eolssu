@@ -95,7 +95,8 @@ internal class SheetAdaptationReadinessTest : CatalogViewModelTest() {
         val requests = catalog.capabilityCalls
         model.selectTab(EditTab.Yul)
         model.put(ScoreNote.Rest)
-        assertNull(model.uiState.value.adaptation)
+        // 1042: 편집하면 받아 둔 음 목록으로 바로 다시 계산한다.
+        assertEquals(model.uiState.value.draft, model.uiState.value.adaptation?.baseline)
         model.openAdaptation()
         val panel = assertNotNull(model.uiState.value.adaptation)
         assertFalse(panel.loading)

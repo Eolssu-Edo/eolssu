@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -214,11 +218,11 @@ internal fun LearnStageCarousel(
         val done = state.isDone(stage.number)
         EolssuButton(
             text = stringResource(if (done) Res.string.learn_card_again else Res.string.learn_card_start),
-            onClick = { onOpen(stage.number) },
+            onClick = UserActionLog.click(QaTarget.LEARN_STAGE_CAROUSEL_01, { onOpen(stage.number) }),
             modifier = Modifier.padding(top = 14.dp).widthIn(min = 180.dp),
             style = if (done) EolssuButtonStyle.Secondary else EolssuButtonStyle.Primary,
             icon = EolssuIcons.Play,
-            small = true,
+            small = true, qaTarget = QaTarget.LEARN_STAGE_CAROUSEL_BUTTON_01
         )
     }
 }
@@ -236,7 +240,7 @@ private fun CarouselArrow(next: Boolean, enabled: Boolean, onClick: () -> Unit) 
             .size(40.dp)
             .clip(CircleShape)
             .background(colors.surface)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.LEARN_STAGE_CAROUSEL_02, onClick))
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
@@ -277,7 +281,7 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, m
             Modifier
                 .fillMaxSize()
                 .clip(shape)
-                .clickable(role = Role.Button) { onOpen(stage.number) }
+                .clickable(role = Role.Button) { UserActionLog.event(QaKind.CLICK, QaTarget.LEARN_STAGE_CAROUSEL_03); onOpen(stage.number) }
                 .semantics { contentDescription = description }
                 .then(border),
         )

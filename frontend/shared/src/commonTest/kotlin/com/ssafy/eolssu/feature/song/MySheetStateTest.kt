@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song
 
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.MySheetOrigin
@@ -20,6 +21,21 @@ import kotlin.test.assertNull
 internal class MySheetStateTest : CatalogViewModelTest() {
 
     private fun sheet(id: String) = MySheet(id, MySheetOrigin.Imported, id, updatedAt = KoreanDateTime(2026, 10, 17, 19, 0))
+
+    @Test
+    fun instrumentAndTitleFilterRetainsMatchingConversionRowsInOrder() {
+        val state = MySongsUiState(query = " note ").receiveSheets(listOf(
+            sheet("first note").copy(instrumentCode = "DANSO", conversionStatus = "FAILED"),
+            sheet("second note").copy(instrumentCode = "SOGEUM"),
+            sheet("third note").copy(instrumentCode = "DANSO", conversionStatus = "QUEUED"),
+            sheet("other").copy(instrumentCode = "DANSO"),
+            sheet("legacy note"),
+        ))
+
+        assertEquals(listOf("first note", "third note"),
+            state.copy(sheetInstrument = Instrument.Danso).visibleSheets.map { it.id })
+        assertEquals(listOf("first note", "second note", "third note", "legacy note"), state.visibleSheets.map { it.id })
+    }
 
     @Test
     fun startsOnProvidedSongsWithReceivedSheets() {

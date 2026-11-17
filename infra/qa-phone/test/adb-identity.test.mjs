@@ -61,3 +61,32 @@ test('identity loss revokes a live controller before any command reaches the rep
   const after=await(await request('state')).json();assert.equal(after.online,false);assert.equal(after.owner,null);assert.equal(after.inputFault,true);
   assert.equal(f.calls.slice(count).some(a=>a.includes('input')||a.includes('install')),false);
 });
+
+test('a timed-out read-only probe keeps verified geometry so the next tap reaches the same device',async()=>{
+  let probeTimeout=true;const calls=[];
+  const data=Buffer.alloc(24);Buffer.from([137,80,78,71,13,10,26,10]).copy(data);data.writeUInt32BE(1440,16);data.writeUInt32BE(2304,20);
+  const phone=new AdbPhone({adb:'fixture-adb',serial:'192.168.1.2:40000',identity:'TABLET123',executor:async(file,args)=>{
+    calls.push(args);
+    if(args.includes('devices'))return {stdout:'List of devices attached\n192.168.1.2:40000 device transport_id:11\n'};
+    if(args.includes('ro.serialno'))return {stdout:'TABLET123\n'};
+    if(args.includes('screencap'))return {stdout:data};
+    // PhoneVideo.heartbeat tolerates this timeout while encoded frames keep arriving.
+    if(args.includes('get-state')&&probeTimeout){probeTimeout=false;throw Object.assign(Error('probe timed out'),{killed:true});}
+    return {stdout:''};
+  }});
+  await phone.capture();
+  await assert.rejects(phone.run(['get-state']));
+  const before=calls.length;
+  await phone.input({kind:'tap',x:0.5,y:0.5},{width:1440,height:2304});
+  const sent=calls.slice(before);
+  assert.ok(sent.some(a=>a.includes('ro.serialno')),'identity is verified again after the failed probe');
+  assert.deepEqual(sent.at(-1),['-P','5037','-t','11','shell','input','tap','720','1152']);
+});
+
+test('an identity change still clears the verified geometry before any input',async()=>{
+  const f=fixture();await f.phone.capture();f.replace();
+  await assert.rejects(f.phone.deviceArgs(),/transport disconnected/);
+  await assert.rejects(f.phone.deviceArgs(),/identity mismatch/);
+  assert.equal(f.phone.size,null);
+  await assert.rejects(f.phone.input({kind:'tap',x:0.5,y:0.5},{width:1440,height:2304}),/screen geometry changed/);
+});

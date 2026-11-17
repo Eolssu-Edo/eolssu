@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -12,9 +15,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -27,101 +37,104 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 
 /**
- * 가져온 악보 확인 카드(S15P31E102-979). 악보 위에 두어 처음 열 때 바로 보이게 한다.
+ * 가져온 악보 확인 카드(S15P31E102-979·1042). 악보 위에 두어 처음 열 때 바로 보이게 한다.
  *
- * 처음 쓰는 사람도 한 번에 읽도록 할 일을 흰 칸 하나씩에 나눈다. 각 칸의 그림은 악보 칸 표시(갈색 ↕, 빨간 !)와 같고,
- * 굵은 한 줄로 무엇이 문제인지 말한 뒤 버튼 하나로 바로 처리하게 한다. 음역 칸은 버튼 글자가 결과까지 말한다.
+ * 문제 종류마다 한 줄씩, 악보 칸 표시와 같은 바탕·점선·태그(갈색 ↕ = 낼 수 없는 음, 빨간 ! = 다시 볼 곳)로 보여
+ * 카드와 악보의 표시를 바로 잇게 한다. 음역 줄은 버튼 하나로 고치고, 다시 볼 곳 줄은 이전·다음으로 칸을 옮겨 다닌다.
  */
 @Composable
 internal fun SheetImportGuideCard(
     guide: SheetImportGuide,
     onApplyRecommended: () -> Unit,
     onOpenAdaptation: () -> Unit,
-    onOpenReview: () -> Unit,
-    onDismiss: () -> Unit,
+    onMoveReview: (step: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(16.dp)
     val showRange = guide.rangeNotes > 0 || guide.recommendedTranspose != null
     val showReview = guide.reviewCells > 0
-    Column(
-        modifier.fillMaxWidth().background(colors.accentTint, shape).border(1.dp, colors.accentTintLine, shape)
-            .padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(Res.string.sheet_import_guide_title, listOf(showRange, showReview).count { it }),
-                Modifier.weight(1f).padding(start = 2.dp), style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold, color = colors.accentText)
-            IconButton(onClick = onDismiss) {
-                Icon(EolssuIcons.Close, contentDescription = stringResource(Res.string.sheet_import_guide_close),
-                    Modifier.size(18.dp), tint = colors.textSub)
+    // 닫기 버튼은 두지 않는다. 고칠 것을 다 고치면 줄이 하나씩 사라지고, 다 고치면 카드도 사라진다(S15P31E102-1042).
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (showRange) GuideRow(RANGE_TAG, colors.pitchError, colors.pitchErrorSoft,
+                stringResource(Res.string.sheet_import_guide_range, instrumentWithRo(guide.instrumentName), guide.rangeNotes)) {
+                // 무엇을 하면 어떻게 되는지를 버튼 글자 하나로 말한다. 추천이 없으면 높이 맞추기 탭으로 보낸다.
+                val shift = guide.recommendedShift?.takeIf { it != 0 && guide.recommendedTranspose != null }
+                if (shift != null) {
+                    val fixed = guide.rangeNotes - (guide.recommendedRemaining ?: 0)
+                    val all = guide.recommendedRemaining == 0
+                    GuideButton(when {
+                        shift > 0 && all -> stringResource(Res.string.sheet_import_guide_up_all, shift)
+                        shift > 0 -> stringResource(Res.string.sheet_import_guide_up, shift, fixed)
+                        all -> stringResource(Res.string.sheet_import_guide_down_all, abs(shift))
+                        else -> stringResource(Res.string.sheet_import_guide_down, abs(shift), fixed)
+                    }, UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_02, onApplyRecommended))
+                } else GuideButton(stringResource(Res.string.sheet_import_guide_adapt), UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_03, onOpenAdaptation))
             }
-        }
-        if (showRange) GuideTile {
-            GuideHeadline(RANGE_TAG, colors.pitchError,
-                stringResource(Res.string.sheet_import_guide_range, instrumentWithRo(guide.instrumentName), guide.rangeNotes))
-            // 무엇을 하면 어떻게 되는지를 버튼 글자 하나로 말한다. 추천이 없으면 음역·이조 탭으로 보낸다.
-            val shift = guide.recommendedShift?.takeIf { it != 0 && guide.recommendedTranspose != null }
-            if (shift != null) {
-                val fixed = guide.rangeNotes - (guide.recommendedRemaining ?: 0)
-                val all = guide.recommendedRemaining == 0
-                GuideAction(when {
-                    shift > 0 && all -> stringResource(Res.string.sheet_import_guide_up_all, shift)
-                    shift > 0 -> stringResource(Res.string.sheet_import_guide_up, shift, fixed)
-                    all -> stringResource(Res.string.sheet_import_guide_down_all, abs(shift))
-                    else -> stringResource(Res.string.sheet_import_guide_down, abs(shift), fixed)
-                }, primary = true, onClick = onApplyRecommended)
-            } else GuideAction(stringResource(Res.string.sheet_import_guide_adapt), primary = false, onClick = onOpenAdaptation)
-        }
-        if (showReview) GuideTile {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f)) {
-                    GuideHeadline("!", colors.rec, stringResource(Res.string.sheet_import_guide_review, guide.reviewCells),
-                        stringResource(Res.string.sheet_import_guide_review_help))
+            if (showReview) GuideRow("!", colors.rec, colors.recSoft,
+                guide.reviewPosition?.let { stringResource(Res.string.sheet_import_guide_review_position, it, guide.reviewCells) }
+                    ?: stringResource(Res.string.sheet_import_guide_review, guide.reviewCells)) {
+                // 처음엔 첫 칸으로 가고, 다시 볼 칸에 있으면 이전·다음으로 옮긴다.
+                val position = guide.reviewPosition
+                if (position == null) GuideButton(stringResource(Res.string.sheet_import_guide_review_go)) { onMoveReview(1) }
+                else {
+                    // 정간보·오선보 모두 ◀ 이전 · ▶ 다음으로 같게 둔다(S15P31E102-1074).
+                    StepButton(stringResource(Res.string.sheet_import_guide_review_prev), 90f,
+                        enabled = position > 1) { onMoveReview(-1) }
+                    StepButton(stringResource(Res.string.sheet_import_guide_review_next), -90f,
+                        enabled = position < guide.reviewCells) { onMoveReview(1) }
                 }
-                PillButton(stringResource(Res.string.sheet_import_guide_review_go), onOpenReview, compact = true, secondary = true)
             }
         }
     }
 }
 
+/** 악보 칸 표시와 같은 바탕·점선·태그를 한 줄에 담는다. 오른쪽에 바로 처리할 버튼을 둔다. */
 @Composable
-private fun GuideTile(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(end = 8.dp).background(EolssuTheme.colors.surface, RoundedCornerShape(12.dp))
-        .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+private fun GuideRow(tag: String, ring: Color, fill: Color, text: String, actions: @Composable RowScope.() -> Unit) {
+    val shape = RoundedCornerShape(10.dp)
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 44.dp).background(fill, shape).dashedBorder(ring, shape)
+            .padding(start = 8.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.size(22.dp).background(ring, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+            Text(tag, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = Color.White)
+        }
+        Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+            color = EolssuTheme.colors.text, maxLines = 2)
+        actions()
+    }
 }
 
-/** 악보 칸 표시와 같은 그림 + 굵은 한 줄(+ 설명 한 줄). */
+/** 줄 오른쪽의 작은 흰 버튼. */
 @Composable
-private fun GuideHeadline(badge: String, badgeColor: Color, title: String, detail: String? = null) {
-    val colors = EolssuTheme.colors
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(Modifier.size(28.dp).background(badgeColor, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-            Text(badge, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = Color.White,
-                textAlign = TextAlign.Center)
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp), fontWeight = FontWeight.SemiBold, color = colors.text)
-            if (detail != null) Text(detail, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), color = colors.textSub)
+private fun GuideButton(label: String, onClick: () -> Unit) {
+    Surface(onClick = onClick, modifier = Modifier.heightIn(min = 36.dp), shape = RoundedCornerShape(8.dp),
+        color = EolssuTheme.colors.surface, contentColor = EolssuTheme.colors.text) {
+        Box(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
+            Text(label, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), fontWeight = FontWeight.SemiBold, maxLines = 1)
         }
     }
 }
 
-/** 타일 폭을 다 쓰는 버튼. 문장 전체가 한 줄에 들어가게 한다. */
+/** 다시 볼 곳 이전·다음(보이는 칸 36dp). 아래 화살표 그림을 돌려 왼쪽·오른쪽을 가리킨다. */
 @Composable
-private fun GuideAction(label: String, primary: Boolean, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp), shape = RoundedCornerShape(12.dp),
-        color = if (primary) colors.primary else colors.groupedBackground,
-        contentColor = if (primary) colors.onPrimary else colors.text) {
-        Box(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center)
+private fun StepButton(label: String, rotation: Float, enabled: Boolean, onClick: () -> Unit) {
+    Surface(onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_04, onClick), enabled = enabled, modifier = Modifier.size(36.dp), shape = RoundedCornerShape(8.dp),
+        color = EolssuTheme.colors.surface, contentColor = EolssuTheme.colors.text) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(EolssuIcons.ChevronDown, contentDescription = label, modifier = Modifier.size(18.dp).rotate(rotation)
+                .alpha(if (enabled) 1f else 0.3f))
         }
     }
+}
+
+/** 악보 칸 표시와 같은 점선 테두리. */
+private fun Modifier.dashedBorder(color: Color, shape: RoundedCornerShape): Modifier = drawBehind {
+    val outline = shape.createOutline(size, layoutDirection, this)
+    drawOutline(outline, color, style = Stroke(width = 1.5.dp.toPx(),
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))))
 }
 
 /** `소금으로`·`단소로`·`대금으로`처럼 받침에 맞춰 붙인다. 이름을 모르면 `악기로`. */

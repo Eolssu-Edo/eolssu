@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,8 +59,8 @@ internal fun SongLookupContent(
             textAlign = TextAlign.Center,
         )
         if (lookup != SongLookup.Loading) {
-            EolssuButton(stringResource(if (resultLookup) Res.string.catalog_result_retry else Res.string.catalog_consumer_retry), onRetry)
+            EolssuButton(stringResource(if (resultLookup) Res.string.catalog_result_retry else Res.string.catalog_consumer_retry), onRetry, qaTarget = QaTarget.SONG_LOOKUP_BUTTON_01)
         }
-        EolssuButton(stringResource(Res.string.catalog_consumer_back), onBack, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.catalog_consumer_back), onBack, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SONG_LOOKUP_BUTTON_02)
     }
 }

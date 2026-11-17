@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.network.screenScope
 import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SheetConversionRepository
@@ -126,6 +127,10 @@ class MySongsViewModel(
     fun changeQuery(query: String) = _uiState.update { it.copy(query = query) }
 
     fun clearQuery() = changeQuery("")
+
+    fun selectSheetInstrument(instrument: Instrument?) = _uiState.update { it.copy(sheetInstrument = instrument) }
+
+    fun resetSheetFilters() = _uiState.update { it.copy(query = "", sheetInstrument = null) }
 
     /** 제공 곡 빈 결과의 초기화: 검색어와 단계를 모두 처음으로 되돌린다. */
     fun resetSongFilters() = _uiState.update { it.copy(query = "", filter = SongLevelFilter.All) }

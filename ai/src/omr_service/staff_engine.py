@@ -24,7 +24,7 @@ from time import monotonic
 from PIL import Image, ImageDraw
 
 from omr_service import staff_musicxml, staff_pdf_tempo
-from omr_service.jeongganbo_text import JANGDANS, _clean, _run, beats_per_jeonggan, lines_to_score
+from omr_service.jeongganbo_text import JANGDANS, _clean, _run, cycle_beats, lines_to_score
 
 AUDIVERIS = os.environ.get("AUDIVERIS_CMD", "audiveris").split()  # 컨테이너에는 /opt/audiveris/bin/Audiveris
 AUDIVERIS_VERSION = os.environ.get("AUDIVERIS_VERSION", "5.11.0")  # 컨테이너 빌드가 넣는다(omr.Dockerfile)
@@ -86,7 +86,7 @@ def recognize(job) -> dict:
                            "detail": {"source": source, "jangdan": jangdan}})
     bpm_unit = JANGDANS[jangdan]['bpm_unit'] if jangdan else conv.bpm_unit
     bpj = conv.beat / UNIT_QUARTERS[bpm_unit]
-    if jangdan and any(bpj * width != beats_per_jeonggan(jangdan, 1) for width in conv.gak_beats):
+    if jangdan and any(bpj * width != cycle_beats(jangdan) for width in conv.gak_beats):
         issues.append({"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
                        "detail": {"jangdan": jangdan, "jeongganPerGak": conv.beats_per_gak}})
     doc, score = lines_to_score(conv.lines, request, jangdan, lambda _: bpj, deadline,

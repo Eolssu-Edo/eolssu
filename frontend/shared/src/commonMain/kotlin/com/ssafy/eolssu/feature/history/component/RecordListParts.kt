@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
@@ -119,7 +123,7 @@ internal data class RecordListSpacing(
 @Composable
 internal fun GrowthLinkButton(onOpenGrowth: () -> Unit) {
     val colors = EolssuTheme.colors
-    Surface(onClick = onOpenGrowth, modifier = Modifier.heightIn(min = 32.dp), shape = CircleShape, color = colors.surface, contentColor = colors.textSub) {
+    Surface(onClick = UserActionLog.click(QaTarget.RECORD_LIST_PARTS_01, onOpenGrowth), modifier = Modifier.heightIn(min = 32.dp), shape = CircleShape, color = colors.surface, contentColor = colors.textSub) {
         Row(
             Modifier.padding(start = 12.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -214,7 +218,7 @@ private fun InstrumentSelectBox(value: Instrument?, onPick: (Instrument?) -> Uni
     val selectedLabel = value?.let { stringResource(it.label) } ?: all
     Box {
         Surface(
-            onClick = { expanded = true },
+            onClick = UserActionLog.click(QaTarget.RECORD_LIST_PARTS_02, { expanded = true }),
             modifier = Modifier.height(36.dp).semantics { role = Role.DropdownList },
             shape = CircleShape,
             color = EolssuTheme.colors.surface,
@@ -245,10 +249,10 @@ private fun InstrumentSelectBox(value: Instrument?, onPick: (Instrument?) -> Uni
                         EolssuMenuItem(
                             option?.let { stringResource(it.label) } ?: all,
                             option == value,
-                            onClick = {
+                            onClick = UserActionLog.click(QaTarget.RECORD_LIST_PARTS_03, {
                                 expanded = false
                                 onPick(option)
-                            },
+                            }),
                             leading = option?.let { { InstrumentPicture(it) } },
                         )
                     }
@@ -308,7 +312,7 @@ private fun SongGroupCard(
                 Modifier
                     .fillMaxWidth()
                     .background(if (open) colors.accentTint else colors.surface)
-                    .clickable(role = Role.Button) { onToggle(group.key) }
+                    .clickable(role = Role.Button) { UserActionLog.event(QaKind.CLICK, QaTarget.RECORD_LIST_PARTS_06); onToggle(group.key) }
                     .semantics { stateDescription = if (open) expandedLabel else collapsedLabel }
                     .padding(horizontal = spacing.groupPaddingH, vertical = spacing.groupPaddingV),
                 verticalAlignment = Alignment.CenterVertically,
@@ -354,7 +358,7 @@ private fun SongGroupCard(
                     pages.any { it?.failed == true } -> RecordsLoadStatus(failed = true, onRetry = { onLoadMore(group.key) })
                     pages.any { it?.nextPage != null } -> EolssuButton(
                         stringResource(Res.string.records_load_more), { onLoadMore(group.key) },
-                        modifier = Modifier.padding(8.dp), style = EolssuButtonStyle.Secondary, small = true,
+                        modifier = Modifier.padding(8.dp), style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.RECORD_LIST_PARTS_BUTTON_01
                     )
                 }
             }
@@ -372,7 +376,7 @@ private fun DayHeader(day: RecordDay, open: Boolean, today: KoreanDateTime, spac
         Modifier
             .fillMaxWidth()
             .background(colors.groupedBackground)
-            .clickable(role = Role.Button, onClick = onToggle)
+            .clickable(role = Role.Button, onClick = UserActionLog.click(QaTarget.RECORD_LIST_PARTS_04, onToggle))
             .semantics { stateDescription = if (open) expandedLabel else collapsedLabel }
             .padding(horizontal = spacing.rowPaddingH, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -443,7 +447,7 @@ private fun RecordRow(
         Modifier
             .fillMaxWidth()
             .then(marker)
-            .clickable(onClick = onClick)
+            .clickable(onClick = UserActionLog.click(QaTarget.RECORD_LIST_PARTS_05, onClick))
             .then(selection)
             .padding(horizontal = spacing.rowPaddingH, vertical = spacing.rowPaddingV),
         verticalAlignment = Alignment.CenterVertically,
@@ -500,7 +504,7 @@ internal fun RecordsLoadStatus(failed: Boolean, onRetry: () -> Unit, modifier: M
     ) {
         if (failed) {
             Text(stringResource(Res.string.records_load_failed), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), textAlign = TextAlign.Center)
-            EolssuButton(stringResource(Res.string.growth_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true)
+            EolssuButton(stringResource(Res.string.growth_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.RECORD_LIST_PARTS_BUTTON_02)
         } else {
             CircularProgressIndicator(Modifier.size(36.dp), color = colors.text, trackColor = colors.surfaceStrong, strokeWidth = 3.dp)
         }

@@ -92,7 +92,7 @@ private fun SheetReviewNotice.label(): String = rhythmReview?.label()
 
 @Composable
 internal fun SheetRhythmReview.label(): String = when (reason) {
-    "TIME_SIGNATURE_REVIEW_REQUIRED" -> timeSignature?.let { stringResource(Res.string.sheet_review_meter_signature, it.withParticle(KoreanParticle.EulReul)) }
+    "TIME_SIGNATURE_REVIEW_REQUIRED" -> timeSignature?.let { stringResource(Res.string.sheet_review_meter_signature, it.withParticle(KoreanParticle.EuroRo)) }
         ?: stringResource(Res.string.sheet_review_meter_unknown)
     "REPEATED_UNDERFULL_MEASURE" -> stringResource(Res.string.sheet_review_measure_short)
     "OVERFULL_MEASURE" -> stringResource(Res.string.sheet_review_measure_long)

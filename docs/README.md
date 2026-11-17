@@ -1,6 +1,20 @@
 # 프로젝트 문서
 
+- [QA 웹 APK 적용의 앱 로그 읽기 대기 후 자동 설치 (1066)](plans/S15P31E102-1066.md)
+- [정간보 스캔의 시김새 인식 범위 확대 (1062)](plans/S15P31E102-1062.md) · [원인·규칙·측정](knowledge/data/jeongganbo-omr-accuracy.md#시김새-획-보정-1062)
+- [정간 전체를 잇는 이음표를 연습·보기 화면에서 빈칸으로 표시 (1069)](knowledge/frontend/jeonggan-whole-cell-hold.md)
+- [이조 적용 시 황종 주파수의 웹(Wasm) 마지막 자리 차이 수정 (1056)](plans/S15P31E102-1056.md) · [원인](knowledge/frontend/sheet-pitch-adaptation.md#황종-주파수의-플랫폼별-마지막-자리-차이-1056)
+- [오선보 아리랑 변환 결과가 원곡과 크게 다른 원인 확인과 수정 (1043)](plans/S15P31E102-1043.md) · [원인·실제 대조](knowledge/ai/score-recognition-corrections.md#아리랑-98의-끝-쉼표-누락과-9정간-각-1043)
+- [웹 마이페이지 최근 연주 카드 표시 지연 원인 규명 (863)](knowledge/frontend/web-mypage-recent-rendering.md)
+- [앱 마이페이지 최근 연주 개선 전후 실기기 속도 비교 (864)](plans/S15P31E102-864.md)
+- [연습 화면 보기 버튼을 스위치 토글 모양으로 되돌리기 (1057)](plans/S15P31E102-1057.md)
+- [악보·연주·연습·평가 화면의 연습 설정 시트와 보기 버튼을 하나의 UI로 통일 (1037)](plans/S15P31E102-1037.md)
+- [자동 보안 업데이트 뒤 Jenkins 에이전트 재시작 미루기 (758)](plans/S15P31E102-758.md) · [운영 안내](../infra/needrestart/README.md)
+- [녹음 R2 점검 직접 실행 (959)](plans/S15P31E102-959.md) · [점검 범위](specs/mattermost-inspection-measurements.md#녹음-r2-직접-점검-전환-s15p31e102-959)
+- [악보 추가·편집 화면 튜토리얼 기획 (1004)](plans/S15P31E102-1004.md)
 - [홈 세로 첫 화면 제목 확대와 시작 버튼 뒤 먹 띠 올리기 (1034)](plans/S15P31E102-1034.md)
+- [악보 편집 시김새·장단·구간 빠르기 사용 안내 (1001)](plans/S15P31E102-1001.md)
+- [내 악보 목록 악기 필터 추가 (999)](plans/S15P31E102-999.md)
 - [장단을 정하지 못한 오선보 인식의 빠르기를 박자표 기본값으로 적용 (1035)](plans/S15P31E102-1035.md)
 - [연습 악보에서 쉼표를 눌러도 운지법 팝업 열기 (1007)](plans/S15P31E102-1007.md)
 - [한 음씩 연습의 예시음 1.2초 재생·악보 눌러 위치 이동과 듣는 중 표시 정리 (1006)](plans/S15P31E102-1006.md)
@@ -325,7 +339,7 @@
 - [내 악보 음원 생성·재생 앱 흐름 (SHT-12·13 FE)](specs/sheet-audio-app-flow.md) · [484 계획](plans/S15P31E102-484.md)
 - [내 악보 미리듣기 진행 표시와 구간 탐색 (691)](plans/S15P31E102-691.md)
 - [악보 인식 서비스 계약 (SHT-07 내부, omr)](specs/score-recognition.md) · [변환 가능성 조사](knowledge/ai/score-omr-feasibility.md)
-- [정간보 스캔 초안 변환 (458)](specs/jeongganbo-scan-recognition.md) · [모델·실행·검증·독립 롤백](knowledge/ai/jeongganbo-scan-runtime.md)
+- [정간보 스캔 초안 변환 (458)](specs/jeongganbo-scan-recognition.md) · [모델·실행·검증·독립 롤백](knowledge/ai/jeongganbo-scan-runtime.md) · [사진 기울기·원근·조명 보정 (1059)](knowledge/ai/jeongganbo-scan-rectify.md)
 - [저장한 기록의 녹음 보관과 미저장 녹음 30일 정리](specs/recording-retention.md) · [375 계획](plans/S15P31E102-375.md)
 - [기초부터 배우기 학습 단계·진도 API (LRN-01·02·03)](specs/learning-progress-apis.md) · [344 계획](plans/S15P31E102-344.md)
 
@@ -645,3 +659,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [입력칸 글자 수 상한과 메모 입력 방식 (996)](knowledge/frontend/input-length-limits.md)
 - [악보 빠르기 범위 40~200 (1018)](knowledge/frontend/sheet-tempo-range.md)
 - [강원도아리랑·옹헤야 빠르기 정간 단위 표기와 운영 적용 (1019)](knowledge/data/score-tempo-1019.md)
+
+- [S15P31E102-1051 QA 전체 조작 로그 구현과 실기기 검증](plans/S15P31E102-1051.md)
+
+- [Android QA 조작 대상 목록](knowledge/frontend/qa-user-action-targets.md)

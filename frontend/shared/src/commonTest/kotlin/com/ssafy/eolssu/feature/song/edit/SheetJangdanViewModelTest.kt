@@ -15,6 +15,20 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
     private val compatible = CatalogJangdanSummary("4", "굿거리", 80, "DOTTED_QUARTER", 3, 1, 1)
     private val incompatible = CatalogJangdanSummary("5", "중모리", 90, "QUARTER", 12, 4, 2)
 
+    @Test fun unsupportedDraftExplainsWhyJangdanCannotBeChanged() = runTest {
+        val model = keep(SheetEditViewModel(EditSource.CopySong("1"), EditView.Jeongganbo,
+            SampleMySheetRepository(), pitchCatalog = JangdanCatalog(listOf(compatible))))
+        runCurrent()
+        val draft = model.uiState.value.draft
+
+        model.changeJangdan()
+        runCurrent()
+
+        assertEquals(SheetEditMessage.JangdanUnavailable, model.uiState.value.message)
+        assertEquals(draft, model.uiState.value.draft)
+        assertNull(model.uiState.value.jangdanPicker)
+    }
+
     @Test fun basicPresetSurvivesDraftReloadAndConfirmationWithMelodyOnlyAudio() = runTest {
         val original = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
         val metadata = SheetJangdanCorrectionTest.sourceMetadata(original)
@@ -84,7 +98,9 @@ internal class SheetJangdanViewModelTest : CatalogViewModelTest() {
         assertEquals(original.columns, repository.document.score!!.columns)
         assertEquals(original.events, repository.document.score!!.events)
         assertEquals(savedMetadata, repository.document.authoring)
-        assertEquals(100, restored.uiState.value.draft.bpm)
+        // 정간보에서 장단을 바꾸면 이전 빠르기(100) 대신 단모리 기본 빠르기를 쓴다(S15P31E102-1054).
+        assertEquals(danmori.defaultBpm, restored.uiState.value.draft.bpm)
+        assertEquals(danmori.defaultBpm, repository.writes.last().second.bpm)
     }
 
     @Test fun changingJangdanLoadsChoicesAndPreservesTimingThroughDraftAndFinalSave() = runTest {

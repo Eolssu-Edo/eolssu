@@ -28,9 +28,10 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun EditNewRoute(
     onBack: () -> Unit,
-    onImport: (ImportKind, HwangPitch) -> Unit,
+    onImport: (ImportKind, HwangPitch, String?) -> Unit,
     onLoadExisting: () -> Unit,
     reimportProblem: SheetFileProblem? = null,
+    reimportSheetId: String? = null,
     onOpenSheet: (MySheet) -> Unit = {},
     onEditSheet: (MySheet) -> Unit = {},
     onOpenConversion: (MySheet) -> Unit = {},
@@ -38,7 +39,7 @@ fun EditNewRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(viewModel) { viewModel.showReimportProblem(reimportProblem) }
+    LaunchedEffect(viewModel) { viewModel.showReimportProblem(reimportProblem, reimportSheetId) }
     LifecycleResumeEffect(viewModel) {
         viewModel.refreshSheets()
         viewModel.watchConversions()
@@ -58,12 +59,13 @@ fun EditNewRoute(
             snackbarHostState.showSnackbar(deleteFailure)
         }
     }
-    val openDevicePick = { onImport(state.kind, HwangPitch.Default) }
+    // '다시 불러오기'(안내 창의 '다시 선택하기' 포함)는 실패 악보를 대신하고, 위의 '악보 올리기'는 새 악보로 더한다.
+    val openDevicePick = { onImport(state.kind, HwangPitch.Default, viewModel.uiState.value.replacing) }
     EditNewScreen(
         state = state,
         onBack = onBack,
         // 종류는 올리기 화면에서 고르므로 정간보로 열어 둔다.
-        onUpload = { onImport(ImportKind.Jeongganbo, HwangPitch.Default) },
+        onUpload = { onImport(ImportKind.Jeongganbo, HwangPitch.Default, null) },
         onLoadExisting = onLoadExisting,
         onOpenDevicePick = openDevicePick,
         onDismissProblem = viewModel::dismissProblem,

@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.guide.learn
 
 import androidx.compose.material3.SnackbarHostState
+import com.ssafy.eolssu.core.diagnostics.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,6 +68,11 @@ fun LearnListRoute(
     val scope = rememberCoroutineScope()
     val twoPane = widthClass == WindowWidthClass.Expanded
     val audio = rememberReferenceAudioController(state.instrument, state.shownStage)
+    LaunchedEffect(state.instrument, state.cardStage) {
+        UserActionLog.event(QaKind.CONTENT_SELECTED, QaTarget.LEARN, content = QaContent.entries.firstOrNull {
+            it.name == "LEARN_STAGE_${state.cardStage}"
+        } ?: QaContent.UNIDENTIFIED)
+    }
 
     LaunchedEffect(twoPane, state.selectedStage) {
         val selected = state.selectedStage
@@ -160,6 +166,11 @@ fun LearnStageRoute(
     val scope = rememberCoroutineScope()
     val twoPane = widthClass == WindowWidthClass.Expanded
     val audio = rememberReferenceAudioController(state.instrument, stageNumber)
+    LaunchedEffect(state.instrument, stageNumber) {
+        UserActionLog.event(QaKind.CONTENT_SELECTED, QaTarget.LEARN, content = QaContent.entries.firstOrNull {
+            it.name == "LEARN_STAGE_$stageNumber"
+        } ?: QaContent.UNIDENTIFIED)
+    }
     val stage = state.stageOf(stageNumber)
     LearnSaveErrorEffect(state.saveError, snackbarHostState, viewModel::clearSaveError)
     LaunchedEffect(state.instrument, stage) { stage?.let { viewModel.loadDetail(it.number) } }

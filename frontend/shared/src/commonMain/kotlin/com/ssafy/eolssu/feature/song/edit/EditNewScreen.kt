@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,6 +32,7 @@ import com.ssafy.eolssu.feature.song.edit.component.SheetEditIcons
 import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblemDialog
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_sheet_count
+import eolssu.shared.generated.resources.mysongs_sheet_limit_note
 import eolssu.shared.generated.resources.sheetedit_new_question
 import eolssu.shared.generated.resources.sheetedit_new_eolssu_caption
 import eolssu.shared.generated.resources.sheetedit_new_eolssu_title
@@ -95,7 +99,7 @@ fun EditNewScreen(
                 stringResource(Res.string.sheetedit_new_upload_title),
                 stringResource(Res.string.sheetedit_new_upload_caption),
                 SheetEditIcons.Folder,
-                onClick = onUpload,
+                onClick = UserActionLog.click(QaTarget.EDIT_NEW_SCREEN_01, onUpload),
                 emphasized = true,
             )
             // 얼쑤가 주는 곡이나 이미 만든 내 악보를 복사해 온다.
@@ -103,7 +107,7 @@ fun EditNewScreen(
                 stringResource(Res.string.sheetedit_new_eolssu_title),
                 stringResource(Res.string.sheetedit_new_eolssu_caption),
                 SheetEditIcons.MySheet,
-                onClick = onLoadExisting,
+                onClick = UserActionLog.click(QaTarget.EDIT_NEW_SCREEN_02, onLoadExisting),
             )
             MySheetsSection(state, sheetActions)
         }
@@ -133,8 +137,15 @@ private fun MySheetsSection(state: EditNewUiState, actions: EditNewSheetActions)
         return
     }
     Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // '내 악보 n개'. 내 악보 탭의 개수 문구를 제목으로 쓴다.
-        SectionLabel(stringResource(Res.string.mysongs_sheet_count, sheets.size))
+        // '내 악보 n/10'과 저장 한도 안내. 내 악보 탭의 개수 문구를 제목으로 쓴다(S15P31E102-1052).
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            SectionLabel(stringResource(Res.string.mysongs_sheet_count, sheets.size, MY_SHEET_LIMIT))
+            Text(
+                stringResource(Res.string.mysongs_sheet_limit_note, MY_SHEET_LIMIT),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
+                color = EolssuTheme.colors.textMuted,
+            )
+        }
         sheets.forEach { sheet ->
             MySheetRow(
                 sheet,

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.platform.permission
 
+import com.ssafy.eolssu.core.diagnostics.*
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -45,6 +46,7 @@ class AndroidMicPermission private constructor(private val context: Context) : M
     }.isSuccess
 
     fun onResult(granted: Boolean) {
+        UserActionLog.event(QaKind.INPUT_VALIDATION, QaTarget.RECORDING, if (granted) QaOutcome.READY else QaOutcome.FAILED)
         deniedForGood = !granted && shouldShowRationale?.invoke() == false
         pending?.complete(granted)
         pending = null

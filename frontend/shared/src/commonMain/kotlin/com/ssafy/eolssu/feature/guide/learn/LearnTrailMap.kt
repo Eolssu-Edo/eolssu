@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -127,7 +130,7 @@ internal fun LearnTrailMap(
                 viewed = stage.number == viewedStage,
                 paper = paper,
                 water = water,
-                onClick = { onShowStage(stage.number) },
+                onClick = UserActionLog.click(QaTarget.LEARN_TRAIL_MAP_01, { onShowStage(stage.number) }),
                 modifier = Modifier.offset(width * center.x - StoneWidth / 2, TrailHeight * center.y - NodeSize / 2),
             )
         }
@@ -277,7 +280,7 @@ private fun TrailNode(stage: LearnStage, done: Boolean, viewed: Boolean, paper: 
                 val placeable = measurable.measure(Constraints.fixed(touch, touch))
                 layout(width, height) { placeable.place((width - touch) / 2, (height - touch) / 2) }
             }
-            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = UserActionLog.click(QaTarget.LEARN_TRAIL_MAP_02, onClick))
             .semantics {
                 contentDescription = label
                 selected = viewed

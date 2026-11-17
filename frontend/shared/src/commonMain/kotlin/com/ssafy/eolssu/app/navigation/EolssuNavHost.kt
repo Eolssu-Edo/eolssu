@@ -182,6 +182,7 @@ fun EolssuNavHost(
     val recentPrefetch = remember(scope) { RecentPracticePrefetch(scope) }
     DisposableEffect(navController, recentPrefetch) {
         val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
+            com.ssafy.eolssu.core.diagnostics.UserActionLog.screen(destination.route)
             recentPrefetch.onDestinationChanged(destination.route)
         }
         navController.addOnDestinationChangedListener(listener)
@@ -641,7 +642,7 @@ fun EolssuNavHost(
                         }
                     },
                     onAddSheet = { navController.navigate(SheetEditDestination.new()) },
-                    onReimportSheet = { failure -> navController.navigate(SheetEditDestination.new(failure)) },
+                    onReimportSheet = { sheet, failure -> navController.navigate(SheetEditDestination.new(failure, replace = sheet.id)) },
                     onOpenConversion = { sheetId ->
                         if (navController.currentBackStackEntry?.id == entry.id) navController.navigate(SheetEditDestination.conversion(sheetId))
                     },

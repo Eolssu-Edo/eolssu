@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.ui.component.QaModalObservation
+import com.ssafy.eolssu.core.ui.component.qaModalInput
+
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -10,7 +16,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -31,22 +36,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,11 +53,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.ui.component.InstrumentMenuItem
-import com.ssafy.eolssu.core.ui.component.InstrumentPicture
-import com.ssafy.eolssu.core.ui.component.EolssuMenuAlign
-import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
-import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
@@ -92,8 +86,6 @@ import eolssu.shared.generated.resources.practice_fingering_none
 import eolssu.shared.generated.resources.practice_fingering_prev
 import eolssu.shared.generated.resources.practice_fingering_rest
 import eolssu.shared.generated.resources.practice_fingering_title
-import eolssu.shared.generated.resources.practice_fingering_view
-import eolssu.shared.generated.resources.practice_instrument
 import eolssu.shared.generated.resources.practice_jangdan_beat
 import eolssu.shared.generated.resources.practice_jangdan_meta
 import eolssu.shared.generated.resources.practice_jangdan_pattern_meta
@@ -107,10 +99,8 @@ import eolssu.shared.generated.resources.practice_jangdan_title
 import eolssu.shared.generated.resources.practice_listen_note
 import eolssu.shared.generated.resources.practice_menu_jangdan
 import eolssu.shared.generated.resources.practice_menu_tempo
-import eolssu.shared.generated.resources.practice_notation_hangul
 import eolssu.shared.generated.resources.practice_settings
 import eolssu.shared.generated.resources.practice_settings_locked
-import eolssu.shared.generated.resources.practice_live_marks
 import eolssu.shared.generated.resources.practice_tempo_note
 import eolssu.shared.generated.resources.practice_tempo_sub
 import eolssu.shared.generated.resources.practice_tempo_title
@@ -126,13 +116,11 @@ class PracticePanelActions(
     val onMoveFingering: (Int) -> Unit,
     val fingeringAudio: @Composable (GuideInstrument, FingeringNote) -> Unit,
     val onTogglePreview: () -> Unit,
-    /** 연습 설정의 ‘연습 악기’(`GuideInstrument.id`). */
-    val onSetInstrument: (String) -> Unit = {},
-    /** 연습 설정의 ‘운지법과 함께 보기’. 바로 반영된다. */
+    /** 제목 줄 ‘운지법’ 버튼(운지법과 함께 보기). 바로 반영된다(S15P31E102-1037). */
     val onToggleFingeringView: () -> Unit = {},
-    /** 연습 설정의 ‘한글 읽는 법 표시’. 바로 반영된다(S15P31E102-875). */
+    /** 제목 줄 ‘한글 표기’ 버튼. 바로 반영된다(S15P31E102-875·1037). */
     val onToggleHangul: () -> Unit = {},
-    /** 연주 설정의 ‘실시간 채점’. AI 연주 평가에서만 보이고 바로 반영된다(S15P31E102-980). */
+    /** 제목 줄 ‘퍼펙트 스코어’ 버튼(실시간 채점 색). AI 연주 평가에서만 보이고 바로 반영된다(S15P31E102-980·1037). */
     val onToggleLiveMarks: () -> Unit = {},
 )
 
@@ -155,8 +143,9 @@ fun PracticePanelSheet(
     // 배경 누르기와 상위로 뒤로가기를 분리한다. 모달 전체 배경이 닫기 입력을 받는다.
     // 시트는 화면 바닥까지 닿고, 시스템 하단 여백(홈 막대·내비게이션 바)은 시트 안쪽 아래에 둔다(S15P31E102-973).
     Dialog(onDismissRequest = actions.onClose, properties = practiceSheetDialogProperties()) {
+        QaModalObservation()
         BoxWithConstraints(
-            Modifier.fillMaxSize()
+            Modifier.qaModalInput().fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
         ) {
             val maxSheetHeight = maxHeight * when {
@@ -166,7 +155,7 @@ fun PracticePanelSheet(
                 else -> 0.82f
             }
             // 바깥 막을 눌러 닫을 때 막 전체에 눌림 효과가 번쩍이지 않게 한다.
-            Box(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = actions.onDismiss))
+            Box(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = UserActionLog.click(QaTarget.PRACTICE_PANELS_01, actions.onDismiss)))
             Surface(
                 modifier = modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).fillMaxWidth()
                     .heightIn(max = maxSheetHeight),
@@ -223,10 +212,9 @@ fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: So
 }
 
 /**
- * PANEL-00 연습 설정: ‘연습 악기’ 고르기 → 장단 · 속도 메뉴 줄(`.menu-row`) → ‘한글 읽는 법 표시’·‘운지법과 함께 보기’·‘실시간 채점’ 스위치(`.trow`).
- * 한글 읽는 법은 하위 화면 없이 이 시트에서 바로 켜고 끈다. 연주 평가 중에도 바꿀 수 있다(S15P31E102-875).
- * AI 연주 평가로 들어온 연습([PracticeUiState.solo]가 아님)은 고른 곡의 악기로 평가하므로 ‘연습 악기’를 두지 않는다(S15P31E102-561).
- * 연주 평가도 ‘운지법과 함께 보기’를 곡 제목 옆이 아닌 이 시트에서 바꾼다(S15P31E102-980).
+ * PANEL-00 연습 설정: 장단 · 속도 메뉴 줄(`.menu-row`)만 둔다. 혼자 연습·내 악보·구간 연습·AI 연주 평가가 모두 같은 모양이다(S15P31E102-1037).
+ * ‘퍼펙트 스코어’·‘한 음씩’·‘운지법’·‘한글 표기’는 시트가 아닌 제목 줄 버튼([PracticeOptionButtonRow])에서 바로 켜고 끈다.
+ * 연습 악기는 고르지 않고 곡 악보의 악기를 따른다.
  */
 @Composable
 private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
@@ -235,10 +223,8 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     // 평가 중에는 속도만 고정하고 장단 소리는 바꿀 수 있다.
     val locked = state.playbackSettingsLocked
     val lockedStatus = stringResource(Res.string.practice_settings_locked)
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (state.solo && !state.learn) SettingsCard { InstrumentSelect(state.instrument, actions.onSetInstrument) }
-        // 메뉴 줄은 카드 위아래 끝까지 닿고, 눌림 효과는 카드의 둥근 모서리에서 잘린다(S15P31E102-968).
-        SettingsCard(verticalPadding = 0.dp) {
+    // 메뉴 줄은 카드 위아래 끝까지 닿고, 눌림 효과는 카드의 둥근 모서리에서 잘린다(S15P31E102-968).
+    SettingsCard(verticalPadding = 0.dp) {
         MenuRow(
             EolssuIcons.JangdanMark, stringResource(Res.string.practice_menu_jangdan),
             when {
@@ -250,30 +236,6 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
         ) { actions.onOpen(PracticePanel.Jangdan) }
         MenuRow(EolssuIcons.TempoMark, stringResource(Res.string.practice_menu_tempo), if (locked) lockedStatus else tempoLabel(step), enabled = !locked) {
             actions.onOpen(PracticePanel.Tempo)
-        }
-        }
-        // 두 스위치 사이 구분선이 카드 안쪽 여백에서 시작하도록 줄 전체를 안쪽 여백 안에 둔다.
-        SettingsCard {
-            Column(Modifier.padding(horizontal = SettingsCardInset)) {
-                SettingRow(
-                    stringResource(Res.string.practice_notation_hangul), null,
-                    checked = settings.showHangul,
-                    onToggle = actions.onToggleHangul,
-                    topLine = false,
-                    topPadding = 12.dp,
-                )
-                SettingRow(
-                    stringResource(Res.string.practice_fingering_view), null,
-                    checked = state.fingeringView,
-                    onToggle = actions.onToggleFingeringView,
-                )
-                // 실시간 판정 색은 AI 연주 평가에서만 칠하므로 혼자 연습에는 두지 않는다(S15P31E102-980).
-                if (!state.solo) SettingRow(
-                    stringResource(Res.string.practice_live_marks), null,
-                    checked = settings.liveMarks,
-                    onToggle = actions.onToggleLiveMarks,
-                )
-            }
         }
     }
 }
@@ -293,60 +255,6 @@ private fun SettingsCard(verticalPadding: Dp = 4.dp, content: @Composable Column
     )
 }
 
-/**
- * ‘연습 악기’: 15sp 600 라벨과 오른쪽 고르기 알약(38dp, 테두리 없는 회색 바탕, 악기 그림 28dp + 13sp 500). 목록에도 악기 그림을 둔다(S15P31E102-831).
- * 알약의 누르는 영역은 48dp이고 눌림 효과는 알약 안에만 보인다. 줄 높이는 전과 같게 위아래 여백을 줄였다(S15P31E102-970).
- */
-@Composable
-private fun InstrumentSelect(selected: GuideInstrument, onSelect: (String) -> Unit) {
-    val colors = EolssuTheme.colors
-    var open by remember { mutableStateOf(false) }
-    val label = stringResource(Res.string.practice_instrument)
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = SettingsCardInset, vertical = 3.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
-        Box {
-            Surface(
-                onClick = { open = true },
-                modifier = Modifier.heightIn(min = 38.dp).semantics { role = Role.DropdownList },
-                shape = RoundedCornerShape(50),
-                color = colors.groupedBackground,
-                contentColor = colors.text,
-            ) {
-                Row(
-                    Modifier.padding(start = 6.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    InstrumentPicture(selected)
-                    Text(stringResource(selected.label), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), color = colors.text)
-                    Icon(
-                        EolssuIcons.ChevronDown,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp).rotate(if (open) 180f else 0f),
-                        tint = colors.textMuted,
-                    )
-                }
-            }
-            if (open) {
-                EolssuMenuPopup(onDismissRequest = { open = false }, align = EolssuMenuAlign.End) {
-                    EolssuMenuPanel(width = 168.dp) {
-                        GuideInstrument.entries.forEach { instrument ->
-                            InstrumentMenuItem(instrument, instrument == selected, onClick = {
-                                open = false
-                                onSelect(instrument.id)
-                            })
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 /** 메뉴 줄(56dp): 흰 카드 안에서 선 없이, 36dp 회색 네모 아이콘, 15sp 600 이름, 13sp 상태, 꺾쇠. [enabled]가 아니면 흐리고 누를 수 없다. */
 @Composable
 private fun MenuRow(icon: ImageVector, label: String, status: String, enabled: Boolean = true, onClick: () -> Unit) {
@@ -356,7 +264,7 @@ private fun MenuRow(icon: ImageVector, label: String, status: String, enabled: B
             .fillMaxWidth()
             .height(56.dp)
             .alpha(if (enabled) 1f else 0.45f)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.PRACTICE_PANELS_02, onClick))
             .padding(horizontal = SettingsCardInset),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -474,8 +382,8 @@ private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions
         actions.fingeringAudio(instrument, note)
     } else {
         EolssuButton(
-            stringResource(Res.string.practice_listen_note), onClick = {}, enabled = false,
-            style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Speaker,
+            stringResource(Res.string.practice_listen_note), onClick = UserActionLog.click(QaTarget.PRACTICE_PANELS_03, {}), enabled = false,
+            style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Speaker, qaTarget = QaTarget.PRACTICE_PANELS_BUTTON_01
         )
     }
     if (!rest) {
@@ -558,7 +466,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
         // 흰 카드 안이라 테두리 대신 회색 채움으로 누르는 자리를 보인다.
         containerColor = colors.groupedBackground,
         borderColor = if (draft.previewing) colors.play else Color.Transparent,
-        squash = true,
+        squash = true, qaTarget = QaTarget.PRACTICE_PANELS_BUTTON_02
     )
     }
     PanelCard(padding = 0.dp) {

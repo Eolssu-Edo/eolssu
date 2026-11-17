@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -77,7 +80,7 @@ internal fun InstrumentDropdown(
         var anchorWidth by remember { mutableIntStateOf(0) }
         Box(Modifier.weight(1f).onSizeChanged { anchorWidth = it.width }) {
             Surface(
-                onClick = onToggle,
+                onClick = UserActionLog.click(QaTarget.INSTRUMENT_DROPDOWN_01, onToggle),
                 enabled = enabled,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -116,7 +119,7 @@ internal fun InstrumentDropdown(
                     EolssuMenuPanel(width = width) {
                         (options?.map { it.instrument } ?: GuideInstrument.entries).forEach { instrument ->
                             val label = options?.firstOrNull { it.instrument == instrument }?.name ?: stringResource(instrument.label)
-                            InstrumentMenuItem(instrument, instrument == selected, onClick = { onSelect(instrument) }, label = label)
+                            InstrumentMenuItem(instrument, instrument == selected, onClick = UserActionLog.click(QaTarget.INSTRUMENT_DROPDOWN_02, { onSelect(instrument) }), label = label)
                         }
                     }
                 }

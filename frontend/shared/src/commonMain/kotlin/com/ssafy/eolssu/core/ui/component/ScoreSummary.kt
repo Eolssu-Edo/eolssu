@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.background
@@ -170,7 +173,7 @@ fun TintPillButton(
     // Surface(onClick)는 30dp 알약 둘레로 48dp까지 누르게 하지만, 바깥 칸이 48dp보다 작으면 그만큼 잘린다.
     Box(modifier.heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
         Surface(
-            onClick = onClick,
+            onClick = UserActionLog.click(QaTarget.SCORE_SUMMARY_01, onClick),
             enabled = enabled,
             modifier = Modifier.height(30.dp),
             shape = RoundedCornerShape(16.dp),

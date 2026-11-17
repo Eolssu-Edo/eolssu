@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -48,7 +50,7 @@ import com.ssafy.eolssu.feature.practice.component.PracticeRecordingBar
 import com.ssafy.eolssu.feature.practice.component.PracticePlaybackLoadingOverlay
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
-import com.ssafy.eolssu.feature.practice.component.PracticeStepToggle
+import com.ssafy.eolssu.feature.practice.component.PracticeOptionButtonRow
 import com.ssafy.eolssu.feature.practice.component.reportUserActivity
 import com.ssafy.eolssu.feature.practice.layout.PracticeExpandedLayout
 import com.ssafy.eolssu.feature.practice.layout.PracticeMediumLayout
@@ -140,7 +142,7 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
                 null -> Res.string.practice_score_loading
             }), style = MaterialTheme.typography.bodyLarge)
             if (!state.isSongLoading && state.songError != null) {
-                EolssuButton(stringResource(Res.string.practice_score_retry), actions.onRetrySong)
+                EolssuButton(stringResource(Res.string.practice_score_retry), actions.onRetrySong, qaTarget = QaTarget.PRACTICE_SCREEN_BUTTON_01)
             }
         }
     }
@@ -172,9 +174,10 @@ private fun PracticeCompactLayout(
         snackbarHostState = snackbarHostState,
         containerColor = EolssuTheme.colors.groupedBackground,
         topBar = {
+            // 휴대폰은 모드 버튼(‘한 음씩’·‘퍼펙트 스코어’)만 톱니 옆에 둬 제목 줄 폭을 넓힌다(S15P31E102-1037).
             PracticeTopBar(
-                state, actions.onBack, actions.onOpenSettings, onToggleStep = actions.bottom.onToggleStep,
-                showStepToggle = false,
+                state, actions.onBack, actions.onOpenSettings,
+                options = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep, include = { it.modeButton }) },
             )
         },
         bottomBar = if (recordingBar) { { PracticeRecordingBar(state, actions.bottom) } } else null,
@@ -187,15 +190,12 @@ private fun PracticeCompactLayout(
             ) {
                 PracticeTitleRow(
                     state,
-                    // ‘한 음씩’이 없는 연주 평가도 제목 줄 높이를 스위치(44dp)와 같게 둔다.
+                    // 보기 버튼이 없는 경우에도 제목 줄 높이를 버튼의 누르는 높이(44dp)와 같게 둔다.
                     modifier = Modifier.heightIn(min = PracticeCompactTitleRowHeight),
                     showPill = false,
-                    // 휴대폰은 머리 제목이 잘리지 않게 ‘한 음씩’을 설정 버튼 아래(제목 줄 오른쪽)에 둔다. 연습·구간 연습이 같은 자리다(S15P31E102-816).
-                    trailing = if (state.solo && state.step.available) {
-                        { PracticeStepToggle(state, actions.bottom.onToggleStep) }
-                    } else {
-                        null
-                    },
+                    // 휴대폰 제목 줄 오른쪽에는 ‘운지법’·‘한글 표기’만 둔다. 모드 버튼은 상단 바 톱니 옆에 있다.
+                    // 연습·구간 연습·연주 평가가 같은 자리·같은 모양이다(S15P31E102-816·1037).
+                    trailing = { PracticeOptionButtonRow(state, actions.panel, actions.bottom.onToggleStep, include = { !it.modeButton }) },
                 )
                 Spacer(Modifier.height(if (fingering) 8.dp else 12.dp))
                 if (fingering) {
@@ -213,7 +213,7 @@ private fun PracticeCompactLayout(
     }
 }
 
-/** 휴대폰 연습 화면 제목 줄 높이. 오른쪽 ‘한 음씩’ 스위치의 누르는 높이와 같다. */
+/** 휴대폰 연습 화면 제목 줄 높이. 오른쪽 보기 버튼의 누르는 높이와 같다. */
 private val PracticeCompactTitleRowHeight = 44.dp
 
 /** 악보와 플레이어 사이 간격. */
@@ -266,7 +266,7 @@ private fun CountdownOverlay(state: PracticeUiState, onCancel: () -> Unit) {
                 stringResource(Res.string.practice_countdown_cancel),
                 onCancel,
                 style = EolssuButtonStyle.Secondary,
-                modifier = Modifier.padding(horizontal = 48.dp),
+                modifier = Modifier.padding(horizontal = 48.dp), qaTarget = QaTarget.PRACTICE_SCREEN_BUTTON_02
             )
         },
     )

@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,7 +53,7 @@ internal fun RecordSongLookupContent(state: RecordDetailUiState, actions: Record
             }),
             textAlign = TextAlign.Center,
         )
-        if (state.record != null || state.songLookup == RecordSongLookup.Failed) EolssuButton(stringResource(Res.string.catalog_consumer_retry), actions.onRetrySong)
-        EolssuButton(stringResource(Res.string.catalog_consumer_back), actions.onBack, style = EolssuButtonStyle.Secondary)
+        if (state.record != null || state.songLookup == RecordSongLookup.Failed) EolssuButton(stringResource(Res.string.catalog_consumer_retry), actions.onRetrySong, qaTarget = QaTarget.RECORD_SONG_LOOKUP_CONTENT_BUTTON_01)
+        EolssuButton(stringResource(Res.string.catalog_consumer_back), actions.onBack, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.RECORD_SONG_LOOKUP_CONTENT_BUTTON_02)
     }
 }

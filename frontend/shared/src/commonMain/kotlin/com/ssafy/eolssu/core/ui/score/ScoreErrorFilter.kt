@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.score
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -214,7 +217,7 @@ private fun ErrorKindTabs(result: EvaluationResult, selected: ErrorFilter, onSel
             val weight by animateFloatAsState(if (on) SelectedTabWeight else 1f, tween(TabMotionMillis), label = "errorTabWeight")
             val fill by animateColorAsState(if (on) colors.surfaceStrong else Color.Transparent, tween(TabMotionMillis), label = "errorTabFill")
             Surface(
-                onClick = { onSelect(filter) },
+                onClick = UserActionLog.click(QaTarget.SCORE_ERROR_FILTER_01, { onSelect(filter) }),
                 modifier = Modifier.weight(weight).fillMaxHeight()
                     .semantics(mergeDescendants = true) {
                         this.selected = on

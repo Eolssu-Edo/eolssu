@@ -17,11 +17,13 @@ export class InstalledAppLogs {
     const installed=known||await this.installed();
     const version=installed?.versionName;
     if(typeof version!=='string'||!/^[A-Za-z0-9._+-]{1,100}$/.test(version))throw Error('App version unavailable');
-    if(this.version!==version){this.version=version;this.records=[];this.runs.clear();this.highWater=0;this.round=null;this.stream=null;this.lastEventAt=null;}
+    if(this.version!==version){this.version=version;this.records=[];this.runs.clear();this.highWater=0;this.round=null;this.stream=null;this.lastEventAt=null;this.unsupported=false;this.retentionMissing=0;this.actionsSupported=false;}
     const value=await this.snapshot(this.highWater,this.stream);
-    if(this.stream!==value.stream_id){this.stream=value.stream_id;this.highWater=0;this.records=[];this.runs.clear();this.lastEventAt=null;}
+    if(this.stream!==value.stream_id){this.stream=value.stream_id;this.highWater=0;this.records=[];this.runs.clear();this.lastEventAt=null;this.unsupported=false;this.retentionMissing=0;this.actionsSupported=false;}
     this.round=(value.events.at(-1)?.seq??value.after??this.highWater)<value.end;
-    this.records=this.records.filter(record=>record.seq>(value.ack??0));
+    this.retentionMissing=value.missing_retention||0;
+    this.records=this.records.filter(record=>record.seq>Math.max(value.ack??0,value.retained_after??0));
+    this.highWater=Math.max(this.highWater,value.after||0);
     for(const entry of value.events){
         if(entry.seq<=this.highWater)continue;
         this.highWater=entry.seq;
@@ -29,19 +31,24 @@ export class InstalledAppLogs {
         if(event.version_name!==this.version||!/^[a-f0-9]{32}$/.test(event.run_id)||
           ['flow','visit'].some(key=>event[key]!==undefined&&(!Number.isSafeInteger(event[key])||event[key]<0)))continue;
         if(!this.runs.has(event.run_id))this.runs.set(event.run_id,this.nextRun++);
-        const candidate={...event,source:'app',at:new Date(this.now()).toISOString(),seq:entry.seq,
+        if(event.schema_version===2)this.actionsSupported=true;
+        if(event.schema_version!==undefined&&event.schema_version!==2){this.unsupported=true;continue;}
+        const candidate={...event,source:'app',at:typeof event.event_at==='string'&&Number.isFinite(Date.parse(event.event_at))?event.event_at:new Date(this.now()).toISOString(),seq:entry.seq,
+          schemaVersion:event.schema_version,interactionId:event.interaction_id,screenId:event.screen_id,contentId:event.content_id,
+          requestId:event.request_id,
           appRun:this.runs.get(event.run_id),runId:event.run_id,versionName:this.version,versionCode:event.version_code,dataSource:event.source,
           durationMs:event.duration_ms,evaluationTimingId:event.evaluation_timing_id,evaluationSubmission:event.evaluation_submission};
         const safe=safeLogRecords([candidate]).records[0];
         if(safe)this.records.push(safe);
+        if(this.records.length>4096)this.records.splice(0,this.records.length-4096);
       }
     this.lastEventAt=this.records.at(-1)?.at||null;
-    this.state='collecting';
+    this.state=this.unsupported?'unsupported':'collecting';
   }
   project(snapshot,logsFor) {
     if(!this.version)return snapshot;
     const result={...snapshot,api:null,device:{...snapshot.device,appVersion:this.version},
-      appLog:{state:this.state,count:this.records.length,partial:!!this.round},
+      appLog:{state:this.state,count:this.records.length,partial:!!this.round,actions:this.actionsSupported?'supported':this.round?'waiting':'unsupported',missing:(this.retentionMissing||0)+this.records.filter(row=>row.kind==='log_gap').reduce((sum,row)=>sum+(row.missing||0),0)},
       operations:liveOperations(this.records),lastEventAt:this.lastEventAt||null};
     if(logsFor==='device/all')result.evidence={id:logsFor,...safeLogRecords(this.records,{limit:null})};
     else if(logsFor)result.evidence={id:logsFor,...liveEvidence(this.records,logsFor)};

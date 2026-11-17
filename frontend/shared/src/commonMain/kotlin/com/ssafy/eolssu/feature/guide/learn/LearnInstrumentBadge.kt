@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -56,7 +59,7 @@ internal fun LearnInstrumentChip(
     val pill = RoundedCornerShape(11.dp)
     Box(modifier) {
         Surface(
-            onClick = onToggle,
+            onClick = UserActionLog.click(QaTarget.LEARN_INSTRUMENT_BADGE_01, onToggle),
             modifier = Modifier.height(38.dp).semantics {
                 role = Role.DropdownList
                 contentDescription = menuLabel
@@ -75,7 +78,7 @@ internal fun LearnInstrumentChip(
             EolssuMenuPopup(onDismissRequest = onDismiss, gap = 6.dp) {
                 EolssuMenuPanel(width = 200.dp) {
                     GuideInstrument.entries.forEach { instrument ->
-                        InstrumentMenuItem(instrument, instrument == selected, onClick = { onSelect(instrument) })
+                        InstrumentMenuItem(instrument, instrument == selected, onClick = UserActionLog.click(QaTarget.LEARN_INSTRUMENT_BADGE_02, { onSelect(instrument) }))
                     }
                 }
             }

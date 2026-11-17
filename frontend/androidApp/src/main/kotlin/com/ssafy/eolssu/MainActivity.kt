@@ -5,6 +5,11 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.KeyEvent
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaKind
+import com.ssafy.eolssu.core.diagnostics.QaTarget
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -15,6 +20,13 @@ import com.ssafy.eolssu.core.network.ServerAddress
 class MainActivity : ComponentActivity() {
     // 간편 로그인 복귀 주소(App Links). 앱 화면이 꺼내 간다.
     private val incomingLinks = IncomingLinks()
+    private val qaInput = QaInputObserver()
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean =
+        qaInput.touch(event, window.decorView) { super.dispatchTouchEvent(event) }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        qaInput.key(event) { super.dispatchKeyEvent(event) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 앱은 밝은 테마를 사용하므로 시스템 다크 모드에서도 어두운 시스템 바 아이콘을 유지한다.
@@ -41,9 +53,11 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         QaPerformanceLog.show(this)
+        UserActionLog.event(QaKind.LIFECYCLE, QaTarget.ACTIVITY, com.ssafy.eolssu.core.diagnostics.QaOutcome.STARTED)
     }
 
     override fun onStop() {
+        UserActionLog.event(QaKind.LIFECYCLE, QaTarget.ACTIVITY, com.ssafy.eolssu.core.diagnostics.QaOutcome.STOPPED)
         QaPerformanceLog.hide(this)
         super.onStop()
     }
@@ -65,6 +79,7 @@ class MainActivity : ComponentActivity() {
     // 최소 너비가 바뀌는 경우(폴더블 펴기, 화면 분할 시작·끝)를 여기서 다시 판정한다.
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        UserActionLog.event(QaKind.LIFECYCLE, QaTarget.ACTIVITY)
         lockPortraitOnPhone(newConfig)
     }
 

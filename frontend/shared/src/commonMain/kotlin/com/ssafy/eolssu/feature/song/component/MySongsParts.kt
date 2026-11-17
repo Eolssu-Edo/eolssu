@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -64,7 +67,7 @@ internal fun MySongsTabSwitch(
                 MySongsTab.Sheets -> stringResource(Res.string.mysongs_tab_sheets) to sheetCount
             }
             Surface(
-                onClick = { onSelect(entry) },
+                onClick = UserActionLog.click(QaTarget.MY_SONGS_PARTS_01, { onSelect(entry) }),
                 modifier = Modifier
                     .weight(1f)
                     // 보이는 높이를 누르는 최소 높이(48dp)와 같게 해 위아래 간격이 양옆 4dp와 같아진다.
@@ -100,8 +103,8 @@ internal fun DeleteSheetDialog(sheet: MySheet, onConfirm: () -> Unit, onDismiss:
         iconTint = colors.recText,
         onDismissRequest = onDismiss,
     ) {
-        EolssuButton(stringResource(Res.string.mysongs_delete), onConfirm, style = EolssuButtonStyle.Danger)
-        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.mysongs_delete), onConfirm, style = EolssuButtonStyle.Danger, qaTarget = QaTarget.MY_SONGS_PARTS_BUTTON_01)
+        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.MY_SONGS_PARTS_BUTTON_02)
     }
 }
 
@@ -110,7 +113,7 @@ internal fun DeleteSheetDialog(sheet: MySheet, onConfirm: () -> Unit, onDismiss:
 internal fun AddSheetButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.MY_SONGS_PARTS_02, onClick),
         modifier = modifier.fillMaxWidth().heightIn(min = 52.dp),
         shape = RoundedCornerShape(14.dp),
         color = colors.surface,

@@ -20,3 +20,8 @@ test('same package and both version fields identify already installed latest',()
  assert.equal(result.enabled,false);assert.equal(result.label,'최신 버전 사용 중');
  for(const changed of [{...installed,versionCode:9},{...installed,versionName:'qa-9'},{...installed,package:'different'}])assert.equal(latestApkUpdate({...catalog,installed:changed,installedStatus:'installed'},state).enabled,true);
 });
+test('a relay-side wait for the app log read shows its message and blocks another apply',()=>{
+ const message='앱 로그를 읽고 있습니다. 잠시 후 설치됩니다.';
+ const result=latestApkUpdate({...catalog,installedStatus:'installing',job:{status:'waiting',message}},{...state,maintenance:true});
+ assert.equal(result.enabled,false);assert.equal(result.label,'설치 대기 중…');assert.equal(result.hint,message);
+});
