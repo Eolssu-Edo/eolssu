@@ -9,7 +9,13 @@ import kotlinx.serialization.json.intOrNull
 
 /** 변환 결과에서 편집기 정간에 연결할 수 있는 확인 항목. */
 data class SheetReviewIssue(val id: String, val cellId: String, val kind: String, val pitch: Pair<String, Int>? = null,
-    val eventId: String? = null, val rhythmReview: SheetRhythmReview? = null, val reason: String? = null)
+    val eventId: String? = null, val rhythmReview: SheetRhythmReview? = null, val reason: String? = null) {
+    /**
+     * 인식 신뢰도가 낮다는 참고 항목. 저장을 막지 않고 노란 칸으로만 보이며, 눌러서 표시를 지울 수 있다.
+     * 확정 저장하면 남은 항목도 확인한 것으로 보낸다(S15P31E102-1100).
+     */
+    val advisory: Boolean get() = kind == "LOW_CONFIDENCE"
+}
 
 data class SheetRhythmReview(val reason: String, val timeSignature: String? = null, val measure: String? = null)
 

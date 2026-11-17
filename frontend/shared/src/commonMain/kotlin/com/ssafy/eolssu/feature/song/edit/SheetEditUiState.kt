@@ -256,17 +256,17 @@ data class SheetEditUiState(
 
     val pendingChecks: Int
         get() = (source as? EditSource.Import)?.pendingChecks
-            ?: reviewIssues.filterNot { it.id in validatedCheckedIssueIds }.distinctBy(SheetReviewIssue::cellId).size
+            ?: reviewIssues.filterNot { it.advisory || it.id in validatedCheckedIssueIds }.distinctBy(SheetReviewIssue::cellId).size
 
     val nextReviewIssue: SheetReviewIssue?
-        get() = reviewIssues.firstOrNull { it.id !in validatedCheckedIssueIds }
+        get() = reviewIssues.firstOrNull { !it.advisory && it.id !in validatedCheckedIssueIds }
 
     val nextReviewCellIndex: Int?
         get() = nextReviewIssue?.let { issue -> draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } }
 
     val selectedReviewIssue: SheetReviewIssue?
         get() = draft.sourceCellIds?.getOrNull(selected)?.let { cellId ->
-            reviewIssues.firstOrNull { it.cellId == cellId && it.id !in validatedCheckedIssueIds }
+            reviewIssues.firstOrNull { it.cellId == cellId && !it.advisory && it.id !in validatedCheckedIssueIds }
         }
 
     val canCheckSelectedReviewIssue: Boolean
@@ -301,6 +301,16 @@ data class SheetEditUiState(
         if (draft.tempoExpressions != null || next.tempoExpressions != null) next.tempoExpressions.hasPositionedTempoPlan()
         else hasTempoPlan
 
+    /** 고른 칸·소박에 남은 신뢰도 낮음 표시를 지운다. 저장을 막지 않는 참고 표시라 실행 취소 기록에 넣지 않는다. */
+    internal fun dismissAdvisoryIssues(cell: Int, sub: Int? = null): SheetEditUiState {
+        val ids = reviewIssuesAt(cell, sub).filter { it.advisory && it.id in completionValidation.checkableIssueIds }.map { it.id }
+        return if (ids.isEmpty()) this else copy(checkedIssueIds = checkedIssueIds + ids)
+    }
+
+    /** 확정 저장에서 확인한 것으로 보낼 검수 항목. 신뢰도 낮음은 지우지 않았어도 저장하면 확인한 것으로 본다. */
+    internal val confirmedResolvedIssueIds: List<String>
+        get() = reviewIssues.filter { it.advisory || it.id in validatedCheckedIssueIds }.map(SheetReviewIssue::id)
+
     /** 한 번 확인한 칸도 내용이나 시김새를 바꾸거나 실행 취소하면 다시 확인한다. */
     private fun checkedIssuesAfter(next: SheetDraft): Set<String> {
         if (checkedIssueIds.isEmpty()) return emptySet()
@@ -308,6 +318,8 @@ data class SheetEditUiState(
         val afterPitches = next.reviewSoundingPitches() ?: return emptySet()
         return checkedIssueIds.filterTo(mutableSetOf()) { id ->
             val issue = reviewIssues.firstOrNull { it.id == id } ?: return@filterTo false
+            // 지운 신뢰도 낮음 표시는 칸을 고쳐도 다시 띄우지 않는다.
+            if (issue.advisory) return@filterTo true
             val before = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
             val after = next.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
             draft.cells[before] == next.cells[after] && beforePitches[before] == afterPitches[after] &&

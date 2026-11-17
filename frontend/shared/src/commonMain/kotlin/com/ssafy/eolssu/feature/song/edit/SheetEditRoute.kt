@@ -258,7 +258,9 @@ fun SheetEditRoute(
                     focusRequestKey++
                     reopenReviewKey = (reopenReviewKey ?: 0) + 1
                 }
-            }.takeIf { state.selected == selection.cell && state.canCheckSelectedReviewIssue })
+            }.takeIf { state.selected == selection.cell && state.canCheckSelectedReviewIssue },
+            // 신뢰도 낮음 표시는 저장을 막지 않으므로 지우기만 하고 다음 칸으로 옮기지 않는다(S15P31E102-1100).
+            onDismissAdvisory = { reviewSelection = null; viewModel.dismissAdvisoryIssues(selection.cell, selection.sub) })
         else LaunchedEffect(selection) { reviewSelection = null }
     }
     reopenReviewKey?.let { key ->

@@ -512,8 +512,7 @@ class SheetEditViewModel(
                         val baseExpressionsBpm = expressionsBpm
                         val baseVersion = version
                         val baseRevision = revision
-                        val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
-                            .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
+                        val resolvedIds = if (draft) emptyList() else snapshot.confirmedResolvedIssueIds
                         val copy = onSaveWorker {
                             val score = snapshot.draft.toCommonScore()
                             if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
@@ -717,6 +716,8 @@ class SheetEditViewModel(
         if (!state.canCheckSelectedReviewIssue) return@change state.copy(completionWarning = true)
         state.copy(checkedIssueIds = state.checkedIssueIds + issue.id)
     }
+
+    fun dismissAdvisoryIssues(cell: Int, sub: Int? = null) = change { it.dismissAdvisoryIssues(cell, sub) }
 
     fun openCompletionIssue() = change { state ->
         state.focusCompletionIssue().copy(completionWarning = false)
