@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.song.edit
 
-import com.ssafy.eolssu.data.song.ModelTempoChange
 import com.ssafy.eolssu.data.song.estimatedModelDurationSeconds
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -20,8 +19,6 @@ internal fun SheetDraft.estimatedDurationSeconds(bpm: Int): Double? {
         jangdan?.let { 1.0 / it.subdivision } ?: return null
     }
     // 입력 중인 전체 BPM에도 기존 reference 비율 변환을 한 번만 적용한다.
-    val changes = copy(bpm = bpm).playbackTempoChanges.map { change ->
-        ModelTempoChange(change.cell, requireNotNull(change.targetBpm), change.endCell, change.startBpm)
-    }
+    val changes = copy(bpm = bpm).playbackTempoChanges
     return estimatedModelDurationSeconds(cells.size, beatsPerCell, bpm.toDouble(), changes)
 }

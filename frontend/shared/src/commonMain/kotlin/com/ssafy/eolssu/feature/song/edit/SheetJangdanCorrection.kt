@@ -52,7 +52,7 @@ internal fun SheetDraft.withJangdan(option: CatalogJangdanSummary): SheetDraft? 
     if (tempoExpressions == null) return retimed
     // 칸·ID가 그대로이므로 계획과 한배 기호는 같은 자리에 남는다. 숫자는 기준 빠르기 대비 배율을 유지한다(S15P31E102-1091).
     val planned = retimed.copy(tempoExpressions = retimedTempoExpressions(target.beat, target.cell), tempoReferenceBpm = tempoReferenceBpm ?: bpm)
-    return planned.takeIf { it.tempoChangesWithinRange() }
+    return planned.takeIf { it.tempoCuesWithinRange() }
 }
 
 /** 이 장단으로 박 길이를 바꾸면 구간 빠르기가 편집 범위(40~200)를 벗어나 고를 수 없는지 본다. */
@@ -62,11 +62,11 @@ internal fun SheetDraft.jangdanTempoOutOfRange(option: CatalogJangdanSummary): B
 /** 박 길이 보정 전후의 구간 빠르기(시작 정간, 이전 목표, 새 목표). 확인 창에서 바뀌는 숫자를 보인다. */
 internal fun SheetDraft.jangdanTempoPreview(option: CatalogJangdanSummary): List<Triple<Int, Double, Double>> {
     if (!hasPositionedTempoPlan || !requiresJangdanRetiming(option)) return emptyList()
-    val after = withJangdan(option)?.tempoChanges?.associateBy { it.cell } ?: return emptyList()
-    return tempoChanges.mapNotNull { cue ->
-        val before = cue.targetBpm ?: return@mapNotNull null
-        val next = after[cue.cell]?.targetBpm ?: return@mapNotNull null
-        Triple(cue.cell, before, next)
+    val after = withJangdan(option)?.tempoCues?.associateBy { it.start } ?: return emptyList()
+    return tempoCues.mapNotNull { cue ->
+        val before = cue.bpm ?: return@mapNotNull null
+        val next = after[cue.start]?.bpm ?: return@mapNotNull null
+        Triple(cue.start, before, next)
     }
 }
 

@@ -16,73 +16,72 @@ import kotlinx.serialization.json.*
 internal class SheetSaveDurationTest {
     private fun draft() = smallScoreData().editingDraft("저장 길이", 60, null)
 
-    @Test fun stepTempoIncludesEveryCellAtItsCurrentTempo() {
-        val changed = draft().withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 120.0, 3))
+    private fun step(at: Int, bpm: Double) = SheetTempoCue(at, SheetTempoKind.Step, bpm)
+    private fun ramp(at: Int, bpm: Double, end: Int) = SheetTempoCue(at, SheetTempoKind.Ramp, bpm, end)
+
+    @Test fun stepIncludesEveryCellAtItsCurrentTempo() {
+        val changed = draft().withTempoCue(step(1, 120.0))
         assertEquals(2.0, assertNotNull(changed.estimatedDurationSeconds(60)), 1e-9)
         assertEquals(1.0, assertNotNull(changed.estimatedDurationSeconds(120)), 1e-9)
     }
 
-    @Test fun slightTempoSpanCountsOnlyUntilItsEnd() {
-        // 첫 정간만 120, 나머지 두 정간은 60으로 돌아온다(S15P31E102-1082).
-        val span = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.Faster, 120.0, 1))
-        assertEquals(2.5, assertNotNull(span.estimatedDurationSeconds(60)), 1e-9)
+    @Test fun stepBackToTheBaseReturns() {
+        // 첫 정간만 120, 둘째 정간부터 다시 기본 60.
+        val back = draft().withTempoCue(step(0, 120.0)).withTempoCue(step(1, 60.0))
+        assertEquals(2.5, assertNotNull(back.estimatedDurationSeconds(60)), 1e-9)
     }
 
-    @Test fun gradualTempoIntegratesTheReciprocalAndKeepsTheTargetAfterItsEnd() {
-        val ramp = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.GraduallyFaster, 120.0, 2))
-        assertEquals(2 * ln(2.0) + 0.5, assertNotNull(ramp.estimatedDurationSeconds(60)), 1e-9)
+    @Test fun rampIntegratesTheReciprocalAndKeepsTheTargetAfterItsEnd() {
+        val faster = draft().withTempoCue(ramp(0, 120.0, 1))
+        assertEquals(2 * ln(2.0) + 0.5, assertNotNull(faster.estimatedDurationSeconds(60)), 1e-9)
         // 60에서 40까지 세 정간 동안 고르게 느려진다: 60·3·ln(60/40)/(60-40) = 9·ln(1.5)초.
-        val slower = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.GraduallySlower, 40.0, 3))
+        val slower = draft().withTempoCue(ramp(0, 40.0, 2))
         assertEquals(9 * ln(1.5), assertNotNull(slower.estimatedDurationSeconds(60)), 1e-9)
-        val afterStep = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.Faster, 120.0, 1))
-            .withTempoChange(SheetTempoChange(1, HanbaeMark.GraduallySlower, 60.0, 3))
+        val afterStep = draft().withTempoCue(step(0, 120.0)).withTempoCue(ramp(1, 60.0, 2))
         assertEquals(0.5 + 2 * ln(2.0), assertNotNull(afterStep.estimatedDurationSeconds(60)), 1e-9)
     }
 
-    @Test fun numericRampHonorsItsExplicitStartAndTheSourceBeatUnit() {
+    @Test fun rampStartsFromThePriorTempoInTheSourceBeatUnit() {
         val source = smallScoreData().let { it.copy(music = it.music.copy(ticksPerBeat = 12)) }
         val initial = source.editingDraft("점4분음표 구간", 60, null)
-        val ramp = initial.withTempoChange(SheetTempoChange(1, null, 120.0, 3, startBpm = 30.0))
-        assertEquals(1.0 / 3 + 4 * ln(4.0) / 9, assertNotNull(ramp.estimatedDurationSeconds(60)), 1e-9)
-        val flat = initial.withTempoChange(SheetTempoChange(0, null, 90.0, 3, startBpm = 90.0))
+        val faster = initial.withTempoCue(ramp(1, 120.0, 2))
+        assertEquals(1.0 / 3 + 2.0 / 3 * ln(2.0), assertNotNull(faster.estimatedDurationSeconds(60)), 1e-9)
+        val flat = initial.withTempoCue(step(0, 90.0))
         assertEquals(2.0 / 3, assertNotNull(flat.estimatedDurationSeconds(60)), 1e-9)
     }
 
     @Test fun changingDeletingAndUndoingTempoRecalculatesEvenWithAnEmptyPlan() {
         val initial = SheetEditUiState(EditSource.Mine("31"), draft())
-        val changed = initial.updateTempoSettings(initial.draft.withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 120.0, 3)))
+        val changed = initial.updateTempoSettings(initial.draft.withTempoCue(step(1, 120.0)))
         assertEquals(2.0, assertNotNull(changed.draft.estimatedDurationSeconds(60)), 1e-9)
-        val edited = changed.updateTempoSettings(changed.draft.withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 180.0, 3), replacing = 1))
+        val edited = changed.updateTempoSettings(changed.draft.withTempoCue(step(1, 180.0), replacing = 1))
         assertEquals(5.0 / 3, assertNotNull(edited.draft.estimatedDurationSeconds(60)), 1e-9)
-        val deleted = edited.updateTempoSettings(edited.draft.withoutTempoChange(1))
+        val deleted = edited.updateTempoSettings(edited.draft.withoutTempoCue(1))
         assertEquals(3.0, assertNotNull(deleted.draft.estimatedDurationSeconds(60)), 1e-9)
         assertEquals(5.0 / 3, assertNotNull(deleted.undo().draft.estimatedDurationSeconds(60)), 1e-9)
         assertEquals(3.0, assertNotNull(deleted.undo().redo().draft.estimatedDurationSeconds(60)), 1e-9)
     }
 
-    @Test fun unresolvedCuesKeepThePriorTempoAndOriginalRestoresTheBaseline() {
-        val unresolved = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.GraduallySlower, null))
+    @Test fun unresolvedMarksKeepThePriorTempo() {
+        val unresolved = draft().withTempoCues(listOf(SheetTempoCue(0, SheetTempoKind.Ramp, mark = HanbaeMark.GraduallySlower)))
         assertEquals(3.0, assertNotNull(unresolved.estimatedDurationSeconds(60)), 1e-9)
-        val changed = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.Faster, 120.0, 1))
-            .withTempoChange(SheetTempoChange(1, HanbaeMark.Slower, null))
-            .withTempoChange(SheetTempoChange(2, HanbaeMark.Original, 60.0))
-        assertEquals(2.0, assertNotNull(changed.estimatedDurationSeconds(60)), 1e-9)
+        val changed = draft().withTempoCues(listOf(step(0, 120.0), SheetTempoCue(1, SheetTempoKind.Step, mark = HanbaeMark.Slower)))
+        assertEquals(1.5, assertNotNull(changed.estimatedDurationSeconds(60)), 1e-9)
     }
 
     @Test fun saveReopenAndGlobalTempoApplyTheRatioOnce() {
-        val edited = draft().withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 120.0, 3)).copy(bpm = 90)
+        val edited = draft().withTempoCue(step(1, 120.0)).copy(bpm = 90)
         val score = edited.toCommonScore()
         val expressions = assertNotNull(edited.exportExpressions(null, 60))
         val reopened = score.editingDraft(edited.title, 90, null).withTempoExpressions(expressions, referenceBpm = 60)
         assertEquals(4.0 / 3, assertNotNull(reopened.estimatedDurationSeconds(90)), 1e-9)
         assertEquals(1.0, assertNotNull(reopened.estimatedDurationSeconds(120)), 1e-9)
-        assertEquals(edited.tempoChanges, reopened.tempoChanges)
+        assertEquals(edited.tempoCues, reopened.tempoCues)
     }
 
     @Test fun confirmedPlanAndEditorEstimateUseTheSameBeatUnitAndBpmRatio() {
         val source = smallScoreData().let { it.copy(music = it.music.copy(ticksPerBeat = 12)) }
-        val edited = source.editingDraft("구간 길이", 60, null)
-            .withTempoChange(SheetTempoChange(1, null, 120.0, 3, startBpm = 30.0)).copy(bpm = 90)
+        val edited = source.editingDraft("구간 길이", 60, null).withTempoCue(ramp(1, 120.0, 2)).copy(bpm = 90)
         val score = edited.toCommonScore()
         // A confirmed companion has already been scaled by the server to the saved base BPM.
         val confirmed = assertNotNull(edited.exportExpressions(null, 90))

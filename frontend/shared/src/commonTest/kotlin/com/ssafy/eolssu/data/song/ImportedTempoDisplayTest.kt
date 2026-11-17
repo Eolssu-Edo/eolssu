@@ -6,7 +6,7 @@ import com.ssafy.eolssu.feature.song.edit.editingDraft
 import com.ssafy.eolssu.feature.song.edit.withTempoExpressions
 import com.ssafy.eolssu.feature.song.edit.exportExpressions
 import com.ssafy.eolssu.feature.song.edit.toCommonScore
-import com.ssafy.eolssu.feature.song.edit.tempoChanges
+import com.ssafy.eolssu.feature.song.edit.tempoCues
 import kotlinx.serialization.json.*
 import kotlin.test.*
 
@@ -26,12 +26,11 @@ class ImportedTempoDisplayTest {
         assertEquals(source.toScore().columns, source.toScore(input).columns)
         assertEquals(source.toScore().events, source.toScore(input).events)
         assertEquals(before, draft.exportExpressions(input, 160))
-        assertNull(draft.tempoChanges.single().mark)
+        assertNull(draft.tempoCues.first().mark)
         val reentered = beforeScore.editingDraft(source.score.title, 160, null).withTempoExpressions(before)
         assertEquals(displayed.tempoMarks, reentered.toSong().score.tempoMarks)
         val scaled = draft.copy(bpm = 80)
-        assertEquals(80.0, scaled.tempoChanges.single().startBpm)
-        assertEquals(40.0, scaled.tempoChanges.single().targetBpm)
+        assertEquals(40.0, scaled.tempoCues.single().bpm)
         assertEquals(displayed.tempoMarks, scaled.toSong().score.tempoMarks)
         assertEquals(displayed.tempoMarks, draft.erase(1).toSong().score.tempoMarks)
     }
@@ -85,22 +84,23 @@ class ImportedTempoDisplayTest {
         val source = smallScoreData().let { it.copy(music = it.music.copy(ticksPerBeat = 12)) }
         val input = expression(ramp.replace("\"start_bpm\":80", "\"start_bpm\":90").replace("\"bpm\":160", "\"bpm\":360"))
         val loaded = source.editingDraft(source.score.title, 40, null).withTempoExpressions(input)
-        val initial = loaded.tempoChanges.single()
-        assertEquals(30.0, initial.startBpm)
-        assertEquals(120.0, initial.targetBpm)
+        // 시작값(30)이 앞 빠르기(40)와 달라 바로 바뀌는 곳과 점점 바뀌는 곳으로 나눠 읽는다.
+        val (jump, ramp) = loaded.tempoCues
+        assertEquals(30.0, jump.bpm)
+        assertEquals(120.0, ramp.bpm)
         val faster = loaded.copy(bpm = 80)
         val beforeScore = faster.toCommonScore()
         val hash = commonSourceSha256(Json.encodeToJsonElement(beforeScore))
         val beforePayload = faster.exportExpressions(input, 80)
         val displayed = faster.toSong().score
-        assertEquals(60.0, faster.tempoChanges.single().startBpm)
-        assertEquals(240.0, faster.tempoChanges.single().targetBpm)
+        assertEquals(60.0, faster.tempoCues[0].bpm)
+        assertEquals(240.0, faster.tempoCues[1].bpm)
         assertEquals(loaded.toSong().score.tempoMarks, displayed.tempoMarks)
         assertEquals(beforeScore, faster.toCommonScore())
         assertEquals(beforePayload, faster.exportExpressions(input, 80))
-        assertNull(faster.tempoChanges.single().mark)
+        assertNull(faster.tempoCues.first().mark)
         val reentered = beforeScore.editingDraft(source.score.title, 80, null).withTempoExpressions(beforePayload)
-        assertEquals(faster.tempoChanges, reentered.tempoChanges)
+        assertEquals(faster.tempoCues, reentered.tempoCues)
         assertEquals(displayed.tempoMarks, reentered.toSong().score.tempoMarks)
         assertEquals(displayed.tempoMarks, beforeScore.toScore(beforePayload, 80.0).tempoMarks)
     }
@@ -109,7 +109,7 @@ class ImportedTempoDisplayTest {
         val source = smallScoreData()
         val draft = source.editingDraft(source.score.title, 80, null).withTempoExpressions(expression(ramp))
         val erased = draft.erase(1)
-        assertEquals(draft.tempoChanges, erased.tempoChanges)
+        assertEquals(draft.tempoCues, erased.tempoCues)
         assertEquals(draft.toSong().score.tempoMarks, erased.toSong().score.tempoMarks)
     }
 
