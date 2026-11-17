@@ -7,6 +7,7 @@
     <string name="sheet_upload_jangdan">악보의 장단 (필수)</string>
     <string name="sheet_upload_jangdan_help">정간보 인식에 사용할 장단을 먼저 골라 주세요.</string>
     <string name="sheet_upload_pick">PDF·이미지 선택</string>
+    <string name="sheet_upload_replace">다른 파일로 교체하기</string>
     <string name="sheet_upload_reading">파일 읽는 중</string>
     <string name="sheet_upload_limits">PDF 1개(10쪽까지)나 사진 1~10장 · 모두 20MB까지. 사진은 보이는 순서대로 읽어요.</string>
     <string name="sheet_upload_send">악보 업로드</string>
