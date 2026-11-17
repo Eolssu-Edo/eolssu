@@ -22,7 +22,7 @@ from omr_service import page_rectify
 from grid_boxes import gaks
 
 READER = [sys.executable, '-X', 'utf8', str(SCORES / 'jeongganbo_omr.py')]
-ENGINE_VERSION = 'e95045f-v1.0.0-r13'
+ENGINE_VERSION = 'e95045f-v1.0.0-r14'
 # instruments.code → 리더 YUL_PRESETS 이름. 목록 근거: docs/knowledge/data/jeongganbo-omr-accuracy.md.
 # 산조대금은 정악 대금 목록과 조율·음역 근거가 달라 제한하지 않는다(목록 없는 악기는 기존 결과와 같다).
 YUL_PRESETS = {'DANSO': 'danso', 'SOGEUM': 'sogeum', 'JEONGAK_DAEGEUM': 'jeongak-daegeum'}

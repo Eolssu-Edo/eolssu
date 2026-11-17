@@ -316,7 +316,7 @@ def test_grid_address_splits_columns_at_thick_gak_lines(tmp_path,monkeypatch):
     out = _recognize(tmp_path, monkeypatch, _address_reader(tmp_path, [column, column]))
     assert [len(c['cells']) for c in out['score']['columns']] == [3, 3, 3, 3]
     assert out['issues'] == [] and out['notices'] == []
-    assert out['engineVersion'] == 'e95045f-v1.0.0-r13'
+    assert out['engineVersion'] == 'e95045f-v1.0.0-r14'
 
 
 @pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
