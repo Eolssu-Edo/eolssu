@@ -80,7 +80,7 @@ actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): (She
                     configuration.filter = PHPickerFilter.imagesFilter
                     // HEIC 같은 형식을 서버가 받는 JPEG로 바꿔 받는다.
                     configuration.preferredAssetRepresentationMode =
-                        PHPickerConfigurationAssetRepresentationMode.PHPickerConfigurationAssetRepresentationModeCompatible
+                        PHPickerConfigurationAssetRepresentationModeCompatible
                     PHPickerViewController(configuration = configuration).also { it.delegate = albumDelegate }
                 }
                 SheetFileSource.Files -> UIDocumentPickerViewController(
