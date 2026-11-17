@@ -55,7 +55,8 @@ class GridBoxesTests(unittest.TestCase):
 
 
 
-def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=False, thick_lines=True):
+def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=False, thick_lines=True,
+              jangdan_lines_cross_lyric=False):
     """단소교실 판형을 배율 k로 그린 쪽 (S15P31E102-1077).
 
     오른쪽부터 제목 열, [가사 열, 율명 열] x columns, 맨 왼쪽 빈 열. 열마다 각 gaks개, 각마다 정간 3개.
@@ -64,6 +65,7 @@ def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=
     jangdan이면 제목 열 대신 정간 크기 칸이 있는 짧은 장단 열을 맨 오른쪽에 둔다.
     open_lyric이면 장단 열 아래에서 맨 오른쪽 가사 열의 오른쪽 세로선이 끊긴다(실기교재 박연폭포).
     thick_lines가 거짓이면 각 사이도 가는 선이다(굵은 각 구분선이 없는 판형).
+    jangdan_lines_cross_lyric이면 장단 열의 가로선이 왼쪽 가사 열까지 이어진다(실기교재 강원도아리랑).
     broken이면 율명 열의 세로선 하나가 가운데에서 3px 끊기고 아래 조각이 1px 옆으로 밀린다(스캔).
     """
     r = lambda v: max(1, round(v * k))
@@ -103,7 +105,7 @@ def classroom(k=1.0, columns=3, gaks=2, jangdan=False, open_lyric=False, broken=
         x0, x1 = xs[1], xs[1] + note
         g[top:top + pitch * 3 + thin, x1:x1 + thin] = 0
         for i in range(4):
-            g[top + i * pitch:top + i * pitch + thin, x0:x1 + thin] = 0
+            g[top + i * pitch:top + i * pitch + thin, xs[2] if jangdan_lines_cross_lyric else x0:x1 + thin] = 0
         if open_lyric:
             g[top + pitch * 3 + thick:bottom + thick, x0:x0 + thin] = 255
     return g, notes, top, pitch
@@ -194,6 +196,11 @@ class GridAddressTests(unittest.TestCase):
     def test_short_jangdan_column_without_lyrics_is_not_read(self):
         cells = self.addresses(classroom(jangdan=True)[0])
         self.assertEqual(len(cells), 18)
+
+    def test_jangdan_lines_crossing_the_lyric_column_do_not_hide_its_note_column(self):
+        # 실기교재 강원도아리랑: 장단표의 가로 실선이 옆 가사 열까지 이어져 가사 열이 율명 열처럼 보인다.
+        cells = self.addresses(classroom(jangdan=True, open_lyric=True, jangdan_lines_cross_lyric=True)[0])
+        self.assertEqual([(c['col'], c['row']) for c in cells], [(col, row) for col in range(3) for row in range(6)])
 
     def test_lyric_column_open_on_the_right_still_marks_its_note_column(self):
         cells = self.addresses(classroom(jangdan=True, open_lyric=True)[0])

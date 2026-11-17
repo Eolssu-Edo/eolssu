@@ -138,6 +138,13 @@ def find_grid(gray, parts=1, *, allow_alternating_lyrics=True):
         pitch = heights[len(heights) // 2]
         cols = {k: (seps if k in spans and np.median([v - u for u, v in spans[k]]) <= pitch * 1.5 else [])
                 for k, seps in cols.items()}
+    # 장단표: 가로선 있는 더 긴 단과 위가 맞닿고 그 단의 열보다 오른쪽에만 있는 짧은 단의 열이다. 율명 열이 아니므로
+    # 가로선을 지워 가사·빈 열처럼 다룬다. 장단표의 가로선이 이어진 옆 가사 열도 함께 지워진다
+    # (S15P31E102-1092, 실기교재 쾌지나칭칭나네·강원도아리랑). 곡 끝의 짧은 열은 왼쪽 끝이라 해당하지 않는다.
+    for x0, x1, a, b in list(cols):
+        taller = [k for k, seps in cols.items() if seps and k[3] - k[2] > b - a and abs(k[2] - a) <= near]
+        if taller and x0 >= max(k[1] for k in taller) - same_x:
+            cols[(x0, x1, a, b)] = []
     # 단별로 열을 오른쪽부터 보며 가로선 있는 열이 이어진 묶음(run)을 모은다.
     #   run 길이 = parts: 가사 열에 가로선이 없는 판형. run이 한 각 묶음이고 오른쪽 열부터 1성부다.
     #   run 길이가 짝수(성부 하나): 가사 열에도 가로선이 있어 율명·가사 열이 번갈아 있다. 먹이 많은 쪽(한자)이 율명 열이다.
