@@ -59,7 +59,6 @@ import eolssu.shared.generated.resources.sig_shake_rep
 import eolssu.shared.generated.resources.sig_repeat
 import eolssu.shared.generated.resources.sig_tongue
 import eolssu.shared.generated.resources.sig_half_raise
-import eolssu.shared.generated.resources.sig_jeonseong
 import eolssu.shared.generated.resources.sig_source_dot
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -162,8 +161,6 @@ private val ScoreSigimsaeImages: Map<String, DrawableResource> = buildMap {
     put("repeat", Res.drawable.sig_repeat)
     put("혀치기", Res.drawable.sig_tongue)
     put("반음올림표", Res.drawable.sig_half_raise)
-    // 원본 글리프 미확인. 얼쑤 임시 그림이며 재생은 교육용 근사(본음→윗음→본음)다(S15P31E102-1084).
-    put("전성", Res.drawable.sig_jeonseong)
     // 같은 닫는 괄호 모양이지만 흘림표와 꺾는음의 연주 의미는 원본 이름으로 구분한다.
     put("꺾는음", Res.drawable.sig_flow)
     // 의미 미확정인 원문 주석은 점 모양만 보존한다.

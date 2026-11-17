@@ -62,10 +62,6 @@ import eolssu.shared.generated.resources.sheetedit_msg_saved
 import eolssu.shared.generated.resources.sheetedit_msg_saved_for_practice
 import eolssu.shared.generated.resources.sheetedit_msg_saved_needs_review
 import eolssu.shared.generated.resources.sheet_save_unfilled
-import eolssu.shared.generated.resources.sheet_save_sigimsae_go
-import eolssu.shared.generated.resources.sheet_save_sigimsae_rejected
-import eolssu.shared.generated.resources.sheet_save_sigimsae_rejected_unknown
-import eolssu.shared.generated.resources.sheet_save_sigimsae_remove
 import eolssu.shared.generated.resources.sheet_editor_correction_title
 import eolssu.shared.generated.resources.sheet_editor_correct_cell
 import eolssu.shared.generated.resources.sheet_editor_correction_location
@@ -256,7 +252,6 @@ fun SheetEditRoute(
         }
     }
     LaunchedEffect(state.tempoIssue) { if (state.tempoIssue != null) saveOpen = true }
-    LaunchedEffect(state.sigimsaeIssue) { if (state.sigimsaeIssue != null) saveOpen = true }
     if (saveOpen) SheetEditDetailsDialog(
         initialTitle = state.draft.title,
         tempoIssue = state.tempoIssue,
@@ -284,22 +279,6 @@ fun SheetEditRoute(
                 else -> null
             }
             if (error != null) Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            state.sigimsaeIssue?.let { issue ->
-                // 음원 생성기가 거절한 시김새의 위치·이유를 보여 주고 바로 고치게 한다(S15P31E102-1084).
-                val slot = state.sigimsaeIssueSlot
-                val text = if (slot == null) stringResource(Res.string.sheet_save_sigimsae_rejected_unknown)
-                    else stringResource(Res.string.sheet_save_sigimsae_rejected, state.draft.columnOf(slot.cell) + 1,
-                        state.draft.rowOf(slot.cell) + 1, issue.symbols.joinToString("·").ifEmpty { "이" })
-                Text(listOfNotNull(text, issue.message).joinToString(" "), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error)
-                if (slot != null) {
-                    EolssuButton(stringResource(Res.string.sheet_save_sigimsae_go),
-                        { saveOpen = false; viewModel.openSigimsaeIssue(); focusRequestKey++ },
-                        style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_08)
-                    EolssuButton(stringResource(Res.string.sheet_save_sigimsae_remove), viewModel::removeRejectedSigimsae,
-                        style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_09)
-                }
-            }
         },
     )
     if (correctionOpen) EolssuDialog(

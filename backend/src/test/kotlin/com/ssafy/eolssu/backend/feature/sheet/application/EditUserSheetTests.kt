@@ -54,34 +54,6 @@ class EditUserSheetTests {
         } finally { server.stop(0) }
     }
 
-    @Test fun `a rejected sigimsae keeps its event and symbol in the confirmation rejection`() {
-        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
-        server.createContext("/v1/estimate") { exchange ->
-            exchange.requestBody.readAllBytes()
-            val body = """{"errorCode":"INVALID_REQUEST","details":{"reason":"SIGIMSAE_UNRENDERABLE","eventId":"c0-j1-r0-u0","symbols":["전성"],"message":"미지원 기호"}}"""
-                .toByteArray()
-            exchange.sendResponseHeaders(400, body.size.toLong())
-            exchange.responseBody.use { it.write(body) }
-        }
-        server.start()
-        try {
-            val prepared = object : SheetScores by scores {
-                override fun prepare(scoreJson: String, scoreVersion: Int) =
-                    PreparedScore.Ready("""{"score":{"instrument":"DANSO"}}""", 1, 1, "", "QUARTER")
-            }
-            val client = com.ssafy.eolssu.backend.feature.sheet.infrastructure.HttpPlaybackClient(
-                "http://127.0.0.1:${server.address.port}", java.time.Duration.ofSeconds(2), tools.jackson.databind.json.JsonMapper.builder().build())
-            val edits = EditUserSheet(repository, prepared, Clock.fixed(now, ZoneOffset.UTC), playback = client, jangdanValidation = null)
-            val result = assertIs<SaveSheetScoreResult.Rejected>(edits.save(save(jangdanId = null)))
-            assertEquals(com.ssafy.eolssu.backend.common.error.ErrorCode.INVALID_REQUEST, result.code)
-            val details = assertIs<tools.jackson.databind.JsonNode>(result.details)
-            assertEquals("SIGIMSAE_UNRENDERABLE", details.path("reason").asString())
-            assertEquals("c0-j1-r0-u0", details.path("eventId").asString())
-            assertEquals("전성", details.path("symbols").get(0).asString())
-            assertTrue(repository.scoreUpdates.isEmpty())
-        } finally { server.stop(0) }
-    }
-
     @Test fun `omitted expressions retain draft-only tempo through resave and confirmation`() {
         retainDraftTempo(confirmedTempo = null)
     }

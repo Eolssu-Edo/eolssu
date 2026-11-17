@@ -534,7 +534,6 @@ class SheetEditViewModel(
                         if (result != SheetWrite.Failed) attempt?.unconfirmedRequest = null
                         when (result) {
                             is SheetWrite.Saved -> {
-                                if (!draft) _uiState.update { it.copy(sigimsaeIssue = null) }
                                 if (!draft) {
                                     expressions = result.expressions
                                     expressionSourceSha256 = (expressions?.get("sourceSha256") as? kotlinx.serialization.json.JsonPrimitive)?.content
@@ -575,7 +574,6 @@ class SheetEditViewModel(
                                 loadCompletionCatalog()
                             }
                             is SheetWrite.TempoRejected -> _uiState.update { it.copy(tempoIssue = result.issue) }
-                            is SheetWrite.SigimsaeRejected -> _uiState.update { it.copy(sigimsaeIssue = result.issue) }
                             SheetWrite.Conflict -> reportSaveConflict()
                             SheetWrite.Unfilled -> _uiState.update { it.copy(emptyWarning = true) }
                             SheetWrite.TooLarge -> recordSaveFailure(snapshot.draft, draft, announce, SheetEditMessage.SaveTooLarge)
@@ -736,8 +734,6 @@ class SheetEditViewModel(
     fun selectRegister(register: YulRegister) = change { it.selectRegister(register) }
     fun toggleSigimsae(value: Sigimsae) = change { it.toggleSigimsae(value) }
     fun removeSigimsae(position: Int) = change { it.removeSigimsae(position) }
-    fun openSigimsaeIssue() = _uiState.update { it.openSigimsaeIssue() }
-    fun removeRejectedSigimsae() = change { it.removeRejectedSigimsae() }
     fun split() = change { it.split() }
     fun merge() = change { it.merge() }
     fun addColumn() = change { if (it.reviewIssues.isEmpty()) it.addColumn() else it.copy(message = SheetEditMessage.ReviewBeforeReshape) }

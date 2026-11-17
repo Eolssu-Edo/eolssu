@@ -40,7 +40,6 @@ sealed interface SheetWrite {
     data object TooLarge : SheetWrite
     data object Failed : SheetWrite
     data class TempoRejected(val issue: SheetTempoIssue) : SheetWrite
-    data class SigimsaeRejected(val issue: SheetSigimsaeIssue) : SheetWrite
 }
 interface SheetDocumentRepository {
     suspend fun get(sheetId: String): SheetDocument?
@@ -92,10 +91,8 @@ class ApiSheetDocumentRepository(private val client: HttpClient, private val mem
             400 -> {
                 val error = response.apiResponse<ApiError>()?.result
                 val rejection = error?.let { AuthoringError(it.errorCode, it.details).authoringRejection }
-                val sigimsae = error?.let(SheetSigimsaeIssue::from)
                 when {
                     rejection != null -> SheetWrite.UnsupportedPitches(rejection)
-                    sigimsae != null -> SheetWrite.SigimsaeRejected(sigimsae)
                     error?.errorCode == "UNFILLED_CELLS" -> SheetWrite.Unfilled
                     error?.errorCode in setOf("TEMPO_UNRENDERABLE", "EXPORT_TOO_LONG") -> SheetWrite.TempoRejected(SheetTempoIssue.from(requireNotNull(error)))
                     else -> SheetWrite.Failed
