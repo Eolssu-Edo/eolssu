@@ -6,10 +6,12 @@ sha256으로 찾는다. 조정용으로만 규칙을 맞추고 확인용은 결�
 
   run    실제 모델로 omr_service.jeongganbo_scan.recognize를 돌려 표본별 칸(cellId·인식 결과·issue)을 JSON으로 남긴다.
   score  저장한 JSON을 정답과 비교해 각 수·각 경계·주소·내용 일치를 표로 낸다. 모델을 다시 돌리지 않는다.
+  grid   모델 없이 격자 단계(data/src/scores/grid_boxes.find_grid)만 돌려 찾은 칸 수·열별 칸 수를 정답 정간 수와 비교한다.
 
 실행 (스캔 런타임 Python, 저장소 루트에서):
   python -X utf8 ai/evaluation/jeongganbo_grid_eval.py run --sources <원본 폴더>... --model <jeongganbo-omr 폴더> --out <폴더>
   python -X utf8 ai/evaluation/jeongganbo_grid_eval.py score <폴더> [--json <결과.json>]
+  python -X utf8 ai/evaluation/jeongganbo_grid_eval.py grid --sources <원본 폴더>...
 
 지표
   content          정답과 칸 모양·율명이 같은 칸 수(순서 정렬로 짝지음, 시김새·숨표는 보지 않음)
@@ -183,6 +185,32 @@ def score(args):
         Path(args.json).write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding='utf-8')
 
 
+def grid(args):
+    """격자 단계만 잰다. 번갈음은 가사 열에도 가로선이 있는 판형을 율명·가사 번갈음으로 읽는 경우, 엄격은 읽지 않는 경우다."""
+    import numpy as np
+    from PIL import Image
+    sys.path.insert(0, str(ROOT / 'data' / 'src' / 'scores'))
+    from grid_boxes import find_grid
+    items = samples(args.samples)
+    sources = find_sources(args.sources, {s['sha256'] for s in items})
+    print('| 표본 | 나눔 | 정답 | 칸(번갈음) | 칸(엄격) | 덩어리 | 열별 칸 |')
+    print('| --- | --- | --- | --- | --- | --- | --- |')
+    for s in sorted(items, key=lambda s: (s['split'], s['id'])):
+        if args.only and s['id'] not in args.only or s['sha256'] not in sources:
+            continue
+        with tempfile.TemporaryDirectory(prefix='grid-eval-') as work:
+            (page,) = page_images(sources[s['sha256']], s.get('dpi', 300), Path(work))
+            with Image.open(page.path) as image:
+                gray = np.asarray(image.convert('L'))
+        loose, strict = find_grid(gray), find_grid(gray, allow_alternating_lyrics=False)
+        count = lambda blocks: len(blocks[0][0]) if len(blocks) == 1 else 0  # 서비스는 덩어리 하나일 때만 읽는다
+        columns = {}
+        for c in (loose[0][0] if len(loose) == 1 else []):
+            columns[c['band'], c['col']] = columns.get((c['band'], c['col']), 0) + 1
+        print(f"| {s['id']} | {s['split']} | {len(s['truth'])} | {count(loose)} | {count(strict)} | {len(loose)} | "
+              f"{'/'.join(map(str, columns.values()))} |", flush=True)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -197,8 +225,12 @@ def main(argv=None):
     s = sub.add_parser('score')
     s.add_argument('folder')
     s.add_argument('--json')
+    g = sub.add_parser('grid')
+    g.add_argument('--samples', default=str(SAMPLES))
+    g.add_argument('--sources', nargs='+', required=True)
+    g.add_argument('--only', nargs='*')
     args = ap.parse_args(argv)
-    (run if args.cmd == 'run' else score)(args)
+    dict(run=run, score=score, grid=grid)[args.cmd](args)
 
 
 if __name__ == '__main__':
