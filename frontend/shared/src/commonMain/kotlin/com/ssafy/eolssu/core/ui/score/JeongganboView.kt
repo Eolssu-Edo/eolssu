@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.core.ui.score
 
+import com.ssafy.eolssu.core.diagnostics.*
 import androidx.compose.animation.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollState
@@ -1354,7 +1355,7 @@ private fun ScoreNoteBox(
         }
     }
     // 화면 읽기 프로그램은 한자 대신 율명 이름(황종)을 읽는다. 글자 자체는 아래에서 읽지 않게 숨긴다.
-    if (onClick != null) noteModifier = noteModifier.clickable(role = Role.Button, onClick = onClick)
+    if (onClick != null) noteModifier = noteModifier.clickable(role = Role.Button, onClick = UserActionLog.click(QaTarget.SCORE_NOTE, onClick))
     noteModifier = noteModifier.semantics(mergeDescendants = true) {
         contentDescription = (listOf(label) + sigimsae.map(::scoreSigimsaeName)).joinToString(" · ")
         markDescription?.let { stateDescription = it }

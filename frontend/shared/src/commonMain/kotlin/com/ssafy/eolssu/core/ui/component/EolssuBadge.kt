@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -132,7 +135,7 @@ fun EolssuChip(
     val colors = EolssuTheme.colors
     val on = selected && enabled
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.EOLSSU_BADGE_01, onClick),
         enabled = enabled,
         modifier = modifier.heightIn(min = if (small) 28.dp else 36.dp).semantics {
             this.selected = selected
@@ -172,7 +175,7 @@ fun EolssuLevelChip(level: SongLevel, selected: Boolean, onClick: () -> Unit, mo
     val colors = EolssuTheme.colors
     val palette = requireNotNull(levelBadgePalette(levelBadgeStyle(level)))
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.EOLSSU_BADGE_02, onClick),
         modifier = modifier.heightIn(min = 36.dp).semantics {
             this.selected = selected
             role = Role.Tab

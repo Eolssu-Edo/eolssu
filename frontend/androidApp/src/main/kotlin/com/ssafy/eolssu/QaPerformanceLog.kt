@@ -8,6 +8,8 @@ import android.content.IntentFilter
 import android.system.Os
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.UserActionEvent
 import com.ssafy.eolssu.core.diagnostics.PerfPhase
 import com.ssafy.eolssu.core.diagnostics.PerformanceEvent
 import com.ssafy.eolssu.core.diagnostics.PerformanceLog
@@ -39,6 +41,7 @@ internal object QaPerformanceLog {
         if (!BuildConfig.DEBUG || BuildConfig.APPLICATION_ID != QA_PACKAGE || worker != null) return
         val log = QaPerformanceWorker(context.applicationContext)
         worker = log
+        UserActionLog.sink = log::offer
         val live = BuildConfig.QA_LIVE && BuildConfig.API_BASE_URL == "http://127.0.0.1:18180"
         PerformanceLog.liveRequestsEnabled = live
         PerformanceLog.sink = { event ->
@@ -83,7 +86,7 @@ private data class SnapshotRequest(val id: String, val op: String, val stream: S
 
 private class QaPerformanceWorker(context: Context) {
     private sealed interface Work {
-        data class Event(val event: PerformanceEvent) : Work
+        data class Event(val encode: () -> String) : Work
         data class Export(val request: SnapshotRequest, val result: BroadcastReceiver.PendingResult) : Work
     }
 
@@ -107,12 +110,15 @@ private class QaPerformanceWorker(context: Context) {
         }
     }
 
-    fun offer(event: PerformanceEvent) {
+    fun offer(event: PerformanceEvent) = enqueue { event.encode() }
+    fun offer(event: UserActionEvent) = enqueue { event.encode() }
+
+    private fun enqueue(encode: () -> String) {
         if (!eventSlots.tryAcquire()) {
             overflow.incrementAndGet()
             return
         }
-        if (!work.offer(Work.Event(event))) {
+        if (!work.offer(Work.Event(encode))) {
             eventSlots.release()
             overflow.incrementAndGet()
         }
@@ -133,9 +139,9 @@ private class QaPerformanceWorker(context: Context) {
         while (true) {
             when (val next = work.take()) {
                 is Work.Event -> {
-                    val batch = mutableListOf(next.event)
+                    val batch = mutableListOf(next.encode)
                     while (batch.size < 24 && work.peek() is Work.Event) {
-                        batch += (work.remove() as Work.Event).event
+                        batch += (work.remove() as Work.Event).encode
                     }
                     try {
                         persist(batch)
@@ -166,14 +172,14 @@ private class QaPerformanceWorker(context: Context) {
         }
     }
 
-    private fun persist(events: List<PerformanceEvent>) {
+    private fun persist(events: List<() -> String>) {
         if (databaseDirectory.usableSpace < MIN_FREE_BYTES) {
             storageMissing += events.size
             return
         }
         var lost = overflow.getAndSet(0)
         val encoded = events.mapNotNull { event ->
-            val value = runCatching { addRunMetadata(JSONObject(event.encode())).toString() }.getOrNull()
+            val value = runCatching { addRunMetadata(JSONObject(event())).toString() }.getOrNull()
             if (value == null || value.toByteArray(Charsets.UTF_8).size > MAX_EVENT_BYTES) {
                 lost++
                 null
@@ -213,16 +219,17 @@ private class QaPerformanceWorker(context: Context) {
 
     private fun export(request: SnapshotRequest): Reply {
         val state = store.state()
-        val reply = response(request).put("stream_id", state.streamId)
+        val reply = response(request).put("stream_id", state.streamId).put("schema_version", 2)
+            .put("retained_after", state.retainedAfter).put("missing_retention", state.missingRetention)
         if (request.op == "begin") {
-            val end = snapshots.begin(request.id, state.streamId, state.ack, state.end)
+            val end = snapshots.begin(request.id, state.streamId, maxOf(state.ack, state.retainedAfter), state.end)
             return Reply(reply.put("ack", state.ack).put("end", end).toString())
         }
         val end = snapshots.end(request.id, request.stream)
         if (end == null || request.stream != state.streamId) {
             return Reply(response(request).put("error", "snapshot_unavailable").toString())
         }
-        if (!snapshots.canResume(state.ack, request.cursor)) {
+        if (request.cursor < state.retainedAfter || !snapshots.canResume(state.ack, request.cursor)) {
             return Reply(response(request).put("error", "invalid_request").toString())
         }
         if (request.op == "ack") {

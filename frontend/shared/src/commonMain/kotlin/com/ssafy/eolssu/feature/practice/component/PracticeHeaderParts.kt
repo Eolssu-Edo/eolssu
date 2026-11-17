@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.layout.layout
@@ -171,7 +174,7 @@ fun PracticeOptionChip(label: String, on: Boolean, onToggle: () -> Unit, modifie
                         val placeable = measurable.measure(Constraints.fixed(touch, touch))
                         layout(width, height) { placeable.place((width - touch) / 2, (height - touch) / 2) }
                     }
-                    .toggleable(value = on, interactionSource = interaction, indication = null, enabled = enabled, role = Role.Switch, onValueChange = { onToggle() })
+                    .toggleable(value = on, interactionSource = interaction, indication = null, enabled = enabled, role = Role.Switch, onValueChange = UserActionLog.change(QaTarget.PRACTICE_HEADER_PARTS_01, { onToggle() }))
                     .semantics { contentDescription = label },
                 contentAlignment = Alignment.Center,
             ) {

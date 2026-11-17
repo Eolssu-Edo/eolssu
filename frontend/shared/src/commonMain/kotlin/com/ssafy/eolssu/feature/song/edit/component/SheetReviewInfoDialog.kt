@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,7 +56,7 @@ internal fun SheetReviewInfoDialog(
             else -> EolssuButton(stringResource(Res.string.sheet_review_fix_yul), onEditYul)
         }
         if (onConfirmSame != null) EolssuButton(stringResource(Res.string.sheet_review_fix_same), onConfirmSame, style = EolssuButtonStyle.Secondary)
-        EolssuButton(stringResource(Res.string.common_close), onDismiss, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.common_close), onDismiss, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_REVIEW_INFO_DIALOG_BUTTON_01)
     }
 }
 

@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -290,9 +292,9 @@ fun SheetEditRoute(
                     correctionOpen = false
                     saveOpen = true
                 }
-            }, enabled = state.canCheckSelectedReviewIssue)
+            }, enabled = state.canCheckSelectedReviewIssue, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_01)
         }
-        EolssuButton(stringResource(Res.string.sheet_editor_correct_cell), { correctionOpen = false; focusRequestKey++ }, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.sheet_editor_correct_cell), { correctionOpen = false; focusRequestKey++ }, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_02)
     }
     if (detailsOpen && state.canEditDetails) SheetEditSettingsDialog(
         draft = state.draft,
@@ -312,8 +314,8 @@ fun SheetEditRoute(
         Text(stringResource(Res.string.sheet_adapt_confirm_overwrite),
             style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
         Text(stringResource(Res.string.sheet_adapt_confirm_message), style = MaterialTheme.typography.bodyMedium)
-        EolssuButton(stringResource(Res.string.sheet_adapt_confirm_apply), viewModel::applyAdaptation)
-        EolssuButton(stringResource(Res.string.common_cancel), viewModel::cancelApplyAdaptation, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.sheet_adapt_confirm_apply), viewModel::applyAdaptation, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_03)
+        EolssuButton(stringResource(Res.string.common_cancel), viewModel::cancelApplyAdaptation, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_04)
     }
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
@@ -330,10 +332,10 @@ fun SheetEditRoute(
         // 저장 응답을 기다리는 동안 저장 중임을 보이고 모든 버튼을 막는다. 실패하면 창이 그대로 남아 다시 고를 수 있다.
         if (state.canSaveDraft || state.closeSaving) EolssuButton(
             stringResource(if (state.closeSaving) Res.string.sheet_save_draft_closing else Res.string.sheet_save_draft_close),
-            { viewModel.saveDraftAndClose(onClose) }, enabled = !state.closeSaving)
+            { viewModel.saveDraftAndClose(onClose) }, enabled = !state.closeSaving, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_05)
         EolssuButton(stringResource(Res.string.sheet_keep_editing), viewModel::continueEditing,
-            style = if (state.canSaveDraft) EolssuButtonStyle.Secondary else EolssuButtonStyle.Primary, enabled = !state.closeSaving)
+            style = if (state.canSaveDraft) EolssuButtonStyle.Secondary else EolssuButtonStyle.Primary, enabled = !state.closeSaving, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_06)
         EolssuButton(stringResource(Res.string.sheet_discard_close), { viewModel.discardChangesAndClose(onClose) },
-            style = EolssuButtonStyle.Secondary, enabled = !state.closeSaving)
+            style = EolssuButtonStyle.Secondary, enabled = !state.closeSaving, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_07)
     }
 }

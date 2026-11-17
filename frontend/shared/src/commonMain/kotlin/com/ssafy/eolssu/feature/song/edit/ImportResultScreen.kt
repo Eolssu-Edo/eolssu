@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.BorderStroke
@@ -106,7 +109,7 @@ fun ImportResultScreen(
         },
         bottomBar = sheetAddBottomBar(contentMaxWidth) {
             ListenRow(state.playing, onTogglePlay)
-            EolssuButton(stringResource(Res.string.sheetedit_result_edit_jg), onEdit)
+            EolssuButton(stringResource(Res.string.sheetedit_result_edit_jg), onEdit, qaTarget = QaTarget.IMPORT_RESULT_SCREEN_BUTTON_01)
         },
     ) {
         Column(Modifier.fillMaxSize().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -208,7 +211,7 @@ private fun CheckCard(state: ImportResultUiState, draft: SheetDraft, onChoose: (
             check.candidates.forEach { candidate ->
                 val on = candidate == current
                 Surface(
-                    onClick = { onChoose(candidate) },
+                    onClick = UserActionLog.click(QaTarget.IMPORT_RESULT_SCREEN_01, { onChoose(candidate) }),
                     modifier = Modifier.heightIn(min = 44.dp).widthIn(min = 56.dp).semantics { selected = on },
                     shape = RoundedCornerShape(10.dp),
                     color = if (on) colors.primary else colors.surface,
@@ -235,7 +238,7 @@ private fun ListenRow(playing: Boolean, onToggle: () -> Unit) {
             Modifier
                 .elasticSquash(press)
                 .size(48.dp)
-                .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = onToggle),
+                .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = UserActionLog.click(QaTarget.IMPORT_RESULT_SCREEN_02, onToggle)),
             contentAlignment = Alignment.Center,
         ) {
             Box(

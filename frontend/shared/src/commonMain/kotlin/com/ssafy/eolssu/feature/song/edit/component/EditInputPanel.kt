@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.feature.song.edit.accompanimentName
 
 import androidx.compose.foundation.BorderStroke
@@ -273,7 +276,7 @@ private fun YulKeys(
                     register = option,
                     name = registerShortName(option),
                     on = register == option,
-                    onClick = { actions.onSelectRegister(option) },
+                    onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_01, { actions.onSelectRegister(option) }),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -283,7 +286,7 @@ private fun YulKeys(
                 note = draft.pitchNote(base, register.octave),
                 enabled = isAvailablePitch(available, base, register.octave),
                 selected = (base to register.octave) in current,
-                onClick = { actions.onPutYul(base) },
+                onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_02, { actions.onPutYul(base) }),
             )
         }
         RowCaption(stringResource(Res.string.sheetedit_yul_pitch_caption))
@@ -309,7 +312,7 @@ private fun YulKeys(
             Box(Modifier.weight(1f))
             val eraseLabel = stringResource(Res.string.sheetedit_erase)
             Surface(
-                onClick = actions.onErase,
+                onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_03, actions.onErase),
                 modifier = Modifier.width(64.dp).height(48.dp).semantics { contentDescription = eraseLabel },
                 shape = RoundedCornerShape(10.dp),
                 color = colors.primary,
@@ -353,7 +356,7 @@ private fun RegisterButton(register: YulRegister, name: String, on: Boolean, onC
         YulRegister.JungCheong -> "氵氵"
     }
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_04, onClick),
         modifier = modifier.heightIn(min = 52.dp).semantics {
             role = Role.RadioButton
             selected = on
@@ -387,7 +390,7 @@ private fun YulKey(note: ScoreNote, enabled: Boolean, selected: Boolean, onClick
     val fullName = source?.fullName ?: (note as? ScoreNote.Pitch)?.yul?.fullName.orEmpty()
     val description = if (enabled) stringResource(Res.string.sheetedit_key_input, fullName) else stringResource(Res.string.sheetedit_key_unavailable, fullName)
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_05, onClick),
         enabled = enabled,
         modifier = Modifier.width(52.dp).height(58.dp).alpha(if (enabled) 1f else 0.35f).semantics {
             contentDescription = description
@@ -419,7 +422,7 @@ private fun SymbolKey(note: ScoreNote, label: String, selected: Boolean, onClick
     val colors = EolssuTheme.colors
     val description = stringResource(Res.string.sheetedit_key_input, label)
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_06, onClick),
         modifier = Modifier.width(52.dp).height(48.dp).semantics { contentDescription = description; this.selected = selected },
         shape = RoundedCornerShape(10.dp),
         color = if (selected) colors.accentTint else colors.surface,
@@ -460,7 +463,7 @@ private fun ToolButton(
 ) {
     val colors = EolssuTheme.colors
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_07, onClick),
         enabled = enabled,
         modifier = modifier.heightIn(min = 44.dp).alpha(if (enabled) 1f else 0.5f),
         shape = RoundedCornerShape(10.dp),
@@ -585,7 +588,7 @@ private fun AddedSigimsae(value: Sigimsae, onRemove: () -> Unit) {
     val name = sigimsaeLabel(value)
     val description = stringResource(Res.string.sheetedit_sig_remove, name)
     Surface(
-        onClick = onRemove,
+        onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_08, onRemove),
         modifier = Modifier.heightIn(min = 32.dp).semantics { contentDescription = description },
         shape = CircleShape,
         color = colors.accentTint,
@@ -606,7 +609,7 @@ private fun SigimsaeCard(value: Sigimsae, order: Int, enabled: Boolean, onClick:
     val colors = EolssuTheme.colors
     val on = order >= 0
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_09, onClick),
         enabled = enabled,
         modifier = Modifier.width(76.dp).height(66.dp).alpha(if (enabled) 1f else 0.4f).semantics { selected = on },
         shape = RoundedCornerShape(10.dp),
@@ -692,7 +695,7 @@ private fun CellTools(draft: SheetDraft, actions: EditInputActions, hasTempoPlan
         // 장단 고르기는 다른 도구와 같은 높이의 한 줄로 둔다. 줄을 누르면 장단 선택 창이 열린다(S15P31E102-1042).
         val jangdanChange = stringResource(Res.string.sheetedit_cell_jangdan_change)
         Surface(
-            onClick = actions.onChangeJangdan,
+            onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_10, actions.onChangeJangdan),
             modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).semantics { contentDescription = jangdanChange },
             shape = RoundedCornerShape(10.dp),
             color = colors.surface,

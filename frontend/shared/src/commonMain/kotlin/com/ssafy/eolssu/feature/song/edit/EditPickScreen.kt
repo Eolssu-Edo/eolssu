@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.ui.draw.alpha
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
@@ -69,7 +72,7 @@ fun EditPickScreen(
                 else -> Res.string.sheetedit_pick_confirm
             })
             EolssuButton(action, onConfirm, enabled = state.canSelect, busy = state.copying,
-                modifier = Modifier.semantics { stateDescription = action; liveRegion = LiveRegionMode.Polite })
+                modifier = Modifier.semantics { stateDescription = action; liveRegion = LiveRegionMode.Polite }, qaTarget = QaTarget.EDIT_PICK_SCREEN_BUTTON_01)
         },
     ) {
         // 악기·탭·검색·정렬도 목록과 함께 스크롤한다. 360×640에서 검색 키보드를 열어도 목록이 보이게 한다(S15P31E102-972).
@@ -95,7 +98,7 @@ fun EditPickScreen(
                             Text(stringResource(Res.string.sheetedit_pick_step_instrument), style = MaterialTheme.typography.labelLarge)
                             Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Instrument.entries.forEach { instrument ->
-                                    Surface(onClick = { onSelectInstrument(instrument) }, shape = RoundedCornerShape(14.dp), color = colors.surface,
+                                    Surface(onClick = UserActionLog.click(QaTarget.EDIT_PICK_SCREEN_01, { onSelectInstrument(instrument) }), shape = RoundedCornerShape(14.dp), color = colors.surface,
                                         modifier = Modifier.weight(1f).heightIn(min = 76.dp).semantics { role = Role.RadioButton; selected = false }) {
                                         Column(Modifier.padding(horizontal = 4.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -132,14 +135,14 @@ fun EditPickScreen(
                                     sheet.jangdanName?.let { jangdanLabel(it) },
                                     stringResource(Res.string.sheetedit_pick_meta_updated, monthDayLabel(sheet.updatedAt)),
                                 ).joinToString(" · ")
-                                PickRow(sheet.title, meta, state.picked == target, enabled = !state.copying, onClick = { onToggle(target) })
+                                PickRow(sheet.title, meta, state.picked == target, enabled = !state.copying, onClick = UserActionLog.click(QaTarget.EDIT_PICK_SCREEN_02, { onToggle(target) }))
                             }
                         }
                         EditPickTab.Songs -> {
                             items(state.visibleSongs, key = { it.id }) { song ->
                                 val target = EditPickTarget.Song(song.id)
                                 PickRow(song.title, jangdanLabel(song.jangdanName), state.picked == target,
-                                    level = song.level, enabled = !state.copying, onClick = { onToggle(target) })
+                                    level = song.level, enabled = !state.copying, onClick = UserActionLog.click(QaTarget.EDIT_PICK_SCREEN_03, { onToggle(target) }))
                             }
                             if (state.songs.isEmpty()) item { EmptyRow(stringResource(Res.string.sheetedit_pick_empty_songs)) }
                             else if (state.visibleSongs.isEmpty()) item { EmptyRow(stringResource(Res.string.sheetedit_pick_empty, state.query.trim())) }
@@ -172,7 +175,7 @@ private fun PickStatus(load: EditPickLoad, onRetry: () -> Unit, modifier: Modifi
             else -> Res.string.sheetedit_pick_need_instrument
         }))
         if (load == EditPickLoad.Failed) EolssuButton(stringResource(Res.string.sheetedit_pick_retry), onRetry,
-            style = EolssuButtonStyle.Secondary, small = true)
+            style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.EDIT_PICK_SCREEN_BUTTON_02)
     }
 }
 
@@ -182,7 +185,7 @@ private fun PickRow(title: String, meta: String, selected: Boolean, enabled: Boo
     val colors = EolssuTheme.colors
     Surface(
         selected = selected,
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.EDIT_PICK_SCREEN_04, onClick),
         enabled = enabled,
         // 복사 중에는 누를 수 없음을 앱 버튼과 같은 0.45 흐림으로 알린다(S15P31E102-969).
         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).alpha(if (enabled) 1f else 0.45f).semantics { role = Role.RadioButton },

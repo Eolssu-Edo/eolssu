@@ -657,3 +657,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [입력칸 글자 수 상한과 메모 입력 방식 (996)](knowledge/frontend/input-length-limits.md)
 - [악보 빠르기 범위 40~200 (1018)](knowledge/frontend/sheet-tempo-range.md)
 - [강원도아리랑·옹헤야 빠르기 정간 단위 표기와 운영 적용 (1019)](knowledge/data/score-tempo-1019.md)
+
+- [S15P31E102-1051 QA 전체 조작 로그 구현과 실기기 검증](plans/S15P31E102-1051.md)
+
+- [Android QA 조작 대상 목록](knowledge/frontend/qa-user-action-targets.md)

@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.core.network
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.UserActionEvent
+import com.ssafy.eolssu.core.diagnostics.QaKind
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaOutcome
+import com.ssafy.eolssu.core.diagnostics.QaInteractionContext
 import com.ssafy.eolssu.core.diagnostics.EvaluationTiming
 import com.ssafy.eolssu.core.diagnostics.PerformanceFlow
 import com.ssafy.eolssu.core.diagnostics.PerfKind
@@ -101,13 +107,13 @@ fun createHttpClient(engine: HttpClientEngine, server: ServerAddress, cookies: C
         val seen = refresher.generation
         val path = request.url.encodedPath
         val method = request.method
-        val call = liveAttempt(request, server) { observedAttempt(path, method) { execute(request) } }
+        val call = liveAttempt(request, server) { qaAttempt(request) { observedAttempt(path, method) { execute(request) } } }
         if (call.response.status != HttpStatusCode.Unauthorized ||
             request.attributes.contains(authRefreshSkipped) || skipsRefresh(method, path)
         ) return@intercept call
         val refreshed = refresher.refresh(seen) { client.post(REFRESH_PATH).status.isSuccess() }
         if (refreshed) liveAttempt(request, server, PerfReason.REPLAY) {
-            observedAttempt(path, method, PerfReason.REPLAY) { execute(request) }
+            qaAttempt(request) { observedAttempt(path, method, PerfReason.REPLAY) { execute(request) } }
         } else call
     }
     return client
@@ -162,6 +168,33 @@ private suspend fun liveAttempt(
             requestId = requestId, evaluationTimingId = timingId, status = status, outcome = outcome,
             durationMs = PerformanceLog.now() - started)
     }
+}
+
+@OptIn(ExperimentalUuidApi::class)
+private suspend fun qaAttempt(request: HttpRequestBuilder, send: suspend () -> HttpClientCall): HttpClientCall {
+    if (UserActionLog.sink == null) return send()
+    val interaction = currentCoroutineContext()[QaInteractionContext]?.interaction ?: UserActionLog.capture().copy(estimated = true)
+    val requestId = Uuid.random().toString()
+    val target = when (request.url.encodedPath) {
+        "/api/auth/sign-in" -> QaTarget.LOGIN_SUBMIT
+        "/api/auth/sign-up" -> QaTarget.SIGN_UP
+        "/api/auth/sign-out" -> QaTarget.SIGN_OUT
+        else -> QaTarget.HTTP_API
+    }
+    val screen = UserActionLog.screenId
+    val start = UserActionLog.now()
+    var status: Int? = null
+    var outcome = QaOutcome.FAILED
+    fun emit(kind: QaKind) = UserActionLog.emit(UserActionEvent(kind, target, interaction, screen,
+        UserActionLog.now(), outcome = if (kind == QaKind.HTTP_FINISHED) outcome else null,
+        requestId = requestId, status = status, durationMs = if (kind == QaKind.HTTP_FINISHED) UserActionLog.now() - start else null))
+    emit(QaKind.HTTP_STARTED)
+    try {
+        return send().also { status = it.response.status.value; outcome = if (it.response.status.isSuccess()) QaOutcome.READY else QaOutcome.FAILED }
+    } catch (cancelled: CancellationException) {
+        outcome = QaOutcome.CANCELLED
+        throw cancelled
+    } finally { emit(QaKind.HTTP_FINISHED) }
 }
 
 private val recordingEndpoint = Regex("/api/practice-sessions/[1-9][0-9]{0,18}/recording")

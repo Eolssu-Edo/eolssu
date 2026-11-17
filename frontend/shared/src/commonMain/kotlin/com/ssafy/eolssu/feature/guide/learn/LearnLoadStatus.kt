@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,7 +50,7 @@ internal fun LearnLoadStatus(failed: Boolean, failedMessage: StringResource, onR
                 color = colors.textMuted,
                 textAlign = TextAlign.Center,
             )
-            EolssuButton(stringResource(Res.string.learn_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true)
+            EolssuButton(stringResource(Res.string.learn_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.LEARN_LOAD_STATUS_BUTTON_01)
         } else {
             val loading = stringResource(Res.string.learn_loading)
             CircularProgressIndicator(

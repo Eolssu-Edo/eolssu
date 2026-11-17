@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -63,7 +65,7 @@ internal fun SongDetailBody(
             )
         }
         SongInfoGrid(song, Modifier.padding(vertical = 20.dp), columns = infoColumns)
-        EolssuButton(stringResource(Res.string.song_start_evaluation), onStartPractice, Modifier.fillMaxWidth().padding(top = 12.dp), compact = true)
+        EolssuButton(stringResource(Res.string.song_start_evaluation), onStartPractice, Modifier.fillMaxWidth().padding(top = 12.dp), compact = true, qaTarget = QaTarget.SONG_INFO_PARTS_BUTTON_01)
     }
 }
 

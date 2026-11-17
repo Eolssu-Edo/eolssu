@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,7 +37,7 @@ internal fun CatalogStatus(state: ReferenceLoadState, empty: Boolean = false, on
     }
     if (message != null) Text(stringResource(message), style = MaterialTheme.typography.bodyMedium, color = EolssuTheme.colors.textMuted)
     if (state == ReferenceLoadState.Failed || state == ReferenceLoadState.NotRegistered) {
-        EolssuButton(stringResource(Res.string.guide_catalog_retry), onRetry, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.guide_catalog_retry), onRetry, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.REFERENCE_CATALOG_CONTENT_BUTTON_01)
     }
 }
 
@@ -45,7 +47,7 @@ internal fun CatalogLink(url: String?, label: String) {
     if (url == null) return
     val uriHandler = LocalUriHandler.current
     var failed by remember(url) { mutableStateOf(false) }
-    EolssuButton(label, { failed = runCatching { uriHandler.openUri(url) }.isFailure }, style = EolssuButtonStyle.Secondary)
+    EolssuButton(label, { failed = runCatching { uriHandler.openUri(url) }.isFailure }, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.REFERENCE_CATALOG_CONTENT_BUTTON_02)
     if (failed) Text(stringResource(Res.string.guide_catalog_link_failed), color = EolssuTheme.colors.textMuted)
 }
 
@@ -78,7 +80,7 @@ internal fun FingeringCatalogDialog(state: FingeringUiState, onRetry: () -> Unit
             style = EolssuButtonStyle.Secondary,
             containerColor = colors.groupedBackground,
             borderColor = colors.groupedBackground,
-            minHeight = 48.dp,
+            minHeight = 48.dp, qaTarget = QaTarget.REFERENCE_CATALOG_CONTENT_BUTTON_03
         )
     }
 }

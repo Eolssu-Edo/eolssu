@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.profile
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -140,7 +143,7 @@ private fun SourceLinkRow(label: String, url: String, onOpenLink: (String) -> Un
             .heightIn(min = 52.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(colors.groupedBackground)
-            .clickable(role = Role.Button, onClick = { onOpenLink(url) })
+            .clickable(role = Role.Button, onClick = UserActionLog.click(QaTarget.DATA_SOURCES_SCREEN_01, { onOpenLink(url) }))
             .semantics { contentDescription = description }
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

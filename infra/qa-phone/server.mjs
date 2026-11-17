@@ -66,7 +66,8 @@ export async function startRelay({ phone, port = 17680, origin, basePath = '/', 
     try { await phone.input(action, packet); } catch (error) {
       inputFault=true;recoverAt=Date.now()+2000;
       // Never log user text, raw ADB argv or an error containing either.
-      console.warn(`QA input failed: kind=${action.kind}; reason=${error.killed?'timeout':'transport-or-helper'}; control revoked`);
+      const reason=error.killed?'timeout':error.message==='screen geometry changed'?'screen-geometry':error.message==='selected device identity mismatch'?'device-identity':'transport-or-helper';
+      console.warn(`QA input failed: kind=${action.kind}; reason=${reason}; control revoked`);
       throw error;
     }
   }});

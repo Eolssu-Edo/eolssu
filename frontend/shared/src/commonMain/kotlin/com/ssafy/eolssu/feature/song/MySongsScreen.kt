@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -155,7 +158,7 @@ internal fun MySongsBody(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SongSortButton(state.sort, actions.onToggleSort, Modifier.align(Alignment.End), small = true, bordered = false)
                         CardGrid(state.visibleSongs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
-                            ProvidedSongRow(song, providedSongMeta(song), onClick = { actions.onOpenSong(song.id) }, modifier = rowModifier, bordered = false)
+                            ProvidedSongRow(song, providedSongMeta(song), onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_01, { actions.onOpenSong(song.id) }), modifier = rowModifier, bordered = false)
                         }
                     }
                 }
@@ -203,10 +206,10 @@ internal fun MySongsBody(
 private fun SheetInstrumentChips(selected: Instrument?, onSelect: (Instrument?) -> Unit) {
     ChipRow(Modifier.selectableGroup()) {
         EolssuChip(stringResource(Res.string.song_level_all), selected = selected == null,
-            onClick = { onSelect(null) }, bordered = false)
+            onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_02, { onSelect(null) }), bordered = false)
         Instrument.entries.forEach { instrument ->
             EolssuChip(stringResource(instrument.label), selected = selected == instrument,
-                onClick = { onSelect(instrument) }, bordered = false)
+                onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_03, { onSelect(instrument) }), bordered = false)
         }
     }
 }

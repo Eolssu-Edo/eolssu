@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -101,7 +103,7 @@ internal fun SheetEditSettingsDialog(
                 placeholder = "", type = TextFieldType.Number, maxLength = InputLimit.BPM_DIGITS, imeAction = ImeAction.Done,
                 help = stringResource(Res.string.sheet_details_bpm_help, SheetBpmRange.first, SheetBpmRange.last),
                 error = if (bpmTouched && validBpm == null) stringResource(Res.string.sheet_details_bpm_error, SheetBpmRange.first, SheetBpmRange.last) else null,
-                bordered = false, containerColor = EolssuTheme.colors.groupedBackground)
+                bordered = false, containerColor = EolssuTheme.colors.groupedBackground, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_FIELD_01)
             if (hasTempoPlan || changes.isNotEmpty()) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(Res.string.sheet_tempo_changes), style = MaterialTheme.typography.titleSmall)
             Text(stringResource(Res.string.sheet_tempo_changes_help), style = MaterialTheme.typography.bodySmall)
@@ -113,24 +115,24 @@ internal fun SheetEditSettingsDialog(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         pair.forEach { choice -> EolssuButton(choice?.label ?: stringResource(Res.string.sheet_tempo_numeric),
                             { markName = choice?.name; if (choice == HanbaeMark.Original) target = bpm; error = null }, Modifier.weight(1f),
-                            style = if (mark == choice) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary, small = true, compact = true, enabled = !saving) }
+                            style = if (mark == choice) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary, small = true, compact = true, enabled = !saving, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_01) }
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EolssuTextField(startGak, { startGak = it; error = null }, stringResource(Res.string.sheet_tempo_start_gak), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = gakDigits)
-                    EolssuTextField(startCell, { startCell = it; error = null }, stringResource(Res.string.sheet_tempo_start_cell), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = cellDigits)
+                    EolssuTextField(startGak, { startGak = it; error = null }, stringResource(Res.string.sheet_tempo_start_gak), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = gakDigits, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_FIELD_02)
+                    EolssuTextField(startCell, { startCell = it; error = null }, stringResource(Res.string.sheet_tempo_start_cell), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = cellDigits, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_FIELD_03)
                 }
                 if (mark == null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EolssuButton(stringResource(Res.string.sheet_tempo_step), { gradual = false }, Modifier.weight(1f), small = true, style = if (!gradual) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary)
-                    EolssuButton(stringResource(Res.string.sheet_tempo_ramp), { gradual = true }, Modifier.weight(1f), small = true, style = if (gradual) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary)
+                    EolssuButton(stringResource(Res.string.sheet_tempo_step), { gradual = false }, Modifier.weight(1f), small = true, style = if (!gradual) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_02)
+                    EolssuButton(stringResource(Res.string.sheet_tempo_ramp), { gradual = true }, Modifier.weight(1f), small = true, style = if (gradual) EolssuButtonStyle.Primary else EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_03)
                 }
                 if (mark != HanbaeMark.Original) EolssuTextField(target, { target = it; error = null },
                     stringResource(Res.string.sheet_tempo_target) + " · " + draft.tempoUnitLabel, "", type = TextFieldType.Number, maxLength = InputLimit.BPM_DIGITS,
-                    help = stringResource(Res.string.sheet_tempo_target_help))
+                    help = stringResource(Res.string.sheet_tempo_target_help), qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_FIELD_04)
                 if (needsEnd) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        EolssuTextField(endGak, { endGak = it; error = null }, stringResource(Res.string.sheet_tempo_end_gak), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = gakDigits)
-                        EolssuTextField(endCell, { endCell = it; error = null }, stringResource(Res.string.sheet_tempo_end_cell), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = cellDigits)
+                        EolssuTextField(endGak, { endGak = it; error = null }, stringResource(Res.string.sheet_tempo_end_gak), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = gakDigits, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_FIELD_05)
+                        EolssuTextField(endCell, { endCell = it; error = null }, stringResource(Res.string.sheet_tempo_end_cell), "", Modifier.weight(1f), type = TextFieldType.Number, maxLength = cellDigits, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_FIELD_06)
                     }
                     Text(stringResource(Res.string.sheet_tempo_end_help), style = MaterialTheme.typography.bodySmall)
                 }
@@ -146,8 +148,8 @@ internal fun SheetEditSettingsDialog(
                         error = current.tempoChangeError(cue, replacing)
                         if (error == null) { working = current.withTempoChange(cue, replacing); editing = false }
                     }
-                }, enabled = !saving && validBpm != null)
-                EolssuButton(stringResource(Res.string.common_cancel), { editing = false; error = null }, style = EolssuButtonStyle.Text)
+                }, enabled = !saving && validBpm != null, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_04)
+                EolssuButton(stringResource(Res.string.common_cancel), { editing = false; error = null }, style = EolssuButtonStyle.Text, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_05)
             }
             changes.forEach { cue ->
                 val active = editing && replacing == cue.cell
@@ -165,11 +167,11 @@ internal fun SheetEditSettingsDialog(
                         HorizontalDivider(Modifier.padding(vertical = 4.dp), color = EolssuTheme.colors.accentTintLine)
                         tempoForm()
                     } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        EolssuButton(stringResource(Res.string.sheet_tempo_edit), { edit(cue) }, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, small = true, enabled = !saving)
+                        EolssuButton(stringResource(Res.string.sheet_tempo_edit), { edit(cue) }, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, small = true, enabled = !saving, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_06)
                         EolssuButton(stringResource(Res.string.sheet_tempo_remove), {
                             error = current.tempoDeletionError(cue.cell)
                             if (error == null) { working = current.withoutTempoChange(cue.cell); editing = false }
-                        }, Modifier.weight(1f), style = EolssuButtonStyle.Text, small = true, enabled = !saving)
+                        }, Modifier.weight(1f), style = EolssuButtonStyle.Text, small = true, enabled = !saving, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_07)
                     }
                 }
             }
@@ -182,12 +184,12 @@ internal fun SheetEditSettingsDialog(
                     tempoForm()
                 }
             }
-            if (!editing) EolssuButton(stringResource(Res.string.sheet_tempo_add), { edit(null) }, style = EolssuButtonStyle.Secondary, enabled = !saving && validBpm != null)
+            if (!editing) EolssuButton(stringResource(Res.string.sheet_tempo_add), { edit(null) }, style = EolssuButtonStyle.Secondary, enabled = !saving && validBpm != null, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_08)
             if (!editing) error?.let { Text(it, color = EolssuTheme.colors.rec, style = MaterialTheme.typography.bodySmall) }
         }
-        EolssuButton(stringResource(Res.string.sheet_details_apply), { onApply(current) }, enabled = validBpm != null && !saving && !editing)
+        EolssuButton(stringResource(Res.string.sheet_details_apply), { onApply(current) }, enabled = validBpm != null && !saving && !editing, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_09)
         EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary,
-            enabled = !saving, containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent)
+            enabled = !saving, containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_10)
     }
 }
 

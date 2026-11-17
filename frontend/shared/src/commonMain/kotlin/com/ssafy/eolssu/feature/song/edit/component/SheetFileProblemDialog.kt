@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.runtime.Composable
 import com.ssafy.eolssu.data.song.SheetConversionFailure
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -52,10 +54,10 @@ internal fun SheetFileProblemDialog(problem: SheetFileProblem, onRepick: () -> U
     }
     EolssuDialog(title = stringResource(title), message = stringResource(body), onDismissRequest = onDismiss) {
         if (problem == SheetFileProblem.Format) {
-            EolssuButton(stringResource(Res.string.common_confirm), onDismiss)
+            EolssuButton(stringResource(Res.string.common_confirm), onDismiss, qaTarget = QaTarget.SHEET_FILE_PROBLEM_DIALOG_BUTTON_01)
         } else {
-            EolssuButton(stringResource(Res.string.sheet_upload_dialog_repick), onRepick)
-            EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.sheet_upload_dialog_repick), onRepick, qaTarget = QaTarget.SHEET_FILE_PROBLEM_DIALOG_BUTTON_02)
+            EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_FILE_PROBLEM_DIALOG_BUTTON_03)
         }
     }
 }

@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.profile.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -140,7 +144,7 @@ internal fun MyPageAvatar(image: ProfileImage, onEdit: () -> Unit) {
     Box(
         Modifier
             .requiredSize(84.dp)
-            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onEdit)
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = UserActionLog.click(QaTarget.MY_PAGE_OVERVIEW_PARTS_01, onEdit))
             .clearAndSetSemantics { contentDescription = description; role = Role.Button; onClick { onEdit(); true } },
     ) {
         Box(Modifier.matchParentSize().clip(CircleShape).indication(interaction, ripple())) {
@@ -206,7 +210,7 @@ private fun FlowOnTapText(text: String, style: TextStyle, color: Color, modifier
     Text(
         text,
         modifier = modifier
-            .clickable(enabled = cut && !flowing, interactionSource = null, indication = null) { flowing = true }
+            .clickable(enabled = cut && !flowing, interactionSource = null, indication = null) { UserActionLog.event(QaKind.CLICK, QaTarget.MY_PAGE_OVERVIEW_PARTS_03); flowing = true }
             .then(if (flowing) Modifier.basicMarquee(iterations = 1, initialDelayMillis = 0) else Modifier),
         style = style,
         color = color,
@@ -234,7 +238,7 @@ internal fun MyRecentPracticeCard(recent: RecentPracticeSummary?, status: MyRece
     val latest = recent?.latest
     val weekCount = recent?.week?.recordCount ?: 0
     val shown = status == MyRecentPracticeStatus.Shown && latest != null
-    MyPageCard(onClick = onOpenRecords, enabled = status != MyRecentPracticeStatus.Unavailable) {
+    MyPageCard(onClick = UserActionLog.click(QaTarget.MY_PAGE_OVERVIEW_PARTS_02, onOpenRecords), enabled = status != MyRecentPracticeStatus.Unavailable) {
         Column(Modifier.padding(horizontal = MyPageCardInset, vertical = 20.dp)) {
             MyPageCardTitle(stringResource(Res.string.my_recent_title)) {
                 if (status != MyRecentPracticeStatus.Unavailable) {
@@ -322,7 +326,7 @@ internal fun ProfileProviderLogo(provider: SocialProvider) {
 @Composable
 internal fun ProfileTextLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(modifier, contentAlignment = Alignment.Center) {
-        EolssuTextLink(onClick) {
+        EolssuTextLink(onClick, qaTarget = QaTarget.MY_PAGE_OVERVIEW_PARTS_LINK_01) {
             Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, textDecoration = TextDecoration.Underline), color = EolssuTheme.colors.textMuted)
         }
     }

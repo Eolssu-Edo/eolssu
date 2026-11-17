@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.runtime.Composable
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -96,37 +98,37 @@ fun PracticeDialog(
             title = stringResource(Res.string.practice_score_check_title),
             message = stringResource(if (popup == PracticePopup.ScoreChanged) Res.string.weak_score_changed else Res.string.weak_score_unavailable),
         ) {
-            EolssuButton(stringResource(Res.string.common_confirm), actions.onClose)
+            EolssuButton(stringResource(Res.string.common_confirm), actions.onClose, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_01)
         }
         PracticePopup.NoSectionNotes -> EolssuDialog(
             title = stringResource(Res.string.practice_score_check_title),
             message = stringResource(Res.string.weak_loop_no_notes),
         ) {
-            EolssuButton(stringResource(Res.string.common_confirm), actions.onClose)
+            EolssuButton(stringResource(Res.string.common_confirm), actions.onClose, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_02)
         }
         PracticePopup.Permission -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_permission_title),
             message = stringResource(if (forStep) Res.string.practice_step_permission_body else Res.string.practice_popup_permission_body),
             icon = EolssuIcons.Mic,
         ) {
-            EolssuButton(stringResource(Res.string.practice_popup_continue), actions.onGrantMic)
-            EolssuButton(stringResource(Res.string.practice_popup_later), actions.onDenyMic, style = EolssuButtonStyle.Ghost)
+            EolssuButton(stringResource(Res.string.practice_popup_continue), actions.onGrantMic, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_03)
+            EolssuButton(stringResource(Res.string.practice_popup_later), actions.onDenyMic, style = EolssuButtonStyle.Ghost, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_04)
         }
         PracticePopup.SettingsPaused -> EolssuDialog(
             title = stringResource(Res.string.practice_settings_paused_title),
         ) {
-            EolssuButton(stringResource(Res.string.practice_resume_recording), actions.onResume)
+            EolssuButton(stringResource(Res.string.practice_resume_recording), actions.onResume, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_05)
         }
         PracticePopup.Abort -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_abort_title),
             message = stringResource(Res.string.practice_popup_abort_body),
         ) {
             if (evaluation) {
-                EolssuButton(stringResource(Res.string.practice_popup_to_waiting), actions.onToReady)
+                EolssuButton(stringResource(Res.string.practice_popup_to_waiting), actions.onToReady, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_06)
             } else {
-                EolssuButton(stringResource(Res.string.practice_popup_go_home), actions.onGoHome)
+                EolssuButton(stringResource(Res.string.practice_popup_go_home), actions.onGoHome, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_07)
             }
-            EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onResume, style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onResume, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_08)
         }
         PracticePopup.End, PracticePopup.EndAtLimit -> EolssuDialog(
             title = stringResource(if (popup == PracticePopup.EndAtLimit) Res.string.practice_popup_end_limit_title else Res.string.practice_popup_end_title),
@@ -134,8 +136,8 @@ fun PracticeDialog(
             icon = EolssuIcons.Check,
             iconBackground = colors.accentTintStrong,
         ) {
-            EolssuButton(stringResource(Res.string.practice_popup_evaluate), actions.onEvaluate)
-            EolssuButton(stringResource(Res.string.practice_restart), actions.onRestartNow, style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.practice_popup_evaluate), actions.onEvaluate, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_09)
+            EolssuButton(stringResource(Res.string.practice_restart), actions.onRestartNow, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_10)
         }
         PracticePopup.EndNoInput -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_no_input_title),
@@ -144,8 +146,8 @@ fun PracticeDialog(
             iconBackground = colors.recSoft,
             iconTint = colors.recText,
         ) {
-            EolssuButton(stringResource(Res.string.practice_popup_play_again), actions.onRestartNow)
-            EolssuButton(stringResource(Res.string.practice_popup_go_back), actions.onToReady, style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.practice_popup_play_again), actions.onRestartNow, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_11)
+            EolssuButton(stringResource(Res.string.practice_popup_go_back), actions.onToReady, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_12)
         }
         PracticePopup.PermDenied -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_denied_title),
@@ -154,7 +156,7 @@ fun PracticeDialog(
             iconBackground = colors.recSoft,
             iconTint = colors.recText,
         ) {
-            EolssuButton(stringResource(Res.string.common_confirm), actions.onClose)
+            EolssuButton(stringResource(Res.string.common_confirm), actions.onClose, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_13)
         }
         PracticePopup.PermBlocked -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_blocked_title),
@@ -163,16 +165,16 @@ fun PracticeDialog(
             iconBackground = colors.recSoft,
             iconTint = colors.recText,
         ) {
-            EolssuButton(stringResource(Res.string.practice_popup_open_settings), actions.onOpenMicSettings)
-            EolssuButton(stringResource(Res.string.common_close), actions.onClose, style = EolssuButtonStyle.Ghost)
+            EolssuButton(stringResource(Res.string.practice_popup_open_settings), actions.onOpenMicSettings, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_14)
+            EolssuButton(stringResource(Res.string.common_close), actions.onClose, style = EolssuButtonStyle.Ghost, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_15)
         }
         PracticePopup.Restart -> EolssuDialog(title = stringResource(Res.string.practice_popup_restart_title)) {
-            EolssuButton(stringResource(Res.string.practice_popup_restart_confirm), actions.onRestartNow)
-            EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onKeepPlayingAfterExit, style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.practice_popup_restart_confirm), actions.onRestartNow, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_16)
+            EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onKeepPlayingAfterExit, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_17)
         }
         PracticePopup.Exit -> EolssuDialog(title = stringResource(Res.string.practice_popup_exit_title)) {
-            EolssuButton(stringResource(Res.string.practice_popup_exit_confirm), actions.onExit)
-            EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onKeepPlayingAfterExit, style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.practice_popup_exit_confirm), actions.onExit, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_18)
+            EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onKeepPlayingAfterExit, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_19)
         }
         PracticePopup.Interrupted -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_interrupted_title),
@@ -181,8 +183,8 @@ fun PracticeDialog(
             iconBackground = colors.recSoft,
             iconTint = colors.recText,
         ) {
-            EolssuButton(stringResource(Res.string.practice_popup_start_again), actions.onRestartNow)
-            EolssuButton(toReady, actions.onToReady, style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.practice_popup_start_again), actions.onRestartNow, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_20)
+            EolssuButton(toReady, actions.onToReady, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_21)
         }
         PracticePopup.RecordFailed -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_record_failed_title),
@@ -192,10 +194,10 @@ fun PracticeDialog(
             iconTint = colors.recText,
         ) {
             if (forStep) {
-                EolssuButton(stringResource(Res.string.common_confirm), actions.onClose)
+                EolssuButton(stringResource(Res.string.common_confirm), actions.onClose, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_22)
             } else {
-                EolssuButton(stringResource(Res.string.practice_popup_start_again), actions.onRestartNow)
-                EolssuButton(toReady, actions.onToReady, style = EolssuButtonStyle.Secondary)
+                EolssuButton(stringResource(Res.string.practice_popup_start_again), actions.onRestartNow, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_23)
+                EolssuButton(toReady, actions.onToReady, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_24)
             }
         }
         PracticePopup.TooLarge -> EolssuDialog(
@@ -205,8 +207,8 @@ fun PracticeDialog(
             iconBackground = colors.recSoft,
             iconTint = colors.recText,
         ) {
-            EolssuButton(stringResource(Res.string.practice_restart), actions.onRestartNow)
-            EolssuButton(toReady, actions.onToReady, style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.practice_restart), actions.onRestartNow, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_25)
+            EolssuButton(toReady, actions.onToReady, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_26)
         }
     }
 }

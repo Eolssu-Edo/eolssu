@@ -12,9 +12,9 @@ internal class QaPerformanceStore(context: Context) : SQLiteOpenHelper(
     context,
     File(context.noBackupFilesDir, "qa-performance.db").path,
     null,
-    1,
+    2,
 ) {
-    data class State(val streamId: String, val ack: Long, val end: Long, val runId: String?)
+    data class State(val streamId: String, val ack: Long, val end: Long, val runId: String?, val retainedAfter: Long = 0, val missingRetention: Long = 0)
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.execSQL("PRAGMA synchronous = FULL")
@@ -24,10 +24,10 @@ internal class QaPerformanceStore(context: Context) : SQLiteOpenHelper(
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             """CREATE TABLE state (
-                stream_id TEXT NOT NULL, ack INTEGER NOT NULL, last_seq INTEGER NOT NULL, run_id TEXT
+                stream_id TEXT NOT NULL, ack INTEGER NOT NULL, last_seq INTEGER NOT NULL, run_id TEXT, retained_after INTEGER NOT NULL DEFAULT 0, missing_retention INTEGER NOT NULL DEFAULT 0
             )""".trimIndent(),
         )
-        db.execSQL("CREATE TABLE events (seq INTEGER PRIMARY KEY, event TEXT NOT NULL)")
+        db.execSQL("CREATE TABLE events (seq INTEGER PRIMARY KEY, event TEXT NOT NULL, recorded_at INTEGER NOT NULL DEFAULT 0)")
         db.insertOrThrow("state", null, ContentValues().apply {
             put("stream_id", newQaPerformanceId())
             put("ack", 0L)
@@ -36,7 +36,12 @@ internal class QaPerformanceStore(context: Context) : SQLiteOpenHelper(
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        error("No QA performance migration from $oldVersion to $newVersion")
+        if (oldVersion == 1 && newVersion == 2) {
+            db.execSQL("ALTER TABLE state ADD COLUMN retained_after INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE state ADD COLUMN missing_retention INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE events ADD COLUMN recorded_at INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("UPDATE events SET recorded_at = ?", arrayOf(System.currentTimeMillis()))
+        } else error("Unsupported QA performance migration")
     }
 
     fun state(): State = state(readableDatabase)
@@ -48,12 +53,25 @@ internal class QaPerformanceStore(context: Context) : SQLiteOpenHelper(
             db.insertOrThrow("events", null, ContentValues().apply {
                 put("seq", ++seq)
                 put("event", event)
+                put("recorded_at", System.currentTimeMillis())
             })
         }
         db.update("state", ContentValues().apply {
             put("last_seq", seq)
             put("run_id", runId)
         }, null, null)
+        // Count and time bounds keep the read-only relay snapshot below its established 16 MiB cap.
+        val ageFloor = db.rawQuery("SELECT MAX(seq) FROM events WHERE recorded_at < ?", arrayOf((System.currentTimeMillis() - RETENTION_MS).toString())).use {
+            it.moveToFirst(); if (it.isNull(0)) 0L else it.getLong(0)
+        }
+        val floor = maxOf(state.retainedAfter, seq - MAX_EVENTS, ageFloor)
+        if (floor > state.retainedAfter) {
+            val removed = db.delete("events", "seq <= ?", arrayOf(floor.toString()))
+            db.update("state", ContentValues().apply {
+                put("retained_after", floor)
+                put("missing_retention", state.missingRetention + removed)
+            }, null, null)
+        }
     }
 
     /** Returns a contiguous prefix of (after, through] bounded by both the wire size and row count. */
@@ -83,10 +101,15 @@ internal class QaPerformanceStore(context: Context) : SQLiteOpenHelper(
     }
 
     private fun state(db: SQLiteDatabase): State =
-        db.rawQuery("SELECT stream_id, ack, last_seq, run_id FROM state", null).use { row ->
+        db.rawQuery("SELECT stream_id, ack, last_seq, run_id, retained_after, missing_retention FROM state", null).use { row ->
             check(row.moveToFirst())
-            State(row.getString(0), row.getLong(1), row.getLong(2), row.getString(3))
+            State(row.getString(0), row.getLong(1), row.getLong(2), row.getString(3), row.getLong(4), row.getLong(5))
         }
+
+    companion object {
+        const val MAX_EVENTS = 4096L
+        const val RETENTION_MS = 24L * 60 * 60 * 1000
+    }
 
     private inline fun <T> transaction(block: (SQLiteDatabase) -> T): T {
         val db = writableDatabase

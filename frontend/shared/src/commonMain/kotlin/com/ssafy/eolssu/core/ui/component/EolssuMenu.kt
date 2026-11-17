@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -78,7 +81,7 @@ fun EolssuMenuItem(
             .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(if (selected) colors.accentTint else Color.Transparent)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = UserActionLog.click(QaTarget.EOLSSU_MENU_01, onClick))
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -116,7 +119,7 @@ fun EolssuMenuPopup(
         popupPositionProvider = remember(gapPx, align) { BelowAnchor(gapPx, align) },
         onDismissRequest = onDismissRequest,
         properties = PopupProperties(focusable = true),
-        content = content,
+        content = { QaModalObservation(); content() },
     )
 }
 

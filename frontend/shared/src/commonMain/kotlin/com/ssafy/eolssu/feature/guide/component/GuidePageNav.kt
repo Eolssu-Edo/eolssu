@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,9 +43,9 @@ internal fun GuidePageNav(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        GuideNavArrow(previousLabel, forward = false, onClick = onPrevious)
+        GuideNavArrow(previousLabel, forward = false, onClick = UserActionLog.click(QaTarget.GUIDE_PAGE_NAV_01, onPrevious))
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { center() }
-        GuideNavArrow(nextLabel, forward = true, onClick = onNext)
+        GuideNavArrow(nextLabel, forward = true, onClick = UserActionLog.click(QaTarget.GUIDE_PAGE_NAV_02, onNext))
     }
 }
 
@@ -52,7 +55,7 @@ private fun GuideNavArrow(label: String?, forward: Boolean, onClick: () -> Unit)
     val colors = EolssuTheme.colors
     val enabled = label != null
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.GUIDE_PAGE_NAV_03, onClick),
         enabled = enabled,
         modifier = Modifier
             .size(GuideNavArrowSize)

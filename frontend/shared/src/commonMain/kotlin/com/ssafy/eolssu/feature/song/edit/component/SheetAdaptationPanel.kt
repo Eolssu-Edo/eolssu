@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,7 +67,7 @@ internal fun SheetAdaptationPanel(
             state.failed -> {
                 Text(stringResource(Res.string.sheet_adapt_failed), style = MaterialTheme.typography.bodySmall)
                 EolssuButton(stringResource(Res.string.sheet_upload_reload), onRetry, style = EolssuButtonStyle.Secondary, small = true,
-                    containerColor = colors.surface, borderColor = colors.surface)
+                    containerColor = colors.surface, borderColor = colors.surface, qaTarget = QaTarget.SHEET_ADAPTATION_PANEL_BUTTON_01)
             }
             state.selected == null -> Text(stringResource(Res.string.sheet_adapt_empty))
             else -> state.selected?.let { selected ->
@@ -92,7 +95,7 @@ internal fun SheetAdaptationPanel(
                     SquareIconButton(SheetEditIcons.Minus, decreaseLabel, { onTranspose(selected.transpose - 1) },
                         enabled = selected.transpose > -6)
                     val sliderLabel = stringResource(Res.string.sheet_adapt_slider)
-                    Slider(value = selected.transpose.toFloat(), onValueChange = { onTranspose(it.roundToInt()) },
+                    Slider(value = selected.transpose.toFloat(), onValueChange = UserActionLog.change(QaTarget.SHEET_ADAPTATION_PANEL_01, { onTranspose(it.roundToInt()) }),
                         valueRange = -6f..6f, steps = 11,
                         interactionSource = sliderInteractions,
                         colors = sliderColors,

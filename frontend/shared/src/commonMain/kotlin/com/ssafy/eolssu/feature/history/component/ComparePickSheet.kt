@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -135,7 +138,7 @@ internal fun ComparePickSheet(
                         if (day == null) {
                             Spacer(Modifier.weight(1f).height(40.dp))
                         } else {
-                            DayButton(day, on = day.date.epochDay == shownDay, onClick = { shownDay = day.date.epochDay }, modifier = Modifier.weight(1f))
+                            DayButton(day, on = day.date.epochDay == shownDay, onClick = UserActionLog.click(QaTarget.COMPARE_PICK_SHEET_01, { shownDay = day.date.epochDay }), modifier = Modifier.weight(1f))
                         }
                     }
                     repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
@@ -149,7 +152,7 @@ internal fun ComparePickSheet(
                     stringResource(Res.string.weak_compare_day_title, monthDayLabel(KoreanDateTime.ofEpochDay(shownDay))),
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
                 )
-                records.forEach { record -> RecordRow(record, on = record.id == pick.selectedId, onClick = { onPick(record.id) }) }
+                records.forEach { record -> RecordRow(record, on = record.id == pick.selectedId, onClick = UserActionLog.click(QaTarget.COMPARE_PICK_SHEET_02, { onPick(record.id) })) }
             }
         }
     }
@@ -174,7 +177,7 @@ private fun MonthNavigation(month: CompareMonth, canPrev: Boolean, canNext: Bool
 private fun MonthArrow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.COMPARE_PICK_SHEET_03, onClick),
         enabled = enabled,
         modifier = Modifier.size(44.dp).semantics { contentDescription = label },
         shape = CircleShape,
@@ -213,7 +216,7 @@ private fun DayButton(day: CompareDay, on: Boolean, onClick: () -> Unit, modifie
         else -> colors.textDisabled
     }
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.COMPARE_PICK_SHEET_04, onClick),
         enabled = has,
         modifier = modifier.height(40.dp).semantics {
             contentDescription = label
@@ -243,7 +246,7 @@ private fun RecordRow(record: PracticeRecord, on: Boolean, onClick: () -> Unit) 
     val time = timeLabel(record.recordedAt)
     val label = stringResource(Res.string.weak_compare_record_label, time, record.score)
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.COMPARE_PICK_SHEET_05, onClick),
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics {
             contentDescription = label
             selected = on

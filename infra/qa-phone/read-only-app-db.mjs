@@ -14,13 +14,18 @@ export async function decodeAppDatabase(bytes,after=0,previousStream=null) {
     if(db.prepare('PRAGMA quick_check(1)').get()?.quick_check!=='ok')throw Error('Inconsistent app log snapshot');
     const tables=db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name IN ('state','events')").all();
     if(tables.length!==2)throw Error('Unsupported app log schema');
-    const state=db.prepare('SELECT stream_id,ack,last_seq FROM state').all();
+    const columns=db.prepare('PRAGMA table_info(state)').all().map(row=>row.name);
+    const retained=columns.includes('retained_after');
+    const state=db.prepare('SELECT stream_id,ack,last_seq'+(retained?',retained_after,missing_retention':'')+' FROM state').all();
     if(state.length!==1)throw Error('Invalid app log state');
     const {stream_id,ack,last_seq:end}=state[0];
     if(!/^[a-f0-9]{32}$/.test(stream_id)||!Number.isSafeInteger(ack)||!Number.isSafeInteger(end)||ack<0||end<ack)throw Error('Invalid app log cursor');
+    const retained_after=retained?state[0].retained_after:0,missing_retention=retained?state[0].missing_retention:0;
+    if(!Number.isSafeInteger(retained_after)||retained_after<0||retained_after>end||!Number.isSafeInteger(missing_retention)||missing_retention<0)throw Error('Invalid app log retention');
+    const floor=Math.max(ack,retained_after);
     const max=db.prepare('SELECT MAX(seq) AS seq FROM events').get().seq;
-    if((end>ack&&max!==end)||(end===ack&&max!==null))throw Error('Incomplete app log commit');
-    const start=Math.max(ack,stream_id===previousStream?after:ack);
+    if((end>floor&&max!==end)||(end===floor&&max!==null))throw Error('Incomplete app log commit');
+    const start=Math.max(floor,stream_id===previousStream?after:floor);
     if(start>end)throw Error('App log stream moved backwards');
     const rows=db.prepare('SELECT seq,event FROM events WHERE seq>? AND seq<=? ORDER BY seq LIMIT 1600').all(start,end);
     let expected=start;
@@ -30,7 +35,7 @@ export async function decodeAppDatabase(bytes,after=0,previousStream=null) {
       if(!event||typeof event!=='object'||Array.isArray(event))throw Error('Invalid app log event');
       return {seq:row.seq,event};
     });
-    return {stream_id,ack,end,events,after:start};
+    return {stream_id,ack,end,events,after:start,retained_after,missing_retention};
   }finally{
     db?.close();
     await unlink(file).catch(()=>{});

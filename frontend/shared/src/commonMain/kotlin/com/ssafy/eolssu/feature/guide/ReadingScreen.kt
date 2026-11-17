@@ -1,5 +1,10 @@
 package com.ssafy.eolssu.feature.guide
 
+import com.ssafy.eolssu.core.diagnostics.QaKind
+import com.ssafy.eolssu.core.diagnostics.QaContent
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -123,6 +128,13 @@ private fun ReadingBook(
     val scope = rememberCoroutineScope()
     val current = pages[pagerState.currentPage]
     val settled = pages[pagerState.settledPage]
+    LaunchedEffect(settled) {
+        UserActionLog.event(QaKind.CONTENT_SELECTED, QaTarget.NAVIGATION, content = when (settled) {
+            ReadingPage.Intro -> QaContent.READING_INTRO; ReadingPage.Order -> QaContent.READING_ORDER
+            ReadingPage.Length -> QaContent.READING_LENGTH; ReadingPage.Pitch -> QaContent.READING_PITCH
+            ReadingPage.Sigimsae -> QaContent.READING_SIGIMSAE; ReadingPage.SigimsaeMore -> QaContent.READING_SIGIMSAE_MORE
+        })
+    }
     LaunchedEffect(current, pagerState.isScrollInProgress) { onStopAudio() }
     val go = { page: ReadingPage ->
         onStopAudio()
@@ -150,7 +162,7 @@ private fun ReadingBook(
     ) {
         UniformCardHeight { uniformHeight ->
             Column(Modifier.fillMaxSize()) {
-                ReadingTocButton(current, tocOpen, onClick = { tocOpen = !tocOpen }, Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp))
+                ReadingTocButton(current, tocOpen, onClick = UserActionLog.click(QaTarget.READING_SCREEN_01, { tocOpen = !tocOpen }), Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp))
                 HorizontalPager(pagerState, Modifier.weight(1f).fillMaxWidth().mouseDragPaging(pagerState)) { index ->
                     val page = pages[index]
                     val visible = index == pagerState.settledPage

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -285,7 +288,7 @@ private fun ScoreCompareCard(before: Int, after: Int, state: CompareUiState, onT
         val open = state.metricsOpen
         val toggleLabel = stringResource(if (open) Res.string.weak_compare_metrics_close else Res.string.weak_compare_metrics_open)
         Surface(
-            onClick = onToggle,
+            onClick = UserActionLog.click(QaTarget.COMPARE_SCREEN_01, onToggle),
             modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = 32.dp).semantics { stateDescription = toggleLabel },
             shape = RoundedCornerShape(10.dp),
             color = Color.Transparent,
