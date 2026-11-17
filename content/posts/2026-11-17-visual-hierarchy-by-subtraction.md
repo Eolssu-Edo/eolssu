@@ -36,7 +36,7 @@ thumbnail: "https://team-edo.github.io/blog-images/2026-11-visual-hierarchy-by-s
 
 - 세리프 점수 숫자
 - 율명·한자 글자
-- 칸 안에 들어가는 9~10sp 작은 글자
+- 칸 안에 들어가는 9\~10sp 작은 글자
 - SemiBold 상태와 짝을 이뤄 구분이 필요한 Bold
 
 모두 굵기가 가독성이나 구분을 지키는 곳입니다. 덜어내기는 무조건 빼기가 아니었습니다.
