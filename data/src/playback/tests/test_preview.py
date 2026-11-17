@@ -52,6 +52,19 @@ class PreviewTests(unittest.TestCase):
             instrument=source['score']['instrument'].lower().replace('_', '-'),
             input_sha256='a' * 64, notation_policy=preview.MODE, **kwargs)
 
+    def test_jeonseong_rolls_through_the_upper_neighbour_as_an_educational_approximation(self):
+        for instrument in expressions.SYMBOL_TABLES:
+            with self.subTest(instrument=instrument):
+                score, mapping = self.render_common(self.common("전성", instrument))
+                first = [n for n in score['notes'] if n['id'].startswith('c0-j0')]
+                self.assertEqual(len(first), 3)  # main grace, upper grace, sustained main
+                self.assertEqual(first[0]['pitch'], first[2]['pitch'])
+                self.assertNotEqual(first[1]['pitch'], first[2]['pitch'])
+                self.assertLess(Fraction(first[0]['duration']), Fraction(first[2]['duration']))
+                item = next(a for a in mapping['notation_policy']['approximations'] if a['symbol'] == '전성')
+                self.assertEqual(item['status'], preview.STATUS)
+                self.assertEqual(item['figure'], {'kind': 'grace', 'steps': [0, 1]})
+
     def test_known_guide_and_registry_marks_have_preview_for_each_instrument(self):
         guide = Path(__file__).resolve().parents[4] / "frontend/shared/src/commonMain/kotlin/com/ssafy/eolssu/feature/guide/Sigimsae.kt"
         text = guide.read_text(encoding="utf-8")

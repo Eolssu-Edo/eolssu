@@ -94,9 +94,10 @@ internal fun NavGraphBuilder.weakSectionGraph(navController: NavController, perf
                 }
             },
             onWholeSong = { songId -> navController.navigate(EolssuDestination.practice(songId)) },
-            // 뒤로 가면 이 결과 화면으로 돌아온다.
+            // 뒤로 가면 이 결과 화면으로 돌아온다. 그 기록을 지우면 이 결과 화면까지 닫는다.
             onOpenRecord = { id ->
                 if (navController.currentBackStackEntry?.id == entry.id) {
+                    entry.savedStateHandle[OPENED_RECORD_KEY] = id
                     performance.move(perf, PerfTarget.RECORD_DETAIL) { navController.navigate(EolssuDestination.recordResult(id)) }
                 }
             },

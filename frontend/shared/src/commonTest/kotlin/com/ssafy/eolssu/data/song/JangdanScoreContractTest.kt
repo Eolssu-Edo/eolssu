@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.song
 
+import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.network.createHttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -58,6 +59,23 @@ class JangdanScoreContractTest {
             assertEquals("", song.score.timing?.jangdan)
             assertEquals(9L, song.jangdanPlayback?.cycleTicks)
         } finally { client.close() }
+    }
+
+    @Test fun catalogSigimsaeSlotsKeepTheHeldCellOrnament() = runTest {
+        val held = ScoreUnitKey("c0-j1", 0, 0)
+        val client = client(""","sigimsaePlacements":[{"cellId":"c0-j1","row":0,"col":0,"symbols":["니레"]}]""")
+        try {
+            val song = ApiSongRepository(client).getSong("42")!!
+            assertEquals(mapOf(held to listOf("니레")), song.score.sigimsaePlacements)
+            assertEquals(mapOf(held to listOf("니레")), song.writtenScoreAnnotations)
+        } finally { client.close() }
+        for (absent in listOf("", ",\"sigimsaePlacements\":null")) {
+            val fallback = client(absent)
+            try {
+                val song = ApiSongRepository(fallback).getSong("42")!!
+                assertEquals(mapOf(ScoreUnitKey("c0-j0", 0, 1) to listOf("니레")), song.writtenScoreAnnotations)
+            } finally { fallback.close() }
+        }
     }
 
     private fun client(metadata: String, supplemental: Boolean = false) = createHttpClient(MockEngine { request ->

@@ -467,6 +467,7 @@ fun EolssuNavHost(
                     // 저장 완료 시트의 ‘기록으로 이동’: 방금 저장한 기록 상세. 뒤로 가면 이 결과 화면으로 돌아온다.
                     onOpenRecord = { id ->
                         if (navController.currentBackStackEntry?.id == entry.id) {
+                            entry.savedStateHandle[OPENED_RECORD_KEY] = id
                             performance.move(perf, PerfTarget.RECORD_DETAIL) { navController.navigate(EolssuDestination.recordResult(id)) }
                         }
                     },
@@ -492,6 +493,7 @@ fun EolssuNavHost(
                     onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                     onSelectSection = { id -> performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(id)) } },
                     onPracticeSection = { id, _ -> performance.move(perf, PerfTarget.WEAK_SELECT) { navController.navigate(WeakSectionDestination.select(id)) } },
+                    onStartPractice = { navController.navigate(EolssuDestination.SONG_LIST) },
                 )
             }
             composable(
@@ -509,14 +511,18 @@ fun EolssuNavHost(
                         onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
                         onOpenRecord = { navController.navigate(EolssuDestination.recordResult(it)) },
                         initialRecordId = recordId,
+                        onRecordDeleted = { id -> navController.leaveDeletedRecordResult(entry, id) },
                         onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                         onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
                         onPracticeSection = { id, _ -> navController.navigate(WeakSectionDestination.select(id)) },
+                        onStartPractice = { navController.navigate(EolssuDestination.SONG_LIST) },
                     )
                 } else {
                     RecordDetailRoute(
                         recordId = recordId,
-                        onDeleted = { navController.popBackStackFrom(entry) },
+                        onDeleted = {
+                            if (!navController.leaveDeletedRecordResult(entry, recordId)) navController.popBackStackFrom(entry)
+                        },
                         onBack = { navController.popBackStackFrom(entry) },
                         onCompare = { id, previous -> navController.navigate(WeakSectionDestination.compare(id, previous)) },
                         onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
@@ -699,6 +705,23 @@ internal fun NavController.popBackStackFrom(entry: NavBackStackEntry, pastDirect
     if (pastDirectPractice && practice?.destination?.route == EolssuDestination.PRACTICE &&
         practice.savedStateHandle.get<Boolean>("direct") == true
     ) popBackStack()
+}
+
+/** 결과 화면에서 ‘기록으로 이동’으로 연 기록 ID를 그 결과 화면 경로에 남기는 키. */
+internal const val OPENED_RECORD_KEY = "openedRecord"
+
+/**
+ * 기록 상세([entry])에서 [recordId]를 지운 뒤, 바로 아래가 그 기록을 저장하고 ‘기록으로 이동’한 결과 화면이면
+ * 기록 상세와 결과 화면을 함께 닫아 결과 화면의 뒤로 가기와 같은 곳(평가를 시작한 곡 정보·연습 화면)으로 간다.
+ * 지운 기록의 점수가 다시 보이지 않게 하기 위해서다. 그런 결과 화면이 아니면 아무것도 하지 않고 false를 돌린다.
+ */
+internal fun NavController.leaveDeletedRecordResult(entry: NavBackStackEntry, recordId: String): Boolean {
+    if (currentBackStackEntry?.id != entry.id) return false
+    val result = previousBackStackEntry ?: return false
+    if (result.savedStateHandle.get<String>(OPENED_RECORD_KEY) != recordId) return false
+    popBackStack()
+    popBackStackFrom(result, pastDirectPractice = true)
+    return true
 }
 
 /** 분석 경로의 구간 재평가 인자. 셋 중 하나라도 없으면 곡 전체 연주다. */

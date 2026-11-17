@@ -256,11 +256,20 @@ def test_recognized_numeric_tempo_and_existing_companion_reach_http(fake_audiver
         b'<metronome><beat-unit>quarter</beat-unit><per-minute>80</per-minute></metronome>'
         b'</direction-type><sound tempo="80"/></direction>'))
     out = post('quarters').json()
+    # A tempo at the start is the score's base BPM, not a section change (S15P31E102-1083).
+    assert out['status'] == 'DONE' and out['bpm'] == 80 and 'expressions' not in out
+
+    path.write_bytes(FOUR_QUARTERS.replace(b'</attributes>', b'</attributes><direction><direction-type>'
+        b'<metronome><beat-unit>quarter</beat-unit><per-minute>80</per-minute></metronome>'
+        b'</direction-type><sound tempo="80"/></direction>').replace(b'</note>', b'</note><direction>'
+        b'<direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>120</per-minute></metronome>'
+        b'</direction-type><sound tempo="120"/></direction>', 1))
+    out = post('quarters').json()
     assert out['status'] == 'DONE' and out['bpm'] == 80
     digest = hashlib.sha256(json.dumps(out['score'], ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     assert out['expressions'] == {'schema':'common-score-expressions/v1', 'sourceSha256':digest,
         'placements':[], 'performancePlan':{'schema':'danso-performance/v1','input_sha256':digest,
-        'tempos':[{'gak':1,'cell':1,'bpm':80}], 'repeats':[]}}
+        'tempos':[{'gak':1,'cell':2,'bpm':120}], 'repeats':[]}}
 
 
 @needs_generator
@@ -304,9 +313,8 @@ def test_pdf_numeric_tempo_reaches_real_conversion_http(tmp_path, monkeypatch, s
         'files':[{'url':'https://example.test/score.pdf', 'contentType':'application/pdf'}]})
     assert response.status_code == 200
     out = response.json()
-    assert out['status'] == 'DONE' and out['bpm'] == 100
-    assert out['expressions']['performancePlan']['tempos'] == [{'gak':1, 'cell':1, 'bpm':100}]
-    assert out['expressions']['sourceSha256'] == out['expressions']['performancePlan']['input_sha256']
+    # The opening 100 becomes the base BPM and leaves no section tempo (S15P31E102-1083).
+    assert out['status'] == 'DONE' and out['bpm'] == 100 and 'expressions' not in out
     assert any(n['detail'].get('reason') == 'TEMPO_PDF_TEXT' for n in out['notices'])
     music = out['score']['music']
     assert music['bpmUnit'] == 'QUARTER'

@@ -260,8 +260,8 @@ class SheetEditAudioViewModelTest {
         try {
             runCurrent()
             val original = vm.uiState.value.draft
-            val changed = original.withTempoChange(SheetTempoChange(0, HanbaeMark.Slower, 40.0))
-                .withTempoChange(SheetTempoChange(2, HanbaeMark.Faster, 120.0))
+            val changed = original.withTempoChange(SheetTempoChange(0, HanbaeMark.Slower, 40.0, 2))
+                .withTempoChange(SheetTempoChange(2, HanbaeMark.Faster, 120.0, 3))
             assertEquals(original.bpm, changed.bpm)
             assertEquals(listOf(40.0, 120.0), changed.tempoChanges.map { it.targetBpm })
             vm.updateTempoSettings(changed)

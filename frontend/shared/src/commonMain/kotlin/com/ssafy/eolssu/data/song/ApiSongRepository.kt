@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.diagnostics.measureLoad
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.JangdanPlayback
+import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.SongLevel
 import com.ssafy.eolssu.core.model.SongSummary
@@ -175,7 +176,9 @@ class ApiSongRepository(
         ) throw CatalogUnavailable()
         val common = CommonScoreData.decode(scoreItem.score.toString())
         if (common.schemaVersion != scoreItem.schemaVersion) throw CatalogUnavailable()
-        val score = common.toScore()
+        val score = common.toScore(sigimsaePlacements = scoreItem.sigimsaePlacements?.associate {
+            ScoreUnitKey(it.cellId, it.row, it.col) to it.symbols
+        })
         val timeline = score.timeline(songId)
         if (timeline.size != scoreItem.events.size || timeline.zip(scoreItem.events).any { (event, projected) ->
                 event.id != projected.eventId || event.noteIndex != projected.noteIdx ||
@@ -223,7 +226,12 @@ private class CatalogScore(
     val defaultBpm: Int, val bpmUnit: String, val score: JsonObject, val events: List<CatalogScoreEvent>,
     val jangdanPlayback: CatalogJangdanPlayback? = null,
     val supplementalJangdanPlayback: CatalogJangdanPlayback? = null,
+    /** 서버가 이 판본과 맞는다고 확인한 시김새 표시 자리. 없으면 이벤트 단위 시김새만 쓴다. */
+    val sigimsaePlacements: List<CatalogSigimsaePlacement>? = null,
 )
+
+@Serializable
+private class CatalogSigimsaePlacement(val cellId: String, val row: Int, val col: Int, val symbols: List<String>)
 
 @Serializable
 private class CatalogJangdanPlayback(

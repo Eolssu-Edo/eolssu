@@ -177,6 +177,7 @@ internal fun PillChip(
     compact: Boolean = false,
     enabled: Boolean = true,
     containerColor: Color? = null,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     val colors = EolssuTheme.colors
     Surface(
@@ -188,7 +189,15 @@ internal fun PillChip(
         contentColor = if (selected) colors.onPrimary else if (enabled) colors.text else colors.textDisabled,
     ) {
         // [compact]: 한 줄에 여러 칩을 나눠 넣을 때 좌우 여백·글자를 줄이고 줄바꿈 없이 가운데에 둔다.
-        Box(Modifier.padding(horizontal = if (compact) 8.dp else 12.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
+        // [leading]: 이름 앞 그림(악기 그림 등). 그림이 있으면 세로 여백을 줄여 칩 높이를 그대로 둔다.
+        val vertical = if (leading != null) 5.dp else 8.dp
+        Row(
+            Modifier.padding(start = if (leading != null || compact) 8.dp else 12.dp, end = if (compact) 8.dp else 12.dp,
+                top = vertical, bottom = vertical),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            leading?.invoke()
             Text(
                 label,
                 style = MaterialTheme.typography.labelLarge.copy(fontSize = if (compact) 12.sp else 13.sp, fontWeight = FontWeight.SemiBold),

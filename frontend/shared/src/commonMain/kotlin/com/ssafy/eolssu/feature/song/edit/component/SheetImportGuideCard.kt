@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.KoreanParticle
+import com.ssafy.eolssu.core.ui.component.withParticle
 import com.ssafy.eolssu.feature.song.edit.SheetImportGuide
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -58,7 +60,10 @@ internal fun SheetImportGuideCard(
                 stringResource(Res.string.sheet_import_guide_range, instrumentWithRo(guide.instrumentName), guide.rangeNotes)) {
                 // 무엇을 하면 어떻게 되는지를 버튼 글자 하나로 말한다. 추천이 없으면 높이 맞추기 탭으로 보낸다.
                 val shift = guide.recommendedShift?.takeIf { it != 0 && guide.recommendedTranspose != null }
-                if (shift != null) {
+                if (shift == null && guide.tuningMismatch && guide.recommendedTranspose != null) {
+                    GuideButton(stringResource(Res.string.sheet_import_guide_tuning),
+                        UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_02, onApplyRecommended))
+                } else if (shift != null) {
                     val fixed = guide.rangeNotes - (guide.recommendedRemaining ?: 0)
                     val all = guide.recommendedRemaining == 0
                     GuideButton(when {
@@ -139,7 +144,5 @@ private fun Modifier.dashedBorder(color: Color, shape: RoundedCornerShape): Modi
 @Composable
 private fun instrumentWithRo(name: String?): String {
     val word = name?.takeIf { it.isNotBlank() } ?: return stringResource(Res.string.sheet_import_guide_instrument_fallback)
-    val code = word.last().code - 0xAC00
-    val batchim = if (code in 0..11171) code % 28 else 0
-    return word + if (batchim == 0 || batchim == 8) "로" else "으로"
+    return word.withParticle(KoreanParticle.EuroRo)
 }

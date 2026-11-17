@@ -49,8 +49,8 @@ def test_mixed_meter_keeps_each_bar_and_numeric_tempo_location(monkeypatch):
     assert [len(c['cells']) for c in score['columns']] == [3, 2, 3]
     assert quarter_events(score) == [('NOTE', 0, 3), ('NOTE', 3, 2), ('NOTE', 5, 3)]
     assert result['jgb']['controls']['gakBeats'] == '2:2'
+    assert result['bpm'] == 120
     assert result['expressions']['performancePlan']['tempos'] == [
-        {'gak': 1, 'cell': 1, 'bpm': 120},
         {'gak': 2, 'cell': 1, 'start_bpm': 60, 'bpm': 120, 'end_gak': 3, 'end_cell': 1},
         {'gak': 3, 'cell': 1, 'bpm': 120}]
 
@@ -142,3 +142,40 @@ def test_uncertain_meter_suppresses_auto_accompaniment_but_keeps_explicit_choice
     assert result['score']['music']['jangdan'] == expected
     assert quarter_events(result['score']) == [('NOTE', 0, Fraction(9, 2))]
     assert result['issues'][0] == review
+
+
+def test_opening_tempo_is_the_base_bpm_and_not_a_section_tempo(monkeypatch):
+    # S15P31E102-1083: 곡 첫머리 숫자 빠르기는 기본 BPM이며 구간 목록에 남기지 않는다.
+    result = recognize(monkeypatch, xml(
+        measure(tempo('60'), note('C4', 16), time=(4, 4)),
+        measure(tempo('90'), note('D4', 16)),
+        measure(tempo('60'), note('E4', 16))))
+    assert result['bpm'] == 60
+    assert result['expressions']['performancePlan']['tempos'] == [
+        {'gak': 2, 'cell': 1, 'bpm': 90}, {'gak': 3, 'cell': 1, 'bpm': 60}]
+
+
+def test_pickup_opening_tempo_is_the_base_bpm(monkeypatch):
+    result = recognize(monkeypatch, xml(
+        measure(tempo('72'), note('C4', 4), time=(4, 4)),
+        measure(note('D4', 16))))
+    assert result['bpm'] == 72 and 'expressions' not in result
+
+
+def test_opening_ramp_keeps_its_explicit_start(monkeypatch):
+    words = '<direction><direction-type><words>MOLTO ACCEL.</words></direction-type></direction>'
+    result = recognize(monkeypatch, xml(
+        measure(words, tempo('80'), note('C4', 16), time=(4, 4)),
+        measure(tempo('160'), note('D4', 16))))
+    assert result['bpm'] == 80
+    assert result['expressions']['performancePlan']['tempos'] == [
+        {'gak': 1, 'cell': 1, 'start_bpm': 80, 'bpm': 160, 'end_gak': 2, 'end_cell': 1},
+        {'gak': 2, 'cell': 1, 'bpm': 160}]
+
+
+def test_opening_tempo_stays_in_the_plan_when_it_cannot_be_the_base_bpm(monkeypatch):
+    # 6/8의 4분음표100은 점4분 66.67이라 기본 BPM이 될 수 없다. 기존 TEMPO_BASE_NOT_INTEGER 계약을 따른다.
+    result = recognize(monkeypatch, xml(measure(tempo('100'), note('C4', 24), time=(6, 8))))
+    assert 'bpm' not in result
+    assert result['expressions']['performancePlan']['tempos'][0]['gak'] == 1
+    assert any(i['detail'].get('reason') == 'TEMPO_BASE_NOT_INTEGER' for i in result['issues'])

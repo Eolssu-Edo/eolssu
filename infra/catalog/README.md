@@ -258,3 +258,38 @@ S15P31E102-1019는 같은 도구로 강원도아리랑·옹헤야의 빠르기 �
 빠른 검사: `python -m unittest discover -s infra/catalog -p test_publish_score_tempo.py -v`. 실제 MySQL 검사는 포트를 노출하지 않는 별도 `eolssu-tempo-728-test` MySQL 8.4 컨테이너의 `tempo728_test` 스키마만 사용한다. `TEMPO_TEST_MYSQL_CONTAINER`와 `TEMPO_TEST_MYSQL_PASSWORD`를 해당 로컬 값으로 지정하면 원자적 변경·이전 음원/완료 세션 보존·늦은 메타데이터 충돌·활성 세션 추가 시 전체 롤백을 검사한다. 운영 API·앱 재생 확인은 적용 뒤 별도 수행한다.
 
 728 wrapper의 prechange config 백업은 gate가 활성화된 동안 생성된다. 이 config 백업을 복구하면 임시 gate도 복원될 수 있으므로, 복구 종료 전에 위 소유권 확인·gate 제거·Nginx reload·503 해제 절차를 반드시 확인한다. DB만 되돌리는 경우에도 새 판본을 사용하는 활성/완료 세션을 먼저 조사한다.
+
+## 시김새 표시 자리 채우기 (1078)
+
+S15P31E102-1078. 공통 악보 v1은 시김새를 음 단위로만 저장해, 이음(`-`) 자리에 적힌 시김새가 재생 전 화면에서 앞 음 자리로 옮겨 그려지고 그 이음 칸은 빈칸이 된다. V46 `songs.sigimsae_placements_json`에 칸 위치를 넣으면 CAT-04가 `sigimsaePlacements`로 돌려주고 앱이 재생 전에도 그 자리에 그린다([API](../../docs/specs/catalog-read-apis.md#시김새-표시-자리-s15p31e102-1078)). 악보·판본·모범 음원은 바꾸지 않는다.
+
+계획 파일은 개발 PC에서 공개 API만 읽어 만든다. 모범 연주 데이터(`/model-audio/performance`)의 `segments[].sigimsae`가 칸 위치의 근거이며, 반복 연주의 같은 칸은 기호가 같아야 한다. 칸 위치가 음의 시작 자리 배치와 다른 곡만 넣는다. 2026-11-17 결과는 [plan-1078.json](sigimsae-placements/plan-1078.json)의 55 뱃노래(장식음)·85 진도아리랑·86 한오백년 3곡이다.
+
+```powershell
+python infra/catalog/publish_sigimsae_placements.py prepare --base-url https://k15e102.p.ssafy.io --output <새 계획 파일>
+```
+
+운영 적용은 V46 적용 후, 백엔드 배포와 같은 공유 배포 lock을 잡고 DB 백업을 마친 뒤 edo1에서 `enable_scoring.py`·이 도구·계획을 같은 상대 경로에 두고 실행한다. 기본은 조회만 하며 receipt는 새 경로여야 한다.
+
+```sh
+sudo python3 publish_sigimsae_placements.py --plan sigimsae-placements/plan-1078.json --receipt /root/sigimsae-1078-check.json
+sudo python3 publish_sigimsae_placements.py --plan sigimsae-placements/plan-1078.json --receipt /root/sigimsae-1078-apply.json --apply
+```
+
+- 곡마다 게시·미삭제, `score_version`과 악보 해시(`canonical_sha`)가 계획과 같고 칸 위치가 그 악보의 음별 시김새를 그대로 재현해야 한다. 이미 같은 값이면 `done`, 다른 값이 있으면 쓰기 전에 멈춘다.
+- `--apply`는 한 트랜잭션에서 대상 행을 잠그고 `sigimsae_placements_json IS NULL`과 조회 때의 `score_json` 텍스트 해시를 조건으로 한 행씩 갱신한 뒤 ROW_COUNT를 확인한다. 커밋 후 다시 읽어 대조한다.
+- `apply-outcome-unknown`·`committed-readback-pending`이면 커밋 여부를 추측하지 않고 새 receipt로 조회부터 다시 실행한다.
+- 되돌리기는 대상 곡의 `sigimsae_placements_json`을 NULL로 바꾸면 된다. 앱은 이전처럼 시작 자리에 그린다.
+- 악보를 교체해 칸 위치가 맞지 않게 되면 서버가 값을 무시(null 응답)하므로 화면이 깨지지 않는다. 새 판본에 맞춰 다시 `prepare`한다.
+
+검사: `python -m unittest discover -s infra/catalog -p "test_publish_sigimsae_placements.py" -v`. 2026-11-17 폐기용 MySQL 8.4 컨테이너(V1~V46)에 공개 API의 세 곡 악보를 넣어 조회 → 적용 → 재실행 no-op → 악보 버전 변경 시 중단을 확인했다.
+
+### 운영 적용 (2026-11-17)
+
+!947 병합 후 자동 배포가 V46을 적용했다(14:25 KST, `flyway_schema_history` 46 success). edo1 `/opt/eolssu/ops1078-sigimsae-20261117/`에 develop과 SHA-256이 같은 도구 2개·계획을 두고 아래 순서로 실행했다.
+
+1. 공유 배포 lock 안에서 `backup.py send prechange`(DB run `20261117T052718Z-ddfbbacf3b52`) 후 조회: `pending` 55·85·86.
+2. lock 안에서 `--apply`: `applied`, `updated` 55·85·86. 이어 조회: `pending` 없음, `done` 3곡.
+3. 사후 `backup.py send db`(run `20261117T053021Z-142100144947`). 처음에는 배포 lock을 쥔 채 실행해 `lock timeout`으로 실패했다. 이 백업은 스스로 같은 lock을 잡으므로 lock 밖에서 실행한다.
+
+receipt는 edo1 `/root/sigimsae-1078-{check,apply,after}.json`이다. 공개 API에서 세 곡의 `sigimsaePlacements`가 13·39·5자리로 내려옴을 확인했다.

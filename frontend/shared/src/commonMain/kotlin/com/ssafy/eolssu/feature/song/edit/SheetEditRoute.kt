@@ -62,11 +62,17 @@ import eolssu.shared.generated.resources.sheetedit_msg_saved
 import eolssu.shared.generated.resources.sheetedit_msg_saved_for_practice
 import eolssu.shared.generated.resources.sheetedit_msg_saved_needs_review
 import eolssu.shared.generated.resources.sheet_save_unfilled
+import eolssu.shared.generated.resources.sheet_save_sigimsae_go
+import eolssu.shared.generated.resources.sheet_save_sigimsae_rejected
+import eolssu.shared.generated.resources.sheet_save_sigimsae_rejected_unknown
+import eolssu.shared.generated.resources.sheet_save_sigimsae_remove
 import eolssu.shared.generated.resources.sheet_editor_correction_title
 import eolssu.shared.generated.resources.sheet_editor_correct_cell
 import eolssu.shared.generated.resources.sheet_editor_correction_location
 import eolssu.shared.generated.resources.sheet_review_checked
 import eolssu.shared.generated.resources.basic_accompaniment_cleared_after_reshape
+import eolssu.shared.generated.resources.sheetedit_pitch_unavailable
+import eolssu.shared.generated.resources.sheetedit_sig_replaced
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -125,6 +131,8 @@ fun SheetEditRoute(
         SheetEditMessage.JangdanUnavailable to stringResource(Res.string.sheetedit_jangdan_unavailable),
         SheetEditMessage.TempoPlanBeforeReshape to stringResource(Res.string.sheet_tempo_before_reshape),
         SheetEditMessage.BasicAccompanimentCleared to stringResource(Res.string.basic_accompaniment_cleared_after_reshape),
+        SheetEditMessage.SigimsaeReplaced to stringResource(Res.string.sheetedit_sig_replaced),
+        SheetEditMessage.PitchUnavailable to stringResource(Res.string.sheetedit_pitch_unavailable),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),
@@ -170,7 +178,10 @@ fun SheetEditRoute(
             onRetryDraft = viewModel::retryDraftSave,
             onSave = {
                 saveError = null
-                if (state.completionValidation.correctionCellIndices.isNotEmpty()) {
+                // 높이를 바꿔 한 번에 고칠 수 있으면 첫 칸의 음 확인 대신 저장 창을 열어
+                // "단소로 낼 수 없는 음 N개 · N반음 올려 고치기"를 먼저 보인다(S15P31E102-1085).
+                if (state.rangeFixGuide() != null) saveOpen = true
+                else if (state.completionValidation.correctionCellIndices.isNotEmpty()) {
                     viewModel.openCompletionIssue()
                     focusRequestKey++
                     val current = viewModel.uiState.value
@@ -218,6 +229,8 @@ fun SheetEditRoute(
             },
             onDismiss = { pitchCorrection = null },
             onAdapt = { pitchCorrection = null; correctionOpen = false; viewModel.openAdaptation() },
+            // 곡 전체 높이를 바로 바꾸면 이 음 창은 닫고 바뀐 악보를 보여 준다.
+            onApplyRecommended = { pitchCorrection = null; correctionOpen = false; viewModel.applyRecommendedAdaptation() },
             reviewDetails = {
                 state.reviewIssuesAt(target.cell, target.sub).filter { it.kind !in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE") }
                     .forEach { Text(sheetReviewReason(it), style = MaterialTheme.typography.bodyMedium) }
@@ -252,6 +265,7 @@ fun SheetEditRoute(
         }
     }
     LaunchedEffect(state.tempoIssue) { if (state.tempoIssue != null) saveOpen = true }
+    LaunchedEffect(state.sigimsaeIssue) { if (state.sigimsaeIssue != null) saveOpen = true }
     if (saveOpen) SheetEditDetailsDialog(
         initialTitle = state.draft.title,
         tempoIssue = state.tempoIssue,
@@ -272,6 +286,9 @@ fun SheetEditRoute(
                 onChangeJangdan = { saveOpen = false; viewModel.changeJangdan() },
                 onClearJangdan = viewModel::clearJangdan,
                 onRetryCatalog = viewModel::retryCompletionCatalog,
+                // 높이를 바꿔 고칠 수 있으면 저장 창에서 바로 고친다. 고친 뒤 저장을 다시 누르면 된다.
+                onApplyRecommended = viewModel::applyRecommendedAdaptation,
+                onOpenAdaptation = { saveOpen = false; viewModel.openAdaptation() },
             )
             val error = saveError ?: when {
                 state.saveConflict -> messages[SheetEditMessage.SaveConflict]
@@ -279,6 +296,22 @@ fun SheetEditRoute(
                 else -> null
             }
             if (error != null) Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            state.sigimsaeIssue?.let { issue ->
+                // 음원 생성기가 거절한 시김새의 위치·이유를 보여 주고 바로 고치게 한다(S15P31E102-1084).
+                val slot = state.sigimsaeIssueSlot
+                val text = if (slot == null) stringResource(Res.string.sheet_save_sigimsae_rejected_unknown)
+                    else stringResource(Res.string.sheet_save_sigimsae_rejected, state.draft.columnOf(slot.cell) + 1,
+                        state.draft.rowOf(slot.cell) + 1, issue.symbols.joinToString("·").ifEmpty { "이" })
+                Text(listOfNotNull(text, issue.message).joinToString(" "), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error)
+                if (slot != null) {
+                    EolssuButton(stringResource(Res.string.sheet_save_sigimsae_go),
+                        { saveOpen = false; viewModel.openSigimsaeIssue(); focusRequestKey++ },
+                        style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_08)
+                    EolssuButton(stringResource(Res.string.sheet_save_sigimsae_remove), viewModel::removeRejectedSigimsae,
+                        style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_09)
+                }
+            }
         },
     )
     if (correctionOpen) EolssuDialog(

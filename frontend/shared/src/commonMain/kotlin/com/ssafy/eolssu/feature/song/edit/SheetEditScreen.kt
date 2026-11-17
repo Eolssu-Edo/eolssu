@@ -221,6 +221,6 @@ private val EditorMessages = setOf(
     SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge,
     SheetEditMessage.Saved, SheetEditMessage.SavedForPractice, SheetEditMessage.SavedNeedsReview, SheetEditMessage.Draft,
     SheetEditMessage.ReviewBeforeReshape, SheetEditMessage.TempoPlanBeforeReshape, SheetEditMessage.ComingSoon,
-    SheetEditMessage.BasicAccompanimentCleared,
+    SheetEditMessage.BasicAccompanimentCleared, SheetEditMessage.SigimsaeReplaced, SheetEditMessage.PitchUnavailable,
     SheetEditMessage.AudioReady, SheetEditMessage.AudioFailed, SheetEditMessage.AudioStatusUnknown,
 )

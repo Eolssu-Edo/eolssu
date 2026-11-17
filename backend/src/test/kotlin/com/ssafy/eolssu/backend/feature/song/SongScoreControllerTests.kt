@@ -142,6 +142,39 @@ class SongScoreControllerTests {
         }
     }
 
+    @Test fun `returns stored sigimsae slot on a hold without changing the score`() {
+        stored = stored!!.copy(sigimsaePlacementsJson = """[{"cellId":"c0-j1","row":0,"col":0,"symbols":["추성"]}]""")
+        val response = mvc.perform(get("/api/songs/7/score")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.sigimsaePlacements.length()").value(1))
+            .andExpect(jsonPath("$.result.sigimsaePlacements[0].cellId").value("c0-j1"))
+            .andExpect(jsonPath("$.result.sigimsaePlacements[0].row").value(0))
+            .andExpect(jsonPath("$.result.sigimsaePlacements[0].col").value(0))
+            .andExpect(jsonPath("$.result.sigimsaePlacements[0].symbols[0]").value("추성"))
+            .andReturn().response.contentAsString
+        assertEquals(json.readTree(score), json.readTree(response).path("result").path("score"))
+    }
+
+    @Test fun `missing malformed or stale sigimsae slots fall back without failing the score`() {
+        val original = stored!!
+        for (placements in listOf(
+            null,
+            "not JSON",
+            """{"cellId":"c0-j1","row":0,"col":0,"symbols":["추성"]}""",
+            "[]",
+            """[{"cellId":"c0-j1","row":0,"col":0,"symbols":["농음"]}]""",
+            """[{"cellId":"c0-j9","row":0,"col":0,"symbols":["추성"]}]""",
+            """[{"cellId":"c0-j1","row":0,"col":0,"symbols":[" "]}]""",
+            """[{"cellId":"c0-j1","row":0,"col":0,"symbols":[]}]""",
+            """[{"cellId":"c0-j1","row":0,"col":0,"symbols":["추성"]},{"cellId":"c0-j1","row":0,"col":0,"symbols":["추성"]}]""",
+            """[{"cellId":"c0-j0","row":0,"col":0,"symbols":["추성"]},{"cellId":"c0-j2","row":1,"col":0,"symbols":["추성"]}]""",
+        )) {
+            stored = original.copy(sigimsaePlacementsJson = placements)
+            mvc.perform(get("/api/songs/7/score")).andExpect(status().isOk)
+                .andExpect(jsonPath("$.result.sigimsaePlacements").value(null as Any?))
+                .andExpect(jsonPath("$.result.events.length()").value(3))
+        }
+    }
+
     @Test fun `does not declare missing pitch text supported`() {
         currentPitches = pitches.map { it.copy(hanja = "", hangul = "") }
         mvc.perform(get("/api/songs/7/score")).andExpect(status().isOk)

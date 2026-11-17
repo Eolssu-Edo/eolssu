@@ -85,7 +85,7 @@ internal fun SheetEditJangdanDialog(
     var pendingId by rememberSaveable { mutableStateOf<String?>(null) }
     EolssuDialog(
         title = stringResource(Res.string.sheetedit_cell_jangdan_change),
-        modifier = Modifier.verticalScroll(rememberScrollState()),
+        // 대화상자가 제목·안내를 스크롤하므로 바깥에 스크롤을 또 두지 않는다. 겹치면 제목·안내가 0 높이로 접힌다(S15P31E102-1080).
         message = stringResource(if (draft.inferredJeongganSizes != null && !hasTempoPlan)
             Res.string.sheet_jangdan_correction_help else Res.string.sheetedit_jangdan_same_unit),
         onDismissRequest = onDismiss,

@@ -3,7 +3,7 @@
 <mapper namespace="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongScoreMapper">
     <select id="findPublished" resultType="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.PublishedScoreRow">
         SELECT s.id AS song_id, s.score_version, s.note_count, s.default_bpm,
-               COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')), '') AS bpm_unit, s.score_json, s.title, s.jangdan_id
+               COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')), '') AS bpm_unit, s.score_json, s.title, s.jangdan_id, s.sigimsae_placements_json
         FROM songs s LEFT JOIN jangdans j ON j.id = s.jangdan_id
         WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.deleted_at IS NULL
     </select>
@@ -13,13 +13,13 @@
     <select id="findPublishedRevision" resultType="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.PublishedScoreRow">
         SELECT s.id AS song_id, s.score_version, s.note_count, s.default_bpm,
                COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')), '') AS bpm_unit,
-               s.score_json, s.title, s.jangdan_id
+               s.score_json, s.title, s.jangdan_id, s.sigimsae_placements_json
         FROM songs s LEFT JOIN jangdans j ON j.id = s.jangdan_id
         WHERE s.id = #{songId} AND s.score_version = #{scoreVersion} AND s.status = 'PUBLISHED' AND s.deleted_at IS NULL
         UNION ALL
         SELECT v.song_id, v.score_version, v.note_count, v.default_bpm,
                COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(v.score_json, '$.music.bpmUnit')), '') AS bpm_unit,
-               v.score_json, v.title, v.jangdan_id
+               v.score_json, v.title, v.jangdan_id, v.sigimsae_placements_json
         FROM song_score_versions v JOIN songs s ON s.id = v.song_id LEFT JOIN jangdans j ON j.id = v.jangdan_id
         WHERE v.song_id = #{songId} AND v.score_version = #{scoreVersion} AND s.score_version &lt;&gt; v.score_version
           AND s.status = 'PUBLISHED' AND s.deleted_at IS NULL AND v.status = 'PUBLISHED' AND v.deleted_at IS NULL

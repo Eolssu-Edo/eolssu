@@ -19,6 +19,7 @@ from .sampler import FS, CREDIT
 from .score import require
 from .score import compile_score, midi_tempo, PPQN
 from .common_score import convert_common_score
+from .common_compile import SymbolRejected
 from .midi import export_seconds
 from .tempo_repeat import performed_points
 from .authoring_tempo import prepared_input, preflight, TempoRejected
@@ -162,6 +163,9 @@ def estimate(directory):
         result = {'durationMs': math.ceil(export_seconds(perf) * 1000)}
     except TempoRejected as error:
         result = error.result
+    except SymbolRejected as error:
+        # The app moves to this event and offers to remove the named sigimsae.
+        result = {'errorCode': 'INVALID_REQUEST', 'details': error.details}
     except (ValueError,KeyError,TypeError):
         result={'errorCode':'INVALID_REQUEST'}
     (root/'result.json').write_text(json.dumps(result),encoding='utf-8')

@@ -12,6 +12,7 @@ import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.selectUnit
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -185,6 +186,20 @@ class CommonScoreDataTest {
             source.copy(columns = listOf(column.copy(cells = listOf(cell.copy(units = cell.units.map { it.copy(col = 0) })) + column.cells.drop(1))) + source.columns.drop(1)),
         )
         bad.forEach { input -> assertFailsWith<ScoreDataException> { input.toScore() } }
+    }
+
+    @Test fun sigimsaeSlotsComeFromCatalogOrSheetExpressions() {
+        val held = com.ssafy.eolssu.core.model.ScoreUnitKey("c0-j1", 0, 0)
+        val expressions = Json.parseToJsonElement("""{"placements":[
+            {"eventId":"c0-j0-r0-u1","cellId":"c0-j1","row":0,"col":0,"symbols":["니레"]},
+            {"cellId":"c0-j0","row":"bad","col":0,"symbols":["니레"]},
+            {"cellId":"c0-j0","row":0,"col":0,"symbols":[]}]}""").jsonObject
+        assertEquals(mapOf(held to listOf("니레")), smallScoreData().toScore(expressions).sigimsaePlacements)
+        assertEquals(mapOf(held to listOf("니레")), smallScoreSong(smallScoreData()).copy(
+            score = smallScoreData().toScore(expressions)).writtenScoreAnnotations)
+        val catalog = mapOf(held to listOf("농음"))
+        assertEquals(catalog, smallScoreData().toScore(expressions, sigimsaePlacements = catalog).sigimsaePlacements)
+        assertTrue(smallScoreData().toScore().sigimsaePlacements.isEmpty())
     }
 
     @Test fun strictJsonKeepsTheVersionedSchemaBoundary() {
