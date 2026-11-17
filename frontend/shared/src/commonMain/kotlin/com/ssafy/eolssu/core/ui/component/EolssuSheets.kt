@@ -235,8 +235,9 @@ fun ToggleRow(
  * @param onDismissRequest 바깥(가림막)을 누르거나 뒤로 갈 때. 닫기 버튼 없이 이렇게 닫는 창만 넘긴다.
  * @param iconBackground 아이콘 고리 바탕. 기본 연두 20%(`accentTint`), 경고는 `recSoft`, 완료는 `accentTintStrong`.
  * @param iconTint 아이콘 색. 기본 먹색, 경고는 `recText`.
- * @param body 설명 아래, 제목과 함께 스크롤되는 내용(입력칸 등). 높이가 바뀌는 내용은 [actions] 대신 여기에 두어야
- *   내용이 길어지거나 키보드가 올라와도 버튼이 눌려 잘리지 않는다(S15P31E102-1081).
+ * @param body 설명과 버튼 사이에서 남는 높이까지만 차지하는 내용(입력칸 등). 높이가 바뀌는 내용은 [actions] 대신 여기에 두어야
+ *   내용이 길어지거나 키보드가 올라와도 버튼이 눌려 잘리지 않는다. 받은 높이보다 크면 잘리므로 내용이 스스로 줄거나
+ *   안에서 스크롤해야 한다(S15P31E102-1081).
  */
 @Composable
 fun EolssuDialog(
@@ -280,8 +281,10 @@ fun EolssuDialog(
                 .background(colors.surface, RoundedCornerShape(20.dp))
                 .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 20.dp),
         ) {
+            // [body]가 있으면 아이콘·제목은 그대로 두고 남는 높이를 [body]에 준다. 본문 전체를 스크롤하면
+            // 키보드가 올라올 때 아이콘과 입력칸 테두리·글자 수가 반쯤 잘려 보인다(S15P31E102-1081).
             Column(
-                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                (if (body == null) Modifier.weight(1f, fill = false) else Modifier).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 if (icon != null) {
@@ -300,8 +303,8 @@ fun EolssuDialog(
                         color = colors.textSub,
                     )
                 }
-                body?.invoke(this)
             }
+            if (body != null) Column(Modifier.weight(1f, fill = false).padding(top = 12.dp), content = body)
             Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
         }
         }

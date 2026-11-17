@@ -46,6 +46,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
  *   한글을 조합하는 중에 상한에 닿아도 키보드와 칸의 내용이 어긋나 앞의 글이 되돌아가지 않는다.
  * - 줄바꿈을 여러 번 넣어도 칸은 [maxHeight]까지만 커지고, 그 뒤로는 칸 안에서 스크롤하며 커서를 따라간다.
  *   넘친 줄이 있으면 오른쪽에 스크롤 막대를 보인다.
+ * - [shrinkToFit]이면 받은 높이가 모자랄 때 칸만 줄어들고 아래 글자 수 줄은 그대로 보인다. 높이가 정해진 부모에서만 켠다.
  * - 칸 아래 오른쪽에 `n/[maxLength]`를 보이고, 왼쪽에는 [supporting](실패 안내 등)을, 없으면 상한에 닿았을 때 상한 안내를 둔다.
  */
 @Composable
@@ -63,6 +64,7 @@ fun EolssuMemoField(
     minHeight: Dp = 120.dp,
     maxHeight: Dp = 240.dp,
     supporting: (@Composable () -> Unit)? = null,
+    shrinkToFit: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -76,7 +78,8 @@ fun EolssuMemoField(
             Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
         }
         Box(
-            Modifier.fillMaxWidth()
+            // 높이가 정해진 자리(키보드가 올라온 확인 창 등)에서는 칸만 줄여 아래 글자 수 줄이 잘리지 않게 한다.
+            (if (shrinkToFit) Modifier.weight(1f, fill = false) else Modifier).fillMaxWidth()
                 .background(containerColor ?: colors.surface, shape)
                 .border(if (error) 1.5.dp else 1.dp, if (error) colors.rec else colors.line, shape)
                 // 칸을 넘친 줄이 있으면 오른쪽 테두리 안쪽에 스크롤 막대를 보인다.
