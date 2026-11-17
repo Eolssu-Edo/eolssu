@@ -92,6 +92,11 @@ data class Score(
     val source: ScoreSource? = null,
     val events: List<ScoreEvent>? = null,
     val tempoMarks: Map<ScoreUnitKey, List<HanbaeMark>> = emptyMap(),
+    /**
+     * 시김새가 적힌 표시 자리(원본 placements). 공통 악보 v1은 시김새를 이벤트 단위로만 가지므로,
+     * 이음(ㅡ) 자리에 적힌 시김새의 위치는 이 값으로만 알 수 있다. 검증은 [Song.writtenScoreAnnotations]가 한다.
+     */
+    val sigimsaePlacements: Map<ScoreUnitKey, List<String>> = emptyMap(),
 ) {
     /** 정간 수. 연주 시간 계산의 단위다. */
     val totalUnits: Int get() = columns.sumOf { it.size }

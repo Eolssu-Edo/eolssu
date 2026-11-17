@@ -99,7 +99,39 @@ class CommonScoreTimelineDecoder(private val json: JsonMapper) : SongScoreDecode
         return DecodedSongScore(schemaVersion, timeline, ScoreNotationCapabilities(
             hanja = usedPitches.isNotEmpty() && usedPitches.all { it.hanja.isNotBlank() },
             hangul = usedPitches.isNotEmpty() && usedPitches.all { it.hangul.isNotBlank() },
-        ))
+        ), stored.sigimsaePlacementsJson?.let { sigimsaePlacements(it, events, positions) })
+    }
+
+    /**
+     * Stored slot positions are returned only when, for every event, its slots' symbols in display order
+     * equal the event's sigimsae. Malformed or stale positions (e.g. after a score replacement) yield null so
+     * the client keeps the event-level layout; they never make the score itself unavailable.
+     */
+    private fun sigimsaePlacements(raw: String, events: List<JsonNode>, positions: Map<String, List<UnitPosition>>): List<SigimsaePlacement>? = try {
+        val node = json.readTree(raw)
+        ensure(node.isArray)
+        val slots = positions.values.flatten().map { Triple(it.cellId, it.row, it.col) }.toSet()
+        val bySlot = linkedMapOf<Triple<String, Int, Int>, List<String>>()
+        node.forEach { item ->
+            val symbols = item.array("symbols").toList().map { symbol ->
+                symbol.takeIf { it.isString }?.stringValue()?.takeIf { it.isNotBlank() } ?: throw InvalidStoredScore()
+            }
+            val slot = Triple(item.text("cellId"), item.int("row"), item.int("col"))
+            ensure(symbols.isNotEmpty() && slot in slots && bySlot.put(slot, symbols) == null)
+        }
+        events.forEach { event ->
+            val placed = positions[event.text("id")].orEmpty().flatMap { bySlot[Triple(it.cellId, it.row, it.col)].orEmpty() }
+            ensure(placed == event.array("sigimsae").toList().map { it.stringValue() })
+        }
+        events.flatMap { event ->
+            positions[event.text("id")].orEmpty().mapNotNull { p ->
+                bySlot[Triple(p.cellId, p.row, p.col)]?.let { SigimsaePlacement(p.cellId, p.row, p.col, it) }
+            }
+        }
+    } catch (_: InvalidStoredScore) {
+        null
+    } catch (_: JacksonException) {
+        null
     }
 
     /** subIdx is the flattened top-to-bottom, left-to-right unit position in its starting cell. */

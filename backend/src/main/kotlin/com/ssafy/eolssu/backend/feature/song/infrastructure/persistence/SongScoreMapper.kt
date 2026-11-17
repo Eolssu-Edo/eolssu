@@ -14,4 +14,6 @@ interface SongScoreMapper {
 data class PublishedScoreRow(
     val songId: Long, val scoreVersion: Int, val noteCount: Int,
     val defaultBpm: Int, val bpmUnit: String, val scoreJson: String, val title: String, val jangdanId: Long?,
+    // No default: a second synthetic constructor breaks MyBatis arg-name constructor mapping.
+    val sigimsaePlacementsJson: String?,
 )

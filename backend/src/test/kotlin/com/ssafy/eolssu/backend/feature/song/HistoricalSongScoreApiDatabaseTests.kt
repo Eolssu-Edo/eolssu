@@ -114,6 +114,22 @@ class HistoricalSongScoreApiDatabaseTests {
         assertEquals(2, listed.single().path("scoreVersion").intValue())
     }
 
+    @Test fun `each edition returns its own sigimsae slots on held cells`() {
+        for ((table, key, cell) in listOf(Triple("songs", "id", "c0-j3"), Triple("song_score_versions", "song_id", "c0-j2"))) {
+            jdbc.update("""UPDATE $table SET score_json=JSON_SET(score_json,'$.events[1].sigimsae',JSON_ARRAY('농음')),
+                sigimsae_placements_json=? WHERE $key=?""", """[{"cellId":"$cell","row":0,"col":0,"symbols":["농음"]}]""", SONG)
+        }
+        for ((path, cell) in listOf("/api/songs/$SONG/score" to "c0-j3", "/api/songs/$SONG/score?scoreVersion=2" to "c0-j3",
+            "/api/songs/$SONG/score?scoreVersion=1" to "c0-j2")) {
+            val placements = result(get(path)).path("sigimsaePlacements")
+            assertEquals(1, placements.size(), path)
+            assertEquals(cell, placements.path(0).path("cellId").asString(), path)
+            assertEquals("농음", placements.path(0).path("symbols").path(0).asString(), path)
+        }
+        jdbc.update("UPDATE songs SET sigimsae_placements_json=NULL WHERE id=?", SONG)
+        assertTrue(result(get("/api/songs/$SONG/score")).path("sigimsaePlacements").isNull)
+    }
+
     @Test fun `historical public reads do not expose hidden deleted or never published editions`() {
         for (change in listOf("status='HIDDEN'", "deleted_at=CURRENT_TIMESTAMP")) {
             jdbc.update("UPDATE songs SET $change WHERE id=?", SONG)

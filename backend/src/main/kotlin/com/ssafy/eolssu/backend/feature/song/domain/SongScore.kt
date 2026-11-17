@@ -8,6 +8,8 @@ data class PublishedSongScore(
     val defaultBpm: Int,
     val bpmUnit: String,
     val scoreJson: String,
+    /** Optional slot positions of event sigimsae (V46). Invalid or stale values are dropped, not fatal. */
+    val sigimsaePlacementsJson: String? = null,
 )
 
 data class ScorePitch(
@@ -35,7 +37,11 @@ data class DecodedSongScore(
     val schemaVersion: Int,
     val events: List<ScoreTimelineEvent>,
     val notationCapabilities: ScoreNotationCapabilities,
+    val sigimsaePlacements: List<SigimsaePlacement>? = null,
 )
+
+/** One display slot's sigimsae. Per event, the slots' symbols in display order equal the event's sigimsae. */
+data class SigimsaePlacement(val cellId: String, val row: Int, val col: Int, val symbols: List<String>)
 
 data class ScoreTimelineEvent(
     val eventId: String,
