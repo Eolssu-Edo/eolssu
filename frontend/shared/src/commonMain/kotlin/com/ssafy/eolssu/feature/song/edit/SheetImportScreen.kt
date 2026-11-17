@@ -168,8 +168,15 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                         }
                     }
                     Box {
-                        EolssuButton(stringResource(if (state.picking) Res.string.sheet_upload_reading else Res.string.sheet_upload_pick), startPick,
-                            style = EolssuButtonStyle.Secondary, enabled = editable, icon = EolssuIcons.Plus,
+                        // 다시 고르면 기존 파일을 바꾸므로, 이미 고른 파일이 있으면 '추가'처럼 보이는 + 대신 교체 문구를 보인다.
+                        val replacing = state.files.isNotEmpty()
+                        val pickLabel = when {
+                            state.picking -> Res.string.sheet_upload_reading
+                            replacing -> Res.string.sheet_upload_replace
+                            else -> Res.string.sheet_upload_pick
+                        }
+                        EolssuButton(stringResource(pickLabel), startPick,
+                            style = EolssuButtonStyle.Secondary, enabled = editable, icon = if (replacing) EolssuIcons.Restart else EolssuIcons.Plus,
                             containerColor = colors.accentTint, contentColor = colors.accentText, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_IMPORT_SCREEN_BUTTON_05)
                         if (sourceMenuOpen) SheetFileSourceMenu(sources,
                             onPick = { source -> sourceMenuOpen = false; onPick(source) },
