@@ -19,6 +19,8 @@ import {appDatabaseReader} from './read-only-app-db.mjs';
 const hash = value => createHash('sha256').update(value).digest();
 const IDLE_PROMPT_MS = 10 * 60_000;
 const IDLE_GRACE_MS = 60_000;
+export const InstallWaitMessage = '앱 로그를 읽고 있습니다. 잠시 후 설치됩니다.';
+const InstallWaitTimeout = '앱 로그 읽기가 끝나지 않아 설치하지 않았습니다. 기존 앱과 데이터는 보존했습니다.';
 const staticFiles = new Map([['/video-view.js',['video-view.js','text/javascript; charset=utf-8']],['/video-wire.js',['video-wire.js','text/javascript; charset=utf-8']],['/', ['index.html', 'text/html; charset=utf-8']], ['/app.js', ['app.js', 'text/javascript; charset=utf-8']], ['/style.css', ['style.css', 'text/css; charset=utf-8']]]);
 staticFiles.set('/apk-update.js', ['apk-update.js','text/javascript; charset=utf-8']);
 staticFiles.set('/live-panel.js', ['live-panel.js','text/javascript; charset=utf-8']);
@@ -37,7 +39,7 @@ async function body(req) {
   try { const value = JSON.parse(Buffer.concat(chunks).toString('utf8')); if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(); return value; }
   catch { throw new Rejected('invalid JSON', 400); }
 }
-export async function startRelay({ phone, port = 17680, origin, basePath = '/', deviceId = 'phone', deviceName = '휴대폰', trustProxy = false, catalog = null, mirror = null, video = null, screenKeeper = null, wireless = null, applog = null, sessionNow = Date.now } = {}) {
+export async function startRelay({ phone, port = 17680, origin, basePath = '/', deviceId = 'phone', deviceName = '휴대폰', trustProxy = false, catalog = null, mirror = null, video = null, screenKeeper = null, wireless = null, applog = null, sessionNow = Date.now, installWaitMs = 30_000 } = {}) {
   if (typeof basePath !== 'string' || !/^\/(?:[a-zA-Z0-9_-]+\/)*$/.test(basePath)) throw new Error('invalid QA_BASE_PATH');
   if (!/^[a-z][a-z0-9-]{0,31}$/.test(deviceId) || typeof deviceName !== 'string' || !deviceName.trim() || deviceName.length > 60 || /[\p{C}]/u.test(deviceName)) throw new Error('invalid QA device identity');
   if (applog && (deviceId !== 'phone' || basePath !== '/qa/' || typeof phone.applog !== 'function' ||
@@ -302,25 +304,34 @@ export async function startRelay({ phone, port = 17680, origin, basePath = '/', 
         case '/api/builds/install': {
           if(!catalog) throw new Rejected('APK 보관소가 설정되지 않았습니다',503);
           control.owns(id); control.checkMaintenance();
-          if (applogTask) throw new Rejected('앱 로그를 읽고 있습니다. 잠시 후 다시 설치하세요.',409);
           const build=catalog.list().builds.find(v=>v.id===data.id);
           if(!build) throw new Rejected('APK를 찾을 수 없습니다',404);
+          // Maintenance starts now: it rejects new app log reads, input and a second install while this one waits.
           const drained=control.beginMaintenance(id,data.epoch);
+          const pendingLog=applogTask;
           installedStatus='installing';
-          job={status:'installing',id:build.id,startedAt:new Date().toISOString(),error:''};
+          job={status:pendingLog?'waiting':'installing',id:build.id,startedAt:new Date().toISOString(),error:'',...(pendingLog?{message:InstallWaitMessage}:{})};
           installTask=(async()=>{
             try {
+              if(pendingLog){
+                // An ADB log copy is never interrupted; its own deadline ends it, success or failure.
+                let timer;
+                const finished=await Promise.race([pendingLog.then(()=>true,()=>true),new Promise(resolve=>{timer=setTimeout(resolve,installWaitMs,false);})]).finally(()=>clearTimeout(timer));
+                if(!finished)throw new Error(InstallWaitTimeout);
+                const {message,...running}=job;job={...running,status:'installing'};
+              }
               await drained; if(capturing) await capturing;
               if(inputFault || !control.online) throw new Error('device disconnected before install');
               const file=await catalog.file(build.id);
               installed=await phone.install(file,build); installedStatus='installed'; installedChecked=Date.now();
               job={...job,status:'success',finishedAt:new Date().toISOString()};
             } catch(error) {
-              job={...job,status:'failed',error:error.message==='APK 적용 실패 · 폰 연결 또는 Android 설치 상태를 확인하세요'||/서명이 달라|이전 버전 설치/.test(error.message)?error.message:'APK 적용 실패 · 파일 무결성 또는 폰 연결을 확인하세요',finishedAt:new Date().toISOString()};
+              const {message,...ended}=job;
+              job={...ended,status:'failed',error:error.message==='APK 적용 실패 · 폰 연결 또는 Android 설치 상태를 확인하세요'||error.message===InstallWaitTimeout||/서명이 달라|이전 버전 설치/.test(error.message)?error.message:'APK 적용 실패 · 파일 무결성 또는 폰 연결을 확인하세요',finishedAt:new Date().toISOString()};
               installed=null; installedStatus='unavailable'; installedChecked=0;
             } finally { frame=null; frameAt=0; control.endMaintenance(); installTask=null; }
           })();
-          json(202,{ok:true}); return;
+          json(202,pendingLog?{ok:true,waiting:true,message:InstallWaitMessage}:{ok:true}); return;
         }
         case '/api/request': await control.request(id); break;
         case '/api/reject': await control.reject(id,data.target); break;
