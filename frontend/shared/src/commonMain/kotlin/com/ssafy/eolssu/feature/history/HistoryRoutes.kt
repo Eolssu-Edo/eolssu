@@ -60,6 +60,8 @@ fun RecordListRoute(
     onCompare: (recordId: String, previousId: String) -> Unit = { _, _ -> },
     /** 저장한 연주가 없을 때 '연습하러 가기'(S15P31E102-1031). */
     onStartPractice: () -> Unit = {},
+    /** 두 칸 배치의 오른쪽 상세에서 기록을 지웠을 때. 지운 기록 ID를 넘긴다. */
+    onRecordDeleted: (recordId: String) -> Unit = {},
     perf: PerformanceVisit? = null,
     viewModel: RecordListViewModel = koinViewModel(key = "records-$justSavedId") { parametersOf(justSavedId, perf) },
 ) {
@@ -75,7 +77,7 @@ fun RecordListRoute(
     CompositionLocalProvider(LocalPerformanceVisit provides perf) {
         val widthClass = currentWindowLayout().widthClass
         if (widthClass == WindowWidthClass.Expanded) {
-            RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection, onPracticeSection, onStartPractice)
+            RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection, onPracticeSection, onStartPractice, onRecordDeleted)
         } else {
             RecordListScreen(
                 state, widthClass, onBack, onOpenGrowth, viewModel::toggle,
@@ -108,6 +110,7 @@ private fun RecordsTwoPaneRoute(
     onSelectSection: (String) -> Unit,
     onPracticeSection: (recordId: String, songId: String) -> Unit,
     onStartPractice: () -> Unit,
+    onRecordDeleted: (recordId: String) -> Unit,
 ) {
     val selectedId = state.selectedRecordId
     val detailViewModel: RecordDetailViewModel = koinViewModel(key = "records-pane-$justSavedId") { parametersOf("") }
@@ -125,7 +128,9 @@ private fun RecordsTwoPaneRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     RecordNoticeEffect(detail.notice, snackbarHostState, detailViewModel::consumeNotice)
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { detailViewModel.pause() }
-    RecordDeleteEffect(detail.delete, snackbarHostState, detailViewModel::dismissDeleteError)
+    RecordDeleteEffect(detail.delete, snackbarHostState, detailViewModel::dismissDeleteError) {
+        detail.record?.id?.let(onRecordDeleted)
+    }
     RecordListScreen(
         state = state,
         widthClass = WindowWidthClass.Expanded,
