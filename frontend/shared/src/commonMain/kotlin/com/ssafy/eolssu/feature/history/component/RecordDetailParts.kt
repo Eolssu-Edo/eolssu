@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -59,7 +62,7 @@ internal fun PlaybackSlider(state: RecordDetailUiState, actions: RecordDetailAct
     }
     PlaybackPositionSlider(
         value = draft ?: animated,
-        onValueChange = { draft = it },
+        onValueChange = UserActionLog.change(QaTarget.RECORD_DETAIL_PARTS_01, { draft = it }),
         onValueChangeFinished = {
             draft?.let { actions.onSeekMillis(it.toLong()) }
             draft = null

@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
@@ -77,6 +81,8 @@ import eolssu.shared.generated.resources.records_best
 import eolssu.shared.generated.resources.records_collapsed
 import eolssu.shared.generated.resources.records_day_meta
 import eolssu.shared.generated.resources.records_empty
+import eolssu.shared.generated.resources.records_empty_hint
+import eolssu.shared.generated.resources.records_empty_practice
 import eolssu.shared.generated.resources.records_unavailable
 import eolssu.shared.generated.resources.records_expanded
 import eolssu.shared.generated.resources.records_growth_link
@@ -117,7 +123,7 @@ internal data class RecordListSpacing(
 @Composable
 internal fun GrowthLinkButton(onOpenGrowth: () -> Unit) {
     val colors = EolssuTheme.colors
-    Surface(onClick = onOpenGrowth, modifier = Modifier.heightIn(min = 32.dp), shape = CircleShape, color = colors.surface, contentColor = colors.textSub) {
+    Surface(onClick = UserActionLog.click(QaTarget.RECORD_LIST_PARTS_01, onOpenGrowth), modifier = Modifier.heightIn(min = 32.dp), shape = CircleShape, color = colors.surface, contentColor = colors.textSub) {
         Row(
             Modifier.padding(start = 12.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -133,15 +139,36 @@ internal fun GrowthLinkButton(onOpenGrowth: () -> Unit) {
     }
 }
 
-/** 빈 기록과 조회 기능을 아직 사용할 수 없는 상태를 구분한다. */
+/**
+ * 빈 기록과 조회 기능을 아직 사용할 수 없는 상태를 구분한다.
+ * 저장한 연주가 없으면 기록이 어떻게 쌓이는지 알리고 [onStartPractice]('연습하러 가기')로 곡 고르기에 보낸다(S15P31E102-1031).
+ */
 @Composable
-internal fun RecordsEmpty(available: Boolean, modifier: Modifier = Modifier) {
-    Text(
-        stringResource(if (available) Res.string.records_empty else Res.string.records_unavailable),
-        modifier = modifier.observeFirstDraw(PerfPhase.RECORD_EMPTY).fillMaxWidth().padding(vertical = 56.dp),
-        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
-        textAlign = TextAlign.Center,
-    )
+internal fun RecordsEmpty(available: Boolean, onStartPractice: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier.observeFirstDraw(PerfPhase.RECORD_EMPTY).fillMaxWidth().padding(vertical = 56.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            stringResource(if (available) Res.string.records_empty else Res.string.records_unavailable),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+            textAlign = TextAlign.Center,
+        )
+        if (!available) return@Column
+        Text(
+            stringResource(Res.string.records_empty_hint),
+            Modifier.padding(top = 6.dp),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+            color = EolssuTheme.colors.textMuted,
+            textAlign = TextAlign.Center,
+        )
+        EolssuButton(
+            stringResource(Res.string.records_empty_practice),
+            onStartPractice,
+            Modifier.padding(top = 20.dp).widthIn(min = 200.dp),
+            compact = true,
+        )
+    }
 }
 
 /** 기록은 있지만 고른 악기나 검색어([searching])에 맞는 곡이 없을 때. 위의 악기 선택·검색칸은 그대로 둔다. */
@@ -191,7 +218,7 @@ private fun InstrumentSelectBox(value: Instrument?, onPick: (Instrument?) -> Uni
     val selectedLabel = value?.let { stringResource(it.label) } ?: all
     Box {
         Surface(
-            onClick = { expanded = true },
+            onClick = UserActionLog.click(QaTarget.RECORD_LIST_PARTS_02, { expanded = true }),
             modifier = Modifier.height(36.dp).semantics { role = Role.DropdownList },
             shape = CircleShape,
             color = EolssuTheme.colors.surface,
@@ -222,10 +249,10 @@ private fun InstrumentSelectBox(value: Instrument?, onPick: (Instrument?) -> Uni
                         EolssuMenuItem(
                             option?.let { stringResource(it.label) } ?: all,
                             option == value,
-                            onClick = {
+                            onClick = UserActionLog.click(QaTarget.RECORD_LIST_PARTS_03, {
                                 expanded = false
                                 onPick(option)
-                            },
+                            }),
                             leading = option?.let { { InstrumentPicture(it) } },
                         )
                     }
@@ -285,7 +312,7 @@ private fun SongGroupCard(
                 Modifier
                     .fillMaxWidth()
                     .background(if (open) colors.accentTint else colors.surface)
-                    .clickable(role = Role.Button) { onToggle(group.key) }
+                    .clickable(role = Role.Button) { UserActionLog.event(QaKind.CLICK, QaTarget.RECORD_LIST_PARTS_06); onToggle(group.key) }
                     .semantics { stateDescription = if (open) expandedLabel else collapsedLabel }
                     .padding(horizontal = spacing.groupPaddingH, vertical = spacing.groupPaddingV),
                 verticalAlignment = Alignment.CenterVertically,
@@ -331,7 +358,7 @@ private fun SongGroupCard(
                     pages.any { it?.failed == true } -> RecordsLoadStatus(failed = true, onRetry = { onLoadMore(group.key) })
                     pages.any { it?.nextPage != null } -> EolssuButton(
                         stringResource(Res.string.records_load_more), { onLoadMore(group.key) },
-                        modifier = Modifier.padding(8.dp), style = EolssuButtonStyle.Secondary, small = true,
+                        modifier = Modifier.padding(8.dp), style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.RECORD_LIST_PARTS_BUTTON_01
                     )
                 }
             }
@@ -349,7 +376,7 @@ private fun DayHeader(day: RecordDay, open: Boolean, today: KoreanDateTime, spac
         Modifier
             .fillMaxWidth()
             .background(colors.groupedBackground)
-            .clickable(role = Role.Button, onClick = onToggle)
+            .clickable(role = Role.Button, onClick = UserActionLog.click(QaTarget.RECORD_LIST_PARTS_04, onToggle))
             .semantics { stateDescription = if (open) expandedLabel else collapsedLabel }
             .padding(horizontal = spacing.rowPaddingH, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -420,7 +447,7 @@ private fun RecordRow(
         Modifier
             .fillMaxWidth()
             .then(marker)
-            .clickable(onClick = onClick)
+            .clickable(onClick = UserActionLog.click(QaTarget.RECORD_LIST_PARTS_05, onClick))
             .then(selection)
             .padding(horizontal = spacing.rowPaddingH, vertical = spacing.rowPaddingV),
         verticalAlignment = Alignment.CenterVertically,
@@ -477,7 +504,7 @@ internal fun RecordsLoadStatus(failed: Boolean, onRetry: () -> Unit, modifier: M
     ) {
         if (failed) {
             Text(stringResource(Res.string.records_load_failed), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), textAlign = TextAlign.Center)
-            EolssuButton(stringResource(Res.string.growth_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true)
+            EolssuButton(stringResource(Res.string.growth_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.RECORD_LIST_PARTS_BUTTON_02)
         } else {
             CircularProgressIndicator(Modifier.size(36.dp), color = colors.text, trackColor = colors.surfaceStrong, strokeWidth = 3.dp)
         }

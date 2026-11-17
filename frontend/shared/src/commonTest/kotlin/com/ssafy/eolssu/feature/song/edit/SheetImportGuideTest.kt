@@ -70,7 +70,24 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
         assertTrue(model.uiState.value.adaptation?.confirmationRequested == true)
     }
 
-    @Test fun recognitionReviewsAreCountedApartFromRangeAndTheGuideCanBeClosed() = runTest {
+    @Test fun theCardKeepsCountingPlayableNotesAfterAnEditAndUndo() = runTest {
+        val model = open(sixUp)
+        runCurrent()
+        val first = assertNotNull(model.uiState.value.importGuide)
+
+        model.selectTab(EditTab.Yul)
+        model.selectCell(2) // 음이 없는 쉼표 정간만 바꾼다
+        model.put(ScoreNote.Hold)
+        val edited = assertNotNull(model.uiState.value.importGuide)
+        assertEquals("단소", edited.instrumentName, "1042: 편집 뒤에도 악기 이름을 잃지 않는다")
+        assertEquals(first.rangeNotes, edited.rangeNotes, "음은 그대로라 낼 수 없는 음 수도 같다")
+
+        model.undo()
+        assertEquals(first, model.uiState.value.importGuide?.copy(reviewPosition = first.reviewPosition),
+            "1042: 실행 취소하면 처음 카드와 같다")
+    }
+
+    @Test fun recognitionReviewsAreCountedApartFromRangeAndTheGuideGoesAwayOnceChecked() = runTest {
         val model = open(ReadinessCatalog(), issues = listOf(json("""{"issueId":"i1","cellId":"c0-j0","type":"LOW_CONFIDENCE"}""")))
         runCurrent()
         val guide = assertNotNull(model.uiState.value.importGuide)
@@ -80,8 +97,70 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
 
         model.openFirstRecognitionReview()
         assertEquals(0, model.uiState.value.selected)
-        model.dismissImportGuide()
+        // 1042: 닫기 버튼 없이, 다시 볼 곳을 다 확인하면 카드가 저절로 사라진다.
+        assertTrue(model.uiState.value.canCheckSelectedReviewIssue)
+        model.checkSelectedReviewIssue()
         assertNull(model.uiState.value.importGuide)
+    }
+
+    @Test fun reviewPlacesAreVisitedOneByOneWithPreviousAndNext() = runTest {
+        val model = open(ReadinessCatalog(), issues = listOf(
+            json("""{"issueId":"i1","cellId":"c0-j0","type":"LOW_CONFIDENCE"}"""),
+            json("""{"issueId":"i2","cellId":"c1-j0","type":"LOW_CONFIDENCE"}"""),
+        ))
+        runCurrent()
+        model.selectCell(1)
+        assertNull(model.uiState.value.importGuide?.reviewPosition, "다시 볼 칸이 아니면 순서를 보이지 않는다")
+
+        model.moveRecognitionReview(1)
+        assertEquals(0, model.uiState.value.selected, "처음엔 첫 칸으로 간다")
+        assertEquals(1, model.uiState.value.importGuide?.reviewPosition)
+
+        model.moveRecognitionReview(1)
+        assertEquals(2, model.uiState.value.selected)
+        assertEquals(2, model.uiState.value.importGuide?.reviewPosition)
+        model.moveRecognitionReview(1)
+        assertEquals(2, model.uiState.value.selected, "마지막에서 다음은 그대로")
+
+        model.moveRecognitionReview(-1)
+        assertEquals(0, model.uiState.value.selected)
+    }
+
+    @Test fun whenNoHeightFixesEveryNoteThePanelKnowsHowManyRemain() = runTest {
+        // 황(63)은 +6, 청중(80)은 +1에서만 MIDI69 한 음에 맞는다. 어느 높이로도 둘 다 맞출 수 없다(S15P31E102-1042).
+        val oneNote = object : ReferenceCatalogRepository by ReadinessCatalog() {
+            override suspend fun authoringCapabilities(instrumentId: String) =
+                ReadinessCatalog().authoringCapabilities(instrumentId).let { capability ->
+                    capability.copy(items = capability.items.filter { it.midi == 69 })
+                }
+        }
+        val model = open(oneNote)
+        runCurrent()
+        assertEquals(1, model.uiState.value.adaptation?.unavoidableUnresolved)
+        assertEquals(1, model.uiState.value.importGuide?.recommendedRemaining, "추천으로도 1개가 남는다")
+
+        val fixable = open(sixUp)
+        runCurrent()
+        assertEquals(0, fixable.uiState.value.adaptation?.unavoidableUnresolved)
+    }
+
+    @Test fun aConvertedScoreOpensWithTheInputPanelFoldedUntilTheUserAsksToEdit() = runTest {
+        val model = open(sixUp)
+        runCurrent()
+        assertFalse(model.uiState.value.inputPanelExpanded, "1042: 변환 뒤 처음 열면 입력판을 접는다")
+
+        model.selectTab(EditTab.Yul)
+        assertTrue(model.uiState.value.inputPanelExpanded, "탭을 고르면 펼친다")
+
+        model.setInputPanelExpanded(false)
+        model.openAdaptation()
+        assertTrue(model.uiState.value.inputPanelExpanded, "높이 맞추기를 열면 펼친다")
+    }
+
+    @Test fun aScoreThatWasNotConvertedOpensWithTheInputPanelUnfolded() = runTest {
+        val model = open(ReadinessCatalog(), conversionStatus = null)
+        runCurrent()
+        assertTrue(model.uiState.value.inputPanelExpanded)
     }
 
     @Test fun aScoreWithNothingToCheckShowsNoGuide() = runTest {
@@ -90,7 +169,7 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
         assertNull(model.uiState.value.importGuide)
     }
 
-    private fun open(catalog: ReferenceCatalogRepository, issues: List<JsonObject> = emptyList()): SheetEditViewModel {
+    private fun open(catalog: ReferenceCatalogRepository, issues: List<JsonObject> = emptyList(), conversionStatus: String? = "DONE"): SheetEditViewModel {
         val score = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
         // 인식 결과처럼 원본 음고(MIDI63/80)를 authoring.source에 보존한 문서다.
         val source = buildJsonObject {
@@ -107,7 +186,7 @@ internal class SheetImportGuideTest : CatalogViewModelTest() {
         }
         val repository = object : SheetDocumentRepository {
             override suspend fun get(sheetId: String) = SheetDocument("31", "가져온 악보", null, 60, "1", score,
-                null, "NEEDS_REVIEW", "DONE", issues,
+                null, "NEEDS_REVIEW", conversionStatus, issues,
                 authoring = buildJsonObject { put("schema", "sheet-authoring/v1"); put("source", source) })
             override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean): SheetWrite = SheetWrite.Failed
         }

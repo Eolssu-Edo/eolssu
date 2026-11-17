@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -317,70 +320,97 @@ internal fun recordDetailSideBySide(width: Dp): Boolean =
  * 메모가 없으면 안내 문구 없이 빈 상자와 연필 버튼만 보인다.
  * 고칠 때는 같은 자리의 상자가 저장 시트 메모 입력칸 모양(흰 바탕 · 1dp 테두리 · 모서리 12)의 여러 줄 입력칸이 되고,
  * 그 아래에 실패 안내와 ‘n/500’, 맨 아래에 ‘취소’ · ‘저장’을 둔다. 저장 중에는 입력·취소·창 닫기를 막는다.
+ * 메모 상자·입력칸은 제목과 함께 스크롤되는 본문에 두고 버튼만 아래에 고정해, 줄이 많아지거나 키보드가 올라와도
+ * 버튼이 눌려 잘리지 않는다(S15P31E102-1081).
  */
 @Composable
 private fun RecordMemoDialog(recordId: String, memo: String, dialog: RecordMemoState, actions: RecordDetailActions) {
     val colors = EolssuTheme.colors
+    // 고치기를 새로 시작할 때마다 지금 메모로 채운다. 저장에 실패하면 적던 내용을 그대로 둔다.
+    // 서버는 500자를 넘는 메모를 받지 않으므로(400) 입력칸이 그 이상은 받지 않는다(S15P31E102-996).
+    val draft = if (dialog.editing) {
+        rememberSaveable(recordId, memo, saver = TextFieldState.Saver) { TextFieldState(memo, TextRange(memo.length)) }
+    } else null
     EolssuDialog(
         title = stringResource(Res.string.record_memo_button),
         icon = EolssuIcons.Chat,
         onDismissRequest = actions.onCloseMemo,
+        body = {
+            if (draft != null) RecordMemoEditor(draft, dialog) else RecordMemoReader(memo, actions)
+        },
     ) {
-        if (dialog.editing) {
-            RecordMemoEditor(recordId, memo, dialog, actions)
+        if (draft == null) {
+            EolssuButton(
+                stringResource(Res.string.common_close),
+                actions.onCloseMemo,
+                style = EolssuButtonStyle.Secondary,
+                containerColor = colors.groupedBackground,
+                borderColor = Color.Transparent, qaTarget = QaTarget.RECORD_DETAIL_SCREEN_BUTTON_01
+            )
             return@EolssuDialog
         }
-        val editLabel = stringResource(Res.string.record_memo_edit)
-        // 메모가 없는 기록은 안내 문구 없이 같은 상자를 비워 두고, 연필 버튼을 눌러야 입력칸으로 바뀐다(S15P31E102-846).
-        Box(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-            // 긴 메모는 상자 안에서 스크롤하고, 오른쪽에 스크롤 막대를 보인다(S15P31E102-996).
-            val memoScroll = rememberScrollState()
-            Text(
-                memo,
-                Modifier.fillMaxWidth().heightIn(min = 52.dp, max = 240.dp)
-                    .background(colors.background, MemoFieldShape)
-                    .verticalScrollIndicator(memoScroll, scrollIndicatorColor(colors.text))
-                    .verticalScroll(memoScroll)
-                    // 오른쪽 위 연필 버튼과 첫 줄이 겹치지 않게 오른쪽을 비운다.
-                    .padding(start = 14.dp, top = 14.dp, end = 40.dp, bottom = 14.dp),
-                style = memoTextStyle(),
-                color = colors.text,
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            EolssuButton(
+                stringResource(Res.string.common_cancel),
+                actions.onCancelMemo,
+                Modifier.weight(1f),
+                style = EolssuButtonStyle.Secondary,
+                enabled = !dialog.saving,
+                containerColor = colors.groupedBackground,
+                borderColor = Color.Transparent, qaTarget = QaTarget.RECORD_DETAIL_SCREEN_BUTTON_02
             )
-            // 누르는 영역은 48dp, 눌림 효과는 연필 둘레 40dp 원 안에만 그려 메모 상자 모서리와 겹치지 않게 한다(S15P31E102-968).
-            val editInteraction = remember { MutableInteractionSource() }
-            Box(
-                Modifier.align(Alignment.TopEnd).size(48.dp)
-                    .clickable(interactionSource = editInteraction, indication = null, role = Role.Button, onClick = actions.onEditMemo)
-                    .semantics { contentDescription = editLabel },
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    Modifier.size(40.dp).clip(CircleShape).indication(editInteraction, ripple()),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.accentText)
-                }
-            }
+            EolssuButton(
+                stringResource(Res.string.record_memo_save),
+                { actions.onSaveMemo(draft.text.toString()) },
+                Modifier.weight(1f),
+                busy = dialog.saving, qaTarget = QaTarget.RECORD_DETAIL_SCREEN_BUTTON_03
+            )
         }
-        EolssuButton(
-            stringResource(Res.string.common_close),
-            actions.onCloseMemo,
-            style = EolssuButtonStyle.Secondary,
-            containerColor = colors.groupedBackground,
-            borderColor = Color.Transparent,
-        )
     }
 }
 
-/** 메모 고치기: 여러 줄 입력칸(500자까지, 넘치면 칸 안에서 스크롤) · 실패 안내 · 글자 수 · ‘취소’ · ‘저장’. */
+/** 메모 읽기: 옅은 바탕 상자(길면 상자 안에서 스크롤)와 오른쪽 위 연필 버튼. */
 @Composable
-private fun RecordMemoEditor(recordId: String, memo: String, dialog: RecordMemoState, actions: RecordDetailActions) {
+private fun RecordMemoReader(memo: String, actions: RecordDetailActions) {
     val colors = EolssuTheme.colors
-    // 고치기를 새로 시작할 때마다 지금 메모로 채운다. 저장에 실패하면 적던 내용을 그대로 둔다.
-    // 서버는 500자를 넘는 메모를 받지 않으므로(400) 입력칸이 그 이상은 받지 않는다(S15P31E102-996).
-    val draft = rememberSaveable(recordId, memo, saver = TextFieldState.Saver) {
-        TextFieldState(memo, TextRange(memo.length))
+    val editLabel = stringResource(Res.string.record_memo_edit)
+    // 메모가 없는 기록은 안내 문구 없이 같은 상자를 비워 두고, 연필 버튼을 눌러야 입력칸으로 바뀐다(S15P31E102-846).
+    Box(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        // 긴 메모는 상자 안에서 스크롤하고, 오른쪽에 스크롤 막대를 보인다(S15P31E102-996).
+        val memoScroll = rememberScrollState()
+        Text(
+            memo,
+            Modifier.fillMaxWidth().heightIn(min = 52.dp, max = 240.dp)
+                .background(colors.background, MemoFieldShape)
+                .verticalScrollIndicator(memoScroll, scrollIndicatorColor(colors.text))
+                .verticalScroll(memoScroll)
+                // 오른쪽 위 연필 버튼과 첫 줄이 겹치지 않게 오른쪽을 비운다.
+                .padding(start = 14.dp, top = 14.dp, end = 40.dp, bottom = 14.dp),
+            style = memoTextStyle(),
+            color = colors.text,
+        )
+        // 누르는 영역은 48dp, 눌림 효과는 연필 둘레 40dp 원 안에만 그려 메모 상자 모서리와 겹치지 않게 한다(S15P31E102-968).
+        val editInteraction = remember { MutableInteractionSource() }
+        Box(
+            Modifier.align(Alignment.TopEnd).size(48.dp)
+                .clickable(interactionSource = editInteraction, indication = null, role = Role.Button, onClick = UserActionLog.click(QaTarget.RECORD_DETAIL_SCREEN_01, actions.onEditMemo))
+                .semantics { contentDescription = editLabel },
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                Modifier.size(40.dp).clip(CircleShape).indication(editInteraction, ripple()),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.accentText)
+            }
+        }
     }
+}
+
+/** 메모 고치기 입력칸: 여러 줄(500자까지, 넘치면 칸 안에서 스크롤) · 실패 안내 · 글자 수. */
+@Composable
+private fun RecordMemoEditor(draft: TextFieldState, dialog: RecordMemoState) {
+    val colors = EolssuTheme.colors
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val small = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp)
@@ -388,7 +418,7 @@ private fun RecordMemoEditor(recordId: String, memo: String, dialog: RecordMemoS
     EolssuMemoField(
         state = draft,
         label = stringResource(Res.string.record_memo_button),
-        modifier = Modifier.padding(bottom = 6.dp),
+        modifier = Modifier.padding(top = 6.dp),
         fieldModifier = Modifier.focusRequester(focus),
         maxLength = RECORD_MEMO_MAX_LENGTH,
         enabled = !dialog.saving,
@@ -404,23 +434,6 @@ private fun RecordMemoEditor(recordId: String, memo: String, dialog: RecordMemoS
             }
         } else null,
     )
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        EolssuButton(
-            stringResource(Res.string.common_cancel),
-            actions.onCancelMemo,
-            Modifier.weight(1f),
-            style = EolssuButtonStyle.Secondary,
-            enabled = !dialog.saving,
-            containerColor = colors.groupedBackground,
-            borderColor = Color.Transparent,
-        )
-        EolssuButton(
-            stringResource(Res.string.record_memo_save),
-            { actions.onSaveMemo(draft.text.toString()) },
-            Modifier.weight(1f),
-            busy = dialog.saving,
-        )
-    }
 }
 
 private val MemoFieldShape = RoundedCornerShape(12.dp)
@@ -435,7 +448,7 @@ private fun FollowNowButton(onClick: () -> Unit, modifier: Modifier = Modifier) 
     val shape = RoundedCornerShape(18.dp)
     Box(modifier.heightIn(min = 44.dp), contentAlignment = Alignment.Center) {
         Surface(
-            onClick = onClick,
+            onClick = UserActionLog.click(QaTarget.RECORD_DETAIL_SCREEN_02, onClick),
             modifier = Modifier.height(36.dp).shadow(6.dp, shape),
             shape = shape,
             color = colors.text,

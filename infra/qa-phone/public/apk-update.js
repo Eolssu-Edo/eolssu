@@ -9,6 +9,7 @@ export function apkVersionState(catalog) {
 export function latestApkUpdate(catalog, state, pending = false) {
   const build = catalog?.builds?.find(b => b.id === catalog.latest);
   const blocked = hint => ({build, enabled:false, label:'최신 APK로 업데이트', hint});
+  if (catalog?.job?.status === 'waiting') return {...blocked(catalog.job.message || '앱 로그를 읽고 있습니다. 잠시 후 설치됩니다.'), label:'설치 대기 중…'};
   if (pending || catalog?.job?.status === 'installing' || state?.maintenance) {
     return {...blocked('설치가 끝날 때까지 이 기기의 조작을 잠급니다.'), label:'설치 중…'};
   }

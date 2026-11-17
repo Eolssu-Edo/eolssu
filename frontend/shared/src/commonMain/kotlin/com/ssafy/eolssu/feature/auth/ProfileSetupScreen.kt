@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.liveRegion
@@ -54,16 +57,16 @@ fun ProfileSetupScreen(
         topBar = {
             SignupTopBar(SignupProgress(if (social) SignupPath.Social else SignupPath.Email, SignupStep.Profile), onBack = onBack)
         },
-        bottomBar = { EolssuButton(stringResource(Res.string.auth_signup_done), onClick = onComplete, busy = state.submitting) },
+        bottomBar = { EolssuButton(stringResource(Res.string.auth_signup_done), onClick = UserActionLog.click(QaTarget.PROFILE_SETUP_SCREEN_01, onComplete), busy = state.submitting, qaTarget = QaTarget.PROFILE_SETUP_SCREEN_BUTTON_01) },
     ) {
         AuthBody(topPadding = authBodyTopBelowProgress()) {
             AuthHeading(stringResource(Res.string.auth_profile_heading))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                EolssuTextField(
+                EolssuTextField(qaTarget = QaTarget.PROFILE_SETUP_SCREEN_02,
                     bordered = false,
                     labelInside = true,
                     value = state.nickname,
-                    onValueChange = onNicknameChange,
+                    onValueChange = UserActionLog.change(QaTarget.PROFILE_SETUP_SCREEN_02, onNicknameChange),
                     label = stringResource(Res.string.auth_nickname),
                     placeholder = stringResource(Res.string.auth_nickname_placeholder),
                     help = stringResource(Res.string.member_api_nickname_rule),

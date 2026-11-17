@@ -1,5 +1,8 @@
 package com.ssafy.eolssu
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -116,6 +119,6 @@ private fun StartFailure(onRetry: () -> Unit) {
             color = EolssuTheme.colors.textSub,
             textAlign = TextAlign.Center,
         )
-        EolssuButton(stringResource(Res.string.member_api_retry), onClick = onRetry, modifier = Modifier.widthIn(max = 360.dp))
+        EolssuButton(stringResource(Res.string.member_api_retry), onClick = UserActionLog.click(QaTarget.APP_01, onRetry), modifier = Modifier.widthIn(max = 360.dp), qaTarget = QaTarget.APP_BUTTON_01)
     }
 }

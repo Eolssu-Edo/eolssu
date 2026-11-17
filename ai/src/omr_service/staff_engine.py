@@ -24,7 +24,7 @@ from time import monotonic
 from PIL import Image, ImageDraw
 
 from omr_service import staff_musicxml, staff_pdf_tempo
-from omr_service.jeongganbo_text import JANGDANS, _clean, _run, beats_per_jeonggan, lines_to_score
+from omr_service.jeongganbo_text import JANGDANS, _clean, _run, cycle_beats, lines_to_score
 
 AUDIVERIS = os.environ.get("AUDIVERIS_CMD", "audiveris").split()  # 컨테이너에는 /opt/audiveris/bin/Audiveris
 AUDIVERIS_VERSION = os.environ.get("AUDIVERIS_VERSION", "5.11.0")  # 컨테이너 빌드가 넣는다(omr.Dockerfile)
@@ -86,7 +86,7 @@ def recognize(job) -> dict:
                            "detail": {"source": source, "jangdan": jangdan}})
     bpm_unit = JANGDANS[jangdan]['bpm_unit'] if jangdan else conv.bpm_unit
     bpj = conv.beat / UNIT_QUARTERS[bpm_unit]
-    if jangdan and any(bpj * width != beats_per_jeonggan(jangdan, 1) for width in conv.gak_beats):
+    if jangdan and any(bpj * width != cycle_beats(jangdan) for width in conv.gak_beats):
         issues.append({"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
                        "detail": {"jangdan": jangdan, "jeongganPerGak": conv.beats_per_gak}})
     doc, score = lines_to_score(conv.lines, request, jangdan, lambda _: bpj, deadline,
@@ -105,8 +105,27 @@ def recognize(job) -> dict:
                 tempo['bpm'] = int(bpm)
             else:
                 issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {'reason': 'TEMPO_BASE_NOT_INTEGER'}))
+    if 'bpm' not in tempo and not jangdan:
+        tempo.update(_time_signature_tempo(conv.source_meters, score['music']['bpmUnit'], issues))
     return {"engine": ENGINE, "engineVersion": AUDIVERIS_VERSION, "jgb": doc, "score": score, "issues": issues,
             "sourcePitches": conv.source_pitches, **tempo}
+
+
+def _time_signature_tempo(source_meters, bpm_unit, issues):
+    """빠르기 표시도 장단도 없을 때 적힌 박자표에 맞는 장단의 기본 빠르기를 시작 빠르기로 준다(S15P31E102-1035).
+
+    마디 길이가 박자표와 달라 장단을 비운 악보도 박자표 글자는 믿는다. 추정값임을 notice로 알린다.
+    """
+    jangdan, text = staff_musicxml.printed_jangdan(source_meters)
+    if jangdan is None:
+        return {}
+    row = JANGDANS[jangdan]
+    bpm = row['default_bpm'] * UNIT_QUARTERS[row['bpm_unit']] / UNIT_QUARTERS[bpm_unit]
+    if bpm.denominator != 1 or bpm <= 0:
+        return {}
+    issues.append(staff_musicxml._issue('LOW_CONFIDENCE', {'reason': 'TEMPO_DEFAULT_FROM_TIME_SIGNATURE',
+                                                          'timeSignature': text, 'jangdan': jangdan, 'bpm': int(bpm)}))
+    return {'bpm': int(bpm)}
 
 
 def restore_source_pitches(score, originals, hwang_pitch):

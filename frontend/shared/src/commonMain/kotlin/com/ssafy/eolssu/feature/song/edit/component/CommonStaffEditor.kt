@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -98,7 +102,7 @@ internal fun CommonStaffEditor(
                             Column(Modifier.width(78.dp * scale)
                                 .background(if (chosen) colors.accentTint else colors.background)
                                 .then(if (chosen) Modifier.border(1.dp, colors.accentTintStrong) else Modifier)
-                                .clickable(role = Role.Button) { onPick(glyph.key) }
+                                .clickable(role = Role.Button) { UserActionLog.event(QaKind.CLICK, QaTarget.COMMON_STAFF_EDITOR_01); onPick(glyph.key) }
                                 .semantics { contentDescription = label; this.selected = chosen },
                                 horizontalAlignment = Alignment.CenterHorizontally) {
                                 Canvas(Modifier.fillMaxWidth().height(height)) {

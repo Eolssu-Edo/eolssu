@@ -1,7 +1,11 @@
 package com.ssafy.eolssu.feature.guide
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -20,15 +24,16 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
+import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import com.ssafy.eolssu.feature.guide.layout.FingeringCompactLayout
 import com.ssafy.eolssu.feature.guide.layout.FingeringExpandedLayout
 import com.ssafy.eolssu.feature.guide.layout.FingeringMediumLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_fingering_title
-import eolssu.shared.generated.resources.guide_instruments_loading
 import eolssu.shared.generated.resources.guide_instruments_failed
 import eolssu.shared.generated.resources.guide_instruments_empty
 import eolssu.shared.generated.resources.guide_catalog_retry
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
@@ -66,23 +71,35 @@ fun FingeringScreen(
         containerColor = EolssuTheme.colors.groupedBackground,
         contentMaxWidth = widthClass.guidePageMaxWidth,
     ) {
-        if (!state.hasSelectedInstrument) {
-            val message = when (state.instrumentListState) {
-                ReferenceLoadState.Loading -> Res.string.guide_instruments_loading
-                ReferenceLoadState.Failed -> Res.string.guide_instruments_failed
-                else -> Res.string.guide_instruments_empty
+        // 운지 카드는 앱 안의 데이터로 그리므로 악기 목록을 기다리지 않고 처음 악기로 바로 보여준다(S15P31E102-1036).
+        // 목록을 받는 동안에는 악기 고르기 칸만 막고, 실패하면 화면 위에 안내와 다시 시도를 둔다.
+        if (state.hasNoInstruments) {
+            InstrumentListNotice(Res.string.guide_instruments_empty, onRetryInstruments, Modifier.padding(20.dp))
+        } else Column(Modifier.fillMaxSize()) {
+            if (state.instrumentListState == ReferenceLoadState.Failed) {
+                InstrumentListNotice(
+                    Res.string.guide_instruments_failed,
+                    onRetryInstruments,
+                    Modifier.padding(start = widthClass.guideSidePadding, end = widthClass.guideSidePadding, top = 4.dp, bottom = 12.dp),
+                )
             }
-            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(message), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    style = MaterialTheme.typography.bodyMedium, color = EolssuTheme.colors.textMuted)
-                if (state.instrumentListState != ReferenceLoadState.Loading) {
-                    EolssuButton(stringResource(Res.string.guide_catalog_retry), onRetryInstruments, style = EolssuButtonStyle.Secondary)
+            Box(Modifier.weight(1f)) {
+                when (widthClass) {
+                    WindowWidthClass.Compact -> FingeringCompactLayout(state, actions, noteAudioContent)
+                    WindowWidthClass.Medium -> FingeringMediumLayout(state, actions, noteAudioContent)
+                    WindowWidthClass.Expanded -> FingeringExpandedLayout(state, actions, noteAudioContent)
                 }
             }
-        } else when (widthClass) {
-            WindowWidthClass.Compact -> FingeringCompactLayout(state, actions, noteAudioContent)
-            WindowWidthClass.Medium -> FingeringMediumLayout(state, actions, noteAudioContent)
-            WindowWidthClass.Expanded -> FingeringExpandedLayout(state, actions, noteAudioContent)
         }
+    }
+}
+
+/** 악기 목록을 받지 못했거나 비었을 때의 안내와 다시 시도 버튼. */
+@Composable
+private fun InstrumentListNotice(message: StringResource, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(stringResource(message), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            style = MaterialTheme.typography.bodyMedium, color = EolssuTheme.colors.textMuted)
+        EolssuButton(stringResource(Res.string.guide_catalog_retry), onRetry, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.FINGERING_SCREEN_BUTTON_01)
     }
 }

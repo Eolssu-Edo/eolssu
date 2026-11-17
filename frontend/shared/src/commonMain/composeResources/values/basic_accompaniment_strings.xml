@@ -1,19 +1,10 @@
 <resources>
     <string name="basic_accompaniment_title">기본 박 반주</string>
-    <string name="basic_accompaniment_help">원본 음표와 빠르기를 유지하며 반주의 박과 강세를 고릅니다.</string>
     <string name="basic_accompaniment_none">반주 없이</string>
-    <string name="basic_accompaniment_catalog">장단 선택</string>
-    <string name="basic_accompaniment_unsupported">이 악보의 박 음가는 확인되지 않아 기본 박 반주를 고를 수 없어요.</string>
-    <string name="basic_accompaniment_source_unavailable">악보 원본 정보를 불러온 뒤 기본 박 반주를 고를 수 있어요.</string>
-    <string name="basic_accompaniment_first_cell">첫 강박 정간 · 1~%1$d</string>
-    <string name="basic_accompaniment_cell_error">1~%1$d 사이의 정간 번호를 입력해 주세요.</string>
-    <string name="basic_accompaniment_cell_location">%1$d각 %2$d정간에서 시작</string>
-    <string name="basic_accompaniment_pickup_help">못갖춘마디가 있으면 첫 온마디의 시작 정간을 고르세요. 그 전에는 반주가 나지 않아요.</string>
-    <string name="basic_accompaniment_use_selected">편집기에서 고른 정간 · %1$d</string>
-    <string name="basic_accompaniment_cleared_after_reshape">반주 시작 위치를 유지할 수 없어 기본 박 반주를 해제했어요. 반주 선택에서 다시 골라 주세요.</string>
-    <string name="sheet_review_meter_signature">박자표 %1$s을 다시 확인해 주세요. 원본의 박자표와 인식 결과가 맞는지 확인한 뒤 반주를 골라 주세요.</string>
-    <string name="sheet_review_meter_unknown">박자표를 다시 확인해 주세요. 원본과 인식 결과가 맞는지 확인한 뒤 반주를 골라 주세요.</string>
-    <string name="sheet_review_measure_short">이 마디의 음 길이가 박자표보다 짧아요. 원본 박자표와 음 길이를 확인해 주세요.</string>
-    <string name="sheet_review_measure_long">이 마디의 음 길이가 박자표보다 길어요. 원본 박자표와 음 길이를 확인해 주세요.</string>
-    <string name="sheet_review_measure_empty">%1$s번째 마디가 비어 있어요. 원본에서 빠진 음이나 쉼이 없는지 확인해 주세요.</string>
+    <string name="basic_accompaniment_cleared_after_reshape">정간이 바뀌어 기본 박 반주를 껐어요. 장단 선택에서 다시 골라 주세요.</string>
+    <string name="sheet_review_meter_signature">박자표를 %1$s 읽었어요. 곡의 박과 다르면 장단을 다시 골라 주세요.</string>
+    <string name="sheet_review_meter_unknown">박자표를 읽지 못했어요. 곡에 맞는 장단을 골라 주세요.</string>
+    <string name="sheet_review_measure_short">이 마디가 짧아요. 원래 짧은 마디면 그대로 두고, 아니면 정간을 나누거나 합쳐 맞춰 주세요.</string>
+    <string name="sheet_review_measure_long">이 마디가 길어요. 정간을 나누거나 합쳐 맞춰 주세요.</string>
+    <string name="sheet_review_measure_empty">%1$s번째 마디가 비어 있어요. 빠진 음이 있으면 채워 주세요.</string>
 </resources>

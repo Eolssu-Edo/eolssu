@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.home.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -73,7 +76,7 @@ internal fun FeatureSection(
                     row.forEach { feature ->
                         FeatureTile(
                             feature,
-                            onClick = { onFeatureClick(feature) },
+                            onClick = UserActionLog.click(QaTarget.FEATURE_SECTION_01, { onFeatureClick(feature) }),
                             boxMinHeight = cardMinHeight,
                             large = large,
                             enabled = enabled,
@@ -107,7 +110,7 @@ private fun FeatureTile(
         modifier.fillMaxWidth().heightIn(min = boxMinHeight)
             .clip(shape)
             .background(EolssuTheme.colors.surface)
-            .clickable(interactionSource = interaction, indication = ripple(), enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = ripple(), enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.FEATURE_SECTION_02, onClick))
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,

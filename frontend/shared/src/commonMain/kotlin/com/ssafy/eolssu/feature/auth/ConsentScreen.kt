@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -83,8 +86,8 @@ fun ConsentScreen(
         bottomBar = {
             EolssuButton(
                 stringResource(if (state.canStart) Res.string.auth_start else Res.string.auth_start_disabled),
-                onClick = onStart,
-                enabled = state.canStart,
+                onClick = UserActionLog.click(QaTarget.CONSENT_SCREEN_01, onStart),
+                enabled = state.canStart, qaTarget = QaTarget.CONSENT_SCREEN_BUTTON_01
             )
         },
     ) {
@@ -111,7 +114,7 @@ fun ConsentScreen(
                 if (state.loading) Text(stringResource(Res.string.member_api_terms_loading), Modifier.padding(16.dp))
                 else if (state.failed) {
                     Text(stringResource(Res.string.member_api_terms_unavailable), Modifier.padding(16.dp))
-                    EolssuButton(stringResource(Res.string.member_api_retry), onRetry, modifier = Modifier.padding(horizontal = 16.dp))
+                    EolssuButton(stringResource(Res.string.member_api_retry), onRetry, modifier = Modifier.padding(horizontal = 16.dp), qaTarget = QaTarget.CONSENT_SCREEN_BUTTON_02)
                 } else {
                     AgreeAllRow(state.allChecked, onToggleAll)
                     state.terms.forEach { term ->
@@ -185,7 +188,7 @@ private fun AgreementRow(agreement: AccountTerm, checked: Boolean, onToggle: () 
         }
         if (agreement.contentUrl.isNotBlank()) {
             val description = stringResource(Res.string.auth_view_terms_description, label)
-            EolssuTextLink(onOpenTerms, Modifier.semantics { contentDescription = description }) {
+            EolssuTextLink(onOpenTerms, Modifier.semantics { contentDescription = description }, qaTarget = QaTarget.CONSENT_SCREEN_LINK_01) {
                 Text(
                     stringResource(Res.string.auth_view_terms),
                     modifier = Modifier.clearAndSetSemantics {},

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -151,6 +154,8 @@ internal fun TourPanel(
         }
         if (practiceBox != null) {
             val i = tasks.size
+            // 통과하면 연습 박스도 마친 할 일로 세어 '할 일 n / 전체'를 바로 채운다.
+            LaunchedEffect(practiceBox.passed, total) { if (practiceBox.passed) tour.passPractice(total) }
             StepBox(
                 index = i,
                 task = LearnTask(practiceBox.title),
@@ -264,7 +269,7 @@ private fun StepBox(
         Row(
             Modifier
                 .fillMaxWidth()
-                .clickable(enabled = !locked, onClick = onToggle)
+                .clickable(enabled = !locked, onClick = UserActionLog.click(QaTarget.LEARN_STEPPER_01, onToggle))
                 .clearAndSetSemantics {
                     contentDescription = description
                     role = Role.Button
@@ -279,7 +284,7 @@ private fun StepBox(
             // 눌림 효과는 그린 30dp 동그라미 안에만 둔다(S15P31E102-968).
             val undoInteraction = remember { MutableInteractionSource() }
             Box(
-                Modifier.size(48.dp).clickable(interactionSource = undoInteraction, indication = null, enabled = done, onClick = onUndo),
+                Modifier.size(48.dp).clickable(interactionSource = undoInteraction, indication = null, enabled = done, onClick = UserActionLog.click(QaTarget.LEARN_STEPPER_02, onUndo)),
                 contentAlignment = Alignment.Center,
             ) {
                 StepBadge(index + 1, done, open)
@@ -326,7 +331,7 @@ private fun StepBox(
                     // 마친 박스를 다시 펼치면 듣기를 새로 열지 않는다.
                     if (!done) inline(onTry)
                 } else {
-                    EolssuButton(stringResource(Res.string.learn_step_try), onTry, Modifier.fillMaxWidth(), icon = EolssuIcons.Check)
+                    EolssuButton(stringResource(Res.string.learn_step_try), onTry, Modifier.fillMaxWidth(), icon = EolssuIcons.Check, qaTarget = QaTarget.LEARN_STEPPER_BUTTON_01)
                 }
             }
         }

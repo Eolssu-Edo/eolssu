@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.profile
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.core.model.InputLimit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -86,16 +89,16 @@ fun WithdrawScreen(
         bottomBar = {
             when {
                 reauth?.step == WithdrawReauth.Step.InBrowser ->
-                    EolssuButton(stringResource(Res.string.social_auth_reopen, stringResource(reauth.provider.displayName)), onClick = onReopen)
-                reauth?.busy == true -> EolssuButton(stringResource(Res.string.social_auth_progress), onClick = {}, busy = true)
-                usePassword -> EolssuButton(stringResource(Res.string.my_withdraw_done), onClick = onSubmit, style = EolssuButtonStyle.Danger)
+                    EolssuButton(stringResource(Res.string.social_auth_reopen, stringResource(reauth.provider.displayName)), onClick = UserActionLog.click(QaTarget.WITHDRAW_SCREEN_01, onReopen), qaTarget = QaTarget.WITHDRAW_SCREEN_BUTTON_01)
+                reauth?.busy == true -> EolssuButton(stringResource(Res.string.social_auth_progress), onClick = UserActionLog.click(QaTarget.WITHDRAW_SCREEN_02, {}), busy = true, qaTarget = QaTarget.WITHDRAW_SCREEN_BUTTON_02)
+                usePassword -> EolssuButton(stringResource(Res.string.my_withdraw_done), onClick = UserActionLog.click(QaTarget.WITHDRAW_SCREEN_03, onSubmit), style = EolssuButtonStyle.Danger, qaTarget = QaTarget.WITHDRAW_SCREEN_BUTTON_03)
                 // 비밀번호가 없으면 재인증 버튼이 탈퇴하기 버튼 자리에 온다.
                 else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     providers.forEach { provider ->
                         EolssuButton(
                             stringResource(Res.string.my_withdraw_social, stringResource(provider.displayName)),
-                            onClick = { onReauth(provider) },
-                            style = EolssuButtonStyle.Danger,
+                            onClick = UserActionLog.click(QaTarget.WITHDRAW_SCREEN_04, { onReauth(provider) }),
+                            style = EolssuButtonStyle.Danger, qaTarget = QaTarget.WITHDRAW_SCREEN_BUTTON_04
                         )
                     }
                 }
@@ -140,9 +143,9 @@ fun WithdrawScreen(
             }
         }
         if (usePassword) {
-            EolssuTextField(
+            EolssuTextField(qaTarget = QaTarget.WITHDRAW_SCREEN_05,
                 value = state.password,
-                onValueChange = onPasswordChange,
+                onValueChange = UserActionLog.change(QaTarget.WITHDRAW_SCREEN_05, onPasswordChange),
                 label = stringResource(Res.string.my_password_current),
                 placeholder = stringResource(Res.string.my_password_current),
                 type = TextFieldType.Password,
@@ -164,8 +167,8 @@ fun WithdrawScreen(
                     providers.forEach { provider ->
                         EolssuButton(
                             stringResource(Res.string.my_withdraw_social, stringResource(provider.displayName)),
-                            onClick = { onReauth(provider) },
-                            style = EolssuButtonStyle.Secondary,
+                            onClick = UserActionLog.click(QaTarget.WITHDRAW_SCREEN_06, { onReauth(provider) }),
+                            style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.WITHDRAW_SCREEN_BUTTON_05
                         )
                     }
                 }

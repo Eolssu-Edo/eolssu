@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -66,7 +69,7 @@ internal fun DevicePickSheet(kind: ImportKind, onPick: () -> Unit, onDismiss: ()
                 stringResource(Res.string.sheetedit_device_limit),
             )
         },
-        footer = { EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary) },
+        footer = { EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.DEVICE_PICK_SHEET_BUTTON_01) },
     ) {
         PlaceholderTag(
             stringResource(
@@ -134,7 +137,7 @@ private fun PlaceholderTag(text: String) {
 @Composable
 private fun DeviceRow(icon: ImageVector, title: String, description: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), color = colors.background) {
+    Surface(onClick = UserActionLog.click(QaTarget.DEVICE_PICK_SHEET_01, onClick), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), color = colors.background) {
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),

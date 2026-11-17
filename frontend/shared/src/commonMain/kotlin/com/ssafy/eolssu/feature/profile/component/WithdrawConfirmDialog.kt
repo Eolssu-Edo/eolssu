@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.profile.component
 
+import com.ssafy.eolssu.core.ui.component.QaModalObservation
+import com.ssafy.eolssu.core.ui.component.qaModalInput
+
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -43,9 +49,10 @@ import org.jetbrains.compose.resources.stringResource
 fun WithdrawConfirmDialog(confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val colors = EolssuTheme.colors
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        QaModalObservation()
         // 휴대폰 가로·큰 글꼴에서 높이가 모자라면 그림·안내만 스크롤하고 버튼은 아래에 고정한다.
         Column(
-            Modifier
+            Modifier.qaModalInput()
                 .imePadding()
                 .padding(horizontal = 28.dp, vertical = 16.dp)
                 .widthIn(max = 340.dp)
@@ -79,8 +86,8 @@ fun WithdrawConfirmDialog(confirmLabel: String, onConfirm: () -> Unit, onDismiss
                 )
             }
             Column(Modifier.fillMaxWidth().padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                EolssuButton(confirmLabel, onClick = onConfirm, style = EolssuButtonStyle.Danger)
-                EolssuButton(stringResource(Res.string.common_cancel), onClick = onDismiss, style = EolssuButtonStyle.Text)
+                EolssuButton(confirmLabel, onClick = UserActionLog.click(QaTarget.WITHDRAW_CONFIRM_DIALOG_01, onConfirm), style = EolssuButtonStyle.Danger, qaTarget = QaTarget.WITHDRAW_CONFIRM_DIALOG_BUTTON_01)
+                EolssuButton(stringResource(Res.string.common_cancel), onClick = UserActionLog.click(QaTarget.WITHDRAW_CONFIRM_DIALOG_02, onDismiss), style = EolssuButtonStyle.Text, qaTarget = QaTarget.WITHDRAW_CONFIRM_DIALOG_BUTTON_02)
             }
         }
     }

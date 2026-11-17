@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.song
 
+import com.ssafy.eolssu.core.model.ScoreBpmUnit
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.network.createHttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -225,6 +226,24 @@ class ModelAudioRepositoryTest {
         } finally { client.close() }
     }
 
+    @Test fun acceptsJeongganBeatAudioWithItsPublishedTimeline() = runTest {
+        val metadata = publishedPreview().copy(bpmUnit = "JEONGGAN")
+        val timeline = previewJson().replace(""""bpmUnit":"DOTTED_QUARTER"""", """"bpmUnit":"JEONGGAN"""")
+        val client = createHttpClient(MockEngine {
+            if (it.url.encodedPath == TimelinePath) respond(timeline)
+            else respond("""{"isSuccess":true,"result":${Json.encodeToString(metadata)}}""",
+                headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val repository = ApiModelAudioRepository(client)
+            val audio = assertNotNull(repository.get(jeongganPreviewSong()))
+            assertEquals("JEONGGAN", audio.bpmUnit)
+            assertNotNull(audio.performance)
+            // The unit still has to be the score's own unit.
+            assertFailsWith<CatalogUnavailable> { repository.get(previewSong()) }
+        } finally { client.close() }
+    }
+
     @Test fun requiresSameSongVersionTempoAndBeatDefinition() {
         val song = smallScoreSong().copy(id = "42", scoreVersion = 1)
         val audio = audioFixture()
@@ -244,6 +263,11 @@ class ModelAudioRepositoryTest {
 internal fun audioFixture() = ModelAudio("42", 1, "https://example.com/model.m4a", 60, "DOTTED_QUARTER", 3550, 0, "audio/mp4", "a".repeat(64))
 
 private fun audioSong(id: String = "42") = smallScoreSong().copy(id = id, scoreVersion = 1)
+
+/** The preview score written with one jeonggan per beat, as published for songs 5 and 99 (ticksPerBeat == ticksPerJeonggan). */
+private fun jeongganPreviewSong() = previewSong().let { song ->
+    song.copy(score = song.score.copy(timing = song.score.timing?.copy(bpmUnit = ScoreBpmUnit.JEONGGAN)))
+}
 
 private const val MetadataPath = "/api/songs/42/model-audio"
 private const val TimelinePath = "$MetadataPath/performance"

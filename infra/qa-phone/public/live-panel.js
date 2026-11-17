@@ -1,19 +1,43 @@
-const time=value=>value?new Date(value).toLocaleTimeString('en-GB',{hour12:false,timeZone:'Asia/Seoul'}):'—';
+const naiveInstant=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
+const explicitInstant=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+const kstClock=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+const kstDate=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'});
+export function time(value,full=false){
+  if(value==null||value==='')return '—';
+  const instant=new Date(typeof value==='string'&&naiveInstant.test(value)?value+'Z':value);
+  if(!Number.isFinite(instant.getTime()))return '—';
+  const clock=kstClock.format(instant);if(!full)return clock;
+  const parts=Object.fromEntries(kstDate.formatToParts(instant).map(({type,value})=>[type,value]));
+  const fraction=typeof value==='string'?(value.match(/\.\d+(?=Z|[+-]\d{2}:\d{2}|$)/)?.[0]||''):'.'+String(instant.getUTCMilliseconds()).padStart(3,'0');
+  return `${parts.year}-${parts.month}-${parts.day} ${clock}${fraction} KST`;
+}
+export function logJson(fields){
+  return JSON.stringify(fields,(key,value)=>{
+    const knownTimeKey=/^(?:at|serverTime)$|(?:At|_at)$/.test(key);
+    if(typeof value==='string'&&(explicitInstant.test(value)||knownTimeKey&&naiveInstant.test(value))||typeof value==='number'&&Number.isFinite(value)&&knownTimeKey){const local=time(value,true);if(local!=='—')return local;}
+    return value;
+  });
+}
+const outcomeLabel=value=>({ready:'성공',failed:'실패',invalid:'입력 검증 실패',locked:'잠김',unavailable:'사용 불가',cancelled:'취소',started:'실제 시작',completed:'완료',stopped:'중단',paused:'일시 정지',loading:'준비 중',interrupted:'인터럽트'}[value]||'');
 const duration=value=>Number.isFinite(value)?`${(value/1000).toFixed(2)}초`:'—';
 const sources={app:'앱',proxy:'중계',backend:'서버',ai:'AI',db:'DB 조회',observer:'수집기',test:'검사 요청'};
-const stageLabels={action:'앱 동작',poll_summary:'조회 집계',visit_started:'화면 진입',http_attempt:'앱 HTTP 응답',data_load:'데이터 로드',flow_end:'동작 종료',request_started:'앱 요청',request_received:'서버 수신',proxy_received:'중계 수신',response_finished:'서버 응답',request_finished:'앱 수신',song_detail_drawn:'악보 표시',practice_drawn:'연습 화면',upload_accepted:'녹음 접수',ai_started:'AI 시작',ai_finished:'AI 완료',db_saved:'DB 저장',analysis_ready:'앱 결과 수신',score_drawn:'점수 표시'};
+const stageLabels={touch_start:'터치 수신',touch_end:'터치 종료',touch_cancel:'터치 취소',click:'클릭 콜백',callback_entered:'의미 콜백',callback_returned:'콜백 반환',input_changed:'입력 변경 콜백',input_focus:'입력 포커스',input_blur:'입력 포커스 해제',input_commit:'IME 실행',input_validation:'입력 검증',screen_enter:'화면 진입',screen_leave:'화면 이탈',login_attempt:'로그인 시도',login_result:'로그인 결과',content_selected:'콘텐츠 선택',audio_requested:'재생 요청',audio_state:'재생 상태',recording_state:'녹음 상태',http_started:'앱 HTTP 요청',http_finished:'앱 HTTP 응답',modal_open:'창 열림',modal_close:'창 닫힘',action:'앱 동작',poll_summary:'조회 집계',visit_started:'화면 진입',http_attempt:'앱 HTTP 응답',data_load:'데이터 로드',flow_end:'동작 종료',request_started:'앱 요청',request_received:'서버 수신',proxy_received:'중계 수신',response_finished:'서버 응답',request_finished:'앱 수신',song_detail_drawn:'악보 표시',practice_drawn:'연습 화면',upload_accepted:'녹음 접수',ai_started:'AI 시작',ai_finished:'AI 완료',db_saved:'DB 저장',analysis_ready:'앱 결과 수신',score_drawn:'점수 표시'};
 const friendlyName=value=>({instruments:'악기 목록',record_page:'최근 연주',member_me:'내 정보',session_create:'연습 시작',practice_status:'채점 상태',score:'악보 조회'}[value]||value);
 const qaFeatures=[['launch','앱 실행'],['login','로그인'],['contents','기초 콘텐츠'],['history','연습 기록 보기'],['perform','연습·평가'],['sheet','악보 추가·편집']];
 export function appLogStatus(log){
+  if(log.state==='unsupported')return {text:'계측 버전 미지원',state:'waiting'};
+  if(log.missing>0)return {text:`로그 누락 ${log.missing}건`,state:'failed'};
   if(log.state!=='collecting')return {text:log.state==='waiting'?'로그 확인 중':'로그 연결 대기',state:'waiting'};
-  return {text:log.partial?'저장 로그 읽는 중':'로그 수집 중',state:'observing'};
+  return {text:log.partial?'저장 로그 읽는 중':log.actions==='unsupported'?'기본 로그 수집 중 · 조작 계측 미지원':'로그 수집 중',state:'observing'};
 }
 export function filterAppLogs(records,kind){
-  if(kind==='http')return records.filter(row=>['http_attempt','request_started','request_finished'].includes(row.kind));
-  if(kind==='error')return records.filter(row=>Number(row.status)>=400||['FAILED','ERROR','failed','fail'].includes(row.outcome)||['FAILED','ERROR','failed','fail'].includes(row.status));
+  if(kind==='screen')return records.filter(row=>['screen_enter','screen_leave','modal_open','modal_close','lifecycle'].includes(row.kind));
+  if(kind==='action')return records.filter(row=>['touch_start','touch_end','touch_cancel','gesture','click','callback_entered','callback_returned','input_changed','input_focus','input_blur','input_commit','input_validation','login_attempt','login_result','content_selected','audio_requested','audio_state','recording_state','key_action'].includes(row.kind));
+  if(kind==='http')return records.filter(row=>['http_attempt','request_started','request_finished','http_started','http_finished'].includes(row.kind));
+  if(kind==='error')return records.filter(row=>Number(row.status)>=400||['FAILED','ERROR','failed','fail','invalid','locked','unavailable'].includes(row.outcome)||['FAILED','ERROR','failed','fail','invalid','locked','unavailable'].includes(row.status));
   return records;
 }
-const logKey=row=>`${row.deviceId||''}/${row.source}/${row.seq}/${row.at}`;
+const logKey=row=>`${row.deviceId||''}/${row.runId||''}/${row.source}/${row.seq}`;
 export function logWindow(records,anchor=null,size=150){
   const index=anchor?records.findIndex(row=>logKey(row)===anchor):-1,end=index<0?records.length:index+1,start=Math.max(0,end-size);
   return {records:records.slice(start,end),start,end,before:start?logKey(records[start-1]):null,anchored:index>=0};
@@ -21,10 +45,10 @@ export function logWindow(records,anchor=null,size=150){
 
 export function stageState(stage){
   if(!stage?.at)return 'waiting';
-  if((typeof stage.status==='number'&&stage.status>=400)||['FAILED','ERROR','SERVER_ERROR','failed','fail'].includes(stage.status))return 'failed';
+  if((typeof stage.status==='number'&&stage.status>=400)||['FAILED','ERROR','SERVER_ERROR','failed','fail','invalid','locked','unavailable'].includes(stage.status))return 'failed';
   return 'observed';
 }
-const logView=target=>`<details class="logDetails" data-log="${target}"><summary>로그 보기</summary><div class="logToolbar"><div class="logSourceButtons" role="group" aria-label="로그 종류"><button type="button" data-log-source="all" aria-pressed="true">전체</button><button type="button" data-log-source="http" aria-pressed="false">HTTP</button><button type="button" data-log-source="error" aria-pressed="false">오류</button></div><span class="logCount"></span></div><div class="logPaging"><button type="button" data-log-page="previous">이전 기록</button><button type="button" data-log-page="latest">최신 기록</button></div><pre class="logRecords" tabindex="0">기록 없음</pre></details>`;
+const logView=target=>`<details class="logDetails" data-log="${target}"><summary>로그 보기</summary><div class="logToolbar"><div class="logSourceButtons" role="group" aria-label="로그 종류"><button type="button" data-log-source="all" aria-pressed="true">전체</button><button type="button" data-log-source="action" aria-pressed="false">조작</button><button type="button" data-log-source="screen" aria-pressed="false">화면</button><button type="button" data-log-source="http" aria-pressed="false">HTTP</button><button type="button" data-log-source="error" aria-pressed="false">오류</button></div><span class="logCount"></span></div><div class="logPaging"><button type="button" data-log-page="previous">이전 기록</button><button type="button" data-log-page="latest">최신 기록</button></div><pre class="logRecords" tabindex="0">기록 없음</pre></details>`;
 
 export class LivePanel{
   constructor(root,{api,owner,notify,automationRoot}){
@@ -82,8 +106,21 @@ export class LivePanel{
   async refresh(){
     if(!this.active)return;
     const context=this.context,version=++this.requestVersion;
-    try{const target=this.logTarget(),snapshot=await this.api('live/status'+(target?'?logs='+encodeURIComponent(target):''));if(context===this.context&&version===this.requestVersion&&this.active)this.render(snapshot);}
-    catch{if(context===this.context&&version===this.requestVersion){this.render({appLog:{state:'unavailable'},operations:[]});this.nodes('.logDetails[open] .logRecords').forEach(pre=>pre.textContent='로그 연결 대기');}}
+    try{
+      const target=this.logTarget();let snapshot=await this.api('live/status'+(target?'?logs='+encodeURIComponent(target):''));
+      if(context===this.context&&version===this.requestVersion&&this.active){
+        const previous=this.snapshot,sameVersion=!snapshot.device?.appVersion||!previous?.device?.appVersion||snapshot.device.appVersion===previous.device.appVersion;
+        if(snapshot.appLog?.state!=='collecting'&&sameVersion&&previous?.evidence?.records?.length&&previous.evidence.id===target&&!snapshot.evidence?.records?.length){
+          snapshot={...snapshot,evidence:previous.evidence,operations:snapshot.operations?.length?snapshot.operations:previous.operations};
+        }
+        this.render(snapshot);
+      }
+    }
+    catch(error){if(context===this.context&&version===this.requestVersion){
+      const previous=[401,403].includes(error.status)?null:this.snapshot;
+      this.render({...previous,appLog:{...previous?.appLog,state:'unavailable'},operations:previous?.operations||[]});
+      if(!previous?.evidence?.records?.length||previous.evidence.id!==this.logTarget())this.nodes('.logDetails[open] .logRecords').forEach(pre=>pre.textContent='로그 연결 대기');
+    }}
     finally{if(context===this.context&&version===this.requestVersion){clearTimeout(this.timer);if(this.active)this.timer=setTimeout(()=>void this.refresh(),500);}}
   }
   render(snapshot){
@@ -93,13 +130,13 @@ export class LivePanel{
     this.root.closest('.realQa').dataset.next=owned.allowed&&['login','contents','history','perform','sheet'].includes(this.qaStep)?'device':'';
     this.nodes('[data-step]').forEach(item=>{const selected=item.dataset.step===this.qaStep;item.setAttribute('aria-selected',String(selected));item.tabIndex=selected?0:-1;item.dataset.state=selected?'current':'waiting';});
     this.nodes('[data-step-pane]').forEach(pane=>pane.hidden=pane.dataset.stepPane!==this.qaStep);
-    this.get('device').textContent=snapshot.device?.appVersion||'—';this.get('frame').textContent=time(owned.frameAt);this.get('event').textContent=time(snapshot.lastEventAt);
+    this.get('device').textContent=snapshot.device?.appVersion||'—';this.get('frame').textContent=owned.frameAt?time(owned.frameAt)+' KST':'—';this.get('frame').title=time(owned.frameAt,true);this.get('event').textContent=snapshot.lastEventAt?time(snapshot.lastEventAt)+' KST':'—';this.get('event').title=time(snapshot.lastEventAt,true);
     const operations=snapshot.operations||[];if(this.follow)this.selected=operations.at(-1)?.id??null;
     const key=JSON.stringify(operations.map(({id,name,startedAt})=>({id,name,startedAt})));
-    if(key!==this.operationsKey){this.operationsKey=key;this.get('operations').replaceChildren(...operations.map(operation=>{const option=document.createElement('option');option.value=operation.id;option.textContent=`${time(operation.startedAt)} ${friendlyName(operation.name)}`;return option;}));if(!operations.length){const option=document.createElement('option');option.value='';option.textContent='기록 없음';this.get('operations').append(option);}}
+    if(key!==this.operationsKey){this.operationsKey=key;this.get('operations').replaceChildren(...operations.map(operation=>{const option=document.createElement('option');option.value=operation.id;option.textContent=`${time(operation.startedAt)} KST ${friendlyName(operation.name)}`;option.title=time(operation.startedAt,true);return option;}));if(!operations.length){const option=document.createElement('option');option.value='';option.textContent='기록 없음';this.get('operations').append(option);}}
     this.get('operations').value=this.selected??'';this.get('operationCount').textContent=`${operations.length}건`;
     const operation=operations.find(value=>value.id===this.selected),visible=operation?.stages||[];
-    this.get('timeline').replaceChildren(...visible.map(stage=>{const item=document.createElement('li');item.dataset.state=stageState(stage);const label=document.createElement('strong');label.textContent=stage.source==='proxy'&&stage.name==='response_finished'?'중계 응답':stageLabels[stage.name]||stage.name;const detail=document.createElement('span');detail.textContent=stage.at?Number.isFinite(stage.elapsedMs)?duration(stage.elapsedMs):Number.isFinite(stage.durationMs)?duration(stage.durationMs):'확인':'—';item.title=stage.at?`${sources[stage.source]||stage.source} · ${time(stage.at)}${stage.status!=null?' · '+stage.status:''}`:'';item.append(label,detail);return item;}));
+    this.get('timeline').replaceChildren(...visible.map(stage=>{const item=document.createElement('li');item.dataset.state=stageState(stage);const label=document.createElement('strong');label.textContent=stage.source==='proxy'&&stage.name==='response_finished'?'중계 응답':stageLabels[stage.name]||stage.name;const detail=document.createElement('span');detail.textContent=stage.at?Number.isFinite(stage.elapsedMs)?duration(stage.elapsedMs):Number.isFinite(stage.durationMs)?duration(stage.durationMs):'확인':'—';if(outcomeLabel(stage.status))detail.textContent+=' · '+outcomeLabel(stage.status);if(stage.correlation==='estimated')detail.textContent+=' · 조작 연결 추정';item.title=stage.at?`${sources[stage.source]||stage.source} · ${time(stage.at,true)}${stage.status!=null?' · '+stage.status:''}`:'';item.append(label,detail);return item;}));
     this.get('identifiers').textContent=operation?[operation.requestId,operation.timingId,operation.sessionId&&`세션 ${operation.sessionId}`,operation.attempt&&`시도 ${operation.attempt}`,operation.evaluationId&&`평가 ${operation.evaluationId}`].filter(Boolean).join(' · '):'';
     const requests=operation?.requests||[];this.get('httpCount').textContent=`HTTP 요청 ${requests.length}개`;this.get('httpRequests').replaceChildren(...requests.map(request=>{const li=document.createElement('li');li.textContent=[request.target,request.requestId,request.status?`HTTP ${request.status}`:'응답 대기',Number.isFinite(request.durationMs)?duration(request.durationMs):null].filter(Boolean).join(' · ');return li;}));
     this.renderLogs(snapshot);this.onRender?.(snapshot);
@@ -107,11 +144,30 @@ export class LivePanel{
   renderLogs(snapshot){
     const details=this.openLog();if(!details)return;const target=this.logTarget(),evidence=snapshot?.evidence,pre=details.querySelector('.logRecords'),count=details.querySelector('.logCount');
     if(!target){pre.textContent='기록 없음';count.textContent='';return;}if(evidence?.id!==target){pre.textContent='불러오는 중';count.textContent='';return;}
+    details.querySelector('summary').textContent='로그 보기 · KST';
     const source=this.logSourceSelections.get(details.dataset.log)||'all';details.querySelectorAll('[data-log-source]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.logSource===source)));
     const context=target+'|'+source;if(details.logContext!==context){details.logContext=context;details.logAnchor=null;}
+    const scrollTop=pre.scrollTop;
     const all=filterAppLogs(evidence.records||[],source),page=logWindow(all,details.logAnchor),records=page.records;
     details.logBefore=page.before;details.querySelector('[data-log-page=previous]').disabled=!page.before;details.querySelector('[data-log-page=latest]').disabled=!page.anchored;
     count.textContent=`${page.end?page.start+1+'–'+page.end:0} / ${all.length}건${evidence.total>evidence.records.length?' · 전체 '+evidence.total+'건':''}${evidence.unavailable?' · '+evidence.unavailable+'대 연결 대기':''}`;
-    pre.classList.add('hasDeviceRows');pre.replaceChildren(...records.map(({at,source,deviceId,...fields})=>{const device=this.deviceInfo?.(deviceId),row=document.createElement('div');row.className='deviceLogRow';row.style.setProperty('--device-color',device?.color||'#69734f');row.dataset.level=(Number(fields.status)>=400||fields.status==='FAILED'||fields.outcome==='FAILED')?'failed':'observed';const when=document.createElement('time');when.textContent=time(at);const tag=document.createElement('span');tag.className='deviceTag';tag.textContent=device?`${device.number} ${device.name}`:'서버';const body=document.createElement('span');body.className='logBody';const origin=document.createElement('span');origin.className='sourceChip';origin.textContent=sources[source]||source;const name=document.createElement('strong');name.textContent=fields.kind||'기록';const data=document.createElement('small');data.textContent=JSON.stringify(fields);body.append(origin,name,data);row.append(when,tag,body);return row;}));if(!records.length)pre.textContent='기록 없음';
+    pre.classList.add('hasDeviceRows');pre.replaceChildren(...records.map(({at,source,deviceId,...fields})=>{const device=this.deviceInfo?.(deviceId),row=document.createElement('div');row.className='deviceLogRow';row.style.setProperty('--device-color',device?.color||'#69734f');row.dataset.level=(Number(fields.status)>=400||fields.status==='FAILED'||['FAILED','failed','invalid','locked','unavailable'].includes(fields.outcome))?'failed':'observed';const when=document.createElement('time');when.textContent=time(at);when.title=time(at,true);when.dateTime=at;const tag=document.createElement('span');tag.className='deviceTag';tag.textContent=device?`${device.number} ${device.name}`:'서버';const body=document.createElement('span');body.className='logBody';const origin=document.createElement('span');origin.className='sourceChip';origin.textContent=sources[source]||source;const name=document.createElement('strong');name.textContent=fields.kind||'기록';const data=document.createElement('small');data.textContent=logJson(fields);body.append(origin,name,data);row.append(when,tag,body);return row;}));if(!records.length)pre.textContent='기록 없음';pre.scrollTop=scrollTop;
   }
+}
+
+/** Upgrade existing module instances in the same document, retaining video and control ownership. */
+export function installLivePanelUpgrade(previous) {
+  if(typeof previous!=='function'||!previous.prototype?.renderLogs)throw Error('Incompatible QA panel');
+  for(const key of Object.getOwnPropertyNames(LivePanel.prototype)) {
+    if(key!=='constructor')Object.defineProperty(previous.prototype,key,Object.getOwnPropertyDescriptor(LivePanel.prototype,key));
+  }
+  for(const group of document.querySelectorAll('.logSourceButtons')) {
+    for(const [kind,label] of [['action','조작'],['screen','화면']]) {
+      if(group.querySelector(`[data-log-source="${kind}"]`))continue;
+      const button=document.createElement('button');button.type='button';button.dataset.logSource=kind;
+      button.setAttribute('aria-pressed','false');button.textContent=label;
+      group.insertBefore(button,group.querySelector('[data-log-source="http"]'));
+    }
+  }
+  return {schemaVersion:2,documentPreserved:true,panels:document.querySelectorAll('.logSourceButtons').length};
 }

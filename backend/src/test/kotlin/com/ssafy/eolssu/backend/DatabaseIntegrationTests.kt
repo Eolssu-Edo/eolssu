@@ -121,7 +121,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("44", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("45", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -298,7 +298,7 @@ class DatabaseIntegrationTests {
         assertJson("""["汰","潢","無","林","仲"]""", content("DANSO", 4, "$.pitchNames"))
         assertJson("""["㴌"]""", content("SOGEUM", 3, "$.pitchNames"))
         assertJson("""["취구","지공 6개"]""", content("SOGEUM", 1, "$.parts"))
-        assertJson(""""가로로 오른쪽을 향해 잡아요. 기본 운지틀은 정악대금과 같아요."""", content("DAEGEUM_SANJO", 2, "$.tasks[1].description"))
+        assertJson(""""왼쪽 어깨에 걸쳐 가로로 잡아요. 기본 운지틀은 정악대금과 같아요."""", content("DAEGEUM_SANJO", 2, "$.tasks[1].description"))
         assertJson("""["HIGH","LOW"]""", content("DAEGEUM_JEONGAK", 6, "$.ranges[*].blow"))
         assertJson("""["淋","㑣"]""", content("DAEGEUM_JEONGAK", 6, "$.ranges[*].firstPitch"))
         assertJson("""{"title":"풍년가","meta":"굿거리장단"}""", content("DANSO", 8, "$.songs[5]"))
@@ -309,6 +309,12 @@ class DatabaseIntegrationTests {
             assertJson("""["혀치기"]""", content(track, 7, "$.tasks[*].title"))
         }
         assertJson(""""같은 음을 \"투·투·투\" 혀로 끊어 4번 반복해요."""", content("SOGEUM", 7, "$.tasks[0].description"))
+        // V45(S15P31E102-1063): 부는 법·잡는 법 문구를 국립국악원 자료에 맞춘다.
+        assertJson(""""입술을 옆으로 펴 아랫입술에 취구를 대요."""", content("DANSO", 3, "$.tasks[0].description"))
+        assertJson(""""아랫입술을 펴고 취구를 입술 가운데 대요."""", content("DAEGEUM_JEONGAK", 3, "$.tasks[0].description"))
+        assertJson(""""'휘' 하듯 약하게, 반은 취구 안으로 불어요."""", content("SOGEUM", 3, "$.tasks[1].description"))
+        assertJson(""""입김을 가늘게 모아 약하게 불어요."""", content("DAEGEUM_SANJO", 3, "$.tasks[1].description"))
+        assertJson(""""가로로 오른쪽을 향해 잡아요. 왼손이 취구 쪽 세 구멍, 오른손이 아래 세 구멍을 막아요."""", content("SOGEUM", 2, "$.tasks[1].description"))
         assertJson(""""같은 음을 고르게 끊어 내는지 봐요(예시)."""", content("DANSO", 7, "$.passCriteria.description"))
 
         assertMysqlError(1062, "lessons.uq_lessons_track_seq") {

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.guide
 
+import com.ssafy.eolssu.core.diagnostics.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -89,6 +90,19 @@ fun rememberReferenceAudioController(
         state = if (state.instrument == instrument) state else ReferenceAudioUiState(instrument),
         playback = playback,
         play = { selection, kind ->
+            UserActionLog.event(QaKind.CONTENT_SELECTED, QaTarget.REFERENCE_AUDIO, content = if (kind == ReferenceAudioKind.Basic) QaContent.BASIC else QaContent.YOSEONG)
+            UserActionLog.event(QaKind.CONTENT_SELECTED, QaTarget.FINGERING, content = when (selection.instrument) {
+                GuideInstrument.Danso -> QaContent.DANSO; GuideInstrument.Sogeum -> QaContent.SOGEUM
+                GuideInstrument.DaegeumJeongak -> QaContent.DAEGEUM_JEONGAK; GuideInstrument.DaegeumSanjo -> QaContent.DAEGEUM_SANJO
+            })
+            val pitch = when (selection.displayYulmyeong) {
+                "황" -> QaContent.HWANG; "태" -> QaContent.TAE; "중" -> QaContent.JUNG; "임" -> QaContent.IM; "무" -> QaContent.MU; "남" -> QaContent.NAM; "고" -> QaContent.GO; "협" -> QaContent.HYEOP
+                "청중" -> QaContent.CHEONG_JUNG; "청임" -> QaContent.CHEONG_IM; "청무" -> QaContent.CHEONG_MU; "청황" -> QaContent.CHEONG_HWANG; "청태" -> QaContent.CHEONG_TAE
+                "탁임" -> QaContent.TAK_IM; "탁남" -> QaContent.TAK_NAM; "탁무" -> QaContent.TAK_MU; "청고" -> QaContent.CHEONG_GO; "청남" -> QaContent.CHEONG_NAM; "청협" -> QaContent.CHEONG_HYEOP
+                "중청황" -> QaContent.JUNG_CHEONG_HWANG; "중청태" -> QaContent.JUNG_CHEONG_TAE; "중청고" -> QaContent.JUNG_CHEONG_GO; "중청중" -> QaContent.JUNG_CHEONG_JUNG; "중청임" -> QaContent.JUNG_CHEONG_IM
+                else -> QaContent.UNIDENTIFIED
+            }
+            UserActionLog.event(QaKind.CONTENT_SELECTED, QaTarget.REFERENCE_AUDIO, content = pitch)
             viewModel.uiState.value.clipFor(selection, kind)?.let { clip ->
                 val current = player.state.value
                 // 받아 둔 파일로 재생에 실패했으면 이번에는 원격 주소로 다시 받는다.

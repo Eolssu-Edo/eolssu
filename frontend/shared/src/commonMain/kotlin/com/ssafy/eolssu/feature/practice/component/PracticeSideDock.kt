@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -51,8 +54,6 @@ import eolssu.shared.generated.resources.practice_fingering_rest
 import eolssu.shared.generated.resources.practice_fingering_title
 import eolssu.shared.generated.resources.practice_jangdan_sound_on
 import eolssu.shared.generated.resources.practice_menu_jangdan
-import eolssu.shared.generated.resources.practice_live_marks
-import eolssu.shared.generated.resources.practice_notation_hangul
 import eolssu.shared.generated.resources.practice_menu_tempo
 import eolssu.shared.generated.resources.practice_settings
 import org.jetbrains.compose.resources.stringResource
@@ -141,28 +142,7 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
         QuickRow(stringResource(Res.string.practice_fingering_title), noteLabel, on = false, locked = false) {
             actions.onOpen(PracticePanel.Fingering)
         }
-        // ‘한글 읽는 법 표시’는 하위 화면 없이 바로 켜고 끈다(S15P31E102-875).
-        val hangulLabel = stringResource(Res.string.practice_notation_hangul)
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                .drawBehind { drawLine(colors.line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(hangulLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
-            EolssuSwitch(settings.showHangul, actions.onToggleHangul, hangulLabel)
-        }
-        // ‘실시간 채점’은 AI 연주 평가에서만 둔다(S15P31E102-980).
-        if (!state.solo) {
-            val liveLabel = stringResource(Res.string.practice_live_marks)
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    .drawBehind { drawLine(colors.line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(liveLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
-                EolssuSwitch(settings.liveMarks, actions.onToggleLiveMarks, liveLabel)
-            }
-        }
+        // ‘한글 표기’·‘퍼펙트 스코어’는 상단 바의 보기 버튼에서 켜고 끈다(S15P31E102-1037).
         val bigLabel = stringResource(Res.string.practice_big_score)
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(bigLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
@@ -191,7 +171,7 @@ private fun QuickRow(label: String, status: String, on: Boolean, locked: Boolean
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .alpha(if (locked) 0.45f else 1f)
-            .clickable(enabled = !locked, role = Role.Button, onClick = onClick)
+            .clickable(enabled = !locked, role = Role.Button, onClick = UserActionLog.click(QaTarget.PRACTICE_SIDE_DOCK_01, onClick))
             .drawBehind { drawLine(colors.line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) }
             .padding(horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically,

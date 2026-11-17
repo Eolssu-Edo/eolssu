@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.exp
+import kotlin.time.TimeSource
 
 /**
  * 내 악보 목록과 각 악보의 변환 상태. 연습곡 고르기 '내 악보' 탭과 악보 추가(EDIT-01) 화면이 함께 쓴다.
@@ -108,22 +109,50 @@ internal fun conversionProgress(conversion: SheetConversion, readingElapsedMs: L
 
 /**
  * 읽기 시작부터 [elapsedMs]가 지났을 때 읽기 구간을 얼마나 채웠을지의 어림값(0 ~ [READING_ESTIMATE_CAP]).
- * 쪽당 예상 시간에 쪽 수를 곱한 시간 상수로 천천히 다가가며, 서버가 끝났다고 하기 전에는 다 차지 않는다.
- * 쪽당 시간은 운영 서버 실측(오선보 1쪽 25~30초, S15P31E102-468)과 정간보 글자 층이 더 빠른 점에서 잡은 대략값이다.
+ * 예상 시간(쪽당 시간 × 쪽 수)이 지나면 읽기 구간의 80% 남짓을 채우도록 다가가며, 서버가 끝났다고 하기 전에는 다 차지 않는다.
+ * 쪽당 시간은 운영 서버 실측(오선보 1쪽 25~30초 S15P31E102-468, 2쪽 약 65초 2026-11-16 에뮬레이터)과
+ * 정간보 글자 층이 더 빠른 점에서 잡은 대략값이다.
  */
 internal fun readingEstimate(elapsedMs: Long, pageCount: Int, notation: SheetNotation?): Float {
     if (elapsedMs <= 0) return 0f
     val perPage = if (notation == SheetNotation.Jeongganbo) READING_MS_PER_PAGE_JEONGGANBO else READING_MS_PER_PAGE_STAFF
     val expected = perPage * pageCount.coerceAtLeast(1)
-    return ((1 - exp(-elapsedMs.toDouble() / expected)) * READING_ESTIMATE_CAP).toFloat()
+    return ((1 - exp(-READING_ESTIMATE_RATE * elapsedMs / expected)) * READING_ESTIMATE_CAP).toFloat()
+}
+
+/**
+ * 목록 줄이 악보마다 '읽는 중'을 처음 본 시각을 앱 실행 동안 기억해, 지난 시간을 [conversionProgress]에 넘긴다(S15P31E102-1064).
+ * 목록은 화면 ViewModel이 바뀌어도(악보 추가 화면 ↔ 내 악보 탭, 나갔다 다시 들어오기) 같은 기준을 써서 막대가 처음으로 돌아가지 않는다.
+ * 변환이 끝나면(완료·실패) 기록을 지워 다시 시도할 때 처음부터 센다. 화면(메인 스레드)에서만 부른다.
+ */
+internal class ConversionReadingClock(private val nowMs: () -> Long) {
+    private val readingSince = mutableMapOf<String, Long>()
+
+    /** 이 변환이 '읽는 중'이 된 뒤 지난 시간. 읽는 중이 아니면 0. */
+    fun elapsedMs(conversion: SheetConversion): Long {
+        if (!conversion.status.inProgress) readingSince.remove(conversion.sheetId)
+        if (conversionStep(conversion) !is ConversionStep.Reading) return 0
+        val now = nowMs()
+        return now - readingSince.getOrPut(conversion.sheetId) { now }
+    }
+
+    companion object {
+        /** 목록 줄이 함께 쓰는 시계. */
+        val Shared: ConversionReadingClock by lazy {
+            val start = TimeSource.Monotonic.markNow()
+            ConversionReadingClock { start.elapsedNow().inWholeMilliseconds }
+        }
+    }
 }
 
 private const val PROGRESS_QUEUED = 0.05f
 private const val PROGRESS_READING_START = 0.1f
-private const val PROGRESS_READING_END = 0.8f
-private const val PROGRESS_BUILDING = 0.9f
+private const val PROGRESS_READING_END = 0.85f
+private const val PROGRESS_BUILDING = 0.92f
 private const val READING_ESTIMATE_CAP = 0.95
-private const val READING_MS_PER_PAGE_STAFF = 28_000.0
+/** 예상 시간이 지났을 때 1 - e^-2 ≈ 86%(상한을 곱해 약 82%)를 채우는 빠르기. */
+private const val READING_ESTIMATE_RATE = 2.0
+private const val READING_MS_PER_PAGE_STAFF = 32_000.0
 private const val READING_MS_PER_PAGE_JEONGGANBO = 10_000.0
 
 /** 변환 다시 시도 뒤 한 번 보일 안내. */

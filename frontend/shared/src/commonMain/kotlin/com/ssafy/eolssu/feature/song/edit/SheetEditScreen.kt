@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -141,7 +144,8 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
         }
         val inputPanel: @Composable (docked: Boolean) -> Unit = { docked ->
             EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.supportedInputPitches, state.canUndo, state.canRedo, actions.input,
-                saveFeedback = { SheetSaveFeedback(state, actions.onRetryDraft) }, adaptationContent = adaptationContent, docked = docked)
+                saveFeedback = { SheetSaveFeedback(state, actions.onRetryDraft) }, adaptationContent = adaptationContent, docked = docked,
+                hasTempoPlan = state.hasTempoPlan, expanded = state.inputPanelExpanded)
         }
         if (expanded) {
             SheetEditExpandedLayout(tempoRow = tempoRow, scoreBoard = scoreBoard, inputPanel = { inputPanel(true) })
@@ -165,7 +169,7 @@ private fun TempoEditButton(onClick: () -> Unit, enabled: Boolean) {
             .minimumInteractiveComponentSize()
             .size(36.dp)
             .clip(RoundedCornerShape(10.dp))
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_SCREEN_01, onClick))
             .semantics { contentDescription = label }
             .alpha(if (enabled) 1f else 0.45f),
         contentAlignment = Alignment.Center,

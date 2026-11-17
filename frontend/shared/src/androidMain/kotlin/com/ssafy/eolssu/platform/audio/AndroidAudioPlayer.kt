@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.platform.audio
 
+import com.ssafy.eolssu.core.diagnostics.*
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -74,7 +75,14 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
         }
     }
 
-    override fun load(source: AudioSource, positionMs: Long, speed: Float) = dispatch {
+    private var qaInteraction = QaInteraction(0, true)
+    private fun qa(outcome: QaOutcome) = UserActionLog.event(QaKind.AUDIO_STATE, QaTarget.REFERENCE_AUDIO, outcome, qaInteraction)
+
+    override fun load(source: AudioSource, positionMs: Long, speed: Float) {
+        val interaction = UserActionLog.capture()
+        dispatch {
+        qaInteraction = interaction
+        qa(QaOutcome.LOADING)
         disposeMedia()
         _state.value = AudioPlaybackState(source.id, AudioPlaybackStatus.Loading, positionMs.coerceAtLeast(0))
         val localFile = source.localFile
@@ -100,6 +108,7 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
                             abandonFocus()
                         } else disposeMedia()
                         _state.value = completed
+                        qa(QaOutcome.COMPLETED)
                     }.onFailure { fail() }
                 }
             }
@@ -134,6 +143,8 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
         }.onFailure { fail() }
     }
 
+    }
+
     override fun resume(speed: Float) = dispatch {
         if (!validSpeed(speed)) return@dispatch fail()
         this.speed = speed
@@ -146,6 +157,7 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
             val paused = _state.value.copy(status = AudioPlaybackStatus.Paused)
             disposeMedia()
             _state.value = paused
+            qa(QaOutcome.PAUSED)
         } else if (_state.value.status == AudioPlaybackStatus.Playing) {
             runCatching {
                 current.pause()
@@ -188,6 +200,7 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
     }
 
     override fun stop() = dispatch {
+        if (_state.value.status in setOf(AudioPlaybackStatus.Loading, AudioPlaybackStatus.Playing, AudioPlaybackStatus.Paused)) qa(QaOutcome.STOPPED)
         disposeMedia()
         _state.value = AudioPlaybackState()
     }
@@ -211,6 +224,7 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
             // Setting PlaybackParams can start prepared media, so acquire focus first.
             current.playbackParams = PlaybackParams().allowDefaults().setSpeed(speed).setPitch(1f)
             current.start()
+            qa(QaOutcome.STARTED)
             handler.removeCallbacks(prepareTimeout)
             registerNoisyReceiver()
             _state.value = _state.value.copy(status = AudioPlaybackStatus.Playing, positionMs = position,
@@ -260,12 +274,14 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
         val interrupted = snapshot(AudioPlaybackStatus.Interrupted)
         disposeMedia()
         _state.value = interrupted
+        qa(QaOutcome.INTERRUPTED)
     }
 
     private fun fail() {
         val failed = snapshot(AudioPlaybackStatus.Failed)
         disposeMedia()
         _state.value = failed
+        qa(QaOutcome.FAILED)
     }
 
     private fun snapshot(status: AudioPlaybackStatus): AudioPlaybackState = _state.value.copy(status = status,

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.home.layout
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
@@ -76,6 +79,7 @@ import com.ssafy.eolssu.feature.home.HomeStageFlingBehavior
 import com.ssafy.eolssu.feature.home.HomeStatusBarIcons
 import com.ssafy.eolssu.feature.home.PrepareHomeFonts
 import com.ssafy.eolssu.feature.home.homeArtKind
+import com.ssafy.eolssu.feature.home.homeArtLift
 import com.ssafy.eolssu.feature.home.homeHeroTitle
 import com.ssafy.eolssu.feature.home.HomeTitleGap
 import com.ssafy.eolssu.feature.home.HomeTitleLogoHeight
@@ -248,10 +252,11 @@ internal fun HomeScrollLayout(
                         .fillMaxWidth().height((h + overflow).dp),
                 ) {
                     HomeArt(
-                        artKind, artLeft, artWidth, heroY, frame.groundTop + heroY, frame.eased, homeGround,
+                        artKind, artLeft, artWidth, heroY, frame.groundTop + heroY, frame.eased,
+                        homeArtLift(artKind, w, h, buttonH) * (1f - frame.eased), homeGround,
                         Modifier.fillMaxSize().clickable(
                             interactionSource = remember { MutableInteractionSource() }, indication = null,
-                            enabled = frame.progress < .6f, onClick = open,
+                            enabled = frame.progress < .6f, onClick = UserActionLog.click(QaTarget.HOME_SCROLL_LAYOUT_01, open),
                         ).clearAndSetSemantics {},
                     )
                     if (expanded) {
@@ -300,7 +305,7 @@ internal fun HomeScrollLayout(
                     val buttonLeft = mix((w - buttonW) / 2f,
                         if (expanded) contentLeft + (finalHeroW - buttonW) / 2f else (w - buttonW) / 2f, frame.eased)
                     HomeInkButton(
-                        onClick = onStartEvaluation,
+                        onClick = UserActionLog.click(QaTarget.HOME_SCROLL_LAYOUT_02, onStartEvaluation),
                         darkBackground = frame.darkBehindButton,
                         scrollProgress = frame.progress,
                         reduceMotion = reduceMotion,
@@ -327,7 +332,7 @@ internal fun HomeScrollLayout(
                                 .graphicsLayer { alpha = frame.arrowAlpha }
                                 // 아이콘만 있는 버튼이라 눌림 효과를 48dp 원으로 둔다(S15P31E102-968).
                                 .clip(CircleShape)
-                                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.home_scroll_to_features), onClick = openToBottom),
+                                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.home_scroll_to_features), onClick = UserActionLog.click(QaTarget.HOME_SCROLL_LAYOUT_03, openToBottom)),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(EolssuIcons.ChevronDown, stringResource(Res.string.home_scroll_to_features),
@@ -358,7 +363,7 @@ internal fun HomeScrollLayout(
  * 띠 아래 끝은 자르지 않고 [HomeArtFadeBelow]만큼 더 그린 뒤 바탕색으로 흐려 아래 카드 바탕과 이어지게 한다(S15P31E102-1015).
  */
 @Composable
-private fun HomeArt(kind: HomeArtKind, left: Float, width: Float, top: Float, ground: Float, progress: Float, groundColor: Color, modifier: Modifier) {
+private fun HomeArt(kind: HomeArtKind, left: Float, width: Float, top: Float, ground: Float, progress: Float, lift: Float, groundColor: Color, modifier: Modifier) {
     val painter = painterResource(
         when (kind) {
             HomeArtKind.PhonePortrait -> Res.drawable.home_art_phone_portrait
@@ -376,9 +381,22 @@ private fun HomeArt(kind: HomeArtKind, left: Float, width: Float, top: Float, gr
         )
         val fadeTop = ground - HomeArtFadeAbove
         val fadeBottom = ground + HomeArtFadeBelow
+        val imageTop = top + place.y - lift
+        val size = androidx.compose.ui.geometry.Size(place.width * d, place.height * d)
         clipRect(left = left * d, top = top * d, right = (left + width) * d, bottom = fadeBottom * d) {
-            translate((left + place.x) * d, (top + place.y) * d) {
-                with(painter) { draw(androidx.compose.ui.geometry.Size(place.width * d, place.height * d)) }
+            translate((left + place.x) * d, imageTop * d) { with(painter) { draw(size) } }
+            // 올린 그림 아래 빈 곳은 그림 아래 먹 띠의 아래쪽 3/4를 이어 붙여 채운다.
+            val band = kind.bandTop
+            if (lift > 0f && band != null) {
+                val stripTop = place.height * (band + (1f - band) * .25f)
+                val strip = place.height - stripTop
+                var y = imageTop + place.height
+                while (y < fadeBottom && strip > 1f) {
+                    clipRect(top = y * d, bottom = (y + strip) * d) {
+                        translate((left + place.x) * d, (y - stripTop) * d) { with(painter) { draw(size) } }
+                    }
+                    y += strip
+                }
             }
         }
         val stops = Array(9) { i ->

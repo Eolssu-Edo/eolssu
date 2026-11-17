@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.profile
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.aspectRatio
@@ -93,7 +96,7 @@ fun ProfileImageScreen(
         widthClass,
         stringResource(Res.string.my_profile_change),
         onBack,
-        bottomBar = { EolssuButton(stringResource(Res.string.my_save), onClick = onSave) },
+        bottomBar = { EolssuButton(stringResource(Res.string.my_save), onClick = UserActionLog.click(QaTarget.PROFILE_IMAGE_SCREEN_01, onSave), qaTarget = QaTarget.PROFILE_IMAGE_SCREEN_BUTTON_01) },
         gap = 12.dp,
         topPadding = 8.dp,
         containerColor = colors.groupedBackground,
@@ -136,7 +139,7 @@ private fun ProfileImageOption(image: ProfileImage, selected: Boolean, onClick: 
         modifier
             .clip(RoundedCornerShape(16.dp))
             .background(if (selected) colors.groupedBackground else Color.Transparent)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = UserActionLog.click(QaTarget.PROFILE_IMAGE_SCREEN_02, onClick))
             .semantics { contentDescription = label }
             .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center,

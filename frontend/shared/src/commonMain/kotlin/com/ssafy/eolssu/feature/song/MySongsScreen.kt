@@ -1,10 +1,14 @@
 package com.ssafy.eolssu.feature.song
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -15,10 +19,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.component.ChipRow
+import com.ssafy.eolssu.core.ui.component.EolssuChip
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
@@ -38,7 +45,10 @@ import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_reset_filter
 import eolssu.shared.generated.resources.mysongs_sheet_count
+import eolssu.shared.generated.resources.mysongs_sheet_limit_note
+import com.ssafy.eolssu.feature.song.edit.MY_SHEET_LIMIT
 import eolssu.shared.generated.resources.mysongs_title
+import eolssu.shared.generated.resources.song_level_all
 import org.jetbrains.compose.resources.stringResource
 
 /** SONG-03 화면의 사용자 행동. */
@@ -50,6 +60,8 @@ class MySongsActions(
     val onClearQuery: () -> Unit,
     /** 제공 곡 빈 결과의 '검색 조건 초기화'·'전체 곡 보기': 검색어와 단계를 함께 되돌린다. */
     val onResetSongFilters: () -> Unit,
+    val onSelectSheetInstrument: (Instrument?) -> Unit,
+    val onResetSheetFilters: () -> Unit,
     val onToggleSort: () -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onOpenSheet: (MySheet) -> Unit,
@@ -146,22 +158,28 @@ internal fun MySongsBody(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SongSortButton(state.sort, actions.onToggleSort, Modifier.align(Alignment.End), small = true, bordered = false)
                         CardGrid(state.visibleSongs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
-                            ProvidedSongRow(song, providedSongMeta(song), onClick = { actions.onOpenSong(song.id) }, modifier = rowModifier, bordered = false)
+                            ProvidedSongRow(song, providedSongMeta(song), onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_01, { actions.onOpenSong(song.id) }), modifier = rowModifier, bordered = false)
                         }
                     }
                 }
             }
             MySongsTab.Sheets -> {
+                SheetInstrumentChips(state.sheetInstrument, actions.onSelectSheetInstrument)
                 AddSheetButton(actions.onAddSheet)
                 val sheets = state.visibleSheets
                 if (state.sheetLoadState != SongLoadState.Ready) SongLoadNotice(state.sheetLoadState, actions.onRetry)
-                if (sheets.isEmpty() && state.sheetCount > 0 && searching) {
-                    // 제공 곡 검색 빈 결과와 같은 문구('찾는 곡이 없어요.' · '검색 조건 초기화')를 쓴다(S15P31E102-812).
-                    SongEmptyResult(onReset = actions.onClearQuery)
+                if (state.sheetLoadState == SongLoadState.Ready && sheets.isEmpty() &&
+                    (state.sheetInstrument != null || (state.sheetCount > 0 && searching))
+                ) {
+                    SongEmptyResult(onReset = actions.onResetSheetFilters)
                 }
                 if (sheets.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ListNote(stringResource(Res.string.mysongs_sheet_count, sheets.size))
+                        // 거르거나 찾아도 저장 한도는 전체 개수로 센다(S15P31E102-1052).
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            ListNote(stringResource(Res.string.mysongs_sheet_count, state.sheetCount, MY_SHEET_LIMIT))
+                            ListNote(stringResource(Res.string.mysongs_sheet_limit_note, MY_SHEET_LIMIT))
+                        }
                         CardGrid(sheets, columns, itemKey = { it.id }, spacing = rowGap) { sheet, rowModifier ->
                             MySheetRow(
                                 sheet,
@@ -180,6 +198,18 @@ internal fun MySongsBody(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SheetInstrumentChips(selected: Instrument?, onSelect: (Instrument?) -> Unit) {
+    ChipRow(Modifier.selectableGroup()) {
+        EolssuChip(stringResource(Res.string.song_level_all), selected = selected == null,
+            onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_02, { onSelect(null) }), bordered = false)
+        Instrument.entries.forEach { instrument ->
+            EolssuChip(stringResource(instrument.label), selected = selected == instrument,
+                onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_03, { onSelect(instrument) }), bordered = false)
         }
     }
 }

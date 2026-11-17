@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import com.ssafy.eolssu.core.ui.component.SongSearchField
 import com.ssafy.eolssu.core.ui.component.SongSortButton
 import androidx.compose.foundation.BorderStroke
@@ -111,7 +114,7 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
                 ProvidedSongRow(
                     song,
                     providedSongMeta(song),
-                    onClick = { actions.onOpenSong(song.id) },
+                    onClick = UserActionLog.click(QaTarget.SONG_SEARCH_PARTS_01, { actions.onOpenSong(song.id) }),
                     modifier = Modifier.padding(bottom = 8.dp),
                     selected = song.id == selectedId,
                     bordered = false,
@@ -133,8 +136,8 @@ internal fun SongLevelChips(
     val chips: @Composable () -> Unit = {
         SongLevelFilter.entries.forEach { filter ->
             val level = filter.level
-            if (level == null) EolssuChip(songLevelFilterLabel(filter), selected = selected == filter, onClick = { onSelect(filter) }, bordered = bordered)
-            else EolssuLevelChip(level, selected = selected == filter, onClick = { onSelect(filter) }, bordered = bordered)
+            if (level == null) EolssuChip(songLevelFilterLabel(filter), selected = selected == filter, onClick = UserActionLog.click(QaTarget.SONG_SEARCH_PARTS_02, { onSelect(filter) }), bordered = bordered)
+            else EolssuLevelChip(level, selected = selected == filter, onClick = UserActionLog.click(QaTarget.SONG_SEARCH_PARTS_03, { onSelect(filter) }), bordered = bordered)
         }
     }
     if (singleLine) {
@@ -179,6 +182,6 @@ internal fun SongEmptyResult(
             color = EolssuTheme.colors.text,
             textAlign = TextAlign.Center,
         )
-        EolssuButton(resetLabel, onReset, style = EolssuButtonStyle.Secondary)
+        EolssuButton(resetLabel, onReset, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SONG_SEARCH_PARTS_BUTTON_01)
     }
 }

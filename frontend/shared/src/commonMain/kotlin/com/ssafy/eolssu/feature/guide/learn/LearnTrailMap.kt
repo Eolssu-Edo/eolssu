@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -70,6 +73,8 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuColors
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.KoreanParticle
+import com.ssafy.eolssu.core.ui.component.withParticle
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_tiger
 import eolssu.shared.generated.resources.learn_card_dot
@@ -125,7 +130,7 @@ internal fun LearnTrailMap(
                 viewed = stage.number == viewedStage,
                 paper = paper,
                 water = water,
-                onClick = { onShowStage(stage.number) },
+                onClick = UserActionLog.click(QaTarget.LEARN_TRAIL_MAP_01, { onShowStage(stage.number) }),
                 modifier = Modifier.offset(width * center.x - StoneWidth / 2, TrailHeight * center.y - NodeSize / 2),
             )
         }
@@ -240,7 +245,7 @@ internal fun LearnTrailMap(
 @Composable
 private fun TrailNode(stage: LearnStage, done: Boolean, viewed: Boolean, paper: Color, water: Color, onClick: () -> Unit, modifier: Modifier) {
     val colors = EolssuTheme.colors
-    val label = if (done) stringResource(Res.string.learn_trail_done, stage.number, stage.title) else stringResource(Res.string.learn_card_dot, stage.number, stage.title)
+    val label = if (done) stringResource(Res.string.learn_trail_done, stage.number, stage.title) else stringResource(Res.string.learn_card_dot, stage.number, stage.title.withParticle(KoreanParticle.EuroRo))
     val rock = remember(stage.number) { TrailRock(stage.number) }
     val dashed = stage.optional && !done && !viewed
     Box(
@@ -275,7 +280,7 @@ private fun TrailNode(stage: LearnStage, done: Boolean, viewed: Boolean, paper: 
                 val placeable = measurable.measure(Constraints.fixed(touch, touch))
                 layout(width, height) { placeable.place((width - touch) / 2, (height - touch) / 2) }
             }
-            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = UserActionLog.click(QaTarget.LEARN_TRAIL_MAP_02, onClick))
             .semantics {
                 contentDescription = label
                 selected = viewed

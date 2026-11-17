@@ -1,18 +1,25 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,17 +27,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.innerShadow
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -121,7 +132,7 @@ private fun PracticePlayerContent(
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(PlaybackSectionSpacing)) {
         if (step) {
             PracticeStepPanels(state, actions, Modifier.padding(bottom = 4.dp))
-            if (eval != null) EolssuButton(eval.label, eval.onClick, icon = EolssuIcons.Mic, enabled = eval.enabled)
+            if (eval != null) EolssuButton(eval.label, eval.onClick, icon = EolssuIcons.Mic, enabled = eval.enabled, qaTarget = QaTarget.PRACTICE_PLAYER_BUTTON_01)
         } else {
             PracticeModeSwitch(state, actions)
             PracticePlayerTimeline(state, actions)
@@ -154,7 +165,7 @@ private fun PracticePlayerTimeline(state: PracticeUiState, actions: PracticeBott
         // 끄는 동안에는 재생 위치 보고와 분리하고, 놓을 때 한 번만 음원을 이동한다.
         PlaybackPositionSlider(
             value = draggedFraction ?: state.playerFraction,
-            onValueChange = { draggedFraction = it },
+            onValueChange = UserActionLog.change(QaTarget.PRACTICE_PLAYER_01, { draggedFraction = it }),
             onValueChangeFinished = { draggedFraction?.let(actions.onSeekToFraction); draggedFraction = null },
             enabled = canSeek,
             label = stringResource(Res.string.record_detail_seek),
@@ -213,6 +224,7 @@ private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownloa
     val label = stringResource(
         when (personalAudio) {
             PracticePersonalAudio.Checking -> Res.string.practice_sheet_audio_checking
+            PracticePersonalAudio.Queued -> Res.string.practice_sheet_audio_queued
             PracticePersonalAudio.Preparing -> Res.string.practice_sheet_audio_preparing
             PracticePersonalAudio.Downloading -> Res.string.practice_sheet_audio_downloading
             PracticePersonalAudio.Unsupported -> Res.string.practice_player_unsupported
@@ -225,6 +237,8 @@ private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownloa
     Box(modifier.height(52.dp), contentAlignment = Alignment.Center) {
         if (personalAudio == PracticePersonalAudio.Missing || personalAudio == PracticePersonalAudio.Failed) {
             PlaybackActionButton(label, onDownload, Modifier.fillMaxWidth())
+        } else if (personalAudio in PersonalAudioWorking) {
+            PersonalAudioProgress(label, Modifier.fillMaxWidth())
         } else {
             Text(
                 label,
@@ -233,6 +247,29 @@ private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownloa
                 color = EolssuTheme.colors.textMuted,
                 textAlign = TextAlign.Center,
             )
+        }
+    }
+}
+
+/** 확인·대기·생성·다운로드처럼 기다리는 상태. 버튼 자리에 눌린 버튼 모양으로 회전 표시와 한 줄 문구를 둔다(S15P31E102-1039). */
+private val PersonalAudioWorking = setOf(
+    PracticePersonalAudio.Checking, PracticePersonalAudio.Queued, PracticePersonalAudio.Preparing, PracticePersonalAudio.Downloading,
+)
+
+@Composable
+private fun PersonalAudioProgress(label: String, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    val shape = RoundedCornerShape(14.dp)
+    // 받기 버튼을 누른 채로 기다리는 느낌: 옅은 연두 바탕이 위쪽 안 그림자로 꺼져 보이게 한다.
+    Surface(
+        modifier.fillMaxHeight()
+            .innerShadow(shape, Shadow(radius = 5.dp, color = colors.accentText.copy(alpha = 0.25f), offset = DpOffset(0.dp, 2.dp)))
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        shape = shape, color = colors.accentTintStrong,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(Modifier.size(18.dp), color = colors.accentText, trackColor = colors.accentTintLine, strokeWidth = 2.5.dp)
+            Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = colors.accentText, maxLines = 1)
         }
     }
 }
@@ -325,7 +362,7 @@ private fun PracticeModeSwitch(state: PracticeUiState, actions: PracticeBottomAc
             val enabled = index == 0 || state.jangdanSupported
             Box(
                 Modifier.weight(1f).clip(pill).background(if (selected) colors.surface else Color.Transparent)
-                    .selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = select)
+                    .selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = UserActionLog.click(QaTarget.PRACTICE_PLAYER_02, select))
                     .heightIn(min = 40.dp).padding(horizontal = 8.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {

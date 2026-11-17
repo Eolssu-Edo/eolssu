@@ -1,24 +1,25 @@
 <resources>
     <string name="sheet_tempo_whole">전체 빠르기</string>
-    <string name="sheet_tempo_changes">구간 빠르기</string>
-    <string name="sheet_tempo_none">구간 변경이 없어요</string>
+    <string name="sheet_tempo_changes_help">중간에 빠르기가 바뀌는 곳을 넣을 수 있어요.</string>
+    <string name="sheet_tempo_changes">중간에 바뀌는 빠르기</string>
+    <string name="sheet_tempo_none">아직 없어요</string>
     <string name="sheet_tempo_numeric">숫자로 변경</string>
-    <string name="sheet_tempo_unresolved">목표 빠르기 미지정 · 현재 빠르기를 유지해요</string>
+    <string name="sheet_tempo_unresolved">바꿀 빠르기가 없어 그대로 연주해요</string>
     <string name="sheet_tempo_edit">수정</string>
     <string name="sheet_tempo_remove">삭제</string>
-    <string name="sheet_tempo_add">구간 변경 추가</string>
-    <string name="sheet_tempo_kind">변경 종류</string>
+    <string name="sheet_tempo_add">바뀌는 곳 추가</string>
+    <string name="sheet_tempo_kind">바뀌는 방식</string>
     <string name="sheet_tempo_start_gak">시작 각</string>
     <string name="sheet_tempo_start_cell">시작 정간</string>
     <string name="sheet_tempo_step">바로</string>
     <string name="sheet_tempo_ramp">점점</string>
-    <string name="sheet_tempo_target">목표 빠르기</string>
-    <string name="sheet_tempo_target_help">숫자가 없으면 기호만 보존하고 속도는 바꾸지 않아요</string>
+    <string name="sheet_tempo_target">바꿀 빠르기</string>
+    <string name="sheet_tempo_target_help">비워 두면 빠르기가 그대로예요</string>
     <string name="sheet_tempo_end_gak">끝 각</string>
     <string name="sheet_tempo_end_cell">끝 정간</string>
-    <string name="sheet_tempo_end_help">끝 정간의 시작에서 목표 빠르기에 도달해요. 악보 끝은 마지막 다음 각의 1정간이에요.</string>
-    <string name="sheet_tempo_keep_change">이 구간 반영</string>
+    <string name="sheet_tempo_end_help">끝 정간에서 바꿀 빠르기가 돼요.</string>
+    <string name="sheet_tempo_keep_change">이대로 넣기</string>
     <string name="sheet_tempo_editing">수정 중</string>
-    <string name="sheet_tempo_new">새 구간 변경</string>
-    <string name="sheet_tempo_position_unresolved">빠르기 기호의 위치를 읽지 못했어요. 빠르기 편집에서 시작 위치를 지정해 주세요.</string>
+    <string name="sheet_tempo_new">새로 바뀌는 곳</string>
+    <string name="sheet_tempo_position_unresolved">빠르기가 바뀌는 곳을 못 찾았어요. 빠르기 편집에서 정해 주세요.</string>
 </resources>

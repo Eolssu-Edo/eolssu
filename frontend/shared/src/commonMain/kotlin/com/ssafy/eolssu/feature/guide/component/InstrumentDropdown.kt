@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -49,6 +53,7 @@ import com.ssafy.eolssu.feature.guide.FingeringInstrumentOption
 /**
  * '악기' + 드롭다운(`.fg-select`). 메뉴는 버튼 바로 아래에 열리고(아래가 모자라면 위로), 바깥을 누르면 [onDismiss]로 닫힌다.
  * 운지법 보기와 기초부터 배우기가 함께 쓴다. 선택 칸과 목록에 기초부터 배우기처럼 악기 그림을 함께 둔다(S15P31E102-768).
+ * 악기 목록을 받기 전에는 [enabled]를 끄고, 받는 중이면 [loading]으로 펼침 표시 대신 작은 로딩 표시를 둔다.
  */
 @Composable
 internal fun InstrumentDropdown(
@@ -59,6 +64,8 @@ internal fun InstrumentDropdown(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     options: List<FingeringInstrumentOption>? = null,
+    enabled: Boolean = true,
+    loading: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -73,7 +80,8 @@ internal fun InstrumentDropdown(
         var anchorWidth by remember { mutableIntStateOf(0) }
         Box(Modifier.weight(1f).onSizeChanged { anchorWidth = it.width }) {
             Surface(
-                onClick = onToggle,
+                onClick = UserActionLog.click(QaTarget.INSTRUMENT_DROPDOWN_01, onToggle),
+                enabled = enabled,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(44.dp)
@@ -92,7 +100,12 @@ internal fun InstrumentDropdown(
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
                     )
-                    Icon(
+                    if (loading) CircularProgressIndicator(
+                        Modifier.size(14.dp),
+                        color = colors.textMuted,
+                        trackColor = colors.lineSoft,
+                        strokeWidth = 2.dp,
+                    ) else Icon(
                         EolssuIcons.ChevronDown,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp).rotate(if (open) 180f else 0f),
@@ -106,7 +119,7 @@ internal fun InstrumentDropdown(
                     EolssuMenuPanel(width = width) {
                         (options?.map { it.instrument } ?: GuideInstrument.entries).forEach { instrument ->
                             val label = options?.firstOrNull { it.instrument == instrument }?.name ?: stringResource(instrument.label)
-                            InstrumentMenuItem(instrument, instrument == selected, onClick = { onSelect(instrument) }, label = label)
+                            InstrumentMenuItem(instrument, instrument == selected, onClick = UserActionLog.click(QaTarget.INSTRUMENT_DROPDOWN_02, { onSelect(instrument) }), label = label)
                         }
                     }
                 }

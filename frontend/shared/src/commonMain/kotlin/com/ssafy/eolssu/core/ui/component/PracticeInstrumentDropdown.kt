@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -63,7 +66,7 @@ fun PracticeInstrumentDropdown(
     val selectedLabel = stringResource(shown.label)
     Box(modifier.heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
         Surface(
-            onClick = { if (enabled) open = !open },
+            onClick = UserActionLog.click(QaTarget.PRACTICE_INSTRUMENT_DROPDOWN_01, { if (enabled) open = !open }),
             modifier = Modifier.semantics(mergeDescendants = true) {
                 role = Role.DropdownList
                 contentDescription = menuLabel
@@ -100,10 +103,10 @@ fun PracticeInstrumentDropdown(
             EolssuMenuPopup(onDismissRequest = { open = false }, align = EolssuMenuAlign.End) {
                 EolssuMenuPanel(width = 168.dp) {
                     PracticeInstruments.forEach { option ->
-                        InstrumentMenuItem(option, option == shown, onClick = {
+                        InstrumentMenuItem(option, option == shown, onClick = UserActionLog.click(QaTarget.PRACTICE_INSTRUMENT_DROPDOWN_02, {
                             open = false
                             onSelect(option)
-                        })
+                        }))
                     }
                 }
             }

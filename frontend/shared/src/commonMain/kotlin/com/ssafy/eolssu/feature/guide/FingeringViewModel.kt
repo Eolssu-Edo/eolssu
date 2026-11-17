@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.guide
 
+import com.ssafy.eolssu.core.diagnostics.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.data.song.InstrumentCatalog
@@ -41,6 +42,10 @@ class FingeringViewModel(
     fun selectInstrument(instrument: GuideInstrument) {
         if (instruments != null && _uiState.value.instrumentOptions.none { it.instrument == instrument }) return
         if (instrument == _uiState.value.instrument) { dismissDropdown(); return }
+        UserActionLog.event(QaKind.CONTENT_SELECTED, QaTarget.FINGERING, content = when (instrument) {
+            GuideInstrument.Danso -> QaContent.DANSO; GuideInstrument.Sogeum -> QaContent.SOGEUM
+            GuideInstrument.DaegeumJeongak -> QaContent.DAEGEUM_JEONGAK; GuideInstrument.DaegeumSanjo -> QaContent.DAEGEUM_SANJO
+        })
         catalogJob?.cancel()
         _uiState.update { it.selectInstrument(instrument).copy(catalogPitches = emptyList(), catalogFingerings = CatalogFingerings(emptyList()), playing = null) }
         retryCatalog()
@@ -90,7 +95,12 @@ class FingeringViewModel(
         }
     }
 
-    fun selectBlow(blow: Blow) = _uiState.update { it.selectBlow(blow) }
+    fun selectBlow(blow: Blow) {
+        UserActionLog.event(QaKind.CONTENT_SELECTED, QaTarget.FINGERING, content = when (blow) {
+            Blow.Low -> QaContent.LOW; Blow.Mid -> QaContent.MID; Blow.High -> QaContent.HIGH
+        })
+        _uiState.update { it.selectBlow(blow) }
+    }
 
     fun listen(hanja: String) = _uiState.update { it.listen(hanja) }
 

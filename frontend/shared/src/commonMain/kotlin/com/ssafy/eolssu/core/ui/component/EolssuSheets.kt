@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -72,12 +76,17 @@ fun EolssuBottomSheet(
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     body: @Composable ColumnScope.() -> Unit,
 ) {
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        UserActionLog.event(QaKind.MODAL_OPEN, QaTarget.DIALOG)
+        onDispose { UserActionLog.event(QaKind.MODAL_CLOSE, QaTarget.DIALOG) }
+    }
+
     val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
     // 연두 보드 `.sheet`: 흰 바탕, 위 반지름 24, 손잡이 40×4(위 12 · 아래 2), 안쪽 여백 20 · 아래 34, 스크림 먹색 45%.
     // 시트가 내용 아래에 시스템 하단 여백(홈 막대·내비게이션 바)을 이미 넣으므로 아래 34는 그 여백과 합쳐 계산한다.
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        modifier = modifier,
+        modifier = modifier.qaModalInput(),
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = containerColor ?: EolssuTheme.colors.surface,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
@@ -164,7 +173,7 @@ fun EolssuSwitch(
 ) {
     val colors = EolssuTheme.colors
     Surface(
-        onClick = onToggle,
+        onClick = UserActionLog.click(QaTarget.EOLSSU_SHEETS_01, onToggle),
         enabled = enabled,
         // 누를 수 없으면 앱 버튼(`EolssuButton`)과 같이 0.45로 흐린다(S15P31E102-969).
         modifier = modifier
@@ -226,6 +235,8 @@ fun ToggleRow(
  * @param onDismissRequest 바깥(가림막)을 누르거나 뒤로 갈 때. 닫기 버튼 없이 이렇게 닫는 창만 넘긴다.
  * @param iconBackground 아이콘 고리 바탕. 기본 연두 20%(`accentTint`), 경고는 `recSoft`, 완료는 `accentTintStrong`.
  * @param iconTint 아이콘 색. 기본 먹색, 경고는 `recText`.
+ * @param body 설명 아래, 제목과 함께 스크롤되는 내용(입력칸 등). 높이가 바뀌는 내용은 [actions] 대신 여기에 두어야
+ *   내용이 길어지거나 키보드가 올라와도 버튼이 눌려 잘리지 않는다(S15P31E102-1081).
  */
 @Composable
 fun EolssuDialog(
@@ -237,8 +248,14 @@ fun EolssuDialog(
     iconBackground: Color? = null,
     iconTint: Color? = null,
     onDismissRequest: () -> Unit = {},
+    body: (@Composable ColumnScope.() -> Unit)? = null,
     actions: @Composable ColumnScope.() -> Unit,
 ) {
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        UserActionLog.event(QaKind.MODAL_OPEN, QaTarget.DIALOG)
+        onDispose { UserActionLog.event(QaKind.MODAL_CLOSE, QaTarget.DIALOG) }
+    }
+
     val colors = EolssuTheme.colors
     Dialog(onDismissRequest = onDismissRequest, properties = eolssuDialogProperties()) {
         // 창을 화면 크기로 고정하고 시스템 바·키보드 여백은 여기서만 넣는다. 창이 내용에 맞춰 줄면 키보드와 겹치는 높이가
@@ -246,7 +263,7 @@ fun EolssuDialog(
         // 창이 화면을 덮으므로 바깥 누름은 플랫폼 대신 여기서 받아 닫는다.
         val dismiss by rememberUpdatedState(onDismissRequest)
         Box(
-            Modifier.fillMaxSize()
+            Modifier.fillMaxSize().qaModalInput()
                 .pointerInput(Unit) { detectTapGestures { dismiss() } }
                 .windowInsetsPadding(WindowInsets.safeDrawing),
             contentAlignment = Alignment.Center,
@@ -283,6 +300,7 @@ fun EolssuDialog(
                         color = colors.textSub,
                     )
                 }
+                body?.invoke(this)
             }
             Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
         }

@@ -92,17 +92,38 @@ internal fun homeExpandedHero(
 }
 
 /**
- * 창 모양에 따라 고르는 홈 그림. 휴대폰 세로·태블릿 세로·가로 창마다 구도를 따로 잡은 그림을 쓴다(S15P31E102-983, 그림 교체 S15P31E102-1015).
+ * 창 모양에 따라 고르는 홈 그림. 휴대폰 세로·태블릿 세로·가로 창마다 구도를 따로 잡은 그림을 쓴다(S15P31E102-983, 그림 교체 S15P31E102-1015·1049).
  * 휴대폰은 회전을 막아 가로 화면을 지원하지 않으므로 휴대폰 가로 그림은 두지 않는다(S15P31E102-1025).
  *
  * @property aspect 그림의 높이/너비 비.
  * @property openFocusX 펼친 화면의 그림 띠에 남길 가로 위치(0 왼쪽 끝 ~ 1 오른쪽 끝).
  * @property openFocusY 펼친 화면의 그림 띠에 남길 세로 위치(0 위 끝 ~ 1 아래 끝). 전각과 연주자가 띠에 들어오는 값이다.
  */
-internal enum class HomeArtKind(val aspect: Float, val openFocusX: Float, val openFocusY: Float) {
-    PhonePortrait(1254f / 580f, .5f, .62f),
-    TabletPortrait(1028f / 644f, .5f, .55f),
-    TabletLandscape(992f / 1586f, .45f, .5f),
+internal enum class HomeArtKind(
+    val aspect: Float,
+    val openFocusX: Float,
+    val openFocusY: Float,
+    /** 그림 아래쪽 가로 먹 띠가 시작하는 높이(그림 높이 비율). 첫 화면에서 이 띠를 시작 버튼 위로 올려 흰 버튼 글자 뒤를 먹으로 둔다. */
+    val bandTop: Float?,
+) {
+    // 그림 크기와 아래 먹 띠 시작 행은 frontend/tools/home-art/refine_phone.py·refine_tablet.py가 만든 그림에서 잰 값이다(S15P31E102-1049).
+    PhonePortrait(2087f / 1080f, .5f, .62f, 1650f / 2087f),
+    TabletPortrait(2560f / 1600f, .5f, .6f, 2024f / 2560f),
+    TabletLandscape(1600f / 2560f, .35f, .5f, 1430f / 1600f),
+}
+
+/** 첫 화면에서 아래 먹 띠가 시작 버튼 위보다 먼저 시작하도록 남기는 간격(dp). 흰 버튼 글자 뒤가 늘 먹이 되게 한다. */
+internal const val HomeArtBandAboveButton = 16f
+
+/**
+ * 첫 화면에서 그림을 위로 올리는 양(dp, S15P31E102-1034). 그림 아래 가로 먹 띠가 시작 버튼 위 [HomeArtBandAboveButton]에서
+ * 시작하게 하고, 그림 아래로 빈 곳은 먹 띠를 이어 그린다. 올린 만큼 오른쪽 사선 먹 영역도 함께 올라와 제목을 크게 둘 수 있다.
+ */
+internal fun homeArtLift(kind: HomeArtKind, width: Float, height: Float, buttonHeight: Float): Float {
+    val band = kind.bandTop ?: return 0f
+    val place = homeArtPlacement(kind, width, height, .5f, .5f)
+    val buttonTop = (height - 88f - buttonHeight).coerceAtLeast(80f)
+    return (place.y + place.height * band - (buttonTop - HomeArtBandAboveButton)).coerceAtLeast(0f)
 }
 
 /** 세로 창의 너비가 이 값(dp) 이상이면 태블릿 세로 그림을 쓴다. 배치 판정의 Medium 시작 너비와 같다. */
@@ -135,14 +156,19 @@ internal data class HomeHeroTitle(val scale: Float, val right: Float, val bottom
  * 첫 화면 제목의 크기와 자리. 받은 그림은 고치지 않고, 제목이 오른쪽 먹 영역 안에 사방 16dp 이상 여유를 두고 들어오도록 그림마다 정했다(S15P31E102-1015).
  * 세로 화면은 평가 시작 버튼 바로 위 오른쪽에 둔다. 휴대폰 세로는 먹 영역이 좁아 기본 배율보다 작게 쓴다.
  * 가로 화면은 먹 영역이 화면 높이 전체에 걸쳐 넓으므로 창 너비에 비례해 크게 키우고, 오른쪽 먹 영역의 세로 가운데 쪽에 둔다.
- * 그림을 바꾸면 `frontend/tools/home-art/build_home_art.py`로 여유를 다시 점검한다.
+ * 그림을 바꾸면 `frontend/tools/home-art/refine_tablet.py`가 만드는 모의 화면으로 제목·버튼 자리를 다시 점검한다.
  */
 internal fun homeHeroTitle(kind: HomeArtKind, width: Float, height: Float, buttonHeight: Float): HomeHeroTitle = when (kind) {
-    HomeArtKind.PhonePortrait, HomeArtKind.TabletPortrait -> HomeHeroTitle(
-        scale = if (kind == HomeArtKind.PhonePortrait) .8f else 1.3f,
-        right = width - 20f,
-        bottom = (height - 88f - buttonHeight).coerceAtLeast(80f) - 10f,
-    )
+    // 세로: 오른쪽 아래 먹 영역에 창 너비에 비례해 크게 두고 버튼 위로 조금 띄운다(휴대폰 56%·24dp, 태블릿 52%·36dp, S15P31E102-1034).
+    // 그림의 먹 영역은 이 크기·자리에 맞춰 두었다(refine_phone.py·refine_tablet.py의 모의 화면으로 확인).
+    HomeArtKind.PhonePortrait, HomeArtKind.TabletPortrait -> {
+        val phone = kind == HomeArtKind.PhonePortrait
+        HomeHeroTitle(
+            scale = width * (if (phone) .56f else .52f) / HomeTitleWidth,
+            right = width - 20f,
+            bottom = (height - 88f - buttonHeight).coerceAtLeast(80f) - HomeTitleButtonGap - (if (phone) 24f else 36f),
+        )
+    }
     HomeArtKind.TabletLandscape -> {
         // 제목 너비 = 창 너비의 23%, 오른쪽 여백 = 창 너비의 5%, 제목 가운데 = 창 높이의 50%.
         // 웹의 낮은 가로 창(예: 780×360)에서는 제목 아래가 평가 시작 버튼에 닿으므로 버튼 위 12dp까지만 내려온다(S15P31E102-1026).
