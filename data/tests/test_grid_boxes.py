@@ -192,6 +192,13 @@ class GakBoundaryTests(unittest.TestCase):
         got = self.split(classroom(thick_lines=False)[0], fits=lambda n: n == 4)
         self.assertEqual([(len(gak['cells']), gak['source'], gak['mismatch']) for gak in got], [(6, 'column', True)] * 3)
 
+    def test_a_column_without_thick_lines_is_cut_by_the_jangdan_even_if_another_column_has_them(self):
+        lines = {0: [None, 1, 1, 5, 1, 1], 1: [None, 1, 1, 1, 1, 1]}
+        cells = [dict(band=0, col=col, row=r, line=lines[col][r]) for col in (0, 1) for r in range(6)]
+        got = gaks(cells, fits=lambda n: n == 3)
+        self.assertEqual([(gak['cells'][0]['col'], len(gak['cells']), gak['source'], gak['mismatch']) for gak in got],
+                         [(0, 3, 'line', False)] * 2 + [(1, 3, 'jangdan', False)] * 2)
+
     def test_one_and_two_pixel_lines_are_not_thick(self):
         cells = [dict(band=0, col=0, row=r, line=None if r == 0 else (2 if r == 2 else 1)) for r in range(4)]
         self.assertEqual([len(gak['cells']) for gak in gaks(cells)], [4])

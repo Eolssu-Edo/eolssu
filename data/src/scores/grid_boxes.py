@@ -192,7 +192,7 @@ def gaks(cells, fits=None):
     칸 위 가로선이 쪽 가로선 굵기 중간값의 1.8배 이상이면서 2px 넘게 굵으면 굵은 각 구분선이다. 표준악보집의
     1px·2px 선 차이는 굵은 선이 아니다. 열의 첫 칸과 굵은 선 아래 칸이 각의 첫 칸이다(source='line').
     그렇게 나눈 각이 fits에 맞지 않는데 열 전체가 맞으면 굵은 선은 박 구분선이고 열이 각 하나다(source='column').
-    쪽에 굵은 선이 없으면 열 하나가 각 하나다(source='column'). fits(정간 수)가 열 길이를 받지 않으면
+    열에 굵은 선이 없으면 열 하나가 각 하나다(source='column'). fits(정간 수)가 열 길이를 받지 않으면
     fits가 받는 가장 작은 약수로 열을 나눈다(source='jangdan'). 굵은 선 없는 긴 각의 박 환산은 하지 않는다(1076).
     fits가 각의 정간 수를 받지 않으면 mismatch다. fits가 없으면 어떤 정간 수든 받는다.
     """
@@ -206,8 +206,8 @@ def gaks(cells, fits=None):
     thin = lines[len(lines) // 2] if lines else 0
     thick = lambda c: c['line'] and c['line'] >= thin * 1.8 and c['line'] > thin + 2
     out = []
-    if any(thick(c) for c in cells):
-        for col in columns:
+    for col in columns:
+        if any(thick(c) for c in col):
             split = []
             for c in col:
                 if c is col[0] or thick(c):
@@ -217,8 +217,7 @@ def gaks(cells, fits=None):
             if not all(fits(len(g['cells'])) for g in split) and fits(len(col)):
                 split = [dict(cells=col, source='column')]
             out += split
-    else:
-        for col in columns:
+        else:
             size = len(col) if fits(len(col)) else next(
                 (d for d in range(2, len(col)) if len(col) % d == 0 and fits(d)), len(col))
             source = 'column' if size == len(col) else 'jangdan'
