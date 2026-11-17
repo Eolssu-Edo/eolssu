@@ -1,6 +1,18 @@
 package com.ssafy.eolssu.feature.song.component
 
 import androidx.compose.ui.draw.alpha
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
+import com.ssafy.eolssu.feature.song.ConversionReadingClock
+import kotlinx.coroutines.delay
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.mutableStateOf
@@ -256,7 +268,7 @@ internal fun MySheetRow(
                 }
             }
             if (!usable && status != SheetConversionStatus.Failed) {
-                ConversionProgressBar(conversionProgress(conversion ?: SheetConversion(sheet.id, SheetConversionStatus.Queued)) ?: 0f)
+                ConversionProgressBar(conversion ?: SheetConversion(sheet.id, SheetConversionStatus.Queued))
             }
         }
     }
@@ -289,12 +301,31 @@ private fun FailureReasonToggle(open: Boolean, onToggle: () -> Unit) {
 
 /**
  * 변환 진행 막대: 옅은 선 위에 연두로 채운 6dp 막대. 서버가 퍼센트를 주지 않아 숫자는 쓰지 않고 [conversionProgress]의 어림값만 그린다.
- * 값이 바뀌면 부드럽게 늘어난다.
+ * '읽는 중'에는 서버 응답이 바뀌지 않아도 읽기 시작부터 지난 시간([ConversionReadingClock])으로 1초마다 조금씩 채운다(S15P31E102-1064).
+ * 어림이 잠깐 줄어도 뒤로 가지 않고, 채운 부분 위로 밝은 빛이 지나가 멈추지 않았음을 보인다.
  */
 @Composable
-private fun ConversionProgressBar(progress: Float) {
+private fun ConversionProgressBar(conversion: SheetConversion) {
     val colors = EolssuTheme.colors
-    val shown by animateFloatAsState(progress.coerceIn(0f, 1f), animationSpec = tween(600))
+    val clock = ConversionReadingClock.Shared
+    val reading = conversionStep(conversion) is ConversionStep.Reading
+    var elapsed by remember(conversion.sheetId) { mutableLongStateOf(clock.elapsedMs(conversion)) }
+    LaunchedEffect(conversion) {
+        elapsed = clock.elapsedMs(conversion)
+        while (reading) {
+            delay(PROGRESS_TICK_MS)
+            elapsed = clock.elapsedMs(conversion)
+        }
+    }
+    val target = (conversionProgress(conversion, elapsed) ?: 0f).coerceIn(0f, 1f)
+    var peak by remember(conversion.sheetId) { mutableFloatStateOf(0f) }
+    if (target > peak) peak = target
+    val shown by animateFloatAsState(peak, animationSpec = tween(PROGRESS_TICK_MS.toInt(), easing = LinearEasing))
+    val sweep by rememberInfiniteTransition().animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(SWEEP_MS, easing = LinearEasing)),
+    )
     val shape = RoundedCornerShape(3.dp)
     Box(
         Modifier
@@ -302,11 +333,26 @@ private fun ConversionProgressBar(progress: Float) {
             .height(6.dp)
             .clip(shape)
             .background(colors.lineSoft)
-            .semantics { progressBarRangeInfo = ProgressBarRangeInfo(progress.coerceIn(0f, 1f), 0f..1f) },
+            .semantics { progressBarRangeInfo = ProgressBarRangeInfo(peak, 0f..1f) },
     ) {
-        Box(Modifier.fillMaxWidth(shown).height(6.dp).clip(shape).background(colors.primary))
+        Box(
+            Modifier
+                .fillMaxWidth(shown)
+                .height(6.dp)
+                .clip(shape)
+                .background(colors.primary)
+                .drawBehind {
+                    // 빛 띠(막대 너비의 40%)가 채운 부분을 왼쪽 밖에서 오른쪽 밖까지 지나간다.
+                    val band = size.width * 0.4f
+                    val x = -band + (size.width + band) * sweep
+                    drawRect(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.45f), Color.Transparent), startX = x, endX = x + band))
+                },
+        )
     }
 }
+
+private const val PROGRESS_TICK_MS = 1_000L
+private const val SWEEP_MS = 1_400
 
 /** '변환 대기 중' · '악보 3쪽 읽는 중'(서버가 읽은 쪽 수를 주면 '악보 읽는 중 1/3쪽') · '악보 만드는 중'. 쪽 수를 모르면 쪽 수 없이 쓴다. */
 @Composable

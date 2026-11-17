@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.exp
+import kotlin.time.TimeSource
 
 /**
  * 내 악보 목록과 각 악보의 변환 상태. 연습곡 고르기 '내 악보' 탭과 악보 추가(EDIT-01) 화면이 함께 쓴다.
@@ -117,6 +118,31 @@ internal fun readingEstimate(elapsedMs: Long, pageCount: Int, notation: SheetNot
     val perPage = if (notation == SheetNotation.Jeongganbo) READING_MS_PER_PAGE_JEONGGANBO else READING_MS_PER_PAGE_STAFF
     val expected = perPage * pageCount.coerceAtLeast(1)
     return ((1 - exp(-READING_ESTIMATE_RATE * elapsedMs / expected)) * READING_ESTIMATE_CAP).toFloat()
+}
+
+/**
+ * 목록 줄이 악보마다 '읽는 중'을 처음 본 시각을 앱 실행 동안 기억해, 지난 시간을 [conversionProgress]에 넘긴다(S15P31E102-1064).
+ * 목록은 화면 ViewModel이 바뀌어도(악보 추가 화면 ↔ 내 악보 탭, 나갔다 다시 들어오기) 같은 기준을 써서 막대가 처음으로 돌아가지 않는다.
+ * 변환이 끝나면(완료·실패) 기록을 지워 다시 시도할 때 처음부터 센다. 화면(메인 스레드)에서만 부른다.
+ */
+internal class ConversionReadingClock(private val nowMs: () -> Long) {
+    private val readingSince = mutableMapOf<String, Long>()
+
+    /** 이 변환이 '읽는 중'이 된 뒤 지난 시간. 읽는 중이 아니면 0. */
+    fun elapsedMs(conversion: SheetConversion): Long {
+        if (!conversion.status.inProgress) readingSince.remove(conversion.sheetId)
+        if (conversionStep(conversion) !is ConversionStep.Reading) return 0
+        val now = nowMs()
+        return now - readingSince.getOrPut(conversion.sheetId) { now }
+    }
+
+    companion object {
+        /** 목록 줄이 함께 쓰는 시계. */
+        val Shared: ConversionReadingClock by lazy {
+            val start = TimeSource.Monotonic.markNow()
+            ConversionReadingClock { start.elapsedNow().inWholeMilliseconds }
+        }
+    }
 }
 
 private const val PROGRESS_QUEUED = 0.05f
