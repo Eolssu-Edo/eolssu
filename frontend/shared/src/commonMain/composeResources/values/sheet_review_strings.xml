@@ -43,10 +43,6 @@
     <string name="sheet_review_notice_global">악보 전체 · %1$s</string>
     <string name="sheet_import_guide_range">%1$s 낼 수 없는 음 %2$d개</string>
     <string name="sheet_import_guide_instrument_fallback">악기로</string>
-    <string name="sheet_import_guide_up_all">%1$d반음 올려 고치기</string>
-    <string name="sheet_import_guide_up">%1$d반음 올려 %2$d개 고치기</string>
-    <string name="sheet_import_guide_down_all">%1$d반음 내려 고치기</string>
-    <string name="sheet_import_guide_down">%1$d반음 내려 %2$d개 고치기</string>
     <string name="sheet_import_guide_adapt">높이 맞추기</string>
     <string name="sheet_import_guide_tuning">악기에 높이 맞추기</string>
     <string name="sheet_import_guide_review">다시 볼 곳 %1$d곳</string>

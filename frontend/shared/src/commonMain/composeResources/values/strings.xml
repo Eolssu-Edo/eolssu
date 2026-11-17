@@ -815,7 +815,7 @@
     <string name="my_error_password_same_as_current">현재 비밀번호와 다르게 입력해주세요</string>
     <string name="sheet_adapt_title">곡 전체 높이 맞추기</string>
     <string name="sheet_adapt_failed">지원음을 불러오지 못했어요.</string>
-    <string name="sheet_adapt_original_key">원조 유지</string>
+    <string name="sheet_adapt_original_key">원음</string>
     <string name="sheet_adapt_semitones">%1$s반음</string>
     <!-- 입력칸 글자 수 상한 도달 안내·비밀번호 보기(S15P31E102-996) -->
     <string name="input_limit_reached">%1$d자까지 입력할 수 있어요</string>

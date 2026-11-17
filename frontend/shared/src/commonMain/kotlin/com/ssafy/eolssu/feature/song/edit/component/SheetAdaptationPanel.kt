@@ -80,7 +80,7 @@ internal fun SheetAdaptationPanel(
                         AdaptCount(stringResource(Res.string.sheet_adapt_unresolved_count), selected.unresolved,
                             if (selected.unresolved > 0) colors.recText else colors.text)
                     }
-                    PillButton(applyLabel(selected.transpose), onApply, enabled = !state.selectionApplied)
+                    PillButton(applyLabel(selected.transpose, applied = state.selectionApplied), onApply, enabled = !state.selectionApplied)
                 }
                 // 칩 영역은 −·+ 버튼 폭만큼 안쪽에 두어 슬라이더 칸과 같은 가로 위치를 쓴다.
                 RecommendationMark(recommended, thumbInset, trackCorner,
@@ -119,9 +119,7 @@ internal fun SheetAdaptationPanel(
                     SquareIconButton(EolssuIcons.Plus, increaseLabel, { onTranspose(selected.transpose + 1) },
                         enabled = selected.transpose < 6)
                 }
-                // '추천'이 무엇을 고른 것인지 한 줄로 말한다. 어느 높이로도 다 못 고치면 남는 수와 다음 할 일을 알린다.
-                if (recommended != null) Text(stringResource(Res.string.sheet_adapt_recommend_help),
-                    style = MaterialTheme.typography.bodySmall, color = colors.textSub)
+                // 어느 높이로도 다 못 고치면 남는 수와 다음 할 일을 알린다. '추천' 칩은 따로 풀어 쓰지 않는다.
                 if (selected.unresolved > 0 && state.unavoidableUnresolved > 0) Text(
                     stringResource(Res.string.sheet_adapt_remaining_help, selected.unresolved),
                     style = MaterialTheme.typography.bodySmall, color = colors.recText)
@@ -144,10 +142,20 @@ private fun AdaptCount(label: String, count: Int, countColor: androidx.compose.u
     }
 }
 
-/** 적용 버튼 글자. 고른 높이를 함께 적어 무엇이 적용되는지 버튼만 봐도 알게 한다. */
+/**
+ * 적용 버튼 글자. 고른 높이(원본 기준 반음)를 함께 적어 무엇이 적용되는지 버튼만 봐도 알게 한다.
+ * 이미 적용한 높이면 `+1반음 적용됨`처럼 적용된 상태를 말한다. 가져온 악보 확인 카드 버튼도 같은 글자를 쓴다.
+ */
 @Composable
-private fun applyLabel(value: Int): String = if (value == 0) stringResource(Res.string.sheet_adapt_apply_original)
-    else stringResource(Res.string.sheet_adapt_apply_semitones, if (value > 0) "+$value" else value.toString())
+internal fun applyLabel(value: Int, applied: Boolean = false): String {
+    val signed = if (value > 0) "+$value" else value.toString()
+    return when {
+        value == 0 && applied -> stringResource(Res.string.sheet_adapt_applied_original_done)
+        value == 0 -> stringResource(Res.string.sheet_adapt_apply_original)
+        applied -> stringResource(Res.string.sheet_adapt_applied_semitones, signed)
+        else -> stringResource(Res.string.sheet_adapt_apply_semitones, signed)
+    }
+}
 
 /**
  * 추천 이조를 슬라이더 칸 위의 `추천` 칩 하나로 보여 준다(S15P31E102-979).
