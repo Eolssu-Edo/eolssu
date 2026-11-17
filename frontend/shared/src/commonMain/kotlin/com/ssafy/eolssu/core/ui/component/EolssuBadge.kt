@@ -49,7 +49,8 @@ import kotlin.math.sin
  * - [Outline] `.badge.lite`(예시 결과·예시 악보처럼 덜 중요한 표시)
  * - [Level1]·[Level2]·[Level3] 입문 · 초급 · 중급(매화 · 대나무 · 소나무). 난이도는 [EolssuLevelBadge]로 쓰고, 같은 단계 모양을 다른 문구에 빌릴 때만 직접 고른다.
  */
-enum class EolssuBadgeStyle { Soft, Play, Recording, Outline, Level1, Level2, Level3 }
+/** [Failed]는 녹음 점 없이 붉은 바탕·글자로 실패를 알린다(S15P31E102-1052). */
+enum class EolssuBadgeStyle { Soft, Play, Recording, Failed, Outline, Level1, Level2, Level3 }
 
 /**
  * 알약 배지. 상태 배지는 최소 26dp · 12sp, 난이도 배지는 최소 24dp · 12sp이고 [small]이면 각각 22dp · 20dp, 11sp다(SONG-03 곡 카드).
@@ -71,7 +72,7 @@ fun EolssuBadge(
     val (bg, fg, line) = when (style) {
         EolssuBadgeStyle.Soft -> Triple(colors.accentTint, colors.text, Color.Transparent)
         EolssuBadgeStyle.Play -> Triple(colors.accentTint, colors.playText, Color.Transparent)
-        EolssuBadgeStyle.Recording -> Triple(colors.recSoft, colors.recText, Color.Transparent)
+        EolssuBadgeStyle.Recording, EolssuBadgeStyle.Failed -> Triple(colors.recSoft, colors.recText, Color.Transparent)
         EolssuBadgeStyle.Outline -> Triple(colors.surface, colors.textMuted, colors.lineSoft)
         EolssuBadgeStyle.Level1, EolssuBadgeStyle.Level2, EolssuBadgeStyle.Level3 -> error("난이도 배지는 LevelBadge가 그린다")
     }

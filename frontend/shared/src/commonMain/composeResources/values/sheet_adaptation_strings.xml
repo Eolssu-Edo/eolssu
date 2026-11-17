@@ -1,15 +1,16 @@
 <resources>
-    <string name="sheet_adapt_tab">음역·이조</string>
-    <string name="sheet_adapt_marker_primary_short">추천</string>
+    <string name="sheet_adapt_tab">높이 맞추기</string>
+    <string name="sheet_adapt_recommend_help">추천: 낼 수 없는 음이 가장 적은 높이예요.</string>
+    <string name="sheet_adapt_remaining_help">높이만 바꾸면 %1$d개가 남아요. 적용 뒤 빨간 칸을 하나씩 고쳐 주세요.</string>
     <string name="sheet_adapt_marker_primary">추천 %1$s</string>
     <string name="sheet_adapt_slider">이조 조절, 마이너스 6부터 플러스 6반음</string>
     <string name="sheet_adapt_decrease">이조 한 반음 내리기</string>
     <string name="sheet_adapt_increase">이조 한 반음 올리기</string>
-    <string name="sheet_adapt_octave_count">옥타브 이동 %1$d개</string>
-    <string name="sheet_adapt_unresolved_count">수정 필요 %1$d개</string>
+    <string name="sheet_adapt_octave_count">옥타브 옮긴 음 %1$d개</string>
+    <string name="sheet_adapt_unresolved_count">낼 수 없는 음 %1$d개</string>
     <string name="sheet_adapt_empty">맞출 수 있는 음이 없어요.</string>
     <string name="sheet_adapt_confirm_title">음높이를 다시 맞출까요?</string>
     <string name="sheet_adapt_confirm_overwrite">직접 바꾼 음높이·옥타브는 덮어씁니다.</string>
-    <string name="sheet_adapt_confirm_message">기존 음은 원본 기준으로 다시 맞추고, 새로 넣은 음은 현재 음높이를 기준으로 맞춥니다. 적용 후 되돌리기로 취소할 수 있어요.</string>
+    <string name="sheet_adapt_confirm_message">곡 전체 높이를 바꿔요. 실행 취소로 되돌릴 수 있어요.</string>
     <string name="sheet_adapt_confirm_apply">다시 맞추기</string>
 </resources>

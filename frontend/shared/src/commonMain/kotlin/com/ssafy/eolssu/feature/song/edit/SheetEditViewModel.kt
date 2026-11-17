@@ -202,6 +202,7 @@ class SheetEditViewModel(
     fun openAdaptation() {
         val before = _uiState.value
         if (!accountScope.isActive || before.confirming || before.documentLoading || before.draft.original == null) return
+        _uiState.update { it.copy(inputPanelExpanded = true) }
         val existing = before.adaptation
         if (existing != null && existing.baseline == before.draft && !existing.loading && !existing.failed) {
             _uiState.update { it.copy(tab = EditTab.Adaptation, view = EditView.Jeongganbo) }
@@ -272,6 +273,10 @@ class SheetEditViewModel(
             loading = false, failed = false, confirmationRequested = false)
     }
 
+    /** 계산을 마친 높이 패널을 [draft] 기준으로 다시 계산한다. 아직 불러오는 중이거나 실패한 패널은 버린다. */
+    private fun refreshedAdaptation(panel: SheetAdaptationUi, draft: SheetDraft): SheetAdaptationUi? =
+        panel.capabilities?.takeIf { !panel.loading && !panel.failed }?.let { readyAdaptation(panel.copy(baseline = draft), it) }
+
     /** 문서가 준비됐다는 화면 뒤로 추천 로딩을 따로 노출하지 않는다. */
     private suspend fun initialAdaptation(draft: SheetDraft): SheetAdaptationUi {
         var panel = SheetAdaptationUi(baseline = draft)
@@ -317,12 +322,20 @@ class SheetEditViewModel(
 
     /** 음역 문제가 아닌 첫 인식 확인 정간으로 간다. */
     fun openFirstRecognitionReview() {
-        val validation = _uiState.value.completionValidation
-        val index = (validation.correctionCellIndices - validation.rangeCellIndices).minOrNull() ?: return
+        val index = _uiState.value.recognitionReviewCells.firstOrNull() ?: return
         selectCell(index)
     }
 
-    fun dismissImportGuide() = _uiState.update { it.copy(importGuideDismissed = true) }
+    /** 다시 볼 곳을 앞뒤로 옮겨 다닌다. 다시 볼 칸이 아닌 곳에 있으면 앞으로는 첫 칸, 뒤로는 마지막 칸으로 간다(S15P31E102-1042). */
+    fun moveRecognitionReview(step: Int) {
+        val state = _uiState.value
+        val cells = state.recognitionReviewCells.ifEmpty { return }
+        val position = cells.indexOf(state.selected)
+        val next = if (position < 0) (if (step >= 0) cells.first() else cells.last())
+            else cells[(position + step).coerceIn(0, cells.lastIndex)]
+        selectCell(next)
+    }
+
 
     fun applyAdaptation() {
         val panel = _uiState.value.adaptation ?: return
@@ -349,7 +362,9 @@ class SheetEditViewModel(
             if (current.confirming && (next.draft != current.draft || next.checkedIssueIds != current.checkedIssueIds ||
                 next.reviewIssues != current.reviewIssues)) current
             else if (next.draft != current.draft) next.copy(saveStatus = null,
-                adaptation = if (preserveAdaptation) next.adaptation else null,
+                // 이미 받은 악기 음 목록으로 바뀐 악보의 높이 계산을 다시 해 둔다. 버리면 확인 카드가 악기 이름과
+                // 낼 수 없는 음 수를 잃고, 실행 취소해도 처음 카드로 돌아오지 않는다(S15P31E102-1042).
+                adaptation = if (preserveAdaptation) next.adaptation else next.adaptation?.let { refreshedAdaptation(it, next.draft) },
                 tab = if (!preserveAdaptation && next.tab == EditTab.Adaptation) EditTab.Yul else next.tab)
             else next
         }
@@ -413,6 +428,7 @@ class SheetEditViewModel(
                     withJangdan = draft.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo,
                     reviewIssues = document.editorReviewIssues(document.score ?: score), checkedIssueIds = emptySet(),
                     reviewNotices = document.editorReviewNotices(),
+                    inputPanelExpanded = document.conversionStatus == null,
                     deviceAudio = deviceAudio, adaptation = adaptation) }
                 loadCompletionCatalog()
                 loadAudioInstrumentOptions()
@@ -733,8 +749,10 @@ class SheetEditViewModel(
     }
     fun selectTab(tab: EditTab) {
         if (tab == EditTab.Adaptation) openAdaptation()
-        else change { it.copy(tab = tab) }
+        else change { it.copy(tab = tab, inputPanelExpanded = true) }
     }
+
+    fun setInputPanelExpanded(expanded: Boolean) = _uiState.update { it.copy(inputPanelExpanded = expanded) }
     fun selectView(view: EditView) = change { state ->
         if (state.view == view || state.draft.original == null) return@change state.copy(view = view)
         when (view) {

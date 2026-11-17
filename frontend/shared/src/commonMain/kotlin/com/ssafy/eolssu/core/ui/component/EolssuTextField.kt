@@ -189,13 +189,14 @@ fun EolssuTextField(
                     if (password && trailing == null) {
                         val toggle = stringResource(if (revealed) Res.string.input_password_hide else Res.string.input_password_show)
                         // 누르는 영역은 44dp로 두고, 칸 오른쪽 여백 안쪽에 눈 아이콘을 맞춘다.
+                        // 아이콘은 모바일 앱 관례대로 현재 상태를 보여 준다(가려짐: 빗금 친 눈, 보임: 눈).
                         Box(
                             Modifier.align(Alignment.CenterEnd).offset(x = 12.dp).size(44.dp)
                                 .clickable(role = Role.Button, onClickLabel = toggle) { revealed = !revealed }
                                 .semantics { contentDescription = toggle },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(if (revealed) EolssuIcons.EyeOff else EolssuIcons.Eye, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textMuted)
+                            Icon(if (revealed) EolssuIcons.Eye else EolssuIcons.EyeOff, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textMuted)
                         }
                     }
                     if (trailing != null) {

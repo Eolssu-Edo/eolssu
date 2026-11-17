@@ -120,7 +120,7 @@ fun LoginScreen(
                     label = stringResource(Res.string.auth_email),
                     placeholder = stringResource(Res.string.auth_email_placeholder),
                     type = TextFieldType.Email,
-                    maxLength = InputLimit.EMAIL,
+                    maxLength = InputLimit.LOGIN_ID,
                     bordered = false,
                     labelInside = true,
                     fieldHeight = 48.dp,

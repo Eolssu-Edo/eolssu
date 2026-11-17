@@ -220,6 +220,8 @@ data class ScoreCellMark(
  * @param unitMarksAfterPass 재생·연주 중에는 [unitMarks]를 진행이 그 표시 자리를 다 지난 뒤에만 칠한다.
  *   연주 중인 자리의 진행 채움을 덮지 않게 한다(연주 평가의 실시간 판정). 진행 모습([playback])이 없으면 모두 칠한다.
  *   바탕은 [ScoreCellMark.fillInMillis] 동안 색 전환으로 바꾼다(S15P31E102-980).
+ * @param wholeCellHoldAsBlank 정간 전체를 잇는 이음(ㅡ)을 정간보 관행대로 빈칸으로 그린다([displayedNote]).
+ *   원본 기호를 고치는 편집 화면은 false로 원본 표기를 그대로 보인다.
  */
 @Composable
 fun JeongganboView(
@@ -269,6 +271,7 @@ fun JeongganboView(
     focusRequestKey: Int = 0,
     /** 연습 보드는 보이는 묶음과 양쪽 이웃만 구성하며 나머지는 같은 너비의 빈 공간으로 보존한다. */
     windowed: Boolean = false,
+    wholeCellHoldAsBlank: Boolean = true,
 ) {
     // sp만 커져 분할 음·각 머리글이 잘리지 않도록 해당 악보의 기하도 함께 늘린다.
     // 화면 전체를 확대하지 않으며 기존 가로/세로 스크롤과 원본 줄바꿈을 유지한다.
@@ -387,7 +390,8 @@ fun JeongganboView(
                 onEventClick = onEventClick,
                 onUnitClick = onUnitClick,
                 annotations = annotations,
-                tempoMarks = song.score.tempoMarks.filterKeys { it.cellId == song.score.columns[strip.column][row].id }.values.flatten(),
+                wholeCellHoldAsBlank = wholeCellHoldAsBlank,
+                tempoMarks =song.score.tempoMarks.filterKeys { it.cellId == song.score.columns[strip.column][row].id }.values.flatten(),
                 cellMark = cellMarks[strip.column to row],
                 pickedUnits = unitMarks,
                 pickedAfterPass = unitMarksAfterPass,
@@ -659,6 +663,7 @@ private fun ScoreCellBox(
     onUnitClick: ((ScoreDisplayUnit) -> Unit)?,
     dimmed: Boolean = false,
     annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
+    wholeCellHoldAsBlank: Boolean = true,
     tempoMarks: List<HanbaeMark> = emptyList(),
     cellMark: ScoreCellMark? = null,
     pickedUnits: Map<ScoreUnitKey, ScoreCellMark> = emptyMap(),
@@ -943,7 +948,8 @@ private fun ScoreCellBox(
                             ScoreNoteBox(
                                 reserveTopEnd = reserve,
                                 reserveBottomStart = edgeReserve?.takeIf { r == rows.lastIndex && c == 0 },
-                                unit = unit,
+                                // 이 람다에 분기·지역 변수를 더하면 Android 검증기가 클래스를 거부해(VerifyError) 함수 하나로 넘긴다.
+                                unit = unit.forDisplay(units.size, annotations, wholeCellHoldAsBlank),
                                 splitCount = maxOf(rows.size, row.size),
                                 // 3소박 율명은 칸을 늘려도 정한 크기를 넘지 않는다(S15P31E102-1022).
                                 lineHeight = if (rows.size > 1) {
@@ -1499,3 +1505,18 @@ private val SectionOutlineWidth = 2.dp
 private val JoinedShape = RoundedCornerShape(3.dp)
 private val JoinedOuterLine = Color(0xFF8E887D)
 private val JoinedColumnLine = Color(0xFFB9B3A6)
+
+/**
+ * 화면에 그릴 음. 정간 전체를 잇는 이음(ㅡ)은 정간보 관행대로 빈칸으로 그린다(S15P31E102-1069).
+ * 쪼갠 정간 안의 이음은 자리를 나타내야 하고, 시김새·한배 표시가 붙은 이음은 기호가 놓일 자리라 ㅡ로 남긴다.
+ * 소리·채점은 [ScoreDisplayUnit.event]를 그대로 쓰며, 빈칸의 화면 읽기 문구도 이 이벤트로 '이어요'를 읽는다.
+ */
+internal fun ScoreDisplayUnit.displayedNote(unitsInCell: Int, marks: List<String>): ScoreNote =
+    if (note == ScoreNote.Hold && unitsInCell == 1 && marks.isEmpty()) ScoreNote.Blank else note
+
+/** [displayedNote]를 적용한 표시 자리. [enabled]가 false(편집 화면)이면 원본 그대로다. */
+internal fun ScoreDisplayUnit.forDisplay(unitsInCell: Int, annotations: Map<ScoreUnitKey, List<String>>, enabled: Boolean): ScoreDisplayUnit {
+    if (!enabled) return this
+    val shown = displayedNote(unitsInCell, annotations[key].orEmpty())
+    return if (shown == note) this else copy(note = shown)
+}

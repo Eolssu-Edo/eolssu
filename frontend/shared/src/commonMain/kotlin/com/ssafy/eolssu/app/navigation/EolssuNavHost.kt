@@ -640,7 +640,7 @@ fun EolssuNavHost(
                         }
                     },
                     onAddSheet = { navController.navigate(SheetEditDestination.new()) },
-                    onReimportSheet = { failure -> navController.navigate(SheetEditDestination.new(failure)) },
+                    onReimportSheet = { sheet, failure -> navController.navigate(SheetEditDestination.new(failure, replace = sheet.id)) },
                     onOpenConversion = { sheetId ->
                         if (navController.currentBackStackEntry?.id == entry.id) navController.navigate(SheetEditDestination.conversion(sheetId))
                     },

@@ -469,9 +469,9 @@
     <string name="learn_pattern_ascending">순차 상행</string>
     <string name="learn_pattern_descending">순차 하행</string>
     <string name="learn_task_range_high">높은 음 내기</string>
-    <string name="learn_task_range_high_detail">조금 세게 불어 높은 음을 내 보아요.</string>
+    <string name="learn_task_range_high_detail">입술을 모아 세게 불어 높은 음을 내요.</string>
     <string name="learn_task_range_low">낮은 음 내기</string>
-    <string name="learn_task_range_low_detail">조금 약하게 불어 낮은 음을 내 보아요.</string>
+    <string name="learn_task_range_low_detail">입술을 풀고 약하게 불어 낮은 음을 내요.</string>
     <string name="learn_task_range_both">높은 음·낮은 음 내기</string>
     <string name="learn_section_pass">통과 기준</string>
     <string name="learn_more_fingering">운지법 보기</string>
@@ -641,7 +641,8 @@
     <string name="mysongs_tab_sheets">내 악보</string>
     <string name="mysongs_reset_filter">전체 곡 보기</string>
     <string name="mysongs_add">악보 추가</string>
-    <string name="mysongs_sheet_count">내 악보 %1$d개</string>
+    <string name="mysongs_sheet_count">내 악보 %1$d/%2$d</string>
+    <string name="mysongs_sheet_limit_note">내 악보는 최대 %1$d개까지만 저장할 수 있어요.</string>
     <string name="mysongs_origin_copied">제공 곡에서 고침</string>
     <string name="mysongs_meta_updated">%1$s 수정</string>
     <string name="mysongs_status_practice">연습 가능</string>
@@ -657,6 +658,9 @@
     <string name="mysongs_conversion_building">악보 만드는 중</string>
     <string name="mysongs_conversion_issues">확인할 칸 %1$d개</string>
     <string name="mysongs_conversion_failed">변환 실패</string>
+    <string name="mysongs_conversion_failure_reason">실패 사유</string>
+    <string name="mysongs_conversion_failure_reason_open">펼침</string>
+    <string name="mysongs_conversion_failure_reason_closed">접힘</string>
     <string name="mysongs_conversion_failed_no_score">악보를 찾지 못했어요</string>
     <string name="mysongs_conversion_failed_file">파일을 열 수 없었어요</string>
     <string name="mysongs_conversion_failed_timeout">시간 안에 변환하지 못했어요</string>
@@ -801,7 +805,7 @@
     <string name="my_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~64자로 정해 주세요.</string>
     <string name="my_error_password_mismatch">새 비밀번호가 서로 달라요.</string>
     <string name="my_error_password_same_as_current">현재 비밀번호와 다르게 입력해주세요</string>
-    <string name="sheet_adapt_title">악기·음역 맞추기</string>
+    <string name="sheet_adapt_title">곡 전체 높이 맞추기</string>
     <string name="sheet_adapt_failed">지원음을 불러오지 못했어요.</string>
     <string name="sheet_adapt_original_key">원조 유지</string>
     <string name="sheet_adapt_semitones">%1$s반음</string>

@@ -33,6 +33,15 @@ class InputLimitTest {
     }
 
     @Test
+    fun loginIdStopsAt64Characters() {
+        val email = "a".repeat(54) + "@eolssu.kr"
+        val longerEmail = "${email}r"
+        assertEquals(email, InputLimit.limit("", email, InputLimit.LOGIN_ID))
+        assertEquals(email, InputLimit.limit(email, longerEmail, InputLimit.LOGIN_ID))
+        assertEquals(email, InputLimit.limit("", longerEmail, InputLimit.LOGIN_ID))
+    }
+
+    @Test
     fun serverLengthsAreKept() {
         assertEquals(100, InputLimit.EMAIL)
         assertEquals(64, InputLimit.PASSWORD)

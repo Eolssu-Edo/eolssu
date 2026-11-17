@@ -85,6 +85,15 @@ fun EditPickScreen(
             ) {
                 item(key = "header", contentType = "header") {
                     Column(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // 탭을 악기 선택 위에 둔다. 악기를 고르면 카드가 드롭다운으로 줄어도 탭 자리는 그대로다(S15P31E102-1070).
+                        // 로딩·오류 중에도 다른 탭으로 이동할 수 있다.
+                        MySongsTabSwitch(
+                            tab = if (state.tab == EditPickTab.Songs) MySongsTab.Songs else MySongsTab.Sheets,
+                            songCount = state.songs.size,
+                            sheetCount = state.sheets.size,
+                            onSelect = { onSelectTab(if (it == MySongsTab.Songs) EditPickTab.Songs else EditPickTab.Mine) },
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
                         if (state.instrument == null) {
                             Text(stringResource(Res.string.sheetedit_pick_step_instrument), style = MaterialTheme.typography.labelLarge)
                             Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -105,13 +114,6 @@ fun EditPickScreen(
                                 PracticeInstrumentDropdown(state.instrument, enabled = !state.copying, onSelect = onSelectInstrument, bordered = false)
                             }
                         }
-                        // 로딩·오류 중에도 다른 탭으로 이동할 수 있다.
-                        MySongsTabSwitch(
-                            tab = if (state.tab == EditPickTab.Songs) MySongsTab.Songs else MySongsTab.Sheets,
-                            songCount = state.songs.size,
-                            sheetCount = state.sheets.size,
-                            onSelect = { onSelectTab(if (it == MySongsTab.Songs) EditPickTab.Songs else EditPickTab.Mine) },
-                        )
                         if (state.instrument != null && state.tab == EditPickTab.Songs) {
                             SongSearchField(state.query, onSearch, onClear = { onSearch("") }, bordered = false)
                             if (state.load == EditPickLoad.Ready && state.songs.isNotEmpty()) {

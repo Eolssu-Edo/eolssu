@@ -61,6 +61,39 @@ def test_tiny_image_without_grid_is_not_an_engine_error(tmp_path,monkeypatch):
     assert out['failReason']=='NO_GRID_FOUND'
 
 
+@pytest.mark.parametrize('instrument,expected', [
+    ('DANSO', ['--yul', 'danso']),
+    ('SOGEUM', ['--yul', 'sogeum']),
+    ('JEONGAK_DAEGEUM', ['--yul', 'jeongak-daegeum']),
+    ('SANJO_DAEGEUM', []),
+    ('UNKNOWN_INSTRUMENT', []),
+])
+def test_reader_limits_pitch_candidates_by_instrument_on_every_size_retry(tmp_path,monkeypatch,instrument,expected):
+    from omr_service import jeongganbo_scan as scan
+    calls=tmp_path/'calls.jsonl'
+    script=tmp_path/'reader.py'
+    # 모든 크기에서 격자를 못 찾게 해 마지막 --grid-boxes 시도까지 인자를 남긴다.
+    script.write_text(f'''import json,sys
+with open({str(calls)!r},'a',encoding='utf-8') as f:
+    f.write(json.dumps(sys.argv[1:])+'\\n')
+sys.exit(4)
+''',encoding='utf-8')
+    monkeypatch.setattr(scan,'READER',[sys.executable,str(script)])
+    monkeypatch.setenv('JEONGGANBO_OMR_DIR',str(tmp_path))
+    buf=io.BytesIO();Image.new('RGB',(300,400),'white').save(buf,'PNG')
+    api.app.dependency_overrides[api.get_fetcher]=lambda:lambda url,p,limit,deadline:p.write_bytes(buf.getvalue())
+    try:
+        out=TestClient(api.app).post('/v1/recognitions',json=dict(conversionId='yul',notation='JEONGGANBO',jangdan='세마치',instrument=instrument,files=[dict(url='https://local.invalid/page.png',contentType='image/png')])).json()
+    finally:
+        api.app.dependency_overrides.clear()
+    assert out['failReason']=='NO_GRID_FOUND'
+    runs=[json.loads(line) for line in calls.read_text(encoding='utf-8').splitlines()]
+    assert len(runs)==4 and '--grid-boxes' in runs[-1]
+    for argv in runs:
+        assert [a for i,a in enumerate(argv) if a=='--yul' or (i and argv[i-1]=='--yul')]==expected
+        assert '--batch-size' in argv
+
+
 @pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
 @pytest.mark.parametrize('geometry_assertion', [False, True])
 @pytest.mark.parametrize('width,accepted,expected', [
@@ -126,3 +159,75 @@ cells=[dict(text=t,jg=j,conf=c,ink=.1,x=10,y=i*20,w=20,h=20,gak=0) for i,(t,j,c)
     assert any(i['kind']=='UNREADABLE' and i['cellId']=='c0-j1' for i in out['issues'])
     assert any(i['kind']=='LOW_CONFIDENCE' and i['cellId']=='c0-j2' for i in out['issues'])
     assert all(i['page']==0 and i['bbox'] for i in out['issues'])
+
+
+def test_grid_places_use_reader_numbers_and_fall_back_to_order():
+    from omr_service.jeongganbo_scan import grid_places
+    numbered = [dict(gak=g, jeonggan=j) for g, j in [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1)]]
+    assert grid_places(numbered, 3) == [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1)]
+    assert grid_places([dict(gak=0)] * 4, 3) == [(0, 0), (0, 1), (0, 2), (1, 0)]  # 옛 리더 출력
+    assert grid_places([dict(gak=0, jeonggan=0), dict(gak=0, jeonggan=0)], 3) == [(0, 0), (0, 1)]
+    assert grid_places([dict(gak=0, jeonggan=3)], 3) == [(0, 0)]
+
+
+@pytest.mark.skipif(not os.getenv('JGB_GENERATOR_DIR'),reason='Node 변환기 필요')
+def test_split_cell_is_flagged_where_the_reader_placed_it(tmp_path,monkeypatch):
+    from omr_service import jeongganbo_scan as scan
+    script=tmp_path/'reader.py'
+    script.write_text('''import json,sys
+from pathlib import Path
+out=Path(sys.argv[3]);out.mkdir(parents=True,exist_ok=True)
+cells=[dict(text='청태:5',conf=.99,ink=.1,x=10,y=i*20,w=20,h=20,gak=i//3,jeonggan=i%3) for i in range(6)]
+cells[4]['split']=True
+(out/'cells.json').write_text(json.dumps(dict(beats=3,cells=cells)))
+''',encoding='utf-8')
+    monkeypatch.setattr(scan,'READER',[sys.executable,str(script)])
+    monkeypatch.setenv('JEONGGANBO_OMR_DIR',str(tmp_path))
+    buf=io.BytesIO();Image.new('RGB',(200,200),'white').save(buf,'PNG')
+    api.app.dependency_overrides[api.get_fetcher]=lambda:lambda url,p,limit,deadline:p.write_bytes(buf.getvalue())
+    try:
+        out=TestClient(api.app).post('/v1/recognitions',json=dict(conversionId='split',notation='JEONGGANBO',jangdan='세마치',instrument='SOGEUM',files=[dict(url='https://local.invalid/page.png',contentType='image/png')])).json()
+    finally:
+        api.app.dependency_overrides.clear()
+    assert out['status']=='DONE',out
+    assert [len(c['cells']) for c in out['score']['columns']]==[3,3]
+    assert [(i['cellId'],i['detail']) for i in out['issues']]==[('c1-j1',{'confidence':.99,'reason':'GRID_SPLIT'})]
+
+def _column_image(tmp_path, thick_after, *, columns=2, cells=12, h=40, w=30, thick=4):
+    """정간 cells개가 세로로 쌓인 줄 columns개. thick_after 번째 정간 아래 선만 굵게 그린다(S15P31E102-1068)."""
+    from PIL import ImageDraw
+    image = Image.new('L', (columns * (w + 20) + 20, cells * h + 40), 255)
+    draw = ImageDraw.Draw(image)
+    boxes = []
+    for col in range(columns):
+        x = 20 + col * (w + 20)
+        for j in range(cells + 1):
+            y = 20 + j * h
+            width = thick if j in thick_after else 1
+            draw.rectangle([x, y - width // 2, x + w, y - width // 2 + width - 1], fill=0)
+        boxes += [dict(x=x, y=20 + j * h + 1, w=w, h=h - 2) for j in range(cells)]
+    path = tmp_path / 'grid.png'
+    image.save(path)
+    return path, boxes
+
+
+def test_semachi_column_read_as_one_gak_is_split_at_thick_gak_lines(tmp_path):
+    from omr_service.jeongganbo_scan import gak_size_from_lines
+    # 아리랑 사진처럼 12정간 줄에 3정간마다 굵은 각 구분선이 있다. 세마치 한 각은 3정간(정간당 1박)이다.
+    path, cells = _column_image(tmp_path, {3, 6, 9})
+    assert gak_size_from_lines(path, cells, 12, '세마치') == 3
+
+
+def test_gak_size_is_kept_without_clear_regular_thick_lines(tmp_path):
+    from omr_service.jeongganbo_scan import gak_size_from_lines
+    plain, cells = _column_image(tmp_path, set())
+    assert gak_size_from_lines(plain, cells, 12, '세마치') == 12  # 굵은 선이 없으면 고치지 않는다
+    irregular, cells = _column_image(tmp_path, {3, 7})
+    assert gak_size_from_lines(irregular, cells, 12, '세마치') == 12  # 간격이 일정하지 않으면 고치지 않는다
+
+
+def test_gak_size_matching_the_jangdan_is_not_reinterpreted(tmp_path):
+    from omr_service.jeongganbo_scan import gak_size_from_lines
+    # 굿거리 12정간 각은 이미 정간당 1/3박으로 맞으므로 줄 안의 굵은 선이 있어도 바꾸지 않는다.
+    path, cells = _column_image(tmp_path, {3, 6, 9})
+    assert gak_size_from_lines(path, cells, 12, '굿거리') == 12

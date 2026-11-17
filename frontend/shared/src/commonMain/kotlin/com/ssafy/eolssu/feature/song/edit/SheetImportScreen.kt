@@ -31,8 +31,6 @@ import androidx.compose.runtime.setValue
 import com.ssafy.eolssu.core.storage.SheetFileSource
 import com.ssafy.eolssu.core.storage.sheetFileSources
 import com.ssafy.eolssu.feature.song.edit.component.SheetUploadGuideCard
-import com.ssafy.eolssu.feature.song.edit.component.SheetTutorial
-import com.ssafy.eolssu.feature.song.edit.component.SheetTutorials
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.semantics.*
@@ -49,7 +47,7 @@ import org.jetbrains.compose.resources.stringResource
 fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () -> Unit,
     onTitle: (String) -> Unit, onKind: (ImportKind) -> Unit, onInstrument: (String) -> Unit, onJangdan: (String) -> Unit,
     onPick: (SheetFileSource) -> Unit, onSubmit: () -> Unit, onReload: () -> Unit, onDismissError: () -> Unit = {},
-    sources: List<SheetFileSource> = sheetFileSources) {
+    sources: List<SheetFileSource> = sheetFileSources, onJangdanUnsure: () -> Unit = {}) {
     BackHandler(enabled = state.busy) { }
     val editable = !state.busy && !state.picking && !state.expired && state.acceptedId == null
     val colors = EolssuTheme.colors
@@ -105,7 +103,6 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                         }
                     }
                 }
-                if (editable && state.error == null) SheetTutorials(SheetTutorial.Upload)
                 SheetUploadGuideCard(kind)
                 UploadCard {
                     EolssuTextField(qaTarget = QaTarget.SHEET_IMPORT_SCREEN_02,
@@ -141,6 +138,7 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                     UploadLabel(stringResource(Res.string.sheet_upload_jangdan))
                     Text(stringResource(Res.string.sheet_upload_jangdan_help), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
                     SheetJangdanSelect(state.jangdans, state.jangdanId, onJangdan, enabled = editable,
+                        unsure = state.jangdanUnsure, onUnsure = onJangdanUnsure.takeIf { state.canChooseJangdanUnsure },
                         isError = SheetImportField.Jangdan in inputErrors)
                     if (SheetImportField.Jangdan in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Jangdan)))
                 }

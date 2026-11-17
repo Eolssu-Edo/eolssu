@@ -96,6 +96,27 @@ class ConversionProgressTest {
         assertTrue(readingEstimate(Long.MAX_VALUE / 2, 1, null) < 1f, "끝났다는 응답 전에는 다 차지 않는다")
     }
 
+    @Test
+    fun listClockCountsReadingTimePerSheetAndResetsAfterTheConversionEnds() {
+        // 목록 막대가 '읽는 중' 내내 같은 값에 멈춰 있다가 끝날 때 확 차던 문제(S15P31E102-1064).
+        var now = 1_000L
+        val clock = ConversionReadingClock { now }
+        val queued = SheetConversion("s1", SheetConversionStatus.Queued, pageCount = 2)
+        val reading = running(SheetConversionStage.Recognizing, 0, 2)
+        assertEquals(0, clock.elapsedMs(queued), "대기 중에는 세지 않는다")
+        now = 5_000
+        assertEquals(0, clock.elapsedMs(reading), "읽기를 처음 본 때부터 센다")
+        now = 25_000
+        assertEquals(20_000, clock.elapsedMs(reading))
+        assertEquals(0, clock.elapsedMs(reading.copy(sheetId = "s2")), "악보마다 따로 센다")
+        assertTrue(conversionProgress(reading, clock.elapsedMs(reading))!! > conversionProgress(reading)!!, "지난 시간만큼 막대가 찬다")
+        assertEquals(0, clock.elapsedMs(running(SheetConversionStage.BuildingScore, 2, 2)), "만드는 중은 단계 값을 쓴다")
+
+        clock.elapsedMs(SheetConversion("s1", SheetConversionStatus.Failed))
+        now = 40_000
+        assertEquals(0, clock.elapsedMs(reading), "실패 뒤 다시 시도하면 처음부터 센다")
+    }
+
     private fun assertNotNullProgress(conversion: SheetConversion): Float =
         conversionProgress(conversion) ?: error("변환 중이면 진행 값이 있어야 한다: $conversion")
 }
