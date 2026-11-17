@@ -362,7 +362,6 @@ fun SheetEditRoute(
     }
     if (detailsOpen && state.canEditDetails) SheetEditSettingsDialog(
         draft = state.draft,
-        hasTempoPlan = state.hasTempoPlan,
         saving = state.saving,
         selectedCell = state.selected,
         onApply = { edited ->

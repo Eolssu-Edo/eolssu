@@ -57,7 +57,6 @@ internal fun SheetEditSettingsDialog(
     onApply: (SheetDraft) -> Unit,
     onDismiss: () -> Unit,
     saving: Boolean = false,
-    hasTempoPlan: Boolean = false,
     selectedCell: Int = 0,
 ) {
     var working by remember(draft) { mutableStateOf(draft) }
@@ -113,8 +112,6 @@ internal fun SheetEditSettingsDialog(
             BaseTempoRow(bpm, draft.tempoUnitLabel, enabled = !saving) { bpm = it; bpmTouched = true; error = null }
             if (bpmTouched && validBpm == null) Text(stringResource(Res.string.sheet_details_bpm_error, SheetBpmRange.first, SheetBpmRange.last),
                 color = EolssuTheme.colors.rec, style = MaterialTheme.typography.bodySmall)
-            if (hasTempoPlan || cues.isNotEmpty()) Text(stringResource(Res.string.sheet_tempo_profile_note), style = MaterialTheme.typography.bodySmall,
-                color = EolssuTheme.colors.textSub)
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(Res.string.sheet_tempo_changes), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
@@ -194,9 +191,13 @@ internal fun SheetEditSettingsDialog(
                     enabled = !saving && validBpm != null && current.cells.isNotEmpty(), qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_08)
             }
         }
-        EolssuButton(stringResource(Res.string.sheet_details_apply), { onApply(current) }, enabled = validBpm != null && !saving && !editing, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_09)
-        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary,
-            enabled = !saving, containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_10)
+        // 취소·적용을 한 줄에 나란히 두어 창 아래 높이를 줄인다(S15P31E102-1129).
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            EolssuButton(stringResource(Res.string.common_cancel), onDismiss, Modifier.weight(1f), style = EolssuButtonStyle.Secondary,
+                enabled = !saving, containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_10)
+            EolssuButton(stringResource(Res.string.sheet_details_apply), { onApply(current) }, Modifier.weight(1f),
+                enabled = validBpm != null && !saving && !editing, qaTarget = QaTarget.SHEET_EDIT_SETTINGS_DIALOG_BUTTON_09)
+        }
     }
 }
 
