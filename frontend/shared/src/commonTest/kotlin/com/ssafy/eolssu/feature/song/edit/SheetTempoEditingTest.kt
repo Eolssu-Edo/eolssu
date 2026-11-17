@@ -32,9 +32,10 @@ class SheetTempoEditingTest {
         assertEquals(before.toCommonScore().events.map { it.copy(sigimsae = emptyList()) }, encoded.events.map { it.copy(sigimsae = emptyList()) })
         assertEquals(before.toCommonScore().columns, encoded.columns)
         assertEquals(listOf("조금느리게"), after.tempoAnnotations()[ScoreUnitKey("c0-j1", 0, 0)])
-        val expression = requireNotNull(after.exportExpressions(null, hash(before), before.bpm))
+        val expression = requireNotNull(after.exportExpressions(null, before.bpm))
         assertTrue(expression.plan().entries("tempos").isEmpty())
-        assertEquals(hash(before), expression["sourceSha256"]!!.jsonPrimitive.content)
+        // 보낼 악보에 결합한다(S15P31E102-1095).
+        assertEquals(commonSourceSha256(Json.encodeToJsonElement(encoded)), expression["sourceSha256"]!!.jsonPrimitive.content)
         val marks = encoded.toScore(expression).tempoMarks
         assertEquals(listOf(HanbaeMark.Slower), marks[ScoreUnitKey("c0-j1", 0, 0)])
         val eventMarks = expression.entries("placements").groupBy { it["eventId"]!!.jsonPrimitive.content }
@@ -55,7 +56,7 @@ class SheetTempoEditingTest {
             })
         }
         val edited = initial.withTempoExpressions(companion).withTempoChange(SheetTempoChange(0, HanbaeMark.GraduallyFaster, 120.0, 2))
-        val exported = requireNotNull(edited.exportExpressions(companion, hash(initial), 80))
+        val exported = requireNotNull(edited.exportExpressions(companion, 80))
         assertEquals(companion["relativeScale"], exported["relativeScale"])
         assertEquals(companion.plan()["repeats"], exported.plan()["repeats"])
         val cue = exported.plan().entries("tempos").single()
@@ -78,7 +79,7 @@ class SheetTempoEditingTest {
         val loaded = initial.withTempoExpressions(expression)
         assertNull(loaded.tempoChanges.single().mark)
         assertTrue(loaded.tempoAnnotations().isEmpty())
-        val output = requireNotNull(loaded.exportExpressions(expression, hash(initial), 80))
+        val output = requireNotNull(loaded.exportExpressions(expression, 80))
         val cue = output.plan().entries("tempos").single()
         assertEquals(160.0, cue.getValue("bpm").jsonPrimitive.double)
         assertEquals(80.0, cue.getValue("start_bpm").jsonPrimitive.double)
@@ -97,8 +98,8 @@ class SheetTempoEditingTest {
             val initial = source.editingDraft(source.score.title, 80, null)
             val edited = initial.withTempoChange(SheetTempoChange(1, HanbaeMark.Slower, 60.0, 2))
             val expected = buildJsonArray { add(buildJsonObject { put("start_gak", 1); put("end_gak", 1); put("times", 2) }) }
-            assertEquals(expected, requireNotNull(edited.exportExpressions(null, hash(initial), 80)).plan()["repeats"], mark)
-            assertEquals(expected, requireNotNull(edited.withoutTempoChange(1).exportExpressions(null, hash(initial), 80)).plan()["repeats"], mark)
+            assertEquals(expected, requireNotNull(edited.exportExpressions(null, 80)).plan()["repeats"], mark)
+            assertEquals(expected, requireNotNull(edited.withoutTempoChange(1).exportExpressions(null, 80)).plan()["repeats"], mark)
         }
     }
 
@@ -119,7 +120,7 @@ class SheetTempoEditingTest {
             }) })
         }
         val edited = initial.withTempoExpressions(expression).withTempoChange(SheetTempoChange(0, HanbaeMark.Slower, 60.0, 1))
-        val output = requireNotNull(edited.exportExpressions(expression, hash(initial), 80))
+        val output = requireNotNull(edited.exportExpressions(expression, 80))
         val signs = output.entries("placements").filter { it.getValue("eventId").jsonPrimitive.content == source.events.first().id }
             .flatMap { it.getValue("symbols").jsonArray.map { raw -> raw.jsonPrimitive.content } }
         assertEquals(listOf("조금느리게", "니레"), signs)
@@ -139,7 +140,7 @@ class SheetTempoEditingTest {
         }
         val edited = initial.withTempoExpressions(expression).withTempoChange(SheetTempoChange(0, HanbaeMark.Slower, 60.0, 1))
         assertEquals(80.0, edited.tempoChanges.last().targetBpm)
-        val output = requireNotNull(edited.exportExpressions(expression, hash(initial), 80))
+        val output = requireNotNull(edited.exportExpressions(expression, 80))
         val original = output.plan().entries("tempos").single { it.getValue("cell").jsonPrimitive.int == 2 }
         assertEquals(80.0, original.getValue("bpm").jsonPrimitive.double)
     }
@@ -159,11 +160,11 @@ class SheetTempoEditingTest {
         val changed = initial.withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 80.0, 3))
         val global = changed.copy(bpm = 90)
         assertEquals(120.0, global.tempoChanges.single().targetBpm)
-        val draftExpression = requireNotNull(global.exportExpressions(null, hash(initial), 60))
+        val draftExpression = requireNotNull(global.exportExpressions(null, 60))
         assertEquals(80.0, draftExpression.plan().entries("tempos").single()["bpm"]!!.jsonPrimitive.double)
         val reopened = global.toCommonScore().editingDraft(global.title, 90, null).withTempoExpressions(draftExpression, referenceBpm = 60)
         assertEquals(120.0, reopened.tempoChanges.single().targetBpm)
-        val afterServerConfirmation = requireNotNull(reopened.exportExpressions(draftExpression, hash(initial), 90))
+        val afterServerConfirmation = requireNotNull(reopened.exportExpressions(draftExpression, 90))
         assertEquals(120.0, afterServerConfirmation.plan().entries("tempos").single()["bpm"]!!.jsonPrimitive.double)
     }
 
@@ -191,7 +192,7 @@ class SheetTempoEditingTest {
         val edited = before.updateTempoSettings(before.draft.withTempoChange(SheetTempoChange(2, HanbaeMark.Slower, 60.0, 3)).copy(bpm = 120))
         assertEquals(before.draft.authoring, edited.draft.authoring)
         assertEquals(90.0, edited.draft.tempoChanges.last().targetBpm)
-        val exported = requireNotNull(edited.draft.exportExpressions(expression, hash(initial), 80))
+        val exported = requireNotNull(edited.draft.exportExpressions(expression, 80))
         assertEquals(expression.plan()["repeats"], exported.plan()["repeats"])
         assertEquals(80.0, exported.plan().entries("tempos").first().getValue("start_bpm").jsonPrimitive.double)
         assertEquals(160.0, exported.plan().entries("tempos").first().getValue("bpm").jsonPrimitive.double)
@@ -268,7 +269,7 @@ class SheetTempoEditingTest {
             }) })
         }
         val edited = initial.withTempoExpressions(old).withTempoChange(SheetTempoChange(0, HanbaeMark.Slower, 60.0, 1))
-        val output = requireNotNull(edited.exportExpressions(old, hash(initial), 80))
+        val output = requireNotNull(edited.exportExpressions(old, 80))
         val slot = output.entries("sourceSlots").single()
         assertEquals(listOf("니", "조금느리게", "니레"), slot["symbols"]!!.jsonArray.map { it.jsonPrimitive.content })
         assertEquals(old.entries("sourceSlots").single().filterKeys { it != "symbols" }, slot.filterKeys { it != "symbols" })
@@ -283,13 +284,13 @@ class SheetTempoEditingTest {
         // 3~5각만 조금 빠르게. 6각부터 앞 빠르기(80)로 돌아간다(S15P31E102-1082).
         val edited = initial.withTempoChange(SheetTempoChange(2, HanbaeMark.Faster, 120.0, 5))
         assertEquals(listOf(SheetTempoChange(2, HanbaeMark.Faster, 120.0, 5)), edited.tempoChanges)
-        val exported = requireNotNull(edited.exportExpressions(null, hash(initial), 80))
+        val exported = requireNotNull(edited.exportExpressions(null, 80))
         assertEquals(listOf(Triple(3, 1, 120.0), Triple(6, 1, 80.0)), exported.tempoRows())
         assertTrue(exported.plan().entries("tempos").none { "end_gak" in it || "start_bpm" in it })
         val reopened = edited.toCommonScore().editingDraft(initial.title, 80, null).withTempoExpressions(exported)
         assertEquals(edited.tempoChanges, reopened.tempoChanges)
         assertTrue(reopened.withoutTempoChange(2).tempoChanges.isEmpty())
-        assertTrue(requireNotNull(reopened.withoutTempoChange(2).exportExpressions(exported, hash(initial), 80)).tempoRows().isEmpty())
+        assertTrue(requireNotNull(reopened.withoutTempoChange(2).exportExpressions(exported, 80)).tempoRows().isEmpty())
     }
 
     @Test fun spanReturnFollowsEditedEarlierTempoAndIsOmittedAtScoreEndOrNextChange() {
@@ -297,18 +298,18 @@ class SheetTempoEditingTest {
         val draft = initial.withTempoChange(SheetTempoChange(1, null, 100.0))
             .withTempoChange(SheetTempoChange(3, HanbaeMark.Slower, 70.0, 5))
         assertEquals(listOf(Triple(2, 1, 100.0), Triple(4, 1, 70.0), Triple(6, 1, 100.0)),
-            requireNotNull(draft.exportExpressions(null, hash(initial), 80)).tempoRows())
+            requireNotNull(draft.exportExpressions(null, 80)).tempoRows())
         val earlier = draft.withTempoChange(SheetTempoChange(1, null, 90.0), replacing = 1)
         assertEquals(listOf(Triple(2, 1, 90.0), Triple(4, 1, 70.0), Triple(6, 1, 90.0)),
-            requireNotNull(earlier.exportExpressions(null, hash(initial), 80)).tempoRows())
+            requireNotNull(earlier.exportExpressions(null, 80)).tempoRows())
         // 악보 끝까지인 구간과, 끝에서 다음 변경이 바로 시작하는 구간에는 복귀 항목이 없다.
         val toEnd = initial.withTempoChange(SheetTempoChange(5, HanbaeMark.Faster, 120.0, 8))
-        assertEquals(listOf(Triple(6, 1, 120.0)), requireNotNull(toEnd.exportExpressions(null, hash(initial), 80)).tempoRows())
+        assertEquals(listOf(Triple(6, 1, 120.0)), requireNotNull(toEnd.exportExpressions(null, 80)).tempoRows())
         val chained = initial.withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 120.0, 3))
             .withTempoChange(SheetTempoChange(3, HanbaeMark.GraduallySlower, 90.0, 6))
         assertEquals(listOf(1, 3), chained.tempoChanges.map { it.cell })
         assertEquals(listOf(Triple(2, 1, 120.0), Triple(4, 1, 90.0)),
-            requireNotNull(chained.exportExpressions(null, hash(initial), 80)).tempoRows().map { it })
+            requireNotNull(chained.exportExpressions(null, 80)).tempoRows().map { it })
     }
 
     @Test fun slightTempoNeedsAnEndInsideTheScoreAndBlocksChangesInsideIt() {
@@ -342,14 +343,14 @@ class SheetTempoEditingTest {
         val loaded = initial.withTempoExpressions(expression)
         // 복귀 빠르기가 앞 빠르기와 다르면 별도 숫자 변경으로 남기고 조금 빠르게는 거기까지로 읽는다.
         assertEquals(listOf(SheetTempoChange(2, HanbaeMark.Faster, 120.0, 5), SheetTempoChange(5, null, 100.0)), loaded.tempoChanges)
-        val output = requireNotNull(loaded.exportExpressions(expression, hash(initial), 80))
+        val output = requireNotNull(loaded.exportExpressions(expression, 80))
         assertEquals(listOf(Triple(3, 1, 120.0), Triple(6, 1, 100.0)), output.tempoRows())
     }
 
     @Test fun exportIntegrationExample() {
         val initial = draft()
         val edited = initial.withTempoChange(SheetTempoChange(1, HanbaeMark.Slower, 60.0, 2))
-        val expression = requireNotNull(edited.exportExpressions(null, hash(initial), 80))
+        val expression = requireNotNull(edited.exportExpressions(null, 80))
         println("HANBAE_FE_EXAMPLE=" + buildJsonObject {
             put("original", Json.encodeToJsonElement(initial.original)); put("score", Json.encodeToJsonElement(edited.toCommonScore()))
             put("expressions", expression); put("oldBpm", 80); put("newBpm", 80)
