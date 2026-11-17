@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.app.navigation
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,7 +47,7 @@ internal fun PendingRecordingNotice(routeId: String?, onSend: (PendingRecording)
         EolssuButton(stringResource(Res.string.pending_recording_send), {
             asked = true
             onSend(pending)
-        })
-        EolssuButton(stringResource(Res.string.pending_recording_later), { asked = true }, style = EolssuButtonStyle.Secondary)
+        }, qaTarget = QaTarget.PENDING_RECORDING_NOTICE_BUTTON_01)
+        EolssuButton(stringResource(Res.string.pending_recording_later), { asked = true }, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.PENDING_RECORDING_NOTICE_BUTTON_02)
     }
 }

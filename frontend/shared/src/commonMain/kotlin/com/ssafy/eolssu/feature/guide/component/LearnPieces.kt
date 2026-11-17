@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -132,7 +136,7 @@ internal fun LearnSection(
  */
 @Composable
 internal fun MoreLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    EolssuTextLink(onClick, modifier, pillHeight = 28.dp, reserveTouchHeight = false) {
+    EolssuTextLink(onClick, modifier, pillHeight = 28.dp, reserveTouchHeight = false, qaTarget = QaTarget.LEARN_PIECES_LINK_01) {
         Text(text, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
         Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(14.dp))
     }
@@ -155,7 +159,7 @@ internal fun LearnTaskList(tasks: List<LearnTask>, columns: Int = 1, collapsible
                 .then(
                     if (canOpen) {
                         Modifier
-                            .clickable { openIndex = if (openIndex == i) null else i }
+                            .clickable { UserActionLog.event(QaKind.CLICK, QaTarget.LEARN_PIECES_01); openIndex = if (openIndex == i) null else i }
                             .semantics { if (open) collapse { openIndex = null; true } else expand { openIndex = i; true } }
                     } else {
                         Modifier

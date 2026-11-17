@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -202,7 +204,7 @@ private fun SectionSummary(evaluation: SectionEvaluation, filter: ErrorFilter, a
 /** ‘다른 구간 고르기 ›’ 글자 버튼. */
 @Composable
 private fun OtherSectionLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    EolssuTextLink(onClick, modifier.padding(top = 10.dp, bottom = 10.dp)) {
+    EolssuTextLink(onClick, modifier.padding(top = 10.dp, bottom = 10.dp), qaTarget = QaTarget.SECTION_RESULT_SCREEN_LINK_01) {
         Text(
             stringResource(Res.string.weak_result_other_more),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
@@ -226,7 +228,7 @@ private fun ColumnScope.ResultButtons(state: SectionResultUiState, expanded: Boo
         }
         EolssuButton(
             stringResource(Res.string.weak_result_whole), actions.onWholeSong, Modifier.weight(1f).fillMaxHeight(),
-            compact = true,
+            compact = true, qaTarget = QaTarget.SECTION_RESULT_SCREEN_BUTTON_01
         )
     }
 }

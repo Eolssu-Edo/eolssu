@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -155,12 +157,12 @@ private fun RecordingBarContent(state: PracticeUiState, actions: PracticeBottomA
             when {
                 awaiting -> EolssuButton(
                     stringResource(Res.string.practice_start_eval_short), actions.onStartEval, Modifier.fillMaxWidth(), compact = true, small = true,
-                    icon = EolssuIcons.Mic, enabled = state.recordingSupported,
+                    icon = EolssuIcons.Mic, enabled = state.recordingSupported, qaTarget = QaTarget.PRACTICE_BOTTOM_BAR_BUTTON_01
                 )
                 locked -> OffButton(stringResource(Res.string.practice_abort), Modifier.fillMaxWidth())
                 else -> EolssuButton(
                     stringResource(Res.string.practice_abort), actions.onAskAbort, Modifier.fillMaxWidth(), compact = true, small = true,
-                    style = EolssuButtonStyle.Danger, icon = EolssuIcons.Stop,
+                    style = EolssuButtonStyle.Danger, icon = EolssuIcons.Stop, qaTarget = QaTarget.PRACTICE_BOTTOM_BAR_BUTTON_02
                 )
             }
         } else if (locked) {
@@ -169,10 +171,10 @@ private fun RecordingBarContent(state: PracticeUiState, actions: PracticeBottomA
             PairedButtons(
                 stacked,
                 first = { m ->
-                    EolssuButton(stringResource(Res.string.practice_restart), actions.onAskRestart, m, compact = true, small = true, style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Restart)
+                    EolssuButton(stringResource(Res.string.practice_restart), actions.onAskRestart, m, compact = true, small = true, style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Restart, qaTarget = QaTarget.PRACTICE_BOTTOM_BAR_BUTTON_03)
                 },
                 second = { m ->
-                    EolssuButton(stringResource(Res.string.practice_abort), actions.onAskAbort, m, compact = true, small = true, style = EolssuButtonStyle.Danger, icon = EolssuIcons.Stop)
+                    EolssuButton(stringResource(Res.string.practice_abort), actions.onAskAbort, m, compact = true, small = true, style = EolssuButtonStyle.Danger, icon = EolssuIcons.Stop, qaTarget = QaTarget.PRACTICE_BOTTOM_BAR_BUTTON_04)
                 },
             )
         }

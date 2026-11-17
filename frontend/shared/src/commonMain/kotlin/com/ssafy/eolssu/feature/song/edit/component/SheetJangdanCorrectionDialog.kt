@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.runtime.Composable
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
@@ -18,7 +20,7 @@ internal fun SheetJangdanCorrectionDialog(option: CatalogJangdanSummary, onApply
     EolssuDialog(title = stringResource(Res.string.sheet_jangdan_correction_title),
         message = stringResource(Res.string.sheet_jangdan_correction_message), onDismissRequest = onDismiss) {
         SheetJangdanOptionLabel(option)
-        EolssuButton(stringResource(Res.string.sheet_details_apply), onApply)
-        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.sheet_details_apply), onApply, qaTarget = QaTarget.SHEET_JANGDAN_CORRECTION_DIALOG_BUTTON_01)
+        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.SHEET_JANGDAN_CORRECTION_DIALOG_BUTTON_02)
     }
 }

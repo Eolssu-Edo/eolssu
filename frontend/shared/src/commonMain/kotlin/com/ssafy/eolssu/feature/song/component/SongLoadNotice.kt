@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.component
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,6 +36,6 @@ internal fun SongLoadNotice(state: SongLoadState, onRetry: () -> Unit, modifier:
             SongLoadState.Failed -> Res.string.song_catalog_failed
             SongLoadState.NotFound -> Res.string.song_catalog_not_found
         }), textAlign = TextAlign.Center)
-        if (state != SongLoadState.Loading) EolssuButton(stringResource(Res.string.song_catalog_retry), onRetry)
+        if (state != SongLoadState.Loading) EolssuButton(stringResource(Res.string.song_catalog_retry), onRetry, qaTarget = QaTarget.SONG_LOAD_NOTICE_BUTTON_01)
     }
 }

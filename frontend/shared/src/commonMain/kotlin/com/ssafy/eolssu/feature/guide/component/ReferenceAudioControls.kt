@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -72,11 +75,11 @@ fun ReferenceAudioControls(
                     // 다른 화면의 '다시 시도'와 같은 회색 앱 버튼(S15P31E102-970).
                     EolssuButton(
                         stringResource(Res.string.guide_catalog_retry),
-                        onClick = controller.retry,
+                        onClick = UserActionLog.click(QaTarget.REFERENCE_AUDIO_CONTROLS_01, controller.retry),
                         style = EolssuButtonStyle.Secondary,
                         small = true,
                         containerColor = colors.groupedBackground,
-                        borderColor = colors.groupedBackground,
+                        borderColor = colors.groupedBackground, qaTarget = QaTarget.REFERENCE_AUDIO_CONTROLS_BUTTON_01
                     )
                 }
             }
@@ -99,7 +102,7 @@ fun ReferenceAudioControls(
                     active = active,
                     actionLabel = basicOnly,
                     enabled = clip != null && playback.status != AudioPlaybackStatus.Unavailable,
-                    onClick = { controller.play(selection, kind) },
+                    onClick = UserActionLog.click(QaTarget.REFERENCE_AUDIO_CONTROLS_02, { controller.play(selection, kind) }),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -133,7 +136,7 @@ private fun SpeakerButton(
     }
     val press = remember { MutableInteractionSource() }
     Surface(
-        onClick = onClick, enabled = enabled,
+        onClick = UserActionLog.click(QaTarget.REFERENCE_AUDIO_CONTROLS_03, onClick), enabled = enabled,
         // 음을 차례로 빠르게 눌러 비교하는 버튼이라 약하게 출렁인다(S15P31E102-891).
         modifier = modifier
             .elasticSquash(press, amount = ElasticSquashSoftAmount, widthFactor = ElasticSquashTextWidth)

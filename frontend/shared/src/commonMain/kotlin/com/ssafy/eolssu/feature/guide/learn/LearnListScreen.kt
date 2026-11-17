@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -169,7 +172,7 @@ internal fun LearnListContent(
                     // 보이는 알약(약 28dp)은 그대로, 누르는 영역은 48dp. 늘어난 위아래 10dp가 아래 여백을 대신한다(S15P31E102-971).
                     .minimumInteractiveComponentSize()
                     .clip(RoundedCornerShape(50))
-                    .clickable(role = Role.Button, onClick = { confirmingReset = true })
+                    .clickable(role = Role.Button, onClick = UserActionLog.click(QaTarget.LEARN_LIST_SCREEN_01, { confirmingReset = true }))
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -198,8 +201,8 @@ internal fun LearnListContent(
 @Composable
 private fun LearnResetDialog(onConfirm: () -> Unit, onCancel: () -> Unit) {
     EolssuDialog(title = stringResource(Res.string.learn_reset_confirm_title), icon = EolssuIcons.Restart, onDismissRequest = onCancel) {
-        EolssuButton(stringResource(Res.string.common_confirm), onConfirm, Modifier.fillMaxWidth())
-        EolssuButton(stringResource(Res.string.common_cancel), onCancel, Modifier.fillMaxWidth(), style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.common_confirm), onConfirm, Modifier.fillMaxWidth(), qaTarget = QaTarget.LEARN_LIST_SCREEN_BUTTON_01)
+        EolssuButton(stringResource(Res.string.common_cancel), onCancel, Modifier.fillMaxWidth(), style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.LEARN_LIST_SCREEN_BUTTON_02)
     }
 }
 

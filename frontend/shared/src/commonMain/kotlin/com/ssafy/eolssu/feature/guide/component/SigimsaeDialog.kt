@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.ui.component.QaModalObservation
+import com.ssafy.eolssu.core.ui.component.qaModalInput
+
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -134,8 +140,9 @@ internal fun SigimsaeDialog(item: SigimsaeItem, hint: String?, onDismiss: () -> 
     var replay by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) { closeFocus.requestFocus() }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        QaModalObservation()
         Box(
-            Modifier
+            Modifier.qaModalInput()
                 .padding(20.dp)
                 .widthIn(max = 340.dp)
                 .fillMaxWidth()
@@ -176,7 +183,7 @@ internal fun SigimsaeDialog(item: SigimsaeItem, hint: String?, onDismiss: () -> 
                     SigimsaeLegend(hint, Modifier.padding(top = 12.dp))
                 }
                 Box(Modifier.fillMaxWidth().padding(top = 12.dp), contentAlignment = Alignment.Center) {
-                    ReplayButton(onClick = { replay++ })
+                    ReplayButton(onClick = UserActionLog.click(QaTarget.SIGIMSAE_DIALOG_01, { replay++ }))
                 }
             }
             EolssuIconButton(
@@ -251,7 +258,7 @@ private fun SigimsaeLegend(hint: String?, modifier: Modifier) {
 @Composable
 private fun ReplayButton(onClick: () -> Unit) {
     val colors = EolssuTheme.colors
-    Surface(onClick = onClick, shape = RoundedCornerShape(12.dp), color = colors.green, contentColor = colors.onPrimary) {
+    Surface(onClick = UserActionLog.click(QaTarget.SIGIMSAE_DIALOG_02, onClick), shape = RoundedCornerShape(12.dp), color = colors.green, contentColor = colors.onPrimary) {
         Row(Modifier.height(44.dp).padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Icon(EolssuIcons.Restart, contentDescription = null, modifier = Modifier.size(18.dp))
             Text(stringResource(Res.string.guide_sigimsae_replay), style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))

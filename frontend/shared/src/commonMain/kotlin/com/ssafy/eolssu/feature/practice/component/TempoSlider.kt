@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -59,12 +62,12 @@ internal fun TempoSlider(
     val label = tempoLabel(step)
     Slider(
         value = position.value,
-        onValueChange = { value ->
+        onValueChange = UserActionLog.change(QaTarget.TEMPO_SLIDER_01, { value ->
             dragging = true
             scope.launch { position.snapTo(value) }
             val nearest = steps[value.roundToInt().coerceIn(0, steps.lastIndex)]
             if (nearest != latestStep) onStep(nearest)
-        },
+        }),
         onValueChangeFinished = {
             dragging = false
             val target = position.value.roundToInt().coerceIn(0, steps.lastIndex).toFloat()

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.core.ui.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -69,7 +72,7 @@ fun EolssuSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
                     modifier = Modifier
                         .minimumInteractiveComponentSize()
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable(role = Role.Button, onClick = data::performAction)
+                        .clickable(role = Role.Button, onClick = UserActionLog.click(QaTarget.EOLSSU_SNACKBAR_01, data::performAction))
                         .padding(horizontal = 10.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                     color = EolssuTheme.colors.primary,

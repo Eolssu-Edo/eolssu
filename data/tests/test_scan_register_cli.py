@@ -162,3 +162,104 @@ def test_instrument_pitch_limit_reaches_bounded_batches_and_keeps_unlimited_conf
     assert all(c['conf'] < top < .8 for c in limited['cells'])
     if not grid:
         assert json.loads((tmp_path / 'batches.json').read_text()) == [5, 5, 5, 5, 4]
+
+
+GRID_MODEL = '''
+import json
+import cv2
+import os
+from pathlib import Path
+from types import SimpleNamespace as Box
+INFERENCER_DEFAULT_KWARGS = {}
+boxes = json.loads(Path(os.environ['REGISTER_FIXTURE']).with_name('boxes.json').read_text())
+class Predictions:
+    def __call__(self, images):
+        return [f'임:{min(9, len(image) // 100)}' for image in images], [.91] * len(images)
+class JeongganboReader:
+    def __init__(self, **kwargs): self.omr = Predictions()
+    def __call__(self, path):
+        notes = [Box(x=x, y=y, w=w, h=h, omr_text='임:5', omr_confidence=.91) for x, y, w, h in boxes]
+        return Box(img=cv2.imread(path), gaks=[Box(is_jangdan=False, jeonggans=notes)])
+'''
+
+
+@pytest.mark.parametrize('grid', [False, True], ids=['model-grid', 'geometric-grid'])
+def test_merged_and_missing_cells_keep_following_gak_positions(tmp_path, grid):
+    """둘째 열의 1·2줄 상자가 합쳐지고 넷째 열의 3줄 상자가 빠져도 뒤 정간의 각·정간 번호는 그대로다."""
+    source, record, model = register_page(tmp_path)
+    boxes = [c['box'] for c in json.loads(record.read_text(encoding='utf-8'))]
+    merged, missing = 4 + 1, 12 + 3
+    if grid:
+        image = cv2.imread(str(source), cv2.IMREAD_GRAYSCALE)
+        x, y = boxes[merged][:2]
+        image[y, x + 2:x + 99] = 255  # 가로선 하나를 지운다
+        cv2.imwrite(str(source), image)
+    else:
+        boxes[merged - 1] = boxes[merged - 1][:3] + [200]
+        del boxes[missing], boxes[merged]
+    record.with_name('boxes.json').write_text(json.dumps(boxes), encoding='utf-8')
+    (model / 'jngbomr.py').write_text(GRID_MODEL, encoding='utf-8')
+    result, report = run_reader(tmp_path, source, model, record, '--fill-grid', *(['--grid-boxes'] if grid else []))
+    cells = report['cells']
+    assert len(cells) == 24 and report['beats'] == 4
+    assert [(c['gak'], c['jeonggan']) for c in cells] == [(i // 4, i % 4) for i in range(24)]
+    assert [i for i, c in enumerate(cells) if c.get('split')] == [merged - 1, merged]
+    assert [i for i, c in enumerate(cells) if c.get('filled')] == ([] if grid else [missing])
+    # 나눈 칸과 채운 칸은 한 정간 높이로 다시 읽었다(가짜 모델은 높이 100px마다 위치 번호 1을 낸다)
+    assert all(c['text'] == '임:1' for c in cells if c.get('split') or c.get('filled'))
+    expected = json.loads(record.read_text(encoding='utf-8'))
+    assert all(abs(c['y'] - e['box'][1]) <= 2 for c, e in zip(cells, expected))
+
+
+def side_mark_page(tmp_path):
+    """한 열 네 정간. 둘째 정간의 율명 오른쪽에 짧은 물결선, 넷째 정간에 `)`를 그린다."""
+    sys.path.insert(0, str(ROOT / 'data/tests'))
+    from test_side_marks import H, W, cell, glyph, paren, wave
+    page = np.full((40 + 4 * H, 40 + W), 255, np.uint8)
+    predictions = []
+    for i, text in enumerate(['청태:5', '청태_나니나:2 -:5 청임:8', '청임:5', '청무:5']):
+        g = cell()
+        if i == 1:
+            top = glyph(g, 0)
+            glyph(g, 2)
+            wave(g, 76, top - 4, 38)
+        else:
+            top = glyph(g, 1)
+            if i == 3:
+                paren(g, 72, top + 2)
+        page[20 + i * H:20 + (i + 1) * H, 20:20 + W] = g
+        predictions.append(dict(box=[20, 20 + i * H, W, H], modelText=text))
+    source, record = tmp_path / 'marks.png', tmp_path / 'predictions.json'
+    cv2.imwrite(str(source), page)
+    record.write_text(json.dumps(predictions), encoding='utf-8')
+    model = tmp_path / 'model'
+    (model / 'checkpoints/best').mkdir(parents=True)
+    (model / 'checkpoints/best/model_weight-names.pt').touch()
+    (model / 'jngbomr.py').write_text('''
+import json
+import cv2
+import os
+from pathlib import Path
+from types import SimpleNamespace as Box
+INFERENCER_DEFAULT_KWARGS = {}
+cells = json.loads(Path(os.environ['REGISTER_FIXTURE']).read_text())
+class JeongganboReader:
+    def __init__(self, **kwargs): self.omr = None
+    def __call__(self, path):
+        notes = [Box(x=c['box'][0], y=c['box'][1], w=c['box'][2], h=c['box'][3],
+                     omr_text=c['modelText'], omr_confidence=.5) for c in cells]
+        return Box(img=cv2.imread(path), gaks=[Box(is_jangdan=False, jeonggans=notes)])
+''', encoding='utf-8')
+    return source, record, model
+
+
+def test_reader_attaches_side_marks_only_when_asked(tmp_path):
+    source, record, model = side_mark_page(tmp_path)
+    _, plain = run_reader(tmp_path, source, model, record)
+    assert [c['text'] for c in plain['cells']] == ['청태:5', '청태_나니나:2 -:5 청임:8', '청임:5', '청무:5']
+    assert not any('sideMarks' in c for c in plain['cells'])
+    _, marked = run_reader(tmp_path, source, model, record, '--side-marks')
+    assert [c['text'] for c in marked['cells']] == ['청태:5', '청태_풀어내림표:2 -:5 청임:8', '청임:5', '청무_흘림표:5']
+    assert [c['jg'] for c in marked['cells']][1] == ':2 청태 풀어내림표 :5 - :8 청임'
+    assert marked['cells'][1]['modelText'] == '청태_나니나:2 -:5 청임:8'
+    assert [(m['name'], m['action']) for m in marked['cells'][3]['sideMarks']] == [('흘림표', 'added')]

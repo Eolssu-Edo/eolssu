@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.profile
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.liveRegion
@@ -48,11 +51,11 @@ fun PasswordChangeScreen(
         // 마이페이지처럼 회색 바탕 위 테두리 없는 흰 입력칸(S15P31E102-768).
         containerColor = EolssuTheme.colors.groupedBackground,
         bottomDivider = false,
-        bottomBar = { EolssuButton(stringResource(Res.string.my_password_change_done), onClick = onSubmit, busy = state.submitting) },
+        bottomBar = { EolssuButton(stringResource(Res.string.my_password_change_done), onClick = UserActionLog.click(QaTarget.PASSWORD_CHANGE_SCREEN_01, onSubmit), busy = state.submitting, qaTarget = QaTarget.PASSWORD_CHANGE_SCREEN_BUTTON_01) },
     ) {
-        EolssuTextField(
+        EolssuTextField(qaTarget = QaTarget.PASSWORD_CHANGE_SCREEN_02,
             value = state.current,
-            onValueChange = onCurrentChange,
+            onValueChange = UserActionLog.change(QaTarget.PASSWORD_CHANGE_SCREEN_02, onCurrentChange),
             label = stringResource(Res.string.my_password_current),
             placeholder = stringResource(Res.string.my_password_current),
             type = TextFieldType.Password,
@@ -64,9 +67,9 @@ fun PasswordChangeScreen(
         // 입력칸 오류 문장은 그 밖의 오류(미입력·64자 초과·현재와 같음)만 쓴다.
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val ruleError = state.newError == ProfileFieldError.PasswordRule
-            EolssuTextField(
+            EolssuTextField(qaTarget = QaTarget.PASSWORD_CHANGE_SCREEN_03,
                 value = state.new,
-                onValueChange = onNewChange,
+                onValueChange = UserActionLog.change(QaTarget.PASSWORD_CHANGE_SCREEN_03, onNewChange),
                 label = stringResource(Res.string.my_password_new),
                 placeholder = stringResource(Res.string.my_password_new),
                 type = TextFieldType.Password,
@@ -76,9 +79,9 @@ fun PasswordChangeScreen(
             )
             PasswordChecklist(state.new, highlightUnmet = ruleError)
         }
-        EolssuTextField(
+        EolssuTextField(qaTarget = QaTarget.PASSWORD_CHANGE_SCREEN_04,
             value = state.confirm,
-            onValueChange = onConfirmChange,
+            onValueChange = UserActionLog.change(QaTarget.PASSWORD_CHANGE_SCREEN_04, onConfirmChange),
             label = stringResource(Res.string.my_password_confirm),
             placeholder = stringResource(Res.string.my_password_confirm_placeholder),
             type = TextFieldType.Password,

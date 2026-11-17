@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -147,7 +150,7 @@ internal fun RangeTabs(range: GrowthRange, onRange: (GrowthRange) -> Unit) {
         listOf(GrowthRange.Week to Res.string.growth_week, GrowthRange.Month to Res.string.growth_month).forEach { (r, label) ->
             val on = r == range
             Surface(
-                onClick = { onRange(r) },
+                onClick = UserActionLog.click(QaTarget.GROWTH_PARTS_01, { onRange(r) }),
                 modifier = Modifier.weight(1f).height(36.dp).semantics {
                     role = Role.Tab
                     selected = on
@@ -179,7 +182,7 @@ internal fun GrowthStatus(load: GrowthLoad, onRetry: () -> Unit, modifier: Modif
     ) {
         if (load == GrowthLoad.Failed) {
             Text(stringResource(Res.string.growth_load_failed), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), color = colors.textMuted)
-            EolssuButton(stringResource(Res.string.growth_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true)
+            EolssuButton(stringResource(Res.string.growth_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.GROWTH_PARTS_BUTTON_01)
         } else {
             CircularProgressIndicator(Modifier.size(36.dp), color = colors.text, trackColor = colors.surfaceStrong, strokeWidth = 3.dp)
         }
@@ -255,7 +258,7 @@ internal fun PeriodChartCard(
                     .minimumInteractiveComponentSize()
                     .height(32.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable(role = Role.Button, onClickLabel = pick, onClick = onOpenPicker)
+                    .clickable(role = Role.Button, onClickLabel = pick, onClick = UserActionLog.click(QaTarget.GROWTH_PARTS_02, onOpenPicker))
                     .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -383,7 +386,7 @@ private fun BarLabelsRow(chart: PeriodChart, dense: Boolean, onToggleDense: () -
         Spacer(Modifier.width(AxisGap))
         Box(Modifier.width(AxisWidth), contentAlignment = Alignment.CenterEnd) {
             Surface(
-                onClick = onToggleDense,
+                onClick = UserActionLog.click(QaTarget.GROWTH_PARTS_03, onToggleDense),
                 modifier = Modifier
                     .padding(end = 2.dp)
                     .size(44.dp)
@@ -419,7 +422,7 @@ private fun MetricPicker(metric: GrowthMetric, onMetric: (GrowthMetric) -> Unit)
     )
     Box {
         Surface(
-            onClick = { expanded = true },
+            onClick = UserActionLog.click(QaTarget.GROWTH_PARTS_04, { expanded = true }),
             modifier = Modifier.height(32.dp).semantics { role = Role.DropdownList },
             shape = CircleShape,
             color = Color.Transparent,
@@ -444,10 +447,10 @@ private fun MetricPicker(metric: GrowthMetric, onMetric: (GrowthMetric) -> Unit)
             EolssuMenuPopup(onDismissRequest = { expanded = false }, align = EolssuMenuAlign.End) {
                 EolssuMenuPanel(width = 140.dp) {
                     names.forEach { (m, name) ->
-                        EolssuMenuItem(name, m == metric, onClick = {
+                        EolssuMenuItem(name, m == metric, onClick = UserActionLog.click(QaTarget.GROWTH_PARTS_05, {
                             expanded = false
                             onMetric(m)
-                        })
+                        }))
                     }
                 }
             }

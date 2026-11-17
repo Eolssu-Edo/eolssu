@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -61,7 +63,7 @@ internal fun SheetCompletionNotice(
             Text(stringResource(Res.string.sheet_completion_catalog_loading), style = MaterialTheme.typography.bodySmall)
         } else if (validation.catalogFailed) {
             Text(stringResource(Res.string.sheet_completion_catalog_failed), style = MaterialTheme.typography.bodySmall)
-            EolssuButton(stringResource(Res.string.sheet_completion_catalog_retry), onRetryCatalog, style = EolssuButtonStyle.Secondary, compact = true)
+            EolssuButton(stringResource(Res.string.sheet_completion_catalog_retry), onRetryCatalog, style = EolssuButtonStyle.Secondary, compact = true, qaTarget = QaTarget.SHEET_COMPLETION_NOTICE_BUTTON_01)
         } else {
             Text(stringResource(Res.string.sheet_completion_title), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         }
@@ -81,13 +83,13 @@ internal fun SheetCompletionNotice(
             Text(stringResource(Res.string.sheet_completion_structure), style = MaterialTheme.typography.bodySmall)
         }
         if (showCellAction && (showCells || validation.invalidPitchCount > 0 || validation.hasInvalidStructure)) {
-            EolssuButton(stringResource(Res.string.sheet_completion_fix), onFixCells, style = EolssuButtonStyle.Secondary, compact = true)
+            EolssuButton(stringResource(Res.string.sheet_completion_fix), onFixCells, style = EolssuButtonStyle.Secondary, compact = true, qaTarget = QaTarget.SHEET_COMPLETION_NOTICE_BUTTON_02)
         }
         if (validation.hasJangdanMismatch) {
             Text(stringResource(Res.string.sheet_completion_jangdan, jangdanLabel(state.draft.jangdanName)), style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                EolssuButton(stringResource(Res.string.sheetedit_cell_jangdan_change), onChangeJangdan, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving)
-                EolssuButton(stringResource(Res.string.sheet_completion_clear_jangdan), onClearJangdan, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving)
+                EolssuButton(stringResource(Res.string.sheetedit_cell_jangdan_change), onChangeJangdan, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving, qaTarget = QaTarget.SHEET_COMPLETION_NOTICE_BUTTON_03)
+                EolssuButton(stringResource(Res.string.sheet_completion_clear_jangdan), onClearJangdan, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving, qaTarget = QaTarget.SHEET_COMPLETION_NOTICE_BUTTON_04)
             }
         }
     }

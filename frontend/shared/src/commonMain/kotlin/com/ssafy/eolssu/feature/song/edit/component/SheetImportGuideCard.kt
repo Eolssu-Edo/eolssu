@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -64,8 +67,8 @@ internal fun SheetImportGuideCard(
                         shift > 0 -> stringResource(Res.string.sheet_import_guide_up, shift, fixed)
                         all -> stringResource(Res.string.sheet_import_guide_down_all, abs(shift))
                         else -> stringResource(Res.string.sheet_import_guide_down, abs(shift), fixed)
-                    }, onApplyRecommended)
-                } else GuideButton(stringResource(Res.string.sheet_import_guide_adapt), onOpenAdaptation)
+                    }, UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_02, onApplyRecommended))
+                } else GuideButton(stringResource(Res.string.sheet_import_guide_adapt), UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_03, onOpenAdaptation))
             }
             if (showReview) GuideRow("!", colors.rec, colors.recSoft,
                 guide.reviewPosition?.let { stringResource(Res.string.sheet_import_guide_review_position, it, guide.reviewCells) }
@@ -122,7 +125,7 @@ private fun GuideButton(label: String, onClick: () -> Unit) {
 /** 다시 볼 곳 이전·다음(보이는 칸 36dp). 아래 화살표 그림을 돌려 왼쪽·오른쪽을 가리킨다. */
 @Composable
 private fun StepButton(label: String, rotation: Float, enabled: Boolean, onClick: () -> Unit) {
-    Surface(onClick = onClick, enabled = enabled, modifier = Modifier.size(36.dp), shape = RoundedCornerShape(8.dp),
+    Surface(onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_GUIDE_CARD_04, onClick), enabled = enabled, modifier = Modifier.size(36.dp), shape = RoundedCornerShape(8.dp),
         color = EolssuTheme.colors.surface, contentColor = EolssuTheme.colors.text) {
         Box(contentAlignment = Alignment.Center) {
             Icon(EolssuIcons.ChevronDown, contentDescription = label, modifier = Modifier.size(18.dp).rotate(rotation)

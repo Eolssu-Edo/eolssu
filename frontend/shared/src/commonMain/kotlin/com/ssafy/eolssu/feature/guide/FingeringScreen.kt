@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.guide
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -98,6 +100,6 @@ private fun InstrumentListNotice(message: StringResource, onRetry: () -> Unit, m
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(stringResource(message), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             style = MaterialTheme.typography.bodyMedium, color = EolssuTheme.colors.textMuted)
-        EolssuButton(stringResource(Res.string.guide_catalog_retry), onRetry, style = EolssuButtonStyle.Secondary)
+        EolssuButton(stringResource(Res.string.guide_catalog_retry), onRetry, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.FINGERING_SCREEN_BUTTON_01)
     }
 }

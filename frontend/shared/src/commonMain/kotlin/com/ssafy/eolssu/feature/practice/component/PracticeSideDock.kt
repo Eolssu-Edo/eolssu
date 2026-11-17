@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -168,7 +171,7 @@ private fun QuickRow(label: String, status: String, on: Boolean, locked: Boolean
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .alpha(if (locked) 0.45f else 1f)
-            .clickable(enabled = !locked, role = Role.Button, onClick = onClick)
+            .clickable(enabled = !locked, role = Role.Button, onClick = UserActionLog.click(QaTarget.PRACTICE_SIDE_DOCK_01, onClick))
             .drawBehind { drawLine(colors.line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) }
             .padding(horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically,

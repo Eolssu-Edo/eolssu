@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Arrangement
@@ -67,7 +70,7 @@ private fun BlowTabButton(tab: BlowTab, onSelect: (Blow) -> Unit, large: Boolean
     val colors = EolssuTheme.colors
     val unavailable = stringResource(Res.string.guide_blow_unavailable)
     Surface(
-        onClick = { onSelect(tab.blow) },
+        onClick = UserActionLog.click(QaTarget.BLOW_TABS_01, { onSelect(tab.blow) }),
         enabled = tab.enabled,
         modifier = modifier
             .height(if (large) 44.dp else 34.dp)

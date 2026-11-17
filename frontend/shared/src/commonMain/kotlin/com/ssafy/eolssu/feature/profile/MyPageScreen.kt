@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.profile
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -117,16 +120,16 @@ fun MyPageScreen(
         Section(stringResource(Res.string.my_social)) {
             shownProviders.forEach { provider ->
                 val linked = provider in profile.linkedProviders
-                ProviderRow(provider, linked, onClick = { if (linked) onUnlink(provider) else onLink(provider) })
+                ProviderRow(provider, linked, onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_01, { if (linked) onUnlink(provider) else onLink(provider) }))
             }
         }
         // 의견 폼(구글 폼) 하나로 문의와 의견을 함께 받는다.
         Section(stringResource(Res.string.my_feedback_section)) {
-            AccountRow(stringResource(Res.string.my_inquiry), onClick = onOpenFeedback)
+            AccountRow(stringResource(Res.string.my_inquiry), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_02, onOpenFeedback))
         }
         Section(stringResource(Res.string.my_account)) {
-            AccountRow(stringResource(Res.string.my_password_change), onClick = { onOpen(MyPageTarget.Password) })
-            AccountRow(stringResource(Res.string.my_logout), onClick = onLogOut)
+            AccountRow(stringResource(Res.string.my_password_change), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_03, { onOpen(MyPageTarget.Password) }))
+            AccountRow(stringResource(Res.string.my_logout), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_04, onLogOut))
         }
         MyPageFooter(onOpenSources = { onOpen(MyPageTarget.Sources) }, onOpenLegal = onOpenLegal)
     }
@@ -140,8 +143,8 @@ fun MyPageScreen(
                     name,
                 ),
             ) {
-                EolssuButton(stringResource(Res.string.my_unlink_confirm), onClick = onConfirmUnlink)
-                EolssuButton(stringResource(Res.string.common_cancel), onClick = onDismissDialog, style = EolssuButtonStyle.Text)
+                EolssuButton(stringResource(Res.string.my_unlink_confirm), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_05, onConfirmUnlink), qaTarget = QaTarget.MY_PAGE_SCREEN_BUTTON_01)
+                EolssuButton(stringResource(Res.string.common_cancel), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_06, onDismissDialog), style = EolssuButtonStyle.Text, qaTarget = QaTarget.MY_PAGE_SCREEN_BUTTON_02)
             }
         }
         // 휴대폰 뒤로 가기·바깥 누르기로도 '취소'처럼 닫는다(S15P31E102-768).
@@ -150,11 +153,11 @@ fun MyPageScreen(
             message = stringResource(Res.string.my_logout_confirm_message),
             onDismissRequest = onDismissDialog,
         ) {
-            EolssuButton(stringResource(Res.string.my_logout), onClick = onConfirmLogOut)
-            EolssuButton(stringResource(Res.string.common_cancel), onClick = onDismissDialog, style = EolssuButtonStyle.Text)
+            EolssuButton(stringResource(Res.string.my_logout), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_07, onConfirmLogOut), qaTarget = QaTarget.MY_PAGE_SCREEN_BUTTON_03)
+            EolssuButton(stringResource(Res.string.common_cancel), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_08, onDismissDialog), style = EolssuButtonStyle.Text, qaTarget = QaTarget.MY_PAGE_SCREEN_BUTTON_04)
             ProfileTextLink(
                 stringResource(Res.string.my_withdraw),
-                onClick = { onDismissDialog(); onOpen(MyPageTarget.Withdraw) },
+                onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_09, { onDismissDialog(); onOpen(MyPageTarget.Withdraw) }),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -186,7 +189,7 @@ private fun ProfileCard(profile: UserProfile, progress: MyLearningProgress?, onE
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            EolssuIconButton(EolssuIcons.Pencil, stringResource(Res.string.my_nickname_edit), onClick = onEdit, bordered = false)
+            EolssuIconButton(EolssuIcons.Pencil, stringResource(Res.string.my_nickname_edit), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_10, onEdit), bordered = false)
         }
         if (progress != null) {
             Box(Modifier.padding(top = 2.dp)) { LearningBadge(progress) }
@@ -220,7 +223,7 @@ private fun ProviderRow(provider: SocialProvider, linked: Boolean, onClick: () -
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium),
             color = EolssuTheme.colors.text,
         )
-        SmallButton(stringResource(if (linked) Res.string.my_unlink else Res.string.my_link), primary = !linked, onClick = onClick)
+        SmallButton(stringResource(if (linked) Res.string.my_unlink else Res.string.my_link), primary = !linked, onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_11, onClick))
     }
 }
 
@@ -229,7 +232,7 @@ private fun ProviderRow(provider: SocialProvider, linked: Boolean, onClick: () -
 private fun AccountRow(text: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = MyPageCardInset),
+        Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button, onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_12, onClick)).padding(horizontal = MyPageCardInset),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), color = colors.text)
@@ -246,7 +249,7 @@ private fun AccountRow(text: String, onClick: () -> Unit) {
 private fun SmallButton(text: String, primary: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
-        onClick = onClick,
+        onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_13, onClick),
         shape = RoundedCornerShape(50),
         color = if (primary) colors.accentTint else colors.groupedBackground,
         contentColor = if (primary) colors.accentText else colors.textSub,

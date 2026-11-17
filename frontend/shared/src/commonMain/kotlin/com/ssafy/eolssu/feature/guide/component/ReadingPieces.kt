@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -814,7 +817,7 @@ private fun SigimsaeRow(
                 .fillMaxWidth()
                 .then(if (stretch) Modifier else Modifier.bleedToCardEdges())
                 .focusRequester(focusRequester)
-                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .clickable(enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.READING_PIECES_01, onClick))
                 .then(if (stretch) Modifier else Modifier.padding(horizontal = GuideCardInset))
                 .padding(top = 10.dp, bottom = if (last) 0.dp else if (stretch) 12.dp else 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -885,7 +888,7 @@ private fun SigimsaeTile(symbol: SigimsaeSymbol, on: Boolean, enabled: Boolean, 
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
-                onClick = onClick,
+                onClick = UserActionLog.click(QaTarget.READING_PIECES_02, onClick),
             )
             .semantics { stateDescription = state },
         horizontalAlignment = Alignment.CenterHorizontally,

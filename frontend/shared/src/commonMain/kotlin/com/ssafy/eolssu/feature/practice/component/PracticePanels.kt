@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import com.ssafy.eolssu.core.ui.component.QaModalObservation
+import com.ssafy.eolssu.core.ui.component.qaModalInput
+
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -137,8 +143,9 @@ fun PracticePanelSheet(
     // 배경 누르기와 상위로 뒤로가기를 분리한다. 모달 전체 배경이 닫기 입력을 받는다.
     // 시트는 화면 바닥까지 닿고, 시스템 하단 여백(홈 막대·내비게이션 바)은 시트 안쪽 아래에 둔다(S15P31E102-973).
     Dialog(onDismissRequest = actions.onClose, properties = practiceSheetDialogProperties()) {
+        QaModalObservation()
         BoxWithConstraints(
-            Modifier.fillMaxSize()
+            Modifier.qaModalInput().fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
         ) {
             val maxSheetHeight = maxHeight * when {
@@ -148,7 +155,7 @@ fun PracticePanelSheet(
                 else -> 0.82f
             }
             // 바깥 막을 눌러 닫을 때 막 전체에 눌림 효과가 번쩍이지 않게 한다.
-            Box(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = actions.onDismiss))
+            Box(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = UserActionLog.click(QaTarget.PRACTICE_PANELS_01, actions.onDismiss)))
             Surface(
                 modifier = modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).fillMaxWidth()
                     .heightIn(max = maxSheetHeight),
@@ -257,7 +264,7 @@ private fun MenuRow(icon: ImageVector, label: String, status: String, enabled: B
             .fillMaxWidth()
             .height(56.dp)
             .alpha(if (enabled) 1f else 0.45f)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.PRACTICE_PANELS_02, onClick))
             .padding(horizontal = SettingsCardInset),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -375,8 +382,8 @@ private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions
         actions.fingeringAudio(instrument, note)
     } else {
         EolssuButton(
-            stringResource(Res.string.practice_listen_note), onClick = {}, enabled = false,
-            style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Speaker,
+            stringResource(Res.string.practice_listen_note), onClick = UserActionLog.click(QaTarget.PRACTICE_PANELS_03, {}), enabled = false,
+            style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Speaker, qaTarget = QaTarget.PRACTICE_PANELS_BUTTON_01
         )
     }
     if (!rest) {
@@ -459,7 +466,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
         // 흰 카드 안이라 테두리 대신 회색 채움으로 누르는 자리를 보인다.
         containerColor = colors.groupedBackground,
         borderColor = if (draft.previewing) colors.play else Color.Transparent,
-        squash = true,
+        squash = true, qaTarget = QaTarget.PRACTICE_PANELS_BUTTON_02
     )
     }
     PanelCard(padding = 0.dp) {

@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -121,7 +125,7 @@ internal fun StaffSystemView(
                         contentDescription = description
                         this.selected = on
                     }
-                    .clickable(role = Role.Button) { onPick(note.key) },
+                    .clickable(role = Role.Button) { UserActionLog.event(QaKind.CLICK, QaTarget.STAFF_SYSTEM_VIEW_01); onPick(note.key) },
             )
         }
     }

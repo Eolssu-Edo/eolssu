@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,7 +39,7 @@ import org.jetbrains.compose.resources.stringResource
 fun TermsScreen(state: TermsUiState, onClose: () -> Unit, onRetry: () -> Unit, widthClass: WindowWidthClass) {
     AuthScaffold(authFrameOf(widthClass, split = false),
         topBar = { AuthTopBar(state.term?.title.orEmpty(), onBack = onClose) },
-        bottomBar = { EolssuButton(stringResource(Res.string.common_confirm), onClose) },
+        bottomBar = { EolssuButton(stringResource(Res.string.common_confirm), onClose, qaTarget = QaTarget.TERMS_SCREEN_BUTTON_01) },
     ) {
         AuthBody(AuthBodyTopWithBar, gap = 12.dp) {
             val body = state.body
@@ -45,7 +47,7 @@ fun TermsScreen(state: TermsUiState, onClose: () -> Unit, onRetry: () -> Unit, w
                 state.loading -> Text(stringResource(Res.string.member_api_terms_loading))
                 body == null -> {
                     Text(stringResource(Res.string.member_api_terms_unavailable))
-                    EolssuButton(stringResource(Res.string.member_api_retry), onRetry)
+                    EolssuButton(stringResource(Res.string.member_api_retry), onRetry, qaTarget = QaTarget.TERMS_SCREEN_BUTTON_02)
                 }
                 else -> body.forEach { TermsBlockText(it) }
             }

@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -350,7 +353,7 @@ private fun RecordMemoDialog(recordId: String, memo: String, dialog: RecordMemoS
             val editInteraction = remember { MutableInteractionSource() }
             Box(
                 Modifier.align(Alignment.TopEnd).size(48.dp)
-                    .clickable(interactionSource = editInteraction, indication = null, role = Role.Button, onClick = actions.onEditMemo)
+                    .clickable(interactionSource = editInteraction, indication = null, role = Role.Button, onClick = UserActionLog.click(QaTarget.RECORD_DETAIL_SCREEN_01, actions.onEditMemo))
                     .semantics { contentDescription = editLabel },
                 contentAlignment = Alignment.Center,
             ) {
@@ -367,7 +370,7 @@ private fun RecordMemoDialog(recordId: String, memo: String, dialog: RecordMemoS
             actions.onCloseMemo,
             style = EolssuButtonStyle.Secondary,
             containerColor = colors.groupedBackground,
-            borderColor = Color.Transparent,
+            borderColor = Color.Transparent, qaTarget = QaTarget.RECORD_DETAIL_SCREEN_BUTTON_01
         )
     }
 }
@@ -412,13 +415,13 @@ private fun RecordMemoEditor(recordId: String, memo: String, dialog: RecordMemoS
             style = EolssuButtonStyle.Secondary,
             enabled = !dialog.saving,
             containerColor = colors.groupedBackground,
-            borderColor = Color.Transparent,
+            borderColor = Color.Transparent, qaTarget = QaTarget.RECORD_DETAIL_SCREEN_BUTTON_02
         )
         EolssuButton(
             stringResource(Res.string.record_memo_save),
             { actions.onSaveMemo(draft.text.toString()) },
             Modifier.weight(1f),
-            busy = dialog.saving,
+            busy = dialog.saving, qaTarget = QaTarget.RECORD_DETAIL_SCREEN_BUTTON_03
         )
     }
 }
@@ -435,7 +438,7 @@ private fun FollowNowButton(onClick: () -> Unit, modifier: Modifier = Modifier) 
     val shape = RoundedCornerShape(18.dp)
     Box(modifier.heightIn(min = 44.dp), contentAlignment = Alignment.Center) {
         Surface(
-            onClick = onClick,
+            onClick = UserActionLog.click(QaTarget.RECORD_DETAIL_SCREEN_02, onClick),
             modifier = Modifier.height(36.dp).shadow(6.dp, shape),
             shape = shape,
             color = colors.text,
