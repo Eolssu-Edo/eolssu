@@ -100,7 +100,7 @@ class ConversionProgressTest {
     fun listClockCountsReadingTimePerSheetAndResetsAfterTheConversionEnds() {
         // 목록 막대가 '읽는 중' 내내 같은 값에 멈춰 있다가 끝날 때 확 차던 문제(S15P31E102-1064).
         var now = 1_000L
-        val clock = ConversionReadingClock { now }
+        val clock = ConversionReadingClock({ now })
         val queued = SheetConversion("s1", SheetConversionStatus.Queued, pageCount = 2)
         val reading = running(SheetConversionStage.Recognizing, 0, 2)
         assertEquals(0, clock.elapsedMs(queued), "대기 중에는 세지 않는다")
@@ -115,6 +115,24 @@ class ConversionProgressTest {
         clock.elapsedMs(SheetConversion("s1", SheetConversionStatus.Failed))
         now = 40_000
         assertEquals(0, clock.elapsedMs(reading), "실패 뒤 다시 시도하면 처음부터 센다")
+    }
+
+    @Test
+    fun listClockCountsFromTheServerStartSoEnteringTheScreenDoesNotRestartTheBar() {
+        // 악보 추가 화면에 처음 들어오면 막대가 그때부터 다시 차던 문제(S15P31E102-1099).
+        var now = 0L
+        var wall = 1_000_000L
+        val clock = ConversionReadingClock({ now }, { wall })
+        val reading = running(SheetConversionStage.Recognizing, 0, 2).copy(startedAtMs = 1_000_000L - 40_000)
+        assertEquals(40_000, clock.elapsedMs(reading), "처음 보는 순간에도 서버 시작부터 지난 시간을 쓴다")
+        now = 5_000; wall += 5_000
+        assertEquals(45_000, clock.elapsedMs(reading))
+        assertEquals(0, clock.elapsedMs(running(SheetConversionStage.BuildingScore, 2, 2).copy(startedAtMs = 0)), "만드는 중은 단계 값을 쓴다")
+
+        val skewed = reading.copy(sheetId = "s2", startedAtMs = wall + 60_000)
+        assertEquals(0, clock.elapsedMs(skewed), "기기 시계가 서버보다 늦으면 처음 본 때부터 센다")
+        now = 8_000
+        assertEquals(3_000, clock.elapsedMs(skewed))
     }
 
     private fun assertNotNullProgress(conversion: SheetConversion): Float =
