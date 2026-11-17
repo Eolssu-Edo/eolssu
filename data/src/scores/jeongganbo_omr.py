@@ -19,8 +19,9 @@
   * 세로선이 연하고 끊긴 스캔은 --gap-fill 10 --line-threshold 250으로 칸 찾기 그림만 보정한다.
     율명 인식은 보정하지 않은 원래 그림을 잘라서 한다.
   * 그래도 놓친 정간은 --fill-grid로 옆 열의 줄 위치에서 채운다(먹이 있는 자리만).
-  * --yul은 모델이 고를 수 있는 율명을 악기 음역이나 곡의 율명으로 좁힌다. --read-dpi는 칸은 --dpi에서 찾고
-    율명은 더 높은 해상도로 다시 그린 쪽에서 잘라 읽는다. 둘 중 하나라도 주면 모든 정간을 다시 읽는다.
+  * --yul은 모델이 고를 수 있는 율명을 악기 음역이나 곡의 율명으로 좁힌다. 모델의 해독 함수를 바꾸므로 격자 검출·
+    --fill-grid·--grid-boxes·--batch-size의 모든 읽기에 적용된다. 신뢰도는 제한 전 분포에서 고른 토큰의 확률이다.
+    --read-dpi는 칸은 --dpi에서 찾고 율명은 더 높은 해상도로 다시 그린 쪽에서 잘라 모든 정간을 다시 읽는다.
   * --octave-check는 모델이 낸 청태·청황·중청황을 300dpi 그림의 글자 모양으로 다시 가려 중청태·중청황을 고친다
     (octave_check.py, 평균 모양 파일은 그 스크립트로 만든다).
 """
@@ -147,6 +148,7 @@ if args.yul:
     banned = torch.tensor([i for i, t in enumerate(tok.vocab) if yul_re.match(t) and t not in allowed])
     model = reader.omr.model
 
+    @torch.inference_mode()  # 원래 inference처럼 기울기 그래프를 만들지 않는다
     def constrained_inference(x, max_len=None, batch=True, return_confidence=False):
         """jngbomr TransformerOMR.inference와 같은 탐욕 해독인데, 허용하지 않은 율명 토큰은 고르지 못하게 한다."""
         x = model.run_img_cnn(x)
@@ -158,11 +160,14 @@ if args.yul:
         for _ in range(max_len or 50):
             y = model.decoder(model.dec_embedder(dec) + model.decoder_pos_enc(dec), x)[:, -1:]
             logit = model.proj(y)
-            logit[..., banned] = float("-inf")
-            new = torch.argmax(logit, dim=-1)
+            limited = logit.clone()
+            limited[..., banned] = float("-inf")
+            new = torch.argmax(limited, dim=-1)
             ended = ended | (new[:, 0] == 2)
             dec = torch.cat([dec, new], dim=1)
-            prob = torch.softmax(logit, dim=-1)[:, 0].max(dim=1)[0]
+            # 신뢰도는 제한 전 분포에서 고른 토큰의 확률이다. 남은 후보로 다시 나누면 금지된 율명을
+            # 가장 높게 본 칸도 높은 신뢰도가 되어 확인 표시가 사라진다. 고른 토큰이 제한 전 최댓값이면 원래 값과 같다.
+            prob = torch.softmax(logit, dim=-1)[:, 0].gather(1, new)[:, 0]
             conf = torch.where(ended, conf, conf * prob)  # 원래 코드처럼 끝 토큰을 고른 단계부터는 곱하지 않는다
             if ended.all():
                 break
