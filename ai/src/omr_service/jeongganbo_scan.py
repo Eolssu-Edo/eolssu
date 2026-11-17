@@ -19,6 +19,7 @@ from omr_service.staff_engine import AUDIVERIS_LOCK
 from jeongganbo_tokens import jg_like
 from hanbae_marks import image_marks
 from omr_service.jeongganbo_tempo import attach_marks
+from omr_service import page_rectify
 
 READER = [sys.executable, '-X', 'utf8', str(SCORES / 'jeongganbo_omr.py')]
 ENGINE_VERSION = 'e95045f-v1.0.0-r12'
@@ -112,6 +113,37 @@ def split_gaks(cells, beats, size):
             for cell, (g, j) in zip(cells, grid_places(cells, beats))]
 
 
+def _read_page(api, i, source, work, model_dir, yul_options, page_deadline):
+    """쪽 그림 하나를 배율을 바꿔 가며 읽는다. (cells.json, 리더에 넣은 그림, 배율, 출력 폴더), 격자가 없으면 report는 None."""
+    image, scale, out = source.path, 1, None
+    # 리더의 고정 칸 너비는 85~110px, 기준 쪽 높이는 3091px다.
+    # 2600px 그림과 넓은 전자 정간도 같은 시간 예산 안에서 시도한다.
+    for scale in dict.fromkeys((1, .5, 3091 / source.height, 2 / 3)):
+        size = (max(1, round(source.width * scale)), max(1, round(source.height * scale)))
+        if size[0] * size[1] > api.MAX_PIXELS:
+            continue
+        out = work / f'page-{i}-{scale}'
+        image = source.path
+        if scale != 1:
+            image = work / f'scaled-{i}.png'
+            with Image.open(source.path) as original:
+                original.resize(size, Image.Resampling.LANCZOS).save(image)
+        grid_options = ['--grid-boxes'] if scale == 2 / 3 else []
+        run = _run(READER + [str(image), '0', str(out), '--image', '--omr-dir', model_dir,
+                            '--model-cache-dir', str(work), '--batch-size', '16',
+                            '--beats', '0', '--fill-grid', '--keep-empty-columns',
+                            '--title', 'page', '--side-marks', *yul_options, *grid_options],
+                   page_deadline)
+        if recoverable_grid_failure(run):
+            log.info('jeongganbo-scan page=%d scale=%s grid retry: %s', i, scale, _last_line(run.stderr))
+            continue
+        if run.returncode:
+            log.info('jeongganbo-scan page=%d failed: %s', i, _last_line(run.stderr))
+            raise RuntimeError('jeongganbo scan reader failed')
+        return json.loads((out / 'cells.json').read_text(encoding='utf-8')), image, scale, out
+    return None, image, scale, out
+
+
 def recognize(job):
     from omr_service import api
     model_dir = os.environ.get('JEONGGANBO_OMR_DIR')
@@ -128,34 +160,30 @@ def recognize(job):
             work = Path(folder)
             for i, page in enumerate(job.pages):
                 page_deadline = min(deadline, monotonic() + api.PAGE_TIME_S)
-                report, scale = None, 1
-                # 리더의 고정 칸 너비는 85~110px, 기준 쪽 높이는 3091px다.
-                # 2600px 그림과 넓은 전자 정간도 같은 시간 예산 안에서 시도한다.
-                scales = dict.fromkeys((1, .5, 3091 / page.height, 2 / 3))
-                for scale in scales:
-                    size = (max(1, round(page.width * scale)), max(1, round(page.height * scale)))
-                    if size[0] * size[1] > api.MAX_PIXELS:
-                        continue
-                    out = work / f'page-{i}-{scale}'
-                    image = page.path
-                    if scale != 1:
-                        image = work / f'scaled-{i}.png'
-                        with Image.open(page.path) as source:
-                            source.resize(size, Image.Resampling.LANCZOS).save(image)
-                    grid_options = ['--grid-boxes'] if scale == 2 / 3 else []
-                    run = _run(READER + [str(image), '0', str(out), '--image', '--omr-dir', model_dir,
-                                        '--model-cache-dir', str(work), '--batch-size', '16',
-                                        '--beats', '0', '--fill-grid', '--keep-empty-columns',
-                                        '--title', 'page', '--side-marks', *yul_options, *grid_options],
-                               page_deadline)
-                    if recoverable_grid_failure(run):
-                        log.info('jeongganbo-scan page=%d scale=%s grid retry: %s', i, scale, _last_line(run.stderr))
-                        continue
-                    if run.returncode:
-                        log.info('jeongganbo-scan page=%d failed: %s', i, _last_line(run.stderr))
-                        raise RuntimeError('jeongganbo scan reader failed')
-                    report = json.loads((out / 'cells.json').read_text(encoding='utf-8'))
-                    break
+                plain = page_rectify.Rectified(page.path, page.width, page.height, (page.width, page.height))
+                began = monotonic()
+                try:
+                    straight = page_rectify.rectify(page.path, work / f'rectified-{i}.png')
+                except Exception as e:  # 보정 실패가 반듯한 쪽의 기존 읽기를 막지 않게 한다. 메시지에는 경로가 들 수 있다
+                    log.warning('jeongganbo-scan page=%d rectify skipped: %s', i, type(e).__name__)
+                    straight = plain
+                if straight.changed:
+                    log.info('jeongganbo-scan page=%d rectified angle=%.2f perspective=%s flattened=%s ms=%d', i,
+                             straight.angle, straight.matrix is not None, straight.flattened,
+                             round((monotonic() - began) * 1000))
+                report = None
+                # 편 그림에서 격자를 못 찾으면(추정이 틀렸을 때) 남은 시간에 원래 그림으로 기존 재시도를 한다.
+                for source in ([straight, plain] if straight.changed else [plain]):
+                    try:
+                        report, image, scale, out = _read_page(api, i, source, work, model_dir, yul_options,
+                                                               page_deadline)
+                    except TimeoutError:
+                        # 원래 그림 재시도가 쪽 시간을 넘긴 것은 보정 때문에 늦어진 것이라 그 쪽만 격자 없음으로 둔다.
+                        if source is straight or monotonic() >= deadline:
+                            raise
+                        log.info('jeongganbo-scan page=%d unrectified retry ran out of page time', i)
+                    if report:
+                        break
                 whole = dict(eventId=None, cellId=None, page=i, bbox=[0, 0, page.width, page.height])
                 if not report or not report['cells']:
                     issues.append(dict(kind='UNREADABLE', **whole, detail={'reason':'NO_GRID'}))
@@ -168,9 +196,8 @@ def recognize(job):
                 geometry = [cell | {'gak': gak} for cell, (gak, _) in zip(cells, places)]
                 with Image.open(image) as source_image:
                     detected = image_marks(source_image, geometry)
-                tempo_cues += [cue | {'gak': first_gak + cue['gak'], 'page': i,
-                                      'bbox': [round(v / scale) for v in cue['bbox']]}
-                               if 'gak' in cue else cue | {'page': i, 'bbox': [round(v / scale) for v in cue['bbox']]}
+                tempo_cues += [cue | {'gak': first_gak + cue['gak'], 'page': i, 'bbox': source.to_source(cue['bbox'], scale)}
+                               if 'gak' in cue else cue | {'page': i, 'bbox': source.to_source(cue['bbox'], scale)}
                                for cue in detected]
                 grid = [[''] * beats for _ in range(places[-1][0] + 1)]
                 del grid[-1][places[-1][1] + 1:]  # 마지막 각은 읽은 정간까지만 둔다
@@ -178,7 +205,7 @@ def recognize(job):
                     text, reason = cell_text(cell)
                     grid[gak][jeonggan] = text
                     at = dict(eventId=None, cellId=f'c{first_gak + gak}-j{jeonggan}', page=i,
-                              bbox=[round(cell[k] / scale) for k in ('x','y','w','h')])
+                              bbox=source.to_source([cell[k] for k in ('x','y','w','h')], scale))
                     if reason:
                         issues.append(dict(kind='UNREADABLE', **at,
                                            detail={'reason':reason,'text':cell.get('text','')}))
