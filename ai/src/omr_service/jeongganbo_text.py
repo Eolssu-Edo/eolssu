@@ -23,11 +23,13 @@ SCORES = ROOT / "data/src/scores"
 sys.path.insert(0, str(SCORES))
 import score_data  # noqa: E402  data/와 같은 변환을 쓴다(중복 구현하지 않음)
 
-ENGINE, ENGINE_VERSION = "jeongganbo-text", "4"  # 읽기·변환 규칙을 바꾸면 올린다
-CONVERTER = "jeongganbo-text/standard_score_text@4"
+ENGINE, ENGINE_VERSION = "jeongganbo-text", "5"  # 읽기·변환 규칙을 바꾸면 올린다
+CONVERTER = "jeongganbo-text/standard_score_text@5"
 NO_YUL_EXIT, NO_GRID_EXIT = 3, 4  # standard_score_text.py: 율명 글자가 없는 쪽, 정간 격자를 못 읽은 쪽
-# 장단과 각의 정간 수가 맞을 때 나오는 정간당 박. 그 밖이면 고른 장단이 악보와 다를 수 있다(JANGDAN_MISMATCH)
-USUAL_BEATS = {Fraction(1), Fraction(1, 2), Fraction(1, 3)}
+# 장단과 각의 정간 수가 맞을 때 나오는 정간당 박(bpm_unit별). 그 밖이면 고른 장단이 악보와 다를 수 있다(JANGDAN_MISMATCH).
+# 점4분음표 박은 세 소박이라 정간 하나가 반 박이 되지 않는다. 제공 곡도 점4분 장단은 정간당 1·1/3박뿐이다(S15P31E102-1076).
+USUAL_BEATS = {"QUARTER": {Fraction(1), Fraction(1, 2), Fraction(1, 3)},
+               "DOTTED_QUARTER": {Fraction(1), Fraction(1, 3)}}
 log = logging.getLogger("omr_service.api")  # api의 로그 설정을 함께 쓴다
 JANGDANS = {r["name"]: r for r in json.loads((ROOT / "data/reference/jangdans.json").read_text(encoding="utf-8"))["rows"]}
 # pattern.beats는 BPM 박이 아닌 구음 칸이다. jangdans.json 설명의 각 칸 음가를 4분음표로 환산한다.
@@ -38,12 +40,36 @@ class NoTextLayer(Exception):
     """율명 글자 층이 없는 PDF다. 정간보 OMR(그림) 경로로 읽어야 한다."""
 
 
-def beats_per_jeonggan(jangdan: str, jeonggans_per_gak: int) -> Fraction:
-    """한 각을 장단 한 번으로 보고 정간 하나의 박(bpm_unit 기준)을 정한다. 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박."""
+def cycle_beats(jangdan: str) -> Fraction:
+    """장단 한 번의 박(bpm_unit 기준). 세마치 → 3박, 굿거리 → 4박."""
     row = JANGDANS[jangdan]
     cells = len(row["pattern"]["beats"])
-    beats = cells * Fraction(row["pattern_cell_eighths"], 2) / BPM_UNIT_QUARTERS[row["bpm_unit"]]
-    return beats / jeonggans_per_gak
+    return cells * Fraction(row["pattern_cell_eighths"], 2) / BPM_UNIT_QUARTERS[row["bpm_unit"]]
+
+
+def usual_beats(jangdan: str, bpj: Fraction) -> bool:
+    """장단과 각의 정간 수가 맞을 때 나오는 정간당 박이면 참이다. 세령산은 정간당 3/2박도 쓴다."""
+    return bpj in USUAL_BEATS[JANGDANS[jangdan]["bpm_unit"]] or (jangdan == "세령산" and bpj == Fraction(3, 2))
+
+
+def gak_cycles(jangdan: str, jeonggans_per_gak: int) -> int:
+    """한 각에 든 장단 횟수. 각의 정간 수를 나누어 떨어지게 하면서 정간당 박이 맞는 가장 작은 횟수다.
+
+    세마치 3정간·굿거리 12정간 → 1번, 굿거리 8정간 → 2번, 세마치 12정간 → 4번. 맞는 횟수가 없으면 1번으로 둔다.
+    """
+    for cycles in range(1, jeonggans_per_gak + 1):
+        if jeonggans_per_gak % cycles == 0 and usual_beats(
+                jangdan, cycle_beats(jangdan) * cycles / jeonggans_per_gak):
+            return cycles
+    return 1
+
+
+def beats_per_jeonggan(jangdan: str, jeonggans_per_gak: int) -> Fraction:
+    """정간 하나의 박(bpm_unit 기준) = 장단 한 번의 박 × 한 각의 장단 횟수 ÷ 각의 정간 수.
+
+    세마치 3정간 → 1박, 굿거리 12정간 → 1/3박, 세마치 12정간(장단 4번) → 1박, 굿거리 8정간(장단 2번) → 1박.
+    """
+    return cycle_beats(jangdan) * gak_cycles(jangdan, jeonggans_per_gak) / jeonggans_per_gak
 
 
 def recognize(job) -> dict:
@@ -105,8 +131,7 @@ def recognize(job) -> dict:
     def bpj_of(doc):
         per_gak = int(doc["controls"]["beats"])
         bpj = beats_per_jeonggan(request.jangdan, per_gak)
-        seryeongsan_cell = request.jangdan == "세령산" and bpj == Fraction(3, 2)
-        if bpj not in USUAL_BEATS and not seryeongsan_cell:
+        if not usual_beats(request.jangdan, bpj):
             issues.append({"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
                            "detail": {"jangdan": request.jangdan, "jeongganPerGak": per_gak}})
         return bpj
