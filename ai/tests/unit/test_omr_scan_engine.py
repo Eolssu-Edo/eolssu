@@ -35,6 +35,22 @@ def test_scan_cell_keeps_supported_pitch_and_marks_unsupported_ornament():
     assert cell_text({'text':'','jg':'','ink':0}) == ('',None)
 
 
+@pytest.mark.parametrize('cell,text,expected', [
+    ({'conf': .99, 'filled': True}, ':0 청태', 'GRID_FILLED'),
+    ({'conf': None}, ':0 청태', 'MODEL_CONFIDENCE'),
+    ({'conf': .79}, ':0 청태', 'MODEL_CONFIDENCE'),
+    ({'conf': .8}, ':0 청태', None),
+    ({'conf': .99}, ':0 쉼표', 'REST_ONLY'),          # 가사·장단 열을 칸으로 읽은 경우가 많다
+    ({'conf': .99}, ':2 쉼표 :5 - :8 -', 'REST_ONLY'),
+    ({'conf': .99}, ':0 -', None),                    # 이음만 있는 칸은 흔한 정상 칸이다
+    ({'conf': .99}, ':2 청임 :5 - :8 쉼표', None),
+    ({'conf': .99}, '', None),
+])
+def test_review_reason_marks_low_confidence_filled_and_rest_only_cells(cell, text, expected):
+    from omr_service.jeongganbo_scan import review_reason
+    assert review_reason(cell, text) == expected
+
+
 def test_text_probe_time_is_subtracted_before_scan(monkeypatch):
     from omr_service import jeongganbo_text, jeongganbo_scan
     clock=iter([10.,13.])

@@ -101,7 +101,7 @@ POST /v1/recognitions
 
 | kind | 뜻 | 기준 |
 | --- | --- | --- |
-| `LOW_CONFIDENCE` | 읽었지만 확신이 낮음 | 정간보 OMR `cells.json`의 신뢰도가 기준 아래, 또는 오선보 변환에서 박자표 바뀜·격자 밖 리듬·칸 충돌·성부 안 빈 시간·volta 번호 없음(`detail.reason`) |
+| `LOW_CONFIDENCE` | 읽었지만 확신이 낮음 | 정간보 OMR `cells.json`의 신뢰도가 기준 아래·격자 보충 칸·쉼표만 읽힌 칸, 또는 오선보 변환에서 박자표 바뀜·격자 밖 리듬·칸 충돌·성부 안 빈 시간·volta 번호 없음(`detail.reason`) |
 | `UNREADABLE` | 칸이나 기호를 읽지 못해 비움 | 빈 결과·모르는 글자 |
 | `OUT_OF_RANGE` | 악기 음역 밖 율명 | 율명 표·`instrument` 음역 |
 | `TRANSPOSED` | 조를 자동으로 옮김 | `detail`에 옮긴 반음과 후보(동률이면 2개) |
@@ -113,7 +113,7 @@ POST /v1/recognitions
 ## 스캔·사진 정간보 경로 (S15P31E102-458)
 
 - PDF 글자 층이 없거나 PNG/JPEG 입력이면 `jeongganbo_scan`이 MALerLab `e95045f`와 v1.0.0 가중치를 사용하는 기존 DATA 리더를 별도 프로세스로 호출한다. 글자 층 검사에 쓴 시간을 스캔 예산에서 차감한다. 쪽당 60초·동시 무거운 추론 1건을 유지한다.
-- 검출한 격자의 열/칸을 보존하고, 빠진 칸은 이웃 격자로 보완해 `LOW_CONFIDENCE`(`GRID_FILLED`)를 남긴다. 모델 신뢰도 0.8 미만도 확인 표시를 남기며, 이 값은 정확도로 보정된 확률이 아니다. 원본 쪽 인덱스와 픽셀 상자를 결과의 `c{각}-j{정간}`에 연결한다.
+- 검출한 격자의 열/칸을 보존하고, 빠진 칸은 이웃 격자로 보완해 `LOW_CONFIDENCE`(`GRID_FILLED`)를 남긴다. 모델 신뢰도 0.8 미만은 `LOW_CONFIDENCE`(`MODEL_CONFIDENCE`)를 남기며, 이 값은 정확도로 보정된 확률이 아니다. 신뢰도가 기준 이상이어도 율명 없이 쉼표(와 이음)만 읽힌 칸은 가사·장단 열을 칸으로 읽은 경우가 많아 `LOW_CONFIDENCE`(`REST_ONLY`)를 남긴다(S15P31E102-1061, 엔진 `e95045f-v1.0.0-r8`). 한 칸에는 이 셋 중 하나만 남고, 우선순위는 `GRID_FILLED` → `MODEL_CONFIDENCE` → `REST_ONLY`다. `detail`은 `{"confidence", "reason"}`이다. 기준과 근거는 [스캔 실행 기록](../knowledge/ai/jeongganbo-scan-runtime.md#확인-필요-칸-기준-1061)에 있다. 원본 쪽 인덱스와 픽셀 상자를 결과의 `c{각}-j{정간}`에 연결한다.
 - 원래 크기에서 격자를 못 찾으면 1/2 크기, 모델 기준 높이 3091px, 2/3 크기 순서로 재시도한다. 마지막 시도는 기존 `grid_boxes` 검출기로 얇은 선과 단 위→아래·열 오른쪽→왼쪽 순서를 보존한다. 가로선이 있는 두 열을 율명·가사로 추정하는 기능은 끄고, 명시적인 가사 열 옆의 단일 율명 열로 확인되는 악보 하나만 받는다. 중복 크기와 최대 화소 수를 넘는 시도는 건너뛰고 같은 쪽당 시간 예산을 유지한다. 상자는 원본 크기로 되돌린다. 모든 쪽에서 격자나 음을 읽지 못하면 `NO_GRID_FOUND`, 실행 오류는 `ENGINE_ERROR`, 시간 초과는 `TIMEOUT`이다.
 - 요청의 `instrument`가 `DANSO`·`SOGEUM`·`JEONGAK_DAEGEUM`이면 리더에 `--yul danso`·`sogeum`·`jeongak-daegeum`을 넘겨 모델이 고를 수 있는 율명을 그 악기 목록으로 좁힌다(S15P31E102-1058, 엔진 `e95045f-v1.0.0-r7`). 목록은 [OMR 대조 기록](../knowledge/data/jeongganbo-omr-accuracy.md#악기별-율명-후보)을 따르고, 위치·시김새 토큰은 제한하지 않는다. 모든 크기 재시도와 `grid_boxes` 시도에 같은 제한을 적용한다. 목록이 없는 `SANJO_DAEGEUM`과 그 밖의 악기는 제한하지 않아 이전 결과와 같다. 모델 어휘에 없는 중청태 등은 제한과 별개로 두 물수변 복원 단계에서만 나온다. 이 복원은 목록으로 거르지 않는다. 신뢰도는 제한 전 모델 분포에서 고른 율명의 확률이다. 따라서 모델이 목록 밖 율명을 가장 높게 본 칸은 낮은 신뢰도로 `LOW_CONFIDENCE`가 남는다.
 - 지원하는 율명·이음·쉼표와 율명에 붙은 시김새는 공통 변환기를 재사용한다. 지원하지 않는 독립 시김새나 잘못된 토큰만 제외해 `UNREADABLE`(`UNSUPPORTED_SYMBOL`)로 표시하고, 같은 칸에서 읽힌 율명은 보존한다. 먹이 있는데 결과가 비면 `EMPTY_RECOGNITION`으로 표시한다.

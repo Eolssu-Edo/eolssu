@@ -20,11 +20,13 @@ from hanbae_marks import image_marks
 from omr_service.jeongganbo_tempo import attach_marks
 
 READER = [sys.executable, '-X', 'utf8', str(SCORES / 'jeongganbo_omr.py')]
-ENGINE_VERSION = 'e95045f-v1.0.0-r7'
+ENGINE_VERSION = 'e95045f-v1.0.0-r8'
 # instruments.code → 리더 YUL_PRESETS 이름. 목록 근거: docs/knowledge/data/jeongganbo-omr-accuracy.md.
 # 산조대금은 정악 대금 목록과 조율·음역 근거가 달라 제한하지 않는다(목록 없는 악기는 기존 결과와 같다).
 YUL_PRESETS = {'DANSO': 'danso', 'SOGEUM': 'sogeum', 'JEONGAK_DAEGEUM': 'jeongak-daegeum'}
-MIN_CONFIDENCE = .8  # 검수 기준이며, 보정된 정확도 확률이 아니다.
+# 검수 기준이며 보정된 정확도 확률은 아니다. 1061 표본(실기교재 6곡 178칸)에서 틀린 율명 칸은 모두 0.68 이하였고,
+# 0.7 아래로 내리면 놓치는 오류가 늘었다. 0.7~0.8 칸은 7개뿐이라 낮추지 않았다(전체 실측은 S15P31E102-1067).
+MIN_CONFIDENCE = .8
 log = logging.getLogger('omr_service.api')
 TOKEN = re.compile(rf'(?:{score_data.YUL}(?:_[^:\s]+)?|-|쉼표|쉼):(?:[0-9]|1[0-5])\Z')
 
@@ -111,9 +113,9 @@ def recognize(job):
                     if reason:
                         issues.append(dict(kind='UNREADABLE', **at,
                                            detail={'reason':reason,'text':cell.get('text','')}))
-                    if cell.get('conf') is None or cell['conf'] < MIN_CONFIDENCE or cell.get('filled'):
+                    if review := review_reason(cell, text):
                         issues.append(dict(kind='LOW_CONFIDENCE', **at,
-                                           detail={'confidence':cell.get('conf'),'reason':'GRID_FILLED' if cell.get('filled') else 'MODEL_CONFIDENCE'}))
+                                           detail={'confidence':cell.get('conf'),'reason':review}))
                 lines += [' | '.join(tokens[start:start + beats]) for start in range(0,len(tokens),beats)]
                 if len(tokens) % beats:
                     issues.append(dict(kind='LOW_CONFIDENCE', **whole, detail={'reason':'PARTIAL_GAK'}))
@@ -139,3 +141,19 @@ def recognize(job):
                     issues=issues + tempo_issues, **extra)
     finally:
         AUDIVERIS_LOCK.release()
+
+
+def review_reason(cell, text):
+    """확인 필요 칸으로 표시할 까닭(`LOW_CONFIDENCE` detail.reason). 표시하지 않으면 None.
+
+    text는 cell_text가 거른 JG-like 정간이다. 1061 표본에서 격자 보충 칸은 10개 모두 틀렸다.
+    율명 없이 쉼표만 읽힌 칸은 신뢰도가 0.87~1.0이어도 12개 중 8개가 악보에 없는 칸(가사·장단 열)이었다.
+    """
+    if cell.get('filled'):
+        return 'GRID_FILLED'
+    if cell.get('conf') is None or cell['conf'] < MIN_CONFIDENCE:
+        return 'MODEL_CONFIDENCE'
+    names = [token for token in text.split() if not token.startswith(':')]
+    if '쉼표' in names and set(names) <= {'쉼표', '-'}:
+        return 'REST_ONLY'
+    return None
