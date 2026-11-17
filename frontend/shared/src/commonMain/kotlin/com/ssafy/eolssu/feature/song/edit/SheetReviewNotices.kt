@@ -13,7 +13,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.KoreanParticle
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
+import com.ssafy.eolssu.core.ui.component.withParticle
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheet_review_notice_grid
 import eolssu.shared.generated.resources.sheet_review_notice_jangdan
@@ -80,7 +82,7 @@ private fun SheetReviewNotice.label(): String = rhythmReview?.label()
             else -> Res.string.sheet_review_notice_unreadable
         },
     )
-    "JANGDAN_GUESSED" -> stringResource(Res.string.sheet_review_notice_jangdan, jangdanLabel(jangdan.orEmpty()))
+    "JANGDAN_GUESSED" -> stringResource(Res.string.sheet_review_notice_jangdan, jangdanLabel(jangdan.orEmpty()).withParticle(KoreanParticle.EuroRo))
     "JANGDAN_MISMATCH" -> stringResource(Res.string.sheet_review_notice_jangdan_mismatch)
     "TRANSPOSED" -> semitones?.let { stringResource(Res.string.sheet_review_notice_transposed, if (it > 0) "+$it" else it.toString()) }
         ?: stringResource(Res.string.sheet_review_notice_transposed_unknown)
@@ -90,7 +92,7 @@ private fun SheetReviewNotice.label(): String = rhythmReview?.label()
 
 @Composable
 internal fun SheetRhythmReview.label(): String = when (reason) {
-    "TIME_SIGNATURE_REVIEW_REQUIRED" -> timeSignature?.let { stringResource(Res.string.sheet_review_meter_signature, it) }
+    "TIME_SIGNATURE_REVIEW_REQUIRED" -> timeSignature?.let { stringResource(Res.string.sheet_review_meter_signature, it.withParticle(KoreanParticle.EuroRo)) }
         ?: stringResource(Res.string.sheet_review_meter_unknown)
     "REPEATED_UNDERFULL_MEASURE" -> stringResource(Res.string.sheet_review_measure_short)
     "OVERFULL_MEASURE" -> stringResource(Res.string.sheet_review_measure_long)

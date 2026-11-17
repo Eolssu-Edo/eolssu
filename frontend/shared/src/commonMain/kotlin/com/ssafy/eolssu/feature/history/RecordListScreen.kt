@@ -51,6 +51,8 @@ fun RecordListScreen(
     onToggleDay: (String, Long) -> Unit = { _, _ -> },
     onToggleName: () -> Unit = {},
     onSearch: (String) -> Unit = {},
+    /** 저장한 연주가 없을 때 '연습하러 가기'. 곡 고르기로 간다. */
+    onStartPractice: () -> Unit = {},
     detail: RecordDetailUiState? = null,
     detailActions: RecordDetailActions? = null,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
@@ -73,6 +75,7 @@ fun RecordListScreen(
             onSelect = onOpenRecord,
             onRetry = onRetry,
             onLoadMore = onLoadMore,
+            onStartPractice = onStartPractice,
             detail = detail,
             detailActions = detailActions,
             snackbarHostState = snackbarHostState,
@@ -101,7 +104,7 @@ fun RecordListScreen(
                 if (state.summaries.isEmpty()) return@Column
             }
             if (!state.recordsAvailable || state.summaries.isEmpty()) {
-                RecordsEmpty(available = state.recordsAvailable)
+                RecordsEmpty(available = state.recordsAvailable, onStartPractice = onStartPractice)
                 return@Column
             }
             RecordListToolbar(state.instrument, state.nameOrder, state.query, spacing, onInstrument, onToggleName, onSearch)
