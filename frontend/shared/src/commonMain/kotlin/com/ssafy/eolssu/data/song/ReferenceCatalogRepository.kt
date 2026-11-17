@@ -172,7 +172,8 @@ internal fun safeCatalogLink(value: String?): Boolean = value == null || runCatc
         nominalHwangPitchClass in 0..11 && verificationStatus == "BUILTIN_REFERENCE"
 }
 @Serializable data class CatalogJangdanSummary(val jangdanId: String, val name: String, val defaultBpm: Int,
-    val bpmUnit: String, val beatCount: Int, val groupCount: Int, val patternCellEighths: Int? = null)
+    val bpmUnit: String, val beatCount: Int, val groupCount: Int, val patternCellEighths: Int? = null,
+    val pattern: CatalogJangdanPattern? = null)
 @Serializable data class CatalogJangdanDetail(val jangdanId: String, val name: String, val defaultBpm: Int,
     val bpmUnit: String, val pattern: CatalogJangdanPattern, val source: String? = null, val soundUrl: String? = null,
     val patternCellEighths: Int? = null)

@@ -146,7 +146,7 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
         val inputPanel: @Composable (docked: Boolean) -> Unit = { docked ->
             EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.supportedInputPitches, state.canUndo, state.canRedo, actions.input,
                 saveFeedback = { SheetSaveFeedback(state, actions.onRetryDraft) }, adaptationContent = adaptationContent, docked = docked,
-                hasTempoPlan = state.hasTempoPlan, expanded = state.inputPanelExpanded)
+                expanded = state.inputPanelExpanded)
         }
         if (expanded) {
             SheetEditExpandedLayout(tempoRow = tempoRow, scoreBoard = scoreBoard, inputPanel = { inputPanel(true) })

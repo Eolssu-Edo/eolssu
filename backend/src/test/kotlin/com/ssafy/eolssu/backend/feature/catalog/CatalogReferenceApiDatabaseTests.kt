@@ -147,6 +147,7 @@ class CatalogReferenceApiDatabaseTests {
             val detail = body("/api/jangdans/$id")
             val stored = json.readTree(jdbc.queryForObject("SELECT pattern FROM jangdans WHERE id=?", String::class.java, id.toLong()))
             assertEquals(stored, detail.path("pattern"))
+            assertEquals(stored, item.path("pattern"))
             assertEquals(stored.path("beats").size(), item.path("beatCount").asInt())
             assertEquals(stored.path("group").size(), item.path("groupCount").asInt())
             assertEquals(item.path("defaultBpm"), detail.path("defaultBpm"))
