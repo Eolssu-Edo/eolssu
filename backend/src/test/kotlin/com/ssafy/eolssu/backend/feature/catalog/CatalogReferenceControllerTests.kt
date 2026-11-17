@@ -24,6 +24,8 @@ class CatalogReferenceControllerTests {
     @Test fun `list and detail expose the same catalog pattern cell duration`() {
         mvc.perform(get("/api/jangdans")).andExpect(status().isOk)
             .andExpect(jsonPath("$.result.items[0].patternCellEighths").value(1))
+            .andExpect(jsonPath("$.result.items[0].pattern.beats.length()").isNumber)
+            .andExpect(jsonPath("$.result.items[0].pattern.group").isArray)
         mvc.perform(get("/api/jangdans/1")).andExpect(status().isOk)
             .andExpect(jsonPath("$.result.patternCellEighths").value(1))
     }

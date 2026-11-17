@@ -60,7 +60,8 @@ class CatalogReferenceController(
 
     @GetMapping("/jangdans")
     fun jangdans() = SuccessResponse.of(HttpStatus.OK, "장단 목록 조회 성공", JangdanListResult(queries.jangdans().map {
-        JangdanItem(it.id.toString(), it.name, it.defaultBpm, it.bpmUnit, it.pattern.beats.size, it.pattern.group.size, it.patternCellEighths)
+        JangdanItem(it.id.toString(), it.name, it.defaultBpm, it.bpmUnit, it.pattern.beats.size, it.pattern.group.size, it.patternCellEighths,
+            JangdanPatternResult(it.pattern.beats, it.pattern.group))
     }))
 
     @GetMapping("/jangdans/{jangdanId}")
@@ -135,7 +136,7 @@ data class FingeringItem(val fingeringId: String, val instrumentId: String, val 
     val imageUrl: String?, val description: String?, val pattern: FingeringPattern?)
 data class JangdanListResult(val items: List<JangdanItem>)
 data class JangdanItem(val jangdanId: String, val name: String, val defaultBpm: Int, val bpmUnit: String,
-    val beatCount: Int, val groupCount: Int, val patternCellEighths: Int?)
+    val beatCount: Int, val groupCount: Int, val patternCellEighths: Int?, val pattern: JangdanPatternResult)
 data class JangdanDetailResult(val jangdanId: String, val name: String, val defaultBpm: Int, val bpmUnit: String,
     val pattern: JangdanPatternResult, val source: String?, val soundUrl: String?, val patternCellEighths: Int?)
 data class JangdanPatternResult(val beats: List<String>, val group: List<Int>)
