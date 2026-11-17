@@ -72,17 +72,18 @@ internal fun SheetAdaptationPanel(
             state.selected == null -> Text(stringResource(Res.string.sheet_adapt_empty))
             else -> state.selected?.let { selected ->
                 val recommended = recommendedAdaptations(state.plans).firstOrNull()
-                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+                // 높이 상자·개수·적용을 늘 한 줄에 둔다. 줄바꿈 배치(FlowRow)는 '원조 유지'처럼 긴 상자나 큰 글꼴에서
+                // 마지막 적용 버튼만 다음 줄로 밀어냈다(S15P31E102-1098). 남는 폭은 개수가 나눠 쓰고 넘치면 줄임표로 줄인다.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     TransposeBox(transposeLabel(selected.transpose))
-                    Spacer(Modifier.weight(1f))
                     // 두 개수를 한 줄에 나란히 두고, 적용은 작은 네모 버튼(32dp)으로 둔다(S15P31E102-889).
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(Res.string.sheet_adapt_octave_count, selected.octaveChanges), style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1)
+                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                         Text("·", style = MaterialTheme.typography.labelMedium, color = colors.lineStrong)
                         Text(stringResource(Res.string.sheet_adapt_unresolved_count, selected.unresolved), style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
                             color = if (selected.unresolved > 0) colors.recText else colors.text)
                     }
                     PillButton(stringResource(Res.string.sheet_details_apply), onApply, compact = true)
