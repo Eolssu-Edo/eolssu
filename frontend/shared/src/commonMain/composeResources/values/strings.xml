@@ -11,7 +11,7 @@
     <string name="sheet_document_failed">악보를 불러오지 못했어요. 변환이 완료됐는지와 연결 상태를 확인해 주세요.</string>
     <string name="sheet_document_practice_version_changed">악보가 업데이트됐어요. 연습을 닫고 같은 악보를 다시 열어 주세요.</string>
     <string name="sheet_save_failed">저장하지 못했어요. 편집은 그대로니 다시 시도해 주세요.</string>
-    <string name="sheet_save_conflict">다른 곳에서 악보가 바뀌었어요. 편집은 그대로니 최신 악보를 확인해 주세요.</string>
+    <string name="sheet_save_conflict">다른 곳에서 악보가 바뀌어 저장할 수 없어요. 닫고 다시 열어 주세요.</string>
     <string name="sheet_save_too_large">악보가 저장할 수 있는 크기를 넘었어요. 현재 편집은 유지돼요.</string>
     <string name="sheet_delete_failed">악보를 삭제하지 못했어요. 다시 시도해 주세요.</string>
     <string name="home_scroll_to_features">학습·연습하기로 내려가기</string>

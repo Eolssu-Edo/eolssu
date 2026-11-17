@@ -22,11 +22,14 @@ import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationPanel
+import com.ssafy.eolssu.feature.song.edit.component.transposeLabel
 import com.ssafy.eolssu.feature.song.edit.component.SheetImportGuideCard
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eolssu.shared.generated.resources.sheet_adapt_confirm_title
+import eolssu.shared.generated.resources.sheet_adapt_applied
+import eolssu.shared.generated.resources.sheet_adapt_applied_original
 import eolssu.shared.generated.resources.sheet_adapt_confirm_message
 import eolssu.shared.generated.resources.sheet_adapt_confirm_overwrite
 import androidx.compose.ui.text.font.FontWeight
@@ -137,6 +140,9 @@ fun SheetEditRoute(
         SheetEditMessage.BasicAccompanimentCleared to stringResource(Res.string.basic_accompaniment_cleared_after_reshape),
         SheetEditMessage.SigimsaeReplaced to stringResource(Res.string.sheetedit_sig_replaced),
         SheetEditMessage.PitchUnavailable to stringResource(Res.string.sheetedit_pitch_unavailable),
+        SheetEditMessage.AdaptationApplied to state.draft.appliedTranspose.let { applied ->
+            if (applied == 0) stringResource(Res.string.sheet_adapt_applied_original)
+            else stringResource(Res.string.sheet_adapt_applied, transposeLabel(applied)) },
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),

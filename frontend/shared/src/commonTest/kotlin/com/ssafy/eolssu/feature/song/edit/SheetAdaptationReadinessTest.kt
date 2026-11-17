@@ -87,6 +87,49 @@ internal class SheetAdaptationReadinessTest : CatalogViewModelTest() {
         assertEquals(after, model.uiState.value.draft)
     }
 
+    @Test fun theAppliedHeightCannotBeAppliedAgainAndApplyingSaysWhatChanged() = runTest {
+        val model = open(ReadinessCatalog())
+        runCurrent()
+        model.selectAdaptationTranspose(2)
+        assertFalse(assertNotNull(model.uiState.value.adaptation).selectionApplied)
+        model.requestApplyAdaptation()
+        model.applyAdaptation()
+        assertEquals(SheetEditMessage.AdaptationApplied, model.uiState.value.message)
+
+        // 이미 적용한 높이는 다시 적용해도 바뀌지 않으므로 적용을 막는다(S15P31E102-1096).
+        val panel = assertNotNull(model.uiState.value.adaptation)
+        assertTrue(panel.selectionApplied)
+        model.requestApplyAdaptation()
+        assertFalse(assertNotNull(model.uiState.value.adaptation).confirmationRequested)
+        model.selectAdaptationTranspose(3)
+        assertFalse(assertNotNull(model.uiState.value.adaptation).selectionApplied)
+
+        // 적용한 뒤 음을 직접 고치면 같은 높이로 다시 맞출 수 있다.
+        model.selectAdaptationTranspose(2)
+        model.selectTab(EditTab.Yul)
+        model.put(ScoreNote.Rest)
+        model.openAdaptation()
+        assertFalse(assertNotNull(model.uiState.value.adaptation).selectionApplied)
+    }
+
+    @Test fun closingThePitchToolWithBackKeepsTheComputedHeights() = runTest {
+        val catalog = ReadinessCatalog()
+        val model = open(catalog)
+        runCurrent()
+        model.selectTab(EditTab.Adaptation)
+        val requests = catalog.capabilityCalls
+
+        model.closeAdaptation()
+
+        assertEquals(EditTab.Yul, model.uiState.value.tab)
+        val kept = assertNotNull(model.uiState.value.adaptation, "확인 안내가 악기 이름과 바로 고치기를 잃지 않는다")
+        assertFalse(kept.loading)
+        model.openAdaptation()
+        assertEquals(EditTab.Adaptation, model.uiState.value.tab)
+        runCurrent()
+        assertEquals(requests, catalog.capabilityCalls)
+    }
+
     @Test fun editingTheScoreRebuildsThePlanWithoutAnotherCatalogRequest() = runTest {
         val catalog = ReadinessCatalog()
         val model = open(catalog)

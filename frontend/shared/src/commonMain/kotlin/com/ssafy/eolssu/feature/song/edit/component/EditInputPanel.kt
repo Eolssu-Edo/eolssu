@@ -215,7 +215,7 @@ internal fun EditInputPanel(
             EditTab.Adaptation -> adaptationContent()
             EditTab.Yul -> YulKeys(draft, selected, selectedSub, register, availablePitches, actions, wrapKeys = docked)
             EditTab.Sigimsae -> SigimsaeKeys(draft, selected, draft.sigimsaeSub(selected, selectedSub), actions)
-            EditTab.Cell -> CellTools(draft, actions, hasTempoPlan)
+            EditTab.Cell -> CellTools(draft, selected, actions, hasTempoPlan)
         }
     }
 }
@@ -672,14 +672,15 @@ private fun SigimsaeTile(value: Sigimsae) {
 
 /** 정간 나누기·합치기, 각 추가·삭제, 장단 정보와 '장단 바꾸기'. */
 @Composable
-private fun CellTools(draft: SheetDraft, actions: EditInputActions, hasTempoPlan: Boolean) {
+private fun CellTools(draft: SheetDraft, selected: Int, actions: EditInputActions, hasTempoPlan: Boolean) {
     val colors = EolssuTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // 바꿀 수 없는 정간에서는 눌러도 아무 일이 없으므로 끈다(S15P31E102-1096).
             ToolButton(stringResource(Res.string.sheetedit_cell_split), actions.onSplit, Modifier.weight(1f),
-                picture = CellPicture.Split)
+                enabled = draft.canSplit(selected), picture = CellPicture.Split)
             ToolButton(stringResource(Res.string.sheetedit_cell_merge), actions.onMerge, Modifier.weight(1f),
-                picture = CellPicture.Merge)
+                enabled = draft.canMerge(selected), picture = CellPicture.Merge)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ToolButton(stringResource(Res.string.sheetedit_cell_add_column), actions.onAddColumn, Modifier.weight(1f),

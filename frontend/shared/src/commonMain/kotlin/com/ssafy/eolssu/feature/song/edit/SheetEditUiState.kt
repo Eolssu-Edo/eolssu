@@ -99,6 +99,9 @@ enum class SheetEditMessage {
     /** 음원 생성기가 함께 해석하지 못하는 시김새를 새로 고른 것으로 바꿨다. */
     SigimsaeReplaced,
 
+    /** 곡 전체 높이를 맞췄다. 안내 문구에 지금 적용된 높이를 함께 적는다. */
+    AdaptationApplied,
+
     /** 지금 악기·기준음으로 적을 수 없는 음을 눌렀다. */
     PitchUnavailable,
 
