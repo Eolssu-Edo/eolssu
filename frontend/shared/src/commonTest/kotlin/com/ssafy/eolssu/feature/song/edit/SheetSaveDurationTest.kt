@@ -17,9 +17,15 @@ internal class SheetSaveDurationTest {
     private fun draft() = smallScoreData().editingDraft("저장 길이", 60, null)
 
     @Test fun stepTempoIncludesEveryCellAtItsCurrentTempo() {
-        val changed = draft().withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 120.0))
+        val changed = draft().withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 120.0, 3))
         assertEquals(2.0, assertNotNull(changed.estimatedDurationSeconds(60)), 1e-9)
         assertEquals(1.0, assertNotNull(changed.estimatedDurationSeconds(120)), 1e-9)
+    }
+
+    @Test fun slightTempoSpanCountsOnlyUntilItsEnd() {
+        // 첫 정간만 120, 나머지 두 정간은 60으로 돌아온다(S15P31E102-1082).
+        val span = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.Faster, 120.0, 1))
+        assertEquals(2.5, assertNotNull(span.estimatedDurationSeconds(60)), 1e-9)
     }
 
     @Test fun gradualTempoIntegratesTheReciprocalAndKeepsTheTargetAfterItsEnd() {
@@ -28,7 +34,7 @@ internal class SheetSaveDurationTest {
         // 60에서 40까지 세 정간 동안 고르게 느려진다: 60·3·ln(60/40)/(60-40) = 9·ln(1.5)초.
         val slower = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.GraduallySlower, 40.0, 3))
         assertEquals(9 * ln(1.5), assertNotNull(slower.estimatedDurationSeconds(60)), 1e-9)
-        val afterStep = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.Faster, 120.0))
+        val afterStep = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.Faster, 120.0, 1))
             .withTempoChange(SheetTempoChange(1, HanbaeMark.GraduallySlower, 60.0, 3))
         assertEquals(0.5 + 2 * ln(2.0), assertNotNull(afterStep.estimatedDurationSeconds(60)), 1e-9)
     }
@@ -44,9 +50,9 @@ internal class SheetSaveDurationTest {
 
     @Test fun changingDeletingAndUndoingTempoRecalculatesEvenWithAnEmptyPlan() {
         val initial = SheetEditUiState(EditSource.Mine("31"), draft())
-        val changed = initial.updateTempoSettings(initial.draft.withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 120.0)))
+        val changed = initial.updateTempoSettings(initial.draft.withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 120.0, 3)))
         assertEquals(2.0, assertNotNull(changed.draft.estimatedDurationSeconds(60)), 1e-9)
-        val edited = changed.updateTempoSettings(changed.draft.withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 180.0), replacing = 1))
+        val edited = changed.updateTempoSettings(changed.draft.withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 180.0, 3), replacing = 1))
         assertEquals(5.0 / 3, assertNotNull(edited.draft.estimatedDurationSeconds(60)), 1e-9)
         val deleted = edited.updateTempoSettings(edited.draft.withoutTempoChange(1))
         assertEquals(3.0, assertNotNull(deleted.draft.estimatedDurationSeconds(60)), 1e-9)
@@ -57,14 +63,14 @@ internal class SheetSaveDurationTest {
     @Test fun unresolvedCuesKeepThePriorTempoAndOriginalRestoresTheBaseline() {
         val unresolved = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.GraduallySlower, null))
         assertEquals(3.0, assertNotNull(unresolved.estimatedDurationSeconds(60)), 1e-9)
-        val changed = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.Faster, 120.0))
+        val changed = draft().withTempoChange(SheetTempoChange(0, HanbaeMark.Faster, 120.0, 1))
             .withTempoChange(SheetTempoChange(1, HanbaeMark.Slower, null))
             .withTempoChange(SheetTempoChange(2, HanbaeMark.Original, 60.0))
         assertEquals(2.0, assertNotNull(changed.estimatedDurationSeconds(60)), 1e-9)
     }
 
     @Test fun saveReopenAndGlobalTempoApplyTheRatioOnce() {
-        val edited = draft().withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 120.0)).copy(bpm = 90)
+        val edited = draft().withTempoChange(SheetTempoChange(1, HanbaeMark.Faster, 120.0, 3)).copy(bpm = 90)
         val score = edited.toCommonScore()
         val expressions = assertNotNull(edited.exportExpressions(null, commonSourceSha256(Json.encodeToJsonElement(score)), 60))
         val reopened = score.editingDraft(edited.title, 90, null).withTempoExpressions(expressions, referenceBpm = 60)
