@@ -270,7 +270,8 @@ class SheetEditViewModel(
         val pitches = capabilities.items.filter { it.selectable }.map { AdaptationPitch(it.midi, it.yul, it.octave) }
         val plans = planPitchAdaptation(panel.baseline.sourcePitchNotes(), pitches)
         return panel.copy(capabilities = capabilities, plans = plans, selectedTranspose = panel.baseline.appliedTranspose,
-            loading = false, failed = false, confirmationRequested = false)
+            loading = false, failed = false, confirmationRequested = false,
+            appliedTranspose = panel.baseline.unchangedAdaptation(plans, capabilities))
     }
 
     /** 계산을 마친 높이 패널을 [draft] 기준으로 다시 계산한다. 아직 불러오는 중이거나 실패한 패널은 버린다. */
@@ -296,14 +297,20 @@ class SheetEditViewModel(
         else state.copy(adaptation = state.adaptation.copy(selectedTranspose = value, confirmationRequested = false))
     }
 
-    fun closeAdaptation() {
-        ++adaptationRequest
-        _uiState.update { it.copy(adaptation = null, tab = if (it.tab == EditTab.Adaptation) EditTab.Yul else it.tab) }
-    }
+    /**
+     * 뒤로 가기로 높이 맞추기 탭만 닫는다. 계산한 높이는 버리지 않아 확인 안내·저장 창이 악기 이름과
+     * 바로 고치기 버튼을 계속 보이고, 불러오는 중이던 계산도 끝나면 그대로 쓴다(S15P31E102-1096).
+     */
+    fun closeAdaptation() = _uiState.update { state -> state.copy(
+        // 미리 고르기만 한 높이는 적용 이력이 아니므로 다시 열면 적용된 높이부터 보인다.
+        adaptation = state.adaptation?.let { panel -> panel.copy(confirmationRequested = false,
+            selectedTranspose = if (panel.plans.isEmpty()) panel.selectedTranspose else panel.baseline.appliedTranspose) },
+        tab = if (state.tab == EditTab.Adaptation) EditTab.Yul else state.tab) }
 
     fun requestApplyAdaptation() = _uiState.update { state ->
         val panel = state.adaptation
-        if (panel == null || panel.loading || panel.failed || panel.selected == null || panel.baseline != state.draft) state
+        if (panel == null || panel.loading || panel.failed || panel.selected == null || panel.baseline != state.draft ||
+            panel.selectionApplied) state
         else state.copy(adaptation = panel.copy(confirmationRequested = true))
     }
 
@@ -344,9 +351,11 @@ class SheetEditViewModel(
         if (!panel.confirmationRequested || panel.loading || panel.failed || panel.baseline != _uiState.value.draft) return
         change(preserveAdaptation = true) { state ->
             val applied = state.applyAdaptation(plan, capability)
-            val ready = readyAdaptation(panel.copy(baseline = applied.draft), capability)
-                .copy(selectedTranspose = panel.selectedTranspose)
-            applied.copy(tab = EditTab.Adaptation, adaptation = ready)
+            val ready = readyAdaptation(panel.copy(baseline = applied.draft), capability).let { it.copy(
+                selectedTranspose = panel.selectedTranspose,
+                // 적용 기록을 남기지 않는 악보도 방금 적용한 높이는 다시 적용할 필요가 없다.
+                appliedTranspose = it.appliedTranspose ?: applied.draft.unchangedAdaptation(it.plans, capability, listOf(plan.transpose))) }
+            applied.copy(tab = EditTab.Adaptation, adaptation = ready, message = SheetEditMessage.AdaptationApplied)
         }
         completionCatalogJob?.cancel()
         completionCatalogJob = null
@@ -509,21 +518,15 @@ class SheetEditViewModel(
                         // 큰 악보의 본문 만들기·해시·JSON 직렬화가 화면 스레드를 멈추지 않도록 저장 작업 스레드에서 한다.
                         // 작업 스레드에서는 화면 상태를 바꾸지 않도록 필요한 값을 먼저 읽어 둔다.
                         val baseExpressions = expressions
-                        val baseSourceSha256 = expressionSourceSha256
                         val baseExpressionsBpm = expressionsBpm
                         val baseVersion = version
                         val baseRevision = revision
-                        val resolvedIds = if (draft) emptyList() else snapshot.reviewIssues
-                            .map(SheetReviewIssue::id).filter { it in snapshot.validatedCheckedIssueIds }
+                        val resolvedIds = if (draft) emptyList() else snapshot.confirmedResolvedIssueIds
                         val copy = onSaveWorker {
                             val score = snapshot.draft.toCommonScore()
                             if (!draft) score.toScore() // 입력 중인 이음·분할은 초안에만 허용한다.
                             SheetWorkingCopy(snapshot.draft.title, snapshot.draft.jangdanId,
-                                snapshot.draft.bpm, score, baseVersion, baseRevision, resolvedIds, authoring = snapshot.draft.authoringForSave(score.score.instrument), expressions = snapshot.draft.exportExpressions(baseExpressions,
-                                    (baseExpressions?.get("sourceSha256") as? kotlinx.serialization.json.JsonPrimitive)?.content
-                                        ?: baseSourceSha256
-                                        ?: com.ssafy.eolssu.data.song.commonSourceSha256(kotlinx.serialization.json.Json.encodeToJsonElement(requireNotNull(snapshot.draft.original))),
-                                    baseExpressionsBpm))
+                                snapshot.draft.bpm, score, baseVersion, baseRevision, resolvedIds, authoring = snapshot.draft.authoringForSave(score.score.instrument), expressions = snapshot.draft.exportExpressions(baseExpressions, baseExpressionsBpm))
                         }
                         val attempt = if (draft) DraftSave(snapshot.draft, copy) else null
                         val result = try {
@@ -722,6 +725,8 @@ class SheetEditViewModel(
         if (!state.canCheckSelectedReviewIssue) return@change state.copy(completionWarning = true)
         state.copy(checkedIssueIds = state.checkedIssueIds + issue.id)
     }
+
+    fun dismissAdvisoryIssues(cell: Int, sub: Int? = null) = change { it.dismissAdvisoryIssues(cell, sub) }
 
     fun openCompletionIssue() = change { state ->
         state.focusCompletionIssue().copy(completionWarning = false)

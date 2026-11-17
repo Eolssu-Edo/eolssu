@@ -7,7 +7,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -35,7 +34,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,7 +65,10 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuColors
@@ -80,7 +81,6 @@ import eolssu.shared.generated.resources.home_tiger
 import eolssu.shared.generated.resources.learn_card_dot
 import eolssu.shared.generated.resources.learn_trail_done
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.PI
@@ -137,26 +137,29 @@ internal fun LearnTrailMap(
         // 호랑이는 지금 보는 단계 돌에 서 있고, 다른 단계를 고르면 돌에서 돌로 한 번씩 깡충 건너간다.
         // 단계 동그라미보다 위에 그려 가려지지 않게 하고, 그림만 있고 누르는 동작이 없어 아래 단계 동그라미는 그대로 눌린다.
         val viewedIndex = stages.indexOfFirst { it.number == viewedStage }.coerceAtLeast(0)
-        // 돌 하나에 한 번 뛰도록, 멀리 갈수록 오래 건넌다(너무 길어지지 않게 상한을 둔다).
-        var from by remember { mutableStateOf(viewedIndex) }
-        val steps = abs(viewedIndex - from).coerceAtLeast(1)
+        // 호랑이 위치(돌 번호, 건너는 중이면 소수). 움직임 값은 배치·그리기 단계에서만 읽어, 건너는 동안 지도 전체를 매 프레임 다시 구성하지 않는다(S15P31E102-1102).
+        val walk = remember { Animatable(viewedIndex.toFloat()) }
         // 다 와서 내려앉으면 살짝 눌렸다가 튀어 오른다.
         val landing = remember { Animatable(0f) }
-        val scope = rememberCoroutineScope()
-        val walk by animateFloatAsState(
-            viewedIndex.toFloat(),
-            tween((TigerStepMillis * steps).coerceAtMost(TigerWalkMaxMillis), easing = FastOutSlowInEasing),
-            label = "tigerWalk",
-            finishedListener = {
-                if (it.toInt() != from) {
-                    scope.launch {
-                        landing.snapTo(1f)
-                        landing.animateTo(0f, spring(dampingRatio = 0.35f, stiffness = 500f))
-                    }
-                }
-                from = it.toInt()
-            },
-        )
+        LaunchedEffect(viewedIndex) {
+            val target = viewedIndex.toFloat()
+            val distance = abs(target - walk.value)
+            if (distance == 0f) return@LaunchedEffect
+            // 돌 하나에 한 번 뛰도록 남은 거리만큼 건넌다(너무 길어지지 않게 상한을 둔다). 건너는 도중 목표가 바뀌면
+            // 처음부터 천천히 출발하지 않고 지금 속도로 이어 달려, 빠르게 여러 번 넘겨도 누르는 만큼 바로 따라온다.
+            val moving = walk.value != floor(walk.value)
+            // 내려앉아 눌리던 중에 다시 떠나면 눌림·물결이 남지 않도록 바로 편다.
+            landing.snapTo(0f)
+            walk.animateTo(
+                target,
+                tween(
+                    (TigerStepMillis * distance).toInt().coerceIn(TigerStepMillis / 2, TigerWalkMaxMillis),
+                    easing = if (moving) LinearOutSlowInEasing else FastOutSlowInEasing,
+                ),
+            )
+            landing.snapTo(1f)
+            landing.animateTo(0f, spring(dampingRatio = 0.35f, stiffness = 500f))
+        }
         // 다 건넌 축하: 마지막 돌에 서 있으면 여러 번 높이 뛰고 내려앉을 때마다 살짝 눌린다. 뛸 때마다 몸을 번갈아 기울인다.
         val jump = remember { Animatable(0f) }
         var jumpSide by remember { mutableStateOf(1f) }
@@ -184,43 +187,38 @@ internal fun LearnTrailMap(
             }
         }
         if (points.isNotEmpty()) {
-            val at = trailPointAt(points, walk)
-            val air = maxOf(sin(PI.toFloat() * (walk - floor(walk))), jump.value)
-            val facing = when {
-                jump.value > 0f -> jumpSide
-                viewedIndex >= walk -> 1f
-                else -> -1f
-            }
-            val hop = TigerHop + (FinishJumpHeight - TigerHop) * jump.value
-            val feetX = width * at.x
-            val feetY = TrailHeight * at.y - NodeSize / 2 + TigerFeetInset
+            // 아래 값은 모두 움직임 값을 읽으므로 offset { }·graphicsLayer { }·그리기 안에서만 부른다.
+            val at = { trailPointAt(points, walk.value) }
+            val air = { maxOf(sin(PI.toFloat() * (walk.value - floor(walk.value))), jump.value) }
+            val feetX = { width * at().x }
+            val feetY = { TrailHeight * at().y - NodeSize / 2 + TigerFeetInset }
             // 돌에 내려앉으면 둘레 물결이 동그랗게 퍼지며 옅어진다.
-            val ripple = landing.value
-            if (ripple > 0.01f) {
-                Canvas(
-                    Modifier
-                        .offset(feetX - RippleWidth / 2, TrailHeight * at.y - RippleHeight / 2 + NodeSize / 4)
-                        .size(RippleWidth, RippleHeight),
-                ) {
-                    val spread = 0.55f + 0.45f * (1f - ripple)
-                    val ringSize = Size(size.width * spread, size.height * spread)
-                    drawOval(
-                        ink.copy(alpha = 0.35f * ripple),
-                        topLeft = Offset((size.width - ringSize.width) / 2, (size.height - ringSize.height) / 2),
-                        size = ringSize,
-                        style = Stroke(1.5.dp.toPx()),
-                    )
-                }
+            Canvas(
+                Modifier
+                    .offset { DpOffset(feetX() - RippleWidth / 2, TrailHeight * at().y - RippleHeight / 2 + NodeSize / 4).toIntOffset(this) }
+                    .size(RippleWidth, RippleHeight),
+            ) {
+                val ripple = landing.value
+                if (ripple <= 0.01f) return@Canvas
+                val spread = 0.55f + 0.45f * (1f - ripple)
+                val ringSize = Size(size.width * spread, size.height * spread)
+                drawOval(
+                    ink.copy(alpha = 0.35f * ripple),
+                    topLeft = Offset((size.width - ringSize.width) / 2, (size.height - ringSize.height) / 2),
+                    size = ringSize,
+                    style = Stroke(1.5.dp.toPx()),
+                )
             }
             // 그림자는 땅에 남고, 호랑이가 높이 뜰수록 작고 옅어진다.
             Box(
                 Modifier
-                    .offset(feetX - TigerShadowWidth / 2, feetY - TigerShadowHeight / 2)
+                    .offset { DpOffset(feetX() - TigerShadowWidth / 2, feetY() - TigerShadowHeight / 2).toIntOffset(this) }
                     .size(TigerShadowWidth, TigerShadowHeight)
                     .graphicsLayer {
-                        scaleX = 1f - 0.35f * air
-                        scaleY = 1f - 0.35f * air
-                        alpha = 1f - 0.5f * air
+                        val a = air()
+                        scaleX = 1f - 0.35f * a
+                        scaleY = 1f - 0.35f * a
+                        alpha = 1f - 0.5f * a
                     }
                     .background(colors.text.copy(alpha = 0.22f), CircleShape),
             )
@@ -228,14 +226,23 @@ internal fun LearnTrailMap(
                 painterResource(Res.drawable.home_tiger),
                 contentDescription = null,
                 Modifier
-                    .offset(feetX - TigerWidth / 2, feetY - TigerHeight - hop * air)
+                    .offset {
+                        val hop = TigerHop + (FinishJumpHeight - TigerHop) * jump.value
+                        DpOffset(feetX() - TigerWidth / 2, feetY() - TigerHeight - hop * air()).toIntOffset(this)
+                    }
                     .size(TigerWidth, TigerHeight)
                     .graphicsLayer {
-                        transformOrigin = TransformOrigin(0.5f, 1f)
+                        val a = air()
                         // 돌을 건널 때는 가는 쪽으로 기울고, 다 건넌 축하 때는 좌우로 번갈아 기운다.
-                        rotationZ = TigerLean * air * facing
-                        scaleY = 1f + 0.05f * air - 0.12f * landing.value
-                        scaleX = 1f - 0.03f * air + 0.08f * landing.value
+                        val facing = when {
+                            jump.value > 0f -> jumpSide
+                            walk.targetValue >= walk.value -> 1f
+                            else -> -1f
+                        }
+                        transformOrigin = TransformOrigin(0.5f, 1f)
+                        rotationZ = TigerLean * a * facing
+                        scaleY = 1f + 0.05f * a - 0.12f * landing.value
+                        scaleX = 1f - 0.03f * a + 0.08f * landing.value
                     },
             )
         }
@@ -679,3 +686,6 @@ internal fun trailPoints(count: Int): List<Offset> = when (count) {
 
 private const val TrailStartX = 0.14f
 private const val TrailEndX = 0.82f
+
+/** 배치 단계의 [androidx.compose.foundation.layout.offset] { } 안에서 dp 위치를 픽셀로 바꾼다. */
+private fun DpOffset.toIntOffset(density: Density): IntOffset = with(density) { IntOffset(x.roundToPx(), y.roundToPx()) }

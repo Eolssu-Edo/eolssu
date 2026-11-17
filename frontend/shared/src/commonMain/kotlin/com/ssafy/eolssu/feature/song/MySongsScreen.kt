@@ -5,10 +5,22 @@ import com.ssafy.eolssu.core.diagnostics.QaTarget
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.InstrumentPicture
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -24,8 +36,6 @@ import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
-import com.ssafy.eolssu.core.ui.component.ChipRow
-import com.ssafy.eolssu.core.ui.component.EolssuChip
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
@@ -48,7 +58,12 @@ import eolssu.shared.generated.resources.mysongs_sheet_count
 import eolssu.shared.generated.resources.mysongs_sheet_limit_note
 import com.ssafy.eolssu.feature.song.edit.MY_SHEET_LIMIT
 import eolssu.shared.generated.resources.mysongs_title
-import eolssu.shared.generated.resources.song_level_all
+import eolssu.shared.generated.resources.mysongs_other_instrument
+import eolssu.shared.generated.resources.mysongs_other_sheets_hide
+import eolssu.shared.generated.resources.mysongs_other_sheets_show
+import eolssu.shared.generated.resources.mysongs_own_sheets
+import eolssu.shared.generated.resources.mysongs_own_sheets_empty
+import eolssu.shared.generated.resources.mysongs_own_sheets_no_match
 import org.jetbrains.compose.resources.stringResource
 
 /** SONG-03 화면의 사용자 행동. */
@@ -60,8 +75,6 @@ class MySongsActions(
     val onClearQuery: () -> Unit,
     /** 제공 곡 빈 결과의 '검색 조건 초기화'·'전체 곡 보기': 검색어와 단계를 함께 되돌린다. */
     val onResetSongFilters: () -> Unit,
-    val onSelectSheetInstrument: (Instrument?) -> Unit,
-    val onResetSheetFilters: () -> Unit,
     val onToggleSort: () -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onOpenSheet: (MySheet) -> Unit,
@@ -77,6 +90,8 @@ class MySongsActions(
     val onReimportSheet: (MySheet) -> Unit = { onAddSheet() },
     /** 변환 중·실패한 악보 줄을 누르면 변환 대기 화면을 다시 연다(S15P31E102-998). null이면 눌리지 않는다. */
     val onOpenConversion: ((MySheet) -> Unit)? = null,
+    /** 내 악보의 '다른 악기 악보 보기'·'접기'(S15P31E102-1094). */
+    val onToggleOtherSheets: () -> Unit = {},
 )
 
 /**
@@ -164,37 +179,19 @@ internal fun MySongsBody(
                 }
             }
             MySongsTab.Sheets -> {
-                SheetInstrumentChips(state.sheetInstrument, actions.onSelectSheetInstrument)
                 AddSheetButton(actions.onAddSheet)
-                val sheets = state.visibleSheets
                 if (state.sheetLoadState != SongLoadState.Ready) SongLoadNotice(state.sheetLoadState, actions.onRetry)
-                if (state.sheetLoadState == SongLoadState.Ready && sheets.isEmpty() &&
-                    (state.sheetInstrument != null || (state.sheetCount > 0 && searching))
-                ) {
-                    SongEmptyResult(onReset = actions.onResetSheetFilters)
+                if (state.sheetLoadState == SongLoadState.Ready && state.visibleSheets.isEmpty() && state.sheetCount > 0 && searching) {
+                    SongEmptyResult(onReset = actions.onClearQuery)
                 }
-                if (sheets.isNotEmpty()) {
+                if (state.visibleSheets.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // 거르거나 찾아도 저장 한도는 전체 개수로 센다(S15P31E102-1052).
+                        // 나누거나 찾아도 저장 한도는 전체 개수로 센다(S15P31E102-1052).
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             ListNote(stringResource(Res.string.mysongs_sheet_count, state.sheetCount, MY_SHEET_LIMIT))
                             ListNote(stringResource(Res.string.mysongs_sheet_limit_note, MY_SHEET_LIMIT))
                         }
-                        CardGrid(sheets, columns, itemKey = { it.id }, spacing = rowGap) { sheet, rowModifier ->
-                            MySheetRow(
-                                sheet,
-                                onOpen = { actions.onOpenSheet(sheet) },
-                                onEdit = { actions.onEditSheet(sheet) },
-                                onDelete = { actions.onDeleteSheet(sheet) },
-                                modifier = rowModifier,
-                                conversion = state.conversionOf(sheet),
-                                retrying = sheet.id in state.retrying,
-                                onRetryConversion = { actions.onRetryConversion(sheet) },
-                                onReimport = { actions.onReimportSheet(sheet) },
-                                bordered = false,
-                                onOpenConversion = actions.onOpenConversion?.let { open -> { open(sheet) } },
-                            )
-                        }
+                        MySheetGroups(state, actions, columns, rowGap, searching)
                     }
                 }
             }
@@ -202,14 +199,105 @@ internal fun MySongsBody(
     }
 }
 
+/**
+ * 내 악보 줄을 상단 연습 악기 기준으로 나눠 놓는다(S15P31E102-1094).
+ * 연습 악기 악보를 먼저 두고, 다른 악기 악보는 '다른 악기 악보 n개 보기' 아래에 악기 이름별 묶음으로 접어 둔다.
+ * 연습 악기 악보가 (검색 결과에) 없으면 그 사실을 한 줄로 알리고 다른 악기 묶음을 처음부터 보인다.
+ * 다른 악기 악보가 없거나 연습 악기를 아직 모르면 나누지 않고 예전처럼 한 목록으로 둔다.
+ */
 @Composable
-private fun SheetInstrumentChips(selected: Instrument?, onSelect: (Instrument?) -> Unit) {
-    ChipRow(Modifier.selectableGroup()) {
-        EolssuChip(stringResource(Res.string.song_level_all), selected = selected == null,
-            onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_02, { onSelect(null) }), bordered = false)
-        Instrument.entries.forEach { instrument ->
-            EolssuChip(stringResource(instrument.label), selected = selected == instrument,
-                onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_03, { onSelect(instrument) }), bordered = false)
+private fun MySheetGroups(state: MySongsUiState, actions: MySongsActions, columns: Int, rowGap: Dp, searching: Boolean) {
+    val own = state.ownSheets
+    val practice = state.practiceInstrument
+    val split = practice != null && state.otherSheetCount > 0
+    if (split) {
+        val name = stringResource(practice.label)
+        SheetGroupTitle(
+            when {
+                own.isNotEmpty() -> stringResource(Res.string.mysongs_own_sheets, name, own.size)
+                searching && state.hasOwnSheets -> stringResource(Res.string.mysongs_own_sheets_no_match, name)
+                else -> stringResource(Res.string.mysongs_own_sheets_empty, name)
+            },
+        )
+    }
+    if (own.isNotEmpty()) MySheetRows(own, state, actions, columns, rowGap)
+    if (split && own.isNotEmpty()) OtherSheetsToggle(state.otherSheetCount, state.otherSheetsOpen, actions.onToggleOtherSheets)
+    if (state.otherSheetsShown) {
+        state.otherSheetGroups.forEach { group ->
+            OtherInstrumentTitle(group.instrument)
+            MySheetRows(group.sheets, state, actions, columns, rowGap)
+        }
+    }
+}
+
+@Composable
+private fun MySheetRows(sheets: List<MySheet>, state: MySongsUiState, actions: MySongsActions, columns: Int, rowGap: Dp) {
+    CardGrid(sheets, columns, itemKey = { it.id }, spacing = rowGap) { sheet, rowModifier ->
+        MySheetRow(
+            sheet,
+            onOpen = { actions.onOpenSheet(sheet) },
+            onEdit = { actions.onEditSheet(sheet) },
+            onDelete = { actions.onDeleteSheet(sheet) },
+            modifier = rowModifier,
+            conversion = state.conversionOf(sheet),
+            retrying = sheet.id in state.retrying,
+            onRetryConversion = { actions.onRetryConversion(sheet) },
+            onReimport = { actions.onReimportSheet(sheet) },
+            bordered = false,
+            onOpenConversion = actions.onOpenConversion?.let { open -> { open(sheet) } },
+        )
+    }
+}
+
+/** 연습 악기 악보 묶음의 제목(진한 연두 글씨, 왼쪽 4dp). */
+@Composable
+private fun SheetGroupTitle(text: String) {
+    Text(
+        text,
+        modifier = Modifier.padding(start = 4.dp, top = 4.dp).semantics { heading() },
+        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+        color = EolssuTheme.colors.accentText,
+    )
+}
+
+/** 다른 악기 묶음의 제목: 악기 그림 · 악기 이름. 앱이 모르는 악기는 '기타 악기'로 적는다. */
+@Composable
+private fun OtherInstrumentTitle(instrument: Instrument?) {
+    Row(
+        Modifier.padding(start = 4.dp, top = 8.dp).semantics(mergeDescendants = true) { heading() },
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (instrument != null) InstrumentPicture(instrument, size = 20.dp)
+        Text(
+            stringResource(instrument?.label ?: Res.string.mysongs_other_instrument),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+            color = EolssuTheme.colors.textMuted,
+        )
+    }
+}
+
+/** '다른 악기 악보 n개 보기 ⌄' / '접기 ⌃'. 흰 바탕 알약 줄로 악보 줄과 구분되게 가운데 글씨를 둔다. */
+@Composable
+private fun OtherSheetsToggle(count: Int, open: Boolean, onToggle: () -> Unit) {
+    val colors = EolssuTheme.colors
+    Surface(
+        onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_02, onToggle),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 4.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = colors.surface,
+        contentColor = colors.accentText,
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(if (open) Res.string.mysongs_other_sheets_hide else Res.string.mysongs_other_sheets_show, count),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+            )
+            Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp).rotate(if (open) 180f else 0f))
         }
     }
 }

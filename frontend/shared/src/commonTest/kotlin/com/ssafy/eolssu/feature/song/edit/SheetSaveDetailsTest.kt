@@ -45,7 +45,7 @@ internal class SheetSaveDetailsTest : CatalogViewModelTest() {
         runCurrent()
         assertEquals("저장할 제목", reopened.uiState.value.draft.title)
         assertEquals(120, reopened.uiState.value.draft.bpm)
-        assertEquals(listOf(60.0), reopened.uiState.value.draft.tempoChanges.map { it.targetBpm })
+        assertEquals(listOf(60.0), reopened.uiState.value.draft.tempoCues.map { it.bpm })
         assertNull(reopened.uiState.value.saveStatus, "조회만으로 확정 저장 완료를 표시하지 않는다")
     }
 
@@ -61,7 +61,7 @@ internal class SheetSaveDetailsTest : CatalogViewModelTest() {
         assertEquals(SheetSaveStatus.ConfirmationFailed, model.uiState.value.saveStatus)
         assertEquals("다시 저장할 제목", model.uiState.value.draft.title)
         assertEquals(120, model.uiState.value.draft.bpm)
-        assertEquals(listOf(60.0), model.uiState.value.draft.tempoChanges.map { it.targetBpm })
+        assertEquals(listOf(60.0), model.uiState.value.draft.tempoCues.map { it.bpm })
         assertFalse(model.uiState.value.confirming)
         advanceTimeBy(1_000); runCurrent()
         assertEquals(1, repository.writes.size, "실패 후 오래된 초안 요청을 뒤늦게 보내지 않는다")

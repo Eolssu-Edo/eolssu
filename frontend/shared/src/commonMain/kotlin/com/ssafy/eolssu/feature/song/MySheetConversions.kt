@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.exp
+import kotlin.time.Clock
 import kotlin.time.TimeSource
 
 /**
@@ -121,17 +122,29 @@ internal fun readingEstimate(elapsedMs: Long, pageCount: Int, notation: SheetNot
 }
 
 /**
- * 목록 줄이 악보마다 '읽는 중'을 처음 본 시각을 앱 실행 동안 기억해, 지난 시간을 [conversionProgress]에 넘긴다(S15P31E102-1064).
- * 목록은 화면 ViewModel이 바뀌어도(악보 추가 화면 ↔ 내 악보 탭, 나갔다 다시 들어오기) 같은 기준을 써서 막대가 처음으로 돌아가지 않는다.
+ * 서버가 읽기를 시작한 시각([SheetConversion.startedAtMs])부터 [wallNowMs]까지 지난 시간(S15P31E102-1099).
+ * 시작 시각을 모르거나 기기 시계가 서버보다 늦어 음수가 되면 null이라, 부르는 쪽이 앱에서 처음 본 때부터 센다.
+ */
+internal fun serverReadingElapsedMs(conversion: SheetConversion, wallNowMs: Long): Long? =
+    conversion.startedAtMs?.let { wallNowMs - it }?.takeIf { it >= 0 }
+
+/** 기기 시계의 지금 시각(epoch 밀리초). 서버 시작 시각과 견줄 때 쓴다. */
+internal fun wallClockMs(): Long = Clock.System.now().toEpochMilliseconds()
+
+/**
+ * 목록 줄이 '읽는 중'인 변환의 지난 시간을 [conversionProgress]에 넘긴다(S15P31E102-1064·1099).
+ * 서버가 준 시작 시각이 있으면 그 시각부터 세어, 악보 추가 화면에 처음 들어오거나 앱을 다시 켜도 막대가 처음부터 차지 않는다.
+ * 시작 시각이 없을 때만 악보마다 '읽는 중'을 처음 본 시각을 앱 실행 동안 기억해 쓴다.
  * 변환이 끝나면(완료·실패) 기록을 지워 다시 시도할 때 처음부터 센다. 화면(메인 스레드)에서만 부른다.
  */
-internal class ConversionReadingClock(private val nowMs: () -> Long) {
+internal class ConversionReadingClock(private val nowMs: () -> Long, private val wallNowMs: () -> Long = ::wallClockMs) {
     private val readingSince = mutableMapOf<String, Long>()
 
     /** 이 변환이 '읽는 중'이 된 뒤 지난 시간. 읽는 중이 아니면 0. */
     fun elapsedMs(conversion: SheetConversion): Long {
         if (!conversion.status.inProgress) readingSince.remove(conversion.sheetId)
         if (conversionStep(conversion) !is ConversionStep.Reading) return 0
+        serverReadingElapsedMs(conversion, wallNowMs())?.let { return it }
         val now = nowMs()
         return now - readingSince.getOrPut(conversion.sheetId) { now }
     }
@@ -140,7 +153,7 @@ internal class ConversionReadingClock(private val nowMs: () -> Long) {
         /** 목록 줄이 함께 쓰는 시계. */
         val Shared: ConversionReadingClock by lazy {
             val start = TimeSource.Monotonic.markNow()
-            ConversionReadingClock { start.elapsedNow().inWholeMilliseconds }
+            ConversionReadingClock({ start.elapsedNow().inWholeMilliseconds })
         }
     }
 }

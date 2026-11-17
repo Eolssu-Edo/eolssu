@@ -22,11 +22,14 @@ import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditDetailsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetEditSettingsDialog
 import com.ssafy.eolssu.feature.song.edit.component.SheetAdaptationPanel
+import com.ssafy.eolssu.feature.song.edit.component.transposeLabel
 import com.ssafy.eolssu.feature.song.edit.component.SheetImportGuideCard
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eolssu.shared.generated.resources.sheet_adapt_confirm_title
+import eolssu.shared.generated.resources.sheet_adapt_applied
+import eolssu.shared.generated.resources.sheet_adapt_applied_original
 import eolssu.shared.generated.resources.sheet_adapt_confirm_message
 import eolssu.shared.generated.resources.sheet_adapt_confirm_overwrite
 import androidx.compose.ui.text.font.FontWeight
@@ -38,7 +41,8 @@ import com.ssafy.eolssu.feature.song.edit.component.SheetReviewInfoDialog
 import com.ssafy.eolssu.feature.song.edit.component.sheetReviewReason
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
-import eolssu.shared.generated.resources.sheetedit_msg_audio_failed
+import eolssu.shared.generated.resources.sheetedit_audio_failed
+import com.ssafy.eolssu.feature.song.edit.component.sigimsaeLabel
 import eolssu.shared.generated.resources.sheetedit_msg_audio_ready
 import eolssu.shared.generated.resources.sheetedit_msg_audio_unknown
 import eolssu.shared.generated.resources.sheet_support_save_error
@@ -56,6 +60,8 @@ import eolssu.shared.generated.resources.sheet_discard_close
 import eolssu.shared.generated.resources.sheet_keep_editing
 import eolssu.shared.generated.resources.sheet_review_before_reshape
 import eolssu.shared.generated.resources.sheet_tempo_before_reshape
+import eolssu.shared.generated.resources.sheet_tempo_mark_before_merge
+import eolssu.shared.generated.resources.sheet_tempo_out_of_range_after_jangdan
 import eolssu.shared.generated.resources.sheetedit_jangdan_unavailable
 import eolssu.shared.generated.resources.sheetedit_msg_draft
 import eolssu.shared.generated.resources.sheetedit_msg_saved
@@ -130,11 +136,20 @@ fun SheetEditRoute(
         SheetEditMessage.ReviewBeforeReshape to stringResource(Res.string.sheet_review_before_reshape),
         SheetEditMessage.JangdanUnavailable to stringResource(Res.string.sheetedit_jangdan_unavailable),
         SheetEditMessage.TempoPlanBeforeReshape to stringResource(Res.string.sheet_tempo_before_reshape),
+        SheetEditMessage.TempoMarkBeforeMerge to stringResource(Res.string.sheet_tempo_mark_before_merge),
+        SheetEditMessage.TempoOutOfRangeAfterJangdan to stringResource(Res.string.sheet_tempo_out_of_range_after_jangdan),
         SheetEditMessage.BasicAccompanimentCleared to stringResource(Res.string.basic_accompaniment_cleared_after_reshape),
-        SheetEditMessage.SigimsaeReplaced to stringResource(Res.string.sheetedit_sig_replaced),
+        SheetEditMessage.SigimsaeReplaced to state.sigimsaeSwap?.let { swap ->
+            stringResource(Res.string.sheetedit_sig_replaced, swap.removed.map { sigimsaeLabel(it) }.joinToString("·"), sigimsaeLabel(swap.added))
+        },
         SheetEditMessage.PitchUnavailable to stringResource(Res.string.sheetedit_pitch_unavailable),
+        SheetEditMessage.AdaptationApplied to state.draft.appliedTranspose.let { applied ->
+            if (applied == 0) stringResource(Res.string.sheet_adapt_applied_original)
+            else stringResource(Res.string.sheet_adapt_applied, transposeLabel(applied)) },
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
-        SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
+        // 실패 코드를 이유와 할 일로 옮긴다. 다시 받기는 연습 화면에서 한다(S15P31E102-1097).
+        SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_audio_failed,
+            stringResource((state.audio as? SheetAudioUi.Failed)?.audio?.failureCode.reasonText())),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),
     )
     LaunchedEffect(state.message) {
@@ -254,7 +269,9 @@ fun SheetEditRoute(
                     focusRequestKey++
                     reopenReviewKey = (reopenReviewKey ?: 0) + 1
                 }
-            }.takeIf { state.selected == selection.cell && state.canCheckSelectedReviewIssue })
+            }.takeIf { state.selected == selection.cell && state.canCheckSelectedReviewIssue },
+            // 신뢰도 낮음 표시는 저장을 막지 않으므로 지우기만 하고 다음 칸으로 옮기지 않는다(S15P31E102-1100).
+            onDismissAdvisory = { reviewSelection = null; viewModel.dismissAdvisoryIssues(selection.cell, selection.sub) })
         else LaunchedEffect(selection) { reviewSelection = null }
     }
     reopenReviewKey?.let { key ->
@@ -299,11 +316,12 @@ fun SheetEditRoute(
             state.sigimsaeIssue?.let { issue ->
                 // 음원 생성기가 거절한 시김새의 위치·이유를 보여 주고 바로 고치게 한다(S15P31E102-1084).
                 val slot = state.sigimsaeIssueSlot
+                // 생성기 내부 문구(issue.message)는 화면에 보이지 않고, 위치와 앱 이름의 시김새만 적는다(S15P31E102-1097).
+                val symbols = issue.symbols.map { sigimsaeLabel(Sigimsae(it)) }.joinToString("·").ifEmpty { "이" }
                 val text = if (slot == null) stringResource(Res.string.sheet_save_sigimsae_rejected_unknown)
                     else stringResource(Res.string.sheet_save_sigimsae_rejected, state.draft.columnOf(slot.cell) + 1,
-                        state.draft.rowOf(slot.cell) + 1, issue.symbols.joinToString("·").ifEmpty { "이" })
-                Text(listOfNotNull(text, issue.message).joinToString(" "), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error)
+                        state.draft.rowOf(slot.cell) + 1, symbols)
+                Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 if (slot != null) {
                     EolssuButton(stringResource(Res.string.sheet_save_sigimsae_go),
                         { saveOpen = false; viewModel.openSigimsaeIssue(); focusRequestKey++ },
@@ -365,8 +383,7 @@ fun SheetEditRoute(
     }
     state.jangdanPicker?.takeUnless { detailsOpen }?.let { picker ->
         SheetEditJangdanDialog(picker, state.draft.jangdanId, state.draft,
-            onSelect = viewModel::selectJangdan, onClear = viewModel::clearJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker,
-            hasTempoPlan = state.hasTempoPlan)
+            onSelect = viewModel::selectJangdan, onClear = viewModel::clearJangdan, onReload = viewModel::changeJangdan, onDismiss = viewModel::closeJangdanPicker)
     }
     if (state.closeWarning) EolssuDialog(
         title = stringResource(if (state.saveStatus == SheetSaveStatus.DraftFailed) Res.string.sheet_save_auto_failed

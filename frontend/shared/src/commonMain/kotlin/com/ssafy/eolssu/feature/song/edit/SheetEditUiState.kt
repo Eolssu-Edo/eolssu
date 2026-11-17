@@ -90,10 +90,17 @@ enum class SheetEditMessage {
 
     ReviewBeforeReshape,
     TempoPlanBeforeReshape,
+    /** 한배 기호가 있는 정간을 합치면 기호를 둘 음이 없다. */
+    TempoMarkBeforeMerge,
+    /** 박 길이를 바꾸면 구간 빠르기가 편집 범위를 벗어난다. */
+    TempoOutOfRangeAfterJangdan,
     BasicAccompanimentCleared,
 
-    /** 음원 생성기가 함께 해석하지 못하는 시김새를 새로 고른 것으로 바꿨다. */
+    /** 음원 생성기가 함께 해석하지 못하는 시김새를 새로 고른 것으로 바꿨다. 이름은 [SheetEditUiState.sigimsaeSwap]. */
     SigimsaeReplaced,
+
+    /** 곡 전체 높이를 맞췄다. 안내 문구에 지금 적용된 높이를 함께 적는다. */
+    AdaptationApplied,
 
     /** 지금 악기·기준음으로 적을 수 없는 음을 눌렀다. */
     PitchUnavailable,
@@ -146,6 +153,8 @@ data class SheetEditUiState(
     val message: SheetEditMessage? = null,
     val tempoIssue: com.ssafy.eolssu.data.song.SheetTempoIssue? = null,
     val sigimsaeIssue: com.ssafy.eolssu.data.song.SheetSigimsaeIssue? = null,
+    /** [SheetEditMessage.SigimsaeReplaced] 알림에 적을 뺀 것·붙인 것. */
+    val sigimsaeSwap: SigimsaeSwap? = null,
     val hasTempoPlan: Boolean = false,
     val documentLoading: Boolean = false,
     val documentFailed: Boolean = false,
@@ -207,7 +216,8 @@ data class SheetEditUiState(
             else -> {
                 val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: availableJangdans.orEmpty()
                 val option = options.firstOrNull { it.jangdanId == jangdanId } ?: return this
-                draft.withJangdan(option, preserveTiming = hasTempoPlan)?.withBasicAccompaniment(null)?.copy(bpm = bpm) ?: return this
+                if (draft.jangdanTempoOutOfRange(option)) return copy(message = SheetEditMessage.TempoOutOfRangeAfterJangdan)
+                draft.withJangdan(option)?.withBasicAccompaniment(null)?.copy(bpm = bpm) ?: return this
             }
         }
         return commit(next).copy(jangdanPicker = null, withJangdan = if (jangdanId == null) false else withJangdanFor(next))
@@ -215,9 +225,10 @@ data class SheetEditUiState(
 
     fun selectJangdan(id: String): SheetEditUiState {
         val options = (jangdanPicker as? SheetEditJangdanPicker.Ready)?.options ?: return this
-        val option = options.firstOrNull { it.jangdanId == id && draft.canSelectJangdan(it, hasTempoPlan) } ?: return this
+        val option = options.firstOrNull { it.jangdanId == id && draft.canSelectJangdan(it) } ?: return this
         if (option.jangdanId == draft.jangdanId && option.name == draft.jangdanName && draft.basicAccompaniment == null) return copy(jangdanPicker = null)
-        val next = draft.withJangdan(option, preserveTiming = hasTempoPlan)?.withBasicAccompaniment(null) ?: return this
+        if (draft.jangdanTempoOutOfRange(option)) return copy(jangdanPicker = null, message = SheetEditMessage.TempoOutOfRangeAfterJangdan)
+        val next = draft.withJangdan(option)?.withBasicAccompaniment(null) ?: return this
         return commit(next).copy(jangdanPicker = null)
     }
 
@@ -250,17 +261,17 @@ data class SheetEditUiState(
 
     val pendingChecks: Int
         get() = (source as? EditSource.Import)?.pendingChecks
-            ?: reviewIssues.filterNot { it.id in validatedCheckedIssueIds }.distinctBy(SheetReviewIssue::cellId).size
+            ?: reviewIssues.filterNot { it.advisory || it.id in validatedCheckedIssueIds }.distinctBy(SheetReviewIssue::cellId).size
 
     val nextReviewIssue: SheetReviewIssue?
-        get() = reviewIssues.firstOrNull { it.id !in validatedCheckedIssueIds }
+        get() = reviewIssues.firstOrNull { !it.advisory && it.id !in validatedCheckedIssueIds }
 
     val nextReviewCellIndex: Int?
         get() = nextReviewIssue?.let { issue -> draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } }
 
     val selectedReviewIssue: SheetReviewIssue?
         get() = draft.sourceCellIds?.getOrNull(selected)?.let { cellId ->
-            reviewIssues.firstOrNull { it.cellId == cellId && it.id !in validatedCheckedIssueIds }
+            reviewIssues.firstOrNull { it.cellId == cellId && !it.advisory && it.id !in validatedCheckedIssueIds }
         }
 
     val canCheckSelectedReviewIssue: Boolean
@@ -295,6 +306,16 @@ data class SheetEditUiState(
         if (draft.tempoExpressions != null || next.tempoExpressions != null) next.tempoExpressions.hasPositionedTempoPlan()
         else hasTempoPlan
 
+    /** 고른 칸·소박에 남은 신뢰도 낮음 표시를 지운다. 저장을 막지 않는 참고 표시라 실행 취소 기록에 넣지 않는다. */
+    internal fun dismissAdvisoryIssues(cell: Int, sub: Int? = null): SheetEditUiState {
+        val ids = reviewIssuesAt(cell, sub).filter { it.advisory && it.id in completionValidation.checkableIssueIds }.map { it.id }
+        return if (ids.isEmpty()) this else copy(checkedIssueIds = checkedIssueIds + ids)
+    }
+
+    /** 확정 저장에서 확인한 것으로 보낼 검수 항목. 신뢰도 낮음은 지우지 않았어도 저장하면 확인한 것으로 본다. */
+    internal val confirmedResolvedIssueIds: List<String>
+        get() = reviewIssues.filter { it.advisory || it.id in validatedCheckedIssueIds }.map(SheetReviewIssue::id)
+
     /** 한 번 확인한 칸도 내용이나 시김새를 바꾸거나 실행 취소하면 다시 확인한다. */
     private fun checkedIssuesAfter(next: SheetDraft): Set<String> {
         if (checkedIssueIds.isEmpty()) return emptySet()
@@ -302,6 +323,8 @@ data class SheetEditUiState(
         val afterPitches = next.reviewSoundingPitches() ?: return emptySet()
         return checkedIssueIds.filterTo(mutableSetOf()) { id ->
             val issue = reviewIssues.firstOrNull { it.id == id } ?: return@filterTo false
+            // 지운 신뢰도 낮음 표시는 칸을 고쳐도 다시 띄우지 않는다.
+            if (issue.advisory) return@filterTo true
             val before = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
             val after = next.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 } ?: return@filterTo false
             draft.cells[before] == next.cells[after] && beforePitches[before] == afterPitches[after] &&
@@ -365,9 +388,10 @@ data class SheetEditUiState(
         val before = draft.sigimsaeAt(selected, sigimsaeSub)
         val next = commit(draft.toggleSigimsae(selected, value, sigimsaeSub))
         val after = next.draft.sigimsaeAt(selected, sigimsaeSub)
-        // 함께 쓸 수 없어 뺀 시김새가 있으면 알린다. 실행 취소로 되돌릴 수 있다.
-        return if (before.any { old -> after.none { it.name == old.name } } && after.any { it.name == value.name })
-            next.copy(message = SheetEditMessage.SigimsaeReplaced) else next
+        // 함께 쓸 수 없어 뺀 시김새가 있으면 무엇을 뺐는지 알린다. 실행 취소로 되돌릴 수 있다.
+        val removed = before.filter { old -> after.none { it.name == old.name } }
+        return if (removed.isNotEmpty() && after.any { it.name == value.name })
+            next.copy(message = SheetEditMessage.SigimsaeReplaced, sigimsaeSwap = SigimsaeSwap(removed, value)) else next
     }
 
     fun removeSigimsae(position: Int): SheetEditUiState = commit(draft.removeSigimsae(selected, position, sigimsaeSub))
@@ -400,15 +424,18 @@ data class SheetEditUiState(
     }
 
 
-    fun split(): SheetEditUiState = if (hasTempoPlan) copy(message = SheetEditMessage.TempoPlanBeforeReshape)
-        else commit(draft.split(selected), sub = null)
+    /** 나누기·합치기는 정간 경계를 바꾸지 않아 구간 빠르기·반복 위치가 그대로다(S15P31E102-1091). */
+    fun split(): SheetEditUiState = commit(draft.split(selected), sub = null)
 
-    fun merge(): SheetEditUiState = if (hasTempoPlan) copy(message = SheetEditMessage.TempoPlanBeforeReshape)
-        else commit(draft.merge(selected), sub = null)
+    /** 합쳐서 정간이 비면 그 정간의 한배 기호를 둘 음 자리가 없어 막는다. */
+    fun merge(): SheetEditUiState {
+        val merged = draft.merge(selected)
+        if (selected in draft.tempoMarkCells && merged.cells[selected].isEmpty()) return copy(message = SheetEditMessage.TempoMarkBeforeMerge)
+        return commit(merged, sub = null)
+    }
 
-    /** 고른 정간의 각 왼쪽에 빈 각을 넣고 새 각의 첫 정간을 고른다. */
+    /** 고른 정간의 각 왼쪽에 빈 각을 넣고 새 각의 첫 정간을 고른다. 구간 빠르기 위치는 함께 민다(S15P31E102-1095). */
     fun addColumn(): SheetEditUiState {
-        if (hasTempoPlan) return copy(message = SheetEditMessage.TempoPlanBeforeReshape)
         val column = draft.columnOf(selected)
         val next = draft.addColumnAfter(column)
         return commit(next, next.indexOf(column + 1, 0))
@@ -416,8 +443,9 @@ data class SheetEditUiState(
 
     /** 고른 정간의 각을 지운다. 선택은 같은 자리(마지막 각이었으면 새 마지막 각)로 둔다. */
     fun deleteColumn(): SheetEditUiState {
-        if (hasTempoPlan) return copy(message = SheetEditMessage.TempoPlanBeforeReshape)
         val column = draft.columnOf(selected)
+        // 빠르기가 바뀌기 시작하거나 끝이 있는 구간·반복이 걸친 각은 지우지 않는다(S15P31E102-1095).
+        if (draft.tempoColumnDeletionBlocked(column)) return copy(message = SheetEditMessage.TempoPlanBeforeReshape)
         val next = draft.deleteColumn(column)
         if (next == draft) return this
         val changed = commit(next, next.indexOf(minOf(column, next.columnCount - 1), 0))

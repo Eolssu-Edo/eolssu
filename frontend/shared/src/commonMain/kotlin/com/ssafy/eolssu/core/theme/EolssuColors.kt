@@ -76,6 +76,9 @@ data class EolssuColors(
     val missedErrorFaint: Color,
     /** 이전 연주에서 틀린 정간·기록 상세의 틀린 정간 바탕(옅은 붉은색). 테두리는 [rec]. 글자 바탕으로만 쓴다. */
     val recFaint: Color,
+    /** 저장을 막지 않는 참고 표시(노랑): 악보 편집의 신뢰도 낮은 인식 칸 테두리와 바탕. 선·바탕으로만 쓰고 글자색으로 쓰지 않는다. */
+    val caution: Color,
+    val cautionSoft: Color,
     /** 학습 화면의 녹색: 다음 단추 · 지금 쪽 표시. 글자는 [onPrimary]. */
     val green: Color,
     /** 율명 부수(氵·亻) 강조(이끼). 흰 바탕 대비가 3:1대라 24sp 이상 큰 글자에만 쓴다. */
@@ -138,6 +141,8 @@ val LightEolssuColors = EolssuColors(
     missedErrorLine = Color(0xFFD2CCC1),
     missedErrorFaint = Color(0xFFF8F6F2),
     recFaint = Color(0xFFFDF4F2),
+    caution = Color(0xFFE0B21B),
+    cautionSoft = Color(0xFFFFF6D6),
     green = Color(0xFFADBE31),
     radical = Color(0xFF7E8C1C),
     glow = Color(0xFFADBE31),

@@ -55,8 +55,11 @@ internal class SheetJangdanCorrectionTest {
         val staff = recognized("QUARTER", 12, 12, "").let { it.copy(provenance = it.provenance.copy(converter = "staff-omr/audiveris-5.11.0")) }
         val fixed = state(staff)
         assertEquals(fixed.draft, fixed.selectJangdan(gutgeori.jangdanId).draft)
-        val planned = state(recognized("QUARTER", 12, 12, "")).copy(hasTempoPlan = true)
-        assertEquals(planned.draft, planned.selectJangdan(gutgeori.jangdanId).draft)
+        // 빠르기 계획이 있어도 칸이 그대로인 박 길이 보정은 고를 수 있다(S15P31E102-1091). 계획은 같은 정간에 남는다.
+        val planned = planned(recognized("QUARTER", 12, 12, ""))
+        val corrected = planned.selectJangdan(gutgeori.jangdanId).draft
+        assertEquals("2", corrected.jangdanId)
+        assertEquals(planned.draft.tempoCues.map { it.start }, corrected.tempoCues.map { it.start })
         assertEquals("7", planned.selectJangdan(danmori.jangdanId).draft.jangdanId)
     }
 
@@ -132,7 +135,8 @@ internal class SheetJangdanCorrectionTest {
     }
 
     @Test fun staffScoresAndTempoPlansKeepTheirWrittenTempoWhenJangdanChanges() {
-        val planned = state(recognized("QUARTER", 12, 12, "")).copy(hasTempoPlan = true)
+        val planned = planned(recognized("QUARTER", 12, 12, ""))
+        assertFalse(planned.draft.requiresJangdanRetiming(danmori))
         assertEquals(80, planned.selectJangdan(danmori.jangdanId).draft.bpm)
         val staff = smallScoreData().let { it.copy(music = it.music.copy(jangdan = "")) }
         val compatible = CatalogJangdanSummary("4", "굿거리", 66, "DOTTED_QUARTER", 3, 1, 1)
@@ -141,6 +145,12 @@ internal class SheetJangdanCorrectionTest {
         val chosen = fixed.selectJangdan(compatible.jangdanId).draft
         assertEquals("4", chosen.jangdanId)
         assertEquals(132, chosen.bpm)
+    }
+
+    private fun planned(score: CommonScoreData): SheetEditUiState {
+        val base = state(score)
+        return base.updateTempoSettings(base.draft.withTempoCue(SheetTempoCue(2, SheetTempoKind.Step, 100.0))).copy(jangdanPicker = SheetEditJangdanPicker.Ready(options))
+            .also { assertTrue(it.hasTempoPlan) }
     }
 
     internal fun state(score: CommonScoreData, metadata: JsonObject? = sourceMetadata(score)) = SheetEditUiState(

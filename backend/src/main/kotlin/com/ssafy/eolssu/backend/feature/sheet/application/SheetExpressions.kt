@@ -25,18 +25,32 @@ class SheetExpressions(private val json: JsonMapper) {
         else -> value
     }
 
-    fun prepare(source: String?, originalScore: String?, preparedScore: String, oldBpm: Int, newBpm: Int): String? {
+    /**
+     * Binds a companion to the prepared score. A companion bound to [originalScore] (the confirmed score; older clients)
+     * keeps its coordinates only while the cell grid is unchanged. A companion bound to [requestScore] (the score in the
+     * same request, before preparation) was already remapped by the client after adding or deleting gak, so its
+     * coordinates are checked against that score instead (S15P31E102-1095).
+     */
+    fun prepare(source: String?, originalScore: String?, preparedScore: String, oldBpm: Int, newBpm: Int,
+        requestScore: String? = null): String? {
         if (source == null) return null
         require(source.toByteArray().size <= EditUserSheet.MAX_SCORE_BYTES)
         val value = json.readTree(source) as? ObjectNode ?: throw IllegalArgumentException("expressions")
         require(value.path("schema").asString() == "common-score-expressions/v1")
-        require(originalScore != null && value.path("sourceSha256").asString() == hash(originalScore))
+        val originalHash = originalScore?.let(::hash)
+        val requestHash = requestScore?.let(::hash)
+        val bound = value.path("sourceSha256").asString()
+        require(bound.isNotEmpty() && (bound == originalHash || bound == requestHash))
         val digest = hash(preparedScore)
         val plan = value.get("performancePlan")
         if (plan != null && !plan.isNull) {
-            require(plan is ObjectNode && plan.path("input_sha256").asString() == hash(originalScore))
-            if (positions(json.readTree(originalScore)) != positions(json.readTree(preparedScore))) {
-                throw SheetExpressionPositionChanged()
+            require(plan is ObjectNode)
+            when (plan.path("input_sha256").asString()) {
+                originalHash -> if (positions(json.readTree(requireNotNull(originalScore))) != positions(json.readTree(preparedScore))) {
+                    throw SheetExpressionPositionChanged()
+                }
+                requestHash -> if (requestHash != null && !coordinatesExist(plan, json.readTree(preparedScore))) throw SheetExpressionPositionChanged()
+                else -> throw IllegalArgumentException("performance plan binding")
             }
             plan.put("input_sha256", digest)
             val instrument = json.readTree(preparedScore).path("score").path("instrument").asString().lowercase().replace('_', '-')
@@ -58,14 +72,34 @@ class SheetExpressions(private val json: JsonMapper) {
         return json.writeValueAsString(value)
     }
 
-    /** Cue coordinates refer to written cells. Pitch, marks and version may change; their grid may not. */
-    private fun positions(score: JsonNode): List<Any> = listOf(
-        listOf("bpmUnit", "ticksPerBeat", "ticksPerJeonggan").map { score.path("music").path(it).toString() },
+    /** Every numeric cue and repeat must point at a real (gak, cell) of [score]; a ramp end may be the score end. */
+    private fun coordinatesExist(plan: JsonNode, score: JsonNode): Boolean {
+        val sizes = score.path("columns").toList().map { it.path("cells").size() }
+        fun at(gak: JsonNode, cell: JsonNode, end: Boolean = false): Boolean {
+            if (!gak.isInt || !cell.isInt) return false
+            val g = gak.asInt()
+            val c = cell.asInt()
+            return (end && g == sizes.size + 1 && c == 1) || (g in 1..sizes.size && c in 1..sizes[g - 1])
+        }
+        val tempos = plan.path("tempos").toList().all { cue ->
+            at(cue.path("gak"), cue.path("cell")) &&
+                (!cue.has("end_gak") && !cue.has("end_cell") || at(cue.path("end_gak"), cue.path("end_cell"), end = true))
+        }
+        val repeats = plan.path("repeats").toList().all { repeat ->
+            val start = repeat.path("start_gak")
+            val end = repeat.path("end_gak")
+            start.isInt && end.isInt && start.asInt() in 1..end.asInt() && end.asInt() <= sizes.size
+        }
+        return tempos && repeats
+    }
+
+    /**
+     * Cue coordinates are (gak, cell) and marks are bound by cell id. Splitting or merging inside a cell and a jangdan
+     * retiming (tick ratio, BPM unit) keep every cell in place, so only the cell grid is compared (S15P31E102-1091).
+     * Adding or removing gak or cells still moves the coordinates and is rejected.
+     */
+    private fun positions(score: JsonNode): List<Any> =
         score.path("columns").toList().map { column -> listOf(column.path("index").toString(), column.path("cells").toList().map { cell ->
-            listOf(cell.path("id").toString(), cell.path("index").toString(), cell.path("units").toList().map { unit ->
-                listOf("row", "col", "eventId").map { unit.path(it).toString() }
-            })
-        }) },
-        score.path("events").toList().map { event -> listOf("id", "cellId", "startTick", "durationTick").map { event.path(it).toString() } },
-    )
+            listOf(cell.path("id").toString(), cell.path("index").toString())
+        }) }
 }

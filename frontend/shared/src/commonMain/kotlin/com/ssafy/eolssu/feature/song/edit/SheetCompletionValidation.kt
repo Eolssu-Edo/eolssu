@@ -25,6 +25,10 @@ data class SheetCompletionValidation(
     val rangeCellIndices: Set<Int> = emptySet(),
     /** [correctionUnitKeys] 중 음역·운지 문제만 있는 소박. */
     val rangeUnitKeys: Set<ScoreUnitKey> = emptySet(),
+    /** 저장을 막지 않는 신뢰도 낮음 칸(노란 표시). 고쳐야 할 칸([correctionCellIndices])은 빼고 둔다. */
+    val advisoryCellIndices: Set<Int> = emptySet(),
+    /** 신뢰도 낮음 소박. 고쳐야 할 소박([correctionUnitKeys])은 빼고 둔다. */
+    val advisoryUnitKeys: Set<ScoreUnitKey> = emptySet(),
     internal val checkableIssueIds: Set<String> = emptySet(),
     internal val resolvedPitchIssueIds: Set<String> = emptySet(),
 ) {
@@ -70,7 +74,7 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val checkable = reviewIssues.filter { issue ->
         val index = draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 }
         when (issue.kind) {
-            "TEMPO_CUE_UNRESOLVED" -> index != null && draft.tempoChanges.none { it.cell == index && !it.resolved }
+            "TEMPO_CUE_UNRESOLVED" -> index != null && draft.tempoCues.none { it.start == index && !it.resolved }
             "UNREGISTERED_PITCH", "OUT_OF_RANGE" -> {
                 val allowed = supportedInputPitches
                 index != null && validStructure && pitchesByCell[index].all { pitch -> allowed?.contains(pitch) == true }
@@ -87,8 +91,9 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
         .mapTo(mutableSetOf(), SheetReviewIssue::id)
     val resolvedTempoIssues = reviewIssues.filter { it.kind == "TEMPO_CUE_UNRESOLVED" && it.id in checkable }.map { it.id }
     val resolved = checkedIssueIds + resolvedPitchIssues + resolvedTempoIssues
-    val pending = reviewIssues.filter { it.id !in resolved || it.id !in checkable }
-    val unresolvedTempos = draft.tempoChanges.filterNot { it.resolved }.map { it.cell }.toSet()
+    // 신뢰도 낮음은 참고 표시만 하고 저장 검사·수정 필요 칸에서 뺀다.
+    val (advisoryPending, pending) = reviewIssues.filter { it.id !in resolved || it.id !in checkable }.partition { it.advisory }
+    val unresolvedTempos = draft.tempoCues.filterNot { it.resolved }.map { it.start }.toSet()
     val jangdan = availableJangdans?.firstOrNull { it.jangdanId == draft.jangdanId }
     val mismatch = if (draft.jangdanId == null) completionCatalogState == SheetCompletionCatalogState.Ready && draft.jangdanName.isNotEmpty() else when {
         jangdan != null -> jangdan.name != draft.jangdanName || !draft.isCompatibleWith(jangdan)
@@ -147,6 +152,10 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
     val rangeCells = corrections.filterTo(linkedSetOf()) { index ->
         index !in otherCells && draft.cells[index].indices.any { draft.unitKeyOf(index, it) in pitchUnits }
     }
+    val advisoryUnits = advisoryPending.flatMapTo(mutableSetOf()) { it.units() } - correctionUnits
+    val advisoryCells = advisoryPending.mapNotNull { issue ->
+        draft.sourceCellIds?.indexOf(issue.cellId)?.takeIf { it >= 0 && it !in corrections }
+    }.sorted().toSet()
     return SheetCompletionValidation(
         emptyCellCount = empty.size,
         pendingReviewCount = pending.size + unresolvedTempos.count { index -> pending.none { it.cellId == draft.sourceCellIds?.getOrNull(index) } },
@@ -161,6 +170,8 @@ internal fun SheetEditUiState.validateCompletion(): SheetCompletionValidation {
         correctionUnitKeys = correctionUnits,
         rangeCellIndices = rangeCells,
         rangeUnitKeys = pitchUnits - otherUnits,
+        advisoryCellIndices = advisoryCells,
+        advisoryUnitKeys = advisoryUnits,
         checkableIssueIds = checkable,
         resolvedPitchIssueIds = resolvedPitchIssues + resolvedTempoIssues,
     )

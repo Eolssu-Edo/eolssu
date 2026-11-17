@@ -28,8 +28,8 @@ internal class SheetBpmRangeTest {
 
     @Test fun sectionTargetUsesTheSameRange() {
         val draft = draft()
-        assertNotNull(draft.tempoChangeError(SheetTempoChange(1, HanbaeMark.Slower, 39.0, 2)))
-        assertNotNull(draft.tempoChangeError(SheetTempoChange(1, HanbaeMark.Faster, 201.0, 2)))
-        assertNull(draft.tempoChangeError(SheetTempoChange(1, HanbaeMark.Faster, 200.0, 2)))
+        assertNotNull(draft.tempoCueError(SheetTempoCue(1, SheetTempoKind.Step, 39.0)))
+        assertNotNull(draft.tempoCueError(SheetTempoCue(1, SheetTempoKind.Step, 201.0)))
+        assertNull(draft.tempoCueError(SheetTempoCue(1, SheetTempoKind.Step, 200.0)))
     }
 }

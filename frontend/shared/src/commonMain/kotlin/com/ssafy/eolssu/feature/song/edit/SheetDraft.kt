@@ -243,7 +243,7 @@ data class SheetDraft(
      */
     fun toggleSigimsae(index: Int, value: Sigimsae, sub: Int = 0): SheetDraft {
         val current = sigimsaeAt(index, sub)
-        val kept = current.filter { it.name == value.name || sigimsaeCompatible(it.name, value.name) }
+        val kept = current - sigimsaeConflicts(current, value).toSet()
         val next = if (current.any { it.name == value.name }) current.filterNot { it.name == value.name }
             else if (kept.size >= MAX_SIGIMSAE) return this else kept + value
         return withSigimsae(index, next, sub)
@@ -255,6 +255,12 @@ data class SheetDraft(
         if (position !in current.indices) return this
         return withSigimsae(index, current.filterIndexed { i, _ -> i != position }, sub)
     }
+
+    /** [index] 정간을 더 나눌 수 있는지. [split]이 바꾸지 않는 경우(이미 [MAX_SPLIT]개)는 false다. */
+    fun canSplit(index: Int): Boolean = cells.getOrNull(index)?.let { it.size < MAX_SPLIT } == true
+
+    /** [index] 정간이 나눠져 있어 [merge]로 합칠 수 있는지. */
+    fun canMerge(index: Int): Boolean = cells.getOrNull(index)?.let { it.size > 1 } == true
 
     /** 한 정간을 하나 더 나눈다(최대 [MAX_SPLIT]). 새 자리는 비워 두고 위에서부터 채운다. */
     fun split(index: Int): SheetDraft {
@@ -280,7 +286,9 @@ data class SheetDraft(
         val next = copy(cells = inserted,
             columnSizes = columnSizes?.toMutableList()?.also { it.add(column + 1, count) },
             sourceCellIds = sourceCellIds?.let { it.take(at) + List(count) { null } + it.drop(at) },
-            sigimsae = sigimsae.mapKeys { (slot, _) -> if (slot.cell >= at) slot.copy(cell = slot.cell + count) else slot })
+            sigimsae = sigimsae.mapKeys { (slot, _) -> if (slot.cell >= at) slot.copy(cell = slot.cell + count) else slot },
+            // 구간 빠르기·반복·각 경계 지속의 각 번호를 함께 민다(S15P31E102-1095).
+            tempoExpressions = tempoExpressionsAfterColumnInsert(column))
         return remapBasicAccompaniment(next, atCell = at, insertedCells = count)
     }
 
@@ -295,6 +303,8 @@ data class SheetDraft(
             sourceCellIds = sourceCellIds?.let { it.take(from) + it.drop(to) },
             sigimsae = sigimsae.filterKeys { it.cell !in from until to }
                 .mapKeys { (slot, _) -> if (slot.cell >= to) slot.copy(cell = slot.cell - (to - from)) else slot },
+            // 빠르기 구간이 걸친 각은 편집 상태가 미리 막는다. 나머지는 뒤 각 번호를 당긴다(S15P31E102-1095).
+            tempoExpressions = tempoExpressionsAfterColumnDelete(column),
         )
         return remapBasicAccompaniment(next, atCell = from, removedCells = to - from)
     }

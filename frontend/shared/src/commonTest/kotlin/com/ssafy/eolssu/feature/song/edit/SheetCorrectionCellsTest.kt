@@ -50,23 +50,23 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
 
     @Test fun reviewEventLocationIsPreservedAndCellOnlyReviewsStillMarkTheWholeCell() {
         val doc = SheetDocument("31", "검사", null, 60, "1", smallScoreData(), null, "NEEDS_REVIEW", "DONE",
-            listOf(Json.parseToJsonElement("""{"issueId":"review","cellId":"c0-j0","eventId":"c0-j0-r0-u0","type":"LOW_CONFIDENCE"}""") as JsonObject))
+            listOf(Json.parseToJsonElement("""{"issueId":"review","cellId":"c0-j0","eventId":"c0-j0-r0-u0","type":"ORNAMENT_DROPPED"}""") as JsonObject))
         val review = doc.editorReviewIssues(requireNotNull(doc.score))
         val initial = state().copy(reviewIssues = review)
         assertEquals(setOf(ScoreUnitKey("c0-j0", 0, 0)), initial.completionValidation.correctionUnitKeys)
         assertTrue(initial.copy(checkedIssueIds = setOf("review")).completionValidation.correctionUnitKeys.isEmpty())
-        val whole = initial.copy(reviewIssues = listOf(SheetReviewIssue("cell", "c0-j0", "LOW_CONFIDENCE")))
+        val whole = initial.copy(reviewIssues = listOf(SheetReviewIssue("cell", "c0-j0", "ORNAMENT_DROPPED")))
         assertEquals(setOf(ScoreUnitKey("c0-j0", 0, 0), ScoreUnitKey("c0-j0", 0, 1), ScoreUnitKey("c0-j0", 1, 0)),
             whole.completionValidation.correctionUnitKeys)
     }
 
     @Test fun numericTempoLocationsStayFixedWhilePitchAndBaseTempoRemainEditable() {
         val timed = state().copy(hasTempoPlan = true)
-        listOf(timed.split(), timed.merge(), timed.addColumn(), timed.deleteColumn()).forEach { changed ->
-            assertEquals(timed.draft, changed.draft, "구간 빠르기 위치를 보존한다")
-            assertNotNull(changed.message)
-            assertFalse(changed.canUndo)
-        }
+        // 나누기·합치기는 칸 경계를 바꾸지 않아 허용한다(S15P31E102-1091). 각 추가·삭제만 위치를 옮겨 막는다.
+        assertEquals(listOf(timed.draft.cells[0].first()), timed.merge().draft.cells[0])
+        assertEquals(2, timed.select(1).split().draft.cells[1].size)
+        // 각 추가·삭제도 실제 빠르기 구간이 걸친 각만 막는다(S15P31E102-1095). 이 상태에는 계획 항목이 없다.
+        assertNotEquals(timed.draft, timed.addColumn().draft)
         assertNotEquals(timed.draft, timed.selectUnit(0, 1).putYul(Yul.Taeju).draft)
         assertEquals(120, timed.updateDetails("검사", 120).draft.bpm)
         assertNotEquals(timed.draft, timed.copy(hasTempoPlan = false).addColumn().draft)
@@ -78,7 +78,7 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
             .select(2).erase()
         assertEquals(setOf(0, 1, 2), state.completionValidation.correctionCellIndices)
         assertEquals(0, state.completionValidation.firstCellIndex, "오류 종류와 무관하게 악보의 첫 수정 위치로 간다")
-        assertEquals(2, state.completionValidation.pendingReviewCount)
+        assertEquals(1, state.completionValidation.pendingReviewCount, "신뢰도 낮음은 저장을 막는 확인 수에 넣지 않는다")
     }
 
     @Test fun correctingTheStartPitchAlsoClearsItsTiedCellAndUndoRestoresBoth() {
@@ -90,7 +90,7 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
     }
 
     @Test fun reviewCellUsesItsOriginalIdAfterColumnsAreInserted() {
-        val issue = SheetReviewIssue("a", "c1-j0", "LOW_CONFIDENCE")
+        val issue = SheetReviewIssue("a", "c1-j0", "ORNAMENT_DROPPED")
         val shifted = state().copy(reviewIssues = listOf(issue)).select(0).addColumn()
         assertEquals("c1-j0", shifted.draft.sourceCellIds?.get(4))
         assertEquals(setOf(2, 3, 4), shifted.completionValidation.correctionCellIndices)
@@ -236,7 +236,7 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
     private fun open(repository: SheetDocumentRepository) = keep(SheetEditViewModel(EditSource.Mine("31"),
         EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
 
-    private fun issue(id: String, cellId: String, kind: String = "LOW_CONFIDENCE") =
+    private fun issue(id: String, cellId: String, kind: String = "ORNAMENT_DROPPED") =
         Json.parseToJsonElement("""{"issueId":"$id","cellId":"$cellId","type":"$kind"}""") as JsonObject
 
     private class RecordingDocuments(private val issues: List<JsonObject>, private val jangdanId: String? = null) : SheetDocumentRepository {
