@@ -42,9 +42,12 @@ data class Song(
 
     val displayUnits: List<ScoreDisplayUnit> by lazy { score.displayUnits(timeline) }
 
-    /** 원본 시김새는 이음 칸마다 반복하지 않고 음이 시작하는 소박에 표시한다. */
+    /**
+     * 재생 전 화면의 시김새 자리. 원본 표시 자리([Score.sigimsaePlacements])가 이 악보와 맞으면 그대로 쓰고,
+     * 없거나 맞지 않으면 시김새를 이음 칸마다 반복하지 않고 음이 시작하는 소박에 표시한다.
+     */
     internal val writtenScoreAnnotations: Map<ScoreUnitKey, List<String>> by lazy {
-        buildMap {
+        score.sigimsaePlacements.takeIf { it.isNotEmpty() && placementsMatchEvents(it) } ?: buildMap {
             for (unit in displayUnits) {
                 val signs = unit.event.sigimsae
                 if (signs.isEmpty()) continue
@@ -52,6 +55,14 @@ data class Song(
                 if (unit.event.id == "${key.cellId}-r${key.row}-u${key.col}") put(key, signs)
             }
         }
+    }
+
+    /** 모든 자리가 이 악보에 있고, 음마다 자리 순서대로 이은 기호가 그 음의 시김새와 같은지. */
+    private fun placementsMatchEvents(placements: Map<ScoreUnitKey, List<String>>): Boolean {
+        val keys = displayUnits.mapTo(hashSetOf()) { it.key }
+        if (!keys.containsAll(placements.keys)) return false
+        val placed = displayUnits.groupBy { it.event.id }.mapValues { (_, units) -> units.flatMap { placements[it.key].orEmpty() } }
+        return timeline.all { placed[it.id].orEmpty() == it.sigimsae }
     }
 
     /** 공통 악보의 BPM 단위를 그대로 사용한다. 장단 이름만으로 정간 길이를 추정하지 않는다. */

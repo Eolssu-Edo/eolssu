@@ -6,15 +6,14 @@ import re
 import sys
 import shutil
 import tempfile
-from fractions import Fraction
 from pathlib import Path
 from time import monotonic
 
 import numpy as np
 from PIL import Image
 
-from omr_service.jeongganbo_text import (SCORES, USUAL_BEATS, _last_line, _run,
-                                        beats_per_jeonggan, lines_to_score, score_data)
+from omr_service.jeongganbo_text import (SCORES, _last_line, _run, beats_per_jeonggan, cycle_beats,
+                                        lines_to_score, score_data, usual_beats)
 from omr_service.staff_engine import AUDIVERIS_LOCK
 from jeongganbo_tokens import jg_like
 from hanbae_marks import image_marks
@@ -62,11 +61,6 @@ def grid_places(cells, beats):
     return [(j // beats, j % beats) for j in range(len(cells))]
 
 
-def usual_beats(jangdan, bpj):
-    """장단과 각의 정간 수가 맞을 때 나오는 정간당 박이면 참이다. 세령산은 정간당 3/2박도 쓴다."""
-    return bpj in USUAL_BEATS or (jangdan == '세령산' and bpj == Fraction(3, 2))
-
-
 def _line_thickness(gray, upper, lower):
     """위아래로 붙은 두 정간 사이 가로선의 굵기(픽셀 줄 수). 정간 가운데 3/5 폭만 본다."""
     pad = max(2, round(upper['h'] * .1))
@@ -79,11 +73,12 @@ def _line_thickness(gray, upper, lower):
 def gak_size_from_lines(image, cells, beats, jangdan):
     """고른 장단과 맞지 않는 각을 굵은 각 구분선으로 다시 나눈다(S15P31E102-1068).
 
-    리더가 각 구분선을 못 보면 세로줄 하나(예: 12정간)를 각 하나로 읽어 세마치 정간이 1/4박이 된다.
+    리더가 각 구분선을 못 보면 세로줄 하나(예: 12정간)를 각 하나로 읽는다. 정간당 박은 한 각의 장단 횟수로
+    바로잡히지만(S15P31E102-1076) 각 번호를 인쇄 각에 맞추려고 장단 한 번에 맞는 각으로 나눈다.
     정간 사이 가로선의 굵기를 줄마다 재서, 일정한 간격의 선만 다른 선보다 분명히 굵고 그 간격이
     장단에 맞을 때만 그 간격을 한 각의 정간 수로 쓴다. 그 밖에는 리더의 값을 그대로 둔다.
     """
-    if beats < 2 or not cells or usual_beats(jangdan, beats_per_jeonggan(jangdan, beats)):
+    if beats < 2 or not cells or usual_beats(jangdan, cycle_beats(jangdan) / beats):
         return beats
     with Image.open(image) as source:
         gray = np.asarray(source.convert('L'))
@@ -97,7 +92,7 @@ def gak_size_from_lines(image, cells, beats, jangdan):
         return beats
     widths = [float(np.median(values)) for values in gaps]
     for size in range(2, beats):
-        if beats % size or not usual_beats(jangdan, beats_per_jeonggan(jangdan, size)):
+        if beats % size or not usual_beats(jangdan, cycle_beats(jangdan) / size):
             continue
         thick = [w for position, w in enumerate(widths) if (position + 1) % size == 0]
         thin = [w for position, w in enumerate(widths) if (position + 1) % size]

@@ -4,6 +4,7 @@ import com.ssafy.eolssu.core.diagnostics.UserActionLog
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 
 import com.ssafy.eolssu.core.model.InputLimit
+import com.ssafy.eolssu.core.model.instrumentOfServerCode
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddBottomBar
 import com.ssafy.eolssu.feature.song.edit.component.sheetAddContentMaxWidth
 import androidx.compose.foundation.background
@@ -81,7 +82,8 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
         },
     ) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
+            // 제목을 입력하다 여백을 누르면 키보드를 내린다(S15P31E102-1079).
+            Modifier.fillMaxSize().hideKeyboardOnTapOutside().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (state.expired) {
@@ -127,9 +129,19 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                 }
                 if (state.instruments.isNotEmpty()) UploadCard {
                     UploadLabel(stringResource(Res.string.sheet_upload_instrument))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        state.instruments.forEach { item ->
-                            PillChip(item.name, selected = state.instrumentId == item.instrumentId, onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_SCREEN_03, { onInstrument(item.instrumentId) }), enabled = editable)
+                    // 앱의 다른 악기 선택처럼 이름 앞에 악기 그림을 둔다. 모르는 악기 코드는 그림 없이 이름만 보인다(S15P31E102-1079).
+                    // 그림이 들어가 휴대폰 폭에 네 칩이 한 줄에 들어가지 않으므로, 한 칩만 다음 줄에 남지 않게 두 칸씩 같은 폭으로 놓는다.
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        state.instruments.chunked(2).forEach { pair ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                pair.forEach { item ->
+                                    val picture = instrumentOfServerCode(item.code)
+                                    PillChip(item.name, selected = state.instrumentId == item.instrumentId, onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_SCREEN_03, { onInstrument(item.instrumentId) }),
+                                        modifier = Modifier.weight(1f), enabled = editable,
+                                        leading = picture?.let { { InstrumentPicture(it, size = InstrumentPictureCompactSize) } })
+                                }
+                                if (pair.size == 1) Spacer(Modifier.weight(1f))
+                            }
                         }
                     }
                     if (SheetImportField.Instrument in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Instrument)))

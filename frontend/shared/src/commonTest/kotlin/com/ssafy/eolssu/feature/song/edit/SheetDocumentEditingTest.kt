@@ -22,14 +22,16 @@ class SheetDocumentEditingTest {
             val edited = draft.toggleSigimsae(0, choice, sub = 1)
             val saved = CommonScoreData.decode(Json.encodeToString(edited.toCommonScore()))
             assertEquals(listOf(originalMark), saved.events.first().sigimsae, "원본 변형은 유지")
-            assertEquals(listOf("니레", name), saved.events[1].sigimsae, "선택한 두 번째 소박에 저장")
+            // 음원 생성기가 니레와 함께 해석하지 못하는 기호는 니레를 대신한다(S15P31E102-1080).
+            val kept = if (sigimsaeCompatible("니레", name)) listOf("니레") else emptyList()
+            assertEquals(kept + name, saved.events[1].sigimsae, "선택한 두 번째 소박에 저장")
             assertEquals(original.events.map { it.copy(sigimsae = emptyList()) },
                 saved.events.map { it.copy(sigimsae = emptyList()) }, "음표 ID·음고·시간은 유지")
             val restored = saved.editingDraft(original.score.title, 60, null)
             assertEquals(edited.sigimsae, restored.sigimsae)
             assertEquals(edited.annotations(), restored.annotations())
             val removed = restored.toggleSigimsae(0, choice, sub = 1)
-            assertEquals(listOf(Sigimsae("니레")), removed.sigimsaeAt(0, 1))
+            assertEquals(kept.map(::Sigimsae), removed.sigimsaeAt(0, 1))
             assertEquals(restored.sigimsae, removed.toggleSigimsae(0, choice, sub = 1).sigimsae)
             assertTrue(restored.toggleSigimsae(0, choice).sigimsaeAt(0).isEmpty(), "변형 문자열도 이름으로 선택 해제")
         }

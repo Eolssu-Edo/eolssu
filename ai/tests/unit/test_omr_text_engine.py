@@ -82,6 +82,17 @@ def test_dotted_quarter_cell_exception_is_limited_to_seryeongsan(jangdan, per_ga
 
 
 @needs_generator
+@pytest.mark.parametrize("jangdan, per_gak", [("세마치", 12), ("굿거리", 8)])
+def test_gak_holding_several_cycles_stores_one_beat_per_jeonggan(jangdan, per_gak):
+    # 아리랑·진도아리랑(세마치 12정간)·박연폭포(굿거리 8정간) 제공 곡처럼 정간당 1박이다(S15P31E102-1076).
+    out = post(pdf_bytes([[["林"] * per_gak, ["林"] * per_gak]]), jangdan=jangdan).json()
+    assert out["status"] == "DONE"
+    music = out["score"]["music"]
+    assert music["ticksPerJeonggan"] == music["ticksPerBeat"]
+    assert not any(n["kind"] == "JANGDAN_MISMATCH" for n in out["notices"])
+
+
+@needs_generator
 def test_danmori_pdf_keeps_four_quarter_beats_per_measure_in_synthesized_timeline():
     # 격자 검출의 최소 두 열: 4박 두 마디가 각각 2초여야 한다.
     out = post(pdf_bytes([[["林", "南", "潢", "汰"], ["林", "南", "潢", "汰"]]]), jangdan="단모리").json()
@@ -93,8 +104,8 @@ def test_danmori_pdf_keeps_four_quarter_beats_per_measure_in_synthesized_timelin
     assert [e["duration_seconds"] for e in timing["events"]] == [0.5] * 8
     assert rendered["quarter_bpm"] == 120
     assert out["notices"] == []
-    assert out["engineVersion"] == "4"
-    assert out["score"]["provenance"]["converter"] == "jeongganbo-text/standard_score_text@4"
+    assert out["engineVersion"] == "5"
+    assert out["score"]["provenance"]["converter"] == "jeongganbo-text/standard_score_text@5"
 
 
 @needs_generator
@@ -103,7 +114,7 @@ def test_text_layer_pdf_becomes_common_score():
     assert out["status"] == "DONE" and out["engine"] == "jeongganbo-text"
     score = out["score"]
     assert score["provenance"] | {"jgbSha256": None} == {"sourceId": "c-7", "jgbSha256": None, "review": "inferred",
-                                                          "converter": "jeongganbo-text/standard_score_text@4"}
+                                                          "converter": "jeongganbo-text/standard_score_text@5"}
     assert score["music"]["jangdan"] == "세마치" and score["music"]["bpmUnit"] == "DOTTED_QUARTER"
     tpb = score["music"]["ticksPerBeat"]
     assert score["music"]["ticksPerJeonggan"] == tpb  # 세마치 3정간 각이라 정간 하나 = 1박

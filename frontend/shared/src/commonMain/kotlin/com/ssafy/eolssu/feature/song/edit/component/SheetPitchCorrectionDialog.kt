@@ -22,6 +22,7 @@ import com.ssafy.eolssu.feature.song.edit.SheetPitchCorrection
 import com.ssafy.eolssu.feature.song.edit.pitchAlternatives
 import com.ssafy.eolssu.feature.song.edit.toCommonScore
 import eolssu.shared.generated.resources.*
+import com.ssafy.eolssu.feature.song.edit.rangeFixGuide
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 
@@ -33,6 +34,7 @@ internal fun SheetPitchCorrectionDialog(
     onDismiss: () -> Unit,
     onAdapt: () -> Unit,
     reviewDetails: @Composable () -> Unit = {},
+    onApplyRecommended: (() -> Unit)? = null,
 ) {
     val (base, octave) = target.pitch
     val name = if (octave in -2..2) ScoreNote.SourcePitch(base.hangul, octave).fullName
@@ -55,7 +57,11 @@ internal fun SheetPitchCorrectionDialog(
         onDismissRequest = onDismiss,
     ) {
         reviewDetails()
-        EolssuButton(stringResource(Res.string.sheet_adapt_title), onAdapt, enabled = !state.confirming, qaTarget = QaTarget.SHEET_PITCH_CORRECTION_DIALOG_BUTTON_01)
+        // 곡 전체 높이는 편집 화면 위 안내와 같은 줄로 보여, 추천이 있으면 그 자리에서 바로 바꾼다(S15P31E102-1085).
+        val rangeGuide = state.rangeFixGuide()?.takeIf { onApplyRecommended != null && !state.confirming }
+        if (rangeGuide != null) SheetImportGuideCard(rangeGuide, onApplyRecommended = requireNotNull(onApplyRecommended),
+            onOpenAdaptation = onAdapt, onMoveReview = {})
+        else EolssuButton(stringResource(Res.string.sheet_adapt_title), onAdapt, enabled = !state.confirming, qaTarget = QaTarget.SHEET_PITCH_CORRECTION_DIALOG_BUTTON_01)
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (target.isContinuation) Text(

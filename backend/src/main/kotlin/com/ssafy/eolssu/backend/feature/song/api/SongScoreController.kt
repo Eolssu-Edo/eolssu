@@ -6,6 +6,7 @@ import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.song.application.GetSongScore
 import com.ssafy.eolssu.backend.feature.song.application.SongScoreLookup
 import com.ssafy.eolssu.backend.feature.song.domain.ScoreNotationCapabilities
+import com.ssafy.eolssu.backend.feature.song.domain.SigimsaePlacement
 import com.ssafy.eolssu.backend.feature.song.domain.ScoreTimelineEvent
 import com.ssafy.eolssu.backend.feature.song.domain.ScoreJangdanPlayback
 import com.ssafy.eolssu.backend.feature.song.infrastructure.catalog.declaredScoreJangdanName
@@ -42,6 +43,7 @@ class SongScoreController(private val service: GetSongScore, private val json: J
                     result.decoded.events, result.decoded.notationCapabilities, score,
                     playback?.takeIf { it.name == declaredName },
                     playback?.takeIf { declaredName == null },
+                    result.decoded.sigimsaePlacements,
                 )))
             }
         }
@@ -65,4 +67,6 @@ data class SongScoreResult(
     val jangdanPlayback: ScoreJangdanPlayback? = null,
     @get:Schema(nullable = true, description = "원문 장단명이 비어 있고 해당 판본에 반주 연결이 따로 검수된 경우에만 제공하는 장단 반주.")
     val supplementalJangdanPlayback: ScoreJangdanPlayback? = null,
+    @get:Schema(nullable = true, description = "시김새가 적힌 표시 자리(cellId·row·col)와 그 자리의 기호. 이벤트마다 자리 순서대로 이으면 score의 event.sigimsae와 같습니다. 없거나 악보와 맞지 않으면 null이며, 이때는 이벤트 단위 시김새만 있습니다.")
+    val sigimsaePlacements: List<SigimsaePlacement>? = null,
 )

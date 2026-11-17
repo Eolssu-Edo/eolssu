@@ -84,6 +84,26 @@ class RenderRequestTests(unittest.TestCase):
             self.assertEqual(call(599),{'durationMs':599550})
             self.assertEqual(call(600)['errorCode'],'EXPORT_TOO_LONG')
 
+    def test_estimate_accepts_jeonseong_and_locates_an_unrenderable_sigimsae(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)
+            def call(marks):
+                score=common_notes((('황',1),('태',1)))
+                score['events'][1]['sigimsae']=marks
+                request={'score':score,'instrument':'danso','bpm':60,'withJangdan':False}
+                (path/'request.json').write_text(json.dumps(request,ensure_ascii=False),encoding='utf-8')
+                estimate(directory)
+                return json.loads((path/'result.json').read_text(encoding='utf-8')), score['events'][1]['id']
+            accepted,_=call(['전성'])
+            self.assertIn('durationMs',accepted)
+            rejected,event_id=call(['없는기호'])
+            self.assertEqual(rejected['errorCode'],'INVALID_REQUEST')
+            self.assertEqual(rejected['details']['reason'],'SIGIMSAE_UNRENDERABLE')
+            self.assertEqual(rejected['details']['eventId'],event_id)
+            self.assertEqual(rejected['details']['symbols'],['없는기호'])
+            self.assertIn('미지원 기호',rejected['details']['message'])
+            self.assertLessEqual(len((path/'result.json').read_bytes()),4096)
+
     def test_estimate_of_longest_score_stays_inside_service_deadline(self):
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)

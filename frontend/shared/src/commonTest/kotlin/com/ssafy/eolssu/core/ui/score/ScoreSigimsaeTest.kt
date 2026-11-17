@@ -31,6 +31,11 @@ class ScoreSigimsaeTest {
         }
     }
 
+    @Test fun jeonseongShowsItsProvisionalGlyphOnceInTheEditorList() {
+        assertNotNull(scoreSigimsaeImage("전성"))
+        assertEquals(1, com.ssafy.eolssu.feature.song.edit.Sigimsae.entries.count { it.name == "전성" })
+    }
+
     @Test fun reusesEveryExistingGuideGlyphWithoutReinterpretingItsShape() {
         val basic = BasicSigimsae.flatMap { it.items }.flatMap { it.images }
         val more = MoreSigimsae.flatMap { it.symbols }

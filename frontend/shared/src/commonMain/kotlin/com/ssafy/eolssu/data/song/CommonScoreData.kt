@@ -39,8 +39,12 @@ data class CommonScoreData(
     )
     @Serializable data class Provenance(val sourceId: String, val jgbSha256: String, val review: String, val converter: String)
 
-    /** 누락/중복/잘못된 시간·참조를 샘플이나 빈 악보로 대체하지 않는다. */
-    fun toScore(expressions: JsonObject? = null, baseBpm: Double? = null): Score {
+    /**
+     * 누락/중복/잘못된 시간·참조를 샘플이나 빈 악보로 대체하지 않는다.
+     * [sigimsaePlacements]는 카탈로그 응답의 시김새 자리이며, 없으면 [expressions]의 placements를 쓴다.
+     */
+    fun toScore(expressions: JsonObject? = null, baseBpm: Double? = null,
+                sigimsaePlacements: Map<ScoreUnitKey, List<String>>? = null): Score {
         checkScore(schemaVersion == 1, "schemaVersion", "지원 버전은 1이다")
         checkScore(score.title.isNotEmpty() && score.part >= 0 && score.scoreVersion >= 1, "score", "제목·파트·버전을 확인해야 한다")
         checkScore(music.hwangHz.isFinite() && music.hwangHz > 0 && music.ticksPerBeat > 0 && music.ticksPerJeonggan > 0,
@@ -139,7 +143,8 @@ data class CommonScoreData(
             ScoreTiming(music.hwangHz, music.jangdan, bpmUnit, music.ticksPerBeat, music.ticksPerJeonggan),
             ScoreSource(schemaVersion, score.title, score.instrument, score.part, score.sourceId, score.scoreVersion,
                 ScoreProvenance(provenance.sourceId, provenance.jgbSha256, provenance.review, provenance.converter)), timeline,
-            tempoMarks = tempoPositions(expressions)).withImportedTempo(this, expressions, baseBpm)
+            tempoMarks = tempoPositions(expressions),
+            sigimsaePlacements = sigimsaePlacements ?: expressions.sigimsaePlacements()).withImportedTempo(this, expressions, baseBpm)
     }
 
     companion object {
@@ -161,6 +166,18 @@ private fun checkScore(condition: Boolean, location: String, reason: String) {
     if (!condition) throw ScoreDataException(location, reason)
 }
 private fun Map<Int, *>.indices(): List<Int> = (0 until size).toList()
+
+/** 변환기가 남긴 표시 자리별 원본 기호(`expressions.placements`). 형식이 틀린 항목은 버린다. */
+private fun JsonObject?.sigimsaePlacements(): Map<ScoreUnitKey, List<String>> {
+    val placements = this?.get("placements") as? JsonArray ?: return emptyMap()
+    return placements.filterIsInstance<JsonObject>().mapNotNull { entry ->
+        val cid = (entry["cellId"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return@mapNotNull null
+        val row = (entry["row"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null
+        val col = (entry["col"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null
+        val symbols = (entry["symbols"] as? JsonArray).orEmpty().mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }
+        if (symbols.isEmpty()) null else ScoreUnitKey(cid, row, col) to symbols
+    }.toMap()
+}
 
 private fun CommonScoreData.tempoPositions(expressions: JsonObject?): Map<ScoreUnitKey, List<HanbaeMark>> {
     val placements = expressions?.get("placements") as? JsonArray

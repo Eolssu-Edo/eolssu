@@ -81,6 +81,8 @@ import eolssu.shared.generated.resources.records_best
 import eolssu.shared.generated.resources.records_collapsed
 import eolssu.shared.generated.resources.records_day_meta
 import eolssu.shared.generated.resources.records_empty
+import eolssu.shared.generated.resources.records_empty_hint
+import eolssu.shared.generated.resources.records_empty_practice
 import eolssu.shared.generated.resources.records_unavailable
 import eolssu.shared.generated.resources.records_expanded
 import eolssu.shared.generated.resources.records_growth_link
@@ -137,15 +139,36 @@ internal fun GrowthLinkButton(onOpenGrowth: () -> Unit) {
     }
 }
 
-/** 빈 기록과 조회 기능을 아직 사용할 수 없는 상태를 구분한다. */
+/**
+ * 빈 기록과 조회 기능을 아직 사용할 수 없는 상태를 구분한다.
+ * 저장한 연주가 없으면 기록이 어떻게 쌓이는지 알리고 [onStartPractice]('연습하러 가기')로 곡 고르기에 보낸다(S15P31E102-1031).
+ */
 @Composable
-internal fun RecordsEmpty(available: Boolean, modifier: Modifier = Modifier) {
-    Text(
-        stringResource(if (available) Res.string.records_empty else Res.string.records_unavailable),
-        modifier = modifier.observeFirstDraw(PerfPhase.RECORD_EMPTY).fillMaxWidth().padding(vertical = 56.dp),
-        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
-        textAlign = TextAlign.Center,
-    )
+internal fun RecordsEmpty(available: Boolean, onStartPractice: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier.observeFirstDraw(PerfPhase.RECORD_EMPTY).fillMaxWidth().padding(vertical = 56.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            stringResource(if (available) Res.string.records_empty else Res.string.records_unavailable),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+            textAlign = TextAlign.Center,
+        )
+        if (!available) return@Column
+        Text(
+            stringResource(Res.string.records_empty_hint),
+            Modifier.padding(top = 6.dp),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+            color = EolssuTheme.colors.textMuted,
+            textAlign = TextAlign.Center,
+        )
+        EolssuButton(
+            stringResource(Res.string.records_empty_practice),
+            onStartPractice,
+            Modifier.padding(top = 20.dp).widthIn(min = 200.dp),
+            compact = true,
+        )
+    }
 }
 
 /** 기록은 있지만 고른 악기나 검색어([searching])에 맞는 곡이 없을 때. 위의 악기 선택·검색칸은 그대로 둔다. */

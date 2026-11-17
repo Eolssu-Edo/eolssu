@@ -69,7 +69,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -389,13 +388,12 @@ private fun YulKey(note: ScoreNote, enabled: Boolean, selected: Boolean, onClick
     val hangul = source?.hangul ?: (note as? ScoreNote.Pitch)?.yul?.hangul.orEmpty()
     val fullName = source?.fullName ?: (note as? ScoreNote.Pitch)?.yul?.fullName.orEmpty()
     val description = if (enabled) stringResource(Res.string.sheetedit_key_input, fullName) else stringResource(Res.string.sheetedit_key_unavailable, fullName)
+    // 낼 수 없는 음도 흐리게만 두고 누를 수 있게 한다. 누르면 악보는 그대로 두고 이유를 알린다(S15P31E102-1080).
     Surface(
         onClick = UserActionLog.click(QaTarget.EDIT_INPUT_PANEL_05, onClick),
-        enabled = enabled,
         modifier = Modifier.width(52.dp).height(58.dp).alpha(if (enabled) 1f else 0.35f).semantics {
             contentDescription = description
             this.selected = selected
-            if (!enabled) disabled()
         },
         shape = RoundedCornerShape(10.dp),
         color = if (selected) colors.accentTint else colors.surface,
@@ -660,7 +658,7 @@ private fun SigimsaeTile(value: Sigimsae) {
         if (scoreSigimsaeImage(value.scoreName) != null) {
             ScoreSigimsaeGlyph(value.scoreName, 13.sp)
         } else {
-            // 그림이 없는 시김새(전성)는 이름을 상자 안에 들어가게 작게 한 줄로 적는다.
+            // 그림이 없는 시김새는 이름을 상자 안에 들어가게 작게 한 줄로 적는다.
             Text(
                 value.name,
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 10.sp, letterSpacing = 0.sp),

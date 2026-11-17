@@ -57,6 +57,9 @@ private val CoverColumnGap: Dp = 4.dp
 /** 표지 각 너비 상한(보드 태블릿 연습 악보 `.ms-col` 96px). */
 private val CoverMaxColumnWidth: Dp = 96.dp
 
+/** 태블릿([SongScoreCover]의 `large`) 표지의 정간 높이. 태블릿 세로 배치가 남는 높이로 늘릴 정간 수를 셀 때도 쓴다. */
+internal val LargeCoverCellHeight: Dp = 46.dp
+
 /**
  * SONG-02 악보 표지(`.score-cover`): 흰 카드 왼쪽에 앞 [columns]각 · 각마다 [rows]정간의 미니 정간보,
  * 오른쪽 위에 세로 제목, 그 바로 아래에 붉은 바탕 · 흰 붓글씨 '얼쑤' 도장(S15P31E102-768, 제목과 겹치지 않게 제목 아래에 붙인다).
@@ -103,7 +106,7 @@ internal fun SongScoreCover(
                 metrics = JeongganboMetrics(
                     columnWidth = columnWidth,
                     // 보드는 정간 30dp지만, 서버 악보는 한 정간을 셋까지 나눠 30dp에서 율명이 겹친다. 연습 화면 휴대폰 크기(38dp)를 쓴다.
-                    cellHeight = if (large) 46.dp else 38.dp,
+                    cellHeight = if (large) LargeCoverCellHeight else 38.dp,
                     yulSize = if (large) 20.sp else 17.sp,
                     auxSize = if (large) 9.5.sp else 8.5.sp,
                     headHeight = 20.dp,

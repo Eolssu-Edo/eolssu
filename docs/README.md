@@ -1,5 +1,9 @@
 # 프로젝트 문서
 
+- [저장 창의 낼 수 없는 음 안내를 바로 고치기 버튼으로 변경 (1085)](plans/S15P31E102-1085.md)
+- [악보 편집 실사용 점검과 저장·시김새·빠르기 잠금 오류 수정 (1080)](plans/S15P31E102-1080.md) · [원인·실측](knowledge/frontend/sheet-editor-playback-guard.md)
+- [전성 교육용 재생 해석과 음원 사전 검사 거절 위치·기호 전달 (1084)](plans/S15P31E102-1084.md)
+- [악보 인식의 곡 시작 빠르기를 구간 빠르기 대신 기본 빠르기로 (1083)](plans/S15P31E102-1083.md) · [규칙](specs/staff-tempo-import.md#동작과-범위)
 - [QA 웹 APK 적용의 앱 로그 읽기 대기 후 자동 설치 (1066)](plans/S15P31E102-1066.md)
 - [정간보 스캔의 시김새 인식 범위 확대 (1062)](plans/S15P31E102-1062.md) · [원인·규칙·측정](knowledge/data/jeongganbo-omr-accuracy.md#시김새-획-보정-1062)
 - [정간 전체를 잇는 이음표를 연습·보기 화면에서 빈칸으로 표시 (1069)](knowledge/frontend/jeonggan-whole-cell-hold.md)
@@ -115,6 +119,7 @@
 
 - [음원 변환 완료 앱 내 알림 (905)](plans/S15P31E102-905.md) · [알림 규칙](specs/sheet-audio-app-flow.md#앱-전체-완료-알림-s15p31e102-905)
 
+- [조금 빠르게·느리게의 끝 구간 지정과 본래 속도로 제거 (1082)](plans/S15P31E102-1082.md) · [규칙](specs/jeonggan-tempo-edit.md#조금-빠르게느리게-구간-s15p31e102-1082)
 - [구간 빠르기 적용 후 예상 음원 길이 표시 복구 (903)](plans/S15P31E102-903.md) · [계산·표시 계약](specs/jeonggan-tempo-edit.md#예상-음원-길이-s15p31e102-903)
 
 - [홈 화면 복귀 시 맨 아래 스크롤 위치 유지 (895)](plans/S15P31E102-895.md)

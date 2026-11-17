@@ -6,6 +6,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,11 +62,17 @@ import eolssu.shared.generated.resources.sheetedit_msg_saved
 import eolssu.shared.generated.resources.sheetedit_msg_saved_for_practice
 import eolssu.shared.generated.resources.sheetedit_msg_saved_needs_review
 import eolssu.shared.generated.resources.sheet_save_unfilled
+import eolssu.shared.generated.resources.sheet_save_sigimsae_go
+import eolssu.shared.generated.resources.sheet_save_sigimsae_rejected
+import eolssu.shared.generated.resources.sheet_save_sigimsae_rejected_unknown
+import eolssu.shared.generated.resources.sheet_save_sigimsae_remove
 import eolssu.shared.generated.resources.sheet_editor_correction_title
 import eolssu.shared.generated.resources.sheet_editor_correct_cell
 import eolssu.shared.generated.resources.sheet_editor_correction_location
 import eolssu.shared.generated.resources.sheet_review_checked
 import eolssu.shared.generated.resources.basic_accompaniment_cleared_after_reshape
+import eolssu.shared.generated.resources.sheetedit_pitch_unavailable
+import eolssu.shared.generated.resources.sheetedit_sig_replaced
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -85,6 +92,8 @@ fun SheetEditRoute(
     var correctionOpen by rememberSaveable { mutableStateOf(false) }
     var pitchCorrection by remember { mutableStateOf<SheetPitchCorrection?>(null) }
     var reviewSelection by remember { mutableStateOf<SheetReviewSelection?>(null) }
+    // '이대로 둘게요' 뒤 다음 칸 창을 다시 열 차례. 창이 닫히고 칸이 옮겨 간 것을 본 뒤에 연다(S15P31E102-1074).
+    var reopenReviewKey by remember { mutableStateOf<Int?>(null) }
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
     val adaptationOpen = state.tab == EditTab.Adaptation && state.adaptation != null
@@ -122,6 +131,8 @@ fun SheetEditRoute(
         SheetEditMessage.JangdanUnavailable to stringResource(Res.string.sheetedit_jangdan_unavailable),
         SheetEditMessage.TempoPlanBeforeReshape to stringResource(Res.string.sheet_tempo_before_reshape),
         SheetEditMessage.BasicAccompanimentCleared to stringResource(Res.string.basic_accompaniment_cleared_after_reshape),
+        SheetEditMessage.SigimsaeReplaced to stringResource(Res.string.sheetedit_sig_replaced),
+        SheetEditMessage.PitchUnavailable to stringResource(Res.string.sheetedit_pitch_unavailable),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
         SheetEditMessage.AudioStatusUnknown to stringResource(Res.string.sheetedit_msg_audio_unknown),
@@ -155,8 +166,7 @@ fun SheetEditRoute(
                 onOpenAdaptation = viewModel::openAdaptation,
                 // 다시 볼 곳은 칸을 옮겨 보여 주기만 한다. 칸을 누르면 고칠 방법 창이 열린다.
                 onMoveReview = { step -> viewModel.moveRecognitionReview(step); focusRequestKey++ },
-                modifier = Modifier.padding(bottom = 8.dp),
-                rightToLeft = state.view == EditView.Jeongganbo) }
+                modifier = Modifier.padding(bottom = 8.dp)) }
         },
         adaptationContent = {
             state.adaptation?.let { panel -> SheetAdaptationPanel(panel,
@@ -168,7 +178,10 @@ fun SheetEditRoute(
             onRetryDraft = viewModel::retryDraftSave,
             onSave = {
                 saveError = null
-                if (state.completionValidation.correctionCellIndices.isNotEmpty()) {
+                // 높이를 바꿔 한 번에 고칠 수 있으면 첫 칸의 음 확인 대신 저장 창을 열어
+                // "단소로 낼 수 없는 음 N개 · N반음 올려 고치기"를 먼저 보인다(S15P31E102-1085).
+                if (state.rangeFixGuide() != null) saveOpen = true
+                else if (state.completionValidation.correctionCellIndices.isNotEmpty()) {
                     viewModel.openCompletionIssue()
                     focusRequestKey++
                     val current = viewModel.uiState.value
@@ -216,6 +229,8 @@ fun SheetEditRoute(
             },
             onDismiss = { pitchCorrection = null },
             onAdapt = { pitchCorrection = null; correctionOpen = false; viewModel.openAdaptation() },
+            // 곡 전체 높이를 바로 바꾸면 이 음 창은 닫고 바뀐 악보를 보여 준다.
+            onApplyRecommended = { pitchCorrection = null; correctionOpen = false; viewModel.applyRecommendedAdaptation() },
             reviewDetails = {
                 state.reviewIssuesAt(target.cell, target.sub).filter { it.kind !in setOf("UNREGISTERED_PITCH", "OUT_OF_RANGE") }
                     .forEach { Text(sheetReviewReason(it), style = MaterialTheme.typography.bodyMedium) }
@@ -229,16 +244,28 @@ fun SheetEditRoute(
             onEditSigimsae = { reviewSelection = null; viewModel.selectTab(EditTab.Sigimsae) },
             onEditCells = { reviewSelection = null; viewModel.selectTab(EditTab.Cell) },
             onChangeJangdan = { reviewSelection = null; viewModel.changeJangdan() },
-            // 지금 그대로가 맞으면 확인으로 끝내고, 다음 다시 볼 곳이 있으면 바로 그 칸으로 간다.
+            // 지금 그대로가 맞으면 확인으로 끝낸다. 창을 먼저 닫고 다음 다시 볼 칸으로 옮긴 뒤, 잠시 후 그 칸의 창을 연다.
             onConfirmSame = {
                 reviewSelection = null
                 viewModel.checkSelectedReviewIssue()
                 val next = viewModel.uiState.value
-                if ((next.completionValidation.correctionCellIndices - next.completionValidation.rangeCellIndices).any { it != selection.cell }) openFirstReview()
+                if ((next.completionValidation.correctionCellIndices - next.completionValidation.rangeCellIndices).any { it != selection.cell }) {
+                    viewModel.openFirstRecognitionReview()
+                    focusRequestKey++
+                    reopenReviewKey = (reopenReviewKey ?: 0) + 1
+                }
             }.takeIf { state.selected == selection.cell && state.canCheckSelectedReviewIssue })
         else LaunchedEffect(selection) { reviewSelection = null }
     }
+    reopenReviewKey?.let { key ->
+        LaunchedEffect(key) {
+            delay(REVIEW_REOPEN_DELAY_MS)
+            reopenReviewKey = null
+            openCellHelp(viewModel.uiState.value.selected)
+        }
+    }
     LaunchedEffect(state.tempoIssue) { if (state.tempoIssue != null) saveOpen = true }
+    LaunchedEffect(state.sigimsaeIssue) { if (state.sigimsaeIssue != null) saveOpen = true }
     if (saveOpen) SheetEditDetailsDialog(
         initialTitle = state.draft.title,
         tempoIssue = state.tempoIssue,
@@ -259,6 +286,9 @@ fun SheetEditRoute(
                 onChangeJangdan = { saveOpen = false; viewModel.changeJangdan() },
                 onClearJangdan = viewModel::clearJangdan,
                 onRetryCatalog = viewModel::retryCompletionCatalog,
+                // 높이를 바꿔 고칠 수 있으면 저장 창에서 바로 고친다. 고친 뒤 저장을 다시 누르면 된다.
+                onApplyRecommended = viewModel::applyRecommendedAdaptation,
+                onOpenAdaptation = { saveOpen = false; viewModel.openAdaptation() },
             )
             val error = saveError ?: when {
                 state.saveConflict -> messages[SheetEditMessage.SaveConflict]
@@ -266,6 +296,22 @@ fun SheetEditRoute(
                 else -> null
             }
             if (error != null) Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            state.sigimsaeIssue?.let { issue ->
+                // 음원 생성기가 거절한 시김새의 위치·이유를 보여 주고 바로 고치게 한다(S15P31E102-1084).
+                val slot = state.sigimsaeIssueSlot
+                val text = if (slot == null) stringResource(Res.string.sheet_save_sigimsae_rejected_unknown)
+                    else stringResource(Res.string.sheet_save_sigimsae_rejected, state.draft.columnOf(slot.cell) + 1,
+                        state.draft.rowOf(slot.cell) + 1, issue.symbols.joinToString("·").ifEmpty { "이" })
+                Text(listOfNotNull(text, issue.message).joinToString(" "), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error)
+                if (slot != null) {
+                    EolssuButton(stringResource(Res.string.sheet_save_sigimsae_go),
+                        { saveOpen = false; viewModel.openSigimsaeIssue(); focusRequestKey++ },
+                        style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_08)
+                    EolssuButton(stringResource(Res.string.sheet_save_sigimsae_remove), viewModel::removeRejectedSigimsae,
+                        style = EolssuButtonStyle.Secondary, small = true, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_09)
+                }
+            }
         },
     )
     if (correctionOpen) EolssuDialog(
@@ -339,3 +385,6 @@ fun SheetEditRoute(
             style = EolssuButtonStyle.Secondary, enabled = !state.closeSaving, qaTarget = QaTarget.SHEET_EDIT_ROUTE_BUTTON_07)
     }
 }
+
+/** '이대로 둘게요' 뒤 창이 닫히고 다음 칸으로 옮겨 간 것을 볼 수 있게 다시 열기 전에 기다리는 시간. */
+private const val REVIEW_REOPEN_DELAY_MS = 450L

@@ -39,6 +39,10 @@ def symbol_table(base, additions, confirmed):
         (("느나르나니", "느니르나니", "neunareunani"), "independent", (1, 2, 1, 0, -1)),
         (("혀치기",), "articulation", ()),
         (("반음올림표",), "alteration", (1,)),
+        # 전성(轉聲): only "rolled quickly" is sourced (encykorea E0032321). The
+        # wind-instrument sequence is unconfirmed; this short main→upper grace
+        # before the sustained main note is an authored audition choice.
+        (("전성",), "grace", (0, 1)),
     ):
         fallback.update({name: (kind, steps) for name in names})
     fallback.update(confirmed)

@@ -58,6 +58,8 @@ fun RecordListRoute(
     /** ‘구간 연습’ → 구간 고르기(반복 횟수·속도) → 구간 연습(S15P31E102-794). */
     onPracticeSection: (recordId: String, songId: String) -> Unit = { _, _ -> },
     onCompare: (recordId: String, previousId: String) -> Unit = { _, _ -> },
+    /** 저장한 연주가 없을 때 '연습하러 가기'(S15P31E102-1031). */
+    onStartPractice: () -> Unit = {},
     perf: PerformanceVisit? = null,
     viewModel: RecordListViewModel = koinViewModel(key = "records-$justSavedId") { parametersOf(justSavedId, perf) },
 ) {
@@ -73,7 +75,7 @@ fun RecordListRoute(
     CompositionLocalProvider(LocalPerformanceVisit provides perf) {
         val widthClass = currentWindowLayout().widthClass
         if (widthClass == WindowWidthClass.Expanded) {
-            RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection, onPracticeSection)
+            RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection, onPracticeSection, onStartPractice)
         } else {
             RecordListScreen(
                 state, widthClass, onBack, onOpenGrowth, viewModel::toggle,
@@ -85,6 +87,7 @@ fun RecordListRoute(
                 onToggleDay = viewModel::toggleDay,
                 onToggleName = viewModel::toggleNameOrder,
                 onSearch = viewModel::search,
+                onStartPractice = onStartPractice,
             )
         }
     }
@@ -104,6 +107,7 @@ private fun RecordsTwoPaneRoute(
     onCompare: (recordId: String, previousId: String) -> Unit,
     onSelectSection: (String) -> Unit,
     onPracticeSection: (recordId: String, songId: String) -> Unit,
+    onStartPractice: () -> Unit,
 ) {
     val selectedId = state.selectedRecordId
     val detailViewModel: RecordDetailViewModel = koinViewModel(key = "records-pane-$justSavedId") { parametersOf("") }
@@ -135,6 +139,7 @@ private fun RecordsTwoPaneRoute(
         onToggleDay = viewModel::toggleDay,
         onToggleName = viewModel::toggleNameOrder,
         onSearch = viewModel::search,
+        onStartPractice = onStartPractice,
         detail = detail,
         detailActions = rememberRecordDetailActions(detailViewModel, onBack, onCompare, onSelectSection, onPracticeSection),
         snackbarHostState = snackbarHostState,

@@ -5,10 +5,13 @@ import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.data.song.CommonScoreData
 import kotlinx.serialization.json.*
 
-/** 정간 번호는 0부터의 연주 순서, 끝은 변화가 끝나는 정간 시작(악보 끝도 허용)이다. */
+/**
+ * 정간 번호는 0부터의 연주 순서, 끝은 변화가 끝나는 정간 시작(악보 끝도 허용)이다.
+ * 조금 빠르게·느리게(span)의 끝은 앞 빠르기로 돌아가는 정간 시작이다. 화면에서는 그 앞 정간을 끝 정간으로 보인다.
+ */
 data class SheetTempoChange(val cell: Int, val mark: HanbaeMark?, val targetBpm: Double?, val endCell: Int? = null,
     val startBpm: Double? = null) {
-    val resolved: Boolean get() = targetBpm != null && (mark?.gradual != true || endCell != null)
+    val resolved: Boolean get() = targetBpm != null && (mark?.needsEnd != true || endCell != null)
 }
 
 private fun JsonObject.number(key: String) = (get(key) as? JsonPrimitive)?.doubleOrNull
@@ -66,22 +69,110 @@ private fun initialPerformancePlan(score: CommonScoreData, expression: JsonObjec
     }
 }
 
+private val SheetDraft.tempoMarks: Map<Int, HanbaeMark> get() = editingExpressions().objects("placements").mapNotNull { placement ->
+    val index = sourceCellIds?.indexOf(placement.string("cellId"))?.takeIf { it >= 0 } ?: return@mapNotNull null
+    val mark = (placement["symbols"] as? JsonArray).orEmpty().filterIsInstance<JsonPrimitive>()
+        .firstNotNullOfOrNull { HanbaeMark.fromSymbol(it.content) } ?: return@mapNotNull null
+    index to mark
+}.toMap()
+
+private val SheetDraft.tempoEntries: Map<Int, JsonObject> get() =
+    (editingExpressions()["performancePlan"] as? JsonObject)?.objects("tempos").orEmpty().mapNotNull { entry ->
+        (flatPosition(entry.integer("gak"), entry.integer("cell")) ?: return@mapNotNull null) to entry
+    }.toMap()
+
+private val SheetDraft.nativeBaseBpm: Double get() = nativeBpm(bpm.toDouble())
+private fun sameBpm(a: Double, b: Double) = kotlin.math.abs(a - b) <= 1e-6 * maxOf(1.0, kotlin.math.abs(b))
+private fun JsonObject.hasEnd() = "end_gak" in this || "end_cell" in this
+
+/**
+ * 조금 빠르게·느리게는 공유 계획에 시작 항목과 끝 다음 정간의 복귀 항목(기호 없는 즉시 변경)으로 저장한다.
+ * 읽을 때 복귀 항목을 다시 한 구간으로 합친다. 복귀 항목이 없으면 다음 변경 또는 악보 끝까지를 구간으로 본다.
+ */
+/**
+ * 정간 위치에 묶인 빠르기·반복 계획이 실제로 있는지 본다. 구간을 모두 지워 빈 performancePlan만 남았을 때
+ * 정간·장단 도구를 막지 않는다(S15P31E102-1080). 반복 구간도 각 번호에 묶이므로 함께 본다.
+ */
+internal fun JsonObject?.hasPositionedTempoPlan(): Boolean {
+    val plan = this?.get("performancePlan") as? JsonObject ?: return false
+    return plan.objects("tempos").isNotEmpty() || plan.objects("repeats").isNotEmpty()
+}
+
 internal val SheetDraft.tempoChanges: List<SheetTempoChange> get() {
-    val expression = editingExpressions()
-    val marks = expression.objects("placements").mapNotNull { placement ->
-        val index = sourceCellIds?.indexOf(placement.string("cellId"))?.takeIf { it >= 0 } ?: return@mapNotNull null
-        val mark = (placement["symbols"] as? JsonArray).orEmpty().filterIsInstance<JsonPrimitive>()
-            .firstNotNullOfOrNull { HanbaeMark.fromSymbol(it.content) } ?: return@mapNotNull null
-        index to mark
-    }.toMap()
-    val plan = (expression["performancePlan"] as? JsonObject)?.objects("tempos").orEmpty().mapNotNull { entry ->
-        val index = flatPosition(entry.integer("gak"), entry.integer("cell")) ?: return@mapNotNull null
-        index to SheetTempoChange(index, marks[index], entry.number("bpm")?.let(::displayBpm),
-            flatPosition(entry.integer("end_gak"), entry.integer("end_cell"), terminal = true),
-            entry.number("start_bpm")?.let(::displayBpm))
-    }.toMap()
-    return (marks.keys + plan.keys).sorted().map { index -> plan[index] ?: SheetTempoChange(index, marks[index],
-        bpm.toDouble().takeIf { marks[index] == HanbaeMark.Original }) }
+    val marks = tempoMarks
+    val entries = tempoEntries
+    val keys = (marks.keys + entries.keys).sorted()
+    val consumed = mutableSetOf<Int>()
+    var prevailing = nativeBaseBpm
+    val result = mutableListOf<SheetTempoChange>()
+    keys.forEachIndexed { order, index ->
+        if (index in consumed) return@forEachIndexed
+        val mark = marks[index]
+        val entry = entries[index]
+        if (entry == null) {
+            result += SheetTempoChange(index, mark, bpm.toDouble().takeIf { mark == HanbaeMark.Original })
+            if (mark == HanbaeMark.Original) prevailing = nativeBaseBpm
+            return@forEachIndexed
+        }
+        val target = entry.number("bpm")
+        var end = flatPosition(entry.integer("end_gak"), entry.integer("end_cell"), terminal = true)
+        if (mark?.span == true && target != null && !entry.hasEnd()) {
+            val next = keys.getOrNull(order + 1)
+            end = next ?: cells.size
+            val back = next?.let(entries::get)
+            if (back != null && marks[next] == null && !back.hasEnd() && back.number("bpm")?.let { sameBpm(it, prevailing) } == true)
+                consumed += next
+        }
+        result += SheetTempoChange(index, mark, target?.let(::displayBpm), end, entry.number("start_bpm")?.let(::displayBpm))
+        if (mark?.span != true && target != null) prevailing = target
+    }
+    return result
+}
+
+/** 재생·길이 계산용. 조금 빠르게·느리게 구간을 시작의 즉시 변경과 끝 다음의 복귀로 펼친다(표시 BPM). */
+internal val SheetDraft.playbackTempoChanges: List<SheetTempoChange> get() {
+    // 복귀 항목은 끝 정간에 다른 기호(목표 미지정 포함)가 없을 때만 저장되므로 같은 기준을 쓴다.
+    val starts = tempoChanges.map { it.cell }.toSet()
+    val changes = tempoChanges.filter { it.resolved }
+    var prevailing = bpm.toDouble()
+    return changes.flatMap { cue ->
+        val target = requireNotNull(cue.targetBpm)
+        if (cue.mark?.span != true) { prevailing = target; return@flatMap listOf(cue) }
+        val end = requireNotNull(cue.endCell)
+        listOfNotNull(SheetTempoChange(cue.cell, null, target),
+            SheetTempoChange(end, null, prevailing).takeIf { end < cells.size && end !in starts })
+    }
+}
+
+/** 논리 변경 목록을 공유 계획의 tempos로 다시 쓴다. 손대지 않은 항목은 원래 JSON을 그대로 둔다. */
+private fun SheetDraft.planTempos(changes: List<SheetTempoChange>, edited: SheetTempoChange?, previousEntry: JsonObject?): JsonArray {
+    val raw = tempoEntries
+    val starts = changes.map { it.cell }.toSet()
+    var prevailing = nativeBaseBpm
+    val out = mutableListOf<JsonObject>()
+    for (cue in changes.sortedBy { it.cell }) {
+        val entry = if (cue === edited) cue.targetBpm?.let { target -> buildJsonObject {
+            val (gak, cell) = position(cue.cell); put("gak", gak); put("cell", cell); put("bpm", nativeBpm(target))
+            if (cue.mark?.span != true) cue.endCell?.let { val (endGak, endCell) = position(it); put("end_gak", endGak); put("end_cell", endCell)
+                cue.startBpm?.let { start -> put("start_bpm", nativeBpm(start)) }
+                    ?: previousEntry?.get("start_bpm")?.let { start -> put("start_bpm", start) } }
+        } } else raw[cue.cell] ?: cue.targetBpm?.let { target -> buildJsonObject {
+            val (gak, cell) = position(cue.cell); put("gak", gak); put("cell", cell); put("bpm", nativeBpm(target))
+        } }
+        if (entry == null) continue
+        val bpmValue = entry.number("bpm") ?: continue
+        if (cue.mark?.span == true) {
+            out += JsonObject(entry - setOf("end_gak", "end_cell", "start_bpm"))
+            val end = cue.endCell
+            if (end != null && end < cells.size && end !in starts) out += buildJsonObject {
+                val (gak, cell) = position(end); put("gak", gak); put("cell", cell); put("bpm", prevailing)
+            }
+        } else {
+            out += entry
+            prevailing = bpmValue
+        }
+    }
+    return JsonArray(out.sortedBy { flatPosition(it.integer("gak"), it.integer("cell")) })
 }
 
 internal fun SheetDraft.tempoChangeError(change: SheetTempoChange, replacing: Int? = change.cell): String? {
@@ -90,10 +181,11 @@ internal fun SheetDraft.tempoChangeError(change: SheetTempoChange, replacing: In
     if (change.targetBpm?.let { !it.isFinite() || it < SheetBpmRange.first || it > SheetBpmRange.last } == true)
         return "목표 빠르기는 ${SheetBpmRange.first}~${SheetBpmRange.last} 사이로 입력해 주세요."
     if (change.mark == null && change.targetBpm == null) return "목표 빠르기를 입력해 주세요."
-    val gradual = change.mark?.gradual ?: (change.endCell != null)
-    if (gradual && change.targetBpm != null && (change.endCell == null || change.endCell !in (change.cell + 1)..cells.size))
-        return "점점 바꿀 때는 시작 뒤의 끝 위치를 지정해 주세요."
-    if (!gradual && change.endCell != null) return "바로 바꾸는 빠르기에는 끝 위치를 지정하지 않습니다."
+    val needsEnd = change.mark?.needsEnd ?: (change.endCell != null)
+    if (needsEnd && change.targetBpm != null && (change.endCell == null || change.endCell !in (change.cell + 1)..cells.size))
+        return if (change.mark?.span == true) "끝 정간은 시작 정간이거나 그 뒤로 지정해 주세요."
+        else "점점 바꿀 때는 시작 뒤의 끝 위치를 지정해 주세요."
+    if (!needsEnd && change.endCell != null) return "바로 바꾸는 빠르기에는 끝 위치를 지정하지 않습니다."
     if (tempoChanges.any { it.cell == change.cell && it.cell != replacing }) return "같은 정간의 빠르기는 기존 항목에서 수정해 주세요."
     return tempoSequenceError(tempoChanges.filterNot { it.cell == replacing } + change)
 }
@@ -101,18 +193,22 @@ internal fun SheetDraft.tempoChangeError(change: SheetTempoChange, replacing: In
 private fun SheetDraft.tempoSequenceError(changes: List<SheetTempoChange>): String? {
     var previous = bpm.toDouble()
     var finish = -1
+    var spanEnd = -1
+    var spanTarget = previous
     for (cue in changes.sortedBy { it.cell }) {
-        if (cue.cell < finish) return "점점 바뀌는 구간 안에 다른 빠르기를 넣을 수 없습니다."
+        if (cue.cell < finish) return "빠르기가 바뀌는 구간 안에 다른 빠르기를 넣을 수 없습니다."
         if (!cue.resolved) continue
         val target = requireNotNull(cue.targetBpm)
-        val initial = cue.startBpm ?: previous
+        // 구간이 끝나는 정간에서 바로 이어지면 복귀 항목 없이 이어지므로 실제 앞 빠르기는 그 구간의 빠르기다.
+        val initial = cue.startBpm ?: if (cue.cell == spanEnd) spanTarget else previous
         if (cue.mark in setOf(HanbaeMark.Slower, HanbaeMark.GraduallySlower) && target >= initial)
             return "느리게의 목표는 앞 빠르기보다 작아야 합니다."
         if (cue.mark in setOf(HanbaeMark.Faster, HanbaeMark.GraduallyFaster) && target <= initial)
             return "빠르게의 목표는 앞 빠르기보다 커야 합니다."
         if (cue.mark == HanbaeMark.Original && target != bpm.toDouble()) return "본래 속도로는 전체 빠르기로 돌아갑니다."
         finish = cue.endCell ?: cue.cell
-        previous = target
+        // 조금 빠르게·느리게는 끝 다음부터 앞 빠르기로 돌아가므로 뒤 변경의 기준을 바꾸지 않는다.
+        if (cue.mark?.span == true) { spanEnd = finish; spanTarget = target } else previous = target
     }
     return null
 }
@@ -138,20 +234,10 @@ internal fun SheetDraft.withTempoChange(change: SheetTempoChange, replacing: Int
             put("symbols", JsonArray(listOf(mark))) }
     }
     val plan = expression["performancePlan"] as? JsonObject ?: initialPerformancePlan(score, expression)
-    val entries = plan.objects("tempos").filterNot {
-        flatPosition(it.integer("gak"), it.integer("cell")) in setOf(index, change.cell)
-    }.toMutableList()
-    if (change.targetBpm != null) {
-        val old = plan.objects("tempos").firstOrNull { flatPosition(it.integer("gak"), it.integer("cell")) == index }
-        entries += buildJsonObject {
-            val (gak, cell) = position(change.cell); put("gak", gak); put("cell", cell); put("bpm", nativeBpm(change.targetBpm))
-            change.endCell?.let { val (endGak, endCell) = position(it); put("end_gak", endGak); put("end_cell", endCell)
-                change.startBpm?.let { start -> put("start_bpm", nativeBpm(start)) }
-                    ?: old?.get("start_bpm")?.let { start -> put("start_bpm", start) } }
-        }
-    }
+    val changes = tempoChanges.filterNot { it.cell in setOf(index, change.cell) } + change
+    val tempos = planTempos(changes, change, tempoEntries[index])
     return copy(tempoExpressions = expression.changed("placements" to JsonArray(placements),
-        "performancePlan" to plan.changed("tempos" to JsonArray(entries.sortedBy { flatPosition(it.integer("gak"), it.integer("cell")) }))),
+        "performancePlan" to plan.changed("tempos" to tempos)),
         tempoReferenceBpm = referenceBpm)
 }
 
@@ -167,8 +253,10 @@ internal fun SheetDraft.withoutTempoChange(cell: Int): SheetDraft {
         }
     }
     val plan = expression["performancePlan"] as? JsonObject ?: initialPerformancePlan(toCommonScoreWithoutTempo(), expression)
+    // 지운 구간의 복귀 항목도 함께 사라지고, 남은 구간의 복귀 항목은 새 순서로 다시 계산한다.
+    val tempos = planTempos(tempoChanges.filterNot { it.cell == cell }, null, null)
     return copy(tempoExpressions = expression.changed("placements" to JsonArray(placements), "performancePlan" to plan.changed(
-        "tempos" to JsonArray(plan.objects("tempos").filterNot { flatPosition(it.integer("gak"), it.integer("cell")) == cell }))))
+        "tempos" to tempos)))
 }
 
 internal fun SheetDraft.tempoAnnotations(): Map<ScoreUnitKey, List<String>> = editingExpressions().objects("placements")

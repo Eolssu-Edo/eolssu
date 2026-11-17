@@ -35,7 +35,8 @@ class SheetPitchCorrectionTest {
     @Test fun requiredCatalogFailureDisablesNewInputWithoutDiscardingTheDraft() {
         val initial = state().copy(completionCatalogState = SheetCompletionCatalogState.Failed)
         assertEquals(emptySet(), initial.supportedInputPitches)
-        assertEquals(initial, initial.putYul(Yul.Hwangjong, 0))
+        // 적지 않을 때는 악보를 그대로 두고 이유를 알린다(S15P31E102-1080).
+        assertEquals(initial.copy(message = SheetEditMessage.PitchUnavailable), initial.putYul(Yul.Hwangjong, 0))
         assertEquals(initial.draft, initial.copy(completionCatalogState = SheetCompletionCatalogState.Loading).draft)
     }
     private val registered = setOf("황" to 0, "중" to 1, "황" to 2, "태" to 2, "중" to 2, "대" to 1)
@@ -89,7 +90,7 @@ class SheetPitchCorrectionTest {
 
     @Test fun inputAndRecommendationRespectInstrumentCatalogAndConfirmationGuard() {
         val initial = state()
-        assertEquals(initial, initial.putYul(Yul.Jungnyeo, 1), "저장할 수 없는 악기 범위 음을 새로 입력하지 않는다")
+        assertEquals(initial.copy(message = SheetEditMessage.PitchUnavailable), initial.putYul(Yul.Jungnyeo, 1), "저장할 수 없는 악기 범위 음을 새로 입력하지 않는다")
         val target = initial.pitchCorrectionsAt(1).single()
         val locked = initial.copy(confirming = true)
         assertEquals(locked, locked.applyPitchCorrection(target, initial.pitchAlternatives(target.pitch).first()))
