@@ -62,7 +62,10 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
 
     @Test fun numericTempoLocationsStayFixedWhilePitchAndBaseTempoRemainEditable() {
         val timed = state().copy(hasTempoPlan = true)
-        listOf(timed.split(), timed.merge(), timed.addColumn(), timed.deleteColumn()).forEach { changed ->
+        // 나누기·합치기는 칸 경계를 바꾸지 않아 허용한다(S15P31E102-1091). 각 추가·삭제만 위치를 옮겨 막는다.
+        assertEquals(listOf(timed.draft.cells[0].first()), timed.merge().draft.cells[0])
+        assertEquals(2, timed.select(1).split().draft.cells[1].size)
+        listOf(timed.addColumn(), timed.deleteColumn()).forEach { changed ->
             assertEquals(timed.draft, changed.draft, "구간 빠르기 위치를 보존한다")
             assertNotNull(changed.message)
             assertFalse(changed.canUndo)

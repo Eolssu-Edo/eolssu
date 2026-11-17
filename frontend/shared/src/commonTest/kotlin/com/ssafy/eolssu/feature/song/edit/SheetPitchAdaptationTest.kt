@@ -67,7 +67,7 @@ class SheetPitchAdaptationTest {
         val capability = CatalogAuthoringCapabilities("1", "DANSO", "v1", 63,
             AuthoringPhysicalRange(verificationStatus = "UNKNOWN"), emptyList())
         val adapted = draft.applyAdaptation(planPitchAdaptation(sources, emptyList()).first { it.transpose == 1 }, capability)
-        val retimed = requireNotNull(adapted.withJangdan(CatalogJangdanSummary("10", "세령산", 63, "QUARTER", 10, 4, 3), false))
+        val retimed = requireNotNull(adapted.withJangdan(CatalogJangdanSummary("10", "세령산", 63, "QUARTER", 10, 4, 3)))
         assertEquals(63, retimed.sourcePitchNotes().first { it.cellId == "c0-j9" }.midi)
         assertEquals(sources, retimed.sourcePitchNotes())
         assertEquals(6, retimed.toCommonScore().music.ticksPerJeonggan)
