@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [악보 인식의 곡 시작 빠르기를 구간 빠르기 대신 기본 빠르기로 (1083)](plans/S15P31E102-1083.md) · [규칙](specs/staff-tempo-import.md#동작과-범위)
 - [QA 웹 APK 적용의 앱 로그 읽기 대기 후 자동 설치 (1066)](plans/S15P31E102-1066.md)
 - [정간보 스캔의 시김새 인식 범위 확대 (1062)](plans/S15P31E102-1062.md) · [원인·규칙·측정](knowledge/data/jeongganbo-omr-accuracy.md#시김새-획-보정-1062)
 - [정간 전체를 잇는 이음표를 연습·보기 화면에서 빈칸으로 표시 (1069)](knowledge/frontend/jeonggan-whole-cell-hold.md)
