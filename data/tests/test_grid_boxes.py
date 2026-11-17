@@ -140,6 +140,46 @@ class GridAddressTests(unittest.TestCase):
         cells = self.addresses(classroom(broken=True)[0])
         self.assertEqual([(c['col'], c['row']) for c in cells], [(col, row) for col in range(3) for row in range(6)])
 
+    def test_vertical_line_broken_by_a_long_gap_keeps_the_column_in_its_band(self):
+        # 실기교재 바람개비·고사리꺾자: 율명 열 경계선이 칸 절반 높이만큼 끊긴다.
+        g, notes, top, pitch = classroom()
+        x = notes[0][1]
+        y = top + pitch * 3 + pitch // 4
+        g[y:y + pitch // 2, x - 2:x + 4] = 255
+        self.assertEqual([(c['col'], c['row']) for c in self.addresses(g)],
+                         [(col, row) for col in range(3) for row in range(6)])
+
+    def test_column_whose_outer_line_ends_early_stays_in_its_band(self):
+        # 실기교재 싸름타령: 마지막 열 바깥 선이 칸 하나 넘게(단 높이의 14%) 일찍 끝난다.
+        g, notes, top, pitch = classroom()
+        x = notes[2][0]
+        g[top + pitch * 6 - pitch * 11 // 10:top + pitch * 6 + 4, x - 2:x + 4] = 255
+        self.assertEqual([(c['col'], c['row']) for c in self.addresses(g)],
+                         [(col, row) for col in range(3) for row in range(6)])
+
+    def test_stacked_bands_with_a_small_gap_stay_separate_bands(self):
+        # 표준악보집: 위아래 단 사이 틈이 단 높이의 4%쯤이고 오른쪽에 두 단을 꿰는 긴 선이 있다.
+        page, _, _, pitch = classroom()
+        gap = pitch // 4
+        g = np.full((page.shape[0] * 2 + gap, page.shape[1] + 40), 255, np.uint8)
+        g[:page.shape[0], :page.shape[1]] = page
+        g[page.shape[0] + gap:, :page.shape[1]] = page
+        g[60:-60, -20:-18] = 0
+        cells = self.addresses(g)
+        self.assertEqual([(c['band'], c['col'], c['row']) for c in cells],
+                         [(band, col, row) for band in range(2) for col in range(3) for row in range(6)])
+
+    def test_missed_line_between_two_cells_splits_the_double_cell(self):
+        # 실기교재 강원도아리랑: 빈 정간 두 개 사이 점선을 못 찾아 2배 높이 칸이 된다.
+        g, notes, top, pitch = classroom()
+        x0, x1 = notes[1]
+        y = top + pitch * 5
+        g[y:y + 3, x0 + 3:x1 - 2] = 255
+        cells = self.addresses(g)
+        self.assertEqual([(c['col'], c['row']) for c in cells], [(col, row) for col in range(3) for row in range(6)])
+        split = [c for c in cells if c['col'] == 1 and c['row'] in (4, 5)]
+        self.assertLessEqual(abs(split[1]['y'] - (top + pitch * 5)), 4)
+
     def test_short_jangdan_column_without_lyrics_is_not_read(self):
         cells = self.addresses(classroom(jangdan=True)[0])
         self.assertEqual(len(cells), 18)

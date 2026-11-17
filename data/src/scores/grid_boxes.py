@@ -78,7 +78,7 @@ def find_grid(gray, parts=1, *, allow_alternating_lyrics=True):
     """쪽 그림(흑백 numpy 배열) → 악보 덩어리 목록. 덩어리는 성부별 칸 목록이다 (S15P31E102-1077).
 
     칸은 dict(band, col, row, x, y, w, h, line)이다. band는 덩어리 안 단 순번(위부터), col은 단 안 율명 열 묶음
-    순번(오른쪽부터), row는 열 안 줄 순번(위부터), line은 칸 위 가로선의 굵기(px, 열의 첫 칸은 None)다.
+    순번(오른쪽부터), row는 열 안 줄 순번(위부터), line은 칸 위 가로선의 굵기(px, 열의 첫 칸은 None, 가로선을 못 찾아 반으로 나눈 아래 칸은 0)다.
     거리 기준은 고정 px가 아니라 쪽에서 가장 긴 세로선 길이와 선 굵기에 비례한다.
     """
     dark = gray < DARK
@@ -91,10 +91,35 @@ def find_grid(gray, parts=1, *, allow_alternating_lyrics=True):
     for _, a, b, _ in sorted(lines, key=lambda l: (l[1], l[2])):
         if not any(abs(a - p) <= near and abs(b - q) <= near for p, q in bands):
             bands.append((a, b))
-    # 단마다 그 단 전체를 덮는 세로선 사이가 열이다. 같은 열이 여러 단에서 잡히면 가장 긴 단을 쓴다.
+    def covering(a, b):
+        """단 [a, b]의 80% 이상을 덮는 세로선 (x, 굵기). 같은 x 근처의 조각을 합쳐 잰다(S15P31E102-1092).
+        스캔에서 칸 절반쯤 끊기거나 칸 하나 넘게 일찍 끝난 선(실기교재 바람개비·싸름타령)도 그 단의 선이다.
+        여러 선이 같은 높이에서 함께 끊기면 위아래로 쌓인 다른 단 사이 틈이라(표준악보집), 끝까지 덮는 선만 쓴다."""
+        found, seen = [], []
+        for x, _, _, t in sorted(lines, key=lambda l: l[1] - l[2]):  # 긴 조각의 x·굵기를 쓴다
+            if any(abs(x - p) < same_x for p in seen):
+                continue
+            seen.append(x)
+            pieces = sorted((max(y0, a), min(y1, b)) for p, y0, y1, _ in lines if abs(p - x) < same_x and y1 > a and y0 < b)
+            covered, end = 0, a
+            for y0, y1 in pieces:
+                covered += max(0, y1 - max(y0, end))
+                end = max(end, y1)
+            if covered >= (b - a) * 0.8:
+                found.append((x, t, pieces))
+        present = np.zeros(int(b - a) + 1)
+        for *_, pieces in found:
+            for y0, y1 in pieces:
+                present[int(y0 - a):int(y1 - a)] += 1
+        inner = present[int(near):len(present) - int(near)]
+        if (inner < len(found) / 2).sum() > near:
+            found = [f for f in found if any(y0 <= a + near and y1 >= b - near for y0, y1 in f[2])]
+        return [(x, t) for x, t, _ in sorted(found)]
+
+    # 단마다 그 단 대부분을 덮는 세로선 사이가 열이다. 같은 열이 여러 단에서 잡히면 가장 긴 단을 쓴다.
     cols = {}
     for a, b in bands:
-        xs = sorted((x, t) for x, y0, y1, t in lines if y0 <= a + near and y1 >= b - near)
+        xs = covering(a, b)
         for (x0, t0), (x1, t1) in zip(xs, xs[1:]):
             if x1 - x0 <= max(8, longest / 100):
                 continue
@@ -164,6 +189,15 @@ def find_grid(gray, parts=1, *, allow_alternating_lyrics=True):
     if boxes:
         med = lambda v: sorted(v)[len(v) // 2]
         h, w = med([c['h'] for c in boxes]), med([c['w'] for c in boxes])
+        # 가로선 하나를 못 찾아 두 정간이 붙은 칸(정간 높이의 2배 안팎)은 반으로 나눈다. 나눈 아래 칸의 line은 0이다
+        # (S15P31E102-1092, 실기교재 강원도아리랑의 빈 정간 두 개).
+        for _, bl in per_band:
+            for blk in bl:
+                for g in blk:
+                    for p in g[1]:
+                        p[:] = [half for c in p for half in (
+                            (dict(c, h=c['h'] / 2), dict(c, y=c['y'] + c['h'] / 2, h=c['h'] / 2, line=0))
+                            if abs(c['h'] - 2 * h) <= h * .15 else (c,))]
         fits = lambda g: all(h / 2 <= c['h'] <= h * 2 and w / 1.5 <= c['w'] <= w * 1.5 for p in g[1] for c in p)
         per_band = [(a, [blk for blk in ([g for g in blk if fits(g)] for blk in bl) if blk]) for a, bl in per_band]
         per_band = [(a, bl) for a, bl in per_band if bl]
