@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [구간 빠르기가 있는 악보의 구조 편집·장단 보정 재매핑 규칙 초안 (1088)](specs/tempo-plan-structure-edit.md)
 - [저장 창의 낼 수 없는 음 안내를 바로 고치기 버튼으로 변경 (1085)](plans/S15P31E102-1085.md)
 - [악보 편집 실사용 점검과 저장·시김새·빠르기 잠금 오류 수정 (1080)](plans/S15P31E102-1080.md) · [원인·실측](knowledge/frontend/sheet-editor-playback-guard.md)
 - [전성 교육용 재생 해석과 음원 사전 검사 거절 위치·기호 전달 (1084)](plans/S15P31E102-1084.md)
