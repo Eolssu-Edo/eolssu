@@ -89,12 +89,12 @@ internal class SheetCorrectionCellsTest : CatalogViewModelTest() {
         assertEquals(setOf(0, 1), fixed.undo().completionValidation.correctionCellIndices)
     }
 
-    @Test fun reviewCellUsesItsOriginalIdAfterColumnsAreInserted() {
+    @Test fun reviewCellKeepsItsPlaceWhenAGakIsAppended() {
         val issue = SheetReviewIssue("a", "c1-j0", "ORNAMENT_DROPPED")
         val shifted = state().copy(reviewIssues = listOf(issue)).select(0).addColumn()
-        assertEquals("c1-j0", shifted.draft.sourceCellIds?.get(4))
-        assertEquals(setOf(2, 3, 4), shifted.completionValidation.correctionCellIndices)
-        assertEquals(setOf(2, 3), shifted.copy(checkedIssueIds = setOf(issue.id)).completionValidation.correctionCellIndices)
+        assertEquals(listOf("c1-j0", null), shifted.draft.sourceCellIds?.drop(2))
+        assertEquals(setOf(2, 3), shifted.completionValidation.correctionCellIndices)
+        assertEquals(setOf(3), shifted.copy(checkedIssueIds = setOf(issue.id)).completionValidation.correctionCellIndices)
         assertEquals(setOf(2), shifted.undo().completionValidation.correctionCellIndices)
     }
 

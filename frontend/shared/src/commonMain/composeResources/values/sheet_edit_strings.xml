@@ -115,7 +115,7 @@
     <string name="sheetedit_sig_jeonseong">전성</string>
     <string name="sheetedit_cell_split">한 정간 나누기</string>
     <string name="sheetedit_cell_merge">정간 합치기</string>
-    <string name="sheetedit_cell_add_column">왼쪽에 각 추가</string>
+    <string name="sheetedit_cell_add_column">마지막 각 추가</string>
     <string name="sheetedit_cell_delete_column">이 각 삭제</string>
     <string name="sheetedit_yul_octave_caption">옥타브</string>
     <string name="sheetedit_yul_pitch_caption">음</string>
