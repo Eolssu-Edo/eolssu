@@ -66,7 +66,7 @@ internal fun SheetAdaptationPanel(
             }
             state.failed -> {
                 Text(stringResource(Res.string.sheet_adapt_failed), style = MaterialTheme.typography.bodySmall)
-                EolssuButton(stringResource(Res.string.sheet_upload_reload), onRetry, style = EolssuButtonStyle.Secondary, small = true,
+                EolssuButton(stringResource(Res.string.sheet_adapt_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true,
                     containerColor = colors.surface, borderColor = colors.surface, qaTarget = QaTarget.SHEET_ADAPTATION_PANEL_BUTTON_01)
             }
             state.selected == null -> Text(stringResource(Res.string.sheet_adapt_empty))
@@ -85,7 +85,7 @@ internal fun SheetAdaptationPanel(
                             maxLines = 1,
                             color = if (selected.unresolved > 0) colors.recText else colors.text)
                     }
-                    PillButton(stringResource(Res.string.sheet_details_apply), onApply, compact = true)
+                    PillButton(stringResource(Res.string.sheet_details_apply), onApply, compact = true, enabled = !state.selectionApplied)
                 }
                 // 칩 영역은 −·+ 버튼 폭만큼 안쪽에 두어 슬라이더 칸과 같은 가로 위치를 쓴다.
                 RecommendationMark(recommended, thumbInset, trackCorner,

@@ -45,7 +45,7 @@
     <string name="sheet_import_guide_down_all">%1$d반음 내려 고치기</string>
     <string name="sheet_import_guide_down">%1$d반음 내려 %2$d개 고치기</string>
     <string name="sheet_import_guide_adapt">높이 맞추기</string>
-    <string name="sheet_import_guide_tuning">원래 높이로 맞추기</string>
+    <string name="sheet_import_guide_tuning">악기에 높이 맞추기</string>
     <string name="sheet_import_guide_review">다시 볼 곳 %1$d곳</string>
     <string name="sheet_import_guide_review_position">다시 볼 곳 %1$d / %2$d</string>
     <string name="sheet_import_guide_review_prev">이전 다시 볼 곳</string>

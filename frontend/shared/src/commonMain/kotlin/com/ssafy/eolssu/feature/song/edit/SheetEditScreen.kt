@@ -223,5 +223,6 @@ private val EditorMessages = setOf(
     SheetEditMessage.ReviewBeforeReshape, SheetEditMessage.TempoPlanBeforeReshape, SheetEditMessage.ComingSoon,
     SheetEditMessage.TempoMarkBeforeMerge, SheetEditMessage.TempoOutOfRangeAfterJangdan,
     SheetEditMessage.BasicAccompanimentCleared, SheetEditMessage.SigimsaeReplaced, SheetEditMessage.PitchUnavailable,
+    SheetEditMessage.AdaptationApplied,
     SheetEditMessage.AudioReady, SheetEditMessage.AudioFailed, SheetEditMessage.AudioStatusUnknown,
 )
