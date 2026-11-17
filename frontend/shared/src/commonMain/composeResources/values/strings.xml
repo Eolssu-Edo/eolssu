@@ -645,6 +645,12 @@
     <string name="mysongs_add">악보 추가</string>
     <string name="mysongs_sheet_count">내 악보 %1$d/%2$d</string>
     <string name="mysongs_sheet_limit_note">내 악보는 최대 %1$d개까지만 저장할 수 있어요.</string>
+    <string name="mysongs_own_sheets">%1$s 악보 %2$d개</string>
+    <string name="mysongs_own_sheets_empty">%1$s 악보가 아직 없어요</string>
+    <string name="mysongs_own_sheets_no_match">%1$s 악보 중에는 찾는 곡이 없어요</string>
+    <string name="mysongs_other_sheets_show">다른 악기 악보 %1$d개 보기</string>
+    <string name="mysongs_other_sheets_hide">다른 악기 악보 %1$d개 접기</string>
+    <string name="mysongs_other_instrument">기타 악기</string>
     <string name="mysongs_origin_copied">제공 곡에서 고침</string>
     <string name="mysongs_meta_updated">%1$s 수정</string>
     <string name="mysongs_status_practice">연습 가능</string>
