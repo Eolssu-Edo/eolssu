@@ -213,6 +213,7 @@ private fun MySheetGroups(state: MySongsUiState, actions: MySongsActions, column
     if (split) {
         val name = stringResource(practice.label)
         SheetGroupTitle(
+            practice,
             when {
                 own.isNotEmpty() -> stringResource(Res.string.mysongs_own_sheets, name, own.size)
                 searching && state.hasOwnSheets -> stringResource(Res.string.mysongs_own_sheets_no_match, name)
@@ -250,15 +251,21 @@ private fun MySheetRows(sheets: List<MySheet>, state: MySongsUiState, actions: M
     }
 }
 
-/** 연습 악기 악보 묶음의 제목(진한 연두 글씨, 왼쪽 4dp). */
+/** 연습 악기 악보 묶음의 제목: 악기 그림 · 진한 연두 글씨(왼쪽 4dp). 다른 악기 묶음 제목과 같은 그림을 둔다(S15P31E102-1137). */
 @Composable
-private fun SheetGroupTitle(text: String) {
-    Text(
-        text,
-        modifier = Modifier.padding(start = 4.dp, top = 4.dp).semantics { heading() },
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-        color = EolssuTheme.colors.accentText,
-    )
+private fun SheetGroupTitle(instrument: Instrument, text: String) {
+    Row(
+        Modifier.padding(start = 4.dp, top = 4.dp).semantics(mergeDescendants = true) { heading() },
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        InstrumentPicture(instrument, size = 20.dp)
+        Text(
+            text,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+            color = EolssuTheme.colors.accentText,
+        )
+    }
 }
 
 /** 다른 악기 묶음의 제목: 악기 그림 · 악기 이름. 앱이 모르는 악기는 '기타 악기'로 적는다. */
