@@ -5,6 +5,17 @@
 
 제품 범위와 우선순위는 [프로젝트 기획서](https://app.notion.com/p/3ffa0252aa4580a5a16cc55beadea3ba)를 기준으로 합니다. 기능별 확정 동작은 [문서 목록](docs/README.md)의 스펙을, 영역별 구현·실행 방법은 각 폴더의 README를 따릅니다.
 
+## 제출 산출물
+
+최종 제출 문서는 [`exec/`](exec/README.md)에 있습니다. 소스를 받은 뒤 빌드·배포하려면 포팅 매뉴얼부터 읽습니다.
+
+| 산출물 | 파일 |
+| --- | --- |
+| 포팅 매뉴얼(빌드·배포 절차, 제품 버전, 환경 변수, 배포 특이사항) | [exec/1-porting-manual.md](exec/1-porting-manual.md) |
+| 외부 서비스 정보(소셜 로그인, R2, SMTP, 스토어 등) | [exec/2-external-services.md](exec/2-external-services.md) |
+| DB 덤프 최신본(구조 전체와 기준 데이터, 개인정보 행 제외) | [exec/3-eolssu-db-dump.sql](exec/3-eolssu-db-dump.sql) |
+| 시연 시나리오 | [exec/4-demo-scenario.md](exec/4-demo-scenario.md) |
+
 ## 주요 기능
 
 | MVP 기능 | 내용 |
@@ -15,9 +26,17 @@
 | 모범 연주 | 악보에 맞춰 재생하고 빠르기 조절 |
 | 장단 메트로놈 | 세마치·굿거리·자진모리 등 국악 장단과 기본 메트로놈 제공 |
 
-- 대상은 국악기 입문자이며, 악기 확장 순서와 2차 범위는 기획서를 따릅니다.
+| 고도화 기능 | 내용 |
+| --- | --- |
+| 연습 기록·성장 | 연주 기록 목록과 곡별 최근 점수 변화, 항목별 성장 표시([연습 기록](docs/specs/practice-records.md), [점수 변화](docs/specs/growth-score-trend.md)) |
+| 한 음씩 연습 | 예시음을 듣고 한 음씩 불어 보며 기기에서 실시간으로 판정([판정 기준](docs/specs/note-practice-criteria.md)) |
+| 내 악보 가져오기 | 정간보 PDF(글자 층)·스캔 사진과 오선보 PDF·이미지를 인식해 편집 가능한 정간보 초안으로 변환([악보 인식](docs/specs/score-recognition.md), [정간보 스캔](docs/specs/jeongganbo-scan-recognition.md)) |
+| 악보 편집 | 인식 결과 확인, 시김새·장단·구간 빠르기 편집, 악기 음역에 맞춘 이조([내 악보](docs/specs/user-sheets.md), [구간 빠르기](docs/specs/jeonggan-tempo-edit.md)) |
+| 내 악보 음원 | 저장한 악보로 모범 연주 음원을 서버에서 생성해 미리 듣기와 연습에 사용([음원 흐름](docs/specs/sheet-audio-app-flow.md)) |
+
+- 대상은 국악기 입문자이며, 현재 단소·소금·정악대금·산조대금을 지원합니다. 악기 확장 순서와 2차 범위는 기획서를 따릅니다.
 - 앱은 Android·iOS와 웹(Kotlin/Wasm)으로 빌드합니다([frontend](frontend/README.md)).
-- MVP 이후 구현된 연습 기록·성장 통계, 내 악보 가져오기(PDF·이미지 인식)·편집, 내 악보 음원 생성 등은 [문서 목록](docs/README.md)의 기능 스펙에서 확인합니다.
+- 그 밖의 기능별 동작과 변경 이력은 [문서 목록](docs/README.md)의 기능 스펙에서 확인합니다.
 
 ## 연주 평가 흐름
 
@@ -35,7 +54,7 @@
 | --- | --- | --- |
 | Frontend | Kotlin Multiplatform, Compose Multiplatform, Ktor, Koin (Android·iOS·Web Wasm) | [frontend](frontend/README.md) |
 | Backend | Kotlin, Spring Boot, Spring Security(OAuth2 Resource Server), MyBatis, Flyway, springdoc | [backend](backend/README.md) |
-| AI | Python 3.12, FastAPI, librosa(pYIN), DTW 채점 / 악보 인식(OMR): Audiveris, jeongganbo-generator | [ai](ai/README.md) |
+| AI | Python 3.12, FastAPI, librosa(pYIN), DTW 채점 / 악보 인식(OMR): 오선보 Audiveris, 정간보 글자 층 jeongganbo-generator, 정간보 스캔 MALerLab jeongganbo-omr 모델(PyTorch CPU·OpenCV) | [ai](ai/README.md) |
 | Data | 공통 악보·참고 음원·카탈로그 구축, 연습 집계 마트 | [data](data/README.md) |
 | DB·저장소 | MySQL 8.4, Cloudflare R2(녹음·음원·악보 원본) | [DB 스키마](docs/contracts/db-schema.md) |
 | Infra | Docker Compose, Nginx(TLS), Jenkins, Prometheus·Grafana, Mattermost 점검·알림 | [infra](infra/README.md) |
@@ -65,10 +84,19 @@ S15P31E102/
 ├── data/         # 악보·음원 데이터 구축, 음원 생성기(playback), 집계 마트
 ├── infra/        # 운영 Compose·Nginx·Jenkins·백업·점검·릴리스
 ├── docs/         # 스펙·계약·지식·결정·작업 기록
+├── exec/         # 최종 제출 산출물(포팅 매뉴얼·외부 서비스·DB 덤프·시연 시나리오)
+├── docker-compose.dev.yml · docker-compose.prod.yml   # 초기 backend·Nginx 예시(운영은 infra/runtime/compose.yml)
+├── .env.dev.example · .env.prod.example               # 위 예시용 환경 변수 이름·용도
 └── .gitlab/      # MR 템플릿
 ```
 
-기술 블로그는 서비스 코드가 아니어서 develop과 기록을 공유하지 않는 `blog` 브랜치에서 관리합니다. 글 쓰는 방법은 `blog` 브랜치의 README를 따릅니다.
+## 브랜치
+
+| 브랜치 | 역할 |
+| --- | --- |
+| `develop` | 기본·개발 통합 브랜치. 작업 브랜치는 여기서 만들고 여기로 MR하며, 운영 자동 배포의 기준입니다. |
+| `main` | 발표 시점의 `develop`을 반영한 제출 기준 브랜치. `exec/` 제출 산출물을 함께 담습니다. |
+| `blog` | 기술 블로그 글·설정. 서비스 코드가 아니어서 develop과 기록을 공유하지 않으며, 글 쓰는 방법은 `blog` 브랜치의 README를 따릅니다. |
 
 각 작업 폴더에는 파트별 `AGENTS.md`와 이를 불러오는 `CLAUDE.md`가 있습니다. `data/raw/`, `data/processed/`, `ai/data/`, `ai/models/`는 Git 제외 대상이며, 소스와 작은 검증용 샘플은 추적 가능한 별도 경로에 둡니다.
 
