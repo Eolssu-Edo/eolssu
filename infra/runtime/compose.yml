@@ -1,0 +1,243 @@
+name: eolssu-runtime
+
+# Preinstall the loopback rsyslog input before enabling this Compose revision.
+x-private-log-options: &private-log-options
+  syslog-address: tcp://127.0.0.1:1514
+  syslog-format: rfc5424micro
+  cache-disabled: "true"
+
+services:
+  frontend:
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-frontend
+    image: nginx:1.30.6-alpine
+    ports:
+      - "${HTTP_BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-80}:80"
+    volumes:
+      - ${WEB_DIST_DIR:?WEB_DIST_DIR를 지정하세요}:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./backend-route:/etc/nginx/backend-route:ro
+      - /opt/eolssu/acme/.well-known:/usr/share/nginx/html/.well-known:ro
+      # iOS QA IPA(S15P31E102-444). 웹 배포가 바뀌어도 OTA 주소가 유지되도록 따로 연결한다.
+      - /opt/eolssu/ipas:/usr/share/nginx/ipas:ro
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  backend: &backend
+    profiles: ["backend-slots"]
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-backend
+    image: eolssu-backend-runtime:21-jre-ffmpeg8.0.1
+    user: "10001:10001"
+    working_dir: /app
+    command: ["java", "-jar", "/app/app.jar"]
+    environment: &backend-env
+      EOLSSU_DEPLOYMENT_SLOT: backend
+      SERVER_PORT: "8080"
+      SERVER_SHUTDOWN: graceful
+      SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE: 120s
+      SPRING_TASK_SCHEDULING_SHUTDOWN_AWAIT_TERMINATION: "true"
+      SPRING_TASK_SCHEDULING_SHUTDOWN_AWAIT_TERMINATION_PERIOD: 120s
+      LEGAL_PUBLICATION_ENABLED: ${LEGAL_PUBLICATION_ENABLED:-false}
+      SPRING_PROFILES_ACTIVE: ops
+      DB_URL: "jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-eolssu}?connectTimeout=2000&socketTimeout=2000"
+      DB_USERNAME: ${MYSQL_USER:-eolssu}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD를 지정하세요}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-}
+      AUTH_ANDROID_APP_SHA256_FINGERPRINTS: ${AUTH_ANDROID_APP_SHA256_FINGERPRINTS:-}
+      AUTH_ANDROID_QA_APP_SHA256_FINGERPRINTS: ${AUTH_ANDROID_QA_APP_SHA256_FINGERPRINTS:-}
+      AUTH_NON_EXPIRING_USER_IDS: ${AUTH_NON_EXPIRING_USER_IDS:-}
+      AUTH_CODE_HMAC_SECRET: ${AUTH_CODE_HMAC_SECRET:-}
+      AUTH_MAIL_HOST: ${AUTH_MAIL_HOST:-}
+      AUTH_MAIL_PORT: ${AUTH_MAIL_PORT:-587}
+      AUTH_MAIL_USERNAME: ${AUTH_MAIL_USERNAME:-}
+      AUTH_MAIL_PASSWORD: ${AUTH_MAIL_PASSWORD:-}
+      AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-${AUTH_MAIL_USERNAME:-}}
+      AUTH_MAIL_FROM_NAME: ${AUTH_MAIL_FROM_NAME:-}
+      AUTH_OAUTH_KAKAO_CLIENT_ID: ${AUTH_OAUTH_KAKAO_CLIENT_ID:-}
+      AUTH_KAKAO_WEBHOOK_APP_ID: ${AUTH_KAKAO_WEBHOOK_APP_ID:-}
+      AUTH_OAUTH_KAKAO_CLIENT_SECRET: ${AUTH_OAUTH_KAKAO_CLIENT_SECRET:-}
+      AUTH_OAUTH_KAKAO_REDIRECT_URIS: ${AUTH_OAUTH_KAKAO_REDIRECT_URIS:-}
+      AUTH_OAUTH_GOOGLE_CLIENT_ID: ${AUTH_OAUTH_GOOGLE_CLIENT_ID:-}
+      AUTH_OAUTH_GOOGLE_CLIENT_SECRET: ${AUTH_OAUTH_GOOGLE_CLIENT_SECRET:-}
+      AUTH_OAUTH_GOOGLE_REDIRECT_URIS: ${AUTH_OAUTH_GOOGLE_REDIRECT_URIS:-}
+      AUTH_OAUTH_NAVER_CLIENT_ID: ${AUTH_OAUTH_NAVER_CLIENT_ID:-}
+      AUTH_OAUTH_NAVER_CLIENT_SECRET: ${AUTH_OAUTH_NAVER_CLIENT_SECRET:-}
+      AUTH_OAUTH_NAVER_REDIRECT_URIS: ${AUTH_OAUTH_NAVER_REDIRECT_URIS:-}
+      AUTH_OAUTH_APPLE_CLIENT_ID: ${AUTH_OAUTH_APPLE_CLIENT_ID:-}
+      AUTH_OAUTH_APPLE_TEAM_ID: ${AUTH_OAUTH_APPLE_TEAM_ID:-}
+      AUTH_OAUTH_APPLE_KEY_ID: ${AUTH_OAUTH_APPLE_KEY_ID:-}
+      AUTH_OAUTH_APPLE_PRIVATE_KEY: ${AUTH_OAUTH_APPLE_PRIVATE_KEY:-}
+      AUTH_OAUTH_APPLE_REDIRECT_URIS: ${AUTH_OAUTH_APPLE_REDIRECT_URIS:-}
+      AUTH_OAUTH_APPLE_DEV_CLIENT_ID: ${AUTH_OAUTH_APPLE_DEV_CLIENT_ID:-}
+      AUTH_OAUTH_APPLE_DEV_REDIRECT_URIS: ${AUTH_OAUTH_APPLE_DEV_REDIRECT_URIS:-}
+      RECORDING_STORAGE_ENDPOINT: ${RECORDING_STORAGE_ENDPOINT:-}
+      RECORDING_STORAGE_BUCKET: ${RECORDING_STORAGE_BUCKET:-}
+      RECORDING_STORAGE_ACCESS_KEY_ID: ${RECORDING_STORAGE_ACCESS_KEY_ID:-}
+      RECORDING_STORAGE_SECRET_ACCESS_KEY: ${RECORDING_STORAGE_SECRET_ACCESS_KEY:-}
+      RECORDING_STORAGE_REGION: ${RECORDING_STORAGE_REGION:-auto}
+      RECORDING_STORAGE_TYPE: ${RECORDING_STORAGE_TYPE:-s3}
+      RECORDING_STORAGE_LOCAL_DIRECTORY: /var/lib/eolssu/recordings
+      RECORDING_STORAGE_LOCAL_READ_BASE_URL: ${RECORDING_STORAGE_LOCAL_READ_BASE_URL:-http://frontend:8081/api/recordings/read}
+      RECORDING_STORAGE_LOCAL_SIGNING_SECRET: ${RECORDING_STORAGE_LOCAL_SIGNING_SECRET:-}
+      SHEET_STORAGE_ENDPOINT: ${SHEET_STORAGE_ENDPOINT:-}
+      SHEET_STORAGE_BUCKET: ${SHEET_STORAGE_BUCKET:-}
+      SHEET_STORAGE_ACCESS_KEY_ID: ${SHEET_STORAGE_ACCESS_KEY_ID:-}
+      SHEET_STORAGE_SECRET_ACCESS_KEY: ${SHEET_STORAGE_SECRET_ACCESS_KEY:-}
+      SHEET_STORAGE_REGION: ${SHEET_STORAGE_REGION:-auto}
+      SHEET_CONVERSION_OMR_BASE_URL: ${SHEET_CONVERSION_OMR_BASE_URL:-http://omr:8000}
+      SHEET_IMPORT_READ_BASE_URL: ${SHEET_IMPORT_READ_BASE_URL:-http://backend:8080/api/internal/sheet-imports}
+      SHEET_AUDIO_BASE_URL: ${SHEET_AUDIO_BASE_URL:-}
+      SHEET_AUDIO_TIMEOUT_SECONDS: ${SHEET_AUDIO_TIMEOUT_SECONDS:-100}
+      REFERENCE_AUDIO_STORAGE_ENDPOINT: ${REFERENCE_AUDIO_STORAGE_ENDPOINT:-}
+      REFERENCE_AUDIO_STORAGE_BUCKET: ${REFERENCE_AUDIO_STORAGE_BUCKET:-}
+      REFERENCE_AUDIO_STORAGE_ACCESS_KEY_ID: ${REFERENCE_AUDIO_STORAGE_ACCESS_KEY_ID:-}
+      REFERENCE_AUDIO_STORAGE_SECRET_ACCESS_KEY: ${REFERENCE_AUDIO_STORAGE_SECRET_ACCESS_KEY:-}
+      REFERENCE_AUDIO_STORAGE_REGION: ${REFERENCE_AUDIO_STORAGE_REGION:-auto}
+      # 연주 분석 AI(아래 ai 서비스). 같은 Compose 내부망 주소라 비밀값이 아니다(PRA-03).
+      ANALYSIS_AI_BASE_URL: http://ai:8000
+    volumes:
+      - ./backend-route:/etc/eolssu/backend-route:ro
+      - type: bind
+        source: ${BACKEND_SHARED_DIR:-/opt/eolssu/backend-shared}
+        target: /var/lib/eolssu/deployment
+        bind:
+          create_host_path: false
+      - ${BACKEND_JAR:?BACKEND_JAR를 지정하세요}:/app/app.jar:ro
+      - ${RECORDING_STORAGE_LOCAL_HOST_DIRECTORY:-/opt/eolssu/recordings}:/var/lib/eolssu/recordings
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test \"$$(curl --fail --silent --max-time 3 http://127.0.0.1:8080/api/actuator/health/readiness)\" = '{\"status\":\"UP\"}'"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    stop_grace_period: 250s
+    restart: unless-stopped
+
+  backend-green:
+    <<: *backend
+    environment:
+      <<: *backend-env
+      EOLSSU_DEPLOYMENT_SLOT: backend-green
+
+  # 481: explicitly enable only after local resource/asset verification.
+  playback:
+    profiles: ["playback"]
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-playback
+    image: eolssu-playback:runtime
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,size=512m
+    mem_limit: 1g
+    # 481 measured the 600s render on 1g with no swap; keep that the real limit.
+    memswap_limit: 1g
+    cpus: 1
+    environment:
+      PLAYBACK_TIMEOUT_SECONDS: ${PLAYBACK_TIMEOUT_SECONDS:-90}
+      PLAYBACK_ASSETS_JSON: /assets/assets.json
+      PLAYBACK_JANGGU_SAMPLES: /janggu
+    volumes:
+      - ${PLAYBACK_ASSETS_DIRECTORY:-/opt/eolssu/playback-assets}:/assets:ro
+      - ${PLAYBACK_JANGGU_DIRECTORY:-/opt/eolssu/janggu}:/janggu:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+
+  # 연주 분석 API(ai/Dockerfile). 인증이 없으므로 포트를 공개하지 않고 backend만 내부망으로 부른다.
+  ai:
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-ai
+    image: eolssu-ai:runtime
+    read_only: true
+    tmpfs:
+      # 녹음 임시 파일(25MiB 이하)과 numba 컴파일 캐시(NUMBA_CACHE_DIR=/tmp/numba-cache).
+      - /tmp:rw,size=512m
+    mem_limit: 6g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 2).close()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+
+  # 악보 인식 API(ai/omr.Dockerfile, docs/specs/score-recognition.md). 채점(ai)과 메모리·CPU를 나누지 않게 따로 띄운다.
+  # 인증이 없으므로 포트를 공개하지 않고 backend만 내부망 http://omr:8000으로 부른다(S15P31E102-347에서 연결).
+  omr:
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-omr
+    image: eolssu-omr:runtime
+    # Reap helpers adopted after an OMR renderer exits or its process group is killed.
+    init: true
+    read_only: true
+    tmpfs:
+      # 원본(20MiB 이하)·쪽 그림(300dpi PNG, 10쪽까지)·Audiveris 작업 폴더와 홈(HOME=/tmp/home: 설정·네이티브 라이브러리 캐시).
+      - /tmp:rw,exec,size=1g
+    # Audiveris 1건(동시 1건) 로컬 실측 최대 1.31GiB. tmpfs도 이 한도에 든다. 정간보 그림 경로(S15P31E102-458, torch)를 붙이면 다시 잰다.
+    mem_limit: 2g
+    # 운영 서버 오선보 1쪽: CPU 1.5에서 25~29.5초, 3에서 18.6~22.3초(S15P31E102-468). 4코어 중 2코어까지만 쓴다(채점 ai는 CPU 상한이 없어 함께 돌면 나눠 쓴다).
+    cpus: 2
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+
+  mysql:
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-mysql
+    image: mysql:8.4.13
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-eolssu}
+      MYSQL_USER: ${MYSQL_USER:-eolssu}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD를 지정하세요}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD를 지정하세요}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'MYSQL_PWD="$${MYSQL_ROOT_PASSWORD}" mysql --protocol=TCP --host=127.0.0.1 --user=root --batch --skip-column-names --execute="SELECT 1" >/dev/null'
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+    external: true
+    name: ${MYSQL_DATA_VOLUME:?MYSQL_DATA_VOLUME를 지정하세요}

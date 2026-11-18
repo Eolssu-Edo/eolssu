@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.term.infrastructure.persistence.TermMapper">
+    <select id="findById" resultType="com.ssafy.eolssu.backend.feature.term.infrastructure.persistence.TermRow">
+        SELECT id, code, version, title, content_url, is_required, seq, effective_at, created_at
+        FROM terms
+        WHERE id = #{id}
+    </select>
+    <select id="findCurrent" resultType="com.ssafy.eolssu.backend.feature.term.infrastructure.persistence.TermRow">
+        SELECT t.id, t.code, t.version, t.title, t.content_url, t.is_required, t.seq, t.effective_at, t.created_at
+        FROM terms t
+        WHERE t.effective_at &lt;= #{asOf}
+          AND NOT EXISTS (
+              SELECT 1 FROM terms newer
+              WHERE newer.code = t.code
+                AND newer.effective_at &lt;= #{asOf}
+                AND (newer.effective_at &gt; t.effective_at
+                     OR (newer.effective_at = t.effective_at AND newer.id &gt; t.id))
+          )
+        ORDER BY t.seq, t.id
+    </select>
+</mapper>

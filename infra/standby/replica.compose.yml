@@ -1,0 +1,49 @@
+name: eolssu-replica-579
+
+services:
+  mysql:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    image: mysql@sha256:76f0358884cb92d9a086d24e5671c38048d3fef40f2588703d73eb55392d6b69
+    command:
+      - --server-id=57902
+      - --log-bin=mysql-bin
+      - --log-replica-updates=ON
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --sync-binlog=1
+      - --innodb-flush-log-at-trx-commit=1
+      - --relay-log-recovery=ON
+      - --replica-net-timeout=15
+      - --read-only=ON
+    environment:
+      MYSQL_ROOT_PASSWORD: ${REPLICA_ROOT_PASSWORD:?set a replica-only password}
+      MYSQL_ROOT_HOST: localhost
+    networks:
+      default:
+        ipv4_address: 172.30.79.2
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", 'MYSQL_PWD="$${MYSQL_ROOT_PASSWORD}" mysql --protocol=socket -uroot -NBe "SELECT 1" >/dev/null']
+      interval: 5s
+      timeout: 4s
+      retries: 24
+    mem_limit: 2g
+    restart: unless-stopped
+
+networks:
+  default:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.name: br-eolssu579
+    ipam:
+      config:
+        - subnet: 172.30.79.0/28
+          gateway: 172.30.79.1
+
+volumes:
+  db:

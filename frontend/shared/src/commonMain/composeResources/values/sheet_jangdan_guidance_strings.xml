@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sheet_jangdan_correction_title">장단에 맞춰 박 길이를 바꿀까요?</string>
+    <string name="sheet_jangdan_correction_message">음은 그대로 두고, 장단에 맞춰 박 길이와 빠르기를 바꿔요. 실행 취소로 되돌릴 수 있어요.</string>
+    <string name="sheet_jangdan_correction_tempo">중간에 바뀌는 빠르기도 기본 빠르기와 같은 비율로 바뀌어요.</string>
+    <string name="sheet_jangdan_correction_tempo_line">%1$d각 %2$d정간: %3$s → %4$s</string>
+    <string name="sheet_jangdan_current_timing">현재 악보 · %1$s 1박 기준\n각 길이: %2$s</string>
+    <string name="sheet_jangdan_gak_calculation">%1$d정간 × %2$s박 = %3$s박</string>
+    <string name="sheet_jangdan_other_lengths">그 밖의 각 길이도 있어요</string>
+    <string name="sheet_jangdan_option_tempo">기본 빠르기 %1$s</string>
+    <string name="sheet_jangdan_timing_unavailable">박을 알 수 없어 장단을 고를 수 없어요.</string>
+    <string name="sheet_jangdan_no_match_help">맞는 장단이 없어요. 장단 없이 저장할 수 있어요.</string>
+</resources>

@@ -1,0 +1,11 @@
+[Unit]
+Description=Check completed Jenkins builds every 30 seconds
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=30s
+AccuracySec=1s
+Unit=eolssu-jenkins-notify.service
+
+[Install]
+WantedBy=timers.target

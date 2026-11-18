@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>얼쑤 QA</title><link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./dashboard.css"><script src="./app.js" type="module"></script>
+</head>
+<body>
+<header class="loginHeader"><a class="brand" href="./" aria-label="얼쑤 QA 홈">얼쑤 <b>QA</b></a></header>
+<main>
+  <section id="login" class="card login">
+    <span class="loginMark" aria-hidden="true">QA</span><p class="eyebrow">얼쑤 기기 테스트</p>
+    <h1>얼쑤 통합 QA</h1>
+    <form id="loginForm"><label>표시 이름<input id="name" required maxlength="32" autocomplete="nickname" placeholder="팀원 이름"></label><button type="submit" class="primary">기기 연결</button></form>
+  </section>
+  <section id="workspace" hidden aria-label="Android 기기 제어">
+    <h1 class="srOnly">얼쑤 통합 QA 대시보드</h1>
+    <header class="controlHeader">
+      <div class="headerTop"><div class="headerDevice">
+      <a class="brand" href="./" aria-label="얼쑤 QA 홈">얼쑤 <b>QA</b></a>
+
+      </div>
+
+      <div class="headerActions">
+        <button id="request" class="primary" disabled>제어권 요청</button><button id="release" class="secondary" hidden disabled>제어권 반납</button>
+        <button id="logout" class="quiet" hidden>연결해제</button><a class="guideLink" href="./guide.html" target="_blank" rel="noopener" aria-label="QA 시연 대본">?</a>
+      </div>
+      </div>
+      <div class="headerBottom">
+      <details class="headerPeople">
+        <summary><span class="smallLabel">참여자</span><span id="peerPreview">연결 확인 중</span><span id="peerCount" class="count">0명</span></summary>
+        <div class="popover peoplePopover"><h2>함께 보는 사람</h2><ul id="peers"></ul></div>
+      </details>
+      <div class="headerOwner"><div class="ownerIdentity"><span class="smallLabel">현재 조작자</span><strong id="owner">아직 없어요</strong></div></div>
+
+      </div>
+    <section id="requestNotice" class="requestNotice" aria-label="제어권 요청 알림" hidden>
+      <div><p id="requestNoticeTitle" role="alert"></p><p id="requestQueueInfo" class="subtle"></p></div>
+      <div class="decisionActions"><button id="approveRequest" class="primary">승인</button><button id="rejectRequest" class="secondary">거절</button></div>
+    </section>
+    </header>
+    <p id="requestFeedback" class="requestFeedback" role="status" hidden></p>
+    <div class="layout">
+      <section class="realQa" aria-labelledby="realQaTitle"><h2 id="realQaTitle" class="srOnly">실기기 QA</h2><div class="realQaBody"><section id="qaLive" class="qaLive" aria-label="실기기 실행과 처리 관측"></section>
+      <div class="deviceColumn">
+      <section class="device" aria-label="Android 기기 화면">
+        <span id="mode" class="srOnly">제어권 대기</span>
+        <div class="screenWrap"><div id="deviceGrid" class="deviceGrid" aria-label="연결된 기기 화면"></div></div>
+        <nav class="deviceNav" aria-label="Android 탐색"><button data-key="BACK" disabled><span aria-hidden="true">‹</span> 뒤로</button><button data-key="HOME" disabled><span aria-hidden="true">○</span> 홈</button><button data-key="APP_SWITCH" disabled><span aria-hidden="true">▢</span> 최근 앱</button></nav>
+      </section>
+      <section class="card inputCard"><h3>텍스트 입력</h3><form id="textForm"><label class="srOnly" for="text">기기에 입력할 텍스트</label><input id="text" maxlength="128" placeholder="입력할 내용" autocomplete="off" disabled><button type="submit" class="secondary">기기에 입력</button></form></section>
+      </div>
+
+      </div></section>
+      <div id="dashboardSplitter" class="dashboardSplitter" role="separator" aria-orientation="vertical" aria-label="앱과 로그 영역 너비 조절" aria-controls="qaLive qaAutomation" aria-valuemin="35" aria-valuemax="75" aria-valuenow="67" tabindex="0" title="드래그·좌우 키로 너비 조절 · Home/End 최소·최대 · 더블클릭 기본 복원"></div><section id="qaAutomation" class="qaAutomation" aria-label="앱 처리 기록"></section>
+      <aside class="deviceTools" aria-label="연결 설정">
+        <section id="pairingCard" class="card" hidden><details id="pairingDetails"><summary>Wi-Fi 디버깅 페어링</summary>
+          <div class="knownConnectionSettings"><label>기기<select id="knownConnectionDevice"></select></label><button id="openKnownConnectionSettings" type="button" class="secondary">연결 설정</button></div><form id="pairingForm" autocomplete="off">
+            <label>팝업의 페어링 포트<input id="pairingPort" inputmode="numeric" pattern="[0-9]{1,5}" maxlength="5" required></label>
+            <label>6자리 페어링 코드<input id="pairingCode" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required></label>
+            <button id="pairDevice" class="secondary" type="submit" disabled>페어링</button>
+          </form>
+          <p id="pairingStatus" class="subtle" role="status"></p>
+          <button id="pairingConnectPort" class="secondary" type="button" hidden>연결 포트 입력</button>
+        </details></section>
+      </aside>
+    </div>
+  </section>
+  <p id="message" class="message" role="status" aria-live="polite"></p>
+  <dialog id="idlePrompt" aria-labelledby="idleTitle" aria-describedby="idleHint">
+    <h2 id="idleTitle">접속 중이신가요?</h2>
+    <p id="idleHint">10분 동안 활동이 없었습니다. 남은 시간 안에 계속 연결을 눌러 주세요.</p>
+    <p id="idleCountdown"></p>
+    <button id="continueSession" class="primary" autofocus>계속 연결</button>
+    <p id="idleError" role="status"></p>
+  </dialog>
+</main><footer>얼쑤 QA</footer>
+<dialog id="connectionDialog" class="connectionDialog" aria-labelledby="connectionSettingsTitle"><div class="dialogHeading"><h2 id="connectionSettingsTitle">연결 설정</h2><button id="closeConnectionSettings" type="button" class="quiet" aria-label="연결 설정 닫기">닫기</button></div><form id="portForm" class="portForm"><label for="wirelessPort" class="srOnly">디버깅 포트</label><input id="wirelessPort" type="text" inputmode="numeric" pattern="[0-9]{1,5}" maxlength="5" required autocomplete="off" aria-describedby="portHint" placeholder="37457"><button id="applyPort" class="secondary" type="submit">포트 적용</button><span id="portHint" class="srOnly">기기의 무선 디버깅 기본 화면 포트를 입력하세요. 등록된 기기의 연결을 확인하고 화면을 다시 연결합니다.</span></form><p id="connectionSettingsStatus" class="subtle" role="status"></p></dialog>
+</body>
+</html>

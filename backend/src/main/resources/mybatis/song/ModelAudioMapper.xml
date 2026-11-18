@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.ModelAudioMapper">
+    <select id="findCurrent" resultType="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.ModelAudioRow">
+        SELECT a.song_id, a.score_version, a.object_key, a.bpm, a.bpm_unit,
+               a.duration_ms, a.start_offset_ms, a.content_type, a.sha256,
+               a.performance_object_key, a.source_common_sha256
+        FROM song_model_audios a
+        JOIN songs s ON s.id = a.song_id AND s.score_version = a.score_version
+        LEFT JOIN jangdans j ON j.id = s.jangdan_id
+        WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.deleted_at IS NULL
+          AND a.status = 'PUBLISHED' AND a.bpm = s.default_bpm
+          AND a.bpm_unit = COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')))
+          AND JSON_TYPE(JSON_EXTRACT(s.score_json, '$.score.scoreVersion')) = 'INTEGER'
+          AND JSON_EXTRACT(s.score_json, '$.score.scoreVersion') = s.score_version
+          AND CAST(JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')) AS BINARY) = a.bpm_unit
+    </select>
+</mapper>

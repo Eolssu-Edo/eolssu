@@ -1,0 +1,760 @@
+{
+ "sourceId": "ngc-standard-2022-p189",
+ "sourceHashes": {
+  "ngc-standard-2022-p189": "8f8d1c3c8f57dbd9383a2825c926a63d93a2c57300056c5eabb2bbe9b964076e"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "reviewed",
+ "inputApproval": {
+  "file": "어깨동무.jgb.json",
+  "sha256": "ecb533cfc040a106e4bf98eb1a44fc875b34559e7e98c72490feae05bc6348e4",
+  "note": "Notion에 올린 팀원이 원본과 나누어 대조. 개인별 담당 곡과 당시 정간별 기록은 확인되지 않음. 운영 악보의 원본 해시와는 다름.",
+  "operatingJgbSha256": "a555a973725ce5b429d160ff19e503b16712610be1fa802462ed1d935910efae"
+ },
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-03",
+  "note": "원본 PDF와 검수 화면에서 정간 및 숨표를 확인. S15P31E102-403"
+ },
+ "song": {
+  "title": "어깨동무",
+  "instrument": "SOGEUM",
+  "jangdan": "자진모리"
+ },
+ "sourceValues": {
+  "jangdan": "자진모리",
+  "tempo": null,
+  "beatsPerJeonggan": "1/2",
+  "beatsPerJeongganBasis": "2026-11-03 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 별도 확인 필요.",
+  "bpmUnit": "QUARTER",
+  "bpmUnitBasis": "2026-11-03 공개 운영 악보 music.bpmUnit. 원본 악보 박 단위 해석은 별도 확인 필요."
+ },
+ "title": "어깨동무",
+ "source": "notion-input",
+ "reviewedOn": "2026-11-03",
+ "confirmed": 48,
+ "total": 48,
+ "cells": [
+  {
+   "index": 0,
+   "gak": 0,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    172,
+    197,
+    215
+   ]
+  },
+  {
+   "index": 1,
+   "gak": 0,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    387,
+    197,
+    211
+   ]
+  },
+  {
+   "index": 2,
+   "gak": 0,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    598,
+    197,
+    211
+   ]
+  },
+  {
+   "index": 3,
+   "gak": 0,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    809,
+    197,
+    208
+   ]
+  },
+  {
+   "index": 4,
+   "gak": 0,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    1017,
+    197,
+    208
+   ]
+  },
+  {
+   "index": 5,
+   "gak": 0,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    1225,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 6,
+   "gak": 0,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    1432,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 7,
+   "gak": 0,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    1639,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 8,
+   "gak": 0,
+   "cell": "청중",
+   "original": "청중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    1846,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 9,
+   "gak": 0,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    2053,
+    197,
+    208
+   ]
+  },
+  {
+   "index": 10,
+   "gak": 0,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    2261,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 11,
+   "gak": 0,
+   "cell": "<",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1095,
+    2468,
+    197,
+    212
+   ]
+  },
+  {
+   "index": 12,
+   "gak": 1,
+   "cell": "청무",
+   "original": "청무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    172,
+    197,
+    215
+   ]
+  },
+  {
+   "index": 13,
+   "gak": 1,
+   "cell": "청무",
+   "original": "청무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    387,
+    197,
+    211
+   ]
+  },
+  {
+   "index": 14,
+   "gak": 1,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    598,
+    197,
+    211
+   ]
+  },
+  {
+   "index": 15,
+   "gak": 1,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    809,
+    197,
+    208
+   ]
+  },
+  {
+   "index": 16,
+   "gak": 1,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    1017,
+    197,
+    208
+   ]
+  },
+  {
+   "index": 17,
+   "gak": 1,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    1225,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 18,
+   "gak": 1,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    1432,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 19,
+   "gak": 1,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    1639,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 20,
+   "gak": 1,
+   "cell": "청중",
+   "original": "청중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    1846,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 21,
+   "gak": 1,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    2053,
+    197,
+    208
+   ]
+  },
+  {
+   "index": 22,
+   "gak": 1,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    2261,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 23,
+   "gak": 1,
+   "cell": "<",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    781,
+    2468,
+    197,
+    212
+   ]
+  },
+  {
+   "index": 24,
+   "gak": 2,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    172,
+    197,
+    215
+   ]
+  },
+  {
+   "index": 25,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    387,
+    197,
+    211
+   ]
+  },
+  {
+   "index": 26,
+   "gak": 2,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    598,
+    197,
+    211
+   ]
+  },
+  {
+   "index": 27,
+   "gak": 2,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    809,
+    197,
+    208
+   ]
+  },
+  {
+   "index": 28,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    1017,
+    197,
+    208
+   ]
+  },
+  {
+   "index": 29,
+   "gak": 2,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    1225,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 30,
+   "gak": 2,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    1432,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 31,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    1639,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 32,
+   "gak": 2,
+   "cell": "청중",
+   "original": "청중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    1846,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 33,
+   "gak": 2,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    2053,
+    197,
+    208
+   ]
+  },
+  {
+   "index": 34,
+   "gak": 2,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    2261,
+    197,
+    207
+   ]
+  },
+  {
+   "index": 35,
+   "gak": 2,
+   "cell": "<",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    466,
+    2468,
+    197,
+    212
+   ]
+  },
+  {
+   "index": 36,
+   "gak": 3,
+   "cell": "청무",
+   "original": "청무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    172,
+    198,
+    215
+   ]
+  },
+  {
+   "index": 37,
+   "gak": 3,
+   "cell": "청무",
+   "original": "청무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    387,
+    198,
+    211
+   ]
+  },
+  {
+   "index": 38,
+   "gak": 3,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    598,
+    198,
+    211
+   ]
+  },
+  {
+   "index": 39,
+   "gak": 3,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    809,
+    198,
+    208
+   ]
+  },
+  {
+   "index": 40,
+   "gak": 3,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    1017,
+    198,
+    208
+   ]
+  },
+  {
+   "index": 41,
+   "gak": 3,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    1225,
+    198,
+    207
+   ]
+  },
+  {
+   "index": 42,
+   "gak": 3,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    1432,
+    198,
+    207
+   ]
+  },
+  {
+   "index": 43,
+   "gak": 3,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    1639,
+    198,
+    207
+   ]
+  },
+  {
+   "index": 44,
+   "gak": 3,
+   "cell": "청중",
+   "original": "청중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    1846,
+    198,
+    207
+   ]
+  },
+  {
+   "index": 45,
+   "gak": 3,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    2053,
+    198,
+    208
+   ]
+  },
+  {
+   "index": 46,
+   "gak": 3,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    2261,
+    198,
+    207
+   ]
+  },
+  {
+   "index": 47,
+   "gak": 3,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    151,
+    2468,
+    198,
+    212
+   ]
+  }
+ ]
+}

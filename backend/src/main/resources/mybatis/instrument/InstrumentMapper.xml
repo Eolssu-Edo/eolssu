@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.instrument.infrastructure.persistence.InstrumentMapper">
+    <select id="listActive" resultType="com.ssafy.eolssu.backend.feature.instrument.infrastructure.persistence.InstrumentRow">
+        SELECT id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at
+        FROM instruments
+        WHERE is_active = TRUE
+        ORDER BY id
+    </select>
+    <select id="findById" resultType="com.ssafy.eolssu.backend.feature.instrument.infrastructure.persistence.InstrumentRow">
+        SELECT id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at
+        FROM instruments
+        WHERE id = #{id}
+    </select>
+    <select id="activeExists" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM instruments WHERE id = #{id} AND is_active)
+    </select>
+    <select id="findActiveIdByCode" resultType="long">
+        SELECT id FROM instruments WHERE code = #{code} AND is_active
+    </select>
+</mapper>

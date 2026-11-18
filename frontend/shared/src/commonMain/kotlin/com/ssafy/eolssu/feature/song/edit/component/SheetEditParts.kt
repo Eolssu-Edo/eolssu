@@ -1,0 +1,352 @@
+package com.ssafy.eolssu.feature.song.edit.component
+
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import com.ssafy.eolssu.core.ui.component.CenteredTitleRow
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
+import com.ssafy.eolssu.core.ui.component.EolssuIconButton
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
+
+/**
+ * 칸 나눈 탭(`role=tablist`). 테두리 없는 흰 틀 안에서 고른 칸만 연두 바탕이다.
+ * [large]는 목록 탭(틀 14 · 칸 40dp · 15sp), 아니면 편집기 도구 탭(틀 10 · 칸 34dp · 13sp)이다.
+ */
+@Composable
+internal fun SegmentTabs(
+    labels: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    large: Boolean = false,
+    counts: List<Int>? = null,
+    fill: Boolean = large,
+    frameColor: Color = EolssuTheme.colors.surfaceStrong,
+) {
+    val colors = EolssuTheme.colors
+    val frame = RoundedCornerShape(14.dp)
+    Row(
+        modifier
+            .then(if (fill) Modifier.fillMaxWidth() else Modifier)
+            .background(frameColor, frame)
+            // 작은 탭은 위아래 여백 대신 48dp 누르는 영역이 틀을 채워, 보이는 틀(48dp)·알약(40dp) 크기는 그대로다(S15P31E102-971).
+            .padding(horizontal = 4.dp, vertical = if (large) 4.dp else 0.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (large) 0.dp else 4.dp),
+    ) {
+        labels.forEachIndexed { index, label ->
+            val on = index == selected
+            val pill = RoundedCornerShape(10.dp)
+            // Surface(onClick)는 알약 자체를 48dp로 키워 틀 안에서 커 보이므로, 알약은 보이는 크기로 두고 누르는 영역만 48dp로 넓힌다(S15P31E102-768·971).
+            Row(
+                (if (fill) Modifier.weight(1f) else Modifier)
+                    .minimumInteractiveComponentSize()
+                    .height(if (large) 48.dp else 40.dp)
+                    .clip(pill)
+                    .background(if (on) colors.surface else Color.Transparent)
+                    .clickable(role = Role.Tab) { UserActionLog.event(QaKind.CLICK, QaTarget.SHEET_EDIT_PARTS_05); onSelect(index) }
+                    .semantics { this.selected = on }
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val style = MaterialTheme.typography.bodyLarge.copy(fontSize = if (large) 15.sp else 14.sp)
+                Text(label, style = style.copy(fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium), maxLines = 1,
+                    color = if (on) colors.text else colors.textSub)
+                counts?.getOrNull(index)?.let { Text("$it", style = style.copy(fontWeight = FontWeight.Medium), color = colors.textMuted) }
+            }
+        }
+    }
+}
+
+/**
+ * EDIT-01 가져오기 카드. 위아래로 쌓아 폭을 다 쓰고, 왼쪽 아이콘 원 · 이름과 한 줄 설명([caption]) · 오른쪽 [trailing] 화살표를 둔다.
+ * [emphasized]면 주 행동처럼 연두 바탕에 먹색 글자로 눈에 띄게 한다(S15P31E102-997).
+ */
+@Composable
+internal fun KindCard(
+    title: String,
+    caption: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    emphasized: Boolean = false,
+    trailing: ImageVector = EolssuIcons.Chevron,
+) {
+    val colors = EolssuTheme.colors
+    val ink = if (emphasized) colors.onPrimary else colors.text
+    Surface(
+        onClick = UserActionLog.click(QaTarget.SHEET_EDIT_PARTS_01, onClick),
+        modifier = modifier.fillMaxWidth().heightIn(min = 84.dp).semantics { role = Role.Button },
+        shape = RoundedCornerShape(20.dp),
+        color = if (emphasized) colors.primary else colors.surface,
+        contentColor = ink,
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(44.dp).background(if (emphasized) colors.surface else colors.accentTint, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = colors.text)
+            }
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold), color = ink, maxLines = 2)
+                Text(
+                    caption,
+                    modifier = Modifier.padding(top = 2.dp),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                    color = if (emphasized) colors.onPrimary.copy(alpha = 0.75f) else colors.textMuted,
+                    maxLines = 2,
+                )
+            }
+            Icon(trailing, contentDescription = null, modifier = Modifier.size(20.dp), tint = if (emphasized) ink else colors.textDisabled)
+        }
+    }
+}
+
+/** 고름 표시(18dp 원): 고르면 먹색 굵은 테두리, 아니면 옅은 회색 테두리. */
+@Composable
+internal fun RadioDot(selected: Boolean, modifier: Modifier = Modifier, size: Dp = 18.dp, background: Color = Color.Transparent) {
+    val colors = EolssuTheme.colors
+    Box(
+        modifier
+            .size(size)
+            .background(background, CircleShape)
+            .border(if (selected) size * 0.3f else 1.5.dp, if (selected) colors.text else colors.textDisabled, CircleShape),
+    )
+}
+
+/**
+ * 알약 칩(34dp · 13sp 600): 테두리 없이 고르면 연두, 아니면 [containerColor](기본 회색 채움, 흰 카드 안용)(S15P31E102-768).
+ * 회색 바탕 위에 둘 때는 [containerColor]로 흰색을 준다.
+ */
+@Composable
+internal fun PillChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+    enabled: Boolean = true,
+    containerColor: Color? = null,
+    leading: (@Composable () -> Unit)? = null,
+) {
+    val colors = EolssuTheme.colors
+    Surface(
+        onClick = UserActionLog.click(QaTarget.SHEET_EDIT_PARTS_02, onClick),
+        enabled = enabled,
+        modifier = modifier.heightIn(min = 34.dp).semantics { this.selected = selected },
+        shape = CircleShape,
+        color = if (selected) colors.primary else containerColor ?: colors.groupedBackground,
+        contentColor = if (selected) colors.onPrimary else if (enabled) colors.text else colors.textDisabled,
+    ) {
+        // [compact]: 한 줄에 여러 칩을 나눠 넣을 때 좌우 여백·글자를 줄이고 줄바꿈 없이 가운데에 둔다.
+        // [leading]: 이름 앞 그림(악기 그림 등). 그림이 있으면 세로 여백을 줄여 칩 높이를 그대로 둔다.
+        val vertical = if (leading != null) 5.dp else 8.dp
+        Row(
+            Modifier.padding(start = if (leading != null || compact) 8.dp else 12.dp, end = if (compact) 8.dp else 12.dp,
+                top = vertical, bottom = vertical),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            leading?.invoke()
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = if (compact) 12.sp else 13.sp, fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                softWrap = !compact,
+            )
+        }
+    }
+}
+
+/** 작은 회색 안내 문구(11~12sp). */
+@Composable
+internal fun HintText(text: String, modifier: Modifier = Modifier, size: Int = 11) {
+    Text(
+        text,
+        modifier = modifier,
+        style = MaterialTheme.typography.bodySmall.copy(fontSize = size.sp, lineHeight = (size * 1.45f).sp),
+        color = EolssuTheme.colors.textMuted,
+    )
+}
+
+/** 옅은 바탕 안내 상자(`background` · 모서리 12). */
+@Composable
+internal fun NoticeBox(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text,
+        modifier = modifier
+            .fillMaxWidth()
+            .background(EolssuTheme.colors.background, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 19.sp),
+        color = EolssuTheme.colors.textSub,
+    )
+}
+
+/**
+ * 편집기 상단 바(EDIT-02·03): 왼쪽 닫기 원형 버튼 · 가운데 제목과 보조 문구([CenteredTitleRow]) · 오른쪽 연두 알약 버튼.
+ */
+@Composable
+internal fun EditorTopBar(
+    title: String,
+    subtitle: String,
+    closeLabel: String,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+    maxWidth: Dp = CompactContentMaxWidth,
+    right: @Composable RowScope.() -> Unit = {},
+) {
+    // 넓은 창에서도 본문([com.ssafy.eolssu.core.ui.component.EolssuScaffold])과 같은 너비([maxWidth])로 가운데에 둔다.
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        CenteredTitleRow(
+            modifier.widthIn(max = maxWidth).fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
+            start = { EolssuIconButton(EolssuIcons.Close, closeLabel, onClose, bordered = false) },
+            end = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { right() } },
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (subtitle.isNotBlank()) Text(
+                    subtitle,
+                    modifier = Modifier.padding(top = 2.dp),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = EolssuTheme.colors.textMuted,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 연두 알약 버튼(높이 40 · 14sp 600). 상단 바 오른쪽 '미리보기'·'선택'에 쓴다. 48dp 터치 영역을 유지한다.
+ * [compact]면 입력판 안에 두는 작은 버튼(높이 32 · 13sp)이다.
+ */
+@Composable
+internal fun PillButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    square: Boolean = true,
+    secondary: Boolean = false,
+    compact: Boolean = false,
+) {
+    val colors = EolssuTheme.colors
+    val interaction = remember { MutableInteractionSource() }
+    // 누르는 영역은 48dp 높이로 두고, 눌림 효과는 보이는 버튼 모양 안에만 그린다(S15P31E102-968).
+    Box(
+        modifier
+            .heightIn(min = 48.dp)
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_PARTS_03, onClick)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .height(if (compact) 32.dp else 40.dp)
+                .widthIn(min = if (compact) 48.dp else 64.dp)
+                // 다른 작은 버튼과 같은 모서리 12dp. [secondary]는 회색 채움(편집처럼 보조 동작)(S15P31E102-768).
+                .clip(if (square) RoundedCornerShape(12.dp) else CircleShape)
+                .background(if (!enabled) colors.surfaceStrong else if (secondary) colors.groupedBackground else colors.primary)
+                .indication(interaction, ripple())
+                .padding(horizontal = if (compact) 12.dp else 14.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = if (compact) 13.sp else 14.sp, fontWeight = FontWeight.SemiBold),
+                color = if (!enabled) colors.textDisabled else if (secondary) colors.text else colors.onPrimary,
+            )
+        }
+    }
+}
+
+/** 네모 아이콘 버튼(40dp · 모서리 10, 48dp 터치 영역). 실행 취소·다시 실행, 음 높이 올리기·내리기에 쓴다. */
+@Composable
+internal fun SquareIconButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    size: Dp = 40.dp,
+) {
+    val colors = EolssuTheme.colors
+    val interaction = remember { MutableInteractionSource() }
+    // 누르는 영역은 48dp, 눌림 효과는 보이는 둥근 네모 안에만 그린다(S15P31E102-968).
+    Box(
+        modifier
+            .size(48.dp)
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_PARTS_04, onClick)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(size)
+                .alpha(if (enabled) 1f else 0.4f)
+                .clip(RoundedCornerShape(10.dp))
+                .background(colors.surface)
+                .indication(interaction, ripple()),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = label, modifier = Modifier.size(18.dp), tint = colors.text)
+        }
+    }
+}

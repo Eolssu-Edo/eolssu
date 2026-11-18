@@ -1,0 +1,201 @@
+package com.ssafy.eolssu.feature.auth
+
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import com.ssafy.eolssu.core.ui.component.EolssuTextLink
+import com.ssafy.eolssu.data.user.AccountTerm
+import eolssu.shared.generated.resources.member_api_terms_unavailable
+import eolssu.shared.generated.resources.member_api_terms_loading
+import eolssu.shared.generated.resources.member_api_retry
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.feature.auth.component.AuthBody
+import com.ssafy.eolssu.feature.auth.component.AuthCheckRow
+import com.ssafy.eolssu.feature.auth.component.AuthHeading
+import com.ssafy.eolssu.feature.auth.component.AuthLead
+import com.ssafy.eolssu.feature.auth.component.AuthScaffold
+import com.ssafy.eolssu.feature.auth.component.SignupTopBar
+import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
+import com.ssafy.eolssu.feature.auth.component.authFrameOf
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.auth_agree_all
+import eolssu.shared.generated.resources.auth_consent_lead
+import eolssu.shared.generated.resources.auth_consent_title
+import eolssu.shared.generated.resources.auth_optional
+import eolssu.shared.generated.resources.auth_required
+import eolssu.shared.generated.resources.auth_start
+import eolssu.shared.generated.resources.auth_start_disabled
+import eolssu.shared.generated.resources.auth_view_terms
+import eolssu.shared.generated.resources.auth_view_terms_description
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * AUTH-01 약관 동의(회원가입 첫 단계). 상단 바에는 로그인으로 돌아가는 뒤로 가기와 [path]의 단계 표시를 두고, 제목은 위, 동의 목록은 본문 아래쪽에 붙는다.
+ * 태블릿은 제목과 동의 목록을 한 덩어리로 화면 가운데에 두고, 가로에서는 왼쪽에 브랜드 칸을 둔다.
+ * 서버가 요구한 필수 약관을 모두 명시적으로 선택해야 동의 버튼이 켜진다.
+ */
+@Composable
+fun ConsentScreen(
+    state: ConsentUiState,
+    path: SignupPath,
+    widthClass: WindowWidthClass,
+    onBack: () -> Unit,
+    onToggle: (String) -> Unit,
+    onToggleAll: () -> Unit,
+    onOpenTerms: (String) -> Unit,
+    onStart: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    val frame = authFrameOf(widthClass, split = true)
+    AuthScaffold(
+        frame,
+        topBar = { SignupTopBar(SignupProgress(path, SignupStep.Consent), onBack = onBack) },
+        bottomBar = {
+            EolssuButton(
+                stringResource(if (state.canStart) Res.string.auth_start else Res.string.auth_start_disabled),
+                onClick = UserActionLog.click(QaTarget.CONSENT_SCREEN_01, onStart),
+                enabled = state.canStart, qaTarget = QaTarget.CONSENT_SCREEN_BUTTON_01
+            )
+        },
+    ) {
+        AuthBody(
+            topPadding = authBodyTopBelowProgress(),
+            gap = 0.dp,
+            verticalAlignment = if (frame.isTablet) Alignment.CenterVertically else Alignment.Top,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                AuthHeading(stringResource(Res.string.auth_consent_title))
+                AuthLead(stringResource(Res.string.auth_consent_lead))
+            }
+            Spacer(Modifier.height(20.dp))
+            // 휴대폰은 동의 목록을 아래쪽에 붙이고, 태블릿은 제목 바로 아래 12dp에 둔다(`.tabapp.auth .au-agree`).
+            if (frame.isTablet) Spacer(Modifier.height(12.dp)) else Spacer(Modifier.weight(1f))
+            // 마이페이지처럼 동의 목록 전체를 테두리 없는 흰 카드 하나에 담는다(S15P31E102-798).
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(EolssuTheme.colors.surface, RoundedCornerShape(20.dp))
+                    .padding(vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                if (state.loading) Text(stringResource(Res.string.member_api_terms_loading), Modifier.padding(16.dp))
+                else if (state.failed) {
+                    Text(stringResource(Res.string.member_api_terms_unavailable), Modifier.padding(16.dp))
+                    EolssuButton(stringResource(Res.string.member_api_retry), onRetry, modifier = Modifier.padding(horizontal = 16.dp), qaTarget = QaTarget.CONSENT_SCREEN_BUTTON_02)
+                } else {
+                    AgreeAllRow(state.allChecked, onToggleAll)
+                    state.terms.forEach { term ->
+                        AgreementRow(term, term.termId in state.checked, { onToggle(term.termId) }, { onOpenTerms(term.termId) })
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AgreeAllRow(checked: Boolean, onToggle: () -> Unit) {
+    val label = stringResource(Res.string.auth_agree_all)
+    // 상자와 글자를 포함한 줄 전체를 누르고, 눌림 효과는 상자에만 보인다(S15P31E102-969).
+    AuthCheckRow(
+        checked,
+        label,
+        { onToggle() },
+        Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        uncheckedColor = EolssuTheme.colors.cardLine,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+            color = EolssuTheme.colors.text,
+        )
+    }
+}
+
+@Composable
+private fun AgreementRow(agreement: AccountTerm, checked: Boolean, onToggle: () -> Unit, onOpenTerms: () -> Unit) {
+    val colors = EolssuTheme.colors
+    val prefix = stringResource(if (agreement.required) Res.string.auth_required else Res.string.auth_optional)
+    val label = agreement.title
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        // 상자와 약관 이름을 포함한 줄 전체를 누르고, 눌림 효과는 상자에만 보인다(S15P31E102-969). 오른쪽 '보기'는 따로 눌린다.
+        AuthCheckRow(
+            checked,
+            "$prefix $label",
+            { onToggle() },
+            Modifier
+                .weight(1f)
+                .heightIn(min = 48.dp),
+            uncheckedColor = EolssuTheme.colors.cardLine,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+            contentPadding = PaddingValues(vertical = 12.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(
+                            if (agreement.required) SpanStyle(fontWeight = FontWeight.SemiBold)
+                            else SpanStyle(fontWeight = FontWeight.Medium, color = colors.textMuted),
+                        ) { append(prefix) }
+                        append(" ")
+                        append(label)
+                    },
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 21.75.sp),
+                    color = colors.text,
+                )
+
+            }
+        }
+        if (agreement.contentUrl.isNotBlank()) {
+            val description = stringResource(Res.string.auth_view_terms_description, label)
+            EolssuTextLink(onOpenTerms, Modifier.semantics { contentDescription = description }, qaTarget = QaTarget.CONSENT_SCREEN_LINK_01) {
+                Text(
+                    stringResource(Res.string.auth_view_terms),
+                    modifier = Modifier.clearAndSetSemantics {},
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, textDecoration = TextDecoration.Underline),
+                    color = colors.textMuted,
+                )
+            }
+        }
+    }
+}

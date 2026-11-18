@@ -1,0 +1,147 @@
+"""Render one catalog cycle with National Gugak Center's recorded janggu strokes."""
+
+import argparse
+from array import array
+from fractions import Fraction
+from hashlib import sha256
+import json
+from pathlib import Path
+import subprocess
+import sys
+import wave
+
+
+RATE = 44_100
+SOURCE = "https://www.gugak.go.kr/digitaleum/front/monotone/list.do"
+SAMPLES = {
+    # file, mntnSeq, onset in milliseconds, retained tail in milliseconds
+    "덩": ("Janggu_1_2.wav", 2283, 205, 400),
+    "기": ("Janggu_2_2.wav", 2286, 204, 125),
+    "쿵": ("Janggu_3_2.wav", 2289, 205, 400),
+    "덕": ("Janggu_5_2.wav", 2295, 204, 260),
+    "다": ("Janggu_5_3.wav", 2296, 213, 200),
+    "더": ("Janggu_6_2.wav", 2298, 206, 180),
+}
+# Compatibility export is derived from the same catalog used by OMR and the API.
+_REFERENCE = json.loads((Path(__file__).resolve().parents[2] / "reference/jangdans.json").read_text(encoding="utf-8"))["rows"]
+_UNIT_EIGHTHS = {"QUARTER": 2, "DOTTED_QUARTER": 3}
+CELLS = {r["name"]: (r["bpm_unit"], Fraction(r["pattern_cell_eighths"], _UNIT_EIGHTHS[r["bpm_unit"]])) for r in _REFERENCE}
+PREVIEW_CATALOG_NAMES = tuple(r["name"] for r in _REFERENCE)
+SINGLE = {"떵": "덩", "덩": "덩", "쿵": "쿵", "궁": "쿵", "덕": "덕", "따": "덕", "다": "다"}
+
+
+def rhythm_plan(row):
+    unit = row["bpm_unit"]
+    eighths = row.get("pattern_cell_eighths")
+    if eighths is None:
+        reference = next((r for r in _REFERENCE if r["name"] == row["name"] and r["bpm_unit"] == unit and r["pattern"] == row["pattern"]), None)
+        if reference is None:
+            raise ValueError("Unknown catalog pattern duration")
+        eighths = reference["pattern_cell_eighths"]
+    if type(eighths) is not int or eighths <= 0 or unit not in _UNIT_EIGHTHS:
+        raise ValueError("Invalid pattern cell duration")
+    cell_ratio = Fraction(eighths, _UNIT_EIGHTHS[unit])
+    beats, groups = row["pattern"]["beats"], row["pattern"]["group"]
+    if row["default_bpm"] <= 0 or not beats or sum(groups) != len(beats):
+        raise ValueError(f"Invalid catalog timing: {row['name']}")
+    cell = Fraction(60, row["default_bpm"]) * cell_ratio
+    events = []
+    for index, syllable in enumerate(beats):
+        time = cell * index
+        if not syllable:
+            continue
+        if syllable in SINGLE:
+            events.append((time, SINGLE[syllable], 1.0))
+        elif syllable in ("기덕", "기닥"):
+            grace = min(Fraction(35, 1000), cell / 4)
+            events.extend(((time - grace, "기", 0.7), (time, "덕" if syllable == "기덕" else "다", 1.0)))
+        elif syllable in ("덕기", "덕덕"):
+            offset = Fraction(3, 4) if syllable == "덕기" else Fraction(1, 2)
+            events.extend(((time, "덕", 1.0), (time + cell * offset, "기" if syllable == "덕기" else "덕", 0.8)))
+        elif syllable == "더러러러":
+            span = 2 * cell if row["name"] == "굿거리" else cell
+            events.extend((time + span * step / 4, "더", gain) for step, gain in enumerate((1.0, 0.65, 0.7, 0.8)))
+        else:
+            raise ValueError(f"Unsupported stroke: {syllable}")
+    duration = len(beats) * cell
+    if not events or any(not 0 <= time < duration for time, _, _ in events):
+        raise ValueError(f"Stroke falls outside cycle: {row['name']}")
+    return duration, sorted(events)
+
+
+def read_stroke(path, onset_ms, tail_ms):
+    with wave.open(str(path), "rb") as source:
+        if (source.getnchannels(), source.getsampwidth(), source.getframerate()) != (2, 2, RATE):
+            raise ValueError(f"Expected stereo PCM16 at {RATE} Hz: {path}")
+        # Preserve a 2 ms lead so a measured onset is never cut mid-attack.
+        source.setpos(round((onset_ms - 2) * RATE / 1000))
+        frames = array("h", source.readframes(round(tail_ms * RATE / 1000)))
+    if sys.byteorder != "little":
+        frames.byteswap()
+    mono = [(left + right) / 65536 for left, right in zip(frames[::2], frames[1::2])]
+    if not mono or max(map(abs, mono)) < 0.02:
+        raise ValueError(f"Missing audible attack: {path}")
+    return mono
+
+
+def render_cycle(duration, events, samples):
+    mix = [0.0] * round(duration * RATE)
+    fade = RATE // 100
+    for time, stroke, gain in events:
+        start = round(time * RATE)
+        sample = samples[stroke]
+        length = min(len(sample), len(mix) - start)
+        for index in range(length):
+            envelope = min(1, index / (RATE / 1000), (length - 1 - index) / fade)
+            mix[start + index] += sample[index] * gain * envelope
+    peak = max(map(abs, mix))
+    if not peak:
+        raise ValueError("Rendered cycle is silent")
+    # Leave headroom for peaks introduced by the AAC encoder.
+    pcm = array("h", (round(value * 24_000 / peak) for value in mix))
+    if sys.byteorder != "little":
+        pcm.byteswap()
+    return pcm.tobytes()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--reference", type=Path, required=True)
+    parser.add_argument("--samples", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--ffmpeg", default="ffmpeg")
+    args = parser.parse_args()
+
+    rows = json.loads(args.reference.read_text(encoding="utf-8"))["rows"]
+    if [row["name"] for row in rows] != list(PREVIEW_CATALOG_NAMES):
+        raise ValueError("Catalog row order no longer matches the canonical catalog IDs")
+    samples = {}
+    sources = {}
+    for stroke, (file, identifier, onset, tail) in SAMPLES.items():
+        path = args.samples / file
+        samples[stroke] = read_stroke(path, onset, tail)
+        sources[stroke] = {"file": file, "mntnSeq": identifier, "sha256": sha256(path.read_bytes()).hexdigest()}
+
+    args.output.mkdir(parents=True, exist_ok=False)
+    manifest = {"source": SOURCE, "license": "KOGL-1", "rate": RATE, "sources": sources, "assets": []}
+    for identifier, row in enumerate(rows, start=1):
+        duration, events = rhythm_plan(row)
+        pcm = render_cycle(duration, events, samples)
+        asset = args.output / f"{identifier}.m4a"
+        subprocess.run(
+            [args.ffmpeg, "-v", "error", "-n", "-f", "s16le", "-ar", str(RATE), "-ac", "1",
+             "-i", "pipe:0", "-codec:a", "aac", "-b:a", "64k", "-movflags", "+faststart", str(asset)],
+            input=pcm, check=True,
+        )
+        digest = sha256(asset.read_bytes()).hexdigest()
+        manifest["assets"].append({
+            "jangdanId": identifier, "name": row["name"], "bpm": row["default_bpm"], "bpmUnit": row["bpm_unit"],
+            "frames": len(pcm) // 2, "file": asset.name, "sha256": digest,
+            "objectKey": f"jangdan-preview/v1/{identifier}/{digest}.m4a",
+            "events": [[str(time), stroke, gain] for time, stroke, gain in events],
+        })
+    (args.output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()

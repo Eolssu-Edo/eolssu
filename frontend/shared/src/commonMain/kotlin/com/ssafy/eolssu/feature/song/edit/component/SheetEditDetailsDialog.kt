@@ -1,0 +1,87 @@
+package com.ssafy.eolssu.feature.song.edit.component
+
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
+import com.ssafy.eolssu.core.model.InputLimit
+import androidx.compose.ui.graphics.Color
+import com.ssafy.eolssu.core.theme.EolssuTheme
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
+import com.ssafy.eolssu.core.ui.component.EolssuTextField
+import com.ssafy.eolssu.core.ui.component.formatClock
+import com.ssafy.eolssu.feature.song.edit.normalizedSheetTitle
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.common_cancel
+import eolssu.shared.generated.resources.sheet_details_title
+import eolssu.shared.generated.resources.sheet_details_title_error
+import eolssu.shared.generated.resources.sheet_save_dialog_title
+import eolssu.shared.generated.resources.sheet_save_estimated_duration
+import eolssu.shared.generated.resources.sheetedit_preview_save
+import eolssu.shared.generated.resources.sheet_completion_saving
+import org.jetbrains.compose.resources.stringResource
+
+@Composable
+internal fun SheetEditDetailsDialog(
+    initialTitle: String,
+    onApply: (String) -> Unit,
+    onDismiss: () -> Unit,
+    tempoIssue: com.ssafy.eolssu.data.song.SheetTempoIssue? = null,
+    saving: Boolean = false,
+    canApply: Boolean = true,
+    durationSeconds: Double? = null,
+    notice: @Composable () -> Unit = {},
+) {
+    var title by rememberSaveable { mutableStateOf(initialTitle) }
+    // 제목 칸을 고치기 전에는 오류를 보이지 않는다. 빈 제목으로 열려도 저장 버튼만 막고 오류 문장은 띄우지 않는다(S15P31E102-996).
+    var touched by rememberSaveable { mutableStateOf(false) }
+    val validTitle = normalizedSheetTitle(title)
+
+    EolssuDialog(
+        title = stringResource(Res.string.sheet_save_dialog_title),
+        onDismissRequest = { if (!saving) onDismiss() },
+    ) {
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            EolssuTextField(qaTarget = QaTarget.SHEET_EDIT_DETAILS_DIALOG_01,
+                value = title,
+                onValueChange = UserActionLog.change(QaTarget.SHEET_EDIT_DETAILS_DIALOG_01, { if (!saving) { title = it; touched = true } }),
+                label = stringResource(Res.string.sheet_details_title),
+                placeholder = "",
+                maxLength = InputLimit.SHEET_TITLE,
+                error = if (touched && validTitle == null) stringResource(Res.string.sheet_details_title_error) else null,
+                bordered = false,
+                containerColor = EolssuTheme.colors.groupedBackground,
+            )
+            if (tempoIssue != null) Text(tempoIssue.guidance(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            if (durationSeconds != null) {
+                Text(
+                    stringResource(Res.string.sheet_save_estimated_duration, formatClock(durationSeconds)),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            notice()
+        }
+        EolssuButton(
+            text = stringResource(if (saving) Res.string.sheet_completion_saving else Res.string.sheetedit_preview_save),
+            onClick = UserActionLog.click(QaTarget.SHEET_EDIT_DETAILS_DIALOG_02, { if (validTitle != null) onApply(validTitle) }),
+            enabled = validTitle != null && canApply && !saving, qaTarget = QaTarget.SHEET_EDIT_DETAILS_DIALOG_BUTTON_01
+        )
+        EolssuButton(stringResource(Res.string.common_cancel), onDismiss, style = EolssuButtonStyle.Secondary, enabled = !saving,
+            containerColor = EolssuTheme.colors.groupedBackground, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_EDIT_DETAILS_DIALOG_BUTTON_02)
+    }
+}

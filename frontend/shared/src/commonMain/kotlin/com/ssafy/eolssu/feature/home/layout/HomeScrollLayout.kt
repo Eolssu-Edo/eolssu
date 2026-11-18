@@ -1,0 +1,382 @@
+package com.ssafy.eolssu.feature.home.layout
+
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.rememberSplineBasedDecay
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.MotionDurationScale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.model.ProfileImage
+import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.mountainRidges
+import com.ssafy.eolssu.feature.home.HomeFeature
+import com.ssafy.eolssu.feature.home.HomeFeatureColumns
+import com.ssafy.eolssu.feature.home.HomeScrollRange
+import com.ssafy.eolssu.feature.home.HomeStageFlingBehavior
+import com.ssafy.eolssu.feature.home.HomeStatusBarIcons
+import com.ssafy.eolssu.feature.home.PrepareHomeFonts
+import com.ssafy.eolssu.feature.home.homeArtKind
+import com.ssafy.eolssu.feature.home.homeArtLift
+import com.ssafy.eolssu.feature.home.homeHeroTitle
+import com.ssafy.eolssu.feature.home.HomeTitleGap
+import com.ssafy.eolssu.feature.home.HomeTitleLogoHeight
+import com.ssafy.eolssu.feature.home.HomeTitleLogoWidth
+import com.ssafy.eolssu.feature.home.homeArtPlacement
+import com.ssafy.eolssu.feature.home.HomeArtFadeAbove
+import com.ssafy.eolssu.feature.home.HomeArtFadeBelow
+import com.ssafy.eolssu.feature.home.HomeArtKind
+import com.ssafy.eolssu.feature.home.homeArtFade
+import com.ssafy.eolssu.feature.home.homeExpandedHero
+import com.ssafy.eolssu.feature.home.homeScrollFrame
+import com.ssafy.eolssu.feature.home.homeSnapTarget
+import com.ssafy.eolssu.feature.home.mix
+import com.ssafy.eolssu.feature.home.rememberHomeEnvironment
+import com.ssafy.eolssu.feature.home.component.FeatureSection
+import com.ssafy.eolssu.feature.home.component.HomeInkButton
+import com.ssafy.eolssu.feature.home.component.MyPagePlate
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.home_hero_brush_lettering
+import eolssu.shared.generated.resources.home_hero_logo_white
+import eolssu.shared.generated.resources.home_hero_title
+import eolssu.shared.generated.resources.home_art_phone_portrait
+import eolssu.shared.generated.resources.home_art_tablet_landscape
+import eolssu.shared.generated.resources.home_art_tablet_portrait
+import eolssu.shared.generated.resources.home_scroll_to_features
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+
+/** 고정된 그림·본문 무대를 400dp 스크롤로 펼친 뒤, 낮은 창에서는 카드 끝까지 계속 스크롤한다. */
+@Composable
+internal fun HomeScrollLayout(
+    widthClass: WindowWidthClass,
+    profileImage: ProfileImage,
+    onOpenMyPage: () -> Unit,
+    onStartEvaluation: () -> Unit,
+    onFeatureClick: (HomeFeature) -> Unit,
+    modifier: Modifier = Modifier,
+    statusBarTop: Dp = 0.dp,
+) {
+    val density = LocalDensity.current
+    val scroll = rememberScrollState()
+    val dragged by scroll.interactionSource.collectIsDraggedAsState()
+    val scope = rememberCoroutineScope()
+    val environment = rememberHomeEnvironment()
+    PrepareHomeFonts()
+    val homeGround = EolssuTheme.colors.groupedBackground
+    val reduceMotion = environment.reduceMotion || scope.coroutineContext[MotionDurationScale]?.scaleFactor == 0f
+    var wasOpen by remember { mutableStateOf(false) }
+    var snapping by remember { mutableStateOf(false) }
+    val bounce = remember { Animatable(0f) }
+    val rangePx = with(density) { HomeScrollRange.dp.roundToPx() }
+    suspend fun goTo(target: Int) {
+        snapping = true
+        try {
+            if (reduceMotion) scroll.scrollTo(target) else scroll.animateScrollTo(target, tween(500))
+            wasOpen = target >= rangePx
+        } finally { snapping = false }
+    }
+    // 끌기를 마치면 손을 뗀 속도를 이어받아 관성과 스냅을 한 번에 처리한다.
+    val decay = rememberSplineBasedDecay<Float>()
+    val freeFling = ScrollableDefaults.flingBehavior()
+    val fling = remember(decay, freeFling, density, reduceMotion) {
+        HomeStageFlingBehavior({ scroll.value.toFloat() }, density.density, { wasOpen }, reduceMotion, decay, freeFling)
+    }
+    LaunchedEffect(scroll, density, reduceMotion) {
+        var dragGesture = false
+        snapshotFlow { Triple(scroll.value, scroll.isScrollInProgress, dragged) }.collectLatest { (value, busy, touching) ->
+            if (touching) dragGesture = true
+            if (value >= rangePx) wasOpen = true
+            if (value == 0) wasOpen = false
+            if (busy || touching || snapping) return@collectLatest
+            // 끌기는 fling이 스냅까지 맡는다. 손을 뗀 뒤 fling이 시작되기 전의 빈틈에 따로 스냅을 띄우면 두 번 움직인다.
+            if (dragGesture) {
+                dragGesture = false
+                return@collectLatest
+            }
+            // 휠·키보드처럼 관성이 없는 스크롤만 이벤트 사이를 기다린 뒤 가까운 쪽으로 맞춘다.
+            delay(160)
+            val target = with(density) { homeSnapTarget(value / density.density, wasOpen).dp.roundToPx() }
+            if (target != value) scope.launch { goTo(target) }
+        }
+    }
+    LaunchedEffect(reduceMotion) {
+        if (reduceMotion) bounce.snapTo(0f)
+        else bounce.animateTo(6f, infiniteRepeatable(tween(1000), RepeatMode.Reverse))
+    }
+    BoxWithConstraints(modifier.fillMaxSize().clipToBounds().background(homeGround)) {
+        val w = maxWidth.value
+        val h = maxHeight.value
+        val expanded = widthClass == WindowWidthClass.Expanded
+        val medium = widthClass == WindowWidthClass.Medium
+        val side = if (expanded || medium) 40f else 20f
+        val contentW = (w - side * 2).coerceAtMost(1120f)
+        val contentLeft = (w - contentW) / 2
+        val finalHeroW = if (expanded) contentW * .52f else w
+        val buttonW = (if (expanded) finalHeroW else contentW).coerceAtMost(360f)
+        // 다른 화면에 갔다 돌아오면 스크롤 위치는 복원되지만 잰 높이가 기본값이면 바닥이 짧아져 위치가 잘린다.
+        var buttonH by rememberSaveable { mutableFloatStateOf(56.5f) }
+        var headlineH by rememberSaveable { mutableFloatStateOf(100f) }
+        var featureH by rememberSaveable(widthClass) { mutableFloatStateOf(480f) }
+        val s = scroll.value / density.density
+        val frame = homeScrollFrame(w, h, s, buttonH)
+        val featureTop = if (expanded) mix(h + 32f, 140f, frame.eased)
+            else frame.buttonTop + buttonH + 16f + 76f * (1 - frame.eased)
+        val featureEndTop = if (expanded) 140f else frame.bandHeight + 12f + buttonH + 16f
+        // 넓은 창: 그림을 과하게 키우지 않고, 펼친 왼쪽 무대 묶음을 오른쪽 카드와 세로 가운데로 맞춘다.
+        val hero = if (expanded) homeExpandedHero(w, h, finalHeroW, frame, buttonH, featureEndTop, featureH) else null
+        val heroY = hero?.heroOffset ?: 0f
+        val overflow = (maxOf(featureEndTop + featureH + 34f, frame.bandHeight + heroY + buttonH + 58f) - h).coerceAtLeast(0f)
+        val artWidth = mix(w, finalHeroW, frame.eased)
+        val artLeft = if (expanded) contentLeft * frame.eased else 0f
+        val openFeatures = frame.progress > .6f
+        val featureAlpha = ((frame.progress - .6f) / .25f).coerceIn(0f, 1f)
+        val mountainColor = EolssuTheme.colors.radical
+        val artKind = homeArtKind(w, h)
+        val heroTitle = homeHeroTitle(artKind, w, h, buttonH)
+        // 그림(어두운 바탕)이 상태 표시줄 뒤에 있는 동안만 아이콘을 밝게 한다. 넓은 창은 펼치면 그림이 왼쪽으로 줄어
+        // 오른쪽 아이콘이 밝은 바탕에 놓이므로 절반 이상 펼치면 어두운 아이콘으로 돌린다(S15P31E102-973).
+        val pastStage = (s - HomeScrollRange).coerceAtLeast(0f)
+        HomeStatusBarIcons(
+            light = if (expanded) frame.eased < .5f else frame.groundTop - pastStage > statusBarTop.value,
+        )
+        val open: () -> Unit = { scope.launch { goTo(rangePx) } }
+        // 화살표는 펼친 무대 아래 카드 끝까지 내린다. 펼치는 도중 카드 높이를 처음 재면 바닥이 늘 수 있어 한 번 더 맞춘다.
+        val openToBottom: () -> Unit = {
+            scope.launch {
+                goTo(scroll.maxValue)
+                if (scroll.value < scroll.maxValue) goTo(scroll.maxValue)
+            }
+        }
+        Column(Modifier.fillMaxSize().verticalScroll(scroll, flingBehavior = fling)) {
+            Box(Modifier.fillMaxWidth().height((h + HomeScrollRange + overflow).dp)) {
+                Box(
+                    Modifier.offset { IntOffset(0, minOf(scroll.value, rangePx)) }
+                        .fillMaxWidth().height((h + overflow).dp),
+                ) {
+                    HomeArt(
+                        artKind, artLeft, artWidth, heroY, frame.groundTop + heroY, frame.eased,
+                        homeArtLift(artKind, w, h, buttonH) * (1f - frame.eased), homeGround,
+                        Modifier.fillMaxSize().clickable(
+                            interactionSource = remember { MutableInteractionSource() }, indication = null,
+                            enabled = frame.progress < .6f, onClick = UserActionLog.click(QaTarget.HOME_SCROLL_LAYOUT_01, open),
+                        ).clearAndSetSemantics {},
+                    )
+                    if (expanded) {
+                        // 넓은 창의 끝 배치: 왼쪽 그림·CTA와 오른쪽 2×3 카드.
+                        Box(Modifier.offset(x = (contentLeft + finalHeroW + 24f).dp)
+                            .width((contentW - finalHeroW).dp).height((h + overflow).dp)
+                            .graphicsLayer { alpha = frame.eased }.background(homeGround))
+                    }
+                    if (featureAlpha > 0f) {
+                        // 카드 뒤 화면 아래의 산 능선. 무대가 멈춘 뒤 더 스크롤한 만큼 내려 늘 화면 바닥에 붙인다.
+                        Box(
+                            Modifier.offset(y = (s - HomeScrollRange).coerceAtLeast(0f).dp)
+                                .fillMaxWidth().height(h.dp)
+                                .graphicsLayer { alpha = featureAlpha }
+                                .mountainRidges(mountainColor, HomeRidgeLifts),
+                        )
+                    }
+                    // 제목은 첫 화면 자리(그림마다 다른 크기·위치)에서 펼친 화면 자리(배율 1, 그림 띠 오른쪽 아래)로 옮겨 간다.
+                    val titleScale = mix(heroTitle.scale, 1f, frame.headlineProgress)
+                    val titleRight = mix(heroTitle.right, artLeft + artWidth - 20f, frame.headlineProgress)
+                    val titleBottom = mix(heroTitle.bottom, frame.bandHeight - 10f, frame.headlineProgress) + heroY
+                    Column(
+                        Modifier.offset(x = (titleRight + 20f - artWidth).dp, y = (titleBottom - headlineH).dp)
+                            .width(artWidth.dp).padding(horizontal = 20.dp)
+                            .onSizeChanged { headlineH = it.height / density.density }
+                            .graphicsLayer {
+                                transformOrigin = TransformOrigin(1f, 1f)
+                                scaleX = titleScale; scaleY = titleScale
+                            },
+                        horizontalAlignment = Alignment.End,
+                        // 크기가 바뀌어도 화면에 보이는 간격은 4dp로 유지한다.
+                        verticalArrangement = Arrangement.spacedBy(HomeTitleGap.dp / titleScale),
+                    ) {
+                        Image(
+                            painterResource(Res.drawable.home_hero_logo_white),
+                            contentDescription = null,
+                            modifier = Modifier.size(width = HomeTitleLogoWidth.dp, height = HomeTitleLogoHeight.dp),
+                            colorFilter = HomeHeroLogoColor,
+                        )
+                        Image(
+                            painterResource(Res.drawable.home_hero_brush_lettering),
+                            contentDescription = stringResource(Res.string.home_hero_title),
+                            modifier = Modifier.size(width = 171.dp, height = 42.dp),
+                        )
+                    }
+                    val buttonLeft = mix((w - buttonW) / 2f,
+                        if (expanded) contentLeft + (finalHeroW - buttonW) / 2f else (w - buttonW) / 2f, frame.eased)
+                    HomeInkButton(
+                        onClick = UserActionLog.click(QaTarget.HOME_SCROLL_LAYOUT_02, onStartEvaluation),
+                        darkBackground = frame.darkBehindButton,
+                        scrollProgress = frame.progress,
+                        reduceMotion = reduceMotion,
+                        modifier = Modifier.offset(x = buttonLeft.dp, y = (frame.buttonTop + heroY).dp).width(buttonW.dp)
+                            .heightIn(min = (buttonW * 50f / 310f).dp)
+                            .onSizeChanged { buttonH = it.height / density.density },
+                    )
+                    // 카드는 처음부터 구성해 두고 숨긴다. 펼치는 도중 진행률 .6에서 처음 구성하면 그 프레임이 길어져 스크롤이 건너뛴다.
+                    FeatureSection(onFeatureClick,
+                        columns = HomeFeatureColumns, cardMinHeight = 132.dp,
+                        large = medium || expanded,
+                        enabled = openFeatures,
+                        modifier = Modifier.offset(
+                            x = (if (expanded) contentLeft + finalHeroW + 40f else contentLeft).dp,
+                            y = featureTop.dp,
+                        ).width((if (expanded) contentW - finalHeroW - 40f else contentW).dp)
+                            .onSizeChanged { featureH = it.height / density.density }
+                            .then(if (openFeatures) Modifier else Modifier.clearAndSetSemantics {})
+                            .graphicsLayer { alpha = featureAlpha },
+                    )
+                    if (frame.arrowAlpha > 0f) {
+                        Box(
+                            Modifier.offset(x = ((w - 48f) / 2f).dp, y = (h - 82f).dp).size(48.dp)
+                                .graphicsLayer { alpha = frame.arrowAlpha }
+                                // 아이콘만 있는 버튼이라 눌림 효과를 48dp 원으로 둔다(S15P31E102-968).
+                                .clip(CircleShape)
+                                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.home_scroll_to_features), onClick = UserActionLog.click(QaTarget.HOME_SCROLL_LAYOUT_03, openToBottom)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(EolssuIcons.ChevronDown, stringResource(Res.string.home_scroll_to_features),
+                                Modifier.offset(y = bounce.value.dp).size(28.dp), tint = homeGround)
+                        }
+                    }
+                }
+            }
+        }
+        // 마이페이지 판은 스크롤 상자 밖에 두어 첫 화면에서는 숨기고, 펼친 뒤 추가 스크롤에도 위 12dp · 내용 오른쪽 끝에 고정한다.
+        // 연습 악기 판은 곡 고르기 화면 상단 바로 옮겼다. 왼쪽 위 로고 판은 두지 않는다.
+        if (frame.headerAlpha > 0f) {
+            Row(
+                Modifier.offset(x = contentLeft.dp, y = statusBarTop + HomeHeaderTop).width(contentW.dp).graphicsLayer { alpha = frame.headerAlpha },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+            ) {
+                MyPagePlate(profileImage, onOpenMyPage)
+            }
+        }
+    }
+}
+
+/**
+ * 창 모양에 맞는 그림을 그림 칸([left], [top] ~ [left]+[width], [ground])에 빈틈없이 덮어 그린다.
+ * 첫 화면은 칸이 창 전체라 그림이 화면을 채우고, 펼치면 줄어든 칸에 전각 쪽이 남는다.
+ * 제목·버튼이 놓이는 어두운 바탕은 그림 안의 먹색이 맡으므로 그림 위에 따로 어둡게 덮지 않는다.
+ * 띠 아래 끝은 자르지 않고 [HomeArtFadeBelow]만큼 더 그린 뒤 바탕색으로 흐려 아래 카드 바탕과 이어지게 한다(S15P31E102-1015).
+ */
+@Composable
+private fun HomeArt(kind: HomeArtKind, left: Float, width: Float, top: Float, ground: Float, progress: Float, lift: Float, groundColor: Color, modifier: Modifier) {
+    val painter = painterResource(
+        when (kind) {
+            HomeArtKind.PhonePortrait -> Res.drawable.home_art_phone_portrait
+            HomeArtKind.TabletPortrait -> Res.drawable.home_art_tablet_portrait
+            HomeArtKind.TabletLandscape -> Res.drawable.home_art_tablet_landscape
+        },
+    )
+    val density = LocalDensity.current.density
+    Canvas(modifier) {
+        val d = density
+        drawRect(lerp(HomeNight, groundColor, progress))
+        val place = homeArtPlacement(
+            kind, width, (ground - top).coerceAtLeast(1f),
+            mix(.5f, kind.openFocusX, progress), mix(.5f, kind.openFocusY, progress),
+        )
+        val fadeTop = ground - HomeArtFadeAbove
+        val fadeBottom = ground + HomeArtFadeBelow
+        val imageTop = top + place.y - lift
+        val size = androidx.compose.ui.geometry.Size(place.width * d, place.height * d)
+        clipRect(left = left * d, top = top * d, right = (left + width) * d, bottom = fadeBottom * d) {
+            translate((left + place.x) * d, imageTop * d) { with(painter) { draw(size) } }
+            // 올린 그림 아래 빈 곳은 그림 아래 먹 띠의 아래쪽 3/4를 이어 붙여 채운다.
+            val band = kind.bandTop
+            if (lift > 0f && band != null) {
+                val stripTop = place.height * (band + (1f - band) * .25f)
+                val strip = place.height - stripTop
+                var y = imageTop + place.height
+                while (y < fadeBottom && strip > 1f) {
+                    clipRect(top = y * d, bottom = (y + strip) * d) {
+                        translate((left + place.x) * d, (y - stripTop) * d) { with(painter) { draw(size) } }
+                    }
+                    y += strip
+                }
+            }
+        }
+        val stops = Array(9) { i ->
+            val t = i / 8f
+            t to groundColor.copy(alpha = homeArtFade(t))
+        }
+        drawRect(Brush.verticalGradient(*stops, startY = fadeTop * d, endY = fadeBottom * d))
+        drawRect(groundColor, topLeft = androidx.compose.ui.geometry.Offset(0f, fadeBottom * d))
+    }
+}
+
+/** 홈 산 능선은 맨 앞 능선은 두고 가운데·맨 뒤 능선만 차례로 더 높인다(뒤 → 앞, 보드 좌표). */
+private val HomeRidgeLifts = listOf(36f, 20f, 0f)
+
+/** 상단 판과 상태 표시줄 아래 가장자리 사이의 틈. */
+private val HomeHeaderTop = 12.dp
+// 흰색 RGB는 그대로 두고 반투명한 붓 획의 불투명도만 높인다.
+private val HomeHeroLogoColor = ColorFilter.colorMatrix(ColorMatrix().apply { this[3, 3] = 2.2f })
+private val HomeNight = Color(0xFF1B2233)

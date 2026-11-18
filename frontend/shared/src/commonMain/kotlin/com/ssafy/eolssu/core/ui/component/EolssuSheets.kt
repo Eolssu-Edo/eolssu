@@ -1,0 +1,312 @@
+package com.ssafy.eolssu.core.ui.component
+
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+import com.ssafy.eolssu.core.diagnostics.QaKind
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.ssafy.eolssu.core.theme.EolssuTheme
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.common_close
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * 아래에서 올라오는 패널(`.sheet`). 창 높이의 [maxHeightFraction]까지 커지고, 본문은 [body]에서 스크롤된다.
+ * [footer]는 본문 아래에 고정된다(`.sheet-foot`).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EolssuBottomSheet(
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    maxHeightFraction: Float = 0.78f,
+    containerColor: Color? = null,
+    header: @Composable () -> Unit,
+    footer: (@Composable ColumnScope.() -> Unit)? = null,
+    body: @Composable ColumnScope.() -> Unit,
+) {
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        UserActionLog.event(QaKind.MODAL_OPEN, QaTarget.DIALOG)
+        onDispose { UserActionLog.event(QaKind.MODAL_CLOSE, QaTarget.DIALOG) }
+    }
+
+    val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
+    // 연두 보드 `.sheet`: 흰 바탕, 위 반지름 24, 손잡이 40×4(위 12 · 아래 2), 안쪽 여백 20 · 아래 34, 스크림 먹색 45%.
+    // 시트가 내용 아래에 시스템 하단 여백(홈 막대·내비게이션 바)을 이미 넣으므로 아래 34는 그 여백과 합쳐 계산한다.
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        modifier = modifier.qaModalInput(),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = containerColor ?: EolssuTheme.colors.surface,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        scrimColor = EolssuTheme.colors.text.copy(alpha = 0.45f),
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(top = 12.dp, bottom = 2.dp)
+                    .width(40.dp)
+                    .height(4.dp)
+                    .background(EolssuTheme.colors.line, RoundedCornerShape(2.dp)),
+            )
+        },
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = windowHeight * maxHeightFraction)
+                .padding(start = 20.dp, end = 20.dp, bottom = sheetBottomPadding(SheetBottomSpace)),
+        ) {
+            header()
+            Column(
+                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                content = body,
+            )
+            if (footer != null) {
+                Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = footer)
+            }
+        }
+    }
+}
+
+/** 하단 시트 내용 아래 기본 여백(보드 `.sheet` 아래 34). 아이폰 홈 막대 높이와 같다. */
+private val SheetBottomSpace: Dp = 34.dp
+
+/** 시스템 하단 여백 위에 남길 최소 여백. */
+private val SheetBottomMinSpace: Dp = 16.dp
+
+/**
+ * 시스템 하단 여백(홈 막대·내비게이션 바·키보드)을 따로 넣는 시트의 내용 아래 여백.
+ * 시스템 여백과 합친 높이가 [base]가 되도록 줄이고, 시스템 여백이 크면 [SheetBottomMinSpace]만 남긴다.
+ * 아이폰(홈 막대 34)에서 34 + 34 = 68dp로 두 번 쌓이던 빈 공간을 34 + 16 = 50dp로 맞춘다(S15P31E102-973).
+ */
+@Composable
+fun sheetBottomPadding(base: Dp): Dp {
+    val systemBottom = with(LocalDensity.current) { WindowInsets.safeDrawing.getBottom(this).toDp() }
+    return (base - systemBottom).coerceAtLeast(SheetBottomMinSpace)
+}
+
+/** 패널 머리(`.sheet-head`): 제목(Song Myung 18sp)·보조 문구와 닫기 버튼. */
+@Composable
+fun SheetHeader(title: String, onClose: () -> Unit, modifier: Modifier = Modifier, subtitle: String? = null) {
+    Row(modifier.fillMaxWidth().padding(top = 4.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 23.4.sp))
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    modifier = Modifier.padding(top = 2.dp),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = EolssuTheme.colors.textMuted,
+                )
+            }
+        }
+        EolssuIconButton(EolssuIcons.Close, stringResource(Res.string.common_close), onClose, bordered = false)
+    }
+}
+
+/**
+ * 켜고 끄는 스위치(연두 보드 `.switch`): 켜면 연두, 끄면 옅은 테두리 색 바탕에 흰 손잡이.
+ * 크기는 화면마다 다르다 — 연습 설정 시트 50×30(기본), 기록 상세 40×24. 손잡이는 높이에서 6dp를 뺀 원이다.
+ */
+@Composable
+fun EolssuSwitch(
+    checked: Boolean,
+    onToggle: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    width: Dp = 50.dp,
+    height: Dp = 30.dp,
+    offColor: Color? = null,
+) {
+    val colors = EolssuTheme.colors
+    Surface(
+        onClick = UserActionLog.click(QaTarget.EOLSSU_SHEETS_01, onToggle),
+        enabled = enabled,
+        // 누를 수 없으면 앱 버튼(`EolssuButton`)과 같이 0.45로 흐린다(S15P31E102-969).
+        modifier = modifier
+            .size(width = width, height = height)
+            .alpha(if (enabled) 1f else 0.45f)
+            .semantics {
+                role = Role.Switch
+                toggleableState = ToggleableState(checked)
+                this.contentDescription = label
+            },
+        shape = CircleShape,
+        color = if (checked) colors.primary else offColor ?: colors.line,
+    ) {
+        Box(Modifier.padding(3.dp), contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart) {
+            // 앱 전체 스위치를 그림자 없는 흰 손잡이로 맞춘다(S15P31E102-768).
+            Box(Modifier.size(height - 6.dp).background(Color.White, CircleShape))
+        }
+    }
+}
+
+/** 설명이 붙은 켜기·끄기 줄(`.toggle-row`). [enabled]가 아니면 흐리게 보이고 누를 수 없다. */
+@Composable
+fun ToggleRow(
+    label: String,
+    checked: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    description: String? = null,
+    enabled: Boolean = true,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.55f)
+            .background(EolssuTheme.colors.surface, RoundedCornerShape(12.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+            if (description != null) {
+                Text(
+                    description,
+                    modifier = Modifier.padding(top = 2.dp),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = EolssuTheme.colors.textMuted,
+                )
+            }
+        }
+        EolssuSwitch(checked, onToggle, label, enabled = enabled)
+    }
+}
+
+/**
+ * 확인 창(연두 보드 `.dialog`): 양옆 28dp 안쪽의 흰 상자(반지름 20, 여백 24·20·20)에 48dp 아이콘 고리(`.ico-ring`) ·
+ * 19sp 제목 · 14sp 설명 · 세로로 쌓은 버튼(간격 8). 기본은 바깥을 누르거나 뒤로 가도 닫히지 않는다.
+ *
+ * @param onDismissRequest 바깥(가림막)을 누르거나 뒤로 갈 때. 닫기 버튼 없이 이렇게 닫는 창만 넘긴다.
+ * @param iconBackground 아이콘 고리 바탕. 기본 연두 20%(`accentTint`), 경고는 `recSoft`, 완료는 `accentTintStrong`.
+ * @param iconTint 아이콘 색. 기본 먹색, 경고는 `recText`.
+ * @param body 설명과 버튼 사이에서 남는 높이까지만 차지하는 내용(입력칸 등). 높이가 바뀌는 내용은 [actions] 대신 여기에 두어야
+ *   내용이 길어지거나 키보드가 올라와도 버튼이 눌려 잘리지 않는다. 받은 높이보다 크면 잘리므로 내용이 스스로 줄거나
+ *   안에서 스크롤해야 한다(S15P31E102-1081).
+ */
+@Composable
+fun EolssuDialog(
+    title: String,
+    modifier: Modifier = Modifier,
+    message: String? = null,
+    icon: ImageVector? = null,
+    maxWidth: Dp = 340.dp,
+    iconBackground: Color? = null,
+    iconTint: Color? = null,
+    onDismissRequest: () -> Unit = {},
+    body: (@Composable ColumnScope.() -> Unit)? = null,
+    actions: @Composable ColumnScope.() -> Unit,
+) {
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        UserActionLog.event(QaKind.MODAL_OPEN, QaTarget.DIALOG)
+        onDispose { UserActionLog.event(QaKind.MODAL_CLOSE, QaTarget.DIALOG) }
+    }
+
+    val colors = EolssuTheme.colors
+    Dialog(onDismissRequest = onDismissRequest, properties = eolssuDialogProperties()) {
+        // 창을 화면 크기로 고정하고 시스템 바·키보드 여백은 여기서만 넣는다. 창이 내용에 맞춰 줄면 키보드와 겹치는 높이가
+        // 바뀔 때마다 여백과 창 크기가 서로 따라 움직여 입력 중 창이 흔들린다(S15P31E102-1000).
+        // 창이 화면을 덮으므로 바깥 누름은 플랫폼 대신 여기서 받아 닫는다.
+        val dismiss by rememberUpdatedState(onDismissRequest)
+        Box(
+            Modifier.fillMaxSize().qaModalInput()
+                .pointerInput(Unit) { detectTapGestures { dismiss() } }
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+            contentAlignment = Alignment.Center,
+        ) {
+        // 휴대폰 가로·큰 글꼴·키보드로 높이가 모자라면 위쪽 내용만 스크롤하고 버튼은 아래에 고정한다.
+        Column(
+            modifier
+                // 카드와 둘레 여백을 누르면 닫히지 않게 여기서 받는다. 전에도 이 여백은 창 안이었다.
+                .pointerInput(Unit) { detectTapGestures { } }
+                .padding(horizontal = 28.dp, vertical = 16.dp)
+                .widthIn(max = maxWidth)
+                .fillMaxWidth()
+                .shadow(12.dp, RoundedCornerShape(20.dp))
+                .background(colors.surface, RoundedCornerShape(20.dp))
+                .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 20.dp),
+        ) {
+            // [body]가 있으면 아이콘·제목은 그대로 두고 남는 높이를 [body]에 준다. 본문 전체를 스크롤하면
+            // 키보드가 올라올 때 아이콘과 입력칸 테두리·글자 수가 반쯤 잘려 보인다(S15P31E102-1081).
+            Column(
+                (if (body == null) Modifier.weight(1f, fill = false) else Modifier).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (icon != null) {
+                    Box(
+                        Modifier.size(48.dp).background(iconBackground ?: colors.accentTint, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = iconTint ?: colors.text)
+                    }
+                }
+                Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 19.sp, lineHeight = 24.7.sp), color = colors.text)
+                if (message != null) {
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
+                        color = colors.textSub,
+                    )
+                }
+            }
+            if (body != null) Column(Modifier.weight(1f, fill = false).padding(top = 12.dp), content = body)
+            Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
+        }
+        }
+    }
+}

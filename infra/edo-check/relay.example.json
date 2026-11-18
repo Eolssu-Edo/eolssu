@@ -1,0 +1,22 @@
+{
+  "tokens": {
+    "/edo1": "REPLACE_WITH_EDO1_COMMAND_TOKEN",
+    "/edo2": "REPLACE_WITH_EDO2_COMMAND_TOKEN"
+  },
+  "channel_ids": ["7pqaof6zkt8rdbqbdjjsfpfscw"],
+  "mattermost_origin": "https://meeting.ssafy.com",
+  "targets": {
+    "edo1": {
+      "ssh_target": "edo-check@k15e102.p.ssafy.io",
+      "identity_file": "/var/lib/edo-check/ssh/id_ed25519",
+      "known_hosts": "/var/lib/edo-check/ssh/known_hosts",
+      "service_host": "k15e102.p.ssafy.io"
+    },
+    "edo2": {
+      "ssh_target": "edo2-check@127.0.0.1",
+      "identity_file": "/var/lib/edo-check/ssh/id_ed25519_edo2",
+      "known_hosts": "/var/lib/edo-check/ssh/known_hosts_edo2",
+      "service_host": "15.165.144.7"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sanjo-daegeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sanjo-2552": "6b7dace6a9fc5e1c9b14f53efb439054ac24bdcd63efb803f8ed9184e1108a96"
+  },
+  "columns": ["id","startSeconds","endSeconds","register","yulmyeong","labelF0Hz"],
+  "groups": [
+    {
+      "sourceId": "ngc-sanjo-2552",
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "method": "tool:prepare_sanjo_assets@c163f2f",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sanjo-2552.group-001",0.6,7.1,"저취","임",269.8],
+        ["ngc-sanjo-2552.region-003",8.92,16.305291666666665,"저취","남",323.738],
+        ["ngc-sanjo-2552.region-004",18.46,25.325291666666665,"저취","무",357.491],
+        ["ngc-sanjo-2552.region-005",27.4,34.465291666666666,"저취","황",386.557],
+        ["ngc-sanjo-2552.region-006",36.54,42.26529166666667,"저취","태",425.226],
+        ["ngc-sanjo-2552.region-007",44.38,51.12529166666667,"평취","임",547.421],
+        ["ngc-sanjo-2552.region-008",52.92,59.30529166666667,"평취","남",633.967],
+        ["ngc-sanjo-2552.region-009",61.3,66.70529166666667,"평취","무",697.856],
+        ["ngc-sanjo-2552.region-010",68.66,75.78529166666667,"평취","황",759.28],
+        ["ngc-sanjo-2552.region-011",77.74,86.32529166666667,"평취","태",851.858],
+        ["ngc-sanjo-2552.region-012",88.3,95.36529166666666,"평취","고",961.611],
+        ["ngc-sanjo-2552.region-013",97.16,104.46529166666667,"역취","임",1103.932],
+        ["ngc-sanjo-2552.region-014",106.52,112.80529166666666,"역취","남",1210.934],
+        ["ngc-sanjo-2552.region-015",114.88,119.12529166666667,"역취","무",1362.551],
+        ["ngc-sanjo-2552.region-016",121.4,124.48529166666667,"역취","황",1533.619]
+      ],
+      "evidence": {
+        "ngc-sanjo-2552.group-001": {"sourceRegionIds":["region-001","region-002"],"boundaryReview":{"reason":"원본상 연속된 저취 임의 깊은요성. 전역RMS문턱으로 생긴 거짓 간격0.274708초와 누락된 끝음을 복구.","boundaryEvidence":"원본6.225292–7.03초에서도 주기성>0.9로 음 지속.7.09초부터 안정적인 주기음이 사라짐. 후행 소멸부까지7.1초 보존. 시작은기존0.6초 유지.","reviewStatus":"raw_waveform_and_pitch_analysis_not_performer_annotation"}},
+        "ngc-sanjo-2552.region-004": {"alternatives":[{"register":"저취","yulmyeong":"황","hz":372.138,"distanceCents":-69.52},{"register":"저취","yulmyeong":"남","hz":319.491,"distanceCents":194.56}]}
+      },
+      "analysisBasis": "measured_pitch_correspondence"
+    }
+  ]
+}

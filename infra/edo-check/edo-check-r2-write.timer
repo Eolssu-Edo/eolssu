@@ -1,0 +1,9 @@
+[Unit]
+Description=Schedule edo1 R2 write probe every six hours
+
+[Timer]
+OnCalendar=*-*-* 00/6:13:00 Asia/Seoul
+Persistent=yes
+
+[Install]
+WantedBy=timers.target

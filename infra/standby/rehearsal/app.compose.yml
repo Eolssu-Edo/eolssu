@@ -1,0 +1,13 @@
+# 장애 전환 연습에서 compose.yml·compose.promote.yml 뒤에 겹쳐 쓴다(S15P31E102-948).
+# 운영 대기 앱(18443)과 운영 복제본(172.30.79.2) 대신 연습 포트와 연습 사본 DB를 쓴다.
+services:
+  frontend:
+    ports: !override
+      - "127.0.0.1:28443:8443"
+  backend:
+    environment:
+      DB_URL: "jdbc:mysql://172.30.94.2:3306/${MYSQL_DATABASE:-eolssu}?connectTimeout=2000&socketTimeout=2000"
+
+networks:
+  replica:
+    name: eolssu-rehearsal-948-db_default

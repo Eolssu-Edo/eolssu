@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "score": {
+    "title": "아리랑",
+    "instrument": "DANSO",
+    "part": 0,
+    "sourceId": "ngc-standard-2022-p173",
+    "scoreVersion": 1
+  },
+  "music": {
+    "hwangHz": 311.13,
+    "jangdan": "",
+    "bpmUnit": "QUARTER",
+    "ticksPerBeat": 1,
+    "ticksPerJeonggan": 1
+  },
+  "columns": [
+    {
+      "index": 0,
+      "cells": [
+        {
+          "id": "c0-j0",
+          "index": 0,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청황",
+              "eventId": "c0-j0-r0-u0"
+            }
+          ]
+        },
+        {
+          "id": "c0-j1",
+          "index": 1,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청태",
+              "eventId": "c0-j1-r0-u0"
+            }
+          ]
+        },
+        {
+          "id": "c0-j2",
+          "index": 2,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청중",
+              "eventId": "c0-j2-r0-u0"
+            }
+          ]
+        },
+        {
+          "id": "c0-j3",
+          "index": 3,
+          "units": [
+            {
+              "row": 0,
+              "col": 0,
+              "symbol": "청임",
+              "eventId": "c0-j3-r0-u0"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "c0-j0-r0-u0",
+      "kind": "NOTE",
+      "yul": "황",
+      "octave": 1,
+      "startTick": 0,
+      "durationTick": 1,
+      "cellId": "c0-j0",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c0-j1-r0-u0",
+      "kind": "NOTE",
+      "yul": "태",
+      "octave": 1,
+      "startTick": 1,
+      "durationTick": 1,
+      "cellId": "c0-j1",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c0-j2-r0-u0",
+      "kind": "NOTE",
+      "yul": "중",
+      "octave": 1,
+      "startTick": 2,
+      "durationTick": 1,
+      "cellId": "c0-j2",
+      "breathAfter": false,
+      "sigimsae": []
+    },
+    {
+      "id": "c0-j3-r0-u0",
+      "kind": "NOTE",
+      "yul": "임",
+      "octave": 1,
+      "startTick": 3,
+      "durationTick": 1,
+      "cellId": "c0-j3",
+      "breathAfter": false,
+      "sigimsae": []
+    }
+  ],
+  "provenance": {
+    "sourceId": "ngc-standard-2022-p173",
+    "jgbSha256": "b3e9d743df9cb5b1b64149378dcf14ba30e54387334080c5d9a5262db67a048d",
+    "review": "reviewed",
+    "converter": "score_data@1"
+  }
+}

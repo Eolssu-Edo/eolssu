@@ -1,0 +1,558 @@
+{
+ "sourceId": "ngc-standard-2022-p201",
+ "sourceHashes": {
+  "ngc-standard-2022-p201": "0dd49c9c7ef519cf66096238083f16c081a418eddd56f1322cfcc5fbfe731e57"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "reviewed",
+ "inputApproval": {
+  "file": "취타 초장 (중급).jgb.json",
+  "sha256": "b22fd775f9ec6907f33150e69a159ea457edced26053f9ee9580eaff57c1968f",
+  "note": "Notion에 올린 팀원이 원본과 나누어 대조. 개인별 담당 곡과 당시 정간별 기록은 확인되지 않음. 원본 JGB 해시는 운영 악보의 입력 JGB 해시와 다름.",
+  "operatingJgbSha256": "cb539538253e882c96439a64b0b4f8db860117b94a668859a21e9d6c82785a94"
+ },
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-03",
+  "note": "원본 PDF의 정간 28칸과 숨표를 확인. 뒤의 인쇄되지 않은 빈 8칸은 저장소 정답에서 제외. 원래 검수본 파일과 해시를 별도 보관."
+ },
+ "reviewedDownload": {
+  "file": "취타 중급.jgb.json",
+  "sha256": "8b21644f046cfffe1b3767f97607aa30a0b48391449ef634d41b37d95ac28b8a",
+  "reviewFile": "취타 중급.review.json",
+  "reviewSha256": "3238fbe9727cf514fe9b5fd3c054d426cd46900d9ff6c865c44d1e98fae15898",
+  "excludedTrailingCells": [
+   29,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36
+  ]
+ },
+ "song": {
+  "title": "취타 중 초장",
+  "instrument": "SOGEUM",
+  "jangdan": ""
+ },
+ "sourceValues": {
+  "jangdan": null,
+  "tempo": null,
+  "beatsPerJeonggan": "1/2",
+  "beatsPerJeongganBasis": "2026-11-03 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 박 해석은 별도 확인 필요.",
+  "bpmUnit": "QUARTER",
+  "bpmUnitBasis": "2026-11-03 공개 운영 악보 music.bpmUnit. 원본 박 단위 해석은 별도 확인 필요."
+ },
+ "title": "취타 중급",
+ "source": "chita-grid-corrected",
+ "reviewedOn": "2026-11-03",
+ "confirmed": 28,
+ "total": 28,
+ "cells": [
+  {
+   "index": 0,
+   "gak": 0,
+   "cell": "중청고",
+   "original": "중청고",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    176,
+    160,
+    221
+   ]
+  },
+  {
+   "index": 1,
+   "gak": 0,
+   "cell": "중청황",
+   "original": "중청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    397,
+    160,
+    219
+   ]
+  },
+  {
+   "index": 2,
+   "gak": 0,
+   "cell": "중청황",
+   "original": "중청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    616,
+    160,
+    218
+   ]
+  },
+  {
+   "index": 3,
+   "gak": 0,
+   "cell": "중청황 -중청태 청남<",
+   "original": "중청황 -중청태 청남",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    834,
+    160,
+    220
+   ]
+  },
+  {
+   "index": 4,
+   "gak": 0,
+   "cell": "중청태 - 중청고",
+   "original": "중청태 - 중청고",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    1054,
+    160,
+    218
+   ]
+  },
+  {
+   "index": 5,
+   "gak": 0,
+   "cell": "중청태 - 중청황",
+   "original": "중청태 - 중청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    1272,
+    160,
+    219
+   ]
+  },
+  {
+   "index": 6,
+   "gak": 0,
+   "cell": "중청태 - 중청황",
+   "original": "중청태 - 중청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    1491,
+    160,
+    219
+   ]
+  },
+  {
+   "index": 7,
+   "gak": 0,
+   "cell": "중청고 - 중청태",
+   "original": "중청고 - 중청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    1710,
+    160,
+    219
+   ]
+  },
+  {
+   "index": 8,
+   "gak": 0,
+   "cell": "중청황",
+   "original": "중청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    1929,
+    160,
+    196
+   ]
+  },
+  {
+   "index": 9,
+   "gak": 0,
+   "cell": "- - 쉼",
+   "original": "- - 쉼",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    2125,
+    160,
+    201
+   ]
+  },
+  {
+   "index": 10,
+   "gak": 0,
+   "cell": "중청황 - 중청고중청태",
+   "original": "중청황 - 중청고중청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    2326,
+    160,
+    218
+   ]
+  },
+  {
+   "index": 11,
+   "gak": 0,
+   "cell": "중청고 -중청태 중청황",
+   "original": "중청고 -중청태 중청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1170,
+    2544,
+    160,
+    224
+   ]
+  },
+  {
+   "index": 12,
+   "gak": 1,
+   "cell": "청남",
+   "original": "청남",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    176,
+    160,
+    221
+   ]
+  },
+  {
+   "index": 13,
+   "gak": 1,
+   "cell": "청남 - 중청황청남",
+   "original": "청남 - 중청황청남",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    397,
+    160,
+    219
+   ]
+  },
+  {
+   "index": 14,
+   "gak": 1,
+   "cell": "청고 - 중청황청남",
+   "original": "청고 - 중청황청남",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    616,
+    160,
+    218
+   ]
+  },
+  {
+   "index": 15,
+   "gak": 1,
+   "cell": "중청황 -중청태 청남",
+   "original": "중청황 -중청태 청남",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    834,
+    160,
+    220
+   ]
+  },
+  {
+   "index": 16,
+   "gak": 1,
+   "cell": "중청황 - 중청태",
+   "original": "중청황 - 중청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    1054,
+    160,
+    218
+   ]
+  },
+  {
+   "index": 17,
+   "gak": 1,
+   "cell": "중청황 청남 중청황<",
+   "original": "중청황 청남 중청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    1272,
+    160,
+    219
+   ]
+  },
+  {
+   "index": 18,
+   "gak": 1,
+   "cell": "중청고 - 중청태중청고중청태",
+   "original": "중청고 - 중청태중청고중청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    1491,
+    160,
+    165
+   ]
+  },
+  {
+   "index": 19,
+   "gak": 1,
+   "cell": "중청황 청남 -",
+   "original": "중청황 청남 -",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    1710,
+    160,
+    219
+   ]
+  },
+  {
+   "index": 20,
+   "gak": 1,
+   "cell": "중청태",
+   "original": "중청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    1929,
+    160,
+    196
+   ]
+  },
+  {
+   "index": 21,
+   "gak": 1,
+   "cell": "중청고<",
+   "original": "중청고",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    2125,
+    160,
+    201
+   ]
+  },
+  {
+   "index": 22,
+   "gak": 1,
+   "cell": "청남",
+   "original": "청남",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    2326,
+    160,
+    218
+   ]
+  },
+  {
+   "index": 23,
+   "gak": 1,
+   "cell": "중청고 -중청태 중청황",
+   "original": "중청고 -중청태 중청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    928,
+    2544,
+    160,
+    224
+   ]
+  },
+  {
+   "index": 24,
+   "gak": 2,
+   "cell": "청남 - 중청황청남",
+   "original": "청남 - 중청황청남",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    176,
+    160,
+    221
+   ]
+  },
+  {
+   "index": 25,
+   "gak": 2,
+   "cell": "청임 - 중청황청남",
+   "original": "청임 - 중청황청남",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    397,
+    160,
+    219
+   ]
+  },
+  {
+   "index": 26,
+   "gak": 2,
+   "cell": "중청황 -중청태 중청황",
+   "original": "중청황 -중청태 중청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    616,
+    160,
+    218
+   ]
+  },
+  {
+   "index": 27,
+   "gak": 2,
+   "cell": "청남 - 쉼",
+   "original": "청남 - 쉼",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    834,
+    160,
+    220
+   ]
+  }
+ ],
+ "omittedInputCells": [
+  {
+   "index": 28,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": false,
+   "inserted": false,
+   "conf": null,
+   "box": null
+  },
+  {
+   "index": 29,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": false,
+   "inserted": false,
+   "conf": null,
+   "box": null
+  },
+  {
+   "index": 30,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": false,
+   "inserted": false,
+   "conf": null,
+   "box": null
+  },
+  {
+   "index": 31,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": false,
+   "inserted": false,
+   "conf": null,
+   "box": null
+  },
+  {
+   "index": 32,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": false,
+   "inserted": false,
+   "conf": null,
+   "box": null
+  },
+  {
+   "index": 33,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": false,
+   "inserted": false,
+   "conf": null,
+   "box": null
+  },
+  {
+   "index": 34,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": false,
+   "inserted": false,
+   "conf": null,
+   "box": null
+  },
+  {
+   "index": 35,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": false,
+   "inserted": false,
+   "conf": null,
+   "box": null
+  }
+ ]
+}

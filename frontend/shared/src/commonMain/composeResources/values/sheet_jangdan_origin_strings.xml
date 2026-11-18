@@ -1,0 +1,7 @@
+<resources>
+    <string name="sheet_jangdan_timing_details">박자·시작 위치 보기</string>
+    <string name="sheet_jangdan_timing_close">박자·시작 위치 접기</string>
+    <string name="sheet_jangdan_origin">장단은 첫 정간부터 시작해요.</string>
+    <string name="sheet_jangdan_melody_entry">선율의 첫 음: %1$s박 위치</string>
+    <string name="sheet_jangdan_no_pickup">중간에서 시작하는 장단은 아직 안 돼요. 다른 장단을 고르거나 장단 없이 써 주세요.</string>
+</resources>

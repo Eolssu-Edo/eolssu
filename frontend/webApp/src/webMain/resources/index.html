@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>얼쑤</title>
+    <meta name="theme-color" content="#F9FAF9">
+    <link type="text/css" rel="stylesheet" href="styles.css">
+</head>
+<body style="margin: 0; background: #F9FAF9">
+    <!-- 앱(Wasm)을 불러오는 동안: 로고와 작은 도는 표시만 둔다. 앱이 화면을 붙이면 지운다.
+         불러오기 실패·20초 초과·Wasm GC 미지원이면 아래 스크립트가 안내와 새로고침 버튼을 더한다. -->
+    <div id="boot-loading" role="img" aria-label="불러오는 중"
+         style="position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px">
+        <img src="eolssu-logo.webp" alt="" width="112" height="58">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 50 50" aria-hidden="true">
+            <circle cx="25" cy="25" r="20" stroke="#EEEBE3" stroke-width="5" fill="none"/>
+            <circle cx="25" cy="25" r="20" stroke="#7E8C1C" stroke-width="5" fill="none" stroke-linecap="round"
+                    stroke-dasharray="90 125">
+                <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s"
+                                  repeatCount="indefinite"/>
+            </circle>
+        </svg>
+    </div>
+    <script>
+        (function () {
+            // Android 간편 로그인 복귀 주소(App Links). 제공자가 사용자 조작 없이 바로 돌려보내면 Chrome은 앱을 열지 않고
+            // 이 주소를 웹으로 연다. 사용자가 누른 intent 링크는 앱으로 넘어가므로 돌아가기 버튼을 보여 준다(docs/specs/social-auth.md).
+            var androidReturn = /^\/auth\/android\/oauth\/(kakao|google|naver)\/callback$/.test(location.pathname);
+            if (!androidReturn) {
+                // 앱을 못 불러오면 도는 표시만 남지 않도록 안내를 띄운다. 막지는 않는다: 안내 뒤에도 앱이 화면을 붙이면
+                // 로딩 영역째 지운다(JS 타깃 개발 실행도 같은 index.html을 쓴다).
+                var attached = false;
+                var slowTimer;
+                // Wasm GC(struct 타입)를 검사하는 최소 모듈. Kotlin/Wasm은 이 기능이 없으면 실행되지 않는다.
+                var wasmGc = (function () {
+                    try {
+                        return typeof WebAssembly === "object" && WebAssembly.validate(
+                            new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 95, 1, 120, 0]));
+                    } catch (e) {
+                        return false;
+                    }
+                })();
+                var showNotice = function (kind) {
+                    var loading = document.getElementById("boot-loading");
+                    if (attached || !loading) return;
+                    var notice = document.getElementById("boot-notice");
+                    if (notice && notice.getAttribute("data-kind") !== "slow") return; // 실패·미지원 안내를 유지
+                    if (!notice) {
+                        notice = document.createElement("div");
+                        notice.id = "boot-notice";
+                        notice.setAttribute("role", "alert");
+                        notice.style.cssText = "max-width: 320px; padding: 0 16px; text-align: center;"
+                            + " font-family: sans-serif; color: #2b2b2b; word-break: keep-all;";
+                        loading.appendChild(notice);
+                    }
+                    loading.removeAttribute("role");
+                    loading.removeAttribute("aria-label");
+                    notice.setAttribute("data-kind", kind);
+                    var spinner = loading.querySelector("svg");
+                    if (spinner && kind !== "slow") spinner.style.display = "none";
+                    var message = kind === "unsupported"
+                        ? ["이 브라우저에서는 얼쑤를 열 수 없어요.",
+                           "최신 Chrome·Safari·Samsung 인터넷으로 열어 주세요. 앱 안 브라우저라면 기본 브라우저로 열어 주세요."]
+                        : kind === "failed"
+                            ? ["얼쑤를 불러오지 못했어요.", "인터넷 연결을 확인하고 새로고침해 주세요."]
+                            : ["불러오는 데 시간이 걸리고 있어요.", "계속 이 화면이면 인터넷 연결을 확인하고 새로고침해 주세요."];
+                    notice.textContent = "";
+                    var title = document.createElement("p");
+                    title.textContent = message[0];
+                    title.style.cssText = "margin: 0 0 8px; font-size: 17px; font-weight: 600;";
+                    var guide = document.createElement("p");
+                    guide.textContent = message[1];
+                    guide.style.cssText = "margin: 0 0 20px; font-size: 14px; line-height: 1.5; color: #555;";
+                    var reload = document.createElement("button");
+                    reload.type = "button";
+                    reload.textContent = "새로고침";
+                    reload.style.cssText = "padding: 12px 24px; border: 0; border-radius: 12px; background: #2b2b2b;"
+                        + " color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;";
+                    reload.onclick = function () { location.reload(); };
+                    notice.append(title, guide, reload);
+                };
+                var fail = function () { showNotice(wasmGc ? "failed" : "unsupported"); };
+                new MutationObserver(function (records, observer) {
+                    var appAttached = Array.prototype.some.call(document.body.children, function (el) {
+                        return el.id !== 'boot-loading' && el.tagName !== 'SCRIPT';
+                    });
+                    if (!appAttached) return;
+                    attached = true;
+                    clearTimeout(slowTimer);
+                    window.removeEventListener("error", fail);
+                    window.removeEventListener("unhandledrejection", fail);
+                    var loading = document.getElementById('boot-loading');
+                    if (loading) loading.remove();
+                    observer.disconnect();
+                }).observe(document.body, { childList: true });
+                // 화면을 붙이기 전의 처리되지 않은 오류(Wasm 내려받기·컴파일 실패 등)는 시작 실패로 본다.
+                window.addEventListener("error", fail);
+                window.addEventListener("unhandledrejection", fail);
+                if (!wasmGc) showNotice("unsupported");
+                slowTimer = setTimeout(function () { showNotice("slow"); }, 20000);
+                var app = document.createElement("script");
+                app.src = "webApp.js";
+                app.onerror = function () { showNotice("failed"); };
+                document.body.appendChild(app);
+                return;
+            }
+            document.title = "얼쑤 앱으로 돌아가기";
+            document.getElementById("boot-loading").remove();
+
+            var heading = document.createElement("h1");
+            heading.textContent = "얼쑤 앱으로 돌아가기";
+            heading.style.cssText = "font-size: 22px; margin: 0 0 12px;";
+            var guide = document.createElement("p");
+            guide.textContent = "아래 버튼을 눌러 얼쑤 앱에서 이어서 진행해 주세요.";
+            guide.style.cssText = "margin: 0 0 24px; color: #555;";
+            var button = document.createElement("a");
+            button.id = "return-to-app";
+            button.textContent = "얼쑤 앱 열기";
+            // 같은 주소·쿼리(code·state 등)를 그대로 앱의 복귀 처리로 넘긴다. 패키지를 지정하지 않아 일반·QA 앱 모두 받는다.
+            button.href = "intent://" + location.host + location.pathname + location.search
+                + "#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end";
+            button.style.cssText = "display: inline-block; padding: 14px 28px; border-radius: 12px; background: #2b2b2b;"
+                + " color: #fff; font-size: 17px; font-weight: 600; text-decoration: none;";
+            var help = document.createElement("p");
+            help.textContent = "앱이 열리지 않으면 얼쑤 앱으로 돌아가 다시 시도해 주세요.";
+            help.style.cssText = "margin: 24px 0 0; font-size: 14px; color: #777;";
+
+            var main = document.createElement("main");
+            main.style.cssText = "min-height: 100vh; display: flex; flex-direction: column; align-items: center;"
+                + " justify-content: center; padding: 0 16px; text-align: center; font-family: sans-serif;";
+            main.append(heading, guide, button, help);
+            document.body.appendChild(main);
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+package com.ssafy.eolssu.feature.profile
+
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.Modifier
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import com.ssafy.eolssu.core.model.InputLimit
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuTextField
+import com.ssafy.eolssu.core.ui.component.PasswordChecklist
+import com.ssafy.eolssu.core.ui.component.TextFieldType
+import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.my_password_change
+import eolssu.shared.generated.resources.my_password_change_done
+import eolssu.shared.generated.resources.my_password_confirm
+import eolssu.shared.generated.resources.my_password_confirm_placeholder
+import eolssu.shared.generated.resources.my_password_current
+import eolssu.shared.generated.resources.my_password_new
+import org.jetbrains.compose.resources.stringResource
+
+/** MY-03 비밀번호 변경. 현재 비밀번호 · 새 비밀번호(가입과 같은 조건 체크리스트) · 새 비밀번호 확인. */
+@Composable
+fun PasswordChangeScreen(
+    state: PasswordChangeUiState,
+    widthClass: WindowWidthClass,
+    onBack: () -> Unit,
+    onCurrentChange: (String) -> Unit,
+    onNewChange: (String) -> Unit,
+    onConfirmChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
+    ProfileScaffold(
+        widthClass,
+        stringResource(Res.string.my_password_change),
+        onBack,
+        gap = 16.dp,
+        // 마이페이지처럼 회색 바탕 위 테두리 없는 흰 입력칸(S15P31E102-768).
+        containerColor = EolssuTheme.colors.groupedBackground,
+        bottomDivider = false,
+        bottomBar = { EolssuButton(stringResource(Res.string.my_password_change_done), onClick = UserActionLog.click(QaTarget.PASSWORD_CHANGE_SCREEN_01, onSubmit), busy = state.submitting, qaTarget = QaTarget.PASSWORD_CHANGE_SCREEN_BUTTON_01) },
+    ) {
+        EolssuTextField(qaTarget = QaTarget.PASSWORD_CHANGE_SCREEN_02,
+            value = state.current,
+            onValueChange = UserActionLog.change(QaTarget.PASSWORD_CHANGE_SCREEN_02, onCurrentChange),
+            label = stringResource(Res.string.my_password_current),
+            placeholder = stringResource(Res.string.my_password_current),
+            type = TextFieldType.Password,
+            maxLength = InputLimit.PASSWORD,
+            bordered = false,
+            error = state.currentError?.let { stringResource(it.message) },
+        )
+        // 가입 비밀번호 칸(AUTH-08)처럼 규칙은 문장 대신 체크리스트로 안내하고, 조건을 덜 채운 채 누르면 체크리스트를 강조한다.
+        // 입력칸 오류 문장은 그 밖의 오류(미입력·64자 초과·현재와 같음)만 쓴다.
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            val ruleError = state.newError == ProfileFieldError.PasswordRule
+            EolssuTextField(qaTarget = QaTarget.PASSWORD_CHANGE_SCREEN_03,
+                value = state.new,
+                onValueChange = UserActionLog.change(QaTarget.PASSWORD_CHANGE_SCREEN_03, onNewChange),
+                label = stringResource(Res.string.my_password_new),
+                placeholder = stringResource(Res.string.my_password_new),
+                type = TextFieldType.Password,
+                maxLength = InputLimit.PASSWORD,
+                bordered = false,
+                error = state.newError?.takeUnless { ruleError }?.let { stringResource(it.message) },
+            )
+            PasswordChecklist(state.new, highlightUnmet = ruleError)
+        }
+        EolssuTextField(qaTarget = QaTarget.PASSWORD_CHANGE_SCREEN_04,
+            value = state.confirm,
+            onValueChange = UserActionLog.change(QaTarget.PASSWORD_CHANGE_SCREEN_04, onConfirmChange),
+            label = stringResource(Res.string.my_password_confirm),
+            placeholder = stringResource(Res.string.my_password_confirm_placeholder),
+            type = TextFieldType.Password,
+            maxLength = InputLimit.PASSWORD,
+            bordered = false,
+            error = state.confirmError?.let { stringResource(it.message) },
+            imeAction = ImeAction.Done,
+            onImeAction = onSubmit,
+        )
+        state.formError?.let { ProfileFormError(stringResource(it.message)) }
+    }
+}
+
+/** 칸과 상관없는 제출 실패 안내. 화면 읽기도 바로 읽는다. */
+@Composable
+private fun ProfileFormError(text: String) {
+    Text(
+        text,
+        Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+        color = EolssuTheme.colors.recText,
+    )
+}

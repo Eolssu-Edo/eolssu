@@ -1,0 +1,13 @@
+# 백엔드 수치를 운영 스택 내부 네트워크로 읽는다. 인터넷 쪽 /api/actuator/prometheus는 Nginx가 404로 막는다.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: eolssu-backend
+    metrics_path: /api/actuator/prometheus
+    static_configs:
+      - targets: ["frontend:8081"]
+
+  - job_name: node # 서버 자원. node-exporter는 Docker 내부 네트워크에서만 읽힌다
+    static_configs:
+      - targets: ["node-exporter:9100"]

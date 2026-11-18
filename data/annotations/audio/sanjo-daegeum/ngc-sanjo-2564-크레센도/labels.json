@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sanjo-daegeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sanjo-2564": "0a426df1a3d0f818dda7a0f45502547d5c73f592391398bf3d35da2c0a32c3b4"
+  },
+  "columns": ["id","startSeconds","endSeconds","register","yulmyeong","labelF0Hz"],
+  "groups": [
+    {
+      "sourceId": "ngc-sanjo-2564",
+      "category": "시김새",
+      "technique": "크레센도",
+      "method": "tool:prepare_sanjo_assets@c163f2f",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sanjo-2564.region-001",0.7,4.705291666666667,"저취","임",264.086],
+        ["ngc-sanjo-2564.region-002",6.56,11.385291666666667,"저취","남",317.53],
+        ["ngc-sanjo-2564.region-003",13.68,17.865291666666668,"저취","무",351.261],
+        ["ngc-sanjo-2564.region-004",21.06,24.745291666666667,"저취","태",418.184],
+        ["ngc-sanjo-2564.region-005",27.72,31.425291666666666,"저취","고",465.35],
+        ["ngc-sanjo-2564.region-006",35.2,39.105291666666666,"저취","중",514.156],
+        ["ngc-sanjo-2564.region-007",42.58,46.48529166666667,"평취","임",534.106],
+        ["ngc-sanjo-2564.region-008",49.78,53.66529166666667,"평취","남",621.2],
+        ["ngc-sanjo-2564.region-009",56.7,61.06529166666667,"평취","무",691.063],
+        ["ngc-sanjo-2564.region-010",65.06,68.30529166666666,"평취","태",829.506],
+        ["ngc-sanjo-2564.region-011",71.58,75.30529166666666,"평취","고",921.919],
+        ["ngc-sanjo-2564.region-012",78.76,82.14529166666667,"평취","중",1033.116],
+        ["ngc-sanjo-2564.region-013",84.32,87.48529166666667,"역취","임",1083.557],
+        ["ngc-sanjo-2564.region-014",90.52,94.18529166666667,"역취","남",1225.02],
+        ["ngc-sanjo-2564.region-015",97.56,101.08529166666666,"역취","무",1342.415],
+        ["ngc-sanjo-2564.region-016",104.48,107.60529166666667,"역취","황",1521.43]
+      ],
+      "evidence": {
+        "ngc-sanjo-2564.region-006": {"alternatives":[{"register":"평취","yulmyeong":"임","hz":533.311,"distanceCents":-63.33},{"register":"저취","yulmyeong":"고","hz":461.07,"distanceCents":188.66}]}
+      },
+      "analysisBasis": "measured_pitch_correspondence"
+    }
+  ]
+}

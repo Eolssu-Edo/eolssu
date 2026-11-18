@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshTokenMapper">
+    <select id="hasActiveNonExpiringSession" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM refresh_tokens
+            WHERE user_id = #{userId} AND token_hash = #{tokenHash}
+              AND expires_at IS NULL AND revoked_at IS NULL)
+    </select>
+    <!-- 466: 회전 중인 세션은 새 행이 같은 session_id를 이어받으므로, 폐기되지 않고 만료 전인 행이 하나라도 있으면 활성이다. -->
+    <select id="hasActiveSession" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM refresh_tokens
+            WHERE session_id = #{sessionId} AND user_id = #{userId} AND revoked_at IS NULL
+              AND (expires_at IS NULL OR expires_at &gt; #{now}))
+    </select>
+    <select id="findById" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshTokenRow">
+        SELECT id, user_id, token_hash, session_id, expires_at, revoked_at, revoke_reason, created_at
+        FROM refresh_tokens
+        WHERE id = #{id}
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO refresh_tokens (user_id, token_hash, session_id, expires_at, created_at)
+        VALUES (#{userId}, #{tokenHash}, #{sessionId}, #{expiresAt}, #{createdAt})
+    </insert>
+    <select id="findByTokenHash" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshTokenRow">
+        SELECT id, user_id, token_hash, session_id, expires_at, revoked_at, revoke_reason, created_at
+        FROM refresh_tokens
+        WHERE token_hash = #{tokenHash}
+    </select>
+    <select id="findByTokenHashForUpdate" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshTokenRow">
+        SELECT id, user_id, token_hash, session_id, expires_at, revoked_at, revoke_reason, created_at
+        FROM refresh_tokens
+        WHERE token_hash = #{tokenHash}
+        FOR UPDATE
+    </select>
+    <update id="revoke">
+        UPDATE refresh_tokens SET revoked_at = #{now}, revoke_reason = #{reason} WHERE id = #{id} AND revoked_at IS NULL
+    </update>
+    <update id="revokeAllActive">
+        UPDATE refresh_tokens SET revoked_at = #{now}, revoke_reason = #{reason} WHERE user_id = #{userId} AND revoked_at IS NULL
+    </update>
+</mapper>

@@ -1,0 +1,18 @@
+{
+  "label": "단소",
+  "jira": "S15P31E102-105",
+  "variant": "정악단소",
+  "technical_range": [
+    66,
+    92
+  ],
+  "style_range": [
+    66,
+    92
+  ],
+  "range_source": "국립국악원 창작을 위한 국악기 이해와 활용2 단소 p26 음역도(8va 적용)",
+  "interpretation": "정악 요성은 호흡에 의한 강약을 우선 검토. 위음 꾸밈은 음계 문맥의 이웃음을 명시.",
+  "yoseong_mode": "amplitude",
+  "preset_name": "DanSo - DEMO_simple.adv",
+  "nominal_hwang_midi": 63
+}

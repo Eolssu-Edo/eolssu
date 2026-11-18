@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartMapper">
+    <select id="listForInstrument" resultType="com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartRow">
+        SELECT id, instrument_id, pitch_id, image_url, description, created_at, updated_at, pattern_json
+        FROM fingering_charts
+        WHERE instrument_id = #{instrumentId}
+        <if test="pitchId != null">AND pitch_id = #{pitchId}</if>
+        ORDER BY id
+    </select>
+    <select id="findById" resultType="com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartRow">
+        SELECT id, instrument_id, pitch_id, image_url, description, created_at, updated_at, pattern_json
+        FROM fingering_charts
+        WHERE id = #{id}
+    </select>
+</mapper>

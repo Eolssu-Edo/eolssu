@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationMapper">
+    <select id="findById" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow">
+        SELECT id, email, purpose, code_hash, attempt_count, expires_at, verified_at, token_hash, token_expires_at, consumed_at, invalidated_at, created_at
+        FROM email_verifications
+        WHERE id = #{id}
+    </select>
+    <select id="findByIdForUpdate" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow">
+        SELECT id, email, purpose, code_hash, attempt_count, expires_at, verified_at, token_hash, token_expires_at, consumed_at, invalidated_at, created_at
+        FROM email_verifications WHERE id = #{id} FOR UPDATE
+    </select>
+    <select id="findByTokenHash" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow">
+        SELECT id, email, purpose, code_hash, attempt_count, expires_at, verified_at, token_hash, token_expires_at, consumed_at, invalidated_at, created_at
+        FROM email_verifications WHERE token_hash = #{tokenHash}
+    </select>
+    <select id="findByTokenHashForUpdate" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow">
+        SELECT id, email, purpose, code_hash, attempt_count, expires_at, verified_at, token_hash, token_expires_at, consumed_at, invalidated_at, created_at
+        FROM email_verifications WHERE token_hash = #{tokenHash} FOR UPDATE
+    </select>
+    <update id="markConsumed">
+        UPDATE email_verifications SET consumed_at = #{now} WHERE id = #{id} AND consumed_at IS NULL
+    </update>
+    <select id="registeredEmail" resultType="string">
+        SELECT email FROM users WHERE email = #{email} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING')
+    </select>
+    <select id="memberExists" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING'))
+    </select>
+    <select id="sendHistory" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.VerificationSendHistoryRow">
+        SELECT MAX(created_at) AS last_sent_at, COALESCE(SUM(created_at &gt;= #{dayStart}), 0) AS daily_count
+        FROM email_verifications WHERE email = #{email}
+    </select>
+    <update id="invalidatePrevious">
+        UPDATE email_verifications SET invalidated_at = #{now}
+        WHERE email = #{email} AND purpose = #{purpose} AND invalidated_at IS NULL AND consumed_at IS NULL
+    </update>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO email_verifications (email, purpose, code_hash, expires_at, created_at)
+        VALUES (#{email}, #{purpose}, #{codeHash}, #{expiresAt}, #{createdAt})
+    </insert>
+    <update id="recordMismatch">
+        UPDATE email_verifications SET attempt_count = attempt_count + 1
+        WHERE id = #{id} AND attempt_count &lt; 5 AND verified_at IS NULL AND invalidated_at IS NULL
+    </update>
+    <update id="markVerified">
+        UPDATE email_verifications SET verified_at = #{now}, token_hash = #{tokenHash}, token_expires_at = #{tokenExpiresAt}
+        WHERE id = #{id} AND verified_at IS NULL AND invalidated_at IS NULL AND attempt_count &lt; 5 AND expires_at &gt; #{now}
+    </update>
+    <update id="replaceUndeliveredCodeHash">
+        UPDATE email_verifications SET code_hash = #{codeHash}
+        WHERE id = #{id} AND verified_at IS NULL AND invalidated_at IS NULL
+    </update>
+</mapper>

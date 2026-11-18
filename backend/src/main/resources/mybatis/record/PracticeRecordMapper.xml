@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.PracticeRecordMapper">
+    <!-- 저장(REC-01)과 삭제(REC-04)가 엇갈리지 않도록 세션 행만 잠근다. 곡·평가 행은 잠그지 않는다 -->
+    <select id="lockStatus" resultType="string">
+        SELECT status FROM practice_sessions
+        WHERE id = #{sessionId} AND user_id = #{userId} AND record_deleted_at IS NULL
+        FOR UPDATE
+    </select>
+
+    <!-- 재생 가능은 PRA-03과 같은 정의다. 기록을 지운 세션은 어느 조회에도 나오지 않는다 -->
+    <sql id="recordColumns">
+        ps.id AS session_id, ps.song_id, COALESCE(v.title,s.title) AS song_title, COALESCE(v.note_count,s.note_count) AS note_count,
+        ps.score_version, ps.start_note_idx, ps.end_note_idx,
+        ps.bpm, ps.bpm_unit, ps.status, ps.started_at, ps.recording_duration_ms, e.total_score, ps.saved_at, ps.memo,
+        (ps.recording_url IS NOT NULL) AS recording_available, ps.viewed_at
+    </sql>
+
+    <select id="findSession" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.RecordSessionRow">
+        SELECT <include refid="recordColumns"/>
+        FROM practice_sessions ps
+        JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN song_score_versions v ON v.song_id = ps.song_id AND v.score_version = ps.score_version AND s.score_version &lt;&gt; ps.score_version
+        LEFT JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.id = #{sessionId} AND ps.user_id = #{userId} AND ps.record_deleted_at IS NULL
+    </select>
+
+    <!-- 저장은 DONE에서만 되므로 기록에는 평가가 있다 -->
+    <select id="songSummaries" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.SongRecordSummaryRow">
+        SELECT ps.song_id, s.title, COUNT(*) AS record_count, MAX(ps.saved_at) AS last_saved_at,
+               MAX(e.total_score) AS best_score, i.code AS instrument_code, MAX(ps.started_at) AS last_started_at
+        FROM practice_sessions ps
+        JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN instruments i ON i.id = s.instrument_id
+        JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.user_id = #{userId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
+        GROUP BY ps.song_id, s.title, i.code
+        ORDER BY last_saved_at DESC, ps.song_id DESC
+    </select>
+
+    <!-- (user_id, started_at)으로 최근 시각을 찾고, 그 시각의 행에서만 곡·세션 동률을 푼다. -->
+    <select id="latestSavedRecord" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.RecordSessionRow">
+        SELECT <include refid="recordColumns"/>
+        FROM practice_sessions ps
+        JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN song_score_versions v ON v.song_id = ps.song_id AND v.score_version = ps.score_version AND s.score_version &lt;&gt; ps.score_version
+        JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.user_id = #{userId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
+          AND ps.started_at = (
+              SELECT candidate.started_at
+              FROM practice_sessions candidate
+              JOIN evaluations candidate_eval ON candidate_eval.session_id = candidate.id
+              WHERE candidate.user_id = #{userId} AND candidate.saved_at IS NOT NULL AND candidate.record_deleted_at IS NULL
+              ORDER BY candidate.started_at DESC
+              LIMIT 1
+          )
+        ORDER BY ps.song_id DESC, ps.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="savedRecordWeek" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.SavedRecordWeekRow">
+        SELECT COUNT(*) AS record_count, MAX(e.total_score) AS best_score
+        FROM practice_sessions ps
+        JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.user_id = #{userId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
+          AND ps.started_at &gt;= #{from} AND ps.started_at &lt; #{until}
+    </select>
+
+    <select id="songRecords" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.RecordSessionRow">
+        SELECT <include refid="recordColumns"/>
+        FROM practice_sessions ps
+        JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN song_score_versions v ON v.song_id = ps.song_id AND v.score_version = ps.score_version AND s.score_version &lt;&gt; ps.score_version
+        JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.user_id = #{userId} AND ps.song_id = #{songId} AND ps.saved_at IS NOT NULL AND ps.record_deleted_at IS NULL
+        <choose>
+            <when test="newest">ORDER BY ps.started_at DESC, ps.id DESC</when>
+            <otherwise>ORDER BY ps.started_at ASC, ps.id ASC</otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 다시 듣기(REC-03)는 저장 전 결과 화면에서도 쓴다. 상태·저장 여부는 보지 않는다 -->
+    <select id="findRecording" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.RecordingFileRow">
+        SELECT recording_url, recording_duration_ms FROM practice_sessions
+        WHERE id = #{sessionId} AND user_id = #{userId} AND recording_url IS NOT NULL AND record_deleted_at IS NULL
+    </select>
+
+    <select id="findDeletable" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.DeletableRecordRow">
+        SELECT id AS session_id, recording_url FROM practice_sessions
+        WHERE id = #{sessionId} AND user_id = #{userId} AND saved_at IS NOT NULL AND record_deleted_at IS NULL
+    </select>
+
+    <!-- 저장 시각·평가·음표 판정·첫 조회 시각은 남긴다. 성장 집계는 점수를 그대로 센다 -->
+    <update id="markDeleted">
+        UPDATE practice_sessions
+        SET record_deleted_at = #{deletedAt}, recording_url = NULL, memo = NULL
+        WHERE id = #{sessionId} AND user_id = #{userId} AND saved_at IS NOT NULL AND record_deleted_at IS NULL
+    </update>
+
+    <!-- 다시 보내도 처음 저장 시각은 그대로다(멱등) -->
+    <update id="save">
+        UPDATE practice_sessions
+        SET saved_at = COALESCE(saved_at, #{savedAt})<if test="changeMemo">, memo = #{memo}</if>
+        WHERE id = #{sessionId} AND user_id = #{userId} AND status = 'DONE' AND record_deleted_at IS NULL
+    </update>
+</mapper>

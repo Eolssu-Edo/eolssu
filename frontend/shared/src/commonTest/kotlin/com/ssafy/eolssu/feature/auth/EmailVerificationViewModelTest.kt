@@ -1,0 +1,215 @@
+package com.ssafy.eolssu.feature.auth
+
+import com.ssafy.eolssu.data.user.AuthRepository
+import com.ssafy.eolssu.data.user.AccountDraft
+import com.ssafy.eolssu.data.user.ConfirmCodeResult
+import com.ssafy.eolssu.data.user.LoginResult
+import com.ssafy.eolssu.data.user.SampleAuthRepository
+import com.ssafy.eolssu.data.user.SendCodeResult
+import com.ssafy.eolssu.data.user.VerificationCodeValidMillis
+import com.ssafy.eolssu.data.user.VerificationPurpose
+import com.ssafy.eolssu.data.user.VerificationResendMillis
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/** 이메일 인증(AUTH-06·10): 보내기·재발송 간격·만료·틀린 횟수. */
+class EmailVerificationViewModelTest {
+    private var now = 1_000L
+
+    private fun viewModel(purpose: VerificationPurpose, repository: AuthRepository = SampleAuthRepository { now }) =
+        EmailVerificationViewModel(purpose, repository, now = { now })
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun changingEmailWhileSendingDiscardsTheOldResponseAndToken() = runTest {
+        val answer = CompletableDeferred<SendCodeResult>()
+        val repository = object : AuthRepository by SampleAuthRepository({ now }) {
+            override suspend fun sendCode(email: String, purpose: VerificationPurpose) = answer.await()
+        }
+        val draft = AccountDraft().apply { token = "old-token" }
+        val vm = EmailVerificationViewModel(VerificationPurpose.SignUp, repository, { now }, draft)
+        vm.changeEmail("old@example.test")
+        val request = async { vm.sendCode() }
+        runCurrent()
+        vm.changeEmail("new@example.test")
+        answer.complete(SendCodeResult.Sent("42", now + 180_000, now + 60_000))
+        assertFalse(request.await())
+        assertFalse(vm.uiState.value.codeSent)
+        assertEquals("new@example.test", vm.uiState.value.email)
+        assertEquals("", draft.token)
+    }
+
+    @Test
+    fun malformedEmailIsBlockedBeforeSendingForEveryPurpose() = runTest {
+        var sends = 0
+        val repository = object : AuthRepository by SampleAuthRepository({ now }) {
+            override suspend fun sendCode(email: String, purpose: VerificationPurpose): SendCodeResult {
+                sends++
+                return SendCodeResult.Sent("v1", now + 180_000, now + 60_000)
+            }
+        }
+        for (purpose in listOf(VerificationPurpose.SignUp, VerificationPurpose.PasswordReset)) {
+            for (email in listOf("a@b", "a@b..com", "a..b@c.com", "a@-b.com")) {
+                val vm = viewModel(purpose, repository)
+                vm.changeEmail(email)
+                assertFalse(vm.sendCode(), "$purpose $email")
+                assertEquals(FieldError.EmailInvalid, vm.uiState.value.emailError)
+                assertFalse(vm.uiState.value.codeSent)
+            }
+        }
+        assertEquals(0, sends)
+    }
+
+    @Test
+    fun signupBlocksRegisteredEmailButResetHidesIt() = runTest {
+        val signUp = viewModel(VerificationPurpose.SignUp)
+        signUp.changeEmail(SampleAuthRepository.RegisteredEmail)
+        assertFalse(signUp.sendCode())
+        assertEquals(FieldError.EmailAlreadyExists, signUp.uiState.value.emailError)
+        assertFalse(signUp.uiState.value.codeSent)
+
+        val reset = viewModel(VerificationPurpose.PasswordReset)
+        reset.changeEmail(SampleAuthRepository.RegisteredEmail)
+        assertTrue(reset.sendCode())
+        assertTrue(reset.uiState.value.codeSent)
+    }
+
+    @Test
+    fun sentCodeCountsDownAndConfirmsSixDigits() = runTest {
+        val viewModel = viewModel(VerificationPurpose.SignUp)
+        viewModel.changeEmail(" new@example.com ")
+        assertTrue(viewModel.sendCode())
+        val state = viewModel.uiState.value
+        assertEquals("new@example.com", state.email)
+        assertEquals(180, state.secondsLeft(now))
+        assertEquals(60, state.resendSecondsLeft(now))
+
+        viewModel.changeCode("01a23")
+        assertEquals("0123", viewModel.uiState.value.code)
+        assertFalse(viewModel.confirmCode())
+        assertEquals(CodeError.Invalid, viewModel.uiState.value.codeError)
+
+        viewModel.changeCode("012345")
+        assertNull(viewModel.uiState.value.codeError)
+        assertTrue(viewModel.confirmCode())
+        assertTrue(viewModel.uiState.value.verificationToken != null)
+    }
+
+    @Test
+    fun resendWaitsSixtySecondsAndExpiryNeedsNewCode() = runTest {
+        val viewModel = viewModel(VerificationPurpose.SignUp)
+        viewModel.changeEmail("new@example.com")
+        viewModel.sendCode()
+
+        now += VerificationResendMillis - 1
+        assertFalse(viewModel.resendCode())
+        now += 1
+        assertTrue(viewModel.resendCode())
+
+        now += VerificationCodeValidMillis
+        assertEquals(CodeError.Expired, viewModel.uiState.value.codeErrorAt(now))
+        assertTrue(viewModel.uiState.value.needsNewCode(now))
+        viewModel.changeCode("123456")
+        assertFalse(viewModel.confirmCode())
+        assertEquals(CodeError.Expired, viewModel.uiState.value.codeError)
+
+        assertTrue(viewModel.resendCode())
+        assertNull(viewModel.uiState.value.codeError)
+        assertFalse(viewModel.uiState.value.needsNewCode(now))
+    }
+
+    @Test
+    fun mismatchShowsRemainingAttemptsAndTooManyKeepsBlocking() = runTest {
+        var answer: ConfirmCodeResult = ConfirmCodeResult.Mismatch(remainingAttempts = 4)
+        val repository = object : AuthRepository {
+            override suspend fun logIn(email: String, password: String) = LoginResult.WrongCredentials
+
+            override fun logOut() = Unit
+            override suspend fun sendCode(email: String, purpose: VerificationPurpose) = SendCodeResult.Sent("v1", now + 180_000, now + 60_000)
+            override suspend fun confirmCode(verificationId: String, code: String) = answer
+        }
+        val viewModel = viewModel(VerificationPurpose.SignUp, repository)
+        viewModel.changeEmail("new@example.com")
+        viewModel.sendCode()
+        viewModel.changeCode("000000")
+
+        assertFalse(viewModel.confirmCode())
+        assertEquals(CodeError.Mismatch(4), viewModel.uiState.value.codeError)
+
+        answer = ConfirmCodeResult.TooManyAttempts
+        viewModel.changeCode("000001")
+        assertFalse(viewModel.confirmCode())
+        assertEquals(CodeError.TooManyAttempts, viewModel.uiState.value.codeError)
+        viewModel.changeCode("000002")
+        assertEquals(CodeError.TooManyAttempts, viewModel.uiState.value.codeError)
+        assertTrue(viewModel.uiState.value.needsNewCode(now))
+    }
+
+    /** 3분이 남았는데 서버가 410(새 번호로 바뀜·이미 사용)으로 답한 경우. 시간 초과 안내 대신 새 번호를 받게 하고, 60초 간격은 지킨다. */
+    @Test
+    fun serverRejectedCodeWithTimeLeftNeedsNewCodeAfterResendWait() = runTest {
+        var answer: ConfirmCodeResult = ConfirmCodeResult.Expired
+        val repository = object : AuthRepository {
+            override suspend fun logIn(email: String, password: String) = LoginResult.WrongCredentials
+
+            override fun logOut() = Unit
+            override suspend fun sendCode(email: String, purpose: VerificationPurpose) = SendCodeResult.Sent("v1", now + 180_000, now + 60_000)
+            override suspend fun confirmCode(verificationId: String, code: String) = answer
+        }
+        val viewModel = viewModel(VerificationPurpose.SignUp, repository)
+        viewModel.changeEmail("new@example.com")
+        viewModel.sendCode()
+        now += 55_000
+        viewModel.changeCode("123456")
+
+        assertFalse(viewModel.confirmCode())
+        viewModel.uiState.value.let {
+            assertEquals(CodeError.NoLongerValid, it.codeErrorAt(now))
+            assertTrue(it.needsNewCode(now))
+            assertEquals(5, it.resendSecondsLeft(now))
+        }
+        viewModel.changeCode("654321")
+        assertEquals(CodeError.NoLongerValid, viewModel.uiState.value.codeError)
+        assertFalse(viewModel.resendCode())
+
+        now += 5_000
+        assertTrue(viewModel.resendCode())
+        assertNull(viewModel.uiState.value.codeError)
+        assertFalse(viewModel.uiState.value.needsNewCode(now))
+
+        // 3분이 실제로 지난 뒤의 410은 그대로 시간 초과다.
+        now += 180_000
+        answer = ConfirmCodeResult.Expired
+        viewModel.changeCode("123456")
+        assertFalse(viewModel.confirmCode())
+        assertEquals(CodeError.Expired, viewModel.uiState.value.codeError)
+    }
+
+    @Test
+    fun editingEmailAfterSendingDropsTheCode() = runTest {
+        val viewModel = viewModel(VerificationPurpose.SignUp)
+        viewModel.changeEmail("new@example.com")
+        viewModel.sendCode()
+        viewModel.changeCode("123456")
+
+        viewModel.changeEmail("other@example.com")
+        viewModel.uiState.value.let {
+            assertFalse(it.codeSent)
+            assertEquals("", it.code)
+            assertEquals("other@example.com", it.email)
+        }
+    }
+
+    @Test
+    fun minutesSecondsFormat() = runTest {
+        assertEquals("3:00", formatMinutesSeconds(180))
+        assertEquals("0:09", formatMinutesSeconds(9))
+    }
+}

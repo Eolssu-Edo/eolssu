@@ -1,0 +1,19 @@
+<resources>
+    <string name="practice_player_loading">로딩 중</string>
+    <string name="practice_player_failed">재생에 실패했어요</string>
+    <string name="practice_player_unavailable">재생할 음원이 없어요</string>
+    <string name="practice_player_unsupported">재생을 지원하지 않아요</string>
+    <string name="practice_player_interrupted">재생이 중단됐어요</string>
+    <string name="practice_sheet_audio_unavailable">음원 다운로드를 눌러 지금 악보의 음원을 받아 주세요</string>
+    <string name="practice_sheet_audio_checking">음원 확인 중</string>
+    <string name="practice_sheet_audio_download">음원 다운로드</string>
+    <string name="practice_sheet_audio_queued">음원 생성 대기 중</string>
+    <string name="practice_sheet_audio_preparing">음원 생성 중</string>
+    <string name="practice_sheet_audio_downloading">음원 다운받는 중</string>
+    <string name="practice_sheet_audio_ready">미리듣기 준비 완료</string>
+    <string name="practice_sheet_audio_retry">다시 시도</string>
+    <string name="practice_sheet_audio_download_failed">음원을 준비하지 못했어요</string>
+    <string name="practice_sheet_audio_version_changed">악보 변경됨</string>
+    <string name="practice_sheet_audio_reopen">내 악보에서 다시 열어 주세요</string>
+    <string name="practice_sheet_audio_with_jangdan">생성 음원에 장단이 들어 있어요</string>
+</resources>

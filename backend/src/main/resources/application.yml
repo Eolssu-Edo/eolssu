@@ -1,0 +1,217 @@
+spring:
+  application:
+    name: eolssu
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  task:
+    scheduling:
+      pool:
+        # 음원·악보 변환 작업자는 한 번에 몇 분까지 걸리므로 짧은 주기 작업과 스레드를 나눈다.
+        size: 4
+  servlet:
+    multipart:
+      # 녹음 업로드(PRA-02)의 20MiB 경계는 RecordingFileValidator가 413으로 판정한다.
+      # 앞 계층 한도는 스펙대로 multipart 파일·요청 25MiB, Nginx /api/ 25m이다.
+      max-file-size: 25MB
+      max-request-size: 25MB
+      # 업로드 원본도 30분 수명 안에 두려고 위치를 고정한다. 폴더는 임시 저장소 Bean이 만들고 비운다.
+      location: ${eolssu.sheet-import.multipart-directory}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+eolssu:
+  legal:
+    publication-enabled: ${LEGAL_PUBLICATION_ENABLED:false}
+  auth:
+    kakao-webhook-app-id: ${AUTH_KAKAO_WEBHOOK_APP_ID:}
+    code-hmac-secret: ${AUTH_CODE_HMAC_SECRET:}
+    mail-mode: ${AUTH_MAIL_MODE:smtp}
+    mail:
+      host: ${AUTH_MAIL_HOST:}
+      port: ${AUTH_MAIL_PORT:587}
+      username: ${AUTH_MAIL_USERNAME:}
+      password: ${AUTH_MAIL_PASSWORD:}
+      from: ${AUTH_MAIL_FROM:}
+      from-name: ${AUTH_MAIL_FROM_NAME:}
+    cookie-secure: ${AUTH_COOKIE_SECURE:true}
+    android-app-links:
+      sha256-cert-fingerprints: ${AUTH_ANDROID_APP_SHA256_FINGERPRINTS:}
+      qa-sha256-cert-fingerprints: ${AUTH_ANDROID_QA_APP_SHA256_FINGERPRINTS:}
+    oauth:
+      kakao:
+        client-id: ${AUTH_OAUTH_KAKAO_CLIENT_ID:}
+        client-secret: ${AUTH_OAUTH_KAKAO_CLIENT_SECRET:}
+        redirect-uris: ${AUTH_OAUTH_KAKAO_REDIRECT_URIS:}
+      google:
+        client-id: ${AUTH_OAUTH_GOOGLE_CLIENT_ID:}
+        client-secret: ${AUTH_OAUTH_GOOGLE_CLIENT_SECRET:}
+        redirect-uris: ${AUTH_OAUTH_GOOGLE_REDIRECT_URIS:}
+      naver:
+        client-id: ${AUTH_OAUTH_NAVER_CLIENT_ID:}
+        client-secret: ${AUTH_OAUTH_NAVER_CLIENT_SECRET:}
+        redirect-uris: ${AUTH_OAUTH_NAVER_REDIRECT_URIS:}
+      # Sign in with Apple(iOS 기본 로그인). client-id는 번들 ID, private-key는 .p8(PKCS#8 PEM, 한 줄이면 줄바꿈 자리에 역슬래시n). 하나라도 비면 503.
+      apple:
+        client-id: ${AUTH_OAUTH_APPLE_CLIENT_ID:}
+        team-id: ${AUTH_OAUTH_APPLE_TEAM_ID:}
+        key-id: ${AUTH_OAUTH_APPLE_KEY_ID:}
+        private-key: ${AUTH_OAUTH_APPLE_PRIVATE_KEY:}
+        redirect-uris: ${AUTH_OAUTH_APPLE_REDIRECT_URIS:}
+        # 개발 앱(얼쑤 개발, Ad Hoc). 번들 ID와 그 앱 전용 복귀 주소가 모두 있어야 받는다.
+        dev-client-id: ${AUTH_OAUTH_APPLE_DEV_CLIENT_ID:}
+        dev-redirect-uris: ${AUTH_OAUTH_APPLE_DEV_REDIRECT_URIS:}
+  security:
+    jwt-secret: ${AUTH_JWT_SECRET:}
+    non-expiring-user-ids: ${AUTH_NON_EXPIRING_USER_IDS:}
+    # 같은 사이트 밖에서 API를 부르는 개발용 주소(쉼표로 구분). 운영은 웹과 API가 같은 주소라 비워 둔다.
+    allowed-origins: ${SECURITY_ALLOWED_ORIGINS:}
+  # 녹음 원본 저장소(S3 호환, Cloudflare R2). 하나라도 비면 업로드는 503이다. 키는 서버 .env에만 둔다.
+  recording-storage:
+    type: ${RECORDING_STORAGE_TYPE:s3}
+    local-directory: ${RECORDING_STORAGE_LOCAL_DIRECTORY:}
+    local-read-base-url: ${RECORDING_STORAGE_LOCAL_READ_BASE_URL:}
+    local-signing-secret: ${RECORDING_STORAGE_LOCAL_SIGNING_SECRET:}
+    endpoint: ${RECORDING_STORAGE_ENDPOINT:}
+    bucket: ${RECORDING_STORAGE_BUCKET:}
+    access-key-id: ${RECORDING_STORAGE_ACCESS_KEY_ID:}
+    secret-access-key: ${RECORDING_STORAGE_SECRET_ACCESS_KEY:}
+    region: ${RECORDING_STORAGE_REGION:auto}
+  # 내 악보 원본·음원 비공개 저장소(S15P31E102-471·481). 녹음 버킷(30일 수명 주기)과 다른 버킷·키를 쓴다.
+  # 값이 하나라도 비면 불러오기(SHT-07)는 503 CONVERSION_UNAVAILABLE이다. local은 개발·테스트용 디렉터리 저장소다.
+  sheet-conversion:
+    omr-base-url: ${SHEET_CONVERSION_OMR_BASE_URL:}
+  sheet-audio:
+    base-url: ${SHEET_AUDIO_BASE_URL:}
+    # Renderer deadline 90s + transport allowance 10s (481 measured on 1 CPU).
+    timeout-seconds: ${SHEET_AUDIO_TIMEOUT_SECONDS:100}
+  sheet-import:
+    read-base-url: ${SHEET_IMPORT_READ_BASE_URL:http://backend:8080/api/internal/sheet-imports}
+    multipart-directory: ${java.io.tmpdir}/eolssu-multipart
+  sheet-storage:
+    type: ${SHEET_STORAGE_TYPE:s3}
+    local-directory: ${SHEET_STORAGE_LOCAL_DIRECTORY:}
+    endpoint: ${SHEET_STORAGE_ENDPOINT:}
+    bucket: ${SHEET_STORAGE_BUCKET:}
+    access-key-id: ${SHEET_STORAGE_ACCESS_KEY_ID:}
+    secret-access-key: ${SHEET_STORAGE_SECRET_ACCESS_KEY:}
+    region: ${SHEET_STORAGE_REGION:auto}
+  # 영구 학습 음원의 읽기 전용 서명 설정. 사용자 녹음 저장/삭제 정책과 별개다.
+  reference-audio-storage:
+    endpoint: ${REFERENCE_AUDIO_STORAGE_ENDPOINT:}
+    bucket: ${REFERENCE_AUDIO_STORAGE_BUCKET:}
+    access-key-id: ${REFERENCE_AUDIO_STORAGE_ACCESS_KEY_ID:}
+    secret-access-key: ${REFERENCE_AUDIO_STORAGE_SECRET_ACCESS_KEY:}
+    region: ${REFERENCE_AUDIO_STORAGE_REGION:auto}
+  analysis:
+    # AI 서비스 주소(예: http://ai:8000). 비어 있으면 업로드 뒤 분석을 시작하지 않는다(PRA-03).
+    ai-base-url: ${ANALYSIS_AI_BASE_URL:}
+  note-practice:
+    # 한 음씩 연습 기준(PRA-06). 키는 악기 code이고 없는 악기는 404다. 값을 바꾸면 criteria-version을 올린다.
+    # 아래 값은 AI 미확정 초안이다. 명세의 초안 한 벌을 네 악기에 그대로 넣었으며 악기별로 측정한 값이 아니다.
+    # 악기별로 따로 고칠 수 있게 블록을 나눠 둔다. 앵커로 묶지 않는다. 키를 하나라도 빠뜨리면 서버가 시작되지 않는다.
+    # DANSO는 실기기 피드백(S15P31E102-666)으로, 두 대금은 같은 값으로(S15P31E102-866) 허용 센트·유지 시간·조율 상한을 완화했다. 측정으로 정한 값은 아니다.
+    criteria:
+      DANSO:
+        criteria-version: note-step-2
+        pitch-tolerance-cent: 70
+        hold-ms: 200
+        min-confidence: 0.8
+        min-level-dbfs: -45
+        octave-must-match: true
+        tuning: FIRST_NOTE
+        max-tuning-offset-cent: 100
+        sigimsae-mode: MAIN_PITCH
+        hint-after-ms: 8000
+      SOGEUM:
+        criteria-version: note-step-1
+        pitch-tolerance-cent: 50
+        hold-ms: 300
+        min-confidence: 0.8
+        min-level-dbfs: -45
+        octave-must-match: true
+        tuning: FIRST_NOTE
+        max-tuning-offset-cent: 50
+        sigimsae-mode: MAIN_PITCH
+        hint-after-ms: 8000
+      JEONGAK_DAEGEUM:
+        criteria-version: note-step-2
+        pitch-tolerance-cent: 70
+        hold-ms: 200
+        min-confidence: 0.8
+        min-level-dbfs: -45
+        octave-must-match: true
+        tuning: FIRST_NOTE
+        max-tuning-offset-cent: 100
+        sigimsae-mode: MAIN_PITCH
+        hint-after-ms: 8000
+      SANJO_DAEGEUM:
+        criteria-version: note-step-2
+        pitch-tolerance-cent: 70
+        hold-ms: 200
+        min-confidence: 0.8
+        min-level-dbfs: -45
+        octave-must-match: true
+        tuning: FIRST_NOTE
+        max-tuning-offset-cent: 100
+        sigimsae-mode: MAIN_PITCH
+        hint-after-ms: 8000
+
+management:
+  metrics:
+    distribution:
+      # p95를 계산할 응답 시간 분포 구간. 수치가 늘어나므로 API 요청, DB 연결 대기, 분석 실행 시간에만 켠다.
+      percentiles-histogram:
+        "[http.server.requests]": true
+        "[hikaricp.connections.acquire]": true
+        "[eolssu.analysis.run]": true
+      # 기본 구간은 1ms 미만부터 수십 초까지 69개라, 쓸 범위로 잘라 구간 수를 줄인다.
+      # 분석은 처리 중앙값이 약 4초이고 제한 시간(기본 60초)을 넘기면 저장하지 않으므로 100ms~2분으로 둔다.
+      minimum-expected-value:
+        "[http.server.requests]": 5ms
+        "[hikaricp.connections.acquire]": 1ms
+        "[eolssu.analysis.run]": 100ms
+      maximum-expected-value:
+        "[http.server.requests]": 10s
+        "[hikaricp.connections.acquire]": 5s
+        "[eolssu.analysis.run]": 120s
+  endpoints:
+    access:
+      default: none
+    web:
+      base-path: /api/actuator
+      exposure:
+        include: health, prometheus
+    jmx:
+      exposure:
+        exclude: "*"
+  endpoint:
+    # prometheus는 서버 안 Prometheus만 읽는다. 인터넷 쪽은 Nginx가 readiness 외 점검 주소를 막는다.
+    prometheus:
+      access: read-only
+    health:
+      access: read-only
+      show-details: never
+      show-components: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState
+
+springdoc:
+  api-docs:
+    enabled: false
+    path: /api/v3/api-docs
+    version: OPENAPI_3_0
+  swagger-ui:
+    enabled: false
+    path: /api/swagger-ui.html
+    disable-swagger-default-url: true
+    persist-authorization: false
+    validator-url: ""
+    with-credentials: true
+  packages-to-scan: com.ssafy.eolssu.backend.feature
+  paths-to-match: /api/**
+  show-actuator: false

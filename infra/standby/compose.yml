@@ -1,0 +1,150 @@
+name: eolssu-standby-579
+
+services:
+  frontend:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    image: ${STANDBY_NGINX_IMAGE:?set the verified Nginx image}
+    ports:
+      - "127.0.0.1:18443:8443"
+    volumes:
+      - ${STANDBY_WEB_DIR:?set the verified web directory}:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./tls:/etc/nginx/standby-tls:ro
+    networks: [default, ingress]
+    mem_limit: 128m
+    restart: unless-stopped
+
+  backend:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    image: eolssu-backend-runtime:21-jre-ffmpeg8.0.1
+    user: "10001:10001"
+    command: ["java", "-jar", "/app/app.jar"]
+    environment:
+      SPRING_PROFILES_ACTIVE: ops
+      SPRING_FLYWAY_ENABLED: "true"
+      EOLSSU_SCHEDULING_ENABLED: "false"
+      DB_URL: "jdbc:mysql://mysql:3306/eolssu_standby?connectTimeout=2000&socketTimeout=2000"
+      DB_USERNAME: standby
+      DB_PASSWORD: ${STANDBY_DB_PASSWORD:?set a standby-only database password}
+      AUTH_JWT_SECRET: ${STANDBY_JWT_SECRET:?set a standby-only token signing key}
+      RECORDING_STORAGE_TYPE: local
+      RECORDING_STORAGE_LOCAL_DIRECTORY: /var/lib/eolssu/recordings
+      RECORDING_STORAGE_LOCAL_READ_BASE_URL: http://backend:8080/api/recordings/read
+      RECORDING_STORAGE_LOCAL_SIGNING_SECRET: ${STANDBY_RECORDING_SECRET:?set a standby-only recording signing key}
+      ANALYSIS_AI_BASE_URL: http://ai:8000
+      SHEET_STORAGE_TYPE: local
+      SHEET_STORAGE_LOCAL_DIRECTORY: /var/lib/eolssu/sheets
+      SHEET_CONVERSION_OMR_BASE_URL: http://omr:8000
+      SHEET_AUDIO_BASE_URL: http://playback:8000
+    volumes:
+      - ${STANDBY_BACKEND_JAR:?set the verified backend JAR}:/app/app.jar:ro
+      - ./recordings:/var/lib/eolssu/recordings
+      - ./sheets:/var/lib/eolssu/sheets
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test \"$$(curl -fsS --max-time 3 http://127.0.0.1:8080/api/actuator/health/readiness)\" = '{\"status\":\"UP\"}'"]
+      interval: 5s
+      timeout: 4s
+      retries: 24
+    mem_limit: 2g
+    restart: unless-stopped
+
+  mysql:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    image: mysql:8.4.13
+    environment:
+      MYSQL_DATABASE: eolssu_standby
+      MYSQL_USER: standby
+      MYSQL_PASSWORD: ${STANDBY_DB_PASSWORD:?set a standby-only database password}
+      MYSQL_ROOT_PASSWORD: ${STANDBY_DB_ROOT_PASSWORD:?set a standby-only database root password}
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", 'MYSQL_PWD="$${MYSQL_ROOT_PASSWORD}" mysql -h127.0.0.1 -uroot -NBe "SELECT 1" >/dev/null']
+      interval: 5s
+      timeout: 4s
+      retries: 20
+    mem_limit: 1g
+    restart: unless-stopped
+
+  ai:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    image: eolssu-ai:runtime
+    read_only: true
+    tmpfs: ["/tmp:rw,size=512m"]
+    mem_limit: 6g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 2).close()"]
+      interval: 10s
+      timeout: 4s
+      retries: 12
+    restart: unless-stopped
+
+  omr:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    image: eolssu-omr:runtime
+    read_only: true
+    tmpfs: ["/tmp:rw,exec,size=1g"]
+    cpus: 2
+    mem_limit: 2g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 4s
+      retries: 12
+    restart: unless-stopped
+
+  playback:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    image: eolssu-playback:runtime
+    read_only: true
+    tmpfs: ["/tmp:rw,size=512m"]
+    cpus: 1
+    mem_limit: 1g
+    memswap_limit: 1g
+    environment:
+      PLAYBACK_ASSETS_JSON: /assets/assets.json
+      PLAYBACK_JANGGU_SAMPLES: /janggu
+    volumes:
+      - ${STANDBY_PLAYBACK_ASSETS:?set the verified playback assets}:/assets:ro
+      - ${STANDBY_PLAYBACK_ASSETS:?set the verified playback assets}/janggu:/janggu:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 4s
+      retries: 12
+    restart: unless-stopped
+
+networks:
+  default:
+    internal: true
+  ingress:
+
+volumes:
+  db:

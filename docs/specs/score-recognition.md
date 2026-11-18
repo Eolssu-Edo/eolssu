@@ -1,0 +1,212 @@
+# 악보 인식 서비스 계약 (omr, SHT-07 내부)
+
+2026-11-13, S15P31E102-883: 오선보의 각간 붙임줄·가변 마디 길이를 보존한다. 자동 연결 대상이 아닌 박자는 장단 빈 이름으로 내보내 기존 null ID 저장을 사용한다. 박자표 저신뢰·반복 불완전마디는 검수 사유를 남긴다. [현재 리듬 계약](score-rhythm-preservation.md)이 아래의 고정 각 너비·굿거리 기본값 설명을 대체한다. 실제 박자표 오독을 추정으로 고치지는 않는다.
+
+- Jira: [S15P31E102-313](https://ssafy.atlassian.net/browse/S15P31E102-313)(인식, 사지한). 소비자: [S15P31E102-347](https://ssafy.atlassian.net/browse/S15P31E102-347)(BE 변환 작업자·검수·저장).
+- 상태: 초안(2026-11-03, 313 설계 결정). BE(347) 검토 전이다. `hwangPitch` 생략 동작은 382 결정을 바꾸는 **제안**이다(아래 '382와 다른 점').
+- 상위 계약: [내 악보](user-sheets.md) '2차 결정(382)'의 SHT-07·08·10. 이 문서는 backend 작업자와 악보 인식 서비스 사이만 정한다. 앱이 보는 API는 382와 Notion API 명세를 따른다.
+- 근거: [변환 가능성 조사와 실측](../knowledge/ai/score-omr-feasibility.md).
+
+## 범위
+
+포함:
+
+- 내부 API `POST /v1/recognitions`의 요청·응답·실패 코드·시간 상한
+- 엔진 선택 규칙, 초안 결과의 `provenance`, 확인 필요 칸(`issues`)과 악보 전체 알림(`notices`)의 종류
+- 오선보 → 정간보 변환 기본값
+
+제외:
+
+- 업로드·임시 원본 수명·상태(QUEUED/RUNNING/DONE/FAILED)·검수 화면·저장(382, 347)
+- 사용자가 올리는 MusicXML·MIDI 파일 가져오기([S15P31E102-349](https://ssafy.atlassian.net/browse/S15P31E102-349), 2차 보류)
+- 정간보 → 오선보 파일 내보내기(앱이 공통 악보로 그린다, 382)
+
+## 실행 위치
+
+- 악보 인식 전용 컨테이너 `omr`. 채점 AI(`ai`)와 따로 두어 메모리·CPU를 나눠 쓰지 않는다. 내부망에서 backend만 호출하고 외부에 열지 않는다.
+- 동시 처리 1건(Audiveris 잠금). 메모리 2GiB·CPU 2개(`infra/runtime/compose.yml`, 이 PC 실측 최대 1.31GiB, 운영 서버 0.76GB). 그림 정간보 OMR(S15P31E102-458)의 torch를 붙이면 다시 잰다.
+- Audiveris(AGPL-3.0)는 수정 없이 별도 프로세스로 실행한다.
+
+## 요청
+
+backend 변환 작업자가 SHT-07로 접수한 변환 하나마다 한 번 호출하고 응답을 기다린다(동기).
+
+```json
+POST /v1/recognitions
+{
+  "conversionId": "c-123",
+  "notation": "STAFF",
+  "files": [{"url": "https://...signed", "contentType": "application/pdf"}],
+  "instrument": "DANSO",
+  "jangdan": "굿거리",
+  "hwangPitch": null
+}
+```
+
+| 필드 | 뜻 |
+| --- | --- |
+| `conversionId` | backend 변환 식별자. 응답에 그대로 돌려주고 로그에 남긴다. 같은 값으로 다시 와도 서비스는 상태를 저장하지 않고 새로 인식한다(중복 처리는 backend 책임) |
+| `notation` | `JEONGGANBO` 또는 `STAFF` |
+| `files` | HTTP 읽기 URL 목록. 534부터 backend의 내부 임시 원본 URL(만료 토큰, 외부 공개 없음)을 사용한다. 요청·응답 구조는 유지하며 기존 URL 계약도 엔진에서 처리한다. PDF 1개 또는 PNG·JPEG 1~10장(382). 파일·합계 20MiB, PDF 10쪽 |
+| `instrument` | `instruments.code`. 율명 표 적합과 음역 검사에 쓴다 |
+| `jangdan` | 장단 이름. 정간보는 필수(382). 오선보는 생략 가능(아래 기본값) |
+| `hwangPitch` | 오선보에서 황으로 둘 음(MIDI 번호). 생략하면 자동 조 맞춤 |
+
+## 응답
+
+항상 HTTP 200에 결과 상태를 담는다(채점 분석 API와 같은 방식). 요청 형식 오류만 422다.
+
+```json
+{
+  "conversionId": "c-123",
+  "status": "DONE",
+  "failReason": null,
+  "engine": "audiveris",
+  "engineVersion": "5.11.0",
+  "pages": [{"index": 0, "width": 4300, "height": 3040}],
+  "jgb": {"v": 1, "melody": "..."},
+  "score": {"schemaVersion": 1, "provenance": {"review": "inferred", "converter": "staff-omr/audiveris-5.11.0"}},
+  "issues": [{"kind": "OUT_OF_RANGE", "eventId": null, "cellId": "c6-j0", "page": null, "bbox": null, "detail": {"measure": 7, "semitone": 3}}],
+  "notices": [{"kind": "TRANSPOSED", "eventId": null, "cellId": null, "page": null, "bbox": null, "detail": {"semitones": 8, "candidates": [8]}}]
+}
+```
+
+- `score`: 공통 악보 v1([score_data.schema.json](../../data/src/scores/score_data.schema.json)). 언제나 초안이라 `provenance.review`는 `inferred`다. 내 악보는 사용자가 검수해 저장한 뒤에도 `inferred`로 둔다(`reviewed`는 전문가가 검수한 채점 정답용). 저장할 때 backend가 `converter`·`jgbSha256`·`sourceId`를 다시 채운다(S15P31E102-447).
+- `provenance.converter` 값: `jeongganbo-text/standard_score_text`(글자 층), `jeongganbo-omr/malerlab`, `staff-omr/audiveris-<버전>`. `jgbSha256`·`sourceId`는 변환한 `.jgb.json`과 `conversionId` 기준으로 채운다.
+- `jgb`: 중간 결과 `.jgb.json`(382). 저장 여부는 backend가 정한다.
+- 오선보의 선택적 `bpm`은 인식된 첫 숫자를 `score.music.bpmUnit` 기준 양의 INT로 표현할 수 있을 때 보낸다. 숫자를 읽지 못했고 장단도 비었으면(요청 장단 없음, 마디 길이가 박자표와 달라 자동 장단을 정하지 않음) 악보에 적힌 박자표가 하나이고 자동 장단 대응(4분음표4박·9/8·12/8)이 있을 때 그 장단의 기본 빠르기를 같은 단위로 보내고 `LOW_CONFIDENCE` `TEMPO_DEFAULT_FROM_TIME_SIGNATURE`(`detail` `{"timeSignature", "jangdan", "bpm"}`)를 남긴다. backend가 장단 없이 쓰던 60을 피하려는 시작값이다(S15P31E102-1035). 그 밖에는 생략한다. 선택적 `expressions`는 기존 `common-score-expressions/v1`의 해시 결합 숫자 `performancePlan`이다. `bpm`으로 보낸 곡 시작(1각 1정간)의 바로 적용 숫자는 `tempos`에 다시 넣지 않으며, 남는 구간이 없으면 `expressions`를 생략한다(S15P31E102-1083). 공통 악보 v1에 숫자 필드를 추가하지 않는다. backend는 요청 BPM → 인식 BPM → 장단 기본값 순으로 선택하고 서버 메타데이터 변경 뒤 companion SHA를 재결합한다. [숫자·가속 스펙](staff-tempo-import.md).
+- `bbox`: `pages[index]` 그림 픽셀 좌표 `[x, y, 너비, 높이]`. 검수 화면이 원본 쪽 이미지에 표시한다.
+
+### issues와 notices (S15P31E102-469)
+
+- `issues`: 사용자가 고칠 칸이 있는 것. 항목마다 결과 `score`의 음(`eventId`)이나 칸(`cellId`, `c{각}-j{정간}`)을 언제나 가리킨다. 한 칸에 여러 개가 올 수 있으므로(예: 한 정간에 몰린 짧은 음마다 `OFF_GRID_RHYTHM`), backend는 `cellId`(없으면 `eventId`)가 같은 것을 한 칸으로 세어 확인할 칸 수로 쓴다.
+- `notices`: 칸이 없는 악보 전체·쪽·열 단위 알림. `eventId`·`cellId`는 언제나 null이고 모양은 issue와 같다. 확인할 칸 수에 넣지 않는다.
+- 엔진이 결과 악보에 없는 음·칸을 가리키면(엔진 잘못) 그 id를 비우고 로그를 남긴다. 그래서 가리키는 id가 하나도 남지 않으면 그 항목은 `notices`로 간다.
+
+| kind | 놓이는 곳 | 칸 |
+| --- | --- | --- |
+| `OUT_OF_RANGE` | issues | 그 음이 놓인 정간 |
+| `LOW_CONFIDENCE` `OFF_GRID_RHYTHM`·`COLLIDED` | issues | 리듬을 옮기거나 겹친 정간 |
+| `LOW_CONFIDENCE` `GAP_IN_VOICE` | issues | 빈 시간이 시작하는 쉼표 정간 |
+| `LOW_CONFIDENCE` `FINAL_MEASURE_PADDED` | issues | 소리가 있는 마지막 마디가 박자표보다 한 박 안쪽으로 모자라 정간 박 경계까지 채운 쉼표 정간. 반복 연주면 회차마다 하나(S15P31E102-1043) |
+| `ORNAMENT_DROPPED` | issues | 꾸밈음이 붙어 있던 음의 정간. 반복을 펼치면 펼친 각마다 하나. 뒤따르는 음이 없으면 notices |
+| `UNREADABLE` 읽지 못한 글자(`detail.text`) | issues | 그 글자를 덮는 정간 |
+| `UNREADABLE` `NO_TEXT`·`NO_GRID`·`NO_STAFF`·`NOT_SCORE_COLUMN` | notices | 쪽·열 전체 |
+| `LOW_CONFIDENCE` `TIME_SIGNATURE_CHANGED`·`VOLTA_NUMBER` | notices | 마디 구조 |
+| `LOW_CONFIDENCE` `GRID_FALLBACK` | notices | 쪽 전체. 정간보 스캔에서 선 기반 칸 주소를 못 찾아 기존 리더로 읽은 쪽(S15P31E102-1077) |
+| `LOW_CONFIDENCE` `TEMPO_PDF_TEXT`·`TEMPO_OFF_GRID`·`TEMPO_CONFLICT`·`TEMPO_RAMP_UNRESOLVED`·`TEMPO_BASE_NOT_INTEGER` | notices | 숫자 보완·위치/가속 검토. 상세 기준은 숫자·가속 스펙 |
+| `LOW_CONFIDENCE` `TEMPO_DEFAULT_FROM_TIME_SIGNATURE` | notices | 숫자가 없어 박자표의 장단 기본 빠르기를 시작값으로 보냄 |
+| `TRANSPOSED`·`VOICE_GUESSED`·`JANGDAN_GUESSED`·`JANGDAN_MISMATCH` | notices | 악보 전체 |
+
+### issues 종류
+
+| kind | 뜻 | 기준 |
+| --- | --- | --- |
+| `LOW_CONFIDENCE` | 읽었지만 확신이 낮음 | 정간보 OMR `cells.json`의 신뢰도가 기준 아래·격자 보충 칸·쉼표만 읽힌 칸·장단과 어긋난 각의 첫 칸, 격자 주소 대신 기존 리더로 읽은 쪽(notice), 또는 오선보 변환에서 박자표 바뀜·격자 밖 리듬·칸 충돌·성부 안 빈 시간·volta 번호 없음(`detail.reason`) |
+| `UNREADABLE` | 칸이나 기호를 읽지 못해 비움 | 빈 결과·모르는 글자 |
+| `OUT_OF_RANGE` | 악기 음역 밖 율명 | 율명 표·`instrument` 음역 |
+| `TRANSPOSED` | 조를 자동으로 옮김 | `detail`에 옮긴 반음과 후보(동률이면 2개) |
+| `VOICE_GUESSED` | 여러 성부 중 하나를 골랐음 | 오선보 파트·성부가 2개 이상, 또는 정간보 글자 층의 2중주 이상 쪽 |
+| `ORNAMENT_DROPPED` | 꾸밈음을 버림 | 오선보 꾸밈음 |
+| `JANGDAN_GUESSED` | 요청에 장단이 없어 정했음 | 오선보. `detail` `{"source": "timeSignature"(4/4·9/8·12/8) \| "rhythm"(박자표를 못 읽어 리듬으로) \| "default"(굿거리), "jangdan"}` |
+| `JANGDAN_MISMATCH` | 고른 장단과 각의 정간 수가 맞지 않음 | 정간보: 한 각의 장단 횟수를 어떻게 잡아도 정간당 박이 장단의 맞는 박(4분음표 장단 1·1/2·1/3, 점4분음표 장단 1·1/3)이 아님(세령산의 3/2박은 예외). 오선보: 한 각(한 마디) 길이가 장단 한 번과 다름 |
+
+## 스캔·사진 정간보 경로 (S15P31E102-458)
+
+- PDF 글자 층이 없거나 PNG/JPEG 입력이면 `jeongganbo_scan`이 MALerLab `e95045f`와 v1.0.0 가중치를 사용하는 기존 DATA 리더를 별도 프로세스로 호출한다. 글자 층 검사에 쓴 시간을 스캔 예산에서 차감한다. 쪽당 60초·동시 무거운 추론 1건을 유지한다.
+- 각 쪽은 먼저 원래 크기 그림에서 선만 보고 율명 칸마다 주소(단·열·줄)와 칸 위 가로선 굵기를 찾는다(S15P31E102-1077, 엔진 `e95045f-v1.0.0-r13`, `grid_boxes.find_grid`). 칸 크기를 가정하지 않아 배율을 바꾸지 않고, 찾은 칸 상자를 잘라 모델로 율명만 읽는다. 각은 굵은 각 구분선(쪽 가로선 굵기 중간값의 1.8배 이상이면서 2px 넘게)과 열 시작에서 나눈다. 그 각이 요청 장단에 맞지 않는데(아래 `JANGDAN_MISMATCH`와 같은 기준, S15P31E102-1076) 열 전체가 맞으면 굵은 선은 박 구분선이고 열이 각 하나다. 열에 굵은 선이 없으면 열이 각 하나이고, 열이 장단에 맞지 않으면 장단에 맞는 가장 작은 정간 수로 나눈다. 장단에 맞지 않는 굵은 선 각은 그대로 두고 첫 칸에 `LOW_CONFIDENCE`(`GAK_MISMATCH`)를 남긴다. 각 길이가 섞이면 가장 흔한 길이를 기본 각으로 하고 나머지는 각별 정간 수로 둔다. 각·정간 번호(`c{각}-j{정간}`)는 칸 순번이 아니라 이 각에서 나온다. 이 경로에서 악보 하나를 찾지 못한 쪽은 아래 기존 리더 경로(크기 재시도 포함)로 읽고, 읽었으면 그 쪽에 `LOW_CONFIDENCE`(`GRID_FALLBACK`) notice(쪽 전체 `bbox`)를 남긴다. 기존 리더 경로의 결과와 1068 굵은 선 판정은 이전과 같다. 실측은 [스캔 실행 기록](../knowledge/ai/jeongganbo-scan-runtime.md#격자-인식-기준선-1077)에 둔다.
+- 엔진 `e95045f-v1.0.0-r14`(S15P31E102-1092)부터 격자는 스캔으로 끊기거나 일찍 끝난 세로선도 같은 x 조각을 합쳐 단 높이의 80% 이상을 덮으면 그 단의 선으로 본다. 여러 선이 같은 높이에서 함께 끊기면 쌓인 단 사이 틈이라 끝까지 닿는 선만 쓴다. 가로선 하나를 못 찾아 정간 높이의 2배 ±15%가 된 칸은 두 정간으로 나눈다. 가로선 있는 더 긴 단과 위가 맞닿고 그 단의 열보다 오른쪽에만 있는 짧은 단의 열(장단표)은 율명 열로 읽지 않는다.
+- 검출한 격자의 열/칸을 보존하고 칸을 격자 줄 위치에 맞춘다(S15P31E102-1060, 엔진 `e95045f-v1.0.0-r8`). 줄 위치는 보통 칸의 위쪽 y와, 보통 칸 높이의 1.5배 이상인 상자 안을 칸 높이로 나눈 위치다. 두 줄 이상을 덮는 상자(가는 가로선을 놓쳐 합쳐진 칸)는 줄마다 나눠 다시 읽고 `LOW_CONFIDENCE`(`GRID_SPLIT`)를 남긴다. 빠진 칸은 이웃 열의 줄 위치로 보완해 `LOW_CONFIDENCE`(`GRID_FILLED`)를 남긴다. 먹이 있는 자리는 채우고, 먹이 없는 자리는 같은 열의 위·아래 칸 사이이면서 열의 세로선이 이어질 때만 빈 정간으로 채운다. 열 아래쪽 끝의 먹 없는 자리는 곡 끝일 수 있어 채우지 않는다. 각·정간 번호는 이렇게 맞춘 칸 순서로 리더가 정하고(`cells.json`의 `gak`·`jeonggan`), 스캔 결과의 `c{각}-j{정간}`과 줄 구성에 그대로 쓴다. 따라서 칸 하나가 합쳐지거나 빠져도 뒤 각이 밀리지 않는다. 칸 오류가 없는 쪽의 결과는 이전과 같다. `--grid-boxes` 시도는 단마다 열이 따로라 열의 첫 칸과 끝 칸 사이만 채운다. 모델 신뢰도 0.8 미만은 `LOW_CONFIDENCE`(`MODEL_CONFIDENCE`)를 남기며, 이 값은 정확도로 보정된 확률이 아니다. 신뢰도가 기준 이상이어도 율명 없이 쉼표(와 이음)만 읽힌 칸은 가사·장단 열을 칸으로 읽은 경우가 많아 `LOW_CONFIDENCE`(`REST_ONLY`)를 남긴다(S15P31E102-1061, 엔진 `e95045f-v1.0.0-r12`). 한 칸에는 이 다섯 중 하나만 남고, 우선순위는 `GRID_SPLIT` → `GRID_FILLED` → `GAK_MISMATCH`(1077) → `MODEL_CONFIDENCE` → `REST_ONLY`다. `detail`은 `{"confidence", "reason"}`이다. 기준과 근거는 [스캔 실행 기록](../knowledge/ai/jeongganbo-scan-runtime.md#확인-필요-칸-기준-1061)에 있다. 원본 쪽 인덱스와 픽셀 상자를 결과의 `c{각}-j{정간}`에 연결한다.
+- 원래 크기에서 격자를 못 찾으면 1/2 크기, 모델 기준 높이 3091px, 2/3 크기 순서로 재시도한다. 마지막 시도는 기존 `grid_boxes` 검출기로 얇은 선과 단 위→아래·열 오른쪽→왼쪽 순서를 보존한다. 가로선이 있는 두 열을 율명·가사로 추정하는 기능은 끄고, 명시적인 가사 열 옆의 단일 율명 열로 확인되는 악보 하나만 받는다. 중복 크기와 최대 화소 수를 넘는 시도는 건너뛰고 같은 쪽당 시간 예산을 유지한다. 상자는 원본 크기로 되돌린다. 모든 쪽에서 격자나 음을 읽지 못하면 `NO_GRID_FOUND`, 실행 오류는 `ENGINE_ERROR`, 시간 초과는 `TIMEOUT`이다.
+- 요청의 `instrument`가 `DANSO`·`SOGEUM`·`JEONGAK_DAEGEUM`이면 리더에 `--yul danso`·`sogeum`·`jeongak-daegeum`을 넘겨 모델이 고를 수 있는 율명을 그 악기 목록으로 좁힌다(S15P31E102-1058, 엔진 `e95045f-v1.0.0-r7`). 목록은 [OMR 대조 기록](../knowledge/data/jeongganbo-omr-accuracy.md#악기별-율명-후보)을 따르고, 위치·시김새 토큰은 제한하지 않는다. 모든 크기 재시도와 `grid_boxes` 시도에 같은 제한을 적용한다. 목록이 없는 `SANJO_DAEGEUM`과 그 밖의 악기는 제한하지 않아 이전 결과와 같다. 모델 어휘에 없는 중청태 등은 제한과 별개로 두 물수변 복원 단계에서만 나온다. 이 복원은 목록으로 거르지 않는다. 신뢰도는 제한 전 모델 분포에서 고른 율명의 확률이다. 따라서 모델이 목록 밖 율명을 가장 높게 본 칸은 낮은 신뢰도로 `LOW_CONFIDENCE`가 남는다.
+- 쪽 그림을 리더에 넘기기 전에 `page_rectify`가 격자선으로 기울기·원근과 종이 밝기를 잰다(S15P31E102-1059, 엔진 `e95045f-v1.0.0-r11`). 바깥 격자선 네 개 중 가장 기운 선이 0.5° 이상이면 네 교점을 직사각형으로 편다. 종이가 215보다 어둡거나, 리더 임계 240 근처이면서 밝기가 고르지 않으면 종이 밝기로 나눠 바탕을 희게 만든다. 둘 다 아니면 원래 파일을 그대로 넘겨 이전 결과와 같다. 편 그림에서 찾은 칸·한배 표시 상자는 네 모서리를 원래 쪽 그림으로 투영한 외접 상자로 돌려준다. 응답 `pages`의 크기와 bbox 기준은 EXIF 회전을 적용한 원래 그림 그대로다. 편 그림의 모든 크기 재시도에서 격자를 못 찾거나 보정 계산이 실패하면 원래 그림으로 기존 재시도를 한다. 이 원래 그림 재시도가 쪽 시간을 넘기면 마지막 쪽이 아닌 경우 그 쪽만 `NO_GRID`로 둔다. 보정 적용은 서버 로그에만 남기며 notice를 추가하지 않는다. 판정 기준과 실측은 [보정 기록](../knowledge/ai/jeongganbo-scan-rectify.md)에 둔다.
+- 지원하는 율명·이음·쉼표와 율명이나 이음에 붙은 시김새는 공통 변환기를 재사용한다. 이음에 붙은 시김새(`-_흘림표` 등)는 앞 음의 `sigimsae`에 합쳐진다(S15P31E102-1062, 엔진 `e95045f-v1.0.0-r10`). 지원하지 않는 독립 시김새나 잘못된 토큰만 제외해 `UNREADABLE`(`UNSUPPORTED_SYMBOL`)로 표시하고, 같은 칸에서 읽힌 율명은 보존한다. 율명 없는 독립 시김새는 사용자 결정(2026-11-17)으로 이 동작을 유지한다. 앞 음에 붙이는 안과 실제 음으로 펼치는 안(S15P31E102-449에 묶임)은 보류했다. 먹이 있는데 결과가 비면 `EMPTY_RECOGNITION`으로 표시한다.
+- 리더는 `--side-marks`로 율명 오른쪽의 작은 시김새 획을 모양으로 찾는다(1062). 세로 물결선은 풀어내림표(짧음)·농음표(칸 높이의 0.65 이상), `)`·`╮`은 흘림표, `^`은 니레, `И`는 율명에 붙은 니나다. 한 줄에 율명 하나만 있는 자리에서만 붙인다. 모델이 그 음에 다른 시김새를 냈으면 물결선이 정악보 이름(나니나·나느나·흘림표·끊는표)으로 읽힌 경우만 바꾼다. 짧은 물결선 이름은 교재마다 달라 같은 쪽에서 모델이 물결선에 붙인 이름을 따른다. 이 보정은 공통 악보 형식과 issue 종류를 바꾸지 않는다. 근거와 측정은 [OMR 대조 기록](../knowledge/data/jeongganbo-omr-accuracy.md#시김새-획-보정-1062)에 둔다.
+- 검출한 인쇄 각의 최빈 정간 수로 줄을 구성한다. 그 정간 수가 고른 장단과 맞지 않으면 정간 사이 가로선의 굵기를 재서, 일정한 간격의 선만 다른 선보다 분명히 굵고 그 간격이 장단에 맞을 때 그 간격을 한 각의 정간 수로 쓴다(S15P31E102-1068, 엔진 `e95045f-v1.0.0-r9`). 예를 들어 12정간 줄에 3정간마다 굵은 선이 있는 세마치 악보는 3정간 각으로 나눠 정간당 1박이 된다. 이 판단의 "장단에 맞음"은 장단 한 번 기준이다. 이미 장단 한 번과 맞는 정간 수나 굵은 선이 없거나 불규칙한 악보는 나누지 않는다. 나누지 못한 12정간 세마치 각도 아래 장단 횟수 규칙으로 정간당 1박이 되며(S15P31E102-1076), 각 번호만 인쇄 각과 다르다. 장단 횟수로도 맞지 않으면 `JANGDAN_MISMATCH`가 남고 각 구분·속도를 검수한다. 모델이 높은 신뢰도로 틀릴 수도 있어 스캔 결과는 `inferred` 초안으로 반환한다.
+- 세부 실행·관측 결과와 이용 조건은 [458 기록](../knowledge/ai/jeongganbo-scan-runtime.md)에 둔다. 오선보 806의 코드에 의존하지 않는 별도 MR로 제출한다.
+
+### 실패 코드
+
+| failReason | 뜻 |
+| --- | --- |
+| `UNSUPPORTED_FILE` | 파일 형식·크기·쪽 수 위반, 내려받기 실패 |
+| `NO_GRID_FOUND` | 정간보에서 정간 격자를 찾지 못함 |
+| `NO_STAFF_FOUND` | 오선보에서 오선·음표를 찾지 못함 |
+| `TIMEOUT` | 시간 상한 초과 |
+| `ENGINE_ERROR` | 엔진·변환 프로그램의 비정상 종료와 그 밖의 오류(악보 문제가 아닌 실패). 오선보는 Audiveris가 오선을 못 찾았다고 알린(StepException) 쪽만 `NO_STAFF`로 보고, 그 밖에 악보 없이 끝나면 이 코드다 |
+
+실패해도 가짜 음표를 만들지 않는다. 일부 쪽만 실패하면 그 쪽을 `UNREADABLE` notice(쪽 전체 `bbox`)로 남기고 `DONE`이다.
+
+## 시간 상한
+
+- 쪽마다 60초, 요청 전체 `60초 × 쪽 수`, 최대 600초. backend의 호출 제한은 이보다 길게 둔다(630초 이상).
+- 실측(2026-11-04, 이 PC Docker, CPU 1.5·메모리 2GiB): 오선보 쪽 그림 1쪽 8.5~10초, 정간보·오선보 펼침면 PDF 1쪽 13.5초, 정간보 글자 층 1쪽 1.0초. 운영 서버(edo1, 4코어, 2026-11-04): 같은 오선보 1쪽이 CPU 1.5에서 25.1~29.5초(4곡 중 1곡 30초 제한으로 `TIMEOUT`), CPU 3에서 18.6~22.3초라 쪽당 60초·CPU 2로 정했다(S15P31E102-468).
+- 참고(BE 연결 제안, 합의 전): Audiveris는 한 번에 한 건이고 기다리는 시간도 요청 시간에 든다. 동시에 부르면 뒤 요청이 기다리다 `TIMEOUT`이 되므로, backend가 변환 작업을 큐로 한 건씩 보내고 앱에는 "인식 중" 상태로 두는 비동기 흐름을 권한다. `TIMEOUT`·`ENGINE_ERROR`는 같은 파일로 다시 보내면 된다(omr은 이전 요청을 기억하지 않는다).
+
+## 엔진 선택
+
+| notation·입력 | 엔진 |
+| --- | --- |
+| `JEONGGANBO`, PDF에 글자 층이 있음 | `standard_score_text.py`(표준악보집 글자·선 좌표) |
+| `JEONGGANBO`, 그 밖 | `jeongganbo_omr.py`(MALerLab/jeongganbo-omr). [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)에서 연결한다(2차 일정 포함, 2026-11-04 결정). 그 전에는 `ENGINE_ERROR` |
+| `STAFF` | Audiveris → MusicXML → 정간보 변환 |
+
+어느 경로든 JG-like 텍스트 → jeongganbo-generator `import-ngc-omr.mjs` → `.jgb.json` → `score_data.convert` 순서다.
+
+### 오선보 경로 (313 U5)
+
+- 쪽마다 Audiveris(`-batch -transcribe -export`)를 돌린다. 쪽당 60초와 남은 요청 시간 중 짧은 쪽을 넘으면 끝내고 `TIMEOUT`이다. Audiveris는 한 번에 하나만 돌리고(동시 1건, 기다리는 시간도 요청 시간에 든다), 신호를 받아 죽으면(메모리 부족 등) `ENGINE_ERROR`다.
+- 오선을 못 찾은 쪽(Audiveris 5.11은 종료 코드 1로 끝나고 표준 출력에 StepException을 남긴다)은 `UNREADABLE`(`detail.reason` `NO_STAFF`, `bbox` 쪽 전체)로 남기고, 모든 쪽이 그러면 `NO_STAFF_FOUND`다. 쪽들의 MusicXML은 첫 파트 뒤에 마디로 이어 붙여 한 곡으로 바꾼다.
+- 장단은 요청 `jangdan` → 박자표(4분음표4박의 `4박 기본 반주`·9/8 세마치·12/8 굿거리) → 박자표를 못 읽었으면 리듬으로 고른 같은 박 구성 → 굿거리 순이다.4분음표4박은 기존 카탈로그 ID12의 반주를 제안하며 전통 장단명으로 단정하지 않는다(S15P31E102-880). 요청에 장단이 없으면 어떻게 정했든 `JANGDAN_GUESSED`를 한 번 남긴다. 정간 하나의 박은 오선보 1박(점4분·4분·8분)을 장단의 `bpmUnit` 박으로 옮긴 값이다. 한 각 길이가 장단 한 번과 다르면 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)다(예:4/4 곡에 굿거리를 명시 요청한 경우).
+- `engine` `audiveris`, `engineVersion`·`provenance.converter`의 버전은 컨테이너의 Audiveris 버전(`staff-omr/audiveris-5.11.0`)이다.
+
+### 정간보 글자 층 경로 (313 U2)
+
+- 쪽마다 글자 층을 읽어 각을 이어 붙인다(위 '실패 코드'의 일부 쪽 실패 규칙과 같다).
+  - 율명 글자가 없는 쪽(표지·설명이거나 글자 층 없이 스캔한 쪽)은 건너뛰고 `UNREADABLE`(`detail.reason` `NO_TEXT`, `bbox` 쪽 전체)로 알린다. 모든 쪽이 그러면 그림(OMR) 경로로 넘긴다.
+  - 악보다운 쪽만 받는다. 각이 2개 이상이고, 절반 넘는 각의 정간 수가 같고, 읽은 율명이 읽지 않은 글자보다 많아야 한다. 설명문 상자에 섞인 율명 한자로 가짜 음표를 만들지 않기 위해서다.
+  - 율명은 있지만 정간 격자를 못 읽었거나 악보다운 쪽이 아닌 쪽은 `UNREADABLE`(`detail.reason` `NO_GRID`, `bbox` 쪽 전체)로 남긴다. 읽은 쪽이 하나도 없으면 `NO_GRID_FOUND`다.
+  - 글자 읽기·변환 프로그램이 비정상 종료하면 `ENGINE_ERROR`다.
+- 정간 수가 대부분의 각과 다른 열(옆 쪽 장식음 표 등)은 빼고 `UNREADABLE`(`detail.reason` `NOT_SCORE_COLUMN`, `bbox` 그 열)로 알린다. 곡 끝 각은 짧을 수 있어, 같은 단에서 바로 앞 열 옆에 붙어 있거나 다른 각과 같은 x 열이면 둔다.
+- 각마다 정간 수가 다른 악보(예: 끝 각만 짧은 소금 취타)는 각별 정간 수(`gakBeats`)로 그 각만 짧게 읽는다(S15P31E102-404의 `score_data`). 정간 하나의 박은 기본 각의 정간 수(`controls.beats`)로 정한다. `score_data`가 받지 않는 기호(율명 없는 독립 시김새 등)가 있으면 `ENGINE_ERROR`다(원인은 로그에 남김).
+- 2중주 이상(열 위 '단소1'·'단소Ⅱ'·'1단소' 같은 표시)은 1 성부 열만 읽고 `VOICE_GUESSED`(`detail` `{"voices": 성부 수, "kept": 1}`, `bbox` 쪽 전체)를 남긴다. 표시로 열을 모두 가르지 못하면 그 쪽은 격자를 못 읽은 쪽과 같다.
+- 정간 하나의 박 = 장단 한 번의 박(`bpmUnit` 기준) × 한 각의 장단 횟수 ÷ 각 하나의 정간 수(S15P31E102-1076, 글자 층 엔진 `5`·스캔 엔진 `e95045f-v1.0.0-r13`). 장단 횟수는 각의 정간 수를 나누어 떨어지게 하면서 정간당 박이 맞는 박이 되는 가장 작은 횟수다. 맞는 박은 `bpmUnit`이 4분음표인 장단은 1·1/2·1/3박, 점4분음표인 장단은 1·1/3박이다. 점4분음표 박은 세 소박이라 정간 하나가 반 박이 되지 않으며, 제공 곡의 점4분 장단도 정간당 1·1/3박뿐이다. 점4분음표 칸을 쓰는 세령산 10정간 각의 정간당 3/2박만 추가로 허용한다.
+  - 장단 한 번인 각은 이전과 같다: 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박(검수 정답 8곡과 같음), 타령 12정간 → 1/2박.
+  - 한 각에 장단이 여러 번 든 각: 세마치 12정간 → 장단 4번·1박(아리랑·진도아리랑 제공 곡), 굿거리 8정간 → 장단 2번·1박(박연폭포 제공 곡). 이전에는 각을 장단 한 번으로 보아 1/4박·1/2박이 되어 제공 곡보다 4배·2배 빨랐다.
+  - 맞는 장단 횟수가 없으면 장단 한 번으로 계산하고, 고른 장단이 악보와 다를 수 있어 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)를 남긴다.
+  - 같은 정간 수가 장단 한 번과 여러 번에 모두 맞으면(예: 4분음표 단모리 8정간 → 1/2박 또는 장단 2번·1박) 장단 한 번으로 본다. 이런 각은 악보만으로 가를 수 없어 빠르기를 검수한다.
+- 읽지 않은 글자(시김새 글자 등)는 `UNREADABLE` issue로, `detail.text`에 글자, `bbox`에 쪽 그림 위치(글자 크기의 정사각형), `cellId`에 그 글자를 덮는 정간을 둔다(`eventId`는 비운다).
+- `engine` `jeongganbo-text`, `engineVersion` `5`, `provenance.converter` `jeongganbo-text/standard_score_text@5`. 버전 5는 한 각에 든 장단 횟수로 정간당 박을 정한다(S15P31E102-1076). 버전 2의 장단 패턴 음가 환산을 유지하며, 버전 3은 PDF의 벡터 삼각 쉼표와 명시적 각 경계 이음을 보존한다. 우물사이 전용 옥타브 점 인식은 제외하며, 글자 위아래의 점으로 음역을 추정하지 않는다. PDF 가져오기의 명시적 `-`만 앞 각의 음에 이어 붙이며 새 각 첫 빈칸은 기존대로 쉼이다. 기존 검수 JGB·오선보 경로는 각 경계 규칙을 유지한다. `score.title`·`sourceId`는 `conversionId`다(곡 제목은 backend가 저장할 때 정한다).
+- 요청 `jangdan`은 `data/reference/jangdans.json`의 `name`이어야 한다(아니면 422). 정간보는 꼭 보내고, 오선보는 생략할 수 있다.
+
+## 오선보 → 정간보 기본값
+
+| 항목 | 기본값 | issue |
+| --- | --- | --- |
+| 조 | 원래 실음 MIDI를 유지한다. `hwangPitch`(생략63)는 율명 기준만 바꾸며 실음을 이조하지 않는다. 악기 지원음에 맞추는 전곡 이조·옥타브 조정은 [작성 계약](score-authoring-consistency.md)에 따라 편집 화면에서 확인 후 적용한다 | 신규 `TRANSPOSED` 없음(과거 결과 읽기 유지) |
+| 장단 | 요청 `jangdan`. 없으면 9/8 → 세마치, 12/8 → 굿거리. 그 밖은 실패하지 않고 굿거리 격자로 둔 뒤 검수 화면에서 사용자가 고른다. 박자표를 못 읽었으면 각 경계를 넘는 음이 가장 적은 박 구성(12/8·4/4·9/8 … 순)을 고른다 | `JANGDAN_GUESSED` |
+| 정간 하나 | 1박. 겹박자(6/8·9/8·12/8)는 점4분, 마디가 4분음표로 나뉘면 4분음표, 그 밖(5/8·7/8)은 8분음표. 한 각 = 첫 박자표 한 마디의 박 수(3+2처럼 더한 박자는 합). 마디선이 빠진 인식 결과가 있어 마디가 아니라 시간 순서로 각을 자른다. 곡 중간에 박자표가 바뀌면 첫 박자표를 쓰고 알린다 | `LOW_CONFIDENCE`(`detail.reason` `TIME_SIGNATURE_CHANGED`) |
+| 정간 안 | 3행(1/3박)·2행(1/2박)과 각 행 좌우(1/6·1/4박)로 나눈다. 그 칸에 안 맞는 리듬은 가까운 칸으로 옮기고, 두 음이 한 칸에 겹치면 나중 음을 쓴다 | `LOW_CONFIDENCE`(`detail.reason` `OFF_GRID_RHYTHM`·`COLLIDED`) |
+| 각 경계 | 각을 넘는 음은 다음 각 처음에 같은 음을 다시 적는다(공통 악보는 각을 넘어 잇지 않는다). 못갖춘마디는 앞을, 끝 각은 뒤를 쉼표로 채운다 | — |
+| 성부 | 첫 파트에서 곡 길이 절반 이상을 소리로 덮는 성부 중 평균 음이 가장 높은 성부를 기준으로 한다. 본음 시작 수가 그 성부의 두 배 이상이거나, 시작 수가 더 많고 본음 길이 중앙값이 절반 이하인 성부가 있으면 지속음 반주 대신 가장 활동적인 성부를 고른다(동률은 높은 성부). 붙임줄·화음은 시작 하나로 센다. 후보가 없으면 가장 많이 덮는 성부를 쓴다. 인식이 잘못 낸 한두 음짜리 성부를 거른다. 화음은 맨 위 음, 붙임줄 화음은 이어진 하나로, 쉼표에 붙은 화음 표시는 쉼으로 본다. 성부 안의 빈 시간은 쉼표이고, 4분음표 하나보다 길게 비면 `LOW_CONFIDENCE`(`GAP_IN_VOICE`)로 알린다(마디마다 성부 번호가 바뀐 인식 결과일 수 있다). 이조 파트는 실음으로 읽는다 | `VOICE_GUESSED` |
+| 음역 | MIDI·옥타브를 보존한다. 표기할 수 없는 음은 초안의 빈 표기와 원래 event 음고로 남긴다. JGB 구조 중간값을 최종 음으로 사용하지 않는다. 물리 음역을 추정하거나 5율·최저/최고 범위로 지원을 판단하지 않는다 | `UNREGISTERED_PITCH`(`detail.reason=NOTATION_UNSUPPORTED`) |
+| 반복 | 반복 기호(`times` 포함)와 volta(여러 마디, `1, 2`·`1.`·`1 2`처럼 숫자만 읽음. 숫자가 없으면 1번으로 보고 `LOW_CONFIDENCE` `VOLTA_NUMBER`)를 펼친다. 앞 반복이 끝난 뒤의 반복 끝 기호는 그 다음 마디로 돌아간다. 겹친 반복과 D.S.·D.C.는 다루지 않는다 | — |
+| 꾸밈음 | 버림 | `ORNAMENT_DROPPED` |
+| 가사 | 버림(공통 악보에 칸 없음) | — |
+
+MusicXML 읽기는 우리 Audiveris 출력만 받는다고 보고 만들었다. 사용자가 올리는 MusicXML(S15P31E102-349)에 다시 쓰려면 외부 엔티티·압축 폭탄을 막는 `defusedxml`과 압축 해제 크기 상한을 더해야 한다.
+
+## 원본 실음 전달 계약 (2026-11-12, S15P31E102-788)
+
+- 이전 자동 5율 이조/옥타브 제한은 원본 음고를 잃고 운지 미등록음을 확정시킬 수 있었다. 인식기는 원본 실음을 반환하고, 작성 화면은 등록 운지·표기·CAT의 교집합으로 후보를 계산한다. 원본 전체와 위치별 MIDI는 SHT `authoring.source`로 보존하고 반복 적용도 그 기준을 사용한다. 당시 실측은 인식 정확도의 과거 근거이며 새 지원음 정책·실물 연주 검수를 대체하지 않는다.
+
+## 미결 사항
+
+- CPU 2·쪽당 60초에서의 운영 서버 쪽당 시간(재반영 때 사람이 잼, [실행 문서](../../infra/runtime/README.md#omr-악보-인식-서비스)), 서버에서 PDF 처리 시간
+- 폰 사진·다른 판형 정확도(실물 없어 미측정)
+- MALerLab 체크포인트 이용 조건(README에 MIT, LICENSE 파일 없음)
+- 347 합의: 위 '382와 다른 점', issue 종류, backend 호출 제한
+
+### 오선보 인식 오류 교정 (806)
+
+작은 음표·빔 인식을 켜 꾸밈음을 분리하고, legacy 영어 OCR로 확인한 빠르기 지시문에 일반 음표가 섞였을 때 해당 영역만 별도 그림에서 제외해 다시 읽는다. 초과 마디는 쪽당 60초 예산 안에서 1.25배 그림으로 한 번 재인식한다. 한 선율의 본음·꾸밈음 순서를 유일하게 대응할 수 있고 음고가 보존될 때만 초과 마디의 음가를 교정하며, 정상 마디는 보존한다. 마지막 오선 아래 가사 줄을 영어 OCR이 악보 기호로 읽은 경우 그 줄만 가린 그림으로 한 번 다시 읽고, 박자와 맞지 않는 마디가 늘지 않을 때만 쓴다. Audiveris가 오선 간격을 너무 작게 재 쪽을 버리면(폰 사진) 긴 변 1500픽셀 안의 흑백 그림으로, 그래도 작으면 간격이 약 20픽셀이 되게 확대한 흑백 그림으로 다시 읽는다. 적용은 `LOW_CONFIDENCE` notice의 `TEMPO_MARK_REMOVED`·`LYRICS_REMOVED`·`RHYTHM_RECOGNITION_RETRY`·`LOW_INTERLINE_RETRY`로 알린다. 남는 초과 마디는 해당 음의 정간에 `LOW_CONFIDENCE`(`OVERFULL_MEASURE`)를 남긴다. [상세 기준](score-recognition-corrections.md)과 [실제 대조](../knowledge/ai/score-recognition-corrections.md)를 따른다.

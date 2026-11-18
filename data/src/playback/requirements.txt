@@ -1,0 +1,6 @@
+# Isolated audition environment; does not change scoring-service dependencies.
+# Default M4A output additionally requires FFmpeg and ffprobe (see README).
+mido==1.3.3
+numpy>=1.26,<3
+soundfile>=0.13,<1
+jsonschema==4.26.0

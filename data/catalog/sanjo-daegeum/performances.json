@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 2,
+  "datasetId": "sanjo-daegeum",
+  "sourceHashes": {
+    "ngc-sanjo-2625": "4c7202a482c48e15692c077ca117992739ddf56356f5eab7cc02b74d3daf3442",
+    "ngc-textbook-standard-score-2022": "c8bf7a6e113c76d3f2a9154f1605ad36a9b5ad81ac3307f0c4e6f5bed17b7c19"
+  },
+  "performances": [
+    {
+      "id": "ngc-sanjo-2625",
+      "title": "태평가",
+      "audio": {
+        "sourceId": "ngc-sanjo-2625",
+        "file": "연주/태평가/태평가_원음.wav"
+      },
+      "scores": [],
+      "noteAlignmentVerified": false,
+      "notes": "성악 오선보와 단소 정간보 일부의 비교용 묶음. 산조대금 녹음 전곡과 일치하는 악보 쌍은 미확보."
+    }
+  ],
+  "comparisonScores": [
+    {
+      "id": "ngc-sanjo-2625.comparison-1",
+      "forPerformanceId": "ngc-sanjo-2625",
+      "sourceId": "ngc-textbook-standard-score-2022",
+      "notation": "staff",
+      "file": "연주/태평가/태평가_오선보·정간보_원본악보집.pdf",
+      "pdfPages": [
+        127
+      ],
+      "instrument": "voice",
+      "coverage": "본절 및 후렴의 표준 성악 선율. 원음의 모든 장식음·반복 대응은 미검수.",
+      "samePerformanceEditionVerified": false
+    },
+    {
+      "id": "ngc-sanjo-2625.comparison-2",
+      "forPerformanceId": "ngc-sanjo-2625",
+      "sourceId": "ngc-textbook-standard-score-2022",
+      "notation": "jeongganbo",
+      "file": "연주/태평가/태평가_오선보·정간보_원본악보집.pdf",
+      "pdfPages": [
+        176
+      ],
+      "instrument": "danso",
+      "coverage": "본절 일부. 산조대금 전용 또는 원음 전체 정간보가 아님.",
+      "samePerformanceEditionVerified": false
+    }
+  ]
+}

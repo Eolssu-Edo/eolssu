@@ -1,0 +1,45 @@
+{
+  "v": 2,
+  "tempoBpmUserSet": true,
+  "controls": {
+    "title": "산조대금 변환 검사용 4정간",
+    "subtitle": "직접 작성한 검사용 음렬. 민요·유파·관종의 모범 연주가 아님.",
+    "beats": "4",
+    "gakBeats": "",
+    "tempoBpm": "60",
+    "hwangPitch": "63",
+    "staffUnit": "plain",
+    "joPreset": "all"
+  },
+  "parts": [
+    {
+      "id": "sanjo-fixture",
+      "name": "산조대금",
+      "instrument": "sanjo-daegeum",
+      "melody": "황{농음표} | 태{흘림표} | 중{니레} | 임<"
+    }
+  ],
+  "playback": {
+    "relative_scale": {
+      "pitch_classes": [0, 2, 5, 7, 9],
+      "basis": "이 고정 검사에서 작성자가 선택한 상대음 계산용 음급. 산조의 조·유파를 판정한 값이 아님."
+    },
+    "expression_policy": {
+      "name": "sanjo-authored-fixture-v1",
+      "basis": "4정간 변환 검사에서 직접 선택한 수치. 농음·흘림 전달 검사용이며 전통 산조 주법의 표준값이 아님. 빠르기도 검사 편의를 위한 60정간/분이다.",
+      "status": "audition-policy-not-performance-standard",
+      "vibrato": {
+        "mode": "pitch",
+        "hz": 4,
+        "cents": 25,
+        "depth": 0.08,
+        "delay_seconds": 0.1
+      },
+      "fall": {
+        "end_cents": -50,
+        "tail_fraction": 0.3,
+        "maximum_seconds": 0.2
+      }
+    }
+  }
+}

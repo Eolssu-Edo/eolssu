@@ -1,0 +1,31 @@
+[Unit]
+Description=edo1 and edo2 Mattermost inspection relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=edo-check
+Group=edo-check
+ExecStart=/usr/bin/python3 -I -B /opt/edo-check/relay.py /etc/edo-check/relay.json
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=strict
+LogsDirectory=eolssu-qa-perf
+LogsDirectoryMode=0700
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+MemoryMax=160M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

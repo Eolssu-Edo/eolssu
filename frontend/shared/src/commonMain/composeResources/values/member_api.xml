@@ -1,0 +1,16 @@
+<resources>
+    <string name="member_api_terms_unavailable">약관을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</string>
+    <string name="member_api_unavailable">요청을 완료하지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.</string>
+    <string name="member_api_session_expired">로그인이 만료됐어요. 다시 로그인해 주세요.</string>
+    <string name="member_api_rate_limited">요청이 너무 많아요. 잠시 기다린 뒤 다시 시도해 주세요.</string>
+    <string name="member_api_invalid">입력한 내용을 확인해 주세요.</string>
+    <string name="member_api_verify_again">이메일 인증이 필요해요. 뒤로 돌아가 다시 인증해 주세요.</string>
+    <string name="member_api_terms_again">최신 약관 동의가 필요해요. 가입을 다시 시작해 주세요.</string>
+    <string name="member_api_instrument_unavailable">선택한 악기를 사용할 수 없어요. 다른 악기를 선택해 주세요.</string>
+    <string name="my_instrument_saving">악기를 저장하고 있어요.</string>
+    <string name="app_loading">불러오는 중</string>
+    <string name="member_api_social_unavailable">간편 로그인 연결을 아직 사용할 수 없어요. 이메일 로그인을 이용해 주세요.</string>
+    <string name="member_api_terms_loading">약관을 불러오는 중이에요.</string>
+    <string name="member_api_retry">다시 시도</string>
+    <string name="member_api_nickname_rule">10자 이내로 작성해주세요</string>
+</resources>

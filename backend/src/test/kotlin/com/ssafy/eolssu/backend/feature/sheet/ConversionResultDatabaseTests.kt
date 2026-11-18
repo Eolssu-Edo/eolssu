@@ -1,0 +1,112 @@
+package com.ssafy.eolssu.backend.feature.sheet
+
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.RecognitionResultBuilder
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.RecognitionFailure
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.ConversionJob
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Tag
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.DynamicPropertyRegistry
+import org.springframework.test.context.DynamicPropertySource
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
+import java.time.LocalDateTime
+
+@Tag("database") @ActiveProfiles("db") @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.NONE)
+class ConversionResultDatabaseTests {
+    @Autowired lateinit var jdbc: JdbcTemplate
+    @Autowired lateinit var scores: SheetScores
+    private val json=JsonMapper.builder().build()
+    private val job=ConversionJob(712,1,"가져온 악보","STAFF","DANSO",null,null,null,"RUNNING",1,null,0,LocalDateTime.now())
+    @Test fun `valid imported score preserves provenance and counts unique cells excluding notices`() {
+        val score=json.readTree(jdbc.queryForObject("SELECT score_json FROM songs WHERE id=1",String::class.java))
+        val response=json.createObjectNode().set("score",score)
+        response.putObject("jgb").put("v",1)
+        response.putArray("pages").addObject().put("index",0).put("width",200).put("height",100)
+        val issues=response.putArray("issues")
+        val cellId=score.path("columns").get(0).path("cells").get(0).path("id").asString()
+        repeat(2) { issues.addObject().put("kind","LOW_CONFIDENCE").put("cellId",cellId).put("page",0).putArray("bbox").add(20).add(10).add(40).add(30) }
+        response.putArray("notices").addObject().put("kind","TRANSPOSED").putObject("detail").put("semitones",8)
+        val result=RecognitionResultBuilder(json,scores).build(job,response)
+        assertEquals(1,result.pendingCellCount)
+        val stored=json.readTree(assertNotNull(result.scoreJson))
+        assertEquals("sheet-712",stored.path("score").path("sourceId").asString())
+        assertEquals("inferred",stored.path("provenance").path("review").asString())
+        val details=json.readTree(result.resultJson)
+        assertEquals(2,details.path("issues").size())
+        assertEquals(0.1,details.path("issues").get(0).path("bbox").path("x").doubleValue())
+        assertEquals(1,details.path("notices").size())
+    }
+    @Test fun `unreadable cells are stored as a draft that can be opened`() {
+        val score=json.readTree(jdbc.queryForObject("SELECT score_json FROM songs WHERE id=1",String::class.java)) as ObjectNode
+        val cell=score.path("columns").get(0).path("cells").get(0) as ObjectNode
+        cell.putArray("units")
+        val response=json.createObjectNode().set("score",score)
+        response.putObject("jgb").put("v",1); response.putArray("issues"); response.putArray("notices")
+        val result=RecognitionResultBuilder(json,scores).build(job,response)
+        assertEquals(null,result.scoreJson)
+        assertNotNull(result.draftJson)
+        assertEquals("sheet-712",json.readTree(result.draftJson).path("score").path("score").path("sourceId").asString())
+    }
+    @Test fun `unregistered pitches preserve original events and their review locations in the draft`() {
+        val response = scoreWithUnregisteredPitches()
+        val result = RecognitionResultBuilder(json, scores).build(job, response)
+
+        assertEquals(null, result.scoreJson)
+        val stored = json.readTree(assertNotNull(result.draftJson)).path("score")
+        val events = response.path("score").path("events")
+        assertEquals(events, stored.path("events"))
+        assertEquals(response.path("score").path("columns"), stored.path("columns"))
+        val originalNotes = events.filter { it.path("kind").asString() == "NOTE" }.take(2)
+        val issues = json.readTree(result.resultJson).path("issues").toList()
+        assertEquals(2, issues.size)
+        assertEquals(originalNotes.map { it.path("cellId").asString() }.distinct().size, result.pendingCellCount)
+        for ((note, issue) in originalNotes.zip(issues)) {
+            assertEquals("UNREADABLE", issue.path("type").asString())
+            assertEquals(note.path("id"), issue.path("eventId"))
+            assertEquals(note.path("cellId"), issue.path("cellId"))
+            assertEquals("UNREGISTERED_PITCH", issue.path("detail").path("reason").asString())
+            assertEquals(note.path("yul"), issue.path("detail").path("yul"))
+            assertEquals(note.path("octave"), issue.path("detail").path("octave"))
+        }
+    }
+
+    @Test fun `unregistered pitches do not make a broken timeline eligible for a draft`() {
+        val response = scoreWithUnregisteredPitches()
+        (response.path("score").path("events").first() as ObjectNode).put("durationTick", 0)
+        val failure = assertFailsWith<RecognitionFailure> { RecognitionResultBuilder(json, scores).build(job, response) }
+        assertEquals("SERVER_ERROR", failure.reason)
+    }
+
+    private fun scoreWithUnregisteredPitches(): ObjectNode {
+        val score = json.readTree(jdbc.queryForObject("SELECT score_json FROM songs WHERE id=1", String::class.java))
+        val notes = score.path("events").filter { it.path("kind").asString() == "NOTE" }
+        for ((note, pitch) in notes.zip(listOf(Triple("유", -1, "배유"), Triple("대", 2, "중청대")))) {
+            val (yul, octave, symbol) = pitch
+            (note as ObjectNode).put("yul", yul).put("octave", octave)
+            val units = score.path("columns").flatMap { it.path("cells").flatMap { cell -> cell.path("units").toList() } }
+            val unit = units.first { it.path("eventId") == note.path("id") && it.path("symbol").asString() !in setOf("", "-") }
+            (unit as ObjectNode).put("symbol", symbol)
+        }
+        return json.createObjectNode().apply {
+            set("score", score)
+            putObject("jgb").put("v", 1)
+        }
+    }
+
+    companion object {
+        @JvmStatic @DynamicPropertySource fun properties(registry: DynamicPropertyRegistry) {
+            registry.add("eolssu.scheduling.enabled") { "false" }
+            registry.add("spring.datasource.url") { System.getenv("TEST_DB_URL") }
+            registry.add("spring.datasource.username") { System.getenv("TEST_DB_USERNAME") }
+            registry.add("spring.datasource.password") { System.getenv("TEST_DB_PASSWORD") }
+        }
+    }
+}

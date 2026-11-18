@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongMapper">
+    <select id="findById" resultType="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongRow">
+        SELECT id, instrument_id, jangdan_id, title, description, difficulty, default_bpm, score_json, score_version, umulsai_text, note_count, source, is_scorable, status, created_at, updated_at, deleted_at
+        FROM songs
+        WHERE id = #{id}
+    </select>
+    <select id="listPublished" resultType="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongRow">
+        SELECT id, instrument_id, jangdan_id, title, description, difficulty, default_bpm, score_json, score_version, umulsai_text, note_count, source, is_scorable, status, created_at, updated_at, deleted_at
+        FROM songs WHERE status = 'PUBLISHED' AND deleted_at IS NULL
+        <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
+        ORDER BY id
+    </select>
+    <select id="findPublished" resultType="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongRow">
+        SELECT id, instrument_id, jangdan_id, title, description, difficulty, default_bpm, score_json, score_version, umulsai_text, note_count, source, is_scorable, status, created_at, updated_at, deleted_at FROM songs WHERE id = #{id} AND status = 'PUBLISHED' AND deleted_at IS NULL
+    </select>
+    <select id="findPublishedRevision" resultType="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongRow">
+        SELECT id, instrument_id, jangdan_id, title, description, difficulty, default_bpm, score_json, score_version,
+               umulsai_text, note_count, source, is_scorable, status, created_at, updated_at, deleted_at
+        FROM songs WHERE id = #{id} AND score_version = #{scoreVersion} AND status = 'PUBLISHED' AND deleted_at IS NULL
+        UNION ALL
+        SELECT v.song_id AS id, v.instrument_id, v.jangdan_id, v.title, v.description, v.difficulty, v.default_bpm,
+               v.score_json, v.score_version, v.umulsai_text, v.note_count, v.source, v.is_scorable,
+               v.status, v.created_at, v.updated_at, v.deleted_at
+        FROM song_score_versions v JOIN songs s ON s.id = v.song_id
+        WHERE v.song_id = #{id} AND v.score_version = #{scoreVersion} AND s.score_version &lt;&gt; v.score_version
+          AND s.status = 'PUBLISHED' AND s.deleted_at IS NULL AND v.status = 'PUBLISHED' AND v.deleted_at IS NULL
+    </select>
+</mapper>

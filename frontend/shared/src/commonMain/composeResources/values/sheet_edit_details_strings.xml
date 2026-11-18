@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sheet_details_edit">빠르기 변경</string>
+    <string name="sheet_details_title">악보 제목</string>
+    <string name="sheet_details_bpm">기본 빠르기 (BPM)</string>
+    <string name="sheet_details_title_error">제목을 1~50자로 입력해 주세요</string>
+    <string name="sheet_details_bpm_error">%1$d~%2$d 사이로 입력해 주세요</string>
+    <string name="sheet_details_bpm_help">%1$d~%2$d 사이</string>
+    <string name="sheet_details_apply">적용</string>
+    <string name="sheet_tempo_before_reshape">빠르기가 바뀌거나 반복하는 각은 지울 수 없어요. 지우려면 빠르기 창에서 그 구간을 먼저 지워 주세요.</string>
+    <string name="sheet_tempo_mark_before_merge">빠르기 기호가 있는 정간은 첫 음을 채운 뒤 합쳐 주세요.</string>
+    <string name="sheet_tempo_out_of_range_after_jangdan">이 장단으로 바꾸면 중간에 바뀌는 빠르기가 40~200을 벗어나요. 빠르기 창에서 먼저 고쳐 주세요.</string>
+</resources>

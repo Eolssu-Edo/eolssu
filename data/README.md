@@ -1,0 +1,458 @@
+# 데이터 수집·정제
+
+## 박자별 원본과 리듬 보존 검증 (883)
+
+[원본·이용 조건·변환 전후 비교](../docs/knowledge/data/common/rhythm-metronome/meter-import-validation.md), [채택된 계약](../docs/specs/score-rhythm-preservation.md)을 참고합니다. 원본과 전체 실행 증거는 Git 제외 경로 `data/raw/meter-validation/`, `data/processed/meter-validation/`에 둡니다. 운영 데이터·원본·기존 카탈로그는 변경하지 않습니다.
+
+아래 명령은 저장소 루트에서 실행합니다. 수집은 Pillow·pypdfium2, 변환 감사는 AI OMR 의존성·jsonschema와 Node 및 `JGB_GENERATOR_DIR`의 기존 생성기가 필요합니다. 수집기는 원격 파일이 바뀌면 기존 원본을 덮어쓰지 않습니다. 고정 XML은 자작 CC0이며 이미지 OMR 성공 건수에 포함하지 않습니다.
+
+```powershell
+python data/src/scores/acquire_meter_samples.py
+python data/src/scores/audit_meter_contracts.py --out data/processed/meter-validation/contracts --actual-dir data/processed/meter-validation/actual
+python data/src/scores/compare_meter_sources.py --raw data/raw/meter-validation --actual data/processed/meter-validation/actual --out data/processed/meter-validation/source-full-comparison.json
+```
+
+실제 인식은 준비된 OMR 이미지에 AI·DATA 소스와 격리 입력을 마운트하고 `probe_meter_imports.py --inputs INPUTS.json --ids au-clair --output NEW_OUTPUT`으로 실행합니다. 입력 JSON의 각 항목은 `id`, `imagePath`, 선택적 `pdfPath`, `notation`, `jangdan`을 받습니다. 출력은 새 경로여야 하고 사례 실패는 종료1과 JSON으로 남깁니다. 그림만 넣은 실행과 PDF 글자층 실행을 구분합니다.
+
+FE/BE 왕복은 DATA 소유 테스트를 Gradle init으로 주입합니다. `METER_AUDIT_ROOT`를 결과 폴더 절대 경로로 설정하고 그 안에 `jvm-tmp/`를 만듭니다. 폴더에는 `contracts/*.score.json`, `contracts/audit.json`, `actual/*/engine.json`, `catalog-list.json`이 필요합니다. BE 이 검사의 Repository·음높이 카탈로그는 대역입니다. 실제 HTTP·MySQL 왕복은 BE의 별도 `SheetRhythmApiDatabaseTests`로 검증합니다.
+
+```powershell
+# frontend/에서
+.\gradlew.bat :shared:testAndroidHostTest --tests '*MeterImportRuntimeTest' -I ../data/tests/runtime/meter-validation.gradle --max-workers=2 --no-configuration-cache
+# backend/에서
+.\gradlew.bat test --tests '*MeterImportBackendTest' -I ../data/tests/runtime/meter-validation.gradle --max-workers=2 --no-configuration-cache
+```
+
+결과는 `frontend-runtime.json`, `backend-runtime.json`, Gradle 보고서에 남습니다. 생성·저장 성공과 원본 인식 정확도는 각각 판정합니다.
+
+## 기존 악보 장단·빠르기 교정 (728)
+
+묶음 생성은 현재 악보·빠르기와 표현 companion SHA가 렌더 당시 manifest와 일치해야 합니다. 표현 파일을 고쳤다면 `--render`로 다시 생성한 뒤 포장합니다. 숫자 폴더 대신 기존 운영 `cases/<악기>-<번호>-p<쪽>/` 형식으로 묶습니다.
+
+[곡별 근거표와 판단](../docs/knowledge/data/common/rhythm-metronome/README.md)을 먼저 확인합니다. `prepare_tempo_corrections.py`는 현재 운영 스냅샷의 정확한 sourceId·판본을 확인하고 장단명·빠르기·근거 있는 박 표기만 수정합니다. 비행기 56·132·133·134번은 제외합니다. 음표·가사·시김새·정간 tick은 유지하며 다음 판본의 모범 음원과 수행 시간표를 만듭니다.
+
+```sh
+python -m data.src.scores.prepare_tempo_corrections --snapshot data/processed/tempo-728/db-baseline.json --decisions data/reference/score-tempo-corrections.json --expressions data/processed/tempo-728/expression-inputs.json --assets PATH_TO_BATCH_ASSETS_JSON --out data/processed/tempo-728/prepared --song-id 54 --render
+python -m data.src.scores.prepare_tempo_corrections --snapshot data/processed/tempo-728/db-baseline.json --decisions data/reference/score-tempo-corrections.json --expressions data/processed/tempo-728/expression-inputs.json --assets PATH_TO_BATCH_ASSETS_JSON --out data/processed/tempo-728/prepared --render --bundle data/processed/tempo-728/release
+```
+
+`expression-inputs.json`은 곡 ID 문자열과 **현재 판본에 대응하는** 표현 companion 경로의 JSON 맵입니다. 이전 판본의 companion을 그대로 재사용하지 않습니다. 자산 맵은 기존 playback의 악기별 CAT ZIP 형식이며 실제 보유 경로로 지정합니다. 필요 라이브러리와 FFmpeg/FFprobe 설정은 기존 playback 안내를 따릅니다. `--render` 없이 준비·검증만 가능하고 `--bundle` 대상은 새 디렉터리여야 합니다. 서버 게시·백업·충돌 검사·복구는 [운영 도구](../infra/catalog/README.md#장단빠르기와-모범-음원-동시-교정-728)를 사용합니다.
+
+등록 장단 미리듣기 M4A를 만들 때는 [원본 출처와 생성 명령](../docs/knowledge/data/jangdan-preview-audio.md)을 참고합니다.
+
+연습 반주의 굿거리 굴림5개와 공통 타격6개는 같은 문서의 [연습용 PCM 생성](../docs/knowledge/data/jangdan-preview-audio.md#연습용-pcm-생성)을 따릅니다. 공식 실제 굴림 원본을 사용하며 생성·길이 검사와 음악적 청음 상태를 구분합니다.
+
+160은 [107개 곡의 장단 검수 자료](../docs/knowledge/data/jangdan-song-review.md)도 전달합니다. [공통 전달 계약](../docs/specs/jangdan-practice-playback.md)에 따라 BE491이 검수 결과를 읽어 판본 보호·API 제공을, FE340이 앱 재생을 구현합니다. 반영 순서는 160 → 491 → 340입니다.
+
+얼쑤의 음원·악보 데이터를 수집·정제하고, 분석과 검증에 사용할 데이터셋을 구축합니다.
+
+Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과의 기록 방법은 [문서 기록 기준](../docs/README.md)을 따릅니다. 수집처·악보 표현·정제 방법의 조사 결과는 `docs/knowledge/data/`에, 여러 파트가 공유하는 국악 개념은 `docs/knowledge/domain/`에 남깁니다.
+
+## 담당 범위
+
+- 음원·악보 수집과 출처·사용 조건 기록
+- 파일 형식·메타데이터 정리, 누락·중복·품질 확인
+- 데이터셋 구축에 필요한 악보 변환과 오디오 전처리
+- 평가용 데이터셋 구성과 데이터 버전·생성 절차 관리
+- AI가 사용할 정답·메타데이터·검증 샘플 제공
+
+## AI·Backend와의 경계
+
+| 영역 | 담당 |
+| --- | --- |
+| Data | 미리 데이터를 준비하고 데이터셋·정답·메타데이터를 생성 |
+| AI | 연주 요청별 전처리, 음높이 추정, DTW 정렬, 채점 |
+| Backend | 앱용 API, 평가 요청과 결과 관리 |
+
+같은 악보 변환이나 오디오 전처리라도 데이터셋을 만드는 작업은 Data, 연주 요청을 처리하는 작업은 AI에 둡니다. 양쪽에서 공통 로직이 필요하면 입출력 형식과 재사용 위치를 합의하고 중복 구현을 피합니다.
+
+데이터를 전달할 때 필요한 악보·음표 식별자, 시간·음높이 단위, 데이터 버전은 사용하는 파트와 맞춥니다. 구체적인 스키마와 전달 방식은 실제 구현에서 정합니다.
+
+## 정석 음원 제작
+
+[공통 악보 MIDI·CAT 음원 생성기](src/playback/README.md)는 서비스 공통 악보 v1을 직접 해석해 MIDI와 AAC-LC M4A를 만듭니다. WAV는 검증용 선택 출력입니다. 기존 JGB는 별도 가져오기 명령으로 공통 악보를 만든 뒤 사용합니다. 설치·CAT 파일·FFmpeg 준비·생성 명령과 지원하는 기호 범위는 해당 README를 따릅니다.
+
+[운지 패널 역취 예시음](../docs/knowledge/data/fingering-reference-audio.md)은 CAT 로컬 미리듣기와 국립국악원 원음 가공본을 만드는 절차를 기록합니다.
+
+의존성 설치 후 저장소 루트에서 빠른 검사를 실행합니다.
+
+```powershell
+.\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
+```
+
+구간 빠르기의 실제 생성 시간은 아래 격리 검증기로 확인합니다. 단소 CAT 자산 맵과 FFmpeg/FFprobe가 필요하며 `--out`은 새 폴더여야 합니다. 기본60·60→30·명시적30→120가속의 로컬 HTTP, 수행표, MIDI, 디코딩 M4A 길이·음 경계를 검사합니다. 전체 악기 준비 검사나 운영·기기 검증을 대신하지 않습니다. [904 기록](../docs/plans/S15P31E102-904.md)에 실행 환경과 결과를 남깁니다.
+
+```powershell
+python -m data.tests.runtime.verify_section_tempo --assets PATH_TO_ASSETS_JSON --out NEW_OUTPUT_DIRECTORY
+```
+
+## 서비스 기준 데이터
+
+[reference/](reference/)는 백엔드 기준 데이터 테이블에 넣을 값입니다. 파일마다 `table`(대상 테이블), `description`, `sources`(근거), `rows`가 있고, 행의 칸 이름은 `backend/src/main/resources/db/migration/`의 V1·V2와 같습니다. `id`는 백엔드가 정하므로 행끼리는 자연 키로 가리킵니다.
+
+| 파일 | 테이블 | 행 | 다른 표를 가리키는 칸 |
+| --- | --- | --- | --- |
+| `pitches.json` | `pitches` | 단소 다섯 율을 단소 실제 음역(중~중청중) 안에서 | 없음 |
+| `instruments.json` | `instruments` | 단소 | `range_low`·`range_high` = pitches의 `(yul, octave)` |
+| `jangdans.json` | `jangdans` | 장단10종([추가 근거와 시작 빠르기](../docs/knowledge/backend/jangdan-catalog-extension.md)) | 없음 |
+| `songs.json` | `songs` | 1차 AI 평가 4곡 | `instrument` = instruments의 `code`, `jangdan` = jangdans의 `name`, `source` = 원본 ID |
+
+`songs`의 `score_json`·`note_count`·`umulsai_text`·`score_version`은 정간보 변환기 결과로 채우므로 여기에 없습니다. 근거와 남은 확인 사항은 각 파일의 `sources`·`description`에 적습니다. 검사는 [검증](#검증)의 테스트에 포함된 `data/tests/test_reference_data.py`가 맡으며, 칸 이름·DB 제약·한자·반음 번호, 율 목표 주파수(황 = 311.13Hz)와 단소 녹음의 ±50센트 일치, 소금 녹음의 옥타브(반음 안) 일치, 곡이 가리키는 장단·정답 jgb를 확인합니다.
+
+## 공통 악보 데이터
+
+서비스 공통 악보 JSON을 기존 CAT 재생기에 연결하는 방법은 [재생 도구의 공통 v1 입력](src/playback/README.md#서비스-공통-악보-v1-입력-338)을 따릅니다. `--common-bpm`을 명시하고 원본·ID/tick/초 대응표와 함께 MIDI·M4A를 생성합니다.
+
+원본과 실제 생성 PCM의 음높이·발음 구간·쉼을 비교하는 명령과 관측 한계는 [독립 파형 검증](../docs/knowledge/data/common-score-audio-verification.md)에 있습니다.
+
+신규 카탈로그 곡은 [공통 악보 원본](../docs/specs/common-score-catalog-source.md)으로 작성·검수하고 같은 파일을 재생·적재에 사용합니다. 기존 곡의 가사 복원 방법은 [대조 및 복원 기록](../docs/knowledge/data/catalog-notation-restoration.md)을 따릅니다.
+
+기존 재생용 JGB는 [재생용 공통 악보 가져오기](src/playback/README.md#기존-재생용-jgb를-공통-악보로-가져오기) 명령을 사용합니다. 독립 음열 기호·빈지속·각별 정간 수·원본 음가 단위와 꾸밈/길이표 조합을 보존한 `inferred` 결과 및 원문 대응표를 만듭니다. 명시 연주 계획·표현 프로필을 전달할 수 있고, 반복표·짝 없는 길이표의 기본 해석에는 교육용 정책을 명시해야 합니다. 아래 채점 정답용 변환기와 검수된 서비스 파일은 그대로 유지합니다.
+
+[score_data.py](src/scores/score_data.py)는 사람이 확정한 채점 정답(`annotations/scores/<원본 ID>/`의 `.jgb.json`)을 FE 표시·AI 채점·BE 저장이 함께 쓰는 공통 악보 데이터로 바꿉니다(노션 B2). 형식은 [score_data.schema.json](src/scores/score_data.schema.json)이 정합니다. 화면 배치용 `columns → cells → units`와 재생·채점용 `events`를 함께 담고 `eventId`·`cellId`로 잇습니다. 시간은 박(`music.bpmUnit`)을 `music.ticksPerBeat` 칸으로 나눈 정수 틱입니다.
+
+```powershell
+python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p172 ngc-standard-2022-p173 ngc-standard-2022-p174
+```
+
+결과는 `processed/scores/<원본 ID>/score.json`(Git 제외)에 씁니다. 스키마나 불변식(길이 합, 빈틈·겹침 없음, 정간·이벤트 참조, 율명 표) 검사가 실패하면 쓰지 않습니다. 정간 하나의 박은 jgb에 없어 정답 검토 기록의 `sourceValues.beatsPerJeonggan`에 근거와 함께 적고, 곡 제목·장단은 [reference/](reference/)에서 읽습니다. 서비스 곡(`songs.json`)이 아닌 평가용 정답(소금 교과서 판본 `school-textbook-sogeum-p15`·`p16`)은 검토 기록의 `song`에서 읽고, 단소 음역 대신 12율 읽기 규칙만 검사합니다. 단소는 율명 표(`reference/pitches.json`, 기본 5율)와 원본에서 확인한 예외(`score_data.DANSO_EXTRA_PITCHES`, 지금은 진도아리랑의 청남)만 받습니다(S15P31E102-451). 예외는 backend 율명 표에도 있는 율만 넣습니다. 표준악보집 소금 4곡(`ngc-standard-2022-p192`·`p193`·`p194`·`p196`)도 같습니다. 서비스 소금 곡 행은 S15P31E102-339가 넣었고, 교과서 판본이 있으면 교과서(아리랑·도라지타령), 없으면 표준악보집(밀양아리랑·늴리리야) 정답으로 채점을 켭니다([infra/catalog](../infra/catalog/README.md)). 고정 샘플은 `tests/fixtures/scores/<원본 ID>.score.json`입니다. FE·AI·BE 검증용 아리랑 샘플은 `tests/fixtures/scores/ngc-standard-2022-p173.score.json`이며, 정답·기준 데이터·변환기를 바꾸면 테스트가 실패하므로 위 명령으로 다시 만든 결과로 함께 바꿉니다.
+
+같은 원본 PDF에서 여러 곡이나 성부가 나온 경우 원본 목록은 PDF 하나로 기록하고, `annotations/scores/`에는 정답별 폴더를 둡니다. 검토 기록의 `sourceId`는 공통 원본을 가리킵니다. `sourceValues.bpmUnit`을 명시하면 그 값을 장단 기준표보다 우선하며, 명시하지 않으면 기존 장단 기준표를 사용합니다. 여러 성부가 든 문서는 검토 기록의 `song.part`에 0부터 시작하는 성부 번호를 기록합니다. 장단이 없는 운영 악보는 `song.jangdan`을 빈 문자열로 두고 `song.bpmUnit`에 확인한 박 단위를 기록합니다.
+
+S15P31E102-339가 적재한 단소 곡의 정답 35개는 원본 PDF별 ID(`ngc-standard-2022-p<쪽>`, 국립국악원 실기교재 자료 번호 `ngc-silgi-2016-<번호>` 또는 곡 이름, 교과서 연습곡 `school-textbook-danso-p14-exercise-<번호>`, 진도아리랑 단소 원본 `jindo-arirang-textbook`) 폴더에 있습니다. 검토 기록의 `serviceSong`이 운영 곡 id를 가리키며, 어이 얼어자리는 운영 30이 `p183-part-2`(단소2), 31이 `p183-part-1`입니다. 모두 `reviewed`이고 검수 방법은 `answerApproval.note`에 있습니다. 채점 계획은 [infra/catalog/scoring-plans/danso.json](../infra/catalog/scoring-plans/danso.json)(35곡)입니다. 운영 음표가 원본과 다른 북천이 단소1(`p182-part-1`)과 천안삼거리는 `serviceComparison.replacesServiceEvents`로 표시하고, 계획에서 운영 악보를 이 정답으로 바꿉니다(S15P31E102-451).
+
+검수한 소금 어깨동무·옹헤야·태평가·해주아리랑·오나라는 표준악보집 원본 ID `ngc-standard-2022-p189`·`p198`·`p197`·`p195`·`p200`의 정답을 사용합니다. 운영 악보와 음과 시간은 비교했지만 입력 JGB 원본 해시는 다릅니다.
+
+취타 초급·중급 정답은 `ngc-standard-2022-p190`·`ngc-standard-2022-p201`입니다. 사람이 확인한 원본 28정간만 담고, 입력 파일 끝에 있던 빈 8정간과 원래 검수 파일의 해시는 검토 기록에 남겼습니다.
+
+취타 고급 `ngc-standard-2022-p203`은 사람이 확인한 기보를 보존한 정답입니다. 시김새가 별도 음으로 표현된 운영 악보와 달라 운영 채점에는 아직 사용하지 않습니다. 검토 기록의 보류 표시는 채점 켜기 도구의 자동 차단 기능이 아닙니다.
+
+## 녹음 정답 기록
+
+채점 평가용 녹음마다 정답 기록 하나를 `annotations/recordings/<악기 ID>/<recordingId>.json`에 둡니다. 녹음 원본은 `raw/`, 합성 녹음은 `processed/`(둘 다 Git 제외)에 두고 기록에 경로와 SHA-256을 적습니다. 형식은 [recording_label.schema.json](src/recordings/recording_label.schema.json)이 정합니다.
+
+- 악보 구간과 의도한 오류(`idx`·종류·크기). `idx`는 공통 악보 데이터 `events` 중 NOTE만 0부터 센 번호입니다.
+- 녹음 조건. 합성은 합성 방법·난수 시드·잡음·끊어 분 길이, 실제 녹음은 연주자 ID(`P01`처럼, 이름은 넣지 않음)·숙련도·악기 ID·기기·앱·마이크 거리·장소·잡음·날짜·온도·테이크·오류를 낸 방법을 모두 적습니다. 빈 칸이 있으면 평가에 쓰지 않습니다.
+- 실제 녹음 정답은 `reviewed`만 평가에 사용합니다. 자동 생성한 합성 시험 입력은 `inferred`도 허용하고, `rejected`는 항상 거절합니다.
+- 검사는 AI 평가 도구의 [labels.py](../ai/evaluation/labels.py)가 합니다. 형식, 파일 해시, 구간이 곡의 음 수 안인지, 오류가 구간 안에 한 번씩만 있는지를 봅니다.
+
+## 파일 관리
+
+팀원이 모은 악보 PDF·음원·MIDI는 원본 한 벌을 서버 `/data/raw`에 모으고, Git에는 목록·판단 값·코드·작은 샘플만 둡니다.
+
+```text
+data/
+├── catalog/                 # 원본 목록: 곡·악보·음원·MIDI의 ID·출처·이용 조건·SHA-256·rawPath.
+│   ├── <datasetId>/         # 데이터셋별 sources.json과 데이터셋 안의 연주·악보 짝(performances.json).
+│   └── works/               # 데이터셋이 다른 악보·음원·MIDI를 같은 곡으로 묶는 목록. 형식은 첫 묶음 때 정합니다.
+├── annotations/             # 원본에 덧붙인 판단 값: 사람 입력과 도구 추정, 검수 상태.
+│   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표. 사람이 원본과 대조해 확정한 정답 .jgb.json과 검토 기록.
+│   └── audio/<악기 ID>/<audio-id>-<설명>/ # 악기별 원음의 구간·취법·율명·대표 F0 라벨.
+├── reference/               # 서비스 기준 데이터: 율명·악기 음역·장단·곡 정보. 백엔드가 DB에 넣는다.
+├── src/                     # 가공 코드. 결과는 processed/에만 씁니다.
+│   ├── playback/            # 해석한 악보 JSON → MIDI → CAT PCM → M4A(기본)/WAV(선택).
+│   ├── scores/              # PDF → 쪽 그림 → 영역 자르기 → 음표 데이터.
+│   ├── audio/               # 분석용 변환 → 구간 자르기 → 악보와 시각 맞추기.
+│   ├── midi/                # MIDI → 음표 이벤트 목록.
+│   └── catalog/             # 목록과 실제 파일의 SHA-256 대조.
+├── tests/fixtures/          # 테스트에 쓰는 작은 고정 샘플.
+├── mart/                    # 집계 DB 스키마(schema.sql)와 이미 만든 마트용 변경(alter_*.sql).
+├── raw/                     # 받은 원본 그대로. Git 제외.
+│   ├── aihub/<데이터셋 번호>/ # AI-Hub에서 받은 구조 그대로. MID·WAV는 01.원천데이터, JSON은 02.라벨링데이터.
+│   ├── instruments/<악기>/  # 악기별 원음과 함께 받은 악보 PDF.
+│   └── scores/<묶음>/       # 팀원이 모은 정간보 PDF·MusicXML.
+└── processed/               # raw·src·annotations로 다시 만드는 결과. Git 제외.
+```
+
+- **원본**: `raw/`의 파일은 받은 그대로 두고 수정·덮어쓰기·삭제하지 않습니다. 고친 자료는 새 ID로 추가합니다. 묶음으로 받은 자료(예: AI-Hub)는 받은 폴더 구조를 유지합니다. MID와 JSON처럼 형식이 달라도 따로 옮기지 않고 파일 이름으로 짝을 맞춥니다. 압축을 푼 결과는 `processed/` 아래에 같은 구조로 둡니다.
+- **곡 묶음**: 데이터셋 안의 연주·악보 짝은 `performances.json`에, 데이터셋이 다른 자료끼리의 묶음은 `catalog/works/`에 둡니다. 묶음도 원본 ID와 SHA-256으로 가리키고, 같은 판본인지 확인했는지 적습니다.
+- **참조 기준**: 목록·판단 값·가공 결과는 원본을 파일 이름이 아니라 원본 ID와 SHA-256으로 가리키고, 구간은 초 단위 시간으로 적습니다. 소수점 자릿수는 저장 형식이며 측정 정확도를 뜻하지 않습니다.
+- **원본 경로**: 목록에는 `rawPath`로 `data/raw/...` 하나만 적습니다. 서버 경로는 앞에 `/`를 붙인 `/data/raw/...`입니다.
+- **annotations와 processed의 경계**: 사람이 적었거나, 도구가 추정했더라도 검수하거나 다른 곳에서 참조하는 값은 `annotations/`에 둡니다. 코드를 다시 실행하면 같게 나오는 큰 결과(프레임별 F0, 분석용 WAV, 잘라 낸 그림)는 `processed/`에 둡니다.
+- **출처와 검수 표시**: `annotations/`의 값마다 `method`(`manual` 또는 `tool:도구@버전`)와 `review`(`inferred`·`reviewed`·`rejected`)를 적습니다. 채점 정답에는 `reviewed`만 씁니다.
+- **판본**: 악보·음원·MIDI는 이름이 같아도 판본·편곡·청을 확인하기 전에는 같은 곡으로 묶지 않습니다.
+- **MIDI**: 정답이 아니라 참고 자료입니다. MIDI 번호를 율명에 고정해 바꾸지 않고, 율명은 악보에서 정합니다.
+- **재현**: `processed/`를 지워도 `raw/`·`src/`·`annotations/`로 같은 결과를 다시 만들 수 있어야 합니다. 원본 음원과 대용량 결과는 커밋하지 않습니다.
+
+## 서버 원본 공유
+
+서버 `edo1`의 `/data/raw`가 팀 원본 보관 위치입니다. 저장소 루트에서 실행하며, 하위 경로는 `data/raw/` 아래와 똑같이 맞춥니다.
+
+올리기 전에 서버 여유 공간을 확인합니다. `/data`는 운영 DB와 같은 디스크입니다.
+
+```bash
+ssh edo1 "df -h /"
+```
+
+올리기: 목록에 항목을 추가한 뒤 폴더째 보냅니다. 서버에는 추가만 하고 기존 파일을 덮어쓰지 않습니다. `scp`는 같은 이름의 파일을 경고 없이 덮어쓰므로, 먼저 서버에 같은 폴더가 없는지 확인합니다. `No such file or directory`가 나올 때만 올립니다.
+
+```bash
+ssh edo1 "ls /data/raw/<하위경로>/<폴더>"
+```
+
+```bash
+ssh edo1 "mkdir -p /data/raw/<하위경로>"
+```
+
+```bash
+scp -r data/raw/<하위경로>/<폴더> edo1:/data/raw/<하위경로>/
+```
+
+받기: `develop`의 최신 목록을 받은 뒤 필요한 폴더를 내려받습니다.
+
+```bash
+scp -r edo1:/data/raw/<하위경로>/<폴더> data/raw/<하위경로>/
+```
+
+확인: 받은 파일의 SHA-256이 목록의 값과 같아야 같은 원본입니다. 하위 폴더 안의 파일까지 모두 확인합니다.
+
+```bash
+find data/raw/<하위경로>/<폴더> -type f -exec sha256sum {} +
+```
+
+목록 전체를 한 번에 대조할 때는 아래를 실행합니다. 목록에 있는데 없거나 크기·SHA-256이 다른 파일을 알려 주고, 하나라도 있으면 종료 코드 1로 끝납니다. `--dataset`을 생략하면 `data/catalog/` 아래 모든 데이터셋을 대조하므로, 내려받은 데이터셋만 고릅니다.
+
+```bash
+python data/src/catalog/verify_sources.py --dataset aihub-71470 aihub-71955 collected-scores
+```
+
+`/data/raw`는 웹으로 열지 않고 SSH 키로만 접근합니다.
+
+## 데이터 준비
+
+악기별 라벨 자료는 `data/catalog/<악기 ID>/`와 `data/annotations/audio/<악기 ID>/`에 둡니다. AI-Hub와 팀이 모은 악보는 원본 목록만 있습니다. 확보 범위와 검수 근거는 [데이터 조사 목록](../docs/README.md#데이터-조사검증-기록)에서 확인합니다. 아래 산조대금 예시처럼 공통 JSON 세 종류를 팀 폴더 규칙에 맞춰 나눕니다.
+
+| 위치 | 편집할 내용 |
+| --- | --- |
+| [catalog/sanjo-daegeum/sources.json](catalog/sanjo-daegeum/sources.json) | 원음 9개·악보집 1개의 원본 ID, rawPath, 출처·이용 조건·SHA-256, 필요한 annotationPath |
+| [annotations/audio/sanjo-daegeum/](annotations/audio/sanjo-daegeum/) 아래 `<원본 ID>-<설명>/labels.json` | 악기별 원음의 구간·취법·율명·대표 기본주파수(F0)와 판단 근거. 산조는 8파일·121행 |
+| [catalog/sanjo-daegeum/performances.json](catalog/sanjo-daegeum/performances.json) | 연주 원음, 확인된 대응 악보, 별도로 구분한 비교용 악보 참조 |
+| [catalog/aihub-71470/sources.json](catalog/aihub-71470/sources.json) | AI-Hub 국악 악보 및 음원 데이터 압축 20개(MID·WAV 원천, JSON 라벨). 압축 안 파일 수는 `contents` |
+| [catalog/aihub-71955/sources.json](catalog/aihub-71955/sources.json) | AI-Hub 국악 합주곡 디지털 음원 데이터 중 받은 1개. 음원 압축은 다시 받은 뒤 추가 |
+| [catalog/collected-scores/sources.json](catalog/collected-scores/sources.json) | 팀원이 모은 정간보 PDF 18개와 정간보·MusicXML 묶음 2개. 출처 확인 여부는 `sourceVerified` |
+
+`aihub-71470`, `aihub-71955`, `collected-scores`는 원본 목록(`sources.json`)만 있어 `export_dataset.py`의 `--dataset` 대상이 아닙니다. 라벨과 연주 묶음을 만들면 그때 `performances.json`과 annotation을 추가합니다.
+
+공통 [export_dataset.py](src/audio/export_dataset.py)는 목록에서 선언한 라벨 파일을 모두 읽고 검증합니다. 파일을 검색해서 발견한 것만 사용하는 방식이 아니므로, 선언된 annotation이 없으면 오류입니다. 라벨의 명시적 구간을 잘라 저장하며 율명을 새로 추정하지 않습니다. [산조대금 기록](../docs/knowledge/data/sanjo-daegeum.md)에 판단 근거와 검수 범위를 남깁니다.
+
+## 원본 준비와 실행
+
+검증 환경은 Python 3.12.14·NumPy 2.3.5·SoundFile 0.13.1·libsndfile 1.2.2·jsonschema 4.26.0입니다. WAV 처리에는 NumPy, MP3 처리와 전체 테스트에는 SoundFile, 공통 악보 데이터 형식 검사에는 jsonschema도 필요합니다. SoundFile Windows wheel에는 libsndfile이 포함됩니다. 다른 플랫폼에서도 MP3를 지원하는 libsndfile을 사용합니다([공식 설치 안내](https://python-soundfile.readthedocs.io/en/latest/#installation)).
+
+```powershell
+python -m pip install numpy==2.3.5 soundfile==0.13.1 jsonschema==4.26.0
+```
+
+[국립국악원 단음 다운로드](https://www.gugak.go.kr/digitaleum/front/monotone/list.do)의 관악기 → 산조대금 전체 9개와 비교용 표준악보집 PDF를 sources의 `rawPath`에 준비합니다. 주소·해시·이용 조건은 목록에 있습니다. 한 구간만 저장할 때는 해당 원음만 있으면 됩니다. 메타데이터는 해당 데이터셋 전체가 필요합니다.
+
+저장소 루트에서 전체 저장:
+
+```powershell
+python data/src/audio/export_dataset.py --dataset data/catalog/sanjo-daegeum --output-dir data/processed/instruments/daegeum/sanjo/prepared-v5
+```
+
+저취 황 기본음 하나 저장:
+
+```powershell
+python data/src/audio/export_dataset.py --dataset data/catalog/sanjo-daegeum --label sanjo.jeochwi.hwang --output-dir data/processed/instruments/daegeum/sanjo/selected-hwang
+```
+
+주법·취법·율명으로 선택:
+
+```powershell
+python data/src/audio/export_dataset.py --dataset data/catalog/sanjo-daegeum --technique '기본음+깊은요성' --register 저취 --yulmyeong 임 --output-dir data/processed/instruments/daegeum/sanjo/selected-deep-im
+```
+
+태평가 원음과 비교용 악보 저장:
+
+```powershell
+python data/src/audio/export_dataset.py --dataset data/catalog/sanjo-daegeum --performance ngc-sanjo-2625 --output-dir data/processed/instruments/daegeum/sanjo/selected-taepyeongga
+```
+
+`--label`과 `--performance`는 반복할 수 있습니다. `--category`, `--technique`, `--register`, `--yulmyeong`은 정확히 일치하는 값을 고르고 여러 조건은 모두 만족해야 합니다. 선택 옵션이 없으면 전체를 생성합니다. 없는 ID나 빈 선택은 오류입니다.
+
+**출력은 `data/processed/` 아래의 아직 없는 폴더로 지정합니다.** 기존 폴더나 원본은 덮어쓰지 않습니다. 검증과 임시 폴더 생성이 끝나면 결과 폴더를 공개하므로 실패한 일부 결과가 완성본처럼 남지 않습니다.
+
+raw·processed·annotations 폴더 자체의 심볼릭 링크·junction 재지정과 하위 링크를 통한 각 영역 밖 접근은 거부합니다. 다른 위치의 원음은 폴더 링크 대신 `--root`로 지정합니다. 원본 ID는 전체 sources 목록에서 대소문자를 무시해도 유일해야 합니다.
+
+서버 원음 `/data/raw/...`를 사용할 때는 `--root /`를 지정하고 출력도 `/data/processed/...` 아래로 지정합니다. `--dataset`은 저장소의 실제 catalog 폴더를 가리킵니다. annotation은 그 catalog와 같은 저장소에서 읽으므로 서버 원음 루트에 메타데이터를 복제할 필요가 없습니다. `--root /data/raw`는 경로를 중복시키므로 사용하지 않습니다.
+
+## 결과 사용
+
+- 산조 전체: 기본음계 46개·시김새 75개 WAV, 태평가 원음 1개, 비교용 원본 악보집 PDF 1개, 결과 목록 `catalog.json`.
+- 개별 구간: PCM16/IEEE float32 RIFF/WAVE와 MP3 Layer III를 내용으로 판별합니다. 원래 샘플레이트로 디코딩해 채널 평균·필요한 피크 감쇠·PCM16 양자화를 적용합니다. 리샘플링·음높이 보정은 하지 않습니다.
+- 연주 음원·악보: 원본 바이트 그대로 복사합니다. 같은 PDF의 두 쪽을 참조하면 파일은 한 번만 복사합니다.
+- 결과 catalog v2에는 펼친 라벨·method/review·프레임 경계·변환·해시, 출처, 연주와 비교용 악보를 기록합니다. `manifestHashes`는 catalog 2파일과 선언된 모든 annotation 파일을 포함합니다. 결과 catalog를 편집 입력으로 쓰지 않습니다.
+- `audioDecoders[sourceId]`는 포맷·디코더·샘플레이트·채널·전체 프레임 수를 기록하고, MP3에는 SoundFile/libsndfile 버전도 남깁니다. MP3 시각 0은 디코더가 반환한 첫 PCM 프레임이며 별도 지연·패딩 보정은 없습니다. 라벨 분석도 같은 디코더 버전의 PCM을 기준으로 합니다.
+
+태평가의 `scores`는 현재 비어 있습니다. 성악 오선보·단소 정간보 일부는 최상위 `comparisonScores`에 별도로 두고 `forPerformanceId`로 어떤 연주를 비교할 때 함께 제공하는지만 표시합니다. 이 참조는 같은 판본·편곡·청이나 채점 정답의 대응 관계가 아닙니다. PDF의 비상업·무변경 조건과 확보 범위를 확인합니다.
+
+## 라벨링 음원의 M4A 배포본
+
+`src/audio/m4a_catalog.py`는 위 exporter가 만든 `catalog.json` v2와 WAV를 읽어 기본음계·시김새용 AAC-LC M4A 및 DB 적재용 `manifest.json`을 만듭니다. Python 3.11 이상 표준 라이브러리와 FFmpeg·ffprobe가 필요하며, 도구를 자동 설치하지 않습니다. 공통 악보 음원 생성기는 합성 PCM 44.1kHz를 사용하지만 이 변환기는 원본 WAV의 44.1/48kHz·채널·길이를 유지합니다.
+
+저장소 루트에서 실제 exporter 출력 위치를 `--catalog`에 지정합니다. 여러 악기를 합칠 때 같은 옵션을 반복합니다.
+
+```powershell
+$env:FFMPEG_BINARY = 'C:/tools/ffmpeg/bin/ffmpeg.exe'
+$env:FFPROBE_BINARY = 'C:/tools/ffmpeg/bin/ffprobe.exe'
+python data/src/audio/m4a_catalog.py --catalog data/processed/instruments/danso/export-v1/catalog.json --output-dir data/processed/reference-audio-v1
+python -m unittest discover -s data/src/audio/tests -p 'test_m4a_catalog.py' -v
+```
+
+실행 파일이 PATH에 있으면 두 환경변수는 생략할 수 있습니다. `--ffmpeg`·`--ffprobe`로 명시해도 됩니다. `--catalog`의 datasetId는 `danso`, `sogeum`, `jeongak-daegeum`, `sanjo-daegeum`입니다. 출력 디렉터리는 새 경로만 허용하고 원본 폴더 내부나 기존 결과를 덮어쓰지 않습니다.
+
+- 변환 전 WAV SHA-256·바이트·PCM16 헤더·전체 프레임을 원본 catalog와 대조합니다. 출처·이용 조건·라벨·추정 상태를 그대로 보존하며 변환 중 입력이 바뀌면 중단합니다.
+- 목표 비트레이트는 192kbps이며 리샘플링·음고 보정·정규화·구간 변경은 없습니다. 손실 압축이므로 음색·청감 검수를 대신하지 않습니다.
+- 각 M4A의 AAC-LC·샘플레이트·채널·표시 길이를 확인하고 전체 PCM으로 디코딩합니다. 끝 AAC 패딩은 0~1023프레임만 허용하며 실제 패딩·피크를 metadata에 남깁니다. 모든 파일 검사가 끝난 뒤에만 manifest와 결과 폴더를 공개합니다.
+- manifest v1의 `assetId`는 datasetId와 원래 labelId의 결정적 SHA-256입니다. `file`은 출력 폴더 기준 경로, `objectKey`는 `reference-audio/v1/<dataset>/<assetId>/<출력 해시>.m4a`이며 `contentType`은 `audio/mp4`입니다. 원본 label/source·WAV 정보와 인코더 버전·검사 결과는 `metadata`에 있습니다.
+- 이 명령은 R2 업로드·DB 게시를 실행하지 않습니다. 생성물은 Git 제외 경로에 보관하고 [M4A 변환·검증 기록](../docs/knowledge/data/reference-audio-m4a.md)에 따라 적재합니다. 사용자 녹음의 `recordings/` 30일 삭제 경로를 사용하지 않습니다.
+
+## JSON 형식과 악기 추가
+
+sources는 schema v2·v3, performances는 v2, 원음별 labels는 v3입니다. 출력 catalog는 v2를 유지합니다. 이전의 `data/datasets/` 3파일 배치와 구형 schema를 읽는 경로는 제거했습니다. 열·행 구조, 라벨 ID·구간·율명·F0·출력 WAV 파일명은 보존합니다.
+
+| 문서 | 주요 필드 |
+| --- | --- |
+| sources | datasetId, instrument, pathBase=repository_root, sources. v3는 sourceProfiles와 선택적 sources[].profile. 펼친 원본마다 id/kind/rawPath/sha256/title/sourceUrl/license/attribution. 악보는 pdfPageCount, 라벨 대상 원음은 annotationPath |
+| 원음별 labels | datasetId, 해당 원음 하나의 sourceHashes, 공통 review·eligibleForNoteScoring, columns, groups. 그룹의 sourceId/category/technique/method/analysisBasis/filenamePrefix/rows 및 선택적 evidence·gestureDefaults |
+| performances | datasetId, sourceHashes, performances(id/title/audio/scores), comparisonScores(id/forPerformanceId/sourceId/file/notation/pdfPages/coverage/대응 상태) |
+
+sources v3는 같은 JSON의 `sourceProfiles` 객체에 공통 출처 메타데이터를 두고 원본의 `profile` 문자열로 참조합니다. 단소의 음원 32개는 `ngc-danso-audio`를 공유하며 권리 조건이 다른 PDF는 개별 객체로 둡니다. [공통 로더](src/catalog/source_catalog.py)를 exporter와 원본 검증 CLI가 함께 사용합니다. 읽을 때 프로필을 펼치므로 출력 `catalog.sources`에는 기존 전체 원본 객체만 남고 `profile`은 남지 않습니다. `manifestHashes`는 실제 입력 파일의 해시이므로 입력을 압축하면 바뀝니다.
+
+- 개별 원본에 같은 필드가 있으면 그 값을 우선합니다. 중첩 객체도 통째로 교체하며 명시적 `null`은 프로필 값으로 채우지 않습니다. 원본마다 독립된 객체로 펼칩니다.
+- 프로필 허용 필드는 `kind`, `sourceUrl`, `downloadUrl`, `publisher`, `license`, `attribution`, `verifiedOn`, `redistribution`, `instrument`, `instrumentCode`, `channels`, `category`, `collection`, `sourceVerified`, `serviceDatasetApproved`, `notes`입니다. ID·제목·경로·SHA-256·크기·원본 항목 번호·길이·샘플레이트·PDF 쪽수 등 고유 값은 개별 원본에 둡니다.
+- 프로필 이름과 참조는 비어 있지 않은 문자열이어야 하며 같은 파일에 정의된 객체만 참조합니다. 재귀 상속, 알 수 없는 프로필·필드, 잘못된 객체, v2의 `sourceProfiles`·`profile` 혼용은 오류입니다. v3의 `sourceProfiles`는 필요하며, 빈 객체로 두고 모든 원본을 개별 작성할 수 있습니다.
+- 원본 목록 검증은 기존 AI-Hub·수집 악보의 권리 미확인 `null`을 보존합니다. exporter는 펼친 원본의 필수 `title`·`license`·`sourceUrl`·`attribution`이 비어 있거나 `null`이면 내보내기를 거부합니다.
+
+`rawPath`는 `data/raw/...`, `annotationPath`는 `data/annotations/audio/<datasetId>/<sourceId>-<설명>/labels.json` 하나만 기록합니다. 악기 폴더는 catalog JSON의 `datasetId`와 같아야 합니다. 산조 기본음의 전체 경로는 `data/annotations/audio/sanjo-daegeum/ngc-sanjo-2550-기본음/labels.json`입니다. 숫자를 포함한 원본 ID는 그대로 유지하고 폴더에 읽기 쉬운 설명만 붙입니다. 같은 악기 폴더 안에서는 설명 없는 `<sourceId>/labels.json`도 읽을 수 있지만 악기 폴더를 생략한 이전 경로는 허용하지 않습니다. 폴더명을 ID로 쓰거나 제목에서 경로를 다시 만들지 않고 `annotationPath`를 읽습니다. annotation은 자기 데이터셋·원본 ID·해시만 참조할 수 있습니다. `sourceHashes`는 원음이 바뀌었는데 예전 라벨이나 악보 참조가 적용되는 일을 막습니다.
+
+```json
+"columns": ["id", "startSeconds", "endSeconds", "register", "yulmyeong", "labelF0Hz"]
+```
+
+위 여섯 열은 각각 한 번 포함하며 순서를 바꿀 수 있습니다. 깊은요성 한 행 예시:
+
+```json
+["ngc-sanjo-2552.group-001", 0.6, 7.1, "저취", "임", 269.8]
+```
+
+- 시각은 원음 기준 초, 시작 포함·끝 제외입니다. `round(초 × 원본 샘플레이트)`로 샘플 프레임을 정합니다. 대표 F0의 의미·대응 방법은 `analysisBasis`와 근거에 기록합니다.
+- 각 행은 그룹 `method`와 파일 `review`를 상속하며 `evidence[id]`에서 예외를 덮어쓸 수 있습니다. `method`는 `manual` 또는 `tool:이름@버전`, `review`는 inferred/reviewed/rejected입니다. 같은 값을 매 행에 반복하지 않아도 펼친 결과에는 적용됩니다.
+- 현재 산조의 method는 `tool:prepare_sanjo_assets@c163f2f`이며 기존 분석·준비 코드가 보존된 Git 버전을 가리킵니다. 과거 대응 방법 이름은 `analysisBasis`로 보존했습니다. 이번 이동에서 율명을 다시 추정하거나 reviewed로 승격하지 않았습니다.
+- `eligibleForNoteScoring=true`는 reviewed일 때만 허용합니다. 현재 산조는 전부 inferred·false입니다. rejected 행은 전체/조건 선택에서 제외하고 ID로 직접 요청하면 오류로 알립니다.
+- 복합음은 아래 안정음과 행의 도착음을 연결합니다. `gesture.analysisReview`에는 분석창 선택 이유를 두며 annotation 검수 상태인 `review`와 구분합니다. 기존 창·대안은 보존합니다.
+- 파일은 `분류/주법/번호_표시이름.wav`입니다. filenamePrefix=none이면 번호를 빼고 rowNumber3이면 원래 그룹의 행 순번을 최소 세 자리로 붙입니다. 선택 전에 번호를 정하므로 일부만 저장해도 같습니다. 기존 행 순서를 보존합니다.
+- 같은 분류·주법에 여러 원본이 있으면 해당 주법을 `분류/주법/sourceId/번호_표시이름.wav`로 구분합니다. 서로 다른 annotation 파일의 행도 합쳐 검사합니다. 두 번째 원본을 추가하면 기존 원본도 하위 폴더로 이동하므로 결과 catalog의 file을 사용합니다. 같은 원본·주법은 한 그룹에 모으고 반복음은 rowNumber3로 구분합니다.
+- 같은 SHA의 동일 초 구간 또는 반올림 후 동일 프레임 구간은 ID·율명·주법이 달라도 오류입니다. 선택 원음의 미선택 라벨도 검사합니다. 다른 시각의 반복음과 서로 경계가 다른 일부 겹침은 자동 삭제하지 않습니다.
+- lowerAnchor/destination의 windowsSeconds와 analysisReview.rejectedWindow는 원음 기준 절대초입니다. 숫자·길이·라벨 내부 범위·창 순서·겹침·반올림 후 빈 창을 검사합니다. 아래음과 도착음이 반복 중 교차하는 순서는 허용합니다.
+
+새 악기는 `data/catalog/<악기 ID>/`에 sources·performances를, 라벨 대상 원음마다 `data/annotations/audio/<악기 ID>/<원본 ID>-<설명>/labels.json`을 작성하고 annotationPath로 연결합니다. 악기 ID는 JSON의 datasetId와 맞춥니다. 산조대금은 `sanjo-daegeum`, 소금은 `sogeum`, 단소는 `danso`, 정악대금은 `jeongak-daegeum`을 사용합니다. 악기 ID와 설명은 각각 폴더 한 칸에 들어가는 이름이며 `/`·`\`와 운영체제 예약 문자는 사용할 수 없습니다. 실제 확보한 자료·측정한 구간·검수 상태를 기록하며 산조의 음 개수와 배열을 복사하지 않습니다. 같은 명령의 `--dataset`만 해당 catalog로 바꿉니다. 복합음 표시는 두 기준음 연결이므로 세 단계 이상의 이동 구조는 추가 검토가 필요합니다.
+
+선택 필드 `evidence[id].sequenceDecision.orderedAnchors`는 한 발음 안의 안정음 전체 순서를 보존합니다. 각 원소에는 `register`, `yulmyeong`, 양의 유한수 `f0Hz`, 원음 기준 절대초 `windowsSeconds`를 기록합니다. 창은 라벨 내부에 있어야 하고, 원소 안과 원소 사이에서 시간순·비겹침·반올림 후 비어 있지 않은 실제 프레임 범위를 만족해야 합니다. `labelAnchorIndex`는 0부터 시작하는 정수로, 선택한 안정음의 취법·율명·F0가 행의 `register`·`yulmyeong`·`labelF0Hz`와 같아야 합니다. 행과 파일 표시는 선택한 안정음으로 유지하며 전체 이동 순서를 두 기준음 `gesture`로 축약하지 않습니다. 기존 자유형 문자열이나 `orderedAnchors`가 없는 `sequenceDecision` 객체는 그대로 허용합니다.
+
+## 정간보 OMR
+
+정간보 PDF 한 쪽을 [MALerLab/jeongganbo-omr](https://github.com/MALerLab/jeongganbo-omr)로 읽어 JG-like 텍스트로 쓰고, [jeongganbo-generator](https://github.com/danbinaerinHan/jeongganbo-generator)의 변환 도구로 우물사이 `.jgb.json`을 만듭니다. 시험 결과와 한계는 [정간보 OMR 시험 기록](../docs/knowledge/data/jeongganbo-omr.md)을 확인합니다. 결과는 사람이 `boxes.png`로 잘린 칸을 확인한 뒤 씁니다.
+
+두 저장소는 이 저장소 밖에 받습니다. Windows는 경로가 길면 클론이 실패하므로 짧은 폴더를 씁니다.
+
+```bash
+cd ~/omr
+git clone https://github.com/MALerLab/jeongganbo-omr.git
+git clone https://github.com/danbinaerinHan/jeongganbo-generator.git
+cd jeongganbo-omr
+curl -L -o checkpoints.tar.gz https://github.com/MALerLab/jeongganbo-omr/releases/download/v1.0.0/checkpoints.tar.gz
+tar -xzf checkpoints.tar.gz
+uv venv -p 3.12 .venv
+uv pip install -p .venv/Scripts/python.exe torch torchvision --index-url https://download.pytorch.org/whl/cpu
+uv pip install -p .venv/Scripts/python.exe x-transformers==1.30.20 einops omegaconf hydra-core opencv-contrib-python pandas tqdm matplotlib pdfplumber
+```
+
+저장소 루트에서 실행합니다. `--beats`는 한 각의 정간 수, `--dpi`는 정간 너비가 85~110px가 되는 값입니다(e-국악아카데미 교실 악보 150, 국악원 정악보 300). Windows는 `PYTHONUTF8=1`이 있어야 모델 어휘 파일을 읽습니다.
+
+```bash
+PYTHONUTF8=1 ~/omr/jeongganbo-omr/.venv/Scripts/python.exe data/src/scores/jeongganbo_omr.py "data/raw/scores/ngc-easy-danso-06/[악보](초급)세상에서가장쉬운단소교실_06차시_아리랑.pdf" 0 data/processed/scores/omr/ngc-easy-danso-06 --omr-dir ~/omr/jeongganbo-omr --dpi 150 --beats 3 --title 아리랑
+node ~/omr/jeongganbo-generator/tools/import-ngc-omr.mjs data/processed/scores/omr/ngc-easy-danso-06 data/processed/scores/omr/ngc-easy-danso-06/jgb --verify
+```
+
+처음 실행하면 체크포인트의 옛 LayerNorm 이름을 바꾼 `model_weight-names.pt`를 OMR 폴더에 만듭니다. 정간 수가 장단 × 각 수와 다르면 칸 자르기가 실패한 것입니다. 율명이 하나도 없는 열은 장단 열로 보고 뺍니다. 세로선이 연하거나 끊긴 스캔에서 칸이 합쳐지면 `--gap-fill 10 --line-threshold 250`을 더합니다. 칸 찾기 그림에만 적용되고 율명 인식은 원래 그림으로 합니다. 그래도 남은 칸 오류는 `--fill-grid`로 격자 줄 위치에 맞춥니다. 두 줄 높이로 합쳐진 상자는 줄마다 나눠 다시 읽고, 빠진 정간은 옆 열의 줄 위치에서 채웁니다(장단 열 제외, 먹이 있는 자리 또는 같은 열 위·아래 칸 사이의 인쇄된 빈칸만). 계산은 `jeongganbo_grid.py`에 있습니다.
+
+교과서 표준악보집처럼 PDF에 율명이 글자로 들어 있으면 OMR 없이 글자·선 좌표로 읽습니다. 저장소의 Python만 있으면 되고(`pymupdf`), 한 단의 한 열을 한 각으로 씁니다(쪽을 가로 여러 단으로 나눈 판형은 단을 위에서부터 읽음). `--page`로 쪽을 고르고, 율명 글자가 없는 쪽은 종료 코드 3, 율명은 있지만 정간 격자를 못 읽은 쪽은 4로 끝납니다(악보 인식 서비스가 쪽마다 처리를 고르는 신호). 2중주 쪽은 열 위 '단소1' 표시가 있는 열만 읽습니다. 규칙 검사는 `python -m unittest data/tests/test_standard_score_text.py`(pymupdf 필요)입니다. 결과는 같은 변환 도구로 `.jgb.json`을 만듭니다. 두 경로의 곡별 결과는 [단소 악보 변환 기록](../docs/knowledge/data/danso-scores-umulsai.md)을 확인합니다.
+
+```bash
+python data/src/scores/standard_score_text.py "data/raw/scores/ngc-standard-2022-p176/태평가_정간보_단소_표준악보집-PDF176.pdf" data/processed/scores/danso-115/std/ngc-standard-2022-p176 --title 태평가
+```
+
+`report.json`의 `jeonggans`가 열마다 같은 수인지, `ignored`에 시김새 외의 글자가 없는지 확인합니다. 오선보처럼 정간보가 아닌 PDF는 오류로 끝납니다.
+
+### 대조 결과 집계
+
+검토 화면에서 내려받은 `<제목>.review.json`(과 같은 폴더의 `<제목>.jgb.json`)으로 곡별 정간·칸 모양·율명·시김새 정확도와 자주 틀린 율명을 셉니다. 결과는 [대조 결과 문서](../docs/knowledge/data/jeongganbo-omr-accuracy.md)에 있습니다.
+
+```bash
+python data/src/scores/review_stats.py <검토 기록 폴더> --json <결과.json>
+```
+
+OMR 옵션의 효과는 같은 정답으로 잽니다. `jeongganbo_omr.py`에 `--yul <악기 또는 율명 목록>`(고를 수 있는 율명 제한, 악기는 `danso`·`sogeum`·`jeongak-daegeum`)이나 `--read-dpi 300`(율명은 고해상도 그림에서 잘라 읽기)을 더해 곡마다 돌린 뒤, 조합별 출력 폴더를 비교합니다. 정간은 칸 상자 위치로 짝지으므로 칸을 찾는 `--dpi`와 보정 옵션은 정답을 만들 때와 같아야 합니다.
+
+```bash
+python data/src/scores/omr_eval.py <검토 기록 폴더> 기준=<출력 폴더> 단소제한=<출력 폴더>
+```
+
+`--octave-check <평균 모양.json>`은 모델이 낸 청태·청황을 글자 모양으로 다시 가려 중청태·중청황으로 고칩니다. 평균 모양은 정답과 `--read-dpi 300`으로 돌린 출력 폴더(`page-read.png` 포함)로 만들고 `data/processed/`에 둡니다(원본 악보 그림에서 나온 값이라 커밋하지 않습니다).
+
+```bash
+python data/src/scores/octave_check.py <검토 기록 폴더> <출력 폴더> --out data/processed/scores/danso-115/octave-templates.json
+```
+
+### 검토 화면
+
+두 스크립트의 출력 폴더(`page.png`·`cells.json`)와 처음 변환한 `.jgb.json`을 곡마다 HTML 한 장으로 묶습니다. 브라우저로 열면 악보 그림 위의 정간 상자, 고르는 정간의 확대 그림, 결과 입력칸과 미리보기, 곡 전체 각 목록이 한 화면에 있습니다. OMR 신뢰도 0.2 미만은 빨강, 0.5 미만은 주황 테두리입니다. 고친 내용은 브라우저에 자동 저장되고, **.jgb.json 저장**으로 우물사이 문서를, **검토 기록 저장**으로 정간별 처음 결과·고친 결과·확인 여부를 내려받습니다. 빠진 정간은 **뒤에 빈 정간 넣기**로 채웁니다.
+
+편집은 우물사이와 같습니다.
+- **문법**: 칸 안에서 띄어 쓰면 위→아래로 줄이 나뉘고, 이어 쓰면 한 줄에 왼→오른쪽으로 들어갑니다(`청황 -청무 청태`). `-` 이음, `쉼` 쉼표, 음 뒤 `{흘림표}` 시김새, 음 뒤 `<` 숨표.
+- **팔레트**: 위쪽 **율 | 시김새** 탭. 누르면 입력칸 커서 자리에 들어가고, 선택한 글자가 있으면 바꿉니다. 율 탭은 이 곡에 나온 율명과 5옥타브 × 12율을 한자·한글로, 시김새 탭은 우물사이 기호 그림(`--umulsai` 폴더의 `js/symbols-data.js`, MIT)으로 보여 주어 이름을 몰라도 모양으로 고릅니다.
+- **미리보기**: 율명은 한자와 한글, 시김새는 그림으로 보입니다. 글자를 누르면 입력칸에서 그 글자가 선택되어 팔레트로 바로 바꿉니다.
+- **이동**: `Enter` 확인하고 다음, `Tab`·`↓` 다음, `Shift+Tab`·`↑` 이전, `Ctrl ←`·`Ctrl →` 옆 각의 같은 순번 정간.
+
+```bash
+python data/src/scores/review_page.py data/processed/scores/danso-115/omr/* data/processed/scores/danso-115/std/* --jgb data/processed/scores/danso-115/jgb --umulsai ~/omr/jeongganbo-generator --out data/processed/scores/danso-115/review
+```
+
+변환 결과 폴더 없이 `.jgb.json`만 있으면 파일을 직접 줍니다. 같은 폴더에서 이름 앞부분이 맞는 원본 PDF의 첫 쪽을 그림으로 붙이고, 문서의 선율을 처음 결과로 씁니다. 정간 상자는 [grid_boxes.py](src/scores/grid_boxes.py)가 그림의 선만 보고 찾습니다. 가로선이 있는 율명 열과 그 오른쪽 가사 열의 짝으로 정간 열을 고르고, 칸 수가 문서와 같은 악보에만 상자를 붙입니다. 칸 수가 같은 악보가 나란하면(소금보·단소보, 연습곡 1·2) 오른쪽 제목 글자에 `소금`이나 문서 이름 끝의 곡 이름이 든 쪽을 고릅니다. 맞는 악보가 하나가 아니면 상자 없이 만들고 그 사실을 출력합니다. 정간마다 가사가 있으면 함께 보입니다. 성부가 여럿인 문서는 각을 성부 순서로 이어 한 화면에서 검토하고 저장할 때 성부별로 나눕니다. 각 수·각 길이 설정은 첫 성부 기준입니다.
+
+```bash
+python data/src/scores/review_page.py <폴더>/*.jgb.json --umulsai ~/omr/jeongganbo-generator --out <폴더>/review
+```
+
+소금 정간보 14개 문서(`sogeum_dataset`, PDF 13개)는 이 방식으로 만들었습니다. 이 판형은 두 쪽 펼침에 가사·설명 글이 섞여 있어 `standard_score_text.py`는 13개 PDF 중 1개만 읽었고, OMR 리더의 칸 찾기는 dpi 100~300에서 1개만 일부 찾았습니다. `grid_boxes.py`로는 14개 모두 칸 수가 문서와 같았고, 상자 위에 문서 선율을 겹쳐 그려 순서·위치가 맞는 것을 확인했습니다. 북천이맑다커늘은 두 성부의 열을 각각 찾습니다.
+
+HTML에 원본 악보 그림이 들어가므로 공유 위치에 올리지 않습니다. 문서의 레이아웃·대강은 처음 변환한 `.jgb.json`을 그대로 쓰고 선율·각 수·각별 정간 수만 바꿉니다.
+
+## 검증
+
+```powershell
+python -m unittest discover -s data/tests -p 'test_*.py' -v
+```
+
+합성 WAV·MP3와 임시 악보로 포맷·구간 저장·원본 복사·파일별 라벨 병합·선택 번호·참조 누락·중복·분석창·검수 상태·출력 보호를 검사합니다. 서버 경로도 별도 임시 루트로 시험합니다. 이 회귀 검사는 실제 악기 데이터의 수집·라벨링 검증이나 율명의 음악적 정답 검증을 대신하지 않습니다. 실제 원음을 사용한 결과는 각 악기의 검수 기록을 확인합니다.
+
+sources v2·v3의 펼친 원본 및 출력 바이트 동등성, 프로필 참조·개별 값 우선 적용·명시적 `null`·객체 독립성도 검사합니다. 원본 검증 CLI는 임시 원본으로 기존 목록과 프로필 목록의 성공·파일 누락·크기·해시 오류 처리를 확인합니다.
+
+## 비채점 카탈로그 교정 (699)
+
+`src/scores/repair_scoring.py`는 고정한 운영 snapshot과 동일 원본 JGB를 다시 대조한 뒤 9곡 교정본을 만든다. 기존 파일이 목표와 다르면 덮어쓰지 않는다. 저장소 루트에서 다음을 실행한다. 원본 JGB의 경로는 조사 보고서 `sourcePath`에 있어야 한다.
+
+```powershell
+python -m data.src.scores.repair_scoring --snapshots data/processed/scoring-audit-699 --audit-report data/processed/scoring-audit-699/comparison.json --plan infra/catalog/scoring-plans/repair-699.json --evidence data/processed/scoring-audit-699/repair-evidence.json
+python -m unittest data.tests.test_repair_scoring data.tests.test_rebind_performance
+```
+
+동일 명령에 `--check`를 더하면 생성 파일을 읽기 전용으로 대조한다. `rebind_performance()`는 확인한 이벤트 대응표와 실제 파일 SHA를 받아 기존 음원의 구간별 시간을 새 악보에 연결한다. 다른 길이·일반 음높이·숨표가 바뀌면 재사용을 거절한다. 따라서 104·109는 교정·숨표를 반영한 음원을 별도로 생성했다. 운영 적용과 보류 중인 오나라의 조건은 [실행 기록](../docs/plans/S15P31E102-699.md#2026-11-10-운영-적용-결과), [catalog 명령](../infra/catalog/README.md#교정-9곡의-악보음원-동시-적용-699)에 있다.
+
+### 서비스 스캔 입력
+
+`jeongganbo_omr.py`는 `--image`로 이미 렌더링한 PNG를 받을 수 있습니다. 이때 쪽 번호는 0이고, PDF 재렌더링 옵션(`--read-dpi`, `--octave-check`)은 함께 쓰지 않습니다. 서비스는 `--model-cache-dir`로 요청별 쓰기 경로를 지정하고, `--batch-size 16`으로 추론 배치를 제한합니다. `--beats 0`은 검출한 각의 정간 수 중 최빈값을 사용합니다. 한 인쇄 열에 장단이 여러 번 들어간 경우 실제 장단별 각 구분은 검수해야 합니다.
+
+`--fill-grid`는 격자 줄 위치로 합쳐진 칸을 나누고 놓친 칸을 보완하고, `--keep-empty-columns`는 율명을 못 읽은 열도 보존합니다. 읽지 못한 열을 없애 뒤 칸을 당기지 않도록 서비스에서 두 옵션을 사용합니다. `cells.json`에는 원문·신뢰도·상자·각과 정간 번호(`gak`·`jeonggan`)·나눔(`split`)·보완(`filled`) 여부와 중앙 먹 비율(`ink`)을 남깁니다. 격자를 못 찾으면 종료 코드 4입니다. 순수 토큰 변환은 `jeongganbo_tokens.py`로 공유합니다. [모델 설치와 서비스 검사](../ai/README.md#스캔-모델-실행-458)를 따릅니다.

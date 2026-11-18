@@ -1,6 +1,3 @@
-## 📌 관련 이슈
-Closes #
-
 ## ✨ 변경 사항
 - 
 
@@ -10,3 +7,9 @@ Closes #
 - [ ] 민감 정보(키, 비밀번호 등)가 포함되지 않았습니다
 
 ## 💬 리뷰 요청 사항
+
+## 📌 관련 Jira 이슈
+Closes JIRA_KEY
+
+/assign me
+/assign_reviewer me

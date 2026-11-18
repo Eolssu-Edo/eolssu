@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sanjo-daegeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sanjo-2554": "a0353ed2dec7cf33e07ccd42ec11c945cb5cf55752bdb8b28bba94543a0ffbc9"
+  },
+  "columns": ["id","startSeconds","endSeconds","register","yulmyeong","labelF0Hz"],
+  "groups": [
+    {
+      "sourceId": "ngc-sanjo-2554",
+      "category": "시김새",
+      "technique": "니라",
+      "method": "tool:prepare_sanjo_assets@c163f2f",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sanjo-2554.region-001",0.56,4.225291666666666,"저취","임",265.186],
+        ["ngc-sanjo-2554.region-002",8.16,11.005291666666666,"저취","남",320.358],
+        ["ngc-sanjo-2554.region-003",14.74,18.425291666666666,"저취","무",351.519],
+        ["ngc-sanjo-2554.region-004",22.08,25.065291666666667,"저취","황",380.312],
+        ["ngc-sanjo-2554.region-005",28.66,31.845291666666668,"저취","태",418.851],
+        ["ngc-sanjo-2554.region-006",35.5,38.66529166666667,"저취","고",464.9],
+        ["ngc-sanjo-2554.region-007",42.26,45.98529166666667,"저취","중",510.961],
+        ["ngc-sanjo-2554.region-008",49.68,53.30529166666667,"평취","임",534.097],
+        ["ngc-sanjo-2554.region-009",57.0,59.90529166666666,"평취","남",623.483],
+        ["ngc-sanjo-2554.region-010",63.54,67.06529166666667,"평취","무",686.978],
+        ["ngc-sanjo-2554.region-011",70.7,74.48529166666667,"평취","황",734.51],
+        ["ngc-sanjo-2554.region-012",78.18,82.46529166666667,"평취","태",816.804],
+        ["ngc-sanjo-2554.region-013",86.22,89.94529166666666,"평취","고",921.423],
+        ["ngc-sanjo-2554.region-014",93.7,97.60529166666667,"평취","중",1002.252]
+      ],
+      "analysisBasis": "measured_pitch_correspondence"
+    }
+  ]
+}

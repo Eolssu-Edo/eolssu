@@ -1,0 +1,405 @@
+[
+  {
+    "songId": 5,
+    "source": "mr203-fixed-danso-001-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-18705",
+    "breathEventIds": [],
+    "currentSha256": "af99ea6dd42fae8e1b64f3f6b5423db797ff8f17a22d65a7d3578126650341db",
+    "targetSha256": "0e2db956f0d64e6a667802dcd1f0b3eaa164f69db3ffec8e099b71fa4a8d7df9"
+  },
+  {
+    "songId": 6,
+    "source": "mr203-fixed-danso-002-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p165",
+    "breathEventIds": [
+      "c3-j11-r0-u0"
+    ],
+    "currentSha256": "c370e7df015a3dfd84ae0b56ce9307d17c9c1f462a7f1732160ab8895167a9d2",
+    "targetSha256": "555ddf90c662ab71ed47628b5f9b7f3af1da00d16090dbd6c1914b4c0771654d"
+  },
+  {
+    "songId": 7,
+    "source": "mr203-fixed-danso-003-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-18796",
+    "breathEventIds": [],
+    "currentSha256": "b401c2821d4960d6fca4b8a9a6a7604cb13bc6d1437a3e654a2af85cdba9655b",
+    "targetSha256": "458652c63727c19c39b02a645890b163b91177a15b54926c7b2a944d26644080"
+  },
+  {
+    "songId": 8,
+    "source": "mr203-fixed-danso-004-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-18875",
+    "breathEventIds": [],
+    "currentSha256": "c3f0aecf898c2cf9cb6a097922617e1ecd90428a45ef3b1c2ceca798b79808cd",
+    "targetSha256": "fc641a9e6019b12e0c2db81bb10811708bbb50cc576abf41304d58c8949fc7ea"
+  },
+  {
+    "songId": 9,
+    "source": "mr203-fixed-danso-005-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p169",
+    "breathEventIds": [
+      "c1-j1-r0-u0",
+      "c3-j2-r1-u0",
+      "c5-j2-r1-u0",
+      "c9-j2-r2-u0",
+      "c11-j2-r1-u0",
+      "c13-j2-r1-u0"
+    ],
+    "currentSha256": "6f3aa9a5c9ff0d327138342fc0c58b3f77bc02916294fc5d064f82443bb7fa7b",
+    "targetSha256": "ff7932f966170deb786b6c44e08e98ab450c298a416291ba54b39876b3c0ac5e"
+  },
+  {
+    "songId": 10,
+    "source": "mr203-fixed-danso-006-p1",
+    "scoreVersion": 1,
+    "answer": "school-textbook-danso-p14-exercise-1",
+    "breathEventIds": [],
+    "currentSha256": "fbe04fd61f99ebe56ca9eefd554f688d0b48d846b65578dd6db209e3ce08fc95",
+    "targetSha256": "63cf6fba1921fb6f5013a079c4f637f56cc319b19741eb9cea7598ab659f4837"
+  },
+  {
+    "songId": 11,
+    "source": "mr203-fixed-danso-007-p1",
+    "scoreVersion": 1,
+    "answer": "school-textbook-danso-p14-exercise-2",
+    "breathEventIds": [],
+    "currentSha256": "c635dad8793ba1aa040c521c30e6f2c348d1cc7980010309a5e2af6657f3f9b8",
+    "targetSha256": "9cce0d56cfe423381307b29f70908202127da7058006956fa19a1f98477bc7b3"
+  },
+  {
+    "songId": 12,
+    "source": "mr203-fixed-danso-008-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p163",
+    "breathEventIds": [
+      "c0-j9-r0-u0",
+      "c1-j9-r0-u0",
+      "c2-j9-r0-u0",
+      "c3-j9-r0-u0",
+      "c4-j8-r0-u0"
+    ],
+    "currentSha256": "35d0d817bacda028da6c4c27d622720e1f860b639b93d5ecfce77d6ca9f8decc",
+    "targetSha256": "1ec98cf7095935b770f8269e79bf3ac105cefe5de2bac5d32750ed725d6f6b79"
+  },
+  {
+    "songId": 13,
+    "source": "mr203-fixed-danso-009-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p164",
+    "breathEventIds": [
+      "c0-j9-r0-u0",
+      "c1-j9-r0-u0",
+      "c2-j9-r0-u0",
+      "c3-j9-r0-u0",
+      "c4-j9-r0-u0"
+    ],
+    "currentSha256": "b2db0d8a771918dcce89821036d2088f6555ca10c95bcc933555699ecd3787bb",
+    "targetSha256": "2f77ab4e4ffceb7d0768dc417565613708df3a7c0d91509e204da545d6835b54"
+  },
+  {
+    "songId": 14,
+    "source": "mr203-fixed-danso-010-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p170",
+    "breathEventIds": [
+      "c1-j2-r0-u0",
+      "c5-j2-r0-u0",
+      "c9-j2-r0-u0",
+      "c13-j2-r0-u0"
+    ],
+    "currentSha256": "d8faea9c04c9e7010368c19f3482d9a932f77aa5267bbb3d5cc947037d26759a",
+    "targetSha256": "f5ce66a484dda35bf43c2919dfc98a30d1ee613ec2ffa9aa086cc1ac0c4747e2"
+  },
+  {
+    "songId": 18,
+    "source": "mr203-fixed-danso-014-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p162",
+    "breathEventIds": [
+      "c0-j3-r0-u0",
+      "c2-j3-r0-u0",
+      "c4-j3-r0-u0"
+    ],
+    "currentSha256": "81803973234dcb2175b623c53ab346b10d85d6b1399a2bac7a699c9ca0b08f23",
+    "targetSha256": "3c46ae122cb364df3f88e64cbfb5b6c5bd95e5eb6d0df99a0b725f4429a3a530"
+  },
+  {
+    "songId": 21,
+    "source": "mr203-fixed-danso-017-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-18730",
+    "breathEventIds": [],
+    "currentSha256": "fb24330e6eaee1a9031fece8b57c6188733d93137636869092f2eb7322380d86",
+    "targetSha256": "6d7b938d8d9e925e093629fa847c13efc21aaa005c5853e894ed4b3afc0fedeb"
+  },
+  {
+    "songId": 22,
+    "source": "mr203-fixed-danso-018-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-18747",
+    "breathEventIds": [],
+    "currentSha256": "e4064ce5a733b8401af447f3934dff6fb383c3fc5a36f6f8e1a5feaf66090184",
+    "targetSha256": "2ef8c863e42e96cf138efdb4a07477980c2ca6cf15e8dcfd01a5f391c2d2e08d"
+  },
+  {
+    "songId": 23,
+    "source": "mr203-fixed-danso-019-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p181",
+    "breathEventIds": [
+      "c0-j2-r0-u0",
+      "c1-j3-r2-u0",
+      "c3-j3-r2-u0",
+      "c5-j3-r2-u0"
+    ],
+    "currentSha256": "764c49694f85c21b50a266056cd432c18d5586fcfa5996557e8abb8fd3044a32",
+    "targetSha256": "bc1d2d7081965f1fd1cabceb6b8098e38cf7fc6701a275131a1d45b28587c5b3"
+  },
+  {
+    "songId": 24,
+    "source": "mr203-fixed-danso-020-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p175",
+    "breathEventIds": [
+      "c0-j3-r2-u1",
+      "c1-j3-r1-u0",
+      "c2-j3-r2-u0"
+    ],
+    "currentSha256": "e0b61151aecb845cbec203b931a0faaefa4fcb5e7eb336f473388a7ef7ef886b",
+    "targetSha256": "d818d31389526347e1bace4c51556f071d5191874b35c86c43f51fc2738fb2df"
+  },
+  {
+    "songId": 26,
+    "source": "mr203-fixed-danso-022-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p182-part-2",
+    "breathEventIds": [
+      "c9-j3-r0-u0"
+    ],
+    "currentSha256": "b993ab4a0b6888e685974abf7f139a634a65836560d6aab122735c625ee9cd2d",
+    "targetSha256": "14fb979089fd75f6c1fe2eb879fef429391dde31eef858b4e0ecb2701d5ff8ca"
+  },
+  {
+    "songId": 27,
+    "source": "mr203-fixed-danso-023-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p161",
+    "breathEventIds": [
+      "c0-j3-r0-u0",
+      "c1-j3-r0-u0",
+      "c2-j3-r0-u0",
+      "c3-j3-r0-u0",
+      "c4-j3-r0-u0",
+      "c5-j3-r0-u0",
+      "c6-j3-r0-u0"
+    ],
+    "currentSha256": "7be1036a83594433594be77f69ab85e1023f06a9cf4127946e5d9002dc76844c",
+    "targetSha256": "10bd545d7d89bd021c4ba4c16d6c3ea1e737ec4d26323866cf47ddf815c85b1c"
+  },
+  {
+    "songId": 30,
+    "source": "mr203-fixed-danso-026-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p183-part-2",
+    "breathEventIds": [],
+    "currentSha256": "2637475853d38ff3e9e47b4d86a7380449467af878a5414e68a0bdfa4d43e9b4",
+    "targetSha256": "b2f7972ee9d820ada2ae2db29f06fc3795d038bface716af6104754b8fc115be"
+  },
+  {
+    "songId": 31,
+    "source": "mr203-fixed-danso-027-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p183-part-1",
+    "breathEventIds": [],
+    "currentSha256": "87a2a8cb64d05c74e39fa00b092b7b1c47749aad680b2e856d78a835bab97bf3",
+    "targetSha256": "e2cd1de0f3cd4c36b667a3cfe4778219693c8179789c40c3aadc0b65f26fcf23"
+  },
+  {
+    "songId": 33,
+    "source": "mr203-fixed-danso-029-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p178",
+    "breathEventIds": [],
+    "currentSha256": "d580f6e7ab166ad49eedac8a055dd250947bb7cb75d04a3033d5cc91a6058000",
+    "targetSha256": "f0d77d9205d94726fd518f0f37b22871b11e2db8a7e637a8840994b1147092ef"
+  },
+  {
+    "songId": 34,
+    "source": "mr203-fixed-danso-030-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-18868",
+    "breathEventIds": [],
+    "currentSha256": "d6b090d762ef28d35e75bbaf0e76a2a04674eb0cee7b973e470bf8cf676fb6f4",
+    "targetSha256": "8d9e7781288f26dcf701d3a21ab4f7768be95c5d398d21bc7d981bb03a79ac86"
+  },
+  {
+    "songId": 35,
+    "source": "mr203-fixed-danso-031-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p180",
+    "breathEventIds": [
+      "c0-j11-r0-u0",
+      "c1-j11-r0-u0",
+      "c2-j11-r0-u0",
+      "c3-j11-r0-u0",
+      "c4-j11-r0-u0",
+      "c5-j11-r0-u0",
+      "c6-j11-r0-u0"
+    ],
+    "currentSha256": "6f5be5bb8547b86b0e02aed07f086cf07ac8a30c8880171d035f95a1969122dd",
+    "targetSha256": "94554e916a032e6f8eefaa3b97f9e396a1da93e8bb39e9072a6b3861abf41f54"
+  },
+  {
+    "songId": 38,
+    "source": "mr203-fixed-danso-034-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p166",
+    "breathEventIds": [
+      "c0-j9-r0-u0",
+      "c1-j11-r0-u0",
+      "c3-j9-r0-u0",
+      "c4-j11-r0-u0"
+    ],
+    "currentSha256": "1426c4fa28a286649860c4e005ae7a7b535e0f543a0a1ccc737e162d5f550618",
+    "targetSha256": "5adad6c851963dabb5aefe9843a463b4f59daaa0df747921136ec109f074a6e3"
+  },
+  {
+    "songId": 39,
+    "source": "mr203-fixed-danso-035-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p168",
+    "breathEventIds": [
+      "c0-j11-r0-u0",
+      "c1-j11-r0-u0",
+      "c2-j11-r0-u0",
+      "c3-j11-r0-u0",
+      "c4-j11-r0-u0",
+      "c5-j11-r0-u0",
+      "c6-j11-r0-u0"
+    ],
+    "currentSha256": "a107763988e9a22ee302d32b38c7e1446286dc859b010fe10dc0cf49087ea3b5",
+    "targetSha256": "989544be3fa3dbf21eac5218e8368ba2094eeb27efcf333d73b83b3ff445ad7b"
+  },
+  {
+    "songId": 40,
+    "source": "mr203-fixed-danso-036-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-19006",
+    "breathEventIds": [],
+    "currentSha256": "9ab7cb303b8832b591a7d21a6668ea680892725a9cb276c01aa6d3cb31222423",
+    "targetSha256": "46a814453463879ddf2c28d399d45e0a9fdfcdec8f9269237d3cb631d132030e"
+  },
+  {
+    "songId": 41,
+    "source": "mr203-fixed-danso-037-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p176",
+    "breathEventIds": [
+      "c2-j11-r1-u0"
+    ],
+    "currentSha256": "502360ff3c0f54bc4402e737ae31a948feee976784b565fd08d82a42ad4305d9",
+    "targetSha256": "e2cdb662aa3d0c42ccf69baceba6e9a2347509f11e32a297f72c4a56a505fee1"
+  },
+  {
+    "songId": 42,
+    "source": "mr203-fixed-danso-038-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-18947",
+    "breathEventIds": [],
+    "currentSha256": "63a2027ee34693b18e80ffd18e2c8282edece756f68075111e69bae41755c626",
+    "targetSha256": "41da6f44666f544d4af91b0d40585ff3e9ee7fd3afe8c47ce99ba6a77488dade"
+  },
+  {
+    "songId": 46,
+    "source": "mr203-fixed-danso-043-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p179",
+    "breathEventIds": [
+      "c0-j11-r0-u0",
+      "c1-j9-r1-u0",
+      "c2-j11-r0-u0",
+      "c3-j11-r0-u0"
+    ],
+    "currentSha256": "f8545b3e2b5459dc90e80477e165779d79ad285a37f9e09376ee52d24f997557",
+    "targetSha256": "6439e4a6899683bc4df878401a6344c602b69cff13fd0889160963bdc1109675"
+  },
+  {
+    "songId": 47,
+    "source": "mr203-fixed-danso-044-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p167",
+    "breathEventIds": [
+      "c0-j11-r0-u0",
+      "c1-j9-r0-u0",
+      "c2-j11-r0-u0",
+      "c3-j11-r0-u0"
+    ],
+    "currentSha256": "0e6a050a60f78de18d31370213dd6f1c5d980cef1205e695cb19e5997a2c47ed",
+    "targetSha256": "d0e2bc31412be9b78b8bcf86a53720b00ffc3c3b4425783dc14ec32756f83442"
+  },
+  {
+    "songId": 48,
+    "source": "mr203-fixed-danso-045-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-18924",
+    "breathEventIds": [],
+    "currentSha256": "bfdcdc75e91b155b78636204d85f0cfceb5343bc6dc33e78d3f6ac16877468b3",
+    "targetSha256": "f8a41748645fa58a519f411d5119f23c4bd149ee35703a7d154332da1e8105f8"
+  },
+  {
+    "songId": 25,
+    "source": "mr203-fixed-danso-021-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p182-part-1",
+    "breathEventIds": [
+      "c9-j3-r0-u0"
+    ],
+    "currentSha256": "2e295451d77e0abffc37cfc3ebd4bf043f80e772db924633c418cf9f6f558e21",
+    "targetScore": "danso-scores/25.json",
+    "targetScoreVersion": 2,
+    "targetSha256": "c2e8e406b5fa0744f8eb8c73be6a9a3519d0a29e2f90d04e7098f7f2a8061ca4"
+  },
+  {
+    "songId": 28,
+    "source": "mr203-fixed-danso-024-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-ssareum",
+    "breathEventIds": [],
+    "currentSha256": "77dd75cc8f6c070f99d4e2e3bcc493a2383a2351219c4e93067ba721900670d8",
+    "targetSha256": "a289fea409a380028a748e82d9c79ac6e49b7cdbc6bf6b4bd0aa467cd0f55019"
+  },
+  {
+    "songId": 43,
+    "source": "mr203-fixed-danso-039-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-18940",
+    "breathEventIds": [],
+    "currentSha256": "766ad436f98322576e390eb9edc3cefcc37b492e5bef504dce48ba73af307e71",
+    "targetSha256": "b5943f58becaf043162fea08425f63343e6260e2d47a09e6a9a37e9a6f5746f9"
+  },
+  {
+    "songId": 44,
+    "source": "mr203-fixed-danso-041-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-cheonan-samgeori",
+    "breathEventIds": [],
+    "currentSha256": "2db1bb177024603f9a26756ee0befc626d99e1c324d50c5600942cb95472174d",
+    "targetScore": "danso-scores/44.json",
+    "targetScoreVersion": 2,
+    "targetSha256": "85902952f9268415e7bfdaa668a6a2681ea02bb7140e213f44224c701d684c14"
+  },
+  {
+    "songId": 49,
+    "source": "mr203-fixed-danso-046-p1",
+    "scoreVersion": 1,
+    "answer": "jindo-arirang-textbook",
+    "breathEventIds": [],
+    "currentSha256": "aa9dd7969555bd41a09cda86ee650002bace799f4b2d0149c227fe68839f7c54",
+    "targetSha256": "30530e2d11252daeb4a7b31971866d6cd87486ea5367b4bee934c13a6754f734"
+  }
+]

@@ -1,0 +1,126 @@
+package com.ssafy.eolssu.backend.config
+
+import com.ssafy.eolssu.backend.common.error.ErrorResponseWriter
+import com.ssafy.eolssu.backend.feature.sheet.api.SheetBodyLimitFilter
+import com.ssafy.eolssu.backend.feature.sheet.application.CopyJangdanSource
+import com.ssafy.eolssu.backend.feature.sheet.application.CopyPublishedSheet
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetJangdanValidation
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetJangdan
+import com.ssafy.eolssu.backend.feature.song.domain.SongJangdanPlaybackResolver
+import com.ssafy.eolssu.backend.feature.sheet.application.EditUserSheet
+import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetImportFiles
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetImports
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportRepository
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage
+import com.ssafy.eolssu.backend.feature.sheet.domain.TEMP_SHEET_SOURCE_PREFIX
+import com.ssafy.eolssu.backend.feature.sheet.domain.UserSheetRepository
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.CommonSheetScores
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.LocalSheetSourceStorage
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.PdfBoxPageCounter
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.S3SheetSourceStorage
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.SheetStorageProperties
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.UnavailableSheetSourceStorage
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.MyBatisPublishedSheetCopyRepository
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.MyBatisSheetImportRepository
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SheetImportMapper
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.MyBatisUserSheetRepository
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetMapper
+import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.CommonScoreTimelineDecoder
+import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.MyBatisSongScoreRepository
+import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongScoreMapper
+import java.nio.file.Path
+import java.time.Clock
+import org.slf4j.LoggerFactory
+import org.springframework.boot.web.servlet.FilterRegistrationBean
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Profile
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
+import tools.jackson.databind.json.JsonMapper
+
+// 내 악보(SHT-01·02·04·07·08·10·11). 계약: docs/specs/user-sheets.md
+@Configuration(proxyBeanMethods = false)
+@Profile("db | ops")
+class UserSheetConfig {
+    @Bean
+    fun userSheetRepository(mapper: UserSheetMapper,manager: PlatformTransactionManager): UserSheetRepository = MyBatisUserSheetRepository(mapper,manager)
+
+    @Bean
+    fun sheetScores(songs: SongScoreMapper, json: JsonMapper): SheetScores =
+        CommonSheetScores(json, CommonScoreTimelineDecoder(json), MyBatisSongScoreRepository(songs)::pitches)
+
+    @Bean
+    fun getUserSheets(repository: UserSheetRepository, scores: SheetScores) = GetUserSheets(repository, scores)
+
+    @Bean
+    fun sheetAuthoringValidation(capabilities: com.ssafy.eolssu.backend.feature.catalog.application.AuthoringCapabilities, json: JsonMapper) =
+        com.ssafy.eolssu.backend.feature.sheet.application.SheetAuthoringValidation(capabilities, json)
+
+    @Bean
+    fun editUserSheet(repository: UserSheetRepository, scores: SheetScores, clock: Clock, json: JsonMapper,
+        authoring: com.ssafy.eolssu.backend.feature.sheet.application.SheetAuthoringValidation,
+        playback: com.ssafy.eolssu.backend.feature.sheet.infrastructure.PlaybackClient) =
+        EditUserSheet(repository, scores, clock, json, authoring = authoring, playback = playback,
+            jangdanValidation = com.ssafy.eolssu.backend.feature.sheet.application.SheetJangdanValidation(json))
+
+    @Bean
+    fun copyPublishedSheet(songs: SongScoreMapper, sheets: UserSheetMapper, imports: SheetImportMapper,
+        transactionManager: PlatformTransactionManager, scores: SheetScores, clock: Clock, json: JsonMapper,
+        playback: SongJangdanPlaybackResolver): CopyPublishedSheet {
+        val published = MyBatisSongScoreRepository(songs)
+        // 원곡 연습(CAT-04)과 같은 반주 판정으로 장단을 찾는다.
+        val accompaniment = CopyJangdanSource { songId ->
+            published.findPublished(songId)?.let(playback::resolve)?.jangdanId?.toLongOrNull()
+                ?.let(sheets::findJangdan)?.let { SheetJangdan(it.id, it.bpmUnit, it.name, it.pattern) }
+        }
+        return CopyPublishedSheet(MyBatisPublishedSheetCopyRepository(songs, sheets, imports, TransactionTemplate(transactionManager)),
+            scores, clock, accompaniment, SheetJangdanValidation(json))
+    }
+
+    // R2는 생성 음원과 명시적 과거 원본 삭제용이다. 새 업로드의 임시 저장소와 분리한다.
+    @Bean(defaultCandidate=false)
+    fun temporarySheetSourceStorage(clock: Clock, slot: DeploymentSlot,
+        @Value("\${eolssu.sheet-import.read-base-url:http://backend:8080/api/internal/sheet-imports}") baseUrl: String,
+        @Value("\${eolssu.sheet-import.multipart-directory}") multipartDirectory: String) =
+        com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage(
+            slot.sourceSpool
+                ?: Path.of(System.getProperty("java.io.tmpdir"),"eolssu-sheet-imports"),
+            slot.sourceReadUrl ?: baseUrl, clock, Path.of(multipartDirectory), slot.sourceDirectory)
+
+    @Bean
+    fun sheetSourceStorage(properties: SheetStorageProperties): SheetSourceStorage = when {
+        properties.type == "local" -> {
+            require(properties.localDirectory.isNotBlank()) { "SHEET_STORAGE_LOCAL_DIRECTORY is required for local sheet storage" }
+            LocalSheetSourceStorage(Path.of(properties.localDirectory))
+        }
+        properties.type == "s3" && properties.isConfigured -> S3SheetSourceStorage.create(properties)
+        else -> {
+            require(properties.type == "s3") { "Unknown sheet storage type" }
+            log.warn("Sheet audio storage is not configured; audio generation requests answer 503")
+            UnavailableSheetSourceStorage()
+        }
+    }
+
+    @Bean
+    fun sheetImportRepository(mapper: SheetImportMapper, transactionManager: PlatformTransactionManager): SheetImportRepository =
+        MyBatisSheetImportRepository(mapper, TransactionTemplate(transactionManager))
+
+    @Bean
+    fun sheetImports(repository: SheetImportRepository, storage: SheetSourceStorage, slot: DeploymentSlot,
+        @Qualifier("temporarySheetSourceStorage") temporary: com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage, clock: Clock,client: com.ssafy.eolssu.backend.feature.sheet.infrastructure.RecognitionClient) =
+        SheetImports(SheetImportFiles(PdfBoxPageCounter()), repository, temporary, clock, { client.available }, storage, slot.sourcePrefix ?: TEMP_SHEET_SOURCE_PREFIX)
+
+    // 기본 순서(가장 늦음)라 Spring Security 뒤에서 돈다. 로그인하지 않은 요청은 본문을 읽기 전에 401이다.
+    @Bean
+    fun sheetBodyLimitFilter(errorWriter: ErrorResponseWriter) =
+        FilterRegistrationBean(SheetBodyLimitFilter(EditUserSheet.MAX_SCORE_BYTES, errorWriter)).apply { addUrlPatterns("/api/users/me/sheets/*") }
+
+    private companion object {
+        val log = LoggerFactory.getLogger(UserSheetConfig::class.java)
+    }
+}

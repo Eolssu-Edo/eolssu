@@ -1,0 +1,19 @@
+package com.ssafy.eolssu.backend.feature.song.infrastructure.persistence
+
+import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchRow
+import org.apache.ibatis.annotations.Mapper
+import org.apache.ibatis.annotations.Param
+
+@Mapper
+interface SongScoreMapper {
+    fun findPublished(@Param("songId") songId: Long): PublishedScoreRow?
+    fun findPublishedRevision(@Param("songId") songId: Long, @Param("scoreVersion") scoreVersion: Int): PublishedScoreRow?
+    fun findPitches(): List<PitchRow>
+}
+
+data class PublishedScoreRow(
+    val songId: Long, val scoreVersion: Int, val noteCount: Int,
+    val defaultBpm: Int, val bpmUnit: String, val scoreJson: String, val title: String, val jangdanId: Long?,
+    // No default: a second synthetic constructor breaks MyBatis arg-name constructor mapping.
+    val sigimsaePlacementsJson: String?,
+)

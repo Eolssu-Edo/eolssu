@@ -1,0 +1,14 @@
+# S15P31E102-945: data·catalog test environment for the eolssu-python-tests job.
+# Versions follow data/README.md (verification environment), data/src/playback/requirements.txt,
+# ai/uv.lock (pytest) and ai/omr-scan-requirements.txt (OpenCV·PDF readers used by data scan tests).
+numpy==2.3.5
+soundfile==0.13.1
+jsonschema==4.26.0
+mido==1.3.3
+pymupdf==1.26.7
+opencv-python-headless==5.0.0.93
+pdfplumber==0.11.10
+pdfminer-six==20260107
+pillow==13.0.0
+pypdfium2==5.15.2
+pytest==9.1.1

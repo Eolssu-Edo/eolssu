@@ -1,0 +1,441 @@
+package com.ssafy.eolssu.feature.practice.component
+
+import com.ssafy.eolssu.core.diagnostics.UserActionLog
+import com.ssafy.eolssu.core.diagnostics.QaTarget
+
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.ripple
+import androidx.compose.ui.draw.clip
+import com.ssafy.eolssu.core.diagnostics.PerfPhase
+import com.ssafy.eolssu.core.diagnostics.observeFirstDraw
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.model.ScoreDisplayUnit
+import com.ssafy.eolssu.core.model.displayUnitAt
+import com.ssafy.eolssu.core.model.hasLyrics
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.score.BandGap
+import com.ssafy.eolssu.core.ui.score.JeongganboLook
+import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
+import com.ssafy.eolssu.core.ui.score.JeongganboView
+import com.ssafy.eolssu.core.ui.score.ScoreCellDecoration
+import com.ssafy.eolssu.core.model.ScoreUnitKey
+import com.ssafy.eolssu.core.ui.score.ScoreCellMark
+import com.ssafy.eolssu.core.ui.score.ScoreCursor
+import com.ssafy.eolssu.core.ui.score.ScoreHighlight
+import com.ssafy.eolssu.core.ui.score.ScoreNotation
+import com.ssafy.eolssu.core.ui.score.ScorePlayback
+import com.ssafy.eolssu.core.ui.score.rememberScoreCursor
+import com.ssafy.eolssu.core.ui.score.twoBandColumnCount
+import com.ssafy.eolssu.core.ui.score.scoreStrips
+import com.ssafy.eolssu.feature.practice.LivePitchCell
+import com.ssafy.eolssu.feature.practice.LivePitchMark
+import com.ssafy.eolssu.feature.practice.PracticeMode
+import com.ssafy.eolssu.feature.practice.PracticeUiState
+import com.ssafy.eolssu.feature.practice.stepCurrentIndex
+import com.ssafy.eolssu.feature.practice.sectionReadyStart
+import com.ssafy.eolssu.feature.practice.sectionEvaluation
+import com.ssafy.eolssu.feature.practice.recordingEndIndex
+import com.ssafy.eolssu.feature.practice.cellForEvent
+import com.ssafy.eolssu.feature.practice.modelPointAt
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.theme.EolssuTheme
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.practice_follow_now
+import org.jetbrains.compose.resources.stringResource
+
+/** 연습 악보를 놓는 배치. 정간 크기·여백과 두 단 나누기가 달라진다. */
+enum class PracticeScoreStyle {
+    /** 휴대폰: 한 단, 가로 스크롤. */
+    Phone,
+
+    /** 태블릿 세로: 각 72dp. 가장 긴 줄이 두 단에 들어가면 위·아래 두 단으로 나눈다. */
+    TabletPortrait,
+
+    /** 태블릿 가로: 각 72dp, 한 단, 가로 스크롤. 오른쪽 상태 패널 옆에 둔다. */
+    TabletLandscape,
+}
+
+/**
+ * PRACTICE-01의 악보 영역. 한 줄의 정간이 세로 스크롤 없이 들어가도록 정간 높이를 맞춘다.
+ * 준비 상태에서는 음을 눌러 운지법을 보고, 모범 연주·연주 중에는 현재 위치를 따라간다.
+ */
+@Composable
+fun PracticeScoreArea(
+    state: PracticeUiState,
+    style: PracticeScoreStyle,
+    onSelectUnit: (ScoreDisplayUnit) -> Unit,
+    onUserScroll: () -> Unit,
+    onFollowNow: () -> Unit,
+    modifier: Modifier = Modifier,
+    livePitch: Map<ScoreUnitKey, LivePitchCell> = emptyMap(),
+) {
+    val song = state.song ?: return
+    val pitchMarks = livePitchCellMarks(livePitch)
+    val padding = when (style) {
+        PracticeScoreStyle.Phone -> PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp)
+        PracticeScoreStyle.TabletPortrait -> PaddingValues(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 12.dp)
+        PracticeScoreStyle.TabletLandscape -> PaddingValues(0.dp)
+    }
+    val tablet = style != PracticeScoreStyle.Phone
+    val big = state.settings.bigScore
+    val strips = remember(song) { scoreStrips(song.score, song.jangdan) }
+    val longestStrip = strips.maxOf { it.rows.count() }
+    val stripsPerColumn = strips.groupBy { it.column }.maxOf { it.value.size }
+    // 휴대폰 연습 악보처럼 가사가 있으면 곁줄(가사 칸)을 두고, 율명 칸이 좁아지지 않게 각을 곁줄만큼 넓힌다.
+    val lyricLane = remember(song, big) { JeongganboLook.practiceLyricLane(big).takeIf { song.score.hasLyrics() } }
+    val look = JeongganboLook.Classic.copy(lyricLane = lyricLane)
+    fun JeongganboMetrics.withLane(): JeongganboMetrics = if (lyricLane == null) this else copy(columnWidth = columnWidth + lyricLane)
+    BoxWithConstraints(modifier.fillMaxSize().padding(padding)) {
+        // 확대 글꼴에서는 고정 높이 두 단 대신 가로·세로 스크롤로 모든 정간을 열어 둔다.
+        val bandColumns = if (style == PracticeScoreStyle.TabletPortrait && LocalDensity.current.fontScale <= 1f) {
+            twoBandColumnCount(
+                columnCount = song.score.columns.size,
+                stripsPerColumn = stripsPerColumn,
+                longestStrip = longestStrip,
+                availableWidth = maxWidth,
+                availableHeight = maxHeight,
+                metrics = JeongganboMetrics.practice(song.jangdan, maxHeight, big, tablet = true, longestStrip = longestStrip).withLane(),
+                minCellHeight = JeongganboMetrics.practiceMinCellHeight(big),
+            )
+        } else {
+            null
+        }
+        val recording = state.mode == PracticeMode.Recording || state.resuming
+        val playback = state.scorePlayback()
+        val notation = ScoreNotation(state.settings.showHangul)
+        // 한 음씩 따라 불기는 진행 모습(playback) 없이 지금 음의 정간에만 연두 테두리를 둔다(곁줄에는 표시하지 않는다).
+        val currentIndex = if (state.live) state.position.coerceAtMost(state.recordingEndIndex) else state.stepCurrentIndex ?: state.sectionReadyStart
+        val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
+        val selectedCell = state.scoreSelection?.takeIf { state.sectionPractice == null }?.let { it.column to it.row }
+        val onUnitClick = onSelectUnit.takeIf { state.canSelectUnit }
+        val annotations = state.scoreAnnotations
+        val sectionMarks = practiceSectionMarks(state)
+        val section = state.sectionPractice?.section
+        // 평가 연주 중에는 악보를 끌어 넘기지 않고 늘 현재 위치를 따라간다(S15P31E102-875).
+        val locked = state.scoreFollowLocked
+        if (bandColumns == null) {
+            val scrollState = rememberHorizontalScoreScroll(state)
+            JeongganboView(
+                song = song,
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState(), enabled = !locked),
+                metrics = JeongganboMetrics.practice(song.jangdan, maxHeight, big = big, tablet = tablet, longestStrip = longestStrip).withLane(),
+                notation = notation,
+                look = look,
+                scrollState = scrollState,
+                currentIndex = currentIndex,
+                highlight = highlight,
+                playback = playback,
+                follow = state.follow,
+                onUserScroll = onUserScroll,
+                userScrollEnabled = !locked,
+                selectedCell = selectedCell,
+                onUnitClick = onUnitClick,
+                annotations = annotations,
+                unitMarks = pitchMarks,
+                unitMarksAfterPass = true,
+                decorations = sectionMarks,
+                section = section,
+            )
+        } else {
+            val bandHeight = (maxHeight - BandGap) / 2
+            val metrics = JeongganboMetrics.practice(song.jangdan, bandHeight, big = big, tablet = true, longestStrip = longestStrip).withLane()
+            val columnCount = song.score.columns.size
+            val scrollState = rememberBandScroll(state, playback, bandColumns, bandHeight, onUserScroll)
+            Column(Modifier.fillMaxSize().verticalScroll(scrollState, enabled = !locked), verticalArrangement = Arrangement.spacedBy(BandGap)) {
+                for (first in 0 until columnCount step bandColumns) {
+                    JeongganboView(
+                        song = song,
+                        modifier = Modifier.fillMaxWidth().height(bandHeight),
+                        metrics = metrics,
+                        notation = notation,
+                        look = look,
+                        scrollState = null,
+                        currentIndex = currentIndex,
+                        highlight = highlight,
+                        playback = playback,
+                        selectedCell = selectedCell,
+                        onUnitClick = onUnitClick,
+                        columns = first until minOf(first + bandColumns, columnCount),
+                        annotations = annotations,
+                        unitMarks = pitchMarks,
+                        unitMarksAfterPass = true,
+                        decorations = sectionMarks,
+                        section = section,
+                    )
+                }
+            }
+        }
+        if (state.live && !state.follow && !locked) {
+            EolssuButton(
+                stringResource(Res.string.practice_follow_now),
+                onFollowNow,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 8.dp, bottom = 14.dp).shadow(8.dp, MaterialTheme.shapes.extraLarge),
+                style = EolssuButtonStyle.Secondary,
+                icon = EolssuIcons.Restart,
+                small = true, qaTarget = QaTarget.PRACTICE_SCORE_AREA_BUTTON_01
+            )
+        }
+    }
+}
+
+/**
+ * 모범 연주·연주 중 진행 선이 그릴 위치. 모범 연주는 음원 위치를, 연주는 현재 음이 시작된 시각을 기준으로 매 프레임 계산한다.
+ * 모범 연주는 음이 바뀌는 순간도 화면이 직접 계산하므로 음원 위치 보고를 기다리지 않는다.
+ */
+internal fun PracticeUiState.scorePlayback(): ScorePlayback? {
+    val song = song
+    if (!live || song == null || eventCount == 0) return null
+    val clock = modelClock?.takeIf { mode == PracticeMode.Model && playing }
+    if (clock != null) {
+        return ScorePlayback(running = true) {
+            val point = song.modelPointAt(clock.audio, clock.anchor.positionNow())
+            ScoreCursor(point.position, point.fraction.toFloat())
+        }
+    }
+    // 연주를 마치면 마지막으로 연주한 음에 머문다. 구간 재평가는 구간 마지막 음이다.
+    val index = position.coerceAtMost(recordingEndIndex)
+    val started = eventStartedAt
+    if (started == null) {
+        val paused = ScoreCursor(index, pausedFraction)
+        return ScorePlayback(running = false) { paused }
+    }
+    val durationMs = eventDurationMs()
+    return ScorePlayback(running = true) {
+        ScoreCursor(index, (started.elapsedNow().inWholeMicroseconds / 1000.0 / durationMs).toFloat().coerceIn(0f, 1f))
+    }
+}
+
+/**
+ * 처음 들어오거나 크기를 바꾸면 시작 위치(오른쪽 끝)로, 카운트다운이 시작되면 처음으로 되돌린다.
+ * 구간 재평가는 구간 처음에서 연주를 시작하므로 곡 처음으로 되돌리지 않고 구간 처음을 따라간다.
+ */
+@Composable
+private fun rememberHorizontalScoreScroll(state: PracticeUiState): ScrollState {
+    val scrollState = rememberScrollState()
+    LaunchedEffect(state.settings.bigScore) { scrollState.scrollTo(0) }
+    val toStart = state.mode == PracticeMode.Countdown && !state.resume && !state.sectionEvaluation
+    LaunchedEffect(toStart) {
+        if (toStart) scrollState.animateScrollTo(0)
+    }
+    return scrollState
+}
+
+/**
+ * 두 단 악보의 세로 스크롤. 현재 위치가 든 단이 화면 밖이면 그 단으로 옮기고, 사용자가 끌면 따라가기를 멈추도록 알린다.
+ * 카운트다운이 시작되면 첫 단으로 되돌린다. 구간 재평가는 평가 대기·카운트다운에도 구간 처음이 든 단을 보인다.
+ */
+@Composable
+private fun rememberBandScroll(
+    state: PracticeUiState,
+    playback: ScorePlayback?,
+    bandColumns: Int,
+    bandHeight: Dp,
+    onUserScroll: () -> Unit,
+): ScrollState {
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    val latestOnUserScroll by rememberUpdatedState(onUserScroll)
+    LaunchedEffect(scrollState) {
+        scrollState.interactionSource.interactions.collect { if (it is DragInteraction.Start) latestOnUserScroll() }
+    }
+    val toStart = state.mode == PracticeMode.Countdown && !state.resume && !state.sectionEvaluation
+    LaunchedEffect(toStart) {
+        if (toStart) scrollState.animateScrollTo(0)
+    }
+    val song = state.song
+    val live = playback != null
+    val cursor = rememberScoreCursor(playback)
+    val readyBand = if (state.sectionEvaluation) state.sectionReadyStart?.let { state.cellForEvent(it)?.column?.div(bandColumns) } else null
+    val currentBand by remember(song, live, bandColumns, readyBand) {
+        derivedStateOf {
+            val index = cursor.index
+            if (!live || song == null || index == null) readyBand else song.displayUnitAt(index, cursor.fraction)?.column?.div(bandColumns)
+        }
+    }
+    LaunchedEffect(currentBand, state.follow, scrollState.viewportSize, bandHeight) {
+        val band = currentBand
+        if (!state.follow || band == null || scrollState.viewportSize == 0) return@LaunchedEffect
+        val top = with(density) { ((bandHeight + BandGap) * band).toPx() }
+        val height = with(density) { bandHeight.toPx() }
+        val visible = top >= scrollState.value && top + height <= scrollState.value + scrollState.viewportSize
+        if (!visible) scrollState.animateScrollTo(top.toInt().coerceIn(0, scrollState.maxValue))
+    }
+    return scrollState
+}
+
+/**
+ * 휴대폰 보드의 악보 영역. 각의 실제 높이로 위→아래 들어가는 수를 정하고 다음 묶음은 왼쪽에 둔다.
+ * 정간은 곡과 상관없이 같은 크기(기본 정간, 3줄 이상의 소박 표기 정간은 × 1.5)로 그린다. 긴 각은 두 세로줄로 나누고,
+ * 그래도 공간이 부족하면 정간과 글자를 함께 줄여 세로 스크롤 없이 좌우로만 넘긴다.
+ * 아래에는 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다. 버튼 자리는 항상 비워 두어 버튼이 나타나도 정간 배치가 바뀌지 않는다.
+ * 평가 연주 중에는 악보를 끌 수 없어 버튼을 보이지 않는다(자리는 그대로 비워 둔다).
+ */
+@Composable
+fun PracticeBoardScore(
+    state: PracticeUiState,
+    onSelectUnit: (ScoreDisplayUnit) -> Unit,
+    onUserScroll: () -> Unit,
+    onFollowNow: () -> Unit,
+    modifier: Modifier = Modifier,
+    livePitch: Map<ScoreUnitKey, LivePitchCell> = emptyMap(),
+) {
+    val song = state.song ?: return
+    val colors = EolssuTheme.colors
+    val pitchMarks = livePitchCellMarks(livePitch)
+    val big = state.settings.bigScore
+    val strips = remember(song) { scoreStrips(song.score, song.jangdan) }
+    val longestStrip = strips.maxOf { it.rows.count() }
+    val recording = state.mode == PracticeMode.Recording || state.resuming
+    val playback = state.scorePlayback()
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val bounded = constraints.hasBoundedHeight
+        val fontScale = LocalDensity.current.fontScale
+        Column(if (bounded) Modifier.fillMaxSize() else Modifier.fillMaxWidth()) {
+            BoxWithConstraints(if (bounded) Modifier.weight(1f).fillMaxWidth() else Modifier.fillMaxWidth()) {
+                val packing = remember(song, big, maxHeight, fontScale) {
+                    // 휴대폰 연습 악보만 나뉜 정간의 율명을 줄 높이에 맞춰 키운다. 결과·비교·편집 화면의 같은 메트릭은 그대로다.
+                    // 정간·율명은 곡과 상관없이 같은 크기로 지키고, 긴 각은 줄이는 대신 두 세로줄로 나눈다(S15P31E102-1022·1028).
+                    val metrics = JeongganboMetrics.practiceBoard(big, longestStrip, keepBaseCell = true).copy(splitLineFill = PracticeSplitLineFill)
+                    practiceScorePacking(song.score, metrics, maxHeight, fontScale, song.jangdan, keepBaseCell = true)
+                }
+                JeongganboView(
+                    song = song,
+                    // 연주 중 손으로 스크롤하기 어려우므로 휴대폰 악보는 좌우로만 넘긴다. 묶음 배치가 정간을 남은 높이에 맞춘다.
+                    modifier = Modifier.observeFirstDraw(PerfPhase.PRACTICE_DRAWN).fillMaxWidth()
+                        .then(if (bounded) Modifier.fillMaxHeight().clipToBounds() else Modifier),
+                    metrics = packing.metrics,
+                    notation = ScoreNotation(state.settings.showHangul),
+                    scrollState = rememberHorizontalScoreScroll(state),
+                    currentIndex = if (state.live) state.position.coerceAtMost(state.recordingEndIndex) else state.stepCurrentIndex ?: state.sectionReadyStart,
+                    highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position,
+                    playback = playback,
+                    follow = state.follow,
+                    onUserScroll = onUserScroll,
+                    // 평가 연주 중에는 악보를 끌어 넘기지 않고 늘 현재 위치를 따라간다(S15P31E102-875).
+                    userScrollEnabled = !state.scoreFollowLocked,
+                    selectedCell = state.scoreSelection?.takeIf { state.sectionPractice == null }?.let { it.column to it.row },
+                    onUnitClick = onSelectUnit.takeIf { state.canSelectUnit },
+                    look = JeongganboLook.practice(big),
+                    decorations = practiceSectionMarks(state),
+                    section = state.sectionPractice?.section,
+                    annotations = state.scoreAnnotations,
+                    columnsPerStack = packing.columnsPerStack,
+                    windowed = true,
+                    splitColumns = packing.splitColumns,
+                    stackGap = PracticeStackGap,
+                    cellHeights = packing.cellHeights,
+                    stackRowHeights = packing.stackRowHeights,
+                    unitMarks = pitchMarks,
+                    unitMarksAfterPass = true,
+                )
+            }
+            // 평가 연주 중에는 악보를 끌 수 없어 따라가기가 꺼지지 않으므로 버튼을 보이지 않는다(S15P31E102-875).
+            val showFollow = state.live && !state.follow && !state.scoreFollowLocked
+            // 높이가 정해진 배치에서는 버튼이 없을 때도 자리를 비워 둔다. 버튼이 나타나고 사라질 때 악보 높이가 바뀌면
+            // 묶음 배치가 한 각↔두 각으로 다시 계산되어 악보가 흔들린다(S15P31E102-869).
+            if (showFollow || bounded) {
+                // 보드 `.score-follow`: 오른쪽 정렬 작은 버튼.
+                // 누르는 영역은 48dp 높이(위 간격 포함)로 두고, 눌림 효과는 보이는 8dp 둥근 버튼 안에만 그린다(S15P31E102-968).
+                val shape = RoundedCornerShape(8.dp)
+                val followInteraction = remember { MutableInteractionSource() }
+                Box(
+                    Modifier
+                        .align(Alignment.End)
+                        .heightIn(min = 48.dp)
+                        .then(if (showFollow) Modifier else Modifier.alpha(0f).clearAndSetSemantics {})
+                        .clickable(interactionSource = followInteraction, indication = null, enabled = showFollow, role = Role.Button, onClick = UserActionLog.click(QaTarget.PRACTICE_SCORE_AREA_01, onFollowNow)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(Res.string.practice_follow_now),
+                        modifier = Modifier
+                            .clip(shape)
+                            .background(colors.surface)
+                            .border(1.dp, colors.line, shape)
+                            .indication(followInteraction, ripple())
+                            .padding(horizontal = 10.dp, vertical = 7.dp),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                        color = colors.accentText,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 평가 연주에서 확정한 실시간 음높이 안내를 그 음의 표시 자리에 칠한다(S15P31E102-597).
+ * 3-A '옅어지는 바탕'(S15P31E102-980): 맞음은 진한 연두로 칠했다가 한 음 뒤 옅은 연두로 가라앉고, 다른 음은 주황 바탕이 남고,
+ * 판단 보류는 회색 테두리만 둔다. 색 전환만 쓴다(칠할 때 [LiveMarkFillInMillis], 가라앉을 때 [LiveMarkSettleMillis]).
+ * 연주 후 채점의 틀린 칸 표시와 달리 아이콘·문구는 없다. 연주 중에는 진행 채움이 그 자리를 다 지난 뒤에 칠한다(S15P31E102-752).
+ */
+@Composable
+internal fun livePitchCellMarks(marks: Map<ScoreUnitKey, LivePitchCell>): Map<ScoreUnitKey, ScoreCellMark> {
+    if (marks.isEmpty()) return emptyMap()
+    val colors = EolssuTheme.colors
+    return marks.mapValues { (_, cell) ->
+        when (cell.mark) {
+            LivePitchMark.Correct -> if (cell.settled) ScoreCellMark(fill = colors.accentSoft, fillInMillis = LiveMarkSettleMillis)
+                else ScoreCellMark(fill = colors.accentTintStrong, fillInMillis = LiveMarkFillInMillis)
+            LivePitchMark.Wrong -> ScoreCellMark(fill = colors.pitchErrorSoft, fillInMillis = LiveMarkFillInMillis)
+            LivePitchMark.Listening -> ScoreCellMark(ring = colors.textDisabled, ringWidth = 1.5.dp)
+        }
+    }
+}
+
+private const val LiveMarkFillInMillis = 100
+private const val LiveMarkSettleMillis = 250
+
+/**
+ * 구간 연습(S15P31E102-776)의 악보 꾸밈: 구간 밖 정간은 흐리게, 구간을 고르는 동안에는 시작·끝 정간에 ‘시작’·‘끝’ 표와 먹색 테두리를 둔다.
+ * 재생 중에는 지금 위치 표시와 겹치지 않게 표와 테두리를 뺀다. 구간 연습이 꺼져 있으면 꾸밈이 없다.
+ */
+@Composable
+internal fun practiceSectionMarks(state: PracticeUiState): Map<Pair<Int, Int>, ScoreCellDecoration> {
+    val song = state.song ?: return emptyMap()
+    val section = state.sectionPractice?.section ?: return emptyMap()
+    val marking = !state.live && state.stepCurrentIndex == null
+    // 준비 상태에서는 구간 처음을 지금 자리로 칠해 그 자리로 악보를 넘긴다. 그 정간에는 먹색 테두리를 겹치지 않는다.
+    val current = state.sectionReadyStart?.let { state.cellForEvent(it) }
+    return sectionDecorations(song.score, emptyList(), section, outsideAlpha = 0.5f, edgeRing = marking, edgeLabels = marking, current = current)
+}

@@ -1,0 +1,172 @@
+limit_req_zone $binary_remote_addr zone=blog_editor_per_ip:1m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=blog_views:1m rate=30r/m;
+log_format eolssu_safe_tls '$remote_addr [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent';
+# A container-local check can verify the TLS vhost's selected upstream.
+map $remote_addr $eolssu_tls_probe_backend {
+    default "";
+    127.0.0.1 $backend;
+}
+# nginx.conf와 같은 규칙이다. 두 파일이 한 http 블록에 함께 실리므로 변수 이름만 다르게 둔다.
+map $uri $eolssu_tls_static_cache_control {
+    "~^/[0-9a-f]{16,64}\.wasm$" "public, max-age=31536000, immutable";
+    default "no-cache";
+}
+server {
+    access_log /dev/stdout eolssu_safe_tls;
+    listen 80;
+    server_name __TLS_DOMAIN__;
+    root /usr/share/nginx/html;
+
+    location ^~ /.well-known/acme-challenge/ {
+        try_files $uri =404;
+    }
+
+    location / {
+        return 308 https://__TLS_DOMAIN__$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    access_log /dev/stdout eolssu_safe_tls;
+    server_name __TLS_DOMAIN__;
+    ssl_certificate /etc/letsencrypt/live/__TLS_DOMAIN__/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/__TLS_DOMAIN__/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    root /usr/share/nginx/html;
+    index index.html;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
+    # 경로에 ';'가 있으면 막는다. Spring은 경로 조각의 ';' 뒤를 떼어 내서, Nginx가 다른 경로로 본
+    # /api;x/actuator/prometheus 같은 요청을 actuator로 처리한다.
+    location ~ ";" {
+        return 404;
+    }
+
+    # Android App Links는 HTTPS에서도 SPA가 아닌 서버의 원시 JSON을 제공한다.
+    location = /.well-known/assetlinks.json {
+        set $backend http://backend:8080;
+        include /etc/nginx/backend-route/*.conf;
+        proxy_pass $backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 점검 주소(actuator)는 readiness만 밖에 연다. 수치(prometheus)는 내부 8081 경로에서만 읽는다.
+    location = /api/actuator/health/readiness {
+        set $backend http://backend:8080;
+        include /etc/nginx/backend-route/*.conf;
+        proxy_pass $backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        add_header X-Eolssu-Backend-Probe $eolssu_tls_probe_backend;
+    }
+
+    location ^~ /api/actuator {
+        return 404;
+    }
+
+    # 서명 URL의 쿼리와 원본 키는 접근 로그에 남기지 않는다.
+    location = /api/recordings/read {
+        access_log off;
+        error_log /dev/null;
+        set $backend http://backend:8080;
+        include /etc/nginx/backend-route/*.conf;
+        proxy_pass $backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /blog-editor/config {
+        proxy_pass http://172.18.0.1:18121/config;
+    }
+
+    location = /blog-editor/session {
+        limit_req zone=blog_editor_per_ip burst=5 nodelay;
+        limit_req_status 429;
+        client_max_body_size 8k;
+        proxy_read_timeout 40s;
+        proxy_pass http://172.18.0.1:18121/session;
+    }
+
+    location = /blog-editor/post {
+        limit_req zone=blog_editor_per_ip burst=5 nodelay;
+        limit_req_status 429;
+        client_max_body_size 270k;
+        proxy_read_timeout 40s;
+        proxy_pass http://172.18.0.1:18121/post;
+    }
+
+    location = /blog-editor/views {
+        client_max_body_size 256;
+        limit_req zone=blog_views burst=10 nodelay;
+        limit_req_status 429;
+        access_log off;
+        proxy_pass http://172.18.0.1:18121/views;
+    }
+
+    location = /blog-editor { return 404; }
+    location ^~ /blog-editor/ { return 404; }
+
+    # Uploaded originals are available only to the internal recognition worker.
+    location ^~ /api/internal/ {
+        access_log off;
+        return 404;
+    }
+
+    location /api/ {
+        # 녹음 업로드(PRA-02)의 앞 계층 한도. 20MiB 판정은 백엔드가 공통 오류 형식 413으로 한다.
+        client_max_body_size 25m;
+        # JSON 응답만 압축한다. 녹음·음원 등 이미 압축된 미디어는 대상에서 뺀다.
+        gzip on;
+        gzip_proxied any;
+        gzip_vary on;
+        gzip_comp_level 5;
+        gzip_min_length 1024;
+        gzip_types application/json;
+        set $backend http://backend:8080;
+        include /etc/nginx/backend-route/*.conf;
+        proxy_pass $backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # iOS QA IPA OTA 설치(S15P31E102-444). 웹 릴리스 폴더와 분리된 /opt/eolssu/ipas를 고정 경로로 제공한다.
+    location ^~ /ipas/ {
+        alias /usr/share/nginx/ipas/;
+        index index.html;
+        autoindex off;
+        types {
+            text/html html;
+            application/xml plist;
+            application/octet-stream ipa;
+        }
+        add_header Cache-Control "no-store" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Robots-Tag noindex always;
+    }
+
+    location / {
+        # 기본 MIME 표에 없는 글꼴을 등록해 압축 대상으로 고를 수 있게 한다.
+        include /etc/nginx/mime.types;
+        types {
+            font/ttf ttf;
+            font/otf otf;
+        }
+        # 웹 앱 정적 파일(Wasm·JS·CSS·글꼴·문자열 XML)을 압축한다. 이미 압축된 이미지·음원은 뺀다.
+        gzip on;
+        gzip_proxied any;
+        gzip_vary on;
+        gzip_comp_level 5;
+        gzip_min_length 1024;
+        gzip_types application/wasm application/javascript text/css image/svg+xml font/ttf font/otf text/xml application/json text/plain;
+        add_header Cache-Control $eolssu_tls_static_cache_control;
+        try_files $uri $uri/ /index.html;
+    }
+}

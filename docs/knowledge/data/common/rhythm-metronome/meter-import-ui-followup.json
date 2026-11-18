@@ -1,0 +1,125 @@
+{
+  "date": "2026-11-13",
+  "jira": "S15P31E102-883",
+  "head": "22698f9a749d6410cf9257073ec4a4add239e982",
+  "reviewedCodeDiffGitHash": "3cb0d7c2ffc86e55f166f323036576d7e9b0f19f",
+  "target": {
+    "type": "EMULATOR",
+    "android": 17,
+    "api": 37,
+    "systemModel": "sdk_gphone16k_x86_64",
+    "avd": "Eolssu_Rhythm883_S10",
+    "display": "1440x3040",
+    "densityDpi": 560,
+    "profile": "disposable S10 display configuration; not Samsung hardware/firmware",
+    "package": "com.ssafy.eolssu.rhythm883",
+    "httpFixture": "127.0.0.1:18835"
+  },
+  "boundary": {
+    "real": [
+      "SheetEditRoute",
+      "SheetEditViewModel",
+      "ApiSheetDocumentRepository",
+      "ApiReferenceCatalogRepository",
+      "Ktor OkHttp",
+      "Android Compose UI"
+    ],
+    "standIn": [
+      "HTTP persistence and catalog responses",
+      "SampleMySheetRepository used only for list refresh"
+    ],
+    "excluded": [
+      "launcher/login/sheet-list navigation",
+      "live authenticated BE/MySQL in this UI run",
+      "iOS",
+      "physical device audio or latency"
+    ]
+  },
+  "journey": {
+    "status": "PASS",
+    "preset": "5/8 · 2+3",
+    "firstStrongCell": 2,
+    "startTick": 1,
+    "actions": [
+      "open tools",
+      "choose basic preset",
+      "input first strong cell 2",
+      "apply",
+      "observe autosave",
+      "save via save dialog",
+      "observe onSaved callback",
+      "force-stop isolated app",
+      "clear isolated app data",
+      "cold start",
+      "HTTP GET persisted version 2",
+      "reopen basic settings"
+    ],
+    "scoreVersion": "2",
+    "draftCleared": true,
+    "originalScoreEventsTicksAndSourceUnchanged": true
+  },
+  "splitRegression": {
+    "status": "PASS",
+    "actions": [
+      "cancel settings",
+      "split first cell",
+      "reopen basic settings"
+    ],
+    "sourceCellTicks": 1,
+    "currentCellTicks": 2,
+    "startTick": 2,
+    "displayedCell": 2
+  },
+  "checks": {
+    "frontendHost": {
+      "tests": 1681,
+      "failures": 0,
+      "skipped": 5
+    },
+    "wasmCompile": "PASS",
+    "backendFull": {
+      "tests": 763,
+      "failures": 1,
+      "skipped": 1,
+      "failure": "BackendApplicationTests prometheus scrape: HttpTimeoutException (5s) during concurrent build/emulator startup"
+    },
+    "backendFailedClassRecheck": {
+      "tests": 4,
+      "failures": 0,
+      "skipped": 0
+    },
+    "formalIndependentReview": "PASS; both P2 resolved"
+  },
+  "localEvidenceRoot": "C:\\higher\\projects\\S15P31E102-worktrees\\mr-735-rhythm-883\\.scratch\\ui883",
+  "artifacts": {
+    "confirmed.json": "cce236511cca80504376ede9ae41040e1aabd8fe38c93994620f4e781fa66ceb",
+    "after-split.json": "5ac5d02538cab750763720b7597ec269cabe19cb8f853ca3e436dbe4aa22a12c",
+    "requests.jsonl": "3f0dd781ef9429e4c6cf3ac9f6cd3b34b00f29d5aaddb697e983f995a7df7854",
+    "rhythm883-debug.apk": "3ce9709e21201a7574e82a4cf84f013c93bfc3caf20d75f7b3095b1e6edc629a",
+    "05-selected.png": "4a868e372b595fc012361fba758942cb23d4a8f4f96ac2a6da7e9e899043e199",
+    "05-selected.xml": "2c310ca260daa70538263b6beaaee7585cf1eba7216907dcfb32ba9152eb0657",
+    "06-applied.png": "2d01a36df5faa0db4a4f506e439f0b7ee9d32b94be6e76ce45cde2c8dd74d8dd",
+    "06-applied.xml": "a6aaae45ff19eb2a53ac46a988b811c09c7cffaab18c2242666a0050a4428492",
+    "08-confirmed.png": "3c16095f7af8428097a8348609bfce189a88815b52e5328298f8a46bf28153e1",
+    "08-confirmed.xml": "51700d2a11f1458e2017f26ebbb9de40b5b4bc900721e463d8a94bf5c7463156",
+    "09-reopened.png": "8e0285caf738fb94933d1bd47d49fb7408870478facb85e6b6d46aa71a71e88f",
+    "09-reopened.xml": "5f8c4e10ead8f166f65e74c1f2c7da510d2fe31c9b3c41bdf2118b30432c7e3b",
+    "11-reopened-basic.png": "7e9e3c3c1d4a93b44e9af6d980fcd101b3ca161062a308eb7588e87c2690af15",
+    "11-reopened-basic.xml": "4355c1840abc32d561ba66f1b77b1c715f2e58df5040e0bf51f6e87fec949962",
+    "12-after-split.png": "8a3013e0a05261cf99b1ab9f0a66d5b8284164acd3acd188b93d942d197a2b99",
+    "12-after-split.xml": "4355c1840abc32d561ba66f1b77b1c715f2e58df5040e0bf51f6e87fec949962"
+  },
+  "cleanup": {
+    "isolatedAppUninstalled": true,
+    "emulatorStopped": true,
+    "ownedAvdRegistrationRemoved": true,
+    "httpListenerStopped": true,
+    "deviceOwnershipLockReleased": true
+  },
+  "remaining": [
+    "human reviewer approval before merge",
+    "known source OMR meter misreads and Arirang PNG review issues",
+    "iOS and acoustic latency not verified"
+  ],
+  "dependency": "MR736 commit 72768032 is already included; MR736 follow-up commits were not integrated"
+}

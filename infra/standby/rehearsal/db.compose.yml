@@ -1,0 +1,46 @@
+# 장애 전환 연습용 복제본 사본(S15P31E102-948). 운영 복제본(eolssu-replica-579)과 이름·볼륨·네트워크가 모두 다르다.
+# 기동 옵션은 replica.compose.yml과 같고 server-id만 다르다. 승격 단계에서는 ../replica.promote.compose.yml을 그대로 겹쳐 쓴다.
+# 네트워크는 인터넷·호스트 터널로 나가는 길이 없는 내부망이라 edo1 원본에 붙을 수 없다.
+name: eolssu-rehearsal-948-db
+
+services:
+  mysql:
+    image: mysql@sha256:76f0358884cb92d9a086d24e5671c38048d3fef40f2588703d73eb55392d6b69
+    command:
+      - --server-id=57948
+      - --log-bin=mysql-bin
+      - --log-replica-updates=ON
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --sync-binlog=1
+      - --innodb-flush-log-at-trx-commit=1
+      - --relay-log-recovery=ON
+      - --replica-net-timeout=15
+      - --read-only=ON
+    environment:
+      MYSQL_ROOT_PASSWORD: ${REPLICA_ROOT_PASSWORD:?set a rehearsal-only password}
+      MYSQL_ROOT_HOST: localhost
+    networks:
+      default:
+        ipv4_address: 172.30.94.2
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", 'MYSQL_PWD="$${MYSQL_ROOT_PASSWORD}" mysql --protocol=socket -uroot -NBe "SELECT 1" >/dev/null']
+      interval: 5s
+      timeout: 4s
+      retries: 24
+    mem_limit: 2g
+
+networks:
+  default:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.name: br-eolssu948
+    ipam:
+      config:
+        - subnet: 172.30.94.0/28
+          gateway: 172.30.94.1
+
+volumes:
+  db:

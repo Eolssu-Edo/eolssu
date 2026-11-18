@@ -1,0 +1,10 @@
+# omr.Dockerfile의 빌드 맥락(저장소 루트)에서 이미지에 필요한 것만 보낸다.
+*
+!ai/.python-version
+!ai/pyproject.toml
+!ai/uv.lock
+!ai/omr-scan-requirements.txt
+!ai/src/
+!data/src/scores/
+!data/reference/
+**/__pycache__

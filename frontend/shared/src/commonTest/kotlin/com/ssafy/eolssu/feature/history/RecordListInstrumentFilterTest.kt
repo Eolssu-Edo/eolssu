@@ -1,0 +1,178 @@
+package com.ssafy.eolssu.feature.history
+
+import com.ssafy.eolssu.core.model.EvaluationResult
+import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.KoreanDateTime
+import com.ssafy.eolssu.core.model.PracticeRecord
+import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.SongSummary
+import com.ssafy.eolssu.data.practice.PracticeRecordRepository
+import com.ssafy.eolssu.data.practice.RecordListPage
+import com.ssafy.eolssu.data.practice.RecordSongSummary
+import com.ssafy.eolssu.data.song.CatalogInstrument
+import com.ssafy.eolssu.data.song.SampleSongs
+import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.testing.CatalogViewModelTest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/** 기록 목록(RECORD-01)의 악기 필터: 곡 정보로 악기를 찾아, 고른 악기의 곡 묶음만 보인다(S15P31E102-631). */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal class RecordListInstrumentFilterTest : CatalogViewModelTest() {
+    private fun record(id: String, songId: String, hour: Int) = PracticeRecord(
+        id, songId, "아리랑", null, null, KoreanDateTime(2026, 11, 9, hour, 0), 48, 60, 70, emptyList(), "", emptyList(),
+    )
+
+    // 같은 '아리랑'이 악기마다 다른 곡 ID로 있다. hidden은 공개 목록에 없어 곡 상세로 찾는다.
+    private val records = listOf(record("r1", "danso-arirang", 12), record("r2", "sogeum-arirang", 11), record("r3", "hidden-arirang", 10), record("r4", "mine", 9))
+
+    private class Records(list: List<PracticeRecord>) : PracticeRecordRepository {
+        override val records: StateFlow<List<PracticeRecord>> = MutableStateFlow(list)
+        override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String, memo: String) = error("쓰지 않음")
+        override suspend fun updateMemo(recordId: String, memo: String) = Unit
+        override suspend fun refresh(): Boolean = true
+    }
+
+    private class Songs : SongRepository {
+        val details = mutableListOf<String>()
+        override suspend fun getInstruments() = listOf(
+            CatalogInstrument("i-danso", "DANSO", "단소"),
+            CatalogInstrument("i-sogeum", "SOGEUM", "소금"),
+            CatalogInstrument("i-jeongak", "JEONGAK_DAEGEUM", "정악대금"),
+        )
+        override suspend fun getSongs(instrumentId: String?) = listOf(
+            SongSummary("danso-arirang", "아리랑", 1, "세마치", 60, true, instrumentId = "i-danso"),
+            SongSummary("sogeum-arirang", "아리랑", 1, "세마치", 60, true, instrumentId = "i-sogeum"),
+        )
+        override suspend fun getSong(songId: String): Song? {
+            details += songId
+            return if (songId == "hidden-arirang") SampleSongs.first().copy(id = songId, instrumentId = "i-jeongak") else null
+        }
+    }
+
+    private class RecoveringSongs(var catalogFails: Boolean = false, var detailFails: Boolean = false) : SongRepository {
+        var catalogRequests = 0
+        var detailRequests = 0
+
+        override suspend fun getInstruments(): List<CatalogInstrument> {
+            catalogRequests++
+            if (catalogFails) error("일시적인 연결 실패")
+            return listOf(CatalogInstrument("i-jeongak", "JEONGAK_DAEGEUM", "정악대금"))
+        }
+
+        override suspend fun getSongs(instrumentId: String?) = emptyList<SongSummary>()
+
+        override suspend fun getSong(songId: String): Song {
+            detailRequests++
+            if (detailFails) error("일시적인 연결 실패")
+            return SampleSongs.first().copy(id = songId, instrumentId = "i-jeongak")
+        }
+    }
+
+    @Test
+    fun retryRecoversInstrumentFilterAfterSongDetailFailure() = runTest {
+        val songs = RecoveringSongs(detailFails = true)
+        val model = keep(RecordListViewModel(null, Records(listOf(record("r1", "hidden-arirang", 12))), now = { 0L }, songs = songs))
+        runCurrent()
+        model.changeInstrument(Instrument.DaegeumJeongak)
+        assertTrue(model.uiState.value.groups.isEmpty())
+        assertTrue(model.uiState.value.loadFailed)
+        assertTrue(model.uiState.value.showLoadStatus)
+        assertEquals(1, songs.detailRequests)
+
+        songs.detailFails = false
+        model.retry()
+        runCurrent()
+
+        assertEquals(listOf(listOf("hidden-arirang")), model.uiState.value.groups.map { it.songIds })
+        assertEquals(2, songs.detailRequests)
+        assertEquals(1, model.uiState.value.totalRecordCount)
+        assertFalse(model.uiState.value.loadFailed)
+        assertFalse(model.uiState.value.showLoadStatus)
+    }
+
+    @Test
+    fun retryRecoversInstrumentFilterAfterCatalogFailure() = runTest {
+        val songs = RecoveringSongs(catalogFails = true)
+        val model = keep(RecordListViewModel(null, Records(listOf(record("r1", "hidden-arirang", 12))), now = { 0L }, songs = songs))
+        runCurrent()
+        model.changeInstrument(Instrument.DaegeumJeongak)
+        assertTrue(model.uiState.value.groups.isEmpty())
+        assertTrue(model.uiState.value.loadFailed)
+        assertTrue(model.uiState.value.showLoadStatus)
+        assertEquals(1, songs.catalogRequests)
+
+        songs.catalogFails = false
+        model.retry()
+        runCurrent()
+
+        assertEquals(listOf(listOf("hidden-arirang")), model.uiState.value.groups.map { it.songIds })
+        assertEquals(2, songs.catalogRequests)
+        assertEquals(1, model.uiState.value.totalRecordCount)
+        assertFalse(model.uiState.value.loadFailed)
+        assertFalse(model.uiState.value.showLoadStatus)
+    }
+
+    @Test
+    fun knownInstrumentCodeNeedsNoCatalogRequestsEvenAfterRetry() = runTest {
+        val row = record("r1", "hidden-arirang", 12)
+        val records = object : PracticeRecordRepository by Records(listOf(row)) {
+            override suspend fun loadListPage(songId: String?, oldest: Boolean, page: Int, weekOf: KoreanDateTime?) =
+                RecordListPage(1, listOf(RecordSongSummary(row.songId, row.songTitle, 1, row.recordedAt, row.score,
+                    "JEONGAK_DAEGEUM")), row.songId, listOf(row), 1, null)
+        }
+        val songs = RecoveringSongs(catalogFails = true, detailFails = true)
+        val model = keep(RecordListViewModel(null, records, now = { 0L }, songs = songs))
+        runCurrent()
+        model.changeInstrument(Instrument.DaegeumJeongak)
+        model.retry()
+        runCurrent()
+
+        assertEquals(listOf(listOf("hidden-arirang")), model.uiState.value.groups.map { it.songIds })
+        assertFalse(model.uiState.value.loadFailed)
+        assertEquals(0, songs.catalogRequests)
+        assertEquals(0, songs.detailRequests)
+    }
+
+    @Test
+    fun filtersSongGroupsByTheSongInstrument() = runTest {
+        val songs = Songs()
+        val model = keep(RecordListViewModel(null, Records(records), now = { 0L }, songs = songs))
+        runCurrent()
+        val state = model.uiState.value
+        assertFalse(state.loadFailed) // 악기가 원래 없는 곡의 정상 null 응답은 통신 실패가 아니다.
+        assertEquals(
+            mapOf("danso-arirang" to Instrument.Danso, "sogeum-arirang" to Instrument.Sogeum, "hidden-arirang" to Instrument.DaegeumJeongak),
+            state.songInstruments,
+        )
+        // 공개 목록에 없는 곡만 상세로 한 번씩 찾는다.
+        assertEquals(listOf("hidden-arirang", "mine"), songs.details.sorted())
+        // 전체 보기에서는 제목이 같은 '아리랑' 네 곡이 악기와 관계없이 한 묶음이다.
+        assertEquals(listOf("아리랑"), state.groups.map { it.key })
+
+        // 악기를 고르면 그 악기의 곡만 묶음에 남는다.
+        model.changeInstrument(Instrument.Sogeum)
+        runCurrent()
+        assertEquals(listOf(listOf("sogeum-arirang")), model.uiState.value.groups.map { it.songIds })
+        // 악기를 바꾸면 묶음을 모두 접고 기록을 고르지 않는다.
+        assertFalse(model.uiState.value.isOpen("아리랑"))
+        assertNull(model.uiState.value.selectedRecordId)
+
+        model.changeInstrument(Instrument.DaegeumJeongak)
+        assertEquals(listOf(listOf("hidden-arirang")), model.uiState.value.groups.map { it.songIds })
+
+        // 기록이 없는 악기는 빈 묶음, 전체로 돌아오면 악기를 모르는 곡까지 최근 연습순으로 한 묶음에 모인다.
+        model.changeInstrument(Instrument.DaegeumSanjo)
+        assertTrue(model.uiState.value.groups.isEmpty())
+        model.changeInstrument(null)
+        assertEquals(listOf(listOf("danso-arirang", "sogeum-arirang", "hidden-arirang", "mine")), model.uiState.value.groups.map { it.songIds })
+    }
+}
