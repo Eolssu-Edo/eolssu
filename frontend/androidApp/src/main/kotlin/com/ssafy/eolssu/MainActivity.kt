@@ -1,5 +1,6 @@
 package com.ssafy.eolssu
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
@@ -25,6 +26,8 @@ class MainActivity : ComponentActivity() {
     override fun dispatchTouchEvent(event: MotionEvent): Boolean =
         qaInput.touch(event, window.decorView) { super.dispatchTouchEvent(event) }
 
+    // androidx.core가 공개 Activity API인 dispatchKeyEvent 재정의에 @RestrictTo를 붙여 lint가 오탐하므로 이 함수만 억제한다.
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
         qaInput.key(event) { super.dispatchKeyEvent(event) }
 
