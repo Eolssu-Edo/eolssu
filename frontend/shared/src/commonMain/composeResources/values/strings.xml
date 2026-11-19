@@ -247,7 +247,7 @@
     <string name="result_saved_button">저장됨</string>
     <string name="result_save_confirm">저장</string>
     <string name="result_leave_title">연주 결과를 버릴까요?</string>
-    <string name="result_leave_body">연습 기록에 저장하지 않고 나가면 이번 연주 결과를 다시 볼 수 없어요.</string>
+    <string name="result_leave_body">저장하지 않은 결과는 다시 볼 수 없어요.</string>
     <string name="result_leave_discard">버리기</string>
     <string name="result_leave_keep">계속 보기</string>
     <string name="result_other_song_more">다른 곡 고르기 ›</string>
