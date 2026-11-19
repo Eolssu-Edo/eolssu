@@ -482,18 +482,21 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
     )
     }
     PanelCard(padding = 0.dp) {
+        val soundOn = draft.jangdanSound && state.jangdanSupported
         SettingRow(
             stringResource(Res.string.practice_jangdan_sound), null,
-            draft.jangdanSound && state.jangdanSupported, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, enabled = state.jangdanSupported,
+            soundOn, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, enabled = state.jangdanSupported,
             topLine = false, vertical = 14.dp, horizontal = SettingsCardInset, topPadding = 14.dp,
-            leading = { Icon(EolssuIcons.Speaker, contentDescription = null, modifier = Modifier.size(26.dp), tint = colors.text) },
+            // 스위치를 끄면(또는 소리를 쓸 수 없으면) 음소거 모양으로 바꾼다.
+            leading = { Icon(if (soundOn) EolssuIcons.SpeakerLoud else EolssuIcons.SpeakerMute, contentDescription = null, modifier = Modifier.size(26.dp), tint = colors.text) },
         )
         SettingRow(
             stringResource(Res.string.practice_jangdan_beat_switch), null,
             draft.beatVisual, { actions.onDraft { it.copy(beatVisual = !it.beatVisual) } },
             topLine = false, vertical = 14.dp, horizontal = SettingsCardInset,
             // 연주 중 하단에 뜨는 장구(JangguBeats)와 같은 그림이라 켜면 무엇이 보이는지 바로 알 수 있다.
-            leading = { Image(painterResource(Res.drawable.practice_beat_janggu), contentDescription = null, modifier = Modifier.size(32.dp)) },
+            // 스위치를 끄면 장구를 흐리게 해 꺼진 상태를 함께 보여 준다.
+            leading = { Image(painterResource(Res.drawable.practice_beat_janggu), contentDescription = null, modifier = Modifier.size(32.dp), alpha = if (draft.beatVisual) 1f else 0.35f) },
         )
     }
 
