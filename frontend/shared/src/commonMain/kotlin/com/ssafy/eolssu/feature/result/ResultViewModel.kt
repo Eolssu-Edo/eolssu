@@ -41,7 +41,7 @@ import kotlinx.coroutines.launch
  * @property memo 저장 시트에 적는 메모(선택). 저장할 때 함께 보낸다.
  * @property filter 정간보에 칠할 틀린 종류.
  * @property weakSection 서버가 추천한 취약 구간(EVA-03 첫 구간). 없거나 받지 못하면 null.
- * @property leaveWarning 저장하지 않은 결과를 두고 뒤로 가려 할 때 띄우는 ‘연주 결과를 버릴까요?’ 창(S15P31E102-1214).
+ * @property leaveWarning 저장하지 않은 결과를 두고 뒤로 가려 할 때 띄우는 ‘결과를 저장하지 않고 나갈까요?’ 창(S15P31E102-1214).
  */
 data class ResultUiState(
     val result: EvaluationResult? = null,
@@ -227,7 +227,7 @@ class ResultViewModel(
         return false
     }
 
-    /** 확인 창을 닫고 결과 화면에 머문다. ‘버리기’로 나갈 때도 창을 먼저 닫는다. */
+    /** 확인 창을 닫고 결과 화면에 머문다. ‘나가기’로 나갈 때도 창을 먼저 닫는다. */
     fun dismissLeaveWarning() = _uiState.update { it.copy(leaveWarning = false) }
 
     /** 시트 바깥을 누르거나 닫으면 닫는다. 저장 중에는 결과가 올 때까지 둔다. */

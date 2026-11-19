@@ -246,9 +246,9 @@
     <string name="result_saved_open_record">기록으로 이동</string>
     <string name="result_saved_button">저장됨</string>
     <string name="result_save_confirm">저장</string>
-    <string name="result_leave_title">연주 결과를 버릴까요?</string>
+    <string name="result_leave_title">결과를 저장하지 않고 나갈까요?</string>
     <string name="result_leave_body">저장하지 않은 결과는 다시 볼 수 없어요.</string>
-    <string name="result_leave_discard">버리기</string>
+    <string name="result_leave_discard">나가기</string>
     <string name="result_leave_keep">계속 보기</string>
     <string name="result_other_song_more">다른 곡 고르기 ›</string>
     <string name="result_weak_line">취약 구간 %1$s · 틀린 정간 %2$d개</string>

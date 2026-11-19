@@ -66,7 +66,7 @@ fun ResultRoute(
             snackbarHostState.showSnackbar(comingSoon)
         }
     }
-    // 저장하지 않은 결과면 기기 뒤로 가기·Web 브라우저 뒤로 가기에 ‘연주 결과를 버릴까요?’를 띄운다(S15P31E102-1214).
+    // 저장하지 않은 결과면 기기 뒤로 가기·Web 브라우저 뒤로 가기에 ‘결과를 저장하지 않고 나갈까요?’를 띄운다(S15P31E102-1214).
     // 저장을 마쳤거나 결과를 못 받았으면 가로채지 않아 전처럼 바로 나간다. 창이 열려 있으면 창이 뒤로 가기를 먼저 받는다.
     val leave = { if (viewModel.requestLeave()) onBack() }
     @Suppress("DEPRECATION") // ui-backhandler 1.12의 BackHandler. 대신할 NavigationEventHandler는 아직 의존성에 없다.
