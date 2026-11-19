@@ -39,7 +39,6 @@ import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sources_intro
 import eolssu.shared.generated.resources.sources_link_failed
-import eolssu.shared.generated.resources.sources_no_link
 import eolssu.shared.generated.resources.sources_open_link
 import eolssu.shared.generated.resources.sources_title
 import eolssu.shared.generated.resources.sources_usage
@@ -122,9 +121,7 @@ private fun DataSourceCard(source: DataSource, onOpenLink: (String) -> Unit) {
         )
         Text(stringResource(Res.string.sources_usage, stringResource(source.usage)), style = small, color = colors.text)
         source.note?.let { Text(stringResource(it), style = small.copy(fontSize = 12.sp, lineHeight = 18.sp), color = colors.textMuted) }
-        if (source.links.isEmpty()) {
-            Text(stringResource(Res.string.sources_no_link), Modifier.padding(top = 4.dp), style = small.copy(fontSize = 12.sp), color = colors.textMuted)
-        } else {
+        if (source.links.isNotEmpty()) {
             Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 source.links.forEach { link -> SourceLinkRow(stringResource(link.label), link.url, onOpenLink) }
             }

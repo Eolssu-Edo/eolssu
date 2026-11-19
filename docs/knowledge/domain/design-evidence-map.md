@@ -58,7 +58,7 @@
 | --- | --- | --- | --- | --- |
 | 정일영, 「입김의 성질에 따른 단소의 단계적 지도방법」, 『국악교육연구』 8(2), 49–77, 2014. [KCI](https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001905872) | 초록 | 저음·고음 구분 대신 입김에 따라 중·저·고음으로 묶고, 곡에 가장 많이 나오는 중음부터 5단계로 가르침 | '기초부터 배우기'에서 쉬운 음부터 익히고 곡에 일찍 들어가는 단계 **제안** | [wind-beginner-curriculum.md](wind-beginner-curriculum.md) |
 | 한영숙, 「2007년 개정 교육과정에 따른 초등학교 음악교과서의 단소 지도내용 고찰」, 『국악교육연구』 6(2), 129–156, 2012. [earticle](https://www.earticle.net/Article/A312156) | 초록 | 교과서 단소 지도가 운지·입김 세기에 치우치고 시김새·정간보는 불완전하거나 일관되지 않게 다룸 | 쉬운 정간보(율명 한글 전환·기호 설명)가 입문의 빈칸을 메운다는 근거. 교과서 곡 데이터 구축 | [wind-beginner-curriculum.md](wind-beginner-curriculum.md) |
-| 국립국악원 e국악아카데미 단소 지도서·강좌(대금·소금·단소·피리) | 팀 문서 | 악기 알기 → 자세·호흡 → 첫 소리 → 기본음 → 곡 → 시김새 순서. 시김새는 마지막이고 무리하게 지도하지 않아도 된다고 봄 | 초급 곡에서 시김새를 음정 판정에서 빼는 것과 맞음. 단계별 학습 순서 **제안** | [wind-beginner-curriculum.md](wind-beginner-curriculum.md) |
+| 국립국악원 e국악아카데미 단소 지도서·강좌(대금·소금·단소·피리) | 팀 문서 | 악기 알기 → 자세·호흡 → 첫 소리 → 기본음 → 곡 → 시김새 순서. 시김새는 마지막이고 무리하게 지도하지 않아도 된다고 봄 | 초급 곡에서 시김새를 음정 판정에서 빼는 것과 맞음. 단계별 학습 순서(2026-11-19 팀 확정, 전문가 감수 없음) | [wind-beginner-curriculum.md](wind-beginner-curriculum.md) |
 
 ## 팀 자체 실험 (외부 자료와 구분)
 
