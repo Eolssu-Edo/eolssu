@@ -85,7 +85,7 @@ class LearnPracticeActions(
  */
 
 /**
- * 3·4·7단계의 마지막 연습 박스 내용: 통과 기준 한 줄 · 소리 듣기 판 · 주 버튼([primary]) · 보조 버튼. 3단계는 1초 소리 한 번, 4단계는 낼 음,
+ * 3·4·7단계의 마지막 연습 박스 내용: 통과 기준 한 줄 · 소리 듣기 판 · 주 버튼([primary]) · 보조 버튼. 3단계는 같은 높이로 1초, 4단계는 낼 음,
  * 7단계는 '투' 횟수를 센다. 판정하지 않는 경우(음높이 관측이 없는 기기)는 마이크 뱃지만 보이고 '스스로 확인했어요'로 마친다.
  * 박스를 접거나 화면을 벗어나면 듣기를 멈춘다.
  */
@@ -105,7 +105,7 @@ internal fun LearnPracticeBox(
         // 6단계는 판정 기준을 받지 못해 스스로 확인할 때 초를 빼고 쓴다. 4단계는 기준과 상관없이 1초라 늘 초를 쓴다(S15P31E102-860).
         val holdSeconds = state.pitch?.holdTargetMs?.let { holdSecondsLabel(it.toDouble()) }
         val rule = when (stage.number) {
-            3 -> stringResource(Res.string.learn_first_sound_pass, holdSecondsLabel(FIRST_SOUND_HOLD_MS))
+            3 -> stringResource(Res.string.learn_first_sound_pass, holdSecondsLabel(FIRST_SOUND_HOLD_MS.toDouble()))
             4 -> stringResource(Res.string.learn_pitch_hold_pass, holdSecondsLabel(LEARN_STAGE_FOUR_HOLD_MS.toDouble()))
             6 -> holdSeconds?.let { stringResource(Res.string.learn_range_hold_pass, it) } ?: stringResource(Res.string.learn_range_hold_pass_plain)
             7 -> stringResource(Res.string.learn_tongue_pass)
@@ -222,14 +222,14 @@ private fun PassLine(rule: String) {
 }
 
 /**
- * 소리 듣기 판: 판정 그림(3단계 소리 길이 막대·낼 음 동그라미·'투' 동그라미)만 할 일 박스 안에 바로 놓는다.
+ * 소리 듣기 판: 판정 그림(3단계 같은 높이로 이어 낸 길이 막대·낼 음 동그라미·'투' 동그라미)만 할 일 박스 안에 바로 놓는다.
  * 통과하면 같은 자리에 통과 표시를, 마이크를 쓸 수 없으면 까닭 한 줄을 보인다. 그릴 것이 없으면(판정하지 않는 6단계 등) 아무것도 두지 않는다.
  * 따로 테두리 친 판과 마이크 입력 뱃지는 두지 않는다(S15P31E102-793). 듣는 중인지는 아래 '그만하기' 버튼으로 안다.
  */
 @Composable
 private fun ListenPanel(state: LearnPracticeUiState, instrument: GuideInstrument, notes: IntRange) {
     val empty = state.phase != LearnPracticePhase.Passed && micMessage(state) == null &&
-        state.pitch == null && !state.judgesBySound && !state.judgesByTongue
+        state.pitch == null && !state.judgesByTongue
     if (empty) return
     Column(
         Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -249,9 +249,9 @@ private fun ListenPanel(state: LearnPracticeUiState, instrument: GuideInstrument
             pitch != null -> {
                 // 낼 음이 하나뿐이면(6단계) 위 운지 카드와 이름이 겹치므로 동그라미 없이 이어 분 길이 막대만 둔다(S15P31E102-793).
                 if (notes.count { it in pitch.notes.indices } > 1) PitchNotes(pitch, instrument, notes)
-                HoldBar(pitch.holdProgress)
+                // 3단계는 낼 음 없이 이어 낸 길이만 보이므로 막대를 굵게 둔다.
+                HoldBar(pitch.holdProgress, height = if (state.stage == 3) 12.dp else 6.dp)
             }
-            state.judgesBySound -> HoldBar(state.holdProgress, height = 12.dp)
             state.judgesByTongue -> TongueDots(state.tongues)
         }
     }
