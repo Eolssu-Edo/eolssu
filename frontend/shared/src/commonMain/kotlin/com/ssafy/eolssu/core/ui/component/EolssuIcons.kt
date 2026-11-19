@@ -84,6 +84,10 @@ object EolssuIcons {
     val TempoMark = lineIcon("TempoMark", "M4 16a8 8 0 1 1 16 0", "M12 16l4 -5")
     /** 음 듣기(보드 운지법 패널 `.btn.secondary`). */
     val Speaker = lineIcon("Speaker", "M4 9h4l5 -4v14l-5 -4H4z", "M16.5 9a4.5 4.5 0 0 1 0 6")
+    /** 소리 켜기 설정(장단 소리 스위치): 물결 두 개. */
+    val SpeakerLoud = lineIcon("SpeakerLoud", "M3 9h4l5 -4v14l-5 -4H3z", "M15.5 9a4.2 4.2 0 0 1 0 6", "M18.5 6a8.5 8.5 0 0 1 0 12")
+    /** 소리 끄기 상태(장단 소리 스위치 꺼짐): [SpeakerLoud]와 같은 몸통에 X. */
+    val SpeakerMute = lineIcon("SpeakerMute", "M3 9h4l5 -4v14l-5 -4H3z", "M16 9.5l5 5M21 9.5l-5 5")
     val Bookmark = lineIcon("Bookmark", "M6 3h12v18l-6 -4 -6 4z")
     val Target = lineIcon("Target", circle(12f, 12f, 9f), circle(12f, 12f, 5f), circle(12f, 12f, 1f))
     val Zoom = lineIcon("Zoom", circle(11f, 11f, 7f), "M20 20l-3.5 -3.5M11 8v6M8 11h6")

@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.ui.component.qaModalInput
 import com.ssafy.eolssu.core.diagnostics.UserActionLog
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -86,7 +87,8 @@ import eolssu.shared.generated.resources.practice_fingering_none
 import eolssu.shared.generated.resources.practice_fingering_prev
 import eolssu.shared.generated.resources.practice_fingering_rest
 import eolssu.shared.generated.resources.practice_fingering_title
-import eolssu.shared.generated.resources.practice_jangdan_beat
+import eolssu.shared.generated.resources.practice_beat_janggu
+import eolssu.shared.generated.resources.practice_jangdan_beat_switch
 import eolssu.shared.generated.resources.practice_jangdan_meta
 import eolssu.shared.generated.resources.practice_jangdan_pattern_meta
 import eolssu.shared.generated.resources.practice_jangdan_preview_start
@@ -104,6 +106,7 @@ import eolssu.shared.generated.resources.practice_settings_locked
 import eolssu.shared.generated.resources.practice_tempo_note
 import eolssu.shared.generated.resources.practice_tempo_sub
 import eolssu.shared.generated.resources.practice_tempo_title
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /** 보조 패널에서 부르는 동작. */
@@ -292,6 +295,7 @@ private fun MenuRow(icon: ImageVector, label: String, status: String, enabled: B
 
 /**
  * 스위치 줄(`.trow`): 위 선(`#EEEBE3`), 위아래 12dp, 15sp 600 이름과 13sp 설명, 오른쪽 50×30 스위치.
+ * [leading]이 있으면 이름 앞 32dp 자리에 그림을 둬 무엇을 켜는지 보여 준다.
  * [enabled]가 아니면 줄을 흐리게 하고 스위치를 끈다(`.trow.off`).
  */
 @Composable
@@ -305,6 +309,7 @@ private fun SettingRow(
     vertical: Dp = 12.dp,
     horizontal: Dp = 0.dp,
     topPadding: Dp? = null,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     val colors = EolssuTheme.colors
     Row(
@@ -317,6 +322,7 @@ private fun SettingRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (leading != null) Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { leading() }
         Column(Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
             if (description != null) {
@@ -404,7 +410,7 @@ private fun holeName(instrument: GuideInstrument, index: Int): String =
 
 /**
  * PANEL-04 장단: 장단 이름과 ‘한 각 N정간 · 대강 … · BPM’, 정간 칸(대강 첫 칸은 번호·구음, 미리듣기 중인 칸은 연두),
- * ‘장단 듣기’, 장단 소리·현재 박 스위치.
+ * ‘박 표시’가 켜져 있으면 대강마다 장구 그림(미리듣기 중엔 지금 박 강조), ‘장단 듣기’, 장단 소리·박 표시 스위치.
  * 구음·속도 안내, 스위치 설명, 준비·재생 중 안내 같은 주석 문구는 두지 않고(S15P31E102-716),
  * 장단 소리를 쓸 수 없거나 준비 중인 이유만 적는다.
  */
@@ -455,6 +461,12 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
             }
         }
     }
+    // ‘박 표시’를 켜 두면 연주 중 하단과 같은 장구 줄을 여기서도 보여 주고, ‘장단 듣기’ 동안 지금 박의 장구를 함께 움직인다.
+    if (draft.beatVisual) {
+        Box(Modifier.padding(top = 12.dp)) {
+            JangguBeats(jangdan.daegang.size, if (draft.previewing) jangdan.daegangIndexOfRow(draft.previewBeat) else -1)
+        }
+    }
     EolssuButton(
         stringResource(if (draft.previewing) Res.string.practice_jangdan_preview_stop else Res.string.practice_jangdan_preview_start),
         actions.onTogglePreview,
@@ -470,15 +482,21 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
     )
     }
     PanelCard(padding = 0.dp) {
+        val soundOn = draft.jangdanSound && state.jangdanSupported
         SettingRow(
             stringResource(Res.string.practice_jangdan_sound), null,
-            draft.jangdanSound && state.jangdanSupported, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, enabled = state.jangdanSupported,
+            soundOn, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, enabled = state.jangdanSupported,
             topLine = false, vertical = 14.dp, horizontal = SettingsCardInset, topPadding = 14.dp,
+            // 스위치를 끄면(또는 소리를 쓸 수 없으면) 음소거 모양으로 바꾼다.
+            leading = { Icon(if (soundOn) EolssuIcons.SpeakerLoud else EolssuIcons.SpeakerMute, contentDescription = null, modifier = Modifier.size(26.dp), tint = colors.text) },
         )
         SettingRow(
-            stringResource(Res.string.practice_jangdan_beat), null,
+            stringResource(Res.string.practice_jangdan_beat_switch), null,
             draft.beatVisual, { actions.onDraft { it.copy(beatVisual = !it.beatVisual) } },
             topLine = false, vertical = 14.dp, horizontal = SettingsCardInset,
+            // 연주 중 하단에 뜨는 장구(JangguBeats)와 같은 그림이라 켜면 무엇이 보이는지 바로 알 수 있다.
+            // 스위치를 끄면 장구를 흐리게 해 꺼진 상태를 함께 보여 준다.
+            leading = { Image(painterResource(Res.drawable.practice_beat_janggu), contentDescription = null, modifier = Modifier.size(32.dp), alpha = if (draft.beatVisual) 1f else 0.35f) },
         )
     }
 
