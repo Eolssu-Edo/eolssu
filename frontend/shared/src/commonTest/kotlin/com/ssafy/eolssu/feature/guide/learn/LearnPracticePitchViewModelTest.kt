@@ -11,6 +11,7 @@ import com.ssafy.eolssu.data.practice.NotePracticeCriteria
 import com.ssafy.eolssu.data.practice.NotePracticeCriteriaLoad
 import com.ssafy.eolssu.data.practice.NotePracticeCriteriaRepository
 import com.ssafy.eolssu.data.song.CatalogInstrument
+import kotlin.math.pow
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -300,5 +301,58 @@ class LearnPracticePitchViewModelTest {
         val vm = viewModel(Recorder(observes = false), stage = 7)
         assertFalse(vm.uiState.value.tonguesByPitch)
         assertTrue(vm.uiState.value.judgesByTongue)
+    }
+
+    /**
+     * 3단계 첫 소리는 판정 기준을 받지 못해도 공통 값으로 음높이를 판정한다. 소리가 커도 높이가 흔들리면 통과하지 못하고,
+     * 같은 높이를 1초 이어 내면 통과한다(S15P31E102-1216).
+     */
+    @Test fun stageThreePassesOnlyWhenOnePitchIsHeldForOneSecond() = runTest(dispatcher) {
+        val recorder = Recorder()
+        val vm = viewModel(recorder, stage = 3, load = null)
+        assertFalse(vm.uiState.value.autoJudged)
+        vm.prepare(GuideInstrument.Danso, detail)
+        runCurrent()
+        assertTrue(vm.uiState.value.autoJudged)
+        assertEquals(FIRST_SOUND_HOLD_MS, vm.uiState.value.pitch?.holdTargetMs)
+
+        vm.startListening()
+        runCurrent()
+        assertEquals(PitchGate.Lenient, recorder.pitchGate)
+        // 크게 내도 소리 크기만으로는 통과하지 않는다
+        advanceTimeBy(3_000)
+        runCurrent()
+        assertTrue(vm.uiState.value.listening)
+        // 음절마다 높이가 바뀌는 말소리, 높이가 잡히지 않는 소리
+        repeat(5) { listOf("林", "無", "潢").forEach { hold(recorder, hz(it), 300) } }
+        hold(recorder, null, 2_000)
+        assertTrue(vm.uiState.value.listening)
+        assertEquals(LearnPracticePhase.Listening, vm.uiState.value.phase)
+
+        hold(recorder, hz("仲"), 1_100)
+        val state = vm.uiState.value
+        assertEquals(LearnPracticePhase.Passed, state.phase)
+        assertFalse(state.listening)
+        assertEquals(PitchGate.Default, recorder.pitchGate)
+    }
+
+    /** 3단계는 기준을 받으면 그 허용 오차로 바꾸고, 음높이 관측이 없는 기기는 스스로 확인으로 남는다. */
+    @Test fun stageThreeUsesReceivedCriteriaAndStaysManualWithoutPitchReadings() = runTest(dispatcher) {
+        val recorder = Recorder()
+        val vm = viewModel(recorder, stage = 3, load = criteria.copy(pitchToleranceCent = 70.0))
+        vm.prepare(GuideInstrument.Danso, detail)
+        runCurrent()
+        vm.startListening()
+        runCurrent()
+        // 기준을 받기 전 공통 ±50센트였다면 처음 높이에서 60센트 벗어난 곳에서 새로 잰다. ±70센트라 이어진다.
+        hold(recorder, hz("仲"), 500)
+        hold(recorder, hz("仲") * 2.0.pow(60 / 1200.0), 600)
+        assertEquals(LearnPracticePhase.Passed, vm.uiState.value.phase)
+
+        val manual = viewModel(Recorder(observes = false), stage = 3, load = null)
+        manual.prepare(GuideInstrument.Danso, detail)
+        runCurrent()
+        assertNull(manual.uiState.value.pitch)
+        assertFalse(manual.uiState.value.autoJudged)
     }
 }
