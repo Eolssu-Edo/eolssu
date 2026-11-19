@@ -151,6 +151,49 @@ class ResultRecordSaveTest {
         }
     }
 
+    @Test fun leavingAnUnsavedResultAsksFirstAndKeepStaysOnTheScreen(): TestResult {
+        val records = ControlledRecords()
+        return withResult(records) { model, _ ->
+            assertTrue(model.uiState.value.confirmsLeave)
+            assertFalse(model.requestLeave(), "저장 전에는 바로 나가지 않는다")
+            assertTrue(model.uiState.value.leaveWarning)
+            model.dismissLeaveWarning()
+            assertFalse(model.uiState.value.leaveWarning)
+            assertNotNull(model.uiState.value.result, "‘계속 보기’는 결과를 그대로 둔다")
+            assertEquals(0, records.saveCalls)
+        }
+    }
+
+    @Test fun leavingASavedResultGoesBackWithoutAsking(): TestResult {
+        val records = ControlledRecords()
+        return withResult(records) { model, _ ->
+            model.save()
+            model.confirmSave()
+            runCurrent()
+            assertNotNull(model.uiState.value.savedRecord)
+            model.closeSheet()
+            assertFalse(model.uiState.value.confirmsLeave)
+            assertTrue(model.requestLeave(), "저장을 마친 결과는 바로 나간다")
+            assertFalse(model.uiState.value.leaveWarning)
+        }
+    }
+
+    @Test fun failedSaveStillAsksBeforeLeaving(): TestResult {
+        val records = ControlledRecords().apply { saveFailure = IllegalStateException("transport failure") }
+        return withResult(records) { model, _ ->
+            model.save()
+            model.confirmSave()
+            runCurrent()
+            assertNull(model.uiState.value.savedRecord)
+            assertFalse(model.requestLeave(), "저장에 실패했으면 결과가 저장되지 않았으므로 확인한다")
+            assertTrue(model.uiState.value.leaveWarning)
+        }
+    }
+
+    @Test fun resultWithoutSongLeavesWithoutAsking() {
+        assertFalse(ResultUiState().confirmsLeave)
+    }
+
     @Test fun weakSectionAndFilterShareTheResultScreen(): TestResult {
         val weak = Picks(listOf(WeakSectionPick(1, 2, errorCount = 2)))
         return withResult(ControlledRecords(), weak) { model, _ ->
