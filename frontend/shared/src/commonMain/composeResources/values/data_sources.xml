@@ -4,7 +4,6 @@
     <string name="sources_title">자료 및 데이터 출처</string>
     <string name="sources_intro">얼쑤의 음원·그림·운지표·학습 자료는 아래 출처를 바탕으로 만들었어요. 링크를 누르면 원본 페이지가 열려요.</string>
     <string name="sources_usage">쓰는 곳 · %1$s</string>
-    <string name="sources_no_link">원본 링크가 아직 등록되지 않은 자료예요.</string>
     <string name="sources_link_failed">링크를 열지 못했어요. 다시 시도해 주세요.</string>
     <string name="sources_open_link">%1$s 열기</string>
 
@@ -32,7 +31,7 @@
 
     <string name="source_eacademy_name">국립국악원 e국악아카데미</string>
     <string name="source_eacademy_usage">단소 운지표(「단소 안공법」과 「단소 운지표」), 기초부터 배우기 단계 구성(단소 지도서, 대금·소금·단소 강좌 차시)</string>
-    <string name="source_eacademy_note">기초부터 배우기의 단계 순서는 이 자료를 따른 초안이에요(팀 확정 전).</string>
+    <string name="source_eacademy_note">기초부터 배우기의 단계 순서는 이 자료의 지도 순서를 바탕으로 정했어요.</string>
 
     <string name="source_sogeum_book_name">국립국악원 『창작을 위한 국악기 이해와 활용 2』</string>
     <string name="source_sogeum_book_usage">소금 운지표(3장 소금 61쪽 [표 1] 향악계곡 안공법)</string>

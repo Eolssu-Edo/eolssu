@@ -446,6 +446,8 @@ fun EolssuNavHost(
                     evaluationId = evaluationId,
                     initialSong = evaluationSong?.takeIf { it.first == evaluationId }?.second,
                     onBack = { navController.popBackStackFrom(entry, pastDirectPractice = true) },
+                    // 저장하지 않은 결과면 Web 브라우저 뒤로 가기도 ‘연주 결과를 버릴까요?’를 띄운다(S15P31E102-1214).
+                    onConfirmBackChange = { browserBackGuard?.onBack = it },
                     onPracticeAgain = { songId ->
                         if (navController.currentBackStackEntry?.id == entry.id) {
                             val previous = navController.previousBackStackEntry

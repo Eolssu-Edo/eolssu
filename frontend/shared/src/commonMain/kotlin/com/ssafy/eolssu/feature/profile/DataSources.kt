@@ -33,7 +33,7 @@ import org.jetbrains.compose.resources.StringResource
 /**
  * 앱 화면에서 쓰는 자료·데이터의 출처 하나. 같은 출처를 여러 화면이 써도 여기에는 한 번만 둔다([usage]에 쓰는 곳을 모은다).
  *
- * @property links 원본·이용 조건 주소. 코드·리소스에서 확인한 주소만 넣고, 확인하지 못한 자료는 비워 둔다.
+ * @property links 원본·이용 조건 주소. 직접 열어 자료와 맞는지 확인한 주소만 넣고, 확인하지 못한 자료는 비워 둔다(화면에 링크 칸이 생기지 않는다).
  */
 data class DataSource(
     val id: String,
@@ -85,12 +85,20 @@ val DataSources: List<DataSource> = listOf(
         kind = Res.string.source_kind_education,
         usage = Res.string.source_eacademy_usage,
         note = Res.string.source_eacademy_note,
+        links = listOf(DataSourceLink(Res.string.source_link_original, "https://academy.gugak.go.kr/")),
     ),
     DataSource(
         id = "gugak-sogeum-book",
         name = Res.string.source_sogeum_book_name,
         kind = Res.string.source_kind_book,
         usage = Res.string.source_sogeum_book_usage,
+        // 국립국악원 악기연구소 게시판. 「3장. 소금」 PDF(kor_sogeum.pdf)가 이 목록에 있다.
+        links = listOf(
+            DataSourceLink(
+                Res.string.source_link_original,
+                "https://www.gugak.go.kr/site/program/board/basicboard/list?boardtypeid=138&menuid=001003003006002&lang=ko",
+            ),
+        ),
     ),
     DataSource(
         id = "gugak-daegeum-jeongak-book",
@@ -98,6 +106,12 @@ val DataSources: List<DataSource> = listOf(
         kind = Res.string.source_kind_score_book,
         usage = Res.string.source_daegeum_book_usage,
         note = Res.string.source_daegeum_book_note,
+        links = listOf(
+            DataSourceLink(
+                Res.string.source_link_original,
+                "https://www.gugak.go.kr/site/program/board/basicboard/view?boardid=17409&boardtypeid=88&menuid=001003002002&pagesize=10",
+            ),
+        ),
     ),
     DataSource(
         id = "pirisa-sanjo-chart",

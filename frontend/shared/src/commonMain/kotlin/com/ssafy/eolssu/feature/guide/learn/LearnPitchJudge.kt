@@ -18,6 +18,7 @@ import kotlin.math.pow
  * 한 음씩과 같은 악기별 완화([StepLeniency])를 그대로 쓴다(S15P31E102-857). 기초 배우기만의 차이는 4·5단계가 옥타브를 따지지 않는 것과
  * 4단계 직접 불기가 음마다 [LEARN_STAGE_FOUR_HOLD_MS] 동안 이어 불어야 하는 것이다(S15P31E102-860).
  * 7단계 혀치기의 같은 음 판정([LearnTongueTracker])은 아래 공통 허용 오차를 따로 쓴다(S15P31E102-845).
+ * 3단계 첫 소리는 정해진 음 없이 처음 낸 높이를 [FIRST_SOUND_HOLD_MS] 동안 이어 내야 통과한다([learnFirstSoundPlan], S15P31E102-1216).
  */
 
 /** 4단계 직접 불기에서 한 음을 맞음으로 볼 유지 시간: 1초. 처음 익히는 음을 충분히 이어 불게 하려고 서버 한 음씩 유지 시간 대신 쓴다(S15P31E102-860). */
@@ -63,7 +64,7 @@ data class LearnPitchRule(
     val countsMisses: Boolean = false,
 )
 
-/** 단계 연습에서 차례로 낼 음([notes] 율명, [targetsHz] 높이)과 통과에 필요한 맞은 음 수. */
+/** 단계 연습에서 차례로 낼 음([notes] 율명, [targetsHz] 높이)과 통과에 필요한 맞은 음 수. [targetsHz]가 비면 정해진 음 없이 처음 낸 높이를 목표로 삼는다. */
 data class LearnPitchPlan(val notes: List<String>, val targetsHz: List<Double>, val required: Int, val rule: LearnPitchRule)
 
 /**
@@ -88,6 +89,26 @@ internal fun learnPitchPlan(stage: Int, detail: LearnStageDetail, instrument: Gu
     return LearnPitchPlan(notes, targets, notes.size, rule)
 }
 
+/**
+ * 3단계 첫 소리 판정 계획(S15P31E102-1216). 어떤 음이든 처음 낸 높이에서 허용 오차 안에 [FIRST_SOUND_HOLD_MS] 동안 머물면 통과한다.
+ * 소리 크기만 보던 판정은 말소리·박수로도 넘어가서 바꿨다. 허용 오차·신뢰도는 7단계 혀치기처럼 공통 값과 서버 기준([criteria], 받지 못하면 null) 가운데
+ * 넓은 쪽을, 끊김 허용·높이 문턱은 한 음씩과 같은 악기별 완화([StepLeniency])를 쓴다. 정해진 음이 없으니 첫 음 조율은 하지 않고, 옥타브가 바뀌면 다른 높이다.
+ */
+internal fun learnFirstSoundPlan(instrument: GuideInstrument, criteria: NotePracticeCriteria?): LearnPitchPlan = LearnPitchPlan(
+    notes = listOf(""),
+    targetsHz = emptyList(),
+    required = 1,
+    rule = LearnPitchRule(
+        toleranceCent = learnToleranceCent(criteria),
+        holdMs = FIRST_SOUND_HOLD_MS,
+        minConfidence = criteria?.minConfidence ?: LEARN_PITCH_MIN_CONFIDENCE,
+        octaveMustMatch = true,
+        firstNoteTuning = false,
+        maxTuningOffsetCent = 0.0,
+        leniency = StepLeniency.forInstrument(instrument.criteriaCode),
+    ),
+)
+
 /** 한 음의 판정. */
 enum class LearnNoteResult { Hit, Miss }
 
@@ -100,8 +121,10 @@ enum class LearnNoteResult { Hit, Miss }
  *   신뢰도(1 − YIN 정규화 차이)가 낮은 관측은 판정에서 빼고 이어짐도 끊지 않는다.
  * - 틀림([LearnPitchRule.countsMisses]일 때만): 목표 밖의 한 높이(첫 관측 ±허용 오차)가 같은 시간 이어짐.
  * - 판정 직후에는 방금 낸 높이가 계속 들리는 동안 다음 음을 재지 않는다. 같은 음이 이어지면 한 번 끊은 뒤에 센다.
+ * - 정해진 음이 없으면([LearnPitchPlan.targetsHz]가 빔, 3단계) 지금 이어짐의 평균 높이가 목표다(떨림이 고르게 오르내리면 이어짐).
+ *   끊김 허용 밖으로 벗어나면 그 높이에서 새로 잰다.
  */
-internal class LearnPitchTracker(private val plan: LearnPitchPlan) {
+internal class LearnPitchTracker(val plan: LearnPitchPlan) {
     private val rule = plan.rule
     var index = 0
         private set
@@ -128,6 +151,11 @@ internal class LearnPitchTracker(private val plan: LearnPitchPlan) {
     private val onRun = mutableListOf<Double>()
     private var offStart = 0L
     private var offHz: Double? = null
+
+    /** 정해진 음이 없을 때 지금 이어짐의 높이(log2 Hz) 합과 개수. 평균이 목표 높이다. */
+    private var anchorLogSum = 0.0
+    private var anchorCount = 0
+    private val anchorHz: Double? get() = if (anchorCount == 0) null else 2.0.pow(anchorLogSum / anchorCount)
 
     fun reset() {
         index = 0
@@ -170,8 +198,18 @@ internal class LearnPitchTracker(private val plan: LearnPitchPlan) {
             if (heldHz?.let { abs(tuned(heard, it)) <= rule.toleranceCent } == true) return null
             released = true
         }
-        val goal = plan.targetsHz[index]
+        var goal = plan.targetsHz.getOrNull(index) ?: anchorHz ?: heard
+        // 정해진 음이 없으면 벗어난 높이에서 새로 잰다. 끊김 허용 안이면 앞 높이를 이어 가는 중이다.
+        if (plan.targetsHz.isEmpty() && tuned(heard, goal) !in window(goal)) {
+            breakRun(reading)
+            if (onRun.isNotEmpty()) return null
+            goal = heard
+        }
         if (tuned(heard, goal) in window(goal)) {
+            if (plan.targetsHz.isEmpty()) {
+                anchorLogSum += log2(heard)
+                anchorCount++
+            }
             offHz = null
             if (onRun.isEmpty()) onStart = reading.endSample
             onEnd = reading.endSample
@@ -219,6 +257,8 @@ internal class LearnPitchTracker(private val plan: LearnPitchPlan) {
     private fun clearRuns() {
         onRun.clear()
         offHz = null
+        anchorLogSum = 0.0
+        anchorCount = 0
         holdMs = 0.0
     }
 

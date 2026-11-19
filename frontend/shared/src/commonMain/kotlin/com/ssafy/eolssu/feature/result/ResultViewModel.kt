@@ -41,6 +41,7 @@ import kotlinx.coroutines.launch
  * @property memo 저장 시트에 적는 메모(선택). 저장할 때 함께 보낸다.
  * @property filter 정간보에 칠할 틀린 종류.
  * @property weakSection 서버가 추천한 취약 구간(EVA-03 첫 구간). 없거나 받지 못하면 null.
+ * @property leaveWarning 저장하지 않은 결과를 두고 뒤로 가려 할 때 띄우는 ‘결과를 저장하지 않고 나갈까요?’ 창(S15P31E102-1214).
  */
 data class ResultUiState(
     val result: EvaluationResult? = null,
@@ -55,7 +56,11 @@ data class ResultUiState(
     val scorePreview: EvaluationResult? = null,
     val filter: ErrorFilter = ErrorFilter.All,
     val weakSection: WeakSectionPick? = null,
-)
+    val leaveWarning: Boolean = false,
+) {
+    /** 저장할 수 있는 결과가 보이는데 아직 저장하지 않았으면 뒤로 가기 전에 확인한다. 저장을 마쳤거나 결과·곡을 못 받았으면 바로 나간다. */
+    val confirmsLeave: Boolean get() = result != null && song != null && savedRecord == null
+}
 
 /** 저장 시트 두 단계: [Form] 곡·점수 카드와 메모, ‘저장’ 버튼 → [Saved] ‘연습 기록에 저장했어요’만. */
 enum class SaveSheet { Form, Saved }
@@ -214,6 +219,16 @@ class ResultViewModel(
     fun dismissRecordSaveError() = _uiState.update { it.copy(recordSaveError = null) }
 
     fun changeMemo(memo: String) = _uiState.update { if (it.savedRecord == null) it.copy(memo = memo) else it }
+
+    /** 뒤로 가기. 바로 나가도 되면 true, 저장하지 않은 결과라 확인 창을 띄웠으면 false다(S15P31E102-1214). */
+    fun requestLeave(): Boolean {
+        if (!_uiState.value.confirmsLeave) return true
+        _uiState.update { it.copy(leaveWarning = true) }
+        return false
+    }
+
+    /** 확인 창을 닫고 결과 화면에 머문다. ‘나가기’로 나갈 때도 창을 먼저 닫는다. */
+    fun dismissLeaveWarning() = _uiState.update { it.copy(leaveWarning = false) }
 
     /** 시트 바깥을 누르거나 닫으면 닫는다. 저장 중에는 결과가 올 때까지 둔다. */
     fun closeSheet() = _uiState.update { if (it.savingRecord) it else it.copy(saveSheet = null) }

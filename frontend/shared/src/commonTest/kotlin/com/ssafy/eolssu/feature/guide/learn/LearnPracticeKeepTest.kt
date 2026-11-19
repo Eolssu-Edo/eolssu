@@ -2,7 +2,9 @@ package com.ssafy.eolssu.feature.guide.learn
 
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.PitchGate
+import com.ssafy.eolssu.core.audio.PitchReading
 import com.ssafy.eolssu.core.audio.RecordedAudio
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -11,6 +13,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
@@ -30,7 +33,11 @@ class LearnPracticeKeepTest {
 
     @AfterTest fun tearDown() = Dispatchers.resetMain()
 
+    /** 큰 소리로 같은 높이를 내는 녹음기. [send]마다 20ms 관측 하나를 낸다. */
     private class LoudRecorder : AudioRecorder {
+        private val flow = MutableSharedFlow<PitchReading>(extraBufferCapacity = 256)
+        private var sequence = 0L
+        override val pitchReadings = flow
         override val measuresLevel = true
         override var pitchGate: PitchGate = PitchGate.Default
         override fun start() = Unit
@@ -39,15 +46,25 @@ class LearnPracticeKeepTest {
         override fun stop(): RecordedAudio? = null
         override fun cancel() = Unit
         override fun level() = 0.6f
+
+        fun send(hz: Double) {
+            val end = sequence * 20 + 46
+            flow.tryEmit(PitchReading(1, 1, sequence++, end - 46, end, 1000, hz, 0, 0.05))
+        }
     }
 
     /** 3단계를 통과한 뒤 새 배치가 같은 ViewModel에 다시 붙어도 통과 상태가 남고, 진행 막대는 연습 박스까지 마친 것으로 센다. */
     @Test fun stageThreePassSurvivesReattach() = runTest(dispatcher) {
-        val vm = LearnPracticeViewModel(3, LoudRecorder(), null, timeSource = testScheduler.timeSource)
+        val recorder = LoudRecorder()
+        val vm = LearnPracticeViewModel(3, recorder, null, timeSource = testScheduler.timeSource)
+        vm.prepare(GuideInstrument.Danso, LearnStageDetail(goal = "", why = "", source = ""))
         vm.startListening()
         runCurrent()
         advanceTimeBy(1_000)
-        runCurrent()
+        repeat(55) {
+            recorder.send(466.0)
+            runCurrent()
+        }
         assertEquals(LearnPracticePhase.Passed, vm.uiState.value.phase)
 
         // 회전 뒤 다른 배치가 그리며 통과 상태를 다시 알린다. 3단계는 '완료했어요!'를 띄우지 않는다.
