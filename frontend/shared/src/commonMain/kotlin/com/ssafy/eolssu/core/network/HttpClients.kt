@@ -319,15 +319,21 @@ internal fun HttpRequestBuilder.skipAuthRefresh() {
 }
 
 /** 공개 GET은 인증 변경과 독립적으로 실행하고, 응답을 사용할 때는 호출자의 로그인 세대를 확인한다. */
-internal suspend fun HttpClient.getPublicOrNull(
+internal suspend fun HttpClient.getPublic(
     path: String,
     configure: HttpRequestBuilder.() -> Unit = {},
-): HttpResponse? = (sendCatching(accountBound = false) {
+): NetworkResult = sendCatching(accountBound = false) {
     get(path) {
         skipAuthRefresh()
         configure()
     }
-} as? NetworkResult.Received)?.response
+}
+
+/** [getPublic]에서 연결 실패와 시간 초과를 나눌 필요가 없을 때 쓴다. 응답을 받지 못하면 null. */
+internal suspend fun HttpClient.getPublicOrNull(
+    path: String,
+    configure: HttpRequestBuilder.() -> Unit = {},
+): HttpResponse? = (getPublic(path, configure) as? NetworkResult.Received)?.response
 
 /** 본문을 공통 형식으로 읽는다. 형식이 아니면(프록시 오류 페이지 등) null. */
 suspend inline fun <reified T> HttpResponse.apiResponse(): ApiResponse<T>? = try {

@@ -152,7 +152,14 @@ internal fun MySongsBody(
     rowGap: Dp = 8.dp,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        MySongsTabSwitch(state.tab, state.songs.size, state.sheetCount, actions.onSelectTab, Modifier.padding(top = 4.dp))
+        // 목록을 받지 못했으면(불러오는 중·연결 끊김·오류) '제공 곡 0'·'내 악보 0'으로 보이지 않게 개수를 숨긴다.
+        MySongsTabSwitch(
+            state.tab,
+            state.songs.size.takeIf { state.loadState == SongLoadState.Ready },
+            state.sheetCount.takeIf { state.sheetLoadState == SongLoadState.Ready || it > 0 },
+            actions.onSelectTab,
+            Modifier.padding(top = 4.dp),
+        )
         SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery, bordered = false)
         val searching = state.query.isNotBlank()
         when (state.tab) {

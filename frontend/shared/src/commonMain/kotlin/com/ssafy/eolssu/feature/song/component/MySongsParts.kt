@@ -43,12 +43,12 @@ import eolssu.shared.generated.resources.mysongs_tab_sheets
 import eolssu.shared.generated.resources.mysongs_tab_songs
 import org.jetbrains.compose.resources.stringResource
 
-/** SONG-03 두 칸 탭(`.tabs`, `role=tablist`): 흰 바탕 옅은 테두리 틀 안에서 고른 칸만 연두 바탕. 개수는 회색으로 붙인다. */
+/** SONG-03 두 칸 탭(`.tabs`, `role=tablist`): 흰 바탕 옅은 테두리 틀 안에서 고른 칸만 연두 바탕. 개수는 회색으로 붙이고, 아직 모르는 개수(null)는 숨긴다. */
 @Composable
 internal fun MySongsTabSwitch(
     tab: MySongsTab,
-    songCount: Int,
-    sheetCount: Int,
+    songCount: Int?,
+    sheetCount: Int?,
     onSelect: (MySongsTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -84,7 +84,7 @@ internal fun MySongsTabSwitch(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                     val style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp)
                     Text(label, style = style.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium))
-                    Text("$count", style = style.copy(fontWeight = FontWeight.Medium), color = colors.textMuted)
+                    if (count != null) Text("$count", style = style.copy(fontWeight = FontWeight.Medium), color = colors.textMuted)
                 }
             }
         }

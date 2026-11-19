@@ -15,12 +15,14 @@ import com.ssafy.eolssu.core.network.AccountSession
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.ensureAccountSession
-import com.ssafy.eolssu.core.network.getPublicOrNull
+import com.ssafy.eolssu.core.network.NetworkResult
+import com.ssafy.eolssu.core.network.getPublic
 import com.ssafy.eolssu.core.network.inSession
-import com.ssafy.eolssu.core.network.sendOrNull
+import com.ssafy.eolssu.core.network.sendCatching
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.statement.HttpResponse
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -52,9 +54,9 @@ class ApiSongRepository(
 
     override suspend fun getSongs(instrumentId: String?): List<SongSummary> {
         if (instrumentId != null && !validCatalogId(instrumentId)) throw CatalogUnavailable()
-        val response = client.sendOrNull {
+        val response = client.sendCatching {
             get("/api/songs") { instrumentId?.let { parameter("instrumentId", it) } }
-        } ?: throw CatalogUnavailable()
+        }.responseOrThrow()
         if (response.status.value != 200) throw CatalogUnavailable()
         val items = response.apiResponse<SongListResponse>()?.takeIf { it.isSuccess }?.result?.items
             ?: throw CatalogUnavailable()
@@ -154,8 +156,8 @@ class ApiSongRepository(
 
     private suspend fun loadCatalogSong(songId: String, scoreVersion: Int? = null): CatalogSong? {
         if (!validCatalogId(songId)) return null
-        val response = client.getPublicOrNull("/api/songs/$songId") { scoreVersion?.let { parameter("scoreVersion", it) } }
-            ?: throw CatalogUnavailable()
+        val response = client.getPublic("/api/songs/$songId") { scoreVersion?.let { parameter("scoreVersion", it) } }
+            .responseOrThrow()
         if (response.status.value == 404) return null
         if (response.status.value != 200) throw CatalogUnavailable()
         val item = response.apiResponse<CatalogSong>()?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
@@ -165,8 +167,8 @@ class ApiSongRepository(
 
     private suspend fun loadVerified(item: CatalogSong, scoreVersion: Int?, level: SongLevel): EditableSong? {
         val songId = item.songId
-        val scoreResponse = client.getPublicOrNull("/api/songs/$songId/score") { scoreVersion?.let { parameter("scoreVersion", it) } }
-            ?: throw CatalogUnavailable()
+        val scoreResponse = client.getPublic("/api/songs/$songId/score") { scoreVersion?.let { parameter("scoreVersion", it) } }
+            .responseOrThrow()
         if (scoreResponse.status.value == 404) return null
         if (scoreResponse.status.value != 200) throw CatalogUnavailable()
         val scoreItem = scoreResponse.apiResponse<CatalogScore>()?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
@@ -250,7 +252,16 @@ private class CatalogScoreEvent(
 )
 
 /** 내용을 꾸미거나 예시 곡으로 대체하지 않고 화면의 재시도 상태로 전달한다. */
-class CatalogUnavailable : Exception("Catalog unavailable or invalid")
+open class CatalogUnavailable(message: String = "Catalog unavailable or invalid") : Exception(message)
+
+/** 서버에 닿지 못했다(연결 실패·시간 초과). 화면은 서버 오류와 나누어 인터넷 연결 안내를 보인다. */
+class CatalogUnreachable : CatalogUnavailable("Catalog server unreachable")
+
+/** 응답을 받았으면 돌려주고, 받지 못했으면(연결 실패·시간 초과) [CatalogUnreachable]을 던진다. */
+internal fun NetworkResult.responseOrThrow(): HttpResponse = when (this) {
+    is NetworkResult.Received -> response
+    NetworkResult.ConnectionFailed, NetworkResult.TimedOut -> throw CatalogUnreachable()
+}
 
 internal fun validCatalogId(id: String): Boolean = id.matches(Regex("[1-9][0-9]{0,18}")) && (id.toLongOrNull() ?: 0) > 0
 

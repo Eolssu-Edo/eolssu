@@ -194,6 +194,7 @@ fun PracticeRoute(
                     },
                     onDenyMic = viewModel::closePopup,
                     onClose = viewModel::closePopup,
+                    onRetryEvaluation = viewModel::retryEvaluation,
                     onGoHome = {
                         viewModel.stopAll()
                         onGoHome()
