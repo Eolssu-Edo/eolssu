@@ -7,6 +7,7 @@ import kotlin.math.roundToInt
 import kotlinx.serialization.json.*
 import com.ssafy.eolssu.data.song.CatalogInstrument
 import com.ssafy.eolssu.data.song.CatalogAuthoringCapabilities
+import com.ssafy.eolssu.data.song.CommonScoreData
 import com.ssafy.eolssu.core.model.ScoreNote
 
 data class SheetAdaptationUi(
@@ -146,12 +147,52 @@ internal fun SheetDraft.sourcePitchNotes(): List<SourcePitchNote> {
     }
 }
 
+private val SourceScoreJson = Json { ignoreUnknownKeys = true }
+
+/**
+ * 서버가 처음 가져올 때 남긴 불변 원본 악보(`authoring.source.score`). 임시저장본을 다시 열거나 장단·음 바로 고치기로
+ * 편집 상태를 다시 만들면 [SheetDraft.original]은 그때의 악보(고친 나눔·시김새 포함)가 되므로, 높이 맞추기의 '처음 악보'는
+ * 이 원본에서 찾는다. 장단을 골라 박 단위나 박·정간 tick 비율이 바뀌었으면 지금 악보와 같게 시간만 늘린다.
+ */
+internal fun SheetDraft.importedSourceScore(): CommonScoreData? {
+    val current = original ?: return null
+    val element = (authoring?.get("source") as? JsonObject)?.get("score") as? JsonObject ?: return null
+    val imported = runCatching { SourceScoreJson.decodeFromJsonElement(CommonScoreData.serializer(), element) }.getOrNull()
+        ?: return null
+    return imported.retimedLike(current.music)
+}
+
+/** 박 단위·장단 이름과 박·정간 tick 비율을 [target]에 맞춘다. 장단 보정처럼 모든 이벤트 시간을 같은 배율로 늘린다. */
+private fun CommonScoreData.retimedLike(target: CommonScoreData.Music): CommonScoreData? {
+    val cell = music.ticksPerJeonggan.toLong()
+    val beat = music.ticksPerBeat.toLong()
+    val targetCell = target.ticksPerJeonggan.toLong()
+    val targetBeat = target.ticksPerBeat.toLong()
+    if (cell <= 0 || beat <= 0 || targetCell <= 0 || targetBeat <= 0) return null
+    val named = music.copy(jangdan = target.jangdan, bpmUnit = target.bpmUnit)
+    if (beat * targetCell == targetBeat * cell) return copy(music = named)
+    val divisor = gcd(targetBeat, targetCell)
+    val beatPart = targetBeat / divisor
+    val cellPart = targetCell / divisor
+    val factor = cellPart / gcd(cell, cellPart)
+    val nextCell = cell * factor
+    val nextBeat = nextCell / cellPart * beatPart
+    if (nextCell > Int.MAX_VALUE || nextBeat > Int.MAX_VALUE ||
+        events.any { it.startTick + it.durationTick > Long.MAX_VALUE / factor }) return null
+    return copy(music = named.copy(ticksPerBeat = nextBeat.toInt(), ticksPerJeonggan = nextCell.toInt()),
+        events = events.map { it.copy(startTick = it.startTick * factor, durationTick = it.durationTick * factor) })
+}
+
+private tailrec fun gcd(a: Long, b: Long): Long = if (b == 0L) a else gcd(b, a % b)
+
 /**
  * 높이 맞추기의 출발점: 처음 연 악보의 각·정간·음·나눔·시김새. 새로 넣은 각은 빼고 지운 각은 되살린다.
  * 제목·빠르기·장단 설정은 그대로 두고, 구간 빠르기는 각을 빼고 넣는 편집과 같은 규칙으로 위치를 옮긴다(S15P31E102-1136).
+ * 처음 악보는 불변 원본([importedSourceScore])이 있으면 그것이고, 없으면(제공 곡·내 악보 복사) [SheetDraft.original]이다.
  */
 internal fun SheetDraft.withOriginalNotes(): SheetDraft {
-    val source = original ?: return this
+    val imported = importedSourceScore()
+    val source = imported ?: original ?: return this
     val pristine = runCatching { source.editingDraft(title, bpm, jangdan) }.getOrNull() ?: return this
     val originalIds = pristine.sourceCellIds?.filterNotNull() ?: return this
     if (sourceCellIds == null) return this
@@ -170,8 +211,11 @@ internal fun SheetDraft.withOriginalNotes(): SheetDraft {
             column >= restored.columnCount) restored = restored.insertColumnAt(column, ids)
     }
     if (restored.sourceCellIds != pristine.sourceCellIds) return this
+    // 불변 원본으로 돌아가면 편집 중 쌓인 높이 기준(이벤트 ID별 음)은 버리고 원본의 음 기록(authoring.source.notes)을 쓴다.
+    // 다시 만든 악보의 ID가 원본의 다른 음과 우연히 같아 엉뚱한 높이를 가져오지 않게 한다.
     restored = restored.copy(cells = pristine.cells, columnSizes = pristine.columnSizes ?: restored.columnSizes,
-        sigimsae = pristine.sigimsae)
+        sigimsae = pristine.sigimsae, original = source,
+        adaptationBaseline = if (imported == null) adaptationBaseline else emptyMap())
     return restored.takeIf { runCatching { it.toCommonScore() }.isSuccess } ?: this
 }
 
