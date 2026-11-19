@@ -211,22 +211,25 @@ fun ResultScreen(
         null -> Unit
     }
     // 저장하지 않은 결과를 두고 뒤로 가면 확인한다(S15P31E102-1214).
-    // 두 버튼은 한 줄에 반씩 두고, 아래 버튼 줄처럼 ‘계속 보기’를 왼쪽, ‘나가기’를 오른쪽에 둔다.
-    // 결과를 잃는 ‘나가기’는 기록 삭제 창처럼 빨간 버튼(Danger)이다.
+    // 두 버튼은 한 줄에 반씩 둔다. 머무는 ‘계속 보기’가 주(연두) 버튼이고, 결과를 잃는 ‘나가기’는
+    // 연한 빨강 바탕에 빨간 글자로 둬 경고는 보이되 화면의 연두·먹색 톤을 누르지 않게 한다.
     if (state.leaveWarning) {
         EolssuDialog(
             title = stringResource(Res.string.result_leave_title),
             message = stringResource(Res.string.result_leave_body),
             onDismissRequest = actions.onKeepResult,
         ) {
+            val colors = EolssuTheme.colors
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 EolssuButton(
-                    stringResource(Res.string.result_leave_keep), actions.onKeepResult, Modifier.weight(1f),
-                    style = EolssuButtonStyle.Secondary, singleLine = true, qaTarget = QaTarget.RESULT_SCREEN_BUTTON_06,
+                    stringResource(Res.string.result_leave_discard), actions.onDiscardResult, Modifier.weight(1f),
+                    style = EolssuButtonStyle.Secondary, small = true, singleLine = true,
+                    containerColor = colors.recSoft, contentColor = colors.recText, borderColor = colors.recSoft,
+                    qaTarget = QaTarget.RESULT_SCREEN_BUTTON_05,
                 )
                 EolssuButton(
-                    stringResource(Res.string.result_leave_discard), actions.onDiscardResult, Modifier.weight(1f),
-                    style = EolssuButtonStyle.Danger, singleLine = true, qaTarget = QaTarget.RESULT_SCREEN_BUTTON_05,
+                    stringResource(Res.string.result_leave_keep), actions.onKeepResult, Modifier.weight(1f),
+                    small = true, singleLine = true, qaTarget = QaTarget.RESULT_SCREEN_BUTTON_06,
                 )
             }
         }
