@@ -62,6 +62,7 @@ import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EolssuBottomSheet
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
@@ -97,6 +98,10 @@ import eolssu.shared.generated.resources.result_memo_placeholder
 import eolssu.shared.generated.resources.result_other_song_more
 import eolssu.shared.generated.resources.result_practice_again
 import eolssu.shared.generated.resources.result_sample_badge
+import eolssu.shared.generated.resources.result_leave_body
+import eolssu.shared.generated.resources.result_leave_discard
+import eolssu.shared.generated.resources.result_leave_keep
+import eolssu.shared.generated.resources.result_leave_title
 import eolssu.shared.generated.resources.result_save
 import eolssu.shared.generated.resources.result_save_confirm
 import eolssu.shared.generated.resources.result_saved_button
@@ -122,6 +127,10 @@ class ResultActions(
     val onRetrySong: () -> Unit = {},
     val onRetryResult: () -> Unit = {},
     val onOpenRecord: () -> Unit = {},
+    /** ‘연주 결과를 버릴까요?’의 ‘계속 보기’·바깥 누름·뒤로 가기: 창만 닫는다. */
+    val onKeepResult: () -> Unit = {},
+    /** ‘연주 결과를 버릴까요?’의 ‘버리기’: 저장하지 않고 나간다. */
+    val onDiscardResult: () -> Unit = {},
 )
 
 /**
@@ -200,6 +209,17 @@ fun ResultScreen(
         )
         SaveSheet.Saved -> SavedSheet(actions.onCloseSheet, actions.onOpenRecord)
         null -> Unit
+    }
+    // 저장하지 않은 결과를 두고 뒤로 가면 확인한다(S15P31E102-1214). 문구·버튼 순서는 연주 중단 창과 같다.
+    if (state.leaveWarning) {
+        EolssuDialog(
+            title = stringResource(Res.string.result_leave_title),
+            message = stringResource(Res.string.result_leave_body),
+            onDismissRequest = actions.onKeepResult,
+        ) {
+            EolssuButton(stringResource(Res.string.result_leave_discard), actions.onDiscardResult, qaTarget = QaTarget.RESULT_SCREEN_BUTTON_05)
+            EolssuButton(stringResource(Res.string.result_leave_keep), actions.onKeepResult, style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.RESULT_SCREEN_BUTTON_06)
+        }
     }
 }
 
