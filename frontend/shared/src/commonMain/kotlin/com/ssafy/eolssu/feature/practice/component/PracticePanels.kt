@@ -44,7 +44,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -296,7 +295,7 @@ private fun MenuRow(icon: ImageVector, label: String, status: String, enabled: B
 
 /**
  * 스위치 줄(`.trow`): 위 선(`#EEEBE3`), 위아래 12dp, 15sp 600 이름과 13sp 설명, 오른쪽 50×30 스위치.
- * [leading]이 있으면 이름 앞에 그림을 둬 무엇을 켜는지 보여 준다.
+ * [leading]이 있으면 이름 앞 32dp 자리에 그림을 둬 무엇을 켜는지 보여 준다.
  * [enabled]가 아니면 줄을 흐리게 하고 스위치를 끈다(`.trow.off`).
  */
 @Composable
@@ -310,7 +309,7 @@ private fun SettingRow(
     vertical: Dp = 12.dp,
     horizontal: Dp = 0.dp,
     topPadding: Dp? = null,
-    leading: Painter? = null,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     val colors = EolssuTheme.colors
     Row(
@@ -323,7 +322,7 @@ private fun SettingRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (leading != null) Image(leading, contentDescription = null, modifier = Modifier.size(32.dp))
+        if (leading != null) Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { leading() }
         Column(Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
             if (description != null) {
@@ -487,13 +486,14 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
             stringResource(Res.string.practice_jangdan_sound), null,
             draft.jangdanSound && state.jangdanSupported, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, enabled = state.jangdanSupported,
             topLine = false, vertical = 14.dp, horizontal = SettingsCardInset, topPadding = 14.dp,
+            leading = { Icon(EolssuIcons.Speaker, contentDescription = null, modifier = Modifier.size(26.dp), tint = colors.text) },
         )
         SettingRow(
             stringResource(Res.string.practice_jangdan_beat_switch), null,
             draft.beatVisual, { actions.onDraft { it.copy(beatVisual = !it.beatVisual) } },
             topLine = false, vertical = 14.dp, horizontal = SettingsCardInset,
             // 연주 중 하단에 뜨는 장구(JangguBeats)와 같은 그림이라 켜면 무엇이 보이는지 바로 알 수 있다.
-            leading = painterResource(Res.drawable.practice_beat_janggu),
+            leading = { Image(painterResource(Res.drawable.practice_beat_janggu), contentDescription = null, modifier = Modifier.size(32.dp)) },
         )
     }
 
